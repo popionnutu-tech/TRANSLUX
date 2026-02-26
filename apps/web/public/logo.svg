@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 80">
+  <defs>
+    <style>
+      .logo-text {
+        font-family: 'Arial Black', 'Impact', sans-serif;
+        font-weight: 900;
+        font-style: italic;
+        font-size: 62px;
+        fill: #D42027;
+        letter-spacing: -2px;
+      }
+    </style>
+  </defs>
+  <text x="10" y="62" class="logo-text">TRANSLUX</text>
+  <!-- Decorative stripes on X -->
+  <line x1="355" y1="20" x2="380" y2="20" stroke="#D42027" stroke-width="3" transform="rotate(-15, 367, 20)"/>
+  <line x1="358" y1="28" x2="383" y2="28" stroke="#D42027" stroke-width="3" transform="rotate(-15, 370, 28)"/>
+</svg>

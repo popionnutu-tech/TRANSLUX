@@ -1,0 +1,17 @@
+{
+  "name": "translux",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace=apps/web",
+    "dev:bot": "npm run dev --workspace=apps/bot",
+    "build:web": "npm run build --workspace=apps/web",
+    "db:seed": "npm run seed --workspace=packages/db"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

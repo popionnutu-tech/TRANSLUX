@@ -269,7 +269,7 @@ export async function reportConversation(
 
     // ── Step 3: Select Driver (grid layout) — skip if ABSENT/FULL ──
     let driverId: string | null = null;
-    if (status === 'OK' && drivers.length > 0) {
+    if (status === 'OK' && drivers.length > 0 && point !== 'BALTI') {
       const usedDriverIds = await getUsedDriverIds(reportDate, point);
       const availableDrivers = drivers.filter(d => !usedDriverIds.has(d.id));
 
@@ -303,7 +303,7 @@ export async function reportConversation(
     let uniformOk: boolean | null = null;
     let exteriorOk: boolean | null = null;
 
-    if (status === 'OK') {
+    if (status === 'OK' && point !== 'BALTI') {
       const compKb = new InlineKeyboard()
         .text('Totul OK ✓', 'comp:all_ok').row()
         .text('Fără uniformă', 'comp:no_uni').text('Aspect neîngrijit', 'comp:no_asp').row()

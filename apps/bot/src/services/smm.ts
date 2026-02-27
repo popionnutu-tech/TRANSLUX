@@ -264,6 +264,20 @@ export async function aggregateDailyStats(date: string): Promise<void> {
   }
 }
 
+// ── Aggregate date range ──────────────────────────
+
+export async function aggregateRangeStats(dateFrom: string, dateTo: string): Promise<void> {
+  const d = new Date(dateFrom + 'T12:00:00');
+  const end = new Date(dateTo + 'T12:00:00');
+  while (d <= end) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    await aggregateDailyStats(`${y}-${m}-${day}`);
+    d.setDate(d.getDate() + 1);
+  }
+}
+
 // ── Report queries ─────────────────────────────────
 
 export interface SmmDailyReport {

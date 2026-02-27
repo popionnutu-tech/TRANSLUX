@@ -1,7 +1,7 @@
 import { config } from './config.js';
 import { sendWeeklyReport } from './services/weeklyReport.js';
 import { sendSmmWeeklyReport } from './services/smmWeeklyReport.js';
-import { collectSmmData, aggregateDailyStats } from './services/smm.js';
+import { collectSmmData, aggregateDailyStats, aggregateRangeStats } from './services/smm.js';
 
 const CHECK_INTERVAL_MS = 60 * 1000; // check every minute
 const SEND_DAY = 1;   // Monday
@@ -63,8 +63,26 @@ function getNowInTz() {
   );
 }
 
+const SMM_RETRO_DAY = 1;   // Monday
+const SMM_RETRO_HOUR = 3;  // 03:00
+
+let lastSmmRetroWeek = '';
+
+function getPreviousMonthRange(): { dateFrom: string; dateTo: string } {
+  const now = getNowInTz();
+  const firstDayPrevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastDayPrevMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+  const fmt = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+  return { dateFrom: fmt(firstDayPrevMonth), dateTo: fmt(lastDayPrevMonth) };
+}
+
 export function scheduleSmmJobs(): void {
-  console.log('SMM schedulers started (daily 23:00, weekly Sun 18:00)');
+  console.log('SMM schedulers started (daily 23:00, weekly Sun 18:00, retro Mon 03:00)');
 
   setInterval(async () => {
     const now = getNowInTz();
@@ -93,6 +111,22 @@ export function scheduleSmmJobs(): void {
           await sendSmmWeeklyReport();
         } catch (err) {
           console.error('SMM weekly report error:', err);
+        }
+      }
+    }
+
+    // Weekly retroactive update: Monday 03:00 — re-fetch metrics and re-aggregate previous month
+    if (now.getDay() === SMM_RETRO_DAY && now.getHours() === SMM_RETRO_HOUR && now.getMinutes() === 0) {
+      const weekId = getCurrentWeekId();
+      if (lastSmmRetroWeek !== weekId) {
+        lastSmmRetroWeek = weekId;
+        try {
+          const { dateFrom, dateTo } = getPreviousMonthRange();
+          await collectSmmData();
+          await aggregateRangeStats(dateFrom, dateTo);
+          console.log(`SMM retro update done for ${dateFrom} — ${dateTo}`);
+        } catch (err) {
+          console.error('SMM retro update error:', err);
         }
       }
     }

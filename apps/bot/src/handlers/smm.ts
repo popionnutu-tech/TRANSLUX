@@ -1,5 +1,5 @@
 import type { BotContext } from '../types.js';
-import { collectSmmData, aggregateDailyStats, getSmmDailyReport, getSmmWeeklyReport } from '../services/smm.js';
+import { collectSmmData, aggregateDailyStats, aggregateRangeStats, getSmmDailyReport, getSmmWeeklyReport } from '../services/smm.js';
 import { getTodayDate, formatDate } from '../utils.js';
 import { SMM_PLATFORM_LABELS } from '@translux/db';
 
@@ -32,13 +32,7 @@ export async function handleSmmWeekly(ctx: BotContext) {
 
   try {
     await collectSmmData();
-
-    const d = new Date(dateFrom + 'T12:00:00');
-    const end = new Date(dateTo + 'T12:00:00');
-    while (d <= end) {
-      await aggregateDailyStats(d.toISOString().slice(0, 10));
-      d.setDate(d.getDate() + 1);
-    }
+    await aggregateRangeStats(dateFrom, dateTo);
 
     const stats = await getSmmWeeklyReport(dateFrom, dateTo);
     const period = `${formatDate(dateFrom)} — ${formatDate(dateTo)}`;
@@ -70,6 +64,68 @@ export async function handleSmmWeekly(ctx: BotContext) {
       msg.chat.id,
       msg.message_id,
       '❌ Eroare la generarea raportului SMM săptămânal.'
+    );
+  }
+}
+
+/**
+ * /smmmonth [YYYY-MM]
+ * Without args — current month. With arg — specified month.
+ */
+export async function handleSmmMonth(ctx: BotContext) {
+  const args = (ctx.message?.text || '').split(/\s+/).slice(1);
+  let year: number;
+  let month: number;
+
+  if (args.length >= 1 && /^\d{4}-\d{2}$/.test(args[0])) {
+    const [y, m] = args[0].split('-').map(Number);
+    year = y;
+    month = m;
+  } else {
+    const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Chisinau' }));
+    year = now.getFullYear();
+    month = now.getMonth() + 1;
+  }
+
+  const dateFrom = `${year}-${String(month).padStart(2, '0')}-01`;
+  const lastDay = new Date(year, month, 0).getDate();
+  const dateTo = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+  const msg = await ctx.reply(`⏳ Se încarcă datele SMM pentru ${formatDate(dateFrom)} — ${formatDate(dateTo)}...`);
+
+  try {
+    await collectSmmData();
+    await aggregateRangeStats(dateFrom, dateTo);
+
+    const stats = await getSmmWeeklyReport(dateFrom, dateTo);
+
+    let text = `📊 <b>SMM RAPORT LUNAR</b>\n`;
+    text += `📅 ${formatDate(dateFrom)} — ${formatDate(dateTo)}\n`;
+    text += `${'─'.repeat(28)}\n\n`;
+
+    if (stats.length === 0) {
+      text += 'Nu există date SMM pentru această perioadă.\n';
+    } else {
+      for (const s of stats) {
+        const icon = s.platform === 'TIKTOK' ? '🎵' : '📘';
+        text += `${icon} <b>${s.account_name}</b>\n`;
+        text += `  Postări: ${s.posts_count}\n`;
+        text += `  👁 ${s.total_views.toLocaleString()} vizualizări\n`;
+        text += `  ❤️ ${s.total_likes.toLocaleString()} like\n`;
+        text += `  💬 ${s.total_comments} comentarii\n`;
+        text += `  🔄 ${s.total_shares} distribuiri\n\n`;
+      }
+    }
+
+    await ctx.api.editMessageText(msg.chat.id, msg.message_id, text, {
+      parse_mode: 'HTML',
+    });
+  } catch (err) {
+    console.error('SMM month report error:', err);
+    await ctx.api.editMessageText(
+      msg.chat.id,
+      msg.message_id,
+      '❌ Eroare la generarea raportului SMM lunar.'
     );
   }
 }

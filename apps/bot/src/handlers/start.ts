@@ -48,9 +48,7 @@ export async function showMainMenu(ctx: BotContext) {
   const kb = new InlineKeyboard()
     .text('📋 Raportează cursă', 'menu:report')
     .row()
-    .text('✓ Validează ziua', 'menu:validate')
     .text('🔙 Anulează ultimul', 'menu:cancel_last')
-    .row()
     .text('❓ Ajutor', 'menu:help');
 
   await ctx.reply('Meniu principal:', { reply_markup: kb });

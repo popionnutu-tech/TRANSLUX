@@ -6,7 +6,7 @@ import { authMiddleware } from './middleware/auth.js';
 import { rateLimitMiddleware } from './middleware/rateLimit.js';
 import { handleStart, showMainMenu } from './handlers/start.js';
 import { handleCancelLastReport } from './handlers/cancel.js';
-import { handleValidateDay } from './handlers/validate.js';
+
 import { handleAdmin, handleStopAdmin, handleWeeklyReport } from './handlers/admin.js';
 import { reportConversation } from './conversations/report.js';
 import { initAdminAlert } from './services/adminAlert.js';
@@ -47,11 +47,6 @@ export function createBot(): Bot<BotContext> {
       return;
     }
     await ctx.conversation.enter('report');
-  });
-
-  bot.callbackQuery('menu:validate', async (ctx) => {
-    await ctx.answerCallbackQuery();
-    await handleValidateDay(ctx as BotContext);
   });
 
   bot.callbackQuery('menu:cancel_last', async (ctx) => {

@@ -245,6 +245,15 @@ export default function ReportsClient({ pivotData, dateFrom, dateTo, viewMode, p
 
       {/* Filters */}
       <div className="filter-bar card mb-4">
+        <div className="mode-toggle" style={{ marginRight: 12 }}>
+          <button className="mode-btn mode-btn-active">Transport</button>
+          <button
+            className="mode-btn"
+            onClick={() => updateParams({ reportType: 'smm' })}
+          >
+            SMM
+          </button>
+        </div>
         <div className="form-group">
           <label>Punct de pornire</label>
           <select

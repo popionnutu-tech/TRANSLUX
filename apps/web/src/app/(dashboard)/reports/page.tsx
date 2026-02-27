@@ -2,7 +2,9 @@ export const dynamic = 'force-dynamic';
 
 import type { PointEnum } from '@translux/db';
 import { getPivotReport } from './actions';
+import { getSmmReport } from './smm-actions';
 import ReportsClient from './ReportsClient';
+import SmmReportsClient from './SmmReportsClient';
 
 function getCurrentWeek() {
   const now = new Date();
@@ -30,6 +32,18 @@ export default async function ReportsPage({
   const dateTo = params.dateTo || defaults.dateTo;
   const viewMode = (params.view as 'daily' | 'weekly') || 'daily';
   const point = (params.point as PointEnum) || 'CHISINAU';
+  const reportType = (params.reportType as 'transport' | 'smm') || 'transport';
+
+  if (reportType === 'smm') {
+    const smmData = await getSmmReport(dateFrom, dateTo);
+    return (
+      <SmmReportsClient
+        smmData={smmData}
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+      />
+    );
+  }
 
   const pivotData = await getPivotReport(dateFrom, dateTo, point);
 

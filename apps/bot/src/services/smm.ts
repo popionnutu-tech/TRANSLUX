@@ -169,11 +169,17 @@ export async function fetchFacebookPosts(account: SmmAccount): Promise<FacebookP
       let viewCount = 0;
       try {
         const insightRes = await fetch(
-          `${baseUrl}/${raw.id}/insights?metric=post_impressions&access_token=${encodeURIComponent(token)}`
+          `${baseUrl}/${raw.id}/insights?metric=post_impressions_unique&access_token=${encodeURIComponent(token)}`
         );
         const insight = await insightRes.json();
-        viewCount = insight.data?.[0]?.values?.[0]?.value || 0;
-      } catch { /* impressions not available for all post types */ }
+        if (insight.error) {
+          console.warn(`Facebook insights error for post ${raw.id}: ${insight.error.message}`);
+        } else {
+          viewCount = insight.data?.[0]?.values?.[0]?.value || 0;
+        }
+      } catch (err) {
+        console.warn(`Facebook insights fetch failed for post ${raw.id}:`, err);
+      }
 
       posts.push({
         id: raw.id,

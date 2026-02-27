@@ -8,7 +8,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Public paths
-  if (pathname === '/login' || pathname.startsWith('/_next') || pathname.startsWith('/api/auth') || pathname.startsWith('/tiktok') || pathname.match(/\.(svg|png|jpg|ico|txt)$/)) {
+  if (pathname === '/login' || pathname.startsWith('/_next') || pathname.startsWith('/api/auth') || pathname.startsWith('/api/tiktok') || pathname.startsWith('/tiktok') || pathname.match(/\.(svg|png|jpg|ico|txt)$/)) {
     return NextResponse.next();
   }
 

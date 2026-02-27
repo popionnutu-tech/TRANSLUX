@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       client_secret: clientSecret!,
       code,
       grant_type: 'authorization_code',
-      redirect_uri: 'https://dev.translux.md/api/tiktok/callback',
+      redirect_uri: 'https://translux-web.vercel.app/api/tiktok/callback',
     }),
   });
 

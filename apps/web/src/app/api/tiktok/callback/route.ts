@@ -48,6 +48,12 @@ export async function GET(request: NextRequest) {
         <p><strong>scope:</strong> ${tokenData.scope || 'N/A'}</p>
       </div>
       <p style="color: #94a3b8;">Полный ответ: ${JSON.stringify(tokenData)}</p>
+      <hr style="border-color: #475569; margin: 20px 0;">
+      <p style="color: #64748b; font-size: 12px;"><strong>DEBUG:</strong></p>
+      <p style="color: #64748b; font-size: 12px;">client_key: ${clientKey ? clientKey.slice(0, 6) + '...' + clientKey.slice(-4) : 'NOT SET'}</p>
+      <p style="color: #64748b; font-size: 12px;">client_secret: ${clientSecret ? clientSecret.slice(0, 4) + '...' + clientSecret.slice(-4) : 'NOT SET'}</p>
+      <p style="color: #64748b; font-size: 12px;">redirect_uri: ${request.nextUrl.origin}/api/tiktok/callback</p>
+      <p style="color: #64748b; font-size: 12px;">code: ${code.slice(0, 10)}...</p>
     </body>
     </html>
   `;

@@ -79,7 +79,16 @@ interface WeeklyPivot {
 export default function ReportsClient({ pivotData, dateFrom, dateTo, viewMode, point, period }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [expanded, setExpanded] = useState(true);
+  const [collapsedWeeks, setCollapsedWeeks] = useState<Set<string>>(new Set());
+
+  function toggleWeek(monday: string) {
+    setCollapsedWeeks((prev) => {
+      const next = new Set(prev);
+      if (next.has(monday)) next.delete(monday);
+      else next.add(monday);
+      return next;
+    });
+  }
 
   const updateParams = useCallback(
     (updates: Record<string, string>) => {
@@ -167,6 +176,25 @@ export default function ReportsClient({ pivotData, dateFrom, dateTo, viewMode, p
   }, [daily]);
 
   const pivot = viewMode === 'weekly' ? weekly : daily;
+
+  // Group daily columns by week for collapsible column groups
+  const weekColumnGroups = useMemo(() => {
+    if (period === 'daily' || viewMode === 'weekly') return null;
+    const weekMap = new Map<string, string[]>();
+    for (const d of daily.columns) {
+      const monday = getMondayStr(d);
+      if (!weekMap.has(monday)) weekMap.set(monday, []);
+      weekMap.get(monday)!.push(d);
+    }
+    return Array.from(weekMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([monday, dates]) => {
+        const sundayDt = new Date(monday + 'T12:00:00');
+        sundayDt.setDate(sundayDt.getDate() + 6);
+        const label = `${formatDateShort(monday)}-${formatDateShort(toDateStr(sundayDt))}`;
+        return { monday, label, dates };
+      });
+  }, [daily.columns, period, viewMode]);
 
   // Compute summary
   const summary = useMemo(() => {
@@ -353,19 +381,42 @@ export default function ReportsClient({ pivotData, dateFrom, dateTo, viewMode, p
         <table className="pivot-table">
           <thead>
             <tr>
-              <th className="pivot-sticky pivot-sticky-time">
-                {period !== 'daily' && (
-                  <button
-                    className="pivot-group-toggle"
-                    onClick={() => setExpanded(!expanded)}
-                    title={expanded ? 'Grupează' : 'Detaliază'}
-                  >
-                    {expanded ? '−' : '+'}
-                  </button>
-                )}
-                Ora
-              </th>
-              {pivot.columns.map((col, i) => (
+              <th className="pivot-sticky pivot-sticky-time">Ora</th>
+              {weekColumnGroups ? weekColumnGroups.map((wg) => {
+                const isCollapsed = collapsedWeeks.has(wg.monday);
+                if (isCollapsed) {
+                  return (
+                    <th
+                      key={wg.monday}
+                      className="pivot-date-col pivot-group-row"
+                      onClick={() => toggleWeek(wg.monday)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <span className="pivot-group-toggle">+</span>
+                      <br />
+                      {wg.label}
+                    </th>
+                  );
+                }
+                return wg.dates.map((col, i) => (
+                  <th key={col} className="pivot-date-col">
+                    {i === 0 && (
+                      <span
+                        className="pivot-group-toggle"
+                        onClick={() => toggleWeek(wg.monday)}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        −
+                      </span>
+                    )}
+                    <span className="pivot-day-name">
+                      {DAY_NAMES[new Date(col + 'T12:00:00').getDay()]}
+                    </span>
+                    <br />
+                    {formatDateShort(col)}
+                  </th>
+                ));
+              }) : pivot.columns.map((col, i) => (
                 <th key={i} className="pivot-date-col">
                   {viewMode === 'weekly' ? (
                     col
@@ -383,47 +434,81 @@ export default function ReportsClient({ pivotData, dateFrom, dateTo, viewMode, p
             </tr>
           </thead>
           <tbody>
-            {expanded && pivot.rows.map((row, ri) => {
-              return (
-                <tr key={row.key}>
-                  <td className="pivot-time pivot-sticky pivot-sticky-time">{row.departure_time}</td>
-                  {pivot.columns.map((col, ci) => {
-                    let display: string;
-                    let className = 'pivot-cell';
-
-                    if (viewMode === 'weekly') {
-                      const v = (pivot as WeeklyPivot).weekCells.get(`${row.key}|${ci}`);
-                      if (v != null) {
-                        display = String(v);
-                      } else {
-                        display = '—';
-                        className += ' pivot-empty';
-                      }
-                    } else {
-                      const cell = (pivot as DailyPivot).cellMap.get(`${row.key}|${col}`);
-                      if (!cell) {
-                        display = '—';
-                        className += ' pivot-empty';
-                      } else if (cell.status === 'ABSENT') {
-                        display = 'A';
-                        className += ' pivot-absent';
-                      } else if (cell.status === 'FULL') {
-                        display = 'F';
-                        className += ' pivot-full';
-                      } else {
-                        display = cell.passengers != null ? String(cell.passengers) : '—';
+            {pivot.rows.map((row) => (
+              <tr key={row.key}>
+                <td className="pivot-time pivot-sticky pivot-sticky-time">{row.departure_time}</td>
+                {weekColumnGroups ? weekColumnGroups.map((wg) => {
+                  const isCollapsed = collapsedWeeks.has(wg.monday);
+                  if (isCollapsed) {
+                    let sum: number | null = null;
+                    for (const d of wg.dates) {
+                      const cell = daily.cellMap.get(`${row.key}|${d}`);
+                      if (cell && cell.status === 'OK' && cell.passengers != null) {
+                        sum = (sum || 0) + cell.passengers;
                       }
                     }
-
                     return (
-                      <td key={ci} className={className}>
+                      <td key={wg.monday} className={`pivot-cell${sum == null ? ' pivot-empty' : ''}`}>
+                        {sum != null ? sum : '—'}
+                      </td>
+                    );
+                  }
+                  return wg.dates.map((col) => {
+                    const cell = daily.cellMap.get(`${row.key}|${col}`);
+                    let display: string;
+                    let className = 'pivot-cell';
+                    if (!cell) {
+                      display = '—';
+                      className += ' pivot-empty';
+                    } else if (cell.status === 'ABSENT') {
+                      display = 'A';
+                      className += ' pivot-absent';
+                    } else if (cell.status === 'FULL') {
+                      display = 'F';
+                      className += ' pivot-full';
+                    } else {
+                      display = cell.passengers != null ? String(cell.passengers) : '—';
+                    }
+                    return (
+                      <td key={col} className={className}>
                         {display}
                       </td>
                     );
-                  })}
-                </tr>
-              );
-            })}
+                  });
+                }) : pivot.columns.map((col, ci) => {
+                  let display: string;
+                  let className = 'pivot-cell';
+                  if (viewMode === 'weekly') {
+                    const v = (pivot as WeeklyPivot).weekCells.get(`${row.key}|${ci}`);
+                    if (v != null) {
+                      display = String(v);
+                    } else {
+                      display = '—';
+                      className += ' pivot-empty';
+                    }
+                  } else {
+                    const cell = (pivot as DailyPivot).cellMap.get(`${row.key}|${col}`);
+                    if (!cell) {
+                      display = '—';
+                      className += ' pivot-empty';
+                    } else if (cell.status === 'ABSENT') {
+                      display = 'A';
+                      className += ' pivot-absent';
+                    } else if (cell.status === 'FULL') {
+                      display = 'F';
+                      className += ' pivot-full';
+                    } else {
+                      display = cell.passengers != null ? String(cell.passengers) : '—';
+                    }
+                  }
+                  return (
+                    <td key={ci} className={className}>
+                      {display}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
             {pivot.rows.length === 0 && (
               <tr>
                 <td colSpan={1 + pivot.columns.length} className="text-center text-muted" style={{ padding: 24 }}>
@@ -436,7 +521,43 @@ export default function ReportsClient({ pivotData, dateFrom, dateTo, viewMode, p
             <tfoot>
               <tr className="pivot-total-row">
                 <td className="pivot-sticky pivot-total-label">Total</td>
-                {columnTotals.map((total, ci) => (
+                {weekColumnGroups ? weekColumnGroups.map((wg) => {
+                  const isCollapsed = collapsedWeeks.has(wg.monday);
+                  if (isCollapsed) {
+                    let sum = 0;
+                    let hasData = false;
+                    for (const d of wg.dates) {
+                      for (const row of pivot.rows) {
+                        const cell = daily.cellMap.get(`${row.key}|${d}`);
+                        if (cell && cell.status === 'OK' && cell.passengers != null) {
+                          sum += cell.passengers;
+                          hasData = true;
+                        }
+                      }
+                    }
+                    return (
+                      <td key={wg.monday} className="pivot-cell pivot-total-cell">
+                        {hasData ? sum : '—'}
+                      </td>
+                    );
+                  }
+                  return wg.dates.map((col) => {
+                    let sum = 0;
+                    let hasData = false;
+                    for (const row of pivot.rows) {
+                      const cell = daily.cellMap.get(`${row.key}|${col}`);
+                      if (cell && cell.status === 'OK' && cell.passengers != null) {
+                        sum += cell.passengers;
+                        hasData = true;
+                      }
+                    }
+                    return (
+                      <td key={col} className="pivot-cell pivot-total-cell">
+                        {hasData ? sum : '—'}
+                      </td>
+                    );
+                  });
+                }) : columnTotals.map((total, ci) => (
                   <td key={ci} className="pivot-cell pivot-total-cell">
                     {total != null ? total : '—'}
                   </td>

@@ -384,3 +384,22 @@ th {
 .pivot-total-label {
   text-align: left;
 }
+
+/* ── Compact SMM pivot ──────────────────── */
+.pivot-compact {
+  font-size: 11px;
+}
+
+.pivot-compact th,
+.pivot-compact td {
+  padding: 2px 3px;
+}
+
+.pivot-compact .pivot-cell {
+  padding: 2px 2px;
+  min-width: 28px;
+}
+
+.pivot-compact .pivot-sticky {
+  font-size: 11px;
+}

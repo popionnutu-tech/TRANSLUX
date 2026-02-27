@@ -131,20 +131,35 @@ export async function fetchFacebookPosts(account: SmmAccount): Promise<FacebookP
   const baseUrl = 'https://graph.facebook.com/v19.0';
   const token = account.access_token;
 
-  const res = await fetch(
-    `${baseUrl}/${account.platform_id}/posts?fields=id,message,created_time&limit=50&access_token=${encodeURIComponent(token)}`
-  );
+  // Fetch posts from the last 90 days with pagination
+  const since = Math.floor(Date.now() / 1000) - 90 * 24 * 60 * 60;
+  let url: string | null =
+    `${baseUrl}/${account.platform_id}/posts?fields=id,message,created_time&limit=100&since=${since}&access_token=${encodeURIComponent(token)}`;
 
-  if (!res.ok) {
-    console.error(`Facebook API error for ${account.account_name}: ${res.status}`);
-    return [];
+  const allRawPosts: Array<{ id: string; message?: string; created_time: string }> = [];
+
+  while (url) {
+    const res: Response = await fetch(url);
+
+    if (!res.ok) {
+      const body = await res.text();
+      console.error(`Facebook API error for ${account.account_name}: ${res.status} ${body}`);
+      break;
+    }
+
+    const json: any = await res.json();
+    const batch = json.data || [];
+    allRawPosts.push(...batch);
+
+    url = json.paging?.next || null;
+    if (allRawPosts.length >= 500) break;
   }
 
-  const json = await res.json();
-  const rawPosts = json.data || [];
+  console.log(`Facebook: fetched ${allRawPosts.length} raw posts for ${account.account_name}`);
+
   const posts: FacebookPost[] = [];
 
-  for (const raw of rawPosts) {
+  for (const raw of allRawPosts) {
     try {
       const detailRes = await fetch(
         `${baseUrl}/${raw.id}?fields=shares,reactions.summary(true),comments.summary(true)&access_token=${encodeURIComponent(token)}`

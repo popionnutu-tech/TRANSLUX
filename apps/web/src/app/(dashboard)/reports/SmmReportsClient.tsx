@@ -93,27 +93,44 @@ export default function SmmReportsClient({ smmData, dateFrom, dateTo, period }: 
     return { accounts, dates, cellMap };
   }, [smmData]);
 
-  // Group dates by week for collapsible UI
+  // Determine grouping mode from actual data: by month if multiple months, by week if multiple weeks
+  const groupMode = useMemo(() => {
+    if (pivot.dates.length <= 1) return 'none';
+    const months = new Set(pivot.dates.map((d) => d.slice(0, 7)));
+    if (months.size >= 2) return 'monthly';
+    const weeks = new Set(pivot.dates.map((d) => getMondayStr(d)));
+    if (weeks.size >= 2) return 'weekly';
+    return 'none';
+  }, [pivot.dates]);
+
+  // Group dates for collapsible UI (by week or by month)
   const weekGroups = useMemo(() => {
-    if (period === 'daily') return null;
-    const weekMap = new Map<string, string[]>();
+    if (groupMode === 'none') return null;
+    const groupMap = new Map<string, string[]>();
     for (const d of pivot.dates) {
-      const monday = getMondayStr(d);
-      if (!weekMap.has(monday)) weekMap.set(monday, []);
-      weekMap.get(monday)!.push(d);
+      const key = groupMode === 'weekly' ? getMondayStr(d) : d.slice(0, 7);
+      if (!groupMap.has(key)) groupMap.set(key, []);
+      groupMap.get(key)!.push(d);
     }
-    return Array.from(weekMap.entries())
+    const MONTH_NAMES = ['Ian', 'Feb', 'Mar', 'Apr', 'Mai', 'Iun', 'Iul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return Array.from(groupMap.entries())
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([monday, dates]) => {
-        const sundayDt = new Date(monday + 'T12:00:00');
-        sundayDt.setDate(sundayDt.getDate() + 6);
-        const sy = sundayDt.getFullYear();
-        const sm = String(sundayDt.getMonth() + 1).padStart(2, '0');
-        const sd = String(sundayDt.getDate()).padStart(2, '0');
-        const label = `${formatDateShort(monday)}–${formatDateShort(`${sy}-${sm}-${sd}`)}`;
-        return { monday, label, dates };
+      .map(([key, dates]) => {
+        let label: string;
+        if (groupMode === 'weekly') {
+          const sundayDt = new Date(key + 'T12:00:00');
+          sundayDt.setDate(sundayDt.getDate() + 6);
+          const sy = sundayDt.getFullYear();
+          const sm = String(sundayDt.getMonth() + 1).padStart(2, '0');
+          const sd = String(sundayDt.getDate()).padStart(2, '0');
+          label = `${formatDateShort(key)}–${formatDateShort(`${sy}-${sm}-${sd}`)}`;
+        } else {
+          const [y, m] = key.split('-');
+          label = `${MONTH_NAMES[parseInt(m) - 1]} ${y}`;
+        }
+        return { monday: key, label, dates };
       });
-  }, [pivot.dates, period]);
+  }, [pivot.dates, groupMode]);
 
   function toggleWeek(monday: string) {
     setCollapsedWeeks((prev) => {

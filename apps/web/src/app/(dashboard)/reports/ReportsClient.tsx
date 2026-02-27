@@ -187,24 +187,41 @@ export default function ReportsClient({ pivotData, dateFrom, dateTo, viewMode, p
 
   const pivot = viewMode === 'weekly' ? weekly : daily;
 
-  // Group daily columns by week for collapsible column groups
+  // Determine grouping mode from actual data
+  const columnGroupMode = useMemo(() => {
+    if (viewMode === 'weekly' || daily.columns.length <= 1) return 'none';
+    const months = new Set(daily.columns.map((d) => d.slice(0, 7)));
+    if (months.size >= 2) return 'monthly';
+    const weeks = new Set(daily.columns.map((d) => getMondayStr(d)));
+    if (weeks.size >= 2) return 'weekly';
+    return 'none';
+  }, [daily.columns, viewMode]);
+
+  // Group daily columns for collapsible column groups (by week or by month)
   const weekColumnGroups = useMemo(() => {
-    if (period === 'daily' || viewMode === 'weekly') return null;
-    const weekMap = new Map<string, string[]>();
+    if (columnGroupMode === 'none') return null;
+    const groupMap = new Map<string, string[]>();
     for (const d of daily.columns) {
-      const monday = getMondayStr(d);
-      if (!weekMap.has(monday)) weekMap.set(monday, []);
-      weekMap.get(monday)!.push(d);
+      const key = columnGroupMode === 'weekly' ? getMondayStr(d) : d.slice(0, 7);
+      if (!groupMap.has(key)) groupMap.set(key, []);
+      groupMap.get(key)!.push(d);
     }
-    return Array.from(weekMap.entries())
+    const MONTH_NAMES = ['Ian', 'Feb', 'Mar', 'Apr', 'Mai', 'Iun', 'Iul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return Array.from(groupMap.entries())
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([monday, dates]) => {
-        const sundayDt = new Date(monday + 'T12:00:00');
-        sundayDt.setDate(sundayDt.getDate() + 6);
-        const label = `${formatDateShort(monday)}-${formatDateShort(toDateStr(sundayDt))}`;
-        return { monday, label, dates };
+      .map(([key, dates]) => {
+        let label: string;
+        if (columnGroupMode === 'weekly') {
+          const sundayDt = new Date(key + 'T12:00:00');
+          sundayDt.setDate(sundayDt.getDate() + 6);
+          label = `${formatDateShort(key)}-${formatDateShort(toDateStr(sundayDt))}`;
+        } else {
+          const [y, m] = key.split('-');
+          label = `${MONTH_NAMES[parseInt(m) - 1]} ${y}`;
+        }
+        return { monday: key, label, dates };
       });
-  }, [daily.columns, period, viewMode]);
+  }, [daily.columns, columnGroupMode]);
 
   // Compute summary
   const summary = useMemo(() => {

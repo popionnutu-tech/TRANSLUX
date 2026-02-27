@@ -411,7 +411,11 @@ th {
   background: #e0e8ff;
 }
 
-/* ── Account delimiter (thick border between SMM accounts) */
+/* ── Column delimiter (thick border after sticky col & between SMM accounts) */
+.pivot-table .pivot-sticky {
+  border-right: 2px solid var(--primary) !important;
+}
+
 .pivot-account-border {
   border-left: 2px solid var(--primary) !important;
 }

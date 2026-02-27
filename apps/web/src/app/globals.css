@@ -297,12 +297,13 @@ th {
 .pivot-table {
   width: auto;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 12px;
+  table-layout: auto;
 }
 
 .pivot-table th,
 .pivot-table td {
-  padding: 3px 4px;
+  padding: 2px 3px;
   white-space: nowrap;
   text-align: center;
   border-bottom: 1px solid var(--border);
@@ -323,13 +324,13 @@ th {
 }
 
 .pivot-date-col {
-  font-size: 11px;
-  line-height: 1.2;
-  padding: 3px 2px;
+  font-size: 10px;
+  line-height: 1.1;
+  padding: 2px 1px;
 }
 
 .pivot-day-name {
-  font-size: 10px;
+  font-size: 9px;
   color: var(--text-muted);
   text-transform: none;
   letter-spacing: 0;
@@ -351,7 +352,7 @@ th {
 
 .pivot-cell {
   font-variant-numeric: tabular-nums;
-  padding: 3px 2px;
+  padding: 2px 1px;
 }
 
 .pivot-empty {

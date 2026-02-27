@@ -5,6 +5,14 @@ import { useRouter } from 'next/navigation';
 import type { Driver } from '@translux/db';
 import { createDriver, toggleDriver, deleteDriver } from './actions';
 
+function formatDriverName(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length < 2) return fullName;
+  const familyName = parts[0];
+  const initials = parts.slice(1).map((p) => p.charAt(0).toUpperCase() + '.').join('');
+  return `${familyName} ${initials}`;
+}
+
 export default function DriversClient({ initialDrivers }: { initialDrivers: Driver[] }) {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
@@ -77,7 +85,7 @@ export default function DriversClient({ initialDrivers }: { initialDrivers: Driv
           <tbody>
             {initialDrivers.map((driver) => (
               <tr key={driver.id} style={{ opacity: driver.active ? 1 : 0.5 }}>
-                <td>{driver.full_name}</td>
+                <td>{formatDriverName(driver.full_name)}</td>
                 <td>
                   <span className={`badge ${driver.active ? 'badge-ok' : 'badge-absent'}`}>
                     {driver.active ? 'Activ' : 'Inactiv'}

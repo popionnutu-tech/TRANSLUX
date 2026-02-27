@@ -3,6 +3,14 @@
 import { getSupabase } from '@/lib/supabase';
 import type { PointEnum, DirectionEnum, ReportStatus } from '@translux/db';
 
+function formatDriverName(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length < 2) return fullName;
+  const familyName = parts[0];
+  const initials = parts.slice(1).map((p) => p.charAt(0).toUpperCase() + '.').join('');
+  return `${familyName} ${initials}`;
+}
+
 export interface ReportRow {
   id: string;
   report_date: string;
@@ -113,7 +121,7 @@ export async function getReports(filters: ReportFilters): Promise<ReportsResult>
     route_name: r.trips?.routes?.name || '—',
     departure_time: r.trips?.departure_time || '—',
     direction: r.trips?.direction,
-    driver_name: r.drivers?.full_name || null,
+    driver_name: r.drivers?.full_name ? formatDriverName(r.drivers.full_name) : null,
     driver_id: r.driver_id,
     photos_count: r.report_photos?.length || 0,
   }));
@@ -205,7 +213,7 @@ export async function getComplianceSummary(filters: ReportFilters): Promise<Comp
     if (r.uniform_ok) uniformOkCount++;
     if (!r.exterior_ok || !r.uniform_ok) {
       violations.push({
-        driver_name: r.drivers?.full_name || '—',
+        driver_name: r.drivers?.full_name ? formatDriverName(r.drivers.full_name) : '—',
         report_date: r.report_date,
         exterior_ok: r.exterior_ok,
         uniform_ok: r.uniform_ok,
@@ -258,7 +266,7 @@ export async function exportReportsCSV(filters: ReportFilters): Promise<string> 
       `"${r.trips?.routes?.name || ''}"`,
       (r.trips?.departure_time || '').slice(0, 5),
       r.trips?.direction || '',
-      `"${r.drivers?.full_name || ''}"`,
+      `"${r.drivers?.full_name ? formatDriverName(r.drivers.full_name) : ''}"`,
       r.status,
       r.passengers_count ?? '',
       r.exterior_ok != null ? (r.exterior_ok ? 'DA' : 'NU') : '',
@@ -314,6 +322,9 @@ export async function getFilterOptions() {
   ]);
   return {
     routes: (routesRes.data || []) as Array<{ id: string; name: string }>,
-    drivers: (driversRes.data || []) as Array<{ id: string; full_name: string }>,
+    drivers: ((driversRes.data || []) as Array<{ id: string; full_name: string }>).map((d) => ({
+      ...d,
+      full_name: formatDriverName(d.full_name),
+    })),
   };
 }

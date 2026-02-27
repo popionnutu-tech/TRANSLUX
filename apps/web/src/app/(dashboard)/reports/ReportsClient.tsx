@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { POINT_LABELS } from '@translux/db';
 import type { PointEnum } from '@translux/db';
 import type { PivotRawRow } from './actions';
@@ -79,6 +79,7 @@ interface WeeklyPivot {
 export default function ReportsClient({ pivotData, dateFrom, dateTo, viewMode, point, period }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [expanded, setExpanded] = useState(true);
 
   const updateParams = useCallback(
     (updates: Record<string, string>) => {
@@ -352,7 +353,18 @@ export default function ReportsClient({ pivotData, dateFrom, dateTo, viewMode, p
         <table className="pivot-table">
           <thead>
             <tr>
-              <th className="pivot-sticky pivot-sticky-time">Ora</th>
+              <th className="pivot-sticky pivot-sticky-time">
+                {period !== 'daily' && (
+                  <button
+                    className="pivot-group-toggle"
+                    onClick={() => setExpanded(!expanded)}
+                    title={expanded ? 'Grupează' : 'Detaliază'}
+                  >
+                    {expanded ? '−' : '+'}
+                  </button>
+                )}
+                Ora
+              </th>
               {pivot.columns.map((col, i) => (
                 <th key={i} className="pivot-date-col">
                   {viewMode === 'weekly' ? (
@@ -371,7 +383,7 @@ export default function ReportsClient({ pivotData, dateFrom, dateTo, viewMode, p
             </tr>
           </thead>
           <tbody>
-            {pivot.rows.map((row, ri) => {
+            {expanded && pivot.rows.map((row, ri) => {
               return (
                 <tr key={row.key}>
                   <td className="pivot-time pivot-sticky pivot-sticky-time">{row.departure_time}</td>

@@ -411,6 +411,11 @@ th {
   background: #e0e8ff;
 }
 
+/* ── Account delimiter (thick border between SMM accounts) */
+.pivot-account-border {
+  border-left: 2px solid var(--primary) !important;
+}
+
 /* ── Compact SMM pivot ──────────────────── */
 .pivot-compact {
   font-size: 11px;

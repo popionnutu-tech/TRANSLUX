@@ -90,6 +90,16 @@ export default function ReportsClient({ pivotData, dateFrom, dateTo, viewMode, p
     });
   }
 
+  function toggleAllWeeks() {
+    if (!weekColumnGroups) return;
+    const allCollapsed = weekColumnGroups.every((wg) => collapsedWeeks.has(wg.monday));
+    if (allCollapsed) {
+      setCollapsedWeeks(new Set());
+    } else {
+      setCollapsedWeeks(new Set(weekColumnGroups.map((wg) => wg.monday)));
+    }
+  }
+
   const updateParams = useCallback(
     (updates: Record<string, string>) => {
       const params = new URLSearchParams(searchParams.toString());
@@ -381,7 +391,18 @@ export default function ReportsClient({ pivotData, dateFrom, dateTo, viewMode, p
         <table className="pivot-table">
           <thead>
             <tr>
-              <th className="pivot-sticky pivot-sticky-time">Ora</th>
+              <th className="pivot-sticky pivot-sticky-time">
+                {weekColumnGroups && (
+                  <span
+                    className="pivot-group-toggle"
+                    onClick={toggleAllWeeks}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {weekColumnGroups.every((wg) => collapsedWeeks.has(wg.monday)) ? '+' : '−'}
+                  </span>
+                )}
+                Ora
+              </th>
               {weekColumnGroups ? weekColumnGroups.map((wg) => {
                 const isCollapsed = collapsedWeeks.has(wg.monday);
                 if (isCollapsed) {

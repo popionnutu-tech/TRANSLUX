@@ -6,12 +6,33 @@ import { POINT_LABELS } from '@translux/db';
 import type { PointEnum } from '@translux/db';
 import type { PivotRawRow } from './actions';
 
+type Period = 'daily' | 'weekly' | 'monthly';
+
 interface Props {
   pivotData: PivotRawRow[];
   dateFrom: string;
   dateTo: string;
   viewMode: 'daily' | 'weekly';
   point: PointEnum;
+  period: Period;
+}
+
+function getPeriodDates(period: Period) {
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  if (period === 'daily') return { dateFrom: today, dateTo: today };
+  if (period === 'weekly') {
+    const day = now.getDay();
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(now);
+    monday.setDate(diff);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    return { dateFrom: monday.toISOString().slice(0, 10), dateTo: sunday.toISOString().slice(0, 10) };
+  }
+  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return { dateFrom: firstDay.toISOString().slice(0, 10), dateTo: lastDay.toISOString().slice(0, 10) };
 }
 
 const DAY_NAMES = ['Dum', 'Lun', 'Mar', 'Mie', 'Joi', 'Vin', 'Sâm'];
@@ -48,7 +69,7 @@ interface WeeklyPivot {
   weekCells: Map<string, number | null>;
 }
 
-export default function ReportsClient({ pivotData, dateFrom, dateTo, viewMode, point }: Props) {
+export default function ReportsClient({ pivotData, dateFrom, dateTo, viewMode, point, period }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -268,11 +289,28 @@ export default function ReportsClient({ pivotData, dateFrom, dateTo, viewMode, p
           </select>
         </div>
         <div className="form-group">
+          <label>Perioadă</label>
+          <div className="mode-toggle">
+            {(['daily', 'weekly', 'monthly'] as Period[]).map((p) => (
+              <button
+                key={p}
+                className={`mode-btn${period === p ? ' mode-btn-active' : ''}`}
+                onClick={() => {
+                  const dates = getPeriodDates(p);
+                  updateParams({ period: p, dateFrom: dates.dateFrom, dateTo: dates.dateTo });
+                }}
+              >
+                {p === 'daily' ? 'Zilnic' : p === 'weekly' ? 'Săptămânal' : 'Lunar'}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="form-group">
           <label>De la</label>
           <input
             type="date"
             value={dateFrom}
-            onChange={(e) => updateParams({ dateFrom: e.target.value })}
+            onChange={(e) => updateParams({ dateFrom: e.target.value, period: '' })}
           />
         </div>
         <div className="form-group">
@@ -280,24 +318,8 @@ export default function ReportsClient({ pivotData, dateFrom, dateTo, viewMode, p
           <input
             type="date"
             value={dateTo}
-            onChange={(e) => updateParams({ dateTo: e.target.value })}
+            onChange={(e) => updateParams({ dateTo: e.target.value, period: '' })}
           />
-        </div>
-        <div className="form-group" style={{ marginLeft: 'auto' }}>
-          <div className="mode-toggle" style={{ marginBottom: 0 }}>
-            <button
-              className={viewMode === 'daily' ? 'active' : ''}
-              onClick={() => updateParams({ view: 'daily' })}
-            >
-              Zilnic
-            </button>
-            <button
-              className={viewMode === 'weekly' ? 'active' : ''}
-              onClick={() => updateParams({ view: 'weekly' })}
-            >
-              Săptămânal
-            </button>
-          </div>
         </div>
       </div>
 

@@ -6,17 +6,35 @@ import { getSmmReport } from './smm-actions';
 import ReportsClient from './ReportsClient';
 import SmmReportsClient from './SmmReportsClient';
 
-function getCurrentWeek() {
+type Period = 'daily' | 'weekly' | 'monthly';
+
+function getDateRange(period: Period) {
   const now = new Date();
-  const day = now.getDay();
-  const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-  const monday = new Date(now);
-  monday.setDate(diff);
-  const sunday = new Date(monday);
-  sunday.setDate(sunday.getDate() + 6);
+  const today = now.toISOString().slice(0, 10);
+
+  if (period === 'daily') {
+    return { dateFrom: today, dateTo: today };
+  }
+
+  if (period === 'weekly') {
+    const day = now.getDay();
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(now);
+    monday.setDate(diff);
+    const sunday = new Date(monday);
+    sunday.setDate(sunday.getDate() + 6);
+    return {
+      dateFrom: monday.toISOString().slice(0, 10),
+      dateTo: sunday.toISOString().slice(0, 10),
+    };
+  }
+
+  // monthly
+  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
   return {
-    dateFrom: monday.toISOString().slice(0, 10),
-    dateTo: sunday.toISOString().slice(0, 10),
+    dateFrom: firstDay.toISOString().slice(0, 10),
+    dateTo: lastDay.toISOString().slice(0, 10),
   };
 }
 
@@ -26,7 +44,9 @@ export default async function ReportsPage({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const params = await searchParams;
-  const defaults = getCurrentWeek();
+
+  const period = (params.period as Period) || 'weekly';
+  const defaults = getDateRange(period);
 
   const dateFrom = params.dateFrom || defaults.dateFrom;
   const dateTo = params.dateTo || defaults.dateTo;
@@ -41,6 +61,7 @@ export default async function ReportsPage({
         smmData={smmData}
         dateFrom={dateFrom}
         dateTo={dateTo}
+        period={period}
       />
     );
   }
@@ -54,6 +75,7 @@ export default async function ReportsPage({
       dateTo={dateTo}
       viewMode={viewMode}
       point={point}
+      period={period}
     />
   );
 }

@@ -132,7 +132,7 @@ export default function SmmReportsClient({ smmData, dateFrom, dateTo }: Props) {
             Nu există date SMM pentru această perioadă.
           </p>
         ) : (
-          <table className="pivot-table">
+          <table className="pivot-table pivot-compact">
             <thead>
               <tr>
                 <th className="pivot-sticky" style={{ left: 0, zIndex: 2 }}>
@@ -144,7 +144,7 @@ export default function SmmReportsClient({ smmData, dateFrom, dateTo }: Props) {
                   )?.platform;
                   const icon = platform === 'TIKTOK' ? '🎵' : '📘';
                   return (
-                    <th key={acc} colSpan={4} style={{ textAlign: 'center' }}>
+                    <th key={acc} colSpan={5} style={{ textAlign: 'center' }}>
                       {icon} {acc}
                     </th>
                   );
@@ -154,6 +154,7 @@ export default function SmmReportsClient({ smmData, dateFrom, dateTo }: Props) {
                 <th className="pivot-sticky" style={{ left: 0, zIndex: 2 }} />
                 {pivot.accounts.map((acc) => (
                   <React.Fragment key={acc}>
+                    <th className="pivot-cell">📝</th>
                     <th className="pivot-cell">👁</th>
                     <th className="pivot-cell">❤️</th>
                     <th className="pivot-cell">💬</th>
@@ -182,6 +183,9 @@ export default function SmmReportsClient({ smmData, dateFrom, dateTo }: Props) {
                       const cell = pivot.cellMap.get(`${acc}|${d}`);
                       return (
                         <React.Fragment key={acc}>
+                          <td className="pivot-cell">
+                            {cell ? cell.posts_count : '—'}
+                          </td>
                           <td className="pivot-cell">
                             {cell ? cell.total_views.toLocaleString() : '—'}
                           </td>

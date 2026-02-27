@@ -1,0 +1,14 @@
+{
+  "buildCommand": "npm run build --workspace=apps/web",
+  "installCommand": "npm install",
+  "outputDirectory": "apps/web/.next",
+  "framework": "nextjs",
+  "headers": [
+    {
+      "source": "/tiktokNhGbg7LgXUYoHZjwxeTq4Z7lKRoAKrhc.txt",
+      "headers": [
+        { "key": "Content-Type", "value": "text/plain" }
+      ]
+    }
+  ]
+}

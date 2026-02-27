@@ -124,6 +124,16 @@ export default function SmmReportsClient({ smmData, dateFrom, dateTo, period }: 
     });
   }
 
+  function toggleAllWeeks() {
+    if (!weekGroups) return;
+    const allCollapsed = weekGroups.every((wg) => collapsedWeeks.has(wg.monday));
+    if (allCollapsed) {
+      setCollapsedWeeks(new Set());
+    } else {
+      setCollapsedWeeks(new Set(weekGroups.map((wg) => wg.monday)));
+    }
+  }
+
   // Summary
   const summary = useMemo(() => {
     let views = 0,
@@ -223,15 +233,24 @@ export default function SmmReportsClient({ smmData, dateFrom, dateTo, period }: 
             <thead>
               <tr>
                 <th className="pivot-sticky" style={{ left: 0, zIndex: 2 }}>
+                  {weekGroups && (
+                    <span
+                      className="pivot-group-toggle"
+                      onClick={toggleAllWeeks}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      {weekGroups.every((wg) => collapsedWeeks.has(wg.monday)) ? '+' : '−'}
+                    </span>
+                  )}
                   Data
                 </th>
-                {pivot.accounts.map((acc) => {
+                {pivot.accounts.map((acc, ai) => {
                   const platform = smmData.find(
                     (r) => r.account_name === acc
                   )?.platform;
                   const icon = platform === 'TIKTOK' ? '🎵' : '📘';
                   return (
-                    <th key={acc} colSpan={5} style={{ textAlign: 'center' }}>
+                    <th key={acc} colSpan={5} className={ai > 0 ? 'pivot-account-border' : ''} style={{ textAlign: 'center' }}>
                       {icon} {acc}
                     </th>
                   );
@@ -239,9 +258,9 @@ export default function SmmReportsClient({ smmData, dateFrom, dateTo, period }: 
               </tr>
               <tr>
                 <th className="pivot-sticky" style={{ left: 0, zIndex: 2 }} />
-                {pivot.accounts.map((acc) => (
+                {pivot.accounts.map((acc, ai) => (
                   <React.Fragment key={acc}>
-                    <th className="pivot-cell">📝</th>
+                    <th className={`pivot-cell${ai > 0 ? ' pivot-account-border' : ''}`}>📝</th>
                     <th className="pivot-cell">👁</th>
                     <th className="pivot-cell">❤️</th>
                     <th className="pivot-cell">💬</th>
@@ -281,7 +300,7 @@ export default function SmmReportsClient({ smmData, dateFrom, dateTo, period }: 
                       </td>
                       {weekSums.map((ws, i) => (
                         <React.Fragment key={i}>
-                          <td className="pivot-cell" style={{ fontWeight: 700 }}>{ws.posts}</td>
+                          <td className={`pivot-cell${i > 0 ? ' pivot-account-border' : ''}`} style={{ fontWeight: 700 }}>{ws.posts}</td>
                           <td className="pivot-cell" style={{ fontWeight: 700 }}>{ws.views.toLocaleString()}</td>
                           <td className="pivot-cell" style={{ fontWeight: 700 }}>{ws.likes}</td>
                           <td className="pivot-cell" style={{ fontWeight: 700 }}>{ws.comments}</td>
@@ -301,11 +320,11 @@ export default function SmmReportsClient({ smmData, dateFrom, dateTo, period }: 
                           >
                             {dayName} {formatDateShort(d)}
                           </td>
-                          {pivot.accounts.map((acc) => {
+                          {pivot.accounts.map((acc, ai) => {
                             const cell = pivot.cellMap.get(`${acc}|${d}`);
                             return (
                               <React.Fragment key={acc}>
-                                <td className="pivot-cell">{cell ? cell.posts_count : '—'}</td>
+                                <td className={`pivot-cell${ai > 0 ? ' pivot-account-border' : ''}`}>{cell ? cell.posts_count : '—'}</td>
                                 <td className="pivot-cell">{cell ? cell.total_views.toLocaleString() : '—'}</td>
                                 <td className="pivot-cell">{cell ? cell.total_likes : '—'}</td>
                                 <td className="pivot-cell">{cell ? cell.total_comments : '—'}</td>
@@ -329,11 +348,11 @@ export default function SmmReportsClient({ smmData, dateFrom, dateTo, period }: 
                     >
                       {dayName} {formatDateShort(d)}
                     </td>
-                    {pivot.accounts.map((acc) => {
+                    {pivot.accounts.map((acc, ai) => {
                       const cell = pivot.cellMap.get(`${acc}|${d}`);
                       return (
                         <React.Fragment key={acc}>
-                          <td className="pivot-cell">{cell ? cell.posts_count : '—'}</td>
+                          <td className={`pivot-cell${ai > 0 ? ' pivot-account-border' : ''}`}>{cell ? cell.posts_count : '—'}</td>
                           <td className="pivot-cell">{cell ? cell.total_views.toLocaleString() : '—'}</td>
                           <td className="pivot-cell">{cell ? cell.total_likes : '—'}</td>
                           <td className="pivot-cell">{cell ? cell.total_comments : '—'}</td>

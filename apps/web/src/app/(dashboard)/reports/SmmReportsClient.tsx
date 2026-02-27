@@ -5,10 +5,31 @@ import { useCallback, useMemo } from 'react';
 import { SMM_PLATFORM_LABELS } from '@translux/db';
 import type { SmmReportRow } from './smm-actions';
 
+type Period = 'daily' | 'weekly' | 'monthly';
+
 interface Props {
   smmData: SmmReportRow[];
   dateFrom: string;
   dateTo: string;
+  period: Period;
+}
+
+function getPeriodDates(period: Period) {
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  if (period === 'daily') return { dateFrom: today, dateTo: today };
+  if (period === 'weekly') {
+    const day = now.getDay();
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(now);
+    monday.setDate(diff);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    return { dateFrom: monday.toISOString().slice(0, 10), dateTo: sunday.toISOString().slice(0, 10) };
+  }
+  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return { dateFrom: firstDay.toISOString().slice(0, 10), dateTo: lastDay.toISOString().slice(0, 10) };
 }
 
 function formatDateShort(d: string) {
@@ -18,7 +39,7 @@ function formatDateShort(d: string) {
 
 const DAY_NAMES = ['Dum', 'Lun', 'Mar', 'Mie', 'Joi', 'Vin', 'Sâm'];
 
-export default function SmmReportsClient({ smmData, dateFrom, dateTo }: Props) {
+export default function SmmReportsClient({ smmData, dateFrom, dateTo, period }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -74,34 +95,48 @@ export default function SmmReportsClient({ smmData, dateFrom, dateTo }: Props) {
       </div>
 
       {/* Report type toggle */}
-      <div className="card mb-4">
-        <div className="filter-bar">
+      <div className="filter-bar card mb-4">
+        <div className="mode-toggle" style={{ marginRight: 12 }}>
+          <button
+            className="mode-btn"
+            onClick={() => updateParams({ reportType: '' })}
+          >
+            Transport
+          </button>
+          <button className="mode-btn mode-btn-active">SMM</button>
+        </div>
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label>Perioadă</label>
           <div className="mode-toggle">
-            <button
-              className="mode-btn"
-              onClick={() => updateParams({ reportType: '' })}
-            >
-              Transport
-            </button>
-            <button className="mode-btn mode-btn-active">SMM</button>
+            {(['daily', 'weekly', 'monthly'] as Period[]).map((p) => (
+              <button
+                key={p}
+                className={`mode-btn${period === p ? ' mode-btn-active' : ''}`}
+                onClick={() => {
+                  const dates = getPeriodDates(p);
+                  updateParams({ period: p, dateFrom: dates.dateFrom, dateTo: dates.dateTo });
+                }}
+              >
+                {p === 'daily' ? 'Zilnic' : p === 'weekly' ? 'Săptămânal' : 'Lunar'}
+              </button>
+            ))}
           </div>
-
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label>De la</label>
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => updateParams({ dateFrom: e.target.value })}
-            />
-          </div>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label>Până la</label>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => updateParams({ dateTo: e.target.value })}
-            />
-          </div>
+        </div>
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label>De la</label>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => updateParams({ dateFrom: e.target.value, period: '' })}
+          />
+        </div>
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label>Până la</label>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => updateParams({ dateTo: e.target.value, period: '' })}
+          />
         </div>
       </div>
 

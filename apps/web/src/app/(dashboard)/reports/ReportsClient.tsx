@@ -225,7 +225,7 @@ export default function ReportsClient({ pivotData, dateFrom, dateTo, viewMode, p
   // CSV export for pivot data
   function handleExportCSV() {
     const cols = pivot.columns;
-    const header = ['Punct', 'Ora', ...cols.map(c => viewMode === 'weekly' ? c : formatDateShort(c))].join(',');
+    const header = ['Ora', ...cols.map(c => viewMode === 'weekly' ? c : formatDateShort(c))].join(',');
     const lines = pivot.rows.map((row) => {
       const values = cols.map((col, ci) => {
         if (viewMode === 'weekly') {
@@ -239,10 +239,10 @@ export default function ReportsClient({ pivotData, dateFrom, dateTo, viewMode, p
           return cell.passengers != null ? String(cell.passengers) : '';
         }
       });
-      return [POINT_LABELS[row.point], row.departure_time, ...values].join(',');
+      return [row.departure_time, ...values].join(',');
     });
 
-    const totalLine = ['Total', '', ...columnTotals.map(t => t != null ? String(t) : '')].join(',');
+    const totalLine = ['Total', ...columnTotals.map(t => t != null ? String(t) : '')].join(',');
     const csv = [header, ...lines, totalLine].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -352,7 +352,6 @@ export default function ReportsClient({ pivotData, dateFrom, dateTo, viewMode, p
         <table className="pivot-table">
           <thead>
             <tr>
-              <th className="pivot-sticky">Punct</th>
               <th className="pivot-sticky pivot-sticky-time">Ora</th>
               {pivot.columns.map((col, i) => (
                 <th key={i} className="pivot-date-col">
@@ -373,16 +372,8 @@ export default function ReportsClient({ pivotData, dateFrom, dateTo, viewMode, p
           </thead>
           <tbody>
             {pivot.rows.map((row, ri) => {
-              const showPoint = isGroupStart(ri);
-              const groupSize = showPoint ? getGroupSize(ri) : 0;
-
               return (
-                <tr key={row.key} className={showPoint && ri > 0 ? 'pivot-group-border' : ''}>
-                  {showPoint && (
-                    <td rowSpan={groupSize} className="pivot-point pivot-sticky">
-                      {POINT_LABELS[row.point]}
-                    </td>
-                  )}
+                <tr key={row.key}>
                   <td className="pivot-time pivot-sticky pivot-sticky-time">{row.departure_time}</td>
                   {pivot.columns.map((col, ci) => {
                     let display: string;
@@ -423,7 +414,7 @@ export default function ReportsClient({ pivotData, dateFrom, dateTo, viewMode, p
             })}
             {pivot.rows.length === 0 && (
               <tr>
-                <td colSpan={2 + pivot.columns.length} className="text-center text-muted" style={{ padding: 24 }}>
+                <td colSpan={1 + pivot.columns.length} className="text-center text-muted" style={{ padding: 24 }}>
                   Nu există date pentru perioada selectată.
                 </td>
               </tr>
@@ -432,7 +423,7 @@ export default function ReportsClient({ pivotData, dateFrom, dateTo, viewMode, p
           {pivot.rows.length > 0 && (
             <tfoot>
               <tr className="pivot-total-row">
-                <td colSpan={2} className="pivot-sticky pivot-total-label">Total</td>
+                <td className="pivot-sticky pivot-total-label">Total</td>
                 {columnTotals.map((total, ci) => (
                   <td key={ci} className="pivot-cell pivot-total-cell">
                     {total != null ? total : '—'}

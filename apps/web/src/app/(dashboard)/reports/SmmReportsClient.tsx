@@ -136,22 +136,24 @@ export default function SmmReportsClient({ smmData, dateFrom, dateTo }: Props) {
             <thead>
               <tr>
                 <th className="pivot-sticky" style={{ left: 0, zIndex: 2 }}>
-                  Cont
+                  Data
                 </th>
-                {pivot.dates.map((d) => {
-                  const dt = new Date(d + 'T12:00:00');
-                  const dayName = DAY_NAMES[dt.getDay()];
+                {pivot.accounts.map((acc) => {
+                  const platform = smmData.find(
+                    (r) => r.account_name === acc
+                  )?.platform;
+                  const icon = platform === 'TIKTOK' ? '🎵' : '📘';
                   return (
-                    <th key={d} colSpan={4} style={{ textAlign: 'center' }}>
-                      {dayName} {formatDateShort(d)}
+                    <th key={acc} colSpan={4} style={{ textAlign: 'center' }}>
+                      {icon} {acc}
                     </th>
                   );
                 })}
               </tr>
               <tr>
                 <th className="pivot-sticky" style={{ left: 0, zIndex: 2 }} />
-                {pivot.dates.map((d) => (
-                  <React.Fragment key={d}>
+                {pivot.accounts.map((acc) => (
+                  <React.Fragment key={acc}>
                     <th className="pivot-cell">👁</th>
                     <th className="pivot-cell">❤️</th>
                     <th className="pivot-cell">💬</th>
@@ -161,13 +163,11 @@ export default function SmmReportsClient({ smmData, dateFrom, dateTo }: Props) {
               </tr>
             </thead>
             <tbody>
-              {pivot.accounts.map((acc) => {
-                const platform = smmData.find(
-                  (r) => r.account_name === acc
-                )?.platform;
-                const icon = platform === 'TIKTOK' ? '🎵' : '📘';
+              {pivot.dates.map((d) => {
+                const dt = new Date(d + 'T12:00:00');
+                const dayName = DAY_NAMES[dt.getDay()];
                 return (
-                  <tr key={acc}>
+                  <tr key={d}>
                     <td
                       className="pivot-sticky"
                       style={{
@@ -176,12 +176,12 @@ export default function SmmReportsClient({ smmData, dateFrom, dateTo }: Props) {
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      {icon} {acc}
+                      {dayName} {formatDateShort(d)}
                     </td>
-                    {pivot.dates.map((d) => {
+                    {pivot.accounts.map((acc) => {
                       const cell = pivot.cellMap.get(`${acc}|${d}`);
                       return (
-                        <React.Fragment key={d}>
+                        <React.Fragment key={acc}>
                           <td className="pivot-cell">
                             {cell ? cell.total_views.toLocaleString() : '—'}
                           </td>

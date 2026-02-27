@@ -17,9 +17,16 @@ interface Props {
   period: Period;
 }
 
+function toDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function getPeriodDates(period: Period) {
   const now = new Date();
-  const today = now.toISOString().slice(0, 10);
+  const today = toDateStr(now);
   if (period === 'daily') return { dateFrom: today, dateTo: today };
   if (period === 'weekly') {
     const day = now.getDay();
@@ -28,11 +35,11 @@ function getPeriodDates(period: Period) {
     monday.setDate(diff);
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
-    return { dateFrom: monday.toISOString().slice(0, 10), dateTo: sunday.toISOString().slice(0, 10) };
+    return { dateFrom: toDateStr(monday), dateTo: toDateStr(sunday) };
   }
   const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
   const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  return { dateFrom: firstDay.toISOString().slice(0, 10), dateTo: lastDay.toISOString().slice(0, 10) };
+  return { dateFrom: toDateStr(firstDay), dateTo: toDateStr(lastDay) };
 }
 
 const DAY_NAMES = ['Dum', 'Lun', 'Mar', 'Mie', 'Joi', 'Vin', 'Sâm'];
@@ -265,32 +272,18 @@ export default function ReportsClient({ pivotData, dateFrom, dateTo, viewMode, p
       </div>
 
       {/* Filters */}
-      <div className="filter-bar card mb-4">
-        <div className="mode-toggle" style={{ marginRight: 12 }}>
-          <button className="mode-btn mode-btn-active">Transport</button>
-          <button
-            className="mode-btn"
-            onClick={() => updateParams({ reportType: 'smm' })}
-          >
-            SMM
-          </button>
-        </div>
-        <div className="form-group">
-          <label>Punct de pornire</label>
-          <select
-            value={point}
-            onChange={(e) => updateParams({ point: e.target.value })}
-          >
-            {(Object.keys(POINT_LABELS) as PointEnum[]).map((p) => (
-              <option key={p} value={p}>
-                {POINT_LABELS[p]}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="form-group">
-          <label>Perioadă</label>
+      <div className="card mb-4" style={{ padding: '12px 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
           <div className="mode-toggle">
+            <button className="mode-btn mode-btn-active">Transport</button>
+            <button
+              className="mode-btn"
+              onClick={() => updateParams({ reportType: 'smm' })}
+            >
+              SMM
+            </button>
+          </div>
+          <div className="mode-toggle" style={{ marginLeft: 8 }}>
             {(['daily', 'weekly', 'monthly'] as Period[]).map((p) => (
               <button
                 key={p}
@@ -305,21 +298,36 @@ export default function ReportsClient({ pivotData, dateFrom, dateTo, viewMode, p
             ))}
           </div>
         </div>
-        <div className="form-group">
-          <label>De la</label>
-          <input
-            type="date"
-            value={dateFrom}
-            onChange={(e) => updateParams({ dateFrom: e.target.value, period: '' })}
-          />
-        </div>
-        <div className="form-group">
-          <label>Până la</label>
-          <input
-            type="date"
-            value={dateTo}
-            onChange={(e) => updateParams({ dateTo: e.target.value, period: '' })}
-          />
+        <div style={{ display: 'flex', alignItems: 'end', gap: 12, flexWrap: 'wrap' }}>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label>Punct</label>
+            <select
+              value={point}
+              onChange={(e) => updateParams({ point: e.target.value })}
+            >
+              {(Object.keys(POINT_LABELS) as PointEnum[]).map((p) => (
+                <option key={p} value={p}>
+                  {POINT_LABELS[p]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label>De la</label>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => updateParams({ dateFrom: e.target.value, period: '' })}
+            />
+          </div>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label>Până la</label>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => updateParams({ dateTo: e.target.value, period: '' })}
+            />
+          </div>
         </div>
       </div>
 

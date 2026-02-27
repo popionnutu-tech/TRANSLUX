@@ -8,9 +8,16 @@ import SmmReportsClient from './SmmReportsClient';
 
 type Period = 'daily' | 'weekly' | 'monthly';
 
+function toDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function getDateRange(period: Period) {
   const now = new Date();
-  const today = now.toISOString().slice(0, 10);
+  const today = toDateStr(now);
 
   if (period === 'daily') {
     return { dateFrom: today, dateTo: today };
@@ -23,19 +30,13 @@ function getDateRange(period: Period) {
     monday.setDate(diff);
     const sunday = new Date(monday);
     sunday.setDate(sunday.getDate() + 6);
-    return {
-      dateFrom: monday.toISOString().slice(0, 10),
-      dateTo: sunday.toISOString().slice(0, 10),
-    };
+    return { dateFrom: toDateStr(monday), dateTo: toDateStr(sunday) };
   }
 
   // monthly
   const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
   const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  return {
-    dateFrom: firstDay.toISOString().slice(0, 10),
-    dateTo: lastDay.toISOString().slice(0, 10),
-  };
+  return { dateFrom: toDateStr(firstDay), dateTo: toDateStr(lastDay) };
 }
 
 export default async function ReportsPage({

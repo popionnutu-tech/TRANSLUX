@@ -8,7 +8,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Public paths
-  if (pathname === '/login' || pathname.startsWith('/_next') || pathname.startsWith('/api/auth') || pathname.match(/\.(svg|png|jpg|ico)$/)) {
+  if (pathname === '/login' || pathname.startsWith('/_next') || pathname.startsWith('/api/auth') || pathname.match(/\.(svg|png|jpg|ico|txt)$/)) {
     return NextResponse.next();
   }
 

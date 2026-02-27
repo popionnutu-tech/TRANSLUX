@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { SMM_PLATFORM_LABELS } from '@translux/db';
 import type { SmmReportRow } from './smm-actions';
 
@@ -46,9 +46,22 @@ function formatDateShort(d: string) {
 
 const DAY_NAMES = ['Dum', 'Lun', 'Mar', 'Mie', 'Joi', 'Vin', 'Sâm'];
 
+function getMondayStr(dateStr: string): string {
+  const dt = new Date(dateStr + 'T12:00:00');
+  const day = dt.getDay();
+  const diff = dt.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(dt);
+  monday.setDate(diff);
+  const y = monday.getFullYear();
+  const m = String(monday.getMonth() + 1).padStart(2, '0');
+  const d = String(monday.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 export default function SmmReportsClient({ smmData, dateFrom, dateTo, period }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [collapsedWeeks, setCollapsedWeeks] = useState<Set<string>>(new Set());
 
   const updateParams = useCallback(
     (updates: Record<string, string>) => {
@@ -79,6 +92,37 @@ export default function SmmReportsClient({ smmData, dateFrom, dateTo, period }: 
 
     return { accounts, dates, cellMap };
   }, [smmData]);
+
+  // Group dates by week for collapsible UI
+  const weekGroups = useMemo(() => {
+    if (period === 'daily') return null;
+    const weekMap = new Map<string, string[]>();
+    for (const d of pivot.dates) {
+      const monday = getMondayStr(d);
+      if (!weekMap.has(monday)) weekMap.set(monday, []);
+      weekMap.get(monday)!.push(d);
+    }
+    return Array.from(weekMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([monday, dates]) => {
+        const sundayDt = new Date(monday + 'T12:00:00');
+        sundayDt.setDate(sundayDt.getDate() + 6);
+        const sy = sundayDt.getFullYear();
+        const sm = String(sundayDt.getMonth() + 1).padStart(2, '0');
+        const sd = String(sundayDt.getDate()).padStart(2, '0');
+        const label = `${formatDateShort(monday)}–${formatDateShort(`${sy}-${sm}-${sd}`)}`;
+        return { monday, label, dates };
+      });
+  }, [pivot.dates, period]);
+
+  function toggleWeek(monday: string) {
+    setCollapsedWeeks((prev) => {
+      const next = new Set(prev);
+      if (next.has(monday)) next.delete(monday);
+      else next.add(monday);
+      return next;
+    });
+  }
 
   // Summary
   const summary = useMemo(() => {
@@ -207,18 +251,81 @@ export default function SmmReportsClient({ smmData, dateFrom, dateTo, period }: 
               </tr>
             </thead>
             <tbody>
-              {pivot.dates.map((d) => {
+              {weekGroups ? weekGroups.map((wg) => {
+                const isCollapsed = collapsedWeeks.has(wg.monday);
+                // Compute weekly sums per account
+                const weekSums = pivot.accounts.map((acc) => {
+                  let posts = 0, views = 0, likes = 0, comments = 0, shares = 0;
+                  for (const d of wg.dates) {
+                    const cell = pivot.cellMap.get(`${acc}|${d}`);
+                    if (cell) {
+                      posts += cell.posts_count;
+                      views += cell.total_views;
+                      likes += cell.total_likes;
+                      comments += cell.total_comments;
+                      shares += cell.total_shares;
+                    }
+                  }
+                  return { posts, views, likes, comments, shares };
+                });
+                return (
+                  <React.Fragment key={wg.monday}>
+                    {/* Week summary row */}
+                    <tr className="pivot-group-row" onClick={() => toggleWeek(wg.monday)} style={{ cursor: 'pointer' }}>
+                      <td
+                        className="pivot-sticky"
+                        style={{ left: 0, fontWeight: 700, whiteSpace: 'nowrap' }}
+                      >
+                        <span className="pivot-group-toggle">{isCollapsed ? '+' : '−'}</span>
+                        {wg.label}
+                      </td>
+                      {weekSums.map((ws, i) => (
+                        <React.Fragment key={i}>
+                          <td className="pivot-cell" style={{ fontWeight: 700 }}>{ws.posts}</td>
+                          <td className="pivot-cell" style={{ fontWeight: 700 }}>{ws.views.toLocaleString()}</td>
+                          <td className="pivot-cell" style={{ fontWeight: 700 }}>{ws.likes}</td>
+                          <td className="pivot-cell" style={{ fontWeight: 700 }}>{ws.comments}</td>
+                          <td className="pivot-cell" style={{ fontWeight: 700 }}>{ws.shares}</td>
+                        </React.Fragment>
+                      ))}
+                    </tr>
+                    {/* Individual day rows (visible when expanded) */}
+                    {!isCollapsed && wg.dates.map((d) => {
+                      const dt = new Date(d + 'T12:00:00');
+                      const dayName = DAY_NAMES[dt.getDay()];
+                      return (
+                        <tr key={d}>
+                          <td
+                            className="pivot-sticky"
+                            style={{ left: 0, fontWeight: 400, whiteSpace: 'nowrap', paddingLeft: 20 }}
+                          >
+                            {dayName} {formatDateShort(d)}
+                          </td>
+                          {pivot.accounts.map((acc) => {
+                            const cell = pivot.cellMap.get(`${acc}|${d}`);
+                            return (
+                              <React.Fragment key={acc}>
+                                <td className="pivot-cell">{cell ? cell.posts_count : '—'}</td>
+                                <td className="pivot-cell">{cell ? cell.total_views.toLocaleString() : '—'}</td>
+                                <td className="pivot-cell">{cell ? cell.total_likes : '—'}</td>
+                                <td className="pivot-cell">{cell ? cell.total_comments : '—'}</td>
+                                <td className="pivot-cell">{cell ? cell.total_shares : '—'}</td>
+                              </React.Fragment>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
+                  </React.Fragment>
+                );
+              }) : pivot.dates.map((d) => {
                 const dt = new Date(d + 'T12:00:00');
                 const dayName = DAY_NAMES[dt.getDay()];
                 return (
                   <tr key={d}>
                     <td
                       className="pivot-sticky"
-                      style={{
-                        left: 0,
-                        fontWeight: 600,
-                        whiteSpace: 'nowrap',
-                      }}
+                      style={{ left: 0, fontWeight: 600, whiteSpace: 'nowrap' }}
                     >
                       {dayName} {formatDateShort(d)}
                     </td>
@@ -226,21 +333,11 @@ export default function SmmReportsClient({ smmData, dateFrom, dateTo, period }: 
                       const cell = pivot.cellMap.get(`${acc}|${d}`);
                       return (
                         <React.Fragment key={acc}>
-                          <td className="pivot-cell">
-                            {cell ? cell.posts_count : '—'}
-                          </td>
-                          <td className="pivot-cell">
-                            {cell ? cell.total_views.toLocaleString() : '—'}
-                          </td>
-                          <td className="pivot-cell">
-                            {cell ? cell.total_likes : '—'}
-                          </td>
-                          <td className="pivot-cell">
-                            {cell ? cell.total_comments : '—'}
-                          </td>
-                          <td className="pivot-cell">
-                            {cell ? cell.total_shares : '—'}
-                          </td>
+                          <td className="pivot-cell">{cell ? cell.posts_count : '—'}</td>
+                          <td className="pivot-cell">{cell ? cell.total_views.toLocaleString() : '—'}</td>
+                          <td className="pivot-cell">{cell ? cell.total_likes : '—'}</td>
+                          <td className="pivot-cell">{cell ? cell.total_comments : '—'}</td>
+                          <td className="pivot-cell">{cell ? cell.total_shares : '—'}</td>
                         </React.Fragment>
                       );
                     })}

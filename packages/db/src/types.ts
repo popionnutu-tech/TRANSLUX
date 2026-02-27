@@ -128,3 +128,56 @@ export interface ReportWithDetails extends Report {
   direction?: DirectionEnum;
   photos_count?: number;
 }
+
+// ============================================================
+// SMM Monitoring
+// ============================================================
+
+export type SmmPlatform = 'TIKTOK' | 'FACEBOOK';
+
+export const SMM_PLATFORM_LABELS: Record<SmmPlatform, string> = {
+  TIKTOK: 'TikTok',
+  FACEBOOK: 'Facebook',
+};
+
+export interface SmmAccount {
+  id: string;
+  platform: SmmPlatform;
+  account_name: string;
+  platform_id: string;
+  access_token: string;
+  refresh_token: string | null;
+  token_expires_at: string | null;
+  active: boolean;
+  created_at: string;
+}
+
+export interface SmmPost {
+  id: string;
+  account_id: string;
+  platform_post_id: string;
+  published_at: string;
+  title: string | null;
+  view_count: number;
+  like_count: number;
+  comment_count: number;
+  share_count: number;
+  fetched_at: string;
+}
+
+export interface SmmDailyStat {
+  id: string;
+  account_id: string;
+  stat_date: string;
+  posts_count: number;
+  total_views: number;
+  total_likes: number;
+  total_comments: number;
+  total_shares: number;
+  created_at: string;
+}
+
+export interface SmmDailyStatWithAccount extends SmmDailyStat {
+  account_name: string;
+  platform: SmmPlatform;
+}

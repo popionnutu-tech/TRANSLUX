@@ -1,15 +1,16 @@
 import 'dotenv/config';
 import { config, validateConfig } from './config.js';
 import { createBot } from './bot.js';
-import { scheduleWeeklyReport } from './scheduler.js';
+import { scheduleWeeklyReport, scheduleSmmJobs } from './scheduler.js';
 
 async function main() {
   validateConfig();
 
   const bot = createBot();
 
-  // Start weekly report scheduler
+  // Start schedulers
   scheduleWeeklyReport();
+  scheduleSmmJobs();
 
   console.log('TRANSLUX Bot starting (long polling)...');
   await bot.start({

@@ -10,6 +10,7 @@ import { handleValidateDay } from './handlers/validate.js';
 import { handleAdmin, handleStopAdmin, handleWeeklyReport } from './handlers/admin.js';
 import { reportConversation } from './conversations/report.js';
 import { initAdminAlert } from './services/adminAlert.js';
+import { handleDaily } from './handlers/smm.js';
 
 export function createBot(): Bot<BotContext> {
   const bot = new Bot<BotContext>(config.botToken);
@@ -35,6 +36,7 @@ export function createBot(): Bot<BotContext> {
   bot.command('admin', handleAdmin as any);
   bot.command('stopadmin', handleStopAdmin as any);
   bot.command('weeklyreport', handleWeeklyReport as any);
+  bot.command('daily', handleDaily as any);
 
   // Menu callback handlers
   bot.callbackQuery('menu:report', async (ctx) => {

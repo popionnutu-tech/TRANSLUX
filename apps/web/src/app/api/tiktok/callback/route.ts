@@ -14,8 +14,9 @@ export async function GET(request: NextRequest) {
   }
 
   // Exchange code for access token
-  const clientKey = process.env.TIKTOK_CLIENT_KEY;
-  const clientSecret = process.env.TIKTOK_CLIENT_SECRET;
+  // TODO: move to env vars on Vercel, then remove hardcoded fallbacks
+  const clientKey = process.env.TIKTOK_CLIENT_KEY || 'sbaweyr3598ksz7o5n';
+  const clientSecret = process.env.TIKTOK_CLIENT_SECRET || 'JfadVqAlBW709QjaZcMV6yRYHbNRjvh1';
 
   const tokenRes = await fetch('https://open.tiktokapis.com/v2/oauth/token/', {
     method: 'POST',
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
       client_secret: clientSecret!,
       code,
       grant_type: 'authorization_code',
-      redirect_uri: `${request.nextUrl.origin}/api/tiktok/callback`,
+      redirect_uri: 'https://translux-web.vercel.app/api/tiktok/callback',
     }),
   });
 

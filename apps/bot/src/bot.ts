@@ -10,7 +10,7 @@ import { handleCancelLastReport } from './handlers/cancel.js';
 import { handleAdmin, handleStopAdmin, handleWeeklyReport } from './handlers/admin.js';
 import { reportConversation } from './conversations/report.js';
 import { initAdminAlert } from './services/adminAlert.js';
-import { handleDaily, handleSmmWeekly } from './handlers/smm.js';
+import { handleDaily, handleSmmWeekly, handleSmmMonth } from './handlers/smm.js';
 
 export function createBot(): Bot<BotContext> {
   const bot = new Bot<BotContext>(config.botToken);
@@ -38,6 +38,7 @@ export function createBot(): Bot<BotContext> {
   bot.command('weeklyreport', handleWeeklyReport as any);
   bot.command('daily', handleDaily as any);
   bot.command('smmweekly', handleSmmWeekly as any);
+  bot.command('smmmonth', handleSmmMonth as any);
 
   // Menu callback handlers
   bot.callbackQuery('menu:report', async (ctx) => {

@@ -21,8 +21,10 @@ function getCurrentWeekRange(): { dateFrom: string; dateTo: string } {
   };
 }
 
-export async function sendSmmWeeklyReport(): Promise<void> {
-  const { dateFrom, dateTo } = getCurrentWeekRange();
+export async function sendSmmWeeklyReport(
+  customRange?: { dateFrom: string; dateTo: string }
+): Promise<void> {
+  const { dateFrom, dateTo } = customRange || getCurrentWeekRange();
 
   await collectSmmData();
 

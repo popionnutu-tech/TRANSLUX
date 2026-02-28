@@ -80,21 +80,26 @@ async function sendOrEditDigest(state: DigestState): Promise<void> {
 
   const today = state.date;
 
-  // Count total reports today from DB
-  let totalReports = 0;
+  // Count total reports today from DB per point
+  const reportsByPoint: Record<string, number> = {};
   try {
-    const { count } = await getSupabase()
-      .from('reports')
-      .select('id', { count: 'exact', head: true })
-      .eq('report_date', today)
-      .is('cancelled_at', null);
-    totalReports = count || 0;
+    for (const pt of ['CHISINAU', 'BALTI'] as const) {
+      const { count } = await getSupabase()
+        .from('reports')
+        .select('id', { count: 'exact', head: true })
+        .eq('report_date', today)
+        .eq('point', pt)
+        .is('cancelled_at', null);
+      const label = pt === 'CHISINAU' ? 'Chișinău' : 'Bălți';
+      reportsByPoint[label] = count || 0;
+    }
   } catch {
-    totalReports = state.violations.length;
+    // fallback
   }
 
   // Group violations by point
   const byPoint = new Map<string, string[]>();
+  const violationsByPoint = new Map<string, number>();
   for (const v of state.violations) {
     const icons: string[] = [];
     const details: string[] = [];
@@ -109,20 +114,26 @@ async function sendOrEditDigest(state: DigestState): Promise<void> {
     const line = `${icons.join('')} ${v.time} — ${v.operator} (${details.join(', ')})`;
     if (!byPoint.has(v.point)) byPoint.set(v.point, []);
     byPoint.get(v.point)!.push(line);
+    violationsByPoint.set(v.point, (violationsByPoint.get(v.point) || 0) + 1);
   }
 
   // Build message with sections per point
   let body = '';
   for (const [point, lines] of byPoint) {
     lines.sort();
-    body += `<b>${point}:</b>\n${lines.join('\n')}\n\n`;
+    const vCount = violationsByPoint.get(point) || 0;
+    const rCount = reportsByPoint[point] || 0;
+    body += `<b>${point}:</b>\n${lines.join('\n')}\n<i>${vCount} încălcări din ${rCount} rapoarte</i>\n\n`;
   }
+
+  const totalViolations = state.violations.length;
+  const totalReports = Object.values(reportsByPoint).reduce((a, b) => a + b, 0);
 
   const msg =
     `📋 <b>RAPORT ZILNIC — ${formatDate(today)}</b>\n\n` +
     `⚠️ Încălcări:\n\n` +
     body +
-    `Total: <b>${state.violations.length}</b> încălcări din <b>${totalReports}</b> rapoarte`;
+    `Total: <b>${totalViolations}</b> încălcări din <b>${totalReports}</b> rapoarte`;
 
   // Send or edit for each admin chat
   let stateChanged = false;

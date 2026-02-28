@@ -278,6 +278,43 @@ export default function ReportsClient({ pivotData, dateFrom, dateTo, viewMode, p
     });
   }, [pivot, viewMode]);
 
+  // Per-column stats: trips count, total passengers, average
+  const columnStats = useMemo(() => {
+    const computeStats = (dates: string[]) => {
+      let trips = 0;
+      let total = 0;
+      for (const d of dates) {
+        for (const row of pivot.rows) {
+          const cell = daily.cellMap.get(`${row.key}|${d}`);
+          if (cell && cell.status === 'OK' && cell.passengers != null) {
+            trips++;
+            total += cell.passengers;
+          }
+        }
+      }
+      return { trips, total, avg: trips > 0 ? Math.round((total / trips) * 100) / 100 : 0 };
+    };
+    return daily.columns.map((col) => computeStats([col]));
+  }, [daily, pivot.rows]);
+
+  const weekGroupStats = useMemo(() => {
+    if (!weekColumnGroups) return null;
+    return weekColumnGroups.map((wg) => {
+      let trips = 0;
+      let total = 0;
+      for (const d of wg.dates) {
+        for (const row of pivot.rows) {
+          const cell = daily.cellMap.get(`${row.key}|${d}`);
+          if (cell && cell.status === 'OK' && cell.passengers != null) {
+            trips++;
+            total += cell.passengers;
+          }
+        }
+      }
+      return { trips, total, avg: trips > 0 ? Math.round((total / trips) * 100) / 100 : 0 };
+    });
+  }, [weekColumnGroups, daily, pivot.rows]);
+
   // CSV export for pivot data
   function handleExportCSV() {
     const cols = pivot.columns;
@@ -470,6 +507,34 @@ export default function ReportsClient({ pivotData, dateFrom, dateTo, viewMode, p
                 </th>
               ))}
             </tr>
+            {viewMode !== 'weekly' && pivot.rows.length > 0 && (
+              <>
+                {[
+                  { key: 'trips', fn: (s: { trips: number; total: number; avg: number }) => s.trips },
+                  { key: 'total', fn: (s: { trips: number; total: number; avg: number }) => s.total },
+                  { key: 'avg', fn: (s: { trips: number; total: number; avg: number }) => s.avg },
+                ] .map(({ key, fn }) => (
+                  <tr key={key} className="pivot-stat-row">
+                    <th className="pivot-sticky pivot-sticky-time" style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}></th>
+                    {weekColumnGroups ? weekColumnGroups.map((wg, gi) => {
+                      const isCollapsed = collapsedWeeks.has(wg.monday);
+                      if (isCollapsed) {
+                        const s = weekGroupStats?.[gi];
+                        return <td key={wg.monday} className="pivot-cell" style={{ fontSize: 11, color: '#64748b' }}>{s ? fn(s) : '—'}</td>;
+                      }
+                      return wg.dates.map((col) => {
+                        const ci = daily.columns.indexOf(col);
+                        const s = columnStats[ci];
+                        return <td key={col} className="pivot-cell" style={{ fontSize: 11, color: '#64748b' }}>{s ? fn(s) : '—'}</td>;
+                      });
+                    }) : daily.columns.map((col, ci) => {
+                      const s = columnStats[ci];
+                      return <td key={ci} className="pivot-cell" style={{ fontSize: 11, color: '#64748b' }}>{s ? fn(s) : '—'}</td>;
+                    })}
+                  </tr>
+                ))}
+              </>
+            )}
           </thead>
           <tbody>
             {pivot.rows.map((row) => (

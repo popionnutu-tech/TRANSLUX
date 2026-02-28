@@ -43,8 +43,9 @@ export function addViolation(v: Violation): void {
  */
 export async function updateDailyDigest(): Promise<void> {
   const botApi = getBotApi();
-  const adminChatIds = getAdminChatIds();
-  if (!botApi || adminChatIds.size === 0) return;
+  if (!botApi) return;
+  const adminChatIds = await getAdminChatIds();
+  if (adminChatIds.size === 0) return;
   if (violations.length === 0) return;
 
   const today = getTodayDate();

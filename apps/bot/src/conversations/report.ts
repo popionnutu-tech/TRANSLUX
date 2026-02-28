@@ -13,7 +13,7 @@ import {
   validateDay,
   getUsedDriverIds,
 } from '../services/db.js';
-import { updateDailyDigest } from '../services/dailyDigest.js';
+import { addViolation, updateDailyDigest } from '../services/dailyDigest.js';
 import { getTodayDate, formatTime, formatDate, haversineDistance, minutesLate } from '../utils.js';
 import { config } from '../config.js';
 
@@ -320,17 +320,23 @@ export async function reportConversation(
         exterior_ok: exteriorOk,
         uniform_ok: uniformOk,
         created_by_user: user.id,
-        location_lat: userLat,
-        location_lon: userLon,
-        location_distance_m: locationDistance != null ? Math.round(locationDistance) : null,
-        location_ok: needsLoc ? locationOk : null,
-        minutes_late: late,
       });
 
       // Update daily digest (single editable message for all violations)
-      if ((needsLoc && !locationOk) || late > 10) {
+      const hasLocationViolation = needsLoc && !locationOk;
+      const hasLateViolation = late > 10;
+      if (hasLocationViolation || hasLateViolation) {
         try {
-          await updateDailyDigest(reportDate);
+          addViolation({
+            time: formatTime(trip.departure_time),
+            point: POINT_LABELS[point],
+            operator: user.username ? `@${user.username}` : `#${user.telegram_id}`,
+            locationBad: hasLocationViolation,
+            distanceM: locationDistance != null ? Math.round(locationDistance) : null,
+            late: hasLateViolation,
+            minutesLate: late,
+          });
+          await updateDailyDigest();
         } catch (e) {
           console.error('Daily digest update error:', e);
         }

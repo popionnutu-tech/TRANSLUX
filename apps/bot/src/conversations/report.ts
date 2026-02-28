@@ -342,7 +342,11 @@ export async function reportConversation(
         }
       }
 
-      const driverName = driverId ? drivers.find(d => d.id === driverId)?.full_name || '—' : '—';
+      const driverFull = driverId ? drivers.find(d => d.id === driverId)?.full_name || '—' : '—';
+      const driverParts = driverFull.split(' ');
+      const driverName = driverParts.length > 1
+        ? `${driverParts[0]} ${driverParts.slice(1).map(p => p[0] + '.').join('')}`
+        : driverFull;
 
       if (status === 'ABSENT') {
         await ctx.reply(`✓ ${formatTime(trip.departure_time)} — absent`);

@@ -2,13 +2,31 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { User, UserRole } from '@translux/db';
+import type { User, UserRole, PointEnum } from '@translux/db';
 import { POINT_LABELS } from '@translux/db';
-import { updateUserRole, toggleUser, deleteUser } from './actions';
+import {
+  updateUserRole,
+  toggleUser,
+  deleteUser,
+  createInvite,
+  deleteInvite,
+} from './actions';
+import type { InviteWithAdmin } from './actions';
 
-export default function UsersClient({ initialUsers }: { initialUsers: User[] }) {
+export default function UsersClient({
+  initialUsers,
+  initialInvites,
+}: {
+  initialUsers: User[];
+  initialInvites: InviteWithAdmin[];
+}) {
   const [error, setError] = useState('');
+  const [point, setPoint] = useState<PointEnum>('CHISINAU');
+  const [lastLink, setLastLink] = useState('');
+  const [invLoading, setInvLoading] = useState(false);
   const router = useRouter();
+
+  // ── User actions ──────────────────────────────────
 
   async function handleRoleChange(id: string, role: UserRole) {
     setError('');
@@ -35,6 +53,41 @@ export default function UsersClient({ initialUsers }: { initialUsers: User[] }) 
     }
   }
 
+  // ── Invite actions ────────────────────────────────
+
+  async function handleCreateInvite() {
+    setError('');
+    setInvLoading(true);
+    try {
+      const result = await createInvite(point);
+      setLastLink(result.botLink);
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setInvLoading(false);
+    }
+  }
+
+  async function handleDeleteInvite(token: string) {
+    if (!confirm('Sigur vrei să ștergi această invitație?')) return;
+    await deleteInvite(token);
+    router.refresh();
+  }
+
+  function copyLink() {
+    navigator.clipboard.writeText(lastLink);
+  }
+
+  function getInviteStatus(invite: InviteWithAdmin): { label: string; cls: string } {
+    if (invite.used_at) return { label: 'Utilizat', cls: 'badge-ok' };
+    if (new Date(invite.expires_at) < new Date()) return { label: 'Expirat', cls: 'badge-cancelled' };
+    return { label: 'Activ', cls: 'badge-absent' };
+  }
+
+  const formatDate = (d: string) =>
+    new Date(d).toLocaleString('ro-RO', { timeZone: 'Europe/Chisinau' });
+
   return (
     <div className="page">
       <div className="page-header">
@@ -47,7 +100,8 @@ export default function UsersClient({ initialUsers }: { initialUsers: User[] }) 
         </div>
       )}
 
-      <div className="card">
+      {/* ── Users Table ── */}
+      <div className="card mb-4">
         <table>
           <thead>
             <tr>
@@ -106,6 +160,94 @@ export default function UsersClient({ initialUsers }: { initialUsers: User[] }) 
               <tr>
                 <td colSpan={6} className="text-center text-muted">
                   Nu există utilizatori.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ── Invite Section ── */}
+      <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12 }}>Invitații</h2>
+
+      <div className="card mb-4">
+        <div style={{ display: 'flex', gap: 12, alignItems: 'end' }}>
+          <div className="form-group" style={{ marginBottom: 0, minWidth: 180 }}>
+            <label>Punct</label>
+            <select value={point} onChange={(e) => setPoint(e.target.value as PointEnum)}>
+              <option value="CHISINAU">{POINT_LABELS.CHISINAU}</option>
+              <option value="BALTI">{POINT_LABELS.BALTI}</option>
+            </select>
+          </div>
+          <button onClick={handleCreateInvite} className="btn btn-primary" disabled={invLoading}>
+            {invLoading ? 'Se generează...' : 'Generează invitație'}
+          </button>
+        </div>
+        {lastLink && (
+          <div
+            style={{
+              marginTop: 12,
+              padding: 12,
+              background: '#f0f9ff',
+              borderRadius: 8,
+              display: 'flex',
+              gap: 8,
+              alignItems: 'center',
+            }}
+          >
+            <code style={{ flex: 1, fontSize: 13, wordBreak: 'break-all' }}>{lastLink}</code>
+            <button onClick={copyLink} className="btn btn-outline">
+              Copiază
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="card">
+        <table>
+          <thead>
+            <tr>
+              <th>Punct</th>
+              <th>Status</th>
+              <th>Creat la</th>
+              <th>Expiră la</th>
+              <th>Utilizat de</th>
+              <th>Acțiuni</th>
+            </tr>
+          </thead>
+          <tbody>
+            {initialInvites.map((inv) => {
+              const status = getInviteStatus(inv);
+              return (
+                <tr key={inv.token}>
+                  <td>{POINT_LABELS[inv.point]}</td>
+                  <td>
+                    <span className={`badge ${status.cls}`}>{status.label}</span>
+                  </td>
+                  <td style={{ fontSize: 13 }}>{formatDate(inv.created_at)}</td>
+                  <td style={{ fontSize: 13 }}>{formatDate(inv.expires_at)}</td>
+                  <td>
+                    {inv.users
+                      ? `@${inv.users.username || inv.users.telegram_id}`
+                      : '—'}
+                  </td>
+                  <td>
+                    {!inv.used_at && (
+                      <button
+                        className="btn btn-danger"
+                        onClick={() => handleDeleteInvite(inv.token)}
+                      >
+                        Șterge
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+            {initialInvites.length === 0 && (
+              <tr>
+                <td colSpan={6} className="text-center text-muted">
+                  Nu există invitații.
                 </td>
               </tr>
             )}

@@ -19,6 +19,13 @@ const violations: Violation[] = [];
 // Track sent message IDs per chat, so we can edit instead of resend
 const digestMessageIds = new Map<number, number>(); // chatId → messageId
 
+/** Get current violation count for today */
+export function getViolationsCount(): number {
+  const today = getTodayDate();
+  if (violationDate !== today) return 0;
+  return violations.length;
+}
+
 /** Register a new violation (called from report.ts after saving report) */
 export function addViolation(v: Violation): void {
   const today = getTodayDate();

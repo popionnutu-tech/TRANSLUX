@@ -264,7 +264,9 @@ export async function getDriverViolations(
   const map = new Map<string, { name: string; uniform: number; aspect: number }>();
   for (const r of data as any[]) {
     const id = r.driver_id || 'unknown';
-    const name = r.drivers?.full_name || '—';
+    const rawName = r.drivers?.full_name || '—';
+    const np = rawName.split(' ');
+    const name = np.length > 1 ? `${np[0]} ${np.slice(1).map((p: string) => p[0] + '.').join('')}` : rawName;
     if (!map.has(id)) map.set(id, { name, uniform: 0, aspect: 0 });
     const entry = map.get(id)!;
     if (r.uniform_ok === false) entry.uniform++;

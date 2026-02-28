@@ -99,11 +99,6 @@ export interface Report {
   created_at: string;
   cancelled_at: string | null;
   cancelled_by: string | null;
-  location_lat: number | null;
-  location_lon: number | null;
-  location_distance_m: number | null;
-  location_ok: boolean | null;
-  minutes_late: number | null;
 }
 
 export interface DayValidation {

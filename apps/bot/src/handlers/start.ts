@@ -47,8 +47,13 @@ export async function handleStart(ctx: BotContext) {
 export async function showMainMenu(ctx: BotContext) {
   const kb = new InlineKeyboard()
     .text('📋 Raportează cursă', 'menu:report')
-    .row()
-    .text('🔙 Anulează ultimul', 'menu:cancel_last')
+    .row();
+
+  if (ctx.dbUser?.point === 'CHISINAU') {
+    kb.text('➕ Adaugă șofer', 'menu:add_driver').row();
+  }
+
+  kb.text('🔙 Anulează ultimul', 'menu:cancel_last')
     .text('❓ Ajutor', 'menu:help');
 
   await ctx.reply('Meniu principal:', { reply_markup: kb });

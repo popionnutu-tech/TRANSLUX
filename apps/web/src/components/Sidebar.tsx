@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 const nav = [
   { href: '/reports', label: 'Rapoarte' },
   { href: '/smm-accounts', label: 'Conturi SMM' },
+  { href: '/users', label: 'Utilizatori' },
   { href: '/invites', label: 'Invitații' },
   { href: '/routes', label: 'Rute' },
   { href: '/drivers', label: 'Șoferi' },

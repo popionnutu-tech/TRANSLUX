@@ -9,6 +9,7 @@ import { handleCancelLastReport } from './handlers/cancel.js';
 
 import { handleWeeklyReport, handleDigest } from './handlers/admin.js';
 import { reportConversation } from './conversations/report.js';
+import { addDriverConversation } from './conversations/addDriver.js';
 import { initAdminAlert } from './services/adminAlert.js';
 import { handleDaily, handleSmmWeekly, handleSmmMonth } from './handlers/smm.js';
 
@@ -28,6 +29,7 @@ export function createBot(): Bot<BotContext> {
   );
   bot.use(conversations());
   bot.use(createConversation(reportConversation, 'report'));
+  bot.use(createConversation(addDriverConversation, 'addDriver'));
 
   // /start command
   bot.command('start', handleStart);
@@ -47,6 +49,15 @@ export function createBot(): Bot<BotContext> {
       return;
     }
     await ctx.conversation.enter('report');
+  });
+
+  bot.callbackQuery('menu:add_driver', async (ctx) => {
+    await ctx.answerCallbackQuery();
+    if (!ctx.dbUser || ctx.dbUser.point !== 'CHISINAU') {
+      await ctx.reply('Această funcție este disponibilă doar pentru operatorii din Chișinău.');
+      return;
+    }
+    await ctx.conversation.enter('addDriver');
   });
 
   bot.callbackQuery('menu:cancel_last', async (ctx) => {

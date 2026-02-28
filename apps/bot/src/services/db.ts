@@ -98,6 +98,16 @@ export async function getActiveDrivers(): Promise<Driver[]> {
   return data || [];
 }
 
+export async function createDriver(fullName: string): Promise<Driver> {
+  const { data, error } = await db()
+    .from('drivers')
+    .insert({ full_name: fullName })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as Driver;
+}
+
 export async function searchDrivers(query: string): Promise<Driver[]> {
   const { data } = await db()
     .from('drivers')

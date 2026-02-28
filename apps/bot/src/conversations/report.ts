@@ -13,7 +13,7 @@ import {
   validateDay,
   getUsedDriverIds,
 } from '../services/db.js';
-import { sendLocationAlert, sendLateAlert } from '../services/adminAlert.js';
+import { updateDailyDigest } from '../services/dailyDigest.js';
 import { getTodayDate, formatTime, formatDate, haversineDistance, minutesLate } from '../utils.js';
 import { config } from '../config.js';
 
@@ -181,14 +181,6 @@ export async function reportConversation(
               `⚠️ Ești la ${Math.round(locationDistance)}m de stație (limita: ${station.radiusM}m).\nRaportarea continuă, dar administratorul va fi notificat.`,
               { reply_markup: { remove_keyboard: true } }
             );
-            await sendLocationAlert(
-              user.username || `User #${user.telegram_id}`,
-              POINT_LABELS[point],
-              formatTime(trip.departure_time),
-              locationDistance,
-              userLat,
-              userLon
-            );
           }
           break;
         }
@@ -216,12 +208,6 @@ export async function reportConversation(
       await ctx.reply(
         `⏰ Întârziere ${late} min față de ora cursei ${formatTime(trip.departure_time)}.\n` +
         `Poți continua, dar administratorul va fi notificat.`
-      );
-      await sendLateAlert(
-        user.username || `User #${user.telegram_id}`,
-        POINT_LABELS[point],
-        formatTime(trip.departure_time),
-        late
       );
     }
 
@@ -334,7 +320,21 @@ export async function reportConversation(
         exterior_ok: exteriorOk,
         uniform_ok: uniformOk,
         created_by_user: user.id,
+        location_lat: userLat,
+        location_lon: userLon,
+        location_distance_m: locationDistance != null ? Math.round(locationDistance) : null,
+        location_ok: needsLoc ? locationOk : null,
+        minutes_late: late,
       });
+
+      // Update daily digest (single editable message for all violations)
+      if ((needsLoc && !locationOk) || late > 10) {
+        try {
+          await updateDailyDigest(reportDate);
+        } catch (e) {
+          console.error('Daily digest update error:', e);
+        }
+      }
 
       const driverName = driverId ? drivers.find(d => d.id === driverId)?.full_name || '—' : '—';
 

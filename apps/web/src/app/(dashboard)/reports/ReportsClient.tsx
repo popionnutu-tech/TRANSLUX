@@ -510,9 +510,9 @@ export default function ReportsClient({ pivotData, dateFrom, dateTo, viewMode, p
             {viewMode !== 'weekly' && pivot.rows.length > 0 && (
               <>
                 {[
-                  { key: 'trips', fn: (s: { trips: number; total: number; avg: number }) => s.trips },
-                  { key: 'total', fn: (s: { trips: number; total: number; avg: number }) => s.total },
-                  { key: 'avg', fn: (s: { trips: number; total: number; avg: number }) => s.avg },
+                  { key: 'trips', fn: (s: { trips: number; total: number; avg: number }) => String(s.trips) },
+                  { key: 'total', fn: (s: { trips: number; total: number; avg: number }) => String(s.total) },
+                  { key: 'avg', fn: (s: { trips: number; total: number; avg: number }) => s.avg.toFixed(2) },
                 ] .map(({ key, fn }) => (
                   <tr key={key} className="pivot-stat-row">
                     <th className="pivot-sticky pivot-sticky-time" style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}></th>

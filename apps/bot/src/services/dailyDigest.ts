@@ -29,22 +29,45 @@ async function loadState(): Promise<DigestState> {
     const { data, error } = await getSupabase().storage
       .from(BUCKET)
       .download(`digest/${today}.json`);
-    if (error || !data) return { date: today, violations: [], messageIds: {} };
+    if (error || !data) {
+      console.log('Digest loadState: no file or error:', error?.message);
+      return { date: today, violations: [], messageIds: {} };
+    }
     const text = await data.text();
-    return JSON.parse(text);
-  } catch {
+    const state = JSON.parse(text) as DigestState;
+    console.log(`Digest loadState: ${state.violations?.length || 0} violations, messageIds: ${JSON.stringify(state.messageIds)}`);
+    return state;
+  } catch (e) {
+    console.error('Digest loadState exception:', e);
     return { date: today, violations: [], messageIds: {} };
   }
 }
 
 async function saveState(state: DigestState): Promise<void> {
-  const buf = Buffer.from(JSON.stringify(state));
-  await getSupabase().storage
+  const json = JSON.stringify(state);
+  const buf = Buffer.from(json);
+  const path = `digest/${state.date}.json`;
+
+  // Try upsert first
+  const { error } = await getSupabase().storage
     .from(BUCKET)
-    .upload(`digest/${state.date}.json`, buf, {
-      contentType: 'application/json',
-      upsert: true,
-    });
+    .upload(path, buf, { contentType: 'application/json', upsert: true });
+
+  if (error) {
+    console.error('Digest saveState upsert error:', error.message);
+    // Fallback: delete then upload
+    await getSupabase().storage.from(BUCKET).remove([path]);
+    const { error: retryErr } = await getSupabase().storage
+      .from(BUCKET)
+      .upload(path, Buffer.from(json), { contentType: 'application/json' });
+    if (retryErr) {
+      console.error('Digest saveState retry error:', retryErr.message);
+    } else {
+      console.log('Digest saveState: saved via delete+upload fallback');
+    }
+  } else {
+    console.log(`Digest saveState: saved ${state.violations.length} violations`);
+  }
 }
 
 // ── Public API ───────────────────────────────────────
@@ -148,10 +171,12 @@ async function sendOrEditDigest(state: DigestState): Promise<void> {
         stateChanged = true;
       }
     } catch (err: any) {
-      if (err?.description?.includes('message is not modified')) {
+      const desc = err?.description || '';
+      if (desc.includes('message is not modified')) {
         // Same content, nothing to do
-      } else {
-        console.error(`Daily digest error for chat ${chatId}:`, err?.description || err);
+      } else if (desc.includes('message to edit not found') || desc.includes('MESSAGE_ID_INVALID')) {
+        // Old message was deleted — send new one
+        console.log(`Digest: old message gone for chat ${chatId}, sending new`);
         try {
           const sent = await botApi.sendMessage(chatId, msg, { parse_mode: 'HTML' });
           state.messageIds[String(chatId)] = sent.message_id;
@@ -159,6 +184,9 @@ async function sendOrEditDigest(state: DigestState): Promise<void> {
         } catch (e) {
           console.error(`Daily digest fallback send failed:`, e);
         }
+      } else {
+        // Transient error — do NOT send a new message to avoid duplicates
+        console.error(`Daily digest edit error for chat ${chatId}:`, desc || err);
       }
     }
   }

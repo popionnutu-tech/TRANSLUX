@@ -13,7 +13,7 @@ import {
   validateDay,
   getUsedDriverIds,
 } from '../services/db.js';
-import { addViolation, updateDailyDigest } from '../services/dailyDigest.js';
+import { addViolationAndUpdate } from '../services/dailyDigest.js';
 import { getTodayDate, formatTime, formatDate, haversineDistance, minutesLate } from '../utils.js';
 import { config } from '../config.js';
 
@@ -327,7 +327,7 @@ export async function reportConversation(
       const hasLateViolation = late > 10;
       if (hasLocationViolation || hasLateViolation) {
         try {
-          addViolation({
+          await addViolationAndUpdate({
             time: formatTime(trip.departure_time),
             point: POINT_LABELS[point],
             operator: user.username ? `@${user.username}` : `#${user.telegram_id}`,
@@ -336,7 +336,6 @@ export async function reportConversation(
             late: hasLateViolation,
             minutesLate: late,
           });
-          await updateDailyDigest();
         } catch (e) {
           console.error('Daily digest update error:', e);
         }

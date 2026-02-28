@@ -4,9 +4,9 @@ import { getViolationsCount, updateDailyDigest } from '../services/dailyDigest.j
 
 /** Manual trigger for daily digest */
 export async function handleDigest(ctx: BotContext) {
-  const count = getViolationsCount();
+  const count = await getViolationsCount();
   if (count === 0) {
-    await ctx.reply('✅ Azi nu sunt încălcări înregistrate (sau botul a fost repornit).');
+    await ctx.reply('✅ Azi nu sunt încălcări înregistrate.');
     return;
   }
   try {

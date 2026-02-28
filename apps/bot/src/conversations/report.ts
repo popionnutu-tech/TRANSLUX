@@ -264,7 +264,7 @@ export async function reportConversation(
       for (const d of availableDrivers) {
         const parts = d.full_name.split(' ');
         const shortName = parts.length > 1
-          ? `${parts[0][0]}. ${parts.slice(1).join(' ')}`
+          ? `${parts[0]} ${parts.slice(1).map(p => p[0] + '.').join('')}`
           : d.full_name;
         driverKb.text(shortName, `driver:${d.id}`);
         dcol++;

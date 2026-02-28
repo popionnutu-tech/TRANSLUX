@@ -19,6 +19,14 @@ export function getAdminCount(): number {
   return adminChatIds.size;
 }
 
+export function getAdminChatIds(): Set<number> {
+  return adminChatIds;
+}
+
+export function getBotApi(): Api | null {
+  return botApi;
+}
+
 export async function sendAdminAlert(message: string) {
   if (!botApi || adminChatIds.size === 0) return;
   for (const chatId of adminChatIds) {

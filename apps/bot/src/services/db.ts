@@ -200,6 +200,11 @@ export async function createReport(report: {
   exterior_ok: boolean | null;
   uniform_ok: boolean | null;
   created_by_user: string;
+  location_lat?: number | null;
+  location_lon?: number | null;
+  location_distance_m?: number | null;
+  location_ok?: boolean | null;
+  minutes_late?: number | null;
 }): Promise<Report> {
   const { data, error } = await db()
     .from('reports')

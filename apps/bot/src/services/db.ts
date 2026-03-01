@@ -211,9 +211,14 @@ export async function createReport(report: {
   uniform_ok: boolean | null;
   created_by_user: string;
 }): Promise<Report> {
+  // DB enum only has OK/ABSENT — store FULL as OK with passengers_count=-1
+  const dbRecord = report.status === 'FULL'
+    ? { ...report, status: 'OK' as const, passengers_count: -1 }
+    : report;
+
   const { data, error } = await db()
     .from('reports')
-    .insert(report)
+    .insert(dbRecord)
     .select()
     .single();
 

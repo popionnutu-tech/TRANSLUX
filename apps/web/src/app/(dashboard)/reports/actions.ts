@@ -112,8 +112,8 @@ export async function getReports(filters: ReportFilters): Promise<ReportsResult>
     id: r.id,
     report_date: r.report_date,
     point: r.point,
-    status: r.status,
-    passengers_count: r.passengers_count,
+    status: (r.status === 'OK' && r.passengers_count === -1) ? 'FULL' : r.status,
+    passengers_count: r.passengers_count === -1 ? null : r.passengers_count,
     exterior_ok: r.exterior_ok,
     uniform_ok: r.uniform_ok,
     created_at: r.created_at,
@@ -309,8 +309,8 @@ export async function getPivotReport(dateFrom: string, dateTo: string, point?: P
     point: r.point,
     departure_time: (r.trips?.departure_time || '').slice(0, 5),
     report_date: r.report_date,
-    passengers_count: r.passengers_count,
-    status: r.status,
+    passengers_count: r.passengers_count === -1 ? null : r.passengers_count,
+    status: (r.status === 'OK' && r.passengers_count === -1) ? 'FULL' : r.status,
   }));
 }
 

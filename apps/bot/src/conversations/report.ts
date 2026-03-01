@@ -62,45 +62,30 @@ export async function reportConversation(
     const reportedIds = await getReportedTripIds(reportDate, point);
     const totalDone = allTrips.filter(t => reportedIds.has(t.id)).length;
 
-    // Find first unreported trip (sequential order)
-    const nextTripId = allTrips.find(t => !reportedIds.has(t.id))?.id || null;
-
-    // Build time grid
+    // Build time grid — all unreported trips are available
     const kb = new InlineKeyboard();
     let col = 0;
     for (const trip of allTrips) {
       const done = reportedIds.has(trip.id);
-      const isNext = trip.id === nextTripId;
       const timeStr = formatTime(trip.departure_time);
-      let label: string;
-      let cbData: string;
 
       if (done) {
-        label = `✅ ${timeStr}`;
-        cbData = `done:${trip.id}`;
-      } else if (isNext) {
-        label = `▶ ${timeStr}`;
-        cbData = `trip:${trip.id}`;
+        kb.text(`✅ ${timeStr}`, `done:${trip.id}`);
       } else {
-        label = `🔒 ${timeStr}`;
-        cbData = `locked:${trip.id}`;
+        kb.text(timeStr, `trip:${trip.id}`);
       }
-
-      kb.text(label, cbData);
       col++;
       if (col >= COLS) { kb.row(); col = 0; }
     }
     if (col > 0) kb.row();
     kb.text('✕ Închide', 'cancel');
 
-    const nextTimeStr = nextTripId
-      ? formatTime(allTrips.find(t => t.id === nextTripId)!.departure_time)
-      : null;
+    const allDone = totalDone >= allTrips.length;
 
     await ctx.reply(
       `📋 ${formatDate(reportDate)} — ${POINT_LABELS[point]}\n` +
       `Completate: ${totalDone}/${allTrips.length}` +
-      (nextTimeStr ? `\n\n▶ Următoarea: ${nextTimeStr}` : '\n\n✅ Toate completate!'),
+      (allDone ? '\n\n✅ Toate completate!' : ''),
       { reply_markup: kb }
     );
 
@@ -117,12 +102,6 @@ export async function reportConversation(
       }
       if (data.startsWith('done:')) {
         await cbCtx.answerCallbackQuery({ text: 'Deja raportată ✅' });
-        continue;
-      }
-      if (data.startsWith('locked:')) {
-        await cbCtx.answerCallbackQuery({
-          text: `⛔ Completează mai întâi ora ${nextTimeStr}`,
-        });
         continue;
       }
       if (data.startsWith('trip:')) {

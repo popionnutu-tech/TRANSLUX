@@ -368,7 +368,7 @@ export async function reportConversation(
         await ctx.reply(
           `✦ MISIUNE ÎNDEPLINITĂ\n\n` +
           `Toate cele ${allTrips.length} curse au fost completate.\n\n` +
-          `Drumul de azi e parcurs, ucenic.\n` +
+          `Drumul de azi e parcurs.\n` +
           `Odihnește-te. Noapte bună. 🌙`
         );
         return;

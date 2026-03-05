@@ -44,68 +44,81 @@ export default function LoginPage() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        /* Spotlight effect — noir atmosphere */
-        background: `
-          radial-gradient(ellipse 70% 60% at 50% 35%, #1f1500 0%, #0a0907 60%)
-        `,
-        backgroundColor: '#0a0907',
+        backgroundColor: '#0c0a1e',
         backgroundImage: `
-          radial-gradient(ellipse 70% 60% at 50% 35%, #1f1500 0%, #0a0907 60%),
+          radial-gradient(ellipse 70% 55% at 50% 45%, rgba(80, 40, 120, 0.45) 0%, transparent 65%),
+          radial-gradient(ellipse 40% 30% at 50% 55%, rgba(232, 160, 48, 0.08) 0%, transparent 60%),
           repeating-linear-gradient(
-            to bottom,
-            transparent 0px,
-            transparent 3px,
-            rgba(0,0,0,0.08) 3px,
-            rgba(0,0,0,0.08) 4px
+            45deg,
+            transparent,
+            transparent 7px,
+            rgba(200, 160, 100, 0.015) 7px,
+            rgba(200, 160, 100, 0.015) 8px
+          ),
+          repeating-linear-gradient(
+            -45deg,
+            transparent,
+            transparent 7px,
+            rgba(200, 160, 100, 0.015) 7px,
+            rgba(200, 160, 100, 0.015) 8px
           )
         `,
       }}
     >
       <div style={{ width: 380, position: 'relative' }}>
 
-        {/* ── Top rule ──────────────────────────── */}
-        <div
-          style={{
-            height: 3,
-            background: 'linear-gradient(90deg, transparent, #b22222 20%, #d4a017 50%, #b22222 80%, transparent)',
-            marginBottom: 36,
-          }}
-        />
-
-        {/* ── Title ─────────────────────────────── */}
+        {/* ── Logo ──────────────────────────────── */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <img src="/logo.svg" alt="TRANSLUX" style={{ height: 48, marginBottom: 12 }} />
+          <img src="/logo.svg" alt="TRANSLUX" style={{ height: 52 }} />
+
+          {/* ornamental divider */}
           <div
             style={{
-              fontFamily: 'var(--font-oswald, Impact, sans-serif)',
-              fontSize: 10,
-              letterSpacing: '0.38em',
-              textTransform: 'uppercase',
-              color: '#4a3d2a',
-              marginTop: 4,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              justifyContent: 'center',
+              marginTop: 16,
             }}
           >
-            ◂ ACCES RESTRICȚIONAT ▸
+            <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, transparent, #38305c)' }} />
+            <span style={{ color: '#e8a030', fontSize: 10 }}>✦</span>
+            <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, #38305c, transparent)' }} />
+          </div>
+
+          <div
+            style={{
+              fontFamily: 'var(--font-cinzel, serif)',
+              fontSize: 10,
+              letterSpacing: '0.26em',
+              color: '#4a3d6a',
+              marginTop: 12,
+              textTransform: 'uppercase',
+            }}
+          >
+            Autentificare Administrator
           </div>
         </div>
 
         {/* ── Card ──────────────────────────────── */}
         <div
           style={{
-            background: '#131210',
-            border: '1px solid #252320',
-            borderRadius: 1,
+            background: '#14122e',
+            border: '1px solid #38305c',
+            borderRadius: 4,
             padding: '32px',
             position: 'relative',
+            boxShadow: '0 0 0 1px rgba(232,160,48,0.06) inset, 0 8px 40px rgba(0,0,0,0.5)',
           }}
         >
-          {/* Gold top bar on card */}
+          {/* amber top glow */}
           <div
             style={{
               position: 'absolute',
-              top: -1, left: 0, right: 0,
+              top: -1, left: 40, right: 40,
               height: 2,
-              background: 'linear-gradient(90deg, #b22222 0%, #d4a017 55%, transparent 100%)',
+              background: 'linear-gradient(90deg, transparent, #e8a030, transparent)',
+              opacity: 0.6,
             }}
           />
 
@@ -135,12 +148,11 @@ export default function LoginPage() {
             {error && (
               <p
                 style={{
-                  color: '#e05050',
-                  fontSize: 12,
+                  color: '#e07050',
+                  fontSize: 13,
                   marginBottom: 16,
-                  fontFamily: 'var(--font-oswald, Impact, sans-serif)',
-                  letterSpacing: '0.08em',
-                  textTransform: 'uppercase',
+                  fontFamily: 'var(--font-cinzel, serif)',
+                  letterSpacing: '0.04em',
                 }}
               >
                 ⛔ {error}
@@ -158,14 +170,20 @@ export default function LoginPage() {
           </form>
         </div>
 
-        {/* ── Bottom rule ───────────────────────── */}
+        {/* ── Bottom ornament ───────────────────── */}
         <div
           style={{
-            height: 1,
-            background: 'linear-gradient(90deg, transparent, #3d3010, transparent)',
-            marginTop: 36,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            justifyContent: 'center',
+            marginTop: 28,
           }}
-        />
+        >
+          <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, transparent, #1e1c3a)' }} />
+          <span style={{ color: '#2a2050', fontSize: 10 }}>◆</span>
+          <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, #1e1c3a, transparent)' }} />
+        </div>
       </div>
     </div>
   );

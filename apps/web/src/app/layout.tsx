@@ -1,17 +1,17 @@
 import type { Metadata } from 'next';
-import { Oswald, Courier_Prime } from 'next/font/google';
+import { Cinzel, Crimson_Text } from 'next/font/google';
 import './globals.css';
 
-const oswald = Oswald({
+const cinzel = Cinzel({
   subsets: ['latin'],
-  variable: '--font-oswald',
+  variable: '--font-cinzel',
   display: 'swap',
 });
 
-const courierPrime = Courier_Prime({
+const crimsonText = Crimson_Text({
   subsets: ['latin'],
-  weight: ['400', '700'],
-  variable: '--font-courier',
+  weight: ['400', '600', '700'],
+  variable: '--font-crimson',
   display: 'swap',
 });
 
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ro" className={`${oswald.variable} ${courierPrime.variable}`}>
+    <html lang="ro" className={`${cinzel.variable} ${crimsonText.variable}`}>
       <body>{children}</body>
     </html>
   );

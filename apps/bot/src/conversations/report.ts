@@ -36,12 +36,12 @@ export async function reportConversation(
 ) {
   const telegramId = ctx.from?.id;
   if (!telegramId) {
-    await ctx.reply('⛔ Acces interzis. Nu ești pe listă.');
+    await ctx.reply('⛔ Drum interzis. Identitatea ta nu este recunoscută.');
     return;
   }
   const user = await getUserByTelegramId(telegramId);
   if (!user || !user.point) {
-    await ctx.reply('⛔ Acces interzis. Nu ești pe listă.');
+    await ctx.reply('⛔ Drum interzis. Identitatea ta nu este recunoscută.');
     return;
   }
 
@@ -51,7 +51,7 @@ export async function reportConversation(
 
   const allTrips = await getAllTripsForDirection(direction);
   if (allTrips.length === 0) {
-    await ctx.reply('🚫 Nicio cursă activă azi. Contactează administratorul.');
+    await ctx.reply('🌙 Nicio cursă activă azi. Contactează Maestrul.');
     return;
   }
 
@@ -98,9 +98,9 @@ export async function reportConversation(
       : null;
 
     await ctx.reply(
-      `🎬 ${formatDate(reportDate)} — ${POINT_LABELS[point]}\n` +
-      `Bifate: ${totalDone}/${allTrips.length}` +
-      (nextTimeStr ? `\n\n▶ Urmează: ${nextTimeStr}` : '\n\n✓ Dosar complet.'),
+      `⚔ ${formatDate(reportDate)} — ${POINT_LABELS[point]}\n` +
+      `Completate: ${totalDone}/${allTrips.length}` +
+      (nextTimeStr ? `\n\n▶ Urmează: ${nextTimeStr}` : '\n\n✦ Toate curse completate.'),
       { reply_markup: kb }
     );
 
@@ -112,7 +112,7 @@ export async function reportConversation(
 
       if (data === 'cancel') {
         await cbCtx.answerCallbackQuery();
-        await ctx.reply('📁 Caz închis.');
+        await ctx.reply('🌙 Sesiune închisă. Drumul continuă mâine.');
         return;
       }
       if (data.startsWith('done:')) {
@@ -366,17 +366,17 @@ export async function reportConversation(
       if (updatedDone >= allTrips.length) {
         await validateDay(user.id, reportDate);
         await ctx.reply(
-          `🎬 DOSAR COMPLET\n\n` +
-          `Toate cele ${allTrips.length} curse — bifate.\n\n` +
-          `Treaba e gata. Du-te acasă.\n` +
-          `Noapte bună. 🌙`
+          `✦ MISIUNE ÎNDEPLINITĂ\n\n` +
+          `Toate cele ${allTrips.length} curse au fost completate.\n\n` +
+          `Drumul de azi e parcurs, ucenic.\n` +
+          `Odihnește-te. Noapte bună. 🌙`
         );
         return;
       }
 
     } catch (err: any) {
       if (err?.code === '23505') {
-        await ctx.reply('⚠ Deja în dosar.');
+        await ctx.reply('⚠ Această cursă a fost deja înregistrată.');
       } else {
         console.error('Report save error:', err);
         const detail = [

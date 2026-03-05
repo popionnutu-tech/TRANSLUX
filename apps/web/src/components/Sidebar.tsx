@@ -50,19 +50,7 @@ export default function Sidebar() {
             marginBottom: 14,
           }}
         />
-        <div
-          style={{
-            fontFamily: 'var(--font-oswald, Impact, sans-serif)',
-            fontSize: 24,
-            fontWeight: 700,
-            letterSpacing: '0.18em',
-            textTransform: 'uppercase',
-            color: '#d4a017',
-            lineHeight: 1,
-          }}
-        >
-          TRANSLUX
-        </div>
+        <img src="/logo.svg" alt="TRANSLUX" style={{ height: 32, marginBottom: 4 }} />
         <div
           style={{
             fontFamily: 'var(--font-oswald, Impact, sans-serif)',

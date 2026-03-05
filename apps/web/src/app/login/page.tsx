@@ -74,20 +74,7 @@ export default function LoginPage() {
 
         {/* ── Title ─────────────────────────────── */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div
-            style={{
-              fontFamily: 'var(--font-oswald, Impact, sans-serif)',
-              fontSize: 52,
-              fontWeight: 700,
-              letterSpacing: '0.22em',
-              textTransform: 'uppercase',
-              color: '#d4a017',
-              lineHeight: 1,
-              textShadow: '0 0 40px rgba(212,160,23,0.3)',
-            }}
-          >
-            TRANSLUX
-          </div>
+          <img src="/logo.svg" alt="TRANSLUX" style={{ height: 48, marginBottom: 12 }} />
           <div
             style={{
               fontFamily: 'var(--font-oswald, Impact, sans-serif)',
@@ -95,7 +82,7 @@ export default function LoginPage() {
               letterSpacing: '0.38em',
               textTransform: 'uppercase',
               color: '#4a3d2a',
-              marginTop: 10,
+              marginTop: 4,
             }}
           >
             ◂ ACCES RESTRICȚIONAT ▸

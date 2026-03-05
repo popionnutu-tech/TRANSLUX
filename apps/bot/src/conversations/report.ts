@@ -352,12 +352,12 @@ export async function reportConversation(
       } else if (status === 'FULL') {
         await ctx.reply(`✓ ${formatTime(trip.departure_time)} — microbuzul full`);
       } else {
-        await ctx.reply(
-          `✓ ${formatTime(trip.departure_time)} — ${passengersCount} pas. | ${driverName}` +
-          (uniformOk === false || exteriorOk === false
-            ? `\n⚠ ${uniformOk === false ? 'uniformă' : ''} ${exteriorOk === false ? 'aspect' : ''}`
-            : '')
-        );
+        const passengerInfo = `✓ ${formatTime(trip.departure_time)} — ${passengersCount} pas.`;
+        const driverInfo = point !== 'BALTI' ? ` | ${driverName}` : '';
+        const warnings = (uniformOk === false || exteriorOk === false)
+          ? `\n⚠ ${uniformOk === false ? 'uniformă' : ''} ${exteriorOk === false ? 'aspect' : ''}`
+          : '';
+        await ctx.reply(passengerInfo + driverInfo + warnings);
       }
 
       // ── Auto-validate day when all trips are reported ──

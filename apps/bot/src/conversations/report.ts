@@ -36,12 +36,12 @@ export async function reportConversation(
 ) {
   const telegramId = ctx.from?.id;
   if (!telegramId) {
-    await ctx.reply('Eroare: utilizator neautorizat.');
+    await ctx.reply('⛔ Acces interzis. Nu ești pe listă.');
     return;
   }
   const user = await getUserByTelegramId(telegramId);
   if (!user || !user.point) {
-    await ctx.reply('Eroare: utilizator neautorizat.');
+    await ctx.reply('⛔ Acces interzis. Nu ești pe listă.');
     return;
   }
 
@@ -51,7 +51,7 @@ export async function reportConversation(
 
   const allTrips = await getAllTripsForDirection(direction);
   if (allTrips.length === 0) {
-    await ctx.reply('Nu există curse active. Contactează administratorul.');
+    await ctx.reply('🚫 Nicio cursă activă azi. Contactează administratorul.');
     return;
   }
 
@@ -98,9 +98,9 @@ export async function reportConversation(
       : null;
 
     await ctx.reply(
-      `📋 ${formatDate(reportDate)} — ${POINT_LABELS[point]}\n` +
-      `Completate: ${totalDone}/${allTrips.length}` +
-      (nextTimeStr ? `\n\n▶ Următoarea: ${nextTimeStr}` : '\n\n✅ Toate completate!'),
+      `🎬 ${formatDate(reportDate)} — ${POINT_LABELS[point]}\n` +
+      `Bifate: ${totalDone}/${allTrips.length}` +
+      (nextTimeStr ? `\n\n▶ Urmează: ${nextTimeStr}` : '\n\n✓ Dosar complet.'),
       { reply_markup: kb }
     );
 
@@ -112,7 +112,7 @@ export async function reportConversation(
 
       if (data === 'cancel') {
         await cbCtx.answerCallbackQuery();
-        await ctx.reply('Sesiune închisă.');
+        await ctx.reply('📁 Caz închis.');
         return;
       }
       if (data.startsWith('done:')) {
@@ -193,7 +193,7 @@ export async function reportConversation(
       }
 
       if (userLat === null) {
-        await ctx.reply('⏱ Nu ai trimis locația. Sesiunea se închide.', {
+        await ctx.reply('⏱ Locație neprimită. Sesiunea se închide.', {
           reply_markup: { remove_keyboard: true },
         });
         return;
@@ -348,11 +348,11 @@ export async function reportConversation(
         : driverFull;
 
       if (status === 'ABSENT') {
-        await ctx.reply(`✓ ${formatTime(trip.departure_time)} — absent`);
+        await ctx.reply(`☑ ${formatTime(trip.departure_time)} — absent`);
       } else if (status === 'FULL') {
-        await ctx.reply(`✓ ${formatTime(trip.departure_time)} — microbuzul full`);
+        await ctx.reply(`☑ ${formatTime(trip.departure_time)} — microbuz complet`);
       } else {
-        const passengerInfo = `✓ ${formatTime(trip.departure_time)} — ${passengersCount} pas.`;
+        const passengerInfo = `☑ ${formatTime(trip.departure_time)} — ${passengersCount} pas.`;
         const driverInfo = point !== 'BALTI' ? ` | ${driverName}` : '';
         const warnings = (uniformOk === false || exteriorOk === false)
           ? `\n⚠ ${uniformOk === false ? 'uniformă' : ''} ${exteriorOk === false ? 'aspect' : ''}`
@@ -366,16 +366,17 @@ export async function reportConversation(
       if (updatedDone >= allTrips.length) {
         await validateDay(user.id, reportDate);
         await ctx.reply(
-          `✅ Toate cele ${allTrips.length} curse au fost completate!\n\n` +
-          `🌙 Seară bună și somn ușor!\n` +
-          `TRANSLUX îți mulțumește pentru munca ta. 🙏`
+          `🎬 DOSAR COMPLET\n\n` +
+          `Toate cele ${allTrips.length} curse — bifate.\n\n` +
+          `Treaba e gata. Du-te acasă.\n` +
+          `Noapte bună. 🌙`
         );
         return;
       }
 
     } catch (err: any) {
       if (err?.code === '23505') {
-        await ctx.reply('⚠ Deja raportată.');
+        await ctx.reply('⚠ Deja în dosar.');
       } else {
         console.error('Report save error:', err);
         const detail = [

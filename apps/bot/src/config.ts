@@ -4,6 +4,7 @@ export const config = {
   botToken: process.env.TELEGRAM_BOT_TOKEN || '',
   supabaseUrl: process.env.SUPABASE_URL || '',
   supabaseKey: process.env.SUPABASE_SERVICE_KEY || '',
+  anthropicApiKey: process.env.ANTHROPIC_API_KEY || '',
   timezone: 'Europe/Chisinau',
   rateLimitPerMinute: 30,
   photoCaptureTimeoutMs: 2 * 60 * 1000, // 2 minutes
@@ -23,4 +24,5 @@ export function validateConfig() {
   if (!config.botToken) throw new Error('TELEGRAM_BOT_TOKEN is required');
   if (!config.supabaseUrl) throw new Error('SUPABASE_URL is required');
   if (!config.supabaseKey) throw new Error('SUPABASE_SERVICE_KEY is required');
+  if (!config.anthropicApiKey) throw new Error('ANTHROPIC_API_KEY is required');
 }

@@ -9,15 +9,16 @@
     "build": "tsc"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
+    "@grammyjs/conversations": "^2.0.3",
     "@supabase/supabase-js": "^2.45.0",
     "@translux/db": "*",
-    "grammy": "^1.30.0",
-    "@grammyjs/conversations": "^2.0.3",
-    "dotenv": "^16.4.0"
+    "dotenv": "^16.4.0",
+    "grammy": "^1.30.0"
   },
   "devDependencies": {
+    "@types/node": "^22.0.0",
     "tsx": "^4.19.0",
-    "typescript": "^5.5.0",
-    "@types/node": "^22.0.0"
+    "typescript": "^5.5.0"
   }
 }

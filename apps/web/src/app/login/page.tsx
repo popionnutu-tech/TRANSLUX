@@ -52,9 +52,9 @@ export default function LoginPage() {
           position: fixed;
           inset: 0;
           background:
-            radial-gradient(ellipse 60% 50% at 30% 20%, rgba(0, 212, 255, 0.08) 0%, transparent 50%),
-            radial-gradient(ellipse 50% 40% at 70% 80%, rgba(124, 58, 237, 0.06) 0%, transparent 50%),
-            radial-gradient(circle at 50% 50%, rgba(0, 212, 255, 0.02) 0%, transparent 70%);
+            radial-gradient(ellipse 60% 50% at 30% 20%, rgba(212, 32, 39, 0.06) 0%, transparent 50%),
+            radial-gradient(ellipse 50% 40% at 70% 80%, rgba(212, 32, 39, 0.04) 0%, transparent 50%),
+            radial-gradient(circle at 50% 50%, rgba(212, 32, 39, 0.02) 0%, transparent 70%);
           z-index: 0;
         }
         .login-grid {
@@ -85,12 +85,12 @@ export default function LoginPage() {
         .login-title {
           font-size: 11px;
           letter-spacing: 0.25em;
-          color: #475569;
+          color: #666;
           text-transform: uppercase;
           font-weight: 500;
         }
         .login-card {
-          background: rgba(15, 23, 42, 0.6);
+          background: rgba(30, 30, 30, 0.7);
           backdrop-filter: blur(24px);
           -webkit-backdrop-filter: blur(24px);
           border: 1px solid rgba(255, 255, 255, 0.08);
@@ -106,7 +106,7 @@ export default function LoginPage() {
           position: absolute;
           top: 0; left: 0; right: 0;
           height: 1px;
-          background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.4) 30%, rgba(124, 58, 237, 0.4) 70%, transparent);
+          background: linear-gradient(90deg, transparent, rgba(212, 32, 39, 0.5) 30%, rgba(212, 32, 39, 0.3) 70%, transparent);
           border-radius: 16px 16px 0 0;
         }
         .login-error {
@@ -125,25 +125,25 @@ export default function LoginPage() {
           width: 6px;
           height: 6px;
           border-radius: 50%;
-          background: #ef4444;
+          background: #D42027;
           flex-shrink: 0;
         }
         .login-submit {
           width: 100%;
           padding: 12px;
-          background: linear-gradient(135deg, #00d4ff 0%, #0098cc 100%);
+          background: linear-gradient(135deg, #D42027 0%, #a81a1f 100%);
           border: none;
           border-radius: 10px;
-          color: #020617;
+          color: #fff;
           font-size: 14px;
           font-weight: 600;
           cursor: pointer;
           transition: all 0.2s;
-          box-shadow: 0 0 24px rgba(0, 212, 255, 0.2);
+          box-shadow: 0 0 24px rgba(212, 32, 39, 0.2);
           margin-top: 8px;
         }
         .login-submit:hover {
-          box-shadow: 0 0 40px rgba(0, 212, 255, 0.35);
+          box-shadow: 0 0 40px rgba(212, 32, 39, 0.4);
           transform: translateY(-1px);
         }
         .login-submit:active {
@@ -159,7 +159,7 @@ export default function LoginPage() {
           text-align: center;
           margin-top: 24px;
           font-size: 12px;
-          color: #334155;
+          color: #444;
         }
       `}</style>
 

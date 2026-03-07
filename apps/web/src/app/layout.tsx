@@ -1,17 +1,22 @@
 import type { Metadata } from 'next';
-import { Cinzel, Crimson_Text } from 'next/font/google';
+import { Inter, Space_Grotesk, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 
-const cinzel = Cinzel({
-  subsets: ['latin'],
-  variable: '--font-cinzel',
+const inter = Inter({
+  subsets: ['latin', 'latin-ext'],
+  variable: '--font-inter',
   display: 'swap',
 });
 
-const crimsonText = Crimson_Text({
+const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
-  weight: ['400', '600', '700'],
-  variable: '--font-crimson',
+  variable: '--font-space',
+  display: 'swap',
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-mono',
   display: 'swap',
 });
 
@@ -22,7 +27,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ro" className={`${cinzel.variable} ${crimsonText.variable}`}>
+    <html lang="ro" className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}>
       <body>{children}</body>
     </html>
   );

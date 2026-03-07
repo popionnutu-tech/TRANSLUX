@@ -117,7 +117,7 @@ export default function UsersClient({
             {initialUsers.map((user) => (
               <tr key={user.id} style={{ opacity: user.active ? 1 : 0.5 }}>
                 <td>{user.username ? `@${user.username}` : '—'}</td>
-                <td style={{ fontSize: 13, color: '#64748b' }}>{user.telegram_id || '—'}</td>
+                <td style={{ fontSize: 13, color: 'var(--text-muted)' }}>{user.telegram_id || '—'}</td>
                 <td>{user.point ? POINT_LABELS[user.point] : '—'}</td>
                 <td>
                   <select
@@ -125,10 +125,11 @@ export default function UsersClient({
                     onChange={(e) => handleRoleChange(user.id, e.target.value as UserRole)}
                     style={{
                       padding: '4px 8px',
-                      borderRadius: 4,
-                      border: '1px solid #d1d5db',
+                      borderRadius: 8,
+                      border: '1px solid var(--border-accent)',
                       fontSize: 13,
-                      background: user.role === 'ADMIN' ? '#dbeafe' : '#fff',
+                      background: user.role === 'ADMIN' ? 'var(--primary-dim)' : 'rgba(15, 23, 42, 0.6)',
+                      color: user.role === 'ADMIN' ? 'var(--primary)' : 'var(--text)',
                       fontWeight: user.role === 'ADMIN' ? 600 : 400,
                     }}
                   >
@@ -188,7 +189,8 @@ export default function UsersClient({
             style={{
               marginTop: 12,
               padding: 12,
-              background: '#f0f9ff',
+              background: 'var(--primary-dim)',
+              border: '1px solid rgba(0, 212, 255, 0.15)',
               borderRadius: 8,
               display: 'flex',
               gap: 8,

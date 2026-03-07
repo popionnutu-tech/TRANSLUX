@@ -47,26 +47,25 @@ export default function LoginPage() {
           justify-content: center;
           position: relative;
           overflow: hidden;
+          background: #fff;
         }
-        .login-bg {
+        /* Scattered T pattern — left side */
+        .login-decor-left,
+        .login-decor-right {
           position: fixed;
-          inset: 0;
-          background:
-            radial-gradient(ellipse 60% 50% at 30% 20%, rgba(212, 32, 39, 0.06) 0%, transparent 50%),
-            radial-gradient(ellipse 50% 40% at 70% 80%, rgba(212, 32, 39, 0.04) 0%, transparent 50%),
-            radial-gradient(circle at 50% 50%, rgba(212, 32, 39, 0.02) 0%, transparent 70%);
+          top: 0;
+          bottom: 0;
+          width: 120px;
+          pointer-events: none;
           z-index: 0;
+          overflow: hidden;
         }
-        .login-grid {
-          position: fixed;
-          inset: 0;
-          background-image:
-            linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
-          background-size: 60px 60px;
-          mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black 0%, transparent 70%);
-          -webkit-mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black 0%, transparent 70%);
-          z-index: 0;
+        .login-decor-left { left: 0; }
+        .login-decor-right { right: 0; }
+        .login-decor-left svg,
+        .login-decor-right svg {
+          position: absolute;
+          fill: #D42027;
         }
         .login-container {
           width: 420px;
@@ -80,39 +79,34 @@ export default function LoginPage() {
         .login-logo {
           height: 40px;
           margin-bottom: 16px;
-          filter: brightness(1.1);
         }
         .login-title {
           font-size: 11px;
           letter-spacing: 0.25em;
-          color: #666;
+          color: #999;
           text-transform: uppercase;
           font-weight: 500;
         }
         .login-card {
-          background: rgba(30, 30, 30, 0.7);
-          backdrop-filter: blur(24px);
-          -webkit-backdrop-filter: blur(24px);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          border-radius: 16px;
+          background: #fff;
+          border: 1px solid #eee;
+          border-radius: 12px;
           padding: 40px;
           position: relative;
-          box-shadow:
-            0 8px 64px rgba(0, 0, 0, 0.4),
-            inset 0 1px 0 rgba(255, 255, 255, 0.05);
+          box-shadow: 0 2px 20px rgba(0, 0, 0, 0.06);
         }
         .login-card::before {
           content: '';
           position: absolute;
           top: 0; left: 0; right: 0;
-          height: 1px;
-          background: linear-gradient(90deg, transparent, rgba(212, 32, 39, 0.5) 30%, rgba(212, 32, 39, 0.3) 70%, transparent);
-          border-radius: 16px 16px 0 0;
+          height: 3px;
+          background: #D42027;
+          border-radius: 12px 12px 0 0;
         }
         .login-error {
-          background: rgba(239, 68, 68, 0.1);
-          border: 1px solid rgba(239, 68, 68, 0.2);
-          color: #f87171;
+          background: rgba(239, 68, 68, 0.06);
+          border: 1px solid rgba(239, 68, 68, 0.15);
+          color: #ef4444;
           padding: 10px 14px;
           border-radius: 8px;
           font-size: 13px;
@@ -125,25 +119,29 @@ export default function LoginPage() {
           width: 6px;
           height: 6px;
           border-radius: 50%;
-          background: #D42027;
+          background: #ef4444;
           flex-shrink: 0;
         }
         .login-submit {
           width: 100%;
           padding: 12px;
-          background: linear-gradient(135deg, #D42027 0%, #a81a1f 100%);
+          background: #D42027;
           border: none;
-          border-radius: 10px;
+          border-radius: 8px;
           color: #fff;
           font-size: 14px;
-          font-weight: 600;
+          font-weight: 700;
+          font-style: italic;
           cursor: pointer;
           transition: all 0.2s;
-          box-shadow: 0 0 24px rgba(212, 32, 39, 0.2);
+          box-shadow: 0 2px 8px rgba(212, 32, 39, 0.2);
           margin-top: 8px;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
         }
         .login-submit:hover {
-          box-shadow: 0 0 40px rgba(212, 32, 39, 0.4);
+          background: #b81b21;
+          box-shadow: 0 4px 16px rgba(212, 32, 39, 0.3);
           transform: translateY(-1px);
         }
         .login-submit:active {
@@ -159,13 +157,33 @@ export default function LoginPage() {
           text-align: center;
           margin-top: 24px;
           font-size: 12px;
-          color: #444;
+          color: #bbb;
         }
       `}</style>
 
       <div className="login-page">
-        <div className="login-bg" />
-        <div className="login-grid" />
+        {/* Scattered T decorations — left */}
+        <div className="login-decor-left">
+          <svg xmlns="http://www.w3.org/2000/svg" width="120" height="100%" viewBox="0 0 120 800">
+            <text x="-10" y="80" fontFamily="Arial Black,Impact,sans-serif" fontWeight="900" fontStyle="italic" fontSize="72" fill="#D42027" opacity="0.12" transform="rotate(-15 30 80)">T</text>
+            <text x="20" y="200" fontFamily="Arial Black,Impact,sans-serif" fontWeight="900" fontStyle="italic" fontSize="48" fill="#D42027" opacity="0.08" transform="rotate(10 40 200)">T</text>
+            <text x="-5" y="340" fontFamily="Arial Black,Impact,sans-serif" fontWeight="900" fontStyle="italic" fontSize="60" fill="#D42027" opacity="0.10" transform="rotate(-20 25 340)">T</text>
+            <text x="30" y="480" fontFamily="Arial Black,Impact,sans-serif" fontWeight="900" fontStyle="italic" fontSize="40" fill="#D42027" opacity="0.06" transform="rotate(5 50 480)">T</text>
+            <text x="5" y="600" fontFamily="Arial Black,Impact,sans-serif" fontWeight="900" fontStyle="italic" fontSize="56" fill="#D42027" opacity="0.09" transform="rotate(-10 30 600)">T</text>
+            <text x="25" y="740" fontFamily="Arial Black,Impact,sans-serif" fontWeight="900" fontStyle="italic" fontSize="44" fill="#D42027" opacity="0.07" transform="rotate(15 45 740)">T</text>
+          </svg>
+        </div>
+
+        {/* Scattered T decorations — right */}
+        <div className="login-decor-right">
+          <svg xmlns="http://www.w3.org/2000/svg" width="120" height="100%" viewBox="0 0 120 800">
+            <text x="30" y="120" fontFamily="Arial Black,Impact,sans-serif" fontWeight="900" fontStyle="italic" fontSize="64" fill="#D42027" opacity="0.10" transform="rotate(15 60 120)">T</text>
+            <text x="10" y="280" fontFamily="Arial Black,Impact,sans-serif" fontWeight="900" fontStyle="italic" fontSize="44" fill="#D42027" opacity="0.07" transform="rotate(-10 30 280)">T</text>
+            <text x="40" y="420" fontFamily="Arial Black,Impact,sans-serif" fontWeight="900" fontStyle="italic" fontSize="56" fill="#D42027" opacity="0.09" transform="rotate(20 60 420)">T</text>
+            <text x="15" y="560" fontFamily="Arial Black,Impact,sans-serif" fontWeight="900" fontStyle="italic" fontSize="50" fill="#D42027" opacity="0.08" transform="rotate(-5 40 560)">T</text>
+            <text x="35" y="700" fontFamily="Arial Black,Impact,sans-serif" fontWeight="900" fontStyle="italic" fontSize="68" fill="#D42027" opacity="0.11" transform="rotate(12 60 700)">T</text>
+          </svg>
+        </div>
 
         <div className="login-container">
           <div className="login-header">
@@ -209,7 +227,7 @@ export default function LoginPage() {
                 className="login-submit"
                 disabled={loading}
               >
-                {loading ? 'Se incarca...' : 'Autentificare'}
+                {loading ? 'Se incarca...' : 'Intrare'}
               </button>
             </form>
           </div>

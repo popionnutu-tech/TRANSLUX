@@ -12,6 +12,9 @@ const nav = [
   { href: '/trips',        label: 'Curse',         icon: 'M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z' },
 ];
 
+/* Scattered "T" pattern SVG — brand decorative element */
+const scatterPattern = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='120' viewBox='0 0 80 120'%3E%3Ctext x='10' y='40' font-family='Arial Black,Impact,sans-serif' font-weight='900' font-style='italic' font-size='48' fill='%23D42027' opacity='0.06' transform='rotate(-15 30 40)'%3ET%3C/text%3E%3Ctext x='40' y='100' font-family='Arial Black,Impact,sans-serif' font-weight='900' font-style='italic' font-size='32' fill='%23D42027' opacity='0.04' transform='rotate(10 50 100)'%3ET%3C/text%3E%3C/svg%3E")`;
+
 export default function Sidebar() {
   const pathname = usePathname();
   const router   = useRouter();
@@ -28,75 +31,71 @@ export default function Sidebar() {
         .sidebar {
           width: 240px;
           min-height: 100vh;
-          background: rgba(17, 17, 17, 0.95);
-          backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px);
-          color: #e2e8f0;
+          background: #fff;
+          color: #222;
           display: flex;
           flex-direction: column;
-          border-right: 1px solid rgba(255, 255, 255, 0.06);
+          border-right: 2px solid #eee;
           flex-shrink: 0;
           position: relative;
           z-index: 10;
         }
-        .sidebar::after {
-          content: '';
+        .sidebar-decor {
           position: absolute;
-          top: 0; right: 0; bottom: 0;
-          width: 1px;
-          background: linear-gradient(180deg, rgba(212, 32, 39, 0.4) 0%, rgba(212, 32, 39, 0.1) 50%, transparent 100%);
+          top: 0; left: 0; bottom: 0; right: 0;
+          background-image: ${scatterPattern};
+          background-repeat: repeat;
+          pointer-events: none;
+          z-index: 0;
         }
         .sidebar-brand {
-          padding: 28px 24px 24px;
+          padding: 24px 20px 20px;
           text-align: center;
           position: relative;
-        }
-        .sidebar-brand::after {
-          content: '';
-          position: absolute;
-          bottom: 0; left: 24px; right: 24px;
-          height: 1px;
-          background: linear-gradient(90deg, transparent, rgba(212, 32, 39, 0.3), transparent);
+          z-index: 1;
+          border-bottom: 2px solid #eee;
         }
         .sidebar-logo {
-          height: 28px;
-          margin-bottom: 6px;
-          filter: brightness(1.1);
+          height: 26px;
+          margin-bottom: 4px;
         }
         .sidebar-subtitle {
           font-size: 10px;
-          letter-spacing: 0.2em;
-          color: #666;
+          letter-spacing: 0.15em;
+          color: #999;
           text-transform: uppercase;
           font-weight: 500;
         }
         .sidebar-nav {
           flex: 1;
-          padding: 12px 12px;
+          padding: 12px 10px;
           display: flex;
           flex-direction: column;
           gap: 2px;
+          position: relative;
+          z-index: 1;
         }
         .sidebar-link {
           display: flex;
           align-items: center;
           gap: 12px;
           padding: 10px 14px;
-          border-radius: 10px;
-          color: #888;
+          border-radius: 8px;
+          color: #666;
           font-size: 13px;
           font-weight: 500;
           text-decoration: none;
-          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          transition: all 0.2s;
           position: relative;
         }
         .sidebar-link:hover {
-          color: #e2e8f0;
-          background: rgba(255, 255, 255, 0.04);
+          color: #222;
+          background: #f5f5f5;
         }
         .sidebar-link-active {
-          color: #fff !important;
-          background: rgba(212, 32, 39, 0.12) !important;
+          color: #D42027 !important;
+          background: rgba(212, 32, 39, 0.06) !important;
+          font-weight: 600;
         }
         .sidebar-link-active::before {
           content: '';
@@ -105,13 +104,12 @@ export default function Sidebar() {
           width: 3px;
           border-radius: 0 3px 3px 0;
           background: #D42027;
-          box-shadow: 0 0 10px rgba(212, 32, 39, 0.5);
         }
         .sidebar-link svg {
           width: 20px;
           height: 20px;
           flex-shrink: 0;
-          opacity: 0.6;
+          opacity: 0.5;
           transition: opacity 0.2s;
         }
         .sidebar-link:hover svg,
@@ -119,23 +117,18 @@ export default function Sidebar() {
           opacity: 1;
         }
         .sidebar-footer {
-          padding: 16px 12px;
+          padding: 16px 10px;
           position: relative;
-        }
-        .sidebar-footer::before {
-          content: '';
-          position: absolute;
-          top: 0; left: 24px; right: 24px;
-          height: 1px;
-          background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+          z-index: 1;
+          border-top: 1px solid #eee;
         }
         .sidebar-logout {
           width: 100%;
           padding: 10px 14px;
-          background: rgba(212, 32, 39, 0.06);
-          border: 1px solid rgba(212, 32, 39, 0.12);
-          color: #888;
-          border-radius: 10px;
+          background: rgba(239, 68, 68, 0.05);
+          border: 1px solid rgba(239, 68, 68, 0.12);
+          color: #999;
+          border-radius: 8px;
           cursor: pointer;
           font-size: 13px;
           font-weight: 500;
@@ -146,11 +139,13 @@ export default function Sidebar() {
           gap: 12px;
         }
         .sidebar-logout:hover {
-          background: rgba(212, 32, 39, 0.15);
-          border-color: rgba(212, 32, 39, 0.3);
-          color: #f87171;
+          background: rgba(239, 68, 68, 0.1);
+          border-color: rgba(239, 68, 68, 0.25);
+          color: #ef4444;
         }
       `}</style>
+
+      <div className="sidebar-decor" />
 
       <div className="sidebar-brand">
         <img src="/logo.svg" alt="TRANSLUX" className="sidebar-logo" />
@@ -177,7 +172,7 @@ export default function Sidebar() {
 
       <div className="sidebar-footer">
         <button onClick={handleLogout} className="sidebar-logout">
-          <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20" style={{ width: 20, height: 20, flexShrink: 0, opacity: 0.6 }}>
+          <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20" style={{ width: 20, height: 20, flexShrink: 0, opacity: 0.5 }}>
             <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
           </svg>
           Deconectare

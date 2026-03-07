@@ -28,7 +28,7 @@ export default function Sidebar() {
         .sidebar {
           width: 240px;
           min-height: 100vh;
-          background: rgba(6, 11, 24, 0.85);
+          background: rgba(17, 17, 17, 0.95);
           backdrop-filter: blur(20px);
           -webkit-backdrop-filter: blur(20px);
           color: #e2e8f0;
@@ -44,7 +44,7 @@ export default function Sidebar() {
           position: absolute;
           top: 0; right: 0; bottom: 0;
           width: 1px;
-          background: linear-gradient(180deg, rgba(0,212,255,0.3) 0%, rgba(124,58,237,0.2) 50%, transparent 100%);
+          background: linear-gradient(180deg, rgba(212, 32, 39, 0.4) 0%, rgba(212, 32, 39, 0.1) 50%, transparent 100%);
         }
         .sidebar-brand {
           padding: 28px 24px 24px;
@@ -56,7 +56,7 @@ export default function Sidebar() {
           position: absolute;
           bottom: 0; left: 24px; right: 24px;
           height: 1px;
-          background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.2), transparent);
+          background: linear-gradient(90deg, transparent, rgba(212, 32, 39, 0.3), transparent);
         }
         .sidebar-logo {
           height: 28px;
@@ -66,7 +66,7 @@ export default function Sidebar() {
         .sidebar-subtitle {
           font-size: 10px;
           letter-spacing: 0.2em;
-          color: #475569;
+          color: #666;
           text-transform: uppercase;
           font-weight: 500;
         }
@@ -83,7 +83,7 @@ export default function Sidebar() {
           gap: 12px;
           padding: 10px 14px;
           border-radius: 10px;
-          color: #64748b;
+          color: #888;
           font-size: 13px;
           font-weight: 500;
           text-decoration: none;
@@ -95,8 +95,8 @@ export default function Sidebar() {
           background: rgba(255, 255, 255, 0.04);
         }
         .sidebar-link-active {
-          color: #00d4ff !important;
-          background: rgba(0, 212, 255, 0.08) !important;
+          color: #fff !important;
+          background: rgba(212, 32, 39, 0.12) !important;
         }
         .sidebar-link-active::before {
           content: '';
@@ -104,8 +104,8 @@ export default function Sidebar() {
           left: 0; top: 6px; bottom: 6px;
           width: 3px;
           border-radius: 0 3px 3px 0;
-          background: linear-gradient(180deg, #00d4ff, #7c3aed);
-          box-shadow: 0 0 10px rgba(0, 212, 255, 0.4);
+          background: #D42027;
+          box-shadow: 0 0 10px rgba(212, 32, 39, 0.5);
         }
         .sidebar-link svg {
           width: 20px;
@@ -132,9 +132,9 @@ export default function Sidebar() {
         .sidebar-logout {
           width: 100%;
           padding: 10px 14px;
-          background: rgba(239, 68, 68, 0.06);
-          border: 1px solid rgba(239, 68, 68, 0.1);
-          color: #64748b;
+          background: rgba(212, 32, 39, 0.06);
+          border: 1px solid rgba(212, 32, 39, 0.12);
+          color: #888;
           border-radius: 10px;
           cursor: pointer;
           font-size: 13px;
@@ -146,8 +146,8 @@ export default function Sidebar() {
           gap: 12px;
         }
         .sidebar-logout:hover {
-          background: rgba(239, 68, 68, 0.12);
-          border-color: rgba(239, 68, 68, 0.25);
+          background: rgba(212, 32, 39, 0.15);
+          border-color: rgba(212, 32, 39, 0.3);
           color: #f87171;
         }
       `}</style>

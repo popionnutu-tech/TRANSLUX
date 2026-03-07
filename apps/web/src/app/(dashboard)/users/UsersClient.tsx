@@ -128,7 +128,7 @@ export default function UsersClient({
                       borderRadius: 8,
                       border: '1px solid var(--border-accent)',
                       fontSize: 13,
-                      background: user.role === 'ADMIN' ? 'var(--primary-dim)' : 'rgba(15, 23, 42, 0.6)',
+                      background: user.role === 'ADMIN' ? 'var(--primary-dim)' : 'var(--bg-elevated)',
                       color: user.role === 'ADMIN' ? 'var(--primary)' : 'var(--text)',
                       fontWeight: user.role === 'ADMIN' ? 600 : 400,
                     }}

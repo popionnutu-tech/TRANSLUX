@@ -515,21 +515,21 @@ export default function ReportsClient({ pivotData, dateFrom, dateTo, viewMode, p
                   { key: 'avg', fn: (s: { trips: number; total: number; avg: number }) => s.avg.toFixed(2) },
                 ] .map(({ key, fn }) => (
                   <tr key={key} className="pivot-stat-row">
-                    <th className="pivot-sticky pivot-sticky-time" style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}></th>
+                    <th className="pivot-sticky pivot-sticky-time" style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}></th>
                     {weekColumnGroups ? weekColumnGroups.map((wg, gi) => {
                       const isCollapsed = collapsedWeeks.has(wg.monday);
                       if (isCollapsed) {
                         const s = weekGroupStats?.[gi];
-                        return <td key={wg.monday} className="pivot-cell" style={{ fontSize: 11, color: '#64748b' }}>{s ? fn(s) : '—'}</td>;
+                        return <td key={wg.monday} className="pivot-cell" style={{ fontSize: 11, color: 'var(--text-muted)' }}>{s ? fn(s) : '—'}</td>;
                       }
                       return wg.dates.map((col) => {
                         const ci = daily.columns.indexOf(col);
                         const s = columnStats[ci];
-                        return <td key={col} className="pivot-cell" style={{ fontSize: 11, color: '#64748b' }}>{s ? fn(s) : '—'}</td>;
+                        return <td key={col} className="pivot-cell" style={{ fontSize: 11, color: 'var(--text-muted)' }}>{s ? fn(s) : '—'}</td>;
                       });
                     }) : daily.columns.map((col, ci) => {
                       const s = columnStats[ci];
-                      return <td key={ci} className="pivot-cell" style={{ fontSize: 11, color: '#64748b' }}>{s ? fn(s) : '—'}</td>;
+                      return <td key={ci} className="pivot-cell" style={{ fontSize: 11, color: 'var(--text-muted)' }}>{s ? fn(s) : '—'}</td>;
                     })}
                   </tr>
                 ))}

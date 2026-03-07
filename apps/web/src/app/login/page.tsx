@@ -38,153 +38,187 @@ export default function LoginPage() {
   }
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#0c0a1e',
-        backgroundImage: `
-          radial-gradient(ellipse 70% 55% at 50% 45%, rgba(80, 40, 120, 0.45) 0%, transparent 65%),
-          radial-gradient(ellipse 40% 30% at 50% 55%, rgba(232, 160, 48, 0.08) 0%, transparent 60%),
-          repeating-linear-gradient(
-            45deg,
-            transparent,
-            transparent 7px,
-            rgba(200, 160, 100, 0.015) 7px,
-            rgba(200, 160, 100, 0.015) 8px
-          ),
-          repeating-linear-gradient(
-            -45deg,
-            transparent,
-            transparent 7px,
-            rgba(200, 160, 100, 0.015) 7px,
-            rgba(200, 160, 100, 0.015) 8px
-          )
-        `,
-      }}
-    >
-      <div style={{ width: 380, position: 'relative' }}>
+    <>
+      <style>{`
+        .login-page {
+          min-height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          position: relative;
+          overflow: hidden;
+        }
+        .login-bg {
+          position: fixed;
+          inset: 0;
+          background:
+            radial-gradient(ellipse 60% 50% at 30% 20%, rgba(0, 212, 255, 0.08) 0%, transparent 50%),
+            radial-gradient(ellipse 50% 40% at 70% 80%, rgba(124, 58, 237, 0.06) 0%, transparent 50%),
+            radial-gradient(circle at 50% 50%, rgba(0, 212, 255, 0.02) 0%, transparent 70%);
+          z-index: 0;
+        }
+        .login-grid {
+          position: fixed;
+          inset: 0;
+          background-image:
+            linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+          background-size: 60px 60px;
+          mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black 0%, transparent 70%);
+          -webkit-mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black 0%, transparent 70%);
+          z-index: 0;
+        }
+        .login-container {
+          width: 420px;
+          position: relative;
+          z-index: 1;
+        }
+        .login-header {
+          text-align: center;
+          margin-bottom: 32px;
+        }
+        .login-logo {
+          height: 40px;
+          margin-bottom: 16px;
+          filter: brightness(1.1);
+        }
+        .login-title {
+          font-size: 11px;
+          letter-spacing: 0.25em;
+          color: #475569;
+          text-transform: uppercase;
+          font-weight: 500;
+        }
+        .login-card {
+          background: rgba(15, 23, 42, 0.6);
+          backdrop-filter: blur(24px);
+          -webkit-backdrop-filter: blur(24px);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 16px;
+          padding: 40px;
+          position: relative;
+          box-shadow:
+            0 8px 64px rgba(0, 0, 0, 0.4),
+            inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        }
+        .login-card::before {
+          content: '';
+          position: absolute;
+          top: 0; left: 0; right: 0;
+          height: 1px;
+          background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.4) 30%, rgba(124, 58, 237, 0.4) 70%, transparent);
+          border-radius: 16px 16px 0 0;
+        }
+        .login-error {
+          background: rgba(239, 68, 68, 0.1);
+          border: 1px solid rgba(239, 68, 68, 0.2);
+          color: #f87171;
+          padding: 10px 14px;
+          border-radius: 8px;
+          font-size: 13px;
+          margin-bottom: 16px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .login-error-dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: #ef4444;
+          flex-shrink: 0;
+        }
+        .login-submit {
+          width: 100%;
+          padding: 12px;
+          background: linear-gradient(135deg, #00d4ff 0%, #0098cc 100%);
+          border: none;
+          border-radius: 10px;
+          color: #020617;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+          box-shadow: 0 0 24px rgba(0, 212, 255, 0.2);
+          margin-top: 8px;
+        }
+        .login-submit:hover {
+          box-shadow: 0 0 40px rgba(0, 212, 255, 0.35);
+          transform: translateY(-1px);
+        }
+        .login-submit:active {
+          transform: translateY(0);
+        }
+        .login-submit:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+          transform: none;
+          box-shadow: none;
+        }
+        .login-footer {
+          text-align: center;
+          margin-top: 24px;
+          font-size: 12px;
+          color: #334155;
+        }
+      `}</style>
 
-        {/* ── Logo ──────────────────────────────── */}
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <img src="/logo.svg" alt="TRANSLUX" style={{ height: 52 }} />
+      <div className="login-page">
+        <div className="login-bg" />
+        <div className="login-grid" />
 
-          {/* ornamental divider */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              justifyContent: 'center',
-              marginTop: 16,
-            }}
-          >
-            <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, transparent, #38305c)' }} />
-            <span style={{ color: '#e8a030', fontSize: 10 }}>✦</span>
-            <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, #38305c, transparent)' }} />
+        <div className="login-container">
+          <div className="login-header">
+            <img src="/logo.svg" alt="TRANSLUX" className="login-logo" />
+            <div className="login-title">Autentificare Administrator</div>
           </div>
 
-          <div
-            style={{
-              fontFamily: 'var(--font-cinzel, serif)',
-              fontSize: 10,
-              letterSpacing: '0.26em',
-              color: '#4a3d6a',
-              marginTop: 12,
-              textTransform: 'uppercase',
-            }}
-          >
-            Autentificare Administrator
-          </div>
-        </div>
+          <div className="login-card">
+            <form onSubmit={handleSubmit}>
+              <div className="form-group">
+                <label>Email</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoFocus
+                  placeholder="admin@translux.md"
+                />
+              </div>
+              <div className="form-group">
+                <label>Parola</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  placeholder="••••••••"
+                />
+              </div>
 
-        {/* ── Card ──────────────────────────────── */}
-        <div
-          style={{
-            background: '#14122e',
-            border: '1px solid #38305c',
-            borderRadius: 4,
-            padding: '32px',
-            position: 'relative',
-            boxShadow: '0 0 0 1px rgba(232,160,48,0.06) inset, 0 8px 40px rgba(0,0,0,0.5)',
-          }}
-        >
-          {/* amber top glow */}
-          <div
-            style={{
-              position: 'absolute',
-              top: -1, left: 40, right: 40,
-              height: 2,
-              background: 'linear-gradient(90deg, transparent, #e8a030, transparent)',
-              opacity: 0.6,
-            }}
-          />
+              {error && (
+                <div className="login-error">
+                  <span className="login-error-dot" />
+                  {error}
+                </div>
+              )}
 
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label>Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoFocus
-                placeholder="admin@translux.md"
-              />
-            </div>
-            <div className="form-group">
-              <label>Parolă</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                placeholder="••••••••"
-              />
-            </div>
-
-            {error && (
-              <p
-                style={{
-                  color: '#e07050',
-                  fontSize: 13,
-                  marginBottom: 16,
-                  fontFamily: 'var(--font-cinzel, serif)',
-                  letterSpacing: '0.04em',
-                }}
+              <button
+                type="submit"
+                className="login-submit"
+                disabled={loading}
               >
-                ⛔ {error}
-              </p>
-            )}
+                {loading ? 'Se incarca...' : 'Autentificare'}
+              </button>
+            </form>
+          </div>
 
-            <button
-              type="submit"
-              className="btn btn-primary"
-              style={{ width: '100%', justifyContent: 'center', marginTop: 8 }}
-              disabled={loading}
-            >
-              {loading ? '...' : 'Autentificare'}
-            </button>
-          </form>
-        </div>
-
-        {/* ── Bottom ornament ───────────────────── */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            justifyContent: 'center',
-            marginTop: 28,
-          }}
-        >
-          <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, transparent, #1e1c3a)' }} />
-          <span style={{ color: '#2a2050', fontSize: 10 }}>◆</span>
-          <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, #1e1c3a, transparent)' }} />
+          <div className="login-footer">
+            TRANSLUX Monitoring System
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

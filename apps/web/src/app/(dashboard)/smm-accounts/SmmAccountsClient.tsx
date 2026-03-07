@@ -174,7 +174,7 @@ export default function SmmAccountsClient({
               <tr key={acc.id} style={{ opacity: acc.active ? 1 : 0.5 }}>
                 <td>{SMM_PLATFORM_LABELS[acc.platform]}</td>
                 <td style={{ fontWeight: 600 }}>{acc.account_name}</td>
-                <td style={{ fontSize: 12, color: '#666' }}>
+                <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                   {acc.platform_id.slice(0, 20)}...
                 </td>
                 <td>

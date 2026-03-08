@@ -5,16 +5,21 @@ import { useCallback, useMemo, useState } from 'react';
 import { POINT_LABELS } from '@translux/db';
 import type { PointEnum } from '@translux/db';
 import type { PivotRawRow } from './actions';
+import PassengersChart from './PassengersChart';
 
 type Period = 'daily' | 'weekly' | 'monthly';
 
 interface Props {
   pivotData: PivotRawRow[];
+  comparisonPivotData: PivotRawRow[];
   dateFrom: string;
   dateTo: string;
+  comparisonDateFrom: string;
+  comparisonDateTo: string;
   viewMode: 'daily' | 'weekly';
   point: PointEnum;
   period: Period;
+  isStandardPeriod: boolean;
 }
 
 function toDateStr(d: Date): string {
@@ -76,10 +81,11 @@ interface WeeklyPivot {
   weekCells: Map<string, number | null>;
 }
 
-export default function ReportsClient({ pivotData, dateFrom, dateTo, viewMode, point, period }: Props) {
+export default function ReportsClient({ pivotData, comparisonPivotData, dateFrom, dateTo, comparisonDateFrom, comparisonDateTo, viewMode, point, period, isStandardPeriod }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [collapsedWeeks, setCollapsedWeeks] = useState<Set<string>>(new Set());
+  const [showComparison, setShowComparison] = useState(false);
 
   function toggleWeek(monday: string) {
     setCollapsedWeeks((prev) => {
@@ -315,6 +321,32 @@ export default function ReportsClient({ pivotData, dateFrom, dateTo, viewMode, p
     });
   }, [weekColumnGroups, daily, pivot.rows]);
 
+  // ── Chart data ──────────────────────────────
+  const chartData = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const r of pivotData) {
+      if (r.status === 'OK' && r.passengers_count != null) {
+        map.set(r.report_date, (map.get(r.report_date) || 0) + r.passengers_count);
+      }
+    }
+    return Array.from(map.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, value]) => ({ label: formatDateShort(date), value }));
+  }, [pivotData]);
+
+  const comparisonChartData = useMemo(() => {
+    if (!comparisonPivotData || !comparisonPivotData.length) return [];
+    const map = new Map<string, number>();
+    for (const r of comparisonPivotData) {
+      if (r.status === 'OK' && r.passengers_count != null) {
+        map.set(r.report_date, (map.get(r.report_date) || 0) + r.passengers_count);
+      }
+    }
+    return Array.from(map.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, value]) => ({ label: formatDateShort(date), value }));
+  }, [comparisonPivotData]);
+
   // CSV export for pivot data
   function handleExportCSV() {
     const cols = pivot.columns;
@@ -423,6 +455,33 @@ export default function ReportsClient({ pivotData, dateFrom, dateTo, viewMode, p
           </div>
         </div>
       </div>
+
+      {/* Chart */}
+      {chartData.length > 1 && (
+        <div className="card mb-4" style={{ padding: '16px 20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ fontSize: 14, fontWeight: 600 }}>Dinamica pasagerilor</span>
+            {isStandardPeriod && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none' }}>
+                <input
+                  type="checkbox"
+                  checked={showComparison}
+                  onChange={(e) => setShowComparison(e.target.checked)}
+                  style={{ accentColor: '#D42027' }}
+                />
+                Comparație
+              </label>
+            )}
+          </div>
+          <PassengersChart
+            data={chartData}
+            comparisonData={comparisonChartData}
+            showComparison={showComparison && isStandardPeriod}
+            currentLabel={`${formatDateShort(dateFrom)} – ${formatDateShort(dateTo)}`}
+            comparisonLabel={comparisonDateFrom ? `${formatDateShort(comparisonDateFrom)} – ${formatDateShort(comparisonDateTo)}` : ''}
+          />
+        </div>
+      )}
 
       {/* Summary cards */}
       <div className="grid-3 mb-4">

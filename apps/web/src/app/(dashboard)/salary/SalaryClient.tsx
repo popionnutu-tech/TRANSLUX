@@ -3,52 +3,12 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useState } from 'react';
 import { POINT_LABELS } from '@translux/db';
-import { IURIE_TELEGRAM_ID } from '@/lib/operators';
 import type { SalaryReport } from './actions';
-
-type Period = 'weekly' | 'monthly';
 
 interface Props {
   salaryData: SalaryReport;
-  dateFrom: string;
-  dateTo: string;
-  period: Period;
-}
-
-function toDateStr(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-function getPeriodDates(period: Period) {
-  const now = new Date();
-  if (period === 'weekly') {
-    const day = now.getDay();
-    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-    const monday = new Date(now);
-    monday.setDate(diff);
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    return { dateFrom: toDateStr(monday), dateTo: toDateStr(sunday) };
-  }
-  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  return { dateFrom: toDateStr(firstDay), dateTo: toDateStr(lastDay) };
-}
-
-function formatDateShort(d: string) {
-  const [, m, day] = d.split('-');
-  return `${day}.${m}`;
-}
-
-const DAY_NAMES = ['Dum', 'Lun', 'Mar', 'Mie', 'Joi', 'Vin', 'Sâm'];
-
-function formatDateWithDay(d: string) {
-  const dt = new Date(d + 'T12:00:00');
-  const dayName = DAY_NAMES[dt.getDay()];
-  return `${dayName} ${formatDateShort(d)}`;
+  year: number;
+  month: number; // 0-based
 }
 
 const MONTHS_RO = [
@@ -56,45 +16,33 @@ const MONTHS_RO = [
   'Iulie', 'August', 'Septembrie', 'Octombrie', 'Noiembrie', 'Decembrie',
 ];
 
-export default function SalaryClient({ salaryData, dateFrom, dateTo, period }: Props) {
+const DAY_NAMES = ['Dum', 'Lun', 'Mar', 'Mie', 'Joi', 'Vin', 'Sâm'];
+
+function formatDateShort(d: string) {
+  const [, m, day] = d.split('-');
+  return `${day}.${m}`;
+}
+
+function formatDateWithDay(d: string) {
+  const dt = new Date(d + 'T12:00:00');
+  const dayName = DAY_NAMES[dt.getDay()];
+  return `${dayName} ${formatDateShort(d)}`;
+}
+
+export default function SalaryClient({ salaryData, year, month }: Props) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [expandedOperator, setExpandedOperator] = useState<string | null>(null);
-  const [tiktokVideos, setTiktokVideos] = useState<{ tiktok1: number; tiktok2: number }>({
-    tiktok1: 0,
-    tiktok2: 0,
-  });
 
-  const updateParams = useCallback(
-    (updates: Record<string, string | undefined>) => {
-      const params = new URLSearchParams(searchParams.toString());
-      for (const [key, value] of Object.entries(updates)) {
-        if (value) params.set(key, value);
-        else params.delete(key);
-      }
-      router.push(`/salary?${params.toString()}`);
-    },
-    [router, searchParams],
-  );
-
-  function handlePeriodChange(newPeriod: Period) {
-    const dates = getPeriodDates(newPeriod);
-    updateParams({ period: newPeriod, dateFrom: dates.dateFrom, dateTo: dates.dateTo });
+  function goToMonth(y: number, m: number) {
+    if (m < 0) { y--; m = 11; }
+    if (m > 11) { y++; m = 0; }
+    router.push(`/salary?year=${y}&month=${m + 1}`);
   }
 
-  // Find Iurie for TikTok bonus
-  const iurie = salaryData.operators.find((op) => op.telegramId === IURIE_TELEGRAM_ID);
-  const tiktokTotal = (tiktokVideos.tiktok1 + tiktokVideos.tiktok2) * 100;
-
-  const grandTotal = salaryData.operators.reduce((sum, op) => sum + op.baseSalary, 0) + tiktokTotal;
-
-  // Format period label
-  const fromDate = new Date(dateFrom + 'T12:00:00');
-  const toDate = new Date(dateTo + 'T12:00:00');
-  const periodLabel =
-    period === 'monthly'
-      ? `${MONTHS_RO[fromDate.getMonth()]} ${fromDate.getFullYear()}`
-      : `${formatDateShort(dateFrom)} — ${formatDateShort(dateTo)}`;
+  const tiktok = salaryData.tiktokBonus;
+  const baseSalaryTotal = salaryData.operators.reduce((sum, op) => sum + op.baseSalary, 0);
+  const tiktokTotal = tiktok?.totalBonus || 0;
+  const grandTotal = baseSalaryTotal + tiktokTotal;
 
   return (
     <div style={{ padding: '24px 32px', maxWidth: 1000 }}>
@@ -119,39 +67,36 @@ export default function SalaryClient({ salaryData, dateFrom, dateTo, period }: P
           font-weight: 700;
           color: #111;
         }
-        .salary-controls {
+        .month-nav {
           display: flex;
-          gap: 8px;
           align-items: center;
+          gap: 8px;
         }
-        .period-btn {
-          padding: 6px 14px;
+        .month-btn {
+          width: 32px;
+          height: 32px;
           border-radius: 6px;
           border: 1px solid #ddd;
           background: #fff;
           color: #666;
-          font-size: 13px;
-          font-weight: 500;
+          font-size: 16px;
           cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           transition: all 0.2s;
           font-family: inherit;
         }
-        .period-btn:hover {
+        .month-btn:hover {
           border-color: #D42027;
           color: #D42027;
         }
-        .period-btn-active {
-          background: #D42027;
-          color: #fff;
-          border-color: #D42027;
-        }
-        .date-input {
-          padding: 6px 10px;
-          border-radius: 6px;
-          border: 1px solid #ddd;
-          font-size: 13px;
-          font-family: inherit;
+        .month-label {
+          font-size: 15px;
+          font-weight: 600;
           color: #333;
+          min-width: 140px;
+          text-align: center;
         }
         .salary-table {
           width: 100%;
@@ -203,13 +148,6 @@ export default function SalaryClient({ salaryData, dateFrom, dateTo, period }: P
           color: #111;
           font-size: 15px;
         }
-        .day-details {
-          background: #fafafa;
-          padding: 0;
-        }
-        .day-details td {
-          padding: 0;
-        }
         .day-grid {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -255,30 +193,28 @@ export default function SalaryClient({ salaryData, dateFrom, dateTo, period }: P
           gap: 12px;
           margin-bottom: 16px;
         }
-        .tiktok-input-group {
+        .tiktok-account {
+          padding: 12px 16px;
+          background: #fafafa;
+          border-radius: 8px;
           display: flex;
-          flex-direction: column;
-          gap: 4px;
+          justify-content: space-between;
+          align-items: center;
         }
-        .tiktok-label {
-          font-size: 12px;
-          font-weight: 600;
-          color: #666;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
+        .tiktok-account-name {
+          font-size: 13px;
+          font-weight: 500;
+          color: #555;
         }
-        .tiktok-input {
-          padding: 8px 12px;
-          border: 1px solid #ddd;
-          border-radius: 6px;
-          font-size: 14px;
-          font-family: inherit;
-          width: 100%;
-          box-sizing: border-box;
+        .tiktok-posts {
+          font-size: 18px;
+          font-weight: 700;
+          color: #111;
         }
-        .tiktok-input:focus {
-          outline: none;
-          border-color: #D42027;
+        .tiktok-posts-label {
+          font-size: 11px;
+          color: #999;
+          font-weight: 400;
         }
         .tiktok-summary {
           display: flex;
@@ -326,36 +262,18 @@ export default function SalaryClient({ salaryData, dateFrom, dateTo, period }: P
       {/* Header */}
       <div className="salary-header">
         <div className="salary-title">Salariu operatori</div>
-        <div className="salary-controls">
-          <button
-            className={`period-btn${period === 'weekly' ? ' period-btn-active' : ''}`}
-            onClick={() => handlePeriodChange('weekly')}
-          >
-            Săptămânal
+        <div className="month-nav">
+          <button className="month-btn" onClick={() => goToMonth(year, month - 1)}>
+            &lsaquo;
           </button>
-          <button
-            className={`period-btn${period === 'monthly' ? ' period-btn-active' : ''}`}
-            onClick={() => handlePeriodChange('monthly')}
-          >
-            Lunar
+          <div className="month-label">
+            {MONTHS_RO[month]} {year}
+          </div>
+          <button className="month-btn" onClick={() => goToMonth(year, month + 1)}>
+            &rsaquo;
           </button>
-          <input
-            type="date"
-            className="date-input"
-            value={dateFrom}
-            onChange={(e) => updateParams({ dateFrom: e.target.value, period: undefined })}
-          />
-          <span style={{ color: '#999' }}>—</span>
-          <input
-            type="date"
-            className="date-input"
-            value={dateTo}
-            onChange={(e) => updateParams({ dateTo: e.target.value, period: undefined })}
-          />
         </div>
       </div>
-
-      <div style={{ fontSize: 13, color: '#999', marginBottom: 20 }}>{periodLabel}</div>
 
       {/* Main salary table */}
       <div className="salary-card">
@@ -411,8 +329,8 @@ export default function SalaryClient({ salaryData, dateFrom, dateTo, period }: P
                   </td>
                 </tr>
                 {expandedOperator === op.userId && (
-                  <tr key={`${op.userId}-details`} className="day-details">
-                    <td colSpan={6}>
+                  <tr key={`${op.userId}-details`}>
+                    <td colSpan={6} style={{ padding: 0, background: '#fafafa' }}>
                       <div className="day-grid">
                         {op.dayDetails.map((day) => (
                           <div
@@ -428,7 +346,7 @@ export default function SalaryClient({ salaryData, dateFrom, dateTo, period }: P
                         ))}
                         {op.dayDetails.length === 0 && (
                           <div style={{ color: '#999', padding: '8px 0', fontSize: 12 }}>
-                            Nu sunt rapoarte în această perioadă
+                            Nu sunt rapoarte
                           </div>
                         )}
                       </div>
@@ -440,64 +358,43 @@ export default function SalaryClient({ salaryData, dateFrom, dateTo, period }: P
 
             {/* Total row */}
             <tr className="total-row">
-              <td colSpan={5}>Total salariu de bază</td>
+              <td colSpan={5}>Total salariu de baza</td>
               <td style={{ textAlign: 'right', fontSize: 16 }}>
-                {salaryData.operators
-                  .reduce((sum, op) => sum + op.baseSalary, 0)
-                  .toLocaleString()}{' '}
-                lei
+                {baseSalaryTotal.toLocaleString()} lei
               </td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      {/* TikTok bonus section for Iurie */}
-      {iurie && (
+      {/* TikTok bonus section */}
+      {tiktok && (
         <div className="salary-card tiktok-section">
           <div style={{ fontSize: 15, fontWeight: 700, color: '#111', marginBottom: 16 }}>
-            Bonus TikTok — {iurie.operatorName}
+            Bonus TikTok — Iurie
           </div>
           <div style={{ fontSize: 12, color: '#999', marginBottom: 12 }}>
-            100 lei per video postat
+            {MONTHS_RO[month]} {year} — 100 lei per video postat
           </div>
           <div className="tiktok-grid">
-            <div className="tiktok-input-group">
-              <label className="tiktok-label">TikTok 1 — videouri</label>
-              <input
-                type="number"
-                min={0}
-                className="tiktok-input"
-                value={tiktokVideos.tiktok1}
-                onChange={(e) =>
-                  setTiktokVideos((prev) => ({
-                    ...prev,
-                    tiktok1: Math.max(0, parseInt(e.target.value) || 0),
-                  }))
-                }
-              />
+            <div className="tiktok-account">
+              <span className="tiktok-account-name">{tiktok.account1Name}</span>
+              <span className="tiktok-posts">
+                {tiktok.account1Posts} <span className="tiktok-posts-label">videouri</span>
+              </span>
             </div>
-            <div className="tiktok-input-group">
-              <label className="tiktok-label">TikTok 2 — videouri</label>
-              <input
-                type="number"
-                min={0}
-                className="tiktok-input"
-                value={tiktokVideos.tiktok2}
-                onChange={(e) =>
-                  setTiktokVideos((prev) => ({
-                    ...prev,
-                    tiktok2: Math.max(0, parseInt(e.target.value) || 0),
-                  }))
-                }
-              />
+            <div className="tiktok-account">
+              <span className="tiktok-account-name">{tiktok.account2Name}</span>
+              <span className="tiktok-posts">
+                {tiktok.account2Posts} <span className="tiktok-posts-label">videouri</span>
+              </span>
             </div>
           </div>
           <div className="tiktok-summary">
             <span>
-              {tiktokVideos.tiktok1 + tiktokVideos.tiktok2} videouri x 100 lei
+              {tiktok.totalPosts} videouri x 100 lei
             </span>
-            <span className="tiktok-total">{tiktokTotal.toLocaleString()} lei</span>
+            <span className="tiktok-total">{tiktok.totalBonus.toLocaleString()} lei</span>
           </div>
         </div>
       )}

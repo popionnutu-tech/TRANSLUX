@@ -1,6 +1,6 @@
 {
-  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "target": "ES2022",
     "lib": [
       "dom",
       "dom.iterable",
@@ -15,10 +15,18 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@translux/db": [
+        "./src/lib/db-types.ts"
       ]
     },
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
     "allowJs": true,
     "noEmit": true,
     "incremental": true,

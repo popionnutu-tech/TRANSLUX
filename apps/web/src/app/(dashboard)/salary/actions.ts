@@ -2,12 +2,7 @@
 
 import { getSupabase } from '@/lib/supabase';
 import type { PointEnum } from '@translux/db';
-
-// Operator name mapping: ordered by created_at per point
-const OPERATOR_NAMES: Record<string, Record<number, string>> = {
-  CHISINAU: { 0: 'Vitalie (Pepsi)', 1: 'Iurie' },
-  BALTI: { 0: 'Aurel', 1: 'Ion' },
-};
+import { getOperatorName, IURIE_TELEGRAM_ID } from '@/lib/operators';
 
 const SALARY_RATES: Record<string, number> = {
   CHISINAU: 900,
@@ -25,6 +20,7 @@ export interface OperatorDayDetail {
 
 export interface OperatorSalary {
   userId: string;
+  telegramId: number | null;
   telegramUsername: string | null;
   operatorName: string;
   point: PointEnum;
@@ -68,15 +64,10 @@ export async function getSalaryData(dateFrom: string, dateTo: string): Promise<S
 
   const allReports = reports || [];
 
-  // 3. Build operator index by point for name assignment
-  const pointIndex: Record<string, number> = {};
-
+  // 3. Map operators with names by telegram_id
   const operators: OperatorSalary[] = users.map((user: any) => {
     const point: PointEnum = user.point;
-    const idx = pointIndex[point] ?? 0;
-    pointIndex[point] = idx + 1;
-
-    const operatorName = OPERATOR_NAMES[point]?.[idx] || user.username || `Operator ${idx + 1}`;
+    const operatorName = getOperatorName(user.telegram_id, user.username);
     const dailyRate = SALARY_RATES[point] || 900;
 
     // Group reports by date for this user
@@ -110,6 +101,7 @@ export async function getSalaryData(dateFrom: string, dateTo: string): Promise<S
 
     return {
       userId: user.id,
+      telegramId: user.telegram_id,
       telegramUsername: user.username,
       operatorName,
       point,

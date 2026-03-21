@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useState } from 'react';
 import { POINT_LABELS } from '@translux/db';
+import { IURIE_TELEGRAM_ID } from '@/lib/operators';
 import type { SalaryReport } from './actions';
 
 type Period = 'weekly' | 'monthly';
@@ -82,7 +83,7 @@ export default function SalaryClient({ salaryData, dateFrom, dateTo, period }: P
   }
 
   // Find Iurie for TikTok bonus
-  const iurie = salaryData.operators.find((op) => op.operatorName === 'Iurie');
+  const iurie = salaryData.operators.find((op) => op.telegramId === IURIE_TELEGRAM_ID);
   const tiktokTotal = (tiktokVideos.tiktok1 + tiktokVideos.tiktok2) * 100;
 
   const grandTotal = salaryData.operators.reduce((sum, op) => sum + op.baseSalary, 0) + tiktokTotal;

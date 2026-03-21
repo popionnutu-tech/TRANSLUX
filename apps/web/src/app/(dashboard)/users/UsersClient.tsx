@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User, UserRole, PointEnum } from '@translux/db';
 import { POINT_LABELS } from '@translux/db';
+import { getOperatorName } from '@/lib/operators';
 import {
   updateUserRole,
   toggleUser,
@@ -105,6 +106,7 @@ export default function UsersClient({
         <table>
           <thead>
             <tr>
+              <th>Nume</th>
               <th>Username</th>
               <th>Telegram ID</th>
               <th>Punct</th>
@@ -116,6 +118,7 @@ export default function UsersClient({
           <tbody>
             {initialUsers.map((user) => (
               <tr key={user.id} style={{ opacity: user.active ? 1 : 0.5 }}>
+                <td style={{ fontWeight: 600 }}>{getOperatorName(user.telegram_id, null)}</td>
                 <td>{user.username ? `@${user.username}` : '—'}</td>
                 <td style={{ fontSize: 13, color: 'var(--text-muted)' }}>{user.telegram_id || '—'}</td>
                 <td>{user.point ? POINT_LABELS[user.point] : '—'}</td>
@@ -159,7 +162,7 @@ export default function UsersClient({
             ))}
             {initialUsers.length === 0 && (
               <tr>
-                <td colSpan={6} className="text-center text-muted">
+                <td colSpan={7} className="text-center text-muted">
                   Nu există utilizatori.
                 </td>
               </tr>

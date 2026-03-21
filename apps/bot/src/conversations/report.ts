@@ -320,6 +320,7 @@ export async function reportConversation(
         exterior_ok: exteriorOk,
         uniform_ok: uniformOk,
         created_by_user: user.id,
+        location_ok: needsLoc ? locationOk : null,
       });
 
       // Update daily digest (single editable message for all violations)

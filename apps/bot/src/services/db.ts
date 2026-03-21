@@ -210,6 +210,7 @@ export async function createReport(report: {
   exterior_ok: boolean | null;
   uniform_ok: boolean | null;
   created_by_user: string;
+  location_ok: boolean | null;
 }): Promise<Report> {
   // DB enum only has OK/ABSENT — store FULL as OK with passengers_count=-1
   const dbRecord = report.status === 'FULL'

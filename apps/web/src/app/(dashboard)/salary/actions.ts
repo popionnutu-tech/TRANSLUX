@@ -55,14 +55,26 @@ export async function getSalaryData(dateFrom: string, dateTo: string): Promise<S
   }
 
   // 2. Get all non-cancelled reports in the period
-  const { data: reports } = await supabase
+  //    Try with location_ok first; if column doesn't exist yet (migration 005 not applied), fallback
+  let allReports: any[] = [];
+  const { data: reports, error: reportsErr } = await supabase
     .from('reports')
     .select('id, report_date, point, created_by_user, location_ok')
     .is('cancelled_at', null)
     .gte('report_date', dateFrom)
     .lte('report_date', dateTo);
 
-  const allReports = reports || [];
+  if (reportsErr) {
+    const { data: fallback } = await supabase
+      .from('reports')
+      .select('id, report_date, point, created_by_user')
+      .is('cancelled_at', null)
+      .gte('report_date', dateFrom)
+      .lte('report_date', dateTo);
+    allReports = fallback || [];
+  } else {
+    allReports = reports || [];
+  }
 
   // 3. Map operators with names by telegram_id
   const operators: OperatorSalary[] = users.map((user: any) => {

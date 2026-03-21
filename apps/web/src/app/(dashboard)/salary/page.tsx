@@ -3,8 +3,6 @@ export const dynamic = 'force-dynamic';
 import { getSalaryData } from './actions';
 import SalaryClient from './SalaryClient';
 
-type Period = 'weekly' | 'monthly';
-
 function toDateStr(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -12,22 +10,9 @@ function toDateStr(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-function getDateRange(period: Period) {
-  const now = new Date();
-
-  if (period === 'weekly') {
-    const day = now.getDay();
-    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-    const monday = new Date(now);
-    monday.setDate(diff);
-    const sunday = new Date(monday);
-    sunday.setDate(sunday.getDate() + 6);
-    return { dateFrom: toDateStr(monday), dateTo: toDateStr(sunday) };
-  }
-
-  // monthly
-  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+function getMonthRange(year: number, month: number) {
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
   return { dateFrom: toDateStr(firstDay), dateTo: toDateStr(lastDay) };
 }
 
@@ -38,20 +23,18 @@ export default async function SalaryPage({
 }) {
   const params = await searchParams;
 
-  const period = (params.period as Period) || 'monthly';
-  const defaults = getDateRange(period);
+  const now = new Date();
+  const year = params.year ? parseInt(params.year) : now.getFullYear();
+  const month = params.month ? parseInt(params.month) - 1 : now.getMonth();
 
-  const dateFrom = params.dateFrom || defaults.dateFrom;
-  const dateTo = params.dateTo || defaults.dateTo;
-
+  const { dateFrom, dateTo } = getMonthRange(year, month);
   const salaryData = await getSalaryData(dateFrom, dateTo);
 
   return (
     <SalaryClient
       salaryData={salaryData}
-      dateFrom={dateFrom}
-      dateTo={dateTo}
-      period={period}
+      year={year}
+      month={month}
     />
   );
 }

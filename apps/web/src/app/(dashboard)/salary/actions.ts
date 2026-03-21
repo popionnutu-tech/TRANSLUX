@@ -10,6 +10,7 @@ const SALARY_RATES: Record<string, number> = {
 };
 
 const MAX_GEO_VIOLATIONS_PER_DAY = 3;
+const TIKTOK_RATE_PER_VIDEO = 100;
 
 export interface OperatorDayDetail {
   date: string;
@@ -32,8 +33,18 @@ export interface OperatorSalary {
   dayDetails: OperatorDayDetail[];
 }
 
+export interface TiktokBonus {
+  account1Name: string;
+  account1Posts: number;
+  account2Name: string;
+  account2Posts: number;
+  totalPosts: number;
+  totalBonus: number;
+}
+
 export interface SalaryReport {
   operators: OperatorSalary[];
+  tiktokBonus: TiktokBonus | null;
   dateFrom: string;
   dateTo: string;
 }
@@ -51,7 +62,7 @@ export async function getSalaryData(dateFrom: string, dateTo: string): Promise<S
     .order('created_at');
 
   if (!users || users.length === 0) {
-    return { operators: [], dateFrom, dateTo };
+    return { operators: [], tiktokBonus: null, dateFrom, dateTo };
   }
 
   // 2. Get all non-cancelled reports in the period
@@ -80,7 +91,6 @@ export async function getSalaryData(dateFrom: string, dateTo: string): Promise<S
         byDate[date] = { total: 0, geoViolations: 0 };
       }
       byDate[date].total++;
-      // location_ok === false means geo violation; null means no location check needed or legacy data
       if (r.location_ok === false) {
         byDate[date].geoViolations++;
       }
@@ -114,5 +124,44 @@ export async function getSalaryData(dateFrom: string, dateTo: string): Promise<S
     };
   });
 
-  return { operators, dateFrom, dateTo };
+  // 4. Get TikTok bonus — sum posts from TikTok SMM accounts
+  let tiktokBonus: TiktokBonus | null = null;
+  const { data: tiktokAccounts } = await supabase
+    .from('smm_accounts')
+    .select('id, account_name')
+    .eq('platform', 'TIKTOK')
+    .eq('active', true)
+    .order('account_name');
+
+  if (tiktokAccounts && tiktokAccounts.length > 0) {
+    const accountIds = tiktokAccounts.map((a: any) => a.id);
+    const { data: stats } = await supabase
+      .from('smm_daily_stats')
+      .select('account_id, posts_count')
+      .in('account_id', accountIds)
+      .gte('stat_date', dateFrom)
+      .lte('stat_date', dateTo);
+
+    const postsByAccount: Record<string, number> = {};
+    for (const s of stats || []) {
+      postsByAccount[s.account_id] = (postsByAccount[s.account_id] || 0) + s.posts_count;
+    }
+
+    const acc1 = tiktokAccounts[0];
+    const acc2 = tiktokAccounts[1];
+    const posts1 = postsByAccount[acc1?.id] || 0;
+    const posts2 = acc2 ? (postsByAccount[acc2.id] || 0) : 0;
+    const totalPosts = posts1 + posts2;
+
+    tiktokBonus = {
+      account1Name: acc1?.account_name || 'TikTok 1',
+      account1Posts: posts1,
+      account2Name: acc2?.account_name || 'TikTok 2',
+      account2Posts: posts2,
+      totalPosts,
+      totalBonus: totalPosts * TIKTOK_RATE_PER_VIDEO,
+    };
+  }
+
+  return { operators, tiktokBonus, dateFrom, dateTo };
 }

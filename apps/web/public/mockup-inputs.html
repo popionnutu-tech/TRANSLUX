@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TRANSLUX — Input Variants</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#1a1a1a; color:#fff; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; padding:30px; }
+  h1 { text-align:center; font-size:22px; margin-bottom:8px; font-weight:300; letter-spacing:2px; }
+  .subtitle { text-align:center; color:#999; font-size:13px; margin-bottom:30px; }
+  .grid { display:grid; gap:24px; max-width:1200px; margin:0 auto; }
+
+  .variant {
+    background:#222; border-radius:16px; padding:24px; cursor:pointer;
+    border:2px solid transparent; transition:all 0.2s;
+  }
+  .variant:hover { border-color:rgba(255,255,255,0.3); }
+  .variant.selected { border-color:#fff; box-shadow:0 0 20px rgba(255,255,255,0.15); }
+  .variant-label { font-size:13px; font-weight:600; color:#aaa; margin-bottom:4px; letter-spacing:1px; text-transform:uppercase; }
+  .variant-desc { font-size:11px; color:#666; margin-bottom:16px; }
+
+  /* The bordo background that simulates the shader */
+  .preview {
+    background: #9B1B30;
+    border-radius:12px;
+    padding:28px 20px 20px;
+    position:relative;
+    overflow:hidden;
+  }
+  /* Fake white lines to simulate shader */
+  .preview::before {
+    content:'';
+    position:absolute; inset:0;
+    background:
+      linear-gradient(25deg, transparent 40%, rgba(255,255,255,0.12) 41%, rgba(255,255,255,0.12) 41.5%, transparent 42%),
+      linear-gradient(-15deg, transparent 45%, rgba(255,255,255,0.08) 45.5%, rgba(255,255,255,0.08) 46%, transparent 46.5%),
+      linear-gradient(35deg, transparent 55%, rgba(255,255,255,0.1) 55.5%, rgba(255,255,255,0.1) 56%, transparent 56.5%),
+      linear-gradient(-25deg, transparent 30%, rgba(255,255,255,0.06) 30.5%, rgba(255,255,255,0.06) 31%, transparent 31.5%);
+  }
+
+  .preview h2 {
+    position:relative; z-index:1;
+    font-family:Georgia,serif; font-style:italic; font-weight:400;
+    color:#fff; font-size:18px; text-align:center; margin-bottom:16px;
+  }
+  .form-row {
+    position:relative; z-index:1;
+    display:flex; gap:8px; align-items:center;
+  }
+
+  /* Shared input base */
+  .field { position:relative; flex:1; height:40px; }
+  .field input {
+    width:100%; height:100%; border:none; outline:none;
+    font-size:12px; font-style:italic; color:#fff;
+    font-family:inherit; padding:0 12px 0 28px;
+  }
+  .field input::placeholder { color:rgba(255,255,255,0.5); }
+  .field .icon { position:absolute; left:8px; top:50%; transform:translateY(-50%); font-size:13px; pointer-events:none; z-index:2; }
+  .swap { background:none; border:none; color:#fff; font-size:14px; cursor:pointer; flex-shrink:0; }
+  .sep { width:1px; height:28px; flex-shrink:0; }
+  .cta {
+    flex-shrink:0; height:40px; border:none; cursor:pointer;
+    font-weight:900; font-size:12px; font-style:italic;
+    padding:0 20px; white-space:nowrap;
+  }
+
+  /* ══════ VARIANT A: Glass — more opaque ══════ */
+  .va .field input { background:rgba(0,0,0,0.4); border-radius:8px; backdrop-filter:blur(8px); }
+  .va .field { border-radius:8px; overflow:hidden; }
+  .va .sep { border-left:1px dashed rgba(255,255,255,0.2); }
+  .va .cta { background:rgba(0,0,0,0.4); backdrop-filter:blur(8px); color:#fff; border-radius:8px; }
+
+  /* ══════ VARIANT B: White border, subtle fill ══════ */
+  .vb .field input { background:rgba(255,255,255,0.08); border:1.5px solid rgba(255,255,255,0.35); border-radius:10px; }
+  .vb .sep { border-left:1px dashed rgba(255,255,255,0.25); }
+  .vb .cta { background:rgba(255,255,255,0.08); border:1.5px solid rgba(255,255,255,0.35); color:#fff; border-radius:10px; }
+
+  /* ══════ VARIANT C: Solid white inputs, bordo text ══════ */
+  .vc .field input { background:rgba(255,255,255,0.9); border-radius:10px; color:#9B1B30; }
+  .vc .field input::placeholder { color:rgba(155,27,48,0.4); }
+  .vc .field .icon { filter:none; }
+  .vc .sep { border-left:2px dashed rgba(255,255,255,0.3); }
+  .vc .cta { background:#fff; color:#9B1B30; border-radius:10px; }
+
+  /* ══════ VARIANT D: Underline only ══════ */
+  .vd .field input { background:transparent; border-bottom:2px solid rgba(255,255,255,0.5); border-radius:0; }
+  .vd .sep { border-left:1px solid rgba(255,255,255,0.15); }
+  .vd .cta { background:transparent; border-bottom:2px solid #fff; color:#fff; border-radius:0; }
+
+  /* ══════ VARIANT E: Frosted pill ══════ */
+  .ve .form-row {
+    background:rgba(255,255,255,0.12); backdrop-filter:blur(12px);
+    border-radius:50px; padding:4px; border:1px solid rgba(255,255,255,0.2);
+  }
+  .ve .field input { background:transparent; border-radius:50px; }
+  .ve .sep { border-left:1px solid rgba(255,255,255,0.2); }
+  .ve .cta { background:#fff; color:#9B1B30; border-radius:50px; }
+
+  .vote-bar { display:flex; justify-content:center; gap:12px; margin-top:30px; }
+  .vote-btn {
+    padding:10px 28px; border-radius:8px; border:2px solid rgba(255,255,255,0.2);
+    background:transparent; color:#fff; font-weight:600; cursor:pointer; font-size:13px;
+    transition:all 0.2s;
+  }
+  .vote-btn:hover { border-color:#fff; background:rgba(255,255,255,0.1); }
+  .vote-btn.picked { border-color:#9B1B30; background:#9B1B30; }
+</style>
+</head>
+<body>
+
+<h1>TRANSLUX — Input Field Variants</h1>
+<p class="subtitle">Alege varianta preferata de butoane / inputuri pe fundalul bordo cu linii albe</p>
+
+<div class="grid">
+
+  <!-- A: Dark Glass -->
+  <div class="variant" onclick="pick('A',this)">
+    <div class="variant-label">A — Dark Glass</div>
+    <div class="variant-desc">Fundal negru semi-transparent cu blur, ca acum dar mai opac</div>
+    <div class="preview va">
+      <h2>Biletul tau spre Nordul Moldovei!</h2>
+      <div class="form-row">
+        <div class="field"><span class="icon">&#x1F4CD;</span><input placeholder="De la:"></div>
+        <button class="swap">&#x21C4;</button>
+        <div class="field"><span class="icon">&#x1F4CD;</span><input placeholder="Spre:"></div>
+        <span class="sep"></span>
+        <div class="field"><span class="icon">&#x1F4C5;</span><input placeholder="Data:"></div>
+        <button class="cta">Suna soferul!</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- B: White Border -->
+  <div class="variant" onclick="pick('B',this)">
+    <div class="variant-label">B — White Border</div>
+    <div class="variant-desc">Bordura alba fina, fundal aproape transparent — liniile se vad prin</div>
+    <div class="preview vb">
+      <h2>Biletul tau spre Nordul Moldovei!</h2>
+      <div class="form-row">
+        <div class="field"><span class="icon">&#x1F4CD;</span><input placeholder="De la:"></div>
+        <button class="swap">&#x21C4;</button>
+        <div class="field"><span class="icon">&#x1F4CD;</span><input placeholder="Spre:"></div>
+        <span class="sep"></span>
+        <div class="field"><span class="icon">&#x1F4C5;</span><input placeholder="Data:"></div>
+        <button class="cta">Suna soferul!</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- C: Solid White -->
+  <div class="variant" onclick="pick('C',this)">
+    <div class="variant-label">C — Solid White</div>
+    <div class="variant-desc">Inputuri albe solide, text bordo — contrast maxim, foarte lizibil</div>
+    <div class="preview vc">
+      <h2>Biletul tau spre Nordul Moldovei!</h2>
+      <div class="form-row">
+        <div class="field"><span class="icon">&#x1F4CD;</span><input placeholder="De la:"></div>
+        <button class="swap" style="color:#fff;">&#x21C4;</button>
+        <div class="field"><span class="icon">&#x1F4CD;</span><input placeholder="Spre:"></div>
+        <span class="sep"></span>
+        <div class="field"><span class="icon">&#x1F4C5;</span><input placeholder="Data:"></div>
+        <button class="cta">Suna soferul!</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- D: Underline -->
+  <div class="variant" onclick="pick('D',this)">
+    <div class="variant-label">D — Underline Minimal</div>
+    <div class="variant-desc">Doar linie alba jos, fara fundal — liniile shader se vad 100%</div>
+    <div class="preview vd">
+      <h2>Biletul tau spre Nordul Moldovei!</h2>
+      <div class="form-row">
+        <div class="field"><span class="icon">&#x1F4CD;</span><input placeholder="De la:"></div>
+        <button class="swap">&#x21C4;</button>
+        <div class="field"><span class="icon">&#x1F4CD;</span><input placeholder="Spre:"></div>
+        <span class="sep"></span>
+        <div class="field"><span class="icon">&#x1F4C5;</span><input placeholder="Data:"></div>
+        <button class="cta">Suna soferul!</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- E: Frosted Pill -->
+  <div class="variant" onclick="pick('E',this)">
+    <div class="variant-label">E — Frosted Pill</div>
+    <div class="variant-desc">Toate intr-o capsula sticloasa, butonul alb solid — modern si curat</div>
+    <div class="preview ve">
+      <h2>Biletul tau spre Nordul Moldovei!</h2>
+      <div class="form-row">
+        <div class="field"><span class="icon">&#x1F4CD;</span><input placeholder="De la:"></div>
+        <button class="swap">&#x21C4;</button>
+        <div class="field"><span class="icon">&#x1F4CD;</span><input placeholder="Spre:"></div>
+        <span class="sep"></span>
+        <div class="field"><span class="icon">&#x1F4C5;</span><input placeholder="Data:"></div>
+        <button class="cta">Suna soferul!</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="vote-bar">
+  <button class="vote-btn" onclick="vote('A')">A</button>
+  <button class="vote-btn" onclick="vote('B')">B</button>
+  <button class="vote-btn" onclick="vote('C')">C</button>
+  <button class="vote-btn" onclick="vote('D')">D</button>
+  <button class="vote-btn" onclick="vote('E')">E</button>
+</div>
+
+<script>
+function pick(letter, el) {
+  document.querySelectorAll('.variant').forEach(v => v.classList.remove('selected'));
+  el.classList.add('selected');
+  document.querySelectorAll('.vote-btn').forEach(b => b.classList.remove('picked'));
+  document.querySelector(`.vote-btn:nth-child(${letter.charCodeAt(0)-64})`).classList.add('picked');
+}
+function vote(letter) {
+  document.querySelectorAll('.vote-btn').forEach(b => b.classList.remove('picked'));
+  event.target.classList.add('picked');
+  const idx = letter.charCodeAt(0) - 65;
+  const variants = document.querySelectorAll('.variant');
+  variants.forEach(v => v.classList.remove('selected'));
+  variants[idx].classList.add('selected');
+}
+</script>
+</body>
+</html>

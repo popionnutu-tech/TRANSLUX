@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TRANSLUX — Destinații Font Variants</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital@0;1&family=Open+Sans:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Montserrat:wght@400;600;700&family=Raleway:wght@300;400;600&display=swap');
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#111; color:#fff; font-family:'Open Sans',sans-serif; padding:20px 16px; }
+  h1 { text-align:center; font-size:18px; font-weight:300; letter-spacing:2px; margin-bottom:6px; }
+  .subtitle { text-align:center; color:#888; font-size:12px; margin-bottom:24px; }
+
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; max-width:1100px; margin:0 auto; }
+  @media(max-width:900px){ .grid { grid-template-columns:1fr; } }
+
+  .variant {
+    border-radius:14px; overflow:hidden; cursor:pointer;
+    border:2px solid transparent; transition:all 0.25s; background:#1a1a1a;
+  }
+  .variant:hover { border-color:rgba(255,255,255,0.25); transform:translateY(-2px); }
+  .variant.selected { border-color:#fff; box-shadow:0 0 24px rgba(255,255,255,0.12); }
+
+  .variant-header { padding:10px 14px 6px; display:flex; justify-content:space-between; align-items:center; }
+  .variant-label { font-size:11px; font-weight:700; color:#ccc; letter-spacing:1.5px; text-transform:uppercase; }
+  .variant-desc { font-size:10px; color:#666; margin-top:2px; }
+  .variant-check {
+    width:22px; height:22px; border-radius:50%; border:2px solid #444;
+    display:flex; align-items:center; justify-content:center; font-size:12px; color:transparent; transition:all 0.2s;
+  }
+  .variant.selected .variant-check { border-color:#fff; background:#fff; color:#111; }
+
+  .preview {
+    background:#fff; position:relative; overflow:hidden; padding:24px 20px 20px;
+  }
+  .preview::before {
+    content:''; position:absolute; inset:0; pointer-events:none;
+    background:
+      linear-gradient(18deg, transparent 38%, rgba(155,27,48,0.12) 39%, rgba(155,27,48,0.12) 39.8%, transparent 40.5%),
+      linear-gradient(-12deg, transparent 48%, rgba(155,27,48,0.08) 48.5%, rgba(155,27,48,0.08) 49.2%, transparent 50%),
+      linear-gradient(32deg, transparent 58%, rgba(155,27,48,0.10) 58.5%, rgba(155,27,48,0.10) 59.2%, transparent 60%);
+  }
+
+  .card {
+    position:relative; z-index:1;
+    background:rgba(255,255,255,0.55); backdrop-filter:blur(6px);
+    border-radius:16px; padding:22px 18px 16px;
+  }
+
+  .dest-grid {
+    display:grid; grid-template-columns:1fr 1fr; gap:0 36px;
+  }
+  .dest-row {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:7px 0; border-bottom:1px solid rgba(155,27,48,0.1);
+  }
+
+  .vote-bar { display:flex; justify-content:center; gap:10px; margin-top:20px; }
+  .vote-btn {
+    width:36px; height:36px; border-radius:8px; border:2px solid #333;
+    background:transparent; color:#888; font-weight:700; cursor:pointer; font-size:13px; transition:all 0.2s;
+  }
+  .vote-btn:hover { border-color:#666; color:#fff; }
+  .vote-btn.picked { border-color:#9B1B30; background:#9B1B30; color:#fff; }
+</style>
+</head>
+<body>
+
+<h1>Destinații Populare — Font Variants</h1>
+<p class="subtitle">Ordinea: orase mari intai (Balti, Edinet, Singerei, Ocnita), apoi sate</p>
+
+<div class="grid">
+
+  <!-- A: Open Sans (current) -->
+  <div class="variant" onclick="pick('A',this)">
+    <div class="variant-header">
+      <div>
+        <div class="variant-label">A — Open Sans</div>
+        <div class="variant-desc">Font-ul curent, curat si neutru</div>
+      </div>
+      <div class="variant-check">&#10003;</div>
+    </div>
+    <div class="preview">
+      <div class="card">
+        <div style="font-family:'Playfair Display',serif; font-style:italic; color:#9B1B30; font-size:16px; text-align:center; margin-bottom:14px;">Destinații populare</div>
+        <div class="dest-grid" style="font-family:'Open Sans',sans-serif;">
+          <div class="dest-row"><span style="font-size:11px; color:#666; text-transform:uppercase; letter-spacing:0.5px;">CHIȘINĂU - BĂLȚI</span><span style="font-size:11px; font-weight:700; color:#9B1B30;">40 LEI</span></div>
+          <div class="dest-row"><span style="font-size:11px; color:#666; text-transform:uppercase; letter-spacing:0.5px;">CHIȘINĂU - EDINEȚ</span><span style="font-size:11px; font-weight:700; color:#9B1B30;">70 LEI</span></div>
+          <div class="dest-row"><span style="font-size:11px; color:#666; text-transform:uppercase; letter-spacing:0.5px;">CHIȘINĂU - SÎNGEREI</span><span style="font-size:11px; font-weight:700; color:#9B1B30;">50 LEI</span></div>
+          <div class="dest-row"><span style="font-size:11px; color:#666; text-transform:uppercase; letter-spacing:0.5px;">CHIȘINĂU - OCNIȚA</span><span style="font-size:11px; font-weight:700; color:#9B1B30;">85 LEI</span></div>
+          <div class="dest-row"><span style="font-size:11px; color:#666; text-transform:uppercase; letter-spacing:0.5px;">CHIȘINĂU - OTACI</span><span style="font-size:11px; font-weight:700; color:#9B1B30;">85 LEI</span></div>
+          <div class="dest-row"><span style="font-size:11px; color:#666; text-transform:uppercase; letter-spacing:0.5px;">CHIȘINĂU - BRICENI</span><span style="font-size:11px; font-weight:700; color:#9B1B30;">80 LEI</span></div>
+          <div class="dest-row"><span style="font-size:11px; color:#666; text-transform:uppercase; letter-spacing:0.5px;">CHIȘINĂU - CUPCINI</span><span style="font-size:11px; font-weight:700; color:#9B1B30;">90 LEI</span></div>
+          <div class="dest-row"><span style="font-size:11px; color:#666; text-transform:uppercase; letter-spacing:0.5px;">CHIȘINĂU - LIPCANI</span><span style="font-size:11px; font-weight:700; color:#9B1B30;">92 LEI</span></div>
+          <div class="dest-row"><span style="font-size:11px; color:#666; text-transform:uppercase; letter-spacing:0.5px;">CHIȘINĂU - CORJEUȚI</span><span style="font-size:11px; font-weight:700; color:#9B1B30;">80 LEI</span></div>
+          <div class="dest-row"><span style="font-size:11px; color:#666; text-transform:uppercase; letter-spacing:0.5px;">CHIȘINĂU - GRIMĂNCĂUȚI</span><span style="font-size:11px; font-weight:700; color:#9B1B30;">83 LEI</span></div>
+          <div class="dest-row"><span style="font-size:11px; color:#666; text-transform:uppercase; letter-spacing:0.5px;">CHIȘINĂU - CRIVA</span><span style="font-size:11px; font-weight:700; color:#9B1B30;">100 LEI</span></div>
+          <div class="dest-row"><span style="font-size:11px; color:#666; text-transform:uppercase; letter-spacing:0.5px;">CHIȘINĂU - LARGA</span><span style="font-size:11px; font-weight:700; color:#9B1B30;">80 LEI</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- B: Montserrat -->
+  <div class="variant" onclick="pick('B',this)">
+    <div class="variant-header">
+      <div>
+        <div class="variant-label">B — Montserrat</div>
+        <div class="variant-desc">Geometric, modern, mai bold</div>
+      </div>
+      <div class="variant-check">&#10003;</div>
+    </div>
+    <div class="preview">
+      <div class="card">
+        <div style="font-family:'Playfair Display',serif; font-style:italic; color:#9B1B30; font-size:16px; text-align:center; margin-bottom:14px;">Destinații populare</div>
+        <div class="dest-grid" style="font-family:'Montserrat',sans-serif;">
+          <div class="dest-row"><span style="font-size:10px; color:#555; text-transform:uppercase; letter-spacing:1px; font-weight:600;">CHIȘINĂU - BĂLȚI</span><span style="font-size:10px; font-weight:700; color:#9B1B30;">40 LEI</span></div>
+          <div class="dest-row"><span style="font-size:10px; color:#555; text-transform:uppercase; letter-spacing:1px; font-weight:600;">CHIȘINĂU - EDINEȚ</span><span style="font-size:10px; font-weight:700; color:#9B1B30;">70 LEI</span></div>
+          <div class="dest-row"><span style="font-size:10px; color:#555; text-transform:uppercase; letter-spacing:1px; font-weight:600;">CHIȘINĂU - SÎNGEREI</span><span style="font-size:10px; font-weight:700; color:#9B1B30;">50 LEI</span></div>
+          <div class="dest-row"><span style="font-size:10px; color:#555; text-transform:uppercase; letter-spacing:1px; font-weight:600;">CHIȘINĂU - OCNIȚA</span><span style="font-size:10px; font-weight:700; color:#9B1B30;">85 LEI</span></div>
+          <div class="dest-row"><span style="font-size:10px; color:#555; text-transform:uppercase; letter-spacing:1px; font-weight:600;">CHIȘINĂU - OTACI</span><span style="font-size:10px; font-weight:700; color:#9B1B30;">85 LEI</span></div>
+          <div class="dest-row"><span style="font-size:10px; color:#555; text-transform:uppercase; letter-spacing:1px; font-weight:600;">CHIȘINĂU - BRICENI</span><span style="font-size:10px; font-weight:700; color:#9B1B30;">80 LEI</span></div>
+          <div class="dest-row"><span style="font-size:10px; color:#555; text-transform:uppercase; letter-spacing:1px; font-weight:600;">CHIȘINĂU - CUPCINI</span><span style="font-size:10px; font-weight:700; color:#9B1B30;">90 LEI</span></div>
+          <div class="dest-row"><span style="font-size:10px; color:#555; text-transform:uppercase; letter-spacing:1px; font-weight:600;">CHIȘINĂU - LIPCANI</span><span style="font-size:10px; font-weight:700; color:#9B1B30;">92 LEI</span></div>
+          <div class="dest-row"><span style="font-size:10px; color:#555; text-transform:uppercase; letter-spacing:1px; font-weight:600;">CHIȘINĂU - CORJEUȚI</span><span style="font-size:10px; font-weight:700; color:#9B1B30;">80 LEI</span></div>
+          <div class="dest-row"><span style="font-size:10px; color:#555; text-transform:uppercase; letter-spacing:1px; font-weight:600;">CHIȘINĂU - GRIMĂNCĂUȚI</span><span style="font-size:10px; font-weight:700; color:#9B1B30;">83 LEI</span></div>
+          <div class="dest-row"><span style="font-size:10px; color:#555; text-transform:uppercase; letter-spacing:1px; font-weight:600;">CHIȘINĂU - CRIVA</span><span style="font-size:10px; font-weight:700; color:#9B1B30;">100 LEI</span></div>
+          <div class="dest-row"><span style="font-size:10px; color:#555; text-transform:uppercase; letter-spacing:1px; font-weight:600;">CHIȘINĂU - LARGA</span><span style="font-size:10px; font-weight:700; color:#9B1B30;">80 LEI</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- C: Raleway -->
+  <div class="variant" onclick="pick('C',this)">
+    <div class="variant-header">
+      <div>
+        <div class="variant-label">C — Raleway Light</div>
+        <div class="variant-desc">Elegant, subtire, aerat</div>
+      </div>
+      <div class="variant-check">&#10003;</div>
+    </div>
+    <div class="preview">
+      <div class="card">
+        <div style="font-family:'Playfair Display',serif; font-style:italic; color:#9B1B30; font-size:16px; text-align:center; margin-bottom:14px;">Destinații populare</div>
+        <div class="dest-grid" style="font-family:'Raleway',sans-serif;">
+          <div class="dest-row"><span style="font-size:11px; color:#777; text-transform:uppercase; letter-spacing:2px; font-weight:300;">CHIȘINĂU - BĂLȚI</span><span style="font-size:11px; font-weight:600; color:#9B1B30; letter-spacing:1px;">40 LEI</span></div>
+          <div class="dest-row"><span style="font-size:11px; color:#777; text-transform:uppercase; letter-spacing:2px; font-weight:300;">CHIȘINĂU - EDINEȚ</span><span style="font-size:11px; font-weight:600; color:#9B1B30; letter-spacing:1px;">70 LEI</span></div>
+          <div class="dest-row"><span style="font-size:11px; color:#777; text-transform:uppercase; letter-spacing:2px; font-weight:300;">CHIȘINĂU - SÎNGEREI</span><span style="font-size:11px; font-weight:600; color:#9B1B30; letter-spacing:1px;">50 LEI</span></div>
+          <div class="dest-row"><span style="font-size:11px; color:#777; text-transform:uppercase; letter-spacing:2px; font-weight:300;">CHIȘINĂU - OCNIȚA</span><span style="font-size:11px; font-weight:600; color:#9B1B30; letter-spacing:1px;">85 LEI</span></div>
+          <div class="dest-row"><span style="font-size:11px; color:#777; text-transform:uppercase; letter-spacing:2px; font-weight:300;">CHIȘINĂU - OTACI</span><span style="font-size:11px; font-weight:600; color:#9B1B30; letter-spacing:1px;">85 LEI</span></div>
+          <div class="dest-row"><span style="font-size:11px; color:#777; text-transform:uppercase; letter-spacing:2px; font-weight:300;">CHIȘINĂU - BRICENI</span><span style="font-size:11px; font-weight:600; color:#9B1B30; letter-spacing:1px;">80 LEI</span></div>
+          <div class="dest-row"><span style="font-size:11px; color:#777; text-transform:uppercase; letter-spacing:2px; font-weight:300;">CHIȘINĂU - CUPCINI</span><span style="font-size:11px; font-weight:600; color:#9B1B30; letter-spacing:1px;">90 LEI</span></div>
+          <div class="dest-row"><span style="font-size:11px; color:#777; text-transform:uppercase; letter-spacing:2px; font-weight:300;">CHIȘINĂU - LIPCANI</span><span style="font-size:11px; font-weight:600; color:#9B1B30; letter-spacing:1px;">92 LEI</span></div>
+          <div class="dest-row"><span style="font-size:11px; color:#777; text-transform:uppercase; letter-spacing:2px; font-weight:300;">CHIȘINĂU - CORJEUȚI</span><span style="font-size:11px; font-weight:600; color:#9B1B30; letter-spacing:1px;">80 LEI</span></div>
+          <div class="dest-row"><span style="font-size:11px; color:#777; text-transform:uppercase; letter-spacing:2px; font-weight:300;">CHIȘINĂU - GRIMĂNCĂUȚI</span><span style="font-size:11px; font-weight:600; color:#9B1B30; letter-spacing:1px;">83 LEI</span></div>
+          <div class="dest-row"><span style="font-size:11px; color:#777; text-transform:uppercase; letter-spacing:2px; font-weight:300;">CHIȘINĂU - CRIVA</span><span style="font-size:11px; font-weight:600; color:#9B1B30; letter-spacing:1px;">100 LEI</span></div>
+          <div class="dest-row"><span style="font-size:11px; color:#777; text-transform:uppercase; letter-spacing:2px; font-weight:300;">CHIȘINĂU - LARGA</span><span style="font-size:11px; font-weight:600; color:#9B1B30; letter-spacing:1px;">80 LEI</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- D: Playfair Display (italic, ca titlul) -->
+  <div class="variant" onclick="pick('D',this)">
+    <div class="variant-header">
+      <div>
+        <div class="variant-label">D — Playfair Display Italic</div>
+        <div class="variant-desc">Serif elegant, italic, premium feel</div>
+      </div>
+      <div class="variant-check">&#10003;</div>
+    </div>
+    <div class="preview">
+      <div class="card">
+        <div style="font-family:'Playfair Display',serif; font-style:italic; color:#9B1B30; font-size:16px; text-align:center; margin-bottom:14px;">Destinații populare</div>
+        <div class="dest-grid" style="font-family:'Playfair Display',Georgia,serif; font-style:italic;">
+          <div class="dest-row"><span style="font-size:13px; color:#555;">Chișinău — Bălți</span><span style="font-size:13px; font-weight:700; color:#9B1B30;">40 lei</span></div>
+          <div class="dest-row"><span style="font-size:13px; color:#555;">Chișinău — Edineț</span><span style="font-size:13px; font-weight:700; color:#9B1B30;">70 lei</span></div>
+          <div class="dest-row"><span style="font-size:13px; color:#555;">Chișinău — Sîngerei</span><span style="font-size:13px; font-weight:700; color:#9B1B30;">50 lei</span></div>
+          <div class="dest-row"><span style="font-size:13px; color:#555;">Chișinău — Ocnița</span><span style="font-size:13px; font-weight:700; color:#9B1B30;">85 lei</span></div>
+          <div class="dest-row"><span style="font-size:13px; color:#555;">Chișinău — Otaci</span><span style="font-size:13px; font-weight:700; color:#9B1B30;">85 lei</span></div>
+          <div class="dest-row"><span style="font-size:13px; color:#555;">Chișinău — Briceni</span><span style="font-size:13px; font-weight:700; color:#9B1B30;">80 lei</span></div>
+          <div class="dest-row"><span style="font-size:13px; color:#555;">Chișinău — Cupcini</span><span style="font-size:13px; font-weight:700; color:#9B1B30;">90 lei</span></div>
+          <div class="dest-row"><span style="font-size:13px; color:#555;">Chișinău — Lipcani</span><span style="font-size:13px; font-weight:700; color:#9B1B30;">92 lei</span></div>
+          <div class="dest-row"><span style="font-size:13px; color:#555;">Chișinău — Corjeuți</span><span style="font-size:13px; font-weight:700; color:#9B1B30;">80 lei</span></div>
+          <div class="dest-row"><span style="font-size:13px; color:#555;">Chișinău — Grimăncăuți</span><span style="font-size:13px; font-weight:700; color:#9B1B30;">83 lei</span></div>
+          <div class="dest-row"><span style="font-size:13px; color:#555;">Chișinău — Criva</span><span style="font-size:13px; font-weight:700; color:#9B1B30;">100 lei</span></div>
+          <div class="dest-row"><span style="font-size:13px; color:#555;">Chișinău — Larga</span><span style="font-size:13px; font-weight:700; color:#9B1B30;">80 lei</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="vote-bar">
+  <button class="vote-btn" onclick="vote('A')">A</button>
+  <button class="vote-btn" onclick="vote('B')">B</button>
+  <button class="vote-btn" onclick="vote('C')">C</button>
+  <button class="vote-btn" onclick="vote('D')">D</button>
+</div>
+
+<script>
+function pick(letter, el) {
+  document.querySelectorAll('.variant').forEach(v => v.classList.remove('selected'));
+  el.classList.add('selected');
+  document.querySelectorAll('.vote-btn').forEach(b => b.classList.remove('picked'));
+  document.querySelectorAll('.vote-btn')[letter.charCodeAt(0)-65].classList.add('picked');
+}
+function vote(letter) {
+  document.querySelectorAll('.vote-btn').forEach(b => b.classList.remove('picked'));
+  event.target.classList.add('picked');
+  document.querySelectorAll('.variant').forEach(v => v.classList.remove('selected'));
+  document.querySelectorAll('.variant')[letter.charCodeAt(0)-65].classList.add('selected');
+}
+</script>
+</body>
+</html>

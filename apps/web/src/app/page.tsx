@@ -1,5 +1,5 @@
-import { redirect } from 'next/navigation';
+import { HomePage } from '@/components/home-page';
 
-export default function HomePage() {
-  redirect('/reports');
+export default function RootPage() {
+  return <HomePage locale="ro" />;
 }

@@ -41,8 +41,8 @@ export function CalendarWithTimePresets({
   }
   return (
     <Card className="gap-0 p-0">
-      <CardContent className="flex flex-col sm:flex-row p-0">
-        <div className="shrink-0 p-3 flex justify-center sm:justify-start">
+      <CardContent className="relative flex p-0">
+        <div className="shrink-0 p-3">
           <Calendar
             mode="single"
             selected={date}
@@ -65,7 +65,7 @@ export function CalendarWithTimePresets({
             }}
           />
         </div>
-        <div className="grid grid-cols-4 gap-1.5 max-h-48 overflow-y-auto border-t p-2 sm:flex sm:flex-col sm:max-h-none sm:border-t-0 sm:border-l">
+        <div className="absolute inset-y-0 right-0 flex w-[calc(100%-theme(spacing.60))] flex-col gap-1.5 overflow-y-auto border-l p-2">
           {timeSlots.map((time) => (
             <Button
               key={time}

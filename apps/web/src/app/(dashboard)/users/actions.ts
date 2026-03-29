@@ -26,6 +26,15 @@ export async function updateUserRole(id: string, role: UserRole) {
   revalidatePath('/users');
 }
 
+export async function updateUserPoint(id: string, point: PointEnum | null) {
+  const { error } = await getSupabase()
+    .from('users')
+    .update({ point })
+    .eq('id', id);
+  if (error) throw new Error(error.message);
+  revalidatePath('/users');
+}
+
 export async function toggleUser(id: string, active: boolean) {
   await getSupabase().from('users').update({ active }).eq('id', id);
   revalidatePath('/users');

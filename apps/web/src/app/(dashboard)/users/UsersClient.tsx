@@ -7,6 +7,7 @@ import { POINT_LABELS } from '@translux/db';
 import { getOperatorName } from '@/lib/operators';
 import {
   updateUserRole,
+  updateUserPoint,
   toggleUser,
   deleteUser,
   createInvite,
@@ -33,6 +34,16 @@ export default function UsersClient({
     setError('');
     try {
       await updateUserRole(id, role);
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
+
+  async function handlePointChange(id: string, point: PointEnum | null) {
+    setError('');
+    try {
+      await updateUserPoint(id, point);
       router.refresh();
     } catch (err: any) {
       setError(err.message);
@@ -121,7 +132,27 @@ export default function UsersClient({
                 <td style={{ fontWeight: 600 }}>{getOperatorName(user.telegram_id, null)}</td>
                 <td>{user.username ? `@${user.username}` : '—'}</td>
                 <td style={{ fontSize: 13, color: 'var(--text-muted)' }}>{user.telegram_id || '—'}</td>
-                <td>{user.point ? POINT_LABELS[user.point] : '—'}</td>
+                <td>
+                  <select
+                    value={user.point || ''}
+                    onChange={(e) => {
+                      const val = e.target.value || null;
+                      handlePointChange(user.id, val as PointEnum | null);
+                    }}
+                    style={{
+                      padding: '4px 8px',
+                      borderRadius: 8,
+                      border: '1px solid var(--border-accent)',
+                      fontSize: 13,
+                      background: 'var(--bg-elevated)',
+                      color: 'var(--text)',
+                    }}
+                  >
+                    <option value="">—</option>
+                    <option value="CHISINAU">{POINT_LABELS.CHISINAU}</option>
+                    <option value="BALTI">{POINT_LABELS.BALTI}</option>
+                  </select>
+                </td>
                 <td>
                   <select
                     value={user.role}

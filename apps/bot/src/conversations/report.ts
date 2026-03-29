@@ -41,12 +41,37 @@ export async function reportConversation(
     return;
   }
   const user = await getUserByTelegramId(telegramId);
-  if (!user || !user.point) {
+  if (!user) {
     await ctx.reply('⛔ Drum interzis. Identitatea ta nu este recunoscută.');
     return;
   }
 
-  const point: PointEnum = user.point;
+  let point: PointEnum;
+
+  if (user.point) {
+    point = user.point;
+  } else {
+    // No point assigned — let user choose direction
+    const dirKb = new InlineKeyboard()
+      .text('Chișinău → Bălți', 'dir:CHISINAU')
+      .text('Bălți → Chișinău', 'dir:BALTI');
+
+    await ctx.reply('Alege direcția:', { reply_markup: dirKb });
+
+    while (true) {
+      const dirCtx = await conversation.wait();
+      if (dirCtx.message?.text === '/start') {
+        await showMainMenu(dirCtx as BotContext);
+        return;
+      }
+      if (dirCtx.callbackQuery?.data?.startsWith('dir:')) {
+        await dirCtx.answerCallbackQuery();
+        point = dirCtx.callbackQuery.data.replace('dir:', '') as PointEnum;
+        break;
+      }
+    }
+  }
+
   const direction = getDirectionForPoint(point);
   const reportDate = getTodayDate();
 

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { CalendarWithTimePresets } from "@/components/ui/calendar-with-time-presets";
 import { type Locale } from "@/lib/i18n";
 
@@ -14,17 +15,9 @@ export function DateTimePicker({ name = "data", locale = "ro", onChange }: DateT
   const [open, setOpen] = React.useState(false);
   const [date, setDate] = React.useState<Date | undefined>();
   const [selectedTime, setSelectedTime] = React.useState<string | null>(null);
-  const ref = React.useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = React.useState(false);
 
-  React.useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    if (open) document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
+  React.useEffect(() => setMounted(true), []);
 
   const loc = locale === "ru" ? "ru-RU" : "ro-RO";
   const displayValue = date
@@ -36,7 +29,7 @@ export function DateTimePicker({ name = "data", locale = "ro", onChange }: DateT
     : "";
 
   return (
-    <div ref={ref} style={{ position: "relative", flex: "1 1 0", width: 0 }}>
+    <div style={{ position: "relative", flex: "1 1 0", width: 0 }}>
       <input type="hidden" name={name} value={hiddenValue} />
 
       <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 15, pointerEvents: 'none', zIndex: 1 }}>📅</span>
@@ -62,23 +55,15 @@ export function DateTimePicker({ name = "data", locale = "ro", onChange }: DateT
         }}
       />
 
-      {open && (
-        <>
+      {mounted && open && createPortal(
+        <div
+          style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}
+          onClick={() => setOpen(false)}
+        >
+          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.3)", backdropFilter: "blur(4px)" }} />
           <div
-            onClick={() => setOpen(false)}
-            style={{
-              position: "fixed", inset: 0, zIndex: 99,
-              background: "rgba(0,0,0,0.3)", backdropFilter: "blur(4px)",
-            }}
-          />
-          <div
-            style={{
-              position: "fixed",
-              left: "50%", top: "50%",
-              transform: "translate(-50%, -50%)",
-              zIndex: 100,
-              width: "min(92vw, 460px)",
-            }}
+            style={{ position: "relative", zIndex: 1, width: "min(92vw, 460px)" }}
+            onClick={(e) => e.stopPropagation()}
           >
             <CalendarWithTimePresets
               date={date}
@@ -92,7 +77,8 @@ export function DateTimePicker({ name = "data", locale = "ro", onChange }: DateT
               }}
             />
           </div>
-        </>
+        </div>,
+        document.body
       )}
     </div>
   );

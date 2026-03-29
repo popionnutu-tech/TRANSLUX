@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hero Mockup — TRANSLUX</title>
+<link href="https://fonts.googleapis.com/css2?family=Raleway:ital,wght@0,200;0,400;0,700;1,200;1,300&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #f5f5f5; font-family: 'Raleway', sans-serif; color: #333; }
+  h1 { text-align: center; font-size: 16px; margin: 30px 0 10px; color: #888; font-weight: 400; }
+  p.hint { text-align: center; font-size: 12px; color: #aaa; margin-bottom: 30px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; max-width: 1200px; margin: 0 auto; padding: 0 20px 40px; }
+
+  .variant {
+    border-radius: 16px; overflow: hidden; cursor: pointer;
+    border: 3px solid transparent; transition: border-color 0.3s, box-shadow 0.3s;
+  }
+  .variant:hover { border-color: #D42027; }
+  .variant.selected { border-color: #D42027; box-shadow: 0 0 30px rgba(212,32,39,0.3); }
+
+  .hero-bg {
+    position: relative; padding: 50px 30px 40px; min-height: 280px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    /* Simulating dithering shader: white-to-red gradient with dots */
+    background:
+      radial-gradient(circle at 20% 80%, rgba(212,32,39,0.15) 1px, transparent 1px),
+      radial-gradient(circle at 60% 70%, rgba(212,32,39,0.2) 1px, transparent 1px),
+      radial-gradient(circle at 80% 90%, rgba(212,32,39,0.25) 1px, transparent 1px),
+      linear-gradient(180deg, #fff 0%, #fff 30%, rgba(212,32,39,0.08) 50%, rgba(212,32,39,0.3) 75%, #D42027 100%);
+    background-size: 6px 6px, 8px 8px, 5px 5px, 100% 100%;
+  }
+
+  .label { font-size: 11px; color: #D42027; text-transform: uppercase; letter-spacing: 3px; font-weight: 600; margin-bottom: 12px; text-align: center; }
+  .font-name { font-size: 11px; color: #999; margin-top: 12px; text-align: center; }
+
+  /* ═══ VARIANT A: Glass card ═══ */
+  .va .heading { color: #D42027; font-size: 24px; font-style: italic; font-weight: 200; letter-spacing: 2px; text-align: center; margin-bottom: 28px; }
+  .va .form-row {
+    display: flex; gap: 8px; width: 100%; max-width: 520px;
+    background: rgba(255,255,255,0.85); backdrop-filter: blur(12px);
+    border-radius: 50px; padding: 6px 6px 6px 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    align-items: center;
+  }
+  .va .form-row input {
+    flex: 1; border: none; background: transparent; padding: 12px 8px;
+    font-size: 13px; font-family: 'Raleway'; color: #555; outline: none; min-width: 0;
+  }
+  .va .form-row input::placeholder { color: #bbb; font-style: italic; }
+  .va .form-row .btn {
+    background: #D42027; color: #fff; border: none; border-radius: 40px;
+    padding: 12px 28px; font-weight: 700; font-size: 13px; font-style: italic;
+    cursor: pointer; white-space: nowrap; font-family: 'Raleway';
+  }
+
+  /* ═══ VARIANT B: Separated rounded pills ═══ */
+  .vb .heading { color: #222; font-size: 26px; font-style: italic; font-weight: 200; letter-spacing: 2px; text-align: center; margin-bottom: 28px; text-shadow: 0 0 30px rgba(255,255,255,0.8); }
+  .vb .form-row { display: flex; gap: 10px; width: 100%; max-width: 560px; align-items: center; }
+  .vb .form-row input {
+    flex: 1; border: 2px solid rgba(212,32,39,0.15); background: rgba(255,255,255,0.9);
+    border-radius: 40px; padding: 12px 20px; font-size: 13px; font-family: 'Raleway';
+    color: #555; outline: none; min-width: 0; backdrop-filter: blur(8px);
+  }
+  .vb .form-row input:focus { border-color: #D42027; }
+  .vb .form-row input::placeholder { color: #bbb; font-style: italic; }
+  .vb .form-row .btn {
+    background: #D42027; color: #fff; border: none; border-radius: 40px;
+    padding: 12px 28px; font-weight: 700; font-size: 13px; font-style: italic;
+    cursor: pointer; white-space: nowrap; font-family: 'Raleway';
+    box-shadow: 0 4px 16px rgba(212,32,39,0.3);
+  }
+
+  /* ═══ VARIANT C: Dark card overlay ═══ */
+  .vc .heading { color: #fff; font-size: 24px; font-style: italic; font-weight: 200; letter-spacing: 2px; text-align: center; margin-bottom: 28px; text-shadow: 0 2px 12px rgba(0,0,0,0.3); }
+  .vc .card-overlay {
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(16px);
+    border-radius: 20px; padding: 30px; width: 100%; max-width: 540px;
+  }
+  .vc .card-overlay .sub { color: rgba(255,255,255,0.5); font-size: 11px; text-transform: uppercase; letter-spacing: 3px; text-align: center; margin-bottom: 20px; }
+  .vc .form-row { display: flex; gap: 8px; align-items: center; }
+  .vc .form-row input {
+    flex: 1; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.08);
+    border-radius: 40px; padding: 12px 20px; font-size: 13px; font-family: 'Raleway';
+    color: #fff; outline: none; min-width: 0;
+  }
+  .vc .form-row input::placeholder { color: rgba(255,255,255,0.4); font-style: italic; }
+  .vc .form-row input:focus { border-color: #D42027; }
+  .vc .form-row .btn {
+    background: #D42027; color: #fff; border: none; border-radius: 40px;
+    padding: 12px 28px; font-weight: 700; font-size: 13px; font-style: italic;
+    cursor: pointer; white-space: nowrap; font-family: 'Raleway';
+  }
+
+  /* ═══ VARIANT D: Minimal with red heading ═══ */
+  .vd .heading { color: #D42027; font-size: 28px; font-style: italic; font-weight: 300; letter-spacing: 1px; text-align: center; margin-bottom: 8px; }
+  .vd .subheading { color: #888; font-size: 12px; text-align: center; margin-bottom: 24px; letter-spacing: 2px; text-transform: uppercase; }
+  .vd .form-row {
+    display: flex; gap: 0; width: 100%; max-width: 520px;
+    border: 2px solid #D42027; border-radius: 50px; overflow: hidden;
+    background: #fff; box-shadow: 0 4px 20px rgba(212,32,39,0.1);
+  }
+  .vd .form-row input {
+    flex: 1; border: none; border-right: 1px solid #eee; background: transparent;
+    padding: 14px 16px; font-size: 13px; font-family: 'Raleway'; color: #555; outline: none; min-width: 0;
+  }
+  .vd .form-row input:last-of-type { border-right: none; }
+  .vd .form-row input::placeholder { color: #ccc; font-style: italic; }
+  .vd .form-row .btn {
+    background: #D42027; color: #fff; border: none;
+    padding: 14px 32px; font-weight: 700; font-size: 13px; font-style: italic;
+    cursor: pointer; white-space: nowrap; font-family: 'Raleway';
+  }
+</style>
+</head>
+<body>
+  <h1>Alege designul formei de căutare</h1>
+  <p class="hint">Click pe varianta preferată</p>
+
+  <div class="grid">
+    <!-- VARIANT A -->
+    <div class="variant va" onclick="select(this,'a')">
+      <div class="hero-bg">
+        <div class="label">A</div>
+        <div class="heading">Biletul tău spre Nordul Moldovei!</div>
+        <div class="form-row">
+          <input placeholder="De la:" readonly>
+          <input placeholder="Spre:" readonly>
+          <input placeholder="Data:" readonly>
+          <button class="btn">Vreau să plec!</button>
+        </div>
+        <div class="font-name">Glass pill — toate într-o capsulă</div>
+      </div>
+    </div>
+
+    <!-- VARIANT B -->
+    <div class="variant vb" onclick="select(this,'b')">
+      <div class="hero-bg">
+        <div class="label">B</div>
+        <div class="heading">Biletul tău spre Nordul Moldovei!</div>
+        <div class="form-row">
+          <input placeholder="De la:" readonly>
+          <input placeholder="Spre:" readonly>
+          <input placeholder="Data:" readonly>
+          <button class="btn">Vreau să plec!</button>
+        </div>
+        <div class="font-name">Rounded pills — câmpuri separate</div>
+      </div>
+    </div>
+
+    <!-- VARIANT C -->
+    <div class="variant vc" onclick="select(this,'c')">
+      <div class="hero-bg" style="background: linear-gradient(180deg, rgba(10,0,0,0.7) 0%, rgba(10,0,0,0.4) 30%, rgba(212,32,39,0.3) 70%, #D42027 100%);">
+        <div class="label" style="color: rgba(255,255,255,0.6);">C</div>
+        <div class="heading">Biletul tău spre Nordul Moldovei!</div>
+        <div class="card-overlay">
+          <div class="sub">Găsește cursa ta</div>
+          <div class="form-row">
+            <input placeholder="De la:" readonly>
+            <input placeholder="Spre:" readonly>
+            <input placeholder="Data:" readonly>
+            <button class="btn">Vreau să plec!</button>
+          </div>
+        </div>
+        <div class="font-name" style="color: rgba(255,255,255,0.4);">Dark glass card overlay</div>
+      </div>
+    </div>
+
+    <!-- VARIANT D -->
+    <div class="variant vd" onclick="select(this,'d')">
+      <div class="hero-bg">
+        <div class="label">D</div>
+        <div class="heading">Biletul tău spre Nordul Moldovei!</div>
+        <div class="subheading">Găsește cursa ta acum</div>
+        <div class="form-row">
+          <input placeholder="De la:" readonly>
+          <input placeholder="Spre:" readonly>
+          <input placeholder="Data:" readonly>
+          <button class="btn">Vreau să plec!</button>
+        </div>
+        <div class="font-name">Red border pill — una singură</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function select(el, id) {
+      document.querySelectorAll('.variant').forEach(v => v.classList.remove('selected'));
+      el.classList.add('selected');
+      document.title = 'Selected: ' + id.toUpperCase();
+    }
+  </script>
+</body>
+</html>

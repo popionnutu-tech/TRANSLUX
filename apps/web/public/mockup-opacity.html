@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TRANSLUX — Container Opacity Variants</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital@1&family=Open+Sans:ital,wght@0,300;0,400;0,700;0,900;1,400&display=swap');
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#111; color:#fff; font-family:'Open Sans',sans-serif; padding:20px 16px; }
+  h1 { text-align:center; font-size:18px; font-weight:300; letter-spacing:2px; margin-bottom:6px; }
+  .subtitle { text-align:center; color:#888; font-size:12px; margin-bottom:24px; }
+
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; max-width:1100px; margin:0 auto; }
+  @media(max-width:900px){ .grid { grid-template-columns:1fr; } }
+
+  .variant {
+    border-radius:14px; overflow:hidden; cursor:pointer;
+    border:2px solid transparent; transition:all 0.25s; background:#1a1a1a;
+  }
+  .variant:hover { border-color:rgba(255,255,255,0.25); transform:translateY(-2px); }
+  .variant.selected { border-color:#fff; box-shadow:0 0 24px rgba(255,255,255,0.12); }
+
+  .variant-header { padding:8px 14px 4px; display:flex; justify-content:space-between; align-items:center; }
+  .variant-label { font-size:11px; font-weight:700; color:#ccc; letter-spacing:1.5px; text-transform:uppercase; }
+  .variant-desc { font-size:10px; color:#666; margin-top:1px; }
+  .variant-check {
+    width:22px; height:22px; border-radius:50%; border:2px solid #444;
+    display:flex; align-items:center; justify-content:center; font-size:12px; color:transparent; transition:all 0.2s;
+  }
+  .variant.selected .variant-check { border-color:#fff; background:#fff; color:#111; }
+
+  .preview {
+    background:#fff; position:relative; overflow:hidden; padding:20px 14px 16px; min-height:160px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .preview::before {
+    content:''; position:absolute; inset:0; pointer-events:none;
+    background:
+      linear-gradient(18deg, transparent 38%, rgba(155,27,48,0.15) 39%, rgba(155,27,48,0.15) 39.8%, transparent 40.5%),
+      linear-gradient(-12deg, transparent 48%, rgba(155,27,48,0.10) 48.5%, rgba(155,27,48,0.10) 49.2%, transparent 50%),
+      linear-gradient(32deg, transparent 58%, rgba(155,27,48,0.12) 58.5%, rgba(155,27,48,0.12) 59.2%, transparent 60%),
+      linear-gradient(-28deg, transparent 25%, rgba(155,27,48,0.08) 25.5%, rgba(155,27,48,0.08) 26.2%, transparent 27%),
+      linear-gradient(8deg, transparent 70%, rgba(155,27,48,0.09) 70.5%, rgba(155,27,48,0.09) 71.2%, transparent 72%),
+      linear-gradient(-40deg, transparent 10%, rgba(155,27,48,0.07) 10.5%, rgba(155,27,48,0.07) 11.2%, transparent 12%);
+  }
+
+  .card {
+    position:relative; z-index:1;
+    border-radius:16px; padding:20px 16px 14px; width:100%;
+  }
+  .card-title {
+    font-family:'Playfair Display',Georgia,serif; font-style:italic; font-weight:400;
+    color:#9B1B30; font-size:14px; text-align:center; margin-bottom:10px;
+  }
+  .form-row { display:flex; gap:5px; align-items:center; }
+  .field { flex:1; position:relative; }
+  .field input {
+    width:100%; height:32px; border:none; border-radius:8px;
+    background:rgba(255,255,255,0.92); outline:none; font-size:10px;
+    font-style:italic; color:#6E0E14; padding:0 8px 0 22px;
+    font-family:'Open Sans',sans-serif;
+  }
+  .field input::placeholder { color:rgba(110,14,20,0.4); }
+  .field .icon { position:absolute; left:6px; top:50%; transform:translateY(-50%); font-size:10px; pointer-events:none; }
+  .swap { background:none; border:none; color:#9B1B30; font-size:10px; cursor:pointer; flex-shrink:0; }
+  .cta {
+    flex-shrink:0; height:32px; border:none; border-radius:8px;
+    background:rgba(255,255,255,0.92); color:#9B1B30;
+    font-weight:900; font-size:10px; font-style:italic;
+    padding:0 12px; cursor:pointer; white-space:nowrap;
+  }
+
+  .vote-bar { display:flex; justify-content:center; gap:8px; margin-top:20px; }
+  .vote-btn {
+    width:36px; height:36px; border-radius:8px; border:2px solid #333;
+    background:transparent; color:#888; font-weight:700; cursor:pointer; font-size:13px; transition:all 0.2s;
+  }
+  .vote-btn:hover { border-color:#666; color:#fff; }
+  .vote-btn.picked { border-color:#9B1B30; background:#9B1B30; color:#fff; }
+
+  .last-row { grid-column: 1 / -1; display:flex; justify-content:center; }
+  .last-row .variant { max-width:calc(50% - 8px); width:100%; }
+</style>
+</head>
+<body>
+
+<h1>Container Opacity</h1>
+<p class="subtitle">Cat de opac sa fie containerul formei? Click pe varianta preferata.</p>
+
+<div class="grid">
+
+  <!-- A: 65% -->
+  <div class="variant" onclick="pick('A',this)">
+    <div class="variant-header">
+      <div><div class="variant-label">A — 65%</div><div class="variant-desc">rgba(255,255,255, 0.65) — liniile se vad usor</div></div>
+      <div class="variant-check">&#10003;</div>
+    </div>
+    <div class="preview">
+      <div class="card" style="background:rgba(255,255,255,0.65); backdrop-filter:blur(6px);">
+        <div class="card-title">Biletul tau spre Nordul Moldovei!</div>
+        <div class="form-row">
+          <div class="field"><span class="icon">&#x1F4CD;</span><input placeholder="De la:"></div>
+          <button class="swap">&#x21C4;</button>
+          <div class="field"><span class="icon">&#x1F4CD;</span><input placeholder="Spre:"></div>
+          <div class="field"><span class="icon">&#x1F4C5;</span><input placeholder="Data:"></div>
+          <button class="cta">Suna soferul!</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- B: 75% -->
+  <div class="variant" onclick="pick('B',this)">
+    <div class="variant-header">
+      <div><div class="variant-label">B — 75%</div><div class="variant-desc">rgba(255,255,255, 0.75) — liniile se vad subtil</div></div>
+      <div class="variant-check">&#10003;</div>
+    </div>
+    <div class="preview">
+      <div class="card" style="background:rgba(255,255,255,0.75); backdrop-filter:blur(6px);">
+        <div class="card-title">Biletul tau spre Nordul Moldovei!</div>
+        <div class="form-row">
+          <div class="field"><span class="icon">&#x1F4CD;</span><input placeholder="De la:"></div>
+          <button class="swap">&#x21C4;</button>
+          <div class="field"><span class="icon">&#x1F4CD;</span><input placeholder="Spre:"></div>
+          <div class="field"><span class="icon">&#x1F4C5;</span><input placeholder="Data:"></div>
+          <button class="cta">Suna soferul!</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- C: 85% -->
+  <div class="variant" onclick="pick('C',this)">
+    <div class="variant-header">
+      <div><div class="variant-label">C — 85%</div><div class="variant-desc">rgba(255,255,255, 0.85) — aproape opac, linii abia vizibile</div></div>
+      <div class="variant-check">&#10003;</div>
+    </div>
+    <div class="preview">
+      <div class="card" style="background:rgba(255,255,255,0.85); backdrop-filter:blur(6px);">
+        <div class="card-title">Biletul tau spre Nordul Moldovei!</div>
+        <div class="form-row">
+          <div class="field"><span class="icon">&#x1F4CD;</span><input placeholder="De la:"></div>
+          <button class="swap">&#x21C4;</button>
+          <div class="field"><span class="icon">&#x1F4CD;</span><input placeholder="Spre:"></div>
+          <div class="field"><span class="icon">&#x1F4C5;</span><input placeholder="Data:"></div>
+          <button class="cta">Suna soferul!</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- D: 92% -->
+  <div class="variant" onclick="pick('D',this)">
+    <div class="variant-header">
+      <div><div class="variant-label">D — 92%</div><div class="variant-desc">rgba(255,255,255, 0.92) — aproape solid, foarte curat</div></div>
+      <div class="variant-check">&#10003;</div>
+    </div>
+    <div class="preview">
+      <div class="card" style="background:rgba(255,255,255,0.92); backdrop-filter:blur(6px);">
+        <div class="card-title">Biletul tau spre Nordul Moldovei!</div>
+        <div class="form-row">
+          <div class="field"><span class="icon">&#x1F4CD;</span><input placeholder="De la:"></div>
+          <button class="swap">&#x21C4;</button>
+          <div class="field"><span class="icon">&#x1F4CD;</span><input placeholder="Spre:"></div>
+          <div class="field"><span class="icon">&#x1F4C5;</span><input placeholder="Data:"></div>
+          <button class="cta">Suna soferul!</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- E: 100% solid -->
+  <div class="last-row">
+    <div class="variant" onclick="pick('E',this)">
+      <div class="variant-header">
+        <div><div class="variant-label">E — 100% Solid</div><div class="variant-desc">background: #fff — complet opac, fara transparenta</div></div>
+        <div class="variant-check">&#10003;</div>
+      </div>
+      <div class="preview">
+        <div class="card" style="background:#fff; box-shadow:0 2px 16px rgba(155,27,48,0.08);">
+          <div class="card-title">Biletul tau spre Nordul Moldovei!</div>
+          <div class="form-row">
+            <div class="field"><span class="icon">&#x1F4CD;</span><input placeholder="De la:"></div>
+            <button class="swap">&#x21C4;</button>
+            <div class="field"><span class="icon">&#x1F4CD;</span><input placeholder="Spre:"></div>
+            <div class="field"><span class="icon">&#x1F4C5;</span><input placeholder="Data:"></div>
+            <button class="cta">Suna soferul!</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="vote-bar">
+  <button class="vote-btn" onclick="vote('A')">A</button>
+  <button class="vote-btn" onclick="vote('B')">B</button>
+  <button class="vote-btn" onclick="vote('C')">C</button>
+  <button class="vote-btn" onclick="vote('D')">D</button>
+  <button class="vote-btn" onclick="vote('E')">E</button>
+</div>
+
+<script>
+function pick(letter, el) {
+  document.querySelectorAll('.variant').forEach(v => v.classList.remove('selected'));
+  el.classList.add('selected');
+  document.querySelectorAll('.vote-btn').forEach(b => b.classList.remove('picked'));
+  document.querySelectorAll('.vote-btn')[letter.charCodeAt(0)-65].classList.add('picked');
+}
+function vote(letter) {
+  document.querySelectorAll('.vote-btn').forEach(b => b.classList.remove('picked'));
+  event.target.classList.add('picked');
+  document.querySelectorAll('.variant').forEach(v => v.classList.remove('selected'));
+  document.querySelectorAll('.variant')[letter.charCodeAt(0)-65].classList.add('selected');
+}
+</script>
+</body>
+</html>

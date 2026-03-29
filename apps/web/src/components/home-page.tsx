@@ -8,20 +8,36 @@ import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { RouteResults } from '@/components/ui/route-results';
 import { type Locale, t } from '@/lib/i18n';
 
-const popularRoutes = [
-  { route: 'CHIȘINĂU - BĂLȚI', price: '40 LEI' },
-  { route: 'CHIȘINĂU - EDINEȚ', price: '70 LEI' },
-  { route: 'CHIȘINĂU - SÎNGEREI', price: '50 LEI' },
-  { route: 'CHIȘINĂU - OCNIȚA', price: '85 LEI' },
-  { route: 'CHIȘINĂU - OTACI', price: '85 LEI' },
-  { route: 'CHIȘINĂU - BRICENI', price: '80 LEI' },
-  { route: 'CHIȘINĂU - CUPCINI', price: '90 LEI' },
-  { route: 'CHIȘINĂU - LIPCANI', price: '92 LEI' },
-  { route: 'CHIȘINĂU - CORJEUȚI', price: '80 LEI' },
-  { route: 'CHIȘINĂU - GRIMĂNCĂUȚI', price: '83 LEI' },
-  { route: 'CHIȘINĂU - CRIVA', price: '100 LEI' },
-  { route: 'CHIȘINĂU - LARGA', price: '80 LEI' },
-];
+const popularRoutes = {
+  ro: [
+    { route: 'CHIȘINĂU - BĂLȚI', price: '40 LEI' },
+    { route: 'CHIȘINĂU - EDINEȚ', price: '70 LEI' },
+    { route: 'CHIȘINĂU - SÎNGEREI', price: '50 LEI' },
+    { route: 'CHIȘINĂU - OCNIȚA', price: '85 LEI' },
+    { route: 'CHIȘINĂU - OTACI', price: '85 LEI' },
+    { route: 'CHIȘINĂU - BRICENI', price: '80 LEI' },
+    { route: 'CHIȘINĂU - CUPCINI', price: '90 LEI' },
+    { route: 'CHIȘINĂU - LIPCANI', price: '92 LEI' },
+    { route: 'CHIȘINĂU - CORJEUȚI', price: '80 LEI' },
+    { route: 'CHIȘINĂU - GRIMĂNCĂUȚI', price: '83 LEI' },
+    { route: 'CHIȘINĂU - CRIVA', price: '100 LEI' },
+    { route: 'CHIȘINĂU - LARGA', price: '80 LEI' },
+  ],
+  ru: [
+    { route: 'КИШИНЁВ - БЭЛЦЬ', price: '40 LEI' },
+    { route: 'КИШИНЁВ - ЕДИНЕЦ', price: '70 LEI' },
+    { route: 'КИШИНЁВ - СЫНЖЕРЕЙ', price: '50 LEI' },
+    { route: 'КИШИНЁВ - ОКНИЦА', price: '85 LEI' },
+    { route: 'КИШИНЁВ - ОТАЧЬ', price: '85 LEI' },
+    { route: 'КИШИНЁВ - БРИЧЕНЬ', price: '80 LEI' },
+    { route: 'КИШИНЁВ - КУПЧИНЬ', price: '90 LEI' },
+    { route: 'КИШИНЁВ - ЛИПКАНЬ', price: '92 LEI' },
+    { route: 'КИШИНЁВ - КОРЖЕУЦЬ', price: '80 LEI' },
+    { route: 'КИШИНЁВ - ГРИМЭНКЭУЦЬ', price: '83 LEI' },
+    { route: 'КИШИНЁВ - КРИВА', price: '100 LEI' },
+    { route: 'КИШИНЁВ - ЛАРГА', price: '80 LEI' },
+  ],
+};
 
 export function HomePage({ locale }: { locale: Locale }) {
   const [showResults, setShowResults] = useState(false);
@@ -131,7 +147,7 @@ export function HomePage({ locale }: { locale: Locale }) {
               display: 'grid', gridTemplateColumns: '1fr 1fr',
               gap: '2px 50px', maxWidth: 540, margin: '0 auto',
             }}>
-              {popularRoutes.map((r) => (
+              {popularRoutes[locale].map((r) => (
                 <div key={r.route} style={{
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                   padding: '8px 0', borderBottom: '1px solid rgba(155,27,48,0.1)',

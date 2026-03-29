@@ -24,5 +24,5 @@ export function validateConfig() {
   if (!config.botToken) throw new Error('TELEGRAM_BOT_TOKEN is required');
   if (!config.supabaseUrl) throw new Error('SUPABASE_URL is required');
   if (!config.supabaseKey) throw new Error('SUPABASE_SERVICE_KEY is required');
-  if (!config.anthropicApiKey) throw new Error('ANTHROPIC_API_KEY is required');
+  if (!config.anthropicApiKey) console.warn('ANTHROPIC_API_KEY not set — Z-report OCR disabled');
 }

@@ -1,5 +1,6 @@
 // Operator display names mapped by Telegram ID
 export const OPERATOR_NAMES: Record<number, string> = {
+  448654456: 'Ion Pop',
   7115941429: 'Vitalie (Pepsi)',
   1407418059: 'Iurie',
   8688366642: 'Aurel',

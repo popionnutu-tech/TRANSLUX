@@ -29,6 +29,29 @@ export interface ZReportData {
   validationWarnings: string[];
 }
 
+/** Raw fuel object as returned by Claude OCR (uses "litri" not "litriTotal") */
+interface RawFuel {
+  litri?: number | null;
+  total?: number | null;
+  numerar?: number | null;
+  card?: number | null;
+  cvc?: number | null;
+}
+
+interface RawZReport {
+  nrRaportZ?: number | null;
+  nrBonuriFiscale?: number | null;
+  dataOra?: string | null;
+  totalNumerar?: number | null;
+  totalCard?: number | null;
+  totalCvc?: number | null;
+  motorina?: RawFuel;
+  benzina95?: RawFuel;
+  gaz?: RawFuel;
+  totalVanzari?: number | null;
+  validationWarnings?: string[];
+}
+
 const SYSTEM_PROMPT = `Ești un sistem OCR specializat pentru citirea rapoartelor Z zilnice (RAPORT ZILNIC) de la stațiile de carburant din Moldova/România.
 
 REGULI CRITICE — respectă-le exact:
@@ -162,7 +185,7 @@ export async function parseZReport(imageBase64: string, mimeType: 'image/jpeg' |
   // Strip markdown code blocks if present
   const jsonText = text.replace(/```(?:json)?\n?/g, '').trim();
 
-  let parsed: Partial<ZReportData>;
+  let parsed: RawZReport;
   try {
     parsed = JSON.parse(jsonText);
   } catch {
@@ -248,7 +271,7 @@ export async function parseZReport(imageBase64: string, mimeType: 'image/jpeg' |
  * Prevents "0 L = 500 Lei" absurdity: if a payment type has an amount,
  * it also gets its proportional share of the total liters.
  */
-function buildBreakdown(raw: any): FuelBreakdown {
+function buildBreakdown(raw: RawFuel | undefined): FuelBreakdown {
   const litriTotal = raw?.litri ?? null;
   const total = raw?.total ?? null;
   const numerar = raw?.numerar ?? null;

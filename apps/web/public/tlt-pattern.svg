@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 600" opacity="0.08">
+  <g fill="#D42027" font-family="Arial Black, Impact, sans-serif" font-weight="900" font-style="italic">
+    <text x="10" y="80" font-size="90" transform="rotate(-15, 100, 80)">TLT</text>
+    <text x="30" y="200" font-size="70" transform="rotate(-10, 100, 200)">TLT</text>
+    <text x="0" y="320" font-size="100" transform="rotate(-20, 100, 320)">TLT</text>
+    <text x="20" y="440" font-size="80" transform="rotate(-5, 100, 440)">TLT</text>
+    <text x="10" y="560" font-size="90" transform="rotate(-15, 100, 560)">TLT</text>
+  </g>
+</svg>

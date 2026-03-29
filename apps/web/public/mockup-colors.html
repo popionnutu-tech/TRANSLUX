@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Culoare Bordo-Roșu v2 — TRANSLUX</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #111; font-family: system-ui; color: #fff; }
+  h1 { text-align: center; font-size: 16px; margin: 30px 0 8px; color: #888; font-weight: 400; }
+  p.hint { text-align: center; font-size: 12px; color: #555; margin-bottom: 24px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; max-width: 1100px; margin: 0 auto; padding: 0 20px 40px; }
+  .variant {
+    border-radius: 14px; overflow: hidden; cursor: pointer;
+    border: 3px solid transparent; transition: all 0.3s;
+  }
+  .variant:hover { border-color: #fff; }
+  .variant.selected { border-color: #fff; box-shadow: 0 0 20px rgba(255,255,255,0.2); }
+  .card { padding: 24px 16px; text-align: center; }
+  .label { font-size: 10px; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 3px; font-weight: 600; margin-bottom: 10px; }
+  .swatch { width: 60px; height: 60px; border-radius: 50%; margin: 0 auto 10px; }
+  .hex { font-size: 16px; font-weight: 700; font-family: monospace; margin-bottom: 2px; }
+  .name { font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 14px; }
+  .sample-text { font-size: 18px; font-weight: 700; font-style: italic; margin-bottom: 6px; }
+  .sample-line { height: 3px; width: 50%; margin: 0 auto 8px; border-radius: 2px; }
+  .sample-btn { display: inline-block; padding: 7px 16px; border-radius: 8px; color: #fff; font-weight: 700; font-size: 11px; }
+</style>
+</head>
+<body>
+  <h1>Nuanțe bordo-roșu — mai închise</h1>
+  <p class="hint">Click pe varianta preferată</p>
+
+  <div class="grid">
+    <div class="variant" onclick="sel(this,'a')">
+      <div class="card" style="background: #1a0508;">
+        <div class="label">A</div>
+        <div class="swatch" style="background: #7A1018;"></div>
+        <div class="hex" style="color: #7A1018;">#7A1018</div>
+        <div class="name">Bordo profund</div>
+        <div class="sample-text" style="color: #7A1018;">TRANSLUX</div>
+        <div class="sample-line" style="background: #7A1018;"></div>
+        <div class="sample-btn" style="background: #7A1018;">Vreau să plec!</div>
+      </div>
+    </div>
+
+    <div class="variant" onclick="sel(this,'b')">
+      <div class="card" style="background: #1a0508;">
+        <div class="label">B</div>
+        <div class="swatch" style="background: #85151D;"></div>
+        <div class="hex" style="color: #85151D;">#85151D</div>
+        <div class="name">Bordo-roșu închis</div>
+        <div class="sample-text" style="color: #85151D;">TRANSLUX</div>
+        <div class="sample-line" style="background: #85151D;"></div>
+        <div class="sample-btn" style="background: #85151D;">Vreau să plec!</div>
+      </div>
+    </div>
+
+    <div class="variant" onclick="sel(this,'c')">
+      <div class="card" style="background: #1a0508;">
+        <div class="label">C</div>
+        <div class="swatch" style="background: #901720;"></div>
+        <div class="hex" style="color: #901720;">#901720</div>
+        <div class="name">Bordo-roșu clasic</div>
+        <div class="sample-text" style="color: #901720;">TRANSLUX</div>
+        <div class="sample-line" style="background: #901720;"></div>
+        <div class="sample-btn" style="background: #901720;">Vreau să plec!</div>
+      </div>
+    </div>
+
+    <div class="variant" onclick="sel(this,'d')">
+      <div class="card" style="background: #1a0508;">
+        <div class="label">D</div>
+        <div class="swatch" style="background: #6E0E14;"></div>
+        <div class="hex" style="color: #6E0E14;">#6E0E14</div>
+        <div class="name">Bordo închis vin</div>
+        <div class="sample-text" style="color: #6E0E14;">TRANSLUX</div>
+        <div class="sample-line" style="background: #6E0E14;"></div>
+        <div class="sample-btn" style="background: #6E0E14;">Vreau să plec!</div>
+      </div>
+    </div>
+
+    <div class="variant" onclick="sel(this,'e')">
+      <div class="card" style="background: #1a0508;">
+        <div class="label">E</div>
+        <div class="swatch" style="background: #9A1A22;"></div>
+        <div class="hex" style="color: #9A1A22;">#9A1A22</div>
+        <div class="name">Bordo-roșu mediu</div>
+        <div class="sample-text" style="color: #9A1A22;">TRANSLUX</div>
+        <div class="sample-line" style="background: #9A1A22;"></div>
+        <div class="sample-btn" style="background: #9A1A22;">Vreau să plec!</div>
+      </div>
+    </div>
+
+    <div class="variant" onclick="sel(this,'f')">
+      <div class="card" style="background: #1a0508;">
+        <div class="label">F</div>
+        <div class="swatch" style="background: #7F1220;"></div>
+        <div class="hex" style="color: #7F1220;">#7F1220</div>
+        <div class="name">Bordo marsala</div>
+        <div class="sample-text" style="color: #7F1220;">TRANSLUX</div>
+        <div class="sample-line" style="background: #7F1220;"></div>
+        <div class="sample-btn" style="background: #7F1220;">Vreau să plec!</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function sel(el, id) {
+      document.querySelectorAll('.variant').forEach(v => v.classList.remove('selected'));
+      el.classList.add('selected');
+      document.title = 'Selected: ' + id.toUpperCase();
+    }
+  </script>
+</body>
+</html>

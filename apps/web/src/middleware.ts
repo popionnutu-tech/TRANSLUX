@@ -1,6 +1,13 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 
-export function middleware() {
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Redirect root and locale pages to dashboard
+  if (pathname === '/' || pathname === '/ro' || pathname === '/ru') {
+    return NextResponse.redirect(new URL('/reports', request.url));
+  }
+
   return NextResponse.next();
 }
 

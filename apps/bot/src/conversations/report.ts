@@ -16,6 +16,7 @@ import {
 import { addViolationAndUpdate } from '../services/dailyDigest.js';
 import { getTodayDate, formatTime, formatDate, haversineDistance, minutesLate } from '../utils.js';
 import { config } from '../config.js';
+import { showMainMenu } from '../handlers/start.js';
 
 const COLS = 4;
 const DRIVER_COLS = 2;
@@ -107,7 +108,16 @@ export async function reportConversation(
     // Wait for time selection
     let selectedTrip: (Trip & { route_name: string }) | null = null;
     while (true) {
-      const cbCtx = await conversation.waitForCallbackQuery(/.+/);
+      const cbCtx = await conversation.wait();
+
+      // /start exits conversation and shows main menu
+      if (cbCtx.message?.text === '/start') {
+        await showMainMenu(cbCtx as BotContext);
+        return;
+      }
+
+      // Skip non-callback updates
+      if (!cbCtx.callbackQuery?.data) continue;
       const data = cbCtx.callbackQuery.data;
 
       if (data === 'cancel') {
@@ -157,6 +167,13 @@ export async function reportConversation(
       const locStart = Date.now();
       while (Date.now() - locStart < 60000) {
         const locCtx = await conversation.wait();
+
+        // /start exits conversation
+        if (locCtx.message?.text === '/start') {
+          await ctx.reply('📍', { reply_markup: { remove_keyboard: true } });
+          await showMainMenu(locCtx as BotContext);
+          return;
+        }
 
         // Handle stray callback queries (user clicking old buttons)
         if (locCtx.callbackQuery) {
@@ -228,6 +245,11 @@ export async function reportConversation(
     while (true) {
       const inputCtx = await conversation.wait();
 
+      if (inputCtx.message?.text === '/start') {
+        await showMainMenu(inputCtx as BotContext);
+        return;
+      }
+
       if (inputCtx.callbackQuery?.data === 'status:ABSENT') {
         await inputCtx.answerCallbackQuery();
         status = 'ABSENT';
@@ -276,7 +298,12 @@ export async function reportConversation(
       await ctx.reply('Șoferul:', { reply_markup: driverKb });
 
       while (true) {
-        const dCtx = await conversation.waitForCallbackQuery(/^driver:/);
+        const dCtx = await conversation.wait();
+        if (dCtx.message?.text === '/start') {
+          await showMainMenu(dCtx as BotContext);
+          return;
+        }
+        if (!dCtx.callbackQuery?.data?.startsWith('driver:')) continue;
         await dCtx.answerCallbackQuery();
         const val = dCtx.callbackQuery.data.replace('driver:', '');
         if (val === 'none') { driverId = null; break; }
@@ -296,9 +323,17 @@ export async function reportConversation(
         .text('Ambele rău', 'comp:both_bad');
 
       await ctx.reply('Conformitate șofer:', { reply_markup: compKb });
-      const compCtx = await conversation.waitForCallbackQuery(/^comp:/);
+      let compCtx;
+      while (true) {
+        compCtx = await conversation.wait();
+        if (compCtx.message?.text === '/start') {
+          await showMainMenu(compCtx as BotContext);
+          return;
+        }
+        if (compCtx.callbackQuery?.data?.startsWith('comp:')) break;
+      }
       await compCtx.answerCallbackQuery();
-      const compVal = compCtx.callbackQuery.data.replace('comp:', '');
+      const compVal = compCtx.callbackQuery!.data!.replace('comp:', '');
 
       switch (compVal) {
         case 'all_ok': uniformOk = true; exteriorOk = true; break;

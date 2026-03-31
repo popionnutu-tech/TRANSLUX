@@ -119,6 +119,70 @@ export async function searchDrivers(query: string): Promise<Driver[]> {
   return data || [];
 }
 
+// ── Vehicles ──────────────────────────────────────────
+
+export async function getActiveVehicles(): Promise<Array<{ id: string; plate_number: string }>> {
+  const { data } = await db()
+    .from('vehicles')
+    .select('id, plate_number')
+    .eq('active', true)
+    .order('plate_number');
+  return data || [];
+}
+
+export async function createVehicle(plateNumber: string): Promise<{ id: string; plate_number: string }> {
+  const { data, error } = await db()
+    .from('vehicles')
+    .insert({ plate_number: plateNumber.toUpperCase().replace(/\s/g, '') })
+    .select('id, plate_number')
+    .single();
+  if (error) throw error;
+  return data as { id: string; plate_number: string };
+}
+
+/** Get vehicle IDs already assigned to reports for a given date+point */
+export async function getUsedVehicleIds(
+  reportDate: string,
+  point: PointEnum
+): Promise<Set<string>> {
+  const { data } = await db()
+    .from('reports')
+    .select('vehicle_id')
+    .eq('report_date', reportDate)
+    .eq('point', point)
+    .eq('status', 'OK')
+    .is('cancelled_at', null)
+    .not('vehicle_id', 'is', null);
+  return new Set((data || []).map((r: any) => r.vehicle_id));
+}
+
+/** Check if a vehicle needs reclama verification this week */
+export async function needsReclamaCheck(vehicleId: string): Promise<boolean> {
+  const now = new Date(
+    new Date().toLocaleString('en-US', { timeZone: 'Europe/Chisinau' })
+  );
+  // Always check on Tuesday
+  if (now.getDay() === 2) return true;
+
+  // Other days: check if vehicle was verified since last Tuesday
+  const day = now.getDay();
+  const diff = (day < 2) ? day + 7 - 2 : day - 2;
+  const lastTue = new Date(now);
+  lastTue.setDate(now.getDate() - diff);
+  const lastTueStr = lastTue.toISOString().slice(0, 10);
+
+  const { data } = await db()
+    .from('reports')
+    .select('id')
+    .eq('vehicle_id', vehicleId)
+    .not('reclama_ok', 'is', null)
+    .is('cancelled_at', null)
+    .gte('report_date', lastTueStr)
+    .limit(1);
+
+  return !data || data.length === 0;
+}
+
 // ── Trips ──────────────────────────────────────────────
 
 export async function getTripsForRoute(
@@ -209,6 +273,10 @@ export async function createReport(report: {
   passengers_count: number | null;
   exterior_ok: boolean | null;
   uniform_ok: boolean | null;
+  auto_curat: boolean | null;
+  reclama_ok: boolean | null;
+  reclama_deadline: string | null;
+  vehicle_id: string | null;
   created_by_user: string;
   location_ok: boolean | null;
 }): Promise<Report> {
@@ -261,38 +329,42 @@ export function getDirectionForPoint(point: PointEnum): DirectionEnum {
 
 // ── Weekly report data ────────────────────────────────
 
-/** Drivers with uniform or aspect violations in the period */
+/** Drivers with violations in the period */
 export async function getDriverViolations(
   dateFrom: string,
   dateTo: string
-): Promise<Array<{ driver_name: string; uniform_count: number; aspect_count: number }>> {
+): Promise<Array<{ driver_name: string; uniform_count: number; aspect_count: number; curat_count: number; reclama_count: number }>> {
   const { data } = await db()
     .from('reports')
-    .select('driver_id, exterior_ok, uniform_ok, drivers(full_name)')
+    .select('driver_id, exterior_ok, uniform_ok, auto_curat, reclama_ok, drivers(full_name)')
     .eq('status', 'OK')
     .is('cancelled_at', null)
     .gte('report_date', dateFrom)
     .lte('report_date', dateTo)
-    .or('exterior_ok.eq.false,uniform_ok.eq.false');
+    .or('exterior_ok.eq.false,uniform_ok.eq.false,auto_curat.eq.false,reclama_ok.eq.false');
 
   if (!data || data.length === 0) return [];
 
-  const map = new Map<string, { name: string; uniform: number; aspect: number }>();
+  const map = new Map<string, { name: string; uniform: number; aspect: number; curat: number; reclama: number }>();
   for (const r of data as any[]) {
     const id = r.driver_id || 'unknown';
     const rawName = r.drivers?.full_name || '—';
     const np = rawName.split(' ');
     const name = np.length > 1 ? `${np[0]} ${np.slice(1).map((p: string) => p[0] + '.').join('')}` : rawName;
-    if (!map.has(id)) map.set(id, { name, uniform: 0, aspect: 0 });
+    if (!map.has(id)) map.set(id, { name, uniform: 0, aspect: 0, curat: 0, reclama: 0 });
     const entry = map.get(id)!;
     if (r.uniform_ok === false) entry.uniform++;
     if (r.exterior_ok === false) entry.aspect++;
+    if (r.auto_curat === false) entry.curat++;
+    if (r.reclama_ok === false) entry.reclama++;
   }
 
   return Array.from(map.values()).map((v) => ({
     driver_name: v.name,
     uniform_count: v.uniform,
     aspect_count: v.aspect,
+    curat_count: v.curat,
+    reclama_count: v.reclama,
   }));
 }
 
@@ -347,6 +419,121 @@ export async function getOperatorAbsences(
   }
 
   return result.sort((a, b) => b.absence_count - a.absence_count);
+}
+
+// ── Reclama report data ──────────────────────────────
+
+/** Active reclama issues: vehicles with reclama_ok=false not yet resolved */
+export async function getActiveReclamaIssues(): Promise<
+  Array<{
+    plate_number: string;
+    driver_name: string;
+    reclama_deadline: string;
+    status: 'in_process' | 'overdue';
+  }>
+> {
+  const now = new Date(
+    new Date().toLocaleString('en-US', { timeZone: 'Europe/Chisinau' })
+  );
+  const today = now.toISOString().slice(0, 10);
+
+  const lookback = new Date(now);
+  lookback.setDate(lookback.getDate() - 90);
+  const lookbackDate = lookback.toISOString().slice(0, 10);
+
+  const { data: failReports } = await db()
+    .from('reports')
+    .select('vehicle_id, driver_id, reclama_deadline, report_date, vehicles(plate_number), drivers(full_name)')
+    .eq('reclama_ok', false)
+    .not('reclama_deadline', 'is', null)
+    .not('vehicle_id', 'is', null)
+    .is('cancelled_at', null)
+    .gte('report_date', lookbackDate)
+    .order('report_date', { ascending: false });
+
+  if (!failReports || failReports.length === 0) return [];
+
+  const { data: okReports } = await db()
+    .from('reports')
+    .select('vehicle_id, report_date')
+    .eq('reclama_ok', true)
+    .not('vehicle_id', 'is', null)
+    .is('cancelled_at', null)
+    .gte('report_date', lookbackDate)
+    .order('report_date', { ascending: false });
+
+  const latestOkDate = new Map<string, string>();
+  for (const r of (okReports || []) as any[]) {
+    if (r.vehicle_id && !latestOkDate.has(r.vehicle_id)) {
+      latestOkDate.set(r.vehicle_id, r.report_date);
+    }
+  }
+
+  const vehicleMap = new Map<string, {
+    plate_number: string;
+    driver_name: string;
+    reclama_deadline: string;
+  }>();
+
+  for (const r of failReports as any[]) {
+    const vehicleId = r.vehicle_id;
+    if (!vehicleId) continue;
+
+    const okDate = latestOkDate.get(vehicleId);
+    if (okDate && okDate > r.report_date) continue;
+
+    if (!vehicleMap.has(vehicleId)) {
+      const plate = r.vehicles?.plate_number || '—';
+      const rawName = r.drivers?.full_name || '—';
+      const np = rawName.split(' ');
+      const driverName = np.length > 1
+        ? `${np[0]} ${np.slice(1).map((p: string) => p[0] + '.').join('')}`
+        : rawName;
+      vehicleMap.set(vehicleId, {
+        plate_number: plate,
+        driver_name: driverName,
+        reclama_deadline: r.reclama_deadline,
+      });
+    }
+  }
+
+  const result = Array.from(vehicleMap.values()).map((entry) => ({
+    plate_number: entry.plate_number,
+    driver_name: entry.driver_name,
+    reclama_deadline: entry.reclama_deadline,
+    status: (entry.reclama_deadline < today ? 'overdue' : 'in_process') as 'overdue' | 'in_process',
+  }));
+
+  result.sort((a, b) => {
+    if (a.status !== b.status) return a.status === 'overdue' ? -1 : 1;
+    return a.reclama_deadline.localeCompare(b.reclama_deadline);
+  });
+
+  return result;
+}
+
+// ── Daily Assignments ─────────────────────────────────
+
+/** Get the pre-assigned driver/vehicle for a trip on a given date */
+export async function getAssignmentForTrip(
+  tripId: string,
+  date: string
+): Promise<{ driver_id: string; driver_name: string; vehicle_id: string | null; plate_number: string | null } | null> {
+  const { data } = await db()
+    .from('daily_assignments')
+    .select('driver_id, vehicle_id, drivers(full_name), vehicles(plate_number)')
+    .eq('trip_id', tripId)
+    .eq('assignment_date', date)
+    .single();
+
+  if (!data) return null;
+  const d = data as any;
+  return {
+    driver_id: d.driver_id,
+    driver_name: d.drivers?.full_name || '—',
+    vehicle_id: d.vehicle_id || null,
+    plate_number: d.vehicles?.plate_number || null,
+  };
 }
 
 // ── Day Validations ───────────────────────────────────

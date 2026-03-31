@@ -1,5 +1,9 @@
 import { HomePage } from '@/components/home-page';
+import { getLocalities } from '../(public)/actions';
 
-export default function RuPage() {
-  return <HomePage locale="ru" />;
+export const dynamic = 'force-dynamic';
+
+export default async function RuPage() {
+  const localities = await getLocalities();
+  return <HomePage locale="ru" localities={localities} />;
 }

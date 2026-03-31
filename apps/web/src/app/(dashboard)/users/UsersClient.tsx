@@ -28,8 +28,6 @@ export default function UsersClient({
   const [invLoading, setInvLoading] = useState(false);
   const router = useRouter();
 
-  // ── User actions ──────────────────────────────────
-
   async function handleRoleChange(id: string, role: UserRole) {
     setError('');
     try {
@@ -65,8 +63,6 @@ export default function UsersClient({
     }
   }
 
-  // ── Invite actions ────────────────────────────────
-
   async function handleCreateInvite() {
     setError('');
     setInvLoading(true);
@@ -92,60 +88,415 @@ export default function UsersClient({
   }
 
   function getInviteStatus(invite: InviteWithAdmin): { label: string; cls: string } {
-    if (invite.used_at) return { label: 'Utilizat', cls: 'badge-ok' };
-    if (new Date(invite.expires_at) < new Date()) return { label: 'Expirat', cls: 'badge-cancelled' };
-    return { label: 'Activ', cls: 'badge-absent' };
+    if (invite.used_at) return { label: 'Utilizat', cls: 'u-status-used' };
+    if (new Date(invite.expires_at) < new Date()) return { label: 'Expirat', cls: 'u-status-expired' };
+    return { label: 'Activ', cls: 'u-status-active' };
   }
 
   const formatDate = (d: string) =>
-    new Date(d).toLocaleString('ro-RO', { timeZone: 'Europe/Chisinau' });
+    new Date(d).toLocaleString('ro-RO', {
+      timeZone: 'Europe/Chisinau',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+  const activeCount = initialUsers.filter((u) => u.active).length;
+  const adminCount = initialUsers.filter((u) => u.role === 'ADMIN').length;
+  const pendingInvites = initialInvites.filter(
+    (inv) => !inv.used_at && new Date(inv.expires_at) >= new Date()
+  ).length;
 
   return (
-    <div className="page">
-      <div className="page-header">
-        <h1>Utilizatori</h1>
+    <div className="u-page" style={{ fontFamily: "var(--font-opensans), 'Open Sans', sans-serif" }}>
+      <style>{`
+        .u-page {
+          padding: 28px 36px;
+          max-width: 1000px;
+          margin: 0 auto;
+        }
+        .u-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 28px;
+          flex-wrap: wrap;
+          gap: 12px;
+        }
+        .u-title {
+          font-size: 28px;
+          font-weight: 400;
+          color: #9B1B30;
+          font-style: italic;
+          font-family: var(--font-opensans), 'Open Sans', sans-serif;
+          letter-spacing: 0.5px;
+        }
+        .u-stats {
+          display: flex;
+          gap: 8px;
+        }
+        .u-stat {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 6px 14px;
+          border-radius: 10px;
+          background: rgba(255,255,255,0.6);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          border: 1px solid rgba(155,27,48,0.08);
+          font-size: 12px;
+          color: #6E0E14;
+          font-weight: 500;
+        }
+        .u-stat-val {
+          font-weight: 700;
+          font-size: 15px;
+          color: #9B1B30;
+        }
+        .u-card {
+          background: rgba(255,255,255,0.6);
+          backdrop-filter: blur(16px);
+          -webkit-backdrop-filter: blur(16px);
+          border: 1px solid rgba(255,255,255,0.5);
+          border-radius: 24px;
+          padding: 28px 32px;
+          margin-bottom: 24px;
+          box-shadow: 0 8px 40px rgba(155,27,48,0.06), 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .u-section {
+          font-size: 17px;
+          font-weight: 400;
+          font-style: italic;
+          color: #9B1B30;
+          margin-bottom: 20px;
+          letter-spacing: 0.5px;
+          font-family: var(--font-opensans), 'Open Sans', sans-serif;
+        }
+        .u-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 13px;
+        }
+        .u-table th {
+          text-align: left;
+          padding: 10px 12px;
+          border-bottom: 1px solid rgba(155,27,48,0.08);
+          color: rgba(155,27,48,0.45);
+          font-weight: 600;
+          font-size: 10px;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          font-family: var(--font-opensans), 'Open Sans', sans-serif;
+        }
+        .u-table td {
+          padding: 11px 12px;
+          border-bottom: 1px solid rgba(155,27,48,0.04);
+          color: #333;
+        }
+        .u-table tr:last-child td {
+          border-bottom: none;
+        }
+        .u-table tbody tr {
+          transition: background 0.15s;
+        }
+        .u-table tbody tr:hover {
+          background: rgba(155,27,48,0.03);
+        }
+        .u-name {
+          font-weight: 600;
+          color: #333;
+          font-size: 13px;
+        }
+        .u-username {
+          color: rgba(155,27,48,0.4);
+          font-size: 12px;
+          margin-left: 6px;
+          font-style: italic;
+        }
+        .u-tg-id {
+          font-size: 11px;
+          color: #bbb;
+          font-variant-numeric: tabular-nums;
+        }
+        .u-point {
+          display: inline-block;
+          padding: 3px 10px;
+          border-radius: 6px;
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.02em;
+        }
+        .u-point-CHISINAU {
+          background: rgba(155,27,48,0.06);
+          color: #9B1B30;
+        }
+        .u-point-BALTI {
+          background: rgba(110,14,20,0.06);
+          color: #6E0E14;
+        }
+        .u-select {
+          padding: 6px 10px;
+          border-radius: 10px;
+          border: 1px solid rgba(155,27,48,0.1);
+          font-size: 12px;
+          background: rgba(255,255,255,0.85);
+          color: #6E0E14;
+          cursor: pointer;
+          font-family: var(--font-opensans), 'Open Sans', sans-serif;
+          font-style: italic;
+          transition: all 0.2s ease;
+          outline: none;
+          appearance: none;
+        }
+        .u-select:hover {
+          border-color: rgba(155,27,48,0.2);
+        }
+        .u-select:focus {
+          border-color: rgba(155,27,48,0.3);
+          box-shadow: 0 0 0 2px rgba(155,27,48,0.1);
+        }
+        .u-btn {
+          padding: 6px 16px;
+          border-radius: 10px;
+          font-size: 12px;
+          font-weight: 500;
+          cursor: pointer;
+          border: 1px solid rgba(155,27,48,0.15);
+          background: transparent;
+          color: #9B1B30;
+          font-family: var(--font-opensans), 'Open Sans', sans-serif;
+          font-style: italic;
+          transition: all 0.2s ease;
+          white-space: nowrap;
+        }
+        .u-btn:hover {
+          background: rgba(155,27,48,0.06);
+          border-color: rgba(155,27,48,0.25);
+        }
+        .u-btn-danger {
+          color: #b91c1c;
+          border-color: rgba(185,28,28,0.15);
+        }
+        .u-btn-danger:hover {
+          background: rgba(185,28,28,0.06);
+          border-color: rgba(185,28,28,0.25);
+        }
+        .u-btn-primary {
+          background: #9B1B30;
+          color: #fff;
+          border: 1px solid #9B1B30;
+          font-style: italic;
+          padding: 9px 24px;
+          border-radius: 12px;
+          font-size: 13px;
+          font-weight: 600;
+          box-shadow: 0 2px 8px rgba(155,27,48,0.2);
+        }
+        .u-btn-primary:hover {
+          background: #7a1526;
+          box-shadow: 0 4px 16px rgba(155,27,48,0.3);
+          transform: translateY(-1px);
+        }
+        .u-btn-primary:active {
+          transform: translateY(0);
+        }
+        .u-btn-primary:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+          transform: none;
+          box-shadow: none;
+        }
+        .u-status-dot {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 12px;
+          font-weight: 500;
+        }
+        .u-status-dot::before {
+          content: '';
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+        }
+        .u-dot-active { color: #16a34a; }
+        .u-dot-active::before { background: #16a34a; }
+        .u-dot-inactive { color: #d97706; }
+        .u-dot-inactive::before { background: #d97706; }
+        .u-inactive { opacity: 0.4; }
+        .u-invite-form {
+          display: flex;
+          gap: 14px;
+          align-items: flex-end;
+        }
+        .u-form-group {
+          display: flex;
+          flex-direction: column;
+          gap: 5px;
+        }
+        .u-form-label {
+          font-size: 10px;
+          font-weight: 600;
+          color: rgba(155,27,48,0.4);
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          font-family: var(--font-opensans), 'Open Sans', sans-serif;
+        }
+        .u-form-select {
+          padding: 9px 14px;
+          border: 1px solid rgba(155,27,48,0.1);
+          border-radius: 12px;
+          font-size: 14px;
+          background: rgba(255,255,255,0.85);
+          color: #6E0E14;
+          font-family: var(--font-opensans), 'Open Sans', sans-serif;
+          font-style: italic;
+          min-width: 170px;
+          cursor: pointer;
+          outline: none;
+          appearance: none;
+          transition: all 0.2s ease;
+        }
+        .u-form-select:focus {
+          box-shadow: 0 0 0 2px rgba(155,27,48,0.12);
+          border-color: rgba(155,27,48,0.25);
+        }
+        .u-link-box {
+          margin-top: 16px;
+          padding: 14px 18px;
+          background: rgba(155,27,48,0.03);
+          border: 1px solid rgba(155,27,48,0.08);
+          border-radius: 14px;
+          display: flex;
+          gap: 12px;
+          align-items: center;
+        }
+        .u-link-code {
+          flex: 1;
+          font-size: 12px;
+          color: #6E0E14;
+          word-break: break-all;
+          font-family: 'SF Mono', 'JetBrains Mono', monospace;
+        }
+        .u-link-copy {
+          padding: 7px 16px;
+          border-radius: 10px;
+          border: 1px solid rgba(155,27,48,0.15);
+          background: transparent;
+          color: #9B1B30;
+          font-size: 12px;
+          font-weight: 500;
+          cursor: pointer;
+          font-family: var(--font-opensans), 'Open Sans', sans-serif;
+          font-style: italic;
+          transition: all 0.2s ease;
+          white-space: nowrap;
+        }
+        .u-link-copy:hover {
+          background: rgba(155,27,48,0.06);
+          border-color: rgba(155,27,48,0.25);
+        }
+        .u-status-used {
+          display: inline-block;
+          padding: 3px 10px;
+          border-radius: 6px;
+          font-size: 11px;
+          font-weight: 600;
+          background: rgba(22,163,74,0.08);
+          color: #16a34a;
+        }
+        .u-status-expired {
+          display: inline-block;
+          padding: 3px 10px;
+          border-radius: 6px;
+          font-size: 11px;
+          font-weight: 600;
+          background: rgba(185,28,28,0.06);
+          color: #b91c1c;
+          text-decoration: line-through;
+        }
+        .u-status-active {
+          display: inline-block;
+          padding: 3px 10px;
+          border-radius: 6px;
+          font-size: 11px;
+          font-weight: 600;
+          background: rgba(155,27,48,0.06);
+          color: #9B1B30;
+        }
+        .u-error {
+          padding: 12px 18px;
+          background: rgba(185,28,28,0.05);
+          border: 1px solid rgba(185,28,28,0.1);
+          border-radius: 14px;
+          color: #b91c1c;
+          font-size: 13px;
+          margin-bottom: 20px;
+          font-style: italic;
+        }
+        .u-empty {
+          text-align: center;
+          color: rgba(155,27,48,0.25);
+          font-size: 13px;
+          font-style: italic;
+          padding: 28px 0;
+        }
+      `}</style>
+
+      {/* Header */}
+      <div className="u-header">
+        <div className="u-title">Utilizatori</div>
+        <div className="u-stats">
+          <div className="u-stat">
+            <span className="u-stat-val">{activeCount}</span> activi
+          </div>
+          <div className="u-stat">
+            <span className="u-stat-val">{adminCount}</span> admini
+          </div>
+          <div className="u-stat">
+            <span className="u-stat-val">{pendingInvites}</span> invitații
+          </div>
+        </div>
       </div>
 
-      {error && (
-        <div className="card mb-4">
-          <p style={{ color: 'var(--danger)', fontSize: 14, margin: 0 }}>{error}</p>
-        </div>
-      )}
+      {error && <div className="u-error">{error}</div>}
 
-      {/* ── Users Table ── */}
-      <div className="card mb-4">
-        <table>
+      {/* Users table */}
+      <div className="u-card">
+        <div className="u-section">Echipa</div>
+        <table className="u-table">
           <thead>
             <tr>
-              <th>Nume</th>
-              <th>Username</th>
-              <th>Telegram ID</th>
+              <th>Operator</th>
+              <th>Telegram</th>
               <th>Punct</th>
               <th>Rol</th>
               <th>Status</th>
-              <th>Acțiuni</th>
+              <th style={{ textAlign: 'right' }}>Acțiuni</th>
             </tr>
           </thead>
           <tbody>
             {initialUsers.map((user) => (
-              <tr key={user.id} style={{ opacity: user.active ? 1 : 0.5 }}>
-                <td style={{ fontWeight: 600 }}>{getOperatorName(user.telegram_id, null)}</td>
-                <td>{user.username ? `@${user.username}` : '—'}</td>
-                <td style={{ fontSize: 13, color: 'var(--text-muted)' }}>{user.telegram_id || '—'}</td>
+              <tr key={user.id} className={user.active ? '' : 'u-inactive'}>
+                <td>
+                  <span className="u-name">{getOperatorName(user.telegram_id, null)}</span>
+                  {user.username && (
+                    <span className="u-username">@{user.username}</span>
+                  )}
+                </td>
+                <td>
+                  <span className="u-tg-id">{user.telegram_id || '—'}</span>
+                </td>
                 <td>
                   <select
+                    className="u-select"
                     value={user.point || ''}
                     onChange={(e) => {
                       const val = e.target.value || null;
                       handlePointChange(user.id, val as PointEnum | null);
-                    }}
-                    style={{
-                      padding: '4px 8px',
-                      borderRadius: 8,
-                      border: '1px solid var(--border-accent)',
-                      fontSize: 13,
-                      background: 'var(--bg-elevated)',
-                      color: 'var(--text)',
                     }}
                   >
                     <option value="">—</option>
@@ -155,36 +506,31 @@ export default function UsersClient({
                 </td>
                 <td>
                   <select
+                    className="u-select"
                     value={user.role}
                     onChange={(e) => handleRoleChange(user.id, e.target.value as UserRole)}
-                    style={{
-                      padding: '4px 8px',
-                      borderRadius: 8,
-                      border: '1px solid var(--border-accent)',
-                      fontSize: 13,
-                      background: user.role === 'ADMIN' ? 'var(--primary-dim)' : 'var(--bg-elevated)',
-                      color: user.role === 'ADMIN' ? 'var(--primary)' : 'var(--text)',
-                      fontWeight: user.role === 'ADMIN' ? 600 : 400,
-                    }}
                   >
                     <option value="CONTROLLER">Controller</option>
                     <option value="ADMIN">Admin</option>
                   </select>
                 </td>
                 <td>
-                  <span className={`badge ${user.active ? 'badge-ok' : 'badge-absent'}`}>
+                  <span className={`u-status-dot ${user.active ? 'u-dot-active' : 'u-dot-inactive'}`}>
                     {user.active ? 'Activ' : 'Inactiv'}
                   </span>
                 </td>
-                <td>
-                  <div className="flex gap-2">
+                <td style={{ textAlign: 'right' }}>
+                  <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                     <button
-                      className="btn btn-outline"
+                      className="u-btn"
                       onClick={() => handleToggle(user.id, user.active)}
                     >
                       {user.active ? 'Dezactivează' : 'Activează'}
                     </button>
-                    <button className="btn btn-danger" onClick={() => handleDelete(user.id)}>
+                    <button
+                      className="u-btn u-btn-danger"
+                      onClick={() => handleDelete(user.id)}
+                    >
                       Șterge
                     </button>
                   </div>
@@ -193,8 +539,8 @@ export default function UsersClient({
             ))}
             {initialUsers.length === 0 && (
               <tr>
-                <td colSpan={7} className="text-center text-muted">
-                  Nu există utilizatori.
+                <td colSpan={6}>
+                  <div className="u-empty">Nu există utilizatori.</div>
                 </td>
               </tr>
             )}
@@ -202,94 +548,91 @@ export default function UsersClient({
         </table>
       </div>
 
-      {/* ── Invite Section ── */}
-      <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12 }}>Invitații</h2>
-
-      <div className="card mb-4">
-        <div style={{ display: 'flex', gap: 12, alignItems: 'end' }}>
-          <div className="form-group" style={{ marginBottom: 0, minWidth: 180 }}>
-            <label>Punct</label>
-            <select value={point} onChange={(e) => setPoint(e.target.value as PointEnum)}>
+      {/* Invite section */}
+      <div className="u-card">
+        <div className="u-section">Invitații</div>
+        <div className="u-invite-form">
+          <div className="u-form-group">
+            <label className="u-form-label">Punct</label>
+            <select
+              className="u-form-select"
+              value={point}
+              onChange={(e) => setPoint(e.target.value as PointEnum)}
+            >
               <option value="CHISINAU">{POINT_LABELS.CHISINAU}</option>
               <option value="BALTI">{POINT_LABELS.BALTI}</option>
             </select>
           </div>
-          <button onClick={handleCreateInvite} className="btn btn-primary" disabled={invLoading}>
+          <button
+            onClick={handleCreateInvite}
+            className="u-btn u-btn-primary"
+            disabled={invLoading}
+          >
             {invLoading ? 'Se generează...' : 'Generează invitație'}
           </button>
         </div>
         {lastLink && (
-          <div
-            style={{
-              marginTop: 12,
-              padding: 12,
-              background: 'var(--primary-dim)',
-              border: '1px solid rgba(0, 212, 255, 0.15)',
-              borderRadius: 8,
-              display: 'flex',
-              gap: 8,
-              alignItems: 'center',
-            }}
-          >
-            <code style={{ flex: 1, fontSize: 13, wordBreak: 'break-all' }}>{lastLink}</code>
-            <button onClick={copyLink} className="btn btn-outline">
+          <div className="u-link-box">
+            <code className="u-link-code">{lastLink}</code>
+            <button onClick={copyLink} className="u-link-copy">
               Copiază
             </button>
           </div>
         )}
       </div>
 
-      <div className="card">
-        <table>
-          <thead>
-            <tr>
-              <th>Punct</th>
-              <th>Status</th>
-              <th>Creat la</th>
-              <th>Expiră la</th>
-              <th>Utilizat de</th>
-              <th>Acțiuni</th>
-            </tr>
-          </thead>
-          <tbody>
-            {initialInvites.map((inv) => {
-              const status = getInviteStatus(inv);
-              return (
-                <tr key={inv.token}>
-                  <td>{POINT_LABELS[inv.point]}</td>
-                  <td>
-                    <span className={`badge ${status.cls}`}>{status.label}</span>
-                  </td>
-                  <td style={{ fontSize: 13 }}>{formatDate(inv.created_at)}</td>
-                  <td style={{ fontSize: 13 }}>{formatDate(inv.expires_at)}</td>
-                  <td>
-                    {inv.users
-                      ? `@${inv.users.username || inv.users.telegram_id}`
-                      : '—'}
-                  </td>
-                  <td>
-                    {!inv.used_at && (
-                      <button
-                        className="btn btn-danger"
-                        onClick={() => handleDeleteInvite(inv.token)}
-                      >
-                        Șterge
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-            {initialInvites.length === 0 && (
+      {/* Invites table */}
+      {initialInvites.length > 0 && (
+        <div className="u-card">
+          <div className="u-section">Istoricul invitațiilor</div>
+          <table className="u-table">
+            <thead>
               <tr>
-                <td colSpan={6} className="text-center text-muted">
-                  Nu există invitații.
-                </td>
+                <th>Punct</th>
+                <th>Status</th>
+                <th>Creat la</th>
+                <th>Expiră la</th>
+                <th>Utilizat de</th>
+                <th style={{ textAlign: 'right' }}>Acțiuni</th>
               </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {initialInvites.map((inv) => {
+                const status = getInviteStatus(inv);
+                return (
+                  <tr key={inv.token}>
+                    <td>
+                      <span className={`u-point u-point-${inv.point}`}>
+                        {POINT_LABELS[inv.point]}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={status.cls}>{status.label}</span>
+                    </td>
+                    <td style={{ fontSize: 12, color: '#aaa' }}>{formatDate(inv.created_at)}</td>
+                    <td style={{ fontSize: 12, color: '#aaa' }}>{formatDate(inv.expires_at)}</td>
+                    <td>
+                      {inv.users
+                        ? <span style={{ fontWeight: 500, color: '#6E0E14' }}>@{inv.users.username || inv.users.telegram_id}</span>
+                        : <span style={{ color: '#ccc' }}>—</span>}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      {!inv.used_at && (
+                        <button
+                          className="u-btn u-btn-danger"
+                          onClick={() => handleDeleteInvite(inv.token)}
+                        >
+                          Șterge
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

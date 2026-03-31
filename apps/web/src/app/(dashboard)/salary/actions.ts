@@ -1,6 +1,7 @@
 'use server';
 
 import { getSupabase } from '@/lib/supabase';
+import { verifySession } from '@/lib/auth';
 import type { PointEnum } from '@translux/db';
 import { getOperatorName, IURIE_TELEGRAM_ID } from '@/lib/operators';
 
@@ -50,6 +51,8 @@ export interface SalaryReport {
 }
 
 export async function getSalaryData(dateFrom: string, dateTo: string): Promise<SalaryReport> {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
   const supabase = getSupabase();
 
   // 1. Get all active CONTROLLER users, ordered by point then created_at

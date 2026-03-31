@@ -2,11 +2,11 @@ export type Locale = "ro" | "ru";
 
 export const translations = {
   ro: {
-    hero: "Biletul tău spre Nordul Moldovei!",
+    hero: "Cu noi nu aștepți — cu noi pleci!",
     from: "De la:",
     to: "Spre:",
     date: "Data:",
-    search: "Sună șoferul",
+    search: "Caută cursă",
     swap: "Inversează direcția",
     popular: "Destinații populare",
     selectDateTime: "Selectează data și ora",
@@ -14,11 +14,11 @@ export const translations = {
     calendarLocale: "ro-RO" as const,
   },
   ru: {
-    hero: "Твой билет на Север Молдовы!",
+    hero: "С нами не ждёшь — с нами едешь!",
     from: "Откуда:",
     to: "Куда:",
     date: "Дата:",
-    search: "Позвони водителю",
+    search: "Найти рейс",
     swap: "Поменять направление",
     popular: "Популярные направления",
     selectDateTime: "Выберите дату и время",

@@ -7,11 +7,16 @@ import {
   getUserByTelegramId,
   getAllTripsForDirection,
   getActiveDrivers,
+  getActiveVehicles,
   getDirectionForPoint,
   getReportedTripIds,
   createReport,
   validateDay,
   getUsedDriverIds,
+  getUsedVehicleIds,
+  createVehicle,
+  needsReclamaCheck,
+  getAssignmentForTrip,
 } from '../services/db.js';
 import { addViolationAndUpdate } from '../services/dailyDigest.js';
 import { getTodayDate, formatTime, formatDate, haversineDistance, minutesLate } from '../utils.js';
@@ -82,6 +87,7 @@ export async function reportConversation(
   }
 
   const drivers = await getActiveDrivers();
+  const vehicles = await getActiveVehicles();
 
   // ── LOOP: report multiple trips ────────────────────────
   while (true) {
@@ -302,44 +308,187 @@ export async function reportConversation(
 
     // ── Step 3: Select Driver (grid layout) — skip if ABSENT/FULL ──
     let driverId: string | null = null;
-    if (status === 'OK' && drivers.length > 0 && point !== 'BALTI') {
-      const usedDriverIds = await getUsedDriverIds(reportDate, point);
-      const availableDrivers = drivers.filter(d => !usedDriverIds.has(d.id));
+    // Check for pre-assigned driver/vehicle
+    const assignment = (status === 'OK' && point !== 'BALTI')
+      ? await getAssignmentForTrip(trip.id, reportDate)
+      : null;
 
-      const driverKb = new InlineKeyboard();
-      let dcol = 0;
-      for (const d of availableDrivers) {
-        const parts = d.full_name.split(' ');
+    if (status === 'OK' && drivers.length > 0 && point !== 'BALTI') {
+      let useAssignedDriver = false;
+
+      // If there's an assigned driver, offer to confirm
+      if (assignment) {
+        const parts = assignment.driver_name.split(' ');
         const shortName = parts.length > 1
           ? `${parts[0]} ${parts.slice(1).map(p => p[0] + '.').join('')}`
-          : d.full_name;
-        driverKb.text(shortName, `driver:${d.id}`);
-        dcol++;
-        if (dcol >= DRIVER_COLS) { driverKb.row(); dcol = 0; }
-      }
-      if (dcol > 0) driverKb.row();
-      driverKb.text('— Fără șofer', 'driver:none');
+          : assignment.driver_name;
 
-      await ctx.reply('Șoferul:', { reply_markup: driverKb });
+        const confirmKb = new InlineKeyboard()
+          .text(`✅ ${shortName}`, 'driver:confirm')
+          .text('🔄 Altul', 'driver:change');
+
+        await ctx.reply(`Șofer programat: ${shortName}`, { reply_markup: confirmKb });
+
+        while (true) {
+          const dCtx = await conversation.wait();
+          if (dCtx.message?.text === '/start') {
+            await showMainMenu(dCtx as BotContext);
+            return;
+          }
+          if (!dCtx.callbackQuery?.data?.startsWith('driver:')) continue;
+          await dCtx.answerCallbackQuery();
+          const val = dCtx.callbackQuery.data.replace('driver:', '');
+          if (val === 'confirm') {
+            driverId = assignment.driver_id;
+            useAssignedDriver = true;
+            break;
+          }
+          if (val === 'change') break; // fall through to normal grid
+        }
+      }
+
+      // Show normal driver grid if no assignment or user chose to change
+      if (!useAssignedDriver) {
+        const usedDriverIds = await getUsedDriverIds(reportDate, point);
+        const availableDrivers = drivers.filter(d => !usedDriverIds.has(d.id));
+
+        const driverKb = new InlineKeyboard();
+        let dcol = 0;
+        for (const d of availableDrivers) {
+          const parts = d.full_name.split(' ');
+          const shortName = parts.length > 1
+            ? `${parts[0]} ${parts.slice(1).map(p => p[0] + '.').join('')}`
+            : d.full_name;
+          driverKb.text(shortName, `driver:${d.id}`);
+          dcol++;
+          if (dcol >= DRIVER_COLS) { driverKb.row(); dcol = 0; }
+        }
+        if (dcol > 0) driverKb.row();
+        driverKb.text('— Fără șofer', 'driver:none');
+
+        await ctx.reply('Șoferul:', { reply_markup: driverKb });
+
+        while (true) {
+          const dCtx = await conversation.wait();
+          if (dCtx.message?.text === '/start') {
+            await showMainMenu(dCtx as BotContext);
+            return;
+          }
+          if (!dCtx.callbackQuery?.data?.startsWith('driver:')) continue;
+          await dCtx.answerCallbackQuery();
+          const val = dCtx.callbackQuery.data.replace('driver:', '');
+          if (val === 'none') { driverId = null; break; }
+          driverId = val;
+          break;
+        }
+      }
+    }
+
+    // ── Step 3b: Select Vehicle (grid layout) ──────────
+    let vehicleId: string | null = null;
+    if (status === 'OK' && point !== 'BALTI') {
+      let useAssignedVehicle = false;
+
+      // If there's an assigned vehicle, offer to confirm
+      if (assignment?.vehicle_id && assignment.plate_number) {
+        const confirmKb = new InlineKeyboard()
+          .text(`✅ ${assignment.plate_number}`, 'vehicle:confirm')
+          .text('🔄 Altul', 'vehicle:change');
+
+        await ctx.reply(`Auto programat: ${assignment.plate_number}`, { reply_markup: confirmKb });
+
+        while (true) {
+          const vCtx = await conversation.wait();
+          if (vCtx.message?.text === '/start') {
+            await showMainMenu(vCtx as BotContext);
+            return;
+          }
+          if (!vCtx.callbackQuery?.data?.startsWith('vehicle:')) continue;
+          await vCtx.answerCallbackQuery();
+          const val = vCtx.callbackQuery.data.replace('vehicle:', '');
+          if (val === 'confirm') {
+            vehicleId = assignment.vehicle_id;
+            useAssignedVehicle = true;
+            break;
+          }
+          if (val === 'change') break; // fall through to normal grid
+        }
+      }
+
+      if (!useAssignedVehicle) {
+      const usedVehicleIds = await getUsedVehicleIds(reportDate, point);
+      const availableVehicles = vehicles.filter(v => !usedVehicleIds.has(v.id));
+
+      const vehicleKb = new InlineKeyboard();
+      let vcol = 0;
+      for (const v of availableVehicles) {
+        vehicleKb.text(v.plate_number, `vehicle:${v.id}`);
+        vcol++;
+        if (vcol >= DRIVER_COLS) { vehicleKb.row(); vcol = 0; }
+      }
+      if (vcol > 0) vehicleKb.row();
+      vehicleKb.text('+ Adaugă auto', 'vehicle:add').text('— Fără auto', 'vehicle:none');
+
+      await ctx.reply('Auto (nomenclator):', { reply_markup: vehicleKb });
 
       while (true) {
-        const dCtx = await conversation.wait();
-        if (dCtx.message?.text === '/start') {
-          await showMainMenu(dCtx as BotContext);
+        const vCtx = await conversation.wait();
+        if (vCtx.message?.text === '/start') {
+          await showMainMenu(vCtx as BotContext);
           return;
         }
-        if (!dCtx.callbackQuery?.data?.startsWith('driver:')) continue;
-        await dCtx.answerCallbackQuery();
-        const val = dCtx.callbackQuery.data.replace('driver:', '');
-        if (val === 'none') { driverId = null; break; }
-        driverId = val;
+        if (!vCtx.callbackQuery?.data?.startsWith('vehicle:')) continue;
+        await vCtx.answerCallbackQuery();
+        const val = vCtx.callbackQuery.data.replace('vehicle:', '');
+        if (val === 'none') { vehicleId = null; break; }
+        if (val === 'add') {
+          await ctx.reply('Scrie numărul auto (ex: 998TCP):');
+          while (true) {
+            const addCtx = await conversation.wait();
+            if (addCtx.message?.text === '/start') {
+              await showMainMenu(addCtx as BotContext);
+              return;
+            }
+            const plate = addCtx.message?.text?.trim().toUpperCase().replace(/\s/g, '');
+            if (plate && plate.length >= 4) {
+              try {
+                const newVehicle = await createVehicle(plate);
+                vehicleId = newVehicle.id;
+                await ctx.reply(`✅ ${newVehicle.plate_number} adăugat.`);
+              } catch (err: any) {
+                if (err?.code === '23505') {
+                  // Already exists — find and use it
+                  const existing = vehicles.find(v => v.plate_number === plate);
+                  if (existing) {
+                    vehicleId = existing.id;
+                    await ctx.reply(`☑ ${plate} există deja, selectat.`);
+                  } else {
+                    await ctx.reply('⚠ Acest număr există deja.');
+                    continue;
+                  }
+                } else {
+                  await ctx.reply('⚠ Eroare la salvare. Încearcă din nou:');
+                  continue;
+                }
+              }
+              break;
+            }
+            await ctx.reply('Număr invalid. Scrie minim 4 caractere (ex: 998TCP):');
+          }
+          break;
+        }
+        vehicleId = val;
         break;
       }
+      } // end if (!useAssignedVehicle)
     }
 
     // ── Step 4: Uniform + Aspect (one message) ────────
     let uniformOk: boolean | null = null;
     let exteriorOk: boolean | null = null;
+    let autoCurat: boolean | null = null;
+    let reclamaOk: boolean | null = null;
+    let reclamaDeadline: string | null = null;
 
     if (status === 'OK' && point !== 'BALTI') {
       const compKb = new InlineKeyboard()
@@ -366,6 +515,103 @@ export async function reportConversation(
         case 'no_asp': uniformOk = true; exteriorOk = false; break;
         case 'both_bad': uniformOk = false; exteriorOk = false; break;
       }
+
+      // ── Step 4b: Auto curat (vehicle cleanliness) ─────
+      const curatKb = new InlineKeyboard()
+        .text('Da ✓', 'curat:da')
+        .text('Nu ✗', 'curat:nu');
+
+      await ctx.reply('Auto curat?', { reply_markup: curatKb });
+
+      while (true) {
+        const curatCtx = await conversation.wait();
+        if (curatCtx.message?.text === '/start') {
+          await showMainMenu(curatCtx as BotContext);
+          return;
+        }
+        if (curatCtx.callbackQuery?.data?.startsWith('curat:')) {
+          await curatCtx.answerCallbackQuery();
+          autoCurat = curatCtx.callbackQuery.data === 'curat:da';
+          break;
+        }
+      }
+
+      // ── Step 4c: Reclamă (conditional — only if vehicle needs check) ─
+      const showReclama = vehicleId ? await needsReclamaCheck(vehicleId) : false;
+      if (showReclama) {
+        const reclamaKb = new InlineKeyboard()
+          .text('Da ✓', 'reclama:da')
+          .text('Nu ✗', 'reclama:nu');
+
+        await ctx.reply('Reclamă OK?', { reply_markup: reclamaKb });
+
+        while (true) {
+          const recCtx = await conversation.wait();
+          if (recCtx.message?.text === '/start') {
+            await showMainMenu(recCtx as BotContext);
+            return;
+          }
+          if (recCtx.callbackQuery?.data?.startsWith('reclama:')) {
+            await recCtx.answerCallbackQuery();
+            reclamaOk = recCtx.callbackQuery.data === 'reclama:da';
+            break;
+          }
+        }
+
+        // If reclama not OK — ask for deadline date
+        if (reclamaOk === false) {
+          const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Chisinau' }));
+          const addDays = (d: Date, n: number) => {
+            const r = new Date(d);
+            r.setDate(r.getDate() + n);
+            return r;
+          };
+          const fmt = (d: Date) => d.toISOString().slice(0, 10);
+          const fmtLabel = (d: Date) =>
+            `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`;
+
+          const d1 = addDays(today, 1);
+          const d3 = addDays(today, 3);
+          const d7 = addDays(today, 7);
+
+          const deadlineKb = new InlineKeyboard()
+            .text(`Mâine (${fmtLabel(d1)})`, `dl:${fmt(d1)}`)
+            .text(`+3 zile (${fmtLabel(d3)})`, `dl:${fmt(d3)}`)
+            .text(`+7 zile (${fmtLabel(d7)})`, `dl:${fmt(d7)}`);
+
+          await ctx.reply('Până când se rezolvă reclama?\n(sau trimite data: ZZ.LL.AAAA)', {
+            reply_markup: deadlineKb,
+          });
+
+          while (true) {
+            const dlCtx = await conversation.wait();
+            if (dlCtx.message?.text === '/start') {
+              await showMainMenu(dlCtx as BotContext);
+              return;
+            }
+            if (dlCtx.callbackQuery?.data?.startsWith('dl:')) {
+              await dlCtx.answerCallbackQuery();
+              reclamaDeadline = dlCtx.callbackQuery.data.replace('dl:', '');
+              break;
+            }
+            const txt = dlCtx.message?.text?.trim();
+            if (txt) {
+              const m = txt.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+              if (m) {
+                const day = parseInt(m[1], 10);
+                const month = parseInt(m[2], 10);
+                const year = parseInt(m[3], 10);
+                const parsed = new Date(year, month - 1, day);
+                if (!isNaN(parsed.getTime()) && parsed > today) {
+                  reclamaDeadline = fmt(parsed);
+                  break;
+                }
+              }
+              await ctx.reply('Format invalid. Trimite data: ZZ.LL.AAAA (în viitor)');
+            }
+          }
+        }
+      }
     }
 
     // ── Save ───────────────────────────────────────────
@@ -379,6 +625,10 @@ export async function reportConversation(
         passengers_count: passengersCount,
         exterior_ok: exteriorOk,
         uniform_ok: uniformOk,
+        auto_curat: autoCurat,
+        reclama_ok: reclamaOk,
+        reclama_deadline: reclamaDeadline,
+        vehicle_id: vehicleId,
         created_by_user: user.id,
         location_ok: needsLoc ? locationOk : null,
       });
@@ -415,9 +665,12 @@ export async function reportConversation(
       } else {
         const passengerInfo = `☑ ${formatTime(trip.departure_time)} — ${passengersCount} pas.`;
         const driverInfo = point !== 'BALTI' ? ` | ${driverName}` : '';
-        const warnings = (uniformOk === false || exteriorOk === false)
-          ? `\n⚠ ${uniformOk === false ? 'uniformă' : ''} ${exteriorOk === false ? 'aspect' : ''}`
-          : '';
+        const warningParts: string[] = [];
+        if (uniformOk === false) warningParts.push('uniformă');
+        if (exteriorOk === false) warningParts.push('aspect');
+        if (autoCurat === false) warningParts.push('auto murdar');
+        if (reclamaOk === false) warningParts.push(`reclamă (până ${reclamaDeadline})`);
+        const warnings = warningParts.length > 0 ? `\n⚠ ${warningParts.join(', ')}` : '';
         await ctx.reply(passengerInfo + driverInfo + warnings);
       }
 

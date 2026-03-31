@@ -1,4 +1,4 @@
-import { getDriverViolations, getOperatorAbsences } from './db.js';
+import { getDriverViolations, getOperatorAbsences, getActiveReclamaIssues } from './db.js';
 import { sendAdminAlert } from './adminAlert.js';
 import { formatDate } from '../utils.js';
 import { config } from '../config.js';
@@ -29,9 +29,10 @@ function getPreviousWeekRange(): { dateFrom: string; dateTo: string } {
 export async function sendWeeklyReport(): Promise<void> {
   const { dateFrom, dateTo } = getPreviousWeekRange();
 
-  const [violations, absences] = await Promise.all([
+  const [violations, absences, reclamaIssues] = await Promise.all([
     getDriverViolations(dateFrom, dateTo),
     getOperatorAbsences(dateFrom, dateTo),
+    getActiveReclamaIssues(),
   ]);
 
   const period = `${formatDate(dateFrom)} — ${formatDate(dateTo)}`;
@@ -50,6 +51,8 @@ export async function sendWeeklyReport(): Promise<void> {
       const issues: string[] = [];
       if (v.uniform_count > 0) issues.push(`uniformă ×${v.uniform_count}`);
       if (v.aspect_count > 0) issues.push(`aspect neîngrijit ×${v.aspect_count}`);
+      if (v.curat_count > 0) issues.push(`auto murdar ×${v.curat_count}`);
+      if (v.reclama_count > 0) issues.push(`reclamă ×${v.reclama_count}`);
       msg += `• <b>${v.driver_name}</b> — ${issues.join(', ')}\n`;
     }
   }
@@ -65,6 +68,32 @@ export async function sendWeeklyReport(): Promise<void> {
     for (const a of absences) {
       const pointLabel = POINT_LABELS[a.point as keyof typeof POINT_LABELS] || a.point;
       msg += `• <b>@${a.username}</b> (${pointLabel}) — ${a.absence_count} zile absent\n`;
+    }
+  }
+
+  msg += `\n${'─'.repeat(28)}\n\n`;
+
+  // ── 3. Reclama status ──
+  msg += `📋 <b>RECLAMĂ — Stare auto</b>\n\n`;
+
+  if (reclamaIssues.length === 0) {
+    msg += `✅ Nicio problemă activă cu reclama.\n`;
+  } else {
+    const overdue = reclamaIssues.filter(i => i.status === 'overdue');
+    const inProcess = reclamaIssues.filter(i => i.status === 'in_process');
+
+    if (overdue.length > 0) {
+      msg += `🔴 EXPIRAT (${overdue.length}):\n`;
+      for (const i of overdue) {
+        msg += `• <b>${i.plate_number}</b> | ${i.driver_name} — ${formatDate(i.reclama_deadline)} ❌\n`;
+      }
+    }
+    if (inProcess.length > 0) {
+      if (overdue.length > 0) msg += `\n`;
+      msg += `🟡 ÎN PROCES (${inProcess.length}):\n`;
+      for (const i of inProcess) {
+        msg += `• <b>${i.plate_number}</b> | ${i.driver_name} — ${formatDate(i.reclama_deadline)} ⏳\n`;
+      }
     }
   }
 

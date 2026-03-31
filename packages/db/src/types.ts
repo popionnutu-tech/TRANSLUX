@@ -76,6 +76,13 @@ export interface Driver {
   created_at: string;
 }
 
+export interface Vehicle {
+  id: string;
+  plate_number: string;
+  active: boolean;
+  created_at: string;
+}
+
 export interface Trip {
   id: string;
   route_id: string;
@@ -95,6 +102,11 @@ export interface Report {
   passengers_count: number | null;
   exterior_ok: boolean | null;
   uniform_ok: boolean | null;
+  auto_curat: boolean | null;
+  reclama_ok: boolean | null;
+  reclama_deadline: string | null;
+  location_ok: boolean | null;
+  vehicle_id: string | null;
   created_by_user: string;
   created_at: string;
   cancelled_at: string | null;
@@ -114,6 +126,24 @@ export interface ReportPhoto {
   storage_key: string;
   telegram_file_id: string;
   file_unique_id: string | null;
+  created_at: string;
+}
+
+export type ScheduleDirection = 'CHISINAU_NORD' | 'NORD_CHISINAU';
+
+export const SCHEDULE_DIRECTION_LABELS: Record<ScheduleDirection, string> = {
+  CHISINAU_NORD: 'Chișinău → Nord',
+  NORD_CHISINAU: 'Nord → Chișinău',
+};
+
+export interface DailyAssignment {
+  id: string;
+  assignment_date: string; // YYYY-MM-DD
+  schedule_id: number;
+  direction: ScheduleDirection;
+  trip_id: string | null;
+  driver_id: string;
+  vehicle_id: string | null;
   created_at: string;
 }
 

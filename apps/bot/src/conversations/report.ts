@@ -308,79 +308,42 @@ export async function reportConversation(
 
     // ── Step 3: Select Driver (grid layout) — skip if ABSENT/FULL ──
     let driverId: string | null = null;
-    // Check for pre-assigned driver/vehicle
     const assignment = (status === 'OK' && point !== 'BALTI')
       ? await getAssignmentForTrip(trip.id, reportDate)
       : null;
 
     if (status === 'OK' && drivers.length > 0 && point !== 'BALTI') {
-      let useAssignedDriver = false;
+      const usedDriverIds = await getUsedDriverIds(reportDate, point);
+      const availableDrivers = drivers.filter(d => !usedDriverIds.has(d.id));
 
-      // If there's an assigned driver, offer to confirm
-      if (assignment) {
-        const parts = assignment.driver_name.split(' ');
+      const driverKb = new InlineKeyboard();
+      let dcol = 0;
+      for (const d of availableDrivers) {
+        const parts = d.full_name.split(' ');
         const shortName = parts.length > 1
           ? `${parts[0]} ${parts.slice(1).map(p => p[0] + '.').join('')}`
-          : assignment.driver_name;
-
-        const confirmKb = new InlineKeyboard()
-          .text(`✅ ${shortName}`, 'driver:confirm')
-          .text('🔄 Altul', 'driver:change');
-
-        await ctx.reply(`Șofer programat: ${shortName}`, { reply_markup: confirmKb });
-
-        while (true) {
-          const dCtx = await conversation.wait();
-          if (dCtx.message?.text === '/start') {
-            await showMainMenu(dCtx as BotContext);
-            return;
-          }
-          if (!dCtx.callbackQuery?.data?.startsWith('driver:')) continue;
-          await dCtx.answerCallbackQuery();
-          const val = dCtx.callbackQuery.data.replace('driver:', '');
-          if (val === 'confirm') {
-            driverId = assignment.driver_id;
-            useAssignedDriver = true;
-            break;
-          }
-          if (val === 'change') break; // fall through to normal grid
-        }
+          : d.full_name;
+        driverKb.text(shortName, `driver:${d.id}`);
+        dcol++;
+        if (dcol >= DRIVER_COLS) { driverKb.row(); dcol = 0; }
       }
+      if (dcol > 0) driverKb.row();
+      driverKb.text('— Fără șofer', 'driver:none');
 
-      // Show normal driver grid if no assignment or user chose to change
-      if (!useAssignedDriver) {
-        const usedDriverIds = await getUsedDriverIds(reportDate, point);
-        const availableDrivers = drivers.filter(d => !usedDriverIds.has(d.id));
+      await ctx.reply('Șoferul:', { reply_markup: driverKb });
 
-        const driverKb = new InlineKeyboard();
-        let dcol = 0;
-        for (const d of availableDrivers) {
-          const parts = d.full_name.split(' ');
-          const shortName = parts.length > 1
-            ? `${parts[0]} ${parts.slice(1).map(p => p[0] + '.').join('')}`
-            : d.full_name;
-          driverKb.text(shortName, `driver:${d.id}`);
-          dcol++;
-          if (dcol >= DRIVER_COLS) { driverKb.row(); dcol = 0; }
+      while (true) {
+        const dCtx = await conversation.wait();
+        if (dCtx.message?.text === '/start') {
+          await showMainMenu(dCtx as BotContext);
+          return;
         }
-        if (dcol > 0) driverKb.row();
-        driverKb.text('— Fără șofer', 'driver:none');
-
-        await ctx.reply('Șoferul:', { reply_markup: driverKb });
-
-        while (true) {
-          const dCtx = await conversation.wait();
-          if (dCtx.message?.text === '/start') {
-            await showMainMenu(dCtx as BotContext);
-            return;
-          }
-          if (!dCtx.callbackQuery?.data?.startsWith('driver:')) continue;
-          await dCtx.answerCallbackQuery();
-          const val = dCtx.callbackQuery.data.replace('driver:', '');
-          if (val === 'none') { driverId = null; break; }
-          driverId = val;
-          break;
-        }
+        if (!dCtx.callbackQuery?.data?.startsWith('driver:')) continue;
+        await dCtx.answerCallbackQuery();
+        const val = dCtx.callbackQuery.data.replace('driver:', '');
+        if (val === 'none') { driverId = null; break; }
+        driverId = val;
+        break;
       }
     }
 

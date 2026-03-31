@@ -1,6 +1,7 @@
 'use server';
 
 import { getSupabase } from '@/lib/supabase';
+import { verifySession } from '@/lib/auth';
 import type { PointEnum, DirectionEnum, ReportStatus } from '@translux/db';
 
 function formatDriverName(fullName: string): string {
@@ -19,6 +20,9 @@ export interface ReportRow {
   passengers_count: number | null;
   exterior_ok: boolean | null;
   uniform_ok: boolean | null;
+  auto_curat: boolean | null;
+  reclama_ok: boolean | null;
+  reclama_deadline: string | null;
   created_at: string;
   cancelled_at: string | null;
   route_name: string;
@@ -26,6 +30,8 @@ export interface ReportRow {
   direction: DirectionEnum;
   driver_name: string | null;
   driver_id: string | null;
+  vehicle_id: string | null;
+  plate_number: string | null;
   photos_count: number;
 }
 
@@ -65,11 +71,16 @@ export async function getReports(filters: ReportFilters): Promise<ReportsResult>
       passengers_count,
       exterior_ok,
       uniform_ok,
+      auto_curat,
+      reclama_ok,
+      reclama_deadline,
       created_at,
       cancelled_at,
       driver_id,
+      vehicle_id,
       trips!inner(departure_time, direction, routes!inner(name)),
       drivers(full_name),
+      vehicles(plate_number),
       report_photos(id)
     `,
       { count: 'exact' }
@@ -116,6 +127,9 @@ export async function getReports(filters: ReportFilters): Promise<ReportsResult>
     passengers_count: r.passengers_count === -1 ? null : r.passengers_count,
     exterior_ok: r.exterior_ok,
     uniform_ok: r.uniform_ok,
+    auto_curat: r.auto_curat,
+    reclama_ok: r.reclama_ok,
+    reclama_deadline: r.reclama_deadline,
     created_at: r.created_at,
     cancelled_at: r.cancelled_at,
     route_name: r.trips?.routes?.name || '—',
@@ -123,6 +137,8 @@ export async function getReports(filters: ReportFilters): Promise<ReportsResult>
     direction: r.trips?.direction,
     driver_name: r.drivers?.full_name ? formatDriverName(r.drivers.full_name) : null,
     driver_id: r.driver_id,
+    vehicle_id: r.vehicle_id || null,
+    plate_number: r.vehicles?.plate_number || null,
     photos_count: r.report_photos?.length || 0,
   }));
 
@@ -176,20 +192,27 @@ export interface ComplianceSummary {
   totalOk: number;
   aspectOkCount: number;
   uniformOkCount: number;
+  autoCuratOkCount: number;
+  reclamaOkCount: number;
   aspectPct: number;
   uniformPct: number;
+  autoCuratPct: number;
+  reclamaPct: number;
   violations: Array<{
     driver_name: string;
     report_date: string;
     exterior_ok: boolean | null;
     uniform_ok: boolean | null;
+    auto_curat: boolean | null;
+    reclama_ok: boolean | null;
+    reclama_deadline: string | null;
   }>;
 }
 
 export async function getComplianceSummary(filters: ReportFilters): Promise<ComplianceSummary> {
   let query = getSupabase()
     .from('reports')
-    .select('exterior_ok, uniform_ok, report_date, driver_id, drivers(full_name), trips!inner(direction, route_id)')
+    .select('exterior_ok, uniform_ok, auto_curat, reclama_ok, reclama_deadline, report_date, driver_id, drivers(full_name), trips!inner(direction, route_id)')
     .eq('status', 'OK')
     .is('cancelled_at', null);
 
@@ -206,17 +229,24 @@ export async function getComplianceSummary(filters: ReportFilters): Promise<Comp
   const totalOk = rows.length;
   let aspectOkCount = 0;
   let uniformOkCount = 0;
+  let autoCuratOkCount = 0;
+  let reclamaOkCount = 0;
   const violations: ComplianceSummary['violations'] = [];
 
   for (const r of rows) {
     if (r.exterior_ok) aspectOkCount++;
     if (r.uniform_ok) uniformOkCount++;
-    if (!r.exterior_ok || !r.uniform_ok) {
+    if (r.auto_curat !== false) autoCuratOkCount++;
+    if (r.reclama_ok !== false) reclamaOkCount++;
+    if (!r.exterior_ok || !r.uniform_ok || r.auto_curat === false || r.reclama_ok === false) {
       violations.push({
         driver_name: r.drivers?.full_name ? formatDriverName(r.drivers.full_name) : '—',
         report_date: r.report_date,
         exterior_ok: r.exterior_ok,
         uniform_ok: r.uniform_ok,
+        auto_curat: r.auto_curat,
+        reclama_ok: r.reclama_ok,
+        reclama_deadline: r.reclama_deadline,
       });
     }
   }
@@ -225,8 +255,12 @@ export async function getComplianceSummary(filters: ReportFilters): Promise<Comp
     totalOk,
     aspectOkCount,
     uniformOkCount,
+    autoCuratOkCount,
+    reclamaOkCount,
     aspectPct: totalOk > 0 ? Math.round((aspectOkCount / totalOk) * 100) : 0,
     uniformPct: totalOk > 0 ? Math.round((uniformOkCount / totalOk) * 100) : 0,
+    autoCuratPct: totalOk > 0 ? Math.round((autoCuratOkCount / totalOk) * 100) : 0,
+    reclamaPct: totalOk > 0 ? Math.round((reclamaOkCount / totalOk) * 100) : 0,
     violations,
   };
 }
@@ -239,9 +273,11 @@ export async function exportReportsCSV(filters: ReportFilters): Promise<string> 
     .select(
       `
       id, report_date, point, status, passengers_count,
-      exterior_ok, uniform_ok, created_at, cancelled_at, driver_id,
+      exterior_ok, uniform_ok, auto_curat, reclama_ok, reclama_deadline,
+      created_at, cancelled_at, driver_id, vehicle_id,
       trips!inner(departure_time, direction, routes!inner(name)),
-      drivers(full_name)
+      drivers(full_name),
+      vehicles(plate_number)
     `
     )
     .order('report_date', { ascending: false })
@@ -258,7 +294,7 @@ export async function exportReportsCSV(filters: ReportFilters): Promise<string> 
   const { data } = await query;
   const rows = (data || []) as any[];
 
-  const header = 'Data,Punct,Ruta,Ora,Directia,Sofer,Status,Pasageri,Aspect OK,Uniforma OK,Anulat';
+  const header = 'Data,Punct,Ruta,Ora,Directia,Sofer,Auto,Status,Pasageri,Aspect OK,Uniforma OK,Auto Curat,Reclama OK,Reclama Deadline,Anulat';
   const lines = rows.map((r: any) => {
     const cols = [
       r.report_date,
@@ -267,10 +303,14 @@ export async function exportReportsCSV(filters: ReportFilters): Promise<string> 
       (r.trips?.departure_time || '').slice(0, 5),
       r.trips?.direction || '',
       `"${r.drivers?.full_name ? formatDriverName(r.drivers.full_name) : ''}"`,
+      r.vehicles?.plate_number || '',
       r.status,
       r.passengers_count ?? '',
       r.exterior_ok != null ? (r.exterior_ok ? 'DA' : 'NU') : '',
       r.uniform_ok != null ? (r.uniform_ok ? 'DA' : 'NU') : '',
+      r.auto_curat != null ? (r.auto_curat ? 'DA' : 'NU') : '',
+      r.reclama_ok != null ? (r.reclama_ok ? 'DA' : 'NU') : '',
+      r.reclama_deadline || '',
       r.cancelled_at ? 'DA' : 'NU',
     ];
     return cols.join(',');

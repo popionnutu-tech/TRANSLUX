@@ -5,7 +5,9 @@ const { compare } = bcrypt;
 import { getSupabase } from './supabase';
 import type { AdminAccount } from '@translux/db';
 
-const secret = new TextEncoder().encode(process.env.AUTH_SECRET || 'translux-secret-change-me');
+const AUTH_SECRET = process.env.AUTH_SECRET;
+if (!AUTH_SECRET) console.warn('AUTH_SECRET not set — using dev-only fallback');
+const secret = new TextEncoder().encode(AUTH_SECRET || 'dev-only-secret');
 const COOKIE_NAME = 'translux-session';
 
 export async function authenticate(email: string, password: string): Promise<string | null> {

@@ -18,6 +18,8 @@ export async function getUsers(): Promise<User[]> {
 }
 
 export async function updateUserRole(id: string, role: UserRole) {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
   const { error } = await getSupabase()
     .from('users')
     .update({ role })
@@ -27,6 +29,8 @@ export async function updateUserRole(id: string, role: UserRole) {
 }
 
 export async function updateUserPoint(id: string, point: PointEnum | null) {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
   const { error } = await getSupabase()
     .from('users')
     .update({ point })
@@ -36,11 +40,15 @@ export async function updateUserPoint(id: string, point: PointEnum | null) {
 }
 
 export async function toggleUser(id: string, active: boolean) {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
   await getSupabase().from('users').update({ active }).eq('id', id);
   revalidatePath('/users');
 }
 
 export async function deleteUser(id: string) {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
   const { error } = await getSupabase().from('users').delete().eq('id', id);
   if (error) throw new Error(error.message);
   revalidatePath('/users');
@@ -85,6 +93,8 @@ export async function createInvite(point: PointEnum): Promise<{ token: string; b
 }
 
 export async function deleteInvite(token: string) {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
   await getSupabase().from('invite_tokens').delete().eq('token', token);
   revalidatePath('/users');
 }

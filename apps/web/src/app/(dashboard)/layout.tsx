@@ -1,6 +1,11 @@
+import { redirect } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
+import { verifySession } from '@/lib/auth';
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const session = await verifySession();
+  if (!session) redirect('/login');
+
   return (
     <div className="dashboard" style={{ display: 'flex', height: '100vh', position: 'relative' }}>
       <Sidebar />

@@ -1,6 +1,7 @@
 'use client';
 
-import { useRouter, useSearchParams } from 'next/navigation';
+import React from 'react';
+import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
 import { POINT_LABELS } from '@translux/db';
 import type { SalaryReport } from './actions';
@@ -290,9 +291,8 @@ export default function SalaryClient({ salaryData, year, month }: Props) {
           </thead>
           <tbody>
             {salaryData.operators.map((op) => (
-              <>
+              <React.Fragment key={op.userId}>
                 <tr
-                  key={op.userId}
                   className="operator-row"
                   onClick={() =>
                     setExpandedOperator(expandedOperator === op.userId ? null : op.userId)
@@ -353,7 +353,7 @@ export default function SalaryClient({ salaryData, year, month }: Props) {
                     </td>
                   </tr>
                 )}
-              </>
+              </React.Fragment>
             ))}
 
             {/* Total row */}

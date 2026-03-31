@@ -1,63 +1,33 @@
 "use client";
 
 import * as React from "react";
-
-interface Trip {
-  time: string;
-  driver: string;
-  phone: string;
-  price: string;
-}
-
-// Mock data — will be replaced with DB query
-const MOCK_TRIPS: Trip[] = [
-  { time: "06:00", driver: "Vasile Grosu", phone: "060 123 456", price: "40 LEI" },
-  { time: "06:30", driver: "Ion Ceban", phone: "069 234 567", price: "40 LEI" },
-  { time: "07:00", driver: "Andrei Moraru", phone: "068 345 678", price: "40 LEI" },
-  { time: "07:30", driver: "Dumitru Russu", phone: "067 456 789", price: "40 LEI" },
-  { time: "08:00", driver: "Nicolae Lungu", phone: "060 567 890", price: "40 LEI" },
-  { time: "08:30", driver: "Sergiu Cojocaru", phone: "069 678 901", price: "40 LEI" },
-  { time: "09:00", driver: "Pavel Ursu", phone: "068 789 012", price: "40 LEI" },
-  { time: "09:30", driver: "Gheorghe Munteanu", phone: "060 890 123", price: "40 LEI" },
-  { time: "10:00", driver: "Victor Rusu", phone: "069 901 234", price: "40 LEI" },
-  { time: "10:30", driver: "Alexandru Popescu", phone: "067 012 345", price: "40 LEI" },
-  { time: "11:00", driver: "Mihai Rotaru", phone: "060 111 222", price: "40 LEI" },
-  { time: "11:30", driver: "Oleg Bivol", phone: "069 222 333", price: "40 LEI" },
-  { time: "12:00", driver: "Vitalie Codreanu", phone: "068 333 444", price: "40 LEI" },
-  { time: "13:00", driver: "Radu Botnaru", phone: "060 444 555", price: "40 LEI" },
-  { time: "14:00", driver: "Constantin Platon", phone: "069 555 666", price: "40 LEI" },
-  { time: "15:00", driver: "Eugen Guțu", phone: "067 666 777", price: "40 LEI" },
-];
+import type { TripResult } from "@/app/(public)/actions";
 
 interface RouteResultsProps {
   from: string;
   to: string;
+  trips: TripResult[];
   selectedTime: string | null;
   locale?: "ro" | "ru";
   onClose: () => void;
 }
 
-export function RouteResults({ from, to, selectedTime, locale = "ro", onClose }: RouteResultsProps) {
+export function RouteResults({ from, to, trips, selectedTime, locale = "ro", onClose }: RouteResultsProps) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const selectedRef = React.useRef<HTMLDivElement>(null);
 
-  // Find closest trip index to selected time
   const selectedIdx = React.useMemo(() => {
-    if (!selectedTime) return -1;
-    const idx = MOCK_TRIPS.findIndex((t) => t.time === selectedTime);
-    if (idx >= 0) return idx;
-    // find closest
+    if (!selectedTime || trips.length === 0) return 0;
     const sel = timeToMinutes(selectedTime);
     let best = 0;
     let bestDiff = Infinity;
-    MOCK_TRIPS.forEach((t, i) => {
+    trips.forEach((t, i) => {
       const diff = Math.abs(timeToMinutes(t.time) - sel);
       if (diff < bestDiff) { bestDiff = diff; best = i; }
     });
     return best;
-  }, [selectedTime]);
+  }, [selectedTime, trips]);
 
-  // Auto-scroll to show selected with 2 before visible
   React.useEffect(() => {
     if (selectedRef.current && scrollRef.current) {
       const el = selectedRef.current;
@@ -67,45 +37,79 @@ export function RouteResults({ from, to, selectedTime, locale = "ro", onClose }:
     }
   }, [selectedIdx]);
 
+  React.useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
   const isNearby = (i: number) =>
     i >= selectedIdx - 2 && i <= selectedIdx + 2 && i !== selectedIdx;
 
   return (
-    <div style={{
-      position: "fixed", inset: 0, zIndex: 99,
-      display: "flex", alignItems: "center", justifyContent: "center",
-    }}>
+    <div
+      style={{
+        position: "fixed", inset: 0, zIndex: 99,
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}
+      role="dialog"
+      aria-modal="true"
+    >
       <style>{`
         .route-results-scroll { max-height: 65vh; }
         @media (max-width: 768px) { .route-results-scroll { max-height: 75vh; } }
+        @keyframes modalIn { from { opacity: 0; transform: scale(0.96) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
+        .route-modal-backdrop { animation: backdropIn 0.2s ease-out; }
+        .route-modal-content { animation: modalIn 0.25s ease-out; }
+        .trip-row:hover { background: rgba(155,27,48,0.04) !important; }
+        .call-btn:hover { transform: scale(1.1); box-shadow: 0 2px 8px rgba(34,197,94,0.4); }
+        .call-btn { transition: all 0.15s ease; }
       `}</style>
       <div
+        className="route-modal-backdrop"
         onClick={onClose}
         style={{
           position: "absolute", inset: 0,
-          background: "rgba(0,0,0,0.3)", backdropFilter: "blur(4px)",
+          background: "rgba(0,0,0,0.35)", backdropFilter: "blur(6px)",
         }}
       />
-      <div style={{
+      <div className="route-modal-content" style={{
         position: "relative", zIndex: 1,
-        width: "min(92vw, 760px)",
+        width: "min(92vw, 680px)",
+        borderRadius: 20, overflow: "hidden",
+        boxShadow: "0 20px 60px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.05)",
       }}>
         {/* Header */}
         <div style={{
           background: "#fff",
-          borderRadius: "12px 12px 0 0",
-          padding: "14px 16px 10px",
+          padding: "16px 20px 12px",
           textAlign: "center",
           borderBottom: "1px solid #f0f0f0",
+          position: "relative",
         }}>
+          <button
+            onClick={onClose}
+            style={{
+              position: "absolute", right: 14, top: 14,
+              width: 28, height: 28, borderRadius: "50%",
+              border: "none", background: "rgba(0,0,0,0.05)",
+              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+              color: "#999", fontSize: 16,
+            }}
+            aria-label="Close"
+          >&times;</button>
           <div style={{
-            fontSize: 13, fontWeight: 700, color: "#9B1B30",
-            letterSpacing: "0.03em",
+            fontSize: 14, fontWeight: 700, color: "#9B1B30",
+            letterSpacing: "0.04em",
+            fontFamily: "var(--font-opensans), Open Sans, sans-serif",
           }}>
-            {from.toUpperCase()} → {to.toUpperCase()}
+            {from.toUpperCase()} &rarr; {to.toUpperCase()}
           </div>
-          <div style={{ fontSize: 10, color: "#999", marginTop: 2 }}>
-            {locale === "ru" ? "↕ прокрутите для других рейсов" : "↕ scroll pentru alte curse"}
+          <div style={{ fontSize: 10, color: "#aaa", marginTop: 3, letterSpacing: "0.02em" }}>
+            {trips.length > 0
+              ? (locale === "ru" ? `${trips.length} рейсов найдено` : `${trips.length} curse găsite`)
+              : (locale === "ru" ? "Рейсы не найдены" : "Nu s-au găsit curse")}
           </div>
         </div>
 
@@ -116,74 +120,95 @@ export function RouteResults({ from, to, selectedTime, locale = "ro", onClose }:
           style={{
             overflowY: "auto",
             background: "#fff",
-            position: "relative",
           }}
         >
-          {MOCK_TRIPS.map((trip, i) => {
+          {trips.length === 0 && (
+            <div style={{ padding: 40, textAlign: "center", color: "#999", fontSize: 14 }}>
+              {locale === "ru"
+                ? "Нет прямых рейсов между этими пунктами"
+                : "Nu există curse directe între aceste puncte"}
+            </div>
+          )}
+          {trips.map((trip, i) => {
             const isSelected = i === selectedIdx;
             const near = isNearby(i);
             return (
               <div
-                key={trip.time}
+                key={`${trip.time}-${i}`}
                 ref={isSelected ? selectedRef : undefined}
+                className="trip-row"
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 10,
-                  padding: "9px 14px",
-                  borderLeft: `3px solid ${isSelected || near ? "#9B1B30" : "#e8e8e8"}`,
+                  gap: 12,
+                  padding: "10px 20px",
+                  borderLeft: `3px solid ${isSelected ? "#9B1B30" : near ? "rgba(155,27,48,0.3)" : "transparent"}`,
                   background: isSelected
-                    ? "rgba(155,27,48,0.07)"
+                    ? "rgba(155,27,48,0.06)"
                     : near
                       ? "rgba(155,27,48,0.02)"
                       : "transparent",
                   borderBottom: "1px solid #f5f5f5",
-                  cursor: "pointer",
                   transition: "background 0.15s",
                 }}
               >
+                {/* Time */}
                 <span style={{
                   fontWeight: 700,
-                  fontSize: 15,
-                  minWidth: 44,
+                  fontSize: 16,
+                  minWidth: 48,
                   fontVariantNumeric: "tabular-nums",
-                  color: isSelected || near ? "#9B1B30" : "#222",
+                  color: isSelected || near ? "#9B1B30" : "#333",
+                  fontFamily: "var(--font-opensans), Open Sans, sans-serif",
                 }}>
                   {trip.time}
                 </span>
+
+                {/* Route info */}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{
-                    fontSize: 11, color: "#444", fontWeight: 500,
+                    fontSize: 12, color: "#333", fontWeight: 500,
                     whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                   }}>
-                    {trip.driver}
+                    {locale === "ru" ? trip.destination_ru : trip.destination_ro}
                   </div>
-                  <div style={{ fontSize: 10, color: "#999" }}>
-                    <a
-                      href={`tel:+373${trip.phone.replace(/\s/g, "")}`}
-                      style={{ color: "#9B1B30", textDecoration: "none" }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {trip.phone}
-                    </a>
-                  </div>
+                  {trip.driver && (
+                    <div style={{ fontSize: 11, color: "#999", marginTop: 1 }}>
+                      {trip.driver}
+                    </div>
+                  )}
                 </div>
+
+                {/* Call button (if phone available) */}
+                {trip.phone && (
+                  <a
+                    href={`tel:${trip.phone}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="call-btn"
+                    style={{
+                      flexShrink: 0, width: 38, height: 38, borderRadius: "50%",
+                      background: "#22c55e", display: "flex", alignItems: "center",
+                      justifyContent: "center", textDecoration: "none",
+                      boxShadow: "0 2px 6px rgba(34,197,94,0.25)",
+                    }}
+                    aria-label={`Sună ${trip.driver}`}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                  </a>
+                )}
+
+                {/* Price */}
                 <span style={{
-                  fontWeight: 700, color: "#9B1B30", fontSize: 13, whiteSpace: "nowrap",
+                  fontWeight: 700, color: "#9B1B30", fontSize: 14, whiteSpace: "nowrap",
+                  fontFamily: "var(--font-opensans), Open Sans, sans-serif",
+                  minWidth: 52, textAlign: "right",
                 }}>
-                  {trip.price}
+                  {trip.price > 0 ? `${trip.price} LEI` : '—'}
                 </span>
               </div>
             );
           })}
         </div>
-
-        {/* Bottom rounded corner */}
-        <div style={{
-          background: "#fff",
-          borderRadius: "0 0 12px 12px",
-          height: 8,
-        }} />
       </div>
     </div>
   );
@@ -191,5 +216,5 @@ export function RouteResults({ from, to, selectedTime, locale = "ro", onClose }:
 
 function timeToMinutes(t: string): number {
   const [h, m] = t.split(":").map(Number);
-  return h * 60 + m;
+  return (h || 0) * 60 + (m || 0);
 }

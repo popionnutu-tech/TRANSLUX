@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { getSupabase } from '@/lib/supabase';
+import { verifySession } from '@/lib/auth';
 import type { Trip, Route, DirectionEnum } from '@translux/db';
 
 export interface TripWithRoute extends Trip {
@@ -26,6 +27,8 @@ export async function getActiveRoutes(): Promise<Route[]> {
 }
 
 export async function createTrip(routeId: string, direction: DirectionEnum, departureTime: string) {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
   if (!routeId || !direction || !departureTime) {
     throw new Error('Toate câmpurile sunt obligatorii');
   }
@@ -44,11 +47,15 @@ export async function createTrip(routeId: string, direction: DirectionEnum, depa
 }
 
 export async function toggleTrip(id: string, active: boolean) {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
   await getSupabase().from('trips').update({ active }).eq('id', id);
   revalidatePath('/trips');
 }
 
 export async function deleteTrip(id: string) {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
   const { error } = await getSupabase().from('trips').delete().eq('id', id);
   if (error) throw new Error(error.message);
   revalidatePath('/trips');

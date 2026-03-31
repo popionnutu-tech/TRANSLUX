@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter, Space_Grotesk, JetBrains_Mono, Raleway, Playfair_Display, Open_Sans, Montserrat } from 'next/font/google';
 import './globals.css';
 import { cn } from "@/lib/utils";
@@ -45,9 +45,17 @@ const openSans = Open_Sans({
   display: 'swap',
 });
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+};
+
 export const metadata: Metadata = {
   title: 'TRANSLUX',
   description: 'Sistem de monitorizare transport',
+  other: {
+    'format-detection': 'telephone=no',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

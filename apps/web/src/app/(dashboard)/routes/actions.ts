@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { getSupabase } from '@/lib/supabase';
+import { verifySession } from '@/lib/auth';
 import type { Route } from '@translux/db';
 
 export async function getRoutes(): Promise<Route[]> {
@@ -13,6 +14,8 @@ export async function getRoutes(): Promise<Route[]> {
 }
 
 export async function createRoute(name: string) {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
   const trimmed = name.trim();
   if (!trimmed) throw new Error('Numele rutei este obligatoriu');
 
@@ -25,11 +28,15 @@ export async function createRoute(name: string) {
 }
 
 export async function toggleRoute(id: string, active: boolean) {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
   await getSupabase().from('routes').update({ active }).eq('id', id);
   revalidatePath('/routes');
 }
 
 export async function deleteRoute(id: string) {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
   const { error } = await getSupabase().from('routes').delete().eq('id', id);
   if (error) throw new Error(error.message);
   revalidatePath('/routes');

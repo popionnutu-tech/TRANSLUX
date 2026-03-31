@@ -9,9 +9,10 @@ interface DateTimePickerProps {
   name?: string;
   locale?: Locale;
   onChange?: (date: Date | undefined, time: string | null) => void;
+  availableTimes?: string[];
 }
 
-export function DateTimePicker({ name = "data", locale = "ro", onChange }: DateTimePickerProps) {
+export function DateTimePicker({ name = "data", locale = "ro", onChange, availableTimes }: DateTimePickerProps) {
   const [open, setOpen] = React.useState(false);
   const [date, setDate] = React.useState<Date | undefined>();
   const [selectedTime, setSelectedTime] = React.useState<string | null>(null);
@@ -44,7 +45,7 @@ export function DateTimePicker({ name = "data", locale = "ro", onChange }: DateT
           width: '100%', height: 44,
           border: 'none', borderRadius: 10,
           padding: "0 16px 0 32px",
-          fontSize: 13,
+          fontSize: 16,
           background: "rgba(255,255,255,0.92)",
           outline: "none",
           fontStyle: "italic",
@@ -71,6 +72,7 @@ export function DateTimePicker({ name = "data", locale = "ro", onChange }: DateT
               selectedTime={selectedTime}
               onTimeChange={setSelectedTime}
               locale={locale}
+              availableTimes={availableTimes}
               onConfirm={() => {
                 setOpen(false);
                 onChange?.(date, selectedTime);

@@ -8,7 +8,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="dashboard" style={{ display: 'flex', height: '100vh', position: 'relative' }}>
-      <Sidebar />
+      <Sidebar role={session.role} />
       <main style={{
         flex: 1,
         overflowY: 'auto',

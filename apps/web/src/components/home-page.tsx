@@ -1,69 +1,62 @@
 'use client';
 
-import { useState, useRef, useMemo, useCallback } from 'react';
+import { useState, useRef, useMemo } from 'react';
+import { format } from 'date-fns';
+import { ro as roLocale, ru as ruLocale } from 'date-fns/locale';
 import ShaderBackground from '@/components/ui/shader-background';
 import { RainbowButton } from '@/components/ui/rainbow-borders-button';
-import { DateTimePicker } from '@/components/ui/date-time-picker';
+import { MiniCalendar } from '@/components/ui/mini-calendar';
 import { RouteResults } from '@/components/ui/route-results';
 import { type Locale, t } from '@/lib/i18n';
-import { searchTrips, getDepartureTimes, type Locality, type TripResult } from '@/app/(public)/actions';
+import { searchTrips, type Locality, type TripResult, type ActiveOffer } from '@/app/(public)/actions';
 
 const popularRoutes = {
   ro: [
-    { route: 'CHIȘINĂU - BĂLȚI', price: '40 LEI' },
-    { route: 'CHIȘINĂU - EDINEȚ', price: '70 LEI' },
-    { route: 'CHIȘINĂU - SÎNGEREI', price: '50 LEI' },
-    { route: 'CHIȘINĂU - OCNIȚA', price: '85 LEI' },
-    { route: 'CHIȘINĂU - OTACI', price: '85 LEI' },
-    { route: 'CHIȘINĂU - BRICENI', price: '80 LEI' },
-    { route: 'CHIȘINĂU - CUPCINI', price: '90 LEI' },
-    { route: 'CHIȘINĂU - LIPCANI', price: '92 LEI' },
-    { route: 'CHIȘINĂU - CORJEUȚI', price: '80 LEI' },
-    { route: 'CHIȘINĂU - GRIMĂNCĂUȚI', price: '83 LEI' },
-    { route: 'CHIȘINĂU - CRIVA', price: '100 LEI' },
-    { route: 'CHIȘINĂU - LARGA', price: '80 LEI' },
+    { route: 'CHIȘINĂU - BĂLȚI', price: '120 LEI' },
+    { route: 'CHIȘINĂU - EDINEȚ', price: '184 LEI' },
+    { route: 'CHIȘINĂU - SÎNGEREI', price: '95 LEI' },
+    { route: 'CHIȘINĂU - OCNIȚA', price: '216 LEI' },
+    { route: 'CHIȘINĂU - OTACI', price: '241 LEI' },
+    { route: 'CHIȘINĂU - BRICENI', price: '215 LEI' },
+    { route: 'CHIȘINĂU - CUPCINI', price: '178 LEI' },
+    { route: 'CHIȘINĂU - LIPCANI', price: '237 LEI' },
+    { route: 'CHIȘINĂU - CORJEUȚI', price: '228 LEI' },
+    { route: 'CHIȘINĂU - GRIMĂNCĂUȚI', price: '214 LEI' },
+    { route: 'CHIȘINĂU - CRIVA', price: '249 LEI' },
+    { route: 'CHIȘINĂU - LARGA', price: '229 LEI' },
   ],
   ru: [
-    { route: 'КИШИНЁВ - БЭЛЦЬ', price: '40 LEI' },
-    { route: 'КИШИНЁВ - ЕДИНЕЦ', price: '70 LEI' },
-    { route: 'КИШИНЁВ - СЫНЖЕРЕЙ', price: '50 LEI' },
-    { route: 'КИШИНЁВ - ОКНИЦА', price: '85 LEI' },
-    { route: 'КИШИНЁВ - ОТАЧЬ', price: '85 LEI' },
-    { route: 'КИШИНЁВ - БРИЧЕНЬ', price: '80 LEI' },
-    { route: 'КИШИНЁВ - КУПЧИНЬ', price: '90 LEI' },
-    { route: 'КИШИНЁВ - ЛИПКАНЬ', price: '92 LEI' },
-    { route: 'КИШИНЁВ - КОРЖЕУЦЬ', price: '80 LEI' },
-    { route: 'КИШИНЁВ - ГРИМЭНКЭУЦЬ', price: '83 LEI' },
-    { route: 'КИШИНЁВ - КРИВА', price: '100 LEI' },
-    { route: 'КИШИНЁВ - ЛАРГА', price: '80 LEI' },
+    { route: 'КИШИНЁВ - БЭЛЦЬ', price: '120 LEI' },
+    { route: 'КИШИНЁВ - ЕДИНЕЦ', price: '184 LEI' },
+    { route: 'КИШИНЁВ - СЫНЖЕРЕЙ', price: '95 LEI' },
+    { route: 'КИШИНЁВ - ОКНИЦА', price: '216 LEI' },
+    { route: 'КИШИНЁВ - ОТАЧЬ', price: '241 LEI' },
+    { route: 'КИШИНЁВ - БРИЧЕНЬ', price: '215 LEI' },
+    { route: 'КИШИНЁВ - КУПЧИНЬ', price: '178 LEI' },
+    { route: 'КИШИНЁВ - ЛИПКАНЬ', price: '237 LEI' },
+    { route: 'КИШИНЁВ - КОРЖЕУЦЬ', price: '228 LEI' },
+    { route: 'КИШИНЁВ - ГРИМЭНКЭУЦЬ', price: '214 LEI' },
+    { route: 'КИШИНЁВ - КРИВА', price: '249 LEI' },
+    { route: 'КИШИНЁВ - ЛАРГА', price: '229 LEI' },
   ],
 };
 
 interface HomePageProps {
   locale: Locale;
   localities?: Locality[];
+  offers?: ActiveOffer[];
 }
 
-export function HomePage({ locale, localities = [] }: HomePageProps) {
+export function HomePage({ locale, localities = [], offers = [] }: HomePageProps) {
   const [showResults, setShowResults] = useState(false);
-  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [trips, setTrips] = useState<TripResult[]>([]);
   const [searching, setSearching] = useState(false);
-  const [availableTimes, setAvailableTimes] = useState<string[]>([]);
   const fromRef = useRef<HTMLSelectElement>(null);
   const toRef = useRef<HTMLSelectElement>(null);
+  const calRef = useRef<HTMLDivElement>(null);
   const i = t(locale);
-
-  const loadDepartureTimes = useCallback(async () => {
-    const from = fromRef.current?.value;
-    const to = toRef.current?.value;
-    if (from && to && from !== to) {
-      const times = await getDepartureTimes(from, to);
-      setAvailableTimes(times);
-    } else {
-      setAvailableTimes([]);
-    }
-  }, []);
 
   const sortedLocalities = useMemo(() => {
     const major = localities.filter(l => l.is_major).sort((a, b) => b.sort_order - a.sort_order);
@@ -81,7 +74,7 @@ export function HomePage({ locale, localities = [] }: HomePageProps) {
 
     setSearching(true);
     try {
-      const results = await searchTrips(from, to);
+      const results = await searchTrips(from, to, format(selectedDate, 'yyyy-MM-dd'));
       setTrips(results);
       setShowResults(true);
     } catch (err) {
@@ -110,6 +103,12 @@ export function HomePage({ locale, localities = [] }: HomePageProps) {
         .hero-select:focus { box-shadow: 0 0 0 2px rgba(155,27,48,0.15) !important; outline: none; }
         .hero-swap:hover { background: rgba(155,27,48,0.08) !important; border-radius: 50%; }
         .hero-swap:active { transform: scale(0.92); }
+        @media (max-width: 640px) {
+          .hero-form { flex-wrap: wrap !important; }
+          .hero-form > div[style] { flex: 1 1 100% !important; width: 100% !important; }
+          .hero-form > .hero-swap { flex: 0 0 auto !important; width: auto !important; }
+          .hero-form > .hero-date-wrap > button { width: 100% !important; justify-content: center !important; }
+        }
         .route-row:hover { background: rgba(155,27,48,0.04); }
         .social-icon:hover { background: #9B1B30 !important; color: white !important; border-color: #9B1B30 !important; }
         .social-icon { transition: all 0.2s ease; }
@@ -164,7 +163,7 @@ export function HomePage({ locale, localities = [] }: HomePageProps) {
                 <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 14, pointerEvents: 'none', zIndex: 1, color: '#9B1B30', opacity: 0.5 }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 0 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>
                 </span>
-                <select ref={fromRef} name="dela" required onChange={loadDepartureTimes} className="hero-select" style={{
+                <select ref={fromRef} name="dela" required className="hero-select" style={{
                   width: '100%', height: 48, border: '1px solid rgba(155,27,48,0.1)', borderRadius: 12,
                   padding: '0 16px 0 34px', fontSize: 15, background: 'rgba(255,255,255,0.85)',
                   outline: 'none', fontStyle: 'italic', appearance: 'none',
@@ -207,7 +206,7 @@ export function HomePage({ locale, localities = [] }: HomePageProps) {
                 <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 14, pointerEvents: 'none', zIndex: 1, color: '#9B1B30', opacity: 0.5 }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 0 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>
                 </span>
-                <select ref={toRef} name="spre" required onChange={loadDepartureTimes} className="hero-select" style={{
+                <select ref={toRef} name="spre" required className="hero-select" style={{
                   width: '100%', height: 48, border: '1px solid rgba(155,27,48,0.1)', borderRadius: 12,
                   padding: '0 16px 0 34px', fontSize: 15, background: 'rgba(255,255,255,0.85)',
                   outline: 'none', fontStyle: 'italic', appearance: 'none',
@@ -232,12 +231,33 @@ export function HomePage({ locale, localities = [] }: HomePageProps) {
                 </select>
               </div>
 
-              <DateTimePicker
-                name="data"
-                locale={locale}
-                availableTimes={availableTimes}
-                onChange={(_date, time) => setSelectedTime(time)}
-              />
+              {/* Date picker */}
+              <div ref={calRef} className="hero-date-wrap" style={{ position: 'relative', flexShrink: 0 }}>
+                <button type="button" onClick={() => setCalendarOpen(!calendarOpen)} className="hero-select" style={{
+                  height: 48, border: '1px solid rgba(155,27,48,0.1)', borderRadius: 12,
+                  padding: '0 14px', fontSize: 14, background: 'rgba(255,255,255,0.85)',
+                  outline: 'none', fontStyle: 'italic',
+                  color: '#6E0E14', fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
+                  cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6,
+                }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  {format(selectedDate, 'dd.MM.yyyy', { locale: locale === 'ru' ? ruLocale : roLocale })}
+                </button>
+                {calendarOpen && (
+                  <>
+                    <div style={{ position: 'fixed', inset: 0, zIndex: 10 }} onClick={() => setCalendarOpen(false)} />
+                    <div style={{
+                      position: 'absolute', bottom: '100%', right: 0, marginBottom: 4, zIndex: 11, width: 280,
+                    }}>
+                      <MiniCalendar
+                        value={selectedDate}
+                        locale={locale}
+                        onChange={(d) => { setSelectedDate(d); setCalendarOpen(false); }}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
 
               <RainbowButton label={searching ? '...' : i.search} />
             </form>
@@ -259,6 +279,48 @@ export function HomePage({ locale, localities = [] }: HomePageProps) {
             }}>
               {i.popular}
             </h2>
+
+            {/* Active offers banner */}
+            {offers.length > 0 && (
+              <div style={{ maxWidth: 520, margin: '0 auto 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {offers.map((offer, idx) => (
+                  <div key={idx} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '12px 16px', borderRadius: 12,
+                    background: 'rgba(22,163,74,0.06)', border: '1px solid rgba(22,163,74,0.15)',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{
+                        fontSize: 11, fontWeight: 700, color: '#16a34a',
+                        background: 'rgba(22,163,74,0.12)', padding: '2px 8px', borderRadius: 6,
+                        fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
+                      }}>OFERTĂ</span>
+                      <span style={{
+                        fontSize: 11, color: '#333', textTransform: 'uppercase', letterSpacing: 0.8,
+                        fontWeight: 600, fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
+                      }}>
+                        {offer.from_locality} - {offer.to_locality}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{
+                        fontSize: 11, color: '#999', textDecoration: 'line-through',
+                        fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
+                      }}>
+                        {offer.original_price} LEI
+                      </span>
+                      <span style={{
+                        fontSize: 13, fontWeight: 700, color: '#16a34a',
+                        fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
+                      }}>
+                        {offer.offer_price} LEI
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div style={{
               display: 'grid', gridTemplateColumns: '1fr 1fr',
               gap: '0 48px', maxWidth: 520, margin: '0 auto',
@@ -310,13 +372,10 @@ export function HomePage({ locale, localities = [] }: HomePageProps) {
               </p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <a href="#" aria-label="Facebook" className="social-icon" style={{ width: 30, height: 30, borderRadius: '50%', border: '1.5px solid rgba(155,27,48,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9B1B30', textDecoration: 'none', background: 'transparent' }}>
+              <a href="https://www.facebook.com/TRANSPORTLUX" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="social-icon" style={{ width: 30, height: 30, borderRadius: '50%', border: '1.5px solid rgba(155,27,48,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9B1B30', textDecoration: 'none', background: 'transparent' }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
               </a>
-              <a href="#" aria-label="Instagram" className="social-icon" style={{ width: 30, height: 30, borderRadius: '50%', border: '1.5px solid rgba(155,27,48,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9B1B30', textDecoration: 'none', background: 'transparent' }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
-              </a>
-              <a href="#" aria-label="TikTok" className="social-icon" style={{ width: 30, height: 30, borderRadius: '50%', border: '1.5px solid rgba(155,27,48,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9B1B30', textDecoration: 'none', background: 'transparent' }}>
+              <a href="https://www.tiktok.com/@translux.md" target="_blank" rel="noopener noreferrer" aria-label="TikTok" className="social-icon" style={{ width: 30, height: 30, borderRadius: '50%', border: '1.5px solid rgba(155,27,48,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9B1B30', textDecoration: 'none', background: 'transparent' }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1v-3.52a6.37 6.37 0 0 0-.79-.05A6.34 6.34 0 0 0 3.15 15.2a6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.34-6.34V8.87a8.16 8.16 0 0 0 4.76 1.52v-3.4a4.85 4.85 0 0 1-1-.3z"/></svg>
               </a>
             </div>
@@ -357,7 +416,7 @@ export function HomePage({ locale, localities = [] }: HomePageProps) {
           from={fromRef.current?.selectedOptions[0]?.text || ''}
           to={toRef.current?.selectedOptions[0]?.text || ''}
           trips={trips}
-          selectedTime={selectedTime}
+          selectedTime={null}
           locale={locale}
           onClose={() => setShowResults(false)}
         />

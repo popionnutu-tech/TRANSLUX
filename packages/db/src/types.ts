@@ -34,10 +34,13 @@ export const STATUS_LABELS: Record<ReportStatus, string> = {
 // Database Row Types
 // ============================================================
 
+export type AdminRole = 'ADMIN' | 'DISPATCHER';
+
 export interface AdminAccount {
   id: string;
   email: string;
   password_hash: string;
+  role: AdminRole;
   created_at: string;
 }
 
@@ -72,6 +75,7 @@ export interface Route {
 export interface Driver {
   id: string;
   full_name: string;
+  phone: string | null;
   active: boolean;
   created_at: string;
 }
@@ -210,4 +214,18 @@ export interface SmmDailyStat {
 export interface SmmDailyStatWithAccount extends SmmDailyStat {
   account_name: string;
   platform: SmmPlatform;
+}
+
+// ============================================================
+// Offers (promotional prices)
+// ============================================================
+
+export interface Offer {
+  id: number;
+  from_locality: string;
+  to_locality: string;
+  original_price: number;
+  offer_price: number;
+  active: boolean;
+  created_at: string;
 }

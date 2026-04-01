@@ -6,10 +6,11 @@ import {
   upsertAssignment,
   deleteAssignment,
   copyAssignments,
+  updateDriverPhone,
+  getDaysCoverage,
   type AssignmentRow,
   type DriverOption,
   type VehicleOption,
-  type ScheduleDirection,
 } from './actions';
 
 function formatTimeRange(display: string) {
@@ -17,11 +18,6 @@ function formatTimeRange(display: string) {
   const match = display.match(/(\d{1,2}:\d{2})/);
   return match ? match[1] : display;
 }
-
-const DIRECTION_LABELS: Record<ScheduleDirection, string> = {
-  CHISINAU_NORD: 'Chișinău → Nord',
-  NORD_CHISINAU: 'Nord → Chișinău',
-};
 
 function todayStr() {
   return new Date(
@@ -37,10 +33,6 @@ function yesterdayStr(date: string) {
   return d.toISOString().slice(0, 10);
 }
 
-function formatTime(t: string) {
-  return t.slice(0, 5);
-}
-
 export default function AssignmentsClient({
   drivers,
   vehicles,
@@ -49,28 +41,29 @@ export default function AssignmentsClient({
   vehicles: VehicleOption[];
 }) {
   const [date, setDate] = useState(todayStr);
-  const [direction, setDirection] = useState<ScheduleDirection>('CHISINAU_NORD');
   const [rows, setRows] = useState<AssignmentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<Record<number, boolean>>({});
   const [copying, setCopying] = useState(false);
   const [error, setError] = useState('');
+  const [coverage, setCoverage] = useState<{ date: string; count: number }[]>([]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const data = await getAssignmentsForDate(date, direction);
+      const data = await getAssignmentsForDate(date);
       setRows(data);
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [date, direction]);
+  }, [date]);
 
   useEffect(() => {
     loadData();
+    getDaysCoverage().then(setCoverage).catch(() => {});
   }, [loadData]);
 
   async function handleSave(crmRouteId: number, driverId: string, vehicleId: string | null) {
@@ -78,7 +71,7 @@ export default function AssignmentsClient({
     setSaving((p) => ({ ...p, [crmRouteId]: true }));
     setError('');
     try {
-      await upsertAssignment(crmRouteId, date, direction, driverId, vehicleId);
+      await upsertAssignment(crmRouteId, date, driverId, vehicleId);
       await loadData();
     } catch (err: any) {
       setError(err.message);
@@ -101,7 +94,7 @@ export default function AssignmentsClient({
     setCopying(true);
     setError('');
     try {
-      await copyAssignments(yesterdayStr(date), date, direction);
+      await copyAssignments(yesterdayStr(date), date);
       await loadData();
     } catch (err: any) {
       setError(err.message);
@@ -128,16 +121,6 @@ export default function AssignmentsClient({
               onChange={(e) => setDate(e.target.value)}
             />
           </div>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label>Direcția</label>
-            <select
-              value={direction}
-              onChange={(e) => setDirection(e.target.value as ScheduleDirection)}
-            >
-              <option value="CHISINAU_NORD">{DIRECTION_LABELS.CHISINAU_NORD}</option>
-              <option value="NORD_CHISINAU">{DIRECTION_LABELS.NORD_CHISINAU}</option>
-            </select>
-          </div>
           <button
             className="btn btn-outline"
             onClick={handleCopy}
@@ -149,11 +132,35 @@ export default function AssignmentsClient({
         {error && (
           <p style={{ color: 'var(--danger)', fontSize: 14, marginTop: 8 }}>{error}</p>
         )}
+        {coverage.length > 0 && (
+          <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+            {coverage.map(c => {
+              const d = new Date(c.date + 'T12:00:00');
+              const label = d.toLocaleDateString('ro', { weekday: 'short', day: 'numeric', month: 'short' });
+              const ok = c.count > 0;
+              return (
+                <button
+                  key={c.date}
+                  onClick={() => setDate(c.date)}
+                  style={{
+                    padding: '4px 10px', borderRadius: 8, fontSize: 12, cursor: 'pointer',
+                    border: c.date === date ? '2px solid #9B1B30' : '1px solid #ddd',
+                    background: ok ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.08)',
+                    color: ok ? '#16a34a' : '#dc2626',
+                    fontWeight: c.date === date ? 700 : 400,
+                  }}
+                >
+                  {label} {ok ? `(${c.count})` : '—'}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <h3>{DIRECTION_LABELS[direction]}</h3>
+          <h3>Tur-retur</h3>
           <span className="text-muted" style={{ fontSize: 14 }}>
             {assignedCount} / {rows.length} programate
           </span>
@@ -165,8 +172,9 @@ export default function AssignmentsClient({
           <table>
             <thead>
               <tr>
-                <th style={{ width: 70 }}>Ora</th>
+                <th style={{ width: 70 }}>Tur</th>
                 <th>Destinația</th>
+                <th style={{ width: 70 }}>Retur</th>
                 <th>Șofer</th>
                 <th>Auto</th>
                 <th style={{ width: 140 }}>Acțiuni</th>
@@ -186,7 +194,7 @@ export default function AssignmentsClient({
               ))}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="text-center text-muted">
+                  <td colSpan={6} className="text-center text-muted">
                     Nu există rute în orar.
                   </td>
                 </tr>
@@ -216,18 +224,36 @@ function AssignmentRowEditor({
 }) {
   const [driverId, setDriverId] = useState(row.driver_id || '');
   const [vehicleId, setVehicleId] = useState(row.vehicle_id || '');
+  const [editPhone, setEditPhone] = useState(false);
+  const [phone, setPhone] = useState('');
+  const [savingPhone, setSavingPhone] = useState(false);
 
   useEffect(() => {
     setDriverId(row.driver_id || '');
     setVehicleId(row.vehicle_id || '');
   }, [row.driver_id, row.vehicle_id]);
 
+  const selectedDriver = drivers.find(d => d.id === driverId);
   const isDirty = driverId !== (row.driver_id || '') || vehicleId !== (row.vehicle_id || '');
+
+  async function handlePhoneSave() {
+    if (!driverId || !phone.trim()) return;
+    setSavingPhone(true);
+    try {
+      await updateDriverPhone(driverId, phone);
+      setEditPhone(false);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setSavingPhone(false);
+    }
+  }
 
   return (
     <tr>
-      <td>{formatTimeRange(row.time_display)}</td>
+      <td>{formatTimeRange(row.time_chisinau)}</td>
       <td>{row.dest_to_ro}</td>
+      <td>{formatTimeRange(row.time_nord)}</td>
       <td>
         <select
           value={driverId}
@@ -241,6 +267,30 @@ function AssignmentRowEditor({
             </option>
           ))}
         </select>
+        {driverId && (
+          <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+            {selectedDriver?.phone ? (
+              <span>📞 {selectedDriver.phone}</span>
+            ) : editPhone ? (
+              <span style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                <input
+                  value={phone}
+                  onChange={e => setPhone(e.target.value)}
+                  placeholder="069XXXXXX"
+                  style={{ width: 100, fontSize: 11, padding: '2px 4px' }}
+                />
+                <button onClick={handlePhoneSave} disabled={savingPhone} style={{ fontSize: 11, cursor: 'pointer', background: 'none', border: 'none', color: '#16a34a' }}>
+                  {savingPhone ? '...' : '✓'}
+                </button>
+                <button onClick={() => setEditPhone(false)} style={{ fontSize: 11, cursor: 'pointer', background: 'none', border: 'none', color: '#999' }}>✕</button>
+              </span>
+            ) : (
+              <button onClick={() => setEditPhone(true)} style={{ fontSize: 11, cursor: 'pointer', background: 'none', border: 'none', color: '#dc2626', textDecoration: 'underline' }}>
+                + Adaugă telefon
+              </button>
+            )}
+          </div>
+        )}
       </td>
       <td>
         <select

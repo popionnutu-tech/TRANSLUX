@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
 
-const DASHBOARD_ROUTES = ['/reports', '/users', '/drivers', '/trips', '/routes', '/salary', '/smm-accounts'];
+const ALL_DASHBOARD = ['/reports', '/users', '/drivers', '/trips', '/routes', '/salary', '/smm-accounts', '/assignments'];
+const DISPATCHER_ALLOWED = ['/assignments', '/drivers'];
 const PUBLIC_PREFIXES = ['/login', '/api/', '/ro', '/ru'];
 
 export async function middleware(request: NextRequest) {
@@ -11,7 +12,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const isDashboard = DASHBOARD_ROUTES.some(r => pathname === r || pathname.startsWith(r + '/'));
+  const isDashboard = ALL_DASHBOARD.some(r => pathname === r || pathname.startsWith(r + '/'));
   if (!isDashboard) return NextResponse.next();
 
   const token = request.cookies.get('translux-session')?.value;
@@ -23,7 +24,17 @@ export async function middleware(request: NextRequest) {
   if (!authSecret) return NextResponse.next();
 
   try {
-    await jwtVerify(token, new TextEncoder().encode(authSecret));
+    const { payload } = await jwtVerify(token, new TextEncoder().encode(authSecret));
+    const role = (payload.role as string) || 'ADMIN';
+
+    // Dispatcher can only access /assignments and /drivers
+    if (role === 'DISPATCHER') {
+      const allowed = DISPATCHER_ALLOWED.some(r => pathname === r || pathname.startsWith(r + '/'));
+      if (!allowed) {
+        return NextResponse.redirect(new URL('/assignments', request.url));
+      }
+    }
+
     return NextResponse.next();
   } catch {
     return NextResponse.redirect(new URL('/login', request.url));

@@ -13,13 +13,35 @@ export async function getDrivers(): Promise<Driver[]> {
   return (data || []) as Driver[];
 }
 
-export async function createDriver(fullName: string) {
+export async function createDriver(fullName: string, phone?: string) {
   const session = await verifySession();
   if (!session) throw new Error('Neautorizat');
   const trimmed = fullName.trim();
   if (!trimmed) throw new Error('Numele șoferului este obligatoriu');
 
-  const { error } = await getSupabase().from('drivers').insert({ full_name: trimmed });
+  const row: any = { full_name: trimmed };
+  if (phone?.trim()) {
+    const cleaned = phone.replace(/\D/g, '');
+    row.phone = cleaned.startsWith('373') ? cleaned : '373' + cleaned.replace(/^0/, '');
+  }
+
+  const { error } = await getSupabase().from('drivers').insert(row);
+  if (error) throw new Error(error.message);
+  revalidatePath('/drivers');
+}
+
+export async function updateDriverPhone(driverId: string, phone: string) {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
+
+  const cleaned = phone.replace(/\D/g, '');
+  const intl = cleaned.startsWith('373') ? cleaned : '373' + cleaned.replace(/^0/, '');
+
+  const { error } = await getSupabase()
+    .from('drivers')
+    .update({ phone: intl })
+    .eq('id', driverId);
+
   if (error) throw new Error(error.message);
   revalidatePath('/drivers');
 }

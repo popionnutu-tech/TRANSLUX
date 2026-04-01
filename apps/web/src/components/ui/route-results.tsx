@@ -152,29 +152,42 @@ export function RouteResults({ from, to, trips, selectedTime, locale = "ro", onC
                   transition: "background 0.15s",
                 }}
               >
-                {/* Time */}
-                <span style={{
-                  fontWeight: 700,
-                  fontSize: 16,
-                  minWidth: 48,
+                {/* Time: departure → arrival */}
+                <div style={{
+                  minWidth: 100,
                   fontVariantNumeric: "tabular-nums",
-                  color: isSelected || near ? "#9B1B30" : "#333",
                   fontFamily: "var(--font-opensans), Open Sans, sans-serif",
+                  display: "flex", flexDirection: "column", alignItems: "flex-start",
                 }}>
-                  {trip.time}
-                </span>
+                  <span style={{
+                    fontWeight: 700,
+                    fontSize: 16,
+                    color: isSelected || near ? "#9B1B30" : "#333",
+                  }}>
+                    {trip.time}
+                  </span>
+                  {trip.arrivalTime && (
+                    <span style={{
+                      fontSize: 11,
+                      color: isSelected || near ? "rgba(155,27,48,0.6)" : "#999",
+                      marginTop: 1,
+                    }}>
+                      → {trip.arrivalTime}
+                    </span>
+                  )}
+                </div>
 
-                {/* Route info */}
+                {/* Driver / route info */}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{
                     fontSize: 12, color: "#333", fontWeight: 500,
                     whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                   }}>
-                    {locale === "ru" ? trip.destination_ru : trip.destination_ro}
+                    {trip.driver || (locale === "ru" ? trip.destination_ru : trip.destination_ro)}
                   </div>
-                  {trip.driver && (
+                  {trip.driver && trip.vehicle_plate && (
                     <div style={{ fontSize: 11, color: "#999", marginTop: 1 }}>
-                      {trip.driver}
+                      {trip.vehicle_plate}
                     </div>
                   )}
                 </div>
@@ -202,8 +215,19 @@ export function RouteResults({ from, to, trips, selectedTime, locale = "ro", onC
                   fontWeight: 700, color: "#9B1B30", fontSize: 14, whiteSpace: "nowrap",
                   fontFamily: "var(--font-opensans), Open Sans, sans-serif",
                   minWidth: 52, textAlign: "right",
+                  display: "flex", flexDirection: "column", alignItems: "flex-end",
                 }}>
-                  {trip.price > 0 ? `${trip.price} LEI` : '—'}
+                  {trip.originalPrice != null && trip.originalPrice > 0 && (
+                    <span style={{
+                      fontSize: 11, color: "#999", textDecoration: "line-through",
+                      fontWeight: 500, lineHeight: 1,
+                    }}>
+                      {trip.originalPrice} LEI
+                    </span>
+                  )}
+                  <span style={{ color: trip.originalPrice != null ? "#16a34a" : "#9B1B30" }}>
+                    {trip.price > 0 ? `${trip.price} LEI` : '—'}
+                  </span>
                 </span>
               </div>
             );

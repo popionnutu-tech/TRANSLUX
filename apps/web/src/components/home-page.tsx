@@ -8,7 +8,7 @@ import { RainbowButton } from '@/components/ui/rainbow-borders-button';
 import { MiniCalendar } from '@/components/ui/mini-calendar';
 import { RouteResults } from '@/components/ui/route-results';
 import { type Locale, t } from '@/lib/i18n';
-import { searchTrips, type Locality, type TripResult, type ActiveOffer } from '@/app/(public)/actions';
+import { searchTrips, type Locality, type TripResult } from '@/app/(public)/actions';
 
 const popularRoutes = {
   ro: [
@@ -44,10 +44,9 @@ const popularRoutes = {
 interface HomePageProps {
   locale: Locale;
   localities?: Locality[];
-  offers?: ActiveOffer[];
 }
 
-export function HomePage({ locale, localities = [], offers = [] }: HomePageProps) {
+export function HomePage({ locale, localities = [] }: HomePageProps) {
   const [showResults, setShowResults] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -279,47 +278,6 @@ export function HomePage({ locale, localities = [], offers = [] }: HomePageProps
             }}>
               {i.popular}
             </h2>
-
-            {/* Active offers banner */}
-            {offers.length > 0 && (
-              <div style={{ maxWidth: 520, margin: '0 auto 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {offers.map((offer, idx) => (
-                  <div key={idx} style={{
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    padding: '12px 16px', borderRadius: 12,
-                    background: 'rgba(22,163,74,0.06)', border: '1px solid rgba(22,163,74,0.15)',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{
-                        fontSize: 11, fontWeight: 700, color: '#16a34a',
-                        background: 'rgba(22,163,74,0.12)', padding: '2px 8px', borderRadius: 6,
-                        fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
-                      }}>OFERTĂ</span>
-                      <span style={{
-                        fontSize: 11, color: '#333', textTransform: 'uppercase', letterSpacing: 0.8,
-                        fontWeight: 600, fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
-                      }}>
-                        {offer.from_locality} - {offer.to_locality}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{
-                        fontSize: 11, color: '#999', textDecoration: 'line-through',
-                        fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
-                      }}>
-                        {offer.original_price} LEI
-                      </span>
-                      <span style={{
-                        fontSize: 13, fontWeight: 700, color: '#16a34a',
-                        fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
-                      }}>
-                        {offer.offer_price} LEI
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
 
             <div style={{
               display: 'grid', gridTemplateColumns: '1fr 1fr',

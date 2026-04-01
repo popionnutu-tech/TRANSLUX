@@ -30,7 +30,7 @@ export async function createOffer(from_locality: string, to_locality: string, or
     .from('offers')
     .insert({ from_locality, to_locality, original_price, offer_price, active: true });
   if (error) throw new Error(error.message);
-  revalidatePath('/offers');
+  revalidateOfferPages();
 }
 
 export async function toggleOffer(id: number, active: boolean) {
@@ -42,7 +42,7 @@ export async function toggleOffer(id: number, active: boolean) {
     .update({ active })
     .eq('id', id);
   if (error) throw new Error(error.message);
-  revalidatePath('/offers');
+  revalidateOfferPages();
 }
 
 export async function deleteOffer(id: number) {
@@ -54,5 +54,12 @@ export async function deleteOffer(id: number) {
     .delete()
     .eq('id', id);
   if (error) throw new Error(error.message);
+  revalidateOfferPages();
+}
+
+function revalidateOfferPages() {
   revalidatePath('/offers');
+  revalidatePath('/');
+  revalidatePath('/ro');
+  revalidatePath('/ru');
 }

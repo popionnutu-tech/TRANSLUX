@@ -1,9 +1,9 @@
 import { HomePage } from '@/components/home-page';
-import { getLocalities, getActiveOffers } from '../(public)/actions';
+import { getLocalities } from '../(public)/actions';
 
 export const dynamic = 'force-dynamic';
 
 export default async function RoPage() {
-  const [localities, offers] = await Promise.all([getLocalities(), getActiveOffers()]);
-  return <HomePage locale="ro" localities={localities} offers={offers} />;
+  const localities = await getLocalities();
+  return <HomePage locale="ro" localities={localities} />;
 }

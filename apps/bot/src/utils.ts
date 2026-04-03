@@ -1,3 +1,4 @@
+import { randomBytes } from 'crypto';
 import { config } from './config.js';
 
 /** Get today's date string (YYYY-MM-DD) in Europe/Chisinau timezone */
@@ -16,14 +17,9 @@ export function formatDate(date: string): string {
   return `${d}.${m}.${y}`;
 }
 
-/** Generate a random invite token */
+/** Generate a cryptographically secure invite token */
 export function generateToken(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let result = '';
-  for (let i = 0; i < 32; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
+  return randomBytes(24).toString('base64url');
 }
 
 /** Chunk array into pages */

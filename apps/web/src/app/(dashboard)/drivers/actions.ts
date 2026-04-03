@@ -6,6 +6,8 @@ import { verifySession } from '@/lib/auth';
 import type { Driver } from '@translux/db';
 
 export async function getDrivers(): Promise<Driver[]> {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
   const { data } = await getSupabase()
     .from('drivers')
     .select('*')

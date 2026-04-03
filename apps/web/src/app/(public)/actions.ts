@@ -113,12 +113,12 @@ export async function searchTrips(
   const matchingRouteIds = [...fromMap.keys()].filter(id => toMap.has(id));
   if (matchingRouteIds.length === 0) return [];
 
-  // Normalized stop names for km lookup
-  const fromNorm = normalizeStop(fromRo);
-  const toNorm = normalizeStop(toRo);
+  // Normalized stop names for km lookup — sanitize for PostgREST filter safety
+  const fromNorm = normalizeStop(fromRo).replace(/[(),."'\\]/g, '');
+  const toNorm = normalizeStop(toRo).replace(/[(),."'\\]/g, '');
 
   // Query 3+4+5+6: Get routes, prices, assignments AND offers in parallel
-  const [{ data: routes }, { data: kmPairs }, { data: assignments }, { data: activeOffers }] = await Promise.all([
+  const [{ data: routes }, { data: kmPairsA }, { data: kmPairsB }, { data: assignments }, { data: activeOffers }] = await Promise.all([
     supabase
       .from('crm_routes')
       .select('id, dest_to_ro, dest_to_ru, dest_from_ro, dest_from_ru, time_chisinau, time_nord, tariff_id_tur, tariff_id_retur')
@@ -127,7 +127,13 @@ export async function searchTrips(
     supabase
       .from('route_km_pairs')
       .select('tariff_id, price')
-      .or(`and(from_stop.eq.${fromNorm},to_stop.eq.${toNorm}),and(from_stop.eq.${toNorm},to_stop.eq.${fromNorm})`),
+      .eq('from_stop', fromNorm)
+      .eq('to_stop', toNorm),
+    supabase
+      .from('route_km_pairs')
+      .select('tariff_id, price')
+      .eq('from_stop', toNorm)
+      .eq('to_stop', fromNorm),
     supabase
       .from('daily_assignments')
       .select('crm_route_id, drivers(full_name, phone), vehicles(plate_number)')
@@ -143,12 +149,15 @@ export async function searchTrips(
 
   if (!routes) return [];
 
+  // Merge both direction results
+  const kmPairs = [...(kmPairsA || []), ...(kmPairsB || [])];
+
   // Check if an offer applies to this search direction
   const offer = (activeOffers && activeOffers.length > 0) ? activeOffers[0] as any : null;
 
   // Build price lookup: tariff_id → price
   const priceMap = new Map<number, number>();
-  for (const p of (kmPairs || []) as any[]) {
+  for (const p of (kmPairs) as any[]) {
     if (!priceMap.has(p.tariff_id)) {
       priceMap.set(p.tariff_id, p.price);
     }
@@ -224,6 +233,17 @@ export async function searchTrips(
     const [bh, bm] = b.time.split(':').map(Number);
     return ah * 60 + am - (bh * 60 + bm);
   });
+
+  // If searching for today, hide trips that already departed
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
+  if (date === today) {
+    const now = new Date().toLocaleTimeString('en-GB', { timeZone: 'Europe/Chisinau', hour: '2-digit', minute: '2-digit', hour12: false });
+    const nowMin = parseInt(now.split(':')[0]) * 60 + parseInt(now.split(':')[1]);
+    return results.filter(r => {
+      const [h, m] = r.time.split(':').map(Number);
+      return h * 60 + m > nowMin;
+    });
+  }
 
   return results;
 }

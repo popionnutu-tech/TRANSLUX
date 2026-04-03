@@ -56,6 +56,8 @@ export interface ReportsResult {
 const PAGE_SIZE = 50;
 
 export async function getReports(filters: ReportFilters): Promise<ReportsResult> {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
   const page = filters.page || 0;
   const from = page * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
@@ -154,6 +156,8 @@ export interface PassengersSummary {
 }
 
 export async function getPassengersSummary(filters: ReportFilters): Promise<PassengersSummary> {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
   let query = getSupabase()
     .from('reports')
     .select('point, passengers_count, trips!inner(direction, route_id)')
@@ -210,6 +214,8 @@ export interface ComplianceSummary {
 }
 
 export async function getComplianceSummary(filters: ReportFilters): Promise<ComplianceSummary> {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
   let query = getSupabase()
     .from('reports')
     .select('exterior_ok, uniform_ok, auto_curat, reclama_ok, reclama_deadline, report_date, driver_id, drivers(full_name), trips!inner(direction, route_id)')
@@ -267,6 +273,8 @@ export async function getComplianceSummary(filters: ReportFilters): Promise<Comp
 
 // CSV export
 export async function exportReportsCSV(filters: ReportFilters): Promise<string> {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
   // Fetch all reports for these filters (no pagination)
   let query = getSupabase()
     .from('reports')
@@ -329,6 +337,8 @@ export interface PivotRawRow {
 }
 
 export async function getPivotReport(dateFrom: string, dateTo: string, point?: PointEnum): Promise<PivotRawRow[]> {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
   let query = getSupabase()
     .from('reports')
     .select('point, report_date, passengers_count, status, trips!inner(departure_time)')
@@ -356,6 +366,8 @@ export async function getPivotReport(dateFrom: string, dateTo: string, point?: P
 
 // Nomenclator data for filters
 export async function getFilterOptions() {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
   const [routesRes, driversRes] = await Promise.all([
     getSupabase().from('routes').select('id, name').eq('active', true).order('name'),
     getSupabase().from('drivers').select('id, full_name').eq('active', true).order('full_name'),

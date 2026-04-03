@@ -21,7 +21,9 @@ export async function middleware(request: NextRequest) {
   }
 
   const authSecret = process.env.AUTH_SECRET;
-  if (!authSecret) return NextResponse.next();
+  if (!authSecret) {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
 
   try {
     const { payload } = await jwtVerify(token, new TextEncoder().encode(authSecret));

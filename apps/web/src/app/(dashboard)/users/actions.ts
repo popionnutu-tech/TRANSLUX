@@ -9,6 +9,8 @@ import crypto from 'crypto';
 // ── Users ────────────────────────────────────────────
 
 export async function getUsers(): Promise<User[]> {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
   const { data } = await getSupabase()
     .from('users')
     .select('*')
@@ -20,6 +22,7 @@ export async function getUsers(): Promise<User[]> {
 export async function updateUserRole(id: string, role: UserRole) {
   const session = await verifySession();
   if (!session) throw new Error('Neautorizat');
+  if (session.role !== 'ADMIN') throw new Error('Acces interzis');
   const { error } = await getSupabase()
     .from('users')
     .update({ role })
@@ -62,6 +65,8 @@ export interface InviteWithAdmin extends InviteToken {
 }
 
 export async function getInvites(): Promise<InviteWithAdmin[]> {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
   const { data } = await getSupabase()
     .from('invite_tokens')
     .select('*, admin_accounts:created_by(email), users:used_by_user(telegram_id, username)')

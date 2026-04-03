@@ -6,6 +6,8 @@ import { verifySession } from '@/lib/auth';
 import type { Route } from '@translux/db';
 
 export async function getRoutes(): Promise<Route[]> {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
   const { data } = await getSupabase()
     .from('routes')
     .select('*')

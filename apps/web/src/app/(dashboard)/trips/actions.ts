@@ -10,6 +10,8 @@ export interface TripWithRoute extends Trip {
 }
 
 export async function getTrips(): Promise<TripWithRoute[]> {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
   const { data } = await getSupabase()
     .from('trips')
     .select('*, routes(name)')
@@ -18,6 +20,8 @@ export async function getTrips(): Promise<TripWithRoute[]> {
 }
 
 export async function getActiveRoutes(): Promise<Route[]> {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
   const { data } = await getSupabase()
     .from('routes')
     .select('*')

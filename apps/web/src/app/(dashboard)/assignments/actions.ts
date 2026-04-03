@@ -12,6 +12,7 @@ export interface AssignmentRow {
   time_nord: string; // retur: "14:10 - 18:30"
   driver_id: string | null;
   vehicle_id: string | null;
+  vehicle_id_retur: string | null;
 }
 
 export interface DriverOption {
@@ -36,6 +37,8 @@ function parseFirstTime(display: string): number {
 export async function getAssignmentsForDate(
   date: string
 ): Promise<AssignmentRow[]> {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
   const db = getSupabase();
 
   const { data: routes } = await db
@@ -47,7 +50,7 @@ export async function getAssignmentsForDate(
 
   const { data: assignments } = await db
     .from('daily_assignments')
-    .select('id, crm_route_id, driver_id, vehicle_id')
+    .select('id, crm_route_id, driver_id, vehicle_id, vehicle_id_retur')
     .eq('assignment_date', date);
 
   const assignmentMap = new Map(
@@ -64,6 +67,7 @@ export async function getAssignmentsForDate(
       time_nord: r.time_nord || '',
       driver_id: a?.driver_id || null,
       vehicle_id: a?.vehicle_id || null,
+      vehicle_id_retur: a?.vehicle_id_retur || null,
     };
   });
 
@@ -74,6 +78,8 @@ export async function getAssignmentsForDate(
 }
 
 export async function getActiveDrivers(): Promise<DriverOption[]> {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
   const { data } = await getSupabase()
     .from('drivers')
     .select('id, full_name, phone')
@@ -83,6 +89,8 @@ export async function getActiveDrivers(): Promise<DriverOption[]> {
 }
 
 export async function getActiveVehicles(): Promise<VehicleOption[]> {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
   const { data } = await getSupabase()
     .from('vehicles')
     .select('id, plate_number')
@@ -95,24 +103,25 @@ export async function upsertAssignment(
   crmRouteId: number,
   date: string,
   driverId: string,
-  vehicleId: string | null
+  vehicleId: string | null,
+  vehicleIdRetur?: string | null
 ) {
   const session = await verifySession();
   if (!session) throw new Error('Neautorizat');
 
   const db = getSupabase();
 
+  const row: any = {
+    crm_route_id: crmRouteId,
+    assignment_date: date,
+    driver_id: driverId,
+    vehicle_id: vehicleId,
+    vehicle_id_retur: vehicleIdRetur || null,
+  };
+
   const { error } = await db
     .from('daily_assignments')
-    .upsert(
-      {
-        crm_route_id: crmRouteId,
-        assignment_date: date,
-        driver_id: driverId,
-        vehicle_id: vehicleId,
-      },
-      { onConflict: 'crm_route_id,assignment_date' }
-    );
+    .upsert(row, { onConflict: 'crm_route_id,assignment_date' });
 
   if (error) throw new Error(error.message);
 
@@ -127,12 +136,7 @@ export async function upsertAssignment(
 
   if (!existing) {
     await db.from('daily_assignments').upsert(
-      {
-        crm_route_id: crmRouteId,
-        assignment_date: tomorrow,
-        driver_id: driverId,
-        vehicle_id: vehicleId,
-      },
+      { ...row, assignment_date: tomorrow },
       { onConflict: 'crm_route_id,assignment_date' }
     );
   }
@@ -160,6 +164,8 @@ export async function updateDriverPhone(driverId: string, phone: string) {
 
 /** Get coverage: how many days ahead have assignments (from today) */
 export async function getDaysCoverage(): Promise<{ date: string; count: number }[]> {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
   const db = getSupabase();
   const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Chisinau' }));
   const dates: string[] = [];
@@ -212,7 +218,7 @@ export async function copyAssignments(
 
   const { data: source } = await db
     .from('daily_assignments')
-    .select('crm_route_id, driver_id, vehicle_id')
+    .select('crm_route_id, driver_id, vehicle_id, vehicle_id_retur')
     .eq('assignment_date', sourceDate);
 
   if (!source || source.length === 0) {
@@ -231,6 +237,7 @@ export async function copyAssignments(
         crm_route_id: s.crm_route_id,
         driver_id: s.driver_id,
         vehicle_id: s.vehicle_id,
+        vehicle_id_retur: s.vehicle_id_retur,
         assignment_date: targetDate,
       }))
     );

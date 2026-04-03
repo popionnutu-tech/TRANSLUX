@@ -1,8 +1,12 @@
 const { createClient } = require("@supabase/supabase-js");
-const db = createClient(
-  "https://zqkzqpfdymddsywxjxow.supabase.co",
-  "sb_secret_DqACcj02Xy3rCpGXMqeVVw_t4U7F_6u"
-);
+
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+  console.error("Set SUPABASE_URL and SUPABASE_SERVICE_KEY env vars");
+  process.exit(1);
+}
+const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
 (async () => {
   // Delete old CHISINAU_BALTI trips

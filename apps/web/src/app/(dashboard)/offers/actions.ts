@@ -6,6 +6,8 @@ import { verifySession } from '@/lib/auth';
 import type { Offer } from '@translux/db';
 
 export async function getOffers(): Promise<Offer[]> {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
   const { data } = await getSupabase()
     .from('offers')
     .select('*')
@@ -14,6 +16,8 @@ export async function getOffers(): Promise<Offer[]> {
 }
 
 export async function getLocalities(): Promise<{ name_ro: string }[]> {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
   const { data } = await getSupabase()
     .from('localities')
     .select('name_ro')

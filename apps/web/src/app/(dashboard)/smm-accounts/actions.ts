@@ -6,6 +6,8 @@ import { verifySession } from '@/lib/auth';
 import type { SmmAccount, SmmPlatform } from '@translux/db';
 
 export async function getSmmAccounts(): Promise<SmmAccount[]> {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
   const { data } = await getSupabase()
     .from('smm_accounts')
     .select('*')

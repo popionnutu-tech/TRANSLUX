@@ -6,8 +6,10 @@ import { getSupabase } from './supabase';
 import type { AdminAccount, AdminRole } from '@translux/db';
 
 const AUTH_SECRET = process.env.AUTH_SECRET;
-if (!AUTH_SECRET) console.warn('AUTH_SECRET not set — using dev-only fallback');
-const secret = new TextEncoder().encode(AUTH_SECRET || 'dev-only-secret');
+if (!AUTH_SECRET && process.env.NODE_ENV === 'production') {
+  throw new Error('AUTH_SECRET must be set in production');
+}
+const secret = new TextEncoder().encode(AUTH_SECRET || 'dev-only-secret-local-only');
 const COOKIE_NAME = 'translux-session';
 
 export async function authenticate(email: string, password: string): Promise<string | null> {

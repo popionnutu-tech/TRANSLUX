@@ -113,11 +113,15 @@ export async function getRouteStops(crmRouteId: number, direction: 'tur' | 'retu
   if (!session) return [];
 
   const sb = getSupabase();
+  // Tur = de la Nord → Chișinău, sortăm după km_from_nord
+  // Retur = de la Chișinău → Nord, sortăm după km_from_chisinau
+  const orderCol = direction === 'tur' ? 'km_from_nord' : 'km_from_chisinau';
+
   const { data } = await sb
     .from('crm_stop_prices')
     .select('name_ro, km_from_chisinau, km_from_nord')
     .eq('crm_route_id', crmRouteId)
-    .order('km_from_chisinau', { ascending: true });
+    .order(orderCol, { ascending: true });
 
   if (!data || data.length === 0) return [];
 
@@ -125,8 +129,8 @@ export async function getRouteStops(crmRouteId: number, direction: 'tur' | 'retu
     stopOrder: idx + 1,
     nameRo: row.name_ro,
     kmFromStart: direction === 'tur'
-      ? Number(row.km_from_chisinau || 0)
-      : Number(row.km_from_nord || 0),
+      ? Number(row.km_from_nord || 0)
+      : Number(row.km_from_chisinau || 0),
   }));
 }
 

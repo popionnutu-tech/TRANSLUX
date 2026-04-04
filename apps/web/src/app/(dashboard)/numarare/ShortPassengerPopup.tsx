@@ -81,7 +81,7 @@ export default function ShortPassengerPopup({
     >
       <div
         className="card"
-        style={{ padding: 20, minWidth: 340, maxWidth: 450 }}
+        style={{ padding: 20, minWidth: 340, maxWidth: 450, background: '#fff' }}
         onClick={e => e.stopPropagation()}
       >
         <h4 style={{ marginBottom: 4 }}>
@@ -100,11 +100,11 @@ export default function ShortPassengerPopup({
                 <td style={{ padding: '4px 0', width: 60 }}>
                   <input
                     ref={idx === 0 ? firstRef : undefined}
-                    type="number"
-                    min={0}
-                    max={remaining + (parseInt(counts[stop.stopOrder] || '0') || 0)}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={counts[stop.stopOrder] || ''}
-                    onChange={e => setCounts({ ...counts, [stop.stopOrder]: e.target.value })}
+                    onChange={e => setCounts({ ...counts, [stop.stopOrder]: e.target.value.replace(/\D/g, '') })}
                     onKeyDown={e => handleKeyDown(e, idx)}
                     placeholder="0"
                     style={{ width: 55, textAlign: 'center' }}

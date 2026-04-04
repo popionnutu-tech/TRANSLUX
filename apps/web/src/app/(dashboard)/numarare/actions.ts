@@ -17,6 +17,8 @@ export interface RouteForCounting {
   session_status: string | null;
   locked_by_email: string | null;
   locked_by_id: string | null;
+  operator_id: string | null;
+  operator_email: string | null;
   double_tariff: boolean;
   tur_total_lei: number | null;
   retur_total_lei: number | null;
@@ -48,6 +50,13 @@ export interface TariffConfig {
   ratePerKmLong: number;
   ratePerKmShort: number;
   doubleTariffEnabled: boolean;
+}
+
+// ─── Текущий пользователь ───
+
+export async function getCurrentUserId(): Promise<string | null> {
+  const session = await verifySession();
+  return session?.id || null;
 }
 
 // ─── Загрузка данных ───
@@ -83,7 +92,7 @@ export async function getRoutesForDate(date: string): Promise<{ data?: RouteForC
   // Берём существующие сессии подсчёта на эту дату
   const { data: sessions } = await sb
     .from('counting_sessions')
-    .select('crm_route_id, id, status, locked_by, locked_at, double_tariff, tur_total_lei, retur_total_lei, locker:admin_accounts!counting_sessions_locked_by_fkey(email)')
+    .select('crm_route_id, id, status, operator_id, locked_by, locked_at, double_tariff, tur_total_lei, retur_total_lei, locker:admin_accounts!counting_sessions_locked_by_fkey(email), operator:admin_accounts!counting_sessions_operator_id_fkey(email)')
     .eq('assignment_date', date);
 
   const sessionMap = new Map<number, any>();
@@ -111,14 +120,20 @@ export async function getRoutesForDate(date: string): Promise<{ data?: RouteForC
       session_status: s?.status || null,
       locked_by_email: s?.locker?.email || null,
       locked_by_id: s?.locked_by || null,
+      operator_id: s?.operator_id || null,
+      operator_email: s?.operator?.email || null,
       double_tariff: s?.double_tariff || false,
       tur_total_lei: s?.tur_total_lei || null,
       retur_total_lei: s?.retur_total_lei || null,
     };
   });
 
-  // Сортируем по time_nord (tur — первый рейс дня)
-  routes.sort((a, b) => a.time_nord.localeCompare(b.time_nord));
+  // Сортируем по времени отправления из Кишинёва (первая часть time_nord), числовое сравнение
+  const parseTur = (t: string) => {
+    const [h, m] = (t?.split(' - ')[0] || '0:0').split(':').map(Number);
+    return h * 60 + m;
+  };
+  routes.sort((a, b) => parseTur(a.time_nord) - parseTur(b.time_nord));
 
   return { data: routes };
 }
@@ -194,20 +209,17 @@ export async function lockRoute(
   // Verificăm dacă există deja o sesiune
   const { data: existing } = await sb
     .from('counting_sessions')
-    .select('id, locked_by, locked_at, status')
+    .select('id, operator_id, locked_by, locked_at, status')
     .eq('crm_route_id', crmRouteId)
     .eq('assignment_date', date)
     .single();
 
   if (existing) {
-    // Dacă e blocată de altcineva și nu a expirat (15 min)
-    if (existing.locked_by && existing.locked_by !== session.id) {
-      const lockedAt = new Date(existing.locked_at).getTime();
-      if (Date.now() - lockedAt < 15 * 60 * 1000) {
-        return { error: 'Cursă blocată de alt operator' };
-      }
+    // Dacă sesiunea a fost creată de alt operator — acces interzis (permanent)
+    if (existing.operator_id !== session.id) {
+      return { error: 'Cursă atribuită altui operator' };
     }
-    // Blocăm pentru utilizatorul curent (fără a reseta statusul)
+    // Blocăm pentru operatorul care a creat sesiunea
     await sb
       .from('counting_sessions')
       .update({ locked_by: session.id, locked_at: new Date().toISOString() })

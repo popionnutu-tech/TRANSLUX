@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { saveDirection, getRouteStops, type RouteStop, type TariffConfig, type SavedEntry } from './actions';
+import { saveDirection, getRouteStops, toggleDoubleTariff, type RouteStop, type TariffConfig, type SavedEntry } from './actions';
 import { calculateDirection, getEligibleBoardingStops, type StopEntry, type ShortPassengerGroup } from './calculation';
 import ShortPassengerPopup from './ShortPassengerPopup';
 
@@ -24,8 +24,9 @@ interface EntryState {
 }
 
 export default function CountingForm({
-  sessionId, crmRouteId, stops, tariff, doubleTariff, sessionStatus, savedTur, savedRetur, onSaved,
+  sessionId, crmRouteId, stops, tariff, doubleTariff: initialDoubleTariff, sessionStatus, savedTur, savedRetur, onSaved,
 }: Props) {
+  const [doubleTariff, setDoubleTariff] = useState(initialDoubleTariff);
   const [returStops, setReturStops] = useState<RouteStop[]>([]);
   const [turEntries, setTurEntries] = useState<Record<number, EntryState>>({});
   const [returEntries, setReturEntries] = useState<Record<number, EntryState>>({});
@@ -400,9 +401,27 @@ export default function CountingForm({
     );
   }
 
+  async function handleToggleDoubleTariff() {
+    const newValue = !doubleTariff;
+    setDoubleTariff(newValue);
+    await toggleDoubleTariff(sessionId, newValue);
+  }
+
   return (
     <div style={{ padding: 16, background: 'var(--primary-dim)' }}>
       {error && <div className="alert alert-danger" style={{ marginBottom: 12 }}>{error}</div>}
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+          <input
+            type="checkbox"
+            checked={doubleTariff}
+            onChange={handleToggleDoubleTariff}
+            style={{ width: 16, height: 16 }}
+          />
+          Tarif dublu (scurți / lungi)
+        </label>
+      </div>
 
       <div style={{ display: 'flex', gap: 24 }}>
         {renderColumn('tur', stops, turReadOnly)}

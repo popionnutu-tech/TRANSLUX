@@ -1,9 +1,9 @@
 export const dynamic = 'force-dynamic';
 
-import { getUsers, getInvites } from './actions';
+import { getUsers, getInvites, getAdminAccounts } from './actions';
 import UsersClient from './UsersClient';
 
 export default async function UsersPage() {
-  const [users, invites] = await Promise.all([getUsers(), getInvites()]);
-  return <UsersClient initialUsers={users} initialInvites={invites} />;
+  const [users, invites, admins] = await Promise.all([getUsers(), getInvites(), getAdminAccounts()]);
+  return <UsersClient initialUsers={users} initialInvites={invites} initialAdmins={admins} />;
 }

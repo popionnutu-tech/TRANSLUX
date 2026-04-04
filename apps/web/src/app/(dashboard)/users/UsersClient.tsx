@@ -13,14 +13,24 @@ import {
   createInvite,
   deleteInvite,
 } from './actions';
-import type { InviteWithAdmin } from './actions';
+import type { InviteWithAdmin, AdminAccountInfo } from './actions';
+
+const ROLE_LABELS: Record<string, string> = {
+  ADMIN: 'Administrator',
+  DISPATCHER: 'Dispecer',
+  GRAFIC: 'Grafic',
+  OPERATOR_CAMERE: 'Operator camere',
+  ADMIN_CAMERE: 'Admin camere',
+};
 
 export default function UsersClient({
   initialUsers,
   initialInvites,
+  initialAdmins = [],
 }: {
   initialUsers: User[];
   initialInvites: InviteWithAdmin[];
+  initialAdmins?: AdminAccountInfo[];
 }) {
   const [error, setError] = useState('');
   const [point, setPoint] = useState<PointEnum>('CHISINAU');
@@ -463,6 +473,29 @@ export default function UsersClient({
       </div>
 
       {error && <div className="u-error">{error}</div>}
+
+      {/* Admin accounts */}
+      {initialAdmins.length > 0 && (
+        <div className="u-card" style={{ marginBottom: 20 }}>
+          <div className="u-section">Conturi administrative</div>
+          <table className="u-table">
+            <thead>
+              <tr>
+                <th>EMAIL</th>
+                <th>ROL</th>
+              </tr>
+            </thead>
+            <tbody>
+              {initialAdmins.map(a => (
+                <tr key={a.id}>
+                  <td>{a.email}</td>
+                  <td>{ROLE_LABELS[a.role] || a.role}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Users table */}
       <div className="u-card">

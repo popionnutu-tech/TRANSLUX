@@ -108,17 +108,21 @@ export async function getRoutesForDate(date: string): Promise<{ data?: RouteForC
   return { data: routes };
 }
 
+// Ruta 8:00 (id=13) folosește itinerariul rutei 10:40 (id=16) la numărare
+const COUNTING_ROUTE_MAP: Record<number, number> = { 13: 16 };
+
 export async function getRouteStops(crmRouteId: number, direction: 'tur' | 'retur'): Promise<RouteStop[]> {
   const session = await verifySession();
   if (!session) return [];
 
+  const stopsRouteId = COUNTING_ROUTE_MAP[crmRouteId] ?? crmRouteId;
   const sb = getSupabase();
   // Opririle sunt stocate în ordinea rutei (de la Nord → Chișinău) după id.
   // km_from_nord / km_from_chisinau = distanța segmentului (inter-opriri), nu cumulativă.
   const { data } = await sb
     .from('crm_stop_prices')
     .select('id, name_ro, km_from_chisinau, km_from_nord')
-    .eq('crm_route_id', crmRouteId)
+    .eq('crm_route_id', stopsRouteId)
     .order('id', { ascending: true });
 
   if (!data || data.length === 0) return [];

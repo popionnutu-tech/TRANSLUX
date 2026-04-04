@@ -109,7 +109,30 @@ export default function NumarareClient() {
 
       {error && <div className="alert alert-danger">{error}</div>}
 
-      {loading ? (
+      {openRoute && sessionId && tariff ? (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+            <button className="btn btn-outline" onClick={handleClose}>← Înapoi</button>
+            <div>
+              <strong>{openRoute.dest_to_ro}</strong>
+              <span className="text-muted" style={{ marginLeft: 12 }}>
+                {openRoute.driver_name || '—'} · {openRoute.vehicle_plate || '—'}
+              </span>
+            </div>
+          </div>
+          <CountingForm
+            sessionId={sessionId}
+            crmRouteId={openRoute.crm_route_id}
+            stops={stops}
+            tariff={tariff}
+            doubleTariff={openRoute.double_tariff}
+            sessionStatus={openRoute.session_status || 'new'}
+            savedTur={savedTur}
+            savedRetur={savedRetur}
+            onSaved={handleSaved}
+          />
+        </>
+      ) : loading ? (
         <p className="text-muted">Se încarcă...</p>
       ) : (
         <table className="table">
@@ -127,51 +150,28 @@ export default function NumarareClient() {
           </thead>
           <tbody>
             {routes.map(route => (
-              <>
-                <tr key={route.crm_route_id}>
-                  <td>{route.time_chisinau}</td>
-                  <td><strong>{route.dest_to_ro}</strong></td>
-                  <td>{route.time_nord}</td>
-                  <td>{route.driver_name || '—'}</td>
-                  <td>{route.vehicle_plate || '—'}</td>
-                  <td>{statusBadge(route)}</td>
-                  <td>
-                    {route.tur_total_lei != null || route.retur_total_lei != null
-                      ? `${(route.tur_total_lei || 0) + (route.retur_total_lei || 0)} lei`
-                      : '—'}
-                  </td>
-                  <td>
-                    {openRouteId === route.crm_route_id ? (
-                      <button className="btn btn-outline" onClick={handleClose}>Închide</button>
-                    ) : (
-                      <button
-                        className="btn btn-primary"
-                        onClick={() => handleOpen(route.crm_route_id)}
-                        disabled={route.session_status === 'completed'}
-                      >
-                        Deschide
-                      </button>
-                    )}
-                  </td>
-                </tr>
-                {openRouteId === route.crm_route_id && sessionId && tariff && (
-                  <tr key={`${route.crm_route_id}-form`}>
-                    <td colSpan={8} style={{ padding: 0 }}>
-                      <CountingForm
-                        sessionId={sessionId}
-                        crmRouteId={route.crm_route_id}
-                        stops={stops}
-                        tariff={tariff}
-                        doubleTariff={route.double_tariff}
-                        sessionStatus={route.session_status || 'new'}
-                        savedTur={savedTur}
-                        savedRetur={savedRetur}
-                        onSaved={handleSaved}
-                      />
-                    </td>
-                  </tr>
-                )}
-              </>
+              <tr key={route.crm_route_id}>
+                <td>{route.time_chisinau}</td>
+                <td><strong>{route.dest_to_ro}</strong></td>
+                <td>{route.time_nord}</td>
+                <td>{route.driver_name || '—'}</td>
+                <td>{route.vehicle_plate || '—'}</td>
+                <td>{statusBadge(route)}</td>
+                <td>
+                  {route.tur_total_lei != null || route.retur_total_lei != null
+                    ? `${(route.tur_total_lei || 0) + (route.retur_total_lei || 0)} lei`
+                    : '—'}
+                </td>
+                <td>
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => handleOpen(route.crm_route_id)}
+                    disabled={route.session_status === 'completed'}
+                  >
+                    Deschide
+                  </button>
+                </td>
+              </tr>
             ))}
           </tbody>
         </table>

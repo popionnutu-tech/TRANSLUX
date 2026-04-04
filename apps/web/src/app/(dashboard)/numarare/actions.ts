@@ -164,49 +164,45 @@ export async function lockRoute(
 
   const sb = getSupabase();
 
-  // Upsert сессию
+  // Verificăm dacă există deja o sesiune
+  const { data: existing } = await sb
+    .from('counting_sessions')
+    .select('id, locked_by, locked_at, status')
+    .eq('crm_route_id', crmRouteId)
+    .eq('assignment_date', date)
+    .single();
+
+  if (existing) {
+    // Dacă e blocată de altcineva și nu a expirat (15 min)
+    if (existing.locked_by && existing.locked_by !== session.id) {
+      const lockedAt = new Date(existing.locked_at).getTime();
+      if (Date.now() - lockedAt < 15 * 60 * 1000) {
+        return { error: 'Cursă blocată de alt operator' };
+      }
+    }
+    // Blocăm pentru utilizatorul curent (fără a reseta statusul)
+    await sb
+      .from('counting_sessions')
+      .update({ locked_by: session.id, locked_at: new Date().toISOString() })
+      .eq('id', existing.id);
+    return { sessionId: existing.id };
+  }
+
+  // Creăm sesiune nouă
   const { data, error } = await sb
     .from('counting_sessions')
-    .upsert({
+    .insert({
       crm_route_id: crmRouteId,
       assignment_date: date,
       operator_id: session.id,
       locked_by: session.id,
       locked_at: new Date().toISOString(),
       status: 'new',
-    }, { onConflict: 'crm_route_id,assignment_date' })
-    .select('id, status, locked_by')
+    })
+    .select('id')
     .single();
 
-  if (error) {
-    // Возможно уже заблокирована другим
-    const { data: existing } = await sb
-      .from('counting_sessions')
-      .select('id, locked_by, locked_at, status')
-      .eq('crm_route_id', crmRouteId)
-      .eq('assignment_date', date)
-      .single();
-
-    if (existing && existing.locked_by && existing.locked_by !== session.id) {
-      // Проверяем timeout 15 минут
-      const lockedAt = new Date(existing.locked_at).getTime();
-      const now = Date.now();
-      if (now - lockedAt < 15 * 60 * 1000) {
-        return { error: 'Cursă blocată de alt operator' };
-      }
-      // Timeout — перехватываем блокировку
-      const { data: updated } = await sb
-        .from('counting_sessions')
-        .update({ locked_by: session.id, locked_at: new Date().toISOString() })
-        .eq('id', existing.id)
-        .select('id')
-        .single();
-      return { sessionId: updated?.id };
-    }
-
-    return { sessionId: existing?.id };
-  }
-
+  if (error) return { error: error.message };
   return { sessionId: data.id };
 }
 

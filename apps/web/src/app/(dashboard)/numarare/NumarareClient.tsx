@@ -147,7 +147,7 @@ export default function NumarareClient() {
                       <button
                         className="btn btn-primary"
                         onClick={() => handleOpen(route.crm_route_id)}
-                        disabled={!!route.locked_by_id || route.session_status === 'completed'}
+                        disabled={route.session_status === 'completed'}
                       >
                         Deschide
                       </button>

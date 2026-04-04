@@ -113,25 +113,33 @@ export async function getRouteStops(crmRouteId: number, direction: 'tur' | 'retu
   if (!session) return [];
 
   const sb = getSupabase();
-  // Tur = de la Nord → Chișinău, sortăm după km_from_nord
-  // Retur = de la Chișinău → Nord, sortăm după km_from_chisinau
-  const orderCol = direction === 'tur' ? 'km_from_nord' : 'km_from_chisinau';
-
+  // Opririle sunt stocate în ordinea rutei (de la Nord → Chișinău) după id.
+  // km_from_nord / km_from_chisinau = distanța segmentului (inter-opriri), nu cumulativă.
   const { data } = await sb
     .from('crm_stop_prices')
-    .select('name_ro, km_from_chisinau, km_from_nord')
+    .select('id, name_ro, km_from_chisinau, km_from_nord')
     .eq('crm_route_id', crmRouteId)
-    .order(orderCol, { ascending: true });
+    .order('id', { ascending: true });
 
   if (!data || data.length === 0) return [];
 
-  return data.map((row: any, idx: number) => ({
-    stopOrder: idx + 1,
-    nameRo: row.name_ro,
-    kmFromStart: direction === 'tur'
-      ? Number(row.km_from_nord || 0)
-      : Number(row.km_from_chisinau || 0),
-  }));
+  // Tur = de la Nord → Chișinău (ordinea naturală din DB)
+  // Retur = de la Chișinău → Nord (ordine inversată)
+  const ordered = direction === 'tur' ? data : [...data].reverse();
+
+  // Cumulăm distanțele segmentelor
+  const segmentKey = direction === 'tur' ? 'km_from_nord' : 'km_from_chisinau';
+  let cumKm = 0;
+  return ordered.map((row: any, idx: number) => {
+    if (idx > 0) {
+      cumKm += Number(row[segmentKey] || 0);
+    }
+    return {
+      stopOrder: idx + 1,
+      nameRo: row.name_ro,
+      kmFromStart: Math.round(cumKm * 10) / 10,
+    };
+  });
 }
 
 export async function getTariffConfig(): Promise<TariffConfig> {

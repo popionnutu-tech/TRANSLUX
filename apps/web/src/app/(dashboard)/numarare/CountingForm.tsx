@@ -142,13 +142,25 @@ export default function CountingForm({
     stopOrder: number,
     e: React.KeyboardEvent,
   ) {
-    if (e.key !== 'Enter' && e.key !== 'Tab') return;
-
     const dirStops = getStops(direction);
     const idx = dirStops.findIndex(s => s.stopOrder === stopOrder);
     const currentTotal = getTotal(stopOrder, direction);
     const prevTotal = getPrevTotal(stopOrder, direction);
     const decreased = currentTotal < prevTotal;
+
+    // Space = trece la celula următoare, dar o golește (cere introducere manuală)
+    if (e.key === ' ') {
+      e.preventDefault();
+      if (idx < dirStops.length - 1) {
+        const nextOrder = dirStops[idx + 1].stopOrder;
+        handleTotalChange(direction, nextOrder, '');
+        const refs = direction === 'tur' ? turRefs : returRefs;
+        refs.current[nextOrder]?.focus();
+      }
+      return;
+    }
+
+    if (e.key !== 'Enter' && e.key !== 'Tab') return;
 
     // Если число уменьшилось и двойной тариф — переходим в Scurți
     if (decreased && doubleTariff && e.key === 'Enter') {
@@ -158,11 +170,13 @@ export default function CountingForm({
       return;
     }
 
-    // Иначе — следующая остановка
+    // Enter = copiază valoarea curentă în celula următoare
     if (e.key === 'Enter') {
       e.preventDefault();
       if (idx < dirStops.length - 1) {
         const nextOrder = dirStops[idx + 1].stopOrder;
+        const currentValue = getEntries(direction)[stopOrder]?.totalPassengers ?? '';
+        handleTotalChange(direction, nextOrder, currentValue);
         const refs = direction === 'tur' ? turRefs : returRefs;
         refs.current[nextOrder]?.focus();
       }
@@ -314,10 +328,11 @@ export default function CountingForm({
                   <td>
                     <input
                       ref={el => { refs.current[stop.stopOrder] = el; }}
-                      type="number"
-                      min={0}
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       value={entry?.totalPassengers ?? ''}
-                      onChange={e => handleTotalChange(direction, stop.stopOrder, e.target.value)}
+                      onChange={e => handleTotalChange(direction, stop.stopOrder, e.target.value.replace(/\D/g, ''))}
                       onKeyDown={e => handleTotalKeyDown(direction, stop.stopOrder, e)}
                       disabled={readOnly}
                       style={{ width: 60, textAlign: 'center' }}
@@ -331,11 +346,11 @@ export default function CountingForm({
                       {decreased ? (
                         <input
                           ref={el => { shortRefs.current[`${direction}-${stop.stopOrder}`] = el; }}
-                          type="number"
-                          min={0}
-                          max={Math.abs(delta)}
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                           value={entry?.shortCount ?? ''}
-                          onChange={e => handleShortChange(direction, stop.stopOrder, e.target.value)}
+                          onChange={e => handleShortChange(direction, stop.stopOrder, e.target.value.replace(/\D/g, ''))}
                           onKeyDown={e => handleShortKeyDown(direction, stop.stopOrder, stop, e)}
                           placeholder="0"
                           disabled={readOnly}

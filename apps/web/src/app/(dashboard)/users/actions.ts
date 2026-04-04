@@ -57,6 +57,25 @@ export async function deleteUser(id: string) {
   revalidatePath('/users');
 }
 
+// ── Admin Accounts ──────────────────────────────────
+
+export interface AdminAccountInfo {
+  id: string;
+  email: string;
+  role: string;
+}
+
+export async function getAdminAccounts(): Promise<AdminAccountInfo[]> {
+  const session = await verifySession();
+  if (!session || session.role !== 'ADMIN') return [];
+  const { data } = await getSupabase()
+    .from('admin_accounts')
+    .select('id, email, role')
+    .order('role')
+    .order('email');
+  return (data || []) as AdminAccountInfo[];
+}
+
 // ── Invites ──────────────────────────────────────────
 
 export interface InviteWithAdmin extends InviteToken {

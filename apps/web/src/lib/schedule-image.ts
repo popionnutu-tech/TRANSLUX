@@ -11,20 +11,28 @@ const TPL_H = 1200;
 // Output canvas: 9:16 for Instagram Reels/Stories
 const OUT_W = 1080;
 const OUT_H = 1920;
-const PAD_X = Math.round((OUT_W - TPL_W) / 2); // 92px
-const PAD_Y = Math.round((OUT_H - TPL_H) / 2); // 360px
+
+// Scale template down to leave ~130px safe zone on each side
+const SCALE = 0.91;
+const SCALED_W = Math.round(TPL_W * SCALE); // ~815
+const SCALED_H = Math.round(TPL_H * SCALE); // ~1092
+const PAD_X = Math.round((OUT_W - SCALED_W) / 2); // ~133px
+const PAD_Y = Math.round((OUT_H - SCALED_H) / 2); // ~414px
 const BG_COLOR = '#F5EDE0'; // cream background matching template
 
-// Layout constants (coordinates on the output canvas)
+// Layout constants (coordinates on the output canvas — scaled)
 const LAYOUT = {
   WIDTH: OUT_W,
   HEIGHT: OUT_H,
-  DATE_X: 500 + PAD_X,
-  DATE_Y: 85 + PAD_Y,
-  DRIVER_X: 805 + PAD_X,
-  TABLE_TOP: 285 + PAD_Y,
-  ROW_HEIGHT: 67,
-  NAME_GAP: 22,
+  DATE_X: Math.round(500 * SCALE) + PAD_X,
+  DATE_Y: Math.round(85 * SCALE) + PAD_Y,
+  DATE_SIZE: Math.round(38 * SCALE),
+  DRIVER_X: Math.round(805 * SCALE) + PAD_X,
+  TABLE_TOP: Math.round(285 * SCALE) + PAD_Y,
+  ROW_HEIGHT: Math.round(67 * SCALE),
+  NAME_GAP: Math.round(22 * SCALE),
+  PHONE_SIZE: Math.round(22 * SCALE),
+  NAME_SIZE: Math.round(16 * SCALE),
 };
 
 // Caches
@@ -81,7 +89,7 @@ function textToPath(
 /** Build SVG overlay: only date + driver phone/name */
 function buildSvg(rows: GraficRow[], date: string): string {
   const fonts = getFonts();
-  const { WIDTH, HEIGHT, DATE_X, DATE_Y, DRIVER_X, TABLE_TOP, ROW_HEIGHT, NAME_GAP } = LAYOUT;
+  const { WIDTH, HEIGHT, DATE_X, DATE_Y, DATE_SIZE, DRIVER_X, TABLE_TOP, ROW_HEIGHT, NAME_GAP, PHONE_SIZE, NAME_SIZE } = LAYOUT;
 
   const [y, m, d] = date.split('-');
   const dateDisplay = `${d}.${m}.${y}`;
@@ -89,7 +97,7 @@ function buildSvg(rows: GraficRow[], date: string): string {
   let paths = '';
 
   // Date (italic serif, matching "Grafic din:" style)
-  paths += textToPath(fonts.dateItalic, dateDisplay, DATE_X, DATE_Y, 38, '#4a2028');
+  paths += textToPath(fonts.dateItalic, dateDisplay, DATE_X, DATE_Y, DATE_SIZE, '#4a2028');
 
   // Nr. Șofer: phone + name per row
   for (let i = 0; i < rows.length; i++) {
@@ -98,10 +106,10 @@ function buildSvg(rows: GraficRow[], date: string): string {
     const nameY = phoneY + NAME_GAP;
 
     if (row.driver_phone) {
-      paths += textToPath(fonts.bold, row.driver_phone, DRIVER_X, phoneY, 22, '#4a2028', 'middle');
+      paths += textToPath(fonts.bold, row.driver_phone, DRIVER_X, phoneY, PHONE_SIZE, '#4a2028', 'middle');
     }
     if (row.driver_name) {
-      paths += textToPath(fonts.regular, row.driver_name, DRIVER_X, nameY, 16, '#4a2028', 'middle');
+      paths += textToPath(fonts.regular, row.driver_name, DRIVER_X, nameY, NAME_SIZE, '#4a2028', 'middle');
     }
   }
 
@@ -111,7 +119,7 @@ ${paths}
 </svg>`;
 }
 
-/** Generate schedule image: 1080×1920 canvas + centered template + date + driver overlay */
+/** Generate schedule image: 1080×1920 canvas + scaled centered template + date + driver overlay */
 export async function generateScheduleImage(
   rows: GraficRow[],
   date: string,
@@ -120,12 +128,17 @@ export async function generateScheduleImage(
   const templateBuffer = getTemplate(page);
   const svg = buildSvg(rows, date);
 
-  // Create 1080×1920 canvas with cream background, center template on it
+  // Scale template down for safe margins
+  const scaledTemplate = await sharp(templateBuffer)
+    .resize(SCALED_W, SCALED_H)
+    .toBuffer();
+
+  // Create 1080×1920 canvas with cream background, center scaled template on it
   return await sharp({
     create: { width: OUT_W, height: OUT_H, channels: 3, background: BG_COLOR },
   })
     .composite([
-      { input: templateBuffer, top: PAD_Y, left: PAD_X },
+      { input: scaledTemplate, top: PAD_Y, left: PAD_X },
       { input: Buffer.from(svg), top: 0, left: 0 },
     ])
     .png()

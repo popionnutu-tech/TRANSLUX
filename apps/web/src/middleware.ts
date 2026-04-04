@@ -1,8 +1,11 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
 
-const ALL_DASHBOARD = ['/reports', '/users', '/drivers', '/trips', '/routes', '/salary', '/smm-accounts', '/assignments'];
+const ALL_DASHBOARD = ['/reports', '/users', '/drivers', '/trips', '/routes', '/salary', '/smm-accounts', '/assignments', '/grafic', '/numarare'];
 const DISPATCHER_ALLOWED = ['/assignments', '/drivers'];
+const GRAFIC_ALLOWED = ['/grafic'];
+const OPERATOR_CAMERE_ALLOWED = ['/numarare'];
+const ADMIN_CAMERE_ALLOWED = ['/numarare'];
 const PUBLIC_PREFIXES = ['/login', '/api/', '/ro', '/ru'];
 
 export async function middleware(request: NextRequest) {
@@ -34,6 +37,30 @@ export async function middleware(request: NextRequest) {
       const allowed = DISPATCHER_ALLOWED.some(r => pathname === r || pathname.startsWith(r + '/'));
       if (!allowed) {
         return NextResponse.redirect(new URL('/assignments', request.url));
+      }
+    }
+
+    // Grafic role can only access /grafic
+    if (role === 'GRAFIC') {
+      const allowed = GRAFIC_ALLOWED.some(r => pathname === r || pathname.startsWith(r + '/'));
+      if (!allowed) {
+        return NextResponse.redirect(new URL('/grafic', request.url));
+      }
+    }
+
+    // Operator camere can only access /numarare
+    if (role === 'OPERATOR_CAMERE') {
+      const allowed = OPERATOR_CAMERE_ALLOWED.some(r => pathname === r || pathname.startsWith(r + '/'));
+      if (!allowed) {
+        return NextResponse.redirect(new URL('/numarare', request.url));
+      }
+    }
+
+    // Admin camere can only access /numarare
+    if (role === 'ADMIN_CAMERE') {
+      const allowed = ADMIN_CAMERE_ALLOWED.some(r => pathname === r || pathname.startsWith(r + '/'));
+      if (!allowed) {
+        return NextResponse.redirect(new URL('/numarare', request.url));
       }
     }
 

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   getRoutesForDate,
+  getCurrentUserId,
   lockRoute,
   unlockRoute,
   getRouteStops,
@@ -30,6 +31,9 @@ export default function NumarareClient() {
   const [tariff, setTariff] = useState<TariffConfig | null>(null);
   const [savedTur, setSavedTur] = useState<SavedEntry[]>([]);
   const [savedRetur, setSavedRetur] = useState<SavedEntry[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  useEffect(() => { getCurrentUserId().then(setCurrentUserId); }, []);
 
   const loadRoutes = useCallback(async () => {
     setLoading(true);
@@ -86,9 +90,13 @@ export default function NumarareClient() {
 
   function statusBadge(route: RouteForCounting) {
     if (!route.session_status) return <span className="text-muted">Neprocesat</span>;
-    if (route.locked_by_email) return <span style={{ color: 'var(--warning)' }}>🔒 {route.locked_by_email}</span>;
-    if (route.session_status === 'tur_done') return <span style={{ color: 'var(--primary)' }}>Tur gata</span>;
     if (route.session_status === 'completed') return <span style={{ color: 'var(--success)' }}>✅ Finalizat</span>;
+    if (route.locked_by_email) return <span style={{ color: 'var(--warning)' }}>🔒 {route.locked_by_email}</span>;
+    // Sesiune atribuită altui operator (nu e blocat activ, dar e al lui)
+    if (route.operator_id && route.operator_id !== currentUserId) {
+      return <span style={{ color: 'var(--warning)' }}>🔒 {route.operator_email}</span>;
+    }
+    if (route.session_status === 'tur_done') return <span style={{ color: 'var(--primary)' }}>Tur gata</span>;
     return <span className="text-muted">Nou</span>;
   }
 
@@ -163,13 +171,19 @@ export default function NumarareClient() {
                     : '—'}
                 </td>
                 <td>
-                  <button
-                    className="btn btn-primary"
-                    onClick={() => handleOpen(route.crm_route_id)}
-                    disabled={route.session_status === 'completed'}
-                  >
-                    Deschide
-                  </button>
+                  {(() => {
+                    const ownedByOther = route.operator_id && route.operator_id !== currentUserId;
+                    const completed = route.session_status === 'completed';
+                    return (
+                      <button
+                        className="btn btn-primary"
+                        onClick={() => handleOpen(route.crm_route_id)}
+                        disabled={completed || !!ownedByOther}
+                      >
+                        Deschide
+                      </button>
+                    );
+                  })()}
                 </td>
               </tr>
             ))}

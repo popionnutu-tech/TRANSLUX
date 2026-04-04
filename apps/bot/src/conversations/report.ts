@@ -17,6 +17,7 @@ import {
   createVehicle,
   needsReclamaCheck,
   getAssignmentForTrip,
+  updateAssignmentDriverVehicle,
 } from '../services/db.js';
 import { addViolationAndUpdate } from '../services/dailyDigest.js';
 import { getTodayDate, formatTime, formatDate, haversineDistance, minutesLate } from '../utils.js';
@@ -177,6 +178,49 @@ export async function reportConversation(
     if (!selectedTrip) return;
     const trip = selectedTrip;
 
+    // ── Show pre-assigned driver/vehicle (Chișinău only) ──
+    let assignmentConfirmed = false;
+    let confirmedDriverId: string | null = null;
+    let confirmedVehicleId: string | null = null;
+    let changeAssignment = false;
+
+    if (point === 'CHISINAU' && trip.crm_route_id) {
+      const assignment = await getAssignmentForTrip(trip.crm_route_id, reportDate);
+      if (assignment) {
+        const msg =
+          `🚐 ${formatTime(trip.departure_time)}\n` +
+          `👤 ${assignment.driver_name}\n` +
+          (assignment.plate_number ? `🚌 ${assignment.plate_number}` : '🚌 —');
+
+        const assignKb = new InlineKeyboard()
+          .text('✅ OK', 'assign:ok')
+          .text('✏️ Schimbă', 'assign:change');
+
+        await ctx.reply(msg, { reply_markup: assignKb });
+
+        while (true) {
+          const aCtx = await conversation.wait();
+          if (aCtx.message?.text === '/start') {
+            await showMainMenu(aCtx as BotContext);
+            return;
+          }
+          if (!aCtx.callbackQuery?.data?.startsWith('assign:')) continue;
+          await aCtx.answerCallbackQuery();
+          const val = aCtx.callbackQuery.data.replace('assign:', '');
+          if (val === 'ok') {
+            assignmentConfirmed = true;
+            confirmedDriverId = assignment.driver_id;
+            confirmedVehicleId = assignment.vehicle_id;
+            break;
+          }
+          if (val === 'change') {
+            changeAssignment = true;
+            break;
+          }
+        }
+      }
+    }
+
     // ── Request geolocation for this trip ────────────────
     const needsLoc = requiresLocation(point, trip.departure_time);
     let userLat: number | null = null;
@@ -307,12 +351,9 @@ export async function reportConversation(
     }
 
     // ── Step 3: Select Driver (grid layout) — skip if ABSENT/FULL ──
-    let driverId: string | null = null;
-    const assignment = (status === 'OK' && point !== 'BALTI')
-      ? await getAssignmentForTrip(trip.id, reportDate)
-      : null;
+    let driverId: string | null = assignmentConfirmed ? confirmedDriverId : null;
 
-    if (status === 'OK' && drivers.length > 0 && point !== 'BALTI') {
+    if (status === 'OK' && drivers.length > 0 && point !== 'BALTI' && !assignmentConfirmed) {
       const usedDriverIds = await getUsedDriverIds(reportDate, point);
       const availableDrivers = drivers.filter(d => !usedDriverIds.has(d.id));
 
@@ -348,37 +389,8 @@ export async function reportConversation(
     }
 
     // ── Step 3b: Select Vehicle (grid layout) ──────────
-    let vehicleId: string | null = null;
-    if (status === 'OK' && point !== 'BALTI') {
-      let useAssignedVehicle = false;
-
-      // If there's an assigned vehicle, offer to confirm
-      if (assignment?.vehicle_id && assignment.plate_number) {
-        const confirmKb = new InlineKeyboard()
-          .text(`✅ ${assignment.plate_number}`, 'vehicle:confirm')
-          .text('🔄 Altul', 'vehicle:change');
-
-        await ctx.reply(`Auto programat: ${assignment.plate_number}`, { reply_markup: confirmKb });
-
-        while (true) {
-          const vCtx = await conversation.wait();
-          if (vCtx.message?.text === '/start') {
-            await showMainMenu(vCtx as BotContext);
-            return;
-          }
-          if (!vCtx.callbackQuery?.data?.startsWith('vehicle:')) continue;
-          await vCtx.answerCallbackQuery();
-          const val = vCtx.callbackQuery.data.replace('vehicle:', '');
-          if (val === 'confirm') {
-            vehicleId = assignment.vehicle_id;
-            useAssignedVehicle = true;
-            break;
-          }
-          if (val === 'change') break; // fall through to normal grid
-        }
-      }
-
-      if (!useAssignedVehicle) {
+    let vehicleId: string | null = assignmentConfirmed ? confirmedVehicleId : null;
+    if (status === 'OK' && point !== 'BALTI' && !assignmentConfirmed) {
       const usedVehicleIds = await getUsedVehicleIds(reportDate, point);
       const availableVehicles = vehicles.filter(v => !usedVehicleIds.has(v.id));
 
@@ -443,7 +455,15 @@ export async function reportConversation(
         vehicleId = val;
         break;
       }
-      } // end if (!useAssignedVehicle)
+
+      // Update daily_assignment if operator changed the assignment
+      if (changeAssignment && trip.crm_route_id && (driverId || vehicleId)) {
+        try {
+          await updateAssignmentDriverVehicle(trip.crm_route_id, reportDate, driverId!, vehicleId);
+        } catch (e) {
+          console.error('Failed to update assignment:', e);
+        }
+      }
     }
 
     // ── Step 4: Uniform + Aspect (one message) ────────

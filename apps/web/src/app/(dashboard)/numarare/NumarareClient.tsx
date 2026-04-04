@@ -151,9 +151,9 @@ export default function NumarareClient() {
           <tbody>
             {routes.map(route => (
               <tr key={route.crm_route_id}>
-                <td>{route.time_chisinau}</td>
+                <td>{route.time_chisinau?.split(' - ')[0]}</td>
                 <td><strong>{route.dest_to_ro}</strong></td>
-                <td>{route.time_nord}</td>
+                <td>{route.time_nord?.split(' - ')[0]}</td>
                 <td>{route.driver_name || '—'}</td>
                 <td>{route.vehicle_plate || '—'}</td>
                 <td>{statusBadge(route)}</td>

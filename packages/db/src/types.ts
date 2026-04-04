@@ -92,6 +92,7 @@ export interface Trip {
   route_id: string;
   direction: DirectionEnum;
   departure_time: string; // HH:MM:SS
+  crm_route_id: number | null;
   active: boolean;
   created_at: string;
 }

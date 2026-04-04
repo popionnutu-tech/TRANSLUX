@@ -514,15 +514,16 @@ export async function getActiveReclamaIssues(): Promise<
 
 // ── Daily Assignments ─────────────────────────────────
 
-/** Get the pre-assigned driver/vehicle for a trip on a given date */
+/** Get the pre-assigned driver/vehicle for a trip on a given date (via crm_route_id) */
 export async function getAssignmentForTrip(
-  tripId: string,
+  crmRouteId: number | null,
   date: string
 ): Promise<{ driver_id: string; driver_name: string; vehicle_id: string | null; plate_number: string | null } | null> {
+  if (!crmRouteId) return null;
   const { data } = await db()
     .from('daily_assignments')
     .select('driver_id, vehicle_id, drivers(full_name), vehicles(plate_number)')
-    .eq('trip_id', tripId)
+    .eq('crm_route_id', crmRouteId)
     .eq('assignment_date', date)
     .single();
 
@@ -534,6 +535,20 @@ export async function getAssignmentForTrip(
     vehicle_id: d.vehicle_id || null,
     plate_number: d.vehicles?.plate_number || null,
   };
+}
+
+/** Update driver/vehicle in daily_assignment (when operator presses Schimbă) */
+export async function updateAssignmentDriverVehicle(
+  crmRouteId: number,
+  date: string,
+  driverId: string,
+  vehicleId: string | null
+): Promise<void> {
+  await db()
+    .from('daily_assignments')
+    .update({ driver_id: driverId, vehicle_id: vehicleId })
+    .eq('crm_route_id', crmRouteId)
+    .eq('assignment_date', date);
 }
 
 // ── Day Validations ───────────────────────────────────

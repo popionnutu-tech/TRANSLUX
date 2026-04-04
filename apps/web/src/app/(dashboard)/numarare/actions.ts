@@ -63,7 +63,7 @@ export async function getRoutesForDate(date: string): Promise<{ data?: RouteForC
     .from('daily_assignments')
     .select(`
       crm_route_id,
-      crm_routes!inner(id, dest_to_ro, time_chisinau, time_nord, active),
+      crm_routes!daily_assignments_crm_route_id_fkey(id, dest_to_ro, time_chisinau, time_nord, active),
       drivers(full_name),
       vehicles!daily_assignments_vehicle_id_fkey(plate_number)
     `)

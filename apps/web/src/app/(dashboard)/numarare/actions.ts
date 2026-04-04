@@ -63,6 +63,7 @@ export async function getRoutesForDate(date: string): Promise<{ data?: RouteForC
     .from('daily_assignments')
     .select(`
       crm_route_id,
+      retur_route_id,
       crm_routes!daily_assignments_crm_route_id_fkey(id, dest_to_ro, time_chisinau, time_nord, active),
       drivers(full_name),
       vehicles!daily_assignments_vehicle_id_fkey(plate_number)
@@ -71,6 +72,13 @@ export async function getRoutesForDate(date: string): Promise<{ data?: RouteForC
     .eq('crm_routes.active', true);
 
   if (aErr) return { error: aErr.message };
+
+  // Берём все crm_routes для resolve retur_route_id
+  const { data: allRoutes } = await sb
+    .from('crm_routes')
+    .select('id, time_chisinau, time_nord');
+  const routeMap = new Map<number, any>();
+  for (const r of allRoutes || []) routeMap.set(r.id, r);
 
   // Берём существующие сессии подсчёта на эту дату
   const { data: sessions } = await sb
@@ -83,12 +91,19 @@ export async function getRoutesForDate(date: string): Promise<{ data?: RouteForC
     sessionMap.set(s.crm_route_id, s);
   }
 
+  // Tur = time_nord (первый рейс, Nord→Chișinău), Retur = time_chisinau (обратный, Chișinău→Nord)
+  // Если retur_route_id задан диспетчером, retur время берём из той рутой
   const routes: RouteForCounting[] = (assignments || []).map((a: any) => {
     const s = sessionMap.get(a.crm_route_id);
+    let returTime = a.crm_routes.time_chisinau;
+    if (a.retur_route_id) {
+      const rr = routeMap.get(a.retur_route_id);
+      if (rr) returTime = rr.time_chisinau;
+    }
     return {
       crm_route_id: a.crm_route_id,
       dest_to_ro: a.crm_routes.dest_to_ro,
-      time_chisinau: a.crm_routes.time_chisinau,
+      time_chisinau: returTime,
       time_nord: a.crm_routes.time_nord,
       driver_name: a.drivers?.full_name || null,
       vehicle_plate: a.vehicles?.plate_number || null,
@@ -102,8 +117,8 @@ export async function getRoutesForDate(date: string): Promise<{ data?: RouteForC
     };
   });
 
-  // Сортируем по времени отправления из Кишинёва
-  routes.sort((a, b) => a.time_chisinau.localeCompare(b.time_chisinau));
+  // Сортируем по time_nord (tur — первый рейс дня)
+  routes.sort((a, b) => a.time_nord.localeCompare(b.time_nord));
 
   return { data: routes };
 }

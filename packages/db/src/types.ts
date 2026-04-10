@@ -41,6 +41,8 @@ export interface AdminAccount {
   email: string;
   password_hash: string;
   role: AdminRole;
+  name: string | null;
+  active: boolean;
   created_at: string;
 }
 

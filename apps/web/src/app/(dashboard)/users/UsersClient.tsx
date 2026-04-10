@@ -23,21 +23,16 @@ const ROLE_LABELS: Record<string, string> = {
   ADMIN_CAMERE: 'Admin camere',
 };
 
-const ACCOUNT_PASSWORDS: Record<string, string> = {
-  'admin@translux.md': '***REMOVED***',
-  'dispecer@translux.md': '***REMOVED***',
-  'grafic@translux.md': '***REMOVED***',
-  'camere@translux.md': '***REMOVED***',
-};
-
 export default function UsersClient({
   initialUsers,
   initialInvites,
   initialAdmins = [],
+  accountPasswords = {},
 }: {
   initialUsers: User[];
   initialInvites: InviteWithAdmin[];
   initialAdmins?: AdminAccountInfo[];
+  accountPasswords?: Record<string, string>;
 }) {
   const [error, setError] = useState('');
   const [point, setPoint] = useState<PointEnum>('CHISINAU');
@@ -497,7 +492,7 @@ export default function UsersClient({
               {initialAdmins.map(a => (
                 <tr key={a.id}>
                   <td>{a.email}</td>
-                  <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{ACCOUNT_PASSWORDS[a.email] || '•••'}</td>
+                  <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{accountPasswords[a.email] || '•••'}</td>
                   <td>{ROLE_LABELS[a.role] || a.role}</td>
                 </tr>
               ))}

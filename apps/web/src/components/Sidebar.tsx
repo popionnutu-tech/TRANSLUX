@@ -23,6 +23,7 @@ const nav: NavItem[] = [
   { href: '/offers',       label: 'Oferte',        adminOnly: true,  icon: 'M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z' },
   { href: '/grafic',       label: 'Grafic',        adminOnly: true,  icon: 'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 10h2v7H7v-7zm4-3h2v10h-2V7zm4 6h2v4h-2v-4z' },  // admin-only grafic view
   { href: '/numarare',    label: 'Numărare',      adminOnly: false, icon: 'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z' },
+  { href: '/analytics',   label: 'Analitică',     adminOnly: true,  icon: 'M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z' },
 ];
 
 const sidebarStyle: React.CSSProperties = {
@@ -162,7 +163,10 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
     : role === 'OPERATOR_CAMERE' || role === 'ADMIN_CAMERE' ? nav.filter(n => n.href === '/numarare')
     : nav;
 
-  const showNomenclator = role === 'ADMIN';
+  const showNomenclator = role === 'ADMIN' || role === 'DISPATCHER';
+  const filteredNomenclator = role === 'ADMIN'
+    ? nomenclatorItems
+    : nomenclatorItems.filter(i => i.href === '/drivers' || i.href === '/vehicles');
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -223,7 +227,7 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
               transition: 'max-height 0.25s ease',
               paddingLeft: 12,
             }}>
-              {nomenclatorItems.map((item) => (
+              {filteredNomenclator.map((item) => (
                 <NavLink key={item.href} item={item} pathname={pathname} />
               ))}
             </div>

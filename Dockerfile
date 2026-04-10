@@ -34,4 +34,6 @@ COPY --from=build /app/apps/bot/dist/ ./apps/bot/dist/
 
 ENV NODE_ENV=production
 
+USER node
+
 CMD ["node", "apps/bot/dist/index.js"]

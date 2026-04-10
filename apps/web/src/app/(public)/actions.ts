@@ -1,6 +1,7 @@
 'use server';
 
 import { getSupabase } from '@/lib/supabase';
+import { buildTurAssignmentMap, buildReturAssignmentMap } from '@/lib/assignments';
 
 export interface Locality {
   id: number;
@@ -45,6 +46,64 @@ export async function getLocalities(): Promise<Locality[]> {
     .eq('active', true)
     .order('name_ro');
   return (data || []) as Locality[];
+}
+
+export interface PopularRoutePrice {
+  from_ro: string;
+  to_ro: string;
+  from_ru: string;
+  to_ru: string;
+  price: number;
+}
+
+/** Fetch latest popular route prices from price_nomenclator (saved by ANTA cron) */
+export async function getPopularPrices(): Promise<PopularRoutePrice[]> {
+  const { data } = await getSupabase()
+    .from('price_nomenclator')
+    .select('prices')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (data?.prices) return data.prices as PopularRoutePrice[];
+
+  // Fallback: compute from route_km_pairs if no nomenclator exists yet
+  const routes = [
+    { from: 'chisinau', to: 'balti', from_ro: 'Chișinău', to_ro: 'Bălți', from_ru: 'Кишинёв', to_ru: 'Бэлць' },
+    { from: 'chisinau', to: 'edinet', from_ro: 'Chișinău', to_ro: 'Edineț', from_ru: 'Кишинёв', to_ru: 'Единец' },
+    { from: 'chisinau', to: 'singerei', from_ro: 'Chișinău', to_ro: 'Sîngerei', from_ru: 'Кишинёв', to_ru: 'Сынжерей' },
+    { from: 'chisinau', to: 'ocnita', from_ro: 'Chișinău', to_ro: 'Ocnița', from_ru: 'Кишинёв', to_ru: 'Окница' },
+    { from: 'chisinau', to: 'otaci', from_ro: 'Chișinău', to_ro: 'Otaci', from_ru: 'Кишинёв', to_ru: 'Отачь' },
+    { from: 'chisinau', to: 'briceni', from_ro: 'Chișinău', to_ro: 'Briceni', from_ru: 'Кишинёв', to_ru: 'Бричень' },
+    { from: 'chisinau', to: 'cupcini', from_ro: 'Chișinău', to_ro: 'Cupcini', from_ru: 'Кишинёв', to_ru: 'Купчинь' },
+    { from: 'chisinau', to: 'lipcani', from_ro: 'Chișinău', to_ro: 'Lipcani', from_ru: 'Кишинёв', to_ru: 'Липкань' },
+    { from: 'chisinau', to: 'corjeuti', from_ro: 'Chișinău', to_ro: 'Corjeuți', from_ru: 'Кишинёв', to_ru: 'Коржеуць' },
+    { from: 'chisinau', to: 'grimancauti', from_ro: 'Chișinău', to_ro: 'Grimăncăuți', from_ru: 'Кишинёв', to_ru: 'Гримэнкэуць' },
+    { from: 'chisinau', to: 'criva', from_ro: 'Chișinău', to_ro: 'Criva', from_ru: 'Кишинёв', to_ru: 'Крива' },
+    { from: 'chisinau', to: 'larga', from_ro: 'Chișinău', to_ro: 'Larga', from_ru: 'Кишинёв', to_ru: 'Ларга' },
+  ];
+
+  const supabase = getSupabase();
+  const results: PopularRoutePrice[] = [];
+
+  for (const r of routes) {
+    const { data: pairs } = await supabase
+      .from('route_km_pairs')
+      .select('price')
+      .eq('from_stop', r.from)
+      .eq('to_stop', r.to)
+      .limit(1);
+
+    results.push({
+      from_ro: r.from_ro,
+      to_ro: r.to_ro,
+      from_ru: r.from_ru,
+      to_ru: r.to_ru,
+      price: pairs?.[0]?.price ?? 0,
+    });
+  }
+
+  return results;
 }
 
 /**
@@ -93,6 +152,13 @@ export async function searchTrips(
 ): Promise<TripResult[]> {
   const supabase = getSupabase();
 
+  // Fire-and-forget: log search query for analytics
+  supabase.from('search_log').insert({
+    from_locality: fromRo,
+    to_locality: toRo,
+    search_date: date,
+  }).then(() => {});
+
   // Query 1+2: Get from/to stops in parallel
   const [{ data: fromStops }, { data: toStops }] = await Promise.all([
     supabase
@@ -117,8 +183,8 @@ export async function searchTrips(
   const fromNorm = normalizeStop(fromRo).replace(/[(),."'\\]/g, '');
   const toNorm = normalizeStop(toRo).replace(/[(),."'\\]/g, '');
 
-  // Query 3+4+5+6: Get routes, prices, assignments AND offers in parallel
-  const [{ data: routes }, { data: kmPairsA }, { data: kmPairsB }, { data: assignments }, { data: activeOffers }] = await Promise.all([
+  // Query 3+4+5+6+7: Get routes, prices, assignments, retur overrides AND offers in parallel
+  const [{ data: routes }, { data: kmPairsA }, { data: kmPairsB }, { data: assignments }, { data: returOverrides }, { data: activeOffers }] = await Promise.all([
     supabase
       .from('crm_routes')
       .select('id, dest_to_ro, dest_to_ru, dest_from_ro, dest_from_ru, time_chisinau, time_nord, tariff_id_tur, tariff_id_retur')
@@ -136,9 +202,14 @@ export async function searchTrips(
       .eq('to_stop', fromNorm),
     supabase
       .from('daily_assignments')
-      .select('crm_route_id, drivers(full_name, phone), vehicles(plate_number)')
+      .select('crm_route_id, driver_id, vehicle_id, vehicle_id_retur, retur_route_id')
       .eq('assignment_date', date)
       .in('crm_route_id', matchingRouteIds),
+    supabase
+      .from('daily_assignments')
+      .select('crm_route_id, driver_id, vehicle_id, vehicle_id_retur, retur_route_id')
+      .eq('assignment_date', date)
+      .in('retur_route_id', matchingRouteIds),
     supabase
       .from('offers')
       .select('from_locality, to_locality, original_price, offer_price')
@@ -148,6 +219,23 @@ export async function searchTrips(
   ]);
 
   if (!routes) return [];
+
+  // Fetch drivers and vehicles separately to avoid Supabase FK join issues
+  const allAssignments = [...(assignments || []), ...(returOverrides || [])];
+  const driverIds = [...new Set(allAssignments.map((a: any) => a.driver_id).filter(Boolean))];
+  const vehicleIds = [...new Set(allAssignments.flatMap((a: any) => [a.vehicle_id, a.vehicle_id_retur].filter(Boolean)))];
+
+  const [{ data: driversData }, { data: vehiclesData }] = await Promise.all([
+    driverIds.length > 0
+      ? supabase.from('drivers').select('id, full_name, phone').in('id', driverIds)
+      : Promise.resolve({ data: [] }),
+    vehicleIds.length > 0
+      ? supabase.from('vehicles').select('id, plate_number').in('id', vehicleIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const driverMap = new Map((driversData || []).map((d: any) => [d.id, d]));
+  const vehicleMap = new Map((vehiclesData || []).map((v: any) => [v.id, v]));
 
   // Merge both direction results
   const kmPairs = [...(kmPairsA || []), ...(kmPairsB || [])];
@@ -163,14 +251,20 @@ export async function searchTrips(
     }
   }
 
-  // Build assignment lookup: routeId → { driver, phone, plate }
-  const assignMap = new Map<number, { driver: string; phone: string | null; plate: string | null }>();
-  for (const a of (assignments || []) as any[]) {
-    assignMap.set(a.crm_route_id, {
-      driver: a.drivers?.full_name || null,
-      phone: a.drivers?.phone || null,
-      plate: a.vehicles?.plate_number || null,
-    });
+  // Build tur/retur assignment maps using shared utility
+  const turDriverMap = buildTurAssignmentMap(allAssignments as any[]);
+  const returDriverMap = buildReturAssignmentMap(allAssignments as any[]);
+
+  // Resolve driver_id/vehicle_id → display details
+  function resolveDetails(resolved: { driver_id: string; vehicle_id: string | null } | undefined) {
+    if (!resolved) return null;
+    const driver = driverMap.get(resolved.driver_id);
+    const vehicle = resolved.vehicle_id ? vehicleMap.get(resolved.vehicle_id) : null;
+    return {
+      driver: driver?.full_name || null,
+      phone: driver?.phone || null,
+      plate: vehicle?.plate_number || null,
+    };
   }
 
   const results: TripResult[] = [];
@@ -184,43 +278,49 @@ export async function searchTrips(
 
     const price = priceMap.get(tariffId) ?? 0;
 
-    const assign = assignMap.get(route.id);
-
     // Apply offer: override price and keep original for display
     const offerPrice = offer ? offer.offer_price as number : null;
     const displayPrice = offerPrice ?? price;
     const displayOriginal = offerPrice ? price : null;
 
     if (goingNorth) {
+      // RETUR direction (Chișinău → Nord) — use retur assignment map
       const time = from.hour_from_chisinau;
       const arrival = to.hour_from_chisinau && to.hour_from_chisinau !== '0:00' ? to.hour_from_chisinau : '';
       if (time && time !== '0:00') {
+        const details = resolveDetails(returDriverMap.get(route.id));
+        // Only show routes with an assigned driver and phone number
+        if (!details?.driver || !details?.phone) continue;
         results.push({
           time,
           arrivalTime: arrival,
           destination_ro: route.dest_to_ro,
           destination_ru: route.dest_to_ru,
           duration: route.time_chisinau || '',
-          driver: assign?.driver || null,
-          phone: assign?.phone || '+37360401010',
-          vehicle_plate: assign?.plate || null,
+          driver: details.driver,
+          phone: details.phone,
+          vehicle_plate: details?.plate || null,
           price: displayPrice,
           originalPrice: displayOriginal,
         });
       }
     } else {
+      // TUR direction (Nord → Chișinău) — use tur assignment map
       const time = from.hour_from_nord;
       const arrival = to.hour_from_nord && to.hour_from_nord !== '0:00' ? to.hour_from_nord : '';
       if (time && time !== '0:00') {
+        const details = resolveDetails(turDriverMap.get(route.id));
+        // Only show routes with an assigned driver and phone number
+        if (!details?.driver || !details?.phone) continue;
         results.push({
           time,
           arrivalTime: arrival,
           destination_ro: route.dest_from_ro,
           destination_ru: route.dest_from_ru,
           duration: route.time_nord || '',
-          driver: assign?.driver || null,
-          phone: assign?.phone || '+37360401010',
-          vehicle_plate: assign?.plate || null,
+          driver: details.driver,
+          phone: details.phone,
+          vehicle_plate: details?.plate || null,
           price: displayPrice,
           originalPrice: displayOriginal,
         });

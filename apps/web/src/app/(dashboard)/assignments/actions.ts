@@ -2,7 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { getSupabase } from '@/lib/supabase';
-import { verifySession } from '@/lib/auth';
+import { verifySession, requireRole } from '@/lib/auth';
+import { parseFirstTime, parseTimeLabel } from '@/lib/assignments';
 
 export interface AssignmentRow {
   id: string | null;
@@ -13,6 +14,13 @@ export interface AssignmentRow {
   driver_id: string | null;
   vehicle_id: string | null;
   vehicle_id_retur: string | null;
+  retur_route_id: number | null;
+  retur_route_label: string | null; // e.g. "15:55 Ocnița"
+}
+
+export interface ReturRouteOption {
+  id: number;
+  label: string; // e.g. "15:55 Ocnița"
 }
 
 export interface DriverOption {
@@ -26,39 +34,38 @@ export interface VehicleOption {
   plate_number: string;
 }
 
-/** Parse first time from "HH:MM - HH:MM" string for sorting */
-function parseFirstTime(display: string): number {
-  const match = display.match(/(\d{1,2}):(\d{2})/);
-  if (!match) return 0;
-  return parseInt(match[1]) * 60 + parseInt(match[2]);
-}
-
 /** Get all crm_routes with assignments for a given date (tur-retur = one assignment) */
 export async function getAssignmentsForDate(
   date: string
-): Promise<AssignmentRow[]> {
-  const session = await verifySession();
-  if (!session) throw new Error('Neautorizat');
+): Promise<{ data?: AssignmentRow[]; error?: string }> {
+  try { requireRole(await verifySession(), 'ADMIN'); } catch { return { error: 'Acces interzis' }; }
   const db = getSupabase();
 
-  const { data: routes } = await db
+  const { data: routes, error: routesErr } = await db
     .from('crm_routes')
     .select('id, dest_from_ro, dest_to_ro, time_nord, time_chisinau')
     .eq('active', true);
 
-  if (!routes || routes.length === 0) return [];
+  if (routesErr) return { error: `Eroare rute: ${routesErr.message}` };
+  if (!routes || routes.length === 0) return { data: [] };
 
-  const { data: assignments } = await db
+  const { data: assignments, error: assignErr } = await db
     .from('daily_assignments')
-    .select('id, crm_route_id, driver_id, vehicle_id, vehicle_id_retur')
+    .select('id, crm_route_id, driver_id, vehicle_id, vehicle_id_retur, retur_route_id')
     .eq('assignment_date', date);
+
+  if (assignErr) return { error: `Eroare programări: ${assignErr.message}` };
 
   const assignmentMap = new Map(
     (assignments || []).map((a: any) => [a.crm_route_id, a])
   );
 
+  // Build a lookup for retur route labels
+  const routeMap = new Map((routes as any[]).map((r) => [r.id, r]));
+
   const rows: AssignmentRow[] = (routes as any[]).map((r) => {
     const a = assignmentMap.get(r.id);
+    const returRoute = a?.retur_route_id ? routeMap.get(a.retur_route_id) : null;
     return {
       id: a?.id || null,
       crm_route_id: r.id,
@@ -68,18 +75,21 @@ export async function getAssignmentsForDate(
       driver_id: a?.driver_id || null,
       vehicle_id: a?.vehicle_id || null,
       vehicle_id_retur: a?.vehicle_id_retur || null,
+      retur_route_id: a?.retur_route_id || null,
+      retur_route_label: returRoute
+        ? `${parseTimeLabel(returRoute.time_nord)} ${returRoute.dest_to_ro}`
+        : null,
     };
   });
 
   // Sort by tur departure time
   rows.sort((a, b) => parseFirstTime(a.time_chisinau) - parseFirstTime(b.time_chisinau));
 
-  return rows;
+  return { data: rows };
 }
 
 export async function getActiveDrivers(): Promise<DriverOption[]> {
-  const session = await verifySession();
-  if (!session) throw new Error('Neautorizat');
+  try { requireRole(await verifySession(), 'ADMIN'); } catch { return []; }
   const { data } = await getSupabase()
     .from('drivers')
     .select('id, full_name, phone')
@@ -89,8 +99,7 @@ export async function getActiveDrivers(): Promise<DriverOption[]> {
 }
 
 export async function getActiveVehicles(): Promise<VehicleOption[]> {
-  const session = await verifySession();
-  if (!session) throw new Error('Neautorizat');
+  try { requireRole(await verifySession(), 'ADMIN'); } catch { return []; }
   const { data } = await getSupabase()
     .from('vehicles')
     .select('id, plate_number')
@@ -99,17 +108,37 @@ export async function getActiveVehicles(): Promise<VehicleOption[]> {
   return (data || []) as VehicleOption[];
 }
 
+export async function getReturRouteOptions(): Promise<ReturRouteOption[]> {
+  try { requireRole(await verifySession(), 'ADMIN'); } catch { return []; }
+  const { data } = await getSupabase()
+    .from('crm_routes')
+    .select('id, dest_to_ro, time_nord')
+    .eq('active', true);
+
+  return ((data || []) as any[])
+    .map((r) => ({
+      id: r.id,
+      label: `${parseTimeLabel(r.time_nord || '')} ${r.dest_to_ro}`,
+      _sort: parseFirstTime(r.time_nord || ''),
+    }))
+    .sort((a, b) => a._sort - b._sort)
+    .map(({ id, label }) => ({ id, label }));
+}
+
 export async function upsertAssignment(
   crmRouteId: number,
   date: string,
   driverId: string,
   vehicleId: string | null,
-  vehicleIdRetur?: string | null
-) {
-  const session = await verifySession();
-  if (!session) throw new Error('Neautorizat');
+  vehicleIdRetur?: string | null,
+  returRouteId?: number | null
+): Promise<{ error?: string }> {
+  try { requireRole(await verifySession(), 'ADMIN'); } catch { return { error: 'Acces interzis' }; }
 
   const db = getSupabase();
+
+  // Normalize self-assignment to NULL
+  const effectiveReturRouteId = returRouteId === crmRouteId ? null : (returRouteId || null);
 
   const row: any = {
     crm_route_id: crmRouteId,
@@ -117,13 +146,14 @@ export async function upsertAssignment(
     driver_id: driverId,
     vehicle_id: vehicleId,
     vehicle_id_retur: vehicleIdRetur || null,
+    retur_route_id: effectiveReturRouteId,
   };
 
   const { error } = await db
     .from('daily_assignments')
     .upsert(row, { onConflict: 'crm_route_id,assignment_date' });
 
-  if (error) throw new Error(error.message);
+  if (error) return { error: `Eroare salvare: ${error.message}` };
 
   // Auto-duplicate to tomorrow if tomorrow has no assignment for this route
   const tomorrow = nextDay(date);
@@ -142,12 +172,12 @@ export async function upsertAssignment(
   }
 
   revalidatePath('/assignments');
+  return {};
 }
 
 /** Update driver phone number */
-export async function updateDriverPhone(driverId: string, phone: string) {
-  const session = await verifySession();
-  if (!session) throw new Error('Neautorizat');
+export async function updateDriverPhone(driverId: string, phone: string): Promise<{ error?: string }> {
+  try { requireRole(await verifySession(), 'ADMIN'); } catch { return { error: 'Acces interzis' }; }
 
   const cleaned = phone.replace(/\D/g, '');
   const intl = cleaned.startsWith('373') ? cleaned : '373' + cleaned.replace(/^0/, '');
@@ -157,15 +187,15 @@ export async function updateDriverPhone(driverId: string, phone: string) {
     .update({ phone: intl })
     .eq('id', driverId);
 
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
   revalidatePath('/assignments');
   revalidatePath('/drivers');
+  return {};
 }
 
 /** Get coverage: how many days ahead have assignments (from today) */
 export async function getDaysCoverage(): Promise<{ date: string; count: number }[]> {
-  const session = await verifySession();
-  if (!session) throw new Error('Neautorizat');
+  try { requireRole(await verifySession(), 'ADMIN'); } catch { return []; }
   const db = getSupabase();
   const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Chisinau' }));
   const dates: string[] = [];
@@ -175,10 +205,15 @@ export async function getDaysCoverage(): Promise<{ date: string; count: number }
     dates.push(d.toISOString().slice(0, 10));
   }
 
-  const { data } = await db
+  const { data, error } = await db
     .from('daily_assignments')
     .select('assignment_date')
     .in('assignment_date', dates);
+
+  if (error) {
+    console.error('getDaysCoverage error:', error.message);
+    return dates.map(d => ({ date: d, count: 0 }));
+  }
 
   const countMap = new Map<string, number>();
   for (const row of (data || []) as any[]) {
@@ -194,41 +229,43 @@ function nextDay(date: string): string {
   return d.toISOString().slice(0, 10);
 }
 
-export async function deleteAssignment(id: string) {
-  const session = await verifySession();
-  if (!session) throw new Error('Neautorizat');
+export async function deleteAssignment(id: string): Promise<{ error?: string }> {
+  try { requireRole(await verifySession(), 'ADMIN'); } catch { return { error: 'Acces interzis' }; }
 
   const { error } = await getSupabase()
     .from('daily_assignments')
     .delete()
     .eq('id', id);
 
-  if (error) throw new Error(error.message);
+  if (error) return { error: error.message };
   revalidatePath('/assignments');
+  return {};
 }
 
 export async function copyAssignments(
   sourceDate: string,
   targetDate: string
-) {
-  const session = await verifySession();
-  if (!session) throw new Error('Neautorizat');
+): Promise<{ error?: string }> {
+  try { requireRole(await verifySession(), 'ADMIN'); } catch { return { error: 'Acces interzis' }; }
 
   const db = getSupabase();
 
-  const { data: source } = await db
+  const { data: source, error: srcErr } = await db
     .from('daily_assignments')
-    .select('crm_route_id, driver_id, vehicle_id, vehicle_id_retur')
+    .select('crm_route_id, driver_id, vehicle_id, vehicle_id_retur, retur_route_id')
     .eq('assignment_date', sourceDate);
 
+  if (srcErr) return { error: `Eroare citire: ${srcErr.message}` };
   if (!source || source.length === 0) {
-    throw new Error('Nu există programări pentru data sursă');
+    return { error: 'Nu există programări pentru data sursă' };
   }
 
-  await db
+  const { error: delErr } = await db
     .from('daily_assignments')
     .delete()
     .eq('assignment_date', targetDate);
+
+  if (delErr) return { error: `Eroare ștergere: ${delErr.message}` };
 
   const { error } = await db
     .from('daily_assignments')
@@ -238,10 +275,12 @@ export async function copyAssignments(
         driver_id: s.driver_id,
         vehicle_id: s.vehicle_id,
         vehicle_id_retur: s.vehicle_id_retur,
+        retur_route_id: s.retur_route_id,
         assignment_date: targetDate,
       }))
     );
 
-  if (error) throw new Error(error.message);
+  if (error) return { error: `Eroare copiere: ${error.message}` };
   revalidatePath('/assignments');
+  return {};
 }

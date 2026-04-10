@@ -11,6 +11,7 @@ export async function POST(request: NextRequest) {
 
     const token = await authenticate(email, password);
     if (!token) {
+      await new Promise(r => setTimeout(r, 1000));
       return NextResponse.json({ error: 'Email sau parolă incorectă' }, { status: 401 });
     }
 

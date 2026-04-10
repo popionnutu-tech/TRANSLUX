@@ -72,7 +72,7 @@ export default function OffersClient({ initialOffers, localities }: Props) {
           className="btn-primary"
           onClick={() => setShowForm(!showForm)}
           style={{
-            padding: '8px 20px', borderRadius: 10, border: 'none',
+            padding: '8px 20px', borderRadius: 12, border: 'none',
             background: '#9B1B30', color: '#fff', fontSize: 13,
             fontWeight: 600, cursor: 'pointer', fontStyle: 'italic',
             fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
@@ -83,7 +83,7 @@ export default function OffersClient({ initialOffers, localities }: Props) {
       </div>
 
       {error && (
-        <div style={{ color: '#b91c1c', background: 'rgba(185,28,28,0.08)', padding: '10px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13 }}>
+        <div style={{ color: '#b91c1c', background: 'rgba(185,28,28,0.08)', padding: '10px 16px', borderRadius: 12, marginBottom: 16, fontSize: 13 }}>
           {error}
         </div>
       )}
@@ -91,7 +91,7 @@ export default function OffersClient({ initialOffers, localities }: Props) {
       {showForm && (
         <form onSubmit={handleCreate} style={{
           background: 'rgba(255,255,255,0.6)', backdropFilter: 'blur(16px)',
-          borderRadius: 16, padding: 24, marginBottom: 24,
+          borderRadius: 24, padding: 24, marginBottom: 24,
           border: '1px solid rgba(155,27,48,0.06)',
           display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16,
         }}>
@@ -131,7 +131,7 @@ export default function OffersClient({ initialOffers, localities }: Props) {
           </div>
           <div style={{ gridColumn: '1 / -1', textAlign: 'right' }}>
             <button type="submit" disabled={saving} style={{
-              padding: '10px 28px', borderRadius: 10, border: 'none',
+              padding: '10px 28px', borderRadius: 12, border: 'none',
               background: '#16a34a', color: '#fff', fontSize: 14,
               fontWeight: 600, cursor: 'pointer', fontStyle: 'italic',
               fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
@@ -146,17 +146,17 @@ export default function OffersClient({ initialOffers, localities }: Props) {
       {/* Offers table */}
       <div style={{
         background: 'rgba(255,255,255,0.6)', backdropFilter: 'blur(16px)',
-        borderRadius: 16, overflow: 'hidden',
+        borderRadius: 24, overflow: 'hidden',
         border: '1px solid rgba(155,27,48,0.06)',
       }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
           <thead>
             <tr style={{ borderBottom: '2px solid rgba(155,27,48,0.08)', textAlign: 'left' }}>
-              <th style={{ padding: '12px 16px', fontWeight: 600, color: '#666', fontSize: 12 }}>Direcția</th>
-              <th style={{ padding: '12px 16px', fontWeight: 600, color: '#666', fontSize: 12 }}>Preț original</th>
-              <th style={{ padding: '12px 16px', fontWeight: 600, color: '#666', fontSize: 12 }}>Preț ofertă</th>
-              <th style={{ padding: '12px 16px', fontWeight: 600, color: '#666', fontSize: 12 }}>Status</th>
-              <th style={{ padding: '12px 16px', fontWeight: 600, color: '#666', fontSize: 12 }}>Acțiuni</th>
+              <th style={{ padding: '12px 16px', fontWeight: 600, color: 'rgba(155,27,48,0.4)', fontSize: 12 }}>Direcția</th>
+              <th style={{ padding: '12px 16px', fontWeight: 600, color: 'rgba(155,27,48,0.4)', fontSize: 12 }}>Preț original</th>
+              <th style={{ padding: '12px 16px', fontWeight: 600, color: 'rgba(155,27,48,0.4)', fontSize: 12 }}>Preț ofertă</th>
+              <th style={{ padding: '12px 16px', fontWeight: 600, color: 'rgba(155,27,48,0.4)', fontSize: 12 }}>Status</th>
+              <th style={{ padding: '12px 16px', fontWeight: 600, color: 'rgba(155,27,48,0.4)', fontSize: 12 }}>Acțiuni</th>
             </tr>
           </thead>
           <tbody>
@@ -189,7 +189,7 @@ export default function OffersClient({ initialOffers, localities }: Props) {
                     onClick={() => handleToggle(offer.id, offer.active)}
                     style={{
                       padding: '5px 12px', borderRadius: 8,
-                      border: '1px solid rgba(155,27,48,0.15)', background: '#fff',
+                      border: '1px solid rgba(155,27,48,0.15)', background: 'rgba(255,255,255,0.85)',
                       fontSize: 12, cursor: 'pointer', color: '#666',
                     }}
                   >
@@ -199,7 +199,7 @@ export default function OffersClient({ initialOffers, localities }: Props) {
                     onClick={() => handleDelete(offer.id)}
                     style={{
                       padding: '5px 12px', borderRadius: 8,
-                      border: '1px solid rgba(185,28,28,0.2)', background: '#fff',
+                      border: '1px solid rgba(185,28,28,0.2)', background: 'rgba(255,255,255,0.85)',
                       fontSize: 12, cursor: 'pointer', color: '#b91c1c',
                     }}
                   >

@@ -61,7 +61,7 @@ export default function ShortPassengerPopup({
   }
 
   if (eligible.length === 0) {
-    // Нет подходящих остановок ≤ 50 км — автоматически закрываем
+    // Нет подходящих остановок в пределах maxKm — автоматически закрываем
     onCancel();
     return null;
   }

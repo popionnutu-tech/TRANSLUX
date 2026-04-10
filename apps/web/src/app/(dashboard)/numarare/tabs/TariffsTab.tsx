@@ -5,7 +5,9 @@ import {
   getTariffData,
   toggleDualTariff,
   updateShortDistanceThreshold,
+  triggerPriceUpdate,
   type TariffData,
+  type TriggerPriceUpdateResult,
 } from './tariffActions';
 
 // ─── Форматирование ───
@@ -176,6 +178,83 @@ function SettingsCard({
   );
 }
 
+// ─── Компонент таблицы номенклатора ───
+
+function NomenclatorTable({ nomenclator }: { nomenclator: TariffData['nomenclator'] }) {
+  if (!nomenclator || !nomenclator.prices || nomenclator.prices.length === 0) {
+    return (
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div style={{
+          fontSize: 15,
+          fontWeight: 600,
+          color: 'var(--primary)',
+          marginBottom: 16,
+          fontStyle: 'italic',
+        }}>
+          Nomenclator preturi
+        </div>
+        <div className="text-muted" style={{ fontSize: 13, padding: '12px 0' }}>
+          Nu exista date in nomenclator. Apasati &quot;Actualizeaza preturile&quot; pentru a genera.
+        </div>
+      </div>
+    );
+  }
+
+  const updatedAt = new Date(nomenclator.created_at).toLocaleString('ro-MD', {
+    timeZone: 'Europe/Chisinau',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  return (
+    <div className="card" style={{ marginBottom: 20 }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'baseline',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginBottom: 16,
+      }}>
+        <div style={{
+          fontSize: 15,
+          fontWeight: 600,
+          color: 'var(--primary)',
+          fontStyle: 'italic',
+        }}>
+          Nomenclator preturi
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+          Actualizat: {updatedAt} | Tarif: {nomenclator.rate_per_km.toFixed(2)} lei/km
+        </div>
+      </div>
+      <div style={{ overflowX: 'auto' }}>
+        <table>
+          <thead>
+            <tr>
+              <th>Ruta</th>
+              <th style={{ textAlign: 'right' }}>Pret (lei)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {nomenclator.prices.map((p, i) => (
+              <tr key={i}>
+                <td>{p.from_ro} — {p.to_ro}</td>
+                <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--primary)' }}>
+                  {p.price}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 // ─── Компонент таблицы истории ───
 
 function HistoryTable({ history }: { history: TariffData['history'] }) {
@@ -243,6 +322,8 @@ export default function TariffsTab() {
   const [data, setData] = useState<TariffData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [updateResult, setUpdateResult] = useState<TriggerPriceUpdateResult | null>(null);
   const [thresholdInput, setThresholdInput] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -255,6 +336,23 @@ export default function TariffsTab() {
 
   useEffect(() => {
     loadData();
+  }, [loadData]);
+
+  const handleTriggerUpdate = useCallback(async () => {
+    setUpdating(true);
+    setUpdateResult(null);
+    setErrorMessage('');
+
+    const result = await triggerPriceUpdate();
+    setUpdateResult(result);
+
+    if (!result.success) {
+      setErrorMessage(result.message);
+    } else {
+      await loadData();
+    }
+
+    setUpdating(false);
   }, [loadData]);
 
   const handleToggleDual = useCallback(async (enabled: boolean) => {
@@ -365,6 +463,47 @@ export default function TariffsTab() {
             value={formatRate(data.currentRates.suburban)}
           />
         </div>
+
+        {/* Manual update */}
+        <div style={{
+          marginTop: 20,
+          paddingTop: 16,
+          borderTop: '1px solid rgba(155,27,48,0.08)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          flexWrap: 'wrap',
+        }}>
+          <button
+            className="btn btn-primary"
+            onClick={handleTriggerUpdate}
+            disabled={updating || saving}
+            style={{ padding: '8px 20px', fontSize: 13 }}
+          >
+            {updating ? 'Se actualizeaza...' : 'Actualizeaza preturile'}
+          </button>
+          <span style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+            Preia tarifele actuale de pe anta.gov.md
+          </span>
+        </div>
+
+        {updateResult && (
+          <div style={{
+            marginTop: 12,
+            padding: '10px 16px',
+            borderRadius: 'var(--radius-xs)',
+            background: updateResult.success
+              ? (updateResult.status === 'updated' ? 'rgba(34,139,34,0.08)' : 'rgba(155,27,48,0.04)')
+              : 'var(--danger-dim)',
+            color: updateResult.success
+              ? (updateResult.status === 'updated' ? '#228B22' : 'var(--text-secondary)')
+              : 'var(--danger)',
+            fontSize: 13,
+            fontWeight: 500,
+          }}>
+            {updateResult.message}
+          </div>
+        )}
       </div>
 
       {/* Карточка 2: Настройки */}
@@ -377,7 +516,10 @@ export default function TariffsTab() {
         onSaveThreshold={handleSaveThreshold}
       />
 
-      {/* Карточка 3: История тарифов */}
+      {/* Карточка 3: Номенклатор */}
+      <NomenclatorTable nomenclator={data.nomenclator} />
+
+      {/* Карточка 4: История тарифов */}
       <HistoryTable history={data.history} />
     </div>
   );

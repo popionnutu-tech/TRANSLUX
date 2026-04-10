@@ -269,6 +269,18 @@ body {
   border-bottom: 1px solid rgba(155,27,48,0.08);
   font-family: var(--font-opensans, 'Open Sans', sans-serif);
 }
+.dashboard .grafic-table th.grafic-hdr {
+  color: #fff !important;
+  background: #9B1B30 !important;
+  font-size: 20px !important;
+  font-weight: 800 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1px !important;
+  padding: 18px 12px !important;
+  border: none !important;
+  border-bottom: 2px solid #9B1B30 !important;
+  vertical-align: middle !important;
+}
 .dashboard tbody tr {
   transition: background var(--transition);
 }

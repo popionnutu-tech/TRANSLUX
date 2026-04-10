@@ -46,9 +46,6 @@ export function RouteResults({ from, to, trips, selectedTime, locale = "ro", onC
   const isNearby = (i: number) =>
     i >= selectedIdx - 2 && i <= selectedIdx + 2 && i !== selectedIdx;
 
-  const headerTrip = trips.length > 0 ? trips[0] : null;
-  const hasOffer = headerTrip?.originalPrice != null && headerTrip.originalPrice > 0;
-
   return (
     <div
       style={{
@@ -112,24 +109,6 @@ export function RouteResults({ from, to, trips, selectedTime, locale = "ro", onC
             }}>
               {from.toUpperCase()} &rarr; {to.toUpperCase()}
             </span>
-            {headerTrip && headerTrip.price > 0 && (
-              <span style={{
-                fontWeight: 700, fontSize: 16,
-                fontFamily: "var(--font-opensans), Open Sans, sans-serif",
-              }}>
-                {hasOffer && (
-                  <span style={{
-                    fontSize: 12, color: "#999", textDecoration: "line-through",
-                    fontWeight: 500, marginRight: 6,
-                  }}>
-                    {headerTrip.originalPrice} LEI
-                  </span>
-                )}
-                <span style={{ color: hasOffer ? "#16a34a" : "#9B1B30" }}>
-                  {headerTrip.price} LEI
-                </span>
-              </span>
-            )}
           </div>
           <div style={{ fontSize: 10, color: "#aaa", marginTop: 3, letterSpacing: "0.02em" }}>
             {trips.length > 0
@@ -226,6 +205,36 @@ export function RouteResults({ from, to, trips, selectedTime, locale = "ro", onC
                     <div style={{ fontSize: 12, color: "#ccc" }}>&mdash;</div>
                   )}
                 </div>
+
+                {/* Price badge */}
+                {trip.price > 0 && (() => {
+                  const hasOffer = trip.originalPrice != null && trip.originalPrice > 0;
+                  return (
+                    <div style={{
+                      flexShrink: 0,
+                      background: hasOffer ? "#16a34a" : "#9B1B30",
+                      color: "#fff",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      padding: "4px 10px",
+                      borderRadius: 20,
+                      fontFamily: "var(--font-opensans), Open Sans, sans-serif",
+                      whiteSpace: "nowrap",
+                    }}>
+                      {hasOffer && (
+                        <span style={{
+                          fontSize: 10,
+                          textDecoration: "line-through",
+                          opacity: 0.7,
+                          marginRight: 4,
+                        }}>
+                          {trip.originalPrice}
+                        </span>
+                      )}
+                      {trip.price} lei
+                    </div>
+                  );
+                })()}
 
                 {/* Phone */}
                 {displayPhone && (

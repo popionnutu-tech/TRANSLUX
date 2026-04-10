@@ -1,8 +1,9 @@
 'use server';
 
 import { getSupabase } from '@/lib/supabase';
-import { verifySession } from '@/lib/auth';
+import { verifySession, requireRole } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
+import { resolveReturTime } from '@/lib/assignments';
 
 // ─── Типы ───
 
@@ -11,7 +12,9 @@ export interface RouteForCounting {
   dest_to_ro: string;
   time_chisinau: string;
   time_nord: string;
+  driver_id: string | null;
   driver_name: string | null;
+  vehicle_id: string | null;
   vehicle_plate: string | null;
   session_id: string | null;
   session_status: string | null;
@@ -23,6 +26,9 @@ export interface RouteForCounting {
   tur_total_lei: number | null;
   retur_total_lei: number | null;
 }
+
+export interface DriverOption { id: string; full_name: string; }
+export interface VehicleOption { id: string; plate_number: string; }
 
 export interface RouteStop {
   stopOrder: number;
@@ -36,6 +42,7 @@ export interface SavedEntry {
   stopNameRo: string;
   kmFromStart: number;
   totalPassengers: number;
+  alighted: number;
   shortPassengers: {
     id: string;
     boardedStopOrder: number;
@@ -50,9 +57,12 @@ export interface TariffConfig {
   ratePerKmLong: number;
   ratePerKmShort: number;
   doubleTariffEnabled: boolean;
+  shortDistanceKm: number;
 }
 
 // ─── Текущий пользователь ───
+
+const NUMARARE_ROLES = ['ADMIN', 'ADMIN_CAMERE', 'OPERATOR_CAMERE'] as const;
 
 export async function getCurrentUserId(): Promise<string | null> {
   const session = await verifySession();
@@ -61,61 +71,101 @@ export async function getCurrentUserId(): Promise<string | null> {
 
 // ─── Загрузка данных ───
 
+export async function getActiveDrivers(): Promise<DriverOption[]> {
+  try { requireRole(await verifySession(), ...NUMARARE_ROLES); } catch { return []; }
+  const { data } = await getSupabase()
+    .from('drivers')
+    .select('id, full_name')
+    .eq('active', true)
+    .order('full_name');
+  return (data || []) as DriverOption[];
+}
+
+export async function getActiveVehicles(): Promise<VehicleOption[]> {
+  try { requireRole(await verifySession(), ...NUMARARE_ROLES); } catch { return []; }
+  const { data } = await getSupabase()
+    .from('vehicles')
+    .select('id, plate_number')
+    .eq('active', true)
+    .order('plate_number');
+  return (data || []) as VehicleOption[];
+}
+
 export async function getRoutesForDate(date: string): Promise<{ data?: RouteForCounting[]; error?: string }> {
-  const session = await verifySession();
-  if (!session) return { error: 'Neautorizat' };
+  let session;
+  try { session = requireRole(await verifySession(), ...NUMARARE_ROLES); } catch { return { error: 'Acces interzis' }; }
 
   const sb = getSupabase();
 
-  // Берём assignments на дату с join на routes, drivers, vehicles
-  const { data: assignments, error: aErr } = await sb
+  // 1. Toate rutele active
+  const { data: allRoutes, error: rErr } = await sb
+    .from('crm_routes')
+    .select('id, dest_to_ro, time_chisinau, time_nord')
+    .eq('active', true);
+
+  if (rErr) return { error: rErr.message };
+  if (!allRoutes || allRoutes.length === 0) return { data: [] };
+
+  // 2. Assignments pe dată (cu join pe drivers, vehicles)
+  const { data: assignments } = await sb
     .from('daily_assignments')
     .select(`
       crm_route_id,
       retur_route_id,
-      crm_routes!daily_assignments_crm_route_id_fkey(id, dest_to_ro, time_chisinau, time_nord, active),
-      drivers(full_name),
-      vehicles!daily_assignments_vehicle_id_fkey(plate_number)
+      driver_id,
+      vehicle_id,
+      drivers(id, full_name),
+      vehicles!daily_assignments_vehicle_id_fkey(id, plate_number)
     `)
-    .eq('assignment_date', date)
-    .eq('crm_routes.active', true);
+    .eq('assignment_date', date);
 
-  if (aErr) return { error: aErr.message };
+  const assignMap = new Map<number, any>();
+  for (const a of assignments || []) assignMap.set(a.crm_route_id, a);
 
-  // Берём все crm_routes для resolve retur_route_id
-  const { data: allRoutes } = await sb
-    .from('crm_routes')
-    .select('id, time_chisinau, time_nord');
-  const routeMap = new Map<number, any>();
-  for (const r of allRoutes || []) routeMap.set(r.id, r);
-
-  // Берём существующие сессии подсчёта на эту дату
+  // 3. Sesiuni de numărare pe dată (cu driver/vehicle din sesiune)
   const { data: sessions } = await sb
     .from('counting_sessions')
-    .select('crm_route_id, id, status, operator_id, locked_by, locked_at, double_tariff, tur_total_lei, retur_total_lei, locker:admin_accounts!counting_sessions_locked_by_fkey(email), operator:admin_accounts!counting_sessions_operator_id_fkey(email)')
+    .select(`
+      crm_route_id, id, status, operator_id, locked_by, locked_at,
+      double_tariff, tur_total_lei, retur_total_lei,
+      driver_id, vehicle_id,
+      session_driver:drivers!counting_sessions_driver_id_fkey(id, full_name),
+      session_vehicle:vehicles!counting_sessions_vehicle_id_fkey(id, plate_number),
+      locker:admin_accounts!counting_sessions_locked_by_fkey(email),
+      operator:admin_accounts!counting_sessions_operator_id_fkey(email)
+    `)
     .eq('assignment_date', date);
 
   const sessionMap = new Map<number, any>();
-  for (const s of sessions || []) {
-    sessionMap.set(s.crm_route_id, s);
-  }
+  for (const s of sessions || []) sessionMap.set(s.crm_route_id, s);
 
-  // Tur = time_nord (первый рейс, Nord→Chișinău), Retur = time_chisinau (обратный, Chișinău→Nord)
-  // Если retur_route_id задан диспетчером, retur время берём из той рутой
-  const routes: RouteForCounting[] = (assignments || []).map((a: any) => {
-    const s = sessionMap.get(a.crm_route_id);
-    let returTime = a.crm_routes.time_chisinau;
-    if (a.retur_route_id) {
-      const rr = routeMap.get(a.retur_route_id);
-      if (rr) returTime = rr.time_chisinau;
-    }
+  // Build route map for retur_route_id resolution
+  const routeLookup = new Map<number, any>();
+  for (const r of allRoutes) routeLookup.set(r.id, r);
+
+  // 4. Construim lista — TOATE rutele active
+  const routes: RouteForCounting[] = allRoutes.map((r: any) => {
+    const a = assignMap.get(r.id);
+    const s = sessionMap.get(r.id);
+
+    // Retur time: din retur_route_id dacă e setat, altfel din ruta proprie
+    const returTime = resolveReturTime(a, r.time_chisinau, routeLookup);
+
+    // Driver/vehicle: sesiune > assignment > null
+    const driverId = s?.session_driver?.id || a?.drivers?.id || null;
+    const driverName = s?.session_driver?.full_name || a?.drivers?.full_name || null;
+    const vehicleId = s?.session_vehicle?.id || a?.vehicles?.id || null;
+    const vehiclePlate = s?.session_vehicle?.plate_number || a?.vehicles?.plate_number || null;
+
     return {
-      crm_route_id: a.crm_route_id,
-      dest_to_ro: a.crm_routes.dest_to_ro,
+      crm_route_id: r.id,
+      dest_to_ro: r.dest_to_ro,
       time_chisinau: returTime,
-      time_nord: a.crm_routes.time_nord,
-      driver_name: a.drivers?.full_name || null,
-      vehicle_plate: a.vehicles?.plate_number || null,
+      time_nord: r.time_nord,
+      driver_id: driverId,
+      driver_name: driverName,
+      vehicle_id: vehicleId,
+      vehicle_plate: vehiclePlate,
       session_id: s?.id || null,
       session_status: s?.status || null,
       locked_by_email: s?.locker?.email || null,
@@ -128,12 +178,20 @@ export async function getRoutesForDate(date: string): Promise<{ data?: RouteForC
     };
   });
 
-  // Сортируем по времени отправления из Кишинёва (первая часть time_nord), числовое сравнение
+  // Сортируем по времени отправления (time_nord)
   const parseTur = (t: string) => {
     const [h, m] = (t?.split(' - ')[0] || '0:0').split(':').map(Number);
     return h * 60 + m;
   };
   routes.sort((a, b) => parseTur(a.time_nord) - parseTur(b.time_nord));
+
+  // Strip financial data for non-admin roles (server-side enforcement)
+  if (session.role !== 'ADMIN' && session.role !== 'ADMIN_CAMERE') {
+    for (const r of routes) {
+      r.tur_total_lei = null;
+      r.retur_total_lei = null;
+    }
+  }
 
   return { data: routes };
 }
@@ -142,8 +200,7 @@ export async function getRoutesForDate(date: string): Promise<{ data?: RouteForC
 const COUNTING_ROUTE_MAP: Record<number, number> = { 13: 16 };
 
 export async function getRouteStops(crmRouteId: number, direction: 'tur' | 'retur'): Promise<RouteStop[]> {
-  const session = await verifySession();
-  if (!session) return [];
+  try { requireRole(await verifySession(), ...NUMARARE_ROLES); } catch { return []; }
 
   const stopsRouteId = COUNTING_ROUTE_MAP[crmRouteId] ?? crmRouteId;
   const sb = getSupabase();
@@ -181,7 +238,7 @@ export async function getTariffConfig(): Promise<TariffConfig> {
   const { data } = await sb
     .from('app_config')
     .select('key, value')
-    .in('key', ['rate_per_km_long', 'rate_per_km_short']);
+    .in('key', ['rate_per_km_long', 'rate_per_km_interurban_short', 'dual_interurban_tariff', 'short_distance_threshold_km']);
 
   const config: Record<string, string> = {};
   for (const row of data || []) {
@@ -190,8 +247,9 @@ export async function getTariffConfig(): Promise<TariffConfig> {
 
   return {
     ratePerKmLong: parseFloat(config['rate_per_km_long'] || '0.94'),
-    ratePerKmShort: parseFloat(config['rate_per_km_short'] || '0.94'),
-    doubleTariffEnabled: false, // per-session, not global
+    ratePerKmShort: parseFloat(config['rate_per_km_interurban_short'] || '0.94'),
+    doubleTariffEnabled: config['dual_interurban_tariff'] === 'true',
+    shortDistanceKm: parseInt(config['short_distance_threshold_km'] || '65'),
   };
 }
 
@@ -200,9 +258,11 @@ export async function getTariffConfig(): Promise<TariffConfig> {
 export async function lockRoute(
   crmRouteId: number,
   date: string,
+  driverId?: string | null,
+  vehicleId?: string | null,
 ): Promise<{ sessionId?: string; error?: string }> {
-  const session = await verifySession();
-  if (!session) return { error: 'Neautorizat' };
+  let session;
+  try { session = requireRole(await verifySession(), ...NUMARARE_ROLES); } catch { return { error: 'Acces interzis' }; }
 
   const sb = getSupabase();
 
@@ -219,10 +279,13 @@ export async function lockRoute(
     if (existing.operator_id !== session.id) {
       return { error: 'Cursă atribuită altui operator' };
     }
-    // Blocăm pentru operatorul care a creat sesiunea
+    // Blocăm pentru operatorul care a creat sesiunea + actualizăm driver/vehicle dacă sunt noi
+    const updateFields: any = { locked_by: session.id, locked_at: new Date().toISOString() };
+    if (driverId !== undefined) updateFields.driver_id = driverId || null;
+    if (vehicleId !== undefined) updateFields.vehicle_id = vehicleId || null;
     await sb
       .from('counting_sessions')
-      .update({ locked_by: session.id, locked_at: new Date().toISOString() })
+      .update(updateFields)
       .eq('id', existing.id);
     return { sessionId: existing.id };
   }
@@ -237,6 +300,8 @@ export async function lockRoute(
       locked_by: session.id,
       locked_at: new Date().toISOString(),
       status: 'new',
+      driver_id: driverId || null,
+      vehicle_id: vehicleId || null,
     })
     .select('id')
     .single();
@@ -245,9 +310,26 @@ export async function lockRoute(
   return { sessionId: data.id };
 }
 
+export async function updateSessionDriverVehicle(
+  sessionId: string,
+  driverId: string | null,
+  vehicleId: string | null,
+): Promise<{ error?: string }> {
+  try { requireRole(await verifySession(), ...NUMARARE_ROLES); } catch { return { error: 'Acces interzis' }; }
+
+  const sb = getSupabase();
+  const { error } = await sb
+    .from('counting_sessions')
+    .update({ driver_id: driverId, vehicle_id: vehicleId })
+    .eq('id', sessionId);
+
+  if (error) return { error: error.message };
+  revalidatePath('/numarare');
+  return {};
+}
+
 export async function unlockRoute(sessionId: string): Promise<{ error?: string }> {
-  const session = await verifySession();
-  if (!session) return { error: 'Neautorizat' };
+  try { requireRole(await verifySession(), ...NUMARARE_ROLES); } catch { return { error: 'Acces interzis' }; }
 
   const sb = getSupabase();
   await sb
@@ -269,6 +351,7 @@ export async function saveDirection(
     stopNameRo: string;
     kmFromStart: number;
     totalPassengers: number;
+    alighted: number;
     shortPassengers: {
       boardedStopOrder: number;
       boardedStopNameRo: string;
@@ -279,8 +362,7 @@ export async function saveDirection(
   }[],
   totalLei: number,
 ): Promise<{ error?: string }> {
-  const session = await verifySession();
-  if (!session) return { error: 'Neautorizat' };
+  try { requireRole(await verifySession(), ...NUMARARE_ROLES); } catch { return { error: 'Acces interzis' }; }
 
   const sb = getSupabase();
 
@@ -308,6 +390,7 @@ export async function saveDirection(
         stop_name_ro: entry.stopNameRo,
         km_from_start: entry.kmFromStart,
         total_passengers: entry.totalPassengers,
+        alighted: entry.alighted,
       })
       .select('id')
       .single();
@@ -353,14 +436,13 @@ export async function loadSavedEntries(
   sessionId: string,
   direction: 'tur' | 'retur',
 ): Promise<SavedEntry[]> {
-  const session = await verifySession();
-  if (!session) return [];
+  try { requireRole(await verifySession(), ...NUMARARE_ROLES); } catch { return []; }
 
   const sb = getSupabase();
   const { data: entries } = await sb
     .from('counting_entries')
     .select(`
-      id, stop_order, stop_name_ro, km_from_start, total_passengers,
+      id, stop_order, stop_name_ro, km_from_start, total_passengers, alighted,
       counting_short_passengers(id, boarded_stop_order, boarded_stop_name_ro, km_distance, passenger_count, amount_lei)
     `)
     .eq('session_id', sessionId)
@@ -373,6 +455,7 @@ export async function loadSavedEntries(
     stopNameRo: e.stop_name_ro,
     kmFromStart: Number(e.km_from_start),
     totalPassengers: e.total_passengers,
+    alighted: e.alighted ?? 0,
     shortPassengers: (e.counting_short_passengers || []).map((sp: any) => ({
       id: sp.id,
       boardedStopOrder: sp.boarded_stop_order,

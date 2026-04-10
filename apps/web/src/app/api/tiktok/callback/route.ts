@@ -1,4 +1,6 @@
 import { NextRequest } from 'next/server';
+import { cookies } from 'next/headers';
+import { jwtVerify } from 'jose';
 
 function escapeHtml(str: unknown): string {
   return String(str ?? '')
@@ -10,6 +12,23 @@ function escapeHtml(str: unknown): string {
 }
 
 export async function GET(request: NextRequest) {
+  // Verify ADMIN session
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get('translux-session')?.value;
+  if (!sessionToken) {
+    return new Response('Neautorizat — trebuie sa fii logat ca ADMIN', { status: 401 });
+  }
+  try {
+    const authSecret = process.env.AUTH_SECRET;
+    if (!authSecret) return new Response('Server misconfiguration', { status: 500 });
+    const { payload } = await jwtVerify(sessionToken, new TextEncoder().encode(authSecret));
+    if (payload.role !== 'ADMIN') {
+      return new Response('Acces interzis', { status: 403 });
+    }
+  } catch {
+    return new Response('Sesiune invalidă', { status: 401 });
+  }
+
   const code = request.nextUrl.searchParams.get('code');
   const error = request.nextUrl.searchParams.get('error');
 

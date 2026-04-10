@@ -3,6 +3,16 @@
   "installCommand": "npm install",
   "outputDirectory": "apps/web/.next",
   "framework": "nextjs",
+  "crons": [
+    {
+      "path": "/api/cron/update-prices",
+      "schedule": "0 18 * * 4"
+    },
+    {
+      "path": "/api/cron/copy-assignments",
+      "schedule": "0 20 * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/tiktokNhGbg7LgXUYoHZjwxeTq4Z7lKRoAKrhc.txt",

@@ -1,6 +1,7 @@
 'use server';
 
 import { getSupabase } from '@/lib/supabase';
+import { verifySession } from '@/lib/auth';
 import type { SmmPlatform } from '@translux/db';
 
 export interface SmmReportRow {
@@ -18,6 +19,8 @@ export async function getSmmReport(
   dateFrom: string,
   dateTo: string
 ): Promise<SmmReportRow[]> {
+  const session = await verifySession();
+  if (!session) return [];
   const { data, error } = await getSupabase()
     .from('smm_daily_stats')
     .select(

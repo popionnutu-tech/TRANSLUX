@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   getAssignmentsForDate,
   upsertAssignment,
@@ -11,6 +12,7 @@ import {
   type AssignmentRow,
   type DriverOption,
   type VehicleOption,
+  type ReturRouteOption,
 } from './actions';
 
 function formatTimeRange(display: string) {
@@ -36,9 +38,11 @@ function yesterdayStr(date: string) {
 export default function AssignmentsClient({
   drivers,
   vehicles,
+  returRoutes,
 }: {
   drivers: DriverOption[];
   vehicles: VehicleOption[];
+  returRoutes: ReturRouteOption[];
 }) {
   const [date, setDate] = useState(todayStr);
   const [rows, setRows] = useState<AssignmentRow[]>([]);
@@ -52,10 +56,14 @@ export default function AssignmentsClient({
     setLoading(true);
     setError('');
     try {
-      const data = await getAssignmentsForDate(date);
-      setRows(data);
+      const result = await getAssignmentsForDate(date);
+      if (result.error) {
+        setError(result.error);
+      } else {
+        setRows(result.data || []);
+      }
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Eroare necunoscută');
     } finally {
       setLoading(false);
     }
@@ -66,15 +74,19 @@ export default function AssignmentsClient({
     getDaysCoverage().then(setCoverage).catch(() => {});
   }, [loadData]);
 
-  async function handleSave(crmRouteId: number, driverId: string, vehicleId: string | null) {
+  async function handleSave(crmRouteId: number, driverId: string, vehicleId: string | null, vehicleIdRetur?: string | null, returRouteId?: number | null) {
     if (!driverId) return;
     setSaving((p) => ({ ...p, [crmRouteId]: true }));
     setError('');
     try {
-      await upsertAssignment(crmRouteId, date, driverId, vehicleId);
-      await loadData();
+      const result = await upsertAssignment(crmRouteId, date, driverId, vehicleId, vehicleIdRetur, returRouteId);
+      if (result.error) {
+        setError(result.error);
+      } else {
+        await loadData();
+      }
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Eroare necunoscută');
     } finally {
       setSaving((p) => ({ ...p, [crmRouteId]: false }));
     }
@@ -83,10 +95,14 @@ export default function AssignmentsClient({
   async function handleDelete(assignmentId: string) {
     setError('');
     try {
-      await deleteAssignment(assignmentId);
-      await loadData();
+      const result = await deleteAssignment(assignmentId);
+      if (result.error) {
+        setError(result.error);
+      } else {
+        await loadData();
+      }
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Eroare necunoscută');
     }
   }
 
@@ -94,10 +110,14 @@ export default function AssignmentsClient({
     setCopying(true);
     setError('');
     try {
-      await copyAssignments(yesterdayStr(date), date);
-      await loadData();
+      const result = await copyAssignments(yesterdayStr(date), date);
+      if (result.error) {
+        setError(result.error);
+      } else {
+        await loadData();
+      }
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Eroare necunoscută');
     } finally {
       setCopying(false);
     }
@@ -144,7 +164,7 @@ export default function AssignmentsClient({
                   onClick={() => setDate(c.date)}
                   style={{
                     padding: '4px 10px', borderRadius: 8, fontSize: 12, cursor: 'pointer',
-                    border: c.date === date ? '2px solid #9B1B30' : '1px solid #ddd',
+                    border: c.date === date ? '2px solid #9B1B30' : '1px solid rgba(155,27,48,0.06)',
                     background: ok ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.08)',
                     color: ok ? '#16a34a' : '#dc2626',
                     fontWeight: c.date === date ? 700 : 400,
@@ -157,6 +177,27 @@ export default function AssignmentsClient({
           </div>
         )}
       </div>
+
+      {!loading && assignedCount === 0 && rows.length > 0 && (
+        <div className="card mb-4" style={{
+          background: 'rgba(155,27,48,0.04)',
+          border: '1px solid rgba(155,27,48,0.15)',
+          textAlign: 'center',
+          padding: '20px 16px',
+        }}>
+          <p style={{ margin: '0 0 12px', color: '#666', fontSize: 14 }}>
+            Nu există programări pentru această zi.
+          </p>
+          <button
+            className="btn btn-primary"
+            onClick={handleCopy}
+            disabled={copying}
+            style={{ fontSize: 15, padding: '10px 28px' }}
+          >
+            {copying ? 'Se copiază...' : 'Copiază programarea de ieri'}
+          </button>
+        </div>
+      )}
 
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
@@ -174,7 +215,7 @@ export default function AssignmentsClient({
               <tr>
                 <th style={{ width: 70 }}>Tur</th>
                 <th>Destinația</th>
-                <th style={{ width: 70 }}>Retur</th>
+                <th style={{ width: 150 }}>Retur</th>
                 <th>Șofer</th>
                 <th>Auto</th>
                 <th style={{ width: 140 }}>Acțiuni</th>
@@ -187,6 +228,8 @@ export default function AssignmentsClient({
                   row={row}
                   drivers={drivers}
                   vehicles={vehicles}
+                  returRoutes={returRoutes}
+                  rows={rows}
                   saving={!!saving[row.crm_route_id]}
                   onSave={handleSave}
                   onDelete={handleDelete}
@@ -211,6 +254,8 @@ function AssignmentRowEditor({
   row,
   drivers,
   vehicles,
+  returRoutes,
+  rows,
   saving,
   onSave,
   onDelete,
@@ -218,12 +263,18 @@ function AssignmentRowEditor({
   row: AssignmentRow;
   drivers: DriverOption[];
   vehicles: VehicleOption[];
+  returRoutes: ReturRouteOption[];
+  rows: AssignmentRow[];
   saving: boolean;
-  onSave: (crmRouteId: number, driverId: string, vehicleId: string | null) => void;
+  onSave: (crmRouteId: number, driverId: string, vehicleId: string | null, vehicleIdRetur?: string | null, returRouteId?: number | null) => void;
   onDelete: (assignmentId: string) => void;
 }) {
   const [driverId, setDriverId] = useState(row.driver_id || '');
   const [vehicleId, setVehicleId] = useState(row.vehicle_id || '');
+  const [vehicleIdRetur, setVehicleIdRetur] = useState(row.vehicle_id_retur || '');
+  const [showReturVehicle, setShowReturVehicle] = useState(!!row.vehicle_id_retur);
+  const [returRouteId, setReturRouteId] = useState<number | null>(row.retur_route_id);
+  const [showReturRoute, setShowReturRoute] = useState(!!row.retur_route_id);
   const [editPhone, setEditPhone] = useState(false);
   const [phone, setPhone] = useState('');
   const [savingPhone, setSavingPhone] = useState(false);
@@ -231,19 +282,35 @@ function AssignmentRowEditor({
   useEffect(() => {
     setDriverId(row.driver_id || '');
     setVehicleId(row.vehicle_id || '');
-  }, [row.driver_id, row.vehicle_id]);
+    setVehicleIdRetur(row.vehicle_id_retur || '');
+    setShowReturVehicle(!!row.vehicle_id_retur);
+    setReturRouteId(row.retur_route_id);
+    setShowReturRoute(!!row.retur_route_id);
+  }, [row.driver_id, row.vehicle_id, row.vehicle_id_retur, row.retur_route_id]);
 
   const selectedDriver = drivers.find(d => d.id === driverId);
-  const isDirty = driverId !== (row.driver_id || '') || vehicleId !== (row.vehicle_id || '');
+  const isDirty = driverId !== (row.driver_id || '') || vehicleId !== (row.vehicle_id || '') || vehicleIdRetur !== (row.vehicle_id_retur || '') || (returRouteId ?? null) !== (row.retur_route_id ?? null);
+
+  // Check for retur conflicts: another row already claims the same retur
+  const hasReturConflict = returRouteId && rows.some(
+    r => r.crm_route_id !== row.crm_route_id && r.retur_route_id === returRouteId
+  );
+
+  const router = useRouter();
 
   async function handlePhoneSave() {
     if (!driverId || !phone.trim()) return;
     setSavingPhone(true);
     try {
-      await updateDriverPhone(driverId, phone);
-      setEditPhone(false);
+      const result = await updateDriverPhone(driverId, phone);
+      if (result.error) {
+        alert(result.error);
+      } else {
+        setEditPhone(false);
+        router.refresh();
+      }
     } catch (err: any) {
-      alert(err.message);
+      alert(err.message || 'Eroare necunoscută');
     } finally {
       setSavingPhone(false);
     }
@@ -253,7 +320,44 @@ function AssignmentRowEditor({
     <tr>
       <td>{formatTimeRange(row.time_chisinau)}</td>
       <td>{row.dest_to_ro}</td>
-      <td>{formatTimeRange(row.time_nord)}</td>
+      <td style={returRouteId ? { background: 'rgba(155, 27, 48, 0.06)' } : undefined}>
+        <span>{formatTimeRange(row.time_nord)}</span>
+        {showReturRoute ? (
+          <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: 11, color: '#9B1B30', fontWeight: 600 }}>Alt:</span>
+            <select
+              value={returRouteId ?? ''}
+              onChange={(e) => setReturRouteId(e.target.value ? Number(e.target.value) : null)}
+              style={{ minWidth: 120, fontSize: 12 }}
+            >
+              <option value="">— Același</option>
+              {returRoutes
+                .filter(r => r.id !== row.crm_route_id)
+                .map((r) => (
+                  <option key={r.id} value={r.id}>{r.label}</option>
+                ))}
+            </select>
+            <button
+              onClick={() => { setShowReturRoute(false); setReturRouteId(null); }}
+              style={{ fontSize: 11, cursor: 'pointer', background: 'none', border: 'none', color: '#999' }}
+            >
+              ✕
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowReturRoute(true)}
+            style={{ display: 'block', marginTop: 2, fontSize: 11, cursor: 'pointer', background: 'none', border: 'none', color: '#9B1B30', padding: 0 }}
+          >
+            + Alt retur
+          </button>
+        )}
+        {hasReturConflict && (
+          <div style={{ fontSize: 10, color: '#dc2626', marginTop: 2 }}>
+            ⚠ Conflict retur
+          </div>
+        )}
+      </td>
       <td>
         <select
           value={driverId}
@@ -305,13 +409,43 @@ function AssignmentRowEditor({
             </option>
           ))}
         </select>
+        {showReturVehicle ? (
+          <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: 11, color: '#888' }}>Retur:</span>
+            <select
+              value={vehicleIdRetur}
+              onChange={(e) => setVehicleIdRetur(e.target.value)}
+              style={{ minWidth: 100, fontSize: 12 }}
+            >
+              <option value="">— Același</option>
+              {vehicles.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.plate_number}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => { setShowReturVehicle(false); setVehicleIdRetur(''); }}
+              style={{ fontSize: 11, cursor: 'pointer', background: 'none', border: 'none', color: '#999' }}
+            >
+              ✕
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowReturVehicle(true)}
+            style={{ display: 'block', marginTop: 2, fontSize: 11, cursor: 'pointer', background: 'none', border: 'none', color: '#9B1B30', padding: 0 }}
+          >
+            + Alt auto retur
+          </button>
+        )}
       </td>
       <td>
         <div className="flex gap-2">
           {driverId && isDirty && (
             <button
               className="btn btn-primary"
-              onClick={() => onSave(row.crm_route_id, driverId, vehicleId || null)}
+              onClick={() => onSave(row.crm_route_id, driverId, vehicleId || null, vehicleIdRetur || null, returRouteId)}
               disabled={saving}
               style={{ fontSize: 13, padding: '4px 10px' }}
             >

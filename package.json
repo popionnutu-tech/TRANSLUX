@@ -20,5 +20,8 @@
   "overrides": {
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@fontsource/cormorant-garamond": "^5.2.11"
   }
 }

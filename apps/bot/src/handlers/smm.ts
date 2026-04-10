@@ -8,6 +8,10 @@ import { SMM_PLATFORM_LABELS } from '@translux/db';
  * Without args — current week. With two dates — custom range.
  */
 export async function handleSmmWeekly(ctx: BotContext) {
+  if (!ctx.dbUser || ctx.dbUser.role !== 'ADMIN') {
+    await ctx.reply('⛔ Acces restricționat. Doar administratorii pot folosi această comandă.');
+    return;
+  }
   const args = (ctx.message?.text || '').split(/\s+/).slice(1);
   let dateFrom: string;
   let dateTo: string;
@@ -73,6 +77,10 @@ export async function handleSmmWeekly(ctx: BotContext) {
  * Without args — current month. With arg — specified month.
  */
 export async function handleSmmMonth(ctx: BotContext) {
+  if (!ctx.dbUser || ctx.dbUser.role !== 'ADMIN') {
+    await ctx.reply('⛔ Acces restricționat. Doar administratorii pot folosi această comandă.');
+    return;
+  }
   const args = (ctx.message?.text || '').split(/\s+/).slice(1);
   let year: number;
   let month: number;
@@ -131,6 +139,10 @@ export async function handleSmmMonth(ctx: BotContext) {
 }
 
 export async function handleDaily(ctx: BotContext) {
+  if (!ctx.dbUser || ctx.dbUser.role !== 'ADMIN') {
+    await ctx.reply('⛔ Acces restricționat. Doar administratorii pot folosi această comandă.');
+    return;
+  }
   const msg = await ctx.reply('Se colectează datele SMM...');
 
   const today = getTodayDate();

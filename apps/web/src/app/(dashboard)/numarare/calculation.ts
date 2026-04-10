@@ -6,6 +6,7 @@ export interface StopEntry {
   stopNameRo: string;
   kmFromStart: number;
   totalPassengers: number;
+  alighted: number;
   shortPassengers: ShortPassengerGroup[];
 }
 

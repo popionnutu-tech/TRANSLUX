@@ -46,12 +46,15 @@ export default function SalaryClient({ salaryData, year, month }: Props) {
   const grandTotal = baseSalaryTotal + tiktokTotal;
 
   return (
-    <div style={{ padding: '24px 32px', maxWidth: 1000 }}>
+    <div className="page">
       <style>{`
         .salary-card {
-          background: #fff;
-          border: 1px solid #eee;
-          border-radius: 12px;
+          background: rgba(255,255,255,0.6);
+          border: 1px solid rgba(255,255,255,0.5);
+          border-radius: 24px;
+          backdrop-filter: blur(16px);
+          -webkit-backdrop-filter: blur(16px);
+          box-shadow: 0 8px 40px rgba(155,27,48,0.08), 0 1px 3px rgba(0,0,0,0.04);
           padding: 24px;
           margin-bottom: 20px;
         }
@@ -65,8 +68,10 @@ export default function SalaryClient({ salaryData, year, month }: Props) {
         }
         .salary-title {
           font-size: 20px;
-          font-weight: 700;
-          color: #111;
+          font-weight: 400;
+          color: #9B1B30;
+          font-style: italic;
+          letter-spacing: 0.5px;
         }
         .month-nav {
           display: flex;
@@ -77,7 +82,7 @@ export default function SalaryClient({ salaryData, year, month }: Props) {
           width: 32px;
           height: 32px;
           border-radius: 6px;
-          border: 1px solid #ddd;
+          border: 1px solid rgba(155,27,48,0.15);
           background: #fff;
           color: #666;
           font-size: 16px;
@@ -89,8 +94,8 @@ export default function SalaryClient({ salaryData, year, month }: Props) {
           font-family: inherit;
         }
         .month-btn:hover {
-          border-color: #D42027;
-          color: #D42027;
+          border-color: #9B1B30;
+          color: #9B1B30;
         }
         .month-label {
           font-size: 15px;
@@ -107,8 +112,8 @@ export default function SalaryClient({ salaryData, year, month }: Props) {
         .salary-table th {
           text-align: left;
           padding: 10px 12px;
-          border-bottom: 2px solid #eee;
-          color: #999;
+          border-bottom: 1px solid rgba(155,27,48,0.08);
+          color: rgba(155,27,48,0.4);
           font-weight: 600;
           font-size: 11px;
           text-transform: uppercase;
@@ -116,7 +121,7 @@ export default function SalaryClient({ salaryData, year, month }: Props) {
         }
         .salary-table td {
           padding: 12px;
-          border-bottom: 1px solid #f5f5f5;
+          border-bottom: 1px solid rgba(155,27,48,0.04);
           color: #333;
         }
         .salary-table tr:last-child td {
@@ -127,7 +132,7 @@ export default function SalaryClient({ salaryData, year, month }: Props) {
           transition: background 0.15s;
         }
         .salary-table .operator-row:hover {
-          background: #fafafa;
+          background: rgba(155,27,48,0.03);
         }
         .point-badge {
           display: inline-block;
@@ -146,7 +151,7 @@ export default function SalaryClient({ salaryData, year, month }: Props) {
         }
         .salary-amount {
           font-weight: 700;
-          color: #111;
+          color: #9B1B30;
           font-size: 15px;
         }
         .day-grid {
@@ -162,8 +167,8 @@ export default function SalaryClient({ salaryData, year, month }: Props) {
           padding: 6px 10px;
           border-radius: 6px;
           font-size: 12px;
-          border: 1px solid #eee;
-          background: #fff;
+          border: 1px solid rgba(155,27,48,0.06);
+          background: rgba(255,255,255,0.85);
         }
         .day-chip-ok {
           border-color: #d1fae5;
@@ -176,13 +181,13 @@ export default function SalaryClient({ salaryData, year, month }: Props) {
         }
         .expand-icon {
           font-size: 10px;
-          color: #999;
+          color: rgba(155,27,48,0.4);
           transition: transform 0.2s;
         }
         .total-row td {
-          border-top: 2px solid #eee;
+          border-top: 2px solid rgba(155,27,48,0.2);
           font-weight: 700;
-          color: #111;
+          color: #9B1B30;
           font-size: 14px;
         }
         .tiktok-section {
@@ -196,7 +201,7 @@ export default function SalaryClient({ salaryData, year, month }: Props) {
         }
         .tiktok-account {
           padding: 12px 16px;
-          background: #fafafa;
+          background: rgba(155,27,48,0.03);
           border-radius: 8px;
           display: flex;
           justify-content: space-between;
@@ -205,16 +210,16 @@ export default function SalaryClient({ salaryData, year, month }: Props) {
         .tiktok-account-name {
           font-size: 13px;
           font-weight: 500;
-          color: #555;
+          color: #666;
         }
         .tiktok-posts {
           font-size: 18px;
           font-weight: 700;
-          color: #111;
+          color: #9B1B30;
         }
         .tiktok-posts-label {
           font-size: 11px;
-          color: #999;
+          color: rgba(155,27,48,0.4);
           font-weight: 400;
         }
         .tiktok-summary {
@@ -222,19 +227,19 @@ export default function SalaryClient({ salaryData, year, month }: Props) {
           justify-content: space-between;
           align-items: center;
           padding: 12px 16px;
-          background: #fafafa;
+          background: rgba(155,27,48,0.03);
           border-radius: 8px;
           font-size: 13px;
         }
         .tiktok-total {
           font-weight: 700;
           font-size: 16px;
-          color: #111;
+          color: #9B1B30;
         }
         .grand-total-card {
-          background: linear-gradient(135deg, #D42027 0%, #a01a1f 100%);
+          background: linear-gradient(135deg, #9B1B30 0%, #7a1526 100%);
           color: #fff;
-          border-radius: 12px;
+          border-radius: 24px;
           padding: 20px 24px;
           display: flex;
           justify-content: space-between;

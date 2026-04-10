@@ -57,7 +57,7 @@ export default function PassengersChart({ data, comparisonData, showComparison, 
       {showComparison && (
         <div style={{ display: 'flex', gap: 24, fontSize: 11, color: '#888', marginBottom: 8 }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ width: 20, height: 3, background: '#D42027', borderRadius: 2, display: 'inline-block' }} />
+            <span style={{ width: 20, height: 3, background: '#9B1B30', borderRadius: 2, display: 'inline-block' }} />
             {currentLabel}
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -70,8 +70,8 @@ export default function PassengersChart({ data, comparisonData, showComparison, 
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" style={{ width: '100%', height: 'auto', display: 'block' }}>
         <defs>
           <linearGradient id="chartArea" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#D42027" stopOpacity="0.1" />
-            <stop offset="100%" stopColor="#D42027" stopOpacity="0" />
+            <stop offset="0%" stopColor="#9B1B30" stopOpacity="0.1" />
+            <stop offset="100%" stopColor="#9B1B30" stopOpacity="0" />
           </linearGradient>
         </defs>
 
@@ -95,9 +95,9 @@ export default function PassengersChart({ data, comparisonData, showComparison, 
           </>
         )}
 
-        <path d={mainPath} fill="none" stroke="#D42027" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+        <path d={mainPath} fill="none" stroke="#9B1B30" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
         {data.map((d, i) => (
-          <circle key={`m${i}`} cx={toX(i)} cy={toY(d.value)} r="3.5" fill="#D42027" />
+          <circle key={`m${i}`} cx={toX(i)} cy={toY(d.value)} r="3.5" fill="#9B1B30" />
         ))}
 
         {data.map((d, i) => {

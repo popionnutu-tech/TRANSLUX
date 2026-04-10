@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
 
-const ALL_DASHBOARD = ['/reports', '/users', '/drivers', '/trips', '/routes', '/salary', '/smm-accounts', '/assignments', '/grafic', '/numarare', '/vehicles', '/mapping', '/offers'];
-const DISPATCHER_ALLOWED = ['/grafic'];
+const ALL_DASHBOARD = ['/reports', '/users', '/drivers', '/trips', '/routes', '/salary', '/smm-accounts', '/assignments', '/grafic', '/numarare', '/vehicles', '/mapping', '/offers', '/analytics'];
+const DISPATCHER_ALLOWED = ['/grafic', '/drivers', '/vehicles'];
 const GRAFIC_ALLOWED = ['/grafic'];
 const OPERATOR_CAMERE_ALLOWED = ['/numarare'];
 const ADMIN_CAMERE_ALLOWED = ['/numarare'];
@@ -30,7 +30,10 @@ export async function middleware(request: NextRequest) {
 
   try {
     const { payload } = await jwtVerify(token, new TextEncoder().encode(authSecret));
-    const role = (payload.role as string) || 'ADMIN';
+    const role = payload.role as string;
+    if (!role) {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
 
     // Dispatcher can only access /grafic
     if (role === 'DISPATCHER') {

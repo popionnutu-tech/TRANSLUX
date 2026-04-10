@@ -2,15 +2,14 @@
 
 import { revalidatePath } from 'next/cache';
 import { getSupabase } from '@/lib/supabase';
-import { verifySession } from '@/lib/auth';
+import { verifySession, requireRole } from '@/lib/auth';
 import type { User, UserRole, InviteToken, PointEnum } from '@translux/db';
 import crypto from 'crypto';
 
 // ── Users ────────────────────────────────────────────
 
 export async function getUsers(): Promise<User[]> {
-  const session = await verifySession();
-  if (!session) throw new Error('Neautorizat');
+  requireRole(await verifySession(), 'ADMIN');
   const { data } = await getSupabase()
     .from('users')
     .select('*')
@@ -34,6 +33,7 @@ export async function updateUserRole(id: string, role: UserRole) {
 export async function updateUserPoint(id: string, point: PointEnum | null) {
   const session = await verifySession();
   if (!session) throw new Error('Neautorizat');
+  if (session.role !== 'ADMIN') throw new Error('Acces interzis');
   const { error } = await getSupabase()
     .from('users')
     .update({ point })
@@ -45,6 +45,7 @@ export async function updateUserPoint(id: string, point: PointEnum | null) {
 export async function toggleUser(id: string, active: boolean) {
   const session = await verifySession();
   if (!session) throw new Error('Neautorizat');
+  if (session.role !== 'ADMIN') throw new Error('Acces interzis');
   await getSupabase().from('users').update({ active }).eq('id', id);
   revalidatePath('/users');
 }
@@ -52,6 +53,7 @@ export async function toggleUser(id: string, active: boolean) {
 export async function deleteUser(id: string) {
   const session = await verifySession();
   if (!session) throw new Error('Neautorizat');
+  if (session.role !== 'ADMIN') throw new Error('Acces interzis');
   const { error } = await getSupabase().from('users').delete().eq('id', id);
   if (error) throw new Error(error.message);
   revalidatePath('/users');
@@ -76,6 +78,19 @@ export async function getAdminAccounts(): Promise<AdminAccountInfo[]> {
   return (data || []) as AdminAccountInfo[];
 }
 
+// ── Account Passwords (server-side only) ────────────
+
+export async function getAccountPasswords(): Promise<Record<string, string>> {
+  const session = await verifySession();
+  if (!session || session.role !== 'ADMIN') return {};
+  return {
+    'admin@translux.md': 'admin123',
+    'dispecer@translux.md': 'dispecer2026',
+    'grafic@translux.md': 'grafic2026',
+    'camere@translux.md': 'camere2026',
+  };
+}
+
 // ── Invites ──────────────────────────────────────────
 
 export interface InviteWithAdmin extends InviteToken {
@@ -84,8 +99,7 @@ export interface InviteWithAdmin extends InviteToken {
 }
 
 export async function getInvites(): Promise<InviteWithAdmin[]> {
-  const session = await verifySession();
-  if (!session) throw new Error('Neautorizat');
+  requireRole(await verifySession(), 'ADMIN');
   const { data } = await getSupabase()
     .from('invite_tokens')
     .select('*, admin_accounts:created_by(email), users:used_by_user(telegram_id, username)')
@@ -96,6 +110,7 @@ export async function getInvites(): Promise<InviteWithAdmin[]> {
 export async function createInvite(point: PointEnum): Promise<{ token: string; botLink: string }> {
   const session = await verifySession();
   if (!session) throw new Error('Neautorizat');
+  if (session.role !== 'ADMIN') throw new Error('Acces interzis');
 
   const token = crypto.randomBytes(24).toString('base64url');
 
@@ -119,6 +134,7 @@ export async function createInvite(point: PointEnum): Promise<{ token: string; b
 export async function deleteInvite(token: string) {
   const session = await verifySession();
   if (!session) throw new Error('Neautorizat');
+  if (session.role !== 'ADMIN') throw new Error('Acces interzis');
   await getSupabase().from('invite_tokens').delete().eq('token', token);
   revalidatePath('/users');
 }

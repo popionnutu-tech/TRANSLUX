@@ -3,50 +3,21 @@
 import { useState, useRef, useMemo } from 'react';
 import { format } from 'date-fns';
 import { ro as roLocale, ru as ruLocale } from 'date-fns/locale';
+import { VoiceCallButton } from './ui/voice-call-button';
 import ShaderBackground from '@/components/ui/shader-background';
 import { RainbowButton } from '@/components/ui/rainbow-borders-button';
 import { MiniCalendar } from '@/components/ui/mini-calendar';
 import { RouteResults } from '@/components/ui/route-results';
 import { type Locale, t } from '@/lib/i18n';
-import { searchTrips, type Locality, type TripResult } from '@/app/(public)/actions';
-
-const popularRoutes = {
-  ro: [
-    { route: 'CHIȘINĂU - BĂLȚI', price: '120 LEI' },
-    { route: 'CHIȘINĂU - EDINEȚ', price: '184 LEI' },
-    { route: 'CHIȘINĂU - SÎNGEREI', price: '95 LEI' },
-    { route: 'CHIȘINĂU - OCNIȚA', price: '216 LEI' },
-    { route: 'CHIȘINĂU - OTACI', price: '241 LEI' },
-    { route: 'CHIȘINĂU - BRICENI', price: '215 LEI' },
-    { route: 'CHIȘINĂU - CUPCINI', price: '178 LEI' },
-    { route: 'CHIȘINĂU - LIPCANI', price: '237 LEI' },
-    { route: 'CHIȘINĂU - CORJEUȚI', price: '228 LEI' },
-    { route: 'CHIȘINĂU - GRIMĂNCĂUȚI', price: '214 LEI' },
-    { route: 'CHIȘINĂU - CRIVA', price: '249 LEI' },
-    { route: 'CHIȘINĂU - LARGA', price: '229 LEI' },
-  ],
-  ru: [
-    { route: 'КИШИНЁВ - БЭЛЦЬ', price: '120 LEI' },
-    { route: 'КИШИНЁВ - ЕДИНЕЦ', price: '184 LEI' },
-    { route: 'КИШИНЁВ - СЫНЖЕРЕЙ', price: '95 LEI' },
-    { route: 'КИШИНЁВ - ОКНИЦА', price: '216 LEI' },
-    { route: 'КИШИНЁВ - ОТАЧЬ', price: '241 LEI' },
-    { route: 'КИШИНЁВ - БРИЧЕНЬ', price: '215 LEI' },
-    { route: 'КИШИНЁВ - КУПЧИНЬ', price: '178 LEI' },
-    { route: 'КИШИНЁВ - ЛИПКАНЬ', price: '237 LEI' },
-    { route: 'КИШИНЁВ - КОРЖЕУЦЬ', price: '228 LEI' },
-    { route: 'КИШИНЁВ - ГРИМЭНКЭУЦЬ', price: '214 LEI' },
-    { route: 'КИШИНЁВ - КРИВА', price: '249 LEI' },
-    { route: 'КИШИНЁВ - ЛАРГА', price: '229 LEI' },
-  ],
-};
+import { searchTrips, type Locality, type TripResult, type PopularRoutePrice } from '@/app/(public)/actions';
 
 interface HomePageProps {
   locale: Locale;
   localities?: Locality[];
+  popularPrices?: PopularRoutePrice[];
 }
 
-export function HomePage({ locale, localities = [] }: HomePageProps) {
+export function HomePage({ locale, localities = [], popularPrices = [] }: HomePageProps) {
   const [showResults, setShowResults] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -87,33 +58,6 @@ export function HomePage({ locale, localities = [] }: HomePageProps) {
 
   return (
     <div style={{ minHeight: '100vh', position: 'relative', fontFamily: 'var(--font-opensans), Open Sans, sans-serif' }}>
-      <style>{`
-        @keyframes heroFadeIn {
-          from { opacity: 0; transform: translateY(16px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes cardSlideUp {
-          from { opacity: 0; transform: translateY(24px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .hero-card { animation: heroFadeIn 0.7s ease-out both; }
-        .routes-card { animation: cardSlideUp 0.7s ease-out 0.15s both; }
-        .hero-select::placeholder { color: rgba(155,27,48,0.35); }
-        .hero-select:focus { box-shadow: 0 0 0 2px rgba(155,27,48,0.15) !important; outline: none; }
-        .hero-swap:hover { background: rgba(155,27,48,0.08) !important; border-radius: 50%; }
-        .hero-swap:active { transform: scale(0.92); }
-        @media (max-width: 640px) {
-          .hero-form { flex-wrap: wrap !important; }
-          .hero-form > div[style] { flex: 1 1 100% !important; width: 100% !important; }
-          .hero-form > .hero-swap { flex: 0 0 auto !important; width: auto !important; }
-          .hero-form > .hero-date-wrap > button { width: 100% !important; justify-content: center !important; }
-        }
-        .route-row:hover { background: rgba(155,27,48,0.04); }
-        .social-icon:hover { background: #9B1B30 !important; color: white !important; border-color: #9B1B30 !important; }
-        .social-icon { transition: all 0.2s ease; }
-        .lang-btn:hover { background: rgba(155,27,48,0.12) !important; }
-      `}</style>
-
       <ShaderBackground />
 
       <div style={{ position: 'relative', zIndex: 1 }}>
@@ -283,26 +227,31 @@ export function HomePage({ locale, localities = [] }: HomePageProps) {
               display: 'grid', gridTemplateColumns: '1fr 1fr',
               gap: '0 48px', maxWidth: 520, margin: '0 auto',
             }}>
-              {popularRoutes[locale].map((r) => (
-                <div key={r.route} className="route-row" style={{
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  padding: '9px 4px', borderBottom: '1px solid rgba(155,27,48,0.06)',
-                  borderRadius: 4, transition: 'background 0.15s ease',
-                }}>
-                  <span style={{
-                    fontSize: 10, color: '#666', textTransform: 'uppercase', letterSpacing: 0.8,
-                    fontWeight: 600, fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
+              {popularPrices.map((r) => {
+                const routeName = locale === 'ru'
+                  ? `${r.from_ru} - ${r.to_ru}`
+                  : `${r.from_ro} - ${r.to_ro}`;
+                return (
+                  <div key={routeName} className="route-row" style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '9px 4px', borderBottom: '1px solid rgba(155,27,48,0.06)',
+                    borderRadius: 4, transition: 'background 0.15s ease',
                   }}>
-                    {r.route}
-                  </span>
-                  <span style={{
-                    fontSize: 11, fontWeight: 700, color: '#9B1B30', marginLeft: 8, whiteSpace: 'nowrap',
-                    fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
-                  }}>
-                    {r.price}
-                  </span>
-                </div>
-              ))}
+                    <span style={{
+                      fontSize: 10, color: '#666', textTransform: 'uppercase', letterSpacing: 0.8,
+                      fontWeight: 600, fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
+                    }}>
+                      {routeName}
+                    </span>
+                    <span style={{
+                      fontSize: 11, fontWeight: 700, color: '#9B1B30', marginLeft: 8, whiteSpace: 'nowrap',
+                      fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
+                    }}>
+                      {r.price} LEI
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -330,10 +279,10 @@ export function HomePage({ locale, localities = [] }: HomePageProps) {
               </p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <a href="https://www.facebook.com/TRANSPORTLUX" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="social-icon" style={{ width: 30, height: 30, borderRadius: '50%', border: '1.5px solid rgba(155,27,48,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9B1B30', textDecoration: 'none', background: 'transparent' }}>
+              <a href="https://www.facebook.com/TRANSPORTLUX" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="social-icon social-icon-3d" style={{ width: 30, height: 30, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9B1B30', textDecoration: 'none' }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
               </a>
-              <a href="https://www.tiktok.com/@translux.md" target="_blank" rel="noopener noreferrer" aria-label="TikTok" className="social-icon" style={{ width: 30, height: 30, borderRadius: '50%', border: '1.5px solid rgba(155,27,48,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9B1B30', textDecoration: 'none', background: 'transparent' }}>
+              <a href="https://www.tiktok.com/@translux.md" target="_blank" rel="noopener noreferrer" aria-label="TikTok" className="social-icon social-icon-3d" style={{ width: 30, height: 30, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9B1B30', textDecoration: 'none' }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1v-3.52a6.37 6.37 0 0 0-.79-.05A6.34 6.34 0 0 0 3.15 15.2a6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.34-6.34V8.87a8.16 8.16 0 0 0 4.76 1.52v-3.4a4.85 4.85 0 0 1-1-.3z"/></svg>
               </a>
             </div>
@@ -342,14 +291,14 @@ export function HomePage({ locale, localities = [] }: HomePageProps) {
 
       </div>
 
+      {/* Voice call button */}
+      <VoiceCallButton />
+
       {/* Lang toggle */}
-      <div style={{
+      <div className="lang-toggle-3d" style={{
         position: 'fixed', right: 16, bottom: 16, zIndex: 3,
-        display: 'flex', gap: 2, background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
+        display: 'flex', gap: 2,
         borderRadius: 10, padding: 3,
-        border: '1px solid rgba(155,27,48,0.1)',
-        boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
       }}>
         <a href="/ro" className="lang-btn" style={{
           color: locale === 'ro' ? '#9B1B30' : 'rgba(155,27,48,0.35)',

@@ -2,12 +2,11 @@
 
 import { revalidatePath } from 'next/cache';
 import { getSupabase } from '@/lib/supabase';
-import { verifySession } from '@/lib/auth';
+import { verifySession, requireRole } from '@/lib/auth';
 import type { SmmAccount, SmmPlatform } from '@translux/db';
 
 export async function getSmmAccounts(): Promise<SmmAccount[]> {
-  const session = await verifySession();
-  if (!session) throw new Error('Neautorizat');
+  requireRole(await verifySession(), 'ADMIN');
   const { data } = await getSupabase()
     .from('smm_accounts')
     .select('*')
@@ -24,8 +23,7 @@ export async function createSmmAccount(input: {
   refresh_token?: string;
   token_expires_at?: string;
 }) {
-  const session = await verifySession();
-  if (!session) throw new Error('Neautorizat');
+  requireRole(await verifySession(), 'ADMIN');
   const { error } = await getSupabase().from('smm_accounts').insert({
     platform: input.platform,
     account_name: input.account_name.trim(),
@@ -43,8 +41,7 @@ export async function updateSmmToken(
   access_token: string,
   refresh_token?: string
 ) {
-  const session = await verifySession();
-  if (!session) throw new Error('Neautorizat');
+  requireRole(await verifySession(), 'ADMIN');
   const update: Record<string, string | null> = {
     access_token: access_token.trim(),
   };
@@ -56,15 +53,13 @@ export async function updateSmmToken(
 }
 
 export async function toggleSmmAccount(id: string, active: boolean) {
-  const session = await verifySession();
-  if (!session) throw new Error('Neautorizat');
+  requireRole(await verifySession(), 'ADMIN');
   await getSupabase().from('smm_accounts').update({ active }).eq('id', id);
   revalidatePath('/smm-accounts');
 }
 
 export async function deleteSmmAccount(id: string) {
-  const session = await verifySession();
-  if (!session) throw new Error('Neautorizat');
+  requireRole(await verifySession(), 'ADMIN');
   const { error } = await getSupabase()
     .from('smm_accounts')
     .delete()

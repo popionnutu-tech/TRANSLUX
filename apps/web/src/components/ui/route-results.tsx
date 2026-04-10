@@ -46,6 +46,9 @@ export function RouteResults({ from, to, trips, selectedTime, locale = "ro", onC
   const isNearby = (i: number) =>
     i >= selectedIdx - 2 && i <= selectedIdx + 2 && i !== selectedIdx;
 
+  const headerTrip = trips.length > 0 ? trips[0] : null;
+  const hasOffer = headerTrip?.originalPrice != null && headerTrip.originalPrice > 0;
+
   return (
     <div
       style={{
@@ -62,8 +65,8 @@ export function RouteResults({ from, to, trips, selectedTime, locale = "ro", onC
         @keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
         .route-modal-backdrop { animation: backdropIn 0.2s ease-out; }
         .route-modal-content { animation: modalIn 0.25s ease-out; }
-        .trip-row:hover { background: rgba(155,27,48,0.04) !important; }
-        .call-btn:hover { transform: scale(1.1); box-shadow: 0 2px 8px rgba(34,197,94,0.4); }
+        .trip-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.08) !important; }
+        .call-btn:hover { transform: scale(1.05); box-shadow: 0 2px 8px rgba(34,197,94,0.4) !important; }
         .call-btn { transition: all 0.15s ease; }
       `}</style>
       <div
@@ -100,11 +103,33 @@ export function RouteResults({ from, to, trips, selectedTime, locale = "ro", onC
             aria-label="Close"
           >&times;</button>
           <div style={{
-            fontSize: 14, fontWeight: 700, color: "#9B1B30",
-            letterSpacing: "0.04em",
-            fontFamily: "var(--font-opensans), Open Sans, sans-serif",
+            display: "flex", alignItems: "baseline", justifyContent: "center", gap: 10,
           }}>
-            {from.toUpperCase()} &rarr; {to.toUpperCase()}
+            <span style={{
+              fontSize: 14, fontWeight: 700, color: "#9B1B30",
+              letterSpacing: "0.04em",
+              fontFamily: "var(--font-opensans), Open Sans, sans-serif",
+            }}>
+              {from.toUpperCase()} &rarr; {to.toUpperCase()}
+            </span>
+            {headerTrip && headerTrip.price > 0 && (
+              <span style={{
+                fontWeight: 700, fontSize: 16,
+                fontFamily: "var(--font-opensans), Open Sans, sans-serif",
+              }}>
+                {hasOffer && (
+                  <span style={{
+                    fontSize: 12, color: "#999", textDecoration: "line-through",
+                    fontWeight: 500, marginRight: 6,
+                  }}>
+                    {headerTrip.originalPrice} LEI
+                  </span>
+                )}
+                <span style={{ color: hasOffer ? "#16a34a" : "#9B1B30" }}>
+                  {headerTrip.price} LEI
+                </span>
+              </span>
+            )}
           </div>
           <div style={{ fontSize: 10, color: "#aaa", marginTop: 3, letterSpacing: "0.02em" }}>
             {trips.length > 0
@@ -119,7 +144,11 @@ export function RouteResults({ from, to, trips, selectedTime, locale = "ro", onC
           className="route-results-scroll"
           style={{
             overflowY: "auto",
-            background: "#fff",
+            background: "#f8f8f8",
+            padding: "8px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
           }}
         >
           {trips.length === 0 && (
@@ -132,103 +161,100 @@ export function RouteResults({ from, to, trips, selectedTime, locale = "ro", onC
           {trips.map((trip, i) => {
             const isSelected = i === selectedIdx;
             const near = isNearby(i);
+            const displayPhone = trip.phone ? '0' + trip.phone.replace(/^\+?373/, '') : null;
             return (
               <div
                 key={`${trip.time}-${i}`}
                 ref={isSelected ? selectedRef : undefined}
-                className="trip-row"
+                className="trip-card"
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: "10px 20px",
-                  borderLeft: `3px solid ${isSelected ? "#9B1B30" : near ? "rgba(155,27,48,0.3)" : "transparent"}`,
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "10px 12px",
+                  borderRadius: 10,
                   background: isSelected
-                    ? "rgba(155,27,48,0.06)"
+                    ? "rgba(155,27,48,0.04)"
+                    : "#fff",
+                  border: isSelected
+                    ? "1px solid rgba(155,27,48,0.15)"
                     : near
-                      ? "rgba(155,27,48,0.02)"
-                      : "transparent",
-                  borderBottom: "1px solid #f5f5f5",
-                  transition: "background 0.15s",
+                      ? "1px solid rgba(155,27,48,0.08)"
+                      : "1px solid #eee",
+                  transition: "all 0.15s",
                 }}
               >
-                {/* Time: departure → arrival */}
+                {/* Time */}
                 <div style={{
-                  minWidth: 100,
                   fontVariantNumeric: "tabular-nums",
                   fontFamily: "var(--font-opensans), Open Sans, sans-serif",
-                  display: "flex", flexDirection: "column", alignItems: "flex-start",
+                  flexShrink: 0, textAlign: "center", minWidth: 55,
                 }}>
-                  <span style={{
-                    fontWeight: 700,
-                    fontSize: 16,
+                  <div style={{
+                    fontWeight: 700, fontSize: 18, lineHeight: 1,
                     color: isSelected || near ? "#9B1B30" : "#333",
                   }}>
                     {trip.time}
-                  </span>
-                  {trip.arrivalTime && (
-                    <span style={{
-                      fontSize: 11,
-                      color: isSelected || near ? "rgba(155,27,48,0.6)" : "#999",
-                      marginTop: 1,
-                    }}>
-                      → {trip.arrivalTime}
-                    </span>
-                  )}
-                </div>
-
-                {/* Driver / route info */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{
-                    fontSize: 12, color: "#333", fontWeight: 500,
-                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                  }}>
-                    {trip.driver || (locale === "ru" ? trip.destination_ru : trip.destination_ro)}
                   </div>
-                  {trip.driver && trip.vehicle_plate && (
-                    <div style={{ fontSize: 11, color: "#999", marginTop: 1 }}>
-                      {trip.vehicle_plate}
+                  {trip.arrivalTime && (
+                    <div style={{
+                      fontSize: 10, marginTop: 2,
+                      color: isSelected || near ? "rgba(155,27,48,0.5)" : "#999",
+                    }}>
+                      &rarr; {trip.arrivalTime}
                     </div>
                   )}
                 </div>
 
-                {/* Call button (if phone available) */}
-                {trip.phone && (
+                {/* Driver + plate */}
+                <div style={{
+                  flex: 1, minWidth: 0,
+                }}>
+                  {trip.driver ? (
+                    <>
+                      <div style={{
+                        fontSize: 13, fontWeight: 500, color: "#333",
+                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                      }}>
+                        {trip.driver}
+                      </div>
+                      {trip.vehicle_plate && (
+                        <div style={{ fontSize: 11, color: "#999", marginTop: 1 }}>
+                          {trip.vehicle_plate}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div style={{ fontSize: 12, color: "#ccc" }}>&mdash;</div>
+                  )}
+                </div>
+
+                {/* Phone */}
+                {displayPhone && (
                   <a
                     href={`tel:${trip.phone}`}
                     onClick={(e) => e.stopPropagation()}
                     className="call-btn"
                     style={{
-                      flexShrink: 0, width: 38, height: 38, borderRadius: "50%",
-                      background: "#22c55e", display: "flex", alignItems: "center",
-                      justifyContent: "center", textDecoration: "none",
-                      boxShadow: "0 2px 6px rgba(34,197,94,0.25)",
+                      flexShrink: 0, display: "flex", alignItems: "center", gap: 6,
+                      textDecoration: "none",
                     }}
                     aria-label={`Sună ${trip.driver}`}
                   >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                    <span style={{
+                      width: 36, height: 36, borderRadius: "50%",
+                      background: "#22c55e", display: "flex", alignItems: "center",
+                      justifyContent: "center",
+                      boxShadow: "0 2px 6px rgba(34,197,94,0.25)",
+                    }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                    </span>
+                    <span style={{
+                      fontSize: 13, fontWeight: 600, color: "#333",
+                      whiteSpace: "nowrap",
+                    }}>
+                      {displayPhone}
+                    </span>
                   </a>
                 )}
-
-                {/* Price */}
-                <span style={{
-                  fontWeight: 700, color: "#9B1B30", fontSize: 14, whiteSpace: "nowrap",
-                  fontFamily: "var(--font-opensans), Open Sans, sans-serif",
-                  minWidth: 52, textAlign: "right",
-                  display: "flex", flexDirection: "column", alignItems: "flex-end",
-                }}>
-                  {trip.originalPrice != null && trip.originalPrice > 0 && (
-                    <span style={{
-                      fontSize: 11, color: "#999", textDecoration: "line-through",
-                      fontWeight: 500, lineHeight: 1,
-                    }}>
-                      {trip.originalPrice} LEI
-                    </span>
-                  )}
-                  <span style={{ color: trip.originalPrice != null ? "#16a34a" : "#9B1B30" }}>
-                    {trip.price > 0 ? `${trip.price} LEI` : '—'}
-                  </span>
-                </span>
               </div>
             );
           })}

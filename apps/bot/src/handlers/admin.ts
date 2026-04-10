@@ -4,6 +4,10 @@ import { getViolationsCount, updateDailyDigest } from '../services/dailyDigest.j
 
 /** Manual trigger for daily digest */
 export async function handleDigest(ctx: BotContext) {
+  if (!ctx.dbUser || ctx.dbUser.role !== 'ADMIN') {
+    await ctx.reply('⛔ Acces restricționat. Doar administratorii pot folosi această comandă.');
+    return;
+  }
   const count = await getViolationsCount();
   if (count === 0) {
     await ctx.reply('✅ Azi nu sunt încălcări înregistrate.');
@@ -20,6 +24,10 @@ export async function handleDigest(ctx: BotContext) {
 
 /** Manual trigger for weekly report (admin only) */
 export async function handleWeeklyReport(ctx: BotContext) {
+  if (!ctx.dbUser || ctx.dbUser.role !== 'ADMIN') {
+    await ctx.reply('⛔ Acces restricționat. Doar administratorii pot folosi această comandă.');
+    return;
+  }
   await ctx.reply('⏳ Se generează raportul săptămânal...');
   try {
     await sendWeeklyReport();

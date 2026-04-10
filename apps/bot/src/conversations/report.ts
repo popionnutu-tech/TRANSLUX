@@ -675,14 +675,13 @@ export async function reportConversation(
       if (err?.code === '23505') {
         await ctx.reply('⚠ Această cursă a fost deja înregistrată.');
       } else {
-        console.error('Report save error:', err);
-        const detail = [
-          err?.code && `code: ${err.code}`,
-          err?.message,
-          err?.details,
-          err?.hint,
-        ].filter(Boolean).join('\n') || JSON.stringify(err);
-        await ctx.reply(`Eroare la salvare.\n\n🔍 ${detail}`);
+        console.error('Report save error:', {
+          code: err?.code,
+          message: err?.message,
+          details: err?.details,
+          hint: err?.hint,
+        });
+        await ctx.reply('Eroare la salvare. Contactați administratorul.');
       }
     }
   }

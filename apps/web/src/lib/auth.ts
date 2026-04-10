@@ -6,8 +6,8 @@ import { getSupabase } from './supabase';
 import type { AdminAccount, AdminRole } from '@translux/db';
 
 const AUTH_SECRET = process.env.AUTH_SECRET;
-if (!AUTH_SECRET && process.env.NODE_ENV === 'production') {
-  throw new Error('AUTH_SECRET must be set in production');
+if (!AUTH_SECRET && (process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV)) {
+  throw new Error('AUTH_SECRET must be set in production and on Vercel');
 }
 const secret = new TextEncoder().encode(AUTH_SECRET || 'dev-only-secret-local-only');
 const COOKIE_NAME = 'translux-session';
@@ -22,6 +22,7 @@ export async function authenticate(email: string, password: string): Promise<str
   if (!data) return null;
 
   const admin = data as AdminAccount;
+  if (admin.active === false) return null;
   const valid = await compare(password, admin.password_hash);
   if (!valid) return null;
 
@@ -46,14 +47,21 @@ export async function verifySession(): Promise<Session | null> {
 
   try {
     const { payload } = await jwtVerify(token, secret);
+    if (!payload.role) return null;
     return {
       id: payload.sub as string,
       email: payload.email as string,
-      role: (payload.role as AdminRole) || 'ADMIN',
+      role: payload.role as AdminRole,
     };
   } catch {
     return null;
   }
+}
+
+export function requireRole(session: Session | null, ...roles: AdminRole[]): Session {
+  if (!session) throw new Error('Neautorizat');
+  if (!roles.includes(session.role)) throw new Error('Acces interzis');
+  return session;
 }
 
 export function setSessionCookie(token: string) {

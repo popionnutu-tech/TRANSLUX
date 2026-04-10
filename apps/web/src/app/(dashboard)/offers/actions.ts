@@ -2,12 +2,11 @@
 
 import { revalidatePath } from 'next/cache';
 import { getSupabase } from '@/lib/supabase';
-import { verifySession } from '@/lib/auth';
+import { verifySession, requireRole } from '@/lib/auth';
 import type { Offer } from '@translux/db';
 
 export async function getOffers(): Promise<Offer[]> {
-  const session = await verifySession();
-  if (!session) throw new Error('Neautorizat');
+  requireRole(await verifySession(), 'ADMIN');
   const { data } = await getSupabase()
     .from('offers')
     .select('*')
@@ -16,8 +15,7 @@ export async function getOffers(): Promise<Offer[]> {
 }
 
 export async function getLocalities(): Promise<{ name_ro: string }[]> {
-  const session = await verifySession();
-  if (!session) throw new Error('Neautorizat');
+  requireRole(await verifySession(), 'ADMIN');
   const { data } = await getSupabase()
     .from('localities')
     .select('name_ro')
@@ -27,8 +25,7 @@ export async function getLocalities(): Promise<{ name_ro: string }[]> {
 }
 
 export async function createOffer(from_locality: string, to_locality: string, original_price: number, offer_price: number) {
-  const session = await verifySession();
-  if (!session) throw new Error('Unauthorized');
+  requireRole(await verifySession(), 'ADMIN');
 
   const { error } = await getSupabase()
     .from('offers')
@@ -38,8 +35,7 @@ export async function createOffer(from_locality: string, to_locality: string, or
 }
 
 export async function toggleOffer(id: number, active: boolean) {
-  const session = await verifySession();
-  if (!session) throw new Error('Unauthorized');
+  requireRole(await verifySession(), 'ADMIN');
 
   const { error } = await getSupabase()
     .from('offers')
@@ -50,8 +46,7 @@ export async function toggleOffer(id: number, active: boolean) {
 }
 
 export async function deleteOffer(id: number) {
-  const session = await verifySession();
-  if (!session) throw new Error('Unauthorized');
+  requireRole(await verifySession(), 'ADMIN');
 
   const { error } = await getSupabase()
     .from('offers')

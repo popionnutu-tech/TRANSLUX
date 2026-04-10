@@ -65,7 +65,7 @@ export default function LoginPage() {
         .login-decor-left svg,
         .login-decor-right svg {
           position: absolute;
-          fill: #D42027;
+          fill: #9B1B30;
         }
         .login-container {
           width: 420px;
@@ -76,32 +76,28 @@ export default function LoginPage() {
           text-align: center;
           margin-bottom: 32px;
         }
-        .login-logo {
-          height: 40px;
-          margin-bottom: 16px;
-        }
         .login-title {
           font-size: 11px;
           letter-spacing: 0.25em;
-          color: #999;
+          color: rgba(155,27,48,0.35);
           text-transform: uppercase;
           font-weight: 500;
         }
         .login-card {
           background: #fff;
-          border: 1px solid #eee;
-          border-radius: 12px;
+          border: 1px solid rgba(155,27,48,0.06);
+          border-radius: 24px;
           padding: 40px;
           position: relative;
-          box-shadow: 0 2px 20px rgba(0, 0, 0, 0.06);
+          box-shadow: 0 8px 40px rgba(155,27,48,0.08), 0 1px 3px rgba(0,0,0,0.04);
         }
         .login-card::before {
           content: '';
           position: absolute;
           top: 0; left: 0; right: 0;
           height: 3px;
-          background: #D42027;
-          border-radius: 12px 12px 0 0;
+          background: #9B1B30;
+          border-radius: 24px 24px 0 0;
         }
         .login-error {
           background: rgba(239, 68, 68, 0.06);
@@ -125,23 +121,23 @@ export default function LoginPage() {
         .login-submit {
           width: 100%;
           padding: 12px;
-          background: #D42027;
+          background: #9B1B30;
           border: none;
-          border-radius: 8px;
+          border-radius: 12px;
           color: #fff;
           font-size: 14px;
           font-weight: 700;
           font-style: italic;
           cursor: pointer;
           transition: all 0.2s;
-          box-shadow: 0 2px 8px rgba(212, 32, 39, 0.2);
+          box-shadow: 0 2px 8px rgba(155, 27, 48, 0.2);
           margin-top: 8px;
           text-transform: uppercase;
           letter-spacing: 0.05em;
         }
         .login-submit:hover {
-          background: #b81b21;
-          box-shadow: 0 4px 16px rgba(212, 32, 39, 0.3);
+          background: #7a1526;
+          box-shadow: 0 4px 16px rgba(155, 27, 48, 0.3);
           transform: translateY(-1px);
         }
         .login-submit:active {
@@ -157,7 +153,7 @@ export default function LoginPage() {
           text-align: center;
           margin-top: 24px;
           font-size: 12px;
-          color: #bbb;
+          color: rgba(155,27,48,0.35);
         }
       `}</style>
 
@@ -165,29 +161,42 @@ export default function LoginPage() {
         {/* Scattered T decorations — left */}
         <div className="login-decor-left">
           <svg xmlns="http://www.w3.org/2000/svg" width="120" height="100%" viewBox="0 0 120 800">
-            <text x="-10" y="80" fontFamily="Arial Black,Impact,sans-serif" fontWeight="900" fontStyle="italic" fontSize="72" fill="#D42027" opacity="0.12" transform="rotate(-15 30 80)">T</text>
-            <text x="20" y="200" fontFamily="Arial Black,Impact,sans-serif" fontWeight="900" fontStyle="italic" fontSize="48" fill="#D42027" opacity="0.08" transform="rotate(10 40 200)">T</text>
-            <text x="-5" y="340" fontFamily="Arial Black,Impact,sans-serif" fontWeight="900" fontStyle="italic" fontSize="60" fill="#D42027" opacity="0.10" transform="rotate(-20 25 340)">T</text>
-            <text x="30" y="480" fontFamily="Arial Black,Impact,sans-serif" fontWeight="900" fontStyle="italic" fontSize="40" fill="#D42027" opacity="0.06" transform="rotate(5 50 480)">T</text>
-            <text x="5" y="600" fontFamily="Arial Black,Impact,sans-serif" fontWeight="900" fontStyle="italic" fontSize="56" fill="#D42027" opacity="0.09" transform="rotate(-10 30 600)">T</text>
-            <text x="25" y="740" fontFamily="Arial Black,Impact,sans-serif" fontWeight="900" fontStyle="italic" fontSize="44" fill="#D42027" opacity="0.07" transform="rotate(15 45 740)">T</text>
+            <text x="-10" y="80" fontFamily="Arial Black,Impact,sans-serif" fontWeight="900" fontStyle="italic" fontSize="72" fill="#9B1B30" opacity="0.12" transform="rotate(-15 30 80)">T</text>
+            <text x="20" y="200" fontFamily="Arial Black,Impact,sans-serif" fontWeight="900" fontStyle="italic" fontSize="48" fill="#9B1B30" opacity="0.08" transform="rotate(10 40 200)">T</text>
+            <text x="-5" y="340" fontFamily="Arial Black,Impact,sans-serif" fontWeight="900" fontStyle="italic" fontSize="60" fill="#9B1B30" opacity="0.10" transform="rotate(-20 25 340)">T</text>
+            <text x="30" y="480" fontFamily="Arial Black,Impact,sans-serif" fontWeight="900" fontStyle="italic" fontSize="40" fill="#9B1B30" opacity="0.06" transform="rotate(5 50 480)">T</text>
+            <text x="5" y="600" fontFamily="Arial Black,Impact,sans-serif" fontWeight="900" fontStyle="italic" fontSize="56" fill="#9B1B30" opacity="0.09" transform="rotate(-10 30 600)">T</text>
+            <text x="25" y="740" fontFamily="Arial Black,Impact,sans-serif" fontWeight="900" fontStyle="italic" fontSize="44" fill="#9B1B30" opacity="0.07" transform="rotate(15 45 740)">T</text>
           </svg>
         </div>
 
         {/* Scattered T decorations — right */}
         <div className="login-decor-right">
           <svg xmlns="http://www.w3.org/2000/svg" width="120" height="100%" viewBox="0 0 120 800">
-            <text x="30" y="120" fontFamily="Arial Black,Impact,sans-serif" fontWeight="900" fontStyle="italic" fontSize="64" fill="#D42027" opacity="0.10" transform="rotate(15 60 120)">T</text>
-            <text x="10" y="280" fontFamily="Arial Black,Impact,sans-serif" fontWeight="900" fontStyle="italic" fontSize="44" fill="#D42027" opacity="0.07" transform="rotate(-10 30 280)">T</text>
-            <text x="40" y="420" fontFamily="Arial Black,Impact,sans-serif" fontWeight="900" fontStyle="italic" fontSize="56" fill="#D42027" opacity="0.09" transform="rotate(20 60 420)">T</text>
-            <text x="15" y="560" fontFamily="Arial Black,Impact,sans-serif" fontWeight="900" fontStyle="italic" fontSize="50" fill="#D42027" opacity="0.08" transform="rotate(-5 40 560)">T</text>
-            <text x="35" y="700" fontFamily="Arial Black,Impact,sans-serif" fontWeight="900" fontStyle="italic" fontSize="68" fill="#D42027" opacity="0.11" transform="rotate(12 60 700)">T</text>
+            <text x="30" y="120" fontFamily="Arial Black,Impact,sans-serif" fontWeight="900" fontStyle="italic" fontSize="64" fill="#9B1B30" opacity="0.10" transform="rotate(15 60 120)">T</text>
+            <text x="10" y="280" fontFamily="Arial Black,Impact,sans-serif" fontWeight="900" fontStyle="italic" fontSize="44" fill="#9B1B30" opacity="0.07" transform="rotate(-10 30 280)">T</text>
+            <text x="40" y="420" fontFamily="Arial Black,Impact,sans-serif" fontWeight="900" fontStyle="italic" fontSize="56" fill="#9B1B30" opacity="0.09" transform="rotate(20 60 420)">T</text>
+            <text x="15" y="560" fontFamily="Arial Black,Impact,sans-serif" fontWeight="900" fontStyle="italic" fontSize="50" fill="#9B1B30" opacity="0.08" transform="rotate(-5 40 560)">T</text>
+            <text x="35" y="700" fontFamily="Arial Black,Impact,sans-serif" fontWeight="900" fontStyle="italic" fontSize="68" fill="#9B1B30" opacity="0.11" transform="rotate(12 60 700)">T</text>
           </svg>
         </div>
 
         <div className="login-container">
           <div className="login-header">
-            <img src="/logo.svg" alt="TRANSLUX" className="login-logo" />
+            <span style={{
+              display: 'inline-block',
+              height: 40,
+              width: 200,
+              backgroundColor: '#9B1B30',
+              WebkitMaskImage: 'url(/translux-logo-red.png)',
+              WebkitMaskSize: 'contain',
+              WebkitMaskRepeat: 'no-repeat',
+              WebkitMaskPosition: 'center',
+              maskImage: 'url(/translux-logo-red.png)',
+              maskSize: 'contain',
+              maskRepeat: 'no-repeat',
+              maskPosition: 'center',
+            }} />
             <div className="login-title">Autentificare Administrator</div>
           </div>
 

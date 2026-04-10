@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Driver } from '@translux/db';
-import { createDriver, toggleDriver, deleteDriver, updateDriverPhone } from './actions';
+import { createDriver, toggleDriver, deleteDriver, updateDriverPhone, updateDriverName } from './actions';
 
 function formatDriverName(fullName: string): string {
   const parts = fullName.trim().split(/\s+/);
@@ -125,22 +125,44 @@ function DriverRow({
   onToggle: (id: string, active: boolean) => void;
   onDelete: (id: string) => void;
 }) {
-  const [editing, setEditing] = useState(false);
+  const [editingPhone, setEditingPhone] = useState(false);
   const [phone, setPhone] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [savingPhone, setSavingPhone] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [savingName, setSavingName] = useState(false);
   const router = useRouter();
 
   async function handleSavePhone() {
     if (!phone.trim()) return;
-    setSaving(true);
+    setSavingPhone(true);
     try {
       await updateDriverPhone(driver.id, phone);
-      setEditing(false);
+      setEditingPhone(false);
       router.refresh();
     } catch (err: any) {
       alert(err.message);
     } finally {
-      setSaving(false);
+      setSavingPhone(false);
+    }
+  }
+
+  async function handleSaveName() {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    if (trimmed === driver.full_name) {
+      setEditingName(false);
+      return;
+    }
+    setSavingName(true);
+    try {
+      await updateDriverName(driver.id, trimmed);
+      setEditingName(false);
+      router.refresh();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setSavingName(false);
     }
   }
 
@@ -148,9 +170,30 @@ function DriverRow({
 
   return (
     <tr style={{ opacity: driver.active ? 1 : 0.5 }}>
-      <td>{formatDriverName(driver.full_name)}</td>
       <td>
-        {editing ? (
+        {editingName ? (
+          <span style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            <input
+              value={newName}
+              onChange={e => setNewName(e.target.value)}
+              placeholder="Nume Prenume"
+              style={{ width: 160, fontSize: 13, padding: '2px 6px' }}
+              autoFocus
+              onKeyDown={e => { if (e.key === 'Enter') handleSaveName(); if (e.key === 'Escape') setEditingName(false); }}
+            />
+            <button onClick={handleSaveName} disabled={savingName} className="btn btn-primary" style={{ fontSize: 11, padding: '2px 8px' }}>
+              {savingName ? '...' : '✓'}
+            </button>
+            <button onClick={() => setEditingName(false)} className="btn btn-outline" style={{ fontSize: 11, padding: '2px 8px' }}>✕</button>
+          </span>
+        ) : (
+          <span onClick={() => { setNewName(driver.full_name); setEditingName(true); }} style={{ cursor: 'pointer' }}>
+            {driver.full_name}
+          </span>
+        )}
+      </td>
+      <td>
+        {editingPhone ? (
           <span style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
             <input
               value={phone}
@@ -159,17 +202,17 @@ function DriverRow({
               style={{ width: 110, fontSize: 13, padding: '2px 6px' }}
               autoFocus
             />
-            <button onClick={handleSavePhone} disabled={saving} className="btn btn-primary" style={{ fontSize: 11, padding: '2px 8px' }}>
-              {saving ? '...' : '✓'}
+            <button onClick={handleSavePhone} disabled={savingPhone} className="btn btn-primary" style={{ fontSize: 11, padding: '2px 8px' }}>
+              {savingPhone ? '...' : '✓'}
             </button>
-            <button onClick={() => setEditing(false)} className="btn btn-outline" style={{ fontSize: 11, padding: '2px 8px' }}>✕</button>
+            <button onClick={() => setEditingPhone(false)} className="btn btn-outline" style={{ fontSize: 11, padding: '2px 8px' }}>✕</button>
           </span>
         ) : driverPhone ? (
-          <span onClick={() => { setPhone(driverPhone); setEditing(true); }} style={{ cursor: 'pointer' }}>
+          <span onClick={() => { setPhone(driverPhone); setEditingPhone(true); }} style={{ cursor: 'pointer' }}>
             {driverPhone}
           </span>
         ) : (
-          <button onClick={() => setEditing(true)} style={{ fontSize: 12, cursor: 'pointer', background: 'none', border: 'none', color: '#dc2626', textDecoration: 'underline' }}>
+          <button onClick={() => setEditingPhone(true)} style={{ fontSize: 12, cursor: 'pointer', background: 'none', border: 'none', color: '#dc2626', textDecoration: 'underline' }}>
             + Adaugă
           </button>
         )}

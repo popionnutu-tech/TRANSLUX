@@ -467,7 +467,7 @@ export default function ReportsClient({ pivotData, comparisonPivotData, dateFrom
                   type="checkbox"
                   checked={showComparison}
                   onChange={(e) => setShowComparison(e.target.checked)}
-                  style={{ accentColor: '#D42027' }}
+                  style={{ accentColor: '#9B1B30' }}
                 />
                 Comparație
               </label>

@@ -325,7 +325,7 @@ export default function GraficClient({
             <thead>
               <tr>
                 <th className="grafic-hdr">&nbsp;</th>
-                <th className="grafic-hdr" style={{ textAlign: 'left' }}>Ruta</th>
+                <th className="grafic-hdr" style={{ textAlign: 'left', paddingLeft: 50 }}>Ruta</th>
                 <th className="grafic-hdr" style={{ textAlign: 'center', lineHeight: 1.2 }}>Plecare din<br/>Chișinău</th>
                 <th className="grafic-hdr" style={{ textAlign: 'center' }}>Nr. Șofer</th>
               </tr>

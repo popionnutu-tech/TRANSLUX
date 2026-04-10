@@ -9,6 +9,14 @@ const ADMIN_CAMERE_ALLOWED = ['/numarare'];
 const PUBLIC_PREFIXES = ['/login', '/api/', '/ro', '/ru'];
 
 export async function middleware(request: NextRequest) {
+  const host = request.headers.get('host') || '';
+  if (host === 'transportlux.com' || host === 'www.transportlux.com') {
+    const url = new URL(request.url);
+    url.host = 'translux.md';
+    url.port = '';
+    return NextResponse.redirect(url, 301);
+  }
+
   const { pathname } = request.nextUrl;
 
   if (pathname === '/' || PUBLIC_PREFIXES.some(p => pathname.startsWith(p))) {

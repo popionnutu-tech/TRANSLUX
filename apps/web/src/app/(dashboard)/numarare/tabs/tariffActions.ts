@@ -3,6 +3,7 @@
 import { getSupabase } from '@/lib/supabase';
 import { verifySession } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
+import { executeAntaPriceUpdate, type PriceUpdateResult } from '@/lib/update-prices';
 
 // ─── Типы ───
 
@@ -16,6 +17,21 @@ export interface TariffPeriod {
   created_at: string;
 }
 
+export interface NomenclatorPrice {
+  from_ro: string;
+  to_ro: string;
+  from_ru: string;
+  to_ru: string;
+  price: number;
+}
+
+export interface NomenclatorSnapshot {
+  id: number;
+  rate_per_km: number;
+  prices: NomenclatorPrice[];
+  created_at: string;
+}
+
 export interface TariffData {
   currentRates: {
     interurbanLong: number;
@@ -25,6 +41,7 @@ export interface TariffData {
   dualTariffEnabled: boolean;
   shortDistanceKm: number;
   history: TariffPeriod[];
+  nomenclator: NomenclatorSnapshot | null;
 }
 
 // ─── Вспомогательные функции ───
@@ -73,7 +90,7 @@ async function upsertConfigKey(key: string, value: string): Promise<{ error?: st
 export async function getTariffData(): Promise<TariffData> {
   const sb = getSupabase();
 
-  const [configResult, historyResult] = await Promise.all([
+  const [configResult, historyResult, nomenclatorResult] = await Promise.all([
     sb.from('app_config')
       .select('key, value')
       .in('key', [...TARIFF_CONFIG_KEYS]),
@@ -81,6 +98,11 @@ export async function getTariffData(): Promise<TariffData> {
       .select('*')
       .order('period_start', { ascending: false })
       .limit(20),
+    sb.from('price_nomenclator')
+      .select('id, rate_per_km, prices, created_at')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single(),
   ]);
 
   const config = parseConfigMap(configResult.data || []);
@@ -95,6 +117,15 @@ export async function getTariffData(): Promise<TariffData> {
     created_at: row.created_at as string,
   }));
 
+  const nomenclator: NomenclatorSnapshot | null = nomenclatorResult.data
+    ? {
+        id: nomenclatorResult.data.id as number,
+        rate_per_km: Number(nomenclatorResult.data.rate_per_km),
+        prices: nomenclatorResult.data.prices as NomenclatorPrice[],
+        created_at: nomenclatorResult.data.created_at as string,
+      }
+    : null;
+
   return {
     currentRates: {
       interurbanLong: parseFloat(config['rate_per_km_long'] || '0.94'),
@@ -104,6 +135,7 @@ export async function getTariffData(): Promise<TariffData> {
     dualTariffEnabled: config['dual_interurban_tariff'] === 'true',
     shortDistanceKm: parseInt(config['short_distance_threshold_km'] || '65'),
     history,
+    nomenclator,
   };
 }
 
@@ -143,4 +175,54 @@ export async function updateShortDistanceThreshold(
 
   revalidatePath(TARIFF_PATH);
   return {};
+}
+
+// ─── Ручное обновление тарифов ANTA ───
+
+export interface TriggerPriceUpdateResult {
+  success: boolean;
+  status: 'updated' | 'no_change' | 'error';
+  message: string;
+  rates?: PriceUpdateResult['rates'];
+  previousRates?: PriceUpdateResult['previousRates'];
+  rowsUpdated?: number;
+}
+
+export async function triggerPriceUpdate(): Promise<TriggerPriceUpdateResult> {
+  const session = await verifySession();
+  if (!session || !hasAdminCamereAccess(session.role)) {
+    return { success: false, status: 'error', message: 'Acces interzis' };
+  }
+
+  const result = await executeAntaPriceUpdate({
+    source: 'manual',
+    sendTelegramNotification: true,
+  });
+
+  if (result.status === 'error') {
+    return { success: false, status: 'error', message: result.error || 'Eroare necunoscuta' };
+  }
+
+  revalidatePath('/');
+  revalidatePath('/ro');
+  revalidatePath('/ru');
+  revalidatePath(TARIFF_PATH);
+
+  if (result.status === 'no_change') {
+    return {
+      success: true,
+      status: 'no_change',
+      message: 'Tarifele ANTA sunt deja actuale. Nu s-au facut modificari.',
+      rates: result.rates,
+    };
+  }
+
+  return {
+    success: true,
+    status: 'updated',
+    message: `Tarifele au fost actualizate cu succes. ${result.rowsUpdated} preturi recalculate.`,
+    rates: result.rates,
+    previousRates: result.previousRates,
+    rowsUpdated: result.rowsUpdated,
+  };
 }

@@ -309,18 +309,25 @@ export default function GraficClient({
           </div>
 
           {/* Table */}
-          <table style={{
+          <table className="grafic-table" style={{
             width: '100%',
             borderCollapse: 'collapse',
             border: `2px solid ${maroon}`,
             fontSize: 14,
+            tableLayout: 'fixed',
           }}>
+            <colgroup>
+              <col style={{ width: 10 }} />
+              <col />
+              <col style={{ width: 200 }} />
+              <col style={{ width: 220 }} />
+            </colgroup>
             <thead>
-              <tr style={{ background: maroon, color: '#fff' }}>
-                <th style={{ ...thStyle, width: 36 }}>№</th>
-                <th style={{ ...thStyle, width: 280 }}>De la Nord</th>
-                <th style={{ ...thStyle, width: 120 }}>Plecare din Chișinău</th>
-                <th style={{ ...thStyle, width: 180 }}>Nr. Șofer</th>
+              <tr>
+                <th className="grafic-hdr">&nbsp;</th>
+                <th className="grafic-hdr" style={{ textAlign: 'left' }}>Ruta</th>
+                <th className="grafic-hdr" style={{ textAlign: 'center', lineHeight: 1.2 }}>Plecare din<br/>Chișinău</th>
+                <th className="grafic-hdr" style={{ textAlign: 'center' }}>Nr. Șofer</th>
               </tr>
             </thead>
             <tbody>
@@ -491,15 +498,6 @@ export default function GraficClient({
 }
 
 /* ── Shared cell styles ── */
-const thStyle: React.CSSProperties = {
-  padding: '10px 8px',
-  textAlign: 'left',
-  fontWeight: 700,
-  fontSize: 13,
-  letterSpacing: 0.5,
-  textTransform: 'uppercase',
-  borderBottom: '2px solid #9B1B30',
-};
 
 const tdStyle: React.CSSProperties = {
   padding: '8px 10px',

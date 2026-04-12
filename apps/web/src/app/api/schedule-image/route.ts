@@ -11,27 +11,39 @@ export async function GET(req: NextRequest) {
   if (!session) {
     return new Response('Neautorizat', { status: 401 });
   }
-  if (session.role !== 'ADMIN' && session.role !== 'GRAFIC') {
+  if (session.role !== 'ADMIN' && session.role !== 'GRAFIC' && session.role !== 'DISPATCHER') {
     return new Response('Acces interzis', { status: 403 });
   }
 
   const { searchParams } = req.nextUrl;
   const date = searchParams.get('date');
   const pageStr = searchParams.get('page');
+  const merge = searchParams.get('merge') === '1';
 
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return new Response('Parametru "date" lipsă sau invalid (YYYY-MM-DD)', { status: 400 });
   }
 
-  const page = pageStr === '2' ? 2 : 1;
-
   try {
     const data = await getGraficData(date);
-    const rows = page === 1 ? data.page1 : data.page2;
-    const imageBuffer = await generateScheduleImage(rows, date, page as 1 | 2);
+
+    let rows;
+    let filenameSuffix: string;
+
+    if (merge) {
+      // Merge both pages — only assigned routes
+      rows = [...data.page1.filter(r => r.driver_id), ...data.page2.filter(r => r.driver_id)];
+      filenameSuffix = '';
+    } else {
+      const page = pageStr === '2' ? 2 : 1;
+      rows = page === 1 ? data.page1 : data.page2;
+      filenameSuffix = `-p${page}`;
+    }
+
+    const imageBuffer = await generateScheduleImage(rows, date);
 
     const [y, m, d] = date.split('-');
-    const filename = `grafic-${d}.${m}.${y}-p${page}.png`;
+    const filename = `grafic-${d}.${m}.${y}${filenameSuffix}.png`;
 
     return new Response(new Uint8Array(imageBuffer), {
       headers: {

@@ -240,7 +240,19 @@ export function RouteResults({ from, to, trips, selectedTime, locale = "ro", onC
                 {displayPhone && (
                   <a
                     href={`tel:${trip.phone}`}
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      fetch('/api/analytics/track', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          event_type: 'call',
+                          from_locality: from,
+                          to_locality: to,
+                          driver_phone: trip.phone,
+                        }),
+                      }).catch(() => {});
+                    }}
                     className="call-btn"
                     style={{
                       flexShrink: 0, display: "flex", alignItems: "center", gap: 6,

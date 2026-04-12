@@ -9,17 +9,29 @@ function detectDevice(ua: string): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const { path } = await request.json();
+    const body = await request.json();
+    const country = request.headers.get('x-vercel-ip-country') || null;
+    const ua = request.headers.get('user-agent') || '';
+    const device = detectDevice(ua);
+
+    if (body.event_type === 'call') {
+      getSupabase().from('call_clicks').insert({
+        from_locality: body.from_locality || null,
+        to_locality: body.to_locality || null,
+        driver_phone: body.driver_phone || null,
+        country,
+        device,
+      }).then(() => {});
+      return NextResponse.json({ ok: true });
+    }
+
+    // Default: page view
+    const { path } = body;
     if (!path || typeof path !== 'string') {
       return NextResponse.json({ ok: false }, { status: 400 });
     }
 
-    const country = request.headers.get('x-vercel-ip-country') || null;
-    const ua = request.headers.get('user-agent') || '';
-    const device = detectDevice(ua);
     const referrer = request.headers.get('referer') || null;
-
-    // Fire-and-forget insert
     getSupabase().from('page_views').insert({
       path,
       country,

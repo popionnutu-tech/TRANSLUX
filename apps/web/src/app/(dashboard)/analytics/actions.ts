@@ -24,6 +24,12 @@ export interface DetailedRouteCount {
   day_calls: [number, number, number, number, number, number, number];
 }
 
+export interface DetailedRoutesResult {
+  routes: DetailedRouteCount[];
+  dayTotals: [number, number, number, number, number, number, number];
+  total: number;
+}
+
 export interface DeviceCount {
   device: string;
   count: number;
@@ -181,19 +187,31 @@ function getDayOfWeek(isoString: string): number {
   return jsDay === 0 ? 6 : jsDay - 1;
 }
 
-export async function getTopSearchedRoutesDetailed(days: number = 30): Promise<DetailedRouteCount[]> {
+export async function getTopSearchedRoutesDetailed(days: number = 30): Promise<DetailedRoutesResult> {
   requireRole(await verifySession(), 'ADMIN');
   const since = daysAgoDate(days);
 
-  const [{ data: searchRaw }, { data: callRaw }] = await Promise.all([
-    getSupabase()
-      .from('search_log')
-      .select('from_locality, to_locality, created_at')
-      .gte('created_at', since + 'T00:00:00'),
-    getSupabase()
-      .from('call_clicks')
-      .select('from_locality, to_locality, created_at')
-      .gte('created_at', since + 'T00:00:00'),
+  async function fetchAllRows(table: string, since: string) {
+    const PAGE = 1000;
+    const rows: any[] = [];
+    let offset = 0;
+    while (true) {
+      const { data } = await getSupabase()
+        .from(table)
+        .select('from_locality, to_locality, created_at')
+        .gte('created_at', since + 'T00:00:00')
+        .range(offset, offset + PAGE - 1);
+      if (!data || data.length === 0) break;
+      rows.push(...data);
+      if (data.length < PAGE) break;
+      offset += PAGE;
+    }
+    return rows;
+  }
+
+  const [searchRaw, callRaw] = await Promise.all([
+    fetchAllRows('search_log', since),
+    fetchAllRows('call_clicks', since),
   ]);
 
   const map = new Map<string, {
@@ -227,7 +245,15 @@ export async function getTopSearchedRoutesDetailed(days: number = 30): Promise<D
     entry.day_calls[dow]++;
   }
 
-  return Array.from(map.values())
+  const all = Array.from(map.values());
+  const dayTotals: [number, number, number, number, number, number, number] = [0, 0, 0, 0, 0, 0, 0];
+  let total = 0;
+  for (const entry of all) {
+    total += entry.count;
+    for (let i = 0; i < 7; i++) dayTotals[i] += entry.day_counts[i];
+  }
+
+  const routes = all
     .sort((a, b) => b.count - a.count)
     .slice(0, 20)
     .map(r => ({
@@ -238,6 +264,8 @@ export async function getTopSearchedRoutesDetailed(days: number = 30): Promise<D
       day_counts: r.day_counts as [number, number, number, number, number, number, number],
       day_calls: r.day_calls as [number, number, number, number, number, number, number],
     }));
+
+  return { routes, dayTotals, total };
 }
 
 export async function getTotalStats(days: number = 30) {

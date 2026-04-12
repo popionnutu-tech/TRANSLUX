@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import type { DailyCount, RouteCount, DetailedRouteCount, DeviceCount, CountryCount } from './actions';
+import type { DailyCount, RouteCount, DetailedRoutesResult, DeviceCount, CountryCount } from './actions';
 import {
   getPageViewsPerDay,
   getSearchesPerDay,
@@ -146,7 +146,7 @@ export default function AnalyticsClient({
   const [totals, setTotals] = useState(initialTotals);
   const [isPending, startTransition] = useTransition();
   const [detailedMode, setDetailedMode] = useState(false);
-  const [detailedRoutes, setDetailedRoutes] = useState<DetailedRouteCount[] | null>(null);
+  const [detailedRoutes, setDetailedRoutes] = useState<DetailedRoutesResult | null>(null);
   const [isDetailedLoading, setIsDetailedLoading] = useState(false);
 
   function handlePeriodChange(newDays: number) {
@@ -300,7 +300,7 @@ export default function AnalyticsClient({
           {topRoutes.length === 0 ? (
             <p style={{ color: '#999', fontSize: 14 }}>Nu sunt date.</p>
           ) : detailedMode && detailedRoutes ? (() => {
-            const maxDay = Math.max(...detailedRoutes.flatMap(r => r.day_counts));
+            const maxDay = Math.max(...detailedRoutes.routes.flatMap(r => r.day_counts));
             return (
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -312,9 +312,26 @@ export default function AnalyticsClient({
                       ))}
                       <th style={{ textAlign: 'right', padding: '6px 8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Total</th>
                     </tr>
+                    <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
+                      <td style={{ padding: '6px 8px', fontSize: 12, fontWeight: 700, color: '#555' }}>Total</td>
+                      {detailedRoutes.dayTotals.map((dayTotal, di) => (
+                        <td key={di} style={{
+                          textAlign: 'center',
+                          padding: '6px 3px',
+                          fontSize: 12,
+                          fontWeight: 700,
+                          color: dayTotal > 0 ? '#2563eb' : '#ccc',
+                        }}>
+                          {dayTotal > 0 ? dayTotal : '\u2014'}
+                        </td>
+                      ))}
+                      <td style={{ padding: '6px 8px', fontSize: 12, textAlign: 'right', fontWeight: 700, color: '#2563eb' }}>
+                        {detailedRoutes.total}
+                      </td>
+                    </tr>
                   </thead>
                   <tbody>
-                    {detailedRoutes.map((r, i) => (
+                    {detailedRoutes.routes.map((r, i) => (
                       <tr key={i}>
                         <td style={{ padding: '6px 8px', fontSize: 13, borderBottom: '1px solid #f5f5f5', whiteSpace: 'nowrap' }}>
                           {r.from_locality} &rarr; {r.to_locality}

@@ -1,11 +1,29 @@
 'use client';
 
 import { useState, useRef, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { format } from 'date-fns';
 import { ro as roLocale, ru as ruLocale } from 'date-fns/locale';
-import { VoiceCallButton } from './ui/voice-call-button';
-import ShaderBackground from '@/components/ui/shader-background';
 import { RainbowButton } from '@/components/ui/rainbow-borders-button';
+
+const VoiceCallButton = dynamic(
+  () => import('./ui/voice-call-button').then(m => ({ default: m.VoiceCallButton })),
+  { ssr: false }
+);
+
+const ShaderBackground = dynamic(
+  () => import('@/components/ui/shader-background'),
+  {
+    ssr: false,
+    loading: () => (
+      <div style={{
+        position: 'fixed', top: 0, left: 0,
+        width: '100vw', height: '100vh', zIndex: 0,
+        background: 'linear-gradient(135deg, #fff 0%, #f5f5f6 100%)',
+      }} />
+    ),
+  }
+);
 import { MiniCalendar } from '@/components/ui/mini-calendar';
 import { RouteResults } from '@/components/ui/route-results';
 import { type Locale, t } from '@/lib/i18n';

@@ -1,13 +1,11 @@
 import { HomePage } from '@/components/home-page';
 import PageTracker from '@/components/PageTracker';
-import { getLocalities, getPopularPrices } from './(public)/actions';
-
-export const dynamic = 'force-dynamic';
+import { getCachedLocalities, getCachedPopularPrices } from './(public)/actions';
 
 export default async function RootPage() {
   const [localities, popularPrices] = await Promise.all([
-    getLocalities(),
-    getPopularPrices(),
+    getCachedLocalities(),
+    getCachedPopularPrices(),
   ]);
   return (
     <>

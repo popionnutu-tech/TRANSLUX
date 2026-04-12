@@ -1,5 +1,6 @@
 'use server';
 
+import { unstable_cache } from 'next/cache';
 import { getSupabase } from '@/lib/supabase';
 import { buildTurAssignmentMap, buildReturAssignmentMap } from '@/lib/assignments';
 
@@ -84,27 +85,42 @@ export async function getPopularPrices(): Promise<PopularRoutePrice[]> {
   ];
 
   const supabase = getSupabase();
-  const results: PopularRoutePrice[] = [];
 
-  for (const r of routes) {
-    const { data: pairs } = await supabase
-      .from('route_km_pairs')
-      .select('price')
-      .eq('from_stop', r.from)
-      .eq('to_stop', r.to)
-      .limit(1);
+  const results = await Promise.all(
+    routes.map(async (r) => {
+      const { data: pairs } = await supabase
+        .from('route_km_pairs')
+        .select('price')
+        .eq('from_stop', r.from)
+        .eq('to_stop', r.to)
+        .limit(1);
 
-    results.push({
-      from_ro: r.from_ro,
-      to_ro: r.to_ro,
-      from_ru: r.from_ru,
-      to_ru: r.to_ru,
-      price: pairs?.[0]?.price ?? 0,
-    });
-  }
+      return {
+        from_ro: r.from_ro,
+        to_ro: r.to_ro,
+        from_ru: r.from_ru,
+        to_ru: r.to_ru,
+        price: pairs?.[0]?.price ?? 0,
+      };
+    })
+  );
 
   return results;
 }
+
+/** Cached version of getLocalities for public pages (60s ISR) */
+export const getCachedLocalities = unstable_cache(
+  async () => getLocalities(),
+  ['public-localities'],
+  { revalidate: 60, tags: ['localities'] }
+);
+
+/** Cached version of getPopularPrices for public pages (60s ISR) */
+export const getCachedPopularPrices = unstable_cache(
+  async () => getPopularPrices(),
+  ['public-popular-prices'],
+  { revalidate: 60, tags: ['popular-prices'] }
+);
 
 /**
  * Normalize stop name: lowercase, remove diacritics, trim

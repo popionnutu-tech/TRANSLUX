@@ -603,15 +603,24 @@ export default function ReportsClient({ pivotData, comparisonPivotData, dateFrom
                   const isCollapsed = collapsedWeeks.has(wg.monday);
                   if (isCollapsed) {
                     let sum: number | null = null;
+                    let daysWithData = 0;
                     for (const d of wg.dates) {
                       const cell = daily.cellMap.get(`${row.key}|${d}`);
                       if (cell && cell.status === 'OK' && cell.passengers != null) {
                         sum = (sum || 0) + cell.passengers;
+                        daysWithData++;
                       }
                     }
                     return (
                       <td key={wg.monday} className={`pivot-cell${sum == null ? ' pivot-empty' : ''}`}>
-                        {sum != null ? sum : '—'}
+                        {sum != null ? (
+                          <>
+                            {sum}{' '}
+                            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                              ({(sum / daysWithData).toFixed(1)})
+                            </span>
+                          </>
+                        ) : '—'}
                       </td>
                     );
                   }
@@ -688,18 +697,27 @@ export default function ReportsClient({ pivotData, comparisonPivotData, dateFrom
                   if (isCollapsed) {
                     let sum = 0;
                     let hasData = false;
+                    const daysWithAnyData = new Set<string>();
                     for (const d of wg.dates) {
                       for (const row of pivot.rows) {
                         const cell = daily.cellMap.get(`${row.key}|${d}`);
                         if (cell && cell.status === 'OK' && cell.passengers != null) {
                           sum += cell.passengers;
                           hasData = true;
+                          daysWithAnyData.add(d);
                         }
                       }
                     }
                     return (
                       <td key={wg.monday} className="pivot-cell pivot-total-cell">
-                        {hasData ? sum : '—'}
+                        {hasData ? (
+                          <>
+                            {sum}{' '}
+                            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                              ({(sum / daysWithAnyData.size).toFixed(1)})
+                            </span>
+                          </>
+                        ) : '—'}
                       </td>
                     );
                   }

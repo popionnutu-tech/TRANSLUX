@@ -2,11 +2,12 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import type { DailyCount, RouteCount, DeviceCount, CountryCount } from './actions';
+import type { DailyCount, RouteCount, DetailedRouteCount, DeviceCount, CountryCount } from './actions';
 import {
   getPageViewsPerDay,
   getSearchesPerDay,
   getTopSearchedRoutes,
+  getTopSearchedRoutesDetailed,
   getDeviceBreakdown,
   getCountryBreakdown,
   getTotalStats,
@@ -18,7 +19,7 @@ interface Props {
   initialTopRoutes: RouteCount[];
   initialDevices: DeviceCount[];
   initialCountries: CountryCount[];
-  initialTotals: { totalViews: number; totalSearches: number };
+  initialTotals: { totalViews: number; totalSearches: number; totalCalls: number };
   initialDays: number;
 }
 
@@ -116,6 +117,15 @@ function countryFlag(code: string): string {
   return String.fromCodePoint(code.charCodeAt(0) + offset, code.charCodeAt(1) + offset);
 }
 
+// --- Day-of-week heatmap helpers ---
+const DAY_LABELS = ['Lu', 'Ma', 'Mi', 'Jo', 'Vi', 'Sa', 'Du'];
+
+function heatBg(value: number, max: number): string {
+  if (max === 0 || value === 0) return 'transparent';
+  const intensity = value / max;
+  return `rgba(37, 99, 235, ${(0.08 + intensity * 0.55).toFixed(2)})`;
+}
+
 // --- Main component ---
 
 export default function AnalyticsClient({
@@ -135,6 +145,9 @@ export default function AnalyticsClient({
   const [countries, setCountries] = useState(initialCountries);
   const [totals, setTotals] = useState(initialTotals);
   const [isPending, startTransition] = useTransition();
+  const [detailedMode, setDetailedMode] = useState(false);
+  const [detailedRoutes, setDetailedRoutes] = useState<DetailedRouteCount[] | null>(null);
+  const [isDetailedLoading, setIsDetailedLoading] = useState(false);
 
   function handlePeriodChange(newDays: number) {
     setDays(newDays);
@@ -153,7 +166,31 @@ export default function AnalyticsClient({
       setDevices(dv);
       setCountries(ct);
       setTotals(tt);
+      setDetailedRoutes(null);
+      if (detailedMode) {
+        const detailed = await getTopSearchedRoutesDetailed(newDays);
+        setDetailedRoutes(detailed);
+      }
     });
+  }
+
+  async function handleDetailedToggle() {
+    if (detailedMode) {
+      setDetailedMode(false);
+      return;
+    }
+    if (detailedRoutes) {
+      setDetailedMode(true);
+      return;
+    }
+    setIsDetailedLoading(true);
+    try {
+      const data = await getTopSearchedRoutesDetailed(days);
+      setDetailedRoutes(data);
+      setDetailedMode(true);
+    } finally {
+      setIsDetailedLoading(false);
+    }
   }
 
   const totalDevices = devices.reduce((s, d) => s + d.count, 0) || 1;
@@ -190,10 +227,14 @@ export default function AnalyticsClient({
           <div style={{ fontSize: 13, color: '#888', marginTop: 4 }}>Cautari ({days}z)</div>
         </div>
         <div className="card" style={{ textAlign: 'center', padding: 20 }}>
-          <div style={{ fontSize: 32, fontWeight: 700, color: '#059669' }}>
-            {pageViews.length > 0 ? Math.round(totals.totalViews / pageViews.length) : 0}
+          <div style={{ fontSize: 32, fontWeight: 700, color: '#059669' }}>{totals.totalCalls.toLocaleString()}</div>
+          <div style={{ fontSize: 13, color: '#888', marginTop: 4 }}>Apeluri ({days}z)</div>
+        </div>
+        <div className="card" style={{ textAlign: 'center', padding: 20 }}>
+          <div style={{ fontSize: 32, fontWeight: 700, color: '#d97706' }}>
+            {totals.totalSearches > 0 ? Math.round((totals.totalCalls / totals.totalSearches) * 100) : 0}%
           </div>
-          <div style={{ fontSize: 13, color: '#888', marginTop: 4 }}>Medie/zi</div>
+          <div style={{ fontSize: 13, color: '#888', marginTop: 4 }}>Conversie</div>
         </div>
       </div>
 
@@ -214,28 +255,123 @@ export default function AnalyticsClient({
 
         {/* Top routes */}
         <div className="card" style={{ padding: 20 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, color: '#333' }}>Top rute cautate</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 600, color: '#333', margin: 0 }}>Top rute cautate</h3>
+            <button
+              onClick={handleDetailedToggle}
+              disabled={isDetailedLoading}
+              style={{
+                fontSize: 12,
+                padding: '4px 12px',
+                borderRadius: 6,
+                border: `1px solid ${detailedMode ? '#2563eb' : '#cbd5e1'}`,
+                background: detailedMode ? '#2563eb' : 'transparent',
+                color: detailedMode ? '#fff' : '#2563eb',
+                cursor: isDetailedLoading ? 'wait' : 'pointer',
+                fontWeight: 600,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {isDetailedLoading ? 'Se incarca...' : 'Detaliat'}
+            </button>
+          </div>
+          {/* Totals row above table */}
+          {topRoutes.length > 0 && (() => {
+            const totalSearches = totals.totalSearches;
+            const totalCalls = totals.totalCalls;
+            const totalConv = totalSearches > 0 ? Math.round((totalCalls / totalSearches) * 100) : 0;
+            return (
+              <div style={{ display: 'flex', gap: 24, marginBottom: 14, padding: '10px 12px', background: '#f8f8f8', borderRadius: 8 }}>
+                <div>
+                  <span style={{ fontSize: 11, color: '#888' }}>Total cautari: </span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#2563eb' }}>{totalSearches}</span>
+                </div>
+                <div>
+                  <span style={{ fontSize: 11, color: '#888' }}>Total apeluri: </span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#059669' }}>{totalCalls}</span>
+                </div>
+                <div>
+                  <span style={{ fontSize: 11, color: '#888' }}>Conversie: </span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#d97706' }}>{totalConv}%</span>
+                </div>
+              </div>
+            );
+          })()}
           {topRoutes.length === 0 ? (
             <p style={{ color: '#999', fontSize: 14 }}>Nu sunt date.</p>
-          ) : (
+          ) : detailedMode && detailedRoutes ? (() => {
+            const maxDay = Math.max(...detailedRoutes.flatMap(r => r.day_counts));
+            return (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: 'left', padding: '6px 8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Ruta</th>
+                      {DAY_LABELS.map(d => (
+                        <th key={d} style={{ textAlign: 'center', padding: '6px 4px', fontSize: 11, color: '#888', borderBottom: '1px solid #eee', minWidth: 34 }}>{d}</th>
+                      ))}
+                      <th style={{ textAlign: 'right', padding: '6px 8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {detailedRoutes.map((r, i) => (
+                      <tr key={i}>
+                        <td style={{ padding: '6px 8px', fontSize: 13, borderBottom: '1px solid #f5f5f5', whiteSpace: 'nowrap' }}>
+                          {r.from_locality} &rarr; {r.to_locality}
+                        </td>
+                        {r.day_counts.map((val, di) => (
+                          <td key={di} style={{
+                            textAlign: 'center',
+                            padding: '6px 3px',
+                            fontSize: 12,
+                            fontWeight: val > 0 ? 600 : 400,
+                            color: val > 0 ? '#1e3a5f' : '#ccc',
+                            background: heatBg(val, maxDay),
+                            borderBottom: '1px solid #f5f5f5',
+                            borderRadius: 3,
+                          }}>
+                            {val > 0 ? val : '\u2014'}
+                          </td>
+                        ))}
+                        <td style={{ padding: '6px 8px', fontSize: 13, textAlign: 'right', fontWeight: 600, color: '#2563eb', borderBottom: '1px solid #f5f5f5' }}>
+                          {r.count}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })() : (
             <table style={{ width: '100%' }}>
               <thead>
                 <tr>
                   <th style={{ textAlign: 'left', padding: '6px 8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Ruta</th>
                   <th style={{ textAlign: 'right', padding: '6px 8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Cautari</th>
+                  <th style={{ textAlign: 'right', padding: '6px 8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Apeluri</th>
+                  <th style={{ textAlign: 'right', padding: '6px 8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Conversie</th>
                 </tr>
               </thead>
               <tbody>
-                {topRoutes.map((r, i) => (
-                  <tr key={i}>
-                    <td style={{ padding: '8px', fontSize: 14, borderBottom: '1px solid #f5f5f5' }}>
-                      {r.from_locality} &rarr; {r.to_locality}
-                    </td>
-                    <td style={{ padding: '8px', fontSize: 14, textAlign: 'right', fontWeight: 600, color: '#2563eb', borderBottom: '1px solid #f5f5f5' }}>
-                      {r.count}
-                    </td>
-                  </tr>
-                ))}
+                {topRoutes.map((r, i) => {
+                  const conv = r.count > 0 ? Math.round((r.calls / r.count) * 100) : 0;
+                  return (
+                    <tr key={i}>
+                      <td style={{ padding: '8px', fontSize: 14, borderBottom: '1px solid #f5f5f5' }}>
+                        {r.from_locality} &rarr; {r.to_locality}
+                      </td>
+                      <td style={{ padding: '8px', fontSize: 14, textAlign: 'right', fontWeight: 600, color: '#2563eb', borderBottom: '1px solid #f5f5f5' }}>
+                        {r.count}
+                      </td>
+                      <td style={{ padding: '8px', fontSize: 14, textAlign: 'right', fontWeight: 600, color: '#059669', borderBottom: '1px solid #f5f5f5' }}>
+                        {r.calls}
+                      </td>
+                      <td style={{ padding: '8px', fontSize: 14, textAlign: 'right', fontWeight: 600, color: conv >= 50 ? '#059669' : conv >= 20 ? '#d97706' : '#dc2626', borderBottom: '1px solid #f5f5f5' }}>
+                        {conv}%
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}

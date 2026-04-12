@@ -343,7 +343,8 @@ export async function getPivotReport(dateFrom: string, dateTo: string, point?: P
     .from('reports')
     .select('point, report_date, passengers_count, status, trips!inner(departure_time)')
     .is('cancelled_at', null)
-    .order('report_date', { ascending: true });
+    .order('report_date', { ascending: true })
+    .limit(5000);
 
   if (dateFrom) query = query.gte('report_date', dateFrom);
   if (dateTo) query = query.lte('report_date', dateTo);

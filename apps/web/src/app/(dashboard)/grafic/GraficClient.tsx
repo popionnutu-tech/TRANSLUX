@@ -145,34 +145,37 @@ export default function GraficClient({
   }
 
   async function handleDownload() {
-    const el = tableRef.current;
-    if (!el || !allData) return;
+    if (!allData) return;
 
-    // Count total assigned routes across both pages
     const assignedP1 = allData.page1.filter(r => r.driver_id);
     const assignedP2 = allData.page2.filter(r => r.driver_id);
     const totalAssigned = assignedP1.length + assignedP2.length;
     const shouldMerge = totalAssigned < 14;
 
-    if (shouldMerge) {
-      setRows([...assignedP1, ...assignedP2]);
-    }
-
     setDownloading(true);
-    // Wait for React to re-render with downloading=true (hides unassigned rows)
-    await new Promise(r => setTimeout(r, 100));
-    const html2canvas = (await import('html2canvas')).default;
-    const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#fff' });
-    const link = document.createElement('a');
-    link.download = shouldMerge
-      ? `grafic-${formatDate(date)}.png`
-      : `grafic-${formatDate(date)}-p${page}.png`;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
+    try {
+      const params = new URLSearchParams({ date });
+      if (shouldMerge) {
+        params.set('merge', '1');
+      } else {
+        params.set('page', String(page));
+      }
 
-    setDownloading(false);
-    if (shouldMerge) {
-      setRows(page === 1 ? allData.page1 : allData.page2);
+      const res = await fetch(`/api/schedule-image?${params}`);
+      if (!res.ok) throw new Error('Eroare la generare imagine');
+
+      const blob = await res.blob();
+      const link = document.createElement('a');
+      link.download = shouldMerge
+        ? `grafic-${formatDate(date)}.png`
+        : `grafic-${formatDate(date)}-p${page}.png`;
+      link.href = URL.createObjectURL(blob);
+      link.click();
+      URL.revokeObjectURL(link.href);
+    } catch (err: any) {
+      setError(err.message || 'Eroare la descărcare');
+    } finally {
+      setDownloading(false);
     }
   }
 
@@ -195,7 +198,9 @@ export default function GraficClient({
               {copying ? 'Se copiază...' : 'Copiază de ieri'}
             </button>
           )}
-          <button className="btn btn-primary" onClick={handleDownload}>Descarcă PNG</button>
+          <button className="btn btn-primary" onClick={handleDownload} disabled={downloading}>
+            {downloading ? 'Se generează...' : 'Descarcă PNG'}
+          </button>
         </div>
       </div>
 
@@ -331,7 +336,7 @@ export default function GraficClient({
               </tr>
             </thead>
             <tbody>
-              {(downloading ? rows.filter(r => r.driver_id) : rows).map((row, i) => (
+              {rows.map((row, i) => (
                 <tr key={row.crm_route_id} style={{ background: i % 2 === 0 ? rowBg1 : rowBg2 }}>
                   {/* Row number */}
                   <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 700, fontSize: 16, color: maroon }}>
@@ -404,7 +409,7 @@ export default function GraficClient({
               ))}
 
               {/* Empty rows to fill up to 14 (only when not downloading) */}
-              {!downloading && Array.from({ length: Math.max(0, 14 - rows.length) }).map((_, i) => (
+              {Array.from({ length: Math.max(0, 14 - rows.length) }).map((_, i) => (
                 <tr key={`empty-${i}`} style={{ background: (rows.length + i) % 2 === 0 ? rowBg1 : rowBg2, height: 52 }}>
                   <td style={{ ...tdStyle, textAlign: 'center', color: '#ccc' }}>&nbsp;</td>
                   <td style={tdStyle}>&nbsp;</td>

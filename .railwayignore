@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.next/
+.env
+.env.local
+*.log
+.DS_Store
+.claude/
+.vercel
+design/
+scripts/
+docs/
+supabase/
+apps/web/.next/
+apps/web/node_modules/

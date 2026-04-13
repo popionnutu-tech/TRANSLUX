@@ -46,6 +46,25 @@ function daysAgoDate(days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+async function fetchAllSince(table: string, columns: string, since: string): Promise<any[]> {
+  const PAGE = 1000;
+  const rows: any[] = [];
+  let offset = 0;
+  while (true) {
+    const { data } = await getSupabase()
+      .from(table)
+      .select(columns)
+      .gte('created_at', since + 'T00:00:00')
+      .order('created_at', { ascending: true })
+      .range(offset, offset + PAGE - 1);
+    if (!data || data.length === 0) break;
+    rows.push(...data);
+    if (data.length < PAGE) break;
+    offset += PAGE;
+  }
+  return rows;
+}
+
 export async function getPageViewsPerDay(days: number = 30): Promise<DailyCount[]> {
   requireRole(await verifySession(), 'ADMIN');
   const since = daysAgoDate(days);
@@ -53,17 +72,10 @@ export async function getPageViewsPerDay(days: number = 30): Promise<DailyCount[
   const { data } = await getSupabase().rpc('analytics_page_views_per_day', { since_date: since });
   if (data) return data as DailyCount[];
 
-  // Fallback: raw query via select
-  const { data: raw } = await getSupabase()
-    .from('page_views')
-    .select('created_at')
-    .gte('created_at', since + 'T00:00:00')
-    .order('created_at');
-
-  if (!raw) return [];
+  const raw = await fetchAllSince('page_views', 'created_at', since);
 
   const map = new Map<string, number>();
-  for (const r of raw as any[]) {
+  for (const r of raw) {
     const day = (r.created_at as string).slice(0, 10);
     map.set(day, (map.get(day) || 0) + 1);
   }
@@ -76,16 +88,10 @@ export async function getSearchesPerDay(days: number = 30): Promise<DailyCount[]
   requireRole(await verifySession(), 'ADMIN');
   const since = daysAgoDate(days);
 
-  const { data: raw } = await getSupabase()
-    .from('search_log')
-    .select('created_at')
-    .gte('created_at', since + 'T00:00:00')
-    .order('created_at');
-
-  if (!raw) return [];
+  const raw = await fetchAllSince('search_log', 'created_at', since);
 
   const map = new Map<string, number>();
-  for (const r of raw as any[]) {
+  for (const r of raw) {
     const day = (r.created_at as string).slice(0, 10);
     map.set(day, (map.get(day) || 0) + 1);
   }
@@ -98,20 +104,14 @@ export async function getTopSearchedRoutes(days: number = 30): Promise<RouteCoun
   requireRole(await verifySession(), 'ADMIN');
   const since = daysAgoDate(days);
 
-  const [{ data: searchRaw }, { data: callRaw }] = await Promise.all([
-    getSupabase()
-      .from('search_log')
-      .select('from_locality, to_locality')
-      .gte('created_at', since + 'T00:00:00'),
-    getSupabase()
-      .from('call_clicks')
-      .select('from_locality, to_locality')
-      .gte('created_at', since + 'T00:00:00'),
+  const [searchRaw, callRaw] = await Promise.all([
+    fetchAllSince('search_log', 'from_locality, to_locality, created_at', since),
+    fetchAllSince('call_clicks', 'from_locality, to_locality, created_at', since),
   ]);
 
   const map = new Map<string, { from: string; to: string; count: number; calls: number }>();
 
-  for (const r of (searchRaw || []) as any[]) {
+  for (const r of searchRaw) {
     const key = `${r.from_locality}→${r.to_locality}`;
     const existing = map.get(key);
     if (existing) {
@@ -121,7 +121,7 @@ export async function getTopSearchedRoutes(days: number = 30): Promise<RouteCoun
     }
   }
 
-  for (const r of (callRaw || []) as any[]) {
+  for (const r of callRaw) {
     const key = `${r.from_locality}→${r.to_locality}`;
     const existing = map.get(key);
     if (existing) {
@@ -141,15 +141,10 @@ export async function getDeviceBreakdown(days: number = 30): Promise<DeviceCount
   requireRole(await verifySession(), 'ADMIN');
   const since = daysAgoDate(days);
 
-  const { data: raw } = await getSupabase()
-    .from('page_views')
-    .select('device')
-    .gte('created_at', since + 'T00:00:00');
-
-  if (!raw) return [];
+  const raw = await fetchAllSince('page_views', 'device, created_at', since);
 
   const map = new Map<string, number>();
-  for (const r of raw as any[]) {
+  for (const r of raw) {
     const d = r.device || 'unknown';
     map.set(d, (map.get(d) || 0) + 1);
   }
@@ -163,15 +158,10 @@ export async function getCountryBreakdown(days: number = 30): Promise<CountryCou
   requireRole(await verifySession(), 'ADMIN');
   const since = daysAgoDate(days);
 
-  const { data: raw } = await getSupabase()
-    .from('page_views')
-    .select('country')
-    .gte('created_at', since + 'T00:00:00');
-
-  if (!raw) return [];
+  const raw = await fetchAllSince('page_views', 'country, created_at', since);
 
   const map = new Map<string, number>();
-  for (const r of raw as any[]) {
+  for (const r of raw) {
     const c = r.country || '??';
     map.set(c, (map.get(c) || 0) + 1);
   }
@@ -191,27 +181,9 @@ export async function getTopSearchedRoutesDetailed(days: number = 30): Promise<D
   requireRole(await verifySession(), 'ADMIN');
   const since = daysAgoDate(days);
 
-  async function fetchAllRows(table: string, since: string) {
-    const PAGE = 1000;
-    const rows: any[] = [];
-    let offset = 0;
-    while (true) {
-      const { data } = await getSupabase()
-        .from(table)
-        .select('from_locality, to_locality, created_at')
-        .gte('created_at', since + 'T00:00:00')
-        .range(offset, offset + PAGE - 1);
-      if (!data || data.length === 0) break;
-      rows.push(...data);
-      if (data.length < PAGE) break;
-      offset += PAGE;
-    }
-    return rows;
-  }
-
   const [searchRaw, callRaw] = await Promise.all([
-    fetchAllRows('search_log', since),
-    fetchAllRows('call_clicks', since),
+    fetchAllSince('search_log', 'from_locality, to_locality, created_at', since),
+    fetchAllSince('call_clicks', 'from_locality, to_locality, created_at', since),
   ]);
 
   const map = new Map<string, {

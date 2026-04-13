@@ -21,30 +21,32 @@ interface Props {
   initialDays: number;
 }
 
-// --- Line Chart (SVG, same pattern as PassengersChart) ---
+// --- Multi-Line Chart (SVG) ---
 
-function LineChart({ data, color = '#9B1B30', label }: { data: DailyCount[]; color?: string; label: string }) {
-  if (data.length === 0) return <p style={{ color: '#999', fontSize: 14 }}>Nu sunt date.</p>;
+interface Series {
+  data: DailyCount[];
+  color: string;
+  label: string;
+}
+
+function MultiLineChart({ series }: { series: Series[] }) {
+  const nonEmpty = series.filter(s => s.data.length > 0);
+  if (nonEmpty.length === 0) return <p style={{ color: '#999', fontSize: 14 }}>Nu sunt date.</p>;
 
   const W = 700;
-  const H = 180;
+  const H = 200;
   const P = { t: 15, r: 20, b: 40, l: 50 };
   const plotW = W - P.l - P.r;
   const plotH = H - P.t - P.b;
 
-  const vals = data.map(d => d.count);
-  const maxRaw = Math.max(...vals, 1);
+  const allVals = nonEmpty.flatMap(s => s.data.map(d => d.count));
+  const maxRaw = Math.max(...allVals, 1);
   const niceMax = Math.ceil((maxRaw * 1.15) / 10) * 10 || 10;
 
-  const n = data.length;
+  const n = Math.max(...nonEmpty.map(s => s.data.length));
   const xStep = n > 1 ? plotW / (n - 1) : 0;
   const toX = (i: number) => P.l + (n > 1 ? i * xStep : plotW / 2);
   const toY = (v: number) => P.t + plotH - (v / niceMax) * plotH;
-
-  const path = data.map((d, i) => `${i === 0 ? 'M' : 'L'}${toX(i).toFixed(1)},${toY(d.count).toFixed(1)}`).join(' ');
-  const areaPath = n > 1
-    ? path + ` L${toX(n - 1).toFixed(1)},${(P.t + plotH).toFixed(1)} L${toX(0).toFixed(1)},${(P.t + plotH).toFixed(1)} Z`
-    : '';
 
   const yTicks = 5;
   const grid = Array.from({ length: yTicks + 1 }, (_, i) => {
@@ -53,6 +55,7 @@ function LineChart({ data, color = '#9B1B30', label }: { data: DailyCount[]; col
   });
 
   const showEvery = Math.max(1, Math.ceil(n / 12));
+  const xLabels = nonEmpty[0].data;
 
   function fmtDate(d: string) {
     const [, m, day] = d.split('-');
@@ -61,16 +64,22 @@ function LineChart({ data, color = '#9B1B30', label }: { data: DailyCount[]; col
 
   return (
     <div>
-      <div style={{ fontSize: 11, color: '#888', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ width: 16, height: 3, background: color, borderRadius: 2, display: 'inline-block' }} />
-        {label}
+      <div style={{ fontSize: 11, color: '#888', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 16 }}>
+        {nonEmpty.map(s => (
+          <span key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 16, height: 3, background: s.color, borderRadius: 2, display: 'inline-block' }} />
+            {s.label}
+          </span>
+        ))}
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" style={{ width: '100%', height: 'auto', display: 'block' }}>
         <defs>
-          <linearGradient id={`area-${label}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity="0.12" />
-            <stop offset="100%" stopColor={color} stopOpacity="0" />
-          </linearGradient>
+          {nonEmpty.map(s => (
+            <linearGradient key={s.label} id={`area-${s.label}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={s.color} stopOpacity="0.12" />
+              <stop offset="100%" stopColor={s.color} stopOpacity="0" />
+            </linearGradient>
+          ))}
         </defs>
 
         {grid.map(({ val, y }) => (
@@ -80,14 +89,24 @@ function LineChart({ data, color = '#9B1B30', label }: { data: DailyCount[]; col
           </g>
         ))}
 
-        {areaPath && <path d={areaPath} fill={`url(#area-${label})`} />}
-        <path d={path} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+        {nonEmpty.map(s => {
+          const sn = s.data.length;
+          const path = s.data.map((d, i) => `${i === 0 ? 'M' : 'L'}${toX(i).toFixed(1)},${toY(d.count).toFixed(1)}`).join(' ');
+          const areaPath = sn > 1
+            ? path + ` L${toX(sn - 1).toFixed(1)},${(P.t + plotH).toFixed(1)} L${toX(0).toFixed(1)},${(P.t + plotH).toFixed(1)} Z`
+            : '';
+          return (
+            <g key={s.label}>
+              {areaPath && <path d={areaPath} fill={`url(#area-${s.label})`} />}
+              <path d={path} fill="none" stroke={s.color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+              {s.data.map((d, i) => (
+                <circle key={i} cx={toX(i)} cy={toY(d.count)} r="3" fill={s.color} />
+              ))}
+            </g>
+          );
+        })}
 
-        {data.map((d, i) => (
-          <circle key={i} cx={toX(i)} cy={toY(d.count)} r="3" fill={color} />
-        ))}
-
-        {data.map((d, i) => {
+        {xLabels.map((d, i) => {
           if (n > 1 && i % showEvery !== 0 && i !== n - 1) return null;
           return (
             <text key={`x${i}`} x={toX(i)} y={H - P.b + 16} textAnchor="middle" fontSize="10" fill="#aaa">
@@ -209,16 +228,15 @@ export default function AnalyticsClient({
         </div>
       </div>
 
-      {/* Page views chart */}
+      {/* Combined vizite + cautari chart */}
       <div className="card mb-4" style={{ padding: 20 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, color: '#333' }}>Vizite pe zi</h3>
-        <LineChart data={pageViews} color="#9B1B30" label="Vizite" />
-      </div>
-
-      {/* Searches chart */}
-      <div className="card mb-4" style={{ padding: 20 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, color: '#333' }}>Cautari pe zi</h3>
-        <LineChart data={searches} color="#2563eb" label="Cautari" />
+        <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, color: '#333' }}>Vizite si cautari pe zi</h3>
+        <MultiLineChart
+          series={[
+            { data: pageViews, color: '#9B1B30', label: 'Vizite' },
+            { data: searches, color: '#2563eb', label: 'Cautari' },
+          ]}
+        />
       </div>
 
       {/* Bottom grid: routes, devices, countries */}

@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import {
   getPageViewsPerDay,
   getSearchesPerDay,
-  getTopSearchedRoutes,
+  getTopSearchedRoutesDetailed,
   getDeviceBreakdown,
   getCountryBreakdown,
   getTotalStats,
@@ -12,10 +12,10 @@ import AnalyticsClient from './AnalyticsClient';
 
 export default async function AnalyticsPage() {
   const days = 30;
-  const [pageViews, searches, topRoutes, devices, countries, totals] = await Promise.all([
+  const [pageViews, searches, detailedRoutes, devices, countries, totals] = await Promise.all([
     getPageViewsPerDay(days),
     getSearchesPerDay(days),
-    getTopSearchedRoutes(days),
+    getTopSearchedRoutesDetailed(days),
     getDeviceBreakdown(days),
     getCountryBreakdown(days),
     getTotalStats(days),
@@ -25,7 +25,7 @@ export default async function AnalyticsPage() {
     <AnalyticsClient
       initialPageViews={pageViews}
       initialSearches={searches}
-      initialTopRoutes={topRoutes}
+      initialDetailedRoutes={detailedRoutes}
       initialDevices={devices}
       initialCountries={countries}
       initialTotals={totals}

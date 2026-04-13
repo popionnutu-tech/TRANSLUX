@@ -1,12 +1,10 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
-import type { DailyCount, RouteCount, DetailedRoutesResult, DeviceCount, CountryCount } from './actions';
+import type { DailyCount, DetailedRoutesResult, DeviceCount, CountryCount } from './actions';
 import {
   getPageViewsPerDay,
   getSearchesPerDay,
-  getTopSearchedRoutes,
   getTopSearchedRoutesDetailed,
   getDeviceBreakdown,
   getCountryBreakdown,
@@ -16,7 +14,7 @@ import {
 interface Props {
   initialPageViews: DailyCount[];
   initialSearches: DailyCount[];
-  initialTopRoutes: RouteCount[];
+  initialDetailedRoutes: DetailedRoutesResult;
   initialDevices: DeviceCount[];
   initialCountries: CountryCount[];
   initialTotals: { totalViews: number; totalSearches: number; totalCalls: number };
@@ -131,7 +129,7 @@ function heatBg(value: number, max: number): string {
 export default function AnalyticsClient({
   initialPageViews,
   initialSearches,
-  initialTopRoutes,
+  initialDetailedRoutes,
   initialDevices,
   initialCountries,
   initialTotals,
@@ -140,57 +138,30 @@ export default function AnalyticsClient({
   const [days, setDays] = useState(initialDays);
   const [pageViews, setPageViews] = useState(initialPageViews);
   const [searches, setSearches] = useState(initialSearches);
-  const [topRoutes, setTopRoutes] = useState(initialTopRoutes);
+  const [detailedRoutes, setDetailedRoutes] = useState<DetailedRoutesResult>(initialDetailedRoutes);
   const [devices, setDevices] = useState(initialDevices);
   const [countries, setCountries] = useState(initialCountries);
   const [totals, setTotals] = useState(initialTotals);
   const [isPending, startTransition] = useTransition();
-  const [detailedMode, setDetailedMode] = useState(false);
-  const [detailedRoutes, setDetailedRoutes] = useState<DetailedRoutesResult | null>(null);
-  const [isDetailedLoading, setIsDetailedLoading] = useState(false);
 
   function handlePeriodChange(newDays: number) {
     setDays(newDays);
     startTransition(async () => {
-      const [pv, sr, tr, dv, ct, tt] = await Promise.all([
+      const [pv, sr, dr, dv, ct, tt] = await Promise.all([
         getPageViewsPerDay(newDays),
         getSearchesPerDay(newDays),
-        getTopSearchedRoutes(newDays),
+        getTopSearchedRoutesDetailed(newDays),
         getDeviceBreakdown(newDays),
         getCountryBreakdown(newDays),
         getTotalStats(newDays),
       ]);
       setPageViews(pv);
       setSearches(sr);
-      setTopRoutes(tr);
+      setDetailedRoutes(dr);
       setDevices(dv);
       setCountries(ct);
       setTotals(tt);
-      setDetailedRoutes(null);
-      if (detailedMode) {
-        const detailed = await getTopSearchedRoutesDetailed(newDays);
-        setDetailedRoutes(detailed);
-      }
     });
-  }
-
-  async function handleDetailedToggle() {
-    if (detailedMode) {
-      setDetailedMode(false);
-      return;
-    }
-    if (detailedRoutes) {
-      setDetailedMode(true);
-      return;
-    }
-    setIsDetailedLoading(true);
-    try {
-      const data = await getTopSearchedRoutesDetailed(days);
-      setDetailedRoutes(data);
-      setDetailedMode(true);
-    } finally {
-      setIsDetailedLoading(false);
-    }
   }
 
   const totalDevices = devices.reduce((s, d) => s + d.count, 0) || 1;
@@ -255,28 +226,9 @@ export default function AnalyticsClient({
 
         {/* Top routes */}
         <div className="card" style={{ padding: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 600, color: '#333', margin: 0 }}>Top rute cautate</h3>
-            <button
-              onClick={handleDetailedToggle}
-              disabled={isDetailedLoading}
-              style={{
-                fontSize: 12,
-                padding: '4px 12px',
-                borderRadius: 6,
-                border: `1px solid ${detailedMode ? '#2563eb' : '#cbd5e1'}`,
-                background: detailedMode ? '#2563eb' : 'transparent',
-                color: detailedMode ? '#fff' : '#2563eb',
-                cursor: isDetailedLoading ? 'wait' : 'pointer',
-                fontWeight: 600,
-                transition: 'all 0.15s ease',
-              }}
-            >
-              {isDetailedLoading ? 'Se incarca...' : 'Detaliat'}
-            </button>
-          </div>
+          <h3 style={{ fontSize: 16, fontWeight: 600, color: '#333', margin: 0, marginBottom: 12 }}>Top rute cautate</h3>
           {/* Totals row above table */}
-          {topRoutes.length > 0 && (() => {
+          {detailedRoutes.routes.length > 0 && (() => {
             const totalSearches = totals.totalSearches;
             const totalCalls = totals.totalCalls;
             const totalConv = totalSearches > 0 ? Math.round((totalCalls / totalSearches) * 100) : 0;
@@ -297,9 +249,9 @@ export default function AnalyticsClient({
               </div>
             );
           })()}
-          {topRoutes.length === 0 ? (
+          {detailedRoutes.routes.length === 0 ? (
             <p style={{ color: '#999', fontSize: 14 }}>Nu sunt date.</p>
-          ) : detailedMode && detailedRoutes ? (() => {
+          ) : (() => {
             const maxDay = Math.max(...detailedRoutes.routes.flatMap(r => r.day_counts));
             return (
               <div style={{ overflowX: 'auto' }}>
@@ -359,39 +311,7 @@ export default function AnalyticsClient({
                 </table>
               </div>
             );
-          })() : (
-            <table style={{ width: '100%' }}>
-              <thead>
-                <tr>
-                  <th style={{ textAlign: 'left', padding: '6px 8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Ruta</th>
-                  <th style={{ textAlign: 'right', padding: '6px 8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Cautari</th>
-                  <th style={{ textAlign: 'right', padding: '6px 8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Apeluri</th>
-                  <th style={{ textAlign: 'right', padding: '6px 8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Conversie</th>
-                </tr>
-              </thead>
-              <tbody>
-                {topRoutes.map((r, i) => {
-                  const conv = r.count > 0 ? Math.round((r.calls / r.count) * 100) : 0;
-                  return (
-                    <tr key={i}>
-                      <td style={{ padding: '8px', fontSize: 14, borderBottom: '1px solid #f5f5f5' }}>
-                        {r.from_locality} &rarr; {r.to_locality}
-                      </td>
-                      <td style={{ padding: '8px', fontSize: 14, textAlign: 'right', fontWeight: 600, color: '#2563eb', borderBottom: '1px solid #f5f5f5' }}>
-                        {r.count}
-                      </td>
-                      <td style={{ padding: '8px', fontSize: 14, textAlign: 'right', fontWeight: 600, color: '#059669', borderBottom: '1px solid #f5f5f5' }}>
-                        {r.calls}
-                      </td>
-                      <td style={{ padding: '8px', fontSize: 14, textAlign: 'right', fontWeight: 600, color: conv >= 50 ? '#059669' : conv >= 20 ? '#d97706' : '#dc2626', borderBottom: '1px solid #f5f5f5' }}>
-                        {conv}%
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
+          })()}
         </div>
 
         {/* Devices */}

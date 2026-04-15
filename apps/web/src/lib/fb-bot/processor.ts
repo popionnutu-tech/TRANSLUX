@@ -6,13 +6,16 @@ import { sendMessengerMessage, replyToComment } from './sender';
 
 const HISTORY_LIMIT = 10;
 
-async function loadConfig(pageId: string): Promise<FbMessagingConfig | null> {
-  const { data } = await getSupabase()
+async function loadConfig(pageId: string): Promise<{ config: FbMessagingConfig | null; debugError: string | null }> {
+  const { data, error } = await getSupabase()
     .from('fb_messaging_config')
     .select('*')
     .eq('page_id', pageId)
     .maybeSingle();
-  return (data as FbMessagingConfig | null) || null;
+  if (error) {
+    return { config: null, debugError: `supabase error: ${error.message} (code=${error.code})` };
+  }
+  return { config: (data as FbMessagingConfig | null) || null, debugError: null };
 }
 
 async function loadHistory(pageId: string, psid: string): Promise<AgentMessage[]> {
@@ -65,9 +68,12 @@ async function markEvent(
 
 export async function processEvent(event: ParsedFbEvent): Promise<void> {
   try {
-    const config = await loadConfig(event.pageId);
+    const { config, debugError } = await loadConfig(event.pageId);
     if (!config) {
-      await markEvent(event.eventId, { error: 'No fb_messaging_config for this page' });
+      const reason = debugError
+        ? `loadConfig error for page_id="${event.pageId}": ${debugError}`
+        : `No fb_messaging_config for page_id="${event.pageId}"`;
+      await markEvent(event.eventId, { error: reason });
       return;
     }
     if (!config.enabled) {

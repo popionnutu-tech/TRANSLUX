@@ -187,13 +187,28 @@ export async function getGraficEdinetRows(date: string): Promise<GraficEdinetRow
   const assignmentMap = new Map(assignments.map((a: any) => [a.crm_route_id, a]));
   const routeMap = new Map(routes.map((r: any) => [r.id, r]));
 
-  // Group stops per route: find hour_from_nord for Edineț and Bălți
+  // Normalize Romanian stop name (strip diacritics + lowercase) for exact match
+  const normRo = (name: string) =>
+    name.trim().toLowerCase()
+      .replace(/[șş]/g, 's')
+      .replace(/[țţ]/g, 't')
+      .replace(/[ăâ]/g, 'a')
+      .replace(/î/g, 'i');
+
+  // Reject empty or midnight-zero placeholders ("0:00", "00:00")
+  const isValidHour = (t: string | null | undefined): t is string =>
+    !!t && !/^\s*0?0:00\s*$/.test(t);
+
+  // Group stops per route: find hour_from_nord for exact "Edineț" and "Bălți" stops only
   const routeStops = new Map<number, { edinet?: string; balti?: string }>();
   for (const s of stops) {
+    const n = normRo(s.name_ro || '');
+    if (n !== 'edinet' && n !== 'balti') continue;
+    if (!isValidHour(s.hour_from_nord)) continue;
     if (!routeStops.has(s.crm_route_id)) routeStops.set(s.crm_route_id, {});
     const rs = routeStops.get(s.crm_route_id)!;
-    if (/edine[țt]/i.test(s.name_ro || '')) rs.edinet = s.hour_from_nord || '';
-    else if (/b[aă]l[tț]i/i.test(s.name_ro || '')) rs.balti = s.hour_from_nord || '';
+    if (n === 'edinet') rs.edinet = s.hour_from_nord;
+    else rs.balti = s.hour_from_nord;
   }
 
   const rows: (GraficEdinetRow & { _sortKey: number })[] = [];

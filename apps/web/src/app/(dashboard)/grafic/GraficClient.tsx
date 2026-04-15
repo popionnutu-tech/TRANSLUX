@@ -65,6 +65,7 @@ export default function GraficClient({
   const [returPopup, setReturPopup] = useState<GraficRow | null>(null);
   const [popReturRouteId, setPopReturRouteId] = useState('');
   const [downloading, setDownloading] = useState(false);
+  const [downloadingEdinet, setDownloadingEdinet] = useState(false);
   const [dateEntries, setDateEntries] = useState<DateEntry[]>(initialDates);
   const [allData, setAllData] = useState<{ page1: GraficRow[]; page2: GraficRow[] } | null>(null);
 
@@ -179,6 +180,26 @@ export default function GraficClient({
     }
   }
 
+  async function handleDownloadEdinet() {
+    setDownloadingEdinet(true);
+    setError('');
+    try {
+      const params = new URLSearchParams({ date, type: 'edinet' });
+      const res = await fetch(`/api/schedule-image?${params}`);
+      if (!res.ok) throw new Error('Eroare la generare imagine');
+      const blob = await res.blob();
+      const link = document.createElement('a');
+      link.download = `grafic-edinet-${formatDate(date)}.png`;
+      link.href = URL.createObjectURL(blob);
+      link.click();
+      URL.revokeObjectURL(link.href);
+    } catch (err: any) {
+      setError(err.message || 'Eroare la descărcare');
+    } finally {
+      setDownloadingEdinet(false);
+    }
+  }
+
   /* ── Styles ── */
   const maroon = '#9B1B30';
   const maroonDark = '#6b1221';
@@ -200,6 +221,9 @@ export default function GraficClient({
           )}
           <button className="btn btn-primary" onClick={handleDownload} disabled={downloading}>
             {downloading ? 'Se generează...' : 'Descarcă PNG'}
+          </button>
+          <button className="btn btn-primary" onClick={handleDownloadEdinet} disabled={downloadingEdinet}>
+            {downloadingEdinet ? 'Se generează...' : 'Descarcă Edineț-Chișinău'}
           </button>
         </div>
       </div>

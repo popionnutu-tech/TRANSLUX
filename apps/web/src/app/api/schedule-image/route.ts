@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { verifySession } from '@/lib/auth';
-import { getGraficData } from '@/app/(dashboard)/grafic/actions';
-import { generateScheduleImage } from '@/lib/schedule-image';
+import { getGraficData, getGraficEdinetRows } from '@/app/(dashboard)/grafic/actions';
+import { generateScheduleImage, generateScheduleEdinetImage } from '@/lib/schedule-image';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -19,12 +19,28 @@ export async function GET(req: NextRequest) {
   const date = searchParams.get('date');
   const pageStr = searchParams.get('page');
   const merge = searchParams.get('merge') === '1';
+  const type = searchParams.get('type') || 'general';
 
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return new Response('Parametru "date" lipsă sau invalid (YYYY-MM-DD)', { status: 400 });
   }
 
   try {
+    const [y, m, d] = date.split('-');
+
+    if (type === 'edinet') {
+      const rows = await getGraficEdinetRows(date);
+      const imageBuffer = await generateScheduleEdinetImage(rows, date);
+      const filename = `grafic-edinet-${d}.${m}.${y}.png`;
+      return new Response(new Uint8Array(imageBuffer), {
+        headers: {
+          'Content-Type': 'image/png',
+          'Content-Disposition': `attachment; filename="${filename}"`,
+          'Cache-Control': 'no-cache, no-store',
+        },
+      });
+    }
+
     const data = await getGraficData(date);
 
     let rows;
@@ -41,8 +57,6 @@ export async function GET(req: NextRequest) {
     }
 
     const imageBuffer = await generateScheduleImage(rows, date);
-
-    const [y, m, d] = date.split('-');
     const filename = `grafic-${d}.${m}.${y}${filenameSuffix}.png`;
 
     return new Response(new Uint8Array(imageBuffer), {

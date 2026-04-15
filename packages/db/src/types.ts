@@ -151,6 +151,7 @@ export interface DailyAssignment {
   trip_id: string | null;
   driver_id: string;
   vehicle_id: string | null;
+  auto_copied: boolean;
   created_at: string;
 }
 

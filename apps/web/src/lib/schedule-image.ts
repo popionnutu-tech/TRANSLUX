@@ -2,7 +2,7 @@ import sharp from 'sharp';
 import fs from 'fs';
 import path from 'path';
 import opentype from 'opentype.js';
-import type { GraficRow } from '@/app/(dashboard)/grafic/actions';
+import type { GraficRow, GraficEdinetRow } from '@/app/(dashboard)/grafic/actions';
 
 /* ── Hi-res 2× scale (matches html2canvas scale:2) ── */
 const S = 2;
@@ -239,6 +239,132 @@ export async function generateScheduleImage(
       svg.push(textPath(fB, row.driver_phone, driverCx, phoneY, FS.phone, MAROON_DK, 'middle'));
       if (row.driver_name) {
         svg.push(textPath(fR, row.driver_name, driverCx, phoneY + 16 * S, FS.name, '#555', 'middle'));
+      }
+    }
+  }
+
+  const svgStr = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${CANVAS_W}" height="${H}">
+${svg.join('\n')}
+</svg>`;
+
+  return await sharp(Buffer.from(svgStr)).png().toBuffer();
+}
+
+/* ── Edineț-Chișinău image generator (second type) ── */
+
+export async function generateScheduleEdinetImage(
+  rows: GraficEdinetRow[],
+  date: string,
+): Promise<Buffer> {
+  const assigned = rows.filter(r => r.driver_id);
+  const { r: fR, b: fB, i: fI } = fonts();
+  const logo = logoBase64();
+
+  const n = Math.max(assigned.length, 1);
+  const HEADING_H = 44 * S;
+  const H = PAD + LOGO_AREA + SUB_LINE + HEADING_H + TH_H + n * ROW_H + PAD;
+
+  // 4-column layout: [Edineț | Bălți | Chișinău | Nr. Șofer]
+  // Driver column keeps 220px like the general grafic. 3 time columns split the rest.
+  const COL_DRIVER_W = 220 * S;
+  const COL_TIME_W = (TABLE_W - COL_DRIVER_W) / 3;
+  const COL_EDINET_X = PAD;
+  const COL_BALTI_X = PAD + COL_TIME_W;
+  const COL_CHISINAU_X = PAD + 2 * COL_TIME_W;
+  const COL_DRV_X = PAD + 3 * COL_TIME_W;
+
+  const svg: string[] = [];
+
+  // White background
+  svg.push(`<rect width="${CANVAS_W}" height="${H}" fill="#fff"/>`);
+
+  /* ── Header: logo + date (identical to general) ── */
+  const logoImgH = 36 * S;
+  const logoY = PAD + (LOGO_AREA - logoImgH) / 2 - 4 * S;
+  svg.push(
+    `<image x="${PAD + 75 * S}" y="${logoY}" height="${logoImgH}"` +
+    ` href="data:image/png;base64,${logo}" preserveAspectRatio="xMinYMid meet"/>`,
+  );
+
+  const [yr, mo, dy] = date.split('-');
+  const dateText = `Grafic din: ${dy}.${mo}.${yr}`;
+  const dateY = PAD + LOGO_AREA / 2 + FS.date * 0.3;
+  svg.push(textPath(fI, dateText, CANVAS_W - PAD - 76 * S, dateY, FS.date, MAROON_DK, 'end'));
+
+  /* ── Sub-header ── */
+  const subBaseY = PAD + LOGO_AREA + FS.sub;
+  const sub1 = 'Mai multe detalii: ';
+  const sub2 = 'translux.md';
+  const w1 = textW(fR, sub1, FS.sub);
+  const w2 = textW(fB, sub2, FS.sub);
+  const subX = (CANVAS_W - w1 - w2) / 2;
+  svg.push(textPath(fR, sub1, subX, subBaseY, FS.sub, MAROON));
+  svg.push(textPath(fB, sub2, subX + w1, subBaseY, FS.sub, MAROON));
+
+  /* ── NEW: EDINEȚ - CHIȘINĂU heading ── */
+  const headingSize = 22 * S;
+  const headingY = PAD + LOGO_AREA + SUB_LINE + HEADING_H / 2 + headingSize * 0.35;
+  svg.push(textPath(fB, 'EDINEȚ - CHIȘINĂU', CANVAS_W / 2, headingY, headingSize, MAROON, 'middle'));
+
+  /* ── Table ── */
+  const tableY = PAD + LOGO_AREA + SUB_LINE + HEADING_H;
+  const tableH = TH_H + n * ROW_H;
+  const bw = 2 * S;
+
+  svg.push(`<rect x="${PAD}" y="${tableY}" width="${TABLE_W}" height="${tableH}" fill="none" stroke="${MAROON}" stroke-width="${bw}"/>`);
+  svg.push(`<rect x="${PAD}" y="${tableY}" width="${TABLE_W}" height="${TH_H}" fill="${MAROON}"/>`);
+
+  const thMidY = tableY + TH_H / 2;
+
+  // Column headers
+  svg.push(textPath(fB, 'EDINEȚ', COL_EDINET_X + COL_TIME_W / 2, thMidY + FS.th * 0.35, FS.th, '#fff', 'middle'));
+  svg.push(textPath(fB, 'BĂLȚI', COL_BALTI_X + COL_TIME_W / 2, thMidY + FS.th * 0.35, FS.th, '#fff', 'middle'));
+  // Chișinău (retur) — two lines, same style as "PLECARE DIN / CHIȘINĂU" in general grafic
+  svg.push(textPath(fB, 'CHIȘINĂU', COL_CHISINAU_X + COL_TIME_W / 2, thMidY - 2 * S, FS.th * 0.82, '#fff', 'middle'));
+  svg.push(textPath(fR, '(retur)', COL_CHISINAU_X + COL_TIME_W / 2, thMidY + FS.th * 0.75, FS.th * 0.7, '#fff', 'middle'));
+  svg.push(textPath(fB, 'NR. ȘOFER', COL_DRV_X + COL_DRIVER_W / 2, thMidY + FS.th * 0.35, FS.th, '#fff', 'middle'));
+
+  /* ── Data rows ── */
+  const bodyY = tableY + TH_H;
+
+  for (let i = 0; i < assigned.length; i++) {
+    const row = assigned[i];
+    const rY = bodyY + i * ROW_H;
+
+    // Alternating background
+    svg.push(`<rect x="${PAD + bw / 2}" y="${rY}" width="${TABLE_W - bw}" height="${ROW_H}" fill="${ROW_BG[i % 2]}"/>`);
+
+    // Bottom divider
+    if (i < assigned.length - 1) {
+      svg.push(`<line x1="${PAD}" y1="${rY + ROW_H}" x2="${PAD + TABLE_W}" y2="${rY + ROW_H}" stroke="rgba(155,27,48,0.15)" stroke-width="1"/>`);
+    }
+
+    // Column dividers
+    svg.push(`<line x1="${COL_BALTI_X}" y1="${rY}" x2="${COL_BALTI_X}" y2="${rY + ROW_H}" stroke="rgba(155,27,48,0.1)" stroke-width="1"/>`);
+    svg.push(`<line x1="${COL_CHISINAU_X}" y1="${rY}" x2="${COL_CHISINAU_X}" y2="${rY + ROW_H}" stroke="rgba(155,27,48,0.1)" stroke-width="1"/>`);
+    svg.push(`<line x1="${COL_DRV_X}" y1="${rY}" x2="${COL_DRV_X}" y2="${rY + ROW_H}" stroke="rgba(155,27,48,0.1)" stroke-width="1"/>`);
+
+    // Time cells (centered)
+    const timeY = rY + ROW_H / 2 + FS.time * 0.35;
+    if (row.hour_edinet) {
+      svg.push(textPath(fB, row.hour_edinet, COL_EDINET_X + COL_TIME_W / 2, timeY, FS.time, MAROON_DK, 'middle'));
+    }
+    if (row.hour_balti) {
+      svg.push(textPath(fB, row.hour_balti, COL_BALTI_X + COL_TIME_W / 2, timeY, FS.time, MAROON_DK, 'middle'));
+    }
+    if (row.time_chisinau_retur) {
+      svg.push(textPath(fB, row.time_chisinau_retur, COL_CHISINAU_X + COL_TIME_W / 2, timeY, FS.time, MAROON_DK, 'middle'));
+    }
+
+    // Driver phone + name (same format as general grafic)
+    if (row.driver_phone) {
+      const phoneY = rY + ROW_H * 0.38;
+      const driverCx = COL_DRV_X + COL_DRIVER_W / 2;
+      svg.push(textPath(fB, row.driver_phone, driverCx, phoneY, FS.phone, MAROON_DK, 'middle'));
+      if (row.driver_name) {
+        const maxNameW = COL_DRIVER_W - 16 * S;
+        svg.push(textPath(fR, truncText(fR, row.driver_name, FS.name, maxNameW), driverCx, phoneY + 16 * S, FS.name, '#555', 'middle'));
       }
     }
   }

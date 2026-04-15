@@ -35,6 +35,17 @@ export interface GraficRow {
   retur_route_id: number | null;
 }
 
+export interface GraficEdinetRow {
+  crm_route_id: number;
+  hour_edinet: string;            // "09:25" — departure from Edineț toward Chișinău
+  hour_balti: string;             // "10:30" — departure from Bălți toward Chișinău
+  time_chisinau_retur: string;    // "15:55" — retur departure from Chișinău
+  dest_to: string;
+  driver_id: string | null;
+  driver_phone: string | null;
+  driver_name: string | null;
+}
+
 /* ── Helpers ── */
 
 function toLocalPhone(phone: string | null): string | null {
@@ -149,6 +160,67 @@ export async function getGraficData(date: string): Promise<{
     page1: numbered.slice(0, 14),
     page2: numbered.slice(14, 28),
   };
+}
+
+/* ── Edineț graphic (second image type) ── */
+
+export async function getGraficEdinetRows(date: string): Promise<GraficEdinetRow[]> {
+  requireRole(await verifySession(), 'ADMIN', 'DISPATCHER', 'GRAFIC');
+
+  const db = getSupabase();
+
+  const [routesRes, stopsRes, assignmentsRes, driversRes] = await Promise.all([
+    db.from('crm_routes').select('id, time_chisinau, dest_to_ro').eq('active', true),
+    db.from('crm_stop_fares').select('crm_route_id, name_ro, hour_from_nord').eq('is_visible', true),
+    db.from('daily_assignments')
+      .select('crm_route_id, driver_id, retur_route_id')
+      .eq('assignment_date', date),
+    db.from('drivers').select('id, full_name, phone').eq('active', true),
+  ]);
+
+  const routes = (routesRes.data || []) as any[];
+  const stops = (stopsRes.data || []) as any[];
+  const assignments = (assignmentsRes.data || []) as any[];
+  const drivers = (driversRes.data || []) as any[];
+
+  const driverMap = new Map(drivers.map((d: any) => [d.id, d]));
+  const assignmentMap = new Map(assignments.map((a: any) => [a.crm_route_id, a]));
+  const routeMap = new Map(routes.map((r: any) => [r.id, r]));
+
+  // Group stops per route: find hour_from_nord for Edineț and Bălți
+  const routeStops = new Map<number, { edinet?: string; balti?: string }>();
+  for (const s of stops) {
+    if (!routeStops.has(s.crm_route_id)) routeStops.set(s.crm_route_id, {});
+    const rs = routeStops.get(s.crm_route_id)!;
+    if (/edine[țt]/i.test(s.name_ro || '')) rs.edinet = s.hour_from_nord || '';
+    else if (/b[aă]l[tț]i/i.test(s.name_ro || '')) rs.balti = s.hour_from_nord || '';
+  }
+
+  const rows: (GraficEdinetRow & { _sortKey: number })[] = [];
+  for (const r of routes) {
+    const rs = routeStops.get(r.id);
+    if (!rs?.edinet) continue;
+
+    const a = assignmentMap.get(r.id);
+    const driver = a?.driver_id ? driverMap.get(a.driver_id) : null;
+    const chisinauTime = resolveReturTime(a, r.time_chisinau || '', routeMap);
+
+    rows.push({
+      _sortKey: parseFirstTime(rs.edinet || ''),
+      crm_route_id: r.id,
+      hour_edinet: parseTimeLabel(rs.edinet || ''),
+      hour_balti: rs.balti ? parseTimeLabel(rs.balti) : '',
+      time_chisinau_retur: chisinauTime,
+      dest_to: r.dest_to_ro || '',
+      driver_id: a?.driver_id || null,
+      driver_phone: toLocalPhone(driver?.phone || null),
+      driver_name: driver?.full_name || null,
+    });
+  }
+
+  rows.sort((a, b) => a._sortKey - b._sortKey);
+
+  return rows.map(({ _sortKey, ...rest }) => rest);
 }
 
 /* ── Assignment CRUD ── */

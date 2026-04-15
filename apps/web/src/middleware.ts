@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
 
-const ALL_DASHBOARD = ['/reports', '/users', '/drivers', '/trips', '/routes', '/salary', '/smm-accounts', '/assignments', '/grafic', '/numarare', '/vehicles', '/mapping', '/offers', '/analytics', '/fb-bot'];
+const ALL_DASHBOARD = ['/reports', '/users', '/drivers', '/trips', '/routes', '/salary', '/smm-accounts', '/assignments', '/grafic', '/numarare', '/vehicles', '/mapping', '/offers', '/analytics']; // /fb-bot temporarily hidden — feature paused
 const DISPATCHER_ALLOWED = ['/grafic', '/drivers', '/vehicles'];
 const GRAFIC_ALLOWED = ['/grafic'];
 const OPERATOR_CAMERE_ALLOWED = ['/numarare'];

@@ -55,7 +55,8 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Copy to tomorrow
+    // Copy to tomorrow — mark rows as auto_copied so the dispatcher grafic
+    // hides them and sees empty slots; the public site still uses them.
     const rows = source.map((s: any) => ({
       crm_route_id: s.crm_route_id,
       assignment_date: tomorrowStr,
@@ -63,6 +64,7 @@ export async function GET(req: NextRequest) {
       vehicle_id: s.vehicle_id,
       vehicle_id_retur: s.vehicle_id_retur,
       retur_route_id: s.retur_route_id,
+      auto_copied: true,
     }));
 
     const { error: insertErr } = await db.from('daily_assignments').insert(rows);

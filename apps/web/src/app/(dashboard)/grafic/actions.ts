@@ -76,7 +76,8 @@ export async function getGraficData(date: string): Promise<{
     db.from('crm_routes').select('id, time_nord, time_chisinau, dest_to_ro').eq('active', true),
     db.from('daily_assignments')
       .select('id, crm_route_id, driver_id, vehicle_id, vehicle_id_retur, retur_route_id')
-      .eq('assignment_date', date),
+      .eq('assignment_date', date)
+      .eq('auto_copied', false),
     db.from('drivers').select('id, full_name, phone').eq('active', true),
     db.from('vehicles').select('id, plate_number').eq('active', true),
     db.from('crm_stop_fares').select('crm_route_id, name_ro').eq('is_visible', true),
@@ -174,7 +175,8 @@ export async function getGraficEdinetRows(date: string): Promise<GraficEdinetRow
     db.from('crm_stop_fares').select('crm_route_id, name_ro, hour_from_nord').eq('is_visible', true),
     db.from('daily_assignments')
       .select('crm_route_id, driver_id, retur_route_id')
-      .eq('assignment_date', date),
+      .eq('assignment_date', date)
+      .eq('auto_copied', false),
     db.from('drivers').select('id, full_name, phone').eq('active', true),
   ]);
 
@@ -250,6 +252,7 @@ export async function upsertAssignment(
   try { requireRole(await verifySession(), 'ADMIN', 'DISPATCHER'); } catch { return { error: 'Acces interzis' }; }
 
   const db = getSupabase();
+  // Any dispatcher touch promotes the row to manual (clears auto_copied).
   const { error } = await db.from('daily_assignments').upsert(
     {
       crm_route_id: crmRouteId,
@@ -257,6 +260,7 @@ export async function upsertAssignment(
       driver_id: driverId,
       vehicle_id: vehicleId,
       vehicle_id_retur: vehicleIdRetur,
+      auto_copied: false,
     },
     { onConflict: 'crm_route_id,assignment_date' }
   );
@@ -282,15 +286,26 @@ export async function copyAssignments(
 
   const db = getSupabase();
 
+  // A target date that only holds auto_copied rows should count as empty —
+  // dispatcher sees no programări in the UI, so blocking here is misleading.
   const { data: existing } = await db
     .from('daily_assignments')
     .select('id')
     .eq('assignment_date', targetDate)
+    .eq('auto_copied', false)
     .limit(1);
 
   if (existing && existing.length > 0) {
     return { error: 'Există deja programări pentru această dată' };
   }
+
+  // Clear any stale auto_copied rows on the target before the real copy
+  // (avoids UNIQUE (crm_route_id, assignment_date) conflicts on insert).
+  await db
+    .from('daily_assignments')
+    .delete()
+    .eq('assignment_date', targetDate)
+    .eq('auto_copied', true);
 
   const { data: source, error: fetchErr } = await db
     .from('daily_assignments')
@@ -307,6 +322,7 @@ export async function copyAssignments(
     vehicle_id: s.vehicle_id,
     vehicle_id_retur: s.vehicle_id_retur,
     retur_route_id: s.retur_route_id,
+    auto_copied: false,
   }));
 
   const { error: insertErr } = await db.from('daily_assignments').insert(rows);
@@ -399,6 +415,7 @@ export async function getAssignmentDates(): Promise<DateEntry[]> {
   const { data } = await db
     .from('daily_assignments')
     .select('assignment_date')
+    .eq('auto_copied', false)
     .gte('assignment_date', startStr)
     .lte('assignment_date', endStr);
 

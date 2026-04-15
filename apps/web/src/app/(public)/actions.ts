@@ -161,6 +161,49 @@ function normalizeStop(name: string): string {
   return aliases[n] || n;
 }
 
+/**
+ * Resolve which date to read daily_assignments from for the public site.
+ *
+ * If the requested date has no grafic yet (dispatcher hasn't introduced it),
+ * fall back to the most recent earlier date with grafic — but only when the
+ * requested date sits in the window [today+1 .. today+7] (Europe/Chisinau).
+ * This keeps passengers from seeing an empty search result while the
+ * dispatcher still sees the day as "not introduced" in the admin grafic.
+ */
+async function resolveAssignmentDate(
+  supabase: ReturnType<typeof getSupabase>,
+  date: string,
+): Promise<string> {
+  const { data: anyOnDate } = await supabase
+    .from('daily_assignments')
+    .select('id')
+    .eq('assignment_date', date)
+    .limit(1);
+
+  if (anyOnDate && anyOnDate.length > 0) return date;
+
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
+  const todayMs = Date.parse(today + 'T00:00:00Z');
+  const targetMs = Date.parse(date + 'T00:00:00Z');
+  if (Number.isNaN(todayMs) || Number.isNaN(targetMs)) return date;
+
+  const diffDays = Math.round((targetMs - todayMs) / 86_400_000);
+  if (diffDays < 1 || diffDays > 7) return date;
+
+  const lowerBoundStr = new Date(targetMs - 7 * 86_400_000).toISOString().slice(0, 10);
+
+  const { data: latest } = await supabase
+    .from('daily_assignments')
+    .select('assignment_date')
+    .lt('assignment_date', date)
+    .gte('assignment_date', lowerBoundStr)
+    .order('assignment_date', { ascending: false })
+    .limit(1);
+
+  if (latest && latest.length > 0) return latest[0].assignment_date as string;
+  return date;
+}
+
 export async function searchTrips(
   fromRo: string,
   toRo: string,
@@ -174,6 +217,8 @@ export async function searchTrips(
     to_locality: toRo,
     search_date: date,
   }).then(() => {});
+
+  const assignmentDate = await resolveAssignmentDate(supabase, date);
 
   // Query 1+2: Get from/to stops in parallel
   const [{ data: fromStops }, { data: toStops }] = await Promise.all([
@@ -219,12 +264,12 @@ export async function searchTrips(
     supabase
       .from('daily_assignments')
       .select('crm_route_id, driver_id, vehicle_id, vehicle_id_retur, retur_route_id')
-      .eq('assignment_date', date)
+      .eq('assignment_date', assignmentDate)
       .in('crm_route_id', matchingRouteIds),
     supabase
       .from('daily_assignments')
       .select('crm_route_id, driver_id, vehicle_id, vehicle_id_retur, retur_route_id')
-      .eq('assignment_date', date)
+      .eq('assignment_date', assignmentDate)
       .in('retur_route_id', matchingRouteIds),
     supabase
       .from('offers')

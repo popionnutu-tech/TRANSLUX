@@ -65,7 +65,7 @@ export default function GraficClient({
   const [returPopup, setReturPopup] = useState<GraficRow | null>(null);
   const [popReturRouteId, setPopReturRouteId] = useState('');
   const [downloading, setDownloading] = useState(false);
-  const [downloadingEdinet, setDownloadingEdinet] = useState(false);
+  const [downloadingEdinet, setDownloadingEdinet] = useState<1 | 2 | null>(null);
   const [dateEntries, setDateEntries] = useState<DateEntry[]>(initialDates);
   const [allData, setAllData] = useState<{ page1: GraficRow[]; page2: GraficRow[] } | null>(null);
 
@@ -180,23 +180,23 @@ export default function GraficClient({
     }
   }
 
-  async function handleDownloadEdinet() {
-    setDownloadingEdinet(true);
+  async function handleDownloadEdinet(page: 1 | 2) {
+    setDownloadingEdinet(page);
     setError('');
     try {
-      const params = new URLSearchParams({ date, type: 'edinet' });
+      const params = new URLSearchParams({ date, type: 'edinet', page: String(page) });
       const res = await fetch(`/api/schedule-image?${params}`);
       if (!res.ok) throw new Error('Eroare la generare imagine');
       const blob = await res.blob();
       const link = document.createElement('a');
-      link.download = `grafic-edinet-${formatDate(date)}.png`;
+      link.download = `grafic-edinet-${formatDate(date)}-p${page}.png`;
       link.href = URL.createObjectURL(blob);
       link.click();
       URL.revokeObjectURL(link.href);
     } catch (err: any) {
       setError(err.message || 'Eroare la descărcare');
     } finally {
-      setDownloadingEdinet(false);
+      setDownloadingEdinet(null);
     }
   }
 
@@ -222,8 +222,11 @@ export default function GraficClient({
           <button className="btn btn-primary" onClick={handleDownload} disabled={downloading}>
             {downloading ? 'Se generează...' : 'Descarcă PNG'}
           </button>
-          <button className="btn btn-primary" onClick={handleDownloadEdinet} disabled={downloadingEdinet}>
-            {downloadingEdinet ? 'Se generează...' : 'Descarcă Edineț-Chișinău'}
+          <button className="btn btn-primary" onClick={() => handleDownloadEdinet(1)} disabled={downloadingEdinet !== null}>
+            {downloadingEdinet === 1 ? 'Se generează...' : 'Edineț p1 (1-14)'}
+          </button>
+          <button className="btn btn-primary" onClick={() => handleDownloadEdinet(2)} disabled={downloadingEdinet !== null}>
+            {downloadingEdinet === 2 ? 'Se generează...' : 'Edineț p2 (15-28)'}
           </button>
         </div>
       </div>

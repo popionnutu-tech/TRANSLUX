@@ -34,6 +34,36 @@ export async function runClaudeAgent(params: {
 }): Promise<AgentResult> {
   const anthropic = getClient();
 
+  // Build a non-cached date prefix so Claude always knows current local date.
+  // Without this, Claude has no clock and hallucinates dates when the user
+  // says "tomorrow", "next week" etc.
+  const now = new Date();
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Chisinau',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    weekday: 'long',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  const parts = fmt.formatToParts(now);
+  const get = (t: string) => parts.find(p => p.type === t)?.value || '';
+  const dateIso = `${get('year')}-${get('month')}-${get('day')}`;
+  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const tomorrowIso = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Chisinau',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(tomorrow);
+  const datePrefix =
+    `Current date and time: ${dateIso} ${get('hour')}:${get('minute')} (${get('weekday')}, Europe/Chisinau).\n` +
+    `When the user says "today" / "azi" / "сегодня", use ${dateIso}.\n` +
+    `When the user says "tomorrow" / "mâine" / "завтра", use ${tomorrowIso}.\n` +
+    `Always pass dates to tools in YYYY-MM-DD format. Never invent or guess a date — always derive from the current date above.`;
+
   const anthropicMessages: Anthropic.MessageParam[] = params.messages.map(m => ({
     role: m.role,
     content: m.content,
@@ -62,6 +92,10 @@ export async function runClaudeAgent(params: {
           type: 'text',
           text: params.systemPrompt,
           cache_control: { type: 'ephemeral' },
+        },
+        {
+          type: 'text',
+          text: datePrefix,
         },
       ],
       tools: TRANSLUX_TOOLS,

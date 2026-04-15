@@ -29,9 +29,19 @@ export async function GET(req: NextRequest) {
     const [y, m, d] = date.split('-');
 
     if (type === 'edinet') {
-      const rows = await getGraficEdinetRows(date);
+      const allRows = await getGraficEdinetRows(date);
+      const EDINET_PER_PAGE = 14;
+      let rows = allRows;
+      let suffix = '';
+      if (pageStr === '1' || pageStr === '2') {
+        const page = pageStr === '2' ? 2 : 1;
+        rows = page === 1
+          ? allRows.slice(0, EDINET_PER_PAGE)
+          : allRows.slice(EDINET_PER_PAGE);
+        suffix = `-p${page}`;
+      }
       const imageBuffer = await generateScheduleEdinetImage(rows, date);
-      const filename = `grafic-edinet-${d}.${m}.${y}.png`;
+      const filename = `grafic-edinet-${d}.${m}.${y}${suffix}.png`;
       return new Response(new Uint8Array(imageBuffer), {
         headers: {
           'Content-Type': 'image/png',

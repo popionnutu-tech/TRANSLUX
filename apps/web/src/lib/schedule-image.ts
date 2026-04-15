@@ -263,7 +263,27 @@ export async function generateScheduleEdinetImage(
 
   const n = Math.max(assigned.length, 1);
   const HEADING_H = 44 * S;
-  const H = PAD + LOGO_AREA + SUB_LINE + HEADING_H + TH_H + n * ROW_H + PAD;
+
+  /* ── Fixed 9:16 canvas for TikTok / Reels / Stories ── */
+  const CANVAS_H = 1600 * S;
+  const SAFE_TOP = 120 * S; // reserved for TikTok status bar + "Add sound"
+  const SAFE_BOT = 160 * S; // reserved for TikTok "Your Story" / "Next"
+  const USABLE_H = CANVAS_H - SAFE_TOP - SAFE_BOT;
+
+  const HEADER_H = PAD + LOGO_AREA + SUB_LINE + HEADING_H + TH_H;
+  const ROW_AREA_MAX = USABLE_H - HEADER_H - PAD;
+
+  /* ── Dynamic row height: shrink only when content exceeds safe area ── */
+  const ROW_H_DYN = Math.min(ROW_H, Math.floor(ROW_AREA_MAX / n));
+  const rowScale = ROW_H_DYN / ROW_H;
+  const fsTime = Math.round(FS.time * rowScale);
+  const fsPhone = Math.round(FS.phone * rowScale);
+  const fsName = Math.round(FS.name * rowScale);
+
+  const CONTENT_H = HEADER_H + n * ROW_H_DYN + PAD;
+  const yOffset = Math.max(SAFE_TOP, SAFE_TOP + (USABLE_H - CONTENT_H) / 2);
+  // Base replaces the original "content starts at PAD" origin.
+  const base = yOffset;
 
   // 4-column layout: [Edineț | Bălți | Chișinău | Nr. Șofer]
   // Driver column keeps 220px like the general grafic. 3 time columns split the rest.
@@ -276,12 +296,12 @@ export async function generateScheduleEdinetImage(
 
   const svg: string[] = [];
 
-  // White background
-  svg.push(`<rect width="${CANVAS_W}" height="${H}" fill="#fff"/>`);
+  // White background fills the entire 9:16 canvas
+  svg.push(`<rect width="${CANVAS_W}" height="${CANVAS_H}" fill="#fff"/>`);
 
   /* ── Header: logo + date (identical to general) ── */
   const logoImgH = 36 * S;
-  const logoY = PAD + (LOGO_AREA - logoImgH) / 2 - 4 * S;
+  const logoY = base + (LOGO_AREA - logoImgH) / 2 - 4 * S;
   svg.push(
     `<image x="${PAD + 75 * S}" y="${logoY}" height="${logoImgH}"` +
     ` href="data:image/png;base64,${logo}" preserveAspectRatio="xMinYMid meet"/>`,
@@ -289,11 +309,11 @@ export async function generateScheduleEdinetImage(
 
   const [yr, mo, dy] = date.split('-');
   const dateText = `Grafic din: ${dy}.${mo}.${yr}`;
-  const dateY = PAD + LOGO_AREA / 2 + FS.date * 0.3;
+  const dateY = base + LOGO_AREA / 2 + FS.date * 0.3;
   svg.push(textPath(fI, dateText, CANVAS_W - PAD - 76 * S, dateY, FS.date, MAROON_DK, 'end'));
 
   /* ── Sub-header ── */
-  const subBaseY = PAD + LOGO_AREA + FS.sub;
+  const subBaseY = base + LOGO_AREA + FS.sub;
   const sub1 = 'Mai multe detalii: ';
   const sub2 = 'translux.md';
   const w1 = textW(fR, sub1, FS.sub);
@@ -302,14 +322,14 @@ export async function generateScheduleEdinetImage(
   svg.push(textPath(fR, sub1, subX, subBaseY, FS.sub, MAROON));
   svg.push(textPath(fB, sub2, subX + w1, subBaseY, FS.sub, MAROON));
 
-  /* ── NEW: EDINEȚ - CHIȘINĂU heading ── */
+  /* ── EDINEȚ - CHIȘINĂU heading ── */
   const headingSize = 22 * S;
-  const headingY = PAD + LOGO_AREA + SUB_LINE + HEADING_H / 2 + headingSize * 0.35;
+  const headingY = base + LOGO_AREA + SUB_LINE + HEADING_H / 2 + headingSize * 0.35;
   svg.push(textPath(fB, 'EDINEȚ - CHIȘINĂU', CANVAS_W / 2, headingY, headingSize, MAROON, 'middle'));
 
   /* ── Table ── */
-  const tableY = PAD + LOGO_AREA + SUB_LINE + HEADING_H;
-  const tableH = TH_H + n * ROW_H;
+  const tableY = base + LOGO_AREA + SUB_LINE + HEADING_H;
+  const tableH = TH_H + n * ROW_H_DYN;
   const bw = 2 * S;
 
   svg.push(`<rect x="${PAD}" y="${tableY}" width="${TABLE_W}" height="${tableH}" fill="none" stroke="${MAROON}" stroke-width="${bw}"/>`);
@@ -330,47 +350,47 @@ export async function generateScheduleEdinetImage(
 
   for (let i = 0; i < assigned.length; i++) {
     const row = assigned[i];
-    const rY = bodyY + i * ROW_H;
+    const rY = bodyY + i * ROW_H_DYN;
 
     // Alternating background
-    svg.push(`<rect x="${PAD + bw / 2}" y="${rY}" width="${TABLE_W - bw}" height="${ROW_H}" fill="${ROW_BG[i % 2]}"/>`);
+    svg.push(`<rect x="${PAD + bw / 2}" y="${rY}" width="${TABLE_W - bw}" height="${ROW_H_DYN}" fill="${ROW_BG[i % 2]}"/>`);
 
     // Bottom divider
     if (i < assigned.length - 1) {
-      svg.push(`<line x1="${PAD}" y1="${rY + ROW_H}" x2="${PAD + TABLE_W}" y2="${rY + ROW_H}" stroke="rgba(155,27,48,0.15)" stroke-width="1"/>`);
+      svg.push(`<line x1="${PAD}" y1="${rY + ROW_H_DYN}" x2="${PAD + TABLE_W}" y2="${rY + ROW_H_DYN}" stroke="rgba(155,27,48,0.15)" stroke-width="1"/>`);
     }
 
     // Column dividers
-    svg.push(`<line x1="${COL_BALTI_X}" y1="${rY}" x2="${COL_BALTI_X}" y2="${rY + ROW_H}" stroke="rgba(155,27,48,0.1)" stroke-width="1"/>`);
-    svg.push(`<line x1="${COL_CHISINAU_X}" y1="${rY}" x2="${COL_CHISINAU_X}" y2="${rY + ROW_H}" stroke="rgba(155,27,48,0.1)" stroke-width="1"/>`);
-    svg.push(`<line x1="${COL_DRV_X}" y1="${rY}" x2="${COL_DRV_X}" y2="${rY + ROW_H}" stroke="rgba(155,27,48,0.1)" stroke-width="1"/>`);
+    svg.push(`<line x1="${COL_BALTI_X}" y1="${rY}" x2="${COL_BALTI_X}" y2="${rY + ROW_H_DYN}" stroke="rgba(155,27,48,0.1)" stroke-width="1"/>`);
+    svg.push(`<line x1="${COL_CHISINAU_X}" y1="${rY}" x2="${COL_CHISINAU_X}" y2="${rY + ROW_H_DYN}" stroke="rgba(155,27,48,0.1)" stroke-width="1"/>`);
+    svg.push(`<line x1="${COL_DRV_X}" y1="${rY}" x2="${COL_DRV_X}" y2="${rY + ROW_H_DYN}" stroke="rgba(155,27,48,0.1)" stroke-width="1"/>`);
 
     // Time cells (centered)
-    const timeY = rY + ROW_H / 2 + FS.time * 0.35;
+    const timeY = rY + ROW_H_DYN / 2 + fsTime * 0.35;
     if (row.hour_edinet) {
-      svg.push(textPath(fB, row.hour_edinet, COL_EDINET_X + COL_TIME_W / 2, timeY, FS.time, MAROON_DK, 'middle'));
+      svg.push(textPath(fB, row.hour_edinet, COL_EDINET_X + COL_TIME_W / 2, timeY, fsTime, MAROON_DK, 'middle'));
     }
     if (row.hour_balti) {
-      svg.push(textPath(fB, row.hour_balti, COL_BALTI_X + COL_TIME_W / 2, timeY, FS.time, MAROON_DK, 'middle'));
+      svg.push(textPath(fB, row.hour_balti, COL_BALTI_X + COL_TIME_W / 2, timeY, fsTime, MAROON_DK, 'middle'));
     }
     if (row.time_chisinau_retur) {
-      svg.push(textPath(fB, row.time_chisinau_retur, COL_CHISINAU_X + COL_TIME_W / 2, timeY, FS.time, MAROON_DK, 'middle'));
+      svg.push(textPath(fB, row.time_chisinau_retur, COL_CHISINAU_X + COL_TIME_W / 2, timeY, fsTime, MAROON_DK, 'middle'));
     }
 
     // Driver phone + name (same format as general grafic)
     if (row.driver_phone) {
-      const phoneY = rY + ROW_H * 0.38;
+      const phoneY = rY + ROW_H_DYN * 0.38;
       const driverCx = COL_DRV_X + COL_DRIVER_W / 2;
-      svg.push(textPath(fB, row.driver_phone, driverCx, phoneY, FS.phone, MAROON_DK, 'middle'));
+      svg.push(textPath(fB, row.driver_phone, driverCx, phoneY, fsPhone, MAROON_DK, 'middle'));
       if (row.driver_name) {
         const maxNameW = COL_DRIVER_W - 16 * S;
-        svg.push(textPath(fR, truncText(fR, row.driver_name, FS.name, maxNameW), driverCx, phoneY + 16 * S, FS.name, '#555', 'middle'));
+        svg.push(textPath(fR, truncText(fR, row.driver_name, fsName, maxNameW), driverCx, phoneY + 16 * S * rowScale, fsName, '#555', 'middle'));
       }
     }
   }
 
   const svgStr = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${CANVAS_W}" height="${H}">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${CANVAS_W}" height="${CANVAS_H}">
 ${svg.join('\n')}
 </svg>`;
 

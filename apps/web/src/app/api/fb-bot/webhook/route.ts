@@ -57,7 +57,15 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  void Promise.all(toProcess.map(ev => processEvent(ev))).catch(() => {});
+  // Process synchronously so Vercel doesn't terminate background promises.
+  // Claude with tool calling usually responds in 2-5s; Facebook allows 20s.
+  await Promise.all(
+    toProcess.map(ev =>
+      processEvent(ev).catch(err => {
+        console.error('processEvent failed', { eventId: ev.eventId, err });
+      }),
+    ),
+  );
 
   return NextResponse.json({ received: events.length, accepted: toProcess.length });
 }

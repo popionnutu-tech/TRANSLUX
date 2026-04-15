@@ -232,3 +232,57 @@ export interface Offer {
   active: boolean;
   created_at: string;
 }
+
+// ============================================================
+// Facebook auto-reply bot
+// ============================================================
+
+export interface FbMessagingConfig {
+  id: string;
+  page_id: string;
+  page_name: string;
+  page_access_token: string;
+  token_expires_at: string | null;
+  system_prompt: string;
+  enabled: boolean;
+  auto_reply_comments: boolean;
+  auto_reply_dm: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type FbConversationRole = 'user' | 'assistant';
+export type FbConversationChannel = 'dm' | 'comment';
+
+export interface FbConversation {
+  id: number;
+  page_id: string;
+  psid: string;
+  channel: FbConversationChannel;
+  role: FbConversationRole;
+  content: string;
+  fb_message_id: string | null;
+  created_at: string;
+}
+
+export interface FbEventUsage {
+  input_tokens?: number;
+  output_tokens?: number;
+  cache_read_input_tokens?: number;
+  cache_creation_input_tokens?: number;
+  model?: string;
+}
+
+export interface FbEvent {
+  id: number;
+  event_id: string;
+  event_type: string;
+  page_id: string | null;
+  sender_id: string | null;
+  payload: unknown;
+  reply_text: string | null;
+  usage: FbEventUsage | null;
+  processed_at: string | null;
+  error: string | null;
+  created_at: string;
+}

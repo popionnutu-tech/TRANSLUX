@@ -57,50 +57,56 @@ export interface PopularRoutePrice {
   price: number;
 }
 
-/** Fetch latest popular route prices from price_nomenclator (saved by ANTA cron) */
+const POPULAR_ROUTES = [
+  { from: 'chisinau', to: 'balti', from_ro: 'Chișinău', to_ro: 'Bălți', from_ru: 'Кишинёв', to_ru: 'Бэлць' },
+  { from: 'chisinau', to: 'edinet', from_ro: 'Chișinău', to_ro: 'Edineț', from_ru: 'Кишинёв', to_ru: 'Единец' },
+  { from: 'chisinau', to: 'singerei', from_ro: 'Chișinău', to_ro: 'Sîngerei', from_ru: 'Кишинёв', to_ru: 'Сынжерей' },
+  { from: 'chisinau', to: 'ocnita', from_ro: 'Chișinău', to_ro: 'Ocnița', from_ru: 'Кишинёв', to_ru: 'Окница' },
+  { from: 'chisinau', to: 'otaci', from_ro: 'Chișinău', to_ro: 'Otaci', from_ru: 'Кишинёв', to_ru: 'Отачь' },
+  { from: 'chisinau', to: 'briceni', from_ro: 'Chișinău', to_ro: 'Briceni', from_ru: 'Кишинёв', to_ru: 'Бричень' },
+  { from: 'chisinau', to: 'cupcini', from_ro: 'Chișinău', to_ro: 'Cupcini', from_ru: 'Кишинёв', to_ru: 'Купчинь' },
+  { from: 'chisinau', to: 'lipcani', from_ro: 'Chișinău', to_ro: 'Lipcani', from_ru: 'Кишинёв', to_ru: 'Липкань' },
+  { from: 'chisinau', to: 'corjeuti', from_ro: 'Chișinău', to_ro: 'Corjeuți', from_ru: 'Кишинёв', to_ru: 'Коржеуць' },
+  { from: 'chisinau', to: 'grimancauti', from_ro: 'Chișinău', to_ro: 'Grimăncăuți', from_ru: 'Кишинёв', to_ru: 'Гримэнкэуць' },
+  { from: 'chisinau', to: 'criva', from_ro: 'Chișinău', to_ro: 'Criva', from_ru: 'Кишинёв', to_ru: 'Крива' },
+  { from: 'chisinau', to: 'larga', from_ro: 'Chișinău', to_ro: 'Larga', from_ru: 'Кишинёв', to_ru: 'Ларга' },
+];
+
+/** Fetch popular route prices using today's tariff rate from tariff_periods */
 export async function getPopularPrices(): Promise<PopularRoutePrice[]> {
-  const { data } = await getSupabase()
-    .from('price_nomenclator')
-    .select('prices')
-    .order('created_at', { ascending: false })
+  const supabase = getSupabase();
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
+
+  // Get today's tariff rate
+  const { data: period } = await supabase
+    .from('tariff_periods')
+    .select('rate_interurban_long')
+    .lte('period_start', today)
+    .gte('period_end', today)
+    .order('period_start', { ascending: false })
     .limit(1)
     .single();
+  const rate = period ? Number(period.rate_interurban_long) : null;
 
-  if (data?.prices) return data.prices as PopularRoutePrice[];
-
-  // Fallback: compute from route_km_pairs if no nomenclator exists yet
-  const routes = [
-    { from: 'chisinau', to: 'balti', from_ro: 'Chișinău', to_ro: 'Bălți', from_ru: 'Кишинёв', to_ru: 'Бэлць' },
-    { from: 'chisinau', to: 'edinet', from_ro: 'Chișinău', to_ro: 'Edineț', from_ru: 'Кишинёв', to_ru: 'Единец' },
-    { from: 'chisinau', to: 'singerei', from_ro: 'Chișinău', to_ro: 'Sîngerei', from_ru: 'Кишинёв', to_ru: 'Сынжерей' },
-    { from: 'chisinau', to: 'ocnita', from_ro: 'Chișinău', to_ro: 'Ocnița', from_ru: 'Кишинёв', to_ru: 'Окница' },
-    { from: 'chisinau', to: 'otaci', from_ro: 'Chișinău', to_ro: 'Otaci', from_ru: 'Кишинёв', to_ru: 'Отачь' },
-    { from: 'chisinau', to: 'briceni', from_ro: 'Chișinău', to_ro: 'Briceni', from_ru: 'Кишинёв', to_ru: 'Бричень' },
-    { from: 'chisinau', to: 'cupcini', from_ro: 'Chișinău', to_ro: 'Cupcini', from_ru: 'Кишинёв', to_ru: 'Купчинь' },
-    { from: 'chisinau', to: 'lipcani', from_ro: 'Chișinău', to_ro: 'Lipcani', from_ru: 'Кишинёв', to_ru: 'Липкань' },
-    { from: 'chisinau', to: 'corjeuti', from_ro: 'Chișinău', to_ro: 'Corjeuți', from_ru: 'Кишинёв', to_ru: 'Коржеуць' },
-    { from: 'chisinau', to: 'grimancauti', from_ro: 'Chișinău', to_ro: 'Grimăncăuți', from_ru: 'Кишинёв', to_ru: 'Гримэнкэуць' },
-    { from: 'chisinau', to: 'criva', from_ro: 'Chișinău', to_ro: 'Criva', from_ru: 'Кишинёв', to_ru: 'Крива' },
-    { from: 'chisinau', to: 'larga', from_ro: 'Chișinău', to_ro: 'Larga', from_ru: 'Кишинёв', to_ru: 'Ларга' },
-  ];
-
-  const supabase = getSupabase();
-
+  // Get km for each popular route and calculate price
   const results = await Promise.all(
-    routes.map(async (r) => {
+    POPULAR_ROUTES.map(async (r) => {
       const { data: pairs } = await supabase
         .from('route_km_pairs')
-        .select('price')
+        .select('km, price')
         .eq('from_stop', r.from)
         .eq('to_stop', r.to)
         .limit(1);
+
+      const row = pairs?.[0];
+      const price = row ? (rate ? Math.round(row.km * rate) : row.price) : 0;
 
       return {
         from_ro: r.from_ro,
         to_ro: r.to_ro,
         from_ru: r.from_ru,
         to_ru: r.to_ru,
-        price: pairs?.[0]?.price ?? 0,
+        price,
       };
     })
   );

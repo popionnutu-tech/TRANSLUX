@@ -253,12 +253,12 @@ export async function searchTrips(
       .eq('active', true),
     supabase
       .from('route_km_pairs')
-      .select('tariff_id, price')
+      .select('tariff_id, km, price')
       .eq('from_stop', fromNorm)
       .eq('to_stop', toNorm),
     supabase
       .from('route_km_pairs')
-      .select('tariff_id, price')
+      .select('tariff_id, km, price')
       .eq('from_stop', toNorm)
       .eq('to_stop', fromNorm),
     supabase
@@ -304,11 +304,23 @@ export async function searchTrips(
   // Check if an offer applies to this search direction
   const offer = (activeOffers && activeOffers.length > 0) ? activeOffers[0] as any : null;
 
-  // Build price lookup: tariff_id → price
+  // Look up historical tariff for the search date
+  const { data: periodData } = await supabase
+    .from('tariff_periods')
+    .select('rate_interurban_long')
+    .lte('period_start', date)
+    .gte('period_end', date)
+    .order('period_start', { ascending: false })
+    .limit(1)
+    .single();
+  const historicalRate = periodData ? Number(periodData.rate_interurban_long) : null;
+
+  // Build price lookup: tariff_id → price (recalculated if historical rate available)
   const priceMap = new Map<number, number>();
   for (const p of (kmPairs) as any[]) {
     if (!priceMap.has(p.tariff_id)) {
-      priceMap.set(p.tariff_id, p.price);
+      const price = historicalRate ? Math.round(p.km * historicalRate) : p.price;
+      priceMap.set(p.tariff_id, price);
     }
   }
 

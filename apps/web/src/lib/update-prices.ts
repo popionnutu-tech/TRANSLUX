@@ -33,6 +33,7 @@ interface ParsedRates {
   interurbanLong: number;
   interurbanShort: number;
   suburban: number;
+  effectiveDate: string | null; // YYYY-MM-DD parsed from "începând cu DD.MM.YYYY"
 }
 
 interface CurrentRates {
@@ -69,17 +70,18 @@ function extractConfortRate(section: string, level: 'I' | 'II'): number {
   return parseFloat(match[1].replace(',', '.'));
 }
 
-function parseRates(html: string): ParsedRates {
+export function parseRates(html: string): ParsedRates {
   const text = html
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/g, ' ')
     .replace(/\s+/g, ' ');
 
-  const interurbanPattern = /Trafic\s+intera[tțţ]?ion\w*\s(.*?)Trafic\s+ra[iî]/is;
+  const interurbanPattern = /Trafic\s+interr?a[tțţ]?ion\w*\s(.*?)Trafic\s+ra[iî]/is;
   const interurbanMatch = text.match(interurbanPattern);
 
   if (!interurbanMatch) {
-    throw new Error('Could not find interurban tariff section on ANTA page');
+    const snippet = text.slice(0, 200);
+    throw new Error(`Could not find interurban tariff section on ANTA page. Text starts with: "${snippet}"`);
   }
 
   const interurbanSection = interurbanMatch[1];
@@ -90,13 +92,23 @@ function parseRates(html: string): ParsedRates {
   const suburbanMatch = text.match(suburbanPattern);
 
   if (!suburbanMatch) {
-    throw new Error('Could not find suburban (raional) tariff section on ANTA page');
+    const snippet = text.slice(0, 200);
+    throw new Error(`Could not find suburban (raional) tariff section on ANTA page. Text starts with: "${snippet}"`);
   }
 
   const suburbanSection = suburbanMatch[1];
   const suburban = extractConfortRate(suburbanSection, 'I');
 
-  return { interurbanLong, interurbanShort, suburban };
+  // Parse effective date from "începând cu DD.MM.YYYY"
+  const datePattern = /[iî]ncep[aâ]nd\s+cu\s+(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})/i;
+  const dateMatch = text.match(datePattern);
+  let effectiveDate: string | null = null;
+  if (dateMatch) {
+    const [, day, month, year] = dateMatch;
+    effectiveDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+
+  return { interurbanLong, interurbanShort, suburban, effectiveDate };
 }
 
 function validateRates(rates: ParsedRates): void {
@@ -155,21 +167,30 @@ function hasAnyRateChanged(current: CurrentRates, parsed: ParsedRates): boolean 
 
 // ─── Period computation ───
 
-function computeTariffPeriod(): { periodStart: string; periodEnd: string } {
-  const chisinauNow = new Date(
-    new Date().toLocaleString('en-US', { timeZone: 'Europe/Chisinau' }),
-  );
-  const dayOfWeek = chisinauNow.getDay();
-  const daysUntilFriday = ((5 - dayOfWeek) % 7) || 7;
-  const friday = new Date(chisinauNow);
-  friday.setDate(friday.getDate() + (dayOfWeek === 4 ? 1 : daysUntilFriday));
-  const thursday = new Date(friday);
-  thursday.setDate(thursday.getDate() + 6);
-
+function computeTariffPeriod(effectiveDate: string | null): { periodStart: string; periodEnd: string } {
   const fmt = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-  return { periodStart: fmt(friday), periodEnd: fmt(thursday) };
+  let start: Date;
+
+  if (effectiveDate) {
+    // Use the date parsed from ANTA page ("începând cu DD.MM.YYYY")
+    start = new Date(effectiveDate + 'T00:00:00');
+  } else {
+    // Fallback: most recent Thursday (or today if Thursday)
+    const chisinauNow = new Date(
+      new Date().toLocaleString('en-US', { timeZone: 'Europe/Chisinau' }),
+    );
+    const dayOfWeek = chisinauNow.getDay();
+    const daysSinceThursday = ((dayOfWeek - 4) % 7 + 7) % 7;
+    start = new Date(chisinauNow);
+    start.setDate(start.getDate() - daysSinceThursday);
+  }
+
+  const end = new Date(start);
+  end.setDate(end.getDate() + 7);
+
+  return { periodStart: fmt(start), periodEnd: fmt(end) };
 }
 
 // ─── Nomenclator snapshot ───
@@ -303,7 +324,7 @@ export async function executeAntaPriceUpdate(options?: {
     });
 
     // 6. Insert tariff period
-    const { periodStart, periodEnd } = computeTariffPeriod();
+    const { periodStart, periodEnd } = computeTariffPeriod(rates.effectiveDate);
     await supabase.from('tariff_periods').insert({
       period_start: periodStart,
       period_end: periodEnd,

@@ -233,23 +233,53 @@ export async function getRouteStops(crmRouteId: number, direction: 'tur' | 'retu
   });
 }
 
-export async function getTariffConfig(): Promise<TariffConfig> {
+export async function getTariffConfig(date?: string): Promise<TariffConfig> {
   const sb = getSupabase();
-  const { data } = await sb
+
+  // Load settings that don't change per period
+  const { data: settingsRows } = await sb
     .from('app_config')
     .select('key, value')
-    .in('key', ['rate_per_km_long', 'rate_per_km_interurban_short', 'dual_interurban_tariff', 'short_distance_threshold_km']);
+    .in('key', ['dual_interurban_tariff', 'short_distance_threshold_km']);
+  const settings: Record<string, string> = {};
+  for (const row of settingsRows || []) settings[row.key] = row.value;
 
-  const config: Record<string, string> = {};
-  for (const row of data || []) {
-    config[row.key] = row.value;
+  const doubleTariffEnabled = settings['dual_interurban_tariff'] === 'true';
+  const shortDistanceKm = parseInt(settings['short_distance_threshold_km'] || '65');
+
+  // Try historical tariff for the given date
+  if (date) {
+    const { data: period } = await sb
+      .from('tariff_periods')
+      .select('rate_interurban_long, rate_interurban_short')
+      .lte('period_start', date)
+      .gte('period_end', date)
+      .order('period_start', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (period) {
+      return {
+        ratePerKmLong: Number(period.rate_interurban_long),
+        ratePerKmShort: Number(period.rate_interurban_short),
+        doubleTariffEnabled,
+        shortDistanceKm,
+      };
+    }
   }
 
+  // Fallback: current rates from app_config
+  const { data: rateRows } = await sb
+    .from('app_config')
+    .select('key, value')
+    .in('key', ['rate_per_km_long', 'rate_per_km_interurban_short']);
+  for (const row of rateRows || []) settings[row.key] = row.value;
+
   return {
-    ratePerKmLong: parseFloat(config['rate_per_km_long'] || '0.94'),
-    ratePerKmShort: parseFloat(config['rate_per_km_interurban_short'] || '0.94'),
-    doubleTariffEnabled: config['dual_interurban_tariff'] === 'true',
-    shortDistanceKm: parseInt(config['short_distance_threshold_km'] || '65'),
+    ratePerKmLong: parseFloat(settings['rate_per_km_long'] || '0.94'),
+    ratePerKmShort: parseFloat(settings['rate_per_km_interurban_short'] || '0.94'),
+    doubleTariffEnabled,
+    shortDistanceKm,
   };
 }
 

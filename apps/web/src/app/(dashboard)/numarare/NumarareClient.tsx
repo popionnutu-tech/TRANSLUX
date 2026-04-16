@@ -77,8 +77,8 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
 
   useEffect(() => {
     loadRoutes();
-    getTariffConfig().then(setTariff);
-  }, [loadRoutes]);
+    getTariffConfig(date).then(setTariff);
+  }, [loadRoutes, date]);
 
   async function handleDriverChange(route: RouteForCounting, driverId: string) {
     const driver = drivers.find(d => d.id === driverId);

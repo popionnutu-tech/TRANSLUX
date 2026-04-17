@@ -99,7 +99,7 @@ export async function getPopularPrices(): Promise<PopularRoutePrice[]> {
         .limit(1);
 
       const row = pairs?.[0];
-      const price = row ? (rate ? Math.round(row.km * rate) : row.price) : 0;
+      const price = row ? (rate && row.km > 0 && row.km < 1000 ? Math.round(row.km * rate) : row.price) : 0;
 
       return {
         from_ro: r.from_ro,
@@ -325,7 +325,9 @@ export async function searchTrips(
   const priceMap = new Map<number, number>();
   for (const p of (kmPairs) as any[]) {
     if (!priceMap.has(p.tariff_id)) {
-      const price = historicalRate ? Math.round(p.km * historicalRate) : p.price;
+      const price = (historicalRate && p.km > 0 && p.km < 1000)
+        ? Math.round(p.km * historicalRate)
+        : p.price;
       priceMap.set(p.tariff_id, price);
     }
   }

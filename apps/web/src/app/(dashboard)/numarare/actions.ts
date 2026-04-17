@@ -511,6 +511,43 @@ export async function toggleDoubleTariff(
   const sb = getSupabase();
   await sb.from('counting_sessions').update({ double_tariff: enabled }).eq('id', sessionId);
   revalidatePath('/numarare');
+
+  // Notify admins via Telegram when double tariff is toggled ON
+  if (enabled) {
+    const { data: cs } = await sb
+      .from('counting_sessions')
+      .select('assignment_date, crm_route_id')
+      .eq('id', sessionId)
+      .single();
+    const { data: route } = cs ? await sb
+      .from('crm_routes')
+      .select('dest_from_ro')
+      .eq('id', cs.crm_route_id)
+      .single() : { data: null };
+
+    const routeName = route?.dest_from_ro || '?';
+    const date = cs?.assignment_date || '?';
+    const msg = `⚠️ <b>Tarif dublu activat</b>\n\nRuta: ${routeName}\nData: ${date}\nOperator: ${session.email}`;
+
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    if (botToken) {
+      const { data: admins } = await sb
+        .from('users')
+        .select('telegram_id')
+        .eq('role', 'ADMIN')
+        .eq('active', true)
+        .not('telegram_id', 'is', null);
+      for (const admin of admins || []) {
+        if (!admin.telegram_id) continue;
+        fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: admin.telegram_id, text: msg, parse_mode: 'HTML' }),
+        }).catch(() => {});
+      }
+    }
+  }
+
   return {};
 }
 

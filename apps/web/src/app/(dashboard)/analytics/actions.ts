@@ -225,6 +225,18 @@ export async function getTopSearchedRoutesDetailed(days: number = 30): Promise<D
     for (let i = 0; i < 7; i++) dayTotals[i] += entry.day_counts[i];
   }
 
+  // Count how many of each day-of-week fall inside [since ... today]
+  const dayOfWeekCounts: [number, number, number, number, number, number, number] = [0, 0, 0, 0, 0, 0, 0];
+  const start = new Date(since + 'T00:00:00');
+  const end = new Date();
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    dayOfWeekCounts[getDayOfWeek(d.toISOString())]++;
+  }
+
+  const avgDayTotals = dayTotals.map((v, i) =>
+    dayOfWeekCounts[i] > 0 ? Math.round(v / dayOfWeekCounts[i]) : 0
+  ) as [number, number, number, number, number, number, number];
+
   const routes = all
     .sort((a, b) => b.count - a.count)
     .slice(0, 20)
@@ -233,11 +245,15 @@ export async function getTopSearchedRoutesDetailed(days: number = 30): Promise<D
       to_locality: r.to,
       count: r.count,
       calls: r.calls,
-      day_counts: r.day_counts as [number, number, number, number, number, number, number],
-      day_calls: r.day_calls as [number, number, number, number, number, number, number],
+      day_counts: r.day_counts.map((v, i) =>
+        dayOfWeekCounts[i] > 0 ? Math.round(v / dayOfWeekCounts[i]) : 0
+      ) as [number, number, number, number, number, number, number],
+      day_calls: r.day_calls.map((v, i) =>
+        dayOfWeekCounts[i] > 0 ? Math.round(v / dayOfWeekCounts[i]) : 0
+      ) as [number, number, number, number, number, number, number],
     }));
 
-  return { routes, dayTotals, total };
+  return { routes, dayTotals: avgDayTotals, total };
 }
 
 export async function getTotalStats(days: number = 30) {

@@ -186,35 +186,50 @@ export async function getTopSearchedRoutesDetailed(days: number = 30): Promise<D
     fetchAllSince('call_clicks', 'from_locality, to_locality, created_at', since),
   ]);
 
-  const map = new Map<string, {
+  type Entry = {
     from: string; to: string; count: number; calls: number;
     day_counts: number[]; day_calls: number[];
-  }>();
+    search_dates: Set<string>[]; call_dates: Set<string>[];
+  };
+  const makeEntry = (from: string, to: string): Entry => ({
+    from, to, count: 0, calls: 0,
+    day_counts: [0, 0, 0, 0, 0, 0, 0], day_calls: [0, 0, 0, 0, 0, 0, 0],
+    search_dates: [new Set(), new Set(), new Set(), new Set(), new Set(), new Set(), new Set()],
+    call_dates: [new Set(), new Set(), new Set(), new Set(), new Set(), new Set(), new Set()],
+  });
+
+  const map = new Map<string, Entry>();
+
+  // Global active-day tracking per weekday (across all routes) for dayTotals row
+  const globalSearchDates: Set<string>[] = [new Set(), new Set(), new Set(), new Set(), new Set(), new Set(), new Set()];
 
   for (const r of (searchRaw || []) as any[]) {
     const key = `${r.from_locality}→${r.to_locality}`;
     const dow = getDayOfWeek(r.created_at);
+    const dateStr = (r.created_at as string).slice(0, 10);
     let entry = map.get(key);
     if (!entry) {
-      entry = { from: r.from_locality, to: r.to_locality, count: 0, calls: 0,
-                day_counts: [0, 0, 0, 0, 0, 0, 0], day_calls: [0, 0, 0, 0, 0, 0, 0] };
+      entry = makeEntry(r.from_locality, r.to_locality);
       map.set(key, entry);
     }
     entry.count++;
     entry.day_counts[dow]++;
+    entry.search_dates[dow].add(dateStr);
+    globalSearchDates[dow].add(dateStr);
   }
 
   for (const r of (callRaw || []) as any[]) {
     const key = `${r.from_locality}→${r.to_locality}`;
     const dow = getDayOfWeek(r.created_at);
+    const dateStr = (r.created_at as string).slice(0, 10);
     let entry = map.get(key);
     if (!entry) {
-      entry = { from: r.from_locality, to: r.to_locality, count: 0, calls: 0,
-                day_counts: [0, 0, 0, 0, 0, 0, 0], day_calls: [0, 0, 0, 0, 0, 0, 0] };
+      entry = makeEntry(r.from_locality, r.to_locality);
       map.set(key, entry);
     }
     entry.calls++;
     entry.day_calls[dow]++;
+    entry.call_dates[dow].add(dateStr);
   }
 
   const all = Array.from(map.values());
@@ -225,17 +240,11 @@ export async function getTopSearchedRoutesDetailed(days: number = 30): Promise<D
     for (let i = 0; i < 7; i++) dayTotals[i] += entry.day_counts[i];
   }
 
-  // Count how many of each day-of-week fall inside [since ... today]
-  const dayOfWeekCounts: [number, number, number, number, number, number, number] = [0, 0, 0, 0, 0, 0, 0];
-  const start = new Date(since + 'T00:00:00');
-  const end = new Date();
-  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    dayOfWeekCounts[getDayOfWeek(d.toISOString())]++;
-  }
-
-  const avgDayTotals = dayTotals.map((v, i) =>
-    dayOfWeekCounts[i] > 0 ? Math.round(v / dayOfWeekCounts[i]) : 0
-  ) as [number, number, number, number, number, number, number];
+  // Average using only days that actually had data for that weekday
+  const avgDayTotals = dayTotals.map((v, i) => {
+    const activeDays = globalSearchDates[i].size;
+    return activeDays > 0 ? Math.round(v / activeDays) : 0;
+  }) as [number, number, number, number, number, number, number];
 
   const routes = all
     .sort((a, b) => b.count - a.count)
@@ -245,12 +254,14 @@ export async function getTopSearchedRoutesDetailed(days: number = 30): Promise<D
       to_locality: r.to,
       count: r.count,
       calls: r.calls,
-      day_counts: r.day_counts.map((v, i) =>
-        dayOfWeekCounts[i] > 0 ? Math.round(v / dayOfWeekCounts[i]) : 0
-      ) as [number, number, number, number, number, number, number],
-      day_calls: r.day_calls.map((v, i) =>
-        dayOfWeekCounts[i] > 0 ? Math.round(v / dayOfWeekCounts[i]) : 0
-      ) as [number, number, number, number, number, number, number],
+      day_counts: r.day_counts.map((v, i) => {
+        const activeDays = r.search_dates[i].size;
+        return activeDays > 0 ? Math.round(v / activeDays) : 0;
+      }) as [number, number, number, number, number, number, number],
+      day_calls: r.day_calls.map((v, i) => {
+        const activeDays = r.call_dates[i].size;
+        return activeDays > 0 ? Math.round(v / activeDays) : 0;
+      }) as [number, number, number, number, number, number, number],
     }));
 
   return { routes, dayTotals: avgDayTotals, total };

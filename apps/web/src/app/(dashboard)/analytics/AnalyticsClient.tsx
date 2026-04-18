@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import type { DailyCount, DetailedRoutesResult, DeviceCount, CountryCount } from './actions';
+import type { DriverPerformanceRow, RouteEtalon, EmptyTripRow, DemandSupplyRow, RevenueOverview, RouteOption } from './sales-actions';
 import {
   getPageViewsPerDay,
   getSearchesPerDay,
@@ -10,6 +11,10 @@ import {
   getCountryBreakdown,
   getTotalStats,
 } from './actions';
+import { getEmptyTripsAnalysis, getDemandSupplyGap } from './sales-actions';
+import DriverRatingTab from './DriverRatingTab';
+import EmptyTripsTab from './EmptyTripsTab';
+import DemandGapTab from './DemandGapTab';
 
 interface Props {
   initialPageViews: DailyCount[];
@@ -19,7 +24,24 @@ interface Props {
   initialCountries: CountryCount[];
   initialTotals: { totalViews: number; totalSearches: number; totalCalls: number };
   initialDays: number;
+  initialDriverPerf: DriverPerformanceRow[];
+  initialEtalons: RouteEtalon[];
+  initialEmptyTrips: EmptyTripRow[];
+  initialDemandGap: DemandSupplyRow[];
+  initialRevenue: RevenueOverview;
+  initialRoutes: RouteOption[];
+  initialDateFrom: string;
+  initialDateTo: string;
 }
+
+type Tab = 'site' | 'performanta' | 'curse-goale' | 'cerere';
+
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'site', label: 'Site' },
+  { id: 'performanta', label: 'Performanța' },
+  { id: 'curse-goale', label: 'Curse goale' },
+  { id: 'cerere', label: 'Cerere vs Ofertă' },
+];
 
 // --- Multi-Line Chart (SVG) ---
 
@@ -153,7 +175,16 @@ export default function AnalyticsClient({
   initialCountries,
   initialTotals,
   initialDays,
+  initialDriverPerf,
+  initialEtalons,
+  initialEmptyTrips,
+  initialDemandGap,
+  initialRevenue,
+  initialRoutes,
+  initialDateFrom,
+  initialDateTo,
 }: Props) {
+  const [tab, setTab] = useState<Tab>('site');
   const [days, setDays] = useState(initialDays);
   const [pageViews, setPageViews] = useState(initialPageViews);
   const [searches, setSearches] = useState(initialSearches);
@@ -161,18 +192,24 @@ export default function AnalyticsClient({
   const [devices, setDevices] = useState(initialDevices);
   const [countries, setCountries] = useState(initialCountries);
   const [totals, setTotals] = useState(initialTotals);
+  const [emptyTrips, setEmptyTrips] = useState(initialEmptyTrips);
+  const [demandGap, setDemandGap] = useState(initialDemandGap);
   const [isPending, startTransition] = useTransition();
 
   function handlePeriodChange(newDays: number) {
     setDays(newDays);
+    const dateFrom = new Date(Date.now() - newDays * 86400000).toISOString().slice(0, 10);
+    const dateTo = new Date().toISOString().slice(0, 10);
     startTransition(async () => {
-      const [pv, sr, dr, dv, ct, tt] = await Promise.all([
+      const [pv, sr, dr, dv, ct, tt, et, dg] = await Promise.all([
         getPageViewsPerDay(newDays),
         getSearchesPerDay(newDays),
         getTopSearchedRoutesDetailed(newDays),
         getDeviceBreakdown(newDays),
         getCountryBreakdown(newDays),
         getTotalStats(newDays),
+        getEmptyTripsAnalysis(dateFrom, dateTo),
+        getDemandSupplyGap(newDays),
       ]);
       setPageViews(pv);
       setSearches(sr);
@@ -180,6 +217,8 @@ export default function AnalyticsClient({
       setDevices(dv);
       setCountries(ct);
       setTotals(tt);
+      setEmptyTrips(et);
+      setDemandGap(dg);
     });
   }
 
@@ -188,7 +227,7 @@ export default function AnalyticsClient({
   return (
     <div className="page">
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-        <h1>Analitică Site</h1>
+        <h1>Analitică</h1>
         <div style={{ display: 'flex', gap: 6 }}>
           {[7, 30, 90].map(d => (
             <button
@@ -204,181 +243,208 @@ export default function AnalyticsClient({
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="mode-toggle" style={{ marginBottom: 20 }}>
+        {TABS.map(t => (
+          <button
+            key={t.id}
+            className={tab === t.id ? 'active' : ''}
+            onClick={() => setTab(t.id)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
       {isPending && <div style={{ color: '#999', fontSize: 13, marginBottom: 12 }}>Se incarca...</div>}
 
-      {/* Summary cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
-        <div className="card" style={{ textAlign: 'center', padding: 20 }}>
-          <div style={{ fontSize: 32, fontWeight: 700, color: '#9B1B30' }}>{totals.totalViews.toLocaleString()}</div>
-          <div style={{ fontSize: 13, color: '#888', marginTop: 4 }}>Vizite ({days}z)</div>
-        </div>
-        <div className="card" style={{ textAlign: 'center', padding: 20 }}>
-          <div style={{ fontSize: 32, fontWeight: 700, color: '#2563eb' }}>{totals.totalSearches.toLocaleString()}</div>
-          <div style={{ fontSize: 13, color: '#888', marginTop: 4 }}>Cautari ({days}z)</div>
-        </div>
-        <div className="card" style={{ textAlign: 'center', padding: 20 }}>
-          <div style={{ fontSize: 32, fontWeight: 700, color: '#059669' }}>{totals.totalCalls.toLocaleString()}</div>
-          <div style={{ fontSize: 13, color: '#888', marginTop: 4 }}>Apeluri ({days}z)</div>
-        </div>
-        <div className="card" style={{ textAlign: 'center', padding: 20 }}>
-          <div style={{ fontSize: 32, fontWeight: 700, color: '#d97706' }}>
-            {totals.totalSearches > 0 ? Math.round((totals.totalCalls / totals.totalSearches) * 100) : 0}%
+      {/* Tab: Site (original analytics) */}
+      {tab === 'site' && (
+        <>
+          {/* Summary cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
+            <div className="card" style={{ textAlign: 'center', padding: 20 }}>
+              <div style={{ fontSize: 32, fontWeight: 700, color: '#9B1B30' }}>{totals.totalViews.toLocaleString()}</div>
+              <div style={{ fontSize: 13, color: '#888', marginTop: 4 }}>Vizite ({days}z)</div>
+            </div>
+            <div className="card" style={{ textAlign: 'center', padding: 20 }}>
+              <div style={{ fontSize: 32, fontWeight: 700, color: '#2563eb' }}>{totals.totalSearches.toLocaleString()}</div>
+              <div style={{ fontSize: 13, color: '#888', marginTop: 4 }}>Cautari ({days}z)</div>
+            </div>
+            <div className="card" style={{ textAlign: 'center', padding: 20 }}>
+              <div style={{ fontSize: 32, fontWeight: 700, color: '#059669' }}>{totals.totalCalls.toLocaleString()}</div>
+              <div style={{ fontSize: 13, color: '#888', marginTop: 4 }}>Apeluri ({days}z)</div>
+            </div>
+            <div className="card" style={{ textAlign: 'center', padding: 20 }}>
+              <div style={{ fontSize: 32, fontWeight: 700, color: '#d97706' }}>
+                {totals.totalSearches > 0 ? Math.round((totals.totalCalls / totals.totalSearches) * 100) : 0}%
+              </div>
+              <div style={{ fontSize: 13, color: '#888', marginTop: 4 }}>Conversie</div>
+            </div>
           </div>
-          <div style={{ fontSize: 13, color: '#888', marginTop: 4 }}>Conversie</div>
-        </div>
-      </div>
 
-      {/* Combined vizite + cautari chart */}
-      <div className="card mb-4" style={{ padding: 20 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, color: '#333' }}>Vizite si cautari pe zi</h3>
-        <MultiLineChart
-          series={[
-            { data: pageViews, color: '#9B1B30', label: 'Vizite' },
-            { data: searches, color: '#2563eb', label: 'Cautari' },
-          ]}
-        />
-      </div>
+          {/* Combined vizite + cautari chart */}
+          <div className="card mb-4" style={{ padding: 20 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, color: '#333' }}>Vizite si cautari pe zi</h3>
+            <MultiLineChart
+              series={[
+                { data: pageViews, color: '#9B1B30', label: 'Vizite' },
+                { data: searches, color: '#2563eb', label: 'Cautari' },
+              ]}
+            />
+          </div>
 
-      {/* Bottom grid: routes, devices, countries */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 16 }}>
-
-        {/* Top routes */}
-        <div className="card" style={{ padding: 20 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, color: '#333', margin: 0, marginBottom: 12 }}>Top rute cautate</h3>
-          {/* Totals row above table */}
-          {detailedRoutes.routes.length > 0 && (() => {
-            const totalSearches = totals.totalSearches;
-            const totalCalls = totals.totalCalls;
-            const totalConv = totalSearches > 0 ? Math.round((totalCalls / totalSearches) * 100) : 0;
-            return (
-              <div style={{ display: 'flex', gap: 24, marginBottom: 14, padding: '10px 12px', background: '#f8f8f8', borderRadius: 8 }}>
-                <div>
-                  <span style={{ fontSize: 11, color: '#888' }}>Total cautari: </span>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: '#2563eb' }}>{totalSearches}</span>
-                </div>
-                <div>
-                  <span style={{ fontSize: 11, color: '#888' }}>Total apeluri: </span>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: '#059669' }}>{totalCalls}</span>
-                </div>
-                <div>
-                  <span style={{ fontSize: 11, color: '#888' }}>Conversie: </span>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: '#d97706' }}>{totalConv}%</span>
-                </div>
-              </div>
-            );
-          })()}
-          {detailedRoutes.routes.length === 0 ? (
-            <p style={{ color: '#999', fontSize: 14 }}>Nu sunt date.</p>
-          ) : (() => {
-            const maxDay = Math.max(...detailedRoutes.routes.flatMap(r => r.day_counts));
-            return (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr>
-                      <th style={{ textAlign: 'left', padding: '6px 8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Ruta</th>
-                      {DAY_LABELS.map(d => (
-                        <th key={d} style={{ textAlign: 'center', padding: '6px 4px', fontSize: 11, color: '#888', borderBottom: '1px solid #eee', minWidth: 34 }}>{d}</th>
-                      ))}
-                      <th style={{ textAlign: 'right', padding: '6px 8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Total</th>
-                    </tr>
-                    <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
-                      <td style={{ padding: '6px 8px', fontSize: 12, fontWeight: 700, color: '#555' }}>Total</td>
-                      {detailedRoutes.dayTotals.map((dayTotal, di) => (
-                        <td key={di} style={{
-                          textAlign: 'center',
-                          padding: '6px 3px',
-                          fontSize: 12,
-                          fontWeight: 700,
-                          color: dayTotal > 0 ? '#2563eb' : '#ccc',
-                        }}>
-                          {dayTotal > 0 ? dayTotal : '\u2014'}
-                        </td>
-                      ))}
-                      <td style={{ padding: '6px 8px', fontSize: 12, textAlign: 'right', fontWeight: 700, color: '#2563eb' }}>
-                        {detailedRoutes.total}
-                      </td>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {detailedRoutes.routes.map((r, i) => (
-                      <tr key={i}>
-                        <td style={{ padding: '6px 8px', fontSize: 13, borderBottom: '1px solid #f5f5f5', whiteSpace: 'nowrap' }}>
-                          {r.from_locality} &rarr; {r.to_locality}
-                        </td>
-                        {r.day_counts.map((val, di) => (
-                          <td key={di} style={{
-                            textAlign: 'center',
-                            padding: '6px 3px',
-                            fontSize: 12,
-                            fontWeight: val > 0 ? 600 : 400,
-                            color: val > 0 ? '#1e3a5f' : '#ccc',
-                            background: heatBg(val, maxDay),
-                            borderBottom: '1px solid #f5f5f5',
-                            borderRadius: 3,
-                          }}>
-                            {val > 0 ? val : '\u2014'}
-                          </td>
-                        ))}
-                        <td style={{ padding: '6px 8px', fontSize: 13, textAlign: 'right', fontWeight: 600, color: '#2563eb', borderBottom: '1px solid #f5f5f5' }}>
-                          {r.count}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            );
-          })()}
-        </div>
-
-        {/* Devices */}
-        <div className="card" style={{ padding: 20 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, color: '#333' }}>Dispozitive</h3>
-          {devices.length === 0 ? (
-            <p style={{ color: '#999', fontSize: 14 }}>Nu sunt date.</p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {devices.map(d => {
-                const pct = Math.round((d.count / totalDevices) * 100);
+          {/* Bottom grid: routes, devices, countries */}
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 16 }}>
+            {/* Top routes */}
+            <div className="card" style={{ padding: 20 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 600, color: '#333', margin: 0, marginBottom: 12 }}>Top rute cautate</h3>
+              {detailedRoutes.routes.length > 0 && (() => {
+                const totalSearches = totals.totalSearches;
+                const totalCalls = totals.totalCalls;
+                const totalConv = totalSearches > 0 ? Math.round((totalCalls / totalSearches) * 100) : 0;
                 return (
-                  <div key={d.device}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
-                      <span>{DEVICE_LABELS[d.device] || d.device}</span>
-                      <span style={{ fontWeight: 600 }}>{pct}%</span>
+                  <div style={{ display: 'flex', gap: 24, marginBottom: 14, padding: '10px 12px', background: '#f8f8f8', borderRadius: 8 }}>
+                    <div>
+                      <span style={{ fontSize: 11, color: '#888' }}>Total cautari: </span>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: '#2563eb' }}>{totalSearches}</span>
                     </div>
-                    <div style={{ height: 6, borderRadius: 3, background: '#f0f0f0' }}>
-                      <div style={{
-                        height: '100%',
-                        borderRadius: 3,
-                        width: `${pct}%`,
-                        background: d.device === 'mobile' ? '#9B1B30' : d.device === 'desktop' ? '#2563eb' : '#059669',
-                      }} />
+                    <div>
+                      <span style={{ fontSize: 11, color: '#888' }}>Total apeluri: </span>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: '#059669' }}>{totalCalls}</span>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: 11, color: '#888' }}>Conversie: </span>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: '#d97706' }}>{totalConv}%</span>
                     </div>
                   </div>
                 );
-              })}
+              })()}
+              {detailedRoutes.routes.length === 0 ? (
+                <p style={{ color: '#999', fontSize: 14 }}>Nu sunt date.</p>
+              ) : (() => {
+                const maxDay = Math.max(...detailedRoutes.routes.flatMap(r => r.day_counts));
+                return (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr>
+                          <th style={{ textAlign: 'left', padding: '6px 8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Ruta</th>
+                          {DAY_LABELS.map(d => (
+                            <th key={d} style={{ textAlign: 'center', padding: '6px 4px', fontSize: 11, color: '#888', borderBottom: '1px solid #eee', minWidth: 34 }}>{d}</th>
+                          ))}
+                          <th style={{ textAlign: 'right', padding: '6px 8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Total</th>
+                        </tr>
+                        <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
+                          <td style={{ padding: '6px 8px', fontSize: 12, fontWeight: 700, color: '#555' }}>Total</td>
+                          {detailedRoutes.dayTotals.map((dayTotal, di) => (
+                            <td key={di} style={{
+                              textAlign: 'center', padding: '6px 3px', fontSize: 12, fontWeight: 700,
+                              color: dayTotal > 0 ? '#2563eb' : '#ccc',
+                            }}>
+                              {dayTotal > 0 ? dayTotal : '\u2014'}
+                            </td>
+                          ))}
+                          <td style={{ padding: '6px 8px', fontSize: 12, textAlign: 'right', fontWeight: 700, color: '#2563eb' }}>
+                            {detailedRoutes.total}
+                          </td>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {detailedRoutes.routes.map((r, i) => (
+                          <tr key={i}>
+                            <td style={{ padding: '6px 8px', fontSize: 13, borderBottom: '1px solid #f5f5f5', whiteSpace: 'nowrap' }}>
+                              {r.from_locality} &rarr; {r.to_locality}
+                            </td>
+                            {r.day_counts.map((val, di) => (
+                              <td key={di} style={{
+                                textAlign: 'center', padding: '6px 3px', fontSize: 12,
+                                fontWeight: val > 0 ? 600 : 400, color: val > 0 ? '#1e3a5f' : '#ccc',
+                                background: heatBg(val, maxDay), borderBottom: '1px solid #f5f5f5', borderRadius: 3,
+                              }}>
+                                {val > 0 ? val : '\u2014'}
+                              </td>
+                            ))}
+                            <td style={{ padding: '6px 8px', fontSize: 13, textAlign: 'right', fontWeight: 600, color: '#2563eb', borderBottom: '1px solid #f5f5f5' }}>
+                              {r.count}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
             </div>
-          )}
-        </div>
 
-        {/* Countries */}
-        <div className="card" style={{ padding: 20 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, color: '#333' }}>Tari</h3>
-          {countries.length === 0 ? (
-            <p style={{ color: '#999', fontSize: 14 }}>Nu sunt date.</p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {countries.map(c => (
-                <div key={c.country} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 14 }}>
-                  <span>{countryFlag(c.country)} {c.country}</span>
-                  <span style={{ fontWeight: 600, color: '#555' }}>{c.count}</span>
+            {/* Devices */}
+            <div className="card" style={{ padding: 20 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, color: '#333' }}>Dispozitive</h3>
+              {devices.length === 0 ? (
+                <p style={{ color: '#999', fontSize: 14 }}>Nu sunt date.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {devices.map(d => {
+                    const pct = Math.round((d.count / totalDevices) * 100);
+                    return (
+                      <div key={d.device}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
+                          <span>{DEVICE_LABELS[d.device] || d.device}</span>
+                          <span style={{ fontWeight: 600 }}>{pct}%</span>
+                        </div>
+                        <div style={{ height: 6, borderRadius: 3, background: '#f0f0f0' }}>
+                          <div style={{
+                            height: '100%', borderRadius: 3, width: `${pct}%`,
+                            background: d.device === 'mobile' ? '#9B1B30' : d.device === 'desktop' ? '#2563eb' : '#059669',
+                          }} />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
+              )}
             </div>
-          )}
-        </div>
-      </div>
+
+            {/* Countries */}
+            <div className="card" style={{ padding: 20 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, color: '#333' }}>Tari</h3>
+              {countries.length === 0 ? (
+                <p style={{ color: '#999', fontSize: 14 }}>Nu sunt date.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {countries.map(c => (
+                    <div key={c.country} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 14 }}>
+                      <span>{countryFlag(c.country)} {c.country}</span>
+                      <span style={{ fontWeight: 600, color: '#555' }}>{c.count}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Tab: Driver Performance */}
+      {tab === 'performanta' && (
+        <DriverRatingTab
+          initialData={initialDriverPerf}
+          initialEtalons={initialEtalons}
+          routes={initialRoutes}
+          dateFrom={initialDateFrom}
+          dateTo={initialDateTo}
+        />
+      )}
+
+      {/* Tab: Empty Trips */}
+      {tab === 'curse-goale' && (
+        <EmptyTripsTab data={emptyTrips} />
+      )}
+
+      {/* Tab: Demand vs Supply */}
+      {tab === 'cerere' && (
+        <DemandGapTab data={demandGap} days={days} />
+      )}
     </div>
   );
 }

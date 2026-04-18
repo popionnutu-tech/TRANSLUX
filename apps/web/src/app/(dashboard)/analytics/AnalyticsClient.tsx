@@ -298,7 +298,7 @@ export default function AnalyticsClient({
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 16 }}>
             {/* Top routes */}
             <div className="card" style={{ padding: 20 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 600, color: '#333', margin: 0, marginBottom: 12 }}>Top rute cautate</h3>
+              <h3 style={{ fontSize: 16, fontWeight: 600, color: '#333', margin: 0, marginBottom: 12 }}>Top rute cautate (medie pe zi)</h3>
               {detailedRoutes.routes.length > 0 && (() => {
                 const totalSearches = totals.totalSearches;
                 const totalCalls = totals.totalCalls;

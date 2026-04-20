@@ -19,6 +19,8 @@ export interface DriverPerformanceRow {
   baseline_revenue: number | null;
   is_stable: boolean;
   sample_count: number;
+  total_km_driven: number;
+  avg_revenue_per_km: number | null;
 }
 
 export interface RouteEtalon {
@@ -43,9 +45,57 @@ export interface EmptyTripRow {
   load_pct: number | null;
   sessions_count: number;
   empty_sessions: number;
-  day_avg: [number, number, number, number, number, number, number]; // Mon-Sun
+  day_avg: [number, number, number, number, number, number, number]; // Mon-Sun (pasageri×opriri)
   rain_sessions: number;
   rain_avg_passengers: number | null;
+  // Real passenger metrics (added in migration 037)
+  unique_passengers_avg: number;
+  passenger_km_avg: number;
+  load_factor_pct: number | null;
+  revenue_per_km: number | null;
+  route_length_km: number | null;
+}
+
+export type RouteQuadrant = 'star' | 'efficient_small' | 'underperform_large' | 'candidate_to_close';
+
+export interface RouteScorecardRow {
+  crm_route_id: number;
+  route_name: string;
+  time_chisinau: string;
+  total_revenue: number;
+  avg_load_factor_pct: number | null;
+  total_unique_passengers: number;
+  total_passenger_km: number;
+  sessions_count: number;
+  avg_revenue_per_km: number | null;
+  route_length_km: number | null;
+  quadrant: RouteQuadrant;
+}
+
+export interface DriverScorecardRow {
+  driver_id: string;
+  driver_name: string;
+  sessions_count: number;
+  total_km_driven: number;
+  total_revenue: number;
+  total_unique_passengers: number;
+  avg_revenue_per_km: number | null;
+  pct_vs_route_norm: number | null; // sample_count-weighted
+  sample_count: number;
+}
+
+export interface OverviewKPI {
+  total_unique_passengers: number;
+  total_passenger_km: number;
+  total_revenue: number;
+  avg_load_factor_pct: number | null;
+  sessions_count: number;
+  avg_revenue_per_km: number | null;
+  // Deltas vs previous equal-length period
+  delta_passengers_pct: number | null;
+  delta_revenue_pct: number | null;
+  delta_load_factor_pct: number | null;
+  delta_revenue_per_km_pct: number | null;
 }
 
 export interface DemandSupplyRow {
@@ -104,6 +154,12 @@ interface SessionRow {
   dow: number;
   season: string;
   rain_heavy: boolean;
+  // New metrics from v_session_metrics (migration 037)
+  unique_passengers: number;
+  passenger_km: number;
+  route_length_km: number;
+  revenue_per_km: number | null;
+  load_factor_pct: number | null;
 }
 
 interface BaselineRow {
@@ -123,14 +179,21 @@ async function fetchSessions(dateFrom: string, dateTo: string): Promise<SessionR
   const sb = getSupabase();
   while (true) {
     const { data } = await sb
-      .from('v_session_full')
-      .select('session_id, assignment_date, crm_route_id, route_name, time_chisinau, time_nord, driver_id, driver_name, total_passengers, total_lei, dow, season, rain_heavy')
+      .from('v_session_metrics')
+      .select('session_id, assignment_date, crm_route_id, route_name, time_chisinau, time_nord, driver_id, driver_name, total_passengers, total_lei, dow, season, rain_heavy, unique_passengers, passenger_km, route_length_km, revenue_per_km, load_factor_pct')
       .gte('assignment_date', dateFrom)
       .lte('assignment_date', dateTo)
       .order('assignment_date', { ascending: true })
       .range(offset, offset + PAGE - 1);
     if (!data || data.length === 0) break;
-    rows.push(...(data as SessionRow[]));
+    // Coerce numeric strings from view to numbers
+    rows.push(...(data.map((r: Record<string, unknown>) => ({
+      ...r,
+      passenger_km: Number(r.passenger_km ?? 0),
+      route_length_km: Number(r.route_length_km ?? 0),
+      revenue_per_km: r.revenue_per_km !== null && r.revenue_per_km !== undefined ? Number(r.revenue_per_km) : null,
+      load_factor_pct: r.load_factor_pct !== null && r.load_factor_pct !== undefined ? Number(r.load_factor_pct) : null,
+    })) as SessionRow[]));
     if (data.length < PAGE) break;
     offset += PAGE;
   }
@@ -270,6 +333,7 @@ export async function getDriverPerformance(
     driver_id: string; driver_name: string; route_name: string; crm_route_id: number;
     passengers: number[]; revenues: number[]; baselinePassengers: number[]; baselineRevenues: number[];
     sampleCounts: number[];
+    routeKms: number[]; revenuesPerKm: number[];
   }>();
 
   for (const s of sessions) {
@@ -282,11 +346,14 @@ export async function getDriverPerformance(
         driver_id: s.driver_id, driver_name: s.driver_name || '?',
         route_name: s.route_name, crm_route_id: s.crm_route_id,
         passengers: [], revenues: [], baselinePassengers: [], baselineRevenues: [], sampleCounts: [],
+        routeKms: [], revenuesPerKm: [],
       });
     }
     const g = groups.get(key)!;
     g.passengers.push(s.total_passengers);
     g.revenues.push(s.total_lei);
+    g.routeKms.push(s.route_length_km || 0);
+    if (s.revenue_per_km !== null) g.revenuesPerKm.push(s.revenue_per_km);
 
     const bl = findBaseline(baselines, s.crm_route_id, s.season, s.dow, s.rain_heavy);
     g.baselinePassengers.push(bl?.avg_passengers ?? 0);
@@ -299,6 +366,10 @@ export async function getDriverPerformance(
     const n = g.passengers.length;
     const avgPax = g.passengers.reduce((a, b) => a + b, 0) / n;
     const totalRev = g.revenues.reduce((a, b) => a + b, 0);
+    const totalKm = g.routeKms.reduce((a, b) => a + b, 0);
+    const avgRpk = g.revenuesPerKm.length > 0
+      ? g.revenuesPerKm.reduce((a, b) => a + b, 0) / g.revenuesPerKm.length
+      : null;
 
     const hasBaseline = g.sampleCounts.some(c => c > 0);
     let blPax: number | null = null;
@@ -328,6 +399,8 @@ export async function getDriverPerformance(
       baseline_revenue: blRev !== null ? Math.round(blRev * n) : null,
       is_stable: stableDrivers.get(g.crm_route_id) === g.driver_id,
       sample_count: minSample,
+      total_km_driven: Math.round(totalKm),
+      avg_revenue_per_km: avgRpk !== null ? Math.round(avgRpk * 100) / 100 : null,
     });
   }
 
@@ -484,6 +557,19 @@ export async function getEmptyTripsAnalysis(
 
     const loadPct = baseline && baseline > 0 ? Math.round((avgPax / baseline) * 100) : null;
 
+    // New metrics from v_session_metrics
+    const avgUniquePax = g.sessions.reduce((a, s) => a + (s.unique_passengers || 0), 0) / n;
+    const avgPaxKm = g.sessions.reduce((a, s) => a + (s.passenger_km || 0), 0) / n;
+    const withLoad = g.sessions.filter(s => s.load_factor_pct !== null);
+    const avgLoadFactor = withLoad.length > 0
+      ? withLoad.reduce((a, s) => a + (s.load_factor_pct as number), 0) / withLoad.length
+      : null;
+    const withRpk = g.sessions.filter(s => s.revenue_per_km !== null);
+    const avgRpk = withRpk.length > 0
+      ? withRpk.reduce((a, s) => a + (s.revenue_per_km as number), 0) / withRpk.length
+      : null;
+    const routeLenKm = g.sessions[0]?.route_length_km ?? null;
+
     result.push({
       route_name: g.route_name,
       crm_route_id: g.crm_route_id,
@@ -497,6 +583,11 @@ export async function getEmptyTripsAnalysis(
       day_avg: dayAvg,
       rain_sessions: rainSessions.length,
       rain_avg_passengers: rainAvg,
+      unique_passengers_avg: Math.round(avgUniquePax * 10) / 10,
+      passenger_km_avg: Math.round(avgPaxKm),
+      load_factor_pct: avgLoadFactor !== null ? Math.round(avgLoadFactor * 10) / 10 : null,
+      revenue_per_km: avgRpk !== null ? Math.round(avgRpk * 100) / 100 : null,
+      route_length_km: routeLenKm,
     });
   }
 
@@ -505,6 +596,231 @@ export async function getEmptyTripsAnalysis(
     if (a.load_pct === null) return 1;
     if (b.load_pct === null) return -1;
     return a.load_pct - b.load_pct;
+  });
+
+  return result;
+}
+
+// ─── Overview KPI, Route & Driver Scorecards (added in migration 037 rollout) ───
+
+export async function getOverviewKPI(dateFrom: string, dateTo: string): Promise<OverviewKPI> {
+  requireRole(await verifySession(), 'ADMIN');
+
+  // Compute equal-length previous period for delta
+  const from = new Date(dateFrom);
+  const to = new Date(dateTo);
+  const diffMs = to.getTime() - from.getTime();
+  const prevTo = new Date(from.getTime() - 86400_000);
+  const prevFrom = new Date(prevTo.getTime() - diffMs);
+  const prevFromStr = prevFrom.toISOString().slice(0, 10);
+  const prevToStr = prevTo.toISOString().slice(0, 10);
+
+  const [current, previous] = await Promise.all([
+    fetchSessions(dateFrom, dateTo),
+    fetchSessions(prevFromStr, prevToStr),
+  ]);
+
+  const aggregate = (sessions: SessionRow[]) => {
+    const n = sessions.length;
+    if (n === 0) return {
+      total_unique_passengers: 0, total_passenger_km: 0, total_revenue: 0,
+      avg_load_factor_pct: null as number | null,
+      sessions_count: 0, avg_revenue_per_km: null as number | null,
+    };
+    const totalUnique = sessions.reduce((a, s) => a + (s.unique_passengers || 0), 0);
+    const totalPaxKm = sessions.reduce((a, s) => a + (s.passenger_km || 0), 0);
+    const totalRev = sessions.reduce((a, s) => a + s.total_lei, 0);
+    const withLoad = sessions.filter(s => s.load_factor_pct !== null);
+    const avgLoad = withLoad.length > 0
+      ? withLoad.reduce((a, s) => a + (s.load_factor_pct as number), 0) / withLoad.length
+      : null;
+    const withRpk = sessions.filter(s => s.revenue_per_km !== null);
+    const avgRpk = withRpk.length > 0
+      ? withRpk.reduce((a, s) => a + (s.revenue_per_km as number), 0) / withRpk.length
+      : null;
+    return {
+      total_unique_passengers: totalUnique,
+      total_passenger_km: Math.round(totalPaxKm),
+      total_revenue: Math.round(totalRev),
+      avg_load_factor_pct: avgLoad !== null ? Math.round(avgLoad * 10) / 10 : null,
+      sessions_count: n,
+      avg_revenue_per_km: avgRpk !== null ? Math.round(avgRpk * 100) / 100 : null,
+    };
+  };
+
+  const cur = aggregate(current);
+  const prev = aggregate(previous);
+
+  const pctDelta = (c: number, p: number): number | null => {
+    if (p === 0) return null;
+    return Math.round(((c - p) / p) * 1000) / 10;
+  };
+
+  return {
+    ...cur,
+    delta_passengers_pct: pctDelta(cur.total_unique_passengers, prev.total_unique_passengers),
+    delta_revenue_pct: pctDelta(cur.total_revenue, prev.total_revenue),
+    delta_load_factor_pct: cur.avg_load_factor_pct !== null && prev.avg_load_factor_pct !== null && prev.avg_load_factor_pct !== 0
+      ? pctDelta(cur.avg_load_factor_pct, prev.avg_load_factor_pct)
+      : null,
+    delta_revenue_per_km_pct: cur.avg_revenue_per_km !== null && prev.avg_revenue_per_km !== null && prev.avg_revenue_per_km !== 0
+      ? pctDelta(cur.avg_revenue_per_km, prev.avg_revenue_per_km)
+      : null,
+  };
+}
+
+function classifyQuadrant(revenue: number, loadPct: number | null, medianRevenue: number): RouteQuadrant {
+  const highRev = revenue >= medianRevenue;
+  const highLoad = loadPct !== null && loadPct >= 50;
+  if (highRev && highLoad) return 'star';
+  if (!highRev && highLoad) return 'efficient_small';
+  if (highRev && !highLoad) return 'underperform_large';
+  return 'candidate_to_close';
+}
+
+export async function getRouteScorecard(dateFrom: string, dateTo: string): Promise<RouteScorecardRow[]> {
+  requireRole(await verifySession(), 'ADMIN');
+
+  const sessions = await fetchSessions(dateFrom, dateTo);
+
+  // Group by route
+  const groups = new Map<number, {
+    crm_route_id: number; route_name: string; time_chisinau: string;
+    sessions: SessionRow[];
+  }>();
+  for (const s of sessions) {
+    if (!groups.has(s.crm_route_id)) {
+      groups.set(s.crm_route_id, {
+        crm_route_id: s.crm_route_id, route_name: s.route_name, time_chisinau: s.time_chisinau,
+        sessions: [],
+      });
+    }
+    groups.get(s.crm_route_id)!.sessions.push(s);
+  }
+
+  const rows: Omit<RouteScorecardRow, 'quadrant'>[] = [];
+  for (const g of groups.values()) {
+    const totalRev = g.sessions.reduce((a, s) => a + s.total_lei, 0);
+    const totalUnique = g.sessions.reduce((a, s) => a + (s.unique_passengers || 0), 0);
+    const totalPaxKm = g.sessions.reduce((a, s) => a + (s.passenger_km || 0), 0);
+    const withLoad = g.sessions.filter(s => s.load_factor_pct !== null);
+    const avgLoad = withLoad.length > 0
+      ? withLoad.reduce((a, s) => a + (s.load_factor_pct as number), 0) / withLoad.length
+      : null;
+    const withRpk = g.sessions.filter(s => s.revenue_per_km !== null);
+    const avgRpk = withRpk.length > 0
+      ? withRpk.reduce((a, s) => a + (s.revenue_per_km as number), 0) / withRpk.length
+      : null;
+
+    rows.push({
+      crm_route_id: g.crm_route_id,
+      route_name: g.route_name,
+      time_chisinau: g.time_chisinau,
+      total_revenue: Math.round(totalRev),
+      avg_load_factor_pct: avgLoad !== null ? Math.round(avgLoad * 10) / 10 : null,
+      total_unique_passengers: totalUnique,
+      total_passenger_km: Math.round(totalPaxKm),
+      sessions_count: g.sessions.length,
+      avg_revenue_per_km: avgRpk !== null ? Math.round(avgRpk * 100) / 100 : null,
+      route_length_km: g.sessions[0]?.route_length_km ?? null,
+    });
+  }
+
+  // Median revenue for quadrant classification
+  const sortedByRev = [...rows].map(r => r.total_revenue).sort((a, b) => a - b);
+  const medianRev = sortedByRev.length > 0
+    ? sortedByRev[Math.floor(sortedByRev.length / 2)]
+    : 0;
+
+  const result: RouteScorecardRow[] = rows.map(r => ({
+    ...r,
+    quadrant: classifyQuadrant(r.total_revenue, r.avg_load_factor_pct, medianRev),
+  }));
+
+  result.sort((a, b) => b.total_revenue - a.total_revenue);
+  return result;
+}
+
+export async function getDriverScorecard(dateFrom: string, dateTo: string): Promise<DriverScorecardRow[]> {
+  requireRole(await verifySession(), 'ADMIN');
+
+  const [sessions, baselines] = await Promise.all([fetchSessions(dateFrom, dateTo), fetchBaselines()]);
+
+  // Group by driver
+  const groups = new Map<string, {
+    driver_id: string; driver_name: string;
+    sessions: SessionRow[];
+    baselineContributions: { actual: number; baseline: number; sample_count: number }[];
+  }>();
+
+  for (const s of sessions) {
+    if (!s.driver_id) continue;
+    if (!groups.has(s.driver_id)) {
+      groups.set(s.driver_id, {
+        driver_id: s.driver_id, driver_name: s.driver_name || '?',
+        sessions: [], baselineContributions: [],
+      });
+    }
+    const g = groups.get(s.driver_id)!;
+    g.sessions.push(s);
+    const bl = findBaseline(baselines, s.crm_route_id, s.season, s.dow, s.rain_heavy);
+    if (bl && bl.avg_passengers > 0 && bl.sample_count > 0) {
+      g.baselineContributions.push({
+        actual: s.total_passengers,
+        baseline: bl.avg_passengers,
+        sample_count: bl.sample_count,
+      });
+    }
+  }
+
+  const result: DriverScorecardRow[] = [];
+  for (const g of groups.values()) {
+    const n = g.sessions.length;
+    if (n < 5) continue; // statistical reliability threshold
+
+    const totalRev = g.sessions.reduce((a, s) => a + s.total_lei, 0);
+    const totalUnique = g.sessions.reduce((a, s) => a + (s.unique_passengers || 0), 0);
+    const totalKm = g.sessions.reduce((a, s) => a + (s.route_length_km || 0), 0);
+
+    const withRpk = g.sessions.filter(s => s.revenue_per_km !== null);
+    const avgRpk = withRpk.length > 0
+      ? withRpk.reduce((a, s) => a + (s.revenue_per_km as number), 0) / withRpk.length
+      : null;
+
+    // sample_count-weighted % vs baseline
+    let pctVsNorm: number | null = null;
+    let sampleSum = 0;
+    if (g.baselineContributions.length > 0) {
+      let weightedActual = 0;
+      let weightedBaseline = 0;
+      for (const c of g.baselineContributions) {
+        weightedActual += c.actual * c.sample_count;
+        weightedBaseline += c.baseline * c.sample_count;
+        sampleSum += c.sample_count;
+      }
+      if (weightedBaseline > 0) {
+        pctVsNorm = Math.round((weightedActual / weightedBaseline) * 100 - 100);
+      }
+    }
+
+    result.push({
+      driver_id: g.driver_id,
+      driver_name: g.driver_name,
+      sessions_count: n,
+      total_km_driven: Math.round(totalKm),
+      total_revenue: Math.round(totalRev),
+      total_unique_passengers: totalUnique,
+      avg_revenue_per_km: avgRpk !== null ? Math.round(avgRpk * 100) / 100 : null,
+      pct_vs_route_norm: pctVsNorm,
+      sample_count: sampleSum,
+    });
+  }
+
+  result.sort((a, b) => {
+    if (a.pct_vs_route_norm === null && b.pct_vs_route_norm === null) return 0;
+    if (a.pct_vs_route_norm === null) return 1;
+    if (b.pct_vs_route_norm === null) return -1;
+    return b.pct_vs_route_norm - a.pct_vs_route_norm;
   });
 
   return result;

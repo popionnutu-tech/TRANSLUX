@@ -15,6 +15,9 @@ import {
   getDemandSupplyGap,
   getRevenueOverview,
   getRoutesList,
+  getOverviewKPI,
+  getRouteScorecard,
+  getDriverScorecard,
 } from './sales-actions';
 import AnalyticsClient from './AnalyticsClient';
 
@@ -27,6 +30,7 @@ export default async function AnalyticsPage() {
   const [
     pageViews, searches, detailedRoutes, devices, countries, totals,
     driverPerf, etalons, emptyTrips, demandGap, revenue, routes,
+    overviewKPI, routeScorecard, driverScorecard,
   ] = await Promise.all([
     getPageViewsPerDay(days),
     getSearchesPerDay(days),
@@ -40,6 +44,9 @@ export default async function AnalyticsPage() {
     getDemandSupplyGap(days),
     getRevenueOverview(dateFrom, dateTo),
     getRoutesList(),
+    getOverviewKPI(dateFrom, dateTo),
+    getRouteScorecard(dateFrom, dateTo),
+    getDriverScorecard(dateFrom, dateTo),
   ]);
 
   return (
@@ -59,6 +66,9 @@ export default async function AnalyticsPage() {
       initialRoutes={routes}
       initialDateFrom={dateFrom}
       initialDateTo={dateTo}
+      initialOverviewKPI={overviewKPI}
+      initialRouteScorecard={routeScorecard}
+      initialDriverScorecard={driverScorecard}
     />
   );
 }

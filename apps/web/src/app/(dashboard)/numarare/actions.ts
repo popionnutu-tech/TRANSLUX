@@ -25,6 +25,8 @@ export interface RouteForCounting {
   double_tariff: boolean;
   tur_total_lei: number | null;
   retur_total_lei: number | null;
+  tur_single_lei: number | null;
+  retur_single_lei: number | null;
 }
 
 export interface DriverOption { id: string; full_name: string; }
@@ -127,7 +129,7 @@ export async function getRoutesForDate(date: string): Promise<{ data?: RouteForC
     .from('counting_sessions')
     .select(`
       crm_route_id, id, status, operator_id, locked_by, locked_at,
-      double_tariff, tur_total_lei, retur_total_lei,
+      double_tariff, tur_total_lei, retur_total_lei, tur_single_lei, retur_single_lei,
       driver_id, vehicle_id,
       session_driver:drivers!counting_sessions_driver_id_fkey(id, full_name),
       session_vehicle:vehicles!counting_sessions_vehicle_id_fkey(id, plate_number),
@@ -175,6 +177,8 @@ export async function getRoutesForDate(date: string): Promise<{ data?: RouteForC
       double_tariff: s?.double_tariff || false,
       tur_total_lei: s?.tur_total_lei || null,
       retur_total_lei: s?.retur_total_lei || null,
+      tur_single_lei: s?.tur_single_lei ?? null,
+      retur_single_lei: s?.retur_single_lei ?? null,
     };
   });
 
@@ -190,6 +194,8 @@ export async function getRoutesForDate(date: string): Promise<{ data?: RouteForC
     for (const r of routes) {
       r.tur_total_lei = null;
       r.retur_total_lei = null;
+      r.tur_single_lei = null;
+      r.retur_single_lei = null;
     }
   }
 
@@ -391,6 +397,7 @@ export async function saveDirection(
     }[];
   }[],
   totalLei: number,
+  totalLeiSingle: number,
 ): Promise<{ error?: string }> {
   try { requireRole(await verifySession(), ...NUMARARE_ROLES); } catch { return { error: 'Acces interzis' }; }
 
@@ -448,9 +455,11 @@ export async function saveDirection(
   const updateFields: any = {};
   if (direction === 'tur') {
     updateFields.tur_total_lei = totalLei;
+    updateFields.tur_single_lei = totalLeiSingle;
     updateFields.status = 'tur_done';
   } else {
     updateFields.retur_total_lei = totalLei;
+    updateFields.retur_single_lei = totalLeiSingle;
     updateFields.status = 'completed';
   }
   updateFields.locked_by = null;
@@ -495,60 +504,6 @@ export async function loadSavedEntries(
       amountLei: sp.amount_lei ? Number(sp.amount_lei) : null,
     })),
   }));
-}
-
-// ─── Admin camere: toggle tarif dublu ───
-
-export async function toggleDoubleTariff(
-  sessionId: string,
-  enabled: boolean,
-): Promise<{ error?: string }> {
-  const session = await verifySession();
-  if (!session || (session.role !== 'ADMIN' && session.role !== 'ADMIN_CAMERE')) {
-    return { error: 'Acces interzis' };
-  }
-
-  const sb = getSupabase();
-  await sb.from('counting_sessions').update({ double_tariff: enabled }).eq('id', sessionId);
-  revalidatePath('/numarare');
-
-  // Notify admins via Telegram when double tariff is toggled ON
-  if (enabled) {
-    const { data: cs } = await sb
-      .from('counting_sessions')
-      .select('assignment_date, crm_route_id')
-      .eq('id', sessionId)
-      .single();
-    const { data: route } = cs ? await sb
-      .from('crm_routes')
-      .select('dest_from_ro')
-      .eq('id', cs.crm_route_id)
-      .single() : { data: null };
-
-    const routeName = route?.dest_from_ro || '?';
-    const date = cs?.assignment_date || '?';
-    const msg = `⚠️ <b>Tarif dublu activat</b>\n\nRuta: ${routeName}\nData: ${date}\nOperator: ${session.email}`;
-
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    if (botToken) {
-      const { data: admins } = await sb
-        .from('users')
-        .select('telegram_id')
-        .eq('role', 'ADMIN')
-        .eq('active', true)
-        .not('telegram_id', 'is', null);
-      for (const admin of admins || []) {
-        if (!admin.telegram_id) continue;
-        fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id: admin.telegram_id, text: msg, parse_mode: 'HTML' }),
-        }).catch(() => {});
-      }
-    }
-  }
-
-  return {};
 }
 
 // ─── Admin camere: deblocare forțată ───

@@ -115,6 +115,20 @@ export function calculateDirection(
 }
 
 /**
+ * Calculează suma totală pentru o direcție aplicând UN SINGUR tarif (rate_interurban_long)
+ * la toți pasagerii (atât lungi cât și scurți). Folosit pentru afișarea diferenței
+ * "dual tariff vs single tariff" în vizualizarea admin.
+ *
+ * Matematic echivalent cu calculateDirection(entries, rate, rate).total.
+ */
+export function calculateSingleTariff(
+  entries: StopEntry[],
+  ratePerKm: number,
+): number {
+  return calculateDirection(entries, ratePerKm, ratePerKm).total;
+}
+
+/**
  * Pentru o oprire dată (unde au ieșit scurți), returnează lista opririlor
  * de pe rută care sunt ≤ maxKm distanță ȘI sunt ÎNAINTE pe rută.
  */

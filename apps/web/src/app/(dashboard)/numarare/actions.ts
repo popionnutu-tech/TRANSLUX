@@ -62,6 +62,18 @@ export interface TariffConfig {
   shortDistanceKm: number;
 }
 
+export interface RouteForPeriod {
+  crm_route_id: number;
+  dest_to_ro: string;
+  time_chisinau: string;
+  time_nord: string;
+  sessions_count: number;
+  tur_total_lei: number | null;
+  retur_total_lei: number | null;
+  tur_single_lei: number | null;
+  retur_single_lei: number | null;
+}
+
 // ─── Текущий пользователь ───
 
 const NUMARARE_ROLES = ['ADMIN', 'ADMIN_CAMERE', 'OPERATOR_CAMERE'] as const;
@@ -200,6 +212,89 @@ export async function getRoutesForDate(date: string): Promise<{ data?: RouteForC
   }
 
   return { data: routes };
+}
+
+export async function getRoutesForPeriod(
+  fromDate: string,
+  toDate: string,
+): Promise<{ data?: RouteForPeriod[]; error?: string }> {
+  let session;
+  try { session = requireRole(await verifySession(), ...NUMARARE_ROLES); } catch { return { error: 'Acces interzis' }; }
+
+  const sb = getSupabase();
+
+  // 1. Toate rutele active (pentru time_nord + dest_to_ro)
+  const { data: allRoutes, error: rErr } = await sb
+    .from('crm_routes')
+    .select('id, dest_to_ro, time_chisinau, time_nord')
+    .eq('active', true);
+
+  if (rErr) return { error: rErr.message };
+  if (!allRoutes || allRoutes.length === 0) return { data: [] };
+
+  // 2. Toate sesiunile din perioadă
+  const { data: sessions, error: sErr } = await sb
+    .from('counting_sessions')
+    .select('crm_route_id, tur_total_lei, retur_total_lei, tur_single_lei, retur_single_lei')
+    .gte('assignment_date', fromDate)
+    .lte('assignment_date', toDate);
+
+  if (sErr) return { error: sErr.message };
+
+  // 3. Agregare pe crm_route_id
+  const routeLookup = new Map<number, any>();
+  for (const r of allRoutes) routeLookup.set(r.id, r);
+
+  const agg = new Map<number, RouteForPeriod>();
+  for (const s of sessions || []) {
+    const r = routeLookup.get(s.crm_route_id);
+    if (!r) continue;
+    const existing = agg.get(s.crm_route_id);
+    const tur = Number(s.tur_total_lei) || 0;
+    const retur = Number(s.retur_total_lei) || 0;
+    const turSingle = Number(s.tur_single_lei) || 0;
+    const returSingle = Number(s.retur_single_lei) || 0;
+    if (existing) {
+      existing.sessions_count += 1;
+      existing.tur_total_lei = (existing.tur_total_lei ?? 0) + tur;
+      existing.retur_total_lei = (existing.retur_total_lei ?? 0) + retur;
+      existing.tur_single_lei = (existing.tur_single_lei ?? 0) + turSingle;
+      existing.retur_single_lei = (existing.retur_single_lei ?? 0) + returSingle;
+    } else {
+      agg.set(s.crm_route_id, {
+        crm_route_id: s.crm_route_id,
+        dest_to_ro: r.dest_to_ro,
+        time_chisinau: r.time_chisinau,
+        time_nord: r.time_nord,
+        sessions_count: 1,
+        tur_total_lei: tur,
+        retur_total_lei: retur,
+        tur_single_lei: turSingle,
+        retur_single_lei: returSingle,
+      });
+    }
+  }
+
+  const result = Array.from(agg.values());
+
+  // Sort by time_nord
+  const parseTur = (t: string) => {
+    const [h, m] = (t?.split(' - ')[0] || '0:0').split(':').map(Number);
+    return h * 60 + m;
+  };
+  result.sort((a, b) => parseTur(a.time_nord) - parseTur(b.time_nord));
+
+  // Strip financial data for non-admin roles
+  if (session.role !== 'ADMIN' && session.role !== 'ADMIN_CAMERE') {
+    for (const r of result) {
+      r.tur_total_lei = null;
+      r.retur_total_lei = null;
+      r.tur_single_lei = null;
+      r.retur_single_lei = null;
+    }
+  }
+
+  return { data: result };
 }
 
 // Ruta 8:00 (id=13) folosește itinerariul rutei 10:40 (id=16) la numărare

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   getRoutesForDate,
+  getRoutesForPeriod,
   getCurrentUserId,
   lockRoute,
   unlockRoute,
@@ -13,6 +14,7 @@ import {
   getActiveVehicles,
   updateSessionDriverVehicle,
   type RouteForCounting,
+  type RouteForPeriod,
   type RouteStop,
   type TariffConfig,
   type SavedEntry,
@@ -42,7 +44,9 @@ const selectStyle: React.CSSProperties = {
 export default function NumarareClient({ role }: { role: AdminRole }) {
   const canSeeSums = role === 'ADMIN' || role === 'ADMIN_CAMERE';
   const [date, setDate] = useState(todayChisinau);
+  const [dateTo, setDateTo] = useState(todayChisinau);
   const [routes, setRoutes] = useState<RouteForCounting[]>([]);
+  const [periodRoutes, setPeriodRoutes] = useState<RouteForPeriod[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [openRouteId, setOpenRouteId] = useState<number | null>(null);
@@ -55,6 +59,8 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
   const [drivers, setDrivers] = useState<DriverOption[]>([]);
   const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
 
+  const isPeriod = dateTo > date;
+
   useEffect(() => {
     getCurrentUserId().then(setCurrentUserId);
     getActiveDrivers().then(setDrivers);
@@ -65,15 +71,27 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
     setLoading(true);
     setError('');
     try {
-      const result = await getRoutesForDate(date);
-      if (result.error) setError(result.error);
-      else setRoutes(result.data || []);
+      if (dateTo > date) {
+        const result = await getRoutesForPeriod(date, dateTo);
+        if (result.error) setError(result.error);
+        else {
+          setPeriodRoutes(result.data || []);
+          setRoutes([]);
+        }
+      } else {
+        const result = await getRoutesForDate(date);
+        if (result.error) setError(result.error);
+        else {
+          setRoutes(result.data || []);
+          setPeriodRoutes([]);
+        }
+      }
     } catch (err: any) {
       setError(err.message || 'Eroare');
     } finally {
       setLoading(false);
     }
-  }, [date]);
+  }, [date, dateTo]);
 
   useEffect(() => {
     loadRoutes();
@@ -155,13 +173,30 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
     <div>
       <div className="page-header">
         <h1>Numărare pasageri</h1>
-        <input
-          type="date"
-          value={date}
-          onChange={e => { setDate(e.target.value); setOpenRouteId(null); }}
-          className="form-control"
-          style={{ width: 180 }}
-        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span className="text-muted" style={{ fontSize: 13 }}>De la</span>
+          <input
+            type="date"
+            value={date}
+            onChange={e => {
+              const v = e.target.value;
+              setDate(v);
+              if (v > dateTo) setDateTo(v);
+              setOpenRouteId(null);
+            }}
+            className="form-control"
+            style={{ width: 160 }}
+          />
+          <span className="text-muted" style={{ fontSize: 13 }}>până la</span>
+          <input
+            type="date"
+            value={dateTo}
+            min={date}
+            onChange={e => { setDateTo(e.target.value); setOpenRouteId(null); }}
+            className="form-control"
+            style={{ width: 160 }}
+          />
+        </div>
       </div>
 
       {error && <div className="alert alert-danger">{error}</div>}
@@ -204,6 +239,62 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
         </>
       ) : loading ? (
         <p className="text-muted">Se încarcă...</p>
+      ) : isPeriod ? (
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Tur</th>
+              <th>Destinația</th>
+              <th>Retur</th>
+              <th>Curse</th>
+              {canSeeSums && <th>Sumă (2 tarife)</th>}
+              {canSeeSums && <th>Dacă 1 tarif</th>}
+              {canSeeSums && <th>Δ</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {periodRoutes.map(route => {
+              const dualTotal = (Number(route.tur_total_lei) || 0) + (Number(route.retur_total_lei) || 0);
+              const singleTotal = (Number(route.tur_single_lei) || 0) + (Number(route.retur_single_lei) || 0);
+              const diff = dualTotal - singleTotal;
+              const hasSums = dualTotal > 0 || singleTotal > 0;
+              return (
+                <tr key={route.crm_route_id}>
+                  <td>{route.time_nord?.split(' - ')[0]}</td>
+                  <td><strong>{route.dest_to_ro}</strong></td>
+                  <td>{route.time_chisinau?.split(' - ')[0]}</td>
+                  <td>{route.sessions_count}</td>
+                  {canSeeSums && <td>{hasSums ? `${Math.round(dualTotal)} lei` : '—'}</td>}
+                  {canSeeSums && <td>{hasSums ? `${Math.round(singleTotal)} lei` : '—'}</td>}
+                  {canSeeSums && (
+                    <td style={{ color: hasSums && diff > 0 ? 'var(--success)' : 'var(--text-muted)' }}>
+                      {hasSums ? `${diff >= 0 ? '+' : ''}${Math.round(diff)} lei` : '—'}
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+          {canSeeSums && periodRoutes.length > 0 && (() => {
+            const totalDual = periodRoutes.reduce((s, r) => s + (Number(r.tur_total_lei) || 0) + (Number(r.retur_total_lei) || 0), 0);
+            const totalSingle = periodRoutes.reduce((s, r) => s + (Number(r.tur_single_lei) || 0) + (Number(r.retur_single_lei) || 0), 0);
+            const totalDiff = totalDual - totalSingle;
+            const totalSessions = periodRoutes.reduce((s, r) => s + r.sessions_count, 0);
+            return (
+              <tfoot>
+                <tr>
+                  <td colSpan={3}><strong>Total perioada</strong></td>
+                  <td><strong>{totalSessions}</strong></td>
+                  <td><strong>{Math.round(totalDual)} lei</strong></td>
+                  <td><strong>{Math.round(totalSingle)} lei</strong></td>
+                  <td style={{ color: totalDiff > 0 ? 'var(--success)' : 'var(--text-muted)' }}>
+                    <strong>{totalDiff >= 0 ? '+' : ''}{Math.round(totalDiff)} lei</strong>
+                  </td>
+                </tr>
+              </tfoot>
+            );
+          })()}
+        </table>
       ) : (
         <table className="table">
           <thead>

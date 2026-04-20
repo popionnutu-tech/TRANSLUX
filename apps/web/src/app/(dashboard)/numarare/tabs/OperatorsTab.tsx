@@ -201,10 +201,19 @@ export default function OperatorsTab() {
       {/* Analiza prudenței */}
       <div className="card" style={{ marginBottom: 20, padding: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-          <div>
-            <h3 style={{ margin: 0, fontSize: 16 }}>Prudență operatorilor</h3>
-            <p className="text-muted" style={{ fontSize: 12, margin: '4px 0 0 0' }}>
-              Abaterea pasagerilor scurți notați față de mediana rutei. Operatorii cu Δ mult negativ pierd pasageri scurți.
+          <div style={{ maxWidth: 720 }}>
+            <h3 style={{ margin: 0, fontSize: 16 }}>Cât de atent notează fiecare operator pasagerii scurți?</h3>
+            <p className="text-muted" style={{ fontSize: 13, margin: '6px 0 0 0', lineHeight: 1.5 }}>
+              Comparăm câți pasageri scurți notează fiecare operator cu cât se notează <strong>în medie</strong> pe aceleași rute (toți operatorii împreună).
+              <br />
+              Dacă <strong style={{ color: 'var(--success)' }}>Δ este pozitiv</strong> — operatorul notează mai mulți scurți decât restul (bine, e atent).
+              <br />
+              Dacă <strong style={{ color: 'var(--danger)' }}>Δ este negativ</strong> — operatorul notează mai puțini scurți decât restul. Adică pierde pasageri: îi uită sau nu îi observă.
+            </p>
+            <p className="text-muted" style={{ fontSize: 12, margin: '8px 0 0 0', fontStyle: 'italic' }}>
+              <strong>Avg scurți</strong> = câți scurți notează operatorul în medie pe o cursă.{' '}
+              <strong>Baseline</strong> = media tuturor operatorilor pe aceleași rute.{' '}
+              <strong>Δ</strong> = diferența în procente.
             </p>
           </div>
           <div style={{ display: 'flex', gap: 4 }}>

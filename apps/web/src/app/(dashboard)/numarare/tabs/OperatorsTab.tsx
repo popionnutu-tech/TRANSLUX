@@ -6,7 +6,9 @@ import {
   getOperatorsCamere,
   createOperatorCamere,
   toggleOperatorActive,
+  getOperatorPrudence,
   type OperatorCamere,
+  type OperatorPrudence,
 } from './operatorActions';
 
 // ─── Константы ───
@@ -36,6 +38,10 @@ export default function OperatorsTab() {
 
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
+  const [prudenceDays, setPrudenceDays] = useState<7 | 30 | 90>(30);
+  const [prudence, setPrudence] = useState<OperatorPrudence[]>([]);
+  const [prudenceLoading, setPrudenceLoading] = useState(false);
+
   const loadOperators = useCallback(async () => {
     setLoading(true);
     setError('');
@@ -52,6 +58,20 @@ export default function OperatorsTab() {
   useEffect(() => {
     loadOperators();
   }, [loadOperators]);
+
+  const loadPrudence = useCallback(async () => {
+    setPrudenceLoading(true);
+    try {
+      const res = await getOperatorPrudence(prudenceDays);
+      setPrudence(res.data || []);
+    } finally {
+      setPrudenceLoading(false);
+    }
+  }, [prudenceDays]);
+
+  useEffect(() => {
+    loadPrudence();
+  }, [loadPrudence]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -177,6 +197,76 @@ export default function OperatorsTab() {
           )}
         </div>
       )}
+
+      {/* Analiza prudenței */}
+      <div className="card" style={{ marginBottom: 20, padding: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: 16 }}>Prudență operatorilor</h3>
+            <p className="text-muted" style={{ fontSize: 12, margin: '4px 0 0 0' }}>
+              Abaterea pasagerilor scurți notați față de mediana rutei. Operatorii cu Δ mult negativ pierd pasageri scurți.
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: 4 }}>
+            {([7, 30, 90] as const).map((d) => (
+              <button
+                key={d}
+                className={prudenceDays === d ? 'btn btn-primary' : 'btn btn-outline'}
+                style={{ fontSize: 12, padding: '4px 10px' }}
+                onClick={() => setPrudenceDays(d)}
+              >
+                {d} zile
+              </button>
+            ))}
+          </div>
+        </div>
+        {prudenceLoading ? (
+          <p className="text-muted" style={{ textAlign: 'center', padding: 20 }}>Se incarca...</p>
+        ) : prudence.length === 0 ? (
+          <p className="text-muted" style={{ textAlign: 'center', padding: 20 }}>Date insuficiente pentru perioada selectata</p>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Operator</th>
+                <th>Sesiuni</th>
+                <th>Rute</th>
+                <th>Avg scurți</th>
+                <th>Baseline</th>
+                <th>Δ</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {prudence.map((p) => {
+                const statusColor =
+                  p.status === 'warning' ? 'var(--danger)' :
+                  p.status === 'attention' ? 'var(--warning)' :
+                  'var(--success)';
+                const statusLabel =
+                  p.status === 'warning' ? '🚩 Ne prudent' :
+                  p.status === 'attention' ? '⚠️ Atenție' :
+                  '✅ OK';
+                return (
+                  <tr key={p.operator_id}>
+                    <td style={{ fontWeight: 600 }}>{p.name || p.email}</td>
+                    <td>{p.sessions}</td>
+                    <td>{p.routes_covered}</td>
+                    <td>{p.op_avg_short_pax.toFixed(2)}</td>
+                    <td className="text-muted">{p.baseline_avg_short_pax.toFixed(2)}</td>
+                    <td style={{ color: p.deviation_pct < 0 ? 'var(--danger)' : 'var(--success)', fontWeight: 600 }}>
+                      {p.deviation_pct > 0 ? '+' : ''}{p.deviation_pct.toFixed(1)}%
+                    </td>
+                    <td style={{ color: statusColor, fontWeight: 600, fontSize: 13 }}>
+                      {statusLabel}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
 
       {/* Таблица */}
       <div className="card">

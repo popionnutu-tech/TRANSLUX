@@ -17,6 +17,18 @@ export interface OperatorCamere {
   created_at: string;
 }
 
+export interface OperatorPrudence {
+  operator_id: string;
+  email: string;
+  name: string | null;
+  sessions: number;
+  routes_covered: number;
+  op_avg_short_pax: number;
+  baseline_avg_short_pax: number;
+  deviation_pct: number;
+  status: 'ok' | 'attention' | 'warning';
+}
+
 // ─── Авторизация ───
 
 const ALLOWED_ROLES = new Set(['ADMIN', 'ADMIN_CAMERE']);
@@ -97,4 +109,59 @@ export async function toggleOperatorActive(
 
   if (error) return { error: error.message };
   return {};
+}
+
+/**
+ * Returnează analiza prudenței operatorilor pentru ultimele N zile.
+ *
+ * Baseline per rută = mediana pasagerilor scurți pe sesiune (toți operatorii).
+ * Pentru fiecare operator × rută calculăm abaterea mediei lui față de mediana rutei.
+ * Apoi agregăm pe operator (ponderat după numărul de sesiuni).
+ *
+ * Status:
+ *   ok (verde): deviation >= -5%
+ *   attention (galben): -15% < deviation < -5%
+ *   warning (roșu): deviation <= -15%
+ */
+export async function getOperatorPrudence(
+  days: 7 | 30 | 90,
+): Promise<{ data?: OperatorPrudence[]; error?: string }> {
+  const auth = await requireCamereAdmin();
+  if (auth.error) return { error: auth.error };
+
+  const sb = getSupabase();
+  const { data, error } = await sb.rpc('get_operator_prudence', { p_days: days });
+  if (error) return { error: error.message };
+
+  const rows = (data || []) as Array<{
+    operator_id: string;
+    email: string;
+    name: string | null;
+    sessions: number;
+    routes_covered: number;
+    op_avg_short_pax: number;
+    baseline_avg_short_pax: number;
+    deviation_pct: number;
+  }>;
+
+  const result: OperatorPrudence[] = rows.map((r) => {
+    const dev = Number(r.deviation_pct) || 0;
+    let status: OperatorPrudence['status'];
+    if (dev <= -15) status = 'warning';
+    else if (dev < -5) status = 'attention';
+    else status = 'ok';
+    return {
+      operator_id: r.operator_id,
+      email: r.email,
+      name: r.name,
+      sessions: Number(r.sessions) || 0,
+      routes_covered: Number(r.routes_covered) || 0,
+      op_avg_short_pax: Number(r.op_avg_short_pax) || 0,
+      baseline_avg_short_pax: Number(r.baseline_avg_short_pax) || 0,
+      deviation_pct: dev,
+      status,
+    };
+  });
+
+  return { data: result };
 }

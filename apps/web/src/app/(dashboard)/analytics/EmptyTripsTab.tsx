@@ -76,7 +76,10 @@ export default function EmptyTripsTab({ data }: Props) {
         <>
           {/* Heatmap table */}
           <div className="card" style={{ padding: 16, marginBottom: 16 }}>
-            <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12, color: '#333' }}>Pasageri pe zi (medie)</h3>
+            <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 4, color: '#333' }}>Pasageri×opriri pe zi (proxy încărcare)</h3>
+            <p style={{ fontSize: 12, color: '#888', margin: '0 0 12px 0' }}>
+              Suma pasagerilor prezenți la fiecare oprire — indicator de cât de plin e autobuzul de-a lungul traseului. Nu reprezintă pasageri unici.
+            </p>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
@@ -126,6 +129,63 @@ export default function EmptyTripsTab({ data }: Props) {
             </div>
           </div>
 
+          {/* Real passengers table */}
+          <div className="card" style={{ padding: 16, marginBottom: 16 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 4, color: '#333' }}>Pasageri reali (medie pe cursă)</h3>
+            <p style={{ fontSize: 12, color: '#888', margin: '0 0 12px 0' }}>
+              Număr de pasageri unici (au urcat și au coborât). Include cei lungi și cei scurți.
+            </p>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left', padding: '8px 10px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Ruta</th>
+                    <th style={{ textAlign: 'center', padding: '8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Pas. reali</th>
+                    <th style={{ textAlign: 'center', padding: '8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Pas.×km</th>
+                    <th style={{ textAlign: 'center', padding: '8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Lungime (km)</th>
+                    <th style={{ textAlign: 'center', padding: '8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Încărcare %</th>
+                    <th style={{ textAlign: 'center', padding: '8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Venit/km</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.map(row => (
+                    <tr key={`real-${row.crm_route_id}`} style={{ borderBottom: '1px solid #f5f5f5' }}>
+                      <td style={{ padding: '8px 10px', fontSize: 13, whiteSpace: 'nowrap' }}>
+                        {row.route_name}
+                        <span style={{ color: '#aaa', fontSize: 11, marginLeft: 6 }}>{row.time_chisinau?.split(' - ')[0]}</span>
+                      </td>
+                      <td style={{ textAlign: 'center', padding: '8px', fontSize: 14, fontWeight: 600, color: '#1e3a5f' }}>
+                        {row.unique_passengers_avg}
+                      </td>
+                      <td style={{ textAlign: 'center', padding: '8px', fontSize: 13, color: '#555' }}>
+                        {row.passenger_km_avg.toLocaleString('ro-RO')}
+                      </td>
+                      <td style={{ textAlign: 'center', padding: '8px', fontSize: 13, color: '#555' }}>
+                        {row.route_length_km !== null ? row.route_length_km : '—'}
+                      </td>
+                      <td style={{ textAlign: 'center', padding: '8px' }}>
+                        <span style={{
+                          display: 'inline-block', padding: '2px 8px', borderRadius: 10, fontSize: 12, fontWeight: 700,
+                          color: row.load_factor_pct === null ? '#888' :
+                                 row.load_factor_pct >= 65 ? '#065f46' :
+                                 row.load_factor_pct >= 40 ? '#92400e' : '#991b1b',
+                          background: row.load_factor_pct === null ? '#f5f5f5' :
+                                      row.load_factor_pct >= 65 ? 'rgba(5,150,105,0.18)' :
+                                      row.load_factor_pct >= 40 ? 'rgba(217,119,6,0.18)' : 'rgba(220,38,38,0.18)',
+                        }}>
+                          {row.load_factor_pct !== null ? `${row.load_factor_pct.toFixed(0)}%` : '—'}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'center', padding: '8px', fontSize: 14, fontWeight: 600, color: '#9B1B30' }}>
+                        {row.revenue_per_km !== null ? `${row.revenue_per_km.toFixed(1)} lei` : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           {/* Details table */}
           <div className="card" style={{ padding: 16 }}>
             <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12, color: '#333' }}>Detalii</h3>
@@ -135,7 +195,8 @@ export default function EmptyTripsTab({ data }: Props) {
                   <tr style={{ background: '#fafafa' }}>
                     <th style={{ textAlign: 'left', padding: '8px 10px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Ruta</th>
                     <th style={{ textAlign: 'center', padding: '8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Curse</th>
-                    <th style={{ textAlign: 'center', padding: '8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Med. pas.</th>
+                    <th style={{ textAlign: 'center', padding: '8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Pas.×opriri</th>
+                    <th style={{ textAlign: 'center', padding: '8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Pas. reali</th>
                     <th style={{ textAlign: 'center', padding: '8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Etalon</th>
                     <th style={{ textAlign: 'center', padding: '8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Goale</th>
                     <th style={{ textAlign: 'center', padding: '8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Ploaie</th>
@@ -150,7 +211,8 @@ export default function EmptyTripsTab({ data }: Props) {
                         <span style={{ color: '#aaa', fontSize: 11, marginLeft: 6 }}>{row.time_chisinau?.split(' - ')[0]}</span>
                       </td>
                       <td style={{ textAlign: 'center', padding: '8px', fontSize: 14 }}>{row.sessions_count}</td>
-                      <td style={{ textAlign: 'center', padding: '8px', fontSize: 14, fontWeight: 600 }}>{row.avg_passengers}</td>
+                      <td style={{ textAlign: 'center', padding: '8px', fontSize: 13, color: '#888' }}>{row.avg_passengers}</td>
+                      <td style={{ textAlign: 'center', padding: '8px', fontSize: 14, fontWeight: 600 }}>{row.unique_passengers_avg}</td>
                       <td style={{ textAlign: 'center', padding: '8px', fontSize: 13, color: '#888' }}>
                         {row.baseline !== null ? row.baseline : '—'}
                       </td>

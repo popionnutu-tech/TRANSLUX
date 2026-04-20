@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import type { DailyCount, DetailedRoutesResult, DeviceCount, CountryCount } from './actions';
-import type { DriverPerformanceRow, RouteEtalon, EmptyTripRow, DemandSupplyRow, RevenueOverview, RouteOption } from './sales-actions';
+import type { DriverPerformanceRow, RouteEtalon, EmptyTripRow, DemandSupplyRow, RevenueOverview, RouteOption, OverviewKPI, RouteScorecardRow, DriverScorecardRow } from './sales-actions';
 import {
   getPageViewsPerDay,
   getSearchesPerDay,
@@ -11,10 +11,11 @@ import {
   getCountryBreakdown,
   getTotalStats,
 } from './actions';
-import { getEmptyTripsAnalysis, getDemandSupplyGap } from './sales-actions';
+import { getEmptyTripsAnalysis, getDemandSupplyGap, getOverviewKPI, getRouteScorecard, getDriverScorecard } from './sales-actions';
 import DriverRatingTab from './DriverRatingTab';
 import EmptyTripsTab from './EmptyTripsTab';
 import DemandGapTab from './DemandGapTab';
+import OverviewTab from './OverviewTab';
 
 interface Props {
   initialPageViews: DailyCount[];
@@ -32,11 +33,15 @@ interface Props {
   initialRoutes: RouteOption[];
   initialDateFrom: string;
   initialDateTo: string;
+  initialOverviewKPI: OverviewKPI;
+  initialRouteScorecard: RouteScorecardRow[];
+  initialDriverScorecard: DriverScorecardRow[];
 }
 
-type Tab = 'site' | 'performanta' | 'curse-goale' | 'cerere';
+type Tab = 'overview' | 'site' | 'performanta' | 'curse-goale' | 'cerere';
 
 const TABS: { id: Tab; label: string }[] = [
+  { id: 'overview', label: 'Overview' },
   { id: 'site', label: 'Site' },
   { id: 'performanta', label: 'Performanța' },
   { id: 'curse-goale', label: 'Curse goale' },
@@ -183,8 +188,11 @@ export default function AnalyticsClient({
   initialRoutes,
   initialDateFrom,
   initialDateTo,
+  initialOverviewKPI,
+  initialRouteScorecard,
+  initialDriverScorecard,
 }: Props) {
-  const [tab, setTab] = useState<Tab>('site');
+  const [tab, setTab] = useState<Tab>('overview');
   const [days, setDays] = useState(initialDays);
   const [pageViews, setPageViews] = useState(initialPageViews);
   const [searches, setSearches] = useState(initialSearches);
@@ -194,6 +202,9 @@ export default function AnalyticsClient({
   const [totals, setTotals] = useState(initialTotals);
   const [emptyTrips, setEmptyTrips] = useState(initialEmptyTrips);
   const [demandGap, setDemandGap] = useState(initialDemandGap);
+  const [overviewKPI, setOverviewKPI] = useState(initialOverviewKPI);
+  const [routeScorecard, setRouteScorecard] = useState(initialRouteScorecard);
+  const [driverScorecard, setDriverScorecard] = useState(initialDriverScorecard);
   const [isPending, startTransition] = useTransition();
 
   function handlePeriodChange(newDays: number) {
@@ -201,7 +212,7 @@ export default function AnalyticsClient({
     const dateFrom = new Date(Date.now() - newDays * 86400000).toISOString().slice(0, 10);
     const dateTo = new Date().toISOString().slice(0, 10);
     startTransition(async () => {
-      const [pv, sr, dr, dv, ct, tt, et, dg] = await Promise.all([
+      const [pv, sr, dr, dv, ct, tt, et, dg, kpi, rs, ds] = await Promise.all([
         getPageViewsPerDay(newDays),
         getSearchesPerDay(newDays),
         getTopSearchedRoutesDetailed(newDays),
@@ -210,6 +221,9 @@ export default function AnalyticsClient({
         getTotalStats(newDays),
         getEmptyTripsAnalysis(dateFrom, dateTo),
         getDemandSupplyGap(newDays),
+        getOverviewKPI(dateFrom, dateTo),
+        getRouteScorecard(dateFrom, dateTo),
+        getDriverScorecard(dateFrom, dateTo),
       ]);
       setPageViews(pv);
       setSearches(sr);
@@ -219,6 +233,9 @@ export default function AnalyticsClient({
       setTotals(tt);
       setEmptyTrips(et);
       setDemandGap(dg);
+      setOverviewKPI(kpi);
+      setRouteScorecard(rs);
+      setDriverScorecard(ds);
     });
   }
 
@@ -257,6 +274,17 @@ export default function AnalyticsClient({
       </div>
 
       {isPending && <div style={{ color: '#999', fontSize: 13, marginBottom: 12 }}>Se incarca...</div>}
+
+      {/* Tab: Overview (KPI + matrix + drivers) */}
+      {tab === 'overview' && (
+        <OverviewTab
+          kpi={overviewKPI}
+          routes={routeScorecard}
+          drivers={driverScorecard}
+          onRouteClick={() => setTab('curse-goale')}
+          onDriverClick={() => setTab('performanta')}
+        />
+      )}
 
       {/* Tab: Site (original analytics) */}
       {tab === 'site' && (

@@ -240,6 +240,27 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
       ) : loading ? (
         <p className="text-muted">Se încarcă...</p>
       ) : isPeriod ? (
+        <>
+        {canSeeSums && periodRoutes.length > 0 && (() => {
+          const totalDual = periodRoutes.reduce((s, r) => s + (Number(r.tur_total_lei) || 0) + (Number(r.retur_total_lei) || 0), 0);
+          const totalSingle = periodRoutes.reduce((s, r) => s + (Number(r.tur_single_lei) || 0) + (Number(r.retur_single_lei) || 0), 0);
+          const totalDiff = totalDual - totalSingle;
+          const totalSessions = periodRoutes.reduce((s, r) => s + r.sessions_count, 0);
+          return (
+            <div className="card" style={{ display: 'flex', gap: 24, padding: 14, marginBottom: 12, flexWrap: 'wrap' }}>
+              <div><span className="text-muted">Total perioada</span></div>
+              <div><span className="text-muted">Curse:</span> <strong>{totalSessions}</strong></div>
+              <div><span className="text-muted">Sumă (2 tarife):</span> <strong>{Math.round(totalDual)} lei</strong></div>
+              <div><span className="text-muted">Dacă 1 tarif:</span> <strong>{Math.round(totalSingle)} lei</strong></div>
+              <div>
+                <span className="text-muted">Δ:</span>{' '}
+                <strong style={{ color: totalDiff > 0 ? 'var(--success)' : 'var(--text-muted)' }}>
+                  {totalDiff >= 0 ? '+' : ''}{Math.round(totalDiff)} lei
+                </strong>
+              </div>
+            </div>
+          );
+        })()}
         <table className="table">
           <thead>
             <tr>
@@ -275,27 +296,28 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
               );
             })}
           </tbody>
-          {canSeeSums && periodRoutes.length > 0 && (() => {
-            const totalDual = periodRoutes.reduce((s, r) => s + (Number(r.tur_total_lei) || 0) + (Number(r.retur_total_lei) || 0), 0);
-            const totalSingle = periodRoutes.reduce((s, r) => s + (Number(r.tur_single_lei) || 0) + (Number(r.retur_single_lei) || 0), 0);
-            const totalDiff = totalDual - totalSingle;
-            const totalSessions = periodRoutes.reduce((s, r) => s + r.sessions_count, 0);
-            return (
-              <tfoot>
-                <tr>
-                  <td colSpan={3}><strong>Total perioada</strong></td>
-                  <td><strong>{totalSessions}</strong></td>
-                  <td><strong>{Math.round(totalDual)} lei</strong></td>
-                  <td><strong>{Math.round(totalSingle)} lei</strong></td>
-                  <td style={{ color: totalDiff > 0 ? 'var(--success)' : 'var(--text-muted)' }}>
-                    <strong>{totalDiff >= 0 ? '+' : ''}{Math.round(totalDiff)} lei</strong>
-                  </td>
-                </tr>
-              </tfoot>
-            );
-          })()}
         </table>
+        </>
       ) : (
+        <>
+        {canSeeSums && routes.length > 0 && (() => {
+          const totalDual = routes.reduce((s, r) => s + (Number(r.tur_total_lei) || 0) + (Number(r.retur_total_lei) || 0), 0);
+          const totalSingle = routes.reduce((s, r) => s + (Number(r.tur_single_lei) || 0) + (Number(r.retur_single_lei) || 0), 0);
+          const totalDiff = totalDual - totalSingle;
+          return (
+            <div className="card" style={{ display: 'flex', gap: 24, padding: 14, marginBottom: 12, flexWrap: 'wrap' }}>
+              <div><span className="text-muted">Total ziua</span></div>
+              <div><span className="text-muted">Sumă (2 tarife):</span> <strong>{Math.round(totalDual)} lei</strong></div>
+              <div><span className="text-muted">Dacă 1 tarif:</span> <strong>{Math.round(totalSingle)} lei</strong></div>
+              <div>
+                <span className="text-muted">Δ:</span>{' '}
+                <strong style={{ color: totalDiff > 0 ? 'var(--success)' : 'var(--text-muted)' }}>
+                  {totalDiff >= 0 ? '+' : ''}{Math.round(totalDiff)} lei
+                </strong>
+              </div>
+            </div>
+          );
+        })()}
         <table className="table">
           <thead>
             <tr>
@@ -372,25 +394,8 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
               );
             })}
           </tbody>
-          {canSeeSums && routes.length > 0 && (() => {
-            const totalDual = routes.reduce((s, r) => s + (Number(r.tur_total_lei) || 0) + (Number(r.retur_total_lei) || 0), 0);
-            const totalSingle = routes.reduce((s, r) => s + (Number(r.tur_single_lei) || 0) + (Number(r.retur_single_lei) || 0), 0);
-            const totalDiff = totalDual - totalSingle;
-            return (
-              <tfoot>
-                <tr>
-                  <td colSpan={6}><strong>Total ziua</strong></td>
-                  <td><strong>{Math.round(totalDual)} lei</strong></td>
-                  <td><strong>{Math.round(totalSingle)} lei</strong></td>
-                  <td style={{ color: totalDiff > 0 ? 'var(--success)' : 'var(--text-muted)' }}>
-                    <strong>{totalDiff >= 0 ? '+' : ''}{Math.round(totalDiff)} lei</strong>
-                  </td>
-                  <td></td>
-                </tr>
-              </tfoot>
-            );
-          })()}
         </table>
+        </>
       )}
     </div>
   );

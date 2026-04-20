@@ -1,22 +1,24 @@
 # Git & VCS
 .git
+.gitignore
 apps/web/.git
 
 # Node
-node_modules/
-**/node_modules/
+node_modules
+**/node_modules
 npm-debug.log
+yarn-debug.log
 yarn-error.log
 
 # Build artifacts
-dist/
-**/dist/
-.next/
-**/.next/
+dist
+**/dist
+.next
+**/.next
 *.tsbuildinfo
 
-# Next.js web app — not needed for bot deploy
-apps/web/
+# Next.js — web app entirely not needed for the bot image
+apps/web
 
 # Environment
 .env
@@ -26,28 +28,33 @@ apps/web/
 
 # Editor & OS
 .DS_Store
-.vscode/
-.idea/
+.vscode
+.idea
 *.log
 
 # Claude / AI tooling
-.claude/
-.superpowers/
+.claude
+.superpowers
 
 # Deploy / Platform
-.vercel/
+.vercel
+.railway
+.railwayignore
 
 # Docs & design
-docs/
-design/
+docs
+design
+*.md
+!README.md
 
-# Scripts (not needed in deploy)
-scripts/
+# Scripts (not needed inside image)
+scripts
 
 # Supabase local artifacts
-supabase/
+supabase/.temp
+supabase/.branches
 
-# Large media
+# Large media in repo root
 *.png
 *.jpg
 *.jpeg
@@ -59,8 +66,11 @@ supabase/
 # Tests
 **/*.test.ts
 **/*.test.tsx
-**/__tests__/
+**/*.spec.ts
+**/__tests__
 
 # Misc
 PROMPT_FINAL.md
 discovery-interview.md
+railway.toml
+vercel.json

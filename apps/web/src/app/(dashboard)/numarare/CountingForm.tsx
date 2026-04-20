@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { saveDirection, getRouteStops, toggleDoubleTariff, type RouteStop, type TariffConfig, type SavedEntry } from './actions';
-import { calculateDirection, getEligibleBoardingStops, type StopEntry, type ShortPassengerGroup } from './calculation';
+import { saveDirection, getRouteStops, type RouteStop, type TariffConfig, type SavedEntry } from './actions';
+import { calculateDirection, calculateSingleTariff, getEligibleBoardingStops, type StopEntry, type ShortPassengerGroup } from './calculation';
 import ShortPassengerPopup from './ShortPassengerPopup';
 
 interface Props {
@@ -10,7 +10,6 @@ interface Props {
   crmRouteId: number;
   stops: RouteStop[];
   tariff: TariffConfig;
-  doubleTariff: boolean;
   sessionStatus: string;
   savedTur: SavedEntry[];
   savedRetur: SavedEntry[];
@@ -26,9 +25,8 @@ interface EntryState {
 }
 
 export default function CountingForm({
-  sessionId, crmRouteId, stops, tariff, doubleTariff: initialDoubleTariff, sessionStatus, savedTur, savedRetur, onSaved, canSeeSums,
+  sessionId, crmRouteId, stops, tariff, sessionStatus, savedTur, savedRetur, onSaved, canSeeSums,
 }: Props) {
-  const [doubleTariff, setDoubleTariff] = useState(initialDoubleTariff || tariff.doubleTariffEnabled);
   const [returStops, setReturStops] = useState<RouteStop[]>([]);
   const [turEntries, setTurEntries] = useState<Record<number, EntryState>>({});
   const [returEntries, setReturEntries] = useState<Record<number, EntryState>>({});
@@ -203,7 +201,7 @@ export default function CountingForm({
 
     const alightedCount = parseInt(getEntries(direction)[stopOrder]?.alighted || '0') || 0;
 
-    if (alightedCount > 0 && doubleTariff) {
+    if (alightedCount > 0) {
       // Treci la câmpul Scurți
       const shortRef = shortRefs.current[`${direction}-${stopOrder}`];
       if (shortRef) shortRef.focus();
@@ -305,7 +303,12 @@ export default function CountingForm({
 
   function calcResult(direction: 'tur' | 'retur') {
     const entries = buildStopEntries(direction);
-    return calculateDirection(entries, tariff.ratePerKmLong, doubleTariff ? tariff.ratePerKmShort : tariff.ratePerKmLong);
+    return calculateDirection(entries, tariff.ratePerKmLong, tariff.ratePerKmShort);
+  }
+
+  function calcSingleTotal(direction: 'tur' | 'retur') {
+    const entries = buildStopEntries(direction);
+    return calculateSingleTariff(entries, tariff.ratePerKmLong);
   }
 
   const turResult = calcResult('tur');
@@ -332,7 +335,14 @@ export default function CountingForm({
         })),
       }));
 
-      const res = await saveDirection(sessionId, direction, saveEntries, Math.round(result.total));
+      const singleTotal = calcSingleTotal(direction);
+      const res = await saveDirection(
+        sessionId,
+        direction,
+        saveEntries,
+        Math.round(result.total),
+        Math.round(singleTotal),
+      );
       if (res.error) setError(res.error);
       else onSaved();
     } finally {
@@ -358,7 +368,7 @@ export default function CountingForm({
               <th style={{ width: 70 }}>Total</th>
               <th style={{ width: 55 }}>Cob.</th>
               <th style={{ width: 40 }}>±</th>
-              {doubleTariff && <th style={{ width: 70 }}>Scurți</th>}
+              <th style={{ width: 70 }}>Scurți</th>
             </tr>
           </thead>
           <tbody>
@@ -411,24 +421,22 @@ export default function CountingForm({
                   <td style={{ color: delta > 0 ? 'var(--success)' : delta < 0 ? 'var(--warning)' : 'var(--text-muted)' }}>
                     {entry?.totalPassengers !== undefined && entry?.totalPassengers !== '' ? (delta > 0 ? `+${delta}` : delta) : ''}
                   </td>
-                  {doubleTariff && (
-                    <td>
-                      {alightedCount > 0 ? (
-                        <input
-                          ref={el => { shortRefs.current[`${direction}-${stop.stopOrder}`] = el; }}
-                          type="text"
-                          inputMode="numeric"
-                          pattern="[0-9]*"
-                          value={entry?.shortCount ?? ''}
-                          onChange={e => handleShortChange(direction, stop.stopOrder, e.target.value.replace(/\D/g, ''))}
-                          onKeyDown={e => handleShortKeyDown(direction, stop.stopOrder, stop, e)}
-                          placeholder="0"
-                          disabled={readOnly}
-                          style={{ width: 55, textAlign: 'center' }}
-                        />
-                      ) : null}
-                    </td>
-                  )}
+                  <td>
+                    {alightedCount > 0 ? (
+                      <input
+                        ref={el => { shortRefs.current[`${direction}-${stop.stopOrder}`] = el; }}
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={entry?.shortCount ?? ''}
+                        onChange={e => handleShortChange(direction, stop.stopOrder, e.target.value.replace(/\D/g, ''))}
+                        onKeyDown={e => handleShortKeyDown(direction, stop.stopOrder, stop, e)}
+                        placeholder="0"
+                        disabled={readOnly}
+                        style={{ width: 55, textAlign: 'center' }}
+                      />
+                    ) : null}
+                  </td>
                 </tr>
               );
             })}
@@ -438,19 +446,15 @@ export default function CountingForm({
         <div className="card" style={{ marginTop: 12, padding: 12 }}>
           {canSeeSums && (
             <>
-              {doubleTariff && (
-                <>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Pasageri lungi:</span>
-                    <strong>{Math.round(result.longSum)} lei</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Pasageri scurți:</span>
-                    <strong>{Math.round(result.shortSum)} lei</strong>
-                  </div>
-                  <hr style={{ margin: '6px 0' }} />
-                </>
-              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Pasageri lungi:</span>
+                <strong>{Math.round(result.longSum)} lei</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Pasageri scurți:</span>
+                <strong>{Math.round(result.shortSum)} lei</strong>
+              </div>
+              <hr style={{ margin: '6px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16 }}>
                 <span>Total {label}:</span>
                 <strong>{Math.round(result.total)} lei</strong>
@@ -474,27 +478,9 @@ export default function CountingForm({
     );
   }
 
-  async function handleToggleDoubleTariff() {
-    const newValue = !doubleTariff;
-    setDoubleTariff(newValue);
-    await toggleDoubleTariff(sessionId, newValue);
-  }
-
   return (
     <div style={{ padding: 16, background: 'var(--primary-dim)' }}>
       {error && <div className="alert alert-danger" style={{ marginBottom: 12 }}>{error}</div>}
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
-          <input
-            type="checkbox"
-            checked={doubleTariff}
-            onChange={handleToggleDoubleTariff}
-            style={{ width: 16, height: 16 }}
-          />
-          Tarif dublu (scurți / lungi)
-        </label>
-      </div>
 
       <div style={{ display: 'flex', gap: 24 }}>
         {renderColumn('tur', stops, turReadOnly)}

@@ -195,7 +195,6 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
             crmRouteId={openRoute.crm_route_id}
             stops={stops}
             tariff={tariff}
-            doubleTariff={openRoute.double_tariff}
             sessionStatus={openRoute.session_status || 'new'}
             savedTur={savedTur}
             savedRetur={savedRetur}
@@ -215,7 +214,9 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
               <th>Șofer</th>
               <th>Mașina</th>
               <th>Status</th>
-              {canSeeSums && <th>Sumă</th>}
+              {canSeeSums && <th>Sumă (2 tarife)</th>}
+              {canSeeSums && <th>Dacă 1 tarif</th>}
+              {canSeeSums && <th>Δ</th>}
               <th></th>
             </tr>
           </thead>
@@ -223,6 +224,11 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
             {routes.map(route => {
               const completed = route.session_status === 'completed';
               const ownedByOther = route.operator_id && route.operator_id !== currentUserId;
+              const hasSums = route.tur_total_lei != null || route.retur_total_lei != null;
+              const dualTotal = (Number(route.tur_total_lei) || 0) + (Number(route.retur_total_lei) || 0);
+              const hasSingle = route.tur_single_lei != null || route.retur_single_lei != null;
+              const singleTotal = (Number(route.tur_single_lei) || 0) + (Number(route.retur_single_lei) || 0);
+              const diff = dualTotal - singleTotal;
               return (
                 <tr key={route.crm_route_id}>
                   <td>{route.time_nord?.split(' - ')[0]}</td>
@@ -252,10 +258,14 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
                   </td>
                   <td>{statusBadge(route)}</td>
                   {canSeeSums && (
-                    <td>
-                      {route.tur_total_lei != null || route.retur_total_lei != null
-                        ? `${(route.tur_total_lei || 0) + (route.retur_total_lei || 0)} lei`
-                        : '—'}
+                    <td>{hasSums ? `${Math.round(dualTotal)} lei` : '—'}</td>
+                  )}
+                  {canSeeSums && (
+                    <td>{hasSingle ? `${Math.round(singleTotal)} lei` : '—'}</td>
+                  )}
+                  {canSeeSums && (
+                    <td style={{ color: hasSingle && diff > 0 ? 'var(--success)' : 'var(--text-muted)' }}>
+                      {hasSingle ? `${diff >= 0 ? '+' : ''}${Math.round(diff)} lei` : '—'}
                     </td>
                   )}
                   <td>
@@ -271,6 +281,24 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
               );
             })}
           </tbody>
+          {canSeeSums && routes.length > 0 && (() => {
+            const totalDual = routes.reduce((s, r) => s + (Number(r.tur_total_lei) || 0) + (Number(r.retur_total_lei) || 0), 0);
+            const totalSingle = routes.reduce((s, r) => s + (Number(r.tur_single_lei) || 0) + (Number(r.retur_single_lei) || 0), 0);
+            const totalDiff = totalDual - totalSingle;
+            return (
+              <tfoot>
+                <tr>
+                  <td colSpan={6}><strong>Total ziua</strong></td>
+                  <td><strong>{Math.round(totalDual)} lei</strong></td>
+                  <td><strong>{Math.round(totalSingle)} lei</strong></td>
+                  <td style={{ color: totalDiff > 0 ? 'var(--success)' : 'var(--text-muted)' }}>
+                    <strong>{totalDiff >= 0 ? '+' : ''}{Math.round(totalDiff)} lei</strong>
+                  </td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            );
+          })()}
         </table>
       )}
     </div>

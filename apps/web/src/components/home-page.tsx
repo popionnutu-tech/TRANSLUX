@@ -6,11 +6,6 @@ import { format } from 'date-fns';
 import { ro as roLocale, ru as ruLocale } from 'date-fns/locale';
 import { RainbowButton } from '@/components/ui/rainbow-borders-button';
 
-const VoiceCallButton = dynamic(
-  () => import('./ui/voice-call-button').then(m => ({ default: m.VoiceCallButton })),
-  { ssr: false }
-);
-
 const ShaderBackground = dynamic(
   () => import('@/components/ui/shader-background'),
   {
@@ -308,9 +303,6 @@ export function HomePage({ locale, localities = [], popularPrices = [] }: HomePa
         </footer>
 
       </div>
-
-      {/* Voice call button */}
-      <VoiceCallButton />
 
       {/* Lang toggle */}
       <div className="lang-toggle-3d" style={{

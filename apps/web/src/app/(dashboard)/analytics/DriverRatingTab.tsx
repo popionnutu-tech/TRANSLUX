@@ -172,12 +172,14 @@ export default function DriverRatingTab({ initialData, initialEtalons, routes, d
               <thead>
                 <tr style={{ background: '#fafafa' }}>
                   <th style={{ textAlign: 'left', padding: '10px 12px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Sofer</th>
-                  <th style={{ textAlign: 'center', padding: '10px 8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Tip</th>
                   <th style={{ textAlign: 'left', padding: '10px 8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Ruta</th>
+                  <th style={{ textAlign: 'center', padding: '10px 8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>%</th>
+                  <th style={{ textAlign: 'center', padding: '10px 8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Venit/km</th>
+                  <th style={{ textAlign: 'center', padding: '10px 8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Tip</th>
                   <th style={{ textAlign: 'center', padding: '10px 8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Curse</th>
+                  <th style={{ textAlign: 'center', padding: '10px 8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Km</th>
                   <th style={{ textAlign: 'center', padding: '10px 8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Pas. med.</th>
                   <th style={{ textAlign: 'center', padding: '10px 8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Etalon</th>
-                  <th style={{ textAlign: 'center', padding: '10px 8px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>%</th>
                   <th style={{ textAlign: 'right', padding: '10px 12px', fontSize: 12, color: '#888', borderBottom: '1px solid #eee' }}>Venit (lei)</th>
                 </tr>
               </thead>
@@ -187,21 +189,7 @@ export default function DriverRatingTab({ initialData, initialEtalons, routes, d
                   return (
                     <tr key={`${row.driver_id}-${row.crm_route_id}`} style={{ borderBottom: '1px solid #f5f5f5' }}>
                       <td style={{ padding: '10px 12px', fontSize: 14, fontWeight: 500 }}>{row.driver_name}</td>
-                      <td style={{ textAlign: 'center', padding: '10px 8px', fontSize: 12 }}>
-                        {row.is_stable
-                          ? <span style={{ color: '#9B1B30', fontWeight: 700 }}>★ stabil</span>
-                          : <span style={{ color: '#aaa' }}>schimb.</span>
-                        }
-                      </td>
                       <td style={{ padding: '10px 8px', fontSize: 13, color: '#555' }}>{row.route_name}</td>
-                      <td style={{ textAlign: 'center', padding: '10px 8px', fontSize: 14 }}>{row.sessions_count}</td>
-                      <td style={{ textAlign: 'center', padding: '10px 8px', fontSize: 14, fontWeight: 600 }}>{row.avg_passengers}</td>
-                      <td style={{ textAlign: 'center', padding: '10px 8px', fontSize: 13, color: '#888' }}>
-                        {row.baseline_passengers !== null ? row.baseline_passengers : '—'}
-                        {row.sample_count > 0 && row.sample_count < 5 && (
-                          <span title={`Bazat pe ${row.sample_count} curse`} style={{ color: '#d97706', marginLeft: 4 }}>⚠</span>
-                        )}
-                      </td>
                       <td style={{ textAlign: 'center', padding: '10px 8px' }}>
                         <span style={{
                           display: 'inline-block',
@@ -215,6 +203,26 @@ export default function DriverRatingTab({ initialData, initialEtalons, routes, d
                         }}>
                           {row.performance_pct !== null ? `${row.performance_pct}%` : '—'}
                         </span>
+                      </td>
+                      <td style={{ textAlign: 'center', padding: '10px 8px', fontSize: 14, fontWeight: 600, color: '#9B1B30' }}>
+                        {row.avg_revenue_per_km !== null ? `${row.avg_revenue_per_km.toFixed(1)}` : '—'}
+                      </td>
+                      <td style={{ textAlign: 'center', padding: '10px 8px', fontSize: 12 }}>
+                        {row.is_stable
+                          ? <span style={{ color: '#9B1B30', fontWeight: 700 }}>★ stabil</span>
+                          : <span style={{ color: '#aaa' }}>schimb.</span>
+                        }
+                      </td>
+                      <td style={{ textAlign: 'center', padding: '10px 8px', fontSize: 14 }}>{row.sessions_count}</td>
+                      <td style={{ textAlign: 'center', padding: '10px 8px', fontSize: 13, color: '#666' }}>
+                        {row.total_km_driven.toLocaleString('ro-RO')}
+                      </td>
+                      <td style={{ textAlign: 'center', padding: '10px 8px', fontSize: 14, fontWeight: 600 }}>{row.avg_passengers}</td>
+                      <td style={{ textAlign: 'center', padding: '10px 8px', fontSize: 13, color: '#888' }}>
+                        {row.baseline_passengers !== null ? row.baseline_passengers : '—'}
+                        {row.sample_count > 0 && row.sample_count < 5 && (
+                          <span title={`Bazat pe ${row.sample_count} curse`} style={{ color: '#d97706', marginLeft: 4 }}>⚠</span>
+                        )}
                       </td>
                       <td style={{ textAlign: 'right', padding: '10px 12px', fontSize: 14, fontWeight: 500 }}>
                         {row.total_revenue.toLocaleString()}

@@ -6,11 +6,13 @@ import NumarareClient from './NumarareClient';
 import OperatorsTab from './tabs/OperatorsTab';
 import SalaryTab from './tabs/SalaryTab';
 import TariffsTab from './tabs/TariffsTab';
+import IncasareTab from './tabs/IncasareTab';
 
-type Tab = 'numarare' | 'operatori' | 'salariu' | 'tarife';
+type Tab = 'numarare' | 'incasare' | 'operatori' | 'salariu' | 'tarife';
 
 const ADMIN_TABS: { key: Tab; label: string }[] = [
   { key: 'numarare', label: 'Numărare' },
+  { key: 'incasare', label: 'Încasare' },
   { key: 'operatori', label: 'Operatori' },
   { key: 'salariu', label: 'Salariu' },
   { key: 'tarife', label: 'Tarife' },
@@ -57,6 +59,7 @@ export default function NumararePageClient({ role }: { role: AdminRole }) {
       )}
 
       {activeTab === 'numarare' && <NumarareClient role={role} />}
+      {activeTab === 'incasare' && <IncasareTab />}
       {activeTab === 'operatori' && <OperatorsTab />}
       {activeTab === 'salariu' && <SalaryTab />}
       {activeTab === 'tarife' && <TariffsTab />}

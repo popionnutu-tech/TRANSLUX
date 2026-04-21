@@ -59,6 +59,25 @@ export async function updateDriverName(driverId: string, fullName: string) {
   revalidatePath('/drivers');
 }
 
+export async function updateDriverCashinId(driverId: string, cashinId: string) {
+  requireRole(await verifySession(), 'ADMIN', 'DISPATCHER');
+  const trimmed = cashinId.trim();
+  const value = trimmed === '' ? null : trimmed;
+
+  const { error } = await getSupabase()
+    .from('drivers')
+    .update({ cashin_sofer_id: value })
+    .eq('id', driverId);
+
+  if (error) {
+    if (error.code === '23505') {
+      throw new Error('Acest cod cash-in e deja asociat altui șofer');
+    }
+    throw new Error(error.message);
+  }
+  revalidatePath('/drivers');
+}
+
 export async function toggleDriver(id: string, active: boolean) {
   requireRole(await verifySession(), 'ADMIN', 'DISPATCHER');
   await getSupabase().from('drivers').update({ active }).eq('id', id);

@@ -102,6 +102,13 @@ export interface DriverScorecardRow {
   total_unique_passengers: number;
   avg_revenue_per_km: number | null;
   avg_load_factor_pct: number | null;  // weighted by route length across driver's sessions
+  // Per-direction per-DOW load factor (for the "pondere de îmbarcare" view)
+  tur_by_dow: LoadByDow;
+  retur_by_dow: LoadByDow;
+  ambele_by_dow: LoadByDow;
+  overall_tur: number | null;
+  overall_retur: number | null;
+  overall_ambele: number | null;
   // Composite Notă breakdown (weights: 60% / 25% / 3 × 5%)
   abs_rpk_score: number | null;       // 60% — driver_rpk / fleet_rpk × 100
   relative_rpk_score: number | null;  // 25% — AVG(session_rpk / route_avg_rpk × 100)
@@ -890,6 +897,37 @@ export async function getDriverScorecard(dateFrom: string, dateTo: string): Prom
       ? (totalPaxKm / (totalKm * SEAT_CAP)) * 100
       : null;
 
+    // Per-direction, per-DOW load factor bins
+    const turAll: { pkm: number; length: number }[] = [];
+    const returAll: { pkm: number; length: number }[] = [];
+    const ambeleAll: { pkm: number; length: number }[] = [];
+    const turByDow: { pkm: number; length: number }[][] = Array.from({ length: 7 }, () => []);
+    const returByDow: { pkm: number; length: number }[][] = Array.from({ length: 7 }, () => []);
+    const ambeleByDow: { pkm: number; length: number }[][] = Array.from({ length: 7 }, () => []);
+    for (const s of g.sessions) {
+      const idx = pgDowToIdx(s.dow);
+      if (s.tur_length_km > 0) {
+        const e = { pkm: s.tur_passenger_km, length: s.tur_length_km };
+        turAll.push(e); turByDow[idx].push(e);
+      }
+      if (s.retur_length_km > 0) {
+        const e = { pkm: s.retur_passenger_km, length: s.retur_length_km };
+        returAll.push(e); returByDow[idx].push(e);
+      }
+      if (s.route_length_km > 0) {
+        const e = { pkm: s.passenger_km, length: s.route_length_km };
+        ambeleAll.push(e); ambeleByDow[idx].push(e);
+      }
+    }
+    const avgLoadWeighted = (rows: { pkm: number; length: number }[]): number | null => {
+      let pkmSum = 0, lenSum = 0;
+      for (const r of rows) { pkmSum += r.pkm; lenSum += r.length; }
+      if (lenSum <= 0) return null;
+      return Math.round((pkmSum / (lenSum * SEAT_CAP) * 100) * 10) / 10;
+    };
+    const toVec = (bins: { pkm: number; length: number }[][]): LoadByDow =>
+      bins.map(b => avgLoadWeighted(b)) as LoadByDow;
+
     // Component 1 (60%): absolute rpk score = driver_rpk / fleet_rpk × 100
     const absRpkScore: number | null = (driverRpk !== null && fleetRpk > 0)
       ? (driverRpk / fleetRpk) * 100
@@ -943,6 +981,12 @@ export async function getDriverScorecard(dateFrom: string, dateTo: string): Prom
       total_unique_passengers: totalUnique,
       avg_revenue_per_km: avgRpk,
       avg_load_factor_pct: avgLoadFactor !== null ? round1(avgLoadFactor) : null,
+      tur_by_dow: toVec(turByDow),
+      retur_by_dow: toVec(returByDow),
+      ambele_by_dow: toVec(ambeleByDow),
+      overall_tur: avgLoadWeighted(turAll),
+      overall_retur: avgLoadWeighted(returAll),
+      overall_ambele: avgLoadWeighted(ambeleAll),
       abs_rpk_score: absRpkScore !== null ? round1(absRpkScore) : null,
       relative_rpk_score: relRpkScore !== null ? round1(relRpkScore) : null,
       auto_curat_ok_rate: autoCurat !== null ? round1(autoCurat) : null,

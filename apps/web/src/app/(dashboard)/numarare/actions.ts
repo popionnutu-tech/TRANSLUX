@@ -27,6 +27,8 @@ export interface RouteForCounting {
   retur_total_lei: number | null;
   tur_single_lei: number | null;
   retur_single_lei: number | null;
+  route_type: 'interurban' | 'suburban';
+  dest_from_ro: string;
 }
 
 export interface DriverOption { id: string; full_name: string; }
@@ -58,8 +60,25 @@ export interface SavedEntry {
 export interface TariffConfig {
   ratePerKmLong: number;
   ratePerKmShort: number;
+  ratePerKmSuburban: number;
   doubleTariffEnabled: boolean;
   shortDistanceKm: number;
+}
+
+export interface SuburbanScheduleStop {
+  stopId: number;
+  stopOrder: number;
+  nameRo: string;
+  stopTime: string; // "HH:MM"
+  kmFromStart: number;
+}
+
+export interface SuburbanSchedule {
+  scheduleId: number;
+  direction: 'tur' | 'retur';
+  sequenceNo: number;
+  daysOfWeek: number[];
+  stops: SuburbanScheduleStop[];
 }
 
 export interface RouteForPeriod {
@@ -114,7 +133,7 @@ export async function getRoutesForDate(date: string): Promise<{ data?: RouteForC
   // 1. Toate rutele active
   const { data: allRoutes, error: rErr } = await sb
     .from('crm_routes')
-    .select('id, dest_to_ro, time_chisinau, time_nord')
+    .select('id, dest_to_ro, dest_from_ro, time_chisinau, time_nord, route_type')
     .eq('active', true);
 
   if (rErr) return { error: rErr.message };
@@ -191,6 +210,8 @@ export async function getRoutesForDate(date: string): Promise<{ data?: RouteForC
       retur_total_lei: s?.retur_total_lei || null,
       tur_single_lei: s?.tur_single_lei ?? null,
       retur_single_lei: s?.retur_single_lei ?? null,
+      route_type: (r.route_type || 'interurban') as 'interurban' | 'suburban',
+      dest_from_ro: r.dest_from_ro || '',
     };
   });
 
@@ -352,7 +373,7 @@ export async function getTariffConfig(date?: string): Promise<TariffConfig> {
   if (date) {
     const { data: period } = await sb
       .from('tariff_periods')
-      .select('rate_interurban_long, rate_interurban_short')
+      .select('rate_interurban_long, rate_interurban_short, rate_suburban')
       .lte('period_start', date)
       .gte('period_end', date)
       .order('period_start', { ascending: false })
@@ -363,6 +384,7 @@ export async function getTariffConfig(date?: string): Promise<TariffConfig> {
       return {
         ratePerKmLong: Number(period.rate_interurban_long),
         ratePerKmShort: Number(period.rate_interurban_short),
+        ratePerKmSuburban: Number((period as any).rate_suburban ?? 0),
         doubleTariffEnabled,
         shortDistanceKm,
       };
@@ -373,15 +395,106 @@ export async function getTariffConfig(date?: string): Promise<TariffConfig> {
   const { data: rateRows } = await sb
     .from('app_config')
     .select('key, value')
-    .in('key', ['rate_per_km_long', 'rate_per_km_interurban_short']);
+    .in('key', ['rate_per_km_long', 'rate_per_km_interurban_short', 'rate_per_km_suburban']);
   for (const row of rateRows || []) settings[row.key] = row.value;
 
   return {
     ratePerKmLong: parseFloat(settings['rate_per_km_long'] || '0.94'),
     ratePerKmShort: parseFloat(settings['rate_per_km_interurban_short'] || '0.94'),
+    ratePerKmSuburban: parseFloat(settings['rate_per_km_suburban'] || '1.20'),
     doubleTariffEnabled,
     shortDistanceKm,
   };
+}
+
+/**
+ * Returnează orarul suburban pentru o rută într-o zi specifică.
+ * Filtrează schedule-urile după days_of_week (ISO zi: 1=luni…7=duminică).
+ * Returnează listele tur și retur sortate după sequence_no.
+ */
+export async function getSuburbanSchedule(
+  crmRouteId: number,
+  date: string,
+): Promise<{ tur: SuburbanSchedule[]; retur: SuburbanSchedule[] }> {
+  try { requireRole(await verifySession(), ...NUMARARE_ROLES); } catch { return { tur: [], retur: [] }; }
+
+  const sb = getSupabase();
+  // JS: getDay() returns 0=Sunday. Convert to ISO 1=Mon..7=Sun.
+  const jsDay = new Date(date).getDay();
+  const isoDay = jsDay === 0 ? 7 : jsDay;
+
+  const { data: schedules } = await sb
+    .from('crm_route_schedules')
+    .select('id, direction, sequence_no, days_of_week')
+    .eq('route_id', crmRouteId)
+    .eq('active', true)
+    .contains('days_of_week', [isoDay])
+    .order('sequence_no', { ascending: true });
+
+  if (!schedules || schedules.length === 0) return { tur: [], retur: [] };
+
+  const scheduleIds = schedules.map((s: any) => s.id);
+  const { data: stopsRows } = await sb
+    .from('crm_route_schedule_stops')
+    .select('schedule_id, stop_id, stop_time, stop_order')
+    .in('schedule_id', scheduleIds)
+    .order('stop_order', { ascending: true });
+
+  // Load stop names + km
+  const stopIds = Array.from(new Set((stopsRows || []).map((r: any) => r.stop_id)));
+  const { data: stopDetails } = await sb
+    .from('crm_stop_prices')
+    .select('id, name_ro, km_from_nord, km_from_chisinau')
+    .in('id', stopIds);
+
+  const stopById: Record<number, { name: string; kmSegment: number }> = {};
+  for (const s of (stopDetails || []) as any[]) {
+    stopById[s.id] = { name: s.name_ro, kmSegment: Number(s.km_from_nord || 0) };
+  }
+
+  const byScheduleId: Record<number, SuburbanScheduleStop[]> = {};
+  for (const row of (stopsRows || []) as any[]) {
+    if (!byScheduleId[row.schedule_id]) byScheduleId[row.schedule_id] = [];
+    const meta = stopById[row.stop_id] || { name: '', kmSegment: 0 };
+    byScheduleId[row.schedule_id].push({
+      stopId: row.stop_id,
+      stopOrder: row.stop_order,
+      nameRo: meta.name,
+      stopTime: (row.stop_time as string)?.slice(0, 5) || '',
+      kmFromStart: 0, // temp, will compute below
+    });
+  }
+
+  // Compute kmFromStart per schedule (cumulative segment sum)
+  for (const schedId of Object.keys(byScheduleId)) {
+    const stops = byScheduleId[Number(schedId)];
+    stops.sort((a, b) => a.stopOrder - b.stopOrder);
+    let cum = 0;
+    for (let i = 0; i < stops.length; i++) {
+      if (i > 0) {
+        const seg = stopById[stops[i].stopId]?.kmSegment ?? 0;
+        cum += seg;
+      }
+      stops[i].kmFromStart = Math.round(cum * 10) / 10;
+    }
+  }
+
+  const tur: SuburbanSchedule[] = [];
+  const retur: SuburbanSchedule[] = [];
+
+  for (const s of schedules as any[]) {
+    const item: SuburbanSchedule = {
+      scheduleId: s.id,
+      direction: s.direction,
+      sequenceNo: s.sequence_no,
+      daysOfWeek: s.days_of_week,
+      stops: byScheduleId[s.id] || [],
+    };
+    if (s.direction === 'tur') tur.push(item);
+    else retur.push(item);
+  }
+
+  return { tur, retur };
 }
 
 // ─── Locking ───
@@ -610,4 +723,92 @@ export async function forceUnlock(sessionId: string): Promise<{ error?: string }
   }
 
   return unlockRoute(sessionId);
+}
+
+// ─── Suburban: save/load per ciclu ───
+
+export async function saveSuburbanCycle(
+  sessionId: string,
+  scheduleId: number,
+  direction: 'tur' | 'retur',
+  cycleNumber: number,
+  entries: {
+    stopOrder: number;
+    stopNameRo: string;
+    kmFromStart: number;
+    totalPassengers: number;
+    alighted: number;
+  }[],
+  totalLei: number,
+): Promise<{ error?: string }> {
+  try { requireRole(await verifySession(), ...NUMARARE_ROLES); } catch { return { error: 'Acces interzis' }; }
+  const sb = getSupabase();
+
+  // Șterge entries anterioare pentru acest (session, schedule, cycle)
+  await sb
+    .from('counting_entries')
+    .delete()
+    .eq('session_id', sessionId)
+    .eq('schedule_id', scheduleId)
+    .eq('cycle_number', cycleNumber);
+
+  // Inserează noile entries
+  for (const entry of entries) {
+    const { error } = await sb.from('counting_entries').insert({
+      session_id: sessionId,
+      direction,
+      schedule_id: scheduleId,
+      cycle_number: cycleNumber,
+      stop_order: entry.stopOrder,
+      stop_name_ro: entry.stopNameRo,
+      km_from_start: entry.kmFromStart,
+      total_passengers: entry.totalPassengers,
+      alighted: entry.alighted,
+    });
+    if (error) return { error: error.message };
+  }
+
+  // Reîntregim totalul sesiunii (sumă pe toate ciclurile din sesiune)
+  const { data: allEntries } = await sb
+    .from('counting_entries')
+    .select('direction, total_passengers, km_from_start, stop_order, schedule_id, cycle_number')
+    .eq('session_id', sessionId);
+  // Total simplificat — se calculează client-side. Aici doar marcăm ciclul salvat.
+  const tur_total_lei = (allEntries || [])
+    .filter((e: any) => e.direction === 'tur').length > 0 ? totalLei : null;
+  const retur_total_lei = (allEntries || [])
+    .filter((e: any) => e.direction === 'retur').length > 0 ? totalLei : null;
+
+  // Update status doar (totalul se recalculează din entries când ai timp)
+  await sb.from('counting_sessions').update({
+    status: direction === 'retur' ? 'completed' : 'tur_done',
+    locked_by: null,
+    locked_at: null,
+  }).eq('id', sessionId);
+
+  revalidatePath('/numarare');
+  return {};
+}
+
+export async function loadSuburbanEntries(
+  sessionId: string,
+): Promise<{ scheduleId: number | null; cycleNumber: number; direction: 'tur' | 'retur'; stopOrder: number; stopNameRo: string; kmFromStart: number; totalPassengers: number; alighted: number }[]> {
+  try { requireRole(await verifySession(), ...NUMARARE_ROLES); } catch { return []; }
+  const sb = getSupabase();
+  const { data } = await sb
+    .from('counting_entries')
+    .select('schedule_id, cycle_number, direction, stop_order, stop_name_ro, km_from_start, total_passengers, alighted')
+    .eq('session_id', sessionId)
+    .order('cycle_number')
+    .order('stop_order');
+  return (data || []).map((e: any) => ({
+    scheduleId: e.schedule_id,
+    cycleNumber: e.cycle_number,
+    direction: e.direction,
+    stopOrder: e.stop_order,
+    stopNameRo: e.stop_name_ro,
+    kmFromStart: Number(e.km_from_start),
+    totalPassengers: e.total_passengers,
+    alighted: e.alighted ?? 0,
+  }));
 }

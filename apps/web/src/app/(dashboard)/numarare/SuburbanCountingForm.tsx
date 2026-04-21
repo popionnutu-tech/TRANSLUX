@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { getSuburbanSchedule, saveSuburbanCycle, loadSuburbanEntries, type SuburbanSchedule, type TariffConfig } from './actions';
-import { calculateSuburban, type StopEntry } from './calculation';
 
 interface Props {
   sessionId: string;
@@ -53,16 +52,18 @@ export default function SuburbanCountingForm({ sessionId, crmRouteId, date, tari
 
   function currentTotal(): number {
     if (!selected) return 0;
-    const stopEntries: StopEntry[] = selected.stops.map(s => ({
-      stopOrder: s.stopOrder,
-      stopNameRo: s.nameRo,
-      kmFromStart: s.kmFromStart,
-      totalPassengers: inputs[s.stopOrder]?.total ?? 0,
-      alighted: inputs[s.stopOrder]?.alighted ?? 0,
-      shortPassengers: [],
-    }));
-    const r = calculateSuburban(stopEntries, tariff.ratePerKmSuburban);
-    return Math.round(r.total);
+    // Suburban round-trip: fiecare pasager (tur sau retur) plătește km-distanța
+    // de la stația sa până la Briceni (hub). Briceni = ultima stație în TUR.
+    const briceniKm = selected.stops[selected.stops.length - 1]?.kmFromStart ?? 0;
+    let total = 0;
+    for (const s of selected.stops) {
+      const dist = Math.abs(briceniKm - s.kmFromStart);
+      if (dist === 0) continue;
+      const tur = inputs[s.stopOrder]?.total ?? 0;
+      const retur = inputs[s.stopOrder]?.alighted ?? 0;
+      total += (tur + retur) * dist * tariff.ratePerKmSuburban;
+    }
+    return Math.round(total);
   }
 
   async function save() {
@@ -133,8 +134,8 @@ export default function SuburbanCountingForm({ sessionId, crmRouteId, date, tari
                 <th>Stație</th>
                 <th>Oră</th>
                 <th>Km</th>
-                <th>Pasageri</th>
-                <th>Coborât</th>
+                <th title="Pasageri urcați din sat spre Briceni">TUR (sat→Briceni)</th>
+                <th title="Pasageri coborâți din Briceni spre sat">RETUR (Briceni→sat)</th>
               </tr>
             </thead>
             <tbody>

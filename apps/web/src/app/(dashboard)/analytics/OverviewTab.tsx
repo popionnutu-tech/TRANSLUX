@@ -20,7 +20,7 @@ const QUADRANT_META: Record<RouteQuadrant, { label: string; color: string; bg: s
   star: { label: 'Stele', color: '#059669', bg: 'rgba(5,150,105,0.09)', emoji: '⭐' },
   efficient_small: { label: 'Mici eficiente', color: '#2563eb', bg: 'rgba(37,99,235,0.07)', emoji: '💎' },
   underperform_large: { label: 'De optimizat', color: '#d97706', bg: 'rgba(217,119,6,0.09)', emoji: '⚠️' },
-  candidate_to_close: { label: 'De închis', color: '#dc2626', bg: 'rgba(220,38,38,0.07)', emoji: '❌' },
+  candidate_to_close: { label: 'De optimizat', color: '#d97706', bg: 'rgba(217,119,6,0.09)', emoji: '⚠️' },
 };
 
 function Delta({ value }: { value: number | null }) {
@@ -192,7 +192,7 @@ function RouteMatrix({
             STELE {QUADRANT_META.star.emoji}
           </div>
           <div style={{ position: 'absolute', left: 8, bottom: 8, fontSize: 10, color: QUADRANT_META.candidate_to_close.color, fontWeight: 700, letterSpacing: 0.3 }}>
-            {QUADRANT_META.candidate_to_close.emoji} DE ÎNCHIS
+            {QUADRANT_META.candidate_to_close.emoji} DE OPTIMIZAT
           </div>
           <div style={{ position: 'absolute', right: 8, bottom: 8, fontSize: 10, color: QUADRANT_META.underperform_large.color, fontWeight: 700, letterSpacing: 0.3, textAlign: 'right' }}>
             DE OPTIMIZAT {QUADRANT_META.underperform_large.emoji}

@@ -9,12 +9,6 @@ import {
   getTotalStats,
 } from './actions';
 import {
-  getDriverPerformance,
-  getRouteEtalons,
-  getEmptyTripsAnalysis,
-  getDemandSupplyGap,
-  getRevenueOverview,
-  getRoutesList,
   getOverviewKPI,
   getRouteScorecard,
   getDriverScorecard,
@@ -29,7 +23,6 @@ export default async function AnalyticsPage() {
 
   const [
     pageViews, searches, detailedRoutes, devices, countries, totals,
-    driverPerf, etalons, emptyTrips, demandGap, revenue, routes,
     overviewKPI, routeScorecard, driverScorecard,
   ] = await Promise.all([
     getPageViewsPerDay(days),
@@ -38,12 +31,6 @@ export default async function AnalyticsPage() {
     getDeviceBreakdown(days),
     getCountryBreakdown(days),
     getTotalStats(days),
-    getDriverPerformance(dateFrom, dateTo),
-    getRouteEtalons(),
-    getEmptyTripsAnalysis(dateFrom, dateTo),
-    getDemandSupplyGap(days),
-    getRevenueOverview(dateFrom, dateTo),
-    getRoutesList(),
     getOverviewKPI(dateFrom, dateTo),
     getRouteScorecard(dateFrom, dateTo),
     getDriverScorecard(dateFrom, dateTo),
@@ -58,14 +45,6 @@ export default async function AnalyticsPage() {
       initialCountries={countries}
       initialTotals={totals}
       initialDays={days}
-      initialDriverPerf={driverPerf}
-      initialEtalons={etalons}
-      initialEmptyTrips={emptyTrips}
-      initialDemandGap={demandGap}
-      initialRevenue={revenue}
-      initialRoutes={routes}
-      initialDateFrom={dateFrom}
-      initialDateTo={dateTo}
       initialOverviewKPI={overviewKPI}
       initialRouteScorecard={routeScorecard}
       initialDriverScorecard={driverScorecard}

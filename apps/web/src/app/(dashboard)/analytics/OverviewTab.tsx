@@ -58,13 +58,16 @@ function rpkColor(rpk: number | null, median: number): string {
 }
 
 // --- Short route name helper for labels ---
-function shortRouteName(fullName: string, time?: string): string {
+function shortRouteName(fullName: string, timeChisinau?: string, timeNord?: string): string {
   const stripped = fullName
     .replace(/^Chișinău\s*[-–]\s*/i, '')
     .replace(/\s+/g, ' ')
     .trim();
-  const time0 = time?.split(' - ')[0]?.trim() || '';
-  return time0 ? `${stripped} ${time0}` : stripped;
+  const tChi = timeChisinau?.split(' - ')[0]?.trim() || '';
+  const tNord = timeNord?.split(' - ')[0]?.trim() || '';
+  if (tChi && tNord) return `${stripped} ${tChi} (${tNord})`;
+  if (tChi) return `${stripped} ${tChi}`;
+  return stripped;
 }
 
 function fmtLei(n: number): string {
@@ -315,8 +318,8 @@ function RouteMatrix({
                       {r.num}
                     </div>
                   </td>
-                  <td style={{ padding: '6px', color: '#333', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>
-                    {shortRouteName(r.route_name, r.time_chisinau)}
+                  <td style={{ padding: '6px', color: '#333', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 160 }}>
+                    {shortRouteName(r.route_name, r.time_chisinau, r.time_nord)}
                   </td>
                   <td style={{ padding: '6px', textAlign: 'right', color: '#555', fontVariantNumeric: 'tabular-nums', fontWeight: 500 }}>
                     {r.avg_revenue_per_session.toLocaleString('ro-RO')}

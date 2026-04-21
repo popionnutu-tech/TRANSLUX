@@ -378,16 +378,6 @@ export default function OverviewTab({ kpi, routes, drivers, onRouteClick, onDriv
       {/* KPI Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 24 }}>
         <div className="card" style={{ textAlign: 'center', padding: 16 }}>
-          <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Pasageri reali</div>
-          <div style={{ fontSize: 26, fontWeight: 700, color: '#333' }}>{kpi.total_unique_passengers.toLocaleString('ro-RO')}</div>
-          <div style={{ marginTop: 4 }}><Delta value={kpi.delta_passengers_pct} /></div>
-        </div>
-        <div className="card" style={{ textAlign: 'center', padding: 16 }}>
-          <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Pasageri×km</div>
-          <div style={{ fontSize: 26, fontWeight: 700, color: '#333' }}>{fmtNum(kpi.total_passenger_km)}</div>
-          <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>—</div>
-        </div>
-        <div className="card" style={{ textAlign: 'center', padding: 16 }}>
           <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Venit total</div>
           <div style={{ fontSize: 26, fontWeight: 700, color: '#9B1B30' }}>
             {kpi.total_revenue.toLocaleString('ro-RO')} <span style={{ fontSize: 14, color: '#888' }}>lei</span>
@@ -405,6 +395,11 @@ export default function OverviewTab({ kpi, routes, drivers, onRouteClick, onDriv
           <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Curse efectuate</div>
           <div style={{ fontSize: 26, fontWeight: 700, color: '#333' }}>{kpi.sessions_count}</div>
           <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>—</div>
+        </div>
+        <div className="card" style={{ textAlign: 'center', padding: 16 }}>
+          <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Curse/zi (medie)</div>
+          <div style={{ fontSize: 26, fontWeight: 700, color: '#333' }}>{kpi.avg_sessions_per_day.toFixed(1)}</div>
+          <div style={{ marginTop: 4 }}><Delta value={kpi.delta_sessions_per_day_pct} /></div>
         </div>
         <div className="card" style={{ textAlign: 'center', padding: 16 }}>
           <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Venit/km</div>

@@ -66,16 +66,30 @@ export default function SuburbanCountingForm({ sessionId, crmRouteId, date, tari
   }, []);
 
   function cycleTotal(sched: SuburbanSchedule): number {
-    const briceniKm = sched.stops[sched.stops.length - 1]?.kmFromStart ?? 0;
     const cycle = inputs[sched.scheduleId] || {};
+    const sortedStops = [...sched.stops].sort((a, b) => a.stopOrder - b.stopOrder);
     let total = 0;
-    for (const s of sched.stops) {
-      const dist = Math.abs(briceniKm - s.kmFromStart);
-      if (dist === 0) continue;
-      const tur = cycle[s.stopOrder]?.total ?? 0;
-      const ret = cycle[s.stopOrder]?.alighted ?? 0;
-      total += (tur + ret) * dist * tariff.ratePerKmSuburban;
+
+    // TUR: la fiecare stație intermediară, nr = pasageri în autobuz plecând spre Briceni.
+    // Venit per tronson = pasageri × km_tronson × rată.
+    for (let i = 0; i < sortedStops.length - 1; i++) {
+      const cur = sortedStops[i];
+      const next = sortedStops[i + 1];
+      const tronsonKm = Math.abs(next.kmFromStart - cur.kmFromStart);
+      const tur = cycle[cur.stopOrder]?.total ?? 0;
+      total += tur * tronsonKm * tariff.ratePerKmSuburban;
     }
+
+    // RETUR: direcție inversă (Briceni → sat). La fiecare stație (exceptând prima),
+    // nr = pasageri în autobuz plecând spre stația următoare (în direcția satului).
+    for (let i = sortedStops.length - 1; i > 0; i--) {
+      const cur = sortedStops[i];
+      const prev = sortedStops[i - 1];
+      const tronsonKm = Math.abs(cur.kmFromStart - prev.kmFromStart);
+      const retur = cycle[cur.stopOrder]?.alighted ?? 0;
+      total += retur * tronsonKm * tariff.ratePerKmSuburban;
+    }
+
     return Math.round(total);
   }
 

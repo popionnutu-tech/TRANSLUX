@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import type { DailyCount, DetailedRoutesResult, DeviceCount, CountryCount } from './actions';
-import type { DriverPerformanceRow, RouteEtalon, EmptyTripRow, DemandSupplyRow, RevenueOverview, RouteOption, OverviewKPI, RouteScorecardRow, DriverScorecardRow } from './sales-actions';
+import type { OverviewKPI, RouteScorecardRow, DriverScorecardRow } from './sales-actions';
 import {
   getPageViewsPerDay,
   getSearchesPerDay,
@@ -11,10 +11,7 @@ import {
   getCountryBreakdown,
   getTotalStats,
 } from './actions';
-import { getEmptyTripsAnalysis, getDemandSupplyGap, getOverviewKPI, getRouteScorecard, getDriverScorecard } from './sales-actions';
-import DriverRatingTab from './DriverRatingTab';
-import EmptyTripsTab from './EmptyTripsTab';
-import DemandGapTab from './DemandGapTab';
+import { getOverviewKPI, getRouteScorecard, getDriverScorecard } from './sales-actions';
 import OverviewTab from './OverviewTab';
 
 interface Props {
@@ -25,27 +22,16 @@ interface Props {
   initialCountries: CountryCount[];
   initialTotals: { totalViews: number; totalSearches: number; totalCalls: number };
   initialDays: number;
-  initialDriverPerf: DriverPerformanceRow[];
-  initialEtalons: RouteEtalon[];
-  initialEmptyTrips: EmptyTripRow[];
-  initialDemandGap: DemandSupplyRow[];
-  initialRevenue: RevenueOverview;
-  initialRoutes: RouteOption[];
-  initialDateFrom: string;
-  initialDateTo: string;
   initialOverviewKPI: OverviewKPI;
   initialRouteScorecard: RouteScorecardRow[];
   initialDriverScorecard: DriverScorecardRow[];
 }
 
-type Tab = 'overview' | 'site' | 'performanta' | 'curse-goale' | 'cerere';
+type Tab = 'overview' | 'site';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
   { id: 'site', label: 'Site' },
-  { id: 'performanta', label: 'Performanța' },
-  { id: 'curse-goale', label: 'Curse goale' },
-  { id: 'cerere', label: 'Cerere vs Ofertă' },
 ];
 
 // --- Multi-Line Chart (SVG) ---
@@ -180,14 +166,6 @@ export default function AnalyticsClient({
   initialCountries,
   initialTotals,
   initialDays,
-  initialDriverPerf,
-  initialEtalons,
-  initialEmptyTrips,
-  initialDemandGap,
-  initialRevenue,
-  initialRoutes,
-  initialDateFrom,
-  initialDateTo,
   initialOverviewKPI,
   initialRouteScorecard,
   initialDriverScorecard,
@@ -200,8 +178,6 @@ export default function AnalyticsClient({
   const [devices, setDevices] = useState(initialDevices);
   const [countries, setCountries] = useState(initialCountries);
   const [totals, setTotals] = useState(initialTotals);
-  const [emptyTrips, setEmptyTrips] = useState(initialEmptyTrips);
-  const [demandGap, setDemandGap] = useState(initialDemandGap);
   const [overviewKPI, setOverviewKPI] = useState(initialOverviewKPI);
   const [routeScorecard, setRouteScorecard] = useState(initialRouteScorecard);
   const [driverScorecard, setDriverScorecard] = useState(initialDriverScorecard);
@@ -212,15 +188,13 @@ export default function AnalyticsClient({
     const dateFrom = new Date(Date.now() - newDays * 86400000).toISOString().slice(0, 10);
     const dateTo = new Date().toISOString().slice(0, 10);
     startTransition(async () => {
-      const [pv, sr, dr, dv, ct, tt, et, dg, kpi, rs, ds] = await Promise.all([
+      const [pv, sr, dr, dv, ct, tt, kpi, rs, ds] = await Promise.all([
         getPageViewsPerDay(newDays),
         getSearchesPerDay(newDays),
         getTopSearchedRoutesDetailed(newDays),
         getDeviceBreakdown(newDays),
         getCountryBreakdown(newDays),
         getTotalStats(newDays),
-        getEmptyTripsAnalysis(dateFrom, dateTo),
-        getDemandSupplyGap(newDays),
         getOverviewKPI(dateFrom, dateTo),
         getRouteScorecard(dateFrom, dateTo),
         getDriverScorecard(dateFrom, dateTo),
@@ -231,8 +205,6 @@ export default function AnalyticsClient({
       setDevices(dv);
       setCountries(ct);
       setTotals(tt);
-      setEmptyTrips(et);
-      setDemandGap(dg);
       setOverviewKPI(kpi);
       setRouteScorecard(rs);
       setDriverScorecard(ds);
@@ -281,8 +253,6 @@ export default function AnalyticsClient({
           kpi={overviewKPI}
           routes={routeScorecard}
           drivers={driverScorecard}
-          onRouteClick={() => setTab('curse-goale')}
-          onDriverClick={() => setTab('performanta')}
         />
       )}
 
@@ -453,26 +423,6 @@ export default function AnalyticsClient({
         </>
       )}
 
-      {/* Tab: Driver Performance */}
-      {tab === 'performanta' && (
-        <DriverRatingTab
-          initialData={initialDriverPerf}
-          initialEtalons={initialEtalons}
-          routes={initialRoutes}
-          dateFrom={initialDateFrom}
-          dateTo={initialDateTo}
-        />
-      )}
-
-      {/* Tab: Empty Trips */}
-      {tab === 'curse-goale' && (
-        <EmptyTripsTab data={emptyTrips} />
-      )}
-
-      {/* Tab: Demand vs Supply */}
-      {tab === 'cerere' && (
-        <DemandGapTab data={demandGap} days={days} />
-      )}
     </div>
   );
 }

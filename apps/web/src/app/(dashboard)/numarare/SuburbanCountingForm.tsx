@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { getSuburbanSchedule, saveSuburbanCycle, loadSuburbanEntries, type SuburbanSchedule, type TariffConfig } from './actions';
 
 interface Props {
@@ -12,16 +12,17 @@ interface Props {
   onSaved: () => void;
 }
 
-type CycleEntryInput = Record<number, { total: number; alighted: number }>;
+type CycleInputs = Record<number, { total: number; alighted: number }>; // key=stopOrder
+type AllInputs = Record<number, CycleInputs>; // key=scheduleId
 
 export default function SuburbanCountingForm({ sessionId, crmRouteId, date, tariff, canSeeSums, onSaved }: Props) {
   const [loading, setLoading] = useState(true);
   const [tur, setTur] = useState<SuburbanSchedule[]>([]);
   const [retur, setRetur] = useState<SuburbanSchedule[]>([]);
-  const [selected, setSelected] = useState<SuburbanSchedule | null>(null);
-  const [inputs, setInputs] = useState<CycleEntryInput>({});
-  const [savedMap, setSavedMap] = useState<Record<number, CycleEntryInput>>({});
-  const [saveMsg, setSaveMsg] = useState('');
+  const [inputs, setInputs] = useState<AllInputs>({});
+  const [savedIds, setSavedIds] = useState<Set<number>>(new Set());
+  const [saveMsg, setSaveMsg] = useState<Record<number, string>>({});
+  const inputsRef = useRef<HTMLInputElement[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -29,152 +30,196 @@ export default function SuburbanCountingForm({ sessionId, crmRouteId, date, tari
       setTur(tur);
       setRetur(retur);
       const existing = await loadSuburbanEntries(sessionId);
-      const map: Record<number, CycleEntryInput> = {};
+      const map: AllInputs = {};
+      const saved = new Set<number>();
       for (const e of existing) {
         if (!e.scheduleId) continue;
         if (!map[e.scheduleId]) map[e.scheduleId] = {};
         map[e.scheduleId][e.stopOrder] = { total: e.totalPassengers, alighted: e.alighted };
+        saved.add(e.scheduleId);
       }
-      setSavedMap(map);
+      setInputs(map);
+      setSavedIds(saved);
       setLoading(false);
     })();
   }, [sessionId, crmRouteId, date]);
 
-  function openCycle(sched: SuburbanSchedule) {
-    setSelected(sched);
-    setInputs(savedMap[sched.scheduleId] || {});
-    setSaveMsg('');
-  }
+  const setInput = useCallback((scheduleId: number, stopOrder: number, key: 'total' | 'alighted', value: number) => {
+    setInputs(prev => ({
+      ...prev,
+      [scheduleId]: {
+        ...(prev[scheduleId] || {}),
+        [stopOrder]: {
+          ...(prev[scheduleId]?.[stopOrder] || { total: 0, alighted: 0 }),
+          [key]: value,
+        },
+      },
+    }));
+  }, []);
 
-  function setInput(stopOrder: number, key: 'total' | 'alighted', value: number) {
-    setInputs(prev => ({ ...prev, [stopOrder]: { ...(prev[stopOrder] || { total: 0, alighted: 0 }), [key]: value } }));
-  }
-
-  function currentTotal(): number {
-    if (!selected) return 0;
-    // Suburban round-trip: fiecare pasager (tur sau retur) plătește km-distanța
-    // de la stația sa până la Briceni (hub). Briceni = ultima stație în TUR.
-    const briceniKm = selected.stops[selected.stops.length - 1]?.kmFromStart ?? 0;
+  function cycleTotal(sched: SuburbanSchedule): number {
+    const briceniKm = sched.stops[sched.stops.length - 1]?.kmFromStart ?? 0;
+    const cycle = inputs[sched.scheduleId] || {};
     let total = 0;
-    for (const s of selected.stops) {
+    for (const s of sched.stops) {
       const dist = Math.abs(briceniKm - s.kmFromStart);
       if (dist === 0) continue;
-      const tur = inputs[s.stopOrder]?.total ?? 0;
-      const retur = inputs[s.stopOrder]?.alighted ?? 0;
-      total += (tur + retur) * dist * tariff.ratePerKmSuburban;
+      const tur = cycle[s.stopOrder]?.total ?? 0;
+      const ret = cycle[s.stopOrder]?.alighted ?? 0;
+      total += (tur + ret) * dist * tariff.ratePerKmSuburban;
     }
     return Math.round(total);
   }
 
-  async function save() {
-    if (!selected) return;
-    const entries = selected.stops.map(s => ({
+  async function save(sched: SuburbanSchedule) {
+    const entries = sched.stops.map(s => ({
       stopOrder: s.stopOrder,
       stopNameRo: s.nameRo,
       kmFromStart: s.kmFromStart,
-      totalPassengers: inputs[s.stopOrder]?.total ?? 0,
-      alighted: inputs[s.stopOrder]?.alighted ?? 0,
+      totalPassengers: inputs[sched.scheduleId]?.[s.stopOrder]?.total ?? 0,
+      alighted: inputs[sched.scheduleId]?.[s.stopOrder]?.alighted ?? 0,
     }));
-    const total = currentTotal();
-    const { error } = await saveSuburbanCycle(sessionId, selected.scheduleId, selected.direction, selected.sequenceNo, entries, total);
+    const total = cycleTotal(sched);
+    const { error } = await saveSuburbanCycle(sessionId, sched.scheduleId, sched.direction, sched.sequenceNo, entries, total);
     if (error) {
-      setSaveMsg('Eroare: ' + error);
+      setSaveMsg(prev => ({ ...prev, [sched.scheduleId]: 'Eroare: ' + error }));
       return;
     }
-    setSaveMsg('Salvat ✓');
-    setSavedMap(prev => ({ ...prev, [selected.scheduleId]: { ...inputs } }));
+    setSavedIds(prev => new Set(prev).add(sched.scheduleId));
+    setSaveMsg(prev => ({ ...prev, [sched.scheduleId]: 'Salvat ✓' }));
+    setTimeout(() => setSaveMsg(prev => { const n = { ...prev }; delete n[sched.scheduleId]; return n; }), 2000);
     onSaved();
+  }
+
+  // Enter/Space avansează la următorul input
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter' || (e.key === ' ' && e.currentTarget.value !== '')) {
+      e.preventDefault();
+      const idx = inputsRef.current.findIndex(el => el === e.currentTarget);
+      if (idx >= 0 && idx < inputsRef.current.length - 1) {
+        inputsRef.current[idx + 1]?.focus();
+        inputsRef.current[idx + 1]?.select();
+      }
+    }
   }
 
   if (loading) return <p className="text-muted">Se încarcă orarul…</p>;
 
-  const renderCycleList = (items: SuburbanSchedule[], label: string) => (
-    <div style={{ flex: 1, minWidth: 280 }}>
-      <h3>{label}</h3>
-      {items.length === 0 && <p className="text-muted">Nu sunt curse pentru ziua selectată.</p>}
-      {items.map(s => {
-        const done = savedMap[s.scheduleId] && Object.keys(savedMap[s.scheduleId]).length > 0;
-        const start = s.stops[0];
-        const end = s.stops[s.stops.length - 1];
-        return (
-          <button
-            key={s.scheduleId}
-            onClick={() => openCycle(s)}
-            className="btn btn-outline"
-            style={{
-              display: 'block', width: '100%', marginBottom: 6, textAlign: 'left',
-              borderColor: selected?.scheduleId === s.scheduleId ? 'var(--primary)' : undefined,
-              background: done ? 'rgba(0,170,0,0.05)' : undefined,
-            }}
-          >
-            <strong>Cursa {s.sequenceNo}</strong> — {start?.stopTime || '?'} {start?.nameRo} → {end?.nameRo} {end?.stopTime || ''}
-            {done && ' ✓'}
-          </button>
-        );
-      })}
-    </div>
-  );
+  // Reset ref array pe render
+  inputsRef.current = [];
+  let inputIdx = 0;
+  const registerInput = (el: HTMLInputElement | null) => {
+    if (el) inputsRef.current[inputIdx++] = el;
+  };
+
+  const renderCycle = (sched: SuburbanSchedule, headerColor: string) => {
+    const done = savedIds.has(sched.scheduleId);
+    const start = sched.stops[0];
+    const end = sched.stops[sched.stops.length - 1];
+    const total = canSeeSums ? cycleTotal(sched) : 0;
+    const msg = saveMsg[sched.scheduleId];
+    return (
+      <div
+        key={sched.scheduleId}
+        className="card"
+        style={{
+          padding: 10,
+          marginBottom: 10,
+          borderLeft: `4px solid ${done ? 'var(--success, #0a7)' : headerColor}`,
+          background: done ? 'rgba(0,170,90,0.04)' : undefined,
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexWrap: 'wrap', gap: 8 }}>
+          <strong style={{ color: headerColor }}>
+            {sched.direction.toUpperCase()} — Cursa {sched.sequenceNo}
+          </strong>
+          <span style={{ fontSize: 13, color: '#555' }}>
+            {start?.stopTime} {start?.nameRo} → {end?.nameRo} {end?.stopTime}
+            {done && <span style={{ marginLeft: 8, color: 'var(--success, #0a7)' }}>✓ salvat</span>}
+          </span>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            {canSeeSums && <strong>{total} lei</strong>}
+            <button className="btn btn-primary btn-sm" onClick={() => save(sched)}>Salvează</button>
+            {msg && <span style={{ fontSize: 12 }}>{msg}</span>}
+          </div>
+        </div>
+        <table className="table" style={{ fontSize: 13, margin: 0 }}>
+          <thead>
+            <tr>
+              <th>Stație</th>
+              <th>Oră</th>
+              <th>Km</th>
+              <th title="Pasageri urcați din sat spre Briceni">TUR</th>
+              <th title="Pasageri coborâți din Briceni spre sat">RETUR</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sched.stops.map(s => (
+              <tr key={s.stopId}>
+                <td><strong>{s.nameRo}</strong></td>
+                <td>{s.stopTime}</td>
+                <td>{s.kmFromStart}</td>
+                <td>
+                  <input
+                    ref={registerInput}
+                    type="number"
+                    min={0}
+                    value={inputs[sched.scheduleId]?.[s.stopOrder]?.total ?? ''}
+                    onChange={e => setInput(sched.scheduleId, s.stopOrder, 'total', parseInt(e.target.value) || 0)}
+                    onKeyDown={handleKeyDown}
+                    onFocus={e => e.target.select()}
+                    style={{ width: 70 }}
+                  />
+                </td>
+                <td>
+                  <input
+                    ref={registerInput}
+                    type="number"
+                    min={0}
+                    value={inputs[sched.scheduleId]?.[s.stopOrder]?.alighted ?? ''}
+                    onChange={e => setInput(sched.scheduleId, s.stopOrder, 'alighted', parseInt(e.target.value) || 0)}
+                    onKeyDown={handleKeyDown}
+                    onFocus={e => e.target.select()}
+                    style={{ width: 70 }}
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  const grandTotal = canSeeSums ? [...tur, ...retur].reduce((s, sch) => s + cycleTotal(sch), 0) : 0;
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 16 }}>
-        {renderCycleList(tur, 'TUR')}
-        {renderCycleList(retur, 'RETUR')}
-      </div>
-
-      {selected && (
-        <div className="card" style={{ padding: 14 }}>
-          <h3>
-            {selected.direction.toUpperCase()} — Cursa {selected.sequenceNo}
-          </h3>
-          <table className="table" style={{ marginBottom: 12 }}>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Stație</th>
-                <th>Oră</th>
-                <th>Km</th>
-                <th title="Pasageri urcați din sat spre Briceni">TUR (sat→Briceni)</th>
-                <th title="Pasageri coborâți din Briceni spre sat">RETUR (Briceni→sat)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {selected.stops.map(s => (
-                <tr key={s.stopId}>
-                  <td>{s.stopOrder}</td>
-                  <td><strong>{s.nameRo}</strong></td>
-                  <td>{s.stopTime}</td>
-                  <td>{s.kmFromStart}</td>
-                  <td>
-                    <input
-                      type="number"
-                      min={0}
-                      value={inputs[s.stopOrder]?.total ?? ''}
-                      onChange={e => setInput(s.stopOrder, 'total', parseInt(e.target.value) || 0)}
-                      style={{ width: 70 }}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      min={0}
-                      value={inputs[s.stopOrder]?.alighted ?? ''}
-                      onChange={e => setInput(s.stopOrder, 'alighted', parseInt(e.target.value) || 0)}
-                      style={{ width: 70 }}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {canSeeSums && (
-            <div style={{ marginBottom: 10 }}>
-              <strong>Total cursă: {currentTotal()} lei</strong> (rata: {tariff.ratePerKmSuburban} lei/km)
-            </div>
-          )}
-          <button className="btn btn-primary" onClick={save}>Salvează cursa</button>
-          {saveMsg && <span style={{ marginLeft: 12 }}>{saveMsg}</span>}
+      {canSeeSums && (
+        <div className="card" style={{ padding: 10, marginBottom: 10, display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+          <div><span className="text-muted">Total zi:</span> <strong>{grandTotal} lei</strong></div>
+          <div><span className="text-muted">Rata:</span> <strong>{tariff.ratePerKmSuburban} lei/km</strong></div>
+          <div><span className="text-muted">Curse:</span> <strong>{tur.length + retur.length}</strong> ({savedIds.size} salvate)</div>
+          <div style={{ marginLeft: 'auto', fontSize: 12, color: '#666' }}>Enter/Space = următorul câmp</div>
         </div>
+      )}
+
+      {tur.length > 0 && (
+        <>
+          <h3 style={{ color: 'var(--primary, #9b1b30)', marginBottom: 6 }}>TUR ({tur.length})</h3>
+          {tur.map(s => renderCycle(s, 'var(--primary, #9b1b30)'))}
+        </>
+      )}
+
+      {retur.length > 0 && (
+        <>
+          <h3 style={{ color: '#1b6e9b', marginBottom: 6, marginTop: 12 }}>RETUR ({retur.length})</h3>
+          {retur.map(s => renderCycle(s, '#1b6e9b'))}
+        </>
+      )}
+
+      {tur.length === 0 && retur.length === 0 && (
+        <p className="text-muted">Nu sunt curse pentru ziua selectată.</p>
       )}
     </div>
   );

@@ -74,6 +74,25 @@ export interface RouteScorecardRow {
   quadrant: RouteQuadrant;
 }
 
+// 7-day load vector (Mon..Sun). Null = no sessions that DOW.
+export type LoadByDow = [number | null, number | null, number | null, number | null, number | null, number | null, number | null];
+
+export interface RouteLoadRow {
+  crm_route_id: number;
+  route_name: string;
+  time_chisinau: string;
+  time_nord: string;
+  sessions_count: number;
+  // Overall (period-wide) averages per direction
+  overall_tur: number | null;
+  overall_retur: number | null;
+  overall_ambele: number | null;
+  // Per-day (Mon-Sun) averages per direction
+  tur_by_dow: LoadByDow;
+  retur_by_dow: LoadByDow;
+  ambele_by_dow: LoadByDow;
+}
+
 export interface DriverScorecardRow {
   driver_id: string;
   driver_name: string;
@@ -170,6 +189,13 @@ interface SessionRow {
   route_length_km: number;
   revenue_per_km: number | null;
   load_factor_pct: number | null;
+  // Directional breakdown (migration 039)
+  tur_passenger_km: number;
+  retur_passenger_km: number;
+  tur_length_km: number;
+  retur_length_km: number;
+  tur_load_factor_pct: number | null;
+  retur_load_factor_pct: number | null;
 }
 
 interface BaselineRow {
@@ -190,7 +216,7 @@ async function fetchSessions(dateFrom: string, dateTo: string): Promise<SessionR
   while (true) {
     const { data } = await sb
       .from('v_session_metrics')
-      .select('session_id, assignment_date, crm_route_id, route_name, time_chisinau, time_nord, driver_id, driver_name, total_passengers, total_lei, dow, season, rain_heavy, unique_passengers, passenger_km, route_length_km, revenue_per_km, load_factor_pct')
+      .select('session_id, assignment_date, crm_route_id, route_name, time_chisinau, time_nord, driver_id, driver_name, total_passengers, total_lei, dow, season, rain_heavy, unique_passengers, passenger_km, route_length_km, revenue_per_km, load_factor_pct, tur_passenger_km, retur_passenger_km, tur_length_km, retur_length_km, tur_load_factor_pct, retur_load_factor_pct')
       .gte('assignment_date', dateFrom)
       .lte('assignment_date', dateTo)
       .order('assignment_date', { ascending: true })
@@ -203,6 +229,12 @@ async function fetchSessions(dateFrom: string, dateTo: string): Promise<SessionR
       route_length_km: Number(r.route_length_km ?? 0),
       revenue_per_km: r.revenue_per_km !== null && r.revenue_per_km !== undefined ? Number(r.revenue_per_km) : null,
       load_factor_pct: r.load_factor_pct !== null && r.load_factor_pct !== undefined ? Number(r.load_factor_pct) : null,
+      tur_passenger_km: Number(r.tur_passenger_km ?? 0),
+      retur_passenger_km: Number(r.retur_passenger_km ?? 0),
+      tur_length_km: Number(r.tur_length_km ?? 0),
+      retur_length_km: Number(r.retur_length_km ?? 0),
+      tur_load_factor_pct: r.tur_load_factor_pct !== null && r.tur_load_factor_pct !== undefined ? Number(r.tur_load_factor_pct) : null,
+      retur_load_factor_pct: r.retur_load_factor_pct !== null && r.retur_load_factor_pct !== undefined ? Number(r.retur_load_factor_pct) : null,
     })) as SessionRow[]));
     if (data.length < PAGE) break;
     offset += PAGE;
@@ -1072,4 +1104,90 @@ export async function getRevenueOverview(dateFrom: string, dateTo: string): Prom
     best_route: routeArr[0] ? { name: routeArr[0].name, revenue: Math.round(routeArr[0].revenue) } : null,
     worst_route: routeArr.length > 1 ? { name: routeArr[routeArr.length - 1].name, revenue: Math.round(routeArr[routeArr.length - 1].revenue) } : null,
   };
+}
+
+// ─── Route load-factor heatmap (per route × day of week × direction) ───
+
+export async function getRouteLoadHeatmap(dateFrom: string, dateTo: string): Promise<RouteLoadRow[]> {
+  requireRole(await verifySession(), 'ADMIN');
+
+  const sessions = await fetchSessions(dateFrom, dateTo);
+
+  // Group by route
+  const groups = new Map<number, {
+    crm_route_id: number; route_name: string; time_chisinau: string; time_nord: string;
+    sessions: SessionRow[];
+  }>();
+  for (const s of sessions) {
+    if (!groups.has(s.crm_route_id)) {
+      groups.set(s.crm_route_id, {
+        crm_route_id: s.crm_route_id, route_name: s.route_name,
+        time_chisinau: s.time_chisinau, time_nord: s.time_nord,
+        sessions: [],
+      });
+    }
+    groups.get(s.crm_route_id)!.sessions.push(s);
+  }
+
+  // Helper: weighted-avg load factor = SUM(pkm) / (SUM(length_km) × seat_capacity) × 100
+  // We bypass seat_capacity (cancels out): effectively SUM(pkm) / SUM(length) / cap × 100.
+  // But view's load_factor_pct already uses seat_capacity=20. To avoid leaking the constant,
+  // we compute from raw pkm/length; the ratio pkm/(length × 20) must equal the view's value.
+  // For simplicity reuse load_factor_pct as weighted by length (length is weight).
+  const SEAT_CAP = 20;
+  const avgLoadWeighted = (rows: { pkm: number; length: number }[]): number | null => {
+    let pkmSum = 0, lenSum = 0;
+    for (const r of rows) { pkmSum += r.pkm; lenSum += r.length; }
+    if (lenSum <= 0) return null;
+    return Math.round((pkmSum / (lenSum * SEAT_CAP) * 100) * 10) / 10;
+  };
+
+  const result: RouteLoadRow[] = [];
+  for (const g of groups.values()) {
+    // Collect per-direction bins
+    const turAll: { pkm: number; length: number }[] = [];
+    const returAll: { pkm: number; length: number }[] = [];
+    const ambeleAll: { pkm: number; length: number }[] = [];
+    const turByDow: { pkm: number; length: number }[][] = Array.from({ length: 7 }, () => []);
+    const returByDow: { pkm: number; length: number }[][] = Array.from({ length: 7 }, () => []);
+    const ambeleByDow: { pkm: number; length: number }[][] = Array.from({ length: 7 }, () => []);
+
+    for (const s of g.sessions) {
+      const idx = pgDowToIdx(s.dow);
+      if (s.tur_length_km > 0) {
+        const e = { pkm: s.tur_passenger_km, length: s.tur_length_km };
+        turAll.push(e); turByDow[idx].push(e);
+      }
+      if (s.retur_length_km > 0) {
+        const e = { pkm: s.retur_passenger_km, length: s.retur_length_km };
+        returAll.push(e); returByDow[idx].push(e);
+      }
+      if (s.route_length_km > 0) {
+        const e = { pkm: s.passenger_km, length: s.route_length_km };
+        ambeleAll.push(e); ambeleByDow[idx].push(e);
+      }
+    }
+
+    const toVec = (bins: { pkm: number; length: number }[][]): LoadByDow => {
+      return bins.map(b => avgLoadWeighted(b)) as LoadByDow;
+    };
+
+    result.push({
+      crm_route_id: g.crm_route_id,
+      route_name: g.route_name,
+      time_chisinau: g.time_chisinau,
+      time_nord: g.time_nord,
+      sessions_count: g.sessions.length,
+      overall_tur: avgLoadWeighted(turAll),
+      overall_retur: avgLoadWeighted(returAll),
+      overall_ambele: avgLoadWeighted(ambeleAll),
+      tur_by_dow: toVec(turByDow),
+      retur_by_dow: toVec(returByDow),
+      ambele_by_dow: toVec(ambeleByDow),
+    });
+  }
+
+  // Sort by ambele overall desc
+  result.sort((a, b) => (b.overall_ambele ?? 0) - (a.overall_ambele ?? 0));
+  return result;
 }

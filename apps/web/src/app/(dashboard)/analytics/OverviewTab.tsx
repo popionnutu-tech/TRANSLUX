@@ -397,11 +397,6 @@ export default function OverviewTab({ kpi, routes, drivers, onRouteClick, onDriv
           <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>—</div>
         </div>
         <div className="card" style={{ textAlign: 'center', padding: 16 }}>
-          <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Curse/zi (medie)</div>
-          <div style={{ fontSize: 26, fontWeight: 700, color: '#333' }}>{kpi.avg_sessions_per_day.toFixed(1)}</div>
-          <div style={{ marginTop: 4 }}><Delta value={kpi.delta_sessions_per_day_pct} /></div>
-        </div>
-        <div className="card" style={{ textAlign: 'center', padding: 16 }}>
           <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Venit/km</div>
           <div style={{ fontSize: 26, fontWeight: 700, color: '#333' }}>
             {kpi.avg_revenue_per_km !== null ? kpi.avg_revenue_per_km.toFixed(1) : '—'} <span style={{ fontSize: 14, color: '#888' }}>lei</span>

@@ -22,6 +22,7 @@ import {
   type VehicleOption,
 } from './actions';
 import CountingForm from './CountingForm';
+import SuburbanCountingForm from './SuburbanCountingForm';
 import type { AdminRole } from '@translux/db';
 
 function todayChisinau(): string {
@@ -58,6 +59,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [drivers, setDrivers] = useState<DriverOption[]>([]);
   const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
+  const [routeTypeFilter, setRouteTypeFilter] = useState<'interurban' | 'suburban'>('interurban');
 
   const isPeriod = dateTo > date;
 
@@ -126,6 +128,15 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
     const result = await lockRoute(route.crm_route_id, date, route.driver_id, route.vehicle_id);
     if (result.error) {
       setError(result.error);
+      return;
+    }
+
+    if (route.route_type === 'suburban') {
+      setSessionId(result.sessionId || null);
+      setStops([]);
+      setSavedTur([]);
+      setSavedRetur([]);
+      setOpenRouteId(route.crm_route_id);
       return;
     }
 
@@ -201,6 +212,23 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
 
       {error && <div className="alert alert-danger">{error}</div>}
 
+      {!openRoute && !isPeriod && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <button
+            className={`btn ${routeTypeFilter === 'interurban' ? 'btn-primary' : 'btn-outline'}`}
+            onClick={() => setRouteTypeFilter('interurban')}
+          >
+            Interurban
+          </button>
+          <button
+            className={`btn ${routeTypeFilter === 'suburban' ? 'btn-primary' : 'btn-outline'}`}
+            onClick={() => setRouteTypeFilter('suburban')}
+          >
+            Suburban
+          </button>
+        </div>
+      )}
+
       {openRoute && sessionId && tariff ? (
         <>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
@@ -225,17 +253,28 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
               {vehicles.map(v => <option key={v.id} value={v.id}>{v.plate_number}</option>)}
             </select>
           </div>
-          <CountingForm
-            sessionId={sessionId}
-            crmRouteId={openRoute.crm_route_id}
-            stops={stops}
-            tariff={tariff}
-            sessionStatus={openRoute.session_status || 'new'}
-            savedTur={savedTur}
-            savedRetur={savedRetur}
-            onSaved={handleSaved}
-            canSeeSums={canSeeSums}
-          />
+          {openRoute.route_type === 'suburban' ? (
+            <SuburbanCountingForm
+              sessionId={sessionId}
+              crmRouteId={openRoute.crm_route_id}
+              date={date}
+              tariff={tariff}
+              canSeeSums={canSeeSums}
+              onSaved={handleSaved}
+            />
+          ) : (
+            <CountingForm
+              sessionId={sessionId}
+              crmRouteId={openRoute.crm_route_id}
+              stops={stops}
+              tariff={tariff}
+              sessionStatus={openRoute.session_status || 'new'}
+              savedTur={savedTur}
+              savedRetur={savedRetur}
+              onSaved={handleSaved}
+              canSeeSums={canSeeSums}
+            />
+          )}
         </>
       ) : loading ? (
         <p className="text-muted">Se încarcă...</p>
@@ -300,9 +339,10 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
         </>
       ) : (
         <>
-        {canSeeSums && routes.length > 0 && (() => {
-          const totalDual = routes.reduce((s, r) => s + (Number(r.tur_total_lei) || 0) + (Number(r.retur_total_lei) || 0), 0);
-          const totalSingle = routes.reduce((s, r) => s + (Number(r.tur_single_lei) || 0) + (Number(r.retur_single_lei) || 0), 0);
+        {(() => { const filteredRoutes = routes.filter(r => r.route_type === routeTypeFilter); return (<>
+        {canSeeSums && filteredRoutes.length > 0 && (() => {
+          const totalDual = filteredRoutes.reduce((s, r) => s + (Number(r.tur_total_lei) || 0) + (Number(r.retur_total_lei) || 0), 0);
+          const totalSingle = filteredRoutes.reduce((s, r) => s + (Number(r.tur_single_lei) || 0) + (Number(r.retur_single_lei) || 0), 0);
           const totalDiff = totalDual - totalSingle;
           return (
             <div className="card" style={{ display: 'flex', gap: 24, padding: 14, marginBottom: 12, flexWrap: 'wrap' }}>
@@ -321,9 +361,9 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
         <table className="table">
           <thead>
             <tr>
-              <th>Tur</th>
+              <th>{routeTypeFilter === 'suburban' ? 'De la' : 'Tur'}</th>
               <th>Destinația</th>
-              <th>Retur</th>
+              <th>{routeTypeFilter === 'suburban' ? 'Tip' : 'Retur'}</th>
               <th>Șofer</th>
               <th>Mașina</th>
               <th>Status</th>
@@ -334,7 +374,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
             </tr>
           </thead>
           <tbody>
-            {routes.map(route => {
+            {filteredRoutes.map(route => {
               const completed = route.session_status === 'completed';
               const ownedByOther = route.operator_id && route.operator_id !== currentUserId;
               const hasSums = route.tur_total_lei != null || route.retur_total_lei != null;
@@ -344,9 +384,9 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
               const diff = dualTotal - singleTotal;
               return (
                 <tr key={route.crm_route_id}>
-                  <td>{route.time_nord?.split(' - ')[0]}</td>
+                  <td>{route.route_type === 'suburban' ? route.dest_from_ro : route.time_nord?.split(' - ')[0]}</td>
                   <td><strong>{route.dest_to_ro}</strong></td>
-                  <td>{route.time_chisinau?.split(' - ')[0]}</td>
+                  <td>{route.route_type === 'suburban' ? 'suburban' : route.time_chisinau?.split(' - ')[0]}</td>
                   <td>
                     <select
                       value={route.driver_id || ''}
@@ -395,6 +435,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
             })}
           </tbody>
         </table>
+        </>); })()}
         </>
       )}
     </div>

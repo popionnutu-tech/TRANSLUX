@@ -8,3 +8,4 @@ dist/
 access.md
 .claude/
 .vercel
+.env.vercel.tmp

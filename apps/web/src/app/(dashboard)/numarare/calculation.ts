@@ -129,6 +129,18 @@ export function calculateSingleTariff(
 }
 
 /**
+ * Calcul suburban: un singur tarif per km, fără distincție lung/scurt, fără pasageri scurți.
+ * Formula pe fiecare tronson: km_tronson × pasageri_în_autobuz × rate_suburban.
+ */
+export function calculateSuburban(
+  entries: StopEntry[],
+  ratePerKmSuburban: number,
+): CalculationResult {
+  const entriesNoShort = entries.map(e => ({ ...e, shortPassengers: [] as ShortPassengerGroup[] }));
+  return calculateDirection(entriesNoShort, ratePerKmSuburban, 0);
+}
+
+/**
  * Pentru o oprire dată (unde au ieșit scurți), returnează lista opririlor
  * de pe rută care sunt ≤ maxKm distanță ȘI sunt ÎNAINTE pe rută.
  */

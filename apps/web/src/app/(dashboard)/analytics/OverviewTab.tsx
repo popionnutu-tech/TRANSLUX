@@ -59,7 +59,6 @@ function rpkColor(rpk: number | null, median: number): string {
 
 // --- Short route name helper for labels ---
 function shortRouteName(fullName: string, time?: string): string {
-  // Strip "Chișinău - " prefix and collapse whitespace
   const stripped = fullName
     .replace(/^Chișinău\s*[-–]\s*/i, '')
     .replace(/\s+/g, ' ')
@@ -68,104 +67,212 @@ function shortRouteName(fullName: string, time?: string): string {
   return time0 ? `${stripped} ${time0}` : stripped;
 }
 
-// --- 2D matrix of routes: X=avg_revenue_per_session, Y=load_factor_pct ---
-function RouteMatrix({ routes, onRouteClick }: { routes: RouteScorecardRow[]; onRouteClick?: (id: number) => void }) {
+function fmtLei(n: number): string {
+  if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+  return n.toString();
+}
+
+// --- 2D matrix: numbered points + side legend ---
+function RouteMatrix({
+  routes,
+  onRouteClick,
+  hoveredId,
+  setHoveredId,
+}: {
+  routes: RouteScorecardRow[];
+  onRouteClick?: (id: number) => void;
+  hoveredId: number | null;
+  setHoveredId: (id: number | null) => void;
+}) {
   if (routes.length === 0) return <p style={{ color: '#999', fontSize: 14 }}>Nu sunt date.</p>;
 
   const maxAvgRev = Math.max(...routes.map(r => r.avg_revenue_per_session), 1);
-  // Round to nice number for axis
   const axisMax = Math.ceil(maxAvgRev / 500) * 500;
+  const xTicks = [0, 0.25, 0.5, 0.75, 1].map(f => Math.round(axisMax * f));
+  const yTicks = [0, 25, 50, 75, 100];
+
+  // Routes sorted by revenue descending — numbering
+  const numbered = routes.map((r, i) => ({ ...r, num: i + 1 }));
 
   return (
-    <div style={{ position: 'relative', height: 480, display: 'grid', gridTemplateColumns: '60px 1fr', gridTemplateRows: '1fr 40px', gap: 0 }}>
-      <div style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#888', fontWeight: 500 }}>
-        Încărcare medie (%)
-      </div>
-
-      <div style={{ position: 'relative', borderLeft: '2px solid #333', borderBottom: '2px solid #333' }}>
-        {/* Quadrants */}
-        <div style={{ position: 'absolute', left: 0, top: 0, width: '50%', height: '50%', background: QUADRANT_META.efficient_small.bg, borderRight: '1px dashed #ccc', borderBottom: '1px dashed #ccc', padding: 12 }}>
-          <div style={{ fontSize: 11, color: QUADRANT_META.efficient_small.color, fontWeight: 700, textTransform: 'uppercase' }}>
-            {QUADRANT_META.efficient_small.emoji} {QUADRANT_META.efficient_small.label}
-          </div>
-          <div style={{ fontSize: 10, color: '#666', marginTop: 2 }}>Venit/zi mic, dar plin</div>
-        </div>
-        <div style={{ position: 'absolute', left: '50%', top: 0, width: '50%', height: '50%', background: QUADRANT_META.star.bg, borderBottom: '1px dashed #ccc', padding: 12 }}>
-          <div style={{ fontSize: 11, color: QUADRANT_META.star.color, fontWeight: 700, textTransform: 'uppercase' }}>
-            {QUADRANT_META.star.emoji} {QUADRANT_META.star.label}
-          </div>
-          <div style={{ fontSize: 10, color: '#666', marginTop: 2 }}>Venit/zi mare + plin</div>
-        </div>
-        <div style={{ position: 'absolute', left: 0, top: '50%', width: '50%', height: '50%', background: QUADRANT_META.candidate_to_close.bg, borderRight: '1px dashed #ccc', padding: 12 }}>
-          <div style={{ fontSize: 11, color: QUADRANT_META.candidate_to_close.color, fontWeight: 700, textTransform: 'uppercase' }}>
-            {QUADRANT_META.candidate_to_close.emoji} {QUADRANT_META.candidate_to_close.label}
-          </div>
-          <div style={{ fontSize: 10, color: '#666', marginTop: 2 }}>Venit/zi mic + gol</div>
-        </div>
-        <div style={{ position: 'absolute', left: '50%', top: '50%', width: '50%', height: '50%', background: QUADRANT_META.underperform_large.bg, padding: 12 }}>
-          <div style={{ fontSize: 11, color: QUADRANT_META.underperform_large.color, fontWeight: 700, textTransform: 'uppercase' }}>
-            {QUADRANT_META.underperform_large.emoji} {QUADRANT_META.underperform_large.label}
-          </div>
-          <div style={{ fontSize: 10, color: '#666', marginTop: 2 }}>Venit/zi mare, dar gol</div>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20, alignItems: 'start' }}>
+      {/* Chart */}
+      <div style={{ position: 'relative', height: 460, display: 'grid', gridTemplateColumns: '44px 1fr', gridTemplateRows: '1fr 44px', gap: 0 }}>
+        {/* Y-axis label */}
+        <div style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#888', fontWeight: 500, letterSpacing: 0.3, textTransform: 'uppercase' }}>
+          Încărcare medie
         </div>
 
-        {/* Points with labels */}
-        {routes.map((r, idx) => {
-          const load = r.avg_load_factor_pct ?? 0;
-          const xPct = (r.avg_revenue_per_session / axisMax) * 100;
-          const yPct = Math.min(load, 100);
-          const meta = QUADRANT_META[r.quadrant];
-          const size = 11;
-          const label = shortRouteName(r.route_name, r.time_chisinau);
-          // Alternate label placement above/below to reduce overlap
-          const labelAbove = idx % 2 === 0;
-          return (
-            <div key={r.crm_route_id}
-              onClick={() => onRouteClick?.(r.crm_route_id)}
-              title={`${r.route_name} ${r.time_chisinau?.split(' - ')[0] || ''} — Venit/zi: ${r.avg_revenue_per_session.toLocaleString('ro-RO')} lei · Încărcare: ${load.toFixed(0)}% · Curse: ${r.sessions_count}`}
-              style={{
-                position: 'absolute',
-                left: `${Math.min(xPct, 99)}%`,
-                bottom: `${yPct}%`,
-                transform: 'translate(-50%, 50%)',
-                cursor: 'pointer',
-                zIndex: 2,
-              }}
-            >
-              <div style={{
-                width: size, height: size,
-                background: meta.color,
-                border: '2px solid #fff',
-                borderRadius: '50%',
-                boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+        {/* Plot area */}
+        <div style={{ position: 'relative', borderLeft: '1.5px solid #333', borderBottom: '1.5px solid #333' }}>
+          {/* Gridlines (horizontal) */}
+          {yTicks.map(t => (
+            <div key={`gy-${t}`} style={{
+              position: 'absolute', left: 0, right: 0, bottom: `${t}%`,
+              borderTop: t === 0 ? 'none' : (t === 50 ? '1px dashed #bbb' : '1px dashed #eee'),
+            }} />
+          ))}
+          {/* Gridlines (vertical) */}
+          {xTicks.map((_, i) => {
+            const pct = (i / 4) * 100;
+            return (
+              <div key={`gx-${i}`} style={{
+                position: 'absolute', top: 0, bottom: 0, left: `${pct}%`,
+                borderLeft: i === 0 ? 'none' : (i === 2 ? '1px dashed #bbb' : '1px dashed #eee'),
               }} />
-              <div style={{
-                position: 'absolute',
-                left: '50%',
-                [labelAbove ? 'bottom' : 'top']: size + 2,
-                transform: 'translateX(-50%)',
-                fontSize: 10,
-                fontWeight: 600,
-                color: meta.color,
-                whiteSpace: 'nowrap',
-                pointerEvents: 'none',
-                textShadow: '0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff',
-              }}>
-                {label}
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
 
-        {/* Y ticks */}
-        <div style={{ position: 'absolute', left: -30, top: 0, fontSize: 10, color: '#888' }}>100%</div>
-        <div style={{ position: 'absolute', left: -30, top: '50%', fontSize: 10, color: '#888' }}>50%</div>
-        <div style={{ position: 'absolute', left: -15, bottom: -5, fontSize: 10, color: '#888' }}>0</div>
+          {/* Quadrant backgrounds */}
+          <div style={{ position: 'absolute', left: 0, top: 0, width: '50%', height: '50%', background: QUADRANT_META.efficient_small.bg }} />
+          <div style={{ position: 'absolute', left: '50%', top: 0, width: '50%', height: '50%', background: QUADRANT_META.star.bg }} />
+          <div style={{ position: 'absolute', left: 0, top: '50%', width: '50%', height: '50%', background: QUADRANT_META.candidate_to_close.bg }} />
+          <div style={{ position: 'absolute', left: '50%', top: '50%', width: '50%', height: '50%', background: QUADRANT_META.underperform_large.bg }} />
+
+          {/* Quadrant labels (corners) */}
+          <div style={{ position: 'absolute', left: 8, top: 8, fontSize: 10, color: QUADRANT_META.efficient_small.color, fontWeight: 700, letterSpacing: 0.3 }}>
+            {QUADRANT_META.efficient_small.emoji} MICI EFICIENTE
+          </div>
+          <div style={{ position: 'absolute', right: 8, top: 8, fontSize: 10, color: QUADRANT_META.star.color, fontWeight: 700, letterSpacing: 0.3, textAlign: 'right' }}>
+            STELE {QUADRANT_META.star.emoji}
+          </div>
+          <div style={{ position: 'absolute', left: 8, bottom: 8, fontSize: 10, color: QUADRANT_META.candidate_to_close.color, fontWeight: 700, letterSpacing: 0.3 }}>
+            {QUADRANT_META.candidate_to_close.emoji} DE ÎNCHIS
+          </div>
+          <div style={{ position: 'absolute', right: 8, bottom: 8, fontSize: 10, color: QUADRANT_META.underperform_large.color, fontWeight: 700, letterSpacing: 0.3, textAlign: 'right' }}>
+            DE OPTIMIZAT {QUADRANT_META.underperform_large.emoji}
+          </div>
+
+          {/* Y-axis tick labels */}
+          {yTicks.map(t => (
+            <div key={`ty-${t}`} style={{
+              position: 'absolute', left: -38, bottom: `${t}%`,
+              transform: 'translateY(50%)',
+              fontSize: 10, color: '#888', width: 32, textAlign: 'right',
+              fontVariantNumeric: 'tabular-nums',
+            }}>
+              {t}%
+            </div>
+          ))}
+
+          {/* Points */}
+          {numbered.map(r => {
+            const load = r.avg_load_factor_pct ?? 0;
+            const xPct = (r.avg_revenue_per_session / axisMax) * 100;
+            const yPct = Math.min(load, 100);
+            const meta = QUADRANT_META[r.quadrant];
+            const isHovered = hoveredId === r.crm_route_id;
+            const size = isHovered ? 26 : 22;
+            return (
+              <div key={r.crm_route_id}
+                onClick={() => onRouteClick?.(r.crm_route_id)}
+                onMouseEnter={() => setHoveredId(r.crm_route_id)}
+                onMouseLeave={() => setHoveredId(null)}
+                title={`${r.route_name} ${r.time_chisinau?.split(' - ')[0] || ''}\nVenit/zi: ${r.avg_revenue_per_session.toLocaleString('ro-RO')} lei\nÎncărcare: ${load.toFixed(0)}%\nCurse: ${r.sessions_count}`}
+                style={{
+                  position: 'absolute',
+                  left: `${Math.min(xPct, 99)}%`,
+                  bottom: `${yPct}%`,
+                  transform: 'translate(-50%, 50%)',
+                  width: size, height: size,
+                  background: meta.color,
+                  border: isHovered ? '3px solid #fff' : '2px solid #fff',
+                  borderRadius: '50%',
+                  cursor: 'pointer',
+                  boxShadow: isHovered ? `0 0 0 3px ${meta.color}, 0 4px 12px rgba(0,0,0,0.25)` : '0 2px 6px rgba(0,0,0,0.2)',
+                  zIndex: isHovered ? 10 : 2,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: '#fff', fontSize: 11, fontWeight: 700,
+                  transition: 'all 0.12s ease',
+                }}
+              >
+                {r.num}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Spacer bottom-left */}
+        <div />
+
+        {/* X-axis with tick labels */}
+        <div style={{ position: 'relative', paddingTop: 6 }}>
+          {xTicks.map((val, i) => {
+            const pct = (i / 4) * 100;
+            return (
+              <div key={`tx-${i}`} style={{
+                position: 'absolute', left: `${pct}%`, top: 6,
+                transform: i === 0 ? 'translateX(0)' : i === 4 ? 'translateX(-100%)' : 'translateX(-50%)',
+                fontSize: 10, color: '#888', fontVariantNumeric: 'tabular-nums',
+              }}>
+                {fmtLei(val)}
+              </div>
+            );
+          })}
+          <div style={{
+            position: 'absolute', left: 0, right: 0, top: 26,
+            textAlign: 'center', fontSize: 11, color: '#888', fontWeight: 500, letterSpacing: 0.3, textTransform: 'uppercase',
+          }}>
+            Venit mediu pe cursă — tur+retur (lei)
+          </div>
+        </div>
       </div>
 
-      <div />
-      <div style={{ textAlign: 'center', paddingTop: 8, fontSize: 12, color: '#888', fontWeight: 500 }}>
-        Venit mediu pe zi — tur+retur (lei) → max {axisMax.toLocaleString('ro-RO')}
+      {/* Legend (side table) */}
+      <div style={{ maxHeight: 500, overflowY: 'auto', border: '1px solid #eee', borderRadius: 8 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <thead style={{ position: 'sticky', top: 0, background: '#fafafa', zIndex: 1 }}>
+            <tr>
+              <th style={{ padding: '8px 6px', textAlign: 'center', color: '#888', fontWeight: 600, borderBottom: '1px solid #eee', width: 28 }}>#</th>
+              <th style={{ padding: '8px 6px', textAlign: 'left', color: '#888', fontWeight: 600, borderBottom: '1px solid #eee' }}>Rută</th>
+              <th style={{ padding: '8px 6px', textAlign: 'right', color: '#888', fontWeight: 600, borderBottom: '1px solid #eee', fontVariantNumeric: 'tabular-nums' }}>lei/zi</th>
+              <th style={{ padding: '8px 6px', textAlign: 'right', color: '#888', fontWeight: 600, borderBottom: '1px solid #eee', fontVariantNumeric: 'tabular-nums' }}>%</th>
+            </tr>
+          </thead>
+          <tbody>
+            {numbered.map(r => {
+              const meta = QUADRANT_META[r.quadrant];
+              const isHovered = hoveredId === r.crm_route_id;
+              return (
+                <tr key={r.crm_route_id}
+                  onClick={() => onRouteClick?.(r.crm_route_id)}
+                  onMouseEnter={() => setHoveredId(r.crm_route_id)}
+                  onMouseLeave={() => setHoveredId(null)}
+                  style={{
+                    cursor: 'pointer',
+                    background: isHovered ? 'rgba(155,27,48,0.05)' : 'transparent',
+                    transition: 'background 0.1s',
+                    borderBottom: '1px solid #f5f5f5',
+                  }}
+                >
+                  <td style={{ padding: '6px', textAlign: 'center' }}>
+                    <div style={{
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      width: 22, height: 22, borderRadius: '50%',
+                      background: meta.color, color: '#fff', fontSize: 11, fontWeight: 700,
+                      boxShadow: isHovered ? `0 0 0 2px ${meta.color}33` : 'none',
+                    }}>
+                      {r.num}
+                    </div>
+                  </td>
+                  <td style={{ padding: '6px', color: '#333', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 160 }}>
+                    {shortRouteName(r.route_name, r.time_chisinau)}
+                  </td>
+                  <td style={{ padding: '6px', textAlign: 'right', color: '#555', fontVariantNumeric: 'tabular-nums', fontWeight: 500 }}>
+                    {r.avg_revenue_per_session.toLocaleString('ro-RO')}
+                  </td>
+                  <td style={{ padding: '6px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 600,
+                    color: r.avg_load_factor_pct === null ? '#888' :
+                           r.avg_load_factor_pct >= 65 ? '#065f46' :
+                           r.avg_load_factor_pct >= 40 ? '#92400e' : '#991b1b',
+                  }}>
+                    {r.avg_load_factor_pct !== null ? `${r.avg_load_factor_pct.toFixed(0)}%` : '—'}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );
@@ -173,6 +280,7 @@ function RouteMatrix({ routes, onRouteClick }: { routes: RouteScorecardRow[]; on
 
 export default function OverviewTab({ kpi, routes, drivers, onRouteClick, onDriverClick }: Props) {
   const [sortBy, setSortBy] = useState<'quality' | 'money'>('quality');
+  const [hoveredRouteId, setHoveredRouteId] = useState<number | null>(null);
 
   // Route legend (quadrant breakdown)
   const byQuadrant = routes.reduce((acc, r) => {
@@ -259,7 +367,7 @@ export default function OverviewTab({ kpi, routes, drivers, onRouteClick, onDriv
         <p style={{ fontSize: 13, color: '#666', margin: '0 0 16px 0' }}>
           Fiecare rută e poziționată pe două axe: <strong>venit mediu pe zi (tur+retur)</strong> orizontal × <strong>încărcare medie</strong> vertical. Click pe punct pentru detalii.
         </p>
-        <RouteMatrix routes={routes} onRouteClick={onRouteClick} />
+        <RouteMatrix routes={routes} onRouteClick={onRouteClick} hoveredId={hoveredRouteId} setHoveredId={setHoveredRouteId} />
       </div>
 
       {/* Drivers Table */}

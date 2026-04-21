@@ -57,16 +57,27 @@ function rpkColor(rpk: number | null, median: number): string {
   return '#dc2626';
 }
 
-// --- 2D matrix of routes: X=revenue, Y=load_factor_pct ---
+// --- Short route name helper for labels ---
+function shortRouteName(fullName: string, time?: string): string {
+  // Strip "Chișinău - " prefix and collapse whitespace
+  const stripped = fullName
+    .replace(/^Chișinău\s*[-–]\s*/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const time0 = time?.split(' - ')[0]?.trim() || '';
+  return time0 ? `${stripped} ${time0}` : stripped;
+}
+
+// --- 2D matrix of routes: X=avg_revenue_per_session, Y=load_factor_pct ---
 function RouteMatrix({ routes, onRouteClick }: { routes: RouteScorecardRow[]; onRouteClick?: (id: number) => void }) {
   if (routes.length === 0) return <p style={{ color: '#999', fontSize: 14 }}>Nu sunt date.</p>;
 
-  const maxRev = Math.max(...routes.map(r => r.total_revenue), 1);
+  const maxAvgRev = Math.max(...routes.map(r => r.avg_revenue_per_session), 1);
   // Round to nice number for axis
-  const axisMax = Math.ceil(maxRev / 10000) * 10000;
+  const axisMax = Math.ceil(maxAvgRev / 500) * 500;
 
   return (
-    <div style={{ position: 'relative', height: 420, display: 'grid', gridTemplateColumns: '60px 1fr', gridTemplateRows: '1fr 40px', gap: 0 }}>
+    <div style={{ position: 'relative', height: 480, display: 'grid', gridTemplateColumns: '60px 1fr', gridTemplateRows: '1fr 40px', gap: 0 }}>
       <div style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#888', fontWeight: 500 }}>
         Încărcare medie (%)
       </div>
@@ -77,52 +88,72 @@ function RouteMatrix({ routes, onRouteClick }: { routes: RouteScorecardRow[]; on
           <div style={{ fontSize: 11, color: QUADRANT_META.efficient_small.color, fontWeight: 700, textTransform: 'uppercase' }}>
             {QUADRANT_META.efficient_small.emoji} {QUADRANT_META.efficient_small.label}
           </div>
-          <div style={{ fontSize: 10, color: '#666', marginTop: 2 }}>Venit mic, dar plin</div>
+          <div style={{ fontSize: 10, color: '#666', marginTop: 2 }}>Venit/zi mic, dar plin</div>
         </div>
         <div style={{ position: 'absolute', left: '50%', top: 0, width: '50%', height: '50%', background: QUADRANT_META.star.bg, borderBottom: '1px dashed #ccc', padding: 12 }}>
           <div style={{ fontSize: 11, color: QUADRANT_META.star.color, fontWeight: 700, textTransform: 'uppercase' }}>
             {QUADRANT_META.star.emoji} {QUADRANT_META.star.label}
           </div>
-          <div style={{ fontSize: 10, color: '#666', marginTop: 2 }}>Venit mare + plin</div>
+          <div style={{ fontSize: 10, color: '#666', marginTop: 2 }}>Venit/zi mare + plin</div>
         </div>
         <div style={{ position: 'absolute', left: 0, top: '50%', width: '50%', height: '50%', background: QUADRANT_META.candidate_to_close.bg, borderRight: '1px dashed #ccc', padding: 12 }}>
           <div style={{ fontSize: 11, color: QUADRANT_META.candidate_to_close.color, fontWeight: 700, textTransform: 'uppercase' }}>
             {QUADRANT_META.candidate_to_close.emoji} {QUADRANT_META.candidate_to_close.label}
           </div>
-          <div style={{ fontSize: 10, color: '#666', marginTop: 2 }}>Venit mic + gol</div>
+          <div style={{ fontSize: 10, color: '#666', marginTop: 2 }}>Venit/zi mic + gol</div>
         </div>
         <div style={{ position: 'absolute', left: '50%', top: '50%', width: '50%', height: '50%', background: QUADRANT_META.underperform_large.bg, padding: 12 }}>
           <div style={{ fontSize: 11, color: QUADRANT_META.underperform_large.color, fontWeight: 700, textTransform: 'uppercase' }}>
             {QUADRANT_META.underperform_large.emoji} {QUADRANT_META.underperform_large.label}
           </div>
-          <div style={{ fontSize: 10, color: '#666', marginTop: 2 }}>Venit mare, dar gol</div>
+          <div style={{ fontSize: 10, color: '#666', marginTop: 2 }}>Venit/zi mare, dar gol</div>
         </div>
 
-        {/* Points */}
-        {routes.map(r => {
+        {/* Points with labels */}
+        {routes.map((r, idx) => {
           const load = r.avg_load_factor_pct ?? 0;
-          const xPct = (r.total_revenue / axisMax) * 100;
+          const xPct = (r.avg_revenue_per_session / axisMax) * 100;
           const yPct = Math.min(load, 100);
           const meta = QUADRANT_META[r.quadrant];
-          const size = 10 + Math.min(r.sessions_count / 5, 6);
+          const size = 11;
+          const label = shortRouteName(r.route_name, r.time_chisinau);
+          // Alternate label placement above/below to reduce overlap
+          const labelAbove = idx % 2 === 0;
           return (
             <div key={r.crm_route_id}
               onClick={() => onRouteClick?.(r.crm_route_id)}
-              title={`${r.route_name} ${r.time_chisinau?.split(' - ')[0] || ''} — Venit: ${r.total_revenue.toLocaleString('ro-RO')} lei · Încărcare: ${load.toFixed(0)}% · Curse: ${r.sessions_count}`}
+              title={`${r.route_name} ${r.time_chisinau?.split(' - ')[0] || ''} — Venit/zi: ${r.avg_revenue_per_session.toLocaleString('ro-RO')} lei · Încărcare: ${load.toFixed(0)}% · Curse: ${r.sessions_count}`}
               style={{
                 position: 'absolute',
-                left: `${Math.min(xPct, 98)}%`,
+                left: `${Math.min(xPct, 99)}%`,
                 bottom: `${yPct}%`,
                 transform: 'translate(-50%, 50%)',
+                cursor: 'pointer',
+                zIndex: 2,
+              }}
+            >
+              <div style={{
                 width: size, height: size,
                 background: meta.color,
                 border: '2px solid #fff',
                 borderRadius: '50%',
-                cursor: 'pointer',
                 boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
-                zIndex: 2,
-              }}
-            />
+              }} />
+              <div style={{
+                position: 'absolute',
+                left: '50%',
+                [labelAbove ? 'bottom' : 'top']: size + 2,
+                transform: 'translateX(-50%)',
+                fontSize: 10,
+                fontWeight: 600,
+                color: meta.color,
+                whiteSpace: 'nowrap',
+                pointerEvents: 'none',
+                textShadow: '0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff',
+              }}>
+                {label}
+              </div>
+            </div>
           );
         })}
 
@@ -134,7 +165,7 @@ function RouteMatrix({ routes, onRouteClick }: { routes: RouteScorecardRow[]; on
 
       <div />
       <div style={{ textAlign: 'center', paddingTop: 8, fontSize: 12, color: '#888', fontWeight: 500 }}>
-        Venit perioada (lei) → max {axisMax.toLocaleString('ro-RO')}
+        Venit mediu pe zi — tur+retur (lei) → max {axisMax.toLocaleString('ro-RO')}
       </div>
     </div>
   );
@@ -226,7 +257,7 @@ export default function OverviewTab({ kpi, routes, drivers, onRouteClick, onDriv
           </div>
         </div>
         <p style={{ fontSize: 13, color: '#666', margin: '0 0 16px 0' }}>
-          Fiecare rută e poziționată pe două axe: venit (orizontal) × încărcare medie (vertical). Click pe punct pentru detalii.
+          Fiecare rută e poziționată pe două axe: <strong>venit mediu pe zi (tur+retur)</strong> orizontal × <strong>încărcare medie</strong> vertical. Click pe punct pentru detalii.
         </p>
         <RouteMatrix routes={routes} onRouteClick={onRouteClick} />
       </div>

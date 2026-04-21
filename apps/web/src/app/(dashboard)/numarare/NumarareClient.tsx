@@ -261,6 +261,8 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
               tariff={tariff}
               canSeeSums={canSeeSums}
               onSaved={handleSaved}
+              drivers={drivers}
+              vehicles={vehicles}
             />
           ) : (
             <CountingForm
@@ -347,14 +349,16 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
           return (
             <div className="card" style={{ display: 'flex', gap: 24, padding: 14, marginBottom: 12, flexWrap: 'wrap' }}>
               <div><span className="text-muted">Total ziua</span></div>
-              <div><span className="text-muted">Sumă (2 tarife):</span> <strong>{Math.round(totalDual)} lei</strong></div>
-              <div><span className="text-muted">Dacă 1 tarif:</span> <strong>{Math.round(totalSingle)} lei</strong></div>
-              <div>
-                <span className="text-muted">Δ:</span>{' '}
-                <strong style={{ color: totalDiff > 0 ? 'var(--success)' : 'var(--text-muted)' }}>
-                  {totalDiff >= 0 ? '+' : ''}{Math.round(totalDiff)} lei
-                </strong>
-              </div>
+              <div><span className="text-muted">{routeTypeFilter === 'suburban' ? 'Sumă:' : 'Sumă (2 tarife):'}</span> <strong>{Math.round(totalDual)} lei</strong></div>
+              {routeTypeFilter !== 'suburban' && (<>
+                <div><span className="text-muted">Dacă 1 tarif:</span> <strong>{Math.round(totalSingle)} lei</strong></div>
+                <div>
+                  <span className="text-muted">Δ:</span>{' '}
+                  <strong style={{ color: totalDiff > 0 ? 'var(--success)' : 'var(--text-muted)' }}>
+                    {totalDiff >= 0 ? '+' : ''}{Math.round(totalDiff)} lei
+                  </strong>
+                </div>
+              </>)}
             </div>
           );
         })()}
@@ -367,9 +371,9 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
               <th>Șofer</th>
               <th>Mașina</th>
               <th>Status</th>
-              {canSeeSums && <th>Sumă (2 tarife)</th>}
-              {canSeeSums && <th>Dacă 1 tarif</th>}
-              {canSeeSums && <th>Δ</th>}
+              {canSeeSums && <th>{routeTypeFilter === 'suburban' ? 'Sumă' : 'Sumă (2 tarife)'}</th>}
+              {canSeeSums && routeTypeFilter !== 'suburban' && <th>Dacă 1 tarif</th>}
+              {canSeeSums && routeTypeFilter !== 'suburban' && <th>Δ</th>}
               <th></th>
             </tr>
           </thead>
@@ -413,10 +417,10 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
                   {canSeeSums && (
                     <td>{hasSums ? `${Math.round(dualTotal)} lei` : '—'}</td>
                   )}
-                  {canSeeSums && (
+                  {canSeeSums && routeTypeFilter !== 'suburban' && (
                     <td>{hasSingle ? `${Math.round(singleTotal)} lei` : '—'}</td>
                   )}
-                  {canSeeSums && (
+                  {canSeeSums && routeTypeFilter !== 'suburban' && (
                     <td style={{ color: hasSingle && diff > 0 ? 'var(--success)' : 'var(--text-muted)' }}>
                       {hasSingle ? `${diff >= 0 ? '+' : ''}${Math.round(diff)} lei` : '—'}
                     </td>

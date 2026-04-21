@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { getSuburbanSchedule, saveSuburbanCycle, loadSuburbanEntries, type SuburbanSchedule, type TariffConfig } from './actions';
+import { getSuburbanSchedule, saveSuburbanCycle, loadSuburbanEntries, type SuburbanSchedule, type TariffConfig, type DriverOption, type VehicleOption } from './actions';
 
 interface Props {
   sessionId: string;
@@ -10,16 +10,20 @@ interface Props {
   tariff: TariffConfig;
   canSeeSums: boolean;
   onSaved: () => void;
+  drivers: DriverOption[];
+  vehicles: VehicleOption[];
 }
 
 type CycleInputs = Record<number, { total: number; alighted: number }>; // key=stopOrder
 type AllInputs = Record<number, CycleInputs>; // key=scheduleId
+type AltAssignment = { driverId: string | null; vehicleId: string | null; show: boolean };
 
-export default function SuburbanCountingForm({ sessionId, crmRouteId, date, tariff, canSeeSums, onSaved }: Props) {
+export default function SuburbanCountingForm({ sessionId, crmRouteId, date, tariff, canSeeSums, onSaved, drivers, vehicles }: Props) {
   const [loading, setLoading] = useState(true);
   const [tur, setTur] = useState<SuburbanSchedule[]>([]);
   const [retur, setRetur] = useState<SuburbanSchedule[]>([]);
   const [inputs, setInputs] = useState<AllInputs>({});
+  const [altMap, setAltMap] = useState<Record<number, AltAssignment>>({});
   const [savedIds, setSavedIds] = useState<Set<number>>(new Set());
   const [saveMsg, setSaveMsg] = useState<Record<number, string>>({});
 
@@ -30,14 +34,19 @@ export default function SuburbanCountingForm({ sessionId, crmRouteId, date, tari
       setRetur(retur);
       const existing = await loadSuburbanEntries(sessionId);
       const map: AllInputs = {};
+      const alts: Record<number, AltAssignment> = {};
       const saved = new Set<number>();
       for (const e of existing) {
         if (!e.scheduleId) continue;
         if (!map[e.scheduleId]) map[e.scheduleId] = {};
         map[e.scheduleId][e.stopOrder] = { total: e.totalPassengers, alighted: e.alighted };
         saved.add(e.scheduleId);
+        if (e.altDriverId || e.altVehicleId) {
+          alts[e.scheduleId] = { driverId: e.altDriverId, vehicleId: e.altVehicleId, show: true };
+        }
       }
       setInputs(map);
+      setAltMap(alts);
       setSavedIds(saved);
       setLoading(false);
     })();
@@ -79,7 +88,11 @@ export default function SuburbanCountingForm({ sessionId, crmRouteId, date, tari
       alighted: inputs[sched.scheduleId]?.[s.stopOrder]?.alighted ?? 0,
     }));
     const total = cycleTotal(sched);
-    const { error } = await saveSuburbanCycle(sessionId, sched.scheduleId, sched.direction, sched.sequenceNo, entries, total);
+    const alt = altMap[sched.scheduleId];
+    const { error } = await saveSuburbanCycle(
+      sessionId, sched.scheduleId, sched.direction, sched.sequenceNo, entries, total,
+      alt?.driverId || null, alt?.vehicleId || null,
+    );
     if (error) {
       setSaveMsg(prev => ({ ...prev, [sched.scheduleId]: 'Eroare: ' + error }));
       return;
@@ -165,6 +178,43 @@ export default function SuburbanCountingForm({ sessionId, crmRouteId, date, tari
             <button className="btn btn-primary btn-sm" onClick={() => save(sched)}>Salvează</button>
             {msg && <span style={{ fontSize: 12 }}>{msg}</span>}
           </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, fontSize: 12 }}>
+          {altMap[sched.scheduleId]?.show ? (
+            <>
+              <span className="text-muted">Alt șofer/mașină:</span>
+              <select
+                value={altMap[sched.scheduleId]?.driverId || ''}
+                onChange={e => setAltMap(prev => ({ ...prev, [sched.scheduleId]: { ...(prev[sched.scheduleId] || { show: true, driverId: null, vehicleId: null }), driverId: e.target.value || null, show: true } }))}
+                style={{ fontSize: 12 }}
+              >
+                <option value="">— șofer —</option>
+                {drivers.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
+              </select>
+              <select
+                value={altMap[sched.scheduleId]?.vehicleId || ''}
+                onChange={e => setAltMap(prev => ({ ...prev, [sched.scheduleId]: { ...(prev[sched.scheduleId] || { show: true, driverId: null, vehicleId: null }), vehicleId: e.target.value || null, show: true } }))}
+                style={{ fontSize: 12 }}
+              >
+                <option value="">— mașină —</option>
+                {vehicles.map(v => <option key={v.id} value={v.id}>{v.plate_number}</option>)}
+              </select>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => setAltMap(prev => { const n = { ...prev }; delete n[sched.scheduleId]; return n; })}
+              >
+                Elimin
+              </button>
+            </>
+          ) : (
+            <button
+              className="btn btn-outline btn-sm"
+              style={{ fontSize: 11 }}
+              onClick={() => setAltMap(prev => ({ ...prev, [sched.scheduleId]: { driverId: null, vehicleId: null, show: true } }))}
+            >
+              + altă mașină/șofer pentru această cursă
+            </button>
+          )}
         </div>
         <table className="table" style={{ fontSize: 13, margin: 0 }}>
           <thead>

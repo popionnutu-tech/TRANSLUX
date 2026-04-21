@@ -86,16 +86,32 @@ function RouteMatrix({
 }) {
   if (routes.length === 0) return <p style={{ color: '#999', fontSize: 14 }}>Nu sunt date.</p>;
 
-  const maxAvgRev = Math.max(...routes.map(r => r.avg_revenue_per_session), 1);
-  const axisMax = Math.ceil(maxAvgRev / 500) * 500;
-  const xTicks = [0, 0.25, 0.5, 0.75, 1].map(f => Math.round(axisMax * f));
+  // X-axis: stretch to actual data range (not 0..max) so left side isn't wasted
+  const revenues = routes.map(r => r.avg_revenue_per_session);
+  const maxAvgRev = Math.max(...revenues, 1);
+  const minAvgRev = Math.min(...revenues, 0);
+  // Round with some padding: min rounded down, max rounded up to nearest 500
+  const axisMin = Math.max(0, Math.floor(minAvgRev * 0.95 / 500) * 500);
+  const axisMax = Math.ceil(maxAvgRev * 1.02 / 500) * 500;
+  const axisRange = axisMax - axisMin || 1;
+
+  // Median revenue = where the vertical split line sits
+  const sortedRev = [...revenues].sort((a, b) => a - b);
+  const medianRev = sortedRev[Math.floor(sortedRev.length / 2)] ?? axisMin;
+  const medianXPct = ((medianRev - axisMin) / axisRange) * 100;
+
+  // X tick positions — 5 evenly spaced values from axisMin to axisMax
+  const xTicks = [0, 0.25, 0.5, 0.75, 1].map(f => Math.round((axisMin + f * axisRange) / 100) * 100);
   const yTicks = [0, 25, 50, 75, 100];
 
   // Routes sorted by revenue descending — numbering
   const numbered = routes.map((r, i) => ({ ...r, num: i + 1 }));
 
+  // Position helper
+  const xPosPct = (val: number) => ((val - axisMin) / axisRange) * 100;
+
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20, alignItems: 'start' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 20, alignItems: 'start' }}>
       {/* Chart */}
       <div style={{ position: 'relative', height: 460, display: 'grid', gridTemplateColumns: '44px 1fr', gridTemplateRows: '1fr 44px', gap: 0 }}>
         {/* Y-axis label */}
@@ -112,22 +128,27 @@ function RouteMatrix({
               borderTop: t === 0 ? 'none' : (t === 50 ? '1px dashed #bbb' : '1px dashed #eee'),
             }} />
           ))}
-          {/* Gridlines (vertical) */}
-          {xTicks.map((_, i) => {
-            const pct = (i / 4) * 100;
+          {/* Gridlines (vertical, at x-ticks) */}
+          {xTicks.map((val, i) => {
+            const pct = xPosPct(val);
             return (
               <div key={`gx-${i}`} style={{
                 position: 'absolute', top: 0, bottom: 0, left: `${pct}%`,
-                borderLeft: i === 0 ? 'none' : (i === 2 ? '1px dashed #bbb' : '1px dashed #eee'),
+                borderLeft: i === 0 ? 'none' : '1px dashed #eee',
               }} />
             );
           })}
+          {/* Median split line (vertical) */}
+          <div style={{
+            position: 'absolute', top: 0, bottom: 0, left: `${medianXPct}%`,
+            borderLeft: '1px dashed #bbb',
+          }} />
 
-          {/* Quadrant backgrounds */}
-          <div style={{ position: 'absolute', left: 0, top: 0, width: '50%', height: '50%', background: QUADRANT_META.efficient_small.bg }} />
-          <div style={{ position: 'absolute', left: '50%', top: 0, width: '50%', height: '50%', background: QUADRANT_META.star.bg }} />
-          <div style={{ position: 'absolute', left: 0, top: '50%', width: '50%', height: '50%', background: QUADRANT_META.candidate_to_close.bg }} />
-          <div style={{ position: 'absolute', left: '50%', top: '50%', width: '50%', height: '50%', background: QUADRANT_META.underperform_large.bg }} />
+          {/* Quadrant backgrounds (split at median X and 50% Y) */}
+          <div style={{ position: 'absolute', left: 0, top: 0, width: `${medianXPct}%`, height: '50%', background: QUADRANT_META.efficient_small.bg }} />
+          <div style={{ position: 'absolute', left: `${medianXPct}%`, top: 0, right: 0, height: '50%', background: QUADRANT_META.star.bg }} />
+          <div style={{ position: 'absolute', left: 0, top: '50%', width: `${medianXPct}%`, bottom: 0, background: QUADRANT_META.candidate_to_close.bg }} />
+          <div style={{ position: 'absolute', left: `${medianXPct}%`, top: '50%', right: 0, bottom: 0, background: QUADRANT_META.underperform_large.bg }} />
 
           {/* Quadrant labels (corners) */}
           <div style={{ position: 'absolute', left: 8, top: 8, fontSize: 10, color: QUADRANT_META.efficient_small.color, fontWeight: 700, letterSpacing: 0.3 }}>
@@ -158,7 +179,7 @@ function RouteMatrix({
           {/* Points */}
           {numbered.map(r => {
             const load = r.avg_load_factor_pct ?? 0;
-            const xPct = (r.avg_revenue_per_session / axisMax) * 100;
+            const xPct = xPosPct(r.avg_revenue_per_session);
             const yPct = Math.min(load, 100);
             const meta = QUADRANT_META[r.quadrant];
             const isHovered = hoveredId === r.crm_route_id;
@@ -198,19 +219,28 @@ function RouteMatrix({
         {/* X-axis with tick labels */}
         <div style={{ position: 'relative', paddingTop: 6 }}>
           {xTicks.map((val, i) => {
-            const pct = (i / 4) * 100;
+            const pct = xPosPct(val);
             return (
               <div key={`tx-${i}`} style={{
                 position: 'absolute', left: `${pct}%`, top: 6,
-                transform: i === 0 ? 'translateX(0)' : i === 4 ? 'translateX(-100%)' : 'translateX(-50%)',
+                transform: i === 0 ? 'translateX(0)' : i === xTicks.length - 1 ? 'translateX(-100%)' : 'translateX(-50%)',
                 fontSize: 10, color: '#888', fontVariantNumeric: 'tabular-nums',
               }}>
                 {fmtLei(val)}
               </div>
             );
           })}
+          {/* Median tick marker */}
           <div style={{
-            position: 'absolute', left: 0, right: 0, top: 26,
+            position: 'absolute', left: `${medianXPct}%`, top: 6,
+            transform: 'translateX(-50%)',
+            fontSize: 9, color: '#9B1B30', fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+            whiteSpace: 'nowrap',
+          }}>
+            ↑ mediană {fmtLei(medianRev)}
+          </div>
+          <div style={{
+            position: 'absolute', left: 0, right: 0, top: 28,
             textAlign: 'center', fontSize: 11, color: '#888', fontWeight: 500, letterSpacing: 0.3, textTransform: 'uppercase',
           }}>
             Venit mediu pe cursă — tur+retur (lei)
@@ -226,6 +256,7 @@ function RouteMatrix({
               <th style={{ padding: '8px 6px', textAlign: 'center', color: '#888', fontWeight: 600, borderBottom: '1px solid #eee', width: 28 }}>#</th>
               <th style={{ padding: '8px 6px', textAlign: 'left', color: '#888', fontWeight: 600, borderBottom: '1px solid #eee' }}>Rută</th>
               <th style={{ padding: '8px 6px', textAlign: 'right', color: '#888', fontWeight: 600, borderBottom: '1px solid #eee', fontVariantNumeric: 'tabular-nums' }}>lei/zi</th>
+              <th style={{ padding: '8px 6px', textAlign: 'right', color: '#888', fontWeight: 600, borderBottom: '1px solid #eee', fontVariantNumeric: 'tabular-nums' }}>lei/km</th>
               <th style={{ padding: '8px 6px', textAlign: 'right', color: '#888', fontWeight: 600, borderBottom: '1px solid #eee', fontVariantNumeric: 'tabular-nums' }}>%</th>
             </tr>
           </thead>
@@ -255,11 +286,14 @@ function RouteMatrix({
                       {r.num}
                     </div>
                   </td>
-                  <td style={{ padding: '6px', color: '#333', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 160 }}>
+                  <td style={{ padding: '6px', color: '#333', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>
                     {shortRouteName(r.route_name, r.time_chisinau)}
                   </td>
                   <td style={{ padding: '6px', textAlign: 'right', color: '#555', fontVariantNumeric: 'tabular-nums', fontWeight: 500 }}>
                     {r.avg_revenue_per_session.toLocaleString('ro-RO')}
+                  </td>
+                  <td style={{ padding: '6px', textAlign: 'right', color: '#9B1B30', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
+                    {r.avg_revenue_per_km !== null ? r.avg_revenue_per_km.toFixed(1) : '—'}
                   </td>
                   <td style={{ padding: '6px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 600,
                     color: r.avg_load_factor_pct === null ? '#888' :

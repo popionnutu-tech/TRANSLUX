@@ -62,6 +62,7 @@ export interface RouteScorecardRow {
   crm_route_id: number;
   route_name: string;
   time_chisinau: string;
+  time_nord: string;
   total_revenue: number;
   avg_revenue_per_session: number; // medie pe cursă (tur+retur) — folosit pe axa X a matricei
   avg_load_factor_pct: number | null;
@@ -686,13 +687,14 @@ export async function getRouteScorecard(dateFrom: string, dateTo: string): Promi
 
   // Group by route
   const groups = new Map<number, {
-    crm_route_id: number; route_name: string; time_chisinau: string;
+    crm_route_id: number; route_name: string; time_chisinau: string; time_nord: string;
     sessions: SessionRow[];
   }>();
   for (const s of sessions) {
     if (!groups.has(s.crm_route_id)) {
       groups.set(s.crm_route_id, {
-        crm_route_id: s.crm_route_id, route_name: s.route_name, time_chisinau: s.time_chisinau,
+        crm_route_id: s.crm_route_id, route_name: s.route_name,
+        time_chisinau: s.time_chisinau, time_nord: s.time_nord,
         sessions: [],
       });
     }
@@ -718,6 +720,7 @@ export async function getRouteScorecard(dateFrom: string, dateTo: string): Promi
       crm_route_id: g.crm_route_id,
       route_name: g.route_name,
       time_chisinau: g.time_chisinau,
+      time_nord: g.time_nord,
       total_revenue: Math.round(totalRev),
       avg_revenue_per_session: Math.round(avgRevPerSession),
       avg_load_factor_pct: avgLoad !== null ? Math.round(avgLoad * 10) / 10 : null,

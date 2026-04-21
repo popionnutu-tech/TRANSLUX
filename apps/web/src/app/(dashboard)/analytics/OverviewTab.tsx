@@ -365,10 +365,11 @@ export default function OverviewTab({ kpi, routes, drivers, routeLoad, onRouteCl
     if (sortBy === 'quality') {
       return b.nota_final - a.nota_final;
     } else {
-      if (a.avg_revenue_per_km === null && b.avg_revenue_per_km === null) return 0;
-      if (a.avg_revenue_per_km === null) return 1;
-      if (b.avg_revenue_per_km === null) return -1;
-      return b.avg_revenue_per_km - a.avg_revenue_per_km;
+      // Sort by load factor (pondere de îmbarcare) desc
+      if (a.avg_load_factor_pct === null && b.avg_load_factor_pct === null) return 0;
+      if (a.avg_load_factor_pct === null) return 1;
+      if (b.avg_load_factor_pct === null) return -1;
+      return b.avg_load_factor_pct - a.avg_load_factor_pct;
     }
   });
 
@@ -453,7 +454,7 @@ export default function OverviewTab({ kpi, routes, drivers, routeLoad, onRouteCl
             onClick={() => setSortBy('money')}
             style={{ fontSize: 13 }}
           >
-            Ordonat după bani/km
+            Ordonat după pondere de îmbarcare
           </button>
         </div>
 
@@ -472,6 +473,7 @@ export default function OverviewTab({ kpi, routes, drivers, routeLoad, onRouteCl
                   <th style={{ textAlign: 'center', padding: 10, fontSize: 11, color: '#888', borderBottom: '2px solid #eee', fontWeight: 600 }} title="25% — venit/km mediu per-cursă vs media rutei">25% REL</th>
                   <th style={{ textAlign: 'center', padding: 10, fontSize: 11, color: '#888', borderBottom: '2px solid #eee', fontWeight: 600 }} title="15% — inspecții: auto curat + aspect + uniformă (% OK)">15% INSP</th>
                   <th style={{ textAlign: 'center', padding: 10, fontSize: 12, color: '#888', borderBottom: '2px solid #eee', fontWeight: 600 }}>VENIT/KM</th>
+                  <th style={{ textAlign: 'center', padding: 10, fontSize: 12, color: '#888', borderBottom: '2px solid #eee', fontWeight: 600 }} title="Pondere de îmbarcare — pasageri×km / (km × 20 locuri)">ÎNCĂRCARE</th>
                   <th style={{ textAlign: 'right', padding: 10, fontSize: 12, color: '#888', borderBottom: '2px solid #eee', fontWeight: 600 }}>KM CONDUȘI</th>
                   <th style={{ textAlign: 'right', padding: 10, fontSize: 12, color: '#888', borderBottom: '2px solid #eee', fontWeight: 600 }}>CURSE</th>
                   <th style={{ textAlign: 'right', padding: 10, fontSize: 12, color: '#888', borderBottom: '2px solid #eee', fontWeight: 600 }}>VENIT TOTAL</th>
@@ -529,6 +531,14 @@ export default function OverviewTab({ kpi, routes, drivers, routeLoad, onRouteCl
                       </td>
                       <td style={{ padding: '12px 10px', textAlign: 'center', fontSize: 14, fontWeight: 600, color: rpkCol, borderBottom: '1px solid #f5f5f5' }}>
                         {d.avg_revenue_per_km !== null ? `${d.avg_revenue_per_km.toFixed(1)} lei` : '—'}
+                      </td>
+                      <td style={{ padding: '12px 10px', textAlign: 'center', fontSize: 14, fontWeight: 600,
+                        color: d.avg_load_factor_pct === null ? '#888' :
+                               d.avg_load_factor_pct >= 65 ? '#065f46' :
+                               d.avg_load_factor_pct >= 40 ? '#92400e' : '#991b1b',
+                        borderBottom: '1px solid #f5f5f5',
+                      }}>
+                        {d.avg_load_factor_pct !== null ? `${d.avg_load_factor_pct.toFixed(0)}%` : '—'}
                       </td>
                       <td style={{ padding: '12px 10px', textAlign: 'right', fontSize: 13, color: '#666', borderBottom: '1px solid #f5f5f5' }}>
                         {d.total_km_driven.toLocaleString('ro-RO')}

@@ -462,6 +462,9 @@ export default function OverviewTab({ kpi, routes, drivers, onRouteClick, onDriv
                 <tr>
                   <th style={{ textAlign: 'left', padding: 10, fontSize: 12, color: '#888', borderBottom: '2px solid #eee', fontWeight: 600 }}>ȘOFER</th>
                   <th style={{ textAlign: 'center', padding: 10, fontSize: 12, color: '#888', borderBottom: '2px solid #eee', fontWeight: 600 }}>NOTĂ</th>
+                  <th style={{ textAlign: 'center', padding: 10, fontSize: 11, color: '#888', borderBottom: '2px solid #eee', fontWeight: 600 }} title="60% — venit/km absolut vs media flotei">60% ABS</th>
+                  <th style={{ textAlign: 'center', padding: 10, fontSize: 11, color: '#888', borderBottom: '2px solid #eee', fontWeight: 600 }} title="25% — venit/km mediu per-cursă vs media rutei">25% REL</th>
+                  <th style={{ textAlign: 'center', padding: 10, fontSize: 11, color: '#888', borderBottom: '2px solid #eee', fontWeight: 600 }} title="15% — inspecții: auto curat + aspect + uniformă (% OK)">15% INSP</th>
                   <th style={{ textAlign: 'center', padding: 10, fontSize: 12, color: '#888', borderBottom: '2px solid #eee', fontWeight: 600 }}>VENIT/KM</th>
                   <th style={{ textAlign: 'right', padding: 10, fontSize: 12, color: '#888', borderBottom: '2px solid #eee', fontWeight: 600 }}>KM CONDUȘI</th>
                   <th style={{ textAlign: 'right', padding: 10, fontSize: 12, color: '#888', borderBottom: '2px solid #eee', fontWeight: 600 }}>CURSE</th>
@@ -472,6 +475,9 @@ export default function OverviewTab({ kpi, routes, drivers, onRouteClick, onDriv
                 {sortedDrivers.map(d => {
                   const nc = notaColor(d.nota_final);
                   const rpkCol = rpkColor(d.avg_revenue_per_km, medianRpk);
+                  // Combined inspection score (15% bucket): avg of non-null inspection rates
+                  const inspParts = [d.auto_curat_ok_rate, d.exterior_ok_rate, d.uniform_ok_rate].filter(v => v !== null) as number[];
+                  const inspAvg = inspParts.length > 0 ? inspParts.reduce((a, b) => a + b, 0) / inspParts.length : null;
                   const tooltipParts: string[] = [];
                   if (d.abs_rpk_score !== null) tooltipParts.push(`Abs venit/km (60%): ${d.abs_rpk_score}`);
                   if (d.relative_rpk_score !== null) tooltipParts.push(`Relativ per-cursă (25%): ${d.relative_rpk_score}`);
@@ -480,6 +486,14 @@ export default function OverviewTab({ kpi, routes, drivers, onRouteClick, onDriv
                   if (d.uniform_ok_rate !== null) tooltipParts.push(`Uniformă (5%): ${d.uniform_ok_rate}%`);
                   tooltipParts.push(`Inspecții: ${d.inspections_count}`);
                   const tooltip = tooltipParts.join('\n');
+                  const inspTooltip = inspParts.length > 0
+                    ? [
+                        d.auto_curat_ok_rate !== null ? `Auto curat: ${d.auto_curat_ok_rate}%` : null,
+                        d.exterior_ok_rate !== null ? `Aspect: ${d.exterior_ok_rate}%` : null,
+                        d.uniform_ok_rate !== null ? `Uniformă: ${d.uniform_ok_rate}%` : null,
+                        `Inspecții: ${d.inspections_count}`,
+                      ].filter(Boolean).join('\n')
+                    : 'Fără inspecții';
                   return (
                     <tr key={d.driver_id}
                       onClick={() => onDriverClick?.(d.driver_id)}
@@ -497,6 +511,15 @@ export default function OverviewTab({ kpi, routes, drivers, onRouteClick, onDriv
                         }}>
                           {d.nota_final.toFixed(1)}
                         </span>
+                      </td>
+                      <td style={{ padding: '12px 10px', textAlign: 'center', fontSize: 13, fontWeight: 600, color: notaColor(d.abs_rpk_score).color, borderBottom: '1px solid #f5f5f5' }}>
+                        {d.abs_rpk_score !== null ? d.abs_rpk_score.toFixed(1) : '—'}
+                      </td>
+                      <td style={{ padding: '12px 10px', textAlign: 'center', fontSize: 13, fontWeight: 600, color: notaColor(d.relative_rpk_score).color, borderBottom: '1px solid #f5f5f5' }}>
+                        {d.relative_rpk_score !== null ? d.relative_rpk_score.toFixed(1) : '—'}
+                      </td>
+                      <td style={{ padding: '12px 10px', textAlign: 'center', fontSize: 13, fontWeight: 600, color: notaColor(inspAvg).color, borderBottom: '1px solid #f5f5f5' }} title={inspTooltip}>
+                        {inspAvg !== null ? `${inspAvg.toFixed(0)}%` : '—'}
                       </td>
                       <td style={{ padding: '12px 10px', textAlign: 'center', fontSize: 14, fontWeight: 600, color: rpkCol, borderBottom: '1px solid #f5f5f5' }}>
                         {d.avg_revenue_per_km !== null ? `${d.avg_revenue_per_km.toFixed(1)} lei` : '—'}

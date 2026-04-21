@@ -462,6 +462,8 @@ export default function OverviewTab({ kpi, routes, drivers, routeLoad, onRouteCl
           <p style={{ color: '#999', fontSize: 14, textAlign: 'center', padding: 32 }}>
             Nu sunt șoferi cu cel puțin 5 curse în perioada selectată.
           </p>
+        ) : sortBy === 'money' ? (
+          <DriverLoadHeatmap data={sortedDrivers} onDriverClick={onDriverClick} />
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -600,6 +602,112 @@ export default function OverviewTab({ kpi, routes, drivers, routeLoad, onRouteCl
         .driver-row:hover { background: rgba(155, 27, 48, 0.04); }
         .heatmap-row:hover { background: rgba(155, 27, 48, 0.04); }
       `}</style>
+    </div>
+  );
+}
+
+// --- Driver load heatmap (driver × DOW × direction) ---
+function DriverLoadHeatmap({
+  data,
+  onDriverClick,
+}: {
+  data: DriverScorecardRow[];
+  onDriverClick?: (id: string) => void;
+}) {
+  const [dir, setDir] = useState<LoadDir>('ambele');
+
+  const pickVec = (d: DriverScorecardRow): LoadByDow =>
+    dir === 'tur' ? d.tur_by_dow : dir === 'retur' ? d.retur_by_dow : d.ambele_by_dow;
+  const pickOverall = (d: DriverScorecardRow): number | null =>
+    dir === 'tur' ? d.overall_tur : dir === 'retur' ? d.overall_retur : d.overall_ambele;
+
+  const sorted = [...data].sort((a, b) => {
+    const aV = pickOverall(a); const bV = pickOverall(b);
+    if (aV === null && bV === null) return 0;
+    if (aV === null) return 1;
+    if (bV === null) return -1;
+    return bV - aV;
+  });
+
+  const cellColor = (v: number | null) => {
+    if (v === null) return { bg: '#f5f5f5', color: '#ccc' };
+    if (v >= 65) return { bg: 'rgba(5,150,105,0.18)', color: '#065f46' };
+    if (v >= 40) return { bg: 'rgba(217,119,6,0.18)', color: '#92400e' };
+    return { bg: 'rgba(220,38,38,0.18)', color: '#991b1b' };
+  };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
+        {(['tur', 'retur', 'ambele'] as LoadDir[]).map(d => (
+          <button key={d}
+            className={`btn ${dir === d ? 'btn-primary' : 'btn-outline'}`}
+            onClick={() => setDir(d)}
+            style={{ fontSize: 12 }}
+          >
+            {d === 'tur' ? 'Tur' : d === 'retur' ? 'Retur' : 'Ambele'}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr>
+              <th style={{ textAlign: 'left', padding: '8px 10px', fontSize: 12, color: '#888', borderBottom: '2px solid #eee', fontWeight: 600 }}>ȘOFER</th>
+              {DOW_LABELS.map(d => (
+                <th key={d} style={{ textAlign: 'center', padding: '8px 4px', fontSize: 11, color: '#888', borderBottom: '2px solid #eee', fontWeight: 600, minWidth: 44 }}>{d}</th>
+              ))}
+              <th style={{ textAlign: 'center', padding: '8px 10px', fontSize: 12, color: '#888', borderBottom: '2px solid #eee', fontWeight: 600 }}>MED.</th>
+              <th style={{ textAlign: 'right', padding: '8px 10px', fontSize: 12, color: '#888', borderBottom: '2px solid #eee', fontWeight: 600 }}>CURSE</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map(d => {
+              const vec = pickVec(d);
+              const overall = pickOverall(d);
+              const overallCol = cellColor(overall);
+              return (
+                <tr key={d.driver_id}
+                  className="driver-row"
+                  onClick={() => onDriverClick?.(d.driver_id)}
+                  style={{ cursor: onDriverClick ? 'pointer' : 'default', borderBottom: '1px solid #f5f5f5' }}
+                >
+                  <td style={{ padding: '8px 10px', fontSize: 13, whiteSpace: 'nowrap', fontWeight: 500 }}>
+                    {d.driver_name}
+                  </td>
+                  {vec.map((v, i) => {
+                    const c = cellColor(v);
+                    return (
+                      <td key={i} style={{
+                        textAlign: 'center', padding: '8px 4px',
+                        fontSize: 12, fontWeight: v !== null ? 600 : 400,
+                        color: c.color, background: c.bg, borderRadius: 3,
+                        fontVariantNumeric: 'tabular-nums',
+                      }}>
+                        {v !== null ? `${v.toFixed(0)}%` : '—'}
+                      </td>
+                    );
+                  })}
+                  <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                    <span style={{
+                      display: 'inline-block', padding: '3px 10px', borderRadius: 10,
+                      fontSize: 12, fontWeight: 700,
+                      background: overallCol.bg, color: overallCol.color,
+                      fontVariantNumeric: 'tabular-nums',
+                    }}>
+                      {overall !== null ? `${overall.toFixed(0)}%` : '—'}
+                    </span>
+                  </td>
+                  <td style={{ padding: '8px 10px', textAlign: 'right', fontSize: 13, color: '#666', fontVariantNumeric: 'tabular-nums' }}>
+                    {d.sessions_count}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

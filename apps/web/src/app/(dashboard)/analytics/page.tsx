@@ -12,6 +12,7 @@ import {
   getOverviewKPI,
   getRouteScorecard,
   getDriverScorecard,
+  getRouteLoadHeatmap,
 } from './sales-actions';
 import AnalyticsClient from './AnalyticsClient';
 
@@ -23,7 +24,7 @@ export default async function AnalyticsPage() {
 
   const [
     pageViews, searches, detailedRoutes, devices, countries, totals,
-    overviewKPI, routeScorecard, driverScorecard,
+    overviewKPI, routeScorecard, driverScorecard, routeLoad,
   ] = await Promise.all([
     getPageViewsPerDay(days),
     getSearchesPerDay(days),
@@ -34,6 +35,7 @@ export default async function AnalyticsPage() {
     getOverviewKPI(dateFrom, dateTo),
     getRouteScorecard(dateFrom, dateTo),
     getDriverScorecard(dateFrom, dateTo),
+    getRouteLoadHeatmap(dateFrom, dateTo),
   ]);
 
   return (
@@ -48,6 +50,7 @@ export default async function AnalyticsPage() {
       initialOverviewKPI={overviewKPI}
       initialRouteScorecard={routeScorecard}
       initialDriverScorecard={driverScorecard}
+      initialRouteLoad={routeLoad}
     />
   );
 }

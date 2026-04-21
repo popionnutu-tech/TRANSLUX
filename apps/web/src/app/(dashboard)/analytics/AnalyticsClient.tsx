@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import type { DailyCount, DetailedRoutesResult, DeviceCount, CountryCount } from './actions';
-import type { OverviewKPI, RouteScorecardRow, DriverScorecardRow } from './sales-actions';
+import type { OverviewKPI, RouteScorecardRow, DriverScorecardRow, RouteLoadRow } from './sales-actions';
 import {
   getPageViewsPerDay,
   getSearchesPerDay,
@@ -11,7 +11,7 @@ import {
   getCountryBreakdown,
   getTotalStats,
 } from './actions';
-import { getOverviewKPI, getRouteScorecard, getDriverScorecard } from './sales-actions';
+import { getOverviewKPI, getRouteScorecard, getDriverScorecard, getRouteLoadHeatmap } from './sales-actions';
 import OverviewTab from './OverviewTab';
 
 interface Props {
@@ -25,6 +25,7 @@ interface Props {
   initialOverviewKPI: OverviewKPI;
   initialRouteScorecard: RouteScorecardRow[];
   initialDriverScorecard: DriverScorecardRow[];
+  initialRouteLoad: RouteLoadRow[];
 }
 
 type Tab = 'overview' | 'site';
@@ -169,6 +170,7 @@ export default function AnalyticsClient({
   initialOverviewKPI,
   initialRouteScorecard,
   initialDriverScorecard,
+  initialRouteLoad,
 }: Props) {
   const [tab, setTab] = useState<Tab>('overview');
   const [days, setDays] = useState(initialDays);
@@ -181,6 +183,7 @@ export default function AnalyticsClient({
   const [overviewKPI, setOverviewKPI] = useState(initialOverviewKPI);
   const [routeScorecard, setRouteScorecard] = useState(initialRouteScorecard);
   const [driverScorecard, setDriverScorecard] = useState(initialDriverScorecard);
+  const [routeLoad, setRouteLoad] = useState(initialRouteLoad);
   const [isPending, startTransition] = useTransition();
 
   function handlePeriodChange(newDays: number) {
@@ -188,7 +191,7 @@ export default function AnalyticsClient({
     const dateFrom = new Date(Date.now() - newDays * 86400000).toISOString().slice(0, 10);
     const dateTo = new Date().toISOString().slice(0, 10);
     startTransition(async () => {
-      const [pv, sr, dr, dv, ct, tt, kpi, rs, ds] = await Promise.all([
+      const [pv, sr, dr, dv, ct, tt, kpi, rs, ds, rl] = await Promise.all([
         getPageViewsPerDay(newDays),
         getSearchesPerDay(newDays),
         getTopSearchedRoutesDetailed(newDays),
@@ -198,6 +201,7 @@ export default function AnalyticsClient({
         getOverviewKPI(dateFrom, dateTo),
         getRouteScorecard(dateFrom, dateTo),
         getDriverScorecard(dateFrom, dateTo),
+        getRouteLoadHeatmap(dateFrom, dateTo),
       ]);
       setPageViews(pv);
       setSearches(sr);
@@ -208,6 +212,7 @@ export default function AnalyticsClient({
       setOverviewKPI(kpi);
       setRouteScorecard(rs);
       setDriverScorecard(ds);
+      setRouteLoad(rl);
     });
   }
 
@@ -253,6 +258,7 @@ export default function AnalyticsClient({
           kpi={overviewKPI}
           routes={routeScorecard}
           drivers={driverScorecard}
+          routeLoad={routeLoad}
         />
       )}
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getSuburbanSchedule, saveSuburbanCycle, loadSuburbanEntries, type SuburbanSchedule, type TariffConfig } from './actions';
 
 interface Props {
@@ -22,7 +22,6 @@ export default function SuburbanCountingForm({ sessionId, crmRouteId, date, tari
   const [inputs, setInputs] = useState<AllInputs>({});
   const [savedIds, setSavedIds] = useState<Set<number>>(new Set());
   const [saveMsg, setSaveMsg] = useState<Record<number, string>>({});
-  const inputsRef = useRef<HTMLInputElement[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -91,26 +90,50 @@ export default function SuburbanCountingForm({ sessionId, crmRouteId, date, tari
     onSaved();
   }
 
-  // Enter/Space avansează la următorul input
+  // Enter/Space avansează la următorul input:
+  // întâi toate TUR ale ciclului, apoi toate RETUR, apoi următorul ciclu.
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Enter' || (e.key === ' ' && e.currentTarget.value !== '')) {
-      e.preventDefault();
-      const idx = inputsRef.current.findIndex(el => el === e.currentTarget);
-      if (idx >= 0 && idx < inputsRef.current.length - 1) {
-        inputsRef.current[idx + 1]?.focus();
-        inputsRef.current[idx + 1]?.select();
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    const cur = e.currentTarget;
+    const cycleId = Number(cur.dataset.cycleId);
+    const dir = cur.dataset.dir as 'tur' | 'retur';
+    const stopOrder = Number(cur.dataset.stopOrder);
+
+    const allCycles = [...tur, ...retur];
+    const cycleIdx = allCycles.findIndex(c => c.scheduleId === cycleId);
+    if (cycleIdx < 0) return;
+    const curCycle = allCycles[cycleIdx];
+    const stops = [...curCycle.stops].sort((a, b) => a.stopOrder - b.stopOrder);
+    const stopIdx = stops.findIndex(s => s.stopOrder === stopOrder);
+
+    let nextKey: string | null = null;
+    if (dir === 'tur') {
+      if (stopIdx < stops.length - 1) {
+        nextKey = `${cycleId}-tur-${stops[stopIdx + 1].stopOrder}`;
+      } else {
+        nextKey = `${cycleId}-retur-${stops[0].stopOrder}`;
+      }
+    } else {
+      if (stopIdx < stops.length - 1) {
+        nextKey = `${cycleId}-retur-${stops[stopIdx + 1].stopOrder}`;
+      } else if (cycleIdx < allCycles.length - 1) {
+        const next = allCycles[cycleIdx + 1];
+        const nextStops = [...next.stops].sort((a, b) => a.stopOrder - b.stopOrder);
+        nextKey = `${next.scheduleId}-tur-${nextStops[0].stopOrder}`;
+      }
+    }
+
+    if (nextKey) {
+      const el = document.querySelector<HTMLInputElement>(`input[data-key="${nextKey}"]`);
+      if (el) {
+        el.focus();
+        el.select();
       }
     }
   }
 
   if (loading) return <p className="text-muted">Se încarcă orarul…</p>;
-
-  // Reset ref array pe render
-  inputsRef.current = [];
-  let inputIdx = 0;
-  const registerInput = (el: HTMLInputElement | null) => {
-    if (el) inputsRef.current[inputIdx++] = el;
-  };
 
   const renderCycle = (sched: SuburbanSchedule, headerColor: string) => {
     const done = savedIds.has(sched.scheduleId);
@@ -161,7 +184,10 @@ export default function SuburbanCountingForm({ sessionId, crmRouteId, date, tari
                 <td>{s.kmFromStart}</td>
                 <td>
                   <input
-                    ref={registerInput}
+                    data-key={`${sched.scheduleId}-tur-${s.stopOrder}`}
+                    data-cycle-id={sched.scheduleId}
+                    data-dir="tur"
+                    data-stop-order={s.stopOrder}
                     type="number"
                     min={0}
                     value={inputs[sched.scheduleId]?.[s.stopOrder]?.total ?? ''}
@@ -173,7 +199,10 @@ export default function SuburbanCountingForm({ sessionId, crmRouteId, date, tari
                 </td>
                 <td>
                   <input
-                    ref={registerInput}
+                    data-key={`${sched.scheduleId}-retur-${s.stopOrder}`}
+                    data-cycle-id={sched.scheduleId}
+                    data-dir="retur"
+                    data-stop-order={s.stopOrder}
                     type="number"
                     min={0}
                     value={inputs[sched.scheduleId]?.[s.stopOrder]?.alighted ?? ''}

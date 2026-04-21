@@ -440,7 +440,7 @@ export default function OverviewTab({ kpi, routes, drivers, onRouteClick, onDriv
             onClick={() => setSortBy('quality')}
             style={{ fontSize: 13 }}
           >
-            Ordonat după calitate
+            Ordonat după notă
           </button>
           <button
             className={`btn ${sortBy === 'money' ? 'btn-primary' : 'btn-outline'}`}

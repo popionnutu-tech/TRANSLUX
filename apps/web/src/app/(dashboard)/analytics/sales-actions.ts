@@ -3,7 +3,6 @@
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
 import { syncWeather } from '@/lib/weather';
-import { parseTimeLabel } from '@/lib/assignments';
 
 // ─── Types ───
 
@@ -64,9 +63,6 @@ export interface RouteScorecardRow {
   route_name: string;
   time_chisinau: string;
   time_nord: string;
-  // Parsed pair for UI display (takes retur_route_id swap into account)
-  departure_time_chisinau: string; // "HH:MM" — plecare din Chișinău
-  return_time_nord: string; // "HH:MM" — plecare din Nord, cu swap prin daily_assignments.retur_route_id
   total_revenue: number;
   avg_revenue_per_session: number; // medie pe cursă (tur+retur) — folosit pe axa X a matricei
   avg_load_factor_pct: number | null;
@@ -687,52 +683,7 @@ function classifyQuadrant(revenuePerSession: number, loadPct: number | null, med
 export async function getRouteScorecard(dateFrom: string, dateTo: string): Promise<RouteScorecardRow[]> {
   requireRole(await verifySession(), 'ADMIN');
 
-  const sb = getSupabase();
-
-  const [sessions, assignmentsRes, routesRes] = await Promise.all([
-    fetchSessions(dateFrom, dateTo),
-    // Assignments in the selected period — used to find the dominant retur_route_id swap per route
-    sb.from('daily_assignments')
-      .select('crm_route_id, retur_route_id')
-      .gte('assignment_date', dateFrom)
-      .lte('assignment_date', dateTo),
-    // All routes: need time_nord for resolving the paired return departure (including non-primary routes referenced by retur_route_id)
-    sb.from('crm_routes').select('id, time_chisinau, time_nord'),
-  ]);
-
-  // Build majority map: only accept a swap when the SAME retur_route_id appears
-  // in the strict majority (> 50%) of all assignments for that route in the period.
-  // Otherwise the route uses its own time_nord (no swap).
-  const returMajority = new Map<number, number>();
-  {
-    const totalDays = new Map<number, number>(); // crm_route_id -> total assignment rows
-    const counts = new Map<number, Map<number, number>>();
-    for (const a of (assignmentsRes.data ?? []) as { crm_route_id: number; retur_route_id: number | null }[]) {
-      totalDays.set(a.crm_route_id, (totalDays.get(a.crm_route_id) ?? 0) + 1);
-      if (!a.retur_route_id) continue;
-      let inner = counts.get(a.crm_route_id);
-      if (!inner) { inner = new Map(); counts.set(a.crm_route_id, inner); }
-      inner.set(a.retur_route_id, (inner.get(a.retur_route_id) ?? 0) + 1);
-    }
-    for (const [routeId, inner] of counts) {
-      let best = 0;
-      let bestCount = 0;
-      for (const [rId, c] of inner) {
-        if (c > bestCount) { bestCount = c; best = rId; }
-      }
-      const total = totalDays.get(routeId) ?? 0;
-      // Require strict majority: the same swap on MORE THAN half of all days
-      if (best > 0 && bestCount * 2 > total) {
-        returMajority.set(routeId, best);
-      }
-    }
-  }
-
-  // Route lookup by id for resolving the paired retur route's time_nord
-  const routeLookup = new Map<number, { time_chisinau: string; time_nord: string }>();
-  for (const r of (routesRes.data ?? []) as { id: number; time_chisinau: string | null; time_nord: string | null }[]) {
-    routeLookup.set(r.id, { time_chisinau: r.time_chisinau ?? '', time_nord: r.time_nord ?? '' });
-  }
+  const sessions = await fetchSessions(dateFrom, dateTo);
 
   // Group by route
   const groups = new Map<number, {
@@ -765,20 +716,11 @@ export async function getRouteScorecard(dateFrom: string, dateTo: string): Promi
       ? withRpk.reduce((a, s) => a + (s.revenue_per_km as number), 0) / withRpk.length
       : null;
 
-    // Resolve the paired return-from-Nord time using daily_assignments.retur_route_id majority.
-    // If this route swaps retur with route X, the physical rotation returns using X's time_nord.
-    const swappedReturRouteId = returMajority.get(g.crm_route_id);
-    const effectiveReturTimeNord = swappedReturRouteId
-      ? (routeLookup.get(swappedReturRouteId)?.time_nord ?? g.time_nord)
-      : g.time_nord;
-
     rows.push({
       crm_route_id: g.crm_route_id,
       route_name: g.route_name,
       time_chisinau: g.time_chisinau,
       time_nord: g.time_nord,
-      departure_time_chisinau: parseTimeLabel(g.time_chisinau ?? ''),
-      return_time_nord: parseTimeLabel(effectiveReturTimeNord ?? ''),
       total_revenue: Math.round(totalRev),
       avg_revenue_per_session: Math.round(avgRevPerSession),
       avg_load_factor_pct: avgLoad !== null ? Math.round(avgLoad * 10) / 10 : null,

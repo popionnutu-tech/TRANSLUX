@@ -42,11 +42,11 @@ function loadColor(pct: number | null): string {
   return '#dc2626';
 }
 
-function pctVsNormColor(pct: number | null): { color: string; bg: string } {
-  if (pct === null) return { color: '#888', bg: 'rgba(156,163,175,0.15)' };
-  if (pct >= 10) return { color: '#065f46', bg: 'rgba(5,150,105,0.18)' };
-  if (pct >= 0) return { color: '#065f46', bg: 'rgba(5,150,105,0.10)' };
-  if (pct >= -10) return { color: '#92400e', bg: 'rgba(217,119,6,0.18)' };
+function notaColor(v: number | null): { color: string; bg: string } {
+  if (v === null) return { color: '#888', bg: 'rgba(156,163,175,0.15)' };
+  if (v >= 110) return { color: '#065f46', bg: 'rgba(5,150,105,0.20)' };
+  if (v >= 95) return { color: '#065f46', bg: 'rgba(5,150,105,0.10)' };
+  if (v >= 80) return { color: '#92400e', bg: 'rgba(217,119,6,0.18)' };
   return { color: '#991b1b', bg: 'rgba(220,38,38,0.22)' };
 }
 
@@ -357,10 +357,7 @@ export default function OverviewTab({ kpi, routes, drivers, onRouteClick, onDriv
   // Driver sorted view
   const sortedDrivers = [...drivers].sort((a, b) => {
     if (sortBy === 'quality') {
-      if (a.pct_vs_route_norm === null && b.pct_vs_route_norm === null) return 0;
-      if (a.pct_vs_route_norm === null) return 1;
-      if (b.pct_vs_route_norm === null) return -1;
-      return b.pct_vs_route_norm - a.pct_vs_route_norm;
+      return b.nota_final - a.nota_final;
     } else {
       if (a.avg_revenue_per_km === null && b.avg_revenue_per_km === null) return 0;
       if (a.avg_revenue_per_km === null) return 1;
@@ -464,7 +461,7 @@ export default function OverviewTab({ kpi, routes, drivers, onRouteClick, onDriv
               <thead>
                 <tr>
                   <th style={{ textAlign: 'left', padding: 10, fontSize: 12, color: '#888', borderBottom: '2px solid #eee', fontWeight: 600 }}>ȘOFER</th>
-                  <th style={{ textAlign: 'center', padding: 10, fontSize: 12, color: '#888', borderBottom: '2px solid #eee', fontWeight: 600 }}>% FAȚĂ DE NORMĂ</th>
+                  <th style={{ textAlign: 'center', padding: 10, fontSize: 12, color: '#888', borderBottom: '2px solid #eee', fontWeight: 600 }}>NOTĂ</th>
                   <th style={{ textAlign: 'center', padding: 10, fontSize: 12, color: '#888', borderBottom: '2px solid #eee', fontWeight: 600 }}>VENIT/KM</th>
                   <th style={{ textAlign: 'right', padding: 10, fontSize: 12, color: '#888', borderBottom: '2px solid #eee', fontWeight: 600 }}>KM CONDUȘI</th>
                   <th style={{ textAlign: 'right', padding: 10, fontSize: 12, color: '#888', borderBottom: '2px solid #eee', fontWeight: 600 }}>CURSE</th>
@@ -473,8 +470,16 @@ export default function OverviewTab({ kpi, routes, drivers, onRouteClick, onDriv
               </thead>
               <tbody>
                 {sortedDrivers.map(d => {
-                  const pct = pctVsNormColor(d.pct_vs_route_norm);
+                  const nc = notaColor(d.nota_final);
                   const rpkCol = rpkColor(d.avg_revenue_per_km, medianRpk);
+                  const tooltipParts: string[] = [];
+                  if (d.abs_rpk_score !== null) tooltipParts.push(`Abs venit/km (60%): ${d.abs_rpk_score}`);
+                  if (d.relative_rpk_score !== null) tooltipParts.push(`Relativ per-cursă (25%): ${d.relative_rpk_score}`);
+                  if (d.auto_curat_ok_rate !== null) tooltipParts.push(`Auto curat (5%): ${d.auto_curat_ok_rate}%`);
+                  if (d.exterior_ok_rate !== null) tooltipParts.push(`Aspect/exterior (5%): ${d.exterior_ok_rate}%`);
+                  if (d.uniform_ok_rate !== null) tooltipParts.push(`Uniformă (5%): ${d.uniform_ok_rate}%`);
+                  tooltipParts.push(`Inspecții: ${d.inspections_count}`);
+                  const tooltip = tooltipParts.join('\n');
                   return (
                     <tr key={d.driver_id}
                       onClick={() => onDriverClick?.(d.driver_id)}
@@ -483,18 +488,15 @@ export default function OverviewTab({ kpi, routes, drivers, onRouteClick, onDriv
                       <td style={{ padding: '12px 10px', fontSize: 14, fontWeight: 600, borderBottom: '1px solid #f5f5f5' }}>
                         {d.driver_name}
                       </td>
-                      <td style={{ padding: '12px 10px', textAlign: 'center', borderBottom: '1px solid #f5f5f5' }}>
-                        {d.pct_vs_route_norm !== null ? (
-                          <span style={{
-                            display: 'inline-block', padding: '3px 10px', borderRadius: 10,
-                            fontSize: 12, fontWeight: 700,
-                            color: pct.color, background: pct.bg,
-                          }}>
-                            {d.pct_vs_route_norm > 0 ? '+' : ''}{d.pct_vs_route_norm}%
-                          </span>
-                        ) : (
-                          <span style={{ color: '#ccc' }}>—</span>
-                        )}
+                      <td style={{ padding: '12px 10px', textAlign: 'center', borderBottom: '1px solid #f5f5f5' }} title={tooltip}>
+                        <span style={{
+                          display: 'inline-block', padding: '3px 10px', borderRadius: 10,
+                          fontSize: 13, fontWeight: 700,
+                          color: nc.color, background: nc.bg,
+                          cursor: 'help',
+                        }}>
+                          {d.nota_final.toFixed(1)}
+                        </span>
                       </td>
                       <td style={{ padding: '12px 10px', textAlign: 'center', fontSize: 14, fontWeight: 600, color: rpkCol, borderBottom: '1px solid #f5f5f5' }}>
                         {d.avg_revenue_per_km !== null ? `${d.avg_revenue_per_km.toFixed(1)} lei` : '—'}
@@ -517,7 +519,7 @@ export default function OverviewTab({ kpi, routes, drivers, onRouteClick, onDriv
         )}
 
         <div style={{ fontSize: 12, color: '#888', marginTop: 16, paddingTop: 12, borderTop: '1px solid #eee' }}>
-          💡 <strong>Cum citești:</strong> &quot;% față de normă&quot; = cât mai mulți pasageri vs media altor șoferi pe aceleași rute. &quot;Venit/km&quot; = câți lei aduce fiecare km. Doar șoferii cu ≥5 curse în perioadă.
+          💡 <strong>Notă</strong> = 60% venit/km (absolut vs flotă) + 25% venit/km mediu per-cursă (vs media rutei) + 3 × 5% inspecții (auto curat, aspect, uniformă). 100 = la nivelul flotei. Hover pe notă pentru detalii. Doar șoferii cu ≥5 curse.
         </div>
       </div>
 

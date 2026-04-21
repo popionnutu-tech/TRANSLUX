@@ -73,7 +73,7 @@ export async function getGraficData(date: string): Promise<{
   const db = getSupabase();
 
   const [routesRes, assignmentsRes, driversRes, vehiclesRes, stopsRes] = await Promise.all([
-    db.from('crm_routes').select('id, time_nord, time_chisinau, dest_to_ro').eq('active', true),
+    db.from('crm_routes').select('id, time_nord, time_chisinau, dest_to_ro').eq('active', true).not('time_nord', 'is', null).neq('time_nord', ''),
     db.from('daily_assignments')
       .select('id, crm_route_id, driver_id, vehicle_id, vehicle_id_retur, retur_route_id')
       .eq('assignment_date', date)
@@ -171,7 +171,7 @@ export async function getGraficEdinetRows(date: string): Promise<GraficEdinetRow
   const db = getSupabase();
 
   const [routesRes, stopsRes, assignmentsRes, driversRes] = await Promise.all([
-    db.from('crm_routes').select('id, time_chisinau, dest_to_ro').eq('active', true),
+    db.from('crm_routes').select('id, time_chisinau, dest_to_ro').eq('active', true).not('time_chisinau', 'is', null).neq('time_chisinau', ''),
     db.from('crm_stop_fares').select('crm_route_id, name_ro, hour_from_nord').eq('is_visible', true),
     db.from('daily_assignments')
       .select('crm_route_id, driver_id, retur_route_id')
@@ -462,7 +462,9 @@ export async function getReturRouteOptions(): Promise<ReturRouteOption[]> {
   const { data } = await db
     .from('crm_routes')
     .select('id, time_chisinau, dest_to_ro')
-    .eq('active', true);
+    .eq('active', true)
+    .not('time_chisinau', 'is', null)
+    .neq('time_chisinau', '');
   if (!data) return [];
   return data.map((r: any) => ({
     id: r.id,

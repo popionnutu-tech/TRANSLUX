@@ -80,6 +80,7 @@ export interface Driver {
   phone: string | null;
   active: boolean;
   created_at: string;
+  cashin_sofer_id: string | null;
 }
 
 export interface Vehicle {

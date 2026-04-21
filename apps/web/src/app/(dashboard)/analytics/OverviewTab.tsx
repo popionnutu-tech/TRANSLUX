@@ -88,11 +88,13 @@ function RouteMatrix({
 
   // X-axis: stretch to actual data range (not 0..max) so left side isn't wasted
   const revenues = routes.map(r => r.avg_revenue_per_session);
-  const maxAvgRev = Math.max(...revenues, 1);
-  const minAvgRev = Math.min(...revenues, 0);
-  // Round with some padding: min rounded down, max rounded up to nearest 500
-  const axisMin = Math.max(0, Math.floor(minAvgRev * 0.95 / 500) * 500);
-  const axisMax = Math.ceil(maxAvgRev * 1.02 / 500) * 500;
+  const maxAvgRev = Math.max(...revenues);
+  const minAvgRev = Math.min(...revenues);
+  // Symmetric padding around the data range so points don't touch edges
+  const span = Math.max(maxAvgRev - minAvgRev, 1);
+  const pad = Math.max(span * 0.08, 200);
+  const axisMin = Math.max(0, Math.floor((minAvgRev - pad) / 500) * 500);
+  const axisMax = Math.ceil((maxAvgRev + pad) / 500) * 500;
   const axisRange = axisMax - axisMin || 1;
 
   // Median revenue = where the vertical split line sits
@@ -100,15 +102,30 @@ function RouteMatrix({
   const medianRev = sortedRev[Math.floor(sortedRev.length / 2)] ?? axisMin;
   const medianXPct = ((medianRev - axisMin) / axisRange) * 100;
 
+  // Y-axis: stretch to actual load-factor data range too
+  const loads = routes.map(r => r.avg_load_factor_pct ?? 0).filter(v => v > 0);
+  const maxLoad = loads.length > 0 ? Math.max(...loads) : 100;
+  const minLoad = loads.length > 0 ? Math.min(...loads) : 0;
+  const loadSpan = Math.max(maxLoad - minLoad, 1);
+  const loadPad = Math.max(loadSpan * 0.10, 3);
+  const yAxisMin = Math.max(0, Math.floor((minLoad - loadPad) / 5) * 5);
+  const yAxisMax = Math.min(100, Math.ceil((maxLoad + loadPad) / 5) * 5);
+  const yAxisRange = yAxisMax - yAxisMin || 1;
+  // Horizontal quadrant split stays at 50% load (semantic boundary, not geometric)
+  const loadSplit = 50;
+  const loadSplitYPct = ((loadSplit - yAxisMin) / yAxisRange) * 100;
+
   // X tick positions — 5 evenly spaced values from axisMin to axisMax
   const xTicks = [0, 0.25, 0.5, 0.75, 1].map(f => Math.round((axisMin + f * axisRange) / 100) * 100);
-  const yTicks = [0, 25, 50, 75, 100];
+  // Y ticks — 5 evenly spaced values
+  const yTicks = [0, 0.25, 0.5, 0.75, 1].map(f => Math.round(yAxisMin + f * yAxisRange));
 
   // Routes sorted by revenue descending — numbering
   const numbered = routes.map((r, i) => ({ ...r, num: i + 1 }));
 
-  // Position helper
+  // Position helpers
   const xPosPct = (val: number) => ((val - axisMin) / axisRange) * 100;
+  const yPosPct = (val: number) => ((val - yAxisMin) / yAxisRange) * 100;
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 20, alignItems: 'start' }}>
@@ -122,12 +139,20 @@ function RouteMatrix({
         {/* Plot area */}
         <div style={{ position: 'relative', borderLeft: '1.5px solid #333', borderBottom: '1.5px solid #333' }}>
           {/* Gridlines (horizontal) */}
-          {yTicks.map(t => (
-            <div key={`gy-${t}`} style={{
-              position: 'absolute', left: 0, right: 0, bottom: `${t}%`,
-              borderTop: t === 0 ? 'none' : (t === 50 ? '1px dashed #bbb' : '1px dashed #eee'),
-            }} />
-          ))}
+          {yTicks.map((t, i) => {
+            const pct = (i / (yTicks.length - 1)) * 100;
+            return (
+              <div key={`gy-${i}`} style={{
+                position: 'absolute', left: 0, right: 0, bottom: `${pct}%`,
+                borderTop: i === 0 ? 'none' : '1px dashed #eee',
+              }} />
+            );
+          })}
+          {/* Load 50% split line */}
+          <div style={{
+            position: 'absolute', left: 0, right: 0, bottom: `${loadSplitYPct}%`,
+            borderTop: '1px dashed #bbb',
+          }} />
           {/* Gridlines (vertical, at x-ticks) */}
           {xTicks.map((val, i) => {
             const pct = xPosPct(val);
@@ -144,11 +169,12 @@ function RouteMatrix({
             borderLeft: '1px dashed #bbb',
           }} />
 
-          {/* Quadrant backgrounds (split at median X and 50% Y) */}
-          <div style={{ position: 'absolute', left: 0, top: 0, width: `${medianXPct}%`, height: '50%', background: QUADRANT_META.efficient_small.bg }} />
-          <div style={{ position: 'absolute', left: `${medianXPct}%`, top: 0, right: 0, height: '50%', background: QUADRANT_META.star.bg }} />
-          <div style={{ position: 'absolute', left: 0, top: '50%', width: `${medianXPct}%`, bottom: 0, background: QUADRANT_META.candidate_to_close.bg }} />
-          <div style={{ position: 'absolute', left: `${medianXPct}%`, top: '50%', right: 0, bottom: 0, background: QUADRANT_META.underperform_large.bg }} />
+          {/* Quadrant backgrounds (split at median X and 50% Y load) */}
+          {/* Note: Y uses bottom-origin. loadSplitYPct% from bottom = (100 - loadSplitYPct)% from top */}
+          <div style={{ position: 'absolute', left: 0, top: 0, width: `${medianXPct}%`, height: `${100 - loadSplitYPct}%`, background: QUADRANT_META.efficient_small.bg }} />
+          <div style={{ position: 'absolute', left: `${medianXPct}%`, top: 0, right: 0, height: `${100 - loadSplitYPct}%`, background: QUADRANT_META.star.bg }} />
+          <div style={{ position: 'absolute', left: 0, bottom: 0, width: `${medianXPct}%`, height: `${loadSplitYPct}%`, background: QUADRANT_META.candidate_to_close.bg }} />
+          <div style={{ position: 'absolute', left: `${medianXPct}%`, bottom: 0, right: 0, height: `${loadSplitYPct}%`, background: QUADRANT_META.underperform_large.bg }} />
 
           {/* Quadrant labels (corners) */}
           <div style={{ position: 'absolute', left: 8, top: 8, fontSize: 10, color: QUADRANT_META.efficient_small.color, fontWeight: 700, letterSpacing: 0.3 }}>
@@ -165,22 +191,25 @@ function RouteMatrix({
           </div>
 
           {/* Y-axis tick labels */}
-          {yTicks.map(t => (
-            <div key={`ty-${t}`} style={{
-              position: 'absolute', left: -38, bottom: `${t}%`,
-              transform: 'translateY(50%)',
-              fontSize: 10, color: '#888', width: 32, textAlign: 'right',
-              fontVariantNumeric: 'tabular-nums',
-            }}>
-              {t}%
-            </div>
-          ))}
+          {yTicks.map((t, i) => {
+            const pct = (i / (yTicks.length - 1)) * 100;
+            return (
+              <div key={`ty-${i}`} style={{
+                position: 'absolute', left: -38, bottom: `${pct}%`,
+                transform: 'translateY(50%)',
+                fontSize: 10, color: '#888', width: 32, textAlign: 'right',
+                fontVariantNumeric: 'tabular-nums',
+              }}>
+                {t}%
+              </div>
+            );
+          })}
 
           {/* Points */}
           {numbered.map(r => {
             const load = r.avg_load_factor_pct ?? 0;
             const xPct = xPosPct(r.avg_revenue_per_session);
-            const yPct = Math.min(load, 100);
+            const yPct = Math.max(0, Math.min(yPosPct(load), 100));
             const meta = QUADRANT_META[r.quadrant];
             const isHovered = hoveredId === r.crm_route_id;
             const size = isHovered ? 26 : 22;

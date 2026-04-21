@@ -752,6 +752,8 @@ export async function saveSuburbanCycle(
     alighted: number;
   }[],
   totalLei: number,
+  altDriverId?: string | null,
+  altVehicleId?: string | null,
 ): Promise<{ error?: string }> {
   try { requireRole(await verifySession(), ...NUMARARE_ROLES); } catch { return { error: 'Acces interzis' }; }
   const sb = getSupabase();
@@ -776,6 +778,8 @@ export async function saveSuburbanCycle(
       km_from_start: entry.kmFromStart,
       total_passengers: entry.totalPassengers,
       alighted: entry.alighted,
+      alt_driver_id: altDriverId || null,
+      alt_vehicle_id: altVehicleId || null,
     });
     if (error) return { error: error.message };
   }
@@ -804,12 +808,12 @@ export async function saveSuburbanCycle(
 
 export async function loadSuburbanEntries(
   sessionId: string,
-): Promise<{ scheduleId: number | null; cycleNumber: number; direction: 'tur' | 'retur'; stopOrder: number; stopNameRo: string; kmFromStart: number; totalPassengers: number; alighted: number }[]> {
+): Promise<{ scheduleId: number | null; cycleNumber: number; direction: 'tur' | 'retur'; stopOrder: number; stopNameRo: string; kmFromStart: number; totalPassengers: number; alighted: number; altDriverId: string | null; altVehicleId: string | null }[]> {
   try { requireRole(await verifySession(), ...NUMARARE_ROLES); } catch { return []; }
   const sb = getSupabase();
   const { data } = await sb
     .from('counting_entries')
-    .select('schedule_id, cycle_number, direction, stop_order, stop_name_ro, km_from_start, total_passengers, alighted')
+    .select('schedule_id, cycle_number, direction, stop_order, stop_name_ro, km_from_start, total_passengers, alighted, alt_driver_id, alt_vehicle_id')
     .eq('session_id', sessionId)
     .order('cycle_number')
     .order('stop_order');
@@ -822,5 +826,7 @@ export async function loadSuburbanEntries(
     kmFromStart: Number(e.km_from_start),
     totalPassengers: e.total_passengers,
     alighted: e.alighted ?? 0,
+    altDriverId: e.alt_driver_id || null,
+    altVehicleId: e.alt_vehicle_id || null,
   }));
 }

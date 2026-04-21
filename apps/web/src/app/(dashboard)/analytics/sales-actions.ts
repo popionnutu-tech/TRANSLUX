@@ -700,30 +700,44 @@ export async function getRouteScorecard(dateFrom: string, dateTo: string): Promi
     sb.from('crm_routes').select('id, time_chisinau, time_nord'),
   ]);
 
-  // Build majority map: only accept a swap when the SAME retur_route_id appears
-  // in the strict majority (> 50%) of all assignments for that route in the period.
-  // Otherwise the route uses its own time_nord (no swap).
-  const returMajority = new Map<number, number>();
+  // Build INBOUND majority map: for each target route X, find the inbound partner Y
+  // where Y.retur_route_id = X most often.
+  //
+  // Rotation semantics (confirmed with operator): Y's driver does Y's tur leg
+  // (Nord → Chișinău on route Y, using Y.time_nord) AND then X's retur leg
+  // (Chișinău → Nord on route X, using X.time_chisinau). So if we display a row
+  // anchored to route X showing X's Chișinău-departure, the paired Nord-departure
+  // comes from Y.time_nord — the inbound swap partner.
+  //
+  // Example rules:
+  //   Chișinău 6:55 (id=11) pairs with Nord 14:50 (inbound from id=12)
+  //   Chișinău 7:30 (id=12) pairs with Nord 13:20 (inbound from id=11)
+  //   Chișinău 8:00 (id=13) pairs with Nord 2:35 (inbound from id=16)
+  //   Chișinău 10:40 (id=16) pairs with Nord 5:45 (inbound from id=2)
+  //
+  // Accept only strict majority (>50% of target's swap days) to ignore one-off swaps.
+  const returMajority = new Map<number, number>(); // targetRouteId → inboundPartnerRouteId
   {
-    const totalDays = new Map<number, number>(); // crm_route_id -> total assignment rows
-    const counts = new Map<number, Map<number, number>>();
+    const countsByTarget = new Map<number, Map<number, number>>();
+    const targetTotals = new Map<number, number>();
     for (const a of (assignmentsRes.data ?? []) as { crm_route_id: number; retur_route_id: number | null }[]) {
-      totalDays.set(a.crm_route_id, (totalDays.get(a.crm_route_id) ?? 0) + 1);
       if (!a.retur_route_id) continue;
-      let inner = counts.get(a.crm_route_id);
-      if (!inner) { inner = new Map(); counts.set(a.crm_route_id, inner); }
-      inner.set(a.retur_route_id, (inner.get(a.retur_route_id) ?? 0) + 1);
+      const target = a.retur_route_id;
+      const source = a.crm_route_id;
+      targetTotals.set(target, (targetTotals.get(target) ?? 0) + 1);
+      let inner = countsByTarget.get(target);
+      if (!inner) { inner = new Map(); countsByTarget.set(target, inner); }
+      inner.set(source, (inner.get(source) ?? 0) + 1);
     }
-    for (const [routeId, inner] of counts) {
+    for (const [target, inner] of countsByTarget) {
       let best = 0;
       let bestCount = 0;
-      for (const [rId, c] of inner) {
-        if (c > bestCount) { bestCount = c; best = rId; }
+      for (const [sourceId, c] of inner) {
+        if (c > bestCount) { bestCount = c; best = sourceId; }
       }
-      const total = totalDays.get(routeId) ?? 0;
-      // Require strict majority: the same swap on MORE THAN half of all days
+      const total = targetTotals.get(target) ?? 0;
       if (best > 0 && bestCount * 2 > total) {
-        returMajority.set(routeId, best);
+        returMajority.set(target, best);
       }
     }
   }
@@ -765,11 +779,12 @@ export async function getRouteScorecard(dateFrom: string, dateTo: string): Promi
       ? withRpk.reduce((a, s) => a + (s.revenue_per_km as number), 0) / withRpk.length
       : null;
 
-    // Resolve the paired return-from-Nord time using daily_assignments.retur_route_id majority.
-    // If this route swaps retur with route X, the physical rotation returns using X's time_nord.
-    const swappedReturRouteId = returMajority.get(g.crm_route_id);
-    const effectiveReturTimeNord = swappedReturRouteId
-      ? (routeLookup.get(swappedReturRouteId)?.time_nord ?? g.time_nord)
+    // Resolve the paired Nord-departure time for this row's Chișinău-departure.
+    // returMajority maps target (this row) → inbound partner route whose Nord-departure
+    // is the physical rotation pair for this row's Chișinău-departure.
+    const inboundPartnerId = returMajority.get(g.crm_route_id);
+    const effectiveReturTimeNord = inboundPartnerId
+      ? (routeLookup.get(inboundPartnerId)?.time_nord ?? g.time_nord)
       : g.time_nord;
 
     rows.push({

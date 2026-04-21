@@ -176,8 +176,20 @@ export async function getRoutesForDate(date: string): Promise<{ data?: RouteForC
   const routeLookup = new Map<number, any>();
   for (const r of allRoutes) routeLookup.set(r.id, r);
 
-  // 4. Construim lista — TOATE rutele active
-  const routes: RouteForCounting[] = allRoutes.map((r: any) => {
+  // 3b. Pentru suburban: identificăm rutele care au cel puțin un schedule pentru ziua curentă
+  const jsDay = new Date(date).getDay();
+  const isoDay = jsDay === 0 ? 7 : jsDay;
+  const { data: schedulesToday } = await sb
+    .from('crm_route_schedules')
+    .select('route_id')
+    .eq('active', true)
+    .contains('days_of_week', [isoDay]);
+  const suburbanActiveRouteIds = new Set((schedulesToday || []).map((s: any) => s.route_id));
+
+  // 4. Construim lista — TOATE rutele active (suburbanele filtrate pe zi)
+  const routes: RouteForCounting[] = allRoutes
+    .filter((r: any) => r.route_type !== 'suburban' || suburbanActiveRouteIds.has(r.id))
+    .map((r: any) => {
     const a = assignMap.get(r.id);
     const s = sessionMap.get(r.id);
 

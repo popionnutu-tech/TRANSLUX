@@ -92,12 +92,14 @@ export interface OverviewKPI {
   total_revenue: number;
   avg_load_factor_pct: number | null;
   sessions_count: number;
+  avg_sessions_per_day: number; // total sessions / number of days in the selected period
   avg_revenue_per_km: number | null;
   // Deltas vs previous equal-length period
   delta_passengers_pct: number | null;
   delta_revenue_pct: number | null;
   delta_load_factor_pct: number | null;
   delta_revenue_per_km_pct: number | null;
+  delta_sessions_per_day_pct: number | null;
 }
 
 export interface DemandSupplyRow {
@@ -612,6 +614,7 @@ export async function getOverviewKPI(dateFrom: string, dateTo: string): Promise<
   const from = new Date(dateFrom);
   const to = new Date(dateTo);
   const diffMs = to.getTime() - from.getTime();
+  const periodDays = Math.max(1, Math.round(diffMs / 86400_000) + 1);
   const prevTo = new Date(from.getTime() - 86400_000);
   const prevFrom = new Date(prevTo.getTime() - diffMs);
   const prevFromStr = prevFrom.toISOString().slice(0, 10);
@@ -622,12 +625,13 @@ export async function getOverviewKPI(dateFrom: string, dateTo: string): Promise<
     fetchSessions(prevFromStr, prevToStr),
   ]);
 
-  const aggregate = (sessions: SessionRow[]) => {
+  const aggregate = (sessions: SessionRow[], days: number) => {
     const n = sessions.length;
     if (n === 0) return {
       total_unique_passengers: 0, total_passenger_km: 0, total_revenue: 0,
       avg_load_factor_pct: null as number | null,
-      sessions_count: 0, avg_revenue_per_km: null as number | null,
+      sessions_count: 0, avg_sessions_per_day: 0,
+      avg_revenue_per_km: null as number | null,
     };
     const totalUnique = sessions.reduce((a, s) => a + (s.unique_passengers || 0), 0);
     const totalPaxKm = sessions.reduce((a, s) => a + (s.passenger_km || 0), 0);
@@ -646,12 +650,13 @@ export async function getOverviewKPI(dateFrom: string, dateTo: string): Promise<
       total_revenue: Math.round(totalRev),
       avg_load_factor_pct: avgLoad !== null ? Math.round(avgLoad * 10) / 10 : null,
       sessions_count: n,
+      avg_sessions_per_day: Math.round((n / days) * 10) / 10,
       avg_revenue_per_km: avgRpk !== null ? Math.round(avgRpk * 100) / 100 : null,
     };
   };
 
-  const cur = aggregate(current);
-  const prev = aggregate(previous);
+  const cur = aggregate(current, periodDays);
+  const prev = aggregate(previous, periodDays);
 
   const pctDelta = (c: number, p: number): number | null => {
     if (p === 0) return null;
@@ -667,6 +672,9 @@ export async function getOverviewKPI(dateFrom: string, dateTo: string): Promise<
       : null,
     delta_revenue_per_km_pct: cur.avg_revenue_per_km !== null && prev.avg_revenue_per_km !== null && prev.avg_revenue_per_km !== 0
       ? pctDelta(cur.avg_revenue_per_km, prev.avg_revenue_per_km)
+      : null,
+    delta_sessions_per_day_pct: prev.avg_sessions_per_day > 0
+      ? pctDelta(cur.avg_sessions_per_day, prev.avg_sessions_per_day)
       : null,
   };
 }

@@ -246,7 +246,7 @@ export default function AnalyticsClient({
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <h1>Analitică</h1>
         <div style={{ display: 'flex', gap: 6 }}>
-          {[7, 30, 90].map(d => (
+          {[3, 7, 30, 90].map(d => (
             <button
               key={d}
               className={`btn ${days === d ? 'btn-primary' : 'btn-outline'}`}

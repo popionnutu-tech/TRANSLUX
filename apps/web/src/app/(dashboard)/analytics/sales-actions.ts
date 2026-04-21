@@ -101,6 +101,7 @@ export interface DriverScorecardRow {
   total_revenue: number;
   total_unique_passengers: number;
   avg_revenue_per_km: number | null;
+  avg_load_factor_pct: number | null;  // weighted by route length across driver's sessions
   // Composite Notă breakdown (weights: 60% / 25% / 3 × 5%)
   abs_rpk_score: number | null;       // 60% — driver_rpk / fleet_rpk × 100
   relative_rpk_score: number | null;  // 25% — AVG(session_rpk / route_avg_rpk × 100)
@@ -881,7 +882,13 @@ export async function getDriverScorecard(dateFrom: string, dateTo: string): Prom
     const totalRev = g.sessions.reduce((a, s) => a + s.total_lei, 0);
     const totalUnique = g.sessions.reduce((a, s) => a + (s.unique_passengers || 0), 0);
     const totalKm = g.sessions.reduce((a, s) => a + (s.route_length_km || 0), 0);
+    const totalPaxKm = g.sessions.reduce((a, s) => a + (s.passenger_km || 0), 0);
     const driverRpk = totalKm > 0 ? totalRev / totalKm : null;
+    // Weighted avg load factor = Σ pax_km / (Σ length × 20 seats) × 100
+    const SEAT_CAP = 20;
+    const avgLoadFactor = totalKm > 0
+      ? (totalPaxKm / (totalKm * SEAT_CAP)) * 100
+      : null;
 
     // Component 1 (60%): absolute rpk score = driver_rpk / fleet_rpk × 100
     const absRpkScore: number | null = (driverRpk !== null && fleetRpk > 0)
@@ -935,6 +942,7 @@ export async function getDriverScorecard(dateFrom: string, dateTo: string): Prom
       total_revenue: Math.round(totalRev),
       total_unique_passengers: totalUnique,
       avg_revenue_per_km: avgRpk,
+      avg_load_factor_pct: avgLoadFactor !== null ? round1(avgLoadFactor) : null,
       abs_rpk_score: absRpkScore !== null ? round1(absRpkScore) : null,
       relative_rpk_score: relRpkScore !== null ? round1(relRpkScore) : null,
       auto_curat_ok_rate: autoCurat !== null ? round1(autoCurat) : null,

@@ -352,7 +352,6 @@ function RouteMatrix({
 export default function OverviewTab({ kpi, routes, drivers, routeLoad, onRouteClick, onDriverClick }: Props) {
   const [sortBy, setSortBy] = useState<'quality' | 'money'>('quality');
   const [hoveredRouteId, setHoveredRouteId] = useState<number | null>(null);
-  const [loadDir, setLoadDir] = useState<LoadDir>('ambele');
 
   // Route legend (quadrant breakdown)
   const byQuadrant = routes.reduce((acc, r) => {
@@ -458,12 +457,18 @@ export default function OverviewTab({ kpi, routes, drivers, routeLoad, onRouteCl
           </button>
         </div>
 
-        {sortedDrivers.length === 0 ? (
+        {sortBy === 'money' ? (
+          routeLoad.length === 0 ? (
+            <p style={{ color: '#999', fontSize: 14, textAlign: 'center', padding: 32 }}>
+              Nu sunt date pentru perioada selectată.
+            </p>
+          ) : (
+            <RouteLoadByDirection data={routeLoad} onRouteClick={onRouteClick} />
+          )
+        ) : sortedDrivers.length === 0 ? (
           <p style={{ color: '#999', fontSize: 14, textAlign: 'center', padding: 32 }}>
             Nu sunt șoferi cu cel puțin 5 curse în perioada selectată.
           </p>
-        ) : sortBy === 'money' ? (
-          <DriverLoadHeatmap data={sortedDrivers} onDriverClick={onDriverClick} />
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -564,40 +569,6 @@ export default function OverviewTab({ kpi, routes, drivers, routeLoad, onRouteCl
         </div>
       </div>
 
-      {/* Pondere încărcare pe rută */}
-      <div className="card" style={{ padding: 24, marginTop: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 12 }}>
-          <div>
-            <h2 style={{ fontSize: 17, fontWeight: 600, color: '#333', margin: 0 }}>Pondere încărcare pe rută</h2>
-            <div style={{ fontSize: 13, color: '#666', marginTop: 4 }}>
-              Media încărcării autobuzului pe zi (Lu-Du), pentru perioada selectată. Comută Tur / Retur / Ambele.
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 4 }}>
-            {(['tur', 'retur', 'ambele'] as LoadDir[]).map(d => (
-              <button
-                key={d}
-                className={`btn ${loadDir === d ? 'btn-primary' : 'btn-outline'}`}
-                onClick={() => setLoadDir(d)}
-                style={{ fontSize: 13, textTransform: 'capitalize' }}
-              >
-                {d === 'tur' ? 'Tur' : d === 'retur' ? 'Retur' : 'Ambele'}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {routeLoad.length === 0 ? (
-          <p style={{ color: '#999', fontSize: 14, textAlign: 'center', padding: 32 }}>Nu sunt date pentru perioada selectată.</p>
-        ) : (
-          <RouteLoadHeatmap data={routeLoad} dir={loadDir} onRouteClick={onRouteClick} />
-        )}
-
-        <div style={{ fontSize: 12, color: '#888', marginTop: 16, paddingTop: 12, borderTop: '1px solid #eee' }}>
-          💡 <strong>Încărcare</strong> = pasageri × km / (lungime rută × 20 locuri) × 100. Verde = plin (≥65%), galben = mediu (40-65%), roșu = gol (&lt;40%). Celulă goală = nu au fost curse în ziua respectivă.
-        </div>
-      </div>
-
       <style jsx>{`
         .driver-row:hover { background: rgba(155, 27, 48, 0.04); }
         .heatmap-row:hover { background: rgba(155, 27, 48, 0.04); }
@@ -606,20 +577,19 @@ export default function OverviewTab({ kpi, routes, drivers, routeLoad, onRouteCl
   );
 }
 
-// --- Driver load heatmap (driver × DOW × direction) ---
-function DriverLoadHeatmap({
+// --- Route × DOW × direction heatmap ---
+function RouteLoadByDirection({
   data,
-  onDriverClick,
+  onRouteClick,
 }: {
-  data: DriverScorecardRow[];
-  onDriverClick?: (id: string) => void;
+  data: RouteLoadRow[];
+  onRouteClick?: (id: number) => void;
 }) {
   const [dir, setDir] = useState<LoadDir>('ambele');
-
-  const pickVec = (d: DriverScorecardRow): LoadByDow =>
-    dir === 'tur' ? d.tur_by_dow : dir === 'retur' ? d.retur_by_dow : d.ambele_by_dow;
-  const pickOverall = (d: DriverScorecardRow): number | null =>
-    dir === 'tur' ? d.overall_tur : dir === 'retur' ? d.overall_retur : d.overall_ambele;
+  const pickVec = (r: RouteLoadRow): LoadByDow =>
+    dir === 'tur' ? r.tur_by_dow : dir === 'retur' ? r.retur_by_dow : r.ambele_by_dow;
+  const pickOverall = (r: RouteLoadRow): number | null =>
+    dir === 'tur' ? r.overall_tur : dir === 'retur' ? r.overall_retur : r.overall_ambele;
 
   const sorted = [...data].sort((a, b) => {
     const aV = pickOverall(a); const bV = pickOverall(b);
@@ -649,102 +619,7 @@ function DriverLoadHeatmap({
           </button>
         ))}
       </div>
-
       <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              <th style={{ textAlign: 'left', padding: '8px 10px', fontSize: 12, color: '#888', borderBottom: '2px solid #eee', fontWeight: 600 }}>ȘOFER</th>
-              {DOW_LABELS.map(d => (
-                <th key={d} style={{ textAlign: 'center', padding: '8px 4px', fontSize: 11, color: '#888', borderBottom: '2px solid #eee', fontWeight: 600, minWidth: 44 }}>{d}</th>
-              ))}
-              <th style={{ textAlign: 'center', padding: '8px 10px', fontSize: 12, color: '#888', borderBottom: '2px solid #eee', fontWeight: 600 }}>MED.</th>
-              <th style={{ textAlign: 'right', padding: '8px 10px', fontSize: 12, color: '#888', borderBottom: '2px solid #eee', fontWeight: 600 }}>CURSE</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map(d => {
-              const vec = pickVec(d);
-              const overall = pickOverall(d);
-              const overallCol = cellColor(overall);
-              return (
-                <tr key={d.driver_id}
-                  className="driver-row"
-                  onClick={() => onDriverClick?.(d.driver_id)}
-                  style={{ cursor: onDriverClick ? 'pointer' : 'default', borderBottom: '1px solid #f5f5f5' }}
-                >
-                  <td style={{ padding: '8px 10px', fontSize: 13, whiteSpace: 'nowrap', fontWeight: 500 }}>
-                    {d.driver_name}
-                  </td>
-                  {vec.map((v, i) => {
-                    const c = cellColor(v);
-                    return (
-                      <td key={i} style={{
-                        textAlign: 'center', padding: '8px 4px',
-                        fontSize: 12, fontWeight: v !== null ? 600 : 400,
-                        color: c.color, background: c.bg, borderRadius: 3,
-                        fontVariantNumeric: 'tabular-nums',
-                      }}>
-                        {v !== null ? `${v.toFixed(0)}%` : '—'}
-                      </td>
-                    );
-                  })}
-                  <td style={{ padding: '8px 10px', textAlign: 'center' }}>
-                    <span style={{
-                      display: 'inline-block', padding: '3px 10px', borderRadius: 10,
-                      fontSize: 12, fontWeight: 700,
-                      background: overallCol.bg, color: overallCol.color,
-                      fontVariantNumeric: 'tabular-nums',
-                    }}>
-                      {overall !== null ? `${overall.toFixed(0)}%` : '—'}
-                    </span>
-                  </td>
-                  <td style={{ padding: '8px 10px', textAlign: 'right', fontSize: 13, color: '#666', fontVariantNumeric: 'tabular-nums' }}>
-                    {d.sessions_count}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-// --- Heatmap component ---
-function RouteLoadHeatmap({
-  data,
-  dir,
-  onRouteClick,
-}: {
-  data: RouteLoadRow[];
-  dir: LoadDir;
-  onRouteClick?: (id: number) => void;
-}) {
-  const pickVec = (r: RouteLoadRow): LoadByDow =>
-    dir === 'tur' ? r.tur_by_dow : dir === 'retur' ? r.retur_by_dow : r.ambele_by_dow;
-  const pickOverall = (r: RouteLoadRow): number | null =>
-    dir === 'tur' ? r.overall_tur : dir === 'retur' ? r.overall_retur : r.overall_ambele;
-
-  // Sort by current overall desc (null last)
-  const sorted = [...data].sort((a, b) => {
-    const aV = pickOverall(a); const bV = pickOverall(b);
-    if (aV === null && bV === null) return 0;
-    if (aV === null) return 1;
-    if (bV === null) return -1;
-    return bV - aV;
-  });
-
-  const cellColor = (v: number | null) => {
-    if (v === null) return { bg: '#f5f5f5', color: '#ccc' };
-    if (v >= 65) return { bg: 'rgba(5,150,105,0.18)', color: '#065f46' };
-    if (v >= 40) return { bg: 'rgba(217,119,6,0.18)', color: '#92400e' };
-    return { bg: 'rgba(220,38,38,0.18)', color: '#991b1b' };
-  };
-
-  return (
-    <div style={{ overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
           <tr>
@@ -802,6 +677,7 @@ function RouteLoadHeatmap({
           })}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

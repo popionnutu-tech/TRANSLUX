@@ -63,6 +63,7 @@ export interface RouteScorecardRow {
   route_name: string;
   time_chisinau: string;
   total_revenue: number;
+  avg_revenue_per_session: number; // medie pe cursă (tur+retur) — folosit pe axa X a matricei
   avg_load_factor_pct: number | null;
   total_unique_passengers: number;
   total_passenger_km: number;
@@ -669,8 +670,8 @@ export async function getOverviewKPI(dateFrom: string, dateTo: string): Promise<
   };
 }
 
-function classifyQuadrant(revenue: number, loadPct: number | null, medianRevenue: number): RouteQuadrant {
-  const highRev = revenue >= medianRevenue;
+function classifyQuadrant(revenuePerSession: number, loadPct: number | null, medianRevenuePerSession: number): RouteQuadrant {
+  const highRev = revenuePerSession >= medianRevenuePerSession;
   const highLoad = loadPct !== null && loadPct >= 50;
   if (highRev && highLoad) return 'star';
   if (!highRev && highLoad) return 'efficient_small';
@@ -701,6 +702,7 @@ export async function getRouteScorecard(dateFrom: string, dateTo: string): Promi
   const rows: Omit<RouteScorecardRow, 'quadrant'>[] = [];
   for (const g of groups.values()) {
     const totalRev = g.sessions.reduce((a, s) => a + s.total_lei, 0);
+    const avgRevPerSession = g.sessions.length > 0 ? totalRev / g.sessions.length : 0;
     const totalUnique = g.sessions.reduce((a, s) => a + (s.unique_passengers || 0), 0);
     const totalPaxKm = g.sessions.reduce((a, s) => a + (s.passenger_km || 0), 0);
     const withLoad = g.sessions.filter(s => s.load_factor_pct !== null);
@@ -717,6 +719,7 @@ export async function getRouteScorecard(dateFrom: string, dateTo: string): Promi
       route_name: g.route_name,
       time_chisinau: g.time_chisinau,
       total_revenue: Math.round(totalRev),
+      avg_revenue_per_session: Math.round(avgRevPerSession),
       avg_load_factor_pct: avgLoad !== null ? Math.round(avgLoad * 10) / 10 : null,
       total_unique_passengers: totalUnique,
       total_passenger_km: Math.round(totalPaxKm),
@@ -726,18 +729,19 @@ export async function getRouteScorecard(dateFrom: string, dateTo: string): Promi
     });
   }
 
-  // Median revenue for quadrant classification
-  const sortedByRev = [...rows].map(r => r.total_revenue).sort((a, b) => a - b);
-  const medianRev = sortedByRev.length > 0
-    ? sortedByRev[Math.floor(sortedByRev.length / 2)]
+  // Median of average-per-session revenue for fair quadrant classification
+  // (un-biases routes that run rarely vs routes that run every day)
+  const sortedByAvg = [...rows].map(r => r.avg_revenue_per_session).sort((a, b) => a - b);
+  const medianAvgRev = sortedByAvg.length > 0
+    ? sortedByAvg[Math.floor(sortedByAvg.length / 2)]
     : 0;
 
   const result: RouteScorecardRow[] = rows.map(r => ({
     ...r,
-    quadrant: classifyQuadrant(r.total_revenue, r.avg_load_factor_pct, medianRev),
+    quadrant: classifyQuadrant(r.avg_revenue_per_session, r.avg_load_factor_pct, medianAvgRev),
   }));
 
-  result.sort((a, b) => b.total_revenue - a.total_revenue);
+  result.sort((a, b) => b.avg_revenue_per_session - a.avg_revenue_per_session);
   return result;
 }
 

@@ -82,8 +82,14 @@ export interface DriverScorecardRow {
   total_revenue: number;
   total_unique_passengers: number;
   avg_revenue_per_km: number | null;
-  pct_vs_route_norm: number | null; // sample_count-weighted
-  sample_count: number;
+  // Composite Notă breakdown (weights: 60% / 25% / 3 × 5%)
+  abs_rpk_score: number | null;       // 60% — driver_rpk / fleet_rpk × 100
+  relative_rpk_score: number | null;  // 25% — AVG(session_rpk / route_avg_rpk × 100)
+  auto_curat_ok_rate: number | null;  // 5%  — % OK inspections
+  exterior_ok_rate: number | null;    // 5%
+  uniform_ok_rate: number | null;     // 5%
+  inspections_count: number;          // total non-cancelled reports in period
+  nota_final: number;                 // weighted composite (rescaled if nulls)
 }
 
 export interface OverviewKPI {
@@ -759,34 +765,81 @@ export async function getRouteScorecard(dateFrom: string, dateTo: string): Promi
 export async function getDriverScorecard(dateFrom: string, dateTo: string): Promise<DriverScorecardRow[]> {
   requireRole(await verifySession(), 'ADMIN');
 
-  const [sessions, baselines] = await Promise.all([fetchSessions(dateFrom, dateTo), fetchBaselines()]);
+  const sb = getSupabase();
 
-  // Group by driver
+  const [sessions, reportsRes] = await Promise.all([
+    fetchSessions(dateFrom, dateTo),
+    sb.from('reports')
+      .select('driver_id, auto_curat, exterior_ok, uniform_ok')
+      .is('cancelled_at', null)
+      .gte('report_date', dateFrom)
+      .lte('report_date', dateTo),
+  ]);
+
+  // Fleet-wide avg revenue/km (denominator for 60% component)
+  let fleetTotalLei = 0;
+  let fleetTotalKm = 0;
+  for (const s of sessions) {
+    fleetTotalLei += s.total_lei;
+    fleetTotalKm += s.route_length_km || 0;
+  }
+  const fleetRpk = fleetTotalKm > 0 ? fleetTotalLei / fleetTotalKm : 0;
+
+  // Route-specific avg revenue/km (denominator for 25% component)
+  const routeRpk = new Map<number, { sum: number; count: number }>();
+  for (const s of sessions) {
+    if (s.revenue_per_km === null || s.revenue_per_km === undefined) continue;
+    const entry = routeRpk.get(s.crm_route_id) ?? { sum: 0, count: 0 };
+    entry.sum += s.revenue_per_km;
+    entry.count += 1;
+    routeRpk.set(s.crm_route_id, entry);
+  }
+  const routeAvgRpk = new Map<number, number>();
+  for (const [routeId, e] of routeRpk) {
+    if (e.count > 0) routeAvgRpk.set(routeId, e.sum / e.count);
+  }
+
+  // Inspection aggregates per driver (from reports)
+  const inspAgg = new Map<string, {
+    total: number;
+    auto_curat_ok: number; auto_curat_total: number;
+    exterior_ok: number; exterior_total: number;
+    uniform_ok: number; uniform_total: number;
+  }>();
+  for (const r of (reportsRes.data ?? []) as { driver_id: string | null; auto_curat: boolean | null; exterior_ok: boolean | null; uniform_ok: boolean | null }[]) {
+    if (!r.driver_id) continue;
+    let a = inspAgg.get(r.driver_id);
+    if (!a) {
+      a = { total: 0, auto_curat_ok: 0, auto_curat_total: 0, exterior_ok: 0, exterior_total: 0, uniform_ok: 0, uniform_total: 0 };
+      inspAgg.set(r.driver_id, a);
+    }
+    a.total++;
+    if (r.auto_curat !== null) { a.auto_curat_total++; if (r.auto_curat) a.auto_curat_ok++; }
+    if (r.exterior_ok !== null) { a.exterior_total++; if (r.exterior_ok) a.exterior_ok++; }
+    if (r.uniform_ok !== null) { a.uniform_total++; if (r.uniform_ok) a.uniform_ok++; }
+  }
+
+  // Group sessions by driver
   const groups = new Map<string, {
     driver_id: string; driver_name: string;
     sessions: SessionRow[];
-    baselineContributions: { actual: number; baseline: number; sample_count: number }[];
   }>();
-
   for (const s of sessions) {
     if (!s.driver_id) continue;
     if (!groups.has(s.driver_id)) {
-      groups.set(s.driver_id, {
-        driver_id: s.driver_id, driver_name: s.driver_name || '?',
-        sessions: [], baselineContributions: [],
-      });
+      groups.set(s.driver_id, { driver_id: s.driver_id, driver_name: s.driver_name || '?', sessions: [] });
     }
-    const g = groups.get(s.driver_id)!;
-    g.sessions.push(s);
-    const bl = findBaseline(baselines, s.crm_route_id, s.season, s.dow, s.rain_heavy);
-    if (bl && bl.avg_passengers > 0 && bl.sample_count > 0) {
-      g.baselineContributions.push({
-        actual: s.total_passengers,
-        baseline: bl.avg_passengers,
-        sample_count: bl.sample_count,
-      });
-    }
+    groups.get(s.driver_id)!.sessions.push(s);
   }
+
+  // Notă weights
+  const W_ABS = 0.60;
+  const W_REL = 0.25;
+  const W_AUTO = 0.05;
+  const W_EXT = 0.05;
+  const W_UNI = 0.05;
+
+  const round1 = (x: number) => Math.round(x * 10) / 10;
 
   const result: DriverScorecardRow[] = [];
   for (const g of groups.values()) {
@@ -796,27 +849,51 @@ export async function getDriverScorecard(dateFrom: string, dateTo: string): Prom
     const totalRev = g.sessions.reduce((a, s) => a + s.total_lei, 0);
     const totalUnique = g.sessions.reduce((a, s) => a + (s.unique_passengers || 0), 0);
     const totalKm = g.sessions.reduce((a, s) => a + (s.route_length_km || 0), 0);
+    const driverRpk = totalKm > 0 ? totalRev / totalKm : null;
 
-    const withRpk = g.sessions.filter(s => s.revenue_per_km !== null);
-    const avgRpk = withRpk.length > 0
-      ? withRpk.reduce((a, s) => a + (s.revenue_per_km as number), 0) / withRpk.length
+    // Component 1 (60%): absolute rpk score = driver_rpk / fleet_rpk × 100
+    const absRpkScore: number | null = (driverRpk !== null && fleetRpk > 0)
+      ? (driverRpk / fleetRpk) * 100
       : null;
 
-    // sample_count-weighted % vs baseline
-    let pctVsNorm: number | null = null;
-    let sampleSum = 0;
-    if (g.baselineContributions.length > 0) {
-      let weightedActual = 0;
-      let weightedBaseline = 0;
-      for (const c of g.baselineContributions) {
-        weightedActual += c.actual * c.sample_count;
-        weightedBaseline += c.baseline * c.sample_count;
-        sampleSum += c.sample_count;
-      }
-      if (weightedBaseline > 0) {
-        pctVsNorm = Math.round((weightedActual / weightedBaseline) * 100 - 100);
-      }
+    // Component 2 (25%): relative per-session score
+    let relSum = 0;
+    let relCount = 0;
+    for (const s of g.sessions) {
+      if (s.revenue_per_km === null || s.revenue_per_km === undefined) continue;
+      const routeAvg = routeAvgRpk.get(s.crm_route_id);
+      if (!routeAvg || routeAvg <= 0) continue;
+      relSum += (s.revenue_per_km / routeAvg) * 100;
+      relCount++;
     }
+    const relRpkScore: number | null = relCount > 0 ? relSum / relCount : null;
+
+    // Component 3 (3 × 5%): inspection OK rates
+    const insp = inspAgg.get(g.driver_id);
+    const autoCurat: number | null = insp && insp.auto_curat_total > 0
+      ? (insp.auto_curat_ok / insp.auto_curat_total) * 100 : null;
+    const exterior: number | null = insp && insp.exterior_total > 0
+      ? (insp.exterior_ok / insp.exterior_total) * 100 : null;
+    const uniform: number | null = insp && insp.uniform_total > 0
+      ? (insp.uniform_ok / insp.uniform_total) * 100 : null;
+    const inspCount = insp?.total ?? 0;
+
+    // Weighted composite with null-aware re-normalization
+    let weightedSum = 0;
+    let activeWeight = 0;
+    const addC = (v: number | null, w: number) => {
+      if (v === null) return;
+      weightedSum += v * w;
+      activeWeight += w;
+    };
+    addC(absRpkScore, W_ABS);
+    addC(relRpkScore, W_REL);
+    addC(autoCurat, W_AUTO);
+    addC(exterior, W_EXT);
+    addC(uniform, W_UNI);
+    const nota = activeWeight > 0 ? weightedSum / activeWeight : 0;
+
+    const avgRpk = driverRpk !== null ? Math.round(driverRpk * 100) / 100 : null;
 
     result.push({
       driver_id: g.driver_id,
@@ -825,19 +902,18 @@ export async function getDriverScorecard(dateFrom: string, dateTo: string): Prom
       total_km_driven: Math.round(totalKm),
       total_revenue: Math.round(totalRev),
       total_unique_passengers: totalUnique,
-      avg_revenue_per_km: avgRpk !== null ? Math.round(avgRpk * 100) / 100 : null,
-      pct_vs_route_norm: pctVsNorm,
-      sample_count: sampleSum,
+      avg_revenue_per_km: avgRpk,
+      abs_rpk_score: absRpkScore !== null ? round1(absRpkScore) : null,
+      relative_rpk_score: relRpkScore !== null ? round1(relRpkScore) : null,
+      auto_curat_ok_rate: autoCurat !== null ? round1(autoCurat) : null,
+      exterior_ok_rate: exterior !== null ? round1(exterior) : null,
+      uniform_ok_rate: uniform !== null ? round1(uniform) : null,
+      inspections_count: inspCount,
+      nota_final: round1(nota),
     });
   }
 
-  result.sort((a, b) => {
-    if (a.pct_vs_route_norm === null && b.pct_vs_route_norm === null) return 0;
-    if (a.pct_vs_route_norm === null) return 1;
-    if (b.pct_vs_route_norm === null) return -1;
-    return b.pct_vs_route_norm - a.pct_vs_route_norm;
-  });
-
+  result.sort((a, b) => b.nota_final - a.nota_final);
   return result;
 }
 

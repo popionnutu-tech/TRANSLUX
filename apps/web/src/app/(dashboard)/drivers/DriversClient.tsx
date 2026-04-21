@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Driver } from '@translux/db';
-import { createDriver, toggleDriver, deleteDriver, updateDriverPhone, updateDriverName } from './actions';
+import { createDriver, toggleDriver, deleteDriver, updateDriverPhone, updateDriverName, updateDriverCashinId } from './actions';
 
 function formatDriverName(fullName: string): string {
   const parts = fullName.trim().split(/\s+/);
@@ -89,6 +89,7 @@ export default function DriversClient({ initialDrivers }: { initialDrivers: Driv
             <tr>
               <th>Nume complet</th>
               <th>Telefon</th>
+              <th>ID cash-in</th>
               <th>Status</th>
               <th>Acțiuni</th>
             </tr>
@@ -104,7 +105,7 @@ export default function DriversClient({ initialDrivers }: { initialDrivers: Driv
             ))}
             {initialDrivers.length === 0 && (
               <tr>
-                <td colSpan={4} className="text-center text-muted">
+                <td colSpan={5} className="text-center text-muted">
                   Nu există șoferi.
                 </td>
               </tr>
@@ -131,6 +132,9 @@ function DriverRow({
   const [editingName, setEditingName] = useState(false);
   const [newName, setNewName] = useState('');
   const [savingName, setSavingName] = useState(false);
+  const [editingCashin, setEditingCashin] = useState(false);
+  const [cashin, setCashin] = useState('');
+  const [savingCashin, setSavingCashin] = useState(false);
   const router = useRouter();
 
   async function handleSavePhone() {
@@ -163,6 +167,19 @@ function DriverRow({
       alert(err.message);
     } finally {
       setSavingName(false);
+    }
+  }
+
+  async function handleSaveCashin() {
+    setSavingCashin(true);
+    try {
+      await updateDriverCashinId(driver.id, cashin);
+      setEditingCashin(false);
+      router.refresh();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setSavingCashin(false);
     }
   }
 
@@ -214,6 +231,39 @@ function DriverRow({
         ) : (
           <button onClick={() => setEditingPhone(true)} style={{ fontSize: 12, cursor: 'pointer', background: 'none', border: 'none', color: '#dc2626', textDecoration: 'underline' }}>
             + Adaugă
+          </button>
+        )}
+      </td>
+      <td>
+        {editingCashin ? (
+          <span style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            <input
+              value={cashin}
+              onChange={e => setCashin(e.target.value.replace(/\D/g, ''))}
+              placeholder="0945024"
+              maxLength={10}
+              style={{ width: 90, fontSize: 13, padding: '2px 6px', fontFamily: 'var(--font-mono)' }}
+              autoFocus
+              onKeyDown={e => { if (e.key === 'Enter') handleSaveCashin(); if (e.key === 'Escape') setEditingCashin(false); }}
+            />
+            <button onClick={handleSaveCashin} disabled={savingCashin} className="btn btn-primary" style={{ fontSize: 11, padding: '2px 8px' }}>
+              {savingCashin ? '...' : '✓'}
+            </button>
+            <button onClick={() => setEditingCashin(false)} className="btn btn-outline" style={{ fontSize: 11, padding: '2px 8px' }}>✕</button>
+          </span>
+        ) : driver.cashin_sofer_id ? (
+          <span
+            onClick={() => { setCashin(driver.cashin_sofer_id || ''); setEditingCashin(true); }}
+            style={{ cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: 13 }}
+          >
+            {driver.cashin_sofer_id}
+          </span>
+        ) : (
+          <button
+            onClick={() => { setCashin(''); setEditingCashin(true); }}
+            style={{ fontSize: 12, cursor: 'pointer', background: 'none', border: 'none', color: '#dc2626', textDecoration: 'underline' }}
+          >
+            + Setează
           </button>
         )}
       </td>

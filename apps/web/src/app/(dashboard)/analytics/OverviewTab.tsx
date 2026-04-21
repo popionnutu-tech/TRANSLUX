@@ -58,15 +58,17 @@ function rpkColor(rpk: number | null, median: number): string {
 }
 
 // --- Short route name helper for labels ---
-function shortRouteName(fullName: string, timeChisinau?: string, timeNord?: string): string {
+// Accepts already-parsed "HH:MM" strings (departure_time_chisinau, return_time_nord)
+// from getRouteScorecard, which handles the daily_assignments.retur_route_id swap.
+function shortRouteName(fullName: string, departureTimeChisinau: string, returnTimeNord: string): string {
   const stripped = fullName
     .replace(/^Chișinău\s*[-–]\s*/i, '')
     .replace(/\s+/g, ' ')
     .trim();
-  const tChi = timeChisinau?.split(' - ')[0]?.trim() || '';
-  const tNord = timeNord?.split(' - ')[0]?.trim() || '';
-  if (tChi && tNord) return `${stripped} ${tChi} (${tNord})`;
-  if (tChi) return `${stripped} ${tChi}`;
+  const dep = departureTimeChisinau?.trim() || '';
+  const ret = returnTimeNord?.trim() || '';
+  if (dep && ret) return `${stripped} ${dep} (${ret})`;
+  if (dep) return `${stripped} ${dep}`;
   return stripped;
 }
 
@@ -319,7 +321,7 @@ function RouteMatrix({
                     </div>
                   </td>
                   <td style={{ padding: '6px', color: '#333', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 160 }}>
-                    {shortRouteName(r.route_name, r.time_chisinau, r.time_nord)}
+                    {shortRouteName(r.route_name, r.departure_time_chisinau, r.return_time_nord)}
                   </td>
                   <td style={{ padding: '6px', textAlign: 'right', color: '#555', fontVariantNumeric: 'tabular-nums', fontWeight: 500 }}>
                     {r.avg_revenue_per_session.toLocaleString('ro-RO')}

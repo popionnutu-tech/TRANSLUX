@@ -19,5 +19,14 @@ export default async function GraficPage() {
     getAssignmentDates(),
   ]);
 
-  return <GraficClient drivers={drivers} vehicles={vehicles} returRoutes={returRoutes} dates={dates} readOnly={readOnly} />;
+  return (
+    <GraficClient
+      drivers={drivers}
+      vehicles={vehicles}
+      returRoutes={returRoutes}
+      dates={dates}
+      readOnly={readOnly}
+      role={session.role}
+    />
+  );
 }

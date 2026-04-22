@@ -8,12 +8,14 @@ import {
   deleteAssignment,
   copyAssignments,
   updateReturRoute,
+  setCashinReceipt,
   type GraficRow,
   type DriverOption,
   type VehicleOption,
   type ReturRouteOption,
   type DateEntry,
 } from './actions';
+import type { AdminRole } from '@translux/db';
 
 function todayChisinau(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
@@ -42,13 +44,16 @@ export default function GraficClient({
   returRoutes,
   dates: initialDates,
   readOnly = false,
+  role,
 }: {
   drivers: DriverOption[];
   vehicles: VehicleOption[];
   returRoutes: ReturRouteOption[];
   dates: DateEntry[];
   readOnly?: boolean;
+  role: AdminRole;
 }) {
+  const isDispatcher = role === 'DISPATCHER';
   const [date, setDate] = useState(todayChisinau);
   const [page, setPage] = useState<1 | 2>(1);
   const [rows, setRows] = useState<GraficRow[]>([]);
@@ -62,6 +67,7 @@ export default function GraficClient({
   const [popDriverId, setPopDriverId] = useState('');
   const [popVehicleId, setPopVehicleId] = useState('');
   const [popVehicleRetId, setPopVehicleRetId] = useState('');
+  const [popReceiptNr, setPopReceiptNr] = useState('');
   const [returPopup, setReturPopup] = useState<GraficRow | null>(null);
   const [popReturRouteId, setPopReturRouteId] = useState('');
   const [downloading, setDownloading] = useState(false);
@@ -93,6 +99,7 @@ export default function GraficClient({
     setPopDriverId(row.driver_id || '');
     setPopVehicleId(row.vehicle_id || '');
     setPopVehicleRetId(row.vehicle_id_retur || '');
+    setPopReceiptNr(row.cashin_receipt_nr || '');
     setPopup({ row });
   }
 
@@ -100,8 +107,15 @@ export default function GraficClient({
     if (!popup || !popDriverId) return;
     setSaving(true);
     const res = await upsertAssignment(popup.row.crm_route_id, date, popDriverId, popVehicleId || null, popVehicleRetId || null);
+    if (res.error) { setSaving(false); setError(res.error); return; }
+
+    // Dispatcher poate salva și chitanta odată cu programarea
+    if (isDispatcher && popReceiptNr !== (popup.row.cashin_receipt_nr || '')) {
+      const rRes = await setCashinReceipt(popDriverId, date, popReceiptNr);
+      if (rRes.error) { setSaving(false); setError(rRes.error); return; }
+    }
+
     setSaving(false);
-    if (res.error) { setError(res.error); return; }
     setPopup(null);
     loadData();
     refreshDates();
@@ -483,6 +497,26 @@ export default function GraficClient({
                 {vehicles.map((v) => <option key={v.id} value={v.id}>{v.plate_number}</option>)}
               </select>
             </label>
+
+            {isDispatcher && (
+              <label style={{ display: 'block', marginBottom: 16 }}>
+                <span style={{ fontSize: 13, color: '#666' }}>
+                  Chitanță casa automată
+                  <span style={{ color: '#aaa', fontSize: 11, marginLeft: 6 }}>(ex: 0945125)</span>
+                </span>
+                <input
+                  value={popReceiptNr}
+                  onChange={(e) => setPopReceiptNr(e.target.value.replace(/\D/g, ''))}
+                  placeholder="0945xxx"
+                  maxLength={10}
+                  style={{
+                    ...selectStyle,
+                    fontFamily: 'var(--font-mono)',
+                    letterSpacing: '0.5px',
+                  }}
+                />
+              </label>
+            )}
 
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="btn btn-primary" onClick={handleSave} disabled={saving || !popDriverId}>

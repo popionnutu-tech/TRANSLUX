@@ -56,6 +56,8 @@ export default function IncasareTab() {
 
   const totalNumarare = rows.reduce((s, r) => s + r.numarare_lei, 0);
   const totalIncasare = rows.reduce((s, r) => s + r.incasare_lei, 0);
+  const totalNumerar  = rows.reduce((s, r) => s + (r.incasare_numerar || 0), 0);
+  const totalCard     = rows.reduce((s, r) => s + (r.incasare_card || 0), 0);
   const totalDiff     = totalIncasare - totalNumarare;
 
   return (
@@ -65,7 +67,8 @@ export default function IncasareTab() {
         <div>
           <h2 style={{ margin: 0, fontSize: 20 }}>Încasare vs. Numărare</h2>
           <p className="text-muted" style={{ fontSize: 13, margin: '6px 0 0 0' }}>
-            Pentru fiecare șofer: suma calculată de operatori la numărare vs. suma efectiv depusă la casa automată.
+            Suma calculată la numărare vs. suma efectiv depusă la casa automată.
+            Legătura șofer ↔ chitanță se face de dispecer în <strong>/grafic</strong> când planifică ziua.
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -104,17 +107,17 @@ export default function IncasareTab() {
 
       {/* Totals card */}
       <div className="card" style={{ display: 'flex', gap: 24, padding: 14, marginBottom: 12, flexWrap: 'wrap' }}>
-        <div><span className="text-muted">Total numărare:</span> <strong>{Math.round(totalNumarare)} lei</strong></div>
-        <div><span className="text-muted">Total încasare:</span> <strong>{Math.round(totalIncasare)} lei</strong></div>
+        <div><span className="text-muted">Numărare:</span> <strong>{Math.round(totalNumarare)} lei</strong></div>
+        <div><span className="text-muted">Încasare total:</span> <strong>{Math.round(totalIncasare)} lei</strong></div>
+        <div><span className="text-muted">  din care cash:</span> <strong>{Math.round(totalNumerar)} lei</strong></div>
+        <div><span className="text-muted">  din care card:</span> <strong>{Math.round(totalCard)} lei</strong></div>
         <div>
           <span className="text-muted">Δ:</span>{' '}
           <strong style={{ color: totalDiff < 0 ? 'var(--danger)' : totalDiff > 0 ? 'var(--warning)' : 'var(--success)' }}>
             {totalDiff >= 0 ? '+' : ''}{Math.round(totalDiff)} lei
           </strong>
         </div>
-        <div className="text-muted" style={{ fontSize: 12 }}>
-          Șoferi: {rows.length}
-        </div>
+        <div className="text-muted" style={{ fontSize: 12 }}>Șoferi: {rows.length}</div>
       </div>
 
       {/* Main table */}
@@ -130,11 +133,11 @@ export default function IncasareTab() {
             <thead>
               <tr>
                 <th>Șofer</th>
-                <th>ID cash-in</th>
                 <th style={{ textAlign: 'right' }}>Numărare</th>
                 <th style={{ textAlign: 'right' }}>Încasare</th>
+                <th style={{ textAlign: 'right' }}>Cash</th>
+                <th style={{ textAlign: 'right' }}>Card</th>
                 <th style={{ textAlign: 'right' }}>Δ</th>
-                <th style={{ textAlign: 'right' }}>Plăți</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -142,16 +145,19 @@ export default function IncasareTab() {
               {rows.map(r => {
                 const meta = STATUS_META[r.status];
                 return (
-                  <tr key={r.driver_id || r.cashin_sofer_id}>
+                  <tr key={r.driver_id || r.driver_name}>
                     <td style={{ fontWeight: 600 }}>{r.driver_name || '—'}</td>
-                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}>
-                      {r.cashin_sofer_id || <span className="text-muted">nesetat</span>}
-                    </td>
                     <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
                       {r.numarare_lei ? `${Math.round(r.numarare_lei)} lei` : <span className="text-muted">—</span>}
                     </td>
-                    <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
+                    <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
                       {r.incasare_lei ? `${Math.round(r.incasare_lei)} lei` : <span className="text-muted">—</span>}
+                    </td>
+                    <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
+                      {r.incasare_numerar ? `${Math.round(r.incasare_numerar)} lei` : <span className="text-muted">—</span>}
+                    </td>
+                    <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                      {r.incasare_card ? `${Math.round(r.incasare_card)} lei` : '—'}
                     </td>
                     <td style={{
                       textAlign: 'right',
@@ -164,7 +170,6 @@ export default function IncasareTab() {
                         : `${r.diff >= 0 ? '+' : ''}${Math.round(r.diff)} lei`
                       }
                     </td>
-                    <td style={{ textAlign: 'right' }}>{r.plati || '—'}</td>
                     <td style={{ color: meta.color, fontWeight: 600, fontSize: 13 }}>
                       {meta.icon} {meta.label}
                     </td>
@@ -185,24 +190,27 @@ export default function IncasareTab() {
           borderLeft: '4px solid var(--warning)',
         }}>
           <h3 style={{ margin: '0 0 8px 0', fontSize: 14, color: 'var(--warning)' }}>
-            ⚠ {unmapped.length} cod(uri) cash-in necartografiate
+            ⚠ {unmapped.length} chitanță(e) neasociate cu șofer
           </h3>
           <p className="text-muted" style={{ fontSize: 12, margin: '0 0 10px 0' }}>
-            Următoarele ID-uri au apărut în casa automată dar nu sunt legate de niciun șofer.
-            Setează ID-ul cash-in pentru șoferul corespunzător în pagina <strong>Șoferi</strong>.
+            Următoarele chitanțe au apărut în casa automată, dar dispecerul nu a introdus mapping-ul
+            șofer ↔ chitanță pentru ziua respectivă. Dispecerul trebuie să deschidă <strong>/grafic</strong>
+            pe acea dată și să seteze chitanța la șoferul corect.
           </p>
           <table>
             <thead>
               <tr>
-                <th>ID cash-in</th>
+                <th>Chitanță</th>
+                <th>Data</th>
                 <th style={{ textAlign: 'right' }}>Plăți</th>
                 <th style={{ textAlign: 'right' }}>Încasare</th>
               </tr>
             </thead>
             <tbody>
               {unmapped.map(u => (
-                <tr key={u.sofer_id}>
+                <tr key={`${u.ziua}-${u.sofer_id}`}>
                   <td style={{ fontFamily: 'var(--font-mono)' }}>{u.sofer_id}</td>
+                  <td>{u.ziua}</td>
                   <td style={{ textAlign: 'right' }}>{u.plati}</td>
                   <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
                     {Math.round(u.incasare_lei)} lei

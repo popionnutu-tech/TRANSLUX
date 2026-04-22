@@ -10,9 +10,11 @@ export type IncasareStatus = 'ok' | 'underpaid' | 'overpaid' | 'no_cashin' | 'no
 export interface IncasareRow {
   driver_id: string | null;
   driver_name: string | null;
-  cashin_sofer_id: string | null;
+  cashin_sofer_id: string | null;  // deprecat, ramane null
   numarare_lei: number;
-  incasare_lei: number;
+  incasare_lei: number;            // total: cash + card
+  incasare_numerar: number;        // doar cash
+  incasare_card: number;           // total - cash
   plati: number;
   lgotniki_count: number;
   dop_rashodi: number;
@@ -21,7 +23,8 @@ export interface IncasareRow {
 }
 
 export interface UnmappedTomberon {
-  sofer_id: string;
+  sofer_id: string;                // numarul chitantei (ex: 0945125)
+  ziua: string;                    // data chitantei
   plati: number;
   incasare_lei: number;
 }

@@ -33,6 +33,12 @@ export interface GraficRow {
   vehicle_plate_retur: string | null;
   stops: string;                  // "Briceni/Edineț/Bălți"
   retur_route_id: number | null;
+  /**
+   * Numar chitanta casa automata (introdus de dispecer).
+   * Vizibil doar pentru rolul DISPATCHER — altfel null.
+   * Identifica unic soferul pe ziua respectiva pentru matching cu tomberon.
+   */
+  cashin_receipt_nr: string | null;
 }
 
 export interface GraficEdinetRow {
@@ -68,11 +74,12 @@ export async function getGraficData(date: string): Promise<{
   page1: GraficRow[];
   page2: GraficRow[];
 }> {
-  requireRole(await verifySession(), 'ADMIN', 'DISPATCHER', 'GRAFIC');
+  const session = requireRole(await verifySession(), 'ADMIN', 'DISPATCHER', 'GRAFIC');
+  const isDispatcher = session.role === 'DISPATCHER';
 
   const db = getSupabase();
 
-  const [routesRes, assignmentsRes, driversRes, vehiclesRes, stopsRes] = await Promise.all([
+  const [routesRes, assignmentsRes, driversRes, vehiclesRes, stopsRes, receiptsRes] = await Promise.all([
     db.from('crm_routes').select('id, time_nord, time_chisinau, dest_to_ro').eq('active', true).not('time_nord', 'is', null).neq('time_nord', ''),
     db.from('daily_assignments')
       .select('id, crm_route_id, driver_id, vehicle_id, vehicle_id_retur, retur_route_id')
@@ -81,6 +88,10 @@ export async function getGraficData(date: string): Promise<{
     db.from('drivers').select('id, full_name, phone').eq('active', true),
     db.from('vehicles').select('id, plate_number').eq('active', true),
     db.from('crm_stop_fares').select('crm_route_id, name_ro').eq('is_visible', true),
+    // Chitantele sunt vizibile doar pentru dispecer
+    isDispatcher
+      ? db.from('driver_cashin_receipts').select('driver_id, receipt_nr').eq('ziua', date)
+      : Promise.resolve({ data: [] as any[] }),
   ]);
 
   const routes = (routesRes.data || []) as any[];
@@ -88,10 +99,13 @@ export async function getGraficData(date: string): Promise<{
   const drivers = (driversRes.data || []) as any[];
   const vehicles = (vehiclesRes.data || []) as any[];
   const stops = (stopsRes.data || []) as any[];
+  const receipts = (receiptsRes.data || []) as any[];
 
   const assignmentMap = new Map(assignments.map((a: any) => [a.crm_route_id, a]));
   const driverMap = new Map(drivers.map((d: any) => [d.id, d]));
   const vehicleMap = new Map(vehicles.map((v: any) => [v.id, v]));
+  const receiptByDriver = new Map<string, string>();
+  for (const r of receipts) receiptByDriver.set(r.driver_id, r.receipt_nr);
 
   // Group stops by route: crm_route_id -> "Stop1/Stop2/Stop3"
   // Only include stops from Nord down to Bălți (truncate after Bălți)
@@ -134,6 +148,7 @@ export async function getGraficData(date: string): Promise<{
       vehicle_plate_retur: vRet?.plate_number || null,
       stops: stopsMap.get(r.id) || '',
       retur_route_id: a?.retur_route_id || null,
+      cashin_receipt_nr: a?.driver_id ? (receiptByDriver.get(a.driver_id) || null) : null,
     };
   });
 
@@ -155,6 +170,7 @@ export async function getGraficData(date: string): Promise<{
     vehicle_plate_retur: r.vehicle_plate_retur,
     stops: r.stops,
     retur_route_id: r.retur_route_id,
+    cashin_receipt_nr: r.cashin_receipt_nr,
   }));
 
   return {
@@ -481,4 +497,50 @@ export async function getActiveVehicles(): Promise<VehicleOption[]> {
     .eq('active', true)
     .order('plate_number');
   return (data || []) as VehicleOption[];
+}
+
+/* ── Chitanta casa automata (rol DISPATCHER only) ── */
+
+export async function setCashinReceipt(
+  driverId: string,
+  date: string,
+  receiptNr: string,
+): Promise<{ error?: string }> {
+  const session = await verifySession();
+  if (!session) return { error: 'Neautorizat' };
+  if (session.role !== 'DISPATCHER') return { error: 'Doar dispecerul poate introduce chitanta' };
+  if (!driverId || !date) return { error: 'Date lipsă' };
+
+  const db = getSupabase();
+  const trimmed = receiptNr.trim();
+
+  // String gol = stergere mapping
+  if (trimmed === '') {
+    const { error } = await db.from('driver_cashin_receipts')
+      .delete()
+      .match({ driver_id: driverId, ziua: date });
+    if (error) return { error: error.message };
+    return {};
+  }
+
+  // Upsert: (driver_id, ziua) e unique, deci conflict pe aceasta pereche
+  const { error } = await db.from('driver_cashin_receipts').upsert(
+    {
+      driver_id: driverId,
+      ziua: date,
+      receipt_nr: trimmed,
+      created_by: session.id,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'driver_id,ziua' },
+  );
+
+  if (error) {
+    // 23505 = duplicate = chitanta e deja atribuita altui sofer in aceeași zi
+    if (error.code === '23505') {
+      return { error: 'Chitanta #' + trimmed + ' e deja atribuita altui sofer in aceasta zi' };
+    }
+    return { error: error.message };
+  }
+  return {};
 }

@@ -499,6 +499,98 @@ export async function getActiveVehicles(): Promise<VehicleOption[]> {
   return (data || []) as VehicleOption[];
 }
 
+/* ── Suburban routes grafic ── */
+
+export interface SuburbanGraficRow {
+  crm_route_id: number;
+  dest_from_ro: string;   // "Beleavinți"
+  dest_to_ro: string;     // "Briceni"
+  cycles: number;         // cate cicluri/zi (max sequence_no)
+  assignment_id: string | null;
+  driver_id: string | null;
+  driver_name: string | null;
+  driver_phone: string | null;
+  vehicle_id: string | null;
+  vehicle_plate: string | null;
+  /** Vizibil doar pentru DISPATCHER. */
+  cashin_receipt_nr: string | null;
+}
+
+export async function getGraficSuburban(date: string): Promise<SuburbanGraficRow[]> {
+  const session = requireRole(await verifySession(), 'ADMIN', 'DISPATCHER', 'GRAFIC');
+  const isDispatcher = session.role === 'DISPATCHER';
+
+  const db = getSupabase();
+
+  // Rute suburbane = active, fara time_nord (delimitarea standard in baza)
+  const { data: routes } = await db
+    .from('crm_routes')
+    .select('id, dest_from_ro, dest_to_ro')
+    .eq('active', true)
+    .or('time_nord.is.null,time_nord.eq.')
+    .order('dest_from_ro');
+
+  if (!routes || routes.length === 0) return [];
+
+  const routeIds = routes.map((r: any) => r.id);
+
+  const [schedulesRes, assignmentsRes, driversRes, vehiclesRes, receiptsRes] = await Promise.all([
+    db.from('crm_route_schedules')
+      .select('route_id, sequence_no')
+      .in('route_id', routeIds)
+      .eq('active', true),
+    db.from('daily_assignments')
+      .select('id, crm_route_id, driver_id, vehicle_id')
+      .in('crm_route_id', routeIds)
+      .eq('assignment_date', date)
+      .eq('auto_copied', false),
+    db.from('drivers').select('id, full_name, phone').eq('active', true),
+    db.from('vehicles').select('id, plate_number').eq('active', true),
+    isDispatcher
+      ? db.from('driver_cashin_receipts').select('driver_id, receipt_nr').eq('ziua', date)
+      : Promise.resolve({ data: [] as any[] }),
+  ]);
+
+  const schedules = (schedulesRes.data || []) as any[];
+  const assignments = (assignmentsRes.data || []) as any[];
+  const drivers = (driversRes.data || []) as any[];
+  const vehicles = (vehiclesRes.data || []) as any[];
+  const receipts = (receiptsRes.data || []) as any[];
+
+  // Pe ruta — numar maxim de cicluri (sequence_no)
+  const cyclesMap = new Map<number, number>();
+  for (const s of schedules) {
+    const cur = cyclesMap.get(s.route_id) || 0;
+    if (s.sequence_no > cur) cyclesMap.set(s.route_id, s.sequence_no);
+  }
+
+  const assignmentMap = new Map(assignments.map((a: any) => [a.crm_route_id, a]));
+  const driverMap = new Map(drivers.map((d: any) => [d.id, d]));
+  const vehicleMap = new Map(vehicles.map((v: any) => [v.id, v]));
+  const receiptByDriver = new Map<string, string>();
+  for (const r of receipts) receiptByDriver.set(r.driver_id, r.receipt_nr);
+
+  return routes.map((r: any) => {
+    const a = assignmentMap.get(r.id);
+    const driver = a?.driver_id ? driverMap.get(a.driver_id) : null;
+    const vehicle = a?.vehicle_id ? vehicleMap.get(a.vehicle_id) : null;
+
+    return {
+      crm_route_id: r.id,
+      dest_from_ro: r.dest_from_ro || '',
+      dest_to_ro: r.dest_to_ro || '',
+      cycles: cyclesMap.get(r.id) || 0,
+      assignment_id: a?.id || null,
+      driver_id: a?.driver_id || null,
+      driver_name: driver?.full_name || null,
+      driver_phone: toLocalPhone(driver?.phone || null),
+      vehicle_id: a?.vehicle_id || null,
+      vehicle_plate: vehicle?.plate_number || null,
+      cashin_receipt_nr: a?.driver_id ? (receiptByDriver.get(a.driver_id) || null) : null,
+    };
+  });
+}
+
 /* ── Chitanta casa automata (rol DISPATCHER only) ── */
 
 export async function setCashinReceipt(

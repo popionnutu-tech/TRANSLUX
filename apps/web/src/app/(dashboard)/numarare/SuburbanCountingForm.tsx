@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { getSuburbanSchedule, saveSuburbanCycle, loadSuburbanEntries, type SuburbanSchedule, type TariffConfig, type DriverOption, type VehicleOption } from './actions';
+import { saveSuburbanAuditCycle, loadSuburbanAuditEntries } from './auditActions';
 
 interface Props {
   sessionId: string;
@@ -9,16 +10,19 @@ interface Props {
   date: string;
   tariff: TariffConfig;
   canSeeSums: boolean;
-  onSaved: () => void;
+  onSaved: (direction: 'tur' | 'retur') => void;
   drivers: DriverOption[];
   vehicles: VehicleOption[];
+  mode?: 'normal' | 'audit';
 }
 
 type CycleInputs = Record<number, { total: number; alighted: number }>; // key=stopOrder
 type AllInputs = Record<number, CycleInputs>; // key=scheduleId
 type AltAssignment = { driverId: string | null; vehicleId: string | null; show: boolean };
 
-export default function SuburbanCountingForm({ sessionId, crmRouteId, date, tariff, canSeeSums, onSaved, drivers, vehicles }: Props) {
+export default function SuburbanCountingForm({
+  sessionId, crmRouteId, date, tariff, canSeeSums, onSaved, drivers, vehicles, mode = 'normal',
+}: Props) {
   const [loading, setLoading] = useState(true);
   const [tur, setTur] = useState<SuburbanSchedule[]>([]);
   const [retur, setRetur] = useState<SuburbanSchedule[]>([]);
@@ -32,7 +36,9 @@ export default function SuburbanCountingForm({ sessionId, crmRouteId, date, tari
       const { tur, retur } = await getSuburbanSchedule(crmRouteId, date);
       setTur(tur);
       setRetur(retur);
-      const existing = await loadSuburbanEntries(sessionId);
+      const existing = mode === 'audit'
+        ? await loadSuburbanAuditEntries(sessionId)
+        : await loadSuburbanEntries(sessionId);
       const map: AllInputs = {};
       const alts: Record<number, AltAssignment> = {};
       const saved = new Set<number>();
@@ -50,7 +56,7 @@ export default function SuburbanCountingForm({ sessionId, crmRouteId, date, tari
       setSavedIds(saved);
       setLoading(false);
     })();
-  }, [sessionId, crmRouteId, date]);
+  }, [sessionId, crmRouteId, date, mode]);
 
   const setInput = useCallback((scheduleId: number, stopOrder: number, key: 'total' | 'alighted', value: number) => {
     setInputs(prev => ({
@@ -103,7 +109,8 @@ export default function SuburbanCountingForm({ sessionId, crmRouteId, date, tari
     }));
     const total = cycleTotal(sched);
     const alt = altMap[sched.scheduleId];
-    const { error } = await saveSuburbanCycle(
+    const saveFn = mode === 'audit' ? saveSuburbanAuditCycle : saveSuburbanCycle;
+    const { error } = await saveFn(
       sessionId, sched.scheduleId, sched.direction, sched.sequenceNo, entries, total,
       alt?.driverId || null, alt?.vehicleId || null,
     );
@@ -114,7 +121,7 @@ export default function SuburbanCountingForm({ sessionId, crmRouteId, date, tari
     setSavedIds(prev => new Set(prev).add(sched.scheduleId));
     setSaveMsg(prev => ({ ...prev, [sched.scheduleId]: 'Salvat ✓' }));
     setTimeout(() => setSaveMsg(prev => { const n = { ...prev }; delete n[sched.scheduleId]; return n; }), 2000);
-    onSaved();
+    onSaved(sched.direction);
   }
 
   // Enter/Space avansează la următorul input:
@@ -288,6 +295,19 @@ export default function SuburbanCountingForm({ sessionId, crmRouteId, date, tari
 
   return (
     <div>
+      {mode === 'audit' && (
+        <div style={{
+          padding: '8px 12px',
+          background: 'rgba(155,27,48,0.12)',
+          color: '#9B1B30',
+          fontWeight: 600,
+          marginBottom: 12,
+          borderRadius: 6,
+          border: '1px solid rgba(155,27,48,0.3)',
+        }}>
+          🔍 MOD AUDIT — numărare independentă
+        </div>
+      )}
       {canSeeSums && (
         <div className="card" style={{ padding: 10, marginBottom: 10, display: 'flex', gap: 20, flexWrap: 'wrap' }}>
           <div><span className="text-muted">Total zi:</span> <strong>{grandTotal} lei</strong></div>

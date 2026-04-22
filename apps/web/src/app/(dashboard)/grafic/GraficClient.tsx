@@ -15,7 +15,10 @@ import {
   type ReturRouteOption,
   type DateEntry,
 } from './actions';
+import SuburbanGraficTab from './SuburbanGraficTab';
 import type { AdminRole } from '@translux/db';
+
+type GraficMode = 'interurban' | 'suburban';
 
 function todayChisinau(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
@@ -54,6 +57,7 @@ export default function GraficClient({
   role: AdminRole;
 }) {
   const isDispatcher = role === 'DISPATCHER';
+  const [mode, setMode] = useState<GraficMode>('interurban');
   const [date, setDate] = useState(todayChisinau);
   const [page, setPage] = useState<1 | 2>(1);
   const [rows, setRows] = useState<GraficRow[]>([]);
@@ -245,6 +249,42 @@ export default function GraficClient({
         </div>
       </div>
 
+      {/* Mode toggle: Interurban / Suburban */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 12, borderBottom: '1px solid rgba(155,27,48,0.1)' }}>
+        {(['interurban', 'suburban'] as const).map(m => (
+          <button
+            key={m}
+            onClick={() => setMode(m)}
+            style={{
+              padding: '10px 20px',
+              border: 'none',
+              borderBottom: mode === m ? `3px solid ${maroon}` : '3px solid transparent',
+              background: mode === m ? 'rgba(155,27,48,0.06)' : 'transparent',
+              color: mode === m ? maroon : '#999',
+              fontWeight: mode === m ? 600 : 500,
+              fontSize: 14,
+              cursor: 'pointer',
+              fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
+              fontStyle: 'italic',
+              transition: 'all 0.2s ease',
+              borderRadius: '8px 8px 0 0',
+            }}
+          >
+            {m === 'interurban' ? 'Interurban' : 'Suburban'}
+          </button>
+        ))}
+      </div>
+
+      {mode === 'suburban' ? (
+        <SuburbanGraficTab
+          date={date}
+          drivers={drivers}
+          vehicles={vehicles}
+          role={role}
+          readOnly={readOnly}
+        />
+      ) : (
+        <>
       {/* Page tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
         {([1, 2] as const).map((p) => (
@@ -462,6 +502,8 @@ export default function GraficClient({
           </table>
         </div>
       </div>
+      </>
+      )}
 
       {/* ── Assignment popup ── */}
       {popup && (

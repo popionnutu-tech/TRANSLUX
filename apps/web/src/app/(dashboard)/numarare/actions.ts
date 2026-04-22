@@ -27,6 +27,14 @@ export interface RouteForCounting {
   retur_total_lei: number | null;
   tur_single_lei: number | null;
   retur_single_lei: number | null;
+  // Audit fields
+  audit_status: string | null;
+  audit_tur_total_lei: number | null;
+  audit_retur_total_lei: number | null;
+  audit_tur_single_lei: number | null;
+  audit_retur_single_lei: number | null;
+  audit_locked_by_email: string | null;
+  audit_locked_by_id: string | null;
   route_type: 'interurban' | 'suburban';
   dest_from_ro: string;
 }
@@ -91,6 +99,9 @@ export interface RouteForPeriod {
   retur_total_lei: number | null;
   tur_single_lei: number | null;
   retur_single_lei: number | null;
+  audit_tur_total_lei: number | null;
+  audit_retur_total_lei: number | null;
+  audit_sessions_count: number;
 }
 
 // ─── Текущий пользователь ───
@@ -161,11 +172,14 @@ export async function getRoutesForDate(date: string): Promise<{ data?: RouteForC
     .select(`
       crm_route_id, id, status, operator_id, locked_by, locked_at,
       double_tariff, tur_total_lei, retur_total_lei, tur_single_lei, retur_single_lei,
+      audit_status, audit_tur_total_lei, audit_retur_total_lei, audit_tur_single_lei, audit_retur_single_lei,
+      audit_locked_by,
       driver_id, vehicle_id,
       session_driver:drivers!counting_sessions_driver_id_fkey(id, full_name),
       session_vehicle:vehicles!counting_sessions_vehicle_id_fkey(id, plate_number),
       locker:admin_accounts!counting_sessions_locked_by_fkey(email),
-      operator:admin_accounts!counting_sessions_operator_id_fkey(email)
+      operator:admin_accounts!counting_sessions_operator_id_fkey(email),
+      audit_locker:admin_accounts!counting_sessions_audit_locked_by_fkey(email)
     `)
     .eq('assignment_date', date);
 
@@ -222,6 +236,13 @@ export async function getRoutesForDate(date: string): Promise<{ data?: RouteForC
       retur_total_lei: s?.retur_total_lei || null,
       tur_single_lei: s?.tur_single_lei ?? null,
       retur_single_lei: s?.retur_single_lei ?? null,
+      audit_status: s?.audit_status ?? null,
+      audit_tur_total_lei: s?.audit_tur_total_lei ?? null,
+      audit_retur_total_lei: s?.audit_retur_total_lei ?? null,
+      audit_tur_single_lei: s?.audit_tur_single_lei ?? null,
+      audit_retur_single_lei: s?.audit_retur_single_lei ?? null,
+      audit_locked_by_email: s?.audit_locker?.email ?? null,
+      audit_locked_by_id: s?.audit_locked_by ?? null,
       route_type: (r.route_type || 'interurban') as 'interurban' | 'suburban',
       dest_from_ro: r.dest_from_ro || '',
     };
@@ -241,6 +262,11 @@ export async function getRoutesForDate(date: string): Promise<{ data?: RouteForC
       r.retur_total_lei = null;
       r.tur_single_lei = null;
       r.retur_single_lei = null;
+      r.audit_tur_total_lei = null;
+      r.audit_retur_total_lei = null;
+      r.audit_tur_single_lei = null;
+      r.audit_retur_single_lei = null;
+      r.audit_status = null;
     }
   }
 
@@ -268,7 +294,7 @@ export async function getRoutesForPeriod(
   // 2. Toate sesiunile din perioadă
   const { data: sessions, error: sErr } = await sb
     .from('counting_sessions')
-    .select('crm_route_id, tur_total_lei, retur_total_lei, tur_single_lei, retur_single_lei')
+    .select('crm_route_id, tur_total_lei, retur_total_lei, tur_single_lei, retur_single_lei, audit_tur_total_lei, audit_retur_total_lei, audit_status')
     .gte('assignment_date', fromDate)
     .lte('assignment_date', toDate);
 
@@ -287,12 +313,18 @@ export async function getRoutesForPeriod(
     const retur = Number(s.retur_total_lei) || 0;
     const turSingle = Number(s.tur_single_lei) || 0;
     const returSingle = Number(s.retur_single_lei) || 0;
+    const auditTur = Number(s.audit_tur_total_lei) || 0;
+    const auditRetur = Number(s.audit_retur_total_lei) || 0;
+    const hasAudit = s.audit_status === 'completed';
     if (existing) {
       existing.sessions_count += 1;
       existing.tur_total_lei = (existing.tur_total_lei ?? 0) + tur;
       existing.retur_total_lei = (existing.retur_total_lei ?? 0) + retur;
       existing.tur_single_lei = (existing.tur_single_lei ?? 0) + turSingle;
       existing.retur_single_lei = (existing.retur_single_lei ?? 0) + returSingle;
+      existing.audit_tur_total_lei = (existing.audit_tur_total_lei ?? 0) + auditTur;
+      existing.audit_retur_total_lei = (existing.audit_retur_total_lei ?? 0) + auditRetur;
+      existing.audit_sessions_count += hasAudit ? 1 : 0;
     } else {
       agg.set(s.crm_route_id, {
         crm_route_id: s.crm_route_id,
@@ -304,6 +336,9 @@ export async function getRoutesForPeriod(
         retur_total_lei: retur,
         tur_single_lei: turSingle,
         retur_single_lei: returSingle,
+        audit_tur_total_lei: auditTur,
+        audit_retur_total_lei: auditRetur,
+        audit_sessions_count: hasAudit ? 1 : 0,
       });
     }
   }
@@ -324,6 +359,8 @@ export async function getRoutesForPeriod(
       r.retur_total_lei = null;
       r.tur_single_lei = null;
       r.retur_single_lei = null;
+      r.audit_tur_total_lei = null;
+      r.audit_retur_total_lei = null;
     }
   }
 

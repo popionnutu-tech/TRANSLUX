@@ -23,6 +23,8 @@ import {
 } from './actions';
 import CountingForm from './CountingForm';
 import SuburbanCountingForm from './SuburbanCountingForm';
+import { lockAudit, unlockAudit, resetAudit, loadAuditEntries } from './auditActions';
+import AuditComparisonView from './AuditComparisonView';
 import type { AdminRole } from '@translux/db';
 
 function todayChisinau(): string {
@@ -60,6 +62,10 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
   const [drivers, setDrivers] = useState<DriverOption[]>([]);
   const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
   const [routeTypeFilter, setRouteTypeFilter] = useState<'interurban' | 'suburban'>('interurban');
+  const [auditMode, setAuditMode] = useState(false);
+  const [showComparison, setShowComparison] = useState<string | null>(null); // sessionId
+
+  const canAudit = role === 'ADMIN' || role === 'ADMIN_CAMERE';
 
   const isPeriod = dateTo > date;
 
@@ -151,19 +157,53 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
     setOpenRouteId(route.crm_route_id);
   }
 
+  async function handleOpenAudit(route: RouteForCounting) {
+    if (!route.session_id) return;
+    const lock = await lockAudit(route.session_id);
+    if (lock.error) { setError(lock.error); return; }
+
+    if (route.route_type === 'suburban') {
+      setSessionId(route.session_id);
+      setAuditMode(true);
+      setOpenRouteId(route.crm_route_id);
+      return;
+    }
+
+    const routeStops = await getRouteStops(route.crm_route_id, 'tur');
+    const sTur = await loadAuditEntries(route.session_id, 'tur');
+    const sRetur = await loadAuditEntries(route.session_id, 'retur');
+
+    setSessionId(route.session_id);
+    setStops(routeStops);
+    setSavedTur(sTur);
+    setSavedRetur(sRetur);
+    setAuditMode(true);
+    setOpenRouteId(route.crm_route_id);
+  }
+
   async function handleClose() {
     if (sessionId) {
-      await unlockRoute(sessionId);
+      if (auditMode) await unlockAudit(sessionId);
+      else await unlockRoute(sessionId);
     }
     setOpenRouteId(null);
     setSessionId(null);
     setStops([]);
     setSavedTur([]);
     setSavedRetur([]);
+    setAuditMode(false);
     await loadRoutes();
   }
 
-  function handleSaved() {
+  async function handleSaved(direction: 'tur' | 'retur') {
+    if (auditMode && direction === 'retur' && sessionId) {
+      setShowComparison(sessionId);
+      setOpenRouteId(null);
+      setSessionId(null);
+      setAuditMode(false);
+      await loadRoutes();
+      return;
+    }
     loadRoutes();
   }
 
@@ -179,6 +219,17 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
   }
 
   const openRoute = routes.find(r => r.crm_route_id === openRouteId);
+
+  if (showComparison) {
+    return (
+      <div>
+        <AuditComparisonView
+          sessionId={showComparison}
+          onClose={() => setShowComparison(null)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -263,6 +314,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
               onSaved={handleSaved}
               drivers={drivers}
               vehicles={vehicles}
+              mode={auditMode ? 'audit' : 'normal'}
             />
           ) : (
             <CountingForm
@@ -270,11 +322,12 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
               crmRouteId={openRoute.crm_route_id}
               stops={stops}
               tariff={tariff}
-              sessionStatus={openRoute.session_status || 'new'}
+              sessionStatus={auditMode ? (openRoute.audit_status || 'new') : (openRoute.session_status || 'new')}
               savedTur={savedTur}
               savedRetur={savedRetur}
               onSaved={handleSaved}
               canSeeSums={canSeeSums}
+              mode={auditMode ? 'audit' : 'normal'}
             />
           )}
         </>
@@ -426,13 +479,48 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
                     </td>
                   )}
                   <td>
-                    <button
-                      className="btn btn-primary"
-                      onClick={() => handleOpen(route)}
-                      disabled={completed || !!ownedByOther}
-                    >
-                      Deschide
-                    </button>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button
+                        className="btn btn-primary"
+                        onClick={() => handleOpen(route)}
+                        disabled={completed || !!ownedByOther}
+                      >
+                        Deschide
+                      </button>
+                      {canAudit && completed && (!route.audit_locked_by_id || route.audit_locked_by_id === currentUserId) && (
+                        <button
+                          className="btn btn-outline"
+                          onClick={async () => {
+                            if (route.audit_status === 'completed') {
+                              const ok = confirm('Ștergi auditul existent și începi unul nou?');
+                              if (!ok) return;
+                              if (route.session_id) {
+                                const r = await resetAudit(route.session_id);
+                                if (r.error) { setError(r.error); return; }
+                              }
+                            }
+                            handleOpenAudit(route);
+                          }}
+                          style={{ fontSize: 12 }}
+                        >
+                          {route.audit_status === 'completed' ? '🔍 Refă audit' :
+                            route.audit_status === 'tur_done' ? '🔍 Continuă audit' : '🔍 Audit'}
+                        </button>
+                      )}
+                      {canAudit && route.audit_status === 'completed' && route.session_id && (
+                        <button
+                          className="btn btn-outline"
+                          onClick={() => setShowComparison(route.session_id!)}
+                          style={{ fontSize: 12 }}
+                          title="Vezi comparația"
+                        >
+                          📊
+                        </button>
+                      )}
+                      {canAudit && route.audit_locked_by_id && route.audit_locked_by_id !== currentUserId && (
+                        <span style={{ fontSize: 11, color: 'var(--warning)' }}>🔒 {route.audit_locked_by_email}</span>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );

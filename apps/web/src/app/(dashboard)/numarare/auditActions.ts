@@ -200,7 +200,8 @@ export async function saveAuditDirection(
     updateFields.audit_retur_single_lei = totalLeiSingle;
   }
 
-  await sb.from('counting_sessions').update(updateFields).eq('id', sessionId);
+  const { error: updErr } = await sb.from('counting_sessions').update(updateFields).eq('id', sessionId);
+  if (updErr) return { error: updErr.message };
 
   revalidatePath('/numarare');
   return {};

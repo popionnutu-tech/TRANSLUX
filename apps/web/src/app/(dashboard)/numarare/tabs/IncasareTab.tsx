@@ -68,7 +68,7 @@ export default function IncasareTab() {
           <h2 style={{ margin: 0, fontSize: 20 }}>Încasare vs. Numărare</h2>
           <p className="text-muted" style={{ fontSize: 13, margin: '6px 0 0 0' }}>
             Suma calculată la numărare vs. suma efectiv depusă la casa automată.
-            Legătura șofer ↔ chitanță se face de dispecer în <strong>/grafic</strong> când planifică ziua.
+            Legătura șofer ↔ foaie de parcurs se face de dispecer în <strong>/grafic</strong> când planifică ziua.
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -190,17 +190,17 @@ export default function IncasareTab() {
           borderLeft: '4px solid var(--warning)',
         }}>
           <h3 style={{ margin: '0 0 8px 0', fontSize: 14, color: 'var(--warning)' }}>
-            ⚠ {unmapped.length} chitanță(e) neasociate cu șofer
+            ⚠ {unmapped.length} foaie de parcurs neasociate cu șofer
           </h3>
           <p className="text-muted" style={{ fontSize: 12, margin: '0 0 10px 0' }}>
-            Următoarele chitanțe au apărut în casa automată, dar dispecerul nu a introdus mapping-ul
-            șofer ↔ chitanță pentru ziua respectivă. Dispecerul trebuie să deschidă <strong>/grafic</strong>
-            pe acea dată și să seteze chitanța la șoferul corect.
+            Următoarele foi de parcurs au apărut în casa automată, dar dispecerul nu a introdus mapping-ul
+            șofer ↔ foaie pentru ziua respectivă. Dispecerul trebuie să deschidă <strong>/grafic</strong>
+            pe acea dată și să seteze numărul foii la șoferul corect.
           </p>
           <table>
             <thead>
               <tr>
-                <th>Chitanță</th>
+                <th>Foaie de parcurs</th>
                 <th>Data</th>
                 <th style={{ textAlign: 'right' }}>Plăți</th>
                 <th style={{ textAlign: 'right' }}>Încasare</th>

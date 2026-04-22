@@ -15,10 +15,8 @@ import {
   type ReturRouteOption,
   type DateEntry,
 } from './actions';
-import SuburbanGraficTab from './SuburbanGraficTab';
+import UnifiedGraficList from './UnifiedGraficList';
 import type { AdminRole } from '@translux/db';
-
-type GraficMode = 'interurban' | 'suburban';
 
 function todayChisinau(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
@@ -57,7 +55,9 @@ export default function GraficClient({
   role: AdminRole;
 }) {
   const isDispatcher = role === 'DISPATCHER';
-  const [mode, setMode] = useState<GraficMode>('interurban');
+  const isGrafic = role === 'GRAFIC';
+  // DISPATCHER si ADMIN → lista unificata; GRAFIC → formatul vechi (PNG).
+  const [showLegacy, setShowLegacy] = useState<boolean>(isGrafic);
   const [date, setDate] = useState(todayChisinau);
   const [page, setPage] = useState<1 | 2>(1);
   const [rows, setRows] = useState<GraficRow[]>([]);
@@ -237,46 +237,30 @@ export default function GraficClient({
               {copying ? 'Se copiază...' : 'Copiază de ieri'}
             </button>
           )}
-          <button className="btn btn-primary" onClick={handleDownload} disabled={downloading}>
-            {downloading ? 'Se generează...' : 'Descarcă PNG'}
-          </button>
-          <button className="btn btn-primary" onClick={() => handleDownloadEdinet(1)} disabled={downloadingEdinet !== null}>
-            {downloadingEdinet === 1 ? 'Se generează...' : 'Edineț p1 (1-14)'}
-          </button>
-          <button className="btn btn-primary" onClick={() => handleDownloadEdinet(2)} disabled={downloadingEdinet !== null}>
-            {downloadingEdinet === 2 ? 'Se generează...' : 'Edineț p2 (15-28)'}
-          </button>
+          {/* ADMIN poate comuta intre lista si formatul PNG vechi. DISPATCHER doar lista. GRAFIC doar PNG. */}
+          {role === 'ADMIN' && (
+            <button className="btn btn-outline" onClick={() => setShowLegacy(v => !v)}>
+              {showLegacy ? '← Listă dispecer' : 'Format PNG →'}
+            </button>
+          )}
+          {showLegacy && (
+            <>
+              <button className="btn btn-primary" onClick={handleDownload} disabled={downloading}>
+                {downloading ? 'Se generează...' : 'Descarcă PNG'}
+              </button>
+              <button className="btn btn-primary" onClick={() => handleDownloadEdinet(1)} disabled={downloadingEdinet !== null}>
+                {downloadingEdinet === 1 ? 'Se generează...' : 'Edineț p1 (1-14)'}
+              </button>
+              <button className="btn btn-primary" onClick={() => handleDownloadEdinet(2)} disabled={downloadingEdinet !== null}>
+                {downloadingEdinet === 2 ? 'Se generează...' : 'Edineț p2 (15-28)'}
+              </button>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Mode toggle: Interurban / Suburban */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 12, borderBottom: '1px solid rgba(155,27,48,0.1)' }}>
-        {(['interurban', 'suburban'] as const).map(m => (
-          <button
-            key={m}
-            onClick={() => setMode(m)}
-            style={{
-              padding: '10px 20px',
-              border: 'none',
-              borderBottom: mode === m ? `3px solid ${maroon}` : '3px solid transparent',
-              background: mode === m ? 'rgba(155,27,48,0.06)' : 'transparent',
-              color: mode === m ? maroon : '#999',
-              fontWeight: mode === m ? 600 : 500,
-              fontSize: 14,
-              cursor: 'pointer',
-              fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
-              fontStyle: 'italic',
-              transition: 'all 0.2s ease',
-              borderRadius: '8px 8px 0 0',
-            }}
-          >
-            {m === 'interurban' ? 'Interurban' : 'Suburban'}
-          </button>
-        ))}
-      </div>
-
-      {mode === 'suburban' ? (
-        <SuburbanGraficTab
+      {!showLegacy ? (
+        <UnifiedGraficList
           date={date}
           drivers={drivers}
           vehicles={vehicles}
@@ -543,8 +527,8 @@ export default function GraficClient({
             {isDispatcher && (
               <label style={{ display: 'block', marginBottom: 16 }}>
                 <span style={{ fontSize: 13, color: '#666' }}>
-                  Chitanță casa automată
-                  <span style={{ color: '#aaa', fontSize: 11, marginLeft: 6 }}>(ex: 0945125)</span>
+                  Foaie de parcurs
+                  <span style={{ color: '#aaa', fontSize: 11, marginLeft: 6 }}>(nr. chitanță din casă, ex: 0945125)</span>
                 </span>
                 <input
                   value={popReceiptNr}

@@ -48,6 +48,8 @@ export default function UnifiedGraficList({
   readOnly?: boolean;
 }) {
   const isDispatcher = role === 'DISPATCHER';
+  // Admin vede coloana (citire); dispecer — editabil; GRAFIC — ascuns.
+  const canSeeReceipt = role === 'ADMIN' || role === 'DISPATCHER';
 
   const [rows, setRows] = useState<UnifiedRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -170,7 +172,7 @@ export default function UnifiedGraficList({
               <th style={{ width: 70, textAlign: 'center' }}>Cicluri</th>
               <th style={{ width: 200, textAlign: 'left' }}>Șofer</th>
               <th style={{ width: 140, textAlign: 'left' }}>Auto</th>
-              {isDispatcher && (
+              {canSeeReceipt && (
                 <th style={{ width: 140, textAlign: 'left' }}>Foaie de parcurs</th>
               )}
             </tr>
@@ -182,7 +184,7 @@ export default function UnifiedGraficList({
                 <>
                   {isFirstSub && (
                     <tr key="sep-sub" style={{ background: 'rgba(155,27,48,0.04)' }}>
-                      <td colSpan={isDispatcher ? 7 : 6} style={{
+                      <td colSpan={canSeeReceipt ? 7 : 6} style={{
                         padding: '8px 12px',
                         fontSize: 12,
                         fontWeight: 600,
@@ -232,13 +234,19 @@ export default function UnifiedGraficList({
                         ))}
                       </select>
                     </td>
-                    {isDispatcher && (
+                    {canSeeReceipt && (
                       <td>
-                        <ReceiptInput
-                          initial={row.foaie_parcurs_nr || ''}
-                          disabled={!row.driver_id || savingKey === row.key}
-                          onCommit={value => handleReceiptCommit(row, value)}
-                        />
+                        {isDispatcher ? (
+                          <ReceiptInput
+                            initial={row.foaie_parcurs_nr || ''}
+                            disabled={!row.driver_id || savingKey === row.key}
+                            onCommit={value => handleReceiptCommit(row, value)}
+                          />
+                        ) : (
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: row.foaie_parcurs_nr ? 'inherit' : 'var(--text-muted)' }}>
+                            {row.foaie_parcurs_nr || '—'}
+                          </span>
+                        )}
                       </td>
                     )}
                   </tr>
@@ -247,7 +255,7 @@ export default function UnifiedGraficList({
             })}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={isDispatcher ? 7 : 6} className="text-center text-muted" style={{ padding: 20 }}>
+                <td colSpan={canSeeReceipt ? 7 : 6} className="text-center text-muted" style={{ padding: 20 }}>
                   Nu există rute active.
                 </td>
               </tr>

@@ -75,7 +75,8 @@ export async function getGraficData(date: string): Promise<{
   page2: GraficRow[];
 }> {
   const session = requireRole(await verifySession(), 'ADMIN', 'DISPATCHER', 'GRAFIC');
-  const isDispatcher = session.role === 'DISPATCHER';
+  // ADMIN si DISPATCHER vad numarul foii de parcurs. Rolul GRAFIC nu.
+  const canSeeReceipt = session.role === 'DISPATCHER' || session.role === 'ADMIN';
 
   const db = getSupabase();
 
@@ -88,8 +89,7 @@ export async function getGraficData(date: string): Promise<{
     db.from('drivers').select('id, full_name, phone').eq('active', true),
     db.from('vehicles').select('id, plate_number').eq('active', true),
     db.from('crm_stop_fares').select('crm_route_id, name_ro').eq('is_visible', true),
-    // Chitantele sunt vizibile doar pentru dispecer
-    isDispatcher
+    canSeeReceipt
       ? db.from('driver_cashin_receipts').select('driver_id, receipt_nr').eq('ziua', date)
       : Promise.resolve({ data: [] as any[] }),
   ]);
@@ -518,7 +518,9 @@ export interface SuburbanGraficRow {
 
 export async function getGraficSuburban(date: string): Promise<SuburbanGraficRow[]> {
   const session = requireRole(await verifySession(), 'ADMIN', 'DISPATCHER', 'GRAFIC');
-  const isDispatcher = session.role === 'DISPATCHER';
+  // Foaia de parcurs e vizibila atat pentru DISPATCHER (editabila) cat si pentru ADMIN (read-only).
+  // Pentru rolul GRAFIC ramane ascunsa.
+  const canSeeReceipt = session.role === 'DISPATCHER' || session.role === 'ADMIN';
 
   const db = getSupabase();
 
@@ -536,7 +538,7 @@ export async function getGraficSuburban(date: string): Promise<SuburbanGraficRow
 
   const [schedulesRes, assignmentsRes, driversRes, vehiclesRes, receiptsRes] = await Promise.all([
     db.from('crm_route_schedules')
-      .select('route_id, sequence_no')
+      .select('route_id, sequence_no, days_of_week')
       .in('route_id', routeIds)
       .eq('active', true),
     db.from('daily_assignments')
@@ -546,7 +548,7 @@ export async function getGraficSuburban(date: string): Promise<SuburbanGraficRow
       .eq('auto_copied', false),
     db.from('drivers').select('id, full_name, phone').eq('active', true),
     db.from('vehicles').select('id, plate_number').eq('active', true),
-    isDispatcher
+    canSeeReceipt
       ? db.from('driver_cashin_receipts').select('driver_id, receipt_nr').eq('ziua', date)
       : Promise.resolve({ data: [] as any[] }),
   ]);
@@ -557,11 +559,17 @@ export async function getGraficSuburban(date: string): Promise<SuburbanGraficRow
   const vehicles = (vehiclesRes.data || []) as any[];
   const receipts = (receiptsRes.data || []) as any[];
 
-  // Pe ruta — numar maxim de cicluri (sequence_no)
-  const cyclesMap = new Map<number, number>();
+  // Ziua saptamanii ISO (1=Luni ... 7=Duminica)
+  const jsDay = new Date(date + 'T12:00:00').getDay(); // 0..6 (0=Sunday)
+  const isoDay = ((jsDay + 6) % 7) + 1; // 1..7 (1=Monday, 7=Sunday)
+
+  // Pentru fiecare ruta calculez cate cicluri (schedules) circula in ziua respectiva.
+  // Daca 0 — ruta nu apare in unified list (nu circula azi).
+  const cyclesToday = new Map<number, number>();
   for (const s of schedules) {
-    const cur = cyclesMap.get(s.route_id) || 0;
-    if (s.sequence_no > cur) cyclesMap.set(s.route_id, s.sequence_no);
+    const days: number[] = Array.isArray(s.days_of_week) ? s.days_of_week : [];
+    if (!days.includes(isoDay)) continue;
+    cyclesToday.set(s.route_id, (cyclesToday.get(s.route_id) || 0) + 1);
   }
 
   const assignmentMap = new Map(assignments.map((a: any) => [a.crm_route_id, a]));
@@ -570,25 +578,28 @@ export async function getGraficSuburban(date: string): Promise<SuburbanGraficRow
   const receiptByDriver = new Map<string, string>();
   for (const r of receipts) receiptByDriver.set(r.driver_id, r.receipt_nr);
 
-  return routes.map((r: any) => {
-    const a = assignmentMap.get(r.id);
-    const driver = a?.driver_id ? driverMap.get(a.driver_id) : null;
-    const vehicle = a?.vehicle_id ? vehicleMap.get(a.vehicle_id) : null;
+  return routes
+    // Filtru: doar rutele care circula in ziua saptamanii curenta
+    .filter((r: any) => (cyclesToday.get(r.id) || 0) > 0)
+    .map((r: any) => {
+      const a = assignmentMap.get(r.id);
+      const driver = a?.driver_id ? driverMap.get(a.driver_id) : null;
+      const vehicle = a?.vehicle_id ? vehicleMap.get(a.vehicle_id) : null;
 
-    return {
-      crm_route_id: r.id,
-      dest_from_ro: r.dest_from_ro || '',
-      dest_to_ro: r.dest_to_ro || '',
-      cycles: cyclesMap.get(r.id) || 0,
-      assignment_id: a?.id || null,
-      driver_id: a?.driver_id || null,
-      driver_name: driver?.full_name || null,
-      driver_phone: toLocalPhone(driver?.phone || null),
-      vehicle_id: a?.vehicle_id || null,
-      vehicle_plate: vehicle?.plate_number || null,
-      cashin_receipt_nr: a?.driver_id ? (receiptByDriver.get(a.driver_id) || null) : null,
-    };
-  });
+      return {
+        crm_route_id: r.id,
+        dest_from_ro: r.dest_from_ro || '',
+        dest_to_ro: r.dest_to_ro || '',
+        cycles: cyclesToday.get(r.id) || 0,
+        assignment_id: a?.id || null,
+        driver_id: a?.driver_id || null,
+        driver_name: driver?.full_name || null,
+        driver_phone: toLocalPhone(driver?.phone || null),
+        vehicle_id: a?.vehicle_id || null,
+        vehicle_plate: vehicle?.plate_number || null,
+        cashin_receipt_nr: a?.driver_id ? (receiptByDriver.get(a.driver_id) || null) : null,
+      };
+    });
 }
 
 /* ── Chitanta casa automata (rol DISPATCHER only) ── */

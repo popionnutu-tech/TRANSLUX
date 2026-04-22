@@ -4,6 +4,7 @@ import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import type { SavedEntry } from './actions';
+import type { ComparisonInput } from './comparison';
 
 const AUDIT_ROLES = ['ADMIN', 'ADMIN_CAMERE'] as const;
 
@@ -353,4 +354,142 @@ export async function loadSuburbanAuditEntries(sessionId: string): Promise<Subur
     altDriverId: e.alt_driver_id || null,
     altVehicleId: e.alt_vehicle_id || null,
   }));
+}
+
+export interface AuditComparison {
+  sessionId: string;
+  routeType: 'interurban' | 'suburban';
+  tur: { operator: ComparisonInput[]; audit: ComparisonInput[] };
+  retur: { operator: ComparisonInput[]; audit: ComparisonInput[] };
+  // Pentru suburban, grouping pe (schedule_id, cycle_number) — gestionat client-side.
+  suburbanGroups?: {
+    scheduleId: number;
+    cycleNumber: number;
+    direction: 'tur' | 'retur';
+    operator: ComparisonInput[];
+    audit: ComparisonInput[];
+  }[];
+  totals: {
+    operatorTur: number | null;
+    operatorRetur: number | null;
+    auditTur: number | null;
+    auditRetur: number | null;
+  };
+}
+
+/**
+ * Încarcă datele operator + audit pentru afișarea comparației.
+ * Pentru interurban: grupare pe direcție.
+ * Pentru suburban: returnează grupuri (schedule_id, cycle_number).
+ */
+export async function getAuditComparison(sessionId: string): Promise<{ data?: AuditComparison; error?: string }> {
+  try { requireRole(await verifySession(), ...AUDIT_ROLES); } catch { return { error: 'Acces interzis' }; }
+
+  const sb = getSupabase();
+
+  const { data: sess } = await sb
+    .from('counting_sessions')
+    .select(`
+      id, crm_route_id,
+      tur_total_lei, retur_total_lei, audit_tur_total_lei, audit_retur_total_lei,
+      crm_routes!inner(route_type)
+    `)
+    .eq('id', sessionId)
+    .single();
+
+  if (!sess) return { error: 'Sesiune inexistentă' };
+  const routeType = (sess as any).crm_routes?.route_type || 'interurban';
+
+  // Încarcă entries operator + audit
+  const [opRes, auRes] = await Promise.all([
+    sb.from('counting_entries')
+      .select(`
+        direction, stop_order, stop_name_ro, total_passengers, alighted, schedule_id, cycle_number,
+        counting_short_passengers(passenger_count)
+      `)
+      .eq('session_id', sessionId),
+    sb.from('counting_audit_entries')
+      .select(`
+        direction, stop_order, stop_name_ro, total_passengers, alighted, schedule_id, cycle_number,
+        counting_audit_short_passengers(passenger_count)
+      `)
+      .eq('session_id', sessionId),
+  ]);
+
+  type Row = any;
+  function toCI(r: Row, shortsKey: 'counting_short_passengers' | 'counting_audit_short_passengers'): ComparisonInput {
+    const shorts = (r[shortsKey] || []) as { passenger_count: number }[];
+    const shortSum = shorts.reduce((s, sp) => s + (sp.passenger_count || 0), 0);
+    return {
+      stopOrder: r.stop_order,
+      stopNameRo: r.stop_name_ro,
+      totalPassengers: r.total_passengers || 0,
+      alighted: r.alighted || 0,
+      shortSum,
+    };
+  }
+
+  const opRows = (opRes.data || []) as Row[];
+  const auRows = (auRes.data || []) as Row[];
+
+  if (routeType === 'suburban') {
+    const groupMap = new Map<string, {
+      scheduleId: number;
+      cycleNumber: number;
+      direction: 'tur' | 'retur';
+      operator: ComparisonInput[];
+      audit: ComparisonInput[];
+    }>();
+    const keyOf = (r: Row) => `${r.schedule_id}|${r.cycle_number}|${r.direction}`;
+    for (const r of opRows) {
+      if (!r.schedule_id) continue;
+      const k = keyOf(r);
+      if (!groupMap.has(k)) groupMap.set(k, { scheduleId: r.schedule_id, cycleNumber: r.cycle_number, direction: r.direction, operator: [], audit: [] });
+      groupMap.get(k)!.operator.push(toCI(r, 'counting_short_passengers'));
+    }
+    for (const r of auRows) {
+      if (!r.schedule_id) continue;
+      const k = keyOf(r);
+      if (!groupMap.has(k)) groupMap.set(k, { scheduleId: r.schedule_id, cycleNumber: r.cycle_number, direction: r.direction, operator: [], audit: [] });
+      groupMap.get(k)!.audit.push(toCI(r, 'counting_audit_short_passengers'));
+    }
+
+    return {
+      data: {
+        sessionId,
+        routeType: 'suburban',
+        tur: { operator: [], audit: [] },
+        retur: { operator: [], audit: [] },
+        suburbanGroups: Array.from(groupMap.values()).sort((a, b) =>
+          a.direction.localeCompare(b.direction) || a.scheduleId - b.scheduleId || a.cycleNumber - b.cycleNumber
+        ),
+        totals: {
+          operatorTur: (sess as any).tur_total_lei ?? null,
+          operatorRetur: (sess as any).retur_total_lei ?? null,
+          auditTur: (sess as any).audit_tur_total_lei ?? null,
+          auditRetur: (sess as any).audit_retur_total_lei ?? null,
+        },
+      },
+    };
+  }
+
+  const turOp = opRows.filter(r => r.direction === 'tur').map(r => toCI(r, 'counting_short_passengers'));
+  const returOp = opRows.filter(r => r.direction === 'retur').map(r => toCI(r, 'counting_short_passengers'));
+  const turAu = auRows.filter(r => r.direction === 'tur').map(r => toCI(r, 'counting_audit_short_passengers'));
+  const returAu = auRows.filter(r => r.direction === 'retur').map(r => toCI(r, 'counting_audit_short_passengers'));
+
+  return {
+    data: {
+      sessionId,
+      routeType: 'interurban',
+      tur: { operator: turOp, audit: turAu },
+      retur: { operator: returOp, audit: returAu },
+      totals: {
+        operatorTur: (sess as any).tur_total_lei ?? null,
+        operatorRetur: (sess as any).retur_total_lei ?? null,
+        auditTur: (sess as any).audit_tur_total_lei ?? null,
+        auditRetur: (sess as any).audit_retur_total_lei ?? null,
+      },
+    },
+  };
 }

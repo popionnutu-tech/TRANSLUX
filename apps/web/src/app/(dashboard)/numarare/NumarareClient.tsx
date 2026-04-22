@@ -373,13 +373,27 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
               const singleTotal = (Number(route.tur_single_lei) || 0) + (Number(route.retur_single_lei) || 0);
               const diff = dualTotal - singleTotal;
               const hasSums = dualTotal > 0 || singleTotal > 0;
+              const auditTotal = (Number(route.audit_tur_total_lei) || 0) + (Number(route.audit_retur_total_lei) || 0);
+              const hasAudit = route.audit_sessions_count > 0;
               return (
                 <tr key={route.crm_route_id}>
                   <td>{route.time_nord?.split(' - ')[0]}</td>
                   <td><strong>{route.dest_to_ro}</strong></td>
                   <td>{route.time_chisinau?.split(' - ')[0]}</td>
                   <td>{route.sessions_count}</td>
-                  {canSeeSums && <td>{hasSums ? `${Math.round(dualTotal)} lei` : '—'}</td>}
+                  {canSeeSums && (
+                    <td>
+                      {hasSums ? `${Math.round(dualTotal)} lei` : '—'}
+                      {hasAudit && (
+                        <>
+                          <br />
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                            {Math.round(auditTotal)} lei (audit, {route.audit_sessions_count})
+                          </span>
+                        </>
+                      )}
+                    </td>
+                  )}
                   {canSeeSums && <td>{hasSums ? `${Math.round(singleTotal)} lei` : '—'}</td>}
                   {canSeeSums && (
                     <td style={{ color: hasSums && diff > 0 ? 'var(--success)' : 'var(--text-muted)' }}>
@@ -468,7 +482,17 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
                   </td>
                   <td>{statusBadge(route)}</td>
                   {canSeeSums && (
-                    <td>{hasSums ? `${Math.round(dualTotal)} lei` : '—'}</td>
+                    <td>
+                      {hasSums ? `${Math.round(dualTotal)} lei` : '—'}
+                      {route.audit_status === 'completed' && (
+                        <>
+                          <br />
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                            {Math.round((Number(route.audit_tur_total_lei) || 0) + (Number(route.audit_retur_total_lei) || 0))} lei (audit)
+                          </span>
+                        </>
+                      )}
+                    </td>
                   )}
                   {canSeeSums && routeTypeFilter !== 'suburban' && (
                     <td>{hasSingle ? `${Math.round(singleTotal)} lei` : '—'}</td>

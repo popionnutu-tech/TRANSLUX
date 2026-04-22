@@ -10,7 +10,7 @@ const SALARY_RATES: Record<string, number> = {
   BALTI: 800,
 };
 
-const MAX_GEO_VIOLATIONS_PER_DAY = 3;
+const MAX_GEO_VIOLATIONS_PER_DAY = 1;
 const TIKTOK_RATE_PER_VIDEO = 100;
 
 export interface OperatorDayDetail {
@@ -68,15 +68,22 @@ export async function getSalaryData(dateFrom: string, dateTo: string): Promise<S
     return { operators: [], tiktokBonus: null, dateFrom, dateTo };
   }
 
-  // 2. Get all non-cancelled reports in the period
-  const { data: reports } = await supabase
-    .from('reports')
-    .select('id, report_date, point, created_by_user, location_ok')
-    .is('cancelled_at', null)
-    .gte('report_date', dateFrom)
-    .lte('report_date', dateTo);
-
-  const allReports = reports || [];
+  // 2. Get all non-cancelled reports in the period (paginated — PostgREST caps at 1000/request)
+  const allReports: Array<{ id: string; report_date: string; point: PointEnum; created_by_user: string; location_ok: boolean | null }> = [];
+  const PAGE_SIZE = 1000;
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data: page } = await supabase
+      .from('reports')
+      .select('id, report_date, point, created_by_user, location_ok')
+      .is('cancelled_at', null)
+      .gte('report_date', dateFrom)
+      .lte('report_date', dateTo)
+      .order('id')
+      .range(from, from + PAGE_SIZE - 1);
+    if (!page || page.length === 0) break;
+    allReports.push(...(page as any));
+    if (page.length < PAGE_SIZE) break;
+  }
 
   // 3. Map operators with names by telegram_id
   const operators: OperatorSalary[] = users.map((user: any) => {

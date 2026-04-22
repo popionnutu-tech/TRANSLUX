@@ -387,7 +387,7 @@ export async function getAuditComparison(sessionId: string): Promise<{ data?: Au
 
   const sb = getSupabase();
 
-  const { data: sess } = await sb
+  const { data: sess, error: sessErr } = await sb
     .from('counting_sessions')
     .select(`
       id, crm_route_id,
@@ -397,8 +397,10 @@ export async function getAuditComparison(sessionId: string): Promise<{ data?: Au
     .eq('id', sessionId)
     .single();
 
+  if (sessErr) return { error: sessErr.message };
   if (!sess) return { error: 'Sesiune inexistentă' };
-  const routeType = (sess as any).crm_routes?.route_type || 'interurban';
+  const crmRoutesJoin = (sess as any).crm_routes;
+  const routeType = (Array.isArray(crmRoutesJoin) ? crmRoutesJoin[0]?.route_type : crmRoutesJoin?.route_type) || 'interurban';
 
   // Încarcă entries operator + audit
   const [opRes, auRes] = await Promise.all([

@@ -216,7 +216,41 @@ Accesibil din tab-ul **Salariu** din pagina Numărare.
 
 ---
 
-## 9. Rezolvarea problemelor
+## 9. Audit pentru ADMIN_CAMERE
+
+Admin camere poate reverifica (număra independent) orice cursă **finalizată** de operator pentru a confirma corectitudinea numărării.
+
+### Cum faci un audit:
+
+1. Pe lista de curse, la o cursă cu status **Finalizat**, pe lângă `Deschide` apare butonul **`🔍 Audit`**.
+2. Apasă `🔍 Audit` — se deschide forma cu banner roșu **`🔍 MOD AUDIT — numărare independentă`**.
+3. **Formularul este gol** (nu vezi cifrele operatorului) — numeri independent, pornind de la zero.
+4. Completează Tur-ul la fel ca o numărare obișnuită, apasă **`Salvează Tur (audit)`**.
+5. Completează Retur-ul, apasă **`Salvează Retur (audit)`**.
+6. După salvare Retur se deschide automat **tabela de comparație Operator vs Audit** — rândurile cu diferențe sunt colorate.
+
+### Ce vezi în listă după audit:
+
+- În coloana **`Sumă (2 tarife)`** apare a doua linie, mai mică, gri: `1230 lei (audit)`.
+- Lângă butoanele Deschide / Audit apare și **`📊`** — apasă ca să revezi comparația oricând.
+
+### Dacă te-ai oprit la mijloc:
+
+- Butonul devine **`🔍 Continuă audit`** — reintri unde ai rămas, Tur-ul deja completat.
+
+### Dacă vrei să refaci auditul:
+
+- Butonul devine **`🔍 Refă audit`** — confirmi în dialog, totul se șterge, numeri din nou de la zero.
+
+### Reguli audit:
+
+1. Auditul nu modifică niciodată numărarea operatorului — sunt stocate separat.
+2. **Nu poți face audit** pe o cursă care încă e în desfășurare — doar pe `Finalizat`.
+3. Dacă alt admin audită aceeași cursă acum, vei vedea 🔒 cu email-ul lui.
+
+---
+
+## 10. Rezolvarea problemelor
 
 | Problemă | Soluție |
 |----------|---------|

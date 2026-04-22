@@ -30,7 +30,12 @@ export async function lockAudit(sessionId: string): Promise<{ error?: string }> 
     return { error: 'Audit în desfășurare de alt admin' };
   }
 
-  const updates: any = {
+  const updates: {
+    audit_locked_by: string;
+    audit_locked_at: string;
+    audit_operator_id?: string;
+    audit_status?: 'new';
+  } = {
     audit_locked_by: session.id,
     audit_locked_at: new Date().toISOString(),
   };
@@ -69,13 +74,9 @@ export async function resetAudit(sessionId: string): Promise<{ error?: string }>
   try { requireRole(await verifySession(), ...AUDIT_ROLES); } catch { return { error: 'Acces interzis' }; }
 
   const sb = getSupabase();
-  // CASCADE pe short_passengers via FK
-  const { error: delErr } = await sb
-    .from('counting_audit_entries')
-    .delete()
-    .eq('session_id', sessionId);
-  if (delErr) return { error: delErr.message };
 
+  // Update first: if this fails, nothing is lost. If the later delete fails,
+  // the session shows "no audit" and orphan entries are harmless (overwritten on next audit).
   const { error: updErr } = await sb
     .from('counting_sessions')
     .update({
@@ -89,6 +90,13 @@ export async function resetAudit(sessionId: string): Promise<{ error?: string }>
     })
     .eq('id', sessionId);
   if (updErr) return { error: updErr.message };
+
+  // CASCADE pe short_passengers via FK
+  const { error: delErr } = await sb
+    .from('counting_audit_entries')
+    .delete()
+    .eq('session_id', sessionId);
+  if (delErr) return { error: delErr.message };
 
   revalidatePath('/numarare');
   return {};

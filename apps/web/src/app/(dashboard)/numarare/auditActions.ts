@@ -244,3 +244,113 @@ export async function loadAuditEntries(
     })),
   }));
 }
+
+/**
+ * Salvează un ciclu suburban de audit. Șterge entries anterioare pentru acest (session, schedule, cycle).
+ */
+export async function saveSuburbanAuditCycle(
+  sessionId: string,
+  scheduleId: number,
+  direction: 'tur' | 'retur',
+  cycleNumber: number,
+  entries: {
+    stopOrder: number;
+    stopNameRo: string;
+    kmFromStart: number;
+    totalPassengers: number;
+    alighted: number;
+  }[],
+  totalLei: number,
+  altDriverId?: string | null,
+  altVehicleId?: string | null,
+): Promise<{ error?: string }> {
+  try { requireRole(await verifySession(), ...AUDIT_ROLES); } catch { return { error: 'Acces interzis' }; }
+  const sb = getSupabase();
+
+  await sb
+    .from('counting_audit_entries')
+    .delete()
+    .eq('session_id', sessionId)
+    .eq('schedule_id', scheduleId)
+    .eq('cycle_number', cycleNumber);
+
+  for (const entry of entries) {
+    const { error } = await sb.from('counting_audit_entries').insert({
+      session_id: sessionId,
+      direction,
+      schedule_id: scheduleId,
+      cycle_number: cycleNumber,
+      stop_order: entry.stopOrder,
+      stop_name_ro: entry.stopNameRo,
+      km_from_start: entry.kmFromStart,
+      total_passengers: entry.totalPassengers,
+      alighted: entry.alighted,
+      alt_driver_id: altDriverId || null,
+      alt_vehicle_id: altVehicleId || null,
+    });
+    if (error) return { error: error.message };
+  }
+
+  // Pentru suburban, marcăm status și păstrăm totalul raportat per call.
+  // Totalul final se recalculează când ambele direcții au cel puțin un ciclu.
+  const updateFields: {
+    audit_last_edited_at: string;
+    audit_locked_by: null;
+    audit_locked_at: null;
+    audit_status: 'tur_done' | 'completed';
+    audit_tur_total_lei?: number;
+    audit_retur_total_lei?: number;
+  } = {
+    audit_last_edited_at: new Date().toISOString(),
+    audit_locked_by: null,
+    audit_locked_at: null,
+    audit_status: direction === 'retur' ? 'completed' : 'tur_done',
+  };
+  if (direction === 'tur') {
+    updateFields.audit_tur_total_lei = totalLei;
+  } else {
+    updateFields.audit_retur_total_lei = totalLei;
+  }
+
+  const { error: updErr } = await sb.from('counting_sessions').update(updateFields).eq('id', sessionId);
+  if (updErr) return { error: updErr.message };
+
+  revalidatePath('/numarare');
+  return {};
+}
+
+export interface SuburbanAuditEntry {
+  scheduleId: number | null;
+  cycleNumber: number;
+  direction: 'tur' | 'retur';
+  stopOrder: number;
+  stopNameRo: string;
+  kmFromStart: number;
+  totalPassengers: number;
+  alighted: number;
+  altDriverId: string | null;
+  altVehicleId: string | null;
+}
+
+export async function loadSuburbanAuditEntries(sessionId: string): Promise<SuburbanAuditEntry[]> {
+  try { requireRole(await verifySession(), ...AUDIT_ROLES); } catch { return []; }
+  const sb = getSupabase();
+  const { data } = await sb
+    .from('counting_audit_entries')
+    .select('schedule_id, cycle_number, direction, stop_order, stop_name_ro, km_from_start, total_passengers, alighted, alt_driver_id, alt_vehicle_id')
+    .eq('session_id', sessionId)
+    .order('cycle_number')
+    .order('stop_order');
+  return (data || []).map((e: any) => ({
+    scheduleId: e.schedule_id,
+    cycleNumber: e.cycle_number,
+    direction: e.direction,
+    stopOrder: e.stop_order,
+    stopNameRo: e.stop_name_ro,
+    kmFromStart: Number(e.km_from_start),
+    totalPassengers: e.total_passengers,
+    alighted: e.alighted ?? 0,
+    altDriverId: e.alt_driver_id || null,
+    altVehicleId: e.alt_vehicle_id || null,
+  }));
+}

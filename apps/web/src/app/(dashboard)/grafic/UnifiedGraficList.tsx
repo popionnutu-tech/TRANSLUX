@@ -7,6 +7,7 @@ import {
   upsertAssignment,
   deleteAssignment,
   setCashinReceipt,
+  setRouteCancellation,
   type GraficRow,
   type SuburbanGraficRow,
   type DriverOption,
@@ -32,6 +33,7 @@ type UnifiedRow = {
   vehicle_id: string | null;
   vehicle_plate: string | null;
   foaie_parcurs_nr: string | null;
+  cancelled: boolean;
 };
 
 export default function UnifiedGraficList({
@@ -77,6 +79,7 @@ export default function UnifiedGraficList({
         vehicle_id: r.vehicle_id,
         vehicle_plate: r.vehicle_plate,
         foaie_parcurs_nr: r.cashin_receipt_nr,
+        cancelled: r.cancelled,
       }));
       const suburban: UnifiedRow[] = sub.map((r: SuburbanGraficRow) => ({
         kind: 'sub',
@@ -91,6 +94,7 @@ export default function UnifiedGraficList({
         vehicle_id: r.vehicle_id,
         vehicle_plate: r.vehicle_plate,
         foaie_parcurs_nr: r.cashin_receipt_nr,
+        cancelled: r.cancelled,
       }));
       setRows([...interurban, ...suburban]);
     } catch (err: any) {
@@ -137,6 +141,18 @@ export default function UnifiedGraficList({
     }
   }
 
+  async function handleCancelToggle(row: UnifiedRow, value: boolean) {
+    if (!isDispatcher) return;
+    setSavingKey(row.key);
+    try {
+      const res = await setRouteCancellation(row.crm_route_id, date, value);
+      if (res.error) { setError(res.error); return; }
+      await load();
+    } finally {
+      setSavingKey(null);
+    }
+  }
+
   async function handleReceiptCommit(row: UnifiedRow, value: string) {
     if (!isDispatcher || !row.driver_id) return;
     const cleaned = value.trim();
@@ -158,9 +174,46 @@ export default function UnifiedGraficList({
   // Separator între interurban și suburban
   const firstSubIdx = rows.findIndex(r => r.kind === 'sub');
 
+  // Counter: rute care n-au nici foaie nici cancel
+  const neprocesate = rows.filter(r => !r.cancelled && !r.foaie_parcurs_nr).length;
+  const anulate = rows.filter(r => r.cancelled).length;
+  const cuFoaie = rows.filter(r => !!r.foaie_parcurs_nr && !r.cancelled).length;
+
   return (
     <div>
       {error && <div className="alert alert-danger" style={{ marginBottom: 12 }}>{error}</div>}
+
+      {/* Status summary */}
+      {canSeeReceipt && (
+        <div style={{
+          display: 'flex',
+          gap: 16,
+          padding: '10px 14px',
+          marginBottom: 12,
+          background: neprocesate > 0 ? 'var(--warning-dim)' : 'var(--success-dim)',
+          borderLeft: `4px solid ${neprocesate > 0 ? 'var(--warning)' : 'var(--success)'}`,
+          borderRadius: 'var(--radius-xs)',
+          fontSize: 13,
+          flexWrap: 'wrap',
+        }}>
+          <span>
+            <strong style={{ color: cuFoaie > 0 ? 'var(--success)' : 'inherit' }}>✓ {cuFoaie}</strong> cu foaie
+          </span>
+          <span>
+            <strong style={{ color: anulate > 0 ? 'var(--text-muted)' : 'inherit' }}>⊘ {anulate}</strong> anulate
+          </span>
+          <span>
+            <strong style={{ color: neprocesate > 0 ? 'var(--warning)' : 'var(--success)' }}>
+              {neprocesate > 0 ? '⚠' : '✓'} {neprocesate}
+            </strong> neprocesate
+          </span>
+          {isDispatcher && neprocesate > 0 && (
+            <span className="text-muted">
+              Introdu foaie de parcurs sau bifeaza "anulată" pentru fiecare.
+            </span>
+          )}
+        </div>
+      )}
 
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -175,6 +228,9 @@ export default function UnifiedGraficList({
               {canSeeReceipt && (
                 <th style={{ width: 140, textAlign: 'left' }}>Foaie de parcurs</th>
               )}
+              {canSeeReceipt && (
+                <th style={{ width: 80, textAlign: 'center' }}>Anulată</th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -184,7 +240,7 @@ export default function UnifiedGraficList({
                 <>
                   {isFirstSub && (
                     <tr key="sep-sub" style={{ background: 'rgba(155,27,48,0.04)' }}>
-                      <td colSpan={canSeeReceipt ? 7 : 6} style={{
+                      <td colSpan={canSeeReceipt ? 8 : 6} style={{
                         padding: '8px 12px',
                         fontSize: 12,
                         fontWeight: 600,
@@ -197,7 +253,15 @@ export default function UnifiedGraficList({
                       </td>
                     </tr>
                   )}
-                  <tr key={row.key} style={{ borderTop: '1px solid rgba(0,0,0,0.05)' }}>
+                  <tr key={row.key} style={{
+                    borderTop: '1px solid rgba(0,0,0,0.05)',
+                    background: row.cancelled
+                      ? 'rgba(0,0,0,0.03)'
+                      : (canSeeReceipt && !row.foaie_parcurs_nr)
+                        ? 'var(--warning-dim)'
+                        : undefined,
+                    opacity: row.cancelled ? 0.55 : 1,
+                  }}>
                     <td style={{ color: 'var(--text-muted)' }}>{i + 1}</td>
                     <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}>
                       {row.time_label}
@@ -239,12 +303,33 @@ export default function UnifiedGraficList({
                         {isDispatcher ? (
                           <ReceiptInput
                             initial={row.foaie_parcurs_nr || ''}
-                            disabled={!row.driver_id || savingKey === row.key}
+                            disabled={!row.driver_id || row.cancelled || savingKey === row.key}
                             onCommit={value => handleReceiptCommit(row, value)}
                           />
                         ) : (
                           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: row.foaie_parcurs_nr ? 'inherit' : 'var(--text-muted)' }}>
                             {row.foaie_parcurs_nr || '—'}
+                          </span>
+                        )}
+                      </td>
+                    )}
+                    {canSeeReceipt && (
+                      <td style={{ textAlign: 'center' }}>
+                        {isDispatcher ? (
+                          <input
+                            type="checkbox"
+                            checked={row.cancelled}
+                            disabled={savingKey === row.key || !!row.foaie_parcurs_nr}
+                            onChange={e => handleCancelToggle(row, e.target.checked)}
+                            title={row.foaie_parcurs_nr
+                              ? 'Nu poți marca cursa anulată dacă are foaie de parcurs. Șterge foaia mai întâi.'
+                              : 'Bifează dacă cursa nu s-a efectuat'
+                            }
+                            style={{ width: 18, height: 18, cursor: row.foaie_parcurs_nr ? 'not-allowed' : 'pointer' }}
+                          />
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)', fontSize: 16 }}>
+                            {row.cancelled ? '⊘' : ''}
                           </span>
                         )}
                       </td>
@@ -255,7 +340,7 @@ export default function UnifiedGraficList({
             })}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={canSeeReceipt ? 7 : 6} className="text-center text-muted" style={{ padding: 20 }}>
+                <td colSpan={canSeeReceipt ? 8 : 6} className="text-center text-muted" style={{ padding: 20 }}>
                   Nu există rute active.
                 </td>
               </tr>

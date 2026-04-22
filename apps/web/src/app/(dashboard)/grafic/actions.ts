@@ -35,10 +35,12 @@ export interface GraficRow {
   retur_route_id: number | null;
   /**
    * Numar chitanta casa automata (introdus de dispecer).
-   * Vizibil doar pentru rolul DISPATCHER — altfel null.
+   * Vizibil pentru ADMIN + DISPATCHER, ascuns pentru GRAFIC.
    * Identifica unic soferul pe ziua respectiva pentru matching cu tomberon.
    */
   cashin_receipt_nr: string | null;
+  /** true daca dispecerul a marcat cursa ca neefectuata pe ziua respectiva */
+  cancelled: boolean;
 }
 
 export interface GraficEdinetRow {
@@ -80,7 +82,7 @@ export async function getGraficData(date: string): Promise<{
 
   const db = getSupabase();
 
-  const [routesRes, assignmentsRes, driversRes, vehiclesRes, stopsRes, receiptsRes] = await Promise.all([
+  const [routesRes, assignmentsRes, driversRes, vehiclesRes, stopsRes, receiptsRes, cancellationsRes] = await Promise.all([
     db.from('crm_routes').select('id, time_nord, time_chisinau, dest_to_ro').eq('active', true).not('time_nord', 'is', null).neq('time_nord', ''),
     db.from('daily_assignments')
       .select('id, crm_route_id, driver_id, vehicle_id, vehicle_id_retur, retur_route_id')
@@ -92,6 +94,7 @@ export async function getGraficData(date: string): Promise<{
     canSeeReceipt
       ? db.from('driver_cashin_receipts').select('driver_id, receipt_nr').eq('ziua', date)
       : Promise.resolve({ data: [] as any[] }),
+    db.from('route_cancellations').select('crm_route_id').eq('ziua', date),
   ]);
 
   const routes = (routesRes.data || []) as any[];
@@ -100,12 +103,14 @@ export async function getGraficData(date: string): Promise<{
   const vehicles = (vehiclesRes.data || []) as any[];
   const stops = (stopsRes.data || []) as any[];
   const receipts = (receiptsRes.data || []) as any[];
+  const cancellations = (cancellationsRes.data || []) as any[];
 
   const assignmentMap = new Map(assignments.map((a: any) => [a.crm_route_id, a]));
   const driverMap = new Map(drivers.map((d: any) => [d.id, d]));
   const vehicleMap = new Map(vehicles.map((v: any) => [v.id, v]));
   const receiptByDriver = new Map<string, string>();
   for (const r of receipts) receiptByDriver.set(r.driver_id, r.receipt_nr);
+  const cancelledSet = new Set<number>(cancellations.map((c: any) => c.crm_route_id));
 
   // Group stops by route: crm_route_id -> "Stop1/Stop2/Stop3"
   // Only include stops from Nord down to Bălți (truncate after Bălți)
@@ -149,6 +154,7 @@ export async function getGraficData(date: string): Promise<{
       stops: stopsMap.get(r.id) || '',
       retur_route_id: a?.retur_route_id || null,
       cashin_receipt_nr: a?.driver_id ? (receiptByDriver.get(a.driver_id) || null) : null,
+      cancelled: cancelledSet.has(r.id),
     };
   });
 
@@ -171,6 +177,7 @@ export async function getGraficData(date: string): Promise<{
     stops: r.stops,
     retur_route_id: r.retur_route_id,
     cashin_receipt_nr: r.cashin_receipt_nr,
+    cancelled: r.cancelled,
   }));
 
   return {
@@ -512,8 +519,10 @@ export interface SuburbanGraficRow {
   driver_phone: string | null;
   vehicle_id: string | null;
   vehicle_plate: string | null;
-  /** Vizibil doar pentru DISPATCHER. */
+  /** Vizibil pentru ADMIN + DISPATCHER. */
   cashin_receipt_nr: string | null;
+  /** true daca dispecerul a marcat cursa ca neefectuata pe ziua respectiva */
+  cancelled: boolean;
 }
 
 export async function getGraficSuburban(date: string): Promise<SuburbanGraficRow[]> {
@@ -536,7 +545,7 @@ export async function getGraficSuburban(date: string): Promise<SuburbanGraficRow
 
   const routeIds = routes.map((r: any) => r.id);
 
-  const [schedulesRes, assignmentsRes, driversRes, vehiclesRes, receiptsRes] = await Promise.all([
+  const [schedulesRes, assignmentsRes, driversRes, vehiclesRes, receiptsRes, cancellationsRes] = await Promise.all([
     db.from('crm_route_schedules')
       .select('route_id, sequence_no, days_of_week')
       .in('route_id', routeIds)
@@ -551,6 +560,10 @@ export async function getGraficSuburban(date: string): Promise<SuburbanGraficRow
     canSeeReceipt
       ? db.from('driver_cashin_receipts').select('driver_id, receipt_nr').eq('ziua', date)
       : Promise.resolve({ data: [] as any[] }),
+    db.from('route_cancellations')
+      .select('crm_route_id')
+      .in('crm_route_id', routeIds)
+      .eq('ziua', date),
   ]);
 
   const schedules = (schedulesRes.data || []) as any[];
@@ -558,6 +571,8 @@ export async function getGraficSuburban(date: string): Promise<SuburbanGraficRow
   const drivers = (driversRes.data || []) as any[];
   const vehicles = (vehiclesRes.data || []) as any[];
   const receipts = (receiptsRes.data || []) as any[];
+  const cancellations = (cancellationsRes.data || []) as any[];
+  const cancelledSet = new Set<number>(cancellations.map((c: any) => c.crm_route_id));
 
   // Ziua saptamanii ISO (1=Luni ... 7=Duminica)
   const jsDay = new Date(date + 'T12:00:00').getDay(); // 0..6 (0=Sunday)
@@ -598,6 +613,7 @@ export async function getGraficSuburban(date: string): Promise<SuburbanGraficRow
         vehicle_id: a?.vehicle_id || null,
         vehicle_plate: vehicle?.plate_number || null,
         cashin_receipt_nr: a?.driver_id ? (receiptByDriver.get(a.driver_id) || null) : null,
+        cancelled: cancelledSet.has(r.id),
       };
     });
 }
@@ -645,5 +661,41 @@ export async function setCashinReceipt(
     }
     return { error: error.message };
   }
+  return {};
+}
+
+/* ── Cursa neefectuata (rol DISPATCHER only) ── */
+
+export async function setRouteCancellation(
+  crmRouteId: number,
+  date: string,
+  cancelled: boolean,
+  reason?: string,
+): Promise<{ error?: string }> {
+  const session = await verifySession();
+  if (!session) return { error: 'Neautorizat' };
+  if (session.role !== 'DISPATCHER') return { error: 'Doar dispecerul poate marca cursa' };
+  if (!crmRouteId || !date) return { error: 'Date lipsa' };
+
+  const db = getSupabase();
+
+  if (!cancelled) {
+    const { error } = await db.from('route_cancellations')
+      .delete()
+      .match({ crm_route_id: crmRouteId, ziua: date });
+    if (error) return { error: error.message };
+    return {};
+  }
+
+  const { error } = await db.from('route_cancellations').upsert(
+    {
+      crm_route_id: crmRouteId,
+      ziua: date,
+      reason: reason || null,
+      created_by: session.id,
+    },
+    { onConflict: 'crm_route_id,ziua' },
+  );
+  if (error) return { error: error.message };
   return {};
 }

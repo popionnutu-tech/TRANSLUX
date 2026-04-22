@@ -321,7 +321,7 @@ export async function saveSuburbanAuditCycle(
 
 export interface SuburbanAuditEntry {
   scheduleId: number | null;
-  cycleNumber: number;
+  cycleNumber: number | null;
   direction: 'tur' | 'retur';
   stopOrder: number;
   stopNameRo: string;

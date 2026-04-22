@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { saveDirection, getRouteStops, type RouteStop, type TariffConfig, type SavedEntry } from './actions';
+import { saveAuditDirection } from './auditActions';
 import { calculateDirection, calculateSingleTariff, getEligibleBoardingStops, type StopEntry, type ShortPassengerGroup } from './calculation';
 import ShortPassengerPopup from './ShortPassengerPopup';
 
@@ -10,11 +11,12 @@ interface Props {
   crmRouteId: number;
   stops: RouteStop[];
   tariff: TariffConfig;
-  sessionStatus: string;
+  sessionStatus: string;         // Pentru mode='normal': operator status. Pentru mode='audit': audit_status.
   savedTur: SavedEntry[];
   savedRetur: SavedEntry[];
-  onSaved: () => void;
+  onSaved: (direction: 'tur' | 'retur') => void;
   canSeeSums: boolean;
+  mode?: 'normal' | 'audit';
 }
 
 interface EntryState {
@@ -26,6 +28,7 @@ interface EntryState {
 
 export default function CountingForm({
   sessionId, crmRouteId, stops, tariff, sessionStatus, savedTur, savedRetur, onSaved, canSeeSums,
+  mode = 'normal',
 }: Props) {
   const [returStops, setReturStops] = useState<RouteStop[]>([]);
   const [turEntries, setTurEntries] = useState<Record<number, EntryState>>({});
@@ -336,15 +339,23 @@ export default function CountingForm({
       }));
 
       const singleTotal = calcSingleTotal(direction);
-      const res = await saveDirection(
-        sessionId,
-        direction,
-        saveEntries,
-        Math.round(result.total),
-        Math.round(singleTotal),
-      );
+      const res = mode === 'audit'
+        ? await saveAuditDirection(
+            sessionId,
+            direction,
+            saveEntries,
+            Math.round(result.total),
+            Math.round(singleTotal),
+          )
+        : await saveDirection(
+            sessionId,
+            direction,
+            saveEntries,
+            Math.round(result.total),
+            Math.round(singleTotal),
+          );
       if (res.error) setError(res.error);
-      else onSaved();
+      else onSaved(direction);
     } finally {
       setSaving(false);
     }
@@ -469,7 +480,7 @@ export default function CountingForm({
               onClick={() => handleSave(direction)}
               disabled={saving}
             >
-              {saving ? 'Se salvează...' : `Salvează ${label}`}
+              {saving ? 'Se salvează...' : `Salvează ${label}${mode === 'audit' ? ' (audit)' : ''}`}
             </button>
           )}
           {readOnly && <p className="text-muted" style={{ marginTop: 8, textAlign: 'center' }}>Salvat ✅</p>}
@@ -480,6 +491,19 @@ export default function CountingForm({
 
   return (
     <div style={{ padding: 16, background: 'var(--primary-dim)' }}>
+      {mode === 'audit' && (
+        <div style={{
+          padding: '8px 12px',
+          background: 'rgba(155,27,48,0.12)',
+          color: '#9B1B30',
+          fontWeight: 600,
+          marginBottom: 12,
+          borderRadius: 6,
+          border: '1px solid rgba(155,27,48,0.3)',
+        }}>
+          🔍 MOD AUDIT — numărare independentă
+        </div>
+      )}
       {error && <div className="alert alert-danger" style={{ marginBottom: 12 }}>{error}</div>}
 
       <div style={{ display: 'flex', gap: 24 }}>

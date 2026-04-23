@@ -61,6 +61,7 @@ export type RouteQuadrant = 'star' | 'efficient_small' | 'underperform_large' | 
 export interface RouteScorecardRow {
   crm_route_id: number;
   route_name: string;
+  route_type: string | null;
   time_chisinau: string;
   time_nord: string;
   total_revenue: number;
@@ -175,6 +176,7 @@ interface SessionRow {
   assignment_date: string;
   crm_route_id: number;
   route_name: string;
+  route_type: string | null;
   time_chisinau: string;
   time_nord: string;
   driver_id: string | null;
@@ -209,17 +211,26 @@ interface BaselineRow {
   sample_count: number;
 }
 
-async function fetchSessions(dateFrom: string, dateTo: string): Promise<SessionRow[]> {
+export type RouteTypeFilter = 'interurban' | 'suburban';
+
+async function fetchSessions(dateFrom: string, dateTo: string, routeType?: RouteTypeFilter): Promise<SessionRow[]> {
   const PAGE = 1000;
   const rows: SessionRow[] = [];
   let offset = 0;
   const sb = getSupabase();
   while (true) {
-    const { data } = await sb
+    let q = sb
       .from('v_session_metrics')
-      .select('session_id, assignment_date, crm_route_id, route_name, time_chisinau, time_nord, driver_id, driver_name, total_passengers, total_lei, dow, season, rain_heavy, unique_passengers, passenger_km, route_length_km, revenue_per_km, load_factor_pct, tur_passenger_km, retur_passenger_km, tur_length_km, retur_length_km, tur_load_factor_pct, retur_load_factor_pct')
+      .select('session_id, assignment_date, crm_route_id, route_name, route_type, time_chisinau, time_nord, driver_id, driver_name, total_passengers, total_lei, dow, season, rain_heavy, unique_passengers, passenger_km, route_length_km, revenue_per_km, load_factor_pct, tur_passenger_km, retur_passenger_km, tur_length_km, retur_length_km, tur_load_factor_pct, retur_load_factor_pct')
       .gte('assignment_date', dateFrom)
-      .lte('assignment_date', dateTo)
+      .lte('assignment_date', dateTo);
+    if (routeType === 'suburban') {
+      q = q.eq('route_type', 'suburban');
+    } else if (routeType === 'interurban') {
+      // Legacy rows without route_type are treated as interurban.
+      q = q.or('route_type.is.null,route_type.neq.suburban');
+    }
+    const { data } = await q
       .order('assignment_date', { ascending: true })
       .range(offset, offset + PAGE - 1);
     if (!data || data.length === 0) break;
@@ -646,7 +657,7 @@ export async function getEmptyTripsAnalysis(
 
 // ─── Overview KPI, Route & Driver Scorecards (added in migration 037 rollout) ───
 
-export async function getOverviewKPI(dateFrom: string, dateTo: string): Promise<OverviewKPI> {
+export async function getOverviewKPI(dateFrom: string, dateTo: string, routeType?: RouteTypeFilter): Promise<OverviewKPI> {
   requireRole(await verifySession(), 'ADMIN');
 
   // Compute equal-length previous period for delta
@@ -660,8 +671,8 @@ export async function getOverviewKPI(dateFrom: string, dateTo: string): Promise<
   const prevToStr = prevTo.toISOString().slice(0, 10);
 
   const [current, previous] = await Promise.all([
-    fetchSessions(dateFrom, dateTo),
-    fetchSessions(prevFromStr, prevToStr),
+    fetchSessions(dateFrom, dateTo, routeType),
+    fetchSessions(prevFromStr, prevToStr, routeType),
   ]);
 
   const aggregate = (sessions: SessionRow[], days: number) => {
@@ -727,20 +738,22 @@ function classifyQuadrant(revenuePerSession: number, loadPct: number | null, med
   return 'candidate_to_close';
 }
 
-export async function getRouteScorecard(dateFrom: string, dateTo: string): Promise<RouteScorecardRow[]> {
+export async function getRouteScorecard(dateFrom: string, dateTo: string, routeType?: RouteTypeFilter): Promise<RouteScorecardRow[]> {
   requireRole(await verifySession(), 'ADMIN');
 
-  const sessions = await fetchSessions(dateFrom, dateTo);
+  const sessions = await fetchSessions(dateFrom, dateTo, routeType);
 
   // Group by route
   const groups = new Map<number, {
-    crm_route_id: number; route_name: string; time_chisinau: string; time_nord: string;
+    crm_route_id: number; route_name: string; route_type: string | null;
+    time_chisinau: string; time_nord: string;
     sessions: SessionRow[];
   }>();
   for (const s of sessions) {
     if (!groups.has(s.crm_route_id)) {
       groups.set(s.crm_route_id, {
         crm_route_id: s.crm_route_id, route_name: s.route_name,
+        route_type: s.route_type ?? null,
         time_chisinau: s.time_chisinau, time_nord: s.time_nord,
         sessions: [],
       });
@@ -766,6 +779,7 @@ export async function getRouteScorecard(dateFrom: string, dateTo: string): Promi
     rows.push({
       crm_route_id: g.crm_route_id,
       route_name: g.route_name,
+      route_type: g.route_type,
       time_chisinau: g.time_chisinau,
       time_nord: g.time_nord,
       total_revenue: Math.round(totalRev),
@@ -779,29 +793,40 @@ export async function getRouteScorecard(dateFrom: string, dateTo: string): Promi
     });
   }
 
-  // Median of average-per-session revenue for fair quadrant classification
-  // (un-biases routes that run rarely vs routes that run every day)
-  const sortedByAvg = [...rows].map(r => r.avg_revenue_per_session).sort((a, b) => a - b);
-  const medianAvgRev = sortedByAvg.length > 0
-    ? sortedByAvg[Math.floor(sortedByAvg.length / 2)]
-    : 0;
+  // Median of average-per-session revenue for fair quadrant classification,
+  // computed PER route_type so suburban routes aren't drowned by interurban scale.
+  const medianByType = new Map<string, number>();
+  const typeBuckets = new Map<string, number[]>();
+  for (const r of rows) {
+    const key = r.route_type ?? 'interurban';
+    if (!typeBuckets.has(key)) typeBuckets.set(key, []);
+    typeBuckets.get(key)!.push(r.avg_revenue_per_session);
+  }
+  for (const [key, arr] of typeBuckets) {
+    const sorted = [...arr].sort((a, b) => a - b);
+    medianByType.set(key, sorted.length > 0 ? sorted[Math.floor(sorted.length / 2)] : 0);
+  }
 
   const result: RouteScorecardRow[] = rows.map(r => ({
     ...r,
-    quadrant: classifyQuadrant(r.avg_revenue_per_session, r.avg_load_factor_pct, medianAvgRev),
+    quadrant: classifyQuadrant(
+      r.avg_revenue_per_session,
+      r.avg_load_factor_pct,
+      medianByType.get(r.route_type ?? 'interurban') ?? 0,
+    ),
   }));
 
   result.sort((a, b) => b.avg_revenue_per_session - a.avg_revenue_per_session);
   return result;
 }
 
-export async function getDriverScorecard(dateFrom: string, dateTo: string): Promise<DriverScorecardRow[]> {
+export async function getDriverScorecard(dateFrom: string, dateTo: string, routeType?: RouteTypeFilter): Promise<DriverScorecardRow[]> {
   requireRole(await verifySession(), 'ADMIN');
 
   const sb = getSupabase();
 
   const [sessions, reportsRes] = await Promise.all([
-    fetchSessions(dateFrom, dateTo),
+    fetchSessions(dateFrom, dateTo, routeType),
     sb.from('reports')
       .select('driver_id, auto_curat, exterior_ok, uniform_ok')
       .is('cancelled_at', null)
@@ -1116,10 +1141,10 @@ export async function getRevenueOverview(dateFrom: string, dateTo: string): Prom
 
 // ─── Route load-factor heatmap (per route × day of week × direction) ───
 
-export async function getRouteLoadHeatmap(dateFrom: string, dateTo: string): Promise<RouteLoadRow[]> {
+export async function getRouteLoadHeatmap(dateFrom: string, dateTo: string, routeType?: RouteTypeFilter): Promise<RouteLoadRow[]> {
   requireRole(await verifySession(), 'ADMIN');
 
-  const sessions = await fetchSessions(dateFrom, dateTo);
+  const sessions = await fetchSessions(dateFrom, dateTo, routeType);
 
   // Group by route
   const groups = new Map<number, {

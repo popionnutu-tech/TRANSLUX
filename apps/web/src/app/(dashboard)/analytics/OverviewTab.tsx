@@ -424,7 +424,7 @@ export default function OverviewTab({ kpi, routes, drivers, routeLoad, onRouteCl
           </div>
         </div>
         <p style={{ fontSize: 13, color: '#666', margin: '0 0 16px 0' }}>
-          Fiecare rută e poziționată pe două axe: <strong>venit mediu pe zi (tur+retur)</strong> orizontal × <strong>încărcare medie</strong> vertical. Click pe punct pentru detalii.
+          Fiecare rută e poziționată pe două axe: <strong>venit mediu pe cursă (tur+retur)</strong> orizontal × <strong>încărcare medie</strong> vertical. Click pe punct pentru detalii.
         </p>
         <RouteMatrix routes={routes} onRouteClick={onRouteClick} hoveredId={hoveredRouteId} setHoveredId={setHoveredRouteId} />
       </div>

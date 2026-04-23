@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import type { DailyCount, DetailedRoutesResult, DeviceCount, CountryCount } from './actions';
-import type { OverviewKPI, RouteScorecardRow, DriverScorecardRow, RouteLoadRow } from './sales-actions';
+import type { OverviewKPI, RouteScorecardRow, DriverScorecardRow, RouteLoadRow, RouteTypeFilter } from './sales-actions';
 import {
   getPageViewsPerDay,
   getSearchesPerDay,
@@ -184,10 +184,12 @@ export default function AnalyticsClient({
   const [routeScorecard, setRouteScorecard] = useState(initialRouteScorecard);
   const [driverScorecard, setDriverScorecard] = useState(initialDriverScorecard);
   const [routeLoad, setRouteLoad] = useState(initialRouteLoad);
+  const [routeType, setRouteType] = useState<RouteTypeFilter>('interurban');
   const [isPending, startTransition] = useTransition();
 
-  function handlePeriodChange(newDays: number) {
+  function refresh(newDays: number, newRouteType: RouteTypeFilter) {
     setDays(newDays);
+    setRouteType(newRouteType);
     const dateFrom = new Date(Date.now() - newDays * 86400000).toISOString().slice(0, 10);
     const dateTo = new Date().toISOString().slice(0, 10);
     startTransition(async () => {
@@ -198,10 +200,10 @@ export default function AnalyticsClient({
         getDeviceBreakdown(newDays),
         getCountryBreakdown(newDays),
         getTotalStats(newDays),
-        getOverviewKPI(dateFrom, dateTo),
-        getRouteScorecard(dateFrom, dateTo),
-        getDriverScorecard(dateFrom, dateTo),
-        getRouteLoadHeatmap(dateFrom, dateTo),
+        getOverviewKPI(dateFrom, dateTo, newRouteType),
+        getRouteScorecard(dateFrom, dateTo, newRouteType),
+        getDriverScorecard(dateFrom, dateTo, newRouteType),
+        getRouteLoadHeatmap(dateFrom, dateTo, newRouteType),
       ]);
       setPageViews(pv);
       setSearches(sr);
@@ -215,6 +217,9 @@ export default function AnalyticsClient({
       setRouteLoad(rl);
     });
   }
+
+  const handlePeriodChange = (newDays: number) => refresh(newDays, routeType);
+  const handleRouteTypeChange = (newRouteType: RouteTypeFilter) => refresh(days, newRouteType);
 
   const totalDevices = devices.reduce((s, d) => s + d.count, 0) || 1;
 
@@ -254,12 +259,30 @@ export default function AnalyticsClient({
 
       {/* Tab: Overview (KPI + matrix + drivers) */}
       {tab === 'overview' && (
-        <OverviewTab
-          kpi={overviewKPI}
-          routes={routeScorecard}
-          drivers={driverScorecard}
-          routeLoad={routeLoad}
-        />
+        <>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
+            {([
+              { id: 'interurban', label: 'Interurban' },
+              { id: 'suburban', label: 'Suburban' },
+            ] as const).map(rt => (
+              <button
+                key={rt.id}
+                className={`btn ${routeType === rt.id ? 'btn-primary' : 'btn-outline'}`}
+                onClick={() => handleRouteTypeChange(rt.id)}
+                disabled={isPending}
+                style={{ fontSize: 13, padding: '6px 14px' }}
+              >
+                {rt.label}
+              </button>
+            ))}
+          </div>
+          <OverviewTab
+            kpi={overviewKPI}
+            routes={routeScorecard}
+            drivers={driverScorecard}
+            routeLoad={routeLoad}
+          />
+        </>
       )}
 
       {/* Tab: Site (original analytics) */}

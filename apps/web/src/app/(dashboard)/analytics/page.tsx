@@ -32,10 +32,10 @@ export default async function AnalyticsPage() {
     getDeviceBreakdown(days),
     getCountryBreakdown(days),
     getTotalStats(days),
-    getOverviewKPI(dateFrom, dateTo),
-    getRouteScorecard(dateFrom, dateTo),
-    getDriverScorecard(dateFrom, dateTo),
-    getRouteLoadHeatmap(dateFrom, dateTo),
+    getOverviewKPI(dateFrom, dateTo, 'interurban'),
+    getRouteScorecard(dateFrom, dateTo, 'interurban'),
+    getDriverScorecard(dateFrom, dateTo, 'interurban'),
+    getRouteLoadHeatmap(dateFrom, dateTo, 'interurban'),
   ]);
 
   return (

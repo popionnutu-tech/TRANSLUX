@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { getSupabase } from '@/lib/supabase';
-import { formatLei, formatPct, devColor, devBgColor } from '@/lib/moneyball/format';
+import { formatLei, formatPct, devTextColor, devBgStyle } from '@/lib/moneyball/format';
 import { QuarterSelect } from '@/components/moneyball/QuarterSelect';
 import { UsageBox } from '@/components/moneyball/UsageBox';
 import { DriverInsight } from '@/components/moneyball/DriverInsight';
@@ -50,17 +50,17 @@ export default async function SoferPage({
   const { q } = await searchParams;
   const supabase = getSupabase();
 
-  const { data: driver } = await supabase
-    .from('drivers')
-    .select('id, full_name, phone')
-    .eq('id', driverId)
-    .single();
-
-  const { data: quartersData } = await supabase
-    .from('v_moneyball_ranking')
-    .select('quarter')
-    .eq('driver_id', driverId)
-    .order('quarter', { ascending: false });
+  const [
+    { data: driver },
+    { data: quartersData },
+  ] = await Promise.all([
+    supabase.from('drivers').select('id, full_name, phone').eq('id', driverId).single(),
+    supabase
+      .from('v_moneyball_ranking')
+      .select('quarter')
+      .eq('driver_id', driverId)
+      .order('quarter', { ascending: false }),
+  ]);
 
   const quarters = Array.from(new Set((quartersData ?? []).map((r) => r.quarter)));
   const currentQuarter = q ?? quarters[0] ?? '2026-Q2';
@@ -93,37 +93,55 @@ export default async function SoferPage({
   const totals: Totals | null = totalsData;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-end justify-between">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-end',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 12,
+        }}
+      >
         <div>
           <Link
             href="/analytics/moneyball/clasament"
-            className="text-xs text-slate-500 hover:text-slate-900"
+            style={{ fontSize: 11, color: 'var(--text-muted)', textDecoration: 'none' }}
           >
             ← Clasament
           </Link>
-          <h1 className="text-2xl font-semibold text-slate-900 mt-1">
+          <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>
             {driver?.full_name ?? 'Șofer necunoscut'}
-          </h1>
-          {driver?.phone && <p className="text-sm text-slate-500 mt-0.5">{driver.phone}</p>}
+          </div>
+          {driver?.phone && (
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+              {driver.phone}
+            </div>
+          )}
         </div>
         <QuarterSelect quarters={quarters} current={currentQuarter} />
       </div>
 
       <UsageBox
         title="Ce afișează această pagină"
-        what="Fișa completă a șoferului pentru trimestrul ales. Scor mediu ponderat (cântărit după numărul de curse pe rută), VORP total (câți lei a adus/pierdut față de un șofer mediu pus pe aceleași curse), performanța defalcată pe fiecare rută și top 10 porțiuni unde vinde cel mai slab."
+        what="Fișa completă a șoferului pentru trimestrul ales: scor mediu ponderat, VORP total (câți lei aduce/pierde față de un șofer mediu), performanță pe rute și top 10 porțiuni slabe."
         howToUse={[
-          'Privești scorul mediu: sub 0 = vinde sub normă, peste 0 = peste. VORP îți spune câți lei înseamnă asta concret.',
-          'Tabelul „Performanța pe rute" îți arată unde e bun și unde e slab. Cele roșii = candidate pentru a-l MUTA de acolo.',
-          'Tabelul „Cele mai slabe porțiuni" = material pentru discuția personală cu el. Nu spui „ești slab vânzător", ci „la stația X pierzi sistematic pasageri, ce se întâmplă acolo?".',
-          'Pentru decizii de salariu/bonus: uită-te la VORP absolut, nu la scor procentual. Un șofer cu +2% dar multe curse aduce mai mult decât unul cu +15% și puține curse.',
+          'Scor sub 0 = vinde sub normă. VORP spune câți lei înseamnă asta concret.',
+          'Tabelul „Performanța pe rute" = unde e bun, unde e slab. Roșii = candidate de mutare.',
+          'Tabelul „Cele mai slabe porțiuni" = material pentru discuție individuală: „la stația X pierzi sistematic pasageri, ce se întâmplă?".',
+          'Pentru bonus/salariu: folosește VORP absolut, nu scor procentual.',
         ]}
       />
 
       <DriverInsight driverId={driverId} quarter={currentQuarter} />
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gap: 12,
+        }}
+      >
         <StatCard
           label="Scor mediu"
           value={
@@ -132,7 +150,7 @@ export default async function SoferPage({
               ? formatPct(totals.weighted_avg_deviation_pct)
               : '—'
           }
-          tone={(totals?.weighted_avg_deviation_pct ?? 0) >= 0 ? 'pos' : 'neg'}
+          color={devTextColor(totals?.weighted_avg_deviation_pct)}
         />
         <StatCard label="Total curse" value={totals?.total_trips?.toString() ?? '0'} />
         <StatCard label="Total încasat" value={formatLei(totals?.total_lei)} />
@@ -143,54 +161,102 @@ export default async function SoferPage({
               ? formatLei(totals.vorp_total)
               : '—'
           }
-          tone={(totals?.vorp_total ?? 0) >= 0 ? 'pos' : 'neg'}
+          color={(totals?.vorp_total ?? 0) >= 0 ? 'var(--success)' : 'var(--danger)'}
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="px-5 py-3 bg-slate-50 border-b border-slate-200">
-            <h2 className="font-semibold text-slate-900">Performanța pe rute</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Sortat descendent după scor</p>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
+          gap: 16,
+        }}
+      >
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div
+            style={{
+              padding: '12px 16px',
+              background: 'var(--bg-elevated)',
+              borderBottom: '1px solid var(--border)',
+            }}
+          >
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
+              Performanța pe rute
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+              Sortat descendent după scor
+            </div>
           </div>
-          <table className="w-full text-sm">
-            <thead className="bg-white text-xs uppercase text-slate-500">
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
               <tr>
-                <th className="text-left px-4 py-2 font-medium">Ruta</th>
-                <th className="text-right px-4 py-2 font-medium">Dev</th>
-                <th className="text-right px-4 py-2 font-medium">Curse</th>
-                <th className="text-right px-4 py-2 font-medium">Lei</th>
-                <th className="text-right px-4 py-2 font-medium">VORP</th>
+                <th style={th}>Ruta</th>
+                <th style={{ ...th, textAlign: 'right' }}>Dev</th>
+                <th style={{ ...th, textAlign: 'right' }}>Curse</th>
+                <th style={{ ...th, textAlign: 'right' }}>Lei</th>
+                <th style={{ ...th, textAlign: 'right' }}>VORP</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {routes.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
+                  <td colSpan={5} style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)' }}>
                     Nu sunt curse în acest trimestru.
                   </td>
                 </tr>
               )}
               {routes.map((r) => (
-                <tr key={r.crm_route_id} className="hover:bg-slate-50">
-                  <td className="px-4 py-2 text-slate-700 text-xs max-w-[240px] truncate">
+                <tr key={r.crm_route_id} style={{ borderTop: '1px solid var(--border)' }}>
+                  <td
+                    style={{
+                      ...td,
+                      color: 'var(--text-secondary)',
+                      fontSize: 11,
+                      maxWidth: 200,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
                     <Link
                       href={`/analytics/moneyball/heatmap-segmente/${r.crm_route_id}?q=${currentQuarter}`}
-                      className="hover:underline"
+                      style={{ color: 'inherit', textDecoration: 'none' }}
                     >
                       {r.route_name ?? '—'}
                     </Link>
                   </td>
                   <td
-                    className={`px-4 py-2 text-right font-medium ${devColor(r.avg_deviation_pct)}`}
+                    style={{
+                      ...td,
+                      textAlign: 'right',
+                      fontWeight: 600,
+                      color: devTextColor(r.avg_deviation_pct),
+                    }}
                   >
                     {formatPct(r.avg_deviation_pct)}
                   </td>
-                  <td className="px-4 py-2 text-right text-slate-600">{r.n_trips}</td>
-                  <td className="px-4 py-2 text-right text-slate-600 font-mono text-xs">
+                  <td style={{ ...td, textAlign: 'right', color: 'var(--text-secondary)' }}>
+                    {r.n_trips}
+                  </td>
+                  <td
+                    style={{
+                      ...td,
+                      textAlign: 'right',
+                      fontFamily: 'var(--font-mono, monospace)',
+                      fontSize: 11,
+                      color: 'var(--text-secondary)',
+                    }}
+                  >
                     {formatLei(r.total_lei_actual)}
                   </td>
-                  <td className="px-4 py-2 text-right text-slate-700 font-mono text-xs">
+                  <td
+                    style={{
+                      ...td,
+                      textAlign: 'right',
+                      fontFamily: 'var(--font-mono, monospace)',
+                      fontSize: 11,
+                    }}
+                  >
                     {r.vorp_lei !== null ? formatLei(r.vorp_lei) : '—'}
                   </td>
                 </tr>
@@ -199,26 +265,34 @@ export default async function SoferPage({
           </table>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="px-5 py-3 bg-slate-50 border-b border-slate-200">
-            <h2 className="font-semibold text-slate-900">Cele mai slabe 10 porțiuni</h2>
-            <p className="text-xs text-slate-500 mt-0.5">
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div
+            style={{
+              padding: '12px 16px',
+              background: 'var(--bg-elevated)',
+              borderBottom: '1px solid var(--border)',
+            }}
+          >
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
+              Cele mai slabe 10 porțiuni
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
               Unde vinde cel mai slab (minim 2 curse)
-            </p>
+            </div>
           </div>
-          <table className="w-full text-sm">
-            <thead className="bg-white text-xs uppercase text-slate-500">
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
               <tr>
-                <th className="text-left px-4 py-2 font-medium">Stație</th>
-                <th className="text-left px-4 py-2 font-medium">Dir</th>
-                <th className="text-right px-4 py-2 font-medium">Dev</th>
-                <th className="text-right px-4 py-2 font-medium">Curse</th>
+                <th style={th}>Stație</th>
+                <th style={th}>Dir</th>
+                <th style={{ ...th, textAlign: 'right' }}>Dev</th>
+                <th style={{ ...th, textAlign: 'right' }}>Curse</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {segments.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-4 py-6 text-center text-slate-400">
+                  <td colSpan={4} style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)' }}>
                     Nu sunt suficiente date pe porțiuni.
                   </td>
                 </tr>
@@ -226,23 +300,30 @@ export default async function SoferPage({
               {segments.map((s) => (
                 <tr
                   key={`${s.crm_route_id}-${s.direction}-${s.stop_from_order}`}
-                  className="hover:bg-slate-50"
+                  style={{ borderTop: '1px solid var(--border)' }}
                 >
-                  <td className="px-4 py-2 text-slate-700 text-xs">
+                  <td style={{ ...td, color: 'var(--text-secondary)', fontSize: 11 }}>
                     <Link
                       href={`/analytics/moneyball/heatmap-segmente/${s.crm_route_id}?q=${currentQuarter}&d=${s.direction}`}
-                      className="hover:underline"
+                      style={{ color: 'inherit', textDecoration: 'none' }}
                     >
                       {s.stop_name ?? `Stația #${s.stop_from_order}`}
                     </Link>
                   </td>
-                  <td className="px-4 py-2 text-xs text-slate-500">{s.direction}</td>
+                  <td style={{ ...td, fontSize: 11, color: 'var(--text-muted)' }}>{s.direction}</td>
                   <td
-                    className={`px-4 py-2 text-right font-medium text-xs ${devBgColor(s.avg_deviation_pct)}`}
+                    style={{
+                      ...td,
+                      textAlign: 'right',
+                      fontWeight: 600,
+                      ...devBgStyle(s.avg_deviation_pct),
+                    }}
                   >
                     {formatPct(s.avg_deviation_pct)}
                   </td>
-                  <td className="px-4 py-2 text-right text-slate-600">{s.n_trips}</td>
+                  <td style={{ ...td, textAlign: 'right', color: 'var(--text-secondary)' }}>
+                    {s.n_trips}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -256,18 +337,35 @@ export default async function SoferPage({
 function StatCard({
   label,
   value,
-  tone,
+  color,
 }: {
   label: string;
   value: string;
-  tone?: 'pos' | 'neg';
+  color?: string;
 }) {
-  const toneClass =
-    tone === 'pos' ? 'text-emerald-700' : tone === 'neg' ? 'text-red-700' : 'text-slate-900';
   return (
-    <div className="bg-white rounded-xl border border-slate-200 px-4 py-3">
-      <div className="text-xs text-slate-500">{label}</div>
-      <div className={`text-xl font-semibold mt-1 ${toneClass}`}>{value}</div>
+    <div className="card" style={{ padding: '14px 18px' }}>
+      <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        {label}
+      </div>
+      <div style={{ fontSize: 22, fontWeight: 600, marginTop: 4, color: color ?? 'var(--text)' }}>
+        {value}
+      </div>
     </div>
   );
 }
+
+const th: React.CSSProperties = {
+  textAlign: 'left',
+  padding: '8px 12px',
+  fontSize: 10,
+  fontWeight: 600,
+  textTransform: 'uppercase',
+  color: 'var(--text-muted)',
+  letterSpacing: '0.06em',
+  background: 'var(--bg-elevated)',
+};
+
+const td: React.CSSProperties = {
+  padding: '8px 12px',
+};

@@ -472,6 +472,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
           <tbody>
             {filteredRoutes.map(route => {
               const completed = route.session_status === 'completed';
+              const auditable = completed || (route.route_type === 'suburban' && route.session_status === 'tur_done');
               const ownedByOther = route.operator_id && route.operator_id !== currentUserId;
               const hasSums = route.tur_total_lei != null || route.retur_total_lei != null;
               const dualTotal = (Number(route.tur_total_lei) || 0) + (Number(route.retur_total_lei) || 0);
@@ -537,7 +538,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
                       >
                         {ownedByOther ? 'Vezi' : 'Deschide'}
                       </button>
-                      {canAudit && completed && (!route.audit_locked_by_id || route.audit_locked_by_id === currentUserId) && (
+                      {canAudit && auditable && (!route.audit_locked_by_id || route.audit_locked_by_id === currentUserId) && (
                         <button
                           className="btn btn-outline"
                           onClick={async () => {

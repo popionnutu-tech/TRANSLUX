@@ -20,12 +20,18 @@ export async function lockAudit(sessionId: string): Promise<{ error?: string }> 
 
   const { data: row, error: fetchErr } = await sb
     .from('counting_sessions')
-    .select('id, status, audit_status, audit_locked_by, audit_operator_id')
+    .select('id, status, audit_status, audit_locked_by, audit_operator_id, crm_routes!inner(route_type)')
     .eq('id', sessionId)
     .single();
 
   if (fetchErr || !row) return { error: 'Sesiune inexistentă' };
-  if (row.status !== 'completed') return { error: 'Cursa trebuie să fie finalizată de operator înainte de audit' };
+  // Suburban poate avea curse nefinalizate (autobuz defect, cursă anulată) și totuși
+  // ciclurile salvate trebuie să fie auditabile. Interurban păstrează regula strictă.
+  const rtJoin = (row as any).crm_routes;
+  const routeType: string = (Array.isArray(rtJoin) ? rtJoin[0]?.route_type : rtJoin?.route_type) || 'interurban';
+  const isSuburban = routeType === 'suburban';
+  const statusOK = row.status === 'completed' || (isSuburban && row.status === 'tur_done');
+  if (!statusOK) return { error: 'Cursa trebuie să fie finalizată de operator înainte de audit' };
   if (row.audit_locked_by && row.audit_locked_by !== session.id) {
     return { error: 'Audit în desfășurare de alt admin' };
   }

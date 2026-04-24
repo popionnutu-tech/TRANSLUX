@@ -857,14 +857,68 @@ export async function saveSuburbanCycle(
     }
   }
 
+  // Recompute total revenue for the session from all saved entries + tariff.
+  // For suburban sessions we store the grand total in tur_total_lei (single bucket
+  // because a cursa can have passengers in both directions simultaneously).
+  const sessionTotal = sessionRow
+    ? await computeSuburbanSessionTotal(sessionId, sessionRow.assignment_date as string)
+    : 0;
+
   await sb.from('counting_sessions').update({
     status: newStatus,
+    tur_total_lei: sessionTotal,
+    retur_total_lei: 0,
     locked_by: null,
     locked_at: null,
   }).eq('id', sessionId);
 
   revalidatePath('/numarare');
   return {};
+}
+
+/**
+ * Recompută totalul suburban dintr-o sesiune pornind de la counting_entries
+ * și tariful valabil la data sesiunii. Aplică aceeași formulă ca UI-ul
+ * (pasageri × km tronson × rată), sumată pe TUR (spre Briceni) și RETUR
+ * (dinspre Briceni) pentru fiecare cursă.
+ */
+async function computeSuburbanSessionTotal(sessionId: string, assignmentDate: string): Promise<number> {
+  const sb = getSupabase();
+  const tariff = await getTariffConfig(assignmentDate);
+  const rate = tariff.ratePerKmSuburban;
+  if (!rate) return 0;
+
+  const { data: entries } = await sb
+    .from('counting_entries')
+    .select('schedule_id, cycle_number, stop_order, km_from_start, total_passengers, alighted')
+    .eq('session_id', sessionId);
+  if (!entries || entries.length === 0) return 0;
+
+  const cycles = new Map<string, { stopOrder: number; km: number; total: number; alighted: number }[]>();
+  for (const e of entries as any[]) {
+    const key = `${e.schedule_id}::${e.cycle_number}`;
+    if (!cycles.has(key)) cycles.set(key, []);
+    cycles.get(key)!.push({
+      stopOrder: e.stop_order,
+      km: Number(e.km_from_start || 0),
+      total: e.total_passengers || 0,
+      alighted: e.alighted || 0,
+    });
+  }
+
+  let grandTotal = 0;
+  for (const stops of cycles.values()) {
+    stops.sort((a, b) => a.stopOrder - b.stopOrder);
+    for (let i = 0; i < stops.length - 1; i++) {
+      const tronsonKm = Math.abs(stops[i + 1].km - stops[i].km);
+      grandTotal += stops[i].total * tronsonKm * rate;
+    }
+    for (let i = stops.length - 1; i > 0; i--) {
+      const tronsonKm = Math.abs(stops[i].km - stops[i - 1].km);
+      grandTotal += stops[i].alighted * tronsonKm * rate;
+    }
+  }
+  return Math.round(grandTotal);
 }
 
 /**
@@ -878,9 +932,25 @@ export async function finalizeSuburbanSession(
   try { requireRole(await verifySession(), ...NUMARARE_ROLES); } catch { return { error: 'Acces interzis' }; }
   const sb = getSupabase();
 
+  const { data: sessionRow } = await sb
+    .from('counting_sessions')
+    .select('assignment_date')
+    .eq('id', sessionId)
+    .single();
+
+  const sessionTotal = sessionRow
+    ? await computeSuburbanSessionTotal(sessionId, sessionRow.assignment_date as string)
+    : 0;
+
   const { error } = await sb
     .from('counting_sessions')
-    .update({ status: 'completed', locked_by: null, locked_at: null })
+    .update({
+      status: 'completed',
+      tur_total_lei: sessionTotal,
+      retur_total_lei: 0,
+      locked_by: null,
+      locked_at: null,
+    })
     .eq('id', sessionId);
   if (error) return { error: error.message };
 

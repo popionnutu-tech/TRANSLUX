@@ -10,8 +10,8 @@ const MODEL = 'claude-sonnet-4-6';
 
 type Body = {
   quarter: string;
-  mode: 'overall' | 'route';
-  crmRouteId?: number;
+  mode: 'overall' | 'pair';
+  pairId?: number;
 };
 
 export async function POST(req: Request) {
@@ -32,80 +32,79 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { quarter, mode, crmRouteId } = body;
+  const { quarter, mode, pairId } = body;
   if (!quarter || !mode) {
     return NextResponse.json({ error: 'quarter și mode sunt obligatorii' }, { status: 400 });
   }
 
   const supabase = getSupabase();
 
-  // Culege datele
-  let recommendations;
-  if (mode === 'route' && crmRouteId) {
-    // Pentru o singură rută — toți șoferii pe ea
-    const { data } = await supabase
-      .from('v_moneyball_ranking')
-      .select('driver_name, avg_deviation_pct, n_trips, vorp_lei, total_lei_actual')
-      .eq('crm_route_id', crmRouteId)
-      .eq('quarter', quarter)
-      .order('avg_deviation_pct', { ascending: false });
-    recommendations = data;
+  let data;
+  if (mode === 'pair' && pairId) {
+    const { data: pair } = await supabase
+      .from('v_moneyball_pair_recommendations')
+      .select('*')
+      .eq('pair_id', pairId)
+      .single();
+    data = pair;
   } else {
-    // Summary general — top 15 rotații cu câștig max
-    const { data } = await supabase
-      .from('v_moneyball_recommendations')
+    // Overall — top 10 perechi cu rotații
+    const { data: pairs } = await supabase
+      .from('v_moneyball_pair_recommendations')
       .select(
-        'route_name, current_driver_name, current_score, current_trips, best_driver_name, best_score, best_trips, current_is_best, est_monthly_gain_lei'
+        'pair_id, route_a_name, route_b_name, status, n_overlap, est_monthly_gain_lei, current_drivers, recommended_drivers'
       )
       .eq('quarter', quarter)
+      .in('status', ['major_rotation', 'minor_rotation'])
       .order('est_monthly_gain_lei', { ascending: false, nullsFirst: false })
-      .limit(15);
-    recommendations = data;
+      .limit(10);
+    data = pairs;
   }
 
-  if (!recommendations || recommendations.length === 0) {
-    return NextResponse.json(
-      { error: 'Nu sunt date suficiente pentru analiză.' },
-      { status: 404 }
-    );
+  if (!data || (Array.isArray(data) && data.length === 0)) {
+    return NextResponse.json({ error: 'Nu sunt date suficiente pentru analiză.' }, { status: 404 });
   }
 
-  // Prompt Claude
   const systemPrompt = `Ești consultant Moneyball pentru TRANSLUX (transport interurban Moldova).
-Analizezi alocarea șoferilor pe rute: cine e pe rută acum vs cine ar trebui să fie pe baza performanței.
+Analizezi alocarea șoferilor pe perechi de rute.
 
-IPOTEZE DE CALCUL:
-- Șofer stabil = 18-22 zile/lună pe aceeași rută (folosim 20 în estimări)
-- Deviația procentuală (dev) = cât de mult diferă șoferul de norma contextului (aceeași rută × zi săptămână × capacitate × trimestru)
-- VORP = lei câștigat/pierdut per cursă față de șoferul mediu pe aceleași curse
-- "Câștig estimat" = (VORP/cursă șofer recomandat - VORP/cursă șofer curent) × 20 curse/lună
+MODELUL DE ALOCARE:
+- 2 rute formează o pereche (ex: Criva + Lipcani)
+- 3 șoferi sunt dedicați fiecărei perechi (fiecare face ~20 zile/lună)
+- Cei 3 șoferi rotesc între cele 2 rute ale perechii
+- 60 zile-om/lună total acoperă pereche
 
-SCRII ÎN ROMÂNĂ, BUSINESS, CONCIS. Nu folosești bullet-uri decât dacă ceri numeric. Text curgător clar.`;
+CE ANALIZEZI:
+- Cine conduce acum pe pereche (echipa actuală de 3)
+- Cine ar trebui să conducă (echipa recomandată de 3, după scor combinat)
+- Diferența = rotații de făcut
+
+SCRII ÎN ROMÂNĂ, BUSINESS, CONCIS. Text curgător, nu tabel. Fără procente dacă nu sunt esențiale — descrii cu cuvinte.`;
 
   let userPrompt = '';
   if (mode === 'overall') {
-    userPrompt = `Datele pentru trimestrul ${quarter} — top rotații posibile:
-${JSON.stringify(recommendations, null, 2)}
+    userPrompt = `Top rotații pe perechi de rute pentru ${quarter}:
+${JSON.stringify(data, null, 2)}
 
-Scrie un mini-raport strategic în ~200 cuvinte care include:
+Scrie în ~200 cuvinte:
 
-1. **Top 3 rotații cu cel mai mare impact** — pentru fiecare: ruta, cine să pună în locul cui, câștig lunar estimat.
+1. **Top 3 perechi cu impact maxim** — pentru fiecare: cele 2 rute, schimbarea esențială (cine iese, cine intră), și impactul lunar estimat.
 
-2. **Pattern-uri relevante** — sunt șoferi care apar de mai multe ori ca „current" slab? Sunt șoferi care apar de mai multe ori ca „best"? Talent ascuns sau probleme sistemice?
+2. **Pattern-uri detectate** — sunt șoferi care apar în echipe recomandate pe mai multe perechi (talent rar, nu-i muta peste tot)? Sunt șoferi care nu apar în nicio echipă recomandată (posibile probleme)?
 
-3. **Recomandare implementare** — când merită făcută rotația (prag minim de câștig), cum să comunici cu șoferii afectați.
+3. **Ordine de implementare** — care pereche să o schimbi prima, a doua, a treia. De ce.
 
-Folosește cifre concrete. Evită generalități.`;
+Nume concrete. Evită generalitățile.`;
   } else {
-    userPrompt = `Toți șoferii care au condus pe această rută în ${quarter}:
-${JSON.stringify(recommendations, null, 2)}
+    userPrompt = `Pereche specifică pentru ${quarter}:
+${JSON.stringify(data, null, 2)}
 
-Scrie în ~150 cuvinte:
-1. Cine e cel mai bun vânzător pe această rută (nume + de ce).
-2. Cine ar trebui mutat de pe ea (dacă e cazul).
-3. Dacă rezultatele sunt aproape egale, recomandă păstrarea șoferilor actuali.
+Scrie în ~130 cuvinte:
+1. Cine e echipa actuală, cât de bine lucrează global.
+2. Ce schimbări propune algoritmul și de ce (cine iese, cine intră).
+3. O recomandare concretă de acțiune: rotează acum / așteaptă / monitorizează.
 
-Fii specific cu nume și cifre.`;
+Nume concrete. Dacă echipa e deja optimă, spune clar să nu atingă.`;
   }
 
   const anthropic = new Anthropic({ apiKey });

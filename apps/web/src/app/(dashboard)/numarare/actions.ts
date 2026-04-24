@@ -92,6 +92,8 @@ export interface SuburbanSchedule {
 export interface RouteForPeriod {
   crm_route_id: number;
   dest_to_ro: string;
+  dest_from_ro: string;
+  route_type: 'interurban' | 'suburban';
   time_chisinau: string;
   time_nord: string;
   sessions_count: number;
@@ -285,7 +287,7 @@ export async function getRoutesForPeriod(
   // 1. Toate rutele active (pentru time_nord + dest_to_ro)
   const { data: allRoutes, error: rErr } = await sb
     .from('crm_routes')
-    .select('id, dest_to_ro, time_chisinau, time_nord')
+    .select('id, dest_to_ro, dest_from_ro, time_chisinau, time_nord, route_type')
     .eq('active', true);
 
   if (rErr) return { error: rErr.message };
@@ -329,6 +331,8 @@ export async function getRoutesForPeriod(
       agg.set(s.crm_route_id, {
         crm_route_id: s.crm_route_id,
         dest_to_ro: r.dest_to_ro,
+        dest_from_ro: r.dest_from_ro || '',
+        route_type: (r.route_type || 'interurban') as 'interurban' | 'suburban',
         time_chisinau: r.time_chisinau,
         time_nord: r.time_nord,
         sessions_count: 1,

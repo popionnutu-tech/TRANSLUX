@@ -263,7 +263,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
 
       {error && <div className="alert alert-danger">{error}</div>}
 
-      {!openRoute && !isPeriod && (
+      {!openRoute && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
           <button
             className={`btn ${routeTypeFilter === 'interurban' ? 'btn-primary' : 'btn-outline'}`}
@@ -335,51 +335,57 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
         <p className="text-muted">Se încarcă...</p>
       ) : isPeriod ? (
         <>
-        {canSeeSums && periodRoutes.length > 0 && (() => {
-          const totalDual = periodRoutes.reduce((s, r) => s + (Number(r.tur_total_lei) || 0) + (Number(r.retur_total_lei) || 0), 0);
-          const totalSingle = periodRoutes.reduce((s, r) => s + (Number(r.tur_single_lei) || 0) + (Number(r.retur_single_lei) || 0), 0);
+        {(() => { const filteredPeriodRoutes = periodRoutes.filter(r => r.route_type === routeTypeFilter); const isSuburban = routeTypeFilter === 'suburban'; return (<>
+        {canSeeSums && filteredPeriodRoutes.length > 0 && (() => {
+          const totalDual = filteredPeriodRoutes.reduce((s, r) => s + (Number(r.tur_total_lei) || 0) + (Number(r.retur_total_lei) || 0), 0);
+          const totalSingle = filteredPeriodRoutes.reduce((s, r) => s + (Number(r.tur_single_lei) || 0) + (Number(r.retur_single_lei) || 0), 0);
           const totalDiff = totalDual - totalSingle;
-          const totalSessions = periodRoutes.reduce((s, r) => s + r.sessions_count, 0);
+          const totalSessions = filteredPeriodRoutes.reduce((s, r) => s + r.sessions_count, 0);
           return (
             <div className="card" style={{ display: 'flex', gap: 24, padding: 14, marginBottom: 12, flexWrap: 'wrap' }}>
               <div><span className="text-muted">Total perioada</span></div>
               <div><span className="text-muted">Curse:</span> <strong>{totalSessions}</strong></div>
-              <div><span className="text-muted">Sumă (2 tarife):</span> <strong>{Math.round(totalDual)} lei</strong></div>
-              <div><span className="text-muted">Dacă 1 tarif:</span> <strong>{Math.round(totalSingle)} lei</strong></div>
-              <div>
-                <span className="text-muted">Δ:</span>{' '}
-                <strong style={{ color: totalDiff > 0 ? 'var(--success)' : 'var(--text-muted)' }}>
-                  {totalDiff >= 0 ? '+' : ''}{Math.round(totalDiff)} lei
-                </strong>
-              </div>
+              <div><span className="text-muted">{isSuburban ? 'Sumă:' : 'Sumă (2 tarife):'}</span> <strong>{Math.round(totalDual)} lei</strong></div>
+              {!isSuburban && (<>
+                <div><span className="text-muted">Dacă 1 tarif:</span> <strong>{Math.round(totalSingle)} lei</strong></div>
+                <div>
+                  <span className="text-muted">Δ:</span>{' '}
+                  <strong style={{ color: totalDiff > 0 ? 'var(--success)' : 'var(--text-muted)' }}>
+                    {totalDiff >= 0 ? '+' : ''}{Math.round(totalDiff)} lei
+                  </strong>
+                </div>
+              </>)}
             </div>
           );
         })()}
         <table className="table">
           <thead>
             <tr>
-              <th>Tur</th>
+              <th>{isSuburban ? 'De la' : 'Tur'}</th>
               <th>Destinația</th>
-              <th>Retur</th>
+              {!isSuburban && <th>Retur</th>}
               <th>Curse</th>
-              {canSeeSums && <th>Sumă (2 tarife)</th>}
-              {canSeeSums && <th>Dacă 1 tarif</th>}
-              {canSeeSums && <th>Δ</th>}
+              {canSeeSums && <th>{isSuburban ? 'Sumă' : 'Sumă (2 tarife)'}</th>}
+              {canSeeSums && !isSuburban && <th>Dacă 1 tarif</th>}
+              {canSeeSums && !isSuburban && <th>Δ</th>}
             </tr>
           </thead>
           <tbody>
-            {periodRoutes.map(route => {
+            {filteredPeriodRoutes.map(route => {
               const dualTotal = (Number(route.tur_total_lei) || 0) + (Number(route.retur_total_lei) || 0);
               const singleTotal = (Number(route.tur_single_lei) || 0) + (Number(route.retur_single_lei) || 0);
               const diff = dualTotal - singleTotal;
               const hasSums = dualTotal > 0 || singleTotal > 0;
               const auditTotal = (Number(route.audit_tur_total_lei) || 0) + (Number(route.audit_retur_total_lei) || 0);
               const hasAudit = route.audit_sessions_count > 0;
+              const destinationLabel = route.route_type === 'suburban'
+                ? `${route.dest_to_ro} - ${route.dest_from_ro}`
+                : route.dest_to_ro;
               return (
                 <tr key={route.crm_route_id}>
-                  <td>{route.time_nord?.split(' - ')[0]}</td>
-                  <td><strong>{route.dest_to_ro}</strong></td>
-                  <td>{route.time_chisinau?.split(' - ')[0]}</td>
+                  <td>{route.route_type === 'suburban' ? route.dest_from_ro : route.time_nord?.split(' - ')[0]}</td>
+                  <td><strong>{destinationLabel}</strong></td>
+                  {!isSuburban && <td>{route.time_chisinau?.split(' - ')[0]}</td>}
                   <td>{route.sessions_count}</td>
                   {canSeeSums && (
                     <td>
@@ -394,8 +400,8 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
                       )}
                     </td>
                   )}
-                  {canSeeSums && <td>{hasSums ? `${Math.round(singleTotal)} lei` : '—'}</td>}
-                  {canSeeSums && (
+                  {canSeeSums && !isSuburban && <td>{hasSums ? `${Math.round(singleTotal)} lei` : '—'}</td>}
+                  {canSeeSums && !isSuburban && (
                     <td style={{ color: hasSums && diff > 0 ? 'var(--success)' : 'var(--text-muted)' }}>
                       {hasSums ? `${diff >= 0 ? '+' : ''}${Math.round(diff)} lei` : '—'}
                     </td>
@@ -405,6 +411,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
             })}
           </tbody>
         </table>
+        </>); })()}
         </>
       ) : (
         <>
@@ -456,7 +463,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
               return (
                 <tr key={route.crm_route_id}>
                   <td>{route.route_type === 'suburban' ? route.dest_from_ro : route.time_nord?.split(' - ')[0]}</td>
-                  <td><strong>{route.dest_to_ro}</strong></td>
+                  <td><strong>{route.route_type === 'suburban' ? `${route.dest_to_ro} - ${route.dest_from_ro}` : route.dest_to_ro}</strong></td>
                   <td>{route.route_type === 'suburban' ? 'suburban' : route.time_chisinau?.split(' - ')[0]}</td>
                   <td>
                     <select

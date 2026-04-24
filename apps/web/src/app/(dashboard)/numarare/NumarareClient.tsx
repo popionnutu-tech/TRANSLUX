@@ -63,6 +63,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
   const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
   const [routeTypeFilter, setRouteTypeFilter] = useState<'interurban' | 'suburban'>('interurban');
   const [auditMode, setAuditMode] = useState(false);
+  const [viewOnly, setViewOnly] = useState(false);
   const [showComparison, setShowComparison] = useState<string | null>(null); // sessionId
 
   const canAudit = role === 'ADMIN' || role === 'ADMIN_CAMERE';
@@ -137,6 +138,8 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
       return;
     }
 
+    setViewOnly(!!result.readOnly);
+
     if (route.route_type === 'suburban') {
       setSessionId(result.sessionId || null);
       setStops([]);
@@ -184,7 +187,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
   async function handleClose() {
     if (sessionId) {
       if (auditMode) await unlockAudit(sessionId);
-      else await unlockRoute(sessionId);
+      else if (!viewOnly) await unlockRoute(sessionId);
     }
     setOpenRouteId(null);
     setSessionId(null);
@@ -192,6 +195,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
     setSavedTur([]);
     setSavedRetur([]);
     setAuditMode(false);
+    setViewOnly(false);
     await loadRoutes();
   }
 
@@ -285,10 +289,22 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
             <button className="btn btn-outline" onClick={handleClose}>← Înapoi</button>
             <strong>{openRoute.dest_to_ro}</strong>
+            {viewOnly && (
+              <span style={{
+                fontSize: 12,
+                padding: '4px 10px',
+                borderRadius: 6,
+                background: 'rgba(155,27,48,0.08)',
+                color: '#9B1B30',
+                fontWeight: 600,
+              }}>
+                👁 Doar vizualizare — cursa aparține altui operator
+              </span>
+            )}
             <select
               value={openRoute.driver_id || ''}
               onChange={e => handleDriverChange(openRoute, e.target.value)}
-              disabled={openRoute.session_status === 'completed'}
+              disabled={viewOnly || openRoute.session_status === 'completed'}
               style={selectStyle}
             >
               <option value="">— Șofer —</option>
@@ -297,7 +313,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
             <select
               value={openRoute.vehicle_id || ''}
               onChange={e => handleVehicleChange(openRoute, e.target.value)}
-              disabled={openRoute.session_status === 'completed'}
+              disabled={viewOnly || openRoute.session_status === 'completed'}
               style={selectStyle}
             >
               <option value="">— Mașina —</option>
@@ -315,6 +331,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
               drivers={drivers}
               vehicles={vehicles}
               mode={auditMode ? 'audit' : 'normal'}
+              viewOnly={viewOnly}
             />
           ) : (
             <CountingForm
@@ -328,6 +345,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
               onSaved={handleSaved}
               canSeeSums={canSeeSums}
               mode={auditMode ? 'audit' : 'normal'}
+              viewOnly={viewOnly}
             />
           )}
         </>
@@ -514,9 +532,10 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
                       <button
                         className="btn btn-primary"
                         onClick={() => handleOpen(route)}
-                        disabled={completed || !!ownedByOther}
+                        disabled={completed}
+                        title={ownedByOther ? 'Deschidere doar pentru vizualizare' : undefined}
                       >
-                        Deschide
+                        {ownedByOther ? 'Vezi' : 'Deschide'}
                       </button>
                       {canAudit && completed && (!route.audit_locked_by_id || route.audit_locked_by_id === currentUserId) && (
                         <button

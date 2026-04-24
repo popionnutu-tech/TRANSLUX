@@ -14,6 +14,7 @@ interface Props {
   drivers: DriverOption[];
   vehicles: VehicleOption[];
   mode?: 'normal' | 'audit';
+  viewOnly?: boolean;
 }
 
 type CycleInputs = Record<number, { total: number; alighted: number }>; // key=stopOrder
@@ -21,7 +22,7 @@ type AllInputs = Record<number, CycleInputs>; // key=scheduleId
 type AltAssignment = { driverId: string | null; vehicleId: string | null; show: boolean };
 
 export default function SuburbanCountingForm({
-  sessionId, crmRouteId, date, tariff, canSeeSums, onSaved, drivers, vehicles, mode = 'normal',
+  sessionId, crmRouteId, date, tariff, canSeeSums, onSaved, drivers, vehicles, mode = 'normal', viewOnly = false,
 }: Props) {
   const [loading, setLoading] = useState(true);
   const [tur, setTur] = useState<SuburbanSchedule[]>([]);
@@ -196,12 +197,20 @@ export default function SuburbanCountingForm({
           </span>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             {canSeeSums && <strong>{total} lei</strong>}
-            <button className="btn btn-primary btn-sm" onClick={() => save(sched)}>Salvează</button>
+            {!viewOnly && <button className="btn btn-primary btn-sm" onClick={() => save(sched)}>Salvează</button>}
             {msg && <span style={{ fontSize: 12 }}>{msg}</span>}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, fontSize: 12 }}>
-          {altMap[sched.scheduleId]?.show ? (
+          {viewOnly ? (
+            altMap[sched.scheduleId]?.driverId || altMap[sched.scheduleId]?.vehicleId ? (
+              <span className="text-muted">
+                Alt șofer/mașină: {drivers.find(d => d.id === altMap[sched.scheduleId]?.driverId)?.full_name || '—'}
+                {' / '}
+                {vehicles.find(v => v.id === altMap[sched.scheduleId]?.vehicleId)?.plate_number || '—'}
+              </span>
+            ) : null
+          ) : altMap[sched.scheduleId]?.show ? (
             <>
               <span className="text-muted">Alt șofer/mașină:</span>
               <select
@@ -265,6 +274,7 @@ export default function SuburbanCountingForm({
                     onChange={e => setInput(sched.scheduleId, s.stopOrder, 'total', parseInt(e.target.value) || 0)}
                     onKeyDown={handleKeyDown}
                     onFocus={e => e.target.select()}
+                    disabled={viewOnly}
                     style={{ width: 70 }}
                   />
                 </td>
@@ -280,6 +290,7 @@ export default function SuburbanCountingForm({
                     onChange={e => setInput(sched.scheduleId, s.stopOrder, 'alighted', parseInt(e.target.value) || 0)}
                     onKeyDown={handleKeyDown}
                     onFocus={e => e.target.select()}
+                    disabled={viewOnly}
                     style={{ width: 70 }}
                   />
                 </td>
@@ -335,7 +346,7 @@ export default function SuburbanCountingForm({
         <p className="text-muted">Nu sunt curse pentru ziua selectată.</p>
       )}
 
-      {mode === 'normal' && (tur.length + retur.length) > 0 && (() => {
+      {mode === 'normal' && !viewOnly && (tur.length + retur.length) > 0 && (() => {
         const expected = tur.length + retur.length;
         const saved = savedIds.size;
         const allSaved = saved >= expected;

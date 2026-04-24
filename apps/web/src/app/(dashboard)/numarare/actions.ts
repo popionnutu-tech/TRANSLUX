@@ -557,7 +557,7 @@ export async function lockRoute(
   date: string,
   driverId?: string | null,
   vehicleId?: string | null,
-): Promise<{ sessionId?: string; error?: string }> {
+): Promise<{ sessionId?: string; readOnly?: boolean; error?: string }> {
   let session;
   try { session = requireRole(await verifySession(), ...NUMARARE_ROLES); } catch { return { error: 'Acces interzis' }; }
 
@@ -572,9 +572,9 @@ export async function lockRoute(
     .single();
 
   if (existing) {
-    // Dacă sesiunea a fost creată de alt operator — acces interzis (permanent)
+    // Sesiune a altui operator — deschidem în mod doar-citire, fără să atingem lock-ul.
     if (existing.operator_id !== session.id) {
-      return { error: 'Cursă atribuită altui operator' };
+      return { sessionId: existing.id, readOnly: true };
     }
     // Blocăm pentru operatorul care a creat sesiunea + actualizăm driver/vehicle dacă sunt noi
     const updateFields: any = { locked_by: session.id, locked_at: new Date().toISOString() };

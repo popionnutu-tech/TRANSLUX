@@ -71,7 +71,7 @@ export default async function ClasamentPage({
 
       <UsageBox
         title="Ce afișează această pagină"
-        what="Clasamentul Moneyball al combinațiilor șofer × rută pe trimestrul ales. Nu arată cifre brute de încasare (care depind de ruta pe care merge șoferul), ci deviația procentuală față de norma contextului — cât de bine vinde fiecare șofer comparat cu norma pe aceeași rută, aceeași zi-tip, aceeași capacitate mașină."
+        what="Clasamentul Moneyball al combinațiilor șofer × rută pe trimestrul ales. Nu arată cifre brute de încasare (care depind de ruta pe care merge șoferul), ci deviația procentuală față de norma contextului — cât de bine vinde fiecare șofer comparat cu norma pe aceeași rută, aceeași zi a săptămânii (luni cu luni, marți cu marți...), aceeași capacitate mașină."
         howToUse={[
           'Top 10 = șoferi de păstrat, promovat, dat bonus. Sunt vânzătorii reali.',
           'Bottom 10 = șoferi cu care ai o discuție. Nu neapărat concediere — poate doar mutare pe alte rute (vezi heatmap-ul).',

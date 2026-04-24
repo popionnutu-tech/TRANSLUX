@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { getSupabase } from '@/lib/supabase';
-import { formatLei, formatPct, devColor } from '@/lib/moneyball/format';
+import { formatLei, formatPct, devTextColor } from '@/lib/moneyball/format';
 import { QuarterSelect } from '@/components/moneyball/QuarterSelect';
 import { UsageBox } from '@/components/moneyball/UsageBox';
 
@@ -52,105 +52,159 @@ export default async function VorpPage({
     .reduce((sum, d) => sum + (d.vorp_total ?? 0), 0);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-end justify-between">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-end',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 12,
+        }}
+      >
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">
+          <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)' }}>
             Driver Value (VORP) — {currentQuarter}
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Câți lei aduce/pierde fiecare șofer față de un șofer mediu pus pe aceleași curse ·
-            minim {MIN_TRIPS} curse
-          </p>
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+            Câți lei aduce/pierde fiecare șofer față de un șofer mediu pe aceleași curse · minim{' '}
+            {MIN_TRIPS} curse
+          </div>
         </div>
         <QuarterSelect quarters={quarters} current={currentQuarter} />
       </div>
 
       <UsageBox
         title="Ce afișează această pagină"
-        what="VORP (Value Over Replacement Player) — numărul de lei pe care fiecare șofer i-a adus (sau pierdut) față de un șofer mediu pus pe aceleași curse. Formula ia în considerare: deviația șoferului, numărul de curse făcute, și prețul mediu real al biletelor pe acele rute. Sortat descendent — primul = cel mai valoros șofer din toată compania pe acel trimestru."
+        what="VORP (Value Over Replacement Player) — câți lei aduce (sau pierde) fiecare șofer față de un șofer mediu pus pe aceleași curse. Formula folosește deviația, nr. curse și prețul mediu real al biletelor pe rute. Sortat descendent — primul = cel mai valoros șofer pe acel trimestru."
         howToUse={[
-          'KPI-ul principal pentru decizii de compensare: VORP pozitiv mare = bonus, retenție, recunoaștere publică.',
-          'VORP negativ mare = conversație dificilă. Dar atenție: verifică-i mai întâi clasamentul Heatmap — poate e pe rute slabe. Dacă și acolo e roșu peste tot = problema e șoferul. Dacă e mixt = problema e alocarea.',
-          'Totalurile de sus: „VORP pozitiv" = bani pe care îi câștigi extra datorită șoferilor buni. „VORP negativ" = bani pe care îi pierzi din cauza celor slabi.',
-          '„Câștig Moneyball potențial" = dacă îi convingi pe cei slabi să atingă media (prin coaching sau mutare), câți bani câștigi pe trimestru.',
-          'La sfârșit de trimestru: folosește lista asta pentru plătirea bonusurilor variabile. Obiectiv, transparent, bazat pe date.',
+          'KPI-ul principal pentru compensare: VORP pozitiv mare = bonus, retenție, recunoaștere.',
+          'VORP negativ mare = conversație dificilă. Verifică mai întâi în Heatmap — dacă e roșu peste tot = șoferul. Dacă e mixt = alocarea.',
+          '„Câștig Moneyball potențial" = bani recuperabili dacă muți șoferii slabi pe rute potrivite.',
+          'La sfârșit de trimestru: lista asta = bonusurile variabile. Obiectiv, transparent, date.',
         ]}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl border border-emerald-200 px-4 py-3">
-          <div className="text-xs text-emerald-700">Total VORP pozitiv</div>
-          <div className="text-xl font-semibold text-emerald-700 mt-1">
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: 12,
+        }}
+      >
+        <div
+          className="card"
+          style={{ padding: '14px 18px', borderTop: '3px solid var(--success)' }}
+        >
+          <div style={{ fontSize: 11, color: 'var(--success)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Total VORP pozitiv
+          </div>
+          <div style={{ fontSize: 22, fontWeight: 600, marginTop: 4, color: 'var(--success)' }}>
             +{formatLei(totalVorpPositive)}
           </div>
-          <div className="text-xs text-slate-500 mt-1">
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
             {drivers.filter((d) => (d.vorp_total ?? 0) > 0).length} șoferi peste media
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-red-200 px-4 py-3">
-          <div className="text-xs text-red-700">Total VORP negativ</div>
-          <div className="text-xl font-semibold text-red-700 mt-1">
+        <div
+          className="card"
+          style={{ padding: '14px 18px', borderTop: '3px solid var(--danger)' }}
+        >
+          <div style={{ fontSize: 11, color: 'var(--danger)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Total VORP negativ
+          </div>
+          <div style={{ fontSize: 22, fontWeight: 600, marginTop: 4, color: 'var(--danger)' }}>
             {formatLei(totalVorpNegative)}
           </div>
-          <div className="text-xs text-slate-500 mt-1">
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
             {drivers.filter((d) => (d.vorp_total ?? 0) < 0).length} șoferi sub media
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 px-4 py-3">
-          <div className="text-xs text-slate-500">Câștig Moneyball potențial</div>
-          <div className="text-xl font-semibold text-slate-900 mt-1">
+        <div className="card" style={{ padding: '14px 18px', borderTop: '3px solid var(--primary)' }}>
+          <div style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Câștig Moneyball potențial
+          </div>
+          <div style={{ fontSize: 22, fontWeight: 600, marginTop: 4, color: 'var(--text)' }}>
             ~{formatLei(Math.abs(totalVorpNegative))}
           </div>
-          <div className="text-xs text-slate-500 mt-1">
-            dacă recuperezi șoferii sub media
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+            dacă recuperezi șoferii slabi
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-            <tr>
-              <th className="text-right px-4 py-2 font-medium w-12">#</th>
-              <th className="text-left px-4 py-2 font-medium">Șofer</th>
-              <th className="text-right px-4 py-2 font-medium">VORP</th>
-              <th className="text-right px-4 py-2 font-medium">Scor mediu</th>
-              <th className="text-right px-4 py-2 font-medium">Curse</th>
-              <th className="text-right px-4 py-2 font-medium">Rute</th>
-              <th className="text-right px-4 py-2 font-medium">Total lei</th>
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <thead>
+            <tr style={{ background: 'var(--bg-elevated)' }}>
+              <th style={{ ...th, textAlign: 'right', width: 40 }}>#</th>
+              <th style={th}>Șofer</th>
+              <th style={{ ...th, textAlign: 'right' }}>VORP</th>
+              <th style={{ ...th, textAlign: 'right' }}>Scor mediu</th>
+              <th style={{ ...th, textAlign: 'right' }}>Curse</th>
+              <th style={{ ...th, textAlign: 'right' }}>Rute</th>
+              <th style={{ ...th, textAlign: 'right' }}>Total lei</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody>
             {drivers.map((d, idx) => (
-              <tr key={d.driver_id} className="hover:bg-slate-50">
-                <td className="px-4 py-2 text-right text-slate-400 font-mono text-xs">
+              <tr key={d.driver_id} style={{ borderTop: '1px solid var(--border)' }}>
+                <td
+                  style={{
+                    ...td,
+                    textAlign: 'right',
+                    color: 'var(--text-muted)',
+                    fontFamily: 'var(--font-mono, monospace)',
+                    fontSize: 11,
+                  }}
+                >
                   {idx + 1}
                 </td>
-                <td className="px-4 py-2">
+                <td style={td}>
                   <Link
                     href={`/analytics/moneyball/sofer/${d.driver_id}?q=${currentQuarter}`}
-                    className="text-slate-900 hover:underline font-medium"
+                    style={{ color: 'var(--text)', textDecoration: 'none', fontWeight: 500 }}
                   >
                     {d.driver_name ?? '—'}
                   </Link>
                 </td>
                 <td
-                  className={`px-4 py-2 text-right font-mono font-semibold ${
-                    (d.vorp_total ?? 0) >= 0 ? 'text-emerald-700' : 'text-red-700'
-                  }`}
+                  style={{
+                    ...td,
+                    textAlign: 'right',
+                    fontFamily: 'var(--font-mono, monospace)',
+                    fontWeight: 600,
+                    color: (d.vorp_total ?? 0) >= 0 ? 'var(--success)' : 'var(--danger)',
+                  }}
                 >
                   {d.vorp_total !== null && d.vorp_total >= 0 ? '+' : ''}
                   {formatLei(d.vorp_total)}
                 </td>
                 <td
-                  className={`px-4 py-2 text-right font-medium ${devColor(d.weighted_avg_deviation_pct)}`}
+                  style={{
+                    ...td,
+                    textAlign: 'right',
+                    fontWeight: 600,
+                    color: devTextColor(d.weighted_avg_deviation_pct),
+                  }}
                 >
                   {formatPct(d.weighted_avg_deviation_pct)}
                 </td>
-                <td className="px-4 py-2 text-right text-slate-600">{d.total_trips}</td>
-                <td className="px-4 py-2 text-right text-slate-600">{d.n_routes}</td>
-                <td className="px-4 py-2 text-right text-slate-600 font-mono text-xs">
+                <td style={{ ...td, textAlign: 'right', color: 'var(--text-secondary)' }}>
+                  {d.total_trips}
+                </td>
+                <td style={{ ...td, textAlign: 'right', color: 'var(--text-secondary)' }}>
+                  {d.n_routes}
+                </td>
+                <td
+                  style={{
+                    ...td,
+                    textAlign: 'right',
+                    fontFamily: 'var(--font-mono, monospace)',
+                    fontSize: 11,
+                    color: 'var(--text-secondary)',
+                  }}
+                >
                   {formatLei(d.total_lei)}
                 </td>
               </tr>
@@ -161,3 +215,17 @@ export default async function VorpPage({
     </div>
   );
 }
+
+const th: React.CSSProperties = {
+  textAlign: 'left',
+  padding: '10px 12px',
+  fontSize: 10,
+  fontWeight: 600,
+  textTransform: 'uppercase',
+  color: 'var(--text-muted)',
+  letterSpacing: '0.06em',
+};
+
+const td: React.CSSProperties = {
+  padding: '10px 12px',
+};

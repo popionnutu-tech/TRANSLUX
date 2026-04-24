@@ -8,15 +8,37 @@ export function UsageBox({
   howToUse: string[];
 }) {
   return (
-    <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
-      <div className="text-sm font-semibold text-indigo-900">{title}</div>
-      <p className="text-sm text-indigo-800 mt-1.5 leading-relaxed">{what}</p>
-      <div className="mt-3">
-        <div className="text-xs font-semibold uppercase text-indigo-700 mb-1.5">Cum folosești</div>
-        <ul className="text-sm text-indigo-800 space-y-1">
+    <div
+      className="card"
+      style={{
+        padding: '16px 20px',
+        background: 'var(--primary-dim)',
+        border: '1px solid var(--border-accent)',
+        boxShadow: 'none',
+      }}
+    >
+      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--primary)' }}>{title}</div>
+      <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>{what}</p>
+      <div style={{ marginTop: 12 }}>
+        <div
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            color: 'var(--primary)',
+            marginBottom: 6,
+          }}
+        >
+          Cum folosești
+        </div>
+        <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
           {howToUse.map((item, i) => (
-            <li key={i} className="flex gap-2">
-              <span className="text-indigo-400">•</span>
+            <li
+              key={i}
+              style={{ display: 'flex', gap: 8, fontSize: 13, color: 'var(--text)', padding: '3px 0' }}
+            >
+              <span style={{ color: 'var(--primary)', fontWeight: 700 }}>·</span>
               <span>{item}</span>
             </li>
           ))}

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { getSupabase } from '@/lib/supabase';
-import { formatPct, devBgColor } from '@/lib/moneyball/format';
+import { formatPct, devBgStyle } from '@/lib/moneyball/format';
 import { QuarterSelect } from '@/components/moneyball/QuarterSelect';
 import { UsageBox } from '@/components/moneyball/UsageBox';
 
@@ -34,20 +34,21 @@ export default async function HeatmapSegmentePage({
 
   const supabase = getSupabase();
 
-  const { data: quartersData } = await supabase
-    .from('v_moneyball_segments')
-    .select('quarter')
-    .eq('crm_route_id', crmRouteId)
-    .order('quarter', { ascending: false });
+  const [{ data: quartersData }, { data: routeInfo }] = await Promise.all([
+    supabase
+      .from('v_moneyball_segments')
+      .select('quarter')
+      .eq('crm_route_id', crmRouteId)
+      .order('quarter', { ascending: false }),
+    supabase
+      .from('crm_routes')
+      .select('dest_from_ro, dest_to_ro')
+      .eq('id', crmRouteId)
+      .single(),
+  ]);
 
   const quarters = Array.from(new Set((quartersData ?? []).map((r) => r.quarter)));
   const currentQuarter = q ?? quarters[0] ?? '2026-Q2';
-
-  const { data: routeInfo } = await supabase
-    .from('crm_routes')
-    .select('dest_from_ro, dest_to_ro')
-    .eq('id', crmRouteId)
-    .single();
 
   const routeName = routeInfo
     ? `${routeInfo.dest_from_ro} → ${routeInfo.dest_to_ro}`
@@ -85,24 +86,32 @@ export default async function HeatmapSegmentePage({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-end justify-between">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-end',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 12,
+        }}
+      >
         <div>
           <Link
             href={`/analytics/moneyball/heatmap-rute?q=${currentQuarter}`}
-            className="text-xs text-slate-500 hover:text-slate-900"
+            style={{ fontSize: 11, color: 'var(--text-muted)', textDecoration: 'none' }}
           >
-            ← Înapoi la heatmap rute
+            ← Heatmap rute
           </Link>
-          <h1 className="text-2xl font-semibold text-slate-900 mt-1">
-            Heatmap segmente — {routeName}
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            {currentQuarter} · direcția {direction} · {drivers.length} șoferi ·{' '}
-            {stops.length} porțiuni
-          </p>
+          <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>
+            {routeName}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+            {currentQuarter} · direcția {direction} · {drivers.length} șoferi · {stops.length}{' '}
+            porțiuni
+          </div>
         </div>
-        <div className="flex gap-2 items-center">
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <DirectionToggle current={direction} crmRouteId={crmRouteId} quarter={currentQuarter} />
           <QuarterSelect quarters={quarters} current={currentQuarter} />
         </div>
@@ -110,46 +119,95 @@ export default async function HeatmapSegmentePage({
 
       <UsageBox
         title="Ce afișează această pagină"
-        what="Zoom-ul maxim: pentru o singură rută, cum se descurcă fiecare șofer pe fiecare porțiune (de la o stație la următoarea). Aici se văd pattern-urile ascunse — un șofer poate fi bun pe rută în general, dar să piardă consistent pasageri pe UN anumit segment."
+        what="Zoom-ul maxim: pentru o singură rută, cum se descurcă fiecare șofer pe fiecare porțiune (de la o stație la următoarea). Aici se văd pattern-urile ascunse — un șofer poate fi bun pe rută în general dar să piardă consistent pasageri pe UN segment anume."
         howToUse={[
-          'Dacă o COLOANĂ (porțiune) e roșie la toți șoferii = problema e stația aia (poate clienții o evită, poate programul nu se potrivește).',
-          'Dacă un RÂND (șofer) are o singură celulă roșie foarte vizibilă = acolo e problema lui specifică. Întreabă-l ce se întâmplă la stația aia (poate nu oprește, nu strigă destinația, ajunge cu întârziere).',
-          'Compară tur vs retur (butonul din dreapta sus) — unii șoferi sunt buni într-o direcție și slabi în alta.',
-          'Folosește asta pentru coaching individual: duci șoferul la un cafea și-i arăți exact unde subperformează. Nu ghiciți împreună, aveți date.',
+          'COLOANĂ roșie la toată lumea = problema e stația (clienții o evită / programul nu se potrivește).',
+          'RÂND cu o singură celulă foarte roșie = problema specifică a șoferului pe stația aia.',
+          'Compară tur vs retur — unii sunt buni într-o direcție și slabi în cealaltă.',
+          'Material pentru coaching: arăți șoferului exact unde subperformează. Nu ghiciți, aveți date.',
         ]}
       />
 
       {drivers.length === 0 ? (
-        <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-500">
+        <div
+          className="card"
+          style={{
+            padding: 32,
+            textAlign: 'center',
+            color: 'var(--text-muted)',
+            fontSize: 13,
+          }}
+        >
           Nu există date suficiente pentru această rută/direcție/trimestru.
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-auto">
-          <table className="text-xs">
+        <div className="card" style={{ padding: 0, overflow: 'auto' }}>
+          <table style={{ fontSize: 11, borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <th className="sticky left-0 bg-slate-50 border-b border-r border-slate-200 px-3 py-2 text-left font-medium text-slate-600 z-10">
+                <th
+                  style={{
+                    position: 'sticky',
+                    left: 0,
+                    zIndex: 2,
+                    background: 'var(--bg-elevated)',
+                    borderBottom: '1px solid var(--border)',
+                    borderRight: '1px solid var(--border)',
+                    padding: '8px 12px',
+                    textAlign: 'left',
+                    fontWeight: 600,
+                    fontSize: 10,
+                    textTransform: 'uppercase',
+                    color: 'var(--text-muted)',
+                    letterSpacing: '0.06em',
+                    minWidth: 180,
+                  }}
+                >
                   Șofer
                 </th>
                 {stops.map((s) => (
                   <th
                     key={s.order}
-                    className="border-b border-slate-200 px-2 py-2 text-center font-medium text-slate-600 whitespace-nowrap"
+                    style={{
+                      padding: '8px 4px',
+                      borderBottom: '1px solid var(--border)',
+                      textAlign: 'center',
+                      fontWeight: 600,
+                      color: 'var(--text-muted)',
+                      fontSize: 10,
+                      whiteSpace: 'nowrap',
+                      background: 'var(--bg-elevated)',
+                    }}
                     title={s.name}
                   >
-                    <div className="text-[10px] text-slate-400 font-normal">#{s.order}</div>
-                    <div className="max-w-[80px] truncate">{s.name}</div>
+                    <div style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 400 }}>
+                      #{s.order}
+                    </div>
+                    <div style={{ maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {s.name}
+                    </div>
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {drivers.map((d) => (
-                <tr key={d.id} className="hover:bg-slate-50">
-                  <td className="sticky left-0 bg-white hover:bg-slate-50 border-r border-b border-slate-100 px-3 py-1.5 whitespace-nowrap">
+                <tr key={d.id}>
+                  <td
+                    style={{
+                      position: 'sticky',
+                      left: 0,
+                      zIndex: 1,
+                      background: '#fff',
+                      borderBottom: '1px solid var(--border)',
+                      borderRight: '1px solid var(--border)',
+                      padding: '6px 12px',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
                     <Link
                       href={`/analytics/moneyball/sofer/${d.id}?q=${currentQuarter}`}
-                      className="text-slate-900 hover:underline font-medium"
+                      style={{ color: 'var(--text)', textDecoration: 'none', fontWeight: 500 }}
                     >
                       {d.name}
                     </Link>
@@ -158,13 +216,25 @@ export default async function HeatmapSegmentePage({
                     const cell = cellIndex.get(`${d.id}-${s.order}`);
                     if (!cell) {
                       return (
-                        <td key={s.order} className="border-b border-slate-100 bg-slate-50/50" />
+                        <td
+                          key={s.order}
+                          style={{
+                            borderBottom: '1px solid var(--border)',
+                            background: 'rgba(0,0,0,0.01)',
+                          }}
+                        />
                       );
                     }
                     return (
                       <td
                         key={s.order}
-                        className={`border-b border-slate-100 px-2 py-1.5 text-center ${devBgColor(cell.avg_deviation_pct)}`}
+                        style={{
+                          ...devBgStyle(cell.avg_deviation_pct),
+                          borderBottom: '1px solid var(--border)',
+                          padding: '6px 8px',
+                          textAlign: 'center',
+                          fontWeight: 600,
+                        }}
                         title={`${d.name} · ${s.name} · ${cell.n_trips} curse`}
                       >
                         {formatPct(cell.avg_deviation_pct)}
@@ -191,16 +261,13 @@ function DirectionToggle({
   quarter: string;
 }) {
   return (
-    <div className="flex bg-slate-100 rounded-lg p-0.5">
+    <div className="mode-toggle">
       {(['tur', 'retur'] as const).map((dir) => (
         <Link
           key={dir}
           href={`/analytics/moneyball/heatmap-segmente/${crmRouteId}?q=${quarter}&d=${dir}`}
-          className={`px-3 py-1 text-sm rounded ${
-            current === dir
-              ? 'bg-white text-slate-900 shadow-sm'
-              : 'text-slate-500 hover:text-slate-900'
-          }`}
+          className={current === dir ? 'mode-btn mode-btn-active' : 'mode-btn'}
+          style={{ textDecoration: 'none' }}
         >
           {dir}
         </Link>

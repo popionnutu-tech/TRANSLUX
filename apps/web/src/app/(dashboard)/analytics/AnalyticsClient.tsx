@@ -228,38 +228,18 @@ export default function AnalyticsClient({
     <div className="page">
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <h1>Analitică</h1>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <Link
-            href="/analytics/moneyball"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '7px 14px',
-              background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
-              color: '#fff',
-              borderRadius: 8,
-              fontSize: 13,
-              fontWeight: 600,
-              textDecoration: 'none',
-              boxShadow: '0 1px 3px rgba(79, 70, 229, 0.25)',
-            }}
-          >
-            ⚾ Moneyball
-          </Link>
-          <div style={{ display: 'flex', gap: 6 }}>
-            {[3, 7, 30, 90].map(d => (
-              <button
-                key={d}
-                className={`btn ${days === d ? 'btn-primary' : 'btn-outline'}`}
-                onClick={() => handlePeriodChange(d)}
-                disabled={isPending}
-                style={{ fontSize: 13, padding: '6px 14px' }}
-              >
-                {d}z
-              </button>
-            ))}
-          </div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {[3, 7, 30, 90].map(d => (
+            <button
+              key={d}
+              className={`btn ${days === d ? 'btn-primary' : 'btn-outline'}`}
+              onClick={() => handlePeriodChange(d)}
+              disabled={isPending}
+              style={{ fontSize: 13, padding: '6px 14px' }}
+            >
+              {d}z
+            </button>
+          ))}
         </div>
       </div>
 
@@ -274,6 +254,13 @@ export default function AnalyticsClient({
             {t.label}
           </button>
         ))}
+        <Link
+          href="/analytics/moneyball"
+          className="mode-btn"
+          prefetch
+        >
+          Moneyball
+        </Link>
       </div>
 
       {isPending && <div style={{ color: '#999', fontSize: 13, marginBottom: 12 }}>Se incarca...</div>}

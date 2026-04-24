@@ -10,8 +10,8 @@ const MODEL = 'claude-sonnet-4-6';
 
 type Body = {
   quarter: string;
-  mode: 'overall' | 'pair';
-  pairId?: number;
+  mode: 'overall' | 'group';
+  groupId?: number;
 };
 
 export async function POST(req: Request) {
@@ -32,7 +32,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { quarter, mode, pairId } = body;
+  const { quarter, mode, groupId } = body;
   if (!quarter || !mode) {
     return NextResponse.json({ error: 'quarter și mode sunt obligatorii' }, { status: 400 });
   }
@@ -40,25 +40,24 @@ export async function POST(req: Request) {
   const supabase = getSupabase();
 
   let data;
-  if (mode === 'pair' && pairId) {
-    const { data: pair } = await supabase
-      .from('v_moneyball_pair_recommendations')
+  if (mode === 'group' && groupId) {
+    const { data: grp } = await supabase
+      .from('v_moneyball_group_recommendations')
       .select('*')
-      .eq('pair_id', pairId)
+      .eq('group_id', groupId)
       .single();
-    data = pair;
+    data = grp;
   } else {
-    // Overall — top 10 perechi cu rotații
-    const { data: pairs } = await supabase
-      .from('v_moneyball_pair_recommendations')
+    const { data: groups } = await supabase
+      .from('v_moneyball_group_recommendations')
       .select(
-        'pair_id, route_a_name, route_b_name, status, n_overlap, est_monthly_gain_lei, current_drivers, recommended_drivers'
+        'group_id, label, group_type, shift, n_routes, required_total_drivers, status, n_overlap, est_monthly_gain_lei, current_drivers, recommended_drivers, routes'
       )
       .eq('quarter', quarter)
       .in('status', ['major_rotation', 'minor_rotation'])
       .order('est_monthly_gain_lei', { ascending: false, nullsFirst: false })
-      .limit(10);
-    data = pairs;
+      .limit(8);
+    data = groups;
   }
 
   if (!data || (Array.isArray(data) && data.length === 0)) {
@@ -66,43 +65,43 @@ export async function POST(req: Request) {
   }
 
   const systemPrompt = `Ești consultant Moneyball pentru TRANSLUX (transport interurban Moldova).
-Analizezi alocarea șoferilor pe perechi de rute.
+Analizezi alocarea șoferilor pe grupuri operaționale de rute.
 
 MODELUL DE ALOCARE:
-- 2 rute formează o pereche (ex: Criva + Lipcani)
-- 3 șoferi sunt dedicați fiecărei perechi (fiecare face ~20 zile/lună)
-- Cei 3 șoferi rotesc între cele 2 rute ale perechii
-- 60 zile-om/lună total acoperă pereche
+- Rutele sunt grupate operațional după orar și overlap stații (Briceni/Ocnița/Edineț)
+- Tipuri grupuri: day-trip (5 rute, 7 șoferi = 5 bază + 2 rezervă), pereche (2 rute, 3 șoferi), triplet (3 rute, 5 șoferi), singleton (1 rută, 2 șoferi)
+- Fiecare șofer face ~20 zile/lună
+- Șoferii din grup rotesc între rutele grupului
 
 CE ANALIZEZI:
-- Cine conduce acum pe pereche (echipa actuală de 3)
-- Cine ar trebui să conducă (echipa recomandată de 3, după scor combinat)
-- Diferența = rotații de făcut
+- Echipa actuală (cine conduce cel mai des pe rutele grupului)
+- Echipa recomandată (cei mai buni vânzători pentru grupul respectiv)
+- Rotații = diferențe între cele 2 echipe
 
-SCRII ÎN ROMÂNĂ, BUSINESS, CONCIS. Text curgător, nu tabel. Fără procente dacă nu sunt esențiale — descrii cu cuvinte.`;
+SCRII ÎN ROMÂNĂ, BUSINESS, CONCIS. Text curgător (nu bullet-uri decât dacă ceri). Fără procente dacă nu sunt esențiale — folosește cuvinte ("vinde sub normă", "excelent").`;
 
   let userPrompt = '';
   if (mode === 'overall') {
-    userPrompt = `Top rotații pe perechi de rute pentru ${quarter}:
+    userPrompt = `Grupuri cu rotații recomandate pentru ${quarter}:
 ${JSON.stringify(data, null, 2)}
 
-Scrie în ~200 cuvinte:
+Scrie un mini-raport strategic în ~200 cuvinte care include:
 
-1. **Top 3 perechi cu impact maxim** — pentru fiecare: cele 2 rute, schimbarea esențială (cine iese, cine intră), și impactul lunar estimat.
+1. **Top 3 grupuri cu impact maxim** — pentru fiecare: ce grup, ce schimbare concretă (nume în nume), impact lunar.
 
-2. **Pattern-uri detectate** — sunt șoferi care apar în echipe recomandate pe mai multe perechi (talent rar, nu-i muta peste tot)? Sunt șoferi care nu apar în nicio echipă recomandată (posibile probleme)?
+2. **Pattern-uri detectate** — șoferi care apar în echipele recomandate pe mai multe grupuri (talent rar de distribuit atent), sau care nu apar nicăieri (posibile probleme).
 
-3. **Ordine de implementare** — care pereche să o schimbi prima, a doua, a treia. De ce.
+3. **Ordine de implementare** — cu ce să începi, de ce. Ia în calcul: tipurile de grup (day-trip / pereche / triplet), câți șoferi trebuie schimbați per grup, efectul asupra program-ului operațional.
 
-Nume concrete. Evită generalitățile.`;
+Nume concrete. Fără generalități.`;
   } else {
-    userPrompt = `Pereche specifică pentru ${quarter}:
+    userPrompt = `Grup specific pentru ${quarter}:
 ${JSON.stringify(data, null, 2)}
 
-Scrie în ~130 cuvinte:
-1. Cine e echipa actuală, cât de bine lucrează global.
-2. Ce schimbări propune algoritmul și de ce (cine iese, cine intră).
-3. O recomandare concretă de acțiune: rotează acum / așteaptă / monitorizează.
+Scrie în ~150 cuvinte:
+1. Ce face acest grup (tipul, câte rute, câți șoferi necesari), cât de bine lucrează echipa actuală.
+2. Ce schimbări propune algoritmul — cine iese, cine intră, cine rămâne.
+3. Recomandare concretă: rotește acum / așteaptă date / monitorizează.
 
 Nume concrete. Dacă echipa e deja optimă, spune clar să nu atingă.`;
   }
@@ -112,7 +111,7 @@ Nume concrete. Dacă echipa e deja optimă, spune clar să nu atingă.`;
   try {
     const message = await anthropic.messages.create({
       model: MODEL,
-      max_tokens: 700,
+      max_tokens: 800,
       system: systemPrompt,
       messages: [{ role: 'user', content: userPrompt }],
     });

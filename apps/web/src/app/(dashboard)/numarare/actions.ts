@@ -821,23 +821,68 @@ export async function saveSuburbanCycle(
     if (error) return { error: error.message };
   }
 
-  // Reîntregim totalul sesiunii (sumă pe toate ciclurile din sesiune)
-  const { data: allEntries } = await sb
-    .from('counting_entries')
-    .select('direction, total_passengers, km_from_start, stop_order, schedule_id, cycle_number')
-    .eq('session_id', sessionId);
-  // Total simplificat — se calculează client-side. Aici doar marcăm ciclul salvat.
-  const tur_total_lei = (allEntries || [])
-    .filter((e: any) => e.direction === 'tur').length > 0 ? totalLei : null;
-  const retur_total_lei = (allEntries || [])
-    .filter((e: any) => e.direction === 'retur').length > 0 ? totalLei : null;
+  // Auto-detect finalize: dacă toate schedule-urile planificate pentru ziua
+  // sesiunii au cel puțin o linie salvată, status devine 'completed'.
+  // Altfel rămâne 'tur_done' (interfața arată „Tur gata" și permite continuarea).
+  const { data: sessionRow } = await sb
+    .from('counting_sessions')
+    .select('assignment_date, crm_route_id')
+    .eq('id', sessionId)
+    .single();
 
-  // Update status doar (totalul se recalculează din entries când ai timp)
+  let newStatus: 'tur_done' | 'completed' = 'tur_done';
+  if (sessionRow) {
+    const jsDay = new Date(sessionRow.assignment_date as string).getDay();
+    const isoDay = jsDay === 0 ? 7 : jsDay;
+
+    const { data: expectedRows } = await sb
+      .from('crm_route_schedules')
+      .select('id')
+      .eq('route_id', sessionRow.crm_route_id)
+      .eq('active', true)
+      .contains('days_of_week', [isoDay]);
+    const expected = new Set<number>((expectedRows || []).map((r: any) => r.id));
+
+    const { data: savedRows } = await sb
+      .from('counting_entries')
+      .select('schedule_id')
+      .eq('session_id', sessionId)
+      .not('schedule_id', 'is', null);
+    const saved = new Set<number>((savedRows || []).map((r: any) => r.schedule_id));
+
+    if (expected.size > 0) {
+      let allCovered = true;
+      for (const id of expected) if (!saved.has(id)) { allCovered = false; break; }
+      if (allCovered) newStatus = 'completed';
+    }
+  }
+
   await sb.from('counting_sessions').update({
-    status: direction === 'retur' ? 'completed' : 'tur_done',
+    status: newStatus,
     locked_by: null,
     locked_at: null,
   }).eq('id', sessionId);
+
+  revalidatePath('/numarare');
+  return {};
+}
+
+/**
+ * Finalizare manuală a unei sesiuni suburbane.
+ * Utilă când operatorul nu va completa toate cursele planificate (autobuz defect,
+ * rută anulată etc.) și vrea să închidă sesiunea cu datele existente.
+ */
+export async function finalizeSuburbanSession(
+  sessionId: string,
+): Promise<{ error?: string }> {
+  try { requireRole(await verifySession(), ...NUMARARE_ROLES); } catch { return { error: 'Acces interzis' }; }
+  const sb = getSupabase();
+
+  const { error } = await sb
+    .from('counting_sessions')
+    .update({ status: 'completed', locked_by: null, locked_at: null })
+    .eq('id', sessionId);
+  if (error) return { error: error.message };
 
   revalidatePath('/numarare');
   return {};

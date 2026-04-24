@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { getSuburbanSchedule, saveSuburbanCycle, loadSuburbanEntries, type SuburbanSchedule, type TariffConfig, type DriverOption, type VehicleOption } from './actions';
+import { getSuburbanSchedule, saveSuburbanCycle, loadSuburbanEntries, finalizeSuburbanSession, type SuburbanSchedule, type TariffConfig, type DriverOption, type VehicleOption } from './actions';
 import { saveSuburbanAuditCycle, loadSuburbanAuditEntries } from './auditActions';
 
 interface Props {
@@ -334,6 +334,41 @@ export default function SuburbanCountingForm({
       {tur.length === 0 && retur.length === 0 && (
         <p className="text-muted">Nu sunt curse pentru ziua selectată.</p>
       )}
+
+      {mode === 'normal' && (tur.length + retur.length) > 0 && (() => {
+        const expected = tur.length + retur.length;
+        const saved = savedIds.size;
+        const allSaved = saved >= expected;
+        const handleFinalize = async () => {
+          if (!allSaved) {
+            const missing = expected - saved;
+            if (!confirm(`Mai sunt ${missing} ${missing === 1 ? 'cursă nesalvată' : 'curse nesalvate'}. Finalizezi ruta oricum?`)) return;
+          }
+          const { error } = await finalizeSuburbanSession(sessionId);
+          if (error) {
+            alert('Eroare la finalizare: ' + error);
+            return;
+          }
+          onSaved('retur');
+        };
+        return (
+          <div className="card" style={{ padding: 12, marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+            <div style={{ fontSize: 13, color: allSaved ? 'var(--success, #0a7)' : '#555' }}>
+              {allSaved
+                ? `✓ Toate cursele salvate (${saved}/${expected}) — ruta a fost deja marcată Finalizat.`
+                : `${saved}/${expected} curse salvate.`}
+            </div>
+            <button
+              className="btn btn-primary"
+              onClick={handleFinalize}
+              disabled={saved === 0}
+              title={saved === 0 ? 'Salvează cel puțin o cursă întâi' : ''}
+            >
+              Finalizează ruta
+            </button>
+          </div>
+        );
+      })()}
     </div>
   );
 }

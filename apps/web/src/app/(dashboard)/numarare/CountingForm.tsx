@@ -17,6 +17,7 @@ interface Props {
   onSaved: (direction: 'tur' | 'retur') => void;
   canSeeSums: boolean;
   mode?: 'normal' | 'audit';
+  viewOnly?: boolean;
 }
 
 interface EntryState {
@@ -28,7 +29,7 @@ interface EntryState {
 
 export default function CountingForm({
   sessionId, crmRouteId, stops, tariff, sessionStatus, savedTur, savedRetur, onSaved, canSeeSums,
-  mode = 'normal',
+  mode = 'normal', viewOnly = false,
 }: Props) {
   const [returStops, setReturStops] = useState<RouteStop[]>([]);
   const [turEntries, setTurEntries] = useState<Record<number, EntryState>>({});
@@ -49,8 +50,8 @@ export default function CountingForm({
   const shortRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const alightedRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  const turReadOnly = sessionStatus === 'tur_done' || sessionStatus === 'completed';
-  const returReadOnly = sessionStatus === 'completed';
+  const turReadOnly = viewOnly || sessionStatus === 'tur_done' || sessionStatus === 'completed';
+  const returReadOnly = viewOnly || sessionStatus === 'completed';
 
   // Загрузка остановок Retur
   useEffect(() => {

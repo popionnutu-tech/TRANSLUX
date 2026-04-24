@@ -7,6 +7,7 @@ const items = [
   { href: '/analytics/moneyball/clasament', label: 'Clasament' },
   { href: '/analytics/moneyball/heatmap-rute', label: 'Heatmap rute' },
   { href: '/analytics/moneyball/vorp', label: 'Driver Value' },
+  { href: '/analytics/moneyball/recomandari', label: 'Recomandări AI' },
 ];
 
 export function MoneyballNav() {

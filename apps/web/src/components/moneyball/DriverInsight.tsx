@@ -37,37 +37,56 @@ export function DriverInsight({
   }
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5">
-      <div className="flex items-start justify-between mb-3">
+    <div className="card" style={{ padding: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
         <div>
-          <h2 className="font-semibold text-slate-900">Insight generat de Claude</h2>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
+            Insight generat de Claude
+          </div>
+          <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>
             Analiză în limbaj natural pe baza datelor de mai jos
           </p>
         </div>
         <button
+          className={loading ? 'btn btn-outline' : 'btn btn-primary'}
           onClick={generate}
           disabled={loading}
-          className="px-3 py-1.5 bg-slate-900 text-white text-sm rounded-lg hover:bg-slate-800 disabled:opacity-50 transition"
+          style={{ fontSize: 13, padding: '6px 14px' }}
         >
           {loading ? 'Se generează...' : insight ? 'Regenerează' : 'Generează'}
         </button>
       </div>
 
       {error && (
-        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+        <div
+          style={{
+            fontSize: 13,
+            color: 'var(--danger)',
+            background: 'var(--danger-dim)',
+            border: '1px solid rgba(185,28,28,0.15)',
+            borderRadius: 'var(--radius-xs)',
+            padding: '8px 12px',
+          }}
+        >
           {error}
         </div>
       )}
 
       {insight && (
-        <div className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+        <div
+          style={{
+            fontSize: 14,
+            color: 'var(--text)',
+            lineHeight: 1.6,
+            whiteSpace: 'pre-wrap',
+          }}
+        >
           {insight}
         </div>
       )}
 
       {!insight && !error && !loading && (
-        <p className="text-sm text-slate-400 italic">
+        <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic' }}>
           Apasă „Generează" pentru o analiză a acestui șofer. Cost per apel: ~$0.01.
         </p>
       )}

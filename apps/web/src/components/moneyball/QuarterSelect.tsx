@@ -23,7 +23,15 @@ export function QuarterSelect({
     <select
       value={current}
       onChange={onChange}
-      className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      style={{
+        padding: '6px 12px',
+        background: '#fff',
+        border: '1px solid var(--border-accent)',
+        borderRadius: 'var(--radius-xs)',
+        fontSize: 13,
+        color: 'var(--text)',
+        cursor: 'pointer',
+      }}
     >
       {quarters.map((q) => (
         <option key={q} value={q}>

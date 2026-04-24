@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { getSupabase } from '@/lib/supabase';
-import { formatLei, formatPct, devColor } from '@/lib/moneyball/format';
+import { formatLei, formatPct, devTextColor } from '@/lib/moneyball/format';
 import { QuarterSelect } from '@/components/moneyball/QuarterSelect';
 import { UsageBox } from '@/components/moneyball/UsageBox';
 
@@ -48,34 +48,41 @@ export default async function ClasamentPage({
   const bottom = rows.slice(-10).reverse();
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-end justify-between">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-end',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 12,
+        }}
+      >
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">
-            Clasament șoferi — {currentQuarter}
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Deviație procentuală față de normă · minim {MIN_TRIPS} curse pe rută ·{' '}
-            {rows.length} combinații șofer × rută
-          </p>
+          <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)' }}>
+            Clasament — {currentQuarter}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+            Deviație față de normă · minim {MIN_TRIPS} curse · {rows.length} combinații
+          </div>
         </div>
         <QuarterSelect quarters={quarters} current={currentQuarter} />
       </div>
 
       <UsageBox
         title="Ce afișează această pagină"
-        what="Clasamentul Moneyball al combinațiilor șofer × rută pe trimestrul ales. Nu arată cifre brute de încasare (care depind de ruta pe care merge șoferul), ci deviația procentuală față de norma contextului — adică cât de bine vinde fiecare șofer comparat cu norma pe aceeași rută, aceeași zi-tip, aceeași capacitate mașină."
+        what="Clasamentul Moneyball al combinațiilor șofer × rută pe trimestrul ales. Nu arată cifre brute de încasare (care depind de ruta pe care merge șoferul), ci deviația procentuală față de norma contextului — cât de bine vinde fiecare șofer comparat cu norma pe aceeași rută, aceeași zi-tip, aceeași capacitate mașină."
         howToUse={[
           'Top 10 = șoferi de păstrat, promovat, dat bonus. Sunt vânzătorii reali.',
-          'Bottom 10 = șoferi cu care ai o discuție. Nu neapărat să-i concediezi — poate doar să-i muți pe alte rute (vezi heatmap-ul).',
+          'Bottom 10 = șoferi cu care ai o discuție. Nu neapărat concediere — poate doar mutare pe alte rute (vezi heatmap-ul).',
           'Dacă un șofer apare atât în Top cât și în Bottom pe rute diferite = Moneyball clasic. Rotește-l pe ruta unde e bun.',
-          'Click pe numele șoferului pentru fișa detaliată. Schimbă trimestrul din dreapta sus pentru comparații în timp.',
+          'Click pe numele șoferului pentru fișa detaliată. Schimbă trimestrul din dreapta sus.',
         ]}
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <RankingTable title="Top 10 vânzători" accent="emerald" rows={top} />
-        <RankingTable title="Bottom 10 vânzători" accent="red" rows={bottom} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: 16 }}>
+        <RankingTable title="Top 10 vânzători" tone="pos" rows={top} />
+        <RankingTable title="Bottom 10 vânzători" tone="neg" rows={bottom} />
       </div>
     </div>
   );
@@ -83,52 +90,64 @@ export default async function ClasamentPage({
 
 function RankingTable({
   title,
-  accent,
+  tone,
   rows,
 }: {
   title: string;
-  accent: 'emerald' | 'red';
+  tone: 'pos' | 'neg';
   rows: RankingRow[];
 }) {
-  const borderClass = accent === 'emerald' ? 'border-emerald-200' : 'border-red-200';
-  const headerClass = accent === 'emerald' ? 'bg-emerald-50' : 'bg-red-50';
+  const headerBg = tone === 'pos' ? 'var(--success-dim)' : 'var(--danger-dim)';
+  const headerColor = tone === 'pos' ? 'var(--success)' : 'var(--danger)';
 
   return (
-    <div className={`bg-white rounded-xl border ${borderClass} overflow-hidden`}>
-      <div className={`px-5 py-3 ${headerClass} border-b ${borderClass}`}>
-        <h2 className="font-semibold text-slate-900">{title}</h2>
+    <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+      <div
+        style={{
+          padding: '12px 16px',
+          background: headerBg,
+          borderBottom: '1px solid var(--border-accent)',
+          fontWeight: 600,
+          fontSize: 14,
+          color: headerColor,
+        }}
+      >
+        {title}
       </div>
-      <table className="w-full text-sm">
-        <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-          <tr>
-            <th className="text-left px-4 py-2 font-medium">Șofer</th>
-            <th className="text-left px-4 py-2 font-medium">Ruta</th>
-            <th className="text-right px-4 py-2 font-medium">Dev</th>
-            <th className="text-right px-4 py-2 font-medium">Curse</th>
-            <th className="text-right px-4 py-2 font-medium">VORP</th>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+        <thead>
+          <tr style={{ background: 'var(--bg-elevated)' }}>
+            <th style={th}>Șofer</th>
+            <th style={th}>Ruta</th>
+            <th style={{ ...th, textAlign: 'right' }}>Dev</th>
+            <th style={{ ...th, textAlign: 'right' }}>Curse</th>
+            <th style={{ ...th, textAlign: 'right' }}>VORP</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">
+        <tbody>
           {rows.map((r) => (
-            <tr key={`${r.driver_id}-${r.crm_route_id}`} className="hover:bg-slate-50">
-              <td className="px-4 py-2">
+            <tr
+              key={`${r.driver_id}-${r.crm_route_id}`}
+              style={{ borderTop: '1px solid var(--border)' }}
+            >
+              <td style={td}>
                 <Link
                   href={`/analytics/moneyball/sofer/${r.driver_id}?q=${r.quarter}`}
-                  className="text-slate-900 hover:underline"
+                  style={{ color: 'var(--text)', textDecoration: 'none' }}
                 >
                   {r.driver_name ?? '—'}
                 </Link>
               </td>
-              <td className="px-4 py-2 text-slate-600 text-xs max-w-xs truncate">
+              <td style={{ ...td, color: 'var(--text-secondary)', fontSize: 11, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {r.route_name ?? '—'}
               </td>
-              <td
-                className={`px-4 py-2 text-right font-medium ${devColor(r.avg_deviation_pct)}`}
-              >
+              <td style={{ ...td, textAlign: 'right', fontWeight: 600, color: devTextColor(r.avg_deviation_pct) }}>
                 {formatPct(r.avg_deviation_pct)}
               </td>
-              <td className="px-4 py-2 text-right text-slate-600">{r.n_trips}</td>
-              <td className="px-4 py-2 text-right text-slate-700 font-mono text-xs">
+              <td style={{ ...td, textAlign: 'right', color: 'var(--text-secondary)' }}>
+                {r.n_trips}
+              </td>
+              <td style={{ ...td, textAlign: 'right', fontFamily: 'var(--font-mono, monospace)', fontSize: 11, color: 'var(--text)' }}>
                 {r.vorp_lei !== null ? formatLei(r.vorp_lei) : '—'}
               </td>
             </tr>
@@ -138,3 +157,17 @@ function RankingTable({
     </div>
   );
 }
+
+const th: React.CSSProperties = {
+  textAlign: 'left',
+  padding: '8px 12px',
+  fontSize: 10,
+  fontWeight: 600,
+  textTransform: 'uppercase',
+  color: 'var(--text-muted)',
+  letterSpacing: '0.06em',
+};
+
+const td: React.CSSProperties = {
+  padding: '8px 12px',
+};

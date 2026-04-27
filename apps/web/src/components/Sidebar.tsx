@@ -161,7 +161,7 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
 
   const filteredNav = role === 'ADMIN' ? nav
     : role === 'GRAFIC' || role === 'DISPATCHER' ? nav.filter(n => n.href === '/grafic' && n.label === 'Grafic')
-    : role === 'OPERATOR_CAMERE' || role === 'ADMIN_CAMERE' ? nav.filter(n => n.href === '/numarare')
+    : role === 'OPERATOR_CAMERE' || role === 'ADMIN_CAMERE' || role === 'EVALUATOR_INCASARI' ? nav.filter(n => n.href === '/numarare')
     : nav;
 
   const showNomenclator = role === 'ADMIN' || role === 'DISPATCHER';

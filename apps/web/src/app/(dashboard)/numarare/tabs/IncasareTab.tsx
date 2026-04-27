@@ -203,7 +203,7 @@ export default function IncasareTab({ role }: Props) {
         <div>
           <span className="text-muted">Δ:</span>{' '}
           <strong style={{ color: totalDiff < 0 ? 'var(--danger)' : totalDiff > 0 ? 'var(--warning)' : 'var(--success)' }}>
-            {totalDiff >= 0 ? '+' : ''}{Math.round(totalDiff)} lei
+            {totalDiff > 0 ? '+' : ''}{Math.round(totalDiff)} lei
           </strong>
         </div>
         <div className="text-muted" style={{ fontSize: 12 }}>Șoferi: {rows.length}</div>

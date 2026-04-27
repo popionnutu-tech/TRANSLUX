@@ -10,7 +10,7 @@ import IncasareTab from './tabs/IncasareTab';
 
 type Tab = 'numarare' | 'incasare' | 'operatori' | 'salariu' | 'tarife';
 
-const ADMIN_TABS: { key: Tab; label: string }[] = [
+const ALL_TABS: { key: Tab; label: string }[] = [
   { key: 'numarare', label: 'Numărare' },
   { key: 'incasare', label: 'Încasare' },
   { key: 'operatori', label: 'Operatori' },
@@ -19,9 +19,28 @@ const ADMIN_TABS: { key: Tab; label: string }[] = [
 ];
 
 export default function NumararePageClient({ role }: { role: AdminRole }) {
-  const [activeTab, setActiveTab] = useState<Tab>('numarare');
+  // Vizibilitatea tab-urilor pe rol:
+  // - ADMIN              → toate tab-urile
+  // - ADMIN_CAMERE       → toate EXCEPT 'incasare' (mutat sub EVALUATOR_INCASARI)
+  // - EVALUATOR_INCASARI → DOAR 'incasare'
+  // - alți utilizatori   → fără tab-uri (NumarareClient direct)
+  const isAdmin = role === 'ADMIN';
+  const isAdminCamere = role === 'ADMIN_CAMERE';
+  const isEvaluator = role === 'EVALUATOR_INCASARI';
 
-  const showTabs = role === 'ADMIN_CAMERE' || role === 'ADMIN';
+  const visibleTabs: Tab[] = isAdmin
+    ? ['numarare', 'incasare', 'operatori', 'salariu', 'tarife']
+    : isAdminCamere
+    ? ['numarare', 'operatori', 'salariu', 'tarife']
+    : isEvaluator
+    ? ['incasare']
+    : [];
+
+  const tabs = ALL_TABS.filter(t => visibleTabs.includes(t.key));
+  const defaultTab: Tab = isEvaluator ? 'incasare' : 'numarare';
+  const [activeTab, setActiveTab] = useState<Tab>(defaultTab);
+
+  const showTabs = visibleTabs.length > 1;
 
   return (
     <div className="page">
@@ -33,7 +52,7 @@ export default function NumararePageClient({ role }: { role: AdminRole }) {
           borderBottom: '1px solid rgba(155,27,48,0.1)',
           paddingBottom: 0,
         }}>
-          {ADMIN_TABS.map(tab => (
+          {tabs.map(tab => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
@@ -58,11 +77,11 @@ export default function NumararePageClient({ role }: { role: AdminRole }) {
         </div>
       )}
 
-      {activeTab === 'numarare' && <NumarareClient role={role} />}
-      {activeTab === 'incasare' && <IncasareTab />}
-      {activeTab === 'operatori' && <OperatorsTab />}
-      {activeTab === 'salariu' && <SalaryTab />}
-      {activeTab === 'tarife' && <TariffsTab />}
+      {activeTab === 'numarare' && visibleTabs.includes('numarare') && <NumarareClient role={role} />}
+      {activeTab === 'incasare' && visibleTabs.includes('incasare') && <IncasareTab role={role} />}
+      {activeTab === 'operatori' && visibleTabs.includes('operatori') && <OperatorsTab />}
+      {activeTab === 'salariu' && visibleTabs.includes('salariu') && <SalaryTab />}
+      {activeTab === 'tarife' && visibleTabs.includes('tarife') && <TariffsTab />}
     </div>
   );
 }

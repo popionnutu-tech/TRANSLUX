@@ -21,6 +21,7 @@ const ROLE_LABELS: Record<string, string> = {
   GRAFIC: 'Grafic',
   OPERATOR_CAMERE: 'Operator camere',
   ADMIN_CAMERE: 'Admin camere',
+  EVALUATOR_INCASARI: 'Evaluator încasări',
 };
 
 export default function UsersClient({

@@ -34,7 +34,7 @@ export default function NumararePageClient({ role }: { role: AdminRole }) {
     ? ['numarare', 'operatori', 'salariu', 'tarife']
     : isEvaluator
     ? ['incasare']
-    : [];
+    : ['numarare'];  // OPERATOR_CAMERE și alte roluri văd doar Numărare (fără tab-uri)
 
   const tabs = ALL_TABS.filter(t => visibleTabs.includes(t.key));
   const defaultTab: Tab = isEvaluator ? 'incasare' : 'numarare';

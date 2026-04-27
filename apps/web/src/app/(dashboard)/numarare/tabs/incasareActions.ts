@@ -21,6 +21,7 @@ export interface IncasareRow {
   lgotniki_count: number;
   lgotniki_suma: number;
   dop_rashodi: number;
+  comment: string | null;
   diff: number;
   status: IncasareStatus;
 }

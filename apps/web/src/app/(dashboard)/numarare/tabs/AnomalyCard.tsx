@@ -38,9 +38,9 @@ export default function AnomalyCard({ anomaly, canEdit, onAssignClick, onIgnoreC
             gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
             gap: 6, fontSize: 12, marginTop: 6,
           }}>
-            <div><span className="text-muted">Numerar:</span> <strong>{Math.round(b.numerar)} lei</strong></div>
-            <div><span className="text-muted">Card:</span> <strong>{Math.round(b.card)} lei</strong></div>
-            <div><span className="text-muted">Lgotnici:</span> <strong>{b.lgotnici_count} ({Math.round(b.lgotnici_suma)} lei)</strong></div>
+            <div><span className="text-muted">Încasare:</span> <strong>{Math.round(b.numerar)} lei</strong></div>
+            <div><span className="text-muted">Lgotnici 0:</span> <strong>{Math.round(b.lgotnici_count)} lei</strong></div>
+            <div><span className="text-muted">Diagrama:</span> <strong>{Math.round(b.lgotnici_suma)} lei</strong></div>
             <div><span className="text-muted">Dop. rashodi:</span> <strong>{Math.round(b.dop_rashodi)} lei</strong></div>
             {b.fiscal_nr && <div><span className="text-muted">Fiscal:</span> <span style={{ fontFamily: 'var(--font-mono)' }}>{b.fiscal_nr}</span></div>}
             {b.comment && <div style={{ gridColumn: '1 / -1' }}><span className="text-muted">Comentariu:</span> <em>{b.comment}</em></div>}

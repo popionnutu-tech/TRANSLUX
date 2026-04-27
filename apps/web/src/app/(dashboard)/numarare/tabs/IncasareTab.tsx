@@ -235,7 +235,14 @@ export default function IncasareTab({ role }: Props) {
                 const meta = STATUS_META[r.status];
                 return (
                   <tr key={r.driver_id || r.driver_name}>
-                    <td style={{ fontWeight: 600 }}>{r.driver_name || '—'}</td>
+                    <td style={{ fontWeight: 600 }}>
+                      {r.driver_name || '—'}
+                      {r.comment && (
+                        <div style={{ fontSize: 11, fontWeight: 400, fontStyle: 'italic', color: 'var(--text-muted)', marginTop: 2 }}>
+                          {r.comment}
+                        </div>
+                      )}
+                    </td>
                     <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
                       {r.numarare_lei ? `${Math.round(r.numarare_lei)} lei` : <span className="text-muted">—</span>}
                     </td>

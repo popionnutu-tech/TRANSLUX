@@ -6,6 +6,7 @@ const DISPATCHER_ALLOWED = ['/grafic', '/drivers', '/vehicles'];
 const GRAFIC_ALLOWED = ['/grafic'];
 const OPERATOR_CAMERE_ALLOWED = ['/numarare'];
 const ADMIN_CAMERE_ALLOWED = ['/numarare'];
+const EVALUATOR_INCASARI_ALLOWED = ['/numarare'];
 const PUBLIC_PREFIXES = ['/login', '/api/', '/ro', '/ru'];
 
 export async function middleware(request: NextRequest) {
@@ -70,6 +71,14 @@ export async function middleware(request: NextRequest) {
     // Admin camere can only access /numarare
     if (role === 'ADMIN_CAMERE') {
       const allowed = ADMIN_CAMERE_ALLOWED.some(r => pathname === r || pathname.startsWith(r + '/'));
+      if (!allowed) {
+        return NextResponse.redirect(new URL('/numarare', request.url));
+      }
+    }
+
+    // Evaluator incasari can only access /numarare (sees just the Incasare tab)
+    if (role === 'EVALUATOR_INCASARI') {
+      const allowed = EVALUATOR_INCASARI_ALLOWED.some(r => pathname === r || pathname.startsWith(r + '/'));
       if (!allowed) {
         return NextResponse.redirect(new URL('/numarare', request.url));
       }

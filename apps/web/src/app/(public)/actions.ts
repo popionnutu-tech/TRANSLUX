@@ -23,6 +23,7 @@ export interface TripResult {
   vehicle_plate: string | null;
   price: number;
   originalPrice: number | null; // non-null when an offer applies (show crossed out)
+  isAwaitingDriver?: boolean; // true when departure is >7 days out and no driver assigned yet
 }
 
 export interface ActiveOffer {
@@ -226,6 +227,16 @@ export async function searchTrips(
 
   const assignmentDate = await resolveAssignmentDate(supabase, date);
 
+  // Compute days between today and the requested date (Europe/Chișinău).
+  // Used to decide whether routes without an assigned driver should appear
+  // as a "driver coming soon" placeholder (>7 days) or be hidden (today / 1–7 days).
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
+  const todayMs = Date.parse(todayStr + 'T00:00:00Z');
+  const targetMs = Date.parse(date + 'T00:00:00Z');
+  const daysUntilDeparture = (Number.isNaN(todayMs) || Number.isNaN(targetMs))
+    ? 0
+    : Math.round((targetMs - todayMs) / 86_400_000);
+
   // Query 1+2: Get from/to stops in parallel
   const [{ data: fromStops }, { data: toStops }] = await Promise.all([
     supabase
@@ -370,16 +381,35 @@ export async function searchTrips(
       const arrival = to.hour_from_chisinau && to.hour_from_chisinau !== '0:00' ? to.hour_from_chisinau : '';
       if (time && time !== '0:00') {
         const details = resolveDetails(returDriverMap.get(route.id));
-        // Only show routes with an assigned driver and phone number
-        if (!details?.driver || !details?.phone) continue;
+        const hasDriver = !!(details?.driver && details?.phone);
+        if (!hasDriver) {
+          // For departures more than 7 days out, show route with a "driver coming soon" placeholder.
+          // For today (0) or near-future (1–7), keep current behaviour: hide the route.
+          if (daysUntilDeparture > 7) {
+            results.push({
+              time,
+              arrivalTime: arrival,
+              destination_ro: route.dest_to_ro,
+              destination_ru: route.dest_to_ru,
+              duration: route.time_chisinau || '',
+              driver: null,
+              phone: null,
+              vehicle_plate: null,
+              price: 0,
+              originalPrice: null,
+              isAwaitingDriver: true,
+            });
+          }
+          continue;
+        }
         results.push({
           time,
           arrivalTime: arrival,
           destination_ro: route.dest_to_ro,
           destination_ru: route.dest_to_ru,
           duration: route.time_chisinau || '',
-          driver: details.driver,
-          phone: details.phone,
+          driver: details!.driver,
+          phone: details!.phone,
           vehicle_plate: details?.plate || null,
           price: displayPrice,
           originalPrice: displayOriginal,
@@ -391,16 +421,33 @@ export async function searchTrips(
       const arrival = to.hour_from_nord && to.hour_from_nord !== '0:00' ? to.hour_from_nord : '';
       if (time && time !== '0:00') {
         const details = resolveDetails(turDriverMap.get(route.id));
-        // Only show routes with an assigned driver and phone number
-        if (!details?.driver || !details?.phone) continue;
+        const hasDriver = !!(details?.driver && details?.phone);
+        if (!hasDriver) {
+          if (daysUntilDeparture > 7) {
+            results.push({
+              time,
+              arrivalTime: arrival,
+              destination_ro: route.dest_from_ro,
+              destination_ru: route.dest_from_ru,
+              duration: route.time_nord || '',
+              driver: null,
+              phone: null,
+              vehicle_plate: null,
+              price: 0,
+              originalPrice: null,
+              isAwaitingDriver: true,
+            });
+          }
+          continue;
+        }
         results.push({
           time,
           arrivalTime: arrival,
           destination_ro: route.dest_from_ro,
           destination_ru: route.dest_from_ru,
           duration: route.time_nord || '',
-          driver: details.driver,
-          phone: details.phone,
+          driver: details!.driver,
+          phone: details!.phone,
           vehicle_plate: details?.plate || null,
           price: displayPrice,
           originalPrice: displayOriginal,

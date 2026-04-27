@@ -183,11 +183,20 @@ export function RouteResults({ from, to, trips, selectedTime, locale = "ro", onC
                   )}
                 </div>
 
-                {/* Driver + plate */}
+                {/* Driver + plate, or "driver coming soon" placeholder for far-future dates */}
                 <div style={{
                   flex: 1, minWidth: 0,
                 }}>
-                  {trip.driver ? (
+                  {trip.isAwaitingDriver ? (
+                    <div style={{
+                      fontSize: 12, color: "#888", fontStyle: "italic",
+                      lineHeight: 1.3,
+                    }}>
+                      {locale === "ru"
+                        ? "Данные водителя будут доступны ближе к дате отправления"
+                        : "Datele șoferului vor fi disponibile mai aproape de data plecării"}
+                    </div>
+                  ) : trip.driver ? (
                     <>
                       <div style={{
                         fontSize: 13, fontWeight: 500, color: "#333",

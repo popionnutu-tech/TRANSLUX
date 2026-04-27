@@ -71,10 +71,10 @@ export default function IncasareTab({ role }: Props) {
   const totalNumarare = rows.reduce((s, r) => s + r.numarare_lei, 0);
   const totalIncasare = rows.reduce((s, r) => s + r.incasare_lei, 0);
   const totalPlati    = rows.reduce((s, r) => s + (r.plati || 0), 0);
-  const totalLgotnici = rows.reduce((s, r) => s + (r.lgotniki_count || 0), 0);
-  const totalLgotniciSuma = rows.reduce((s, r) => s + (r.lgotniki_suma || 0), 0);
-  const totalRashodi  = rows.reduce((s, r) => s + (r.dop_rashodi || 0), 0);
-  const totalDiff     = totalIncasare - totalNumarare;
+  const totalLgotnici0 = rows.reduce((s, r) => s + (r.lgotniki_count || 0), 0);
+  const totalDiagrama  = rows.reduce((s, r) => s + (r.lgotniki_suma || 0), 0);
+  const totalRashodi   = rows.reduce((s, r) => s + (r.dop_rashodi || 0), 0);
+  const totalDiff      = totalIncasare - totalNumarare;
 
   async function handleAssign(driverId: string, note: string | null) {
     if (!assignTarget) return;
@@ -195,7 +195,8 @@ export default function IncasareTab({ role }: Props) {
         <div><span className="text-muted">Numărare:</span> <strong>{Math.round(totalNumarare)} lei</strong></div>
         <div><span className="text-muted">Încasare:</span> <strong>{Math.round(totalIncasare)} lei</strong></div>
         <div><span className="text-muted">Plăți:</span> <strong>{totalPlati}</strong></div>
-        <div><span className="text-muted">Lgotnici:</span> <strong>{totalLgotnici} ({Math.round(totalLgotniciSuma)} lei)</strong></div>
+        <div><span className="text-muted">Lgotnici 0:</span> <strong>{Math.round(totalLgotnici0)} lei</strong></div>
+        <div><span className="text-muted">Diagrama:</span> <strong>{Math.round(totalDiagrama)} lei</strong></div>
         {totalRashodi > 0 && (
           <div><span className="text-muted">Dop. rashodi:</span> <strong>{Math.round(totalRashodi)} lei</strong></div>
         )}
@@ -222,7 +223,8 @@ export default function IncasareTab({ role }: Props) {
                 <th style={{ textAlign: 'right' }}>Numărare</th>
                 <th style={{ textAlign: 'right' }}>Încasare</th>
                 <th style={{ textAlign: 'right' }}>Plăți</th>
-                <th style={{ textAlign: 'right' }}>Lgotnici</th>
+                <th style={{ textAlign: 'right' }}>Lgotnici 0</th>
+                <th style={{ textAlign: 'right' }}>Diagrama</th>
                 <th style={{ textAlign: 'right' }}>Dop. rashodi</th>
                 <th style={{ textAlign: 'right' }}>Δ</th>
                 <th>Status</th>
@@ -244,9 +246,10 @@ export default function IncasareTab({ role }: Props) {
                       {r.plati > 0 ? r.plati : <span className="text-muted">—</span>}
                     </td>
                     <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
-                      {r.lgotniki_count > 0
-                        ? <>{r.lgotniki_count} <span className="text-muted">({Math.round(r.lgotniki_suma)} lei)</span></>
-                        : <span className="text-muted">—</span>}
+                      {r.lgotniki_count > 0 ? `${Math.round(r.lgotniki_count)} lei` : <span className="text-muted">—</span>}
+                    </td>
+                    <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+                      {r.lgotniki_suma > 0 ? `${Math.round(r.lgotniki_suma)} lei` : <span className="text-muted">—</span>}
                     </td>
                     <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
                       {r.dop_rashodi > 0 ? `${Math.round(r.dop_rashodi)} lei` : <span className="text-muted">—</span>}

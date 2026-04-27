@@ -19,6 +19,7 @@ export interface IncasareRow {
   incasare_card: number;
   plati: number;
   lgotniki_count: number;
+  lgotniki_suma: number;
   dop_rashodi: number;
   diff: number;
   status: IncasareStatus;

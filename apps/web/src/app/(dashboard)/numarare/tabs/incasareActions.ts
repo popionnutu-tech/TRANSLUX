@@ -16,10 +16,11 @@ export interface IncasareRow {
   numarare_lei: number;
   incasare_lei: number;
   incasare_numerar: number;
-  incasare_card: number;
+  incasare_diagrama: number;
   plati: number;
-  lgotniki_count: number;
-  lgotniki_suma: number;
+  ligotniki0_suma: number;
+  ligotniki_vokzal_suma: number;
+  dt_suma: number;
   dop_rashodi: number;
   comment: string | null;
   diff: number;
@@ -28,9 +29,10 @@ export interface IncasareRow {
 
 export interface AnomalyBreakdown {
   numerar: number;
-  card: number;
-  lgotnici_count: number;
-  lgotnici_suma: number;
+  diagrama: number;
+  ligotniki0_suma: number;
+  ligotniki_vokzal_suma: number;
+  dt_suma: number;
   dop_rashodi: number;
   comment: string | null;
   fiscal_nr: string | null;

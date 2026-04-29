@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic';
 
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
+import { isVerificareAuthenticated } from '@/lib/verificare-auth';
 import { getRouteDetail } from '../actions';
 import CheckClient from './CheckClient';
 
@@ -10,6 +11,7 @@ export default async function VerificareRoutePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  if (!(await isVerificareAuthenticated())) redirect('/verificare/login');
   const { id } = await params;
   const routeId = Number(id);
   if (!Number.isFinite(routeId)) notFound();

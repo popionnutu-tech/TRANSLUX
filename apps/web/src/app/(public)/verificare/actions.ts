@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { getSupabase } from '@/lib/supabase';
+import { isVerificareAuthenticated } from '@/lib/verificare-auth';
 
 export interface RouteListItem {
   id: number;
@@ -208,6 +209,9 @@ export async function submitRouteCheck(input: {
   retur_change_proposed?: boolean;
   note?: string;
 }): Promise<void> {
+  if (!(await isVerificareAuthenticated())) {
+    throw new Error('Sesiune expirată. Reintră în cont.');
+  }
   const supabase = getSupabase();
 
   const validChanges = (input.changes || []).filter(

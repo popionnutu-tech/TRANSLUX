@@ -1,16 +1,37 @@
 export const dynamic = 'force-dynamic';
 
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { isVerificareAuthenticated } from '@/lib/verificare-auth';
 import { getInterurbanRoutes } from './actions';
+import { logoutVerificare } from './login/actions';
 
 export default async function VerificarePage() {
+  if (!(await isVerificareAuthenticated())) redirect('/verificare/login');
   const routes = await getInterurbanRoutes();
 
   return (
     <main style={{ maxWidth: 760, margin: '0 auto', padding: '24px 16px 64px' }}>
-      <h1 style={{ fontSize: 22, fontWeight: 700, color: '#9B1B30', marginBottom: 6 }}>
-        Verificare orar rute
-      </h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#9B1B30', margin: 0 }}>
+          Verificare orar rute
+        </h1>
+        <form action={logoutVerificare}>
+          <button
+            type="submit"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#888',
+              fontSize: 12,
+              cursor: 'pointer',
+              textDecoration: 'underline',
+            }}
+          >
+            ieșire
+          </button>
+        </form>
+      </div>
       <p style={{ fontSize: 14, color: '#555', marginBottom: 20, lineHeight: 1.5 }}>
         Alegeți o rută și verificați ora la fiecare oprire. Confirmați dacă e
         corectă sau introduceți ora nouă. Modificările sunt aplicate doar după

@@ -215,9 +215,9 @@ export default function IncasareTab({ role }: Props) {
           ) : (
             <>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8, display: 'flex', gap: 18, flexWrap: 'wrap' }}>
-                <span><strong style={{ color: 'var(--danger)' }}>LIPSĂ /GRAFIC</strong> — foaia n-a fost atribuită niciunui șofer pe ziua respectivă</span>
-                <span><strong style={{ color: 'var(--warning)' }}>DUPLICAT</strong> — aceeași foaie e la mai multe persoane/zile</span>
-                <span><strong style={{ color: '#9b27b0' }}>FORMAT</strong> — număr tastat greșit la casă</span>
+                <span><strong style={{ color: 'var(--danger)' }}>LIPSĂ /GRAFIC</strong> — acest număr de foaie n-a apărut niciodată în /grafic (toată istoria, nu doar ziua curentă)</span>
+                <span><strong style={{ color: 'var(--warning)' }}>DUPLICAT</strong> — aceeași foaie e atribuită la mai multe persoane sau zile (toată istoria)</span>
+                <span><strong style={{ color: '#9b27b0' }}>FORMAT</strong> — număr tastat greșit la casă (nu sunt doar cifre)</span>
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
                 <span><code>Inc</code>=numerar depus</span>

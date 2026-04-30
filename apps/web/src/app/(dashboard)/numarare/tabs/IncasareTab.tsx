@@ -170,7 +170,7 @@ export default function IncasareTab({ role }: Props) {
       )}
 
       {/* Sub-tab switcher */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 12, borderBottom: '1px solid var(--border)' }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 4, borderBottom: '1px solid var(--border)', alignItems: 'flex-end' }}>
         <SubTabBtn active={subTab === 'routes'} onClick={() => setSubTab('routes')}
           label="Pe rute" badge={routes.length} badgeColor="var(--text-muted)" />
         <SubTabBtn active={subTab === 'orphan_num'} onClick={() => setSubTab('orphan_num')}
@@ -179,6 +179,11 @@ export default function IncasareTab({ role }: Props) {
         <SubTabBtn active={subTab === 'orphan_inc'} onClick={() => setSubTab('orphan_inc')}
           label="Încasare nepusă" badge={orphanInc.length}
           badgeColor={orphanInc.length > 0 ? 'var(--danger)' : 'var(--text-muted)'} />
+        <span className="text-muted" style={{ fontSize: 11, marginLeft: 'auto', paddingBottom: 8 }}>
+          {subTab === 'routes'
+            ? 'filtru pe perioadă'
+            : 'toate elementele nerezolvate (oricare dată)'}
+        </span>
       </div>
 
       {/* Content */}

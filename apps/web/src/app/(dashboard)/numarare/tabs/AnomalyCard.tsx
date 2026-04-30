@@ -56,7 +56,7 @@ function num(v: number) {
 }
 
 function shortDate(iso: string) {
-  // "2026-04-25" -> "04-25"
+  // "2026-04-25" -> "04-25" (anul curent) sau "2025-12-31" mai vechi
   return iso.length >= 10 ? iso.slice(5, 10) : iso;
 }
 

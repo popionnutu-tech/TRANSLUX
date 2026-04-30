@@ -6,7 +6,7 @@ import { verifySession } from '@/lib/auth';
 // ─── Tipuri ───
 
 export type IncasareStatus = 'ok' | 'underpaid' | 'overpaid' | 'no_cashin' | 'no_numarare';
-export type AnomalyCategory = 'NO_FOAIE' | 'DUPLICATE_FOAIE' | 'INVALID_FORMAT';
+export type AnomalyCategory = 'NO_FOAIE' | 'DATA_GRESITA' | 'DUPLICATE_FOAIE' | 'INVALID_FORMAT';
 export type OverrideAction = 'ASSIGN' | 'IGNORE';
 
 export interface IncasareRow {
@@ -94,6 +94,8 @@ export type RouteStatus =
 
 export type OrphanReason = 'no_driver' | 'no_grafic';
 
+export type FoaieSource = 'explicit' | 'implied' | null;
+
 export interface GraficRouteRow {
   assignment_id: string;
   crm_route_id: number;
@@ -106,6 +108,7 @@ export interface GraficRouteRow {
   vehicle_plate: string | null;
   vehicle_plate_retur: string | null;
   foaie_nr: string | null;
+  foaie_source: FoaieSource;
   cancelled: boolean;
   counting_session_id: string | null;
   counting_status: string | null;

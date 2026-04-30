@@ -44,6 +44,12 @@ export interface DuplicateCandidate {
   ziua: string;
 }
 
+export interface GraficHistoryEntry {
+  driver_id: string;
+  driver_name: string | null;
+  ziua: string;
+}
+
 export interface Anomaly {
   receipt_nr: string;
   ziua: string;
@@ -52,6 +58,7 @@ export interface Anomaly {
   incasare_lei: number;
   breakdown: AnomalyBreakdown;
   duplicate_candidates: DuplicateCandidate[] | null;
+  grafic_history: GraficHistoryEntry[];
 }
 
 export interface Confirmation {

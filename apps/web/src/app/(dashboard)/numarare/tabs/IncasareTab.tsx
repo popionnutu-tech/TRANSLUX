@@ -2,16 +2,18 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
-  getIncasareReport,
+  getGraficReport,
   assignOverride,
   ignoreOverride,
   confirmDay,
   unconfirmDay,
-  type IncasareRow,
-  type IncasareStatus,
+  type GraficRouteRow,
+  type OrphanNumerar,
   type Anomaly,
   type Confirmation,
 } from './incasareActions';
+import RoutesTable from './RoutesTable';
+import OrphanNumerarTable from './OrphanNumerarTable';
 import AnomalyCard, { AnomalyHeader } from './AnomalyCard';
 import AssignDriverModal from './AssignDriverModal';
 import IgnoreModal from './IgnoreModal';
@@ -24,13 +26,7 @@ function yesterdayChisinau(): string {
   return d.toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
 }
 
-const STATUS_META: Record<IncasareStatus, { label: string; color: string; icon: string }> = {
-  ok:          { label: 'OK',             color: 'var(--success)', icon: '✓' },
-  underpaid:   { label: 'Datorează',      color: 'var(--danger)',  icon: '⚠' },
-  overpaid:    { label: 'Plătit în plus', color: 'var(--warning)', icon: 'ℹ' },
-  no_cashin:   { label: 'Fără încasare',  color: 'var(--danger)',  icon: '✗' },
-  no_numarare: { label: 'Fără numărare',  color: 'var(--warning)', icon: '?' },
-};
+type SubTab = 'routes' | 'orphan_num' | 'orphan_inc';
 
 interface Props {
   role: string;  // 'ADMIN' | 'EVALUATOR_INCASARI'
@@ -40,8 +36,11 @@ export default function IncasareTab({ role }: Props) {
   const canEdit = role === 'EVALUATOR_INCASARI';
   const [from, setFrom] = useState<string>(yesterdayChisinau);
   const [to, setTo] = useState<string>(yesterdayChisinau);
-  const [rows, setRows] = useState<IncasareRow[]>([]);
-  const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
+  const [subTab, setSubTab] = useState<SubTab>('routes');
+
+  const [routes, setRoutes] = useState<GraficRouteRow[]>([]);
+  const [orphanNum, setOrphanNum] = useState<OrphanNumerar[]>([]);
+  const [orphanInc, setOrphanInc] = useState<Anomaly[]>([]);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -54,29 +53,20 @@ export default function IncasareTab({ role }: Props) {
   const load = useCallback(async () => {
     setLoading(true); setError('');
     try {
-      const res = await getIncasareReport(from, to);
+      const res = await getGraficReport(from, to);
       if (res.error) {
         setError(res.error);
-        setRows([]); setAnomalies([]); setConfirmation(null);
+        setRoutes([]); setOrphanNum([]); setOrphanInc([]); setConfirmation(null);
       } else if (res.data) {
-        setRows(res.data.rows);
-        setAnomalies(res.data.anomalies);
+        setRoutes(res.data.routes);
+        setOrphanNum(res.data.orphan_numerar);
+        setOrphanInc(res.data.orphan_incasare);
         setConfirmation(res.data.confirmation);
       }
     } finally { setLoading(false); }
   }, [from, to]);
 
   useEffect(() => { load(); }, [load]);
-
-  const totalNumarare = rows.reduce((s, r) => s + r.numarare_lei, 0);
-  const totalIncasare = rows.reduce((s, r) => s + r.incasare_lei, 0);
-  const totalPlati    = rows.reduce((s, r) => s + (r.plati || 0), 0);
-  const totalLgotnici0 = rows.reduce((s, r) => s + (r.ligotniki0_suma || 0), 0);
-  const totalDiagrama  = rows.reduce((s, r) => s + (r.incasare_diagrama || 0), 0);
-  const totalLgotnVokzal = rows.reduce((s, r) => s + (r.ligotniki_vokzal_suma || 0), 0);
-  const totalDt        = rows.reduce((s, r) => s + (r.dt_suma || 0), 0);
-  const totalRashodi   = rows.reduce((s, r) => s + (r.dop_rashodi || 0), 0);
-  const totalDiff      = totalIncasare - totalNumarare;
 
   async function handleAssign(driverId: string, note: string | null) {
     if (!assignTarget) return;
@@ -104,6 +94,8 @@ export default function IncasareTab({ role }: Props) {
     await load();
   }
 
+  const totalAlerts = orphanNum.length + orphanInc.length;
+
   return (
     <div>
       {/* Header + filter */}
@@ -111,7 +103,7 @@ export default function IncasareTab({ role }: Props) {
         <div>
           <h2 style={{ margin: 0, fontSize: 20 }}>Încasare vs. Numărare</h2>
           <p className="text-muted" style={{ fontSize: 13, margin: '6px 0 0 0' }}>
-            Suma calculată la numărare vs. suma efectiv depusă la casa automată.
+            Toate rutele din /grafic, cu numărarea și încasarea atașate. Cele neasociate — în vederi separate.
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -128,7 +120,7 @@ export default function IncasareTab({ role }: Props) {
         </div>
       )}
 
-      {/* Bara de status zi (doar pentru o singură zi selectată) */}
+      {/* Bara de status zi */}
       {isSingleDay && (
         <div className="card" style={{ padding: 12, marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -146,9 +138,12 @@ export default function IncasareTab({ role }: Props) {
                   </span>
                 )}
               </>
-            ) : anomalies.length > 0 ? (
+            ) : totalAlerts > 0 ? (
               <span style={{ color: 'var(--warning)', fontWeight: 600 }}>
-                ⚠ {anomalies.length} {anomalies.length === 1 ? 'alertă nerezolvată' : 'alerte nerezolvate'}
+                ⚠ {totalAlerts} {totalAlerts === 1 ? 'item' : 'iteme'} de revizuit
+                <span className="text-muted" style={{ fontWeight: 400, marginLeft: 6, fontSize: 12 }}>
+                  ({orphanNum.length} numerar · {orphanInc.length} încasare)
+                </span>
               </span>
             ) : (
               <span className="text-muted">Neconfirmat</span>
@@ -163,8 +158,8 @@ export default function IncasareTab({ role }: Props) {
                   type="button"
                   onClick={handleConfirmDay}
                   className="btn btn-primary btn-sm"
-                  disabled={anomalies.length > 0}
-                  title={anomalies.length > 0 ? `Rezolvă ${anomalies.length} alerte mai întâi` : ''}
+                  disabled={orphanInc.length > 0}
+                  title={orphanInc.length > 0 ? `Rezolvă ${orphanInc.length} alerte de încasare mai întâi` : ''}
                 >
                   Confirmă ziua
                 </button>
@@ -174,139 +169,70 @@ export default function IncasareTab({ role }: Props) {
         </div>
       )}
 
-      {/* Anomalii */}
-      {anomalies.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <h3 style={{ fontSize: 14, margin: '0 0 6px 0', color: 'var(--warning)' }}>
-            ⚠ {anomalies.length} {anomalies.length === 1 ? 'alertă' : 'alerte'} de revizuit
-          </h3>
+      {/* Sub-tab switcher */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 12, borderBottom: '1px solid var(--border)' }}>
+        <SubTabBtn active={subTab === 'routes'} onClick={() => setSubTab('routes')}
+          label="Pe rute" badge={routes.length} badgeColor="var(--text-muted)" />
+        <SubTabBtn active={subTab === 'orphan_num'} onClick={() => setSubTab('orphan_num')}
+          label="Numerar nepus" badge={orphanNum.length}
+          badgeColor={orphanNum.length > 0 ? 'var(--warning)' : 'var(--text-muted)'} />
+        <SubTabBtn active={subTab === 'orphan_inc'} onClick={() => setSubTab('orphan_inc')}
+          label="Încasare nepusă" badge={orphanInc.length}
+          badgeColor={orphanInc.length > 0 ? 'var(--danger)' : 'var(--text-muted)'} />
+      </div>
 
-          {/* Legendă categorii */}
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8, display: 'flex', gap: 18, flexWrap: 'wrap' }}>
-            <span><strong style={{ color: 'var(--danger)' }}>LIPSĂ /GRAFIC</strong> — foaia n-a fost atribuită niciunui șofer pe ziua respectivă</span>
-            <span><strong style={{ color: 'var(--warning)' }}>DUPLICAT</strong> — aceeași foaie e la mai multe persoane/zile</span>
-            <span><strong style={{ color: '#9b27b0' }}>FORMAT</strong> — număr tastat greșit la casă</span>
-          </div>
-
-          {/* Legendă coloane numerice */}
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-            <span><code>Inc</code>=numerar depus</span>
-            <span><code>Lg</code>=lgotnici</span>
-            <span><code>Dg</code>=diagrame+card</span>
-            <span><code>Vk</code>=lgotnici vokzal</span>
-            <span><code>DT</code>=alimentare șofer</span>
-            <span><code>Rs</code>=alte cheltuieli</span>
-          </div>
-
-          <AnomalyHeader canEdit={canEdit} />
-          {anomalies.map(a => (
-            <AnomalyCard
-              key={`${a.receipt_nr}-${a.ziua}`}
-              anomaly={a}
-              canEdit={canEdit}
-              onAssignClick={() => setAssignTarget(a)}
-              onIgnoreClick={() => setIgnoreTarget(a)}
-            />
-          ))}
-        </div>
+      {/* Content */}
+      {loading && (
+        <p className="text-muted" style={{ textAlign: 'center', padding: 20, fontSize: 13 }}>
+          Se încarcă...
+        </p>
       )}
 
-      {/* Totals */}
-      <div className="card" style={{ display: 'flex', gap: 24, padding: 14, marginBottom: 12, flexWrap: 'wrap' }}>
-        <div><span className="text-muted">Numărare:</span> <strong>{Math.round(totalNumarare)} lei</strong></div>
-        <div><span className="text-muted">Încasare:</span> <strong>{Math.round(totalIncasare)} lei</strong></div>
-        <div><span className="text-muted">Plăți:</span> <strong>{totalPlati}</strong></div>
-        <div><span className="text-muted">Lgotnici 0:</span> <strong>{Math.round(totalLgotnici0)} lei</strong></div>
-        <div><span className="text-muted">Diagrama:</span> <strong>{Math.round(totalDiagrama)} lei</strong></div>
-        {totalLgotnVokzal > 0 && (
-          <div><span className="text-muted">Lgotn. vokzal:</span> <strong>{Math.round(totalLgotnVokzal)} lei</strong></div>
-        )}
-        {totalDt > 0 && (
-          <div><span className="text-muted">DT:</span> <strong>{Math.round(totalDt)} lei</strong></div>
-        )}
-        {totalRashodi > 0 && (
-          <div><span className="text-muted">Dop. rashodi:</span> <strong>{Math.round(totalRashodi)} lei</strong></div>
-        )}
-        <div>
-          <span className="text-muted">Δ:</span>{' '}
-          <strong style={{ color: totalDiff < 0 ? 'var(--danger)' : totalDiff > 0 ? 'var(--warning)' : 'var(--success)' }}>
-            {totalDiff > 0 ? '+' : ''}{Math.round(totalDiff)} lei
-          </strong>
-        </div>
-        <div className="text-muted" style={{ fontSize: 12 }}>Șoferi: {rows.length}</div>
-      </div>
+      {!loading && subTab === 'routes' && (
+        <RoutesTable routes={routes} />
+      )}
 
-      {/* Tabelul de șoferi */}
-      <div className="card">
-        {loading ? (
-          <p className="text-muted" style={{ textAlign: 'center', padding: 20 }}>Se încarcă...</p>
-        ) : rows.length === 0 ? (
-          <p className="text-muted" style={{ textAlign: 'center', padding: 20 }}>Nu există date pentru perioada selectată.</p>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Șofer</th>
-                <th style={{ textAlign: 'right' }}>Numărare</th>
-                <th style={{ textAlign: 'right' }}>Încasare</th>
-                <th style={{ textAlign: 'right' }}>Plăți</th>
-                <th style={{ textAlign: 'right' }}>Lgotnici 0</th>
-                <th style={{ textAlign: 'right' }}>Diagrama</th>
-                <th style={{ textAlign: 'right' }}>Dop. rashodi</th>
-                <th style={{ textAlign: 'right' }}>Δ</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map(r => {
-                const meta = STATUS_META[r.status];
-                return (
-                  <tr key={r.driver_id || r.driver_name}>
-                    <td style={{ fontWeight: 600 }}>
-                      {r.driver_name || '—'}
-                      {r.comment && (
-                        <div style={{ fontSize: 11, fontWeight: 400, fontStyle: 'italic', color: 'var(--text-muted)', marginTop: 2 }}>
-                          {r.comment}
-                        </div>
-                      )}
-                    </td>
-                    <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
-                      {r.numarare_lei ? `${Math.round(r.numarare_lei)} lei` : <span className="text-muted">—</span>}
-                    </td>
-                    <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
-                      {r.incasare_lei ? `${Math.round(r.incasare_lei)} lei` : <span className="text-muted">—</span>}
-                    </td>
-                    <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
-                      {r.plati > 0 ? r.plati : <span className="text-muted">—</span>}
-                    </td>
-                    <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
-                      {r.ligotniki0_suma > 0 ? `${Math.round(r.ligotniki0_suma)} lei` : <span className="text-muted">—</span>}
-                    </td>
-                    <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
-                      {r.incasare_diagrama > 0 ? `${Math.round(r.incasare_diagrama)} lei` : <span className="text-muted">—</span>}
-                    </td>
-                    <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
-                      {r.dop_rashodi > 0 ? `${Math.round(r.dop_rashodi)} lei` : <span className="text-muted">—</span>}
-                    </td>
-                    <td style={{
-                      textAlign: 'right', fontFamily: 'var(--font-mono)',
-                      color: r.diff < 0 ? 'var(--danger)' : r.diff > 0 ? 'var(--warning)' : 'var(--text-muted)',
-                      fontWeight: 600,
-                    }}>
-                      {r.status === 'no_cashin' || r.status === 'no_numarare'
-                        ? <span className="text-muted">—</span>
-                        : `${r.diff >= 0 ? '+' : ''}${Math.round(r.diff)} lei`}
-                    </td>
-                    <td style={{ color: meta.color, fontWeight: 600, fontSize: 13 }}>
-                      {meta.icon} {meta.label}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+      {!loading && subTab === 'orphan_num' && (
+        <OrphanNumerarTable rows={orphanNum} />
+      )}
+
+      {!loading && subTab === 'orphan_inc' && (
+        <div>
+          {orphanInc.length === 0 ? (
+            <div className="card" style={{ padding: 20, textAlign: 'center', fontSize: 13 }}>
+              <p className="text-muted" style={{ margin: 0 }}>
+                ✓ Nu există încasări neasociate. Toate plățile de la casă au foaie atribuită în /grafic.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8, display: 'flex', gap: 18, flexWrap: 'wrap' }}>
+                <span><strong style={{ color: 'var(--danger)' }}>LIPSĂ /GRAFIC</strong> — foaia n-a fost atribuită niciunui șofer pe ziua respectivă</span>
+                <span><strong style={{ color: 'var(--warning)' }}>DUPLICAT</strong> — aceeași foaie e la mai multe persoane/zile</span>
+                <span><strong style={{ color: '#9b27b0' }}>FORMAT</strong> — număr tastat greșit la casă</span>
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                <span><code>Inc</code>=numerar depus</span>
+                <span><code>Lg</code>=lgotnici</span>
+                <span><code>Dg</code>=diagrame+card</span>
+                <span><code>Vk</code>=lgotnici vokzal</span>
+                <span><code>DT</code>=alimentare șofer</span>
+                <span><code>Rs</code>=alte cheltuieli</span>
+              </div>
+              <AnomalyHeader canEdit={canEdit} />
+              {orphanInc.map(a => (
+                <AnomalyCard
+                  key={`${a.receipt_nr}-${a.ziua}`}
+                  anomaly={a}
+                  canEdit={canEdit}
+                  onAssignClick={() => setAssignTarget(a)}
+                  onIgnoreClick={() => setIgnoreTarget(a)}
+                />
+              ))}
+            </>
+          )}
+        </div>
+      )}
 
       {/* Modaluri */}
       {assignTarget && (
@@ -329,5 +255,48 @@ export default function IncasareTab({ role }: Props) {
         />
       )}
     </div>
+  );
+}
+
+function SubTabBtn({
+  active, onClick, label, badge, badgeColor,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  badge: number;
+  badgeColor: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        background: 'transparent',
+        border: 'none',
+        padding: '8px 14px',
+        cursor: 'pointer',
+        fontSize: 13,
+        fontWeight: active ? 600 : 400,
+        color: active ? 'var(--text)' : 'var(--text-muted)',
+        borderBottom: active ? '2px solid var(--primary)' : '2px solid transparent',
+        marginBottom: -1,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+      }}
+    >
+      {label}
+      <span style={{
+        fontSize: 11,
+        padding: '1px 7px',
+        borderRadius: 10,
+        background: badgeColor,
+        color: 'white',
+        fontWeight: 600,
+        minWidth: 18,
+        textAlign: 'center',
+      }}>{badge}</span>
+    </button>
   );
 }

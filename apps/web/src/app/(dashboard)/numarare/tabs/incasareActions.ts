@@ -75,6 +75,76 @@ export interface IncasareReportResult {
   confirmation: Confirmation | null;
 }
 
+// ─── Tipuri pentru raportul orientat pe rută ───
+
+export type RouteStatus =
+  | 'ok'
+  | 'underpaid'
+  | 'overpaid'
+  | 'no_data'
+  | 'no_numarare'
+  | 'no_incasare'
+  | 'no_foaie'
+  | 'no_driver'
+  | 'empty'
+  | 'cancelled';
+
+export type OrphanReason = 'no_driver' | 'no_grafic';
+
+export interface GraficRouteRow {
+  assignment_id: string;
+  crm_route_id: number;
+  ziua: string;
+  route_name: string | null;
+  time_nord: string | null;
+  time_chisinau: string | null;
+  driver_id: string | null;
+  driver_name: string | null;
+  vehicle_plate: string | null;
+  vehicle_plate_retur: string | null;
+  foaie_nr: string | null;
+  cancelled: boolean;
+  counting_session_id: string | null;
+  counting_status: string | null;
+  tur_total_lei: number | null;
+  retur_total_lei: number | null;
+  numarare_lei: number;
+  incasare_numerar: number;
+  incasare_diagrama: number;
+  ligotniki0_suma: number;
+  ligotniki_vokzal_suma: number;
+  dt_suma: number;
+  dop_rashodi: number;
+  incasare_lei: number;
+  plati: number;
+  comment: string | null;
+  fiscal_nrs: string | null;
+  diff: number;
+  status: RouteStatus;
+}
+
+export interface OrphanNumerar {
+  session_id: string;
+  crm_route_id: number;
+  route_name: string | null;
+  time_nord: string | null;
+  ziua: string;
+  driver_id: string | null;
+  driver_name: string | null;
+  tur_total_lei: number | null;
+  retur_total_lei: number | null;
+  total_lei: number;
+  counting_status: string | null;
+  reason: OrphanReason;
+}
+
+export interface GraficReportResult {
+  routes: GraficRouteRow[];
+  orphan_numerar: OrphanNumerar[];
+  orphan_incasare: Anomaly[];
+  confirmation: Confirmation | null;
+}
+
 const VIEWER_ROLES = ['ADMIN', 'EVALUATOR_INCASARI'] as const;
 const EDITOR_ROLES = ['EVALUATOR_INCASARI'] as const;
 
@@ -109,6 +179,35 @@ export async function getIncasareReport(
     data: {
       rows: payload?.rows || [],
       anomalies: payload?.anomalies || [],
+      confirmation: payload?.confirmation || null,
+    },
+  };
+}
+
+// ─── Loader raport orientat pe rută ───
+
+export async function getGraficReport(
+  fromDate: string,
+  toDate: string,
+): Promise<{ data?: GraficReportResult; error?: string }> {
+  const session = await verifySession();
+  if (!session) return { error: 'Neautorizat' };
+  if (!isViewer(session.role)) return { error: 'Acces interzis' };
+
+  const sb = getSupabase();
+  const { data, error } = await sb.rpc('get_grafic_report', {
+    p_from: fromDate,
+    p_to: toDate || fromDate,
+  });
+
+  if (error) return { error: error.message };
+
+  const payload = data as GraficReportResult | null;
+  return {
+    data: {
+      routes: payload?.routes || [],
+      orphan_numerar: payload?.orphan_numerar || [],
+      orphan_incasare: payload?.orphan_incasare || [],
       confirmation: payload?.confirmation || null,
     },
   };

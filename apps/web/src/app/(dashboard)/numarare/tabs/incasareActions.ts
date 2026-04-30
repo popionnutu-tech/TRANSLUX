@@ -44,10 +44,13 @@ export interface DuplicateCandidate {
   ziua: string;
 }
 
-export interface GraficHistoryEntry {
-  driver_id: string;
+export type FoaieHistorySource = 'grafic' | 'override' | 'kiosk';
+
+export interface FoaieHistoryEntry {
+  driver_id: string | null;
   driver_name: string | null;
   ziua: string;
+  source: FoaieHistorySource;
 }
 
 export interface Anomaly {
@@ -58,7 +61,7 @@ export interface Anomaly {
   incasare_lei: number;
   breakdown: AnomalyBreakdown;
   duplicate_candidates: DuplicateCandidate[] | null;
-  grafic_history: GraficHistoryEntry[];
+  foaie_history: FoaieHistoryEntry[];
 }
 
 export interface Confirmation {

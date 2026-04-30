@@ -120,18 +120,18 @@ export default function RoutesTable({ routes }: Props) {
       {/* Rows */}
       {sorted.map(r => {
         const meta = STATUS_META[r.status];
-        const isOpen = expanded.has(r.assignment_id);
+        const isOpen = expanded.has(r.row_key);
         const hasDetails = !!(r.comment || r.fiscal_nrs || r.ligotniki_vokzal_suma > 0 || r.dt_suma > 0 || r.plati > 0);
 
         return (
-          <div key={r.assignment_id} style={{
+          <div key={r.row_key} style={{
             borderLeft: `3px solid ${meta.color}`,
             background: r.cancelled ? 'rgba(0,0,0,0.03)' : 'transparent',
             borderRadius: 3,
             marginBottom: 2,
           }}>
             <div
-              onClick={() => hasDetails && toggle(r.assignment_id)}
+              onClick={() => hasDetails && toggle(r.row_key)}
               style={{
                 display: 'grid',
                 gridTemplateColumns: GRID,

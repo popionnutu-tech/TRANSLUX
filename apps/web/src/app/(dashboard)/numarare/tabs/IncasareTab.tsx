@@ -202,8 +202,7 @@ export default function IncasareTab({ role }: Props) {
           ) : (
             <>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-                <span><strong style={{ color: 'var(--danger)' }}>LIPSĂ /GRAFIC</strong> — foaia n-a apărut niciodată în /grafic</span>
-                <span><strong style={{ color: '#f57c00' }}>ALTĂ ZI</strong> — foaia există în /grafic, dar pe altă zi (și posesorul nu lucrează în ziua plății)</span>
+                <span><strong style={{ color: 'var(--danger)' }}>LIPSĂ /GRAFIC</strong> — foaia n-a apărut niciodată în /grafic (nu poate fi redirecționată automat)</span>
                 <span><strong style={{ color: '#9b27b0' }}>FORMAT</strong> — număr tastat greșit la casă</span>
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8, display: 'flex', gap: 14, flexWrap: 'wrap' }}>

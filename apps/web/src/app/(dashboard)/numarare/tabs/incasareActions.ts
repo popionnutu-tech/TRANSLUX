@@ -6,7 +6,7 @@ import { verifySession } from '@/lib/auth';
 // ─── Tipuri ───
 
 export type IncasareStatus = 'ok' | 'underpaid' | 'overpaid' | 'no_cashin' | 'no_numarare';
-export type AnomalyCategory = 'NO_FOAIE' | 'DATA_GRESITA' | 'DUPLICATE_FOAIE' | 'INVALID_FORMAT';
+export type AnomalyCategory = 'NO_FOAIE' | 'INVALID_FORMAT';
 export type OverrideAction = 'ASSIGN' | 'IGNORE';
 
 export interface IncasareRow {

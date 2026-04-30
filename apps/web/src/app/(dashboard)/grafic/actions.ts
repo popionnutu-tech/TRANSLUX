@@ -631,16 +631,20 @@ export async function setCashinReceipt(
   if (!driverId || !date) return { error: 'Date lipsă' };
 
   const db = getSupabase();
-  const trimmed = receiptNr.trim();
+  const raw = receiptNr.trim();
 
   // String gol = stergere mapping
-  if (trimmed === '') {
+  if (raw === '') {
     const { error } = await db.from('driver_cashin_receipts')
       .delete()
       .match({ driver_id: driverId, ziua: date });
     if (error) return { error: error.message };
     return {};
   }
+
+  // Normalizare: pentru numere, eliminam zerourile de la inceput.
+  // In baza '0142961' si '00142961' se stocheaza la fel: '142961'.
+  const trimmed = /^[0-9]+$/.test(raw) ? String(parseInt(raw, 10)) : raw;
 
   // Upsert: (driver_id, ziua) e unique, deci conflict pe aceasta pereche
   const { error } = await db.from('driver_cashin_receipts').upsert(

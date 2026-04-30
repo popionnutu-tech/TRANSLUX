@@ -15,11 +15,15 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
 
+    // Curățăm spațiile și alte caractere invizibile, ca să nu ne blocheze validarea browserului
+    const cleanEmail = email.trim().replace(/\s+/g, '');
+    const cleanPassword = password;
+
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: cleanEmail, password: cleanPassword }),
       });
 
       if (!res.ok) {
@@ -205,9 +209,13 @@ export default function LoginPage() {
               <div className="form-group">
                 <label>Email</label>
                 <input
-                  type="email"
+                  type="text"
+                  inputMode="email"
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck={false}
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => setEmail(e.target.value.replace(/\s/g, ''))}
                   required
                   autoFocus
                   placeholder="admin@translux.md"

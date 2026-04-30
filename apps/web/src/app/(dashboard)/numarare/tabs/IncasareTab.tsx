@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   getGraficReport,
   assignOverride,
-  ignoreOverride,
   confirmDay,
   unconfirmDay,
   type GraficRouteRow,
@@ -14,7 +13,6 @@ import {
 import RoutesTable from './RoutesTable';
 import AnomalyCard, { AnomalyHeader } from './AnomalyCard';
 import AssignDriverModal from './AssignDriverModal';
-import IgnoreModal from './IgnoreModal';
 
 function todayChisinau(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
@@ -43,7 +41,6 @@ export default function IncasareTab({ role }: Props) {
   const [error, setError] = useState('');
 
   const [assignTarget, setAssignTarget] = useState<Anomaly | null>(null);
-  const [ignoreTarget, setIgnoreTarget] = useState<Anomaly | null>(null);
 
   const isSingleDay = from === to;
 
@@ -67,12 +64,6 @@ export default function IncasareTab({ role }: Props) {
   async function handleAssign(driverId: string, note: string | null) {
     if (!assignTarget) return;
     const res = await assignOverride(assignTarget.receipt_nr, assignTarget.ziua, driverId, note);
-    if (res.error) throw new Error(res.error);
-    await load();
-  }
-  async function handleIgnore(note: string) {
-    if (!ignoreTarget) return;
-    const res = await ignoreOverride(ignoreTarget.receipt_nr, ignoreTarget.ziua, note);
     if (res.error) throw new Error(res.error);
     await load();
   }
@@ -220,7 +211,6 @@ export default function IncasareTab({ role }: Props) {
                   anomaly={a}
                   canEdit={canEdit}
                   onAssignClick={() => setAssignTarget(a)}
-                  onIgnoreClick={() => setIgnoreTarget(a)}
                 />
               ))}
             </>
@@ -237,15 +227,6 @@ export default function IncasareTab({ role }: Props) {
           candidates={assignTarget.duplicate_candidates}
           onConfirm={handleAssign}
           onClose={() => setAssignTarget(null)}
-        />
-      )}
-      {ignoreTarget && (
-        <IgnoreModal
-          open={true}
-          receiptNr={ignoreTarget.receipt_nr}
-          ziua={ignoreTarget.ziua}
-          onConfirm={handleIgnore}
-          onClose={() => setIgnoreTarget(null)}
         />
       )}
     </div>

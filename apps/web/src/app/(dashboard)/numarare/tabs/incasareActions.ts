@@ -97,7 +97,8 @@ export type OrphanReason = 'no_driver' | 'no_grafic';
 export type FoaieSource = 'explicit' | 'implied' | null;
 
 export interface GraficRouteRow {
-  assignment_id: string;
+  assignment_id: string | null;
+  row_key: string;
   crm_route_id: number;
   ziua: string;
   route_name: string | null;

@@ -156,15 +156,16 @@ export default function UnifiedGraficList({
     }
   }
 
-  async function handleReceiptCommit(row: UnifiedRow, value: string) {
-    if (!isDispatcher || !row.driver_id) return;
+  async function handleReceiptCommit(row: UnifiedRow, value: string): Promise<boolean> {
+    if (!isDispatcher || !row.driver_id) return true;
     const cleaned = value.trim();
-    if (cleaned === (row.foaie_parcurs_nr || '')) return;
+    if (cleaned === (row.foaie_parcurs_nr || '')) return true;
     setSavingKey(row.key);
     try {
       const res = await setCashinReceipt(row.driver_id, date, cleaned);
-      if (res.error) { setError(res.error); return; }
+      if (res.error) { setError(res.error); return false; }
       await load();
+      return true;
     } finally {
       setSavingKey(null);
     }
@@ -383,16 +384,21 @@ function ReceiptInput({
 }: {
   initial: string;
   disabled: boolean;
-  onCommit: (v: string) => void;
+  onCommit: (v: string) => Promise<boolean>;
 }) {
   const [value, setValue] = useState(initial);
   useEffect(() => { setValue(initial); }, [initial]);
+
+  async function handleBlur() {
+    const success = await onCommit(value);
+    if (!success) setValue(initial);
+  }
 
   return (
     <input
       value={value}
       onChange={e => setValue(e.target.value.replace(/\D/g, ''))}
-      onBlur={() => onCommit(value)}
+      onBlur={handleBlur}
       onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
       disabled={disabled}
       placeholder="0945xxx"

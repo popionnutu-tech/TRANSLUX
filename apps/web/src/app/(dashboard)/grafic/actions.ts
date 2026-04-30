@@ -655,9 +655,20 @@ export async function setCashinReceipt(
   );
 
   if (error) {
-    // 23505 = duplicate = chitanta e deja atribuita altui sofer in aceeași zi
+    // 23505 = duplicate. Constraintul unic pe receipt_nr e global (nu doar in zi).
     if (error.code === '23505') {
-      return { error: 'Chitanta #' + trimmed + ' e deja atribuita altui sofer in aceasta zi' };
+      const { data: existing } = await db
+        .from('driver_cashin_receipts')
+        .select('ziua, drivers:driver_id(full_name)')
+        .eq('receipt_nr', trimmed)
+        .maybeSingle();
+      if (existing) {
+        const driverName = (existing as any).drivers?.full_name || 'alt șofer';
+        const [y, m, d] = String(existing.ziua).split('-');
+        const day = `${d}.${m}.${y}`;
+        return { error: `Foaia de parcurs #${trimmed} e deja folosită de ${driverName} pe ${day}` };
+      }
+      return { error: `Foaia de parcurs #${trimmed} e deja folosită` };
     }
     return { error: error.message };
   }

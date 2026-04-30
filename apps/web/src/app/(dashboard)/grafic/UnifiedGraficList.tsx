@@ -43,12 +43,14 @@ export default function UnifiedGraficList({
   vehicles,
   role,
   readOnly = false,
+  onInvalidCountChange,
 }: {
   date: string;
   drivers: DriverOption[];
   vehicles: VehicleOption[];
   role: AdminRole;
   readOnly?: boolean;
+  onInvalidCountChange?: (count: number) => void;
 }) {
   const isDispatcher = role === 'DISPATCHER';
   // Admin vede coloana (citire); dispecer — editabil; GRAFIC — ascuns.
@@ -180,6 +182,10 @@ export default function UnifiedGraficList({
   const neprocesate = validations.filter(v => !v.isValid).length;
   const anulate = rows.filter(r => r.cancelled).length;
   const completate = rows.length - neprocesate - anulate;
+
+  useEffect(() => {
+    onInvalidCountChange?.(neprocesate);
+  }, [neprocesate, onInvalidCountChange]);
 
   return (
     <div>

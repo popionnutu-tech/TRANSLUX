@@ -8,12 +8,10 @@ import {
   confirmDay,
   unconfirmDay,
   type GraficRouteRow,
-  type OrphanNumerar,
   type Anomaly,
   type Confirmation,
 } from './incasareActions';
 import RoutesTable from './RoutesTable';
-import OrphanNumerarTable from './OrphanNumerarTable';
 import AnomalyCard, { AnomalyHeader } from './AnomalyCard';
 import AssignDriverModal from './AssignDriverModal';
 import IgnoreModal from './IgnoreModal';
@@ -26,7 +24,7 @@ function yesterdayChisinau(): string {
   return d.toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
 }
 
-type SubTab = 'routes' | 'orphan_num' | 'orphan_inc';
+type SubTab = 'routes' | 'orphan_inc';
 
 interface Props {
   role: string;  // 'ADMIN' | 'EVALUATOR_INCASARI'
@@ -39,7 +37,6 @@ export default function IncasareTab({ role }: Props) {
   const [subTab, setSubTab] = useState<SubTab>('routes');
 
   const [routes, setRoutes] = useState<GraficRouteRow[]>([]);
-  const [orphanNum, setOrphanNum] = useState<OrphanNumerar[]>([]);
   const [orphanInc, setOrphanInc] = useState<Anomaly[]>([]);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [loading, setLoading] = useState(false);
@@ -56,10 +53,9 @@ export default function IncasareTab({ role }: Props) {
       const res = await getGraficReport(from, to);
       if (res.error) {
         setError(res.error);
-        setRoutes([]); setOrphanNum([]); setOrphanInc([]); setConfirmation(null);
+        setRoutes([]); setOrphanInc([]); setConfirmation(null);
       } else if (res.data) {
         setRoutes(res.data.routes);
-        setOrphanNum(res.data.orphan_numerar);
         setOrphanInc(res.data.orphan_incasare);
         setConfirmation(res.data.confirmation);
       }
@@ -93,8 +89,6 @@ export default function IncasareTab({ role }: Props) {
     if (res.error) { setError(res.error); return; }
     await load();
   }
-
-  const totalAlerts = orphanNum.length + orphanInc.length;
 
   // Pentru confirmarea zilei și badge-ul de status: doar orphan-uri din ziua curentă
   // (orphan_incasare e listă globală, dar confirmarea e per-zi).
@@ -176,16 +170,13 @@ export default function IncasareTab({ role }: Props) {
       <div style={{ display: 'flex', gap: 4, marginBottom: 4, borderBottom: '1px solid var(--border)', alignItems: 'flex-end' }}>
         <SubTabBtn active={subTab === 'routes'} onClick={() => setSubTab('routes')}
           label="Pe rute" badge={routes.length} badgeColor="var(--text-muted)" />
-        <SubTabBtn active={subTab === 'orphan_num'} onClick={() => setSubTab('orphan_num')}
-          label="Numerar nepus" badge={orphanNum.length}
-          badgeColor={orphanNum.length > 0 ? 'var(--warning)' : 'var(--text-muted)'} />
         <SubTabBtn active={subTab === 'orphan_inc'} onClick={() => setSubTab('orphan_inc')}
           label="Încasare nepusă" badge={orphanInc.length}
           badgeColor={orphanInc.length > 0 ? 'var(--danger)' : 'var(--text-muted)'} />
         <span className="text-muted" style={{ fontSize: 11, marginLeft: 'auto', paddingBottom: 8 }}>
           {subTab === 'routes'
             ? 'filtru pe perioadă'
-            : 'toate elementele nerezolvate (oricare dată)'}
+            : 'toate plățile nerezolvate (oricare dată)'}
         </span>
       </div>
 
@@ -198,10 +189,6 @@ export default function IncasareTab({ role }: Props) {
 
       {!loading && subTab === 'routes' && (
         <RoutesTable routes={routes} />
-      )}
-
-      {!loading && subTab === 'orphan_num' && (
-        <OrphanNumerarTable rows={orphanNum} />
       )}
 
       {!loading && subTab === 'orphan_inc' && (

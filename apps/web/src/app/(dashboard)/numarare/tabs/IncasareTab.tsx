@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   getGraficReport,
-  assignOverride,
+  assignFoaieToDriver,
   confirmDay,
   unconfirmDay,
   type GraficRouteRow,
@@ -12,7 +12,7 @@ import {
 } from './incasareActions';
 import RoutesTable from './RoutesTable';
 import AnomalyCard, { AnomalyHeader } from './AnomalyCard';
-import AssignDriverModal from './AssignDriverModal';
+import RouteAssignModal from './RouteAssignModal';
 
 function todayChisinau(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
@@ -61,9 +61,9 @@ export default function IncasareTab({ role }: Props) {
 
   useEffect(() => { load(); }, [load]);
 
-  async function handleAssign(driverId: string, note: string | null) {
+  async function handleAssign(driverId: string, ziua: string) {
     if (!assignTarget) return;
-    const res = await assignOverride(assignTarget.receipt_nr, assignTarget.ziua, driverId, note);
+    const res = await assignFoaieToDriver(assignTarget.receipt_nr, ziua, driverId);
     if (res.error) throw new Error(res.error);
     await load();
   }
@@ -82,7 +82,6 @@ export default function IncasareTab({ role }: Props) {
   }
 
   // Pentru confirmarea zilei și badge-ul de status: doar orphan-uri din ziua curentă
-  // (orphan_incasare e listă globală, dar confirmarea e per-zi).
   const todayOrphanInc = isSingleDay
     ? orphanInc.filter(a => a.ziua === from)
     : [];
@@ -218,13 +217,12 @@ export default function IncasareTab({ role }: Props) {
         </div>
       )}
 
-      {/* Modaluri */}
+      {/* Modal: atribuire pe zi/rută */}
       {assignTarget && (
-        <AssignDriverModal
+        <RouteAssignModal
           open={true}
           receiptNr={assignTarget.receipt_nr}
           ziua={assignTarget.ziua}
-          candidates={assignTarget.duplicate_candidates}
           onConfirm={handleAssign}
           onClose={() => setAssignTarget(null)}
         />

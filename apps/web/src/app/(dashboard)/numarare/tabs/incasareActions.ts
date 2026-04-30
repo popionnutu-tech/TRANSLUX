@@ -220,6 +220,116 @@ export async function getGraficReport(
   };
 }
 
+// ─── Atribuire pe rută (înlocuiește AssignDriverModal) ───
+
+export interface RouteForAssign {
+  assignment_id: string | null;  // null dacă nu există daily_assignment
+  crm_route_id: number;
+  route_name: string;
+  time_nord: string | null;
+  driver_id: string | null;
+  driver_name: string | null;
+  vehicle_plate: string | null;
+}
+
+/** Returnează toate rutele active pentru o zi cu șofer/auto din /grafic. */
+export async function getRoutesForAssign(date: string): Promise<RouteForAssign[]> {
+  const session = await verifySession();
+  if (!session) return [];
+  if (!isViewer(session.role)) return [];
+
+  const sb = getSupabase();
+  // active routes + daily_assignments LEFT JOIN
+  const { data, error } = await sb
+    .from('crm_routes')
+    .select(`
+      id, dest_to_ro, dest_from_ro, route_type, time_nord, active,
+      daily_assignments!inner(id, assignment_date, driver_id, vehicle_id, drivers:driver_id(full_name), vehicles:vehicle_id(plate_number))
+    `)
+    .eq('active', true)
+    .eq('daily_assignments.assignment_date', date);
+
+  if (error) return [];
+
+  type Row = {
+    id: number;
+    dest_to_ro: string;
+    dest_from_ro: string | null;
+    route_type: string;
+    time_nord: string | null;
+    daily_assignments: Array<{
+      id: string;
+      driver_id: string | null;
+      drivers: { full_name?: string } | null;
+      vehicles: { plate_number?: string } | null;
+    }>;
+  };
+
+  const rows = (data || []) as unknown as Row[];
+  return rows.map((r) => {
+    const da = r.daily_assignments[0];
+    const routeName = r.route_type === 'suburban'
+      ? `${r.dest_to_ro} - ${r.dest_from_ro || ''}`
+      : r.dest_to_ro;
+    return {
+      assignment_id: da?.id || null,
+      crm_route_id: r.id,
+      route_name: routeName,
+      time_nord: r.time_nord,
+      driver_id: da?.driver_id || null,
+      driver_name: da?.drivers?.full_name || null,
+      vehicle_plate: da?.vehicles?.plate_number || null,
+    };
+  }).sort((a, b) => (a.time_nord || 'zz').localeCompare(b.time_nord || 'zz'));
+}
+
+/** Atribuie o foaie unui șofer pe o zi (insert în /grafic = driver_cashin_receipts). */
+export async function assignFoaieToDriver(
+  receiptNr: string,
+  ziua: string,
+  driverId: string,
+): Promise<{ error?: string }> {
+  const session = await verifySession();
+  if (!session) return { error: 'Neautorizat' };
+  if (!isEditor(session.role)) return { error: 'Doar evaluatorul poate atribui foaie' };
+  if (!receiptNr || !ziua || !driverId) return { error: 'Date lipsă' };
+
+  // Normalizăm zerourile de la început (ca la dispatcher)
+  const normalized = /^[0-9]+$/.test(receiptNr) ? String(parseInt(receiptNr, 10)) : receiptNr;
+
+  const sb = getSupabase();
+
+  // Upsert: dacă (driver_id, ziua) există deja, suprascriem foaie.
+  // Dacă receipt_nr e deja folosit altundeva, ridica 23505 → mesaj clar.
+  const { error } = await sb.from('driver_cashin_receipts').upsert(
+    {
+      driver_id: driverId,
+      ziua,
+      receipt_nr: normalized,
+      created_by: session.id,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'driver_id,ziua' },
+  );
+
+  if (error) {
+    if (error.code === '23505') {
+      const { data: existing } = await sb
+        .from('driver_cashin_receipts')
+        .select('ziua, drivers:driver_id(full_name)')
+        .eq('receipt_nr', normalized)
+        .maybeSingle();
+      if (existing) {
+        const otherName = (existing as unknown as { drivers?: { full_name?: string } }).drivers?.full_name || 'alt șofer';
+        return { error: `Foaia #${normalized} e deja folosită de ${otherName} pe ${existing.ziua}` };
+      }
+      return { error: `Foaia #${normalized} e deja folosită altundeva` };
+    }
+    return { error: error.message };
+  }
+  return {};
+}
+
 // ─── Acțiuni evaluator ───
 
 export async function assignOverride(
@@ -241,35 +351,6 @@ export async function assignOverride(
       action: 'ASSIGN',
       driver_id: driverId,
       note: note?.trim() || null,
-      created_by: session.id,
-      updated_by: session.id,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'receipt_nr,ziua' },
-  );
-  if (error) return { error: error.message };
-  return {};
-}
-
-export async function ignoreOverride(
-  receiptNr: string,
-  ziua: string,
-  note: string,
-): Promise<{ error?: string }> {
-  const session = await verifySession();
-  if (!session) return { error: 'Neautorizat' };
-  if (!isEditor(session.role)) return { error: 'Doar evaluatorul poate face corecturi' };
-  if (!receiptNr || !ziua) return { error: 'Date lipsă' };
-  if (!note?.trim()) return { error: 'Nota e obligatorie pentru a marca ca eroare' };
-
-  const sb = getSupabase();
-  const { error } = await sb.from('tomberon_payment_overrides').upsert(
-    {
-      receipt_nr: receiptNr,
-      ziua,
-      action: 'IGNORE',
-      driver_id: null,
-      note: note.trim(),
       created_by: session.id,
       updated_by: session.id,
       updated_at: new Date().toISOString(),

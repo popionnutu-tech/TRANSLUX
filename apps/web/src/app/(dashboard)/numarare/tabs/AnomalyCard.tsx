@@ -6,7 +6,6 @@ interface Props {
   anomaly: Anomaly;
   canEdit: boolean;
   onAssignClick: () => void;
-  onIgnoreClick: () => void;
 }
 
 const CATEGORY_META: Record<Anomaly['category'], { short: string; color: string; bg: string }> = {
@@ -65,7 +64,7 @@ function lastName(full: string | null): string {
   return parts[parts.length - 1] || full;
 }
 
-export default function AnomalyCard({ anomaly, canEdit, onAssignClick, onIgnoreClick }: Props) {
+export default function AnomalyCard({ anomaly, canEdit, onAssignClick }: Props) {
   const meta = CATEGORY_META[anomaly.category];
   const b = anomaly.breakdown;
   // Filtrăm intrările kiosk de pe ziua curentă a alertei (sunt redundante: e exact alerta însăși)
@@ -110,24 +109,14 @@ export default function AnomalyCard({ anomaly, canEdit, onAssignClick, onIgnoreC
         </span>
 
         {canEdit ? (
-          <div style={{ display: 'flex', gap: 4 }}>
-            <button
-              type="button"
-              onClick={onAssignClick}
-              className="btn btn-primary"
-              style={{ padding: '3px 8px', fontSize: 11, height: 'auto', lineHeight: 1.4 }}
-            >
-              Asignează
-            </button>
-            <button
-              type="button"
-              onClick={onIgnoreClick}
-              className="btn"
-              style={{ padding: '3px 8px', fontSize: 11, height: 'auto', lineHeight: 1.4, background: 'var(--danger)', color: 'white' }}
-            >
-              Ignoră
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={onAssignClick}
+            className="btn btn-primary"
+            style={{ padding: '3px 8px', fontSize: 11, height: 'auto', lineHeight: 1.4 }}
+          >
+            Asignează
+          </button>
         ) : null}
       </div>
 

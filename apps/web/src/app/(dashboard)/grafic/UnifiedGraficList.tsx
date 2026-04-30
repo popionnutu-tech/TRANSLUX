@@ -337,6 +337,20 @@ export default function UnifiedGraficList({
                       </td>
                     )}
                   </tr>
+                  {canSeeReceipt && !validations[i].isValid && (
+                    <tr key={`${row.key}-err`}>
+                      <td colSpan={8} style={{
+                        padding: '4px 12px 8px 12px',
+                        background: 'var(--danger-dim)',
+                        color: 'var(--danger)',
+                        fontSize: 12,
+                        fontWeight: 500,
+                        borderTop: 'none',
+                      }}>
+                        ⚠ {errorMessageRo(validations[i].missing)}
+                      </td>
+                    </tr>
+                  )}
                 </>
               );
             })}

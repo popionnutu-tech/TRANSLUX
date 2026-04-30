@@ -11,8 +11,6 @@ interface Props {
 
 const CATEGORY_META: Record<Anomaly['category'], { short: string; color: string; bg: string }> = {
   NO_FOAIE:        { short: 'lipsă /grafic', color: 'var(--danger)',  bg: 'var(--danger-dim)' },
-  DATA_GRESITA:    { short: 'altă zi',       color: '#f57c00',        bg: 'rgba(245,124,0,0.1)' },
-  DUPLICATE_FOAIE: { short: 'duplicat',      color: 'var(--warning)', bg: 'var(--warning-dim)' },
   INVALID_FORMAT:  { short: 'format',        color: '#9b27b0',        bg: 'rgba(155,39,176,0.1)' },
 };
 

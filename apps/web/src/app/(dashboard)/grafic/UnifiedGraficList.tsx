@@ -170,6 +170,15 @@ export default function UnifiedGraficList({
     }
   }
 
+  // Validate each row: must be cancelled OR have driver+vehicle+foaie
+  const validations = rows.map(r => validateRow(r));
+  const neprocesate = validations.filter(v => !v.isValid).length;
+
+  // Report invalid count to parent (must run unconditionally — Rules of Hooks)
+  useEffect(() => {
+    onInvalidCountChange?.(neprocesate);
+  }, [neprocesate, onInvalidCountChange]);
+
   if (loading) {
     return <p className="text-muted" style={{ padding: 20 }}>Se încarcă…</p>;
   }
@@ -177,15 +186,8 @@ export default function UnifiedGraficList({
   // Separator între interurban și suburban
   const firstSubIdx = rows.findIndex(r => r.kind === 'sub');
 
-  // Validate each row: must be cancelled OR have driver+vehicle+foaie
-  const validations = rows.map(r => validateRow(r));
-  const neprocesate = validations.filter(v => !v.isValid).length;
   const anulate = rows.filter(r => r.cancelled).length;
   const completate = rows.length - neprocesate - anulate;
-
-  useEffect(() => {
-    onInvalidCountChange?.(neprocesate);
-  }, [neprocesate, onInvalidCountChange]);
 
   return (
     <div>

@@ -169,7 +169,15 @@ export default function RoutesTable({ routes }: Props) {
                 {r.driver_name || <span className="text-muted">—</span>}
               </span>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>
-                {r.foaie_nr || <span className="text-muted">—</span>}
+                {r.foaie_nr ? (
+                  <span style={{ color: r.foaie_source === 'implied' ? '#f57c00' : 'inherit' }}
+                        title={r.foaie_source === 'implied' ? 'Asociat automat din istoric' : ''}>
+                    {r.foaie_nr}
+                    {r.foaie_source === 'implied' && (
+                      <span style={{ fontSize: 9, marginLeft: 3, opacity: 0.7 }}>auto</span>
+                    )}
+                  </span>
+                ) : <span className="text-muted">—</span>}
               </span>
               <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right' }}>{num(r.numarare_lei)}</span>
               <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right' }}>{num(r.incasare_lei)}</span>

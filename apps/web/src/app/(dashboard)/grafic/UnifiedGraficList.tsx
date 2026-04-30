@@ -14,6 +14,7 @@ import {
   type VehicleOption,
 } from './actions';
 import type { AdminRole } from '@translux/db';
+import { validateRow, errorMessageRo } from './validation';
 
 /**
  * Lista unificată interurban + suburban pentru dispecer / admin.
@@ -174,10 +175,11 @@ export default function UnifiedGraficList({
   // Separator între interurban și suburban
   const firstSubIdx = rows.findIndex(r => r.kind === 'sub');
 
-  // Counter: rute care n-au nici foaie nici cancel
-  const neprocesate = rows.filter(r => !r.cancelled && !r.foaie_parcurs_nr).length;
+  // Validate each row: must be cancelled OR have driver+vehicle+foaie
+  const validations = rows.map(r => validateRow(r));
+  const neprocesate = validations.filter(v => !v.isValid).length;
   const anulate = rows.filter(r => r.cancelled).length;
-  const cuFoaie = rows.filter(r => !!r.foaie_parcurs_nr && !r.cancelled).length;
+  const completate = rows.length - neprocesate - anulate;
 
   return (
     <div>
@@ -190,26 +192,26 @@ export default function UnifiedGraficList({
           gap: 16,
           padding: '10px 14px',
           marginBottom: 12,
-          background: neprocesate > 0 ? 'var(--warning-dim)' : 'var(--success-dim)',
-          borderLeft: `4px solid ${neprocesate > 0 ? 'var(--warning)' : 'var(--success)'}`,
+          background: neprocesate > 0 ? 'var(--danger-dim)' : 'var(--success-dim)',
+          borderLeft: `4px solid ${neprocesate > 0 ? 'var(--danger)' : 'var(--success)'}`,
           borderRadius: 'var(--radius-xs)',
           fontSize: 13,
           flexWrap: 'wrap',
         }}>
           <span>
-            <strong style={{ color: cuFoaie > 0 ? 'var(--success)' : 'inherit' }}>✓ {cuFoaie}</strong> cu foaie
+            <strong style={{ color: completate > 0 ? 'var(--success)' : 'inherit' }}>✓ {completate}</strong> complete
           </span>
           <span>
             <strong style={{ color: anulate > 0 ? 'var(--text-muted)' : 'inherit' }}>⊘ {anulate}</strong> anulate
           </span>
           <span>
-            <strong style={{ color: neprocesate > 0 ? 'var(--warning)' : 'var(--success)' }}>
+            <strong style={{ color: neprocesate > 0 ? 'var(--danger)' : 'var(--success)' }}>
               {neprocesate > 0 ? '⚠' : '✓'} {neprocesate}
             </strong> neprocesate
           </span>
-          {isDispatcher && neprocesate > 0 && (
+          {neprocesate > 0 && (
             <span className="text-muted">
-              Introdu foaie de parcurs sau bifeaza "anulată" pentru fiecare.
+              Completează șofer + auto + foaie de parcurs sau bifează "Anulată" pentru fiecare.
             </span>
           )}
         </div>
@@ -257,8 +259,8 @@ export default function UnifiedGraficList({
                     borderTop: '1px solid rgba(0,0,0,0.05)',
                     background: row.cancelled
                       ? 'rgba(0,0,0,0.03)'
-                      : (canSeeReceipt && !row.foaie_parcurs_nr)
-                        ? 'var(--warning-dim)'
+                      : (canSeeReceipt && !validations[i].isValid)
+                        ? 'var(--danger-dim)'
                         : undefined,
                     opacity: row.cancelled ? 0.55 : 1,
                   }}>

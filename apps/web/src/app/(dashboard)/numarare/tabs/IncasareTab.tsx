@@ -96,6 +96,12 @@ export default function IncasareTab({ role }: Props) {
 
   const totalAlerts = orphanNum.length + orphanInc.length;
 
+  // Pentru confirmarea zilei și badge-ul de status: doar orphan-uri din ziua curentă
+  // (orphan_incasare e listă globală, dar confirmarea e per-zi).
+  const todayOrphanInc = isSingleDay
+    ? orphanInc.filter(a => a.ziua === from)
+    : [];
+
   return (
     <div>
       {/* Header + filter */}
@@ -138,12 +144,9 @@ export default function IncasareTab({ role }: Props) {
                   </span>
                 )}
               </>
-            ) : totalAlerts > 0 ? (
+            ) : todayOrphanInc.length > 0 ? (
               <span style={{ color: 'var(--warning)', fontWeight: 600 }}>
-                ⚠ {totalAlerts} {totalAlerts === 1 ? 'item' : 'iteme'} de revizuit
-                <span className="text-muted" style={{ fontWeight: 400, marginLeft: 6, fontSize: 12 }}>
-                  ({orphanNum.length} numerar · {orphanInc.length} încasare)
-                </span>
+                ⚠ {todayOrphanInc.length} încasare nepusă pe această zi
               </span>
             ) : (
               <span className="text-muted">Neconfirmat</span>
@@ -158,8 +161,8 @@ export default function IncasareTab({ role }: Props) {
                   type="button"
                   onClick={handleConfirmDay}
                   className="btn btn-primary btn-sm"
-                  disabled={orphanInc.length > 0}
-                  title={orphanInc.length > 0 ? `Rezolvă ${orphanInc.length} alerte de încasare mai întâi` : ''}
+                  disabled={todayOrphanInc.length > 0}
+                  title={todayOrphanInc.length > 0 ? `Rezolvă ${todayOrphanInc.length} alerte de încasare pe această zi mai întâi` : ''}
                 >
                   Confirmă ziua
                 </button>

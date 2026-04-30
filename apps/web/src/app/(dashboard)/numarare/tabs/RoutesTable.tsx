@@ -40,21 +40,17 @@ function num(v: number) {
 }
 
 export default function RoutesTable({ routes }: Props) {
-  const [hideEmpty, setHideEmpty] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const sorted = useMemo(() => {
-    const list = hideEmpty
-      ? routes.filter(r => r.numarare_lei > 0 || r.incasare_lei > 0)
-      : routes;
-    return [...list].sort((a, b) => {
+    return [...routes].sort((a, b) => {
       if (a.ziua !== b.ziua) return a.ziua < b.ziua ? 1 : -1; // recent first
       const ta = parseFirstTime(a.time_nord);
       const tb = parseFirstTime(b.time_nord);
       if (ta !== tb) return ta - tb;
       return (a.route_name || '').localeCompare(b.route_name || '');
     });
-  }, [routes, hideEmpty]);
+  }, [routes]);
 
   const totals = useMemo(() => {
     const t = { num: 0, inc: 0, lg: 0, dg: 0, vk: 0, dt: 0, rs: 0 };
@@ -83,16 +79,6 @@ export default function RoutesTable({ routes }: Props) {
 
   return (
     <div>
-      {/* Toolbar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 8, fontSize: 12 }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-          <input type="checkbox" checked={hideEmpty} onChange={e => setHideEmpty(e.target.checked)} />
-          Ascunde rutele fără date
-        </label>
-        <span className="text-muted">·</span>
-        <span className="text-muted">{sorted.length} rute</span>
-      </div>
-
       {/* Totals */}
       <div className="card" style={{ display: 'flex', gap: 18, padding: 10, marginBottom: 10, flexWrap: 'wrap', fontSize: 12 }}>
         <div><span className="text-muted">Numărare:</span> <strong>{Math.round(totals.num)} lei</strong></div>

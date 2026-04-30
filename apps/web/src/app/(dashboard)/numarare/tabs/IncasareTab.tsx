@@ -12,7 +12,7 @@ import {
   type Anomaly,
   type Confirmation,
 } from './incasareActions';
-import AnomalyCard from './AnomalyCard';
+import AnomalyCard, { AnomalyHeader } from './AnomalyCard';
 import AssignDriverModal from './AssignDriverModal';
 import IgnoreModal from './IgnoreModal';
 
@@ -177,9 +177,28 @@ export default function IncasareTab({ role }: Props) {
       {/* Anomalii */}
       {anomalies.length > 0 && (
         <div style={{ marginBottom: 16 }}>
-          <h3 style={{ fontSize: 14, margin: '0 0 8px 0', color: 'var(--warning)' }}>
+          <h3 style={{ fontSize: 14, margin: '0 0 6px 0', color: 'var(--warning)' }}>
             ⚠ {anomalies.length} {anomalies.length === 1 ? 'alertă' : 'alerte'} de revizuit
           </h3>
+
+          {/* Legendă categorii */}
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8, display: 'flex', gap: 18, flexWrap: 'wrap' }}>
+            <span><strong style={{ color: 'var(--danger)' }}>LIPSĂ /GRAFIC</strong> — foaia n-a fost atribuită niciunui șofer pe ziua respectivă</span>
+            <span><strong style={{ color: 'var(--warning)' }}>DUPLICAT</strong> — aceeași foaie e la mai multe persoane/zile</span>
+            <span><strong style={{ color: '#9b27b0' }}>FORMAT</strong> — număr tastat greșit la casă</span>
+          </div>
+
+          {/* Legendă coloane numerice */}
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+            <span><code>Inc</code>=numerar depus</span>
+            <span><code>Lg</code>=lgotnici</span>
+            <span><code>Dg</code>=diagrame+card</span>
+            <span><code>Vk</code>=lgotnici vokzal</span>
+            <span><code>DT</code>=alimentare șofer</span>
+            <span><code>Rs</code>=alte cheltuieli</span>
+          </div>
+
+          <AnomalyHeader canEdit={canEdit} />
           {anomalies.map(a => (
             <AnomalyCard
               key={`${a.receipt_nr}-${a.ziua}`}

@@ -78,6 +78,8 @@ export default function GraficClient({
   const [downloadingEdinet, setDownloadingEdinet] = useState<1 | 2 | null>(null);
   const [dateEntries, setDateEntries] = useState<DateEntry[]>(initialDates);
   const [allData, setAllData] = useState<{ page1: GraficRow[]; page2: GraficRow[] } | null>(null);
+  const [invalidCount, setInvalidCount] = useState(0);
+  const [blockedModal, setBlockedModal] = useState<string | null>(null);
 
   const refreshDates = useCallback(async () => {
     try { setDateEntries(await getAssignmentDates()); } catch {}
@@ -231,9 +233,36 @@ export default function GraficClient({
       <div className="page-header" style={{ marginBottom: 16 }}>
         <h1>Grafic Zilnic</h1>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => {
+              const next = e.target.value;
+              if (!showLegacy && invalidCount > 0) {
+                setBlockedModal(
+                  `Mai sunt ${invalidCount} rute neprocesate pentru ${formatDate(date)}. ` +
+                  `Completează șofer + auto + foaie de parcurs sau bifează 'Anulată' pentru fiecare.`,
+                );
+                return;
+              }
+              setDate(next);
+            }}
+          />
           {!readOnly && (
-            <button className="btn btn-outline" onClick={handleCopy} disabled={copying}>
+            <button
+              className="btn btn-outline"
+              onClick={() => {
+                if (!showLegacy && invalidCount > 0) {
+                  setBlockedModal(
+                    `Mai sunt ${invalidCount} rute neprocesate pentru ${formatDate(date)}. ` +
+                    `Completează șofer + auto + foaie de parcurs sau bifează 'Anulată' pentru fiecare.`,
+                  );
+                  return;
+                }
+                handleCopy();
+              }}
+              disabled={copying}
+            >
               {copying ? 'Se copiază...' : 'Copiază de ieri'}
             </button>
           )}
@@ -266,6 +295,7 @@ export default function GraficClient({
           vehicles={vehicles}
           role={role}
           readOnly={readOnly}
+          onInvalidCountChange={setInvalidCount}
         />
       ) : (
         <>
@@ -581,6 +611,26 @@ export default function GraficClient({
                 {saving ? '...' : 'Salvează'}
               </button>
               <button className="btn btn-outline" onClick={() => setReturPopup(null)}>Anulează</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Validation block modal ── */}
+      {blockedModal && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}
+          onClick={() => setBlockedModal(null)}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 12, padding: 24, minWidth: 360, maxWidth: 480, boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
+            <h3 style={{ margin: '0 0 12px', fontSize: 16, color: 'var(--danger)' }}>
+              Nu poți schimba ziua
+            </h3>
+            <p style={{ margin: '0 0 20px', fontSize: 14, color: '#333', lineHeight: 1.5 }}>
+              {blockedModal}
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="btn btn-primary" onClick={() => setBlockedModal(null)}>OK</button>
             </div>
           </div>
         </div>

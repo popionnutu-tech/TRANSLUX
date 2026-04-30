@@ -69,11 +69,9 @@ function lastName(full: string | null): string {
 export default function AnomalyCard({ anomaly, canEdit, onAssignClick, onIgnoreClick }: Props) {
   const meta = CATEGORY_META[anomaly.category];
   const b = anomaly.breakdown;
-  const history = anomaly.grafic_history || [];
-
-  // Pentru NO_FOAIE: dacă există istoric, e contextul (foaia a fost cândva atribuită).
-  // Pentru DUPLICATE_FOAIE: lista zilelor unde foaia e atribuită (≥2).
-  // Pentru INVALID_FORMAT: probabil 0.
+  // Filtrăm intrările kiosk de pe ziua curentă a alertei (sunt redundante: e exact alerta însăși)
+  const allHistory = anomaly.foaie_history || [];
+  const history = allHistory.filter(h => !(h.source === 'kiosk' && h.ziua === anomaly.ziua));
   const showHistory = history.length > 0;
 
   return (
@@ -134,7 +132,7 @@ export default function AnomalyCard({ anomaly, canEdit, onAssignClick, onIgnoreC
         ) : null}
       </div>
 
-      {/* Sub-rândul de context: istoricul foii în /grafic */}
+      {/* Sub-rândul de context: istoricul complet al foii (grafic + override + kiosk) */}
       {showHistory && (
         <div style={{
           padding: '2px 10px 4px 28px',
@@ -146,16 +144,28 @@ export default function AnomalyCard({ anomaly, canEdit, onAssignClick, onIgnoreC
           alignItems: 'baseline',
         }}>
           <span style={{ textTransform: 'uppercase', letterSpacing: 0.4, fontSize: 10, opacity: 0.7 }}>
-            ↳ în /grafic:
+            ↳ istoric:
           </span>
-          {history.map((h, idx) => (
-            <span key={`${h.driver_id}-${h.ziua}-${idx}`} style={{ fontFamily: 'var(--font-mono)' }}>
-              <strong style={{ color: h.ziua === anomaly.ziua ? 'var(--warning)' : 'inherit' }}>
-                {shortDate(h.ziua)}
-              </strong>{' '}
-              <span style={{ fontFamily: 'inherit' }}>{lastName(h.driver_name)}</span>
-            </span>
-          ))}
+          {history.map((h, idx) => {
+            const isSameDay = h.ziua === anomaly.ziua;
+            const sourceColor =
+              h.source === 'grafic'   ? 'var(--text)' :
+              h.source === 'override' ? '#9b27b0' :
+                                        'var(--text-muted)';
+            const driverLabel = h.driver_name ? lastName(h.driver_name) : '?';
+            return (
+              <span key={`${h.source}-${h.ziua}-${h.driver_id}-${idx}`}
+                    style={{ fontFamily: 'var(--font-mono)' }}>
+                <strong style={{ color: isSameDay ? 'var(--warning)' : sourceColor }}>
+                  {shortDate(h.ziua)}
+                </strong>{' '}
+                <span style={{ fontFamily: 'inherit', color: sourceColor }}>{driverLabel}</span>
+                <span style={{ fontSize: 9, opacity: 0.5, marginLeft: 3, textTransform: 'uppercase' }}>
+                  {h.source === 'grafic' ? '' : `· ${h.source}`}
+                </span>
+              </span>
+            );
+          })}
         </div>
       )}
     </div>

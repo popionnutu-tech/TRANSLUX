@@ -1,7 +1,16 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { getCasierDocument, type CasierRow } from './incasareActions';
+import {
+  getCasierDocument,
+  getActiveDriversForPicker,
+  getActiveVehiclesForPicker,
+  getActiveRoutesForPicker,
+  type CasierRow,
+  type DriverOption,
+  type VehicleOption,
+  type RouteOption,
+} from './incasareActions';
 
 interface Props {
   ziua: string;            // ziua selectată (din shapă-le părinte)
@@ -69,6 +78,23 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
   const [rows, setRows] = useState<EditableRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasUnsaved, setHasUnsaved] = useState(false);
+
+  // Nomenclatoare (încărcate o singură dată)
+  const [drivers, setDrivers] = useState<DriverOption[]>([]);
+  const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
+  const [routes, setRoutes] = useState<RouteOption[]>([]);
+
+  useEffect(() => {
+    Promise.all([
+      getActiveDriversForPicker(),
+      getActiveVehiclesForPicker(),
+      getActiveRoutesForPicker(),
+    ]).then(([d, v, r]) => {
+      setDrivers(d);
+      setVehicles(v);
+      setRoutes(r);
+    });
+  }, []);
 
   // Sincronizare data părinte → data document
   useEffect(() => {
@@ -282,16 +308,62 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
                   <td style={cs({ textAlign: 'center', color: '#888' })}>{r.N}</td>
                   <td style={cs({ textAlign: 'center' })}>{r.Ora || '—'}</td>
                   <td style={cs()}>
-                    <input style={editInputStyle} value={r.Ruta}
-                      onChange={e => updateCell(i, 'Ruta', e.target.value)} />
+                    <select
+                      value={r.Ruta}
+                      onChange={e => {
+                        const picked = routes.find(rt => rt.display_name === e.target.value);
+                        updateCell(i, 'Ruta', e.target.value);
+                        // Auto-fill Ora din ruta dacă nu e setat
+                        if (picked?.time_nord && !r.Ora) {
+                          // hint via the full row edit
+                          setRows(prev => {
+                            const next = [...prev];
+                            next[i] = { ...next[i], Ora: picked.time_nord || '', __pristine: false };
+                            return next;
+                          });
+                        }
+                      }}
+                      style={editInputStyle}
+                    >
+                      <option value="">— alege rută —</option>
+                      {/* Dacă valoarea curentă nu e în nomenclator, o păstrăm ca opțiune temporară */}
+                      {r.Ruta && !routes.some(rt => rt.display_name === r.Ruta) && (
+                        <option value={r.Ruta}>{r.Ruta} (custom)</option>
+                      )}
+                      {routes.map(rt => (
+                        <option key={rt.id} value={rt.display_name}>{rt.display_name}</option>
+                      ))}
+                    </select>
                   </td>
                   <td style={cs()}>
-                    <input style={editInputStyle} value={r.Sofer}
-                      onChange={e => updateCell(i, 'Sofer', e.target.value)} />
+                    <select
+                      value={r.Sofer}
+                      onChange={e => updateCell(i, 'Sofer', e.target.value)}
+                      style={editInputStyle}
+                    >
+                      <option value="">— alege șofer —</option>
+                      {r.Sofer && !drivers.some(d => d.full_name === r.Sofer) && (
+                        <option value={r.Sofer}>{r.Sofer} (custom)</option>
+                      )}
+                      {drivers.map(d => (
+                        <option key={d.id} value={d.full_name}>{d.full_name}</option>
+                      ))}
+                    </select>
                   </td>
                   <td style={cs({ fontFamily: 'var(--font-mono)' })}>
-                    <input style={{ ...editInputStyle, fontFamily: 'var(--font-mono)' }} value={r.Masina}
-                      onChange={e => updateCell(i, 'Masina', e.target.value)} />
+                    <select
+                      value={r.Masina}
+                      onChange={e => updateCell(i, 'Masina', e.target.value)}
+                      style={{ ...editInputStyle, fontFamily: 'var(--font-mono)' }}
+                    >
+                      <option value="">—</option>
+                      {r.Masina && !vehicles.some(v => v.plate_number === r.Masina) && (
+                        <option value={r.Masina}>{r.Masina} (custom)</option>
+                      )}
+                      {vehicles.map(v => (
+                        <option key={v.id} value={v.plate_number}>{v.plate_number}</option>
+                      ))}
+                    </select>
                   </td>
                   <td style={cs({ fontFamily: 'var(--font-mono)' })}>
                     <input style={{ ...editInputStyle, fontFamily: 'var(--font-mono)' }} value={r.NumarFoaie}

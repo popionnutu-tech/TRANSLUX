@@ -220,6 +220,54 @@ export async function getGraficReport(
   };
 }
 
+// ─── Nomenclatoare pentru picker-ele din Document casier ───
+
+export interface VehicleOption {
+  id: string;
+  plate_number: string;
+}
+
+export interface RouteOption {
+  id: number;
+  display_name: string;
+  time_nord: string | null;
+  route_type: string | null;
+}
+
+export async function getActiveVehiclesForPicker(): Promise<VehicleOption[]> {
+  const session = await verifySession();
+  if (!session) return [];
+  const sb = getSupabase();
+  const { data } = await sb
+    .from('vehicles')
+    .select('id, plate_number')
+    .eq('active', true)
+    .order('plate_number');
+  return (data || []) as VehicleOption[];
+}
+
+export async function getActiveRoutesForPicker(): Promise<RouteOption[]> {
+  const session = await verifySession();
+  if (!session) return [];
+  const sb = getSupabase();
+  const { data } = await sb
+    .from('crm_routes')
+    .select('id, dest_to_ro, dest_from_ro, route_type, time_nord')
+    .eq('active', true);
+  type Row = { id: number; dest_to_ro: string; dest_from_ro: string | null; route_type: string | null; time_nord: string | null };
+  const rows = (data || []) as Row[];
+  return rows
+    .map((r) => ({
+      id: r.id,
+      display_name: r.route_type === 'suburban'
+        ? `${r.dest_to_ro} - ${r.dest_from_ro || ''}`
+        : r.dest_to_ro,
+      time_nord: r.time_nord,
+      route_type: r.route_type,
+    }))
+    .sort((a, b) => a.display_name.localeCompare(b.display_name));
+}
+
 // ─── Document casier — date strict din tomberon, lookup /grafic per foaie ───
 
 export interface CasierRow {

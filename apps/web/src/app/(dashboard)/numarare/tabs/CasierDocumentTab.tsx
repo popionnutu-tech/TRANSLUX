@@ -180,10 +180,13 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
   const fontFamily = '"Segoe UI", Tahoma, Arial, sans-serif';
   const cellStyle: React.CSSProperties = {
     border: '1px solid #ccc',
-    padding: '2px 6px',
-    fontSize: 12,
+    padding: '1px 4px',
+    fontSize: 11,
     fontFamily,
     background: '#fff',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
   };
   const headerCellStyle: React.CSSProperties = {
     ...cellStyle,
@@ -196,7 +199,7 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
   };
   const editInputStyle: React.CSSProperties = {
     width: '100%', border: 'none', outline: 'none', background: 'transparent',
-    fontSize: 12, fontFamily, padding: 0,
+    fontSize: 11, fontFamily, padding: 0,
   };
   const editNumStyle: React.CSSProperties = {
     ...editInputStyle, textAlign: 'right', fontFamily: 'var(--font-mono)',
@@ -241,33 +244,32 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
 
       {/* Tabel */}
       <div style={{
-        maxHeight: '60vh', overflow: 'auto',
         border: '1px solid #ccc',
       }}>
         <table style={{
           borderCollapse: 'collapse',
-          fontSize: 12,
+          fontSize: 11,
           fontFamily,
           width: '100%',
-          minWidth: 1400,
+          tableLayout: 'fixed',
         }}>
-          <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
+          <thead>
             <tr>
-              <th style={{ ...headerCellStyle, width: 32 }}>N</th>
-              <th style={{ ...headerCellStyle, width: 56 }}>Ora</th>
-              <th style={{ ...headerCellStyle, minWidth: 200 }}>Ruta</th>
-              <th style={{ ...headerCellStyle, minWidth: 140 }}>Șoferi</th>
-              <th style={{ ...headerCellStyle, width: 90 }}>Mașina</th>
-              <th style={{ ...headerCellStyle, width: 100 }}>NumărFoaie</th>
-              <th style={{ ...headerCellStyle, width: 100 }}>DataFoaie</th>
-              <th style={{ ...headerCellStyle, width: 80 }}>Încasare</th>
-              <th style={{ ...headerCellStyle, width: 70 }}>Ligotnici</th>
-              <th style={{ ...headerCellStyle, width: 70 }}>Lig. gară</th>
-              <th style={{ ...headerCellStyle, width: 70 }}>Diagrame</th>
-              <th style={{ ...headerCellStyle, width: 70 }}>Combustibil</th>
-              <th style={{ ...headerCellStyle, width: 70 }}>Chelt. supl.</th>
-              <th style={{ ...headerCellStyle, minWidth: 200 }}>Comentariu</th>
-              <th style={{ ...headerCellStyle, width: 32 }}></th>
+              <th style={{ ...headerCellStyle, width: '2%' }}>N</th>
+              <th style={{ ...headerCellStyle, width: '4%' }}>Ora</th>
+              <th style={{ ...headerCellStyle, width: '14%' }}>Ruta</th>
+              <th style={{ ...headerCellStyle, width: '10%' }}>Șoferi</th>
+              <th style={{ ...headerCellStyle, width: '6%' }}>Mașina</th>
+              <th style={{ ...headerCellStyle, width: '6%' }}>NumărFoaie</th>
+              <th style={{ ...headerCellStyle, width: '7%' }}>DataFoaie</th>
+              <th style={{ ...headerCellStyle, width: '6%' }}>Încasare</th>
+              <th style={{ ...headerCellStyle, width: '5%' }}>Ligotnici</th>
+              <th style={{ ...headerCellStyle, width: '5%' }}>Lig. gară</th>
+              <th style={{ ...headerCellStyle, width: '6%' }}>Diagrame</th>
+              <th style={{ ...headerCellStyle, width: '6%' }}>Combust.</th>
+              <th style={{ ...headerCellStyle, width: '5%' }}>Ch. supl.</th>
+              <th style={{ ...headerCellStyle, width: '16%' }}>Comentariu</th>
+              <th style={{ ...headerCellStyle, width: '2%' }}></th>
             </tr>
           </thead>
           <tbody>

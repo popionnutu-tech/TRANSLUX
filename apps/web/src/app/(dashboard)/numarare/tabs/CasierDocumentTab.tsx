@@ -344,7 +344,7 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
                     >
                       <option value="">— alege șofer —</option>
                       {r.Sofer && !drivers.some(d => d.full_name === r.Sofer) && (
-                        <option value={r.Sofer}>{r.Sofer} (custom)</option>
+                        <option value={r.Sofer}>{r.Sofer}</option>
                       )}
                       {drivers.map(d => (
                         <option key={d.id} value={d.full_name}>{d.full_name}</option>

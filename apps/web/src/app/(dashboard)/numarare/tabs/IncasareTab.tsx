@@ -175,10 +175,9 @@ export default function IncasareTab({ role }: Props) {
         <RoutesTable routes={routes} />
       )}
 
-      {!loading && subTab === 'casier' && (
+      {subTab === 'casier' && (
         <CasierDocumentTab
           ziua={from}
-          routes={isSingleDay ? routes : routes.filter(r => r.ziua === from)}
           operatorName={operatorName}
         />
       )}

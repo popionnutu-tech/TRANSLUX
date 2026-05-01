@@ -220,6 +220,42 @@ export async function getGraficReport(
   };
 }
 
+// ─── Document casier — date strict din tomberon, lookup /grafic per foaie ───
+
+export interface CasierRow {
+  row_key: string;
+  foaie_nr: string;
+  ziua: string;
+  plati: number;
+  driver_id: string | null;
+  driver_name: string | null;
+  assignment_id: string | null;
+  crm_route_id: number | null;
+  route_name: string | null;
+  time_nord: string | null;
+  vehicle_plate: string | null;
+  incasare_numerar: number;
+  diagrama: number;
+  ligotniki0_suma: number;
+  ligotniki_vokzal_suma: number;
+  dt_suma: number;
+  dop_rashodi: number;
+  comment: string | null;
+  fiscal_nrs: string | null;
+  has_grafic_match: boolean;
+}
+
+export async function getCasierDocument(date: string): Promise<CasierRow[]> {
+  const session = await verifySession();
+  if (!session) return [];
+  if (!isViewer(session.role)) return [];
+
+  const sb = getSupabase();
+  const { data, error } = await sb.rpc('get_casier_document', { p_date: date });
+  if (error) return [];
+  return (data as CasierRow[]) || [];
+}
+
 // ─── Numele operatorului curent (pentru antet Document casier) ───
 
 export async function getCurrentOperatorName(): Promise<string> {

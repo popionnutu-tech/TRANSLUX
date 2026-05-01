@@ -2,15 +2,19 @@ export const dynamic = 'force-dynamic';
 
 import { redirect } from 'next/navigation';
 import { verifySession } from '@/lib/auth';
-import { getPendingSubmissions } from './actions';
+import { getPendingSubmissions, getRouteStatuses } from './actions';
 import ApprovalsClient from './ApprovalsClient';
+import RouteStatusList from './RouteStatusList';
 
 export default async function VerificareAprobariPage() {
   const session = await verifySession();
   if (!session) redirect('/login');
   if (session.role !== 'ADMIN') redirect('/login');
 
-  const submissions = await getPendingSubmissions();
+  const [submissions, statuses] = await Promise.all([
+    getPendingSubmissions(),
+    getRouteStatuses(),
+  ]);
 
   return (
     <div style={{ padding: '20px 24px', maxWidth: 1000 }}>
@@ -22,6 +26,11 @@ export default async function VerificareAprobariPage() {
         în orarul real, sau respingeți.
       </p>
       <ApprovalsClient submissions={submissions} />
+
+      <h2 style={{ fontSize: 17, fontWeight: 700, color: '#222', margin: '32px 0 10px' }}>
+        Stare verificare pe rute
+      </h2>
+      <RouteStatusList statuses={statuses} />
     </div>
   );
 }

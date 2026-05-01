@@ -331,7 +331,9 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
                         <option value={r.Ruta}>{r.Ruta} (custom)</option>
                       )}
                       {routes.map(rt => (
-                        <option key={rt.id} value={rt.display_name}>{rt.display_name}</option>
+                        <option key={rt.id} value={rt.display_name}>
+                          {rt.time_nord ? `${rt.time_nord} · ${rt.display_name}` : rt.display_name}
+                        </option>
                       ))}
                     </select>
                   </td>

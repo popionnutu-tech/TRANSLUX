@@ -31,11 +31,9 @@ type EditableRow = {
   DataFoaie: string;
   // Sume — Tomberon, dar editabile (override pentru cazuri speciale)
   Incasare: number;          // suma_numerar (cash)
-  PlataCard: number;         // Phase 2: split din diagrama
   Ligotnici: number;         // ligotniki0_suma (lei)
   LigotniciGara: number;     // ligotniki_vokzal_suma
   Diagrame: number;          // diagrama
-  Cheltuieli: number;        // NEW (Phase 2)
   Combustibil: number;       // dt_suma
   CheltuieliSupl: number;    // dop_rashodi
   Comentariu: string;
@@ -55,11 +53,9 @@ function rowFromCasier(c: CasierRow, idx: number): EditableRow {
     NumarFoaie: c.foaie_nr || '',
     DataFoaie: c.data_foaie || '',  // /grafic ziua, NULL dacă foaia nu e în /grafic
     Incasare: Number(c.incasare_numerar) || 0,
-    PlataCard: 0,
     Ligotnici: Number(c.ligotniki0_suma) || 0,
     LigotniciGara: Number(c.ligotniki_vokzal_suma) || 0,
     Diagrame: Number(c.diagrama) || 0,
-    Cheltuieli: 0,
     Combustibil: Number(c.dt_suma) || 0,
     CheltuieliSupl: Number(c.dop_rashodi) || 0,
     Comentariu: c.comment || '',
@@ -118,11 +114,9 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
       rows.reduce((s, r) => s + (typeof r[k] === 'number' ? (r[k] as number) : 0), 0);
     return {
       Incasare: sum('Incasare'),
-      PlataCard: sum('PlataCard'),
       Ligotnici: sum('Ligotnici'),
       LigotniciGara: sum('LigotniciGara'),
       Diagrame: sum('Diagrame'),
-      Cheltuieli: sum('Cheltuieli'),
       Combustibil: sum('Combustibil'),
       CheltuieliSupl: sum('CheltuieliSupl'),
     };
@@ -150,11 +144,9 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
         NumarFoaie: '',
         DataFoaie: docDate,
         Incasare: 0,
-        PlataCard: 0,
         Ligotnici: 0,
         LigotniciGara: 0,
         Diagrame: 0,
-        Cheltuieli: 0,
         Combustibil: 0,
         CheltuieliSupl: 0,
         Comentariu: '',
@@ -269,11 +261,9 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
               <th style={{ ...headerCellStyle, width: 100 }}>NumărFoaie</th>
               <th style={{ ...headerCellStyle, width: 100 }}>DataFoaie</th>
               <th style={{ ...headerCellStyle, width: 80 }}>Încasare</th>
-              <th style={{ ...headerCellStyle, width: 70 }}>Plată card</th>
               <th style={{ ...headerCellStyle, width: 70 }}>Ligotnici</th>
               <th style={{ ...headerCellStyle, width: 70 }}>Lig. gară</th>
               <th style={{ ...headerCellStyle, width: 70 }}>Diagrame</th>
-              <th style={{ ...headerCellStyle, width: 70 }}>Cheltuieli</th>
               <th style={{ ...headerCellStyle, width: 70 }}>Combustibil</th>
               <th style={{ ...headerCellStyle, width: 70 }}>Chelt. supl.</th>
               <th style={{ ...headerCellStyle, minWidth: 200 }}>Comentariu</th>
@@ -283,7 +273,7 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={17} style={{ ...cellStyle, textAlign: 'center', padding: 20, color: '#888' }}>
+                <td colSpan={15} style={{ ...cellStyle, textAlign: 'center', padding: 20, color: '#888' }}>
                   Se încarcă din Tomberon...
                 </td>
               </tr>
@@ -389,10 +379,6 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
                   </td>
                   <td style={ns()}>{Math.round(r.Incasare)}</td>
                   <td style={ns()}>
-                    <input type="number" min={0} step={0.01} style={editNumStyle} value={r.PlataCard || ''}
-                      onChange={e => updateCell(i, 'PlataCard', Number(e.target.value) || 0)} />
-                  </td>
-                  <td style={ns()}>
                     <input type="number" min={0} style={editNumStyle} value={r.Ligotnici || ''}
                       onChange={e => updateCell(i, 'Ligotnici', Number(e.target.value) || 0)} />
                   </td>
@@ -403,10 +389,6 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
                   <td style={ns()}>
                     <input type="number" min={0} step={0.01} style={editNumStyle} value={r.Diagrame || ''}
                       onChange={e => updateCell(i, 'Diagrame', Number(e.target.value) || 0)} />
-                  </td>
-                  <td style={ns()}>
-                    <input type="number" min={0} step={0.01} style={editNumStyle} value={r.Cheltuieli || ''}
-                      onChange={e => updateCell(i, 'Cheltuieli', Number(e.target.value) || 0)} />
                   </td>
                   <td style={ns()}>
                     <input type="number" min={0} step={0.01} style={editNumStyle} value={r.Combustibil || ''}
@@ -429,7 +411,7 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
             })}
             {!loading && rows.length === 0 && (
               <tr>
-                <td colSpan={17} style={{ ...cellStyle, textAlign: 'center', padding: 20, color: '#888' }}>
+                <td colSpan={15} style={{ ...cellStyle, textAlign: 'center', padding: 20, color: '#888' }}>
                   Nicio plată în Tomberon pentru această zi.
                 </td>
               </tr>
@@ -439,11 +421,9 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
             <tr>
               <td colSpan={7} style={{ ...headerCellStyle, textAlign: 'right' }}>TOTAL</td>
               <td style={{ ...headerCellStyle, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{Math.round(totals.Incasare)}</td>
-              <td style={{ ...headerCellStyle, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{Math.round(totals.PlataCard)}</td>
               <td style={{ ...headerCellStyle, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{Math.round(totals.Ligotnici)}</td>
               <td style={{ ...headerCellStyle, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{Math.round(totals.LigotniciGara)}</td>
               <td style={{ ...headerCellStyle, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{Math.round(totals.Diagrame)}</td>
-              <td style={{ ...headerCellStyle, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{Math.round(totals.Cheltuieli)}</td>
               <td style={{ ...headerCellStyle, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{Math.round(totals.Combustibil)}</td>
               <td style={{ ...headerCellStyle, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{Math.round(totals.CheltuieliSupl)}</td>
               <td colSpan={2} style={{ ...headerCellStyle }}></td>

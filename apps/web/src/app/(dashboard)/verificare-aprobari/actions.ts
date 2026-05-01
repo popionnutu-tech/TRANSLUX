@@ -28,6 +28,7 @@ export interface PendingSubmission {
   id: string;
   crm_route_id: number;
   route_name: string;
+  time_chisinau: string | null;
   retur_same: boolean;
   retur_change_proposed: boolean;
   retur_swap: ProposedReturSwap | null;
@@ -130,6 +131,7 @@ export async function getPendingSubmissions(): Promise<PendingSubmission[]> {
       id: s.id,
       crm_route_id: s.crm_route_id,
       route_name: (route as any)?.dest_to_ro || `Ruta ${s.crm_route_id}`,
+      time_chisinau: (route as any)?.time_chisinau || null,
       retur_same: !!s.retur_same,
       retur_change_proposed: !!s.retur_change_proposed,
       retur_swap,

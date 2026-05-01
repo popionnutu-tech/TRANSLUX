@@ -127,7 +127,11 @@ export default function ApprovalsClient({ submissions }: { submissions: PendingS
                 <ChangeBlock title="Cursa 1 (Nord → Chișinău)" changes={turChanges} />
               )}
               {returChanges.length > 0 && (
-                <ChangeBlock title="Cursa 2 (Chișinău → Nord)" changes={returChanges} />
+                <ChangeBlock
+                  title="Cursa 2 (Chișinău → Nord)"
+                  subtitle={s.time_chisinau ? `Pornire din Chișinău: ${s.time_chisinau.split(' - ')[0]}` : null}
+                  changes={returChanges}
+                />
               )}
 
               <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
@@ -174,14 +178,17 @@ export default function ApprovalsClient({ submissions }: { submissions: PendingS
 
 function ChangeBlock({
   title,
+  subtitle,
   changes,
 }: {
   title: string;
+  subtitle?: string | null;
   changes: { stop_name: string; old_time: string | null; new_time: string }[];
 }) {
   return (
     <div style={{ marginTop: 8 }}>
-      <div style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 4 }}>{title}</div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: subtitle ? 2 : 4 }}>{title}</div>
+      {subtitle && <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>{subtitle}</div>}
       <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 4 }}>
         {changes.map((c, i) => (
           <li

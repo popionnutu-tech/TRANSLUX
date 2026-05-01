@@ -164,7 +164,8 @@ export async function getRouteDetail(routeId: number): Promise<RouteDetail | nul
   const { data: stops } = await supabase
     .from('crm_stop_fares')
     .select('id, crm_route_id, name_ro, hour_from_chisinau, hour_from_nord')
-    .in('crm_route_id', stopRouteIds);
+    .in('crm_route_id', stopRouteIds)
+    .limit(5000);
 
   const allStops = ((stops || []) as any[]);
   const stops_tur = allStops

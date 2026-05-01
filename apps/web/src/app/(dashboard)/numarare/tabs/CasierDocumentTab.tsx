@@ -1,88 +1,91 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import type { GraficRouteRow } from './incasareActions';
+import { getCasierDocument, type CasierRow } from './incasareActions';
 
 interface Props {
-  ziua: string;            // ziua selectată
-  routes: GraficRouteRow[]; // rutele (deja filtrate pe ziua)
+  ziua: string;            // ziua selectată (din shapă-le părinte)
   operatorName: string;     // numele utilizatorului logat (pentru antet)
 }
 
 // Fiecare rând în starea locală (cu modificări)
 type EditableRow = {
-  // Identificator stabil
   row_key: string;
-  // Read-only / sursă
+  // Read-only / sursă tomberon
   N: number;
   Ora: string;
-  // Editabile
+  // Editabile (text)
   Ruta: string;
   Sofer: string;
   Masina: string;
   NumarFoaie: string;
   DataFoaie: string;
-  // Sume (din Tomberon, dar editabile)
-  Incasare: number;          // = suma_numerar (read-only de obicei)
-  PlataCard: number;         // pentru Phase 2 (split din diagrama)
+  // Sume — Tomberon, dar editabile (override pentru cazuri speciale)
+  Incasare: number;          // suma_numerar (cash)
+  PlataCard: number;         // Phase 2: split din diagrama
   Ligotnici: number;         // ligotniki0_suma (lei)
   LigotniciGara: number;     // ligotniki_vokzal_suma
-  Diagrame: number;          // diagrama_suma
-  Cheltuieli: number;        // NEW
+  Diagrame: number;          // diagrama
+  Cheltuieli: number;        // NEW (Phase 2)
   Combustibil: number;       // dt_suma
   CheltuieliSupl: number;    // dop_rashodi
   Comentariu: string;
-  // Sursa
-  __pristine: boolean;       // false dacă a fost modificat local
+  // Stare
+  __pristine: boolean;
+  __hasGrafic: boolean;
 };
 
-function rowFromRoute(r: GraficRouteRow, idx: number, docDate: string): EditableRow {
-  const ruta =
-    [r.route_name, r.vehicle_plate ? `(${r.vehicle_plate})` : ''].filter(Boolean).join(' ') || '—';
+function rowFromCasier(c: CasierRow, idx: number): EditableRow {
   return {
-    row_key: r.row_key,
+    row_key: c.row_key,
     N: idx + 1,
-    Ora: r.time_nord || '',
-    Ruta: r.route_name || '',
-    Sofer: r.driver_name || '',
-    Masina: r.vehicle_plate || '',
-    NumarFoaie: r.foaie_nr || '',
-    DataFoaie: r.ziua || docDate,
-    Incasare: Number(r.incasare_numerar) || 0,
-    PlataCard: 0,                  // Phase 2: split from diagrama
-    Ligotnici: Number(r.ligotniki0_suma) || 0,
-    LigotniciGara: Number(r.ligotniki_vokzal_suma) || 0,
-    Diagrame: Number(r.incasare_diagrama) || 0,
-    Cheltuieli: 0,                 // Phase 2: new field
-    Combustibil: Number(r.dt_suma) || 0,
-    CheltuieliSupl: Number(r.dop_rashodi) || 0,
-    Comentariu: r.comment || '',
+    Ora: c.time_nord || '',
+    Ruta: c.route_name || '',
+    Sofer: c.driver_name || '',
+    Masina: c.vehicle_plate || '',
+    NumarFoaie: c.foaie_nr || '',
+    DataFoaie: c.ziua || '',
+    Incasare: Number(c.incasare_numerar) || 0,
+    PlataCard: 0,
+    Ligotnici: Number(c.ligotniki0_suma) || 0,
+    LigotniciGara: Number(c.ligotniki_vokzal_suma) || 0,
+    Diagrame: Number(c.diagrama) || 0,
+    Cheltuieli: 0,
+    Combustibil: Number(c.dt_suma) || 0,
+    CheltuieliSupl: Number(c.dop_rashodi) || 0,
+    Comentariu: c.comment || '',
     __pristine: true,
+    __hasGrafic: c.has_grafic_match,
   };
-  void ruta;
 }
 
-// Format pentru document №: 6 cifre
 function docNumberFromDate(date: string): string {
-  // "2026-04-30" -> 20260430 -> ultimele 6 cifre = 260430 (ex.)
   const digits = date.replace(/\D/g, '');
   return digits.slice(-6).padStart(6, '0');
 }
 
-function todayChisinau(): string {
-  return new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
-}
-
-export default function CasierDocumentTab({ ziua, routes, operatorName }: Props) {
-  const [docDate, setDocDate] = useState<string>(ziua || todayChisinau());
+export default function CasierDocumentTab({ ziua, operatorName }: Props) {
+  const [docDate, setDocDate] = useState<string>(ziua);
   const [rows, setRows] = useState<EditableRow[]>([]);
+  const [loading, setLoading] = useState(false);
   const [hasUnsaved, setHasUnsaved] = useState(false);
 
-  // Sincronizare cu rutele primite
+  // Sincronizare data părinte → data document
   useEffect(() => {
-    setRows(routes.map((r, i) => rowFromRoute(r, i, docDate)));
-    setHasUnsaved(false);
-  }, [routes, docDate]);
+    setDocDate(ziua);
+  }, [ziua]);
+
+  // Încarcă rândurile din Tomberon pentru ziua aleasă
+  useEffect(() => {
+    if (!docDate) return;
+    setLoading(true);
+    getCasierDocument(docDate)
+      .then(data => {
+        setRows(data.map((r, i) => rowFromCasier(r, i)));
+        setHasUnsaved(false);
+      })
+      .finally(() => setLoading(false));
+  }, [docDate]);
 
   const totals = useMemo(() => {
     const sum = (k: keyof EditableRow) =>
@@ -130,6 +133,7 @@ export default function CasierDocumentTab({ ziua, routes, operatorName }: Props)
         CheltuieliSupl: 0,
         Comentariu: '',
         __pristine: false,
+        __hasGrafic: false,
       },
     ]);
     setHasUnsaved(true);
@@ -142,17 +146,19 @@ export default function CasierDocumentTab({ ziua, routes, operatorName }: Props)
 
   function handleClose() {
     if (hasUnsaved && !confirm('Sunt modificări nesalvate. Sigur închizi?')) return;
-    // For Phase 1, just reset the form
-    setRows(routes.map((r, i) => rowFromRoute(r, i, docDate)));
-    setHasUnsaved(false);
+    // Reset
+    setLoading(true);
+    getCasierDocument(docDate).then(data => {
+      setRows(data.map((r, i) => rowFromCasier(r, i)));
+      setHasUnsaved(false);
+    }).finally(() => setLoading(false));
   }
 
   function handleSave() {
-    // Phase 2: persist to DB
     alert('Phase 1: doar interfața.\nSalvarea în BD vine la următorul pas.');
   }
 
-  // Stilurile de bază (Windows-business / Tahoma)
+  // Stilurile de bază
   const fontFamily = '"Segoe UI", Tahoma, Arial, sans-serif';
   const cellStyle: React.CSSProperties = {
     border: '1px solid #ccc',
@@ -170,8 +176,6 @@ export default function CasierDocumentTab({ ziua, routes, operatorName }: Props)
   const numCellStyle: React.CSSProperties = {
     ...cellStyle, textAlign: 'right', fontFamily: 'var(--font-mono)',
   };
-
-  // Editable input style: să arate ca o celulă normală până la focus
   const editInputStyle: React.CSSProperties = {
     width: '100%', border: 'none', outline: 'none', background: 'transparent',
     fontSize: 12, fontFamily, padding: 0,
@@ -213,7 +217,7 @@ export default function CasierDocumentTab({ ziua, routes, operatorName }: Props)
           Operator: <strong>{operatorName}</strong>
         </span>
         <span style={{ fontSize: 11, color: hasUnsaved ? '#f57c00' : '#888' }}>
-          {hasUnsaved ? '● modificat' : '○ nemodificat'}
+          {hasUnsaved ? '● modificat' : '○ sincronizat cu Tomberon'}
         </span>
       </div>
 
@@ -236,7 +240,7 @@ export default function CasierDocumentTab({ ziua, routes, operatorName }: Props)
               <th style={{ ...headerCellStyle, minWidth: 200 }}>Ruta</th>
               <th style={{ ...headerCellStyle, minWidth: 140 }}>Șoferi</th>
               <th style={{ ...headerCellStyle, width: 90 }}>Mașina</th>
-              <th style={{ ...headerCellStyle, width: 90 }}>NumărFoaie</th>
+              <th style={{ ...headerCellStyle, width: 100 }}>NumărFoaie</th>
               <th style={{ ...headerCellStyle, width: 100 }}>DataFoaie</th>
               <th style={{ ...headerCellStyle, width: 80 }}>Încasare</th>
               <th style={{ ...headerCellStyle, width: 70 }}>Plată card</th>
@@ -251,8 +255,22 @@ export default function CasierDocumentTab({ ziua, routes, operatorName }: Props)
             </tr>
           </thead>
           <tbody>
-            {rows.map((r, i) => {
-              const rowBg = r.__pristine ? '#fff' : '#fffbe6';  // galben deschis
+            {loading && (
+              <tr>
+                <td colSpan={17} style={{ ...cellStyle, textAlign: 'center', padding: 20, color: '#888' }}>
+                  Se încarcă din Tomberon...
+                </td>
+              </tr>
+            )}
+            {!loading && rows.map((r, i) => {
+              // Roșu deschis = fără match în /grafic (foaie necunoscut)
+              // Galben deschis = modificat local
+              // Alb = sincronizat
+              const rowBg = !r.__pristine
+                ? '#fffbe6'
+                : !r.__hasGrafic
+                ? '#fdecea'
+                : '#fff';
               const cs = (overrides: React.CSSProperties = {}): React.CSSProperties => ({
                 ...cellStyle, background: rowBg, ...overrides,
               });
@@ -264,125 +282,73 @@ export default function CasierDocumentTab({ ziua, routes, operatorName }: Props)
                   <td style={cs({ textAlign: 'center', color: '#888' })}>{r.N}</td>
                   <td style={cs({ textAlign: 'center' })}>{r.Ora || '—'}</td>
                   <td style={cs()}>
-                    <input
-                      style={editInputStyle}
-                      value={r.Ruta}
-                      onChange={e => updateCell(i, 'Ruta', e.target.value)}
-                    />
+                    <input style={editInputStyle} value={r.Ruta}
+                      onChange={e => updateCell(i, 'Ruta', e.target.value)} />
                   </td>
                   <td style={cs()}>
-                    <input
-                      style={editInputStyle}
-                      value={r.Sofer}
-                      onChange={e => updateCell(i, 'Sofer', e.target.value)}
-                    />
+                    <input style={editInputStyle} value={r.Sofer}
+                      onChange={e => updateCell(i, 'Sofer', e.target.value)} />
                   </td>
                   <td style={cs({ fontFamily: 'var(--font-mono)' })}>
-                    <input
-                      style={{ ...editInputStyle, fontFamily: 'var(--font-mono)' }}
-                      value={r.Masina}
-                      onChange={e => updateCell(i, 'Masina', e.target.value)}
-                    />
+                    <input style={{ ...editInputStyle, fontFamily: 'var(--font-mono)' }} value={r.Masina}
+                      onChange={e => updateCell(i, 'Masina', e.target.value)} />
                   </td>
                   <td style={cs({ fontFamily: 'var(--font-mono)' })}>
-                    <input
-                      style={{ ...editInputStyle, fontFamily: 'var(--font-mono)' }}
-                      value={r.NumarFoaie}
-                      onChange={e => updateCell(i, 'NumarFoaie', e.target.value)}
-                    />
+                    <input style={{ ...editInputStyle, fontFamily: 'var(--font-mono)' }} value={r.NumarFoaie}
+                      onChange={e => updateCell(i, 'NumarFoaie', e.target.value)} />
                   </td>
                   <td style={cs()}>
-                    <input
-                      type="date"
-                      style={editInputStyle}
-                      value={r.DataFoaie}
-                      onChange={e => updateCell(i, 'DataFoaie', e.target.value)}
-                    />
+                    <input type="date" style={editInputStyle} value={r.DataFoaie}
+                      onChange={e => updateCell(i, 'DataFoaie', e.target.value)} />
                   </td>
                   <td style={ns()}>{Math.round(r.Incasare)}</td>
                   <td style={ns()}>
-                    <input
-                      type="number" min={0} step={0.01}
-                      style={editNumStyle}
-                      value={r.PlataCard || ''}
-                      onChange={e => updateCell(i, 'PlataCard', Number(e.target.value) || 0)}
-                    />
+                    <input type="number" min={0} step={0.01} style={editNumStyle} value={r.PlataCard || ''}
+                      onChange={e => updateCell(i, 'PlataCard', Number(e.target.value) || 0)} />
                   </td>
                   <td style={ns()}>
-                    <input
-                      type="number" min={0}
-                      style={editNumStyle}
-                      value={r.Ligotnici || ''}
-                      onChange={e => updateCell(i, 'Ligotnici', Number(e.target.value) || 0)}
-                    />
+                    <input type="number" min={0} style={editNumStyle} value={r.Ligotnici || ''}
+                      onChange={e => updateCell(i, 'Ligotnici', Number(e.target.value) || 0)} />
                   </td>
                   <td style={ns()}>
-                    <input
-                      type="number" min={0}
-                      style={editNumStyle}
-                      value={r.LigotniciGara || ''}
-                      onChange={e => updateCell(i, 'LigotniciGara', Number(e.target.value) || 0)}
-                    />
+                    <input type="number" min={0} style={editNumStyle} value={r.LigotniciGara || ''}
+                      onChange={e => updateCell(i, 'LigotniciGara', Number(e.target.value) || 0)} />
                   </td>
                   <td style={ns()}>
-                    <input
-                      type="number" min={0} step={0.01}
-                      style={editNumStyle}
-                      value={r.Diagrame || ''}
-                      onChange={e => updateCell(i, 'Diagrame', Number(e.target.value) || 0)}
-                    />
+                    <input type="number" min={0} step={0.01} style={editNumStyle} value={r.Diagrame || ''}
+                      onChange={e => updateCell(i, 'Diagrame', Number(e.target.value) || 0)} />
                   </td>
                   <td style={ns()}>
-                    <input
-                      type="number" min={0} step={0.01}
-                      style={editNumStyle}
-                      value={r.Cheltuieli || ''}
-                      onChange={e => updateCell(i, 'Cheltuieli', Number(e.target.value) || 0)}
-                    />
+                    <input type="number" min={0} step={0.01} style={editNumStyle} value={r.Cheltuieli || ''}
+                      onChange={e => updateCell(i, 'Cheltuieli', Number(e.target.value) || 0)} />
                   </td>
                   <td style={ns()}>
-                    <input
-                      type="number" min={0} step={0.01}
-                      style={editNumStyle}
-                      value={r.Combustibil || ''}
-                      onChange={e => updateCell(i, 'Combustibil', Number(e.target.value) || 0)}
-                    />
+                    <input type="number" min={0} step={0.01} style={editNumStyle} value={r.Combustibil || ''}
+                      onChange={e => updateCell(i, 'Combustibil', Number(e.target.value) || 0)} />
                   </td>
                   <td style={ns()}>
-                    <input
-                      type="number" min={0} step={0.01}
-                      style={editNumStyle}
-                      value={r.CheltuieliSupl || ''}
-                      onChange={e => updateCell(i, 'CheltuieliSupl', Number(e.target.value) || 0)}
-                    />
+                    <input type="number" min={0} step={0.01} style={editNumStyle} value={r.CheltuieliSupl || ''}
+                      onChange={e => updateCell(i, 'CheltuieliSupl', Number(e.target.value) || 0)} />
                   </td>
                   <td style={cs()}>
-                    <input
-                      style={editInputStyle}
-                      value={r.Comentariu}
-                      onChange={e => updateCell(i, 'Comentariu', e.target.value)}
-                    />
+                    <input style={editInputStyle} value={r.Comentariu}
+                      onChange={e => updateCell(i, 'Comentariu', e.target.value)} />
                   </td>
                   <td style={cs({ textAlign: 'center' })}>
-                    <button
-                      type="button"
-                      onClick={() => deleteRow(i)}
-                      title="Șterge rând"
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c00', fontSize: 14 }}
-                    >×</button>
+                    <button type="button" onClick={() => deleteRow(i)} title="Șterge rând"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c00', fontSize: 14 }}>×</button>
                   </td>
                 </tr>
               );
             })}
-            {rows.length === 0 && (
+            {!loading && rows.length === 0 && (
               <tr>
                 <td colSpan={17} style={{ ...cellStyle, textAlign: 'center', padding: 20, color: '#888' }}>
-                  Nicio rută în această zi. Adaugă rând manual cu butonul de mai jos.
+                  Nicio plată în Tomberon pentru această zi.
                 </td>
               </tr>
             )}
           </tbody>
-          {/* Total */}
           <tfoot>
             <tr>
               <td colSpan={7} style={{ ...headerCellStyle, textAlign: 'right' }}>TOTAL</td>
@@ -406,36 +372,31 @@ export default function CasierDocumentTab({ ziua, routes, operatorName }: Props)
         marginTop: 12, padding: '8px 0',
         gap: 8,
       }}>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button
-            type="button"
-            onClick={addRow}
-            className="btn btn-sm"
-            style={{ fontFamily }}
-          >
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <button type="button" onClick={addRow} className="btn btn-sm" style={{ fontFamily }}>
             + Adaugă rând
           </button>
-          <span style={{ fontSize: 11, color: '#888', alignSelf: 'center', marginLeft: 4 }}>
-            {rows.length} rând{rows.length !== 1 ? 'uri' : ''}
+          <span style={{ fontSize: 11, color: '#888' }}>
+            {rows.length} plăți din Tomberon
+            {rows.length > 0 && (
+              <> · <span style={{ color: '#c00' }}>{rows.filter(r => !r.__hasGrafic).length} fără /grafic</span></>
+            )}
           </span>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button type="button" onClick={handleClose} className="btn" style={{ fontFamily }}>Închide</button>
-          <button
-            type="button"
-            onClick={handleSave}
-            className="btn btn-primary"
-            style={{ fontFamily }}
+          <button type="button" onClick={handleSave} className="btn btn-primary" style={{ fontFamily }}
             disabled={!hasUnsaved}
-            title={!hasUnsaved ? 'Nimic de salvat' : 'Salvează modificările'}
-          >
+            title={!hasUnsaved ? 'Nimic de salvat' : 'Salvează modificările'}>
             OK (salvează)
           </button>
         </div>
       </div>
 
       <p className="text-muted" style={{ fontSize: 11, marginTop: 8, fontFamily }}>
-        ⓘ Phase 1: doar interfața vizuală + editare locală + totaluri. Salvarea în BD se adaugă în Phase 2.
+        ⓘ Sursa: Tomberon (casa automată). Datele despre șofer/rută/mașină se trag din /grafic
+        când foaia se potrivește. Rândurile <span style={{ background: '#fdecea', padding: '0 4px' }}>roșu deschis</span> n-au /grafic.
+        Phase 1: doar interfața vizuală + editare locală + totaluri.
       </p>
     </div>
   );

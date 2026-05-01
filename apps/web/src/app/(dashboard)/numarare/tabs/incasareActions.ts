@@ -220,6 +220,20 @@ export async function getGraficReport(
   };
 }
 
+// ─── Numele operatorului curent (pentru antet Document casier) ───
+
+export async function getCurrentOperatorName(): Promise<string> {
+  const session = await verifySession();
+  if (!session) return '—';
+  const sb = getSupabase();
+  const { data } = await sb
+    .from('admin_accounts')
+    .select('name, email')
+    .eq('id', session.id)
+    .maybeSingle();
+  return data?.name || data?.email || session.email || 'operator';
+}
+
 // ─── Atribuire pe rută (înlocuiește AssignDriverModal) ───
 
 export interface RouteForAssign {

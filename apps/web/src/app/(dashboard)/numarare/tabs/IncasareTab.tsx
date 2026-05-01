@@ -6,6 +6,7 @@ import {
   assignFoaieToDriver,
   confirmDay,
   unconfirmDay,
+  getCurrentOperatorName,
   type GraficRouteRow,
   type Anomaly,
   type Confirmation,
@@ -13,6 +14,7 @@ import {
 import RoutesTable from './RoutesTable';
 import AnomalyCard, { AnomalyHeader } from './AnomalyCard';
 import RouteAssignModal from './RouteAssignModal';
+import CasierDocumentTab from './CasierDocumentTab';
 
 function todayChisinau(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
@@ -22,7 +24,7 @@ function yesterdayChisinau(): string {
   return d.toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
 }
 
-type SubTab = 'routes' | 'orphan_inc';
+type SubTab = 'routes' | 'casier' | 'orphan_inc';
 
 interface Props {
   role: string;  // 'ADMIN' | 'EVALUATOR_INCASARI'
@@ -41,6 +43,11 @@ export default function IncasareTab({ role }: Props) {
   const [error, setError] = useState('');
 
   const [assignTarget, setAssignTarget] = useState<Anomaly | null>(null);
+  const [operatorName, setOperatorName] = useState<string>('—');
+
+  useEffect(() => {
+    getCurrentOperatorName().then(setOperatorName);
+  }, []);
 
   const isSingleDay = from === to;
 
@@ -160,13 +167,15 @@ export default function IncasareTab({ role }: Props) {
       <div style={{ display: 'flex', gap: 4, marginBottom: 4, borderBottom: '1px solid var(--border)', alignItems: 'flex-end' }}>
         <SubTabBtn active={subTab === 'routes'} onClick={() => setSubTab('routes')}
           label="Pe rute" badge={routes.length} badgeColor="var(--text-muted)" />
+        <SubTabBtn active={subTab === 'casier'} onClick={() => setSubTab('casier')}
+          label="Document casier" badge={routes.length} badgeColor="var(--primary)" />
         <SubTabBtn active={subTab === 'orphan_inc'} onClick={() => setSubTab('orphan_inc')}
           label="Încasare nepusă" badge={orphanInc.length}
           badgeColor={orphanInc.length > 0 ? 'var(--danger)' : 'var(--text-muted)'} />
         <span className="text-muted" style={{ fontSize: 11, marginLeft: 'auto', paddingBottom: 8 }}>
-          {subTab === 'routes'
-            ? 'filtru pe perioadă'
-            : 'toate plățile nerezolvate (oricare dată)'}
+          {subTab === 'orphan_inc'
+            ? 'toate plățile nerezolvate (oricare dată)'
+            : 'filtru pe perioadă'}
         </span>
       </div>
 
@@ -179,6 +188,14 @@ export default function IncasareTab({ role }: Props) {
 
       {!loading && subTab === 'routes' && (
         <RoutesTable routes={routes} />
+      )}
+
+      {!loading && subTab === 'casier' && (
+        <CasierDocumentTab
+          ziua={from}
+          routes={isSingleDay ? routes : routes.filter(r => r.ziua === from)}
+          operatorName={operatorName}
+        />
       )}
 
       {!loading && subTab === 'orphan_inc' && (

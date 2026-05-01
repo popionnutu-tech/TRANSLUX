@@ -263,8 +263,7 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
           <thead>
             <tr>
               <th style={{ ...headerCellStyle, width: '2%' }}>N</th>
-              <th style={{ ...headerCellStyle, width: '4%' }}>Ora</th>
-              <th style={{ ...headerCellStyle, width: '13%' }}>Ruta</th>
+              <th style={{ ...headerCellStyle, width: '17%' }}>Ruta</th>
               <th style={{ ...headerCellStyle, width: '10%' }}>Șoferi</th>
               <th style={{ ...headerCellStyle, width: '6%' }}>Mașina</th>
               <th style={{ ...headerCellStyle, width: '7%' }}>NumărFoaie</th>
@@ -282,7 +281,7 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={15} style={{ ...cellStyle, textAlign: 'center', padding: 20, color: '#888' }}>
+                <td colSpan={14} style={{ ...cellStyle, textAlign: 'center', padding: 20, color: '#888' }}>
                   Se încarcă din Tomberon...
                 </td>
               </tr>
@@ -305,7 +304,6 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
               return (
                 <tr key={r.row_key}>
                   <td style={cs({ textAlign: 'center', color: '#888' })}>{r.N}</td>
-                  <td style={cs({ textAlign: 'center' })}>{r.Ora || '—'}</td>
                   <td style={cs()}>
                     <select
                       value={r.Ruta}
@@ -329,11 +327,14 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
                       {r.Ruta && !routes.some(rt => rt.display_name === r.Ruta) && (
                         <option value={r.Ruta}>{r.Ruta} (custom)</option>
                       )}
-                      {routes.map(rt => (
-                        <option key={rt.id} value={rt.display_name}>
-                          {rt.time_nord ? `${rt.time_nord} · ${rt.display_name}` : rt.display_name}
-                        </option>
-                      ))}
+                      {routes.map(rt => {
+                        const departure = rt.time_nord?.split('-')[0].trim();
+                        return (
+                          <option key={rt.id} value={rt.display_name}>
+                            {departure ? `${departure} · ${rt.display_name}` : rt.display_name}
+                          </option>
+                        );
+                      })}
                     </select>
                   </td>
                   <td style={cs()}>
@@ -421,7 +422,7 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
             })}
             {!loading && rows.length === 0 && (
               <tr>
-                <td colSpan={15} style={{ ...cellStyle, textAlign: 'center', padding: 20, color: '#888' }}>
+                <td colSpan={14} style={{ ...cellStyle, textAlign: 'center', padding: 20, color: '#888' }}>
                   Nicio plată în Tomberon pentru această zi.
                 </td>
               </tr>
@@ -429,7 +430,7 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
           </tbody>
           <tfoot>
             <tr>
-              <td colSpan={7} style={{ ...headerCellStyle, textAlign: 'right' }}>TOTAL</td>
+              <td colSpan={6} style={{ ...headerCellStyle, textAlign: 'right' }}>TOTAL</td>
               <td style={{ ...headerCellStyle, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{Math.round(totals.Incasare)}</td>
               <td style={{ ...headerCellStyle, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{Math.round(totals.Ligotnici)}</td>
               <td style={{ ...headerCellStyle, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{Math.round(totals.LigotniciGara)}</td>

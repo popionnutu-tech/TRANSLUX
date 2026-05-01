@@ -36,6 +36,59 @@ export interface PendingSubmission {
   changes: PendingChange[];
 }
 
+export interface RouteStatus {
+  crm_route_id: number;
+  route_name: string;
+  time_nord: string | null;
+  time_chisinau: string | null;
+  status: 'pending' | 'approved' | 'rejected' | 'never';
+  last_decided_at: string | null;
+  last_pending_at: string | null;
+}
+
+export async function getRouteStatuses(): Promise<RouteStatus[]> {
+  const session = await verifySession();
+  if (!session || session.role !== 'ADMIN') return [];
+  const supabase = getSupabase();
+
+  const { data: routes } = await supabase
+    .from('crm_routes')
+    .select('id, dest_to_ro, time_nord, time_chisinau')
+    .eq('active', true)
+    .eq('route_type', 'interurban')
+    .order('id');
+
+  const { data: subs } = await supabase
+    .from('route_check_submissions')
+    .select('crm_route_id, status, decided_at, created_at')
+    .order('created_at', { ascending: false });
+
+  const lastByRoute = new Map<number, { status: string; decided_at: string | null; created_at: string }[]>();
+  for (const s of (subs || []) as any[]) {
+    const arr = lastByRoute.get(s.crm_route_id) || [];
+    arr.push(s);
+    lastByRoute.set(s.crm_route_id, arr);
+  }
+
+  return (routes || []).map((r: any) => {
+    const subList = lastByRoute.get(r.id) || [];
+    const pending = subList.find((s) => s.status === 'pending');
+    const lastDecided = subList.find((s) => s.status === 'approved' || s.status === 'rejected');
+    let status: RouteStatus['status'] = 'never';
+    if (pending) status = 'pending';
+    else if (lastDecided) status = lastDecided.status as 'approved' | 'rejected';
+    return {
+      crm_route_id: r.id,
+      route_name: r.dest_to_ro,
+      time_nord: r.time_nord,
+      time_chisinau: r.time_chisinau,
+      status,
+      last_decided_at: lastDecided?.decided_at || null,
+      last_pending_at: pending?.created_at || null,
+    };
+  });
+}
+
 export async function getPendingSubmissions(): Promise<PendingSubmission[]> {
   const session = await verifySession();
   if (!session || session.role !== 'ADMIN') return [];

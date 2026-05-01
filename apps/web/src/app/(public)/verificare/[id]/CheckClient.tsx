@@ -7,12 +7,17 @@ type Direction = 'tur' | 'retur';
 type StopState = { status: 'pending' | 'confirmed' | 'edited'; newTime?: string };
 type DirState = Record<number, StopState>;
 
-const TIME_RE = /^\d{1,2}:\d{2}$/;
+const TIME_RE = /^([01]?\d|2[0-3]):[0-5]\d$/;
 
 function normalize(t: string): string {
   const m = t.trim().match(/^(\d{1,2}):(\d{2})$/);
   if (!m) return t.trim();
-  return `${m[1].padStart(2, '0')}:${m[2]}`;
+  let h = parseInt(m[1], 10);
+  const min = m[2];
+  if (Number.isFinite(h)) {
+    h = ((h % 24) + 24) % 24;
+  }
+  return `${String(h).padStart(2, '0')}:${min}`;
 }
 
 function StopList({

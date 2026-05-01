@@ -161,13 +161,22 @@ export async function getRouteDetail(routeId: number): Promise<RouteDetail | nul
   const allRouteIds = allList.map((r: any) => r.id);
   const stopRouteIds = Array.from(new Set([route.id, ...allRouteIds]));
 
-  const { data: stops } = await supabase
-    .from('crm_stop_fares')
-    .select('id, crm_route_id, name_ro, hour_from_chisinau, hour_from_nord')
-    .in('crm_route_id', stopRouteIds)
-    .limit(5000);
+  // Pagină cu pagină pentru a evita orice cap implicit (Supabase/PostgREST cap la 1000).
+  const allStops: any[] = [];
+  const PAGE = 1000;
+  for (let from = 0; ; from += PAGE) {
+    const { data: chunk, error: chunkErr } = await supabase
+      .from('crm_stop_fares')
+      .select('id, crm_route_id, name_ro, hour_from_chisinau, hour_from_nord')
+      .in('crm_route_id', stopRouteIds)
+      .order('id', { ascending: true })
+      .range(from, from + PAGE - 1);
+    if (chunkErr) break;
+    if (!chunk || chunk.length === 0) break;
+    allStops.push(...chunk);
+    if (chunk.length < PAGE) break;
+  }
 
-  const allStops = ((stops || []) as any[]);
   const stops_tur = allStops
     .filter((s) => s.crm_route_id === route.id)
     .sort((a, b) => a.id - b.id);

@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   getGraficReport,
-  assignFoaieToDriver,
   confirmDay,
   unconfirmDay,
   getCurrentOperatorName,
@@ -12,8 +11,6 @@ import {
   type Confirmation,
 } from './incasareActions';
 import RoutesTable from './RoutesTable';
-import AnomalyCard, { AnomalyHeader } from './AnomalyCard';
-import RouteAssignModal from './RouteAssignModal';
 import CasierDocumentTab from './CasierDocumentTab';
 
 function todayChisinau(): string {
@@ -24,7 +21,7 @@ function yesterdayChisinau(): string {
   return d.toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
 }
 
-type SubTab = 'routes' | 'casier' | 'orphan_inc';
+type SubTab = 'casier' | 'routes';
 
 interface Props {
   role: string;  // 'ADMIN' | 'EVALUATOR_INCASARI'
@@ -34,7 +31,7 @@ export default function IncasareTab({ role }: Props) {
   const canEdit = role === 'EVALUATOR_INCASARI';
   const [from, setFrom] = useState<string>(yesterdayChisinau);
   const [to, setTo] = useState<string>(yesterdayChisinau);
-  const [subTab, setSubTab] = useState<SubTab>('routes');
+  const [subTab, setSubTab] = useState<SubTab>('casier');
 
   const [routes, setRoutes] = useState<GraficRouteRow[]>([]);
   const [orphanInc, setOrphanInc] = useState<Anomaly[]>([]);
@@ -42,7 +39,6 @@ export default function IncasareTab({ role }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const [assignTarget, setAssignTarget] = useState<Anomaly | null>(null);
   const [operatorName, setOperatorName] = useState<string>('—');
 
   useEffect(() => {
@@ -68,12 +64,6 @@ export default function IncasareTab({ role }: Props) {
 
   useEffect(() => { load(); }, [load]);
 
-  async function handleAssign(driverId: string, ziua: string) {
-    if (!assignTarget) return;
-    const res = await assignFoaieToDriver(assignTarget.receipt_nr, ziua, driverId);
-    if (res.error) throw new Error(res.error);
-    await load();
-  }
   async function handleConfirmDay() {
     if (!isSingleDay) return;
     const res = await confirmDay(from, null);
@@ -165,17 +155,12 @@ export default function IncasareTab({ role }: Props) {
 
       {/* Sub-tab switcher */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 4, borderBottom: '1px solid var(--border)', alignItems: 'flex-end' }}>
-        <SubTabBtn active={subTab === 'routes'} onClick={() => setSubTab('routes')}
-          label="Pe rute" badge={routes.length} badgeColor="var(--text-muted)" />
         <SubTabBtn active={subTab === 'casier'} onClick={() => setSubTab('casier')}
           label="Document casier" badge={routes.length} badgeColor="var(--primary)" />
-        <SubTabBtn active={subTab === 'orphan_inc'} onClick={() => setSubTab('orphan_inc')}
-          label="Încasare nepusă" badge={orphanInc.length}
-          badgeColor={orphanInc.length > 0 ? 'var(--danger)' : 'var(--text-muted)'} />
+        <SubTabBtn active={subTab === 'routes'} onClick={() => setSubTab('routes')}
+          label="Pe rute (sumar)" badge={routes.length} badgeColor="var(--text-muted)" />
         <span className="text-muted" style={{ fontSize: 11, marginLeft: 'auto', paddingBottom: 8 }}>
-          {subTab === 'orphan_inc'
-            ? 'toate plățile nerezolvate (oricare dată)'
-            : 'filtru pe perioadă'}
+          filtru pe perioadă
         </span>
       </div>
 
@@ -195,53 +180,6 @@ export default function IncasareTab({ role }: Props) {
           ziua={from}
           routes={isSingleDay ? routes : routes.filter(r => r.ziua === from)}
           operatorName={operatorName}
-        />
-      )}
-
-      {!loading && subTab === 'orphan_inc' && (
-        <div>
-          {orphanInc.length === 0 ? (
-            <div className="card" style={{ padding: 20, textAlign: 'center', fontSize: 13 }}>
-              <p className="text-muted" style={{ margin: 0 }}>
-                ✓ Nu există încasări neasociate. Toate plățile de la casă au foaie atribuită în /grafic.
-              </p>
-            </div>
-          ) : (
-            <>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-                <span><strong style={{ color: 'var(--danger)' }}>LIPSĂ /GRAFIC</strong> — foaia n-a apărut niciodată în /grafic (nu poate fi redirecționată automat)</span>
-                <span><strong style={{ color: '#9b27b0' }}>FORMAT</strong> — număr tastat greșit la casă</span>
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-                <span><code>Inc</code>=numerar depus</span>
-                <span><code>Lg</code>=lgotnici</span>
-                <span><code>Dg</code>=diagrame+card</span>
-                <span><code>Vk</code>=lgotnici vokzal</span>
-                <span><code>DT</code>=alimentare șofer</span>
-                <span><code>Rs</code>=alte cheltuieli</span>
-              </div>
-              <AnomalyHeader canEdit={canEdit} />
-              {orphanInc.map(a => (
-                <AnomalyCard
-                  key={`${a.receipt_nr}-${a.ziua}`}
-                  anomaly={a}
-                  canEdit={canEdit}
-                  onAssignClick={() => setAssignTarget(a)}
-                />
-              ))}
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Modal: atribuire pe zi/rută */}
-      {assignTarget && (
-        <RouteAssignModal
-          open={true}
-          receiptNr={assignTarget.receipt_nr}
-          ziua={assignTarget.ziua}
-          onConfirm={handleAssign}
-          onClose={() => setAssignTarget(null)}
         />
       )}
     </div>

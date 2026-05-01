@@ -273,7 +273,8 @@ export async function getActiveRoutesForPicker(): Promise<RouteOption[]> {
 export interface CasierRow {
   row_key: string;
   foaie_nr: string;
-  ziua: string;
+  ziua: string;            // ziua plății la casă (kiosk)
+  data_foaie: string | null; // ziua /grafic pentru această foaie (poate fi alta sau null)
   plati: number;
   driver_id: string | null;
   driver_name: string | null;

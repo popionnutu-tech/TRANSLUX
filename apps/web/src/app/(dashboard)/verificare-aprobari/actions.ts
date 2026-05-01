@@ -222,6 +222,27 @@ export async function approveSubmission(submissionId: string): Promise<{ ok: boo
     if (upErr) return { ok: false, error: `Eroare la oprire #${c.stop_id}: ${upErr.message}` };
   }
 
+  // 1.b) Sincronizăm time_nord și time_chisinau în crm_routes pe baza primei/ultimei stații.
+  // Header-ul rutei trebuie să reflecte realitatea din stații (folosit în grafic și pe site).
+  {
+    const { data: routeStops } = await supabase
+      .from('crm_stop_fares')
+      .select('id, hour_from_nord, hour_from_chisinau')
+      .eq('crm_route_id', sub.crm_route_id)
+      .order('id', { ascending: true });
+    const list = (routeStops || []) as any[];
+    if (list.length >= 2) {
+      const first = list[0];
+      const last = list[list.length - 1];
+      const newTimeNord = `${first.hour_from_nord} - ${last.hour_from_nord}`;
+      const newTimeChisinau = `${last.hour_from_chisinau} - ${first.hour_from_chisinau}`;
+      await supabase
+        .from('crm_routes')
+        .update({ time_nord: newTimeNord, time_chisinau: newTimeChisinau })
+        .eq('id', sub.crm_route_id);
+    }
+  }
+
   // 2) Aplicăm swap-ul de retur, dacă a fost propus
   if (sub.retur_change_proposed) {
     const subjectRouteId = sub.crm_route_id as number;

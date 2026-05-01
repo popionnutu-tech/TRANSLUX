@@ -207,6 +207,13 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
 
   return (
     <div style={{ fontFamily }}>
+      <style>{`
+        .casier-date-input::-webkit-calendar-picker-indicator {
+          display: none;
+          -webkit-appearance: none;
+        }
+        .casier-date-input { appearance: none; -webkit-appearance: none; }
+      `}</style>
       {/* Antet */}
       <div style={{
         display: 'grid',
@@ -257,18 +264,18 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
             <tr>
               <th style={{ ...headerCellStyle, width: '2%' }}>N</th>
               <th style={{ ...headerCellStyle, width: '4%' }}>Ora</th>
-              <th style={{ ...headerCellStyle, width: '14%' }}>Ruta</th>
+              <th style={{ ...headerCellStyle, width: '13%' }}>Ruta</th>
               <th style={{ ...headerCellStyle, width: '10%' }}>Șoferi</th>
               <th style={{ ...headerCellStyle, width: '6%' }}>Mașina</th>
-              <th style={{ ...headerCellStyle, width: '6%' }}>NumărFoaie</th>
-              <th style={{ ...headerCellStyle, width: '7%' }}>DataFoaie</th>
+              <th style={{ ...headerCellStyle, width: '7%' }}>NumărFoaie</th>
+              <th style={{ ...headerCellStyle, width: '10%' }}>DataFoaie</th>
               <th style={{ ...headerCellStyle, width: '6%' }}>Încasare</th>
               <th style={{ ...headerCellStyle, width: '5%' }}>Ligotnici</th>
               <th style={{ ...headerCellStyle, width: '5%' }}>Lig. gară</th>
               <th style={{ ...headerCellStyle, width: '6%' }}>Diagrame</th>
               <th style={{ ...headerCellStyle, width: '6%' }}>Combust.</th>
               <th style={{ ...headerCellStyle, width: '5%' }}>Ch. supl.</th>
-              <th style={{ ...headerCellStyle, width: '16%' }}>Comentariu</th>
+              <th style={{ ...headerCellStyle, width: '13%' }}>Comentariu</th>
               <th style={{ ...headerCellStyle, width: '2%' }}></th>
             </tr>
           </thead>
@@ -366,6 +373,7 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
                   <td style={cs()}>
                     <input
                       type="date"
+                      className="casier-date-input"
                       style={{
                         ...editInputStyle,
                         // Highlight când diferă de ziua documentului

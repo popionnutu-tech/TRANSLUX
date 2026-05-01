@@ -246,6 +246,13 @@ export async function getActiveVehiclesForPicker(): Promise<VehicleOption[]> {
   return (data || []) as VehicleOption[];
 }
 
+function parseFirstTimeForSort(s: string | null): number {
+  if (!s) return 9999;
+  const m = s.match(/(\d{1,2}):(\d{2})/);
+  if (!m) return 9999;
+  return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+}
+
 export async function getActiveRoutesForPicker(): Promise<RouteOption[]> {
   const session = await verifySession();
   if (!session) return [];
@@ -265,7 +272,12 @@ export async function getActiveRoutesForPicker(): Promise<RouteOption[]> {
       time_nord: r.time_nord,
       route_type: r.route_type,
     }))
-    .sort((a, b) => a.display_name.localeCompare(b.display_name));
+    // Sortează după nume; în interiorul numelui după ora primei plecări
+    .sort((a, b) => {
+      const cmp = a.display_name.localeCompare(b.display_name);
+      if (cmp !== 0) return cmp;
+      return parseFirstTimeForSort(a.time_nord) - parseFirstTimeForSort(b.time_nord);
+    });
 }
 
 // ─── Document casier — date strict din tomberon, lookup /grafic per foaie ───

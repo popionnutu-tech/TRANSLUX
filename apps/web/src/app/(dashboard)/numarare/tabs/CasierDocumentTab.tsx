@@ -53,7 +53,7 @@ function rowFromCasier(c: CasierRow, idx: number): EditableRow {
     Sofer: c.driver_name || '',
     Masina: c.vehicle_plate || '',
     NumarFoaie: c.foaie_nr || '',
-    DataFoaie: c.ziua || '',
+    DataFoaie: c.data_foaie || '',  // /grafic ziua, NULL dacă foaia nu e în /grafic
     Incasare: Number(c.incasare_numerar) || 0,
     PlataCard: 0,
     Ligotnici: Number(c.ligotniki0_suma) || 0,
@@ -370,8 +370,20 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
                       onChange={e => updateCell(i, 'NumarFoaie', e.target.value)} />
                   </td>
                   <td style={cs()}>
-                    <input type="date" style={editInputStyle} value={r.DataFoaie}
-                      onChange={e => updateCell(i, 'DataFoaie', e.target.value)} />
+                    <input
+                      type="date"
+                      style={{
+                        ...editInputStyle,
+                        // Highlight când diferă de ziua documentului
+                        color: r.DataFoaie && r.DataFoaie !== docDate ? '#f57c00' : 'inherit',
+                        fontWeight: r.DataFoaie && r.DataFoaie !== docDate ? 600 : 400,
+                      }}
+                      value={r.DataFoaie}
+                      onChange={e => updateCell(i, 'DataFoaie', e.target.value)}
+                      title={r.DataFoaie && r.DataFoaie !== docDate
+                        ? `Foaia e introdusă în /grafic pe ${r.DataFoaie}, plata făcută pe ${docDate}`
+                        : ''}
+                    />
                   </td>
                   <td style={ns()}>{Math.round(r.Incasare)}</td>
                   <td style={ns()}>

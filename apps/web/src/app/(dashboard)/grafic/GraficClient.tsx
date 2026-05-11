@@ -293,6 +293,7 @@ export default function GraficClient({
           date={date}
           drivers={drivers}
           vehicles={vehicles}
+          returRoutes={returRoutes}
           role={role}
           readOnly={readOnly}
           onInvalidCountChange={setInvalidCount}

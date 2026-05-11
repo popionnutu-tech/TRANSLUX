@@ -115,7 +115,11 @@ export interface GraficRouteRow {
   counting_status: string | null;
   tur_total_lei: number | null;
   retur_total_lei: number | null;
+  tur_single_lei: number | null;
+  retur_single_lei: number | null;
   numarare_lei: number;
+  numarare_single_lei: number | null;
+  extra_2tarife_lei: number | null;
   incasare_numerar: number;
   incasare_diagrama: number;
   ligotniki0_suma: number;

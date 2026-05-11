@@ -160,6 +160,33 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
     setOpenRouteId(route.crm_route_id);
   }
 
+  async function handleViewOperator(route: RouteForCounting) {
+    if (!route.session_id) return;
+
+    if (route.route_type === 'suburban') {
+      setSessionId(route.session_id);
+      setStops([]);
+      setSavedTur([]);
+      setSavedRetur([]);
+      setAuditMode(false);
+      setViewOnly(true);
+      setOpenRouteId(route.crm_route_id);
+      return;
+    }
+
+    const routeStops = await getRouteStops(route.crm_route_id, 'tur');
+    const sTur = await loadSavedEntries(route.session_id, 'tur');
+    const sRetur = await loadSavedEntries(route.session_id, 'retur');
+
+    setSessionId(route.session_id);
+    setStops(routeStops);
+    setSavedTur(sTur);
+    setSavedRetur(sRetur);
+    setAuditMode(false);
+    setViewOnly(true);
+    setOpenRouteId(route.crm_route_id);
+  }
+
   async function handleOpenAudit(route: RouteForCounting) {
     if (!route.session_id) return;
     const lock = await lockAudit(route.session_id);
@@ -298,7 +325,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
                 color: '#9B1B30',
                 fontWeight: 600,
               }}>
-                👁 Doar vizualizare — cursa aparține altui operator
+                👁 Doar vizualizare — numărarea operatorului
               </span>
             )}
             <select
@@ -538,6 +565,16 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
                       >
                         {ownedByOther ? 'Vezi' : 'Deschide'}
                       </button>
+                      {canAudit && route.session_id && route.session_status && (
+                        <button
+                          className="btn btn-outline"
+                          onClick={() => handleViewOperator(route)}
+                          style={{ fontSize: 12 }}
+                          title="Vezi cum a numărat operatorul"
+                        >
+                          👁 Numărarea operatorului
+                        </button>
+                      )}
                       {canAudit && auditable && (!route.audit_locked_by_id || route.audit_locked_by_id === currentUserId) && (
                         <button
                           className="btn btn-outline"

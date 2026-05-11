@@ -2,8 +2,8 @@
 -- Adaugă în get_grafic_report încă două câmpuri per rută:
 --   - numarare_single_lei  = COALESCE(tur_single_lei,0) + COALESCE(retur_single_lei,0)
 --   - extra_2tarife_lei    = numarare_lei − numarare_single_lei
--- Pentru ca UI-ul «Pe rute (sumar)» să poată afișa o coloană cu banii suplimentari
--- aduși de calculul cu 2 tarife. Nicio altă logică nu se schimbă (status, diff, orphans).
+-- NULL când nicio sumă single nu e înregistrată (sesiuni vechi / suburban).
+-- Reia varianta din 071 (cu norm_foaie peste tot pentru match foaie-vs-foaie).
 
 CREATE OR REPLACE FUNCTION public.get_grafic_report(p_from date, p_to date)
  RETURNS jsonb
@@ -19,24 +19,24 @@ DECLARE
 BEGIN
   WITH
   foaie_last_owner AS (
-    SELECT DISTINCT ON (receipt_nr) receipt_nr, driver_id
-    FROM driver_cashin_receipts ORDER BY receipt_nr, ziua DESC
+    SELECT DISTINCT ON (norm_foaie(receipt_nr)) norm_foaie(receipt_nr) AS receipt_nr, driver_id
+    FROM driver_cashin_receipts ORDER BY norm_foaie(receipt_nr), ziua DESC
   ),
   explicit_attributions AS (
     SELECT da.id AS assignment_id, da.driver_id, da.assignment_date AS ziua,
-           dcr.receipt_nr AS foaie_nr, 'explicit'::text AS source
+           norm_foaie(dcr.receipt_nr) AS foaie_nr, 'explicit'::text AS source
     FROM daily_assignments da
     JOIN driver_cashin_receipts dcr ON dcr.driver_id = da.driver_id AND dcr.ziua = da.assignment_date
   ),
   implied_raw AS (
-    SELECT da.id AS assignment_id, da.driver_id, da.assignment_date AS ziua, t.sofer_id AS foaie_nr
+    SELECT da.id AS assignment_id, da.driver_id, da.assignment_date AS ziua, norm_foaie(t.sofer_id) AS foaie_nr
     FROM daily_assignments da
     JOIN tomberon.transactions t ON t.ziua = da.assignment_date
-    JOIN foaie_last_owner flo ON flo.receipt_nr = t.sofer_id AND flo.driver_id = da.driver_id
+    JOIN foaie_last_owner flo ON flo.receipt_nr = norm_foaie(t.sofer_id) AND flo.driver_id = da.driver_id
     WHERE NOT EXISTS (SELECT 1 FROM driver_cashin_receipts dcr
                       WHERE dcr.driver_id = da.driver_id AND dcr.ziua = da.assignment_date)
     AND NOT EXISTS (SELECT 1 FROM driver_cashin_receipts dcr_other
-                    WHERE dcr_other.receipt_nr = t.sofer_id AND dcr_other.ziua = da.assignment_date)
+                    WHERE norm_foaie(dcr_other.receipt_nr) = norm_foaie(t.sofer_id) AND dcr_other.ziua = da.assignment_date)
   ),
   implied_attributions AS (
     SELECT DISTINCT ON (assignment_id) assignment_id, driver_id, ziua, foaie_nr, 'implied'::text AS source
@@ -52,12 +52,12 @@ BEGIN
   ),
   kiosk_effective AS (
     SELECT DISTINCT ON (t.id)
-      t.id, t.sofer_id, t.ziua AS kiosk_ziua,
+      t.id, norm_foaie(t.sofer_id) AS sofer_id, t.ziua AS kiosk_ziua,
       r.ziua AS effective_ziua,
       t.suma_numerar, t.diagrama_suma, t.ligotniki0_suma, t.ligotniki_vokzal_suma,
       t.dt_suma, t.dop_rashodi, t.suma_incash, t.comment, t.fiscal_receipt_nr
     FROM tomberon.transactions t
-    LEFT JOIN driver_cashin_receipts r ON r.receipt_nr = t.sofer_id
+    LEFT JOIN driver_cashin_receipts r ON norm_foaie(r.receipt_nr) = norm_foaie(t.sofer_id)
     ORDER BY t.id, ABS(r.ziua - t.ziua) NULLS LAST
   ),
   tomberon_per_foaie AS (
@@ -136,7 +136,7 @@ BEGIN
     LEFT JOIN vehicles vr ON vr.id = da.vehicle_id_retur
     LEFT JOIN effective_attributions ea ON ea.assignment_id = bp.assignment_id
     LEFT JOIN counting_sessions cs ON cs.crm_route_id = bp.crm_route_id AND cs.assignment_date = bp.ziua
-    LEFT JOIN tomberon_per_foaie tpf ON tpf.foaie_nr = ea.foaie_nr AND tpf.ziua = bp.ziua
+    LEFT JOIN tomberon_per_foaie tpf ON norm_foaie(tpf.foaie_nr) = norm_foaie(ea.foaie_nr) AND tpf.ziua = bp.ziua
     LEFT JOIN route_stops rs ON rs.crm_route_id = bp.crm_route_id
   ),
   routes_status AS (
@@ -214,9 +214,8 @@ BEGIN
     ) ORDER BY o.ziua DESC, o.time_nord NULLS LAST), '[]'::jsonb) INTO v_orphan_num
   FROM cs_orphans o WHERE o.reason IS NOT NULL;
 
-  -- Orphan incasare — DOAR foi care nu apar nicaieri in /grafic.
   WITH ir AS (
-    SELECT t.sofer_id AS receipt_nr, t.ziua,
+    SELECT norm_foaie(t.sofer_id) AS receipt_nr, t.ziua,
            SUM(COALESCE(t.suma_numerar,0))::numeric AS cash,
            SUM(COALESCE(t.suma_incash,0))::numeric  AS incash,
            COUNT(*)::int                              AS plati,
@@ -227,14 +226,14 @@ BEGIN
            SUM(COALESCE(t.dop_rashodi,0))::numeric AS dop_rashodi,
            string_agg(DISTINCT NULLIF(t.comment,''), ' | ') AS comment,
            string_agg(DISTINCT NULLIF(t.fiscal_receipt_nr,''), ', ') AS fiscal_nr
-    FROM tomberon.transactions t GROUP BY t.sofer_id, t.ziua
+    FROM tomberon.transactions t GROUP BY norm_foaie(t.sofer_id), t.ziua
   ),
   matches AS (
     SELECT ir.*,
-      (SELECT COUNT(*) FROM driver_cashin_receipts r WHERE r.receipt_nr = ir.receipt_nr) AS grafic_count,
+      (SELECT COUNT(*) FROM driver_cashin_receipts r WHERE norm_foaie(r.receipt_nr) = ir.receipt_nr) AS grafic_count,
       CASE WHEN ir.receipt_nr ~ '^[0-9]+$' THEN true ELSE false END AS valid_format,
       EXISTS(SELECT 1 FROM tomberon_payment_overrides ovr
-             WHERE ovr.receipt_nr = ir.receipt_nr AND ovr.ziua = ir.ziua) AS has_override
+             WHERE norm_foaie(ovr.receipt_nr) = ir.receipt_nr AND ovr.ziua = ir.ziua) AS has_override
     FROM ir
   )
   SELECT COALESCE(jsonb_agg(jsonb_build_object(
@@ -254,7 +253,7 @@ BEGIN
         (SELECT COALESCE(jsonb_agg(jsonb_build_object('ziua', ev.ziua, 'driver_id', ev.driver_id, 'driver_name', ev.driver_name, 'source', ev.source) ORDER BY ev.ziua DESC), '[]'::jsonb)
          FROM (
            SELECT DISTINCT t.ziua AS ziua, NULL::uuid AS driver_id, NULL::text AS driver_name, 'kiosk'::text AS source
-           FROM tomberon.transactions t WHERE t.sofer_id = m.receipt_nr
+           FROM tomberon.transactions t WHERE norm_foaie(t.sofer_id) = m.receipt_nr
          ) ev LIMIT 20),
       'duplicate_candidates', NULL
     ) ORDER BY m.ziua DESC, (m.cash + m.diagrama) DESC), '[]'::jsonb) INTO v_orphan_inc

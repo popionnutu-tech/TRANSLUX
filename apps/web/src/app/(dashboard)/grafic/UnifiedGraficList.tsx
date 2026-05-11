@@ -8,10 +8,12 @@ import {
   deleteAssignment,
   setCashinReceipt,
   setRouteCancellation,
+  updateReturRoute,
   type GraficRow,
   type SuburbanGraficRow,
   type DriverOption,
   type VehicleOption,
+  type ReturRouteOption,
 } from './actions';
 import type { AdminRole } from '@translux/db';
 import { validateRow, errorMessageRo } from './validation';
@@ -26,6 +28,8 @@ type UnifiedRow = {
   key: string;
   crm_route_id: number;
   time_label: string;         // "07:05" pentru inter, "—" pentru sub
+  time_retur: string | null;  // ora de plecare din Chișinău (doar inter)
+  retur_route_id: number | null;
   direction: string;          // "Chișinău - Lipcani" sau "Beleavinți → Briceni"
   cycles: string;             // "—" pentru inter, "7" pentru sub
   assignment_id: string | null;
@@ -41,6 +45,7 @@ export default function UnifiedGraficList({
   date,
   drivers,
   vehicles,
+  returRoutes,
   role,
   readOnly = false,
   onInvalidCountChange,
@@ -48,6 +53,7 @@ export default function UnifiedGraficList({
   date: string;
   drivers: DriverOption[];
   vehicles: VehicleOption[];
+  returRoutes: ReturRouteOption[];
   role: AdminRole;
   readOnly?: boolean;
   onInvalidCountChange?: (count: number) => void;
@@ -60,6 +66,9 @@ export default function UnifiedGraficList({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [returPopupRow, setReturPopupRow] = useState<UnifiedRow | null>(null);
+  const [popReturRouteId, setPopReturRouteId] = useState('');
+  const [savingRetur, setSavingRetur] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -74,6 +83,8 @@ export default function UnifiedGraficList({
         key: `inter-${r.crm_route_id}`,
         crm_route_id: r.crm_route_id,
         time_label: r.time_nord || '—',
+        time_retur: r.time_chisinau || null,
+        retur_route_id: r.retur_route_id,
         direction: r.dest_to,
         cycles: '—',
         assignment_id: r.assignment_id,
@@ -89,6 +100,8 @@ export default function UnifiedGraficList({
         key: `sub-${r.crm_route_id}`,
         crm_route_id: r.crm_route_id,
         time_label: '—',
+        time_retur: null,
+        retur_route_id: null,
         direction: `${r.dest_from_ro} → ${r.dest_to_ro}`,
         cycles: r.cycles ? String(r.cycles) : '—',
         assignment_id: r.assignment_id,
@@ -153,6 +166,30 @@ export default function UnifiedGraficList({
       await load();
     } finally {
       setSavingKey(null);
+    }
+  }
+
+  function openReturPopup(row: UnifiedRow) {
+    if (readOnly || row.kind !== 'inter' || !row.assignment_id) return;
+    setPopReturRouteId(row.retur_route_id ? String(row.retur_route_id) : '');
+    setReturPopupRow(row);
+  }
+
+  async function handleSaveRetur() {
+    if (!returPopupRow?.assignment_id) return;
+    setSavingRetur(true);
+    setError('');
+    try {
+      const res = await updateReturRoute(
+        returPopupRow.assignment_id,
+        popReturRouteId ? Number(popReturRouteId) : null,
+        date,
+      );
+      if (res.error) { setError(res.error); return; }
+      setReturPopupRow(null);
+      await load();
+    } finally {
+      setSavingRetur(false);
     }
   }
 
@@ -232,6 +269,7 @@ export default function UnifiedGraficList({
             <tr style={{ background: 'rgba(155,27,48,0.06)' }}>
               <th style={{ width: 50, textAlign: 'left' }}>#</th>
               <th style={{ width: 70, textAlign: 'left' }}>Ora</th>
+              <th style={{ width: 80, textAlign: 'left' }}>Retur</th>
               <th style={{ textAlign: 'left' }}>Direcția</th>
               <th style={{ width: 70, textAlign: 'center' }}>Cicluri</th>
               <th style={{ width: 200, textAlign: 'left' }}>Șofer</th>
@@ -251,7 +289,7 @@ export default function UnifiedGraficList({
                 <>
                   {isFirstSub && (
                     <tr key="sep-sub" style={{ background: 'rgba(155,27,48,0.04)' }}>
-                      <td colSpan={canSeeReceipt ? 8 : 6} style={{
+                      <td colSpan={canSeeReceipt ? 9 : 7} style={{
                         padding: '8px 12px',
                         fontSize: 12,
                         fontWeight: 600,
@@ -276,6 +314,18 @@ export default function UnifiedGraficList({
                     <td style={{ color: 'var(--text-muted)' }}>{i + 1}</td>
                     <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}>
                       {row.time_label}
+                    </td>
+                    <td
+                      style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 13,
+                        background: row.retur_route_id ? 'rgba(155, 27, 48, 0.06)' : undefined,
+                        cursor: !readOnly && row.kind === 'inter' && row.assignment_id ? 'pointer' : 'default',
+                      }}
+                      onClick={() => openReturPopup(row)}
+                      title={!readOnly && row.kind === 'inter' && row.assignment_id ? 'Click pentru a schimba returul' : undefined}
+                    >
+                      {row.time_retur || '—'}
                     </td>
                     <td>
                       <strong>{row.direction}</strong>
@@ -348,7 +398,7 @@ export default function UnifiedGraficList({
                   </tr>
                   {canSeeReceipt && !validations[i].isValid && (
                     <tr key={`${row.key}-err`}>
-                      <td colSpan={8} style={{
+                      <td colSpan={9} style={{
                         padding: '4px 12px 8px 12px',
                         background: 'var(--danger-dim)',
                         color: 'var(--danger)',
@@ -365,7 +415,7 @@ export default function UnifiedGraficList({
             })}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={canSeeReceipt ? 8 : 6} className="text-center text-muted" style={{ padding: 20 }}>
+                <td colSpan={canSeeReceipt ? 9 : 7} className="text-center text-muted" style={{ padding: 20 }}>
                   Nu există rute active.
                 </td>
               </tr>
@@ -373,6 +423,61 @@ export default function UnifiedGraficList({
           </tbody>
         </table>
       </div>
+
+      {returPopupRow && (
+        <div
+          onClick={() => !savingRetur && setReturPopupRow(null)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#fff', borderRadius: 'var(--radius-sm)', padding: 20,
+              minWidth: 320, maxWidth: 420, boxShadow: '0 10px 30px rgba(0,0,0,0.18)',
+            }}
+          >
+            <h4 style={{ margin: '0 0 4px 0' }}>Schimbă returul</h4>
+            <p className="text-muted" style={{ fontSize: 13, margin: '0 0 14px 0' }}>
+              {returPopupRow.direction}
+            </p>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>
+              Cursa de retur:
+            </label>
+            <select
+              value={popReturRouteId}
+              onChange={(e) => setPopReturRouteId(e.target.value)}
+              disabled={savingRetur}
+              style={{ width: '100%', padding: '6px 8px', fontSize: 14, marginBottom: 16 }}
+            >
+              <option value="">— Retur standard</option>
+              {returRoutes
+                .filter(r => r.id !== returPopupRow.crm_route_id)
+                .map(r => (
+                  <option key={r.id} value={r.id}>{r.label}</option>
+                ))}
+            </select>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button
+                className="btn btn-outline"
+                onClick={() => setReturPopupRow(null)}
+                disabled={savingRetur}
+              >
+                Anulează
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleSaveRetur}
+                disabled={savingRetur}
+              >
+                {savingRetur ? 'Se salvează...' : 'Salvează'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

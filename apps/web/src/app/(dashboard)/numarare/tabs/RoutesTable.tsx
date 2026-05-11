@@ -53,7 +53,7 @@ export default function RoutesTable({ routes }: Props) {
   }, [routes]);
 
   const totals = useMemo(() => {
-    const t = { num: 0, inc: 0, lg: 0, dg: 0, vk: 0, dt: 0, rs: 0 };
+    const t = { num: 0, inc: 0, lg: 0, dg: 0, vk: 0, dt: 0, rs: 0, extra2t: 0 };
     for (const r of sorted) {
       t.num += r.numarare_lei;
       t.inc += r.incasare_lei;
@@ -62,6 +62,7 @@ export default function RoutesTable({ routes }: Props) {
       t.vk  += r.ligotniki_vokzal_suma;
       t.dt  += r.dt_suma;
       t.rs  += r.dop_rashodi;
+      if (r.extra_2tarife_lei != null) t.extra2t += r.extra_2tarife_lei;
     }
     return t;
   }, [sorted]);
@@ -74,14 +75,17 @@ export default function RoutesTable({ routes }: Props) {
     });
   };
 
-  // Grid: time | route | driver | foaie | num | inc | dg | lg | rs | Δ | status | expand
-  const GRID = '70px minmax(160px, 1fr) 130px 80px 70px 70px 65px 55px 50px 75px 110px 22px';
+  // Grid: time | route | driver | foaie | num | +2T | inc | dg | lg | rs | Δ | status | expand
+  const GRID = '70px minmax(160px, 1fr) 130px 80px 70px 60px 70px 65px 55px 50px 75px 110px 22px';
 
   return (
     <div>
       {/* Totals */}
       <div className="card" style={{ display: 'flex', gap: 18, padding: 10, marginBottom: 10, flexWrap: 'wrap', fontSize: 12 }}>
         <div><span className="text-muted">Numărare:</span> <strong>{Math.round(totals.num)} lei</strong></div>
+        {totals.extra2t > 0 && (
+          <div><span className="text-muted">+2T:</span> <strong style={{ color: 'var(--success)' }}>{Math.round(totals.extra2t)} lei</strong></div>
+        )}
         <div><span className="text-muted">Încasare:</span> <strong>{Math.round(totals.inc)} lei</strong></div>
         <div><span className="text-muted">Diagrama:</span> <strong>{Math.round(totals.dg)} lei</strong></div>
         <div><span className="text-muted">Lgotnici 0:</span> <strong>{Math.round(totals.lg)} lei</strong></div>
@@ -108,6 +112,7 @@ export default function RoutesTable({ routes }: Props) {
         <div>Șofer</div>
         <div>Foaie</div>
         <div style={{ textAlign: 'right' }}>Num</div>
+        <div style={{ textAlign: 'right' }}>+2T</div>
         <div style={{ textAlign: 'right' }}>Inc</div>
         <div style={{ textAlign: 'right' }}>Dg</div>
         <div style={{ textAlign: 'right' }}>Lg</div>
@@ -166,6 +171,16 @@ export default function RoutesTable({ routes }: Props) {
                 ) : <span className="text-muted">—</span>}
               </span>
               <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right' }}>{num(r.numarare_lei)}</span>
+              <span style={{
+                fontFamily: 'var(--font-mono)',
+                textAlign: 'right',
+                fontSize: 11,
+                color: r.extra_2tarife_lei != null && r.extra_2tarife_lei > 0 ? 'var(--success)' : 'var(--text-muted)',
+              }}>
+                {r.extra_2tarife_lei == null
+                  ? <span className="text-muted">—</span>
+                  : r.extra_2tarife_lei > 0 ? <strong>+{Math.round(r.extra_2tarife_lei)}</strong> : <span className="text-muted">0</span>}
+              </span>
               <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right' }}>{num(r.incasare_lei)}</span>
               <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 11 }}>{num(r.incasare_diagrama)}</span>
               <span style={{ fontFamily: 'var(--font-mono)', textAlign: 'right', fontSize: 11 }}>{num(r.ligotniki0_suma)}</span>

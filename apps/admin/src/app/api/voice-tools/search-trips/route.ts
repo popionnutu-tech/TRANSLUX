@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateVoiceApiKey } from '../auth';
-import { searchTrips } from '@/app/(public)/actions';
+import { searchTrips } from '@/lib/trips-search';
 
 export async function POST(req: NextRequest) {
   const authError = validateVoiceApiKey(req);

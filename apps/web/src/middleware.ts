@@ -1,15 +1,12 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { jwtVerify } from 'jose';
 
-const ALL_DASHBOARD = ['/reports', '/users', '/drivers', '/trips', '/routes', '/salary', '/smm-accounts', '/assignments', '/grafic', '/numarare', '/vehicles', '/mapping', '/offers', '/analytics']; // /fb-bot temporarily hidden — feature paused
-const DISPATCHER_ALLOWED = ['/grafic', '/drivers', '/vehicles'];
-const GRAFIC_ALLOWED = ['/grafic'];
-const OPERATOR_CAMERE_ALLOWED = ['/numarare'];
-const ADMIN_CAMERE_ALLOWED = ['/numarare'];
-const EVALUATOR_INCASARI_ALLOWED = ['/numarare'];
-const PUBLIC_PREFIXES = ['/login', '/api/', '/ro', '/ru'];
-
-export async function middleware(request: NextRequest) {
+/**
+ * Middleware-ul site-ului public translux.md.
+ *
+ * Singura responsabilitate: redirect de la translux.com (vechiul domeniu) la translux.md.
+ * Toate paginile admin/dashboard au fost mutate la apps/admin (proiect Vercel separat).
+ */
+export function middleware(request: NextRequest) {
   const host = request.headers.get('host') || '';
   if (host === 'transportlux.com' || host === 'www.transportlux.com') {
     const url = new URL(request.url);
@@ -18,76 +15,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url, 301);
   }
 
-  const { pathname } = request.nextUrl;
-
-  if (pathname === '/' || PUBLIC_PREFIXES.some(p => pathname.startsWith(p))) {
-    return NextResponse.next();
-  }
-
-  const isDashboard = ALL_DASHBOARD.some(r => pathname === r || pathname.startsWith(r + '/'));
-  if (!isDashboard) return NextResponse.next();
-
-  const token = request.cookies.get('translux-session')?.value;
-  if (!token) {
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
-
-  const authSecret = process.env.AUTH_SECRET;
-  if (!authSecret) {
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
-
-  try {
-    const { payload } = await jwtVerify(token, new TextEncoder().encode(authSecret));
-    const role = payload.role as string;
-    if (!role) {
-      return NextResponse.redirect(new URL('/login', request.url));
-    }
-
-    // Dispatcher can only access /grafic
-    if (role === 'DISPATCHER') {
-      const allowed = DISPATCHER_ALLOWED.some(r => pathname === r || pathname.startsWith(r + '/'));
-      if (!allowed) {
-        return NextResponse.redirect(new URL('/grafic', request.url));
-      }
-    }
-
-    // Grafic role can only access /grafic
-    if (role === 'GRAFIC') {
-      const allowed = GRAFIC_ALLOWED.some(r => pathname === r || pathname.startsWith(r + '/'));
-      if (!allowed) {
-        return NextResponse.redirect(new URL('/grafic', request.url));
-      }
-    }
-
-    // Operator camere can only access /numarare
-    if (role === 'OPERATOR_CAMERE') {
-      const allowed = OPERATOR_CAMERE_ALLOWED.some(r => pathname === r || pathname.startsWith(r + '/'));
-      if (!allowed) {
-        return NextResponse.redirect(new URL('/numarare', request.url));
-      }
-    }
-
-    // Admin camere can only access /numarare
-    if (role === 'ADMIN_CAMERE') {
-      const allowed = ADMIN_CAMERE_ALLOWED.some(r => pathname === r || pathname.startsWith(r + '/'));
-      if (!allowed) {
-        return NextResponse.redirect(new URL('/numarare', request.url));
-      }
-    }
-
-    // Evaluator incasari can only access /numarare (sees just the Incasare tab)
-    if (role === 'EVALUATOR_INCASARI') {
-      const allowed = EVALUATOR_INCASARI_ALLOWED.some(r => pathname === r || pathname.startsWith(r + '/'));
-      if (!allowed) {
-        return NextResponse.redirect(new URL('/numarare', request.url));
-      }
-    }
-
-    return NextResponse.next();
-  } catch {
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
+  return NextResponse.next();
 }
 
 export const config = {

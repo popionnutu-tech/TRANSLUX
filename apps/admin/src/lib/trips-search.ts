@@ -305,10 +305,10 @@ export async function searchTrips(
 
   const [{ data: driversData }, { data: vehiclesData }] = await Promise.all([
     driverIds.length > 0
-      ? supabase.from('public_drivers_view').select('id, full_name, phone').in('id', driverIds)
+      ? supabase.from('drivers').select('id, full_name, phone').in('id', driverIds)
       : Promise.resolve({ data: [] }),
     vehicleIds.length > 0
-      ? supabase.from('public_vehicles_view').select('id, plate_number').in('id', vehicleIds)
+      ? supabase.from('vehicles').select('id, plate_number').in('id', vehicleIds)
       : Promise.resolve({ data: [] }),
   ]);
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateVoiceApiKey } from '../auth';
-import { getActiveOffers } from '@/app/(public)/actions';
+import { getActiveOffers, type ActiveOffer } from '@/lib/trips-search';
 
 export async function POST(req: NextRequest) {
   const authError = validateVoiceApiKey(req);
@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     count: offers.length,
-    offers: offers.map(o => ({
+    offers: offers.map((o: ActiveOffer) => ({
       from: o.from_locality,
       to: o.to_locality,
       price: o.offer_price,

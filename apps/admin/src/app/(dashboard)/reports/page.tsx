@@ -39,10 +39,10 @@ function getDateRange(period: Period) {
   return { dateFrom: toDateStr(firstDay), dateTo: toDateStr(lastDay) };
 }
 
-function getThreeWeeksBackRange(dateFrom: string, dateTo: string) {
+function getPreviousWeekRange(dateFrom: string, dateTo: string) {
   const from = new Date(dateFrom + 'T12:00:00');
   const to = new Date(dateTo + 'T12:00:00');
-  from.setDate(from.getDate() - 21);
+  from.setDate(from.getDate() - 7);
   to.setDate(to.getDate() - 7);
   return { dateFrom: toDateStr(from), dateTo: toDateStr(to) };
 }
@@ -75,7 +75,7 @@ export default async function ReportsPage({
     );
   }
 
-  const prev = getThreeWeeksBackRange(dateFrom, dateTo);
+  const prev = getPreviousWeekRange(dateFrom, dateTo);
   const [pivotData, comparisonPivotData] = await Promise.all([
     getPivotReport(dateFrom, dateTo, point),
     getPivotReport(prev.dateFrom, prev.dateTo, point),

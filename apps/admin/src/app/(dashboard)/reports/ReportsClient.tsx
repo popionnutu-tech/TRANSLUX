@@ -331,10 +331,13 @@ export default function ReportsClient({ pivotData, comparisonPivotData, dateFrom
     for (const r of pivotData) addRow(r);
     for (const r of comparisonPivotData) addRow(r);
 
-    // Build list of current-period dates (with at least some data) sorted
-    const currentDates = new Set<string>();
-    for (const r of pivotData) currentDates.add(r.report_date);
-    const sortedCurrent = Array.from(currentDates).sort();
+    // Build list of ALL dates in selected range (even if no data yet)
+    const sortedCurrent: string[] = [];
+    const startDt = new Date(dateFrom + 'T12:00:00');
+    const endDt = new Date(dateTo + 'T12:00:00');
+    for (let dt = new Date(startDt); dt <= endDt; dt.setDate(dt.getDate() + 1)) {
+      sortedCurrent.push(toDateStr(dt));
+    }
     if (sortedCurrent.length === 0) return [];
 
     const shiftDate = (dateStr: string, days: number): string => {
@@ -366,7 +369,7 @@ export default function ReportsClient({ pivotData, comparisonPivotData, dateFrom
       buildSeries(14, periodLabel(14), '#F59E0B'),
       buildSeries(21, periodLabel(21), '#6B7280'),
     ];
-  }, [pivotData, comparisonPivotData]);
+  }, [pivotData, comparisonPivotData, dateFrom, dateTo]);
 
   // CSV export for pivot data
   function handleExportCSV() {

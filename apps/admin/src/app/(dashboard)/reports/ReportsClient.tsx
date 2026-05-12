@@ -14,12 +14,9 @@ interface Props {
   comparisonPivotData: PivotRawRow[];
   dateFrom: string;
   dateTo: string;
-  comparisonDateFrom: string;
-  comparisonDateTo: string;
   viewMode: 'daily' | 'weekly';
   point: PointEnum;
   period: Period;
-  isStandardPeriod: boolean;
 }
 
 function toDateStr(d: Date): string {
@@ -81,11 +78,10 @@ interface WeeklyPivot {
   weekCells: Map<string, number | null>;
 }
 
-export default function ReportsClient({ pivotData, comparisonPivotData, dateFrom, dateTo, comparisonDateFrom, comparisonDateTo, viewMode, point, period, isStandardPeriod }: Props) {
+export default function ReportsClient({ pivotData, comparisonPivotData, dateFrom, dateTo, viewMode, point, period }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [collapsedWeeks, setCollapsedWeeks] = useState<Set<string>>(new Set());
-  const [showComparison, setShowComparison] = useState(false);
 
   function toggleWeek(monday: string) {
     setCollapsedWeeks((prev) => {
@@ -321,31 +317,56 @@ export default function ReportsClient({ pivotData, comparisonPivotData, dateFrom
     });
   }, [weekColumnGroups, daily, pivot.rows]);
 
-  // ── Chart data ──────────────────────────────
-  const chartData = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const r of pivotData) {
+  // ── Chart data: current period + 3 previous weeks aligned by day-of-week ──
+  const chartSeries = useMemo(() => {
+    // Sum passengers by date across both datasets
+    const passengersByDate = new Map<string, number | null>();
+    const addRow = (r: PivotRawRow) => {
       if (r.status === 'OK' && r.passengers_count != null) {
-        map.set(r.report_date, (map.get(r.report_date) || 0) + r.passengers_count);
+        passengersByDate.set(r.report_date, (passengersByDate.get(r.report_date) || 0) + r.passengers_count);
+      } else if (!passengersByDate.has(r.report_date)) {
+        passengersByDate.set(r.report_date, null);
       }
-    }
-    return Array.from(map.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, value]) => ({ label: formatDateShort(date), value }));
-  }, [pivotData]);
+    };
+    for (const r of pivotData) addRow(r);
+    for (const r of comparisonPivotData) addRow(r);
 
-  const comparisonChartData = useMemo(() => {
-    if (!comparisonPivotData || !comparisonPivotData.length) return [];
-    const map = new Map<string, number>();
-    for (const r of comparisonPivotData) {
-      if (r.status === 'OK' && r.passengers_count != null) {
-        map.set(r.report_date, (map.get(r.report_date) || 0) + r.passengers_count);
-      }
-    }
-    return Array.from(map.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, value]) => ({ label: formatDateShort(date), value }));
-  }, [comparisonPivotData]);
+    // Build list of current-period dates (with at least some data) sorted
+    const currentDates = new Set<string>();
+    for (const r of pivotData) currentDates.add(r.report_date);
+    const sortedCurrent = Array.from(currentDates).sort();
+    if (sortedCurrent.length === 0) return [];
+
+    const shiftDate = (dateStr: string, days: number): string => {
+      const dt = new Date(dateStr + 'T12:00:00');
+      dt.setDate(dt.getDate() - days);
+      return toDateStr(dt);
+    };
+
+    const buildSeries = (offsetDays: number, label: string, color: string) => ({
+      label,
+      color,
+      data: sortedCurrent.map((d) => {
+        const lookup = offsetDays === 0 ? d : shiftDate(d, offsetDays);
+        const v = passengersByDate.get(lookup);
+        return { label: formatDateShort(d), value: v == null ? null : v };
+      }),
+    });
+
+    const currentLabel = `${formatDateShort(sortedCurrent[0])} – ${formatDateShort(sortedCurrent[sortedCurrent.length - 1])}`;
+    const periodLabel = (offset: number) => {
+      const from = shiftDate(sortedCurrent[0], offset);
+      const to = shiftDate(sortedCurrent[sortedCurrent.length - 1], offset);
+      return `${formatDateShort(from)} – ${formatDateShort(to)}`;
+    };
+
+    return [
+      buildSeries(0, currentLabel, '#9B1B30'),
+      buildSeries(7, periodLabel(7), '#2563EB'),
+      buildSeries(14, periodLabel(14), '#F59E0B'),
+      buildSeries(21, periodLabel(21), '#6B7280'),
+    ];
+  }, [pivotData, comparisonPivotData]);
 
   // CSV export for pivot data
   function handleExportCSV() {
@@ -457,29 +478,12 @@ export default function ReportsClient({ pivotData, comparisonPivotData, dateFrom
       </div>
 
       {/* Chart */}
-      {chartData.length > 1 && (
+      {chartSeries.length > 0 && chartSeries[0].data.length > 1 && (
         <div className="card mb-4" style={{ padding: '16px 20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <div style={{ marginBottom: 8 }}>
             <span style={{ fontSize: 14, fontWeight: 600 }}>Dinamica pasagerilor</span>
-            {isStandardPeriod && (
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none' }}>
-                <input
-                  type="checkbox"
-                  checked={showComparison}
-                  onChange={(e) => setShowComparison(e.target.checked)}
-                  style={{ accentColor: '#9B1B30' }}
-                />
-                Comparație
-              </label>
-            )}
           </div>
-          <PassengersChart
-            data={chartData}
-            comparisonData={comparisonChartData}
-            showComparison={showComparison && isStandardPeriod}
-            currentLabel={`${formatDateShort(dateFrom)} – ${formatDateShort(dateTo)}`}
-            comparisonLabel={comparisonDateFrom ? `${formatDateShort(comparisonDateFrom)} – ${formatDateShort(comparisonDateTo)}` : ''}
-          />
+          <PassengersChart series={chartSeries} />
         </div>
       )}
 

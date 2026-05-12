@@ -2,7 +2,6 @@ export const dynamic = 'force-dynamic';
 
 import type { PointEnum } from '@translux/db';
 import { getPivotReport } from './actions';
-import type { PivotRawRow } from './actions';
 import { getSmmReport } from './smm-actions';
 import ReportsClient from './ReportsClient';
 import SmmReportsClient from './SmmReportsClient';
@@ -40,21 +39,12 @@ function getDateRange(period: Period) {
   return { dateFrom: toDateStr(firstDay), dateTo: toDateStr(lastDay) };
 }
 
-function getPreviousPeriodDates(period: string, dateFrom: string, dateTo: string) {
-  if (period === 'weekly') {
-    const from = new Date(dateFrom + 'T12:00:00');
-    const to = new Date(dateTo + 'T12:00:00');
-    from.setDate(from.getDate() - 7);
-    to.setDate(to.getDate() - 7);
-    return { dateFrom: toDateStr(from), dateTo: toDateStr(to) };
-  }
-  if (period === 'monthly') {
-    const fromDate = new Date(dateFrom + 'T12:00:00');
-    const prevFirst = new Date(fromDate.getFullYear(), fromDate.getMonth() - 1, 1);
-    const prevLast = new Date(fromDate.getFullYear(), fromDate.getMonth(), 0);
-    return { dateFrom: toDateStr(prevFirst), dateTo: toDateStr(prevLast) };
-  }
-  return null;
+function getThreeWeeksBackRange(dateFrom: string, dateTo: string) {
+  const from = new Date(dateFrom + 'T12:00:00');
+  const to = new Date(dateTo + 'T12:00:00');
+  from.setDate(from.getDate() - 21);
+  to.setDate(to.getDate() - 7);
+  return { dateFrom: toDateStr(from), dateTo: toDateStr(to) };
 }
 
 export default async function ReportsPage({
@@ -85,22 +75,11 @@ export default async function ReportsPage({
     );
   }
 
-  const isStandardPeriod = !!params.period && ['weekly', 'monthly'].includes(params.period);
-
-  const pivotData = await getPivotReport(dateFrom, dateTo, point);
-
-  let comparisonPivotData: PivotRawRow[] = [];
-  let comparisonDateFrom = '';
-  let comparisonDateTo = '';
-
-  if (isStandardPeriod) {
-    const prev = getPreviousPeriodDates(period, dateFrom, dateTo);
-    if (prev) {
-      comparisonDateFrom = prev.dateFrom;
-      comparisonDateTo = prev.dateTo;
-      comparisonPivotData = await getPivotReport(prev.dateFrom, prev.dateTo, point);
-    }
-  }
+  const prev = getThreeWeeksBackRange(dateFrom, dateTo);
+  const [pivotData, comparisonPivotData] = await Promise.all([
+    getPivotReport(dateFrom, dateTo, point),
+    getPivotReport(prev.dateFrom, prev.dateTo, point),
+  ]);
 
   return (
     <ReportsClient
@@ -108,12 +87,9 @@ export default async function ReportsPage({
       comparisonPivotData={comparisonPivotData}
       dateFrom={dateFrom}
       dateTo={dateTo}
-      comparisonDateFrom={comparisonDateFrom}
-      comparisonDateTo={comparisonDateTo}
       viewMode={viewMode}
       point={point}
       period={period}
-      isStandardPeriod={isStandardPeriod}
     />
   );
 }

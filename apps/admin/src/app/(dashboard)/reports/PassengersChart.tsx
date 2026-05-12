@@ -2,19 +2,22 @@
 
 interface ChartPoint {
   label: string;
-  value: number;
+  value: number | null;
+}
+
+export interface ChartSeries {
+  label: string;
+  color: string;
+  data: ChartPoint[];
 }
 
 interface Props {
-  data: ChartPoint[];
-  comparisonData: ChartPoint[];
-  showComparison: boolean;
-  currentLabel: string;
-  comparisonLabel: string;
+  series: ChartSeries[];
 }
 
-export default function PassengersChart({ data, comparisonData, showComparison, currentLabel, comparisonLabel }: Props) {
-  if (data.length === 0) return null;
+export default function PassengersChart({ series }: Props) {
+  const primary = series[0];
+  if (!primary || primary.data.length === 0) return null;
 
   const W = 800;
   const H = 200;
@@ -22,27 +25,36 @@ export default function PassengersChart({ data, comparisonData, showComparison, 
   const plotW = W - P.l - P.r;
   const plotH = H - P.t - P.b;
 
-  const allVals = data.map((d) => d.value);
-  if (showComparison && comparisonData.length) allVals.push(...comparisonData.map((d) => d.value));
+  const allVals: number[] = [];
+  for (const s of series) for (const d of s.data) if (d.value != null) allVals.push(d.value);
   const maxRaw = Math.max(...allVals, 1);
   const niceMax = Math.ceil((maxRaw * 1.15) / 10) * 10 || 10;
 
-  const n = data.length;
+  const n = primary.data.length;
   const xStep = n > 1 ? plotW / (n - 1) : 0;
   const toX = (i: number) => P.l + (n > 1 ? i * xStep : plotW / 2);
   const toY = (v: number) => P.t + plotH - (v / niceMax) * plotH;
 
-  const mkPath = (pts: ChartPoint[]) =>
-    pts.map((d, i) => `${i === 0 ? 'M' : 'L'}${toX(i).toFixed(1)},${toY(d.value).toFixed(1)}`).join(' ');
+  function mkPath(pts: ChartPoint[]): string {
+    const slice = pts.slice(0, n);
+    let path = '';
+    let started = false;
+    slice.forEach((d, i) => {
+      if (d.value == null) {
+        started = false;
+        return;
+      }
+      path += `${started ? 'L' : 'M'}${toX(i).toFixed(1)},${toY(d.value).toFixed(1)} `;
+      started = true;
+    });
+    return path.trim();
+  }
 
-  const mainPath = mkPath(data);
+  const primaryPath = mkPath(primary.data);
   const areaPath =
-    n > 1
-      ? mainPath + ` L${toX(n - 1).toFixed(1)},${(P.t + plotH).toFixed(1)} L${toX(0).toFixed(1)},${(P.t + plotH).toFixed(1)} Z`
+    n > 1 && primary.data.every((d) => d.value != null)
+      ? primaryPath + ` L${toX(n - 1).toFixed(1)},${(P.t + plotH).toFixed(1)} L${toX(0).toFixed(1)},${(P.t + plotH).toFixed(1)} Z`
       : '';
-
-  const compSlice = comparisonData.slice(0, n);
-  const compPath = showComparison && compSlice.length > 0 ? mkPath(compSlice) : '';
 
   const yTicks = 5;
   const grid = Array.from({ length: yTicks + 1 }, (_, i) => {
@@ -54,24 +66,20 @@ export default function PassengersChart({ data, comparisonData, showComparison, 
 
   return (
     <div>
-      {showComparison && (
-        <div style={{ display: 'flex', gap: 24, fontSize: 11, color: '#888', marginBottom: 8 }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ width: 20, height: 3, background: '#9B1B30', borderRadius: 2, display: 'inline-block' }} />
-            {currentLabel}
+      <div style={{ display: 'flex', gap: 20, fontSize: 11, color: '#666', marginBottom: 8, flexWrap: 'wrap' }}>
+        {series.map((s, idx) => (
+          <span key={idx} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 20, height: 3, background: s.color, borderRadius: 2, display: 'inline-block' }} />
+            {s.label}
           </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ width: 20, height: 0, borderTop: '2px dashed #bbb', display: 'inline-block' }} />
-            {comparisonLabel}
-          </span>
-        </div>
-      )}
+        ))}
+      </div>
 
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" style={{ width: '100%', height: 'auto', display: 'block' }}>
         <defs>
           <linearGradient id="chartArea" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#9B1B30" stopOpacity="0.1" />
-            <stop offset="100%" stopColor="#9B1B30" stopOpacity="0" />
+            <stop offset="0%" stopColor={primary.color} stopOpacity="0.1" />
+            <stop offset="100%" stopColor={primary.color} stopOpacity="0" />
           </linearGradient>
         </defs>
 
@@ -86,21 +94,29 @@ export default function PassengersChart({ data, comparisonData, showComparison, 
 
         {areaPath && <path d={areaPath} fill="url(#chartArea)" />}
 
-        {compPath && (
-          <>
-            <path d={compPath} fill="none" stroke="#ccc" strokeWidth="1.5" strokeDasharray="6 4" />
-            {compSlice.map((d, i) => (
-              <circle key={`c${i}`} cx={toX(i)} cy={toY(d.value)} r="2.5" fill="#ccc" />
-            ))}
-          </>
+        {series.slice(1).map((s, sIdx) => {
+          const path = mkPath(s.data);
+          if (!path) return null;
+          return (
+            <g key={`s${sIdx + 1}`}>
+              <path d={path} fill="none" stroke={s.color} strokeWidth="1.5" strokeOpacity="0.8" strokeLinejoin="round" strokeLinecap="round" />
+              {s.data.slice(0, n).map((d, i) =>
+                d.value == null ? null : (
+                  <circle key={`s${sIdx + 1}p${i}`} cx={toX(i)} cy={toY(d.value)} r="2.5" fill={s.color} fillOpacity="0.8" />
+                )
+              )}
+            </g>
+          );
+        })}
+
+        <path d={primaryPath} fill="none" stroke={primary.color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+        {primary.data.map((d, i) =>
+          d.value == null ? null : (
+            <circle key={`m${i}`} cx={toX(i)} cy={toY(d.value)} r="3.5" fill={primary.color} />
+          )
         )}
 
-        <path d={mainPath} fill="none" stroke="#9B1B30" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-        {data.map((d, i) => (
-          <circle key={`m${i}`} cx={toX(i)} cy={toY(d.value)} r="3.5" fill="#9B1B30" />
-        ))}
-
-        {data.map((d, i) => {
+        {primary.data.map((d, i) => {
           if (n > 1 && i % showEvery !== 0 && i !== n - 1) return null;
           return (
             <text key={`x${i}`} x={toX(i)} y={H - P.b + 16} textAnchor="middle" fontSize="10" fill="#aaa">

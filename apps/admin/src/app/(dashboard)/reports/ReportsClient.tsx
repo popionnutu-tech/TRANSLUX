@@ -366,8 +366,6 @@ export default function ReportsClient({ pivotData, comparisonPivotData, dateFrom
     return [
       buildSeries(0, currentLabel, '#9B1B30'),
       buildSeries(7, periodLabel(7), '#2563EB'),
-      buildSeries(14, periodLabel(14), '#F59E0B'),
-      buildSeries(21, periodLabel(21), '#6B7280'),
     ];
   }, [pivotData, comparisonPivotData, dateFrom, dateTo]);
 

@@ -577,6 +577,34 @@ export default function OverviewTab({ kpi, routes, drivers, routeLoad, onRouteCl
   );
 }
 
+function renderRouteLabel(r: RouteLoadRow, dir: LoadDir): React.ReactNode {
+  const nordName = r.route_name.replace(/^Chișinău\s*[-–]\s*/i, '').trim();
+  const nordTime = r.time_nord?.split(' - ')[0]?.trim() || '';
+  const chisinauTime = r.time_chisinau?.split(' - ')[0]?.trim() || '';
+  const timeStyle = { color: '#aaa', fontSize: 11 };
+  if (dir === 'tur') {
+    return (
+      <>
+        <span style={{ ...timeStyle, marginRight: 6 }}>{nordTime}</span>
+        {nordName} - Chișinău
+      </>
+    );
+  }
+  if (dir === 'retur') {
+    return (
+      <>
+        <span style={{ ...timeStyle, marginRight: 6 }}>{chisinauTime}</span>
+        Chișinău - {nordName}
+      </>
+    );
+  }
+  return (
+    <>
+      Chișinău <span style={timeStyle}>{chisinauTime}</span> - {nordName} <span style={timeStyle}>{nordTime}</span>
+    </>
+  );
+}
+
 // --- Route × DOW × direction heatmap ---
 function RouteLoadByDirection({
   data,
@@ -643,8 +671,7 @@ function RouteLoadByDirection({
                 style={{ cursor: onRouteClick ? 'pointer' : 'default', borderBottom: '1px solid #f5f5f5' }}
               >
                 <td style={{ padding: '8px 10px', fontSize: 13, whiteSpace: 'nowrap' }}>
-                  {r.route_name}
-                  <span style={{ color: '#aaa', fontSize: 11, marginLeft: 6 }}>{r.time_chisinau?.split(' - ')[0]}</span>
+                  {renderRouteLabel(r, dir)}
                 </td>
                 {vec.map((v, i) => {
                   const c = cellColor(v);

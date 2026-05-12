@@ -10,6 +10,9 @@ interface Props {
   routeLoad: RouteLoadRow[];
   onRouteClick?: (crmRouteId: number) => void;
   onDriverClick?: (driverId: string) => void;
+  days?: number;
+  onPeriodChange?: (days: number) => void;
+  isPending?: boolean;
 }
 
 const DOW_LABELS = ['Lu', 'Ma', 'Mi', 'Jo', 'Vi', 'Sâ', 'Du'];
@@ -349,7 +352,7 @@ function RouteMatrix({
   );
 }
 
-export default function OverviewTab({ kpi, routes, drivers, routeLoad, onRouteClick, onDriverClick }: Props) {
+export default function OverviewTab({ kpi, routes, drivers, routeLoad, onRouteClick, onDriverClick, days, onPeriodChange, isPending }: Props) {
   const [sortBy, setSortBy] = useState<'quality' | 'money'>('quality');
   const [hoveredRouteId, setHoveredRouteId] = useState<number | null>(null);
 
@@ -431,13 +434,29 @@ export default function OverviewTab({ kpi, routes, drivers, routeLoad, onRouteCl
 
       {/* Drivers Table */}
       <div className="card" style={{ padding: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 12 }}>
           <div>
             <h2 style={{ fontSize: 17, fontWeight: 600, color: '#333', margin: 0 }}>Șoferi — evaluare</h2>
             <div style={{ fontSize: 13, color: '#666', marginTop: 4 }}>
               Două metrici principale: calitate (% vs normă) + bani/km. Ambele trebuie să fie verzi pentru un șofer bun.
             </div>
           </div>
+          {onPeriodChange && days !== undefined && (
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <span style={{ fontSize: 12, color: '#888', marginRight: 4 }}>Perioadă:</span>
+              {[3, 7, 30, 90].map(d => (
+                <button
+                  key={d}
+                  className={`btn ${days === d ? 'btn-primary' : 'btn-outline'}`}
+                  onClick={() => onPeriodChange(d)}
+                  disabled={isPending}
+                  style={{ fontSize: 12, padding: '5px 12px' }}
+                >
+                  {d}z
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>

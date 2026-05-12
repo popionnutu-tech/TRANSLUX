@@ -289,6 +289,9 @@ export default function AnalyticsClient({
             routes={routeScorecard}
             drivers={driverScorecard}
             routeLoad={routeLoad}
+            days={days}
+            onPeriodChange={handlePeriodChange}
+            isPending={isPending}
           />
         </>
       )}

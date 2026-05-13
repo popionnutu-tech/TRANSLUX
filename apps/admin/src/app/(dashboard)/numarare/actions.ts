@@ -218,6 +218,12 @@ export async function getRoutesForDate(date: string): Promise<{ data?: RouteForC
     const vehicleId = s?.session_vehicle?.id || a?.vehicles?.id || null;
     const vehiclePlate = s?.session_vehicle?.plate_number || a?.vehicles?.plate_number || null;
 
+    // Pentru interurban: dacă sesiunea nu e completă (lipsește tur sau retur),
+    // ruta nu apare ca „numărată" — ascundem sumele, dar lăsăm session_status
+    // ca dispecerul să vadă „Tur gata" și să poată continua.
+    const isInterurban = (r.route_type || 'interurban') === 'interurban';
+    const hideTotals = isInterurban && s && s.status !== 'completed';
+
     return {
       crm_route_id: r.id,
       dest_to_ro: r.dest_to_ro,
@@ -234,10 +240,10 @@ export async function getRoutesForDate(date: string): Promise<{ data?: RouteForC
       operator_id: s?.operator_id || null,
       operator_email: s?.operator?.email || null,
       double_tariff: s?.double_tariff || false,
-      tur_total_lei: s?.tur_total_lei || null,
-      retur_total_lei: s?.retur_total_lei || null,
-      tur_single_lei: s?.tur_single_lei ?? null,
-      retur_single_lei: s?.retur_single_lei ?? null,
+      tur_total_lei: hideTotals ? null : (s?.tur_total_lei || null),
+      retur_total_lei: hideTotals ? null : (s?.retur_total_lei || null),
+      tur_single_lei: hideTotals ? null : (s?.tur_single_lei ?? null),
+      retur_single_lei: hideTotals ? null : (s?.retur_single_lei ?? null),
       audit_status: s?.audit_status ?? null,
       audit_tur_total_lei: s?.audit_tur_total_lei ?? null,
       audit_retur_total_lei: s?.audit_retur_total_lei ?? null,
@@ -296,7 +302,7 @@ export async function getRoutesForPeriod(
   // 2. Toate sesiunile din perioadă
   const { data: sessions, error: sErr } = await sb
     .from('counting_sessions')
-    .select('crm_route_id, tur_total_lei, retur_total_lei, tur_single_lei, retur_single_lei, audit_tur_total_lei, audit_retur_total_lei, audit_status')
+    .select('crm_route_id, status, tur_total_lei, retur_total_lei, tur_single_lei, retur_single_lei, audit_tur_total_lei, audit_retur_total_lei, audit_status')
     .gte('assignment_date', fromDate)
     .lte('assignment_date', toDate);
 
@@ -310,6 +316,10 @@ export async function getRoutesForPeriod(
   for (const s of sessions || []) {
     const r = routeLookup.get(s.crm_route_id);
     if (!r) continue;
+    // Sesiunile interurbane incomplete (lipsește tur sau retur) nu intră în agregare.
+    // Pentru suburban rămâne logica de pană acum.
+    const isInterurban = (r.route_type || 'interurban') === 'interurban';
+    if (isInterurban && s.status !== 'completed') continue;
     const existing = agg.get(s.crm_route_id);
     const tur = Number(s.tur_total_lei) || 0;
     const retur = Number(s.retur_total_lei) || 0;

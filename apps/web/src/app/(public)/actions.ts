@@ -149,18 +149,12 @@ function normalizeStop(name: string): string {
   n = n.replace(/^-\//, '');
   n = n.replace(/\/-$/, '');
 
+  // Note: removed aliases ('beleavinti'→'larga', 'hlinaia'→'hlina', 'criva vama'→'criva',
+  // 'intersectia tabani'→'tabani', 'intersectia trestieni'→'halahora de sus',
+  // 'intersectia riscani'/'petrom riscani'→'riscani', 'berlinti/cotiujeni'→'cotiujeni')
+  // — после миграции 078 эти стопы имеют свои собственные записи в route_km_pairs с правильными км.
   const aliases: Record<string, string> = {
     'coteala': 'cotelea',
-    'hlinaia': 'hlina',
-    'criva vama': 'criva',
-    'gordinestii noi': 'gordinesti',
-    'intersectia tabani': 'tabani',
-    'intersectia trestieni': 'halahora de sus',
-    'intersectia riscani': 'riscani',
-    'petrom riscani': 'riscani',
-    'beleavinti': 'larga',
-    'beleavinti/larga': 'larga',
-    'berlinti/cotiujeni': 'cotiujeni',
     'caracusenii noi/-': 'caracusenii noi',
   };
 
@@ -312,7 +306,10 @@ export async function searchTrips(
       : Promise.resolve({ data: [] }),
   ]);
 
-  const driverMap = new Map((driversData || []).map((d: any) => [d.id, d]));
+  const driverMap = new Map((driversData || []).map((d: any) => [d.id, {
+    ...d,
+    display_name: d.full_name ? d.full_name.trim().split(/\s+/).pop() : null,
+  }]));
   const vehicleMap = new Map((vehiclesData || []).map((v: any) => [v.id, v]));
 
   // Merge both direction results
@@ -353,7 +350,7 @@ export async function searchTrips(
     const driver = driverMap.get(resolved.driver_id);
     const vehicle = resolved.vehicle_id ? vehicleMap.get(resolved.vehicle_id) : null;
     return {
-      driver: driver?.full_name || null,
+      driver: driver?.display_name || null,
       phone: driver?.phone || null,
       plate: vehicle?.plate_number || null,
     };

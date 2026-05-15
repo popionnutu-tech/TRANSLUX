@@ -146,7 +146,7 @@ export async function getGraficData(date: string): Promise<{
       assignment_id: a?.id || null,
       driver_id: a?.driver_id || null,
       driver_phone: toLocalPhone(driver?.phone || null),
-      driver_name: driver?.full_name || null,
+      driver_name: driver ? extractFirstName(driver.full_name) : null,
       vehicle_id: a?.vehicle_id || null,
       vehicle_plate: vTur?.plate_number || null,
       vehicle_id_retur: a?.vehicle_id_retur || null,
@@ -254,7 +254,7 @@ export async function getGraficEdinetRows(date: string): Promise<GraficEdinetRow
       dest_to: r.dest_to_ro || '',
       driver_id: a?.driver_id || null,
       driver_phone: toLocalPhone(driver?.phone || null),
-      driver_name: driver?.full_name || null,
+      driver_name: driver ? extractFirstName(driver.full_name) : null,
     });
   }
 
@@ -608,7 +608,7 @@ export async function getGraficSuburban(date: string): Promise<SuburbanGraficRow
         cycles: cyclesToday.get(r.id) || 0,
         assignment_id: a?.id || null,
         driver_id: a?.driver_id || null,
-        driver_name: driver?.full_name || null,
+        driver_name: driver ? extractFirstName(driver.full_name) : null,
         driver_phone: toLocalPhone(driver?.phone || null),
         vehicle_id: a?.vehicle_id || null,
         vehicle_plate: vehicle?.plate_number || null,

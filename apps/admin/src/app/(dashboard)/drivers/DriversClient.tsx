@@ -5,16 +5,16 @@ import { useRouter } from 'next/navigation';
 import type { Driver } from '@translux/db';
 import { createDriver, toggleDriver, deleteDriver, updateDriverPhone, updateDriverName } from './actions';
 
-function formatDriverName(fullName: string): string {
+/** Split full_name into [familia, prenume] */
+function splitName(fullName: string): [string, string] {
   const parts = fullName.trim().split(/\s+/);
-  if (parts.length < 2) return fullName;
-  const familyName = parts[0];
-  const initials = parts.slice(1).map((p) => p.charAt(0).toUpperCase() + '.').join('');
-  return `${familyName} ${initials}`;
+  if (parts.length < 2) return [parts[0] || '', ''];
+  return [parts[0], parts.slice(1).join(' ')];
 }
 
 export default function DriversClient({ initialDrivers }: { initialDrivers: Driver[] }) {
-  const [name, setName] = useState('');
+  const [familia, setFamilia] = useState('');
+  const [prenume, setPrenume] = useState('');
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -23,10 +23,22 @@ export default function DriversClient({ initialDrivers }: { initialDrivers: Driv
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+    const fam = familia.trim();
+    const pre = prenume.trim();
+    if (!fam) {
+      setError('Familia este obligatorie');
+      return;
+    }
+    if (!pre) {
+      setError('Prenumele este obligatoriu');
+      return;
+    }
+    const fullName = `${fam} ${pre}`;
     setLoading(true);
     try {
-      await createDriver(name, phone || undefined);
-      setName('');
+      await createDriver(fullName, phone || undefined);
+      setFamilia('');
+      setPrenume('');
       setPhone('');
       router.refresh();
     } catch (err: any) {
@@ -59,12 +71,21 @@ export default function DriversClient({ initialDrivers }: { initialDrivers: Driv
 
       <div className="card mb-4">
         <form onSubmit={handleCreate} style={{ display: 'flex', gap: 12, alignItems: 'end', flexWrap: 'wrap' }}>
-          <div className="form-group" style={{ flex: 1, marginBottom: 0, minWidth: 180 }}>
-            <label>Numele complet</label>
+          <div className="form-group" style={{ marginBottom: 0, minWidth: 140 }}>
+            <label>Familia</label>
             <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="ex: Moldovan Ion"
+              value={familia}
+              onChange={(e) => setFamilia(e.target.value)}
+              placeholder="ex: Moldovan"
+              required
+            />
+          </div>
+          <div className="form-group" style={{ marginBottom: 0, minWidth: 140 }}>
+            <label>Prenumele</label>
+            <input
+              value={prenume}
+              onChange={(e) => setPrenume(e.target.value)}
+              placeholder="ex: Ion"
               required
             />
           </div>
@@ -87,7 +108,8 @@ export default function DriversClient({ initialDrivers }: { initialDrivers: Driv
         <table>
           <thead>
             <tr>
-              <th>Nume complet</th>
+              <th>Familia</th>
+              <th>Prenumele</th>
               <th>Telefon</th>
               <th>Status</th>
               <th>Acțiuni</th>
@@ -104,7 +126,7 @@ export default function DriversClient({ initialDrivers }: { initialDrivers: Driv
             ))}
             {initialDrivers.length === 0 && (
               <tr>
-                <td colSpan={4} className="text-center text-muted">
+                <td colSpan={5} className="text-center text-muted">
                   Nu există șoferi.
                 </td>
               </tr>
@@ -129,9 +151,18 @@ function DriverRow({
   const [phone, setPhone] = useState('');
   const [savingPhone, setSavingPhone] = useState(false);
   const [editingName, setEditingName] = useState(false);
-  const [newName, setNewName] = useState('');
+  const [editFamilia, setEditFamilia] = useState('');
+  const [editPrenume, setEditPrenume] = useState('');
   const [savingName, setSavingName] = useState(false);
   const router = useRouter();
+
+  const [familia, prenume] = splitName(driver.full_name);
+
+  function startEditingName() {
+    setEditFamilia(familia);
+    setEditPrenume(prenume);
+    setEditingName(true);
+  }
 
   async function handleSavePhone() {
     if (!phone.trim()) return;
@@ -148,15 +179,20 @@ function DriverRow({
   }
 
   async function handleSaveName() {
-    const trimmed = newName.trim();
-    if (!trimmed) return;
-    if (trimmed === driver.full_name) {
+    const fam = editFamilia.trim();
+    const pre = editPrenume.trim();
+    if (!fam || !pre) {
+      alert('Familia și prenumele sunt obligatorii');
+      return;
+    }
+    const fullName = `${fam} ${pre}`;
+    if (fullName === driver.full_name) {
       setEditingName(false);
       return;
     }
     setSavingName(true);
     try {
-      await updateDriverName(driver.id, trimmed);
+      await updateDriverName(driver.id, fullName);
       setEditingName(false);
       router.refresh();
     } catch (err: any) {
@@ -174,11 +210,28 @@ function DriverRow({
         {editingName ? (
           <span style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
             <input
-              value={newName}
-              onChange={e => setNewName(e.target.value)}
-              placeholder="Nume Prenume"
-              style={{ width: 160, fontSize: 13, padding: '2px 6px' }}
+              value={editFamilia}
+              onChange={e => setEditFamilia(e.target.value)}
+              placeholder="Familia"
+              style={{ width: 100, fontSize: 13, padding: '2px 6px' }}
               autoFocus
+              onKeyDown={e => { if (e.key === 'Enter') handleSaveName(); if (e.key === 'Escape') setEditingName(false); }}
+            />
+          </span>
+        ) : (
+          <span onClick={startEditingName} style={{ cursor: 'pointer', fontWeight: 600 }}>
+            {familia}
+          </span>
+        )}
+      </td>
+      <td>
+        {editingName ? (
+          <span style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            <input
+              value={editPrenume}
+              onChange={e => setEditPrenume(e.target.value)}
+              placeholder="Prenumele"
+              style={{ width: 100, fontSize: 13, padding: '2px 6px' }}
               onKeyDown={e => { if (e.key === 'Enter') handleSaveName(); if (e.key === 'Escape') setEditingName(false); }}
             />
             <button onClick={handleSaveName} disabled={savingName} className="btn btn-primary" style={{ fontSize: 11, padding: '2px 8px' }}>
@@ -187,8 +240,8 @@ function DriverRow({
             <button onClick={() => setEditingName(false)} className="btn btn-outline" style={{ fontSize: 11, padding: '2px 8px' }}>✕</button>
           </span>
         ) : (
-          <span onClick={() => { setNewName(driver.full_name); setEditingName(true); }} style={{ cursor: 'pointer' }}>
-            {driver.full_name}
+          <span onClick={startEditingName} style={{ cursor: 'pointer' }}>
+            {prenume}
           </span>
         )}
       </td>

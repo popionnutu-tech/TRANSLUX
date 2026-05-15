@@ -19,7 +19,7 @@ import {
   getAssignmentForTrip,
   updateAssignmentDriverVehicle,
 } from '../services/db.js';
-import { addViolationAndUpdate } from '../services/dailyDigest.js';
+import { addViolation } from '../services/dailyDigest.js';
 import { getTodayDate, formatTime, formatDate, haversineDistance, minutesLate } from '../utils.js';
 import { config } from '../config.js';
 import { showMainMenu } from '../handlers/start.js';
@@ -621,7 +621,7 @@ export async function reportConversation(
       const hasLateViolation = late > 10;
       if (hasLocationViolation || hasLateViolation) {
         try {
-          await addViolationAndUpdate({
+          await addViolation({
             time: formatTime(trip.departure_time),
             point: POINT_LABELS[point],
             operator: user.username ? `@${user.username}` : `#${user.telegram_id}`,

@@ -2,6 +2,8 @@ import { config } from './config.js';
 import { sendWeeklyReport } from './services/weeklyReport.js';
 import { sendSmmWeeklyReport } from './services/smmWeeklyReport.js';
 import { collectSmmData, aggregateDailyStats, aggregateRangeStats } from './services/smm.js';
+import { sendCompactDigest } from './services/dailyDigest.js';
+import { sendAntaWeeklyReport } from './services/antaReport.js';
 
 const CHECK_INTERVAL_MS = 60 * 1000; // check every minute
 const SEND_DAY = 1;   // Monday
@@ -44,6 +46,39 @@ export function scheduleWeeklyReport(): void {
       await sendWeeklyReport();
     } catch (err) {
       console.error('Weekly report error:', err);
+    }
+
+    try {
+      await sendAntaWeeklyReport();
+    } catch (err) {
+      console.error('ANTA weekly report error:', err);
+    }
+  }, CHECK_INTERVAL_MS);
+}
+
+// ── Daily Digest Scheduler (20:30) ─────────────────
+
+const DIGEST_HOUR = 20;
+const DIGEST_MINUTE = 30;
+
+let lastSentDigestDate = '';
+
+export function scheduleDailyDigest(): void {
+  console.log('Daily digest scheduler started (20:30 Europe/Chisinau)');
+
+  setInterval(async () => {
+    const now = getNowInTz();
+    if (now.getHours() !== DIGEST_HOUR || now.getMinutes() !== DIGEST_MINUTE) return;
+
+    const todayStr = now.toISOString().slice(0, 10);
+    if (lastSentDigestDate === todayStr) return;
+
+    lastSentDigestDate = todayStr;
+
+    try {
+      await sendCompactDigest();
+    } catch (err) {
+      console.error('Daily digest error:', err);
     }
   }, CHECK_INTERVAL_MS);
 }

@@ -1,6 +1,6 @@
 import type { BotContext } from '../types.js';
 import { sendWeeklyReport } from '../services/weeklyReport.js';
-import { getViolationsCount, updateDailyDigest } from '../services/dailyDigest.js';
+import { getViolationsCount, sendCompactDigest } from '../services/dailyDigest.js';
 
 /** Manual trigger for daily digest */
 export async function handleDigest(ctx: BotContext) {
@@ -14,7 +14,7 @@ export async function handleDigest(ctx: BotContext) {
     return;
   }
   try {
-    await updateDailyDigest();
+    await sendCompactDigest();
     await ctx.reply(`📋 Digest trimis (${count} încălcări).`);
   } catch (err) {
     console.error('Manual digest error:', err);

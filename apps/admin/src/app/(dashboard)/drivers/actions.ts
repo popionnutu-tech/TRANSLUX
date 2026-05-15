@@ -18,6 +18,9 @@ export async function createDriver(fullName: string, phone?: string) {
   requireRole(await verifySession(), 'ADMIN', 'DISPATCHER');
   const trimmed = fullName.trim();
   if (!trimmed) throw new Error('Numele șoferului este obligatoriu');
+  if (trimmed.split(/\s+/).length < 2) {
+    throw new Error('Introduceți numele complet (prenume + familie)');
+  }
 
   const row: any = { full_name: trimmed };
   if (phone?.trim()) {
@@ -49,6 +52,9 @@ export async function updateDriverName(driverId: string, fullName: string) {
   requireRole(await verifySession(), 'ADMIN', 'DISPATCHER');
   const trimmed = fullName.trim();
   if (!trimmed) throw new Error('Numele șoferului este obligatoriu');
+  if (trimmed.split(/\s+/).length < 2) {
+    throw new Error('Introduceți numele complet (prenume + familie)');
+  }
 
   const { error } = await getSupabase()
     .from('drivers')

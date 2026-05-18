@@ -18,7 +18,12 @@ export interface NumarareWeeklyRow {
   avgPassengers: number;
 }
 
-function parseTimeNord(t: string): number {
+function extractDepartureTime(t: string): string {
+  if (!t) return '';
+  return t.split(' - ')[0].trim();
+}
+
+function parseTime(t: string): number {
   const m = t?.match(/(\d{1,2}):(\d{2})/);
   if (!m) return 9999;
   return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
@@ -75,12 +80,12 @@ export async function getNumarareDaily(date: string): Promise<NumarareDailyRow[]
     return {
       crm_route_id: r.id,
       dest_to_ro: r.dest_to_ro,
-      time_chisinau: r.time_chisinau,
+      time_chisinau: extractDepartureTime(r.time_chisinau),
       passengers,
     };
   });
 
-  result.sort((a, b) => parseTimeNord(a.time_chisinau) - parseTimeNord(b.time_chisinau));
+  result.sort((a, b) => parseTime(a.time_chisinau) - parseTime(b.time_chisinau));
   return result;
 }
 
@@ -163,15 +168,15 @@ export async function getNumarareWeekly(
     result.push({
       crm_route_id: routeId,
       dest_to_ro: route.dest_to_ro,
-      time_chisinau: route.time_chisinau,
+      time_chisinau: extractDepartureTime(route.time_chisinau),
       dayOfWeek: parseInt(dayStr, 10),
       avgPassengers: Math.round((sum / count) * 10) / 10,
     });
   }
 
   result.sort((a, b) => {
-    const ta = parseTimeNord(a.time_chisinau);
-    const tb = parseTimeNord(b.time_chisinau);
+    const ta = parseTime(a.time_chisinau);
+    const tb = parseTime(b.time_chisinau);
     if (ta !== tb) return ta - tb;
     return a.dayOfWeek - b.dayOfWeek;
   });

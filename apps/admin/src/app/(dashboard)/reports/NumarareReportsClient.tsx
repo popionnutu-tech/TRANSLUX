@@ -59,7 +59,7 @@ export default function NumarareReportsClient({
 
   // Weekly: build pivot { routeKey → { dayOfWeek → avg } }
   const weeklyPivot = useMemo(() => {
-    const routeKeys: { crm_route_id: number; dest_to_ro: string; time_nord: string; key: string }[] = [];
+    const routeKeys: { crm_route_id: number; dest_to_ro: string; time_chisinau: string; key: string }[] = [];
     const seen = new Set<string>();
     const cellMap = new Map<string, number>();
 
@@ -70,20 +70,20 @@ export default function NumarareReportsClient({
         routeKeys.push({
           crm_route_id: r.crm_route_id,
           dest_to_ro: r.dest_to_ro,
-          time_nord: r.time_nord,
+          time_chisinau: r.time_chisinau,
           key,
         });
       }
       cellMap.set(`${key}|${r.dayOfWeek}`, r.avgPassengers);
     }
 
-    // Sort by time_nord
+    // Sort by time_chisinau
     const parseT = (t: string) => {
       const m = t?.match(/(\d{1,2}):(\d{2})/);
       if (!m) return 9999;
       return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
     };
-    routeKeys.sort((a, b) => parseT(a.time_nord) - parseT(b.time_nord));
+    routeKeys.sort((a, b) => parseT(a.time_chisinau) - parseT(b.time_chisinau));
 
     return { routeKeys, cellMap };
   }, [weeklyData]);
@@ -127,7 +127,7 @@ export default function NumarareReportsClient({
     if (viewMode === 'daily') {
       const header = 'Ruta,Ora,Pasageri';
       const lines = dailyData.map((r) =>
-        `"${r.dest_to_ro}",${r.time_nord},${r.passengers ?? ''}`
+        `"${r.dest_to_ro}",${r.time_chisinau},${r.passengers ?? ''}`
       );
       const totalLine = `Total,,${dailyTotal}`;
       downloadCSV([header, ...lines, totalLine].join('\n'), `numarare-${date}.csv`);
@@ -139,7 +139,7 @@ export default function NumarareReportsClient({
           return v != null ? v.toFixed(1) : '';
         });
         const avg = weeklyRowAverages.get(rk.key);
-        return [`"${rk.dest_to_ro}"`, rk.time_nord, ...days, avg != null ? avg.toFixed(1) : ''].join(',');
+        return [`"${rk.dest_to_ro}"`, rk.time_chisinau, ...days, avg != null ? avg.toFixed(1) : ''].join(',');
       });
       const totalLine = ['Total', '', ...weeklyColumnTotals.map((t) => t != null ? t.toFixed(1) : ''), ''].join(',');
       downloadCSV([header, ...lines, totalLine].join('\n'), `numarare-${dateFrom}_${dateTo}.csv`);
@@ -274,7 +274,7 @@ export default function NumarareReportsClient({
               {dailyData.map((r) => (
                 <tr key={r.crm_route_id}>
                   <td className="pivot-time pivot-sticky pivot-sticky-time">{r.dest_to_ro}</td>
-                  <td className="pivot-cell">{r.time_nord}</td>
+                  <td className="pivot-cell">{r.time_chisinau}</td>
                   <td className={`pivot-cell${r.passengers == null ? ' pivot-empty' : ''}`}>
                     {r.passengers != null ? r.passengers : '—'}
                   </td>
@@ -316,7 +316,7 @@ export default function NumarareReportsClient({
               {weeklyPivot.routeKeys.map((rk) => (
                 <tr key={rk.crm_route_id}>
                   <td className="pivot-time pivot-sticky pivot-sticky-time">{rk.dest_to_ro}</td>
-                  <td className="pivot-cell">{rk.time_nord}</td>
+                  <td className="pivot-cell">{rk.time_chisinau}</td>
                   {Array.from({ length: 7 }, (_, i) => {
                     const v = weeklyPivot.cellMap.get(`${rk.key}|${i + 1}`);
                     return (

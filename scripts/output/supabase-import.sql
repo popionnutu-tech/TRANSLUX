@@ -17,8 +17,8 @@ INSERT INTO localities (id, name_ro, name_ru, is_major, sort_order) VALUES (7, '
 INSERT INTO localities (id, name_ro, name_ru, is_major, sort_order) VALUES (8, 'Bilicenii Noi', 'Биличений Ной', false, 0) ON CONFLICT (id) DO NOTHING;
 INSERT INTO localities (id, name_ro, name_ru, is_major, sort_order) VALUES (9, 'Bilicenii Vechi', 'Биличений Векь', false, 0) ON CONFLICT (id) DO NOTHING;
 INSERT INTO localities (id, name_ro, name_ru, is_major, sort_order) VALUES (10, 'Bîrlădeni', 'Бырладяны', false, 0) ON CONFLICT (id) DO NOTHING;
-INSERT INTO localities (id, name_ro, name_ru, is_major, sort_order) VALUES (11, 'Brătușeni', 'Брэтушений Ной', false, 0) ON CONFLICT (id) DO NOTHING;
-INSERT INTO localities (id, name_ro, name_ru, is_major, sort_order) VALUES (12, 'Brătușenii Noi', 'Брэтушений Ной', false, 0) ON CONFLICT (id) DO NOTHING;
+INSERT INTO localities (id, name_ro, name_ru, is_major, sort_order) VALUES (11, 'Brătușeni', 'Братушаны', false, 0) ON CONFLICT (id) DO NOTHING;
+INSERT INTO localities (id, name_ro, name_ru, is_major, sort_order) VALUES (12, 'Brătușenii Noi', 'Новые Братушаны', false, 0) ON CONFLICT (id) DO NOTHING;
 INSERT INTO localities (id, name_ro, name_ru, is_major, sort_order) VALUES (13, 'Briceni', 'Бричаны', true, 11) ON CONFLICT (id) DO NOTHING;
 INSERT INTO localities (id, name_ro, name_ru, is_major, sort_order) VALUES (14, 'Brînzeni', 'Брынзены', false, 0) ON CONFLICT (id) DO NOTHING;
 INSERT INTO localities (id, name_ro, name_ru, is_major, sort_order) VALUES (15, 'Caracușenii Noi', 'Новые Каракушаны', false, 0) ON CONFLICT (id) DO NOTHING;

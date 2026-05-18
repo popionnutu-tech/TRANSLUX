@@ -353,9 +353,18 @@ export default function NumarareReportsClient({
                   <td className="pivot-cell pivot-total-cell">
                     {(() => {
                       const valid = weeklyColumnTotals.filter((t): t is number => t != null);
-                      return valid.length > 0
-                        ? (Math.round(valid.reduce((a, b) => a + b, 0) * 10) / 10).toFixed(1)
-                        : '—';
+                      if (valid.length === 0) return '—';
+                      const sum = Math.round(valid.reduce((a, b) => a + b, 0) * 10) / 10;
+                      const avg = Math.round((sum / valid.length) * 10) / 10;
+                      return (
+                        <>
+                          {sum.toFixed(1)}
+                          <br />
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                            ø {avg.toFixed(1)}/zi
+                          </span>
+                        </>
+                      );
                     })()}
                   </td>
                 </tr>

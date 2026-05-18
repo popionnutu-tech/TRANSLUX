@@ -51,7 +51,7 @@ export default function CountingForm({
   const alightedRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const turReadOnly = viewOnly || sessionStatus === 'tur_done' || sessionStatus === 'completed';
-  const returReadOnly = viewOnly || sessionStatus === 'completed';
+  const returReadOnly = viewOnly || sessionStatus === 'retur_done' || sessionStatus === 'completed';
 
   // Загрузка остановок Retur
   useEffect(() => {

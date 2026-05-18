@@ -184,6 +184,15 @@ export async function saveAuditDirection(
     }
   }
 
+  // Проверяем, сохранено ли другое направление в audit
+  const { data: otherAuditEntries } = await sb
+    .from('counting_audit_entries')
+    .select('id')
+    .eq('session_id', sessionId)
+    .eq('direction', direction === 'tur' ? 'retur' : 'tur')
+    .limit(1);
+  const otherAuditSaved = otherAuditEntries && otherAuditEntries.length > 0;
+
   const updateFields: {
     audit_last_edited_at: string;
     audit_locked_by: null;
@@ -192,12 +201,12 @@ export async function saveAuditDirection(
     audit_tur_single_lei?: number;
     audit_retur_total_lei?: number;
     audit_retur_single_lei?: number;
-    audit_status: 'tur_done' | 'completed';
+    audit_status: 'tur_done' | 'retur_done' | 'completed';
   } = {
     audit_last_edited_at: new Date().toISOString(),
     audit_locked_by: null,
     audit_locked_at: null,
-    audit_status: direction === 'tur' ? 'tur_done' : 'completed',
+    audit_status: otherAuditSaved ? 'completed' : (direction === 'tur' ? 'tur_done' : 'retur_done'),
   };
   if (direction === 'tur') {
     updateFields.audit_tur_total_lei = totalLei;
@@ -299,19 +308,26 @@ export async function saveSuburbanAuditCycle(
   }
 
   // Pentru suburban, marcăm status și păstrăm totalul raportat per call.
-  // Totalul final se recalculează când ambele direcții au cel puțin un ciclu.
+  const { data: otherSubAudit } = await sb
+    .from('counting_audit_entries')
+    .select('id')
+    .eq('session_id', sessionId)
+    .eq('direction', direction === 'tur' ? 'retur' : 'tur')
+    .limit(1);
+  const otherSubAuditSaved = otherSubAudit && otherSubAudit.length > 0;
+
   const updateFields: {
     audit_last_edited_at: string;
     audit_locked_by: null;
     audit_locked_at: null;
-    audit_status: 'tur_done' | 'completed';
+    audit_status: 'tur_done' | 'retur_done' | 'completed';
     audit_tur_total_lei?: number;
     audit_retur_total_lei?: number;
   } = {
     audit_last_edited_at: new Date().toISOString(),
     audit_locked_by: null,
     audit_locked_at: null,
-    audit_status: direction === 'retur' ? 'completed' : 'tur_done',
+    audit_status: otherSubAuditSaved ? 'completed' : (direction === 'tur' ? 'tur_done' : 'retur_done'),
   };
   if (direction === 'tur') {
     updateFields.audit_tur_total_lei = totalLei;

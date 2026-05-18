@@ -723,15 +723,24 @@ export async function saveDirection(
   }
 
   // Обновляем статус и сумму
+  // Проверяем, сохранено ли другое направление
+  const { data: otherEntries } = await sb
+    .from('counting_entries')
+    .select('id')
+    .eq('session_id', sessionId)
+    .eq('direction', direction === 'tur' ? 'retur' : 'tur')
+    .limit(1);
+  const otherSaved = otherEntries && otherEntries.length > 0;
+
   const updateFields: any = {};
   if (direction === 'tur') {
     updateFields.tur_total_lei = totalLei;
     updateFields.tur_single_lei = totalLeiSingle;
-    updateFields.status = 'tur_done';
+    updateFields.status = otherSaved ? 'completed' : 'tur_done';
   } else {
     updateFields.retur_total_lei = totalLei;
     updateFields.retur_single_lei = totalLeiSingle;
-    updateFields.status = 'completed';
+    updateFields.status = otherSaved ? 'completed' : 'retur_done';
   }
   updateFields.locked_by = null;
   updateFields.locked_at = null;

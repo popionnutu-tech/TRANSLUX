@@ -246,6 +246,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
       return <span style={{ color: 'var(--warning)' }}>🔒 {route.operator_email}</span>;
     }
     if (route.session_status === 'tur_done') return <span style={{ color: 'var(--primary)' }}>Tur gata</span>;
+    if (route.session_status === 'retur_done') return <span style={{ color: '#1b6e9b' }}>Retur gata</span>;
     return <span className="text-muted">Nou</span>;
   }
 

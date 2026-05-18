@@ -429,6 +429,12 @@ export default function ReportsClient({ pivotData, comparisonPivotData, dateFrom
             >
               SMM
             </button>
+            <button
+              className="mode-btn"
+              onClick={() => updateParams({ reportType: 'numarare' })}
+            >
+              Numărare
+            </button>
           </div>
           <div className="mode-toggle" style={{ marginLeft: 8 }}>
             {(['daily', 'weekly', 'monthly'] as Period[]).map((p) => (

@@ -3,8 +3,10 @@ export const dynamic = 'force-dynamic';
 import type { PointEnum } from '@translux/db';
 import { getPivotReport } from './actions';
 import { getSmmReport } from './smm-actions';
+import { getNumarareDaily, getNumarareWeekly } from './numarare-report-actions';
 import ReportsClient from './ReportsClient';
 import SmmReportsClient from './SmmReportsClient';
+import NumarareReportsClient from './NumarareReportsClient';
 
 type Period = 'daily' | 'weekly' | 'monthly';
 
@@ -61,7 +63,7 @@ export default async function ReportsPage({
   const dateTo = params.dateTo || defaults.dateTo;
   const viewMode = (params.view as 'daily' | 'weekly') || 'daily';
   const point = (params.point as PointEnum) || 'CHISINAU';
-  const reportType = (params.reportType as 'transport' | 'smm') || 'transport';
+  const reportType = (params.reportType as 'transport' | 'smm' | 'numarare') || 'transport';
 
   if (reportType === 'smm') {
     const smmData = await getSmmReport(dateFrom, dateTo);
@@ -71,6 +73,28 @@ export default async function ReportsPage({
         dateFrom={dateFrom}
         dateTo={dateTo}
         period={period}
+      />
+    );
+  }
+
+  if (reportType === 'numarare') {
+    const numarareView = (params.view as 'daily' | 'weekly') || 'daily';
+    const today = toDateStr(new Date());
+    const numarareDate = params.date || today;
+
+    const [dailyData, weeklyData] = await Promise.all([
+      numarareView === 'daily' ? getNumarareDaily(numarareDate) : Promise.resolve([]),
+      numarareView === 'weekly' ? getNumarareWeekly(dateFrom, dateTo) : Promise.resolve([]),
+    ]);
+
+    return (
+      <NumarareReportsClient
+        dailyData={dailyData}
+        weeklyData={weeklyData}
+        viewMode={numarareView}
+        date={numarareDate}
+        dateFrom={dateFrom}
+        dateTo={dateTo}
       />
     );
   }

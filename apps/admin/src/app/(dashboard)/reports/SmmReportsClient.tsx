@@ -289,6 +289,12 @@ export default function SmmReportsClient({ smmData, dateFrom, dateTo, period }: 
               Transport
             </button>
             <button className="mode-btn mode-btn-active">SMM</button>
+            <button
+              className="mode-btn"
+              onClick={() => updateParams({ reportType: 'numarare' })}
+            >
+              Numărare
+            </button>
           </div>
           <div className="mode-toggle" style={{ marginLeft: 8 }}>
             {(['daily', 'weekly', 'monthly'] as Period[]).map((p) => (

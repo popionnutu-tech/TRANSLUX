@@ -354,7 +354,7 @@ export default function NumarareReportsClient({
                     {(() => {
                       const valid = weeklyColumnTotals.filter((t): t is number => t != null);
                       return valid.length > 0
-                        ? (Math.round((valid.reduce((a, b) => a + b, 0) / valid.length) * 10) / 10).toFixed(1)
+                        ? (Math.round(valid.reduce((a, b) => a + b, 0) * 10) / 10).toFixed(1)
                         : '—';
                     })()}
                   </td>

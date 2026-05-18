@@ -6,14 +6,14 @@ import { verifySession } from '@/lib/auth';
 export interface NumarareDailyRow {
   crm_route_id: number;
   dest_to_ro: string;
-  time_nord: string;
+  time_chisinau: string;
   passengers: number | null;
 }
 
 export interface NumarareWeeklyRow {
   crm_route_id: number;
   dest_to_ro: string;
-  time_nord: string;
+  time_chisinau: string;
   dayOfWeek: number; // ISO: 1=Mon, 7=Sun
   avgPassengers: number;
 }
@@ -33,7 +33,7 @@ export async function getNumarareDaily(date: string): Promise<NumarareDailyRow[]
   // 1. All active interurban routes
   const { data: routes } = await sb
     .from('crm_routes')
-    .select('id, dest_to_ro, time_nord')
+    .select('id, dest_to_ro, time_chisinau')
     .eq('active', true)
     .eq('route_type', 'interurban');
 
@@ -75,12 +75,12 @@ export async function getNumarareDaily(date: string): Promise<NumarareDailyRow[]
     return {
       crm_route_id: r.id,
       dest_to_ro: r.dest_to_ro,
-      time_nord: r.time_nord,
+      time_chisinau: r.time_chisinau,
       passengers,
     };
   });
 
-  result.sort((a, b) => parseTimeNord(a.time_nord) - parseTimeNord(b.time_nord));
+  result.sort((a, b) => parseTimeNord(a.time_chisinau) - parseTimeNord(b.time_chisinau));
   return result;
 }
 
@@ -96,7 +96,7 @@ export async function getNumarareWeekly(
   // 1. All active interurban routes
   const { data: routes } = await sb
     .from('crm_routes')
-    .select('id, dest_to_ro, time_nord')
+    .select('id, dest_to_ro, time_chisinau')
     .eq('active', true)
     .eq('route_type', 'interurban');
 
@@ -163,15 +163,15 @@ export async function getNumarareWeekly(
     result.push({
       crm_route_id: routeId,
       dest_to_ro: route.dest_to_ro,
-      time_nord: route.time_nord,
+      time_chisinau: route.time_chisinau,
       dayOfWeek: parseInt(dayStr, 10),
       avgPassengers: Math.round((sum / count) * 10) / 10,
     });
   }
 
   result.sort((a, b) => {
-    const ta = parseTimeNord(a.time_nord);
-    const tb = parseTimeNord(b.time_nord);
+    const ta = parseTimeNord(a.time_chisinau);
+    const tb = parseTimeNord(b.time_chisinau);
     if (ta !== tb) return ta - tb;
     return a.dayOfWeek - b.dayOfWeek;
   });

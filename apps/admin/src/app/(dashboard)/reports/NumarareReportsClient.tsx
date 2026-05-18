@@ -350,7 +350,14 @@ export default function NumarareReportsClient({
                       {t != null ? t.toFixed(1) : '—'}
                     </td>
                   ))}
-                  <td className="pivot-cell pivot-total-cell" />
+                  <td className="pivot-cell pivot-total-cell">
+                    {(() => {
+                      const valid = weeklyColumnTotals.filter((t): t is number => t != null);
+                      return valid.length > 0
+                        ? (Math.round((valid.reduce((a, b) => a + b, 0) / valid.length) * 10) / 10).toFixed(1)
+                        : '—';
+                    })()}
+                  </td>
                 </tr>
               </tfoot>
             )}

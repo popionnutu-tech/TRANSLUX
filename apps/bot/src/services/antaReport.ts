@@ -29,9 +29,10 @@ async function fetchAnnouncements(): Promise<AntaAnnouncement[]> {
 
     const results: AntaAnnouncement[] = [];
 
-    // Each announcement block: date line "DD.MM.YYYY | Anunțuri" followed by <h2> with <a>title</a>
-    // Pattern: date text node → heading with link
-    const pattern = /(\d{2}\.\d{2}\.\d{4})\s*\|\s*Anunțuri[^<]*<\/[^>]+>\s*<h\d[^>]*>\s*<a[^>]*>([^<]+)<\/a>/gi;
+    // Actual Drupal HTML structure:
+    //   <span class="field-content">12.05.2026 | Anunțuri</span>  </div>
+    //   <h4 ...><span class="field-content"><a href="...">Title</a></span></h4>
+    const pattern = /(\d{2}\.\d{2}\.\d{4})\s*\|\s*Anun.uri.*?<h\d[^>]*>.*?<a[^>]*>([^<]+)<\/a>/gs;
 
     let match: RegExpExecArray | null;
     while ((match = pattern.exec(html)) !== null) {

@@ -55,14 +55,26 @@ export async function POST(req: NextRequest) {
     .ilike('from_locality', from)
     .ilike('to_locality', to);
 
-  // Get km-based price (two safe queries instead of .or() with interpolation)
+  // Get km from interurban_v2 view (calculează preț = km × rate curent)
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
+  const { data: period } = await supabase
+    .from('tariff_periods')
+    .select('rate_interurban_long')
+    .lte('period_start', today)
+    .gte('period_end', today)
+    .order('period_start', { ascending: false })
+    .limit(1)
+    .single();
+  const rate = period ? Number(period.rate_interurban_long) : null;
+
   const [{ data: kmPairsA }, { data: kmPairsB }] = await Promise.all([
-    supabase.from('route_km_pairs').select('price').eq('from_stop', fromNorm).eq('to_stop', toNorm),
-    supabase.from('route_km_pairs').select('price').eq('from_stop', toNorm).eq('to_stop', fromNorm),
+    supabase.from('v_interurban_v2_km_pairs').select('km').eq('from_stop', fromNorm).eq('to_stop', toNorm).order('km', { ascending: true }).limit(1),
+    supabase.from('v_interurban_v2_km_pairs').select('km').eq('from_stop', toNorm).eq('to_stop', fromNorm).order('km', { ascending: true }).limit(1),
   ]);
   const kmPairs = [...(kmPairsA || []), ...(kmPairsB || [])];
 
-  const basePrice = kmPairs && kmPairs.length > 0 ? (kmPairs[0] as any).price : null;
+  const kmVal = kmPairs && kmPairs.length > 0 ? Number((kmPairs[0] as any).km) : 0;
+  const basePrice = (rate && kmVal > 0 && kmVal < 1000) ? Math.round(kmVal * rate) : null;
   const offer = offers && offers.length > 0 ? offers[0] as any : null;
 
   if (!basePrice && !offer) {

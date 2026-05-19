@@ -209,13 +209,15 @@ async function saveNomenclator(
 
   for (const route of POPULAR_ROUTES) {
     const { data } = await supabase
-      .from('route_km_pairs')
-      .select('price')
+      .from('v_interurban_v2_km_pairs')
+      .select('km')
       .eq('from_stop', route.from)
       .eq('to_stop', route.to)
+      .order('km', { ascending: true })
       .limit(1);
 
-    const price = data?.[0]?.price ?? Math.round(route.from === 'chisinau' ? 133 * rate : 0);
+    const km = data?.[0] ? Number((data[0] as any).km) : 0;
+    const price = (km > 0 && km < 1000) ? Math.round(km * rate) : Math.round(route.from === 'chisinau' ? 133 * rate : 0);
     prices.push({
       from_ro: route.from_ro,
       to_ro: route.to_ro,

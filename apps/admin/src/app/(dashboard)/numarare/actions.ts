@@ -393,17 +393,23 @@ export async function getRouteStops(crmRouteId: number, direction: 'tur' | 'retu
   // Read route + tariff + stops from interurban_v2_*
   const { data: route } = await sb
     .from('interurban_v2_routes')
-    .select('tariff_id, start_stop_order, start_branch')
+    .select('tariff_id, retur_tariff_id, start_stop_order, start_branch')
     .eq('crm_route_id', stopsRouteId)
     .limit(1)
     .single();
 
   if (!route) return [];
 
+  // Pentru retur folosește retur_tariff_id (poate diferi de tariff_id pentru rute mixte:
+  // ex. ruta 2/19/24 — tur via Larga, retur Criva Direct)
+  const effectiveTariffId = direction === 'retur'
+    ? ((route as any).retur_tariff_id ?? (route as any).tariff_id)
+    : (route as any).tariff_id;
+
   const { data: stops } = await sb
     .from('interurban_v2_stops')
     .select('stop_order, name_ro, km_from_start')
-    .eq('tariff_id', (route as any).tariff_id)
+    .eq('tariff_id', effectiveTariffId)
     .eq('branch', (route as any).start_branch || 'main')
     .gte('stop_order', (route as any).start_stop_order || 1)
     .order('stop_order', { ascending: true });

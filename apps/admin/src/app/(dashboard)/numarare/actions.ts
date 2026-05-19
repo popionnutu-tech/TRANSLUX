@@ -389,31 +389,45 @@ export async function getRouteStops(crmRouteId: number, direction: 'tur' | 'retu
 
   const stopsRouteId = COUNTING_ROUTE_MAP[crmRouteId] ?? crmRouteId;
   const sb = getSupabase();
-  // Opririle sunt stocate în ordinea rutei (de la Nord → Chișinău) după id.
-  // km_from_nord / km_from_chisinau = distanța segmentului (inter-opriri), nu cumulativă.
-  const { data } = await sb
-    .from('crm_stop_prices')
-    .select('id, name_ro, km_from_chisinau, km_from_nord')
+
+  // Read route + tariff + stops from interurban_v2_*
+  const { data: route } = await sb
+    .from('interurban_v2_routes')
+    .select('tariff_id, start_stop_order, start_branch')
     .eq('crm_route_id', stopsRouteId)
-    .order('id', { ascending: true });
+    .limit(1)
+    .single();
 
-  if (!data || data.length === 0) return [];
+  if (!route) return [];
 
-  // Tur = de la Nord → Chișinău (ordinea naturală din DB)
+  const { data: stops } = await sb
+    .from('interurban_v2_stops')
+    .select('stop_order, name_ro, km_from_start')
+    .eq('tariff_id', (route as any).tariff_id)
+    .eq('branch', (route as any).start_branch || 'main')
+    .gte('stop_order', (route as any).start_stop_order || 1)
+    .order('stop_order', { ascending: true });
+
+  if (!stops || stops.length === 0) return [];
+
+  // km cumulativ în interurban_v2_stops este de la oprirea master de start (ex: Criva Vama)
+  // Calculăm km relativ la prima oprire vizibilă a rutei
+  const firstKm = Number((stops[0] as any).km_from_start);
+  const lastKm = Number((stops[stops.length - 1] as any).km_from_start);
+
+  // Tur = de la Nord → Chișinău (ordine naturală)
   // Retur = de la Chișinău → Nord (ordine inversată)
-  const ordered = direction === 'tur' ? data : [...data].reverse();
+  const ordered = direction === 'tur' ? stops : [...stops].reverse();
 
-  // Cumulăm distanțele segmentelor
-  const segmentKey = direction === 'tur' ? 'km_from_nord' : 'km_from_chisinau';
-  let cumKm = 0;
   return ordered.map((row: any, idx: number) => {
-    if (idx > 0) {
-      cumKm += Number(row[segmentKey] || 0);
-    }
+    const stopKm = Number(row.km_from_start);
+    const kmRelative = direction === 'tur'
+      ? stopKm - firstKm
+      : lastKm - stopKm;
     return {
       stopOrder: idx + 1,
       nameRo: row.name_ro,
-      kmFromStart: Math.round(cumKm * 10) / 10,
+      kmFromStart: Math.round(kmRelative * 10) / 10,
     };
   });
 }

@@ -89,18 +89,19 @@ export async function getPopularPrices(): Promise<PopularRoutePrice[]> {
     .single();
   const rate = period ? Number(period.rate_interurban_long) : null;
 
-  // Get km for each popular route and calculate price
+  // Get km for each popular route from interurban_v2 view
   const results = await Promise.all(
     POPULAR_ROUTES.map(async (r) => {
       const { data: pairs } = await supabase
-        .from('route_km_pairs')
-        .select('km, price')
+        .from('v_interurban_v2_km_pairs')
+        .select('km')
         .eq('from_stop', r.from)
         .eq('to_stop', r.to)
+        .order('km', { ascending: true })
         .limit(1);
 
-      const row = pairs?.[0];
-      const price = row ? (rate && row.km > 0 && row.km < 1000 ? Math.round(row.km * rate) : row.price) : 0;
+      const km = pairs?.[0] ? Number((pairs[0] as any).km) : 0;
+      const price = (rate && km > 0 && km < 1000) ? Math.round(km * rate) : 0;
 
       return {
         from_ro: r.from_ro,
@@ -269,13 +270,13 @@ export async function searchTrips(
       .in('id', matchingRouteIds)
       .eq('active', true),
     supabase
-      .from('route_km_pairs')
-      .select('tariff_id, km, price')
+      .from('v_interurban_v2_km_pairs')
+      .select('tariff_id, km')
       .eq('from_stop', fromNorm)
       .eq('to_stop', toNorm),
     supabase
-      .from('route_km_pairs')
-      .select('tariff_id, km, price')
+      .from('v_interurban_v2_km_pairs')
+      .select('tariff_id, km')
       .eq('from_stop', toNorm)
       .eq('to_stop', fromNorm),
     supabase
@@ -332,13 +333,14 @@ export async function searchTrips(
     .single();
   const historicalRate = periodData ? Number(periodData.rate_interurban_long) : null;
 
-  // Build price lookup: tariff_id → price (recalculated if historical rate available)
+  // Build price lookup: tariff_id → price (calculat din km × historical rate)
   const priceMap = new Map<number, number>();
   for (const p of (kmPairs) as any[]) {
     if (!priceMap.has(p.tariff_id)) {
-      const price = (historicalRate && p.km > 0 && p.km < 1000)
-        ? Math.round(p.km * historicalRate)
-        : p.price;
+      const kmVal = Number(p.km);
+      const price = (historicalRate && kmVal > 0 && kmVal < 1000)
+        ? Math.round(kmVal * historicalRate)
+        : 0;
       priceMap.set(p.tariff_id, price);
     }
   }

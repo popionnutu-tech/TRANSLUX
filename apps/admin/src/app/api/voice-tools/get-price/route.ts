@@ -55,26 +55,35 @@ export async function POST(req: NextRequest) {
     .ilike('from_locality', from)
     .ilike('to_locality', to);
 
-  // Get km from interurban_v2 view (calculează preț = km × rate curent)
+  // Get km from interurban_v2 view; preț = km × rate (suburban dacă ambele
+  // opriri în raionul de start al rutei, altfel interurban lung)
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
   const { data: period } = await supabase
     .from('tariff_periods')
-    .select('rate_interurban_long')
+    .select('rate_interurban_long, rate_suburban')
     .lte('period_start', today)
     .gte('period_end', today)
     .order('period_start', { ascending: false })
     .limit(1)
     .single();
-  const rate = period ? Number(period.rate_interurban_long) : null;
+  const rateLong = period ? Number(period.rate_interurban_long) : null;
+  const rateSub = period ? Number(period.rate_suburban) : null;
 
   const [{ data: kmPairsA }, { data: kmPairsB }] = await Promise.all([
-    supabase.from('v_interurban_v2_km_pairs').select('km').eq('from_stop', fromNorm).eq('to_stop', toNorm).order('km', { ascending: true }).limit(1),
-    supabase.from('v_interurban_v2_km_pairs').select('km').eq('from_stop', toNorm).eq('to_stop', fromNorm).order('km', { ascending: true }).limit(1),
+    supabase.from('v_interurban_v2_km_pairs').select('km, from_district, to_district, start_district').eq('from_stop', fromNorm).eq('to_stop', toNorm).order('km', { ascending: true }).limit(1),
+    supabase.from('v_interurban_v2_km_pairs').select('km, from_district, to_district, start_district').eq('from_stop', toNorm).eq('to_stop', fromNorm).order('km', { ascending: true }).limit(1),
   ]);
   const kmPairs = [...(kmPairsA || []), ...(kmPairsB || [])];
 
-  const kmVal = kmPairs && kmPairs.length > 0 ? Number((kmPairs[0] as any).km) : 0;
-  const basePrice = (rate && kmVal > 0 && kmVal < 1000) ? Math.round(kmVal * rate) : null;
+  const kmRow = kmPairs && kmPairs.length > 0 ? (kmPairs[0] as any) : null;
+  const kmVal = kmRow ? Number(kmRow.km) : 0;
+  let basePrice: number | null = null;
+  if (rateLong && rateSub && kmVal > 0 && kmVal < 1000) {
+    const inDistrict = kmRow.start_district
+      && kmRow.from_district === kmRow.start_district
+      && kmRow.to_district === kmRow.start_district;
+    basePrice = Math.round(kmVal * (inDistrict ? rateSub : rateLong));
+  }
   const offer = offers && offers.length > 0 ? offers[0] as any : null;
 
   if (!basePrice && !offer) {

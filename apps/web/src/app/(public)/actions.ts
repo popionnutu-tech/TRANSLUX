@@ -73,21 +73,37 @@ const POPULAR_ROUTES = [
   { from: 'chisinau', to: 'larga', from_ro: 'Chișinău', to_ro: 'Larga', from_ru: 'Кишинёв', to_ru: 'Ларга' },
 ];
 
+/**
+ * Alege rata corectă: dacă AMBELE opriri (A și B) sunt în raionul de start
+ * al rutei → tarif suburban; altfel → tarif interurban (lung).
+ */
+function pickRate(
+  fromD: string | null,
+  toD: string | null,
+  startD: string | null,
+  rateLong: number,
+  rateSub: number,
+): number {
+  if (startD && fromD === startD && toD === startD) return rateSub;
+  return rateLong;
+}
+
 /** Fetch popular route prices using today's tariff rate from tariff_periods */
 export async function getPopularPrices(): Promise<PopularRoutePrice[]> {
   const supabase = getSupabase();
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
 
-  // Get today's tariff rate
+  // Get today's tariff rates (interurban long + suburban)
   const { data: period } = await supabase
     .from('tariff_periods')
-    .select('rate_interurban_long')
+    .select('rate_interurban_long, rate_suburban')
     .lte('period_start', today)
     .gte('period_end', today)
     .order('period_start', { ascending: false })
     .limit(1)
     .single();
-  const rate = period ? Number(period.rate_interurban_long) : null;
+  const rateLong = period ? Number(period.rate_interurban_long) : null;
+  const rateSub = period ? Number(period.rate_suburban) : null;
 
   // Get km for each popular route from interurban_v2 view and calculate price
   // Uses cel mai scurt km între cele 2 opriri (toate tarifele care au ambele opriri)
@@ -95,14 +111,19 @@ export async function getPopularPrices(): Promise<PopularRoutePrice[]> {
     POPULAR_ROUTES.map(async (r) => {
       const { data: pairs } = await supabase
         .from('v_interurban_v2_km_pairs')
-        .select('km')
+        .select('km, from_district, to_district, start_district')
         .eq('from_stop', r.from)
         .eq('to_stop', r.to)
         .order('km', { ascending: true })
         .limit(1);
 
-      const km = pairs?.[0] ? Number(pairs[0].km) : 0;
-      const price = (rate && km > 0 && km < 1000) ? Math.round(km * rate) : 0;
+      const row = pairs?.[0] as any;
+      const km = row ? Number(row.km) : 0;
+      let price = 0;
+      if (rateLong && rateSub && km > 0 && km < 1000) {
+        const rate = pickRate(row.from_district, row.to_district, row.start_district, rateLong, rateSub);
+        price = Math.round(km * rate);
+      }
 
       return {
         from_ro: r.from_ro,
@@ -266,12 +287,12 @@ export async function searchTrips(
       .eq('active', true),
     supabase
       .from('v_interurban_v2_km_pairs')
-      .select('tariff_id, km')
+      .select('tariff_id, km, from_district, to_district, start_district')
       .eq('from_stop', fromNorm)
       .eq('to_stop', toNorm),
     supabase
       .from('v_interurban_v2_km_pairs')
-      .select('tariff_id, km')
+      .select('tariff_id, km, from_district, to_district, start_district')
       .eq('from_stop', toNorm)
       .eq('to_stop', fromNorm),
     supabase
@@ -320,26 +341,29 @@ export async function searchTrips(
   // Check if an offer applies to this search direction
   const offer = (activeOffers && activeOffers.length > 0) ? activeOffers[0] as any : null;
 
-  // Look up historical tariff for the search date
+  // Look up historical tariff for the search date (interurban long + suburban)
   const { data: periodData } = await supabase
     .from('tariff_periods')
-    .select('rate_interurban_long')
+    .select('rate_interurban_long, rate_suburban')
     .lte('period_start', date)
     .gte('period_end', date)
     .order('period_start', { ascending: false })
     .limit(1)
     .single();
   const historicalRate = periodData ? Number(periodData.rate_interurban_long) : null;
+  const historicalRateSub = periodData ? Number(periodData.rate_suburban) : null;
 
-  // Build price lookup: tariff_id → price (calculated from km × historical rate)
-  // Notă: după migrarea la interurban_v2, prețul se calculează doar din km × rate
+  // Build price lookup: tariff_id → price.
+  // Dacă ambele opriri sunt în raionul de start al rutei → tarif suburban; altfel interurban.
   const priceMap = new Map<number, number>();
   for (const p of (kmPairs) as any[]) {
     if (!priceMap.has(p.tariff_id)) {
       const kmVal = Number(p.km);
-      const price = (historicalRate && kmVal > 0 && kmVal < 1000)
-        ? Math.round(kmVal * historicalRate)
-        : 0;
+      let price = 0;
+      if (historicalRate && historicalRateSub && kmVal > 0 && kmVal < 1000) {
+        const rate = pickRate(p.from_district, p.to_district, p.start_district, historicalRate, historicalRateSub);
+        price = Math.round(kmVal * rate);
+      }
       priceMap.set(p.tariff_id, price);
     }
   }

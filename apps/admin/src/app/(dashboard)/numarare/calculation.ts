@@ -87,13 +87,19 @@ export function calculateDirection(
     }
   }
 
-  // Calcul scurți
+  // Calcul scurți.
+  // Pe rute interurbane modulul „dual interurban tariff" NU e aplicat în prezent:
+  // se folosește rate_long pentru tot ce-i în afara districtului de start și
+  // rate_suburban pentru tronsoane în interiorul districtului. Mirror exactly
+  // logica din migrarea `recalc_totals_with_suburban_district` (19.05.2026),
+  // care ignoră `rate_short` și aplică `rate_long` la scurți non-suburbani.
+  // (rate_short rămâne în signatură pentru compatibilitate / suburban mode.)
   let shortSum = 0;
   for (const ride of shortRides) {
     const isSuburbanShort = districtAware
       && ride.boardedDistrict === startDistrict
       && ride.exitDistrict === startDistrict;
-    const rate = isSuburbanShort ? (ratePerKmSuburban as number) : ratePerKmShort;
+    const rate = isSuburbanShort ? (ratePerKmSuburban as number) : ratePerKmLong;
     shortSum += ride.km * ride.count * rate;
   }
 

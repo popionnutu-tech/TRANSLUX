@@ -19,6 +19,7 @@ interface Props {
   mode?: 'normal' | 'audit';
   viewOnly?: boolean;
   startDistrict?: string | null;
+  canEditCompleted?: boolean;    // ADMIN_CAMERE poate edita și sesiuni `completed`.
 }
 
 interface EntryState {
@@ -30,7 +31,7 @@ interface EntryState {
 
 export default function CountingForm({
   sessionId, crmRouteId, stops, tariff, sessionStatus, savedTur, savedRetur, onSaved, canSeeSums,
-  mode = 'normal', viewOnly = false, startDistrict = null,
+  mode = 'normal', viewOnly = false, startDistrict = null, canEditCompleted = false,
 }: Props) {
   const [returStops, setReturStops] = useState<RouteStop[]>([]);
   const [turEntries, setTurEntries] = useState<Record<number, EntryState>>({});
@@ -51,11 +52,16 @@ export default function CountingForm({
   const shortRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const alightedRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  // Operatorii pot reedita orice direcție (chiar și după salvare) ca să-și corecteze
-  // greșelile. Singura blocare: `viewOnly` (sesiunea e deschisă explicit „doar
-  // pentru vizualizare" pentru că o ține în lucru alt utilizator).
-  const turReadOnly = viewOnly;
-  const returReadOnly = viewOnly;
+  // Reguli:
+  // - O sesiune se consideră „salvată complet" doar când AMBELE direcții
+  //   (tur + retur) au fost introduse, indiferent de ordine → status='completed'.
+  // - Cât timp sesiunea e `new`, `tur_done` sau `retur_done`, operatorul poate
+  //   reedita oricare direcție (n-a terminat încă numărarea).
+  // - Pe sesiune `completed` doar ADMIN_CAMERE poate corecta (canEditCompleted).
+  // - `viewOnly` blochează tot (sesiunea e deschisă pentru vizualizare).
+  const lockedCompleted = sessionStatus === 'completed' && !canEditCompleted;
+  const turReadOnly = viewOnly || lockedCompleted;
+  const returReadOnly = viewOnly || lockedCompleted;
 
   // Загрузка остановок Retur
   useEffect(() => {

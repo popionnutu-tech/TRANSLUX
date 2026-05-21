@@ -343,7 +343,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
             <select
               value={openRoute.driver_id || ''}
               onChange={e => handleDriverChange(openRoute, e.target.value)}
-              disabled={viewOnly /* operatorii pot edita șofer/mașină chiar și după completed */}
+              disabled={viewOnly || (openRoute.session_status === 'completed' && !canAudit)}
               style={selectStyle}
             >
               <option value="">— Șofer —</option>
@@ -352,7 +352,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
             <select
               value={openRoute.vehicle_id || ''}
               onChange={e => handleVehicleChange(openRoute, e.target.value)}
-              disabled={viewOnly /* operatorii pot edita șofer/mașină chiar și după completed */}
+              disabled={viewOnly || (openRoute.session_status === 'completed' && !canAudit)}
               style={selectStyle}
             >
               <option value="">— Mașina —</option>
@@ -386,6 +386,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
               mode={auditMode ? 'audit' : 'normal'}
               viewOnly={viewOnly}
               startDistrict={startDistrict}
+              canEditCompleted={canAudit /* ADMIN/ADMIN_CAMERE poate edita sesiuni completed */}
             />
           )}
         </>
@@ -531,7 +532,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
                     <select
                       value={route.driver_id || ''}
                       onChange={e => handleDriverChange(route, e.target.value)}
-                      disabled={false /* operatorii pot reedita orice sesiune */}
+                      disabled={completed && !canAudit}
                       style={selectStyle}
                     >
                       <option value="">—</option>
@@ -542,7 +543,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
                     <select
                       value={route.vehicle_id || ''}
                       onChange={e => handleVehicleChange(route, e.target.value)}
-                      disabled={false /* operatorii pot reedita orice sesiune */}
+                      disabled={completed && !canAudit}
                       style={selectStyle}
                     >
                       <option value="">—</option>
@@ -576,7 +577,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
                       <button
                         className="btn btn-primary"
                         onClick={() => handleOpen(route)}
-                        disabled={false /* operatorii pot reedita orice sesiune */}
+                        disabled={completed && !canAudit}
                         title={ownedByOther ? 'Deschidere doar pentru vizualizare' : undefined}
                       >
                         {ownedByOther ? 'Vezi' : 'Deschide'}

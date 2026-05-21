@@ -256,9 +256,6 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
     if (!route.session_status) return <span className="text-muted">Neprocesat</span>;
     if (route.session_status === 'completed') return <span style={{ color: 'var(--success)' }}>Finalizat</span>;
     if (route.locked_by_email) return <span style={{ color: 'var(--warning)' }}>🔒 {route.locked_by_email}</span>;
-    if (route.operator_id && route.operator_id !== currentUserId) {
-      return <span style={{ color: 'var(--warning)' }}>🔒 {route.operator_email}</span>;
-    }
     if (route.session_status === 'tur_done') return <span style={{ color: 'var(--primary)' }}>Tur gata</span>;
     if (route.session_status === 'retur_done') return <span style={{ color: '#1b6e9b' }}>Retur gata</span>;
     return <span className="text-muted">Nou</span>;
@@ -516,7 +513,10 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
             {filteredRoutes.map(route => {
               const completed = route.session_status === 'completed';
               const auditable = completed || (route.route_type === 'suburban' && route.session_status === 'tur_done');
-              const ownedByOther = route.operator_id && route.operator_id !== currentUserId;
+              // Sesiunea e "blocată de altul" doar dacă cineva o ține LOCKED activ acum.
+              // Dacă operatorul anterior a ieșit (locked_by=null), oricine poate continua
+              // — important pentru cazul când A a salvat retur, B vrea să adauge tur.
+              const ownedByOther = route.locked_by_id && route.locked_by_id !== currentUserId;
               const hasSums = route.tur_total_lei != null || route.retur_total_lei != null;
               const dualTotal = (Number(route.tur_total_lei) || 0) + (Number(route.retur_total_lei) || 0);
               const hasSingle = route.tur_single_lei != null || route.retur_single_lei != null;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { saveDirection, getRouteStops, type RouteStop, type TariffConfig, type SavedEntry } from './actions';
 import { saveAuditDirection } from './auditActions';
 import { calculateDirection, calculateSingleTariff, getEligibleBoardingStops, type StopEntry, type ShortPassengerGroup } from './calculation';
@@ -130,8 +130,35 @@ export default function CountingForm({
     else setReturEntries(entries);
   }
 
+  // Pentru sesiuni vechi (salvate înainte de migrarea interurban_v2 din 19 mai)
+  // structura opririlor a fost rescrisă, dar counting_entries.stop_order rămâne
+  // după schema veche. Folosim opririle SALVATE ca sursă de adevăr atunci când
+  // există — așa și UI și calculul folosesc aceleași km / nume / stop_order ca
+  // datele introduse de operator. Altfel (sesiune nouă) folosim opririle din
+  // `interurban_v2_stops`.
+  function buildStopsFromSaved(saved: SavedEntry[]): RouteStop[] {
+    return saved
+      .slice()
+      .sort((a, b) => a.stopOrder - b.stopOrder)
+      .map(e => ({
+        stopOrder: e.stopOrder,
+        nameRo: e.stopNameRo,
+        kmFromStart: e.kmFromStart,
+        district: e.district ?? null,
+      }));
+  }
+
+  const effectiveTurStops = useMemo(
+    () => (savedTur.length >= 2 ? buildStopsFromSaved(savedTur) : stops),
+    [savedTur, stops],
+  );
+  const effectiveReturStops = useMemo(
+    () => (savedRetur.length >= 2 ? buildStopsFromSaved(savedRetur) : returStops),
+    [savedRetur, returStops],
+  );
+
   function getStops(direction: 'tur' | 'retur') {
-    return direction === 'tur' ? stops : returStops;
+    return direction === 'tur' ? effectiveTurStops : effectiveReturStops;
   }
 
   function getTotal(stopOrder: number, direction: 'tur' | 'retur'): number {

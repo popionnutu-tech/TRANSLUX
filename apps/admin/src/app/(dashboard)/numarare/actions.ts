@@ -624,11 +624,13 @@ export async function lockRoute(
     .single();
 
   if (existing) {
-    // Sesiune a altui operator — deschidem în mod doar-citire, fără să atingem lock-ul.
-    if (existing.operator_id !== session.id) {
+    // Doar dacă sesiunea e LOCKED activ de alt operator → readOnly.
+    // Sesiunea poate fi creată de operator A care a salvat retur și a ieșit (locked_by=null);
+    // operator B trebuie să poată introduce turul rămas.
+    if (existing.locked_by && existing.locked_by !== session.id) {
       return { sessionId: existing.id, readOnly: true };
     }
-    // Blocăm pentru operatorul care a creat sesiunea + actualizăm driver/vehicle dacă sunt noi
+    // Blocăm pentru operatorul curent + actualizăm driver/vehicle dacă sunt noi
     const updateFields: any = { locked_by: session.id, locked_at: new Date().toISOString() };
     if (driverId !== undefined) updateFields.driver_id = driverId || null;
     if (vehicleId !== undefined) updateFields.vehicle_id = vehicleId || null;

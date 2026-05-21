@@ -8,6 +8,7 @@ import {
   lockRoute,
   unlockRoute,
   getRouteStops,
+  getRouteStartDistrict,
   getTariffConfig,
   loadSavedEntries,
   getActiveDrivers,
@@ -55,6 +56,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
   const [openRouteId, setOpenRouteId] = useState<number | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [stops, setStops] = useState<RouteStop[]>([]);
+  const [startDistrict, setStartDistrict] = useState<string | null>(null);
   const [tariff, setTariff] = useState<TariffConfig | null>(null);
   const [savedTur, setSavedTur] = useState<SavedEntry[]>([]);
   const [savedRetur, setSavedRetur] = useState<SavedEntry[]>([]);
@@ -149,12 +151,16 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
       return;
     }
 
-    const routeStops = await getRouteStops(route.crm_route_id, 'tur');
+    const [routeStops, sd] = await Promise.all([
+      getRouteStops(route.crm_route_id, 'tur'),
+      getRouteStartDistrict(route.crm_route_id),
+    ]);
     const sTur = result.sessionId ? await loadSavedEntries(result.sessionId, 'tur') : [];
     const sRetur = result.sessionId ? await loadSavedEntries(result.sessionId, 'retur') : [];
 
     setSessionId(result.sessionId || null);
     setStops(routeStops);
+    setStartDistrict(sd);
     setSavedTur(sTur);
     setSavedRetur(sRetur);
     setOpenRouteId(route.crm_route_id);
@@ -174,12 +180,16 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
       return;
     }
 
-    const routeStops = await getRouteStops(route.crm_route_id, 'tur');
+    const [routeStops, sd] = await Promise.all([
+      getRouteStops(route.crm_route_id, 'tur'),
+      getRouteStartDistrict(route.crm_route_id),
+    ]);
     const sTur = await loadSavedEntries(route.session_id, 'tur');
     const sRetur = await loadSavedEntries(route.session_id, 'retur');
 
     setSessionId(route.session_id);
     setStops(routeStops);
+    setStartDistrict(sd);
     setSavedTur(sTur);
     setSavedRetur(sRetur);
     setAuditMode(false);
@@ -199,12 +209,16 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
       return;
     }
 
-    const routeStops = await getRouteStops(route.crm_route_id, 'tur');
+    const [routeStops, sd] = await Promise.all([
+      getRouteStops(route.crm_route_id, 'tur'),
+      getRouteStartDistrict(route.crm_route_id),
+    ]);
     const sTur = await loadAuditEntries(route.session_id, 'tur');
     const sRetur = await loadAuditEntries(route.session_id, 'retur');
 
     setSessionId(route.session_id);
     setStops(routeStops);
+    setStartDistrict(sd);
     setSavedTur(sTur);
     setSavedRetur(sRetur);
     setAuditMode(true);
@@ -374,6 +388,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
               canSeeSums={canSeeSums}
               mode={auditMode ? 'audit' : 'normal'}
               viewOnly={viewOnly}
+              startDistrict={startDistrict}
             />
           )}
         </>

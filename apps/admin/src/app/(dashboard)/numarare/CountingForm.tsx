@@ -18,6 +18,7 @@ interface Props {
   canSeeSums: boolean;
   mode?: 'normal' | 'audit';
   viewOnly?: boolean;
+  startDistrict?: string | null;
 }
 
 interface EntryState {
@@ -29,7 +30,7 @@ interface EntryState {
 
 export default function CountingForm({
   sessionId, crmRouteId, stops, tariff, sessionStatus, savedTur, savedRetur, onSaved, canSeeSums,
-  mode = 'normal', viewOnly = false,
+  mode = 'normal', viewOnly = false, startDistrict = null,
 }: Props) {
   const [returStops, setReturStops] = useState<RouteStop[]>([]);
   const [turEntries, setTurEntries] = useState<Record<number, EntryState>>({});
@@ -292,27 +293,39 @@ export default function CountingForm({
   function buildStopEntries(direction: 'tur' | 'retur'): StopEntry[] {
     const dirStops = getStops(direction);
     const entries = getEntries(direction);
+    // district per stopOrder pentru lookup la scurți
+    const districtByOrder = new Map<number, string | null>(
+      dirStops.map(s => [s.stopOrder, s.district ?? null])
+    );
     return dirStops.map(stop => {
       const e = entries[stop.stopOrder];
+      const district = stop.district ?? null;
       return {
         stopOrder: stop.stopOrder,
         stopNameRo: stop.nameRo,
         kmFromStart: stop.kmFromStart,
         totalPassengers: e ? parseInt(e.totalPassengers) || 0 : 0,
         alighted: e ? parseInt(e.alighted) || 0 : 0,
-        shortPassengers: e?.shortPassengers || [],
+        district,
+        shortPassengers: (e?.shortPassengers || []).map(sp => ({
+          ...sp,
+          boardedDistrict: (sp as any).boardedDistrict ?? districtByOrder.get(sp.boardedStopOrder) ?? null,
+          exitDistrict: (sp as any).exitDistrict ?? district,
+        })),
       };
     });
   }
 
+  const districtOpts = { startDistrict, ratePerKmSuburban: tariff.ratePerKmSuburban };
+
   function calcResult(direction: 'tur' | 'retur') {
     const entries = buildStopEntries(direction);
-    return calculateDirection(entries, tariff.ratePerKmLong, tariff.ratePerKmShort);
+    return calculateDirection(entries, tariff.ratePerKmLong, tariff.ratePerKmShort, districtOpts);
   }
 
   function calcSingleTotal(direction: 'tur' | 'retur') {
     const entries = buildStopEntries(direction);
-    return calculateSingleTariff(entries, tariff.ratePerKmLong);
+    return calculateSingleTariff(entries, tariff.ratePerKmLong, districtOpts);
   }
 
   const turResult = calcResult('tur');
@@ -324,20 +337,34 @@ export default function CountingForm({
     try {
       const entries = buildStopEntries(direction);
       const result = direction === 'tur' ? turResult : returResult;
-      const saveEntries = entries.map(e => ({
-        stopOrder: e.stopOrder,
-        stopNameRo: e.stopNameRo,
-        kmFromStart: e.kmFromStart,
-        totalPassengers: e.totalPassengers,
-        alighted: e.alighted,
-        shortPassengers: e.shortPassengers.map(sp => ({
-          boardedStopOrder: sp.boardedStopOrder,
-          boardedStopNameRo: sp.boardedStopNameRo,
-          kmDistance: sp.kmDistance,
-          passengerCount: sp.passengerCount,
-          amountLei: sp.kmDistance * sp.passengerCount * tariff.ratePerKmShort,
-        })),
-      }));
+      const saveEntries = entries.map(e => {
+        const exitDistrict = e.district ?? null;
+        return {
+          stopOrder: e.stopOrder,
+          stopNameRo: e.stopNameRo,
+          kmFromStart: e.kmFromStart,
+          totalPassengers: e.totalPassengers,
+          alighted: e.alighted,
+          district: exitDistrict,
+          shortPassengers: e.shortPassengers.map(sp => {
+            const boardedDistrict = (sp as any).boardedDistrict ?? null;
+            // suburban rate dacă ambele districte = startDistrict (mirror migration)
+            const isSuburban = !!(startDistrict
+              && boardedDistrict === startDistrict
+              && exitDistrict === startDistrict);
+            const rate = isSuburban ? tariff.ratePerKmSuburban : tariff.ratePerKmShort;
+            return {
+              boardedStopOrder: sp.boardedStopOrder,
+              boardedStopNameRo: sp.boardedStopNameRo,
+              kmDistance: sp.kmDistance,
+              passengerCount: sp.passengerCount,
+              amountLei: sp.kmDistance * sp.passengerCount * rate,
+              boardedDistrict,
+              exitDistrict,
+            };
+          }),
+        };
+      });
 
       const singleTotal = calcSingleTotal(direction);
       const res = mode === 'audit'

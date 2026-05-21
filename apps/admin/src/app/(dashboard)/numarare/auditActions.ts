@@ -122,12 +122,15 @@ export async function saveAuditDirection(
     kmFromStart: number;
     totalPassengers: number;
     alighted: number;
+    district?: string | null;
     shortPassengers: {
       boardedStopOrder: number;
       boardedStopNameRo: string;
       kmDistance: number;
       passengerCount: number;
       amountLei: number;
+      boardedDistrict?: string | null;
+      exitDistrict?: string | null;
     }[];
   }[],
   totalLei: number,
@@ -162,6 +165,7 @@ export async function saveAuditDirection(
         km_from_start: entry.kmFromStart,
         total_passengers: entry.totalPassengers,
         alighted: entry.alighted,
+        district: entry.district ?? null,
       })
       .select('id')
       .single();
@@ -176,6 +180,8 @@ export async function saveAuditDirection(
         km_distance: sp.kmDistance,
         passenger_count: sp.passengerCount,
         amount_lei: sp.amountLei,
+        boarded_district: sp.boardedDistrict ?? null,
+        exit_district: sp.exitDistrict ?? entry.district ?? null,
       }));
       const { error: spErr } = await sb
         .from('counting_audit_short_passengers')
@@ -236,8 +242,8 @@ export async function loadAuditEntries(
   const { data: entries } = await sb
     .from('counting_audit_entries')
     .select(`
-      id, stop_order, stop_name_ro, km_from_start, total_passengers, alighted,
-      counting_audit_short_passengers(id, boarded_stop_order, boarded_stop_name_ro, km_distance, passenger_count, amount_lei)
+      id, stop_order, stop_name_ro, km_from_start, total_passengers, alighted, district,
+      counting_audit_short_passengers(id, boarded_stop_order, boarded_stop_name_ro, km_distance, passenger_count, amount_lei, boarded_district, exit_district)
     `)
     .eq('session_id', sessionId)
     .eq('direction', direction)
@@ -250,6 +256,7 @@ export async function loadAuditEntries(
     kmFromStart: Number(e.km_from_start),
     totalPassengers: e.total_passengers,
     alighted: e.alighted ?? 0,
+    district: e.district ?? null,
     shortPassengers: (e.counting_audit_short_passengers || []).map((sp: any) => ({
       id: sp.id,
       boardedStopOrder: sp.boarded_stop_order,
@@ -257,6 +264,8 @@ export async function loadAuditEntries(
       kmDistance: Number(sp.km_distance),
       passengerCount: sp.passenger_count,
       amountLei: sp.amount_lei ? Number(sp.amount_lei) : null,
+      boardedDistrict: sp.boarded_district ?? null,
+      exitDistrict: sp.exit_district ?? null,
     })),
   }));
 }

@@ -46,6 +46,7 @@ export interface RouteStop {
   stopOrder: number;
   nameRo: string;
   kmFromStart: number;
+  district?: string | null;
 }
 
 export interface SavedEntry {
@@ -55,6 +56,7 @@ export interface SavedEntry {
   kmFromStart: number;
   totalPassengers: number;
   alighted: number;
+  district?: string | null;
   shortPassengers: {
     id: string;
     boardedStopOrder: number;
@@ -62,6 +64,8 @@ export interface SavedEntry {
     kmDistance: number;
     passengerCount: number;
     amountLei: number | null;
+    boardedDistrict?: string | null;
+    exitDistrict?: string | null;
   }[];
 }
 
@@ -408,7 +412,7 @@ export async function getRouteStops(crmRouteId: number, direction: 'tur' | 'retu
 
   const { data: stops } = await sb
     .from('interurban_v2_stops')
-    .select('stop_order, name_ro, km_from_start')
+    .select('stop_order, name_ro, km_from_start, district')
     .eq('tariff_id', effectiveTariffId)
     .eq('branch', (route as any).start_branch || 'main')
     .gte('stop_order', (route as any).start_stop_order || 1)
@@ -434,8 +438,26 @@ export async function getRouteStops(crmRouteId: number, direction: 'tur' | 'retu
       stopOrder: idx + 1,
       nameRo: row.name_ro,
       kmFromStart: Math.round(kmRelative * 10) / 10,
+      district: row.district ?? null,
     };
   });
+}
+
+/**
+ * Întoarce `start_district` pentru o rută — folosit împreună cu `calculateDirection`
+ * pentru a aplica rate_suburban pe tronsoanele unde ambele opriri sunt în districtul de start.
+ * Replică logica din migrația `recalc_totals_with_suburban_district` (19 mai 2026).
+ */
+export async function getRouteStartDistrict(crmRouteId: number): Promise<string | null> {
+  try { requireRole(await verifySession(), ...NUMARARE_ROLES); } catch { return null; }
+  const stopsRouteId = COUNTING_ROUTE_MAP[crmRouteId] ?? crmRouteId;
+  const { data } = await getSupabase()
+    .from('interurban_v2_routes')
+    .select('start_district')
+    .eq('crm_route_id', stopsRouteId)
+    .limit(1)
+    .maybeSingle();
+  return (data as any)?.start_district ?? null;
 }
 
 export async function getTariffConfig(date?: string): Promise<TariffConfig> {
@@ -679,12 +701,15 @@ export async function saveDirection(
     kmFromStart: number;
     totalPassengers: number;
     alighted: number;
+    district?: string | null;
     shortPassengers: {
       boardedStopOrder: number;
       boardedStopNameRo: string;
       kmDistance: number;
       passengerCount: number;
       amountLei: number;
+      boardedDistrict?: string | null;
+      exitDistrict?: string | null;
     }[];
   }[],
   totalLei: number,
@@ -719,6 +744,7 @@ export async function saveDirection(
         km_from_start: entry.kmFromStart,
         total_passengers: entry.totalPassengers,
         alighted: entry.alighted,
+        district: entry.district ?? null,
       })
       .select('id')
       .single();
@@ -734,6 +760,8 @@ export async function saveDirection(
         km_distance: sp.kmDistance,
         passenger_count: sp.passengerCount,
         amount_lei: sp.amountLei,
+        boarded_district: sp.boardedDistrict ?? null,
+        exit_district: sp.exitDistrict ?? entry.district ?? null,
       }));
       const { error: spErr } = await sb
         .from('counting_short_passengers')
@@ -781,8 +809,8 @@ export async function loadSavedEntries(
   const { data: entries } = await sb
     .from('counting_entries')
     .select(`
-      id, stop_order, stop_name_ro, km_from_start, total_passengers, alighted,
-      counting_short_passengers(id, boarded_stop_order, boarded_stop_name_ro, km_distance, passenger_count, amount_lei)
+      id, stop_order, stop_name_ro, km_from_start, total_passengers, alighted, district,
+      counting_short_passengers(id, boarded_stop_order, boarded_stop_name_ro, km_distance, passenger_count, amount_lei, boarded_district, exit_district)
     `)
     .eq('session_id', sessionId)
     .eq('direction', direction)
@@ -795,6 +823,7 @@ export async function loadSavedEntries(
     kmFromStart: Number(e.km_from_start),
     totalPassengers: e.total_passengers,
     alighted: e.alighted ?? 0,
+    district: e.district ?? null,
     shortPassengers: (e.counting_short_passengers || []).map((sp: any) => ({
       id: sp.id,
       boardedStopOrder: sp.boarded_stop_order,
@@ -802,6 +831,8 @@ export async function loadSavedEntries(
       kmDistance: Number(sp.km_distance),
       passengerCount: sp.passenger_count,
       amountLei: sp.amount_lei ? Number(sp.amount_lei) : null,
+      boardedDistrict: sp.boarded_district ?? null,
+      exitDistrict: sp.exit_district ?? null,
     })),
   }));
 }

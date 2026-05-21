@@ -8,6 +8,7 @@ export interface StopEntry {
   totalPassengers: number;
   alighted: number;
   shortPassengers: ShortPassengerGroup[];
+  district?: string | null;
 }
 
 export interface ShortPassengerGroup {
@@ -15,6 +16,8 @@ export interface ShortPassengerGroup {
   boardedStopNameRo: string;
   kmDistance: number;
   passengerCount: number;
+  boardedDistrict?: string | null;
+  exitDistrict?: string | null;
 }
 
 export interface CalculationResult {
@@ -38,24 +41,39 @@ export interface TronsonDetail {
  *
  * Lungi: pe fiecare tronson [oprire_i → oprire_i+1]:
  *   pasageri_lungi = total[i] - scurți_în_tranzit[i]
- *   suma = km_tronson × pasageri_lungi × preț_km_lung
+ *   suma = km_tronson × pasageri_lungi × rată
  *
  * Scurți: pentru fiecare grup de scurți:
- *   suma = km_distanță × nr_pasageri × preț_km_scurt
+ *   suma = km_distanță × nr_pasageri × rată
+ *
+ * District-aware: dacă AMBELE opriri ale unui tronson (sau ambele
+ * districte pentru un scurt) sunt în `startDistrict` al rutei →
+ * folosim `ratePerKmSuburban` în loc de `ratePerKm*`.
+ * Replică logica migrației `recalc_totals_with_suburban_district`
+ * (19 mai 2026).
  */
 export function calculateDirection(
   entries: StopEntry[],
   ratePerKmLong: number,
   ratePerKmShort: number,
+  opts?: { startDistrict?: string | null; ratePerKmSuburban?: number },
 ): CalculationResult {
   if (entries.length < 2) {
     return { longSum: 0, shortSum: 0, total: 0, details: [] };
   }
 
+  const startDistrict = opts?.startDistrict ?? null;
+  const ratePerKmSuburban = opts?.ratePerKmSuburban ?? null;
+  const districtAware = !!(startDistrict && ratePerKmSuburban);
+
   const sorted = [...entries].sort((a, b) => a.stopOrder - b.stopOrder);
 
   // Colectăm toți scurții — mapă: boardedStopOrder → { exitStopOrder, count }
-  const shortRides: { boardedOrder: number; exitOrder: number; count: number; km: number }[] = [];
+  const shortRides: {
+    boardedOrder: number; exitOrder: number;
+    count: number; km: number;
+    boardedDistrict: string | null; exitDistrict: string | null;
+  }[] = [];
   for (const entry of sorted) {
     for (const sp of entry.shortPassengers) {
       shortRides.push({
@@ -63,6 +81,8 @@ export function calculateDirection(
         exitOrder: entry.stopOrder,
         count: sp.passengerCount,
         km: sp.kmDistance,
+        boardedDistrict: sp.boardedDistrict ?? null,
+        exitDistrict: sp.exitDistrict ?? entry.district ?? null,
       });
     }
   }
@@ -70,7 +90,11 @@ export function calculateDirection(
   // Calcul scurți
   let shortSum = 0;
   for (const ride of shortRides) {
-    shortSum += ride.km * ride.count * ratePerKmShort;
+    const isSuburbanShort = districtAware
+      && ride.boardedDistrict === startDistrict
+      && ride.exitDistrict === startDistrict;
+    const rate = isSuburbanShort ? (ratePerKmSuburban as number) : ratePerKmShort;
+    shortSum += ride.km * ride.count * rate;
   }
 
   // Calcul lungi pe tronsoane
@@ -83,7 +107,6 @@ export function calculateDirection(
     const kmTronson = next.kmFromStart - current.kmFromStart;
 
     // Câți scurți sunt "în tranzit" pe acest tronson?
-    // Un scurt e în tranzit dacă: boardedOrder <= current.stopOrder ȘI exitOrder > current.stopOrder
     let shortInTransit = 0;
     for (const ride of shortRides) {
       if (ride.boardedOrder <= current.stopOrder && ride.exitOrder > current.stopOrder) {
@@ -92,7 +115,11 @@ export function calculateDirection(
     }
 
     const longPassengers = Math.max(0, current.totalPassengers - shortInTransit);
-    const tronsonSum = kmTronson * longPassengers * ratePerKmLong;
+    const isSuburbanTronson = districtAware
+      && current.district === startDistrict
+      && next.district === startDistrict;
+    const rate = isSuburbanTronson ? (ratePerKmSuburban as number) : ratePerKmLong;
+    const tronsonSum = kmTronson * longPassengers * rate;
 
     details.push({
       fromStop: current.stopNameRo,
@@ -124,8 +151,9 @@ export function calculateDirection(
 export function calculateSingleTariff(
   entries: StopEntry[],
   ratePerKm: number,
+  opts?: { startDistrict?: string | null; ratePerKmSuburban?: number },
 ): number {
-  return calculateDirection(entries, ratePerKm, ratePerKm).total;
+  return calculateDirection(entries, ratePerKm, ratePerKm, opts).total;
 }
 
 /**

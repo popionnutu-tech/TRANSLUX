@@ -343,7 +343,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
             <select
               value={openRoute.driver_id || ''}
               onChange={e => handleDriverChange(openRoute, e.target.value)}
-              disabled={viewOnly || openRoute.session_status === 'completed'}
+              disabled={viewOnly /* operatorii pot edita șofer/mașină chiar și după completed */}
               style={selectStyle}
             >
               <option value="">— Șofer —</option>
@@ -352,7 +352,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
             <select
               value={openRoute.vehicle_id || ''}
               onChange={e => handleVehicleChange(openRoute, e.target.value)}
-              disabled={viewOnly || openRoute.session_status === 'completed'}
+              disabled={viewOnly /* operatorii pot edita șofer/mașină chiar și după completed */}
               style={selectStyle}
             >
               <option value="">— Mașina —</option>
@@ -531,7 +531,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
                     <select
                       value={route.driver_id || ''}
                       onChange={e => handleDriverChange(route, e.target.value)}
-                      disabled={completed}
+                      disabled={false /* operatorii pot reedita orice sesiune */}
                       style={selectStyle}
                     >
                       <option value="">—</option>
@@ -542,7 +542,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
                     <select
                       value={route.vehicle_id || ''}
                       onChange={e => handleVehicleChange(route, e.target.value)}
-                      disabled={completed}
+                      disabled={false /* operatorii pot reedita orice sesiune */}
                       style={selectStyle}
                     >
                       <option value="">—</option>
@@ -576,7 +576,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
                       <button
                         className="btn btn-primary"
                         onClick={() => handleOpen(route)}
-                        disabled={completed}
+                        disabled={false /* operatorii pot reedita orice sesiune */}
                         title={ownedByOther ? 'Deschidere doar pentru vizualizare' : undefined}
                       >
                         {ownedByOther ? 'Vezi' : 'Deschide'}

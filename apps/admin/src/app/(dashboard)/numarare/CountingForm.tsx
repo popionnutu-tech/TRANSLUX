@@ -51,8 +51,11 @@ export default function CountingForm({
   const shortRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const alightedRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  const turReadOnly = viewOnly || sessionStatus === 'tur_done' || sessionStatus === 'completed';
-  const returReadOnly = viewOnly || sessionStatus === 'retur_done' || sessionStatus === 'completed';
+  // Operatorii pot reedita orice direcție (chiar și după salvare) ca să-și corecteze
+  // greșelile. Singura blocare: `viewOnly` (sesiunea e deschisă explicit „doar
+  // pentru vizualizare" pentru că o ține în lucru alt utilizator).
+  const turReadOnly = viewOnly;
+  const returReadOnly = viewOnly;
 
   // Загрузка остановок Retur
   useEffect(() => {

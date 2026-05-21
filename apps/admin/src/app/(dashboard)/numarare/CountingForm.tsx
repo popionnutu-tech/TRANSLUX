@@ -388,7 +388,8 @@ export default function CountingForm({
             const isSuburban = !!(startDistrict
               && boardedDistrict === startDistrict
               && exitDistrict === startDistrict);
-            const rate = isSuburban ? tariff.ratePerKmSuburban : tariff.ratePerKmShort;
+            // Pe interurban folosim rate_long pentru scurți non-suburbani (mirror SQL recalc).
+            const rate = isSuburban ? tariff.ratePerKmSuburban : tariff.ratePerKmLong;
             return {
               boardedStopOrder: sp.boardedStopOrder,
               boardedStopNameRo: sp.boardedStopNameRo,

@@ -88,22 +88,51 @@ function pickRate(
   return rateLong;
 }
 
+/**
+ * Resolvă tarifele (interurban lung + suburban) pentru o dată.
+ * Dacă niciun period nu acoperă data (ex: săptămâna curentă încă nu are tarif),
+ * cade pe cel mai recent period început — ca prețurile să nu apară niciodată 0.
+ */
+async function resolveTariffRates(
+  supabase: ReturnType<typeof getSupabase>,
+  date: string,
+): Promise<{ rateLong: number | null; rateSub: number | null }> {
+  const covering = await supabase
+    .from('tariff_periods')
+    .select('rate_interurban_long, rate_suburban')
+    .lte('period_start', date)
+    .gte('period_end', date)
+    .order('period_start', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  let period = covering.data as { rate_interurban_long: number; rate_suburban: number } | null;
+
+  if (!period) {
+    const latest = await supabase
+      .from('tariff_periods')
+      .select('rate_interurban_long, rate_suburban')
+      .lte('period_start', date)
+      .order('period_start', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    period = latest.data as { rate_interurban_long: number; rate_suburban: number } | null;
+  }
+
+  return {
+    rateLong: period ? Number(period.rate_interurban_long) : null,
+    rateSub: period ? Number(period.rate_suburban) : null,
+  };
+}
+
 /** Fetch popular route prices using today's tariff rate from tariff_periods */
 export async function getPopularPrices(): Promise<PopularRoutePrice[]> {
   const supabase = getSupabase();
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
 
-  // Get today's tariff rates (interurban long + suburban)
-  const { data: period } = await supabase
-    .from('tariff_periods')
-    .select('rate_interurban_long, rate_suburban')
-    .lte('period_start', today)
-    .gte('period_end', today)
-    .order('period_start', { ascending: false })
-    .limit(1)
-    .single();
-  const rateLong = period ? Number(period.rate_interurban_long) : null;
-  const rateSub = period ? Number(period.rate_suburban) : null;
+  // Get today's tariff rates (interurban long + suburban), falling back to the
+  // most recent period so prices never drop to 0 when the current week has no tariff.
+  const { rateLong, rateSub } = await resolveTariffRates(supabase, today);
 
   // Get km for each popular route from interurban_v2 view and calculate price
   // Uses cel mai scurt km între cele 2 opriri (toate tarifele care au ambele opriri)
@@ -341,17 +370,9 @@ export async function searchTrips(
   // Check if an offer applies to this search direction
   const offer = (activeOffers && activeOffers.length > 0) ? activeOffers[0] as any : null;
 
-  // Look up historical tariff for the search date (interurban long + suburban)
-  const { data: periodData } = await supabase
-    .from('tariff_periods')
-    .select('rate_interurban_long, rate_suburban')
-    .lte('period_start', date)
-    .gte('period_end', date)
-    .order('period_start', { ascending: false })
-    .limit(1)
-    .single();
-  const historicalRate = periodData ? Number(periodData.rate_interurban_long) : null;
-  const historicalRateSub = periodData ? Number(periodData.rate_suburban) : null;
+  // Look up tariff for the search date (interurban long + suburban), falling back to
+  // the most recent period so prices never drop to 0 when no period covers the date.
+  const { rateLong: historicalRate, rateSub: historicalRateSub } = await resolveTariffRates(supabase, date);
 
   // Build price lookup: tariff_id → price.
   // Dacă ambele opriri sunt în raionul de start al rutei → tarif suburban; altfel interurban.

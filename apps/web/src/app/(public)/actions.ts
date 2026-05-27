@@ -413,6 +413,12 @@ export async function searchTrips(
     const tariffId = goingNorth ? route.tariff_id_retur : route.tariff_id_tur;
     if (!tariffId) continue;
 
+    // Hide route if there's no km pair for this tariff — means the bus
+    // doesn't physically pass through both stops on this direction
+    // (ex: Coteala listed as stop in crm_stop_fares but tariff_retur=105 Criva Direct
+    //  which doesn't include Coteala).
+    if (!priceMap.has(tariffId)) continue;
+
     const price = priceMap.get(tariffId) ?? 0;
 
     // Apply offer: override price and keep original for display

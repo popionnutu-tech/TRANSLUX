@@ -394,6 +394,10 @@ export async function searchTrips(
     const tariffId = goingNorth ? route.tariff_id_retur : route.tariff_id_tur;
     if (!tariffId) continue;
 
+    // Hide route if there's no km pair for this tariff — means the bus
+    // doesn't physically pass through both stops on this direction.
+    if (!priceMap.has(tariffId)) continue;
+
     const price = priceMap.get(tariffId) ?? 0;
 
     // Apply offer: override price and keep original for display

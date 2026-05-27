@@ -172,7 +172,6 @@ function normalizeStop(name: string): string {
   n = n.replace(/\/-$/, '');
 
   const aliases: Record<string, string> = {
-    'coteala': 'cotelea',
     'hlinaia': 'hlina',
     'criva vama': 'criva',
     'gordinestii noi': 'gordinesti',

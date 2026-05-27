@@ -206,7 +206,6 @@ function normalizeStop(name: string): string {
   // 'intersectia riscani'/'petrom riscani'→'riscani', 'berlinti/cotiujeni'→'cotiujeni')
   // — после миграции 078 эти стопы имеют свои собственные записи в route_km_pairs с правильными км.
   const aliases: Record<string, string> = {
-    'coteala': 'cotelea',
     'caracusenii noi/-': 'caracusenii noi',
   };
 

@@ -178,6 +178,24 @@ export default function SmmReportsClient({ smmData, dateFrom, dateTo, period }: 
     return { views, likes, posts, comments };
   }, [smmData]);
 
+  // Totals per account (across all dates) — for the bottom Total row
+  const totalsPerAccount = useMemo(() => {
+    return pivot.accounts.map((acc) => {
+      let posts = 0, views = 0, likes = 0, comments = 0, shares = 0;
+      for (const d of pivot.dates) {
+        const cell = pivot.cellMap.get(`${acc}|${d}`);
+        if (cell) {
+          posts += cell.posts_count;
+          views += cell.total_views;
+          likes += cell.total_likes;
+          comments += cell.total_comments;
+          shares += cell.total_shares;
+        }
+      }
+      return { posts, views, likes, comments, shares };
+    });
+  }, [pivot]);
+
   // ── Week comparison data ──────────────────────
   const weekComparison = useMemo(() => {
     const totalsMap = new Map<string, WeekTotals>();
@@ -542,6 +560,43 @@ export default function SmmReportsClient({ smmData, dateFrom, dateTo, period }: 
                     </tr>
                   );
                 })}
+                {/* Bottom TOTAL row \u2014 sum across all dates per account */}
+                <tr className="pivot-group-row">
+                  <td
+                    className="pivot-sticky"
+                    style={{
+                      left: 0,
+                      fontWeight: 700,
+                      whiteSpace: 'nowrap',
+                      borderTop: '2px solid var(--border-accent)',
+                      background: 'var(--bg-elevated)',
+                    }}
+                  >
+                    TOTAL
+                  </td>
+                  {totalsPerAccount.map((ts, i) => (
+                    <React.Fragment key={i}>
+                      <td
+                        className={`pivot-cell${i > 0 ? ' pivot-account-border' : ''}`}
+                        style={{ fontWeight: 700, borderTop: '2px solid var(--border-accent)', background: 'var(--bg-elevated)' }}
+                      >
+                        {ts.posts}
+                      </td>
+                      <td className="pivot-cell" style={{ fontWeight: 700, borderTop: '2px solid var(--border-accent)', background: 'var(--bg-elevated)' }}>
+                        {ts.views.toLocaleString()}
+                      </td>
+                      <td className="pivot-cell" style={{ fontWeight: 700, borderTop: '2px solid var(--border-accent)', background: 'var(--bg-elevated)' }}>
+                        {ts.likes.toLocaleString()}
+                      </td>
+                      <td className="pivot-cell" style={{ fontWeight: 700, borderTop: '2px solid var(--border-accent)', background: 'var(--bg-elevated)' }}>
+                        {ts.comments}
+                      </td>
+                      <td className="pivot-cell" style={{ fontWeight: 700, borderTop: '2px solid var(--border-accent)', background: 'var(--bg-elevated)' }}>
+                        {ts.shares}
+                      </td>
+                    </React.Fragment>
+                  ))}
+                </tr>
               </tbody>
             </table>
           )}

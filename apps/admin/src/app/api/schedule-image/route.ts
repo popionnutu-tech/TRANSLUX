@@ -57,12 +57,12 @@ export async function GET(req: NextRequest) {
     let filenameSuffix: string;
 
     if (merge) {
-      // Merge both pages — only assigned routes
-      rows = [...data.page1.filter(r => r.driver_id), ...data.page2.filter(r => r.driver_id)];
+      // Merge all pages — only assigned routes
+      rows = data.pages.flat().filter(r => r.driver_id);
       filenameSuffix = '';
     } else {
-      const page = pageStr === '2' ? 2 : 1;
-      rows = page === 1 ? data.page1 : data.page2;
+      const page = pageStr ? Math.max(1, parseInt(pageStr, 10) || 1) : 1;
+      rows = data.pages[page - 1] || [];
       filenameSuffix = `-p${page}`;
     }
 

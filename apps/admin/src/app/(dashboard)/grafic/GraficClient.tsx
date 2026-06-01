@@ -59,7 +59,7 @@ export default function GraficClient({
   // DISPATCHER si ADMIN → lista unificata; GRAFIC → formatul vechi (PNG).
   const [showLegacy, setShowLegacy] = useState<boolean>(isGrafic);
   const [date, setDate] = useState(todayChisinau);
-  const [page, setPage] = useState<1 | 2>(1);
+  const [page, setPage] = useState<number>(1);
   const [rows, setRows] = useState<GraficRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [popup, setPopup] = useState<PopupState | null>(null);
@@ -77,7 +77,7 @@ export default function GraficClient({
   const [downloading, setDownloading] = useState(false);
   const [downloadingEdinet, setDownloadingEdinet] = useState<1 | 2 | null>(null);
   const [dateEntries, setDateEntries] = useState<DateEntry[]>(initialDates);
-  const [allData, setAllData] = useState<{ page1: GraficRow[]; page2: GraficRow[] } | null>(null);
+  const [allData, setAllData] = useState<{ pages: GraficRow[][] } | null>(null);
   const [invalidCount, setInvalidCount] = useState(0);
   const [blockedModal, setBlockedModal] = useState<string | null>(null);
 
@@ -91,7 +91,9 @@ export default function GraficClient({
     try {
       const data = await getGraficData(date);
       setAllData(data);
-      setRows(page === 1 ? data.page1 : data.page2);
+      const p = page <= data.pages.length ? page : 1;
+      if (p !== page) setPage(p);
+      setRows(data.pages[p - 1] || []);
     } catch (err: any) {
       setError(err.message || 'Eroare');
     } finally {
@@ -168,9 +170,7 @@ export default function GraficClient({
   async function handleDownload() {
     if (!allData) return;
 
-    const assignedP1 = allData.page1.filter(r => r.driver_id);
-    const assignedP2 = allData.page2.filter(r => r.driver_id);
-    const totalAssigned = assignedP1.length + assignedP2.length;
+    const totalAssigned = allData.pages.flat().filter(r => r.driver_id).length;
     const shouldMerge = totalAssigned < 14;
 
     setDownloading(true);
@@ -301,12 +301,17 @@ export default function GraficClient({
       ) : (
         <>
       {/* Page tabs */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-        {([1, 2] as const).map((p) => (
-          <button key={p} className={`btn ${page === p ? 'btn-primary' : 'btn-outline'}`} onClick={() => setPage(p)}>
-            Pagina {p} ({p === 1 ? '1-14' : '15-28'})
-          </button>
-        ))}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+        {(allData?.pages || []).map((pg, idx) => {
+          const p = idx + 1;
+          const lo = idx * 14 + 1;
+          const hi = idx * 14 + pg.length;
+          return (
+            <button key={p} className={`btn ${page === p ? 'btn-primary' : 'btn-outline'}`} onClick={() => setPage(p)}>
+              Pagina {p} ({lo}-{hi})
+            </button>
+          );
+        })}
       </div>
 
       {/* ── Dates overview table ── */}

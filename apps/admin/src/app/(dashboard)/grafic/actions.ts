@@ -73,8 +73,7 @@ function extractFirstName(fullName: string): string {
 /* ── Data loading ── */
 
 export async function getGraficData(date: string): Promise<{
-  page1: GraficRow[];
-  page2: GraficRow[];
+  pages: GraficRow[][];
 }> {
   const session = requireRole(await verifySession(), 'ADMIN', 'DISPATCHER', 'GRAFIC');
   // ADMIN si DISPATCHER vad numarul foii de parcurs. Rolul GRAFIC nu.
@@ -160,7 +159,11 @@ export async function getGraficData(date: string): Promise<{
 
   rows.sort((a, b) => a._sortKey - b._sortKey);
 
-  const numbered: GraficRow[] = rows.slice(0, 28).map((r, i) => ({
+  // Number ALL active routes (no cap) and split into pages of 14 for the
+  // printable PNG form. The dispatcher list (UnifiedGraficList) flattens these,
+  // so every active route is visible/assignable regardless of how many there are.
+  const PER_PAGE = 14;
+  const numbered: GraficRow[] = rows.map((r, i) => ({
     seq: i + 1,
     crm_route_id: r.crm_route_id,
     time_nord: r.time_nord,
@@ -180,10 +183,13 @@ export async function getGraficData(date: string): Promise<{
     cancelled: r.cancelled,
   }));
 
-  return {
-    page1: numbered.slice(0, 14),
-    page2: numbered.slice(14, 28),
-  };
+  const pages: GraficRow[][] = [];
+  for (let i = 0; i < numbered.length; i += PER_PAGE) {
+    pages.push(numbered.slice(i, i + PER_PAGE));
+  }
+  if (pages.length === 0) pages.push([]);
+
+  return { pages };
 }
 
 /* ── Edineț graphic (second image type) ── */

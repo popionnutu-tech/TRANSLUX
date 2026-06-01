@@ -78,7 +78,7 @@ export default function UnifiedGraficList({
         getGraficData(date),
         getGraficSuburban(date),
       ]);
-      const interurban: UnifiedRow[] = [...inter.page1, ...inter.page2].map((r: GraficRow) => ({
+      const interurban: UnifiedRow[] = inter.pages.flat().map((r: GraficRow) => ({
         kind: 'inter',
         key: `inter-${r.crm_route_id}`,
         crm_route_id: r.crm_route_id,

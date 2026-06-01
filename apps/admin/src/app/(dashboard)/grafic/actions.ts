@@ -159,10 +159,8 @@ export async function getGraficData(date: string): Promise<{
 
   rows.sort((a, b) => a._sortKey - b._sortKey);
 
-  // Number ALL active routes (no cap) and split into pages of 14 for the
-  // printable PNG form. The dispatcher list (UnifiedGraficList) flattens these,
-  // so every active route is visible/assignable regardless of how many there are.
-  const PER_PAGE = 14;
+  // Number ALL active routes (no cap). The dispatcher list (UnifiedGraficList)
+  // flattens these, so every active route is visible/assignable.
   const numbered: GraficRow[] = rows.map((r, i) => ({
     seq: i + 1,
     crm_route_id: r.crm_route_id,
@@ -183,11 +181,14 @@ export async function getGraficData(date: string): Promise<{
     cancelled: r.cancelled,
   }));
 
-  const pages: GraficRow[][] = [];
-  for (let i = 0; i < numbered.length; i += PER_PAGE) {
-    pages.push(numbered.slice(i, i + PER_PAGE));
-  }
-  if (pages.length === 0) pages.push([]);
+  // Printable form = exactly 2 pages (dispatcher prints 2 sheets). Split evenly,
+  // so e.g. 30 routes → 15 + 15 instead of 14 + 14 + 2. The PNG canvas height is
+  // dynamic, so larger pages render fine.
+  const half = Math.ceil(numbered.length / 2);
+  const pages: GraficRow[][] = [
+    numbered.slice(0, half),
+    numbered.slice(half),
+  ];
 
   return { pages };
 }

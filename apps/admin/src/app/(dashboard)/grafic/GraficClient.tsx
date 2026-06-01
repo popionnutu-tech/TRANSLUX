@@ -304,8 +304,8 @@ export default function GraficClient({
       <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
         {(allData?.pages || []).map((pg, idx) => {
           const p = idx + 1;
-          const lo = idx * 14 + 1;
-          const hi = idx * 14 + pg.length;
+          const lo = pg.length ? pg[0].seq : 0;
+          const hi = pg.length ? pg[pg.length - 1].seq : 0;
           return (
             <button key={p} className={`btn ${page === p ? 'btn-primary' : 'btn-outline'}`} onClick={() => setPage(p)}>
               Pagina {p} ({lo}-{hi})

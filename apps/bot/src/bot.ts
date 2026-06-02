@@ -2,6 +2,7 @@ import { Bot, session } from 'grammy';
 import { conversations, createConversation } from '@grammyjs/conversations';
 import type { BotContext, SessionData } from './types.js';
 import { config } from './config.js';
+import { supabaseSessionStorage, supabaseConversationAdapter, CONVERSATION_STATE_VERSION } from './services/sessionStorage.js';
 import { authMiddleware } from './middleware/auth.js';
 import { rateLimitMiddleware } from './middleware/rateLimit.js';
 import { handleStart, showMainMenu } from './handlers/start.js';
@@ -25,9 +26,19 @@ export function createBot(): Bot<BotContext> {
   bot.use(
     session({
       initial: (): SessionData => ({}),
+      storage: supabaseSessionStorage,
     })
   );
-  bot.use(conversations());
+  bot.use(
+    conversations({
+      storage: {
+        type: 'key',
+        prefix: 'conv:',
+        version: CONVERSATION_STATE_VERSION,
+        adapter: supabaseConversationAdapter,
+      },
+    })
+  );
 
   // Global escape hatch: /start ALWAYS exits any active (possibly corrupted)
   // conversation BEFORE it gets replayed, so a user can never get stuck.

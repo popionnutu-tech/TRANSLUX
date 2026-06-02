@@ -105,7 +105,10 @@ export function createBot(): Bot<BotContext> {
 
   // Error handler
   bot.catch((err) => {
-    console.error('Bot error:', err);
+    // Log ONLY the underlying error — never the raw BotError/ctx, which carries
+    // ctx.api.token and would leak the bot token into logs in plaintext.
+    const e: any = (err as any)?.error ?? err;
+    console.error('Bot error:', e?.stack || e?.message || String(e));
   });
 
   return bot;

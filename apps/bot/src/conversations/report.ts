@@ -46,7 +46,7 @@ export async function reportConversation(
     await ctx.reply('⛔ Drum interzis. Identitatea ta nu este recunoscută.');
     return;
   }
-  const user = await getUserByTelegramId(telegramId);
+  const user = await conversation.external(() => getUserByTelegramId(telegramId));
   if (!user) {
     await ctx.reply('⛔ Drum interzis. Identitatea ta nu este recunoscută.');
     return;
@@ -79,20 +79,24 @@ export async function reportConversation(
   }
 
   const direction = getDirectionForPoint(point);
-  const reportDate = getTodayDate();
+  const reportDate = await conversation.external(() => getTodayDate());
 
-  const allTrips = await getAllTripsForDirection(direction);
+  const allTrips = await conversation.external(() => getAllTripsForDirection(direction));
   if (allTrips.length === 0) {
     await ctx.reply('🌙 Nicio cursă activă azi. Contactează Maestrul.');
     return;
   }
 
-  const drivers = await getActiveDrivers();
-  const vehicles = await getActiveVehicles();
+  const drivers = await conversation.external(() => getActiveDrivers());
+  const vehicles = await conversation.external(() => getActiveVehicles());
 
   // ── LOOP: report multiple trips ────────────────────────
   while (true) {
-    const reportedIds = await getReportedTripIds(reportDate, point);
+    const reportedIds = new Set(
+      await conversation.external(() =>
+        getReportedTripIds(reportDate, point).then(s => Array.from(s))
+      )
+    );
     const totalDone = allTrips.filter(t => reportedIds.has(t.id)).length;
 
     // Find first unreported trip (sequential order)
@@ -185,7 +189,9 @@ export async function reportConversation(
     let changeAssignment = false;
 
     if (point === 'CHISINAU' && trip.crm_route_id) {
-      const assignment = await getAssignmentForTrip(trip.crm_route_id, reportDate);
+      const assignment = await conversation.external(() =>
+        getAssignmentForTrip(trip.crm_route_id!, reportDate)
+      );
       if (assignment) {
         const msg =
           `🚐 ${formatTime(trip.departure_time)}\n` +
@@ -239,8 +245,8 @@ export async function reportConversation(
         { reply_markup: locationKb }
       );
 
-      const locStart = Date.now();
-      while (Date.now() - locStart < 60000) {
+      const locStart = await conversation.external(() => Date.now());
+      while ((await conversation.external(() => Date.now())) - locStart < 60000) {
         const locCtx = await conversation.wait();
 
         // /start exits conversation
@@ -293,7 +299,7 @@ export async function reportConversation(
     }
 
     // ── Check late submission (>10 min after departure) ──
-    const late = minutesLate(trip.departure_time);
+    const late = await conversation.external(() => minutesLate(trip.departure_time));
     let lateWarning = false;
     if (late > 10) {
       lateWarning = true;
@@ -354,7 +360,11 @@ export async function reportConversation(
     let driverId: string | null = assignmentConfirmed ? confirmedDriverId : null;
 
     if (status === 'OK' && drivers.length > 0 && point !== 'BALTI' && !assignmentConfirmed) {
-      const usedDriverIds = await getUsedDriverIds(reportDate, point);
+      const usedDriverIds = new Set(
+        await conversation.external(() =>
+          getUsedDriverIds(reportDate, point).then(s => Array.from(s))
+        )
+      );
       const availableDrivers = drivers.filter(d => !usedDriverIds.has(d.id));
 
       const driverKb = new InlineKeyboard();
@@ -391,7 +401,11 @@ export async function reportConversation(
     // ── Step 3b: Select Vehicle (grid layout) ──────────
     let vehicleId: string | null = assignmentConfirmed ? confirmedVehicleId : null;
     if (status === 'OK' && point !== 'BALTI' && !assignmentConfirmed) {
-      const usedVehicleIds = await getUsedVehicleIds(reportDate, point);
+      const usedVehicleIds = new Set(
+        await conversation.external(() =>
+          getUsedVehicleIds(reportDate, point).then(s => Array.from(s))
+        )
+      );
       const availableVehicles = vehicles.filter(v => !usedVehicleIds.has(v.id));
 
       const vehicleKb = new InlineKeyboard();
@@ -426,25 +440,27 @@ export async function reportConversation(
             }
             const plate = addCtx.message?.text?.trim().toUpperCase().replace(/\s/g, '');
             if (plate && plate.length >= 4) {
-              try {
-                const newVehicle = await createVehicle(plate);
-                vehicleId = newVehicle.id;
-                await ctx.reply(`✅ ${newVehicle.plate_number} adăugat.`);
-              } catch (err: any) {
-                if (err?.code === '23505') {
-                  // Already exists — find and use it
-                  const existing = vehicles.find(v => v.plate_number === plate);
-                  if (existing) {
-                    vehicleId = existing.id;
-                    await ctx.reply(`☑ ${plate} există deja, selectat.`);
-                  } else {
-                    await ctx.reply('⚠ Acest număr există deja.');
-                    continue;
-                  }
+              const createResult = await conversation.external(() =>
+                createVehicle(plate)
+                  .then(v => ({ ok: true as const, v }))
+                  .catch((e: any) => ({ ok: false as const, code: e?.code as string | undefined }))
+              );
+              if (createResult.ok) {
+                vehicleId = createResult.v.id;
+                await ctx.reply(`✅ ${createResult.v.plate_number} adăugat.`);
+              } else if (createResult.code === '23505') {
+                // Already exists — find and use it
+                const existing = vehicles.find(v => v.plate_number === plate);
+                if (existing) {
+                  vehicleId = existing.id;
+                  await ctx.reply(`☑ ${plate} există deja, selectat.`);
                 } else {
-                  await ctx.reply('⚠ Eroare la salvare. Încearcă din nou:');
+                  await ctx.reply('⚠ Acest număr există deja.');
                   continue;
                 }
+              } else {
+                await ctx.reply('⚠ Eroare la salvare. Încearcă din nou:');
+                continue;
               }
               break;
             }
@@ -459,7 +475,9 @@ export async function reportConversation(
       // Update daily_assignment if operator changed the assignment
       if (changeAssignment && trip.crm_route_id && (driverId || vehicleId)) {
         try {
-          await updateAssignmentDriverVehicle(trip.crm_route_id, reportDate, driverId!, vehicleId);
+          await conversation.external(() =>
+            updateAssignmentDriverVehicle(trip.crm_route_id!, reportDate, driverId!, vehicleId)
+          );
         } catch (e) {
           console.error('Failed to update assignment:', e);
         }
@@ -520,7 +538,9 @@ export async function reportConversation(
       }
 
       // ── Step 4c: Reclamă (conditional — only if vehicle needs check) ─
-      const showReclama = vehicleId ? await needsReclamaCheck(vehicleId) : false;
+      const showReclama = vehicleId
+        ? await conversation.external(() => needsReclamaCheck(vehicleId))
+        : false;
       if (showReclama) {
         const reclamaKb = new InlineKeyboard()
           .text('Da ✓', 'reclama:da')
@@ -599,7 +619,7 @@ export async function reportConversation(
 
     // ── Save ───────────────────────────────────────────
     try {
-      await createReport({
+      await conversation.external(() => createReport({
         report_date: reportDate,
         point,
         trip_id: trip.id,
@@ -614,14 +634,14 @@ export async function reportConversation(
         vehicle_id: vehicleId,
         created_by_user: user.id,
         location_ok: needsLoc ? locationOk : null,
-      });
+      }));
 
       // Update daily digest (single editable message for all violations)
       const hasLocationViolation = needsLoc && !locationOk;
       const hasLateViolation = late > 10;
       if (hasLocationViolation || hasLateViolation) {
         try {
-          await addViolation({
+          await conversation.external(() => addViolation({
             time: formatTime(trip.departure_time),
             point: POINT_LABELS[point],
             operator: user.username ? `@${user.username}` : `#${user.telegram_id}`,
@@ -629,7 +649,7 @@ export async function reportConversation(
             distanceM: locationDistance != null ? Math.round(locationDistance) : null,
             late: hasLateViolation,
             minutesLate: late,
-          });
+          }));
         } catch (e) {
           console.error('Daily digest update error:', e);
         }
@@ -658,10 +678,14 @@ export async function reportConversation(
       }
 
       // ── Auto-validate day when all trips are reported ──
-      const updatedReportedIds = await getReportedTripIds(reportDate, point);
+      const updatedReportedIds = new Set(
+        await conversation.external(() =>
+          getReportedTripIds(reportDate, point).then(s => Array.from(s))
+        )
+      );
       const updatedDone = allTrips.filter(t => updatedReportedIds.has(t.id)).length;
       if (updatedDone >= allTrips.length) {
-        await validateDay(user.id, reportDate);
+        await conversation.external(() => validateDay(user.id, reportDate));
         await ctx.reply(
           `✦ MISIUNE ÎNDEPLINITĂ\n\n` +
           `Toate cele ${allTrips.length} curse au fost completate.\n\n` +

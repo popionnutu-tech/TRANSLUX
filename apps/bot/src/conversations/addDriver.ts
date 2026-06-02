@@ -20,7 +20,7 @@ export async function addDriverConversation(conversation: AddDriverConversation,
   }
 
   try {
-    await createDriver(fullName);
+    await conversation.external(() => createDriver(fullName));
     const parts = fullName.split(' ');
     const shortName = parts.length > 1
       ? `${parts[0]} ${parts.slice(1).map(p => p[0] + '.').join('')}`

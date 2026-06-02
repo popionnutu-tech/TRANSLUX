@@ -28,6 +28,23 @@ export function createBot(): Bot<BotContext> {
     })
   );
   bot.use(conversations());
+
+  // Global escape hatch: /start ALWAYS exits any active (possibly corrupted)
+  // conversation BEFORE it gets replayed, so a user can never get stuck.
+  // exitAll() purges conversation state without replaying it, so it cannot
+  // throw "Bad replay". After exiting, the /start command handler runs fresh.
+  bot.use(async (ctx, next) => {
+    const cmd = ctx.message?.text?.split(/[\s@]/)[0];
+    if (cmd === '/start') {
+      try {
+        await ctx.conversation.exitAll();
+      } catch (err) {
+        console.error('exitAll on /start failed:', err);
+      }
+    }
+    await next();
+  });
+
   bot.use(createConversation(reportConversation, 'report'));
   bot.use(createConversation(addDriverConversation, 'addDriver'));
 

@@ -66,4 +66,20 @@ describe('parseRates', () => {
     `;
     expect(() => parseRates(html)).toThrow('Could not parse confort I rate');
   });
+
+  it('parses provisional ceiling tariff (interurban only, no comfort categories)', () => {
+    // Real ANTA "tarif plafon provizoriu" layout: only the interurban rate, no "Categoria de confort".
+    // The raional rate is NOT on the page → suburban must be null (flow keeps the current raional rate).
+    const html = `
+      <p>... de către operatorii de transport rutier începând cu 05.06.2026</p>
+      <p>lei/km pentru un pasager Tarif plafon provizoriu pentru serviciile regulate
+         de transport rutier de persoane în trafic interraional &nbsp; 1,04</p>
+      <p>Prețul mediu pentru perioada 29.05–04.06.2026 este egal cu 28,02 lei/litru.</p>
+    `;
+    const rates = parseRates(html);
+    expect(rates.interurbanLong).toBeCloseTo(1.04, 2); // nu confunda cu 28,02 lei/litru (motorină)
+    expect(rates.interurbanShort).toBeCloseTo(1.04, 2);
+    expect(rates.suburban).toBeNull();                 // raionalul nu e pe pagină → se păstrează curentul
+    expect(rates.effectiveDate).toBe('2026-06-05');    // nu confunda cu 05.06 din data efectivă
+  });
 });

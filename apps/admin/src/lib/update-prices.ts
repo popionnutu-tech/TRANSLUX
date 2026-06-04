@@ -32,7 +32,7 @@ const POPULAR_ROUTES = [
 interface ParsedRates {
   interurbanLong: number;
   interurbanShort: number;
-  suburban: number;
+  suburban: number | null; // null = nu e pe pagină (ex. tarif provizoriu doar interurban) → păstrează curentul
   effectiveDate: string | null; // YYYY-MM-DD parsed from "începând cu DD.MM.YYYY"
 }
 
@@ -76,6 +76,31 @@ export function parseRates(html: string): ParsedRates {
     .replace(/&nbsp;/g, ' ')
     .replace(/\s+/g, ' ');
 
+  // Parse effective date from "începând cu DD.MM.YYYY" (shared by both formats).
+  const datePattern = /[iî]ncep[aâ]nd\s+cu\s+(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})/i;
+  const dateMatch = text.match(datePattern);
+  let effectiveDate: string | null = null;
+  if (dateMatch) {
+    const [, day, month, year] = dateMatch;
+    effectiveDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+
+  // ── Format 2: tarif plafon PROVIZORIU unic (fără categorii de confort) ──
+  // ANTA poate publica un singur tarif (ex. "... în trafic interraional  1,04  Prețul mediu...").
+  // Îl detectăm prin ABSENȚA "Categoria de confort" și aplicăm aceeași rată pentru toate.
+  if (!/Categoria\s+de\s+confort/i.test(text)) {
+    // Numărul imediat după "...interraional" (evită data și "28,02 lei/litru" al motorinei).
+    const flatMatch = text.match(/interr?a[tțţ]?ion\w*[^0-9]{0,40}?(\d+[.,]\d+)/i);
+    if (!flatMatch) {
+      const snippet = text.slice(0, 200);
+      throw new Error(`Could not parse provisional flat tariff from ANTA page. Text starts with: "${snippet}"`);
+    }
+    const flat = parseFloat(flatMatch[1].replace(',', '.'));
+    // Raionalul NU e pe pagina provizorie → suburban=null (fluxul păstrează valoarea curentă).
+    return { interurbanLong: flat, interurbanShort: flat, suburban: null, effectiveDate };
+  }
+
+  // ── Format 1: tarif structurat cu categorii de confort (interurban II/I + raional) ──
   const interurbanPattern = /Trafic\s+interr?a[tțţ]?ion\w*\s(.*?)Trafic\s+ra[iî]/is;
   const interurbanMatch = text.match(interurbanPattern);
 
@@ -99,26 +124,18 @@ export function parseRates(html: string): ParsedRates {
   const suburbanSection = suburbanMatch[1];
   const suburban = extractConfortRate(suburbanSection, 'I');
 
-  // Parse effective date from "începând cu DD.MM.YYYY"
-  const datePattern = /[iî]ncep[aâ]nd\s+cu\s+(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})/i;
-  const dateMatch = text.match(datePattern);
-  let effectiveDate: string | null = null;
-  if (dateMatch) {
-    const [, day, month, year] = dateMatch;
-    effectiveDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-  }
-
   return { interurbanLong, interurbanShort, suburban, effectiveDate };
 }
 
 function validateRates(rates: ParsedRates): void {
-  const entries: Array<[string, number]> = [
+  const entries: Array<[string, number | null]> = [
     ['interurbanLong', rates.interurbanLong],
     ['interurbanShort', rates.interurbanShort],
     ['suburban', rates.suburban],
   ];
 
   for (const [name, value] of entries) {
+    if (value === null) continue; // tarif neprezent pe pagină → se păstrează cel curent
     if (isNaN(value) || value < RATE_MIN || value > RATE_MAX) {
       throw new Error(`Parsed rate ${name}=${value} outside valid range [${RATE_MIN}, ${RATE_MAX}]`);
     }
@@ -154,14 +171,15 @@ async function loadCurrentRates(
 }
 
 function hasAnyRateChanged(current: CurrentRates, parsed: ParsedRates): boolean {
-  const pairs: Array<[number | null, number]> = [
+  const pairs: Array<[number | null, number | null]> = [
     [current.interurbanLong, parsed.interurbanLong],
     [current.interurbanShort, parsed.interurbanShort],
     [current.suburban, parsed.suburban],
   ];
 
+  // Tarifele null (neprezente pe pagină) nu contează ca „schimbate".
   return pairs.some(
-    ([cur, next]) => cur === null || Math.abs(cur - next) >= RATE_TOLERANCE,
+    ([cur, next]) => next !== null && (cur === null || Math.abs(cur - next) >= RATE_TOLERANCE),
   );
 }
 
@@ -284,72 +302,81 @@ export async function executeAntaPriceUpdate(options?: {
     const html = await res.text();
     const rates = parseRates(html);
 
-    // 2. Validate all 3 rates
-    validateRates(rates);
-
     const supabase = getSupabase();
 
-    // 3. Compare with current rates
+    // 2. Load current rates, then resolve "effective" rates.
+    // ANTA poate publica o pagină provizorie doar cu tariful interraional (suburban=null);
+    // în acel caz PĂSTRĂM raionalul curent în loc să-l suprascriem.
     const currentRates = await loadCurrentRates(supabase);
+    const effective = {
+      interurbanLong: rates.interurbanLong,
+      interurbanShort: rates.interurbanShort,
+      suburban: rates.suburban ?? currentRates.suburban ?? rates.interurbanLong,
+      effectiveDate: rates.effectiveDate,
+    };
 
-    if (!hasAnyRateChanged(currentRates, rates)) {
+    // 3. Validate (după rezolvarea raionalului)
+    validateRates(effective);
+
+    // 4. Compare with current rates
+    if (!hasAnyRateChanged(currentRates, effective)) {
       return {
         status: 'no_change',
         rates: {
-          interurbanLong: rates.interurbanLong,
-          interurbanShort: rates.interurbanShort,
-          suburban: rates.suburban,
+          interurbanLong: effective.interurbanLong,
+          interurbanShort: effective.interurbanShort,
+          suburban: effective.suburban,
         },
       };
     }
 
-    // 4. Update all prices + offers via DB function (v2)
+    // 5. Update prices + offers via DB function (v2)
     const { data: rowsUpdated, error: rpcError } = await supabase.rpc(
       'update_prices_by_rate_v2',
       {
-        new_rate_interurban_long: rates.interurbanLong,
-        new_rate_interurban_short: rates.interurbanShort,
-        new_rate_suburban: rates.suburban,
+        new_rate_interurban_long: effective.interurbanLong,
+        new_rate_interurban_short: effective.interurbanShort,
+        new_rate_suburban: effective.suburban,
       },
     );
 
     if (rpcError) throw new Error(`DB update failed: ${rpcError.message}`);
 
-    // 5. Log price update
+    // 6. Log price update
     await supabase.from('price_update_log').insert({
       old_rate: currentRates.interurbanLong,
-      new_rate: rates.interurbanLong,
+      new_rate: effective.interurbanLong,
       rows_updated: rowsUpdated ?? 0,
       source_url: ANTA_URL,
-      rate_interurban_short: rates.interurbanShort,
-      rate_suburban: rates.suburban,
+      rate_interurban_short: effective.interurbanShort,
+      rate_suburban: effective.suburban,
     });
 
-    // 6. Insert tariff period
-    const { periodStart, periodEnd } = computeTariffPeriod(rates.effectiveDate);
+    // 7. Insert tariff period
+    const { periodStart, periodEnd } = computeTariffPeriod(effective.effectiveDate);
     await supabase.from('tariff_periods').insert({
       period_start: periodStart,
       period_end: periodEnd,
-      rate_interurban_long: rates.interurbanLong,
-      rate_interurban_short: rates.interurbanShort,
-      rate_suburban: rates.suburban,
+      rate_interurban_long: effective.interurbanLong,
+      rate_interurban_short: effective.interurbanShort,
+      rate_suburban: effective.suburban,
       source_url: ANTA_URL,
     });
 
-    // 7. Save nomenclator snapshot
-    const prices = await saveNomenclator(supabase, rates.interurbanLong);
+    // 8. Save nomenclator snapshot
+    const prices = await saveNomenclator(supabase, effective.interurbanLong);
 
-    // 8. Notify admins via Telegram
+    // 9. Notify admins via Telegram
     if (sendTelegramNotification) {
-      const baltiPrice = Math.round(133 * rates.interurbanLong);
+      const baltiPrice = Math.round(133 * effective.interurbanLong);
       const priceLines = prices
         .map((p) => `  ${p.from_ro} → ${p.to_ro}: <b>${p.price} lei</b>`)
         .join('\n');
 
       const rateLines = [
-        formatRateLine('Interurban lung', rates.interurbanLong, currentRates.interurbanLong),
-        formatRateLine('Interurban scurt', rates.interurbanShort, currentRates.interurbanShort),
-        formatRateLine('Suburban', rates.suburban, currentRates.suburban),
+        formatRateLine('Interurban lung', effective.interurbanLong, currentRates.interurbanLong),
+        formatRateLine('Interurban scurt', effective.interurbanShort, currentRates.interurbanShort),
+        formatRateLine('Suburban', effective.suburban, currentRates.suburban),
       ].join('\n');
 
       const sourceLabel = source === 'manual' ? ' (manual)' : '';
@@ -362,14 +389,14 @@ export async function executeAntaPriceUpdate(options?: {
       );
     }
 
-    const baltiPrice = Math.round(133 * rates.interurbanLong);
+    const baltiPrice = Math.round(133 * effective.interurbanLong);
 
     return {
       status: 'updated',
       rates: {
-        interurbanLong: rates.interurbanLong,
-        interurbanShort: rates.interurbanShort,
-        suburban: rates.suburban,
+        interurbanLong: effective.interurbanLong,
+        interurbanShort: effective.interurbanShort,
+        suburban: effective.suburban,
       },
       previousRates: {
         interurbanLong: currentRates.interurbanLong,

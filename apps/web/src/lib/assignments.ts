@@ -24,10 +24,11 @@ export interface ResolvedDriver {
 
 /* ── Time helpers ── */
 
-/** Extract first "HH:MM" from a display string like "10:40 - 14:30". */
+/** Extract first "HH:MM" from a display string like "10:40 - 14:30", zero-padding the hour ("6:17" → "06:17"). */
 export function parseTimeLabel(display: string): string {
-  const match = display.match(/(\d{1,2}:\d{2})/);
-  return match ? match[1] : display;
+  const match = display.match(/(\d{1,2}):(\d{2})/);
+  if (!match) return display;
+  return `${match[1].padStart(2, '0')}:${match[2]}`;
 }
 
 /** Parse first "HH:MM" from a display string and return minutes since midnight. */

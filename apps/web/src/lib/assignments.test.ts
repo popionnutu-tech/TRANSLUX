@@ -15,8 +15,10 @@ describe('parseTimeLabel', () => {
     expect(parseTimeLabel('10:40 - 14:30')).toBe('10:40');
   });
 
-  it('extracts single time', () => {
-    expect(parseTimeLabel('3:50')).toBe('3:50');
+  it('extracts single time and zero-pads the hour', () => {
+    expect(parseTimeLabel('3:50')).toBe('03:50');
+    expect(parseTimeLabel('6:17 - 10:20')).toBe('06:17');
+    expect(parseTimeLabel('10:40')).toBe('10:40');
   });
 
   it('returns input unchanged if no match', () => {
@@ -49,8 +51,8 @@ describe('resolveReturTime', () => {
   ]);
 
   it('returns own time when no override', () => {
-    expect(resolveReturTime(null, '8:00 - 12:00', routeLookup)).toBe('8:00');
-    expect(resolveReturTime({ retur_route_id: null }, '8:00 - 12:00', routeLookup)).toBe('8:00');
+    expect(resolveReturTime(null, '8:00 - 12:00', routeLookup)).toBe('08:00');
+    expect(resolveReturTime({ retur_route_id: null }, '8:00 - 12:00', routeLookup)).toBe('08:00');
   });
 
   it('returns retur route time when override set', () => {
@@ -59,7 +61,7 @@ describe('resolveReturTime', () => {
   });
 
   it('falls back to own time if retur route not found', () => {
-    expect(resolveReturTime({ retur_route_id: 999 }, '8:00', routeLookup)).toBe('8:00');
+    expect(resolveReturTime({ retur_route_id: 999 }, '8:00', routeLookup)).toBe('08:00');
   });
 });
 

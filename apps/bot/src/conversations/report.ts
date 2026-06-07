@@ -20,6 +20,7 @@ import {
   updateAssignmentDriverVehicle,
 } from '../services/db.js';
 import { addViolation } from '../services/dailyDigest.js';
+import { updateLoadingBoard } from '../services/loadingBoard.js';
 import { getTodayDate, formatTime, formatDate, haversineDistance, minutesLate } from '../utils.js';
 import { config } from '../config.js';
 import { showMainMenu } from '../handlers/start.js';
@@ -652,6 +653,15 @@ export async function reportConversation(
           }));
         } catch (e) {
           console.error('Daily digest update error:', e);
+        }
+      }
+
+      // Live loading board for admins (Chișinău only) — single editable message
+      if (point === 'CHISINAU') {
+        try {
+          await conversation.external(() => updateLoadingBoard());
+        } catch (e) {
+          console.error('Loading board update error:', e);
         }
       }
 

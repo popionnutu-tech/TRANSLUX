@@ -163,6 +163,17 @@ export function calculateSingleTariff(
 }
 
 /**
+ * Rotunjește ÎN SUS la leu întreg tariful unui pasager pe un tronson suburban
+ * (ex: 7.2 lei → 8 lei). Rotunjim întâi la bani (2 zecimale) ca să evităm
+ * zgomotul de virgulă mobilă — un tarif exact de 8.00 nu trebuie să devină 9.
+ * Folosit identic în UI (cycleTotal) și pe server (computeSuburbanSessionTotal)
+ * ca suma afișată să coincidă cu cea salvată.
+ */
+export function suburbanFareCeil(km: number, rate: number): number {
+  return Math.ceil(Math.round(km * rate * 100) / 100);
+}
+
+/**
  * Calcul suburban: un singur tarif per km, fără distincție lung/scurt, fără pasageri scurți.
  * Formula pe fiecare tronson: km_tronson × pasageri_în_autobuz × rate_suburban.
  */

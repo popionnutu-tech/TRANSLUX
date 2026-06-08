@@ -4,6 +4,7 @@ import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { resolveReturTime } from '@/lib/assignments';
+import { suburbanFareCeil } from './calculation';
 
 // ─── Типы ───
 
@@ -570,14 +571,24 @@ export async function getSuburbanSchedule(
     });
   }
 
-  // Compute kmFromStart per schedule (cumulative segment sum)
+  // Direcția fiecărui schedule — necesară pentru a alege segmentul corect la cumulare.
+  const dirById: Record<number, 'tur' | 'retur'> = {};
+  for (const s of schedules as any[]) dirById[s.id] = s.direction;
+
+  // Compute kmFromStart per schedule (cumulative segment sum).
+  // `km_from_nord` este segmentul „de la stația precedentă" în ordinea TUR (sat → Briceni).
+  // La RETUR (Briceni → sat) ordinea opririlor e inversată, deci segmentul dintre două
+  // opriri consecutive aparține stației PRECEDENTE din listă, nu celei curente — altfel
+  // tronsoanele ies 0 (ex: Briceni → Grimăncăuți apărea 0 km).
   for (const schedId of Object.keys(byScheduleId)) {
     const stops = byScheduleId[Number(schedId)];
     stops.sort((a, b) => a.stopOrder - b.stopOrder);
+    const isRetur = dirById[Number(schedId)] === 'retur';
     let cum = 0;
     for (let i = 0; i < stops.length; i++) {
       if (i > 0) {
-        const seg = stopById[stops[i].stopId]?.kmSegment ?? 0;
+        const segStop = isRetur ? stops[i - 1] : stops[i];
+        const seg = stopById[segStop.stopId]?.kmSegment ?? 0;
         cum += seg;
       }
       stops[i].kmFromStart = Math.round(cum * 10) / 10;
@@ -987,11 +998,11 @@ async function computeSuburbanSessionTotal(sessionId: string, assignmentDate: st
     stops.sort((a, b) => a.stopOrder - b.stopOrder);
     for (let i = 0; i < stops.length - 1; i++) {
       const tronsonKm = Math.abs(stops[i + 1].km - stops[i].km);
-      grandTotal += stops[i].total * tronsonKm * rate;
+      grandTotal += stops[i].total * suburbanFareCeil(tronsonKm, rate);
     }
     for (let i = stops.length - 1; i > 0; i--) {
       const tronsonKm = Math.abs(stops[i].km - stops[i - 1].km);
-      grandTotal += stops[i].alighted * tronsonKm * rate;
+      grandTotal += stops[i].alighted * suburbanFareCeil(tronsonKm, rate);
     }
   }
   return Math.round(grandTotal);

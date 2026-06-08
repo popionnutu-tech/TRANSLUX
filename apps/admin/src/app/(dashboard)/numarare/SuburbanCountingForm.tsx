@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getSuburbanSchedule, saveSuburbanCycle, loadSuburbanEntries, finalizeSuburbanSession, type SuburbanSchedule, type TariffConfig, type DriverOption, type VehicleOption } from './actions';
 import { saveSuburbanAuditCycle, loadSuburbanAuditEntries } from './auditActions';
+import { suburbanFareCeil } from './calculation';
 
 interface Props {
   sessionId: string;
@@ -84,7 +85,7 @@ export default function SuburbanCountingForm({
       const next = sortedStops[i + 1];
       const tronsonKm = Math.abs(next.kmFromStart - cur.kmFromStart);
       const tur = cycle[cur.stopOrder]?.total ?? 0;
-      total += tur * tronsonKm * tariff.ratePerKmSuburban;
+      total += tur * suburbanFareCeil(tronsonKm, tariff.ratePerKmSuburban);
     }
 
     // RETUR: direcție inversă (Briceni → sat). La fiecare stație (exceptând prima),
@@ -94,7 +95,7 @@ export default function SuburbanCountingForm({
       const prev = sortedStops[i - 1];
       const tronsonKm = Math.abs(cur.kmFromStart - prev.kmFromStart);
       const retur = cycle[cur.stopOrder]?.alighted ?? 0;
-      total += retur * tronsonKm * tariff.ratePerKmSuburban;
+      total += retur * suburbanFareCeil(tronsonKm, tariff.ratePerKmSuburban);
     }
 
     return Math.round(total);

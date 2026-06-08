@@ -1,6 +1,7 @@
 import { getSupabase } from '../supabase.js';
 import { getBotApi, getAdminChatIds } from './adminAlert.js';
 import { getTodayDate, formatTime } from '../utils.js';
+import { POINT_DIRECTION_MAP } from '@translux/db';
 
 // Live "loading board" for Chișinău: a single editable Telegram message per day,
 // pushed to admin chats. Grows one row per reported cursă (sorted by departure
@@ -72,7 +73,23 @@ async function loadReports(date: string): Promise<Row[]> {
   return rows;
 }
 
-function buildText(date: string, today: Row[], lastWeek: Row[]): string {
+/**
+ * Count of scheduled (active) curse departing from Chișinău — the "programate" denominator.
+ * The board covers the single interurban route Chișinău–Nord, which runs the SAME timetable
+ * every weekday (confirmed by owner 2026-06-08). `trips` has no day-of-week field, and the app
+ * only weekday-filters suburban routes (via crm_route_schedules), never interurban — so a flat
+ * active-trip count is the correct daily denominator here.
+ */
+async function loadScheduledCount(): Promise<number> {
+  const { count } = await getSupabase()
+    .from('trips')
+    .select('*', { count: 'exact', head: true })
+    .eq('direction', POINT_DIRECTION_MAP['CHISINAU'])
+    .eq('active', true);
+  return count ?? 0;
+}
+
+function buildText(date: string, today: Row[], lastWeek: Row[], scheduledCount: number): string {
   const lastMap = new Map<string, number | null>();
   for (const r of lastWeek) lastMap.set(r.tripId, paxValue(r));
 
@@ -108,7 +125,22 @@ function buildText(date: string, today: Row[], lastWeek: Row[]): string {
     totalLine += `  ${delta(totalToday, totalLast)}  (era ${totalLast})`;
   }
 
-  return `${header}\n\n${lines.join('\n')}\n\n${totalLine}`;
+  // Summary (today only): efectuate/programate · absent · media pasageri per cursă numărată.
+  const ranCount = today.filter((r) => r.status !== 'ABSENT').length; // ran = not absent (incl. "full")
+  const absentCount = today.filter((r) => r.status === 'ABSENT').length;
+  // media denominator: only curse with a real headcount. "Full" buses are stored as OK + pax=-1
+  // (paxValue → null), so they ran but are intentionally excluded here — media can be < ranCount.
+  const countedCount = today.filter((r) => paxValue(r) !== null).length;
+
+  const curseLine =
+    `Curse: ${scheduledCount > 0 ? `${ranCount}/${scheduledCount}` : ranCount}` +
+    ` · ${absentCount} absent`;
+  const summaryLines = [curseLine];
+  if (countedCount > 0) {
+    summaryLines.push(`Media: ${Math.round(totalToday / countedCount)} pas./cursă`);
+  }
+
+  return `${header}\n\n${lines.join('\n')}\n\n${totalLine}\n${summaryLines.join('\n')}`;
 }
 
 async function loadState(date: string): Promise<BoardState> {
@@ -153,13 +185,14 @@ export async function updateLoadingBoard(): Promise<void> {
   if (adminChatIds.size === 0) return;
 
   const date = getTodayDate();
-  const [todayRows, lastWeekRows] = await Promise.all([
+  const [todayRows, lastWeekRows, scheduledCount] = await Promise.all([
     loadReports(date),
     loadReports(minus7(date)),
+    loadScheduledCount(),
   ]);
   if (todayRows.length === 0) return;
 
-  const text = buildText(date, todayRows, lastWeekRows);
+  const text = buildText(date, todayRows, lastWeekRows, scheduledCount);
 
   const state = await loadState(date);
   let changed = false;

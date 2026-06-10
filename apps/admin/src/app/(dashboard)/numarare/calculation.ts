@@ -186,6 +186,20 @@ export function calculateSuburban(
 }
 
 /**
+ * Fereastra de corectare a operatorului după finalizarea unei sesiuni de numărare.
+ * Limita e strictă: la exact GRACE_MINUTES fereastra e EXPIRATĂ; NULL sau timestamp
+ * invalid => expirată (sesiunile finalizate înainte de coloana completed_at rămân blocate).
+ */
+export const GRACE_MINUTES = 10;
+
+export function isWithinGrace(completedAt: string | null, now: Date): boolean {
+  if (!completedAt) return false;
+  const completedMs = Date.parse(completedAt);
+  if (Number.isNaN(completedMs)) return false;
+  return now.getTime() - completedMs < GRACE_MINUTES * 60_000;
+}
+
+/**
  * Pentru o oprire dată (unde au ieșit scurți), returnează lista opririlor
  * de pe rută care sunt ≤ maxKm distanță ȘI sunt ÎNAINTE pe rută.
  */

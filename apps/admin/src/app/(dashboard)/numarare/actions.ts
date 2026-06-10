@@ -4,7 +4,7 @@ import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { resolveReturTime } from '@/lib/assignments';
-import { suburbanFareCeil } from './calculation';
+import { suburbanFareCeil, isWithinGrace } from './calculation';
 
 // ─── Типы ───
 
@@ -38,6 +38,7 @@ export interface RouteForCounting {
   audit_locked_by_id: string | null;
   route_type: 'interurban' | 'suburban';
   dest_from_ro: string;
+  completed_at: string | null;
 }
 
 export interface DriverOption { id: string; full_name: string; }
@@ -114,6 +115,22 @@ export interface RouteForPeriod {
 // ─── Текущий пользователь ───
 
 const NUMARARE_ROLES = ['ADMIN', 'ADMIN_CAMERE', 'OPERATOR_CAMERE'] as const;
+const NUMARARE_ADMIN_ROLES = ['ADMIN', 'ADMIN_CAMERE'] as const;
+
+/**
+ * Poate utilizatorul curent să editeze sesiunea dată?
+ * Sesiune ne-finalizată => da (regulile existente de lock se aplică separat).
+ * Sesiune `completed`: admin => oricând; operatorul sesiunii => doar în
+ * fereastra de corectare (GRACE_MINUTES de la prima finalizare); alții => nu.
+ */
+function canEditCompletedSession(
+  user: { id: string; role: string },
+  sess: { status: string | null; operator_id: string | null; completed_at: string | null },
+): boolean {
+  if (sess.status !== 'completed') return true;
+  if ((NUMARARE_ADMIN_ROLES as readonly string[]).includes(user.role)) return true;
+  return sess.operator_id === user.id && isWithinGrace(sess.completed_at, new Date());
+}
 
 export async function getCurrentUserId(): Promise<string | null> {
   const session = await verifySession();
@@ -180,7 +197,7 @@ export async function getRoutesForDate(date: string): Promise<{ data?: RouteForC
       crm_route_id, id, status, operator_id, locked_by, locked_at,
       double_tariff, tur_total_lei, retur_total_lei, tur_single_lei, retur_single_lei,
       audit_status, audit_tur_total_lei, audit_retur_total_lei, audit_tur_single_lei, audit_retur_single_lei,
-      audit_locked_by,
+      audit_locked_by, completed_at,
       driver_id, vehicle_id,
       session_driver:drivers!counting_sessions_driver_id_fkey(id, full_name),
       session_vehicle:vehicles!counting_sessions_vehicle_id_fkey(id, plate_number),
@@ -258,6 +275,7 @@ export async function getRoutesForDate(date: string): Promise<{ data?: RouteForC
       audit_locked_by_id: s?.audit_locked_by ?? null,
       route_type: (r.route_type || 'interurban') as 'interurban' | 'suburban',
       dest_from_ro: r.dest_from_ro || '',
+      completed_at: s?.completed_at ?? null,
     };
   });
 
@@ -629,7 +647,7 @@ export async function lockRoute(
   // Verificăm dacă există deja o sesiune
   const { data: existing } = await sb
     .from('counting_sessions')
-    .select('id, operator_id, locked_by, locked_at, status')
+    .select('id, operator_id, locked_by, locked_at, status, completed_at')
     .eq('crm_route_id', crmRouteId)
     .eq('assignment_date', date)
     .single();
@@ -639,6 +657,11 @@ export async function lockRoute(
     // Sesiunea poate fi creată de operator A care a salvat retur și a ieșit (locked_by=null);
     // operator B trebuie să poată introduce turul rămas.
     if (existing.locked_by && existing.locked_by !== session.id) {
+      return { sessionId: existing.id, readOnly: true };
+    }
+    // Sesiune finalizată: operatorul sesiunii are fereastra de corectare
+    // (GRACE_MINUTES de la prima finalizare); după expirare => doar vizualizare.
+    if (!canEditCompletedSession(session, existing as any)) {
       return { sessionId: existing.id, readOnly: true };
     }
     // Blocăm pentru operatorul curent + actualizăm driver/vehicle dacă sunt noi
@@ -677,9 +700,20 @@ export async function updateSessionDriverVehicle(
   driverId: string | null,
   vehicleId: string | null,
 ): Promise<{ error?: string }> {
-  try { requireRole(await verifySession(), ...NUMARARE_ROLES); } catch { return { error: 'Acces interzis' }; }
+  let session;
+  try { session = requireRole(await verifySession(), ...NUMARARE_ROLES); } catch { return { error: 'Acces interzis' }; }
 
   const sb = getSupabase();
+  const { data: sessRow } = await sb
+    .from('counting_sessions')
+    .select('status, operator_id, completed_at')
+    .eq('id', sessionId)
+    .single();
+  if (!sessRow) return { error: 'Sesiunea nu există' };
+  if (!canEditCompletedSession(session, sessRow as any)) {
+    return { error: 'Fereastra de corectare a expirat — doar admin poate modifica.' };
+  }
+
   const { error } = await sb
     .from('counting_sessions')
     .update({ driver_id: driverId, vehicle_id: vehicleId })
@@ -728,9 +762,21 @@ export async function saveDirection(
   totalLei: number,
   totalLeiSingle: number,
 ): Promise<{ error?: string }> {
-  try { requireRole(await verifySession(), ...NUMARARE_ROLES); } catch { return { error: 'Acces interzis' }; }
+  let session;
+  try { session = requireRole(await verifySession(), ...NUMARARE_ROLES); } catch { return { error: 'Acces interzis' }; }
 
   const sb = getSupabase();
+
+  // Gardă server: un formular rămas deschis nu poate scrie după expirarea ferestrei.
+  const { data: sessRow } = await sb
+    .from('counting_sessions')
+    .select('status, operator_id, completed_at')
+    .eq('id', sessionId)
+    .single();
+  if (!sessRow) return { error: 'Sesiunea nu există' };
+  if (!canEditCompletedSession(session, sessRow as any)) {
+    return { error: 'Fereastra de corectare a expirat — doar admin poate modifica.' };
+  }
 
   // Удаляем старые entries для этого direction
   const { data: oldEntries } = await sb
@@ -802,6 +848,9 @@ export async function saveDirection(
     updateFields.retur_total_lei = totalLei;
     updateFields.retur_single_lei = totalLeiSingle;
     updateFields.status = otherSaved ? 'completed' : 'retur_done';
+  }
+  if (updateFields.status === 'completed' && !(sessRow as any).completed_at) {
+    updateFields.completed_at = new Date().toISOString(); // prima finalizare — o singură dată
   }
   updateFields.locked_by = null;
   updateFields.locked_at = null;
@@ -879,8 +928,20 @@ export async function saveSuburbanCycle(
   altDriverId?: string | null,
   altVehicleId?: string | null,
 ): Promise<{ error?: string }> {
-  try { requireRole(await verifySession(), ...NUMARARE_ROLES); } catch { return { error: 'Acces interzis' }; }
+  let session;
+  try { session = requireRole(await verifySession(), ...NUMARARE_ROLES); } catch { return { error: 'Acces interzis' }; }
   const sb = getSupabase();
+
+  // Gardă server: un formular rămas deschis nu poate scrie după expirarea ferestrei.
+  const { data: sessionRow } = await sb
+    .from('counting_sessions')
+    .select('assignment_date, crm_route_id, status, operator_id, completed_at')
+    .eq('id', sessionId)
+    .single();
+  if (!sessionRow) return { error: 'Sesiunea nu există' };
+  if (!canEditCompletedSession(session, sessionRow as any)) {
+    return { error: 'Fereastra de corectare a expirat — doar admin poate modifica.' };
+  }
 
   // Șterge entries anterioare pentru acest (session, schedule, cycle)
   await sb
@@ -911,12 +972,6 @@ export async function saveSuburbanCycle(
   // Auto-detect finalize: dacă toate schedule-urile planificate pentru ziua
   // sesiunii au cel puțin o linie salvată, status devine 'completed'.
   // Altfel rămâne 'tur_done' (interfața arată „Tur gata" și permite continuarea).
-  const { data: sessionRow } = await sb
-    .from('counting_sessions')
-    .select('assignment_date, crm_route_id')
-    .eq('id', sessionId)
-    .single();
-
   let newStatus: 'tur_done' | 'completed' = 'tur_done';
   if (sessionRow) {
     const jsDay = new Date(sessionRow.assignment_date as string).getDay();
@@ -957,6 +1012,9 @@ export async function saveSuburbanCycle(
     retur_total_lei: 0,
     locked_by: null,
     locked_at: null,
+    ...(newStatus === 'completed' && !(sessionRow as any).completed_at
+      ? { completed_at: new Date().toISOString() } // prima finalizare — o singură dată
+      : {}),
   }).eq('id', sessionId);
 
   revalidatePath('/numarare');
@@ -1016,18 +1074,21 @@ async function computeSuburbanSessionTotal(sessionId: string, assignmentDate: st
 export async function finalizeSuburbanSession(
   sessionId: string,
 ): Promise<{ error?: string }> {
-  try { requireRole(await verifySession(), ...NUMARARE_ROLES); } catch { return { error: 'Acces interzis' }; }
+  let session;
+  try { session = requireRole(await verifySession(), ...NUMARARE_ROLES); } catch { return { error: 'Acces interzis' }; }
   const sb = getSupabase();
 
   const { data: sessionRow } = await sb
     .from('counting_sessions')
-    .select('assignment_date')
+    .select('assignment_date, status, operator_id, completed_at')
     .eq('id', sessionId)
     .single();
+  if (!sessionRow) return { error: 'Sesiunea nu există' };
+  if (!canEditCompletedSession(session, sessionRow as any)) {
+    return { error: 'Fereastra de corectare a expirat — doar admin poate modifica.' };
+  }
 
-  const sessionTotal = sessionRow
-    ? await computeSuburbanSessionTotal(sessionId, sessionRow.assignment_date as string)
-    : 0;
+  const sessionTotal = await computeSuburbanSessionTotal(sessionId, sessionRow.assignment_date as string);
 
   const { error } = await sb
     .from('counting_sessions')
@@ -1037,6 +1098,9 @@ export async function finalizeSuburbanSession(
       retur_total_lei: 0,
       locked_by: null,
       locked_at: null,
+      ...(!(sessionRow as any).completed_at
+        ? { completed_at: new Date().toISOString() } // prima finalizare — o singură dată
+        : {}),
     })
     .eq('id', sessionId);
   if (error) return { error: error.message };

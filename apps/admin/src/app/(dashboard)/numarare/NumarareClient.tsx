@@ -25,6 +25,7 @@ import {
 import CountingForm from './CountingForm';
 import SuburbanCountingForm from './SuburbanCountingForm';
 import { lockAudit, unlockAudit, resetAudit, loadAuditEntries } from './auditActions';
+import { isWithinGrace, GRACE_MINUTES } from './calculation';
 import AuditComparisonView from './AuditComparisonView';
 import type { AdminRole } from '@translux/db';
 
@@ -77,6 +78,27 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
     getActiveDrivers().then(setDrivers);
     getActiveVehicles().then(setVehicles);
   }, []);
+
+  // Re-randare ușoară la 30s ca cronometrul ferestrei de corectare să expire vizual.
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNowTick(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Fereastra de corectare: operatorul care a numărat poate edita sesiunea lui
+  // `completed` timp de GRACE_MINUTES de la prima finalizare (serverul re-verifică).
+  const inGraceFor = useCallback((route: RouteForCounting) =>
+    route.session_status === 'completed'
+    && route.operator_id === currentUserId
+    && isWithinGrace(route.completed_at, new Date(nowTick)),
+  [currentUserId, nowTick]);
+
+  function graceMinutesLeft(route: RouteForCounting): number {
+    if (!route.completed_at) return 0;
+    const left = Date.parse(route.completed_at) + GRACE_MINUTES * 60_000 - nowTick;
+    return Math.max(0, Math.ceil(left / 60_000));
+  }
 
   const loadRoutes = useCallback(async () => {
     setLoading(true);
@@ -343,7 +365,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
             <select
               value={openRoute.driver_id || ''}
               onChange={e => handleDriverChange(openRoute, e.target.value)}
-              disabled={viewOnly || (openRoute.session_status === 'completed' && !canAudit)}
+              disabled={viewOnly || (openRoute.session_status === 'completed' && !canAudit && !inGraceFor(openRoute))}
               style={selectStyle}
             >
               <option value="">— Șofer —</option>
@@ -352,7 +374,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
             <select
               value={openRoute.vehicle_id || ''}
               onChange={e => handleVehicleChange(openRoute, e.target.value)}
-              disabled={viewOnly || (openRoute.session_status === 'completed' && !canAudit)}
+              disabled={viewOnly || (openRoute.session_status === 'completed' && !canAudit && !inGraceFor(openRoute))}
               style={selectStyle}
             >
               <option value="">— Mașina —</option>
@@ -386,7 +408,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
               mode={auditMode ? 'audit' : 'normal'}
               viewOnly={viewOnly}
               startDistrict={startDistrict}
-              canEditCompleted={canAudit /* ADMIN/ADMIN_CAMERE poate edita sesiuni completed */}
+              canEditCompleted={canAudit || inGraceFor(openRoute) /* admin oricând; operatorul sesiunii în fereastra de corectare */}
             />
           )}
         </>
@@ -513,6 +535,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
           <tbody>
             {filteredRoutes.map(route => {
               const completed = route.session_status === 'completed';
+              const inGrace = inGraceFor(route);
               const auditable = completed || (route.route_type === 'suburban' && route.session_status === 'tur_done');
               // Sesiunea e "blocată de altul" doar dacă cineva o ține LOCKED activ acum.
               // Dacă operatorul anterior a ieșit (locked_by=null), oricine poate continua
@@ -532,7 +555,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
                     <select
                       value={route.driver_id || ''}
                       onChange={e => handleDriverChange(route, e.target.value)}
-                      disabled={completed && !canAudit}
+                      disabled={completed && !canAudit && !inGrace}
                       style={selectStyle}
                     >
                       <option value="">—</option>
@@ -543,14 +566,21 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
                     <select
                       value={route.vehicle_id || ''}
                       onChange={e => handleVehicleChange(route, e.target.value)}
-                      disabled={completed && !canAudit}
+                      disabled={completed && !canAudit && !inGrace}
                       style={selectStyle}
                     >
                       <option value="">—</option>
                       {vehicles.map(v => <option key={v.id} value={v.id}>{v.plate_number}</option>)}
                     </select>
                   </td>
-                  <td>{statusBadge(route)}</td>
+                  <td>
+                    {statusBadge(route)}
+                    {inGrace && (
+                      <div style={{ fontSize: 11, color: 'var(--primary)' }}>
+                        ✏️ corectare: încă {graceMinutesLeft(route)} min
+                      </div>
+                    )}
+                  </td>
                   {canSeeSums && (
                     <td>
                       {hasSums ? `${Math.round(dualTotal)} lei` : '—'}
@@ -577,7 +607,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
                       <button
                         className="btn btn-primary"
                         onClick={() => handleOpen(route)}
-                        disabled={completed && !canAudit}
+                        disabled={completed && !canAudit && !inGrace}
                         title={ownedByOther ? 'Deschidere doar pentru vizualizare' : undefined}
                       >
                         {ownedByOther ? 'Vezi' : 'Deschide'}

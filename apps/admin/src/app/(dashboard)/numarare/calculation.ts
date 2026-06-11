@@ -163,14 +163,17 @@ export function calculateSingleTariff(
 }
 
 /**
- * Rotunjește ÎN SUS la leu întreg tariful unui pasager pe un tronson suburban
- * (ex: 7.2 lei → 8 lei). Rotunjim întâi la bani (2 zecimale) ca să evităm
- * zgomotul de virgulă mobilă — un tarif exact de 8.00 nu trebuie să devină 9.
+ * Rotunjește la leu întreg tariful unui pasager pe un tronson suburban,
+ * după regula 0.20 (decisă de business, 11.06.2026): fracțiune ≤ 0.20 → în jos,
+ * > 0.20 → în sus (7.02 → 7, 7.20 → 7, 7.25 → 8). Calculăm în bani (întregi)
+ * ca să evităm zgomotul de virgulă mobilă — 6 × 1.2 trebuie să fie exact 7.20.
  * Folosit identic în UI (cycleTotal) și pe server (computeSuburbanSessionTotal)
  * ca suma afișată să coincidă cu cea salvată.
  */
-export function suburbanFareCeil(km: number, rate: number): number {
-  return Math.ceil(Math.round(km * rate * 100) / 100);
+export function suburbanFareRound(km: number, rate: number): number {
+  const bani = Math.round(km * rate * 100);
+  const lei = Math.floor(bani / 100);
+  return bani - lei * 100 <= 20 ? lei : lei + 1;
 }
 
 /**

@@ -4,7 +4,7 @@ import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { resolveReturTime } from '@/lib/assignments';
-import { suburbanFareCeil, isWithinGrace } from './calculation';
+import { suburbanFareRound, isWithinGrace } from './calculation';
 
 // ─── Типы ───
 
@@ -1056,11 +1056,11 @@ async function computeSuburbanSessionTotal(sessionId: string, assignmentDate: st
     stops.sort((a, b) => a.stopOrder - b.stopOrder);
     for (let i = 0; i < stops.length - 1; i++) {
       const tronsonKm = Math.abs(stops[i + 1].km - stops[i].km);
-      grandTotal += stops[i].total * suburbanFareCeil(tronsonKm, rate);
+      grandTotal += stops[i].total * suburbanFareRound(tronsonKm, rate);
     }
     for (let i = stops.length - 1; i > 0; i--) {
       const tronsonKm = Math.abs(stops[i].km - stops[i - 1].km);
-      grandTotal += stops[i].alighted * suburbanFareCeil(tronsonKm, rate);
+      grandTotal += stops[i].alighted * suburbanFareRound(tronsonKm, rate);
     }
   }
   return Math.round(grandTotal);

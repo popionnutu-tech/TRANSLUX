@@ -6,8 +6,12 @@ import {
   toggleDualTariff,
   updateShortDistanceThreshold,
   triggerPriceUpdate,
+  getPendingProposal,
+  confirmTariffProposal,
+  rejectTariffProposal,
   type TariffData,
   type TriggerPriceUpdateResult,
+  type PendingProposal,
 } from './tariffActions';
 
 // ─── Форматирование ───
@@ -320,6 +324,9 @@ function HistoryTable({ history }: { history: TariffData['history'] }) {
 
 export default function TariffsTab() {
   const [data, setData] = useState<TariffData | null>(null);
+  const [pending, setPending] = useState<PendingProposal | null>(null);
+  const [deciding, setDeciding] = useState(false);
+  const [decideMsg, setDecideMsg] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [updating, setUpdating] = useState(false);
@@ -328,8 +335,9 @@ export default function TariffsTab() {
   const [errorMessage, setErrorMessage] = useState('');
 
   const loadData = useCallback(async () => {
-    const result = await getTariffData();
+    const [result, prop] = await Promise.all([getTariffData(), getPendingProposal()]);
     setData(result);
+    setPending(prop);
     setThresholdInput(String(result.shortDistanceKm));
     setLoading(false);
   }, []);
@@ -354,6 +362,26 @@ export default function TariffsTab() {
 
     setUpdating(false);
   }, [loadData]);
+
+  const handleConfirmProposal = useCallback(async () => {
+    if (!pending) return;
+    setDeciding(true);
+    setDecideMsg('');
+    const res = await confirmTariffProposal(pending.id);
+    setDecideMsg(res.message);
+    if (res.success) await loadData();
+    setDeciding(false);
+  }, [pending, loadData]);
+
+  const handleRejectProposal = useCallback(async () => {
+    if (!pending) return;
+    setDeciding(true);
+    setDecideMsg('');
+    const res = await rejectTariffProposal(pending.id);
+    setDecideMsg(res.message);
+    if (res.success) await loadData();
+    setDeciding(false);
+  }, [pending, loadData]);
 
   const handleToggleDual = useCallback(async (enabled: boolean) => {
     if (!data) return;
@@ -431,6 +459,60 @@ export default function TariffsTab() {
           fontWeight: 500,
         }}>
           {errorMessage}
+        </div>
+      )}
+
+      {/* Propunere de tarif în așteptare (confirmare în panou) */}
+      {pending && (
+        <div className="card" style={{ marginBottom: 20, border: '1px solid rgba(34,139,34,0.35)', background: 'rgba(34,139,34,0.04)' }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--primary)', marginBottom: 4, fontStyle: 'italic' }}>
+            🆕 Tarif nou ANTA — așteaptă confirmarea ta
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>
+            {pending.source === 'manual' ? 'Verificare manuală' : 'Verificare automată'}
+            {pending.effectiveDate ? ` · valabil din ${pending.effectiveDate.split('-').reverse().join('.')}` : ''}
+          </div>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
+            {[
+              { label: 'Interurban lung', value: pending.rateInterurbanLong, prev: pending.prevInterurbanLong },
+              { label: 'Interurban scurt', value: pending.rateInterurbanShort, prev: pending.prevInterurbanShort },
+              { label: 'Suburban', value: pending.rateSuburban, prev: pending.prevSuburban },
+            ].map((r) => (
+              <div key={r.label} style={{ padding: '10px 14px', background: '#fff', borderRadius: 'var(--radius-xs)', border: '1px solid rgba(0,0,0,0.06)', minWidth: 130 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{r.label}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--primary)' }}>{r.value.toFixed(2)} lei/km</div>
+                {r.prev !== null && r.prev !== r.value && (
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                    anterior: <span style={{ textDecoration: 'line-through' }}>{r.prev.toFixed(2)}</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <button
+              className="btn"
+              onClick={handleConfirmProposal}
+              disabled={deciding}
+              style={{ padding: '8px 22px', fontSize: 13, background: '#228B22', color: '#fff', border: 'none', borderRadius: 'var(--radius-xs)', fontWeight: 600, cursor: deciding ? 'default' : 'pointer' }}
+            >
+              {deciding ? 'Se aplică...' : '✅ Confirmă'}
+            </button>
+            <button
+              className="btn"
+              onClick={handleRejectProposal}
+              disabled={deciding}
+              style={{ padding: '8px 22px', fontSize: 13, background: 'transparent', color: 'var(--danger)', border: '1px solid var(--danger)', borderRadius: 'var(--radius-xs)', fontWeight: 600, cursor: deciding ? 'default' : 'pointer' }}
+            >
+              ❌ Respinge
+            </button>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+              Prețurile nu se schimbă nicăieri până nu confirmi.
+            </span>
+          </div>
+          {decideMsg && (
+            <div style={{ marginTop: 12, fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)' }}>{decideMsg}</div>
+          )}
         </div>
       )}
 

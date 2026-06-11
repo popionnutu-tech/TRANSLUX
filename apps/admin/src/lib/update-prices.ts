@@ -7,6 +7,7 @@ const ANTA_URL =
 const RATE_MIN = 0.5;
 const RATE_MAX = 2.0;
 const RATE_TOLERANCE = 0.001;
+const PROPOSAL_TTL_MS = 24 * 60 * 60 * 1000; // o propunere e valabilă 24h
 
 const CONFIG_KEY_INTERURBAN_LONG = 'rate_per_km_long';
 const CONFIG_KEY_INTERURBAN_SHORT = 'rate_per_km_interurban_short';
@@ -42,8 +43,16 @@ interface CurrentRates {
   suburban: number | null;
 }
 
+interface EffectiveRates {
+  interurbanLong: number;
+  interurbanShort: number;
+  suburban: number;
+  effectiveDate: string | null;
+}
+
 export interface PriceUpdateResult {
-  status: 'updated' | 'no_change' | 'error';
+  status: 'updated' | 'no_change' | 'proposed' | 'error';
+  proposalId?: string;
   rates?: { interurbanLong: number; interurbanShort: number; suburban: number };
   previousRates?: { interurbanLong: number | null; interurbanShort: number | null; suburban: number | null };
   rowsUpdated?: number;
@@ -213,17 +222,13 @@ function computeTariffPeriod(effectiveDate: string | null): { periodStart: strin
 
 // ─── Nomenclator snapshot ───
 
-async function saveNomenclator(
+type PopularPrice = { from_ro: string; to_ro: string; from_ru: string; to_ru: string; price: number };
+
+async function computePopularPrices(
   supabase: ReturnType<typeof getSupabase>,
   rate: number,
-) {
-  const prices: Array<{
-    from_ro: string;
-    to_ro: string;
-    from_ru: string;
-    to_ru: string;
-    price: number;
-  }> = [];
+): Promise<PopularPrice[]> {
+  const prices: PopularPrice[] = [];
 
   for (const route of POPULAR_ROUTES) {
     const { data } = await supabase
@@ -245,14 +250,21 @@ async function saveNomenclator(
     });
   }
 
-  await supabase.from('price_nomenclator').insert({ rate_per_km: rate, prices });
+  return prices;
+}
 
+async function saveNomenclator(
+  supabase: ReturnType<typeof getSupabase>,
+  rate: number,
+) {
+  const prices = await computePopularPrices(supabase, rate);
+  await supabase.from('price_nomenclator').insert({ rate_per_km: rate, prices });
   return prices;
 }
 
 // ─── Telegram notifications ───
 
-async function notifyAdmins(message: string) {
+async function notifyAdmins(message: string, replyMarkup?: unknown) {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   if (!botToken) return;
 
@@ -274,6 +286,7 @@ async function notifyAdmins(message: string) {
           chat_id: admin.telegram_id,
           text: message,
           parse_mode: 'HTML',
+          ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
         }),
       });
     } catch (err) {
@@ -287,7 +300,98 @@ function formatRateLine(label: string, newRate: number, oldRate: number | null):
   return `${label}: <b>${newRate.toFixed(2)} lei/km</b> (anterior: ${oldStr})`;
 }
 
-// ─── Main function ───
+// ─── Telegram message builder ───
+
+function buildProposalMessage(
+  effective: EffectiveRates,
+  previous: CurrentRates,
+  preview: PopularPrice[],
+  source: 'cron' | 'manual',
+): string {
+  const baltiPrice = Math.round(133 * effective.interurbanLong);
+  const priceLines = preview
+    .map((p) => `  ${p.from_ro} → ${p.to_ro}: <b>${p.price} lei</b>`)
+    .join('\n');
+
+  const rateLines = [
+    formatRateLine('Interurban lung', effective.interurbanLong, previous.interurbanLong),
+    formatRateLine('Interurban scurt', effective.interurbanShort, previous.interurbanShort),
+    formatRateLine('Suburban', effective.suburban, previous.suburban),
+  ].join('\n');
+
+  const sourceLabel = source === 'manual' ? ' (manual)' : '';
+
+  return (
+    `🆕 <b>Propunere tarife noi ANTA${sourceLabel}</b>\n\n` +
+    `${rateLines}\n` +
+    `Bălți → Chișinău: <b>${baltiPrice - 20} lei</b> (reducere -20)\n\n` +
+    `<b>Destinații populare:</b>\n${priceLines}\n\n` +
+    `⚠️ Prețurile NU sunt încă aplicate. Confirmă-le în panou → secțiunea <b>Tarife</b> pentru a le activa peste tot.`
+  );
+}
+
+// ─── Apply (după confirmare) ───
+
+/** Aplică efectiv tarifele peste tot: RPC + log + tariff_periods + nomenclator. */
+async function applyEffectiveRates(
+  supabase: ReturnType<typeof getSupabase>,
+  effective: EffectiveRates,
+  previous: CurrentRates,
+): Promise<PriceUpdateResult> {
+  // 1. Update prices + offers via DB function (v2)
+  const { data: rowsUpdated, error: rpcError } = await supabase.rpc('update_prices_by_rate_v2', {
+    new_rate_interurban_long: effective.interurbanLong,
+    new_rate_interurban_short: effective.interurbanShort,
+    new_rate_suburban: effective.suburban,
+  });
+
+  if (rpcError) throw new Error(`DB update failed: ${rpcError.message}`);
+
+  // 2. Log price update
+  await supabase.from('price_update_log').insert({
+    old_rate: previous.interurbanLong,
+    new_rate: effective.interurbanLong,
+    rows_updated: rowsUpdated ?? 0,
+    source_url: ANTA_URL,
+    rate_interurban_short: effective.interurbanShort,
+    rate_suburban: effective.suburban,
+  });
+
+  // 3. Insert tariff period
+  const { periodStart, periodEnd } = computeTariffPeriod(effective.effectiveDate);
+  await supabase.from('tariff_periods').insert({
+    period_start: periodStart,
+    period_end: periodEnd,
+    rate_interurban_long: effective.interurbanLong,
+    rate_interurban_short: effective.interurbanShort,
+    rate_suburban: effective.suburban,
+    source_url: ANTA_URL,
+  });
+
+  // 4. Save nomenclator snapshot
+  await saveNomenclator(supabase, effective.interurbanLong);
+
+  const baltiPrice = Math.round(133 * effective.interurbanLong);
+
+  return {
+    status: 'updated',
+    rates: {
+      interurbanLong: effective.interurbanLong,
+      interurbanShort: effective.interurbanShort,
+      suburban: effective.suburban,
+    },
+    previousRates: {
+      interurbanLong: previous.interurbanLong,
+      interurbanShort: previous.interurbanShort,
+      suburban: previous.suburban,
+    },
+    rowsUpdated: rowsUpdated ?? 0,
+    baltiChisinauOffer: baltiPrice - 20,
+    period: { start: periodStart, end: periodEnd },
+  };
+}
+
+// ─── Main: fetch ANTA → creează PROPUNERE (nu aplică) ───
 
 export async function executeAntaPriceUpdate(options?: {
   sendTelegramNotification?: boolean;
@@ -308,7 +412,7 @@ export async function executeAntaPriceUpdate(options?: {
     // ANTA poate publica o pagină provizorie doar cu tariful interraional (suburban=null);
     // în acel caz PĂSTRĂM raionalul curent în loc să-l suprascriem.
     const currentRates = await loadCurrentRates(supabase);
-    const effective = {
+    const effective: EffectiveRates = {
       interurbanLong: rates.interurbanLong,
       interurbanShort: rates.interurbanShort,
       suburban: rates.suburban ?? currentRates.suburban ?? rates.interurbanLong,
@@ -330,69 +434,44 @@ export async function executeAntaPriceUpdate(options?: {
       };
     }
 
-    // 5. Update prices + offers via DB function (v2)
-    const { data: rowsUpdated, error: rpcError } = await supabase.rpc(
-      'update_prices_by_rate_v2',
-      {
-        new_rate_interurban_long: effective.interurbanLong,
-        new_rate_interurban_short: effective.interurbanShort,
-        new_rate_suburban: effective.suburban,
-      },
-    );
+    // 5. Creează PROPUNERE: superseda propunerile pending vechi, inserează una nouă.
+    //    NU aplicăm nimic încă — se aplică doar după Confirmă în Telegram.
+    await supabase
+      .from('pending_price_updates')
+      .update({ status: 'superseded' })
+      .eq('status', 'pending');
 
-    if (rpcError) throw new Error(`DB update failed: ${rpcError.message}`);
+    const preview = await computePopularPrices(supabase, effective.interurbanLong);
 
-    // 6. Log price update
-    await supabase.from('price_update_log').insert({
-      old_rate: currentRates.interurbanLong,
-      new_rate: effective.interurbanLong,
-      rows_updated: rowsUpdated ?? 0,
-      source_url: ANTA_URL,
-      rate_interurban_short: effective.interurbanShort,
-      rate_suburban: effective.suburban,
-    });
+    const { data: inserted, error: insErr } = await supabase
+      .from('pending_price_updates')
+      .insert({
+        rate_interurban_long: effective.interurbanLong,
+        rate_interurban_short: effective.interurbanShort,
+        rate_suburban: effective.suburban,
+        effective_date: effective.effectiveDate,
+        prev_interurban_long: currentRates.interurbanLong,
+        prev_interurban_short: currentRates.interurbanShort,
+        prev_suburban: currentRates.suburban,
+        preview,
+        source,
+        source_url: ANTA_URL,
+        status: 'pending',
+      })
+      .select('id')
+      .single();
 
-    // 7. Insert tariff period
-    const { periodStart, periodEnd } = computeTariffPeriod(effective.effectiveDate);
-    await supabase.from('tariff_periods').insert({
-      period_start: periodStart,
-      period_end: periodEnd,
-      rate_interurban_long: effective.interurbanLong,
-      rate_interurban_short: effective.interurbanShort,
-      rate_suburban: effective.suburban,
-      source_url: ANTA_URL,
-    });
+    if (insErr) throw new Error(`Failed to create proposal: ${insErr.message}`);
+    const proposalId = (inserted as { id: string }).id;
 
-    // 8. Save nomenclator snapshot
-    const prices = await saveNomenclator(supabase, effective.interurbanLong);
-
-    // 9. Notify admins via Telegram
+    // 6. Notifică adminii — DOAR informativ (fără butoane). Confirmarea se face în panou (Tarife).
     if (sendTelegramNotification) {
-      const baltiPrice = Math.round(133 * effective.interurbanLong);
-      const priceLines = prices
-        .map((p) => `  ${p.from_ro} → ${p.to_ro}: <b>${p.price} lei</b>`)
-        .join('\n');
-
-      const rateLines = [
-        formatRateLine('Interurban lung', effective.interurbanLong, currentRates.interurbanLong),
-        formatRateLine('Interurban scurt', effective.interurbanShort, currentRates.interurbanShort),
-        formatRateLine('Suburban', effective.suburban, currentRates.suburban),
-      ].join('\n');
-
-      const sourceLabel = source === 'manual' ? ' (manual)' : '';
-      await notifyAdmins(
-        `🔄 <b>Tarife actualizate ANTA${sourceLabel}</b>\n\n` +
-          `${rateLines}\n` +
-          `Bălți → Chișinău: <b>${baltiPrice - 20} lei</b> (reducere -20)\n\n` +
-          `<b>Destinații populare:</b>\n${priceLines}\n\n` +
-          `✅ ${rowsUpdated} prețuri actualizate automat`,
-      );
+      await notifyAdmins(buildProposalMessage(effective, currentRates, preview, source));
     }
 
-    const baltiPrice = Math.round(133 * effective.interurbanLong);
-
     return {
-      status: 'updated',
+      status: 'proposed',
+      proposalId,
       rates: {
         interurbanLong: effective.interurbanLong,
         interurbanShort: effective.interurbanShort,
@@ -403,18 +482,120 @@ export async function executeAntaPriceUpdate(options?: {
         interurbanShort: currentRates.interurbanShort,
         suburban: currentRates.suburban,
       },
-      rowsUpdated: rowsUpdated ?? 0,
-      baltiChisinauOffer: baltiPrice - 20,
-      period: { start: periodStart, end: periodEnd },
     };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     console.error('ANTA price update error:', err);
 
     if (sendTelegramNotification) {
-      await notifyAdmins(`⚠️ <b>Eroare actualizare prețuri ANTA</b>\n\n${message}`);
+      await notifyAdmins(`⚠️ <b>Eroare la verificarea tarifelor ANTA</b>\n\n${message}`);
     }
 
     return { status: 'error', error: message };
+  }
+}
+
+// ─── Decizie propunere (apelat din admin-API, declanșat de butonul din Telegram) ───
+
+/** Aplică o propunere pending (atomic claim → applyEffectiveRates). Aplică EXACT valorile salvate, fără re-fetch ANTA. */
+export async function applyProposal(
+  proposalId: string,
+  decidedBy: number | null,
+): Promise<{ status: 'updated' | 'already_decided' | 'expired' | 'error'; current?: string; result?: PriceUpdateResult; error?: string }> {
+  try {
+    const supabase = getSupabase();
+
+    // Atomic claim: doar dacă e încă 'pending' ȘI nu a expirat (24h). Previne dublă-aplicare și aplicarea unui preț învechit.
+    const nowIso = new Date().toISOString();
+    const cutoffIso = new Date(Date.now() - PROPOSAL_TTL_MS).toISOString();
+    const { data: claimed, error: claimErr } = await supabase
+      .from('pending_price_updates')
+      .update({ status: 'approved', decided_at: nowIso, decided_by: decidedBy })
+      .eq('id', proposalId)
+      .eq('status', 'pending')
+      .gte('created_at', cutoffIso)
+      .select('*')
+      .maybeSingle();
+
+    if (claimErr) throw new Error(claimErr.message);
+
+    if (!claimed) {
+      const { data: row } = await supabase
+        .from('pending_price_updates')
+        .select('status, created_at')
+        .eq('id', proposalId)
+        .maybeSingle();
+      const r = row as { status: string; created_at: string } | null;
+      // Încă 'pending' dar mai veche de 24h → marchează 'expired' (terminal), nu aplica preț învechit.
+      if (r && r.status === 'pending') {
+        await supabase
+          .from('pending_price_updates')
+          .update({ status: 'expired', decided_at: nowIso, decided_by: decidedBy })
+          .eq('id', proposalId)
+          .eq('status', 'pending');
+        return { status: 'expired' };
+      }
+      return { status: 'already_decided', current: r?.status ?? 'unknown' };
+    }
+
+    const c = claimed as Record<string, any>;
+    const effective: EffectiveRates = {
+      interurbanLong: Number(c.rate_interurban_long),
+      interurbanShort: Number(c.rate_interurban_short),
+      suburban: Number(c.rate_suburban),
+      effectiveDate: c.effective_date ?? null,
+    };
+    const previous: CurrentRates = {
+      interurbanLong: c.prev_interurban_long !== null ? Number(c.prev_interurban_long) : null,
+      interurbanShort: c.prev_interurban_short !== null ? Number(c.prev_interurban_short) : null,
+      suburban: c.prev_suburban !== null ? Number(c.prev_suburban) : null,
+    };
+
+    try {
+      const result = await applyEffectiveRates(supabase, effective, previous);
+      return { status: 'updated', result };
+    } catch (applyErr) {
+      // Aplicarea a eșuat după claim → readu propunerea la 'pending' ca să poată fi reîncercată.
+      await supabase
+        .from('pending_price_updates')
+        .update({ status: 'pending', decided_at: null, decided_by: null })
+        .eq('id', proposalId);
+      throw applyErr;
+    }
+  } catch (err) {
+    return { status: 'error', error: err instanceof Error ? err.message : 'Unknown error' };
+  }
+}
+
+/** Respinge o propunere pending (nu aplică nimic). */
+export async function rejectProposal(
+  proposalId: string,
+  decidedBy: number | null,
+): Promise<{ status: 'rejected' | 'already_decided' | 'error'; current?: string; error?: string }> {
+  try {
+    const supabase = getSupabase();
+
+    const { data, error } = await supabase
+      .from('pending_price_updates')
+      .update({ status: 'rejected', decided_at: new Date().toISOString(), decided_by: decidedBy })
+      .eq('id', proposalId)
+      .eq('status', 'pending')
+      .select('id')
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+
+    if (!data) {
+      const { data: row } = await supabase
+        .from('pending_price_updates')
+        .select('status')
+        .eq('id', proposalId)
+        .maybeSingle();
+      return { status: 'already_decided', current: (row as { status: string } | null)?.status ?? 'unknown' };
+    }
+
+    return { status: 'rejected' };
+  } catch (err) {
+    return { status: 'error', error: err instanceof Error ? err.message : 'Unknown error' };
   }
 }

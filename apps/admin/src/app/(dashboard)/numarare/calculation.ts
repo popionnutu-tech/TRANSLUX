@@ -169,6 +169,11 @@ export function calculateSingleTariff(
  * ca să evităm zgomotul de virgulă mobilă — 6 × 1.2 trebuie să fie exact 7.20.
  * Folosit identic în UI (cycleTotal) și pe server (computeSuburbanSessionTotal)
  * ca suma afișată să coincidă cu cea salvată.
+ *
+ * ⚠ ACEEAȘI regulă există și în BD: funcția `recompute_suburban_session_total`
+ * (trigger pe counting_entries, migrarea 097). Dacă schimbi regula aici,
+ * SCHIMB-O ȘI ACOLO printr-o migrație nouă — altfel triggerul rescrie suma
+ * salvată cu formula veche la următoarea salvare de cursă suburbană.
  */
 export function suburbanFareRound(km: number, rate: number): number {
   const bani = Math.round(km * rate * 100);

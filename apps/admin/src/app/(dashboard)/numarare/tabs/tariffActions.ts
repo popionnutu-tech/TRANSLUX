@@ -3,7 +3,7 @@
 import { getSupabase } from '@/lib/supabase';
 import { verifySession } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
-import { executeAntaPriceUpdate, type PriceUpdateResult } from '@/lib/update-prices';
+import { executeAntaPriceUpdate, applyProposal, rejectProposal, type PriceUpdateResult } from '@/lib/update-prices';
 
 // ─── Типы ───
 
@@ -181,7 +181,7 @@ export async function updateShortDistanceThreshold(
 
 export interface TriggerPriceUpdateResult {
   success: boolean;
-  status: 'updated' | 'no_change' | 'error';
+  status: 'updated' | 'no_change' | 'proposed' | 'error';
   message: string;
   rates?: PriceUpdateResult['rates'];
   previousRates?: PriceUpdateResult['previousRates'];
@@ -203,11 +203,6 @@ export async function triggerPriceUpdate(): Promise<TriggerPriceUpdateResult> {
     return { success: false, status: 'error', message: result.error || 'Eroare necunoscuta' };
   }
 
-  revalidatePath('/');
-  revalidatePath('/ro');
-  revalidatePath('/ru');
-  revalidatePath(TARIFF_PATH);
-
   if (result.status === 'no_change') {
     return {
       success: true,
@@ -217,12 +212,104 @@ export async function triggerPriceUpdate(): Promise<TriggerPriceUpdateResult> {
     };
   }
 
+  // status === 'proposed' — propunere creată; se confirmă mai jos, în secțiunea Tarife.
   return {
     success: true,
-    status: 'updated',
-    message: `Tarifele au fost actualizate cu succes. ${result.rowsUpdated} preturi recalculate.`,
+    status: 'proposed',
+    message: 'Propunere nouă creată. Confirm-o mai jos pentru a aplica prețurile peste tot.',
     rates: result.rates,
     previousRates: result.previousRates,
-    rowsUpdated: result.rowsUpdated,
   };
+}
+
+// ─── Propuneri de tarif în așteptare (confirmare în panou) ───
+
+export interface PendingProposal {
+  id: string;
+  rateInterurbanLong: number;
+  rateInterurbanShort: number;
+  rateSuburban: number;
+  prevInterurbanLong: number | null;
+  prevInterurbanShort: number | null;
+  prevSuburban: number | null;
+  effectiveDate: string | null;
+  source: string;
+  createdAt: string;
+}
+
+export interface DecideProposalResult {
+  success: boolean;
+  message: string;
+}
+
+/** Cea mai recentă propunere 'pending' (sau null). */
+export async function getPendingProposal(): Promise<PendingProposal | null> {
+  const sb = getSupabase();
+  const { data } = await sb
+    .from('pending_price_updates')
+    .select(
+      'id, rate_interurban_long, rate_interurban_short, rate_suburban, prev_interurban_long, prev_interurban_short, prev_suburban, effective_date, source, created_at',
+    )
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!data) return null;
+  const r = data as Record<string, any>;
+  return {
+    id: r.id,
+    rateInterurbanLong: Number(r.rate_interurban_long),
+    rateInterurbanShort: Number(r.rate_interurban_short),
+    rateSuburban: Number(r.rate_suburban),
+    prevInterurbanLong: r.prev_interurban_long !== null ? Number(r.prev_interurban_long) : null,
+    prevInterurbanShort: r.prev_interurban_short !== null ? Number(r.prev_interurban_short) : null,
+    prevSuburban: r.prev_suburban !== null ? Number(r.prev_suburban) : null,
+    effectiveDate: r.effective_date ?? null,
+    source: r.source,
+    createdAt: r.created_at,
+  };
+}
+
+export async function confirmTariffProposal(id: string): Promise<DecideProposalResult> {
+  const session = await verifySession();
+  if (!session || !hasAdminCamereAccess(session.role)) {
+    return { success: false, message: 'Acces interzis' };
+  }
+
+  const res = await applyProposal(id, null);
+
+  if (res.status === 'updated') {
+    revalidatePath('/');
+    revalidatePath(TARIFF_PATH);
+    return {
+      success: true,
+      message: `Tarife aplicate peste tot. ${res.result?.rowsUpdated ?? 0} preturi recalculate.`,
+    };
+  }
+  if (res.status === 'expired') {
+    return { success: false, message: 'Propunere expirata (mai veche de 24h). Reia verificarea tarifelor.' };
+  }
+  if (res.status === 'already_decided') {
+    return { success: false, message: 'Propunere deja procesata.' };
+  }
+  return { success: false, message: res.error || 'Eroare la aplicare' };
+}
+
+export async function rejectTariffProposal(id: string): Promise<DecideProposalResult> {
+  const session = await verifySession();
+  if (!session || !hasAdminCamereAccess(session.role)) {
+    return { success: false, message: 'Acces interzis' };
+  }
+
+  const res = await rejectProposal(id, null);
+
+  if (res.status === 'rejected') {
+    revalidatePath(TARIFF_PATH);
+    return { success: true, message: 'Propunere respinsa. Preturile raman neschimbate.' };
+  }
+  if (res.status === 'already_decided') {
+    return { success: false, message: 'Propunere deja procesata.' };
+  }
+  return { success: false, message: res.error || 'Eroare la respingere' };
 }

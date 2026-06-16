@@ -1,0 +1,28 @@
+name: bot-watchdog
+
+# External watchdog: pings the admin watchdog endpoint every ~5 min.
+# The endpoint checks the bot's heartbeat (bot_storage `bot:heartbeat`, written
+# by the bot every 60s) and, if it's stale, alerts admins on Telegram.
+# Runs on GitHub infra so it works even when the bot / Railway is down.
+# (Vercel Hobby can't run sub-daily crons, so we schedule it here.)
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping TRANSLUX bot watchdog
+        run: |
+          code=$(curl -s -m 30 -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://central-hub-md.vercel.app/api/cron/bot-watchdog)
+          echo "watchdog responded: HTTP $code"
+          # Endpoint returns 200 in all normal cases (it alerts internally on a
+          # stale heartbeat). A non-2xx means the endpoint itself is unreachable.
+          if [ "$code" -lt 200 ] || [ "$code" -ge 400 ]; then
+            echo "::warning::watchdog endpoint returned HTTP $code"
+          fi

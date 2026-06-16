@@ -16,6 +16,7 @@ import {
   type DateEntry,
 } from './actions';
 import UnifiedGraficList from './UnifiedGraficList';
+import { useToast } from '@/components/Toast';
 import type { AdminRole } from '@translux/db';
 
 function todayChisinau(): string {
@@ -67,6 +68,7 @@ export default function GraficClient({
   const [copying, setCopying] = useState(false);
   const [error, setError] = useState('');
   const tableRef = useRef<HTMLDivElement>(null);
+  const toast = useToast();
 
   const [popDriverId, setPopDriverId] = useState('');
   const [popVehicleId, setPopVehicleId] = useState('');
@@ -125,6 +127,7 @@ export default function GraficClient({
 
     setSaving(false);
     setPopup(null);
+    toast.show('Salvat ✓');
     loadData();
     refreshDates();
   }
@@ -136,6 +139,7 @@ export default function GraficClient({
     setSaving(false);
     if (res.error) { setError(res.error); return; }
     setPopup(null);
+    toast.show('Șters ✓');
     loadData();
     refreshDates();
   }
@@ -153,6 +157,7 @@ export default function GraficClient({
     setSaving(false);
     if (res.error) { setError(res.error); return; }
     setReturPopup(null);
+    toast.show('Salvat ✓');
     loadData();
     refreshDates();
   }

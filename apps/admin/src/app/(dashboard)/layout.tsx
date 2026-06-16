@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
+import { ToastProvider } from '@/components/Toast';
 import { verifySession } from '@/lib/auth';
 import { checkRoleIpAccess } from '@/lib/ip-access';
 
@@ -21,7 +22,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         position: 'relative',
         zIndex: 1,
       }}>
-        {children}
+        <ToastProvider>{children}</ToastProvider>
       </main>
     </div>
   );

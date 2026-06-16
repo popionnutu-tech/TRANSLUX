@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { TableSkeleton } from '@/components/Skeleton';
 import {
   getRoutesForDate,
   getRoutesForPeriod,
@@ -413,7 +414,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
           )}
         </>
       ) : loading ? (
-        <p className="text-muted">Se încarcă...</p>
+        <TableSkeleton rows={8} cols={5} />
       ) : isPeriod ? (
         <>
         {(() => { const filteredPeriodRoutes = periodRoutes.filter(r => r.route_type === routeTypeFilter); const isSuburban = routeTypeFilter === 'suburban'; return (<>

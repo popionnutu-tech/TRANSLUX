@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { TableSkeleton } from '@/components/Skeleton';
 import {
   getGraficData,
   getGraficSuburban,
@@ -218,7 +219,7 @@ export default function UnifiedGraficList({
   }, [neprocesate, onInvalidCountChange]);
 
   if (loading) {
-    return <p className="text-muted" style={{ padding: 20 }}>Se încarcă…</p>;
+    return <TableSkeleton rows={8} cols={5} />;
   }
 
   // Separator între interurban și suburban

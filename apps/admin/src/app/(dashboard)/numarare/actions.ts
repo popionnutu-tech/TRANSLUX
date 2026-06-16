@@ -165,47 +165,60 @@ export async function getRoutesForDate(date: string): Promise<{ data?: RouteForC
 
   const sb = getSupabase();
 
-  // 1. Toate rutele active
-  const { data: allRoutes, error: rErr } = await sb
-    .from('crm_routes')
-    .select('id, dest_to_ro, dest_from_ro, time_chisinau, time_nord, route_type')
-    .eq('active', true);
+  // isoDay pentru filtrarea suburbanelor pe ziua curentă (depinde doar de `date`).
+  const jsDay = new Date(date).getDay();
+  const isoDay = jsDay === 0 ? 7 : jsDay;
 
+  // Cele 4 citiri sunt independente (depind doar de `date`/`isoDay`) → în PARALEL.
+  // Comportament identic cu varianta secvențială: aceleași interogări, aceleași hărți.
+  const [routesRes, assignmentsRes, sessionsRes, schedulesRes] = await Promise.all([
+    // 1. Toate rutele active
+    sb.from('crm_routes')
+      .select('id, dest_to_ro, dest_from_ro, time_chisinau, time_nord, route_type')
+      .eq('active', true),
+    // 2. Assignments pe dată (cu join pe drivers, vehicles)
+    sb.from('daily_assignments')
+      .select(`
+        crm_route_id,
+        retur_route_id,
+        driver_id,
+        vehicle_id,
+        drivers(id, full_name),
+        vehicles!daily_assignments_vehicle_id_fkey(id, plate_number)
+      `)
+      .eq('assignment_date', date),
+    // 3. Sesiuni de numărare pe dată (cu driver/vehicle din sesiune)
+    sb.from('counting_sessions')
+      .select(`
+        crm_route_id, id, status, operator_id, locked_by, locked_at,
+        double_tariff, tur_total_lei, retur_total_lei, tur_single_lei, retur_single_lei,
+        audit_status, audit_tur_total_lei, audit_retur_total_lei, audit_tur_single_lei, audit_retur_single_lei,
+        audit_locked_by, completed_at,
+        driver_id, vehicle_id,
+        session_driver:drivers!counting_sessions_driver_id_fkey(id, full_name),
+        session_vehicle:vehicles!counting_sessions_vehicle_id_fkey(id, plate_number),
+        locker:admin_accounts!counting_sessions_locked_by_fkey(email),
+        operator:admin_accounts!counting_sessions_operator_id_fkey(email),
+        audit_locker:admin_accounts!counting_sessions_audit_locked_by_fkey(email)
+      `)
+      .eq('assignment_date', date),
+    // 3b. Suburban: rute cu cel puțin un schedule pentru ziua curentă
+    sb.from('crm_route_schedules')
+      .select('route_id')
+      .eq('active', true)
+      .contains('days_of_week', [isoDay]),
+  ]);
+
+  const { data: allRoutes, error: rErr } = routesRes;
   if (rErr) return { error: rErr.message };
   if (!allRoutes || allRoutes.length === 0) return { data: [] };
 
-  // 2. Assignments pe dată (cu join pe drivers, vehicles)
-  const { data: assignments } = await sb
-    .from('daily_assignments')
-    .select(`
-      crm_route_id,
-      retur_route_id,
-      driver_id,
-      vehicle_id,
-      drivers(id, full_name),
-      vehicles!daily_assignments_vehicle_id_fkey(id, plate_number)
-    `)
-    .eq('assignment_date', date);
+  const assignments = assignmentsRes.data;
+  const sessions = sessionsRes.data;
+  const schedulesToday = schedulesRes.data;
 
   const assignMap = new Map<number, any>();
   for (const a of assignments || []) assignMap.set(a.crm_route_id, a);
-
-  // 3. Sesiuni de numărare pe dată (cu driver/vehicle din sesiune)
-  const { data: sessions } = await sb
-    .from('counting_sessions')
-    .select(`
-      crm_route_id, id, status, operator_id, locked_by, locked_at,
-      double_tariff, tur_total_lei, retur_total_lei, tur_single_lei, retur_single_lei,
-      audit_status, audit_tur_total_lei, audit_retur_total_lei, audit_tur_single_lei, audit_retur_single_lei,
-      audit_locked_by, completed_at,
-      driver_id, vehicle_id,
-      session_driver:drivers!counting_sessions_driver_id_fkey(id, full_name),
-      session_vehicle:vehicles!counting_sessions_vehicle_id_fkey(id, plate_number),
-      locker:admin_accounts!counting_sessions_locked_by_fkey(email),
-      operator:admin_accounts!counting_sessions_operator_id_fkey(email),
-      audit_locker:admin_accounts!counting_sessions_audit_locked_by_fkey(email)
-    `)
-    .eq('assignment_date', date);
 
   const sessionMap = new Map<number, any>();
   for (const s of sessions || []) sessionMap.set(s.crm_route_id, s);
@@ -214,14 +227,6 @@ export async function getRoutesForDate(date: string): Promise<{ data?: RouteForC
   const routeLookup = new Map<number, any>();
   for (const r of allRoutes) routeLookup.set(r.id, r);
 
-  // 3b. Pentru suburban: identificăm rutele care au cel puțin un schedule pentru ziua curentă
-  const jsDay = new Date(date).getDay();
-  const isoDay = jsDay === 0 ? 7 : jsDay;
-  const { data: schedulesToday } = await sb
-    .from('crm_route_schedules')
-    .select('route_id')
-    .eq('active', true)
-    .contains('days_of_week', [isoDay]);
   const suburbanActiveRouteIds = new Set((schedulesToday || []).map((s: any) => s.route_id));
 
   // 4. Construim lista — TOATE rutele active (suburbanele filtrate pe zi)

@@ -20,7 +20,7 @@ import {
   updateAssignmentDriverVehicle,
 } from '../services/db.js';
 import { addViolation } from '../services/dailyDigest.js';
-import { updateLoadingBoard } from '../services/loadingBoard.js';
+import { updateLoadingBoard, updateLoadingBoardBalti } from '../services/loadingBoard.js';
 import { getTodayDate, formatTime, formatDate, haversineDistance, minutesLate } from '../utils.js';
 import { config } from '../config.js';
 import { showMainMenu } from '../handlers/start.js';
@@ -656,12 +656,18 @@ export async function reportConversation(
         }
       }
 
-      // Live loading board for admins (Chișinău only) — single editable message
+      // Live loading board for admins — single editable message per point
       if (point === 'CHISINAU') {
         try {
           await conversation.external(() => updateLoadingBoard());
         } catch (e) {
           console.error('Loading board update error:', e);
+        }
+      } else if (point === 'BALTI') {
+        try {
+          await conversation.external(() => updateLoadingBoardBalti());
+        } catch (e) {
+          console.error('Bălți loading board update error:', e);
         }
       }
 

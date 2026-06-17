@@ -1,13 +1,27 @@
 import { getSupabase } from '../supabase.js';
 import { getBotApi, getAdminChatIds } from './adminAlert.js';
 import { getTodayDate, formatTime } from '../utils.js';
-import { POINT_DIRECTION_MAP } from '@translux/db';
+import { POINT_DIRECTION_MAP, type PointEnum } from '@translux/db';
 
-// Live "loading board" for Chișinău: a single editable Telegram message per day,
+// Live "loading board": a single editable Telegram message per day per point,
 // pushed to admin chats. Grows one row per reported cursă (sorted by departure
 // time) and compares each cursă with the same cursă exactly 7 days earlier.
+// Two boards: Chișinău (departures from Chișinău) and Bălți (buses arriving from
+// the north, en route to Chișinău — each row also shows the northern origin town
+// and its north departure time, stored on trips.nord_town / trips.nord_departure).
 
 const BUCKET = 'report-photos';
+
+// Title + storage folder per point. Chișinău keeps its original folder so today's
+// in-flight message stays editable across this change.
+const BOARD_TITLE: Record<PointEnum, string> = {
+  CHISINAU: '🚌 Chișinău',
+  BALTI: '🚌 Bălți → Chișinău',
+};
+const STATE_DIR: Record<PointEnum, string> = {
+  CHISINAU: 'loading-board',
+  BALTI: 'loading-board-balti',
+};
 
 const WEEKDAYS_RO = [
   'duminică', 'luni', 'marți', 'miercuri', 'joi', 'vineri', 'sâmbătă',
@@ -20,9 +34,11 @@ interface BoardState {
 
 interface Row {
   tripId: string;
-  time: string;        // HH:MM
+  time: string;        // HH:MM (departure from this point)
   status: string;      // 'OK' | 'ABSENT'
   pax: number | null;  // raw passengers_count
+  nordTown: string | null;  // northern origin town (Bălți board only)
+  nordDep: string | null;   // north departure time "HH:MM" (Bălți board only)
 }
 
 function ddmm(date: string): string {
@@ -55,12 +71,12 @@ function delta(today: number, last: number): string {
   return '= 0';
 }
 
-async function loadReports(date: string): Promise<Row[]> {
+async function loadReports(date: string, point: PointEnum): Promise<Row[]> {
   const { data } = await getSupabase()
     .from('reports')
-    .select('trip_id, passengers_count, status, trips!inner(departure_time)')
+    .select('trip_id, passengers_count, status, trips!inner(departure_time, nord_town, nord_departure)')
     .eq('report_date', date)
-    .eq('point', 'CHISINAU')
+    .eq('point', point)
     .is('cancelled_at', null);
 
   const rows: Row[] = (data || []).map((r: any) => ({
@@ -68,33 +84,35 @@ async function loadReports(date: string): Promise<Row[]> {
     time: formatTime(r.trips.departure_time),
     status: r.status,
     pax: r.passengers_count,
+    nordTown: r.trips.nord_town ?? null,
+    nordDep: r.trips.nord_departure ?? null,
   }));
   rows.sort((a, b) => a.time.localeCompare(b.time));
   return rows;
 }
 
 /**
- * Count of scheduled (active) curse departing from Chișinău — the "programate" denominator.
- * The board covers the single interurban route Chișinău–Nord, which runs the SAME timetable
- * every weekday (confirmed by owner 2026-06-08). `trips` has no day-of-week field, and the app
- * only weekday-filters suburban routes (via crm_route_schedules), never interurban — so a flat
- * active-trip count is the correct daily denominator here.
+ * Count of scheduled (active) curse departing from this point — the "programate" denominator.
+ * Interurban routes run the SAME timetable every weekday (confirmed by owner 2026-06-08).
+ * `trips` has no day-of-week field, and the app only weekday-filters suburban routes
+ * (via crm_route_schedules), never interurban — so a flat active-trip count is correct.
  */
-async function loadScheduledCount(): Promise<number> {
+async function loadScheduledCount(point: PointEnum): Promise<number> {
   const { count } = await getSupabase()
     .from('trips')
     .select('*', { count: 'exact', head: true })
-    .eq('direction', POINT_DIRECTION_MAP['CHISINAU'])
+    .eq('direction', POINT_DIRECTION_MAP[point])
     .eq('active', true);
   return count ?? 0;
 }
 
-function buildText(date: string, today: Row[], lastWeek: Row[], scheduledCount: number): string {
+function buildText(date: string, today: Row[], lastWeek: Row[], scheduledCount: number, point: PointEnum): string {
+  const showNord = point === 'BALTI';
   const lastMap = new Map<string, number | null>();
   for (const r of lastWeek) lastMap.set(r.tripId, paxValue(r));
 
   const header =
-    `🚌 Chișinău — ${weekdayRo(date)} ${ddmm(date)}\n` +
+    `${BOARD_TITLE[point]} — ${weekdayRo(date)} ${ddmm(date)}\n` +
     `vs aceeași zi acum o săptămână (${ddmm(minus7(date))})`;
 
   const lines: string[] = [];
@@ -103,20 +121,25 @@ function buildText(date: string, today: Row[], lastWeek: Row[], scheduledCount: 
   let hasLastTotal = false;
 
   for (const r of today) {
+    // Bălți rows are prefixed with the northern origin (town + north departure).
+    const label = showNord && r.nordTown
+      ? `${r.time} · ${r.nordTown}${r.nordDep ? ` (plecat ${r.nordDep})` : ''}`
+      : r.time;
+
     const tv = paxValue(r);
     if (tv === null) {
-      lines.push(`${r.time} — ${r.status === 'ABSENT' ? 'absent' : 'full'}`);
+      lines.push(`${label} — ${r.status === 'ABSENT' ? 'absent' : 'full'}`);
       continue;
     }
     totalToday += tv;
 
     const m = lastMap.get(r.tripId);
     if (m == null) {
-      lines.push(`${r.time} — ${tv} pas.  (era —)`);
+      lines.push(`${label} — ${tv} pas.  (era —)`);
     } else {
       totalLast += m;
       hasLastTotal = true;
-      lines.push(`${r.time} — ${tv} pas.  ${delta(tv, m)}  (era ${m})`);
+      lines.push(`${label} — ${tv} pas.  ${delta(tv, m)}  (era ${m})`);
     }
   }
 
@@ -143,11 +166,11 @@ function buildText(date: string, today: Row[], lastWeek: Row[], scheduledCount: 
   return `${header}\n\n${lines.join('\n')}\n\n${totalLine}\n${summaryLines.join('\n')}`;
 }
 
-async function loadState(date: string): Promise<BoardState> {
+async function loadState(date: string, point: PointEnum): Promise<BoardState> {
   try {
     const { data, error } = await getSupabase().storage
       .from(BUCKET)
-      .download(`loading-board/${date}.json`);
+      .download(`${STATE_DIR[point]}/${date}.json`);
     if (error || !data) return { date, messages: {} };
     return JSON.parse(await data.text()) as BoardState;
   } catch {
@@ -155,8 +178,8 @@ async function loadState(date: string): Promise<BoardState> {
   }
 }
 
-async function saveState(state: BoardState): Promise<void> {
-  const path = `loading-board/${state.date}.json`;
+async function saveState(state: BoardState, point: PointEnum): Promise<void> {
+  const path = `${STATE_DIR[point]}/${state.date}.json`;
   const json = JSON.stringify(state);
 
   const { error } = await getSupabase().storage
@@ -173,11 +196,11 @@ async function saveState(state: BoardState): Promise<void> {
 }
 
 /**
- * Rebuild the Chișinău loading board from the database and push it to every
+ * Rebuild the loading board for one point from the database and push it to every
  * admin chat (send once, then edit the same message on every later update).
- * Call after each Chișinău report is saved. Safe to call repeatedly.
+ * Call after each report for that point is saved. Safe to call repeatedly.
  */
-export async function updateLoadingBoard(): Promise<void> {
+async function updateBoard(point: PointEnum): Promise<void> {
   const api = getBotApi();
   if (!api) return;
 
@@ -186,15 +209,15 @@ export async function updateLoadingBoard(): Promise<void> {
 
   const date = getTodayDate();
   const [todayRows, lastWeekRows, scheduledCount] = await Promise.all([
-    loadReports(date),
-    loadReports(minus7(date)),
-    loadScheduledCount(),
+    loadReports(date, point),
+    loadReports(minus7(date), point),
+    loadScheduledCount(point),
   ]);
   if (todayRows.length === 0) return;
 
-  const text = buildText(date, todayRows, lastWeekRows, scheduledCount);
+  const text = buildText(date, todayRows, lastWeekRows, scheduledCount, point);
 
-  const state = await loadState(date);
+  const state = await loadState(date, point);
   let changed = false;
 
   for (const chatId of adminChatIds) {
@@ -235,5 +258,15 @@ export async function updateLoadingBoard(): Promise<void> {
     }
   }
 
-  if (changed) await saveState(state);
+  if (changed) await saveState(state, point);
+}
+
+/** Chișinău loading board — call after each Chișinău report is saved. */
+export async function updateLoadingBoard(): Promise<void> {
+  return updateBoard('CHISINAU');
+}
+
+/** Bălți loading board (buses from the north → Chișinău) — call after each Bălți report. */
+export async function updateLoadingBoardBalti(): Promise<void> {
+  return updateBoard('BALTI');
 }

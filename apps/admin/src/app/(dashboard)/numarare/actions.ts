@@ -860,7 +860,11 @@ export async function saveDirection(
   updateFields.locked_by = null;
   updateFields.locked_at = null;
 
-  await sb.from('counting_sessions').update(updateFields).eq('id', sessionId);
+  // Важно: проверяем ошибку UPDATE. Раньше она проглатывалась — если статус
+  // 'retur_done' не проходил CHECK (retur сохранён первым), сумма ретура молча
+  // терялась, а оператор видел «сохранено». (Аудит-путь уже проверяет updErr.)
+  const { error: updErr } = await sb.from('counting_sessions').update(updateFields).eq('id', sessionId);
+  if (updErr) return { error: updErr.message };
 
   revalidatePath('/numarare');
   return {};

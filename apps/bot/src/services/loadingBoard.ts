@@ -71,14 +71,6 @@ function delta(today: number, last: number): string {
   return '= 0';
 }
 
-/** Tight delta for the Bălți board so each row fits one phone line: "▲3" / "▼4" / "=". */
-function deltaCompact(today: number, last: number): string {
-  const d = today - last;
-  if (d > 0) return `▲${d}`;
-  if (d < 0) return `▼${Math.abs(d)}`;
-  return '=';
-}
-
 async function loadReports(date: string, point: PointEnum): Promise<Row[]> {
   const { data } = await getSupabase()
     .from('reports')
@@ -129,28 +121,42 @@ function buildText(date: string, today: Row[], lastWeek: Row[], scheduledCount: 
   let hasLastTotal = false;
 
   for (const r of today) {
-    // Bălți: compact one-line rows "HH:MM Town·HH:MM — Np ▲N" (no "plecat"/"pas."/"(era …)"
-    // so each cursă fits a single phone line). Chișinău stays exactly as before.
-    const label = showNord && r.nordTown
-      ? `${r.time} ${r.nordTown}${r.nordDep ? `·${r.nordDep}` : ''}`
-      : r.time;
-
     const tv = paxValue(r);
+
+    if (showNord) {
+      // Bălți: minimal "northDep → BălțiDep · now (lastWeek)" — north time first,
+      // Bălți time second, passengers now, count a week ago in parens. No town.
+      const journey = r.nordDep ? `${r.nordDep} → ${r.time}` : r.time;
+      if (tv === null) {
+        lines.push(`${journey} · ${r.status === 'ABSENT' ? 'absent' : 'full'}`);
+        continue;
+      }
+      totalToday += tv;
+      const m = lastMap.get(r.tripId);
+      if (m == null) {
+        lines.push(`${journey} · ${tv}`);
+      } else {
+        totalLast += m;
+        hasLastTotal = true;
+        lines.push(`${journey} · ${tv} (${m})`);
+      }
+      continue;
+    }
+
+    // Chișinău: unchanged.
+    const label = r.time;
     if (tv === null) {
       lines.push(`${label} — ${r.status === 'ABSENT' ? 'absent' : 'full'}`);
       continue;
     }
     totalToday += tv;
-
     const m = lastMap.get(r.tripId);
     if (m == null) {
-      lines.push(showNord ? `${label} — ${tv}p` : `${label} — ${tv} pas.  (era —)`);
+      lines.push(`${label} — ${tv} pas.  (era —)`);
     } else {
       totalLast += m;
       hasLastTotal = true;
-      lines.push(showNord
-        ? `${label} — ${tv}p ${deltaCompact(tv, m)}`
-        : `${label} — ${tv} pas.  ${delta(tv, m)}  (era ${m})`);
+      lines.push(`${label} — ${tv} pas.  ${delta(tv, m)}  (era ${m})`);
     }
   }
 

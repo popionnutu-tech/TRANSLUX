@@ -71,6 +71,14 @@ function delta(today: number, last: number): string {
   return '= 0';
 }
 
+/** Tight delta for the Bălți board so each row fits one phone line: "▲3" / "▼4" / "=". */
+function deltaCompact(today: number, last: number): string {
+  const d = today - last;
+  if (d > 0) return `▲${d}`;
+  if (d < 0) return `▼${Math.abs(d)}`;
+  return '=';
+}
+
 async function loadReports(date: string, point: PointEnum): Promise<Row[]> {
   const { data } = await getSupabase()
     .from('reports')
@@ -121,9 +129,10 @@ function buildText(date: string, today: Row[], lastWeek: Row[], scheduledCount: 
   let hasLastTotal = false;
 
   for (const r of today) {
-    // Bălți rows are prefixed with the northern origin (town + north departure).
+    // Bălți: compact one-line rows "HH:MM Town·HH:MM — Np ▲N" (no "plecat"/"pas."/"(era …)"
+    // so each cursă fits a single phone line). Chișinău stays exactly as before.
     const label = showNord && r.nordTown
-      ? `${r.time} · ${r.nordTown}${r.nordDep ? ` (plecat ${r.nordDep})` : ''}`
+      ? `${r.time} ${r.nordTown}${r.nordDep ? `·${r.nordDep}` : ''}`
       : r.time;
 
     const tv = paxValue(r);
@@ -135,11 +144,13 @@ function buildText(date: string, today: Row[], lastWeek: Row[], scheduledCount: 
 
     const m = lastMap.get(r.tripId);
     if (m == null) {
-      lines.push(`${label} — ${tv} pas.  (era —)`);
+      lines.push(showNord ? `${label} — ${tv}p` : `${label} — ${tv} pas.  (era —)`);
     } else {
       totalLast += m;
       hasLastTotal = true;
-      lines.push(`${label} — ${tv} pas.  ${delta(tv, m)}  (era ${m})`);
+      lines.push(showNord
+        ? `${label} — ${tv}p ${deltaCompact(tv, m)}`
+        : `${label} — ${tv} pas.  ${delta(tv, m)}  (era ${m})`);
     }
   }
 

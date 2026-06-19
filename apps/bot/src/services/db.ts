@@ -6,6 +6,7 @@ import type {
   Driver,
   Trip,
   Report,
+  TaxiZoneReport,
   PointEnum,
   DirectionEnum,
 } from '@translux/db';
@@ -279,6 +280,7 @@ export async function createReport(report: {
   vehicle_id: string | null;
   created_by_user: string;
   location_ok: boolean | null;
+  taxi_zone_skipped?: boolean;
 }): Promise<Report> {
   // DB enum only has OK/ABSENT — store FULL as OK with passengers_count=-1
   const dbRecord = report.status === 'FULL'
@@ -325,6 +327,74 @@ export async function cancelReport(reportId: string, cancelledBy: string): Promi
 
 export function getDirectionForPoint(point: PointEnum): DirectionEnum {
   return POINT_DIRECTION_MAP[point];
+}
+
+// ── Taxi-zone reports (Chișinău loading-zone operator) ──
+
+export async function createTaxiZoneReport(r: {
+  report_date: string;
+  trip_id: string;
+  status: 'OK' | 'ABSENT';
+  passengers_count: number | null;
+  location_ok: boolean | null;
+  created_by_user: string;
+}): Promise<void> {
+  const { error } = await db().from('taxi_zone_reports').insert(r);
+  if (error) throw error;
+}
+
+/** The active taxi-zone report for a trip (date), if any. */
+export async function getTaxiZoneReportForTrip(
+  reportDate: string,
+  tripId: string
+): Promise<TaxiZoneReport | null> {
+  const { data } = await db()
+    .from('taxi_zone_reports')
+    .select('*')
+    .eq('report_date', reportDate)
+    .eq('trip_id', tripId)
+    .is('cancelled_at', null)
+    .maybeSingle();
+  return (data as TaxiZoneReport | null) ?? null;
+}
+
+/** Trip IDs that already have an active taxi-zone report today. */
+export async function getTaxiZoneReportedTripIds(reportDate: string): Promise<Set<string>> {
+  const { data } = await db()
+    .from('taxi_zone_reports')
+    .select('trip_id')
+    .eq('report_date', reportDate)
+    .is('cancelled_at', null);
+  return new Set((data || []).map((r: any) => r.trip_id));
+}
+
+/** Is there at least one active TAXI_ZONE operator? Used to gate the main flow only when staffed. */
+export async function hasActiveTaxiOperator(): Promise<boolean> {
+  const { count } = await db()
+    .from('users')
+    .select('id', { count: 'exact', head: true })
+    .eq('operator_kind', 'TAXI_ZONE')
+    .eq('active', true);
+  return (count ?? 0) > 0;
+}
+
+export async function getLastTaxiZoneReportByUser(userId: string): Promise<TaxiZoneReport | null> {
+  const { data } = await db()
+    .from('taxi_zone_reports')
+    .select('*')
+    .eq('created_by_user', userId)
+    .is('cancelled_at', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return (data as TaxiZoneReport | null) ?? null;
+}
+
+export async function cancelTaxiZoneReport(id: string, cancelledBy: string): Promise<void> {
+  await db()
+    .from('taxi_zone_reports')
+    .update({ cancelled_at: new Date().toISOString(), cancelled_by: cancelledBy })
+    .eq('id', id);
 }
 
 // ── Weekly report data ────────────────────────────────

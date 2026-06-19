@@ -11,6 +11,7 @@ import { handleCancelLastReport } from './handlers/cancel.js';
 import { handleWeeklyReport, handleDigest } from './handlers/admin.js';
 import { reportConversation } from './conversations/report.js';
 import { addDriverConversation } from './conversations/addDriver.js';
+import { taxiZoneReportConversation } from './conversations/taxiZoneReport.js';
 import { initAdminAlert } from './services/adminAlert.js';
 import { handleDaily, handleSmmWeekly, handleSmmMonth } from './handlers/smm.js';
 
@@ -58,6 +59,7 @@ export function createBot(): Bot<BotContext> {
 
   bot.use(createConversation(reportConversation, 'report'));
   bot.use(createConversation(addDriverConversation, 'addDriver'));
+  bot.use(createConversation(taxiZoneReportConversation, 'taxiZoneReport'));
 
   // /start command
   bot.command('start', handleStart);
@@ -76,12 +78,16 @@ export function createBot(): Bot<BotContext> {
       await ctx.reply('Acces restricționat. Solicită un link de invitație de la Administrator.');
       return;
     }
-    await ctx.conversation.enter('report');
+    if (ctx.dbUser.operator_kind === 'TAXI_ZONE') {
+      await ctx.conversation.enter('taxiZoneReport');
+    } else {
+      await ctx.conversation.enter('report');
+    }
   });
 
   bot.callbackQuery('menu:add_driver', async (ctx) => {
     await ctx.answerCallbackQuery();
-    if (!ctx.dbUser || ctx.dbUser.point !== 'CHISINAU') {
+    if (!ctx.dbUser || ctx.dbUser.point !== 'CHISINAU' || ctx.dbUser.operator_kind === 'TAXI_ZONE') {
       await ctx.reply('Această funcție este disponibilă doar pentru operatorii din Chișinău.');
       return;
     }

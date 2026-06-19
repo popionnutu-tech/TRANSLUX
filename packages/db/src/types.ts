@@ -4,6 +4,9 @@
 
 export type UserRole = 'ADMIN' | 'CONTROLLER';
 export type PointEnum = 'CHISINAU' | 'BALTI';
+// Kind of bot operator. MAIN = perron operator (full report). TAXI_ZONE = Chișinău
+// loading-zone operator who only enters the passenger count he brought (+geo).
+export type OperatorKind = 'MAIN' | 'TAXI_ZONE';
 export type DirectionEnum = 'CHISINAU_BALTI' | 'BALTI_CHISINAU';
 export type ReportStatus = 'OK' | 'ABSENT' | 'FULL';
 
@@ -52,6 +55,7 @@ export interface User {
   username: string | null;
   role: UserRole;
   point: PointEnum | null;
+  operator_kind: OperatorKind;
   active: boolean;
   created_at: string;
 }
@@ -115,6 +119,21 @@ export interface Report {
   reclama_deadline: string | null;
   location_ok: boolean | null;
   vehicle_id: string | null;
+  created_by_user: string;
+  created_at: string;
+  cancelled_at: string | null;
+  cancelled_by: string | null;
+}
+
+// Taxi-zone loading report (Chișinău): the count the taxi-zone operator brought
+// for a trip. Lives separately from `reports`; the main report is unaffected.
+export interface TaxiZoneReport {
+  id: string;
+  report_date: string; // YYYY-MM-DD
+  trip_id: string;
+  status: 'OK' | 'ABSENT';
+  passengers_count: number | null; // null when status = 'ABSENT'
+  location_ok: boolean | null;
   created_by_user: string;
   created_at: string;
   cancelled_at: string | null;

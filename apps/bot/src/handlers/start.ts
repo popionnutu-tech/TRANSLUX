@@ -45,11 +45,12 @@ export async function handleStart(ctx: BotContext) {
 }
 
 export async function showMainMenu(ctx: BotContext) {
+  const isTaxi = ctx.dbUser?.operator_kind === 'TAXI_ZONE';
   const kb = new InlineKeyboard()
-    .text('📋 Raportează cursă', 'menu:report')
+    .text(isTaxi ? '🚕 Raportează zona taxi' : '📋 Raportează cursă', 'menu:report')
     .row();
 
-  if (ctx.dbUser?.point === 'CHISINAU') {
+  if (ctx.dbUser?.point === 'CHISINAU' && !isTaxi) {
     kb.text('➕ Adaugă șofer', 'menu:add_driver').row();
   }
 

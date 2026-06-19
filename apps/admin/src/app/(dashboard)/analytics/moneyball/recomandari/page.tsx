@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { getSupabase } from '@/lib/supabase';
-import { formatLei } from '@/lib/moneyball/format';
+import { formatLei, formatPct } from '@/lib/moneyball/format';
 import { QuarterSelect } from '@/components/moneyball/QuarterSelect';
 import { UsageBox } from '@/components/moneyball/UsageBox';
 import { AIRecommendation } from '@/components/moneyball/AIRecommendation';
@@ -40,6 +40,39 @@ type GroupRec = {
   n_overlap: number;
   status: 'optimal' | 'minor_rotation' | 'major_rotation' | 'insufficient_data';
   est_monthly_gain_lei: number | null;
+};
+
+type RouteRec = {
+  crm_route_id: number;
+  route_name: string;
+  base_driver_id: string;
+  base_driver_name: string;
+  base_score: number;
+  base_trips: number;
+  best_driver_id: string;
+  best_driver_name: string;
+  best_score: number;
+  best_trips: number;
+  est_monthly_gain_lei: number | null;
+  status: 'urgent_change' | 'try_change';
+};
+
+const ROUTE_STATUS_STYLE: Record<
+  RouteRec['status'],
+  { label: string; color: string; bg: string; border: string }
+> = {
+  urgent_change: {
+    label: 'Schimbare urgentă',
+    color: 'var(--danger)',
+    bg: 'var(--danger-dim)',
+    border: 'var(--danger)',
+  },
+  try_change: {
+    label: 'De încercat',
+    color: 'var(--warning)',
+    bg: 'var(--warning-dim)',
+    border: 'var(--warning)',
+  },
 };
 
 const STATUS_STYLE: Record<
@@ -121,6 +154,24 @@ export default async function RecomandariPage({
     .order('display_order');
 
   const rows: GroupRec[] = recs ?? [];
+
+  // Per-route рекомендации (индивидуальные замены водитель↔маршрут) из v_moneyball_recommendations.
+  const { data: routeRecsData } = await supabase
+    .from('v_moneyball_recommendations')
+    .select(
+      'crm_route_id, route_name, base_driver_id, base_driver_name, base_score, base_trips, best_driver_id, best_driver_name, best_score, best_trips, est_monthly_gain_lei, status'
+    )
+    .eq('quarter', currentQuarter)
+    .eq('base_is_best', false)
+    .in('status', ['urgent_change', 'try_change'])
+    .order('est_monthly_gain_lei', { ascending: false, nullsFirst: false });
+
+  const routeRecs: RouteRec[] = ((routeRecsData ?? []) as RouteRec[]).filter(
+    // скрыть артефакт дублей-тёзок (один человек под двумя id) — «заменить X на X»
+    (r) => r.base_driver_name !== r.best_driver_name
+  );
+  const urgentRoutes = routeRecs.filter((r) => r.status === 'urgent_change');
+  const tryRoutes = routeRecs.filter((r) => r.status === 'try_change');
 
   const major = rows.filter((r) => r.status === 'major_rotation');
   const minor = rows.filter((r) => r.status === 'minor_rotation');
@@ -204,6 +255,40 @@ export default async function RecomandariPage({
         mode="overall"
         label="Analiză strategică Claude — ce echipe să schimbi săptămâna aceasta"
       />
+
+      {(urgentRoutes.length > 0 || tryRoutes.length > 0) && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+            <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>
+              Schimbări individuale pe rută
+            </h2>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+              Un șofer concret pe o rută concretă unde altul vinde vizibil mai bine. Scor ajustat
+              (credibilitate) — corectat pentru numărul de curse, nu medie brută.
+            </div>
+          </div>
+
+          {urgentRoutes.length > 0 && (
+            <RouteRecSection
+              title="Urgent de schimbat"
+              subtitle="șofer experimentat sub normă, există alternativă clar mai bună"
+              tone="danger"
+              recs={urgentRoutes}
+              quarter={currentQuarter}
+            />
+          )}
+
+          {tryRoutes.length > 0 && (
+            <RouteRecSection
+              title="De încercat"
+              subtitle="merită testată o rotație"
+              tone="warning"
+              recs={tryRoutes}
+              quarter={currentQuarter}
+            />
+          )}
+        </div>
+      )}
 
       {major.length > 0 && (
         <Section title="Rotații majore" subtitle="schimbare urgentă — impact mare" tone="danger">
@@ -443,6 +528,208 @@ function GroupCard({ r }: { r: GroupRec }) {
           acumulează mai multe date.
         </div>
       )}
+    </div>
+  );
+}
+
+function RouteRecSection({
+  title,
+  subtitle,
+  tone,
+  recs,
+  quarter,
+}: {
+  title: string;
+  subtitle: string;
+  tone: 'danger' | 'warning';
+  recs: RouteRec[];
+  quarter: string;
+}) {
+  const toneColor = tone === 'danger' ? 'var(--danger)' : 'var(--warning)';
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+        <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: toneColor }}>{title}</h3>
+        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{subtitle}</span>
+      </div>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+          gap: 12,
+        }}
+      >
+        {recs.map((r) => (
+          <RouteRecCard key={`${r.crm_route_id}-${r.base_driver_id}`} r={r} quarter={quarter} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RouteRecCard({ r, quarter }: { r: RouteRec; quarter: string }) {
+  const style = ROUTE_STATUS_STYLE[r.status];
+  // «Mai bun» с малым числом рейсов = непроверенная альтернатива (шум малой выборки) → приглушаем сумму + оговорка.
+  const proven = r.best_trips >= 10;
+  return (
+    <div
+      className="card"
+      style={{
+        padding: 14,
+        borderTop: `3px solid ${style.border}`,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 8,
+          flexWrap: 'wrap',
+        }}
+      >
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '3px 10px',
+            background: style.bg,
+            color: style.color,
+            borderRadius: 'var(--radius-xs)',
+            fontSize: 11,
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.04em',
+          }}
+        >
+          <span>●</span>
+          <span>{style.label}</span>
+        </span>
+        {(r.est_monthly_gain_lei ?? 0) > 0 && (
+          <span
+            style={{
+              fontSize: 13,
+              fontWeight: proven ? 700 : 500,
+              color: proven ? style.color : 'var(--text-muted)',
+            }}
+          >
+            +{formatLei(r.est_monthly_gain_lei)} / lună{proven ? '' : ' (estimativ)'}
+          </span>
+        )}
+      </div>
+
+      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{r.route_name}</div>
+
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 6,
+          padding: '8px 12px',
+          background: 'var(--bg-elevated)',
+          borderRadius: 'var(--radius-xs)',
+        }}
+      >
+        <DriverLine
+          label="Acum"
+          driverId={r.base_driver_id}
+          name={r.base_driver_name}
+          score={r.base_score}
+          trips={r.base_trips}
+          quarter={quarter}
+        />
+        <div style={{ fontSize: 14, color: 'var(--primary)', textAlign: 'center', lineHeight: 1 }}>
+          ↓
+        </div>
+        <DriverLine
+          label="Mai bun"
+          driverId={r.best_driver_id}
+          name={r.best_driver_name}
+          score={r.best_score}
+          trips={r.best_trips}
+          quarter={quarter}
+          strong
+        />
+      </div>
+
+      {!proven && (
+        <div
+          style={{
+            fontSize: 11,
+            color: 'var(--warning)',
+            display: 'flex',
+            gap: 6,
+            alignItems: 'baseline',
+          }}
+        >
+          <span style={{ flexShrink: 0 }}>⚠</span>
+          <span>
+            Alternativa are doar {r.best_trips} curse — semnal încă neconfirmat. Verifică pe teren
+            înainte de schimbare.
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DriverLine({
+  label,
+  driverId,
+  name,
+  score,
+  trips,
+  quarter,
+  strong = false,
+}: {
+  label: string;
+  driverId: string;
+  name: string;
+  score: number;
+  trips: number;
+  quarter: string;
+  strong?: boolean;
+}) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flex: 1, overflow: 'hidden' }}>
+        <span
+          style={{
+            fontSize: 9,
+            color: 'var(--text-muted)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+            width: 42,
+            flexShrink: 0,
+          }}
+        >
+          {label}
+        </span>
+        <Link
+          href={`/analytics/moneyball/sofer/${driverId}?q=${quarter}`}
+          style={{
+            color: 'var(--text)',
+            textDecoration: 'none',
+            fontWeight: strong ? 700 : 600,
+            fontSize: 13,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {name}
+        </Link>
+      </div>
+      <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+        <span style={{ color: score >= 0 ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>
+          {formatPct(score)}
+        </span>{' '}
+        · {trips} curse
+      </span>
     </div>
   );
 }

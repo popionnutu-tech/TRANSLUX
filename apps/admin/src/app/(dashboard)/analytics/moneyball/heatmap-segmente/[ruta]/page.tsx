@@ -98,10 +98,10 @@ export default async function HeatmapSegmentePage({
       >
         <div>
           <Link
-            href={`/analytics/moneyball/heatmap-rute?q=${currentQuarter}`}
+            href={`/analytics/moneyball/recomandari?q=${currentQuarter}`}
             style={{ fontSize: 11, color: 'var(--text-muted)', textDecoration: 'none' }}
           >
-            ← Heatmap rute
+            ← Recomandări
           </Link>
           <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>
             {routeName}

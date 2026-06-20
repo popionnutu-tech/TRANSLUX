@@ -105,10 +105,10 @@ export default async function SoferPage({
       >
         <div>
           <Link
-            href="/analytics/moneyball/clasament"
+            href="/analytics/moneyball/vorp"
             style={{ fontSize: 11, color: 'var(--text-muted)', textDecoration: 'none' }}
           >
-            ← Clasament
+            ← Driver Value
           </Link>
           <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>
             {driver?.full_name ?? 'Șofer necunoscut'}

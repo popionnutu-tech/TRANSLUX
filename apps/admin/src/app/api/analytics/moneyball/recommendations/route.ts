@@ -51,7 +51,7 @@ export async function POST(req: Request) {
     const { data: groups } = await supabase
       .from('v_moneyball_group_recommendations')
       .select(
-        'group_id, label, group_type, shift, n_routes, required_total_drivers, status, n_overlap, est_monthly_gain_lei, current_drivers, recommended_drivers, routes'
+        'group_id, label, shift, n_routes, required_total_drivers, status, n_overlap, est_monthly_gain_lei, current_drivers, recommended_drivers, routes'
       )
       .eq('quarter', quarter)
       .in('status', ['major_rotation', 'minor_rotation'])
@@ -69,7 +69,7 @@ Analizezi alocarea șoferilor pe grupuri operaționale de rute.
 
 MODELUL DE ALOCARE:
 - Rutele sunt grupate operațional după orar și overlap stații (Briceni/Ocnița/Edineț)
-- Tipuri grupuri: day-trip (5 rute, 7 șoferi = 5 bază + 2 rezervă), pereche (2 rute, 3 șoferi), triplet (3 rute, 5 șoferi), singleton (1 rută, 2 șoferi)
+- Fiecare grup are propriul număr de rute (n_routes) și de șoferi necesari (required_total_drivers = bază + rezervă) — folosește MEREU aceste numere din date, nu o etichetă fixă de tip. Grupurile de noapte au ~1,5 șoferi/rută; day-trip are altă structură (mai mulți de rezervă)
 - Fiecare șofer face ~20 zile/lună
 - Șoferii din grup rotesc între rutele grupului
 
@@ -91,7 +91,7 @@ Scrie un mini-raport strategic în ~200 cuvinte care include:
 
 2. **Pattern-uri detectate** — șoferi care apar în echipele recomandate pe mai multe grupuri (talent rar de distribuit atent), sau care nu apar nicăieri (posibile probleme).
 
-3. **Ordine de implementare** — cu ce să începi, de ce. Ia în calcul: tipurile de grup (day-trip / pereche / triplet), câți șoferi trebuie schimbați per grup, efectul asupra program-ului operațional.
+3. **Ordine de implementare** — cu ce să începi, de ce. Ia în calcul: mărimea fiecărui grup (n_routes rute, required_total_drivers șoferi), câți șoferi trebuie schimbați per grup, efectul asupra program-ului operațional.
 
 Nume concrete. Fără generalități.`;
   } else {

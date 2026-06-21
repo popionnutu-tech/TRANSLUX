@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import type { PointEnum } from '@translux/db';
-import { getPivotReport } from './actions';
+import { getPivotReport, getTaxiZonePivotReport } from './actions';
 import { getSmmReport } from './smm-actions';
 import { getNumarareDaily, getNumarareWeekly } from './numarare-report-actions';
 import ReportsClient from './ReportsClient';
@@ -62,7 +62,7 @@ export default async function ReportsPage({
   const dateFrom = params.dateFrom || defaults.dateFrom;
   const dateTo = params.dateTo || defaults.dateTo;
   const viewMode = (params.view as 'daily' | 'weekly') || 'daily';
-  const point = (params.point as PointEnum) || 'CHISINAU';
+  const point = (params.point as PointEnum | 'TAXI_ZONE') || 'CHISINAU';
   const reportType = (params.reportType as 'transport' | 'smm' | 'numarare') || 'transport';
 
   if (reportType === 'smm') {
@@ -100,9 +100,11 @@ export default async function ReportsPage({
   }
 
   const prev = getPreviousWeekRange(dateFrom, dateTo);
+  const fetchPivot = (from: string, to: string) =>
+    point === 'TAXI_ZONE' ? getTaxiZonePivotReport(from, to) : getPivotReport(from, to, point);
   const [pivotData, comparisonPivotData] = await Promise.all([
-    getPivotReport(dateFrom, dateTo, point),
-    getPivotReport(prev.dateFrom, prev.dateTo, point),
+    fetchPivot(dateFrom, dateTo),
+    fetchPivot(prev.dateFrom, prev.dateTo),
   ]);
 
   return (

@@ -327,9 +327,11 @@ export async function exportReportsCSV(filters: ReportFilters): Promise<string> 
   return [header, ...lines].join('\n');
 }
 
-// Pivot report for weekly/daily passenger view
+// Pivot report for weekly/daily passenger view.
+// point can be a real DB point (CHISINAU/BALTI, from `reports`) or the pseudo-point
+// 'TAXI_ZONE' (from `taxi_zone_reports`) — same shape, different source table.
 export interface PivotRawRow {
-  point: PointEnum;
+  point: PointEnum | 'TAXI_ZONE';
   departure_time: string;
   report_date: string;
   passengers_count: number | null;
@@ -362,6 +364,37 @@ export async function getPivotReport(dateFrom: string, dateTo: string, point?: P
     report_date: r.report_date,
     passengers_count: r.passengers_count === -1 ? null : r.passengers_count,
     status: (r.status === 'OK' && r.passengers_count === -1) ? 'FULL' : r.status,
+  }));
+}
+
+// Pivot report for the taxi-zone operator (Aurel): passengers funneled from the taxi
+// zone per departure. Sourced from `taxi_zone_reports` (same OK/ABSENT + passengers_count
+// shape as `reports`), tagged with the pseudo-point 'TAXI_ZONE'.
+export async function getTaxiZonePivotReport(dateFrom: string, dateTo: string): Promise<PivotRawRow[]> {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
+  let query = getSupabase()
+    .from('taxi_zone_reports')
+    .select('report_date, passengers_count, status, trips!inner(departure_time)')
+    .is('cancelled_at', null)
+    .order('report_date', { ascending: true })
+    .limit(5000);
+
+  if (dateFrom) query = query.gte('report_date', dateFrom);
+  if (dateTo) query = query.lte('report_date', dateTo);
+
+  const { data, error } = await query;
+  if (error) {
+    console.error('Taxi zone pivot report error:', error);
+    return [];
+  }
+
+  return ((data || []) as any[]).map((r: any) => ({
+    point: 'TAXI_ZONE' as const,
+    departure_time: (r.trips?.departure_time || '').slice(0, 5),
+    report_date: r.report_date,
+    passengers_count: r.passengers_count === -1 ? null : r.passengers_count,
+    status: ((r.status === 'OK' && r.passengers_count === -1) ? 'FULL' : r.status) as ReportStatus,
   }));
 }
 

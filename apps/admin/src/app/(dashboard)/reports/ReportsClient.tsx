@@ -15,7 +15,7 @@ interface Props {
   dateFrom: string;
   dateTo: string;
   viewMode: 'daily' | 'weekly';
-  point: PointEnum;
+  point: PointEnum | 'TAXI_ZONE';
   period: Period;
 }
 
@@ -61,7 +61,7 @@ function getMondayStr(dateStr: string): string {
 }
 
 interface PivotRow {
-  point: PointEnum;
+  point: PointEnum | 'TAXI_ZONE';
   departure_time: string;
   key: string;
 }
@@ -133,7 +133,7 @@ export default function ReportsClient({ pivotData, comparisonPivotData, dateFrom
     const rows = Array.from(rowKeySet)
       .map((k) => {
         const [point, time] = k.split('|');
-        return { point: point as PointEnum, departure_time: time, key: k };
+        return { point: point as PointEnum | 'TAXI_ZONE', departure_time: time, key: k };
       })
       .sort((a, b) => {
         if (a.point !== b.point) return a.point.localeCompare(b.point);
@@ -244,7 +244,7 @@ export default function ReportsClient({ pivotData, comparisonPivotData, dateFrom
 
   // Determine which rows belong to which point for rowSpan grouping
   const pointGroups = useMemo(() => {
-    const groups: Array<{ point: PointEnum; startIdx: number; count: number }> = [];
+    const groups: Array<{ point: PointEnum | 'TAXI_ZONE'; startIdx: number; count: number }> = [];
     for (let i = 0; i < pivot.rows.length; i++) {
       const row = pivot.rows[i];
       if (i === 0 || pivot.rows[i - 1].point !== row.point) {
@@ -463,6 +463,7 @@ export default function ReportsClient({ pivotData, comparisonPivotData, dateFrom
                   {POINT_LABELS[p]}
                 </option>
               ))}
+              <option value="TAXI_ZONE">Zona taxi</option>
             </select>
           </div>
           <div className="form-group" style={{ marginBottom: 0 }}>

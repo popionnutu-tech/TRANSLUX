@@ -14,6 +14,9 @@ const PUBLIC_PREFIXES = [
   '/api/facebook/',
   '/api/tiktok/',
   '/api/schedule-image',
+  // Mini App задачника: открывается в Telegram, защищается сам через initData (без cookie-сессии).
+  '/mini-app/',
+  '/api/zadachnik/',
 ];
 
 const DISPATCHER_ALLOWED = ['/grafic', '/drivers', '/vehicles'];
@@ -57,6 +60,12 @@ export async function middleware(request: NextRequest) {
     if (NUMARARE_ONLY_ROLES.includes(role as any)) {
       const allowed = pathname === '/numarare' || pathname.startsWith('/numarare/');
       if (!allowed) return NextResponse.redirect(new URL('/numarare', request.url));
+    }
+
+    // CONTABIL (contabil-șef) e închis în modulul Piese + API-ul lui; restul admin-ului e blocat la URL direct.
+    if (role === 'CONTABIL') {
+      const allowed = pathname.startsWith('/piese') || pathname.startsWith('/api/piese');
+      if (!allowed) return NextResponse.redirect(new URL('/piese', request.url));
     }
 
     return NextResponse.next();

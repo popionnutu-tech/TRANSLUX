@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { C, api, ready, STATE, fmt, type Task } from './ui';
+import { C, api, ready, initData, STATE, fmt, type Task } from './ui';
 
 export default function ZadachnikHome() {
   const [role, setRole] = useState<'ADMIN' | 'CONTROLLER' | null>(null);
@@ -16,9 +16,17 @@ export default function ZadachnikHome() {
     (async () => {
       await ready();
       setLoading(true);
+      const idEmpty = initData().length === 0;
       const r = await api('/tasks' + (role === 'CONTROLLER' ? `?bucket=${bucket}` : ''));
       if (!alive) return;
-      if (!r.ok) { setErr(r.status === 401 ? 'Neautorizat — deschide din botul TRANSLUX.' : 'Eroare.'); setLoading(false); return; }
+      if (!r.ok) {
+        setErr(
+          r.status !== 401 ? 'Eroare.'
+            : idEmpty ? 'Telegram nu a trimis datele (initData gol). Închide complet și redeschide din butonul Sarcini.'
+            : 'Neautorizat (semnătură/token). Spune-i lui Ion.'
+        );
+        setLoading(false); return;
+      }
       const d = await r.json();
       setRole(d.role); setTasks(d.tasks ?? []); setErr(''); setLoading(false);
     })();

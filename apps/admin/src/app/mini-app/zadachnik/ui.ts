@@ -12,7 +12,19 @@ type TG = { WebApp?: { initData?: string; ready?: () => void; expand?: () => voi
 export function initData(): string {
   if (typeof window === 'undefined') return '';
   const w = window as unknown as { Telegram?: TG };
-  return w.Telegram?.WebApp?.initData || (process.env.NODE_ENV !== 'production' ? '__dev__' : '');
+  const fromTg = w.Telegram?.WebApp?.initData;
+  if (fromTg) return fromTg;
+  // Надёжный fallback: Telegram кладёт initData в URL-фрагмент (#tgWebAppData=…),
+  // даже если telegram-web-app.js не загрузился (CSP/сеть). Кэшируем на первом заходе,
+  // чтобы хватало и при навигации внутри Mini App (там хэш уже потерян).
+  try {
+    const h = window.location.hash.replace(/^#/, '');
+    const d = new URLSearchParams(h).get('tgWebAppData');
+    if (d) { try { sessionStorage.setItem('tgInitData', d); } catch { /* ignore */ } return d; }
+    const cached = sessionStorage.getItem('tgInitData');
+    if (cached) return cached;
+  } catch { /* ignore */ }
+  return process.env.NODE_ENV !== 'production' ? '__dev__' : '';
 }
 
 /** Дождаться загрузки telegram-web-app.js (до ~2с), затем ready()/expand(). */

@@ -28,15 +28,19 @@ function verifyInitData(initData: string, botToken: string): number | null {
   const params = new URLSearchParams(initData);
   const hash = params.get('hash');
   if (!hash) return null;
-  params.delete('hash');
-  params.delete('signature'); // Telegram добавляет signature (Ed25519) — НЕ входит в HMAC data-check-string
-  const dataCheck = [...params.entries()]
-    .map(([k, v]) => `${k}=${v}`)
-    .sort()
-    .join('\n');
+
   const secret = crypto.createHmac('sha256', 'WebAppData').update(botToken).digest();
-  const computed = crypto.createHmac('sha256', secret).update(dataCheck).digest('hex');
-  if (computed !== hash) return null;
+  // Устойчиво к обоим вариантам клиентов Telegram: signature (Ed25519) то входит в
+  // data-check-string HMAC, то нет — принимаем, если совпадает любой.
+  const calc = (excludeSig: boolean): string => {
+    const p = new URLSearchParams(initData);
+    p.delete('hash');
+    if (excludeSig) p.delete('signature');
+    const dc = [...p.entries()].map(([k, v]) => `${k}=${v}`).sort().join('\n');
+    return crypto.createHmac('sha256', secret).update(dc).digest('hex');
+  };
+  if (calc(true) !== hash && calc(false) !== hash) return null;
+
   const authDate = Number(params.get('auth_date') || 0);
   if (!authDate || Date.now() / 1000 - authDate > 86400) return null; // ≤24h freshness
   try {

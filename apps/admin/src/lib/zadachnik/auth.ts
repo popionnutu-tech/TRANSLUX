@@ -29,6 +29,7 @@ function verifyInitData(initData: string, botToken: string): number | null {
   const hash = params.get('hash');
   if (!hash) return null;
   params.delete('hash');
+  params.delete('signature'); // Telegram добавляет signature (Ed25519) — НЕ входит в HMAC data-check-string
   const dataCheck = [...params.entries()]
     .map(([k, v]) => `${k}=${v}`)
     .sort()

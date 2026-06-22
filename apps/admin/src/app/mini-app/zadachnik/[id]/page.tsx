@@ -118,6 +118,6 @@ function Lbl({ children }: { children: React.ReactNode }) {
 const back: React.CSSProperties = { background: 'none', border: 'none', color: C.muted, fontSize: 13, cursor: 'pointer', padding: 0 };
 const panel: React.CSSProperties = { background: C.panel, border: `1px solid ${C.border}`, borderRadius: 4, padding: '9px 11px', fontSize: 14, marginBottom: 8 };
 const input: React.CSSProperties = { width: '100%', boxSizing: 'border-box', background: C.panel2, border: `1px solid ${C.border}`, color: C.text, borderRadius: 4, padding: '9px 11px', fontSize: 16, resize: 'vertical' };
-const primary: React.CSSProperties = { background: C.accent, color: '#1a1816', fontWeight: 700, fontSize: 14, padding: '11px', borderRadius: 4, border: '1px solid #d8a838', cursor: 'pointer' };
+const primary: React.CSSProperties = { background: C.accent, color: '#fff', fontWeight: 700, fontSize: 14, padding: '11px', borderRadius: 4, border: '1px solid #d8a838', cursor: 'pointer' };
 const secondary: React.CSSProperties = { background: C.panel, color: C.text, fontWeight: 600, fontSize: 14, padding: '11px', borderRadius: 4, border: `1px solid ${C.border}`, cursor: 'pointer' };
 const danger: React.CSSProperties = { background: 'rgba(204,102,102,0.15)', color: C.bad, fontWeight: 600, fontSize: 14, padding: '11px', borderRadius: 4, border: `1px solid ${C.bad}`, cursor: 'pointer' };

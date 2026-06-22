@@ -100,7 +100,7 @@ function Card({ t }: { t: Task }) {
 }
 
 const primaryBtn: React.CSSProperties = {
-  background: C.accent, color: '#1a1816', fontWeight: 700, fontSize: 13,
+  background: C.accent, color: '#fff', fontWeight: 700, fontSize: 13,
   padding: '7px 12px', borderRadius: 4, textDecoration: 'none', border: '1px solid #d8a838',
 };
 const card: React.CSSProperties = {
@@ -111,4 +111,4 @@ const tab: React.CSSProperties = {
   background: C.panel, color: C.muted, border: `1px solid ${C.border}`, borderRadius: 4,
   padding: '5px 14px', fontSize: 13, cursor: 'pointer',
 };
-const tabActive: React.CSSProperties = { color: '#1a1816', background: C.accent, borderColor: '#d8a838', fontWeight: 700 };
+const tabActive: React.CSSProperties = { color: '#fff', background: C.accent, borderColor: '#d8a838', fontWeight: 700 };

@@ -9,8 +9,8 @@ export default function ZadachnikLayout({ children }: { children: React.ReactNod
       <div
         style={{
           minHeight: '100vh',
-          background: '#1a1816',
-          color: '#e8e0d5',
+          background: '#faf8f7',
+          color: '#2a2024',
           fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
           WebkitFontSmoothing: 'antialiased',
         }}

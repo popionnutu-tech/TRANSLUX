@@ -1,9 +1,10 @@
 // Общие клиентские хелперы Mini App задачника (палитра TLX-терминала, initData, fetch, статусы).
 
+// Бренд TRANSLUX: бордовый #9B1B30 на светлом.
 export const C = {
-  bg: '#1a1816', panel: '#221e1a', panel2: '#1d1a16', border: '#3a352f',
-  accent: '#b8860b', gold: '#e9c463', text: '#e8e0d5', muted: '#9a8f82',
-  ok: '#6fae6f', warn: '#d9a441', bad: '#cc6666',
+  bg: '#faf8f7', panel: '#ffffff', panel2: '#f6f1f0', border: '#e7dede',
+  accent: '#9B1B30', gold: '#9B1B30', text: '#2a2024', muted: '#8a7f86',
+  ok: '#1a8a4a', warn: '#c07a12', bad: '#c0392b',
 };
 
 type TG = { WebApp?: { initData?: string; ready?: () => void; expand?: () => void } };

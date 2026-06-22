@@ -90,7 +90,7 @@ const input: React.CSSProperties = {
   color: C.text, borderRadius: 4, padding: '9px 11px', fontSize: 16,
 };
 const primaryBtn: React.CSSProperties = {
-  background: C.accent, color: '#1a1816', fontWeight: 800, fontSize: 15,
+  background: C.accent, color: '#fff', fontWeight: 800, fontSize: 15,
   padding: '12px', borderRadius: 4, border: '1px solid #d8a838', cursor: 'pointer', letterSpacing: '0.06em',
 };
 const backLink: React.CSSProperties = {

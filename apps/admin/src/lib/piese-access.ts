@@ -26,3 +26,11 @@ export async function requirePieseFiscal() {
   if (!session || (session.role !== 'ADMIN' && session.role !== 'CONTABIL')) redirect('/piese/stoc');
   return session;
 }
+
+// Nomenclatoare (depozite/grupe/furnizori/clienți/mecanici/motive): ADMIN, DEPOZITAR, CONTABIL.
+// Ce poate edita fiecare în interiorul paginii e decis per secțiune în nomenclator/actions.ts.
+export async function requirePieseNomenclator() {
+  const session = await verifySession();
+  if (!session || (session.role !== 'ADMIN' && session.role !== 'DEPOZITAR' && session.role !== 'CONTABIL')) redirect('/piese/stoc');
+  return session;
+}

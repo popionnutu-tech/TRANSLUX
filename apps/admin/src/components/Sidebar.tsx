@@ -6,7 +6,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { AdminRole } from '@translux/db';
 
 type NavItem = { href: string; label: string; adminOnly: boolean; icon: string; exact?: boolean; tab?: string };
-type ModuleItem = NavItem & { children?: NavItem[] };
+type ModuleItem = NavItem & { children?: NavItem[]; subGroup?: { label: string; icon: string; items: NavItem[] } };
 
 const nomenclatorItems: NavItem[] = [
   { href: '/users',        label: 'Utilizatori',   adminOnly: true,  icon: 'M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z' },
@@ -48,10 +48,6 @@ const pieseChildren: NavItem[] = [
 const ldeChildren: NavItem[] = [
   { href: '/lde',                label: 'Tablou',         adminOnly: true, exact: true, icon: 'M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z' },
   { href: '/lde/tablou-zilnic',  label: 'Tablou zilnic',  adminOnly: true, icon: 'M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z' },
-  { href: '/lde/vehicule',       label: 'Mașini & tipuri', adminOnly: true, icon: 'M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z' },
-  { href: '/lde/uzine',          label: 'Uzine',          adminOnly: true, icon: 'M22 11V3h-7v3H9V3H2v8h7V8h2v13h4V8h2v3h5zM7 9H4V5h3v4zm6 0h-2V5h2v4zm7 0h-3V5h3v4z' },
-  { href: '/lde/curse',          label: 'Curse uzine',    adminOnly: true, icon: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z' },
-  { href: '/lde/soferi',         label: 'Șoferi LDE',     adminOnly: true, icon: 'M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z' },
   { href: '/lde/atribuiri',      label: 'Atribuiri',      adminOnly: true, icon: 'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z' },
   { href: '/lde/salarii',        label: 'Salarii UZINE',  adminOnly: true, icon: 'M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z' },
   { href: '/lde/comenzi',        label: 'Comenzi & școlar', adminOnly: true, icon: 'M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm-2 14l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z' },
@@ -63,12 +59,20 @@ const ldeChildren: NavItem[] = [
   { href: '/lde/experimente',    label: 'Experimente',    adminOnly: true, icon: 'M19.8 18.4L14 10.67V6.5l1.35-1.69c.26-.33.03-.81-.39-.81H9.04c-.42 0-.65.48-.39.81L10 6.5v4.17L4.2 18.4c-.49.66-.02 1.6.8 1.6h14c.82 0 1.29-.94.8-1.6z' },
 ];
 
+// Sub-grupa «Nomenclator LDE» — datele de bază (catalog) ale modulului LDE, nestate sub LDE.
+const ldeNomenclator: NavItem[] = [
+  { href: '/lde/vehicule',       label: 'Mașini & tipuri', adminOnly: true, icon: 'M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z' },
+  { href: '/lde/uzine',          label: 'Uzine',          adminOnly: true, icon: 'M22 11V3h-7v3H9V3H2v8h7V8h2v13h4V8h2v3h5zM7 9H4V5h3v4zm6 0h-2V5h2v4zm7 0h-3V5h3v4z' },
+  { href: '/lde/curse',          label: 'Curse uzine',    adminOnly: true, icon: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z' },
+  { href: '/lde/soferi',         label: 'Șoferi LDE',     adminOnly: true, icon: 'M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z' },
+];
+
 // Module — fiecare e auto-conținut (rute + navigație proprie). Se adaugă un modul nou = o linie aici + folderul lui.
 // children → modulul devine dropdown cu sub-paginile lui; fără children → link direct (ex. Numărare = un singur ecran).
 const moduleItems: ModuleItem[] = [
   { href: '/numarare',     label: 'GO',        adminOnly: false, icon: 'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z', children: numarareChildren },
   { href: '/piese',        label: 'Piese & depozit', adminOnly: true,  icon: 'M20 2H4c-1.1 0-2 .9-2 2v3.01c0 .72.43 1.34 1 1.69V20c0 1.1 1.1 2 2 2h14c.9 0 2-.9 2-2V8.7c.57-.35 1-.97 1-1.69V4c0-1.1-.9-2-2-2zm-5 12H9v-2h6v2zm5-7H4V4h16v3z', children: pieseChildren },
-  { href: '/lde',          label: 'LDE — Autopark',  adminOnly: true,  icon: 'M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4s-8 .5-8 4v10zm3.5 1c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm1.5-6H6V6h12v5z', children: ldeChildren },
+  { href: '/lde',          label: 'LDE — Autopark',  adminOnly: true,  icon: 'M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4s-8 .5-8 4v10zm3.5 1c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm1.5-6H6V6h12v5z', children: ldeChildren, subGroup: { label: 'Nomenclator LDE', icon: 'M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z', items: ldeNomenclator } },
 ];
 
 // Sub-paginile Piese vizibile pentru CONTABIL (doar citire + fiscal/1C; operațiunile de depozit rămân ADMIN).
@@ -310,7 +314,19 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
         {filteredModules.length > 0 && <div style={sectionLabelStyle}>Module</div>}
         {filteredModules.map((item) => (
           item.children
-            ? <Collapsible key={item.href} label={item.label} icon={item.icon} items={item.children} pathname={pathname} currentTab={currentTab} />
+            ? <Collapsible
+                key={item.href}
+                label={item.label}
+                icon={item.icon}
+                items={item.children}
+                pathname={pathname}
+                currentTab={currentTab}
+                maxH={item.subGroup ? 1300 : 720}
+                extraActive={item.subGroup ? item.subGroup.items.some((i) => isItemActive(i, pathname, currentTab)) : false}
+                footer={item.subGroup ? (
+                  <Collapsible label={item.subGroup.label} icon={item.subGroup.icon} items={item.subGroup.items} pathname={pathname} currentTab={currentTab} />
+                ) : null}
+              />
             : <NavLink key={item.href + item.label} item={item} pathname={pathname} currentTab={currentTab} />
         ))}
 

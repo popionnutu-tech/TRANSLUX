@@ -5,7 +5,7 @@ import { requirePieseInventory } from '@/lib/piese-access';
 import InventarClient from './InventarClient';
 
 export default async function InventarPage() {
-  await requirePieseWrite();
+  await requirePieseInventory();
   const warehouses = await listWarehouses();
   return (
     <>

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { AdminRole } from '@translux/db';
+import { pieseHrefsForRole } from '@/lib/piese-nav';
 
 const TABS = [
   { href: '/piese', label: 'Tablou' },

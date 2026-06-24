@@ -9,7 +9,7 @@ const lei = (n: number) => Number(n || 0).toLocaleString('ro-RO', { minimumFract
 const partLabel = (p: any) => `${p.grp} — ${p.manufacturer ?? ''} ${p.model ? '(' + p.model + ')' : ''}`.trim();
 
 export default async function MagazinPage() {
-  await requirePieseWrite();
+  await requirePieseIssue();
   const [warehouses, clients, parts, profit] = await Promise.all([listWarehouses(), listClients(), saleParts(), shopProfit()]);
   const shop = (warehouses as any[]).find((w) => w.kind === 'SHOP');
   return (

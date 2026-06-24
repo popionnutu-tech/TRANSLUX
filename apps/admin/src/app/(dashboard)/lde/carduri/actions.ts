@@ -44,7 +44,7 @@ function round2(n: number): number {
 export async function getCardSuggestions(
   plannedKmDefault = 200,
   reservePct = 10,
-  fuelPriceLei = 22,
+  fuelPriceLei?: number,
 ): Promise<CardSuggestionsResult> {
   requireRole(await verifySession(), 'ADMIN');
 
@@ -79,17 +79,31 @@ export async function getCardSuggestions(
     .select('route_id, total_km_estimated')
     .eq('route_kind', 'uzina_factory');
 
-  const [vehiclesRes, vehicleUzinaRes, routesRes, geometryRes] = await Promise.all([
+  // 5) Prețul motorinei (oglindit din TLX în lde_diesel_price) — cel mai recent valid pe azi.
+  const dieselP = sb
+    .from('lde_diesel_price')
+    .select('price_lei')
+    .lte('valid_from', new Date().toISOString().slice(0, 10))
+    .order('valid_from', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const [vehiclesRes, vehicleUzinaRes, routesRes, geometryRes, dieselRes] = await Promise.all([
     vehiclesP,
     vehicleUzinaP,
     routesP,
     geometryP,
+    dieselP,
   ]);
 
   if (vehiclesRes.error) throw new Error(vehiclesRes.error.message);
   if (vehicleUzinaRes.error) throw new Error(vehicleUzinaRes.error.message);
   if (routesRes.error) throw new Error(routesRes.error.message);
   if (geometryRes.error) throw new Error(geometryRes.error.message);
+
+  // Preț folosit: argument explicit > preț TLX din DB > fallback 22 (dacă tabelul e gol).
+  const dbDieselPrice = dieselRes?.data?.price_lei != null ? Number(dieselRes.data.price_lei) : null;
+  const priceUsed = fuelPriceLei ?? dbDieselPrice ?? 22;
 
   // km estimat per cursă (route_id → km)
   const kmByRoute = new Map<string, number>();
@@ -141,7 +155,7 @@ export async function getCardSuggestions(
     const uzinaKm = uzinaId != null ? kmByUzina.get(uzinaId) : undefined;
     const plannedKm = uzinaKm != null && uzinaKm > 0 ? round2(uzinaKm) : plannedKmDefault;
 
-    const t = computeCardTopup(plannedKm, Number(effectiveNorm), reservePct, fuelPriceLei);
+    const t = computeCardTopup(plannedKm, Number(effectiveNorm), reservePct, priceUsed);
 
     rows.push({
       plate: v.plate_number as string,
@@ -165,7 +179,7 @@ export async function getCardSuggestions(
 
   return {
     rows,
-    params: { plannedKmDefault, reservePct, fuelPriceLei },
+    params: { plannedKmDefault, reservePct, fuelPriceLei: priceUsed },
     totals: { litersWithReserve: round2(totals.litersWithReserve), lei: round2(totals.lei) },
   };
 }

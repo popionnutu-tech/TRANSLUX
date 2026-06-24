@@ -5,6 +5,6 @@ import { locatePart } from '@/lib/piese';
 
 export async function locate(warehouseId: number, code: string) {
   // Doar căutare/citire (localizează piesa pe hartă) — permis și CONTABIL.
-  requireRole(await verifySession(), 'ADMIN', 'CONTABIL', 'DEPOZITAR', 'MANAGER');
+  requireRole(await verifySession(), 'ADMIN', 'CONTABIL', 'DEPOZITAR', 'VINZATOR', 'MANAGER');
   return locatePart(warehouseId, code);
 }

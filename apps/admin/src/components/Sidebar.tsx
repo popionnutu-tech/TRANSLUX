@@ -72,8 +72,12 @@ const moduleItems: ModuleItem[] = [
   { href: '/lde',          label: 'LDE — Autopark',  adminOnly: true,  icon: 'M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4s-8 .5-8 4v10zm3.5 1c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm1.5-6H6V6h12v5z', children: ldeChildren },
 ];
 
-// Sub-paginile Piese vizibile pentru CONTABIL (doar citire + fiscal/1C; operațiunile de depozit rămân ADMIN).
+// Sub-paginile Piese vizibile pentru CONTABIL (doar citire + fiscal/1C; operațiunile de depozit rămân ADMIN/DEPOZITAR).
 const CONTABIL_PIESE_HREFS = new Set(['/piese', '/piese/stoc', '/piese/catalog', '/piese/harta', '/piese/rapoarte', '/piese/fiscal', '/piese/integrare-1c']);
+// DEPOZITAR (vânzător-depozitar) — operează depozitul + vânzări; fără fiscal/1C.
+const DEPOZITAR_PIESE_HREFS = new Set(['/piese', '/piese/stoc', '/piese/catalog', '/piese/prihod', '/piese/rashod', '/piese/mutari', '/piese/inventar', '/piese/harta', '/piese/magazin', '/piese/rapoarte']);
+// MANAGER — doar supraveghere (citire).
+const MANAGER_PIESE_HREFS = new Set(['/piese', '/piese/stoc', '/piese/catalog', '/piese/harta', '/piese/rapoarte']);
 
 const nav: NavItem[] = [
   { href: '/reports',      label: 'Rapoarte',     adminOnly: true,  icon: 'M3 3v18h18V3H3zm16 16H5V5h14v14zM7 12h2v5H7v-5zm4-3h2v8h-2V9zm4-2h2v10h-2V7z' },

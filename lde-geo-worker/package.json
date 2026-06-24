@@ -7,7 +7,7 @@
   "scripts": {
     "gps": "node --env-file=.env gps-worker.mjs",
     "fuel": "node --env-file=.env fuel-worker.mjs",
-    "nightly": "node --env-file=.env run-nightly.mjs"
+    "nightly": "bash run-nightly.sh"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2",

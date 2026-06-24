@@ -44,7 +44,8 @@ for (const db of DBS) {
     ours++; byDb[db].ours++;
     const iso = toIso(String(r.data), String(r.ora));
     if (isNaN(new Date(iso).getTime())) continue; // dată coruptă
-    records.push({ vehicle_id: vid, alimentat_at: iso, litri: Number(r.litri) || 0, statie: db, source: db, external_id: String(r.id), is_full: false, imported_at: new Date().toISOString() });
+    // Benzol = alimentare la stațiile noastre, fără preț în log → suma_lei=0 (doar litri).
+    records.push({ vehicle_id: vid, alimentat_at: iso, litri: Number(r.litri) || 0, suma_lei: 0, statie: db, source: db, external_id: String(r.id), is_full: false, imported_at: new Date().toISOString() });
   }
 }
 await my.end();

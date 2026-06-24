@@ -7,7 +7,7 @@ import PrihodClient from './PrihodClient';
 const partLabel = (p: any) => `${p.group_name} — ${p.manufacturer ?? ''} ${p.model ? '(' + p.model + ')' : ''}`.trim();
 
 export default async function PrihodPage() {
-  await requirePieseWrite();
+  await requirePieseReceipt();
   const [warehouses, suppliers, parts] = await Promise.all([listWarehouses(), listSuppliers(), catalogRows()]);
   return (
     <>

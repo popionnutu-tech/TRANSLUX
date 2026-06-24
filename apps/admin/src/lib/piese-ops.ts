@@ -63,7 +63,11 @@ export async function saleInvoices(opts: { sellerId?: string } = {}) {
   const { data } = await q;
   return data || [];
 }
-export async function markSfs(docId: number) {
+export async function markSfs(docId: number, sellerId?: string) {
+  if (sellerId) { // vânzătorul poate marca doar facturile lui
+    const { data } = await getSupabase().from('piese_stock_documents').select('created_by_admin').eq('id', docId).maybeSingle();
+    if (!data || (data as any).created_by_admin !== sellerId) throw new Error('Nu poți marca o factură care nu e a ta');
+  }
   const { error } = await getSupabase().rpc('piese_mark_sfs', { p_doc: docId, p_user: null });
   if (error) throw new Error(error.message);
 }

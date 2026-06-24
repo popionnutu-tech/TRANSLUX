@@ -62,8 +62,10 @@ export async function middleware(request: NextRequest) {
       if (!allowed) return NextResponse.redirect(new URL('/numarare', request.url));
     }
 
-    // CONTABIL (contabil-șef) e închis în modulul Piese + API-ul lui; restul admin-ului e blocat la URL direct.
-    if (role === 'CONTABIL') {
+    // CONTABIL (contabil-șef), DEPOZITAR (vânzător-depozitar) și MANAGER (supraveghere)
+    // sunt închiși în modulul Piese + API-ul lui; restul admin-ului e blocat la URL direct.
+    // (drepturile de scriere per operațiune sunt aplicate suplimentar la nivel de pagină/acțiune.)
+    if (role === 'CONTABIL' || role === 'DEPOZITAR' || role === 'MANAGER') {
       const allowed = pathname.startsWith('/piese') || pathname.startsWith('/api/piese');
       if (!allowed) return NextResponse.redirect(new URL('/piese', request.url));
     }

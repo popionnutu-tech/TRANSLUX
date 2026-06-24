@@ -6,16 +6,19 @@
 //   node scripts/import-piese-catalog.mjs <fisier.csv> --type=parts|groups|suppliers [--apply] [--delim=;]
 //
 //   • FĂRĂ --apply  → DRY-RUN: doar afișează ce ar importa, NU scrie nimic (implicit, sigur).
-//   • CU   --apply  → scrie efectiv în baza de date. A SE COORDONA CU ION (bază de producție comună).
+//   • CU   --apply  → scrie efectiv. A SE COORDONA CU ION (bază de producție comună) ȘI a face backup întâi.
 //
-// Env necesare (în .env sau exportate):
-//   SUPABASE_URL, SUPABASE_SERVICE_KEY
+// Env necesare (doar pentru --apply): SUPABASE_URL, SUPABASE_SERVICE_KEY.
+// Necesită `npm install` în rădăcina repo-ului (@supabase/supabase-js).
 //
-// Necesită dependențele instalate (`npm install` în rădăcina repo-ului — folosește @supabase/supabase-js).
+// IDEMPOTENȚĂ: importul e SIGUR la re-rulare — dedublează grupe (după nume), furnizori (după nume)
+// și piese (după cod de bare; iar piesele fără cod de bare după denumire+producător+model+articol).
+// NU e tranzacțional (REST), dar fiind idempotent, după o eroare la mijloc poți re-rula fără dubluri.
 //
-// MAPAREA COLOANELOR: vezi COLUMN_ALIASES mai jos. Scriptul potrivește anteturile CSV-ului
-// (case-insensitive) cu numele canonice. Dacă exportul tău din 1C are alte denumiri de coloane,
-// adaugă-le în listele de alias (sau redenumește anteturile în CSV). Acolo „facem nomenclatorul din soft".
+// MAPAREA COLOANELOR: vezi COLUMN_ALIASES. Anteturile CSV se potrivesc case-insensitive cu numele
+// canonice; dacă exportul tău din 1C are alte denumiri, adaugă-le în liste sau redenumește anteturile.
+//
+// Notă: citește tot fișierul în memorie — potrivit pentru un catalog (MB), nu pentru fișiere de GB.
 // ============================================================================
 
 import { readFileSync } from 'fs';
@@ -44,7 +47,7 @@ if (apply && (!SUPABASE_URL || !SUPABASE_SERVICE_KEY)) {
   process.exit(1);
 }
 
-// ── Maparea anteturilor CSV → câmpuri canonice (case-insensitive, adaugă aici aliasuri din 1C) ──
+// ── Maparea anteturilor CSV → câmpuri canonice (case-insensitive; adaugă aici aliasuri din 1C) ──
 const COLUMN_ALIASES = {
   groups: {
     name_ro: ['name_ro', 'denumire', 'grupa', 'grupă', 'название', 'наименование'],
@@ -105,6 +108,16 @@ function buildColumnIndex(header, aliases) {
   return idx;
 }
 
+// ── Helperi de valori ──
+const truthy = (v) => ['1', 'da', 'yes', 'true', 'x', 'да'].includes((v || '').trim().toLowerCase());
+// Acceptă virgulă sau punct zecimal; întoarce null dacă nu e număr valid (NU forțează 0/NaN tăcut).
+function decimal(v) {
+  const s = (v ?? '').toString().trim().replace(/\s/g, '').replace(',', '.');
+  if (s === '') return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
 // ── Citire + parsare ──
 const raw = readFileSync(file, 'utf8');
 const delimiter = delimArg || detectDelimiter(raw.split('\n')[0] || '');
@@ -124,12 +137,20 @@ if (missing.length) {
 }
 
 const get = (row, field) => (field in colIdx ? (row[colIdx[field]] ?? '').trim() : '');
-const truthy = (v) => ['1', 'da', 'yes', 'true', 'x', 'да'].includes((v || '').trim().toLowerCase());
 
-// ── Construire înregistrări ──
+// ── Construire înregistrări + avertismente pentru numere neparsabile ──
+let numWarnings = 0;
+function numField(row, field, { int = false } = {}) {
+  const rawVal = get(row, field);
+  if (rawVal === '') return null;
+  const n = decimal(rawVal);
+  if (n == null) { numWarnings++; return null; }
+  return int ? Math.round(n) : n;
+}
+
 const dataRows = rows.slice(1);
 const records = dataRows.map((row) => {
-  if (typeArg === 'groups') return { name_ro: get(row, 'name_ro'), name_ru: get(row, 'name_ru') || null, markup_pct: Number(get(row, 'markup_pct')) || 0, norm_km: get(row, 'norm_km') ? Number(get(row, 'norm_km')) : null };
+  if (typeArg === 'groups') return { name_ro: get(row, 'name_ro'), name_ru: get(row, 'name_ru') || null, markup_pct: numField(row, 'markup_pct') ?? 0, norm_km: numField(row, 'norm_km', { int: true }) };
   if (typeArg === 'suppliers') return { name: get(row, 'name'), idno: get(row, 'idno') || null, contact: get(row, 'contact') || null };
   return { group: get(row, 'group'), name_long: get(row, 'name_long'), manufacturer: get(row, 'manufacturer') || null, model: get(row, 'model') || null, article_code: get(row, 'article_code') || null, oem_code: get(row, 'oem_code') || null, barcode: get(row, 'barcode') || null, unit: get(row, 'unit') || 'buc', is_for_sale: truthy(get(row, 'is_for_sale')) };
 }).filter((r) => REQUIRED[typeArg].every((f) => String(r[f] ?? '').trim() !== ''));
@@ -137,56 +158,68 @@ const records = dataRows.map((row) => {
 console.log(`Tip: ${typeArg} | delimitator: ${JSON.stringify(delimiter)} | rânduri valide: ${records.length}/${dataRows.length}`);
 console.log('Mapare coloane:', colIdx);
 console.log('Exemplu:', records[0]);
+if (numWarnings) console.log(`⚠ ${numWarnings} valori numerice neparsabile au fost ignorate (verifică coloanele adaos/normă).`);
 
 if (!apply) {
-  console.log('\n[DRY-RUN] Nu s-a scris nimic. Rulează cu --apply (și coordonat cu Ion) ca să imporți efectiv.');
+  console.log('\n[DRY-RUN] Nu s-a scris nimic. Rulează cu --apply (coordonat cu Ion, după backup) ca să imporți efectiv.');
   process.exit(0);
 }
 
 // ── Import efectiv ──
 const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, { auth: { persistSession: false } });
+const SEL_CAP = 100000; // peste plafonul implicit de 1000 al PostgREST (catalog inițial — o singură pagină)
 let inserted = 0, skipped = 0;
+
+async function fetchAll(table, cols) {
+  const { data, error } = await sb.from(table).select(cols).limit(SEL_CAP);
+  if (error) throw new Error(`Citire ${table}: ${error.message}`);
+  return data || [];
+}
+function* chunked(arr, n) { for (let i = 0; i < arr.length; i += n) yield arr.slice(i, i + n); }
+const low = (v) => (v ?? '').toString().trim().toLowerCase();
 
 async function run() {
   if (typeArg === 'groups') {
-    const { data: existing } = await sb.from('piese_part_groups').select('name_ro');
-    const have = new Set((existing || []).map((g) => g.name_ro.trim().toLowerCase()));
-    const toInsert = records.filter((r) => !have.has(r.name_ro.trim().toLowerCase()));
+    const have = new Set((await fetchAll('piese_part_groups', 'name_ro')).map((g) => low(g.name_ro)));
+    const seen = new Set();
+    const toInsert = records.filter((r) => { const k = low(r.name_ro); if (have.has(k) || seen.has(k)) return false; seen.add(k); return true; });
     skipped = records.length - toInsert.length;
-    for (const chunk of chunked(toInsert, 200)) { const { error } = await sb.from('piese_part_groups').insert(chunk); if (error) throw error; inserted += chunk.length; }
+    for (const chunk of chunked(toInsert, 200)) { const { error } = await sb.from('piese_part_groups').insert(chunk); if (error) throw new Error(error.message); inserted += chunk.length; }
   } else if (typeArg === 'suppliers') {
-    const { data: existing } = await sb.from('piese_suppliers').select('name');
-    const have = new Set((existing || []).map((s) => s.name.trim().toLowerCase()));
-    const toInsert = records.filter((r) => !have.has(r.name.trim().toLowerCase()));
+    const have = new Set((await fetchAll('piese_suppliers', 'name')).map((s) => low(s.name)));
+    const seen = new Set();
+    const toInsert = records.filter((r) => { const k = low(r.name); if (have.has(k) || seen.has(k)) return false; seen.add(k); return true; });
     skipped = records.length - toInsert.length;
-    for (const chunk of chunked(toInsert, 200)) { const { error } = await sb.from('piese_suppliers').insert(chunk); if (error) throw error; inserted += chunk.length; }
+    for (const chunk of chunked(toInsert, 200)) { const { error } = await sb.from('piese_suppliers').insert(chunk); if (error) throw new Error(error.message); inserted += chunk.length; }
   } else {
-    // parts: rezolvă/creează grupa (group_id e NOT NULL), evită dublurile pe barcode
-    const { data: groups } = await sb.from('piese_part_groups').select('id, name_ro');
-    const groupId = new Map((groups || []).map((g) => [g.name_ro.trim().toLowerCase(), g.id]));
-    const { data: existing } = await sb.from('piese_parts').select('barcode');
-    const haveBarcode = new Set((existing || []).map((p) => p.barcode).filter(Boolean));
+    // parts: rezolvă/creează grupa (group_id NOT NULL); dedup pe barcode, iar fără barcode pe cheia compusă.
+    const groupId = new Map((await fetchAll('piese_part_groups', 'id, name_ro')).map((g) => [low(g.name_ro), g.id]));
+    const existing = await fetchAll('piese_parts', 'barcode, name_long, manufacturer, model, article_code');
+    const composite = (p) => [p.name_long, p.manufacturer, p.model, p.article_code].map(low).join('|');
+    const haveBarcode = new Set(existing.map((p) => p.barcode).filter(Boolean));
+    const haveComposite = new Set(existing.map(composite));
 
     for (const r of records) {
-      const key = r.group.trim().toLowerCase();
-      let gid = groupId.get(key);
+      const gkey = low(r.group);
+      let gid = groupId.get(gkey);
       if (!gid) {
         const { data, error } = await sb.from('piese_part_groups').insert({ name_ro: r.group.trim() }).select('id').single();
-        if (error) throw error;
-        gid = data.id; groupId.set(key, gid);
+        if (error) throw new Error(`Grupă „${r.group}": ${error.message}`);
+        gid = data.id; groupId.set(gkey, gid);
       }
+      const ckey = composite(r);
       if (r.barcode && haveBarcode.has(r.barcode)) { skipped++; continue; }
+      if (!r.barcode && haveComposite.has(ckey)) { skipped++; continue; }
       const { error } = await sb.from('piese_parts').insert({ group_id: gid, name_long: r.name_long, manufacturer: r.manufacturer, model: r.model, article_code: r.article_code, oem_code: r.oem_code, barcode: r.barcode, unit: r.unit, is_for_sale: r.is_for_sale });
-      if (error) { if (error.code === '23505') { skipped++; continue; } throw error; }
+      if (error) { if (error.code === '23505') { skipped++; continue; } throw new Error(`Piesă „${r.name_long}": ${error.message}`); }
       if (r.barcode) haveBarcode.add(r.barcode);
+      haveComposite.add(ckey);
       inserted++;
     }
   }
 }
 
-function* chunked(arr, n) { for (let i = 0; i < arr.length; i += n) yield arr.slice(i, i + n); }
-
 run().then(() => {
   console.log(`\nGata. Inserate: ${inserted}, sărite (duplicate/existente): ${skipped}.`);
   process.exit(0);
-}).catch((e) => { console.error('Eroare la import:', e.message || e); process.exit(1); });
+}).catch((e) => { console.error('Eroare la import (oprire):', e.message || e); process.exit(1); });

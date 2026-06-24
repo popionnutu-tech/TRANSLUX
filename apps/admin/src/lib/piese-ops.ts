@@ -43,11 +43,10 @@ export async function saleParts() {
   return data || [];
 }
 export async function createSale(p: { warehouse_id: number; client_id: number | null; invoice_series?: string; invoice_number?: string; userId?: string; lines: { part_id: number; qty: number; unit_price: number }[] }) {
-  const { data, error } = await getSupabase().rpc('piese_create_sale', { p_wh: p.warehouse_id, p_client: p.client_id, p_series: p.invoice_series || null, p_number: p.invoice_number || null, p_lines: p.lines, p_user: null });
+  // created_by_admin e setat ATOMIC în RPC (p_created_by), nu printr-un UPDATE separat.
+  const { data, error } = await getSupabase().rpc('piese_create_sale', { p_wh: p.warehouse_id, p_client: p.client_id, p_series: p.invoice_series || null, p_number: p.invoice_number || null, p_lines: p.lines, p_user: null, p_created_by: p.userId || null });
   if (error) throw new Error(error.message);
   const r = data as any;
-  // Marchează vânzătorul care a creat factura (pentru „facturile lui" în e-Factura).
-  if (p.userId) await getSupabase().from('piese_stock_documents').update({ created_by_admin: p.userId }).eq('id', r.doc_id);
   return { docId: r.doc_id as number, total: Number(r.total), cost: Number(r.cost), profit: Number(r.total) - Number(r.cost) };
 }
 export async function shopProfit() {

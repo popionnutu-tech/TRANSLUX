@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { listWarehouses } from '@/lib/piese';
 import { listClients, saleParts, shopProfit } from '@/lib/piese-ops';
-import { requirePieseWrite } from '@/lib/piese-access';
+import { requirePieseIssue } from '@/lib/piese-access';
 import MagazinClient from './MagazinClient';
 
 const lei = (n: number) => Number(n || 0).toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' lei';

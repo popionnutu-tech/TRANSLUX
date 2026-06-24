@@ -18,3 +18,8 @@ scripts/test-final-overlay.mjs
 scripts/test-minimal-overlay.mjs
 scripts/test-opentype-render.mjs
 scripts/test-new-template.mjs
+
+# build cache / tooling scratch — never commit
+graphify-out/
+.graphifyignore
+*.tsbuildinfo

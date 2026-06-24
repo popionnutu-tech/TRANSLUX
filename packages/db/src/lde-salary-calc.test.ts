@@ -130,7 +130,7 @@ describe('Suplimente comune', () => {
     expect(r.warnings.some((w) => w.includes('transport_extra/altul'))).toBe(false);
   });
 
-  it('transport_extra/altul → adăugate la extra DAR cu warning de semantică neconfirmată', () => {
+  it('transport_extra/altul → adăugate la extra (confirmat Ion: plătite după categoria direcției, FĂRĂ warning)', () => {
     const r = calcSalary(baseInput({
       salary_category: 3,
       daily_km: [day('2026-06-01', 100)],
@@ -139,31 +139,29 @@ describe('Suplimente comune', () => {
         { id: 'e2', driver_id: 'd1', work_date: '2026-06-01', order_type: 'altul', amount_lei: 80, entered_by_admin_id: null, notes: null, created_at: '' },
       ],
     }));
-    // comportament păstrat (în extra), DAR semnalat pentru confirmare
     expect(r.extra_orders_lei).toBe(200);
-    expect(r.warnings.some((w) => w.includes('transport_extra/altul'))).toBe(true);
+    expect(r.warnings.some((w) => w.includes('transport_extra/altul'))).toBe(false);
   });
 });
 
-describe('Warnings — discrepanțe de confirmat cu Ion (nu schimbă banii)', () => {
-  it('weekend pe fix lunar (cat 3/4/5) → warning «×2» (consecvent cu DAF)', () => {
+describe('Decizii confirmate Ion 24.06 (comportament, fără warning)', () => {
+  it('weekend pe fix lunar (cat 3/4/5) NU adaugă nimic, fără warning', () => {
     const r = calcSalary(baseInput({
       salary_category: 4,
       daily_km: [day('2026-06-01', 100), day('2026-06-06', 100, true)],
     }));
-    expect(r.weekend_double_lei).toBe(0); // banii NU se schimbă
-    expect(r.warnings.some((w) => w.includes('weekend'))).toBe(true);
+    expect(r.weekend_double_lei).toBe(0); // oklad doar pe zile lucrate; weekendul nu adaugă
+    expect(r.warnings.some((w) => w.includes('weekend'))).toBe(false);
   });
 
-  it('școlar pe TOATE zilele (inclusiv weekend) → warning explicit', () => {
+  it('școlar calculat pe zilele cu GPS (= zile lucrate), fără warning', () => {
     const r = calcSalary(baseInput({
       salary_category: 3,
       daily_km: [day('2026-06-01', 100), day('2026-06-02', 100), day('2026-06-06', 100, true)],
       school_period: { period_month: '2026-06-01', is_active: true, rate_per_day_lei: 100, set_by_admin_id: null, set_at: '', notes: null },
     }));
-    expect(r.school_lei).toBe(300); // 3 zile × 100 (comportament păstrat: pe toate zilele GPS)
-    expect(r.warnings.some((w) => w.includes('Școlar'))).toBe(true);
-    expect(r.warnings.some((w) => w.includes('weekend'))).toBe(true); // semnalează WE inclus
+    expect(r.school_lei).toBe(300); // 3 zile cu GPS × 100
+    expect(r.warnings.length).toBe(0);
   });
 });
 

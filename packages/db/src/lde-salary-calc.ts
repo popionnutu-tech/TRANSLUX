@@ -118,33 +118,13 @@ function commonSupplements(input: SalaryCalcInput): {
   const workDays = input.daily_km.length;
   const schoolActive = input.school_period?.is_active ?? false;
   const schoolRate = input.school_period?.rate_per_day_lei ?? 0;
-  // ATENȚIE (de confirmat cu Ion): școlarul e calculat pe TOATE zilele lucrate (workDays),
-  // dar transportul școlar e o COMANDĂ separată cu propriile zile (zile de școală: luni–vineri,
-  // fără weekend/vacanțe). Sursa zilelor școlare lipsește în schemă → folosim workDays ca proxy.
-  // Fix corect (deschis): câmp school_days propriu SAU order_type «scolar» introdus per-zi.
+  // Confirmat Ion 24.06.2026: școlarul se calculează pe zilele cu GPS = zilele lucrate.
+  // În zilele nelucrătoare (uzina sau mașina nu lucrează) pur și simplu nu există GPS → nu se numără.
   const school_lei = schoolActive ? round2(schoolRate * workDays) : 0;
 
+  // Confirmat Ion 24.06.2026: comenzile extra sunt rare; când apar, se plătesc după categoria
+  // direcției în care lucrează omul (admin introduce suma în amount_lei). Fără warning.
   const warnings: string[] = [];
-  if (schoolActive) {
-    const weekendInWork = input.daily_km.filter((d) => d.is_weekend).length;
-    warnings.push(
-      `Școlar: ${workDays} zile × ${schoolRate} lei = calculat pe TOATE zilele cu GPS` +
-        (weekendInWork > 0 ? ` (inclusiv ${weekendInWork} zile weekend)` : '') +
-        '. Cursele școlare au propriile zile (luni–vineri, fără vacanțe) — de confirmat zilele reale cu Ion.',
-    );
-  }
-  // ATENȚIE (de confirmat cu Ion): doar 'chisinau_admin' e definit în interviu ca supliment salarial.
-  // 'transport_extra'/'altul' intră tot la salariu (în extra) — semantică neconfirmată.
-  const unconfirmed = input.extra_orders.filter(
-    (o) => o.order_type === 'transport_extra' || o.order_type === 'altul',
-  );
-  if (unconfirmed.length > 0) {
-    const sum = round2(unconfirmed.reduce((acc, o) => acc + o.amount_lei, 0));
-    warnings.push(
-      `${unconfirmed.length} comandă/comenzi «transport_extra/altul» (${sum} lei) adăugate la salariu — ` +
-        'semantică neconfirmată (doar «Cursă Chișinău admin» e definită ca supliment). De confirmat cu Ion.',
-    );
-  }
 
   return {
     extra_orders_lei: round2(extra),
@@ -204,16 +184,10 @@ function calcCategorie1_DAF(input: SalaryCalcInput): SalaryCalcResult {
   const km_surcharge = km > DAF_KM_THRESHOLD ? round2((km - DAF_KM_THRESHOLD) * DAF_KM_RATE) : 0;
   const sup = commonSupplements(input);
 
-  // AMBIGUITATE: «weekend ×2» (corectări lunare, toate categoriile) nu are sens direct
-  // pentru o bază lunară fixă DAF. Interpretare default: weekend NU dublează baza fixă
-  // (doar categoriile cu rată/zi — cat 2 — dublează). De confirmat cu Ion.
+  // Confirmat Ion 24.06.2026: oklad-ul (baza lunară) e doar pentru zilele lucrate;
+  // weekendul NU adaugă nimic în plus. weekend_double = 0.
   const weekend_double = 0;
-  const warnings = [
-    ...(weekendDays > 0
-      ? [`DAF: ${weekendDays} zile weekend — «×2» nu se aplică la baza lunară fixă (interpretare default, de confirmat cu Ion).`]
-      : []),
-    ...sup.warnings,
-  ];
+  const warnings = [...sup.warnings];
 
   const gross = round2(base + km_surcharge + weekend_double + sup.extra_orders_lei + sup.school_lei + sup.cash_orders_lei + sup.spalare_lei);
   const ded = applyDeductions(input, gross);
@@ -267,17 +241,9 @@ function calcCategorieFix(input: SalaryCalcInput, defaultFix: number): SalaryCal
   const base = input.fix_amount_override_lei ?? defaultFix;
   const sup = commonSupplements(input);
 
-  // AMBIGUITATE «weekend ×2» (corectări lunare, TOATE categoriile): pe o bază LUNARĂ fixă
-  // (cat 3/4/5, ca și DAF cat 1) sporul ×2 nu are sens direct — suma lunară include deja WE.
-  // Interpretare default: NU dublăm baza fixă. Emitem ACELAȘI warning ca DAF când există WE,
-  // ca să nu se piardă tăcut un supliment cerut de proprietar (consecvent: 1/3/4/5 toate avertizează).
+  // Confirmat Ion 24.06.2026: oklad lunar doar pentru zilele lucrate; weekendul nu adaugă nimic.
   const weekend_double = 0;
-  const warnings = [
-    ...(weekendDays > 0
-      ? [`Fix lunar: ${weekendDays} zile weekend — «×2» nu se aplică la baza lunară fixă (interpretare default, de confirmat cu Ion).`]
-      : []),
-    ...sup.warnings,
-  ];
+  const warnings = [...sup.warnings];
 
   const gross = round2(base + sup.extra_orders_lei + sup.school_lei + sup.cash_orders_lei + sup.spalare_lei);
   const ded = applyDeductions(input, gross);

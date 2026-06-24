@@ -8,7 +8,7 @@ import MutariClient from './MutariClient';
 const partLabel = (p: any) => `${p.group_name} — ${p.manufacturer ?? ''} ${p.model ? '(' + p.model + ')' : ''}`.trim();
 
 export default async function MutariPage() {
-  await requirePieseWrite();
+  await requirePieseIssue();
   const [warehouses, parts, transit] = await Promise.all([listWarehouses(), catalogRows(), transfersTransit()]);
   return (
     <>

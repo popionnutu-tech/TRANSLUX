@@ -8,8 +8,8 @@ import NomenclatorClient from './NomenclatorClient';
 // Ce secțiuni poate edita fiecare rol (oglindă a HANDLERS din actions.ts).
 const SECTIONS_BY_ROLE: Record<string, string[]> = {
   ADMIN: ['warehouses', 'groups', 'suppliers', 'clients', 'mechanics', 'reasons'],
-  CONTABIL: ['groups', 'suppliers', 'clients'],
-  DEPOZITAR: ['suppliers', 'clients', 'mechanics', 'reasons'],
+  DEPOZITAR: ['suppliers'],
+  VINZATOR: ['clients', 'mechanics', 'reasons'],
 };
 
 export default async function NomenclatorPage() {

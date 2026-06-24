@@ -72,9 +72,11 @@ export async function markSfs(docId: number, sellerId?: string) {
   if (error) throw new Error(error.message);
 }
 const COMPANY = { name: 'TRANSLUX SRL', idno: '1003600000000', address: 'mun. Edineț, Republica Moldova' };
-export async function saleUblData(docId: number) {
+export async function saleUblData(docId: number, sellerId?: string) {
   const sb = getSupabase();
-  const { data: doc } = await sb.from('piese_stock_documents').select('*, piese_clients(name, idno, address)').eq('id', docId).eq('doc_type', 'SALE').eq('status', 'CONFIRMED').maybeSingle();
+  let q = sb.from('piese_stock_documents').select('*, piese_clients(name, idno, address)').eq('id', docId).eq('doc_type', 'SALE').eq('status', 'CONFIRMED');
+  if (sellerId) q = q.eq('created_by_admin', sellerId); // vânzătorul descarcă doar facturile lui
+  const { data: doc } = await q.maybeSingle();
   if (!doc) return null;
   const { data: lines } = await sb.from('piese_stock_document_lines').select('qty, unit_price, piese_parts(unit, manufacturer, piese_part_groups(name_ro))').eq('document_id', docId);
   const c = (doc as any).piese_clients;

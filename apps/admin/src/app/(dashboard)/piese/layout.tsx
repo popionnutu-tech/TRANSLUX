@@ -7,7 +7,8 @@ import './piese.css';
 
 export default async function PieseLayout({ children }: { children: React.ReactNode }) {
   const session = await verifySession();
-  if (!session || (session.role !== 'ADMIN' && session.role !== 'CONTABIL')) redirect('/');
+  const ALLOWED: typeof session.role[] = ['ADMIN', 'CONTABIL', 'DEPOZITAR', 'MANAGER'];
+  if (!session || !ALLOWED.includes(session.role)) redirect('/');
   return (
     <div className="piese-scope">
       <PieseNav role={session.role} />

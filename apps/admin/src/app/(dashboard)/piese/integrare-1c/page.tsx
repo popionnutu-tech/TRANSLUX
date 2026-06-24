@@ -4,7 +4,7 @@ import { catalogForExport, offersForExport } from '@/lib/piese-ops';
 import { requirePiese1C } from '@/lib/piese-access';
 
 export default async function Integrare1CPage() {
-  await requirePieseFiscal();
+  await requirePiese1C();
   const [cat, offers] = await Promise.all([catalogForExport(), offersForExport()]);
   return (
     <>

@@ -9,6 +9,7 @@ const TABS = [
   { href: '/piese', label: 'Tablou' },
   { href: '/piese/stoc', label: 'Stoc' },
   { href: '/piese/catalog', label: 'Catalog' },
+  { href: '/piese/nomenclator', label: 'Nomenclator' },
   { href: '/piese/prihod', label: 'Prihod' },
   { href: '/piese/rashod', label: 'Rashod' },
   { href: '/piese/mutari', label: 'Mutări' },

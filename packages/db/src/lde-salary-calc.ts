@@ -205,30 +205,29 @@ function calcCategorie1_DAF(input: SalaryCalcInput): SalaryCalcResult {
 }
 
 // ── Categoria 2 — Microbuze uzine ──
-// 400 lei/zi de lucru reală până la 7000 km/lună + 1.2 lei/km peste 7000
-// Weekend ×2: zilele de WE = 800 lei (400 × 2)
+// 400 lei/zi de lucru reală până la 7000 km/lună + 1.2 lei/km peste 7000.
+// Confirmat Ion 24.06.2026: ziua de weekend lucrată = tarif NORMAL (400), FĂRĂ ×2.
 function calcCategorie2_Microbuze(input: SalaryCalcInput): SalaryCalcResult {
   const km = sumKm(input.daily_km);
   const workDays = input.daily_km.length;
   const weekendDays = input.daily_km.filter((d) => d.is_weekend).length;
-  const normalDays = workDays - weekendDays;
-  const base = round2(normalDays * MICROBUZ_DAY_RATE_LEI);              // zile normale × 400
+  const base = round2(workDays * MICROBUZ_DAY_RATE_LEI);                // toate zilele lucrate × 400
   const km_surcharge = km > MICROBUZ_KM_THRESHOLD ? round2((km - MICROBUZ_KM_THRESHOLD) * MICROBUZ_KM_RATE) : 0;
   const sup = commonSupplements(input);
 
-  // base = zile normale × 400; weekend_pay = zile WE × 800 (tarif dublu, §2)
-  const weekend_pay = round2(weekendDays * MICROBUZ_DAY_RATE_LEI * 2);
-  const gross = round2(base + weekend_pay + km_surcharge + sup.extra_orders_lei + sup.school_lei + sup.cash_orders_lei + sup.spalare_lei);
+  // Confirmat Ion 24.06: weekendul lucrat = tarif normal, fără spor. weekend_double = 0.
+  const weekend_double = 0;
+  const gross = round2(base + km_surcharge + sup.extra_orders_lei + sup.school_lei + sup.cash_orders_lei + sup.spalare_lei);
   const ded = applyDeductions(input, gross);
 
   return {
-    base_lei: base, km_surcharge_lei: km_surcharge, weekend_double_lei: weekend_pay,
+    base_lei: base, km_surcharge_lei: km_surcharge, weekend_double_lei: weekend_double,
     extra_orders_lei: sup.extra_orders_lei, school_lei: sup.school_lei, cash_orders_lei: sup.cash_orders_lei, spalare_lei: sup.spalare_lei,
     total_gross_lei: gross,
     deduction_pererashod_lei: ded.deduction_pererashod, deduction_damages_lei: ded.deduction_damages, deduction_other_lei: ded.deduction_other,
     total_net_lei: ded.net,
     km_total: km, work_days: workDays, weekend_days: weekendDays,
-    breakdown_per_day: buildBreakdown(input, (d) => d.is_weekend ? MICROBUZ_DAY_RATE_LEI * 2 : MICROBUZ_DAY_RATE_LEI, sup.school_per_day, sup.extra_per_day),
+    breakdown_per_day: buildBreakdown(input, () => MICROBUZ_DAY_RATE_LEI, sup.school_per_day, sup.extra_per_day),
     warnings: sup.warnings,
   };
 }

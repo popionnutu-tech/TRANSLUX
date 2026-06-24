@@ -57,15 +57,15 @@ describe('Categoria 2 (Microbuze)', () => {
     expect(r.total_gross_lei).toBe(8800);
   });
 
-  it('weekend = tarif dublu (800 lei/zi)', () => {
-    // 2 zile normale (400×2=800) + 1 zi weekend (800) = 1600
+  it('weekend lucrat = tarif normal 400 (confirmat Ion 24.06, fără ×2)', () => {
+    // 3 zile lucrate (2 normale + 1 weekend) × 400 = 1200, fără spor de weekend
     const r = calcSalary(baseInput({
       salary_category: 2,
       daily_km: [day('2026-06-01', 100), day('2026-06-02', 100), day('2026-06-06', 100, true)],
     }));
-    expect(r.base_lei).toBe(800);       // 2 zile normale
-    expect(r.weekend_double_lei).toBe(800); // 1 zi WE × 800
-    expect(r.total_gross_lei).toBe(1600);
+    expect(r.base_lei).toBe(1200);      // toate 3 zilele × 400
+    expect(r.weekend_double_lei).toBe(0); // fără spor de weekend
+    expect(r.total_gross_lei).toBe(1200);
   });
 
   it('peste 7000 km → +1.2 lei/km', () => {

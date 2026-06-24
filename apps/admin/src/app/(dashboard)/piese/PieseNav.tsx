@@ -19,12 +19,20 @@ const TABS = [
   { href: '/piese/rapoarte', label: 'Rapoarte' },
 ];
 
-// CONTABIL (contabil-șef) vede modulul doar pe citire + fiscal/1C; operațiunile de depozit rămân ADMIN.
+// CONTABIL (contabil-șef) vede modulul doar pe citire + fiscal/1C; operațiunile de depozit rămân ADMIN/DEPOZITAR.
 const CONTABIL_TABS = new Set(['/piese', '/piese/stoc', '/piese/catalog', '/piese/harta', '/piese/rapoarte', '/piese/fiscal', '/piese/integrare-1c']);
+// DEPOZITAR (vânzător-depozitar) — operează depozitul + vânzări; fără fiscal/1C.
+const DEPOZITAR_TABS = new Set(['/piese', '/piese/stoc', '/piese/catalog', '/piese/prihod', '/piese/rashod', '/piese/mutari', '/piese/inventar', '/piese/harta', '/piese/magazin', '/piese/rapoarte']);
+// MANAGER — doar supraveghere (citire).
+const MANAGER_TABS = new Set(['/piese', '/piese/stoc', '/piese/catalog', '/piese/harta', '/piese/rapoarte']);
 
 export default function PieseNav({ role }: { role: AdminRole }) {
   const path = usePathname();
-  const tabs = role === 'ADMIN' ? TABS : TABS.filter((t) => CONTABIL_TABS.has(t.href));
+  const allowed = role === 'ADMIN' ? null
+    : role === 'DEPOZITAR' ? DEPOZITAR_TABS
+    : role === 'MANAGER' ? MANAGER_TABS
+    : CONTABIL_TABS;
+  const tabs = allowed ? TABS.filter((t) => allowed.has(t.href)) : TABS;
   return (
     <div className="pill-row" style={{ marginBottom: 22, borderBottom: '1px solid var(--pline)', paddingBottom: 14 }}>
       {tabs.map((t) => {

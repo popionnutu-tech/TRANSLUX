@@ -34,6 +34,7 @@ const pieseChildren: NavItem[] = [
   { href: '/piese',              label: 'Tablou',    adminOnly: true, exact: true, icon: 'M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z' },
   { href: '/piese/stoc',         label: 'Stoc',      adminOnly: true, icon: 'M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z' },
   { href: '/piese/catalog',      label: 'Catalog',   adminOnly: true, icon: 'M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z' },
+  { href: '/piese/nomenclator',  label: 'Nomenclator', adminOnly: true, icon: 'M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z' },
   { href: '/piese/prihod',       label: 'Prihod',    adminOnly: true, icon: 'M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z' },
   { href: '/piese/rashod',       label: 'Rashod',    adminOnly: true, icon: 'M5 20h14v-2H5v2zM5 9h4v6h6V9h4l-7-7-7 7z' },
   { href: '/piese/mutari',       label: 'Mutări',    adminOnly: true, icon: 'M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z' },

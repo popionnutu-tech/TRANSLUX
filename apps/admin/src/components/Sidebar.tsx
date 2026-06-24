@@ -227,26 +227,28 @@ function NavLink({ item, pathname, currentTab = null }: { item: NavItem; pathnam
 }
 
 // Pereche buton + listă pliabilă, folosită pentru modulele cu sub-pagini (Piese, Numărare) și pentru Digital.
-function Collapsible({ label, icon, items, pathname, currentTab = null }: { label: string; icon: string; items: NavItem[]; pathname: string; currentTab?: string | null }) {
-  const active = items.some((i) => isItemActive(i, pathname, currentTab));
-  const [open, setOpen] = useState(active);
+// `footer` = conținut extra randat sub items (ex. o sub-grupă pliabilă nestată — Nomenclator digital).
+// `extraActive` = sub-grupa nestată conține pagina activă → deschidem grupa-părinte.
+function Collapsible({ label, icon, items, pathname, currentTab = null, footer = null, extraActive = false, maxH = 720 }: { label: string; icon: string; items: NavItem[]; pathname: string; currentTab?: string | null; footer?: React.ReactNode; extraActive?: boolean; maxH?: number }) {
+  const directActive = items.some((i) => isItemActive(i, pathname, currentTab));
+  const [open, setOpen] = useState(directActive || extraActive);
   return (
     <>
       <button
         onClick={() => setOpen((o) => !o)}
         style={{
           ...linkBase,
-          background: active ? 'rgba(155,27,48,0.06)' : 'transparent',
-          color: active ? '#9B1B30' : '#999',
-          fontWeight: active ? 600 : 500,
+          background: directActive ? 'rgba(155,27,48,0.06)' : 'transparent',
+          color: directActive ? '#9B1B30' : '#999',
+          fontWeight: directActive ? 600 : 500,
           border: 'none',
           cursor: 'pointer',
           width: '100%',
           fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
         }}
       >
-        {active && <span style={activeBar} />}
-        <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: 20, height: 20, flexShrink: 0, opacity: active ? 0.8 : 0.4 }}>
+        {directActive && <span style={activeBar} />}
+        <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: 20, height: 20, flexShrink: 0, opacity: directActive ? 0.8 : 0.4 }}>
           <path d={icon} />
         </svg>
         <span style={{ flex: 1, textAlign: 'left' }}>{label}</span>
@@ -254,10 +256,11 @@ function Collapsible({ label, icon, items, pathname, currentTab = null }: { labe
           <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
         </svg>
       </button>
-      <div style={{ overflow: 'hidden', maxHeight: open ? 720 : 0, transition: 'max-height 0.3s ease', paddingLeft: 12 }}>
+      <div style={{ overflow: 'hidden', maxHeight: open ? maxH : 0, transition: 'max-height 0.3s ease', paddingLeft: 12 }}>
         {items.map((item) => (
           <NavLink key={item.href + item.label} item={item} pathname={pathname} currentTab={currentTab} />
         ))}
+        {footer}
       </div>
     </>
   );
@@ -272,7 +275,6 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
   const currentTab = searchParams.get('tab');
 
   const nomenclatorActive = nomenclatorHrefs.some(h => pathname === h || pathname.startsWith(h + '/'));
-  const [nomenclatorOpen, setNomenclatorOpen] = useState(nomenclatorActive);
 
   const filteredNav = role === 'ADMIN' ? nav
     : role === 'GRAFIC' || role === 'DISPATCHER' ? nav.filter(n => n.href === '/grafic' && n.label === 'Grafic')
@@ -313,55 +315,23 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
         ))}
 
         {filteredNav.length > 0 && (
-          <Collapsible label="Digital" icon="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" items={filteredNav} pathname={pathname} currentTab={currentTab} />
-        )}
-
-        {showNomenclator && (
-          <>
-            <button
-              onClick={() => setNomenclatorOpen(o => !o)}
-              style={{
-                ...linkBase,
-                background: nomenclatorActive ? 'rgba(155,27,48,0.06)' : 'transparent',
-                color: nomenclatorActive ? '#9B1B30' : '#999',
-                fontWeight: nomenclatorActive ? 600 : 500,
-                border: 'none',
-                cursor: 'pointer',
-                width: '100%',
-                fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
-              }}
-            >
-              {nomenclatorActive && <span style={activeBar} />}
-              <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: 20, height: 20, flexShrink: 0, opacity: nomenclatorActive ? 0.8 : 0.4 }}>
-                <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z" />
-              </svg>
-              <span style={{ flex: 1, textAlign: 'left' }}>Nomenclator</span>
-              <svg
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                style={{
-                  width: 18,
-                  height: 18,
-                  opacity: 0.4,
-                  transition: 'transform 0.2s ease',
-                  transform: nomenclatorOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                }}
-              >
-                <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
-              </svg>
-            </button>
-
-            <div style={{
-              overflow: 'hidden',
-              maxHeight: nomenclatorOpen ? 300 : 0,
-              transition: 'max-height 0.25s ease',
-              paddingLeft: 12,
-            }}>
-              {filteredNomenclator.map((item) => (
-                <NavLink key={item.href} item={item} pathname={pathname} />
-              ))}
-            </div>
-          </>
+          <Collapsible
+            label="Digital"
+            icon="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"
+            items={filteredNav}
+            pathname={pathname}
+            currentTab={currentTab}
+            maxH={1300}
+            extraActive={showNomenclator && nomenclatorActive}
+            footer={showNomenclator ? (
+              <Collapsible
+                label="Nomenclator digital"
+                icon="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"
+                items={filteredNomenclator}
+                pathname={pathname}
+              />
+            ) : null}
+          />
         )}
       </nav>
 

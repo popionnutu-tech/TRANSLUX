@@ -16,11 +16,11 @@ import {
 type Handler = { roles: AdminRole[]; create: (d: any) => Promise<void>; update: (id: number, d: any) => Promise<void> };
 const HANDLERS: Record<string, Handler> = {
   warehouses: { roles: ['ADMIN'], create: createWarehouse, update: updateWarehouse },
-  groups: { roles: ['ADMIN', 'CONTABIL'], create: createGroup, update: updateGroup },
-  suppliers: { roles: ['ADMIN', 'DEPOZITAR', 'CONTABIL'], create: createSupplier, update: updateSupplier },
-  clients: { roles: ['ADMIN', 'DEPOZITAR', 'CONTABIL'], create: createClient, update: updateClient },
-  mechanics: { roles: ['ADMIN', 'DEPOZITAR'], create: createMechanic, update: updateMechanic },
-  reasons: { roles: ['ADMIN', 'DEPOZITAR'], create: createReason, update: updateReason },
+  groups: { roles: ['ADMIN'], create: createGroup, update: updateGroup },
+  suppliers: { roles: ['ADMIN', 'DEPOZITAR'], create: createSupplier, update: updateSupplier },
+  clients: { roles: ['ADMIN', 'VINZATOR'], create: createClient, update: updateClient },
+  mechanics: { roles: ['ADMIN', 'VINZATOR'], create: createMechanic, update: updateMechanic },
+  reasons: { roles: ['ADMIN', 'VINZATOR'], create: createReason, update: updateReason },
 };
 
 export async function createNomenclator(section: string, data: Record<string, unknown>) {

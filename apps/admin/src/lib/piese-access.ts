@@ -1,36 +1,26 @@
 import 'server-only';
 import { redirect } from 'next/navigation';
-import { verifySession } from './auth';
+import { verifySession, type Session } from './auth';
+import type { AdminRole } from '@translux/db';
 
-// Acces pe modulul „Piese", pe operațiuni:
-//   • requirePieseWrite   → operațiuni de depozit (rashod / mutări / inventar / magazin): ADMIN, DEPOZITAR.
-//   • requirePieseReceipt → recepție marfă (prihod): ADMIN, DEPOZITAR, CONTABIL (contabilul face intrările).
-//   • requirePieseFiscal  → e-Factura / export 1C: ADMIN, CONTABIL.
-// CONTABIL are în rest doar citire; MANAGER e doar citire pe tot modulul.
-// Apelate în paginile de scriere ca să redirecteze rolurile fără drept spre o pagină de citire.
-
-export async function requirePieseWrite() {
+// Acces pe operațiunile modulului „Piese". Fiecare pagină de scriere cheamă gardul potrivit;
+// rolurile fără drept sunt redirectate spre o pagină de citire (/piese/stoc, vizibilă tuturor rolurilor piese).
+// Drepturile se aplică ȘI la nivel de server action (requireRole) — nav-ul doar ascunde linkuri.
+async function gate(roles: AdminRole[]): Promise<Session> {
   const session = await verifySession();
-  if (!session || (session.role !== 'ADMIN' && session.role !== 'DEPOZITAR')) redirect('/piese/stoc');
+  if (!session || !roles.includes(session.role)) redirect('/piese/stoc');
   return session;
 }
 
-export async function requirePieseReceipt() {
-  const session = await verifySession();
-  if (!session || (session.role !== 'ADMIN' && session.role !== 'DEPOZITAR' && session.role !== 'CONTABIL')) redirect('/piese/stoc');
-  return session;
-}
-
-export async function requirePieseFiscal() {
-  const session = await verifySession();
-  if (!session || (session.role !== 'ADMIN' && session.role !== 'CONTABIL')) redirect('/piese/stoc');
-  return session;
-}
-
-// Nomenclatoare (depozite/grupe/furnizori/clienți/mecanici/motive): ADMIN, DEPOZITAR, CONTABIL.
-// Ce poate edita fiecare în interiorul paginii e decis per secțiune în nomenclator/actions.ts.
-export async function requirePieseNomenclator() {
-  const session = await verifySession();
-  if (!session || (session.role !== 'ADMIN' && session.role !== 'DEPOZITAR' && session.role !== 'CONTABIL')) redirect('/piese/stoc');
-  return session;
-}
+// Intrări (prihod): depozitarul + admin.
+export const requirePieseReceipt = () => gate(['ADMIN', 'DEPOZITAR']);
+// Ieșiri (rashod), vânzări (magazin), mutări între depozite: vânzătorul + admin.
+export const requirePieseIssue = () => gate(['ADMIN', 'VINZATOR']);
+// Inventariere: și depozitar, și vânzător, + admin.
+export const requirePieseInventory = () => gate(['ADMIN', 'DEPOZITAR', 'VINZATOR']);
+// e-Factura (vede/descarcă/marchează SFS): vânzător (factura lui) + contabil + admin.
+export const requirePieseFiscal = () => gate(['ADMIN', 'CONTABIL', 'VINZATOR']);
+// Export 1C: contabil + admin.
+export const requirePiese1C = () => gate(['ADMIN', 'CONTABIL']);
+// Nomenclatoare (cine poate ajunge la pagină): cei care editează cel puțin o secțiune.
+export const requirePieseNomenclator = () => gate(['ADMIN', 'DEPOZITAR', 'VINZATOR']);

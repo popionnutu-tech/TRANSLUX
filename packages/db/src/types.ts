@@ -37,7 +37,7 @@ export const STATUS_LABELS: Record<ReportStatus, string> = {
 // Database Row Types
 // ============================================================
 
-export type AdminRole = 'ADMIN' | 'DISPATCHER' | 'GRAFIC' | 'OPERATOR_CAMERE' | 'ADMIN_CAMERE' | 'EVALUATOR_INCASARI' | 'CONTABIL' | 'DEPOZITAR' | 'MANAGER';
+export type AdminRole = 'ADMIN' | 'DISPATCHER' | 'GRAFIC' | 'OPERATOR_CAMERE' | 'ADMIN_CAMERE' | 'EVALUATOR_INCASARI' | 'CONTABIL' | 'DEPOZITAR' | 'VINZATOR' | 'MANAGER';
 
 export interface AdminAccount {
   id: string;

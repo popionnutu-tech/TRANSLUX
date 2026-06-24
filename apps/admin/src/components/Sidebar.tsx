@@ -284,10 +284,10 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
 
   // doar ADMIN primește dropdown-urile pe module; rolurile de cameră văd Numărare ca link direct (tab-urile lor sunt în pagină)
   // CONTABIL vede doar modulul Piese, cu sub-paginile de citire + fiscal/1C.
+  const pieseHrefs = pieseHrefsForRole(role); // null = ADMIN
   const filteredModules = role === 'ADMIN' ? moduleItems
-    : role === 'CONTABIL' ? moduleItems.filter(m => m.href === '/piese').map(m => ({ ...m, children: m.children?.filter(c => CONTABIL_PIESE_HREFS.has(c.href)) }))
-    : role === 'DEPOZITAR' ? moduleItems.filter(m => m.href === '/piese').map(m => ({ ...m, children: m.children?.filter(c => DEPOZITAR_PIESE_HREFS.has(c.href)) }))
-    : role === 'MANAGER' ? moduleItems.filter(m => m.href === '/piese').map(m => ({ ...m, children: m.children?.filter(c => MANAGER_PIESE_HREFS.has(c.href)) }))
+    : (role === 'CONTABIL' || role === 'DEPOZITAR' || role === 'MANAGER')
+      ? moduleItems.filter(m => m.href === '/piese').map(m => ({ ...m, children: m.children?.filter(c => pieseHrefs!.has(c.href)) }))
     : (role === 'OPERATOR_CAMERE' || role === 'ADMIN_CAMERE' || role === 'EVALUATOR_INCASARI') ? moduleItems.filter(m => m.href === '/numarare').map(m => ({ ...m, children: undefined }))
     : [];
 

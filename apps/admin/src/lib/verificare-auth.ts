@@ -1,19 +1,23 @@
 import { cookies } from 'next/headers';
 import { SignJWT, jwtVerify } from 'jose';
 
-const SECRET = new TextEncoder().encode(
-  process.env.AUTH_SECRET || 'dev-only-secret-local-only',
-);
+const AUTH_SECRET = process.env.AUTH_SECRET;
+if (!AUTH_SECRET && (process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV)) {
+  throw new Error('AUTH_SECRET must be set in production and on Vercel');
+}
+const SECRET = new TextEncoder().encode(AUTH_SECRET || 'dev-only-secret-local-only');
 
 export const VERIFICARE_COOKIE = 'translux-verificare';
 
-const VALID_USER = (process.env.VERIFICARE_USER || 'adrian').toLowerCase();
-const VALID_PASS = process.env.VERIFICARE_PASS || '***REMOVED***';
+// Fără fallback hardcodat: dacă nu sunt setate în env, login-ul eșuează închis (fail-closed).
+const VALID_USER = process.env.VERIFICARE_USER?.trim().toLowerCase();
+const VALID_PASS = process.env.VERIFICARE_PASS;
 
 export async function verifyVerificareCreds(
   user: string,
   pass: string,
 ): Promise<string | null> {
+  if (!VALID_USER || !VALID_PASS) return null;
   if (user.trim().toLowerCase() !== VALID_USER) return null;
   if (pass !== VALID_PASS) return null;
   const token = await new SignJWT({ sub: VALID_USER, role: 'verificare-operator' })

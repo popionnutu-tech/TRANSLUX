@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { listWarehouses, listSuppliers, catalogRows } from '@/lib/piese';
-import { requirePieseWrite } from '@/lib/piese-access';
+import { requirePieseReceipt } from '@/lib/piese-access';
 import PrihodClient from './PrihodClient';
 
 const partLabel = (p: any) => `${p.group_name} — ${p.manufacturer ?? ''} ${p.model ? '(' + p.model + ')' : ''}`.trim();

@@ -1,9 +1,9 @@
 export const dynamic = 'force-dynamic';
 
 import { getVehicleNorms, getVehicleTypes } from './actions';
-import VehiculeClient from './VehiculeClient';
+import MasiniTipuriClient from './MasiniTipuriClient';
 
 export default async function LdeVehiculePage() {
   const [vehicule, types] = await Promise.all([getVehicleNorms(), getVehicleTypes()]);
-  return <VehiculeClient initialVehicule={vehicule} types={types} />;
+  return <MasiniTipuriClient initialVehicule={vehicule} types={types} />;
 }

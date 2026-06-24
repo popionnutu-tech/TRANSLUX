@@ -1,9 +1,7 @@
-export const dynamic = 'force-dynamic';
+import { redirect } from 'next/navigation';
 
-import { getVehicleTypes } from './actions';
-import TipuriMasiniClient from './TipuriMasiniClient';
-
-export default async function TipuriMasiniPage() {
-  const types = await getVehicleTypes();
-  return <TipuriMasiniClient initialTypes={types} />;
+// Unificat cu «Mașini (tip & normă)» — vezi /lde/vehicule (tab «Tipuri de mașini»).
+// Păstrăm ruta ca redirect ca să nu rupem link-uri vechi.
+export default function TipuriMasiniPage() {
+  redirect('/lde/vehicule');
 }

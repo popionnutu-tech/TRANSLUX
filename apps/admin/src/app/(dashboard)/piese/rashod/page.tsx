@@ -7,7 +7,7 @@ import RashodClient from './RashodClient';
 const partLabel = (p: any) => `${p.group_name} — ${p.manufacturer ?? ''} ${p.model ? '(' + p.model + ')' : ''}`.trim();
 
 export default async function RashodPage() {
-  await requirePieseWrite();
+  await requirePieseIssue();
   const [warehouses, vehicles, parts, mechanics, reasons] = await Promise.all([
     listWarehouses(), listVehicles(), catalogRows(), listMechanics(), listReasons(),
   ]);

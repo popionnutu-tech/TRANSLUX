@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { listWarehouses, catalogRows } from '@/lib/piese';
 import { transfersTransit } from '@/lib/piese-ops';
-import { requirePieseWrite } from '@/lib/piese-access';
+import { requirePieseIssue } from '@/lib/piese-access';
 import MutariClient from './MutariClient';
 
 const partLabel = (p: any) => `${p.group_name} — ${p.manufacturer ?? ''} ${p.model ? '(' + p.model + ')' : ''}`.trim();

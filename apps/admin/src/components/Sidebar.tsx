@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { AdminRole } from '@translux/db';
+import { pieseHrefsForRole } from '@/lib/piese-nav';
 
 type NavItem = { href: string; label: string; adminOnly: boolean; icon: string; exact?: boolean; tab?: string };
 type ModuleItem = NavItem & { children?: NavItem[] };

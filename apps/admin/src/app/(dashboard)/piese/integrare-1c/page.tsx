@@ -1,8 +1,10 @@
 export const dynamic = 'force-dynamic';
 
 import { catalogForExport, offersForExport } from '@/lib/piese-ops';
+import { requirePieseFiscal } from '@/lib/piese-access';
 
 export default async function Integrare1CPage() {
+  await requirePieseFiscal();
   const [cat, offers] = await Promise.all([catalogForExport(), offersForExport()]);
   return (
     <>

@@ -73,7 +73,7 @@ const moduleItems: ModuleItem[] = [
 ];
 
 // Sub-paginile Piese vizibile pentru CONTABIL (doar citire + fiscal/1C; operațiunile de depozit rămân ADMIN/DEPOZITAR).
-const CONTABIL_PIESE_HREFS = new Set(['/piese', '/piese/stoc', '/piese/catalog', '/piese/harta', '/piese/rapoarte', '/piese/fiscal', '/piese/integrare-1c']);
+const CONTABIL_PIESE_HREFS = new Set(['/piese', '/piese/stoc', '/piese/catalog', '/piese/prihod', '/piese/harta', '/piese/rapoarte', '/piese/fiscal', '/piese/integrare-1c']);
 // DEPOZITAR (vânzător-depozitar) — operează depozitul + vânzări; fără fiscal/1C.
 const DEPOZITAR_PIESE_HREFS = new Set(['/piese', '/piese/stoc', '/piese/catalog', '/piese/prihod', '/piese/rashod', '/piese/mutari', '/piese/inventar', '/piese/harta', '/piese/magazin', '/piese/rapoarte']);
 // MANAGER — doar supraveghere (citire).

@@ -57,8 +57,10 @@ export async function shopProfit() {
 }
 
 // ── Fiscal (e-Factura) ──
-export async function saleInvoices() {
-  const { data } = await getSupabase().from('piese_sale_invoices').select('*');
+export async function saleInvoices(opts: { sellerId?: string } = {}) {
+  let q = getSupabase().from('piese_sale_invoices').select('*');
+  if (opts.sellerId) q = q.eq('created_by_admin', opts.sellerId); // vânzătorul vede doar facturile lui
+  const { data } = await q;
   return data || [];
 }
 export async function markSfs(docId: number) {

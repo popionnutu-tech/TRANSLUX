@@ -1,9 +1,11 @@
 export const dynamic = 'force-dynamic';
 
 import { saleInvoices } from '@/lib/piese-ops';
+import { requirePieseFiscal } from '@/lib/piese-access';
 import FiscalClient from './FiscalClient';
 
 export default async function FiscalPage() {
+  await requirePieseFiscal();
   const invoices = await saleInvoices();
   return (
     <>

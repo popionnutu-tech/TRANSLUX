@@ -10,7 +10,11 @@ async function seed() {
 
   // 1. Create admin account
   const adminEmail = process.env.ADMIN_EMAIL || 'admin@translux.md';
-  const adminPassword = process.env.ADMIN_PASSWORD || '***REMOVED***';
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (!adminPassword) {
+    console.error('ADMIN_PASSWORD nu este setat în env. Oprire (nu folosim parolă implicită).');
+    process.exit(1);
+  }
   const passwordHash = await hash(adminPassword, 12);
 
   const { data: admin, error: adminErr } = await supabase

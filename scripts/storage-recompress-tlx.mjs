@@ -9,9 +9,12 @@
 import { createClient } from '@supabase/supabase-js';
 import sharp from 'sharp';
 
-const TLX_URL = 'https://tvefsxwqsopfboiaikeq.supabase.co';
-const TLX_SERVICE_KEY =
-  '***REMOVED***';
+const TLX_URL = process.env.TLX_SUPABASE_URL || 'https://tvefsxwqsopfboiaikeq.supabase.co';
+const TLX_SERVICE_KEY = process.env.TLX_SERVICE_KEY;
+if (!TLX_SERVICE_KEY) {
+  console.error('Lipsește TLX_SERVICE_KEY în env. Setează-l înainte de a rula scriptul.');
+  process.exit(1);
+}
 
 const args = process.argv.slice(2);
 const APPLY = args.includes('--apply');

@@ -1,0 +1,18 @@
+{
+  "name": "lde-geo-worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "LDE GPS/Benzol worker — rulează pe VPS, citește tracker (GPS) + benzol (motorină), scrie km/opriri/tronsoane/alimentări în Supabase TRANSLUX. Fără Valhalla.",
+  "scripts": {
+    "gps": "node --env-file=.env gps-worker.mjs",
+    "fuel": "node --env-file=.env fuel-worker.mjs",
+    "nightly": "node --env-file=.env run-nightly.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2",
+    "mysql2": "^3",
+    "pg": "^8",
+    "ws": "^8"
+  }
+}

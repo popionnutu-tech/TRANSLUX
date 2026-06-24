@@ -30,12 +30,10 @@ export default function UsersClient({
   initialUsers,
   initialInvites,
   initialAdmins = [],
-  accountPasswords = {},
 }: {
   initialUsers: User[];
   initialInvites: InviteWithAdmin[];
   initialAdmins?: AdminAccountInfo[];
-  accountPasswords?: Record<string, string>;
 }) {
   const [error, setError] = useState('');
   const [point, setPoint] = useState<PointEnum>('CHISINAU');
@@ -520,7 +518,7 @@ export default function UsersClient({
               {initialAdmins.map(a => (
                 <tr key={a.id}>
                   <td>{a.email}</td>
-                  <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{accountPasswords[a.email] || '•••'}</td>
+                  <td style={{ fontFamily: 'monospace', fontSize: 12 }}>•••</td>
                   <td>{ROLE_LABELS[a.role] || a.role}</td>
                 </tr>
               ))}

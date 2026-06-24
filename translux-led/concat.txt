@@ -1,0 +1,4 @@
+file 'TRANSLUX-intro-4096x546.mp4'
+file 'TRANSLUX-edinet-4096x546.mp4'
+file 'TRANSLUX-balti-4096x546.mp4'
+file 'TRANSLUX-briceni-lipcani-4096x546.mp4'

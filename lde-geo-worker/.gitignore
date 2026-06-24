@@ -1,0 +1,5 @@
+node_modules/
+.env
+places.geojsonseq
+places.pbf
+*.log

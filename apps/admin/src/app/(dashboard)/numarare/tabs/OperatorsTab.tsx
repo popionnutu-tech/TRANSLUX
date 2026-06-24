@@ -18,7 +18,7 @@ const ROLE_LABELS: Record<string, string> = {
   ADMIN_CAMERE: 'Admin camere',
 };
 
-const DEFAULT_PASSWORD = '***REMOVED***';
+const DEFAULT_PASSWORD = ''; // fără parolă implicită — adminul introduce o parolă la creare
 
 // ─── Компонент ───
 

@@ -10,3 +10,11 @@ access.md
 .vercel
 .env.vercel.tmp
 .worktrees/
+
+# PII / data dumps & CLI scratch — never commit (real driver names/phones, pooler host)
+scripts/output/
+supabase/.temp/
+scripts/test-final-overlay.mjs
+scripts/test-minimal-overlay.mjs
+scripts/test-opentype-render.mjs
+scripts/test-new-template.mjs

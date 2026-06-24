@@ -79,19 +79,6 @@ export async function getAdminAccounts(): Promise<AdminAccountInfo[]> {
   return (data || []) as AdminAccountInfo[];
 }
 
-// ── Account Passwords (server-side only) ────────────
-
-export async function getAccountPasswords(): Promise<Record<string, string>> {
-  const session = await verifySession();
-  if (!session || session.role !== 'ADMIN') return {};
-  return {
-    'admin@translux.md': '***REMOVED***',
-    'dispecer@translux.md': '***REMOVED***',
-    'grafic@translux.md': '***REMOVED***',
-    'camere@translux.md': '***REMOVED***',
-  };
-}
-
 const VALID_ADMIN_ROLES = ['ADMIN', 'DISPATCHER', 'GRAFIC', 'OPERATOR_CAMERE', 'ADMIN_CAMERE', 'EVALUATOR_INCASARI', 'CONTABIL'];
 
 export async function createAdminAccount(email: string, password: string, role: string): Promise<void> {

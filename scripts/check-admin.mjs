@@ -11,7 +11,9 @@ if (error) console.log('Error:', error.message);
 if (data && data.length > 0) {
   for (const acc of data) {
     console.log(`  - ${acc.email} (id: ${acc.id}, role: ${acc.role ?? 'N/A'})`);
-    const match = await bcrypt.compare(process.env.ADMIN_PASSWORD || '***REMOVED***', acc.password_hash);
+    const match = process.env.ADMIN_PASSWORD
+      ? await bcrypt.compare(process.env.ADMIN_PASSWORD, acc.password_hash)
+      : null;
     console.log(`    Password match with env ADMIN_PASSWORD: ${match}`);
   }
 } else {

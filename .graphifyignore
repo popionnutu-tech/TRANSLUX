@@ -1,0 +1,11 @@
+# Auto-generated SQL dumps (INSERT statements, не бизнес-логика)
+scripts/output/
+
+# PDF/PNG шаблоны для печати
+apps/web/public/templates/
+
+# Кэши/билды
+.next/
+node_modules/
+dist/
+.turbo/

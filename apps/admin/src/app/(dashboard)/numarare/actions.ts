@@ -145,6 +145,7 @@ export async function getActiveDrivers(): Promise<DriverOption[]> {
     .from('drivers')
     .select('id, full_name')
     .eq('active', true)
+    .eq('is_lde', false)
     .order('full_name');
   return (data || []) as DriverOption[];
 }
@@ -155,6 +156,7 @@ export async function getActiveVehicles(): Promise<VehicleOption[]> {
     .from('vehicles')
     .select('id, plate_number')
     .eq('active', true)
+    .eq('is_lde', false)
     .order('plate_number');
   return (data || []) as VehicleOption[];
 }

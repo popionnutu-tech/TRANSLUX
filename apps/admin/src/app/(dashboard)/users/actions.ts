@@ -5,6 +5,7 @@ import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
 import type { User, UserRole, InviteToken, PointEnum } from '@translux/db';
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 
 // ── Users ────────────────────────────────────────────
 
@@ -89,6 +90,28 @@ export async function getAccountPasswords(): Promise<Record<string, string>> {
     'grafic@translux.md': '***REMOVED***',
     'camere@translux.md': '***REMOVED***',
   };
+}
+
+const VALID_ADMIN_ROLES = ['ADMIN', 'DISPATCHER', 'GRAFIC', 'OPERATOR_CAMERE', 'ADMIN_CAMERE', 'EVALUATOR_INCASARI', 'CONTABIL'];
+
+export async function createAdminAccount(email: string, password: string, role: string): Promise<void> {
+  const session = await verifySession();
+  if (!session || session.role !== 'ADMIN') throw new Error('Acces interzis');
+
+  email = (email || '').trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('Email invalid');
+  if (!password || password.length < 6) throw new Error('Parola trebuie să aibă minim 6 caractere');
+  if (!VALID_ADMIN_ROLES.includes(role)) throw new Error('Rol invalid');
+
+  const db = getSupabase();
+  const { data: existing } = await db.from('admin_accounts').select('id').eq('email', email).maybeSingle();
+  if (existing) throw new Error('Există deja un cont cu acest email');
+
+  const password_hash = await bcrypt.hash(password, 12);
+  const { error } = await db.from('admin_accounts').insert({ email, password_hash, role, active: true });
+  if (error) throw new Error(error.message);
+
+  revalidatePath('/users');
 }
 
 // ── Invites ──────────────────────────────────────────

@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Vehicle } from '@translux/db';
-import { createVehicle, toggleVehicle, deleteVehicle, updateVehiclePlate } from './actions';
+import { createVehicle, toggleVehicle, deleteVehicle, updateVehiclePlate, updateVehicleDirections } from './actions';
+import DirectionChips, { type DirOption } from '@/components/DirectionChips';
 
-export default function VehiclesClient({ initialVehicles }: { initialVehicles: Vehicle[] }) {
+export default function VehiclesClient({ initialVehicles, directionOptions }: { initialVehicles: Vehicle[]; directionOptions: DirOption[] }) {
   const [plate, setPlate] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -78,6 +79,7 @@ export default function VehiclesClient({ initialVehicles }: { initialVehicles: V
           <thead>
             <tr>
               <th>Nr. înmatriculare</th>
+              <th>Direcții</th>
               <th>Status</th>
               <th>Acțiuni</th>
             </tr>
@@ -87,13 +89,14 @@ export default function VehiclesClient({ initialVehicles }: { initialVehicles: V
               <VehicleRow
                 key={vehicle.id}
                 vehicle={vehicle}
+                directionOptions={directionOptions}
                 onToggle={handleToggle}
                 onDelete={handleDelete}
               />
             ))}
             {initialVehicles.length === 0 && (
               <tr>
-                <td colSpan={3} className="text-center text-muted">
+                <td colSpan={4} className="text-center text-muted">
                   Nu există vehicule.
                 </td>
               </tr>
@@ -107,10 +110,12 @@ export default function VehiclesClient({ initialVehicles }: { initialVehicles: V
 
 function VehicleRow({
   vehicle,
+  directionOptions,
   onToggle,
   onDelete,
 }: {
   vehicle: Vehicle;
+  directionOptions: DirOption[];
   onToggle: (id: string, active: boolean) => void;
   onDelete: (id: string) => void;
 }) {
@@ -164,6 +169,13 @@ function VehicleRow({
             {vehicle.plate_number}
           </span>
         )}
+      </td>
+      <td>
+        <DirectionChips
+          value={vehicle.directions}
+          options={directionOptions}
+          onSave={(dirs) => updateVehicleDirections(vehicle.id, dirs)}
+        />
       </td>
       <td>
         <span className={`badge ${vehicle.active ? 'badge-ok' : 'badge-absent'}`}>

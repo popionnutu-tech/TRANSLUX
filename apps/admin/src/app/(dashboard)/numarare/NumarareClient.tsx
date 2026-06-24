@@ -300,7 +300,7 @@ export default function NumarareClient({ role }: { role: AdminRole }) {
   return (
     <div>
       <div className="page-header">
-        <h1>Numărare pasageri</h1>
+        <h1>GO</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span className="text-muted" style={{ fontSize: 13 }}>De la</span>
           <input

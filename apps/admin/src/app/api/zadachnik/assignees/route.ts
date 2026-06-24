@@ -13,12 +13,12 @@ export async function GET(req: Request) {
 
   const { data } = await getSupabase()
     .from('users')
-    .select('id, username, point, operator_kind')
-    .eq('role', 'CONTROLLER')
+    .select('id, name, username, point, operator_kind')
+    .in('role', ['CONTROLLER', 'DIGITAL'])
     .eq('active', true);
 
   const assignees = (data ?? [])
-    .map((x) => ({ id: x.id as string, label: userLabel(x as { username: string | null; point: string | null; operator_kind: string | null }) }))
+    .map((x) => ({ id: x.id as string, label: userLabel(x as { name: string | null; username: string | null; point: string | null; operator_kind: string | null }) }))
     .sort((a, b) => a.label.localeCompare(b.label));
 
   return NextResponse.json({ assignees });

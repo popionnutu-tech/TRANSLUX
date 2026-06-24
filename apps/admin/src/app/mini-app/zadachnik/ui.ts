@@ -76,4 +76,7 @@ export interface Task {
   id: string; title: string | null; description: string; points: number;
   current_deadline: string; current_state: string; rework_used: boolean;
   assignee_id: string; creator_id: string;
+  estimated_date?: string | null;
+  source?: string | null;
+  assignee_label?: string;
 }

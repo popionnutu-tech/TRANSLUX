@@ -181,7 +181,7 @@ export default function NumarareReportsClient({
             >
               SMM
             </button>
-            <button className="mode-btn mode-btn-active">Numărare</button>
+            <button className="mode-btn mode-btn-active">GO</button>
           </div>
           <div className="mode-toggle" style={{ marginLeft: 8 }}>
             <button

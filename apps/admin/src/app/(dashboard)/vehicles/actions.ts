@@ -10,6 +10,7 @@ export async function getVehicles(): Promise<Vehicle[]> {
   const { data } = await getSupabase()
     .from('vehicles')
     .select('*')
+    .eq('is_lde', false) // autoparcul LDE se gestionează în /lde/vehicule, nu aici
     .order('plate_number');
   return (data || []) as Vehicle[];
 }
@@ -53,6 +54,14 @@ export async function updateVehiclePlate(id: string, plateNumber: string) {
 export async function deleteVehicle(id: string) {
   requireRole(await verifySession(), 'ADMIN', 'DISPATCHER');
   const { error } = await getSupabase().from('vehicles').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+  revalidatePath('/vehicles');
+}
+
+export async function updateVehicleDirections(id: string, directions: string[]) {
+  requireRole(await verifySession(), 'ADMIN', 'DISPATCHER');
+  const clean = [...new Set((directions || []).filter((d) => typeof d === 'string' && d.length))];
+  const { error } = await getSupabase().from('vehicles').update({ directions: clean }).eq('id', id);
   if (error) throw new Error(error.message);
   revalidatePath('/vehicles');
 }

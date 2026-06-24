@@ -4,21 +4,23 @@ import { getSupabase } from '@/lib/supabase';
 // Telegram Mini App auth: validate initData (HMAC with bot token) → resolve public.users by telegram_id.
 // Всегда через service-role клиент (таблицы задачника закрыты RLS deny-all). Порт логики из TLX.
 
-export type ZRole = 'ADMIN' | 'CONTROLLER';
+export type ZRole = 'ADMIN' | 'CONTROLLER' | 'DIGITAL';
 
 export interface ZUser {
   id: string;
   role: ZRole;
+  name: string | null;
   username: string | null;
   point: string | null;
   operator_kind: string | null;
   telegram_id: number;
 }
 
-const USER_COLS = 'id, role, username, point, operator_kind, telegram_id';
+const USER_COLS = 'id, role, name, username, point, operator_kind, telegram_id';
 
-/** Подпись пользователя для UI: username, иначе по точке/типу (у части контролёров username пустой). */
-export function userLabel(u: Pick<ZUser, 'username' | 'point' | 'operator_kind'>): string {
+/** Подпись пользователя для UI: имя → username → по точке/типу. */
+export function userLabel(u: Pick<ZUser, 'name' | 'username' | 'point' | 'operator_kind'>): string {
+  if (u.name) return u.name;
   if (u.username) return u.username;
   const k = u.operator_kind === 'TAXI_ZONE' ? ' · taxi' : '';
   return `Controlor ${u.point ?? ''}${k}`.trim();

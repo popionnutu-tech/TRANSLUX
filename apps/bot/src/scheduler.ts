@@ -1,9 +1,11 @@
 import { config } from './config.js';
+import { generateRecurringTasks, autoVerifyTiktokTasks } from './services/db.js';
 import { sendWeeklyReport } from './services/weeklyReport.js';
 import { sendSmmWeeklyReport } from './services/smmWeeklyReport.js';
 import { collectSmmData, aggregateDailyStats, aggregateRangeStats } from './services/smm.js';
 import { sendCompactDigest } from './services/dailyDigest.js';
 import { sendAntaWeeklyReport } from './services/antaReport.js';
+import { sweepTaskBoards } from './services/taskBoard.js';
 
 const CHECK_INTERVAL_MS = 60 * 1000; // check every minute
 const SEND_DAY = 1;   // Monday
@@ -131,6 +133,9 @@ export function scheduleSmmJobs(): void {
           await collectSmmData();
           await aggregateDailyStats(todayStr);
           console.log(`SMM daily data collected for ${todayStr}`);
+          // Auto-verificare TikTok: închide sarcinile recurente cu ≥2 video azi
+          const closed = await autoVerifyTiktokTasks(todayStr);
+          if (closed > 0) console.log(`TikTok auto-verify: ${closed} sarcină(i) închisă(e) pentru ${todayStr}`);
         } catch (err) {
           console.error('SMM daily collection error:', err);
         }
@@ -164,6 +169,49 @@ export function scheduleSmmJobs(): void {
           console.error('SMM retro update error:', err);
         }
       }
+    }
+  }, CHECK_INTERVAL_MS);
+}
+
+// ── Recurring tasks generator (07:00) ──────────────
+
+const RECURRING_HOUR = 7;
+const RECURRING_MINUTE = 0;
+let lastRecurringDate = '';
+
+export function scheduleRecurringGenerator(): void {
+  console.log('Recurring tasks generator started (07:00 Europe/Chisinau)');
+
+  setInterval(async () => {
+    const now = getNowInTz();
+    if (now.getHours() !== RECURRING_HOUR || now.getMinutes() !== RECURRING_MINUTE) return;
+
+    const todayStr = now.toISOString().slice(0, 10);
+    if (lastRecurringDate === todayStr) return; // anti-dubl per proces; +DB last_generated_date la nivel de șablon
+
+    lastRecurringDate = todayStr;
+
+    try {
+      const n = await generateRecurringTasks();
+      if (n > 0) console.log(`Recurring: created ${n} task(s) for ${todayStr}`);
+    } catch (err) {
+      console.error('Recurring generator error:', err);
+    }
+  }, CHECK_INTERVAL_MS);
+}
+
+// ── Task board sweep (зеркалирование задач Vlad в группу) ──────────
+// Каждую минуту доливает в привязанные группы новые активные задачи
+// (ловит задачи из ЛЮБОГО источника — бот или админка). No-op, если привязок нет.
+export function scheduleTaskBoardSweep(): void {
+  console.log('Task board sweep started (every 60s)');
+
+  setInterval(async () => {
+    try {
+      const n = await sweepTaskBoards();
+      if (n > 0) console.log(`Task board: posted ${n} task(s)`);
+    } catch (err) {
+      console.error('Task board sweep error:', err);
     }
   }, CHECK_INTERVAL_MS);
 }

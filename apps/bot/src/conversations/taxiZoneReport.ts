@@ -9,6 +9,7 @@ import {
   getDirectionForPoint,
   getTaxiZoneReportedTripIds,
   createTaxiZoneReport,
+  effectiveRoleToday,
 } from '../services/db.js';
 import { getTodayDate, formatTime, formatDate, haversineDistance } from '../utils.js';
 import { config } from '../config.js';
@@ -34,7 +35,8 @@ export async function taxiZoneReportConversation(
     return;
   }
   const user = await conversation.external(() => getUserByTelegramId(telegramId));
-  if (!user || user.operator_kind !== 'TAXI_ZONE') {
+  const effRole = user ? await conversation.external(() => effectiveRoleToday(user)) : null;
+  if (!user || effRole !== 'TAXI_ZONE') {
     await ctx.reply('⛔ Această funcție e doar pentru operatorul din zona taxi.');
     return;
   }

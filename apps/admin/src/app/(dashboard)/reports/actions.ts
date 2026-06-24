@@ -23,6 +23,8 @@ export interface ReportRow {
   auto_curat: boolean | null;
   reclama_ok: boolean | null;
   reclama_deadline: string | null;
+  reclama_problem: 'bus' | 'panou_ruta' | 'ambele' | null;
+  wash_grade: number | null;
   created_at: string;
   cancelled_at: string | null;
   route_name: string;
@@ -76,6 +78,8 @@ export async function getReports(filters: ReportFilters): Promise<ReportsResult>
       auto_curat,
       reclama_ok,
       reclama_deadline,
+      reclama_problem,
+      wash_grade,
       created_at,
       cancelled_at,
       driver_id,
@@ -132,6 +136,8 @@ export async function getReports(filters: ReportFilters): Promise<ReportsResult>
     auto_curat: r.auto_curat,
     reclama_ok: r.reclama_ok,
     reclama_deadline: r.reclama_deadline,
+    reclama_problem: r.reclama_problem ?? null,
+    wash_grade: r.wash_grade ?? null,
     created_at: r.created_at,
     cancelled_at: r.cancelled_at,
     route_name: r.trips?.routes?.name || '—',
@@ -282,6 +288,7 @@ export async function exportReportsCSV(filters: ReportFilters): Promise<string> 
       `
       id, report_date, point, status, passengers_count,
       exterior_ok, uniform_ok, auto_curat, reclama_ok, reclama_deadline,
+      reclama_problem, wash_grade,
       created_at, cancelled_at, driver_id, vehicle_id,
       trips!inner(departure_time, direction, routes!inner(name)),
       drivers(full_name),
@@ -302,7 +309,7 @@ export async function exportReportsCSV(filters: ReportFilters): Promise<string> 
   const { data } = await query;
   const rows = (data || []) as any[];
 
-  const header = 'Data,Punct,Ruta,Ora,Directia,Sofer,Auto,Status,Pasageri,Aspect OK,Uniforma OK,Auto Curat,Reclama OK,Reclama Deadline,Anulat';
+  const header = 'Data,Punct,Ruta,Ora,Directia,Sofer,Auto,Status,Pasageri,Aspect OK,Uniforma OK,Auto Exterior Curat,Reclama OK,Reclama Deadline,Reclama Unde,Spalare Nota,Anulat';
   const lines = rows.map((r: any) => {
     const cols = [
       r.report_date,
@@ -319,6 +326,8 @@ export async function exportReportsCSV(filters: ReportFilters): Promise<string> 
       r.auto_curat != null ? (r.auto_curat ? 'DA' : 'NU') : '',
       r.reclama_ok != null ? (r.reclama_ok ? 'DA' : 'NU') : '',
       r.reclama_deadline || '',
+      r.reclama_problem === 'bus' ? 'autobuz' : r.reclama_problem === 'panou_ruta' ? 'panou' : r.reclama_problem === 'ambele' ? 'ambele' : '',
+      r.wash_grade ?? '',
       r.cancelled_at ? 'DA' : 'NU',
     ];
     return cols.join(',');
@@ -404,7 +413,7 @@ export async function getFilterOptions() {
   if (!session) throw new Error('Neautorizat');
   const [routesRes, driversRes] = await Promise.all([
     getSupabase().from('routes').select('id, name').eq('active', true).order('name'),
-    getSupabase().from('drivers').select('id, full_name').eq('active', true).order('full_name'),
+    getSupabase().from('drivers').select('id, full_name').eq('active', true).eq('is_lde', false).order('full_name'),
   ]);
   return {
     routes: (routesRes.data || []) as Array<{ id: string; name: string }>,

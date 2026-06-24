@@ -32,7 +32,8 @@ export default function LoginPage() {
         return;
       }
 
-      router.push('/reports');
+      const data = await res.json();
+      router.push(data.role === 'CONTABIL' ? '/piese' : '/reports');
       router.refresh();
     } catch {
       setError('Eroare de conexiune');

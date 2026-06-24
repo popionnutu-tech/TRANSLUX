@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticate, setSessionCookie } from '@/lib/auth';
+import { authenticate, setSessionCookie, roleFromToken } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,7 +15,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email sau parolă incorectă' }, { status: 401 });
     }
 
-    const response = NextResponse.json({ success: true });
+    const role = await roleFromToken(token);
+    const response = NextResponse.json({ success: true, role });
     response.cookies.set(setSessionCookie(token));
     return response;
   } catch (error) {

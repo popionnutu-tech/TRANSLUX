@@ -433,7 +433,7 @@ export default function ReportsClient({ pivotData, comparisonPivotData, dateFrom
               className="mode-btn"
               onClick={() => updateParams({ reportType: 'numarare' })}
             >
-              Numărare
+              GO
             </button>
           </div>
           <div className="mode-toggle" style={{ marginLeft: 8 }}>

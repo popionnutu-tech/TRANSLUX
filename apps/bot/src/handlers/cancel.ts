@@ -4,6 +4,7 @@ import {
   cancelReport,
   getLastTaxiZoneReportByUser,
   cancelTaxiZoneReport,
+  effectiveRoleToday,
 } from '../services/db.js';
 import { config } from '../config.js';
 
@@ -13,8 +14,8 @@ export async function handleCancelLastReport(ctx: BotContext) {
     return;
   }
 
-  // Taxi-zone operator cancels his last taxi-zone report.
-  if (ctx.dbUser.operator_kind === 'TAXI_ZONE') {
+  // Taxi-zone operator cancels his last taxi-zone report (după rolul efectiv azi).
+  if ((await effectiveRoleToday(ctx.dbUser)) === 'TAXI_ZONE') {
     const last = await getLastTaxiZoneReportByUser(ctx.dbUser.id);
     if (!last) {
       await ctx.reply('Nu ai niciun raport activ.');

@@ -2,7 +2,7 @@ import { verifySession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import NumararePageClient from './NumararePageClient';
 
-export const metadata = { title: 'Numărare pasageri — TRANSLUX' };
+export const metadata = { title: 'GO — TRANSLUX' };
 export const dynamic = 'force-dynamic';
 
 export default async function NumararePage() {

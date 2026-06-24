@@ -20,6 +20,9 @@ export interface Obligation {
   current_state: ObligationState;
   rework_used: boolean;
   attachments: unknown;
+  source: string | null;
+  vehicle_plate: string | null;
+  estimated_date: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -56,6 +59,36 @@ function nextDay18ISO(): string {
   // следующий календарный день, 18:00 Кишинёв = 15:00 UTC (летом UTC+3); считаем явно через смещение
   const next = new Date(Date.UTC(y, m - 1, d + 1, 15, 0, 0));
   return next.toISOString();
+}
+
+/** Смещение Кишинёва (мин) с учётом лета/зимы. */
+function chisinauOffsetMin(d: Date): number {
+  const tz = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Chisinau', timeZoneName: 'shortOffset' })
+    .formatToParts(d).find((p) => p.type === 'timeZoneName')?.value || 'GMT+3';
+  const mt = tz.match(/GMT([+-]?\d+)(?::(\d+))?/);
+  if (!mt) return 180;
+  const h = parseInt(mt[1], 10);
+  const mm = mt[2] ? parseInt(mt[2], 10) : 0;
+  return h * 60 + (h < 0 ? -mm : mm);
+}
+/** Сегодня в Кишинёве в HH:MM → ISO (UTC). */
+function chisinauTodayISO(hhmm: string): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Chisinau', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date());
+  const y = +parts.find((p) => p.type === 'year')!.value;
+  const mo = +parts.find((p) => p.type === 'month')!.value;
+  const d = +parts.find((p) => p.type === 'day')!.value;
+  const [hh, mi] = hhmm.split(':').map(Number);
+  const guess = new Date(Date.UTC(y, mo - 1, d, hh, mi));
+  return new Date(guess.getTime() - chisinauOffsetMin(guess) * 60000).toISOString();
+}
+/** Срабатывает ли шаблон сегодня (по дню недели Кишинёва). */
+function recurringFiresToday(period: 'daily' | 'mon_fri' | 'custom', weekDays: number[] | null | undefined): boolean {
+  const wd = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Chisinau' })).getDay();
+  if (period === 'daily') return true;
+  if (period === 'mon_fri') return wd >= 1 && wd <= 5;
+  return Array.isArray(weekDays) && weekDays.includes(wd);
 }
 
 export async function notify(telegramId: number | null | undefined, text: string): Promise<void> {
@@ -129,10 +162,11 @@ async function transition(
 }
 
 // ── действия исполнителя ──
-export async function acceptTask(ob: Obligation, actorId: string): Promise<void> {
+export async function acceptTask(ob: Obligation, actorId: string, estimatedDate?: string | null): Promise<void> {
   if (['accepted', 'in_progress', 'report_pending'].includes(ob.current_state)) return; // идемпотентно
-  if (await transition(ob, ['sent', 'delivered'], 'accepted', actorId)) {
-    await logEvent(ob.id, 'accepted_by_user', actorId);
+  const patch = estimatedDate ? { estimated_date: estimatedDate } : {};
+  if (await transition(ob, ['sent', 'delivered'], 'accepted', actorId, patch)) {
+    await logEvent(ob.id, 'accepted_by_user', actorId, estimatedDate ? { estimated_date: estimatedDate } : {});
   }
 }
 
@@ -208,6 +242,62 @@ export async function listForAssignee(assigneeId: string, bucket: 'active' | 'hi
     .eq('assignee_id', assigneeId).in('current_state', states)
     .order('current_deadline', { ascending: true });
   return (data as Obligation[]) ?? [];
+}
+
+// ── повторяющиеся задачи (шаблоны) — этап D-2 ──
+const WEEKDAY_SHORT = ['Du', 'Lu', 'Ma', 'Mi', 'Jo', 'Vi', 'Sâ']; // JS getDay(): 0=Вс..6=Сб
+export function weekdaysLabel(days: number[] | null | undefined): string {
+  return (days ?? []).slice().sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map((d) => WEEKDAY_SHORT[d] ?? String(d)).join(', ');
+}
+
+export interface RecurringTemplate {
+  id: string; creator_id: string; assignee_id: string; title: string | null;
+  description: string; points: number; period: 'daily' | 'mon_fri' | 'custom';
+  deadline_time: string; week_days: number[] | null; active: boolean; last_generated_date: string | null; created_at: string;
+}
+
+export async function createRecurringTemplate(input: {
+  creatorId: string; assigneeId: string; title: string | null; description: string;
+  points: number; period: 'daily' | 'mon_fri' | 'custom'; deadlineTime: string; weekDays?: number[] | null;
+}): Promise<RecurringTemplate> {
+  const { data, error } = await getSupabase().from('recurring_task_templates').insert({
+    creator_id: input.creatorId, assignee_id: input.assigneeId, title: input.title,
+    description: input.description, points: input.points, period: input.period,
+    deadline_time: input.deadlineTime, week_days: input.period === 'custom' ? (input.weekDays ?? []) : null,
+    active: true,
+  }).select('*').single();
+  if (error || !data) throw new Error(error?.message || 'create failed');
+  const periodLabel = input.period === 'daily' ? 'Zilnic'
+    : input.period === 'mon_fri' ? 'Luni–Vineri'
+    : weekdaysLabel(input.weekDays);
+  await notify(
+    await telegramOf(input.assigneeId),
+    `🔁 <b>Sarcină recurentă</b>\n${input.title ?? input.description.slice(0, 60)}\n${periodLabel} · până ${input.deadlineTime} · 💯 ${input.points} pct\nApare automat.`
+  );
+  const tpl = data as RecurringTemplate;
+  // Dacă șablonul se potrivește azi, generăm sarcina de azi imediat (altfel ar aștepta rularea de la 07:00).
+  if (recurringFiresToday(input.period, input.weekDays)) {
+    const todayYMD = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Chisinau' }).format(new Date());
+    if (tpl.last_generated_date !== todayYMD) {
+      await createTask({
+        creatorId: input.creatorId, assigneeId: input.assigneeId,
+        title: input.title, description: input.description, points: input.points,
+        deadline: chisinauTodayISO(input.deadlineTime),
+      });
+      await getSupabase().from('recurring_task_templates').update({ last_generated_date: todayYMD }).eq('id', tpl.id);
+    }
+  }
+  return tpl;
+}
+
+export async function listRecurring(): Promise<RecurringTemplate[]> {
+  const { data } = await getSupabase().from('recurring_task_templates')
+    .select('*').eq('active', true).order('created_at', { ascending: false });
+  return (data as RecurringTemplate[]) ?? [];
+}
+
+export async function stopRecurring(id: string): Promise<void> {
+  await getSupabase().from('recurring_task_templates').update({ active: false }).eq('id', id);
 }
 
 export { ACTIVE_STATES };

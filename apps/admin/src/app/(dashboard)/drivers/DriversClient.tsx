@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Driver } from '@translux/db';
-import { createDriver, toggleDriver, deleteDriver, updateDriverPhone, updateDriverName } from './actions';
+import { createDriver, toggleDriver, deleteDriver, updateDriverPhone, updateDriverName, updateDriverDirections } from './actions';
+import DirectionChips, { type DirOption } from '@/components/DirectionChips';
 
 /** Split full_name into [familia, prenume] */
 function splitName(fullName: string): [string, string] {
@@ -12,7 +13,7 @@ function splitName(fullName: string): [string, string] {
   return [parts[0], parts.slice(1).join(' ')];
 }
 
-export default function DriversClient({ initialDrivers }: { initialDrivers: Driver[] }) {
+export default function DriversClient({ initialDrivers, directionOptions }: { initialDrivers: Driver[]; directionOptions: DirOption[] }) {
   const [familia, setFamilia] = useState('');
   const [prenume, setPrenume] = useState('');
   const [phone, setPhone] = useState('');
@@ -111,6 +112,7 @@ export default function DriversClient({ initialDrivers }: { initialDrivers: Driv
               <th>Familia</th>
               <th>Prenumele</th>
               <th>Telefon</th>
+              <th>Direcții</th>
               <th>Status</th>
               <th>Acțiuni</th>
             </tr>
@@ -120,13 +122,14 @@ export default function DriversClient({ initialDrivers }: { initialDrivers: Driv
               <DriverRow
                 key={driver.id}
                 driver={driver}
+                directionOptions={directionOptions}
                 onToggle={handleToggle}
                 onDelete={handleDelete}
               />
             ))}
             {initialDrivers.length === 0 && (
               <tr>
-                <td colSpan={5} className="text-center text-muted">
+                <td colSpan={6} className="text-center text-muted">
                   Nu există șoferi.
                 </td>
               </tr>
@@ -140,10 +143,12 @@ export default function DriversClient({ initialDrivers }: { initialDrivers: Driv
 
 function DriverRow({
   driver,
+  directionOptions,
   onToggle,
   onDelete,
 }: {
   driver: Driver;
+  directionOptions: DirOption[];
   onToggle: (id: string, active: boolean) => void;
   onDelete: (id: string) => void;
 }) {
@@ -269,6 +274,13 @@ function DriverRow({
             + Adaugă
           </button>
         )}
+      </td>
+      <td>
+        <DirectionChips
+          value={driver.directions}
+          options={directionOptions}
+          onSave={(dirs) => updateDriverDirections(driver.id, dirs)}
+        />
       </td>
       <td>
         <span className={`badge ${driver.active ? 'badge-ok' : 'badge-absent'}`}>

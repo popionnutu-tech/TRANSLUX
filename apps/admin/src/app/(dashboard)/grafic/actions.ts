@@ -87,8 +87,8 @@ export async function getGraficData(date: string): Promise<{
       .select('id, crm_route_id, driver_id, vehicle_id, vehicle_id_retur, retur_route_id')
       .eq('assignment_date', date)
       .eq('auto_copied', false),
-    db.from('drivers').select('id, full_name, phone').eq('active', true),
-    db.from('vehicles').select('id, plate_number').eq('active', true),
+    db.from('drivers').select('id, full_name, phone').eq('active', true).eq('is_lde', false),
+    db.from('vehicles').select('id, plate_number').eq('active', true).eq('is_lde', false),
     db.from('crm_stop_fares').select('id, crm_route_id, name_ro').eq('is_visible', true).order('id', { ascending: true }),
     canSeeReceipt
       ? db.from('driver_cashin_receipts').select('driver_id, receipt_nr').eq('ziua', date)
@@ -207,7 +207,7 @@ export async function getGraficEdinetRows(date: string): Promise<GraficEdinetRow
       .select('crm_route_id, driver_id, retur_route_id')
       .eq('assignment_date', date)
       .eq('auto_copied', false),
-    db.from('drivers').select('id, full_name, phone').eq('active', true),
+    db.from('drivers').select('id, full_name, phone').eq('active', true).eq('is_lde', false),
   ]);
 
   const routes = (routesRes.data || []) as any[];
@@ -477,6 +477,7 @@ export async function getActiveDrivers(): Promise<DriverOption[]> {
     .from('drivers')
     .select('id, full_name, phone')
     .eq('active', true)
+    .eq('is_lde', false)
     .order('full_name');
   return (data || []) as DriverOption[];
 }
@@ -509,6 +510,7 @@ export async function getActiveVehicles(): Promise<VehicleOption[]> {
     .from('vehicles')
     .select('id, plate_number')
     .eq('active', true)
+    .eq('is_lde', false)
     .order('plate_number');
   return (data || []) as VehicleOption[];
 }
@@ -562,8 +564,8 @@ export async function getGraficSuburban(date: string): Promise<SuburbanGraficRow
       .in('crm_route_id', routeIds)
       .eq('assignment_date', date)
       .eq('auto_copied', false),
-    db.from('drivers').select('id, full_name, phone').eq('active', true),
-    db.from('vehicles').select('id, plate_number').eq('active', true),
+    db.from('drivers').select('id, full_name, phone').eq('active', true).eq('is_lde', false),
+    db.from('vehicles').select('id, plate_number').eq('active', true).eq('is_lde', false),
     canSeeReceipt
       ? db.from('driver_cashin_receipts').select('driver_id, receipt_nr').eq('ziua', date)
       : Promise.resolve({ data: [] as any[] }),

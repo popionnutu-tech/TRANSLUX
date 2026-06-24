@@ -13,6 +13,7 @@ const secret = new TextEncoder().encode(AUTH_SECRET || 'dev-only-secret-local-on
 const COOKIE_NAME = 'translux-session';
 
 export async function authenticate(email: string, password: string): Promise<string | null> {
+  email = (email || '').trim().toLowerCase();
   const { data } = await getSupabase()
     .from('admin_accounts')
     .select('*')
@@ -53,6 +54,16 @@ export async function verifySession(): Promise<Session | null> {
       email: payload.email as string,
       role: payload.role as AdminRole,
     };
+  } catch {
+    return null;
+  }
+}
+
+/** Decodează rolul direct dintr-un token (folosit la login pentru redirect pe rol). */
+export async function roleFromToken(token: string): Promise<AdminRole | null> {
+  try {
+    const { payload } = await jwtVerify(token, secret);
+    return (payload.role as AdminRole) || null;
   } catch {
     return null;
   }

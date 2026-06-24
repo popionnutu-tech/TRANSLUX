@@ -4,7 +4,7 @@ import { webhookCallback } from 'grammy';
 import { validateConfig } from './config.js';
 import { createBot } from './bot.js';
 import { getSupabase } from './supabase.js';
-import { scheduleWeeklyReport, scheduleSmmJobs, scheduleDailyDigest } from './scheduler.js';
+import { scheduleWeeklyReport, scheduleSmmJobs, scheduleDailyDigest, scheduleRecurringGenerator, scheduleTaskBoardSweep } from './scheduler.js';
 
 const HEARTBEAT_KEY = 'bot:heartbeat';
 
@@ -32,6 +32,8 @@ async function main() {
   scheduleWeeklyReport();
   scheduleDailyDigest();
   scheduleSmmJobs();
+  scheduleRecurringGenerator();
+  scheduleTaskBoardSweep();
 
   const webhookUrl = process.env.WEBHOOK_URL;
   const webhookSecret = process.env.WEBHOOK_SECRET;

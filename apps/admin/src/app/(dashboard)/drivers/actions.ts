@@ -10,6 +10,7 @@ export async function getDrivers(): Promise<Driver[]> {
   const { data } = await getSupabase()
     .from('drivers')
     .select('*')
+    .eq('is_lde', false) // autoparcul LDE se gestionează în /lde/soferi, nu aici
     .order('full_name');
   return (data || []) as Driver[];
 }
@@ -74,6 +75,14 @@ export async function toggleDriver(id: string, active: boolean) {
 export async function deleteDriver(id: string) {
   requireRole(await verifySession(), 'ADMIN', 'DISPATCHER');
   const { error } = await getSupabase().from('drivers').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+  revalidatePath('/drivers');
+}
+
+export async function updateDriverDirections(id: string, directions: string[]) {
+  requireRole(await verifySession(), 'ADMIN', 'DISPATCHER');
+  const clean = [...new Set((directions || []).filter((d) => typeof d === 'string' && d.length))];
+  const { error } = await getSupabase().from('drivers').update({ directions: clean }).eq('id', id);
   if (error) throw new Error(error.message);
   revalidatePath('/drivers');
 }

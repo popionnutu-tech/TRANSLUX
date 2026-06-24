@@ -12,6 +12,7 @@ import {
   deleteUser,
   createInvite,
   deleteInvite,
+  createAdminAccount,
 } from './actions';
 import type { InviteWithAdmin, AdminAccountInfo } from './actions';
 
@@ -22,6 +23,7 @@ const ROLE_LABELS: Record<string, string> = {
   OPERATOR_CAMERE: 'Operator camere',
   ADMIN_CAMERE: 'Admin camere',
   EVALUATOR_INCASARI: 'Evaluator încasări',
+  CONTABIL: 'Contabil-șef',
 };
 
 export default function UsersClient({
@@ -40,6 +42,31 @@ export default function UsersClient({
   const [lastLink, setLastLink] = useState('');
   const [invLoading, setInvLoading] = useState(false);
   const router = useRouter();
+
+  // ── Creare cont administrativ ──
+  const [newEmail, setNewEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newRole, setNewRole] = useState('ADMIN');
+  const [accLoading, setAccLoading] = useState(false);
+  const [accDone, setAccDone] = useState('');
+
+  async function handleCreateAccount() {
+    setError('');
+    setAccDone('');
+    setAccLoading(true);
+    try {
+      await createAdminAccount(newEmail, newPassword, newRole);
+      setAccDone(`Cont creat: ${newEmail.trim().toLowerCase()} — parola: ${newPassword}`);
+      setNewEmail('');
+      setNewPassword('');
+      setNewRole('ADMIN');
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setAccLoading(false);
+    }
+  }
 
   async function handleRoleChange(id: string, role: UserRole) {
     setError('');
@@ -478,10 +505,10 @@ export default function UsersClient({
       {error && <div className="u-error">{error}</div>}
 
       {/* Admin accounts */}
-      {initialAdmins.length > 0 && (
-        <div className="u-card" style={{ marginBottom: 20 }}>
-          <div className="u-section">Conturi administrative</div>
-          <table className="u-table">
+      <div className="u-card" style={{ marginBottom: 20 }}>
+        <div className="u-section">Conturi administrative</div>
+        {initialAdmins.length > 0 && (
+          <table className="u-table" style={{ marginBottom: 24 }}>
             <thead>
               <tr>
                 <th>EMAIL</th>
@@ -499,8 +526,62 @@ export default function UsersClient({
               ))}
             </tbody>
           </table>
+        )}
+
+        {/* Creare cont nou */}
+        <div className="u-invite-form" style={{ flexWrap: 'wrap' }}>
+          <div className="u-form-group">
+            <label className="u-form-label">Email</label>
+            <input
+              className="u-form-select"
+              style={{ minWidth: 220, fontStyle: 'normal' }}
+              type="email"
+              placeholder="nume@translux.md"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+            />
+          </div>
+          <div className="u-form-group">
+            <label className="u-form-label">Parola</label>
+            <input
+              className="u-form-select"
+              style={{ minWidth: 170, fontStyle: 'normal' }}
+              type="text"
+              placeholder="min. 6 caractere"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
+          </div>
+          <div className="u-form-group">
+            <label className="u-form-label">Rol</label>
+            <select
+              className="u-form-select"
+              value={newRole}
+              onChange={(e) => setNewRole(e.target.value)}
+            >
+              {Object.entries(ROLE_LABELS).map(([val, label]) => (
+                <option key={val} value={val}>{label}</option>
+              ))}
+            </select>
+          </div>
+          <button
+            onClick={handleCreateAccount}
+            className="u-btn u-btn-primary"
+            disabled={accLoading}
+          >
+            {accLoading ? 'Se creează...' : 'Creează cont'}
+          </button>
         </div>
-      )}
+        {accDone && (
+          <div className="u-link-box">
+            <code className="u-link-code">{accDone}</code>
+            <button onClick={() => navigator.clipboard.writeText(accDone)} className="u-link-copy">
+              Copiază
+            </button>
+          </div>
+        )}
+      </div>
+
 
       {/* Users table */}
       <div className="u-card">
@@ -549,6 +630,7 @@ export default function UsersClient({
                     onChange={(e) => handleRoleChange(user.id, e.target.value as UserRole)}
                   >
                     <option value="CONTROLLER">Controller</option>
+                    <option value="DIGITAL">Digital</option>
                     <option value="ADMIN">Admin</option>
                   </select>
                 </td>

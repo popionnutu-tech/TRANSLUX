@@ -311,7 +311,7 @@ export default function SmmReportsClient({ smmData, dateFrom, dateTo, period }: 
               className="mode-btn"
               onClick={() => updateParams({ reportType: 'numarare' })}
             >
-              Numărare
+              GO
             </button>
           </div>
           <div className="mode-toggle" style={{ marginLeft: 8 }}>

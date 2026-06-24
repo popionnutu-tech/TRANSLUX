@@ -40,9 +40,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const deny = () => NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
   switch (action) {
-    case 'accept':
+    case 'accept': {
       if (!isAssignee) return deny();
-      await acceptTask(ob, u.id); break;
+      const est = (body.estimated_date as string | undefined)?.trim() || null;
+      await acceptTask(ob, u.id, est); break;
+    }
     case 'start':
       if (!isAssignee) return deny();
       await startTask(ob, u.id); break;

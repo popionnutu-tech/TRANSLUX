@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import type { AdminRole } from '@translux/db';
+import { isIpProtectedRole } from '@/lib/ip-access-roles';
 import NumarareClient from './NumarareClient';
 import OperatorsTab from './tabs/OperatorsTab';
 import SalaryTab from './tabs/SalaryTab';
@@ -11,7 +13,7 @@ import IncasareTab from './tabs/IncasareTab';
 type Tab = 'numarare' | 'incasare' | 'operatori' | 'salariu' | 'tarife';
 
 const ALL_TABS: { key: Tab; label: string }[] = [
-  { key: 'numarare', label: 'Numărare' },
+  { key: 'numarare', label: 'GO' },
   { key: 'incasare', label: 'Încasare' },
   { key: 'operatori', label: 'Operatori' },
   { key: 'salariu', label: 'Salariu' },
@@ -38,7 +40,32 @@ export default function NumararePageClient({ role }: { role: AdminRole }) {
 
   const tabs = ALL_TABS.filter(t => visibleTabs.includes(t.key));
   const defaultTab: Tab = isEvaluator ? 'incasare' : 'numarare';
-  const [activeTab, setActiveTab] = useState<Tab>(defaultTab);
+
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const urlTab = searchParams.get('tab') as Tab | null;
+  const [activeTab, setActiveTab] = useState<Tab>(
+    urlTab && visibleTabs.includes(urlTab) ? urlTab : defaultTab
+  );
+
+  // Sincronizare când se navighează din sidebar (/numarare?tab=...)
+  useEffect(() => {
+    const t = searchParams.get('tab') as Tab | null;
+    if (t && visibleTabs.includes(t)) setActiveTab(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  function selectTab(key: Tab) {
+    setActiveTab(key);
+    const url = `/numarare?tab=${key}`;
+    // Rolurile IP-protejate re-rulează checkRoleIpAccess (RPC) la fiecare RSC-refetch;
+    // pentru ele actualizăm doar bara de adresă, fără refetch.
+    if (isIpProtectedRole(role)) {
+      window.history.replaceState(null, '', url);
+    } else {
+      router.replace(url, { scroll: false });
+    }
+  }
 
   const showTabs = visibleTabs.length > 1;
 
@@ -55,7 +82,7 @@ export default function NumararePageClient({ role }: { role: AdminRole }) {
           {tabs.map(tab => (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => selectTab(tab.key)}
               style={{
                 padding: '10px 20px',
                 border: 'none',

@@ -15,6 +15,8 @@ export default async function RootPage() {
     case 'ADMIN_CAMERE':
     case 'EVALUATOR_INCASARI':
       redirect('/numarare');
+    case 'CONTABIL':
+      redirect('/piese');
     default:
       redirect('/grafic');
   }

@@ -11,13 +11,14 @@ import {
   getDirectionForPoint,
   getReportedTripIds,
   getTaxiZoneReportForTrip,
-  hasActiveTaxiOperator,
+  isTaxiZoneCoveredToday,
   createReport,
   validateDay,
   getUsedDriverIds,
   getUsedVehicleIds,
   createVehicle,
   needsReclamaCheck,
+  createReclamaTask,
   getAssignmentForTrip,
   updateAssignmentDriverVehicle,
 } from '../services/db.js';
@@ -190,7 +191,7 @@ export async function reportConversation(
     let taxiAbsent = false;
     let taxiHint: number | null = null; // taxi-zone count to suggest, if reported
     if (point === 'CHISINAU') {
-      const taxiActive = await conversation.external(() => hasActiveTaxiOperator());
+      const taxiActive = await conversation.external(() => isTaxiZoneCoveredToday());
       if (taxiActive) {
         const taxiReport = await conversation.external(() =>
           getTaxiZoneReportForTrip(reportDate, trip.id)
@@ -549,7 +550,8 @@ export async function reportConversation(
     let exteriorOk: boolean | null = null;
     let autoCurat: boolean | null = null;
     let reclamaOk: boolean | null = null;
-    let reclamaDeadline: string | null = null;
+    let reclamaProblem: 'bus' | 'panou_ruta' | 'ambele' | null = null;
+    let washGrade: number | null = null;
 
     if (status === 'OK' && point !== 'BALTI') {
       const compKb = new InlineKeyboard()
@@ -582,7 +584,7 @@ export async function reportConversation(
         .text('Da ✓', 'curat:da')
         .text('Nu ✗', 'curat:nu');
 
-      await ctx.reply('Auto curat?', { reply_markup: curatKb });
+      await ctx.reply('Auto exterior curat?', { reply_markup: curatKb });
 
       while (true) {
         const curatCtx = await conversation.wait();
@@ -603,10 +605,12 @@ export async function reportConversation(
         : false;
       if (showReclama) {
         const reclamaKb = new InlineKeyboard()
-          .text('Da ✓', 'reclama:da')
-          .text('Nu ✗', 'reclama:nu');
+          .text('Totul OK ✓', 'reclama:ok').row()
+          .text('Doar autobuz', 'reclama:bus')
+          .text('Doar panou rută', 'reclama:panou_ruta').row()
+          .text('Ambele', 'reclama:ambele');
 
-        await ctx.reply('Reclamă OK?', { reply_markup: reclamaKb });
+        await ctx.reply('Reclamă:', { reply_markup: reclamaKb });
 
         while (true) {
           const recCtx = await conversation.wait();
@@ -616,63 +620,39 @@ export async function reportConversation(
           }
           if (recCtx.callbackQuery?.data?.startsWith('reclama:')) {
             await recCtx.answerCallbackQuery();
-            reclamaOk = recCtx.callbackQuery.data === 'reclama:da';
+            const rv = recCtx.callbackQuery.data.replace('reclama:', '');
+            if (rv === 'ok') {
+              reclamaOk = true;
+              reclamaProblem = null;
+            } else {
+              reclamaOk = false;
+              reclamaProblem = rv as 'bus' | 'panou_ruta' | 'ambele';
+            }
             break;
           }
         }
 
-        // If reclama not OK — ask for deadline date
-        if (reclamaOk === false) {
-          const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Chisinau' }));
-          const addDays = (d: Date, n: number) => {
-            const r = new Date(d);
-            r.setDate(r.getDate() + n);
-            return r;
-          };
-          const fmt = (d: Date) => d.toISOString().slice(0, 10);
-          const fmtLabel = (d: Date) =>
-            `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`;
+        // Срок больше не спрашиваем у оператора — авто-задача уходит Владу, дату он ставит при принятии.
+      }
 
-          const d1 = addDays(today, 1);
-          const d3 = addDays(today, 3);
-          const d7 = addDays(today, 7);
+      // ── Step 11: Notă spălare interior (echipa de spălare) ──
+      const washKb = new InlineKeyboard()
+        .text('1 · doar măturat', 'wash:1').row()
+        .text('2 · măturat + podea', 'wash:2').row()
+        .text('3 · aspirat + podea + colb', 'wash:3');
 
-          const deadlineKb = new InlineKeyboard()
-            .text(`Mâine (${fmtLabel(d1)})`, `dl:${fmt(d1)}`)
-            .text(`+3 zile (${fmtLabel(d3)})`, `dl:${fmt(d3)}`)
-            .text(`+7 zile (${fmtLabel(d7)})`, `dl:${fmt(d7)}`);
+      await ctx.reply('Notă spălare (interior):', { reply_markup: washKb });
 
-          await ctx.reply('Până când se rezolvă reclama?\n(sau trimite data: ZZ.LL.AAAA)', {
-            reply_markup: deadlineKb,
-          });
-
-          while (true) {
-            const dlCtx = await conversation.wait();
-            if (dlCtx.message?.text === '/start') {
-              await showMainMenu(dlCtx as BotContext);
-              return;
-            }
-            if (dlCtx.callbackQuery?.data?.startsWith('dl:')) {
-              await dlCtx.answerCallbackQuery();
-              reclamaDeadline = dlCtx.callbackQuery.data.replace('dl:', '');
-              break;
-            }
-            const txt = dlCtx.message?.text?.trim();
-            if (txt) {
-              const m = txt.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-              if (m) {
-                const day = parseInt(m[1], 10);
-                const month = parseInt(m[2], 10);
-                const year = parseInt(m[3], 10);
-                const parsed = new Date(year, month - 1, day);
-                if (!isNaN(parsed.getTime()) && parsed > today) {
-                  reclamaDeadline = fmt(parsed);
-                  break;
-                }
-              }
-              await ctx.reply('Format invalid. Trimite data: ZZ.LL.AAAA (în viitor)');
-            }
-          }
+      while (true) {
+        const washCtx = await conversation.wait();
+        if (washCtx.message?.text === '/start') {
+          await showMainMenu(washCtx as BotContext);
+          return;
+        }
+        if (washCtx.callbackQuery?.data?.startsWith('wash:')) {
+          await washCtx.answerCallbackQuery();
+          washGrade = parseInt(washCtx.callbackQuery.data.replace('wash:', ''), 10);
+          break;
         }
       }
     }
@@ -690,7 +670,9 @@ export async function reportConversation(
         uniform_ok: uniformOk,
         auto_curat: autoCurat,
         reclama_ok: reclamaOk,
-        reclama_deadline: reclamaDeadline,
+        reclama_deadline: null,
+        reclama_problem: reclamaProblem,
+        wash_grade: washGrade,
         vehicle_id: vehicleId,
         created_by_user: user.id,
         location_ok: needsLoc ? locationOk : null,
@@ -731,6 +713,18 @@ export async function reportConversation(
         }
       }
 
+      // Reclamă nu-i OK → auto-sarcină pt Vlad (Digital): număr mașină + ce de reparat
+      const reclamaPlate = reclamaProblem && vehicleId ? vehicles.find(v => v.id === vehicleId)?.plate_number : null;
+      if (reclamaProblem && reclamaPlate) {
+        const rp = reclamaProblem;
+        const pl = reclamaPlate;
+        try {
+          await conversation.external(() => createReclamaTask({ creatorId: user.id, vehiclePlate: pl, reclamaProblem: rp }));
+        } catch (e) {
+          console.error('createReclamaTask error:', e);
+        }
+      }
+
       const driverFull = driverId ? drivers.find(d => d.id === driverId)?.full_name || '—' : '—';
       const driverParts = driverFull.split(' ');
       const driverName = driverParts.length > 1
@@ -744,13 +738,17 @@ export async function reportConversation(
       } else {
         const passengerInfo = `☑ ${formatTime(trip.departure_time)} — ${passengersCount} pas.`;
         const driverInfo = point !== 'BALTI' ? ` | ${driverName}` : '';
+        const washInfo = washGrade !== null ? ` · spălare ${washGrade}` : '';
+        const reclamaProblemLabel = reclamaProblem === 'bus' ? 'autobuz'
+          : reclamaProblem === 'panou_ruta' ? 'panou'
+          : reclamaProblem === 'ambele' ? 'ambele' : '';
         const warningParts: string[] = [];
         if (uniformOk === false) warningParts.push('uniformă');
         if (exteriorOk === false) warningParts.push('aspect');
-        if (autoCurat === false) warningParts.push('auto murdar');
-        if (reclamaOk === false) warningParts.push(`reclamă (până ${reclamaDeadline})`);
+        if (autoCurat === false) warningParts.push('auto exterior murdar');
+        if (reclamaOk === false) warningParts.push(`reclamă${reclamaProblemLabel ? ` ${reclamaProblemLabel}` : ''}`);
         const warnings = warningParts.length > 0 ? `\n⚠ ${warningParts.join(', ')}` : '';
-        await ctx.reply(passengerInfo + driverInfo + warnings);
+        await ctx.reply(passengerInfo + driverInfo + washInfo + warnings);
       }
 
       // ── Auto-validate day when all trips are reported ──

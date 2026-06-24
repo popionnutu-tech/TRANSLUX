@@ -73,26 +73,34 @@ export async function sendWeeklyReport(): Promise<void> {
 
   msg += `\n${'─'.repeat(28)}\n\n`;
 
-  // ── 3. Reclama status ──
-  msg += `📋 <b>RECLAMĂ — Stare auto</b>\n\n`;
+  // ── 3. Reclama status (sarcini auto către Vlad) ──
+  msg += `📋 <b>RECLAMĂ — Sarcini auto (Vlad)</b>\n\n`;
 
   if (reclamaIssues.length === 0) {
-    msg += `✅ Nicio problemă activă cu reclama.\n`;
+    msg += `✅ Nicio sarcină reclamă deschisă.\n`;
   } else {
     const overdue = reclamaIssues.filter(i => i.status === 'overdue');
+    const pending = reclamaIssues.filter(i => i.status === 'pending');
     const inProcess = reclamaIssues.filter(i => i.status === 'in_process');
 
     if (overdue.length > 0) {
       msg += `🔴 EXPIRAT (${overdue.length}):\n`;
       for (const i of overdue) {
-        msg += `• <b>${i.plate_number}</b> | ${i.driver_name} — ${formatDate(i.reclama_deadline)} ❌\n`;
+        msg += `• <b>${i.plate_number}</b> — ${i.estimated_date ? formatDate(i.estimated_date) : '—'} ❌\n`;
+      }
+    }
+    if (pending.length > 0) {
+      if (overdue.length > 0) msg += `\n`;
+      msg += `🆕 NEPRELUATE de Vlad (${pending.length}):\n`;
+      for (const i of pending) {
+        msg += `• <b>${i.plate_number}</b>\n`;
       }
     }
     if (inProcess.length > 0) {
-      if (overdue.length > 0) msg += `\n`;
+      if (overdue.length > 0 || pending.length > 0) msg += `\n`;
       msg += `🟡 ÎN PROCES (${inProcess.length}):\n`;
       for (const i of inProcess) {
-        msg += `• <b>${i.plate_number}</b> | ${i.driver_name} — ${formatDate(i.reclama_deadline)} ⏳\n`;
+        msg += `• <b>${i.plate_number}</b> — ${i.estimated_date ? formatDate(i.estimated_date) : '—'} ⏳\n`;
       }
     }
   }

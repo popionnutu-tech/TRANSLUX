@@ -286,8 +286,8 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
   // CONTABIL vede doar modulul Piese, cu sub-paginile de citire + fiscal/1C.
   const pieseHrefs = pieseHrefsForRole(role); // null = ADMIN
   const filteredModules = role === 'ADMIN' ? moduleItems
-    : (role === 'CONTABIL' || role === 'DEPOZITAR' || role === 'MANAGER')
-      ? moduleItems.filter(m => m.href === '/piese').map(m => ({ ...m, children: m.children?.filter(c => pieseHrefs!.has(c.href)) }))
+    : (role === 'CONTABIL' || role === 'DEPOZITAR' || role === 'VINZATOR' || role === 'MANAGER')
+      ? moduleItems.filter(m => m.href === '/piese').map(m => ({ ...m, children: m.children?.filter(c => pieseHrefs?.has(c.href) ?? false) }))
     : (role === 'OPERATOR_CAMERE' || role === 'ADMIN_CAMERE' || role === 'EVALUATOR_INCASARI') ? moduleItems.filter(m => m.href === '/numarare').map(m => ({ ...m, children: undefined }))
     : [];
 

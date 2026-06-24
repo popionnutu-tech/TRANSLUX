@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { listWarehouses, listVehicles, catalogRows, listMechanics, listReasons } from '@/lib/piese';
-import { requirePieseWrite } from '@/lib/piese-access';
+import { requirePieseIssue } from '@/lib/piese-access';
 import RashodClient from './RashodClient';
 
 const partLabel = (p: any) => `${p.group_name} — ${p.manufacturer ?? ''} ${p.model ? '(' + p.model + ')' : ''}`.trim();

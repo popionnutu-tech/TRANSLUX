@@ -3,7 +3,7 @@ import { saleUblData } from '@/lib/piese-ops';
 import { buildInvoiceUBL } from '@/lib/piese-ubl';
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  try { requireRole(await verifySession(), 'ADMIN', 'CONTABIL'); } catch { return new Response('Acces interzis', { status: 403 }); }
+  try { requireRole(await verifySession(), 'ADMIN', 'CONTABIL', 'VINZATOR'); } catch { return new Response('Acces interzis', { status: 403 }); }
   const { id } = await params;
   const data = await saleUblData(Number(id));
   if (!data) return new Response('Factură inexistentă', { status: 404 });

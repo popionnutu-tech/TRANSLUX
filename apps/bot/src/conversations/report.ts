@@ -17,7 +17,7 @@ import {
   getUsedDriverIds,
   getUsedVehicleIds,
   createVehicle,
-  needsReclamaCheck,
+  getVehiclePlate,
   createReclamaTask,
   getAssignmentForTrip,
   updateAssignmentDriverVehicle,
@@ -599,10 +599,11 @@ export async function reportConversation(
         }
       }
 
-      // ── Step 4c: Reclamă (conditional — only if vehicle needs check) ─
-      const showReclama = vehicleId
-        ? await conversation.external(() => needsReclamaCheck(vehicleId))
-        : false;
+      // ── Step 4c: Reclamă (la fiecare cursă cu mașină selectată) ─
+      // Decizie owner 25.06: verificarea reclamă/panou se cere de fiecare dată,
+      // nu doar săptămânal (marți) — o problemă poate fi observată în orice zi.
+      // Gate doar pe vehicleId: fără mașină n-avem placă pt task-ul lui Vlad.
+      const showReclama = !!vehicleId;
       if (showReclama) {
         const reclamaKb = new InlineKeyboard()
           .text('Totul OK ✓', 'reclama:ok').row()
@@ -714,7 +715,13 @@ export async function reportConversation(
       }
 
       // Reclamă nu-i OK → auto-sarcină pt Vlad (Digital): număr mașină + ce de reparat
-      const reclamaPlate = reclamaProblem && vehicleId ? vehicles.find(v => v.id === vehicleId)?.plate_number : null;
+      // Placa: din nomenclatorul încărcat la start; dacă mașina a fost adăugată chiar
+      // în acest raport („+ Adaugă auto") nu-i în listă → fallback din DB, altfel
+      // task-ul lui Vlad se pierdea (bug observat la mașina nouă 526WVW).
+      const reclamaPlate = reclamaProblem && vehicleId
+        ? (vehicles.find(v => v.id === vehicleId)?.plate_number
+            ?? await conversation.external(() => getVehiclePlate(vehicleId)))
+        : null;
       if (reclamaProblem && reclamaPlate) {
         const rp = reclamaProblem;
         const pl = reclamaPlate;

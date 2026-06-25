@@ -164,31 +164,16 @@ export async function getUsedVehicleIds(
   return new Set((data || []).map((r: any) => r.vehicle_id));
 }
 
-/** Check if a vehicle needs reclama verification this week */
-export async function needsReclamaCheck(vehicleId: string): Promise<boolean> {
-  const now = new Date(
-    new Date().toLocaleString('en-US', { timeZone: 'Europe/Chisinau' })
-  );
-  // Always check on Tuesday
-  if (now.getDay() === 2) return true;
-
-  // Other days: check if vehicle was verified since last Tuesday
-  const day = now.getDay();
-  const diff = (day < 2) ? day + 7 - 2 : day - 2;
-  const lastTue = new Date(now);
-  lastTue.setDate(now.getDate() - diff);
-  const lastTueStr = lastTue.toISOString().slice(0, 10);
-
+/** Placa unei mașini după id — fallback când mașina nu-i în nomenclatorul
+ *  încărcat la începutul raportului (ex. adăugată chiar atunci prin „+ Adaugă auto").
+ *  Fără asta, task-ul reclamă al lui Vlad se pierdea pentru mașinile noi. */
+export async function getVehiclePlate(vehicleId: string): Promise<string | null> {
   const { data } = await db()
-    .from('reports')
-    .select('id')
-    .eq('vehicle_id', vehicleId)
-    .not('reclama_ok', 'is', null)
-    .is('cancelled_at', null)
-    .gte('report_date', lastTueStr)
-    .limit(1);
-
-  return !data || data.length === 0;
+    .from('vehicles')
+    .select('plate_number')
+    .eq('id', vehicleId)
+    .maybeSingle();
+  return (data?.plate_number as string) ?? null;
 }
 
 // ── Zadachnik: auto-sarcină din defect reclamă (executor = utilizatorul DIGITAL / Vlad) ──

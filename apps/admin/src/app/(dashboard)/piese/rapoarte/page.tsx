@@ -73,10 +73,10 @@ export default async function RapoartePage() {
       <div className="card">
         <h2>Mișcarea stocului (jurnal)</h2>
         <table>
-          <thead><tr><th>Data</th><th>Tip</th><th>Piesă</th><th>Depozit</th><th>Mașina</th><th className="num">Cant.</th><th className="num">Cost</th></tr></thead>
+          <thead><tr><th>Data</th><th>Tip</th><th>Piesă</th><th>Depozit</th><th>Mașina</th><th className="num">Cant.</th>{showCost && <th className="num">Cost</th>}</tr></thead>
           <tbody>
             {(ledger as any[]).map((m) => (
-              <tr key={m.id}><td className="muted">{dt(m.created_at)}</td><td>{MOV[m.movement_type] || m.movement_type}</td><td>{m.group_name} <span className="muted">{m.name_long}</span></td><td>{m.warehouse_name}</td><td className="muted">{m.vehicle_plate || '—'}</td><td className="num">{m.qty_delta > 0 ? '+' : ''}{m.qty_delta}</td><td className="num">{lei(m.unit_cost)}</td></tr>
+              <tr key={m.id}><td className="muted">{dt(m.created_at)}</td><td>{MOV[m.movement_type] || m.movement_type}</td><td>{m.group_name} <span className="muted">{m.name_long}</span></td><td>{m.warehouse_name}</td><td className="muted">{m.vehicle_plate || '—'}</td><td className="num">{m.qty_delta > 0 ? '+' : ''}{m.qty_delta}</td>{showCost && <td className="num">{lei(m.unit_cost)}</td>}</tr>
             ))}
           </tbody>
         </table>

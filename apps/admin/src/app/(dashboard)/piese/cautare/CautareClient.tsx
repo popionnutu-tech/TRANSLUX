@@ -87,7 +87,7 @@ function ResultCard({ r }: { r: SearchResult }) {
         <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
           <div style={{ fontSize: 12, color: 'var(--muted, #6b7280)' }}>Preț vânzare</div>
           <div style={{ fontWeight: 700, fontSize: 18 }}>{lei(r.salePrice)}</div>
-          {r.avgCost != null && <div className="muted" style={{ fontSize: 12 }}>cost mediu {lei(r.avgCost)}</div>}
+          {r.avgCost != null && <div className="muted" style={{ fontSize: 12 }}>cost achiziție {lei(r.avgCost)}</div>}
         </div>
       </div>
 

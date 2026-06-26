@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 
 import { stockRows, listWarehouses } from '@/lib/piese';
+import { verifySession } from '@/lib/auth';
+import { canSeeCost } from '@/lib/piese-access';
 
 const lei = (n: number) => Number(n || 0).toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' lei';
 
@@ -10,6 +12,8 @@ export default async function StocPage({ searchParams }: { searchParams: Promise
     listWarehouses(),
     stockRows({ warehouseId: sp.w ? Number(sp.w) : undefined, search: sp.q }),
   ]);
+  const role = (await verifySession())?.role;
+  const showCost = role ? canSeeCost(role) : false; // vânzătorul: doar cantitate + locație, fără cost/valoare
   const total = (rows as any[]).reduce((s, r) => s + Number(r.qty) * Number(r.avg_cost), 0);
 
   return (

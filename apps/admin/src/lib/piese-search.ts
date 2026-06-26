@@ -87,8 +87,8 @@ export async function searchAssistant(
       totalQty,
       inStock: totalQty > 0,
       salePrice: price && Number(price.sale_price) > 0 ? Number(price.sale_price) : null,
-      avgCost: price && Number(price.avg_cost) > 0 ? Number(price.avg_cost) : null,
-      lastSupplier: sup ? { name: sup.supplier_name || null, unitCost: sup.unit_cost != null ? Number(sup.unit_cost) : null, receivedAt: sup.received_at || null } : null,
+      avgCost: showCost && price && Number(price.avg_cost) > 0 ? Number(price.avg_cost) : null,
+      lastSupplier: showCost && sup ? { name: sup.supplier_name || null, unitCost: sup.unit_cost != null ? Number(sup.unit_cost) : null, receivedAt: sup.received_at || null } : null,
     };
   });
 }

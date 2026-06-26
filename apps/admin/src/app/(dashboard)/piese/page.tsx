@@ -21,7 +21,7 @@ export default async function PieseDashboard() {
       <div className="grid cols-4" style={{ marginBottom: 16 }}>
         <div className="stat"><div className="v">{s.parts}</div><div className="l">Denumiri piese</div></div>
         <div className="stat"><div className="v">{s.vehicles}</div><div className="l">Mașini în parc</div></div>
-        <div className="stat"><div className="v">{lei(s.stockValue)}</div><div className="l">Valoare stoc (FIFO)</div></div>
+        {showCost && <div className="stat"><div className="v">{lei(s.stockValue)}</div><div className="l">Valoare stoc (FIFO)</div></div>}
         <div className="stat"><div className="v">{s.movements}</div><div className="l">Mișcări în jurnal</div></div>
       </div>
 

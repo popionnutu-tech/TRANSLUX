@@ -4,7 +4,7 @@ import { catalogRows } from '@/lib/piese';
 
 export default async function CatalogPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const sp = await searchParams;
-  const rows = await catalogRows(sp.q);
+  const rows = await catalogRows({ search: sp.q });
   return (
     <>
       <div className="page-header"><h1>Catalog piese (nomenclator unic)</h1><p>Grup (denumire scurtă) → variante (producător, model, cod). Caută după orice câmp.</p></div>

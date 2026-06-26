@@ -16,7 +16,7 @@ export async function listGroups() {
 }
 export async function listVehicles(search?: string) {
   let q = getSupabase().from('piese_vehicles').select('*').order('plate').limit(500);
-  if (search?.trim()) q = q.or(`plate.ilike.%${search.trim()}%,model.ilike.%${search.trim()}%`);
+  if (search?.trim()) { const s = orVal(search.trim()); q = q.or(`plate.ilike."%${s}%",model.ilike."%${s}%"`); }
   const { data } = await q;
   return data || [];
 }

@@ -69,7 +69,7 @@ export default function CautareClient({ categories, showCost }: { categories: Ca
   );
 }
 
-function ResultCard({ r }: { r: SearchResult }) {
+function ResultCard({ r, showCost }: { r: SearchResult; showCost: boolean }) {
   const title = [r.manufacturer, r.model].filter(Boolean).join(' · ');
   return (
     <div className="card" style={{ margin: 0, borderLeft: `4px solid ${r.inStock ? 'var(--ok, #16a34a)' : 'var(--line, #d1d5db)'}` }}>

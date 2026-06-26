@@ -38,8 +38,8 @@ export async function stockRows(opts: { warehouseId?: number; search?: string; g
   if (opts.warehouseId) q = q.eq('warehouse_id', opts.warehouseId);
   if (opts.groupId) q = q.eq('group_id', opts.groupId);
   if (opts.search?.trim()) {
-    const s = opts.search.trim();
-    q = q.or(`name_long.ilike.%${s}%,group_name.ilike.%${s}%,barcode.ilike.%${s}%,model.ilike.%${s}%`);
+    const s = orVal(opts.search.trim());
+    q = q.or(`name_long.ilike."%${s}%",group_name.ilike."%${s}%",barcode.ilike."%${s}%",model.ilike."%${s}%"`);
   }
   const { data } = await q;
   return data || [];
@@ -49,8 +49,8 @@ export async function catalogRows(opts: { search?: string; groupId?: number } = 
   let q = getSupabase().from('piese_catalog_rows').select('*').order('group_name').limit(500);
   if (opts.groupId) q = q.eq('group_id', opts.groupId);
   if (opts.search?.trim()) {
-    const s = opts.search.trim();
-    q = q.or(`name_long.ilike.%${s}%,group_name.ilike.%${s}%,article_code.ilike.%${s}%,oem_code.ilike.%${s}%,barcode.ilike.%${s}%,model.ilike.%${s}%`);
+    const s = orVal(opts.search.trim());
+    q = q.or(`name_long.ilike."%${s}%",group_name.ilike."%${s}%",article_code.ilike."%${s}%",oem_code.ilike."%${s}%",barcode.ilike."%${s}%",model.ilike."%${s}%"`);
   }
   const { data } = await q;
   return data || [];

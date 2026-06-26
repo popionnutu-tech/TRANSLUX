@@ -26,7 +26,7 @@ export default async function StocPage({ searchParams }: { searchParams: Promise
           {(warehouses as any[]).map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
         </select>
         <button className="btn btn-primary" type="submit">Caută</button>
-        <span className="muted">{(rows as any[]).length} poziții · valoare {lei(total)}</span>
+        <span className="muted">{(rows as any[]).length} poziții{showCost ? ` · valoare ${lei(total)}` : ''}</span>
       </form>
       <div className="card">
         {(rows as any[]).length === 0 ? <div className="empty">Nicio poziție.</div> : (

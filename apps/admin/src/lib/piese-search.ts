@@ -36,8 +36,9 @@ export async function searchAssistant(
   // 1) Piesele care se potrivesc (din catalog: denumire / grup / articol / OEM / cod de bare / model).
   let q = sb.from('piese_catalog_rows').select('*').order('group_name').limit(limit);
   if (opts.categoryId) q = q.eq('group_id', opts.categoryId);
-  if (s) q = q.or(`name_long.ilike.%${s}%,group_name.ilike.%${s}%,article_code.ilike.%${s}%,oem_code.ilike.%${s}%,barcode.ilike.%${s}%,model.ilike.%${s}%`);
-  const { data: parts } = await q;
+  if (s) { const e = orVal(s); q = q.or(`name_long.ilike."%${e}%",group_name.ilike."%${e}%",article_code.ilike."%${e}%",oem_code.ilike."%${e}%",barcode.ilike."%${e}%",model.ilike."%${e}%"`); }
+  const { data: parts, error: partsErr } = await q;
+  if (partsErr) { console.error('[piese-search] catalog query:', partsErr.message); return []; }
   const list = (parts || []) as any[];
   if (!list.length) return [];
   const ids = list.map((p) => p.id);
@@ -48,6 +49,9 @@ export async function searchAssistant(
     sb.from('piese_last_supplier').select('part_id, supplier_name, unit_cost, received_at').in('part_id', ids),
     sb.from('piese_part_sale_price').select('part_id, sale_price, avg_cost').in('part_id', ids),
   ]);
+  for (const [name, res] of [['stock', stockRes], ['last_supplier', supRes], ['sale_price', priceRes]] as const) {
+    if (res.error) console.error(`[piese-search] ${name} query:`, res.error.message);
+  }
 
   const stockByPart = new Map<number, StockAt[]>();
   for (const r of (stockRes.data || []) as any[]) {

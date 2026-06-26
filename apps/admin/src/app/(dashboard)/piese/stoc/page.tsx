@@ -42,8 +42,8 @@ export default async function StocPage({ searchParams }: { searchParams: Promise
                     <td>{r.warehouse_name}</td>
                     <td className="muted">{r.location_label || '—'}</td>
                     <td className="num">{low ? <span className="badge warn">{r.qty} {r.unit}</span> : <span>{r.qty} {r.unit}</span>}</td>
-                    <td className="num">{lei(r.avg_cost)}</td>
-                    <td className="num">{lei(Number(r.qty) * Number(r.avg_cost))}</td>
+                    {showCost && <><td className="num">{lei(r.avg_cost)}</td>
+                    <td className="num">{lei(Number(r.qty) * Number(r.avg_cost))}</td></>}
                   </tr>
                 );
               })}

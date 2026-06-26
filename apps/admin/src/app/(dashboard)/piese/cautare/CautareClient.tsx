@@ -59,7 +59,7 @@ export default function CautareClient({ categories, showCost }: { categories: Ca
             <>
               <div className="muted" style={{ marginBottom: 12 }}>{results.length} rezultate</div>
               <div style={{ display: 'grid', gap: 12 }}>
-                {results.map((r) => <ResultCard key={r.id} r={r} />)}
+                {results.map((r) => <ResultCard key={r.id} r={r} showCost={showCost} />)}
               </div>
             </>
           )}

@@ -1,4 +1,5 @@
 import { getSupabase } from './supabase';
+import { orVal } from './piese';
 
 // Asistent de căutare piesă (vânzător): după denumire / categorie / cod (articol, OEM, cod de bare) / model
 // → denumire corectă + producător + OEM + articol + cod de bare, stoc pe depozite + locație,

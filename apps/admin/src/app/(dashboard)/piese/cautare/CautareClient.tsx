@@ -9,7 +9,7 @@ type Category = { id: number; name: string; markup: number };
 const lei = (n: number | null) =>
   n == null ? '—' : n.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' lei';
 
-export default function CautareClient({ categories }: { categories: Category[] }) {
+export default function CautareClient({ categories, showCost }: { categories: Category[]; showCost: boolean }) {
   const [q, setQ] = useState('');
   const [cat, setCat] = useState<number | ''>('');
   const [results, setResults] = useState<SearchResult[] | null>(null);

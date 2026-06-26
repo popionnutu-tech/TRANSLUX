@@ -26,3 +26,10 @@ export const requirePiese1C = () => gate(['ADMIN', 'CONTABIL']);
 export const requirePieseNomenclator = () => gate(['ADMIN', 'DEPOZITAR', 'VINZATOR']);
 // Asistent căutare piesă: citire pentru toate rolurile modulului (vânzător, depozitar, contabil, manager, admin).
 export const requirePieseSearch = () => gate(['ADMIN', 'VINZATOR', 'DEPOZITAR', 'CONTABIL', 'MANAGER']);
+
+// SURSĂ UNICĂ: costul de achiziție (preț plătit furnizorului, valoare/cost FIFO, profit, furnizor) e vizibil
+// tuturor rolurilor modulului — MAI PUȚIN vânzătorul (VINZATOR), care vede doar prețul de vânzare, cantitatea, locația.
+// Folosită de TOATE ecranele care afișează cost (tablou, stoc, magazin, rapoarte, căutare), ca regula să nu divergă.
+export function canSeeCost(role: AdminRole): boolean {
+  return role !== 'VINZATOR';
+}

@@ -24,3 +24,5 @@ export const requirePieseFiscal = () => gate(['ADMIN', 'CONTABIL', 'VINZATOR']);
 export const requirePiese1C = () => gate(['ADMIN', 'CONTABIL']);
 // Nomenclatoare (cine poate ajunge la pagină): cei care editează cel puțin o secțiune.
 export const requirePieseNomenclator = () => gate(['ADMIN', 'DEPOZITAR', 'VINZATOR']);
+// Asistent căutare piesă: citire pentru toate rolurile modulului (vânzător, depozitar, contabil, manager, admin).
+export const requirePieseSearch = () => gate(['ADMIN', 'VINZATOR', 'DEPOZITAR', 'CONTABIL', 'MANAGER']);

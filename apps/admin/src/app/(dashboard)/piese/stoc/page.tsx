@@ -31,7 +31,7 @@ export default async function StocPage({ searchParams }: { searchParams: Promise
       <div className="card">
         {(rows as any[]).length === 0 ? <div className="empty">Nicio poziție.</div> : (
           <table>
-            <thead><tr><th>Grup</th><th>Variantă</th><th>Depozit</th><th>Locație</th><th className="num">Stoc</th><th className="num">Cost mediu</th><th className="num">Valoare</th></tr></thead>
+            <thead><tr><th>Grup</th><th>Variantă</th><th>Depozit</th><th>Locație</th><th className="num">Stoc</th>{showCost && <><th className="num">Cost mediu</th><th className="num">Valoare</th></>}</tr></thead>
             <tbody>
               {(rows as any[]).map((r, i) => {
                 const low = r.min_qty > 0 && r.qty <= r.min_qty;

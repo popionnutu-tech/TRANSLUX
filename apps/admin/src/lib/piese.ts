@@ -2,6 +2,10 @@ import { getSupabase } from './supabase';
 
 // Strat de date pentru modulul „Piese" — citește din view-urile piese_* și apelează funcțiile Postgres (FIFO etc.).
 
+// PostgREST tratează , ( ) ca structură în interiorul .or(...). Cităm valoarea utilizatorului (escapând " și \)
+// ca să fie tratată ca DATE, nu ca filtru — altfel un termen cu virgulă/paranteze poate injecta condiții.
+export const orVal = (v: string) => v.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+
 export async function listWarehouses() {
   const { data } = await getSupabase().from('piese_warehouses').select('*').order('id');
   return data || [];

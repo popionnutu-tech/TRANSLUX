@@ -1,12 +1,12 @@
 export const dynamic = 'force-dynamic';
 
-import { requirePieseSearch } from '@/lib/piese-access';
+import { requirePieseSearch, canSeeCost } from '@/lib/piese-access';
 import { listGroups } from '@/lib/piese';
 import CautareClient from './CautareClient';
 
 export default async function CautarePage() {
   const session = await requirePieseSearch();
-  const showCost = session.role !== 'VINZATOR'; // vânzătorul vede doar prețul de vânzare
+  const showCost = canSeeCost(session.role); // vânzătorul vede doar prețul de vânzare
   const groups = await listGroups();
   const categories = (groups as any[]).map((g) => ({ id: g.id, name: g.name_ro, markup: Number(g.markup_pct) || 0 }));
   return (

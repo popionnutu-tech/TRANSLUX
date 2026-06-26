@@ -8,6 +8,7 @@ import { pieseHrefsForRole } from '@/lib/piese-nav';
 const TABS = [
   { href: '/piese', label: 'Tablou' },
   { href: '/piese/stoc', label: 'Stoc' },
+  { href: '/piese/cautare', label: 'Căutare' },
   { href: '/piese/catalog', label: 'Catalog' },
   { href: '/piese/nomenclator', label: 'Nomenclator' },
   { href: '/piese/prihod', label: 'Prihod' },

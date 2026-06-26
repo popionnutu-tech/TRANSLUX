@@ -1,12 +1,16 @@
 export const dynamic = 'force-dynamic';
 
 import { dashboardStats, lowStock, recentDocs } from '@/lib/piese';
+import { verifySession } from '@/lib/auth';
+import { canSeeCost } from '@/lib/piese-access';
 
 const lei = (n: number) => Number(n || 0).toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' lei';
 const DOC: Record<string, string> = { RECEIPT: 'Prihod', ISSUE: 'Rashod', TRANSFER: 'Mutare', SALE: 'Vânzare', INVENTORY: 'Inventariere', RETURN_SUPPLIER: 'Retur', WRITE_OFF: 'Spisanie', DONOR: 'Donor' };
 
 export default async function PieseDashboard() {
   const [s, low, recent] = await Promise.all([dashboardStats(), lowStock(), recentDocs(8)]);
+  const role = (await verifySession())?.role;
+  const showCost = role ? canSeeCost(role) : false; // vânzătorul nu vede valoarea stocului (cost)
   return (
     <>
       <div className="page-header">

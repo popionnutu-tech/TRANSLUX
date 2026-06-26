@@ -27,11 +27,14 @@ export type SearchResult = {
 
 export async function searchAssistant(
   query: string,
-  opts: { categoryId?: number; limit?: number } = {},
+  opts: { categoryId?: number; limit?: number; showCost?: boolean } = {},
 ): Promise<SearchResult[]> {
   const sb = getSupabase();
   const s = (query || '').trim();
   const limit = opts.limit ?? 40;
+  // Vânzătorul vede doar prețul de vânzare; costul de achiziție + furnizorul se ascund din DATE (server-side),
+  // nu doar din UI — ca să nu ajungă deloc în browserul lui. Restul rolurilor (admin/depozitar/contabil/manager) le văd.
+  const showCost = opts.showCost !== false;
 
   // 1) Piesele care se potrivesc (din catalog: denumire / grup / articol / OEM / cod de bare / model).
   let q = sb.from('piese_catalog_rows').select('*').order('group_name').limit(limit);

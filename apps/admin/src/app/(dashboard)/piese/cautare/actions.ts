@@ -1,6 +1,6 @@
 'use server';
 
-import { requirePieseSearch } from '@/lib/piese-access';
+import { requirePieseSearch, canSeeCost } from '@/lib/piese-access';
 import { searchAssistant, type SearchResult } from '@/lib/piese-search';
 
 // Căutare/citire pentru asistentul de vânzător. Garda permite toate rolurile modulului Piese.

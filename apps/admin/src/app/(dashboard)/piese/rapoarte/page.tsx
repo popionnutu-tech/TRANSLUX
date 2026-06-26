@@ -14,10 +14,13 @@ export default async function RapoartePage() {
   const [costs, over, reli, low, dead, ledger] = await Promise.all([
     costPerVehicle(12), overconsumption(), reliability(), lowStock(), illiquid(), movementLedger(40),
   ]);
+  const role = (await verifySession())?.role;
+  const showCost = role ? canSeeCost(role) : false; // vânzătorul: fără rapoarte/coloane de cost
   return (
     <>
       <div className="page-header"><h1>Rapoarte</h1><p>Analiza economică din interviuri: cost pe mașină, перерасход, fiabilitate producători, de comandat, неликвид, jurnal.</p></div>
       <div className="grid cols-2">
+        {showCost && (
         <div className="card">
           <h2>Top mașini după cost piese</h2>
           <table>
@@ -29,12 +32,13 @@ export default async function RapoartePage() {
             </tbody>
           </table>
         </div>
+        )}
         <div className="card">
           <h2>⚠ Перерасход (aceeași piesă, prea des)</h2>
           {(over as any[]).length === 0 ? <div className="empty">Nimic anormal.</div> : (
             <table>
-              <thead><tr><th>Mașina</th><th>Grup</th><th className="num">De câte ori</th><th className="num">Cost</th></tr></thead>
-              <tbody>{(over as any[]).map((o, i) => (<tr key={i}><td>{o.plate}</td><td>{o.group_name}</td><td className="num"><span className="badge warn">{o.times}×</span></td><td className="num">{lei(o.cost)}</td></tr>))}</tbody>
+              <thead><tr><th>Mașina</th><th>Grup</th><th className="num">De câte ori</th>{showCost && <th className="num">Cost</th>}</tr></thead>
+              <tbody>{(over as any[]).map((o, i) => (<tr key={i}><td>{o.plate}</td><td>{o.group_name}</td><td className="num"><span className="badge warn">{o.times}×</span></td>{showCost && <td className="num">{lei(o.cost)}</td>}</tr>))}</tbody>
             </table>
           )}
         </div>

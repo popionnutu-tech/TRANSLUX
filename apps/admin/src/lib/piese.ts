@@ -135,9 +135,10 @@ export async function warehouseLayout(warehouseId: number) {
 export async function locatePart(warehouseId: number, code: string) {
   const c = code.trim();
   if (!c) return { found: false as const };
+  const e = orVal(c);
   const { data: p } = await getSupabase().from('piese_catalog_rows')
     .select('id, group_name, manufacturer, model')
-    .or(`barcode.eq.${c},article_code.eq.${c},oem_code.eq.${c},group_name.ilike.%${c}%,name_long.ilike.%${c}%`).limit(1).maybeSingle();
+    .or(`barcode.eq."${e}",article_code.eq."${e}",oem_code.eq."${e}",group_name.ilike."%${e}%",name_long.ilike."%${e}%"`).limit(1).maybeSingle();
   if (!p) return { found: false as const };
   const { data: loc } = await getSupabase().from('piese_part_locations').select('location_label').eq('warehouse_id', warehouseId).eq('part_id', (p as any).id).maybeSingle();
   const placement = loc ? { ...parseLocation((loc as any).location_label), label: (loc as any).location_label } : null;

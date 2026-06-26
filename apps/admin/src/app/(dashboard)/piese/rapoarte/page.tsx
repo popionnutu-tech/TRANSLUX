@@ -2,6 +2,8 @@ export const dynamic = 'force-dynamic';
 
 import { costPerVehicle, overconsumption, reliability, illiquid, movementLedger } from '@/lib/piese-ops';
 import { lowStock } from '@/lib/piese';
+import { verifySession } from '@/lib/auth';
+import { canSeeCost } from '@/lib/piese-access';
 
 const lei = (n: number) => Number(n || 0).toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' lei';
 const km = (n: number) => Number(n || 0).toLocaleString('ro-RO') + ' km';

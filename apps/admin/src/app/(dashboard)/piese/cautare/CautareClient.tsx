@@ -108,9 +108,11 @@ function ResultCard({ r, showCost }: { r: SearchResult; showCost: boolean }) {
           <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
             <div style={{ fontSize: 14 }}>
               <span className="badge gray">nu e în stoc</span>{' '}
-              {r.lastSupplier?.name
-                ? <>de procurat de la <strong>{r.lastSupplier.name}</strong>{r.lastSupplier.unitCost != null && <> · ultimul preț achiziție {lei(r.lastSupplier.unitCost)}</>}</>
-                : <span className="muted">fără furnizor înregistrat (nu a fost recepționată încă)</span>}
+              {!showCost
+                ? <span className="muted">se poate comanda</span>
+                : r.lastSupplier?.name
+                  ? <>de procurat de la <strong>{r.lastSupplier.name}</strong>{r.lastSupplier.unitCost != null && <> · ultimul preț achiziție {lei(r.lastSupplier.unitCost)}</>}</>
+                  : <span className="muted">fără furnizor înregistrat (nu a fost recepționată încă)</span>}
             </div>
             <button className="btn" title="Modulul Comenzi furnizori vine curând — deocamdată notează manual" disabled>Comandă (în curând)</button>
           </div>

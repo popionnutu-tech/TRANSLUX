@@ -20,7 +20,6 @@ import {
   getVehiclePlate,
   createReclamaTask,
   climateQuestionNeeded,
-  createClimateTask,
   getAssignmentForTrip,
   updateAssignmentDriverVehicle,
 } from '../services/db.js';
@@ -766,21 +765,7 @@ export async function reportConversation(
         }
       }
 
-      // Climă STRICATĂ → auto-sarcină pt Vlad (la fel ca reclama). Placă cu fallback (mașini „+ Adaugă auto").
-      const climaBroken = (climateKind === 'ac' && acStatus === 'broken') || (climateKind === 'heat' && heatStatus === 'broken');
-      const climaPlate = climaBroken && vehicleId
-        ? (vehicles.find(v => v.id === vehicleId)?.plate_number
-            ?? await conversation.external(() => getVehiclePlate(vehicleId)))
-        : null;
-      if (climaBroken && climateKind && climaPlate) {
-        const ck = climateKind;
-        const cpl = climaPlate;
-        try {
-          await conversation.external(() => createClimateTask({ creatorId: user.id, vehiclePlate: cpl, kind: ck }));
-        } catch (e) {
-          console.error('createClimateTask error:', e);
-        }
-      }
+      // Climă: doar înregistrare pe raport (ac_status/heat_status). Fără sarcină pt Vlad (decizie owner).
 
       const driverFull = driverId ? drivers.find(d => d.id === driverId)?.full_name || '—' : '—';
       const driverParts = driverFull.split(' ');

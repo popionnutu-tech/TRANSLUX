@@ -2,11 +2,18 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Vehicle } from '@translux/db';
-import { createVehicle, toggleVehicle, deleteVehicle, updateVehiclePlate, updateVehicleDirections } from './actions';
+import { createVehicle, toggleVehicle, deleteVehicle, updateVehiclePlate, updateVehicleDirections, type VehicleWithClima, type ClimaStatus } from './actions';
 import DirectionChips, { type DirOption } from '@/components/DirectionChips';
 
-export default function VehiclesClient({ initialVehicles, directionOptions }: { initialVehicles: Vehicle[]; directionOptions: DirOption[] }) {
+/** Eticheta stării climă (A/C / căldură) per mașină — ultima cunoscută din rapoarte. */
+function climaChip(s: ClimaStatus) {
+  if (s === 'broken') return <span className="badge badge-absent">stricat</span>;
+  if (s === 'works') return <span className="badge badge-ok">merge</span>;
+  if (s === 'none') return <span className="text-muted" style={{ fontSize: 12 }}>nu are</span>;
+  return <span className="text-muted" style={{ fontSize: 12 }}>—</span>;
+}
+
+export default function VehiclesClient({ initialVehicles, directionOptions }: { initialVehicles: VehicleWithClima[]; directionOptions: DirOption[] }) {
   const [plate, setPlate] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -80,6 +87,7 @@ export default function VehiclesClient({ initialVehicles, directionOptions }: { 
             <tr>
               <th>Nr. înmatriculare</th>
               <th>Direcții</th>
+              <th>Climă</th>
               <th>Status</th>
               <th>Acțiuni</th>
             </tr>
@@ -96,7 +104,7 @@ export default function VehiclesClient({ initialVehicles, directionOptions }: { 
             ))}
             {initialVehicles.length === 0 && (
               <tr>
-                <td colSpan={4} className="text-center text-muted">
+                <td colSpan={5} className="text-center text-muted">
                   Nu există vehicule.
                 </td>
               </tr>
@@ -114,7 +122,7 @@ function VehicleRow({
   onToggle,
   onDelete,
 }: {
-  vehicle: Vehicle;
+  vehicle: VehicleWithClima;
   directionOptions: DirOption[];
   onToggle: (id: string, active: boolean) => void;
   onDelete: (id: string) => void;
@@ -176,6 +184,12 @@ function VehicleRow({
           options={directionOptions}
           onSave={(dirs) => updateVehicleDirections(vehicle.id, dirs)}
         />
+      </td>
+      <td style={{ whiteSpace: 'nowrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <span title="Aer condiționat (15 mai–31 iul)">❄️ {climaChip(vehicle.ac_status)}</span>
+          <span title="Căldură salon (1 noi–15 feb)">🔥 {climaChip(vehicle.heat_status)}</span>
+        </div>
       </td>
       <td>
         <span className={`badge ${vehicle.active ? 'badge-ok' : 'badge-absent'}`}>

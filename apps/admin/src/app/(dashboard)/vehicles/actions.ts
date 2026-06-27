@@ -5,14 +5,38 @@ import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
 import type { Vehicle } from '@translux/db';
 
-export async function getVehicles(): Promise<Vehicle[]> {
+export type ClimaStatus = 'works' | 'broken' | 'none' | null;
+export type VehicleWithClima = Vehicle & { ac_status: ClimaStatus; heat_status: ClimaStatus };
+
+export async function getVehicles(): Promise<VehicleWithClima[]> {
   requireRole(await verifySession(), 'ADMIN', 'DISPATCHER');
-  const { data } = await getSupabase()
+  const supa = getSupabase();
+  const { data } = await supa
     .from('vehicles')
     .select('*')
     .eq('is_lde', false) // autoparcul LDE se gestionează în /lde/vehicule, nu aici
     .order('plate_number');
-  return (data || []) as Vehicle[];
+  const vehicles = (data || []) as Vehicle[];
+
+  // Ultima stare climă cunoscută per mașină (din rapoartele operatorilor): A/C și căldură separat.
+  const [acRes, heatRes] = await Promise.all([
+    supa.from('reports').select('vehicle_id, ac_status, report_date, created_at')
+      .not('ac_status', 'is', null).is('cancelled_at', null)
+      .order('report_date', { ascending: false }).order('created_at', { ascending: false }),
+    supa.from('reports').select('vehicle_id, heat_status, report_date, created_at')
+      .not('heat_status', 'is', null).is('cancelled_at', null)
+      .order('report_date', { ascending: false }).order('created_at', { ascending: false }),
+  ]);
+  const acMap = new Map<string, ClimaStatus>();
+  for (const r of (acRes.data || []) as any[]) if (r.vehicle_id && !acMap.has(r.vehicle_id)) acMap.set(r.vehicle_id, r.ac_status);
+  const heatMap = new Map<string, ClimaStatus>();
+  for (const r of (heatRes.data || []) as any[]) if (r.vehicle_id && !heatMap.has(r.vehicle_id)) heatMap.set(r.vehicle_id, r.heat_status);
+
+  return vehicles.map((v) => ({
+    ...v,
+    ac_status: acMap.get(v.id) ?? null,
+    heat_status: heatMap.get(v.id) ?? null,
+  }));
 }
 
 export async function createVehicle(plateNumber: string) {

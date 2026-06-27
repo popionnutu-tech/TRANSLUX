@@ -212,11 +212,6 @@ const RECLAMA_LABEL: Record<'bus' | 'panou_ruta' | 'ambele', string> = {
   ambele: 'reclamă + panou rută',
 };
 
-const CLIMATE_LABEL: Record<'ac' | 'heat', string> = {
-  ac: 'aer condiționat stricat',
-  heat: 'căldură în salon stricată',
-};
-
 async function notifyTelegram(telegramId: number | null, text: string): Promise<void> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token || !telegramId) return;
@@ -300,42 +295,6 @@ export async function createReclamaTask(input: {
     points: 30,
     deadline,
     source: 'reclama',
-    vehiclePlate: input.vehiclePlate,
-    notifyText: `📋 <b>Sarcină nouă (auto)</b>\n${description}\nDeschide «Задачник» în meniul botului ca s-o accepți.`,
-  });
-  return !!id;
-}
-
-/** Auto-sarcină climă pt Vlad (DIGITAL) când A/C / căldura e STRICATĂ (varianta 'broken').
- *  Dedup: o singură sarcină climă deschisă per mașină. */
-export async function createClimateTask(input: {
-  creatorId: string;
-  vehiclePlate: string;
-  kind: 'ac' | 'heat';
-}): Promise<boolean> {
-  const supa = db();
-  const { data: digital } = await supa.from('users')
-    .select('id, telegram_id').eq('role', 'DIGITAL').eq('active', true)
-    .order('created_at', { ascending: true }).limit(1).maybeSingle();
-  if (!digital) return false; // Vlad încă necreat → skip
-
-  const { data: open } = await supa.from('obligations')
-    .select('id').eq('source', 'clima').eq('vehicle_plate', input.vehiclePlate)
-    .in('current_state', NONTERMINAL_OB).limit(1).maybeSingle();
-  if (open) return false; // deja există o sarcină climă deschisă pt mașina asta
-
-  const todayCh = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Chisinau' })).toISOString().slice(0, 10);
-  const deadline = chisinauDateTimeISO(addBusinessDaysYMD(todayCh, 10), '18:00');
-  const description = `${input.vehiclePlate} — ${CLIMATE_LABEL[input.kind]}, de reparat`;
-  const id = await spawnObligation({
-    creatorId: input.creatorId,
-    assigneeId: digital.id as string,
-    assigneeTelegramId: (digital.telegram_id as number) ?? null,
-    title: `Climă ${input.vehiclePlate}`,
-    description,
-    points: 30,
-    deadline,
-    source: 'clima',
     vehiclePlate: input.vehiclePlate,
     notifyText: `📋 <b>Sarcină nouă (auto)</b>\n${description}\nDeschide «Задачник» în meniul botului ca s-o accepți.`,
   });

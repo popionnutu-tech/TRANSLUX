@@ -176,6 +176,33 @@ export async function getVehiclePlate(vehicleId: string): Promise<string | null>
   return (data?.plate_number as string) ?? null;
 }
 
+// ── Climat (pasul 12): A/C vara, căldură salon iarna; sezonier + o dată pe lună per mașină ──
+/** Sezonul climatic pentru o zi 'YYYY-MM-DD': 'ac' (15 mai–31 iul), 'heat' (1 nov–15 feb) sau null. */
+export function climateKindForDate(ymd: string): 'ac' | 'heat' | null {
+  const [, m, d] = ymd.split('-').map(Number);
+  if ((m === 5 && d >= 15) || m === 6 || m === 7) return 'ac';
+  if (m === 11 || m === 12 || m === 1 || (m === 2 && d <= 15)) return 'heat';
+  return null;
+}
+
+/** Trebuie pusă întrebarea climă pt mașina asta azi? Sezonieră + o dată pe lună per mașină.
+ *  null = în afara sezonului SAU deja întrebată luna asta (orice variantă din 3). */
+export async function climateQuestionNeeded(vehicleId: string, todayYMD: string): Promise<'ac' | 'heat' | null> {
+  const kind = climateKindForDate(todayYMD);
+  if (!kind) return null; // în afara sezonului → fără query la DB
+  const col = kind === 'ac' ? 'ac_status' : 'heat_status';
+  const monthStart = todayYMD.slice(0, 7) + '-01';
+  const { data } = await db()
+    .from('reports')
+    .select('id')
+    .eq('vehicle_id', vehicleId)
+    .not(col, 'is', null)
+    .is('cancelled_at', null)
+    .gte('report_date', monthStart)
+    .limit(1);
+  return data && data.length > 0 ? null : kind; // deja întrebată luna asta → null
+}
+
 // ── Zadachnik: auto-sarcină din defect reclamă (executor = utilizatorul DIGITAL / Vlad) ──
 const NONTERMINAL_OB = ['sent', 'delivered', 'accepted', 'in_progress', 'report_pending', 'overdue', 'overdue_responded'];
 
@@ -183,6 +210,11 @@ const RECLAMA_LABEL: Record<'bus' | 'panou_ruta' | 'ambele', string> = {
   bus: 'reclamă pe autobuz',
   panou_ruta: 'panou cu ruta',
   ambele: 'reclamă + panou rută',
+};
+
+const CLIMATE_LABEL: Record<'ac' | 'heat', string> = {
+  ac: 'aer condiționat stricat',
+  heat: 'căldură în salon stricată',
 };
 
 async function notifyTelegram(telegramId: number | null, text: string): Promise<void> {
@@ -268,6 +300,42 @@ export async function createReclamaTask(input: {
     points: 30,
     deadline,
     source: 'reclama',
+    vehiclePlate: input.vehiclePlate,
+    notifyText: `📋 <b>Sarcină nouă (auto)</b>\n${description}\nDeschide «Задачник» în meniul botului ca s-o accepți.`,
+  });
+  return !!id;
+}
+
+/** Auto-sarcină climă pt Vlad (DIGITAL) când A/C / căldura e STRICATĂ (varianta 'broken').
+ *  Dedup: o singură sarcină climă deschisă per mașină. */
+export async function createClimateTask(input: {
+  creatorId: string;
+  vehiclePlate: string;
+  kind: 'ac' | 'heat';
+}): Promise<boolean> {
+  const supa = db();
+  const { data: digital } = await supa.from('users')
+    .select('id, telegram_id').eq('role', 'DIGITAL').eq('active', true)
+    .order('created_at', { ascending: true }).limit(1).maybeSingle();
+  if (!digital) return false; // Vlad încă necreat → skip
+
+  const { data: open } = await supa.from('obligations')
+    .select('id').eq('source', 'clima').eq('vehicle_plate', input.vehiclePlate)
+    .in('current_state', NONTERMINAL_OB).limit(1).maybeSingle();
+  if (open) return false; // deja există o sarcină climă deschisă pt mașina asta
+
+  const todayCh = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Chisinau' })).toISOString().slice(0, 10);
+  const deadline = chisinauDateTimeISO(addBusinessDaysYMD(todayCh, 10), '18:00');
+  const description = `${input.vehiclePlate} — ${CLIMATE_LABEL[input.kind]}, de reparat`;
+  const id = await spawnObligation({
+    creatorId: input.creatorId,
+    assigneeId: digital.id as string,
+    assigneeTelegramId: (digital.telegram_id as number) ?? null,
+    title: `Climă ${input.vehiclePlate}`,
+    description,
+    points: 30,
+    deadline,
+    source: 'clima',
     vehiclePlate: input.vehiclePlate,
     notifyText: `📋 <b>Sarcină nouă (auto)</b>\n${description}\nDeschide «Задачник» în meniul botului ca s-o accepți.`,
   });
@@ -557,6 +625,8 @@ export async function createReport(report: {
   reclama_deadline: string | null;
   reclama_problem?: 'bus' | 'panou_ruta' | 'ambele' | null;
   wash_grade?: number | null;
+  ac_status?: 'works' | 'broken' | 'none' | null;
+  heat_status?: 'works' | 'broken' | 'none' | null;
   vehicle_id: string | null;
   created_by_user: string;
   location_ok: boolean | null;

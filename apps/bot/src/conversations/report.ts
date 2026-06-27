@@ -19,6 +19,8 @@ import {
   createVehicle,
   getVehiclePlate,
   createReclamaTask,
+  climateQuestionNeeded,
+  createClimateTask,
   getAssignmentForTrip,
   updateAssignmentDriverVehicle,
 } from '../services/db.js';
@@ -552,6 +554,9 @@ export async function reportConversation(
     let reclamaOk: boolean | null = null;
     let reclamaProblem: 'bus' | 'panou_ruta' | 'ambele' | null = null;
     let washGrade: number | null = null;
+    let acStatus: 'works' | 'broken' | 'none' | null = null;
+    let heatStatus: 'works' | 'broken' | 'none' | null = null;
+    let climateKind: 'ac' | 'heat' | null = null;
 
     if (status === 'OK' && point !== 'BALTI') {
       const compKb = new InlineKeyboard()
@@ -656,6 +661,33 @@ export async function reportConversation(
           break;
         }
       }
+
+      // ── Step 12: Climat (sezonier: A/C 15.05–31.07 / căldură salon 01.11–15.02; o dată pe lună per mașină) ──
+      const vIdForClima = vehicleId;
+      climateKind = vIdForClima
+        ? await conversation.external(() => climateQuestionNeeded(vIdForClima, reportDate))
+        : null;
+      if (climateKind === 'ac' || climateKind === 'heat') {
+        const climaKb = new InlineKeyboard()
+          .text('Lucrează ✓', 'clima:works').row()
+          .text('Stricat ✗', 'clima:broken')
+          .text('Nu are', 'clima:none');
+        await ctx.reply(climateKind === 'ac' ? '❄️ Aerul condiționat:' : '🔥 Căldura în salon:', { reply_markup: climaKb });
+
+        while (true) {
+          const climaCtx = await conversation.wait();
+          if (climaCtx.message?.text === '/start') {
+            await showMainMenu(climaCtx as BotContext);
+            return;
+          }
+          if (climaCtx.callbackQuery?.data?.startsWith('clima:')) {
+            await climaCtx.answerCallbackQuery();
+            const cv = climaCtx.callbackQuery.data.replace('clima:', '') as 'works' | 'broken' | 'none';
+            if (climateKind === 'ac') acStatus = cv; else heatStatus = cv;
+            break;
+          }
+        }
+      }
     }
 
     // ── Save ───────────────────────────────────────────
@@ -674,6 +706,8 @@ export async function reportConversation(
         reclama_deadline: null,
         reclama_problem: reclamaProblem,
         wash_grade: washGrade,
+        ac_status: acStatus,
+        heat_status: heatStatus,
         vehicle_id: vehicleId,
         created_by_user: user.id,
         location_ok: needsLoc ? locationOk : null,
@@ -729,6 +763,22 @@ export async function reportConversation(
           await conversation.external(() => createReclamaTask({ creatorId: user.id, vehiclePlate: pl, reclamaProblem: rp }));
         } catch (e) {
           console.error('createReclamaTask error:', e);
+        }
+      }
+
+      // Climă STRICATĂ → auto-sarcină pt Vlad (la fel ca reclama). Placă cu fallback (mașini „+ Adaugă auto").
+      const climaBroken = (climateKind === 'ac' && acStatus === 'broken') || (climateKind === 'heat' && heatStatus === 'broken');
+      const climaPlate = climaBroken && vehicleId
+        ? (vehicles.find(v => v.id === vehicleId)?.plate_number
+            ?? await conversation.external(() => getVehiclePlate(vehicleId)))
+        : null;
+      if (climaBroken && climateKind && climaPlate) {
+        const ck = climateKind;
+        const cpl = climaPlate;
+        try {
+          await conversation.external(() => createClimateTask({ creatorId: user.id, vehiclePlate: cpl, kind: ck }));
+        } catch (e) {
+          console.error('createClimateTask error:', e);
         }
       }
 

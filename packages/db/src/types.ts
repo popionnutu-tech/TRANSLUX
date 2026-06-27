@@ -123,6 +123,8 @@ export interface Report {
   reclama_deadline: string | null;
   reclama_problem: 'bus' | 'panou_ruta' | 'ambele' | null;
   wash_grade: number | null;
+  ac_status: 'works' | 'broken' | 'none' | null;
+  heat_status: 'works' | 'broken' | 'none' | null;
   location_ok: boolean | null;
   vehicle_id: string | null;
   created_by_user: string;

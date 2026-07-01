@@ -280,7 +280,7 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
 
   const filteredNav = role === 'ADMIN' ? nav
     : role === 'GRAFIC' || role === 'DISPATCHER' ? nav.filter(n => n.href === '/grafic' && n.label === 'Grafic')
-    : role === 'OPERATOR_CAMERE' || role === 'ADMIN_CAMERE' || role === 'EVALUATOR_INCASARI' || role === 'CONTABIL' || role === 'DEPOZITAR' || role === 'MANAGER' ? []
+    : role === 'OPERATOR_CAMERE' || role === 'ADMIN_CAMERE' || role === 'EVALUATOR_INCASARI' || role === 'CONTABIL' || role === 'DEPOZITAR' || role === 'MANAGER' || role === 'GESTIONAR' ? []
     : nav;
 
   // doar ADMIN primește dropdown-urile pe module; rolurile de cameră văd Numărare ca link direct (tab-urile lor sunt în pagină)

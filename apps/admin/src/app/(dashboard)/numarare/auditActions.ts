@@ -7,6 +7,9 @@ import type { SavedEntry } from './actions';
 import type { ComparisonInput } from './comparison';
 
 const AUDIT_ROLES = ['ADMIN', 'ADMIN_CAMERE'] as const;
+// Intrarea auditului (a doua numărare orb) e permisă și operatorilor.
+// Comparația (getAuditComparison) și resetul (resetAudit) rămân doar la admin.
+const AUDIT_ENTRY_ROLES = ['ADMIN', 'ADMIN_CAMERE', 'OPERATOR_CAMERE'] as const;
 
 /**
  * Blochează sesiunea pentru audit. Doar ADMIN/ADMIN_CAMERE.
@@ -14,7 +17,7 @@ const AUDIT_ROLES = ['ADMIN', 'ADMIN_CAMERE'] as const;
  */
 export async function lockAudit(sessionId: string): Promise<{ error?: string }> {
   let session;
-  try { session = requireRole(await verifySession(), ...AUDIT_ROLES); } catch { return { error: 'Acces interzis' }; }
+  try { session = requireRole(await verifySession(), ...AUDIT_ENTRY_ROLES); } catch { return { error: 'Acces interzis' }; }
 
   const sb = getSupabase();
 
@@ -59,13 +62,14 @@ export async function lockAudit(sessionId: string): Promise<{ error?: string }> 
  * Eliberează blocajul audit (fără a reseta progresul).
  */
 export async function unlockAudit(sessionId: string): Promise<{ error?: string }> {
-  try { requireRole(await verifySession(), ...AUDIT_ROLES); } catch { return { error: 'Acces interzis' }; }
+  let session;
+  try { session = requireRole(await verifySession(), ...AUDIT_ENTRY_ROLES); } catch { return { error: 'Acces interzis' }; }
 
   const sb = getSupabase();
-  const { error } = await sb
-    .from('counting_sessions')
-    .update({ audit_locked_by: null, audit_locked_at: null })
-    .eq('id', sessionId);
+  // Operatorul poate elibera doar propriul lock; adminul poate forța (nu poate deturna lock-ul altuia).
+  let q = sb.from('counting_sessions').update({ audit_locked_by: null, audit_locked_at: null }).eq('id', sessionId);
+  if (session.role === 'OPERATOR_CAMERE') q = q.eq('audit_locked_by', session.id);
+  const { error } = await q;
 
   if (error) return { error: error.message };
   revalidatePath('/numarare');
@@ -136,9 +140,25 @@ export async function saveAuditDirection(
   totalLei: number,
   totalLeiSingle: number,
 ): Promise<{ error?: string }> {
-  try { requireRole(await verifySession(), ...AUDIT_ROLES); } catch { return { error: 'Acces interzis' }; }
+  let session;
+  try { session = requireRole(await verifySession(), ...AUDIT_ENTRY_ROLES); } catch { return { error: 'Acces interzis' }; }
 
   const sb = getSupabase();
+
+  // Integritate audit (oglindă a gardei de la prima numărare): sesiunea trebuie să existe,
+  // să fie interurban finalizată, și fără lock activ al altui auditor — altfel un operator
+  // ar putea, prin apel direct, fabrica/suprascrie auditul altcuiva.
+  const { data: srow } = await sb
+    .from('counting_sessions')
+    .select('status, audit_locked_by, crm_routes!inner(route_type)')
+    .eq('id', sessionId)
+    .single();
+  if (!srow) return { error: 'Sesiune inexistentă' };
+  const rtj = (srow as any).crm_routes;
+  const rtype = (Array.isArray(rtj) ? rtj[0]?.route_type : rtj?.route_type) || 'interurban';
+  if (rtype !== 'interurban') return { error: 'Rută invalidă pentru acest formular' };
+  if (srow.status !== 'completed') return { error: 'Cursa nu e finalizată de operator' };
+  if (srow.audit_locked_by && srow.audit_locked_by !== session.id) return { error: 'Audit blocat de alt operator' };
 
   // Șterge entries vechi pentru această direcție
   const { data: oldEntries } = await sb
@@ -236,7 +256,7 @@ export async function loadAuditEntries(
   sessionId: string,
   direction: 'tur' | 'retur',
 ): Promise<SavedEntry[]> {
-  try { requireRole(await verifySession(), ...AUDIT_ROLES); } catch { return []; }
+  try { requireRole(await verifySession(), ...AUDIT_ENTRY_ROLES); } catch { return []; }
 
   const sb = getSupabase();
   const { data: entries } = await sb
@@ -289,8 +309,22 @@ export async function saveSuburbanAuditCycle(
   altDriverId?: string | null,
   altVehicleId?: string | null,
 ): Promise<{ error?: string }> {
-  try { requireRole(await verifySession(), ...AUDIT_ROLES); } catch { return { error: 'Acces interzis' }; }
+  let session;
+  try { session = requireRole(await verifySession(), ...AUDIT_ENTRY_ROLES); } catch { return { error: 'Acces interzis' }; }
   const sb = getSupabase();
+
+  // Integritate audit: sesiunea trebuie să existe, să fie suburban auditabilă, fără lock străin.
+  const { data: srow } = await sb
+    .from('counting_sessions')
+    .select('status, audit_locked_by, crm_routes!inner(route_type)')
+    .eq('id', sessionId)
+    .single();
+  if (!srow) return { error: 'Sesiune inexistentă' };
+  const rtj = (srow as any).crm_routes;
+  const rtype = (Array.isArray(rtj) ? rtj[0]?.route_type : rtj?.route_type) || 'interurban';
+  if (rtype !== 'suburban') return { error: 'Rută invalidă pentru acest formular' };
+  if (srow.status !== 'completed' && srow.status !== 'tur_done') return { error: 'Cursa nu e finalizată de operator' };
+  if (srow.audit_locked_by && srow.audit_locked_by !== session.id) return { error: 'Audit blocat de alt operator' };
 
   await sb
     .from('counting_audit_entries')
@@ -365,7 +399,7 @@ export interface SuburbanAuditEntry {
 }
 
 export async function loadSuburbanAuditEntries(sessionId: string): Promise<SuburbanAuditEntry[]> {
-  try { requireRole(await verifySession(), ...AUDIT_ROLES); } catch { return []; }
+  try { requireRole(await verifySession(), ...AUDIT_ENTRY_ROLES); } catch { return []; }
   const sb = getSupabase();
   const { data } = await sb
     .from('counting_audit_entries')

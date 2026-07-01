@@ -9,11 +9,13 @@ import OperatorsTab from './tabs/OperatorsTab';
 import SalaryTab from './tabs/SalaryTab';
 import TariffsTab from './tabs/TariffsTab';
 import IncasareTab from './tabs/IncasareTab';
+import AuditTab from './tabs/AuditTab';
 
-type Tab = 'numarare' | 'incasare' | 'operatori' | 'salariu' | 'tarife';
+type Tab = 'numarare' | 'audit' | 'incasare' | 'operatori' | 'salariu' | 'tarife';
 
 const ALL_TABS: { key: Tab; label: string }[] = [
   { key: 'numarare', label: 'GO' },
+  { key: 'audit', label: 'Audit' },
   { key: 'incasare', label: 'Încasare' },
   { key: 'operatori', label: 'Operatori' },
   { key: 'salariu', label: 'Salariu' },
@@ -31,12 +33,12 @@ export default function NumararePageClient({ role }: { role: AdminRole }) {
   const isEvaluator = role === 'EVALUATOR_INCASARI';
 
   const visibleTabs: Tab[] = isAdmin
-    ? ['numarare', 'incasare', 'operatori', 'salariu', 'tarife']
+    ? ['numarare', 'audit', 'incasare', 'operatori', 'salariu', 'tarife']
     : isAdminCamere
-    ? ['numarare', 'operatori', 'salariu', 'tarife']
+    ? ['numarare', 'audit', 'operatori', 'salariu', 'tarife']
     : isEvaluator
     ? ['incasare']
-    : ['numarare'];  // OPERATOR_CAMERE și alte roluri văd doar Numărare (fără tab-uri)
+    : ['numarare', 'audit'];  // OPERATOR_CAMERE: numărare + audit orb (a doua numărare)
 
   const tabs = ALL_TABS.filter(t => visibleTabs.includes(t.key));
   const defaultTab: Tab = isEvaluator ? 'incasare' : 'numarare';
@@ -105,6 +107,7 @@ export default function NumararePageClient({ role }: { role: AdminRole }) {
       )}
 
       {activeTab === 'numarare' && visibleTabs.includes('numarare') && <NumarareClient role={role} />}
+      {activeTab === 'audit' && visibleTabs.includes('audit') && <AuditTab />}
       {activeTab === 'incasare' && visibleTabs.includes('incasare') && <IncasareTab role={role} />}
       {activeTab === 'operatori' && visibleTabs.includes('operatori') && <OperatorsTab />}
       {activeTab === 'salariu' && visibleTabs.includes('salariu') && <SalaryTab />}

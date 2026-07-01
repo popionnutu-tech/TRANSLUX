@@ -65,7 +65,7 @@ export async function middleware(request: NextRequest) {
     // Rolurile de depozit — CONTABIL, DEPOZITAR (intrări), VINZATOR (ieșiri/vânzări) și MANAGER (supraveghere) —
     // sunt închise în modulul Piese + API-ul lui; restul admin-ului e blocat la URL direct.
     // (drepturile de scriere per operațiune sunt aplicate suplimentar la nivel de pagină/acțiune.)
-    if (role === 'CONTABIL' || role === 'DEPOZITAR' || role === 'VINZATOR' || role === 'MANAGER') {
+    if (role === 'CONTABIL' || role === 'DEPOZITAR' || role === 'VINZATOR' || role === 'MANAGER' || role === 'GESTIONAR') {
       const allowed = pathname.startsWith('/piese') || pathname.startsWith('/api/piese');
       if (!allowed) return NextResponse.redirect(new URL('/piese', request.url));
     }

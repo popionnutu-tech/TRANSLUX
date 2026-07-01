@@ -12,10 +12,10 @@ async function gate(roles: AdminRole[]): Promise<Session> {
   return session;
 }
 
-// Intrări (prihod): depozitarul + admin.
-export const requirePieseReceipt = () => gate(['ADMIN', 'DEPOZITAR']);
-// Ieșiri (rashod), vânzări (magazin), mutări între depozite: vânzătorul + admin.
-export const requirePieseIssue = () => gate(['ADMIN', 'VINZATOR']);
+// Intrări (prihod): depozitarul + gestionarul (depozitar intern) + admin.
+export const requirePieseReceipt = () => gate(['ADMIN', 'DEPOZITAR', 'GESTIONAR']);
+// Ieșiri (rashod), vânzări (magazin), mutări între depozite: vânzătorul + gestionarul + admin.
+export const requirePieseIssue = () => gate(['ADMIN', 'VINZATOR', 'GESTIONAR']);
 // Inventariere: și depozitar, și vânzător, + admin.
 export const requirePieseInventory = () => gate(['ADMIN', 'DEPOZITAR', 'VINZATOR']);
 // e-Factura (vede/descarcă/marchează SFS): vânzător (factura lui) + contabil + admin.

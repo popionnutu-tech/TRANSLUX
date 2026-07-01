@@ -25,7 +25,7 @@ export const requirePiese1C = () => gate(['ADMIN', 'CONTABIL']);
 // Nomenclatoare (cine poate ajunge la pagină): cei care editează cel puțin o secțiune.
 export const requirePieseNomenclator = () => gate(['ADMIN', 'DEPOZITAR', 'VINZATOR', 'GESTIONAR']);
 // Asistent căutare piesă: citire pentru toate rolurile modulului (vânzător, depozitar, contabil, manager, admin).
-export const requirePieseSearch = () => gate(['ADMIN', 'VINZATOR', 'DEPOZITAR', 'CONTABIL', 'MANAGER']);
+export const requirePieseSearch = () => gate(['ADMIN', 'VINZATOR', 'DEPOZITAR', 'CONTABIL', 'MANAGER', 'GESTIONAR']);
 
 // SURSĂ UNICĂ: costul de achiziție (preț plătit furnizorului, valoare/cost FIFO, profit, furnizor) e vizibil
 // tuturor rolurilor modulului — MAI PUȚIN vânzătorul (VINZATOR), care vede doar prețul de vânzare, cantitatea, locația.

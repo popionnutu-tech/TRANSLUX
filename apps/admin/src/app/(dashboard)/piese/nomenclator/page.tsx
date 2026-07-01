@@ -10,6 +10,7 @@ const SECTIONS_BY_ROLE: Record<string, string[]> = {
   ADMIN: ['warehouses', 'groups', 'suppliers', 'clients', 'mechanics', 'reasons'],
   DEPOZITAR: ['suppliers'],
   VINZATOR: ['clients', 'mechanics', 'reasons'],
+  GESTIONAR: ['suppliers', 'clients', 'mechanics', 'reasons'],
 };
 
 export default async function NomenclatorPage() {

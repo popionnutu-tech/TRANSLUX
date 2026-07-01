@@ -12,6 +12,8 @@ const PIESE_HREFS_BY_ROLE: Partial<Record<AdminRole, Set<string>>> = {
   CONTABIL: new Set(['/piese', '/piese/stoc', '/piese/cautare', '/piese/catalog', '/piese/harta', '/piese/rapoarte', '/piese/fiscal', '/piese/integrare-1c']),
   // MANAGER — doar supraveghere (citire + rapoarte).
   MANAGER: new Set(['/piese', '/piese/stoc', '/piese/cautare', '/piese/catalog', '/piese/harta', '/piese/rapoarte']),
+  // GESTIONAR — „depozitar intern": ambele funcții (intrări + ieșiri/vânzări/mutări/inventar) + nomenclator. Vede cost. Fără e-Factura/1C.
+  GESTIONAR: new Set(['/piese', '/piese/stoc', '/piese/cautare', '/piese/catalog', '/piese/nomenclator', '/piese/prihod', '/piese/rashod', '/piese/mutari', '/piese/inventar', '/piese/magazin', '/piese/harta', '/piese/rapoarte']),
 };
 
 // Întoarce setul de href-uri permise pentru un rol, sau null pentru acces complet (ADMIN).

@@ -24,6 +24,10 @@ const ROLE_LABELS: Record<string, string> = {
   ADMIN_CAMERE: 'Admin camere',
   EVALUATOR_INCASARI: 'Evaluator încasări',
   CONTABIL: 'Contabil-șef',
+  DEPOZITAR: 'Depozitar (intrări)',
+  VINZATOR: 'Vânzător (magazin)',
+  MANAGER: 'Manager piese',
+  GESTIONAR: 'Gestionar (depozitar intern)',
 };
 
 export default function UsersClient({

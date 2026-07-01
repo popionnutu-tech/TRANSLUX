@@ -79,7 +79,7 @@ export async function getAdminAccounts(): Promise<AdminAccountInfo[]> {
   return (data || []) as AdminAccountInfo[];
 }
 
-const VALID_ADMIN_ROLES = ['ADMIN', 'DISPATCHER', 'GRAFIC', 'OPERATOR_CAMERE', 'ADMIN_CAMERE', 'EVALUATOR_INCASARI', 'CONTABIL', 'DEPOZITAR', 'VINZATOR', 'MANAGER'];
+const VALID_ADMIN_ROLES = ['ADMIN', 'DISPATCHER', 'GRAFIC', 'OPERATOR_CAMERE', 'ADMIN_CAMERE', 'EVALUATOR_INCASARI', 'CONTABIL', 'DEPOZITAR', 'VINZATOR', 'MANAGER', 'GESTIONAR'];
 
 export async function createAdminAccount(email: string, password: string, role: string): Promise<void> {
   const session = await verifySession();

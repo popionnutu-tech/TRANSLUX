@@ -33,3 +33,9 @@ export const requirePieseSearch = () => gate(['ADMIN', 'VINZATOR', 'DEPOZITAR', 
 export function canSeeCost(role: AdminRole): boolean {
   return role !== 'VINZATOR';
 }
+
+// SURSĂ UNICĂ: rolurile „de vânzător" văd/acționează DOAR pe facturile LOR în e-Factura (nu ale altora).
+// VINZATOR (magazin) și GESTIONAR (depozitar intern care poate vinde) sunt scoped pe seller; ADMIN/CONTABIL văd toate facturile.
+export function sellerScoped(role: AdminRole): boolean {
+  return role === 'VINZATOR' || role === 'GESTIONAR';
+}

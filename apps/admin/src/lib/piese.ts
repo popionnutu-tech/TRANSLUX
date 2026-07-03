@@ -2,6 +2,10 @@ import { getSupabase } from './supabase';
 
 // Strat de date pentru modulul „Piese" — citește din view-urile piese_* și apelează funcțiile Postgres (FIFO etc.).
 
+// PostgREST tratează , ( ) ca structură în interiorul .or(...). Cităm valoarea utilizatorului (escapând " și \)
+// ca să fie tratată ca DATE, nu ca filtru — altfel un termen cu virgulă/paranteze poate injecta condiții.
+export const orVal = (v: string) => v.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+
 export async function listWarehouses() {
   const { data } = await getSupabase().from('piese_warehouses').select('*').order('id');
   return data || [];
@@ -12,7 +16,7 @@ export async function listGroups() {
 }
 export async function listVehicles(search?: string) {
   let q = getSupabase().from('piese_vehicles').select('*').order('plate').limit(500);
-  if (search?.trim()) q = q.or(`plate.ilike.%${search.trim()}%,model.ilike.%${search.trim()}%`);
+  if (search?.trim()) { const s = orVal(search.trim()); q = q.or(`plate.ilike."%${s}%",model.ilike."%${s}%"`); }
   const { data } = await q;
   return data || [];
 }
@@ -29,22 +33,24 @@ export async function listSuppliers() {
   return data || [];
 }
 
-export async function stockRows(opts: { warehouseId?: number; search?: string } = {}) {
+export async function stockRows(opts: { warehouseId?: number; search?: string; groupId?: number } = {}) {
   let q = getSupabase().from('piese_stock_rows').select('*').order('group_name').limit(1000);
   if (opts.warehouseId) q = q.eq('warehouse_id', opts.warehouseId);
+  if (opts.groupId) q = q.eq('group_id', opts.groupId);
   if (opts.search?.trim()) {
-    const s = opts.search.trim();
-    q = q.or(`name_long.ilike.%${s}%,group_name.ilike.%${s}%,barcode.ilike.%${s}%,model.ilike.%${s}%`);
+    const s = orVal(opts.search.trim());
+    q = q.or(`name_long.ilike."%${s}%",group_name.ilike."%${s}%",barcode.ilike."%${s}%",model.ilike."%${s}%"`);
   }
   const { data } = await q;
   return data || [];
 }
 
-export async function catalogRows(search?: string) {
+export async function catalogRows(opts: { search?: string; groupId?: number } = {}) {
   let q = getSupabase().from('piese_catalog_rows').select('*').order('group_name').limit(500);
-  if (search?.trim()) {
-    const s = search.trim();
-    q = q.or(`name_long.ilike.%${s}%,group_name.ilike.%${s}%,article_code.ilike.%${s}%,oem_code.ilike.%${s}%,barcode.ilike.%${s}%,model.ilike.%${s}%`);
+  if (opts.groupId) q = q.eq('group_id', opts.groupId);
+  if (opts.search?.trim()) {
+    const s = orVal(opts.search.trim());
+    q = q.or(`name_long.ilike."%${s}%",group_name.ilike."%${s}%",article_code.ilike."%${s}%",oem_code.ilike."%${s}%",barcode.ilike."%${s}%",model.ilike."%${s}%"`);
   }
   const { data } = await q;
   return data || [];
@@ -129,9 +135,10 @@ export async function warehouseLayout(warehouseId: number) {
 export async function locatePart(warehouseId: number, code: string) {
   const c = code.trim();
   if (!c) return { found: false as const };
+  const e = orVal(c);
   const { data: p } = await getSupabase().from('piese_catalog_rows')
     .select('id, group_name, manufacturer, model')
-    .or(`barcode.eq.${c},article_code.eq.${c},oem_code.eq.${c},group_name.ilike.%${c}%,name_long.ilike.%${c}%`).limit(1).maybeSingle();
+    .or(`barcode.eq."${e}",article_code.eq."${e}",oem_code.eq."${e}",group_name.ilike."%${e}%",name_long.ilike."%${e}%"`).limit(1).maybeSingle();
   if (!p) return { found: false as const };
   const { data: loc } = await getSupabase().from('piese_part_locations').select('location_label').eq('warehouse_id', warehouseId).eq('part_id', (p as any).id).maybeSingle();
   const placement = loc ? { ...parseLocation((loc as any).location_label), label: (loc as any).location_label } : null;

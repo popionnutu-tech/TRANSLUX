@@ -3,11 +3,14 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { AdminRole } from '@translux/db';
+import { pieseHrefsForRole } from '@/lib/piese-nav';
 
 const TABS = [
   { href: '/piese', label: 'Tablou' },
   { href: '/piese/stoc', label: 'Stoc' },
+  { href: '/piese/cautare', label: 'Căutare' },
   { href: '/piese/catalog', label: 'Catalog' },
+  { href: '/piese/nomenclator', label: 'Nomenclator' },
   { href: '/piese/prihod', label: 'Prihod' },
   { href: '/piese/rashod', label: 'Rashod' },
   { href: '/piese/mutari', label: 'Mutări' },
@@ -19,12 +22,10 @@ const TABS = [
   { href: '/piese/rapoarte', label: 'Rapoarte' },
 ];
 
-// CONTABIL (contabil-șef) vede modulul doar pe citire + fiscal/1C; operațiunile de depozit rămân ADMIN.
-const CONTABIL_TABS = new Set(['/piese', '/piese/stoc', '/piese/catalog', '/piese/harta', '/piese/rapoarte', '/piese/fiscal', '/piese/integrare-1c']);
-
 export default function PieseNav({ role }: { role: AdminRole }) {
   const path = usePathname();
-  const tabs = role === 'ADMIN' ? TABS : TABS.filter((t) => CONTABIL_TABS.has(t.href));
+  const allowed = pieseHrefsForRole(role); // null = ADMIN (toate taburile)
+  const tabs = allowed ? TABS.filter((t) => allowed.has(t.href)) : TABS;
   return (
     <div className="pill-row" style={{ marginBottom: 22, borderBottom: '1px solid var(--pline)', paddingBottom: 14 }}>
       {tabs.map((t) => {

@@ -2,6 +2,8 @@ export const dynamic = 'force-dynamic';
 
 import { costPerVehicle, overconsumption, reliability, illiquid, movementLedger } from '@/lib/piese-ops';
 import { lowStock } from '@/lib/piese';
+import { verifySession } from '@/lib/auth';
+import { canSeeCost } from '@/lib/piese-access';
 
 const lei = (n: number) => Number(n || 0).toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' lei';
 const km = (n: number) => Number(n || 0).toLocaleString('ro-RO') + ' km';
@@ -12,10 +14,13 @@ export default async function RapoartePage() {
   const [costs, over, reli, low, dead, ledger] = await Promise.all([
     costPerVehicle(12), overconsumption(), reliability(), lowStock(), illiquid(), movementLedger(40),
   ]);
+  const role = (await verifySession())?.role;
+  const showCost = role ? canSeeCost(role) : false; // vânzătorul: fără rapoarte/coloane de cost
   return (
     <>
       <div className="page-header"><h1>Rapoarte</h1><p>Analiza economică din interviuri: cost pe mașină, перерасход, fiabilitate producători, de comandat, неликвид, jurnal.</p></div>
       <div className="grid cols-2">
+        {showCost && (
         <div className="card">
           <h2>Top mașini după cost piese</h2>
           <table>
@@ -27,12 +32,13 @@ export default async function RapoartePage() {
             </tbody>
           </table>
         </div>
+        )}
         <div className="card">
           <h2>⚠ Перерасход (aceeași piesă, prea des)</h2>
           {(over as any[]).length === 0 ? <div className="empty">Nimic anormal.</div> : (
             <table>
-              <thead><tr><th>Mașina</th><th>Grup</th><th className="num">De câte ori</th><th className="num">Cost</th></tr></thead>
-              <tbody>{(over as any[]).map((o, i) => (<tr key={i}><td>{o.plate}</td><td>{o.group_name}</td><td className="num"><span className="badge warn">{o.times}×</span></td><td className="num">{lei(o.cost)}</td></tr>))}</tbody>
+              <thead><tr><th>Mașina</th><th>Grup</th><th className="num">De câte ori</th>{showCost && <th className="num">Cost</th>}</tr></thead>
+              <tbody>{(over as any[]).map((o, i) => (<tr key={i}><td>{o.plate}</td><td>{o.group_name}</td><td className="num"><span className="badge warn">{o.times}×</span></td>{showCost && <td className="num">{lei(o.cost)}</td>}</tr>))}</tbody>
             </table>
           )}
         </div>
@@ -67,10 +73,10 @@ export default async function RapoartePage() {
       <div className="card">
         <h2>Mișcarea stocului (jurnal)</h2>
         <table>
-          <thead><tr><th>Data</th><th>Tip</th><th>Piesă</th><th>Depozit</th><th>Mașina</th><th className="num">Cant.</th><th className="num">Cost</th></tr></thead>
+          <thead><tr><th>Data</th><th>Tip</th><th>Piesă</th><th>Depozit</th><th>Mașina</th><th className="num">Cant.</th>{showCost && <th className="num">Cost</th>}</tr></thead>
           <tbody>
             {(ledger as any[]).map((m) => (
-              <tr key={m.id}><td className="muted">{dt(m.created_at)}</td><td>{MOV[m.movement_type] || m.movement_type}</td><td>{m.group_name} <span className="muted">{m.name_long}</span></td><td>{m.warehouse_name}</td><td className="muted">{m.vehicle_plate || '—'}</td><td className="num">{m.qty_delta > 0 ? '+' : ''}{m.qty_delta}</td><td className="num">{lei(m.unit_cost)}</td></tr>
+              <tr key={m.id}><td className="muted">{dt(m.created_at)}</td><td>{MOV[m.movement_type] || m.movement_type}</td><td>{m.group_name} <span className="muted">{m.name_long}</span></td><td>{m.warehouse_name}</td><td className="muted">{m.vehicle_plate || '—'}</td><td className="num">{m.qty_delta > 0 ? '+' : ''}{m.qty_delta}</td>{showCost && <td className="num">{lei(m.unit_cost)}</td>}</tr>
             ))}
           </tbody>
         </table>

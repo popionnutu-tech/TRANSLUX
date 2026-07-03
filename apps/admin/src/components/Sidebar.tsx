@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { AdminRole } from '@translux/db';
+import { pieseHrefsForRole } from '@/lib/piese-nav';
 
 type NavItem = { href: string; label: string; adminOnly: boolean; icon: string; exact?: boolean; tab?: string };
 type ModuleItem = NavItem & { children?: NavItem[]; subGroup?: { label: string; icon: string; items: NavItem[] } };
@@ -33,7 +34,9 @@ const numarareChildren: NavItem[] = [
 const pieseChildren: NavItem[] = [
   { href: '/piese',              label: 'Tablou',    adminOnly: true, exact: true, icon: 'M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z' },
   { href: '/piese/stoc',         label: 'Stoc',      adminOnly: true, icon: 'M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z' },
+  { href: '/piese/cautare',      label: 'Căutare',   adminOnly: true, icon: 'M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z' },
   { href: '/piese/catalog',      label: 'Catalog',   adminOnly: true, icon: 'M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z' },
+  { href: '/piese/nomenclator',  label: 'Nomenclator', adminOnly: true, icon: 'M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z' },
   { href: '/piese/prihod',       label: 'Prihod',    adminOnly: true, icon: 'M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z' },
   { href: '/piese/rashod',       label: 'Rashod',    adminOnly: true, icon: 'M5 20h14v-2H5v2zM5 9h4v6h6V9h4l-7-7-7 7z' },
   { href: '/piese/mutari',       label: 'Mutări',    adminOnly: true, icon: 'M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z' },
@@ -76,8 +79,8 @@ const moduleItems: ModuleItem[] = [
   { href: '/lde',          label: 'LDE — Autopark',  adminOnly: true,  icon: 'M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4s-8 .5-8 4v10zm3.5 1c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm1.5-6H6V6h12v5z', children: ldeChildren, subGroup: { label: 'Nomenclator LDE', icon: 'M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z', items: ldeNomenclator } },
 ];
 
-// Sub-paginile Piese vizibile pentru CONTABIL (doar citire + fiscal/1C; operațiunile de depozit rămân ADMIN).
-const CONTABIL_PIESE_HREFS = new Set(['/piese', '/piese/stoc', '/piese/catalog', '/piese/harta', '/piese/rapoarte', '/piese/fiscal', '/piese/integrare-1c']);
+// Vizibilitatea sub-paginilor Piese pe rol e definită central în lib/piese-nav.ts (pieseHrefsForRole) —
+// folosită aici (meniu) și în PieseNav (taburi), ca să nu divergă.
 
 const nav: NavItem[] = [
   { href: '/reports',      label: 'Rapoarte',     adminOnly: true,  icon: 'M3 3v18h18V3H3zm16 16H5V5h14v14zM7 12h2v5H7v-5zm4-3h2v8h-2V9zm4-2h2v10h-2V7z' },
@@ -283,13 +286,15 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
 
   const filteredNav = role === 'ADMIN' ? nav
     : role === 'GRAFIC' || role === 'DISPATCHER' ? nav.filter(n => n.href === '/grafic' && n.label === 'Grafic')
-    : role === 'OPERATOR_CAMERE' || role === 'ADMIN_CAMERE' || role === 'EVALUATOR_INCASARI' || role === 'CONTABIL' ? []
+    : role === 'OPERATOR_CAMERE' || role === 'ADMIN_CAMERE' || role === 'EVALUATOR_INCASARI' || role === 'CONTABIL' || role === 'DEPOZITAR' || role === 'MANAGER' || role === 'GESTIONAR' ? []
     : nav;
 
   // doar ADMIN primește dropdown-urile pe module; rolurile de cameră văd Numărare ca link direct (tab-urile lor sunt în pagină)
   // CONTABIL vede doar modulul Piese, cu sub-paginile de citire + fiscal/1C.
+  const pieseHrefs = pieseHrefsForRole(role); // null = ADMIN
   const filteredModules = role === 'ADMIN' ? moduleItems
-    : role === 'CONTABIL' ? moduleItems.filter(m => m.href === '/piese').map(m => ({ ...m, children: m.children?.filter(c => CONTABIL_PIESE_HREFS.has(c.href)) }))
+    : (role === 'CONTABIL' || role === 'DEPOZITAR' || role === 'VINZATOR' || role === 'MANAGER' || role === 'GESTIONAR')
+      ? moduleItems.filter(m => m.href === '/piese').map(m => ({ ...m, children: m.children?.filter(c => pieseHrefs?.has(c.href) ?? false) }))
     : (role === 'OPERATOR_CAMERE' || role === 'ADMIN_CAMERE' || role === 'EVALUATOR_INCASARI') ? moduleItems.filter(m => m.href === '/numarare').map(m => ({ ...m, children: undefined }))
     : [];
 

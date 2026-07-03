@@ -1,11 +1,11 @@
 export const dynamic = 'force-dynamic';
 
 import { listWarehouses } from '@/lib/piese';
-import { requirePieseWrite } from '@/lib/piese-access';
+import { requirePieseInventory } from '@/lib/piese-access';
 import InventarClient from './InventarClient';
 
 export default async function InventarPage() {
-  await requirePieseWrite();
+  await requirePieseInventory();
   const warehouses = await listWarehouses();
   return (
     <>

@@ -42,8 +42,9 @@ export async function saleParts() {
   const { data } = await getSupabase().from('piese_sale_parts').select('*');
   return data || [];
 }
-export async function createSale(p: { warehouse_id: number; client_id: number | null; invoice_series?: string; invoice_number?: string; lines: { part_id: number; qty: number; unit_price: number }[] }) {
-  const { data, error } = await getSupabase().rpc('piese_create_sale', { p_wh: p.warehouse_id, p_client: p.client_id, p_series: p.invoice_series || null, p_number: p.invoice_number || null, p_lines: p.lines, p_user: null });
+export async function createSale(p: { warehouse_id: number; client_id: number | null; invoice_series?: string; invoice_number?: string; userId?: string; lines: { part_id: number; qty: number; unit_price: number }[] }) {
+  // created_by_admin e setat ATOMIC în RPC (p_created_by), nu printr-un UPDATE separat.
+  const { data, error } = await getSupabase().rpc('piese_create_sale', { p_wh: p.warehouse_id, p_client: p.client_id, p_series: p.invoice_series || null, p_number: p.invoice_number || null, p_lines: p.lines, p_user: null, p_created_by: p.userId || null });
   if (error) throw new Error(error.message);
   const r = data as any;
   return { docId: r.doc_id as number, total: Number(r.total), cost: Number(r.cost), profit: Number(r.total) - Number(r.cost) };
@@ -55,18 +56,26 @@ export async function shopProfit() {
 }
 
 // ── Fiscal (e-Factura) ──
-export async function saleInvoices() {
-  const { data } = await getSupabase().from('piese_sale_invoices').select('*');
+export async function saleInvoices(opts: { sellerId?: string } = {}) {
+  let q = getSupabase().from('piese_sale_invoices').select('*');
+  if (opts.sellerId) q = q.eq('created_by_admin', opts.sellerId); // vânzătorul vede doar facturile lui
+  const { data } = await q;
   return data || [];
 }
-export async function markSfs(docId: number) {
+export async function markSfs(docId: number, sellerId?: string) {
+  if (sellerId) { // vânzătorul poate marca doar facturile lui
+    const { data } = await getSupabase().from('piese_stock_documents').select('created_by_admin').eq('id', docId).maybeSingle();
+    if (!data || (data as any).created_by_admin !== sellerId) throw new Error('Nu poți marca o factură care nu e a ta');
+  }
   const { error } = await getSupabase().rpc('piese_mark_sfs', { p_doc: docId, p_user: null });
   if (error) throw new Error(error.message);
 }
 const COMPANY = { name: 'TRANSLUX SRL', idno: '1003600000000', address: 'mun. Edineț, Republica Moldova' };
-export async function saleUblData(docId: number) {
+export async function saleUblData(docId: number, sellerId?: string) {
   const sb = getSupabase();
-  const { data: doc } = await sb.from('piese_stock_documents').select('*, piese_clients(name, idno, address)').eq('id', docId).eq('doc_type', 'SALE').eq('status', 'CONFIRMED').maybeSingle();
+  let q = sb.from('piese_stock_documents').select('*, piese_clients(name, idno, address)').eq('id', docId).eq('doc_type', 'SALE').eq('status', 'CONFIRMED');
+  if (sellerId) q = q.eq('created_by_admin', sellerId); // vânzătorul descarcă doar facturile lui
+  const { data: doc } = await q.maybeSingle();
   if (!doc) return null;
   const { data: lines } = await sb.from('piese_stock_document_lines').select('qty, unit_price, piese_parts(unit, manufacturer, piese_part_groups(name_ro))').eq('document_id', docId);
   const c = (doc as any).piese_clients;

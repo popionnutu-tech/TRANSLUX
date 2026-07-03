@@ -53,6 +53,7 @@ export interface SalaryReport {
 export async function getSalaryData(dateFrom: string, dateTo: string): Promise<SalaryReport> {
   const session = await verifySession();
   if (!session) throw new Error('Neautorizat');
+  if (session.role !== 'ADMIN') throw new Error('Acces interzis');
   const supabase = getSupabase();
 
   // 1. Get all active CONTROLLER users, ordered by point then created_at

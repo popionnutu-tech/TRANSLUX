@@ -3,7 +3,9 @@
 
 -- 0) Recreez piese_stock_rows adăugând group_id (pentru filtrul pe categorie din stoc/căutare).
 --    Restul coloanelor rămân identice cu 201_piese_views_hardening.sql.
-CREATE OR REPLACE VIEW piese_stock_rows AS
+--    group_id intră în mijloc → CREATE OR REPLACE nu poate redenumi coloane; DROP+CREATE (fără dependenți).
+DROP VIEW IF EXISTS piese_stock_rows;
+CREATE VIEW piese_stock_rows AS
 SELECT p.id AS part_id, w.id AS warehouse_id, g.id AS group_id, g.name_ro AS group_name, p.name_long,
   p.manufacturer, p.model, p.barcode, p.unit, w.name AS warehouse_name,
   loc.location_label, COALESCE(loc.min_qty,0) AS min_qty,

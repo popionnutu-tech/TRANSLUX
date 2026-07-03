@@ -18,8 +18,8 @@ export const requirePieseReceipt = () => gate(['ADMIN', 'DEPOZITAR', 'GESTIONAR'
 export const requirePieseIssue = () => gate(['ADMIN', 'VINZATOR', 'GESTIONAR']);
 // Inventariere: și depozitar, și vânzător, + admin.
 export const requirePieseInventory = () => gate(['ADMIN', 'DEPOZITAR', 'VINZATOR', 'GESTIONAR']);
-// e-Factura (vede/descarcă/marchează SFS): vânzător (factura lui) + contabil + admin.
-export const requirePieseFiscal = () => gate(['ADMIN', 'CONTABIL', 'VINZATOR']);
+// e-Factura (vede/descarcă/marchează SFS): vânzător + gestionar (fiecare doar facturile lui) + contabil + admin.
+export const requirePieseFiscal = () => gate(['ADMIN', 'CONTABIL', 'VINZATOR', 'GESTIONAR']);
 // Export 1C: contabil + admin.
 export const requirePiese1C = () => gate(['ADMIN', 'CONTABIL']);
 // Nomenclatoare (cine poate ajunge la pagină): cei care editează cel puțin o secțiune.

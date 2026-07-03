@@ -409,13 +409,14 @@ export async function executeAntaPriceUpdate(options?: {
     const supabase = getSupabase();
 
     // 2. Load current rates, then resolve "effective" rates.
-    // ANTA poate publica o pagină provizorie doar cu tariful interraional (suburban=null);
-    // în acel caz PĂSTRĂM raionalul curent în loc să-l suprascriem.
+    // Suburban = rată FIXĂ de proprietar (app_config `rate_per_km_suburban`), decuplată de ANTA:
+    // ANTA publică interraionalul doar ca PLAFON; noi păstrăm rata owner (ex. 1.07, sub plafon).
+    // ANTA controlează doar interurbanul. Fallback la valoarea scraped ANTA doar dacă owner-ul lipsește.
     const currentRates = await loadCurrentRates(supabase);
     const effective: EffectiveRates = {
       interurbanLong: rates.interurbanLong,
       interurbanShort: rates.interurbanShort,
-      suburban: rates.suburban ?? currentRates.suburban ?? rates.interurbanLong,
+      suburban: currentRates.suburban ?? rates.suburban ?? rates.interurbanLong,
       effectiveDate: rates.effectiveDate,
     };
 

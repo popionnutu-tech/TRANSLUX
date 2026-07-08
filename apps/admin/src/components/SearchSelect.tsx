@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 
-export interface SSOption { id: number; label: string; [k: string]: unknown }
+export interface SSOption { id: number; label: string }
 
 // Combobox cu căutare la tastare. Două moduri:
 //  • local  — se dă `options` (listă mică deja încărcată: furnizori, clienți); filtrează în memorie după label.

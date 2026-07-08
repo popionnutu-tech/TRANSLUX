@@ -15,7 +15,6 @@ export default async function RashodPage() {
       <RashodClient
         warehouses={(warehouses as any[]).filter((w) => w.kind === 'INTERNAL').map((w) => ({ id: w.id, label: w.name }))}
         vehicles={(vehicles as any[]).map((v) => ({ id: v.id, label: `${v.plate} · ${v.model ?? ''}`.trim(), km: v.km_current }))}
-        parts={(parts as any[]).map((p) => ({ id: p.id, label: partLabel(p) }))}
         mechanics={(mechanics as any[]).map((m) => ({ id: m.id, label: m.name }))}
         reasons={(reasons as any[]).map((r) => ({ id: r.id, label: r.name }))}
       />

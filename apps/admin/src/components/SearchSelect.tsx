@@ -75,7 +75,7 @@ export default function SearchSelect({ value, onSelect, placeholder = '— caut�
           else if (e.key === 'Escape') { setOpen(false); }
         }}
       />
-      {value !== '' && !open && (
+      {value !== '' && (
         <button type="button" onMouseDown={(e) => { e.preventDefault(); onSelect(null); setQuery(''); }} aria-label="Șterge"
           style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer', color: '#999', fontSize: 16, lineHeight: 1, padding: 4 }}>×</button>
       )}

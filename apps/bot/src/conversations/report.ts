@@ -549,6 +549,7 @@ export async function reportConversation(
     }
 
     // ── Step 4: Uniform + Aspect (one message) ────────
+    let loadingHelpOk: boolean | null = null;
     let uniformOk: boolean | null = null;
     let exteriorOk: boolean | null = null;
     let autoCurat: boolean | null = null;
@@ -561,6 +562,26 @@ export async function reportConversation(
     let climateKind: 'ac' | 'heat' | null = null;
 
     if (status === 'OK' && point !== 'BALTI') {
+      // ── Step 3b: Ajutor la încărcat (decizie owner 08.07: punct nou, înaintea uniformei) ──
+      const loadKb = new InlineKeyboard()
+        .text('Da ✓', 'loadhelp:da')
+        .text('Nu ✗', 'loadhelp:nu');
+
+      await ctx.reply('Șoferul ajută la încărcat alți șoferi?', { reply_markup: loadKb });
+
+      while (true) {
+        const loadCtx = await conversation.wait();
+        if (loadCtx.message?.text === '/start') {
+          await showMainMenu(loadCtx as BotContext);
+          return;
+        }
+        if (loadCtx.callbackQuery?.data?.startsWith('loadhelp:')) {
+          await loadCtx.answerCallbackQuery();
+          loadingHelpOk = loadCtx.callbackQuery.data === 'loadhelp:da';
+          break;
+        }
+      }
+
       const compKb = new InlineKeyboard()
         .text('Totul OK ✓', 'comp:all_ok').row()
         .text('Fără uniformă', 'comp:no_uni').text('Aspect neîngrijit', 'comp:no_asp').row()
@@ -745,6 +766,7 @@ export async function reportConversation(
         passengers_count: passengersCount,
         exterior_ok: exteriorOk,
         uniform_ok: uniformOk,
+        loading_help_ok: loadingHelpOk,
         auto_curat: autoCurat,
         reclama_ok: reclamaOk,
         reclama_deadline: null,
@@ -845,6 +867,7 @@ export async function reportConversation(
           : reclamaProblem === 'panou_ruta' ? 'panou'
           : reclamaProblem === 'ambele' ? 'ambele' : '';
         const warningParts: string[] = [];
+        if (loadingHelpOk === false) warningParts.push('nu ajută la încărcat');
         if (uniformOk === false) warningParts.push('uniformă');
         if (exteriorOk === false) warningParts.push('aspect');
         if (autoCurat === false) warningParts.push('auto exterior murdar');

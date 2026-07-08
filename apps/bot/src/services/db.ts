@@ -645,6 +645,7 @@ export async function createReport(report: {
   passengers_count: number | null;
   exterior_ok: boolean | null;
   uniform_ok: boolean | null;
+  loading_help_ok: boolean | null;
   auto_curat: boolean | null;
   reclama_ok: boolean | null;
   reclama_deadline: string | null;

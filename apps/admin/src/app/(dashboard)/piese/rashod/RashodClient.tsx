@@ -15,6 +15,7 @@ export default function RashodClient({ warehouses, vehicles, mechanics, reasons 
   const [warehouseId, setWarehouseId] = useState(warehouses[0]?.id || 0);
   const [vehicleId, setVehicleId] = useState<number | ''>('');
   const [partId, setPartId] = useState<number | ''>('');
+  const [partLabel, setPartLabel] = useState('');
   const [qty, setQty] = useState(1);
   const [mechanicId, setMechanicId] = useState<number | ''>('');
   const [reasonId, setReasonId] = useState<number | ''>('');

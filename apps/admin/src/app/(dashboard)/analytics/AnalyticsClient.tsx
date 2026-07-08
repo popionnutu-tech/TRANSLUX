@@ -261,6 +261,13 @@ export default function AnalyticsClient({
         >
           Moneyball
         </Link>
+        <Link
+          href="/analytics/operatori"
+          className="mode-btn"
+          prefetch
+        >
+          Operatori
+        </Link>
       </div>
 
       {isPending && <div style={{ color: '#999', fontSize: 13, marginBottom: 12 }}>Se incarca...</div>}

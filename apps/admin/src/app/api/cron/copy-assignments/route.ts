@@ -1,12 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/supabase';
 import { verifyCronSecret } from '@/lib/cron-auth';
+import { syncWeatherPoints } from '@/lib/weather';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   const authError = verifyCronSecret(req);
   if (authError) return authError;
+
+  // Meteo zilnic (scoring operatori) — piggyback pe singurul cron daily liber
+  // (Vercel Hobby = max 2 cron-uri). Ne-fatal: copierea graficului nu depinde de meteo.
+  let weatherDays = 0;
+  try {
+    weatherDays = await syncWeatherPoints();
+  } catch (e) {
+    console.error('syncWeatherPoints error:', e);
+  }
 
   try {
     const db = getSupabase();
@@ -36,6 +46,7 @@ export async function GET(req: NextRequest) {
         status: 'skipped',
         reason: 'assignments already exist for tomorrow',
         date: tomorrowStr,
+        weather_days: weatherDays,
       });
     }
 
@@ -52,6 +63,7 @@ export async function GET(req: NextRequest) {
         status: 'skipped',
         reason: 'no assignments found for today',
         date: todayStr,
+        weather_days: weatherDays,
       });
     }
 
@@ -75,6 +87,7 @@ export async function GET(req: NextRequest) {
       from: todayStr,
       to: tomorrowStr,
       count: rows.length,
+      weather_days: weatherDays,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';

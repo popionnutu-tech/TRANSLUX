@@ -40,7 +40,7 @@ export default function PrihodClient({ warehouses, suppliers }: { warehouses: Op
       <h2>Recepție marfă (накладная)</h2>
       <div className="row">
         <div className="form-row"><label>Depozit</label><select value={warehouseId} onChange={(e) => setWarehouseId(Number(e.target.value))}>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.label}</option>)}</select></div>
-        <div className="form-row"><label>Furnizor</label><select value={supplierId} onChange={(e) => setSupplierId(e.target.value ? Number(e.target.value) : '')}><option value="">—</option>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select></div>
+        <div className="form-row"><label>Furnizor</label><SearchSelect options={suppliers} value={supplierId} onSelect={(o) => setSupplierId(o ? o.id : '')} placeholder="— caută furnizor —" /></div>
         <div className="form-row"><label>Serie</label><input value={series} onChange={(e) => setSeries(e.target.value)} placeholder="AA" /></div>
         <div className="form-row"><label>Număr</label><input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="123456" /></div>
       </div>

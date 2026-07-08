@@ -13,7 +13,6 @@ export default async function PrihodPage() {
       <PrihodClient
         warehouses={(warehouses as any[]).map((w) => ({ id: w.id, label: w.name }))}
         suppliers={(suppliers as any[]).map((s) => ({ id: s.id, label: s.name }))}
-        parts={(parts as any[]).map((p) => ({ id: p.id, label: partLabel(p) }))}
       />
     </>
   );

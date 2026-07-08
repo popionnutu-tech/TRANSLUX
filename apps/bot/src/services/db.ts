@@ -301,8 +301,36 @@ export async function createReclamaTask(input: {
   return !!id;
 }
 
-/** Închide AUTOMAT sarcina reclamă a lui Vlad când un operator confirmă „Totul OK" pe mașină.
- *  Decizie owner 08.07: confirmarea operatorului = verificarea; fără aprobarea manuală a owner-ului.
+/** Sarcina reclamă DESCHISĂ pe mașină (pt confirmarea operatorului la „Totul OK"):
+ *  descrierea (ce-a fost marcat defect) + ultimul comentariu de raport al lui Vlad, dacă există. */
+export async function getOpenReclamaTask(
+  vehiclePlate: string
+): Promise<{ id: string; description: string; lastReport: string | null } | null> {
+  const supa = db();
+  const { data: ob } = await supa.from('obligations')
+    .select('id, description')
+    .eq('source', 'reclama')
+    .eq('vehicle_plate', vehiclePlate)
+    .in('current_state', NONTERMINAL_OB)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!ob) return null;
+  const { data: att } = await supa.from('obligation_attempts')
+    .select('report_text')
+    .eq('obligation_id', ob.id)
+    .order('number', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return {
+    id: ob.id as string,
+    description: (ob.description as string) ?? '',
+    lastReport: (att?.report_text as string) ?? null,
+  };
+}
+
+/** Închide sarcina reclamă a lui Vlad după ce operatorul a CONFIRMAT explicit repararea
+ *  (decizie owner 08.07, v2: „Totul OK" la sarcină deschisă → întrebare „A fost reparat?" → Da → închidere).
  *  Race-safe: .in(NONTERMINAL) în update închide cursa cu o închidere manuală simultană. */
 export async function autoCloseReclamaTask(vehiclePlate: string, reportDate: string): Promise<boolean> {
   const supa = db();

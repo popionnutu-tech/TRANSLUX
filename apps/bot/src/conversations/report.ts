@@ -19,6 +19,7 @@ import {
   createVehicle,
   getVehiclePlate,
   createReclamaTask,
+  getOpenReclamaTask,
   autoCloseReclamaTask,
   climateQuestionNeeded,
   getAssignmentForTrip,
@@ -553,6 +554,7 @@ export async function reportConversation(
     let autoCurat: boolean | null = null;
     let reclamaOk: boolean | null = null;
     let reclamaProblem: 'bus' | 'panou_ruta' | 'ambele' | null = null;
+    let reclamaRepairConfirmed = false; // operatorul a confirmat „Da, reparat" la sarcina reclamă deschisă
     let washGrade: number | null = null;
     let acStatus: 'works' | 'broken' | 'none' | null = null;
     let heatStatus: 'works' | 'broken' | 'none' | null = null;
@@ -624,16 +626,58 @@ export async function reportConversation(
             await showMainMenu(recCtx as BotContext);
             return;
           }
-          if (recCtx.callbackQuery?.data?.startsWith('reclama:')) {
+          const cbd = recCtx.callbackQuery?.data;
+
+          // Confirmarea reparării (apare doar dacă „Totul OK" a găsit o sarcină reclamă deschisă)
+          if (cbd === 'reclamafix:da') {
             await recCtx.answerCallbackQuery();
-            const rv = recCtx.callbackQuery.data.replace('reclama:', '');
+            reclamaOk = true;
+            reclamaProblem = null;
+            reclamaRepairConfirmed = true; // → după salvare, sarcina lui Vlad se închide
+            break;
+          }
+          if (cbd === 'reclamafix:nu') {
+            await recCtx.answerCallbackQuery();
+            const defKb = new InlineKeyboard()
+              .text('Doar autobuz', 'reclama:bus')
+              .text('Doar panou rută', 'reclama:panou_ruta').row()
+              .text('Ambele', 'reclama:ambele');
+            await ctx.reply('Atunci marchează ce e defect:', { reply_markup: defKb });
+            continue;
+          }
+
+          if (cbd?.startsWith('reclama:')) {
+            await recCtx.answerCallbackQuery();
+            const rv = cbd.replace('reclama:', '');
             if (rv === 'ok') {
-              reclamaOk = true;
-              reclamaProblem = null;
-            } else {
-              reclamaOk = false;
-              reclamaProblem = rv as 'bus' | 'panou_ruta' | 'ambele';
+              // Decizie owner 08.07 (v2): dacă pe mașină există o sarcină reclamă deschisă,
+              // „Totul OK" NU trece direct — operatorul confirmă explicit că defectul marcat a fost reparat.
+              const vIdRec = vehicleId;
+              const plateRec = vIdRec
+                ? (vehicles.find(v => v.id === vIdRec)?.plate_number
+                    ?? await conversation.external(() => getVehiclePlate(vIdRec)))
+                : null;
+              const openTask = plateRec
+                ? await conversation.external(() => getOpenReclamaTask(plateRec))
+                : null;
+              if (!openTask) {
+                reclamaOk = true;
+                reclamaProblem = null;
+                break;
+              }
+              const fixKb = new InlineKeyboard()
+                .text('✅ Da, reparat', 'reclamafix:da')
+                .text('❌ Nu, încă defect', 'reclamafix:nu');
+              await ctx.reply(
+                `🔧 Era marcat defect: ${openTask.description}` +
+                  (openTask.lastReport ? `\n💬 Comentariu: ${openTask.lastReport}` : '') +
+                  '\n\nA fost reparat?',
+                { reply_markup: fixKb }
+              );
+              continue; // așteaptă reclamafix:da / reclamafix:nu
             }
+            reclamaOk = false;
+            reclamaProblem = rv as 'bus' | 'panou_ruta' | 'ambele';
             break;
           }
         }
@@ -766,9 +810,9 @@ export async function reportConversation(
         }
       }
 
-      // Reclamă „Totul OK" → sarcina reclamă deschisă a lui Vlad (dacă există) se închide AUTOMAT
-      // (decizie owner 08.07: confirmarea operatorului înlocuiește aprobarea manuală).
-      const reclamaOkPlate = reclamaOk === true && vehicleId
+      // Operatorul a confirmat explicit „Da, reparat" → sarcina reclamă a lui Vlad se închide
+      // (decizie owner 08.07 v2: confirmarea explicită înlocuiește aprobarea manuală a owner-ului).
+      const reclamaOkPlate = reclamaRepairConfirmed && vehicleId
         ? (vehicles.find(v => v.id === vehicleId)?.plate_number
             ?? await conversation.external(() => getVehiclePlate(vehicleId)))
         : null;

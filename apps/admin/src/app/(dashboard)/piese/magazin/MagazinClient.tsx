@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { submitSale } from './actions';
+import SearchSelect from '@/components/SearchSelect';
 
 interface PartOpt { id: number; label: string; price: number }
 interface Opt { id: number; label: string }

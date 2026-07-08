@@ -1,15 +1,13 @@
 export const dynamic = 'force-dynamic';
 
-import { listWarehouses, catalogRows } from '@/lib/piese';
+import { listWarehouses } from '@/lib/piese';
 import { transfersTransit } from '@/lib/piese-ops';
 import { requirePieseIssue } from '@/lib/piese-access';
 import MutariClient from './MutariClient';
 
-const partLabel = (p: any) => `${p.group_name} — ${p.manufacturer ?? ''} ${p.model ? '(' + p.model + ')' : ''}`.trim();
-
 export default async function MutariPage() {
   await requirePieseIssue();
-  const [warehouses, parts, transit] = await Promise.all([listWarehouses(), catalogRows(), transfersTransit()]);
+  const [warehouses, transit] = await Promise.all([listWarehouses(), transfersTransit()]);
   return (
     <>
       <div className="page-header"><h1>Mutări între depozite</h1><p>Piesa iese din stoc doar când o trimite depozitarul-sursă. Cât e între depozite, e „pe drum".</p></div>

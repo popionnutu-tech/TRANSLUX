@@ -53,7 +53,7 @@ export default function SearchSelect({ value, onSelect, placeholder = 'â€” cautÄ
   useEffect(() => { setHi(0); }, [query, asyncResults.length]);
 
   useEffect(() => {
-    const h = (e: MouseEvent) => { if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false); };
+    const h = (e: MouseEvent) => { if (boxRef.current && !boxRef.current.contains(e.target as Node)) { setOpen(false); setQuery(''); } };
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
   }, []);

@@ -1,14 +1,12 @@
 export const dynamic = 'force-dynamic';
 
-import { listWarehouses, listSuppliers, catalogRows } from '@/lib/piese';
+import { listWarehouses, listSuppliers } from '@/lib/piese';
 import { requirePieseReceipt } from '@/lib/piese-access';
 import PrihodClient from './PrihodClient';
 
-const partLabel = (p: any) => `${p.group_name} — ${p.manufacturer ?? ''} ${p.model ? '(' + p.model + ')' : ''}`.trim();
-
 export default async function PrihodPage() {
   await requirePieseReceipt();
-  const [warehouses, suppliers, parts] = await Promise.all([listWarehouses(), listSuppliers(), catalogRows()]);
+  const [warehouses, suppliers] = await Promise.all([listWarehouses(), listSuppliers()]);
   return (
     <>
       <div className="page-header"><h1>Prihod — recepție marfă</h1><p>Fiecare poziție intră ca strat FIFO. Stocul crește automat.</p></div>

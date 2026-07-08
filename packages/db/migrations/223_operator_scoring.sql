@@ -90,7 +90,7 @@ as $fn$
 declare
   v_run_id bigint;
   v_start timestamptz := clock_timestamp();
-  v_gm numeric; v_epv numeric; v_vhm numeric; v_ntot numeric; v_sumn2 numeric; v_r numeric; v_k numeric;
+  v_k numeric;
 begin
   insert into analytics_cron_runs (started_at, status) values (v_start, 'running') returning id into v_run_id;
 
@@ -212,10 +212,13 @@ begin
     from _osc_d d2
     join _osc_dowf f2 on f2.point = d2.point and f2.dow = d2.dow
     cross join lateral (
+      -- Norma = zilele ALTOR operatori (leave-one-out): «compari un operator cu altul»,
+      -- altfel blocurile de lucru (Bălți) comprimă decalajul real. Fereastra ±28 compensează n-ul.
       select avg(x.ppt_adj) as win_mean, count(*) as win_n
       from _osc_d x
       where x.point = d2.point and x.is_clean
-        and x.score_date between d2.score_date - 21 and d2.score_date + 21
+        and x.operator_id is distinct from d2.operator_id
+        and x.score_date between d2.score_date - 28 and d2.score_date + 28
         and x.score_date <> d2.score_date
     ) win
     cross join lateral (
@@ -255,10 +258,13 @@ begin
     from _osc_d d2
     join _osc_dowf f2 on f2.point = d2.point and f2.dow = d2.dow
     cross join lateral (
+      -- Norma = zilele ALTOR operatori (leave-one-out): «compari un operator cu altul»,
+      -- altfel blocurile de lucru (Bălți) comprimă decalajul real. Fereastra ±28 compensează n-ul.
       select avg(x.ppt_adj) as win_mean, count(*) as win_n
       from _osc_d x
       where x.point = d2.point and x.is_clean
-        and x.score_date between d2.score_date - 21 and d2.score_date + 21
+        and x.operator_id is distinct from d2.operator_id
+        and x.score_date between d2.score_date - 28 and d2.score_date + 28
         and x.score_date <> d2.score_date
     ) win
     cross join lateral (
@@ -298,17 +304,10 @@ begin
   group by operator_id, point, period_key
   having count(*) >= 3;
 
-  -- K global Bühlmann pe grupele 'all' (EPV/VHM cu predohraniteli, ca în moneyball; default 6, clamp 2..50)
-  select sum(n * m) / nullif(sum(n), 0),
-         sum((n - 1) * v) / nullif(sum(n - 1), 0),
-         sum(n), sum(n * n), count(*)
-    into v_gm, v_epv, v_ntot, v_sumn2, v_r
-  from _osc_grp where period_key = 'all' and v is not null;
-  select sum(n * (m - v_gm) ^ 2) into v_vhm from _osc_grp where period_key = 'all';
-  v_vhm := (coalesce(v_vhm, 0) - (coalesce(v_r, 1) - 1) * coalesce(v_epv, 0))
-           / nullif(v_ntot - v_sumn2 / nullif(v_ntot, 0), 0);
-  v_k := case when v_vhm is not null and v_vhm > 0 and v_epv is not null
-              then greatest(2, least(50, v_epv / v_vhm)) else 6 end;
+  -- K FIX (nu derivat): cu doar ~5-6 grupe operator×punct, estimarea Bühlmann EPV/VHM e instabilă
+  -- (a oscilat 2↔9 între rulări → indexuri nereproducibile). K=8 = temperare moderată:
+  -- un operator nou e tras spre 100 până adună ~2 săptămâni de zile; la n≥40 efectul e minor.
+  v_k := 8;
 
   delete from operator_period_scores;
   insert into operator_period_scores

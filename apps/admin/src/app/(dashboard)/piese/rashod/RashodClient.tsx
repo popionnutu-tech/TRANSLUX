@@ -50,7 +50,7 @@ export default function RashodClient({ warehouses, vehicles, mechanics, reasons 
         <div className="form-row"><label>Depozit</label><select value={warehouseId} onChange={(e) => setWarehouseId(Number(e.target.value))}>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.label}</option>)}</select></div>
         <div className="form-row"><label>Mașina</label><select value={vehicleId} onChange={(e) => setVehicleId(e.target.value ? Number(e.target.value) : '')}><option value="">— alege mașina —</option>{vehicles.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}</select></div>
       </div>
-      <div className="form-row"><label>Piesa</label><select value={partId} onChange={(e) => setPartId(e.target.value ? Number(e.target.value) : '')}><option value="">— alege piesa —</option>{parts.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}</select></div>
+      <div className="form-row"><label>Piesa</label><SearchSelect searchFn={searchParts} value={partId} selectedLabel={partLabel} onSelect={(o) => { setPartId(o ? o.id : ''); setPartLabel(o?.label || ''); }} placeholder="— caută piesa (denumire, cod, articol) —" /></div>
 
       {info && (
         <>

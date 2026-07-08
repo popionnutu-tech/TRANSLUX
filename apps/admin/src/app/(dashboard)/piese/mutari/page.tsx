@@ -13,7 +13,6 @@ export default async function MutariPage() {
       <div className="page-header"><h1>Mutări între depozite</h1><p>Piesa iese din stoc doar când o trimite depozitarul-sursă. Cât e între depozite, e „pe drum".</p></div>
       <MutariClient
         warehouses={(warehouses as any[]).map((w) => ({ id: w.id, label: w.name }))}
-        parts={(parts as any[]).map((p) => ({ id: p.id, label: partLabel(p) }))}
         transit={(transit as any[]).map((t) => ({ id: t.id, from_name: t.from_name, to_name: t.to_name, line_count: t.line_count }))}
       />
     </>

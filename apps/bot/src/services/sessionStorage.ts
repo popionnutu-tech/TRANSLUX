@@ -53,4 +53,4 @@ export const supabaseConversationAdapter = {
 /** Bump this whenever the conversation flow (report.ts / addDriver.ts) changes in
  *  a way that invalidates persisted in-progress state. On a version mismatch the
  *  conversations plugin DISCARDS stale state instead of crashing with "Bad replay". */
-export const CONVERSATION_STATE_VERSION = '2026-06-02';
+export const CONVERSATION_STATE_VERSION = '2026-07-08';

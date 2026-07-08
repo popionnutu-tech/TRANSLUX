@@ -35,17 +35,19 @@ export default function SearchSelect({ value, onSelect, placeholder = '— caut�
   const results = isAsync ? asyncResults : localResults;
 
   // Căutare server-side, debounce ~250ms (doar în modul async, cât e deschis).
+  // Flag `alive`: un răspuns întârziat de la o căutare veche NU mai suprascrie rezultatul curent (race la tastare rapidă).
   useEffect(() => {
     if (!isAsync || !open) return;
     const term = query.trim();
     if (term.length < minChars) { setAsyncResults([]); setLoading(false); return; }
+    let alive = true;
     setLoading(true);
     const t = setTimeout(async () => {
-      try { const r = await searchFn!(term); setAsyncResults(r.slice(0, maxShown)); }
-      catch { setAsyncResults([]); }
-      finally { setLoading(false); }
+      try { const r = await searchFn!(term); if (alive) setAsyncResults(r.slice(0, maxShown)); }
+      catch { if (alive) setAsyncResults([]); }
+      finally { if (alive) setLoading(false); }
     }, 250);
-    return () => clearTimeout(t);
+    return () => { alive = false; clearTimeout(t); };
   }, [query, open, isAsync, minChars, maxShown]);
 
   useEffect(() => { setHi(0); }, [query, asyncResults.length]);

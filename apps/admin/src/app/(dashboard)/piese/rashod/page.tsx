@@ -1,15 +1,13 @@
 export const dynamic = 'force-dynamic';
 
-import { listWarehouses, listVehicles, catalogRows, listMechanics, listReasons } from '@/lib/piese';
+import { listWarehouses, listVehicles, listMechanics, listReasons } from '@/lib/piese';
 import { requirePieseIssue } from '@/lib/piese-access';
 import RashodClient from './RashodClient';
 
-const partLabel = (p: any) => `${p.group_name} — ${p.manufacturer ?? ''} ${p.model ? '(' + p.model + ')' : ''}`.trim();
-
 export default async function RashodPage() {
   await requirePieseIssue();
-  const [warehouses, vehicles, parts, mechanics, reasons] = await Promise.all([
-    listWarehouses(), listVehicles(), catalogRows(), listMechanics(), listReasons(),
+  const [warehouses, vehicles, mechanics, reasons] = await Promise.all([
+    listWarehouses(), listVehicles(), listMechanics(), listReasons(),
   ]);
   return (
     <>

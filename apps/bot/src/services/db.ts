@@ -301,6 +301,44 @@ export async function createReclamaTask(input: {
   return !!id;
 }
 
+/** Închide AUTOMAT sarcina reclamă a lui Vlad când un operator confirmă „Totul OK" pe mașină.
+ *  Decizie owner 08.07: confirmarea operatorului = verificarea; fără aprobarea manuală a owner-ului.
+ *  Race-safe: .in(NONTERMINAL) în update închide cursa cu o închidere manuală simultană. */
+export async function autoCloseReclamaTask(vehiclePlate: string, reportDate: string): Promise<boolean> {
+  const supa = db();
+  const { data: ob } = await supa.from('obligations')
+    .select('id, assignee_id')
+    .eq('source', 'reclama')
+    .eq('vehicle_plate', vehiclePlate)
+    .in('current_state', NONTERMINAL_OB)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!ob) return false;
+
+  const { data: done } = await supa.from('obligations')
+    .update({ current_state: 'resolved' })
+    .eq('id', ob.id)
+    .in('current_state', NONTERMINAL_OB)
+    .select('id')
+    .maybeSingle();
+  if (!done) return false;
+
+  await supa.from('obligation_events').insert({
+    obligation_id: ob.id,
+    event_type: 'auto_approved',
+    actor_id: null,
+    data: { via: 'operator_reclama_ok', vehicle_plate: vehiclePlate, report_date: reportDate },
+  });
+
+  const { data: assignee } = await supa.from('users').select('telegram_id').eq('id', ob.assignee_id).maybeSingle();
+  await notifyTelegram(
+    (assignee?.telegram_id as number) ?? null,
+    `✅ <b>Reclamă ${vehiclePlate} — închisă automat</b>\nOperatorul a confirmat în raport că reclama e OK.`
+  );
+  return true;
+}
+
 // ── Zadachnik: generator de sarcini recurente (apelat de scheduler dimineața) ──
 function chisinauOffsetMinutes(d: Date): number {
   const tz = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Chisinau', timeZoneName: 'shortOffset' })

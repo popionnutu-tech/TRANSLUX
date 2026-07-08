@@ -19,6 +19,7 @@ import {
   createVehicle,
   getVehiclePlate,
   createReclamaTask,
+  autoCloseReclamaTask,
   climateQuestionNeeded,
   getAssignmentForTrip,
   updateAssignmentDriverVehicle,
@@ -762,6 +763,21 @@ export async function reportConversation(
           await conversation.external(() => createReclamaTask({ creatorId: user.id, vehiclePlate: pl, reclamaProblem: rp }));
         } catch (e) {
           console.error('createReclamaTask error:', e);
+        }
+      }
+
+      // Reclamă „Totul OK" → sarcina reclamă deschisă a lui Vlad (dacă există) se închide AUTOMAT
+      // (decizie owner 08.07: confirmarea operatorului înlocuiește aprobarea manuală).
+      const reclamaOkPlate = reclamaOk === true && vehicleId
+        ? (vehicles.find(v => v.id === vehicleId)?.plate_number
+            ?? await conversation.external(() => getVehiclePlate(vehicleId)))
+        : null;
+      if (reclamaOkPlate) {
+        const plOk = reclamaOkPlate;
+        try {
+          await conversation.external(() => autoCloseReclamaTask(plOk, reportDate));
+        } catch (e) {
+          console.error('autoCloseReclamaTask error:', e);
         }
       }
 

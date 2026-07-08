@@ -57,7 +57,7 @@ export default function MutariClient({ warehouses, transit }: { warehouses: Opt[
           <tbody>
             {lines.map((l, i) => (
               <tr key={i}>
-                <td><select value={l.part_id} onChange={(e) => setLine(i, { part_id: e.target.value ? Number(e.target.value) : '' })}><option value="">— alege piesa —</option>{parts.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}</select></td>
+                <td><SearchSelect searchFn={searchParts} value={l.part_id} selectedLabel={l.part_label} onSelect={(o) => setLine(i, { part_id: o ? o.id : '', part_label: o?.label })} placeholder="— caută piesa —" /></td>
                 <td><input type="number" min={1} value={l.qty} onChange={(e) => setLine(i, { qty: Number(e.target.value) })} /></td>
                 <td>{lines.length > 1 && <button className="btn" onClick={() => setLines((ls) => ls.filter((_, j) => j !== i))} style={{ padding: '4px 10px' }}>×</button>}</td>
               </tr>

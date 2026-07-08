@@ -3,11 +3,13 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { submitReceipt } from './actions';
+import { searchParts } from '../search-parts';
+import SearchSelect from '@/components/SearchSelect';
 
 interface Opt { id: number; label: string }
-interface Line { part_id: number | ''; qty: number; unit_cost: number }
+interface Line { part_id: number | ''; part_label?: string; qty: number; unit_cost: number }
 
-export default function PrihodClient({ warehouses, suppliers, parts }: { warehouses: Opt[]; suppliers: Opt[]; parts: Opt[] }) {
+export default function PrihodClient({ warehouses, suppliers }: { warehouses: Opt[]; suppliers: Opt[] }) {
   const router = useRouter();
   const [warehouseId, setWarehouseId] = useState(warehouses[0]?.id || 0);
   const [supplierId, setSupplierId] = useState<number | ''>('');

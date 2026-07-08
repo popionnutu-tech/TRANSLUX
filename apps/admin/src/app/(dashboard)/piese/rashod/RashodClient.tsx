@@ -38,7 +38,7 @@ export default function RashodClient({ warehouses, vehicles, mechanics, reasons 
     try {
       const r = await submitIssue({ warehouse_id: warehouseId, vehicle_id: vehicleId ? Number(vehicleId) : null, mechanic_id: mechanicId ? Number(mechanicId) : null, breakdown_reason_id: reasonId ? Number(reasonId) : null, part_id: Number(partId), qty });
       setDone(r.shortages.length ? 'Înregistrat, atenție: ' + r.shortages.join('; ') : 'Rashod înregistrat. Stocul s-a actualizat.');
-      setPartId(''); setQty(1); setInfo(null);
+      setPartId(''); setPartLabel(''); setQty(1); setInfo(null);
       router.refresh();
     } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   }

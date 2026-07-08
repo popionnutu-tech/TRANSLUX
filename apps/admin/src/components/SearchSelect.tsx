@@ -63,7 +63,7 @@ export default function SearchSelect({ value, onSelect, placeholder = 'â€” cautÄ
   return (
     <div ref={boxRef} style={{ position: 'relative' }}>
       <input
-        style={{ width: '100%' }}
+        style={{ width: '100%', paddingRight: value !== '' ? 26 : undefined }}
         value={open ? query : currentLabel}
         placeholder={currentLabel || placeholder}
         onFocus={() => { setOpen(true); setQuery(''); }}

@@ -1,5 +1,7 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { getSupabase } from '@/lib/supabase';
+import { verifySession } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -89,6 +91,11 @@ export default async function OperatoriPage({
 }) {
   const { p } = await searchParams;
   const period: PeriodKey = p === '28d' || p === 'quarter' ? p : 'all';
+
+  // Ratingul e doar pentru owner: gate explicit ADMIN (middleware e denylist — nu ne bazăm pe el).
+  const session = await verifySession();
+  if (!session || session.role !== 'ADMIN') redirect('/login');
+
   const sb = getSupabase();
 
   const [{ data: scoresData }, { data: daysData }] = await Promise.all([

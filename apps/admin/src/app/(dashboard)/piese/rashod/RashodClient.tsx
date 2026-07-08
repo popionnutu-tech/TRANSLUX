@@ -3,11 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { checkIssue, submitIssue } from './actions';
+import { searchParts } from '../search-parts';
+import SearchSelect from '@/components/SearchSelect';
 
 interface Opt { id: number; label: string }
 
-export default function RashodClient({ warehouses, vehicles, parts, mechanics, reasons }: {
-  warehouses: Opt[]; vehicles: (Opt & { km: number })[]; parts: Opt[]; mechanics: Opt[]; reasons: Opt[];
+export default function RashodClient({ warehouses, vehicles, mechanics, reasons }: {
+  warehouses: Opt[]; vehicles: (Opt & { km: number })[]; mechanics: Opt[]; reasons: Opt[];
 }) {
   const router = useRouter();
   const [warehouseId, setWarehouseId] = useState(warehouses[0]?.id || 0);

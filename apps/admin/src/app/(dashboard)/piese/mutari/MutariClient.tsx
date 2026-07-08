@@ -3,12 +3,14 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { submitTransfer, receiveTransfer } from './actions';
+import { searchParts } from '../search-parts';
+import SearchSelect from '@/components/SearchSelect';
 
 interface Opt { id: number; label: string }
-interface Line { part_id: number | ''; qty: number }
+interface Line { part_id: number | ''; part_label?: string; qty: number }
 interface Transit { id: number; from_name: string; to_name: string; line_count: number }
 
-export default function MutariClient({ warehouses, parts, transit }: { warehouses: Opt[]; parts: Opt[]; transit: Transit[] }) {
+export default function MutariClient({ warehouses, transit }: { warehouses: Opt[]; transit: Transit[] }) {
   const router = useRouter();
   const [from, setFrom] = useState(warehouses[0]?.id || 0);
   const [to, setTo] = useState(warehouses[1]?.id || 0);

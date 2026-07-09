@@ -42,19 +42,26 @@ const SECTIONS: SectionCfg[] = [
 
 export default function NomenclatorClient({ sections, data }: { sections: string[]; data: Record<string, any[]> }) {
   const visible = SECTIONS.filter((s) => sections.includes(s.key));
-  const [active, setActive] = useState(visible[0]?.key || '');
-  const cfg = visible.find((s) => s.key === active);
+  // „Piese (catalog)" nu e un tab generic (are mii de rânduri) — se randează separat cu PartsManager.
+  const hasParts = sections.includes('parts');
+  const pills = [...visible.map((s) => ({ key: s.key, title: s.title })), ...(hasParts ? [{ key: 'parts', title: 'Piese (catalog)' }] : [])];
+  const [active, setActive] = useState(pills[0]?.key || '');
+  const groupOptions = (data.groups || []).map((g: any) => ({ id: g.id, label: g.name_ro as string }));
 
-  if (!cfg) return <div className="card"><div className="empty">Niciun nomenclator disponibil pentru rolul tău.</div></div>;
+  if (pills.length === 0) return <div className="card"><div className="empty">Niciun nomenclator disponibil pentru rolul tău.</div></div>;
+
+  const cfg = visible.find((s) => s.key === active);
 
   return (
     <>
       <div className="pill-row" style={{ marginBottom: 18, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {visible.map((s) => (
+        {pills.map((s) => (
           <button key={s.key} className={`btn${active === s.key ? ' btn-primary' : ''}`} style={{ padding: '8px 14px' }} onClick={() => setActive(s.key)}>{s.title}</button>
         ))}
       </div>
-      <Section key={cfg.key} cfg={cfg} rows={data[cfg.key] || []} />
+      {active === 'parts'
+        ? <PartsManager groups={groupOptions} />
+        : cfg && <Section key={cfg.key} cfg={cfg} rows={data[cfg.key] || []} />}
     </>
   );
 }

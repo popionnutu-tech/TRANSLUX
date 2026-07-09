@@ -29,3 +29,18 @@ export async function loadPart(id: number): Promise<Record<string, unknown> | nu
   if (!id || id <= 0) return null;
   return (await getPartById(id)) as Record<string, unknown> | null;
 }
+
+// Locația piesei într-un depozit (SECȚIE-RAFT-POLIȚĂ + stoc minim) — pentru editarea din Catalog.
+export async function loadPartLocation(partId: number, warehouseId: number): Promise<{ location_label: string; min_qty: number } | null> {
+  await requirePartWrite();
+  if (!partId || !warehouseId) return null;
+  return (await getPartLocation(partId, warehouseId)) as { location_label: string; min_qty: number } | null;
+}
+
+export async function savePartLocation(partId: number, warehouseId: number, data: { location_label?: string; min_qty?: number | string }): Promise<{ ok: true }> {
+  await requirePartWrite();
+  await setPartLocation(partId, warehouseId, data);
+  revalidatePath('/piese/harta');
+  revalidatePath('/piese/stoc');
+  return { ok: true };
+}

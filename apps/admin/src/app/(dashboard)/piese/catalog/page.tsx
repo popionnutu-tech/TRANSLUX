@@ -2,7 +2,10 @@ export const dynamic = 'force-dynamic';
 
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { catalogPage, listGroups } from '@/lib/piese';
+import { catalogPage, listGroups, listWarehouses } from '@/lib/piese';
+import { verifySession } from '@/lib/auth';
+import { canEditParts } from '@/lib/piese-access';
+import CatalogTable from './CatalogTable';
 
 export default async function CatalogPage({ searchParams }: { searchParams: Promise<{ q?: string; grup?: string; page?: string }> }) {
   const sp = await searchParams;
@@ -10,10 +13,13 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
   const groupId = sp.grup ? Number(sp.grup) : undefined;
   const page = Math.max(1, Number(sp.page) || 1);
 
-  const [groups, { rows, total, pageSize }] = await Promise.all([
+  const [groups, warehouses, session, { rows, total, pageSize }] = await Promise.all([
     listGroups(),
+    listWarehouses(),
+    verifySession(),
     catalogPage({ search: q, groupId, page }),
   ]);
+  const canEdit = session ? canEditParts(session.role) : false;
 
   const pages = Math.max(1, Math.ceil(total / pageSize));
 

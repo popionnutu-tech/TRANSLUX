@@ -40,7 +40,7 @@ export default async function StocPage({ searchParams }: { searchParams: Promise
             <thead><tr><th>Denumire</th><th>Grup</th><th>Producător / Model</th><th>Depozit</th><th>Locație</th><th className="num">Stoc</th>{showCost && <><th className="num">Cost mediu</th><th className="num">Valoare</th></>}</tr></thead>
             <tbody>
               {(rows as any[]).map((r, i) => {
-                const low = r.min_qty > 0 && r.qty <= r.min_qty;
+                const low = Number(r.min_qty) > 0 && Number(r.qty) <= Number(r.min_qty);
                 return (
                   <tr key={i}>
                     <td><strong>{r.name_long || '—'}</strong>{r.barcode && <><br /><span className="muted" style={{ fontSize: 11, fontFamily: 'monospace' }}>{r.barcode}</span></>}</td>

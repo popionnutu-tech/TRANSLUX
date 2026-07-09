@@ -71,6 +71,20 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
       </div>
       {msg && <div className={`alert ${msg.t}`} style={{ marginTop: 12 }}>{msg.m}</div>}
       <button className="btn btn-primary btn-lg btn-block" style={{ marginTop: 12 }} disabled={busy} onClick={submit}>{busy ? 'Se înregistrează…' : 'Confirmă prihodul'}</button>
+
+      {newPartFor !== null && (
+        <div onClick={() => setNewPartFor(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '6vh 16px', zIndex: 1000, overflowY: 'auto' }}>
+          <div onClick={(e) => e.stopPropagation()} className="card" style={{ maxWidth: 900, width: '100%', margin: 0 }}>
+            <h2 style={{ marginTop: 0 }}>Piesă nouă în catalog</h2>
+            <p className="muted" style={{ marginTop: -6 }}>Se adaugă în catalog cu <strong>stoc 0</strong> și se completează automat pe poziția curentă. Cantitatea și costul le pui în tabelul de prihod.</p>
+            <PartForm
+              groups={groups}
+              onSaved={(p) => { setLine(newPartFor, { part_id: p.id, part_label: p.label }); setNewPartFor(null); }}
+              onCancel={() => setNewPartFor(null)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

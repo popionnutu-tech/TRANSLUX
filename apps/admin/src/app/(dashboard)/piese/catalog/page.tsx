@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { catalogPage, listGroups } from '@/lib/piese';
 
 export default async function CatalogPage({ searchParams }: { searchParams: Promise<{ q?: string; grup?: string; page?: string }> }) {

@@ -56,6 +56,29 @@ export async function catalogRows(opts: { search?: string; groupId?: number } = 
   return data || [];
 }
 
+// Catalog paginat pentru ecranul „Catalog" (browse): întoarce rândurile paginii + totalul real.
+// Separat de catalogRows (folosit de searchParts, cu limită fixă) ca să nu-i schimb semnătura.
+// count:'exact' dă numărul total al setului filtrat într-un singur round-trip; filtrul pe grup e index-asistat.
+export async function catalogPage(opts: { search?: string; groupId?: number; page?: number; pageSize?: number } = {}) {
+  const pageSize = opts.pageSize && opts.pageSize > 0 ? opts.pageSize : 100;
+  const page = Math.max(1, opts.page || 1);
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+  let q = getSupabase()
+    .from('piese_catalog_rows')
+    .select('*', { count: 'exact' })
+    .order('group_name')
+    .order('name_long')
+    .range(from, to);
+  if (opts.groupId) q = q.eq('group_id', opts.groupId);
+  if (opts.search?.trim()) {
+    const s = orVal(opts.search.trim());
+    q = q.or(`name_long.ilike."%${s}%",group_name.ilike."%${s}%",article_code.ilike."%${s}%",oem_code.ilike."%${s}%",barcode.ilike."%${s}%",model.ilike."%${s}%"`);
+  }
+  const { data, count } = await q;
+  return { rows: (data || []) as any[], total: count ?? 0, page, pageSize };
+}
+
 // Etichetă bogată a piesei (denumire + producător (model) + articol). SURSĂ UNICĂ — folosită
 // de căutarea din formulare (search-parts) și la crearea „din mers" (part-actions), ca să nu difere.
 export function partLabel(p: Record<string, unknown>): string {

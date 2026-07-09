@@ -51,7 +51,12 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
         <tbody>
           {lines.map((l, i) => (
             <tr key={i}>
-              <td><SearchSelect searchFn={searchParts} value={l.part_id} selectedLabel={l.part_label} onSelect={(o) => setLine(i, { part_id: o ? o.id : '', part_label: o?.label })} placeholder="— caută piesa (denumire, cod, articol) —" /></td>
+              <td>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <div style={{ flex: 1 }}><SearchSelect searchFn={searchParts} value={l.part_id} selectedLabel={l.part_label} onSelect={(o) => setLine(i, { part_id: o ? o.id : '', part_label: o?.label })} placeholder="— caută piesa (denumire, cod, articol) —" /></div>
+                  <button type="button" className="btn btn-outline" style={{ padding: '4px 10px', whiteSpace: 'nowrap' }} onClick={() => setNewPartFor(i)} title="Adaugă o piesă care nu există încă în catalog">+ nouă</button>
+                </div>
+              </td>
               <td><input type="number" min={1} value={l.qty} onChange={(e) => setLine(i, { qty: Number(e.target.value) })} /></td>
               <td><input type="number" min={0} step="0.01" value={l.unit_cost} onChange={(e) => setLine(i, { unit_cost: Number(e.target.value) })} /></td>
               <td className="num">{(l.qty * l.unit_cost).toFixed(2)}</td>

@@ -92,6 +92,17 @@ export async function getPartById(id: number) {
   return data || null;
 }
 
+// Locația unei piese într-un depozit anume (pentru editarea locației din Catalog → alimentează Harta).
+export async function getPartLocation(partId: number, warehouseId: number) {
+  const { data } = await getSupabase()
+    .from('piese_part_locations')
+    .select('location_label, min_qty')
+    .eq('part_id', partId)
+    .eq('warehouse_id', warehouseId)
+    .maybeSingle();
+  return data || null;
+}
+
 export async function lowStock() {
   const { data } = await getSupabase().from('piese_low_stock').select('*').limit(50);
   return data || [];

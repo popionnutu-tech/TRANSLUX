@@ -8,6 +8,7 @@ type SbResult = { error: { message: string; code?: string } | null };
 function check(r: SbResult) {
   if (r.error) {
     if (r.error.code === '23505') throw new Error('Există deja o înregistrare cu această valoare (cod/cod de bare duplicat)');
+    if (r.error.code === '23503') throw new Error('Categoria/grupa selectată nu mai există — reîncarcă pagina și alege din nou');
     throw new Error(r.error.message);
   }
 }

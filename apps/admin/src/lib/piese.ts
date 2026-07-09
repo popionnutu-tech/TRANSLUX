@@ -56,6 +56,21 @@ export async function catalogRows(opts: { search?: string; groupId?: number } = 
   return data || [];
 }
 
+// Etichetă bogată a piesei (denumire + producător (model) + articol). SURSĂ UNICĂ — folosită
+// de căutarea din formulare (search-parts) și la crearea „din mers" (part-actions), ca să nu difere.
+export function partLabel(p: Record<string, unknown>): string {
+  const name = (p.name_long as string) || (p.group_name as string) || '';
+  const mm = `${(p.manufacturer as string) ?? ''} ${p.model ? '(' + p.model + ')' : ''}`.trim();
+  const art = p.article_code ? ' · ' + (p.article_code as string) : '';
+  return `${name}${mm ? ' — ' + mm : ''}${art}`.trim();
+}
+
+// O singură piesă (câmpuri editabile) pentru formularul de editare din Nomenclator.
+export async function getPartById(id: number) {
+  const { data } = await getSupabase().from('piese_catalog_rows').select('*').eq('id', id).maybeSingle();
+  return data || null;
+}
+
 export async function lowStock() {
   const { data } = await getSupabase().from('piese_low_stock').select('*').limit(50);
   return data || [];

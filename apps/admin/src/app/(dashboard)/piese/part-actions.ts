@@ -2,8 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { verifySession, requireRole } from '@/lib/auth';
-import { createPart, updatePart } from '@/lib/piese-nomenclator';
-import { partLabel, getPartById } from '@/lib/piese';
+import { createPart, updatePart, setPartLocation } from '@/lib/piese-nomenclator';
+import { partLabel, getPartById, getPartLocation } from '@/lib/piese';
 
 // Cine poate adăuga/edita o piesă în catalog: aceleași roluri care fac recepția (prihod) — depozitar,
 // gestionar (depozitar intern), admin. Vânzătorul NU creează piese. Sursă unică de autorizare (server action).

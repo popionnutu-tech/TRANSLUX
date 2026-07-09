@@ -5,11 +5,12 @@ import { useRouter } from 'next/navigation';
 import { submitReceipt } from './actions';
 import { searchParts } from '../search-parts';
 import SearchSelect from '@/components/SearchSelect';
+import PartForm from '@/components/PartForm';
 
 interface Opt { id: number; label: string }
 interface Line { part_id: number | ''; part_label?: string; qty: number; unit_cost: number }
 
-export default function PrihodClient({ warehouses, suppliers }: { warehouses: Opt[]; suppliers: Opt[] }) {
+export default function PrihodClient({ warehouses, suppliers, groups }: { warehouses: Opt[]; suppliers: Opt[]; groups: Opt[] }) {
   const router = useRouter();
   const [warehouseId, setWarehouseId] = useState(warehouses[0]?.id || 0);
   const [supplierId, setSupplierId] = useState<number | ''>('');
@@ -18,6 +19,7 @@ export default function PrihodClient({ warehouses, suppliers }: { warehouses: Op
   const [lines, setLines] = useState<Line[]>([{ part_id: '', qty: 1, unit_cost: 0 }]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ t: 'ok' | 'danger'; m: string } | null>(null);
+  const [newPartFor, setNewPartFor] = useState<number | null>(null); // indexul poziției care adaugă o piesă nouă
 
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
   const total = lines.reduce((s, l) => s + l.qty * l.unit_cost, 0);

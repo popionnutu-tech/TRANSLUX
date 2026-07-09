@@ -39,3 +39,9 @@ export function canSeeCost(role: AdminRole): boolean {
 export function sellerScoped(role: AdminRole): boolean {
   return role === 'VINZATOR' || role === 'GESTIONAR';
 }
+
+// SURSĂ UNICĂ: cine poate adăuga/edita piese în catalog + locațiile lor (aceleași roluri care fac recepția).
+// Oglindă a gărzii `requirePartWrite` din part-actions.ts; folosită de UI ca să arate „Editează" doar cui are drept.
+export function canEditParts(role: AdminRole): boolean {
+  return role === 'ADMIN' || role === 'DEPOZITAR' || role === 'GESTIONAR';
+}

@@ -78,16 +78,18 @@ async function processDay(v, day) {
     `SELECT w_date,x,y,speed FROM track WHERE id=$1 AND w_date>=$2 AND w_date<($2::date+1) AND w_date<=now() ORDER BY w_date`, [v.device, day]);
   const pts = [];
   for (const r of rows) { const lat = nmea(+r.x), lon = nmea(+r.y); if (lat<BBOX.latMin||lat>BBOX.latMax||lon<BBOX.lonMin||lon>BBOX.lonMax) continue; pts.push({ lat, lon, t: new Date(r.w_date), sp: r.speed }); }
-  if (pts.length < 2) return { km: 0, stops: [], vmax: 0, viol: 0, patched: 0, npts: pts.length };
+  if (pts.length < 2) return { km: 0, stops: [], vmax: 0, viol: 0, patched: 0, check: 0, npts: pts.length };
 
   // pas cu pas: km + flag (clean/patched) + glitch bridging
+  // + km_check = integrarea vitezei (Σ v×dt, dt≤60s) — verificare INDEPENDENTĂ a km_total
   const stepKm = new Array(pts.length).fill(0); const stepPatched = new Array(pts.length).fill(false);
-  let kmTotal = 0, patchedKm = 0, vmax = 0, viol = 0;
+  let kmTotal = 0, patchedKm = 0, vmax = 0, viol = 0, kmCheck = 0;
   for (let i = 1; i < pts.length; i++) {
     const dt = (pts[i].t - pts[i-1].t) / 1000;
     const d = hav(pts[i-1], pts[i]);
     const impliedKmh = dt > 0 ? d / (dt/3600) : 9999;
     const kmh = pts[i].sp * KN; if (kmh < 160 && kmh > vmax) vmax = kmh; if (kmh > SPEED_LIMIT_KMH && kmh < 160) viol++;
+    if (kmh < 160) kmCheck += (kmh / 3600) * Math.min(Math.max(dt, 0), 60);
     let segKm = 0, patched = false;
     if (impliedKmh > TELEPORT_KMH || dt > GAP_S) { const br = bridgeKm(pts[i-1], pts[i]); segKm = br.km; patched = true; patchedKm += br.km; }
     else if (pts[i].sp > MOVING_KN) { segKm = d; }
@@ -121,7 +123,7 @@ async function processDay(v, day) {
     }
     prevEnd = c.i1;
   }
-  return { km: +kmTotal.toFixed(1), stops: out, vmax: Math.round(vmax), viol, patched: +patchedKm.toFixed(1), npts: pts.length };
+  return { km: +kmTotal.toFixed(1), stops: out, vmax: Math.round(vmax), viol, patched: +patchedKm.toFixed(1), check: +kmCheck.toFixed(1), npts: pts.length };
 }
 
 let totalKm = 0, totalStops = 0, processed = 0;
@@ -134,7 +136,7 @@ for (const day of DAYS) {
       console.log(`  ${v.plate.padEnd(8)} ${day}  ${String(r.km).padStart(6)}km  v${r.vmax}  opriri:${r.stops.length}${r.patched>0?`  cârpit:${r.patched}km`:''}  ${chain.slice(0,90)}`);
     }
     if (WRITE && r.npts > 0) {
-      await supa.from('lde_vehicle_gps_daily').upsert({ vehicle_id: v.vehicle_id, date: day, km_total: r.km, speed_max_kmh: r.vmax, speed_violations_count: r.viol, data_source: 'platform_gps', imported_at: new Date().toISOString() }, { onConflict: 'vehicle_id,date' });
+      await supa.from('lde_vehicle_gps_daily').upsert({ vehicle_id: v.vehicle_id, date: day, km_total: r.km, speed_max_kmh: r.vmax, speed_violations_count: r.viol, km_patched: r.patched, km_check: r.check, gps_points: r.npts, data_source: 'platform_gps', imported_at: new Date().toISOString() }, { onConflict: 'vehicle_id,date' });
       await supa.from('lde_gps_stops').delete().eq('vehicle_id', v.vehicle_id).eq('date', day);
       if (r.stops.length) {
         const rows = r.stops.map(s => ({ vehicle_id: v.vehicle_id, date: day, seq: s.seq, locality: s.locality, lat: s.lat, lon: s.lon, arrival_at: s.arrival.toISOString(), departure_at: s.departure.toISOString(), dwell_min: s.dwell, km_from_prev: s.kmPrev, km_from_prev_source: s.src, is_base: s.isBase, gps_quality: r.patched>0?'patched':'clean' }));

@@ -67,6 +67,25 @@ export async function updatePart(id: number, d: any) {
   check(await getSupabase().from('piese_parts').update(partRow(d)).eq('id', id));
 }
 
+// ── Locația piesei (per depozit) ──
+// piese_part_locations: UNIQUE(part_id, warehouse_id), location_label NOT NULL, min_qty default 0.
+// Eticheta goală → ștergem rândul (curăță locația, fiindcă min_qty nu poate exista fără label NOT NULL).
+// Altfel upsert (o singură locație per piesă+depozit). Alimentează Harta + alertele „de comandat".
+export async function setPartLocation(partId: number, warehouseId: number, d: any) {
+  if (!Number(partId) || !Number(warehouseId)) throw new Error('Piesă/depozit invalide');
+  const label = txt(d.location_label);
+  const minQty = Number(d.min_qty) || 0;
+  const sb = getSupabase();
+  if (!label) {
+    check(await sb.from('piese_part_locations').delete().eq('part_id', partId).eq('warehouse_id', warehouseId));
+    return;
+  }
+  check(await sb.from('piese_part_locations').upsert(
+    { part_id: partId, warehouse_id: warehouseId, location_label: label, min_qty: minQty },
+    { onConflict: 'part_id,warehouse_id' },
+  ));
+}
+
 // ── Furnizori ──
 export async function createSupplier(d: any) {
   if (!txt(d.name)) throw new Error('Denumirea furnizorului este obligatorie');

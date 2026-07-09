@@ -60,6 +60,9 @@ export async function createPart(d: any): Promise<{ id: number }> {
   return { id: (data as { id: number }).id };
 }
 export async function updatePart(id: number, d: any) {
+  // Atenție: e un „replace complet" al coloanelor editabile (partRow). Formularul PartForm trimite mereu
+  // toate câmpurile (prefill din loadPart), deci nu se golește nimic accidental. Dacă adaugi o coloană
+  // nouă editabilă la piese_parts, adaug-o și în partRow + PartForm, altfel update-ul o resetează.
   validatePart(d);
   check(await getSupabase().from('piese_parts').update(partRow(d)).eq('id', id));
 }

@@ -9,7 +9,7 @@ import { PART_WRITE_ROLES } from '@/lib/piese-access';
 // Cine poate adăuga/edita o piesă în catalog: aceleași roluri care fac recepția (prihod) — depozitar,
 // gestionar (depozitar intern), admin. Vânzătorul NU creează piese. Sursă unică de autorizare (server action).
 function requirePartWrite() {
-  return verifySession().then((s) => { requireRole(s, 'ADMIN', 'DEPOZITAR', 'GESTIONAR'); return s; });
+  return verifySession().then((s) => { requireRole(s, ...PART_WRITE_ROLES); return s; });
 }
 
 // Creează sau actualizează o piesă. Întoarce id + eticheta bogată ca apelantul (Prihod) s-o poată

@@ -16,8 +16,6 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
   ]);
 
   const pages = Math.max(1, Math.ceil(total / pageSize));
-  const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
-  const to = Math.min(page * pageSize, total);
 
   // Link de paginare care păstrează filtrele curente (q + grup) și schimbă doar pagina.
   const pageHref = (p: number) => {
@@ -28,6 +26,12 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
     const qs = params.toString();
     return qs ? `/piese/catalog?${qs}` : '/piese/catalog';
   };
+
+  // ?page= peste ultima pagină (URL manipulat) → du-te la ultima pagină validă, ca intervalul afișat să fie corect.
+  if (page > pages) redirect(pageHref(pages));
+
+  const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, total);
 
   return (
     <>

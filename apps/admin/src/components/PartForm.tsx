@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { savePart } from '../app/(dashboard)/piese/part-actions';
+import { savePart } from '@/app/(dashboard)/piese/part-actions';
 
 export interface PartFormValues {
   id?: number;

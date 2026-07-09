@@ -72,10 +72,7 @@ export async function catalogPage(opts: { search?: string; groupId?: number; pag
     .order('name_long')
     .range(from, to);
   if (opts.groupId) q = q.eq('group_id', opts.groupId);
-  if (opts.search?.trim()) {
-    const s = orVal(opts.search.trim());
-    q = q.or(`name_long.ilike."%${s}%",group_name.ilike."%${s}%",article_code.ilike."%${s}%",oem_code.ilike."%${s}%",barcode.ilike."%${s}%",model.ilike."%${s}%"`);
-  }
+  if (opts.search?.trim()) q = q.or(catalogSearchOr(orVal(opts.search.trim())));
   const { data, count } = await q;
   return { rows: (data || []) as any[], total: count ?? 0, page, pageSize };
 }

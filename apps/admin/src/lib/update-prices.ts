@@ -33,7 +33,7 @@ const POPULAR_ROUTES = [
 interface ParsedRates {
   interurbanLong: number;
   interurbanShort: number;
-  suburban: number | null; // null = nu e pe pagină (ex. tarif provizoriu doar interurban) → păstrează curentul
+  suburban: number | null; // plafonul raional de pe pagină (informativ); NU intră în calcul — suburban = interurban lung + 0.10
   effectiveDate: string | null; // YYYY-MM-DD parsed from "începând cu DD.MM.YYYY"
 }
 
@@ -409,14 +409,15 @@ export async function executeAntaPriceUpdate(options?: {
     const supabase = getSupabase();
 
     // 2. Load current rates, then resolve "effective" rates.
-    // Suburban = rată FIXĂ de proprietar (app_config `rate_per_km_suburban`), decuplată de ANTA:
-    // ANTA publică interraionalul doar ca PLAFON; noi păstrăm rata owner (ex. 1.07, sub plafon).
-    // ANTA controlează doar interurbanul. Fallback la valoarea scraped ANTA doar dacă owner-ul lipsește.
+    // Suburban = interurban lung + 0.10 lei/km ÎNTOTDEAUNA (regulă owner 08.07.2026,
+    // înlocuiește rata fixă 1.07 din 04.07): raionalul urcă/coboară automat odată cu
+    // tariful ANTA interurban. Plafonul raional publicat de ANTA (rates.suburban) nu se
+    // mai folosește la calcul; owner-ul vede valoarea derivată în propunere și confirmă.
     const currentRates = await loadCurrentRates(supabase);
     const effective: EffectiveRates = {
       interurbanLong: rates.interurbanLong,
       interurbanShort: rates.interurbanShort,
-      suburban: currentRates.suburban ?? rates.suburban ?? rates.interurbanLong,
+      suburban: Math.round((rates.interurbanLong + 0.10) * 100) / 100,
       effectiveDate: rates.effectiveDate,
     };
 

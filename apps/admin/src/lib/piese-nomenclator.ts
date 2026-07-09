@@ -74,7 +74,7 @@ export async function updatePart(id: number, d: any) {
 export async function setPartLocation(partId: number, warehouseId: number, d: any) {
   if (!Number(partId) || !Number(warehouseId)) throw new Error('Piesă/depozit invalide');
   const label = txt(d.location_label);
-  const minQty = Number(d.min_qty) || 0;
+  const minQty = Math.max(0, Number(d.min_qty) || 0);
   const sb = getSupabase();
   if (!label) {
     check(await sb.from('piese_part_locations').delete().eq('part_id', partId).eq('warehouse_id', warehouseId));

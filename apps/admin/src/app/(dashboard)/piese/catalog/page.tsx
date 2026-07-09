@@ -59,31 +59,14 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
         <span className="muted">{total.toLocaleString('ro-RO')} piese{total > 0 ? ` · ${from}–${to}` : ''}</span>
       </form>
 
+      {canEdit && <p className="muted" style={{ marginTop: -4 }}>Apasă pe o piesă pentru a-i completa/edita datele și locația.</p>}
       <div className="card">
-        <table>
-          <thead>
-            <tr>
-              <th>Denumire</th><th>Grup</th><th>Producător</th><th>Model</th><th>Articul</th><th>Cod de bare</th><th>Unit.</th><th>Vânzare</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((p) => (
-              <tr key={p.id}>
-                <td><strong>{p.name_long || '—'}</strong></td>
-                <td className="muted">{p.group_name}</td>
-                <td>{p.manufacturer || '—'}</td>
-                <td className="muted">{p.model || '—'}</td>
-                <td className="muted">{p.article_code || '—'}</td>
-                <td className="muted" style={{ fontFamily: 'monospace', fontSize: 12 }}>{p.barcode || '—'}</td>
-                <td>{p.unit}</td>
-                <td>{p.is_for_sale ? <span className="badge ok">da</span> : <span className="badge gray">parc</span>}</td>
-              </tr>
-            ))}
-            {rows.length === 0 && (
-              <tr><td colSpan={8} className="muted">Nicio piesă găsită. Schimbă căutarea sau categoria.</td></tr>
-            )}
-          </tbody>
-        </table>
+        <CatalogTable
+          rows={rows}
+          groups={(groups as any[]).map((g) => ({ id: g.id, label: g.name_ro }))}
+          warehouses={(warehouses as any[]).map((w) => ({ id: w.id, label: w.name }))}
+          canEdit={canEdit}
+        />
 
         {pages > 1 && (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, gap: 8 }}>

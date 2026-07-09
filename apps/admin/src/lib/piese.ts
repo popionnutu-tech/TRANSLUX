@@ -6,6 +6,10 @@ import { getSupabase } from './supabase';
 // ca să fie tratată ca DATE, nu ca filtru — altfel un termen cu virgulă/paranteze poate injecta condiții.
 export const orVal = (v: string) => v.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 
+// Filtrul .or(...) comun pentru catalog (căutare pe 6 coloane). SURSĂ UNICĂ — folosit de
+// catalogRows (liste/forme) și catalogPage (browse), ca predicatele să nu diverge. `s` trebuie deja escapat cu orVal.
+const catalogSearchOr = (s: string) => `name_long.ilike."%${s}%",group_name.ilike."%${s}%",article_code.ilike."%${s}%",oem_code.ilike."%${s}%",barcode.ilike."%${s}%",model.ilike."%${s}%"`;
+
 export async function listWarehouses() {
   const { data } = await getSupabase().from('piese_warehouses').select('*').order('id');
   return data || [];

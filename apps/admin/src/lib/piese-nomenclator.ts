@@ -34,6 +34,35 @@ export async function updateGroup(id: number, d: any) {
   check(await getSupabase().from('piese_part_groups').update({ name_ro: txt(d.name_ro), name_ru: txtOrNull(d.name_ru), markup_pct: Number(d.markup_pct) || 0, norm_km: d.norm_km === '' || d.norm_km == null ? null : Number(d.norm_km) }).eq('id', id));
 }
 
+// ── Piese (catalog) ──
+// Grupa (categoria) e obligatorie (group_id NOT NULL) și denumirea. Restul opțional.
+// Stocul NU se atinge aici — o piesă nouă pornește cu stoc 0; stocul intră prin Prihod/Inventar.
+const partRow = (d: any) => ({
+  group_id: Number(d.group_id),
+  name_long: txt(d.name_long),
+  manufacturer: txtOrNull(d.manufacturer),
+  model: txtOrNull(d.model),
+  article_code: txtOrNull(d.article_code),
+  oem_code: txtOrNull(d.oem_code),
+  barcode: txtOrNull(d.barcode),
+  unit: txt(d.unit) || 'buc',
+  is_for_sale: d.is_for_sale === true || d.is_for_sale === 'true' || d.is_for_sale === '1' || d.is_for_sale === 'da',
+});
+function validatePart(d: any) {
+  if (!Number(d.group_id)) throw new Error('Grupa (categoria) este obligatorie');
+  if (!txt(d.name_long)) throw new Error('Denumirea piesei este obligatorie');
+}
+export async function createPart(d: any): Promise<{ id: number }> {
+  validatePart(d);
+  const { data, error } = await getSupabase().from('piese_parts').insert(partRow(d)).select('id').single();
+  check({ error });
+  return { id: (data as { id: number }).id };
+}
+export async function updatePart(id: number, d: any) {
+  validatePart(d);
+  check(await getSupabase().from('piese_parts').update(partRow(d)).eq('id', id));
+}
+
 // ── Furnizori ──
 export async function createSupplier(d: any) {
   if (!txt(d.name)) throw new Error('Denumirea furnizorului este obligatorie');

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createNomenclator, updateNomenclator } from './actions';
+import PartsManager from './PartsManager';
 
 type Field = { key: string; label: string; type?: 'text' | 'number' | 'select'; options?: { value: string; label: string }[]; required?: boolean; placeholder?: string };
 type SectionCfg = { key: string; title: string; fields: Field[] };

@@ -12,7 +12,7 @@ function yesterdayIso(): string {
 export type KmZiRow = {
   vehicle_id: string;
   plate_number: string;
-  km_real: number;          // DOAR GPS curat: km_total − km_patched (fără nicio cârpire)
+  km: number;               // km_total (GPS curat + porțiuni recuperate) — aceeași cifră ca în salarii/acte
   probleme: string[];       // motive de divergență majoră — menționate, NU corectate
 };
 
@@ -47,7 +47,7 @@ const KM_LIPSA_MAJOR = 5;      // km pierduți în găuri GPS demni de menționa
 const DIVERG_VITEZA = 0.3;     // |verificarea pe viteză − km| > 30% => dispozitiv suspect
 const KM_MIN_DIVERG = 20;      // sub 20 km/zi procentele nu înseamnă nimic
 
-/** Km zilnic per direcție/mașină (default = ieri). Km = doar GPS curat, problemele doar menționate. */
+/** Km zilnic per direcție/mașină (default = ieri). Km = km_total (ca în salarii); recuperările din găuri menționate la probleme. */
 export async function getKmZilnic(date?: string): Promise<KmZilnic> {
   requireRole(await verifySession(), 'ADMIN');
   const sb = getSupabase();
@@ -71,12 +71,11 @@ export async function getKmZilnic(date?: string): Promise<KmZilnic> {
   for (const raw of (data ?? []) as unknown as GpsJoinRow[]) {
     const kmTotal = Number(raw.km_total ?? 0);
     const kmPatched = Number(raw.km_patched ?? 0);
-    const kmReal = Math.max(0, +(kmTotal - kmPatched).toFixed(1));
     const kmCheck = raw.km_check == null ? null : Number(raw.km_check);
 
     const probleme: string[] = [];
     if (kmPatched >= KM_LIPSA_MAJOR) {
-      probleme.push(`Sare GPS-ul — ~${kmPatched.toFixed(1)} km nemăsurați (gaură de semnal)`);
+      probleme.push(`Sare GPS-ul — ~${kmPatched.toFixed(1)} km rezolvați din gaură de semnal (incluși în total)`);
     }
     if (raw.suspect_reason?.startsWith('km_parcare')) {
       probleme.push('Km numărați la parcare — GPS tremură pe loc');
@@ -93,8 +92,9 @@ export async function getKmZilnic(date?: string): Promise<KmZilnic> {
 
     const row: KmZiRow = {
       vehicle_id: raw.vehicle_id,
-      plate_number: raw.vehicles?.plate_number ?? '?',
-      km_real: kmReal,
+      // render standardizat: fără spații în numărul auto («692 TWK» → «692TWK»)
+      plate_number: (raw.vehicles?.plate_number ?? '?').replace(/\s+/g, ''),
+      km: kmTotal,
       probleme,
     };
     const directie = raw.vehicles?.directions?.[0] ?? 'Fără direcție';
@@ -103,10 +103,10 @@ export async function getKmZilnic(date?: string): Promise<KmZilnic> {
     }
     const g = byDir.get(directie)!;
     g.rows.push(row);
-    g.km_total += kmReal;
+    g.km_total += kmTotal;
     g.masini += 1;
     if (probleme.length) g.cu_probleme += 1;
-    kmFlota += kmReal;
+    kmFlota += kmTotal;
     if (probleme.length) problemeTotal += 1;
   }
 
@@ -114,8 +114,8 @@ export async function getKmZilnic(date?: string): Promise<KmZilnic> {
   for (const g of directii) {
     g.rows.sort((a, b) =>
       a.probleme.length === 0 && b.probleme.length === 0
-        ? b.km_real - a.km_real
-        : b.probleme.length - a.probleme.length || b.km_real - a.km_real
+        ? b.km - a.km
+        : b.probleme.length - a.probleme.length || b.km - a.km
     );
     g.km_total = Math.round(g.km_total);
   }

@@ -39,7 +39,7 @@ export default function KmZilnicClient({ data }: { data: KmZilnic }) {
         <div>
           <h1>Km zilnic</h1>
           <p className="text-sm text-muted-foreground">
-            Km reali (doar GPS curat, fără cârpiri) per direcție și mașină — {formatDateRo(data.date)}
+            Km total (GPS + porțiuni recuperate din găuri de semnal) per direcție și mașină — {formatDateRo(data.date)}
           </p>
         </div>
         <div className="form-group" style={{ margin: 0 }}>
@@ -126,7 +126,7 @@ export default function KmZilnicClient({ data }: { data: KmZilnic }) {
                   {dir.rows.map((r) => (
                     <tr key={r.vehicle_id} style={r.probleme.length ? { background: 'var(--danger-dim, #fef2f2)' } : undefined}>
                       <td style={{ fontFamily: 'var(--font-mono)' }}>{r.plate_number}</td>
-                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{nf1.format(r.km_real)}</td>
+                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{nf1.format(r.km)}</td>
                       <td>
                         {r.probleme.length === 0 ? (
                           <span className="badge badge-ok">OK</span>

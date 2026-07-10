@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { submitSale } from './actions';
+import SearchSelect from '@/components/SearchSelect';
 
 interface PartOpt { id: number; label: string; price: number }
 interface Opt { id: number; label: string }
@@ -36,7 +37,7 @@ export default function MagazinClient({ shopId, clients, parts }: { shopId: numb
     <div className="card">
       <h2>Vânzare către client</h2>
       <div className="row">
-        <div className="form-row"><label>Client</label><select value={clientId} onChange={(e) => setClientId(e.target.value ? Number(e.target.value) : '')}><option value="">— client ocazional —</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
+        <div className="form-row"><label>Client</label><SearchSelect options={clients} value={clientId} onSelect={(o) => setClientId(o ? o.id : '')} placeholder="— client ocazional —" /></div>
         <div className="form-row"><label>Serie</label><input value={series} onChange={(e) => setSeries(e.target.value)} /></div>
         <div className="form-row"><label>Număr</label><input value={number} onChange={(e) => setNumber(e.target.value)} /></div>
       </div>
@@ -45,7 +46,7 @@ export default function MagazinClient({ shopId, clients, parts }: { shopId: numb
         <tbody>
           {lines.map((l, i) => (
             <tr key={i}>
-              <td><select value={l.part_id} onChange={(e) => onPart(i, Number(e.target.value))}><option value="">— alege piesa —</option>{parts.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}</select></td>
+              <td><SearchSelect options={parts} value={l.part_id} onSelect={(o) => { if (o) onPart(i, o.id); else setLine(i, { part_id: '', unit_price: 0 }); }} placeholder="— caută piesa —" /></td>
               <td><input type="number" min={1} value={l.qty} onChange={(e) => setLine(i, { qty: Number(e.target.value) })} /></td>
               <td><input type="number" min={0} step="0.01" value={l.unit_price} onChange={(e) => setLine(i, { unit_price: Number(e.target.value) })} /></td>
               <td className="num">{(l.qty * l.unit_price).toFixed(2)}</td>

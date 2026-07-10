@@ -6,6 +6,10 @@ import { getSupabase } from './supabase';
 // ca să fie tratată ca DATE, nu ca filtru — altfel un termen cu virgulă/paranteze poate injecta condiții.
 export const orVal = (v: string) => v.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 
+// Filtrul .or(...) comun pentru catalog (căutare pe 6 coloane). SURSĂ UNICĂ — folosit de
+// catalogRows (liste/forme) și catalogPage (browse), ca predicatele să nu diverge. `s` trebuie deja escapat cu orVal.
+const catalogSearchOr = (s: string) => `name_long.ilike."%${s}%",group_name.ilike."%${s}%",article_code.ilike."%${s}%",oem_code.ilike."%${s}%",barcode.ilike."%${s}%",model.ilike."%${s}%"`;
+
 export async function listWarehouses() {
   const { data } = await getSupabase().from('piese_warehouses').select('*').order('id');
   return data || [];
@@ -48,12 +52,55 @@ export async function stockRows(opts: { warehouseId?: number; search?: string; g
 export async function catalogRows(opts: { search?: string; groupId?: number } = {}) {
   let q = getSupabase().from('piese_catalog_rows').select('*').order('group_name').limit(500);
   if (opts.groupId) q = q.eq('group_id', opts.groupId);
-  if (opts.search?.trim()) {
-    const s = orVal(opts.search.trim());
-    q = q.or(`name_long.ilike."%${s}%",group_name.ilike."%${s}%",article_code.ilike."%${s}%",oem_code.ilike."%${s}%",barcode.ilike."%${s}%",model.ilike."%${s}%"`);
-  }
+  if (opts.search?.trim()) q = q.or(catalogSearchOr(orVal(opts.search.trim())));
   const { data } = await q;
   return data || [];
+}
+
+// Catalog paginat pentru ecranul „Catalog" (browse): întoarce rândurile paginii + totalul real.
+// Separat de catalogRows (folosit de searchParts, cu limită fixă) ca să nu-i schimb semnătura.
+// count:'exact' dă numărul total al setului filtrat într-un singur round-trip; filtrul pe grup e index-asistat.
+export async function catalogPage(opts: { search?: string; groupId?: number; page?: number; pageSize?: number } = {}) {
+  const pageSize = opts.pageSize && opts.pageSize > 0 ? opts.pageSize : 100;
+  const page = Math.max(1, opts.page || 1);
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+  let q = getSupabase()
+    .from('piese_catalog_rows')
+    .select('*', { count: 'exact' })
+    .order('group_name')
+    .order('name_long')
+    .range(from, to);
+  if (opts.groupId) q = q.eq('group_id', opts.groupId);
+  if (opts.search?.trim()) q = q.or(catalogSearchOr(orVal(opts.search.trim())));
+  const { data, count } = await q;
+  return { rows: (data || []) as any[], total: count ?? 0, page, pageSize };
+}
+
+// Etichetă bogată a piesei (denumire + producător (model) + articol). SURSĂ UNICĂ — folosită
+// de căutarea din formulare (search-parts) și la crearea „din mers" (part-actions), ca să nu difere.
+export function partLabel(p: Record<string, unknown>): string {
+  const name = (p.name_long as string) || (p.group_name as string) || '';
+  const mm = `${(p.manufacturer as string) ?? ''} ${p.model ? '(' + p.model + ')' : ''}`.trim();
+  const art = p.article_code ? ' · ' + (p.article_code as string) : '';
+  return `${name}${mm ? ' — ' + mm : ''}${art}`.trim();
+}
+
+// O singură piesă (câmpuri editabile) pentru formularul de editare din Nomenclator.
+export async function getPartById(id: number) {
+  const { data } = await getSupabase().from('piese_catalog_rows').select('*').eq('id', id).maybeSingle();
+  return data || null;
+}
+
+// Locația unei piese într-un depozit anume (pentru editarea locației din Catalog → alimentează Harta).
+export async function getPartLocation(partId: number, warehouseId: number) {
+  const { data } = await getSupabase()
+    .from('piese_part_locations')
+    .select('location_label, min_qty')
+    .eq('part_id', partId)
+    .eq('warehouse_id', warehouseId)
+    .maybeSingle();
+  return data || null;
 }
 
 export async function lowStock() {

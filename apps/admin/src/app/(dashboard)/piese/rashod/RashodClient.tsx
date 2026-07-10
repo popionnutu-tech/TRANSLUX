@@ -3,16 +3,19 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { checkIssue, submitIssue } from './actions';
+import { searchParts } from '../search-parts';
+import SearchSelect from '@/components/SearchSelect';
 
 interface Opt { id: number; label: string }
 
-export default function RashodClient({ warehouses, vehicles, parts, mechanics, reasons }: {
-  warehouses: Opt[]; vehicles: (Opt & { km: number })[]; parts: Opt[]; mechanics: Opt[]; reasons: Opt[];
+export default function RashodClient({ warehouses, vehicles, mechanics, reasons }: {
+  warehouses: Opt[]; vehicles: (Opt & { km: number })[]; mechanics: Opt[]; reasons: Opt[];
 }) {
   const router = useRouter();
   const [warehouseId, setWarehouseId] = useState(warehouses[0]?.id || 0);
   const [vehicleId, setVehicleId] = useState<number | ''>('');
   const [partId, setPartId] = useState<number | ''>('');
+  const [partLabel, setPartLabel] = useState('');
   const [qty, setQty] = useState(1);
   const [mechanicId, setMechanicId] = useState<number | ''>('');
   const [reasonId, setReasonId] = useState<number | ''>('');
@@ -35,7 +38,7 @@ export default function RashodClient({ warehouses, vehicles, parts, mechanics, r
     try {
       const r = await submitIssue({ warehouse_id: warehouseId, vehicle_id: vehicleId ? Number(vehicleId) : null, mechanic_id: mechanicId ? Number(mechanicId) : null, breakdown_reason_id: reasonId ? Number(reasonId) : null, part_id: Number(partId), qty });
       setDone(r.shortages.length ? 'Înregistrat, atenție: ' + r.shortages.join('; ') : 'Rashod înregistrat. Stocul s-a actualizat.');
-      setPartId(''); setQty(1); setInfo(null);
+      setPartId(''); setPartLabel(''); setQty(1); setInfo(null);
       router.refresh();
     } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   }
@@ -47,7 +50,7 @@ export default function RashodClient({ warehouses, vehicles, parts, mechanics, r
         <div className="form-row"><label>Depozit</label><select value={warehouseId} onChange={(e) => setWarehouseId(Number(e.target.value))}>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.label}</option>)}</select></div>
         <div className="form-row"><label>Mașina</label><select value={vehicleId} onChange={(e) => setVehicleId(e.target.value ? Number(e.target.value) : '')}><option value="">— alege mașina —</option>{vehicles.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}</select></div>
       </div>
-      <div className="form-row"><label>Piesa</label><select value={partId} onChange={(e) => setPartId(e.target.value ? Number(e.target.value) : '')}><option value="">— alege piesa —</option>{parts.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}</select></div>
+      <div className="form-row"><label>Piesa</label><SearchSelect searchFn={searchParts} value={partId} selectedLabel={partLabel} onSelect={(o) => { setPartId(o ? o.id : ''); setPartLabel(o?.label || ''); }} placeholder="— caută piesa (denumire, cod, articol) —" /></div>
 
       {info && (
         <>

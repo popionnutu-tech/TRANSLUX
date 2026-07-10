@@ -5,12 +5,15 @@ import { listWarehouses, listGroups, listSuppliers, listMechanics, listReasons }
 import { listClients } from '@/lib/piese-ops';
 import NomenclatorClient from './NomenclatorClient';
 
-// Ce secțiuni poate edita fiecare rol (oglindă a HANDLERS din actions.ts).
+// Ce secțiuni poate edita fiecare rol. Secțiunile generice (warehouses..reasons) sunt oglinda HANDLERS
+// din actions.ts. Excepție: 'parts' (catalogul de piese) NU trece prin createNomenclator/HANDLERS — are
+// formular și view proprii (PartForm + savePart în part-actions.ts, gardat cu aceleași roluri:
+// ADMIN/DEPOZITAR/GESTIONAR). Dacă schimbi rolurile pentru piese, actualizează AICI + în part-actions.ts.
 const SECTIONS_BY_ROLE: Record<string, string[]> = {
-  ADMIN: ['warehouses', 'groups', 'suppliers', 'clients', 'mechanics', 'reasons'],
-  DEPOZITAR: ['suppliers'],
+  ADMIN: ['warehouses', 'groups', 'suppliers', 'clients', 'mechanics', 'reasons', 'parts'],
+  DEPOZITAR: ['suppliers', 'parts'],
   VINZATOR: ['clients', 'mechanics', 'reasons'],
-  GESTIONAR: ['suppliers', 'clients', 'mechanics', 'reasons'],
+  GESTIONAR: ['suppliers', 'clients', 'mechanics', 'reasons', 'parts'],
 };
 
 export default async function NomenclatorPage() {

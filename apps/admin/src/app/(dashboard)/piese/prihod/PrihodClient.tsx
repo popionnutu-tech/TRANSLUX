@@ -3,11 +3,14 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { submitReceipt } from './actions';
+import { searchParts } from '../search-parts';
+import SearchSelect from '@/components/SearchSelect';
+import PartForm from '@/components/PartForm';
 
 interface Opt { id: number; label: string }
-interface Line { part_id: number | ''; qty: number; unit_cost: number }
+interface Line { part_id: number | ''; part_label?: string; qty: number; unit_cost: number }
 
-export default function PrihodClient({ warehouses, suppliers, parts }: { warehouses: Opt[]; suppliers: Opt[]; parts: Opt[] }) {
+export default function PrihodClient({ warehouses, suppliers, groups }: { warehouses: Opt[]; suppliers: Opt[]; groups: Opt[] }) {
   const router = useRouter();
   const [warehouseId, setWarehouseId] = useState(warehouses[0]?.id || 0);
   const [supplierId, setSupplierId] = useState<number | ''>('');
@@ -16,6 +19,7 @@ export default function PrihodClient({ warehouses, suppliers, parts }: { warehou
   const [lines, setLines] = useState<Line[]>([{ part_id: '', qty: 1, unit_cost: 0 }]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ t: 'ok' | 'danger'; m: string } | null>(null);
+  const [newPartFor, setNewPartFor] = useState<number | null>(null); // indexul poziției care adaugă o piesă nouă
 
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
   const total = lines.reduce((s, l) => s + l.qty * l.unit_cost, 0);
@@ -38,7 +42,7 @@ export default function PrihodClient({ warehouses, suppliers, parts }: { warehou
       <h2>Recepție marfă (накладная)</h2>
       <div className="row">
         <div className="form-row"><label>Depozit</label><select value={warehouseId} onChange={(e) => setWarehouseId(Number(e.target.value))}>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.label}</option>)}</select></div>
-        <div className="form-row"><label>Furnizor</label><select value={supplierId} onChange={(e) => setSupplierId(e.target.value ? Number(e.target.value) : '')}><option value="">—</option>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select></div>
+        <div className="form-row"><label>Furnizor</label><SearchSelect options={suppliers} value={supplierId} onSelect={(o) => setSupplierId(o ? o.id : '')} placeholder="— caută furnizor —" /></div>
         <div className="form-row"><label>Serie</label><input value={series} onChange={(e) => setSeries(e.target.value)} placeholder="AA" /></div>
         <div className="form-row"><label>Număr</label><input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="123456" /></div>
       </div>
@@ -47,7 +51,12 @@ export default function PrihodClient({ warehouses, suppliers, parts }: { warehou
         <tbody>
           {lines.map((l, i) => (
             <tr key={i}>
-              <td><select value={l.part_id} onChange={(e) => setLine(i, { part_id: e.target.value ? Number(e.target.value) : '' })}><option value="">— alege piesa —</option>{parts.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}</select></td>
+              <td>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <div style={{ flex: 1 }}><SearchSelect searchFn={searchParts} value={l.part_id} selectedLabel={l.part_label} onSelect={(o) => setLine(i, { part_id: o ? o.id : '', part_label: o?.label })} placeholder="— caută piesa (denumire, cod, articol) —" /></div>
+                  <button type="button" className="btn btn-outline" style={{ padding: '4px 10px', whiteSpace: 'nowrap' }} onClick={() => setNewPartFor(i)} title="Adaugă o piesă care nu există încă în catalog">+ nouă</button>
+                </div>
+              </td>
               <td><input type="number" min={1} value={l.qty} onChange={(e) => setLine(i, { qty: Number(e.target.value) })} /></td>
               <td><input type="number" min={0} step="0.01" value={l.unit_cost} onChange={(e) => setLine(i, { unit_cost: Number(e.target.value) })} /></td>
               <td className="num">{(l.qty * l.unit_cost).toFixed(2)}</td>
@@ -62,6 +71,20 @@ export default function PrihodClient({ warehouses, suppliers, parts }: { warehou
       </div>
       {msg && <div className={`alert ${msg.t}`} style={{ marginTop: 12 }}>{msg.m}</div>}
       <button className="btn btn-primary btn-lg btn-block" style={{ marginTop: 12 }} disabled={busy} onClick={submit}>{busy ? 'Se înregistrează…' : 'Confirmă prihodul'}</button>
+
+      {newPartFor !== null && (
+        <div onClick={() => setNewPartFor(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '6vh 16px', zIndex: 1000, overflowY: 'auto' }}>
+          <div onClick={(e) => e.stopPropagation()} className="card" style={{ maxWidth: 900, width: '100%', margin: 0 }}>
+            <h2 style={{ marginTop: 0 }}>Piesă nouă în catalog</h2>
+            <p className="muted" style={{ marginTop: -6 }}>Se adaugă în catalog cu <strong>stoc 0</strong> și se completează automat pe poziția curentă. Cantitatea și costul le pui în tabelul de prihod.</p>
+            <PartForm
+              groups={groups}
+              onSaved={(p) => { setLine(newPartFor, { part_id: p.id, part_label: p.label }); setNewPartFor(null); }}
+              onCancel={() => setNewPartFor(null)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

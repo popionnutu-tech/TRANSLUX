@@ -42,4 +42,25 @@ describe('formatCallReport', () => {
     const text = formatCallReport(extractCall(payload), true);
     expect(text).toContain('cerere de apel înapoi');
   });
+
+  it('экранирует HTML-символы в summary и телефоне', () => {
+    const rowWithUnsafeText = {
+      conversation_id: 'conv_2',
+      direction: 'in' as const,
+      caller_phone: '+373<script>alert(1)</script>',
+      transcript: null,
+      summary: 'Client a cerut & info despre <b>ofertă</b>',
+      analysis: null,
+      duration_secs: 60,
+      cost: 50,
+      status: 'done',
+    };
+    const text = formatCallReport(rowWithUnsafeText, false);
+    // Проверяем, что опасные символы экранированы
+    expect(text).toContain('&lt;script&gt;');
+    expect(text).not.toContain('<script>');
+    expect(text).toContain('&amp;');
+    expect(text).toContain('&lt;b&gt;');
+    expect(text).not.toContain('<b>ofertă</b>');
+  });
 });

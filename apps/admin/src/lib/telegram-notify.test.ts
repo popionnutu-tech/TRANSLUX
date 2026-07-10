@@ -5,7 +5,7 @@ vi.mock('./supabase', () => ({
   getSupabase: () => ({ from: fromMock }),
 }));
 
-import { sendTelegram, alertAdmins } from './telegram-notify';
+import { sendTelegram, alertAdmins, escapeHtml } from './telegram-notify';
 
 describe('telegram-notify', () => {
   const fetchMock = vi.fn();
@@ -65,5 +65,12 @@ describe('telegram-notify', () => {
     expect(errSpy).toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalled();
     errSpy.mockRestore();
+  });
+
+  it('escapeHtml екранира <, >, и &', () => {
+    expect(escapeHtml('<b>&')).toBe('&lt;b&gt;&amp;');
+    expect(escapeHtml('<script>alert("xss")</script>')).toBe('&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;');
+    expect(escapeHtml('A & B')).toBe('A &amp; B');
+    expect(escapeHtml('normal text')).toBe('normal text');
   });
 });

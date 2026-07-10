@@ -54,9 +54,9 @@ export function formatCallReport(row: VoiceCallRow, callbackAlreadyAlerted: bool
   const sec = (row.duration_secs ?? 0) % 60;
   const lines = [
     '📞 <b>Apel TRANSLUX (agent vocal)</b>',
-    `De la: ${row.caller_phone ?? 'necunoscut'}`,
+    `De la: ${row.caller_phone ? escapeHtml(row.caller_phone) : 'necunoscut'}`,
     `Durată: ${min} min ${sec} s`,
-    row.summary ? `Rezumat: ${row.summary}` : 'Rezumat: —',
+    row.summary ? `Rezumat: ${escapeHtml(row.summary)}` : 'Rezumat: —',
   ];
   if (callbackAlreadyAlerted) {
     lines.push('ℹ️ Există deja o cerere de apel înapoi pentru acest apel (alertă trimisă).');

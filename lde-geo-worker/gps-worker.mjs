@@ -64,7 +64,7 @@ console.log(`Flotă: ${fleet.length} mașini | zile: ${DAYS.join(',')} | mod: ${
 async function fetchAll(table, cols) {
   const out = [];
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await supa.from(table).select(cols).range(from, from + 999);
+    const { data, error } = await supa.from(table).select(cols).order('id', { ascending: true }).range(from, from + 999);
     if (error) { console.error(`${table}: ${error.message}`); break; }
     out.push(...(data || []));
     if (!data || data.length < 1000) break;

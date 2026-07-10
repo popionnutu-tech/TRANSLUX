@@ -896,7 +896,7 @@ export function buildAgentPayload({ baseUrl, voiceApiKey, voiceId }) {
 }
 ```
 
-**Внимание исполнителю:** точные enum-значения `llm` («claude-haiku-4-5» vs «claude-haiku-4.5») и `model_id` TTS, а также форма привязки tools (inline `prompt.tools` vs отдельные `tool_ids`) могли измениться — ПЕРЕД первым запуском свериться с актуальной документацией: WebFetch `https://elevenlabs.io/docs/api-reference/agents/create` и `https://elevenlabs.io/docs/agents-platform/api-reference`. ElevenLabs возвращает в 422-ошибке список допустимых значений — setup.mjs печатает тело ошибки целиком (Task 10), итерировать по нему.
+**Внимание исполнителю:** если API поддерживает `pre_tool_speech`/`disable_interruptions` на webhook-tool — добавить короткую заглушку («O secundă, verific…») каждому tool, чтобы не было пауз (см. spec, раздел Производительность). Точные enum-значения `llm` («claude-haiku-4-5» vs «claude-haiku-4.5») и `model_id` TTS, а также форма привязки tools (inline `prompt.tools` vs отдельные `tool_ids`) могли измениться — ПЕРЕД первым запуском свериться с актуальной документацией: WebFetch `https://elevenlabs.io/docs/api-reference/agents/create` и `https://elevenlabs.io/docs/agents-platform/api-reference`. ElevenLabs возвращает в 422-ошибке список допустимых значений — setup.mjs печатает тело ошибки целиком (Task 10), итерировать по нему.
 
 - [ ] **Step 2: Синтаксис-проверка**
 

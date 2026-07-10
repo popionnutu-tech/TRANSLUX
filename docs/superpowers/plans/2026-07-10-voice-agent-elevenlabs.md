@@ -197,6 +197,8 @@ export async function sendTelegram(chatId: string | number, text: string): Promi
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
+      // Serverless: без таймаута зависший Telegram держит инвокацию до maxDuration.
+      signal: AbortSignal.timeout(5000),
     });
     return resp.ok;
   } catch (err) {
@@ -214,9 +216,10 @@ export async function alertAdmins(text: string): Promise<void> {
     .eq('role', 'ADMIN')
     .eq('active', true)
     .not('telegram_id', 'is', null);
-  for (const admin of admins || []) {
-    if (admin.telegram_id) await sendTelegram(admin.telegram_id, text);
-  }
+  // sendTelegram никогда не бросает → безопасно слать параллельно.
+  await Promise.all(
+    (admins || []).filter(a => a.telegram_id).map(a => sendTelegram(a.telegram_id, text)),
+  );
 }
 ```
 

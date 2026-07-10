@@ -59,6 +59,9 @@ WITH legs AS (
     to_locality        = excluded.to_locality,
     last_observed_date = excluded.last_observed_date,
     updated_at         = now()
+  -- fără no-op: rescrierea a ~9k rânduri neschimbate pe noapte = churn/bloat degeaba
+  WHERE lde_route_legs_coord.km_real_median IS DISTINCT FROM excluded.km_real_median
+     OR lde_route_legs_coord.observations   IS DISTINCT FROM excluded.observations
   RETURNING 1
 )
 SELECT count(*)::int FROM up;

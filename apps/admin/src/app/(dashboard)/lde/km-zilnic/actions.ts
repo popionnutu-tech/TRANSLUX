@@ -14,6 +14,8 @@ export type KmZiRow = {
   plate_number: string;
   km: number;               // km_total (GPS curat + porțiuni recuperate) — aceeași cifră ca în salarii/acte
   probleme: string[];       // motive de divergență majoră — menționate, NU corectate
+  traseu?: string;          // doar «Fără direcție»: localitățile zilei din GPS — unde a fost auto
+  directie_probabila?: string; // doar «Fără direcție»: direcția dedusă din suprapunerea traseului cu flota
 };
 
 export type KmZiDirectie = {
@@ -108,6 +110,52 @@ export async function getKmZilnic(date?: string): Promise<KmZilnic> {
     if (probleme.length) g.cu_probleme += 1;
     kmFlota += kmTotal;
     if (probleme.length) problemeTotal += 1;
+  }
+
+  // «Fără direcție»: din opririle GPS ale zilei arătăm UNDE a fost auto și deducem
+  // direcția probabilă prin suprapunerea localităților cu mașinile care AU direcție.
+  const faraDir = byDir.get('Fără direcție');
+  if (faraDir?.rows.length) {
+    // opriri paginat (PostgREST taie tăcut la 1000 — zilele aglomerate depășesc pragul)
+    const stops: Array<{ vehicle_id: string; seq: number; locality: string | null }> = [];
+    for (let from = 0; ; from += 1000) {
+      const { data: page } = await sb
+        .from('lde_gps_stops')
+        .select('vehicle_id, seq, locality')
+        .eq('date', day)
+        .order('vehicle_id', { ascending: true })
+        .order('seq', { ascending: true })
+        .range(from, from + 999);
+      stops.push(...((page ?? []) as typeof stops));
+      if (!page || page.length < 1000) break;
+    }
+    const locByVeh = new Map<string, string[]>();
+    for (const s of stops) {
+      if (!s.locality) continue;
+      const arr = locByVeh.get(s.vehicle_id) ?? [];
+      if (arr[arr.length - 1] !== s.locality) arr.push(s.locality);
+      locByVeh.set(s.vehicle_id, arr);
+    }
+    // localitățile fiecărei direcții (din mașinile atribuite, aceeași zi)
+    const dirLoc = new Map<string, Set<string>>();
+    for (const g of byDir.values()) {
+      if (g.directie === 'Fără direcție') continue;
+      const set = dirLoc.get(g.directie) ?? new Set<string>();
+      for (const r of g.rows) for (const l of locByVeh.get(r.vehicle_id) ?? []) set.add(l);
+      dirLoc.set(g.directie, set);
+    }
+    for (const r of faraDir.rows) {
+      const chain = locByVeh.get(r.vehicle_id) ?? [];
+      if (!chain.length) continue;
+      const uniq = [...new Set(chain)];
+      r.traseu = uniq.length > 6 ? `${uniq.slice(0, 5).join(' → ')} → … → ${uniq[uniq.length - 1]}` : uniq.join(' → ');
+      let best: { dir: string; score: number } | null = null;
+      for (const [dir, set] of dirLoc) {
+        const score = uniq.filter((l) => set.has(l)).length;
+        if (score >= 2 && (best == null || score > best.score)) best = { dir, score };
+      }
+      if (best) r.directie_probabila = best.dir;
+    }
   }
 
   const directii = [...byDir.values()].sort((a, b) => b.km_total - a.km_total);

@@ -114,7 +114,13 @@ export default function KmZilnicClient({ data }: { data: KmZilnic }) {
           </CardHeader>
           <CardContent>
             <div style={{ overflowX: 'auto' }}>
-              <table className="pivot-table" style={{ width: '100%' }}>
+              {/* tableLayout fix + colgroup — aceleași lățimi în TOATE tabelele (simetrie între direcții) */}
+              <table className="pivot-table" style={{ width: '100%', tableLayout: 'fixed' }}>
+                <colgroup>
+                  <col style={{ width: '9rem' }} />
+                  <col style={{ width: '7rem' }} />
+                  <col />
+                </colgroup>
                 <thead>
                   <tr>
                     <th style={{ textAlign: 'left' }}>Mașina</th>
@@ -125,7 +131,7 @@ export default function KmZilnicClient({ data }: { data: KmZilnic }) {
                 <tbody>
                   {dir.rows.map((r) => (
                     <tr key={r.vehicle_id} style={r.probleme.length ? { background: 'var(--danger-dim, #fef2f2)' } : undefined}>
-                      <td style={{ fontFamily: 'var(--font-mono)' }}>{r.plate_number}</td>
+                      <td style={{ fontFamily: 'var(--font-mono)', textAlign: 'left' }}>{r.plate_number}</td>
                       <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{nf1.format(r.km)}</td>
                       <td>
                         {r.probleme.length === 0 ? (
@@ -136,6 +142,14 @@ export default function KmZilnicClient({ data }: { data: KmZilnic }) {
                               {p}
                             </div>
                           ))
+                        )}
+                        {r.traseu && (
+                          <div className="text-muted-foreground" style={{ fontSize: 12, marginTop: 2 }}>
+                            {r.traseu}
+                            {r.directie_probabila && (
+                              <span style={{ fontWeight: 600 }}> · probabil: {DIR_LABELS[r.directie_probabila] ?? r.directie_probabila}</span>
+                            )}
+                          </div>
                         )}
                       </td>
                     </tr>

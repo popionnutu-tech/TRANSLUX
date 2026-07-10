@@ -292,6 +292,7 @@ export interface CasierRow {
   foaie_nr: string;
   ziua: string;            // ziua plății la casă (kiosk)
   data_foaie: string | null; // ziua /grafic pentru această foaie (poate fi alta sau null)
+  pus_la: string | null;     // timestamptz: când s-a introdus foaia (adesea în ajunul lui data_foaie)
   plati: number;
   driver_id: string | null;
   driver_name: string | null;

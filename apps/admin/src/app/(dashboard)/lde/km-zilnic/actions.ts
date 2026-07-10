@@ -45,11 +45,6 @@ type GpsJoinRow = {
 
 // praguri «divergență majoră» — doar menționăm motivul, nu cârpim nimic
 const KM_LIPSA_MAJOR = 5;      // km pierduți în găuri GPS demni de menționat
-// etalon «traseu similar» (RPC lde_km_route_similar, migrația 230): autobuzele repetă
-// itinerarii — comparăm km-ul zilei cu mediana zilelor curate cu același traseu
-const MIN_ZILE_SIMILARE = 5;   // sub 5 treceri etalonul nu e de încredere
-const DEVIERE_TRASEU = 0.4;    // abaterea relativă față de mediană
-const KM_DIF_TRASEU = 50;      // și minim 50 km diferență absolută (taie zgomotul sub-100km)
 
 /** Km zilnic per direcție/mașină (default = ieri). Km = km_total (ca în salarii); recuperările din găuri menționate la probleme. */
 export async function getKmZilnic(date?: string): Promise<KmZilnic> {
@@ -57,23 +52,14 @@ export async function getKmZilnic(date?: string): Promise<KmZilnic> {
   const sb = getSupabase();
   const day = date ?? yesterdayIso();
 
-  const [{ data, error }, { data: simData }] = await Promise.all([
-    sb
-      .from('lde_vehicle_gps_daily')
-      .select('vehicle_id, km_total, km_patched, suspect, suspect_reason, vehicles ( plate_number, directions )')
-      .eq('date', day),
-    sb.rpc('lde_km_route_similar', { p_day: day }),
-  ]);
+  const { data, error } = await sb
+    .from('lde_vehicle_gps_daily')
+    .select('vehicle_id, km_total, km_patched, suspect, suspect_reason, vehicles ( plate_number, directions )')
+    .eq('date', day);
 
   if (error) {
     return { date: day, km_flota: 0, masini_total: 0, probleme_total: 0, directii: [] };
   }
-  const simByVeh = new Map<string, { similar_days: number; km_median: number }>(
-    ((simData ?? []) as Array<{ vehicle_id: string; similar_days: number; km_median: number }>).map((s) => [
-      s.vehicle_id,
-      { similar_days: s.similar_days, km_median: Number(s.km_median) },
-    ])
-  );
 
   const byDir = new Map<string, KmZiDirectie>();
   let kmFlota = 0;
@@ -89,19 +75,6 @@ export async function getKmZilnic(date?: string): Promise<KmZilnic> {
     }
     if (raw.suspect_reason?.startsWith('km_parcare')) {
       probleme.push('Km numărați la parcare — GPS tremură pe loc');
-    }
-    // etalonul = zilele aceleiași mașini cu traseu similar (înlocuiește «Viteză anormală»
-    // pe km_check, care minte la găuri de semnal — caz 783MUM)
-    const sim = simByVeh.get(raw.vehicle_id);
-    if (
-      sim &&
-      sim.similar_days >= MIN_ZILE_SIMILARE &&
-      Math.abs(kmTotal - sim.km_median) > KM_DIF_TRASEU &&
-      Math.abs(kmTotal - sim.km_median) / Math.max(sim.km_median, 1) > DEVIERE_TRASEU
-    ) {
-      probleme.push(
-        `Km diferit de traseul obișnuit — pe acest itinerar (${sim.similar_days} zile) de obicei ~${sim.km_median.toFixed(0)} km, azi ${kmTotal.toFixed(0)} km`
-      );
     }
 
     const row: KmZiRow = {

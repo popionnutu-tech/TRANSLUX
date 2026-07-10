@@ -130,6 +130,16 @@ async function processDay(v, day) {
   return { km: +kmTotal.toFixed(1), stops: out, vmax: Math.round(vmax), viol, patched: +patchedKm.toFixed(1), check: +kmCheck.toFixed(1), npts: pts.length };
 }
 
+// marcare zi suspectă — prag ÎNALT, doar detectorii validați (migrația 226):
+// punte_mare (km_patched>15) / km_parcare (stat >20h, tronsoanele nu explică km-ul)
+function daySuspect(r) {
+  if (r.patched > 15) return `punte_mare:${r.patched}km`;
+  const dwell = r.stops.reduce((a, s) => a + s.dwell, 0);
+  const legsKm = r.stops.reduce((a, s) => a + (s.kmPrev || 0), 0);
+  if (dwell > 20 * 60 && legsKm < 5 && r.km - legsKm > 15) return `km_parcare:${r.km}km@${(dwell / 60).toFixed(1)}h`;
+  return null;
+}
+
 let totalKm = 0, processed = 0, failed = 0;
 for (const day of DAYS) {
   for (const v of fleet) {
@@ -137,11 +147,12 @@ for (const day of DAYS) {
     try { r = await processDay(v, day); }
     catch (e) { failed++; console.error(`  ! ${v.plate} ${day}: ${e.message}`); continue; }  // skip-and-continue
     totalKm += r.km; processed++;
+    const reason = daySuspect(r);
     if (r.npts > 0 && (r.km > 0 || r.stops.length)) {
-      console.log(`  ${v.plate.padEnd(7)} ${day}  ${String(r.km).padStart(7)}km  v${r.vmax}  opriri:${r.stops.length}${r.patched>0?`  cârpit:${r.patched}km`:''}`);
+      console.log(`  ${v.plate.padEnd(7)} ${day}  ${String(r.km).padStart(7)}km  v${r.vmax}  opriri:${r.stops.length}${r.patched>0?`  cârpit:${r.patched}km`:''}${reason?`  SUSPECT ${reason}`:''}`);
     }
     if (WRITE && r.npts > 0) {
-      await supa.from('lde_vehicle_gps_daily').upsert({ vehicle_id: v.vehicle_id, date: day, km_total: r.km, speed_max_kmh: r.vmax, speed_violations_count: r.viol, km_patched: r.patched, km_check: r.check, gps_points: r.npts, data_source: 'platform_gps', imported_at: new Date().toISOString() }, { onConflict: 'vehicle_id,date' });
+      await supa.from('lde_vehicle_gps_daily').upsert({ vehicle_id: v.vehicle_id, date: day, km_total: r.km, speed_max_kmh: r.vmax, speed_violations_count: r.viol, km_patched: r.patched, km_check: r.check, gps_points: r.npts, suspect: !!reason, suspect_reason: reason, data_source: 'platform_gps', imported_at: new Date().toISOString() }, { onConflict: 'vehicle_id,date' });
       await supa.from('lde_gps_stops').delete().eq('vehicle_id', v.vehicle_id).eq('date', day);
       if (r.stops.length) {
         const rows = r.stops.map(s => ({ vehicle_id: v.vehicle_id, date: day, seq: s.seq, locality: s.locality, lat: s.lat, lon: s.lon, arrival_at: s.arrival.toISOString(), departure_at: s.departure.toISOString(), dwell_min: s.dwell, km_from_prev: s.kmPrev, km_from_prev_source: s.src, is_base: false, gps_quality: r.patched>0?'patched':'clean' }));

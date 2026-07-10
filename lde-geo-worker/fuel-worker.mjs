@@ -14,12 +14,15 @@ const WRITE = args.includes('--write');
 const START = args.find(a => /^\d{4}-\d{2}-\d{2}$/.test(a)) || (() => { const d = new Date(); d.setDate(d.getDate() - 45); return d.toISOString().slice(0, 10); })();
 const DBS = ['benzol', 'benzol2']; // benzol3 = moartă (doar 2020)
 const normPlate = s => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+// Benzol scrie unele plăcuțe invers față de vehicles (139HMK vs HMK139) → indexăm ambele variante.
+const flipPlate = p => { const m = p.match(/^(\d+)([A-Z]+)$/) || p.match(/^([A-Z]+)(\d+)$/); return m ? m[2] + m[1] : null; };
 
 // ── Supabase + harta plăcuță→mașină ──
 const supa = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY, { auth: { persistSession: false } });
 const { data: vehs, error: ve } = await supa.from('vehicles').select('id,plate_number').eq('active', true);
 if (ve) { console.error('Supabase vehicles:', ve.message); process.exit(1); }
 const plate2veh = new Map(vehs.map(v => [normPlate(v.plate_number), v.id]));
+for (const v of vehs) { const f = flipPlate(normPlate(v.plate_number)); if (f && !plate2veh.has(f)) plate2veh.set(f, v.id); }
 
 // ── Benzol MySQL ──
 const my = await mysql.createConnection({ host: process.env.BENZOL_HOST, port: +process.env.BENZOL_PORT, user: process.env.BENZOL_USER, password: process.env.BENZOL_PASS });

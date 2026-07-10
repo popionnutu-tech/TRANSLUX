@@ -3,6 +3,7 @@ dist/
 .next/
 .env
 .env.local
+.env*.local
 *.log
 .DS_Store
 access.md
@@ -23,3 +24,4 @@ scripts/test-new-template.mjs
 graphify-out/
 .graphifyignore
 *.tsbuildinfo
+.superpowers/

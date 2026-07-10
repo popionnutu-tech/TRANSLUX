@@ -10,6 +10,7 @@ const PUBLIC_PREFIXES = [
   '/api/auth/',
   '/api/cron/',
   '/api/voice-tools/',
+  '/api/voice-webhook',
   '/api/fb-bot/',
   '/api/facebook/',
   '/api/tiktok/',

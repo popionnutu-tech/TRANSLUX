@@ -38,7 +38,6 @@ type GpsJoinRow = {
   vehicle_id: string;
   km_total: number | null;
   km_patched: number | null;
-  km_check: number | null;
   suspect: boolean | null;
   suspect_reason: string | null;
   vehicles: { plate_number: string; directions: string[] | null } | null;
@@ -46,8 +45,11 @@ type GpsJoinRow = {
 
 // praguri «divergență majoră» — doar menționăm motivul, nu cârpim nimic
 const KM_LIPSA_MAJOR = 5;      // km pierduți în găuri GPS demni de menționat
-const DIVERG_VITEZA = 0.3;     // |verificarea pe viteză − km| > 30% => dispozitiv suspect
-const KM_MIN_DIVERG = 20;      // sub 20 km/zi procentele nu înseamnă nimic
+// etalon «traseu similar» (RPC lde_km_route_similar, migrația 230): autobuzele repetă
+// itinerarii — comparăm km-ul zilei cu mediana zilelor curate cu același traseu
+const MIN_ZILE_SIMILARE = 5;   // sub 5 treceri etalonul nu e de încredere
+const DEVIERE_TRASEU = 0.4;    // abaterea relativă față de mediană
+const KM_DIF_TRASEU = 50;      // și minim 50 km diferență absolută (taie zgomotul sub-100km)
 
 /** Km zilnic per direcție/mașină (default = ieri). Km = km_total (ca în salarii); recuperările din găuri menționate la probleme. */
 export async function getKmZilnic(date?: string): Promise<KmZilnic> {
@@ -55,16 +57,23 @@ export async function getKmZilnic(date?: string): Promise<KmZilnic> {
   const sb = getSupabase();
   const day = date ?? yesterdayIso();
 
-  const { data, error } = await sb
-    .from('lde_vehicle_gps_daily')
-    .select(
-      'vehicle_id, km_total, km_patched, km_check, suspect, suspect_reason, vehicles ( plate_number, directions )'
-    )
-    .eq('date', day);
+  const [{ data, error }, { data: simData }] = await Promise.all([
+    sb
+      .from('lde_vehicle_gps_daily')
+      .select('vehicle_id, km_total, km_patched, suspect, suspect_reason, vehicles ( plate_number, directions )')
+      .eq('date', day),
+    sb.rpc('lde_km_route_similar', { p_day: day }),
+  ]);
 
   if (error) {
     return { date: day, km_flota: 0, masini_total: 0, probleme_total: 0, directii: [] };
   }
+  const simByVeh = new Map<string, { similar_days: number; km_median: number }>(
+    ((simData ?? []) as Array<{ vehicle_id: string; similar_days: number; km_median: number }>).map((s) => [
+      s.vehicle_id,
+      { similar_days: s.similar_days, km_median: Number(s.km_median) },
+    ])
+  );
 
   const byDir = new Map<string, KmZiDirectie>();
   let kmFlota = 0;
@@ -73,7 +82,6 @@ export async function getKmZilnic(date?: string): Promise<KmZilnic> {
   for (const raw of (data ?? []) as unknown as GpsJoinRow[]) {
     const kmTotal = Number(raw.km_total ?? 0);
     const kmPatched = Number(raw.km_patched ?? 0);
-    const kmCheck = raw.km_check == null ? null : Number(raw.km_check);
 
     const probleme: string[] = [];
     if (kmPatched >= KM_LIPSA_MAJOR) {
@@ -82,14 +90,18 @@ export async function getKmZilnic(date?: string): Promise<KmZilnic> {
     if (raw.suspect_reason?.startsWith('km_parcare')) {
       probleme.push('Km numărați la parcare — GPS tremură pe loc');
     }
-    // km_check e verificarea lui km_total (integrează viteza și pe segmentele cârpite,
-    // v. migrația 222) — comparația cu km_real ar da fals «viteză anormală» la zilele cu găuri
+    // etalonul = zilele aceleiași mașini cu traseu similar (înlocuiește «Viteză anormală»
+    // pe km_check, care minte la găuri de semnal — caz 783MUM)
+    const sim = simByVeh.get(raw.vehicle_id);
     if (
-      kmCheck != null &&
-      kmTotal > KM_MIN_DIVERG &&
-      Math.abs(kmCheck - kmTotal) / kmTotal > DIVERG_VITEZA
+      sim &&
+      sim.similar_days >= MIN_ZILE_SIMILARE &&
+      Math.abs(kmTotal - sim.km_median) > KM_DIF_TRASEU &&
+      Math.abs(kmTotal - sim.km_median) / Math.max(sim.km_median, 1) > DEVIERE_TRASEU
     ) {
-      probleme.push(`Viteză anormală — vitezometrul zice ${kmCheck.toFixed(0)} km, GPS-ul ${kmTotal.toFixed(0)} km`);
+      probleme.push(
+        `Km diferit de traseul obișnuit — pe acest itinerar (${sim.similar_days} zile) de obicei ~${sim.km_median.toFixed(0)} km, azi ${kmTotal.toFixed(0)} km`
+      );
     }
 
     const row: KmZiRow = {

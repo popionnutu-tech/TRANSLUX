@@ -1,1 +1,6 @@
 .vercel
+
+# env cu secrete — nu intră în git (auto-ship face add -A)
+.env
+.env.*
+!.env.example

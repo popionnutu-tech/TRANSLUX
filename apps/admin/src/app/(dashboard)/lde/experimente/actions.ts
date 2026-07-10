@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
+import { chisinauDayBounds } from '@/lib/chisinau-time';
 import { inclusiveDays } from '@translux/db';
 import type {
   LdeExperiment,
@@ -105,9 +106,9 @@ async function aggregatePeriod(
   toDate: string,
 ): Promise<Aggregate> {
   if (vehicleIds.length === 0) return { litri: 0, lei: 0, km: 0 };
-  // Benzol + numerar sunt timestamptz → acoperim toată ultima zi (până la 23:59:59.999).
-  const fromISO = new Date(fromDate + 'T00:00:00Z').toISOString();
-  const toISO = new Date(toDate + 'T23:59:59.999Z').toISOString();
+  // Benzol + numerar sunt timestamptz → zile locale Chișinău (convenția unică LDE), toată ultima zi inclusiv.
+  const fromISO = chisinauDayBounds(fromDate).fromIso;
+  const toISO = new Date(new Date(chisinauDayBounds(toDate).toIso).getTime() - 1).toISOString();
 
   const [{ data: gps }, { data: fuel }, { data: cash }] = await Promise.all([
     sb

@@ -2,25 +2,10 @@
 
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
-
-const TZ = 'Europe/Chisinau';
-
-function todayIso(): string {
-  return new Date().toLocaleDateString('en-CA', { timeZone: TZ });
-}
+import { chisinauTodayIso, chisinauDayOf, chisinauDayBounds } from '@/lib/chisinau-time';
 
 function monthStartIso(): string {
-  return `${todayIso().slice(0, 7)}-01`;
-}
-
-function nextDayIso(date: string): string {
-  const d = new Date(`${date}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + 1);
-  return d.toISOString().slice(0, 10);
-}
-
-function chisinauDay(ts: string): string {
-  return new Date(ts).toLocaleDateString('en-CA', { timeZone: TZ });
+  return `${chisinauTodayIso().slice(0, 7)}-01`;
 }
 
 export type KmPerioadaRow = {
@@ -76,7 +61,7 @@ const FUEL_TABLES = ['lde_fuel_alimentari', 'lde_fuel_alimentari_cash'] as const
 export async function getKmPerioada(from?: string, to?: string): Promise<KmPerioada> {
   requireRole(await verifySession(), 'ADMIN');
   const sb = getSupabase();
-  const t = to && DATE_RE.test(to) ? to : todayIso();
+  const t = to && DATE_RE.test(to) ? to : chisinauTodayIso();
   let f = from && DATE_RE.test(from) ? from : monthStartIso();
   if (f > t) f = t;
   // plafon: tăiem începutul intervalului, sfârșitul rămâne cel cerut
@@ -102,15 +87,17 @@ export async function getKmPerioada(from?: string, to?: string): Promise<KmPerio
     if (!data || data.length < 1000) break;
   }
 
-  // Alimentări pe perioadă (card + numerar) — paginat; alimentat_at e timestamptz, perioada în ore Chișinău
+  // Alimentări pe perioadă (card + numerar) — paginat; alimentat_at e timestamptz, perioada în zile Chișinău (DST-aware)
+  const fuelFromIso = chisinauDayBounds(f).fromIso;
+  const fuelToIso = chisinauDayBounds(t).toIso;
   const litriByVeh = new Map<string, number>();
   for (const table of FUEL_TABLES) {
     for (let offset = 0; ; offset += 1000) {
       const { data } = await sb
         .from(table)
         .select('vehicle_id, litri')
-        .gte('alimentat_at', `${f}T00:00:00+03:00`)
-        .lt('alimentat_at', `${nextDayIso(t)}T00:00:00+03:00`)
+        .gte('alimentat_at', fuelFromIso)
+        .lt('alimentat_at', fuelToIso)
         .order('id', { ascending: true })
         .range(offset, offset + 999);
       if (!data?.length) break;
@@ -234,8 +221,8 @@ export async function getKmZileMasina(vehicleId: string, from: string, to: strin
       .from(table)
       .select('alimentat_at, litri')
       .eq('vehicle_id', vehicleId)
-      .gte('alimentat_at', `${from}T00:00:00+03:00`)
-      .lt('alimentat_at', `${nextDayIso(to)}T00:00:00+03:00`);
+      .gte('alimentat_at', chisinauDayBounds(from).fromIso)
+      .lt('alimentat_at', chisinauDayBounds(to).toIso);
     fuel.push(...((data ?? []) as typeof fuel));
   }
 
@@ -247,8 +234,8 @@ export async function getKmZileMasina(vehicleId: string, from: string, to: strin
     if (g.suspect_reason?.startsWith('km_parcare')) probleme.push('Km numărați la parcare — GPS tremură pe loc');
     byDay.set(g.date, { date: g.date, km: Number(g.km_total ?? 0), litri: 0, alimentari: 0, probleme });
   }
-  for (const fr of (fuel ?? []) as Array<{ alimentat_at: string; litri: number | null }>) {
-    const day = chisinauDay(fr.alimentat_at);
+  for (const fr of fuel) {
+    const day = chisinauDayOf(fr.alimentat_at);
     const d = byDay.get(day) ?? { date: day, km: 0, litri: 0, alimentari: 0, probleme: [] };
     d.litri += Number(fr.litri ?? 0);
     d.alimentari += 1;

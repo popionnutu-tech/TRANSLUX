@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
+import { chisinauMonthBounds } from '@/lib/chisinau-time';
 import { isCashPatternSuspect } from '@translux/db';
 
 // ============================================================================
@@ -115,13 +116,14 @@ function monthBounds(period_month: string): {
   endISO: string;
 } {
   const start = new Date(period_month + 'T00:00:00Z');
-  const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0, 23, 59, 59, 999));
+  const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0));
+  const { startISO, endISO } = chisinauMonthBounds(period_month);
   return {
     monthKey: period_month.slice(0, 7), // 'YYYY-MM'
     startDate: period_month, // 'YYYY-MM-01'
     endDate: end.toISOString().slice(0, 10),
-    startISO: start.toISOString(),
-    endISO: end.toISOString(),
+    startISO,
+    endISO,
   };
 }
 

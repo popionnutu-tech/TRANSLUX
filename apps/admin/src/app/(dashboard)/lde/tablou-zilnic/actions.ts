@@ -2,6 +2,7 @@
 
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
+import { chisinauDayBounds } from '@/lib/chisinau-time';
 
 // ── Helpers de dată (zi locală, fără TZ-shift) ─────────────────────────────
 // Implicit = IERI. Format date string 'YYYY-MM-DD'.
@@ -22,12 +23,9 @@ function weekBeforeIso(dateStr: string): string {
   return isoDate(d);
 }
 
-// Fereastra timestamptz pentru o zi calendaristică (alimentat_at e timestamptz).
+// Fereastra timestamptz pentru o zi calendaristică — ziua locală Chișinău (convenția unică LDE).
 function dayBounds(dateStr: string): { fromIso: string; toIso: string } {
-  const from = new Date(`${dateStr}T00:00:00.000Z`);
-  const to = new Date(`${dateStr}T00:00:00.000Z`);
-  to.setUTCDate(to.getUTCDate() + 1);
-  return { fromIso: from.toISOString(), toIso: to.toISOString() };
+  return chisinauDayBounds(dateStr);
 }
 
 export type OwnerDaily = {

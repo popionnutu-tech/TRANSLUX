@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
+import { chisinauMonthBounds } from '@/lib/chisinau-time';
 import type { LdeFuelAlimentariCash } from '@translux/db';
 
 const PATH = '/lde/numerar';
@@ -25,16 +26,14 @@ export interface DriverOption {
 // ── Lista alimentărilor numerar pe lună (cu plăcuță + nume șofer, fără N+1) ──
 export async function getCashFuel(month: string): Promise<CashFuelRow[]> {
   requireRole(await verifySession(), 'ADMIN');
-  const monthStart = month + '-01';
-  const start = new Date(monthStart + 'T00:00:00Z');
-  const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
-  const endStr = end.toISOString(); // exclusiv: prima zi a lunii următoare
+  // luna în ora Chișinăului (convenția unică LDE)
+  const { startISO, nextMonthStartISO } = chisinauMonthBounds(month + '-01');
 
   const { data, error } = await getSupabase()
     .from('lde_fuel_alimentari_cash')
     .select('*, vehicles!inner ( plate_number ), drivers ( full_name )')
-    .gte('alimentat_at', start.toISOString())
-    .lt('alimentat_at', endStr)
+    .gte('alimentat_at', startISO)
+    .lt('alimentat_at', nextMonthStartISO)
     .order('alimentat_at', { ascending: false });
 
   if (error) return [];
@@ -49,15 +48,13 @@ export async function getCashFuel(month: string): Promise<CashFuelRow[]> {
 // ── Count per mașină în lună (pentru pattern numerar_des: >1/lună) ──
 export async function getCashCountByVehicle(month: string): Promise<Record<string, number>> {
   requireRole(await verifySession(), 'ADMIN');
-  const monthStart = month + '-01';
-  const start = new Date(monthStart + 'T00:00:00Z');
-  const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
+  const { startISO, nextMonthStartISO } = chisinauMonthBounds(month + '-01');
 
   const { data, error } = await getSupabase()
     .from('lde_fuel_alimentari_cash')
     .select('vehicle_id')
-    .gte('alimentat_at', start.toISOString())
-    .lt('alimentat_at', end.toISOString());
+    .gte('alimentat_at', startISO)
+    .lt('alimentat_at', nextMonthStartISO);
 
   if (error) return {};
 

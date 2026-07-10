@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
+import { chisinauMonthBounds } from '@/lib/chisinau-time';
 import {
   buildFuelWindows,
   calcPererashodWindow,
@@ -123,15 +124,16 @@ export interface RecomputeResult {
   by_level: { verde: number; galben: number; rosu: number };
 }
 
-// Borna de luni: 'YYYY-MM-01' → [startISO, endISO] (UTC, inclusiv toată ultima zi).
+// Borna de luni: 'YYYY-MM-01' → [startISO, endISO] (ora Chișinăului, inclusiv toată ultima zi).
 function monthBounds(period_month: string): { startDate: string; endDate: string; startISO: string; endISO: string } {
   const start = new Date(period_month + 'T00:00:00Z');
-  const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0, 23, 59, 59, 999));
+  const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0));
+  const { startISO, endISO } = chisinauMonthBounds(period_month);
   return {
     startDate: period_month, // 'YYYY-MM-01'
     endDate: end.toISOString().slice(0, 10),
-    startISO: start.toISOString(),
-    endISO: end.toISOString(),
+    startISO,
+    endISO,
   };
 }
 

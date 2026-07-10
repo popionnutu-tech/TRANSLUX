@@ -138,9 +138,15 @@ async function processDay(v, day) {
     // is_base = garaj/casă: doar la UZINE (LDE), unde prima/ultima oprire = baza șoferului.
     // La interurban/suburban prima/ultima oprire = capătul cursei, NU baza → fals.
     out.push({ seq: s+1, locality: loc, lat: +lat.toFixed(7), lon: +lon.toFixed(7), arrival: pts[c.i0].t, departure: pts[c.i1].t, dwell, kmPrev: kmPrev==null?null:+kmPrev.toFixed(2), src, isBase: !!v.is_lde && (s===0 || s===stops.length-1) });
-    // învață tronson curat
+    // învață tronson curat — pe nume (compat)
     if (prevEnd != null && src === 'gps' && out[s-1]?.locality && loc && out[s-1].locality !== loc && kmPrev > 0) {
       const k = legKey(out[s-1].locality, loc); if (!legObs.has(k)) legObs.set(k, []); legObs.get(k).push(kmPrev);
+    }
+    // învață tronson curat — pe COORDONATE (independent de nume; migrația 227)
+    if (prevEnd != null && src === 'gps' && kmPrev >= 0.5) {
+      const ck = [out[s-1].lat.toFixed(3), out[s-1].lon.toFixed(3), lat.toFixed(3), lon.toFixed(3)].join(',');
+      if (!coordObs.has(ck)) coordObs.set(ck, { kms: [], floc: out[s-1].locality, tloc: loc });
+      coordObs.get(ck).kms.push(kmPrev);
     }
     prevEnd = c.i1;
   }
@@ -193,5 +199,19 @@ if (WRITE && legObs.size) {
   }
 }
 
+// învățare tronsoane pe COORDONATE (migrația 227) — aceeași medie rulantă incrementală.
+// Etichetele de localitate se scriu doar la insert (la update păstrăm mode() din backfill).
+if (WRITE && coordObs.size) {
+  for (const [ck, o] of coordObs) {
+    const [from_lat, from_lon, to_lat, to_lon] = ck.split(',');
+    const { data: ex } = await supa.from('lde_route_legs_coord').select('km_real_median,km_real_min,km_real_max,observations').eq('from_lat', from_lat).eq('from_lon', from_lon).eq('to_lat', to_lat).eq('to_lon', to_lon).maybeSingle();
+    const add = o.kms.reduce((a,b)=>a+b,0), n = o.kms.length, mn = Math.min(...o.kms), mx = Math.max(...o.kms);
+    const row = { from_lat, from_lon, to_lat, to_lon, last_observed_date: DAYS[DAYS.length-1], updated_at: new Date().toISOString() };
+    if (ex) { row.observations = ex.observations + n; row.km_real_median = +(((ex.km_real_median*ex.observations)+add)/row.observations).toFixed(2); row.km_real_min = Math.min(+ex.km_real_min, +mn.toFixed(2)); row.km_real_max = Math.max(+ex.km_real_max, +mx.toFixed(2)); }
+    else { row.observations = n; row.km_real_median = +(add/n).toFixed(2); row.km_real_min = +mn.toFixed(2); row.km_real_max = +mx.toFixed(2); row.from_locality = o.floc; row.to_locality = o.tloc; }
+    await supa.from('lde_route_legs_coord').upsert(row, { onConflict: 'from_lat,from_lon,to_lat,to_lon' });
+  }
+}
+
 await tracker.end();
-console.log(`\nTOTAL: ${processed} mașini-zile | km ${totalKm.toFixed(0)} | opriri ${totalStops}${WRITE?` | tronsoane noi învățate: ${legObs.size}`:''}`);
+console.log(`\nTOTAL: ${processed} mașini-zile | km ${totalKm.toFixed(0)} | opriri ${totalStops}${WRITE?` | tronsoane noi învățate: ${legObs.size} (nume) / ${coordObs.size} (coord)`:''}`);

@@ -68,7 +68,27 @@ console.log(`Camioane potrivite Wialon↔vehicles: ${fleet.length}/${units.lengt
 const legs = new Map();
 { const { data } = await supa.from('lde_route_legs').select('from_locality,to_locality,km_real_median');
   if (data) for (const l of data) legs.set(`${l.from_locality}→${l.to_locality}`, Number(l.km_real_median)); }
-function bridgeKm(a, b) {
+
+// tronsoane pe COORDONATE (migrația 227) — prioritare la cârpire; tot READ-ONLY.
+// cheia = capetele rotunjite la 3 zecimale; ordinea capetelor = sensul
+const coordLegs = [];
+{ const { data } = await supa.from('lde_route_legs_coord').select('from_lat,from_lon,to_lat,to_lon,km_real_median,observations');
+  if (data) for (const l of data) coordLegs.push({ fa: { lat: +l.from_lat, lon: +l.from_lon }, fb: { lat: +l.to_lat, lon: +l.to_lon }, km: Number(l.km_real_median), obs: l.observations }); }
+const COORD_NEAR_KM = 2.0;
+function coordLegKm(a, b) { // tronsonul învățat cu capetele cele mai apropiate de gaură
+  let best = null, bd = Infinity;
+  for (const l of coordLegs) {
+    const d1 = hav(a, l.fa); if (d1 > COORD_NEAR_KM) continue;
+    const d2 = hav(b, l.fb); if (d2 > COORD_NEAR_KM) continue;
+    const d = d1 + d2;
+    if (d < bd || (d === bd && l.obs > (best?.obs ?? 0))) { bd = d; best = l; }
+  }
+  return best ? best.km : null;
+}
+
+function bridgeKm(a, b) { // cârpire săritură: coordonate → leg-db (nume) → linie dreaptă
+  const ck = coordLegKm(a, b);
+  if (ck != null) return ck;
   const la = locName(a), lb = locName(b);
   if (la && lb) { const k = legs.get(`${la}→${lb}`) ?? legs.get(`${lb}→${la}`); if (k != null) return k; }
   return hav(a, b);

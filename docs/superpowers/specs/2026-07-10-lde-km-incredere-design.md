@@ -37,7 +37,9 @@ zilele curate rămân neatinse.
 
 ## Arhitectură
 
-### 1. Stocare — migrația 223
+### 1. Stocare — migrația 226
+
+(226, nu 223 — 223 e ocupat de două ori, 224/225 există deja.)
 
 `lde_vehicle_gps_daily` primește:
 
@@ -52,11 +54,41 @@ zilele curate rămân neatinse.
 - `km_expected numeric NULL` — km așteptați pe tronson (din ierarhia de verificare)
 - `km_expected_source text NULL` — `istoric | valhalla | osrm`
 - `suspect boolean NOT NULL DEFAULT false` — tronson în afara intervalului plauzibil
+- index parțial pentru coada de verificare (fără el pagina face seq scan pe stops):
+  `CREATE INDEX idx_lde_gps_stops_suspect ON lde_gps_stops (vehicle_id, date) WHERE suspect = true;`
+
+Migrația se rulează ÎN AFARA ferestrei worker-ului nocturn (nu la 03:00) — coloana
+generată STORED rescrie tabelul sub AccessExclusiveLock (milisecunde la volumul
+actual, dar nu peste upsert).
 
 Worker-ul continuă să facă upsert doar pe coloanele lui (`km_total`, `km_patched`,
 `km_check`, `gps_points`, …) — corecția manuală supraviețuiește oricărui re-rulaj.
 
-### 2. Worker (VPS) — detecție și verificare la sursă
+**Tabel nou de cache rutier** — `lde_route_leg_cache` (NU refolosim `lde_route_legs`,
+care are `UNIQUE(from_locality, to_locality)` pe nume text — exact ambiguitatea
+„mai multe Bucuria" pe care o evităm; schema lui rămâne neatinsă pentru puntea veche):
+
+- capete pe coordonate rotunjite (`from_lat`, `from_lon`, `to_lat`, `to_lon`,
+  rotunjite la ~0.005°) — ordinea capetelor ÎN cheie = sensul (nu e nevoie de coloană
+  separată de sens, nici în stops: perechea ordonată de coordonate o codifică)
+- `km_routed numeric`, `source text` (`valhalla | osrm`), `km_min`/`km_max`
+  (alternativele OSRM), `computed_at`
+- `UNIQUE (from_lat, from_lon, to_lat, to_lon)`
+
+Când operatorul pune `km_manual`, action-ul setează și `data_source = 'manual'` pe
+rândul zilei (câmpul există din migrația 205, azi write-only) — provenанța nu se
+bifurcă între două câmpuri.
+
+**Flag de încredere per dispozitiv:** `vehicles` primește
+`gps_speed_unreliable boolean NOT NULL DEFAULT false` (ex. HMK139 — viteza raportată
+defectă → km_check ignorat la detecție pentru mașina respectivă).
+
+### 2. Workerii (VPS) — detecție și verificare la sursă
+
+**AMBII workeri se modifică** — `gps-worker.mjs` (flota Gonets: uzine, interurban)
+ȘI `wialon-worker.mjs` (camioanele ACTROS — exact flota testelor). Logica comună
+(regula asimetrică, ierarhia punții, fix-ul parcării) stă într-un modul partajat
+`packages/db/src/lde-km-verify.ts` (pure functions + teste), importat de amândoi.
 
 **Fix km fantomă la parcare:** în interiorul unui cluster de oprire detectat,
 segmentele nu acumulează km (elimină suprapunerea 5.6–7.4 km/h).
@@ -69,10 +101,22 @@ segmentele nu acumulează km (elimină suprapunerea 5.6–7.4 km/h).
 3. **OSRM public** cu alternative — pentru capete în afara Moldovei (camioane)
 4. `lde_route_legs` / linie dreaptă — ultim resort, marcat ca atare
 
-**Verificarea fiecărui tronson (regula principală, validată):**
-`km_plauzibil ∈ [viteza_medie_rutei × durata × 0.6, × 1.4]`, unde viteza medie a rutei
-vine din trecerile curate istorice; fără istoric → interval [min(alternativele
-rutiere) × 0.9, max × 1.1]. În afara intervalului → `suspect = true` + `km_expected`.
+**Verificarea fiecărui tronson (regula principală, validată + rafinată pe testul
+Orhei 09.07):** regula e ASIMETRICĂ —
+
+1. dacă km-ul coincide cu mediana istorică a tronsonului (±25%) → OK, indiferent de
+   durată (mașina poate merge mai încet — caz 820GXP: 19.5 km = mediana, 43 min vs 20)
+2. altfel, durata e plafon de plauzibilitate: `km ≤ viteza_max_rutei × durata` și
+   `km ≥ viteza_min × durata` pentru tronsoanele cârpite peste găuri (caz 552BRAO:
+   54 km / 60 min = 51 km/h → plauzibil)
+3. fără istoric → interval [min(alternativele rutiere) × 0.9, max × 1.1]
+
+În afara intervalului → `suspect = true` + `km_expected`.
+
+**Performanță worker (obligatoriu):** medianele istorice se PREÎNCARCĂ o singură dată
+la pornirea rulajului într-un Map (cheie: coordonate rotunjite + sens) — același
+pattern ca Map-ul `legs` existent. NICIUN query per-tronson în bucla fierbinte.
+Upsert-ul worker-ului NU trimite `km_final` (coloană generată — scrierea ei dă eroare).
 
 **Detectoare de zi suspectă** (marchează ziua pentru coadă):
 
@@ -84,9 +128,14 @@ rutiere) × 0.9, max × 1.1]. În afara intervalului → `suspect = true` + `km_
   HMK139 — au km_check ignorat)
 
 Apelurile Valhalla/OSRM se fac **doar în worker** (nightly, pe VPS) — pagina web nu
-sună servicii externe. Rezultatele se cachează în `lde_route_legs` (cheie: coordonate
-rotunjite + sens): un tronson interogat o dată nu se mai interoghează — așa se
-construiește organic baza de standarde pe rute.
+sună servicii externe. Rezultatele se cachează în `lde_route_leg_cache` (vezi §1):
+un tronson interogat o dată nu se mai interoghează — așa se construiește organic
+baza de standarde pe rute.
+
+**Reziliență OSRM public** (server demo, fără SLA): `AbortSignal.timeout()` pe fetch,
+retry cu backoff, skip-and-continue la eroare, fallthrough pe leg_db/linie dreaptă —
+un 429/timeout nu are voie să pice rulajul nocturn (același pattern try/catch
+per-vehicul deja folosit în wialon-worker).
 
 ### 3. Pagina `/lde/verificare-km` — coada de verificare
 
@@ -97,14 +146,25 @@ km GPS per tronson, `km_expected`, durata, sursa) cu tronsoanele suspecte eviden
 prin `km_expected`).
 
 Acțiuni: **Confirmă** (km-ul e bun → `verified_at`, `verified_by`) sau
-**Pune km real** (input precompletat cu sugestia → `km_manual` + sursă + notă).
-`km_manual` e permis doar pe zile marcate suspecte.
+**Pune km real** (input precompletat cu sugestia → `km_manual` + sursă + notă +
+`data_source='manual'`). `km_manual` e permis doar pe zile marcate suspecte —
+gate-ul se aplică ÎN server action (nu doar în UI); action-ul nu scrie niciodată
+`km_total`. Sugestia de corecție (suma tronsoanelor cu suspectele înlocuite prin
+`km_expected`) se calculează într-o pure function în `packages/db/src`.
 
 ### 4. Propagare
 
-Toți consumatorii trec de pe `km_total` pe `km_final` (schimbare doar de coloană
-citită, zero schimbări de formule): `salarii`, `indicatii`, `alerte`, `tablou-zilnic`,
-`experimente`, `acte`, overview LDE + `types.ts`.
+Toți consumatorii trec de pe `km_total` pe `km_final` — dar DOAR linia de citire
+(`select('km_final')` + maparea `Number(g.km_final)`) în cele 7 actions: `salarii`,
+`indicatii`, `alerte`, `tablou-zilnic`, `experimente`, `acte`, overview LDE.
+NU se redenumesc câmpurile din pure functions și snapshot-uri (`DailyKmInput.km_total`,
+`types.ts` — alea sunt câmpurile tabelelor de snapshot salarii, fixează pe ce s-a
+calculat efectiv; rămân `km_total`). Zero schimbări de formule.
+
+Atenție la `acte` (billing): actele deja emise nu se schimbă retroactiv; la
+regenerare după o corecție, km-ul facturat se actualizează (dorit) — de confirmat
+cu utilizatorul la implementare că suprascrierea snapshot-ului e OK pentru acte
+deja transmise.
 
 ## Ce NU facem
 

@@ -77,17 +77,39 @@ if (existing) {
   console.log(`Created agent ${agentId}`);
 }
 
-if (WEBHOOK_SECRET) {
-  // Post-call webhook. ВНИМАНИЕ: секрет генерирует сам ElevenLabs при создании webhook —
-  // если API возвращает секрет, вывести его и положить в env ELEVENLABS_WEBHOOK_SECRET.
-  // Привязка: workspace webhook + convai settings (post_call_webhook_id) — сверить форму
-  // с актуальными docs (см. Task 9 в плане) и адаптировать при 4xx.
-  try {
-    const settings = await el('/v1/convai/settings');
-    console.log('ConvAI settings:', JSON.stringify(settings, null, 2));
-  } catch (err) {
-    console.error('Webhook binding needs manual verification:', err.message);
+// Post-call webhook: creare workspace webhook (dacă lipsește) + legare în convai/settings.
+// Secretul HMAC îl generează ElevenLabs la creare — scriptul îl printează O SINGURĂ dată:
+// pune-l în Vercel (apps/admin) ca ELEVENLABS_WEBHOOK_SECRET și fă redeploy.
+const WEBHOOK_NAME = 'TRANSLUX post-call';
+const WEBHOOK_URL = `${BASE_URL}/api/voice-webhook`;
+try {
+  const { webhooks } = await el('/v1/workspace/webhooks');
+  let hook = (webhooks || []).find(w => w.callback_url === WEBHOOK_URL || w.name === WEBHOOK_NAME);
+  if (!hook) {
+    hook = await el('/v1/workspace/webhooks', {
+      method: 'POST',
+      body: { name: WEBHOOK_NAME, callback_url: WEBHOOK_URL, webhook_auth_method: 'hmac' },
+    });
+    console.log('Webhook created:', JSON.stringify(hook, null, 2));
+    if (hook?.webhook_secret || hook?.secret) {
+      console.log(`\n!!! Pune în Vercel env (apps/admin): ELEVENLABS_WEBHOOK_SECRET=${hook.webhook_secret || hook.secret}\n`);
+    }
+  } else {
+    console.log(`Webhook există: ${hook.webhook_id || hook.id} → ${hook.callback_url}`);
   }
+  const hookId = hook.webhook_id || hook.id;
+  const settings = await el('/v1/convai/settings');
+  if (settings?.webhooks?.post_call_webhook_id !== hookId) {
+    await el('/v1/convai/settings', {
+      method: 'PATCH',
+      body: { webhooks: { ...settings.webhooks, post_call_webhook_id: hookId } },
+    });
+    console.log(`post_call_webhook_id → ${hookId}`);
+  } else {
+    console.log('post_call_webhook_id deja legat.');
+  }
+} catch (err) {
+  console.error('Webhook binding failed (se poate lega manual din dashboard):', err.message);
 }
 
 if (process.argv.includes('--phone')) {

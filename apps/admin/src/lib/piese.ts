@@ -37,16 +37,63 @@ export async function listSuppliers() {
   return data || [];
 }
 
-export async function stockRows(opts: { warehouseId?: number; search?: string; groupId?: number } = {}) {
-  let q = getSupabase().from('piese_stock_rows').select('*').order('group_name').limit(1000);
+// Filtrele ecranului Stoc (depozit / grupă / căutare). SURSĂ UNICĂ — folosite identic
+// și de query-ul de rânduri, și de cel care însumează valoarea, ca totalul să corespundă listei.
+type StockFilters = { warehouseId?: number; groupId?: number; search?: string };
+const stockSearchOr = (s: string) => `name_long.ilike."%${s}%",group_name.ilike."%${s}%",barcode.ilike."%${s}%",model.ilike."%${s}%"`;
+function stockFiltered(select: string, opts: StockFilters, exactCount = false): any {
+  let q: any = exactCount
+    ? getSupabase().from('piese_stock_rows').select(select, { count: 'exact' })
+    : getSupabase().from('piese_stock_rows').select(select);
   if (opts.warehouseId) q = q.eq('warehouse_id', opts.warehouseId);
   if (opts.groupId) q = q.eq('group_id', opts.groupId);
-  if (opts.search?.trim()) {
-    const s = orVal(opts.search.trim());
-    q = q.or(`name_long.ilike."%${s}%",group_name.ilike."%${s}%",barcode.ilike."%${s}%",model.ilike."%${s}%"`);
+  if (opts.search?.trim()) q = q.or(stockSearchOr(orVal(opts.search.trim())));
+  return q;
+}
+
+// Plafon de siguranță pentru însumarea valorii (o singură coloană numerică, nu rândurile întregi).
+const VALUE_SUM_CAP = 50000;
+
+// Coloanele aduse pentru rânduri. Pentru VINZATOR NU aducem deloc `avg_cost`/`value` din baza de date
+// (apărare în adâncime: service-role trece peste RLS, deci codul e singura barieră — nu doar UI-ul).
+const STOCK_COLS_BASE = 'part_id, warehouse_id, group_name, name_long, manufacturer, model, barcode, unit, warehouse_name, location_label, min_qty, qty';
+const STOCK_COLS_COST = `${STOCK_COLS_BASE}, avg_cost, value`;
+
+// Stoc paginat + totalul REAL. Înainte era `.limit(1000)` fără paginare, iar valoarea se aduna doar
+// peste rândurile aduse → la peste 1000 de poziții lista se tăia tăcut și totalul ieșea subevaluat.
+// Acum: rândurile se pagineaza (count exact), iar valoarea se însumează peste TOT setul filtrat.
+// `withValue` e fals pentru VINZATOR (nu vede valoarea) → nu se face nici query-ul de sumă.
+export async function stockPage(opts: StockFilters & { page?: number; pageSize?: number; withValue?: boolean } = {}) {
+  const pageSize = opts.pageSize && opts.pageSize > 0 ? opts.pageSize : 100;
+  const page = Math.max(1, opts.page || 1);
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  const cols = opts.withValue ? STOCK_COLS_COST : STOCK_COLS_BASE;
+  // Departajator unic (part_id, warehouse_id): `group_name`+`name_long` se repetă pentru aceeași piesă
+  // în mai multe depozite, iar fără o ordine totală un rând poate fi sărit sau dublat între pagini.
+  const rowsQ = stockFiltered(cols, opts, true)
+    .order('group_name').order('name_long').order('part_id').order('warehouse_id')
+    .range(from, to);
+  // `.order('part_id')` face suma parțială (când e trunchiată) stabilă între randări, nu arbitrară.
+  const valueQ = opts.withValue ? stockFiltered('value', opts).order('part_id').range(0, VALUE_SUM_CAP - 1) : null;
+
+  const [rowsRes, valueRes] = await Promise.all([rowsQ, valueQ ?? Promise.resolve(null)]);
+
+  const rows = ((rowsRes as any)?.data || []) as any[];
+  const total = (rowsRes as any)?.count ?? 0;
+
+  let totalValue = 0;
+  let valueTruncated = false;
+  if (valueRes) {
+    const vals = ((valueRes as any)?.data || []) as { value: number | string }[];
+    totalValue = vals.reduce((s, r) => s + (Number(r.value) || 0), 0);
+    // Am însumat mai puține poziții decât există? (plafonul nostru SAU o limită impusă de server)
+    // → totalul e parțial și trebuie spus, altfel afișăm tăcut un număr greșit.
+    valueTruncated = vals.length < total;
   }
-  const { data } = await q;
-  return data || [];
+
+  return { rows, total, page, pageSize, totalValue, valueTruncated };
 }
 
 export async function catalogRows(opts: { search?: string; groupId?: number } = {}) {

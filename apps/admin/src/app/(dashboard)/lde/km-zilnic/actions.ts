@@ -71,7 +71,7 @@ export async function getKmZilnic(date?: string): Promise<KmZilnic> {
 
     const probleme: string[] = [];
     if (kmPatched >= KM_LIPSA_MAJOR) {
-      probleme.push(`Sare GPS-ul — ~${kmPatched.toFixed(1)} km rezolvați din gaură de semnal (incluși în total)`);
+      probleme.push(`Sare GPS-ul — ~${kmPatched.toFixed(1)} km`);
     }
     if (raw.suspect_reason?.startsWith('km_parcare')) {
       probleme.push('Km numărați la parcare — GPS tremură pe loc');

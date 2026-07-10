@@ -60,18 +60,30 @@ for (const d of devs) { const p = normPlate(d.CarName) || normPlate(d.RegNo); if
 if (LIMIT) fleet = fleet.slice(0, LIMIT);
 console.log(`Flotă: ${fleet.length} mașini | zile: ${DAYS.join(',')} | mod: ${WRITE ? 'SCRIE' : 'DRY (doar calcul)'}`);
 
+// PostgREST taie tăcut la «Max Rows» (default 1000) — tabelele de tronsoane au depășit pragul
+async function fetchAll(table, cols) {
+  const out = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supa.from(table).select(cols).range(from, from + 999);
+    if (error) { console.error(`${table}: ${error.message}`); break; }
+    out.push(...(data || []));
+    if (!data || data.length < 1000) break;
+  }
+  return out;
+}
+
 // ── referința tronsoane (învățată) ──
 const legKey = (a, b) => `${a}→${b}`;
 const legs = new Map();
-{ const { data } = await supa.from('lde_route_legs').select('from_locality,to_locality,km_real_median');
-  if (data) for (const l of data) legs.set(legKey(l.from_locality, l.to_locality), Number(l.km_real_median)); }
+for (const l of await fetchAll('lde_route_legs', 'from_locality,to_locality,km_real_median'))
+  legs.set(legKey(l.from_locality, l.to_locality), Number(l.km_real_median));
 const legObs = new Map(); // acumulează observații curate noi: key -> [km...]
 
 // ── tronsoane pe COORDONATE (migrația 227) — prioritare la cârpire ──
 // cheia = capetele rotunjite la 3 zecimale; ordinea capetelor = sensul
 const coordLegs = [];
-{ const { data } = await supa.from('lde_route_legs_coord').select('from_lat,from_lon,to_lat,to_lon,km_real_median,observations');
-  if (data) for (const l of data) coordLegs.push({ fa: { lat: +l.from_lat, lon: +l.from_lon }, fb: { lat: +l.to_lat, lon: +l.to_lon }, km: Number(l.km_real_median), obs: l.observations }); }
+for (const l of await fetchAll('lde_route_legs_coord', 'from_lat,from_lon,to_lat,to_lon,km_real_median,observations'))
+  coordLegs.push({ fa: { lat: +l.from_lat, lon: +l.from_lon }, fb: { lat: +l.to_lat, lon: +l.to_lon }, km: Number(l.km_real_median), obs: l.observations });
 const coordObs = new Map(); // învățare: 'flat,flon,tlat,tlon' -> { kms:[], floc, tloc }
 const COORD_NEAR_KM = 2.0;  // aceeași rază ca botezarea localităților
 

@@ -22,12 +22,13 @@ export async function sendTelegram(chatId: string | number, text: string): Promi
 /** Алерт всем активным админам (users: role=ADMIN, active, telegram_id). */
 export async function alertAdmins(text: string): Promise<void> {
   const supabase = getSupabase();
-  const { data: admins } = await supabase
+  const { data: admins, error } = await supabase
     .from('users')
     .select('telegram_id')
     .eq('role', 'ADMIN')
     .eq('active', true)
     .not('telegram_id', 'is', null);
+  if (error) console.error('alertAdmins: admin lookup failed:', error.message);
   // sendTelegram никогда не бросает → безопасно слать параллельно.
   await Promise.all(
     (admins || []).filter(a => a.telegram_id).map(a => sendTelegram(a.telegram_id, text)),

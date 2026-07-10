@@ -52,4 +52,18 @@ describe('telegram-notify', () => {
     expect(eq2).toHaveBeenCalledWith('active', true);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
+
+  it('alertAdmins логирует ошибку запроса и не шлёт сообщения', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const not = vi.fn().mockResolvedValue({ data: null, error: { message: 'db down' } });
+    const eq2 = vi.fn().mockReturnValue({ not });
+    const eq1 = vi.fn().mockReturnValue({ eq: eq2 });
+    const select = vi.fn().mockReturnValue({ eq: eq1 });
+    fromMock.mockReturnValue({ select });
+
+    await alertAdmins('alerta');
+    expect(errSpy).toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+    errSpy.mockRestore();
+  });
 });

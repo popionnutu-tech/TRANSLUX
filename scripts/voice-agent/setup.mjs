@@ -84,18 +84,18 @@ const WEBHOOK_NAME = 'TRANSLUX post-call';
 const WEBHOOK_URL = `${BASE_URL}/api/voice-webhook`;
 try {
   const { webhooks } = await el('/v1/workspace/webhooks');
-  let hook = (webhooks || []).find(w => w.callback_url === WEBHOOK_URL || w.name === WEBHOOK_NAME);
+  let hook = (webhooks || []).find(w => w.webhook_url === WEBHOOK_URL || w.name === WEBHOOK_NAME);
   if (!hook) {
     hook = await el('/v1/workspace/webhooks', {
       method: 'POST',
-      body: { name: WEBHOOK_NAME, callback_url: WEBHOOK_URL, webhook_auth_method: 'hmac' },
+      body: { settings: { name: WEBHOOK_NAME, webhook_url: WEBHOOK_URL, auth_type: 'hmac' } },
     });
     console.log('Webhook created:', JSON.stringify(hook, null, 2));
     if (hook?.webhook_secret || hook?.secret) {
       console.log(`\n!!! Pune în Vercel env (apps/admin): ELEVENLABS_WEBHOOK_SECRET=${hook.webhook_secret || hook.secret}\n`);
     }
   } else {
-    console.log(`Webhook există: ${hook.webhook_id || hook.id} → ${hook.callback_url}`);
+    console.log(`Webhook există: ${hook.webhook_id || hook.id} → ${hook.webhook_url}`);
   }
   const hookId = hook.webhook_id || hook.id;
   const settings = await el('/v1/convai/settings');

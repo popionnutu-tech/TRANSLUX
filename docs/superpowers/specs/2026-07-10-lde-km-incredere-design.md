@@ -76,7 +76,7 @@ care are `UNIQUE(from_locality, to_locality)` pe nume text — exact ambiguitate
 - `UNIQUE (from_lat, from_lon, to_lat, to_lon)`
 
 Când operatorul pune `km_manual`, action-ul setează și `data_source = 'manual'` pe
-rândul zilei (câmpul există din migrația 205, azi write-only) — provenанța nu se
+rândul zilei (câmpul există din migrația 205, azi write-only) — proveniența nu se
 bifurcă între două câmpuri.
 
 **Flag de încredere per dispozitiv:** `vehicles` primește
@@ -184,7 +184,8 @@ deja transmise.
 
 ## Ordine de implementare
 
-1. Migrația 223 + `km_final` + trecerea consumatorilor pe `km_final`
-2. Fix km fantomă + verificare tronsoane în worker (istoric → Valhalla → OSRM)
+1. Migrația 226 + `km_final` + trecerea consumatorilor pe `km_final`
+2. Modulul partajat `lde-km-verify.ts` + fix km fantomă + verificare tronsoane în
+   AMBII workeri (istoric → Valhalla → OSRM)
 3. Pagina `/lde/verificare-km`
 4. Backfill: re-rulare worker pe iunie–iulie pentru popularea `km_expected`/`suspect`

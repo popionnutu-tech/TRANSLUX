@@ -282,8 +282,8 @@ export async function searchTrips(
   const fromNorm = normalizeStop(fromRo).replace(/[(),."'\\]/g, '');
   const toNorm = normalizeStop(toRo).replace(/[(),."'\\]/g, '');
 
-  // Query 3+4+5+6+7: Get routes, prices, assignments, retur overrides AND offers in parallel
-  const [{ data: routes }, { data: kmPairsA }, { data: kmPairsB }, { data: assignments }, { data: returOverrides }, { data: activeOffers }] = await Promise.all([
+  // Query 3+4+5+6+7+8: Get routes, prices, assignments, retur overrides, offers AND tariff_periods in parallel
+  const [{ data: routes }, { data: kmPairsA }, { data: kmPairsB }, { data: assignments }, { data: returOverrides }, { data: activeOffers }, { data: periodData }] = await Promise.all([
     supabase
       .from('crm_routes')
       .select('id, dest_to_ro, dest_to_ru, dest_from_ro, dest_from_ru, time_chisinau, time_nord, tariff_id_tur, tariff_id_retur')
@@ -315,6 +315,14 @@ export async function searchTrips(
       .eq('active', true)
       .ilike('from_locality', fromRo)
       .ilike('to_locality', toRo),
+    supabase
+      .from('tariff_periods')
+      .select('rate_interurban_long, rate_suburban')
+      .lte('period_start', date)
+      .gte('period_end', date)
+      .order('period_start', { ascending: false })
+      .limit(1)
+      .single(),
   ]);
 
   if (!routes) return [];
@@ -342,15 +350,6 @@ export async function searchTrips(
   // Check if an offer applies to this search direction
   const offer = (activeOffers && activeOffers.length > 0) ? activeOffers[0] as any : null;
 
-  // Look up historical tariff for the search date (interurban long + suburban)
-  const { data: periodData } = await supabase
-    .from('tariff_periods')
-    .select('rate_interurban_long, rate_suburban')
-    .lte('period_start', date)
-    .gte('period_end', date)
-    .order('period_start', { ascending: false })
-    .limit(1)
-    .single();
   const historicalRate = periodData ? Number(periodData.rate_interurban_long) : null;
   const historicalRateSub = periodData ? Number(periodData.rate_suburban) : null;
 

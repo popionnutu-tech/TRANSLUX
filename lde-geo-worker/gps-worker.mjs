@@ -65,7 +65,7 @@ async function fetchAll(table, cols) {
   const out = [];
   for (let from = 0; ; from += 1000) {
     const { data, error } = await supa.from(table).select(cols).order('id', { ascending: true }).range(from, from + 999);
-    if (error) { console.error(`${table}: ${error.message}`); break; }
+    if (error) throw new Error(`${table} (pagina de la ${from}): ${error.message}`); // referință parțială = km greșiți tăcuți — mai bine pică rulajul
     out.push(...(data || []));
     if (!data || data.length < 1000) break;
   }
@@ -84,7 +84,6 @@ const legObs = new Map(); // acumulează observații curate noi: key -> [km...]
 const coordLegs = [];
 for (const l of await fetchAll('lde_route_legs_coord', 'from_lat,from_lon,to_lat,to_lon,km_real_median,observations'))
   coordLegs.push({ fa: { lat: +l.from_lat, lon: +l.from_lon }, fb: { lat: +l.to_lat, lon: +l.to_lon }, km: Number(l.km_real_median), obs: l.observations });
-const coordObs = new Map(); // învățare: 'flat,flon,tlat,tlon' -> { kms:[], floc, tloc }
 const COORD_NEAR_KM = 2.0;  // aceeași rază ca botezarea localităților
 
 function coordLegKm(a, b) { // tronsonul învățat cu capetele cele mai apropiate de gaură
@@ -115,7 +114,7 @@ async function processDay(v, day) {
 
   // pas cu pas: km + flag (clean/patched) + glitch bridging
   // + km_check = integrarea vitezei (Σ v×dt, dt≤60s) — verificare INDEPENDENTĂ a km_total
-  const stepKm = new Array(pts.length).fill(0); const stepPatched = new Array(pts.length).fill(false);
+  const stepKm = new Array(pts.length).fill(0); const stepPatched = new Array(pts.length).fill(false); const stepSrc = new Array(pts.length).fill(null);
   let kmTotal = 0, patchedKm = 0, vmax = 0, viol = 0, kmCheck = 0;
   for (let i = 1; i < pts.length; i++) {
     const dt = (pts[i].t - pts[i-1].t) / 1000;
@@ -124,7 +123,7 @@ async function processDay(v, day) {
     const kmh = pts[i].sp * KN; if (kmh < 160 && kmh > vmax) vmax = kmh; if (kmh > SPEED_LIMIT_KMH && kmh < 160) viol++;
     if (kmh < 160) kmCheck += (kmh / 3600) * Math.min(Math.max(dt, 0), 60);
     let segKm = 0, patched = false;
-    if (impliedKmh > TELEPORT_KMH || dt > GAP_S) { const br = bridgeKm(pts[i-1], pts[i]); segKm = br.km; patched = true; patchedKm += br.km; }
+    if (impliedKmh > TELEPORT_KMH || dt > GAP_S) { const br = bridgeKm(pts[i-1], pts[i]); segKm = br.km; patched = true; patchedKm += br.km; stepSrc[i] = br.src; }
     else if (pts[i].sp > MOVING_KN) { segKm = d; }
     stepKm[i] = segKm; stepPatched[i] = patched; kmTotal += segKm;
   }
@@ -146,7 +145,8 @@ async function processDay(v, day) {
     const loc = locName({ lat, lon });
     const dwell = Math.round((pts[c.i1].t - pts[c.i0].t)/60000);
     let kmPrev = null, src = 'gps';
-    if (prevEnd != null) { let k=0, pat=false; for (let i=prevEnd+1; i<=c.i0; i++){ k+=stepKm[i]; if(stepPatched[i])pat=true; } kmPrev = k; src = pat ? (legs.size? 'leg_db':'straight_line') : 'gps'; }
+    // sursa etichetei = cârpirea DOMINANTĂ (cei mai mulți km) de pe tronson; fără cârpiri → gps
+    if (prevEnd != null) { let k=0; const bySrc = new Map(); for (let i=prevEnd+1; i<=c.i0; i++){ k+=stepKm[i]; if(stepPatched[i]) bySrc.set(stepSrc[i], (bySrc.get(stepSrc[i])||0)+stepKm[i]); } kmPrev = k; src = bySrc.size ? [...bySrc.entries()].sort((a,b)=>b[1]-a[1])[0][0] : 'gps'; }
     // is_base = garaj/casă: doar la UZINE (LDE), unde prima/ultima oprire = baza șoferului.
     // La interurban/suburban prima/ultima oprire = capătul cursei, NU baza → fals.
     out.push({ seq: s+1, locality: loc, lat: +lat.toFixed(7), lon: +lon.toFixed(7), arrival: pts[c.i0].t, departure: pts[c.i1].t, dwell, kmPrev: kmPrev==null?null:+kmPrev.toFixed(2), src, isBase: !!v.is_lde && (s===0 || s===stops.length-1) });
@@ -154,12 +154,7 @@ async function processDay(v, day) {
     if (prevEnd != null && src === 'gps' && out[s-1]?.locality && loc && out[s-1].locality !== loc && kmPrev > 0) {
       const k = legKey(out[s-1].locality, loc); if (!legObs.has(k)) legObs.set(k, []); legObs.get(k).push(kmPrev);
     }
-    // învață tronson curat — pe COORDONATE (independent de nume; migrația 227)
-    if (prevEnd != null && src === 'gps' && kmPrev >= 0.5) {
-      const ck = [out[s-1].lat.toFixed(3), out[s-1].lon.toFixed(3), lat.toFixed(3), lon.toFixed(3)].join(',');
-      if (!coordObs.has(ck)) coordObs.set(ck, { kms: [], floc: out[s-1].locality, tloc: loc });
-      coordObs.get(ck).kms.push(kmPrev);
-    }
+    // tronsoanele coord NU se învață aici — le recalculează RPC-ul din istoric (migrația 228)
     prevEnd = c.i1;
   }
   return { km: +kmTotal.toFixed(1), stops: out, vmax: Math.round(vmax), viol, patched: +patchedKm.toFixed(1), check: +kmCheck.toFixed(1), npts: pts.length };
@@ -211,19 +206,13 @@ if (WRITE && legObs.size) {
   }
 }
 
-// învățare tronsoane pe COORDONATE (migrația 227) — aceeași medie rulantă incrementală.
-// Etichetele de localitate se scriu doar la insert (la update păstrăm mode() din backfill).
-if (WRITE && coordObs.size) {
-  for (const [ck, o] of coordObs) {
-    const [from_lat, from_lon, to_lat, to_lon] = ck.split(',');
-    const { data: ex } = await supa.from('lde_route_legs_coord').select('km_real_median,km_real_min,km_real_max,observations').eq('from_lat', from_lat).eq('from_lon', from_lon).eq('to_lat', to_lat).eq('to_lon', to_lon).maybeSingle();
-    const add = o.kms.reduce((a,b)=>a+b,0), n = o.kms.length, mn = Math.min(...o.kms), mx = Math.max(...o.kms);
-    const row = { from_lat, from_lon, to_lat, to_lon, last_observed_date: DAYS[DAYS.length-1], updated_at: new Date().toISOString() };
-    if (ex) { row.observations = ex.observations + n; row.km_real_median = +(((ex.km_real_median*ex.observations)+add)/row.observations).toFixed(2); row.km_real_min = Math.min(+ex.km_real_min, +mn.toFixed(2)); row.km_real_max = Math.max(+ex.km_real_max, +mx.toFixed(2)); }
-    else { row.observations = n; row.km_real_median = +(add/n).toFixed(2); row.km_real_min = +mn.toFixed(2); row.km_real_max = +mx.toFixed(2); row.from_locality = o.floc; row.to_locality = o.tloc; }
-    await supa.from('lde_route_legs_coord').upsert(row, { onConflict: 'from_lat,from_lon,to_lat,to_lon' });
-  }
+// tronsoanele pe COORDONATE: mediană REALĂ recalculată din tot istoricul lde_gps_stops
+// (RPC din migrația 228; idempotent — re-rulajul unei zile nu dublează observațiile)
+let coordRefreshed = 0;
+if (WRITE) {
+  const { data, error } = await supa.rpc('lde_refresh_route_legs_coord');
+  if (error) console.error(`refresh legs coord: ${error.message}`); else coordRefreshed = data;
 }
 
 await tracker.end();
-console.log(`\nTOTAL: ${processed} mașini-zile | km ${totalKm.toFixed(0)} | opriri ${totalStops}${WRITE?` | tronsoane noi învățate: ${legObs.size} (nume) / ${coordObs.size} (coord)`:''}`);
+console.log(`\nTOTAL: ${processed} mașini-zile | km ${totalKm.toFixed(0)} | opriri ${totalStops}${WRITE?` | tronsoane: ${legObs.size} noi (nume), ${coordRefreshed} recalculate (coord)`:''}`);

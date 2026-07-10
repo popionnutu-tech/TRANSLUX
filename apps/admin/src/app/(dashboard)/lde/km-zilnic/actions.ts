@@ -81,12 +81,14 @@ export async function getKmZilnic(date?: string): Promise<KmZilnic> {
     if (raw.suspect_reason?.startsWith('km_parcare')) {
       probleme.push('Km numărați la parcare — GPS tremură pe loc');
     }
+    // km_check e verificarea lui km_total (integrează viteza și pe segmentele cârpite,
+    // v. migrația 222) — comparația cu km_real ar da fals «viteză anormală» la zilele cu găuri
     if (
       kmCheck != null &&
-      kmReal > KM_MIN_DIVERG &&
-      Math.abs(kmCheck - kmReal) / kmReal > DIVERG_VITEZA
+      kmTotal > KM_MIN_DIVERG &&
+      Math.abs(kmCheck - kmTotal) / kmTotal > DIVERG_VITEZA
     ) {
-      probleme.push(`Viteză anormală — vitezometrul zice ${kmCheck.toFixed(0)} km, GPS-ul ${kmReal.toFixed(0)} km`);
+      probleme.push(`Viteză anormală — vitezometrul zice ${kmCheck.toFixed(0)} km, GPS-ul ${kmTotal.toFixed(0)} km`);
     }
 
     const row: KmZiRow = {

@@ -1,14 +1,14 @@
 export const dynamic = 'force-dynamic';
 
-import { getKmZilnic } from './actions';
+import { getKmPerioada } from './actions';
 import KmZilnicClient from './KmZilnicClient';
 
 export default async function LdeKmZilnicPage({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string }>;
+  searchParams: Promise<{ from?: string; to?: string }>;
 }) {
-  const { date } = await searchParams;
-  const data = await getKmZilnic(date);
+  const { from, to } = await searchParams;
+  const data = await getKmPerioada(from, to);
   return <KmZilnicClient data={data} />;
 }

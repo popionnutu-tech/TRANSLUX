@@ -3,144 +3,184 @@
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
 
-function yesterdayIso(): string {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
+const TZ = 'Europe/Chisinau';
+
+function todayIso(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: TZ });
+}
+
+function monthStartIso(): string {
+  return `${todayIso().slice(0, 7)}-01`;
+}
+
+function nextDayIso(date: string): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
   return d.toISOString().slice(0, 10);
 }
 
-export type KmZiRow = {
+function chisinauDay(ts: string): string {
+  return new Date(ts).toLocaleDateString('en-CA', { timeZone: TZ });
+}
+
+export type KmPerioadaRow = {
   vehicle_id: string;
   plate_number: string;
-  km: number;               // km_total (GPS curat + porțiuni recuperate) — aceeași cifră ca în salarii/acte
-  probleme: string[];       // motive de divergență majoră — menționate, NU corectate
-  traseu?: string;          // doar «Fără direcție»: localitățile zilei din GPS — unde a fost auto
-  directie_probabila?: string; // doar «Fără direcție»: direcția dedusă din suprapunerea traseului cu flota
+  km: number;                // total km pe perioadă (km_total, aceeași cifră ca în salarii/acte)
+  litri: number;             // total litri alimentați pe perioadă (toate sursele: benzol + cash)
+  consum: number | null;     // l/100km = litri/km×100 — media pe perioadă; null când km≈0
+  probleme: string[];        // motive agregate — menționate, NU corectate
 };
 
-export type KmZiDirectie = {
+export type KmPerioadaDirectie = {
   directie: string;
   km_total: number;
+  litri_total: number;
   masini: number;
   cu_probleme: number;
-  rows: KmZiRow[];
+  rows: KmPerioadaRow[];
 };
 
-export type KmZilnic = {
-  date: string;
+export type KmPerioada = {
+  from: string;
+  to: string;
   km_flota: number;
+  litri_flota: number;
+  consum_flota: number | null;  // media flotei = total litri / total km × 100
   masini_total: number;
   probleme_total: number;
-  directii: KmZiDirectie[];
+  directii: KmPerioadaDirectie[];
 };
 
 type GpsJoinRow = {
   vehicle_id: string;
   km_total: number | null;
   km_patched: number | null;
-  suspect: boolean | null;
   suspect_reason: string | null;
   vehicles: { plate_number: string; directions: string[] | null } | null;
 };
 
 // praguri «divergență majoră» — doar menționăm motivul, nu cârpim nimic
-const KM_LIPSA_MAJOR = 5;      // km pierduți în găuri GPS demni de menționat
+const KM_LIPSA_MAJOR = 5;      // km pierduți în găuri GPS demni de menționat (pe zi)
+const PERIOADA_MAX_ZILE = 92;  // plafon interval — un an de rânduri ar însemna zeci de round-trip-uri
 
-/** Km zilnic per direcție/mașină (default = ieri). Km = km_total (ca în salarii); recuperările din găuri menționate la probleme. */
-export async function getKmZilnic(date?: string): Promise<KmZilnic> {
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+// ambele tabele de alimentări — card (Benzol) + numerar; aceeași sumă ca tablou-zilnic și engine-ul DT (§3.6)
+const FUEL_TABLES = ['lde_fuel_alimentari', 'lde_fuel_alimentari_cash'] as const;
+
+/**
+ * Km + motorină per direcție/mașină pe perioadă (default = luna curentă).
+ * Media l/100km = total litri / total km — pe o perioadă lungă eroarea de rezervor e neglijabilă.
+ */
+export async function getKmPerioada(from?: string, to?: string): Promise<KmPerioada> {
   requireRole(await verifySession(), 'ADMIN');
   const sb = getSupabase();
-  const day = date ?? yesterdayIso();
+  const t = to && DATE_RE.test(to) ? to : todayIso();
+  let f = from && DATE_RE.test(from) ? from : monthStartIso();
+  if (f > t) f = t;
+  // plafon: tăiem începutul intervalului, sfârșitul rămâne cel cerut
+  const minF = new Date(`${t}T00:00:00Z`);
+  minF.setUTCDate(minF.getUTCDate() - (PERIOADA_MAX_ZILE - 1));
+  const minFIso = minF.toISOString().slice(0, 10);
+  if (f < minFIso) f = minFIso;
 
-  const { data, error } = await sb
-    .from('lde_vehicle_gps_daily')
-    .select('vehicle_id, km_total, km_patched, suspect, suspect_reason, vehicles ( plate_number, directions )')
-    .eq('date', day);
-
-  if (error) {
-    return { date: day, km_flota: 0, masini_total: 0, probleme_total: 0, directii: [] };
+  // GPS pe perioadă — paginat (mașini × zile depășește plafonul PostgREST de 1000);
+  // order stabil obligatoriu: .range fără .order poate dubla/pierde rânduri între pagini
+  const gps: GpsJoinRow[] = [];
+  for (let offset = 0; ; offset += 1000) {
+    const { data, error } = await sb
+      .from('lde_vehicle_gps_daily')
+      .select('vehicle_id, km_total, km_patched, suspect_reason, vehicles ( plate_number, directions )')
+      .gte('date', f)
+      .lte('date', t)
+      .order('vehicle_id', { ascending: true })
+      .order('date', { ascending: true })
+      .range(offset, offset + 999);
+    if (error) break;
+    gps.push(...((data ?? []) as unknown as GpsJoinRow[]));
+    if (!data || data.length < 1000) break;
   }
 
-  const byDir = new Map<string, KmZiDirectie>();
+  // Alimentări pe perioadă (card + numerar) — paginat; alimentat_at e timestamptz, perioada în ore Chișinău
+  const litriByVeh = new Map<string, number>();
+  for (const table of FUEL_TABLES) {
+    for (let offset = 0; ; offset += 1000) {
+      const { data } = await sb
+        .from(table)
+        .select('vehicle_id, litri')
+        .gte('alimentat_at', `${f}T00:00:00+03:00`)
+        .lt('alimentat_at', `${nextDayIso(t)}T00:00:00+03:00`)
+        .order('id', { ascending: true })
+        .range(offset, offset + 999);
+      if (!data?.length) break;
+      for (const r of data) litriByVeh.set(r.vehicle_id, (litriByVeh.get(r.vehicle_id) ?? 0) + Number(r.litri ?? 0));
+      if (data.length < 1000) break;
+    }
+  }
+
+  // agregare per mașină
+  type Acc = { plate: string; directie: string; km: number; km_patched: number; zile_sare: number; zile_parcare: number };
+  const byVeh = new Map<string, Acc>();
+  for (const raw of gps) {
+    const acc = byVeh.get(raw.vehicle_id) ?? {
+      // render standardizat: fără spații în numărul auto («692 TWK» → «692TWK»)
+      plate: (raw.vehicles?.plate_number ?? '?').replace(/\s+/g, ''),
+      directie: raw.vehicles?.directions?.[0] ?? 'Fără direcție',
+      km: 0, km_patched: 0, zile_sare: 0, zile_parcare: 0,
+    };
+    acc.km += Number(raw.km_total ?? 0);
+    const patched = Number(raw.km_patched ?? 0);
+    if (patched >= KM_LIPSA_MAJOR) { acc.zile_sare += 1; acc.km_patched += patched; }
+    if (raw.suspect_reason?.startsWith('km_parcare')) acc.zile_parcare += 1;
+    byVeh.set(raw.vehicle_id, acc);
+  }
+
+  // mașini cu litri dar fără niciun rând GPS în perioadă — semnal important (litri fără km)
+  const faraGps = [...litriByVeh.keys()].filter((id) => !byVeh.has(id));
+  if (faraGps.length) {
+    const { data: vehs } = await sb.from('vehicles').select('id, plate_number, directions').in('id', faraGps);
+    for (const v of (vehs ?? []) as Array<{ id: string; plate_number: string | null; directions: string[] | null }>) {
+      byVeh.set(v.id, {
+        plate: (v.plate_number ?? '?').replace(/\s+/g, ''),
+        directie: v.directions?.[0] ?? 'Fără direcție',
+        km: 0, km_patched: 0, zile_sare: 0, zile_parcare: 0,
+      });
+    }
+  }
+
+  const byDir = new Map<string, KmPerioadaDirectie>();
   let kmFlota = 0;
+  let litriFlota = 0;
   let problemeTotal = 0;
 
-  for (const raw of (data ?? []) as unknown as GpsJoinRow[]) {
-    const kmTotal = Number(raw.km_total ?? 0);
-    const kmPatched = Number(raw.km_patched ?? 0);
-
+  for (const [vid, acc] of byVeh) {
+    const litri = litriByVeh.get(vid) ?? 0;
     const probleme: string[] = [];
-    if (kmPatched >= KM_LIPSA_MAJOR) {
-      probleme.push(`Sare GPS-ul — ~${kmPatched.toFixed(1)} km`);
-    }
-    if (raw.suspect_reason?.startsWith('km_parcare')) {
-      probleme.push('Km numărați la parcare — GPS tremură pe loc');
-    }
+    if (acc.zile_sare) probleme.push(`Sare GPS-ul — ${acc.zile_sare} ${acc.zile_sare === 1 ? 'zi' : 'zile'} (~${acc.km_patched.toFixed(1)} km)`);
+    if (acc.zile_parcare) probleme.push(`Km la parcare — ${acc.zile_parcare} ${acc.zile_parcare === 1 ? 'zi' : 'zile'}`);
+    if (acc.km < 1 && litri > 0) probleme.push('Litri fără km — GPS lipsă în perioadă');
 
-    const row: KmZiRow = {
-      vehicle_id: raw.vehicle_id,
-      // render standardizat: fără spații în numărul auto («692 TWK» → «692TWK»)
-      plate_number: (raw.vehicles?.plate_number ?? '?').replace(/\s+/g, ''),
-      km: kmTotal,
+    const row: KmPerioadaRow = {
+      vehicle_id: vid,
+      plate_number: acc.plate,
+      km: acc.km,
+      litri,
+      consum: acc.km >= 1 && litri > 0 ? (litri / acc.km) * 100 : null,
       probleme,
     };
-    const directie = raw.vehicles?.directions?.[0] ?? 'Fără direcție';
-    if (!byDir.has(directie)) {
-      byDir.set(directie, { directie, km_total: 0, masini: 0, cu_probleme: 0, rows: [] });
+    if (!byDir.has(acc.directie)) {
+      byDir.set(acc.directie, { directie: acc.directie, km_total: 0, litri_total: 0, masini: 0, cu_probleme: 0, rows: [] });
     }
-    const g = byDir.get(directie)!;
+    const g = byDir.get(acc.directie)!;
     g.rows.push(row);
-    g.km_total += kmTotal;
+    g.km_total += row.km;
+    g.litri_total += litri;
     g.masini += 1;
     if (probleme.length) g.cu_probleme += 1;
-    kmFlota += kmTotal;
+    kmFlota += row.km;
+    litriFlota += litri;
     if (probleme.length) problemeTotal += 1;
-  }
-
-  // «Fără direcție»: din opririle GPS ale zilei arătăm UNDE a fost auto și deducem
-  // direcția probabilă prin suprapunerea localităților cu mașinile care AU direcție.
-  const faraDir = byDir.get('Fără direcție');
-  if (faraDir?.rows.length) {
-    // opriri paginat (PostgREST taie tăcut la 1000 — zilele aglomerate depășesc pragul)
-    const stops: Array<{ vehicle_id: string; seq: number; locality: string | null }> = [];
-    for (let from = 0; ; from += 1000) {
-      const { data: page } = await sb
-        .from('lde_gps_stops')
-        .select('vehicle_id, seq, locality')
-        .eq('date', day)
-        .order('vehicle_id', { ascending: true })
-        .order('seq', { ascending: true })
-        .range(from, from + 999);
-      stops.push(...((page ?? []) as typeof stops));
-      if (!page || page.length < 1000) break;
-    }
-    const locByVeh = new Map<string, string[]>();
-    for (const s of stops) {
-      if (!s.locality) continue;
-      const arr = locByVeh.get(s.vehicle_id) ?? [];
-      if (arr[arr.length - 1] !== s.locality) arr.push(s.locality);
-      locByVeh.set(s.vehicle_id, arr);
-    }
-    // localitățile fiecărei direcții (din mașinile atribuite, aceeași zi)
-    const dirLoc = new Map<string, Set<string>>();
-    for (const g of byDir.values()) {
-      if (g.directie === 'Fără direcție') continue;
-      const set = dirLoc.get(g.directie) ?? new Set<string>();
-      for (const r of g.rows) for (const l of locByVeh.get(r.vehicle_id) ?? []) set.add(l);
-      dirLoc.set(g.directie, set);
-    }
-    for (const r of faraDir.rows) {
-      const chain = locByVeh.get(r.vehicle_id) ?? [];
-      if (!chain.length) continue;
-      const uniq = [...new Set(chain)];
-      r.traseu = uniq.length > 6 ? `${uniq.slice(0, 5).join(' → ')} → … → ${uniq[uniq.length - 1]}` : uniq.join(' → ');
-      let best: { dir: string; score: number } | null = null;
-      for (const [dir, set] of dirLoc) {
-        const score = uniq.filter((l) => set.has(l)).length;
-        if (score >= 2 && (best == null || score > best.score)) best = { dir, score };
-      }
-      if (best) r.directie_probabila = best.dir;
-    }
   }
 
   const directii = [...byDir.values()].sort((a, b) => b.km_total - a.km_total);
@@ -151,13 +191,69 @@ export async function getKmZilnic(date?: string): Promise<KmZilnic> {
         : b.probleme.length - a.probleme.length || b.km - a.km
     );
     g.km_total = Math.round(g.km_total);
+    g.litri_total = Math.round(g.litri_total);
   }
 
   return {
-    date: day,
+    from: f,
+    to: t,
     km_flota: Math.round(kmFlota),
-    masini_total: (data ?? []).length,
+    litri_flota: Math.round(litriFlota),
+    consum_flota: kmFlota >= 1 && litriFlota > 0 ? (litriFlota / kmFlota) * 100 : null,
+    masini_total: byVeh.size,
     probleme_total: problemeTotal,
     directii,
   };
+}
+
+export type KmZiDetaliu = {
+  date: string;
+  km: number;
+  litri: number;
+  alimentari: number;   // câte alimentări în ziua respectivă
+  probleme: string[];
+};
+
+/** Drill-down: zilele unei mașini în perioadă (km/zi + alimentări/zi). */
+export async function getKmZileMasina(vehicleId: string, from: string, to: string): Promise<KmZiDetaliu[]> {
+  requireRole(await verifySession(), 'ADMIN');
+  const sb = getSupabase();
+
+  const { data: gps } = await sb
+    .from('lde_vehicle_gps_daily')
+    .select('date, km_total, km_patched, suspect_reason')
+    .eq('vehicle_id', vehicleId)
+    .gte('date', from)
+    .lte('date', to)
+    .order('date', { ascending: true });
+
+  // card + numerar — aceeași sumă ca în getKmPerioada
+  const fuel: Array<{ alimentat_at: string; litri: number | null }> = [];
+  for (const table of FUEL_TABLES) {
+    const { data } = await sb
+      .from(table)
+      .select('alimentat_at, litri')
+      .eq('vehicle_id', vehicleId)
+      .gte('alimentat_at', `${from}T00:00:00+03:00`)
+      .lt('alimentat_at', `${nextDayIso(to)}T00:00:00+03:00`);
+    fuel.push(...((data ?? []) as typeof fuel));
+  }
+
+  const byDay = new Map<string, KmZiDetaliu>();
+  for (const g of (gps ?? []) as Array<{ date: string; km_total: number | null; km_patched: number | null; suspect_reason: string | null }>) {
+    const probleme: string[] = [];
+    const patched = Number(g.km_patched ?? 0);
+    if (patched >= KM_LIPSA_MAJOR) probleme.push(`Sare GPS-ul — ~${patched.toFixed(1)} km`);
+    if (g.suspect_reason?.startsWith('km_parcare')) probleme.push('Km numărați la parcare — GPS tremură pe loc');
+    byDay.set(g.date, { date: g.date, km: Number(g.km_total ?? 0), litri: 0, alimentari: 0, probleme });
+  }
+  for (const fr of (fuel ?? []) as Array<{ alimentat_at: string; litri: number | null }>) {
+    const day = chisinauDay(fr.alimentat_at);
+    const d = byDay.get(day) ?? { date: day, km: 0, litri: 0, alimentari: 0, probleme: [] };
+    d.litri += Number(fr.litri ?? 0);
+    d.alimentari += 1;
+    byDay.set(day, d);
+  }
+
+  return [...byDay.values()].sort((a, b) => a.date.localeCompare(b.date));
 }

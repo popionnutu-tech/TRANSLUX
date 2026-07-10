@@ -118,34 +118,36 @@ if (process.argv.includes('--phone')) {
     console.error('Missing ZADARMA_* env vars for --phone');
     process.exit(1);
   }
-  // Импорт номера через SIP-транк. Форму payload сверить с docs:
-  // https://elevenlabs.io/docs/api-reference/phone-numbers (create phone number, provider: sip_trunk).
-  const phone = await el('/v1/convai/phone-numbers', {
-    method: 'POST',
-    body: {
-      provider: 'sip_trunk',
-      phone_number: ZADARMA_PHONE_NUMBER,
-      label: 'TRANSLUX Zadarma',
-      inbound_trunk_config: {
-        sip_uri: `sip:${ZADARMA_SIP_USER}@${ZADARMA_SIP_HOST}`,
-        username: ZADARMA_SIP_USER,
-        password: ZADARMA_SIP_PASSWORD,
-        auth_username: ZADARMA_SIP_USER,
+  // Импорт номера через SIP-транк (schema: CreateSIPTrunkPhoneNumberRequestV2).
+  // Inbound: без авторизации (Zadarma АТС шлёт INVITE на sip.rtc.elevenlabs.io, матчится по номеру).
+  // Outbound: pbx.zadarma.com TCP + креденшалы ВНУТРЕННЕГО номера АТС (578127-100), не главного SIP.
+  // https://zadarma.com/en/support/instructions/elevenlabs/
+  const existingPhones = await el('/v1/convai/phone-numbers');
+  const existingPhone = (existingPhones || []).find(p => p.phone_number === ZADARMA_PHONE_NUMBER);
+  if (existingPhone) {
+    console.log(`Phone ${ZADARMA_PHONE_NUMBER} deja importat: ${existingPhone.phone_number_id} (agent: ${existingPhone.assigned_agent?.agent_id || 'none'})`);
+  } else {
+    const phone = await el('/v1/convai/phone-numbers', {
+      method: 'POST',
+      body: {
+        provider: 'sip_trunk',
+        phone_number: ZADARMA_PHONE_NUMBER,
+        label: 'TRANSLUX Zadarma',
+        agent_id: agentId,
+        inbound_trunk_config: {
+          media_encryption: 'disabled',
+        },
+        outbound_trunk_config: {
+          address: ZADARMA_SIP_HOST,
+          transport: 'tcp',
+          media_encryption: 'disabled',
+          credentials: { username: ZADARMA_SIP_USER, password: ZADARMA_SIP_PASSWORD },
+        },
       },
-      outbound_trunk_config: {
-        address: ZADARMA_SIP_HOST,
-        transport: 'tcp',
-        credentials: { username: ZADARMA_SIP_USER, password: ZADARMA_SIP_PASSWORD },
-      },
-    },
-  });
-  console.log('Phone number imported:', JSON.stringify(phone, null, 2));
-  // Привязать номер к агенту:
-  await el(`/v1/convai/agents/${agentId}`, {
-    method: 'PATCH',
-    body: { phone_numbers: [phone.phone_number_id] },
-  });
-  console.log(`Phone ${ZADARMA_PHONE_NUMBER} → agent ${agentId}`);
+    });
+    console.log(`Phone number imported: ${phone.phone_number_id}`);
+    console.log(`Phone ${ZADARMA_PHONE_NUMBER} → agent ${agentId}`);
+  }
 }
 
 console.log(`\nAgent ready: ${agentId}`);

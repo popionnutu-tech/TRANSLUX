@@ -514,10 +514,11 @@ git commit -m "feat(voice): extract/save voice_calls + raport Telegram (idempote
 
 ```ts
 // apps/admin/src/app/api/voice-webhook/route.ts
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { verifyElevenLabsSignature } from '@/lib/voice/webhook-verify';
 import { extractCall, saveVoiceCall, hasCallbackRequest, formatCallReport } from '@/lib/voice/calls';
 import { alertAdmins } from '@/lib/telegram-notify';
+import { getSupabase } from '@/lib/supabase';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -553,9 +554,23 @@ export async function POST(req: NextRequest) {
 
   const outcome = await saveVoiceCall(row, payload);
   if (outcome === 'inserted') {
-    // Telegram не должен ронять webhook — ошибки глотаются внутри alertAdmins/sendTelegram.
-    const callbackAlerted = await hasCallbackRequest(row.conversation_id);
-    await alertAdmins(formatCallReport(row, callbackAlerted));
+    // ВАЖНО: уведомление — ПОСЛЕ ответа 200 и в try/catch. Если оно упадёт после
+    // сохранения звонка, роут НЕ должен вернуть 500: ретрай ElevenLabs увидит
+    // duplicate и отчёт не уйдёт уже никогда.
+    after(async () => {
+      try {
+        const callbackAlerted = await hasCallbackRequest(row.conversation_id);
+        if (callbackAlerted) {
+          // Держим voice_calls.callback_requested в синхроне с voice_callback_requests.
+          await getSupabase().from('voice_calls')
+            .update({ callback_requested: true })
+            .eq('conversation_id', row.conversation_id);
+        }
+        await alertAdmins(formatCallReport(row, callbackAlerted));
+      } catch (err) {
+        console.error('voice-webhook notify failed:', err);
+      }
+    });
   }
   return NextResponse.json({ outcome });
 }
@@ -572,6 +587,7 @@ SIG=$(node -e "const c=require('crypto');const [,ts,body]=process.argv;console.l
 curl -s -X POST http://localhost:3001/api/voice-webhook -H "Content-Type: application/json" -H "ElevenLabs-Signature: $SIG" -d "$BODY"
 ```
 
+**Внимание:** dev использует ПРОД-Supabase и реальный Telegram — на время ручного теста убрать `TELEGRAM_BOT_TOKEN` из локального env (или предупредить владельца о тестовом сообщении).
 Expected: `{"outcome":"inserted"}`; повторный тот же запрос → `{"outcome":"duplicate"}`; без заголовка → 401. Проверить строку в `voice_calls` (prod БД, т.к. dev использует прод Supabase — удалить тестовую строку `conversation_id='conv_local_test'` после проверки).
 
 - [ ] **Step 4: Commit**
@@ -673,6 +689,7 @@ curl -s -X POST http://localhost:3001/api/voice-tools/request-callback \
   -H "Content-Type: application/json" -H "X-Voice-API-Key: $VOICE_API_KEY" \
   -d '{"phone":"+37360000001","reason":"test local","conversation_id":"conv_local_test2"}'
 ```
+**Внимание:** dev использует ПРОД-Supabase и реальный Telegram — на время ручного теста убрать `TELEGRAM_BOT_TOKEN` из локального env (или предупредить владельца о тестовом сообщении).
 Expected: `{"result":"Am înregistrat cererea..."}` мгновенно; строка в `voice_callback_requests`; Telegram-сообщение админам (если токен настроен). Без заголовка ключа → 401. Удалить тестовую строку после проверки.
 
 - [ ] **Step 4: Commit**

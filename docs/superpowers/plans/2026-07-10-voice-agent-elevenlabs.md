@@ -614,6 +614,7 @@ git commit -m "feat(voice): webhook post-call ElevenLabs (HMAC, idempotent, rapo
 ```ts
 // apps/admin/src/lib/voice/callbacks.ts
 import { getSupabase } from '../supabase';
+import { escapeHtml } from '../telegram-notify';
 
 export interface CallbackInput {
   conversation_id: string | null;
@@ -628,11 +629,12 @@ export async function createCallbackRequest(input: CallbackInput): Promise<void>
 }
 
 export function formatCallbackAlert(input: CallbackInput, name: string | null): string {
+  // Динамические значения приходят из LLM/абонента → экранируем для parse_mode HTML.
   return [
     '📲 <b>Cerere de apel înapoi (agent vocal)</b>',
-    `Telefon: ${input.caller_phone ?? 'necunoscut'}`,
-    name ? `Nume: ${name}` : null,
-    `Motiv: ${input.reason ?? '—'}`,
+    `Telefon: ${input.caller_phone ? escapeHtml(input.caller_phone) : 'necunoscut'}`,
+    name ? `Nume: ${escapeHtml(name)}` : null,
+    `Motiv: ${input.reason ? escapeHtml(input.reason) : '—'}`,
   ].filter(Boolean).join('\n');
 }
 ```

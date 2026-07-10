@@ -1,5 +1,10 @@
 import { getSupabase } from './supabase';
 
+/** Экранирование для Telegram parse_mode HTML — иначе '<' в тексте даёт 400 и сообщение теряется. */
+export function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 /** Отправка одного сообщения в Telegram. Никогда не бросает — возвращает успех. */
 export async function sendTelegram(chatId: string | number, text: string): Promise<boolean> {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;

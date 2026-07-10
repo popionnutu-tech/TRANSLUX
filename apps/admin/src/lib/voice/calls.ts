@@ -1,4 +1,5 @@
 import { getSupabase } from '../supabase';
+import { escapeHtml } from '../telegram-notify';
 
 export interface VoiceCallRow {
   conversation_id: string;

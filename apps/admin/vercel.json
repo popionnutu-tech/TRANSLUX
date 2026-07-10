@@ -1,6 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
+  "regions": ["dub1"],
   "installCommand": "cd ../.. && npm install --include=dev",
   "buildCommand": "cd ../.. && npm run build --workspace=packages/db && npm run build --workspace=packages/routing && npm run build --workspace=apps/admin",
   "outputDirectory": ".next",

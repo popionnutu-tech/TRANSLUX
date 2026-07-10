@@ -61,8 +61,17 @@ get-schedule, get-company-info. Auth: заголовок `X-Voice-API-Key`, timi
 имя, телефон (dynamic variable `system__caller_id` как дефолт), суть вопроса.
 Пишет строку в отдельную таблицу `voice_callback_requests` (`id`, `conversation_id`,
 `caller_phone`, `reason`, `created_at`, `resolved` bool) и сразу шлёт
-Telegram-уведомление (не дожидаясь post-call webhook).
-Все tools всегда отвечают `{ "result": "мягкий текст" }`, даже при ошибке.
+Telegram-уведомление (не дожидаясь post-call webhook). Логика записи и отчёта — в
+`lib/` (по образцу `lib/trips-search.ts`), route остаётся тонким.
+
+Формат ответов: существующие 5 tools сохраняют свой структурированный JSON-контракт
+(`{count, trips[]}`, `{found, price}` и т.д.) — ElevenLabs нормально принимает
+структурированный JSON, переписывать их не нужно. Новый request_callback возвращает
+мягкий `{ "result": "текст" }`, в том числе при ошибке БД, чтобы агент не «спотыкался».
+
+**Middleware:** `apps/admin/src/middleware.ts` закрывает все API-роуты по умолчанию —
+`/api/voice-webhook` (и путь request_callback, если он вне `/api/voice-tools/`)
+ОБЯЗАТЕЛЬНО добавить в `PUBLIC_PREFIXES`, иначе ElevenLabs не достучится.
 
 ### 3. Post-call webhook — `apps/admin/src/app/api/voice-webhook/route.ts`
 
@@ -72,22 +81,40 @@ Telegram-уведомление (не дожидаясь post-call webhook).
 - Идемпотентность по `conversation_id` (unique) — дубликат webhook → тихий 200.
 - Сохраняет: транскрипт (jsonb), summary/analysis, длительность, стоимость, номер
   звонящего, статус, `raw_webhook_data`.
-- Отправляет Telegram-отчёт через существующего бота: краткое summary; жалобы/запросы
-  обратного звонка помечаются отдельно.
+- Отправляет Telegram-отчёт: краткое summary; жалобы помечаются отдельно.
+  Если по этому `conversation_id` request_callback уже отправил мгновенный алерт —
+  post-call отчёт его НЕ дублирует (проверка по `voice_callback_requests`).
 
-### 4. БД — миграция Supabase
+### 3a. Telegram-уведомления — общий хелпер
+
+Новый `apps/admin/src/lib/telegram-notify.ts`: `sendTelegram(chatIds, text)` +
+`alertAdmins(text)` — получатели из таблицы `users` (`role='ADMIN'`, `active=true`,
+`telegram_id not null`), по образцу `api/cron/bot-watchdog/route.ts`. Отдельный env
+`VOICE_TELEGRAM_CHAT_ID` НЕ вводим — один источник правды «кому слать». Существующие
+три inline-копии sendMessage не трогаем (surgical), но новая логика — только через хелпер.
+
+### 4. БД — миграция Supabase (`226_voice_calls.sql`, проверить свободный номер)
 
 Таблица `voice_calls`:
 `id`, `conversation_id` (unique), `direction` ('in'), `caller_phone`, `transcript` (jsonb),
 `summary`, `analysis` (jsonb), `duration_secs`, `cost`, `status`, `callback_requested`
 (bool), `raw_webhook_data` (jsonb), `created_at`.
 
+Таблица `voice_callback_requests`:
+`id`, `conversation_id`, `caller_phone`, `reason`, `resolved` (bool default false),
+`created_at`.
+
+**RLS обязателен на обеих таблицах** (транскрипты и телефоны — персональные данные,
+anon-ключ публичен в apps/web): `enable row level security` + deny-all политика
+`using(false)`, по образцу `packages/db/migrations/115_*.sql`. Запись идёт через
+service_role — deny-all функциональность не ломает.
+
 ### 5. Секреты (env: Vercel apps/admin + локально)
 
 - `ELEVENLABS_API_KEY` — ключ API (создание/апдейт агента, транки, аудио).
 - `VOICE_API_KEY` — уже существующий секрет для server tools.
 - `ELEVENLABS_WEBHOOK_SECRET` — HMAC post-call webhook.
-- `VOICE_TELEGRAM_CHAT_ID` (+ существующий токен бота) — куда слать отчёты.
+- Telegram: существующий токен бота; получатели — админы из таблицы `users` (см. 3a).
 - Позже: SIP-креды Zadarma (используются только setup-скриптом, в ElevenLabs).
 
 ## Обработка ошибок

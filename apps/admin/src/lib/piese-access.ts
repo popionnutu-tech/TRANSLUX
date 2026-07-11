@@ -1,6 +1,7 @@
 import 'server-only';
 import { redirect } from 'next/navigation';
 import { verifySession, type Session } from './auth';
+import { getSupabase } from './supabase';
 import type { AdminRole } from '@translux/db';
 
 // Acces pe operațiunile modulului „Piese". Fiecare pagină de scriere cheamă gardul potrivit;
@@ -46,4 +47,40 @@ export function sellerScoped(role: AdminRole): boolean {
 export const PART_WRITE_ROLES: AdminRole[] = ['ADMIN', 'DEPOZITAR', 'GESTIONAR'];
 export function canEditParts(role: AdminRole): boolean {
   return PART_WRITE_ROLES.includes(role);
+}
+
+// ── Etapa 2: legarea contului de UN depozit ──────────────────────────────────
+// Rolurile de depozit care se pot lega de un singur depozit — SURSĂ UNICĂ în piese-roles.ts (importabilă și din client).
+export { DEPOT_BOUND_ROLES } from './piese-roles';
+
+// SURSĂ UNICĂ pentru „de ce depozit ține contul". NULL = TOATE depozitele (ADMIN sau cont cu drepturi extinse).
+// Folosită ȘI de dropdown-ul filtrat (ce depozite vede în formular), ȘI de garda de server (unde poate opera),
+// ca afișarea și restricția reală să nu poată diverge.
+// FAIL-CLOSED: pentru un cont non-ADMIN, dacă interogarea eșuează sau rândul lipsește (cont șters, dar JWT încă
+// valid 24h), NU cădem în „toate depozitele" — aruncăm. Doar `warehouse_id` explicit NULL = toate (drepturi extinse).
+export async function userWarehouseId(session: Session): Promise<number | null> {
+  if (session.role === 'ADMIN') return null; // adminul operează pe toate depozitele
+  const { data, error } = await getSupabase()
+    .from('admin_accounts')
+    .select('warehouse_id')
+    .eq('id', session.id)
+    .maybeSingle();
+  if (error) throw new Error('Nu am putut verifica depozitul contului');
+  if (!data) throw new Error('Cont inexistent sau dezactivat');
+  const wid = (data as { warehouse_id: number | null }).warehouse_id;
+  return wid == null ? null : Number(wid); // NULL explicit = toate (drepturi extinse)
+}
+
+// Filtrează lista de depozite la ce poate vedea contul (pură, fără DB). wid=null → toate.
+export function warehousesForUser<T extends { id: number | string }>(all: T[], wid: number | null): T[] {
+  return wid == null ? all : all.filter((w) => Number(w.id) === wid);
+}
+
+// Gardă de server: aruncă dacă contul e legat de un depozit și încearcă să opereze pe ALTUL.
+// Se cheamă în fiecare acțiune de scriere care primește un warehouse_id de la client (prihod/rashod/inventar/mutări).
+export async function assertWarehouseAllowed(session: Session, warehouseId: number): Promise<void> {
+  const wid = await userWarehouseId(session);
+  if (wid != null && Number(warehouseId) !== wid) {
+    throw new Error('Nu ai acces la acest depozit (contul tău e legat de alt depozit)');
+  }
 }

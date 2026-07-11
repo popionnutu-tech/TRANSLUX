@@ -13,8 +13,13 @@ import {
   createInvite,
   deleteInvite,
   createAdminAccount,
+  updateAdminWarehouse,
 } from './actions';
 import type { InviteWithAdmin, AdminAccountInfo } from './actions';
+// SURSĂ UNICĂ (fișier fără 'server-only', importabil din client): ce roluri se leagă de un depozit.
+import { DEPOT_BOUND_ROLES } from '@/lib/piese-roles';
+
+type WarehouseOpt = { id: number; name: string };
 
 const ROLE_LABELS: Record<string, string> = {
   ADMIN: 'Administrator',
@@ -34,10 +39,12 @@ export default function UsersClient({
   initialUsers,
   initialInvites,
   initialAdmins = [],
+  initialWarehouses = [],
 }: {
   initialUsers: User[];
   initialInvites: InviteWithAdmin[];
   initialAdmins?: AdminAccountInfo[];
+  initialWarehouses?: WarehouseOpt[];
 }) {
   const [error, setError] = useState('');
   const [point, setPoint] = useState<PointEnum>('CHISINAU');
@@ -67,6 +74,16 @@ export default function UsersClient({
       setError(err.message);
     } finally {
       setAccLoading(false);
+    }
+  }
+
+  async function handleAdminWarehouse(id: string, warehouseId: number | null) {
+    setError('');
+    try {
+      await updateAdminWarehouse(id, warehouseId);
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message);
     }
   }
 
@@ -516,14 +533,35 @@ export default function UsersClient({
                 <th>EMAIL</th>
                 <th>PAROLA</th>
                 <th>ROL</th>
+                <th>DEPOZIT</th>
               </tr>
             </thead>
             <tbody>
               {initialAdmins.map(a => (
                 <tr key={a.id}>
-                  <td>{a.email}</td>
+                  <td>
+                    {a.email}
+                    {a.name && <span className="u-username">{a.name}</span>}
+                  </td>
                   <td style={{ fontFamily: 'monospace', fontSize: 12 }}>•••</td>
                   <td>{ROLE_LABELS[a.role] || a.role}</td>
+                  <td>
+                    {/* Doar rolurile de depozit se leagă de un depozit; „Toate" = drepturi extinse. */}
+                    {(DEPOT_BOUND_ROLES as string[]).includes(a.role) ? (
+                      <select
+                        className="u-select"
+                        value={a.warehouse_id ?? ''}
+                        onChange={(e) => handleAdminWarehouse(a.id, e.target.value ? Number(e.target.value) : null)}
+                      >
+                        <option value="">Toate depozitele</option>
+                        {initialWarehouses.map((w) => (
+                          <option key={w.id} value={w.id}>{w.name}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span style={{ color: '#ccc' }}>—</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

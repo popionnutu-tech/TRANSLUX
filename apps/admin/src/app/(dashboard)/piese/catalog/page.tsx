@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { catalogPage, listGroups, listWarehouses } from '@/lib/piese';
 import { verifySession } from '@/lib/auth';
-import { canEditParts } from '@/lib/piese-access';
+import { canEditParts, userWarehouseId, warehousesForUser } from '@/lib/piese-access';
 import CatalogTable from './CatalogTable';
 
 export default async function CatalogPage({ searchParams }: { searchParams: Promise<{ q?: string; grup?: string; page?: string }> }) {
@@ -20,6 +20,8 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
     catalogPage({ search: q, groupId, page }),
   ]);
   const canEdit = session ? canEditParts(session.role) : false;
+  // Etapa 2: contul legat de un depozit vede în editorul de locație doar depozitul lui (garda reală e în part-actions).
+  const allowedWarehouses = session ? warehousesForUser(warehouses as any[], await userWarehouseId(session)) : (warehouses as any[]);
 
   const pages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -64,7 +66,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
         <CatalogTable
           rows={rows}
           groups={(groups as any[]).map((g) => ({ id: g.id, label: g.name_ro }))}
-          warehouses={(warehouses as any[]).map((w) => ({ id: w.id, label: w.name }))}
+          warehouses={allowedWarehouses.map((w) => ({ id: w.id, label: w.name }))}
           canEdit={canEdit}
         />
 

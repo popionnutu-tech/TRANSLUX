@@ -3,7 +3,8 @@
 import { revalidatePath } from 'next/cache';
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
-import type { User, UserRole, InviteToken, PointEnum } from '@translux/db';
+import { DEPOT_BOUND_ROLES } from '@/lib/piese-roles';
+import type { User, UserRole, InviteToken, PointEnum, AdminRole } from '@translux/db';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 
@@ -66,6 +67,8 @@ export interface AdminAccountInfo {
   id: string;
   email: string;
   role: string;
+  name: string | null;
+  warehouse_id: number | null; // Etapa 2 (Piese): depozitul de care e legat contul; null = toate
 }
 
 export async function getAdminAccounts(): Promise<AdminAccountInfo[]> {
@@ -73,10 +76,27 @@ export async function getAdminAccounts(): Promise<AdminAccountInfo[]> {
   if (!session || session.role !== 'ADMIN') return [];
   const { data } = await getSupabase()
     .from('admin_accounts')
-    .select('id, email, role')
+    .select('id, email, role, name, warehouse_id')
     .order('role')
     .order('email');
   return (data || []) as AdminAccountInfo[];
+}
+
+// Etapa 2: leagă (sau dezleagă) un cont de un depozit. Doar ADMIN. warehouseId=null → toate depozitele.
+export async function updateAdminWarehouse(id: string, warehouseId: number | null): Promise<void> {
+  const session = await verifySession();
+  if (!session || session.role !== 'ADMIN') throw new Error('Acces interzis');
+  const db = getSupabase();
+  // Defense-in-depth: doar rolurile de depozit (DEPOT_BOUND_ROLES) pot fi legate; pentru celelalte, warehouse_id nu are efect
+  // (userWarehouseId le tratează oricum ca „toate"), deci refuzăm setarea ca să nu rămână date derutante în DB.
+  const { data: acc } = await db.from('admin_accounts').select('role').eq('id', id).maybeSingle();
+  if (!acc) throw new Error('Cont inexistent');
+  const isBound = DEPOT_BOUND_ROLES.includes((acc as { role: AdminRole }).role);
+  const value = warehouseId == null || Number.isNaN(Number(warehouseId)) ? null : Number(warehouseId);
+  if (value != null && !isBound) throw new Error('Doar conturile de depozit pot fi legate de un depozit');
+  const { error } = await db.from('admin_accounts').update({ warehouse_id: value }).eq('id', id);
+  if (error) throw new Error(error.message);
+  revalidatePath('/users');
 }
 
 const VALID_ADMIN_ROLES = ['ADMIN', 'DISPATCHER', 'GRAFIC', 'OPERATOR_CAMERE', 'ADMIN_CAMERE', 'EVALUATOR_INCASARI', 'CONTABIL', 'DEPOZITAR', 'VINZATOR', 'MANAGER', 'GESTIONAR'];

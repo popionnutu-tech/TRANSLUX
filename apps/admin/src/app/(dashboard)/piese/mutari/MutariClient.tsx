@@ -10,10 +10,11 @@ interface Opt { id: number; label: string }
 interface Line { part_id: number | ''; part_label?: string; qty: number }
 interface Transit { id: number; from_name: string; to_name: string; line_count: number }
 
-export default function MutariClient({ warehouses, transit }: { warehouses: Opt[]; transit: Transit[] }) {
+// `warehouses` = toate (pentru „Către"); `fromWarehouses` = doar depozitul contului legat (pentru „De la"). Egale la ADMIN/cont extins.
+export default function MutariClient({ warehouses, fromWarehouses, transit }: { warehouses: Opt[]; fromWarehouses: Opt[]; transit: Transit[] }) {
   const router = useRouter();
-  const [from, setFrom] = useState(warehouses[0]?.id || 0);
-  const [to, setTo] = useState(warehouses[1]?.id || 0);
+  const [from, setFrom] = useState(fromWarehouses[0]?.id || 0);
+  const [to, setTo] = useState(warehouses.find((w) => w.id !== (fromWarehouses[0]?.id || 0))?.id || 0);
   const [lines, setLines] = useState<Line[]>([{ part_id: '', qty: 1 }]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ t: 'ok' | 'danger'; m: string } | null>(null);
@@ -49,7 +50,7 @@ export default function MutariClient({ warehouses, transit }: { warehouses: Opt[
       <div className="card">
         <h2>Trimite o mutare nouă</h2>
         <div className="row">
-          <div className="form-row"><label>De la depozit</label><select value={from} onChange={(e) => setFrom(Number(e.target.value))}>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.label}</option>)}</select></div>
+          <div className="form-row"><label>De la depozit</label><select value={from} onChange={(e) => setFrom(Number(e.target.value))}>{fromWarehouses.map((w) => <option key={w.id} value={w.id}>{w.label}</option>)}</select></div>
           <div className="form-row"><label>Către depozit</label><select value={to} onChange={(e) => setTo(Number(e.target.value))}>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.label}</option>)}</select></div>
         </div>
         <table>

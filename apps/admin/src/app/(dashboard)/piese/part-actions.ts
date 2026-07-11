@@ -4,12 +4,12 @@ import { revalidatePath } from 'next/cache';
 import { verifySession, requireRole } from '@/lib/auth';
 import { createPart, updatePart, setPartLocation } from '@/lib/piese-nomenclator';
 import { partLabel, getPartById, getPartLocation } from '@/lib/piese';
-import { PART_WRITE_ROLES } from '@/lib/piese-access';
+import { PART_WRITE_ROLES, assertWarehouseAllowed } from '@/lib/piese-access';
 
 // Cine poate adăuga/edita o piesă în catalog: aceleași roluri care fac recepția (prihod) — depozitar,
 // gestionar (depozitar intern), admin. Vânzătorul NU creează piese. Sursă unică de autorizare (server action).
 function requirePartWrite() {
-  return verifySession().then((s) => { requireRole(s, ...PART_WRITE_ROLES); return s; });
+  return verifySession().then((s) => requireRole(s, ...PART_WRITE_ROLES)); // requireRole întoarce Session (non-null) sau aruncă
 }
 
 // Creează sau actualizează o piesă. Întoarce id + eticheta bogată ca apelantul (Prihod) s-o poată
@@ -33,13 +33,15 @@ export async function loadPart(id: number): Promise<Record<string, unknown> | nu
 
 // Locația piesei într-un depozit (SECȚIE-RAFT-POLIȚĂ + stoc minim) — pentru editarea din Catalog.
 export async function loadPartLocation(partId: number, warehouseId: number): Promise<{ location_label: string; min_qty: number } | null> {
-  await requirePartWrite();
+  const session = await requirePartWrite();
   if (!partId || !warehouseId) return null;
+  await assertWarehouseAllowed(session, warehouseId); // Etapa 2: doar locațiile depozitului lui
   return (await getPartLocation(partId, warehouseId)) as { location_label: string; min_qty: number } | null;
 }
 
 export async function savePartLocation(partId: number, warehouseId: number, data: { location_label?: string; min_qty?: number | string }): Promise<{ ok: true }> {
-  await requirePartWrite();
+  const session = await requirePartWrite();
+  await assertWarehouseAllowed(session, warehouseId); // Etapa 2: nu poate seta locația/min în alt depozit
   await setPartLocation(partId, warehouseId, data);
   revalidatePath('/piese/harta');
   revalidatePath('/piese/stoc');

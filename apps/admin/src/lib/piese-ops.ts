@@ -20,6 +20,21 @@ export async function transferReceive(docId: number) {
   const { error } = await getSupabase().rpc('piese_transfer_receive', { p_doc: docId, p_user: null });
   if (error) throw new Error(error.message);
 }
+// Etapa 2: depozitul-DESTINAȚIE al unui document de mutare (pentru garda de la confirmarea primirii).
+// Pe un doc TRANSFER, `warehouse_id` = sursa, `to_warehouse_id` = destinația.
+// FAIL-CLOSED: dacă interogarea eșuează, aruncăm (nu returnăm null, ca să nu se sară garda din receiveTransfer).
+// Filtrăm pe doc_type='TRANSFER' — orice transfer are `to_warehouse_id` setat (migr. 202), deci null ⇒ nu e transfer.
+export async function transferDestWarehouse(docId: number): Promise<number | null> {
+  const { data, error } = await getSupabase()
+    .from('piese_stock_documents')
+    .select('to_warehouse_id')
+    .eq('id', docId)
+    .eq('doc_type', 'TRANSFER')
+    .maybeSingle();
+  if (error) throw new Error('Nu am putut verifica destinația mutării');
+  const w = (data as { to_warehouse_id: number | null } | null)?.to_warehouse_id;
+  return w == null ? null : Number(w);
+}
 
 // ── Inventariere ──
 export async function getCountSheet(warehouseId: number) {

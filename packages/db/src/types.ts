@@ -47,6 +47,8 @@ export interface AdminAccount {
   name: string | null;
   active: boolean;
   created_at: string;
+  // Etapa 2 (Piese): depozitul de care e legat contul. NULL = toate (drepturi extinse). Vezi migr. 231.
+  warehouse_id: number | null;
 }
 
 export interface User {

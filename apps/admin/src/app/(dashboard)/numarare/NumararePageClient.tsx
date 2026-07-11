@@ -71,8 +71,12 @@ export default function NumararePageClient({ role }: { role: AdminRole }) {
 
   const showTabs = visibleTabs.length > 1;
 
+  // Doar tab-urile cu tabele late (Document casier / GO) folosesc toată lățimea; restul
+  // (operatori/salariu/tarife/audit) rămân centrate ca înainte.
+  const wideTab = activeTab === 'incasare' || activeTab === 'numarare';
+
   return (
-    <div className="page">
+    <div className="page" style={wideTab ? { maxWidth: 'none' } : undefined}>
       {showTabs && (
         <div style={{
           display: 'flex',

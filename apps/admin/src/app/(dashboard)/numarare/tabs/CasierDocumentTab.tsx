@@ -423,9 +423,11 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
       return;
     }
 
-    // Nici reîncărcarea n-a reușit: păstrăm editările locale ca să nu se piardă munca.
+    // Reîncărcarea n-a reușit (rețea): păstrăm editările locale ca să nu se piardă munca.
+    // Scrierile s-ar putea să fi mers deja — de aceea rugăm reîncărcarea paginii, nu un simplu retry.
     if (res.error) {
-      alert('Nu s-a putut salva: ' + res.error + '\nÎncearcă din nou.');
+      alert('Conexiune întreruptă la salvare: ' + res.error +
+        '\nReîncarcă pagina (Cmd+R) și verifică ce s-a salvat înainte de a reintroduce.');
       return;
     }
     setHasUnsaved(false);
@@ -435,8 +437,9 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
   const fontFamily = '"Segoe UI", Tahoma, Arial, sans-serif';
   const cellStyle: React.CSSProperties = {
     border: '1px solid #ccc',
-    padding: '1px 4px',
+    padding: '0 4px',      // rânduri puțin mai joase (mai multe încap pe ecran)
     fontSize: 11,
+    lineHeight: 1.35,
     fontFamily,
     background: '#fff',
     overflow: 'hidden',

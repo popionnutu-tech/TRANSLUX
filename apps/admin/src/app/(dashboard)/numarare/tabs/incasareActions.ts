@@ -653,7 +653,12 @@ export async function saveCasierCorrections(
 
   // 3. Reîncarcă documentul, cu id-urile/câmpurile reale (și pe eroare, pentru re-sincronizare).
   const { data, error } = await sb.rpc('get_casier_document', { p_date: ziua });
-  if (error && !opError) opError = error.message;
+  if (error) {
+    // Reîncărcarea a eșuat: NU întoarcem `data` (nici []). Clientul păstrează atunci editările
+    // locale în loc să golească tabelul. (Scrierile s-ar putea să fi reușit deja; clientul cere
+    // reîncărcarea paginii ca să reconcilieze sigur — evită dublarea rândurilor manuale.)
+    return { error: opError || error.message };
+  }
   return { error: opError, data: (data as CasierRow[]) || [] };
 }
 

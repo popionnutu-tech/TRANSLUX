@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { AdminRole } from '@translux/db';
@@ -170,6 +170,13 @@ const linkActive: React.CSSProperties = {
   fontWeight: 600,
 };
 
+// În stare strânsă: doar iconița, centrată.
+const collapsedLink: React.CSSProperties = {
+  justifyContent: 'center',
+  padding: '10px 0',
+  gap: 0,
+};
+
 const activeBar: React.CSSProperties = {
   position: 'absolute',
   left: 0,
@@ -222,15 +229,19 @@ function isItemActive(item: NavItem, pathname: string, currentTab: string | null
   return item.exact ? pathname === item.href : (pathname === item.href || pathname.startsWith(item.href + '/'));
 }
 
-function NavLink({ item, pathname, currentTab = null }: { item: NavItem; pathname: string; currentTab?: string | null }) {
+function NavLink({ item, pathname, currentTab = null, collapsed = false }: { item: NavItem; pathname: string; currentTab?: string | null; collapsed?: boolean }) {
   const active = isItemActive(item, pathname, currentTab);
   return (
-    <Link href={item.href} style={active ? linkActive : linkBase}>
+    <Link
+      href={item.href}
+      title={collapsed ? item.label : undefined}
+      style={{ ...(active ? linkActive : linkBase), ...(collapsed ? collapsedLink : null) }}
+    >
       {active && <span style={activeBar} />}
       <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: 20, height: 20, flexShrink: 0, opacity: active ? 0.8 : 0.4 }}>
         <path d={item.icon} />
       </svg>
-      {item.label}
+      {!collapsed && item.label}
     </Link>
   );
 }
@@ -238,15 +249,18 @@ function NavLink({ item, pathname, currentTab = null }: { item: NavItem; pathnam
 // Pereche buton + listă pliabilă, folosită pentru modulele cu sub-pagini (Piese, Numărare) și pentru Digital.
 // `footer` = conținut extra randat sub items (ex. o sub-grupă pliabilă nestată — Nomenclator digital).
 // `extraActive` = sub-grupa nestată conține pagina activă → deschidem grupa-părinte.
-function Collapsible({ label, icon, items, pathname, currentTab = null, footer = null, extraActive = false, maxH = 720 }: { label: string; icon: string; items: NavItem[]; pathname: string; currentTab?: string | null; footer?: React.ReactNode; extraActive?: boolean; maxH?: number }) {
+function Collapsible({ label, icon, items, pathname, currentTab = null, footer = null, extraActive = false, maxH = 720, collapsed = false, onExpand }: { label: string; icon: string; items: NavItem[]; pathname: string; currentTab?: string | null; footer?: React.ReactNode; extraActive?: boolean; maxH?: number; collapsed?: boolean; onExpand?: () => void }) {
   const directActive = items.some((i) => isItemActive(i, pathname, currentTab));
   const [open, setOpen] = useState(directActive || extraActive);
   return (
     <>
       <button
-        onClick={() => setOpen((o) => !o)}
+        // În stare strânsă butonul nu deschide dropdown-ul (n-ar avea loc) — extinde bara.
+        onClick={() => (collapsed ? onExpand?.() : setOpen((o) => !o))}
+        title={collapsed ? label : undefined}
         style={{
           ...linkBase,
+          ...(collapsed ? collapsedLink : null),
           background: directActive ? 'rgba(155,27,48,0.06)' : 'transparent',
           color: directActive ? '#9B1B30' : '#999',
           fontWeight: directActive ? 600 : 500,
@@ -260,17 +274,21 @@ function Collapsible({ label, icon, items, pathname, currentTab = null, footer =
         <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: 20, height: 20, flexShrink: 0, opacity: directActive ? 0.8 : 0.4 }}>
           <path d={icon} />
         </svg>
-        <span style={{ flex: 1, textAlign: 'left' }}>{label}</span>
-        <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: 18, height: 18, opacity: 0.4, transition: 'transform 0.2s ease', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}>
-          <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
-        </svg>
+        {!collapsed && <span style={{ flex: 1, textAlign: 'left' }}>{label}</span>}
+        {!collapsed && (
+          <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: 18, height: 18, opacity: 0.4, transition: 'transform 0.2s ease', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+            <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
+          </svg>
+        )}
       </button>
-      <div style={{ overflow: 'hidden', maxHeight: open ? maxH : 0, transition: 'max-height 0.3s ease', paddingLeft: 12 }}>
-        {items.map((item) => (
-          <NavLink key={item.href + item.label} item={item} pathname={pathname} currentTab={currentTab} />
-        ))}
-        {footer}
-      </div>
+      {!collapsed && (
+        <div style={{ overflow: 'hidden', maxHeight: open ? maxH : 0, transition: 'max-height 0.3s ease', paddingLeft: 12 }}>
+          {items.map((item) => (
+            <NavLink key={item.href + item.label} item={item} pathname={pathname} currentTab={currentTab} />
+          ))}
+          {footer}
+        </div>
+      )}
     </>
   );
 }
@@ -282,6 +300,21 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentTab = searchParams.get('tab');
+
+  // Bara strânsă (doar iconițe) — reținut între pagini/reîncărcări.
+  const [collapsed, setCollapsed] = useState(false);
+  useEffect(() => {
+    try { setCollapsed(localStorage.getItem('sidebar-collapsed') === '1'); } catch { /* ignore */ }
+  }, []);
+  const toggleCollapsed = () => setCollapsed(prev => {
+    const next = !prev;
+    try { localStorage.setItem('sidebar-collapsed', next ? '1' : '0'); } catch { /* ignore */ }
+    return next;
+  });
+  const expand = () => setCollapsed(() => {
+    try { localStorage.setItem('sidebar-collapsed', '0'); } catch { /* ignore */ }
+    return false;
+  });
 
   const nomenclatorActive = nomenclatorHrefs.some(h => pathname === h || pathname.startsWith(h + '/'));
 
@@ -311,14 +344,32 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
   }
 
   return (
-    <aside style={sidebarStyle}>
-      <div style={brandStyle}>
-        <span style={logoStyle} />
-        <div style={subtitleStyle}>Panou Administrativ</div>
+    <aside style={{ ...sidebarStyle, width: collapsed ? 64 : 240, transition: 'width 0.2s ease' }}>
+      <div style={{ ...brandStyle, padding: collapsed ? '18px 8px 14px' : '24px 20px 20px', position: 'relative' }}>
+        {!collapsed && <span style={logoStyle} />}
+        {!collapsed && <div style={subtitleStyle}>Panou Administrativ</div>}
+        <button
+          onClick={toggleCollapsed}
+          title={collapsed ? 'Extinde meniul' : 'Strânge meniul'}
+          aria-label={collapsed ? 'Extinde meniul' : 'Strânge meniul'}
+          style={{
+            position: collapsed ? 'static' : 'absolute',
+            top: 8, right: 8,
+            margin: collapsed ? '0 auto' : 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: 28, height: 28, borderRadius: 8,
+            border: '1px solid rgba(155,27,48,0.1)', background: 'transparent',
+            color: 'rgba(155,27,48,0.5)', cursor: 'pointer',
+          }}
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: 18, height: 18, transform: collapsed ? 'rotate(180deg)' : 'none' }}>
+            <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
+          </svg>
+        </button>
       </div>
 
       <nav style={navStyle}>
-        {filteredModules.length > 0 && <div style={sectionLabelStyle}>Module</div>}
+        {!collapsed && filteredModules.length > 0 && <div style={sectionLabelStyle}>Module</div>}
         {filteredModules.map((item) => (
           item.children
             ? <Collapsible
@@ -328,13 +379,15 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
                 items={item.children}
                 pathname={pathname}
                 currentTab={currentTab}
+                collapsed={collapsed}
+                onExpand={expand}
                 maxH={item.subGroup ? 1300 : 720}
                 extraActive={item.subGroup ? item.subGroup.items.some((i) => isItemActive(i, pathname, currentTab)) : false}
                 footer={item.subGroup ? (
                   <Collapsible label={item.subGroup.label} icon={item.subGroup.icon} items={item.subGroup.items} pathname={pathname} currentTab={currentTab} />
                 ) : null}
               />
-            : <NavLink key={item.href + item.label} item={item} pathname={pathname} currentTab={currentTab} />
+            : <NavLink key={item.href + item.label} item={item} pathname={pathname} currentTab={currentTab} collapsed={collapsed} />
         ))}
 
         {filteredNav.length > 0 && (
@@ -344,6 +397,8 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
             items={filteredNav}
             pathname={pathname}
             currentTab={currentTab}
+            collapsed={collapsed}
+            onExpand={expand}
             maxH={1300}
             extraActive={showNomenclator && nomenclatorActive}
             footer={showNomenclator ? (
@@ -358,12 +413,13 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
         )}
       </nav>
 
-      <div style={footerStyle}>
-        <button onClick={handleLogout} style={logoutStyle}>
+      <div style={{ ...footerStyle, padding: collapsed ? '12px 8px' : '16px 10px' }}>
+        <button onClick={handleLogout} style={{ ...logoutStyle, ...(collapsed ? { justifyContent: 'center', padding: '10px 0', gap: 0 } : null) }}
+          title={collapsed ? 'Deconectare' : undefined}>
           <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: 20, height: 20, flexShrink: 0, opacity: 0.4 }}>
             <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
           </svg>
-          Deconectare
+          {!collapsed && 'Deconectare'}
         </button>
       </div>
     </aside>

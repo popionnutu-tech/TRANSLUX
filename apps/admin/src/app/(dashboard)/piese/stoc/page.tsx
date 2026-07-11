@@ -77,7 +77,7 @@ export default async function StocPage({ searchParams }: { searchParams: Promise
                 const low = Number(r.min_qty) > 0 && Number(r.qty) <= Number(r.min_qty);
                 return (
                   <tr key={`${r.part_id}-${r.warehouse_id}-${i}`}>
-                    <td><strong>{r.name_long || '—'}</strong>{r.barcode && <><br /><span className="muted" style={{ fontSize: 11, fontFamily: 'monospace' }}>{r.barcode}</span></>}</td>
+                    <td><strong>{r.name_ro || r.name_long || '—'}</strong>{r.barcode && <><br /><span className="muted" style={{ fontSize: 11, fontFamily: 'monospace' }}>{r.barcode}</span></>}</td>
                     <td className="muted">{r.group_name}</td>
                     <td>{r.manufacturer || '—'} <span className="muted">{r.model ? `· ${r.model}` : ''}</span></td>
                     <td>{r.warehouse_name}</td>

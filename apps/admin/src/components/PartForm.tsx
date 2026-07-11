@@ -7,6 +7,7 @@ export interface PartFormValues {
   id?: number;
   group_id?: number | string;
   name_long?: string;
+  name_ro?: string;
   manufacturer?: string;
   model?: string;
   article_code?: string;
@@ -29,6 +30,7 @@ export default function PartForm({
   const [f, setF] = useState<PartFormValues>({
     group_id: initial?.group_id ?? (groups[0]?.id ?? ''),
     name_long: initial?.name_long ?? '',
+    name_ro: initial?.name_ro ?? '',
     manufacturer: initial?.manufacturer ?? '',
     model: initial?.model ?? '',
     article_code: initial?.article_code ?? '',
@@ -63,6 +65,10 @@ export default function PartForm({
       <div className="form-group" style={{ marginBottom: 0, minWidth: 220 }}>
         <label>Denumire *</label>
         <input value={f.name_long ?? ''} onChange={(e) => set('name_long', e.target.value)} required placeholder="ex: Filtru ulei…" />
+      </div>
+      <div className="form-group" style={{ marginBottom: 0, minWidth: 220 }}>
+        <label>Denumire (RO)</label>
+        <input value={f.name_ro ?? ''} onChange={(e) => set('name_ro', e.target.value)} placeholder="denumirea în română (opțional)" />
       </div>
       <div className="form-group" style={{ marginBottom: 0, minWidth: 130 }}>
         <label>Producător</label>

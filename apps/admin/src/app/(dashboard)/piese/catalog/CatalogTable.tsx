@@ -19,6 +19,7 @@ export default function CatalogTable({ rows, groups, warehouses, canEdit }: {
     id: edit.id,
     group_id: edit.group_id,
     name_long: edit.name_long ?? '',
+    name_ro: edit.name_ro ?? '',
     manufacturer: edit.manufacturer ?? '',
     model: edit.model ?? '',
     article_code: edit.article_code ?? '',
@@ -42,7 +43,7 @@ export default function CatalogTable({ rows, groups, warehouses, canEdit }: {
               style={canEdit ? { cursor: 'pointer' } : undefined}
               title={canEdit ? 'Apasă pentru a edita piesa și locația' : undefined}
             >
-              <td><strong>{p.name_long || '—'}</strong></td>
+              <td><strong>{p.name_ro || p.name_long || '—'}</strong></td>
               <td className="muted">{p.group_name}</td>
               <td>{p.manufacturer || '—'}</td>
               <td className="muted">{p.model || '—'}</td>

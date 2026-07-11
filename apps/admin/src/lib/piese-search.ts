@@ -39,7 +39,7 @@ export async function searchAssistant(
   // 1) Piesele care se potrivesc (din catalog: denumire / grup / articol / OEM / cod de bare / model).
   let q = sb.from('piese_catalog_rows').select('*').order('group_name').limit(limit);
   if (opts.categoryId) q = q.eq('group_id', opts.categoryId);
-  if (s) { const e = orVal(s); q = q.or(`name_long.ilike."%${e}%",group_name.ilike."%${e}%",article_code.ilike."%${e}%",oem_code.ilike."%${e}%",barcode.ilike."%${e}%",model.ilike."%${e}%"`); }
+  if (s) { const e = orVal(s); q = q.or(`name_long.ilike."%${e}%",name_ro.ilike."%${e}%",group_name.ilike."%${e}%",article_code.ilike."%${e}%",oem_code.ilike."%${e}%",barcode.ilike."%${e}%",model.ilike."%${e}%"`); }
   const { data: parts, error: partsErr } = await q;
   if (partsErr) { console.error('[piese-search] catalog query:', partsErr.message); return []; }
   const list = (parts || []) as any[];
@@ -76,7 +76,7 @@ export async function searchAssistant(
     return {
       id: p.id,
       groupName: p.group_name,
-      nameLong: p.name_long,
+      nameLong: p.name_ro || p.name_long,
       manufacturer: p.manufacturer || null,
       model: p.model || null,
       articleCode: p.article_code || null,

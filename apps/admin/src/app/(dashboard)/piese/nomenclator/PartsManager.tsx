@@ -26,6 +26,7 @@ export default function PartsManager({ groups }: { groups: { id: number; label: 
       id,
       group_id: (row.group_id as number) ?? '',
       name_long: (row.name_long as string) ?? '',
+      name_ro: (row.name_ro as string) ?? '',
       manufacturer: (row.manufacturer as string) ?? '',
       model: (row.model as string) ?? '',
       article_code: (row.article_code as string) ?? '',

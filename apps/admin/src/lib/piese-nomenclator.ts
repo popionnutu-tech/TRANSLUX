@@ -41,6 +41,7 @@ export async function updateGroup(id: number, d: any) {
 const partRow = (d: any) => ({
   group_id: Number(d.group_id),
   name_long: txt(d.name_long),
+  name_ro: txtOrNull(d.name_ro),
   manufacturer: txtOrNull(d.manufacturer),
   model: txtOrNull(d.model),
   article_code: txtOrNull(d.article_code),

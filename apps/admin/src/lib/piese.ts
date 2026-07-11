@@ -8,7 +8,7 @@ export const orVal = (v: string) => v.replace(/\\/g, '\\\\').replace(/"/g, '\\"'
 
 // Filtrul .or(...) comun pentru catalog (căutare pe 6 coloane). SURSĂ UNICĂ — folosit de
 // catalogRows (liste/forme) și catalogPage (browse), ca predicatele să nu diverge. `s` trebuie deja escapat cu orVal.
-const catalogSearchOr = (s: string) => `name_long.ilike."%${s}%",group_name.ilike."%${s}%",article_code.ilike."%${s}%",oem_code.ilike."%${s}%",barcode.ilike."%${s}%",model.ilike."%${s}%"`;
+const catalogSearchOr = (s: string) => `name_long.ilike."%${s}%",name_ro.ilike."%${s}%",group_name.ilike."%${s}%",article_code.ilike."%${s}%",oem_code.ilike."%${s}%",barcode.ilike."%${s}%",model.ilike."%${s}%"`;
 
 export async function listWarehouses() {
   const { data } = await getSupabase().from('piese_warehouses').select('*').order('id');
@@ -40,7 +40,7 @@ export async function listSuppliers() {
 // Filtrele ecranului Stoc (depozit / grupă / căutare). SURSĂ UNICĂ — folosite identic
 // și de query-ul de rânduri, și de cel care însumează valoarea, ca totalul să corespundă listei.
 type StockFilters = { warehouseId?: number; groupId?: number; search?: string };
-const stockSearchOr = (s: string) => `name_long.ilike."%${s}%",group_name.ilike."%${s}%",barcode.ilike."%${s}%",model.ilike."%${s}%"`;
+const stockSearchOr = (s: string) => `name_long.ilike."%${s}%",name_ro.ilike."%${s}%",group_name.ilike."%${s}%",article_code.ilike."%${s}%",oem_code.ilike."%${s}%",barcode.ilike."%${s}%",model.ilike."%${s}%"`;
 function stockFiltered(select: string, opts: StockFilters, exactCount = false): any {
   let q: any = exactCount
     ? getSupabase().from('piese_stock_rows').select(select, { count: 'exact' })
@@ -56,7 +56,7 @@ const VALUE_SUM_CAP = 50000;
 
 // Coloanele aduse pentru rânduri. Pentru VINZATOR NU aducem deloc `avg_cost`/`value` din baza de date
 // (apărare în adâncime: service-role trece peste RLS, deci codul e singura barieră — nu doar UI-ul).
-const STOCK_COLS_BASE = 'part_id, warehouse_id, group_name, name_long, manufacturer, model, barcode, unit, warehouse_name, location_label, min_qty, qty';
+const STOCK_COLS_BASE = 'part_id, warehouse_id, group_name, name_long, name_ro, manufacturer, model, barcode, unit, warehouse_name, location_label, min_qty, qty';
 const STOCK_COLS_COST = `${STOCK_COLS_BASE}, avg_cost, value`;
 
 // Stoc paginat + totalul REAL. Înainte era `.limit(1000)` fără paginare, iar valoarea se aduna doar
@@ -127,7 +127,7 @@ export async function catalogPage(opts: { search?: string; groupId?: number; pag
 // Etichetă bogată a piesei (denumire + producător (model) + articol). SURSĂ UNICĂ — folosită
 // de căutarea din formulare (search-parts) și la crearea „din mers" (part-actions), ca să nu difere.
 export function partLabel(p: Record<string, unknown>): string {
-  const name = (p.name_long as string) || (p.group_name as string) || '';
+  const name = (p.name_ro as string) || (p.name_long as string) || (p.group_name as string) || '';
   const mm = `${(p.manufacturer as string) ?? ''} ${p.model ? '(' + p.model + ')' : ''}`.trim();
   const art = p.article_code ? ' · ' + (p.article_code as string) : '';
   return `${name}${mm ? ' — ' + mm : ''}${art}`.trim();
@@ -232,7 +232,7 @@ export async function locatePart(warehouseId: number, code: string) {
   const e = orVal(c);
   const { data: p } = await getSupabase().from('piese_catalog_rows')
     .select('id, group_name, manufacturer, model')
-    .or(`barcode.eq."${e}",article_code.eq."${e}",oem_code.eq."${e}",group_name.ilike."%${e}%",name_long.ilike."%${e}%"`).limit(1).maybeSingle();
+    .or(`barcode.eq."${e}",article_code.eq."${e}",oem_code.eq."${e}",group_name.ilike."%${e}%",name_long.ilike."%${e}%",name_ro.ilike."%${e}%"`).limit(1).maybeSingle();
   if (!p) return { found: false as const };
   const { data: loc } = await getSupabase().from('piese_part_locations').select('location_label').eq('warehouse_id', warehouseId).eq('part_id', (p as any).id).maybeSingle();
   const placement = loc ? { ...parseLocation((loc as any).location_label), label: (loc as any).location_label } : null;

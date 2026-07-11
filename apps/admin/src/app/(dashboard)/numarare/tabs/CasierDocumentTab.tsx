@@ -3,14 +3,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   getCasierDocument,
+  saveCasierCorrections,
   getActiveDriversForPicker,
   getActiveVehiclesForPicker,
   getActiveRoutesForPicker,
   type CasierRow,
+  type CasierCorrectionInput,
+  type CasierManualInput,
   type DriverOption,
   type VehicleOption,
   type RouteOption,
 } from './incasareActions';
+
+// Cheia DB a comentariului (corectabil), folosită și de corrected_fields, și de payload.
+const COMMENT_DB_KEY = 'comment';
 
 interface Props {
   ziua: string;            // ziua selectată (din shapă-le părinte)
@@ -30,15 +36,19 @@ type EditableRow = {
   NumarFoaie: string;
   DataFoaie: string;
   PusLa: string;             // timestamptz ISO, read-only — când s-a introdus foaia
-  // Sume — Tomberon, dar editabile (override pentru cazuri speciale)
-  Incasare: number;          // suma_numerar (cash)
+  // Sume — Tomberon, dar corectabile (cash-ul NU)
+  Incasare: number;          // suma_numerar (cash) — read-only
   Ligotnici: number;         // ligotniki0_suma (lei)
   LigotniciGara: number;     // ligotniki_vokzal_suma
   Diagrame: number;          // diagrama
   Combustibil: number;       // dt_suma
   CheltuieliSupl: number;    // dop_rashodi
   Comentariu: string;
-  // Stare
+  // Stare / persistență
+  IsManual: boolean;         // rând adăugat manual (foaie fizică fără tomberon)
+  ManualId: string | null;   // id-ul din casier_manual_rows (null = nesalvat încă)
+  NormNr: string | null;     // cheia corecției pentru rândurile tomberon
+  Corrected: Set<string>;    // cheile DB corectate (pentru colorare per-celulă + salvare)
   __pristine: boolean;
   __hasGrafic: boolean;
 };
@@ -61,6 +71,11 @@ function rowFromCasier(c: CasierRow, idx: number): EditableRow {
     Combustibil: Number(c.dt_suma) || 0,
     CheltuieliSupl: Number(c.dop_rashodi) || 0,
     Comentariu: c.comment || '',
+    IsManual: c.is_manual,
+    ManualId: c.manual_id,
+    NormNr: c.norm_nr,
+    // Evidențierea corecțiilor persistă: se re-hidratează din corrected_fields întors de DB.
+    Corrected: new Set(c.corrected_fields || []),
     __pristine: true,
     __hasGrafic: c.has_grafic_match,
   };
@@ -83,6 +98,11 @@ function formatPusLa(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
   return pusLaFormatter.format(d).replace(',', '');
+}
+
+// Sumă read-only: gol dacă 0, altfel numărul cu max 2 zecimale.
+function fmtSum(n: number): string {
+  return n ? String(Math.round(n * 100) / 100) : '';
 }
 
 // ─── Sortare pe cap de tabel ───
@@ -123,7 +143,14 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
   const [docDate, setDocDate] = useState<string>(ziua);
   const [rows, setRows] = useState<EditableRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [hasUnsaved, setHasUnsaved] = useState(false);
+  // Mod „Corectare": câmpurile devin editabile doar când e activ.
+  const [editMode, setEditMode] = useState(false);
+  // Id-uri de rânduri manuale SALVATE pe care le-a șters, de trimis la server la Save.
+  const deletedManualIds = useRef<Set<string>>(new Set());
+  // norm_nr-urile ale căror corecții au fost revocate (revin la valoarea brută din tomberon).
+  const revokedCorrections = useRef<Set<string>>(new Set());
 
   // Sortare + filtru — afectează DOAR afișarea, niciodată datele din `rows`.
   const [sortKey, setSortKey] = useState<SortKey>('N');
@@ -165,6 +192,8 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
         setRows(data.map((r, i) => rowFromCasier(r, i)));
         setHasUnsaved(false);
         setDateFilter('');  // altă zi → filtrul vechi ar putea ascunde tot
+        deletedManualIds.current.clear();
+        revokedCorrections.current.clear();
       })
       .finally(() => setLoading(false));
   }, [docDate]);
@@ -175,6 +204,11 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
     [rows],
   );
 
+  // Dacă ziua filtrată dispare (rânduri editate/șterse), filtrul ar goli tabelul fără motiv vizibil.
+  useEffect(() => {
+    if (dateFilter && !dateOptions.includes(dateFilter)) setDateFilter('');
+  }, [dateFilter, dateOptions]);
+
   // Ce se vede pe ecran: filtrat, apoi sortat. `rows` rămâne sursa de adevăr.
   const displayRows = useMemo(() => {
     const filtered = dateFilter ? rows.filter(r => r.DataFoaie === dateFilter) : rows;
@@ -183,12 +217,11 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
 
   const isFiltered = dateFilter !== '';
 
-  // Totalurile urmăresc ce e AFIȘAT — altfel, cu filtru pus, TOTAL n-ar corespunde rândurilor.
-  // Atenție la salvare/printare (Phase 2): totalul PERSISTAT se calculează peste `rows`
-  // (ziua întreagă), nu peste `displayRows`, altfel un filtru activ ar salva un total parțial.
-  const totals = useMemo(() => {
+  // Două totaluri, ambele pe ce e AFIȘAT: rândurile din tomberon (cu corecțiile aplicate)
+  // și rândurile adăugate manual. Cu filtru pus, urmăresc ce se vede.
+  const totalsFor = (list: EditableRow[]) => {
     const sum = (k: keyof EditableRow) =>
-      displayRows.reduce((s, r) => s + (typeof r[k] === 'number' ? (r[k] as number) : 0), 0);
+      list.reduce((s, r) => s + (typeof r[k] === 'number' ? (r[k] as number) : 0), 0);
     return {
       Incasare: sum('Incasare'),
       Ligotnici: sum('Ligotnici'),
@@ -197,7 +230,10 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
       Combustibil: sum('Combustibil'),
       CheltuieliSupl: sum('CheltuieliSupl'),
     };
-  }, [displayRows]);
+  };
+  const totalsTomberon = useMemo(() => totalsFor(displayRows.filter(r => !r.IsManual)), [displayRows]);
+  const totalsManual = useMemo(() => totalsFor(displayRows.filter(r => r.IsManual)), [displayRows]);
+  const hasManualRows = useMemo(() => displayRows.some(r => r.IsManual), [displayRows]);
 
   function toggleSort(key: SortKey) {
     if (key === sortKey) {
@@ -217,11 +253,51 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
     setHasUnsaved(true);
   }
 
+  // Editarea unui câmp CORECTABIL (sumă/comentariu). Pe rândurile tomberon marchează câmpul
+  // ca fiind corectat DOAR dacă valoarea chiar se schimbă (altfel nu persistăm un override egal
+  // cu brutul). Pe rândurile manuale doar setează valoarea (toate câmpurile lor se salvează).
+  function updateCorrectable<K extends keyof EditableRow>(
+    rowKey: string, uiKey: K, dbKey: string, value: EditableRow[K],
+  ) {
+    // Mutarea ref-ului se face ÎN AFARA updater-ului (updater-ele setState trebuie să fie pure).
+    const target = rows.find(r => r.row_key === rowKey);
+    const changed = !!target && !target.IsManual && value !== target[uiKey];
+    if (changed && target?.NormNr) {
+      // Dacă exista o revocare în așteptare pe acest rând, o anulăm — s-a corectat din nou.
+      revokedCorrections.current.delete(target.NormNr);
+    }
+    setRows(prev => prev.map(r => {
+      if (r.row_key !== rowKey) return r;
+      const Corrected = (!r.IsManual && value !== r[uiKey])
+        ? new Set(r.Corrected).add(dbKey)
+        : r.Corrected;
+      return { ...r, [uiKey]: value, Corrected, __pristine: false };
+    }));
+    setHasUnsaved(true);
+  }
+
+  // Revocă TOATE corecțiile unui rând tomberon: se marchează pentru ștergere pe server, iar la
+  // reîncărcare rândul revine la valorile brute din tomberon.
+  function revokeCorrections(rowKey: string) {
+    const target = rows.find(r => r.row_key === rowKey);
+    if (!target || target.IsManual || !target.NormNr) return;
+    revokedCorrections.current.add(target.NormNr);
+    setRows(prev => prev.map(r =>
+      r.row_key === rowKey ? { ...r, Corrected: new Set<string>(), __pristine: false } : r,
+    ));
+    setHasUnsaved(true);
+  }
+
   function addRow() {
+    // Cheia se calculează în afara updater-ului: updater-ele setState trebuie să fie pure
+    // (React le poate invoca de două ori în StrictMode).
+    const rowKey = `manual-${Date.now()}-${++manualSeq.current}`;
+    // Rândul nou primește DataFoaie = docDate; cu filtrul pe altă zi ar fi invizibil.
+    setDateFilter('');
     setRows(prev => [
       ...prev,
       {
-        row_key: `manual-${Date.now()}-${++manualSeq.current}`,
+        row_key: rowKey,
         N: prev.length + 1,
         Ora: '',
         Ruta: '',
@@ -237,6 +313,10 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
         Combustibil: 0,
         CheltuieliSupl: 0,
         Comentariu: '',
+        IsManual: true,
+        ManualId: null,      // nesalvat încă
+        NormNr: null,
+        Corrected: new Set(),
         __pristine: false,
         __hasGrafic: false,
       },
@@ -245,22 +325,110 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
   }
 
   function deleteRow(rowKey: string) {
-    setRows(prev => prev.filter(r => r.row_key !== rowKey).map((r, i) => ({ ...r, N: i + 1 })));
+    setRows(prev => {
+      const target = prev.find(r => r.row_key === rowKey);
+      // Dacă rândul manual era deja salvat, reține id-ul pentru ștergerea pe server.
+      if (target?.IsManual && target.ManualId) deletedManualIds.current.add(target.ManualId);
+      return prev.filter(r => r.row_key !== rowKey).map((r, i) => ({ ...r, N: i + 1 }));
+    });
     setHasUnsaved(true);
   }
 
-  function handleClose() {
-    if (hasUnsaved && !confirm('Sunt modificări nesalvate. Sigur închizi?')) return;
-    // Reset
+  function reload() {
     setLoading(true);
     getCasierDocument(docDate).then(data => {
       setRows(data.map((r, i) => rowFromCasier(r, i)));
       setHasUnsaved(false);
+      setDateFilter('');
+      deletedManualIds.current.clear();
+      revokedCorrections.current.clear();
     }).finally(() => setLoading(false));
   }
 
-  function handleSave() {
-    alert('Phase 1: doar interfața.\nSalvarea în BD vine la următorul pas.');
+  function handleClose() {
+    if (hasUnsaved && !confirm('Sunt modificări nesalvate. Sigur închizi?')) return;
+    setEditMode(false);
+    reload();
+  }
+
+  async function handleSave() {
+    // Corecții: doar rândurile tomberon cu câmpuri corectate. Trimit valoarea pentru fiecare
+    // cheie din Corrected, null pentru rest (server-ul șterge corecția dacă totul e null).
+    const corrections: CasierCorrectionInput[] = rows
+      .filter(r => !r.IsManual && r.NormNr && r.Corrected.size > 0)
+      .map(r => ({
+        norm_nr: r.NormNr as string,
+        diagrama: r.Corrected.has('diagrama') ? r.Diagrame : null,
+        ligotniki0_suma: r.Corrected.has('ligotniki0_suma') ? r.Ligotnici : null,
+        ligotniki_vokzal_suma: r.Corrected.has('ligotniki_vokzal_suma') ? r.LigotniciGara : null,
+        dt_suma: r.Corrected.has('dt_suma') ? r.Combustibil : null,
+        dop_rashodi: r.Corrected.has('dop_rashodi') ? r.CheltuieliSupl : null,
+        comment: r.Corrected.has(COMMENT_DB_KEY) ? r.Comentariu : null,
+      }));
+
+    // Rânduri manuale: rezolv id-urile șofer/rută din nomenclator (best-effort), păstrez textul.
+    const manualUpserts: CasierManualInput[] = rows
+      .filter(r => r.IsManual)
+      .map(r => ({
+        id: r.ManualId,
+        foaie_nr: r.NumarFoaie || null,
+        data_foaie: r.DataFoaie || null,
+        driver_id: drivers.find(d => d.full_name === r.Sofer)?.id ?? null,
+        driver_name: r.Sofer || null,
+        crm_route_id: routes.find(rt => rt.display_name === r.Ruta)?.id ?? null,
+        route_name: r.Ruta || null,
+        vehicle_plate: r.Masina || null,
+        diagrama: r.Diagrame,
+        ligotniki0_suma: r.Ligotnici,
+        ligotniki_vokzal_suma: r.LigotniciGara,
+        dt_suma: r.Combustibil,
+        dop_rashodi: r.CheltuieliSupl,
+        comment: r.Comentariu || null,
+      }));
+
+    // Corecțiile revocate: trimit o intrare cu toate câmpurile null → server-ul o șterge.
+    // (Sar peste cele care au primit între timp o corecție nouă, deja incluse mai sus.)
+    const alreadySent = new Set(corrections.map(c => c.norm_nr));
+    for (const norm_nr of revokedCorrections.current) {
+      if (alreadySent.has(norm_nr)) continue;
+      corrections.push({
+        norm_nr,
+        diagrama: null, ligotniki0_suma: null, ligotniki_vokzal_suma: null,
+        dt_suma: null, dop_rashodi: null, comment: null,
+      });
+    }
+
+    const manualDeletes = [...deletedManualIds.current];
+
+    if (!corrections.length && !manualUpserts.length && !manualDeletes.length) {
+      setHasUnsaved(false);
+      return;
+    }
+
+    setSaving(true);
+    const res = await saveCasierCorrections(docDate, { corrections, manualUpserts, manualDeletes });
+    setSaving(false);
+
+    if (res.data) {
+      // Resincronizează cu adevărul din DB (id-uri/corrected_fields reale) chiar și pe eroare:
+      // rândurile manuale deja inserate primesc ManualId → nu se dublează la reîncercare.
+      setRows(res.data.map((r, i) => rowFromCasier(r, i)));
+      deletedManualIds.current.clear();
+      revokedCorrections.current.clear();
+      setHasUnsaved(false);  // starea locală = starea DB → nimic „nesalvat"
+      if (res.error) {
+        alert('Salvarea a întâmpinat o eroare: ' + res.error +
+          '\nAm reîncărcat starea din baza de date — verifică și reintrodu ce lipsește.');
+      }
+      return;
+    }
+
+    // Nici reîncărcarea n-a reușit: păstrăm editările locale ca să nu se piardă munca.
+    if (res.error) {
+      alert('Nu s-a putut salva: ' + res.error + '\nÎncearcă din nou.');
+      return;
+    }
+    setHasUnsaved(false);
   }
 
   // Stilurile de bază
@@ -364,6 +532,10 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
                 title="Click: revino la ordinea inițială (după ora cursei)">
                 N{sortArrow('N')}
               </th>
+              <th style={sortableTh('9%', 'PusLa')} onClick={() => toggleSort('PusLa')}
+                title="Data și ora la care s-a introdus foaia de parcurs în sistem (ora Chișinăului)">
+                Introdusă la{sortArrow('PusLa')}
+              </th>
               <th style={sortableTh('13%', 'Ruta')} onClick={() => toggleSort('Ruta')}
                 title="Click: sortează alfabetic după rută">
                 Ruta{sortArrow('Ruta')}
@@ -395,10 +567,6 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
                   ))}
                 </select>
               </th>
-              <th style={sortableTh('9%', 'PusLa')} onClick={() => toggleSort('PusLa')}
-                title="Data și ora la care s-a introdus foaia de parcurs (ora Chișinăului)">
-                Pus la{sortArrow('PusLa')}
-              </th>
               <th style={{ ...headerCellStyle, width: '6%' }}>Încasare</th>
               <th style={{ ...headerCellStyle, width: '5%' }}>Ligotnici</th>
               <th style={{ ...headerCellStyle, width: '5%' }}>Lig. gară</th>
@@ -418,143 +586,156 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
               </tr>
             )}
             {!loading && displayRows.map(r => {
-              // Roșu deschis = fără match în /grafic (foaie necunoscut)
-              // Galben deschis = modificat local
-              // Alb = sincronizat
-              const rowBg = !r.__pristine
-                ? '#fffbe6'
-                : !r.__hasGrafic
-                ? '#fdecea'
-                : '#fff';
+              // Albastru = rând manual (foaie fizică). Roșu = tomberon fără /grafic. Alb = normal.
+              const rowBg = r.IsManual ? '#e6f0ff' : (!r.__hasGrafic ? '#fdecea' : '#fff');
               const cs = (overrides: React.CSSProperties = {}): React.CSSProperties => ({
                 ...cellStyle, background: rowBg, ...overrides,
               });
               const ns = (overrides: React.CSSProperties = {}): React.CSSProperties => ({
                 ...numCellStyle, background: rowBg, ...overrides,
               });
+              // Celulă corectată: galben + accent, peste orice fundal de rând. Persistă din corrected_fields.
+              const corr = (dbKey: string, base: React.CSSProperties): React.CSSProperties =>
+                r.Corrected.has(dbKey)
+                  ? { ...base, background: '#fffbe6', fontWeight: 600, borderLeft: '2px solid #f5c518' }
+                  : base;
               const pusLaText = formatPusLa(r.PusLa);
+              // Rută/șofer/mașină/nr/dată se editează DOAR pe rândurile manuale (foile tomberon
+              // vin din /grafic; sumele lor se corectează, restul nu se schimbă de aici).
+              const canEditRowFields = editMode && r.IsManual;
+              // Celulă de sumă: input în mod Corectare, altfel text; marchează corecția.
+              const sumCell = (dbKey: string, uiKey: 'Ligotnici' | 'LigotniciGara' | 'Diagrame' | 'Combustibil' | 'CheltuieliSupl', step?: number) => (
+                <td style={corr(dbKey, ns())}>
+                  {editMode ? (
+                    <input type="number" min={0} step={step} style={editNumStyle} value={r[uiKey] || ''}
+                      onChange={e => updateCorrectable(r.row_key, uiKey, dbKey, Number(e.target.value) || 0)} />
+                  ) : fmtSum(r[uiKey])}
+                </td>
+              );
               return (
                 <tr key={r.row_key}>
                   <td style={cs({ textAlign: 'center', color: '#888' })}>{r.N}</td>
-                  <td style={cs()}>
-                    <select
-                      value={r.Ruta}
-                      onChange={e => {
-                        const picked = routes.find(rt => rt.display_name === e.target.value);
-                        const value = e.target.value;
-                        // Ruta + ora cursei într-o singură actualizare, țintind rândul după cheie.
-                        setRows(prev => prev.map(row => row.row_key === r.row_key
-                          ? {
-                              ...row,
-                              Ruta: value,
-                              Ora: !row.Ora && picked?.time_nord ? picked.time_nord : row.Ora,
-                              __pristine: false,
-                            }
-                          : row));
-                        setHasUnsaved(true);
-                      }}
-                      style={editInputStyle}
-                    >
-                      <option value="">— alege rută —</option>
-                      {/* Dacă valoarea curentă nu e în nomenclator, o păstrăm ca opțiune temporară */}
-                      {r.Ruta && !routes.some(rt => rt.display_name === r.Ruta) && (
-                        <option value={r.Ruta}>{r.Ruta} (custom)</option>
-                      )}
-                      {routes.map(rt => {
-                        const departure = rt.time_nord?.split('-')[0].trim();
-                        return (
-                          <option key={rt.id} value={rt.display_name}>
-                            {departure ? `${departure} · ${rt.display_name}` : rt.display_name}
-                          </option>
-                        );
-                      })}
-                    </select>
-                  </td>
-                  <td style={cs()}>
-                    <select
-                      value={r.Sofer}
-                      onChange={e => updateCell(r.row_key, 'Sofer', e.target.value)}
-                      style={editInputStyle}
-                    >
-                      <option value="">— alege șofer —</option>
-                      {r.Sofer && !drivers.some(d => d.full_name === r.Sofer) && (
-                        <option value={r.Sofer}>{r.Sofer}</option>
-                      )}
-                      {drivers.map(d => (
-                        <option key={d.id} value={d.full_name}>{d.full_name}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td style={cs({ fontFamily: 'var(--font-mono)' })}>
-                    <select
-                      value={r.Masina}
-                      onChange={e => updateCell(r.row_key, 'Masina', e.target.value)}
-                      style={{ ...editInputStyle, fontFamily: 'var(--font-mono)' }}
-                    >
-                      <option value="">—</option>
-                      {r.Masina && !vehicles.some(v => v.plate_number === r.Masina) && (
-                        <option value={r.Masina}>{r.Masina} (custom)</option>
-                      )}
-                      {vehicles.map(v => (
-                        <option key={v.id} value={v.plate_number}>{v.plate_number}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td style={cs({ fontFamily: 'var(--font-mono)' })}>
-                    <input style={{ ...editInputStyle, fontFamily: 'var(--font-mono)' }} value={r.NumarFoaie}
-                      onChange={e => updateCell(r.row_key, 'NumarFoaie', e.target.value)} />
-                  </td>
-                  <td style={cs()}>
-                    <input
-                      type="date"
-                      className="casier-date-input"
-                      style={{
-                        ...editInputStyle,
-                        // Highlight când diferă de ziua documentului
-                        color: r.DataFoaie && r.DataFoaie !== docDate ? '#f57c00' : 'inherit',
-                        fontWeight: r.DataFoaie && r.DataFoaie !== docDate ? 600 : 400,
-                      }}
-                      value={r.DataFoaie}
-                      onChange={e => updateCell(r.row_key, 'DataFoaie', e.target.value)}
-                      title={r.DataFoaie && r.DataFoaie !== docDate
-                        ? `Foaia e introdusă în /grafic pe ${r.DataFoaie}, plata făcută pe ${docDate}`
-                        : ''}
-                    />
-                  </td>
                   <td style={cs({ textAlign: 'center', color: pusLaText ? '#555' : '#bbb' })}
                     title={pusLaText
-                      ? `Foaia a fost introdusă la ${pusLaText} (ora Chișinăului)`
-                      : 'Foaia nu are corespondent în /grafic — nu se știe când a fost introdusă'}>
+                      ? `Foaia a fost introdusă în sistem la ${pusLaText} (ora Chișinăului)`
+                      : (r.IsManual ? 'Rând adăugat manual' : 'Foaia nu are corespondent în /grafic')}>
                     {pusLaText || '—'}
                   </td>
-                  <td style={ns()}>{Math.round(r.Incasare)}</td>
-                  <td style={ns()}>
-                    <input type="number" min={0} style={editNumStyle} value={r.Ligotnici || ''}
-                      onChange={e => updateCell(r.row_key, 'Ligotnici', Number(e.target.value) || 0)} />
-                  </td>
-                  <td style={ns()}>
-                    <input type="number" min={0} style={editNumStyle} value={r.LigotniciGara || ''}
-                      onChange={e => updateCell(r.row_key, 'LigotniciGara', Number(e.target.value) || 0)} />
-                  </td>
-                  <td style={ns()}>
-                    <input type="number" min={0} step={0.01} style={editNumStyle} value={r.Diagrame || ''}
-                      onChange={e => updateCell(r.row_key, 'Diagrame', Number(e.target.value) || 0)} />
-                  </td>
-                  <td style={ns()}>
-                    <input type="number" min={0} step={0.01} style={editNumStyle} value={r.Combustibil || ''}
-                      onChange={e => updateCell(r.row_key, 'Combustibil', Number(e.target.value) || 0)} />
-                  </td>
-                  <td style={ns()}>
-                    <input type="number" min={0} step={0.01} style={editNumStyle} value={r.CheltuieliSupl || ''}
-                      onChange={e => updateCell(r.row_key, 'CheltuieliSupl', Number(e.target.value) || 0)} />
+                  <td style={cs()}>
+                    {canEditRowFields ? (
+                      <select
+                        value={r.Ruta}
+                        onChange={e => {
+                          const picked = routes.find(rt => rt.display_name === e.target.value);
+                          const value = e.target.value;
+                          setRows(prev => prev.map(row => row.row_key === r.row_key
+                            ? {
+                                ...row,
+                                Ruta: value,
+                                Ora: !row.Ora && picked?.time_nord ? picked.time_nord : row.Ora,
+                                __pristine: false,
+                              }
+                            : row));
+                          setHasUnsaved(true);
+                        }}
+                        style={editInputStyle}
+                      >
+                        <option value="">— alege rută —</option>
+                        {r.Ruta && !routes.some(rt => rt.display_name === r.Ruta) && (
+                          <option value={r.Ruta}>{r.Ruta} (custom)</option>
+                        )}
+                        {routes.map(rt => {
+                          const departure = rt.time_nord?.split('-')[0].trim();
+                          return (
+                            <option key={rt.id} value={rt.display_name}>
+                              {departure ? `${departure} · ${rt.display_name}` : rt.display_name}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    ) : (r.Ruta || '—')}
                   </td>
                   <td style={cs()}>
-                    <input style={editInputStyle} value={r.Comentariu}
-                      onChange={e => updateCell(r.row_key, 'Comentariu', e.target.value)} />
+                    {canEditRowFields ? (
+                      <select
+                        value={r.Sofer}
+                        onChange={e => updateCell(r.row_key, 'Sofer', e.target.value)}
+                        style={editInputStyle}
+                      >
+                        <option value="">— alege șofer —</option>
+                        {r.Sofer && !drivers.some(d => d.full_name === r.Sofer) && (
+                          <option value={r.Sofer}>{r.Sofer}</option>
+                        )}
+                        {drivers.map(d => (
+                          <option key={d.id} value={d.full_name}>{d.full_name}</option>
+                        ))}
+                      </select>
+                    ) : (r.Sofer || '—')}
+                  </td>
+                  <td style={cs({ fontFamily: 'var(--font-mono)' })}>
+                    {canEditRowFields ? (
+                      <select
+                        value={r.Masina}
+                        onChange={e => updateCell(r.row_key, 'Masina', e.target.value)}
+                        style={{ ...editInputStyle, fontFamily: 'var(--font-mono)' }}
+                      >
+                        <option value="">—</option>
+                        {r.Masina && !vehicles.some(v => v.plate_number === r.Masina) && (
+                          <option value={r.Masina}>{r.Masina} (custom)</option>
+                        )}
+                        {vehicles.map(v => (
+                          <option key={v.id} value={v.plate_number}>{v.plate_number}</option>
+                        ))}
+                      </select>
+                    ) : (r.Masina || '—')}
+                  </td>
+                  <td style={cs({ fontFamily: 'var(--font-mono)' })}>
+                    {canEditRowFields ? (
+                      <input style={{ ...editInputStyle, fontFamily: 'var(--font-mono)' }} value={r.NumarFoaie}
+                        onChange={e => updateCell(r.row_key, 'NumarFoaie', e.target.value)} />
+                    ) : (r.NumarFoaie || '—')}
+                  </td>
+                  <td style={cs({
+                    color: r.DataFoaie && r.DataFoaie !== docDate ? '#f57c00' : 'inherit',
+                    fontWeight: r.DataFoaie && r.DataFoaie !== docDate ? 600 : 400,
+                  })}
+                    title={r.DataFoaie && r.DataFoaie !== docDate
+                      ? `Foaia e pe ${r.DataFoaie}, plata pe ${docDate}` : ''}>
+                    {canEditRowFields ? (
+                      <input
+                        type="date"
+                        className="casier-date-input"
+                        style={{ ...editInputStyle, color: 'inherit', fontWeight: 'inherit' }}
+                        value={r.DataFoaie}
+                        onChange={e => updateCell(r.row_key, 'DataFoaie', e.target.value)}
+                      />
+                    ) : (r.DataFoaie ? r.DataFoaie.split('-').reverse().join('.') : '—')}
+                  </td>
+                  <td style={ns({ color: r.IsManual ? '#bbb' : 'inherit' })}
+                    title={r.IsManual ? 'Rândurile manuale nu au numerar din tomberon' : ''}>
+                    {r.IsManual ? '—' : Math.round(r.Incasare)}
+                  </td>
+                  {sumCell('ligotniki0_suma', 'Ligotnici')}
+                  {sumCell('ligotniki_vokzal_suma', 'LigotniciGara')}
+                  {sumCell('diagrama', 'Diagrame', 0.01)}
+                  {sumCell('dt_suma', 'Combustibil', 0.01)}
+                  {sumCell('dop_rashodi', 'CheltuieliSupl', 0.01)}
+                  <td style={corr(COMMENT_DB_KEY, cs())}>
+                    {editMode ? (
+                      <input style={editInputStyle} value={r.Comentariu}
+                        onChange={e => updateCorrectable(r.row_key, 'Comentariu', COMMENT_DB_KEY, e.target.value)} />
+                    ) : r.Comentariu}
                   </td>
                   <td style={cs({ textAlign: 'center' })}>
-                    <button type="button" onClick={() => deleteRow(r.row_key)} title="Șterge rând"
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c00', fontSize: 14 }}>×</button>
+                    {editMode && r.IsManual && (
+                      <button type="button" onClick={() => deleteRow(r.row_key)} title="Șterge rândul manual"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c00', fontSize: 14 }}>×</button>
+                    )}
+                    {editMode && !r.IsManual && r.Corrected.size > 0 && (
+                      <button type="button" onClick={() => revokeCorrections(r.row_key)}
+                        title="Anulează corecțiile (revine la valorile din tomberon)"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c07a00', fontSize: 13 }}>↺</button>
+                    )}
                   </td>
                 </tr>
               );
@@ -570,18 +751,41 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
             )}
           </tbody>
           <tfoot>
-            <tr>
-              <td colSpan={7} style={{ ...headerCellStyle, textAlign: 'right' }}>
-                {isFiltered ? 'TOTAL (doar ziua filtrată)' : 'TOTAL'}
-              </td>
-              <td style={{ ...headerCellStyle, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{Math.round(totals.Incasare)}</td>
-              <td style={{ ...headerCellStyle, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{Math.round(totals.Ligotnici)}</td>
-              <td style={{ ...headerCellStyle, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{Math.round(totals.LigotniciGara)}</td>
-              <td style={{ ...headerCellStyle, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{Math.round(totals.Diagrame)}</td>
-              <td style={{ ...headerCellStyle, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{Math.round(totals.Combustibil)}</td>
-              <td style={{ ...headerCellStyle, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{Math.round(totals.CheltuieliSupl)}</td>
-              <td colSpan={2} style={{ ...headerCellStyle }}></td>
-            </tr>
+            {(() => {
+              const numTd = (v: number | string) => (
+                <td style={{ ...headerCellStyle, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{v}</td>
+              );
+              return (
+                <>
+                  <tr>
+                    <td colSpan={7} style={{ ...headerCellStyle, textAlign: 'right' }}>
+                      {isFiltered ? 'Total tomberon (ziua filtrată)' : 'Total tomberon'}
+                    </td>
+                    {numTd(Math.round(totalsTomberon.Incasare))}
+                    {numTd(Math.round(totalsTomberon.Ligotnici))}
+                    {numTd(Math.round(totalsTomberon.LigotniciGara))}
+                    {numTd(Math.round(totalsTomberon.Diagrame))}
+                    {numTd(Math.round(totalsTomberon.Combustibil))}
+                    {numTd(Math.round(totalsTomberon.CheltuieliSupl))}
+                    <td colSpan={2} style={{ ...headerCellStyle }}></td>
+                  </tr>
+                  {hasManualRows && (
+                    <tr>
+                      <td colSpan={7} style={{ ...headerCellStyle, textAlign: 'right', background: '#e6f0ff' }}>
+                        Total adăugat (manual)
+                      </td>
+                      {numTd('—')}
+                      {numTd(Math.round(totalsManual.Ligotnici))}
+                      {numTd(Math.round(totalsManual.LigotniciGara))}
+                      {numTd(Math.round(totalsManual.Diagrame))}
+                      {numTd(Math.round(totalsManual.Combustibil))}
+                      {numTd(Math.round(totalsManual.CheltuieliSupl))}
+                      <td colSpan={2} style={{ ...headerCellStyle, background: '#e6f0ff' }}></td>
+                    </tr>
+                  )}
+                </>
+              );
+            })()}
           </tfoot>
         </table>
       </div>
@@ -593,36 +797,51 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
         gap: 8,
       }}>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <button type="button" onClick={addRow} className="btn btn-sm" style={{ fontFamily }}>
-            + Adaugă rând
-          </button>
+          {editMode && (
+            <button type="button" onClick={addRow} className="btn btn-sm" style={{ fontFamily }}>
+              + Adaugă rând
+            </button>
+          )}
           <span style={{ fontSize: 11, color: '#888' }}>
-            {rows.length} plăți din Tomberon
+            {rows.filter(r => !r.IsManual).length} plăți din Tomberon
+            {rows.some(r => r.IsManual) && (
+              <> · <span style={{ color: '#2a5db0', fontWeight: 600 }}>{rows.filter(r => r.IsManual).length} adăugate</span></>
+            )}
             {isFiltered && (
               <> · <span style={{ color: '#f57c00', fontWeight: 600 }}>{displayRows.length} afișate (filtru pe {dateFilter.split('-').reverse().join('.')})</span></>
             )}
-            {rows.length > 0 && (
-              <> · <span style={{ color: '#c00' }}>{rows.filter(r => !r.__hasGrafic).length} fără /grafic</span></>
+            {rows.some(r => !r.IsManual && !r.__hasGrafic) && (
+              <> · <span style={{ color: '#c00' }}>{rows.filter(r => !r.IsManual && !r.__hasGrafic).length} fără /grafic</span></>
             )}
           </span>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button type="button" onClick={handleClose} className="btn" style={{ fontFamily }}>Închide</button>
-          <button type="button" onClick={handleSave} className="btn btn-primary" style={{ fontFamily }}
-            disabled={!hasUnsaved}
-            title={!hasUnsaved ? 'Nimic de salvat' : 'Salvează modificările'}>
-            OK (salvează)
-          </button>
+          {!editMode ? (
+            <button type="button" onClick={() => setEditMode(true)} className="btn btn-primary" style={{ fontFamily }}>
+              ✎ Corectare
+            </button>
+          ) : (
+            <>
+              <button type="button" onClick={handleClose} className="btn" style={{ fontFamily }}>Anulează</button>
+              <button type="button" onClick={handleSave} className="btn btn-primary" style={{ fontFamily }}
+                disabled={!hasUnsaved || saving}
+                title={saving ? 'Se salvează…' : (!hasUnsaved ? 'Nimic de salvat' : 'Salvează corecțiile')}>
+                {saving ? 'Se salvează…' : 'OK (salvează)'}
+              </button>
+            </>
+          )}
         </div>
       </div>
 
       <p className="text-muted" style={{ fontSize: 11, marginTop: 8, fontFamily }}>
-        ⓘ Sursa: Tomberon (casa automată). Datele despre șofer/rută/mașină se trag din /grafic
-        când foaia se potrivește. Rândurile <span style={{ background: '#fdecea', padding: '0 4px' }}>roșu deschis</span> n-au /grafic.
-        Click pe <b>Ruta</b>, <b>Șoferi</b>, <b>DataFoaie</b> sau <b>Pus la</b> sortează (al doilea click inversează);
-        click pe <b>N</b> revine la ordinea inițială. <b>Pus la</b> = când s-a introdus foaia de parcurs (ora Chișinăului) —
+        ⓘ Sursa: Tomberon (casa automată); șofer/rută/mașină se trag din /grafic.
+        Apasă <b>✎ Corectare</b> ca să modifici sumele unei foi sau să adaugi o foaie fizică.
+        Celulele <span style={{ background: '#fffbe6', borderLeft: '2px solid #f5c518', padding: '0 4px', fontWeight: 600 }}>galbene</span> = corectate manual;
+        rândurile <span style={{ background: '#e6f0ff', padding: '0 4px' }}>albastre</span> = adăugate manual (fără numerar din tomberon);
+        <span style={{ background: '#fdecea', padding: '0 4px' }}>roșii</span> = tomberon fără /grafic.
+        Click pe <b>Ruta</b>, <b>Șoferi</b>, <b>DataFoaie</b>, <b>Introdusă la</b> sortează (al doilea click inversează);
+        click pe <b>N</b> revine la ordinea inițială. <b>Introdusă la</b> = când s-a introdus foaia în sistem (ora Chișinăului) —
         poate fi în altă zi decât DataFoaie, fiindcă foaia se pune adesea din ajun.
-        Phase 1: doar interfața vizuală + editare locală + totaluri.
       </p>
     </div>
   );

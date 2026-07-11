@@ -289,6 +289,10 @@ export async function getActiveRoutesForPicker(): Promise<RouteOption[]> {
 
 export interface CasierRow {
   row_key: string;
+  norm_nr: string | null;      // norm_foaie(sofer_id) — cheia corecției; null la rândurile manuale
+  is_manual: boolean;          // true = rând adăugat manual (foaie fizică fără tomberon)
+  manual_id: string | null;    // id-ul din casier_manual_rows (doar la rândurile manuale)
+  corrected_fields: string[];  // câmpurile de sumă/comentariu corectate (pentru colorare per-celulă)
   foaie_nr: string;
   ziua: string;            // ziua plății la casă (kiosk)
   data_foaie: string | null; // ziua /grafic pentru această foaie (poate fi alta sau null)
@@ -493,6 +497,164 @@ export async function deleteOverride(
     .match({ receipt_nr: receiptNr, ziua });
   if (error) return { error: error.message };
   return {};
+}
+
+// ─── Corecții sume + rânduri manuale în Document casier ───
+
+/** Corecția pentru o foaie tomberon existentă. null pe un câmp = nicio corecție (păstrează brutul). */
+export interface CasierCorrectionInput {
+  norm_nr: string;
+  diagrama: number | null;
+  ligotniki0_suma: number | null;
+  ligotniki_vokzal_suma: number | null;
+  dt_suma: number | null;
+  dop_rashodi: number | null;
+  comment: string | null;
+}
+
+/** Rând manual (foaie fizică fără tomberon). id null = insert nou; uuid = update. Fără cash. */
+export interface CasierManualInput {
+  id: string | null;
+  foaie_nr: string | null;
+  data_foaie: string | null;
+  driver_id: string | null;
+  driver_name: string | null;
+  crm_route_id: number | null;
+  route_name: string | null;
+  vehicle_plate: string | null;
+  diagrama: number;
+  ligotniki0_suma: number;
+  ligotniki_vokzal_suma: number;
+  dt_suma: number;
+  dop_rashodi: number;
+  comment: string | null;
+}
+
+export interface CasierSavePayload {
+  corrections: CasierCorrectionInput[];
+  manualUpserts: CasierManualInput[];
+  manualDeletes: string[];   // uuid-uri de șters
+}
+
+const CORR_SUM_KEYS = [
+  'diagrama', 'ligotniki0_suma', 'ligotniki_vokzal_suma', 'dt_suma', 'dop_rashodi',
+] as const;
+
+/**
+ * Salvează corecțiile de sume și rândurile manuale pentru o zi.
+ * Corecție cu toate câmpurile null = ștergere (revocare completă).
+ * Întoarce documentul reîncărcat, ca UI-ul să primească manual_id/corrected_fields reale.
+ */
+export async function saveCasierCorrections(
+  ziua: string,
+  payload: CasierSavePayload,
+): Promise<{ error?: string; data?: CasierRow[] }> {
+  const session = await verifySession();
+  if (!session) return { error: 'Neautorizat' };
+  if (!isEditor(session.role)) return { error: 'Doar evaluatorul poate corecta' };
+  if (!ziua) return { error: 'Zi lipsă' };
+
+  const sb = getSupabase();
+  const now = new Date().toISOString();
+
+  // Scrierile nu sunt într-o singură tranzacție (supabase-js). Ca să nu se dubleze rândurile
+  // manuale la o reîncercare după eșec parțial, întoarcem MEREU documentul reîncărcat (și pe
+  // eroare) — clientul își re-sincronizează id-urile reale înainte de un eventual retry.
+  let opError: string | undefined;
+  try {
+    // 1. Corecții: împarte în cele de șters (toate null) și cele de upsert.
+    const toDelete: string[] = [];
+    const toUpsert: Record<string, unknown>[] = [];
+    for (const c of payload.corrections) {
+      if (!c.norm_nr) continue;
+      const hasAny =
+        CORR_SUM_KEYS.some(k => c[k] !== null && c[k] !== undefined) ||
+        (c.comment !== null && c.comment !== undefined);
+      if (!hasAny) {
+        toDelete.push(c.norm_nr);
+      } else {
+        toUpsert.push({
+          ziua,
+          norm_nr: c.norm_nr,
+          diagrama: c.diagrama,
+          ligotniki0_suma: c.ligotniki0_suma,
+          ligotniki_vokzal_suma: c.ligotniki_vokzal_suma,
+          dt_suma: c.dt_suma,
+          dop_rashodi: c.dop_rashodi,
+          comment: c.comment,
+          created_by: session.id,
+          updated_by: session.id,
+          updated_at: now,
+        });
+      }
+    }
+
+    if (toDelete.length) {
+      const { error } = await sb
+        .from('casier_amount_corrections')
+        .delete()
+        .eq('ziua', ziua)
+        .in('norm_nr', toDelete);
+      if (error) throw new Error(error.message);
+    }
+    if (toUpsert.length) {
+      const { error } = await sb
+        .from('casier_amount_corrections')
+        .upsert(toUpsert, { onConflict: 'ziua,norm_nr' });
+      if (error) throw new Error(error.message);
+    }
+
+    // 2. Rânduri manuale: ștergeri (doar în ziua curentă, ca gardă), apoi upsert-uri.
+    if (payload.manualDeletes.length) {
+      const { error } = await sb
+        .from('casier_manual_rows')
+        .delete()
+        .eq('ziua', ziua)
+        .in('id', payload.manualDeletes);
+      if (error) throw new Error(error.message);
+    }
+    for (const m of payload.manualUpserts) {
+      const base = {
+        ziua,
+        foaie_nr: m.foaie_nr,
+        data_foaie: m.data_foaie,
+        driver_id: m.driver_id,
+        driver_name: m.driver_name,
+        crm_route_id: m.crm_route_id,
+        route_name: m.route_name,
+        vehicle_plate: m.vehicle_plate,
+        diagrama: m.diagrama,
+        ligotniki0_suma: m.ligotniki0_suma,
+        ligotniki_vokzal_suma: m.ligotniki_vokzal_suma,
+        dt_suma: m.dt_suma,
+        dop_rashodi: m.dop_rashodi,
+        comment: m.comment,
+        updated_by: session.id,
+        updated_at: now,
+      };
+      if (m.id) {
+        // Update — nu atinge created_by/created_at; gardă pe ziua curentă.
+        const { error } = await sb
+          .from('casier_manual_rows')
+          .update(base)
+          .eq('id', m.id)
+          .eq('ziua', ziua);
+        if (error) throw new Error(error.message);
+      } else {
+        const { error } = await sb
+          .from('casier_manual_rows')
+          .insert({ ...base, created_by: session.id });
+        if (error) throw new Error(error.message);
+      }
+    }
+  } catch (e) {
+    opError = e instanceof Error ? e.message : 'Eroare la salvare';
+  }
+
+  // 3. Reîncarcă documentul, cu id-urile/câmpurile reale (și pe eroare, pentru re-sincronizare).
+  const { data, error } = await sb.rpc('get_casier_document', { p_date: ziua });
+  if (error && !opError) opError = error.message;
+  return { error: opError, data: (data as CasierRow[]) || [] };
 }
 
 export async function confirmDay(

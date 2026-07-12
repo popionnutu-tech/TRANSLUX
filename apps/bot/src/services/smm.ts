@@ -121,14 +121,20 @@ interface FacebookPost {
   id: string;
   message?: string;
   created_time: string;
-  view_count: number;
+  // null = metrica indisponibilă la acest fetch (eroare insights / post non-video) —
+  // NU suprascrie valoarea existentă din DB cu 0 (lecția 06.2026: v19 a murit și
+  // colectorul a șters cu 0 toate vizualizările din fereastra de 90 zile).
+  view_count: number | null;
   like_count: number;
   comment_count: number;
   share_count: number;
 }
 
 export async function fetchFacebookPosts(account: SmmAccount): Promise<FacebookPost[]> {
-  const baseUrl = 'https://graph.facebook.com/v19.0';
+  // v19.0 a expirat în iunie 2026 → toate metricile post_impressions* au dispărut.
+  // Singura metrică de vizualizări rămasă la nivel de post e post_video_views
+  // (video/reels; postările foto nu mai au views în Graph API).
+  const baseUrl = 'https://graph.facebook.com/v23.0';
   const token = account.access_token;
 
   // Fetch posts from the last 90 days with pagination
@@ -166,16 +172,16 @@ export async function fetchFacebookPosts(account: SmmAccount): Promise<FacebookP
       );
       const detail = await detailRes.json();
 
-      let viewCount = 0;
+      let viewCount: number | null = null;
       try {
         const insightRes = await fetch(
-          `${baseUrl}/${raw.id}/insights?metric=post_impressions_unique&access_token=${encodeURIComponent(token)}`
+          `${baseUrl}/${raw.id}/insights?metric=post_video_views&period=lifetime&access_token=${encodeURIComponent(token)}`
         );
         const insight = await insightRes.json();
         if (insight.error) {
           console.warn(`Facebook insights error for post ${raw.id}: ${insight.error.message}`);
         } else {
-          viewCount = insight.data?.[0]?.values?.[0]?.value || 0;
+          viewCount = insight.data?.[0]?.values?.[0]?.value ?? null;
         }
       } catch (err) {
         console.warn(`Facebook insights fetch failed for post ${raw.id}:`, err);
@@ -227,20 +233,19 @@ export async function collectSmmData(): Promise<void> {
       } else if (account.platform === 'FACEBOOK') {
         const posts = await fetchFacebookPosts(account);
         for (const p of posts) {
-          await db().from('smm_posts').upsert(
-            {
-              account_id: account.id,
-              platform_post_id: p.id,
-              published_at: new Date(p.created_time).toISOString(),
-              title: (p.message || '').slice(0, 200) || null,
-              view_count: p.view_count,
-              like_count: p.like_count,
-              comment_count: p.comment_count,
-              share_count: p.share_count,
-              fetched_at: new Date().toISOString(),
-            },
-            { onConflict: 'account_id,platform_post_id' }
-          );
+          const row: Record<string, unknown> = {
+            account_id: account.id,
+            platform_post_id: p.id,
+            published_at: new Date(p.created_time).toISOString(),
+            title: (p.message || '').slice(0, 200) || null,
+            like_count: p.like_count,
+            comment_count: p.comment_count,
+            share_count: p.share_count,
+            fetched_at: new Date().toISOString(),
+          };
+          // view_count doar când metrica a răspuns — altfel păstrăm valoarea din DB
+          if (p.view_count !== null) row.view_count = p.view_count;
+          await db().from('smm_posts').upsert(row, { onConflict: 'account_id,platform_post_id' });
         }
         console.log(`Facebook: ${posts.length} posts synced for ${account.account_name}`);
       }

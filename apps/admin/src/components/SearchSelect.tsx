@@ -17,15 +17,21 @@ interface Props {
   searchFn?: (q: string) => Promise<SSOption[]>;
   selectedLabel?: string;
   minChars?: number;
+  autoFocus?: boolean; // focus pe input la montare (ex. rândul nou auto-adăugat la inventar/prihod)
 }
 
-export default function SearchSelect({ value, onSelect, placeholder = '— caută —', maxShown = 50, options, searchFn, selectedLabel, minChars = 1 }: Props) {
+export default function SearchSelect({ value, onSelect, placeholder = '— caută —', maxShown = 50, options, searchFn, selectedLabel, minChars = 1, autoFocus = false }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [hi, setHi] = useState(0);
   const [asyncResults, setAsyncResults] = useState<SSOption[]>([]);
   const [loading, setLoading] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Focus la montare doar dacă e cerut (rând nou auto-adăugat) → pune cursorul gata de scanat/tastat.
+  // Focus-ul declanșează onFocus → lista se deschide („Scrie ca să cauți…"), ceea ce e dorit pentru scanare rapidă.
+  useEffect(() => { if (autoFocus) inputRef.current?.focus(); }, [autoFocus]);
 
   const isAsync = !!searchFn;
   const currentLabel = isAsync ? (selectedLabel || '') : (options?.find((o) => o.id === value)?.label || '');
@@ -63,6 +69,7 @@ export default function SearchSelect({ value, onSelect, placeholder = '— caut�
   return (
     <div ref={boxRef} style={{ position: 'relative' }}>
       <input
+        ref={inputRef}
         style={{ width: '100%', paddingRight: value !== '' ? 26 : undefined }}
         value={open ? query : currentLabel}
         placeholder={currentLabel || placeholder}

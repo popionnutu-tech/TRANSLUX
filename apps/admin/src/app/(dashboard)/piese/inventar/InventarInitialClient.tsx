@@ -24,8 +24,26 @@ export default function InventarInitialClient({ warehouses, groups, initialLayou
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ t: 'ok' | 'danger'; m: string } | null>(null);
   const [newPartFor, setNewPartFor] = useState<number | null>(null); // indexul poziției care adaugă o piesă nouă
+  const [focusIdx, setFocusIdx] = useState<number | null>(null);      // rândul de focusat (nou adăugat) pentru scanare rapidă
 
   const setRow = (i: number, patch: Partial<Row>) => setRows((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
+
+  // Adaugă un rând nou care MOȘTENEȘTE locația ultimului rând (numeri un raft întreg fără s-o re-scrii) și-l focusează.
+  function addRow() {
+    setRows((ls) => [...ls, { part_id: '', qty: 1, location: ls[ls.length - 1]?.location || '' }]);
+    setFocusIdx(rows.length); // noul index = lungimea curentă (înainte de adăugare)
+  }
+
+  // Selectarea unei piese: dacă e pe ultimul rând, adaugă automat un rând nou (cu locația moștenită) și-l focusează,
+  // ca scanarea/căutarea să curgă piesă după piesă fără să apeși „+ Adaugă poziție".
+  function handlePick(i: number, o: { id: number; label: string } | null) {
+    setRows((ls) => {
+      const next: Row[] = ls.map((l, j) => (j === i ? { ...l, part_id: o ? o.id : '', part_label: o?.label } : l));
+      if (o && i === ls.length - 1) next.push({ part_id: '', qty: 1, location: ls[i].location || '' });
+      return next;
+    });
+    if (o && i === rows.length - 1) setFocusIdx(rows.length);
+  }
 
   async function onWarehouse(id: number) {
     setWarehouseId(id);
@@ -55,7 +73,7 @@ export default function InventarInitialClient({ warehouses, groups, initialLayou
         setMsg({ t: 'danger', m: `Stocul s-a salvat (${res.saved} piese), dar locațiile nu s-au fixat: ${res.locationError}. Reîncearcă salvarea.` });
       } else {
         setMsg({ t: 'ok', m: `Salvat: ${res.saved} piese pe stoc · ${res.placed} locații amplasate.` });
-        setRows([emptyRow()]);
+        setRows([emptyRow()]); setFocusIdx(null);
       }
     } catch (e: any) { setMsg({ t: 'danger', m: e.message }); } finally { setBusy(false); }
   }
@@ -66,7 +84,7 @@ export default function InventarInitialClient({ warehouses, groups, initialLayou
         <h2>Inventar inițial — pornește depozitul de la zero</h2>
         <p className="muted" style={{ marginTop: -6 }}>
           Scanează sau caută piesa, pune <strong>cantitatea faptică</strong> și <strong>locația</strong> (format <code>SECȚIE-RAFT-POLIȚĂ</code>, ex. <code>A-12-3</code>).
-          Piesa nouă intră pe stoc cu cost 0 — costul real vine din Prihod (recepție).
+          Locația se <strong>păstrează pe rândul următor</strong> — numeri un raft întreg fără s-o re-scrii. Piesa nouă intră pe stoc cu cost 0 — costul real vine din Prihod (recepție).
         </p>
         <div className="row" style={{ alignItems: 'flex-end' }}>
           <div className="form-row"><label>Depozit</label>
@@ -86,7 +104,7 @@ export default function InventarInitialClient({ warehouses, groups, initialLayou
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                       <div style={{ flex: 1 }}>
                         <SearchSelect searchFn={searchParts} value={l.part_id} selectedLabel={l.part_label}
-                          onSelect={(o) => setRow(i, { part_id: o ? o.id : '', part_label: o?.label })}
+                          onSelect={(o) => handlePick(i, o)} autoFocus={focusIdx === i}
                           placeholder="— scanează / caută piesa —" />
                       </div>
                       <button type="button" className="btn btn-outline" style={{ padding: '4px 10px', whiteSpace: 'nowrap' }} onClick={() => setNewPartFor(i)} title="Adaugă o piesă care nu există încă în catalog">+ nouă</button>
@@ -95,14 +113,14 @@ export default function InventarInitialClient({ warehouses, groups, initialLayou
                   </td>
                   <td><input type="number" min={1} value={l.qty} onChange={(e) => setRow(i, { qty: Number(e.target.value) })} /></td>
                   <td><input value={l.location} onChange={(e) => setRow(i, { location: e.target.value })} placeholder="A-12-3" /></td>
-                  <td>{rows.length > 1 && <button className="btn" onClick={() => setRows((ls) => ls.filter((_, j) => j !== i))} style={{ padding: '4px 10px' }}>×</button>}</td>
+                  <td>{rows.length > 1 && <button className="btn" onClick={() => { setRows((ls) => ls.filter((_, j) => j !== i)); setFocusIdx(null); }} style={{ padding: '4px 10px' }}>×</button>}</td>
                 </tr>
               );
             })}
           </tbody>
         </table>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
-          <button className="btn" onClick={() => setRows((ls) => [...ls, emptyRow()])}>+ Adaugă poziție</button>
+          <button className="btn" onClick={addRow}>+ Adaugă poziție</button>
           <span className="muted">{filled.length} piese · {placedCount} cu locație</span>
         </div>
         {msg && <div className={`alert ${msg.t}`} style={{ marginTop: 12 }}>{msg.m}</div>}
@@ -113,7 +131,7 @@ export default function InventarInitialClient({ warehouses, groups, initialLayou
 
       {layout && (
         <div className="card">
-          <h2>Harta depozitului <span className="muted" style={{ fontWeight: 400 }}>· se construiește pe măsură ce amplasezi piesele</span></h2>
+          <h2>Harta depozitului <span className="muted" style={{ fontWeight: 400 }}>· {layout.totalTypes ?? 0} piese deja amplasate în acest depozit</span></h2>
           <PieseDepotMap layout={layout} />
         </div>
       )}

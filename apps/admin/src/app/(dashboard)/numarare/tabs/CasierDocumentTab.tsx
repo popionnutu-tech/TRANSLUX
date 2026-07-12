@@ -106,7 +106,7 @@ function fmtSum(n: number): string {
 }
 
 // ─── Sortare pe cap de tabel ───
-// 'N' = ordinea de încărcare (SQL: după ora cursei). Celelalte: alfabetic/cronologic.
+// 'N' = ordinea de încărcare (cronologic, după „Introdus la"). Celelalte: alfabetic/cronologic.
 type SortKey = 'N' | 'Ruta' | 'Sofer' | 'DataFoaie' | 'PusLa';
 type SortDir = 'asc' | 'desc';
 
@@ -189,7 +189,18 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
     setLoading(true);
     getCasierDocument(docDate)
       .then(data => {
-        setRows(data.map((r, i) => rowFromCasier(r, i)));
+        // Ordinea implicită = cronologic după momentul introducerii foii ("Introdus la").
+        // Tomberonul NU reține ora (doar ziua), deci pus_la (created_at al bonului) e singura
+        // cronologie reală. Pe o perioadă (ex. 01–07), rândurile ies în ordinea zilelor.
+        // Foile fără pus_la (fără /grafic) și rândurile manuale rămân la sfârșit.
+        const pusLaTs = (r: CasierRow) => {
+          const t = r.pus_la ? new Date(r.pus_la).getTime() : NaN;
+          return Number.isNaN(t) ? Number.MAX_SAFE_INTEGER : t;
+        };
+        const ordered = [...data].sort(
+          (a, b) => (pusLaTs(a) - pusLaTs(b)) || (a.foaie_nr || '').localeCompare(b.foaie_nr || ''),
+        );
+        setRows(ordered.map((r, i) => rowFromCasier(r, i)));
         setHasUnsaved(false);
         setDateFilter('');  // altă zi → filtrul vechi ar putea ascunde tot
         deletedManualIds.current.clear();
@@ -532,7 +543,7 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
           <thead>
             <tr>
               <th style={sortableTh('2%', 'N')} onClick={() => toggleSort('N')}
-                title="Click: revino la ordinea inițială (după ora cursei)">
+                title="Click: revino la ordinea inițială (cronologic, după Introdus la)">
                 N{sortArrow('N')}
               </th>
               <th style={sortableTh('9%', 'PusLa')} onClick={() => toggleSort('PusLa')}

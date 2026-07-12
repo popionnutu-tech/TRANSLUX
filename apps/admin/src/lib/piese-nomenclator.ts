@@ -87,6 +87,20 @@ export async function setPartLocation(partId: number, warehouseId: number, d: an
   ));
 }
 
+// Upsert în MASĂ al locațiilor pentru un depozit — o singură cerere (folosit la „Inventar de la zero", unde
+// se amplasează zeci de piese odată). Doar etichete ne-goale (ștergerea rămâne pe calea individuală de mai sus).
+// NU trimitem min_qty: la INSERT ia default 0, iar la conflict NU-l suprascriem (păstrăm min-ul existent).
+export async function setPartLocationsBulk(warehouseId: number, items: { part_id: number; location_label: string }[]): Promise<number> {
+  const wid = Number(warehouseId);
+  if (!wid) throw new Error('Depozit invalid');
+  const rows = items
+    .filter((it) => Number(it.part_id) && txt(it.location_label))
+    .map((it) => ({ part_id: Number(it.part_id), warehouse_id: wid, location_label: txt(it.location_label) }));
+  if (!rows.length) return 0;
+  check(await getSupabase().from('piese_part_locations').upsert(rows, { onConflict: 'part_id,warehouse_id' }));
+  return rows.length;
+}
+
 // ── Furnizori ──
 export async function createSupplier(d: any) {
   if (!txt(d.name)) throw new Error('Denumirea furnizorului este obligatorie');

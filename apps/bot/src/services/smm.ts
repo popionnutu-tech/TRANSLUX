@@ -243,7 +243,9 @@ export async function collectSmmData(): Promise<void> {
             share_count: p.share_count,
             fetched_at: new Date().toISOString(),
           };
-          // view_count doar când metrica a răspuns — altfel păstrăm valoarea din DB
+          // view_count doar când metrica a răspuns — altfel păstrăm valoarea din DB.
+          // NU pachetați upsert-urile într-un singur .upsert([array]): PostgREST unifică
+          // cheile tuturor rândurilor și posturile fără view_count ar fi suprascrise cu 0.
           if (p.view_count !== null) row.view_count = p.view_count;
           await db().from('smm_posts').upsert(row, { onConflict: 'account_id,platform_post_id' });
         }

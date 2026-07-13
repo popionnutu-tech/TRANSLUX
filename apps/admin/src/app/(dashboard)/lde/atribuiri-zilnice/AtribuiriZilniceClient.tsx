@@ -1,18 +1,31 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import DirectionChips from '@/components/DirectionChips';
-import { saveManagerDirections, type AtribuiriAdminData } from './actions';
+import { saveManagerDirections, addManager, removeManager, type AtribuiriAdminData } from './actions';
 
 export default function AtribuiriZilniceClient({ data }: { data: AtribuiriAdminData }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [candidat, setCandidat] = useState('');
+  const [busy, setBusy] = useState(false);
 
   function onDateChange(value: string) {
     if (!value) return;
     startTransition(() => router.push(`/lde/atribuiri-zilnice?date=${value}`));
+  }
+
+  async function onAddManager() {
+    if (!candidat) return;
+    setBusy(true);
+    try { await addManager(candidat); setCandidat(''); router.refresh(); } finally { setBusy(false); }
+  }
+
+  async function onRemoveManager(id: string) {
+    setBusy(true);
+    try { await removeManager(id); router.refresh(); } finally { setBusy(false); }
   }
 
   return (
@@ -29,7 +42,7 @@ export default function AtribuiriZilniceClient({ data }: { data: AtribuiriAdminD
         <CardContent>
           {data.manageri.length === 0 && (
             <p className="text-sm text-muted-foreground">
-              Niciun utilizator cu rol MANAGER_LDE. Setează rolul din Mini App «Mostic» → Echipa.
+              Niciun manager încă — alege un utilizator Telegram mai jos și apasă «Adaugă manager».
             </p>
           )}
           {data.manageri.map((m) => (
@@ -42,8 +55,31 @@ export default function AtribuiriZilniceClient({ data }: { data: AtribuiriAdminD
                 options={data.optiuni}
                 onSave={(dirs) => saveManagerDirections(m.id, dirs)}
               />
+              <button
+                onClick={() => onRemoveManager(m.id)}
+                disabled={busy}
+                style={{ marginLeft: 'auto', fontSize: 12, padding: '2px 10px', borderRadius: 4, cursor: 'pointer', border: '1px solid var(--border, #ddd)', background: 'transparent', color: 'var(--danger, #c0392b)' }}
+              >scoate</button>
             </div>
           ))}
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.75rem', flexWrap: 'wrap' }}>
+            <select
+              value={candidat}
+              onChange={(e) => setCandidat(e.target.value)}
+              disabled={busy}
+              style={{ padding: '0.4rem 0.6rem', borderRadius: 6, border: '1px solid var(--border, #ddd)', minWidth: 220 }}
+            >
+              <option value="">— alege utilizator Telegram —</option>
+              {data.candidati.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+            </select>
+            <button
+              onClick={onAddManager}
+              disabled={!candidat || busy}
+              className="btn btn-primary"
+              style={{ padding: '0.4rem 0.9rem', borderRadius: 6, cursor: 'pointer', border: 'none', background: '#9B1B30', color: '#fff', fontWeight: 600 }}
+            >Adaugă manager</button>
+            <span className="text-sm text-muted-foreground">Userul primește rolul MANAGER_LDE și vede Mini App-ul «Atribuiri».</span>
+          </div>
         </CardContent>
       </Card>
 

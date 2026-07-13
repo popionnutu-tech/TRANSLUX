@@ -18,15 +18,26 @@ export interface AtribuireView {
   shift_number: number | null;
   crm_route_id: number | null;
   vehicle_id: string | null;
+  driver_id: string | null;
   status: string;
   verification_note: string | null;
   route_key: string;
   route_label: string;
   plate: string | null;
+  driver_name: string | null;
+  foaie: string | null;
   template_vehicle_id: string | null;
 }
 
 export interface PickerVehicle { id: string; plate: string; inDirection: boolean }
+export interface PickerSofer { id: string; name: string; inDirection: boolean }
+
+/** Nume scurt pentru chip: «Ion Popescu» → «Popescu I.» */
+export function shortName(full: string | null): string {
+  if (!full) return '';
+  const p = full.trim().split(/\s+/);
+  return p.length > 1 ? `${p[0]} ${p[1][0]}.` : p[0];
+}
 
 export const STATUS_BADGE: Record<string, { label: string; color: string }> = {
   planificat: { label: 'planificat', color: '#8a7f86' },

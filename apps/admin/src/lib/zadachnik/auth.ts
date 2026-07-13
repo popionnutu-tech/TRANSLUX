@@ -4,7 +4,7 @@ import { getSupabase } from '@/lib/supabase';
 // Telegram Mini App auth: validate initData (HMAC with bot token) → resolve public.users by telegram_id.
 // Всегда через service-role клиент (таблицы задачника закрыты RLS deny-all). Порт логики из TLX.
 
-export type ZRole = 'ADMIN' | 'CONTROLLER' | 'DIGITAL';
+export type ZRole = 'ADMIN' | 'CONTROLLER' | 'DIGITAL' | 'MANAGER_LDE';
 
 export interface ZUser {
   id: string;

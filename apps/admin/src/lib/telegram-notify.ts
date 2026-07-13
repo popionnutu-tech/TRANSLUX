@@ -5,15 +5,16 @@ export function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-/** Отправка одного сообщения в Telegram. Никогда не бросает — возвращает успех. */
-export async function sendTelegram(chatId: string | number, text: string): Promise<boolean> {
+/** Отправка одного сообщения в Telegram. Никогда не бросает — возвращает успех.
+ *  replyMarkup (опционально) — inline-клавиатура, напр. кнопка web_app в Mini App. */
+export async function sendTelegram(chatId: string | number, text: string, replyMarkup?: unknown): Promise<boolean> {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   if (!botToken) return false;
   try {
     const resp = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML', ...(replyMarkup ? { reply_markup: replyMarkup } : {}) }),
       // Serverless: без таймаута зависший Telegram держит инвокацию до maxDuration.
       signal: AbortSignal.timeout(5000),
     });

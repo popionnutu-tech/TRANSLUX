@@ -2,7 +2,7 @@
 // Enums
 // ============================================================
 
-export type UserRole = 'ADMIN' | 'CONTROLLER' | 'DIGITAL';
+export type UserRole = 'ADMIN' | 'CONTROLLER' | 'DIGITAL' | 'MANAGER_LDE';
 export type PointEnum = 'CHISINAU' | 'BALTI';
 // Kind of bot operator. MAIN = perron operator (full report). TAXI_ZONE = Chișinău
 // loading-zone operator who only enters the passenger count he brought (+geo).

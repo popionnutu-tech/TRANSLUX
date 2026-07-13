@@ -5,7 +5,7 @@ import { authFromInitData } from '@/lib/zadachnik/auth';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const SETTABLE_ROLES = ['CONTROLLER', 'DIGITAL'];
+const SETTABLE_ROLES = ['CONTROLLER', 'DIGITAL', 'MANAGER_LDE'];
 
 // Управление командой (экран «Echipa») — только ADMIN.
 export async function GET(req: Request) {
@@ -16,7 +16,7 @@ export async function GET(req: Request) {
   const { data } = await getSupabase()
     .from('users')
     .select('id, name, username, role, point, telegram_id, active')
-    .in('role', ['ADMIN', 'CONTROLLER', 'DIGITAL'])
+    .in('role', ['ADMIN', 'CONTROLLER', 'DIGITAL', 'MANAGER_LDE'])
     .order('role')
     .order('username');
   return NextResponse.json({ members: data ?? [] });
@@ -35,12 +35,12 @@ export async function POST(req: Request) {
   if (typeof body.name === 'string') patch.name = body.name.trim() || null;
   if (typeof body.role === 'string') {
     if (!SETTABLE_ROLES.includes(body.role)) {
-      return NextResponse.json({ error: 'rol invalid (doar CONTROLLER/DIGITAL)' }, { status: 400 });
+      return NextResponse.json({ error: 'rol invalid (doar CONTROLLER/DIGITAL/MANAGER_LDE)' }, { status: 400 });
     }
     patch.role = body.role;
-    // DIGITAL = только задачи, не оператор рейсов. Бот показывает отчёт по рейсу при наличии point,
-    // поэтому при переводе в DIGITAL снимаем point — иначе человек продолжит слать рейсы.
-    if (body.role === 'DIGITAL') patch.point = null;
+    // DIGITAL/MANAGER_LDE = только Mini App, не оператор рейсов. Бот показывает отчёт по рейсу
+    // при наличии point, поэтому снимаем point — иначе человек продолжит слать рейсы.
+    if (body.role === 'DIGITAL' || body.role === 'MANAGER_LDE') patch.point = null;
   }
   if (Object.keys(patch).length === 0) return NextResponse.json({ error: 'nimic de schimbat' }, { status: 400 });
 

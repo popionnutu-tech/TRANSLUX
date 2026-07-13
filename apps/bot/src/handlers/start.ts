@@ -53,6 +53,11 @@ export async function showMainMenu(ctx: BotContext) {
     await ctx.reply('Sarcinile tale sunt în aplicația „Mostic" — apasă butonul de meniu (≡) din stânga câmpului de mesaj.');
     return;
   }
+  // MANAGER_LDE = doar atribuiri zilnice (Mini App), fără raportare curse.
+  if (ctx.dbUser?.role === 'MANAGER_LDE') {
+    await ctx.reply('Atribuirile tale sunt în aplicația „Atribuiri" — apasă butonul de meniu (≡) din stânga câmpului de mesaj.');
+    return;
+  }
   if (!ctx.dbUser) {
     await ctx.reply('Acces restricționat. Solicită un link de invitație de la Administrator.');
     return;

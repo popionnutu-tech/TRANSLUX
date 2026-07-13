@@ -6,8 +6,9 @@ export const dynamic = 'force-dynamic';
 export default async function AtribuiriZilnicePage({
   searchParams,
 }: {
-  searchParams?: { date?: string };
+  searchParams: Promise<{ date?: string }>;
 }) {
-  const data = await getAtribuiriAdmin(searchParams?.date);
+  const { date } = await searchParams;
+  const data = await getAtribuiriAdmin(date);
   return <AtribuiriZilniceClient data={data} />;
 }

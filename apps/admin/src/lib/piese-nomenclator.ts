@@ -111,6 +111,21 @@ export async function updateSupplier(id: number, d: any) {
   check(await getSupabase().from('piese_suppliers').update({ name: txt(d.name), idno: txtOrNull(d.idno), contact: txtOrNull(d.contact) }).eq('id', id));
 }
 
+// Găsește (sau creează) un furnizor după nume — pentru furnizorul fictiv „SOLD INIȚIAL" (stocul de pornire cu cost).
+// Idempotent pe nume. Fără UNIQUE pe `name`, o cursă teoretică (2 salvări simultane) ar putea crea 2 rânduri —
+// risc neglijabil la un depozitar care lucrează secvențial; ambele ar funcționa oricum ca furnizor de sold inițial.
+export async function ensureSupplierByName(name: string): Promise<number> {
+  const nm = txt(name);
+  if (!nm) throw new Error('Nume furnizor gol');
+  const sb = getSupabase();
+  const { data: found, error: selErr } = await sb.from('piese_suppliers').select('id').eq('name', nm).limit(1).maybeSingle();
+  if (selErr) throw new Error(selErr.message);
+  if (found) return (found as { id: number }).id;
+  const { data, error } = await sb.from('piese_suppliers').insert({ name: nm }).select('id').single();
+  check({ error });
+  return (data as { id: number }).id;
+}
+
 // ── Clienți ──
 export async function createClient(d: any) {
   if (!txt(d.name)) throw new Error('Denumirea clientului este obligatorie');

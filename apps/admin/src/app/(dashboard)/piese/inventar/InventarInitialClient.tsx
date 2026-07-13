@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { saveInitialInventory, loadLayout } from './actions';
 import { searchParts } from '../search-parts';
 import SearchSelect from '@/components/SearchSelect';
@@ -25,6 +25,7 @@ export default function InventarInitialClient({ warehouses, groups, initialLayou
   const [msg, setMsg] = useState<{ t: 'ok' | 'danger'; m: string } | null>(null);
   const [newPartFor, setNewPartFor] = useState<number | null>(null); // indexul poziției care adaugă o piesă nouă
   const [focusIdx, setFocusIdx] = useState<number | null>(null);      // rândul de focusat (nou adăugat) pentru scanare rapidă
+  const idemRef = useRef('');                                         // cheie de idempotență a recepției cu cost — stabilă pe retry, resetată la succes
 
   const setRow = (i: number, patch: Partial<Row>) => setRows((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
 
@@ -66,10 +67,14 @@ export default function InventarInitialClient({ warehouses, groups, initialLayou
       if (dupIds.size) throw new Error('Ai aceeași piesă pe mai multe rânduri — las-o o singură dată.');
       const payload = filled.map((l) => ({ part_id: Number(l.part_id), counted_qty: l.qty, location_label: l.location.trim(), unit_cost: l.cost > 0 ? l.cost : 0 }));
       if (!payload.length) throw new Error('Adaugă cel puțin o piesă cu cantitate > 0.');
-      const res = await saveInitialInventory(warehouseId, payload);
+      // Cheie de idempotență generată o singură dată pe „intenția de salvare"; se păstrează pe retry (ca o
+      // recepție deja comisă la o pană de rețea să nu se dubleze) și se resetează abia după succes.
+      if (!idemRef.current) idemRef.current = crypto.randomUUID();
+      const res = await saveInitialInventory(warehouseId, payload, idemRef.current);
       setLayout(res.layout); // harta proaspătă vine din server action
-      setMsg({ t: 'ok', m: `Salvat: ${res.saved} piese pe stoc${res.received ? ` (${res.received} cu cost, ca recepție)` : ''} · ${res.placed} locații amplasate.` });
-      setRows([emptyRow()]); setFocusIdx(null);
+      const costNote = res.alreadyReceived ? ' (recepția cu cost era deja înregistrată — nu s-a dublat)' : (res.received ? ` (${res.received} cu cost, ca recepție)` : '');
+      setMsg({ t: 'ok', m: `Salvat: ${res.saved} piese pe stoc${costNote} · ${res.placed} locații amplasate.` });
+      setRows([emptyRow()]); setFocusIdx(null); idemRef.current = ''; // lot nou → cheie nouă
     } catch (e: any) { setMsg({ t: 'danger', m: e.message }); } finally { setBusy(false); }
   }
 

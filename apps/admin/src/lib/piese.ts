@@ -178,6 +178,36 @@ export async function createReceipt(p: { warehouse_id: number; supplier_id: numb
   return Number(data);
 }
 
+// Recepție de SOLD INIȚIAL, IDEMPOTENTĂ pe cheia clientului (trecută ca invoice_number, series='SOLD').
+// Indexul unic parțial `uq_piese_sold_initial_receipt` (migr. 235) respinge un duplicat cu aceeași cheie în
+// același depozit (pană de rețea + re-click) → 23505, pe care îl tratăm ca „deja înregistrat" (nu se dublează).
+export async function createInitialReceipt(p: { warehouse_id: number; supplier_id: number; idem_key: string; lines: { part_id: number; qty: number; unit_cost: number }[] }): Promise<{ docId: number | null; duplicate: boolean }> {
+  const { data, error } = await getSupabase().rpc('piese_create_receipt', {
+    p_wh: p.warehouse_id, p_supplier: p.supplier_id, p_series: 'SOLD', p_number: p.idem_key, p_lines: p.lines, p_user: null,
+  });
+  if (error) {
+    if ((error as { code?: string }).code === '23505') return { docId: null, duplicate: true };
+    throw new Error(error.message);
+  }
+  return { docId: Number(data), duplicate: false };
+}
+
+// Stoc + cost mediu curent pentru o piesă într-un depozit (pentru ecranul „Revizuire cost").
+export async function partStock(warehouseId: number, partId: number): Promise<{ qty: number; value: number; avgCost: number }> {
+  const { data } = await getSupabase().from('piese_current_stock').select('qty, value').eq('warehouse_id', warehouseId).eq('part_id', partId).maybeSingle();
+  const qty = Number((data as { qty?: number } | null)?.qty) || 0;
+  const value = Number((data as { value?: number } | null)?.value) || 0;
+  return { qty, value, avgCost: qty > 0 ? value / qty : 0 };
+}
+
+// Revizuirea costului mediu al unei piese, PĂSTRÂND cantitatea (RPC piese_recost, migr. 235).
+export async function recostPart(warehouseId: number, partId: number, newCost: number): Promise<{ qty: number; oldAvg: number; newCost: number }> {
+  const { data, error } = await getSupabase().rpc('piese_recost', { p_wh: warehouseId, p_part: partId, p_new_cost: newCost, p_user: null });
+  if (error) throw new Error(error.message);
+  const r = data as { qty: number; old_avg: number; new_cost: number };
+  return { qty: Number(r.qty), oldAvg: Number(r.old_avg), newCost: Number(r.new_cost) };
+}
+
 export async function issueAlert(warehouseId: number, vehicleId: number | null, partId: number) {
   const sb = getSupabase();
   const { data: cs } = await sb.from('piese_current_stock').select('qty').eq('part_id', partId).eq('warehouse_id', warehouseId).maybeSingle();

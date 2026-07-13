@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { verifySession, requireRole } from '@/lib/auth';
 import { assertWarehouseAllowed, PART_WRITE_ROLES } from '@/lib/piese-access';
 import { getCountSheet, submitInventory } from '@/lib/piese-ops';
-import { warehouseLayout, createReceipt } from '@/lib/piese';
+import { warehouseLayout, createInitialReceipt, partStock, recostPart } from '@/lib/piese';
 import { setPartLocationsBulk, ensureSupplierByName } from '@/lib/piese-nomenclator';
 
 export async function loadSheet(warehouseId: number) {
@@ -40,6 +40,7 @@ export async function loadLayout(warehouseId: number) {
 export async function saveInitialInventory(
   warehouseId: number,
   rows: { part_id: number; counted_qty: number; location_label?: string; unit_cost?: number }[],
+  idemKey: string,
 ) {
   const session = requireRole(await verifySession(), ...PART_WRITE_ROLES);
   await assertWarehouseAllowed(session, warehouseId);
@@ -77,15 +78,18 @@ export async function saveInitialInventory(
   }
   // (2) Locații — upsert în masă (idempotent). Dacă pică, aruncă ÎNAINTE de recepție → retry sigur.
   const placed = await setPartLocationsBulk(warehouseId, clean.map((r) => ({ part_id: r.part_id, location_label: (r.location_label || '').trim() })));
-  // (3) Stoc cu cost — RECEPȚIE FIFO prin „SOLD INIȚIAL" (ULTIMA scriere, non-idempotentă).
+  // (3) Stoc cu cost — RECEPȚIE FIFO prin „SOLD INIȚIAL" (ULTIMA scriere). IDEMPOTENTĂ pe idemKey: un retry
+  // după o recepție deja comisă (pană de rețea) e respins de indexul unic (migr. 235) → nu se dublează stocul.
   let received = 0;
+  let alreadyReceived = false;
   if (withCost.length) {
+    if (!idemKey) throw new Error('Lipsește cheia de idempotență pentru recepția cu cost.');
     const supplierId = await ensureSupplierByName('SOLD INIȚIAL');
-    await createReceipt({
-      warehouse_id: warehouseId, supplier_id: supplierId, invoice_series: 'SOLD', invoice_number: 'INIȚIAL',
+    const r = await createInitialReceipt({
+      warehouse_id: warehouseId, supplier_id: supplierId, idem_key: idemKey,
       lines: withCost.map((r) => ({ part_id: r.part_id, qty: r.counted_qty, unit_cost: r.unit_cost })),
     });
-    received = withCost.length;
+    if (r.duplicate) alreadyReceived = true; else received = withCost.length;
   }
 
   revalidatePath('/piese/harta');
@@ -93,5 +97,22 @@ export async function saveInitialInventory(
   // Citirea hărții e protejată: dacă pică după o recepție reușită, NU aruncăm (altfel retry-ul ar dubla recepția).
   let layout: unknown = null;
   try { layout = await warehouseLayout(warehouseId); } catch { layout = null; }
-  return { saved: clean.length, received, diffs, placed, layout };
+  return { saved: clean.length, received, alreadyReceived, diffs, placed, layout };
+}
+
+// ── 2B: Revizuire cost (fără schimbarea cantității) ──
+// Citește stocul + costul mediu curent al unei piese într-un depozit (pentru ecranul de revizuire).
+export async function loadPartStock(warehouseId: number, partId: number) {
+  const session = requireRole(await verifySession(), ...PART_WRITE_ROLES);
+  await assertWarehouseAllowed(session, warehouseId);
+  return partStock(warehouseId, partId);
+}
+// Aplică costul nou (RPC piese_recost): scoate stocul la costul vechi + îl readuce la cel nou, net qty 0.
+export async function recostPartAction(warehouseId: number, partId: number, newCost: number) {
+  const session = requireRole(await verifySession(), ...PART_WRITE_ROLES);
+  await assertWarehouseAllowed(session, warehouseId);
+  const res = await recostPart(warehouseId, partId, newCost);
+  revalidatePath('/piese/stoc');
+  revalidatePath('/piese/harta');
+  return res;
 }

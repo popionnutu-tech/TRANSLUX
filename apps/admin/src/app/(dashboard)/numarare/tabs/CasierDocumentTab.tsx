@@ -29,13 +29,15 @@ type EditableRow = {
   // Read-only / sursă tomberon
   N: number;
   Ora: string;
+  CrmRouteId: number | null;   // pentru route_type din nomenclator (afişare «oră + nume scurt» la interurban)
   // Editabile (text)
   Ruta: string;
   Sofer: string;
   Masina: string;
   NumarFoaie: string;
   DataFoaie: string;
-  PusLa: string;             // timestamptz ISO, read-only — când s-a introdus foaia
+  PusLa: string;             // timestamptz ISO, read-only — ora plății (sau, fallback, introducerea foii)
+  PusLaReal: boolean;        // true = ora vine de la casă; false = fallback (se afișează «—», ora în tooltip)
   // Sume — Tomberon, dar corectabile (cash-ul NU)
   Incasare: number;          // suma_numerar (cash) — read-only
   Ligotnici: number;         // ligotniki0_suma (lei)
@@ -58,12 +60,14 @@ function rowFromCasier(c: CasierRow, idx: number): EditableRow {
     row_key: c.row_key,
     N: idx + 1,
     Ora: c.time_nord || '',
+    CrmRouteId: c.crm_route_id,
     Ruta: c.route_name || '',
     Sofer: c.driver_name || '',
     Masina: c.vehicle_plate || '',
     NumarFoaie: c.foaie_nr || '',
     DataFoaie: c.data_foaie || '',  // /grafic ziua, NULL dacă foaia nu e în /grafic
     PusLa: c.pus_la || '',
+    PusLaReal: !!c.pus_la_real,
     Incasare: Number(c.incasare_numerar) || 0,
     Ligotnici: Number(c.ligotniki0_suma) || 0,
     LigotniciGara: Number(c.ligotniki_vokzal_suma) || 0,
@@ -86,7 +90,7 @@ function docNumberFromDate(date: string): string {
   return digits.slice(-6).padStart(6, '0');
 }
 
-// Ora introducerii foii, mereu în ora Chișinăului (nu a browserului).
+// Ora plății la casă (la foile vechi: ora introducerii foii), mereu în ora Chișinăului (nu a browserului).
 const pusLaFormatter = new Intl.DateTimeFormat('ro-RO', {
   day: '2-digit', month: '2-digit', year: 'numeric',
   hour: '2-digit', minute: '2-digit',
@@ -105,8 +109,18 @@ function fmtSum(n: number): string {
   return n ? String(Math.round(n * 100) / 100) : '';
 }
 
+// Prima oră de plecare din nord — time_nord poate fi interval «HH:MM - HH:MM».
+function nordDeparture(timeNord: string): string {
+  return timeNord.split(' - ')[0]?.trim() || '';
+}
+
+// Nume scurt de rută: fără prefixul «Chișinău - » (doar interurbanele îl au).
+function shortRouteName(name: string): string {
+  return name.replace(/^Chișinău\s*[-–]\s*/i, '').trim();
+}
+
 // ─── Sortare pe cap de tabel ───
-// 'N' = ordinea de încărcare (cronologic, după „Introdus la"). Celelalte: alfabetic/cronologic.
+// 'N' = ordinea de încărcare (cronologic, după „Ora plății"). Celelalte: alfabetic/cronologic.
 type SortKey = 'N' | 'Ruta' | 'Sofer' | 'DataFoaie' | 'PusLa';
 type SortDir = 'asc' | 'desc';
 
@@ -189,10 +203,10 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
     setLoading(true);
     getCasierDocument(docDate)
       .then(data => {
-        // Ordinea implicită = cronologic după momentul introducerii foii ("Introdus la").
-        // Tomberonul NU reține ora (doar ziua), deci pus_la (created_at al bonului) e singura
-        // cronologie reală. Pe o perioadă (ex. 01–07), rândurile ies în ordinea zilelor.
-        // Foile fără pus_la (fără /grafic) și rândurile manuale rămân la sfârșit.
+        // Ordinea implicită = cronologic după „Ora plății" (pus_la).
+        // Din mig. 239, pus_la = ora reală a plății la casă (introdus_la, trimis de sync);
+        // la înregistrările vechi, fără oră de la casă — fallback pe momentul introducerii
+        // foii în /grafic (created_at). Foile fără pus_la și rândurile manuale rămân la sfârșit.
         const pusLaTs = (r: CasierRow) => {
           const t = r.pus_la ? new Date(r.pus_la).getTime() : NaN;
           return Number.isNaN(t) ? Number.MAX_SAFE_INTEGER : t;
@@ -225,6 +239,22 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
     const filtered = dateFilter ? rows.filter(r => r.DataFoaie === dateFilter) : rows;
     return sortRows(filtered, sortKey, sortDir);
   }, [rows, dateFilter, sortKey, sortDir]);
+
+  // route_type per rută (din nomenclator) — pentru afișarea «oră + nume scurt» la interurban.
+  const routeTypeById = useMemo(
+    () => new Map(routes.map(rt => [rt.id, rt.route_type])),
+    [routes],
+  );
+
+  // DOAR interurban: «06:55 Lipcani» (ora pornirii din nord + nume scurt). Restul: numele întreg.
+  function rutaDisplay(r: EditableRow): string {
+    if (!r.Ruta) return '';
+    const isInterurban = r.CrmRouteId != null && routeTypeById.get(r.CrmRouteId) === 'interurban';
+    if (!isInterurban) return r.Ruta;
+    const ora = nordDeparture(r.Ora);
+    const scurt = shortRouteName(r.Ruta);
+    return ora ? `${ora} ${scurt}` : scurt;
+  }
 
   const isFiltered = dateFilter !== '';
 
@@ -311,12 +341,14 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
         row_key: rowKey,
         N: prev.length + 1,
         Ora: '',
+        CrmRouteId: null,
         Ruta: '',
         Sofer: '',
         Masina: '',
         NumarFoaie: '',
         DataFoaie: docDate,
         PusLa: '',
+        PusLaReal: false,
         Incasare: 0,
         Ligotnici: 0,
         LigotniciGara: 0,
@@ -543,12 +575,12 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
           <thead>
             <tr>
               <th style={sortableTh('2%', 'N')} onClick={() => toggleSort('N')}
-                title="Click: revino la ordinea inițială (cronologic, după Introdus la)">
+                title="Click: revino la ordinea inițială (cronologic, după Ora plății)">
                 N{sortArrow('N')}
               </th>
               <th style={sortableTh('9%', 'PusLa')} onClick={() => toggleSort('PusLa')}
-                title="Data și ora la care s-a introdus foaia de parcurs în sistem (ora Chișinăului)">
-                Introdusă la{sortArrow('PusLa')}
+                title="Ora reală a plății la casa automată (ultima plată a foii, ora Chișinăului). La foile vechi, fără oră de la casă, se arată «—» — ora introducerii foii în sistem e în tooltip-ul celulei.">
+                Ora plății{sortArrow('PusLa')}
               </th>
               <th style={sortableTh('13%', 'Ruta')} onClick={() => toggleSort('Ruta')}
                 title="Click: sortează alfabetic după rută">
@@ -629,11 +661,15 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
               return (
                 <tr key={r.row_key}>
                   <td style={cs({ textAlign: 'center', color: '#888' })}>{r.N}</td>
-                  <td style={cs({ textAlign: 'center', color: pusLaText ? '#555' : '#bbb' })}
-                    title={pusLaText
-                      ? `Foaia a fost introdusă în sistem la ${pusLaText} (ora Chișinăului)`
-                      : (r.IsManual ? 'Rând adăugat manual' : 'Foaia nu are corespondent în /grafic')}>
-                    {pusLaText || '—'}
+                  <td style={cs({ textAlign: 'center', color: r.PusLaReal ? '#555' : '#bbb' })}
+                    title={r.PusLaReal && pusLaText
+                      ? `Plătită la casă la ${pusLaText} (ora Chișinăului)`
+                      : r.IsManual
+                        ? 'Rând adăugat manual, fără plată la casă'
+                        : pusLaText
+                          ? `Ora plății va apărea automat când casa trimite ora. Foaia a fost introdusă în /grafic la ${pusLaText} (ora Chișinăului).`
+                          : 'Foaia nu are corespondent în /grafic'}>
+                    {r.PusLaReal ? pusLaText : '—'}
                   </td>
                   <td style={cs()}>
                     {canEditRowFields ? (
@@ -667,7 +703,9 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
                           );
                         })}
                       </select>
-                    ) : (r.Ruta || '—')}
+                    ) : (
+                      <span title={r.Ruta || undefined}>{rutaDisplay(r) || '—'}</span>
+                    )}
                   </td>
                   <td style={cs()}>
                     {canEditRowFields ? (
@@ -853,9 +891,10 @@ export default function CasierDocumentTab({ ziua, operatorName }: Props) {
         Celulele <span style={{ background: '#fffbe6', borderLeft: '2px solid #f5c518', padding: '0 4px', fontWeight: 600 }}>galbene</span> = corectate manual;
         rândurile <span style={{ background: '#e6f0ff', padding: '0 4px' }}>albastre</span> = adăugate manual (fără numerar din tomberon);
         <span style={{ background: '#fdecea', padding: '0 4px' }}>roșii</span> = tomberon fără /grafic.
-        Click pe <b>Ruta</b>, <b>Șoferi</b>, <b>DataFoaie</b>, <b>Introdusă la</b> sortează (al doilea click inversează);
-        click pe <b>N</b> revine la ordinea inițială. <b>Introdusă la</b> = când s-a introdus foaia în sistem (ora Chișinăului) —
-        poate fi în altă zi decât DataFoaie, fiindcă foaia se pune adesea din ajun.
+        Click pe <b>Ruta</b>, <b>Șoferi</b>, <b>DataFoaie</b>, <b>Ora plății</b> sortează (al doilea click inversează);
+        click pe <b>N</b> revine la ordinea inițială. <b>Ora plății</b> = ora reală a plății la casa automată (ora Chișinăului);
+        la foile vechi, fără oră de la casă, coloana arată «—» (ordinea rămâne după momentul introducerii foii
+        în /grafic — vezi tooltip-ul celulei).
       </p>
     </div>
   );

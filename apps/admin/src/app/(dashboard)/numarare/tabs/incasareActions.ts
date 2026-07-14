@@ -296,7 +296,8 @@ export interface CasierRow {
   foaie_nr: string;
   ziua: string;            // ziua plății la casă (kiosk)
   data_foaie: string | null; // ziua /grafic pentru această foaie (poate fi alta sau null)
-  pus_la: string | null;     // timestamptz: când s-a introdus foaia (adesea în ajunul lui data_foaie)
+  pus_la: string | null;     // timestamptz: ora plății la casă; la foile vechi — când s-a introdus foaia
+  pus_la_real: boolean;      // true = ora vine de la casă (introdus_la); false = fallback pe introducerea foii
   plati: number;
   driver_id: string | null;
   driver_name: string | null;

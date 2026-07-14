@@ -11,8 +11,9 @@ export interface LdeVehicleNormRow {
   vehicle_type_id: string | null;
   type_name: string | null;
   norm_type: number | null;                 // norma tipului (COALESCE-able)
-  measured: number | null;                  // override măsurat
-  effective_norm: number | null;            // COALESCE(measured, norm_type)
+  measured: number | null;                  // override măsurat (camioane: gol/min)
+  measured_loaded: number | null;           // doar camioane: încărcat (max interval)
+  effective_norm: number | null;            // COALESCE(measured_loaded, measured, norm_type)
   in_repair: boolean;
   override_reason: LdeOverrideReason | null;
   override_notes: string | null;
@@ -44,7 +45,7 @@ export async function getVehicleNorms(): Promise<LdeVehicleNormRow[]> {
   const { data, error } = await sb
     .from('vehicles')
     .select(
-      'id, plate_number, lde_vehicle_norms ( vehicle_type_id, measured_consumption_l_per_100km, in_repair, override_reason, override_notes, lde_vehicle_types ( display_name, norm_l_per_100km ) )'
+      'id, plate_number, lde_vehicle_norms ( vehicle_type_id, measured_consumption_l_per_100km, measured_consumption_l_per_100km_loaded, in_repair, override_reason, override_notes, lde_vehicle_types ( display_name, norm_l_per_100km ) )'
     )
     .eq('active', true)
     .order('plate_number');
@@ -62,6 +63,7 @@ export async function getVehicleNorms(): Promise<LdeVehicleNormRow[]> {
     const vehicle_type_id: string | null = norm?.vehicle_type_id ?? null;
     const norm_type: number | null = type?.norm_l_per_100km ?? null;
     const measured: number | null = norm?.measured_consumption_l_per_100km ?? null;
+    const measured_loaded: number | null = norm?.measured_consumption_l_per_100km_loaded ?? null;
 
     return {
       vehicle_id: v.id as string,
@@ -70,7 +72,8 @@ export async function getVehicleNorms(): Promise<LdeVehicleNormRow[]> {
       type_name: type?.display_name ?? null,
       norm_type,
       measured,
-      effective_norm: measured ?? norm_type,
+      measured_loaded,
+      effective_norm: measured_loaded ?? measured ?? norm_type,
       in_repair: norm?.in_repair ?? false,
       override_reason: (norm?.override_reason ?? null) as LdeOverrideReason | null,
       override_notes: norm?.override_notes ?? null,
@@ -106,12 +109,16 @@ export async function assignVehicleType(vehicle_id: string, vehicle_type_id: str
 export async function setMeasuredOverride(
   vehicle_id: string,
   measured: number,
-  override_reason: LdeOverrideReason | null
+  override_reason: LdeOverrideReason | null,
+  measured_loaded: number | null = null
 ) {
   requireRole(await verifySession(), 'ADMIN');
   if (!vehicle_id) throw new Error('vehicle_id este obligatoriu');
   if (!Number.isFinite(measured) || measured <= 0) {
     throw new Error('Consumul măsurat trebuie să fie un număr pozitiv');
+  }
+  if (measured_loaded != null && (!Number.isFinite(measured_loaded) || measured_loaded < measured)) {
+    throw new Error('Consumul încărcat trebuie să fie ≥ consumul gol');
   }
 
   const sb = getSupabase();
@@ -129,6 +136,7 @@ export async function setMeasuredOverride(
     .from('lde_vehicle_norms')
     .update({
       measured_consumption_l_per_100km: measured,
+      measured_consumption_l_per_100km_loaded: measured_loaded,
       override_reason,
       updated_at: new Date().toISOString(),
     })
@@ -147,6 +155,7 @@ export async function clearMeasured(vehicle_id: string) {
     .from('lde_vehicle_norms')
     .update({
       measured_consumption_l_per_100km: null,
+      measured_consumption_l_per_100km_loaded: null,
       override_reason: null,
       updated_at: new Date().toISOString(),
     })

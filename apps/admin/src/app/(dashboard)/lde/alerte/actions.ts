@@ -166,20 +166,24 @@ export async function recomputeDtAlerts(period_month: string): Promise<Recompute
   const { startDate, endDate, startISO, endISO } = monthBounds(period_month);
   const alertDate = startDate; // alertele lunii sunt ancorate la prima zi a lunii (idempotent pe re-rulare)
 
-  // a) Norma efectivă per vehicul = COALESCE(measured, type.norm). DOAR vehiculele cu rând în lde_vehicle_norms.
+  // a) Norma efectivă per vehicul = COALESCE(loaded, measured, type.loaded, type.norm).
+  //    Camioane: pragul = consumul încărcat (max interval) — sub el nu e pererashod.
+  //    DOAR vehiculele cu rând în lde_vehicle_norms.
   const [{ data: norms }, { data: types }] = await Promise.all([
-    sb.from('lde_vehicle_norms').select('vehicle_id, vehicle_type_id, measured_consumption_l_per_100km, in_repair'),
-    sb.from('lde_vehicle_types').select('id, norm_l_per_100km'),
+    sb.from('lde_vehicle_norms').select('vehicle_id, vehicle_type_id, measured_consumption_l_per_100km, measured_consumption_l_per_100km_loaded, in_repair'),
+    sb.from('lde_vehicle_types').select('id, norm_l_per_100km, norm_l_per_100km_loaded'),
   ]);
   const typeNorm = new Map<string, number>();
-  for (const t of types || []) typeNorm.set(t.id, Number(t.norm_l_per_100km));
+  for (const t of types || []) {
+    typeNorm.set(t.id, Number(t.norm_l_per_100km_loaded ?? t.norm_l_per_100km));
+  }
 
   const effectiveNorm = new Map<string, number>(); // vehicle_id → l/100km efectiv
   const inRepairSet = new Set<string>();            // vehicule marcate «în reparație» (soft-tag pe alerte)
   let skipped_no_type = 0;
   for (const n of norms || []) {
     if (n.in_repair) inRepairSet.add(n.vehicle_id);
-    const measured = n.measured_consumption_l_per_100km;
+    const measured = n.measured_consumption_l_per_100km_loaded ?? n.measured_consumption_l_per_100km;
     if (measured != null) {
       effectiveNorm.set(n.vehicle_id, Number(measured)); // override măsurat
     } else {

@@ -425,6 +425,7 @@ export interface LdeVehicleNorm {
   vehicle_id: string;                         // PK + FK la vehicles
   vehicle_type_id: string;
   measured_consumption_l_per_100km: number;
+  measured_consumption_l_per_100km_loaded: number | null; // doar camioane: încărcat (max); measured = gol (min)
   measurement_date: string | null;            // YYYY-MM-DD
   in_repair: boolean;
   override_reason: LdeOverrideReason | null;

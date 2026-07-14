@@ -82,12 +82,14 @@ export async function generateSalaryRun(period_month: string): Promise<{ run_id:
   const monthEnd = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth() + 1, 0));
   const monthEndStr = monthEnd.toISOString().slice(0, 10);
 
-  // 1. Toți șoferii UZINE cu categorie 1-5 (single query)
+  // 1. Toți șoferii UZINE cu categorie 1-5 (single query).
+  //    Doar șoferii ACTIVI — plecații păstrează categoria istoric, dar nu mai intră în salarizare.
   const { data: extras } = await sb
     .from('lde_driver_extras')
-    .select('driver_id, uzina_id, lde_salary_category')
+    .select('driver_id, uzina_id, lde_salary_category, drivers!inner ( active )')
     .gte('lde_salary_category', 1)
-    .lte('lde_salary_category', 5);
+    .lte('lde_salary_category', 5)
+    .eq('drivers.active', true);
   const drivers = (extras || []).filter((e: any) => e.lde_salary_category != null && e.uzina_id != null);
   if (drivers.length === 0) throw new Error('Niciun șofer UZINĂ cu categorie 1-5 setată.');
 

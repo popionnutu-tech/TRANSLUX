@@ -54,7 +54,7 @@ export async function getCardSuggestions(
   const vehiclesP = sb
     .from('vehicles')
     .select(
-      'id, plate_number, lde_vehicle_norms ( measured_consumption_l_per_100km, in_repair, lde_vehicle_types ( display_name, norm_l_per_100km ) )'
+      'id, plate_number, lde_vehicle_norms ( measured_consumption_l_per_100km, measured_consumption_l_per_100km_loaded, in_repair, lde_vehicle_types ( display_name, category, norm_l_per_100km ) )'
     )
     .eq('active', true)
     .order('plate_number');
@@ -144,7 +144,12 @@ export async function getCardSuggestions(
         : norm.lde_vehicle_types
       : null;
 
-    const measured: number | null = norm?.measured_consumption_l_per_100km ?? null;
+    // Camioanele marfă nu deservesc uzine — plannedKmDefault (200 km) e fictiv pentru ele
+    // și ar umfla totalurile paginii. Sugestiile de card rămân doar pentru flota uzine.
+    if (type?.category === 'camion_marfa') continue;
+
+    const measured: number | null =
+      norm?.measured_consumption_l_per_100km_loaded ?? norm?.measured_consumption_l_per_100km ?? null;
     const normType: number | null = type?.norm_l_per_100km ?? null;
     const effectiveNorm = measured ?? normType;
 

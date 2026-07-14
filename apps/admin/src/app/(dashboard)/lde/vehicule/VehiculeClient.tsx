@@ -125,6 +125,7 @@ function VehiculRow({
   const [editField, setEditField] = useState<null | 'type' | 'measured'>(null);
   const [draftType, setDraftType] = useState<string>(row.vehicle_type_id ?? '');
   const [draftMeasured, setDraftMeasured] = useState<string>(row.measured?.toString() ?? '');
+  const [draftLoaded, setDraftLoaded] = useState<string>(row.measured_loaded?.toString() ?? '');
   const [draftReason, setDraftReason] = useState<string>(row.override_reason ?? '');
 
   function run(fn: () => Promise<void>) {
@@ -218,8 +219,18 @@ function VehiculRow({
               min="0"
               value={draftMeasured}
               onChange={e => setDraftMeasured(e.target.value)}
-              placeholder="l/100km"
+              placeholder="gol l/100km"
               style={{ width: 90, fontSize: 13, padding: '2px 6px' }}
+            />
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={draftLoaded}
+              onChange={e => setDraftLoaded(e.target.value)}
+              placeholder="încărcat (opț.)"
+              title="Doar camioane: consum încărcat (max interval)"
+              style={{ width: 110, fontSize: 13, padding: '2px 6px' }}
             />
             <select
               value={draftReason}
@@ -240,7 +251,8 @@ function VehiculRow({
                   setMeasuredOverride(
                     row.vehicle_id,
                     Number(draftMeasured),
-                    (draftReason || null) as LdeOverrideReason | null
+                    (draftReason || null) as LdeOverrideReason | null,
+                    draftLoaded ? Number(draftLoaded) : null
                   )
                 )
               }
@@ -252,6 +264,7 @@ function VehiculRow({
               style={{ fontSize: 11, padding: '2px 8px' }}
               onClick={() => {
                 setDraftMeasured(row.measured?.toString() ?? '');
+                setDraftLoaded(row.measured_loaded?.toString() ?? '');
                 setDraftReason(row.override_reason ?? '');
                 setEditField(null);
               }}
@@ -263,7 +276,7 @@ function VehiculRow({
             style={{ cursor: row.has_type ? 'pointer' : 'default' }}
             title={row.override_reason ? OVERRIDE_REASON_LABELS[row.override_reason] : undefined}
           >
-            <strong>{row.measured}</strong> l/100km
+            <strong>{row.measured}{row.measured_loaded != null ? `–${row.measured_loaded}` : ''}</strong> l/100km
             {row.override_reason && (
               <span style={{ marginLeft: 6, fontSize: 11, color: '#888' }}>
                 ({OVERRIDE_REASON_LABELS[row.override_reason]})

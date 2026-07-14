@@ -49,6 +49,7 @@ export default function RoutesTable({ routes }: Props) {
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [filterRuta, setFilterRuta] = useState('');
   const [filterSofer, setFilterSofer] = useState('');
+  const [filterOra, setFilterOra] = useState('');
 
   // Ordinea implicită: ziua descrescător (recent sus), apoi ora cursei, apoi ruta.
   const defaultCompare = (a: GraficRouteRow, b: GraficRouteRow) => {
@@ -67,12 +68,17 @@ export default function RoutesTable({ routes }: Props) {
     () => Array.from(new Set(routes.map(r => r.driver_name).filter(Boolean))).sort((a, b) => (a || '').localeCompare(b || '', 'ro')),
     [routes],
   );
+  const oraOptions = useMemo(
+    () => Array.from(new Set(routes.map(r => r.time_nord).filter(Boolean))).sort((a, b) => parseFirstTime(a) - parseFirstTime(b)),
+    [routes],
+  );
 
   // Filtrare + sortare — afectează doar afișarea.
   const processed = useMemo(() => {
     let list = routes;
     if (filterRuta) list = list.filter(r => r.route_name === filterRuta);
     if (filterSofer) list = list.filter(r => r.driver_name === filterSofer);
+    if (filterOra) list = list.filter(r => r.time_nord === filterOra);
     const arr = [...list];
     if (sortKey === 'default') {
       arr.sort(defaultCompare);
@@ -88,7 +94,7 @@ export default function RoutesTable({ routes }: Props) {
     }
     return arr;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [routes, filterRuta, filterSofer, sortKey, sortDir]);
+  }, [routes, filterRuta, filterSofer, filterOra, sortKey, sortDir]);
 
   const totals = useMemo(() => {
     const t = { num: 0, inc: 0, lg: 0, dg: 0, vk: 0, dt: 0, rs: 0, extra2t: 0 };
@@ -125,7 +131,7 @@ export default function RoutesTable({ routes }: Props) {
   };
   const arrow = (key: Exclude<SortKey, 'default'>) => (sortKey === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '');
 
-  const isFiltered = filterRuta !== '' || filterSofer !== '';
+  const isFiltered = filterRuta !== '' || filterSofer !== '' || filterOra !== '';
 
   // Grid: Data | Oră | Rută | Șofer | Foaie | Num | +2T | Inc | Dg | Lg | Rs | Δ | Status | expand
   const GRID = '76px 92px minmax(150px, 1fr) 118px 62px 58px 50px 58px 54px 46px 44px 62px 92px 18px';
@@ -166,7 +172,14 @@ export default function RoutesTable({ routes }: Props) {
         alignItems: 'start',
       }}>
         <div onClick={() => toggleSort('Data')} style={{ cursor: 'pointer', userSelect: 'none' }} title="Sortează după data foii">Data{arrow('Data')}</div>
-        <div>Oră</div>
+        <div>
+          <div>Oră</div>
+          <select value={filterOra} onChange={e => setFilterOra(e.target.value)} title="Filtrează după oră"
+            style={{ ...selStyle, background: filterOra ? '#fff3cd' : '#fff', fontWeight: filterOra ? 600 : 400 }}>
+            <option value="">toate orele</option>
+            {oraOptions.map(o => <option key={o} value={o!}>{o}</option>)}
+          </select>
+        </div>
         <div>
           <div onClick={() => toggleSort('Ruta')} style={{ cursor: 'pointer', userSelect: 'none' }} title="Sortează alfabetic după rută">Rută{arrow('Ruta')}</div>
           <select value={filterRuta} onChange={e => setFilterRuta(e.target.value)} title="Filtrează după rută"

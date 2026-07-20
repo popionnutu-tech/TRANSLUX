@@ -159,6 +159,82 @@ export async function recentDocs(limit = 8) {
   return data || [];
 }
 
+// ── Documente de prihod (jurnal recepții) ──
+// Listă de documente RECEIPT cu furnizor + nr. poziții + total (Σ cantitate×cost) + creator. Filtrabilă pe
+// depozit + perioadă. Scoping-ul pe depozit (cont legat) se impune în server action (listReceiptDocs).
+export async function receiptDocs(opts: { warehouseId?: number; from?: string; to?: string; limit?: number } = {}) {
+  const sb = getSupabase();
+  let q = sb.from('piese_stock_documents')
+    .select('id, created_at, warehouse_id, invoice_series, invoice_number, created_by_admin, supplier:piese_suppliers(name), lines:piese_stock_document_lines(qty, unit_cost)')
+    .eq('doc_type', 'RECEIPT')
+    // Exclude „Sold inițial" (invoice_series='SOLD'): e stoc de pornire încărcat din Inventar, NU recepție de la
+    // furnizor — și are ~o linie per piesă (mii), deci ar exploda embed-ul liniilor. Păstrează seriile NULL (prihod manual fără serie).
+    .or('invoice_series.is.null,invoice_series.neq.SOLD')
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false }) // tiebreak determinist la același created_at (ex. solduri importate în masă)
+    .limit(opts.limit ?? 200);
+  if (opts.warehouseId) q = q.eq('warehouse_id', opts.warehouseId);
+  if (opts.from) q = q.gte('created_at', opts.from);
+  if (opts.to) q = q.lt('created_at', opts.to); // `to` = ISO exclusiv (miezul nopții zilei următoare, ora Chișinău)
+  const { data, error } = await q;
+  if (error) throw new Error(error.message);
+  const rows = (data as any[]) || [];
+  // „Cine": created_by_admin (uuid) → nume, rezolvat separat (evită ambiguitatea de embedding pe admin_accounts).
+  const ids = Array.from(new Set(rows.map((r) => r.created_by_admin).filter(Boolean)));
+  const names = new Map<string, string>();
+  if (ids.length) {
+    const { data: admins } = await sb.from('admin_accounts').select('id, name').in('id', ids as string[]);
+    for (const a of ((admins as any[]) || [])) names.set(a.id, a.name);
+  }
+  return rows.map((r) => {
+    const lines = (r.lines as any[]) || [];
+    return {
+      id: r.id as number,
+      createdAt: r.created_at as string,
+      warehouseId: r.warehouse_id as number,
+      series: (r.invoice_series as string) || null,
+      number: (r.invoice_number as string) || null,
+      supplier: (r.supplier?.name as string) || null,
+      positions: lines.length,
+      total: lines.reduce((s: number, l: any) => s + Number(l.qty) * Number(l.unit_cost), 0),
+      creator: r.created_by_admin ? (names.get(r.created_by_admin) || null) : null,
+    };
+  });
+}
+
+// Depozitul unui document de recepție — pentru garda de scoping la deschiderea liniilor (cont legat).
+export async function receiptDocWarehouse(docId: number): Promise<number | null> {
+  const { data, error } = await getSupabase()
+    .from('piese_stock_documents').select('warehouse_id').eq('id', docId).eq('doc_type', 'RECEIPT').maybeSingle();
+  if (error) throw new Error('Nu am putut verifica documentul');
+  return (data as { warehouse_id: number } | null)?.warehouse_id ?? null;
+}
+
+// Liniile unui document de recepție (piesă + cantitate + cost + total).
+export async function receiptDocLines(docId: number) {
+  const { data, error } = await getSupabase()
+    .from('piese_stock_document_lines')
+    .select('part_id, qty, unit_cost, part:piese_parts(name_ro, name_long, article_code)')
+    .eq('document_id', docId);
+  if (error) throw new Error(error.message);
+  return ((data as any[]) || []).map((l) => ({
+    partId: l.part_id as number,
+    name: (l.part?.name_ro as string) || (l.part?.name_long as string) || `#${l.part_id}`,
+    article: (l.part?.article_code as string) || null,
+    qty: Number(l.qty),
+    unitCost: Number(l.unit_cost),
+    total: Number(l.qty) * Number(l.unit_cost),
+  }));
+}
+
+// Atribuie creatorul unui document de recepție (created_by_admin = contul care a făcut prihodul).
+// Non-fatal: recepția a reușit deja; dacă marcarea „Cine" pică, doar o logăm (nu stricăm prihodul).
+export async function setReceiptCreator(docId: number, adminId: string): Promise<void> {
+  const { error } = await getSupabase()
+    .from('piese_stock_documents').update({ created_by_admin: adminId }).eq('id', docId).eq('doc_type', 'RECEIPT');
+  if (error) console.error('[prihod] setReceiptCreator:', error.message);
+}
+
 export async function dashboardStats() {
   const sb = getSupabase();
   const count = async (t: string) => (await sb.from(t).select('*', { count: 'exact', head: true })).count || 0;

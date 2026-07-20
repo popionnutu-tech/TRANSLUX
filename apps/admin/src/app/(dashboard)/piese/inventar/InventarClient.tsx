@@ -27,17 +27,35 @@ export default function InventarClient({ warehouses }: { warehouses: Opt[] }) {
   async function submit() {
     setBusy(true); setMsg(null);
     try {
-      const counts = rows.filter((r) => r.counted !== r.current).map((r) => ({ part_id: r.part_id, counted_qty: r.counted }));
-      if (!counts.length) { setMsg({ t: 'ok', m: 'Nicio diferență — totul se potrivește.' }); setBusy(false); return; }
+      // Zonare (inventar concurent): salvăm DOAR diferențele din secția selectată (mod echipă) → 2-3 echipe pe
+      // același depozit nu se pot suprascrie. „Tot depozitul" (section='') comite toate diferențele (supervizor / 1 echipă).
+      const savedSection = section;
+      // `visible` (definit la render) e deja „secția selectată SAU tot depozitul" — o singură sursă comună cu butonul/`scopeDiffs`.
+      const counts = visible.filter((r) => r.counted !== r.current).map((r) => ({ part_id: r.part_id, counted_qty: r.counted }));
+      if (!counts.length) { setMsg({ t: 'ok', m: savedSection ? `Nicio diferență în secția ${savedSection}.` : 'Nicio diferență — totul se potrivește.' }); setBusy(false); return; }
+      // Cantitățile ÎN CURS din TOATE secțiile, capturate înainte de reîncărcare — ca un operator care numără mai
+      // multe secții pe același ecran să NU-și piardă munca nesalvată când salvează o singură secție.
+      const pending = new Map(rows.filter((r) => r.counted !== r.current).map((r) => [r.part_id, r.counted] as const));
       const res = await saveInventory(warehouseId, counts);
-      setMsg({ t: 'ok', m: `Inventariere salvată: ${res.diffs} diferențe corectate (ca mișcări, fără ștergeri).` });
-      router.refresh(); await load();
+      setMsg({ t: 'ok', m: `Inventariere salvată${savedSection ? ` — secția ${savedSection}` : ''}: ${res.diffs} diferențe corectate (ca mișcări, fără ștergeri).` });
+      // Reîncarc stocul proaspăt (secția salvată reflectă noul stoc), DAR re-aplic cantitățile în curs din CELELALTE
+      // secții (nesalvate). Rămân pe secția curentă (nu resetez la „tot depozitul"), ca fluxul pe echipă să curgă.
+      const sheet = await loadSheet(warehouseId);
+      setRows(sheet.rows.map((s: any) => {
+        const keepPending = savedSection ? s.section !== savedSection : false; // „tot depozitul" = totul s-a salvat → reset
+        const p = pending.get(s.part_id);
+        return { ...s, counted: keepPending && p !== undefined ? p : s.current };
+      }));
+      setLayout(sheet.layout);
+      router.refresh();
     } catch (e: any) { setMsg({ t: 'danger', m: e.message }); } finally { setBusy(false); }
   }
 
   const sections: string[] = Array.from(new Set(rows.map((r) => r.section))).sort();
   const visible = section ? rows.filter((r) => r.section === section) : rows;
-  const diffCount = rows.filter((r) => r.counted !== r.current).length;
+  const diffCount = rows.filter((r) => r.counted !== r.current).length;        // total, tot depozitul
+  const scopeDiffs = visible.filter((r) => r.counted !== r.current).length;     // doar ce se va comite (secția curentă)
+  const otherDiffs = diffCount - scopeDiffs;                                    // diferențe rămase în alte secții
 
   return (
     <>
@@ -77,7 +95,8 @@ export default function InventarClient({ warehouses }: { warehouses: Opt[] }) {
                 })}
               </tbody>
             </table>
-            <button className="btn btn-primary btn-lg btn-block" style={{ marginTop: 14 }} disabled={busy} onClick={submit}>Salvează inventarierea ({diffCount} diferențe în tot depozitul)</button>
+            <button className="btn btn-primary btn-lg btn-block" style={{ marginTop: 14 }} disabled={busy} onClick={submit}>Salvează inventarierea ({scopeDiffs} {scopeDiffs === 1 ? 'diferență' : 'diferențe'} {section ? `în secția ${section}` : 'în tot depozitul'})</button>
+            {section && otherDiffs > 0 && <p className="muted" style={{ marginTop: 8, marginBottom: 0, textAlign: 'center' }}>Ai {otherDiffs} {otherDiffs === 1 ? 'diferență' : 'diferențe'} și în alte secții — comută pe fiecare secție și salvează separat (așa nu atingi zona altei echipe).</p>}
           </div>
         </>
       )}

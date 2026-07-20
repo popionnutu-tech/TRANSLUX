@@ -11,9 +11,9 @@ import NomenclatorClient from './NomenclatorClient';
 // ADMIN/DEPOZITAR/GESTIONAR). Dacă schimbi rolurile pentru piese, actualizează AICI + în part-actions.ts.
 const SECTIONS_BY_ROLE: Record<string, string[]> = {
   ADMIN: ['warehouses', 'groups', 'suppliers', 'clients', 'mechanics', 'reasons', 'parts'],
-  DEPOZITAR: ['suppliers', 'parts'],
+  DEPOZITAR: ['groups', 'suppliers', 'parts'],
   VINZATOR: ['clients', 'mechanics', 'reasons'],
-  GESTIONAR: ['suppliers', 'clients', 'mechanics', 'reasons', 'parts'],
+  GESTIONAR: ['groups', 'suppliers', 'clients', 'mechanics', 'reasons', 'parts'],
 };
 
 export default async function NomenclatorPage() {

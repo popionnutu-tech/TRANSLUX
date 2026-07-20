@@ -104,11 +104,11 @@ export async function setPartLocationsBulk(warehouseId: number, items: { part_id
 // ── Furnizori ──
 export async function createSupplier(d: any) {
   if (!txt(d.name)) throw new Error('Denumirea furnizorului este obligatorie');
-  check(await getSupabase().from('piese_suppliers').insert({ name: txt(d.name), idno: txtOrNull(d.idno), contact: txtOrNull(d.contact) }));
+  check(await getSupabase().from('piese_suppliers').insert({ name: txt(d.name), idno: txtOrNull(d.idno), contact: txtOrNull(d.contact), phone2: txtOrNull(d.phone2), phone3: txtOrNull(d.phone3) }));
 }
 export async function updateSupplier(id: number, d: any) {
   if (!txt(d.name)) throw new Error('Denumirea furnizorului este obligatorie');
-  check(await getSupabase().from('piese_suppliers').update({ name: txt(d.name), idno: txtOrNull(d.idno), contact: txtOrNull(d.contact) }).eq('id', id));
+  check(await getSupabase().from('piese_suppliers').update({ name: txt(d.name), idno: txtOrNull(d.idno), contact: txtOrNull(d.contact), phone2: txtOrNull(d.phone2), phone3: txtOrNull(d.phone3) }).eq('id', id));
 }
 
 // Găsește (sau creează) un furnizor după nume — pentru furnizorul fictiv „SOLD INIȚIAL" (stocul de pornire cu cost).

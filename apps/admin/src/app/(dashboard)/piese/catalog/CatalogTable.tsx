@@ -14,6 +14,7 @@ export default function CatalogTable({ rows, groups, warehouses, canEdit }: {
 }) {
   const router = useRouter();
   const [edit, setEdit] = useState<any | null>(null);
+  const [adding, setAdding] = useState(false); // modal „piesă nouă în catalog"
 
   const initial: PartFormValues | null = edit && {
     id: edit.id,
@@ -31,6 +32,11 @@ export default function CatalogTable({ rows, groups, warehouses, canEdit }: {
 
   return (
     <>
+      {canEdit && (
+        <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'flex-end' }}>
+          <button className="btn btn-primary" onClick={() => setAdding(true)}>+ Adaugă piesă nouă</button>
+        </div>
+      )}
       <table>
         <thead>
           <tr><th>Denumire</th><th>Grup</th><th>Producător</th><th>Model</th><th>Articul</th><th>Cod de bare</th><th>Unit.</th><th>Vânzare</th></tr>
@@ -73,6 +79,23 @@ export default function CatalogTable({ rows, groups, warehouses, canEdit }: {
               onCancel={() => setEdit(null)}
             />
             <PartLocationEditor partId={edit.id} warehouses={warehouses} />
+          </div>
+        </div>
+      )}
+
+      {adding && (
+        <div onClick={() => setAdding(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '6vh 16px', zIndex: 1000, overflowY: 'auto' }}>
+          <div onClick={(e) => e.stopPropagation()} className="card" style={{ maxWidth: 960, width: '100%', margin: 0 }}>
+            <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ marginTop: 0 }}>Piesă nouă în catalog</h2>
+              <button className="btn btn-outline" onClick={() => setAdding(false)}>Închide</button>
+            </div>
+            <p className="muted" style={{ marginTop: -6 }}>Piesa nouă pornește cu <strong>stoc 0</strong> — stocul intră prin Prihod (recepție) sau Inventar. Locația o pui apoi apăsând pe piesă în listă.</p>
+            <PartForm
+              groups={groups}
+              onSaved={() => { setAdding(false); router.refresh(); }}
+              onCancel={() => setAdding(false)}
+            />
           </div>
         </div>
       )}

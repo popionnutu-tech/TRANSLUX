@@ -5,13 +5,16 @@ import { search } from './actions';
 import type { SearchResult } from '@/lib/piese-search';
 
 type Category = { id: number; name: string; markup: number };
+type Warehouse = { id: number; name: string };
 
 const lei = (n: number | null) =>
   n == null ? '—' : n.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' lei';
 
-export default function CautareClient({ categories, showCost }: { categories: Category[]; showCost: boolean }) {
+export default function CautareClient({ categories, warehouses, boundWarehouseId, showCost }: { categories: Category[]; warehouses: Warehouse[]; boundWarehouseId: number | null; showCost: boolean }) {
   const [q, setQ] = useState('');
   const [cat, setCat] = useState<number | ''>('');
+  // Depozit filtrat: contul legat pornește pe depozitul lui; adminul pe „toate" ('').
+  const [wh, setWh] = useState<number | ''>(boundWarehouseId ?? '');
   const [results, setResults] = useState<SearchResult[] | null>(null);
   const [expanded, setExpanded] = useState<number | null>(null);
   const [pending, start] = useTransition();
@@ -21,7 +24,7 @@ export default function CautareClient({ categories, showCost }: { categories: Ca
     if (!query && !cat) { setResults(null); return; }
     setExpanded(null);
     start(async () => {
-      const r = await search(query, cat === '' ? null : Number(cat));
+      const r = await search(query, cat === '' ? null : Number(cat), wh === '' ? null : Number(wh));
       setResults(r);
     });
   }
@@ -47,6 +50,20 @@ export default function CautareClient({ categories, showCost }: { categories: Ca
               {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
+          {warehouses.length > 1 ? (
+            <div className="form-row" style={{ flex: 1, minWidth: 160 }}>
+              <label>Depozit</label>
+              <select value={wh} onChange={(e) => setWh(e.target.value === '' ? '' : Number(e.target.value))}>
+                <option value="">— toate —</option>
+                {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+              </select>
+            </div>
+          ) : warehouses.length === 1 ? (
+            <div className="form-row" style={{ flex: 1, minWidth: 160 }}>
+              <label>Depozit</label>
+              <input value={warehouses[0].name} disabled title="Contul tău e legat de acest depozit" />
+            </div>
+          ) : null}
           <button className="btn btn-primary" onClick={run} disabled={pending}>{pending ? 'Caut…' : 'Caută'}</button>
         </div>
       </div>

@@ -16,7 +16,7 @@ import {
 type Handler = { roles: AdminRole[]; create: (d: any) => Promise<void>; update: (id: number, d: any) => Promise<void> };
 const HANDLERS: Record<string, Handler> = {
   warehouses: { roles: ['ADMIN'], create: createWarehouse, update: updateWarehouse },
-  groups: { roles: ['ADMIN'], create: createGroup, update: updateGroup },
+  groups: { roles: ['ADMIN', 'DEPOZITAR', 'GESTIONAR'], create: createGroup, update: updateGroup },
   suppliers: { roles: ['ADMIN', 'DEPOZITAR', 'GESTIONAR'], create: createSupplier, update: updateSupplier },
   clients: { roles: ['ADMIN', 'VINZATOR', 'GESTIONAR'], create: createClient, update: updateClient },
   mechanics: { roles: ['ADMIN', 'VINZATOR', 'GESTIONAR'], create: createMechanic, update: updateMechanic },

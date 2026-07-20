@@ -27,14 +27,15 @@ export type SearchResult = {
 
 export async function searchAssistant(
   query: string,
-  opts: { categoryId?: number; limit?: number; showCost?: boolean } = {},
+  opts: { categoryId?: number; limit?: number; showCost?: boolean; warehouseId?: number } = {},
 ): Promise<SearchResult[]> {
   const sb = getSupabase();
   const s = (query || '').trim();
   const limit = opts.limit ?? 40;
   // Vânzătorul vede doar prețul de vânzare; costul de achiziție + furnizorul se ascund din DATE (server-side),
   // nu doar din UI — ca să nu ajungă deloc în browserul lui. Restul rolurilor (admin/depozitar/contabil/manager) le văd.
-  const showCost = opts.showCost !== false;
+  // FAIL-CLOSED: costul se dezvăluie DOAR dacă apelantul cere explicit showCost:true (un apelant care uită → cost ascuns).
+  const showCost = opts.showCost === true;
 
   // 1) Piesele care se potrivesc (din catalog: denumire / grup / articol / OEM / cod de bare / model).
   let q = sb.from('piese_catalog_rows').select('*').order('group_name').limit(limit);
@@ -59,7 +60,7 @@ export async function searchAssistant(
   const stockByPart = new Map<number, StockAt[]>();
   for (const r of (stockRes.data || []) as any[]) {
     const arr = stockByPart.get(r.part_id) || [];
-    arr.push({ warehouseId: r.warehouse_id, warehouse: r.warehouse_name, qty: Number(r.qty) || 0, location: r.location_label || null });
+    arr.push({ warehouseId: Number(r.warehouse_id), warehouse: r.warehouse_name, qty: Number(r.qty) || 0, location: r.location_label || null });
     stockByPart.set(r.part_id, arr);
   }
   const supByPart = new Map<number, any>();
@@ -69,7 +70,10 @@ export async function searchAssistant(
 
   return list.map((p) => {
     const stockAll = stockByPart.get(p.id) || [];
-    const stock = stockAll.filter((x) => x.qty > 0).sort((a, b) => b.qty - a.qty);
+    // Filtru pe depozit: dacă e cerut un depozit (sau contul e legat de unul), stocul/„în stoc" se raportează
+    // DOAR pentru acel depozit („o am eu aici?"). Prețul de vânzare + furnizorul rămân globale (nu depind de depozit).
+    const scoped = opts.warehouseId ? stockAll.filter((x) => x.warehouseId === opts.warehouseId) : stockAll;
+    const stock = scoped.filter((x) => x.qty > 0).sort((a, b) => b.qty - a.qty);
     const totalQty = stock.reduce((sum, x) => sum + x.qty, 0);
     const price = priceByPart.get(p.id);
     const sup = supByPart.get(p.id);

@@ -24,6 +24,8 @@ const SECTIONS: SectionCfg[] = [
     { key: 'name', label: 'Denumire', required: true },
     { key: 'idno', label: 'IDNO' },
     { key: 'contact', label: 'Contact' },
+    { key: 'phone2', label: 'Telefon 2' },
+    { key: 'phone3', label: 'Telefon 3' },
   ] },
   { key: 'clients', title: 'Clienți', fields: [
     { key: 'name', label: 'Denumire', required: true },

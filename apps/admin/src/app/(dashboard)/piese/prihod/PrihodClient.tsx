@@ -8,7 +8,11 @@ import SearchSelect from '@/components/SearchSelect';
 import PartForm from '@/components/PartForm';
 
 interface Opt { id: number; label: string }
-interface Line { part_id: number | ''; part_label?: string; qty: number; unit_cost: number }
+interface Line { part_id: number | ''; part_label?: string; qty: number; unit_cost: number; sum: number }
+
+const r2 = (n: number) => Math.round(n * 100) / 100;     // rotunjire la 2 zecimale (lei/bani)
+const r4 = (n: number) => Math.round(n * 10000) / 10000; // preț unitar derivat din sumă: 4 zecimale, ca qty×preț ≈ suma introdusă exact
+const blankLine = (): Line => ({ part_id: '', qty: 1, unit_cost: 0, sum: 0 });
 
 export default function PrihodClient({ warehouses, suppliers, groups }: { warehouses: Opt[]; suppliers: Opt[]; groups: Opt[] }) {
   const router = useRouter();
@@ -16,7 +20,7 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
   const [supplierId, setSupplierId] = useState<number | ''>('');
   const [series, setSeries] = useState('');
   const [number, setNumber] = useState('');
-  const [lines, setLines] = useState<Line[]>([{ part_id: '', qty: 1, unit_cost: 0 }]);
+  const [lines, setLines] = useState<Line[]>([blankLine()]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ t: 'ok' | 'danger'; m: string } | null>(null);
   const [newPartFor, setNewPartFor] = useState<number | null>(null); // indexul poziției care adaugă o piesă nouă
@@ -32,7 +36,7 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
         lines: lines.filter((l) => l.part_id).map((l) => ({ part_id: Number(l.part_id), qty: l.qty, unit_cost: l.unit_cost })),
       });
       setMsg({ t: 'ok', m: `Prihod #${r.docId} înregistrat. Stocul a crescut.` });
-      setLines([{ part_id: '', qty: 1, unit_cost: 0 }]); setSeries(''); setNumber('');
+      setLines([blankLine()]); setSeries(''); setNumber('');
       router.refresh();
     } catch (e: any) { setMsg({ t: 'danger', m: e.message }); } finally { setBusy(false); }
   }
@@ -46,8 +50,9 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
         <div className="form-row"><label>Serie</label><input value={series} onChange={(e) => setSeries(e.target.value)} placeholder="AA" /></div>
         <div className="form-row"><label>Număr</label><input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="123456" /></div>
       </div>
+      <p className="muted" style={{ marginTop: 4, marginBottom: 8 }}>Completează fie <strong>Prețul unitar</strong>, fie <strong>Suma</strong> pe rând — celălalt se calculează automat (sumă ÷ cantitate = preț unitar).</p>
       <table>
-        <thead><tr><th>Piesă</th><th style={{ width: 110 }}>Cant.</th><th style={{ width: 140 }}>Preț unitar</th><th className="num" style={{ width: 110 }}>Sumă</th><th style={{ width: 36 }}></th></tr></thead>
+        <thead><tr><th>Piesă</th><th style={{ width: 110 }}>Cant.</th><th style={{ width: 140 }}>Preț unitar</th><th style={{ width: 130 }}>Sumă</th><th style={{ width: 36 }}></th></tr></thead>
         <tbody>
           {lines.map((l, i) => (
             <tr key={i}>
@@ -57,16 +62,16 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
                   <button type="button" className="btn btn-outline" style={{ padding: '4px 10px', whiteSpace: 'nowrap' }} onClick={() => setNewPartFor(i)} title="Adaugă o piesă care nu există încă în catalog">+ nouă</button>
                 </div>
               </td>
-              <td><input type="number" min={1} value={l.qty} onChange={(e) => setLine(i, { qty: Number(e.target.value) })} /></td>
-              <td><input type="number" min={0} step="0.01" value={l.unit_cost} onChange={(e) => setLine(i, { unit_cost: Number(e.target.value) })} /></td>
-              <td className="num">{(l.qty * l.unit_cost).toFixed(2)}</td>
+              <td><input type="number" min={1} value={l.qty} onChange={(e) => { const qty = Number(e.target.value); setLine(i, { qty, sum: r2(qty * l.unit_cost) }); }} /></td>
+              <td><input type="number" min={0} step="0.0001" value={l.unit_cost || ''} onChange={(e) => { const uc = Number(e.target.value); setLine(i, { unit_cost: uc, sum: r2(l.qty * uc) }); }} placeholder="preț" /></td>
+              <td><input type="number" min={0} step="0.01" value={l.sum || ''} onChange={(e) => { const sum = Number(e.target.value); setLine(i, { sum, unit_cost: l.qty > 0 ? r4(sum / l.qty) : 0 }); }} placeholder="sumă" style={{ textAlign: 'right' }} /></td>
               <td>{lines.length > 1 && <button className="btn" onClick={() => setLines((ls) => ls.filter((_, j) => j !== i))} style={{ padding: '4px 10px' }}>×</button>}</td>
             </tr>
           ))}
         </tbody>
       </table>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
-        <button className="btn" onClick={() => setLines((ls) => [...ls, { part_id: '', qty: 1, unit_cost: 0 }])}>+ Adaugă poziție</button>
+        <button className="btn" onClick={() => setLines((ls) => [...ls, blankLine()])}>+ Adaugă poziție</button>
         <strong>Total: {total.toFixed(2)} lei</strong>
       </div>
       {msg && <div className={`alert ${msg.t}`} style={{ marginTop: 12 }}>{msg.m}</div>}

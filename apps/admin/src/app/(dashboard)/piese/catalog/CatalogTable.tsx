@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import PartForm, { type PartFormValues } from '@/components/PartForm';
 import PartLocationEditor from '@/components/PartLocationEditor';
+import LabelModal, { type LabelData } from './LabelModal';
+import { partLabelData } from '../part-actions';
 
 type Opt = { id: number; label: string };
 
@@ -15,6 +17,15 @@ export default function CatalogTable({ rows, groups, warehouses, canEdit }: {
   const router = useRouter();
   const [edit, setEdit] = useState<any | null>(null);
   const [adding, setAdding] = useState(false); // modal „piesă nouă în catalog"
+  const [label, setLabel] = useState<LabelData | null>(null); // eticheta de tipărit
+  const [labelBusy, setLabelBusy] = useState<number | null>(null);
+
+  async function openLabel(id: number) {
+    setLabelBusy(id);
+    try { const d = await partLabelData(id); if (d) setLabel(d as LabelData); }
+    catch { alert('Nu am putut încărca eticheta. Reîncearcă.'); }
+    finally { setLabelBusy(null); }
+  }
 
   const initial: PartFormValues | null = edit && {
     id: edit.id,
@@ -39,7 +50,7 @@ export default function CatalogTable({ rows, groups, warehouses, canEdit }: {
       )}
       <table>
         <thead>
-          <tr><th>Denumire</th><th>Grup</th><th>Producător</th><th>Model</th><th>Articul</th><th>Cod de bare</th><th>Unit.</th><th>Vânzare</th></tr>
+          <tr><th>Denumire</th><th>Grup</th><th>Producător</th><th>Model</th><th>Articul</th><th>Cod de bare</th><th>Unit.</th><th>Vânzare</th><th>Etichetă</th></tr>
         </thead>
         <tbody>
           {rows.map((p) => (
@@ -57,10 +68,13 @@ export default function CatalogTable({ rows, groups, warehouses, canEdit }: {
               <td className="muted" style={{ fontFamily: 'monospace', fontSize: 12 }}>{p.barcode || '—'}</td>
               <td>{p.unit}</td>
               <td>{p.is_for_sale ? <span className="badge ok">da</span> : <span className="badge gray">parc</span>}</td>
+              <td onClick={(e) => e.stopPropagation()}>
+                <button className="btn btn-outline" style={{ padding: '2px 8px', whiteSpace: 'nowrap' }} disabled={labelBusy === p.id} onClick={() => openLabel(p.id)} title="Tipărește eticheta piesei">{labelBusy === p.id ? '…' : '🏷 Etichetă'}</button>
+              </td>
             </tr>
           ))}
           {rows.length === 0 && (
-            <tr><td colSpan={8} className="muted">Nicio piesă găsită. Schimbă căutarea sau categoria.</td></tr>
+            <tr><td colSpan={9} className="muted">Nicio piesă găsită. Schimbă căutarea sau categoria.</td></tr>
           )}
         </tbody>
       </table>
@@ -99,6 +113,8 @@ export default function CatalogTable({ rows, groups, warehouses, canEdit }: {
           </div>
         </div>
       )}
+
+      {label && <LabelModal data={label} onClose={() => setLabel(null)} />}
     </>
   );
 }

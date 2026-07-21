@@ -37,6 +37,35 @@ export async function listSuppliers() {
   return data || [];
 }
 
+// Datele pentru eticheta de tipărit a unei piese: denumire, marcă, cod intern (articol), cod de bare,
+// stoc (în depozitul dat, sau TOTAL dacă warehouseId e null) și preț de vânzare. Stoc/preț citite live la tipărire.
+export async function partLabelInfo(partId: number, warehouseId: number | null) {
+  const sb = getSupabase();
+  const { data: p } = await sb.from('piese_parts')
+    .select('id, name_long, name_ro, manufacturer, article_code, barcode, unit').eq('id', partId).maybeSingle();
+  if (!p) return null;
+  const part = p as any;
+  let qty = 0;
+  if (warehouseId == null) {
+    const { data } = await sb.from('piese_current_stock').select('qty').eq('part_id', partId);
+    qty = (data as any[] || []).reduce((s, r) => s + Number(r.qty || 0), 0);
+  } else {
+    const { data } = await sb.from('piese_current_stock').select('qty').eq('part_id', partId).eq('warehouse_id', warehouseId).maybeSingle();
+    qty = Number((data as any)?.qty || 0);
+  }
+  const { data: pr } = await sb.from('piese_part_sale_price').select('sale_price').eq('part_id', partId).maybeSingle();
+  return {
+    id: part.id,
+    name: (part.name_ro && String(part.name_ro).trim()) || part.name_long || '',
+    manufacturer: part.manufacturer || '',
+    articleCode: part.article_code || '',
+    barcode: (part.barcode && String(part.barcode).trim()) || part.article_code || '',
+    unit: part.unit || 'buc',
+    qty,
+    price: pr && (pr as any).sale_price != null ? Number((pr as any).sale_price) : null,
+  };
+}
+
 // Filtrele ecranului Stoc (depozit / grupă / căutare). SURSĂ UNICĂ — folosite identic
 // și de query-ul de rânduri, și de cel care însumează valoarea, ca totalul să corespundă listei.
 type StockFilters = { warehouseId?: number; groupId?: number; search?: string };

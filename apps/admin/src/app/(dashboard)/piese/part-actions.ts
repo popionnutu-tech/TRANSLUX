@@ -3,8 +3,8 @@
 import { revalidatePath } from 'next/cache';
 import { verifySession, requireRole } from '@/lib/auth';
 import { createPart, updatePart, setPartLocation } from '@/lib/piese-nomenclator';
-import { partLabel, getPartById, getPartLocation } from '@/lib/piese';
-import { PART_WRITE_ROLES, assertWarehouseAllowed } from '@/lib/piese-access';
+import { partLabel, getPartById, getPartLocation, partLabelInfo } from '@/lib/piese';
+import { PART_WRITE_ROLES, assertWarehouseAllowed, userWarehouseId } from '@/lib/piese-access';
 
 // Cine poate adăuga/edita o piesă în catalog: aceleași roluri care fac recepția (prihod) — depozitar,
 // gestionar (depozitar intern), admin. Vânzătorul NU creează piese. Sursă unică de autorizare (server action).
@@ -46,4 +46,12 @@ export async function savePartLocation(partId: number, warehouseId: number, data
   revalidatePath('/piese/harta');
   revalidatePath('/piese/stoc');
   return { ok: true };
+}
+
+// Datele etichetei de tipărit (denumire, marcă, cod, stoc, preț) — citire pentru orice rol al modulului Piese.
+// Stocul e din depozitul contului (sau total pentru admin/cont fără depozit). NU expune costul de achiziție.
+export async function partLabelData(partId: number) {
+  const session = requireRole(await verifySession(), 'ADMIN', 'DEPOZITAR', 'VINZATOR', 'CONTABIL', 'MANAGER', 'GESTIONAR');
+  if (!partId || partId <= 0) return null;
+  return partLabelInfo(partId, await userWarehouseId(session));
 }

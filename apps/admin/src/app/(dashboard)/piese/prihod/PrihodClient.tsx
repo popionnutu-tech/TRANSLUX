@@ -26,6 +26,8 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
   const [newPartFor, setNewPartFor] = useState<number | null>(null); // indexul poziției care adaugă o piesă nouă
 
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
+  // Copiază rândul i cu toate datele (piesă, cantitate, preț, sumă) și îl inserează imediat dedesubt.
+  const copyLine = (i: number) => setLines((ls) => { const next = [...ls]; next.splice(i + 1, 0, { ...ls[i] }); return next; });
   const total = lines.reduce((s, l) => s + l.qty * l.unit_cost, 0);
 
   async function submit() {
@@ -52,7 +54,7 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
       </div>
       <p className="muted" style={{ marginTop: 4, marginBottom: 8 }}>Completează fie <strong>Prețul unitar</strong>, fie <strong>Suma</strong> pe rând — celălalt se calculează automat (sumă ÷ cantitate = preț unitar).</p>
       <table>
-        <thead><tr><th>Piesă</th><th style={{ width: 110 }}>Cant.</th><th style={{ width: 140 }}>Preț unitar</th><th style={{ width: 130 }}>Sumă</th><th style={{ width: 36 }}></th></tr></thead>
+        <thead><tr><th>Piesă</th><th style={{ width: 110 }}>Cant.</th><th style={{ width: 140 }}>Preț unitar</th><th style={{ width: 130 }}>Sumă</th><th style={{ width: 84 }}></th></tr></thead>
         <tbody>
           {lines.map((l, i) => (
             <tr key={i}>
@@ -65,7 +67,12 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
               <td><input type="number" min={1} value={l.qty} onChange={(e) => { const qty = Number(e.target.value); setLine(i, { qty, sum: r2(qty * l.unit_cost) }); }} /></td>
               <td><input type="number" min={0} step="0.0001" value={l.unit_cost || ''} onChange={(e) => { const uc = Number(e.target.value); setLine(i, { unit_cost: uc, sum: r2(l.qty * uc) }); }} placeholder="preț" /></td>
               <td><input type="number" min={0} step="0.01" value={l.sum || ''} onChange={(e) => { const sum = Number(e.target.value); setLine(i, { sum, unit_cost: l.qty > 0 ? r4(sum / l.qty) : 0 }); }} placeholder="sumă" style={{ textAlign: 'right' }} /></td>
-              <td>{lines.length > 1 && <button className="btn" onClick={() => setLines((ls) => ls.filter((_, j) => j !== i))} style={{ padding: '4px 10px' }}>×</button>}</td>
+              <td>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <button type="button" className="btn btn-outline" onClick={() => copyLine(i)} style={{ padding: '4px 9px' }} title="Copiază rândul (aceeași piesă mai jos) și modifică doar ce ai nevoie">⧉</button>
+                  {lines.length > 1 && <button type="button" className="btn" onClick={() => setLines((ls) => ls.filter((_, j) => j !== i))} style={{ padding: '4px 9px' }} title="Șterge rândul">×</button>}
+                </div>
+              </td>
             </tr>
           ))}
         </tbody>

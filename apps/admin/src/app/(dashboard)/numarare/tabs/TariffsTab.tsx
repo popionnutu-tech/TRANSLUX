@@ -20,6 +20,11 @@ function formatRate(value: number): string {
   return value.toFixed(2) + ' lei/km';
 }
 
+function formatDateRO(dateStr: string): string {
+  const weekday = new Date(dateStr + 'T00:00:00').toLocaleDateString('ro-RO', { weekday: 'long' });
+  return `${weekday}, ${dateStr.split('-').reverse().join('.')}`;
+}
+
 function formatPeriod(start: string, end: string): string {
   const fmtShort = (d: string) => {
     const [, m, day] = d.split('-');
@@ -462,15 +467,17 @@ export default function TariffsTab() {
         </div>
       )}
 
-      {/* Propunere de tarif în așteptare (confirmare în panou) */}
+      {/* Propunere de tarif: pending = de confirmat; scheduled = confirmată, intră în vigoare la applyOn */}
       {pending && (
         <div className="card" style={{ marginBottom: 20, border: '1px solid rgba(34,139,34,0.35)', background: 'rgba(34,139,34,0.04)' }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--primary)', marginBottom: 4, fontStyle: 'italic' }}>
-            🆕 Tarif nou ANTA — așteaptă confirmarea ta
+            {pending.status === 'scheduled'
+              ? '✅ Tarif nou ANTA — confirmat, programat'
+              : '🆕 Tarif nou ANTA — așteaptă confirmarea ta'}
           </div>
           <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>
             {pending.source === 'manual' ? 'Verificare manuală' : 'Verificare automată'}
-            {pending.effectiveDate ? ` · valabil din ${pending.effectiveDate.split('-').reverse().join('.')}` : ''}
+            {pending.applyOn ? ` · intră în vigoare ${formatDateRO(pending.applyOn)}` : ''}
           </div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
             {[
@@ -489,27 +496,33 @@ export default function TariffsTab() {
               </div>
             ))}
           </div>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-            <button
-              className="btn"
-              onClick={handleConfirmProposal}
-              disabled={deciding}
-              style={{ padding: '8px 22px', fontSize: 13, background: '#228B22', color: '#fff', border: 'none', borderRadius: 'var(--radius-xs)', fontWeight: 600, cursor: deciding ? 'default' : 'pointer' }}
-            >
-              {deciding ? 'Se aplică...' : '✅ Confirmă'}
-            </button>
-            <button
-              className="btn"
-              onClick={handleRejectProposal}
-              disabled={deciding}
-              style={{ padding: '8px 22px', fontSize: 13, background: 'transparent', color: 'var(--danger)', border: '1px solid var(--danger)', borderRadius: 'var(--radius-xs)', fontWeight: 600, cursor: deciding ? 'default' : 'pointer' }}
-            >
-              ❌ Respinge
-            </button>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>
-              Prețurile nu se schimbă nicăieri până nu confirmi.
-            </span>
-          </div>
+          {pending.status === 'scheduled' ? (
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+              Confirmat. Prețurile rămân neschimbate până {pending.applyOn ? formatDateRO(pending.applyOn) : 'la data programată'} — atunci se aplică automat.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <button
+                className="btn"
+                onClick={handleConfirmProposal}
+                disabled={deciding}
+                style={{ padding: '8px 22px', fontSize: 13, background: '#228B22', color: '#fff', border: 'none', borderRadius: 'var(--radius-xs)', fontWeight: 600, cursor: deciding ? 'default' : 'pointer' }}
+              >
+                {deciding ? 'Se aplică...' : '✅ Confirmă'}
+              </button>
+              <button
+                className="btn"
+                onClick={handleRejectProposal}
+                disabled={deciding}
+                style={{ padding: '8px 22px', fontSize: 13, background: 'transparent', color: 'var(--danger)', border: '1px solid var(--danger)', borderRadius: 'var(--radius-xs)', fontWeight: 600, cursor: deciding ? 'default' : 'pointer' }}
+              >
+                ❌ Respinge
+              </button>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                Prețurile nu se schimbă nicăieri până nu confirmi.
+              </span>
+            </div>
+          )}
           {decideMsg && (
             <div style={{ marginTop: 12, fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)' }}>{decideMsg}</div>
           )}

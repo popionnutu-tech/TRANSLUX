@@ -1,0 +1,32 @@
+name: apply-scheduled-tariffs
+
+# Aplică tarifele ANTA confirmate care intră în vigoare azi (pending_price_updates
+# cu status 'scheduled' și apply_on ≤ azi, ora Chișinău). Perioada tarifară e scrisă
+# deja la confirmare (site/voce/numărare comută singure la miezul nopții); aici se
+# scriu app_config, oferta Bălți și nomenclatorul.
+# Rulează pe GitHub infra: Vercel Hobby are ambele sloturi de cron ocupate.
+# Două rulări pe zi (a doua = retry); endpoint-ul e idempotent și date-gated în
+# ora Chișinăului, deci ambele momente cad DUPĂ miezul nopții locale atât vara
+# (EEST, UTC+3: 01:10 / 02:40) cât și iarna (EET, UTC+2: 00:10 / 01:40).
+
+on:
+  schedule:
+    - cron: '10 22 * * *'
+    - cron: '40 23 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apply due scheduled tariffs
+        run: |
+          code=$(curl -s -m 60 -o /tmp/body -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://central-hub-md.vercel.app/api/cron/apply-scheduled-tariffs)
+          echo "apply-scheduled-tariffs responded: HTTP $code"
+          cat /tmp/body
+          if [ "$code" -lt 200 ] || [ "$code" -ge 400 ]; then
+            echo "::warning::apply-scheduled-tariffs returned HTTP $code"
+            exit 1
+          fi

@@ -192,32 +192,44 @@ function hasAnyRateChanged(current: CurrentRates, parsed: ParsedRates): boolean 
   );
 }
 
+// ─── Date helpers (Chișinău) ───
+
+function fmtDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function chisinauToday(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
+}
+
+/** Vinerea cea mai apropiată ≥ data dată (dacă data e vineri, chiar ea). */
+export function nextFridayOnOrAfter(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + ((5 - d.getDay() + 7) % 7));
+  return fmtDate(d);
+}
+
+/**
+ * Data intrării în vigoare: data de pe pagina ANTA („începând cu DD.MM.YYYY")
+ * sau, în lipsa ei, VINEREA următoare — regulă owner 23.07.2026: tarifele
+ * confirmate joi apar de vineri, nu din ziua confirmării.
+ */
+export function computeApplyDate(effectiveDate: string | null, today: string): string {
+  return effectiveDate ?? nextFridayOnOrAfter(today);
+}
+
 // ─── Period computation ───
 
-function computeTariffPeriod(effectiveDate: string | null): { periodStart: string; periodEnd: string } {
-  const fmt = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-  let start: Date;
-
-  if (effectiveDate) {
-    // Use the date parsed from ANTA page ("începând cu DD.MM.YYYY")
-    start = new Date(effectiveDate + 'T00:00:00');
-  } else {
-    // Fallback: most recent Thursday (or today if Thursday)
-    const chisinauNow = new Date(
-      new Date().toLocaleString('en-US', { timeZone: 'Europe/Chisinau' }),
-    );
-    const dayOfWeek = chisinauNow.getDay();
-    const daysSinceThursday = ((dayOfWeek - 4) % 7 + 7) % 7;
-    start = new Date(chisinauNow);
-    start.setDate(start.getDate() - daysSinceThursday);
-  }
-
+function computeTariffPeriod(applyDate: string): { periodStart: string; periodEnd: string } {
+  const start = new Date(applyDate + 'T00:00:00');
+  // Tariful confirmat rămâne valabil „până la noi ordine": end la +366 zile, nu +7.
+  // Cititorii aleg rândul cu cel mai recent period_start ≤ dată, deci următoarea
+  // confirmare îl umbrește natural de la propriul start. Cu +7, o săptămână fără
+  // schimbare ANTA lăsa datele următoare descoperite → cădere tăcută pe rândul
+  // baseline vechi (bug-ul „0 LEI"/откат semnalat de audit la 01.08.2026).
   const end = new Date(start);
-  end.setDate(end.getDate() + 7);
-
-  return { periodStart: fmt(start), periodEnd: fmt(end) };
+  end.setDate(end.getDate() + 366);
+  return { periodStart: fmtDate(start), periodEnd: fmtDate(end) };
 }
 
 // ─── Nomenclator snapshot ───
@@ -302,11 +314,17 @@ function formatRateLine(label: string, newRate: number, oldRate: number | null):
 
 // ─── Telegram message builder ───
 
+function formatRoDate(dateStr: string): string {
+  const weekday = new Date(dateStr + 'T00:00:00').toLocaleDateString('ro-RO', { weekday: 'long' });
+  return `${weekday}, ${dateStr.split('-').reverse().join('.')}`;
+}
+
 function buildProposalMessage(
   effective: EffectiveRates,
   previous: CurrentRates,
   preview: PopularPrice[],
   source: 'cron' | 'manual',
+  applyOn: string,
 ): string {
   const baltiPrice = Math.round(133 * effective.interurbanLong);
   const priceLines = preview
@@ -326,19 +344,46 @@ function buildProposalMessage(
     `${rateLines}\n` +
     `Bălți → Chișinău: <b>${baltiPrice - 20} lei</b> (reducere -20)\n\n` +
     `<b>Destinații populare:</b>\n${priceLines}\n\n` +
-    `⚠️ Prețurile NU sunt încă aplicate. Confirmă-le în panou → secțiunea <b>Tarife</b> pentru a le activa peste tot.`
+    `📅 După confirmare, intră în vigoare: <b>${formatRoDate(applyOn)}</b>.\n` +
+    `⚠️ Prețurile NU sunt încă aplicate. Confirmă-le în panou → secțiunea <b>Tarife</b> pentru a le activa.`
   );
 }
 
 // ─── Apply (după confirmare) ───
 
-/** Aplică efectiv tarifele peste tot: RPC + log + tariff_periods + nomenclator. */
-async function applyEffectiveRates(
+/**
+ * Perioada tarifară — scrisă IMEDIAT la confirmare, cu start = data intrării în vigoare.
+ * Site-ul, vocea și numărarea aleg tariful din tariff_periods după dată, deci comută
+ * singure la miezul nopții, chiar dacă cronul de aplicare ar întârzia.
+ */
+async function insertTariffPeriod(
+  supabase: ReturnType<typeof getSupabase>,
+  effective: EffectiveRates,
+  applyDate: string,
+): Promise<{ periodStart: string; periodEnd: string }> {
+  const { periodStart, periodEnd } = computeTariffPeriod(applyDate);
+  const { error } = await supabase.from('tariff_periods').insert({
+    period_start: periodStart,
+    period_end: periodEnd,
+    rate_interurban_long: effective.interurbanLong,
+    rate_interurban_short: effective.interurbanShort,
+    rate_suburban: effective.suburban,
+    source_url: ANTA_URL,
+  });
+  if (error) throw new Error(`tariff_periods insert failed: ${error.message}`);
+  return { periodStart, periodEnd };
+}
+
+/**
+ * Restul aplicării — app_config + oferta Bălți (RPC), log, nomenclator.
+ * Rulează DOAR în ziua intrării în vigoare (imediat la confirmare dacă data
+ * e azi/trecută, altfel din applyDueScheduledProposals).
+ */
+async function applyRatesToConfigAndOffers(
   supabase: ReturnType<typeof getSupabase>,
   effective: EffectiveRates,
   previous: CurrentRates,
-): Promise<PriceUpdateResult> {
-  // 1. Update prices + offers via DB function (v2)
+): Promise<number> {
   const { data: rowsUpdated, error: rpcError } = await supabase.rpc('update_prices_by_rate_v2', {
     new_rate_interurban_long: effective.interurbanLong,
     new_rate_interurban_short: effective.interurbanShort,
@@ -347,7 +392,6 @@ async function applyEffectiveRates(
 
   if (rpcError) throw new Error(`DB update failed: ${rpcError.message}`);
 
-  // 2. Log price update
   await supabase.from('price_update_log').insert({
     old_rate: previous.interurbanLong,
     new_rate: effective.interurbanLong,
@@ -357,38 +401,9 @@ async function applyEffectiveRates(
     rate_suburban: effective.suburban,
   });
 
-  // 3. Insert tariff period
-  const { periodStart, periodEnd } = computeTariffPeriod(effective.effectiveDate);
-  await supabase.from('tariff_periods').insert({
-    period_start: periodStart,
-    period_end: periodEnd,
-    rate_interurban_long: effective.interurbanLong,
-    rate_interurban_short: effective.interurbanShort,
-    rate_suburban: effective.suburban,
-    source_url: ANTA_URL,
-  });
-
-  // 4. Save nomenclator snapshot
   await saveNomenclator(supabase, effective.interurbanLong);
 
-  const baltiPrice = Math.round(133 * effective.interurbanLong);
-
-  return {
-    status: 'updated',
-    rates: {
-      interurbanLong: effective.interurbanLong,
-      interurbanShort: effective.interurbanShort,
-      suburban: effective.suburban,
-    },
-    previousRates: {
-      interurbanLong: previous.interurbanLong,
-      interurbanShort: previous.interurbanShort,
-      suburban: previous.suburban,
-    },
-    rowsUpdated: rowsUpdated ?? 0,
-    baltiChisinauOffer: baltiPrice - 20,
-    period: { start: periodStart, end: periodEnd },
-  };
+  return rowsUpdated ?? 0;
 }
 
 // ─── Main: fetch ANTA → creează PROPUNERE (nu aplică) ───
@@ -423,6 +438,34 @@ export async function executeAntaPriceUpdate(options?: {
 
     // 3. Validate (după rezolvarea raionalului)
     validateRates(effective);
+
+    // 4a. Există deja o propunere CONFIRMATĂ și programată cu exact aceste rate?
+    //     app_config se scrie abia la data intrării în vigoare, deci fără acest guard
+    //     o verificare (manuală) între confirmare și vineri ar recrea propunerea.
+    const { data: sched } = await supabase
+      .from('pending_price_updates')
+      .select('rate_interurban_long, rate_interurban_short, rate_suburban')
+      .eq('status', 'scheduled')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (sched) {
+      const s = sched as Record<string, unknown>;
+      const sameAsScheduled =
+        Math.abs(Number(s.rate_interurban_long) - effective.interurbanLong) < RATE_TOLERANCE &&
+        Math.abs(Number(s.rate_interurban_short) - effective.interurbanShort) < RATE_TOLERANCE &&
+        Math.abs(Number(s.rate_suburban) - effective.suburban) < RATE_TOLERANCE;
+      if (sameAsScheduled) {
+        return {
+          status: 'no_change',
+          rates: {
+            interurbanLong: effective.interurbanLong,
+            interurbanShort: effective.interurbanShort,
+            suburban: effective.suburban,
+          },
+        };
+      }
+    }
 
     // 4. Compare with current rates
     if (!hasAnyRateChanged(currentRates, effective)) {
@@ -468,7 +511,8 @@ export async function executeAntaPriceUpdate(options?: {
 
     // 6. Notifică adminii — DOAR informativ (fără butoane). Confirmarea se face în panou (Tarife).
     if (sendTelegramNotification) {
-      await notifyAdmins(buildProposalMessage(effective, currentRates, preview, source));
+      const applyOn = computeApplyDate(effective.effectiveDate, chisinauToday());
+      await notifyAdmins(buildProposalMessage(effective, currentRates, preview, source, applyOn));
     }
 
     return {
@@ -499,48 +543,68 @@ export async function executeAntaPriceUpdate(options?: {
 
 // ─── Decizie propunere (apelat din admin-API, declanșat de butonul din Telegram) ───
 
-/** Aplică o propunere pending (atomic claim → applyEffectiveRates). Aplică EXACT valorile salvate, fără re-fetch ANTA. */
+/** Claim-ul a eșuat: fie decisă între timp, fie 'pending' >24h → marcheaz-o 'expired' (terminal). */
+async function resolveFailedClaim(
+  supabase: ReturnType<typeof getSupabase>,
+  proposalId: string,
+  nowIso: string,
+  decidedBy: number | null,
+): Promise<{ status: 'already_decided' | 'expired'; current?: string }> {
+  const { data: row } = await supabase
+    .from('pending_price_updates')
+    .select('status, created_at')
+    .eq('id', proposalId)
+    .maybeSingle();
+  const r = row as { status: string; created_at: string } | null;
+  if (r && r.status === 'pending') {
+    await supabase
+      .from('pending_price_updates')
+      .update({ status: 'expired', decided_at: nowIso, decided_by: decidedBy })
+      .eq('id', proposalId)
+      .eq('status', 'pending');
+    return { status: 'expired' };
+  }
+  return { status: 'already_decided', current: r?.status ?? 'unknown' };
+}
+
+/**
+ * Confirmă o propunere pending. Aplică EXACT valorile salvate, fără re-fetch ANTA.
+ * Dacă data intrării în vigoare (ANTA sau vinerea următoare) e în viitor →
+ * scrie DOAR tariff_periods (comută singur după dată) și programează restul
+ * ('scheduled', aplicat de applyDueScheduledProposals în ziua respectivă).
+ * Altfel aplică totul imediat, ca înainte.
+ */
 export async function applyProposal(
   proposalId: string,
   decidedBy: number | null,
-): Promise<{ status: 'updated' | 'already_decided' | 'expired' | 'error'; current?: string; result?: PriceUpdateResult; error?: string }> {
+): Promise<{
+  status: 'updated' | 'scheduled' | 'already_decided' | 'expired' | 'error';
+  current?: string;
+  applyOn?: string;
+  result?: PriceUpdateResult;
+  error?: string;
+}> {
   try {
     const supabase = getSupabase();
-
-    // Atomic claim: doar dacă e încă 'pending' ȘI nu a expirat (24h). Previne dublă-aplicare și aplicarea unui preț învechit.
     const nowIso = new Date().toISOString();
     const cutoffIso = new Date(Date.now() - PROPOSAL_TTL_MS).toISOString();
-    const { data: claimed, error: claimErr } = await supabase
+
+    // Citim întâi propunerea ca să decidem programat/imediat. effective_date e
+    // imutabil, deci nu există cursă între citire și claim-ul atomic de mai jos.
+    const { data: row, error: readErr } = await supabase
       .from('pending_price_updates')
-      .update({ status: 'approved', decided_at: nowIso, decided_by: decidedBy })
-      .eq('id', proposalId)
-      .eq('status', 'pending')
-      .gte('created_at', cutoffIso)
       .select('*')
+      .eq('id', proposalId)
       .maybeSingle();
+    if (readErr) throw new Error(readErr.message);
+    if (!row) return { status: 'already_decided', current: 'unknown' };
 
-    if (claimErr) throw new Error(claimErr.message);
+    const c = row as Record<string, any>;
+    if (c.status !== 'pending') return { status: 'already_decided', current: c.status };
 
-    if (!claimed) {
-      const { data: row } = await supabase
-        .from('pending_price_updates')
-        .select('status, created_at')
-        .eq('id', proposalId)
-        .maybeSingle();
-      const r = row as { status: string; created_at: string } | null;
-      // Încă 'pending' dar mai veche de 24h → marchează 'expired' (terminal), nu aplica preț învechit.
-      if (r && r.status === 'pending') {
-        await supabase
-          .from('pending_price_updates')
-          .update({ status: 'expired', decided_at: nowIso, decided_by: decidedBy })
-          .eq('id', proposalId)
-          .eq('status', 'pending');
-        return { status: 'expired' };
-      }
-      return { status: 'already_decided', current: r?.status ?? 'unknown' };
-    }
+    const today = chisinauToday();
+    const applyOn = computeApplyDate(c.effective_date ?? null, today);
 
-    const c = claimed as Record<string, any>;
     const effective: EffectiveRates = {
       interurbanLong: Number(c.rate_interurban_long),
       interurbanShort: Number(c.rate_interurban_short),
@@ -553,20 +617,150 @@ export async function applyProposal(
       suburban: c.prev_suburban !== null ? Number(c.prev_suburban) : null,
     };
 
+    // Atomic claim: doar dacă e încă 'pending' ȘI nu a expirat (24h).
+    // Previne dublă-aplicare și aplicarea unui preț învechit.
+    const claimStatus = applyOn > today ? 'scheduled' : 'approved';
+    const { data: claimed, error: claimErr } = await supabase
+      .from('pending_price_updates')
+      .update({
+        status: claimStatus,
+        apply_on: applyOn,
+        decided_at: nowIso,
+        decided_by: decidedBy,
+        ...(claimStatus === 'approved' ? { applied_at: nowIso } : {}),
+      })
+      .eq('id', proposalId)
+      .eq('status', 'pending')
+      .gte('created_at', cutoffIso)
+      .select('id')
+      .maybeSingle();
+
+    if (claimErr) throw new Error(claimErr.message);
+    if (!claimed) return await resolveFailedClaim(supabase, proposalId, nowIso, decidedBy);
+
     try {
-      const result = await applyEffectiveRates(supabase, effective, previous);
-      return { status: 'updated', result };
+      // ANTA s-a schimbat de două ori în aceeași săptămână? Propunerea programată
+      // anterior devine caducă: o marcăm superseded (să n-o mai aplice cronul) și
+      // ștergem perioada ei viitoare din tariff_periods (încă nu a început).
+      await supabase
+        .from('pending_price_updates')
+        .update({ status: 'superseded' })
+        .eq('status', 'scheduled')
+        .neq('id', proposalId);
+      await supabase.from('tariff_periods').delete().gt('period_start', today);
+
+      const period = await insertTariffPeriod(supabase, effective, applyOn);
+
+      if (claimStatus === 'scheduled') {
+        // Restul (app_config, oferta, nomenclator, log) se scrie în ziua intrării în vigoare.
+        return { status: 'scheduled', applyOn };
+      }
+
+      const rowsUpdated = await applyRatesToConfigAndOffers(supabase, effective, previous);
+      const baltiPrice = Math.round(133 * effective.interurbanLong);
+      return {
+        status: 'updated',
+        result: {
+          status: 'updated',
+          rates: {
+            interurbanLong: effective.interurbanLong,
+            interurbanShort: effective.interurbanShort,
+            suburban: effective.suburban,
+          },
+          previousRates: {
+            interurbanLong: previous.interurbanLong,
+            interurbanShort: previous.interurbanShort,
+            suburban: previous.suburban,
+          },
+          rowsUpdated,
+          baltiChisinauOffer: baltiPrice - 20,
+          period: { start: period.periodStart, end: period.periodEnd },
+        },
+      };
     } catch (applyErr) {
       // Aplicarea a eșuat după claim → readu propunerea la 'pending' ca să poată fi reîncercată.
       await supabase
         .from('pending_price_updates')
-        .update({ status: 'pending', decided_at: null, decided_by: null })
+        .update({ status: 'pending', apply_on: null, decided_at: null, decided_by: null, applied_at: null })
         .eq('id', proposalId);
       throw applyErr;
     }
   } catch (err) {
     return { status: 'error', error: err instanceof Error ? err.message : 'Unknown error' };
   }
+}
+
+/**
+ * Aplică propunerile programate ajunse la scadență (apply_on ≤ azi, Chișinău).
+ * Perioada tarifară a fost scrisă deja la confirmare — aici se scriu doar
+ * app_config + oferta Bălți (RPC), log-ul și nomenclatorul.
+ * Idempotent (claim atomic pe status) — poate fi apelat oricât de des.
+ */
+export async function applyDueScheduledProposals(): Promise<{ applied: number; errors: string[] }> {
+  let applied = 0;
+  const errors: string[] = [];
+
+  try {
+    const supabase = getSupabase();
+    const today = chisinauToday();
+
+    const { data: due, error } = await supabase
+      .from('pending_price_updates')
+      .select('*')
+      .eq('status', 'scheduled')
+      .lte('apply_on', today)
+      .order('created_at', { ascending: true });
+    if (error) throw new Error(error.message);
+
+    for (const row of due || []) {
+      const c = row as Record<string, any>;
+
+      const { data: claimed } = await supabase
+        .from('pending_price_updates')
+        .update({ status: 'approved', applied_at: new Date().toISOString() })
+        .eq('id', c.id)
+        .eq('status', 'scheduled')
+        .select('id')
+        .maybeSingle();
+      if (!claimed) continue;
+
+      const effective: EffectiveRates = {
+        interurbanLong: Number(c.rate_interurban_long),
+        interurbanShort: Number(c.rate_interurban_short),
+        suburban: Number(c.rate_suburban),
+        effectiveDate: c.effective_date ?? null,
+      };
+      const previous: CurrentRates = {
+        interurbanLong: c.prev_interurban_long !== null ? Number(c.prev_interurban_long) : null,
+        interurbanShort: c.prev_interurban_short !== null ? Number(c.prev_interurban_short) : null,
+        suburban: c.prev_suburban !== null ? Number(c.prev_suburban) : null,
+      };
+
+      try {
+        await applyRatesToConfigAndOffers(supabase, effective, previous);
+        applied++;
+        await notifyAdmins(
+          `✅ <b>Tarifele confirmate au intrat în vigoare</b>\n\n` +
+            formatRateLine('Interurban lung', effective.interurbanLong, previous.interurbanLong) + '\n' +
+            formatRateLine('Interurban scurt', effective.interurbanShort, previous.interurbanShort) + '\n' +
+            formatRateLine('Suburban', effective.suburban, previous.suburban),
+        );
+      } catch (applyErr) {
+        // Readu la 'scheduled' ca să fie reîncercată la următorul apel al cronului.
+        await supabase
+          .from('pending_price_updates')
+          .update({ status: 'scheduled', applied_at: null })
+          .eq('id', c.id);
+        const msg = applyErr instanceof Error ? applyErr.message : 'Unknown error';
+        errors.push(msg);
+        await notifyAdmins(`⚠️ <b>Eroare la aplicarea tarifelor programate</b>\n\n${msg}`);
+      }
+    }
+  } catch (err) {
+    errors.push(err instanceof Error ? err.message : 'Unknown error');
+  }
+
+  return { applied, errors };
 }
 
 /** Respinge o propunere pending (nu aplică nimic). */

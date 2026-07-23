@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseRates } from './update-prices';
+import { parseRates, nextFridayOnOrAfter, computeApplyDate } from './update-prices';
 
 const makeHtml = (interurbanWord: string, dateClause = '') => `
 ${dateClause}
@@ -81,5 +81,41 @@ describe('parseRates', () => {
     expect(rates.interurbanShort).toBeCloseTo(1.04, 2);
     expect(rates.suburban).toBeNull();                 // raionalul nu e pe pagină → se păstrează curentul
     expect(rates.effectiveDate).toBe('2026-06-05');    // nu confunda cu 05.06 din data efectivă
+  });
+});
+
+describe('nextFridayOnOrAfter', () => {
+  it('joi → vinerea de a doua zi', () => {
+    expect(nextFridayOnOrAfter('2026-07-23')).toBe('2026-07-24');
+  });
+
+  it('vineri → aceeași zi', () => {
+    expect(nextFridayOnOrAfter('2026-07-24')).toBe('2026-07-24');
+  });
+
+  it('sâmbătă → vinerea următoare', () => {
+    expect(nextFridayOnOrAfter('2026-07-25')).toBe('2026-07-31');
+  });
+
+  it('luni → vinerea aceleiași săptămâni', () => {
+    expect(nextFridayOnOrAfter('2026-07-27')).toBe('2026-07-31');
+  });
+
+  it('trece corect peste graniță de lună', () => {
+    expect(nextFridayOnOrAfter('2026-08-29')).toBe('2026-09-04');
+  });
+});
+
+describe('computeApplyDate', () => {
+  it('data ANTA („începând cu") are prioritate', () => {
+    expect(computeApplyDate('2026-08-03', '2026-07-23')).toBe('2026-08-03');
+  });
+
+  it('fără dată ANTA → vinerea următoare (regula owner: confirmat joi, apare vineri)', () => {
+    expect(computeApplyDate(null, '2026-07-23')).toBe('2026-07-24');
+  });
+
+  it('confirmat chiar vineri, fără dată ANTA → intră în vigoare azi', () => {
+    expect(computeApplyDate(null, '2026-07-24')).toBe('2026-07-24');
   });
 });

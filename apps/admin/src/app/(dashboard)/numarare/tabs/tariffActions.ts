@@ -3,7 +3,14 @@
 import { getSupabase } from '@/lib/supabase';
 import { verifySession } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
-import { executeAntaPriceUpdate, applyProposal, rejectProposal, type PriceUpdateResult } from '@/lib/update-prices';
+import {
+  executeAntaPriceUpdate,
+  applyProposal,
+  rejectProposal,
+  applyDueScheduledProposals,
+  computeApplyDate,
+  type PriceUpdateResult,
+} from '@/lib/update-prices';
 
 // ─── Типы ───
 
@@ -194,6 +201,10 @@ export async function triggerPriceUpdate(): Promise<TriggerPriceUpdateResult> {
     return { success: false, status: 'error', message: 'Acces interzis' };
   }
 
+  // Plasă de siguranță: dacă o propunere programată a ajuns la scadență și cronul
+  // nu a rulat încă, o aplicăm acum, înainte de a compara cu ratele curente.
+  await applyDueScheduledProposals();
+
   const result = await executeAntaPriceUpdate({
     source: 'manual',
     sendTelegramNotification: true,
@@ -226,6 +237,8 @@ export async function triggerPriceUpdate(): Promise<TriggerPriceUpdateResult> {
 
 export interface PendingProposal {
   id: string;
+  /** 'pending' = așteaptă decizia; 'scheduled' = confirmată, intră în vigoare la applyOn */
+  status: 'pending' | 'scheduled';
   rateInterurbanLong: number;
   rateInterurbanShort: number;
   rateSuburban: number;
@@ -233,6 +246,8 @@ export interface PendingProposal {
   prevInterurbanShort: number | null;
   prevSuburban: number | null;
   effectiveDate: string | null;
+  /** Data intrării în vigoare (data ANTA sau vinerea următoare) */
+  applyOn: string | null;
   source: string;
   createdAt: string;
 }
@@ -242,23 +257,46 @@ export interface DecideProposalResult {
   message: string;
 }
 
-/** Cea mai recentă propunere 'pending' (sau null). */
+const PROPOSAL_COLUMNS =
+  'id, status, rate_interurban_long, rate_interurban_short, rate_suburban, prev_interurban_long, prev_interurban_short, prev_suburban, effective_date, apply_on, source, created_at';
+
+function formatRoDate(dateStr: string): string {
+  const weekday = new Date(dateStr + 'T00:00:00').toLocaleDateString('ro-RO', { weekday: 'long' });
+  return `${weekday}, ${dateStr.split('-').reverse().join('.')}`;
+}
+
+/**
+ * Cea mai recentă propunere 'pending' (de decis) sau, în lipsa ei, cea mai
+ * recentă propunere 'scheduled' (confirmată, așteaptă data intrării în vigoare).
+ */
 export async function getPendingProposal(): Promise<PendingProposal | null> {
   const sb = getSupabase();
   const { data } = await sb
     .from('pending_price_updates')
-    .select(
-      'id, rate_interurban_long, rate_interurban_short, rate_suburban, prev_interurban_long, prev_interurban_short, prev_suburban, effective_date, source, created_at',
-    )
+    .select(PROPOSAL_COLUMNS)
     .eq('status', 'pending')
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  if (!data) return null;
-  const r = data as Record<string, any>;
+  let row = data as Record<string, any> | null;
+  if (!row) {
+    const { data: sched } = await sb
+      .from('pending_price_updates')
+      .select(PROPOSAL_COLUMNS)
+      .eq('status', 'scheduled')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    row = sched as Record<string, any> | null;
+  }
+  if (!row) return null;
+
+  const r = row;
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
   return {
     id: r.id,
+    status: r.status,
     rateInterurbanLong: Number(r.rate_interurban_long),
     rateInterurbanShort: Number(r.rate_interurban_short),
     rateSuburban: Number(r.rate_suburban),
@@ -266,6 +304,8 @@ export async function getPendingProposal(): Promise<PendingProposal | null> {
     prevInterurbanShort: r.prev_interurban_short !== null ? Number(r.prev_interurban_short) : null,
     prevSuburban: r.prev_suburban !== null ? Number(r.prev_suburban) : null,
     effectiveDate: r.effective_date ?? null,
+    // Pentru pending, apply_on nu e încă scris → arătăm data pe care ar primi-o la confirmare.
+    applyOn: r.apply_on ?? computeApplyDate(r.effective_date ?? null, today),
     source: r.source,
     createdAt: r.created_at,
   };
@@ -279,6 +319,14 @@ export async function confirmTariffProposal(id: string): Promise<DecideProposalR
 
   const res = await applyProposal(id, null);
 
+  if (res.status === 'scheduled') {
+    revalidatePath('/');
+    revalidatePath(TARIFF_PATH);
+    return {
+      success: true,
+      message: `Tarife confirmate. Intră în vigoare ${res.applyOn ? formatRoDate(res.applyOn) : 'la data programată'} — până atunci prețurile rămân neschimbate.`,
+    };
+  }
   if (res.status === 'updated') {
     revalidatePath('/');
     revalidatePath(TARIFF_PATH);

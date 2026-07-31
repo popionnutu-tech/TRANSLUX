@@ -22,16 +22,18 @@ export async function submitReceipt(payload: { warehouse_id: number; supplier_id
 
 // ── Jurnal documente de prihod (tab „Documente") ──
 // Listă de recepții, scoped pe depozit (cont legat = forțat pe depozitul lui, ignoră ce cere clientul) + perioadă.
-export async function listReceiptDocs(filters: { warehouseId?: number | null; from?: string | null; to?: string | null } = {}) {
+export async function listReceiptDocs(filters: { warehouseId?: number | null; supplierId?: number | null; search?: string | null; from?: string | null; to?: string | null } = {}) {
   const session = requireRole(await verifySession(), ...RECEIPT_ROLES);
   const bound = await userWarehouseId(session);
   const reqWh = filters.warehouseId && Number(filters.warehouseId) > 0 ? Number(filters.warehouseId) : undefined;
   const wh = bound != null ? bound : reqWh; // cont legat → doar depozitul lui
+  const supplierId = filters.supplierId && Number(filters.supplierId) > 0 ? Number(filters.supplierId) : undefined;
+  const search = (filters.search || '').trim().slice(0, 100) || undefined; // căutare serie/număr/comentariu, plafon
   // Granițe de zi în ora Chișinău (sursă unică chisinau-time), nu concatenare naivă; validăm formatul YYYY-MM-DD.
   const dateRe = /^\d{4}-\d{2}-\d{2}$/;
   const from = filters.from && dateRe.test(String(filters.from)) ? chisinauDayStartIso(String(filters.from)) : undefined;
   const to = filters.to && dateRe.test(String(filters.to)) ? chisinauDayBounds(String(filters.to)).toIso : undefined; // exclusiv
-  return receiptDocs({ warehouseId: wh, from, to });
+  return receiptDocs({ warehouseId: wh, supplierId, search, from, to });
 }
 
 // Liniile unui document — gardate pe depozitul documentului (cont legat nu poate citi documentele altui depozit).

@@ -23,7 +23,7 @@ export default function PrihodTabs({ warehouses, suppliers, groups, initialDocs 
         <PrihodClient warehouses={warehouses} suppliers={suppliers} groups={groups} />
       </div>
       <div style={{ display: tab === 'docs' ? 'block' : 'none' }}>
-        <PrihodDocsClient warehouses={warehouses} initialDocs={initialDocs} />
+        <PrihodDocsClient warehouses={warehouses} suppliers={suppliers} initialDocs={initialDocs} />
       </div>
     </>
   );

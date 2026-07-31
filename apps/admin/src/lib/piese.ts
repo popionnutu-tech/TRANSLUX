@@ -191,10 +191,10 @@ export async function recentDocs(limit = 8) {
 // ── Documente de prihod (jurnal recepții) ──
 // Listă de documente RECEIPT cu furnizor + nr. poziții + total (Σ cantitate×cost) + creator. Filtrabilă pe
 // depozit + perioadă. Scoping-ul pe depozit (cont legat) se impune în server action (listReceiptDocs).
-export async function receiptDocs(opts: { warehouseId?: number; from?: string; to?: string; limit?: number } = {}) {
+export async function receiptDocs(opts: { warehouseId?: number; supplierId?: number; search?: string; from?: string; to?: string; limit?: number } = {}) {
   const sb = getSupabase();
   let q = sb.from('piese_stock_documents')
-    .select('id, created_at, warehouse_id, invoice_series, invoice_number, created_by_admin, supplier:piese_suppliers(name), lines:piese_stock_document_lines(qty, unit_cost)')
+    .select('id, created_at, warehouse_id, invoice_series, invoice_number, note, created_by_admin, supplier:piese_suppliers(name), lines:piese_stock_document_lines(qty, unit_cost)')
     .eq('doc_type', 'RECEIPT')
     // Exclude „Sold inițial" (invoice_series='SOLD'): e stoc de pornire încărcat din Inventar, NU recepție de la
     // furnizor — și are ~o linie per piesă (mii), deci ar exploda embed-ul liniilor. Păstrează seriile NULL (prihod manual fără serie).
@@ -203,6 +203,10 @@ export async function receiptDocs(opts: { warehouseId?: number; from?: string; t
     .order('id', { ascending: false }) // tiebreak determinist la același created_at (ex. solduri importate în masă)
     .limit(opts.limit ?? 200);
   if (opts.warehouseId) q = q.eq('warehouse_id', opts.warehouseId);
+  if (opts.supplierId) q = q.eq('supplier_id', opts.supplierId);
+  // Căutare pe serie / număr / comentariu (partial, case-insensitive). Al doilea .or() se combină cu AND peste
+  // filtrul de excludere SOLD. `orVal` escapează valoarea (tratată ca DATE în ghilimele), nu ca filtru injectat.
+  if (opts.search) { const s = orVal(opts.search); q = q.or(`invoice_series.ilike."%${s}%",invoice_number.ilike."%${s}%",note.ilike."%${s}%"`); }
   if (opts.from) q = q.gte('created_at', opts.from);
   if (opts.to) q = q.lt('created_at', opts.to); // `to` = ISO exclusiv (miezul nopții zilei următoare, ora Chișinău)
   const { data, error } = await q;
@@ -223,6 +227,7 @@ export async function receiptDocs(opts: { warehouseId?: number; from?: string; t
       warehouseId: r.warehouse_id as number,
       series: (r.invoice_series as string) || null,
       number: (r.invoice_number as string) || null,
+      note: (r.note as string) || null,
       supplier: (r.supplier?.name as string) || null,
       positions: lines.length,
       total: lines.reduce((s: number, l: any) => s + Number(l.qty) * Number(l.unit_cost), 0),

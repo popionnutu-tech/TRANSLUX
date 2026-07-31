@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { submitReceipt } from './actions';
+import { loadPart } from '../part-actions';
 import { searchParts } from '../search-parts';
 import SearchSelect from '@/components/SearchSelect';
-import PartForm from '@/components/PartForm';
+import PartForm, { type PartFormValues } from '@/components/PartForm';
 
 interface Opt { id: number; label: string }
 interface Line { part_id: number | ''; part_label?: string; qty: number; unit_cost: number; sum: number }
@@ -20,25 +21,45 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
   const [supplierId, setSupplierId] = useState<number | ''>('');
   const [series, setSeries] = useState('');
   const [number, setNumber] = useState('');
+  const [note, setNote] = useState(''); // comentariu la factură (se salvează pe document)
   const [lines, setLines] = useState<Line[]>([blankLine()]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ t: 'ok' | 'danger'; m: string } | null>(null);
   const [newPartFor, setNewPartFor] = useState<number | null>(null); // indexul poziției care adaugă o piesă nouă
+  const [editPart, setEditPart] = useState<{ index: number; initial: PartFormValues } | null>(null); // editare piesă chiar din recepție
+  const [editBusy, setEditBusy] = useState<number | null>(null); // indexul rândului care încarcă piesa pentru editare
 
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
   // Copiază rândul i cu toate datele (piesă, cantitate, preț, sumă) și îl inserează imediat dedesubt.
   const copyLine = (i: number) => setLines((ls) => { const next = [...ls]; next.splice(i + 1, 0, { ...ls[i] }); return next; });
   const total = lines.reduce((s, l) => s + l.qty * l.unit_cost, 0);
 
+  // Deschide formularul de editare pentru piesa deja aleasă pe rândul i (corectezi denumire/cod/etc. fără să pleci în Catalog).
+  async function openEditPart(i: number, partId: number) {
+    setEditBusy(i);
+    try {
+      const p = await loadPart(partId);
+      if (!p) { alert('Piesa nu a fost găsită.'); return; }
+      setEditPart({ index: i, initial: {
+        id: Number(p.id), group_id: p.group_id as number | string | undefined,
+        name_long: (p.name_long as string) ?? '', name_ro: (p.name_ro as string) ?? '',
+        manufacturer: (p.manufacturer as string) ?? '', model: (p.model as string) ?? '',
+        article_code: (p.article_code as string) ?? '', oem_code: (p.oem_code as string) ?? '',
+        barcode: (p.barcode as string) ?? '', unit: (p.unit as string) ?? 'buc', is_for_sale: !!p.is_for_sale,
+      } });
+    } catch { alert('Nu am putut încărca piesa pentru editare. Reîncearcă.'); }
+    finally { setEditBusy(null); }
+  }
+
   async function submit() {
     setBusy(true); setMsg(null);
     try {
       const r = await submitReceipt({
-        warehouse_id: warehouseId, supplier_id: supplierId ? Number(supplierId) : null, invoice_series: series, invoice_number: number,
+        warehouse_id: warehouseId, supplier_id: supplierId ? Number(supplierId) : null, invoice_series: series, invoice_number: number, note,
         lines: lines.filter((l) => l.part_id).map((l) => ({ part_id: Number(l.part_id), qty: l.qty, unit_cost: l.unit_cost })),
       });
       setMsg({ t: 'ok', m: `Prihod #${r.docId} înregistrat. Stocul a crescut.` });
-      setLines([blankLine()]); setSeries(''); setNumber('');
+      setLines([blankLine()]); setSeries(''); setNumber(''); setNote('');
       router.refresh();
     } catch (e: any) { setMsg({ t: 'danger', m: e.message }); } finally { setBusy(false); }
   }
@@ -51,6 +72,7 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
         <div className="form-row"><label>Furnizor</label><SearchSelect options={suppliers} value={supplierId} onSelect={(o) => setSupplierId(o ? o.id : '')} placeholder="— caută furnizor —" /></div>
         <div className="form-row"><label>Serie</label><input value={series} onChange={(e) => setSeries(e.target.value)} placeholder="AA" /></div>
         <div className="form-row"><label>Număr</label><input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="123456" /></div>
+        <div className="form-row" style={{ flex: 1, minWidth: 220 }}><label>Comentariu la factură</label><input value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} placeholder="observații (opțional)" /></div>
       </div>
       <p className="muted" style={{ marginTop: 4, marginBottom: 8 }}>Completează fie <strong>Prețul unitar</strong>, fie <strong>Suma</strong> pe rând — celălalt se calculează automat (sumă ÷ cantitate = preț unitar).</p>
       <table>
@@ -61,6 +83,7 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
               <td>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   <div style={{ flex: 1 }}><SearchSelect searchFn={searchParts} value={l.part_id} selectedLabel={l.part_label} onSelect={(o) => setLine(i, { part_id: o ? o.id : '', part_label: o?.label })} placeholder="— caută piesa (denumire, cod, articol) —" /></div>
+                  {l.part_id !== '' && <button type="button" className="btn btn-outline" style={{ padding: '4px 10px', whiteSpace: 'nowrap' }} disabled={editBusy === i} onClick={() => openEditPart(i, Number(l.part_id))} title="Corectează denumirea / codul de bare / datele piesei alese, direct din recepție">{editBusy === i ? '…' : '✎ Editează'}</button>}
                   <button type="button" className="btn btn-outline" style={{ padding: '4px 10px', whiteSpace: 'nowrap' }} onClick={() => setNewPartFor(i)} title="Adaugă o piesă care nu există încă în catalog">+ nouă</button>
                 </div>
               </td>
@@ -93,6 +116,21 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
               groups={groups}
               onSaved={(p) => { setLine(newPartFor, { part_id: p.id, part_label: p.label }); setNewPartFor(null); }}
               onCancel={() => setNewPartFor(null)}
+            />
+          </div>
+        </div>
+      )}
+
+      {editPart && (
+        <div onClick={() => setEditPart(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '6vh 16px', zIndex: 1000, overflowY: 'auto' }}>
+          <div onClick={(e) => e.stopPropagation()} className="card" style={{ maxWidth: 900, width: '100%', margin: 0 }}>
+            <h2 style={{ marginTop: 0 }}>Editează piesa</h2>
+            <p className="muted" style={{ marginTop: -6 }}>Corectezi denumirea, codul de bare sau alte date. Modificarea se salvează în <strong>catalog</strong> și se actualizează pe rândul de recepție. Nu schimbă cantitatea/costul din recepție.</p>
+            <PartForm
+              groups={groups}
+              initial={editPart.initial}
+              onSaved={(p) => { setLine(editPart.index, { part_label: p.label }); setEditPart(null); }}
+              onCancel={() => setEditPart(null)}
             />
           </div>
         </div>

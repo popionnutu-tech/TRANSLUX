@@ -2,18 +2,21 @@
 
 import { verifySession, requireRole } from '@/lib/auth';
 import { assertWarehouseAllowed, userWarehouseId } from '@/lib/piese-access';
-import { createReceipt, receiptDocs, receiptDocLines, receiptDocWarehouse, setReceiptCreator } from '@/lib/piese';
+import { createReceipt, receiptDocs, receiptDocLines, receiptDocWarehouse, setReceiptCreator, setReceiptNote } from '@/lib/piese';
 import { chisinauDayStartIso, chisinauDayBounds } from '@/lib/chisinau-time';
 
 const RECEIPT_ROLES = ['ADMIN', 'DEPOZITAR', 'GESTIONAR'] as const;
+const NOTE_MAX = 500; // plafon sanity pentru comentariul la factură
 
-export async function submitReceipt(payload: { warehouse_id: number; supplier_id: number | null; invoice_series?: string; invoice_number?: string; lines: { part_id: number; qty: number; unit_cost: number }[] }) {
+export async function submitReceipt(payload: { warehouse_id: number; supplier_id: number | null; invoice_series?: string; invoice_number?: string; note?: string; lines: { part_id: number; qty: number; unit_cost: number }[] }) {
   const session = requireRole(await verifySession(), ...RECEIPT_ROLES);
   await assertWarehouseAllowed(session, payload.warehouse_id); // Etapa 2: nu poate face recepție în alt depozit
   const lines = payload.lines.filter((l) => l.part_id && l.qty > 0);
   if (!lines.length) throw new Error('Adaugă cel puțin o piesă');
   const docId = await createReceipt({ ...payload, lines });
   await setReceiptCreator(docId, session.id); // „Cine" a făcut recepția (non-fatal dacă pică)
+  const note = (payload.note || '').trim().slice(0, NOTE_MAX);
+  if (note) await setReceiptNote(docId, note); // comentariu la factură (non-fatal dacă pică)
   return { ok: true, docId };
 }
 

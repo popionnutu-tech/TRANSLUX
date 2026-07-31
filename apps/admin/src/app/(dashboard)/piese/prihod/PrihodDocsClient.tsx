@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useState, useTransition } from 'react';
+import { Fragment, useEffect, useState, useTransition } from 'react';
 import { listReceiptDocs, loadReceiptLines } from './actions';
 
 export type ReceiptDoc = {
@@ -19,6 +19,9 @@ const docLabel = (d: ReceiptDoc) => [d.series, d.number].filter(Boolean).join(' 
 // + perioadă. Click pe un rând → liniile documentului (piesă, cantitate, cost). Fără migrație — citește piese_stock_documents.
 export default function PrihodDocsClient({ warehouses, initialDocs }: { warehouses: Opt[]; initialDocs: ReceiptDoc[] }) {
   const [docs, setDocs] = useState<ReceiptDoc[]>(initialDocs);
+  // Tab-ul rămâne montat (nu se re-montează la comutare) → re-sincronizează lista când server-ul aduce
+  // documente proaspete (ex. după `router.refresh()` la o recepție nouă), altfel jurnalul ar rămâne învechit.
+  useEffect(() => { setDocs(initialDocs); }, [initialDocs]);
   const [wh, setWh] = useState<number | ''>('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');

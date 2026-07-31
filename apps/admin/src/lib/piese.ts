@@ -264,6 +264,13 @@ export async function setReceiptCreator(docId: number, adminId: string): Promise
   if (error) console.error('[prihod] setReceiptCreator:', error.message);
 }
 
+// Salvează comentariul la factură (coloana `note` a documentului). Non-fatal: recepția a reușit deja.
+export async function setReceiptNote(docId: number, note: string): Promise<void> {
+  const { error } = await getSupabase()
+    .from('piese_stock_documents').update({ note }).eq('id', docId).eq('doc_type', 'RECEIPT');
+  if (error) console.error('[prihod] setReceiptNote:', error.message);
+}
+
 export async function dashboardStats() {
   const sb = getSupabase();
   const count = async (t: string) => (await sb.from(t).select('*', { count: 'exact', head: true })).count || 0;

@@ -17,9 +17,14 @@ export default function PrihodTabs({ warehouses, suppliers, groups, initialDocs 
         <button className={`btn${tab === 'new' ? ' btn-primary' : ''}`} style={{ padding: '8px 16px' }} onClick={() => setTab('new')}>Recepție nouă</button>
         <button className={`btn${tab === 'docs' ? ' btn-primary' : ''}`} style={{ padding: '8px 16px' }} onClick={() => setTab('docs')}>Documente</button>
       </div>
-      {tab === 'new'
-        ? <PrihodClient warehouses={warehouses} suppliers={suppliers} groups={groups} />
-        : <PrihodDocsClient warehouses={warehouses} initialDocs={initialDocs} />}
+      {/* Ambele tab-uri rămân montate (doar ascunse cu display:none) ca recepția în curs de completare
+          să NU se piardă când treci pe „Documente" (ex. verifici o factură veche) și te întorci. */}
+      <div style={{ display: tab === 'new' ? 'block' : 'none' }}>
+        <PrihodClient warehouses={warehouses} suppliers={suppliers} groups={groups} />
+      </div>
+      <div style={{ display: tab === 'docs' ? 'block' : 'none' }}>
+        <PrihodDocsClient warehouses={warehouses} initialDocs={initialDocs} />
+      </div>
     </>
   );
 }

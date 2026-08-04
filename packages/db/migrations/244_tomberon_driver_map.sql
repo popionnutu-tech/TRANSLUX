@@ -9,7 +9,7 @@
 CREATE TABLE IF NOT EXISTS public.tomberon_driver_map (
   driver_id uuid PRIMARY KEY REFERENCES drivers(id) ON DELETE CASCADE,
   terminal_id integer NOT NULL UNIQUE,
-  matched_by text NOT NULL DEFAULT 'waybill',   -- 'waybill' (bootstrap) / 'manual'
+  matched_by text NOT NULL DEFAULT 'waybill',   -- 'waybill' (bootstrap) / 'manual' / 'name' (auto după nume) / 'created' (creat de noi la terminal)
   created_at timestamptz NOT NULL DEFAULT now()
 );
 

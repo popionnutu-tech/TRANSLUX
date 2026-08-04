@@ -139,12 +139,13 @@ try {
 
   const drvIds = [...new Set(foi.map(f => f.driver_id))];
   const [drvRes, daRes, mapRes] = await Promise.all([
-    supa.from('drivers').select('id, full_name').in('id', drvIds),
+    supa.from('drivers').select('id, full_name, active').in('id', drvIds),
     supa.from('daily_assignments').select('driver_id, vehicle_id, vehicle_id_retur').eq('assignment_date', DATE).in('driver_id', drvIds),
     supa.from('tomberon_driver_map').select('driver_id, terminal_id').in('driver_id', drvIds),
   ]);
   for (const r of [drvRes, daRes, mapRes]) if (r.error) { console.error('Supabase:', r.error.message); process.exit(1); }
   const nameMap = new Map(drvRes.data.map(d => [d.id, d.full_name]));
+  const activeMap = new Map(drvRes.data.map(d => [d.id, d.active !== false]));
   const termId = new Map(mapRes.data.map(m => [m.driver_id, m.terminal_id]));
 
   // ── auto-mapare șoferi noi (lazy — se activează doar când apare unul nemapat) ──
@@ -167,12 +168,10 @@ try {
     return diff + (l.length - j) + (s.length - i) <= 1;
   };
   const tokEq = (a, b) => a === b || (a.length >= 4 && b.length >= 4 && (a.startsWith(b) || b.startsWith(a) || lev1(a, b)));
-  let tDriversP = null, usedTidsP = null, nextIdP = null;
+  let tDriversP = null, usedTidsP = null;
   const getTDrivers = () => (tDriversP ??= pool.request().query('SELECT DriverID, DriverName FROM drivers').then(r => r.recordset));
   const getUsedTids = () => (usedTidsP ??= supa.from('tomberon_driver_map').select('terminal_id')
     .then(({ data, error }) => { if (error) throw new Error(`map tids: ${error.message}`); return new Set((data ?? []).map(m => m.terminal_id)); }));
-  const getNextId = () => (nextIdP ??= pool.request().query('SELECT MAX(DriverID) AS m FROM drivers')
-    .then(r => ({ next: (r.recordset[0].m ?? 0) + 1 })));
 
   async function autoMap(uuid, fullName) {
     const [tDrv, used] = await Promise.all([getTDrivers(), getUsedTids()]);
@@ -183,7 +182,8 @@ try {
       const t = normName(d.DriverName).split(' ');
       if (!tokEq(t[0], ourTok[0])) return false;
       if (t.length < 2 || ourTok.length < 2) return true;
-      return tokEq(t[1], ourTok[1]) || t[1][0] === ourTok[1][0];
+      // prenumele trebuie să se potrivească; pe inițială DOAR dacă unul chiar e inițială
+      return tokEq(t[1], ourTok[1]) || ((t[1].length === 1 || ourTok[1].length === 1) && t[1][0] === ourTok[1][0]);
     });
     if (hits.length > 1) {
       console.warn(`  AMBIGUU «${fullName}»: ${hits.map(h => `#${h.DriverID} ${h.DriverName}`).join(' / ')} — mapează manual în tomberon_driver_map`);
@@ -191,12 +191,20 @@ try {
     }
     let tid, how;
     if (hits.length === 1) { tid = hits[0].DriverID; how = 'name'; }
-    else if (!WRITE) { console.log(`  [dry] «${fullName}» nu există la terminal — cu --write l-aș crea în special_db.drivers`); return null; }
     else {
-      const ctr = await getNextId();
-      tid = ctr.next++;
-      await pool.request().input('id', sql.Int, tid).input('nm', sql.VarChar(50), asciiName(fullName).slice(0, 50))
-        .query('INSERT INTO drivers (DriverID, DriverName) VALUES (@id, @nm)');
+      // 0 potriviri libere. Dacă numele de familie EXISTĂ deja la terminal (ocupat
+      // sau nu), nu creăm nimic — poate fi un duplicat de-al nostru (Zaiț S./Zait
+      // Serghei) sau un coleg omonim; decide omul. Creăm doar nume complet noi.
+      const sameSurname = tDrv.filter(d => tokEq(normName(d.DriverName).split(' ')[0], ourTok[0]));
+      if (sameSurname.length) {
+        console.warn(`  SKIP «${fullName}»: nume de familie deja la terminal (${sameSurname.map(h => `#${h.DriverID} ${h.DriverName}`).join(' / ')}) — mapează manual`);
+        return null;
+      }
+      if (!WRITE) { console.log(`  [dry] «${fullName}» nu există la terminal — cu --write l-aș crea în special_db.drivers`); return null; }
+      // MAX+1 și INSERT într-un singur statement — fără fereastră de cursă
+      const res = await pool.request().input('nm', sql.VarChar(50), asciiName(fullName).slice(0, 50))
+        .query('INSERT INTO drivers (DriverID, DriverName) OUTPUT INSERTED.DriverID SELECT ISNULL(MAX(DriverID), 0) + 1, @nm FROM drivers');
+      tid = res.recordset[0].DriverID;
       how = 'created';
     }
     if (!WRITE) { console.log(`  [dry] «${fullName}» s-ar mapa pe #${tid} (${hits[0].DriverName})`); return null; }
@@ -237,7 +245,11 @@ try {
     if (!/^\d{1,7}$/.test(wb)) { console.warn(`  SKIP foaie ne-numerică «${f.receipt_nr}» (${name})`); continue; }
     if (existWb.has(wb)) { skipped++; continue; }
     let tid = termId.get(f.driver_id);
-    if (tid == null && nameMap.has(f.driver_id)) tid = await autoMap(f.driver_id, name);
+    if (tid == null && nameMap.has(f.driver_id) && activeMap.get(f.driver_id)) {
+      // o eroare la auto-mapare nu blochează restul foilor
+      try { tid = await autoMap(f.driver_id, name); }
+      catch (e) { console.error(`  EROARE auto-mapare «${name}»: ${e.message}`); }
+    }
     if (tid == null) { console.warn(`  SKIP foaie ${wb} (${name}): șofer nemapat`); continue; }
     const a = daMap.get(f.driver_id);
     const plate = a ? plateMap.get(a.vehicle_id) ?? plateMap.get(a.vehicle_id_retur) : null;

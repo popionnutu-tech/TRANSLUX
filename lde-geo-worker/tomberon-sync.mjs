@@ -200,10 +200,11 @@ try {
   // veni la terminal cu foaia de mâine încă din seara precedentă (curse de noapte).
   const nextDay = iso => { const d = new Date(`${iso}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); };
   const DATES = args.some(a => /^\d{4}-\d{2}-\d{2}$/.test(a)) ? [DATE] : [DATE, nextDay(DATE)];
-  // o zi eșuată nu blochează cealaltă (cron reia oricum peste 10 min)
+  // o zi eșuată nu blochează cealaltă (cron reia oricum peste 10 min),
+  // dar exit code-ul reflectă eșecul pentru monitorizare
   for (const zi of DATES) {
     try { await syncDay(zi); }
-    catch (e) { console.error(`EROARE ziua ${zi}: ${e.message}`); }
+    catch (e) { console.error(`EROARE ziua ${zi}: ${e.message}`); process.exitCode = 1; }
   }
 
   async function syncDay(DATE) {
@@ -325,17 +326,28 @@ try {
       return m;
     }));
 
-  let inserted = 0, skipped = 0, failed = 0;
+  const esteMaine = DATE > chisinau(new Date());
+  let inserted = 0, skipped = 0, failed = 0, difs = 0;
   for (const f of foi) {
     const wb = normWb(f.receipt_nr);
     const name = nameMap.get(f.driver_id) ?? f.driver_id;
     if (!/^\d{1,7}$/.test(wb)) { console.warn(`  SKIP foaie ne-numerică «${f.receipt_nr}» (${name})`); continue; }
+    const a = daMap.get(f.driver_id);
+    const plate = a ? plateMap.get(a.vehicle_id) ?? plateMap.get(a.vehicle_id_retur) : null;
     if (existWb.has(wb)) {
-      // foaia există deja — doar raportăm dacă terminalul o are pe ALT șofer
-      // (ex. dispecerul a mutat cursa după ce rândul a plecat; INSERT-only → nu modificăm)
+      // foaia există deja — doar raportăm dacă terminalul o are pe ALT șofer sau
+      // ALTĂ mașină (ex. dispecerul a mutat cursa după ce rândul a plecat;
+      // INSERT-only → nu modificăm nimic)
+      const rows = existWb.get(wb);
       const ourTid = termId.get(f.driver_id);
-      if (ourTid != null && !existWb.get(wb).some(r => r.drv === ourTid))
-        console.warn(`  DIFERIT foaie ${wb}: la terminal drv=#${existWb.get(wb).map(r => r.drv).join('/#')}, la noi ${name} (#${ourTid}) — corectează manual la terminal dacă e cazul`);
+      const ourAuto = plate ? findAuto(plate) : null;
+      if (ourTid != null && !rows.some(r => r.drv === ourTid)) {
+        difs++;
+        console.warn(`  DIFERIT foaie ${wb}: la terminal drv=#${rows.map(r => r.drv).join('/#')}, la noi ${name} (#${ourTid}) — corectează manual la terminal dacă e cazul`);
+      } else if (ourAuto != null && !rows.some(r => r.car === ourAuto)) {
+        difs++;
+        console.warn(`  DIFERIT foaie ${wb}: la terminal auto=#${rows.map(r => r.car).join('/#')}, la noi ${plate} (#${ourAuto})`);
+      }
       skipped++;
       continue;
     }
@@ -346,9 +358,12 @@ try {
       catch (e) { console.error(`  EROARE auto-mapare «${name}»: ${e.message}`); }
     }
     if (tid == null) { console.warn(`  SKIP foaie ${wb} (${name}): șofer nemapat`); continue; }
-    const a = daMap.get(f.driver_id);
-    const plate = a ? plateMap.get(a.vehicle_id) ?? plateMap.get(a.vehicle_id_retur) : null;
-    if (!plate) { console.log(`  amânat foaie ${wb} (${name}): încă fără mașină în grafic`); continue; }
+    if (!plate) {
+      // pe mâine e normal (graficul se completează treptat); pe azi e o lacună reală
+      if (esteMaine) console.log(`  amânat foaie ${wb} (${name}): încă fără mașină în grafic`);
+      else console.warn(`  SKIP foaie ${wb} (${name}): fără mașină în graficul de AZI`);
+      continue;
+    }
     const autoId = findAuto(plate);
     if (autoId == null) { console.warn(`  SKIP foaie ${wb} (${name}): mașina «${plate}» negăsită în nomenclatorul auto al terminalului`); continue; }
     // WayID: 1) maparea rutei zilei (tomberon_route_map); 2) istoric per șofer; 3) 0
@@ -371,9 +386,10 @@ try {
       }
     }
   }
+  const difTxt = difs ? `, ${difs} DIFERITE` : '';
   console.log(WRITE
-    ? `SCRIS: ${inserted} foi noi, ${skipped} existau deja, ${failed} eșuate.`
-    : `DRY-RUN: ${skipped} există deja, restul de mai sus s-ar insera. Adaugă --write.`);
+    ? `SCRIS: ${inserted} foi noi, ${skipped} existau deja${difTxt}, ${failed} eșuate.`
+    : `DRY-RUN: ${skipped} există deja${difTxt}, restul de mai sus s-ar insera. Adaugă --write.`);
   }
 } finally {
   await pool.close();

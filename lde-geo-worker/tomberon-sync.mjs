@@ -185,12 +185,19 @@ try {
   }
 
   // ══ MOD sync: foile zilei → waybills (INSERT-only) ══
+  // Sincronizăm azi ȘI mâine: dispecerul introduce foile din ajun, iar șoferii pot
+  // veni la terminal cu foaia de mâine încă din seara precedentă (curse de noapte).
+  const nextDay = iso => { const d = new Date(`${iso}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); };
+  const DATES = args.some(a => /^\d{4}-\d{2}-\d{2}$/.test(a)) ? [DATE] : [DATE, nextDay(DATE)];
+  for (const zi of DATES) await syncDay(zi);
+
+  async function syncDay(DATE) {
   const D = ddmmyy(DATE);
   const { data: foi, error: fe } = await supa.from('driver_cashin_receipts')
     .select('driver_id, receipt_nr').eq('ziua', DATE);
   if (fe) { console.error('Supabase receipts:', fe.message); process.exit(1); }
   console.log(`${DATE} (${D}): ${foi?.length ?? 0} foi la noi`);
-  if (!foi?.length) process.exit(0);
+  if (!foi?.length) return;
 
   const drvIds = [...new Set(foi.map(f => f.driver_id))];
   const [drvRes, daRes, mapRes] = await Promise.all([
@@ -338,6 +345,7 @@ try {
   console.log(WRITE
     ? `SCRIS: ${inserted} foi noi, ${skipped} existau deja, ${failed} eșuate.`
     : `DRY-RUN: ${skipped} există deja, restul de mai sus s-ar insera. Adaugă --write.`);
+  }
 } finally {
   await pool.close();
 }

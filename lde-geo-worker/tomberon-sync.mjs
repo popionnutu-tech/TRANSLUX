@@ -55,13 +55,24 @@ try {
     const norm = normPlate(a.AutoValue);
     if (norm) autoByPlate.set(norm, { id: a.AutoID, exact: true });
   }
+  // «651AKD» vs «651ADK» — registrele au uneori literele plăcuței în altă ordine
+  const anagram = s => { const m = s.match(/^(\d+)([A-Z]+)$/); return m ? m[1] + [...m[2]].sort().join('') : null; };
   const findAuto = plate => {
     const p = normPlate(plate);
     if (!p) return null;
     if (autoByPlate.has(p)) return autoByPlate.get(p).id;
     // AutoValue conține uneori și modelul («318 BRAT Sprinter 312») → prefix unic
-    const hits = tAuto.filter(a => normPlate(a.AutoValue).startsWith(p));
-    return hits.length === 1 ? hits[0].AutoID : null;
+    let hits = tAuto.filter(a => normPlate(a.AutoValue).startsWith(p));
+    if (hits.length === 1) return hits[0].AutoID;
+    // aceleași cifre + aceleași litere în altă ordine (typo într-unul din registre)
+    const pa = anagram(p);
+    if (!pa) return null;
+    hits = tAuto.filter(a => anagram(normPlate(a.AutoValue).slice(0, p.length)) === pa);
+    if (hits.length === 1) {
+      console.log(`  (plăcuță potrivită tolerant: «${plate}» -> «${hits[0].AutoValue.trim()}»)`);
+      return hits[0].AutoID;
+    }
+    return null;
   };
 
   // ══ MOD --map: bootstrap mapare șoferi din foile comune (ultimele 30 zile) ══
@@ -189,13 +200,17 @@ try {
   // veni la terminal cu foaia de mâine încă din seara precedentă (curse de noapte).
   const nextDay = iso => { const d = new Date(`${iso}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); };
   const DATES = args.some(a => /^\d{4}-\d{2}-\d{2}$/.test(a)) ? [DATE] : [DATE, nextDay(DATE)];
-  for (const zi of DATES) await syncDay(zi);
+  // o zi eșuată nu blochează cealaltă (cron reia oricum peste 10 min)
+  for (const zi of DATES) {
+    try { await syncDay(zi); }
+    catch (e) { console.error(`EROARE ziua ${zi}: ${e.message}`); }
+  }
 
   async function syncDay(DATE) {
   const D = ddmmyy(DATE);
   const { data: foi, error: fe } = await supa.from('driver_cashin_receipts')
     .select('driver_id, receipt_nr').eq('ziua', DATE);
-  if (fe) { console.error('Supabase receipts:', fe.message); process.exit(1); }
+  if (fe) throw new Error(`Supabase receipts: ${fe.message}`);
   console.log(`${DATE} (${D}): ${foi?.length ?? 0} foi la noi`);
   if (!foi?.length) return;
 
@@ -205,7 +220,7 @@ try {
     supa.from('daily_assignments').select('driver_id, vehicle_id, vehicle_id_retur, crm_route_id').eq('assignment_date', DATE).in('driver_id', drvIds),
     supa.from('tomberon_driver_map').select('driver_id, terminal_id').in('driver_id', drvIds),
   ]);
-  for (const r of [drvRes, daRes, mapRes]) if (r.error) { console.error('Supabase:', r.error.message); process.exit(1); }
+  for (const r of [drvRes, daRes, mapRes]) if (r.error) throw new Error(`Supabase: ${r.error.message}`);
   const nameMap = new Map(drvRes.data.map(d => [d.id, d.full_name]));
   const activeMap = new Map(drvRes.data.map(d => [d.id, d.active !== false]));
   const termId = new Map(mapRes.data.map(m => [m.driver_id, m.terminal_id]));
@@ -288,10 +303,15 @@ try {
   const plateMap = new Map((vehRes.data ?? []).map(v => [v.id, v.plate_number]));
   const routeWay = new Map((rmRes.data ?? []).map(r => [r.crm_route_id, r.way_id]));
 
-  // ce există deja la terminal pe ziua asta
+  // ce există deja la terminal pe ziua asta (cu drv/car, pentru raportarea diferențelor)
   const exist = (await pool.request().input('d', sql.VarChar(20), D)
     .query('SELECT AutoID AS drv, DriverID AS car, Waybill FROM waybills WHERE data = @d')).recordset;
-  const existWb = new Set(exist.map(w => normWb(w.Waybill)));
+  const existWb = new Map();
+  for (const w of exist) {
+    const k = normWb(w.Waybill);
+    if (!existWb.has(k)) existWb.set(k, []);
+    existWb.get(k).push(w);
+  }
 
   // WayID: cel mai folosit istoric per șofer (nomenclatorul ways e gol — valoare de
   // formă). Agregatul pe toată waybills e scump pe SQL 2008 → lazy: doar dacă chiar
@@ -310,7 +330,15 @@ try {
     const wb = normWb(f.receipt_nr);
     const name = nameMap.get(f.driver_id) ?? f.driver_id;
     if (!/^\d{1,7}$/.test(wb)) { console.warn(`  SKIP foaie ne-numerică «${f.receipt_nr}» (${name})`); continue; }
-    if (existWb.has(wb)) { skipped++; continue; }
+    if (existWb.has(wb)) {
+      // foaia există deja — doar raportăm dacă terminalul o are pe ALT șofer
+      // (ex. dispecerul a mutat cursa după ce rândul a plecat; INSERT-only → nu modificăm)
+      const ourTid = termId.get(f.driver_id);
+      if (ourTid != null && !existWb.get(wb).some(r => r.drv === ourTid))
+        console.warn(`  DIFERIT foaie ${wb}: la terminal drv=#${existWb.get(wb).map(r => r.drv).join('/#')}, la noi ${name} (#${ourTid}) — corectează manual la terminal dacă e cazul`);
+      skipped++;
+      continue;
+    }
     let tid = termId.get(f.driver_id);
     if (tid == null && nameMap.has(f.driver_id) && activeMap.get(f.driver_id)) {
       // o eroare la auto-mapare nu blochează restul foilor
@@ -320,8 +348,9 @@ try {
     if (tid == null) { console.warn(`  SKIP foaie ${wb} (${name}): șofer nemapat`); continue; }
     const a = daMap.get(f.driver_id);
     const plate = a ? plateMap.get(a.vehicle_id) ?? plateMap.get(a.vehicle_id_retur) : null;
+    if (!plate) { console.log(`  amânat foaie ${wb} (${name}): încă fără mașină în grafic`); continue; }
     const autoId = findAuto(plate);
-    if (autoId == null) { console.warn(`  SKIP foaie ${wb} (${name}): mașina «${plate ?? '—'}» negăsită în nomenclatorul auto al terminalului`); continue; }
+    if (autoId == null) { console.warn(`  SKIP foaie ${wb} (${name}): mașina «${plate}» negăsită în nomenclatorul auto al terminalului`); continue; }
     // WayID: 1) maparea rutei zilei (tomberon_route_map); 2) istoric per șofer; 3) 0
     const wayId = (a?.crm_route_id != null ? routeWay.get(a.crm_route_id) : null)
       ?? (await getWayTop()).get(tid)?.WayID ?? 0;

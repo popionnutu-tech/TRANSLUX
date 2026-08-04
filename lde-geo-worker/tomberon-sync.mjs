@@ -73,7 +73,7 @@ try {
     for (let from = 0; ; from += 1000) { // PostgREST dă max 1000 rânduri/pagină
       const { data, error } = await supa.from('driver_cashin_receipts')
         .select('driver_id, receipt_nr, ziua').gte('ziua', days[days.length - 1])
-        .order('ziua').range(from, from + 999);
+        .order('ziua').order('driver_id').range(from, from + 999);
       if (error) { console.error('Supabase receipts:', error.message); process.exit(1); }
       foi.push(...(data ?? []));
       if (!data || data.length < 1000) break;
@@ -141,7 +141,7 @@ try {
       const { data, error } = await supa.from('daily_assignments')
         .select('driver_id, crm_route_id, assignment_date')
         .gte('assignment_date', days[days.length - 1]).not('crm_route_id', 'is', null)
-        .order('assignment_date').range(from, from + 999);
+        .order('assignment_date').order('id').range(from, from + 999);
       if (error) { console.error('Supabase daily_assignments:', error.message); process.exit(1); }
       das.push(...(data ?? []));
       if (!data || data.length < 1000) break;

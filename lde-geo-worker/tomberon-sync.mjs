@@ -146,6 +146,67 @@ try {
   for (const r of [drvRes, daRes, mapRes]) if (r.error) { console.error('Supabase:', r.error.message); process.exit(1); }
   const nameMap = new Map(drvRes.data.map(d => [d.id, d.full_name]));
   const termId = new Map(mapRes.data.map(m => [m.driver_id, m.terminal_id]));
+
+  // ── auto-mapare șoferi noi (lazy — se activează doar când apare unul nemapat) ──
+  // 1) căutare după nume în nomenclatorul terminalului (normalizat, tolerant la
+  //    variații gen Sumschii/Sumschi, Zait/Zaiat); 2) dacă nu există deloc acolo,
+  //    îl creăm noi în special_db.drivers (MAX(DriverID)+1 — exact ce face softul
+  //    lor la «șofer nou»); 3) ambiguu (două potriviri) → skip + log, decide omul.
+  const asciiName = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\x20-\x7E]/g, '?');
+  const normName = s => asciiName(s).toLowerCase().replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim();
+  const lev1 = (a, b) => {
+    if (a === b) return true;
+    const [s, l] = a.length <= b.length ? [a, b] : [b, a];
+    if (l.length - s.length > 1) return false;
+    let i = 0, j = 0, diff = 0;
+    while (i < s.length && j < l.length) {
+      if (s[i] === l[j]) { i++; j++; continue; }
+      if (++diff > 1) return false;
+      if (s.length === l.length) { i++; j++; } else j++;
+    }
+    return diff + (l.length - j) + (s.length - i) <= 1;
+  };
+  const tokEq = (a, b) => a === b || (a.length >= 4 && b.length >= 4 && (a.startsWith(b) || b.startsWith(a) || lev1(a, b)));
+  let tDriversP = null, usedTidsP = null, nextIdP = null;
+  const getTDrivers = () => (tDriversP ??= pool.request().query('SELECT DriverID, DriverName FROM drivers').then(r => r.recordset));
+  const getUsedTids = () => (usedTidsP ??= supa.from('tomberon_driver_map').select('terminal_id')
+    .then(({ data, error }) => { if (error) throw new Error(`map tids: ${error.message}`); return new Set((data ?? []).map(m => m.terminal_id)); }));
+  const getNextId = () => (nextIdP ??= pool.request().query('SELECT MAX(DriverID) AS m FROM drivers')
+    .then(r => ({ next: (r.recordset[0].m ?? 0) + 1 })));
+
+  async function autoMap(uuid, fullName) {
+    const [tDrv, used] = await Promise.all([getTDrivers(), getUsedTids()]);
+    const ourTok = normName(fullName).split(' ');
+    const free = tDrv.filter(d => !used.has(d.DriverID));
+    let hits = free.filter(d => normName(d.DriverName) === ourTok.join(' '));
+    if (!hits.length) hits = free.filter(d => {
+      const t = normName(d.DriverName).split(' ');
+      if (!tokEq(t[0], ourTok[0])) return false;
+      if (t.length < 2 || ourTok.length < 2) return true;
+      return tokEq(t[1], ourTok[1]) || t[1][0] === ourTok[1][0];
+    });
+    if (hits.length > 1) {
+      console.warn(`  AMBIGUU «${fullName}»: ${hits.map(h => `#${h.DriverID} ${h.DriverName}`).join(' / ')} — mapează manual în tomberon_driver_map`);
+      return null;
+    }
+    let tid, how;
+    if (hits.length === 1) { tid = hits[0].DriverID; how = 'name'; }
+    else if (!WRITE) { console.log(`  [dry] «${fullName}» nu există la terminal — cu --write l-aș crea în special_db.drivers`); return null; }
+    else {
+      const ctr = await getNextId();
+      tid = ctr.next++;
+      await pool.request().input('id', sql.Int, tid).input('nm', sql.VarChar(50), asciiName(fullName).slice(0, 50))
+        .query('INSERT INTO drivers (DriverID, DriverName) VALUES (@id, @nm)');
+      how = 'created';
+    }
+    if (!WRITE) { console.log(`  [dry] «${fullName}» s-ar mapa pe #${tid} (${hits[0].DriverName})`); return null; }
+    const { error } = await supa.from('tomberon_driver_map').insert({ driver_id: uuid, terminal_id: tid, matched_by: how });
+    if (error) { console.error(`  EROARE mapare «${fullName}» -> #${tid}: ${error.message}`); return null; }
+    used.add(tid);
+    termId.set(uuid, tid);
+    console.log(`  MAPAT «${fullName}» -> #${tid} (${how === 'created' ? 'șofer nou creat la terminal' : `nume: ${hits[0].DriverName}`})`);
+    return tid;
+  }
   const daMap = new Map();
   for (const a of daRes.data) if (!daMap.has(a.driver_id)) daMap.set(a.driver_id, a);
   const vehIds = [...new Set(daRes.data.flatMap(a => [a.vehicle_id, a.vehicle_id_retur]).filter(Boolean))];
@@ -175,8 +236,9 @@ try {
     const name = nameMap.get(f.driver_id) ?? f.driver_id;
     if (!/^\d{1,7}$/.test(wb)) { console.warn(`  SKIP foaie ne-numerică «${f.receipt_nr}» (${name})`); continue; }
     if (existWb.has(wb)) { skipped++; continue; }
-    const tid = termId.get(f.driver_id);
-    if (tid == null) { console.warn(`  SKIP foaie ${wb} (${name}): șofer nemapat — rulează --map sau adaugă manual în tomberon_driver_map`); continue; }
+    let tid = termId.get(f.driver_id);
+    if (tid == null && nameMap.has(f.driver_id)) tid = await autoMap(f.driver_id, name);
+    if (tid == null) { console.warn(`  SKIP foaie ${wb} (${name}): șofer nemapat`); continue; }
     const a = daMap.get(f.driver_id);
     const plate = a ? plateMap.get(a.vehicle_id) ?? plateMap.get(a.vehicle_id_retur) : null;
     const autoId = findAuto(plate);

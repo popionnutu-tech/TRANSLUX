@@ -83,7 +83,7 @@ try {
     const req = pool.request();
     const inList = dates.map((d, i) => { req.input(`d${i}`, sql.VarChar(20), d); return `@d${i}`; }).join(',');
     // waybills.AutoID = șoferul (convenția inversată)
-    const wb = (await req.query(`SELECT AutoID AS drv, Waybill, data FROM waybills WHERE data IN (${inList})`)).recordset;
+    const wb = (await req.query(`SELECT AutoID AS drv, WayID, Waybill, data FROM waybills WHERE data IN (${inList})`)).recordset;
     const byKey = new Map(); // "ziua|foaie" -> Set(terminal driver id)
     for (const w of wb) {
       const [dd, mm, yy] = w.data.split('.');
@@ -121,11 +121,61 @@ try {
     const tNameById = new Map(tDrivers.map(d => [d.DriverID, d.DriverName]));
     for (const m of finalMap) console.log(`  ${m.driver_id} -> ${m.terminal_id} (${tNameById.get(m.terminal_id) ?? '???'})`);
     if (WRITE && finalMap.length) {
-      const { error: ue } = await supa.from('tomberon_driver_map')
-        .upsert(finalMap, { onConflict: 'driver_id', ignoreDuplicates: true });
-      if (ue) { console.error('upsert map:', ue.message); process.exit(1); }
-      console.log('Mapările au fost salvate (cele existente nu s-au atins).');
+      // nu atingem nimic existent: nici driver_id, nici terminal_id deja ocupat
+      // (ex. remapările manuale ar pica pe UNIQUE(terminal_id) la upsert în bloc)
+      const { data: exMap, error: ee } = await supa.from('tomberon_driver_map').select('driver_id, terminal_id');
+      if (ee) { console.error('read map:', ee.message); process.exit(1); }
+      const exDrv = new Set((exMap ?? []).map(m => m.driver_id));
+      const exTid = new Set((exMap ?? []).map(m => m.terminal_id));
+      const fresh = finalMap.filter(m => !exDrv.has(m.driver_id) && !exTid.has(m.terminal_id));
+      if (fresh.length) {
+        const { error: ue } = await supa.from('tomberon_driver_map').insert(fresh);
+        if (ue) { console.error('insert map:', ue.message); process.exit(1); }
+      }
+      console.log(`Mapări șoferi: ${fresh.length} noi salvate, ${finalMap.length - fresh.length} existau deja.`);
     } else if (!WRITE) console.log('DRY-RUN: adaugă --write ca să salvezi mapările.');
+
+    // ── mapare rute: WayID dominant per cursă (crm_route_id) din aceleași foi ──
+    const das = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supa.from('daily_assignments')
+        .select('driver_id, crm_route_id, assignment_date')
+        .gte('assignment_date', days[days.length - 1]).not('crm_route_id', 'is', null)
+        .order('assignment_date').range(from, from + 999);
+      if (error) { console.error('Supabase daily_assignments:', error.message); process.exit(1); }
+      das.push(...(data ?? []));
+      if (!data || data.length < 1000) break;
+    }
+    const daKey = new Map(); // "ziua|driver_uuid" -> crm_route_id (primul)
+    for (const a of das) { const k = `${a.assignment_date}|${a.driver_id}`; if (!daKey.has(k)) daKey.set(k, a.crm_route_id); }
+    const ourByKey = new Map(foi.map(f => [`${f.ziua}|${normWb(f.receipt_nr)}`, f.driver_id]));
+    const routeVotes = new Map(); // crm_route_id -> Map(WayID -> n)
+    for (const w of wb) {
+      const [dd, mm, yy] = w.data.split('.');
+      const ziua = `20${yy}-${mm}-${dd}`;
+      const uuid = ourByKey.get(`${ziua}|${normWb(w.Waybill)}`);
+      if (!uuid) continue;
+      const rid = daKey.get(`${ziua}|${uuid}`);
+      if (rid == null) continue;
+      if (!routeVotes.has(rid)) routeVotes.set(rid, new Map());
+      const v = routeVotes.get(rid);
+      v.set(w.WayID, (v.get(w.WayID) || 0) + 1);
+    }
+    const routeMapRows = [];
+    for (const [rid, v] of routeVotes) {
+      const sorted = [...v.entries()].sort((a, b) => b[1] - a[1]);
+      const total = sorted.reduce((s, [, n]) => s + n, 0);
+      const [wayId, n] = sorted[0];
+      if (n >= 3 && n / total >= 0.8) routeMapRows.push({ crm_route_id: rid, way_id: wayId, matched_by: 'waybill' });
+      else console.warn(`  RUTĂ ambiguă crm_route ${rid}: ${JSON.stringify(sorted.slice(0, 3))} — mapează manual în tomberon_route_map`);
+    }
+    console.log(`Bootstrap rute: ${routeMapRows.length} mapări cursă↔WayID.`);
+    if (WRITE && routeMapRows.length) {
+      const { error: re } = await supa.from('tomberon_route_map')
+        .upsert(routeMapRows, { onConflict: 'crm_route_id', ignoreDuplicates: true });
+      if (re) { console.error('upsert route map:', re.message); process.exit(1); }
+      console.log('Mapările de rute au fost salvate.');
+    }
     process.exit(0);
   }
 
@@ -140,7 +190,7 @@ try {
   const drvIds = [...new Set(foi.map(f => f.driver_id))];
   const [drvRes, daRes, mapRes] = await Promise.all([
     supa.from('drivers').select('id, full_name, active').in('id', drvIds),
-    supa.from('daily_assignments').select('driver_id, vehicle_id, vehicle_id_retur').eq('assignment_date', DATE).in('driver_id', drvIds),
+    supa.from('daily_assignments').select('driver_id, vehicle_id, vehicle_id_retur, crm_route_id').eq('assignment_date', DATE).in('driver_id', drvIds),
     supa.from('tomberon_driver_map').select('driver_id, terminal_id').in('driver_id', drvIds),
   ]);
   for (const r of [drvRes, daRes, mapRes]) if (r.error) { console.error('Supabase:', r.error.message); process.exit(1); }
@@ -203,7 +253,7 @@ try {
       if (!WRITE) { console.log(`  [dry] «${fullName}» nu există la terminal — cu --write l-aș crea în special_db.drivers`); return null; }
       // MAX+1 și INSERT într-un singur statement — fără fereastră de cursă
       const res = await pool.request().input('nm', sql.VarChar(50), asciiName(fullName).slice(0, 50))
-        .query('INSERT INTO drivers (DriverID, DriverName) OUTPUT INSERTED.DriverID SELECT ISNULL(MAX(DriverID), 0) + 1, @nm FROM drivers');
+        .query('INSERT INTO drivers (DriverID, DriverName) OUTPUT INSERTED.DriverID SELECT ISNULL(MAX(DriverID), 0) + 1, @nm FROM drivers WITH (UPDLOCK, HOLDLOCK)');
       tid = res.recordset[0].DriverID;
       how = 'created';
     }
@@ -218,8 +268,13 @@ try {
   const daMap = new Map();
   for (const a of daRes.data) if (!daMap.has(a.driver_id)) daMap.set(a.driver_id, a);
   const vehIds = [...new Set(daRes.data.flatMap(a => [a.vehicle_id, a.vehicle_id_retur]).filter(Boolean))];
-  const vehRes = vehIds.length ? await supa.from('vehicles').select('id, plate_number').in('id', vehIds) : { data: [] };
+  const rutIds = [...new Set(daRes.data.map(a => a.crm_route_id).filter(x => x != null))];
+  const [vehRes, rmRes] = await Promise.all([
+    vehIds.length ? supa.from('vehicles').select('id, plate_number').in('id', vehIds) : Promise.resolve({ data: [] }),
+    rutIds.length ? supa.from('tomberon_route_map').select('crm_route_id, way_id').in('crm_route_id', rutIds) : Promise.resolve({ data: [] }),
+  ]);
   const plateMap = new Map((vehRes.data ?? []).map(v => [v.id, v.plate_number]));
+  const routeWay = new Map((rmRes.data ?? []).map(r => [r.crm_route_id, r.way_id]));
 
   // ce există deja la terminal pe ziua asta
   const exist = (await pool.request().input('d', sql.VarChar(20), D)
@@ -255,7 +310,9 @@ try {
     const plate = a ? plateMap.get(a.vehicle_id) ?? plateMap.get(a.vehicle_id_retur) : null;
     const autoId = findAuto(plate);
     if (autoId == null) { console.warn(`  SKIP foaie ${wb} (${name}): mașina «${plate ?? '—'}» negăsită în nomenclatorul auto al terminalului`); continue; }
-    const wayId = (await getWayTop()).get(tid)?.WayID ?? 0;
+    // WayID: 1) maparea rutei zilei (tomberon_route_map); 2) istoric per șofer; 3) 0
+    const wayId = (a?.crm_route_id != null ? routeWay.get(a.crm_route_id) : null)
+      ?? (await getWayTop()).get(tid)?.WayID ?? 0;
 
     console.log(`  +${padWb(wb)}  ${name}  auto=${plate}(#${autoId})  drv=#${tid}  way=${wayId}`);
     if (WRITE) {

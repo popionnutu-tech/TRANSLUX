@@ -146,8 +146,13 @@ try {
       das.push(...(data ?? []));
       if (!data || data.length < 1000) break;
     }
-    const daKey = new Map(); // "ziua|driver_uuid" -> crm_route_id (primul)
-    for (const a of das) { const k = `${a.assignment_date}|${a.driver_id}`; if (!daKey.has(k)) daKey.set(k, a.crm_route_id); }
+    // "ziua|driver_uuid" -> crm_route_id; zilele cu >1 rută nu votează (ambigue)
+    const daKey = new Map();
+    for (const a of das) {
+      const k = `${a.assignment_date}|${a.driver_id}`;
+      if (daKey.has(k) && daKey.get(k) !== a.crm_route_id) daKey.set(k, null);
+      else if (!daKey.has(k)) daKey.set(k, a.crm_route_id);
+    }
     const ourByKey = new Map(foi.map(f => [`${f.ziua}|${normWb(f.receipt_nr)}`, f.driver_id]));
     const routeVotes = new Map(); // crm_route_id -> Map(WayID -> n)
     for (const w of wb) {

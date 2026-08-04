@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2",
+    "mssql": "^11",
     "mysql2": "^3",
     "pg": "^8",
     "ws": "^8"

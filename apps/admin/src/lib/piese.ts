@@ -196,6 +196,7 @@ export async function receiptDocs(opts: { warehouseId?: number; supplierId?: num
   let q = sb.from('piese_stock_documents')
     .select('id, created_at, warehouse_id, invoice_series, invoice_number, note, created_by_admin, supplier:piese_suppliers(name), lines:piese_stock_document_lines(qty, unit_cost)')
     .eq('doc_type', 'RECEIPT')
+    .neq('status', 'CANCELLED') // ascunde recepțiile anulate de o corecție (rămâne doar documentul corectat)
     // Exclude „Sold inițial" (invoice_series='SOLD'): e stoc de pornire încărcat din Inventar, NU recepție de la
     // furnizor — și are ~o linie per piesă (mii), deci ar exploda embed-ul liniilor. Păstrează seriile NULL (prihod manual fără serie).
     .or('invoice_series.is.null,invoice_series.neq.SOLD')
@@ -274,6 +275,71 @@ export async function setReceiptNote(docId: number, note: string): Promise<void>
   const { error } = await getSupabase()
     .from('piese_stock_documents').update({ note }).eq('id', docId).eq('doc_type', 'RECEIPT');
   if (error) console.error('[prihod] setReceiptNote:', error.message);
+}
+
+// ── Modificarea unei recepții (#1b) ──
+// Antetul unui document de recepție (pentru ecranul de modificare). Doar RECEIPT ne-anulat.
+export async function receiptDocHeaderForEdit(docId: number): Promise<{ id: number; warehouseId: number; supplierId: number | null; series: string | null; number: string | null; note: string | null; createdAt: string; status: string } | null> {
+  const { data, error } = await getSupabase().from('piese_stock_documents')
+    .select('id, warehouse_id, supplier_id, invoice_series, invoice_number, note, created_at, status, doc_type')
+    .eq('id', docId).maybeSingle();
+  if (error) throw new Error('Nu am putut încărca documentul');
+  const d = data as any;
+  if (!d || d.doc_type !== 'RECEIPT') return null;
+  return { id: d.id, warehouseId: d.warehouse_id, supplierId: d.supplier_id ?? null, series: d.invoice_series ?? null, number: d.invoice_number ?? null, note: d.note ?? null, createdAt: d.created_at, status: d.status };
+}
+
+// Poate fi editat pe LINII documentul? (adevărat doar dacă niciun strat FIFO al recepției nu a fost consumat.)
+// Când e consumat, întoarce și pe ce documente a plecat marfa (cantitatea consumată din ACEASTĂ recepție), pt. avertisment.
+export async function receiptEditInfo(docId: number): Promise<{ canEditLines: boolean; consumedBy: { docType: string; series: string | null; number: string | null; createdAt: string | null; qty: number }[] }> {
+  const sb = getSupabase();
+  // Fail-CLOSED la eroare de DB: dacă nu putem determina consumul, tratăm liniile ca NEeditabile (nu deschidem
+  // greșit editarea unei recepții posibil consumate). Motorul re-verifică oricum atomic (CONSUMED) la salvare.
+  const { data: movs, error: eMovs } = await sb.from('piese_stock_movements').select('id').eq('document_id', docId).eq('movement_type', 'RECEIPT');
+  if (eMovs) return { canEditLines: false, consumedBy: [] };
+  const ids = ((movs as any[]) || []).map((m) => m.id);
+  if (!ids.length) return { canEditLines: true, consumedBy: [] };
+  const { data: allocs, error: eAlloc } = await sb.from('piese_fifo_alloc').select('issue_movement_id, qty').in('receipt_movement_id', ids);
+  if (eAlloc) return { canEditLines: false, consumedBy: [] };
+  const consumed = ((allocs as any[]) || []).filter((a) => Number(a.qty) > 0.0000001);
+  if (!consumed.length) return { canEditLines: true, consumedBy: [] };
+  const issueIds = Array.from(new Set(consumed.map((a) => a.issue_movement_id)));
+  const { data: imovs } = await sb.from('piese_stock_movements').select('id, document_id').in('id', issueIds);
+  const movDoc = new Map<number, number | null>(((imovs as any[]) || []).map((m) => [m.id, m.document_id]));
+  const agg = new Map<number, number>(); // document_id → cantitate consumată din ACEASTĂ recepție
+  for (const a of consumed) {
+    const dId = movDoc.get(a.issue_movement_id);
+    if (dId == null) continue;
+    agg.set(dId, (agg.get(dId) || 0) + Number(a.qty));
+  }
+  const consDocIds = Array.from(agg.keys());
+  const { data: cdocs } = consDocIds.length
+    ? await sb.from('piese_stock_documents').select('id, doc_type, invoice_series, invoice_number, created_at').in('id', consDocIds)
+    : { data: [] as any[] };
+  const byId = new Map<number, any>(((cdocs as any[]) || []).map((d) => [d.id, d]));
+  const consumedBy = consDocIds.map((id) => {
+    const d = byId.get(id);
+    return { docType: (d?.doc_type as string) || 'consum', series: (d?.invoice_series as string) || null, number: (d?.invoice_number as string) || null, createdAt: (d?.created_at as string) || null, qty: agg.get(id) || 0 };
+  });
+  return { canEditLines: false, consumedBy };
+}
+
+// Modifică DOAR antetul (furnizor/serie/număr/comentariu) — sigur chiar și când marfa a fost consumată (nu atinge stocul).
+export async function updateReceiptHeader(docId: number, h: { supplier_id: number | null; invoice_series: string | null; invoice_number: string | null; note: string | null }): Promise<void> {
+  const { data, error } = await getSupabase().from('piese_stock_documents')
+    .update({ supplier_id: h.supplier_id, invoice_series: h.invoice_series, invoice_number: h.invoice_number, note: h.note })
+    .eq('id', docId).eq('doc_type', 'RECEIPT').eq('status', 'CONFIRMED').select('id');
+  if (error) throw new Error(error.message);
+  if (!data || (data as any[]).length === 0) throw new Error('NOT_CONFIRMED'); // anulat concurent între gardă și UPDATE → nu raporta fals „salvat"
+}
+
+// Modifică LINIILE (anulare + refacere prin RPC). Aruncă cu codul RPC (CONSUMED/NOT_CONFIRMED/…) — se mapează în actions.
+export async function replaceReceiptLines(docId: number, p: { supplier_id: number | null; invoice_series: string | null; invoice_number: string | null; note: string | null; lines: { part_id: number; qty: number; unit_cost: number }[] }): Promise<number> {
+  const { data, error } = await getSupabase().rpc('piese_replace_receipt', {
+    p_doc: docId, p_supplier: p.supplier_id, p_series: p.invoice_series, p_number: p.invoice_number, p_note: p.note, p_lines: p.lines, p_user: null,
+  });
+  if (error) throw error;
+  return Number(data);
 }
 
 export async function dashboardStats() {

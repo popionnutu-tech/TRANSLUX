@@ -2,6 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useState, useTransition } from 'react';
 import { listReceiptDocs, loadReceiptLines } from './actions';
+import ReceiptEditModal from './ReceiptEditModal';
 
 export type ReceiptDoc = {
   id: number; createdAt: string; warehouseId: number;
@@ -30,12 +31,13 @@ export default function PrihodDocsClient({ warehouses, suppliers, initialDocs }:
   const [to, setTo] = useState('');
   const [expanded, setExpanded] = useState<number | null>(null);
   const [lines, setLines] = useState<Record<number, Line[] | 'loading'>>({});
+  const [editId, setEditId] = useState<number | null>(null); // documentul deschis pentru modificare
   const [err, setErr] = useState('');
   const [pending, start] = useTransition();
 
   const showDepot = warehouses.length > 1; // contul legat are un singur depozit → nu are ce filtra
   const whName = (id: number) => warehouses.find((w) => w.id === id)?.label || '—';
-  const cols = showDepot ? 7 : 6;
+  const cols = (showDepot ? 7 : 6) + 1; // +1 = coloana de acțiuni (Modifică)
 
   // Îngustare instant (client) pe serie / număr / comentariu, peste documentele deja încărcate — pentru feedback
   // pe măsură ce tastezi. „Filtrează" trimite același text la server, ca să caute și dincolo de primele 200.
@@ -109,7 +111,7 @@ export default function PrihodDocsClient({ warehouses, suppliers, initialDocs }:
         <thead>
           <tr>
             <th>Data</th><th>Furnizor</th><th>Serie/Nr · comentariu</th>{showDepot && <th>Depozit</th>}
-            <th className="num">Poziții</th><th className="num">Total</th><th>Cine</th>
+            <th className="num">Poziții</th><th className="num">Total</th><th>Cine</th><th></th>
           </tr>
         </thead>
         <tbody>
@@ -126,6 +128,9 @@ export default function PrihodDocsClient({ warehouses, suppliers, initialDocs }:
                 <td className="num">{d.positions}</td>
                 <td className="num"><strong>{lei(d.total)}</strong></td>
                 <td className="muted">{d.creator || '—'}</td>
+                <td onClick={(e) => e.stopPropagation()}>
+                  <button className="btn btn-outline" style={{ padding: '2px 8px', whiteSpace: 'nowrap' }} onClick={() => setEditId(d.id)} title="Modifică documentul (antet și, dacă marfa nu e folosită, liniile)">✎ Modifică</button>
+                </td>
               </tr>
               {expanded === d.id && (
                 <tr key={`${d.id}-lines`}>
@@ -160,6 +165,15 @@ export default function PrihodDocsClient({ warehouses, suppliers, initialDocs }:
           {shown.length === 0 && <tr><td colSpan={cols} className="muted">{q.trim() ? 'Niciun document pentru căutarea rapidă. Apasă „Filtrează" ca să cauți și în arhivă.' : 'Niciun document de prihod pentru filtrul ales.'}</td></tr>}
         </tbody>
       </table>
+
+      {editId != null && (
+        <ReceiptEditModal
+          docId={editId}
+          suppliers={suppliers}
+          onClose={() => setEditId(null)}
+          onSaved={() => { setEditId(null); setExpanded(null); setLines({}); run(); }}
+        />
+      )}
     </div>
   );
 }

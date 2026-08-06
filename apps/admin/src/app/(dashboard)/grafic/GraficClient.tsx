@@ -121,7 +121,7 @@ export default function GraficClient({
 
     // Dispatcher poate salva și chitanta odată cu programarea
     if (isDispatcher && popReceiptNr !== (popup.row.cashin_receipt_nr || '')) {
-      const rRes = await setCashinReceipt(popDriverId, date, popReceiptNr);
+      const rRes = await setCashinReceipt(popDriverId, date, popReceiptNr, popup.row.crm_route_id);
       if (rRes.error) { setSaving(false); setError(rRes.error); return; }
     }
 

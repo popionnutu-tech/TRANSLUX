@@ -3,6 +3,7 @@
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
 import { parseFirstTime, parseTimeLabel, resolveReturTime } from '@/lib/assignments';
+import { scrieFoaie } from '@/lib/foaie';
 
 /* ── Types ── */
 
@@ -91,7 +92,7 @@ export async function getGraficData(date: string): Promise<{
     db.from('vehicles').select('id, plate_number').eq('active', true).eq('is_lde', false),
     db.from('crm_stop_fares').select('id, crm_route_id, name_ro').eq('is_visible', true).order('id', { ascending: true }),
     canSeeReceipt
-      ? db.from('driver_cashin_receipts').select('driver_id, receipt_nr').eq('ziua', date)
+      ? db.from('driver_cashin_receipts').select('driver_id, receipt_nr, crm_route_id').eq('ziua', date)
       : Promise.resolve({ data: [] as any[] }),
     db.from('route_cancellations').select('crm_route_id').eq('ziua', date),
   ]);
@@ -107,8 +108,14 @@ export async function getGraficData(date: string): Promise<{
   const assignmentMap = new Map(assignments.map((a: any) => [a.crm_route_id, a]));
   const driverMap = new Map(drivers.map((d: any) => [d.id, d]));
   const vehicleMap = new Map(vehicles.map((v: any) => [v.id, v]));
+  // Foaia legată de rută are prioritate; cea fără rută (crm_route_id NULL,
+  // «pe toată ziua» — istoric) se arată pe toate rândurile șoferului.
+  const receiptByRoute = new Map<string, string>();
   const receiptByDriver = new Map<string, string>();
-  for (const r of receipts) receiptByDriver.set(r.driver_id, r.receipt_nr);
+  for (const r of receipts) {
+    if (r.crm_route_id != null) receiptByRoute.set(`${r.driver_id}|${r.crm_route_id}`, r.receipt_nr);
+    else receiptByDriver.set(r.driver_id, r.receipt_nr);
+  }
   const cancelledSet = new Set<number>(cancellations.map((c: any) => c.crm_route_id));
 
   // Group stops by route: crm_route_id -> "Stop1/Stop2/Stop3"
@@ -152,7 +159,9 @@ export async function getGraficData(date: string): Promise<{
       vehicle_plate_retur: vRet?.plate_number || null,
       stops: stopsMap.get(r.id) || '',
       retur_route_id: a?.retur_route_id || null,
-      cashin_receipt_nr: a?.driver_id ? (receiptByDriver.get(a.driver_id) || null) : null,
+      cashin_receipt_nr: a?.driver_id
+        ? (receiptByRoute.get(`${a.driver_id}|${r.id}`) || receiptByDriver.get(a.driver_id) || null)
+        : null,
       cancelled: cancelledSet.has(r.id),
     };
   });
@@ -567,7 +576,7 @@ export async function getGraficSuburban(date: string): Promise<SuburbanGraficRow
     db.from('drivers').select('id, full_name, phone').eq('active', true).eq('is_lde', false),
     db.from('vehicles').select('id, plate_number').eq('active', true).eq('is_lde', false),
     canSeeReceipt
-      ? db.from('driver_cashin_receipts').select('driver_id, receipt_nr').eq('ziua', date)
+      ? db.from('driver_cashin_receipts').select('driver_id, receipt_nr, crm_route_id').eq('ziua', date)
       : Promise.resolve({ data: [] as any[] }),
     db.from('route_cancellations')
       .select('crm_route_id')
@@ -599,8 +608,12 @@ export async function getGraficSuburban(date: string): Promise<SuburbanGraficRow
   const assignmentMap = new Map(assignments.map((a: any) => [a.crm_route_id, a]));
   const driverMap = new Map(drivers.map((d: any) => [d.id, d]));
   const vehicleMap = new Map(vehicles.map((v: any) => [v.id, v]));
+  const receiptByRoute = new Map<string, string>();
   const receiptByDriver = new Map<string, string>();
-  for (const r of receipts) receiptByDriver.set(r.driver_id, r.receipt_nr);
+  for (const r of receipts) {
+    if (r.crm_route_id != null) receiptByRoute.set(`${r.driver_id}|${r.crm_route_id}`, r.receipt_nr);
+    else receiptByDriver.set(r.driver_id, r.receipt_nr);
+  }
 
   return routes
     // Filtru: doar rutele care circula in ziua saptamanii curenta
@@ -621,7 +634,9 @@ export async function getGraficSuburban(date: string): Promise<SuburbanGraficRow
         driver_phone: toLocalPhone(driver?.phone || null),
         vehicle_id: a?.vehicle_id || null,
         vehicle_plate: vehicle?.plate_number || null,
-        cashin_receipt_nr: a?.driver_id ? (receiptByDriver.get(a.driver_id) || null) : null,
+        cashin_receipt_nr: a?.driver_id
+          ? (receiptByRoute.get(`${a.driver_id}|${r.id}`) || receiptByDriver.get(a.driver_id) || null)
+          : null,
         cancelled: cancelledSet.has(r.id),
       };
     });
@@ -633,59 +648,16 @@ export async function setCashinReceipt(
   driverId: string,
   date: string,
   receiptNr: string,
+  crmRouteId: number | null = null,
 ): Promise<{ error?: string }> {
   const session = await verifySession();
   if (!session) return { error: 'Neautorizat' };
   if (session.role !== 'DISPATCHER') return { error: 'Doar dispecerul poate introduce chitanta' };
   if (!driverId || !date) return { error: 'Date lipsă' };
 
-  const db = getSupabase();
-  const raw = receiptNr.trim();
-
-  // String gol = stergere mapping
-  if (raw === '') {
-    const { error } = await db.from('driver_cashin_receipts')
-      .delete()
-      .match({ driver_id: driverId, ziua: date });
-    if (error) return { error: error.message };
-    return {};
-  }
-
-  // Normalizare: pentru numere, eliminam zerourile de la inceput.
-  // In baza '0142961' si '00142961' se stocheaza la fel: '142961'.
-  const trimmed = /^[0-9]+$/.test(raw) ? String(parseInt(raw, 10)) : raw;
-
-  // Upsert: (driver_id, ziua) e unique, deci conflict pe aceasta pereche
-  const { error } = await db.from('driver_cashin_receipts').upsert(
-    {
-      driver_id: driverId,
-      ziua: date,
-      receipt_nr: trimmed,
-      created_by: session.id,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'driver_id,ziua' },
-  );
-
-  if (error) {
-    // 23505 = duplicate. Constraintul unic pe receipt_nr e global (nu doar in zi).
-    if (error.code === '23505') {
-      const { data: existing } = await db
-        .from('driver_cashin_receipts')
-        .select('ziua, drivers:driver_id(full_name)')
-        .eq('receipt_nr', trimmed)
-        .maybeSingle();
-      if (existing) {
-        const driverName = (existing as any).drivers?.full_name || 'alt șofer';
-        const [y, m, d] = String(existing.ziua).split('-');
-        const day = `${d}.${m}.${y}`;
-        return { error: `Foaia de parcurs #${trimmed} e deja folosită de ${driverName} pe ${day}` };
-      }
-      return { error: `Foaia de parcurs #${trimmed} e deja folosită` };
-    }
-    return { error: error.message };
-  }
-  return {};
+  // logica de scriere (foaie per rută, migr. 246) e comună cu mini-app-ul atribuiri
+  const { error } = await scrieFoaie(getSupabase(), driverId, date, receiptNr, crmRouteId, session.id);
+  return error ? { error } : {};
 }
 
 /* ── Cursa neefectuata (rol DISPATCHER only) ── */

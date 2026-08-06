@@ -9,8 +9,10 @@ interface Props {
 }
 
 const CATEGORY_META: Record<Anomaly['category'], { short: string; color: string; bg: string }> = {
-  NO_FOAIE:        { short: 'lipsă /grafic', color: 'var(--danger)',  bg: 'var(--danger-dim)' },
-  INVALID_FORMAT:  { short: 'format',        color: '#9b27b0',        bg: 'rgba(155,39,176,0.1)' },
+  NO_FOAIE:         { short: 'lipsă /grafic', color: 'var(--danger)',  bg: 'var(--danger-dim)' },
+  INVALID_FORMAT:   { short: 'format',        color: '#9b27b0',        bg: 'rgba(155,39,176,0.1)' },
+  // foaia e în /grafic, dar șoferul n-are nicio cursă în ziua foii (cursa ștearsă/mutată)
+  FOAIE_FARA_CURSA: { short: 'fără cursă',    color: '#e65100',        bg: 'rgba(230,81,0,0.1)' },
 };
 
 // Grid pe care îl folosesc atât header-ul, cât și fiecare rând.

@@ -210,7 +210,7 @@ try {
   async function syncDay(DATE) {
   const D = ddmmyy(DATE);
   const { data: foi, error: fe } = await supa.from('driver_cashin_receipts')
-    .select('driver_id, receipt_nr').eq('ziua', DATE);
+    .select('driver_id, receipt_nr, crm_route_id').eq('ziua', DATE);
   if (fe) throw new Error(`Supabase receipts: ${fe.message}`);
   console.log(`${DATE} (${D}): ${foi?.length ?? 0} foi la noi`);
   if (!foi?.length) return;
@@ -293,8 +293,22 @@ try {
     console.log(`  MAPAT «${fullName}» -> #${tid} (${how === 'created' ? 'șofer nou creat la terminal' : `nume: ${hits[0].DriverName}`})`);
     return tid;
   }
-  const daMap = new Map();
-  for (const a of daRes.data) if (!daMap.has(a.driver_id)) daMap.set(a.driver_id, a);
+  // foile legate de rută (migr. 246) iau atribuirea rutei lor; foaia «zilei»
+  // (fără rută) ia prima atribuire NEACOPERITĂ de o foaie legată — altfel două
+  // foi ale aceluiași șofer ar pleca la terminal cu aceeași mașină/rută
+  const daByDrv = new Map();
+  const daByRoute = new Map();
+  for (const a of daRes.data) {
+    if (!daByDrv.has(a.driver_id)) daByDrv.set(a.driver_id, []);
+    daByDrv.get(a.driver_id).push(a);
+    if (a.crm_route_id != null) daByRoute.set(`${a.driver_id}|${a.crm_route_id}`, a);
+  }
+  const boundRoutes = new Map(); // driver -> Set(crm_route_id cu foaie legată)
+  for (const f of foi) {
+    if (f.crm_route_id == null) continue;
+    if (!boundRoutes.has(f.driver_id)) boundRoutes.set(f.driver_id, new Set());
+    boundRoutes.get(f.driver_id).add(f.crm_route_id);
+  }
   const vehIds = [...new Set(daRes.data.flatMap(a => [a.vehicle_id, a.vehicle_id_retur]).filter(Boolean))];
   const rutIds = [...new Set(daRes.data.map(a => a.crm_route_id).filter(x => x != null))];
   const [vehRes, rmRes] = await Promise.all([
@@ -332,7 +346,10 @@ try {
     const wb = normWb(f.receipt_nr);
     const name = nameMap.get(f.driver_id) ?? f.driver_id;
     if (!/^\d{1,7}$/.test(wb)) { console.warn(`  SKIP foaie ne-numerică «${f.receipt_nr}» (${name})`); continue; }
-    const a = daMap.get(f.driver_id);
+    const ale = daByDrv.get(f.driver_id) ?? [];
+    const acoperite = boundRoutes.get(f.driver_id);
+    const a = (f.crm_route_id != null ? daByRoute.get(`${f.driver_id}|${f.crm_route_id}`) : null)
+      ?? ale.find(x => !acoperite?.has(x.crm_route_id)) ?? ale[0];
     const plate = a ? plateMap.get(a.vehicle_id) ?? plateMap.get(a.vehicle_id_retur) : null;
     if (existWb.has(wb)) {
       // foaia există deja — doar raportăm dacă terminalul o are pe ALT șofer sau
@@ -366,8 +383,10 @@ try {
     }
     const autoId = findAuto(plate);
     if (autoId == null) { console.warn(`  SKIP foaie ${wb} (${name}): mașina «${plate}» negăsită în nomenclatorul auto al terminalului`); continue; }
-    // WayID: 1) maparea rutei zilei (tomberon_route_map); 2) istoric per șofer; 3) 0
-    const wayId = (a?.crm_route_id != null ? routeWay.get(a.crm_route_id) : null)
+    // WayID: 1) maparea rutei foii (sau a atribuirii) din tomberon_route_map;
+    // 2) istoric per șofer; 3) 0
+    const ruta = f.crm_route_id ?? a?.crm_route_id;
+    const wayId = (ruta != null ? routeWay.get(ruta) : null)
       ?? (await getWayTop()).get(tid)?.WayID ?? 0;
 
     console.log(`  +${padWb(wb)}  ${name}  auto=${plate}(#${autoId})  drv=#${tid}  way=${wayId}`);

@@ -1,4 +1,5 @@
 import { getSupabase } from '@/lib/supabase';
+import { scrieFoaie } from '@/lib/foaie';
 
 // Ядро atribuiri zilnice (Mini App manageri): materializare lazy șablon→zi,
 // atribuire mașină per cursă, write-through daily_assignments (DOAR UPDATE),
@@ -197,14 +198,20 @@ export async function listZi(date: string, directions: string[] | null): Promise
     vehIds.length ? db.from('vehicles').select('id, plate_number').in('id', vehIds) : Promise.resolve({ data: [] }),
     frIds.length ? db.from('lde_weekly_template').select('factory_route_id, shift_number, vehicle_id').eq('weekday', wd).in('factory_route_id', frIds) : Promise.resolve({ data: [] }),
     drvIds.length ? db.from('drivers').select('id, full_name').in('id', drvIds) : Promise.resolve({ data: [] }),
-    drvIds.length ? db.from('driver_cashin_receipts').select('driver_id, receipt_nr').eq('ziua', date).in('driver_id', drvIds) : Promise.resolve({ data: [] }),
+    drvIds.length ? db.from('driver_cashin_receipts').select('driver_id, receipt_nr, crm_route_id').eq('ziua', date).in('driver_id', drvIds) : Promise.resolve({ data: [] }),
   ]);
   const frMap = new Map((frRes.data ?? []).map((f: { id: string; route_number: number; stops_in_order: string | null }) => [f.id, f]));
   const crmMap = new Map((crmRes.data ?? []).map((c: { id: number; dest_from_ro: string; dest_to_ro: string; time_nord: string | null; time_chisinau: string | null }) => [c.id, c]));
   const vehMap = new Map((vehRes.data ?? []).map((v: { id: string; plate_number: string }) => [v.id, normPlate(v.plate_number)]));
   const tplMap = new Map((tplRes.data ?? []).map((t: { factory_route_id: string; shift_number: number; vehicle_id: string }) => [`${t.factory_route_id}:${t.shift_number}`, t.vehicle_id]));
   const drvMap = new Map((drvRes.data ?? []).map((d: { id: string; full_name: string }) => [d.id, d.full_name]));
-  const foaieMap = new Map((foiRes.data ?? []).map((f: { driver_id: string; receipt_nr: string }) => [f.driver_id, f.receipt_nr]));
+  // foaia legată de rută are prioritate; cea fără rută («a zilei») e fallback
+  const foaieByRoute = new Map<string, string>();
+  const foaieMap = new Map<string, string>();
+  for (const f of (foiRes.data ?? []) as Array<{ driver_id: string; receipt_nr: string; crm_route_id: number | null }>) {
+    if (f.crm_route_id != null) foaieByRoute.set(`${f.driver_id}|${f.crm_route_id}`, f.receipt_nr);
+    else foaieMap.set(f.driver_id, f.receipt_nr);
+  }
 
   return rows.map((r) => {
     let label = '';
@@ -223,7 +230,9 @@ export async function listZi(date: string, directions: string[] | null): Promise
       route_label: label,
       plate: r.vehicle_id ? vehMap.get(r.vehicle_id) ?? null : null,
       driver_name: r.driver_id ? drvMap.get(r.driver_id) ?? null : null,
-      foaie: r.route_kind !== 'uzina' && r.driver_id ? foaieMap.get(r.driver_id) ?? null : null,
+      foaie: r.route_kind !== 'uzina' && r.driver_id
+        ? (r.crm_route_id != null ? foaieByRoute.get(`${r.driver_id}|${r.crm_route_id}`) : undefined) ?? foaieMap.get(r.driver_id) ?? null
+        : null,
       template_vehicle_id: r.route_kind === 'uzina' && r.factory_route_id ? tplMap.get(`${r.factory_route_id}:${r.shift_number}`) ?? null : null,
     };
   });
@@ -358,38 +367,13 @@ export async function soferiForPicker(direction: string): Promise<Array<{ id: st
 export async function setFoaie(rowId: string, receiptNr: string): Promise<{ error?: string; foaie?: string | null }> {
   const db = getSupabase();
   const { data: row } = await db.from('lde_atribuiri_zilnice')
-    .select('date, route_kind, driver_id').eq('id', rowId).maybeSingle();
+    .select('date, route_kind, driver_id, crm_route_id').eq('id', rowId).maybeSingle();
   if (!row) return { error: 'Rând inexistent' };
   if (row.route_kind === 'uzina') return { error: 'Foaia de parcurs e doar la interurban/suburban' };
   if (!row.driver_id) return { error: 'Alege întâi șoferul' };
 
-  const raw = receiptNr.trim();
-  if (raw === '') {
-    const { error } = await db.from('driver_cashin_receipts').delete()
-      .match({ driver_id: row.driver_id, ziua: row.date });
-    if (error) return { error: error.message };
-    return { foaie: null };
-  }
-
-  const trimmed = /^[0-9]+$/.test(raw) ? String(parseInt(raw, 10)) : raw;
-  const { error } = await db.from('driver_cashin_receipts').upsert(
-    { driver_id: row.driver_id, ziua: row.date, receipt_nr: trimmed, updated_at: new Date().toISOString() },
-    { onConflict: 'driver_id,ziua' },
-  );
-  if (error) {
-    if (error.code === '23505') {
-      const { data: existing } = await db.from('driver_cashin_receipts')
-        .select('ziua, drivers:driver_id(full_name)').eq('receipt_nr', trimmed).maybeSingle();
-      if (existing) {
-        const nume = (existing as unknown as { drivers?: { full_name?: string } }).drivers?.full_name || 'alt șofer';
-        const [y, m, d] = String(existing.ziua).split('-');
-        return { error: `Foaia #${trimmed} e deja folosită de ${nume} pe ${d}.${m}.${y}` };
-      }
-      return { error: `Foaia #${trimmed} e deja folosită` };
-    }
-    return { error: error.message };
-  }
-  return { foaie: trimmed };
+  // logica de scriere (foaie per rută, migr. 246) e comună cu /grafic
+  return scrieFoaie(db, row.driver_id, row.date, receiptNr, row.crm_route_id ?? null);
 }
 
 /** Confirmare manuală «a fost ok» după push de nepotrivire. */

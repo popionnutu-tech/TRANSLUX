@@ -200,7 +200,7 @@ export default function UnifiedGraficList({
     if (cleaned === (row.foaie_parcurs_nr || '')) return true;
     setSavingKey(row.key);
     try {
-      const res = await setCashinReceipt(row.driver_id, date, cleaned);
+      const res = await setCashinReceipt(row.driver_id, date, cleaned, row.crm_route_id);
       if (res.error) { setError(res.error); return false; }
       await load();
       return true;

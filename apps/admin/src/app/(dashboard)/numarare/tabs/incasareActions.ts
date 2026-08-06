@@ -2,11 +2,12 @@
 
 import { getSupabase } from '@/lib/supabase';
 import { verifySession } from '@/lib/auth';
+import { scrieFoaie } from '@/lib/foaie';
 
 // ─── Tipuri ───
 
 export type IncasareStatus = 'ok' | 'underpaid' | 'overpaid' | 'no_cashin' | 'no_numarare';
-export type AnomalyCategory = 'NO_FOAIE' | 'INVALID_FORMAT';
+export type AnomalyCategory = 'NO_FOAIE' | 'INVALID_FORMAT' | 'FOAIE_FARA_CURSA';
 export type OverrideAction = 'ASSIGN' | 'IGNORE';
 
 export interface IncasareRow {
@@ -416,40 +417,10 @@ export async function assignFoaieToDriver(
   if (!isEditor(session.role)) return { error: 'Doar evaluatorul poate atribui foaie' };
   if (!receiptNr || !ziua || !driverId) return { error: 'Date lipsă' };
 
-  // Normalizăm zerourile de la început (ca la dispatcher)
-  const normalized = /^[0-9]+$/.test(receiptNr) ? String(parseInt(receiptNr, 10)) : receiptNr;
-
-  const sb = getSupabase();
-
-  // Upsert: dacă (driver_id, ziua) există deja, suprascriem foaie.
-  // Dacă receipt_nr e deja folosit altundeva, ridica 23505 → mesaj clar.
-  const { error } = await sb.from('driver_cashin_receipts').upsert(
-    {
-      driver_id: driverId,
-      ziua,
-      receipt_nr: normalized,
-      created_by: session.id,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'driver_id,ziua' },
-  );
-
-  if (error) {
-    if (error.code === '23505') {
-      const { data: existing } = await sb
-        .from('driver_cashin_receipts')
-        .select('ziua, drivers:driver_id(full_name)')
-        .eq('receipt_nr', normalized)
-        .maybeSingle();
-      if (existing) {
-        const otherName = (existing as unknown as { drivers?: { full_name?: string } }).drivers?.full_name || 'alt șofer';
-        return { error: `Foaia #${normalized} e deja folosită de ${otherName} pe ${existing.ziua}` };
-      }
-      return { error: `Foaia #${normalized} e deja folosită altundeva` };
-    }
-    return { error: error.message };
-  }
-  return {};
+  // logica de scriere (foaie per rută, migr. 246) e cea comună din lib/foaie.ts;
+  // evaluatorul nu are context de rută → scrie foaia «zilei» (crm_route_id NULL)
+  const { error } = await scrieFoaie(getSupabase(), driverId, ziua, receiptNr, null, session.id);
+  return error ? { error } : {};
 }
 
 // ─── Acțiuni evaluator ───

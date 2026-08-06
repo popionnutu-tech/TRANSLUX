@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateVoiceApiKey } from '../auth';
 import { getSupabase } from '@/lib/supabase';
+import { resolveOfferPriceForDate } from '@translux/db';
 
 function normalizeStop(name: string): string {
   let n = name.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
   // Check for active offers first
   const { data: offers } = await supabase
     .from('offers')
-    .select('original_price, offer_price')
+    .select('from_locality, to_locality, original_price, offer_price')
     .eq('active', true)
     .ilike('from_locality', from)
     .ilike('to_locality', to);
@@ -96,7 +97,9 @@ export async function POST(req: NextRequest) {
     found: true,
     from,
     to,
-    price: offer ? offer.offer_price : basePrice,
+    // Oferta pe rata de AZI (formula RPC), nu snapshotul din tabel — altfel în
+    // ziua intrării în vigoare telefonul ar anunța prețul vechi până rulează RPC-ul.
+    price: offer ? resolveOfferPriceForDate(offer, rateLong) : basePrice,
     original_price: offer ? basePrice || offer.original_price : null,
     has_offer: !!offer,
     currency: 'MDL',

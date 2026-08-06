@@ -3,6 +3,7 @@
 import { unstable_cache } from 'next/cache';
 import { getSupabase } from '@/lib/supabase';
 import { buildTurAssignmentMap, buildReturAssignmentMap } from '@/lib/assignments';
+import { resolveOfferPriceForDate, resolveOfferForDate } from '@translux/db';
 
 export interface Locality {
   id: number;
@@ -34,11 +35,20 @@ export interface ActiveOffer {
 }
 
 export async function getActiveOffers(): Promise<ActiveOffer[]> {
-  const { data } = await getSupabase()
+  const supabase = getSupabase();
+  const { data } = await supabase
     .from('offers')
     .select('from_locality, to_locality, original_price, offer_price')
     .eq('active', true);
-  return (data || []) as ActiveOffer[];
+  const offers = (data || []) as ActiveOffer[];
+  if (offers.length === 0) return offers;
+
+  // Bannerul urmează tariful de AZI (formula RPC), nu snapshotul din offers —
+  // între miezul nopții și rularea RPC-ului de aplicare, tabelul mai are prețul vechi.
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
+  const { rateLong } = await resolveTariffRates(supabase, today);
+
+  return offers.map((o) => resolveOfferForDate(o, rateLong));
 }
 
 export async function getLocalities(): Promise<Locality[]> {
@@ -373,6 +383,11 @@ export async function searchTrips(
   // the most recent period so prices never drop to 0 when no period covers the date.
   const { rateLong: historicalRate, rateSub: historicalRateSub } = await resolveTariffRates(supabase, date);
 
+  // Oferta urmează tariful DATEI căutate (formula RPC: 133 km × rată − reducere),
+  // nu snapshotul din offers, care se rescrie abia în ziua intrării în vigoare.
+  // O singură cifră per zi pentru toate cursele; ofertele manuale rămân fixe.
+  const dateOfferPrice = offer ? resolveOfferPriceForDate(offer, historicalRate) : null;
+
   // Build price lookup: tariff_id → price.
   // Dacă ambele opriri sunt în raionul de start al rutei → tarif suburban; altfel interurban.
   const priceMap = new Map<number, number>();
@@ -422,7 +437,7 @@ export async function searchTrips(
     const price = priceMap.get(tariffId) ?? 0;
 
     // Apply offer: override price and keep original for display
-    const offerPrice = offer ? offer.offer_price as number : null;
+    const offerPrice = dateOfferPrice;
     const displayPrice = offerPrice ?? price;
     const displayOriginal = offerPrice ? price : null;
 

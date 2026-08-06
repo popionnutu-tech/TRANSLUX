@@ -7,8 +7,10 @@ import {
   executeAntaPriceUpdate,
   applyProposal,
   rejectProposal,
+  cancelScheduledProposal,
   applyDueScheduledProposals,
   computeApplyDate,
+  autoApplyFromConfigValue,
   type PriceUpdateResult,
 } from '@/lib/update-prices';
 
@@ -46,6 +48,7 @@ export interface TariffData {
     suburban: number;
   };
   dualTariffEnabled: boolean;
+  autoApplyEnabled: boolean;
   shortDistanceKm: number;
   history: TariffPeriod[];
   nomenclator: NomenclatorSnapshot | null;
@@ -59,6 +62,7 @@ const TARIFF_CONFIG_KEYS = [
   'rate_per_km_suburban',
   'dual_interurban_tariff',
   'short_distance_threshold_km',
+  'auto_apply_tariffs',
 ] as const;
 
 const TARIFF_PATH = '/numarare';
@@ -140,6 +144,7 @@ export async function getTariffData(): Promise<TariffData> {
       suburban: parseFloat(config['rate_per_km_suburban'] || '1.20'),
     },
     dualTariffEnabled: config['dual_interurban_tariff'] === 'true',
+    autoApplyEnabled: autoApplyFromConfigValue(config['auto_apply_tariffs']),
     shortDistanceKm: parseInt(config['short_distance_threshold_km'] || '65'),
     history,
     nomenclator,
@@ -157,6 +162,23 @@ export async function toggleDualTariff(
   }
 
   const result = await upsertConfigKey('dual_interurban_tariff', String(enabled));
+  if (result.error) return result;
+
+  revalidatePath(TARIFF_PATH);
+  return {};
+}
+
+// ─── Переключение авто-применения тарифов ANTA ───
+
+export async function toggleAutoApplyTariffs(
+  enabled: boolean,
+): Promise<{ error?: string }> {
+  const session = await verifySession();
+  if (!session || !hasAdminCamereAccess(session.role)) {
+    return { error: 'Acces interzis' };
+  }
+
+  const result = await upsertConfigKey('auto_apply_tariffs', String(enabled));
   if (result.error) return result;
 
   revalidatePath(TARIFF_PATH);
@@ -188,7 +210,7 @@ export async function updateShortDistanceThreshold(
 
 export interface TriggerPriceUpdateResult {
   success: boolean;
-  status: 'updated' | 'no_change' | 'proposed' | 'error';
+  status: 'updated' | 'no_change' | 'proposed' | 'auto_scheduled' | 'error';
   message: string;
   rates?: PriceUpdateResult['rates'];
   previousRates?: PriceUpdateResult['previousRates'];
@@ -223,11 +245,41 @@ export async function triggerPriceUpdate(): Promise<TriggerPriceUpdateResult> {
     };
   }
 
-  // status === 'proposed' — propunere creată; se confirmă mai jos, în secțiunea Tarife.
+  if (result.status === 'updated') {
+    return {
+      success: true,
+      status: 'updated',
+      message: 'Tarife noi preluate și aplicate automat peste tot.',
+      rates: result.rates,
+      previousRates: result.previousRates,
+      rowsUpdated: result.rowsUpdated,
+    };
+  }
+
+  if (result.status === 'auto_scheduled') {
+    return {
+      success: true,
+      status: 'auto_scheduled',
+      message: `Tarife noi preluate și confirmate automat. Intră în vigoare ${result.applyOn ? formatRoDate(result.applyOn) : 'la data programată'} — până atunci prețurile rămân neschimbate.`,
+      rates: result.rates,
+      previousRates: result.previousRates,
+    };
+  }
+
+  // status === 'proposed' — aplicarea automată e oprită, blocată sau a eșuat;
+  // se confirmă mai jos, în secțiunea Tarife.
+  const blockedNote =
+    result.autoApplyBlocked === 'delta'
+      ? ' Aplicarea automată a fost oprită: schimbare de tarif peste 15%.'
+      : result.autoApplyBlocked === 'rejected'
+        ? ' Aplicarea automată a fost oprită: aceleași tarife au fost respinse recent.'
+        : result.autoApplyBlocked === 'failed'
+          ? ' Aplicarea automată a eșuat.'
+          : '';
   return {
     success: true,
     status: 'proposed',
-    message: 'Propunere nouă creată. Confirm-o mai jos pentru a aplica prețurile peste tot.',
+    message: `Propunere nouă creată.${blockedNote} Confirm-o mai jos pentru a aplica prețurile peste tot.`,
     rates: result.rates,
     previousRates: result.previousRates,
   };
@@ -342,6 +394,31 @@ export async function confirmTariffProposal(id: string): Promise<DecideProposalR
     return { success: false, message: 'Propunere deja procesata.' };
   }
   return { success: false, message: res.error || 'Eroare la aplicare' };
+}
+
+/** Anulează un tarif confirmat (inclusiv automat) înainte de intrarea în vigoare. */
+export async function cancelScheduledTariff(id: string): Promise<DecideProposalResult> {
+  const session = await verifySession();
+  if (!session || !hasAdminCamereAccess(session.role)) {
+    return { success: false, message: 'Acces interzis' };
+  }
+
+  const res = await cancelScheduledProposal(id, null);
+
+  if (res.status === 'cancelled') {
+    revalidatePath('/');
+    revalidatePath(TARIFF_PATH);
+    return { success: true, message: 'Tarif programat anulat. Prețurile rămân neschimbate.' };
+  }
+  if (res.status === 'already_decided') {
+    return {
+      success: false,
+      message: res.current === 'approved'
+        ? 'Tariful a fost deja aplicat — nu mai poate fi anulat de aici.'
+        : 'Propunere deja procesată.',
+    };
+  }
+  return { success: false, message: res.error || 'Eroare la anulare' };
 }
 
 export async function rejectTariffProposal(id: string): Promise<DecideProposalResult> {

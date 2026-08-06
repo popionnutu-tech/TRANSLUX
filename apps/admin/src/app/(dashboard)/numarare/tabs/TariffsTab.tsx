@@ -4,11 +4,13 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   getTariffData,
   toggleDualTariff,
+  toggleAutoApplyTariffs,
   updateShortDistanceThreshold,
   triggerPriceUpdate,
   getPendingProposal,
   confirmTariffProposal,
   rejectTariffProposal,
+  cancelScheduledTariff,
   type TariffData,
   type TriggerPriceUpdateResult,
   type PendingProposal,
@@ -77,6 +79,7 @@ function SettingsCard({
   thresholdInput,
   saving,
   onToggleDual,
+  onToggleAutoApply,
   onThresholdChange,
   onSaveThreshold,
 }: {
@@ -84,6 +87,7 @@ function SettingsCard({
   thresholdInput: string;
   saving: boolean;
   onToggleDual: (enabled: boolean) => void;
+  onToggleAutoApply: (enabled: boolean) => void;
   onThresholdChange: (value: string) => void;
   onSaveThreshold: () => void;
 }) {
@@ -97,6 +101,45 @@ function SettingsCard({
         fontStyle: 'italic',
       }}>
         Setari
+      </div>
+
+      {/* Переключатель авто-применения тарифов ANTA */}
+      <div style={{ marginBottom: 20 }}>
+        <label style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          cursor: 'pointer',
+          fontSize: 14,
+          color: 'var(--text)',
+        }}>
+          <input
+            type="checkbox"
+            checked={data.autoApplyEnabled}
+            onChange={(e) => onToggleAutoApply(e.target.checked)}
+            disabled={saving}
+            style={{
+              width: 18,
+              height: 18,
+              accentColor: 'var(--primary)',
+              cursor: 'pointer',
+            }}
+          />
+          <span style={{ fontWeight: 500 }}>Aplicare automată tarife ANTA</span>
+        </label>
+
+        <div style={{
+          marginTop: 8,
+          marginLeft: 30,
+          fontSize: 12,
+          color: 'var(--text-secondary)',
+          lineHeight: 1.5,
+        }}>
+          {data.autoApplyEnabled
+            ? 'Tarifele noi ANTA se confirmă și se aplică automat la data intrării în vigoare — fără confirmare manuală'
+            : 'Tarifele noi ANTA așteaptă confirmarea ta în această secțiune înainte de a fi aplicate'
+          }
+        </div>
       </div>
 
       {/* Переключатель двойного тарифа */}
@@ -388,12 +431,37 @@ export default function TariffsTab() {
     setDeciding(false);
   }, [pending, loadData]);
 
+  const handleCancelScheduled = useCallback(async () => {
+    if (!pending) return;
+    setDeciding(true);
+    setDecideMsg('');
+    const res = await cancelScheduledTariff(pending.id);
+    setDecideMsg(res.message);
+    if (res.success) await loadData();
+    setDeciding(false);
+  }, [pending, loadData]);
+
   const handleToggleDual = useCallback(async (enabled: boolean) => {
     if (!data) return;
     setSaving(true);
     setErrorMessage('');
 
     const result = await toggleDualTariff(enabled);
+    if (result.error) {
+      setErrorMessage(result.error);
+    } else {
+      await loadData();
+    }
+
+    setSaving(false);
+  }, [data, loadData]);
+
+  const handleToggleAutoApply = useCallback(async (enabled: boolean) => {
+    if (!data) return;
+    setSaving(true);
+    setErrorMessage('');
+
+    const result = await toggleAutoApplyTariffs(enabled);
     if (result.error) {
       setErrorMessage(result.error);
     } else {
@@ -497,8 +565,18 @@ export default function TariffsTab() {
             ))}
           </div>
           {pending.status === 'scheduled' ? (
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>
-              Confirmat. Prețurile rămân neschimbate până {pending.applyOn ? formatDateRO(pending.applyOn) : 'la data programată'} — atunci se aplică automat.
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                Confirmat. Prețurile rămân neschimbate până {pending.applyOn ? formatDateRO(pending.applyOn) : 'la data programată'} — atunci se aplică automat.
+              </span>
+              <button
+                className="btn"
+                onClick={handleCancelScheduled}
+                disabled={deciding}
+                style={{ padding: '8px 22px', fontSize: 13, background: 'transparent', color: 'var(--danger)', border: '1px solid var(--danger)', borderRadius: 'var(--radius-xs)', fontWeight: 600, cursor: deciding ? 'default' : 'pointer' }}
+              >
+                {deciding ? 'Se anulează...' : '❌ Anulează'}
+              </button>
             </div>
           ) : (
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -588,10 +666,10 @@ export default function TariffsTab() {
             padding: '10px 16px',
             borderRadius: 'var(--radius-xs)',
             background: updateResult.success
-              ? (updateResult.status === 'updated' ? 'rgba(34,139,34,0.08)' : 'rgba(155,27,48,0.04)')
+              ? (updateResult.status === 'updated' || updateResult.status === 'auto_scheduled' ? 'rgba(34,139,34,0.08)' : 'rgba(155,27,48,0.04)')
               : 'var(--danger-dim)',
             color: updateResult.success
-              ? (updateResult.status === 'updated' ? '#228B22' : 'var(--text-secondary)')
+              ? (updateResult.status === 'updated' || updateResult.status === 'auto_scheduled' ? '#228B22' : 'var(--text-secondary)')
               : 'var(--danger)',
             fontSize: 13,
             fontWeight: 500,
@@ -607,6 +685,7 @@ export default function TariffsTab() {
         thresholdInput={thresholdInput}
         saving={saving}
         onToggleDual={handleToggleDual}
+        onToggleAutoApply={handleToggleAutoApply}
         onThresholdChange={setThresholdInput}
         onSaveThreshold={handleSaveThreshold}
       />

@@ -118,4 +118,8 @@ describe('computeApplyDate', () => {
   it('confirmat chiar vineri, fără dată ANTA → intră în vigoare azi', () => {
     expect(computeApplyDate(null, '2026-07-24')).toBe('2026-07-24');
   });
+
+  it('data ANTA în trecut → azi (nu inserăm perioade în urmă)', () => {
+    expect(computeApplyDate('2026-07-20', '2026-07-23')).toBe('2026-07-23');
+  });
 });

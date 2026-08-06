@@ -3,6 +3,9 @@ import { verifyCronSecret } from '@/lib/cron-auth';
 import { executeAntaPriceUpdate, applyDueScheduledProposals } from '@/lib/update-prices';
 
 export const dynamic = 'force-dynamic';
+// Cu aplicarea automată, fetch-ul ANTA + aplicarea (RPC, nomenclator, notificări)
+// rulează în aceeași invocare — lăsăm timp peste default-ul de 10s.
+export const maxDuration = 60;
 
 export async function GET(req: NextRequest) {
   const authError = verifyCronSecret(req);

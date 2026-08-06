@@ -12,6 +12,10 @@ const PROPOSAL_TTL_MS = 24 * 60 * 60 * 1000; // o propunere e valabilă 24h
 const CONFIG_KEY_INTERURBAN_LONG = 'rate_per_km_long';
 const CONFIG_KEY_INTERURBAN_SHORT = 'rate_per_km_interurban_short';
 const CONFIG_KEY_SUBURBAN = 'rate_per_km_suburban';
+const CONFIG_KEY_AUTO_APPLY = 'auto_apply_tariffs';
+// Salt de tarif peste acest prag = posibilă eroare de parsare ANTA → fără aplicare
+// automată, rămâne pe confirmarea manuală din panou.
+const AUTO_APPLY_MAX_DELTA = 0.15;
 
 const POPULAR_ROUTES = [
   { from: 'chisinau', to: 'balti', from_ro: 'Chișinău', to_ro: 'Bălți', from_ru: 'Кишинёв', to_ru: 'Бэлць' },
@@ -50,14 +54,20 @@ interface EffectiveRates {
   effectiveDate: string | null;
 }
 
+export type AutoApplyBlockReason = 'delta' | 'rejected' | 'failed';
+
 export interface PriceUpdateResult {
-  status: 'updated' | 'no_change' | 'proposed' | 'error';
+  /** 'auto_scheduled' = confirmată automat, intră în vigoare la applyOn */
+  status: 'updated' | 'no_change' | 'proposed' | 'auto_scheduled' | 'error';
+  /** setat pe 'proposed' când aplicarea automată era activă dar nu s-a făcut */
+  autoApplyBlocked?: AutoApplyBlockReason;
   proposalId?: string;
   rates?: { interurbanLong: number; interurbanShort: number; suburban: number };
   previousRates?: { interurbanLong: number | null; interurbanShort: number | null; suburban: number | null };
   rowsUpdated?: number;
   baltiChisinauOffer?: number;
   period?: { start: string; end: string };
+  applyOn?: string;
   error?: string;
 }
 
@@ -179,6 +189,68 @@ async function loadCurrentRates(
   };
 }
 
+/**
+ * Regula partajată motor + UI (getTariffData): aplicarea automată e implicit
+ * ACTIVĂ — doar valoarea explicită 'false' o oprește.
+ */
+export function autoApplyFromConfigValue(value: string | null | undefined): boolean {
+  return value !== 'false';
+}
+
+async function isAutoApplyEnabled(supabase: ReturnType<typeof getSupabase>): Promise<boolean> {
+  const { data } = await supabase
+    .from('app_config')
+    .select('value')
+    .eq('key', CONFIG_KEY_AUTO_APPLY)
+    .maybeSingle();
+  return autoApplyFromConfigValue((data as { value: string } | null)?.value);
+}
+
+// Cât timp o respingere/anulare a owner-ului blochează re-aplicarea automată
+// a EXACT acelorași rate (cronul le-ar recrea săptămânal la nesfârșit altfel).
+const REJECTED_BLOCK_MS = 14 * 24 * 60 * 60 * 1000;
+
+/**
+ * Owner-ul a respins (sau a anulat din „Anulează") recent exact aceste rate?
+ * Atunci NU le re-aplicăm automat la următoarea verificare — decizia lui rămâne
+ * valabilă până confirmă manual sau până ANTA publică alte valori.
+ */
+async function wasRecentlyRejected(
+  supabase: ReturnType<typeof getSupabase>,
+  effective: EffectiveRates,
+): Promise<boolean> {
+  const cutoff = new Date(Date.now() - REJECTED_BLOCK_MS).toISOString();
+  const { data } = await supabase
+    .from('pending_price_updates')
+    .select('rate_interurban_long, rate_interurban_short, rate_suburban')
+    .eq('status', 'rejected')
+    .gte('decided_at', cutoff)
+    .order('decided_at', { ascending: false })
+    .limit(5);
+
+  return (data || []).some((r: Record<string, unknown>) =>
+    Math.abs(Number(r.rate_interurban_long) - effective.interurbanLong) < RATE_TOLERANCE &&
+    Math.abs(Number(r.rate_interurban_short) - effective.interurbanShort) < RATE_TOLERANCE &&
+    Math.abs(Number(r.rate_suburban) - effective.suburban) < RATE_TOLERANCE,
+  );
+}
+
+/**
+ * Aplicarea automată e permisă doar pentru schimbări „normale": fiecare rată în
+ * ±15% față de cea curentă. Fără baseline (rată curentă lipsă) sau cu salt mai
+ * mare — parserul ANTA poate greși — decizia rămâne la om.
+ */
+function isDeltaSafeForAutoApply(current: CurrentRates, effective: EffectiveRates): boolean {
+  const pairs: Array<[number | null, number]> = [
+    [current.interurbanLong, effective.interurbanLong],
+    [current.interurbanShort, effective.interurbanShort],
+    [current.suburban, effective.suburban],
+  ];
+  return pairs.every(
+    ([cur, next]) => cur !== null && cur > 0 && Math.abs(next - cur) / cur <= AUTO_APPLY_MAX_DELTA,
+  );
+}
+
 function hasAnyRateChanged(current: CurrentRates, parsed: ParsedRates): boolean {
   const pairs: Array<[number | null, number | null]> = [
     [current.interurbanLong, parsed.interurbanLong],
@@ -215,7 +287,11 @@ export function nextFridayOnOrAfter(dateStr: string): string {
  * confirmate joi apar de vineri, nu din ziua confirmării.
  */
 export function computeApplyDate(effectiveDate: string | null, today: string): string {
-  return effectiveDate ?? nextFridayOnOrAfter(today);
+  const applyOn = effectiveDate ?? nextFridayOnOrAfter(today);
+  // Data ANTA poate fi în trecut (corecție retroactivă sau cron sărit). Sub azi nu
+  // coborâm: perioada s-ar insera în urmă — umbrită de cele existente și în coliziune
+  // cu unique index-ul pe period_start.
+  return applyOn < today ? today : applyOn;
 }
 
 // ─── Period computation ───
@@ -268,8 +344,9 @@ async function computePopularPrices(
 async function saveNomenclator(
   supabase: ReturnType<typeof getSupabase>,
   rate: number,
+  precomputed?: PopularPrice[],
 ) {
-  const prices = await computePopularPrices(supabase, rate);
+  const prices = precomputed ?? await computePopularPrices(supabase, rate);
   await supabase.from('price_nomenclator').insert({ rate_per_km: rate, prices });
   return prices;
 }
@@ -319,12 +396,11 @@ function formatRoDate(dateStr: string): string {
   return `${weekday}, ${dateStr.split('-').reverse().join('.')}`;
 }
 
-function buildProposalMessage(
+/** Corpul comun al notificărilor de tarif: rate + oferta Bălți + destinații populare. */
+function buildTariffBody(
   effective: EffectiveRates,
   previous: CurrentRates,
   preview: PopularPrice[],
-  source: 'cron' | 'manual',
-  applyOn: string,
 ): string {
   const baltiPrice = Math.round(133 * effective.interurbanLong);
   const priceLines = preview
@@ -337,15 +413,62 @@ function buildProposalMessage(
     formatRateLine('Suburban', effective.suburban, previous.suburban),
   ].join('\n');
 
+  return (
+    `${rateLines}\n` +
+    `Bălți → Chișinău: <b>${baltiPrice - 20} lei</b> (reducere -20)\n\n` +
+    `<b>Destinații populare:</b>\n${priceLines}`
+  );
+}
+
+const AUTO_APPLY_BLOCK_LINES: Record<AutoApplyBlockReason, string> = {
+  delta: `🛑 Schimbare mare de tarif (peste ${Math.round(AUTO_APPLY_MAX_DELTA * 100)}%) — aplicarea automată a fost oprită pentru siguranță; e nevoie de confirmarea ta.`,
+  rejected: `🛑 Aceleași tarife au fost respinse sau anulate recent — aplicarea automată a fost oprită; decizia rămâne la tine.`,
+  failed: `⚠️ Aplicarea automată a eșuat — e nevoie de confirmarea ta. Dacă exista un tarif programat anterior, e posibil să fi fost anulat.`,
+};
+
+function buildProposalMessage(
+  effective: EffectiveRates,
+  previous: CurrentRates,
+  preview: PopularPrice[],
+  source: 'cron' | 'manual',
+  applyOn: string,
+  blockedReason?: AutoApplyBlockReason,
+): string {
   const sourceLabel = source === 'manual' ? ' (manual)' : '';
+  const blockedLine = blockedReason ? `${AUTO_APPLY_BLOCK_LINES[blockedReason]}\n` : '';
 
   return (
     `🆕 <b>Propunere tarife noi ANTA${sourceLabel}</b>\n\n` +
-    `${rateLines}\n` +
-    `Bălți → Chișinău: <b>${baltiPrice - 20} lei</b> (reducere -20)\n\n` +
-    `<b>Destinații populare:</b>\n${priceLines}\n\n` +
+    `${buildTariffBody(effective, previous, preview)}\n\n` +
+    blockedLine +
     `📅 După confirmare, intră în vigoare: <b>${formatRoDate(applyOn)}</b>.\n` +
     `⚠️ Prețurile NU sunt încă aplicate. Confirmă-le în panou → secțiunea <b>Tarife</b> pentru a le activa.`
+  );
+}
+
+function buildAutoAppliedMessage(
+  effective: EffectiveRates,
+  previous: CurrentRates,
+  preview: PopularPrice[],
+  source: 'cron' | 'manual',
+  applyOn: string,
+  appliedNow: boolean,
+): string {
+  const sourceLabel = source === 'manual' ? ' (manual)' : '';
+  const whenLine = appliedNow
+    ? `📅 Aplicate de azi, peste tot.`
+    : `📅 Intră în vigoare: <b>${formatRoDate(applyOn)}</b> — până atunci prețurile rămân neschimbate.`;
+  // „Anulează" există doar cât timp tariful e programat (status 'scheduled') —
+  // după aplicare nu promitem o anulare care nu mai e posibilă din panou.
+  const footerLine = appliedNow
+    ? `🤖 Aplicarea automată e activă. O poți dezactiva în panou → secțiunea <b>Tarife</b>.`
+    : `🤖 Aplicarea automată e activă. Până la data intrării în vigoare o poți anula din panou → secțiunea <b>Tarife</b> (tot acolo se poate dezactiva complet).`;
+
+  return (
+    `✅ <b>Tarife noi ANTA — aplicate automat${sourceLabel}</b>\n\n` +
+    `${buildTariffBody(effective, previous, preview)}\n\n` +
+    `${whenLine}\n` +
+    footerLine
   );
 }
 
@@ -383,6 +506,7 @@ async function applyRatesToConfigAndOffers(
   supabase: ReturnType<typeof getSupabase>,
   effective: EffectiveRates,
   previous: CurrentRates,
+  preview?: PopularPrice[],
 ): Promise<number> {
   const { data: rowsUpdated, error: rpcError } = await supabase.rpc('update_prices_by_rate_v2', {
     new_rate_interurban_long: effective.interurbanLong,
@@ -401,7 +525,7 @@ async function applyRatesToConfigAndOffers(
     rate_suburban: effective.suburban,
   });
 
-  await saveNomenclator(supabase, effective.interurbanLong);
+  await saveNomenclator(supabase, effective.interurbanLong, preview);
 
   return rowsUpdated ?? 0;
 }
@@ -416,7 +540,9 @@ export async function executeAntaPriceUpdate(options?: {
 
   try {
     // 1. Fetch & parse ANTA
-    const res = await fetch(ANTA_URL, { cache: 'no-store' });
+    // Timeout explicit: cu maxDuration=60s, un ANTA lent nu are voie să mănânce
+    // bugetul necesar scrierilor (delete+insert tariff_periods nu e transacțional).
+    const res = await fetch(ANTA_URL, { cache: 'no-store', signal: AbortSignal.timeout(15_000) });
     if (!res.ok) throw new Error(`ANTA fetch failed: ${res.status}`);
     const html = await res.text();
     const rates = parseRates(html);
@@ -509,14 +635,63 @@ export async function executeAntaPriceUpdate(options?: {
     if (insErr) throw new Error(`Failed to create proposal: ${insErr.message}`);
     const proposalId = (inserted as { id: string }).id;
 
-    // 6. Notifică adminii — DOAR informativ (fără butoane). Confirmarea se face în panou (Tarife).
+    const applyOn = computeApplyDate(effective.effectiveDate, chisinauToday());
+
+    // 6. Aplicare automată (implicit ACTIVĂ, dezactivabilă din panou → Tarife):
+    //    confirmăm propunerea imediat, cu aceeași logică ca butonul Confirmă
+    //    (tariff_periods acum; restul la data intrării în vigoare). NU se aplică
+    //    automat: salturile anormale (>15%) și ratele respinse/anulate recent.
+    const autoApply = await isAutoApplyEnabled(supabase);
+    let blockedReason: AutoApplyBlockReason | undefined;
+    if (autoApply) {
+      if (!isDeltaSafeForAutoApply(currentRates, effective)) blockedReason = 'delta';
+      else if (await wasRecentlyRejected(supabase, effective)) blockedReason = 'rejected';
+    }
+
+    if (autoApply && !blockedReason) {
+      const applyRes = await applyProposal(proposalId, null, { auto: true });
+      if (applyRes.status === 'updated' || applyRes.status === 'scheduled') {
+        // apply_on scris în DB e cel calculat de applyProposal — el e autoritatea.
+        const applyOnFinal = applyRes.applyOn ?? applyOn;
+        if (sendTelegramNotification) {
+          await notifyAdmins(
+            buildAutoAppliedMessage(effective, currentRates, preview, source, applyOnFinal, applyRes.status === 'updated'),
+          );
+        }
+        return {
+          status: applyRes.status === 'updated' ? 'updated' : 'auto_scheduled',
+          proposalId,
+          rates: {
+            interurbanLong: effective.interurbanLong,
+            interurbanShort: effective.interurbanShort,
+            suburban: effective.suburban,
+          },
+          previousRates: {
+            interurbanLong: currentRates.interurbanLong,
+            interurbanShort: currentRates.interurbanShort,
+            suburban: currentRates.suburban,
+          },
+          rowsUpdated: applyRes.result?.rowsUpdated,
+          baltiChisinauOffer: applyRes.result?.baltiChisinauOffer,
+          period: applyRes.result?.period,
+          applyOn: applyOnFinal,
+        };
+      }
+      // Aplicarea automată a eșuat → propunerea a fost readusă la 'pending';
+      // cădem pe fluxul manual de mai jos (notificare + confirmare în panou).
+      blockedReason = 'failed';
+    }
+
+    // 7. Notifică adminii — DOAR informativ (fără butoane). Confirmarea se face în panou (Tarife).
     if (sendTelegramNotification) {
-      const applyOn = computeApplyDate(effective.effectiveDate, chisinauToday());
-      await notifyAdmins(buildProposalMessage(effective, currentRates, preview, source, applyOn));
+      await notifyAdmins(
+        buildProposalMessage(effective, currentRates, preview, source, applyOn, blockedReason),
+      );
     }
 
     return {
       status: 'proposed',
+      ...(blockedReason ? { autoApplyBlocked: blockedReason } : {}),
       proposalId,
       rates: {
         interurbanLong: effective.interurbanLong,
@@ -577,6 +752,7 @@ async function resolveFailedClaim(
 export async function applyProposal(
   proposalId: string,
   decidedBy: number | null,
+  opts?: { auto?: boolean },
 ): Promise<{
   status: 'updated' | 'scheduled' | 'already_decided' | 'expired' | 'error';
   current?: string;
@@ -627,6 +803,8 @@ export async function applyProposal(
         apply_on: applyOn,
         decided_at: nowIso,
         decided_by: decidedBy,
+        // Audit: distinge confirmarea automată de cea făcută de om (decided_by=null în ambele).
+        auto_applied: opts?.auto === true,
         ...(claimStatus === 'approved' ? { applied_at: nowIso } : {}),
       })
       .eq('id', proposalId)
@@ -648,6 +826,12 @@ export async function applyProposal(
         .eq('status', 'scheduled')
         .neq('id', proposalId);
       await supabase.from('tariff_periods').delete().gt('period_start', today);
+      if (applyOn === today) {
+        // O aplicare concurentă (cron × buton manual) poate să fi inserat deja o
+        // perioadă cu start azi — .gt() n-o prinde; fără ștergere ar rămâne două
+        // rânduri cu același period_start și cititorii ar alege nedeterminist.
+        await supabase.from('tariff_periods').delete().eq('period_start', today);
+      }
 
       const period = await insertTariffPeriod(supabase, effective, applyOn);
 
@@ -656,7 +840,10 @@ export async function applyProposal(
         return { status: 'scheduled', applyOn };
       }
 
-      const rowsUpdated = await applyRatesToConfigAndOffers(supabase, effective, previous);
+      // Preview-ul salvat la crearea propunerii e calculat pe aceeași rată →
+      // refolosit, ca să nu mai facem încă 12 interogări pe v_interurban_v2_km_pairs.
+      const storedPreview = Array.isArray(c.preview) ? (c.preview as PopularPrice[]) : undefined;
+      const rowsUpdated = await applyRatesToConfigAndOffers(supabase, effective, previous, storedPreview);
       const baltiPrice = Math.round(133 * effective.interurbanLong);
       return {
         status: 'updated',
@@ -737,6 +924,8 @@ export async function applyDueScheduledProposals(): Promise<{ applied: number; e
       };
 
       try {
+        // Preview-ul salvat poate avea până la 7 zile — nomenclatorul se recalculează
+        // aici pe km-perechile curente (refolosirea rămâne doar pe aplicarea imediată).
         await applyRatesToConfigAndOffers(supabase, effective, previous);
         applied++;
         await notifyAdmins(
@@ -761,6 +950,66 @@ export async function applyDueScheduledProposals(): Promise<{ applied: number; e
   }
 
   return { applied, errors };
+}
+
+/**
+ * Anulează o propunere CONFIRMATĂ (status 'scheduled') înainte de intrarea în
+ * vigoare: o marchează 'rejected' și șterge perioada ei din tariff_periods.
+ * Ieșirea de urgență pentru aplicarea automată — până acum 'scheduled' era
+ * ireversibil din interfață.
+ */
+export async function cancelScheduledProposal(
+  proposalId: string,
+  decidedBy: number | null,
+): Promise<{ status: 'cancelled' | 'already_decided' | 'error'; current?: string; error?: string }> {
+  try {
+    const supabase = getSupabase();
+
+    // Claim atomic: doar dacă e încă 'scheduled' (cronul de aplicare o trece în
+    // 'approved' cu același tip de claim, deci nu ne putem călca pe picioare).
+    const { data: claimed, error } = await supabase
+      .from('pending_price_updates')
+      .update({ status: 'rejected', decided_at: new Date().toISOString(), decided_by: decidedBy })
+      .eq('id', proposalId)
+      .eq('status', 'scheduled')
+      .select('apply_on')
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+
+    if (!claimed) {
+      const { data: row } = await supabase
+        .from('pending_price_updates')
+        .select('status')
+        .eq('id', proposalId)
+        .maybeSingle();
+      return { status: 'already_decided', current: (row as { status: string } | null)?.status ?? 'unknown' };
+    }
+
+    // Șterge perioada programată (începe la apply_on; app_config nu e încă atins
+    // cât timp statusul era 'scheduled', deci nu există altceva de derulat înapoi).
+    const applyOn = (claimed as { apply_on: string | null }).apply_on;
+    if (applyOn) {
+      const { error: delErr } = await supabase
+        .from('tariff_periods')
+        .delete()
+        .gte('period_start', applyOn);
+      if (delErr) {
+        // Perioada există încă → readu propunerea la 'scheduled', altfel cardul
+        // dispare din panou, dar tariful tot ar intra în vigoare la apply_on.
+        await supabase
+          .from('pending_price_updates')
+          .update({ status: 'scheduled' })
+          .eq('id', proposalId)
+          .eq('status', 'rejected');
+        throw new Error(`tariff_periods cleanup failed: ${delErr.message}`);
+      }
+    }
+
+    return { status: 'cancelled' };
+  } catch (err) {
+    return { status: 'error', error: err instanceof Error ? err.message : 'Unknown error' };
+  }
 }
 
 /** Respinge o propunere pending (nu aplică nimic). */

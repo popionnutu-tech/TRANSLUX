@@ -23,6 +23,8 @@ export interface Obligation {
   source: string | null;
   vehicle_plate: string | null;
   estimated_date: string | null;
+  category: string;
+  recurring_template_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -134,7 +136,7 @@ export function normCategory(c: unknown): TaskCategory {
 // ── создание ──
 export async function createTask(input: {
   creatorId: string; assigneeId: string; title: string | null; description: string; points: number; deadline: string;
-  category?: string; recurringTemplateId?: string | null;
+  category?: string; recurringTemplateId?: string | null; source?: string | null;
 }): Promise<Obligation> {
   const db = getSupabase();
   const { data, error } = await db.from('obligations').insert({
@@ -144,6 +146,9 @@ export async function createTask(input: {
     current_state: 'sent',
     category: normCategory(input.category),
     recurring_template_id: input.recurringTemplateId ?? null,
+    // source='recurring' la spawn-ul din șablon — altfel autoVerifyTiktokTasks (care caută
+    // după source+title+description) nu ar închide sarcina creată din admin în ziua creării.
+    source: input.source ?? null,
   }).select('*').single();
   if (error || !data) throw new Error(error?.message || 'create failed');
   const ob = data as Obligation;
@@ -292,12 +297,15 @@ export async function createRecurringTemplate(input: {
   // Dacă șablonul se potrivește azi, generăm sarcina de azi imediat (altfel ar aștepta rularea de la 07:00).
   if (recurringFiresToday(input.period, input.weekDays)) {
     const todayYMD = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Chisinau' }).format(new Date());
-    if (tpl.last_generated_date !== todayYMD) {
+    const todayDeadline = chisinauTodayISO(input.deadlineTime);
+    // Aceeași regulă ca generatorul botului: nu spawnăm o sarcină deja expirată
+    // (șablon creat după ora-limită) — prima apare mâine la 07:00.
+    if (tpl.last_generated_date !== todayYMD && new Date(todayDeadline).getTime() > Date.now()) {
       await createTask({
         creatorId: input.creatorId, assigneeId: input.assigneeId,
         title: input.title, description: input.description, points: input.points,
-        deadline: chisinauTodayISO(input.deadlineTime),
-        category: normCategory(input.category), recurringTemplateId: tpl.id,
+        deadline: todayDeadline,
+        category: normCategory(input.category), recurringTemplateId: tpl.id, source: 'recurring',
       });
       await getSupabase().from('recurring_task_templates').update({ last_generated_date: todayYMD }).eq('id', tpl.id);
     }

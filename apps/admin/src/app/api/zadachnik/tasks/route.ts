@@ -22,35 +22,46 @@ export async function GET(req: Request) {
       const x = (users ?? []).find((y) => y.id === id);
       return x ? userLabel(x) : '—';
     };
-    return NextResponse.json({ role: 'ADMIN', tasks: tasks.map((t) => ({ ...t, assignee_label: labelOf(t.assignee_id) })) });
+    return NextResponse.json({
+      role: 'ADMIN',
+      tasks: tasks.map((t) => ({ ...t, assignee_label: labelOf(t.assignee_id) })),
+      targets: await weeklyTargets(null),
+    });
   }
   const bucket = new URL(req.url).searchParams.get('bucket') === 'history' ? 'history' : 'active';
   const tasks = await listForAssignee(u.id, bucket);
-  // Progresul săptămânal al țintelor (doar pe ecranul activ — istoria nu-l afișează)
-  let targets: Array<{ template_id: string; label: string; done: number; target: number }> = [];
-  if (bucket === 'active') {
-    const { data: templates } = await getSupabase()
-      .from('recurring_task_templates')
-      .select('id, title, description, period, week_days, target_per_week')
-      .eq('assignee_id', u.id).eq('active', true);
-    if (templates?.length) {
-      const ids = templates.map((t) => t.id);
-      const { data: weekObs } = await getSupabase()
-        .from('obligations')
-        .select('recurring_template_id, current_state')
-        .in('recurring_template_id', ids)
-        .gte('created_at', chisinauWeekStartISO());
-      targets = templates.map((t) => ({
-        template_id: t.id as string,
-        label: (t.title as string | null) || String(t.description).slice(0, 30),
-        done: (weekObs ?? []).filter((o) => o.recurring_template_id === t.id && o.current_state === 'resolved').length,
-        // ținta: explicită, altfel dedusă din program (daily→7, mon_fri→5, custom→nr. zile)
-        target: (t.target_per_week as number | null)
-          ?? (t.period === 'daily' ? 7 : t.period === 'mon_fri' ? 5 : ((t.week_days as number[] | null)?.length ?? 0)),
-      })).filter((t) => t.target > 0);
-    }
-  }
+  // Progresul săptămânal — doar pe ecranul activ (istoria nu-l afișează)
+  const targets = bucket === 'active' ? await weeklyTargets(u.id) : [];
   return NextResponse.json({ role: 'CONTROLLER', tasks, targets });
+}
+
+/** Progresul săptămânal al șabloanelor active (toate la assigneeId=null — vederea admin).
+ *  La orice eroare de query întoarce null: panoul se ascunde în loc să arate 0/N fals. */
+async function weeklyTargets(assigneeId: string | null):
+  Promise<Array<{ template_id: string; assignee_id: string; label: string; done: number; target: number }> | null> {
+  let q = getSupabase().from('recurring_task_templates')
+    .select('id, assignee_id, title, description, period, week_days, target_per_week')
+    .eq('active', true);
+  if (assigneeId) q = q.eq('assignee_id', assigneeId);
+  const { data: templates, error: tErr } = await q;
+  if (tErr) { console.error('weeklyTargets templates:', tErr.message); return null; }
+  if (!templates?.length) return [];
+  const ids = templates.map((t) => t.id);
+  const { data: weekObs, error: oErr } = await getSupabase()
+    .from('obligations')
+    .select('recurring_template_id, current_state')
+    .in('recurring_template_id', ids)
+    .gte('created_at', chisinauWeekStartISO());
+  if (oErr) { console.error('weeklyTargets obligations:', oErr.message); return null; }
+  return templates.map((t) => ({
+    template_id: t.id as string,
+    assignee_id: t.assignee_id as string,
+    label: (t.title as string | null) || String(t.description).slice(0, 30),
+    done: (weekObs ?? []).filter((o) => o.recurring_template_id === t.id && o.current_state === 'resolved').length,
+    // ținta: explicită, altfel dedusă din program (daily→7, mon_fri→5, custom→nr. zile)
+    target: (t.target_per_week as number | null)
+      ?? (t.period === 'daily' ? 7 : t.period === 'mon_fri' ? 5 : ((t.week_days as number[] | null)?.length ?? 0)),
+  })).filter((t) => t.target > 0);
 }
 
 /** Începutul săptămânii curente (luni 00:00 Europe/Chisinau) ca instant ISO. */

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { C, api, ready, catOf } from '../ui';
+import { C, api, ready, CAT, CAT_ORDER, catOf } from '../ui';
 
 interface Template {
   id: string; title: string | null; description: string; points: number;
@@ -46,6 +46,15 @@ export default function Recurente() {
     await load();
   }
 
+  async function patch(id: string, body: Record<string, unknown>) {
+    setBusy(true);
+    const r = await api(`/recurring/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
+    setBusy(false);
+    if (!r.ok) { const d = await r.json().catch(() => ({})); setErr(d.error || 'Eroare la salvare.'); return; }
+    setErr('');
+    await load();
+  }
+
   return (
     <div>
       <button onClick={() => router.back()} style={back}>← Înapoi</button>
@@ -69,7 +78,35 @@ export default function Recurente() {
               {periodLabel(t)} · până {t.deadline_time} · 💯 {t.points} · 👤 {t.assignee_label}
               {targetOf(t) > 0 ? <> · <span style={{ color: catOf(t.category).color, fontWeight: 700 }}>🎯 {targetOf(t)}/săpt</span></> : null}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 8 }}>
+              {CAT_ORDER.map((key) => {
+                const c = CAT[key];
+                const active = (t.category ?? 'ALTELE') === key;
+                return (
+                  <button key={key} type="button" disabled={busy}
+                    onClick={() => !active && patch(t.id, { category: key })}
+                    style={{
+                      background: active ? c.color : C.panel2, color: active ? '#fff' : C.muted,
+                      border: `1px solid ${active ? c.color : C.border}`, borderRadius: 4,
+                      padding: '3px 7px', fontSize: 11, cursor: 'pointer', fontWeight: active ? 700 : 400,
+                    }}>
+                    {c.emoji}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, gap: 8 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: C.muted }}>
+                🎯
+                <input type="number" min={1} defaultValue={t.target_per_week ?? ''} placeholder="auto" disabled={busy}
+                  onBlur={(e) => {
+                    const v = e.target.value.trim();
+                    const next = v === '' ? null : Number(v);
+                    if (next !== (t.target_per_week ?? null)) patch(t.id, { target_per_week: next });
+                  }}
+                  style={{ width: 64, background: C.panel2, border: `1px solid ${C.border}`, color: C.text, borderRadius: 4, padding: '5px 8px', fontSize: 14 }} />
+                /săpt
+              </label>
               <button onClick={() => stop(t.id)} disabled={busy} style={stopBtn}>Oprește</button>
             </div>
           </div>

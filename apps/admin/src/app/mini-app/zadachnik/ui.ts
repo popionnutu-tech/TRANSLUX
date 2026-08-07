@@ -91,5 +91,7 @@ export const CAT: Record<string, { label: string; emoji: string; color: string }
 };
 export const CAT_ORDER = ['VIDEO', 'MARKETING_AUTO', 'DEZVOLTARE', 'ALTELE'] as const;
 export const catOf = (c?: string) => CAT[c ?? 'ALTELE'] ?? CAT.ALTELE;
+/** Cheia normalizată: orice categorie necunoscută cade în ALTELE (nu dispare din secțiuni). */
+export const catKeyOf = (c?: string) => (c && CAT[c] ? c : 'ALTELE');
 
-export interface TargetProgress { template_id: string; label: string; done: number; target: number }
+export interface TargetProgress { template_id: string; assignee_id?: string; label: string; done: number; target: number }

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { C, api, ready, STATE, fmt, CAT_ORDER, catOf, type Task, type TargetProgress } from './ui';
+import { C, api, ready, STATE, fmt, CAT_ORDER, catOf, catKeyOf, type Task, type TargetProgress } from './ui';
 
 const CURRENT_STATES = ['created', 'sent', 'delivered', 'accepted', 'in_progress', 'report_pending', 'overdue', 'overdue_responded'];
 
@@ -10,6 +10,7 @@ interface RecTemplate {
   id: string; assignee_id: string; title: string | null; description: string; points: number;
   period: 'daily' | 'mon_fri' | 'custom'; week_days: number[] | null; deadline_time: string;
   assignee_label: string;
+  category?: string; target_per_week?: number | null;
 }
 
 const WD = ['Du', 'Lu', 'Ma', 'Mi', 'Jo', 'Vi', 'Sâ'];
@@ -29,12 +30,14 @@ export default function ZadachnikHome() {
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(true);
 
+  // NB: `role` NU e în dependențe — la primul fetch serverul decide singur rolul, iar
+  // setRole() nu trebuie să declanșeze un al doilea fetch identic (dubla toate cererile).
   useEffect(() => {
     let alive = true;
     (async () => {
       await ready();
       setLoading(true);
-      const r = await api('/tasks' + (role === 'CONTROLLER' ? `?bucket=${bucket}` : ''));
+      const r = await api(`/tasks?bucket=${bucket}`);
       if (!alive) return;
       if (!r.ok) {
         if (r.status === 401) {
@@ -58,8 +61,8 @@ export default function ZadachnikHome() {
       setLoading(false);
     })();
     return () => { alive = false; };
-    // role/bucket trigger refetch
-  }, [role, bucket]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- doar bucket declanșează refetch (vezi NB)
+  }, [bucket]);
 
   if (err) return <p style={{ color: C.bad, fontSize: 14 }}>{err}</p>;
 
@@ -130,7 +133,10 @@ export default function ZadachnikHome() {
       {!loading && isAdmin && view === 'employee' && (
         employees.length === 0
           ? <p style={{ color: C.muted, fontSize: 13 }}>Nimic.</p>
-          : employees.map(([id, g]) => <EmployeeGroup key={id} name={g.label} tasks={g.tasks} rec={g.rec} />)
+          : employees.map(([id, g]) => (
+              <EmployeeGroup key={id} name={g.label} tasks={g.tasks} rec={g.rec}
+                targets={(targets ?? []).filter((tg) => tg.assignee_id === id)} />
+            ))
       )}
 
       {!loading && !isAdmin && bucket === 'active' && targets.length > 0 && <TargetsPanel targets={targets} />}
@@ -182,7 +188,7 @@ function CategorySections({ tasks }: { tasks: Task[] }) {
     <>
       {CAT_ORDER.map((key) => {
         const cat = catOf(key);
-        const list = tasks.filter((t) => (t.category ?? 'ALTELE') === key);
+        const list = tasks.filter((t) => catKeyOf(t.category) === key);
         if (list.length === 0) return null;
         return (
           <div key={key} style={{ marginBottom: 16 }}>
@@ -199,26 +205,35 @@ function CategorySections({ tasks }: { tasks: Task[] }) {
   );
 }
 
-function EmployeeGroup({ name, tasks, rec }: { name: string; tasks: Task[]; rec: RecTemplate[] }) {
+function EmployeeGroup({ name, tasks, rec, targets }: { name: string; tasks: Task[]; rec: RecTemplate[]; targets: TargetProgress[] }) {
+  const targetOf = (rt: RecTemplate) =>
+    targets.find((tg) => tg.template_id === rt.id);
   return (
     <div style={{ marginBottom: 18 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
         <span style={{ fontSize: 14, fontWeight: 700, color: C.accent }}>👤 {name}</span>
         <span style={{ fontSize: 11, color: C.muted }}>{tasks.length} curente</span>
       </div>
+      {targets.length > 0 && <TargetsPanel targets={targets} />}
+      <CategorySections tasks={tasks} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {tasks.map((t) => <Card key={t.id} t={t} />)}
         {rec.length > 0 && (
           <div style={{ fontSize: 11, color: C.muted, marginTop: tasks.length ? 8 : 0, marginBottom: 2 }}>Se repetă:</div>
         )}
-        {rec.map((rt) => (
-          <div key={rt.id} style={{ ...card, borderStyle: 'dashed' }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              🔁 {rt.title || rt.description.slice(0, 50)}
+        {rec.map((rt) => {
+          const tg = targetOf(rt);
+          return (
+            <div key={rt.id} style={{ ...card, borderStyle: 'dashed' }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {catOf(rt.category).emoji} 🔁 {rt.title || rt.description.slice(0, 50)}
+              </div>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 3 }}>
+                {recScheduleLabel(rt)} · {rt.deadline_time}
+                {tg ? <> · <span style={{ color: tg.done >= tg.target ? C.ok : catOf(rt.category).color, fontWeight: 700 }}>🎯 {tg.done}/{tg.target}{tg.done >= tg.target ? ' ✓' : ''}</span></> : null}
+              </div>
             </div>
-            <div style={{ fontSize: 11, color: C.muted, marginTop: 3 }}>{recScheduleLabel(rt)} · {rt.deadline_time}</div>
-          </div>
-        ))}
+          );
+        })}
         {tasks.length === 0 && rec.length === 0 && <p style={{ fontSize: 12, color: C.muted }}>Nimic.</p>}
       </div>
     </div>

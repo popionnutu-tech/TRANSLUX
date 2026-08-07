@@ -10,20 +10,20 @@ interface Template {
   category?: string; target_per_week?: number | null;
 }
 
-function targetOf(t: Template): number {
-  return t.target_per_week ?? (t.period === 'daily' ? 7 : t.period === 'mon_fri' ? 5 : (t.week_days?.length ?? 0));
-}
-
 const WD = ['Du', 'Lu', 'Ma', 'Mi', 'Jo', 'Vi', 'Sâ'];
 function periodLabel(t: Template): string {
   if (t.period === 'daily') return 'Zilnic';
   if (t.period === 'mon_fri') return 'Luni–Vineri';
   return (t.week_days ?? []).slice().sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map((d) => WD[d] ?? String(d)).join(', ');
 }
+function targetOf(t: Template): number {
+  return t.target_per_week ?? (t.period === 'daily' ? 7 : t.period === 'mon_fri' ? 5 : (t.week_days?.length ?? 0));
+}
 
 export default function Recurente() {
   const router = useRouter();
   const [items, setItems] = useState<Template[]>([]);
+  const [editId, setEditId] = useState<string | null>(null);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -41,18 +41,21 @@ export default function Recurente() {
   async function stop(id: string) {
     setBusy(true);
     const r = await api(`/recurring/${id}`, { method: 'POST', body: JSON.stringify({ action: 'stop' }) });
-    setBusy(false);
-    if (!r.ok) { setErr('Eroare la oprire.'); return; }
+    if (!r.ok) { setBusy(false); setErr('Eroare la oprire.'); return; }
     await load();
+    setBusy(false);
+    setEditId(null);
   }
 
-  async function patch(id: string, body: Record<string, unknown>) {
+  async function save(id: string, body: Record<string, unknown>): Promise<boolean> {
     setBusy(true);
     const r = await api(`/recurring/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
-    setBusy(false);
-    if (!r.ok) { const d = await r.json().catch(() => ({})); setErr(d.error || 'Eroare la salvare.'); return; }
-    setErr('');
+    if (!r.ok) { setBusy(false); const d = await r.json().catch(() => ({})); setErr(d.error || 'Eroare la salvare.'); return false; }
     await load();
+    setBusy(false);
+    setErr('');
+    setEditId(null);
+    return true;
   }
 
   return (
@@ -60,7 +63,7 @@ export default function Recurente() {
       <button onClick={() => router.back()} style={back}>← Înapoi</button>
       <div style={{ fontSize: 18, fontWeight: 700, color: C.accent, margin: '6px 0 4px' }}>Sarcini recurente</div>
       <div style={{ fontSize: 12, color: C.muted, marginBottom: 14 }}>
-        Apar automat în fiecare zi (sau Luni–Vineri). «Oprește» nu șterge sarcinile deja create.
+        Apar automat în zilele setate. Apasă pe o sarcină ca s-o redactezi. «Oprește» nu șterge sarcinile deja create.
       </div>
 
       {err && <p style={{ color: C.bad, fontSize: 13 }}>{err}</p>}
@@ -71,51 +74,144 @@ export default function Recurente() {
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {items.map((t) => (
-          <div key={t.id} style={{ padding: 11, background: C.panel, border: `1px solid ${C.border}`, borderRadius: 6 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{catOf(t.category).emoji} {t.title || t.description.slice(0, 60)}</div>
-            <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>
-              {periodLabel(t)} · până {t.deadline_time} · 💯 {t.points} · 👤 {t.assignee_label}
-              {targetOf(t) > 0 ? <> · <span style={{ color: catOf(t.category).color, fontWeight: 700 }}>🎯 {targetOf(t)}/săpt</span></> : null}
+        {items.map((t) => editId === t.id
+          ? <Editor key={t.id} t={t} busy={busy} onSave={(b) => save(t.id, b)} onStop={() => stop(t.id)} onClose={() => { setEditId(null); setErr(''); }} />
+          : (
+            <div key={t.id} onClick={() => setEditId(t.id)} role="button"
+              style={{ padding: 11, background: C.panel, border: `1px solid ${C.border}`, borderRadius: 6, cursor: 'pointer' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{catOf(t.category).emoji} {t.title || t.description.slice(0, 60)}</div>
+                <span style={{ fontSize: 12, color: C.muted }}>✏️</span>
+              </div>
+              <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>
+                {periodLabel(t)} · până {t.deadline_time} · 💯 {t.points} · 👤 {t.assignee_label}
+                {targetOf(t) > 0 ? <> · <span style={{ color: catOf(t.category).color, fontWeight: 700 }}>🎯 {targetOf(t)}/săpt</span></> : null}
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 8 }}>
-              {CAT_ORDER.map((key) => {
-                const c = CAT[key];
-                const active = catKeyOf(t.category) === key;
-                return (
-                  <button key={key} type="button" disabled={busy}
-                    onClick={() => !active && patch(t.id, { category: key })}
-                    style={{
-                      background: active ? c.color : C.panel2, color: active ? '#fff' : C.muted,
-                      border: `1px solid ${active ? c.color : C.border}`, borderRadius: 4,
-                      padding: '3px 7px', fontSize: 11, cursor: 'pointer', fontWeight: active ? 700 : 400,
-                    }}>
-                    {c.emoji}
-                  </button>
-                );
-              })}
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, gap: 8 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: C.muted }}>
-                🎯
-                <input type="number" min={1} max={targetOf(t) > 0 ? (t.period === 'daily' ? 7 : t.period === 'mon_fri' ? 5 : (t.week_days?.length ?? undefined)) : undefined}
-                  defaultValue={t.target_per_week ?? ''} placeholder="auto" disabled={busy}
-                  onBlur={(e) => {
-                    const v = e.target.value.trim();
-                    const next = v === '' ? null : Number(v);
-                    if (next !== (t.target_per_week ?? null)) patch(t.id, { target_per_week: next });
-                  }}
-                  style={{ width: 64, background: C.panel2, border: `1px solid ${C.border}`, color: C.text, borderRadius: 4, padding: '5px 8px', fontSize: 14 }} />
-                /săpt
-              </label>
-              <button onClick={() => stop(t.id)} disabled={busy} style={stopBtn}>Oprește</button>
-            </div>
-          </div>
-        ))}
+          ))}
       </div>
     </div>
   );
 }
 
+/** Redactor inline: toate câmpurile șablonului, «Salvează» trimite doar un PATCH. */
+function Editor({ t, busy, onSave, onStop, onClose }: {
+  t: Template; busy: boolean;
+  onSave: (body: Record<string, unknown>) => Promise<boolean>;
+  onStop: () => void; onClose: () => void;
+}) {
+  const [title, setTitle] = useState(t.title ?? '');
+  const [description, setDescription] = useState(t.description);
+  const [points, setPoints] = useState(String(t.points));
+  const [deadlineTime, setDeadlineTime] = useState(t.deadline_time);
+  const [period, setPeriod] = useState<Template['period']>(t.period);
+  const [weekDays, setWeekDays] = useState<number[]>(t.week_days ?? []);
+  const [category, setCategory] = useState(catKeyOf(t.category));
+  const [target, setTarget] = useState(t.target_per_week != null ? String(t.target_per_week) : '');
+
+  const maxPerWeek = period === 'daily' ? 7 : period === 'mon_fri' ? 5 : weekDays.length;
+
+  return (
+    <div style={{ padding: 11, background: C.panel, border: `1px solid ${C.accent}`, borderRadius: 6 }}>
+      <Lbl>Titlu (opțional)</Lbl>
+      <input value={title} onChange={(e) => setTitle(e.target.value)} style={input} placeholder="scurt" />
+
+      <Lbl>Descriere</Lbl>
+      <textarea value={description} onChange={(e) => setDescription(e.target.value)} style={{ ...input, minHeight: 70, resize: 'vertical' }} />
+
+      <Lbl>Categorie</Lbl>
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+        {CAT_ORDER.map((key) => {
+          const c = CAT[key];
+          const active = category === key;
+          return (
+            <button key={key} type="button" disabled={busy} onClick={() => setCategory(key)}
+              style={{
+                background: active ? c.color : C.panel2, color: active ? '#fff' : C.muted,
+                border: `1px solid ${active ? c.color : C.border}`, borderRadius: 4,
+                padding: '4px 8px', fontSize: 11, cursor: 'pointer', fontWeight: active ? 700 : 400,
+              }}>
+              {c.emoji} {c.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ flex: 1 }}>
+          <Lbl>Puncte</Lbl>
+          <input type="number" min={0} value={points} onChange={(e) => setPoints(e.target.value)} style={input} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <Lbl>Oră limită</Lbl>
+          <input type="time" value={deadlineTime} onChange={(e) => setDeadlineTime(e.target.value)} style={input} />
+        </div>
+      </div>
+
+      <Lbl>Cât de des</Lbl>
+      <div style={{ display: 'flex', gap: 8 }}>
+        {([['daily', 'Zilnic'], ['mon_fri', 'Lu–Vi'], ['custom', 'Zile alese']] as const).map(([val, lbl]) => (
+          <button key={val} type="button" disabled={busy} onClick={() => setPeriod(val)}
+            style={{ ...chip, ...(period === val ? chipActive : {}), flex: 1 }}>{lbl}</button>
+        ))}
+      </div>
+      {period === 'custom' && (
+        <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+          {([[1, 'Lu'], [2, 'Ma'], [3, 'Mi'], [4, 'Jo'], [5, 'Vi'], [6, 'Sâ'], [0, 'Du']] as const).map(([d, lbl]) => (
+            <button key={d} type="button" disabled={busy}
+              onClick={() => setWeekDays((w) => w.includes(d) ? w.filter((x) => x !== d) : [...w, d])}
+              style={{ ...dayChip, ...(weekDays.includes(d) ? chipActive : {}) }}>{lbl}</button>
+          ))}
+        </div>
+      )}
+
+      <Lbl>🎯 Țintă / săptămână — sarcini închise (gol = după program, max {maxPerWeek || '—'})</Lbl>
+      <input type="number" min={1} max={maxPerWeek || undefined} value={target} onChange={(e) => setTarget(e.target.value)}
+        style={input} placeholder="auto" />
+
+      <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+        <button disabled={busy} style={{ ...primary, flex: 2, opacity: busy ? 0.6 : 1 }}
+          onClick={() => onSave({
+            title: title.trim() || null,
+            description: description,
+            points: Number(points) || 0,
+            deadline_time: deadlineTime,
+            period,
+            week_days: period === 'custom' ? weekDays : undefined,
+            category,
+            target_per_week: target.trim() === '' ? null : Number(target),
+          })}>
+          {busy ? '…' : '💾 Salvează'}
+        </button>
+        <button disabled={busy} onClick={onClose} style={{ ...chip, flex: 1 }}>Anulează</button>
+        <button disabled={busy} onClick={onStop} style={{ ...stopBtn, flex: 1 }}>Oprește</button>
+      </div>
+    </div>
+  );
+}
+
+function Lbl({ children }: { children: React.ReactNode }) {
+  return <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.muted, margin: '10px 0 4px' }}>{children}</div>;
+}
+
 const back: React.CSSProperties = { background: 'none', border: 'none', color: C.muted, fontSize: 13, cursor: 'pointer', padding: 0 };
-const stopBtn: React.CSSProperties = { background: 'rgba(204,57,43,0.12)', color: C.bad, fontWeight: 600, fontSize: 13, padding: '6px 12px', borderRadius: 4, border: `1px solid ${C.bad}`, cursor: 'pointer' };
+const input: React.CSSProperties = {
+  width: '100%', boxSizing: 'border-box', background: C.panel2, border: `1px solid ${C.border}`,
+  color: C.text, borderRadius: 4, padding: '8px 10px', fontSize: 15,
+};
+const primary: React.CSSProperties = {
+  background: C.accent, color: '#fff', fontWeight: 700, fontSize: 14,
+  padding: '9px', borderRadius: 4, border: 'none', cursor: 'pointer',
+};
+const chip: React.CSSProperties = {
+  background: C.panel2, color: C.text, border: `1px solid ${C.border}`, borderRadius: 4,
+  padding: '8px 10px', fontSize: 13, cursor: 'pointer',
+};
+const chipActive: React.CSSProperties = {
+  background: C.accent, color: '#fff', borderColor: C.accent, fontWeight: 700,
+};
+const dayChip: React.CSSProperties = {
+  background: C.panel2, color: C.text, border: `1px solid ${C.border}`, borderRadius: 4,
+  padding: '7px 0', fontSize: 13, cursor: 'pointer', minWidth: 42, textAlign: 'center',
+};
+const stopBtn: React.CSSProperties = { background: 'rgba(204,57,43,0.12)', color: C.bad, fontWeight: 600, fontSize: 13, padding: '8px 10px', borderRadius: 4, border: `1px solid ${C.bad}`, cursor: 'pointer' };

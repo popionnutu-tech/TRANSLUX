@@ -266,16 +266,32 @@ async function spawnObligation(o: {
   return ob.id as string;
 }
 
+/** Executorul sarcinilor de reclamă: utilizatorul DIGITAL activ, altfel rezerva din
+ *  bot_storage 'zadachnik:fallback_assignee' ({user_id}) — Iurie, după concedierea lui Vlad (07.08.2026).
+ *  Când apare un nou angajat cu rol DIGITAL, fluxul revine automat la el. */
+async function getReclamaAssignee(): Promise<{ id: string; telegram_id: number | null } | null> {
+  const supa = db();
+  const { data: digital } = await supa.from('users')
+    .select('id, telegram_id').eq('role', 'DIGITAL').eq('active', true)
+    .order('created_at', { ascending: true }).limit(1).maybeSingle();
+  if (digital) return digital as { id: string; telegram_id: number | null };
+  const { data: fb } = await supa.from('bot_storage')
+    .select('value').eq('key', 'zadachnik:fallback_assignee').maybeSingle();
+  const fallbackId = (fb?.value as { user_id?: string } | null)?.user_id;
+  if (!fallbackId) return null;
+  const { data: user } = await supa.from('users')
+    .select('id, telegram_id').eq('id', fallbackId).eq('active', true).maybeSingle();
+  return (user as { id: string; telegram_id: number | null } | null) ?? null;
+}
+
 export async function createReclamaTask(input: {
   creatorId: string;
   vehiclePlate: string;
   reclamaProblem: 'bus' | 'panou_ruta' | 'ambele';
 }): Promise<boolean> {
   const supa = db();
-  const { data: digital } = await supa.from('users')
-    .select('id, telegram_id').eq('role', 'DIGITAL').eq('active', true)
-    .order('created_at', { ascending: true }).limit(1).maybeSingle();
-  if (!digital) return false; // Vlad încă necreat → skip
+  const digital = await getReclamaAssignee();
+  if (!digital) return false; // nici DIGITAL, nici rezervă → skip
 
   const { data: open } = await supa.from('obligations')
     .select('id').eq('source', 'reclama').eq('vehicle_plate', input.vehiclePlate)

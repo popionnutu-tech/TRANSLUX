@@ -1,5 +1,5 @@
 import { getSupabase } from '../supabase.js';
-import { sendAdminAlert } from './adminAlert.js';
+import { sendAdminAlert, escapeHtml } from './adminAlert.js';
 import type {
   User,
   InviteToken,
@@ -291,17 +291,19 @@ export async function createReclamaTask(input: {
   reclamaProblem: 'bus' | 'panou_ruta' | 'ambele';
 }): Promise<boolean> {
   const supa = db();
-  const digital = await getZadachnikAssignee();
-  if (!digital) {
-    // Fără executor sarcina s-ar pierde în tăcere — anunțăm adminii să seteze rezerva.
-    await sendAdminAlert(`⚠️ <b>Sarcină reclamă NEcreată</b> pentru <b>${input.vehiclePlate}</b>: nu există executor (nici DIGITAL activ, nici rezervă în setări).`);
-    return false;
-  }
-
+  // Dedup ÎNAINTE de rezolvarea executorului — altfel, când nu există executor,
+  // alerta ar pleca la fiecare raport repetat pe aceeași mașină.
   const { data: open } = await supa.from('obligations')
     .select('id').eq('source', 'reclama').eq('vehicle_plate', input.vehiclePlate)
     .in('current_state', NONTERMINAL_OB).limit(1).maybeSingle();
   if (open) return false; // deja există o sarcină deschisă pt mașina asta
+
+  const digital = await getZadachnikAssignee();
+  if (!digital) {
+    // Fără executor sarcina s-ar pierde în tăcere — anunțăm adminii să seteze rezerva.
+    await sendAdminAlert(`⚠️ <b>Sarcină reclamă NEcreată</b> pentru <b>${escapeHtml(input.vehiclePlate)}</b>: nu există executor — creați un utilizator DIGITAL sau setați rezerva (bot_storage: zadachnik:fallback_assignee).`);
+    return false;
+  }
 
   // termen automat: 10 zile lucrătoare (≈ 2 săptămâni), la 18:00 Chișinău (panou și reclamă la fel). Vlad pune data estimativă la accept.
   const todayCh = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Chisinau' })).toISOString().slice(0, 10);
@@ -435,7 +437,9 @@ export async function generateRecurringTasks(): Promise<number> {
   const today = now.toISOString().slice(0, 10);
   const weekday = now.getDay(); // 0=Sun..6=Sat
 
-  const { data: templates } = await supa.from('recurring_task_templates').select('*').eq('active', true);
+  const { data: templates, error: templatesErr } = await supa.from('recurring_task_templates').select('*').eq('active', true);
+  // Eroarea NU se înghite: altfel «created 0» ar arăta ca o zi liniștită sănătoasă.
+  if (templatesErr) throw new Error(`recurring templates select: ${templatesErr.message}`);
   if (!templates || templates.length === 0) return 0;
 
   let created = 0;
@@ -456,6 +460,8 @@ export async function generateRecurringTasks(): Promise<number> {
     // если на короткое время (деплой) работают два инстанса бота. active=true замыкает гонку со «стоп».
     // NB: PATCH cu filtru or= e refuzat de PostgREST-ul proiectului (42703, verificat 07.08.2026),
     // deci claim-ul se face în doi pași cu filtre simple: is.null, apoi lt.today. Fiecare pas e atomic.
+    // INVARIANT: claim-ul trebuie să rămână ÎNAINTEA oricărui apel care poate arunca (deadline,
+    // spawnObligation) — un șablon care aruncă e deja claim-uit și nu mai reintră la tick-ul următor.
     const claimQuery = () => supa.from('recurring_task_templates')
       .update({ last_generated_date: today })
       .eq('id', t.id)
@@ -470,12 +476,17 @@ export async function generateRecurringTasks(): Promise<number> {
     }
     if (claimErr) {
       console.error('Recurring claim error:', claimErr.message);
-      await sendAdminAlert(`⚠️ <b>Generator sarcini recurente</b>: claim eșuat pentru șablonul «${t.title ?? t.description?.slice(0, 40)}»: ${claimErr.message}`);
+      await sendAdminAlert(`⚠️ <b>Generator sarcini recurente</b>: claim eșuat pentru șablonul «${escapeHtml(t.title ?? t.description?.slice(0, 40) ?? '')}»: ${escapeHtml(claimErr.message)}`);
       continue;
     }
     if (!claimed) continue; // день застолбил другой процесс (или шаблон остановлен)
 
     const deadline = chisinauDateTimeISO(today, t.deadline_time || '18:00');
+    // Recuperarea (fereastra ≥07:00) nu creează sarcini cu termenul deja trecut.
+    // Verificarea stă INTENȚIONAT după claim: ziua se consumă (sarcina retro n-ar mai
+    // avea sens azi), iar orice apel care poate arunca rămâne după claim — claim-ul e
+    // siguranța care stinge reîncercările din fereastră (vezi comentariul de la claim).
+    if (new Date(deadline).getTime() <= Date.now()) continue;
     const id = await spawnObligation({
       creatorId: t.creator_id,
       assigneeId: t.assignee_id,
@@ -487,7 +498,7 @@ export async function generateRecurringTasks(): Promise<number> {
       source: 'recurring',
     });
     if (id) created++;
-    else await sendAdminAlert(`⚠️ <b>Generator sarcini recurente</b>: crearea sarcinii din șablonul «${t.title ?? t.description?.slice(0, 40)}» a eșuat — ziua e deja marcată, sarcina NU se va relua azi.`);
+    else await sendAdminAlert(`⚠️ <b>Generator sarcini recurente</b>: crearea sarcinii din șablonul «${escapeHtml(t.title ?? t.description?.slice(0, 40) ?? '')}» a eșuat — ziua e deja marcată, sarcina NU se va relua azi.`);
   }
   return created;
 }

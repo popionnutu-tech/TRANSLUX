@@ -31,6 +31,11 @@ export async function getAdminChatIds(): Promise<Set<number>> {
   }
 }
 
+/** Escape pentru valori dinamice interpolate în mesaje HTML (parse_mode: 'HTML'). */
+export function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 export async function sendAdminAlert(message: string) {
   if (!botApi) return;
   const adminChatIds = await getAdminChatIds();

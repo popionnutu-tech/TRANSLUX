@@ -6,6 +6,7 @@ import { collectSmmData, aggregateDailyStats, aggregateRangeStats } from './serv
 import { sendCompactDigest } from './services/dailyDigest.js';
 import { sendAntaWeeklyReport } from './services/antaReport.js';
 import { sweepTaskBoards } from './services/taskBoard.js';
+import { sendAdminAlert, escapeHtml } from './services/adminAlert.js';
 
 const CHECK_INTERVAL_MS = 60 * 1000; // check every minute
 const SEND_DAY = 1;   // Monday
@@ -176,29 +177,36 @@ export function scheduleSmmJobs(): void {
 // ── Recurring tasks generator (07:00) ──────────────
 
 const RECURRING_HOUR = 7;
-const RECURRING_WINDOW_END = 12; // după amiază nu mai generăm retroactiv (termenele ar fi deja trecute)
 let lastRecurringDate = '';
+let lastRecurringAlertDate = '';
 let recurringRunning = false;
 
 export function scheduleRecurringGenerator(): void {
-  console.log('Recurring tasks generator started (07:00–12:00 Europe/Chisinau, cu recuperare)');
+  console.log('Recurring tasks generator started (>=07:00 Europe/Chisinau, cu recuperare)');
 
   setInterval(async () => {
     const now = getNowInTz();
     const todayStr = now.toISOString().slice(0, 10);
     if (lastRecurringDate === todayStr) return; // anti-dubl per proces; +DB last_generated_date la nivel de șablon
-    // Fereastră cu recuperare 07:00–11:59, nu doar minutul exact — un restart la fix 07:00
-    // nu mai costă ziua. Dublurile le oprește claim-ul din DB.
-    if (now.getHours() < RECURRING_HOUR || now.getHours() >= RECURRING_WINDOW_END) return;
+    // Fereastră cu recuperare: orice tick de la 07:00 încolo, nu doar minutul exact — un restart
+    // la fix 07:00 nu mai costă ziua. Sarcinile cu termenul deja trecut le sare generateRecurringTasks
+    // per șablon, iar dublurile le oprește claim-ul din DB.
+    if (now.getHours() < RECURRING_HOUR) return;
     if (recurringRunning) return;
 
     recurringRunning = true;
     try {
       const n = await generateRecurringTasks();
-      lastRecurringDate = todayStr; // ziua se închide doar la succes — un eșec tranzitoriu se reia peste 60 s
+      // Spre deosebire de scheduler-ele vecine (rapoarte), ziua se închide doar la succes:
+      // aici reluarea e sigură (claim-ul din DB oprește dublurile), la rapoarte NU e (ar dubla mesajul).
+      lastRecurringDate = todayStr;
       console.log(`Recurring: created ${n} task(s) for ${todayStr}`);
     } catch (err) {
       console.error('Recurring generator error:', err);
+      if (lastRecurringAlertDate !== todayStr) {
+        lastRecurringAlertDate = todayStr; // un singur alert pe zi, reîncercările continuă tăcut
+        await sendAdminAlert(`⚠️ <b>Generator sarcini recurente</b>: eroare la rularea de azi (reîncerc la fiecare minut): ${escapeHtml(String((err as Error)?.message ?? err))}`);
+      }
     } finally {
       recurringRunning = false;
     }

@@ -126,7 +126,7 @@ export default function ZadachnikHome() {
           <Section title="Necesită decizie" tasks={tasks.filter((t) => t.current_state === 'report_pending')} accent={C.warn} />
           <Section title="Întârzieri" tasks={tasks.filter((t) => ['overdue', 'overdue_responded'].includes(t.current_state))} accent={C.bad} />
           <Section title="Active" tasks={tasks.filter((t) => ['sent', 'delivered', 'accepted', 'in_progress'].includes(t.current_state))} accent={C.gold} />
-          <Section title="Închise" tasks={tasks.filter((t) => ['resolved', 'rejected', 'cancelled', 'ignored', 'failed'].includes(t.current_state))} accent={C.muted} muted />
+          {/* «Închise» scoasă intenționat (07.08.2026): serverul nici nu le mai trimite — vezi listForAdmin. */}
         </>
       )}
 

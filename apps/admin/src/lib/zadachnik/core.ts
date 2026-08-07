@@ -253,7 +253,11 @@ export async function cancelTask(ob: Obligation, actorId: string): Promise<void>
 
 // ── списки ──
 export async function listForAdmin(): Promise<Obligation[]> {
-  const { data } = await getSupabase().from('obligations').select('*').order('current_deadline', { ascending: true });
+  // Doar nonterminale (decizia lui Ion, 07.08.2026): închise/anulate NU apar pe ecranul admin —
+  // 116 sarcini istorice îl îngropau. Datele rămân în DB; asta taie și creșterea nelimitată a payload-ului.
+  const { data } = await getSupabase().from('obligations').select('*')
+    .in('current_state', NONTERMINAL)
+    .order('current_deadline', { ascending: true });
   return (data as Obligation[]) ?? [];
 }
 

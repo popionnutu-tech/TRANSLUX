@@ -176,24 +176,24 @@ export function scheduleSmmJobs(): void {
 // ── Recurring tasks generator (07:00) ──────────────
 
 const RECURRING_HOUR = 7;
-const RECURRING_MINUTE = 0;
 let lastRecurringDate = '';
 
 export function scheduleRecurringGenerator(): void {
-  console.log('Recurring tasks generator started (07:00 Europe/Chisinau)');
+  console.log('Recurring tasks generator started (07:00 Europe/Chisinau, cu recuperare)');
 
   setInterval(async () => {
     const now = getNowInTz();
-    if (now.getHours() !== RECURRING_HOUR || now.getMinutes() !== RECURRING_MINUTE) return;
-
     const todayStr = now.toISOString().slice(0, 10);
     if (lastRecurringDate === todayStr) return; // anti-dubl per proces; +DB last_generated_date la nivel de șablon
+    // Fereastră cu recuperare: orice tick de la 07:00 încolo, nu doar minutul exact —
+    // un restart la fix 07:00 nu mai costă ziua. Dublurile le oprește claim-ul din DB.
+    if (now.getHours() < RECURRING_HOUR) return;
 
     lastRecurringDate = todayStr;
 
     try {
       const n = await generateRecurringTasks();
-      if (n > 0) console.log(`Recurring: created ${n} task(s) for ${todayStr}`);
+      console.log(`Recurring: created ${n} task(s) for ${todayStr}`);
     } catch (err) {
       console.error('Recurring generator error:', err);
     }

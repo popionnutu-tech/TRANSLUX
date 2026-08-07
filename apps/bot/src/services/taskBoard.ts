@@ -1,5 +1,6 @@
 import type { Api } from 'grammy';
 import { getSupabase } from '../supabase.js';
+import { getZadachnikAssignee } from './db.js';
 
 const db = () => getSupabase();
 
@@ -15,17 +16,10 @@ const ACTIVE_STATES = [
   'report_pending', 'overdue', 'overdue_responded',
 ];
 
-/** Активный пользователь с ролью DIGITAL (Vlad). */
-export async function getDigitalUser(): Promise<{ id: string; name: string | null } | null> {
-  const { data } = await db()
-    .from('users')
-    .select('id, name')
-    .eq('role', 'DIGITAL')
-    .eq('active', true)
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .maybeSingle();
-  return (data as { id: string; name: string | null } | null) ?? null;
+/** Executorul doștii de sarcini — același resolver ca la reclame (DIGITAL activ sau rezerva). */
+export async function getBoardAssignee(): Promise<{ id: string; name: string | null } | null> {
+  const a = await getZadachnikAssignee();
+  return a ? { id: a.id, name: a.name } : null;
 }
 
 /** Привязать группу к задачам исполнителя (upsert). */
@@ -48,7 +42,7 @@ function formatTask(o: {
         timeZone: 'Europe/Chisinau', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
       })
     : '';
-  const lines = ['📋 <b>Sarcină Vlad</b>', `<b>${escapeHtml(title)}</b>`];
+  const lines = ['📋 <b>Sarcină</b>', `<b>${escapeHtml(title)}</b>`];
   if (o.description && o.description !== title) lines.push(escapeHtml(o.description));
   if (deadline) lines.push(`⏰ termen: ${deadline}`);
   return lines.join('\n');

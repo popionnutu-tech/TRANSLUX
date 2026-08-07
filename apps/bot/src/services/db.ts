@@ -1,4 +1,5 @@
 import { getSupabase } from '../supabase.js';
+import { sendAdminAlert } from './adminAlert.js';
 import type {
   User,
   InviteToken,
@@ -228,9 +229,9 @@ async function notifyTelegram(telegramId: number | null, text: string): Promise<
 }
 
 /**
- * Дефект рекламы → авто-задача в задачнике на пользователя DIGITAL (Vlad).
- * Дедуп: пропускаем, если по этой машине уже есть открытая reclama-задача.
- * Нет DIGITAL-пользователя (Vlad ещё не создан) — тихо пропускаем.
+ * Дефект рекламы → авто-задача в задачнике на исполнителя из getZadachnikAssignee()
+ * (активный DIGITAL, иначе резерв из bot_storage). Дедуп: пропускаем, если по этой
+ * машине уже есть открытая reclama-задача. Нет исполнителя → алерт админам.
  * Возвращает true, если задача создана.
  */
 /** Общий низкоуровневый создатель obligation (insert + 2 события + уведомление). */
@@ -266,22 +267,22 @@ async function spawnObligation(o: {
   return ob.id as string;
 }
 
-/** Executorul sarcinilor de reclamă: utilizatorul DIGITAL activ, altfel rezerva din
- *  bot_storage 'zadachnik:fallback_assignee' ({user_id}) — Iurie, după concedierea lui Vlad (07.08.2026).
- *  Când apare un nou angajat cu rol DIGITAL, fluxul revine automat la el. */
-async function getReclamaAssignee(): Promise<{ id: string; telegram_id: number | null } | null> {
+/** Executorul sarcinilor auto (reclamă, doască de sarcini): utilizatorul DIGITAL activ, altfel
+ *  rezerva din bot_storage 'zadachnik:fallback_assignee' ({user_id}) — Iurie, după concedierea
+ *  lui Vlad (07.08.2026). Când apare un nou angajat cu rol DIGITAL, fluxul revine automat la el. */
+export async function getZadachnikAssignee(): Promise<{ id: string; name: string | null; telegram_id: number | null } | null> {
   const supa = db();
   const { data: digital } = await supa.from('users')
-    .select('id, telegram_id').eq('role', 'DIGITAL').eq('active', true)
+    .select('id, name, telegram_id').eq('role', 'DIGITAL').eq('active', true)
     .order('created_at', { ascending: true }).limit(1).maybeSingle();
-  if (digital) return digital as { id: string; telegram_id: number | null };
+  if (digital) return digital as { id: string; name: string | null; telegram_id: number | null };
   const { data: fb } = await supa.from('bot_storage')
     .select('value').eq('key', 'zadachnik:fallback_assignee').maybeSingle();
   const fallbackId = (fb?.value as { user_id?: string } | null)?.user_id;
   if (!fallbackId) return null;
   const { data: user } = await supa.from('users')
-    .select('id, telegram_id').eq('id', fallbackId).eq('active', true).maybeSingle();
-  return (user as { id: string; telegram_id: number | null } | null) ?? null;
+    .select('id, name, telegram_id').eq('id', fallbackId).eq('active', true).maybeSingle();
+  return (user as { id: string; name: string | null; telegram_id: number | null } | null) ?? null;
 }
 
 export async function createReclamaTask(input: {
@@ -290,8 +291,12 @@ export async function createReclamaTask(input: {
   reclamaProblem: 'bus' | 'panou_ruta' | 'ambele';
 }): Promise<boolean> {
   const supa = db();
-  const digital = await getReclamaAssignee();
-  if (!digital) return false; // nici DIGITAL, nici rezervă → skip
+  const digital = await getZadachnikAssignee();
+  if (!digital) {
+    // Fără executor sarcina s-ar pierde în tăcere — anunțăm adminii să seteze rezerva.
+    await sendAdminAlert(`⚠️ <b>Sarcină reclamă NEcreată</b> pentru <b>${input.vehiclePlate}</b>: nu există executor (nici DIGITAL activ, nici rezervă în setări).`);
+    return false;
+  }
 
   const { data: open } = await supa.from('obligations')
     .select('id').eq('source', 'reclama').eq('vehicle_plate', input.vehiclePlate)
@@ -463,7 +468,11 @@ export async function generateRecurringTasks(): Promise<number> {
         .lt('last_generated_date', today)
         .select('id').maybeSingle());
     }
-    if (claimErr) { console.error('Recurring claim error:', claimErr.message); continue; }
+    if (claimErr) {
+      console.error('Recurring claim error:', claimErr.message);
+      await sendAdminAlert(`⚠️ <b>Generator sarcini recurente</b>: claim eșuat pentru șablonul «${t.title ?? t.description?.slice(0, 40)}»: ${claimErr.message}`);
+      continue;
+    }
     if (!claimed) continue; // день застолбил другой процесс (или шаблон остановлен)
 
     const deadline = chisinauDateTimeISO(today, t.deadline_time || '18:00');
@@ -478,6 +487,7 @@ export async function generateRecurringTasks(): Promise<number> {
       source: 'recurring',
     });
     if (id) created++;
+    else await sendAdminAlert(`⚠️ <b>Generator sarcini recurente</b>: crearea sarcinii din șablonul «${t.title ?? t.description?.slice(0, 40)}» a eșuat — ziua e deja marcată, sarcina NU se va relua azi.`);
   }
   return created;
 }

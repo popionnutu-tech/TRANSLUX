@@ -73,8 +73,8 @@ export async function sendWeeklyReport(): Promise<void> {
 
   msg += `\n${'─'.repeat(28)}\n\n`;
 
-  // ── 3. Reclama status (sarcini auto către Vlad) ──
-  msg += `📋 <b>RECLAMĂ — Sarcini auto (Vlad)</b>\n\n`;
+  // ── 3. Reclama status (sarcini auto către executorul zadachnik) ──
+  msg += `📋 <b>RECLAMĂ — Sarcini auto</b>\n\n`;
 
   if (reclamaIssues.length === 0) {
     msg += `✅ Nicio sarcină reclamă deschisă.\n`;
@@ -91,7 +91,7 @@ export async function sendWeeklyReport(): Promise<void> {
     }
     if (pending.length > 0) {
       if (overdue.length > 0) msg += `\n`;
-      msg += `🆕 NEPRELUATE de Vlad (${pending.length}):\n`;
+      msg += `🆕 NEPRELUATE (${pending.length}):\n`;
       for (const i of pending) {
         msg += `• <b>${i.plate_number}</b>\n`;
       }

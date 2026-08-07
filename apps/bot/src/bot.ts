@@ -15,7 +15,7 @@ import { addDriverConversation } from './conversations/addDriver.js';
 import { taxiZoneReportConversation } from './conversations/taxiZoneReport.js';
 import { initAdminAlert } from './services/adminAlert.js';
 import { handleDaily, handleSmmWeekly, handleSmmMonth } from './handlers/smm.js';
-import { initTaskBoard, bindTaskBoard, getDigitalUser, sweepTaskBoards } from './services/taskBoard.js';
+import { initTaskBoard, bindTaskBoard, getBoardAssignee, sweepTaskBoards } from './services/taskBoard.js';
 
 /** Operator comutabil (Aurel): setează rolul pe azi și revine la meniu. */
 async function setRoleAndMenu(ctx: BotContext, role: 'TAXI_ZONE' | 'MAIN') {
@@ -86,9 +86,9 @@ export function createBot(): Bot<BotContext> {
   bot.command('smmweekly', handleSmmWeekly as any);
   bot.command('smmmonth', handleSmmMonth as any);
 
-  // Привязать ЭТУ группу к задачам Vlad (DIGITAL) + сразу выложить активные.
+  // Привязать ЭТУ группу к задачам исполнителя задачника (DIGITAL или резерв) + сразу выложить активные.
   // Только ADMIN, только в группе. Дальше новые задачи доливает минутная сверка.
-  bot.command('lega_vlad', async (ctx) => {
+  bot.command(['lega_sarcini', 'lega_vlad'], async (ctx) => {
     if (!ctx.dbUser || ctx.dbUser.role !== 'ADMIN') {
       await ctx.reply('Doar administratorii pot lega o grupă.');
       return;
@@ -97,13 +97,13 @@ export function createBot(): Bot<BotContext> {
       await ctx.reply('Comanda funcționează doar într-o grupă.');
       return;
     }
-    const vlad = await getDigitalUser();
-    if (!vlad) {
-      await ctx.reply('Vlad (DIGITAL) nu există în sistem.');
+    const assignee = await getBoardAssignee();
+    if (!assignee) {
+      await ctx.reply('Nu există executor pentru sarcini (nici utilizator DIGITAL activ, nici rezervă setată).');
       return;
     }
-    await bindTaskBoard(ctx.chat.id, vlad.id);
-    await ctx.reply(`✓ Grupa a fost legată la sarcinile lui ${vlad.name || 'Vlad'}. Le postez acum.`);
+    await bindTaskBoard(ctx.chat.id, assignee.id);
+    await ctx.reply(`✓ Grupa a fost legată la sarcinile lui ${assignee.name || 'executorul curent'}. Le postez acum.`);
     const n = await sweepTaskBoards();
     if (n > 0) await ctx.reply(`Am postat ${n} sarcină(i) activă(e). Sarcinile noi vor apărea automat.`);
     else await ctx.reply('Nu sunt sarcini active acum. Cele noi vor apărea automat.');

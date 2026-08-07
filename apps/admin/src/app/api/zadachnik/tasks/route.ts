@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/supabase';
 import { authFromInitData, userLabel } from '@/lib/zadachnik/auth';
-import { createTask, listForAdmin, listForAssignee, maxPerWeekOf } from '@/lib/zadachnik/core';
+import { createTask, listForAdmin, listForAssignee, maxPerWeekOf, chisinauOffsetMin } from '@/lib/zadachnik/core';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -65,17 +65,14 @@ async function weeklyTargets(assigneeId: string | null):
   })).filter((t) => t.target > 0);
 }
 
-/** Începutul săptămânii curente (luni 00:00 Europe/Chisinau) ca instant ISO. */
+/** Începutul săptămânii curente (luni 00:00 Europe/Chisinau) ca instant ISO.
+ *  Decalajul se ia la momentul de luni (corect în săptămâna schimbării orei), via chisinauOffsetMin. */
 function chisinauWeekStartISO(): string {
   const tzNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Chisinau' }));
   const dow = (tzNow.getDay() + 6) % 7; // 0 = luni
   const monday = new Date(Date.UTC(tzNow.getFullYear(), tzNow.getMonth(), tzNow.getDate() - dow));
-  const ymd = monday.toISOString().slice(0, 10);
-  const tzName = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Chisinau', timeZoneName: 'shortOffset' })
-    .formatToParts(new Date()).find((p) => p.type === 'timeZoneName')?.value ?? 'GMT+3';
-  const h = parseInt(tzName.replace('GMT', ''), 10) || 3;
-  const sign = h < 0 ? '-' : '+';
-  return `${ymd}T00:00:00${sign}${String(Math.abs(h)).padStart(2, '0')}:00`;
+  const off = chisinauOffsetMin(monday);
+  return new Date(monday.getTime() - off * 60000).toISOString();
 }
 
 export async function POST(req: Request) {

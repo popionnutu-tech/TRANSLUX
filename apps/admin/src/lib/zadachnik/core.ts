@@ -64,8 +64,8 @@ function nextDay18ISO(): string {
   return next.toISOString();
 }
 
-/** Смещение Кишинёва (мин) с учётом лета/зимы. */
-function chisinauOffsetMin(d: Date): number {
+/** Смещение Кишинёва (мин) с учётом лета/зимы. Exportat — sursa unică server-side. */
+export function chisinauOffsetMin(d: Date): number {
   const tz = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Chisinau', timeZoneName: 'shortOffset' })
     .formatToParts(d).find((p) => p.type === 'timeZoneName')?.value || 'GMT+3';
   const mt = tz.match(/GMT([+-]?\d+)(?::(\d+))?/);
@@ -338,7 +338,8 @@ export async function achieveRecurringGoal(id: string): Promise<void> {
 }
 
 export async function stopRecurring(id: string): Promise<void> {
-  await getSupabase().from('recurring_task_templates').update({ active: false }).eq('id', id);
+  const { error } = await getSupabase().from('recurring_task_templates').update({ active: false }).eq('id', id);
+  if (error) throw new Error(error.message);
 }
 
 export { ACTIVE_STATES };

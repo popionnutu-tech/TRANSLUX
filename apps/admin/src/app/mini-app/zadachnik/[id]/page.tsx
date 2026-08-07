@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { C, api, ready, STATE, fmt, type Task } from '../ui';
+import { C, api, ready, STATE, fmt, CAT, CAT_ORDER, catOf, type Task } from '../ui';
 
 interface Attempt {
   id: string; number: number; report_text: string | null;
@@ -68,8 +68,37 @@ export default function TaskDetail() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '8px 0 4px' }}>
         <span style={{ fontSize: 12, color: s.color }}>{s.icon} {s.label}</span>
       </div>
-      <div style={{ fontSize: 18, fontWeight: 700, color: C.text }}>{task.title || task.description.slice(0, 60)}</div>
-      <div style={{ fontSize: 11, color: C.muted, margin: '4px 0 10px' }}>⏰ {fmt(task.current_deadline)} · 💯 {task.points}{task.estimated_date ? ` · 📅 estimat ${dLabel(task.estimated_date)}` : ''}{task.rework_used ? ' · 🔁 refacere folosită' : ''}</div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: C.text }}>{catOf(task.category).emoji} {task.title || task.description.slice(0, 60)}</div>
+      <div style={{ fontSize: 11, color: C.muted, margin: '4px 0 10px' }}>
+        <span style={{ color: catOf(task.category).color, fontWeight: 700 }}>{catOf(task.category).label}</span>
+        {' · '}⏰ {fmt(task.current_deadline)} · 💯 {task.points}{task.estimated_date ? ` · 📅 estimat ${dLabel(task.estimated_date)}` : ''}{task.rework_used ? ' · 🔁 refacere folosită' : ''}
+      </div>
+
+      {isAdmin && (
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+          {CAT_ORDER.map((key) => {
+            const c = CAT[key];
+            const active = (task.category ?? 'ALTELE') === key;
+            return (
+              <button key={key} type="button" disabled={busy}
+                onClick={async () => {
+                  setBusy(true);
+                  const r = await api(`/tasks/${id}`, { method: 'PATCH', body: JSON.stringify({ category: key }) });
+                  setBusy(false);
+                  if (!r.ok) { setErr('Eroare la schimbarea categoriei.'); return; }
+                  await load();
+                }}
+                style={{
+                  background: active ? c.color : C.panel2, color: active ? '#fff' : C.muted,
+                  border: `1px solid ${active ? c.color : C.border}`, borderRadius: 4,
+                  padding: '4px 8px', fontSize: 11, cursor: 'pointer', fontWeight: active ? 700 : 400,
+                }}>
+                {c.emoji} {c.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {task.title && <div style={{ ...panel, whiteSpace: 'pre-wrap' }}>{task.description}</div>}
 

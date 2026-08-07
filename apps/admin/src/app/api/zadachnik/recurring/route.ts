@@ -50,6 +50,13 @@ export async function POST(req: Request) {
 
   const points = Number.isFinite(+body.points) && +body.points >= 0 ? Math.round(+body.points) : 30;
   const deadlineTime = /^\d{2}:\d{2}$/.test(String(body.deadline_time)) ? String(body.deadline_time) : '18:00';
+  // Generatorul rulează de la 07:00 — un termen mai devreme ar face șablonul să nu genereze NICIODATĂ
+  // (claim + skip zilnic, în tăcere). Comparație de string, validă pe HH:MM.
+  if (deadlineTime < '08:00') {
+    return NextResponse.json({ error: 'termenul zilnic trebuie să fie cel devreme 08:00 (generatorul rulează la 07:00)' }, { status: 400 });
+  }
+  const targetPerWeek = Number.isInteger(+body.target_per_week) && +body.target_per_week >= 1
+    ? +body.target_per_week : null;
   const t = await createRecurringTemplate({
     creatorId: u.id,
     assigneeId: body.assignee_id,
@@ -59,6 +66,8 @@ export async function POST(req: Request) {
     period: body.period,
     deadlineTime,
     weekDays,
+    category: body.category,
+    targetPerWeek,
   });
   return NextResponse.json({ ok: true, id: t.id }, { status: 201 });
 }

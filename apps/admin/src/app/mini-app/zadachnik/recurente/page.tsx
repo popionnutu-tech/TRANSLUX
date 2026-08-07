@@ -2,11 +2,16 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { C, api, ready } from '../ui';
+import { C, api, ready, catOf } from '../ui';
 
 interface Template {
   id: string; title: string | null; description: string; points: number;
   period: 'daily' | 'mon_fri' | 'custom'; week_days: number[] | null; deadline_time: string; assignee_label: string;
+  category?: string; target_per_week?: number | null;
+}
+
+function targetOf(t: Template): number {
+  return t.target_per_week ?? (t.period === 'daily' ? 7 : t.period === 'mon_fri' ? 5 : (t.week_days?.length ?? 0));
 }
 
 const WD = ['Du', 'Lu', 'Ma', 'Mi', 'Jo', 'Vi', 'Sâ'];
@@ -59,9 +64,10 @@ export default function Recurente() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {items.map((t) => (
           <div key={t.id} style={{ padding: 11, background: C.panel, border: `1px solid ${C.border}`, borderRadius: 6 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{t.title || t.description.slice(0, 60)}</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{catOf(t.category).emoji} {t.title || t.description.slice(0, 60)}</div>
             <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>
               {periodLabel(t)} · până {t.deadline_time} · 💯 {t.points} · 👤 {t.assignee_label}
+              {targetOf(t) > 0 ? <> · <span style={{ color: catOf(t.category).color, fontWeight: 700 }}>🎯 {targetOf(t)}/săpt</span></> : null}
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
               <button onClick={() => stop(t.id)} disabled={busy} style={stopBtn}>Oprește</button>

@@ -79,4 +79,17 @@ export interface Task {
   estimated_date?: string | null;
   source?: string | null;
   assignee_label?: string;
+  category?: string;
 }
+
+// Categoriile de sarcini (migr. 249) — același limbaj vizual peste tot.
+export const CAT: Record<string, { label: string; emoji: string; color: string }> = {
+  MARKETING_AUTO: { label: 'Marketing auto', emoji: '🚌', color: '#4f9cf0' },
+  VIDEO: { label: 'Video TikTok/FB', emoji: '🎬', color: '#b07cf0' },
+  DEZVOLTARE: { label: 'Dezvoltare marketing', emoji: '📈', color: '#4fd08c' },
+  ALTELE: { label: 'Altele', emoji: '📌', color: '#8a93a5' },
+};
+export const CAT_ORDER = ['VIDEO', 'MARKETING_AUTO', 'DEZVOLTARE', 'ALTELE'] as const;
+export const catOf = (c?: string) => CAT[c ?? 'ALTELE'] ?? CAT.ALTELE;
+
+export interface TargetProgress { template_id: string; label: string; done: number; target: number }

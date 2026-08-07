@@ -124,9 +124,17 @@ export async function getObligation(id: string): Promise<Obligation | null> {
   return (data as Obligation) ?? null;
 }
 
+// ── категории (migr. 249) ──
+export const CATEGORIES = ['MARKETING_AUTO', 'VIDEO', 'DEZVOLTARE', 'ALTELE'] as const;
+export type TaskCategory = (typeof CATEGORIES)[number];
+export function normCategory(c: unknown): TaskCategory {
+  return (CATEGORIES as readonly string[]).includes(c as string) ? (c as TaskCategory) : 'ALTELE';
+}
+
 // ── создание ──
 export async function createTask(input: {
   creatorId: string; assigneeId: string; title: string | null; description: string; points: number; deadline: string;
+  category?: string; recurringTemplateId?: string | null;
 }): Promise<Obligation> {
   const db = getSupabase();
   const { data, error } = await db.from('obligations').insert({
@@ -134,6 +142,8 @@ export async function createTask(input: {
     title: input.title, description: input.description, points: input.points,
     original_deadline: input.deadline, current_deadline: input.deadline,
     current_state: 'sent',
+    category: normCategory(input.category),
+    recurring_template_id: input.recurringTemplateId ?? null,
   }).select('*').single();
   if (error || !data) throw new Error(error?.message || 'create failed');
   const ob = data as Obligation;
@@ -254,17 +264,21 @@ export interface RecurringTemplate {
   id: string; creator_id: string; assignee_id: string; title: string | null;
   description: string; points: number; period: 'daily' | 'mon_fri' | 'custom';
   deadline_time: string; week_days: number[] | null; active: boolean; last_generated_date: string | null; created_at: string;
+  category: string; target_per_week: number | null;
 }
 
 export async function createRecurringTemplate(input: {
   creatorId: string; assigneeId: string; title: string | null; description: string;
   points: number; period: 'daily' | 'mon_fri' | 'custom'; deadlineTime: string; weekDays?: number[] | null;
+  category?: string; targetPerWeek?: number | null;
 }): Promise<RecurringTemplate> {
   const { data, error } = await getSupabase().from('recurring_task_templates').insert({
     creator_id: input.creatorId, assignee_id: input.assigneeId, title: input.title,
     description: input.description, points: input.points, period: input.period,
     deadline_time: input.deadlineTime, week_days: input.period === 'custom' ? (input.weekDays ?? []) : null,
     active: true,
+    category: normCategory(input.category),
+    target_per_week: input.targetPerWeek ?? null,
   }).select('*').single();
   if (error || !data) throw new Error(error?.message || 'create failed');
   const periodLabel = input.period === 'daily' ? 'Zilnic'
@@ -283,6 +297,7 @@ export async function createRecurringTemplate(input: {
         creatorId: input.creatorId, assigneeId: input.assigneeId,
         title: input.title, description: input.description, points: input.points,
         deadline: chisinauTodayISO(input.deadlineTime),
+        category: normCategory(input.category), recurringTemplateId: tpl.id,
       });
       await getSupabase().from('recurring_task_templates').update({ last_generated_date: todayYMD }).eq('id', tpl.id);
     }

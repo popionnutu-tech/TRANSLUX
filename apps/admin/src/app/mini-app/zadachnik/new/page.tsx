@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { C, api, ready } from '../ui';
+import { C, api, ready, CAT, CAT_ORDER } from '../ui';
 
 function defaultDeadline(): string {
   const d = new Date();
@@ -23,6 +23,8 @@ export default function NewTask() {
   const [period, setPeriod] = useState<'daily' | 'mon_fri' | 'custom'>('daily');
   const [weekDays, setWeekDays] = useState<number[]>([]);
   const [deadlineTime, setDeadlineTime] = useState('18:00');
+  const [category, setCategory] = useState('ALTELE');
+  const [targetPerWeek, setTargetPerWeek] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
@@ -44,11 +46,11 @@ export default function NewTask() {
     const r = recurring
       ? await api('/recurring', {
           method: 'POST',
-          body: JSON.stringify({ assignee_id: assignee, title: title.trim() || null, description: description.trim(), points: Number(points) || 30, period, deadline_time: deadlineTime, week_days: period === 'custom' ? weekDays : undefined }),
+          body: JSON.stringify({ assignee_id: assignee, title: title.trim() || null, description: description.trim(), points: Number(points) || 30, period, deadline_time: deadlineTime, week_days: period === 'custom' ? weekDays : undefined, category, target_per_week: targetPerWeek.trim() ? Number(targetPerWeek) : undefined }),
         })
       : await api('/tasks', {
           method: 'POST',
-          body: JSON.stringify({ assignee_id: assignee, title: title.trim() || null, description: description.trim(), points: Number(points) || 30, deadline }),
+          body: JSON.stringify({ assignee_id: assignee, title: title.trim() || null, description: description.trim(), points: Number(points) || 30, deadline, category }),
         });
     setBusy(false);
     if (!r.ok) { const d = await r.json().catch(() => ({})); setErr(d.error || 'Eroare la creare.'); return; }
@@ -72,6 +74,20 @@ export default function NewTask() {
 
       <Label>Descriere</Label>
       <textarea value={description} onChange={(e) => setDescription(e.target.value)} style={{ ...input, minHeight: 90, resize: 'vertical' }} placeholder="ce trebuie făcut" />
+
+      <Label>Categorie</Label>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {CAT_ORDER.map((key) => {
+          const c = CAT[key];
+          const active = category === key;
+          return (
+            <button key={key} type="button" onClick={() => setCategory(key)}
+              style={{ ...chipBtn, ...(active ? { background: c.color, color: '#fff', borderColor: c.color, fontWeight: 700 } : {}) }}>
+              {c.emoji} {c.label}
+            </button>
+          );
+        })}
+      </div>
 
       <label style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '14px 0 2px', cursor: 'pointer', fontSize: 14, color: C.text }}>
         <input type="checkbox" checked={recurring} onChange={(e) => setRecurring(e.target.checked)} style={{ width: 18, height: 18 }} />
@@ -116,6 +132,9 @@ export default function NewTask() {
               ))}
             </div>
           )}
+          <Label>🎯 Țintă / săptămână (gol = după program)</Label>
+          <input type="number" min={1} value={targetPerWeek} onChange={(e) => setTargetPerWeek(e.target.value)}
+            style={input} placeholder="ex. 2 — apare ca bar de progres la executor" />
         </div>
       )}
 

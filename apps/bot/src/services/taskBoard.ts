@@ -1,6 +1,7 @@
 import type { Api } from 'grammy';
 import { getSupabase } from '../supabase.js';
 import { getZadachnikAssignee } from './db.js';
+import { escapeHtml } from './adminAlert.js';
 
 const db = () => getSupabase();
 
@@ -27,10 +28,6 @@ export async function bindTaskBoard(chatId: number, assigneeId: string): Promise
   await db()
     .from('task_board_bindings')
     .upsert({ chat_id: chatId, assignee_id: assigneeId }, { onConflict: 'chat_id' });
-}
-
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function formatTask(o: {

@@ -3,7 +3,7 @@ import { getSupabase } from '@/lib/supabase';
 import { authFromInitData } from '@/lib/zadachnik/auth';
 import {
   getObligation, acceptTask, startTask, submitReport,
-  approveTask, rejectTask, reworkTask, cancelTask,
+  approveTask, rejectTask, reworkTask, cancelTask, CATEGORIES,
 } from '@/lib/zadachnik/core';
 
 export const runtime = 'nodejs';
@@ -72,5 +72,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     default:
       return NextResponse.json({ error: 'acțiune necunoscută' }, { status: 400 });
   }
+  return NextResponse.json({ ok: true });
+}
+
+// Schimbarea categoriei (doar ADMIN) — corectarea clasificării unei sarcini existente.
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const u = await authFromInitData(initData(req));
+  if (!u) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  if (u.role !== 'ADMIN') return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  const { id } = await params;
+  const body = await req.json().catch(() => ({} as Record<string, unknown>));
+  const category = String(body.category ?? '');
+  if (!(CATEGORIES as readonly string[]).includes(category)) {
+    return NextResponse.json({ error: 'categorie necunoscută' }, { status: 400 });
+  }
+  const { error } = await getSupabase().from('obligations').update({ category }).eq('id', id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }

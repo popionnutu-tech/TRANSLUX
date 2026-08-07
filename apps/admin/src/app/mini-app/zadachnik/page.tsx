@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { C, api, ready, STATE, fmt, type Task } from './ui';
+import { C, api, ready, STATE, fmt, CAT_ORDER, catOf, type Task, type TargetProgress } from './ui';
 
 const CURRENT_STATES = ['created', 'sent', 'delivered', 'accepted', 'in_progress', 'report_pending', 'overdue', 'overdue_responded'];
 
@@ -22,6 +22,7 @@ function recScheduleLabel(t: RecTemplate): string {
 export default function ZadachnikHome() {
   const [role, setRole] = useState<'ADMIN' | 'CONTROLLER' | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [targets, setTargets] = useState<TargetProgress[]>([]);
   const [recurring, setRecurring] = useState<RecTemplate[]>([]);
   const [bucket, setBucket] = useState<'active' | 'history'>('active');
   const [view, setView] = useState<'state' | 'employee'>('state');
@@ -46,7 +47,7 @@ export default function ZadachnikHome() {
         setLoading(false); return;
       }
       const d = await r.json();
-      setRole(d.role); setTasks(d.tasks ?? []); setErr('');
+      setRole(d.role); setTasks(d.tasks ?? []); setTargets(d.targets ?? []); setErr('');
       // recurente — doar pt admin (vederea «Per angajat»)
       if (d.role === 'ADMIN') {
         try {
@@ -132,12 +133,69 @@ export default function ZadachnikHome() {
           : employees.map(([id, g]) => <EmployeeGroup key={id} name={g.label} tasks={g.tasks} rec={g.rec} />)
       )}
 
+      {!loading && !isAdmin && bucket === 'active' && targets.length > 0 && <TargetsPanel targets={targets} />}
+
       {!loading && !isAdmin && (
         tasks.length === 0
           ? <p style={{ color: C.muted, fontSize: 13 }}>Nimic aici.</p>
-          : <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{tasks.map((t) => <Card key={t.id} t={t} />)}</div>
+          : bucket === 'active'
+            ? <CategorySections tasks={tasks} />
+            : <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{tasks.map((t) => <Card key={t.id} t={t} />)}</div>
       )}
     </div>
+  );
+}
+
+/** Panoul «🎯 Săptămâna asta» — un bar de progres pe fiecare șablon activ. */
+function TargetsPanel({ targets }: { targets: TargetProgress[] }) {
+  return (
+    <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 6, padding: '10px 12px', marginBottom: 14 }}>
+      <div style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.accent, marginBottom: 8 }}>
+        🎯 Săptămâna asta
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {targets.map((t) => {
+          const hit = t.done >= t.target;
+          const pct = Math.min(100, Math.round((t.done / t.target) * 100));
+          return (
+            <div key={t.template_id}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}>
+                <span style={{ color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{t.label}</span>
+                <span style={{ color: hit ? C.ok : C.muted, fontWeight: 700, whiteSpace: 'nowrap', marginLeft: 8 }}>
+                  {t.done}/{t.target}{hit ? ' ✓' : ''}
+                </span>
+              </div>
+              <div style={{ height: 6, background: C.panel2, borderRadius: 3, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${pct}%`, background: hit ? C.ok : C.accent, borderRadius: 3, transition: 'width .3s' }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** Sarcinile lui Iurie, pe secțiuni de categorie (ordinea CAT_ORDER, secțiile goale se ascund). */
+function CategorySections({ tasks }: { tasks: Task[] }) {
+  return (
+    <>
+      {CAT_ORDER.map((key) => {
+        const cat = catOf(key);
+        const list = tasks.filter((t) => (t.category ?? 'ALTELE') === key);
+        if (list.length === 0) return null;
+        return (
+          <div key={key} style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: cat.color, fontWeight: 700, marginBottom: 6 }}>
+              {cat.emoji} {cat.label} · {list.length}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, borderLeft: `3px solid ${cat.color}`, paddingLeft: 8 }}>
+              {list.map((t) => <Card key={t.id} t={t} />)}
+            </div>
+          </div>
+        );
+      })}
+    </>
   );
 }
 
@@ -181,7 +239,7 @@ function Section({ title, tasks, accent, muted }: { title: string; tasks: Task[]
 
 function Card({ t }: { t: Task }) {
   const s = STATE[t.current_state] ?? { label: t.current_state, color: C.muted, icon: '•' };
-  const badge = t.source === 'reclama' ? '📢 ' : t.source === 'recurring' ? '🔁 ' : '';
+  const badge = `${catOf(t.category).emoji} ` + (t.source === 'reclama' ? '📢 ' : t.source === 'recurring' ? '🔁 ' : '');
   const est = t.estimated_date ? t.estimated_date.split('-').reverse().slice(0, 2).join('.') : '';
   return (
     <Link href={`/mini-app/zadachnik/${t.id}`} style={card}>

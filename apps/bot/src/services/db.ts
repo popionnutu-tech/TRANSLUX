@@ -239,6 +239,7 @@ async function spawnObligation(o: {
   creatorId: string; assigneeId: string; assigneeTelegramId: number | null;
   title: string | null; description: string; points: number; deadline: string;
   source: string; vehiclePlate?: string | null; notifyText?: string;
+  category?: string; recurringTemplateId?: string | null;
 }): Promise<string | null> {
   const supa = db();
   const { data: ob, error } = await supa.from('obligations').insert({
@@ -252,6 +253,8 @@ async function spawnObligation(o: {
     current_state: 'sent',
     source: o.source,
     vehicle_plate: o.vehiclePlate ?? null,
+    category: o.category ?? 'ALTELE',
+    recurring_template_id: o.recurringTemplateId ?? null,
   }).select('id').single();
   if (error || !ob) { console.error('spawnObligation insert error:', error?.message); return null; }
 
@@ -293,9 +296,12 @@ export async function createReclamaTask(input: {
   const supa = db();
   // Dedup ÎNAINTE de rezolvarea executorului — altfel, când nu există executor,
   // alerta ar pleca la fiecare raport repetat pe aceeași mașină.
-  const { data: open } = await supa.from('obligations')
+  const { data: open, error: openErr } = await supa.from('obligations')
     .select('id').eq('source', 'reclama').eq('vehicle_plate', input.vehiclePlate)
     .in('current_state', NONTERMINAL_OB).limit(1).maybeSingle();
+  // La eroare NU creăm (open=null ar arăta ca «nu există») — mai bine sarcina reapare
+  // la raportul următor decât un dublu pe aceeași mașină.
+  if (openErr) { console.error('reclama dedup select error:', openErr.message); return false; }
   if (open) return false; // deja există o sarcină deschisă pt mașina asta
 
   const digital = await getZadachnikAssignee();
@@ -318,6 +324,7 @@ export async function createReclamaTask(input: {
     points: 30,
     deadline,
     source: 'reclama',
+    category: 'MARKETING_AUTO',
     vehiclePlate: input.vehiclePlate,
     notifyText: `📋 <b>Sarcină nouă (auto)</b>\n${description}\nDeschide «Задачник» în meniul botului ca s-o accepți.`,
   });
@@ -453,7 +460,9 @@ export async function generateRecurringTasks(): Promise<number> {
     if (!fires) continue;
 
     // Исполнитель ещё активен? Деактивированному задачи не плодим (R1).
-    const { data: assignee } = await supa.from('users').select('telegram_id, active').eq('id', t.assignee_id).maybeSingle();
+    // Eroarea se aruncă (nu se confundă cu «executor inactiv») — altfel ziua s-ar închide tăcut.
+    const { data: assignee, error: assigneeErr } = await supa.from('users').select('telegram_id, active').eq('id', t.assignee_id).maybeSingle();
+    if (assigneeErr) throw new Error(`recurring assignee select: ${assigneeErr.message}`);
     if (!assignee || !assignee.active) continue;
 
     // Атомарно «застолбить» сегодня ДО создания — защита от двойной генерации,
@@ -486,7 +495,11 @@ export async function generateRecurringTasks(): Promise<number> {
     // Verificarea stă INTENȚIONAT după claim: ziua se consumă (sarcina retro n-ar mai
     // avea sens azi), iar orice apel care poate arunca rămâne după claim — claim-ul e
     // siguranța care stinge reîncercările din fereastră (vezi comentariul de la claim).
-    if (new Date(deadline).getTime() <= Date.now()) continue;
+    if (new Date(deadline).getTime() <= Date.now()) {
+      // Sărirea nu e tăcută: adminul află că ziua s-a pierdut (claim-ul e deja consumat).
+      await sendAdminAlert(`⚠️ <b>Generator sarcini recurente</b>: șablonul «${escapeHtml(t.title ?? t.description?.slice(0, 40) ?? '')}» a fost sărit azi — termenul ${escapeHtml(t.deadline_time || '18:00')} trecuse deja la momentul generării.`);
+      continue;
+    }
     const id = await spawnObligation({
       creatorId: t.creator_id,
       assigneeId: t.assignee_id,
@@ -496,6 +509,8 @@ export async function generateRecurringTasks(): Promise<number> {
       points: t.points ?? 30,
       deadline,
       source: 'recurring',
+      category: (t.category as string) ?? 'ALTELE',
+      recurringTemplateId: t.id as string,
     });
     if (id) created++;
     else await sendAdminAlert(`⚠️ <b>Generator sarcini recurente</b>: crearea sarcinii din șablonul «${escapeHtml(t.title ?? t.description?.slice(0, 40) ?? '')}» a eșuat — ziua e deja marcată, sarcina NU se va relua azi.`);

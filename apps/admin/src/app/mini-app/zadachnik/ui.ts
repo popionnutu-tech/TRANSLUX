@@ -109,8 +109,8 @@ export const CAT: Record<string, { label: string; emoji: string; color: string }
   DEZVOLTARE: { label: 'Dezvoltare marketing', emoji: '📈', color: '#4fd08c' },
   ALTELE: { label: 'Altele', emoji: '📌', color: '#8a93a5' },
 };
-// Ordinea cerută de Ion (07.08): zgomotul (reclama, 117 sarcini) jos, Video/Dezvoltare sus.
-export const CAT_ORDER = ['VIDEO', 'DEZVOLTARE', 'MARKETING_AUTO', 'ALTELE'] as const;
+// Ordinea cerută de Ion (07.08, v2): reclama (zgomotul cel mai mare) ultima de tot.
+export const CAT_ORDER = ['VIDEO', 'DEZVOLTARE', 'ALTELE', 'MARKETING_AUTO'] as const;
 export const catOf = (c?: string) => CAT[c ?? 'ALTELE'] ?? CAT.ALTELE;
 /** Cheia normalizată: orice categorie necunoscută cade în ALTELE (nu dispare din secțiuni). */
 export const catKeyOf = (c?: string) => (c && CAT[c] ? c : 'ALTELE');

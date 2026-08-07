@@ -132,8 +132,9 @@ export default function NewTask() {
               ))}
             </div>
           )}
-          <Label>🎯 Țintă / săptămână (gol = după program)</Label>
-          <input type="number" min={1} value={targetPerWeek} onChange={(e) => setTargetPerWeek(e.target.value)}
+          <Label>🎯 Țintă / săptămână — sarcini închise (gol = după program, max {period === 'daily' ? 7 : period === 'mon_fri' ? 5 : weekDays.length || '—'})</Label>
+          <input type="number" min={1} max={period === 'daily' ? 7 : period === 'mon_fri' ? 5 : weekDays.length || undefined}
+            value={targetPerWeek} onChange={(e) => setTargetPerWeek(e.target.value)}
             style={input} placeholder="ex. 2 — apare ca bar de progres la executor" />
         </div>
       )}

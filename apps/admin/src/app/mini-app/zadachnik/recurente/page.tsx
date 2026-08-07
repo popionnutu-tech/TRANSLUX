@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { C, api, ready, CAT, CAT_ORDER, catOf } from '../ui';
+import { C, api, ready, CAT, CAT_ORDER, catOf, catKeyOf } from '../ui';
 
 interface Template {
   id: string; title: string | null; description: string; points: number;
@@ -81,7 +81,7 @@ export default function Recurente() {
             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 8 }}>
               {CAT_ORDER.map((key) => {
                 const c = CAT[key];
-                const active = (t.category ?? 'ALTELE') === key;
+                const active = catKeyOf(t.category) === key;
                 return (
                   <button key={key} type="button" disabled={busy}
                     onClick={() => !active && patch(t.id, { category: key })}
@@ -98,7 +98,8 @@ export default function Recurente() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, gap: 8 }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: C.muted }}>
                 🎯
-                <input type="number" min={1} defaultValue={t.target_per_week ?? ''} placeholder="auto" disabled={busy}
+                <input type="number" min={1} max={targetOf(t) > 0 ? (t.period === 'daily' ? 7 : t.period === 'mon_fri' ? 5 : (t.week_days?.length ?? undefined)) : undefined}
+                  defaultValue={t.target_per_week ?? ''} placeholder="auto" disabled={busy}
                   onBlur={(e) => {
                     const v = e.target.value.trim();
                     const next = v === '' ? null : Number(v);

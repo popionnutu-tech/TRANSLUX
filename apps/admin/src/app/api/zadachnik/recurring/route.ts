@@ -57,6 +57,12 @@ export async function POST(req: Request) {
   }
   const targetPerWeek = Number.isInteger(+body.target_per_week) && +body.target_per_week >= 1
     ? +body.target_per_week : null;
+  // Progresul numără SARCINI închise — nu pot fi mai multe decât zilele în care șablonul rulează.
+  // O țintă peste plafon ar bloca bara pe roșu pentru totdeauna (semnal fals despre executor).
+  const maxPerWeek = body.period === 'daily' ? 7 : body.period === 'mon_fri' ? 5 : (weekDays?.length ?? 0);
+  if (targetPerWeek !== null && targetPerWeek > maxPerWeek) {
+    return NextResponse.json({ error: `ținta max ${maxPerWeek}/săpt — șablonul rulează ${maxPerWeek} zile pe săptămână (se numără sarcini închise, nu video)` }, { status: 400 });
+  }
   const t = await createRecurringTemplate({
     creatorId: u.id,
     assigneeId: body.assignee_id,

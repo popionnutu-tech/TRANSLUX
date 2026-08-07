@@ -36,6 +36,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (body.target_per_week === null || body.target_per_week === '') patch.target_per_week = null;
     else if (Number.isInteger(+body.target_per_week) && +body.target_per_week >= 1) patch.target_per_week = +body.target_per_week;
     else return NextResponse.json({ error: 'target_per_week: întreg ≥1 sau gol' }, { status: 400 });
+    // Plafon = zilele de rulare ale șablonului (se numără sarcini închise/săpt, nu video).
+    if (typeof patch.target_per_week === 'number') {
+      const { data: tpl, error: tplErr } = await getSupabase().from('recurring_task_templates')
+        .select('period, week_days').eq('id', id).maybeSingle();
+      if (tplErr) return NextResponse.json({ error: tplErr.message }, { status: 500 });
+      if (!tpl) return NextResponse.json({ error: 'not found' }, { status: 404 });
+      const maxPerWeek = tpl.period === 'daily' ? 7 : tpl.period === 'mon_fri' ? 5 : ((tpl.week_days as number[] | null)?.length ?? 0);
+      if (patch.target_per_week > maxPerWeek) {
+        return NextResponse.json({ error: `ținta max ${maxPerWeek}/săpt — șablonul rulează ${maxPerWeek} zile pe săptămână` }, { status: 400 });
+      }
+    }
   }
   if (Object.keys(patch).length === 0) return NextResponse.json({ error: 'nimic de modificat' }, { status: 400 });
 

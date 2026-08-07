@@ -43,6 +43,8 @@ export default function NewTask() {
   async function submit() {
     if (!assignee || !description.trim()) { setErr('Alege executorul și scrie descrierea.'); return; }
     if (recurring && period === 'custom' && weekDays.length === 0) { setErr('Alege cel puțin o zi a săptămânii.'); return; }
+    const deadlineISO = recurring ? null : chisinauLocalToISO(deadline);
+    if (!recurring && !deadlineISO) { setErr('Termenul e gol sau invalid.'); return; }
     setBusy(true); setErr('');
     const r = recurring
       ? await api('/recurring', {
@@ -53,7 +55,7 @@ export default function NewTask() {
           method: 'POST',
           // deadline e introdus ca oră a Chișinăului — trimitem ISO cu offset, altfel serverul
           // (Vercel, TZ=UTC) l-ar citi ca UTC și termenul ar aluneca cu +2/3 ore.
-          body: JSON.stringify({ assignee_id: assignee, title: title.trim() || null, description: description.trim(), points: Number(points) || 30, deadline: chisinauLocalToISO(deadline), category }),
+          body: JSON.stringify({ assignee_id: assignee, title: title.trim() || null, description: description.trim(), points: Number(points) || 30, deadline: deadlineISO, category }),
         });
     setBusy(false);
     if (!r.ok) { const d = await r.json().catch(() => ({})); setErr(d.error || 'Eroare la creare.'); return; }
@@ -136,7 +138,7 @@ export default function NewTask() {
             </div>
           )}
           <Label>🏁 Scopul (opțional) — DE CE se fac sarcinile</Label>
-          <input value={goal} onChange={(e) => setGoal(e.target.value)} style={input}
+          <input value={goal} maxLength={140} onChange={(e) => setGoal(e.target.value)} style={input}
             placeholder="ex. găsim șofer Ocnița — video-urile sunt doar instrumentul" />
           <Label>🎯 Țintă / săptămână — sarcini închise (gol = după program, max {maxPerWeekOf(period, weekDays) || '—'})</Label>
           <input type="number" min={1} max={maxPerWeekOf(period, weekDays) || undefined}

@@ -139,7 +139,7 @@ export default function TaskDetail() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-            <button disabled={busy || !eDescription.trim()} style={{ ...primary, flex: 2, opacity: busy || !eDescription.trim() ? 0.6 : 1 }}
+            <button disabled={busy || !eDescription.trim() || !eDeadline} style={{ ...primary, flex: 2, opacity: busy || !eDescription.trim() || !eDeadline ? 0.6 : 1 }}
               onClick={async () => {
                 setBusy(true);
                 const r = await api(`/tasks/${id}`, {

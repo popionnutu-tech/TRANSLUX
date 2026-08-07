@@ -97,13 +97,19 @@ export const catKeyOf = (c?: string) => (c && CAT[c] ? c : 'ALTELE');
 
 export interface TargetProgress { template_id: string; assignee_id?: string; label: string; done: number; target: number; goal?: string | null }
 
-/** 'YYYY-MM-DDTHH:MM' (introdus ca oră a Chișinăului) → instant ISO, indiferent de fusul telefonului. */
-export function chisinauLocalToISO(local: string): string {
+/** 'YYYY-MM-DDTHH:MM' (introdus ca oră a Chișinăului) → instant ISO, indiferent de fusul telefonului.
+ *  Decalajul se ia la DATA țintă (corect peste trecerea la ora de vară/iarnă).
+ *  Întoarce null pentru input gol/invalid — apelantul afișează eroarea, nu aruncă. */
+export function chisinauLocalToISO(local: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(local)) return null;
+  const probe = new Date(`${local}:00Z`);
+  if (Number.isNaN(probe.getTime())) return null;
   const tzName = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Chisinau', timeZoneName: 'shortOffset' })
-    .formatToParts(new Date()).find((p) => p.type === 'timeZoneName')?.value ?? 'GMT+3';
+    .formatToParts(probe).find((p) => p.type === 'timeZoneName')?.value ?? 'GMT+3';
   const h = parseInt(tzName.replace('GMT', ''), 10) || 3;
   const sign = h < 0 ? '-' : '+';
-  return new Date(`${local}:00${sign}${String(Math.abs(h)).padStart(2, '0')}:00`).toISOString();
+  const d = new Date(`${local}:00${sign}${String(Math.abs(h)).padStart(2, '0')}:00`);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
 /** Câte zile pe săptămână rulează un șablon (plafonul și valoarea implicită a țintei).

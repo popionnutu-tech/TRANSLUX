@@ -332,8 +332,9 @@ export async function listRecurring(): Promise<RecurringTemplate[]> {
 
 /** «🏁 Obiectiv atins» — oprește șablonul cu motiv (goal_achieved_at), nu doar Stop. */
 export async function achieveRecurringGoal(id: string): Promise<void> {
-  await getSupabase().from('recurring_task_templates')
+  const { error } = await getSupabase().from('recurring_task_templates')
     .update({ active: false, goal_achieved_at: new Date().toISOString() }).eq('id', id);
+  if (error) throw new Error(error.message);
 }
 
 export async function stopRecurring(id: string): Promise<void> {

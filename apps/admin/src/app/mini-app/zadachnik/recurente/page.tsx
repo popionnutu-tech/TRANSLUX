@@ -123,8 +123,8 @@ function Editor({ t, busy, onSave, onStop, onGoalAchieved, onClose }: {
       <Lbl>Descriere</Lbl>
       <textarea value={description} onChange={(e) => setDescription(e.target.value)} style={{ ...input, minHeight: 70, resize: 'vertical' }} />
 
-      <Lbl>🏁 Scopul — DE CE se fac sarcinile (opțional)</Lbl>
-      <input value={goal} onChange={(e) => setGoal(e.target.value)} style={input}
+      <Lbl>🏁 Scopul — DE CE se fac sarcinile (opțional; «Obiectiv atins» apare după salvare)</Lbl>
+      <input value={goal} maxLength={140} onChange={(e) => setGoal(e.target.value)} style={input}
         placeholder="ex. găsim șofer Ocnița" />
 
       <Lbl>Categorie</Lbl>
@@ -200,9 +200,9 @@ function Editor({ t, busy, onSave, onStop, onGoalAchieved, onClose }: {
           onClick={() => { if (window.confirm('Oprești șablonul? Sarcinile deja create rămân, dar altele noi nu vor mai apărea.')) onStop(); }}
           style={{ ...stopBtn, flex: 1 }}>Oprește</button>
       </div>
-      {(goal.trim() || t.goal) && (
+      {t.goal && (
         <button disabled={busy}
-          onClick={() => { if (window.confirm(`Obiectivul «${goal.trim() || t.goal}» e atins? Șablonul se oprește cu motiv, sarcinile create rămân.`)) onGoalAchieved(); }}
+          onClick={() => { if (window.confirm(`Obiectivul «${t.goal}» e atins? Șablonul se oprește cu motiv, sarcinile create rămân.`)) onGoalAchieved(); }}
           style={{ width: '100%', marginTop: 8, background: 'rgba(26,138,74,0.12)', color: C.ok, fontWeight: 700, fontSize: 13, padding: '9px', borderRadius: 4, border: `1px solid ${C.ok}`, cursor: 'pointer' }}>
           🏁 Obiectiv atins — oprește șablonul
         </button>

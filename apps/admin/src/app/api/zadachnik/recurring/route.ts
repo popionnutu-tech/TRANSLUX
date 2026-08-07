@@ -74,7 +74,7 @@ export async function POST(req: Request) {
     weekDays,
     category: body.category,
     targetPerWeek,
-    goal: typeof body.goal === 'string' ? body.goal.trim() || null : null,
+    goal: typeof body.goal === 'string' ? body.goal.trim().slice(0, 300) || null : null,
   });
   return NextResponse.json({ ok: true, id: t.id }, { status: 201 });
 }

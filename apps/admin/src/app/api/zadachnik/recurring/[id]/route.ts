@@ -14,8 +14,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (u.role !== 'ADMIN') return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   const { id } = await params;
   const body = await req.json().catch(() => ({} as Record<string, unknown>));
-  if (body.action === 'goal_achieved') await achieveRecurringGoal(id);
-  else await stopRecurring(id);
+  const action = String(body.action ?? 'stop');
+  if (action === 'goal_achieved') await achieveRecurringGoal(id);
+  else if (action === 'stop') await stopRecurring(id);
+  else return NextResponse.json({ error: 'acțiune necunoscută' }, { status: 400 });
   return NextResponse.json({ ok: true });
 }
 
@@ -63,7 +65,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       ? [...new Set((body.week_days as unknown[]).map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n <= 6))]
       : null;
   }
-  if (body.goal !== undefined) patch.goal = typeof body.goal === 'string' ? body.goal.trim() || null : null;
+  if (body.goal !== undefined) patch.goal = typeof body.goal === 'string' ? body.goal.trim().slice(0, 300) || null : null;
   if (body.category !== undefined) {
     if (!(CATEGORIES as readonly string[]).includes(String(body.category))) {
       return NextResponse.json({ error: 'categorie necunoscută' }, { status: 400 });

@@ -38,7 +38,7 @@ export async function GET(req: Request) {
 /** Progresul săptămânal al șabloanelor active (toate la assigneeId=null — vederea admin).
  *  La orice eroare de query întoarce null: panoul se ascunde în loc să arate 0/N fals. */
 async function weeklyTargets(assigneeId: string | null):
-  Promise<Array<{ template_id: string; assignee_id: string; label: string; done: number; target: number }> | null> {
+  Promise<Array<{ template_id: string; assignee_id: string; goal: string | null; label: string; done: number; target: number }> | null> {
   let q = getSupabase().from('recurring_task_templates')
     .select('id, assignee_id, title, description, period, week_days, target_per_week, goal')
     .eq('active', true);

@@ -433,12 +433,21 @@ export async function generateRecurringTasks(): Promise<number> {
 
     // Атомарно «застолбить» сегодня ДО создания — защита от двойной генерации,
     // если на короткое время (деплой) работают два инстанса бота. active=true замыкает гонку со «стоп».
-    const { data: claimed } = await supa.from('recurring_task_templates')
+    // NB: PATCH cu filtru or= e refuzat de PostgREST-ul proiectului (42703, verificat 07.08.2026),
+    // deci claim-ul se face în doi pași cu filtre simple: is.null, apoi lt.today. Fiecare pas e atomic.
+    const claimQuery = () => supa.from('recurring_task_templates')
       .update({ last_generated_date: today })
       .eq('id', t.id)
-      .eq('active', true)
-      .or(`last_generated_date.is.null,last_generated_date.lt.${today}`)
+      .eq('active', true);
+    let { data: claimed, error: claimErr } = await claimQuery()
+      .is('last_generated_date', null)
       .select('id').maybeSingle();
+    if (!claimed && !claimErr) {
+      ({ data: claimed, error: claimErr } = await claimQuery()
+        .lt('last_generated_date', today)
+        .select('id').maybeSingle());
+    }
+    if (claimErr) { console.error('Recurring claim error:', claimErr.message); continue; }
     if (!claimed) continue; // день застолбил другой процесс (или шаблон остановлен)
 
     const deadline = chisinauDateTimeISO(today, t.deadline_time || '18:00');

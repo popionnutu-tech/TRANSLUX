@@ -95,3 +95,9 @@ export const catOf = (c?: string) => CAT[c ?? 'ALTELE'] ?? CAT.ALTELE;
 export const catKeyOf = (c?: string) => (c && CAT[c] ? c : 'ALTELE');
 
 export interface TargetProgress { template_id: string; assignee_id?: string; label: string; done: number; target: number }
+
+/** Câte zile pe săptămână rulează un șablon (plafonul și valoarea implicită a țintei).
+ *  Copia client a maxPerWeekOf din lib/zadachnik/core.ts — ține-le identice. */
+export function maxPerWeekOf(period: 'daily' | 'mon_fri' | 'custom', weekDays?: number[] | null): number {
+  return period === 'daily' ? 7 : period === 'mon_fri' ? 5 : (weekDays?.length ?? 0);
+}

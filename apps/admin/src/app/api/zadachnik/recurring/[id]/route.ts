@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/supabase';
 import { authFromInitData } from '@/lib/zadachnik/auth';
-import { stopRecurring, CATEGORIES } from '@/lib/zadachnik/core';
+import { stopRecurring, CATEGORIES, maxPerWeekOf } from '@/lib/zadachnik/core';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -82,7 +82,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
   if (effPeriod !== 'custom') patch.week_days = null;
   const effTarget = (patch.target_per_week !== undefined ? patch.target_per_week : tpl.target_per_week) as number | null;
-  const maxPerWeek = effPeriod === 'daily' ? 7 : effPeriod === 'mon_fri' ? 5 : (effWeekDays?.length ?? 0);
+  const maxPerWeek = maxPerWeekOf(effPeriod as 'daily' | 'mon_fri' | 'custom', effWeekDays);
   if (typeof effTarget === 'number' && effTarget > maxPerWeek) {
     return NextResponse.json({ error: `ținta max ${maxPerWeek}/săpt — șablonul rulează ${maxPerWeek} zile pe săptămână` }, { status: 400 });
   }

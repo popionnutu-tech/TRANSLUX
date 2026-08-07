@@ -75,18 +75,42 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   return NextResponse.json({ ok: true });
 }
 
-// Schimbarea categoriei (doar ADMIN) — corectarea clasificării unei sarcini existente.
+// Redactarea unei sarcini existente (doar ADMIN): categorie, titlu, descriere, puncte, termen.
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const u = await authFromInitData(initData(req));
   if (!u) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   if (u.role !== 'ADMIN') return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   const { id } = await params;
   const body = await req.json().catch(() => ({} as Record<string, unknown>));
-  const category = String(body.category ?? '');
-  if (!(CATEGORIES as readonly string[]).includes(category)) {
-    return NextResponse.json({ error: 'categorie necunoscută' }, { status: 400 });
+
+  const patch: Record<string, unknown> = {};
+  if (body.category !== undefined) {
+    if (!(CATEGORIES as readonly string[]).includes(String(body.category))) {
+      return NextResponse.json({ error: 'categorie necunoscută' }, { status: 400 });
+    }
+    patch.category = body.category;
   }
-  const { error } = await getSupabase().from('obligations').update({ category }).eq('id', id);
+  if (body.title !== undefined) patch.title = String(body.title ?? '').trim() || null;
+  if (body.description !== undefined) {
+    const d = String(body.description ?? '').trim();
+    if (!d) return NextResponse.json({ error: 'descrierea nu poate fi goală' }, { status: 400 });
+    patch.description = d;
+  }
+  if (body.points !== undefined) {
+    if (!Number.isFinite(+body.points) || +body.points < 0) return NextResponse.json({ error: 'puncte: număr ≥0' }, { status: 400 });
+    patch.points = Math.round(+body.points);
+  }
+  if (body.deadline !== undefined) {
+    const dt = new Date(String(body.deadline));
+    if (Number.isNaN(dt.getTime())) return NextResponse.json({ error: 'termen invalid' }, { status: 400 });
+    // Se mută doar termenul curent — original_deadline rămâne ca istoric.
+    patch.current_deadline = dt.toISOString();
+  }
+  if (Object.keys(patch).length === 0) return NextResponse.json({ error: 'nimic de modificat' }, { status: 400 });
+
+  const { data, error } = await getSupabase().from('obligations')
+    .update(patch).eq('id', id).select('id').maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data) return NextResponse.json({ error: 'not found' }, { status: 404 });
   return NextResponse.json({ ok: true });
 }

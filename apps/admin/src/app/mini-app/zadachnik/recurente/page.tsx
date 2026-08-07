@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { C, api, ready, CAT, CAT_ORDER, catOf, catKeyOf } from '../ui';
+import { C, api, ready, CAT, CAT_ORDER, catOf, catKeyOf, maxPerWeekOf } from '../ui';
 
 interface Template {
   id: string; title: string | null; description: string; points: number;
@@ -17,7 +17,7 @@ function periodLabel(t: Template): string {
   return (t.week_days ?? []).slice().sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map((d) => WD[d] ?? String(d)).join(', ');
 }
 function targetOf(t: Template): number {
-  return t.target_per_week ?? (t.period === 'daily' ? 7 : t.period === 'mon_fri' ? 5 : (t.week_days?.length ?? 0));
+  return t.target_per_week ?? maxPerWeekOf(t.period, t.week_days);
 }
 
 export default function Recurente() {
@@ -47,15 +47,15 @@ export default function Recurente() {
     setEditId(null);
   }
 
-  async function save(id: string, body: Record<string, unknown>): Promise<boolean> {
+  /** Întoarce mesajul de eroare (afișat ÎN redactor) sau null la succes. */
+  async function save(id: string, body: Record<string, unknown>): Promise<string | null> {
     setBusy(true);
     const r = await api(`/recurring/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
-    if (!r.ok) { setBusy(false); const d = await r.json().catch(() => ({})); setErr(d.error || 'Eroare la salvare.'); return false; }
+    if (!r.ok) { setBusy(false); const d = await r.json().catch(() => ({})); return d.error || 'Eroare la salvare.'; }
     await load();
     setBusy(false);
-    setErr('');
     setEditId(null);
-    return true;
+    return null;
   }
 
   return (
@@ -97,9 +97,10 @@ export default function Recurente() {
 /** Redactor inline: toate câmpurile șablonului, «Salvează» trimite doar un PATCH. */
 function Editor({ t, busy, onSave, onStop, onClose }: {
   t: Template; busy: boolean;
-  onSave: (body: Record<string, unknown>) => Promise<boolean>;
+  onSave: (body: Record<string, unknown>) => Promise<string | null>;
   onStop: () => void; onClose: () => void;
 }) {
+  const [localErr, setLocalErr] = useState('');
   const [title, setTitle] = useState(t.title ?? '');
   const [description, setDescription] = useState(t.description);
   const [points, setPoints] = useState(String(t.points));
@@ -109,7 +110,7 @@ function Editor({ t, busy, onSave, onStop, onClose }: {
   const [category, setCategory] = useState(catKeyOf(t.category));
   const [target, setTarget] = useState(t.target_per_week != null ? String(t.target_per_week) : '');
 
-  const maxPerWeek = period === 'daily' ? 7 : period === 'mon_fri' ? 5 : weekDays.length;
+  const maxPerWeek = maxPerWeekOf(period, weekDays);
 
   return (
     <div style={{ padding: 11, background: C.panel, border: `1px solid ${C.accent}`, borderRadius: 6 }}>
@@ -171,21 +172,27 @@ function Editor({ t, busy, onSave, onStop, onClose }: {
 
       <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
         <button disabled={busy} style={{ ...primary, flex: 2, opacity: busy ? 0.6 : 1 }}
-          onClick={() => onSave({
-            title: title.trim() || null,
-            description: description,
-            points: Number(points) || 0,
-            deadline_time: deadlineTime,
-            period,
-            week_days: period === 'custom' ? weekDays : undefined,
-            category,
-            target_per_week: target.trim() === '' ? null : Number(target),
-          })}>
+          onClick={async () => {
+            const e = await onSave({
+              title: title.trim() || null,
+              description: description,
+              points: points.trim() === '' ? 30 : Number(points),
+              deadline_time: deadlineTime,
+              period,
+              week_days: period === 'custom' ? weekDays : undefined,
+              category,
+              target_per_week: target.trim() === '' ? null : Number(target),
+            });
+            setLocalErr(e ?? '');
+          }}>
           {busy ? '…' : '💾 Salvează'}
         </button>
         <button disabled={busy} onClick={onClose} style={{ ...chip, flex: 1 }}>Anulează</button>
-        <button disabled={busy} onClick={onStop} style={{ ...stopBtn, flex: 1 }}>Oprește</button>
+        <button disabled={busy}
+          onClick={() => { if (window.confirm('Oprești șablonul? Sarcinile deja create rămân, dar altele noi nu vor mai apărea.')) onStop(); }}
+          style={{ ...stopBtn, flex: 1 }}>Oprește</button>
       </div>
+      {localErr && <p style={{ color: C.bad, fontSize: 13, marginTop: 8, marginBottom: 0 }}>{localErr}</p>}
     </div>
   );
 }

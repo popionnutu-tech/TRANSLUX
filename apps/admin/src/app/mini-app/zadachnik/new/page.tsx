@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { C, api, ready, CAT, CAT_ORDER } from '../ui';
+import { C, api, ready, CAT, CAT_ORDER, maxPerWeekOf } from '../ui';
 
 function defaultDeadline(): string {
   const d = new Date();
@@ -132,8 +132,8 @@ export default function NewTask() {
               ))}
             </div>
           )}
-          <Label>🎯 Țintă / săptămână — sarcini închise (gol = după program, max {period === 'daily' ? 7 : period === 'mon_fri' ? 5 : weekDays.length || '—'})</Label>
-          <input type="number" min={1} max={period === 'daily' ? 7 : period === 'mon_fri' ? 5 : weekDays.length || undefined}
+          <Label>🎯 Țintă / săptămână — sarcini închise (gol = după program, max {maxPerWeekOf(period, weekDays) || '—'})</Label>
+          <input type="number" min={1} max={maxPerWeekOf(period, weekDays) || undefined}
             value={targetPerWeek} onChange={(e) => setTargetPerWeek(e.target.value)}
             style={input} placeholder="ex. 2 — apare ca bar de progres la executor" />
         </div>

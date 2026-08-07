@@ -33,6 +33,11 @@ export default function TaskDetail() {
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [acceptDate, setAcceptDate] = useState(isoPlus(1));
+  const [editing, setEditing] = useState(false);
+  const [eTitle, setETitle] = useState('');
+  const [eDescription, setEDescription] = useState('');
+  const [ePoints, setEPoints] = useState('30');
+  const [eDeadline, setEDeadline] = useState('');
 
   const load = useCallback(async () => {
     await ready();
@@ -97,6 +102,65 @@ export default function TaskDetail() {
               </button>
             );
           })}
+        </div>
+      )}
+
+      {isAdmin && !editing && (
+        <button disabled={busy} style={{ ...secondary, width: '100%', marginBottom: 10, fontSize: 13, padding: '8px' }}
+          onClick={() => {
+            setETitle(task.title ?? '');
+            setEDescription(task.description);
+            setEPoints(String(task.points));
+            // datetime-local vrea 'YYYY-MM-DDTHH:MM' în ora Chișinăului
+            const d = new Date(task.current_deadline);
+            const p = (n: number) => String(n).padStart(2, '0');
+            const loc = new Date(d.toLocaleString('en-US', { timeZone: 'Europe/Chisinau' }));
+            setEDeadline(`${loc.getFullYear()}-${p(loc.getMonth() + 1)}-${p(loc.getDate())}T${p(loc.getHours())}:${p(loc.getMinutes())}`);
+            setEditing(true);
+          }}>
+          ✏️ Redactează sarcina
+        </button>
+      )}
+
+      {isAdmin && editing && (
+        <div style={{ ...panel, border: `1px solid ${C.accent}` }}>
+          <Lbl>Titlu (opțional)</Lbl>
+          <input value={eTitle} onChange={(e) => setETitle(e.target.value)} style={input} />
+          <Lbl>Descriere</Lbl>
+          <textarea value={eDescription} onChange={(e) => setEDescription(e.target.value)} style={{ ...input, minHeight: 70 }} />
+          <div style={{ display: 'flex', gap: 10 }}>
+            <div style={{ flex: 1 }}>
+              <Lbl>Puncte</Lbl>
+              <input type="number" min={0} value={ePoints} onChange={(e) => setEPoints(e.target.value)} style={input} />
+            </div>
+            <div style={{ flex: 2 }}>
+              <Lbl>Termen</Lbl>
+              <input type="datetime-local" value={eDeadline} onChange={(e) => setEDeadline(e.target.value)} style={input} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+            <button disabled={busy || !eDescription.trim()} style={{ ...primary, flex: 2, opacity: busy || !eDescription.trim() ? 0.6 : 1 }}
+              onClick={async () => {
+                setBusy(true);
+                const r = await api(`/tasks/${id}`, {
+                  method: 'PATCH',
+                  body: JSON.stringify({
+                    title: eTitle.trim() || null,
+                    description: eDescription.trim(),
+                    points: Number(ePoints) || 0,
+                    deadline: new Date(eDeadline).toISOString(),
+                  }),
+                });
+                setBusy(false);
+                if (!r.ok) { const d = await r.json().catch(() => ({})); setErr(d.error || 'Eroare la salvare.'); return; }
+                setErr(''); setEditing(false);
+                await load();
+              }}>
+              {busy ? '…' : '💾 Salvează'}
+            </button>
+            <button disabled={busy} onClick={() => { setEditing(false); setErr(''); }} style={{ ...secondary, flex: 1 }}>Anulează</button>
+          </div>
+          {err && <p style={{ color: C.bad, fontSize: 13, marginTop: 8, marginBottom: 0 }}>{err}</p>}
         </div>
       )}
 

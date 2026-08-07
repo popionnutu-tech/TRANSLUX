@@ -573,18 +573,31 @@ export async function autoVerifyTiktokTasks(date: string): Promise<number> {
   let resolved = 0;
 
   for (const t of templates as any[]) {
-    // Сегодняшний открытый инстанс ИМЕННО этого шаблона
-    let q = supa.from('obligations')
+    // Сегодняшний открытый инстанс ИМЕННО этого шаблона — по recurring_template_id
+    // (потерпит редактирование titlu/descriere; старый ключ по тексту ломался от PATCH).
+    const { data: obRow0 } = await supa.from('obligations')
       .select('id')
-      .eq('assignee_id', t.assignee_id)
-      .eq('source', 'recurring')
-      .eq('description', t.description)
+      .eq('recurring_template_id', t.id)
       .in('current_state', NONTERMINAL_OB)
       .gte('created_at', todayStartISO)
       .order('created_at', { ascending: false })
-      .limit(1);
-    q = t.title === null ? q.is('title', null) : q.eq('title', t.title);
-    const { data: obRow } = await q.maybeSingle();
+      .limit(1)
+      .maybeSingle();
+    let obRow = obRow0;
+    if (!obRow) {
+      // Fallback pe cheia veche (title+description) — pt. sarcini create de cod vechi, fără legătură.
+      let q = supa.from('obligations')
+        .select('id')
+        .eq('assignee_id', t.assignee_id)
+        .eq('source', 'recurring')
+        .eq('description', t.description)
+        .in('current_state', NONTERMINAL_OB)
+        .gte('created_at', todayStartISO)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      q = t.title === null ? q.is('title', null) : q.eq('title', t.title);
+      ({ data: obRow } = await q.maybeSingle());
+    }
     if (!obRow) continue; // нет открытой задачи на сегодня (уже закрыта/не сгенерилась)
 
     const { data: assignee } = await supa.from('users').select('telegram_id').eq('id', t.assignee_id).maybeSingle();

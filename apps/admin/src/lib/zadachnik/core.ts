@@ -126,6 +126,12 @@ export async function getObligation(id: string): Promise<Obligation | null> {
   return (data as Obligation) ?? null;
 }
 
+/** Câte zile pe săptămână rulează un șablon = plafonul țintei și ținta implicită.
+ *  SURSĂ UNICĂ server-side; clientul are copia lui în mini-app/zadachnik/ui.ts (nu poate importa de aici). */
+export function maxPerWeekOf(period: 'daily' | 'mon_fri' | 'custom', weekDays?: number[] | null): number {
+  return period === 'daily' ? 7 : period === 'mon_fri' ? 5 : (weekDays?.length ?? 0);
+}
+
 // ── категории (migr. 249) ──
 export const CATEGORIES = ['MARKETING_AUTO', 'VIDEO', 'DEZVOLTARE', 'ALTELE'] as const;
 export type TaskCategory = (typeof CATEGORIES)[number];

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/supabase';
 import { authFromInitData, userLabel } from '@/lib/zadachnik/auth';
-import { createTask, listForAdmin, listForAssignee } from '@/lib/zadachnik/core';
+import { createTask, listForAdmin, listForAssignee, maxPerWeekOf } from '@/lib/zadachnik/core';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -58,9 +58,9 @@ async function weeklyTargets(assigneeId: string | null):
     assignee_id: t.assignee_id as string,
     label: (t.title as string | null) || String(t.description).slice(0, 30),
     done: (weekObs ?? []).filter((o) => o.recurring_template_id === t.id && o.current_state === 'resolved').length,
-    // ținta: explicită, altfel dedusă din program (daily→7, mon_fri→5, custom→nr. zile)
+    // ținta: explicită, altfel dedusă din program
     target: (t.target_per_week as number | null)
-      ?? (t.period === 'daily' ? 7 : t.period === 'mon_fri' ? 5 : ((t.week_days as number[] | null)?.length ?? 0)),
+      ?? maxPerWeekOf(t.period as 'daily' | 'mon_fri' | 'custom', t.week_days as number[] | null),
   })).filter((t) => t.target > 0);
 }
 

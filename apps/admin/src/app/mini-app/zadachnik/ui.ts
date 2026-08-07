@@ -12,21 +12,25 @@ type TG = { WebApp?: {
   showConfirm?: (message: string, callback: (ok: boolean) => void) => void;
 } };
 
-/** Confirmare care FUNCȚIONEAZĂ în Telegram Mini App: WebView-ul blochează window.confirm
- *  (întoarce false silențios), deci folosim Telegram.WebApp.showConfirm; fallback pe
- *  window.confirm doar în browser obișnuit (dev). */
+/** Confirmare care FUNCȚIONEAZĂ în Telegram Mini App (window.confirm e blocat acolo →
+ *  false tăcut). Semantică: Telegram.WebApp.showConfirm când merge; în Telegram, dacă
+ *  dialogul nu e disponibil / aruncă / nu răspunde în 3s — acțiunea SE EXECUTĂ fără dialog
+ *  (butonul apăsat = intenția; tăcerea ar reface bug-ul «nu face nimic»). window.confirm
+ *  rămâne doar în browser obișnuit (dev). */
 export function confirmDialog(message: string): Promise<boolean> {
   if (typeof window === 'undefined') return Promise.resolve(false);
   const w = window as unknown as { Telegram?: TG };
-  const msg = message.slice(0, 256); // Telegram respinge sincron mesaje >256 (WebAppPopupParamInvalid)
+  const msg = message.slice(0, 256); // plasă de siguranță: Telegram respinge sincron mesaje >256
   const show = w.Telegram?.WebApp?.showConfirm;
   const inTelegram = (() => { const d = initData(); return d !== '' && d !== '__dev__'; })();
   if (show) {
     return new Promise((resolve) => {
-      // Client vechi / popup deja deschis → throw sincron. În Telegram NU cădem pe
-      // window.confirm (e blocat → false tăcut = exact bug-ul reparat): acționăm fără dialog.
-      try { show.call(w.Telegram!.WebApp, msg, (ok: boolean) => resolve(ok)); }
-      catch { resolve(inTelegram ? true : window.confirm(msg)); }
+      // Unii clienți ignoră tăcut showConfirm (ex. popup deja deschis) — fără timeout
+      // promisiunea n-ar rezolva niciodată și butonul ar muri iar.
+      const t = setTimeout(() => resolve(inTelegram ? true : window.confirm(msg)), 3000);
+      const done = (ok: boolean) => { clearTimeout(t); resolve(ok); };
+      try { show.call(w.Telegram!.WebApp, msg, done); }
+      catch { clearTimeout(t); resolve(inTelegram ? true : window.confirm(msg)); }
     });
   }
   return Promise.resolve(inTelegram ? true : window.confirm(msg));

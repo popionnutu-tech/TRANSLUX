@@ -7,7 +7,26 @@ export const C = {
   ok: '#1a8a4a', warn: '#c07a12', bad: '#c0392b',
 };
 
-type TG = { WebApp?: { initData?: string; ready?: () => void; expand?: () => void } };
+type TG = { WebApp?: {
+  initData?: string; ready?: () => void; expand?: () => void;
+  showConfirm?: (message: string, callback: (ok: boolean) => void) => void;
+} };
+
+/** Confirmare care FUNCȚIONEAZĂ în Telegram Mini App: WebView-ul blochează window.confirm
+ *  (întoarce false silențios), deci folosim Telegram.WebApp.showConfirm; fallback pe
+ *  window.confirm doar în browser obișnuit (dev). */
+export function confirmDialog(message: string): Promise<boolean> {
+  if (typeof window === 'undefined') return Promise.resolve(false);
+  const w = window as unknown as { Telegram?: TG };
+  const show = w.Telegram?.WebApp?.showConfirm;
+  if (show) {
+    return new Promise((resolve) => {
+      try { show.call(w.Telegram!.WebApp, message, (ok: boolean) => resolve(ok)); }
+      catch { resolve(window.confirm(message)); }
+    });
+  }
+  return Promise.resolve(window.confirm(message));
+}
 
 export function initData(): string {
   if (typeof window === 'undefined') return '';

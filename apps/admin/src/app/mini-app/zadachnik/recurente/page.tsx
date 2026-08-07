@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { C, api, ready, CAT, CAT_ORDER, catOf, catKeyOf, maxPerWeekOf } from '../ui';
+import { C, api, ready, CAT, CAT_ORDER, catOf, catKeyOf, maxPerWeekOf, confirmDialog } from '../ui';
 
 interface Template {
   id: string; title: string | null; description: string; points: number;
@@ -197,12 +197,12 @@ function Editor({ t, busy, onSave, onStop, onGoalAchieved, onClose }: {
         </button>
         <button disabled={busy} onClick={onClose} style={{ ...chip, flex: 1 }}>Anulează</button>
         <button disabled={busy}
-          onClick={() => { if (window.confirm('Oprești șablonul? Sarcinile deja create rămân, dar altele noi nu vor mai apărea.')) onStop(); }}
+          onClick={async () => { if (await confirmDialog('Oprești șablonul? Sarcinile deja create rămân, dar altele noi nu vor mai apărea.')) onStop(); }}
           style={{ ...stopBtn, flex: 1 }}>Oprește</button>
       </div>
       {t.goal && (
         <button disabled={busy}
-          onClick={() => { if (window.confirm(`Obiectivul «${t.goal}» e atins? Șablonul se oprește cu motiv, sarcinile create rămân.`)) onGoalAchieved(); }}
+          onClick={async () => { if (await confirmDialog(`Obiectivul «${t.goal}» e atins? Șablonul se oprește cu motiv, sarcinile create rămân.`)) onGoalAchieved(); }}
           style={{ width: '100%', marginTop: 8, background: 'rgba(26,138,74,0.12)', color: C.ok, fontWeight: 700, fontSize: 13, padding: '9px', borderRadius: 4, border: `1px solid ${C.ok}`, cursor: 'pointer' }}>
           🏁 Obiectiv atins — oprește șablonul
         </button>

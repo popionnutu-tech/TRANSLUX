@@ -224,15 +224,16 @@ function EmployeeGroup({ name, tasks, rec, targets }: { name: string; tasks: Tas
         {rec.map((rt) => {
           const tg = targetOf(rt);
           return (
-            <div key={rt.id} style={{ ...card, borderStyle: 'dashed' }}>
+            // Link spre Recurente — acolo e redactorul șablonului (cardul mort deruta: «nu pot apăsa»)
+            <Link key={rt.id} href="/mini-app/zadachnik/recurente" style={{ ...card, borderStyle: 'dashed' }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {catOf(rt.category).emoji} 🔁 {rt.title || rt.description.slice(0, 50)}
+                {catOf(rt.category).emoji} 🔁 {rt.title || rt.description.slice(0, 50)} <span style={{ color: C.muted, fontWeight: 400 }}>✏️</span>
               </div>
               <div style={{ fontSize: 11, color: C.muted, marginTop: 3 }}>
                 {recScheduleLabel(rt)} · {rt.deadline_time}
                 {tg ? <> · <span style={{ color: tg.done >= tg.target ? C.ok : catOf(rt.category).color, fontWeight: 700 }}>🎯 {tg.done}/{tg.target}{tg.done >= tg.target ? ' ✓' : ''}</span></> : null}
               </div>
-            </div>
+            </Link>
           );
         })}
         {tasks.length === 0 && rec.length === 0 && <p style={{ fontSize: 12, color: C.muted }}>Nimic.</p>}

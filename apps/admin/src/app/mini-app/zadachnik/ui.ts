@@ -80,6 +80,7 @@ export interface Task {
   source?: string | null;
   assignee_label?: string;
   category?: string;
+  goal?: string | null;
 }
 
 // Categoriile de sarcini (migr. 249) — același limbaj vizual peste tot.
@@ -94,7 +95,16 @@ export const catOf = (c?: string) => CAT[c ?? 'ALTELE'] ?? CAT.ALTELE;
 /** Cheia normalizată: orice categorie necunoscută cade în ALTELE (nu dispare din secțiuni). */
 export const catKeyOf = (c?: string) => (c && CAT[c] ? c : 'ALTELE');
 
-export interface TargetProgress { template_id: string; assignee_id?: string; label: string; done: number; target: number }
+export interface TargetProgress { template_id: string; assignee_id?: string; label: string; done: number; target: number; goal?: string | null }
+
+/** 'YYYY-MM-DDTHH:MM' (introdus ca oră a Chișinăului) → instant ISO, indiferent de fusul telefonului. */
+export function chisinauLocalToISO(local: string): string {
+  const tzName = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Chisinau', timeZoneName: 'shortOffset' })
+    .formatToParts(new Date()).find((p) => p.type === 'timeZoneName')?.value ?? 'GMT+3';
+  const h = parseInt(tzName.replace('GMT', ''), 10) || 3;
+  const sign = h < 0 ? '-' : '+';
+  return new Date(`${local}:00${sign}${String(Math.abs(h)).padStart(2, '0')}:00`).toISOString();
+}
 
 /** Câte zile pe săptămână rulează un șablon (plafonul și valoarea implicită a țintei).
  *  Copia client a maxPerWeekOf din lib/zadachnik/core.ts — ține-le identice. */

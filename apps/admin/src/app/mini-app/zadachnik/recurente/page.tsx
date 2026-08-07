@@ -7,7 +7,7 @@ import { C, api, ready, CAT, CAT_ORDER, catOf, catKeyOf, maxPerWeekOf } from '..
 interface Template {
   id: string; title: string | null; description: string; points: number;
   period: 'daily' | 'mon_fri' | 'custom'; week_days: number[] | null; deadline_time: string; assignee_label: string;
-  category?: string; target_per_week?: number | null;
+  category?: string; target_per_week?: number | null; goal?: string | null;
 }
 
 const WD = ['Du', 'Lu', 'Ma', 'Mi', 'Jo', 'Vi', 'Sâ'];
@@ -38,9 +38,9 @@ export default function Recurente() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  async function stop(id: string) {
+  async function stop(id: string, action: 'stop' | 'goal_achieved' = 'stop') {
     setBusy(true);
-    const r = await api(`/recurring/${id}`, { method: 'POST', body: JSON.stringify({ action: 'stop' }) });
+    const r = await api(`/recurring/${id}`, { method: 'POST', body: JSON.stringify({ action }) });
     if (!r.ok) { setBusy(false); setErr('Eroare la oprire.'); return; }
     await load();
     setBusy(false);
@@ -75,7 +75,8 @@ export default function Recurente() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {items.map((t) => editId === t.id
-          ? <Editor key={t.id} t={t} busy={busy} onSave={(b) => save(t.id, b)} onStop={() => stop(t.id)} onClose={() => { setEditId(null); setErr(''); }} />
+          ? <Editor key={t.id} t={t} busy={busy} onSave={(b) => save(t.id, b)} onStop={() => stop(t.id)}
+              onGoalAchieved={() => stop(t.id, 'goal_achieved')} onClose={() => { setEditId(null); setErr(''); }} />
           : (
             <div key={t.id} onClick={() => setEditId(t.id)} role="button"
               style={{ padding: 11, background: C.panel, border: `1px solid ${C.border}`, borderRadius: 6, cursor: 'pointer' }}>
@@ -87,6 +88,7 @@ export default function Recurente() {
                 {periodLabel(t)} · până {t.deadline_time} · 💯 {t.points} · 👤 {t.assignee_label}
                 {targetOf(t) > 0 ? <> · <span style={{ color: catOf(t.category).color, fontWeight: 700 }}>🎯 {targetOf(t)}/săpt</span></> : null}
               </div>
+              {t.goal && <div style={{ fontSize: 12, color: C.ok, marginTop: 3 }}>🏁 {t.goal}</div>}
             </div>
           ))}
       </div>
@@ -95,12 +97,13 @@ export default function Recurente() {
 }
 
 /** Redactor inline: toate câmpurile șablonului, «Salvează» trimite doar un PATCH. */
-function Editor({ t, busy, onSave, onStop, onClose }: {
+function Editor({ t, busy, onSave, onStop, onGoalAchieved, onClose }: {
   t: Template; busy: boolean;
   onSave: (body: Record<string, unknown>) => Promise<string | null>;
-  onStop: () => void; onClose: () => void;
+  onStop: () => void; onGoalAchieved: () => void; onClose: () => void;
 }) {
   const [localErr, setLocalErr] = useState('');
+  const [goal, setGoal] = useState(t.goal ?? '');
   const [title, setTitle] = useState(t.title ?? '');
   const [description, setDescription] = useState(t.description);
   const [points, setPoints] = useState(String(t.points));
@@ -119,6 +122,10 @@ function Editor({ t, busy, onSave, onStop, onClose }: {
 
       <Lbl>Descriere</Lbl>
       <textarea value={description} onChange={(e) => setDescription(e.target.value)} style={{ ...input, minHeight: 70, resize: 'vertical' }} />
+
+      <Lbl>🏁 Scopul — DE CE se fac sarcinile (opțional)</Lbl>
+      <input value={goal} onChange={(e) => setGoal(e.target.value)} style={input}
+        placeholder="ex. găsim șofer Ocnița" />
 
       <Lbl>Categorie</Lbl>
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
@@ -176,6 +183,7 @@ function Editor({ t, busy, onSave, onStop, onClose }: {
             const e = await onSave({
               title: title.trim() || null,
               description: description,
+              goal: goal.trim() || null,
               points: points.trim() === '' ? 30 : Number(points),
               deadline_time: deadlineTime,
               period,
@@ -192,6 +200,13 @@ function Editor({ t, busy, onSave, onStop, onClose }: {
           onClick={() => { if (window.confirm('Oprești șablonul? Sarcinile deja create rămân, dar altele noi nu vor mai apărea.')) onStop(); }}
           style={{ ...stopBtn, flex: 1 }}>Oprește</button>
       </div>
+      {(goal.trim() || t.goal) && (
+        <button disabled={busy}
+          onClick={() => { if (window.confirm(`Obiectivul «${goal.trim() || t.goal}» e atins? Șablonul se oprește cu motiv, sarcinile create rămân.`)) onGoalAchieved(); }}
+          style={{ width: '100%', marginTop: 8, background: 'rgba(26,138,74,0.12)', color: C.ok, fontWeight: 700, fontSize: 13, padding: '9px', borderRadius: 4, border: `1px solid ${C.ok}`, cursor: 'pointer' }}>
+          🏁 Obiectiv atins — oprește șablonul
+        </button>
+      )}
       {localErr && <p style={{ color: C.bad, fontSize: 13, marginTop: 8, marginBottom: 0 }}>{localErr}</p>}
     </div>
   );

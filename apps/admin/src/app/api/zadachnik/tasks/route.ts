@@ -40,7 +40,7 @@ export async function GET(req: Request) {
 async function weeklyTargets(assigneeId: string | null):
   Promise<Array<{ template_id: string; assignee_id: string; label: string; done: number; target: number }> | null> {
   let q = getSupabase().from('recurring_task_templates')
-    .select('id, assignee_id, title, description, period, week_days, target_per_week')
+    .select('id, assignee_id, title, description, period, week_days, target_per_week, goal')
     .eq('active', true);
   if (assigneeId) q = q.eq('assignee_id', assigneeId);
   const { data: templates, error: tErr } = await q;
@@ -56,6 +56,7 @@ async function weeklyTargets(assigneeId: string | null):
   return templates.map((t) => ({
     template_id: t.id as string,
     assignee_id: t.assignee_id as string,
+    goal: (t.goal as string | null) ?? null,
     label: (t.title as string | null) || String(t.description).slice(0, 30),
     done: (weekObs ?? []).filter((o) => o.recurring_template_id === t.id && o.current_state === 'resolved').length,
     // ținta: explicită, altfel dedusă din program

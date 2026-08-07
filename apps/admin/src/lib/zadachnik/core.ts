@@ -25,6 +25,7 @@ export interface Obligation {
   estimated_date: string | null;
   category: string;
   recurring_template_id: string | null;
+  goal: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -142,7 +143,7 @@ export function normCategory(c: unknown): TaskCategory {
 // ── создание ──
 export async function createTask(input: {
   creatorId: string; assigneeId: string; title: string | null; description: string; points: number; deadline: string;
-  category?: string; recurringTemplateId?: string | null; source?: string | null;
+  category?: string; recurringTemplateId?: string | null; source?: string | null; goal?: string | null;
 }): Promise<Obligation> {
   const db = getSupabase();
   const { data, error } = await db.from('obligations').insert({
@@ -152,6 +153,7 @@ export async function createTask(input: {
     current_state: 'sent',
     category: normCategory(input.category),
     recurring_template_id: input.recurringTemplateId ?? null,
+    goal: input.goal ?? null,
     // source='recurring' la spawn-ul din șablon — altfel autoVerifyTiktokTasks (care caută
     // după source+title+description) nu ar închide sarcina creată din admin în ziua creării.
     source: input.source ?? null,
@@ -276,12 +278,13 @@ export interface RecurringTemplate {
   description: string; points: number; period: 'daily' | 'mon_fri' | 'custom';
   deadline_time: string; week_days: number[] | null; active: boolean; last_generated_date: string | null; created_at: string;
   category: string; target_per_week: number | null;
+  goal: string | null; goal_achieved_at: string | null;
 }
 
 export async function createRecurringTemplate(input: {
   creatorId: string; assigneeId: string; title: string | null; description: string;
   points: number; period: 'daily' | 'mon_fri' | 'custom'; deadlineTime: string; weekDays?: number[] | null;
-  category?: string; targetPerWeek?: number | null;
+  category?: string; targetPerWeek?: number | null; goal?: string | null;
 }): Promise<RecurringTemplate> {
   const { data, error } = await getSupabase().from('recurring_task_templates').insert({
     creator_id: input.creatorId, assignee_id: input.assigneeId, title: input.title,
@@ -290,6 +293,7 @@ export async function createRecurringTemplate(input: {
     active: true,
     category: normCategory(input.category),
     target_per_week: input.targetPerWeek ?? null,
+    goal: input.goal ?? null,
   }).select('*').single();
   if (error || !data) throw new Error(error?.message || 'create failed');
   const periodLabel = input.period === 'daily' ? 'Zilnic'
@@ -312,6 +316,7 @@ export async function createRecurringTemplate(input: {
         title: input.title, description: input.description, points: input.points,
         deadline: todayDeadline,
         category: normCategory(input.category), recurringTemplateId: tpl.id, source: 'recurring',
+        goal: input.goal ?? null,
       });
       await getSupabase().from('recurring_task_templates').update({ last_generated_date: todayYMD }).eq('id', tpl.id);
     }
@@ -323,6 +328,12 @@ export async function listRecurring(): Promise<RecurringTemplate[]> {
   const { data } = await getSupabase().from('recurring_task_templates')
     .select('*').eq('active', true).order('created_at', { ascending: false });
   return (data as RecurringTemplate[]) ?? [];
+}
+
+/** «🏁 Obiectiv atins» — oprește șablonul cu motiv (goal_achieved_at), nu doar Stop. */
+export async function achieveRecurringGoal(id: string): Promise<void> {
+  await getSupabase().from('recurring_task_templates')
+    .update({ active: false, goal_achieved_at: new Date().toISOString() }).eq('id', id);
 }
 
 export async function stopRecurring(id: string): Promise<void> {

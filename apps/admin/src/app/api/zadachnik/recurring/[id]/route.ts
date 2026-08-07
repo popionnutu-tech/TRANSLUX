@@ -1,18 +1,21 @@
 import { NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/supabase';
 import { authFromInitData } from '@/lib/zadachnik/auth';
-import { stopRecurring, CATEGORIES, maxPerWeekOf } from '@/lib/zadachnik/core';
+import { stopRecurring, achieveRecurringGoal, CATEGORIES, maxPerWeekOf } from '@/lib/zadachnik/core';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 // Остановить повторение (active=false). Только ADMIN. Уже созданные задачи живут дальше.
+// action 'goal_achieved' — la fel, dar cu motiv (🏁 obiectiv atins, goal_achieved_at).
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const u = await authFromInitData(req.headers.get('x-telegram-init-data'));
   if (!u) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   if (u.role !== 'ADMIN') return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   const { id } = await params;
-  await stopRecurring(id);
+  const body = await req.json().catch(() => ({} as Record<string, unknown>));
+  if (body.action === 'goal_achieved') await achieveRecurringGoal(id);
+  else await stopRecurring(id);
   return NextResponse.json({ ok: true });
 }
 
@@ -60,6 +63,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       ? [...new Set((body.week_days as unknown[]).map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n <= 6))]
       : null;
   }
+  if (body.goal !== undefined) patch.goal = typeof body.goal === 'string' ? body.goal.trim() || null : null;
   if (body.category !== undefined) {
     if (!(CATEGORIES as readonly string[]).includes(String(body.category))) {
       return NextResponse.json({ error: 'categorie necunoscută' }, { status: 400 });

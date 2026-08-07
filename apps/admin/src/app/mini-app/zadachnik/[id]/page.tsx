@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { C, api, ready, STATE, fmt, CAT, CAT_ORDER, catOf, type Task } from '../ui';
+import { C, api, ready, STATE, fmt, CAT, CAT_ORDER, catOf, chisinauLocalToISO, type Task } from '../ui';
 
 interface Attempt {
   id: string; number: number; report_text: string | null;
@@ -148,7 +148,8 @@ export default function TaskDetail() {
                     title: eTitle.trim() || null,
                     description: eDescription.trim(),
                     points: Number(ePoints) || 0,
-                    deadline: new Date(eDeadline).toISOString(),
+                    // eDeadline e introdus ca oră a Chișinăului — nu depindem de fusul telefonului
+                    deadline: chisinauLocalToISO(eDeadline),
                   }),
                 });
                 setBusy(false);
@@ -161,6 +162,13 @@ export default function TaskDetail() {
             <button disabled={busy} onClick={() => { setEditing(false); setErr(''); }} style={{ ...secondary, flex: 1 }}>Anulează</button>
           </div>
           {err && <p style={{ color: C.bad, fontSize: 13, marginTop: 8, marginBottom: 0 }}>{err}</p>}
+        </div>
+      )}
+
+      {task.goal && (
+        <div style={{ ...panel, borderLeft: `3px solid ${C.ok}` }}>
+          <span style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.ok }}>🏁 Scopul</span>
+          <div style={{ fontSize: 14, marginTop: 3 }}>{task.goal}</div>
         </div>
       )}
 

@@ -174,6 +174,7 @@ function TargetsPanel({ targets }: { targets: TargetProgress[] }) {
               <div style={{ height: 6, background: C.panel2, borderRadius: 3, overflow: 'hidden' }}>
                 <div style={{ height: '100%', width: `${pct}%`, background: hit ? C.ok : C.accent, borderRadius: 3, transition: 'width .3s' }} />
               </div>
+              {t.goal && <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>🏁 {t.goal}</div>}
             </div>
           );
         })}
@@ -264,7 +265,7 @@ function Card({ t }: { t: Task }) {
         </span>
         <span style={{ fontSize: 12, color: s.color, whiteSpace: 'nowrap' }}>{s.icon} {s.label}</span>
       </div>
-      <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>⏰ {fmt(t.current_deadline)} · 💯 {t.points}{est ? ` · 📅 ${est}` : ''}</div>
+      <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>⏰ {fmt(t.current_deadline)} · 💯 {t.points}{est ? ` · 📅 ${est}` : ''}{t.goal ? ` · 🏁 ${t.goal.slice(0, 30)}` : ''}</div>
     </Link>
   );
 }

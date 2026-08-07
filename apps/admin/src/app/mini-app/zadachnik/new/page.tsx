@@ -25,6 +25,7 @@ export default function NewTask() {
   const [deadlineTime, setDeadlineTime] = useState('18:00');
   const [category, setCategory] = useState('ALTELE');
   const [targetPerWeek, setTargetPerWeek] = useState('');
+  const [goal, setGoal] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
@@ -46,7 +47,7 @@ export default function NewTask() {
     const r = recurring
       ? await api('/recurring', {
           method: 'POST',
-          body: JSON.stringify({ assignee_id: assignee, title: title.trim() || null, description: description.trim(), points: Number(points) || 30, period, deadline_time: deadlineTime, week_days: period === 'custom' ? weekDays : undefined, category, target_per_week: targetPerWeek.trim() ? Number(targetPerWeek) : undefined }),
+          body: JSON.stringify({ assignee_id: assignee, title: title.trim() || null, description: description.trim(), points: Number(points) || 30, period, deadline_time: deadlineTime, week_days: period === 'custom' ? weekDays : undefined, category, target_per_week: targetPerWeek.trim() ? Number(targetPerWeek) : undefined, goal: goal.trim() || undefined }),
         })
       : await api('/tasks', {
           method: 'POST',
@@ -132,6 +133,9 @@ export default function NewTask() {
               ))}
             </div>
           )}
+          <Label>🏁 Scopul (opțional) — DE CE se fac sarcinile</Label>
+          <input value={goal} onChange={(e) => setGoal(e.target.value)} style={input}
+            placeholder="ex. găsim șofer Ocnița — video-urile sunt doar instrumentul" />
           <Label>🎯 Țintă / săptămână — sarcini închise (gol = după program, max {maxPerWeekOf(period, weekDays) || '—'})</Label>
           <input type="number" min={1} max={maxPerWeekOf(period, weekDays) || undefined}
             value={targetPerWeek} onChange={(e) => setTargetPerWeek(e.target.value)}

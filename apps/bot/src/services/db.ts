@@ -239,7 +239,7 @@ async function spawnObligation(o: {
   creatorId: string; assigneeId: string; assigneeTelegramId: number | null;
   title: string | null; description: string; points: number; deadline: string;
   source: string; vehiclePlate?: string | null; notifyText?: string;
-  category?: string; recurringTemplateId?: string | null;
+  category?: string; recurringTemplateId?: string | null; goal?: string | null;
 }): Promise<string | null> {
   const supa = db();
   const { data: ob, error } = await supa.from('obligations').insert({
@@ -255,6 +255,7 @@ async function spawnObligation(o: {
     vehicle_plate: o.vehiclePlate ?? null,
     category: o.category ?? 'ALTELE',
     recurring_template_id: o.recurringTemplateId ?? null,
+    goal: o.goal ?? null,
   }).select('id').single();
   if (error || !ob) { console.error('spawnObligation insert error:', error?.message); return null; }
 
@@ -511,6 +512,7 @@ export async function generateRecurringTasks(): Promise<number> {
       source: 'recurring',
       category: (t.category as string) ?? 'ALTELE',
       recurringTemplateId: t.id as string,
+      goal: (t.goal as string | null) ?? null,
     });
     if (id) created++;
     else await sendAdminAlert(`⚠️ <b>Generator sarcini recurente</b>: crearea sarcinii din șablonul «${escapeHtml(t.title ?? t.description?.slice(0, 40) ?? '')}» a eșuat — ziua e deja marcată, sarcina NU se va relua azi.`);

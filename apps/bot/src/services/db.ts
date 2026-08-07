@@ -587,9 +587,11 @@ export async function autoVerifyTiktokTasks(date: string): Promise<number> {
       .maybeSingle();
     let obRow = obRow0;
     if (!obRow) {
-      // Fallback pe cheia veche (title+description) — pt. sarcini create de cod vechi, fără legătură.
+      // Fallback pe cheia veche (title+description) — DOAR pt. sarcini create de cod vechi,
+      // fără legătură (is null previne închiderea sarcinii altui șablon cu același text).
       let q = supa.from('obligations')
         .select('id')
+        .is('recurring_template_id', null)
         .eq('assignee_id', t.assignee_id)
         .eq('source', 'recurring')
         .eq('description', t.description)

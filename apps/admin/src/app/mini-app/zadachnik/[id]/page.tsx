@@ -172,7 +172,7 @@ export default function TaskDetail() {
         </div>
       )}
 
-      {task.title && <div style={{ ...panel, whiteSpace: 'pre-wrap' }}>{task.description}</div>}
+      {(task.title || task.description.length > 60) && <div style={{ ...panel, whiteSpace: 'pre-wrap' }}>{task.description}</div>}
 
       {attempts.length > 0 && (
         <div style={{ marginTop: 12 }}>
@@ -187,7 +187,7 @@ export default function TaskDetail() {
         </div>
       )}
 
-      {err && <p style={{ color: C.bad, fontSize: 13 }}>{err}</p>}
+      {err && !editing && <p style={{ color: C.bad, fontSize: 13 }}>{err}</p>}
 
       {/* ── Действия исполнителя ── */}
       {isAssignee && (st === 'sent' || st === 'delivered') && (

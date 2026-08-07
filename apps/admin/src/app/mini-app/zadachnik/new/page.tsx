@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { C, api, ready, CAT, CAT_ORDER, maxPerWeekOf } from '../ui';
+import { C, api, ready, CAT, CAT_ORDER, maxPerWeekOf, chisinauLocalToISO } from '../ui';
 
 function defaultDeadline(): string {
   const d = new Date();
@@ -51,7 +51,9 @@ export default function NewTask() {
         })
       : await api('/tasks', {
           method: 'POST',
-          body: JSON.stringify({ assignee_id: assignee, title: title.trim() || null, description: description.trim(), points: Number(points) || 30, deadline, category }),
+          // deadline e introdus ca oră a Chișinăului — trimitem ISO cu offset, altfel serverul
+          // (Vercel, TZ=UTC) l-ar citi ca UTC și termenul ar aluneca cu +2/3 ore.
+          body: JSON.stringify({ assignee_id: assignee, title: title.trim() || null, description: description.trim(), points: Number(points) || 30, deadline: chisinauLocalToISO(deadline), category }),
         });
     setBusy(false);
     if (!r.ok) { const d = await r.json().catch(() => ({})); setErr(d.error || 'Eroare la creare.'); return; }

@@ -18,14 +18,18 @@ type TG = { WebApp?: {
 export function confirmDialog(message: string): Promise<boolean> {
   if (typeof window === 'undefined') return Promise.resolve(false);
   const w = window as unknown as { Telegram?: TG };
+  const msg = message.slice(0, 256); // Telegram respinge sincron mesaje >256 (WebAppPopupParamInvalid)
   const show = w.Telegram?.WebApp?.showConfirm;
+  const inTelegram = (() => { const d = initData(); return d !== '' && d !== '__dev__'; })();
   if (show) {
     return new Promise((resolve) => {
-      try { show.call(w.Telegram!.WebApp, message, (ok: boolean) => resolve(ok)); }
-      catch { resolve(window.confirm(message)); }
+      // Client vechi / popup deja deschis → throw sincron. În Telegram NU cădem pe
+      // window.confirm (e blocat → false tăcut = exact bug-ul reparat): acționăm fără dialog.
+      try { show.call(w.Telegram!.WebApp, msg, (ok: boolean) => resolve(ok)); }
+      catch { resolve(inTelegram ? true : window.confirm(msg)); }
     });
   }
-  return Promise.resolve(window.confirm(message));
+  return Promise.resolve(inTelegram ? true : window.confirm(msg));
 }
 
 export function initData(): string {

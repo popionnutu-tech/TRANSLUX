@@ -165,7 +165,7 @@ export async function createTask(input: {
   await logEvent(ob.id, 'sent', input.creatorId);
   await notify(
     await telegramOf(input.assigneeId),
-    `📋 <b>Sarcină nouă</b>\n${input.title ?? input.description.slice(0, 60)}\n⏰ ${fmtDeadline(input.deadline)} · 💯 ${input.points} pct\n\nDeschide «Задачник» în meniul botului ca s-o accepți.`
+    `📋 <b>Sarcină nouă</b>\n${input.title ?? input.description.slice(0, 60)}\n⏰ ${fmtDeadline(input.deadline)} · 💯 ${input.points} pct\n\nApasă butonul ≡ («Sarcini») de lângă câmpul de mesaj ca s-o accepți.`
   );
   return ob;
 }
@@ -209,7 +209,7 @@ export async function submitReport(ob: Obligation, actorId: string, text: string
   const { error: aerr } = await db.from('obligation_attempts').insert({ obligation_id: ob.id, number, report_text: text, verdict: 'pending' });
   if (aerr) console.error('zadachnik attempt insert error:', aerr.message);
   await logEvent(ob.id, 'report_submitted', actorId, { attempt_number: number });
-  await notify(await telegramOf(ob.creator_id), `📤 <b>Raport depus</b>\n${ob.title ?? ob.description.slice(0, 60)}\nDeschide «Задачник» ca să decizi.`);
+  await notify(await telegramOf(ob.creator_id), `📤 <b>Raport depus</b>\n${ob.title ?? ob.description.slice(0, 60)}\nApasă butonul ≡ («Sarcini») ca să decizi.`);
 }
 
 // ── действия постановщика (по report_pending) ──

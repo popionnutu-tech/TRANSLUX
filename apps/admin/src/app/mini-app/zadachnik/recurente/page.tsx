@@ -202,7 +202,7 @@ function Editor({ t, busy, onSave, onStop, onGoalAchieved, onClose }: {
       </div>
       {t.goal && (
         <button disabled={busy}
-          onClick={async () => { if (await confirmDialog(`Obiectivul «${(t.goal ?? '').slice(0, 120)}» e atins? Șablonul se oprește cu motiv, sarcinile create rămân.`)) onGoalAchieved(); }}
+          onClick={async () => { const g = t.goal ?? ''; if (await confirmDialog(`Obiectivul «${g.length > 120 ? g.slice(0, 120) + '…' : g}» e atins? Șablonul se oprește cu motiv, sarcinile create rămân.`)) onGoalAchieved(); }}
           style={{ width: '100%', marginTop: 8, background: 'rgba(26,138,74,0.12)', color: C.ok, fontWeight: 700, fontSize: 13, padding: '9px', borderRadius: 4, border: `1px solid ${C.ok}`, cursor: 'pointer' }}>
           🏁 Obiectiv atins — oprește șablonul
         </button>

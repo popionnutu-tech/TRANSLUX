@@ -266,7 +266,7 @@ async function spawnObligation(o: {
 
   await notifyTelegram(
     o.assigneeTelegramId,
-    o.notifyText ?? `📋 <b>Sarcină nouă</b>\n${o.title ?? o.description.slice(0, 60)}\nDeschide «Задачник» în meniul botului ca s-o accepți.`
+    o.notifyText ?? `📋 <b>Sarcină nouă</b>\n${o.title ?? o.description.slice(0, 60)}\nApasă butonul ≡ («Sarcini») de lângă câmpul de mesaj ca s-o accepți.`
   );
   return ob.id as string;
 }
@@ -327,7 +327,7 @@ export async function createReclamaTask(input: {
     source: 'reclama',
     category: 'MARKETING_AUTO',
     vehiclePlate: input.vehiclePlate,
-    notifyText: `📋 <b>Sarcină nouă (auto)</b>\n${description}\nDeschide «Задачник» în meniul botului ca s-o accepți.`,
+    notifyText: `📋 <b>Sarcină nouă (auto)</b>\n${description}\nApasă butonul ≡ («Sarcini») de lângă câmpul de mesaj ca s-o accepți.`,
   });
   return !!id;
 }

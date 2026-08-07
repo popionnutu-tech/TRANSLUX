@@ -13,10 +13,11 @@ type TG = { WebApp?: {
 } };
 
 /** Confirmare care FUNCȚIONEAZĂ în Telegram Mini App (window.confirm e blocat acolo →
- *  false tăcut). Semantică: Telegram.WebApp.showConfirm când merge; în Telegram, dacă
- *  dialogul nu e disponibil / aruncă / nu răspunde în 3s — acțiunea SE EXECUTĂ fără dialog
- *  (butonul apăsat = intenția; tăcerea ar reface bug-ul «nu face nimic»). window.confirm
- *  rămâne doar în browser obișnuit (dev). */
+ *  false tăcut). Semantică: Telegram.WebApp.showConfirm când există; în Telegram, dacă
+ *  dialogul lipsește sau aruncă sincron (client vechi, popup deja deschis — WebAppPopupOpened),
+ *  acțiunea SE EXECUTĂ fără dialog (butonul apăsat = intenția). FĂRĂ timeout: showConfirm e
+ *  non-blocant, un timer ar răspunde «da» în locul omului care încă citește întrebarea.
+ *  window.confirm rămâne doar în browser obișnuit (dev). */
 export function confirmDialog(message: string): Promise<boolean> {
   if (typeof window === 'undefined') return Promise.resolve(false);
   const w = window as unknown as { Telegram?: TG };
@@ -25,12 +26,8 @@ export function confirmDialog(message: string): Promise<boolean> {
   const inTelegram = (() => { const d = initData(); return d !== '' && d !== '__dev__'; })();
   if (show) {
     return new Promise((resolve) => {
-      // Unii clienți ignoră tăcut showConfirm (ex. popup deja deschis) — fără timeout
-      // promisiunea n-ar rezolva niciodată și butonul ar muri iar.
-      const t = setTimeout(() => resolve(inTelegram ? true : window.confirm(msg)), 3000);
-      const done = (ok: boolean) => { clearTimeout(t); resolve(ok); };
-      try { show.call(w.Telegram!.WebApp, msg, done); }
-      catch { clearTimeout(t); resolve(inTelegram ? true : window.confirm(msg)); }
+      try { show.call(w.Telegram!.WebApp, msg, (ok: boolean) => resolve(ok)); }
+      catch { resolve(inTelegram ? true : window.confirm(msg)); }
     });
   }
   return Promise.resolve(inTelegram ? true : window.confirm(msg));

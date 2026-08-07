@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { C, api, ready, STATE, fmt, CAT_ORDER, catOf, catKeyOf, type Task, type TargetProgress } from './ui';
 
-const CURRENT_STATES = ['created', 'sent', 'delivered', 'accepted', 'in_progress', 'report_pending', 'overdue', 'overdue_responded'];
+// Serverul (listForAdmin) trimite deja doar stări nonterminale — nu mai refiltrăm pe client.
 
 interface RecTemplate {
   id: string; assignee_id: string; title: string | null; description: string; points: number;
@@ -72,7 +72,7 @@ export default function ZadachnikHome() {
   // ключ — assignee_id (не label: безымянные на одной точке дали бы коллизию метки)
   const empMap = new Map<string, { label: string; tasks: Task[]; rec: RecTemplate[] }>();
   if (isAdmin && view === 'employee') {
-    for (const t of tasks.filter((t) => CURRENT_STATES.includes(t.current_state))) {
+    for (const t of tasks) {
       const k = t.assignee_id;
       if (!empMap.has(k)) empMap.set(k, { label: t.assignee_label || '—', tasks: [], rec: [] });
       empMap.get(k)!.tasks.push(t);
@@ -242,11 +242,11 @@ function EmployeeGroup({ name, tasks, rec, targets }: { name: string; tasks: Tas
   );
 }
 
-function Section({ title, tasks, accent, muted }: { title: string; tasks: Task[]; accent: string; muted?: boolean }) {
+function Section({ title, tasks, accent }: { title: string; tasks: Task[]; accent: string }) {
   if (tasks.length === 0) return null;
   return (
     <div style={{ marginBottom: 16 }}>
-      <div style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: accent, marginBottom: 6, opacity: muted ? 0.7 : 1 }}>
+      <div style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: accent, marginBottom: 6 }}>
         {title} · {tasks.length}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{tasks.map((t) => <Card key={t.id} t={t} />)}</div>

@@ -44,6 +44,7 @@ const ACTIVE_STATES: ObligationState[] = ['sent', 'delivered', 'accepted', 'in_p
 const NONTERMINAL: ObligationState[] = [
   'created', 'sent', 'delivered', 'accepted', 'in_progress', 'report_pending', 'overdue', 'overdue_responded',
 ];
+const TERMINAL: ObligationState[] = ['resolved', 'rejected', 'cancelled', 'ignored', 'failed'];
 
 export function fmtDeadline(iso: string): string {
   return new Intl.DateTimeFormat('ro-RO', {
@@ -262,9 +263,8 @@ export async function listForAdmin(): Promise<Obligation[]> {
 }
 
 export async function listForAssignee(assigneeId: string, bucket: 'active' | 'history'): Promise<Obligation[]> {
-  const states = bucket === 'history'
-    ? ['resolved', 'rejected', 'cancelled', 'ignored', 'failed']
-    : ['sent', 'delivered', 'accepted', 'in_progress', 'report_pending', 'overdue', 'overdue_responded'];
+  // Aceleași constante ca listForAdmin — două definiții paralele au divergat deja o dată ('created').
+  const states = bucket === 'history' ? TERMINAL : NONTERMINAL;
   const { data } = await getSupabase().from('obligations').select('*')
     .eq('assignee_id', assigneeId).in('current_state', states)
     .order('current_deadline', { ascending: true });

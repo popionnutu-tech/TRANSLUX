@@ -71,6 +71,40 @@ function delta(today: number, last: number): string {
   return '= 0';
 }
 
+/**
+ * Operatorii care au trimis rapoarte azi pe acest punct (nume, deduplicat).
+ * Returnează null la eroare de query — ca „nu știm" să nu arate ca „nimeni".
+ */
+async function loadOperators(date: string, point: PointEnum): Promise<string[] | null> {
+  const { data, error } = await getSupabase()
+    .from('reports')
+    .select('created_by_user')
+    .eq('report_date', date)
+    .eq('point', point)
+    .is('cancelled_at', null);
+  if (error) {
+    console.error(`loadOperators reports query failed (${point}):`, error.message);
+    return null;
+  }
+
+  const ids = [...new Set((data || []).map((r: any) => r.created_by_user as string))];
+  if (ids.length === 0) return [];
+
+  const { data: users, error: usersErr } = await getSupabase()
+    .from('users')
+    .select('id, name, username')
+    .in('id', ids);
+  if (usersErr) {
+    console.error(`loadOperators users query failed (${point}):`, usersErr.message);
+    return null;
+  }
+
+  return ids.map((id) => {
+    const u = (users || []).find((x: any) => x.id === id);
+    return u?.name || (u?.username ? `@${u.username}` : '?');
+  });
+}
+
 async function loadReports(date: string, point: PointEnum): Promise<Row[]> {
   const { data } = await getSupabase()
     .from('reports')
@@ -106,13 +140,29 @@ async function loadScheduledCount(point: PointEnum): Promise<number> {
   return count ?? 0;
 }
 
-function buildText(date: string, today: Row[], lastWeek: Row[], scheduledCount: number, point: PointEnum): string {
+function buildText(
+  date: string,
+  today: Row[],
+  lastWeek: Row[],
+  scheduledCount: number,
+  point: PointEnum,
+  opsChisinau: string[] | null,
+  opsBalti: string[] | null,
+): string {
   const showNord = point === 'BALTI';
   const lastMap = new Map<string, number | null>();
   for (const r of lastWeek) lastMap.set(r.tripId, paxValue(r));
 
+  // Operatorii zilei: punctul propriu al tablei primul.
+  // null = query eșuat → „n/d"; listă goală = încă niciun raport → „—".
+  const opsLabel = (ops: string[] | null) => (ops === null ? 'n/d' : ops.join(', ') || '—');
+  const opsCh = `Chișinău: ${opsLabel(opsChisinau)}`;
+  const opsBa = `Bălți: ${opsLabel(opsBalti)}`;
+  const opLine = point === 'BALTI' ? `👤 ${opsBa} · ${opsCh}` : `👤 ${opsCh} · ${opsBa}`;
+
   const header =
     `${BOARD_TITLE[point]} — ${weekdayRo(date)} ${ddmm(date)}\n` +
+    `${opLine}\n` +
     `vs aceeași zi acum o săptămână (${ddmm(minus7(date))})`;
 
   const lines: string[] = [];
@@ -225,14 +275,16 @@ async function updateBoard(point: PointEnum): Promise<void> {
   if (adminChatIds.size === 0) return;
 
   const date = getTodayDate();
-  const [todayRows, lastWeekRows, scheduledCount] = await Promise.all([
+  const [todayRows, lastWeekRows, scheduledCount, opsChisinau, opsBalti] = await Promise.all([
     loadReports(date, point),
     loadReports(minus7(date), point),
     loadScheduledCount(point),
+    loadOperators(date, 'CHISINAU'),
+    loadOperators(date, 'BALTI'),
   ]);
   if (todayRows.length === 0) return;
 
-  const text = buildText(date, todayRows, lastWeekRows, scheduledCount, point);
+  const text = buildText(date, todayRows, lastWeekRows, scheduledCount, point, opsChisinau, opsBalti);
 
   const state = await loadState(date, point);
   let changed = false;

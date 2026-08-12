@@ -55,6 +55,18 @@ export function isoWeekday(dateYMD: string): number {
   return d === 0 ? 7 : d;
 }
 
+/** Șoferul titular al unei mașini din lde_active_assignments (schimb exact, apoi orice schimb). */
+export async function titularForVehicle(vehicleId: string, shiftNumber: number): Promise<string | null> {
+  const { data } = await getSupabase()
+    .from('lde_active_assignments')
+    .select('driver_id, shift_number')
+    .eq('vehicle_id', vehicleId)
+    .is('valid_to', null);
+  const rows = data ?? [];
+  const exact = rows.find((r) => r.shift_number === shiftNumber);
+  return ((exact ?? rows[0])?.driver_id as string | undefined) ?? null;
+}
+
 /** Direcțiile unui manager (users.role=MANAGER_LDE). ADMIN → null = toate. */
 export async function managerDirections(userId: string): Promise<string[]> {
   const { data } = await getSupabase()
@@ -300,7 +312,7 @@ export async function syncWriteThrough(date: string): Promise<number> {
 
 /** Schimbarea comună de status/audit la orice editare a unui rând. */
 async function updateRow(
-  rowId: string, patch: Record<string, unknown>, userId: string,
+  rowId: string, patch: Record<string, unknown>, userId: string | null, adminId?: string | null,
 ): Promise<{ prev: AtribuireRow; next: AtribuireRow }> {
   const db = getSupabase();
   const { data: row } = await db.from('lde_atribuiri_zilnice')
@@ -313,7 +325,7 @@ async function updateRow(
   const status = prev.date < today ? 'modificat_reactiv' : 'modificat_proactiv';
 
   const { data: upd, error } = await db.from('lde_atribuiri_zilnice')
-    .update({ ...patch, status, changed_by: userId, changed_at: new Date().toISOString() })
+    .update({ ...patch, status, changed_by: userId, changed_by_admin: adminId ?? null, changed_at: new Date().toISOString() })
     .eq('id', rowId)
     .select(ROW_COLS)
     .single();
@@ -321,9 +333,17 @@ async function updateRow(
   return { prev, next: upd as unknown as AtribuireRow };
 }
 
-/** Atribuie o mașină pe un rând (autorizarea pe direcție se face în API). */
-export async function atribuie(rowId: string, vehicleId: string | null, userId: string): Promise<AtribuireRow> {
-  const { prev, next } = await updateRow(rowId, { vehicle_id: vehicleId }, userId);
+/** Atribuie o mașină pe un rând (autorizarea pe direcție se face în API/actions).
+ *  Pe uzine mașina merge mereu cu șofer: titularul se pune automat; golirea mașinii curăță șoferul. */
+export async function atribuie(rowId: string, vehicleId: string | null, userId: string | null, adminId?: string | null): Promise<AtribuireRow> {
+  const { data: r0 } = await getSupabase().from('lde_atribuiri_zilnice')
+    .select('route_kind, shift_number, driver_id').eq('id', rowId).maybeSingle();
+  const patch: Record<string, unknown> = { vehicle_id: vehicleId };
+  if (r0?.route_kind === 'uzina') {
+    if (vehicleId == null) patch.driver_id = null;
+    else patch.driver_id = (await titularForVehicle(vehicleId, (r0.shift_number as number) ?? 1)) ?? r0.driver_id ?? null;
+  }
+  const { prev, next } = await updateRow(rowId, patch, userId, adminId);
   if (prev.route_kind !== 'uzina' && prev.crm_route_id != null) {
     await writeThroughCrm(prev.date, prev.crm_route_id, vehicleId);
   }
@@ -332,15 +352,18 @@ export async function atribuie(rowId: string, vehicleId: string | null, userId: 
 
 /** Atribuie un șofer pe un rând. Pe cursele din orar șoferul nu se poate SCOATE
  *  (daily_assignments.driver_id e NOT NULL — graficul cere mereu un șofer), doar înlocui. */
-export async function atribuieSofer(rowId: string, driverId: string | null, userId: string): Promise<AtribuireRow> {
+export async function atribuieSofer(rowId: string, driverId: string | null, userId: string | null, adminId?: string | null): Promise<AtribuireRow> {
   if (driverId == null) {
     const { data: r } = await getSupabase()
-      .from('lde_atribuiri_zilnice').select('route_kind').eq('id', rowId).maybeSingle();
+      .from('lde_atribuiri_zilnice').select('route_kind, vehicle_id').eq('id', rowId).maybeSingle();
     if (r && r.route_kind !== 'uzina') {
       throw new Error('Cursa din orar trebuie să aibă șofer — alege altul în loc să-l scoți');
     }
+    if (r && r.route_kind === 'uzina' && r.vehicle_id) {
+      throw new Error('Mașina atribuită trebuie să aibă șofer — înlocuiește-l sau golește mașina');
+    }
   }
-  const { prev, next } = await updateRow(rowId, { driver_id: driverId }, userId);
+  const { prev, next } = await updateRow(rowId, { driver_id: driverId }, userId, adminId);
   if (prev.route_kind !== 'uzina' && prev.crm_route_id != null) {
     await writeThroughDriverCrm(prev.date, prev.crm_route_id, driverId);
   }
@@ -377,9 +400,9 @@ export async function setFoaie(rowId: string, receiptNr: string): Promise<{ erro
 }
 
 /** Confirmare manuală «a fost ok» după push de nepotrivire. */
-export async function confirmaManual(rowId: string, userId: string): Promise<void> {
+export async function confirmaManual(rowId: string, userId: string | null, adminId?: string | null): Promise<void> {
   const { error } = await getSupabase().from('lde_atribuiri_zilnice')
-    .update({ status: 'confirmat_manual', changed_by: userId, confirmed_at: new Date().toISOString() })
+    .update({ status: 'confirmat_manual', changed_by: userId, changed_by_admin: adminId ?? null, confirmed_at: new Date().toISOString() })
     .eq('id', rowId);
   if (error) throw new Error(error.message);
 }
@@ -441,7 +464,7 @@ export async function listTemplate(uzinaId: string): Promise<TemplateGridRow[]> 
 /** Setează/curăță o celulă de șablon. Afectează doar zilele NE-materializate încă. */
 export async function setTemplateCell(
   factoryRouteId: string, shiftNumber: number, weekday: number,
-  vehicleId: string | null, userId: string,
+  vehicleId: string | null, userId: string | null, adminId?: string | null,
 ): Promise<void> {
   const db = getSupabase();
   if (vehicleId == null) {
@@ -452,7 +475,7 @@ export async function setTemplateCell(
   }
   const { error } = await db.from('lde_weekly_template').upsert({
     factory_route_id: factoryRouteId, shift_number: shiftNumber, weekday,
-    vehicle_id: vehicleId, updated_by: userId, updated_at: new Date().toISOString(),
+    vehicle_id: vehicleId, updated_by: userId, updated_by_admin: adminId ?? null, updated_at: new Date().toISOString(),
   }, { onConflict: 'factory_route_id,shift_number,weekday' });
   if (error) throw new Error(error.message);
 }
@@ -480,4 +503,50 @@ export async function vehiclesForPicker(direction: string): Promise<Array<{ id: 
     plate: normPlate(v.plate_number),
     inDirection: (v.directions ?? []).includes(direction),
   })).sort((a, b) => Number(b.inDirection) - Number(a.inDirection) || a.plate.localeCompare(b.plate));
+}
+
+export interface AtribuieMultiParams {
+  factoryRouteId: string;
+  shiftNumber: number;
+  dates: string[];           // YYYY-MM-DD — zilele bifate
+  vehicleId: string | null;  // null = golește cursa (curăță și șoferul)
+  driverId?: string | null;  // omis/null = auto (titularul mașinii)
+  siInSablon?: boolean;      // scrie și lde_weekly_template pe weekday-urile zilelor
+}
+
+/** Schimbare pe una sau mai multe zile — nucleul grilei săptămânale (web) și al
+ *  «Aplică și pe alte zile» (mini app). Zilele fără rând (uzina nu lucrează) se sar. */
+export async function atribuieMulti(
+  p: AtribuieMultiParams, userId: string | null, adminId?: string | null,
+): Promise<{ updated: number }> {
+  const db = getSupabase();
+  const routeKey = `uzina:${p.factoryRouteId}:${p.shiftNumber}`;
+  let driverId = p.driverId ?? null;
+  if (p.vehicleId == null) driverId = null;
+  else if (driverId == null) {
+    driverId = await titularForVehicle(p.vehicleId, p.shiftNumber);
+    if (driverId == null) throw new Error('Mașina nu are șofer titular — alege șoferul explicit');
+  }
+  let updated = 0;
+  for (const date of [...new Set(p.dates)].sort()) {
+    await ensureDayMaterialized(date);
+    const { data: row } = await db.from('lde_atribuiri_zilnice')
+      .select('id').eq('date', date).eq('route_key', routeKey).maybeSingle();
+    if (!row) continue;
+    await updateRow(row.id, { vehicle_id: p.vehicleId, driver_id: driverId }, userId, adminId);
+    updated++;
+  }
+  if (p.siInSablon && p.vehicleId != null) {
+    for (const wd of [...new Set(p.dates.map(isoWeekday))]) {
+      await setTemplateCell(p.factoryRouteId, p.shiftNumber, wd, p.vehicleId, userId, adminId);
+    }
+  }
+  return { updated };
+}
+
+/** Rândurile unei uzine pe un set de zile (materializează fiecare zi — idempotent). */
+export async function listSaptamana(uzinaId: string, dates: string[]): Promise<AtribuireView[]> {
+  const out: AtribuireView[] = [];
+  for (const d of dates) out.push(...await listZi(d, [uzinaId]));
+  return out;
 }

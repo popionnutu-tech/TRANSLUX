@@ -341,7 +341,11 @@ export async function atribuie(rowId: string, vehicleId: string | null, userId: 
   const patch: Record<string, unknown> = { vehicle_id: vehicleId };
   if (r0?.route_kind === 'uzina') {
     if (vehicleId == null) patch.driver_id = null;
-    else patch.driver_id = (await titularForVehicle(vehicleId, (r0.shift_number as number) ?? 1)) ?? r0.driver_id ?? null;
+    else {
+      const driverId = (await titularForVehicle(vehicleId, (r0.shift_number as number) ?? 1)) ?? r0.driver_id ?? null;
+      if (driverId == null) throw new Error('Mașina nu are șofer titular — alege întâi șoferul');
+      patch.driver_id = driverId;
+    }
   }
   const { prev, next } = await updateRow(rowId, patch, userId, adminId);
   if (prev.route_kind !== 'uzina' && prev.crm_route_id != null) {

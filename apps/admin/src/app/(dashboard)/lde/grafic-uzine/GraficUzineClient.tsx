@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getSaptamana, getPickers, getTitularId, salveazaMulti, confirmaManualAdmin, type AtribuireView } from './actions';
 
 // Grila săptămânală de uzine (mockup v2, 12.08.2026): o uzină pe ecran (tab-uri),
@@ -46,6 +46,7 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
   const [inSablon, setInSablon] = useState(false);
   const [qVeh, setQVeh] = useState('');
   const [qSof, setQSof] = useState('');
+  const vehicleReqRef = useRef<string | null>(null); // ultima mașină cerută la getTitularId — anulează răspunsurile vechi
 
   const load = useCallback(async (uz: string) => {
     setErr(null);
@@ -72,20 +73,24 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
 
   function openPopup(r: AtribuireView) {
     setPopup(r);
+    setErr(null);
     setSelVehicle(r.vehicle_id);
     setSelDriver(r.driver_id);
     setSelDates([r.date]);
     setInSablon(false);
     setQVeh(''); setQSof('');
+    vehicleReqRef.current = r.vehicle_id;
   }
 
   async function pickVehicle(vid: string | null) {
+    if (vid === selVehicle) return; // click pe mașina deja selectată = no-op, nu suprascrie șoferul ales
+    vehicleReqRef.current = vid;
     setSelVehicle(vid);
     if (vid == null) { setSelDriver(null); return; }
     // titularul se completează automat (spec: mașina merge mereu cu șofer)
     const tit = await getTitularId(vid, popup!.shift_number!).catch(() => null);
-    if (tit) setSelDriver(tit);
-    else if (selVehicle !== vid) setSelDriver(null);
+    if (vehicleReqRef.current !== vid) return; // altă mașină aleasă între timp — ignorăm răspunsul vechi
+    setSelDriver(tit);
   }
 
   async function save() {

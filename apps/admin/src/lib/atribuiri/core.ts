@@ -96,9 +96,10 @@ export async function ensureDaysMaterialized(dates: string[]): Promise<void> {
   if (!dates.length) return;
 
   // ── curse de uzină: rută×schimb (aceleași pentru toate zilele) ──
-  const { data: shifts } = await db
+  const { data: shifts, error: shiftsErr } = await db
     .from('lde_factory_route_shifts')
     .select('id, shift_number, route:lde_factory_routes!inner ( id, uzina_id, uzina:lde_uzine!inner ( id, active, has_weekly_template, works_saturday, works_sunday ) )');
+  if (shiftsErr) throw new Error(`materializare: ${shiftsErr.message}`);
   type ShiftRow = {
     id: string; shift_number: number;
     route: { id: string; uzina_id: string; uzina: { id: string; active: boolean; has_weekly_template: boolean; works_saturday: boolean; works_sunday: boolean } };
@@ -106,15 +107,17 @@ export async function ensureDaysMaterialized(dates: string[]): Promise<void> {
   const allShifts = (shifts ?? []) as unknown as ShiftRow[];
 
   // default-ul mașinii: șablonul săptămânal (uzine cu șablon) / primary-ul static (Trox).
-  // Șablonul se ia integral (fără filtru weekday — mai ieftin decât 7 apeluri filtrate),
-  // keyed pe `${factory_route_id}:${shift_number}:${weekday}`. Paginat explicit: tabela a
-  // trecut deja de 1000 de rânduri, iar PostgREST taie tăcut la limita implicită — fără
-  // .range() pierdem celule (constatare performance-reviewer, 12.08.2026).
+  // Filtrat pe weekday-urile din `dates` (7 zile → toate; 1 zi, ruta /zi + cronul de
+  // verificare → o singură pagină ~160 rânduri), keyed pe `${factory_route_id}:${shift_number}:${weekday}`.
+  // Paginat explicit: tabela a trecut deja de 1000 de rânduri, iar PostgREST taie tăcut la
+  // limita implicită — fără .range() pierdem celule (constatare performance-reviewer, 12.08.2026).
+  const weekdaysNeeded = [...new Set(dates.map(isoWeekday))];
   const tpl: Array<{ factory_route_id: string; shift_number: number; weekday: number; vehicle_id: string }> = [];
   for (let from = 0; ; from += 1000) {
     const { data: page, error: tplErr } = await db
       .from('lde_weekly_template')
       .select('factory_route_id, shift_number, weekday, vehicle_id')
+      .in('weekday', weekdaysNeeded)
       .order('factory_route_id').order('shift_number').order('weekday')
       .range(from, from + 999);
     if (tplErr) throw new Error(`șablon (pagina de la ${from}): ${tplErr.message}`);
@@ -123,18 +126,20 @@ export async function ensureDaysMaterialized(dates: string[]): Promise<void> {
   }
   const tplMap = new Map(tpl.map((t) => [`${t.factory_route_id}:${t.shift_number}:${t.weekday}`, t.vehicle_id]));
 
-  const { data: statics } = await db
+  const { data: statics, error: staticsErr } = await db
     .from('lde_factory_route_vehicles')
     .select('vehicle_id, is_primary, shift:lde_factory_route_shifts!inner ( route_id, shift_number )')
     .eq('is_primary', true);
+  if (staticsErr) throw new Error(`materializare: ${staticsErr.message}`);
   type StaticRow = { vehicle_id: string; shift: { route_id: string; shift_number: number } };
   const staticMap = new Map(((statics ?? []) as unknown as StaticRow[]).map((s) => [`${s.shift.route_id}:${s.shift.shift_number}`, s.vehicle_id]));
 
   // șoferul default la uzine: atribuirea activă șofer↔mașină(±schimb) din lde_active_assignments
-  const { data: actives } = await db
+  const { data: actives, error: activesErr } = await db
     .from('lde_active_assignments')
     .select('driver_id, vehicle_id, shift_number')
     .is('valid_to', null);
+  if (activesErr) throw new Error(`materializare: ${activesErr.message}`);
   const activeDriver = new Map<string, string>();
   for (const a of actives ?? []) {
     if (a.shift_number != null) activeDriver.set(`${a.vehicle_id}:${a.shift_number}`, a.driver_id as string);
@@ -144,12 +149,14 @@ export async function ensureDaysMaterialized(dates: string[]): Promise<void> {
     vehicleId ? activeDriver.get(`${vehicleId}:${shift}`) ?? activeDriver.get(`${vehicleId}:*`) ?? null : null;
 
   // ── interurban/suburban: rute active (aceleași pentru toate zilele) + daily_assignments per zi ──
-  const { data: crm } = await db
+  const { data: crm, error: crmErr } = await db
     .from('crm_routes').select('id, route_type').eq('active', true);
-  const { data: das } = await db
+  if (crmErr) throw new Error(`materializare: ${crmErr.message}`);
+  const { data: das, error: dasErr } = await db
     .from('daily_assignments')
     .select('assignment_date, crm_route_id, retur_route_id, vehicle_id, vehicle_id_retur, driver_id')
     .in('assignment_date', dates);
+  if (dasErr) throw new Error(`materializare: ${dasErr.message}`);
   const daVeh = new Map<string, string | null>();
   const daDrv = new Map<string, string | null>();
   for (const d of das ?? []) {

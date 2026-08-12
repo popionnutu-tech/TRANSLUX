@@ -118,6 +118,8 @@ function DirectieInner() {
     load();
   }
 
+  const today0 = chisinauDay(0); // hoistat din chip-urile de mai jos — o singură dată per render, nu per chip
+
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
@@ -193,7 +195,7 @@ function DirectieInner() {
                 <div style={{ display: 'flex', gap: 4 }}>
                   {saptamana.filter((d) => d !== date).map((d) => {
                     const on = multiSel.includes(d);
-                    const past = d < chisinauDay(0); // corecții pe zile trecute rămân posibile, doar vizual dimmed
+                    const past = d < today0; // corecții pe zile trecute rămân posibile, doar vizual dimmed
                     return (
                       <button key={d}
                         onClick={() => setMultiSel((s) => (on ? s.filter((x) => x !== d) : [...s, d]))}

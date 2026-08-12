@@ -51,4 +51,8 @@ describe('valideazaZileMulti', () => {
   it('32 de zile în trecut → aruncă', () => {
     expect(() => valideazaZileMulti(['2026-07-11'], today)).toThrow('Dată în afara intervalului');
   });
+
+  it('format invalid (garbage) → aruncă Dată invalidă', () => {
+    expect(() => valideazaZileMulti(['abc'], today)).toThrow('Dată invalidă');
+  });
 });

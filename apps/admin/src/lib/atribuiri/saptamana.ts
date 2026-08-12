@@ -3,6 +3,9 @@
 /** Dedupe+sortare și limitele multi-zi (max 7, ±31 zile de azi). Aruncă la depășire. */
 export function valideazaZileMulti(dates: string[], today: string): string[] {
   const out = [...new Set(dates)].sort();
+  for (const d of out) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) throw new Error('Dată invalidă');
+  }
   if (out.length > 7) throw new Error('Maxim 7 zile per aplicare');
   const todayMs = new Date(`${today}T12:00:00Z`).getTime();
   for (const d of out) {

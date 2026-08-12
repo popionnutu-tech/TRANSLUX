@@ -25,6 +25,7 @@ const ROLE_LABELS: Record<string, string> = {
   ADMIN: 'Administrator',
   DISPATCHER: 'Dispecer',
   GRAFIC: 'Grafic',
+  UZINE: 'Manager uzine (grafic)',
   OPERATOR_CAMERE: 'Operator camere',
   ADMIN_CAMERE: 'Admin camere',
   EVALUATOR_INCASARI: 'Evaluator încasări',

@@ -4,6 +4,7 @@ import { verifySession, type Session } from '@/lib/auth';
 import {
   uzineCuSablon, listSaptamana, atribuieMulti, confirmaManual,
   vehiclesForPicker, soferiForPicker, titularForVehicle, chisinauToday,
+  uzinaOfRoute, rowScope,
   type AtribuieMultiParams, type AtribuireView,
 } from '@/lib/atribuiri/core';
 import { weekDates } from '@/lib/atribuiri/saptamana';
@@ -41,14 +42,35 @@ export async function getTitularId(vehicleId: string, shiftNumber: number) {
   return titularForVehicle(vehicleId, shiftNumber);
 }
 
-export async function salveazaMulti(p: AtribuieMultiParams) {
-  const s = await requireUzineRole();
-  return atribuieMulti(p, null, s.id);
+// Next.js maschează mesajele de eroare aruncate din 'use server' în producție — acțiunile
+// întorc explicit { error } în loc să arunce, ca UI-ul să poată afișa mesajul real.
+export async function salveazaMulti(p: AtribuieMultiParams): Promise<{ updated: number } | { error: string }> {
+  try {
+    const s = await requireUzineRole();
+    // scope: chiar dacă middleware/pagina închid rolul UZINE pe grafic-uzine, ruta trebuie
+    // să fie a unei uzine cu șablon (nu Trox/interurban/suburban strecurate printr-un id valid)
+    const uzina = await uzinaOfRoute(p.factoryRouteId);
+    const permise = (await uzineCuSablon()).map((u) => u.id);
+    if (!uzina || !permise.includes(uzina)) return { error: 'Uzină neautorizată' };
+    return await atribuieMulti(p, null, s.id);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Eroare' };
+  }
 }
 
-export async function confirmaManualAdmin(rowId: string) {
-  const s = await requireUzineRole();
-  await confirmaManual(rowId, null, s.id);
+export async function confirmaManualAdmin(rowId: string): Promise<{ ok: true } | { error: string }> {
+  try {
+    const s = await requireUzineRole();
+    const scope = await rowScope(rowId);
+    const permise = (await uzineCuSablon()).map((u) => u.id);
+    if (!scope || scope.route_kind !== 'uzina' || !permise.includes(scope.direction)) {
+      return { error: 'Rând neautorizat' };
+    }
+    await confirmaManual(rowId, null, s.id);
+    return { ok: true };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Eroare' };
+  }
 }
 
 export type { AtribuireView };

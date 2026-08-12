@@ -23,12 +23,13 @@ function DirectieInner() {
 
   const [rows, setRows] = useState<AtribuireView[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [actErr, setActErr] = useState<string | null>(null);
   const [picker, setPicker] = useState<AtribuireView | null>(null);
   const [soferPicker, setSoferPicker] = useState<AtribuireView | null>(null);
   const [foaieRow, setFoaieRow] = useState<AtribuireView | null>(null);
   const [foaieVal, setFoaieVal] = useState('');
   const [foaieErr, setFoaieErr] = useState<string | null>(null);
-  const [multiZi, setMultiZi] = useState<{ row: AtribuireView; vehicleId: string | null; driverId?: string | null } | null>(null);
+  const [multiZi, setMultiZi] = useState<{ row: AtribuireView; vehicleId?: string | null; driverId?: string | null } | null>(null);
   const [multiSel, setMultiSel] = useState<string[]>([]);
   const [multiErr, setMultiErr] = useState<string | null>(null);
 
@@ -45,12 +46,18 @@ function DirectieInner() {
 
   async function pick(row: AtribuireView, vehicleId: string | null) {
     setPicker(null);
+    setActErr(null);
     // optimist: chip-ul se schimbă imediat, revert la eroare
     const prev = rows;
     setRows((rs) => (rs ?? []).map((r) => (r.id === row.id ? { ...r, vehicle_id: vehicleId, plate: null } : r)));
     const resp = await api('/atribuie', { method: 'POST', body: JSON.stringify({ rowId: row.id, vehicleId }) })
       .catch(() => null);
-    if (!resp?.ok) { setRows(prev); return; }
+    if (!resp) { setRows(prev); setActErr('Rețea indisponibilă.'); return; }
+    if (!resp.ok) {
+      setRows(prev);
+      setActErr(((await resp.json().catch(() => null)) as { error?: string } | null)?.error ?? 'Eroare');
+      return;
+    }
     load();
     // panoul «Aplică și pe alte zile?» doar la atribuire efectivă de mașină —
     // niciodată la eliminare (vehicleId null ar propaga ștergerea pe alte zile)
@@ -59,15 +66,22 @@ function DirectieInner() {
 
   async function pickSofer(row: AtribuireView, driverId: string | null) {
     setSoferPicker(null);
+    setActErr(null);
     const prev = rows;
     setRows((rs) => (rs ?? []).map((r) => (r.id === row.id ? { ...r, driver_id: driverId, driver_name: null } : r)));
     const resp = await api('/sofer', { method: 'POST', body: JSON.stringify({ rowId: row.id, driverId }) })
       .catch(() => null);
-    if (!resp?.ok) { setRows(prev); return; }
+    if (!resp) { setRows(prev); setActErr('Rețea indisponibilă.'); return; }
+    if (!resp.ok) {
+      setRows(prev);
+      setActErr(((await resp.json().catch(() => null)) as { error?: string } | null)?.error ?? 'Eroare');
+      return;
+    }
     load();
     // doar dacă rândul are deja mașină — fără mașină, atribuie-multi ar șterge
-    // atribuirile existente pe zilele selectate (vehicleId null → wipe)
-    if (row.route_kind === 'uzina' && row.vehicle_id) { setMultiZi({ row, vehicleId: row.vehicle_id, driverId }); setMultiSel([]); setMultiErr(null); }
+    // atribuirile existente pe zilele selectate (vehicleId null → wipe).
+    // vehicleId omis (F4): nu suprascrie tăcut mașina din alte zile — atinge doar șoferul.
+    if (row.route_kind === 'uzina' && row.vehicle_id) { setMultiZi({ row, driverId }); setMultiSel([]); setMultiErr(null); }
   }
 
   async function saveFoaie() {
@@ -111,6 +125,7 @@ function DirectieInner() {
       </div>
 
       {err && <div style={{ color: C.bad, padding: 12 }}>{err}</div>}
+      {actErr && <div style={{ color: C.bad, padding: 12 }}>{actErr}</div>}
       {!rows && !err && <div style={{ color: C.muted, padding: 12 }}>Se încarcă…</div>}
 
       {rows?.map((r) => {

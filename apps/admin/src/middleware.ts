@@ -18,6 +18,8 @@ const PUBLIC_PREFIXES = [
   // Mini App задачника: открывается в Telegram, защищается сам через initData (без cookie-сессии).
   '/mini-app/',
   '/api/zadachnik/',
+  // Mini App atribuiri — se protejează singur prin initData, ca zadachnik.
+  '/api/atribuiri/',
 ];
 
 const DISPATCHER_ALLOWED = ['/grafic', '/drivers', '/vehicles'];

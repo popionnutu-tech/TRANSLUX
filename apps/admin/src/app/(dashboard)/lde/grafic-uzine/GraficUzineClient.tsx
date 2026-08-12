@@ -97,10 +97,11 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
     if (!popup || busy) return;
     setBusy(true); setErr(null);
     try {
-      await salveazaMulti({
+      const res = await salveazaMulti({
         factoryRouteId: popup.factory_route_id!, shiftNumber: popup.shift_number!,
         dates: selDates, vehicleId: selVehicle, driverId: selDriver, siInSablon: inSablon,
       });
+      if ('error' in res) { setErr(res.error); setBusy(false); return; }
       setPopup(null);
       if (uzina) await load(uzina);
     } catch (e) { setErr(e instanceof Error ? e.message : 'Eroare la salvare'); }
@@ -110,8 +111,12 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
   async function confirmaManual() {
     if (!popup || busy) return;
     setBusy(true); setErr(null);
-    try { await confirmaManualAdmin(popup.id); setPopup(null); if (uzina) await load(uzina); }
-    catch { setErr('Eroare la confirmare'); }
+    try {
+      const res = await confirmaManualAdmin(popup.id);
+      if ('error' in res) { setErr(res.error); setBusy(false); return; }
+      setPopup(null);
+      if (uzina) await load(uzina);
+    } catch { setErr('Eroare la confirmare'); }
     setBusy(false);
   }
 

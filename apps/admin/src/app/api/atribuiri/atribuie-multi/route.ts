@@ -4,6 +4,7 @@ import { atribuieMulti, uzinaOfRoute, type AtribuieMultiParams } from '@/lib/atr
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   const auth = await authAtribuiri(req.headers.get('x-telegram-init-data'));
@@ -11,9 +12,12 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => null) as Partial<AtribuieMultiParams> | null;
   if (!body?.factoryRouteId || !body.shiftNumber || !Array.isArray(body.dates) || !body.dates.length
-      || body.dates.some((d) => !/^\d{4}-\d{2}-\d{2}$/.test(d))) {
+      || body.dates.some((d) => !/^\d{4}-\d{2}-\d{2}$/.test(d))
+      || !(body.vehicleId !== undefined || body.driverId != null)) {
     return NextResponse.json({ error: 'parametri lipsă' }, { status: 400 });
   }
+  // respingere ieftină înainte de materializare — limita reală (±31 zile) e verificată în core
+  if (body.dates.length > 7) return NextResponse.json({ error: 'prea multe zile' }, { status: 400 });
 
   const direction = await uzinaOfRoute(body.factoryRouteId);
   if (!direction) return NextResponse.json({ error: 'rută inexistentă' }, { status: 404 });

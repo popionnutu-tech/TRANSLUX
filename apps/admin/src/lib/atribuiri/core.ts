@@ -61,7 +61,8 @@ export async function titularForVehicle(vehicleId: string, shiftNumber: number):
     .from('lde_active_assignments')
     .select('driver_id, shift_number')
     .eq('vehicle_id', vehicleId)
-    .is('valid_to', null);
+    .is('valid_to', null)
+    .order('shift_number');
   const rows = data ?? [];
   const exact = rows.find((r) => r.shift_number === shiftNumber);
   return ((exact ?? rows[0])?.driver_id as string | undefined) ?? null;
@@ -181,6 +182,29 @@ export async function ensureDayMaterialized(date: string): Promise<void> {
       .from('lde_atribuiri_zilnice')
       .upsert(rows, { onConflict: 'date,route_key', ignoreDuplicates: true });
     if (error) throw new Error(`materializare ${date}: ${error.message}`);
+  }
+
+  // Vindecare: rândurile interurban/suburban materializate înainte ca daily_assignments
+  // să aibă mașină/șofer (ziua viitoare, cronul de 20:00 încă nu a rulat) rămân blocate la
+  // null — insert-only nu le mai atinge. Rândurile neatinse de manageri (status planificat)
+  // se resincronizează din graficul dispecerului la fiecare deschidere a paginii.
+  const { data: existing, error: exErr } = await db
+    .from('lde_atribuiri_zilnice')
+    .select('id, crm_route_id, vehicle_id, driver_id')
+    .eq('date', date)
+    .not('crm_route_id', 'is', null)
+    .eq('status', 'planificat');
+  if (exErr) throw new Error(`resincronizare ${date}: ${exErr.message}`);
+  for (const row of existing ?? []) {
+    const crmId = row.crm_route_id as number;
+    const wantVeh = daVeh.get(crmId) ?? null;
+    const wantDrv = daDrv.get(crmId) ?? null;
+    if (row.vehicle_id !== wantVeh || row.driver_id !== wantDrv) {
+      const { error } = await db.from('lde_atribuiri_zilnice')
+        .update({ vehicle_id: wantVeh, driver_id: wantDrv })
+        .eq('id', row.id);
+      if (error) throw new Error(`resincronizare ${date}: ${error.message}`);
+    }
   }
 }
 
@@ -498,6 +522,13 @@ export async function directionOfRow(rowId: string): Promise<string | null> {
   return (data?.direction as string) ?? null;
 }
 
+/** Direcția + tipul unui rând — pentru autorizarea scope-ului rolului UZINE în acțiunile web. */
+export async function rowScope(rowId: string): Promise<{ route_kind: RouteKind; direction: string } | null> {
+  const { data } = await getSupabase()
+    .from('lde_atribuiri_zilnice').select('route_kind, direction').eq('id', rowId).maybeSingle();
+  return data ? { route_kind: data.route_kind as RouteKind, direction: data.direction as string } : null;
+}
+
 /** Lista mașinilor pentru picker: [default șablon] + direcția + restul, cu plăci normalizate. */
 export async function vehiclesForPicker(direction: string): Promise<Array<{ id: string; plate: string; inDirection: boolean }>> {
   const { data } = await getSupabase()
@@ -512,10 +543,10 @@ export async function vehiclesForPicker(direction: string): Promise<Array<{ id: 
 export interface AtribuieMultiParams {
   factoryRouteId: string;
   shiftNumber: number;
-  dates: string[];           // YYYY-MM-DD — zilele bifate
-  vehicleId: string | null;  // null = golește cursa (curăță și șoferul)
-  driverId?: string | null;  // omis/null = auto (titularul mașinii)
-  siInSablon?: boolean;      // scrie și lde_weekly_template pe weekday-urile zilelor
+  dates: string[];             // YYYY-MM-DD — zilele bifate
+  vehicleId?: string | null;   // omis = nu atinge mașina (doar șofer); null = golește cursa (curăță și șoferul); string = setează
+  driverId?: string | null;    // la vehicleId omis: obligatoriu; la vehicleId string: omis/null = auto (titularul mașinii, fallback șoferul zilei)
+  siInSablon?: boolean;        // scrie/șterge și lde_weekly_template pe weekday-urile zilelor (doar când vehicleId nu e omis)
 }
 
 /** Schimbare pe una sau mai multe zile — nucleul grilei săptămânale (web) și al
@@ -525,23 +556,54 @@ export async function atribuieMulti(
 ): Promise<{ updated: number }> {
   const db = getSupabase();
   const routeKey = `uzina:${p.factoryRouteId}:${p.shiftNumber}`;
-  let driverId = p.driverId ?? null;
-  if (p.vehicleId == null) driverId = null;
-  else if (driverId == null) {
-    driverId = await titularForVehicle(p.vehicleId, p.shiftNumber);
-    if (driverId == null) throw new Error('Mașina nu are șofer titular — alege șoferul explicit');
+  const dates = [...new Set(p.dates)].sort();
+
+  // limite (F10, performance-reviewer): o aplicare multi-zi nu poate deveni un batch nemărginit
+  if (dates.length > 7) throw new Error('Maxim 7 zile per aplicare');
+  const today = chisinauToday();
+  const todayMs = new Date(`${today}T12:00:00Z`).getTime();
+  for (const d of dates) {
+    const diffZile = Math.abs(new Date(`${d}T12:00:00Z`).getTime() - todayMs) / 86400000;
+    if (diffZile > 31) throw new Error('Dată în afara intervalului permis');
   }
+
+  // vehicleId omis = editare doar-șofer (aplicată pe «alte zile» din mini app fără mașină) —
+  // nu atinge mașina existentă pe acele zile (altfel s-ar suprascrie tăcut cu mașina zilei curente)
+  const onlyDriver = p.vehicleId === undefined;
+  if (onlyDriver && p.driverId == null) throw new Error('Alege șoferul');
+
   let updated = 0;
-  for (const date of [...new Set(p.dates)].sort()) {
+  let skipped = 0;
+  for (const date of dates) {
     await ensureDayMaterialized(date);
     const { data: row } = await db.from('lde_atribuiri_zilnice')
-      .select('id').eq('date', date).eq('route_key', routeKey).maybeSingle();
+      .select('id, driver_id').eq('date', date).eq('route_key', routeKey).maybeSingle();
     if (!row) continue;
+
+    if (onlyDriver) {
+      await updateRow(row.id, { driver_id: p.driverId }, userId, adminId);
+      updated++;
+      continue;
+    }
+
+    let driverId: string | null;
+    if (p.vehicleId == null) {
+      driverId = null;
+    } else if (p.driverId != null) {
+      driverId = p.driverId;
+    } else {
+      // invariant mașină⇒șofer unificat cu `atribuie`: titularul mașinii, fallback șoferul deja pe rândul zilei
+      const titular = await titularForVehicle(p.vehicleId, p.shiftNumber);
+      driverId = titular ?? (row.driver_id as string | null);
+      if (driverId == null) { skipped++; continue; } // nici titular, nici șofer existent — se sare, nu se blochează toată aplicarea
+    }
     await updateRow(row.id, { vehicle_id: p.vehicleId, driver_id: driverId }, userId, adminId);
     updated++;
   }
-  if (p.siInSablon && p.vehicleId != null) {
-    for (const wd of [...new Set(p.dates.map(isoWeekday))]) {
+  if (updated === 0 && skipped > 0) throw new Error('Mașina nu are șofer titular — alege șoferul explicit');
+
+  if (p.siInSablon && p.vehicleId !== undefined) {
+    for (const wd of [...new Set(dates.map(isoWeekday))]) {
       await setTemplateCell(p.factoryRouteId, p.shiftNumber, wd, p.vehicleId, userId, adminId);
     }
   }

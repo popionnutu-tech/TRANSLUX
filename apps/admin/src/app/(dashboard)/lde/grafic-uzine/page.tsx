@@ -1,4 +1,6 @@
 export const dynamic = 'force-dynamic';
+// materializarea a 7 zile (uzină + interurban/suburban) la deschidere = ~40 query-uri server-side
+export const maxDuration = 60;
 
 import { verifySession } from '@/lib/auth';
 import { redirect } from 'next/navigation';

@@ -44,7 +44,7 @@ export async function getTitularId(vehicleId: string, shiftNumber: number) {
 
 // Next.js maschează mesajele de eroare aruncate din 'use server' în producție — acțiunile
 // întorc explicit { error } în loc să arunce, ca UI-ul să poată afișa mesajul real.
-export async function salveazaMulti(p: AtribuieMultiParams): Promise<{ updated: number } | { error: string }> {
+export async function salveazaMulti(p: AtribuieMultiParams): Promise<{ updated: number; skipped: number } | { error: string }> {
   try {
     const s = await requireUzineRole();
     // scope: chiar dacă middleware/pagina închid rolul UZINE pe grafic-uzine, ruta trebuie

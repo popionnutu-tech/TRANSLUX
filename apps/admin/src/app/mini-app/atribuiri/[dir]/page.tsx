@@ -107,8 +107,12 @@ function DirectieInner() {
     }).catch(() => null);
     if (!resp) { setMultiErr('Rețea indisponibilă.'); return; }
     if (!resp.ok) { setMultiErr(((await resp.json().catch(() => null)) as { error?: string } | null)?.error ?? 'Eroare'); return; }
-    const updated = ((await resp.json().catch(() => null)) as { updated?: number } | null)?.updated ?? 0;
+    const body = (await resp.json().catch(() => null)) as { updated?: number; skipped?: number } | null;
+    const updated = body?.updated ?? 0;
+    const skipped = body?.skipped ?? 0;
     if (!updated) { setMultiErr('Nicio zi actualizată (rutele nu există pe zilele alese?).'); return; }
+    // zile sărite fără șofer rezolvabil (F8) — mesaj vizibil și după închiderea panoului
+    if (skipped > 0) setActErr(`${updated} aplicate, ${skipped} sărite (fără șofer)`);
     setMultiZi(null);
     setMultiSel([]);
     load();

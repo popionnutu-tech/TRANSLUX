@@ -86,7 +86,7 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
     if (vid === selVehicle) return; // click pe mașina deja selectată = no-op, nu suprascrie șoferul ales
     vehicleReqRef.current = vid;
     setSelVehicle(vid);
-    if (vid == null) { setSelDriver(null); return; }
+    if (vid == null) { setSelDriver(null); setInSablon(false); return; } // golește mașina — «și în șablon» nu mai are sens, nu rămâne bifat din greșeală
     // titularul se completează automat (spec: mașina merge mereu cu șofer)
     const tit = await getTitularId(vid, popup!.shift_number!).catch(() => null);
     if (vehicleReqRef.current !== vid) return; // altă mașină aleasă între timp — ignorăm răspunsul vechi
@@ -99,11 +99,14 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
     try {
       const res = await salveazaMulti({
         factoryRouteId: popup.factory_route_id!, shiftNumber: popup.shift_number!,
-        dates: selDates, vehicleId: selVehicle, driverId: selDriver, siInSablon: inSablon,
+        dates: selDates, vehicleId: selVehicle, driverId: selDriver,
+        // defense in depth: șablonul se scrie doar cât timp popup-ul chiar are o mașină selectată
+        siInSablon: selVehicle != null ? inSablon : false,
       });
       if ('error' in res) { setErr(res.error); setBusy(false); return; }
-      setPopup(null);
       if (uzina) await load(uzina);
+      if (res.updated > 0) setPopup(null);
+      if (res.skipped > 0) setErr(`${res.skipped} zile sărite — fără șofer rezolvabil`);
     } catch (e) { setErr(e instanceof Error ? e.message : 'Eroare la salvare'); }
     setBusy(false);
   }

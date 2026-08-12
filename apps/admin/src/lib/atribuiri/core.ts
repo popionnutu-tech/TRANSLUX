@@ -553,7 +553,7 @@ export interface AtribuieMultiParams {
  *  «Aplică și pe alte zile» (mini app). Zilele fără rând (uzina nu lucrează) se sar. */
 export async function atribuieMulti(
   p: AtribuieMultiParams, userId: string | null, adminId?: string | null,
-): Promise<{ updated: number }> {
+): Promise<{ updated: number; skipped: number }> {
   const db = getSupabase();
   const routeKey = `uzina:${p.factoryRouteId}:${p.shiftNumber}`;
   const dates = [...new Set(p.dates)].sort();
@@ -607,7 +607,7 @@ export async function atribuieMulti(
       await setTemplateCell(p.factoryRouteId, p.shiftNumber, wd, p.vehicleId, userId, adminId);
     }
   }
-  return { updated };
+  return { updated, skipped };
 }
 
 /** Rândurile unei uzine pe un set de zile (materializează fiecare zi — idempotent). */

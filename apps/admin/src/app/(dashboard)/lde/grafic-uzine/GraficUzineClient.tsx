@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getSaptamana, getPickers, getTitularId, salveazaMulti, confirmaManualAdmin, type AtribuireView } from './actions';
 
 // Grila săptămânală de uzine (mockup v2, 12.08.2026): o uzină pe ecran (tab-uri),
@@ -47,6 +47,7 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
   const [qVeh, setQVeh] = useState('');
   const [qSof, setQSof] = useState('');
   const vehicleReqRef = useRef<string | null>(null); // ultima mașină cerută la getTitularId — anulează răspunsurile vechi
+  const pickersCache = useRef<Map<string, Pickers>>(new Map()); // cache per uzină — revizitarea unui tab nu mai refetch-uiește
 
   const load = useCallback(async (uz: string) => {
     setErr(null);
@@ -55,20 +56,43 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
 
   useEffect(() => {
     if (!uzina) return;
+    const cached = pickersCache.current.get(uzina);
+    if (cached) { setPickers(cached); return; }
     setPickers(null);
-    getPickers(uzina).then(setPickers).catch(() => setPickers({ vehicles: [], soferi: [] }));
+    getPickers(uzina).then((p) => { pickersCache.current.set(uzina, p); setPickers(p); }).catch(() => setPickers({ vehicles: [], soferi: [] }));
   }, [uzina]);
 
-  // grila: rânduri distincte (route_key) × coloane (dates)
+  // grila: rânduri distincte (route_key) × coloane (dates), grupate pe schimb (cerere Ion)
   const grid = useMemo(() => {
-    if (!week) return { keys: [] as { key: string; label: string; frId: string; shift: number }[], cell: new Map<string, AtribuireView>() };
-    const keys = new Map<string, { key: string; label: string; frId: string; shift: number }>();
+    type Row = { key: string; label: string; frId: string; shift: number };
+    if (!week) return { groups: [] as { shift: number; rows: Row[] }[], cell: new Map<string, AtribuireView>() };
+    const keys = new Map<string, Row>();
     const cell = new Map<string, AtribuireView>();
     for (const r of week.rows) {
       if (!keys.has(r.route_key)) keys.set(r.route_key, { key: r.route_key, label: r.route_label, frId: r.factory_route_id!, shift: r.shift_number! });
       cell.set(`${r.route_key}|${r.date}`, r);
     }
-    return { keys: [...keys.values()].sort((a, b) => a.label.localeCompare(b.label)), cell };
+    const byShift = new Map<number, Row[]>();
+    for (const row of keys.values()) {
+      if (!byShift.has(row.shift)) byShift.set(row.shift, []);
+      byShift.get(row.shift)!.push(row);
+    }
+    const routeNum = (label: string) => {
+      const m = /^R(\d+)/.exec(label);
+      return m ? parseInt(m[1], 10) : null;
+    };
+    const groups = [...byShift.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([shift, rows]) => ({
+        shift,
+        rows: rows.sort((a, b) => {
+          const na = routeNum(a.label);
+          const nb = routeNum(b.label);
+          if (na != null && nb != null) return na - nb;
+          return a.label.localeCompare(b.label);
+        }),
+      }));
+    return { groups, cell };
   }, [week]);
 
   function openPopup(r: AtribuireView) {
@@ -178,28 +202,37 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
             </tr>
           </thead>
           <tbody>
-            {grid.keys.map((k) => (
-              <tr key={k.key} style={{ fontSize: 12 }}>
-                <td style={{ fontWeight: 600, fontSize: 13, color: '#3f3f46', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={k.label}>{k.label}</td>
-                {week.dates.map((d) => {
-                  const r = grid.cell.get(`${k.key}|${d}`);
-                  if (!r) return <td key={d} style={{ background: '#fafafa', borderRadius: 7, textAlign: 'center', color: '#d4d4d8', fontSize: 11, padding: '6px 4px' }}>nu lucrează</td>;
-                  const c = r.vehicle_id ? (CELL[r.status] ?? CELL.planificat) : { bg: '#fef3c7', fg: '#a16207' };
-                  const isToday = d === week.today;
-                  return (
-                    <td key={d}
-                      onClick={() => openPopup(r)}
-                      title={r.verification_note ?? undefined}
-                      style={{
-                        background: c.bg, color: c.fg, borderRadius: 7, textAlign: 'center', padding: '6px 4px',
-                        cursor: 'pointer', border: isToday ? '2px solid #2563eb' : '2px solid transparent',
-                      }}>
-                      <b style={{ fontFamily: 'ui-monospace, monospace' }}>{r.plate ?? '—'}</b>
-                      <div style={{ opacity: 0.78, fontSize: 11 }}>{r.driver_name ? shortName(r.driver_name) : (r.vehicle_id ? '' : 'alege')}</div>
-                    </td>
-                  );
-                })}
-              </tr>
+            {grid.groups.map((g) => (
+              <Fragment key={`shift-${g.shift}`}>
+                <tr>
+                  <td colSpan={8} style={{ fontSize: 11, fontWeight: 700, color: '#71717a', textTransform: 'uppercase', letterSpacing: 0.4, paddingTop: 10 }}>
+                    Schimbul {g.shift}
+                  </td>
+                </tr>
+                {g.rows.map((k) => (
+                  <tr key={k.key} style={{ fontSize: 12 }}>
+                    <td style={{ fontWeight: 600, fontSize: 13, color: '#3f3f46', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={k.label}>{k.label}</td>
+                    {week.dates.map((d) => {
+                      const r = grid.cell.get(`${k.key}|${d}`);
+                      if (!r) return <td key={d} style={{ background: '#fafafa', borderRadius: 7, textAlign: 'center', color: '#d4d4d8', fontSize: 11, padding: '6px 4px' }}>nu lucrează</td>;
+                      const c = r.vehicle_id ? (CELL[r.status] ?? CELL.planificat) : { bg: '#fef3c7', fg: '#a16207' };
+                      const isToday = d === week.today;
+                      return (
+                        <td key={d}
+                          onClick={() => openPopup(r)}
+                          title={r.verification_note ?? undefined}
+                          style={{
+                            background: c.bg, color: c.fg, borderRadius: 7, textAlign: 'center', padding: '6px 4px',
+                            cursor: 'pointer', border: isToday ? '2px solid #2563eb' : '2px solid transparent',
+                          }}>
+                          <b style={{ fontFamily: 'ui-monospace, monospace' }}>{r.plate ?? '—'}</b>
+                          <div style={{ opacity: 0.78, fontSize: 11 }}>{r.driver_name ? shortName(r.driver_name) : (r.vehicle_id ? '' : 'alege')}</div>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </Fragment>
             ))}
           </tbody>
         </table>

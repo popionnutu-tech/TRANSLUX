@@ -193,12 +193,14 @@ function DirectieInner() {
                 <div style={{ display: 'flex', gap: 4 }}>
                   {saptamana.filter((d) => d !== date).map((d) => {
                     const on = multiSel.includes(d);
+                    const past = d < chisinauDay(0); // corecții pe zile trecute rămân posibile, doar vizual dimmed
                     return (
                       <button key={d}
                         onClick={() => setMultiSel((s) => (on ? s.filter((x) => x !== d) : [...s, d]))}
                         style={{
                           width: 30, padding: '5px 0', borderRadius: 7, fontSize: 11, border: 'none', cursor: 'pointer',
-                          background: on ? '#2563eb' : '#dbeafe', color: on ? '#fff' : '#1d4ed8', fontWeight: on ? 700 : 400,
+                          background: on ? '#2563eb' : past ? '#f4f4f5' : '#dbeafe',
+                          color: on ? '#fff' : past ? '#a1a1aa' : '#1d4ed8', fontWeight: on ? 700 : 400,
                         }}>{ZI[saptamana.indexOf(d)]}</button>
                     );
                   })}

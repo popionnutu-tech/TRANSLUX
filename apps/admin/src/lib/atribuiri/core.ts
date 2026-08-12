@@ -1,5 +1,6 @@
 import { getSupabase } from '@/lib/supabase';
 import { scrieFoaie } from '@/lib/foaie';
+import { valideazaZileMulti } from '@/lib/atribuiri/saptamana';
 
 // Ядро atribuiri zilnice (Mini App manageri): materializare lazy șablon→zi,
 // atribuire mașină per cursă, write-through daily_assignments (DOAR UPDATE),
@@ -584,16 +585,8 @@ export async function atribuieMulti(
 ): Promise<{ updated: number; skipped: number }> {
   const db = getSupabase();
   const routeKey = `uzina:${p.factoryRouteId}:${p.shiftNumber}`;
-  const dates = [...new Set(p.dates)].sort();
-
   // limite (F10, performance-reviewer): o aplicare multi-zi nu poate deveni un batch nemărginit
-  if (dates.length > 7) throw new Error('Maxim 7 zile per aplicare');
-  const today = chisinauToday();
-  const todayMs = new Date(`${today}T12:00:00Z`).getTime();
-  for (const d of dates) {
-    const diffZile = Math.abs(new Date(`${d}T12:00:00Z`).getTime() - todayMs) / 86400000;
-    if (diffZile > 31) throw new Error('Dată în afara intervalului permis');
-  }
+  const dates = valideazaZileMulti(p.dates, chisinauToday());
 
   // vehicleId omis = editare doar-șofer (aplicată pe «alte zile» din mini app fără mașină) —
   // nu atinge mașina existentă pe acele zile (altfel s-ar suprascrie tăcut cu mașina zilei curente)

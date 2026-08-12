@@ -6,6 +6,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { C, ready, api, chisinauDay, shortName, STATUS_BADGE, type AtribuireView } from '../ui';
 import VehiclePicker from '../VehiclePicker';
 import SoferPicker from '../SoferPicker';
+import { weekDates } from '@/lib/atribuiri/saptamana';
 
 // Ecranul critic de viteză: lista curselor direcției cu chip-ul mașinii —
 // un tap deschide picker-ul, un tap în picker salvează (optimist).
@@ -17,12 +18,7 @@ function DirectieInner() {
   const date = search.get('date') ?? chisinauDay(0);
 
   // săptămâna ISO a zilei afișate — pentru «Aplică și pe alte zile?»
-  const saptamana = (() => {
-    const d = new Date(`${date}T12:00:00Z`);
-    const wd = d.getUTCDay() === 0 ? 7 : d.getUTCDay();
-    const luni = new Date(d); luni.setUTCDate(d.getUTCDate() - (wd - 1));
-    return Array.from({ length: 7 }, (_, i) => { const x = new Date(luni); x.setUTCDate(luni.getUTCDate() + i); return x.toISOString().slice(0, 10); });
-  })();
+  const saptamana = weekDates(date);
   const ZI = ['L', 'Ma', 'Mi', 'J', 'V', 'S', 'D'];
 
   const [rows, setRows] = useState<AtribuireView[] | null>(null);
@@ -34,6 +30,7 @@ function DirectieInner() {
   const [foaieErr, setFoaieErr] = useState<string | null>(null);
   const [multiZi, setMultiZi] = useState<{ row: AtribuireView; vehicleId: string | null; driverId?: string | null } | null>(null);
   const [multiSel, setMultiSel] = useState<string[]>([]);
+  const [multiErr, setMultiErr] = useState<string | null>(null);
 
   useEffect(() => { ready(); }, []);
 
@@ -55,7 +52,9 @@ function DirectieInner() {
       .catch(() => null);
     if (!resp?.ok) { setRows(prev); return; }
     load();
-    if (row.route_kind === 'uzina') { setMultiZi({ row, vehicleId }); setMultiSel([]); }
+    // panoul «Aplică și pe alte zile?» doar la atribuire efectivă de mașină —
+    // niciodată la eliminare (vehicleId null ar propaga ștergerea pe alte zile)
+    if (row.route_kind === 'uzina' && vehicleId) { setMultiZi({ row, vehicleId }); setMultiSel([]); setMultiErr(null); }
   }
 
   async function pickSofer(row: AtribuireView, driverId: string | null) {
@@ -66,7 +65,9 @@ function DirectieInner() {
       .catch(() => null);
     if (!resp?.ok) { setRows(prev); return; }
     load();
-    if (row.route_kind === 'uzina') { setMultiZi({ row, vehicleId: row.vehicle_id, driverId }); setMultiSel([]); }
+    // doar dacă rândul are deja mașină — fără mașină, atribuie-multi ar șterge
+    // atribuirile existente pe zilele selectate (vehicleId null → wipe)
+    if (row.route_kind === 'uzina' && row.vehicle_id) { setMultiZi({ row, vehicleId: row.vehicle_id, driverId }); setMultiSel([]); setMultiErr(null); }
   }
 
   async function saveFoaie() {
@@ -82,6 +83,7 @@ function DirectieInner() {
 
   async function aplicaMultiZi() {
     if (!multiZi || !multiSel.length) return;
+    setMultiErr(null);
     const resp = await api('/atribuie-multi', {
       method: 'POST',
       body: JSON.stringify({
@@ -89,8 +91,13 @@ function DirectieInner() {
         dates: multiSel, vehicleId: multiZi.vehicleId, driverId: multiZi.driverId,
       }),
     }).catch(() => null);
+    if (!resp) { setMultiErr('Rețea indisponibilă.'); return; }
+    if (!resp.ok) { setMultiErr(((await resp.json().catch(() => null)) as { error?: string } | null)?.error ?? 'Eroare'); return; }
+    const updated = ((await resp.json().catch(() => null)) as { updated?: number } | null)?.updated ?? 0;
+    if (!updated) { setMultiErr('Nicio zi actualizată (rutele nu există pe zilele alese?).'); return; }
     setMultiZi(null);
-    if (resp?.ok) load();
+    setMultiSel([]);
+    load();
   }
 
   return (
@@ -185,6 +192,7 @@ function DirectieInner() {
                   <button onClick={() => setMultiZi(null)}
                     style={{ padding: '5px 8px', borderRadius: 7, fontSize: 11, border: 'none', background: 'transparent', color: '#1d4ed8', cursor: 'pointer' }}>✕</button>
                 </div>
+                {multiErr && <div style={{ color: C.bad, fontSize: 11, marginTop: 6 }}>{multiErr}</div>}
               </div>
             )}
           </div>

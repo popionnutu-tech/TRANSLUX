@@ -22,6 +22,7 @@ const PUBLIC_PREFIXES = [
 
 const DISPATCHER_ALLOWED = ['/grafic', '/drivers', '/vehicles'];
 const GRAFIC_ALLOWED = ['/grafic'];
+const UZINE_ALLOWED = ['/lde/grafic-uzine'];
 const NUMARARE_ONLY_ROLES = ['OPERATOR_CAMERE', 'ADMIN_CAMERE', 'EVALUATOR_INCASARI'] as const;
 
 export async function middleware(request: NextRequest) {
@@ -56,6 +57,11 @@ export async function middleware(request: NextRequest) {
     if (role === 'GRAFIC') {
       const allowed = GRAFIC_ALLOWED.some(r => pathname === r || pathname.startsWith(r + '/'));
       if (!allowed) return NextResponse.redirect(new URL('/grafic', request.url));
+    }
+
+    if (role === 'UZINE') {
+      const allowed = UZINE_ALLOWED.some(r => pathname === r || pathname.startsWith(r + '/'));
+      if (!allowed) return NextResponse.redirect(new URL('/lde/grafic-uzine', request.url));
     }
 
     if (NUMARARE_ONLY_ROLES.includes(role as any)) {

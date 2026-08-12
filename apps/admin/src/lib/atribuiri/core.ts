@@ -84,15 +84,17 @@ export async function allDirections(): Promise<Array<{ id: string; label: string
 }
 
 /**
- * Materializare lazy a unei zile — idempotent, insert-only (upsert ignoreDuplicates
- * pe UNIQUE(date, route_key)). Umple DOAR golurile: rândurile existente (inclusiv
- * editările proactive făcute din timp) nu se ating niciodată.
+ * Materializare lazy a mai multor zile deodată — idempotent, insert-only (upsert
+ * ignoreDuplicates pe UNIQUE(date, route_key)). Umple DOAR golurile: rândurile existente
+ * (inclusiv editările proactive făcute din timp) nu se ating niciodată.
+ * Interogările statice (șabloane, statice, actives, crm) se fac O SINGURĂ DATĂ pentru
+ * tot setul de zile — motivul refactorului (grila săptămânală: 7 zile într-un load).
  */
-export async function ensureDayMaterialized(date: string): Promise<void> {
+export async function ensureDaysMaterialized(dates: string[]): Promise<void> {
   const db = getSupabase();
-  const wd = isoWeekday(date);
+  if (!dates.length) return;
 
-  // ── curse de uzină: rută×schimb valide în ziua respectivă ──
+  // ── curse de uzină: rută×schimb (aceleași pentru toate zilele) ──
   const { data: shifts } = await db
     .from('lde_factory_route_shifts')
     .select('id, shift_number, route:lde_factory_routes!inner ( id, uzina_id, uzina:lde_uzine!inner ( id, active, has_weekly_template, works_saturday, works_sunday ) )');
@@ -100,20 +102,25 @@ export async function ensureDayMaterialized(date: string): Promise<void> {
     id: string; shift_number: number;
     route: { id: string; uzina_id: string; uzina: { id: string; active: boolean; has_weekly_template: boolean; works_saturday: boolean; works_sunday: boolean } };
   };
-  const valid = ((shifts ?? []) as unknown as ShiftRow[]).filter((s) => {
-    const u = s.route.uzina;
-    if (!u.active) return false;
-    if (wd === 6 && !u.works_saturday) return false;
-    if (wd === 7 && !u.works_sunday) return false;
-    return true;
-  });
+  const allShifts = (shifts ?? []) as unknown as ShiftRow[];
 
-  // default-ul mașinii: șablonul săptămânal (uzine cu șablon) / primary-ul static (Trox)
-  const { data: tpl } = await db
-    .from('lde_weekly_template')
-    .select('factory_route_id, shift_number, vehicle_id')
-    .eq('weekday', wd);
-  const tplMap = new Map((tpl ?? []).map((t) => [`${t.factory_route_id}:${t.shift_number}`, t.vehicle_id as string]));
+  // default-ul mașinii: șablonul săptămânal (uzine cu șablon) / primary-ul static (Trox).
+  // Șablonul se ia integral (fără filtru weekday — mai ieftin decât 7 apeluri filtrate),
+  // keyed pe `${factory_route_id}:${shift_number}:${weekday}`. Paginat explicit: tabela a
+  // trecut deja de 1000 de rânduri, iar PostgREST taie tăcut la limita implicită — fără
+  // .range() pierdem celule (constatare performance-reviewer, 12.08.2026).
+  const tpl: Array<{ factory_route_id: string; shift_number: number; weekday: number; vehicle_id: string }> = [];
+  for (let from = 0; ; from += 1000) {
+    const { data: page, error: tplErr } = await db
+      .from('lde_weekly_template')
+      .select('factory_route_id, shift_number, weekday, vehicle_id')
+      .order('factory_route_id').order('shift_number').order('weekday')
+      .range(from, from + 999);
+    if (tplErr) throw new Error(`șablon (pagina de la ${from}): ${tplErr.message}`);
+    tpl.push(...((page ?? []) as typeof tpl));
+    if (!page || page.length < 1000) break;
+  }
+  const tplMap = new Map(tpl.map((t) => [`${t.factory_route_id}:${t.shift_number}:${t.weekday}`, t.vehicle_id]));
 
   const { data: statics } = await db
     .from('lde_factory_route_vehicles')
@@ -135,53 +142,66 @@ export async function ensureDayMaterialized(date: string): Promise<void> {
   const driverForVehicle = (vehicleId: string | null, shift: number) =>
     vehicleId ? activeDriver.get(`${vehicleId}:${shift}`) ?? activeDriver.get(`${vehicleId}:*`) ?? null : null;
 
-  const rows: Array<Record<string, unknown>> = valid.map((s) => {
-    const key = `${s.route.id}:${s.shift_number}`;
-    const u = s.route.uzina;
-    const vehicleId = (u.has_weekly_template ? tplMap.get(key) : staticMap.get(key)) ?? null;
-    return {
-      date,
-      direction: s.route.uzina_id,
-      route_kind: 'uzina',
-      factory_route_id: s.route.id,
-      shift_number: s.shift_number,
-      vehicle_id: vehicleId,
-      driver_id: driverForVehicle(vehicleId, s.shift_number),
-      status: 'planificat',
-    };
-  });
-
-  // ── interurban/suburban: câte un rând per cursă activă; mașina+șoferul din daily_assignments ──
+  // ── interurban/suburban: rute active (aceleași pentru toate zilele) + daily_assignments per zi ──
   const { data: crm } = await db
     .from('crm_routes').select('id, route_type').eq('active', true);
   const { data: das } = await db
     .from('daily_assignments')
-    .select('crm_route_id, retur_route_id, vehicle_id, vehicle_id_retur, driver_id')
-    .eq('assignment_date', date);
-  const daVeh = new Map<number, string | null>();
-  const daDrv = new Map<number, string | null>();
+    .select('assignment_date, crm_route_id, retur_route_id, vehicle_id, vehicle_id_retur, driver_id')
+    .in('assignment_date', dates);
+  const daVeh = new Map<string, string | null>();
+  const daDrv = new Map<string, string | null>();
   for (const d of das ?? []) {
-    if (d.crm_route_id != null) { daVeh.set(d.crm_route_id, d.vehicle_id); daDrv.set(d.crm_route_id, d.driver_id); }
-    if (d.retur_route_id != null) { daVeh.set(d.retur_route_id, d.vehicle_id_retur); daDrv.set(d.retur_route_id, d.driver_id); }
+    const day = d.assignment_date as string;
+    if (d.crm_route_id != null) { daVeh.set(`${day}:${d.crm_route_id}`, d.vehicle_id); daDrv.set(`${day}:${d.crm_route_id}`, d.driver_id); }
+    if (d.retur_route_id != null) { daVeh.set(`${day}:${d.retur_route_id}`, d.vehicle_id_retur); daDrv.set(`${day}:${d.retur_route_id}`, d.driver_id); }
   }
-  for (const r of crm ?? []) {
-    const kind = (r.route_type === 'suburban' ? 'suburban' : 'interurban') as RouteKind;
-    rows.push({
-      date,
-      direction: kind,
-      route_kind: kind,
-      crm_route_id: r.id,
-      vehicle_id: daVeh.get(r.id) ?? null,
-      driver_id: daDrv.get(r.id) ?? null,
-      status: 'planificat',
+
+  const rows: Array<Record<string, unknown>> = [];
+  for (const date of dates) {
+    const wd = isoWeekday(date);
+    const valid = allShifts.filter((s) => {
+      const u = s.route.uzina;
+      if (!u.active) return false;
+      if (wd === 6 && !u.works_saturday) return false;
+      if (wd === 7 && !u.works_sunday) return false;
+      return true;
     });
+    for (const s of valid) {
+      const u = s.route.uzina;
+      const vehicleId = (u.has_weekly_template
+        ? tplMap.get(`${s.route.id}:${s.shift_number}:${wd}`)
+        : staticMap.get(`${s.route.id}:${s.shift_number}`)) ?? null;
+      rows.push({
+        date,
+        direction: s.route.uzina_id,
+        route_kind: 'uzina',
+        factory_route_id: s.route.id,
+        shift_number: s.shift_number,
+        vehicle_id: vehicleId,
+        driver_id: driverForVehicle(vehicleId, s.shift_number),
+        status: 'planificat',
+      });
+    }
+    for (const r of crm ?? []) {
+      const kind = (r.route_type === 'suburban' ? 'suburban' : 'interurban') as RouteKind;
+      rows.push({
+        date,
+        direction: kind,
+        route_kind: kind,
+        crm_route_id: r.id,
+        vehicle_id: daVeh.get(`${date}:${r.id}`) ?? null,
+        driver_id: daDrv.get(`${date}:${r.id}`) ?? null,
+        status: 'planificat',
+      });
+    }
   }
 
   if (rows.length) {
     const { error } = await db
       .from('lde_atribuiri_zilnice')
       .upsert(rows, { onConflict: 'date,route_key', ignoreDuplicates: true });
-    if (error) throw new Error(`materializare ${date}: ${error.message}`);
+    if (error) throw new Error(`materializare ${dates.join(',')}: ${error.message}`);
   }
 
   // Vindecare: rândurile interurban/suburban materializate înainte ca daily_assignments
@@ -190,28 +210,36 @@ export async function ensureDayMaterialized(date: string): Promise<void> {
   // se resincronizează din graficul dispecerului la fiecare deschidere a paginii.
   const { data: existing, error: exErr } = await db
     .from('lde_atribuiri_zilnice')
-    .select('id, crm_route_id, vehicle_id, driver_id')
-    .eq('date', date)
+    .select('id, date, crm_route_id, vehicle_id, driver_id')
+    .in('date', dates)
     .not('crm_route_id', 'is', null)
     .eq('status', 'planificat');
-  if (exErr) throw new Error(`resincronizare ${date}: ${exErr.message}`);
+  if (exErr) throw new Error(`resincronizare ${dates.join(',')}: ${exErr.message}`);
   for (const row of existing ?? []) {
     const crmId = row.crm_route_id as number;
-    const wantVeh = daVeh.get(crmId) ?? null;
-    const wantDrv = daDrv.get(crmId) ?? null;
+    const key = `${row.date}:${crmId}`;
+    const wantVeh = daVeh.get(key) ?? null;
+    const wantDrv = daDrv.get(key) ?? null;
     if (row.vehicle_id !== wantVeh || row.driver_id !== wantDrv) {
       const { error } = await db.from('lde_atribuiri_zilnice')
         .update({ vehicle_id: wantVeh, driver_id: wantDrv })
         .eq('id', row.id);
-      if (error) throw new Error(`resincronizare ${date}: ${error.message}`);
+      if (error) throw new Error(`resincronizare ${row.date}: ${error.message}`);
     }
   }
 }
 
-/** Rândurile unei zile pentru un set de direcții, cu etichete gata de afișat. */
-export async function listZi(date: string, directions: string[] | null): Promise<AtribuireView[]> {
+/** Materializare lazy a unei singure zile — vezi `ensureDaysMaterialized`. */
+export async function ensureDayMaterialized(date: string): Promise<void> {
+  return ensureDaysMaterialized([date]);
+}
+
+/** Rândurile unei zile pentru un set de direcții, cu etichete gata de afișat.
+ *  `alreadyMaterialized` = true sare materializarea (apelantul a făcut-o deja batch,
+ *  vezi `listSaptamana`) — default false ca să nu schimbe comportamentul apelurilor existente. */
+export async function listZi(date: string, directions: string[] | null, alreadyMaterialized = false): Promise<AtribuireView[]> {
   const db = getSupabase();
-  await ensureDayMaterialized(date);
+  if (!alreadyMaterialized) await ensureDayMaterialized(date);
 
   let q = db.from('lde_atribuiri_zilnice')
     .select(ROW_COLS)
@@ -572,10 +600,10 @@ export async function atribuieMulti(
   const onlyDriver = p.vehicleId === undefined;
   if (onlyDriver && p.driverId == null) throw new Error('Alege șoferul');
 
+  await ensureDaysMaterialized(dates);
   let updated = 0;
   let skipped = 0;
   for (const date of dates) {
-    await ensureDayMaterialized(date);
     const { data: row } = await db.from('lde_atribuiri_zilnice')
       .select('id, driver_id').eq('date', date).eq('route_key', routeKey).maybeSingle();
     if (!row) continue;
@@ -610,9 +638,10 @@ export async function atribuieMulti(
   return { updated, skipped };
 }
 
-/** Rândurile unei uzine pe un set de zile (materializează fiecare zi — idempotent). */
+/** Rândurile unei uzine pe un set de zile (materializează toate zilele deodată — idempotent). */
 export async function listSaptamana(uzinaId: string, dates: string[]): Promise<AtribuireView[]> {
+  await ensureDaysMaterialized(dates);
   const out: AtribuireView[] = [];
-  for (const d of dates) out.push(...await listZi(d, [uzinaId]));
+  for (const d of dates) out.push(...await listZi(d, [uzinaId], true));
   return out;
 }

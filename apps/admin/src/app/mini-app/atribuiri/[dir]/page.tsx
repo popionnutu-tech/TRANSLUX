@@ -16,6 +16,15 @@ function DirectieInner() {
   const dir = decodeURIComponent(params.dir);
   const date = search.get('date') ?? chisinauDay(0);
 
+  // săptămâna ISO a zilei afișate — pentru «Aplică și pe alte zile?»
+  const saptamana = (() => {
+    const d = new Date(`${date}T12:00:00Z`);
+    const wd = d.getUTCDay() === 0 ? 7 : d.getUTCDay();
+    const luni = new Date(d); luni.setUTCDate(d.getUTCDate() - (wd - 1));
+    return Array.from({ length: 7 }, (_, i) => { const x = new Date(luni); x.setUTCDate(luni.getUTCDate() + i); return x.toISOString().slice(0, 10); });
+  })();
+  const ZI = ['L', 'Ma', 'Mi', 'J', 'V', 'S', 'D'];
+
   const [rows, setRows] = useState<AtribuireView[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [picker, setPicker] = useState<AtribuireView | null>(null);
@@ -23,6 +32,8 @@ function DirectieInner() {
   const [foaieRow, setFoaieRow] = useState<AtribuireView | null>(null);
   const [foaieVal, setFoaieVal] = useState('');
   const [foaieErr, setFoaieErr] = useState<string | null>(null);
+  const [multiZi, setMultiZi] = useState<{ row: AtribuireView; vehicleId: string | null; driverId?: string | null } | null>(null);
+  const [multiSel, setMultiSel] = useState<string[]>([]);
 
   useEffect(() => { ready(); }, []);
 
@@ -44,6 +55,7 @@ function DirectieInner() {
       .catch(() => null);
     if (!resp?.ok) { setRows(prev); return; }
     load();
+    if (row.route_kind === 'uzina') { setMultiZi({ row, vehicleId }); setMultiSel([]); }
   }
 
   async function pickSofer(row: AtribuireView, driverId: string | null) {
@@ -54,6 +66,7 @@ function DirectieInner() {
       .catch(() => null);
     if (!resp?.ok) { setRows(prev); return; }
     load();
+    if (row.route_kind === 'uzina') { setMultiZi({ row, vehicleId: row.vehicle_id, driverId }); setMultiSel([]); }
   }
 
   async function saveFoaie() {
@@ -65,6 +78,19 @@ function DirectieInner() {
     if (!resp.ok) { setFoaieErr(((await resp.json().catch(() => null)) as { error?: string } | null)?.error ?? 'Eroare'); return; }
     setFoaieRow(null);
     load();
+  }
+
+  async function aplicaMultiZi() {
+    if (!multiZi || !multiSel.length) return;
+    const resp = await api('/atribuie-multi', {
+      method: 'POST',
+      body: JSON.stringify({
+        factoryRouteId: multiZi.row.factory_route_id, shiftNumber: multiZi.row.shift_number,
+        dates: multiSel, vehicleId: multiZi.vehicleId, driverId: multiZi.driverId,
+      }),
+    }).catch(() => null);
+    setMultiZi(null);
+    if (resp?.ok) load();
   }
 
   return (
@@ -86,7 +112,7 @@ function DirectieInner() {
           <div
             key={r.id}
             style={{
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10,
+              display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 10,
               background: r.status === 'nepotrivire' ? '#fdf0ef' : C.panel,
               border: `1px solid ${C.border}`, borderRadius: 12, padding: '10px 12px', marginBottom: 6,
             }}
@@ -135,6 +161,32 @@ function DirectieInner() {
                 {r.driver_name ? shortName(r.driver_name) : (r.driver_id ? '…' : '+ șofer')}
               </button>
             </div>
+            {multiZi?.row.id === r.id && (
+              <div style={{ flexBasis: '100%', background: '#eff6ff', borderRadius: 9, padding: 8, marginTop: 6 }}>
+                <div style={{ fontSize: 11, color: '#1d4ed8', fontWeight: 600, marginBottom: 6 }}>Aplică și pe alte zile?</div>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {saptamana.filter((d) => d !== date).map((d) => {
+                    const on = multiSel.includes(d);
+                    return (
+                      <button key={d}
+                        onClick={() => setMultiSel((s) => (on ? s.filter((x) => x !== d) : [...s, d]))}
+                        style={{
+                          width: 30, padding: '5px 0', borderRadius: 7, fontSize: 11, border: 'none', cursor: 'pointer',
+                          background: on ? '#2563eb' : '#dbeafe', color: on ? '#fff' : '#1d4ed8', fontWeight: on ? 700 : 400,
+                        }}>{ZI[saptamana.indexOf(d)]}</button>
+                    );
+                  })}
+                  <button onClick={aplicaMultiZi} disabled={!multiSel.length}
+                    style={{
+                      flex: 1, padding: '5px 0', borderRadius: 7, fontSize: 11, fontWeight: 700, border: 'none',
+                      cursor: multiSel.length ? 'pointer' : 'default',
+                      background: multiSel.length ? '#2563eb' : '#dbeafe', color: multiSel.length ? '#fff' : '#93b3ed',
+                    }}>Aplică</button>
+                  <button onClick={() => setMultiZi(null)}
+                    style={{ padding: '5px 8px', borderRadius: 7, fontSize: 11, border: 'none', background: 'transparent', color: '#1d4ed8', cursor: 'pointer' }}>✕</button>
+                </div>
+              </div>
+            )}
           </div>
         );
       })}
@@ -152,7 +204,7 @@ function DirectieInner() {
         <SoferPicker
           direction={dir}
           currentDriverId={soferPicker.driver_id}
-          allowRemove={soferPicker.route_kind === 'uzina'}
+          allowRemove={soferPicker.route_kind === 'uzina' && !soferPicker.vehicle_id}
           onPick={(did) => pickSofer(soferPicker, did)}
           onClose={() => setSoferPicker(null)}
         />

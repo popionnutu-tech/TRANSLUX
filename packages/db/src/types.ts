@@ -447,6 +447,7 @@ export interface LdeUzina {
   notes: string | null;
   active: boolean;
   created_at: string;
+  gps_localities: string[];                   // localități GPS acceptate la verificare (gol = city)
 }
 
 // Curse uzine (110 curse total)

@@ -20,6 +20,7 @@ const EMPTY_FORM: UzinaInput = {
   works_saturday: false,
   works_sunday: false,
   notes: '',
+  gps_localities: '',
 };
 
 export default function UzineClient({ initialUzine }: { initialUzine: LdeUzina[] }) {
@@ -159,6 +160,15 @@ export default function UzineClient({ initialUzine }: { initialUzine: LdeUzina[]
           </div>
 
           <div className="form-group" style={{ marginBottom: 0 }}>
+            <label>Localități GPS suplimentare (pe lângă oraș, la verificare)</label>
+            <input
+              value={form.gps_localities ?? ''}
+              onChange={(e) => patchForm({ gps_localities: e.target.value })}
+              placeholder="ex: Bucuria"
+            />
+          </div>
+
+          <div className="form-group" style={{ marginBottom: 0 }}>
             <label>Note</label>
             <input
               value={form.notes ?? ''}
@@ -264,6 +274,13 @@ function UzinaRow({
             onChange={(e) => setDraft({ ...draft, city: e.target.value })}
             style={{ width: 100, fontSize: 13, padding: '2px 6px' }}
           />
+          <input
+            value={draft.gps_localities ?? ''}
+            onChange={(e) => setDraft({ ...draft, gps_localities: e.target.value })}
+            placeholder="localități GPS"
+            title="Localități GPS suplimentare pe lângă oraș, la verificare (virgulă)"
+            style={{ width: 100, fontSize: 12, padding: '2px 6px', marginTop: 4 }}
+          />
         </td>
         <td>
           <select
@@ -341,7 +358,14 @@ function UzinaRow({
     <tr style={{ opacity: uzina.active ? 1 : 0.5 }}>
       <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{uzina.id}</td>
       <td onClick={start} style={{ cursor: 'pointer', fontWeight: 600 }}>{uzina.display_name}</td>
-      <td>{uzina.city}</td>
+      <td>
+        {uzina.city}
+        {(uzina.gps_localities ?? []).length > 0 && (
+          <div style={{ fontSize: 11, color: 'var(--muted, #8a7f86)' }} title="Localități GPS acceptate la verificare">
+            GPS: {(uzina.gps_localities ?? []).join(', ')}
+          </div>
+        )}
+      </td>
       <td>{LDE_SHIFT_PATTERN_LABELS[uzina.shift_pattern]}</td>
       <td>{uzina.shift1_time ?? '—'}</td>
       <td>{uzina.shift2_time ?? '—'}</td>
@@ -379,5 +403,6 @@ function toInput(u: LdeUzina): UzinaInput {
     works_saturday: u.works_saturday,
     works_sunday: u.works_sunday,
     notes: u.notes ?? '',
+    gps_localities: (u.gps_localities ?? []).join(', '),
   };
 }

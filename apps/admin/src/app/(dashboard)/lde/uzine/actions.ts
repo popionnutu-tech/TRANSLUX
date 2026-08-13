@@ -18,6 +18,7 @@ export type UzinaInput = {
   works_saturday: boolean;
   works_sunday: boolean;
   notes?: string | null;
+  gps_localities?: string; // listă separată prin virgulă în UI; SUPLIMENTARE pe lângă city
 };
 
 function validate(input: UzinaInput, isCreate: boolean) {
@@ -48,6 +49,7 @@ function validate(input: UzinaInput, isCreate: boolean) {
     works_saturday: !!input.works_saturday,
     works_sunday: !!input.works_sunday,
     notes: input.notes?.trim() || null,
+    gps_localities: (input.gps_localities ?? '').split(',').map((s) => s.trim()).filter(Boolean),
   };
 }
 
@@ -61,9 +63,24 @@ export async function getUzine(): Promise<LdeUzina[]> {
   return (data || []) as LdeUzina[];
 }
 
+/** Localitățile introduse trebuie să existe în opririle GPS (nomenclatorul OSM al
+ *  worker-ului) — o greșeală de tastare ar trece altfel neobservată și verificarea
+ *  fie n-ar repara nimic, fie (mai rău) ar confirma fals. */
+async function checkGpsLocalities(names: string[]) {
+  const db = getSupabase();
+  for (const n of names) {
+    const { data, error } = await db.from('lde_gps_stops').select('id').ilike('locality', n).limit(1);
+    if (error) throw new Error(error.message);
+    if (!data?.length) {
+      throw new Error(`Localitatea «${n}» nu apare în opririle GPS — scrie-o exact ca în raportul de opriri`);
+    }
+  }
+}
+
 export async function createUzina(input: UzinaInput) {
   requireRole(await verifySession(), 'ADMIN');
   const row = validate(input, true);
+  await checkGpsLocalities(row.gps_localities);
   const { error } = await getSupabase().from('lde_uzine').insert(row);
   if (error) throw new Error(error.message);
   revalidatePath('/lde/uzine');
@@ -72,6 +89,7 @@ export async function createUzina(input: UzinaInput) {
 export async function updateUzina(id: string, input: UzinaInput) {
   requireRole(await verifySession(), 'ADMIN');
   const row = validate(input, false);
+  await checkGpsLocalities(row.gps_localities);
   // id-ul nu se schimbă în update
   const { id: _ignore, ...patch } = row;
   const { error } = await getSupabase()

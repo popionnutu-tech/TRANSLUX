@@ -147,16 +147,20 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
     setBusy(false);
   }
 
+  // chips-uri DOAR când se caută (max 8) — lista completă stă în dropdown,
+  // ca popup-ul să încapă într-un ecran de telefon (feedback Ion, 13.08)
   const vehList = useMemo(() => {
     if (!pickers) return [];
     const n = qVeh.trim().toUpperCase().replace(/\s+/g, '');
-    return (n ? pickers.vehicles.filter((v) => v.plate.includes(n)) : pickers.vehicles).slice(0, 30);
+    return n ? pickers.vehicles.filter((v) => v.plate.includes(n)).slice(0, 8) : [];
   }, [pickers, qVeh]);
   const sofList = useMemo(() => {
     if (!pickers) return [];
     const n = qSof.trim().toLowerCase();
-    return (n ? pickers.soferi.filter((s) => s.name.toLowerCase().includes(n)) : pickers.soferi).slice(0, 30);
+    return n ? pickers.soferi.filter((s) => s.name.toLowerCase().includes(n)).slice(0, 8) : [];
   }, [pickers, qSof]);
+  const plateOf = (id: string | null) => (id ? pickers?.vehicles.find((v) => v.id === id)?.plate ?? '…' : null);
+  const nameOf = (id: string | null) => (id ? pickers?.soferi.find((s) => s.id === id)?.name ?? '…' : null);
 
   const canSave = selDates.length > 0 && (selVehicle == null || selDriver != null);
   const interval = week ? `Luni ${ddmm(week.dates[0])} – Duminică ${ddmm(week.dates[6])}` : '';
@@ -257,18 +261,28 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
             )}
 
             <div style={{ fontSize: 11, fontWeight: 700, color: '#71717a', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 }}>Mașina</div>
-            <input placeholder="Caută numărul…" value={qVeh} onChange={(e) => setQVeh(e.target.value)} autoFocus
-              style={{ width: '100%', padding: '8px 12px', borderRadius: 10, fontSize: 14, border: '1px solid #e4e4e7', boxSizing: 'border-box', marginBottom: 8 }} />
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
+            <input placeholder="Scrie numărul (ex: 97)…" value={qVeh} onChange={(e) => setQVeh(e.target.value)} autoFocus
+              style={{ width: '100%', padding: '8px 12px', borderRadius: 10, fontSize: 14, border: '1px solid #e4e4e7', boxSizing: 'border-box', marginBottom: 6 }} />
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
               {selVehicle && (
                 <button onClick={() => pickVehicle(null)}
                   style={{ padding: '7px 12px', borderRadius: 9, fontSize: 13, cursor: 'pointer', border: '1px solid #e4e4e7', background: '#f4f4f5', color: '#b91c1c' }}>✕ golește</button>
+              )}
+              {!qVeh.trim() && selVehicle && (
+                <span style={{ padding: '7px 12px', borderRadius: 9, fontSize: 13, fontWeight: 700, fontFamily: 'ui-monospace, monospace', background: '#2563eb', color: '#fff' }}>
+                  {plateOf(selVehicle)}{selVehicle === popup.template_vehicle_id ? ' · șablon' : ''}
+                </span>
+              )}
+              {!qVeh.trim() && popup.template_vehicle_id && popup.template_vehicle_id !== selVehicle && (
+                <button onClick={() => pickVehicle(popup.template_vehicle_id)}
+                  style={{ padding: '7px 12px', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'ui-monospace, monospace', border: '1px dashed #a1a1aa', background: '#f4f4f5', color: '#3f3f46' }}>
+                  {plateOf(popup.template_vehicle_id)} · șablon</button>
               )}
               {vehList.map((v) => {
                 const isCur = v.id === selVehicle;
                 const isTpl = v.id === popup.template_vehicle_id;
                 return (
-                  <button key={v.id} onClick={() => pickVehicle(v.id)}
+                  <button key={v.id} onClick={() => { pickVehicle(v.id); setQVeh(''); }}
                     style={{
                       padding: '7px 12px', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: 'pointer',
                       fontFamily: 'ui-monospace, monospace',
@@ -278,18 +292,31 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
                 );
               })}
             </div>
+            <select value={selVehicle ?? ''} onChange={(e) => pickVehicle(e.target.value || null)}
+              style={{ width: '100%', padding: '8px 10px', borderRadius: 10, fontSize: 14, border: '1px solid #e4e4e7', background: '#fff', marginBottom: 4 }}>
+              <option value="">— sau alege mașina din listă —</option>
+              {selVehicle && !pickers?.vehicles.some((v) => v.id === selVehicle) && (
+                <option value={selVehicle}>{(selVehicle === popup.vehicle_id ? popup.plate : null) ?? '…'} (inactivă)</option>
+              )}
+              {(pickers?.vehicles ?? []).map((v) => (
+                <option key={v.id} value={v.id}>{v.plate}{v.id === popup.template_vehicle_id ? ' ★ șablon' : ''}</option>
+              ))}
+            </select>
             <div style={{ fontSize: 11, color: '#a1a1aa', marginBottom: 12 }}>Șoferul titular se completează automat la alegerea mașinii.</div>
 
             <div style={{ fontSize: 11, fontWeight: 700, color: '#71717a', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 }}>
               Șoferul {selVehicle && <span style={{ color: '#b91c1c' }}>· obligatoriu</span>}
             </div>
-            <input placeholder="Caută șoferul…" value={qSof} onChange={(e) => setQSof(e.target.value)} disabled={!selVehicle}
-              style={{ width: '100%', padding: '8px 12px', borderRadius: 10, fontSize: 14, border: '1px solid #e4e4e7', boxSizing: 'border-box', marginBottom: 8, opacity: selVehicle ? 1 : 0.5 }} />
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14, opacity: selVehicle ? 1 : 0.5 }}>
+            <input placeholder="Scrie numele…" value={qSof} onChange={(e) => setQSof(e.target.value)} disabled={!selVehicle}
+              style={{ width: '100%', padding: '8px 12px', borderRadius: 10, fontSize: 14, border: '1px solid #e4e4e7', boxSizing: 'border-box', marginBottom: 6, opacity: selVehicle ? 1 : 0.5 }} />
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6, opacity: selVehicle ? 1 : 0.5 }}>
+              {!qSof.trim() && selDriver && (
+                <span style={{ padding: '7px 12px', borderRadius: 9, fontSize: 13, fontWeight: 600, background: '#2563eb', color: '#fff' }}>{nameOf(selDriver)}</span>
+              )}
               {sofList.map((s) => {
                 const isCur = s.id === selDriver;
                 return (
-                  <button key={s.id} onClick={() => selVehicle && setSelDriver(s.id)} disabled={!selVehicle}
+                  <button key={s.id} onClick={() => { if (selVehicle) { setSelDriver(s.id); setQSof(''); } }} disabled={!selVehicle}
                     style={{
                       padding: '7px 12px', borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none',
                       background: isCur ? '#2563eb' : '#f4f4f5', color: isCur ? '#fff' : s.inDirection ? '#3f3f46' : '#a1a1aa',
@@ -297,6 +324,16 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
                 );
               })}
             </div>
+            <select value={selDriver ?? ''} disabled={!selVehicle} onChange={(e) => setSelDriver(e.target.value || null)}
+              style={{ width: '100%', padding: '8px 10px', borderRadius: 10, fontSize: 14, border: '1px solid #e4e4e7', background: '#fff', marginBottom: 14, opacity: selVehicle ? 1 : 0.5 }}>
+              <option value="">— sau alege șoferul din listă —</option>
+              {selDriver && !pickers?.soferi.some((s) => s.id === selDriver) && (
+                <option value={selDriver}>{(selDriver === popup.driver_id ? popup.driver_name : null) ?? '…'} (inactiv)</option>
+              )}
+              {(pickers?.soferi ?? []).map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
 
             <div style={{ fontSize: 11, fontWeight: 700, color: '#71717a', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 }}>Se aplică pe zilele</div>
             <div style={{ display: 'flex', gap: 5, marginBottom: 6 }}>

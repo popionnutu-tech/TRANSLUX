@@ -19,6 +19,7 @@ export interface VerifySummary {
   nepotriviri: number;
   fara_date_gps: number;
   fara_masina: number;
+  actualizate: number; // rânduri chiar rescrise (fără no-op-uri) — la dry: câte AR fi
   push_trimise: number;
   dry: boolean;
 }
@@ -48,59 +49,84 @@ async function stopsOfDay(date: string): Promise<Map<string, { locs: Set<string>
   return byVeh;
 }
 
-export async function verificaZi(date: string, dry: boolean): Promise<VerifySummary> {
+export async function verificaZi(date: string, dry: boolean, reverify = false): Promise<VerifySummary> {
   const db = getSupabase();
   await ensureDayMaterialized(date);
 
+  // reverify: re-judecă și verdictele automate vechi (după corecții de gps_localities);
+  // confirmat_manual/confirmat_auto nu se ating niciodată.
+  const statuses = ['planificat', 'modificat_proactiv', 'modificat_reactiv',
+    ...(reverify ? ['nepotrivire', 'fara_date_gps'] : [])];
+
   const [{ data: rows }, { data: uzine }, gpsDaily, stops] = await Promise.all([
     db.from('lde_atribuiri_zilnice')
-      .select('id, direction, vehicle_id, status')
+      .select('id, direction, vehicle_id, status, verification_note')
       .eq('date', date).eq('route_kind', 'uzina')
-      .in('status', ['planificat', 'modificat_proactiv', 'modificat_reactiv']),
-    db.from('lde_uzine').select('id, city'),
+      .in('status', statuses),
+    db.from('lde_uzine').select('id, city, gps_localities'),
     db.from('lde_vehicle_gps_daily').select('vehicle_id').eq('date', date).then((r) => new Set((r.data ?? []).map((x) => x.vehicle_id as string))),
     stopsOfDay(date),
   ]);
+  // localitățile acceptate per uzină: orașul + gps_localities (lista COMPLETEAZĂ orașul,
+  // nu-l înlocuiește — o greșeală de tastare în listă nu poate strica verificarea de bază)
+  const acceptedOf = new Map<string, Array<{ key: string; name: string }>>();
+  for (const u of uzine ?? []) {
+    const names = [u.city as string, ...((u.gps_localities as string[] | null) ?? [])];
+    const seen = new Set<string>();
+    acceptedOf.set(u.id as string, names
+      .map((n) => ({ key: norm(n), name: n }))
+      .filter((a) => a.key && !seen.has(a.key) && seen.add(a.key)));
+  }
   const cityOf = new Map((uzine ?? []).map((u) => [u.id as string, u.city as string]));
 
   const summary: VerifySummary = {
-    date, verificate: 0, confirmate_auto: 0, nepotriviri: 0, fara_date_gps: 0, fara_masina: 0, push_trimise: 0, dry,
+    date, verificate: 0, confirmate_auto: 0, nepotriviri: 0, fara_date_gps: 0, fara_masina: 0, actualizate: 0, push_trimise: 0, dry,
   };
   const nepotriviriByDir = new Map<string, number>();
   const updates: Array<{ id: string; status: string; note: string }> = [];
 
   for (const r of rows ?? []) {
     summary.verificate++;
+    // nu rescrie rândurile al căror verdict nu s-a schimbat (relevant la reverify)
+    const propune = (status: string, note: string) => {
+      if (r.status !== status || r.verification_note !== note) updates.push({ id: r.id as string, status, note });
+    };
     if (!r.vehicle_id) { summary.fara_masina++; continue; } // «de completat» — nu e verdict GPS
     const city = cityOf.get(r.direction as string);
     if (!city) continue;
 
     if (!gpsDaily.has(r.vehicle_id as string)) {
       summary.fara_date_gps++;
-      updates.push({ id: r.id as string, status: 'fara_date_gps', note: 'fără date GPS în ziua respectivă' });
+      propune('fara_date_gps', 'fără date GPS în ziua respectivă');
       continue;
     }
     const veh = stops.get(r.vehicle_id as string);
-    const cityKey = norm(city);
-    if (veh?.locs.has(cityKey)) {
+    const hit = (acceptedOf.get(r.direction as string) ?? [])
+      .find((a) => veh?.locs.has(a.key));
+    if (hit) {
       summary.confirmate_auto++;
-      const at = veh.firstAt.get(cityKey);
+      const at = veh?.firstAt.get(hit.key);
       const ora = at ? new Intl.DateTimeFormat('ro-RO', { timeZone: 'Europe/Chisinau', hour: '2-digit', minute: '2-digit' }).format(new Date(at)) : '';
-      updates.push({ id: r.id as string, status: 'confirmat_auto', note: `GPS: ${city}${ora ? ` ${ora}` : ''}` });
+      propune('confirmat_auto', `GPS: ${hit.name}${ora ? ` ${ora}` : ''}`);
     } else {
       summary.nepotriviri++;
       nepotriviriByDir.set(r.direction as string, (nepotriviriByDir.get(r.direction as string) ?? 0) + 1);
-      updates.push({ id: r.id as string, status: 'nepotrivire', note: `GPS: nu a ajuns în ${city}` });
+      propune('nepotrivire', `GPS: nu a ajuns în ${city}`);
     }
   }
 
+  summary.actualizate = updates.length;
   if (!dry) {
     for (const u of updates) {
+      // guard pe status: dacă managerul a apăsat «Confirmă manual» între SELECT și
+      // UPDATE (reverify manual în timpul zilei), confirmarea lui nu se pierde
       await db.from('lde_atribuiri_zilnice')
         .update({ status: u.status, verification_note: u.note, ...(u.status === 'confirmat_auto' ? { confirmed_at: new Date().toISOString() } : {}) })
-        .eq('id', u.id);
+        .eq('id', u.id)
+        .in('status', statuses);
     }
-    summary.push_trimise = await pushManagers(date, nepotriviriByDir, summary);
+    // la reverify nu re-spamăm managerii — nepotrivirile vechi au fost deja anunțate
+    summary.push_trimise = reverify ? 0 : await pushManagers(date, nepotriviriByDir, summary);
   }
   return summary;
 }

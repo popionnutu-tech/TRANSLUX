@@ -13,6 +13,7 @@ import fs from 'fs';
 import { WebSocket as WS } from 'ws';
 import { createClient } from '@supabase/supabase-js';
 import { login, listUnits, loadTrack } from './wialon-api.mjs';
+import { computeDay, plausibleBridgeKm, hav } from './km-core.mjs';
 globalThis.WebSocket = globalThis.WebSocket || WS;
 
 const args = process.argv.slice(2);
@@ -22,16 +23,13 @@ if (!DAYS.length) { console.error('Lipsește ziua: node wialon-worker.mjs 2026-0
 
 // ── parametri (aceiași ca gps-worker, viteza în km/h) ──
 const BBOX = { latMin: 44, latMax: 55, lonMin: 8, lonMax: 32 };  // camioanele merg internațional (TIR) — bbox larg Europa Centrală/Est
-const TELEPORT_KMH = 150;
-const GAP_S = 600;
 const MOVING_KMH = 5.6;           // = 3 noduri (pragul gps-worker)
 const STOP_KMH = 7.4;             // = 4 noduri
 const STOP_MIN_S = 90;
 const STOP_NEAR_KM = 2.0;         // = LDE_GEO_VILLAGE_PROXIMITY_KM (regulă fermă)
-const SPEED_LIMIT_KMH = 90;       // camioane
+// pragurile de km (teleport/gaură/plafon) stau în km-core.mjs — comune cu gps-worker
 
 const normPlate = s => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-function hav(a, b) { const R=6371,t=Math.PI/180; const dLa=(b.lat-a.lat)*t,dLo=(b.lon-a.lon)*t,la1=a.lat*t,la2=b.lat*t; const x=Math.sin(dLa/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(dLo/2)**2; return 2*R*Math.asin(Math.sqrt(x)); }
 
 // ── localități OSM (doar Moldova — în afara ei opririle rămân fără nume) ──
 const places = [];
@@ -98,12 +96,14 @@ function coordLegKm(a, b) { // tronsonul învățat cu capetele cele mai apropia
   return best ? best.km : null;
 }
 
-function bridgeKm(a, b) { // cârpire săritură: coordonate → leg-db (nume) → linie dreaptă
+function bridgeKm(a, b) { // cârpire gaură: coordonate → leg-db (nume) → linie dreaptă
+  // tronsonul învățat se acceptă doar dacă e plauzibil pentru gaura ASTA (vezi km-core.mjs)
+  const direct = hav(a, b);
   const ck = coordLegKm(a, b);
-  if (ck != null) return { km: ck, src: 'leg_coord' };
+  if (plausibleBridgeKm(ck, direct)) return { km: ck, src: 'leg_coord' };
   const la = locName(a), lb = locName(b);
-  if (la && lb) { const k = legs.get(`${la}→${lb}`) ?? legs.get(`${lb}→${la}`); if (k != null) return { km: k, src: 'leg_db' }; }
-  return { km: hav(a, b), src: 'straight_line' };
+  if (la && lb) { const k = legs.get(`${la}→${lb}`) ?? legs.get(`${lb}→${la}`); if (plausibleBridgeKm(k, direct)) return { km: k, src: 'leg_db' }; }
+  return { km: direct, src: 'straight_line' };
 }
 
 async function withRelogin(fn) { // sid poate expira pe rulări lungi → un re-login
@@ -124,22 +124,12 @@ async function processDay(v, day) {
     if (m.lat < BBOX.latMin || m.lat > BBOX.latMax || m.lon < BBOX.lonMin || m.lon > BBOX.lonMax) continue;
     pts.push({ lat: m.lat, lon: m.lon, t: new Date(m.t * 1000), sp: m.speed });
   }
-  if (pts.length < 2) return { km: 0, stops: [], vmax: 0, viol: 0, patched: 0, check: 0, npts: pts.length };
+  if (pts.length < 2) return { km: 0, stops: [], vmax: 0, viol: 0, patched: 0, check: 0, dropped: 0, npts: pts.length };
 
-  // km_check = integrarea vitezei (Σ v×dt, dt≤60s) — verificare independentă a km_total
-  const stepKm = new Array(pts.length).fill(0); const stepPatched = new Array(pts.length).fill(false); const stepSrc = new Array(pts.length).fill(null);
-  let kmTotal = 0, patchedKm = 0, vmax = 0, viol = 0, kmCheck = 0;
-  for (let i = 1; i < pts.length; i++) {
-    const dt = (pts[i].t - pts[i-1].t) / 1000;
-    const d = hav(pts[i-1], pts[i]);
-    const impliedKmh = dt > 0 ? d / (dt/3600) : 9999;
-    const kmh = pts[i].sp; if (kmh < 160 && kmh > vmax) vmax = kmh; if (kmh > SPEED_LIMIT_KMH && kmh < 160) viol++;
-    if (kmh < 160) kmCheck += (kmh / 3600) * Math.min(Math.max(dt, 0), 60);
-    let segKm = 0, patched = false;
-    if (impliedKmh > TELEPORT_KMH || dt > GAP_S) { const br = bridgeKm(pts[i-1], pts[i]); segKm = br.km; patched = true; patchedKm += br.km; stepSrc[i] = br.src; }
-    else if (pts[i].sp > MOVING_KMH) { segKm = d; }
-    stepKm[i] = segKm; stepPatched[i] = patched; kmTotal += segKm;
-  }
+  // km + pașii lor (vezi km-core.mjs: se cârpesc doar găurile reale, plafonat)
+  // + km_check = integrarea vitezei (Σ v×dt, dt≤60s) — verificare independentă a km_total
+  const calc = computeDay(pts, { bridgeKm, movingKmh: MOVING_KMH });
+  const { stepKm, stepPatched, stepSrc, stepDropped } = calc;
 
   const stops = []; let cl = null;
   for (let i = 0; i < pts.length; i++) {
@@ -156,11 +146,11 @@ async function processDay(v, day) {
     const dwell = Math.round((pts[c.i1].t - pts[c.i0].t)/60000);
     let kmPrev = null, src = 'gps';
     // sursa etichetei = cârpirea DOMINANTĂ (cei mai mulți km) de pe tronson; fără cârpiri → gps
-    if (prevEnd != null) { let k=0; const bySrc = new Map(); for (let i=prevEnd+1; i<=c.i0; i++){ k+=stepKm[i]; if(stepPatched[i]) bySrc.set(stepSrc[i], (bySrc.get(stepSrc[i])||0)+stepKm[i]); } kmPrev = k; src = bySrc.size ? [...bySrc.entries()].sort((a,b)=>b[1]-a[1])[0][0] : 'gps'; }
+    if (prevEnd != null) { let k=0, drop=false; const bySrc = new Map(); for (let i=prevEnd+1; i<=c.i0; i++){ k+=stepKm[i]; if(stepDropped[i]) drop=true; if(stepPatched[i]) bySrc.set(stepSrc[i], (bySrc.get(stepSrc[i])||0)+stepKm[i]); } kmPrev = k; src = bySrc.size ? [...bySrc.entries()].sort((a,b)=>b[1]-a[1])[0][0] : (drop ? 'gps_filtrat' : 'gps'); }
     out.push({ seq: s+1, locality: locName({lat,lon}), lat: +lat.toFixed(7), lon: +lon.toFixed(7), arrival: pts[c.i0].t, departure: pts[c.i1].t, dwell, kmPrev: kmPrev==null?null:+kmPrev.toFixed(2), src });
     prevEnd = c.i1;
   }
-  return { km: +kmTotal.toFixed(1), stops: out, vmax: Math.round(vmax), viol, patched: +patchedKm.toFixed(1), check: +kmCheck.toFixed(1), npts: pts.length };
+  return { km: calc.km, stops: out, vmax: calc.vmax, viol: calc.viol, patched: calc.patched, check: calc.check, dropped: calc.dropped, npts: pts.length };
 }
 
 // marcare zi suspectă — prag ÎNALT, doar detectorii validați (migrația 226):
@@ -185,7 +175,7 @@ for (const day of DAYS) {
       console.log(`  ${v.plate.padEnd(7)} ${day}  ${String(r.km).padStart(7)}km  v${r.vmax}  opriri:${r.stops.length}${r.patched>0?`  cârpit:${r.patched}km`:''}${reason?`  SUSPECT ${reason}`:''}`);
     }
     if (WRITE && r.npts > 0) {
-      await supa.from('lde_vehicle_gps_daily').upsert({ vehicle_id: v.vehicle_id, date: day, km_total: r.km, speed_max_kmh: r.vmax, speed_violations_count: r.viol, km_patched: r.patched, km_check: r.check, gps_points: r.npts, suspect: !!reason, suspect_reason: reason, data_source: 'platform_gps', imported_at: new Date().toISOString() }, { onConflict: 'vehicle_id,date' });
+      await supa.from('lde_vehicle_gps_daily').upsert({ vehicle_id: v.vehicle_id, date: day, km_total: r.km, speed_max_kmh: r.vmax, speed_violations_count: r.viol, km_patched: r.patched, km_check: r.check, gps_points: r.npts, gps_points_dropped: r.dropped, suspect: !!reason, suspect_reason: reason, data_source: 'platform_gps', imported_at: new Date().toISOString() }, { onConflict: 'vehicle_id,date' });
       await supa.from('lde_gps_stops').delete().eq('vehicle_id', v.vehicle_id).eq('date', day);
       if (r.stops.length) {
         const rows = r.stops.map(s => ({ vehicle_id: v.vehicle_id, date: day, seq: s.seq, locality: s.locality, lat: s.lat, lon: s.lon, arrival_at: s.arrival.toISOString(), departure_at: s.departure.toISOString(), dwell_min: s.dwell, km_from_prev: s.kmPrev, km_from_prev_source: s.src, is_base: false, gps_quality: r.patched>0?'patched':'clean' }));

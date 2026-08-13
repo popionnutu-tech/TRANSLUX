@@ -14,9 +14,15 @@
 --   3. gps_points_dropped — câte puncte a aruncat worker-ul în ziua respectivă.
 --      Fără el, un tracker stricat devine invizibil: km-ul iese curat, dar nimeni
 --      nu mai vede că jumătate din puncte erau gunoi.
---   4. RPC-ul rula în 2–3.5 s cu sort pe disc, la un statement_timeout de 8 s
---      (perf-review 13.08). Setările pe funcție îi dau aer până la creșterea
---      istoricului de opriri.
+--   4. work_mem = 64MB pe funcție — sortarea din refresh se ducea pe disc.
+--      ATENȚIE (măsurat 13.08): `SET statement_timeout` pe funcție NU are efect —
+--      cronometrul e armat la începutul comenzii și nu se re-citește când se
+--      schimbă GUC-ul înăuntru; plafonul rolului `authenticator` (8 s) rămâne în
+--      vigoare. Îl lăsăm scris doar ca urmă a intenției. Nu e o problemă azi:
+--      RPC-ul rulează în ~0.5 s (cele „2–3.5 s" erau artefactul EXPLAIN ANALYZE,
+--      care umflă de ~10×); 8 s se ating abia pe la ~1.3 mln rânduri de opriri.
+--      Când se apropie, refresh-ul se cheamă pe conexiunea pg directă a
+--      worker-ului, nu prin PostgREST.
 -- ============================================================================
 
 BEGIN;

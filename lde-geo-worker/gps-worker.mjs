@@ -16,7 +16,7 @@ const DAYS = (args.find(a => /^\d{4}-\d{2}-\d{2}/.test(a)) || '').split(',').fil
 const WRITE = args.includes('--write');
 const LIMIT = (() => { const i = args.indexOf('--limit'); return i >= 0 ? Number(args[i + 1]) : 0; })();
 // --plates 603BRAS,893BRAX — re-calcul punctual pe câteva mașini, fără să plimbăm toată flota
-const PLATES = (() => { const i = args.indexOf('--plates'); return i >= 0 ? (args[i + 1] || '').toUpperCase().split(',').filter(Boolean) : []; })();
+const PLATES = (() => { const i = args.indexOf('--plates'); return i >= 0 ? (args[i + 1] || '').split(',').map(s => s.toUpperCase().replace(/[^A-Z0-9]/g, '')).filter(Boolean) : []; })();
 if (!DAYS.length) { console.error('Lipsește ziua: node gps-worker.mjs 2026-06-23 [--write]'); process.exit(1); }
 
 // ── parametri (validați pe date reale) ──
@@ -55,15 +55,18 @@ if (ve) { console.error('Supabase vehicles:', ve.message); process.exit(1); }
 const plate2veh = new Map(vehs.map(v => [normPlate(v.plate_number), { id: v.id, is_lde: v.is_lde }]));
 const { rows: devs } = await tracker.query(`SELECT id, "CarName", "RegNo" FROM devices WHERE active=true`);
 // O mașină poate avea MAI MULTE dispozitive: la schimbul de tracker (07.08.2026) cel vechi
-// e redenumit «603BRAS-DEFECTAT» și rămâne activ, cu tot istoricul în el. Potrivim pe ambele
-// câmpuri (CarName ȘI RegNo) și ținem toate dispozitivele; ziua se ia de la cel cu puncte.
+// e redenumit «603BRAS-DEFECTAT» și rămâne activ, cu tot istoricul în el. Îl regăsim după
+// RegNo, dar UN dispozitiv aparține unei singure mașini: CarName are prioritate, RegNo se
+// folosește doar dacă CarName nu duce nicăieri. Altfel dispozitivele unde cele două câmpuri
+// arată spre mașini diferite (4 în tracker: CarName=320BRAT / RegNo=041BRAU etc.) ar dubla
+// același traseu pe două mașini — adică și km-ul, și salariul.
 const byPlate = new Map();
 for (const d of devs) {
-  for (const p of new Set([normPlate(d.CarName), normPlate(d.RegNo)])) {
-    if (!plate2veh.has(p)) continue;
-    if (!byPlate.has(p)) byPlate.set(p, []);
-    if (!byPlate.get(p).includes(d.id)) byPlate.get(p).push(d.id);
-  }
+  const dupaNume = normPlate(d.CarName);
+  const p = plate2veh.has(dupaNume) ? dupaNume : normPlate(d.RegNo);
+  if (!plate2veh.has(p)) continue;
+  if (!byPlate.has(p)) byPlate.set(p, []);
+  byPlate.get(p).push(d.id);
 }
 let fleet = [...byPlate.entries()].map(([p, devices]) => { const vv = plate2veh.get(p); return { devices, vehicle_id: vv.id, is_lde: vv.is_lde, plate: p }; });
 if (PLATES.length) fleet = fleet.filter(f => PLATES.includes(f.plate));
@@ -120,15 +123,17 @@ function bridgeKm(a, b) { // cârpire gaură: coordonate → leg-db (nume) → l
 
 async function processDay(v, day) {
   // cu mai multe dispozitive pe aceeași mașină, ziua se ia de la cel cu cele mai multe
-  // puncte — NU se amestecă: trackerul vechi și cel nou pot raporta în paralel la schimb
-  let rows = [];
+  // puncte VALIDE — NU se amestecă: trackerul vechi și cel nou pot raporta în paralel la
+  // schimb. Comparăm după filtrul de bbox, altfel un tracker stricat care spamează
+  // coordonate aiurea l-ar bate pe cel sănătos.
+  let pts = [];
   for (const device of v.devices) {
     const r = await tracker.query(
       `SELECT w_date,x,y,speed FROM track WHERE id=$1 AND w_date>=$2 AND w_date<($2::date+1) AND w_date<=now() ORDER BY w_date`, [device, day]);
-    if (r.rows.length > rows.length) rows = r.rows;
+    const p = [];
+    for (const row of r.rows) { const lat = nmea(+row.x), lon = nmea(+row.y); if (lat<BBOX.latMin||lat>BBOX.latMax||lon<BBOX.lonMin||lon>BBOX.lonMax) continue; p.push({ lat, lon, t: new Date(row.w_date), sp: row.speed }); }
+    if (p.length > pts.length) pts = p;
   }
-  const pts = [];
-  for (const r of rows) { const lat = nmea(+r.x), lon = nmea(+r.y); if (lat<BBOX.latMin||lat>BBOX.latMax||lon<BBOX.lonMin||lon>BBOX.lonMax) continue; pts.push({ lat, lon, t: new Date(r.w_date), sp: r.speed }); }
   if (pts.length < 2) return { km: 0, stops: [], vmax: 0, viol: 0, patched: 0, check: 0, dropped: 0, npts: pts.length };
 
   // km + pașii lor (vezi km-core.mjs: se cârpesc doar găurile reale, plafonat)
@@ -159,8 +164,10 @@ async function processDay(v, day) {
     // is_base = garaj/casă: doar la UZINE (LDE), unde prima/ultima oprire = baza șoferului.
     // La interurban/suburban prima/ultima oprire = capătul cursei, NU baza → fals.
     out.push({ seq: s+1, locality: loc, lat: +lat.toFixed(7), lon: +lon.toFixed(7), arrival: pts[c.i0].t, departure: pts[c.i1].t, dwell, kmPrev: kmPrev==null?null:+kmPrev.toFixed(2), src, isBase: !!v.is_lde && (s===0 || s===stops.length-1) });
-    // învață tronson curat — pe nume (compat)
-    if (prevEnd != null && src === 'gps' && out[s-1]?.locality && loc && out[s-1].locality !== loc && kmPrev > 0) {
+    // învață tronson curat — pe nume (compat). Aceeași plauzibilitate ca la coord (RPC,
+    // migrația 253): un tur dus-întors nu e tronson, oricât de curat ar fi măsurat.
+    if (prevEnd != null && src === 'gps' && out[s-1]?.locality && loc && out[s-1].locality !== loc && kmPrev > 0
+        && plausibleBridgeKm(kmPrev, hav({ lat: out[s-1].lat, lon: out[s-1].lon }, { lat, lon }))) {
       const k = legKey(out[s-1].locality, loc); if (!legObs.has(k)) legObs.set(k, []); legObs.get(k).push(kmPrev);
     }
     // tronsoanele coord NU se învață aici — le recalculează RPC-ul din istoric (migrația 228)

@@ -18,10 +18,14 @@
 //
 // Foile care NU pot fi trimise (mașină lipsă, șofer nemapat, insert eșuat) se
 // raportează la /api/cron/tomberon-skips → alertă Telegram către admini, o
-// singură dată pe zi per problemă. Necesită CRON_SECRET în .env.
+// singură dată pe zi per problemă. Necesită CRON_SECRET (+ opțional
+// ADMIN_BASE_URL) în .env.
 //
 // Rulare: node --env-file=.env tomberon-sync.mjs [YYYY-MM-DD] [--map] [--write]
 // Implicit: azi (Europe/Chisinau), dry-run fără --write.
+//
+// Variabile .env: SUPABASE_URL, SUPABASE_SERVICE_KEY, TOMBERON_HOST/PORT/USER/PASS,
+// CRON_SECRET (fără el alerta tace), opțional ADMIN_BASE_URL.
 // ============================================================================
 import sql from 'mssql';
 import { WebSocket as WS } from 'ws';
@@ -206,28 +210,31 @@ try {
   const DATES = args.some(a => /^\d{4}-\d{2}-\d{2}$/.test(a)) ? [DATE] : [DATE, nextDay(DATE)];
   // o zi eșuată nu blochează cealaltă (cron reia oricum peste 10 min),
   // dar exit code-ul reflectă eșecul pentru monitorizare
-  const TODAY = chisinau(new Date());
+  // Raportăm AMBELE zile: filtrul «ce e incident pe mâine» stă deja la nivel de
+  // motiv (esteMaine scutește lipsa mașinii), iar un șofer nemapat pe mâine
+  // blochează deja cursele de noapte, la care șoferul vine cu foaia din ajun.
+  const zileRaportate = [];
   for (const zi of DATES) {
     try {
-      const skips = await syncDay(zi);
-      // Alertăm doar pentru ZIUA CURENTĂ și doar la rulările reale: pe mâine
-      // graficul se completează treptat, iar un dry-run e diagnostic, nu incident.
-      if (WRITE && zi === TODAY) await raporteazaSkips(zi, skips);
+      zileRaportate.push({ ziua: zi, skips: await syncDay(zi) });
     }
     catch (e) { console.error(`EROARE ziua ${zi}: ${e.message}`); process.exitCode = 1; }
   }
+  // Doar la rulările reale: în dry-run autoMap returnează null, deci toți șoferii
+  // nemapați ar apărea ca incident fals.
+  if (WRITE) await raporteazaSkips(zileRaportate);
 
   // Foile care n-au ajuns la terminal pleacă spre /api/cron/tomberon-skips, care
   // deduplică și alertează adminii pe Telegram. Până la asta, singura urmă erau
   // liniile SKIP din log — patru curse au stat 9 zile fără f/parcurs (13.08.2026).
-  async function raporteazaSkips(zi, skips) {
-    const url = process.env.TLX_ALERT_URL || 'https://central-hub-md.vercel.app/api/cron/tomberon-skips';
+  async function raporteazaSkips(zile) {
+    const base = process.env.ADMIN_BASE_URL || 'https://central-hub-md.vercel.app';
     if (!process.env.CRON_SECRET) { console.warn('  (fără CRON_SECRET — alerta pentru foile sărite nu pleacă)'); return; }
     try {
-      const resp = await fetch(url, {
+      const resp = await fetch(`${base}/api/cron/tomberon-skips`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.CRON_SECRET}` },
-        body: JSON.stringify({ ziua: zi, skips }),
+        body: JSON.stringify({ zile }),
         signal: AbortSignal.timeout(10000),
       });
       if (!resp.ok) { console.error(`  EROARE raportare skips: HTTP ${resp.status} ${(await resp.text()).slice(0, 200)}`); return; }
@@ -380,7 +387,7 @@ try {
     const name = nameMap.get(f.driver_id) ?? f.driver_id;
     if (!/^\d{1,7}$/.test(wb)) {
       console.warn(`  SKIP foaie ne-numerică «${f.receipt_nr}» (${name})`);
-      skips.push({ foaie: String(f.receipt_nr), sofer: name, motiv: 'numărul foii nu e numeric' });
+      skips.push({ foaie: String(f.receipt_nr ?? '?'), sofer: name, cod: 'foaie_nenumerica', motiv: 'numărul foii nu e numeric' });
       continue;
     }
     const ale = daByDrv.get(f.driver_id) ?? [];
@@ -413,7 +420,7 @@ try {
     }
     if (tid == null) {
       console.warn(`  SKIP foaie ${wb} (${name}): șofer nemapat`);
-      skips.push({ foaie: wb, sofer: name, motiv: 'șofer nemapat la terminal' });
+      skips.push({ foaie: wb, sofer: name, cod: 'nemapat', motiv: 'șofer nemapat la terminal' });
       continue;
     }
     if (!plate) {
@@ -421,14 +428,14 @@ try {
       if (esteMaine) console.log(`  amânat foaie ${wb} (${name}): încă fără mașină în grafic`);
       else {
         console.warn(`  SKIP foaie ${wb} (${name}): fără mașină în graficul de AZI`);
-        skips.push({ foaie: wb, sofer: name, motiv: 'fără mașină în graficul de azi' });
+        skips.push({ foaie: wb, sofer: name, cod: 'fara_masina', motiv: 'fără mașină în graficul de azi' });
       }
       continue;
     }
     const autoId = findAuto(plate);
     if (autoId == null) {
       console.warn(`  SKIP foaie ${wb} (${name}): mașina «${plate}» negăsită în nomenclatorul auto al terminalului`);
-      skips.push({ foaie: wb, sofer: name, motiv: `mașina «${plate}» lipsește din nomenclatorul terminalului` });
+      skips.push({ foaie: wb, sofer: name, cod: 'auto_lipsa', motiv: `mașina «${plate}» lipsește din nomenclatorul terminalului` });
       continue;
     }
     // WayID: 1) maparea rutei foii (sau a atribuirii) din tomberon_route_map;
@@ -450,7 +457,7 @@ try {
         // un rând prost nu blochează restul foilor
         failed++;
         console.error(`  EROARE insert foaie ${wb} (${name}): ${e.message}`);
-        skips.push({ foaie: wb, sofer: name, motiv: `insert eșuat la terminal: ${e.message}` });
+        skips.push({ foaie: wb, sofer: name, cod: 'insert_esuat', motiv: `insert eșuat la terminal: ${e.message}` });
       }
     }
   }

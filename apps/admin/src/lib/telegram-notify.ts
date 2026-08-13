@@ -25,8 +25,11 @@ export async function sendTelegram(chatId: string | number, text: string, replyM
   }
 }
 
-/** Алерт всем активным админам (users: role=ADMIN, active, telegram_id). */
-export async function alertAdmins(text: string): Promise<void> {
+/** Алерт всем активным админам (users: role=ADMIN, active, telegram_id).
+ *  Возвращает true, если сообщение приняли хотя бы у одного адресата — вызывающий
+ *  код может отличить «предупредили» от «предупредить не удалось» (нет токена,
+ *  ни у кого не привязан telegram_id, Telegram отверг текст). */
+export async function alertAdmins(text: string): Promise<boolean> {
   const supabase = getSupabase();
   const { data: admins, error } = await supabase
     .from('users')
@@ -36,7 +39,8 @@ export async function alertAdmins(text: string): Promise<void> {
     .not('telegram_id', 'is', null);
   if (error) console.error('alertAdmins: admin lookup failed:', error.message);
   // sendTelegram никогда не бросает → безопасно слать параллельно.
-  await Promise.all(
+  const results = await Promise.all(
     (admins || []).filter(a => a.telegram_id).map(a => sendTelegram(a.telegram_id, text)),
   );
+  return results.some(Boolean);
 }

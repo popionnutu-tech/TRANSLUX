@@ -438,6 +438,81 @@ function addBusinessDaysYMD(startYMD: string, n: number): string {
   return dt.toISOString().slice(0, 10);
 }
 
+/** Stările din care o sarcină expirată poate fi închisă automat = NONTERMINAL_OB minus cele
+ *  unde mingea e la om. Derivat, NU scris de mână: copiile paralele de stări au divergat deja
+ *  o dată în acest modul (vezi comentariul din admin core.ts). */
+const EXPIRABLE_OB = NONTERMINAL_OB.filter((s) => s !== 'report_pending' && s !== 'overdue_responded');
+
+/**
+ * O singură sarcină vie per șablon: instanțele recurente cu termenul depășit se închid
+ * automat ca 'failed' la rularea generatorului (07:00). Fără asta se adunau 7 copii ale
+ * aceleiași sarcini pe ecranul executantului (constatat 17.08.2026, 26 din 42 erau dubluri).
+ * NU se ating 'report_pending' (raport depus, așteaptă decizia șefului) și 'overdue_responded'
+ * (executantul a propus alt termen) — acolo mingea e la om, nu la ceas. Fără notificare:
+ * un mesaj per sarcină expirată ar fi spam zilnic.
+ * Sarcinile auto-verificate (TikTok) trec întâi printr-o recuperare a verificării de noapte —
+ * norma făcută se închide ca 'resolved'. Dacă automatul tot greșește, adminul are «Redeschide»
+ * pe pagina sarcinii (core.ts: reopenTask) — 'failed' nu mai e o fundătură.
+ * Întoarce numărul de sarcini închise.
+ */
+export async function expireStaleRecurringTasks(): Promise<number> {
+  const supa = db();
+  const todayCh = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Chisinau' })).toISOString().slice(0, 10);
+  const cutoff = chisinauDateTimeISO(todayCh, '00:00'); // tot ce avea termen înainte de azi
+
+  // Candidați: sarcini recurente cu termenul depășit. Cheia e ȘI legătura la șablon, ȘI source —
+  // instanțele vechi au doar source (or= merge la SELECT; doar PATCH+or= e refuzat de PostgREST-ul
+  // proiectului). Selectăm întâi, ca să putem cerne sarcinile auto-verificate (mai jos).
+  const { data: cand, error } = await supa.from('obligations')
+    .select('id, current_deadline, recurring_template_id')
+    .in('current_state', EXPIRABLE_OB)
+    .lt('current_deadline', cutoff)
+    .or('source.eq.recurring,recurring_template_id.not.is.null');
+  if (error) throw new Error(`expire recurring select: ${error.message}`);
+  const rows = (cand as { id: string; current_deadline: string; recurring_template_id: string | null }[]) ?? [];
+  if (rows.length === 0) return 0;
+
+  // Recuperare ÎNAINTE de închidere, pentru șabloanele auto-verificate (TikTok): verificarea de
+  // noapte rulează la minutul exact 23:00, iar un restart Railway o pierde — atunci o rulăm acum,
+  // pe zilele candidaților. Norma făcută → sarcina se închide ca 'resolved', NU ca «eșuată».
+  // NU folosim smm_daily_stats ca dovadă că s-a colectat ceva: aggregateDailyStats scrie rândul
+  // necondiționat, cu posts_count=0, chiar și când TikTok API a picat (verificat 17.08.2026).
+  const { data: autoTpl, error: tplErr } = await supa.from('recurring_task_templates')
+    .select('id').eq('auto_verify_tiktok', true);
+  if (tplErr) console.error('expire recurring: șabloane auto-verify indisponibile:', tplErr.message);
+  const autoIds = new Set(((autoTpl as { id: string }[]) ?? []).map((t) => t.id));
+  const autoDays = new Set(
+    rows.filter((r) => r.recurring_template_id && autoIds.has(r.recurring_template_id))
+      .map((r) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Chisinau' }).format(new Date(r.current_deadline)))
+  );
+  for (const d of autoDays) {
+    // silent: mesajele verificatorului spun «azi» — la recuperare ziua e alta, ar deruta.
+    try { await autoVerifyTiktokTasks(d, { silent: true }); }
+    catch (e) { console.error(`expire recurring: recuperare TikTok ${d} eșuată:`, e); }
+  }
+
+  // Închidere în bucăți de 100: o listă de sute de UUID în URL riscă 414 la primul backlog.
+  // `.in(current_state, EXPIRABLE_OB)` refiltrează — ce s-a închis ca 'resolved' mai sus nu intră.
+  const done: { id: string }[] = [];
+  for (let i = 0; i < rows.length; i += 100) {
+    const { data: closed, error: updErr } = await supa.from('obligations')
+      .update({ current_state: 'failed' })
+      .in('id', rows.slice(i, i + 100).map((r) => r.id))
+      .in('current_state', EXPIRABLE_OB) // închide cursa cu o închidere manuală făcută între timp
+      .select('id');
+    if (updErr) throw new Error(`expire recurring update: ${updErr.message}`);
+    done.push(...((closed as { id: string }[]) ?? []));
+  }
+  if (done.length > 0) {
+    // event_type e ENUM în DB — 'expired' NU există acolo; motivul stă în data.reason.
+    const { error: evErr } = await supa.from('obligation_events').insert(
+      done.map((r) => ({ obligation_id: r.id, event_type: 'failed', actor_id: null, data: { reason: 'recurring_stale' } }))
+    );
+    if (evErr) console.error('expire recurring events insert error:', evErr.message);
+  }
+  return done.length;
+}
+
 /** Создаёт obligation из каждого активного шаблона, подходящего на сегодня. Возвращает число созданных. */
 export async function generateRecurringTasks(): Promise<number> {
   const supa = db();
@@ -531,8 +606,10 @@ const TIKTOK_VERIFY_MIN = 2;                     // norma: ≥2 video/zi → sar
  * Иначе задача остаётся открытой, шефу уходит уведомление.
  * Точное совпадение по title+description целит именно в задачу этого шаблона
  * (у исполнителя могут быть и другие recurring-задачи).
+ * `opts.silent` — режим догона (вызов из expireStaleRecurringTasks на следующее утро):
+ * задача закрывается так же, но уведомления не шлём — их текст говорит «azi», а день уже другой.
  */
-export async function autoVerifyTiktokTasks(date: string): Promise<number> {
+export async function autoVerifyTiktokTasks(date: string, opts: { silent?: boolean } = {}): Promise<number> {
   const supa = db();
 
   const { data: templates } = await supa
@@ -577,11 +654,15 @@ export async function autoVerifyTiktokTasks(date: string): Promise<number> {
   for (const t of templates as any[]) {
     // Сегодняшний открытый инстанс ИМЕННО этого шаблона — по recurring_template_id
     // (потерпит редактирование titlu/descriere; старый ключ по тексту ломался от PATCH).
+    // Marginea de sus (`lt created_at`) e obligatorie: la recuperarea de a doua zi, fără ea
+    // s-ar putea închide sarcina de AZI pe baza videoclipurilor de IERI. Sarcina zilei D e
+    // oricum creată în ziua D, deci limita nu schimbă nimic la rularea normală de la 23:00.
     const { data: obRow0 } = await supa.from('obligations')
       .select('id')
       .eq('recurring_template_id', t.id)
       .in('current_state', NONTERMINAL_OB)
       .gte('created_at', todayStartISO)
+      .lt('created_at', dayEndISO)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -597,6 +678,7 @@ export async function autoVerifyTiktokTasks(date: string): Promise<number> {
         .eq('description', t.description)
         .in('current_state', NONTERMINAL_OB)
         .gte('created_at', todayStartISO)
+        .lt('created_at', dayEndISO)
         .order('created_at', { ascending: false })
         .limit(1);
       q = t.title === null ? q.is('title', null) : q.eq('title', t.title);
@@ -624,9 +706,11 @@ export async function autoVerifyTiktokTasks(date: string): Promise<number> {
         data: { via: 'tiktok_auto_verify', account: TIKTOK_VERIFY_ACCOUNT, posts_count: postsCount, date },
       });
       resolved++;
-      await notifyTelegram(assigneeTg, `✅ <b>Sarcina TikTok — gata</b>\nAzi ai postat ${postsCount} video pe TikTok TRANSLUX. Sarcina s-a închis automat. Bravo!`);
-      await notifyTelegram(creatorTg, `✅ <b>TikTok TRANSLUX: ${postsCount} video azi</b>\nSarcina zilnică (norma ${TIKTOK_VERIFY_MIN}) s-a închis automat.`);
-    } else {
+      if (!opts.silent) {
+        await notifyTelegram(assigneeTg, `✅ <b>Sarcina TikTok — gata</b>\nAzi ai postat ${postsCount} video pe TikTok TRANSLUX. Sarcina s-a închis automat. Bravo!`);
+        await notifyTelegram(creatorTg, `✅ <b>TikTok TRANSLUX: ${postsCount} video azi</b>\nSarcina zilnică (norma ${TIKTOK_VERIFY_MIN}) s-a închis automat.`);
+      }
+    } else if (!opts.silent) {
       await notifyTelegram(creatorTg, `⚠️ <b>TikTok TRANSLUX: doar ${postsCount} video azi</b>\nNorma e ${TIKTOK_VERIFY_MIN}/zi — sarcina zilnică rămâne deschisă.`);
     }
   }

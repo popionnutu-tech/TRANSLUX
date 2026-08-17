@@ -3,7 +3,7 @@ import { getSupabase } from '@/lib/supabase';
 import { authFromInitData } from '@/lib/zadachnik/auth';
 import {
   getObligation, acceptTask, startTask, submitReport,
-  approveTask, rejectTask, reworkTask, cancelTask, CATEGORIES,
+  approveTask, rejectTask, reworkTask, cancelTask, reopenTask, CATEGORIES,
 } from '@/lib/zadachnik/core';
 
 export const runtime = 'nodejs';
@@ -69,6 +69,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     case 'cancel':
       if (!isAdmin) return deny();
       await cancelTask(ob, u.id); break;
+    case 'reopen': {
+      if (!isAdmin) return deny();
+      const ok = await reopenTask(ob, u.id);
+      if (!ok) return NextResponse.json({ error: 'doar sarcinile eșuate se pot redeschide' }, { status: 409 });
+      break;
+    }
     default:
       return NextResponse.json({ error: 'acțiune necunoscută' }, { status: 400 });
   }

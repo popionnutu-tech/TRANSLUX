@@ -246,6 +246,20 @@ export async function reworkTask(ob: Obligation, actorId: string, comment: strin
   return true;
 }
 
+/** «Redeschide» — singurul drum înapoi din 'failed'. Închiderea automată a sarcinilor recurente
+ *  expirate (bot, 07:00) poate greși: verificarea TikTok de noapte rulează la minutul exact 23:00
+ *  și un restart o pierde. Termen nou = mâine 18:00 — cu termenul vechi, curățenia ar închide-o iar. */
+export async function reopenTask(ob: Obligation, actorId: string): Promise<boolean> {
+  const newDeadline = nextDay18ISO();
+  if (!(await transition(ob, ['failed'], 'sent', actorId, { current_deadline: newDeadline }))) return false;
+  await logEvent(ob.id, 'retry_created', actorId, { new_deadline: newDeadline, reason: 'reopen' });
+  await notify(
+    await telegramOf(ob.assignee_id),
+    `🔄 <b>Sarcină redeschisă</b>\n${ob.title ?? ob.description.slice(0, 60)}\n⏰ termen nou: ${fmtDeadline(newDeadline)}`
+  );
+  return true;
+}
+
 export async function cancelTask(ob: Obligation, actorId: string): Promise<void> {
   if (!(await transition(ob, NONTERMINAL, 'cancelled', actorId))) return;
   await logEvent(ob.id, 'cancelled', actorId);
@@ -265,9 +279,18 @@ export async function listForAdmin(): Promise<Obligation[]> {
 export async function listForAssignee(assigneeId: string, bucket: 'active' | 'history'): Promise<Obligation[]> {
   // Aceleași constante ca listForAdmin — două definiții paralele au divergat deja o dată ('created').
   const states = bucket === 'history' ? TERMINAL : NONTERMINAL;
-  const { data } = await getSupabase().from('obligations').select('*')
-    .eq('assignee_id', assigneeId).in('current_state', states)
-    .order('current_deadline', { ascending: true });
+  const q = getSupabase().from('obligations').select('*')
+    .eq('assignee_id', assigneeId).in('current_state', states);
+  if (bucket === 'history') {
+    // Istoricul crește la nesfârșit (de la 17.08.2026 intră aici și sarcinile recurente expirate):
+    // ecranul încarcă doar ultimele 90 de zile, cele mai noi primele, max 100. Datele rămân
+    // întregi în DB — asta e doar fereastra de afișare pe telefon.
+    const since = new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString();
+    const { data } = await q.gte('created_at', since)
+      .order('current_deadline', { ascending: false }).limit(100);
+    return (data as Obligation[]) ?? [];
+  }
+  const { data } = await q.order('current_deadline', { ascending: true });
   return (data as Obligation[]) ?? [];
 }
 

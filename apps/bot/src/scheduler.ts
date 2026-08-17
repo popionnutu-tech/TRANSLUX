@@ -1,5 +1,5 @@
 import { config } from './config.js';
-import { generateRecurringTasks, autoVerifyTiktokTasks } from './services/db.js';
+import { generateRecurringTasks, expireStaleRecurringTasks, autoVerifyTiktokTasks } from './services/db.js';
 import { sendWeeklyReport } from './services/weeklyReport.js';
 import { sendSmmWeeklyReport } from './services/smmWeeklyReport.js';
 import { collectSmmData, aggregateDailyStats, aggregateRangeStats } from './services/smm.js';
@@ -196,6 +196,15 @@ export function scheduleRecurringGenerator(): void {
 
     recurringRunning = true;
     try {
+      // Întâi curățăm instanțele de ieri (o singură sarcină vie per șablon), apoi generăm ziua de azi.
+      // Curățenia are try/catch propriu INTENȚIONAT: dacă pică, ziua trebuie totuși generată —
+      // altfel un UPDATE eșuat ar lăsa executantul fără sarcini (uborka blochează producția).
+      try {
+        const expired = await expireStaleRecurringTasks();
+        if (expired > 0) console.log(`Recurring: ${expired} sarcină(i) expirată(e) închisă(e)`);
+      } catch (err) {
+        console.error('Recurring expire error:', err);
+      }
       const n = await generateRecurringTasks();
       // Spre deosebire de scheduler-ele vecine (rapoarte), ziua se închide doar la succes:
       // aici reluarea e sigură (claim-ul din DB oprește dublurile), la rapoarte NU e (ar dubla mesajul).

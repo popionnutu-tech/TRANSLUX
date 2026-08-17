@@ -233,6 +233,11 @@ export default function TaskDetail() {
       {isAdmin && !TERMINAL.includes(st) && (
         <button onClick={() => act('cancel')} disabled={busy} style={{ ...secondary, width: '100%', marginTop: 12, color: C.muted }}>🚫 Anulează sarcina</button>
       )}
+      {/* Drumul înapoi din închiderea automată a sarcinilor recurente expirate (bot, 07:00):
+          dacă omul a făcut norma, dar verificarea de noapte n-a rulat, sarcina se redeschide de aici. */}
+      {isAdmin && st === 'failed' && (
+        <button onClick={() => act('reopen')} disabled={busy} style={{ ...secondary, width: '100%', marginTop: 12 }}>🔄 Redeschide sarcina</button>
+      )}
     </div>
   );
 }

@@ -139,6 +139,8 @@ export default function ZadachnikHome() {
             ))
       )}
 
+      {/* Panoul «🎯 Săptămâna asta» rămâne pe ecranul executantului (Ion, 17.08.2026):
+          e singurul loc unde Iurie vede norma săptămânală, cardurile n-o arată. */}
       {!loading && !isAdmin && bucket === 'active' && targets.length > 0 && <TargetsPanel targets={targets} />}
 
       {!loading && !isAdmin && (
@@ -146,7 +148,7 @@ export default function ZadachnikHome() {
           ? <p style={{ color: C.muted, fontSize: 13 }}>Nimic aici.</p>
           : bucket === 'active'
             ? <CategorySections tasks={tasks} />
-            : <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{tasks.map((t) => <Card key={t.id} t={t} />)}</div>
+            : <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{tasks.map((t) => <Card key={t.id} t={t} showCat />)}</div>
       )}
     </div>
   );
@@ -249,24 +251,25 @@ function Section({ title, tasks, accent }: { title: string; tasks: Task[]; accen
       <div style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: accent, marginBottom: 6 }}>
         {title} · {tasks.length}
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{tasks.map((t) => <Card key={t.id} t={t} />)}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{tasks.map((t) => <Card key={t.id} t={t} showCat />)}</div>
     </div>
   );
 }
 
-function Card({ t }: { t: Task }) {
+/** Card minimal: titlu + stare + termen. Punctele, data estimată și obiectivul stau pe pagina
+ *  sarcinii — pe listă erau zgomot (decizia lui Ion, 17.08.2026).
+ *  `showCat` doar acolo unde secțiunea NU e deja o categorie (vederea admin «După stare»). */
+function Card({ t, showCat = false }: { t: Task; showCat?: boolean }) {
   const s = STATE[t.current_state] ?? { label: t.current_state, color: C.muted, icon: '•' };
-  const badge = `${catOf(t.category).emoji} ` + (t.source === 'reclama' ? '📢 ' : t.source === 'recurring' ? '🔁 ' : '');
-  const est = t.estimated_date ? t.estimated_date.split('-').reverse().slice(0, 2).join('.') : '';
   return (
     <Link href={`/mini-app/zadachnik/${t.id}`} style={card}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
         <span style={{ fontSize: 14, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-          {badge}{t.title || t.description.slice(0, 60)}
+          {showCat ? `${catOf(t.category).emoji} ` : ''}{t.title || t.description.slice(0, 60)}
         </span>
         <span style={{ fontSize: 12, color: s.color, whiteSpace: 'nowrap' }}>{s.icon} {s.label}</span>
       </div>
-      <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>⏰ {fmt(t.current_deadline)} · 💯 {t.points}{est ? ` · 📅 ${est}` : ''}{t.goal ? ` · 🏁 ${t.goal.slice(0, 30)}` : ''}</div>
+      <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>⏰ {fmt(t.current_deadline)}</div>
     </Link>
   );
 }

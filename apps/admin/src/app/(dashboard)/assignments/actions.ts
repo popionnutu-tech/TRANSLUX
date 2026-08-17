@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
+import { verificaTelefonSofer } from '@/lib/driver-guard';
 import { parseFirstTime, parseTimeLabel } from '@/lib/assignments';
 import { normalizeDriverPhone } from '@translux/db';
 
@@ -137,6 +138,9 @@ export async function upsertAssignment(
   returRouteId?: number | null
 ): Promise<{ error?: string }> {
   try { requireRole(await verifySession(), 'ADMIN'); } catch { return { error: 'Acces interzis' }; }
+
+  const errTelefon = await verificaTelefonSofer(driverId);
+  if (errTelefon) return { error: errTelefon };
 
   const db = getSupabase();
 

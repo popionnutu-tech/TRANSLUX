@@ -2,6 +2,7 @@
 
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
+import { verificaTelefonSofer } from '@/lib/driver-guard';
 import { parseFirstTime, parseTimeLabel, resolveReturTime } from '@/lib/assignments';
 import { scrieFoaie } from '@/lib/foaie';
 
@@ -289,6 +290,9 @@ export async function upsertAssignment(
   vehicleIdRetur: string | null
 ): Promise<{ error?: string }> {
   try { requireRole(await verifySession(), 'ADMIN', 'DISPATCHER'); } catch { return { error: 'Acces interzis' }; }
+
+  const errTelefon = await verificaTelefonSofer(driverId);
+  if (errTelefon) return { error: errTelefon };
 
   const db = getSupabase();
   // Any dispatcher touch promotes the row to manual (clears auto_copied).

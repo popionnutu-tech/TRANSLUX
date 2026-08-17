@@ -417,8 +417,10 @@ export async function atribuie(rowId: string, vehicleId: string | null, userId: 
 /** Atribuie un șofer pe un rând. Pe cursele din orar șoferul nu se poate SCOATE
  *  (daily_assignments.driver_id e NOT NULL — graficul cere mereu un șofer), doar înlocui. */
 export async function atribuieSofer(rowId: string, driverId: string | null, userId: string | null, adminId?: string | null): Promise<AtribuireRow> {
-  const { data: r } = await getSupabase()
+  // erorile de citire NU se înghit: o verificare sărită tăcut e mai rea decât o eroare
+  const { data: r, error: rErr } = await getSupabase()
     .from('lde_atribuiri_zilnice').select('route_kind, vehicle_id').eq('id', rowId).maybeSingle();
+  if (rErr) throw new Error(`Citirea rândului a eșuat: ${rErr.message}`);
 
   if (driverId == null) {
     if (r && r.route_kind !== 'uzina') {
@@ -432,8 +434,9 @@ export async function atribuieSofer(rowId: string, driverId: string | null, user
     // zilei n-are telefon (apps/web/src/app/(public)/actions.ts:490). Trigger-ele din
     // migrațiile 254/256 păzesc doar tabela `drivers`; aici se schimbă doar
     // daily_assignments, deci verificarea trebuie făcută pe drum.
-    const { data: sofer } = await getSupabase()
+    const { data: sofer, error: sErr } = await getSupabase()
       .from('drivers').select('full_name, phone').eq('id', driverId).maybeSingle();
+    if (sErr) throw new Error(`Citirea șoferului a eșuat: ${sErr.message}`);
     if (sofer && !sofer.phone?.trim()) {
       throw new Error(`${sofer.full_name} n-are telefon în bază — completează-l întâi, altfel cursa dispare de pe translux.md`);
     }

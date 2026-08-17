@@ -76,10 +76,14 @@ export async function api(path: string, opts: RequestInit = {}): Promise<Respons
 
 export const STATE: Record<string, { label: string; color: string; icon: string }> = {
   created: { label: 'creată', color: C.muted, icon: '•' },
-  sent: { label: 'trimisă', color: C.gold, icon: '🆕' },
-  delivered: { label: 'livrată', color: C.gold, icon: '🆕' },
-  accepted: { label: 'acceptată', color: C.gold, icon: '▶' },
-  in_progress: { label: 'în lucru', color: C.gold, icon: '▶' },
+  // Fără pasul de acceptare (Ion, 17.08.2026): «trimisă» nu mai însemna nimic pentru executant —
+  // sarcina primită e pur și simplu de făcut. 'accepted'/'in_progress' rămân doar pt. sarcini vechi.
+  sent: { label: 'de făcut', color: C.gold, icon: '🆕' },
+  delivered: { label: 'de făcut', color: C.gold, icon: '🆕' },
+  accepted: { label: 'de făcut', color: C.gold, icon: '🆕' },
+  // 'in_progress' nu mai înseamnă «a început lucrul» (pasul a dispărut), ci «întors la refacere» —
+  // singurul care îl mai scrie e reworkTask.
+  in_progress: { label: 'de refăcut', color: C.warn, icon: '🔁' },
   report_pending: { label: 'de verificat', color: C.warn, icon: '⏳' },
   resolved: { label: 'rezolvată', color: C.ok, icon: '✅' },
   rejected: { label: 'respinsă', color: C.bad, icon: '❌' },

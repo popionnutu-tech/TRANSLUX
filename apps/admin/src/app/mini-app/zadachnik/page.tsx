@@ -267,13 +267,17 @@ function Section({ title, tasks, accent }: { title: string; tasks: Task[]; accen
  *  `showCat` doar acolo unde secțiunea NU e deja o categorie (vederea admin «După stare»). */
 function Card({ t, showCat = false }: { t: Task; showCat?: boolean }) {
   const s = STATE[t.current_state] ?? { label: t.current_state, color: C.muted, icon: '•' };
+  // Starea obișnuită NU se scrie pe card: 14 sarcini una sub alta cu aceeași etichetă «de făcut»
+  // e zgomot, nu informație (constatat pe ecranul real, 17.08.2026). Rămân doar stările care
+  // chiar spun ceva: în lucru, de verificat, întârziată, termen propus.
+  const plain = ['created', 'sent', 'delivered', 'accepted'].includes(t.current_state);
   return (
     <Link href={`/mini-app/zadachnik/${t.id}`} style={card}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
         <span style={{ fontSize: 14, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
           {showCat ? `${catOf(t.category).emoji} ` : ''}{t.title || t.description.slice(0, 60)}
         </span>
-        <span style={{ fontSize: 12, color: s.color, whiteSpace: 'nowrap' }}>{s.icon} {s.label}</span>
+        {!plain && <span style={{ fontSize: 12, color: s.color, whiteSpace: 'nowrap' }}>{s.icon} {s.label}</span>}
       </div>
       <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>⏰ {fmt(t.current_deadline)}</div>
     </Link>

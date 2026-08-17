@@ -165,7 +165,7 @@ export async function createTask(input: {
   await logEvent(ob.id, 'sent', input.creatorId);
   await notify(
     await telegramOf(input.assigneeId),
-    `📋 <b>Sarcină nouă</b>\n${input.title ?? input.description.slice(0, 60)}\n⏰ ${fmtDeadline(input.deadline)} · 💯 ${input.points} pct\n\nApasă butonul ≡ («Sarcini») de lângă câmpul de mesaj ca s-o accepți.`
+    `📋 <b>Sarcină nouă</b>\n${input.title ?? input.description.slice(0, 60)}\n⏰ ${fmtDeadline(input.deadline)} · 💯 ${input.points} pct\n\nApasă butonul ≡ («Sarcini») de lângă câmpul de mesaj ca s-o vezi, iar când o termini trimite raportul de acolo.`
   );
   return ob;
 }
@@ -186,26 +186,21 @@ async function transition(
 }
 
 // ── действия исполнителя ──
-export async function acceptTask(ob: Obligation, actorId: string, estimatedDate?: string | null): Promise<void> {
-  if (['accepted', 'in_progress', 'report_pending'].includes(ob.current_state)) return; // идемпотентно
-  const patch = estimatedDate ? { estimated_date: estimatedDate } : {};
-  if (await transition(ob, ['sent', 'delivered'], 'accepted', actorId, patch)) {
-    await logEvent(ob.id, 'accepted_by_user', actorId, estimatedDate ? { estimated_date: estimatedDate } : {});
-  }
-}
-
-export async function startTask(ob: Obligation, actorId: string): Promise<void> {
-  if (await transition(ob, ['accepted'], 'in_progress', actorId)) {
-    await logEvent(ob.id, 'started', actorId);
-  }
-}
-
+// «Acceptarea» sarcinii a fost SCOASĂ din flux (Ion, 17.08.2026): executantul nu mai confirmă
+// primirea și nu mai apasă «start» — sarcina primită e de făcut, punct. A rămas un singur pas:
+// depune raportul. De aceea submitReport pornește și din 'sent'/'delivered'.
+// ATENȚIE la lista de stări permise:
+//   'accepted'  — doar sarcini vechi, nimeni nu-l mai scrie;
+//   'in_progress' — încă VIU: îl pune reworkTask (sarcină întoarsă la refacere). Dacă îl scoți
+//   de aici, refacerea moare TĂCUT: transition() dă false, submitReport iese fără eroare, iar
+//   Mini App arată succes în timp ce raportul nu s-a salvat.
 export async function submitReport(ob: Obligation, actorId: string, text: string): Promise<void> {
   const db = getSupabase();
+  // Gardul CAS întâi: o a doua apăsare (sau o sarcină deja închisă) nu mai costă nicio cerere.
+  if (!(await transition(ob, ['sent', 'delivered', 'accepted', 'in_progress'], 'report_pending', actorId))) return;
   const { data: last } = await db.from('obligation_attempts').select('number')
     .eq('obligation_id', ob.id).order('number', { ascending: false }).limit(1).maybeSingle();
   const number = ((last?.number as number) ?? 0) + 1;
-  if (!(await transition(ob, ['accepted', 'in_progress'], 'report_pending', actorId))) return;
   const { error: aerr } = await db.from('obligation_attempts').insert({ obligation_id: ob.id, number, report_text: text, verdict: 'pending' });
   if (aerr) console.error('zadachnik attempt insert error:', aerr.message);
   await logEvent(ob.id, 'report_submitted', actorId, { attempt_number: number });
@@ -261,7 +256,7 @@ export async function reopenTask(ob: Obligation, actorId: string): Promise<boole
 }
 
 /** «Marchează făcută» — corectarea automatului, nu o scurtătură: sarcina închisă greșit ca 'failed'
- *  devine 'resolved', fără să-l pună pe om să refacă tot drumul accept → raport → aprobare.
+ *  devine 'resolved', fără să-l pună pe om să depună iar raportul și să aștepte aprobarea.
  *  Contează și pentru norma săptămânală, care numără doar 'resolved'. */
 export async function markTaskDone(ob: Obligation, actorId: string, comment: string | null): Promise<boolean> {
   if (!(await transition(ob, ['failed'], 'resolved', actorId))) return false;

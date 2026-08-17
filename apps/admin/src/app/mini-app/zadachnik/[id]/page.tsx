@@ -12,14 +12,6 @@ interface Me { id: string; role: 'ADMIN' | 'CONTROLLER' | 'DIGITAL' }
 
 const TERMINAL = ['resolved', 'rejected', 'cancelled', 'ignored', 'failed'];
 
-// дата +N дней по Кишинёву → 'YYYY-MM-DD' (для пресетов даты-оценки при принятии)
-function isoPlus(days: number): string {
-  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Chisinau', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
-  const y = +parts.find((p) => p.type === 'year')!.value;
-  const m = +parts.find((p) => p.type === 'month')!.value;
-  const d = +parts.find((p) => p.type === 'day')!.value;
-  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
-}
 function dLabel(iso: string): string { const [, m, d] = iso.split('-'); return `${d}.${m}`; }
 
 export default function TaskDetail() {
@@ -32,7 +24,6 @@ export default function TaskDetail() {
   const [comment, setComment] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
-  const [acceptDate, setAcceptDate] = useState(isoPlus(1));
   const [editing, setEditing] = useState(false);
   const [eTitle, setETitle] = useState('');
   const [eDescription, setEDescription] = useState('');
@@ -189,28 +180,10 @@ export default function TaskDetail() {
 
       {err && !editing && <p style={{ color: C.bad, fontSize: 13 }}>{err}</p>}
 
-      {/* ── Действия исполнителя ── */}
-      {isAssignee && (st === 'sent' || st === 'delivered') && (
-        <div style={{ marginTop: 14 }}>
-          <Lbl>Când o faci? (dată estimativă)</Lbl>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-            {[1, 3, 7].map((n) => {
-              const v = isoPlus(n);
-              return (
-                <button key={n} onClick={() => setAcceptDate(v)} style={{ ...chip, ...(acceptDate === v ? chipActive : {}) }}>
-                  {n === 1 ? 'Mâine' : `+${n} zile`} ({dLabel(v)})
-                </button>
-              );
-            })}
-            <input type="date" value={acceptDate} onChange={(e) => setAcceptDate(e.target.value)} style={{ ...input, width: 'auto', flex: 1, minWidth: 120, padding: '7px 9px', fontSize: 14 }} />
-          </div>
-          <button onClick={() => act('accept', { estimated_date: acceptDate || null })} disabled={busy} style={{ ...primary, width: '100%' }}>▶ Accept sarcina</button>
-        </div>
-      )}
-      {isAssignee && st === 'accepted' && (
-        <button onClick={() => act('start')} disabled={busy} style={{ ...secondary, width: '100%', marginTop: 10 }}>🔧 Start lucru</button>
-      )}
-      {isAssignee && (st === 'accepted' || st === 'in_progress') && (
+      {/* ── Acțiunile executantului ──
+          Acceptarea și «start lucru» au fost scoase (Ion, 17.08.2026): sarcina primită e de făcut,
+          fără confirmări intermediare. Rămâne un singur pas — raportul. */}
+      {isAssignee && ['sent', 'delivered', 'accepted', 'in_progress'].includes(st) && (
         <div style={{ marginTop: 14 }}>
           <Lbl>Raport</Lbl>
           <textarea value={report} onChange={(e) => setReport(e.target.value)} style={{ ...input, minHeight: 80 }} placeholder="ce ai făcut" />
@@ -256,5 +229,3 @@ const input: React.CSSProperties = { width: '100%', boxSizing: 'border-box', bac
 const primary: React.CSSProperties = { background: C.accent, color: '#fff', fontWeight: 700, fontSize: 14, padding: '11px', borderRadius: 4, border: '1px solid #d8a838', cursor: 'pointer' };
 const secondary: React.CSSProperties = { background: C.panel, color: C.text, fontWeight: 600, fontSize: 14, padding: '11px', borderRadius: 4, border: `1px solid ${C.border}`, cursor: 'pointer' };
 const danger: React.CSSProperties = { background: 'rgba(204,102,102,0.15)', color: C.bad, fontWeight: 600, fontSize: 14, padding: '11px', borderRadius: 4, border: `1px solid ${C.bad}`, cursor: 'pointer' };
-const chip: React.CSSProperties = { background: C.panel, color: C.text, border: `1px solid ${C.border}`, borderRadius: 4, padding: '6px 10px', fontSize: 13, cursor: 'pointer' };
-const chipActive: React.CSSProperties = { background: C.accent, color: '#fff', borderColor: C.accent, fontWeight: 700 };

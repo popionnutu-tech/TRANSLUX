@@ -267,7 +267,7 @@ async function spawnObligation(o: {
 
   await notifyTelegram(
     o.assigneeTelegramId,
-    o.notifyText ?? `📋 <b>Sarcină nouă</b>\n${o.title ?? o.description.slice(0, 60)}\nApasă butonul ≡ («Sarcini») de lângă câmpul de mesaj ca s-o accepți.`
+    o.notifyText ?? `📋 <b>Sarcină nouă</b>\n${o.title ?? o.description.slice(0, 60)}\nApasă butonul ≡ («Sarcini») de lângă câmpul de mesaj ca s-o vezi, iar când o termini trimite raportul de acolo.`
   );
   return ob.id as string;
 }
@@ -313,7 +313,8 @@ export async function createReclamaTask(input: {
     return false;
   }
 
-  // termen automat: 10 zile lucrătoare (≈ 2 săptămâni), la 18:00 Chișinău (panou și reclamă la fel). Vlad pune data estimativă la accept.
+  // termen automat: 10 zile lucrătoare (≈ 2 săptămâni), la 18:00 Chișinău (panou și reclamă la fel).
+  // Termenul ăsta e și singura măsură a întârzierii — pasul de accept (cu data estimativă) nu mai există.
   const todayCh = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Chisinau' })).toISOString().slice(0, 10);
   const deadline = chisinauDateTimeISO(addBusinessDaysYMD(todayCh, 10), '18:00');
   const description = `${input.vehiclePlate} — ${RECLAMA_LABEL[input.reclamaProblem]}, de reparat`;
@@ -328,7 +329,7 @@ export async function createReclamaTask(input: {
     source: 'reclama',
     category: 'MARKETING_AUTO',
     vehiclePlate: input.vehiclePlate,
-    notifyText: `📋 <b>Sarcină nouă (auto)</b>\n${description}\nApasă butonul ≡ («Sarcini») de lângă câmpul de mesaj ca s-o accepți.`,
+    notifyText: `📋 <b>Sarcină nouă (auto)</b>\n${description}\nApasă butonul ≡ («Sarcini») de lângă câmpul de mesaj ca s-o vezi, iar când o termini trimite raportul de acolo.`,
   });
   return !!id;
 }
@@ -1129,17 +1130,23 @@ export async function getActiveReclamaIssues(): Promise<
 
   const { data } = await db()
     .from('obligations')
-    .select('vehicle_plate, estimated_date, current_state')
+    .select('vehicle_plate, estimated_date, current_deadline, current_state')
     .eq('source', 'reclama')
     .in('current_state', NONTERMINAL_OB)
     .not('vehicle_plate', 'is', null);
 
-  const rows = (data || []) as Array<{ vehicle_plate: string; estimated_date: string | null; current_state: string }>;
+  const rows = (data || []) as Array<{
+    vehicle_plate: string; estimated_date: string | null; current_deadline: string; current_state: string;
+  }>;
   const result = rows.map((r) => {
+    // Întârzierea se măsoară de la TERMEN, nu de la data estimativă: estimated_date se completa
+    // doar la «accept», iar pasul de acceptare a fost scos din flux (Ion, 17.08.2026) — altfel
+    // secțiunea «🔴 EXPIRAT» din raportul săptămânal n-ar mai apărea niciodată, iar totul ar
+    // atârna la «NEPRELUATE», adică raportul ar minți că nimeni nu lucrează.
     let status: 'pending' | 'in_process' | 'overdue';
-    if (r.current_state === 'sent' || r.current_state === 'delivered') status = 'pending'; // neacceptată de Vlad
-    else if (r.estimated_date && r.estimated_date < today) status = 'overdue';
-    else status = 'in_process';
+    if (r.current_deadline.slice(0, 10) < today) status = 'overdue';
+    else if (r.current_state === 'report_pending') status = 'in_process'; // raport depus, așteaptă decizia
+    else status = 'pending';
     return { plate_number: r.vehicle_plate, estimated_date: r.estimated_date, status };
   });
 

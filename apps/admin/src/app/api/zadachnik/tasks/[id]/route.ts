@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/supabase';
 import { authFromInitData } from '@/lib/zadachnik/auth';
 import {
-  getObligation, acceptTask, startTask, submitReport,
+  getObligation, submitReport,
   approveTask, rejectTask, reworkTask, cancelTask, reopenTask, markTaskDone, CATEGORIES,
 } from '@/lib/zadachnik/core';
 
@@ -40,14 +40,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const deny = () => NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
   switch (action) {
-    case 'accept': {
-      if (!isAssignee) return deny();
-      const est = (body.estimated_date as string | undefined)?.trim() || null;
-      await acceptTask(ob, u.id, est); break;
-    }
-    case 'start':
-      if (!isAssignee) return deny();
-      await startTask(ob, u.id); break;
+    // 'accept' / 'start' au fost scoase din flux (Ion, 17.08.2026): executantul doar raportează.
     case 'submit_report': {
       if (!isAssignee) return deny();
       const text = (body.report_text as string | undefined)?.trim();

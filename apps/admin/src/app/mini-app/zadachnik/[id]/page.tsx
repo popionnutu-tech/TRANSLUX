@@ -209,7 +209,7 @@ export default function TaskDetail() {
       {/* Corectarea închiderii automate (bot, 07:00). Dacă omul a făcut norma, dar verificarea de
           noapte n-a rulat: «făcută» o trece direct la rezolvat (contează la norma săptămânală);
           «redeschide» o repune în lucru cu termen nou, când munca chiar mai trebuie făcută. */}
-      {isAdmin && st === 'failed' && (
+      {isAdmin && (st === 'failed' || st === 'cancelled') && (
         <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
           <button onClick={() => act('mark_done', { comment })} disabled={busy} style={{ ...primary, flex: 1 }}>✅ Era făcută</button>
           <button onClick={() => act('reopen')} disabled={busy} style={{ ...secondary, flex: 1 }}>🔄 Redeschide</button>

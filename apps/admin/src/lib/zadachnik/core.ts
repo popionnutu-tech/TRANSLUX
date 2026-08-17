@@ -45,6 +45,10 @@ const NONTERMINAL: ObligationState[] = [
   'created', 'sent', 'delivered', 'accepted', 'in_progress', 'report_pending', 'overdue', 'overdue_responded',
 ];
 const TERMINAL: ObligationState[] = ['resolved', 'rejected', 'cancelled', 'ignored', 'failed'];
+/** Închideri făcute de automat, deci care se pot și greși — adminul le poate întoarce din UI:
+ *  'failed' = curățenia sarcinilor recurente expirate (07:00),
+ *  'cancelled' = «reclama e OK» de la operator, fără raport din partea executantului. */
+const REVERSIBLE_CLOSURES: ObligationState[] = ['failed', 'cancelled'];
 
 export function fmtDeadline(iso: string): string {
   return new Intl.DateTimeFormat('ro-RO', {
@@ -246,7 +250,7 @@ export async function reworkTask(ob: Obligation, actorId: string, comment: strin
  *  și un restart o pierde. Termen nou = mâine 18:00 — cu termenul vechi, curățenia ar închide-o iar. */
 export async function reopenTask(ob: Obligation, actorId: string): Promise<boolean> {
   const newDeadline = nextDay18ISO();
-  if (!(await transition(ob, ['failed'], 'sent', actorId, { current_deadline: newDeadline }))) return false;
+  if (!(await transition(ob, REVERSIBLE_CLOSURES, 'sent', actorId, { current_deadline: newDeadline }))) return false;
   await logEvent(ob.id, 'retry_created', actorId, { new_deadline: newDeadline, reason: 'reopen' });
   await notify(
     await telegramOf(ob.assignee_id),
@@ -259,7 +263,7 @@ export async function reopenTask(ob: Obligation, actorId: string): Promise<boole
  *  devine 'resolved', fără să-l pună pe om să depună iar raportul și să aștepte aprobarea.
  *  Contează și pentru norma săptămânală, care numără doar 'resolved'. */
 export async function markTaskDone(ob: Obligation, actorId: string, comment: string | null): Promise<boolean> {
-  if (!(await transition(ob, ['failed'], 'resolved', actorId))) return false;
+  if (!(await transition(ob, REVERSIBLE_CLOSURES, 'resolved', actorId))) return false;
   await logEvent(ob.id, 'approved', actorId, { comment, reason: 'auto_close_correction' });
   await notify(
     await telegramOf(ob.assignee_id),

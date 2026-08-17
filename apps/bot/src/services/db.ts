@@ -379,16 +379,20 @@ export async function getOpenReclamaTask(
  * deblochează pentru un defect viitor.
  * Race-safe: fiecare update e gardat pe starea din care pleacă (cursă cu o închidere manuală).
  */
-export async function autoCloseReclamaTask(vehiclePlate: string, reportDate: string): Promise<boolean> {
+export async function autoCloseReclamaTask(
+  vehiclePlate: string, reportDate: string, taskId?: string | null
+): Promise<boolean> {
   const supa = db();
-  const { data: ob } = await supa.from('obligations')
+  // taskId = sarcina ARĂTATĂ operatorului. Fără el (apeluri vechi) recădem pe cea mai nouă
+  // sarcină deschisă a mașinii — dar atunci un defect raportat între timp de alt operator ar
+  // putea fi închis în locul ei.
+  const q = supa.from('obligations')
     .select('id, assignee_id, current_state')
     .eq('source', 'reclama')
-    .eq('vehicle_plate', vehiclePlate)
-    .in('current_state', NONTERMINAL_OB)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .in('current_state', NONTERMINAL_OB);
+  const { data: ob } = taskId
+    ? await q.eq('id', taskId).maybeSingle()
+    : await q.eq('vehicle_plate', vehiclePlate).order('created_at', { ascending: false }).limit(1).maybeSingle();
   if (!ob) return false;
 
   // Dacă executantul NU a raportat nimic, «OK»-ul nu poate însemna «a făcut-o el» — dar sarcina
@@ -396,10 +400,14 @@ export async function autoCloseReclamaTask(vehiclePlate: string, reportDate: str
   // lui Iurie rămâne curată, iar mașina se deblochează pentru un defect viitor (dedup-ul din
   // createReclamaTask se uită doar la sarcinile deschise).
   if (ob.current_state !== 'report_pending') {
+    // Gardul e pe starea EXACTĂ de la citire, nu pe tot NONTERMINAL_OB: dacă executantul depune
+    // raportul chiar între SELECT și UPDATE, anularea i-ar șterge munca — exact ce vrem să evităm.
+    // Atunci update-ul nu prinde nimic, iar «OK»-ul se pierde: mai bine decât să-i anulăm raportul
+    // (operatorul reconfirmă la raportul următor).
     const { data: cancelled } = await supa.from('obligations')
       .update({ current_state: 'cancelled' })
       .eq('id', ob.id)
-      .in('current_state', NONTERMINAL_OB)
+      .eq('current_state', ob.current_state)
       .select('id')
       .maybeSingle();
     if (!cancelled) return false;
@@ -412,7 +420,7 @@ export async function autoCloseReclamaTask(vehiclePlate: string, reportDate: str
     const { data: asg } = await supa.from('users').select('telegram_id').eq('id', ob.assignee_id).maybeSingle();
     await notifyTelegram(
       (asg?.telegram_id as number) ?? null,
-      `🚫 <b>Reclamă ${vehiclePlate} — sarcina s-a anulat</b>\nOperatorul a constatat în raport că reclama e deja OK. Nu mai e nimic de făcut aici.`
+      `🚫 <b>Reclamă ${vehiclePlate} — sarcina s-a anulat</b>\nOperatorul a constatat în raport că reclama e deja OK.\n\nDacă tu ai reparat-o: trimite raportul din ≡ («Sarcini») ÎNAINTE ca operatorul să confirme — altfel sarcina se anulează și munca nu-ți intră în statistică.`
     );
     return true;
   }

@@ -65,13 +65,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     case 'reopen': {
       if (!isAdmin) return deny();
       const ok = await reopenTask(ob, u.id);
-      if (!ok) return NextResponse.json({ error: 'doar sarcinile eșuate se pot redeschide' }, { status: 409 });
+      if (!ok) return NextResponse.json({ error: 'doar sarcinile eșuate sau anulate se pot redeschide' }, { status: 409 });
       break;
     }
     case 'mark_done': {
       if (!isAdmin) return deny();
       const ok = await markTaskDone(ob, u.id, comment);
-      if (!ok) return NextResponse.json({ error: 'doar sarcinile eșuate se pot trece la făcute' }, { status: 409 });
+      if (!ok) return NextResponse.json({ error: 'doar sarcinile eșuate sau anulate se pot trece la făcute' }, { status: 409 });
       break;
     }
     default:

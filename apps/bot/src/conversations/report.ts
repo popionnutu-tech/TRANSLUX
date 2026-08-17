@@ -556,6 +556,10 @@ export async function reportConversation(
     let reclamaOk: boolean | null = null;
     let reclamaProblem: 'bus' | 'panou_ruta' | 'ambele' | null = null;
     let reclamaRepairConfirmed = false; // operatorul a confirmat „Da, reparat" la sarcina reclamă deschisă
+    // Sarcina ARĂTATĂ operatorului. O ținem minte ca s-o închidem exact pe ea: între întrebare și
+    // salvarea raportului, alt operator poate raporta un defect nou pe aceeași mașină, iar o
+    // recăutare după plăcuță ar închide sarcina nouă (pe care n-a văzut-o nimeni) în locul ei.
+    let reclamaTaskId: string | null = null;
     let washGrade: number | null = null;
     let acStatus: 'works' | 'broken' | 'none' | null = null;
     let heatStatus: 'works' | 'broken' | 'none' | null = null;
@@ -686,6 +690,7 @@ export async function reportConversation(
                 reclamaProblem = null;
                 break;
               }
+              reclamaTaskId = openTask.id;
               const fixKb = new InlineKeyboard()
                 .text('✅ Da, reparat', 'reclamafix:da')
                 .text('❌ Nu, încă defect', 'reclamafix:nu');
@@ -832,17 +837,18 @@ export async function reportConversation(
         }
       }
 
-      // Operatorul a confirmat explicit „Da, reparat" → sarcina reclamă se închide, DAR numai dacă
-      // executantul a depus deja raportul (Ion, 17.08.2026): confirmarea ține locul aprobării
-      // manuale a owner-ului, nu al muncii. Fără raport, sarcina rămâne deschisă. Vezi autoCloseReclamaTask.
+      // Operatorul a confirmat explicit „Da, reparat" → sarcina reclamă se închide: ca REZOLVATĂ
+      // dacă executantul depusese raportul, altfel ca ANULATĂ (Ion, 17.08.2026 — «rezolvat» e doar
+      // munca lui). Confirmarea ține locul aprobării owner-ului, nu al muncii. Vezi autoCloseReclamaTask.
       const reclamaOkPlate = reclamaRepairConfirmed && vehicleId
         ? (vehicles.find(v => v.id === vehicleId)?.plate_number
             ?? await conversation.external(() => getVehiclePlate(vehicleId)))
         : null;
       if (reclamaOkPlate) {
         const plOk = reclamaOkPlate;
+        const taskId = reclamaTaskId;
         try {
-          await conversation.external(() => autoCloseReclamaTask(plOk, reportDate));
+          await conversation.external(() => autoCloseReclamaTask(plOk, reportDate, taskId));
         } catch (e) {
           console.error('autoCloseReclamaTask error:', e);
         }

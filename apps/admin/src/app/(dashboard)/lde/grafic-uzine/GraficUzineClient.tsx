@@ -1,7 +1,7 @@
 'use client';
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getSaptamana, getPickers, getTitularId, salveazaMulti, confirmaManualAdmin, type AtribuireView } from './actions';
+import { getSaptamana, getPickers, getTitularId, salveazaMulti, confirmaManualAdmin, addDublaAdmin, stergeDublaAdmin, type AtribuireView } from './actions';
 
 // Grila săptămânală de uzine (mockup v2, 12.08.2026): o uzină pe ecran (tab-uri),
 // rânduri = rută×schimb, coloane = L–D; popup cu căutare instant, zile multi-select,
@@ -64,12 +64,12 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
 
   // grila: rânduri distincte (route_key) × coloane (dates), grupate pe schimb (cerere Ion)
   const grid = useMemo(() => {
-    type Row = { key: string; label: string; frId: string; shift: number };
+    type Row = { key: string; label: string; frId: string; shift: number; slot: number };
     if (!week) return { groups: [] as { shift: number; rows: Row[] }[], cell: new Map<string, AtribuireView>() };
     const keys = new Map<string, Row>();
     const cell = new Map<string, AtribuireView>();
     for (const r of week.rows) {
-      if (!keys.has(r.route_key)) keys.set(r.route_key, { key: r.route_key, label: r.route_label, frId: r.factory_route_id!, shift: r.shift_number! });
+      if (!keys.has(r.route_key)) keys.set(r.route_key, { key: r.route_key, label: r.route_label, frId: r.factory_route_id!, shift: r.shift_number!, slot: r.slot });
       cell.set(`${r.route_key}|${r.date}`, r);
     }
     const byShift = new Map<number, Row[]>();
@@ -88,7 +88,7 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
         rows: rows.sort((a, b) => {
           const na = routeNum(a.label);
           const nb = routeNum(b.label);
-          if (na != null && nb != null) return na - nb;
+          if (na != null && nb != null) return na - nb || a.slot - b.slot; // dublura imediat sub cursa ei
           return a.label.localeCompare(b.label);
         }),
       }));
@@ -98,6 +98,7 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
   function openPopup(r: AtribuireView) {
     setPopup(r);
     setErr(null);
+    setDelPending(null);
     setSelVehicle(r.vehicle_id);
     setSelDriver(r.driver_id);
     setSelDates([r.date]);
@@ -122,7 +123,7 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
     setBusy(true); setErr(null);
     try {
       const res = await salveazaMulti({
-        factoryRouteId: popup.factory_route_id!, shiftNumber: popup.shift_number!,
+        factoryRouteId: popup.factory_route_id!, shiftNumber: popup.shift_number!, slot: popup.slot,
         dates: selDates, vehicleId: selVehicle, driverId: selDriver,
         // defense in depth: șablonul se scrie doar cât timp popup-ul chiar are o mașină selectată
         siInSablon: selVehicle != null ? inSablon : false,
@@ -132,6 +133,27 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
       if (res.updated > 0) setPopup(null);
       if (res.skipped > 0) setErr(`${res.skipped} zile sărite — fără șofer rezolvabil`);
     } catch (e) { setErr(e instanceof Error ? e.message : 'Eroare la salvare'); }
+    setBusy(false);
+  }
+
+  // «+» adaugă o cursă dublă pe rută×schimb; «−» o șterge de azi înainte (dublă apăsare = confirmare)
+  const [delPending, setDelPending] = useState<string | null>(null);
+  async function plusDubla(frId: string, shift: number) {
+    if (busy) return;
+    setBusy(true); setErr(null);
+    const res = await addDublaAdmin(frId, shift).catch(() => ({ error: 'Eroare de rețea' }));
+    if ('error' in res) setErr(res.error);
+    else if (uzina) await load(uzina);
+    setBusy(false);
+  }
+  async function minusDubla(k: { key: string; frId: string; shift: number; slot: number }) {
+    if (busy) return;
+    if (delPending !== k.key) { setDelPending(k.key); return; } // prima apăsare = «Șterge?»
+    setDelPending(null);
+    setBusy(true); setErr(null);
+    const res = await stergeDublaAdmin(k.frId, k.shift, k.slot).catch(() => ({ error: 'Eroare de rețea' }));
+    if ('error' in res) setErr(res.error);
+    else if (uzina) await load(uzina);
     setBusy(false);
   }
 
@@ -215,7 +237,25 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
                 </tr>
                 {g.rows.map((k) => (
                   <tr key={k.key} style={{ fontSize: 12 }}>
-                    <td style={{ fontWeight: 600, fontSize: 13, color: '#3f3f46', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={k.label}>{k.label}</td>
+                    <td style={{ fontWeight: 600, fontSize: 13, color: '#3f3f46', whiteSpace: 'nowrap' }} title={k.label}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, maxWidth: '100%' }}>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', color: k.slot > 1 ? '#7c3aed' : undefined }}>{k.label}</span>
+                        {k.slot === 1 ? (
+                          <button onClick={() => plusDubla(k.frId, k.shift)} disabled={busy}
+                            title="Adaugă cursă dublă (al doilea microbuz)"
+                            style={{ border: '1px solid #e4e4e7', background: '#f4f4f5', color: '#2563eb', borderRadius: 6, width: 20, height: 20, lineHeight: '16px', fontSize: 14, fontWeight: 700, cursor: 'pointer', flexShrink: 0, padding: 0 }}>+</button>
+                        ) : (
+                          <button onClick={() => minusDubla(k)} disabled={busy}
+                            title="Șterge dublura (de azi înainte; istoricul rămâne)"
+                            style={{
+                              border: '1px solid #e4e4e7', borderRadius: 6, height: 20, fontSize: delPending === k.key ? 11 : 14,
+                              fontWeight: 700, cursor: 'pointer', flexShrink: 0, padding: delPending === k.key ? '0 6px' : 0,
+                              width: delPending === k.key ? undefined : 20, lineHeight: '16px',
+                              background: delPending === k.key ? '#b91c1c' : '#f4f4f5', color: delPending === k.key ? '#fff' : '#b91c1c',
+                            }}>{delPending === k.key ? 'Șterge?' : '−'}</button>
+                        )}
+                      </span>
+                    </td>
                     {week.dates.map((d) => {
                       const r = grid.cell.get(`${k.key}|${d}`);
                       if (!r) return <td key={d} style={{ background: '#fafafa', borderRadius: 7, textAlign: 'center', color: '#d4d4d8', fontSize: 11, padding: '6px 4px' }}>nu lucrează</td>;
@@ -354,10 +394,12 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
             </div>
             <div style={{ fontSize: 11, color: '#a1a1aa', marginBottom: 12 }}>Zilele trecute se bifează doar pentru corecții.</div>
 
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: selVehicle ? '#3f3f46' : '#a1a1aa', marginBottom: 16 }}>
-              <input type="checkbox" checked={inSablon} disabled={!selVehicle} onChange={(e) => setInSablon(e.target.checked)} />
-              Salvează și în șablon (permanent, doar mașina)
-            </label>
+            {popup.slot === 1 && ( // dublurile n-au șablon — checkbox-ul ar fi mereu fără efect
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: selVehicle ? '#3f3f46' : '#a1a1aa', marginBottom: 16 }}>
+                <input type="checkbox" checked={inSablon} disabled={!selVehicle} onChange={(e) => setInSablon(e.target.checked)} />
+                Salvează și în șablon (permanent, doar mașina)
+              </label>
+            )}
 
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={save} disabled={!canSave || busy}

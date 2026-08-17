@@ -1,34 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authAtribuiri, canDirection } from '@/lib/atribuiri/auth';
-import { atribuieMulti, uzinaOfRoute, type AtribuieMultiParams } from '@/lib/atribuiri/core';
+import { adaugaDubla, stergeDubla, uzinaOfRoute } from '@/lib/atribuiri/core';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+
+// Curse duble: «+» adaugă slotul următor pe rută×schimb, «−» îl șterge de azi înainte.
 
 export async function POST(req: NextRequest) {
   const auth = await authAtribuiri(req.headers.get('x-telegram-init-data'));
   if (!auth) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
-  const body = await req.json().catch(() => null) as Partial<AtribuieMultiParams> | null;
-  if (!body?.factoryRouteId || !body.shiftNumber || !Array.isArray(body.dates) || !body.dates.length
-      || body.dates.some((d) => !/^\d{4}-\d{2}-\d{2}$/.test(d))
-      || !(body.vehicleId !== undefined || body.driverId != null)) {
+  const body = await req.json().catch(() => null) as {
+    factoryRouteId?: string; shiftNumber?: number; actiune?: 'adauga' | 'sterge'; slot?: number;
+  } | null;
+  if (!body?.factoryRouteId || !body.shiftNumber || !['adauga', 'sterge'].includes(body.actiune ?? '')) {
     return NextResponse.json({ error: 'parametri lipsă' }, { status: 400 });
   }
-  if (body.slot !== undefined && (!Number.isInteger(body.slot) || body.slot < 1)) {
+  if (body.actiune === 'sterge' && (!Number.isInteger(body.slot) || (body.slot as number) < 2)) {
     return NextResponse.json({ error: 'slot invalid' }, { status: 400 });
   }
-  // respingere ieftină înainte de materializare — limita reală (±31 zile) e verificată în core
-  if (body.dates.length > 7) return NextResponse.json({ error: 'prea multe zile' }, { status: 400 });
 
   const direction = await uzinaOfRoute(body.factoryRouteId);
   if (!direction) return NextResponse.json({ error: 'rută inexistentă' }, { status: 404 });
   if (!canDirection(auth, direction)) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
   try {
-    const res = await atribuieMulti(body as AtribuieMultiParams, auth.user.id);
-    return NextResponse.json(res);
+    if (body.actiune === 'adauga') {
+      const res = await adaugaDubla(body.factoryRouteId, body.shiftNumber, auth.user.id);
+      return NextResponse.json(res);
+    }
+    await stergeDubla(body.factoryRouteId, body.shiftNumber, body.slot as number);
+    return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'eroare' }, { status: 500 });
   }

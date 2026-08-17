@@ -102,7 +102,7 @@ function DirectieInner() {
       method: 'POST',
       body: JSON.stringify({
         factoryRouteId: multiZi.row.factory_route_id, shiftNumber: multiZi.row.shift_number,
-        dates: multiSel, vehicleId: multiZi.vehicleId, driverId: multiZi.driverId,
+        slot: multiZi.row.slot, dates: multiSel, vehicleId: multiZi.vehicleId, driverId: multiZi.driverId,
       }),
     }).catch(() => null);
     if (!resp) { setMultiErr('Rețea indisponibilă.'); return; }
@@ -115,6 +115,42 @@ function DirectieInner() {
     if (skipped > 0) setActErr(`${updated} aplicate, ${skipped} sărite (fără șofer)`);
     setMultiZi(null);
     setMultiSel([]);
+    load();
+  }
+
+  // curse duble: «+» pe cursa de bază, «−» pe dublură (dublă apăsare = confirmare)
+  const [delDubla, setDelDubla] = useState<string | null>(null);
+  const [dublaBusy, setDublaBusy] = useState(false); // dublu-tap pe telefon = două dubluri, fără guard
+  async function plusDubla(r: AtribuireView) {
+    if (dublaBusy) return;
+    setDublaBusy(true);
+    setActErr(null);
+    const resp = await api('/dubla', {
+      method: 'POST',
+      body: JSON.stringify({ factoryRouteId: r.factory_route_id, shiftNumber: r.shift_number, actiune: 'adauga' }),
+    }).catch(() => null);
+    setDublaBusy(false);
+    if (!resp?.ok) {
+      setActErr(((await resp?.json().catch(() => null)) as { error?: string } | null)?.error ?? 'Eroare la adăugarea dublurii');
+      return;
+    }
+    load();
+  }
+  async function minusDubla(r: AtribuireView) {
+    if (delDubla !== r.id) { setDelDubla(r.id); return; } // prima apăsare = «Șterge?»
+    if (dublaBusy) return;
+    setDublaBusy(true);
+    setDelDubla(null);
+    setActErr(null);
+    const resp = await api('/dubla', {
+      method: 'POST',
+      body: JSON.stringify({ factoryRouteId: r.factory_route_id, shiftNumber: r.shift_number, actiune: 'sterge', slot: r.slot }),
+    }).catch(() => null);
+    setDublaBusy(false);
+    if (!resp?.ok) {
+      setActErr(((await resp?.json().catch(() => null)) as { error?: string } | null)?.error ?? 'Eroare la ștergerea dublurii');
+      return;
+    }
     load();
   }
 
@@ -146,8 +182,24 @@ function DirectieInner() {
             }}
           >
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: 14, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: r.slot > 1 ? '#7c3aed' : undefined }}>
                 {r.route_label}
+                {/* +/− doar pe azi/viitor: dublura pornește de azi (valid_from), pe o zi
+                    trecută n-ar apărea nimic și apăsările s-ar acumula invizibil */}
+                {r.route_kind === 'uzina' && date >= today0 && (r.slot === 1 ? (
+                  <button onClick={() => plusDubla(r)}
+                    title="Adaugă cursă dublă"
+                    style={{ marginLeft: 6, border: `1px solid ${C.border}`, background: C.panel2, color: C.accent, borderRadius: 6, width: 20, height: 20, fontSize: 14, fontWeight: 700, cursor: 'pointer', padding: 0, verticalAlign: 'middle' }}>+</button>
+                ) : (
+                  <button onClick={() => minusDubla(r)}
+                    title="Șterge dublura (de azi înainte)"
+                    style={{
+                      marginLeft: 6, border: `1px solid ${C.border}`, borderRadius: 6, height: 20, cursor: 'pointer', verticalAlign: 'middle',
+                      fontSize: delDubla === r.id ? 11 : 14, fontWeight: 700, padding: delDubla === r.id ? '0 6px' : 0,
+                      width: delDubla === r.id ? undefined : 20,
+                      background: delDubla === r.id ? C.bad : C.panel2, color: delDubla === r.id ? '#fff' : C.bad,
+                    }}>{delDubla === r.id ? 'Șterge?' : '−'}</button>
+                ))}
               </div>
               <div style={{ fontSize: 12, color: badge?.color ?? C.muted }}>
                 {badge?.label ?? r.status}{r.verification_note ? ` · ${r.verification_note}` : ''}

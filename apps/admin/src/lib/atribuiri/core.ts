@@ -30,6 +30,7 @@ export interface AtribuireRow {
   status: string;
   verification_note: string | null;
   route_key: string;
+  slot: number; // 1 = cursa de bază; ≥2 = cursă dublă (lde_curse_duble)
 }
 
 export interface AtribuireView extends AtribuireRow {
@@ -40,7 +41,7 @@ export interface AtribuireView extends AtribuireRow {
   template_vehicle_id: string | null; // default-ul din șablon (primul în picker)
 }
 
-const ROW_COLS = 'id, date, direction, route_kind, factory_route_id, shift_number, crm_route_id, vehicle_id, driver_id, status, verification_note, route_key';
+const ROW_COLS = 'id, date, direction, route_kind, factory_route_id, shift_number, crm_route_id, vehicle_id, driver_id, status, verification_note, route_key, slot';
 
 const normPlate = (s: string | null | undefined) => (s ?? '').replace(/\s+/g, '');
 
@@ -153,6 +154,15 @@ export async function ensureDaysMaterialized(dates: string[]): Promise<void> {
   const { data: crm, error: crmErr } = await db
     .from('crm_routes').select('id, route_type').eq('active', true);
   if (crmErr) throw new Error(`materializare: ${crmErr.message}`);
+
+  // cursele DUBLE active (registru mic): slot ≥2, materializate doar de la valid_from
+  // înainte, fără default din șablon — mașina/șoferul se aleg manual
+  const { data: duble, error: dubleErr } = await db
+    .from('lde_curse_duble')
+    .select('factory_route_id, shift_number, slot, valid_from')
+    .limit(500); // sentinelă contra tăierii tăcute PostgREST la 1000 (vezi lecția lde_weekly_template)
+  if (dubleErr) throw new Error(`materializare: ${dubleErr.message}`);
+  if ((duble ?? []).length === 500) throw new Error('materializare: lde_curse_duble a depășit limita de 500 — paginați citirea');
   const { data: das, error: dasErr } = await db
     .from('daily_assignments')
     .select('assignment_date, crm_route_id, retur_route_id, vehicle_id, vehicle_id_retur, driver_id')
@@ -187,10 +197,26 @@ export async function ensureDaysMaterialized(dates: string[]): Promise<void> {
         route_kind: 'uzina',
         factory_route_id: s.route.id,
         shift_number: s.shift_number,
+        slot: 1,
         vehicle_id: vehicleId,
         driver_id: driverForVehicle(vehicleId, s.shift_number),
         status: 'planificat',
       });
+      for (const dbl of duble ?? []) {
+        if (dbl.factory_route_id !== s.route.id || dbl.shift_number !== s.shift_number) continue;
+        if (date < (dbl.valid_from as string)) continue;
+        rows.push({
+          date,
+          direction: s.route.uzina_id,
+          route_kind: 'uzina',
+          factory_route_id: s.route.id,
+          shift_number: s.shift_number,
+          slot: dbl.slot,
+          vehicle_id: null,
+          driver_id: null,
+          status: 'planificat',
+        });
+      }
     }
     for (const r of crm ?? []) {
       const kind = (r.route_type === 'suburban' ? 'suburban' : 'interurban') as RouteKind;
@@ -198,6 +224,7 @@ export async function ensureDaysMaterialized(dates: string[]): Promise<void> {
         date,
         direction: kind,
         route_kind: kind,
+        slot: 1, // cheile lipsă devin NULL la bulk upsert (PostgREST), iar slot e NOT NULL
         crm_route_id: r.id,
         vehicle_id: daVeh.get(`${date}:${r.id}`) ?? null,
         driver_id: daDrv.get(`${date}:${r.id}`) ?? null,
@@ -293,6 +320,7 @@ export async function listZi(date: string, directions: string[] | null, alreadyM
       const scurt = (f?.stops_in_order ?? '').split('→').map((s: string) => s.trim()).filter(Boolean);
       const cap = scurt.length ? ` · ${scurt[0]}${scurt.length > 1 ? `–${scurt[scurt.length - 1]}` : ''}` : '';
       label = `R${f?.route_number ?? '?'}${cap} · S${r.shift_number}`;
+      if (r.slot > 1) label += r.slot === 2 ? ' · dublă' : ` · dublă ${r.slot - 1}`;
     } else if (r.crm_route_id != null) {
       const c = crmMap.get(r.crm_route_id);
       const ora = c?.time_nord || c?.time_chisinau || '';
@@ -306,9 +334,56 @@ export async function listZi(date: string, directions: string[] | null, alreadyM
       foaie: r.route_kind !== 'uzina' && r.driver_id
         ? (r.crm_route_id != null ? foaieByRoute.get(`${r.driver_id}|${r.crm_route_id}`) : undefined) ?? foaieMap.get(r.driver_id) ?? null
         : null,
-      template_vehicle_id: r.route_kind === 'uzina' && r.factory_route_id ? tplMap.get(`${r.factory_route_id}:${r.shift_number}`) ?? null : null,
+      // dublurile n-au default din șablon — sugestia ar repeta mașina cursei de bază
+      template_vehicle_id: r.route_kind === 'uzina' && r.factory_route_id && r.slot === 1
+        ? tplMap.get(`${r.factory_route_id}:${r.shift_number}`) ?? null : null,
     };
   });
+}
+
+/** Adaugă o cursă dublă (slotul următor liber ≥2) pe rută×schimb, valabilă de azi înainte. */
+export async function adaugaDubla(
+  factoryRouteId: string, shiftNumber: number, userId: string | null, adminId?: string | null,
+): Promise<{ slot: number }> {
+  const db = getSupabase();
+  // schimbul trebuie să existe pe rută (altfel dublura nu s-ar materializa niciodată)
+  const { data: sh, error: shErr } = await db
+    .from('lde_factory_route_shifts').select('id')
+    .eq('route_id', factoryRouteId).eq('shift_number', shiftNumber).maybeSingle();
+  if (shErr) throw new Error(shErr.message);
+  if (!sh) throw new Error('Schimbul nu există pe ruta asta');
+
+  const { data: existing, error: exErr } = await db
+    .from('lde_curse_duble').select('slot')
+    .eq('factory_route_id', factoryRouteId).eq('shift_number', shiftNumber)
+    .order('slot', { ascending: false }).limit(1);
+  if (exErr) throw new Error(exErr.message);
+  const slot = ((existing?.[0]?.slot as number | undefined) ?? 1) + 1;
+
+  const { error } = await db.from('lde_curse_duble').insert({
+    factory_route_id: factoryRouteId, shift_number: shiftNumber, slot,
+    valid_from: chisinauToday(), created_by: userId, created_by_admin: adminId ?? null,
+  });
+  if (error) throw new Error(error.message);
+  return { slot };
+}
+
+/** Șterge o cursă dublă: registrul + rândurile de azi înainte (istoricul rămâne). */
+export async function stergeDubla(
+  factoryRouteId: string, shiftNumber: number, slot: number,
+): Promise<void> {
+  if (slot < 2) throw new Error('Cursa de bază nu se poate șterge');
+  const db = getSupabase();
+  const { error: e1 } = await db.from('lde_curse_duble').delete()
+    .eq('factory_route_id', factoryRouteId).eq('shift_number', shiftNumber).eq('slot', slot);
+  if (e1) throw new Error(e1.message);
+  // predicat pe route_key (nu pe coloanele-sursă): doar așa se folosește indexul unic
+  // (date, route_key) — Postgres nu inversează expresia coloanei generate
+  const routeKey = `uzina:${factoryRouteId}:${shiftNumber}:${slot}`;
+  const { error: e2 } = await db.from('lde_atribuiri_zilnice').delete()
+    .eq('route_key', routeKey)
+    .gte('date', chisinauToday());
+  if (e2) throw new Error(e2.message);
 }
 
 /**
@@ -593,6 +668,7 @@ export async function vehiclesForPicker(direction: string): Promise<Array<{ id: 
 export interface AtribuieMultiParams {
   factoryRouteId: string;
   shiftNumber: number;
+  slot?: number;               // 1 (implicit) = cursa de bază; ≥2 = cursă dublă
   dates: string[];             // YYYY-MM-DD — zilele bifate
   vehicleId?: string | null;   // omis = nu atinge mașina (doar șofer); null = golește cursa (curăță și șoferul); string = setează
   driverId?: string | null;    // la vehicleId omis: obligatoriu; la vehicleId string: omis/null = auto (titularul mașinii, fallback șoferul zilei)
@@ -605,7 +681,8 @@ export async function atribuieMulti(
   p: AtribuieMultiParams, userId: string | null, adminId?: string | null,
 ): Promise<{ updated: number; skipped: number }> {
   const db = getSupabase();
-  const routeKey = `uzina:${p.factoryRouteId}:${p.shiftNumber}`;
+  const slot = p.slot ?? 1;
+  const routeKey = `uzina:${p.factoryRouteId}:${p.shiftNumber}${slot > 1 ? `:${slot}` : ''}`;
   // limite (F10, performance-reviewer): o aplicare multi-zi nu poate deveni un batch nemărginit
   const dates = valideazaZileMulti(p.dates, chisinauToday());
 
@@ -644,7 +721,8 @@ export async function atribuieMulti(
   }
   if (updated === 0 && skipped > 0) throw new Error('Mașina nu are șofer titular — alege șoferul explicit');
 
-  if (p.siInSablon && p.vehicleId !== undefined) {
+  // șablonul nu are sloturi — «și în șablon» e valabil doar pe cursa de bază
+  if (p.siInSablon && p.vehicleId !== undefined && slot === 1) {
     for (const wd of [...new Set(dates.map(isoWeekday))]) {
       await setTemplateCell(p.factoryRouteId, p.shiftNumber, wd, p.vehicleId, userId, adminId);
     }

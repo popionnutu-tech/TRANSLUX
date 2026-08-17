@@ -22,6 +22,7 @@ export interface AtribuireView {
   status: string;
   verification_note: string | null;
   route_key: string;
+  slot: number; // 1 = cursa de bază; ≥2 = cursă dublă
   route_label: string;
   plate: string | null;
   driver_name: string | null;

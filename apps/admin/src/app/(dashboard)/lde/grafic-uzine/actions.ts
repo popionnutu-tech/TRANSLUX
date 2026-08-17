@@ -4,7 +4,7 @@ import { verifySession, type Session } from '@/lib/auth';
 import {
   uzineCuSablon, listSaptamana, atribuieMulti, confirmaManual,
   vehiclesForPicker, soferiForPicker, titularForVehicle, chisinauToday,
-  uzinaOfRoute, rowScope,
+  uzinaOfRoute, rowScope, adaugaDubla, stergeDubla,
   type AtribuieMultiParams, type AtribuireView,
 } from '@/lib/atribuiri/core';
 import { weekDates } from '@/lib/atribuiri/saptamana';
@@ -67,6 +67,34 @@ export async function confirmaManualAdmin(rowId: string): Promise<{ ok: true } |
       return { error: 'Rând neautorizat' };
     }
     await confirmaManual(rowId, null, s.id);
+    return { ok: true };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Eroare' };
+  }
+}
+
+// scope comun pentru dubluri: ruta trebuie să fie a unei uzine cu șablon
+async function rutaAutorizata(factoryRouteId: string): Promise<string | null> {
+  const uzina = await uzinaOfRoute(factoryRouteId);
+  const permise = (await uzineCuSablon()).map((u) => u.id);
+  return uzina && permise.includes(uzina) ? uzina : null;
+}
+
+export async function addDublaAdmin(factoryRouteId: string, shiftNumber: number): Promise<{ slot: number } | { error: string }> {
+  try {
+    const s = await requireUzineRole();
+    if (!(await rutaAutorizata(factoryRouteId))) return { error: 'Uzină neautorizată' };
+    return await adaugaDubla(factoryRouteId, shiftNumber, null, s.id);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Eroare' };
+  }
+}
+
+export async function stergeDublaAdmin(factoryRouteId: string, shiftNumber: number, slot: number): Promise<{ ok: true } | { error: string }> {
+  try {
+    await requireUzineRole();
+    if (!(await rutaAutorizata(factoryRouteId))) return { error: 'Uzină neautorizată' };
+    await stergeDubla(factoryRouteId, shiftNumber, slot);
     return { ok: true };
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Eroare' };

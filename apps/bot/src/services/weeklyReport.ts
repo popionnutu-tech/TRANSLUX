@@ -86,21 +86,23 @@ export async function sendWeeklyReport(): Promise<void> {
     if (overdue.length > 0) {
       msg += `🔴 EXPIRAT (${overdue.length}):\n`;
       for (const i of overdue) {
-        msg += `• <b>${i.plate_number}</b> — termen ${formatDate(i.deadline)} ❌\n`;
+        msg += `• <b>${i.plate_number}</b> — ${i.defect} · termen ${formatDate(i.deadline)} ❌\n`;
       }
     }
     if (pending.length > 0) {
       if (overdue.length > 0) msg += `\n`;
-      msg += `🆕 NEPRELUATE (${pending.length}):\n`;
+      // «NEPRELUATE» ar minți: pasul de preluare a fost scos din flux (17.08.2026), n-are cine
+      // să le «preia». Astea sunt pur și simplu sarcinile deschise, încă în termen.
+      msg += `🆕 ÎN TERMEN (${pending.length}):\n`;
       for (const i of pending) {
-        msg += `• <b>${i.plate_number}</b>\n`;
+        msg += `• <b>${i.plate_number}</b> — ${i.defect}\n`;
       }
     }
     if (inProcess.length > 0) {
       if (overdue.length > 0 || pending.length > 0) msg += `\n`;
       msg += `🟡 ÎN PROCES (${inProcess.length}):\n`;
       for (const i of inProcess) {
-        msg += `• <b>${i.plate_number}</b> — termen ${formatDate(i.deadline)} ⏳\n`;
+        msg += `• <b>${i.plate_number}</b> — ${i.defect} · termen ${formatDate(i.deadline)} ⏳\n`;
       }
     }
   }

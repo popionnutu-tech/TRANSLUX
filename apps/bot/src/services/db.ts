@@ -331,7 +331,10 @@ export async function createReclamaTask(input: {
     const p = r.reclama_problem as ReclamaProblem | null;
     if (p && RECLAMA_PARTS[p]) RECLAMA_PARTS[p].forEach((c) => covered.add(c));
   }
-  const problem = reclamaProblemOf(new Set(RECLAMA_PARTS[input.reclamaProblem].filter((c) => !covered.has(c))));
+  // Fallback pe 'ambele' dacă vine o valoare necunoscută (callback stricat): mai bine o sarcină
+  // prea largă decât un TypeError înghițit de try/catch-ul apelantului și defectul pierdut tăcut.
+  const reported = RECLAMA_PARTS[input.reclamaProblem] ? input.reclamaProblem : 'ambele';
+  const problem = reclamaProblemOf(new Set(RECLAMA_PARTS[reported].filter((c) => !covered.has(c))));
   if (!problem) return false; // tot ce s-a raportat acum e deja acoperit de sarcini deschise
   const description = `${input.vehiclePlate} — ${RECLAMA_LABEL[problem]}, de reparat`;
 
@@ -1204,6 +1207,10 @@ export async function getActiveReclamaIssues(): Promise<
   Array<{
     plate_number: string;
     deadline: string; // termenul sarcinii; estimated_date a rămas fără scriitor după scoaterea «accept»
+    // Ce anume e defect. Din 17.08.2026 o mașină poate avea DOUĂ sarcini deschise (bus și panou
+    // separat) — fără eticheta asta, raportul ar tipări aceeași plăcuță de două ori la rând și
+    // ar arăta a bug, nu a două defecte distincte.
+    defect: string;
     status: 'pending' | 'in_process' | 'overdue';
   }>
 > {
@@ -1212,13 +1219,13 @@ export async function getActiveReclamaIssues(): Promise<
 
   const { data } = await db()
     .from('obligations')
-    .select('vehicle_plate, current_deadline, current_state')
+    .select('vehicle_plate, current_deadline, current_state, reclama_problem')
     .eq('source', 'reclama')
     .in('current_state', NONTERMINAL_OB)
     .not('vehicle_plate', 'is', null);
 
   const rows = (data || []) as Array<{
-    vehicle_plate: string; current_deadline: string; current_state: string;
+    vehicle_plate: string; current_deadline: string; current_state: string; reclama_problem: string | null;
   }>;
   const result = rows.map((r) => {
     // Întârzierea se măsoară de la TERMEN, nu de la data estimativă: estimated_date se completa
@@ -1229,7 +1236,13 @@ export async function getActiveReclamaIssues(): Promise<
     if (r.current_deadline.slice(0, 10) < today) status = 'overdue';
     else if (r.current_state === 'report_pending') status = 'in_process'; // raport depus, așteaptă decizia
     else status = 'pending';
-    return { plate_number: r.vehicle_plate, deadline: r.current_deadline.slice(0, 10), status };
+    const p = r.reclama_problem as ReclamaProblem | null;
+    return {
+      plate_number: r.vehicle_plate,
+      deadline: r.current_deadline.slice(0, 10),
+      defect: (p && RECLAMA_LABEL[p]) || 'reclamă',
+      status,
+    };
   });
 
   const rank: Record<'overdue' | 'pending' | 'in_process', number> = { overdue: 0, pending: 1, in_process: 2 };

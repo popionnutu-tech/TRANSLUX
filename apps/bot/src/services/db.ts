@@ -208,11 +208,27 @@ export async function climateQuestionNeeded(vehicleId: string, todayYMD: string)
 // ── Zadachnik: auto-sarcină din defect reclamă (executor = utilizatorul DIGITAL / Vlad) ──
 const NONTERMINAL_OB = ['sent', 'delivered', 'accepted', 'in_progress', 'report_pending', 'overdue', 'overdue_responded'];
 
-const RECLAMA_LABEL: Record<'bus' | 'panou_ruta' | 'ambele', string> = {
+type ReclamaProblem = 'bus' | 'panou_ruta' | 'ambele';
+
+const RECLAMA_LABEL: Record<ReclamaProblem, string> = {
   bus: 'reclamă pe autobuz',
   panou_ruta: 'panou cu ruta',
   ambele: 'reclamă + panou rută',
 };
+
+/** Defectul ca mulțime de componente: «ambele» NU e un al treilea tip, ci bus + panou (Ion, 17.08.2026).
+ *  Fără asta, pe o mașină se adunau până la 3 sarcini deschise pentru aceeași stricăciune. */
+const RECLAMA_PARTS: Record<ReclamaProblem, Array<'bus' | 'panou'>> = {
+  bus: ['bus'],
+  panou_ruta: ['panou'],
+  ambele: ['bus', 'panou'],
+};
+function reclamaProblemOf(parts: Set<'bus' | 'panou'>): ReclamaProblem | null {
+  if (parts.has('bus') && parts.has('panou')) return 'ambele';
+  if (parts.has('bus')) return 'bus';
+  if (parts.has('panou')) return 'panou_ruta';
+  return null;
+}
 
 async function notifyTelegram(telegramId: number | null, text: string): Promise<void> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -241,6 +257,7 @@ async function spawnObligation(o: {
   title: string | null; description: string; points: number; deadline: string;
   source: string; vehiclePlate?: string | null; notifyText?: string;
   category?: string; recurringTemplateId?: string | null; goal?: string | null;
+  reclamaProblem?: ReclamaProblem | null;
 }): Promise<string | null> {
   const supa = db();
   const { data: ob, error } = await supa.from('obligations').insert({
@@ -254,6 +271,7 @@ async function spawnObligation(o: {
     current_state: 'sent',
     source: o.source,
     vehicle_plate: o.vehiclePlate ?? null,
+    reclama_problem: o.reclamaProblem ?? null,
     category: o.category ?? 'ALTELE',
     recurring_template_id: o.recurringTemplateId ?? null,
     goal: o.goal ?? null,
@@ -296,20 +314,26 @@ export async function createReclamaTask(input: {
   reclamaProblem: 'bus' | 'panou_ruta' | 'ambele';
 }): Promise<boolean> {
   const supa = db();
-  const description = `${input.vehiclePlate} — ${RECLAMA_LABEL[input.reclamaProblem]}, de reparat`;
   // Dedup ÎNAINTE de rezolvarea executorului — altfel, când nu există executor,
   // alerta ar pleca la fiecare raport repetat pe aceeași mașină.
-  // Cheia e mașina ȘI tipul defectului: o sarcină deschisă pe «reclamă pe autobuz» nu mai
-  // înghite semnalul despre «panou cu ruta» rupt (17.08.2026). Altfel, cu sarcini care acum
-  // trăiesc mai mult, defectul nou s-ar pierde tăcut, iar descrierea ar rămâne cea veche.
-  const { data: open, error: openErr } = await supa.from('obligations')
-    .select('id').eq('source', 'reclama').eq('vehicle_plate', input.vehiclePlate)
-    .eq('description', description)
-    .in('current_state', NONTERMINAL_OB).limit(1).maybeSingle();
-  // La eroare NU creăm (open=null ar arăta ca «nu există») — mai bine sarcina reapare
+  // Se compară COMPONENTE, nu etichete: sarcinile deschise ale mașinii acoperă un set
+  // ({bus}, {panou} sau ambele), iar sarcina nouă se face doar pentru ce lipsește din el.
+  // Cheia e reclama_problem (migr. 258), nu description — descrierea o poate edita adminul.
+  const { data: openRows, error: openErr } = await supa.from('obligations')
+    .select('reclama_problem')
+    .eq('source', 'reclama').eq('vehicle_plate', input.vehiclePlate)
+    .in('current_state', NONTERMINAL_OB);
+  // La eroare NU creăm (lista goală ar arăta ca «nimic deschis») — mai bine sarcina reapare
   // la raportul următor decât un dublu pe aceeași mașină.
   if (openErr) { console.error('reclama dedup select error:', openErr.message); return false; }
-  if (open) return false; // deja există o sarcină deschisă pt același defect
+  const covered = new Set<'bus' | 'panou'>();
+  for (const r of (openRows ?? []) as Array<{ reclama_problem: string | null }>) {
+    const p = r.reclama_problem as ReclamaProblem | null;
+    if (p && RECLAMA_PARTS[p]) RECLAMA_PARTS[p].forEach((c) => covered.add(c));
+  }
+  const problem = reclamaProblemOf(new Set(RECLAMA_PARTS[input.reclamaProblem].filter((c) => !covered.has(c))));
+  if (!problem) return false; // tot ce s-a raportat acum e deja acoperit de sarcini deschise
+  const description = `${input.vehiclePlate} — ${RECLAMA_LABEL[problem]}, de reparat`;
 
   const digital = await getZadachnikAssignee();
   if (!digital) {
@@ -333,6 +357,7 @@ export async function createReclamaTask(input: {
     source: 'reclama',
     category: 'MARKETING_AUTO',
     vehiclePlate: input.vehiclePlate,
+    reclamaProblem: problem,
     notifyText: `📋 <b>Sarcină nouă (auto)</b>\n${description}\nApasă butonul ≡ («Sarcini») de lângă câmpul de mesaj ca s-o vezi, iar când o termini trimite raportul de acolo.`,
   });
   return !!id;

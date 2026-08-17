@@ -5,7 +5,10 @@
 --   interurban (is_lde = false): 66 activi, 3 fără telefon  ← ei apar pe translux.md
 --   LDE (is_lde = true):        110 activi, 109 fără telefon ← nu apar niciodată public
 -- Deci regula rămâne acolo unde chiar rezolvă ceva, iar listele de șoferi LDE se pot
--- adăuga mai departe din migrații (204/241), fără telefoane pe care nimeni nu le are.
+-- adăuga mai departe din migrații, fără telefoane pe care nimeni nu le are — cu
+-- condiția să pună `is_lde = true` EXPLICIT în INSERT, cum face 241. Migrația 204
+-- nu-l pune (i-l setează abia 214), deci un rebuild de la zero al bazei ar pica pe
+-- cele 92 de rânduri ale ei; producția nu e afectată, migrațiile sunt deja aplicate.
 --
 -- Al doilea trigger închide portița deschisă de primul: `is_lde` e o coloană
 -- obișnuită, deci un șofer LDE mutat pe interurban ar reproduce exact bug-ul

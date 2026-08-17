@@ -417,14 +417,25 @@ export async function atribuie(rowId: string, vehicleId: string | null, userId: 
 /** Atribuie un șofer pe un rând. Pe cursele din orar șoferul nu se poate SCOATE
  *  (daily_assignments.driver_id e NOT NULL — graficul cere mereu un șofer), doar înlocui. */
 export async function atribuieSofer(rowId: string, driverId: string | null, userId: string | null, adminId?: string | null): Promise<AtribuireRow> {
+  const { data: r } = await getSupabase()
+    .from('lde_atribuiri_zilnice').select('route_kind, vehicle_id').eq('id', rowId).maybeSingle();
+
   if (driverId == null) {
-    const { data: r } = await getSupabase()
-      .from('lde_atribuiri_zilnice').select('route_kind, vehicle_id').eq('id', rowId).maybeSingle();
     if (r && r.route_kind !== 'uzina') {
       throw new Error('Cursa din orar trebuie să aibă șofer — alege altul în loc să-l scoți');
     }
     if (r && r.route_kind === 'uzina' && r.vehicle_id) {
       throw new Error('Mașina atribuită trebuie să aibă șofer — înlocuiește-l sau golește mașina');
+    }
+  } else if (r && r.route_kind !== 'uzina') {
+    // Cursele din orar ajung pe translux.md, iar site-ul ascunde cursa dacă șoferul
+    // zilei n-are telefon (apps/web/src/app/(public)/actions.ts:490). Trigger-ele din
+    // migrațiile 254/256 păzesc doar tabela `drivers`; aici se schimbă doar
+    // daily_assignments, deci verificarea trebuie făcută pe drum.
+    const { data: sofer } = await getSupabase()
+      .from('drivers').select('full_name, phone').eq('id', driverId).maybeSingle();
+    if (sofer && !sofer.phone?.trim()) {
+      throw new Error(`${sofer.full_name} n-are telefon în bază — completează-l întâi, altfel cursa dispare de pe translux.md`);
     }
   }
   const { prev, next } = await updateRow(rowId, { driver_id: driverId }, userId, adminId);

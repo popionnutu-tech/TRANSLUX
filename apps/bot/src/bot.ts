@@ -71,7 +71,11 @@ export function createBot(): Bot<BotContext> {
         console.error(`exitAll on ${cmd} failed:`, err);
       }
       if (cmd === '/cancel') {
-        await ctx.reply('Operațiunea a fost anulată. Apasă /start pentru meniu.');
+        // în grupuri botul tace (vezi gate-ul de mai jos) — /cancel@bot nu trebuie
+        // să fie excepția; ieșirea din conversație s-a făcut oricum mai sus
+        if (ctx.chat?.type === 'private') {
+          await ctx.reply('Operațiunea a fost anulată. Apasă /start pentru meniu.');
+        }
         return;
       }
     }

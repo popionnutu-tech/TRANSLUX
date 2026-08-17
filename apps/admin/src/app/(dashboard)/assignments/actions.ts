@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
 import { parseFirstTime, parseTimeLabel } from '@/lib/assignments';
+import { normalizeDriverPhone } from '@translux/db';
 
 export interface AssignmentRow {
   id: string | null;
@@ -181,8 +182,14 @@ export async function upsertAssignment(
 export async function updateDriverPhone(driverId: string, phone: string): Promise<{ error?: string }> {
   try { requireRole(await verifySession(), 'ADMIN'); } catch { return { error: 'Acces interzis' }; }
 
-  const cleaned = phone.replace(/\D/g, '');
-  const intl = cleaned.startsWith('373') ? cleaned : '373' + cleaned.replace(/^0/, '');
+  // aceeași regulă ca în /drivers și în bot — o cifră în plus scrisă aici ar trece
+  // de trigger (nu e gol) și ar pune pe site un telefon la care nu răspunde nimeni
+  let intl: string;
+  try {
+    intl = normalizeDriverPhone(phone);
+  } catch (err: any) {
+    return { error: err.message };
+  }
 
   const { error } = await getSupabase()
     .from('drivers')

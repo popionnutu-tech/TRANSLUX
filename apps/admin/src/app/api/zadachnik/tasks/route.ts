@@ -12,8 +12,10 @@ export async function GET(req: Request) {
   const u = await authFromInitData(initData(req));
   if (!u) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
+  const bucketParam = new URL(req.url).searchParams.get('bucket') === 'history' ? 'history' : 'active';
+
   if (u.role === 'ADMIN') {
-    const tasks = await listForAdmin();
+    const tasks = await listForAdmin(bucketParam);
     const ids = [...new Set(tasks.map((t) => t.assignee_id))];
     const { data: users } = ids.length
       ? await getSupabase().from('users').select('id, name, username, point, operator_kind').in('id', ids)
@@ -28,7 +30,7 @@ export async function GET(req: Request) {
       targets: await weeklyTargets(null),
     });
   }
-  const bucket = new URL(req.url).searchParams.get('bucket') === 'history' ? 'history' : 'active';
+  const bucket = bucketParam;
   const tasks = await listForAssignee(u.id, bucket);
   // Progresul săptămânal — doar pe ecranul activ (istoria nu-l afișează)
   const targets = bucket === 'active' ? await weeklyTargets(u.id) : [];

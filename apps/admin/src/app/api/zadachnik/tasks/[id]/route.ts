@@ -3,7 +3,7 @@ import { getSupabase } from '@/lib/supabase';
 import { authFromInitData } from '@/lib/zadachnik/auth';
 import {
   getObligation, acceptTask, startTask, submitReport,
-  approveTask, rejectTask, reworkTask, cancelTask, reopenTask, CATEGORIES,
+  approveTask, rejectTask, reworkTask, cancelTask, reopenTask, markTaskDone, CATEGORIES,
 } from '@/lib/zadachnik/core';
 
 export const runtime = 'nodejs';
@@ -73,6 +73,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       if (!isAdmin) return deny();
       const ok = await reopenTask(ob, u.id);
       if (!ok) return NextResponse.json({ error: 'doar sarcinile eșuate se pot redeschide' }, { status: 409 });
+      break;
+    }
+    case 'mark_done': {
+      if (!isAdmin) return deny();
+      const ok = await markTaskDone(ob, u.id, comment);
+      if (!ok) return NextResponse.json({ error: 'doar sarcinile eșuate se pot trece la făcute' }, { status: 409 });
       break;
     }
     default:

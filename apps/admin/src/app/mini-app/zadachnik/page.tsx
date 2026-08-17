@@ -98,7 +98,18 @@ export default function ZadachnikHome() {
         </div>
       )}
 
-      {isAdmin && (
+      {/* «Istoric» există și la admin (17.08.2026): fără el, o sarcină închisă automat de curățenia
+          de la 07:00 nu se putea deschide din interfață, deci nici corecta. */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        {(['active', 'history'] as const).map((b) => (
+          <button key={b} onClick={() => setBucket(b)}
+            style={{ ...tab, ...(bucket === b ? tabActive : {}) }}>
+            {b === 'active' ? 'Active' : 'Istoric'}
+          </button>
+        ))}
+      </div>
+
+      {isAdmin && bucket === 'active' && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
           {(['state', 'employee'] as const).map((v) => (
             <button key={v} onClick={() => setView(v)} style={{ ...tab, ...(view === v ? tabActive : {}) }}>
@@ -108,20 +119,15 @@ export default function ZadachnikHome() {
         </div>
       )}
 
-      {!isAdmin && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-          {(['active', 'history'] as const).map((b) => (
-            <button key={b} onClick={() => setBucket(b)}
-              style={{ ...tab, ...(bucket === b ? tabActive : {}) }}>
-              {b === 'active' ? 'Active' : 'Istoric'}
-            </button>
-          ))}
-        </div>
-      )}
-
       {loading && <p style={{ color: C.muted, fontSize: 13 }}>Se încarcă…</p>}
 
-      {!loading && isAdmin && view === 'state' && (
+      {!loading && isAdmin && bucket === 'history' && (
+        tasks.length === 0
+          ? <p style={{ color: C.muted, fontSize: 13 }}>Nimic închis în ultimele 2 săptămâni.</p>
+          : <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{tasks.map((t) => <Card key={t.id} t={t} showCat />)}</div>
+      )}
+
+      {!loading && isAdmin && bucket === 'active' && view === 'state' && (
         <>
           <Section title="Necesită decizie" tasks={tasks.filter((t) => t.current_state === 'report_pending')} accent={C.warn} />
           <Section title="Întârzieri" tasks={tasks.filter((t) => ['overdue', 'overdue_responded'].includes(t.current_state))} accent={C.bad} />
@@ -130,7 +136,7 @@ export default function ZadachnikHome() {
         </>
       )}
 
-      {!loading && isAdmin && view === 'employee' && (
+      {!loading && isAdmin && bucket === 'active' && view === 'employee' && (
         employees.length === 0
           ? <p style={{ color: C.muted, fontSize: 13 }}>Nimic.</p>
           : employees.map(([id, g]) => (

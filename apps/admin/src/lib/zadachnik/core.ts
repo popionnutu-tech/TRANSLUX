@@ -260,6 +260,19 @@ export async function reopenTask(ob: Obligation, actorId: string): Promise<boole
   return true;
 }
 
+/** «Marchează făcută» — corectarea automatului, nu o scurtătură: sarcina închisă greșit ca 'failed'
+ *  devine 'resolved', fără să-l pună pe om să refacă tot drumul accept → raport → aprobare.
+ *  Contează și pentru norma săptămânală, care numără doar 'resolved'. */
+export async function markTaskDone(ob: Obligation, actorId: string, comment: string | null): Promise<boolean> {
+  if (!(await transition(ob, ['failed'], 'resolved', actorId))) return false;
+  await logEvent(ob.id, 'approved', actorId, { comment, reason: 'auto_close_correction' });
+  await notify(
+    await telegramOf(ob.assignee_id),
+    `✅ <b>Sarcină trecută la făcută</b>\n${ob.title ?? ob.description.slice(0, 60)}\n+${ob.points} pct${comment ? `\n${comment}` : ''}`
+  );
+  return true;
+}
+
 export async function cancelTask(ob: Obligation, actorId: string): Promise<void> {
   if (!(await transition(ob, NONTERMINAL, 'cancelled', actorId))) return;
   await logEvent(ob.id, 'cancelled', actorId);
@@ -267,9 +280,20 @@ export async function cancelTask(ob: Obligation, actorId: string): Promise<void>
 }
 
 // ── списки ──
-export async function listForAdmin(): Promise<Obligation[]> {
-  // Doar nonterminale (decizia lui Ion, 07.08.2026): închise/anulate NU apar pe ecranul admin —
-  // 116 sarcini istorice îl îngropau. Datele rămân în DB; asta taie și creșterea nelimitată a payload-ului.
+export async function listForAdmin(bucket: 'active' | 'history' = 'active'): Promise<Obligation[]> {
+  // Implicit doar nonterminale (decizia lui Ion, 07.08.2026): închise/anulate NU apar pe ecranul
+  // admin — 116 sarcini istorice îl îngropau. Datele rămân în DB.
+  if (bucket === 'history') {
+    // «Istoric» la admin (17.08.2026): fereastră scurtă, cele mai noi primele. Fără el, o sarcină
+    // închisă automat de curățenia de la 07:00 era de negăsit din interfață, deci «Redeschide» /
+    // «Marchează făcută» erau butoane inaccesibile exact când erau necesare.
+    const since = new Date(Date.now() - 14 * 24 * 3600 * 1000).toISOString();
+    const { data } = await getSupabase().from('obligations').select('*')
+      .in('current_state', TERMINAL)
+      .gte('created_at', since)
+      .order('updated_at', { ascending: false }).limit(100);
+    return (data as Obligation[]) ?? [];
+  }
   const { data } = await getSupabase().from('obligations').select('*')
     .in('current_state', NONTERMINAL)
     .order('current_deadline', { ascending: true });

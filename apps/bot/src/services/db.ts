@@ -1,5 +1,6 @@
 import { getSupabase } from '../supabase.js';
 import { sendAdminAlert, escapeHtml } from './adminAlert.js';
+import { collectSmmData } from './smm.js';
 import type {
   User,
   InviteToken,
@@ -443,6 +444,9 @@ function addBusinessDaysYMD(startYMD: string, n: number): string {
  *  o dată în acest modul (vezi comentariul din admin core.ts). */
 const EXPIRABLE_OB = NONTERMINAL_OB.filter((s) => s !== 'report_pending' && s !== 'overdue_responded');
 
+/** Câte zile în urmă mai are rost să recuperăm verificarea automată înainte de a închide. */
+const RECOVER_DAYS = 7;
+
 /**
  * O singură sarcină vie per șablon: instanțele recurente cu termenul depășit se închid
  * automat ca 'failed' la rularea generatorului (07:00). Fără asta se adunau 7 copii ale
@@ -464,12 +468,15 @@ export async function expireStaleRecurringTasks(): Promise<number> {
   // instanțele vechi au doar source (or= merge la SELECT; doar PATCH+or= e refuzat de PostgREST-ul
   // proiectului). Selectăm întâi, ca să putem cerne sarcinile auto-verificate (mai jos).
   const { data: cand, error } = await supa.from('obligations')
-    .select('id, current_deadline, recurring_template_id')
+    .select('id, title, description, current_deadline, recurring_template_id')
     .in('current_state', EXPIRABLE_OB)
     .lt('current_deadline', cutoff)
     .or('source.eq.recurring,recurring_template_id.not.is.null');
   if (error) throw new Error(`expire recurring select: ${error.message}`);
-  const rows = (cand as { id: string; current_deadline: string; recurring_template_id: string | null }[]) ?? [];
+  const rows = (cand as {
+    id: string; title: string | null; description: string;
+    current_deadline: string; recurring_template_id: string | null;
+  }[]) ?? [];
   if (rows.length === 0) return 0;
 
   // Recuperare ÎNAINTE de închidere, pentru șabloanele auto-verificate (TikTok): verificarea de
@@ -481,10 +488,21 @@ export async function expireStaleRecurringTasks(): Promise<number> {
     .select('id').eq('auto_verify_tiktok', true);
   if (tplErr) console.error('expire recurring: șabloane auto-verify indisponibile:', tplErr.message);
   const autoIds = new Set(((autoTpl as { id: string }[]) ?? []).map((t) => t.id));
+  // Recuperăm doar ultimele RECOVER_DAYS zile: mai vechi de-atât oricum nu se mai poate dovedi
+  // nimic, iar bucla ar crește cu durata opririi (8 cereri per zi de restanță).
+  const recoverFrom = new Date(new Date(cutoff).getTime() - RECOVER_DAYS * 24 * 3600 * 1000).toISOString();
   const autoDays = new Set(
-    rows.filter((r) => r.recurring_template_id && autoIds.has(r.recurring_template_id))
+    rows.filter((r) => r.recurring_template_id && autoIds.has(r.recurring_template_id) && r.current_deadline >= recoverFrom)
       .map((r) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Chisinau' }).format(new Date(r.current_deadline)))
   );
+  if (autoDays.size > 0) {
+    // OBLIGATORIU înaintea verificării: colectarea SMM rulează tot la minutul exact 23:00, deci
+    // exact restartul care a omorât verificarea a omorât și colectarea — videoclipurile de ieri
+    // nu sunt încă în DB. Fără asta recuperarea ar număra 0 și ar închide ca «eșuat» o normă
+    // făcută. Upsert-ul pe (account_id, platform_post_id) completează retroactiv, cu published_at real.
+    try { await collectSmmData(); }
+    catch (e) { console.error('expire recurring: colectare SMM înainte de recuperare eșuată:', e); }
+  }
   for (const d of autoDays) {
     // silent: mesajele verificatorului spun «azi» — la recuperare ziua e alta, ar deruta.
     try { await autoVerifyTiktokTasks(d, { silent: true }); }
@@ -509,6 +527,16 @@ export async function expireStaleRecurringTasks(): Promise<number> {
       done.map((r) => ({ obligation_id: r.id, event_type: 'failed', actor_id: null, data: { reason: 'recurring_stale' } }))
     );
     if (evErr) console.error('expire recurring events insert error:', evErr.message);
+
+    // Un rezumat pe zi, NU un mesaj per sarcină: altfel ar fi spam zilnic. Fără el, o închidere
+    // greșită a automatului rămânea vizibilă doar în logurile Railway — nimeni n-ar fi corectat-o.
+    const closedRows = rows.filter((r) => done.some((d) => d.id === r.id));
+    const names = closedRows.slice(0, 5).map((r) => `• ${escapeHtml(r.title ?? r.description.slice(0, 40))}`).join('\n');
+    await sendAdminAlert(
+      `🧹 <b>Sarcini recurente expirate</b>: ${done.length} închisă(e) automat azi.\n${names}` +
+      `${closedRows.length > 5 ? `\n…și încă ${closedRows.length - 5}` : ''}` +
+      `\n\nDacă vreuna era de fapt făcută: Sarcini → Istoric → «✅ Era făcută».`
+    );
   }
   return done.length;
 }
@@ -627,7 +655,9 @@ export async function autoVerifyTiktokTasks(date: string, opts: { silent?: boole
     .maybeSingle();
   if (!acc) {
     // Аккаунт переименовали/удалили — иначе задачи тихо висели бы вечно. Шефов предупреждаем.
+    // В режиме догона молчим: цикл идёт по дням, и одно и то же сообщение ушло бы D раз подряд.
     console.error(`autoVerifyTiktok: cont "${TIKTOK_VERIFY_ACCOUNT}" negăsit`);
+    if (opts.silent) return 0;
     const creatorIds = [...new Set((templates as any[]).map((t) => t.creator_id))];
     for (const cid of creatorIds) {
       const { data: u } = await supa.from('users').select('telegram_id').eq('id', cid).maybeSingle();

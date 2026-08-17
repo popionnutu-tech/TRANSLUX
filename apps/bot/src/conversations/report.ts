@@ -832,8 +832,9 @@ export async function reportConversation(
         }
       }
 
-      // Operatorul a confirmat explicit „Da, reparat" → sarcina reclamă a lui Vlad se închide
-      // (decizie owner 08.07 v2: confirmarea explicită înlocuiește aprobarea manuală a owner-ului).
+      // Operatorul a confirmat explicit „Da, reparat" → sarcina reclamă se închide, DAR numai dacă
+      // executantul a depus deja raportul (Ion, 17.08.2026): confirmarea ține locul aprobării
+      // manuale a owner-ului, nu al muncii. Fără raport, sarcina rămâne deschisă. Vezi autoCloseReclamaTask.
       const reclamaOkPlate = reclamaRepairConfirmed && vehicleId
         ? (vehicles.find(v => v.id === vehicleId)?.plate_number
             ?? await conversation.external(() => getVehiclePlate(vehicleId)))

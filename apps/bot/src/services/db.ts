@@ -296,15 +296,20 @@ export async function createReclamaTask(input: {
   reclamaProblem: 'bus' | 'panou_ruta' | 'ambele';
 }): Promise<boolean> {
   const supa = db();
+  const description = `${input.vehiclePlate} — ${RECLAMA_LABEL[input.reclamaProblem]}, de reparat`;
   // Dedup ÎNAINTE de rezolvarea executorului — altfel, când nu există executor,
   // alerta ar pleca la fiecare raport repetat pe aceeași mașină.
+  // Cheia e mașina ȘI tipul defectului: o sarcină deschisă pe «reclamă pe autobuz» nu mai
+  // înghite semnalul despre «panou cu ruta» rupt (17.08.2026). Altfel, cu sarcini care acum
+  // trăiesc mai mult, defectul nou s-ar pierde tăcut, iar descrierea ar rămâne cea veche.
   const { data: open, error: openErr } = await supa.from('obligations')
     .select('id').eq('source', 'reclama').eq('vehicle_plate', input.vehiclePlate)
+    .eq('description', description)
     .in('current_state', NONTERMINAL_OB).limit(1).maybeSingle();
   // La eroare NU creăm (open=null ar arăta ca «nu există») — mai bine sarcina reapare
   // la raportul următor decât un dublu pe aceeași mașină.
   if (openErr) { console.error('reclama dedup select error:', openErr.message); return false; }
-  if (open) return false; // deja există o sarcină deschisă pt mașina asta
+  if (open) return false; // deja există o sarcină deschisă pt același defect
 
   const digital = await getZadachnikAssignee();
   if (!digital) {
@@ -317,7 +322,6 @@ export async function createReclamaTask(input: {
   // Termenul ăsta e și singura măsură a întârzierii — pasul de accept (cu data estimativă) nu mai există.
   const todayCh = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Chisinau' })).toISOString().slice(0, 10);
   const deadline = chisinauDateTimeISO(addBusinessDaysYMD(todayCh, 10), '18:00');
-  const description = `${input.vehiclePlate} — ${RECLAMA_LABEL[input.reclamaProblem]}, de reparat`;
   const id = await spawnObligation({
     creatorId: input.creatorId,
     assigneeId: digital.id as string,
@@ -362,13 +366,23 @@ export async function getOpenReclamaTask(
   };
 }
 
-/** Închide sarcina reclamă a lui Vlad după ce operatorul a CONFIRMAT explicit repararea
- *  (decizie owner 08.07, v2: „Totul OK" la sarcină deschisă → întrebare „A fost reparat?" → Da → închidere).
- *  Race-safe: .in(NONTERMINAL) în update închide cursa cu o închidere manuală simultană. */
+/**
+ * Operatorul confirmă explicit repararea („Totul OK" la sarcină deschisă → „A fost reparat?" → Da).
+ * Ce se întâmplă cu sarcina depinde de EXECUTANT (Ion, 17.08.2026 — «se închide doar dacă a
+ * făcut-o Iurie»):
+ *   - a depus raport ('report_pending') → 'resolved', adică munca lui, confirmată din teren;
+ *   - n-a raportat nimic → 'cancelled', fiindcă reclama e OK fără el (a reparat altcineva, ori
+ *     defectul era greșit raportat). Înainte, ORICE «OK» trecea sarcina la rezolvat: 116 din 117
+ *     s-au închis așa, cu el niciodată implicat, iar statistica arăta muncă inexistentă.
+ * Ambele ramuri închid sarcina, deci: răspunsul operatorului nu rămâne niciodată fără efect,
+ * întrebarea nu se repetă la infinit pe aceeași mașină, iar dedup-ul din createReclamaTask se
+ * deblochează pentru un defect viitor.
+ * Race-safe: fiecare update e gardat pe starea din care pleacă (cursă cu o închidere manuală).
+ */
 export async function autoCloseReclamaTask(vehiclePlate: string, reportDate: string): Promise<boolean> {
   const supa = db();
   const { data: ob } = await supa.from('obligations')
-    .select('id, assignee_id')
+    .select('id, assignee_id, current_state')
     .eq('source', 'reclama')
     .eq('vehicle_plate', vehiclePlate)
     .in('current_state', NONTERMINAL_OB)
@@ -377,13 +391,48 @@ export async function autoCloseReclamaTask(vehiclePlate: string, reportDate: str
     .maybeSingle();
   if (!ob) return false;
 
+  // Dacă executantul NU a raportat nimic, «OK»-ul nu poate însemna «a făcut-o el» — dar sarcina
+  // nici nu mai are obiect (reclama e în regulă). O anulăm, nu o trecem la rezolvat: statistica
+  // lui Iurie rămâne curată, iar mașina se deblochează pentru un defect viitor (dedup-ul din
+  // createReclamaTask se uită doar la sarcinile deschise).
+  if (ob.current_state !== 'report_pending') {
+    const { data: cancelled } = await supa.from('obligations')
+      .update({ current_state: 'cancelled' })
+      .eq('id', ob.id)
+      .in('current_state', NONTERMINAL_OB)
+      .select('id')
+      .maybeSingle();
+    if (!cancelled) return false;
+    await supa.from('obligation_events').insert({
+      obligation_id: ob.id,
+      event_type: 'cancelled',
+      actor_id: null,
+      data: { via: 'operator_reclama_ok_fara_raport', vehicle_plate: vehiclePlate, report_date: reportDate },
+    });
+    const { data: asg } = await supa.from('users').select('telegram_id').eq('id', ob.assignee_id).maybeSingle();
+    await notifyTelegram(
+      (asg?.telegram_id as number) ?? null,
+      `🚫 <b>Reclamă ${vehiclePlate} — sarcina s-a anulat</b>\nOperatorul a constatat în raport că reclama e deja OK. Nu mai e nimic de făcut aici.`
+    );
+    return true;
+  }
+
   const { data: done } = await supa.from('obligations')
     .update({ current_state: 'resolved' })
     .eq('id', ob.id)
-    .in('current_state', NONTERMINAL_OB)
+    .eq('current_state', 'report_pending')
     .select('id')
     .maybeSingle();
   if (!done) return false;
+
+  // Verdictul pe ultima încercare — altfel raportul lui Iurie rămâne veșnic «pending» în istoric.
+  const { data: lastAttempt } = await supa.from('obligation_attempts').select('id')
+    .eq('obligation_id', ob.id).order('number', { ascending: false }).limit(1).maybeSingle();
+  if (lastAttempt?.id) {
+    await supa.from('obligation_attempts')
+      .update({ verdict: 'accepted', manager_comment: 'Confirmat de operator în raport', decided_at: new Date().toISOString() })
+      .eq('id', lastAttempt.id);
+  }
 
   await supa.from('obligation_events').insert({
     obligation_id: ob.id,
@@ -395,7 +444,7 @@ export async function autoCloseReclamaTask(vehiclePlate: string, reportDate: str
   const { data: assignee } = await supa.from('users').select('telegram_id').eq('id', ob.assignee_id).maybeSingle();
   await notifyTelegram(
     (assignee?.telegram_id as number) ?? null,
-    `✅ <b>Reclamă ${vehiclePlate} — închisă automat</b>\nOperatorul a confirmat în raport că reclama e OK.`
+    `✅ <b>Reclamă ${vehiclePlate} — acceptată</b>\nOperatorul a confirmat în raport că reclama e OK. Raportul tău a fost acceptat automat.`
   );
   return true;
 }
@@ -1121,7 +1170,7 @@ export async function getOperatorAbsences(
 export async function getActiveReclamaIssues(): Promise<
   Array<{
     plate_number: string;
-    estimated_date: string | null;
+    deadline: string; // termenul sarcinii; estimated_date a rămas fără scriitor după scoaterea «accept»
     status: 'pending' | 'in_process' | 'overdue';
   }>
 > {
@@ -1130,13 +1179,13 @@ export async function getActiveReclamaIssues(): Promise<
 
   const { data } = await db()
     .from('obligations')
-    .select('vehicle_plate, estimated_date, current_deadline, current_state')
+    .select('vehicle_plate, current_deadline, current_state')
     .eq('source', 'reclama')
     .in('current_state', NONTERMINAL_OB)
     .not('vehicle_plate', 'is', null);
 
   const rows = (data || []) as Array<{
-    vehicle_plate: string; estimated_date: string | null; current_deadline: string; current_state: string;
+    vehicle_plate: string; current_deadline: string; current_state: string;
   }>;
   const result = rows.map((r) => {
     // Întârzierea se măsoară de la TERMEN, nu de la data estimativă: estimated_date se completa
@@ -1147,11 +1196,11 @@ export async function getActiveReclamaIssues(): Promise<
     if (r.current_deadline.slice(0, 10) < today) status = 'overdue';
     else if (r.current_state === 'report_pending') status = 'in_process'; // raport depus, așteaptă decizia
     else status = 'pending';
-    return { plate_number: r.vehicle_plate, estimated_date: r.estimated_date, status };
+    return { plate_number: r.vehicle_plate, deadline: r.current_deadline.slice(0, 10), status };
   });
 
   const rank: Record<'overdue' | 'pending' | 'in_process', number> = { overdue: 0, pending: 1, in_process: 2 };
-  result.sort((a, b) => rank[a.status] - rank[b.status] || (a.estimated_date ?? '').localeCompare(b.estimated_date ?? ''));
+  result.sort((a, b) => rank[a.status] - rank[b.status] || a.deadline.localeCompare(b.deadline));
   return result;
 }
 

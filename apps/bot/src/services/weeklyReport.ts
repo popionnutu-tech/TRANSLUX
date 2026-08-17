@@ -86,7 +86,7 @@ export async function sendWeeklyReport(): Promise<void> {
     if (overdue.length > 0) {
       msg += `🔴 EXPIRAT (${overdue.length}):\n`;
       for (const i of overdue) {
-        msg += `• <b>${i.plate_number}</b> — ${i.estimated_date ? formatDate(i.estimated_date) : '—'} ❌\n`;
+        msg += `• <b>${i.plate_number}</b> — termen ${formatDate(i.deadline)} ❌\n`;
       }
     }
     if (pending.length > 0) {
@@ -100,7 +100,7 @@ export async function sendWeeklyReport(): Promise<void> {
       if (overdue.length > 0 || pending.length > 0) msg += `\n`;
       msg += `🟡 ÎN PROCES (${inProcess.length}):\n`;
       for (const i of inProcess) {
-        msg += `• <b>${i.plate_number}</b> — ${i.estimated_date ? formatDate(i.estimated_date) : '—'} ⏳\n`;
+        msg += `• <b>${i.plate_number}</b> — termen ${formatDate(i.deadline)} ⏳\n`;
       }
     }
   }

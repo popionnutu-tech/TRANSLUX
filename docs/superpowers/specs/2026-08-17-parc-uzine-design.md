@@ -46,7 +46,9 @@ La mașini e mai simplu: doar `vehicles.directions` (valorile reale în prod:
 
 Un ecran, trei blocuri:
 
-1. **Mașini** — listă parc LDE + formular «adaugă mașină»: număr + uzină + tip
+1. **Mașini** — listă parc LDE + formular «adaugă mașină»: număr + uzină.
+   Tipul mașinii NU se alege aici: el trăiește pe `/lde/vehicule` (`assignVehicleType`)
+   împreună cu norma de consum, și n-are rost duplicat.
 2. **Șoferi** — listă + formular «adaugă șofer»: nume + telefon + uzină
 3. **Legături** — legăturile active + formular «leagă mașina cu șoferul»: mașină + șofer + schimb
 

@@ -24,7 +24,7 @@ const PUBLIC_PREFIXES = [
 
 const DISPATCHER_ALLOWED = ['/grafic', '/drivers', '/vehicles'];
 const GRAFIC_ALLOWED = ['/grafic'];
-const UZINE_ALLOWED = ['/lde/grafic-uzine'];
+const UZINE_ALLOWED = ['/lde/grafic-uzine', '/lde/parc'];
 const NUMARARE_ONLY_ROLES = ['OPERATOR_CAMERE', 'ADMIN_CAMERE', 'EVALUATOR_INCASARI'] as const;
 
 export async function middleware(request: NextRequest) {

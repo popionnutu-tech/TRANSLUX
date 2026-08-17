@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
+import { mesajLegaturaDuplicata } from '@/lib/lde/parc';
 import type {
   LdeActiveAssignment,
   LdeShiftNumber,
@@ -166,12 +167,9 @@ export async function createAssignment(data: CreateAssignmentData) {
 
   const { error } = await getSupabase().from('lde_active_assignments').insert(row);
   if (error) {
-    // Unique partial: uq_lde_active_assignments_one_per_driver / one_per_vehicle_shift
-    if (error.code === '23505') {
-      throw new Error(
-        'Atribuire duplicată: șoferul are deja o atribuire activă, sau mașina+schimbul sunt deja ocupate. Încheie atribuirea veche întâi.',
-      );
-    }
+    // Unique partial: uq_lde_active_assignments_one_per_driver / one_per_vehicle_shift.
+    // Mesajul e comun cu /lde/parc (lib/lde/parc.ts) și spune care din cele două a picat.
+    if (error.code === '23505') throw new Error(mesajLegaturaDuplicata(error.message));
     throw new Error(error.message);
   }
   revalidatePath('/lde/atribuiri');

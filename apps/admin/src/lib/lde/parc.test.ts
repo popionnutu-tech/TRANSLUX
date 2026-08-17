@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeazaPlaca, directionsCuUzina, mesajLegaturaDuplicata } from './parc';
+import { normalizeazaPlaca, mesajLegaturaDuplicata } from './parc';
 
 describe('normalizeazaPlaca', () => {
   it('scoate spațiile și liniuțele, trece pe majuscule', () => {
@@ -21,21 +21,6 @@ describe('normalizeazaPlaca', () => {
     // trim().toUpperCase() — fără normalizare comună s-ar crea o a doua mașină
     expect(normalizeazaPlaca('692 TWK')).toBe(normalizeazaPlaca('692TWK'));
     expect(normalizeazaPlaca('795 mjw')).toBe(normalizeazaPlaca('795MJW'));
-  });
-});
-
-describe('directionsCuUzina', () => {
-  it('adaugă uzina fără să piardă direcțiile existente', () => {
-    expect(directionsCuUzina(['camioane'], 'SEBN_ORHEI')).toEqual(['camioane', 'SEBN_ORHEI']);
-  });
-
-  it('nu dublează uzina deja prezentă', () => {
-    expect(directionsCuUzina(['SEBN_ORHEI'], 'SEBN_ORHEI')).toEqual(['SEBN_ORHEI']);
-  });
-
-  it('pornește de la listă goală sau lipsă', () => {
-    expect(directionsCuUzina(null, 'LEAR_UNGHENI')).toEqual(['LEAR_UNGHENI']);
-    expect(directionsCuUzina([], 'LEAR_UNGHENI')).toEqual(['LEAR_UNGHENI']);
   });
 });
 

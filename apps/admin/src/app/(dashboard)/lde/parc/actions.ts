@@ -4,7 +4,7 @@ import { getSupabase } from '@/lib/supabase';
 import { verifySession, type Session } from '@/lib/auth';
 import { normalizeDriverPhone, PhoneError } from '@translux/db';
 import { chisinauToday, uzineCuSablon } from '@/lib/atribuiri/core';
-import { normalizeazaPlaca, directionsCuUzina, mesajLegaturaDuplicata } from '@/lib/lde/parc';
+import { normalizeazaPlaca, mesajLegaturaDuplicata } from '@/lib/lde/parc';
 
 // Parcul LDE pentru rolul UZINE (Alexei): adaugă mașini/șoferi noi și le leagă
 // între ele. Paginile ADMIN (/lde/soferi, /lde/vehicule, /lde/atribuiri) rămân
@@ -46,13 +46,14 @@ export async function getParc(): Promise<ParcData> {
   await requireParcRole();
   const sb = getSupabase();
 
+  // Uzinele sunt EXACT cele din graficul lui (uzineCuSablon = active + cu șablon
+  // săptămânal, fără Trox): altfel granița rolului ar fi definită în două locuri
+  // diferite, iar Alexei ar putea adăuga mașini la o uzină pe care n-o vede.
+  //
   // Norma și extras vin ca embed pe părinte, nu ca tabele citite întregi: PostgREST
   // taie tăcut la 1000 de rânduri, iar o listă trunchiată n-ar ascunde date, ci ar
   // aprinde FALS avertismentele de mai jos («fără normă», «atribuire incompletă»).
   // Fiind PK pe vehicle_id / driver_id, embed-ul întoarce obiect sau null.
-  // Uzinele sunt EXACT cele din graficul lui (uzineCuSablon = active + cu șablon
-  // săptămânal, fără Trox). Altfel granița rolului ar fi definită în două locuri
-  // diferite și Alexei ar putea adăuga mașini la o uzină pe care n-o vede.
   const [uzine, vehRes, drvRes, legRes] = await Promise.all([
     uzineCuSablon(),
     sb.from('vehicles').select('id, plate_number, directions, lde_vehicle_norms ( vehicle_id )')
@@ -136,7 +137,10 @@ export async function adaugaMasina(placaBruta: string, uzinaId: string): Promise
       plate_number: placa,
       is_lde: true,
       active: true,
-      directions: directionsCuUzina([], uzinaId),
+      // mașina se creează cu o singură uzină, dar POATE deservi mai multe (migr. 217,
+      // array_agg distinct) — de aceea aici scriem lista direct, nu prin regula de
+      // înlocuire a șoferului, care ar șterge celelalte uzine ale mașinii
+      directions: [uzinaId],
     });
     if (error) return { error: error.message };
 
@@ -178,7 +182,7 @@ export async function adaugaSofer(numeBrut: string, telefonBrut: string, uzinaId
       phone: telefon,
       is_lde: true,
       active: true,
-      directions: directionsCuUzina([], uzinaId),
+      directions: [uzinaId],   // șofer nou: exact o uzină (ca în migr. 217)
     }).select('id').single();
     if (error) return { error: error.message };
 

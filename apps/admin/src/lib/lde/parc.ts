@@ -10,13 +10,6 @@ export function normalizeazaPlaca(input: string): string | null {
   return curat.length ? curat : null;
 }
 
-/** Atribuirea la uzină = uzina adăugată în `directions`, fără să pierdem ce era.
- *  O mașină poate deservi și «camioane», și o uzină. */
-export function directionsCuUzina(existente: string[] | null | undefined, uzinaId: string): string[] {
-  const lista = existente ?? [];
-  return lista.includes(uzinaId) ? [...lista] : [...lista, uzinaId];
-}
-
 /** Traduce conflictul de unicitate (23505) pe legături în limbajul dispecerului.
  *  Indecșii parțiali din bază: un șofer = o legătură activă; o mașină = o legătură
  *  activă per schimb. */

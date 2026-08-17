@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
+import { setUzinaInDirections, acelasiSet } from '@/lib/lde/uzina-directions';
 import type { LdeDriverExtras, LdeParkingLocation, LdeSalaryCategory, LdeUzina } from '@translux/db';
 
 export interface LdeSoferRow {
@@ -76,6 +77,36 @@ export async function getLdeSoferi(uzina_id?: string): Promise<LdeSoferRow[]> {
   return rows.filter(r => r.uzina_id === uzina_id);
 }
 
+/**
+ * Ține `drivers.directions` în pas cu `lde_driver_extras.uzina_id`.
+ *
+ * Pagina asta scria istoric doar extras, iar pickerul din grafic citește
+ * directions — de aici desincronizarea măsurată pe 17.08.2026 (93 cu extras,
+ * 84 cu directions, 83 coincid): șoferul mutat de aici la altă uzină nu urca
+ * în lista uzinei noi din grafic. Regula stă în lib/lde/uzina-directions.ts,
+ * comună cu /lde/parc.
+ */
+async function sincronizeazaDirections(driver_id: string, uzina_id: string | null) {
+  const sb = getSupabase();
+
+  const [{ data: drv, error: dErr }, { data: uzine, error: uErr }] = await Promise.all([
+    sb.from('drivers').select('directions').eq('id', driver_id).maybeSingle(),
+    sb.from('lde_uzine').select('id'),
+  ]);
+  if (dErr) throw new Error(dErr.message);
+  if (uErr) throw new Error(uErr.message);
+  if (!drv) return; // șofer inexistent — upsertExtras ar fi picat oricum pe FK
+
+  const acum = (drv.directions as string[] | null) ?? [];
+  // toate uzinele, nu doar cele active: altfel codul unei uzine dezactivate ar
+  // rămâne agățat în directions și n-ar mai fi curățat niciodată
+  const noi = setUzinaInDirections(acum, uzina_id, (uzine ?? []).map((u) => u.id as string));
+  if (acelasiSet(acum, noi)) return;
+
+  const { error } = await sb.from('drivers').update({ directions: noi }).eq('id', driver_id);
+  if (error) throw new Error(error.message);
+}
+
 /** Upsert pentru lde_driver_extras (creează rândul dacă nu există, altfel actualizează). */
 async function upsertExtras(driver_id: string, patch: LdeSoferExtrasPatch) {
   const sb = getSupabase();
@@ -98,6 +129,12 @@ async function upsertExtras(driver_id: string, patch: LdeSoferExtrasPatch) {
     .from('lde_driver_extras')
     .upsert(row, { onConflict: 'driver_id' });
   if (error) throw new Error(error.message);
+
+  // Doar când chiar s-a atins uzina — restul câmpurilor (adresă, categorie,
+  // parcare) n-au treabă cu direcțiile.
+  if ('uzina_id' in patch) {
+    await sincronizeazaDirections(driver_id, patch.uzina_id ?? null);
+  }
 }
 
 export async function updateLdeSoferExtras(driver_id: string, patch: LdeSoferExtrasPatch) {

@@ -88,7 +88,40 @@ export async function deleteDriver(id: string) {
 export async function updateDriverDirections(id: string, directions: string[]) {
   requireRole(await verifySession(), 'ADMIN', 'DISPATCHER');
   const clean = [...new Set((directions || []).filter((d) => typeof d === 'string' && d.length))];
-  const { error } = await getSupabase().from('drivers').update({ directions: clean }).eq('id', id);
+  const sb = getSupabase();
+
+  // Uzina unui șofer trăiește în două locuri: `directions` (pickerul din grafic) și
+  // `lde_driver_extras.uzina_id` (salarii). /lde/soferi și /lde/parc le scriu pe
+  // amândouă; dacă pagina asta ar scrie doar `directions`, ar reface exact
+  // desincronizarea închisă pe 17.08 (erau 10 șoferi rupți).
+  const { data: uzine, error: uErr } = await sb.from('lde_uzine').select('id');
+  if (uErr) throw new Error(uErr.message);
+  const uzinaIds = new Set((uzine ?? []).map((u) => u.id as string));
+  const alese = clean.filter((d) => uzinaIds.has(d));
+  // modelul dă o singură uzină per șofer (migr. 217 + o singură coloană în extras);
+  // mașinile pot avea mai multe, șoferii nu
+  if (alese.length > 1) {
+    throw new Error('Un șofer poate aparține unei singure uzine — alege doar una.');
+  }
+
+  const { error } = await sb.from('drivers').update({ directions: clean }).eq('id', id);
   if (error) throw new Error(error.message);
+
+  if (alese.length === 1) {
+    const { error: eEx } = await sb.from('lde_driver_extras')
+      .upsert({ driver_id: id, uzina_id: alese[0] }, { onConflict: 'driver_id' });
+    if (eEx) throw new Error(eEx.message);
+  } else {
+    // uzina a fost scoasă — golim și extras, dar NU creăm rând nou pentru
+    // șoferii de interurban/suburban care n-au avut niciodată unul
+    const { data: existent } = await sb.from('lde_driver_extras')
+      .select('driver_id').eq('driver_id', id).maybeSingle();
+    if (existent) {
+      const { error: eEx } = await sb.from('lde_driver_extras')
+        .update({ uzina_id: null }).eq('driver_id', id);
+      if (eEx) throw new Error(eEx.message);
+    }
+  }
+
   revalidatePath('/drivers');
 }

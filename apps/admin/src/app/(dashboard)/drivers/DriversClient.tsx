@@ -34,10 +34,14 @@ export default function DriversClient({ initialDrivers, directionOptions }: { in
       setError('Prenumele este obligatoriu');
       return;
     }
+    if (!phone.trim()) {
+      setError('Telefonul este obligatoriu — fără el cursa nu apare pe translux.md');
+      return;
+    }
     const fullName = `${fam} ${pre}`;
     setLoading(true);
     try {
-      await createDriver(fullName, phone || undefined);
+      await createDriver(fullName, phone);
       setFamilia('');
       setPrenume('');
       setPhone('');
@@ -96,6 +100,7 @@ export default function DriversClient({ initialDrivers, directionOptions }: { in
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="069XXXXXX"
+              required
             />
           </div>
           <button type="submit" className="btn btn-primary" disabled={loading}>

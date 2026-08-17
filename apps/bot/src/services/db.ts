@@ -103,10 +103,10 @@ export async function getActiveDrivers(): Promise<Driver[]> {
   return data || [];
 }
 
-export async function createDriver(fullName: string): Promise<Driver> {
+export async function createDriver(fullName: string, phone: string): Promise<Driver> {
   const { data, error } = await db()
     .from('drivers')
-    .insert({ full_name: fullName, directions: ['interurban'] })
+    .insert({ full_name: fullName, phone, directions: ['interurban'] })
     .select()
     .single();
   if (error) throw error;

@@ -64,10 +64,16 @@ async function seed() {
     'Botnaru Pavel',
   ];
 
+  // telefonul e obligatoriu la INSERT (migrația 254) — și un upsert declanșează
+  // trigger-ul chiar și pentru rândurile care ajung pe ramura UPDATE
   const { data: drivers, error: driversErr } = await supabase
     .from('drivers')
     .upsert(
-      driverNames.map((full_name) => ({ full_name, active: true })),
+      driverNames.map((full_name, i) => ({
+        full_name,
+        active: true,
+        phone: `3736900000${i}`,
+      })),
       { onConflict: 'full_name' }
     )
     .select();

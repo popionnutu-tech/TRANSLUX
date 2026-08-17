@@ -56,17 +56,23 @@ export function createBot(): Bot<BotContext> {
     })
   );
 
-  // Global escape hatch: /start ALWAYS exits any active (possibly corrupted)
-  // conversation BEFORE it gets replayed, so a user can never get stuck.
-  // exitAll() purges conversation state without replaying it, so it cannot
-  // throw "Bad replay". After exiting, the /start command handler runs fresh.
+  // Global escape hatch: /start și /cancel ies ÎNTOTDEAUNA din orice conversație
+  // activă (eventual coruptă) ÎNAINTE de replay, ca utilizatorul să nu rămână blocat.
+  // exitAll() șterge starea fără replay, deci nu poate arunca „Bad replay".
+  // /cancel e aici, nu în conversații: o buclă de re-întrebare (ex. telefonul din
+  // addDriver) ar înghiți comanda ca text obișnuit și ar întreba la nesfârșit —
+  // iar starea e persistată în Supabase, deci nici repornirea botului nu ajută.
   bot.use(async (ctx, next) => {
     const cmd = ctx.message?.text?.split(/[\s@]/)[0];
-    if (cmd === '/start') {
+    if (cmd === '/start' || cmd === '/cancel') {
       try {
         await ctx.conversation.exitAll();
       } catch (err) {
-        console.error('exitAll on /start failed:', err);
+        console.error(`exitAll on ${cmd} failed:`, err);
+      }
+      if (cmd === '/cancel') {
+        await ctx.reply('Operațiunea a fost anulată. Apasă /start pentru meniu.');
+        return;
       }
     }
     await next();

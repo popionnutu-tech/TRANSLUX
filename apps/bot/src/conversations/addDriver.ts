@@ -1,4 +1,5 @@
 import type { Conversation } from '@grammyjs/conversations';
+import { normalizeDriverPhone, PhoneError } from '@translux/db';
 import type { BotContext } from '../types.js';
 import { createDriver } from '../services/db.js';
 
@@ -19,8 +20,29 @@ export async function addDriverConversation(conversation: AddDriverConversation,
     return;
   }
 
+  // Telefonul e obligatoriu: fără el cursa șoferului nu apare deloc pe translux.md
+  await nameCtx.reply(
+    'Introdu numărul de telefon al șoferului:\n' +
+    '(ex: <b>069123456</b>)',
+    { parse_mode: 'HTML' }
+  );
+
+  let phone: string;
+  while (true) {
+    const phoneCtx = await conversation.waitFor('message:text');
+    try {
+      phone = normalizeDriverPhone(phoneCtx.message.text);
+      break;
+    } catch (err) {
+      if (!(err instanceof PhoneError)) throw err;
+      await phoneCtx.reply(
+        `❌ ${err.message}\nScrie numărul din nou sau /cancel pentru a renunța.`
+      );
+    }
+  }
+
   try {
-    await conversation.external(() => createDriver(fullName));
+    await conversation.external(() => createDriver(fullName, phone));
     const parts = fullName.split(' ');
     const shortName = parts.length > 1
       ? `${parts[0]} ${parts.slice(1).map(p => p[0] + '.').join('')}`

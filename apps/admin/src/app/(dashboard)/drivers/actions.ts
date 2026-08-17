@@ -61,6 +61,19 @@ export async function updateDriverName(driverId: string, fullName: string) {
 
 export async function toggleDriver(id: string, active: boolean) {
   requireRole(await verifySession(), 'ADMIN', 'DISPATCHER');
+
+  // Reactivarea e singura poartă prin care un șofer fără telefon se putea întoarce în
+  // pickere: trigger-ele din 254/256 prind doar adăugarea, iar un șofer vechi
+  // dezactivat (ex. «Oglasevici A.») putea reveni cu un click și ascunde iar cursa.
+  if (active) {
+    const { data, error } = await getSupabase()
+      .from('drivers').select('full_name, phone, is_lde').eq('id', id).maybeSingle();
+    if (error) throw new Error(error.message);
+    if (data && !data.is_lde && !data.phone?.trim()) {
+      throw new Error(`${data.full_name} n-are telefon — completează-l înainte de a-l reactiva, altfel cursele lui nu apar pe translux.md`);
+    }
+  }
+
   await getSupabase().from('drivers').update({ active }).eq('id', id);
   revalidatePath('/drivers');
 }

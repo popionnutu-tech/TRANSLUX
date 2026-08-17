@@ -1,4 +1,5 @@
 import { getSupabase } from '@/lib/supabase';
+import { verificaTelefonSofer } from '@/lib/driver-guard';
 import { scrieFoaie } from '@/lib/foaie';
 import { valideazaZileMulti } from '@/lib/atribuiri/saptamana';
 
@@ -363,9 +364,15 @@ export async function syncWriteThrough(date: string): Promise<number> {
     .not('crm_route_id', 'is', null);
   let n = 0;
   for (const r of data ?? []) {
-    const okV = await writeThroughCrm(date, r.crm_route_id as number, r.vehicle_id as string | null);
-    if (r.driver_id != null) await writeThroughDriverCrm(date, r.crm_route_id as number, r.driver_id as string);
-    if (okV) n++;
+    // un rând care pică (ex. trigger-ul care cere telefonul șoferului) nu trebuie să
+    // oprească restul zilei — cronul rulează o dată dimineața, fără cine să reia manual
+    try {
+      const okV = await writeThroughCrm(date, r.crm_route_id as number, r.vehicle_id as string | null);
+      if (r.driver_id != null) await writeThroughDriverCrm(date, r.crm_route_id as number, r.driver_id as string);
+      if (okV) n++;
+    } catch (err) {
+      console.error(`syncWriteThrough ${date} ruta ${r.crm_route_id}:`, err);
+    }
   }
   return n;
 }
@@ -430,16 +437,9 @@ export async function atribuieSofer(rowId: string, driverId: string | null, user
       throw new Error('Mașina atribuită trebuie să aibă șofer — înlocuiește-l sau golește mașina');
     }
   } else if (r && r.route_kind !== 'uzina') {
-    // Cursele din orar ajung pe translux.md, iar site-ul ascunde cursa dacă șoferul
-    // zilei n-are telefon (apps/web/src/app/(public)/actions.ts:490). Trigger-ele din
-    // migrațiile 254/256 păzesc doar tabela `drivers`; aici se schimbă doar
-    // daily_assignments, deci verificarea trebuie făcută pe drum.
-    const { data: sofer, error: sErr } = await getSupabase()
-      .from('drivers').select('full_name, phone').eq('id', driverId).maybeSingle();
-    if (sErr) throw new Error(`Citirea șoferului a eșuat: ${sErr.message}`);
-    if (sofer && !sofer.phone?.trim()) {
-      throw new Error(`${sofer.full_name} n-are telefon în bază — completează-l întâi, altfel cursa dispare de pe translux.md`);
-    }
+    // aceeași verificare ca pe /assignments și /grafic — mesajul stă într-un singur loc
+    const errTelefon = await verificaTelefonSofer(driverId);
+    if (errTelefon) throw new Error(errTelefon);
   }
   const { prev, next } = await updateRow(rowId, { driver_id: driverId }, userId, adminId);
   if (prev.route_kind !== 'uzina' && prev.crm_route_id != null) {

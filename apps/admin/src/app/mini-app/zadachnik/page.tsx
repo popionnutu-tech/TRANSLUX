@@ -8,7 +8,7 @@ import { C, api, ready, STATE, fmt, CAT_ORDER, catOf, catKeyOf, type Task, type 
 
 interface RecTemplate {
   id: string; assignee_id: string; title: string | null; description: string; points: number;
-  period: 'daily' | 'mon_fri' | 'custom'; week_days: number[] | null; deadline_time: string;
+  period: 'daily' | 'mon_fri' | 'custom' | 'weekly'; week_days: number[] | null; deadline_time: string;
   assignee_label: string;
   category?: string; target_per_week?: number | null;
 }
@@ -16,6 +16,7 @@ interface RecTemplate {
 const WD = ['Du', 'Lu', 'Ma', 'Mi', 'Jo', 'Vi', 'Sâ'];
 function recScheduleLabel(t: RecTemplate): string {
   if (t.period === 'daily') return 'în fiecare zi';
+  if (t.period === 'weekly') return 'săptămânal, până duminică';
   if (t.period === 'mon_fri') return 'Luni–Vineri';
   return (t.week_days ?? []).slice().sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map((d) => WD[d] ?? String(d)).join(', ');
 }

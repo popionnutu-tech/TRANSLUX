@@ -143,6 +143,10 @@ export function chisinauLocalToISO(local: string): string | null {
 
 /** Câte zile pe săptămână rulează un șablon (plafonul și valoarea implicită a țintei).
  *  Copia client a maxPerWeekOf din lib/zadachnik/core.ts — ține-le identice. */
-export function maxPerWeekOf(period: 'daily' | 'mon_fri' | 'custom', weekDays?: number[] | null): number {
-  return period === 'daily' ? 7 : period === 'mon_fri' ? 5 : (weekDays?.length ?? 0);
+export function maxPerWeekOf(period: 'daily' | 'mon_fri' | 'custom' | 'weekly', weekDays?: number[] | null): number {
+  return period === 'daily' || period === 'weekly' ? 7 : period === 'mon_fri' ? 5 : (weekDays?.length ?? 0);
+}
+/** Copia client a defaultTargetOf din lib/zadachnik/core.ts — ține-le identice. */
+export function defaultTargetOf(period: 'daily' | 'mon_fri' | 'custom' | 'weekly', weekDays?: number[] | null): number {
+  return period === 'weekly' ? 1 : maxPerWeekOf(period, weekDays);
 }

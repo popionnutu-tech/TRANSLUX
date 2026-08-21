@@ -32,8 +32,8 @@ export async function POST(req: Request) {
   if (u.role !== 'ADMIN') return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
   const body = await req.json().catch(() => null);
-  if (!body?.assignee_id || !body?.description?.trim() || !['daily', 'mon_fri', 'custom'].includes(body?.period)) {
-    return NextResponse.json({ error: 'assignee_id, description, period (daily|mon_fri|custom) obligatorii' }, { status: 400 });
+  if (!body?.assignee_id || !body?.description?.trim() || !['daily', 'mon_fri', 'custom', 'weekly'].includes(body?.period)) {
+    return NextResponse.json({ error: 'assignee_id, description, period (daily|mon_fri|custom|weekly) obligatorii' }, { status: 400 });
   }
   let weekDays: number[] | null = null;
   if (body.period === 'custom') {
@@ -61,7 +61,10 @@ export async function POST(req: Request) {
   // O țintă peste plafon ar bloca bara pe roșu pentru totdeauna (semnal fals despre executor).
   const maxPerWeek = maxPerWeekOf(body.period, weekDays);
   if (targetPerWeek !== null && targetPerWeek > maxPerWeek) {
-    return NextResponse.json({ error: `ținta max ${maxPerWeek}/săpt — șablonul rulează ${maxPerWeek} zile pe săptămână (se numără sarcini închise, nu video)` }, { status: 400 });
+    const motiv = body.period === 'weekly'
+      ? 'se poate închide cel mult o sarcină pe zi'
+      : `șablonul rulează ${maxPerWeek} zile pe săptămână`;
+    return NextResponse.json({ error: `ținta max ${maxPerWeek}/săpt — ${motiv} (se numără sarcini închise, nu video)` }, { status: 400 });
   }
   const t = await createRecurringTemplate({
     creatorId: u.id,

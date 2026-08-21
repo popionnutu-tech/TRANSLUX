@@ -91,10 +91,25 @@ function chisinauTodayISO(hhmm: string): string {
   const guess = new Date(Date.UTC(y, mo - 1, d, hh, mi));
   return new Date(guess.getTime() - chisinauOffsetMin(guess) * 60000).toISOString();
 }
+/** Duminica săptămânii curente în Chișinău la HH:MM → ISO (UTC) — termenul sarcinilor 'weekly'.
+ *  Aritmetică pe calendar (Date.UTC normalizează depășirea de zi), nu pe milisecunde reale —
+ *  imună la trecerea la ora de iarnă. */
+function chisinauSundayISO(hhmm: string): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Chisinau', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date());
+  const y = +parts.find((p) => p.type === 'year')!.value;
+  const mo = +parts.find((p) => p.type === 'month')!.value;
+  const d = +parts.find((p) => p.type === 'day')!.value;
+  const wd = new Date(Date.UTC(y, mo - 1, d)).getUTCDay(); // 0=Du..6=Sâ, independent de TZ-ul mașinii
+  const [hh, mi] = hhmm.split(':').map(Number);
+  const guess = new Date(Date.UTC(y, mo - 1, d + ((7 - wd) % 7), hh, mi));
+  return new Date(guess.getTime() - chisinauOffsetMin(guess) * 60000).toISOString();
+}
 /** Срабатывает ли шаблон сегодня (по дню недели Кишинёва). */
-function recurringFiresToday(period: 'daily' | 'mon_fri' | 'custom', weekDays: number[] | null | undefined): boolean {
+function recurringFiresToday(period: 'daily' | 'mon_fri' | 'custom' | 'weekly', weekDays: number[] | null | undefined): boolean {
   const wd = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Chisinau' })).getDay();
-  if (period === 'daily') return true;
+  if (period === 'daily' || period === 'weekly') return true;
   if (period === 'mon_fri') return wd >= 1 && wd <= 5;
   return Array.isArray(weekDays) && weekDays.includes(wd);
 }
@@ -134,8 +149,14 @@ export async function getObligation(id: string): Promise<Obligation | null> {
 
 /** Câte zile pe săptămână rulează un șablon = plafonul țintei și ținta implicită.
  *  SURSĂ UNICĂ server-side; clientul are copia lui în mini-app/zadachnik/ui.ts (nu poate importa de aici). */
-export function maxPerWeekOf(period: 'daily' | 'mon_fri' | 'custom', weekDays?: number[] | null): number {
-  return period === 'daily' ? 7 : period === 'mon_fri' ? 5 : (weekDays?.length ?? 0);
+export function maxPerWeekOf(period: 'daily' | 'mon_fri' | 'custom' | 'weekly', weekDays?: number[] | null): number {
+  // 'weekly': re-spawn după resolve, cel mult o dată pe zi → plafon 7 (ținta implicită rămâne 1).
+  return period === 'daily' || period === 'weekly' ? 7 : period === 'mon_fri' ? 5 : (weekDays?.length ?? 0);
+}
+/** Ținta săptămânală IMPLICITĂ (target_per_week=null): weekly = o sarcină pe săptămână,
+ *  restul = câte zile rulează. Sursa unică — botul are aceeași regulă inline (`?? 1`). */
+export function defaultTargetOf(period: 'daily' | 'mon_fri' | 'custom' | 'weekly', weekDays?: number[] | null): number {
+  return period === 'weekly' ? 1 : maxPerWeekOf(period, weekDays);
 }
 
 // ── категории (migr. 249) ──
@@ -325,7 +346,7 @@ export function weekdaysLabel(days: number[] | null | undefined): string {
 
 export interface RecurringTemplate {
   id: string; creator_id: string; assignee_id: string; title: string | null;
-  description: string; points: number; period: 'daily' | 'mon_fri' | 'custom';
+  description: string; points: number; period: 'daily' | 'mon_fri' | 'custom' | 'weekly';
   deadline_time: string; week_days: number[] | null; active: boolean; last_generated_date: string | null; created_at: string;
   category: string; target_per_week: number | null;
   goal: string | null; goal_achieved_at: string | null;
@@ -333,7 +354,7 @@ export interface RecurringTemplate {
 
 export async function createRecurringTemplate(input: {
   creatorId: string; assigneeId: string; title: string | null; description: string;
-  points: number; period: 'daily' | 'mon_fri' | 'custom'; deadlineTime: string; weekDays?: number[] | null;
+  points: number; period: 'daily' | 'mon_fri' | 'custom' | 'weekly'; deadlineTime: string; weekDays?: number[] | null;
   category?: string; targetPerWeek?: number | null; goal?: string | null;
 }): Promise<RecurringTemplate> {
   const { data, error } = await getSupabase().from('recurring_task_templates').insert({
@@ -347,6 +368,7 @@ export async function createRecurringTemplate(input: {
   }).select('*').single();
   if (error || !data) throw new Error(error?.message || 'create failed');
   const periodLabel = input.period === 'daily' ? 'Zilnic'
+    : input.period === 'weekly' ? 'Săptămânal (până duminică)'
     : input.period === 'mon_fri' ? 'Luni–Vineri'
     : weekdaysLabel(input.weekDays);
   await notify(
@@ -357,7 +379,8 @@ export async function createRecurringTemplate(input: {
   // Dacă șablonul se potrivește azi, generăm sarcina de azi imediat (altfel ar aștepta rularea de la 07:00).
   if (recurringFiresToday(input.period, input.weekDays)) {
     const todayYMD = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Chisinau' }).format(new Date());
-    const todayDeadline = chisinauTodayISO(input.deadlineTime);
+    // 'weekly': sarcina trăiește toată săptămâna — termenul e duminică, nu azi.
+    const todayDeadline = input.period === 'weekly' ? chisinauSundayISO(input.deadlineTime) : chisinauTodayISO(input.deadlineTime);
     // Aceeași regulă ca generatorul botului: nu spawnăm o sarcină deja expirată
     // (șablon creat după ora-limită) — prima apare mâine la 07:00.
     if (tpl.last_generated_date !== todayYMD && new Date(todayDeadline).getTime() > Date.now()) {

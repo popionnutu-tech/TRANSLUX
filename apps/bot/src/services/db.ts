@@ -627,12 +627,18 @@ export async function expireStaleRecurringTasks(): Promise<number> {
   return done.length;
 }
 
+/** Dedup pe zi al alertei «șablon weekly blocat»: per proces (un restart poate re-alerta o dată — acceptat). */
+const blockedAlertSent = new Map<string, string>();
+
 /** Создаёт obligation из каждого активного шаблона, подходящего на сегодня. Возвращает число созданных. */
 export async function generateRecurringTasks(): Promise<number> {
   const supa = db();
   const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Chisinau' }));
   const today = now.toISOString().slice(0, 10);
   const weekday = now.getDay(); // 0=Sun..6=Sat
+  // Săptămâna curentă luni–duminică (Chișinău) — pentru șabloanele 'weekly'.
+  const mondayYMD = new Date(now.getTime() - ((weekday + 6) % 7) * 86400000).toISOString().slice(0, 10);
+  const sundayYMD = new Date(now.getTime() + ((7 - weekday) % 7) * 86400000).toISOString().slice(0, 10);
 
   const { data: templates, error: templatesErr } = await supa.from('recurring_task_templates').select('*').eq('active', true);
   // Eroarea NU se înghite: altfel «created 0» ar arăta ca o zi liniștită sănătoasă.
@@ -646,8 +652,47 @@ export async function generateRecurringTasks(): Promise<number> {
     let fires: boolean;
     if (t.period === 'mon_fri') fires = weekday >= 1 && weekday <= 5;
     else if (t.period === 'custom') fires = Array.isArray(t.week_days) && t.week_days.includes(weekday);
-    else fires = true; // 'daily'
+    else fires = true; // 'daily' și 'weekly'
     if (!fires) continue;
+
+    // 'weekly' (Ion, 21.08.2026): o sarcină vie pe săptămână, termen DUMINICĂ la deadline_time.
+    // Re-spawn în aceeași săptămână doar dacă ținta (target_per_week, implicit 1) nu e atinsă —
+    // ex. «Căutat șoferi 0/2»: după primul resolved, a doua zi la 07:00 apare a doua sarcină.
+    // Selecturile stau ÎNAINTEA claim-ului intenționat: o eroare aici nu consumă ziua.
+    let deadlineDay = today;
+    if (t.period === 'weekly') {
+      deadlineDay = sundayYMD;
+      const { data: live, error: liveErr } = await supa.from('obligations').select('id, current_state, current_deadline')
+        .eq('recurring_template_id', t.id).in('current_state', NONTERMINAL_OB).limit(1);
+      if (liveErr) throw new Error(`recurring weekly live select: ${liveErr.message}`);
+      if (live && live.length > 0) {
+        // Sarcina vie poate sta în 'report_pending'/'overdue_responded' — stări pe care uborka nu
+        // le atinge (mingea e la om) și din care iese DOAR o decizie a șefului. Fără alertă,
+        // șablonul ar îngheța mut pentru totdeauna. Blocajul e semnalat doar când termenul
+        // sarcinii a trecut deja. Dedup per proces+zi (blockedAlertSent): retry-ul de eroare al
+        // planificatorului reintră în funcție la fiecare minut — fără dedup, alerta s-ar repeta.
+        const l = live[0] as { current_state: string; current_deadline: string };
+        if (['report_pending', 'overdue_responded'].includes(l.current_state) && new Date(l.current_deadline).getTime() < Date.now()
+            && blockedAlertSent.get(t.id as string) !== today) {
+          blockedAlertSent.set(t.id as string, today);
+          await sendAdminAlert(
+            `⏸ <b>Sarcină recurentă blocată</b>: «${escapeHtml(t.title ?? t.description?.slice(0, 40) ?? '')}» așteaptă decizia șefului ` +
+            `(${l.current_state === 'report_pending' ? 'raport depus, neverificat' : 'termen nou propus, fără răspuns'}). ` +
+            `Șablonul săptămânal nu generează sarcină nouă până nu se închide cea veche.`
+          );
+        }
+        continue; // sarcina săptămânii e încă pe ecran
+      }
+      // 'cancelled' contează la norma săptămânii: sarcina anulată de admin miercuri nu trebuie
+      // să reînvie joi la 07:00. Panoul 🎯 numără doar 'resolved' — intenționat: anularea închide
+      // săptămâna, dar nu e progres.
+      const { count: doneCnt, error: resErr } = await supa.from('obligations')
+        .select('id', { count: 'exact', head: true })
+        .eq('recurring_template_id', t.id).in('current_state', ['resolved', 'cancelled'])
+        .gte('created_at', chisinauDateTimeISO(mondayYMD, '00:00'));
+      if (resErr) throw new Error(`recurring weekly resolved count: ${resErr.message}`);
+      if ((doneCnt ?? 0) >= ((t.target_per_week as number | null) ?? 1)) continue; // norma săptămânii e făcută
+    }
 
     // Исполнитель ещё активен? Деактивированному задачи не плодим (R1).
     // Eroarea se aruncă (nu se confundă cu «executor inactiv») — altfel ziua s-ar închide tăcut.
@@ -680,7 +725,7 @@ export async function generateRecurringTasks(): Promise<number> {
     }
     if (!claimed) continue; // день застолбил другой процесс (или шаблон остановлен)
 
-    const deadline = chisinauDateTimeISO(today, t.deadline_time || '18:00');
+    const deadline = chisinauDateTimeISO(deadlineDay, t.deadline_time || '18:00');
     // Recuperarea (fereastra ≥07:00) nu creează sarcini cu termenul deja trecut.
     // Verificarea stă INTENȚIONAT după claim: ziua se consumă (sarcina retro n-ar mai
     // avea sens azi), iar orice apel care poate arunca rămâne după claim — claim-ul e

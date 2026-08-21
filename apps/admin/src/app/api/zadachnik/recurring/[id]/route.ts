@@ -55,8 +55,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     patch.deadline_time = dt;
   }
   if (body.period !== undefined) {
-    if (!['daily', 'mon_fri', 'custom'].includes(String(body.period))) {
-      return NextResponse.json({ error: 'period: daily|mon_fri|custom' }, { status: 400 });
+    if (!['daily', 'mon_fri', 'custom', 'weekly'].includes(String(body.period))) {
+      return NextResponse.json({ error: 'period: daily|mon_fri|custom|weekly' }, { status: 400 });
     }
     patch.period = body.period;
   }
@@ -88,9 +88,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
   if (effPeriod !== 'custom') patch.week_days = null;
   const effTarget = (patch.target_per_week !== undefined ? patch.target_per_week : tpl.target_per_week) as number | null;
-  const maxPerWeek = maxPerWeekOf(effPeriod as 'daily' | 'mon_fri' | 'custom', effWeekDays);
+  const maxPerWeek = maxPerWeekOf(effPeriod as 'daily' | 'mon_fri' | 'custom' | 'weekly', effWeekDays);
   if (typeof effTarget === 'number' && effTarget > maxPerWeek) {
-    return NextResponse.json({ error: `ținta max ${maxPerWeek}/săpt — șablonul rulează ${maxPerWeek} zile pe săptămână` }, { status: 400 });
+    const motiv = effPeriod === 'weekly'
+      ? 'se poate închide cel mult o sarcină pe zi'
+      : `șablonul rulează ${maxPerWeek} zile pe săptămână`;
+    return NextResponse.json({ error: `ținta max ${maxPerWeek}/săpt — ${motiv}` }, { status: 400 });
   }
 
   const { data, error } = await getSupabase().from('recurring_task_templates')

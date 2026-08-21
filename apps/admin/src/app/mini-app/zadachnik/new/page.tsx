@@ -20,7 +20,7 @@ export default function NewTask() {
   const [points, setPoints] = useState('30');
   const [deadline, setDeadline] = useState(defaultDeadline());
   const [recurring, setRecurring] = useState(false);
-  const [period, setPeriod] = useState<'daily' | 'mon_fri' | 'custom'>('daily');
+  const [period, setPeriod] = useState<'daily' | 'mon_fri' | 'custom' | 'weekly'>('daily');
   const [weekDays, setWeekDays] = useState<number[]>([]);
   const [deadlineTime, setDeadlineTime] = useState('18:00');
   const [category, setCategory] = useState('ALTELE');
@@ -122,8 +122,8 @@ export default function NewTask() {
       {recurring && (
         <div style={{ marginTop: 10 }}>
           <Label>Cât de des</Label>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {([['daily', 'Zilnic'], ['mon_fri', 'Luni–Vineri'], ['custom', 'Zile alese']] as const).map(([val, lbl]) => (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {([['daily', 'Zilnic'], ['weekly', 'Săptămânal'], ['mon_fri', 'Luni–Vineri'], ['custom', 'Zile alese']] as const).map(([val, lbl]) => (
               <button key={val} type="button" onClick={() => setPeriod(val)}
                 style={{ ...chipBtn, ...(period === val ? chipActiveBtn : {}), flex: 1 }}>{lbl}</button>
             ))}
@@ -140,7 +140,7 @@ export default function NewTask() {
           <Label>🏁 Scopul (opțional) — DE CE se fac sarcinile</Label>
           <input value={goal} maxLength={140} onChange={(e) => setGoal(e.target.value)} style={input}
             placeholder="ex. găsim șofer Ocnița — video-urile sunt doar instrumentul" />
-          <Label>🎯 Țintă / săptămână — sarcini închise (gol = după program, max {maxPerWeekOf(period, weekDays) || '—'})</Label>
+          <Label>🎯 Țintă / săptămână — sarcini închise (gol = {period === 'weekly' ? '1 pe săptămână' : 'după program'}, max {maxPerWeekOf(period, weekDays) || '—'})</Label>
           <input type="number" min={1} max={maxPerWeekOf(period, weekDays) || undefined}
             value={targetPerWeek} onChange={(e) => setTargetPerWeek(e.target.value)}
             style={input} placeholder="ex. 2 — apare ca bar de progres la executor" />

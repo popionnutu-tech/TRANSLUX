@@ -2,22 +2,23 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { C, api, ready, CAT, CAT_ORDER, catOf, catKeyOf, maxPerWeekOf, confirmDialog } from '../ui';
+import { C, api, ready, CAT, CAT_ORDER, catOf, catKeyOf, maxPerWeekOf, defaultTargetOf, confirmDialog } from '../ui';
 
 interface Template {
   id: string; title: string | null; description: string; points: number;
-  period: 'daily' | 'mon_fri' | 'custom'; week_days: number[] | null; deadline_time: string; assignee_label: string;
+  period: 'daily' | 'mon_fri' | 'custom' | 'weekly'; week_days: number[] | null; deadline_time: string; assignee_label: string;
   category?: string; target_per_week?: number | null; goal?: string | null;
 }
 
 const WD = ['Du', 'Lu', 'Ma', 'Mi', 'Jo', 'Vi', 'Sâ'];
 function periodLabel(t: Template): string {
   if (t.period === 'daily') return 'Zilnic';
+  if (t.period === 'weekly') return 'Săptămânal';
   if (t.period === 'mon_fri') return 'Luni–Vineri';
   return (t.week_days ?? []).slice().sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map((d) => WD[d] ?? String(d)).join(', ');
 }
 function targetOf(t: Template): number {
-  return t.target_per_week ?? maxPerWeekOf(t.period, t.week_days);
+  return t.target_per_week ?? defaultTargetOf(t.period, t.week_days);
 }
 
 export default function Recurente() {
@@ -157,8 +158,8 @@ function Editor({ t, busy, onSave, onStop, onGoalAchieved, onClose }: {
       </div>
 
       <Lbl>Cât de des</Lbl>
-      <div style={{ display: 'flex', gap: 8 }}>
-        {([['daily', 'Zilnic'], ['mon_fri', 'Lu–Vi'], ['custom', 'Zile alese']] as const).map(([val, lbl]) => (
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {([['daily', 'Zilnic'], ['weekly', 'Săpt.'], ['mon_fri', 'Lu–Vi'], ['custom', 'Zile alese']] as const).map(([val, lbl]) => (
           <button key={val} type="button" disabled={busy} onClick={() => setPeriod(val)}
             style={{ ...chip, ...(period === val ? chipActive : {}), flex: 1 }}>{lbl}</button>
         ))}
@@ -173,7 +174,7 @@ function Editor({ t, busy, onSave, onStop, onGoalAchieved, onClose }: {
         </div>
       )}
 
-      <Lbl>🎯 Țintă / săptămână — sarcini închise (gol = după program, max {maxPerWeek || '—'})</Lbl>
+      <Lbl>🎯 Țintă / săptămână — sarcini închise (gol = {period === 'weekly' ? '1 pe săptămână' : 'după program'}, max {maxPerWeek || '—'})</Lbl>
       <input type="number" min={1} max={maxPerWeek || undefined} value={target} onChange={(e) => setTarget(e.target.value)}
         style={input} placeholder="auto" />
 

@@ -8,11 +8,9 @@
 import { NextResponse, after } from 'next/server';
 import { timingSafeEqual } from 'crypto';
 
-// ElevenLabs e în US, iar răspunsul trebuie să vină sub ~1s înainte de primul
-// cuvânt — dub1 (regiunea proiectului) ar plăti un hop transatlantic degeaba.
-export const runtime = 'nodejs';
-export const preferredRegion = 'iad1';
-
+// Rulează în dub1 (regiunea proiectului din vercel.json — lângă Supabase; per-route
+// preferredRegion e IGNORAT când proiectul are «regions»). Hop-ul spre ElevenLabs (US)
+// e acceptat conștient: ttfb măsurat 0.56s, bugetul e ~1s, iar ruta n-are DB.
 const CUSTOM_LLM_URL = 'https://translux-voice-llm.vercel.app/api/chat/completions';
 
 function greetingRo(): string {

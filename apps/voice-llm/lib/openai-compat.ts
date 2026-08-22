@@ -159,7 +159,8 @@ export function stripThinkingAloud(firstText: string): string {
   if (dot === -1 || dot > 120) return firstText;
   // Cifre (în cifre sau cuvinte) în prima propoziție = probabil dictare de număr
   // cu puncte între grupe (phone-spoken) — nu tăiem: am pierde grupe din număr.
-  if (/\d|\b(zero|unu|doi|trei|patru|cinci|șase|șapte|opt|nouă|ноль|один|два|три|четыре|пять|шесть|семь|восемь|девять)\b/i.test(firstText.slice(0, dot + 1))) {
+  // NU \b: în JS el nu vede diacriticele/chirilicele ca litere (șase, девять ar scăpa).
+  if (/\d|(?<![\p{L}\p{N}])(zero|unu|doi|trei|patru|cinci|șase|șapte|opt|nouă|ноль|один|два|три|четыре|пять|шесть|семь|восемь|девять)(?![\p{L}\p{N}])/iu.test(firstText.slice(0, dot + 1))) {
     return firstText;
   }
   return firstText.slice(dot + 1).trimStart();

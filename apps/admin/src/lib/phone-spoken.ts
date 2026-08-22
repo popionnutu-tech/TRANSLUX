@@ -6,7 +6,8 @@ const RO_DIGITS = ['zero', 'unu', 'doi', 'trei', 'patru', 'cinci', 'șase', 'șa
 
 function spell(local: string, dict: string[]): string {
   const groups = [local.slice(0, 3), local.slice(3, 6), local.slice(6)];
-  return groups.map((g) => g.split('').map((d) => dict[+d]).join(' ')).join(', ');
+  // Punct între grupuri, nu virgulă: TTS face pauză mai lungă — dictare lentă (Ion, 23.08).
+  return groups.map((g) => g.split('').map((d) => dict[+d]).join(' ')).join('. ');
 }
 
 /** null, если номер не молдавский мобильный/фиксированный в каноническом виде. */

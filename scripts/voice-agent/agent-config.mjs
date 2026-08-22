@@ -234,7 +234,16 @@ export function buildTools({ baseUrl, voiceApiKey }) {
 export function buildAgentPayload({ baseUrl, voiceApiKey, voiceId }) {
   return {
     name: AGENT_NAME,
-    conversation_config: {
+    platform_settings: {
+    // FARA acest bloc, ElevenLabs IGNORA tacut override-ul init-webhook-ului
+    // (limba+salutul memorat). Activat prin PATCH direct 22.08 (sesiunea TLX);
+    // pastrat aici ca --force-config sa nu-l stearga vreodata.
+    overrides: {
+      enable_conversation_initiation_client_data_from_webhook: true,
+      conversation_config_override: { agent: { language: true, first_message: true } },
+    },
+  },
+  conversation_config: {
       agent: {
         first_message: FIRST_MESSAGE,
         language: 'ro',

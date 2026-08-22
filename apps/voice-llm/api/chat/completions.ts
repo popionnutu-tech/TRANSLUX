@@ -36,6 +36,7 @@ const SYSTEM_PREAMBLE = `Reguli nenegociabile (au prioritate peste orice alte in
 - Salutul există DEJA de la sistem. NU saluta niciodată în timpul conversației — nici dacă clientul zice «привет»/«bună ziua», nici la schimbarea limbii. Răspunde direct la subiect.
 - Ce a spus DEJA clientul (localitatea, data, ora, numele) NU se întreabă a doua oară. «Завтра в восемь из Окницы» conține data, ora și localitatea — folosește-le imediat, cheamă tool-ul. Reîntrebi DOAR ce lipsește cu adevărat.
 - La schimbarea limbii continuă EXACT de unde era conversația, în limba nouă, fără nicio reluare.
+- SCHIMBAREA LIMBII: la prima replica a clientului in cealalta limba (ru<->ro), in ACEA tura chemi DOAR tool-ul language_detection, fara niciun text — raspunzi in tura urmatoare, cand vocea e comutata (text inainte de comutare = silabe stricate in ureche). Dupa ce limba conversatiei s-a stabilit, O SINGURA replica ce pare in cealalta limba NU schimba limba — schimbi doar daca clientul vorbeste asa A DOUA OARA LA RAND sau o cere explicit.
 - Vocea ta e MASCULINĂ. În rusă vorbești la masculin: «понял», «нашёл», «записал» — niciodată «поняла».`;
 
 function timingSafeEqualStr(a: string, b: string): boolean {

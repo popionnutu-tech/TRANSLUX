@@ -171,3 +171,12 @@ export function stripMarkdownForTts(delta: string): string {
     .replace(/\[[a-zA-ZăâîșțĂÂÎȘȚşţа-яёА-ЯЁ][a-zA-ZăâîșțĂÂÎȘȚşţа-яёА-ЯЁ ,-]{1,22}\]/g, "")
     .replace(/[*`#]|^[-•]\s+/gm, "");
 }
+
+// Salutul îl spune DOAR sistemul. Modelul ignoră uneori regula — tăiem deterministic
+// orice salut din capul replicii (Ion, 23.08: «привет» repetat era problema #1).
+const LEADING_GREETING_RE =
+  /^\s*(?:(?:Bun[ăa](?: ziua| seara| dimineața)?|Salut(?:are)?|Привет(?:ствую)?|Здравствуйте|Добрый (?:день|вечер)|Доброе утро)[!,.\s]+)+/i;
+
+export function stripLeadingGreeting(text: string): string {
+  return text.replace(LEADING_GREETING_RE, '').trimStart();
+}

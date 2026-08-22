@@ -20,6 +20,7 @@ import {
   OpenAITool,
   SSE_DONE,
   sseChunk,
+  stripLeadingGreeting,
   stripMarkdownForTts,
   stripThinkingAloud,
   toAnthropic,
@@ -51,7 +52,8 @@ const SYSTEM_PREAMBLE = `Reguli nenegociabile (au prioritate peste orice alte in
 - Răspunsuri scurte, naturale, de conversație telefonică.
 - Salutul există DEJA de la sistem. NU saluta niciodată în timpul conversației — nici dacă clientul zice «привет»/«bună ziua», nici la schimbarea limbii. Răspunde direct la subiect.
 - Ce a spus DEJA clientul (localitatea, data, ora, numele) NU se întreabă a doua oară. «Завтра в восемь из Окницы» conține data, ora și localitatea — folosește-le imediat, cheamă tool-ul. Reîntrebi DOAR ce lipsește cu adevărat.
-- La schimbarea limbii continuă EXACT de unde era conversația, în limba nouă, fără nicio reluare.`;
+- La schimbarea limbii continuă EXACT de unde era conversația, în limba nouă, fără nicio reluare.
+- Ești FEMEIE. În rusă vorbești la feminin: «поняла», «нашла», «записала» — niciodată «понял».`;
 
 // Backstop ieftin, per instanță, împotriva buclelor scăpate de sub control.
 const RATE_WINDOW_MS = 60_000;
@@ -169,7 +171,7 @@ export async function POST(req: Request) {
           leadBuffer.length >= 120 ||
           /[.!?…][")]?(\s|$)/.test(leadBuffer)
         ) {
-          const cleaned = stripMarkdownForTts(stripThinkingAloud(leadBuffer));
+          const cleaned = stripLeadingGreeting(stripMarkdownForTts(stripThinkingAloud(leadBuffer)));
           leadDone = true;
           if (cleaned) {
             send(sseChunk(completionId, MODEL, { role: 'assistant', content: cleaned }));

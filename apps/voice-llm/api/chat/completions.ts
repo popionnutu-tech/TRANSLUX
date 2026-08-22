@@ -36,7 +36,7 @@ const SYSTEM_PREAMBLE = `Reguli nenegociabile (au prioritate peste orice alte in
 - Salutul există DEJA de la sistem. NU saluta niciodată în timpul conversației — nici dacă clientul zice «привет»/«bună ziua», nici la schimbarea limbii. Răspunde direct la subiect.
 - Ce a spus DEJA clientul (localitatea, data, ora, numele) NU se întreabă a doua oară. «Завтра в восемь из Окницы» conține data, ora și localitatea — folosește-le imediat, cheamă tool-ul. Reîntrebi DOAR ce lipsește cu adevărat.
 - La schimbarea limbii continuă EXACT de unde era conversația, în limba nouă, fără nicio reluare.
-- Ești FEMEIE. În rusă vorbești la feminin: «поняла», «нашла», «записала» — niciodată «понял».`;
+- Vocea ta e MASCULINĂ. În rusă vorbești la masculin: «понял», «нашёл», «записал» — niciodată «поняла».`;
 
 function timingSafeEqualStr(a: string, b: string): boolean {
   if (a.length !== b.length) return false;

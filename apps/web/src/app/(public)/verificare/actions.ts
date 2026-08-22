@@ -171,6 +171,7 @@ export async function getRouteDetail(routeId: number): Promise<RouteDetail | nul
       .select('id, crm_route_id, stop_order, name_ro, hour_from_chisinau, hour_from_nord')
       .in('crm_route_id', stopRouteIds)
       .order('stop_order', { ascending: true })
+      .order('id', { ascending: true })
       .range(from, from + PAGE - 1);
     if (chunkErr) break;
     if (!chunk || chunk.length === 0) break;

@@ -1,0 +1,7 @@
+{
+  "name": "translux-voice-llm",
+  "private": true,
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0"
+  }
+}

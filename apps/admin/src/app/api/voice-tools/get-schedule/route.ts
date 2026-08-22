@@ -34,12 +34,24 @@ export async function POST(req: NextRequest) {
 
   // Get stop fares for all active routes to find departure times
   const routeIds = routes.map((r: any) => r.id);
-  const { data: stops } = await supabase
-    .from('crm_stop_fares')
-    .select('crm_route_id, name_ro, hour_from_chisinau, hour_from_nord')
-    .in('crm_route_id', routeIds);
+  // Paginat: PostgREST taie la 1000 de rânduri, iar opririle rutelor active trec de 1200.
+  // Fără paginare, ultimele opriri lipseau tăcut din răspunsul agentului vocal.
+  const stops: any[] = [];
+  const PAGE = 1000;
+  for (let offset = 0; ; offset += PAGE) {
+    const { data: chunk } = await supabase
+      .from('crm_stop_fares')
+      .select('crm_route_id, stop_order, name_ro, hour_from_chisinau, hour_from_nord')
+      .in('crm_route_id', routeIds)
+      .order('crm_route_id', { ascending: true })
+      .order('stop_order', { ascending: true })
+      .range(offset, offset + PAGE - 1);
+    if (!chunk || chunk.length === 0) break;
+    stops.push(...chunk);
+    if (chunk.length < PAGE) break;
+  }
 
-  if (!stops) {
+  if (stops.length === 0) {
     return NextResponse.json({ schedules: [] });
   }
 

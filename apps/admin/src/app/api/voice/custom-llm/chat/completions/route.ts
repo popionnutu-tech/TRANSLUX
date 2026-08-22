@@ -90,12 +90,17 @@ export async function POST(req: Request) {
   // Barge-in în fereastra dinaintea primului chunk.
   req.signal.addEventListener('abort', () => abort.abort(), { once: true });
 
+  // Prompt caching: prefixul static (tools + preambul + promptul din dashboard) e
+  // ~5-6k tokeni — peste minimul de 4096 al lui Haiku. cache_control pe blocul system
+  // acoperă tot prefixul (ordinea de render: tools → system). Efect: cost ~4× mai mic
+  // pe input și cache-read mai rapid decât prefill → TTFT mai bun.
+  const systemText = system ? `${SYSTEM_PREAMBLE}\n\n${system}` : SYSTEM_PREAMBLE;
   const params: Anthropic.MessageCreateParamsStreaming = {
     model: MODEL,
     max_tokens: MAX_TOKENS,
     temperature: TEMPERATURE,
     stream: true,
-    system: system ? `${SYSTEM_PREAMBLE}\n\n${system}` : SYSTEM_PREAMBLE,
+    system: [{ type: 'text', text: systemText, cache_control: { type: 'ephemeral' } }],
     messages,
     ...(tools.length ? { tools } : {}),
   };
@@ -210,6 +215,10 @@ export async function POST(req: Request) {
             }
           } else if (event.type === 'content_block_stop') {
             emitPendingTool();
+          } else if (event.type === 'message_start') {
+            // Vizibilitate cost + verificarea cache-ului (cerută de perf-review a041fe2).
+            const u = event.message.usage;
+            console.log(`[voice/custom-llm] input_tokens=${u.input_tokens} cache_read=${u.cache_read_input_tokens ?? 0} cache_write=${u.cache_creation_input_tokens ?? 0}`);
           } else if (event.type === 'message_delta') {
             finish = event.delta.stop_reason === 'tool_use' ? 'tool_calls' : 'stop';
             if (event.usage) {

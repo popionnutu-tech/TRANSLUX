@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateVoiceApiKey } from '../auth';
+import { phoneSpoken } from '@/lib/phone-spoken';
 
+const COMPANY_PHONE = '+37360401010';
 const COMPANY_INFO = {
   name: 'TRANSLUX',
   description_ro: 'Companie de transport pasageri pe ruta Chișinău–Bălți și localitățile intermediare',
   description_ru: 'Компания пассажирских перевозок по маршруту Кишинёв–Бельцы и промежуточные населённые пункты',
-  phone: '+37360401010',
+  phone: COMPANY_PHONE,
+  phone_spoken_ru: phoneSpoken(COMPANY_PHONE)?.ru ?? null,
+  phone_spoken_ro: phoneSpoken(COMPANY_PHONE)?.ro ?? null,
   stations: {
     chisinau: {
       name_ro: 'Stația Chișinău (Autogara Nord)',

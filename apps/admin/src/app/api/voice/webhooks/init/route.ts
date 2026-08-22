@@ -40,7 +40,7 @@ function greetingRu(): string {
 }
 
 // Memoria limbii FARA tabela noua: transcriptul ultimului apel al numarului
-// (voice_calls) — ponderea chirilicelor in replicile clientului. Race 2000ms:
+// (voice_calls) — ponderea chirilicelor in replicile clientului. Race 700ms:
 // la miss pierdem elegant spre RO (comportamentul de azi), nu tinem apelul.
 async function lastCallLocale(phone: string): Promise<'ru' | null> {
   try {

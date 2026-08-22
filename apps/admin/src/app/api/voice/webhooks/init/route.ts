@@ -12,7 +12,8 @@ import { normalizePhone } from '@/lib/voice/phone';
 
 // Rulează în dub1 (regiunea proiectului din vercel.json — lângă Supabase; per-route
 // preferredRegion e IGNORAT când proiectul are «regions»). Hop-ul spre ElevenLabs (US)
-// e acceptat conștient: ttfb măsurat 0.56s, bugetul e ~2s (race 2000ms), ruta citește doar memoria limbii din voice_calls sub race 700ms.
+// e acceptat conștient: ttfb măsurat 0.56s la buget ~1s; ruta citește doar
+// memoria limbii din voice_calls, sub race 700ms.
 const CUSTOM_LLM_URL = 'https://translux-voice-llm.vercel.app/api/chat/completions';
 
 function greetingRo(): string {

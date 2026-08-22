@@ -113,15 +113,25 @@ export function toAnthropic(openaiMessages: OpenAIMessage[]): {
     }
     break;
   }
-  // tool_use orfan la COADĂ (fără tool_result după el) => 400 de la Anthropic.
-  // Posibil cu tool-urile de SISTEM (language_detection): nu e garantat că
-  // ElevenLabs trimite rezultatul lor înapoi în istoricul următorului request.
-  const last = messages[messages.length - 1];
-  if (last && last.role === "assistant" && Array.isArray(last.content)) {
-    last.content = (last.content as Anthropic.ContentBlockParam[]).filter(
-      (b) => b.type !== "tool_use",
+  // ORICE tool_use fără tool_result ulterior => 400 de la Anthropic. Posibil
+  // cu tool-urile de SISTEM (language_detection): nu e garantat că ElevenLabs
+  // întoarce rezultatul lor în istoricul următorului request — orfanul poate
+  // rămâne și la mijloc (tura după comutarea limbii), nu doar la coadă.
+  const resultIds = new Set<string>();
+  for (const m of messages) {
+    if (m.role === "user" && Array.isArray(m.content)) {
+      for (const b of m.content as Anthropic.ContentBlockParam[]) {
+        if (b.type === "tool_result") resultIds.add(b.tool_use_id);
+      }
+    }
+  }
+  for (let k = messages.length - 1; k >= 0; k--) {
+    const m = messages[k];
+    if (m.role !== "assistant" || !Array.isArray(m.content)) continue;
+    m.content = (m.content as Anthropic.ContentBlockParam[]).filter(
+      (b) => b.type !== "tool_use" || resultIds.has(b.id),
     );
-    if (last.content.length === 0) messages.pop();
+    if (m.content.length === 0) messages.splice(k, 1);
   }
   if (messages.length === 0) messages.push({ role: "user", content: "(fără mesaj)" });
 

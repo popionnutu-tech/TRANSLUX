@@ -281,11 +281,11 @@ export async function searchTrips(
   const [{ data: fromStops }, { data: toStops }] = await Promise.all([
     supabase
       .from('crm_stop_fares')
-      .select('id, crm_route_id, hour_from_chisinau, hour_from_nord')
+      .select('id, crm_route_id, stop_order, hour_from_chisinau, hour_from_nord')
       .ilike('name_ro', fromRo),
     supabase
       .from('crm_stop_fares')
-      .select('id, crm_route_id, hour_from_chisinau, hour_from_nord')
+      .select('id, crm_route_id, stop_order, hour_from_chisinau, hour_from_nord')
       .ilike('name_ro', toRo),
   ]);
 
@@ -413,7 +413,8 @@ export async function searchTrips(
   for (const route of routes as any[]) {
     const from = fromMap.get(route.id)!;
     const to = toMap.get(route.id)!;
-    const goingNorth = from.id > to.id;
+    // Ordinea opririlor vine din stop_order (migratia 263)
+    const goingNorth = from.stop_order > to.stop_order;
     const tariffId = goingNorth ? route.tariff_id_retur : route.tariff_id_tur;
     if (!tariffId) continue;
 

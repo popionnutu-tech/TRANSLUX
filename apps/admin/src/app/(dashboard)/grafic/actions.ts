@@ -91,7 +91,7 @@ export async function getGraficData(date: string): Promise<{
       .eq('auto_copied', false),
     db.from('drivers').select('id, full_name, phone').eq('active', true).eq('is_lde', false),
     db.from('vehicles').select('id, plate_number').eq('active', true).eq('is_lde', false),
-    db.from('crm_stop_fares').select('id, crm_route_id, name_ro').eq('is_visible', true).order('id', { ascending: true }),
+    db.from('crm_stop_fares').select('id, crm_route_id, name_ro').eq('is_visible', true).order('stop_order', { ascending: true }),
     canSeeReceipt
       ? db.from('driver_cashin_receipts').select('driver_id, receipt_nr, crm_route_id').eq('ziua', date)
       : Promise.resolve({ data: [] as any[] }),
@@ -212,7 +212,7 @@ export async function getGraficEdinetRows(date: string): Promise<GraficEdinetRow
 
   const [routesRes, stopsRes, assignmentsRes, driversRes] = await Promise.all([
     db.from('crm_routes').select('id, time_chisinau, dest_to_ro').eq('active', true).not('time_chisinau', 'is', null).neq('time_chisinau', ''),
-    db.from('crm_stop_fares').select('id, crm_route_id, name_ro, hour_from_nord').eq('is_visible', true).order('id', { ascending: true }),
+    db.from('crm_stop_fares').select('id, crm_route_id, name_ro, hour_from_nord').eq('is_visible', true).order('stop_order', { ascending: true }),
     db.from('daily_assignments')
       .select('crm_route_id, driver_id, retur_route_id')
       .eq('assignment_date', date)

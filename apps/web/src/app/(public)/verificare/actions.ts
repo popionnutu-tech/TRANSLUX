@@ -57,6 +57,7 @@ export async function getInterurbanRoutes(): Promise<RouteListItem[]> {
 
 export interface StopRow {
   id: number;
+  stop_order: number;
   name_ro: string;
   hour_from_chisinau: string | null;
   hour_from_nord: string | null;
@@ -167,9 +168,9 @@ export async function getRouteDetail(routeId: number): Promise<RouteDetail | nul
   for (let from = 0; ; from += PAGE) {
     const { data: chunk, error: chunkErr } = await supabase
       .from('crm_stop_fares')
-      .select('id, crm_route_id, name_ro, hour_from_chisinau, hour_from_nord')
+      .select('id, crm_route_id, stop_order, name_ro, hour_from_chisinau, hour_from_nord')
       .in('crm_route_id', stopRouteIds)
-      .order('id', { ascending: true })
+      .order('stop_order', { ascending: true })
       .range(from, from + PAGE - 1);
     if (chunkErr) break;
     if (!chunk || chunk.length === 0) break;
@@ -179,13 +180,13 @@ export async function getRouteDetail(routeId: number): Promise<RouteDetail | nul
 
   const stops_tur = allStops
     .filter((s) => s.crm_route_id === route.id)
-    .sort((a, b) => a.id - b.id);
+    .sort((a, b) => a.stop_order - b.stop_order);
 
   const retur_stops_by_route: Record<number, StopRow[]> = {};
   for (const rid of allRouteIds) {
     retur_stops_by_route[rid] = allStops
       .filter((s) => s.crm_route_id === rid)
-      .sort((a, b) => b.id - a.id);
+      .sort((a, b) => b.stop_order - a.stop_order);
   }
 
   return {

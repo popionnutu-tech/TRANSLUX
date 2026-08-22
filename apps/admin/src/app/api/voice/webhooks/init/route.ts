@@ -11,7 +11,7 @@ import { getSupabase } from '@/lib/supabase';
 
 // Rulează în dub1 (regiunea proiectului din vercel.json — lângă Supabase; per-route
 // preferredRegion e IGNORAT când proiectul are «regions»). Hop-ul spre ElevenLabs (US)
-// e acceptat conștient: ttfb măsurat 0.56s, bugetul e ~1s, ruta citeste DOAR memoria limbii din voice_calls sub race 2000ms.
+// e acceptat conștient: ttfb măsurat 0.56s, bugetul e ~1s, ruta citește doar memoria limbii din voice_calls sub race 700ms.
 const CUSTOM_LLM_URL = 'https://translux-voice-llm.vercel.app/api/chat/completions';
 
 function greetingRo(): string {
@@ -100,7 +100,9 @@ export async function POST(req: Request) {
       let raceTimer: ReturnType<typeof setTimeout> | undefined;
       const hit = await Promise.race([
         lastCallLocale(phone),
-        new Promise<null>((res) => { raceTimer = setTimeout(() => res(null), 2000); }),
+        // 700ms ca la TLX: la o degradare DB fiecare apel ar plăti altfel 2s de
+        // eter mort înainte de salut; la miss pierdem elegant spre RO.
+        new Promise<null>((res) => { raceTimer = setTimeout(() => res(null), 700); }),
       ]);
       clearTimeout(raceTimer);
       if (hit === 'ru') locale = 'ru';

@@ -113,6 +113,16 @@ export function toAnthropic(openaiMessages: OpenAIMessage[]): {
     }
     break;
   }
+  // tool_use orfan la COADĂ (fără tool_result după el) => 400 de la Anthropic.
+  // Posibil cu tool-urile de SISTEM (language_detection): nu e garantat că
+  // ElevenLabs trimite rezultatul lor înapoi în istoricul următorului request.
+  const last = messages[messages.length - 1];
+  if (last && last.role === "assistant" && Array.isArray(last.content)) {
+    last.content = (last.content as Anthropic.ContentBlockParam[]).filter(
+      (b) => b.type !== "tool_use",
+    );
+    if (last.content.length === 0) messages.pop();
+  }
   if (messages.length === 0) messages.push({ role: "user", content: "(fără mesaj)" });
 
   return { system, messages };

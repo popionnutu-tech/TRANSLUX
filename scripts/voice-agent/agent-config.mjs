@@ -235,9 +235,12 @@ export function buildAgentPayload({ baseUrl, voiceApiKey, voiceId }) {
   return {
     name: AGENT_NAME,
     platform_settings: {
-    // FARA acest bloc, ElevenLabs IGNORA tacut override-ul init-webhook-ului
-    // (limba+salutul memorat). Activat prin PATCH direct 22.08 (sesiunea TLX);
-    // pastrat aici ca --force-config sa nu-l stearga vreodata.
+    // OGLINDA COMPLETA a starii vii (22.08) — un --force-config nu are voie sa
+    // stearga limitele sau override-urile prin omisie (PATCH-ul EL e deep-merge,
+    // dar un payload partial aici ar fi o bomba pentru viitor).
+    call_limits: { agent_concurrency_limit: 3, daily_limit: 50, bursting_enabled: true },
+    // FARA overrides, ElevenLabs IGNORA tacut init-webhook-ul (limba+salutul
+    // memorat). Activat prin PATCH direct 22.08 (sesiunea TLX).
     overrides: {
       enable_conversation_initiation_client_data_from_webhook: true,
       conversation_config_override: { agent: { language: true, first_message: true } },

@@ -1,5 +1,6 @@
 import { getSupabase } from '../supabase';
 import { escapeHtml } from '../telegram-notify';
+import { normalizePhone } from './phone';
 
 export interface VoiceCallRow {
   conversation_id: string;
@@ -19,7 +20,7 @@ export function extractCall(payload: any): VoiceCallRow {
   return {
     conversation_id: String(d.conversation_id ?? ''),
     direction: 'in',
-    caller_phone: d.metadata?.phone_call?.external_number ?? dyn.system__caller_id ?? null,
+    caller_phone: normalizePhone(d.metadata?.phone_call?.external_number ?? dyn.system__caller_id ?? null) || null,
     transcript: d.transcript ?? null,
     summary: d.analysis?.transcript_summary ?? null,
     analysis: d.analysis ?? null,

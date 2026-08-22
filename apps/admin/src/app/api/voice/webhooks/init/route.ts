@@ -8,10 +8,11 @@
 import { NextResponse, after } from 'next/server';
 import { timingSafeEqual } from 'crypto';
 import { getSupabase } from '@/lib/supabase';
+import { normalizePhone } from '@/lib/voice/phone';
 
 // Rulează în dub1 (regiunea proiectului din vercel.json — lângă Supabase; per-route
 // preferredRegion e IGNORAT când proiectul are «regions»). Hop-ul spre ElevenLabs (US)
-// e acceptat conștient: ttfb măsurat 0.56s, bugetul e ~1s, ruta citește doar memoria limbii din voice_calls sub race 700ms.
+// e acceptat conștient: ttfb măsurat 0.56s, bugetul e ~2s (race 2000ms), ruta citește doar memoria limbii din voice_calls sub race 700ms.
 const CUSTOM_LLM_URL = 'https://translux-voice-llm.vercel.app/api/chat/completions';
 
 function greetingRo(): string {
@@ -48,7 +49,7 @@ async function lastCallLocale(phone: string): Promise<'ru' | null> {
       .from('voice_calls')
       .select('transcript')
       .eq('caller_phone', phone)
-      .order('id', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
     const tr = (data?.transcript ?? []) as Array<{ role?: string; message?: string | null }>;
@@ -93,7 +94,7 @@ export async function POST(req: Request) {
     });
 
     const body = await req.json().catch(() => ({}));
-    const phone = String(body?.caller_id ?? '').trim();
+    const phone = normalizePhone(String(body?.caller_id ?? '').trim());
 
     let locale: 'ro' | 'ru' = 'ro';
     if (phone) {

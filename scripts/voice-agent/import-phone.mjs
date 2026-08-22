@@ -46,7 +46,7 @@ if (existing) {
       phone_number: PHONE,
       label: 'TRANSLUX Moldcell',
       agent_id: AGENT_ID,
-      inbound_trunk_config: { media_encryption: 'disabled' },
+      inbound_trunk_config: { media_encryption: 'allowed' },
     },
   });
   console.log(`\nImportat: ${phone.phone_number_id} → agent ${AGENT_ID}`);

@@ -8,6 +8,11 @@
 import { NextResponse, after } from 'next/server';
 import { timingSafeEqual } from 'crypto';
 
+// ElevenLabs e în US, iar răspunsul trebuie să vină sub ~1s înainte de primul
+// cuvânt — dub1 (regiunea proiectului) ar plăti un hop transatlantic degeaba.
+export const runtime = 'nodejs';
+export const preferredRegion = 'iad1';
+
 const CUSTOM_LLM_URL = 'https://translux-voice-llm.vercel.app/api/chat/completions';
 
 function greetingRo(): string {
@@ -34,6 +39,8 @@ function authorized(req: Request): boolean {
 export async function POST(req: Request) {
   try {
     if (!authorized(req)) {
+      // Fără log salutul ar cădea TĂCUT pe cel static la o rotație de cheie.
+      console.warn('[voice/webhooks/init] auth failed — salut static de rezervă');
       return NextResponse.json({}); // auth picat => 200 gol, NU 401
     }
 
@@ -41,7 +48,8 @@ export async function POST(req: Request) {
     // public ar converti trafic străin în invocări reci plătite (amplificare 1:1).
     after(async () => {
       try {
-        await fetch(CUSTOM_LLM_URL, { method: 'POST', signal: AbortSignal.timeout(3000) });
+        const r = await fetch(CUSTOM_LLM_URL, { method: 'POST', signal: AbortSignal.timeout(3000) });
+        await r.body?.cancel(); // socket-ul nu rămâne nedrenat pe instanța caldă
       } catch {
         /* prewarm best-effort */
       }

@@ -11,7 +11,8 @@ const norm = (s: string) =>
 // разговорные и ASR-варианты сходились с БД («кор жоуце»/«Коржеуць» → «коржоуц»/«коржеуц»).
 const key = (s: string) => norm(s).replace(/[\s-]/g, '').replace(/[ьъ]/g, '').replace(/[ыиеаяоу]+$/, '');
 
-// Расстояние Левенштейна с потолком 3 — хватает для ASR-ошибок в одной-двух буквах.
+// Расстояние Левенштейна; быстрый выход «≥3» при разнице длин >2 (реальное расстояние
+// не меньше разницы длин) — хватает для ASR-ошибок в одной-двух буквах.
 function lev(a: string, b: string): number {
   if (Math.abs(a.length - b.length) > 2) return 3;
   const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...new Array<number>(b.length).fill(0)]);
@@ -63,7 +64,7 @@ export async function localitiesToRo(inputs: (string | undefined)[]): Promise<Lo
     // (2 для длинных имён) и берём только ОДНОЗНАЧНО лучшего кандидата. Проверено на
     // живой таблице: единственная пара с dist≤2 — Рышканы/Пашканы — отсечена порогом длины.
     const maxD = k.length >= 9 ? 2 : k.length >= 5 ? 1 : 0;
-    if (maxD > 0) {
+    if (maxD > 0 && rows.length > 0) {
       const scored = rows
         .map((r) => ({ r, d: lev(k, key(r.name_ru)) }))
         .sort((a, b) => a.d - b.d);

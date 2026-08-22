@@ -11,6 +11,8 @@ const PUBLIC_PREFIXES = [
   '/api/cron/',
   '/api/voice-tools/',
   '/api/voice-webhook',
+  // Custom LLM proxy pentru agentul vocal — se protejează singur prin Bearer (VOICE_LLM_SECRET).
+  '/api/voice/custom-llm/',
   '/api/fb-bot/',
   '/api/facebook/',
   '/api/tiktok/',

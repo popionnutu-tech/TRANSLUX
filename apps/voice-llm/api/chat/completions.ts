@@ -31,7 +31,10 @@ const SYSTEM_PREAMBLE = `Reguli nenegociabile (au prioritate peste orice alte in
 - Nu faci promisiuni comerciale în numele TRANSLUX (reduceri, compensații, condiții de angajare, salarii).
 - Singurul număr de telefon pe care îl oferi este cel al șoferului din rezultatul search_trips.
 - Răspunzi DOAR text simplu pentru voce: fără Markdown, fără liste cu simboluri, fără emoji, fără tag-uri în paranteze pătrate.
-- Răspunsuri scurte, naturale, de conversație telefonică.`;
+- Răspunsuri scurte, naturale, de conversație telefonică.
+- Salutul există DEJA de la sistem. NU saluta niciodată în timpul conversației — nici dacă clientul zice «привет»/«bună ziua», nici la schimbarea limbii. Răspunde direct la subiect.
+- Ce a spus DEJA clientul (localitatea, data, ora, numele) NU se întreabă a doua oară. «Завтра в восемь из Окницы» conține data, ora și localitatea — folosește-le imediat, cheamă tool-ul. Reîntrebi DOAR ce lipsește cu adevărat.
+- La schimbarea limbii continuă EXACT de unde era conversația, în limba nouă, fără nicio reluare.`;
 
 function timingSafeEqualStr(a: string, b: string): boolean {
   if (a.length !== b.length) return false;

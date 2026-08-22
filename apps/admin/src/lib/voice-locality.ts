@@ -7,9 +7,20 @@ import { getSupabase } from '@/lib/supabase';
 const norm = (s: string) =>
   s.toLowerCase().replace(/ё/g, 'е').replace(/[^а-яa-z\s-]/gi, '').replace(/\s+/g, ' ').trim();
 
-// Толерантный ключ: без мягких знаков и конечных гласных, чтобы разговорные
-// варианты сходились с БД («Коржеуцы»/«Коржеуць» → «коржеуц», «Единцы» → «единц»).
-const key = (s: string) => norm(s).replace(/[ьъ]/g, '').replace(/[ыиеаяоу]+$/, '');
+// Толерантный ключ: без пробелов/дефисов, мягких знаков и конечных гласных, чтобы
+// разговорные и ASR-варианты сходились с БД («кор жоуце»/«Коржеуць» → «коржоуц»/«коржеуц»).
+const key = (s: string) => norm(s).replace(/[\s-]/g, '').replace(/[ьъ]/g, '').replace(/[ыиеаяоу]+$/, '');
+
+// Расстояние Левенштейна с потолком 3 — хватает для ASR-ошибок в одной-двух буквах.
+function lev(a: string, b: string): number {
+  if (Math.abs(a.length - b.length) > 2) return 3;
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...new Array<number>(b.length).fill(0)]);
+  for (let j = 0; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++)
+    for (let j = 1; j <= b.length; j++)
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length];
+}
 
 // Разговорные русские имена, которых нет в localities.name_ru (ключи — через key()).
 const RU_ALIASES: Record<string, string> = {
@@ -47,6 +58,18 @@ export async function localitiesToRo(inputs: (string | undefined)[]): Promise<Lo
     if (k.length >= 4) {
       const prefix = rows.filter((r) => key(r.name_ru).startsWith(k) || k.startsWith(key(r.name_ru)));
       if (prefix.length === 1) return prefix[0].name_ro;
+    }
+    // Fuzzy-стадия для ASR-ошибок («кор жоуце» → Corjeuți): допускаем 1 букву разницы
+    // (2 для длинных имён) и берём только ОДНОЗНАЧНО лучшего кандидата. Проверено на
+    // живой таблице: единственная пара с dist≤2 — Рышканы/Пашканы — отсечена порогом длины.
+    const maxD = k.length >= 9 ? 2 : k.length >= 5 ? 1 : 0;
+    if (maxD > 0) {
+      const scored = rows
+        .map((r) => ({ r, d: lev(k, key(r.name_ru)) }))
+        .sort((a, b) => a.d - b.d);
+      if (scored[0].d <= maxD && (scored.length === 1 || scored[0].d < scored[1].d)) {
+        return scored[0].r.name_ro;
+      }
     }
     unknown.push(input);
     return input;

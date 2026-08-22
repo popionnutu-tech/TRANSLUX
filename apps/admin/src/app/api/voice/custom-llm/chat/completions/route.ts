@@ -28,6 +28,9 @@ import {
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
+// Anthropic + ElevenLabs sunt în US: iad1 taie ~100-150ms din primul token față de
+// dub1 (regiunea globală a proiectului, colocată cu Supabase — pe ruta asta nu e DB).
+export const preferredRegion = 'iad1';
 
 // Haiku: în conversația vocală latența primei silabe bate „profunzimea".
 const MODEL = 'claude-haiku-4-5';

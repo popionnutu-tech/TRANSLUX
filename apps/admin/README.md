@@ -60,7 +60,7 @@ npm run dev --workspace=apps/admin   # стартует на http://localhost:30
 - Root Directory: `apps/admin`
 - Привязать домен `admin.translux.md` (или другой)
 - Скопировать ENV из текущего проекта: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`,
-  `AUTH_SECRET`, `CRON_SECRET`, `VOICE_API_KEY`, `ANTHROPIC_API_KEY`, и т.д.
+  `AUTH_SECRET`, `CRON_SECRET`, `VOICE_API_KEY`, `VOICE_LLM_SECRET` (Bearer custom-LLM proxy `/api/voice/custom-llm`), `ANTHROPIC_API_KEY`, и т.д.
 
 ### 6. После проверки работы admin app
 

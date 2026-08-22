@@ -80,7 +80,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const anthropic = new Anthropic({ maxRetries: 1 });
   const abort = new AbortController();
   const totalTimer = setTimeout(() => abort.abort(), TOTAL_MS);
-  req.on('close', () => abort.abort());
+  // Barge-in/обрыв: у IncomingMessage 'close' наступает при ДОЧИТАННОМ запросе (body уже
+  // распарсен до хендлера) — обрыв клиента сигналит res.on('close'). req.on здесь мёртв.
+  res.on('close', () => { if (!res.writableEnded) abort.abort(); });
+  res.on('error', () => abort.abort());
 
   const systemText = system ? `${SYSTEM_PREAMBLE}\n\n${system}` : SYSTEM_PREAMBLE;
   const params: Anthropic.MessageCreateParamsStreaming = {
@@ -122,7 +125,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('content-type', 'text/event-stream; charset=utf-8');
   res.setHeader('cache-control', 'no-cache, no-transform');
   res.setHeader('connection', 'keep-alive');
-  const send = (s: string) => { try { res.write(s); } catch { /* закрыт */ } };
+  // Ошибка записи в Node-стрим асинхронна (событие 'error', слушатель выше) — try/catch
+  // её не ловит; гвард на destroyed/writableEnded не даёт писать в мёртвый сокет.
+  const send = (s: string) => {
+    if (res.destroyed || res.writableEnded) return;
+    try { res.write(s); } catch { /* закрыт */ }
+  };
 
   let gotFirst = false;
   const firstChunkTimer = setTimeout(() => { if (!gotFirst) abort.abort(); }, FIRST_CHUNK_MS);

@@ -1,16 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateVoiceApiKey } from '../auth';
 import { getSupabase } from '@/lib/supabase';
+import { localitiesToRo, unknownLocalityResponse } from '@/lib/voice-locality';
 
 export async function POST(req: NextRequest) {
   const authError = validateVoiceApiKey(req);
   if (authError) return authError;
 
   const body = await req.json();
-  const { from, to } = body as { from?: string; to?: string };
+  const { from: fromRaw, to: toRaw } = body as { from?: string; to?: string };
 
-  if (!from && !to) {
+  if (!fromRaw && !toRaw) {
     return NextResponse.json({ error: 'Provide "from" or "to" (or both) to filter schedule' }, { status: 400 });
+  }
+
+  const { values: [from, to], unknown } = await localitiesToRo([fromRaw, toRaw]);
+  if (unknown.length > 0) {
+    return NextResponse.json({ schedules: [], ...unknownLocalityResponse(unknown) });
   }
 
   const supabase = getSupabase();

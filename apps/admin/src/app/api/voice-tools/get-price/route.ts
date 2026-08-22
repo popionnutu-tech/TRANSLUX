@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { validateVoiceApiKey } from '../auth';
 import { getSupabase } from '@/lib/supabase';
 import { resolveOfferPriceForDate } from '@translux/db';
+import { localitiesToRo, unknownLocalityResponse } from '@/lib/voice-locality';
 
 function normalizeStop(name: string): string {
   let n = name.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
@@ -36,11 +37,18 @@ export async function POST(req: NextRequest) {
   if (authError) return authError;
 
   const body = await req.json();
-  const { from, to } = body as { from?: string; to?: string };
+  const { from: fromRaw, to: toRaw } = body as { from?: string; to?: string };
 
-  if (!from || !to) {
+  if (!fromRaw || !toRaw) {
     return NextResponse.json({ error: 'Missing "from" or "to" parameter' }, { status: 400 });
   }
+
+  const { values, unknown } = await localitiesToRo([fromRaw, toRaw]);
+  if (unknown.length > 0) {
+    return NextResponse.json(unknownLocalityResponse(unknown));
+  }
+  const from = values[0] as string;
+  const to = values[1] as string;
 
   const fromNorm = normalizeStop(from).replace(/[(),."'\\]/g, '');
   const toNorm = normalizeStop(to).replace(/[(),."'\\]/g, '');
@@ -52,8 +60,8 @@ export async function POST(req: NextRequest) {
     .from('offers')
     .select('from_locality, to_locality, original_price, offer_price')
     .eq('active', true)
-    .ilike('from_locality', from)
-    .ilike('to_locality', to);
+    .ilike('from_locality', from.replace(/[(),."'\\]/g, ''))
+    .ilike('to_locality', to.replace(/[(),."'\\]/g, ''));
 
   // Get km from interurban_v2 view; preț = km × rate (suburban dacă ambele
   // opriri în raionul de start al rutei, altfel interurban lung)

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateVoiceApiKey } from '../auth';
 import { searchTrips } from '@/lib/trips-search';
+import { localitiesToRo, unknownLocalityResponse } from '@/lib/voice-locality';
 
 export async function POST(req: NextRequest) {
   const authError = validateVoiceApiKey(req);
@@ -15,7 +16,11 @@ export async function POST(req: NextRequest) {
 
   const tripDate = date || new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
 
-  const trips = await searchTrips(from, to, tripDate);
+  const { values: [fromRo, toRo], unknown } = await localitiesToRo([from, to]);
+  if (unknown.length > 0) {
+    return NextResponse.json({ count: 0, date: tripDate, trips: [], ...unknownLocalityResponse(unknown) });
+  }
+  const trips = await searchTrips(fromRo as string, toRo as string, tripDate);
 
   return NextResponse.json({
     count: trips.length,

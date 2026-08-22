@@ -69,8 +69,16 @@ const existing = await findAgent();
 let agentId;
 if (existing) {
   agentId = existing.agent_id;
+  // Din 22.08.2026 agentul live e ÎNAINTEA acestui script: prompt cu nume rusești generate
+  // din DB (localities), reguli de stil/concizie, TTS turbo_v2_5, profil audio «curat»
+  // (aliniat cu TLX). Un PATCH cu payload-ul de aici le-ar ȘTERGE. Rulează cu
+  // --force-config doar după ce sincronizezi agent-config.mjs cu starea reală.
+  if (!process.argv.includes('--force-config')) {
+    console.log(`Agent ${agentId} există — PATCH SĂRIT (config live > script; vezi comentariul, folosește --force-config).`);
+  } else {
   await el(`/v1/convai/agents/${agentId}`, { method: 'PATCH', body: payload });
   console.log(`Updated agent ${agentId}`);
+  }
 } else {
   const created = await el('/v1/convai/agents/create', { method: 'POST', body: payload });
   agentId = created.agent_id;

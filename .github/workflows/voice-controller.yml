@@ -1,0 +1,25 @@
+name: voice-controller
+
+# Контролёр голосового агента TRANSLUX: сверяет живой конфиг агента с эталоном
+# и молча лечит съехавшее; произнесённые времена сверяет с tool-результатами.
+# Каждые 30 мин на инфре GitHub (Vercel Hobby не умеет суб-дневные кроны).
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run TRANSLUX voice controller
+        run: |
+          code=$(curl -s -m 60 -o /tmp/out.json -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://central-hub-md.vercel.app/api/cron/voice-controller)
+          echo "controller responded: HTTP $code"
+          cat /tmp/out.json
+          if [ "$code" -lt 200 ] || [ "$code" -ge 400 ]; then
+            echo "::warning::voice-controller endpoint returned HTTP $code"
+          fi

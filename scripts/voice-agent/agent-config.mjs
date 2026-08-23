@@ -262,6 +262,11 @@ export function buildAgentPayload({ baseUrl, voiceApiKey, voiceId }) {
         },
       },
       tts: { model_id: 'eleven_v3_conversational', voice_id: voiceId },
+      // Fonul de call-center e decizia lui Ion (23.08, repus după ce s-a dovedit
+      // nevinovat de bâlbâială) — oglindit aici ca --force-config să nu-l șteargă.
+      conversation: {
+        background_sound: { source_type: 'preset', source_id: 'office1', volume: 0.1, crossfade_loop: true },
+      },
     },
   };
 }

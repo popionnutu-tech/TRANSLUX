@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { validateVoiceApiKey } from '../auth';
 import { getSupabase } from '@/lib/supabase';
 import { localitiesToRo, unknownLocalityResponse } from '@/lib/voice-locality';
+import { timeSpoken } from '@/lib/time-spoken';
 
 export async function POST(req: NextRequest) {
   const authError = validateVoiceApiKey(req);
@@ -106,5 +107,12 @@ export async function POST(req: NextRequest) {
     return ah * 60 + am - (bh * 60 + bm);
   });
 
-  return NextResponse.json({ count: schedules.length, schedules });
+  return NextResponse.json({
+    count: schedules.length,
+    schedules: schedules.map((s) => ({
+      ...s,
+      departure_spoken_ro: timeSpoken(s.departure)?.ro ?? null,
+      departure_spoken_ru: timeSpoken(s.departure)?.ru ?? null,
+    })),
+  });
 }

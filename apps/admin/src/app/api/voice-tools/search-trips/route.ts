@@ -3,6 +3,7 @@ import { validateVoiceApiKey } from '../auth';
 import { searchTrips } from '@/lib/trips-search';
 import { localitiesToRo, unknownLocalityResponse } from '@/lib/voice-locality';
 import { phoneSpoken } from '@/lib/phone-spoken';
+import { timeSpoken } from '@/lib/time-spoken';
 
 
 export async function POST(req: NextRequest) {
@@ -29,7 +30,11 @@ export async function POST(req: NextRequest) {
     date: tripDate,
     trips: trips.map(t => ({
       departure: t.time,
+      departure_spoken_ro: timeSpoken(t.time)?.ro ?? null,
+      departure_spoken_ru: timeSpoken(t.time)?.ru ?? null,
       arrival: t.arrivalTime || null,
+      arrival_spoken_ro: timeSpoken(t.arrivalTime)?.ro ?? null,
+      arrival_spoken_ru: timeSpoken(t.arrivalTime)?.ru ?? null,
       price: t.price,
       original_price: t.originalPrice,
       driver: t.driver,

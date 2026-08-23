@@ -9,11 +9,12 @@ const norm = (s: string) =>
 
 // Толерантный ключ: без пробелов/дефисов, мягких знаков и конечных гласных, чтобы
 // разговорные и ASR-варианты сходились с БД («кор жоуце»/«Коржеуць» → «коржоуц»/«коржеуц»).
-const key = (s: string) => norm(s).replace(/[\s-]/g, '').replace(/[ьъ]/g, '').replace(/[ыиеаяоу]+$/, '');
+// key/lev экспортированы: learner-ом проверяется похожесть кандидатов на алиасы.
+export const key = (s: string) => norm(s).replace(/[\s-]/g, '').replace(/[ьъ]/g, '').replace(/[ыиеаяоу]+$/, '');
 
 // Расстояние Левенштейна; быстрый выход «≥3» при разнице длин >2 (реальное расстояние
 // не меньше разницы длин) — хватает для ASR-ошибок в одной-двух буквах.
-function lev(a: string, b: string): number {
+export function lev(a: string, b: string): number {
   if (Math.abs(a.length - b.length) > 2) return 3;
   const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...new Array<number>(b.length).fill(0)]);
   for (let j = 0; j <= b.length; j++) d[0][j] = j;

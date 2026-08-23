@@ -7,7 +7,7 @@
 // Без алертов; журнал — voice_controller_incidents (kind 'learned_alias').
 import Anthropic from '@anthropic-ai/sdk';
 import { getSupabase } from '@/lib/supabase';
-import { localitiesToRo } from '@/lib/voice-locality';
+import { localitiesToRo, key, lev } from '@/lib/voice-locality';
 
 const AGENT_ID = 'agent_3301kn4qwa6jep38d4b63m6s6pkh';
 const EL = 'https://api.elevenlabs.io';
@@ -29,6 +29,29 @@ Sarcina: găsește locurile unde recunoașterea vocală a STÂLCIT numele unei l
 Răspunde DOAR cu JSON: {"pairs":[{"heard":"<forma stâlcită exact cum apare în transcript>","intended_ro":"<numele românesc canonic din lista dată>","evidence":"<un citat scurt din dialog>"}]}
 Reguli stricte: intended_ro DOAR din lista de localități primită. Fără ghicit: dacă intenția nu e clară din dialog, nu raporta perechea. Nume deja corecte nu se raportează. Maxim 5 perechi.`;
 
+// Второй, адверсариальный проход: первый прогон в проде показал, что extract
+// нарушает запрет на догадки («Чералхон»→Chișinău с evidence «probabil dorea…»).
+// Верификатор отклоняет по умолчанию; approve — только при ЯВНОМ подтверждении.
+const VERIFY_SYSTEM = `Ești un sceptic. Primești o pereche «auzit → localitate» și transcriptul.
+Aprob-o DOAR dacă dialogul conține dovadă EXPLICITĂ: clientul a repetat numele mai clar, sau agentul a numit localitatea și clientul a confirmat-o. Deducții din context («probabil voia…») = reject.
+Răspunde DOAR JSON: {"verdict":"approve"|"reject","reason":"<scurt>"}`;
+
+async function verifyPair(anthropic: Anthropic, pair: Pair, dialog: string): Promise<boolean> {
+  try {
+    const msg = await anthropic.messages.create({
+      model: 'claude-haiku-4-5',
+      max_tokens: 150,
+      system: VERIFY_SYSTEM,
+      messages: [{ role: 'user', content: `PERECHEA: «${pair.heard}» → ${pair.intended_ro}\n\nTRANSCRIPT:\n${dialog}` }],
+    }, { signal: AbortSignal.timeout(20000) });
+    const text = msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('');
+    const parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
+    return parsed.verdict === 'approve';
+  } catch {
+    return false; // orice dubiu = reject
+  }
+}
+
 async function extractPairs(anthropic: Anthropic, dialog: string, localityList: string): Promise<Pair[]> {
   const msg = await anthropic.messages.create({
     model: 'claude-haiku-4-5',
@@ -47,8 +70,10 @@ async function extractPairs(anthropic: Anthropic, dialog: string, localityList: 
 
 export async function runVoiceLearner(): Promise<{ scanned: number; learned: number; rejected: number }> {
   const supabase = getSupabase();
-  const { data: locRows } = await supabase.from('localities').select('name_ro').eq('active', true).order('name_ro');
-  const validRo = new Set((locRows || []).map((r: { name_ro: string }) => r.name_ro));
+  const { data: locRows } = await supabase.from('localities').select('name_ro, name_ru').eq('active', true).order('name_ro');
+  const locs = (locRows || []) as { name_ro: string; name_ru: string }[];
+  const validRo = new Set(locs.map((r) => r.name_ro));
+  const ruByRo = new Map(locs.map((r) => [r.name_ro, r.name_ru]));
   const localityList = [...validRo].join(', ');
 
   const list = await elGet(`/v1/convai/conversations?agent_id=${AGENT_ID}&page_size=30`);
@@ -93,6 +118,15 @@ export async function runVoiceLearner(): Promise<{ scanned: number; learned: num
         if (!heard || !intended || !validRo.has(intended) || !/[а-яё]/i.test(heard) || heard.length > 40) { rejected++; continue; }
         const probe = await localitiesToRo([heard]);
         if (probe.unknown.length === 0) { rejected++; continue; }
+        // Барьер похожести: мисслышка обязана быть ФОНЕТИЧЕСКИ близка цели —
+        // «Чералхон»→Chișinău и «Лаварадову»→Larga (реальный брак первого прогона)
+        // режутся здесь детерминированно, до всякого LLM.
+        const ruName = ruByRo.get(intended) ?? '';
+        const dist = Math.min(lev(key(heard), key(ruName)), lev(key(heard), key(intended)));
+        const kl = key(heard).length;
+        if (dist > (kl >= 9 ? 3 : 2)) { rejected++; continue; }
+        // Адверсариальная верификация вторым LLM-проходом (reject по умолчанию).
+        if (!(await verifyPair(anthropic, { heard, intended_ro: intended, evidence: String(pair.evidence ?? '') }, chunk[j].dialog))) { rejected++; continue; }
         const { error } = await supabase.from('voice_asr_aliases').insert({
           heard,
           canonical_ro: intended,

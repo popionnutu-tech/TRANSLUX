@@ -24,10 +24,30 @@ function lev(a: string, b: string): number {
 }
 
 // Разговорные русские имена, которых нет в localities.name_ru (ключи — через key()).
+// Стартовый набор; боевой источник — таблица voice_asr_aliases: её пополняет ночной
+// learner парами «услышано → имелось в виду» из транскриптов (мандат Иона 23.08).
 const RU_ALIASES: Record<string, string> = {
   'купчин': 'Cupcini', // в БД name_ru = «Калининск», но говорят и «Купчинь»
   'атак': 'Otaci', // традиционное русское «Атаки»
 };
+
+// Кэш алиасов из БД на время жизни инстанса (5 мин) — резолвер дёргается на каждый тул.
+let aliasCache: { at: number; map: Record<string, string> } | null = null;
+async function dbAliases(): Promise<Record<string, string>> {
+  if (aliasCache && Date.now() - aliasCache.at < 5 * 60 * 1000) return aliasCache.map;
+  const map: Record<string, string> = {};
+  try {
+    const { data } = await getSupabase()
+      .from('voice_asr_aliases')
+      .select('heard, canonical_ro')
+      .eq('active', true);
+    for (const r of (data || []) as { heard: string; canonical_ro: string }[]) {
+      map[key(r.heard)] = r.canonical_ro;
+    }
+  } catch { /* fără DB mergem pe RU_ALIASES */ }
+  aliasCache = { at: Date.now(), map };
+  return map;
+}
 
 export interface LocalityResolution {
   /** Входы в порядке подачи: name_ro для распознанной кириллицы, иначе вход как есть. */
@@ -45,6 +65,7 @@ export async function localitiesToRo(inputs: (string | undefined)[]): Promise<Lo
     .eq('active', true)
     .order('name_ro');
   const rows = (data || []) as { name_ro: string; name_ru: string }[];
+  const learned = await dbAliases();
 
   const unknown: string[] = [];
   const values = inputs.map((input) => {
@@ -52,6 +73,7 @@ export async function localitiesToRo(inputs: (string | undefined)[]): Promise<Lo
     const n = norm(input);
     const k = key(input);
     if (RU_ALIASES[k]) return RU_ALIASES[k];
+    if (learned[k]) return learned[k];
     const exact = rows.find((r) => norm(r.name_ru) === n) || rows.find((r) => key(r.name_ru) === k);
     if (exact) return exact.name_ro;
     // Префиксная стадия: только на осмысленном ключе и только при однозначном попадании —

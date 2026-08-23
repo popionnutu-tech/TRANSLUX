@@ -1,0 +1,25 @@
+name: voice-learner
+
+# Ночной самообучающийся контур голосового агента TRANSLUX: извлекает из
+# транскриптов суток пары «услышано → имелось в виду» и пополняет алиасы
+# серверного резолвера. 00:30 UTC = 03:30 Кишинёв.
+
+on:
+  schedule:
+    - cron: '30 0 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run TRANSLUX voice learner
+        run: |
+          code=$(curl -s -m 120 -o /tmp/out.json -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://central-hub-md.vercel.app/api/cron/voice-learner)
+          echo "learner responded: HTTP $code"
+          cat /tmp/out.json
+          if [ "$code" -lt 200 ] || [ "$code" -ge 400 ]; then
+            echo "::warning::voice-learner endpoint returned HTTP $code"
+          fi

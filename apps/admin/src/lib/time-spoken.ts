@@ -1,14 +1,16 @@
 // Ora rostită în cuvinte pentru agentul vocal — determinist, modelul citește dosloven
 // (același tipar ca phone-spoken). Motiv: modelul convertea singur 14:20 în «patru și
 // douăzeci după-amiază», nega ore existente și scotea forme inexistente («ventitre»).
-const RO_UNITS = ['zero', 'unu', 'doi', 'trei', 'patru', 'cinci', 'șase', 'șapte', 'opt', 'nouă',
+// Exportate: controlorul (voice-controller) își construiește parserul INVERS din
+// aceleași tabele — o corectură aici se propagă automat în ambele direcții.
+export const RO_UNITS = ['zero', 'unu', 'doi', 'trei', 'patru', 'cinci', 'șase', 'șapte', 'opt', 'nouă',
   'zece', 'unsprezece', 'doisprezece', 'treisprezece', 'paisprezece', 'cincisprezece',
   'șaisprezece', 'șaptesprezece', 'optsprezece', 'nouăsprezece'];
-const RO_TENS = ['', '', 'douăzeci', 'treizeci', 'patruzeci', 'cincizeci'];
-const RU_UNITS = ['ноль', 'один', 'два', 'три', 'четыре', 'пять', 'шесть', 'семь', 'восемь', 'девять',
+export const RO_TENS = ['', '', 'douăzeci', 'treizeci', 'patruzeci', 'cincizeci'];
+export const RU_UNITS = ['ноль', 'один', 'два', 'три', 'четыре', 'пять', 'шесть', 'семь', 'восемь', 'девять',
   'десять', 'одиннадцать', 'двенадцать', 'тринадцать', 'четырнадцать', 'пятнадцать',
   'шестнадцать', 'семнадцать', 'восемнадцать', 'девятнадцать'];
-const RU_TENS = ['', '', 'двадцать', 'тридцать', 'сорок', 'пятьдесят'];
+export const RU_TENS = ['', '', 'двадцать', 'тридцать', 'сорок', 'пятьдесят'];
 
 function roNum(n: number): string {
   if (n < 20) return RO_UNITS[n];

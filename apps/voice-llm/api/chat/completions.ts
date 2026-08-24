@@ -85,6 +85,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const completionId = `chatcmpl-${crypto.randomUUID()}`;
   // Limba scuzei de avarie — calculată AICI, înainte de try: un throw în catch = agent mut.
   const apology = apologyFor(body.messages);
+  // Diagnostic (întrebarea TLX 24.08): ecou-iește EL tool-callurile de SISTEM în istorie?
+  // De verificat în logs după un apel cu schimbare de limbă; apoi linia se poate scoate.
+  const histTools = body.messages.flatMap((m) => m.tool_calls?.map((t) => t.function.name) ?? []);
+  if (histTools.length) console.log('[voice-llm] history tool_calls:', histTools.join(','));
 
   const anthropic = new Anthropic({ maxRetries: 1 });
   const abort = new AbortController();

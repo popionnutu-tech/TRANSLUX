@@ -335,12 +335,12 @@ export async function searchTrips(
       .eq('to_stop', fromNorm),
     supabase
       .from('daily_assignments')
-      .select('crm_route_id, driver_id, vehicle_id, vehicle_id_retur, retur_route_id')
+      .select('crm_route_id, driver_id, vehicle_id, vehicle_id_retur, driver_id_retur, retur_route_id')
       .eq('assignment_date', assignmentDate)
       .in('crm_route_id', matchingRouteIds),
     supabase
       .from('daily_assignments')
-      .select('crm_route_id, driver_id, vehicle_id, vehicle_id_retur, retur_route_id')
+      .select('crm_route_id, driver_id, vehicle_id, vehicle_id_retur, driver_id_retur, retur_route_id')
       .eq('assignment_date', assignmentDate)
       .in('retur_route_id', matchingRouteIds),
     supabase

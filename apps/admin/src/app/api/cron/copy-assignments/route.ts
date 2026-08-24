@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
     // Fetch today's assignments
     const { data: source, error: fetchErr } = await db
       .from('daily_assignments')
-      .select('crm_route_id, driver_id, vehicle_id, vehicle_id_retur, retur_route_id')
+      .select('crm_route_id, driver_id, vehicle_id, vehicle_id_retur, driver_id_retur, retur_route_id')
       .eq('assignment_date', todayStr);
 
     if (fetchErr) throw new Error(`Fetch error: ${fetchErr.message}`);
@@ -75,6 +75,7 @@ export async function GET(req: NextRequest) {
       driver_id: s.driver_id,
       vehicle_id: s.vehicle_id,
       vehicle_id_retur: s.vehicle_id_retur,
+      driver_id_retur: s.driver_id_retur,
       retur_route_id: s.retur_route_id,
       auto_copied: true,
     }));

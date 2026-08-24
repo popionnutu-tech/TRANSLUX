@@ -14,6 +14,8 @@ export interface RawAssignment {
   driver_id: string;
   vehicle_id: string | null;
   vehicle_id_retur?: string | null;
+  /** Șofer separat DOAR pentru retur (Ion, 24.08); null = același șofer ca la tur. */
+  driver_id_retur?: string | null;
   retur_route_id?: number | null;
 }
 
@@ -97,7 +99,7 @@ export function buildReturAssignmentMap(
   for (const a of assignments) {
     if (a.retur_route_id) {
       map.set(a.retur_route_id, {
-        driver_id: a.driver_id,
+        driver_id: a.driver_id_retur ?? a.driver_id,
         vehicle_id: a.vehicle_id_retur ?? a.vehicle_id,
       });
     }
@@ -107,7 +109,7 @@ export function buildReturAssignmentMap(
   for (const a of assignments) {
     if (!map.has(a.crm_route_id) && !a.retur_route_id) {
       map.set(a.crm_route_id, {
-        driver_id: a.driver_id,
+        driver_id: a.driver_id_retur ?? a.driver_id,
         vehicle_id: a.vehicle_id_retur ?? a.vehicle_id,
       });
     }

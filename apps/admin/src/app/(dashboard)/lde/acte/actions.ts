@@ -90,7 +90,20 @@ export async function generateAct(
   endDate.setUTCDate(endDate.getUTCDate() + 6);
   const week_to = endDate.toISOString().slice(0, 10);
 
-  // 1. Tariful uzinei (snapshot la generare)
+  // 0. Filialele: actul se face pe uzina-mamă și include subdiviziunile ei (Ion, 24.08 —
+  // SEBN Strășeni e filiala Orheiului, clientul primește UN singur act). Fără asta,
+  // cursele filialei ar dispărea tăcut din act: sumele per_cursa/per_pasager/per_km
+  // ies mai mici, dar generarea nu dă nicio eroare.
+  const { data: uzinaRow } = await sb
+    .from('lde_uzine').select('parent_uzina_id').eq('id', uzina_id).maybeSingle();
+  if (uzinaRow?.parent_uzina_id) {
+    throw new Error('Această uzină e o subdiviziune — actul se generează pe uzina-mamă.');
+  }
+  const { data: filiale } = await sb
+    .from('lde_uzine').select('id').eq('parent_uzina_id', uzina_id).eq('active', true);
+  const uzinaIds = [uzina_id, ...(filiale || []).map((f: any) => f.id as string)];
+
+  // 1. Tariful uzinei (snapshot la generare) — tariful stă pe uzina-mamă
   const { data: billingRow } = await sb
     .from('lde_uzina_billing')
     .select('billing_model, rate_lei')
@@ -100,11 +113,11 @@ export async function generateAct(
   const billing_model = billingRow.billing_model as LdeBillingModel;
   const rate_lei = Number(billingRow.rate_lei);
 
-  // 2. Cursele active ale uzinei (total_curse + ids pentru shifts)
+  // 2. Cursele active ale uzinei ȘI ale filialelor (total_curse + ids pentru shifts)
   const { data: routes } = await sb
     .from('lde_factory_routes')
     .select('id')
-    .eq('uzina_id', uzina_id)
+    .in('uzina_id', uzinaIds)
     .eq('active', true);
   const routeIds = (routes || []).map((r: any) => r.id);
   const total_curse = routeIds.length;

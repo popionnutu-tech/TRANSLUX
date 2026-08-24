@@ -112,6 +112,28 @@ describe('buildReturAssignmentMap', () => {
     expect(map.get(10)?.vehicle_id).toBe('v2');
   });
 
+  it('driver_id_retur: alt șofer DOAR pe retur, turul rămâne al titularului', () => {
+    const assignments: RawAssignment[] = [
+      { crm_route_id: 10, driver_id: 'driverA', vehicle_id: 'v1', driver_id_retur: 'driverB', vehicle_id_retur: 'v2' },
+    ];
+
+    const returMap = buildReturAssignmentMap(assignments);
+    expect(returMap.get(10)?.driver_id).toBe('driverB');
+    expect(returMap.get(10)?.vehicle_id).toBe('v2');
+    // Turul NU se atinge
+    expect(buildTurAssignmentMap(assignments).get(10)?.driver_id).toBe('driverA');
+  });
+
+  it('driver_id_retur se aplică și la override IN (retur_route_id)', () => {
+    const assignments: RawAssignment[] = [
+      { crm_route_id: 10, driver_id: 'driverA', vehicle_id: 'v1', retur_route_id: 20, driver_id_retur: 'driverC' },
+      { crm_route_id: 20, driver_id: 'driverB', vehicle_id: 'v2' },
+    ];
+
+    const map = buildReturAssignmentMap(assignments);
+    expect(map.get(20)?.driver_id).toBe('driverC');
+  });
+
   it('override IN: retur_route_id assigns driver to another route retur', () => {
     const assignments: RawAssignment[] = [
       { crm_route_id: 10, driver_id: 'driverA', vehicle_id: 'v1', retur_route_id: 20 },

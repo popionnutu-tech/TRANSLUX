@@ -16,6 +16,7 @@ export interface AssignmentRow {
   driver_id: string | null;
   vehicle_id: string | null;
   vehicle_id_retur: string | null;
+  driver_id_retur: string | null;
   retur_route_id: number | null;
   retur_route_label: string | null; // e.g. "15:55 Ocnița"
 }
@@ -53,7 +54,7 @@ export async function getAssignmentsForDate(
 
   const { data: assignments, error: assignErr } = await db
     .from('daily_assignments')
-    .select('id, crm_route_id, driver_id, vehicle_id, vehicle_id_retur, retur_route_id')
+    .select('id, crm_route_id, driver_id, vehicle_id, vehicle_id_retur, driver_id_retur, retur_route_id')
     .eq('assignment_date', date);
 
   if (assignErr) return { error: `Eroare programări: ${assignErr.message}` };
@@ -77,6 +78,7 @@ export async function getAssignmentsForDate(
       driver_id: a?.driver_id || null,
       vehicle_id: a?.vehicle_id || null,
       vehicle_id_retur: a?.vehicle_id_retur || null,
+      driver_id_retur: a?.driver_id_retur || null,
       retur_route_id: a?.retur_route_id || null,
       retur_route_label: returRoute
         ? `${parseTimeLabel(returRoute.time_nord)} ${returRoute.dest_to_ro}`
@@ -135,12 +137,18 @@ export async function upsertAssignment(
   driverId: string,
   vehicleId: string | null,
   vehicleIdRetur?: string | null,
-  returRouteId?: number | null
+  returRouteId?: number | null,
+  driverIdRetur?: string | null
 ): Promise<{ error?: string }> {
   try { requireRole(await verifySession(), 'ADMIN'); } catch { return { error: 'Acces interzis' }; }
 
   const errTelefon = await verificaTelefonSofer(driverId);
   if (errTelefon) return { error: errTelefon };
+  // Șoferul de retur are aceleași cerințe ca titularul (numărul lui se dictează clienților).
+  if (driverIdRetur) {
+    const errTelefonRetur = await verificaTelefonSofer(driverIdRetur);
+    if (errTelefonRetur) return { error: errTelefonRetur };
+  }
 
   const db = getSupabase();
 
@@ -153,6 +161,7 @@ export async function upsertAssignment(
     driver_id: driverId,
     vehicle_id: vehicleId,
     vehicle_id_retur: vehicleIdRetur || null,
+    driver_id_retur: driverIdRetur || null,
     retur_route_id: effectiveReturRouteId,
   };
 

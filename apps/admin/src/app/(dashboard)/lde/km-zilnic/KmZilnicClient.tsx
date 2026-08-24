@@ -25,6 +25,7 @@ const DIR_LABELS: Record<string, string> = {
   camioane: 'Camioane (ACTROS)',
   DRAXELMAIER_BALTI: 'Draxlmaier Bălți',
   SEBN_ORHEI: 'SEBN Orhei',
+  SEBN_STRASENI: 'SEBN Strășeni',
   LEAR_UNGHENI: 'Lear Ungheni',
   LEAR_FLORESTI: 'Lear Florești',
 };

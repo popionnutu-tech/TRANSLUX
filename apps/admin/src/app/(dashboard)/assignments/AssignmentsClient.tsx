@@ -74,12 +74,12 @@ export default function AssignmentsClient({
     getDaysCoverage().then(setCoverage).catch(() => {});
   }, [loadData]);
 
-  async function handleSave(crmRouteId: number, driverId: string, vehicleId: string | null, vehicleIdRetur?: string | null, returRouteId?: number | null) {
+  async function handleSave(crmRouteId: number, driverId: string, vehicleId: string | null, vehicleIdRetur?: string | null, returRouteId?: number | null, driverIdRetur?: string | null) {
     if (!driverId) return;
     setSaving((p) => ({ ...p, [crmRouteId]: true }));
     setError('');
     try {
-      const result = await upsertAssignment(crmRouteId, date, driverId, vehicleId, vehicleIdRetur, returRouteId);
+      const result = await upsertAssignment(crmRouteId, date, driverId, vehicleId, vehicleIdRetur, returRouteId, driverIdRetur);
       if (result.error) {
         setError(result.error);
       } else {
@@ -266,13 +266,15 @@ function AssignmentRowEditor({
   returRoutes: ReturRouteOption[];
   rows: AssignmentRow[];
   saving: boolean;
-  onSave: (crmRouteId: number, driverId: string, vehicleId: string | null, vehicleIdRetur?: string | null, returRouteId?: number | null) => void;
+  onSave: (crmRouteId: number, driverId: string, vehicleId: string | null, vehicleIdRetur?: string | null, returRouteId?: number | null, driverIdRetur?: string | null) => void;
   onDelete: (assignmentId: string) => void;
 }) {
   const [driverId, setDriverId] = useState(row.driver_id || '');
   const [vehicleId, setVehicleId] = useState(row.vehicle_id || '');
   const [vehicleIdRetur, setVehicleIdRetur] = useState(row.vehicle_id_retur || '');
   const [showReturVehicle, setShowReturVehicle] = useState(!!row.vehicle_id_retur);
+  const [driverIdRetur, setDriverIdRetur] = useState(row.driver_id_retur || '');
+  const [showReturDriver, setShowReturDriver] = useState(!!row.driver_id_retur);
   const [returRouteId, setReturRouteId] = useState<number | null>(row.retur_route_id);
   const [showReturRoute, setShowReturRoute] = useState(!!row.retur_route_id);
   const [editPhone, setEditPhone] = useState(false);
@@ -284,12 +286,14 @@ function AssignmentRowEditor({
     setVehicleId(row.vehicle_id || '');
     setVehicleIdRetur(row.vehicle_id_retur || '');
     setShowReturVehicle(!!row.vehicle_id_retur);
+    setDriverIdRetur(row.driver_id_retur || '');
+    setShowReturDriver(!!row.driver_id_retur);
     setReturRouteId(row.retur_route_id);
     setShowReturRoute(!!row.retur_route_id);
-  }, [row.driver_id, row.vehicle_id, row.vehicle_id_retur, row.retur_route_id]);
+  }, [row.driver_id, row.vehicle_id, row.vehicle_id_retur, row.driver_id_retur, row.retur_route_id]);
 
   const selectedDriver = drivers.find(d => d.id === driverId);
-  const isDirty = driverId !== (row.driver_id || '') || vehicleId !== (row.vehicle_id || '') || vehicleIdRetur !== (row.vehicle_id_retur || '') || (returRouteId ?? null) !== (row.retur_route_id ?? null);
+  const isDirty = driverId !== (row.driver_id || '') || vehicleId !== (row.vehicle_id || '') || vehicleIdRetur !== (row.vehicle_id_retur || '') || driverIdRetur !== (row.driver_id_retur || '') || (returRouteId ?? null) !== (row.retur_route_id ?? null);
 
   // Check for retur conflicts: another row already claims the same retur
   const hasReturConflict = returRouteId && rows.some(
@@ -395,6 +399,36 @@ function AssignmentRowEditor({
             )}
           </div>
         )}
+        {showReturDriver ? (
+          <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: 11, color: '#888' }}>Retur:</span>
+            <select
+              value={driverIdRetur}
+              onChange={(e) => setDriverIdRetur(e.target.value)}
+              style={{ minWidth: 140, fontSize: 12 }}
+            >
+              <option value="">— Același</option>
+              {drivers.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.full_name}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => { setShowReturDriver(false); setDriverIdRetur(''); }}
+              style={{ fontSize: 11, cursor: 'pointer', background: 'none', border: 'none', color: '#999' }}
+            >
+              ✕
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowReturDriver(true)}
+            style={{ display: 'block', marginTop: 2, fontSize: 11, cursor: 'pointer', background: 'none', border: 'none', color: '#9B1B30', padding: 0 }}
+          >
+            + Alt șofer retur
+          </button>
+        )}
       </td>
       <td>
         <select
@@ -445,7 +479,7 @@ function AssignmentRowEditor({
           {driverId && isDirty && (
             <button
               className="btn btn-primary"
-              onClick={() => onSave(row.crm_route_id, driverId, vehicleId || null, vehicleIdRetur || null, returRouteId)}
+              onClick={() => onSave(row.crm_route_id, driverId, vehicleId || null, vehicleIdRetur || null, returRouteId, driverIdRetur || null)}
               disabled={saving}
               style={{ fontSize: 13, padding: '4px 10px' }}
             >

@@ -86,7 +86,7 @@ export async function getGraficData(date: string): Promise<{
   const [routesRes, assignmentsRes, driversRes, vehiclesRes, stopsRes, receiptsRes, cancellationsRes] = await Promise.all([
     db.from('crm_routes').select('id, time_nord, time_chisinau, dest_to_ro').eq('active', true).not('time_nord', 'is', null).neq('time_nord', ''),
     db.from('daily_assignments')
-      .select('id, crm_route_id, driver_id, vehicle_id, vehicle_id_retur, retur_route_id')
+      .select('id, crm_route_id, driver_id, vehicle_id, vehicle_id_retur, driver_id_retur, retur_route_id')
       .eq('assignment_date', date)
       .eq('auto_copied', false),
     db.from('drivers').select('id, full_name, phone').eq('active', true).eq('is_lde', false),
@@ -352,7 +352,7 @@ export async function copyAssignments(
 
   const { data: source, error: fetchErr } = await db
     .from('daily_assignments')
-    .select('crm_route_id, driver_id, vehicle_id, vehicle_id_retur, retur_route_id')
+    .select('crm_route_id, driver_id, vehicle_id, vehicle_id_retur, driver_id_retur, retur_route_id')
     .eq('assignment_date', sourceDate);
 
   if (fetchErr) return { error: fetchErr.message };

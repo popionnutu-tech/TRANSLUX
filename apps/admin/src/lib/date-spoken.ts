@@ -108,8 +108,8 @@ function addDays(iso: string, days: number): string {
 /**
  * Ziua căutării, din ce a rostit clientul. Acceptă:
  *   «azi»/«mâine»/«poimâine» și echivalentele ruse, ziua săptămânii (următoarea
- *   apariție, niciodată azi), «30.08» / «30-08» (zi-lună, anul îl pune serverul)
- *   și YYYY-MM-DD gata format.
+ *   apariție, niciodată azi), DOAR ziua («30» — cea mai apropiată zi cu acest număr),
+ *   «30.08» / «30-08» (zi-lună) și YYYY-MM-DD gata format. Luna și anul le pune serverul.
  * Orice altceva — inclusiv un an inventat de model — cade pe ziua de azi.
  */
 export function resolveVoiceDate(raw: string | undefined | null, todayIso: string): string {
@@ -131,6 +131,29 @@ export function resolveVoiceDate(raw: string | undefined | null, todayIso: strin
     // clientul spune «azi». Nu ghicim în favoarea zilei curente.
     const delta = ((WEEKDAYS[w] - today.getUTCDay() + 7) % 7) || 7;
     return addDays(todayIso, delta);
+  }
+
+  // DOAR ziua, fără lună și fără an («pe treizeci», «на тридцатое») — cazul obișnuit
+  // la telefon: omul spune numărul zilei și atât. Luăm cea mai apropiată zi cu acest
+  // număr, de azi înainte; luna și anul le găsim noi, sărind lunile care n-au ziua
+  // (31 februarie nu există, deci «31» în februarie înseamnă 31 martie).
+  const dOnly = w.match(/^(\d{1,2})$/);
+  if (dOnly) {
+    const day = Number(dOnly[1]);
+    if (day >= 1 && day <= 31) {
+      let year = Number(todayIso.slice(0, 4));
+      let month = Number(todayIso.slice(5, 7));
+      for (let i = 0; i < 24; i++) {
+        const iso = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const probe = new Date(`${iso}T12:00:00Z`);
+        if (!Number.isNaN(probe.getTime()) && probe.toISOString().slice(0, 10) === iso && iso >= todayIso) {
+          return iso;
+        }
+        month += 1;
+        if (month > 12) { month = 1; year += 1; }
+      }
+    }
+    return todayIso;
   }
 
   // Zi-lună rostită («treizeci august» ajunge la model ca 30.08): anul îl punem noi,

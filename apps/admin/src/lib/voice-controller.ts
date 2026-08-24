@@ -56,7 +56,7 @@ const DATA_BLOCK = `
 
 ZIUA — DOSLOVEN DIN TOOL:
 - Tu NU știi ce zi e azi și nu ai voie să ghicești. Ziua o hotărăște serverul.
-- În parametrul «date» al lui search_trips trimiți CUVÂNTUL rostit de client: «azi», «mâine», «poimâine» sau ziua săptămânii («sâmbătă», «в субботу»). O dată calendaristică exactă o trimiți ca zi.lună — «30.08». Serverul le rezolvă pe toate. NU compune niciodată o dată cu un an — anul îl pune serverul.
+- În parametrul «date» al lui search_trips trimiți CUVÂNTUL rostit de client: «azi», «mâine», «poimâine» sau ziua săptămânii («sâmbătă», «в субботу»). A rostit doar numărul zilei («pe treizeci»)? Trimiți DOAR numărul: «30». A rostit și luna? Atunci zi.lună: «30.08». Serverul le rezolvă pe toate — luna și anul le pune el. NU compune niciodată o dată întreagă și NU scrie niciun an.
 - Clientul nu a spus nicio zi? Lași «date» gol: serverul ia ziua de azi.
 - Ziua curselor o rostești DOAR din câmpul date_label_ro (română) / date_label_ru (rusă) al rezultatului — cuvânt cu cuvânt. Câmpul lipsește? Atunci nu numești ziua deloc.
 - is_today true = sunt EXACT cursele de azi. NICIODATĂ nu spui «pe azi nu sunt curse» când tool-ul tocmai a întors curse.

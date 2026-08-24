@@ -87,3 +87,37 @@ describe('resolveVoiceDate', () => {
     expect(resolveVoiceDate('cândva', TODAY)).toBe(TODAY);
   });
 });
+
+describe('resolveVoiceDate — doar ziua, fără lună și an', () => {
+  it('ziua din luna curentă, dacă nu a trecut', () => {
+    expect(resolveVoiceDate('30', '2026-08-24')).toBe('2026-08-30');
+    expect(resolveVoiceDate('31', '2026-08-24')).toBe('2026-08-31');
+  });
+
+  it('ziua de azi rămâne azi', () => {
+    expect(resolveVoiceDate('24', '2026-08-24')).toBe('2026-08-24');
+  });
+
+  it('ziua deja trecută trece în luna următoare', () => {
+    expect(resolveVoiceDate('3', '2026-08-24')).toBe('2026-09-03');
+    expect(resolveVoiceDate('01', '2026-08-24')).toBe('2026-09-01');
+  });
+
+  it('sare peste lunile care nu au ziua cerută', () => {
+    // Februarie 2027 are 28 de zile: «31» din 30 ianuarie = 31 martie.
+    expect(resolveVoiceDate('31', '2027-01-30')).toBe('2027-01-31');
+    expect(resolveVoiceDate('31', '2027-02-01')).toBe('2027-03-31');
+    // 29 februarie există doar în ani bisecți: 2027 nu e, 2028 da.
+    expect(resolveVoiceDate('29', '2027-03-01')).toBe('2027-03-29');
+    expect(resolveVoiceDate('30', '2026-12-31')).toBe('2027-01-30');
+  });
+
+  it('ziua peste an trece corect', () => {
+    expect(resolveVoiceDate('5', '2026-12-31')).toBe('2027-01-05');
+  });
+
+  it('numere imposibile cad pe azi', () => {
+    expect(resolveVoiceDate('32', '2026-08-24')).toBe('2026-08-24');
+    expect(resolveVoiceDate('0', '2026-08-24')).toBe('2026-08-24');
+  });
+});

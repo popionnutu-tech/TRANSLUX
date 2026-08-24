@@ -231,8 +231,22 @@ async function validateRecentCalls(): Promise<Incident[]> {
     const turns: any[] = d.transcript ?? [];
     const allowed = new Set<string>();
     const allowedPhones = new Set<string>();
+    const addPhone = (raw: unknown) => {
+      const digits = String(raw ?? '').replace(/\D/g, '');
+      if (digits.length < 8) return;
+      allowedPhones.add(digits.startsWith('373') ? '0' + digits.slice(3) : digits);
+    };
+    // Номер ЗВОНЯЩЕГО тоже разрешён: агент повторяет его при colback-е (review
+    // 6df570a, Important) — иначе гарантированный ложный spoken_phone_mismatch.
+    addPhone(d.metadata?.phone_call?.external_number);
+    addPhone(d.conversation_initiation_client_data?.dynamic_variables?.system__caller_id);
     let sawTripTool = false;
     for (const t of turns) {
+      // Телефоны из ПАРАМЕТРОВ тулов (request_callback: клиент мог продиктовать другой).
+      for (const tc of t.tool_calls ?? []) {
+        const params = String(tc.params_as_json ?? '');
+        for (const mm of params.matchAll(/"phone"\s*:\s*"([^"]+)"/g)) addPhone(mm[1]);
+      }
       for (const tr of t.tool_results ?? []) {
         const raw = typeof tr.result_value === 'string' ? tr.result_value : JSON.stringify(tr.result_value ?? '');
         for (const mm of raw.matchAll(/"(?:departure|arrival)":"(\d{1,2}:\d{2})"/g)) {

@@ -37,10 +37,14 @@ export async function POST(req: NextRequest) {
   // modelul nu mai asamblează nimic — numele și numărul nu se pot amesteca.
   const single = trips.length === 1 ? trips[0] : null;
   const firstName = driverFirstName(single?.driver);
-  const singleLine = single && firstName && phoneSpoken(single.phone) ? {
+  // Fără prenume real (inițiale/gol) — fraza dă DOAR numărul (Ion: nu se spune numele).
+  const singleLine = single && phoneSpoken(single.phone) ? (firstName ? {
     driver_line_ro: `Șoferul cursei de ${timeSpoken(single.time)?.ro ?? single.time} este ${firstName}. Numărul lui: ${phoneSpoken(single.phone)?.ro}.`,
     driver_line_ru: `Водитель рейса ${timeSpoken(single.time)?.ru ?? single.time} — ${firstName}. Его номер: ${phoneSpoken(single.phone)?.ru}.`,
-  } : {};
+  } : {
+    driver_line_ro: `Numărul șoferului cursei de ${timeSpoken(single.time)?.ro ?? single.time}: ${phoneSpoken(single.phone)?.ro}.`,
+    driver_line_ru: `Номер водителя рейса ${timeSpoken(single.time)?.ru ?? single.time}: ${phoneSpoken(single.phone)?.ru}.`,
+  }) : {};
 
   // Enumerarea orelor GATA de citit, în ordine: «cea mai apropiată» = PRIMUL element.
   // Apel 24.08: modelul anunța «ближайший 07:10» deși prima cursă era 04:00.

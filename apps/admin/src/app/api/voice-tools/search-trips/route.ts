@@ -34,15 +34,25 @@ export async function POST(req: NextRequest) {
 
   // O singură cursă (recherea cu departure) => frază GATA de citit dosloven:
   // modelul nu mai asamblează nimic — numele și numărul nu se pot amesteca.
+  // Doar prenumele (Ion, 24.08): formatul din DB e «Nume Prenume» → ultimul cuvânt.
   const single = trips.length === 1 ? trips[0] : null;
+  const firstName = single ? single.driver.trim().split(/\s+/).pop() : null;
   const singleLine = single && phoneSpoken(single.phone) ? {
-    driver_line_ro: `Șoferul cursei de ${timeSpoken(single.time)?.ro ?? single.time} este ${single.driver}. Numărul lui: ${phoneSpoken(single.phone)?.ro}.`,
-    driver_line_ru: `Водитель рейса ${timeSpoken(single.time)?.ru ?? single.time} — ${single.driver}. Его номер: ${phoneSpoken(single.phone)?.ru}.`,
+    driver_line_ro: `Șoferul cursei de ${timeSpoken(single.time)?.ro ?? single.time} este ${firstName}. Numărul lui: ${phoneSpoken(single.phone)?.ro}.`,
+    driver_line_ru: `Водитель рейса ${timeSpoken(single.time)?.ru ?? single.time} — ${firstName}. Его номер: ${phoneSpoken(single.phone)?.ru}.`,
   } : {};
+
+  // Enumerarea orelor GATA de citit, în ordine: «cea mai apropiată» = PRIMUL element.
+  // Apel 24.08: modelul anunța «ближайший 07:10» deși prima cursă era 04:00.
+  const departures = {
+    departures_ro: trips.map((t) => timeSpoken(t.time)?.ro ?? t.time).join(', '),
+    departures_ru: trips.map((t) => timeSpoken(t.time)?.ru ?? t.time).join(', '),
+  };
 
   return NextResponse.json({
     count: trips.length,
     date: tripDate,
+    ...departures,
     ...singleLine,
     trips: trips.map(t => ({
       departure: t.time,

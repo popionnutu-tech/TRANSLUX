@@ -128,6 +128,15 @@ async function checkAndHealConfig(cfg: any): Promise<Drift[]> {
   for (const m of missing.filter((x) => x !== 'DOSLOVEN DIN TOOL')) {
     drifts.push({ field: `prompt.${m}`, healed: false });
   }
+  // cascade_timeout 12s: scuza de avarie (FIRST_CHUNK_MS=6500 în proxy) trebuie să
+  // apuce să iasă înaintea cascadei EL (incident TLX 24.08, portat).
+  if (cc.agent?.prompt?.cascade_timeout_seconds !== 12) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const agentPatch: any = ccPatch.agent ?? {};
+    agentPatch.prompt = { ...(agentPatch.prompt ?? {}), cascade_timeout_seconds: 12 };
+    ccPatch.agent = agentPatch;
+    drifts.push({ field: 'cascade_timeout_seconds', healed: true });
+  }
   if (Object.keys(ccPatch).length) await elPatchAgent({ conversation_config: ccPatch });
 
   return drifts;

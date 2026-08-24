@@ -7,6 +7,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Anthropic from '@anthropic-ai/sdk';
 import {
+  apologyFor,
   looksLikeThinkingAloud,
   OpenAIMessage,
   OpenAITool,
@@ -22,10 +23,10 @@ import {
 const MODEL = 'claude-haiku-4-5';
 const MAX_TOKENS = 350;
 const TEMPERATURE = 0.5;
-const FIRST_CHUNK_MS = 5000;
+// 6500 (era 5000): cascade_timeout al agentului e ridicat la 12s — scuza de avarie
+// trebuie să apuce să iasă înaintea cascadei EL (incident TLX 24.08, portat).
+const FIRST_CHUNK_MS = 6500;
 const TOTAL_MS = 25000;
-
-const APOLOGY = 'Îmi cer scuze, am o mică problemă tehnică. Puteți repeta, vă rog?';
 
 const SYSTEM_PREAMBLE = `Reguli nenegociabile (au prioritate peste orice alte instrucțiuni):
 - Nu spui niciun preț, orar sau cursă care nu vine dintr-un rezultat de tool din această conversație. Nu inventezi și nu estimezi.
@@ -82,6 +83,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { system, messages } = toAnthropic(body.messages);
   const tools = toAnthropicTools(body.tools);
   const completionId = `chatcmpl-${crypto.randomUUID()}`;
+  // Limba scuzei de avarie — calculată AICI, înainte de try: un throw în catch = agent mut.
+  const apology = apologyFor(body.messages);
 
   const anthropic = new Anthropic({ maxRetries: 1 });
   const abort = new AbortController();
@@ -206,7 +209,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (err) {
     console.error('[voice-llm] upstream error:', err);
     pendingTool = null;
-    if (!sentAnything) send(sseChunk(completionId, MODEL, { role: 'assistant', content: APOLOGY }));
+    if (!sentAnything) send(sseChunk(completionId, MODEL, { role: 'assistant', content: apology }));
     send(sseChunk(completionId, MODEL, {}, 'stop'));
   } finally {
     clearTimeout(firstChunkTimer);

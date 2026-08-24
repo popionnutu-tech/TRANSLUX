@@ -206,3 +206,53 @@ const LEADING_GREETING_RE =
 export function stripLeadingGreeting(text: string): string {
   return text.replace(LEADING_GREETING_RE, '').trimStart();
 }
+
+// Limba scuzei de avarie = limba VOCII curente (nu a apelantului): fraza continuă
+// conversația prin TTS — o scuză RO într-un dialog rusesc derapează și ASR-ul
+// (incident TLX 24.08, portat). Prioritate: ultimul language_detection al
+// asistentului → ultima replică assistant cu perechi de litere concludente
+// (cyr+lat≥4 și |cyr−lat|≥3) → scorul replicilor user → RO.
+// Se calculează ÎNAINTE de try: un throw în catch = agent mut.
+const APOLOGY_RU = "Извините, небольшая техническая проблема. Повторите, пожалуйста?";
+const APOLOGY_RO = "Îmi cer scuze, am o mică problemă tehnică. Puteți repeta, vă rog?";
+
+export function apologyFor(messages: OpenAIMessage[]): string {
+  try {
+    const letters = (s: string) => ({
+      cyr: (s.match(/[а-яё]/gi) ?? []).length,
+      lat: (s.match(/[a-zăâîșț]/gi) ?? []).length,
+    });
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      if (m.role !== "assistant") continue;
+      for (const tc of m.tool_calls ?? []) {
+        if (tc.function?.name === "language_detection") {
+          try {
+            const lang = String(JSON.parse(tc.function.arguments || "{}").language ?? "");
+            if (lang.startsWith("ru")) return APOLOGY_RU;
+            if (lang.startsWith("ro")) return APOLOGY_RO;
+          } catch { /* prioritatea următoare */ }
+        }
+      }
+    }
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      if (m.role !== "assistant") continue;
+      const text = contentToText(m.content);
+      if (!text) continue;
+      const { cyr, lat } = letters(text);
+      if (cyr + lat >= 4 && Math.abs(cyr - lat) >= 3) return cyr > lat ? APOLOGY_RU : APOLOGY_RO;
+      break; // ultima replică nu decide clar → scorul user-ilor
+    }
+    let cyrU = 0;
+    let latU = 0;
+    for (const m of messages) {
+      if (m.role !== "user") continue;
+      const { cyr, lat } = letters(contentToText(m.content));
+      cyrU += cyr;
+      latU += lat;
+    }
+    if (cyrU > latU) return APOLOGY_RU;
+  } catch { /* RO mai jos */ }
+  return APOLOGY_RO;
+}

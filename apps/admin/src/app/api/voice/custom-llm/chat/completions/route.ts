@@ -15,6 +15,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { NextResponse } from 'next/server';
 import { checkLlmBearer } from '@/lib/voice-llm/auth';
 import {
+  apologyFor,
   looksLikeThinkingAloud,
   OpenAIMessage,
   OpenAITool,
@@ -37,10 +38,9 @@ export const preferredRegion = 'iad1';
 const MODEL = 'claude-haiku-4-5';
 const MAX_TOKENS = 350; // replici de telefon, nu eseuri
 const TEMPERATURE = 0.5; // valid pe Haiku 4.5
-const FIRST_CHUNK_MS = 5000; // ElevenLabs taie oricum tura la ~8s fără sunet
+const FIRST_CHUNK_MS = 6500; // cascade_timeout al agentului = 12s — scuza apucă să iasă
 const TOTAL_MS = 25000;
 
-const APOLOGY = 'Îmi cer scuze, am o mică problemă tehnică. Puteți repeta, vă rog?';
 
 // Invariantele TRANSLUX trăiesc AICI, nu în dashboard: promptul din body poate fi
 // rescris de oricine intră în contul ElevenLabs; astea nu.
@@ -87,6 +87,8 @@ export async function POST(req: Request) {
   }
 
   const { system, messages } = toAnthropic(body.messages);
+  // Limba scuzei de avarie — calculată AICI, înainte de try: un throw în catch = agent mut.
+  const apology = apologyFor(body.messages);
   const tools = toAnthropicTools(body.tools);
   const completionId = `chatcmpl-${crypto.randomUUID()}`;
 
@@ -240,7 +242,7 @@ export async function POST(req: Request) {
         console.error('[voice/custom-llm] upstream error:', err);
         pendingTool = null;
         if (!sentAnything) {
-          send(sseChunk(completionId, MODEL, { role: 'assistant', content: APOLOGY }));
+          send(sseChunk(completionId, MODEL, { role: 'assistant', content: apology }));
         }
         send(sseChunk(completionId, MODEL, {}, 'stop'));
       } finally {

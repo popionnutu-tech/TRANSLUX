@@ -7,8 +7,6 @@
 
 import { NextResponse, after } from 'next/server';
 import { timingSafeEqual } from 'crypto';
-import { getSupabase } from '@/lib/supabase';
-import { normalizePhone } from '@/lib/voice/phone';
 
 // Rulează în dub1 (regiunea proiectului din vercel.json — lângă Supabase; per-route
 // preferredRegion e IGNORAT când proiectul are «regions»). Hop-ul spre ElevenLabs (US)
@@ -28,7 +26,10 @@ function greetingRo(): string {
   return `${salut}! Ați sunat la TRANSLUX. Convorbirea este înregistrată. Cu ce vă pot ajuta?`;
 }
 
-function greetingRu(): string {
+// Păstrat pentru agentul RUSESC: dacă i se va cere vreodată salut după oră,
+// textul e deja aici, cu brandul fonetic corect. Nu se folosește pe ruta asta —
+// aici preia apelul agentul românesc.
+export function greetingRu(): string {
   const hour = Number(
     new Intl.DateTimeFormat('en-GB', {
       timeZone: 'Europe/Chisinau',
@@ -39,34 +40,6 @@ function greetingRu(): string {
   const salut = hour >= 5 && hour < 11 ? 'Доброе утро' : hour >= 11 && hour < 18 ? 'Добрый день' : 'Добрый вечер';
   // Brandul FONETIC in rusa — TTS-ul citeste gresit literele latine (lectia TLX).
   return `${salut}! Вы позвонили в ТрансЛюкс. Разговор записывается. Чем могу помочь?`;
-}
-
-// Memoria limbii FARA tabela noua: transcriptul ultimului apel al numarului
-// (voice_calls) — ponderea chirilicelor in replicile clientului. Race 700ms:
-// la miss pierdem elegant spre RO (comportamentul de azi), nu tinem apelul.
-async function lastCallLocale(phone: string): Promise<'ru' | null> {
-  try {
-    const { data } = await getSupabase()
-      .from('voice_calls')
-      .select('transcript')
-      .eq('caller_phone', phone)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    const tr = (data?.transcript ?? []) as Array<{ role?: string; message?: string | null }>;
-    const userText = tr
-      .filter((t) => t?.role === 'user' && t.message)
-      .map((t) => t.message)
-      .join(' ');
-    const cyr = (userText.match(/[а-яёА-ЯЁ]/g) ?? []).length;
-    // Cedilele ş/ţ (U+015F, U+0163) sunt alte caractere decât ș/ț cu virgulă, iar
-    // ASR-ul le produce des: fără ele un vorbitor de română care scrie „şi"/„preţ"
-    // pierde litere latine, iar pragul de mai jos îl salută în rusă.
-    const lat = (userText.match(/[a-zA-ZăâîșțşţĂÂÎȘȚŞŢ]/g) ?? []).length;
-    return cyr + lat >= 10 && cyr > lat ? 'ru' : null;
-  } catch {
-    return null;
-  }
 }
 
 function authorized(req: Request): boolean {
@@ -97,28 +70,22 @@ export async function POST(req: Request) {
       }
     });
 
-    const body = await req.json().catch(() => ({}));
-    const phone = normalizePhone(String(body?.caller_id ?? '').trim());
-
-    let locale: 'ro' | 'ru' = 'ro';
-    if (phone) {
-      let raceTimer: ReturnType<typeof setTimeout> | undefined;
-      const hit = await Promise.race([
-        lastCallLocale(phone),
-        // 700ms ca la TLX: la o degradare DB fiecare apel ar plăti altfel 2s de
-        // eter mort înainte de salut; la miss pierdem elegant spre RO.
-        new Promise<null>((res) => { raceTimer = setTimeout(() => res(null), 700); }),
-      ]);
-      clearTimeout(raceTimer);
-      if (hit === 'ru') locale = 'ru';
-    }
-
+    // NU mai trimitem `language`. De când agenții RO și RU sunt separați, limba
+    // e proprietatea agentului, iar override-ul o rupea: pe apelul
+    // conv_4601m0t56hq5fyd8pvkgabze19y7 memoria a pornit agentul ROMÂNESC în
+    // rusă, ASR-ul a trecut pe rusă, vorbirea românească a ieșit în chirilice
+    // („салтари" = „Bună seara"), iar modelul, primind text ilizibil, a
+    // răspuns în POLONEZĂ și UCRAINEANĂ. Un vorbitor de rusă ajunge acum la
+    // agentul rusesc prin transfer_to_agent — cu o tură, nu cu o limbă ruptă.
+    //
+    // Rămâne DOAR salutul, în limba agentului care chiar preia apelul, ales
+    // după ora Chișinăului. first_message nu atinge ASR-ul, deci nu poate
+    // reproduce incidentul de mai sus.
     return NextResponse.json({
       type: 'conversation_initiation_client_data',
       conversation_config_override: {
         agent: {
-          language: locale,
-          first_message: locale === 'ru' ? greetingRu() : greetingRo(),
+          first_message: greetingRo(),
         },
       },
     });

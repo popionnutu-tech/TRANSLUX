@@ -109,7 +109,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const transferTo = body.stream !== false && hasTransferTool
     ? pendingLanguageTransfer(body.messages)
     : null;
-  if (transferTo) {
+  // DIRECȚIA E UNA SINGURĂ: doar agentul RO are un transfer (spre RU); la RU
+  // tool-ul e scos cu totul, tocmai ca predarea să nu se poată repeta. Deci
+  // emitem exclusiv ro->ru. Condiția pare redundantă lângă `hasTransferTool`
+  // — nu e: dacă cineva repune tool-ul la RU cu lista `transfers` goală,
+  // `agent_number: 0` ar arăta spre nimic, pe un apel viu.
+  if (transferTo === 'ru') {
     console.log(`[voice-llm] transfer_to_agent -> ${transferTo} din proxy (fără model)`);
     res.status(200);
     res.setHeader('content-type', 'text/event-stream; charset=utf-8');

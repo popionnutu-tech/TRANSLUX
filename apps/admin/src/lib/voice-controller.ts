@@ -210,6 +210,8 @@ export function parseSpokenPhones(text: string): string[] {
   return out;
 }
 
+type Incident = { conversation_id: string; kind: string; details: Record<string, unknown> };
+
 async function validateRecentCalls(): Promise<Incident[]> {
   const incidents: Incident[] = [];
   const list = await elGet(`/v1/convai/conversations?agent_id=${AGENT_ID}&page_size=10`);

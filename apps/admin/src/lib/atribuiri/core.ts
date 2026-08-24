@@ -165,7 +165,7 @@ export async function ensureDaysMaterialized(dates: string[]): Promise<void> {
   if ((duble ?? []).length === 500) throw new Error('materializare: lde_curse_duble a depășit limita de 500 — paginați citirea');
   const { data: das, error: dasErr } = await db
     .from('daily_assignments')
-    .select('assignment_date, crm_route_id, retur_route_id, vehicle_id, vehicle_id_retur, driver_id')
+    .select('assignment_date, crm_route_id, retur_route_id, vehicle_id, vehicle_id_retur, driver_id, driver_id_retur')
     .in('assignment_date', dates);
   if (dasErr) throw new Error(`materializare: ${dasErr.message}`);
   const daVeh = new Map<string, string | null>();
@@ -173,7 +173,7 @@ export async function ensureDaysMaterialized(dates: string[]): Promise<void> {
   for (const d of das ?? []) {
     const day = d.assignment_date as string;
     if (d.crm_route_id != null) { daVeh.set(`${day}:${d.crm_route_id}`, d.vehicle_id); daDrv.set(`${day}:${d.crm_route_id}`, d.driver_id); }
-    if (d.retur_route_id != null) { daVeh.set(`${day}:${d.retur_route_id}`, d.vehicle_id_retur); daDrv.set(`${day}:${d.retur_route_id}`, d.driver_id); }
+    if (d.retur_route_id != null) { daVeh.set(`${day}:${d.retur_route_id}`, d.vehicle_id_retur); daDrv.set(`${day}:${d.retur_route_id}`, d.driver_id_retur ?? d.driver_id); }
   }
 
   const rows: Array<Record<string, unknown>> = [];

@@ -4,8 +4,16 @@ import { getSupabase } from '@/lib/supabase';
 // конвертируем в name_ro по таблице localities (та же, что кормит русскую версию
 // сайта) — дальше весь поиск остаётся румынским, как и был.
 
+// Diacriticele se PLIAZĂ, nu se șterg: vechiul /[^а-яa-z]/ arunca ș/ă/î cu totul
+// («Brăcești»→«brceti») și strica potrivirea latină (apel 24.08: «Brăcești»≈Briceni).
 const norm = (s: string) =>
-  s.toLowerCase().replace(/ё/g, 'е').replace(/[^а-яa-z\s-]/gi, '').replace(/\s+/g, ' ').trim();
+  s.toLowerCase()
+    .replace(/ё/g, 'е')
+    .replace(/[șş]/g, 's').replace(/[țţ]/g, 't').replace(/[ăâ]/g, 'a').replace(/î/g, 'i')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^а-яa-z\s-]/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 
 // Толерантный ключ: без пробелов/дефисов, мягких знаков и конечных гласных, чтобы
 // разговорные и ASR-варианты сходились с БД («кор жоуце»/«Коржеуць» → «коржоуц»/«коржеуц»).
@@ -58,7 +66,7 @@ export interface LocalityResolution {
 }
 
 export async function localitiesToRo(inputs: (string | undefined)[]): Promise<LocalityResolution> {
-  if (!inputs.some((s) => s && /[а-яё]/i.test(s))) return { values: inputs, unknown: [] };
+  if (!inputs.some((s) => s && /\p{L}/u.test(s))) return { values: inputs, unknown: [] };
 
   const { data } = await getSupabase()
     .from('localities')
@@ -70,17 +78,22 @@ export async function localitiesToRo(inputs: (string | undefined)[]): Promise<Lo
 
   const unknown: string[] = [];
   const values = inputs.map((input) => {
-    if (!input || !/[а-яё]/i.test(input)) return input;
+    if (!input || !/\p{L}/u.test(input)) return input;
+    // De la 24.08 se rezolvă AMBELE alfabete: și numele latine stâlcite de ASR
+    // («Brăcești») trec prin aceleași trepte contra name_ro; nepotrivit = unknown,
+    // ca agentul să reîntrebe în loc de «0 curse» tăcut sau «nu e pe rută» inventat.
+    const isCyr = /[а-яё]/i.test(input);
+    const nameOf = (r: { name_ro: string; name_ru: string }) => (isCyr ? r.name_ru : r.name_ro);
     const n = norm(input);
     const k = key(input);
     if (RU_ALIASES[k]) return RU_ALIASES[k];
     if (learned[k]) return learned[k];
-    const exact = rows.find((r) => norm(r.name_ru) === n) || rows.find((r) => key(r.name_ru) === k);
+    const exact = rows.find((r) => norm(nameOf(r)) === n) || rows.find((r) => key(nameOf(r)) === k);
     if (exact) return exact.name_ro;
     // Префиксная стадия: только на осмысленном ключе и только при однозначном попадании —
     // короткий ключ («б») иначе схлопнул бы половину таблицы в первое село.
     if (k.length >= 4) {
-      const prefix = rows.filter((r) => key(r.name_ru).startsWith(k) || k.startsWith(key(r.name_ru)));
+      const prefix = rows.filter((r) => key(nameOf(r)).startsWith(k) || k.startsWith(key(nameOf(r))));
       if (prefix.length === 1) return prefix[0].name_ro;
     }
     // Fuzzy-стадия для ASR-ошибок («кор жоуце» → Corjeuți): допускаем 1 букву разницы
@@ -89,7 +102,7 @@ export async function localitiesToRo(inputs: (string | undefined)[]): Promise<Lo
     const maxD = k.length >= 9 ? 2 : k.length >= 5 ? 1 : 0;
     if (maxD > 0 && rows.length > 0) {
       const scored = rows
-        .map((r) => ({ r, d: lev(k, key(r.name_ru)) }))
+        .map((r) => ({ r, d: lev(k, key(nameOf(r))) }))
         .sort((a, b) => a.d - b.d);
       if (scored[0].d <= maxD && (scored.length === 1 || scored[0].d < scored[1].d)) {
         return scored[0].r.name_ro;

@@ -421,8 +421,11 @@ async function writeThroughDriverCrm(date: string, crmRouteId: number, driverId:
     .select('id');
   if (e1) throw new Error(`grafic șofer (tur): ${e1.message}`);
   if (tur?.length) return true;
+  // Ramura RETUR scrie driver_id_retur, NU titularul (audit 24.08: schimbarea
+  // șoferului pe retur în mini-app suprascria șoferul TURULUI) — simetric cu
+  // writeThroughVehicleCrm de mai sus.
   const { data: ret, error: e2 } = await db.from('daily_assignments')
-    .update({ driver_id: driverId, auto_copied: false })
+    .update({ driver_id_retur: driverId, auto_copied: false })
     .eq('assignment_date', date).eq('retur_route_id', crmRouteId)
     .select('id');
   if (e2) throw new Error(`grafic șofer (retur): ${e2.message}`);

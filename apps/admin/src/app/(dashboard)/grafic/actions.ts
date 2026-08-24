@@ -364,6 +364,7 @@ export async function copyAssignments(
     driver_id: s.driver_id,
     vehicle_id: s.vehicle_id,
     vehicle_id_retur: s.vehicle_id_retur,
+    driver_id_retur: s.driver_id_retur,
     retur_route_id: s.retur_route_id,
     auto_copied: false,
   }));

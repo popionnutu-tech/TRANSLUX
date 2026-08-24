@@ -69,6 +69,8 @@ function VerificaInner() {
           <div style={{ fontSize: 14, fontWeight: 600 }}>{r.direction} · {r.route_label}</div>
           <div style={{ fontSize: 13, color: C.muted, margin: '2px 0 10px' }}>
             {r.plate ? `atribuită: ${r.plate}` : 'fără mașină atribuită'}
+            {/* nota GPS poate numi mașina de retur — fără ea managerul ar corecta o mașină pe care n-o vede */}
+            {r.plate_retur ? ` · retur: ${r.plate_retur}` : ''}
             {r.verification_note ? ` · ${r.verification_note}` : ''}
           </div>
           <div style={{ display: 'flex', gap: 8 }}>

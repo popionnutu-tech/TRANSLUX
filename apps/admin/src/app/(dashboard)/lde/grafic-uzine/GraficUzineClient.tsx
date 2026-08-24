@@ -49,6 +49,10 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
   // returul: altă mașină DOAR pe întoarcere (s-a stricat rutiera pe rută). Bloc închis
   // până e nevoie — defecțiunea e rară, ziua normală nu plătește pentru ea.
   const [showRetur, setShowRetur] = useState(false);
+  // «atins» = Alexei a deschis/schimbat/eliminat returul în acest popup. Netins ⇒ nu se
+  // trimite deloc, ca o salvare pe mai multe zile (schimb de mașină pe tur) să nu întindă
+  // înlocuirea de ieri peste toată săptămâna și să nu șteargă returul altei zile bifate.
+  const [returAtins, setReturAtins] = useState(false);
   const [selReturVehicle, setSelReturVehicle] = useState<string | null>(null);
   const [selReturDriver, setSelReturDriver] = useState<string | null>(null);
   const [qVehRet, setQVehRet] = useState('');
@@ -116,6 +120,7 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
     setSelReturVehicle(r.vehicle_id_retur);
     setSelReturDriver(r.driver_id_retur);
     setShowRetur(!!r.vehicle_id_retur); // rândul care ARE deja retur îl arată fără să-l cauți
+    setReturAtins(false);
     setQVehRet(''); setQSofRet('');
     returReqRef.current = r.vehicle_id_retur;
   }
@@ -135,6 +140,7 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
 
   async function pickReturVehicle(vid: string | null) {
     if (vid === selReturVehicle) return; // click pe mașina deja aleasă = no-op, nu suprascrie șoferul
+    setReturAtins(true);
     returReqRef.current = vid;
     setSelReturVehicle(vid);
     if (vid == null) { setSelReturDriver(null); return; }
@@ -144,6 +150,7 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
   }
 
   function eliminaRetur() {
+    setReturAtins(true);
     returReqRef.current = null;
     setSelReturVehicle(null);
     setSelReturDriver(null);
@@ -158,9 +165,11 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
       const res = await salveazaMulti({
         factoryRouteId: popup.factory_route_id!, shiftNumber: popup.shift_number!, slot: popup.slot,
         dates: selDates, vehicleId: selVehicle, driverId: selDriver,
-        // returul NU intră în șablon: defecțiunea e un eveniment de zi, nu o regulă de săptămână
-        returVehicleId: selVehicle != null ? selReturVehicle : null,
-        returDriverId: selVehicle != null ? selReturDriver : null,
+        // returul NU intră în șablon: defecțiunea e un eveniment de zi, nu o regulă de săptămână.
+        // Netins = undefined ⇒ serverul nu atinge returul zilelor bifate (golirea mașinii de
+        // tur îl curăță oricum, acolo decide serverul).
+        returVehicleId: returAtins ? selReturVehicle : undefined,
+        returDriverId: returAtins ? selReturDriver : undefined,
         // defense in depth: șablonul se scrie doar cât timp popup-ul chiar are o mașină selectată
         siInSablon: selVehicle != null ? inSablon : false,
       });
@@ -428,7 +437,7 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
             {/* ↩ Retur cu altă mașină: s-a stricat rutiera pe rută. Rândul din grilă NU se
                 dublează (o tură = un rând) și returul nu intră niciodată în șablon. */}
             {!showRetur ? (
-              <button onClick={() => setShowRetur(true)} disabled={!selVehicle}
+              <button onClick={() => { setShowRetur(true); setReturAtins(true); }} disabled={!selVehicle}
                 style={{
                   display: 'block', width: '100%', padding: '9px 0', borderRadius: 10, fontSize: 13, marginBottom: 14,
                   border: '1px dashed #d4d4d8', background: '#fafafa', color: selVehicle ? '#3f3f46' : '#a1a1aa',
@@ -475,7 +484,7 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
                     <span style={{ padding: '7px 12px', borderRadius: 9, fontSize: 13, fontWeight: 600, background: '#7c3aed', color: '#fff' }}>{nameOf(selReturDriver)}</span>
                   )}
                   {sofListRet.map((sf) => (
-                    <button key={sf.id} onClick={() => { if (selReturVehicle) { setSelReturDriver(sf.id); setQSofRet(''); } }} disabled={!selReturVehicle}
+                    <button key={sf.id} onClick={() => { if (selReturVehicle) { setReturAtins(true); setSelReturDriver(sf.id); setQSofRet(''); } }} disabled={!selReturVehicle}
                       style={{
                         padding: '7px 12px', borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none',
                         background: sf.id === selReturDriver ? '#7c3aed' : '#f4f4f5',
@@ -484,7 +493,8 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
                   ))}
                 </div>
                 <div style={{ fontSize: 11, color: '#a1a1aa' }}>
-                  Șoferul se completează cu titularul mașinii de retur. Gol = returul îl face șoferul turului.
+                  Șoferul se completează cu titularul mașinii de retur; alege altul dacă a condus altcineva.
+                  Returul se aplică pe aceleași zile bifate mai jos.
                 </div>
               </div>
             )}

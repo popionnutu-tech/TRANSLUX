@@ -11,6 +11,10 @@ import { valideazaZileMulti } from '@/lib/atribuiri/saptamana';
 //  - NICIODATĂ INSERT în daily_assignments (cron-ul 20:00 face SKIP total dacă
 //    ziua-țintă are măcar un rând → un insert proactiv ar lăsa graficul gol);
 //  - tur: crm_route_id → vehicle_id; retur: retur_route_id → vehicle_id_retur;
+//    ATENȚIE, două coloane omonime cu sensuri DIFERITE: `daily_assignments.vehicle_id_retur`
+//    (migr. 014) = mașina de pe cursa de întoarcere din orar, planificare normală citită de
+//    get_grafic_report; `lde_atribuiri_zilnice.vehicle_id_retur` (migr. 274) = mașina de
+//    ÎNLOCUIRE pe retur la uzine, după o defecțiune. Nu se scriu una din alta.
 //  - la editare manuală: auto_copied=false (altfel graficul dispecerului ascunde rândul);
 //  - dacă rândurile zilei nu există încă (editare pe «mâine» înainte de 20:00),
 //    write-through-ul se amână — îl aplică syncWriteThrough() în cron-ul de dimineață.
@@ -494,7 +498,9 @@ export async function atribuie(rowId: string, vehicleId: string | null, userId: 
     .select('route_kind, shift_number, driver_id').eq('id', rowId).maybeSingle();
   const patch: Record<string, unknown> = { vehicle_id: vehicleId };
   if (r0?.route_kind === 'uzina') {
-    if (vehicleId == null) patch.driver_id = null;
+    // golirea cursei curăță și returul — aceeași regulă ca în atribuieMulti, altfel
+    // un retur orfan supraviețuiește turului golit (constatare performance-reviewer, 24.08)
+    if (vehicleId == null) { patch.driver_id = null; patch.vehicle_id_retur = null; patch.driver_id_retur = null; }
     else {
       const driverId = (await titularForVehicle(vehicleId, (r0.shift_number as number) ?? 1)) ?? r0.driver_id ?? null;
       if (driverId == null) throw new Error('Mașina nu are șofer titular — alege întâi șoferul');
@@ -685,8 +691,19 @@ export interface AtribuieMultiParams {
   vehicleId?: string | null;   // omis = nu atinge mașina (doar șofer); null = golește cursa (curăță și șoferul); string = setează
   driverId?: string | null;    // la vehicleId omis: obligatoriu; la vehicleId string: omis/null = auto (titularul mașinii, fallback șoferul zilei)
   returVehicleId?: string | null; // omis = nu atinge returul; null = elimină returul; string = altă mașină DOAR pe retur
-  returDriverId?: string | null;  // doar cu returVehicleId string: omis/null = titularul mașinii de retur (null = șoferul turului)
+  returDriverId?: string | null;  // doar cu returVehicleId string: omis/null = titularul mașinii de retur
   siInSablon?: boolean;        // scrie/șterge și lde_weekly_template pe weekday-urile zilelor (doar când vehicleId nu e omis)
+}
+
+/** Ce se întâmplă cu returul la o salvare. Regula stă separat ca să fie testabilă fără DB:
+ *  o cursă golită NU poate păstra un retur, iar un retur neatins nu se rescrie peste alte zile. */
+export function decideRetur(
+  vehicleId: string | null | undefined, returVehicleId: string | null | undefined,
+): { fel: 'curata' } | { fel: 'nu-atinge' } | { fel: 'seteaza'; vehicleId: string } {
+  if (vehicleId === null) return { fel: 'curata' };          // cursa golită nu poate avea retur
+  if (returVehicleId === undefined) return { fel: 'nu-atinge' };
+  if (returVehicleId === null) return { fel: 'curata' };
+  return { fel: 'seteaza', vehicleId: returVehicleId };
 }
 
 /** Schimbare pe una sau mai multe zile — nucleul grilei săptămânale (web) și al
@@ -707,17 +724,16 @@ export async function atribuieMulti(
 
   // Returul (defecțiune pe rută): calculat O SINGURĂ DATĂ — titularul nu depinde de zi.
   // Nu intră niciodată în șablon: defecțiunea e un eveniment de zi, nu o regulă de săptămână.
+  const decizie = decideRetur(p.vehicleId, p.returVehicleId);
   let patchRetur: Record<string, unknown> | null = null;
-  if (p.vehicleId === null) {
-    patchRetur = { vehicle_id_retur: null, driver_id_retur: null }; // cursa golită nu poate avea retur
-  } else if (p.returVehicleId !== undefined) {
-    patchRetur = p.returVehicleId === null
-      ? { vehicle_id_retur: null, driver_id_retur: null }
-      : {
-          vehicle_id_retur: p.returVehicleId,
-          // null = returul îl face șoferul turului (ca driver_id_retur la interurban)
-          driver_id_retur: p.returDriverId ?? await titularForVehicle(p.returVehicleId, p.shiftNumber),
-        };
+  if (decizie.fel === 'curata') {
+    patchRetur = { vehicle_id_retur: null, driver_id_retur: null };
+  } else if (decizie.fel === 'seteaza') {
+    patchRetur = {
+      vehicle_id_retur: decizie.vehicleId,
+      // null = returul îl face șoferul turului (ca driver_id_retur la interurban)
+      driver_id_retur: p.returDriverId ?? await titularForVehicle(decizie.vehicleId, p.shiftNumber),
+    };
   }
 
   await ensureDaysMaterialized(dates);

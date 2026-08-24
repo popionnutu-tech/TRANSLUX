@@ -19,6 +19,14 @@ export async function POST(req: NextRequest) {
   if (body.slot !== undefined && (!Number.isInteger(body.slot) || body.slot < 1)) {
     return NextResponse.json({ error: 'slot invalid' }, { status: 400 });
   }
+  // returul: uuid sau null — altfel FK-ul ar întoarce 500 în loc de 400
+  const uuidSauNull = (v: unknown) => v === null || (typeof v === 'string' && /^[0-9a-f-]{36}$/i.test(v));
+  if (body.returVehicleId !== undefined && !uuidSauNull(body.returVehicleId)) {
+    return NextResponse.json({ error: 'mașină de retur invalidă' }, { status: 400 });
+  }
+  if (body.returDriverId !== undefined && !uuidSauNull(body.returDriverId)) {
+    return NextResponse.json({ error: 'șofer de retur invalid' }, { status: 400 });
+  }
   // respingere ieftină înainte de materializare — limita reală (±31 zile) e verificată în core
   if (body.dates.length > 7) return NextResponse.json({ error: 'prea multe zile' }, { status: 400 });
 

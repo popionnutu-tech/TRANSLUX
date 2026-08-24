@@ -19,6 +19,8 @@ export interface AtribuireView {
   crm_route_id: number | null;
   vehicle_id: string | null;
   driver_id: string | null;
+  vehicle_id_retur: string | null;
+  driver_id_retur: string | null;
   status: string;
   verification_note: string | null;
   route_key: string;
@@ -26,6 +28,8 @@ export interface AtribuireView {
   route_label: string;
   plate: string | null;
   driver_name: string | null;
+  plate_retur: string | null;       // înlocuirea de pe retur (doar citire în mini app)
+  driver_name_retur: string | null;
   foaie: string | null;
   template_vehicle_id: string | null;
 }

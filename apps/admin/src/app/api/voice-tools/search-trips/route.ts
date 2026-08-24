@@ -4,6 +4,7 @@ import { searchTrips } from '@/lib/trips-search';
 import { localitiesToRo, unknownLocalityResponse } from '@/lib/voice-locality';
 import { phoneSpoken } from '@/lib/phone-spoken';
 import { timeSpoken } from '@/lib/time-spoken';
+import { driverFirstName } from '@/lib/driver-name';
 
 
 export async function POST(req: NextRequest) {
@@ -34,9 +35,8 @@ export async function POST(req: NextRequest) {
 
   // O singură cursă (recherea cu departure) => frază GATA de citit dosloven:
   // modelul nu mai asamblează nimic — numele și numărul nu se pot amesteca.
-  // Doar prenumele (Ion, 24.08): formatul din DB e «Nume Prenume» → ultimul cuvânt.
   const single = trips.length === 1 ? trips[0] : null;
-  const firstName = single?.driver ? single.driver.trim().split(/\s+/).pop() : null;
+  const firstName = driverFirstName(single?.driver);
   const singleLine = single && firstName && phoneSpoken(single.phone) ? {
     driver_line_ro: `Șoferul cursei de ${timeSpoken(single.time)?.ro ?? single.time} este ${firstName}. Numărul lui: ${phoneSpoken(single.phone)?.ro}.`,
     driver_line_ru: `Водитель рейса ${timeSpoken(single.time)?.ru ?? single.time} — ${firstName}. Его номер: ${phoneSpoken(single.phone)?.ru}.`,

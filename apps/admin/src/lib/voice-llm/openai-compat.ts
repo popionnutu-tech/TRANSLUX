@@ -218,9 +218,12 @@ const APOLOGY_RO = "Îmi cer scuze, am o mică problemă tehnică. Puteți repet
 
 export function apologyFor(messages: OpenAIMessage[]): string {
   try {
+    // Cedilele ş/ţ (U+015F, U+0163) NU sunt același caracter cu ș/ț cu virgulă —
+    // ASR-ul și sursele vechi le produc des. Fără ele o replică românească plină
+    // de „şi"/„preţ" își pierde literele latine și decizia alunecă spre rusă.
     const letters = (s: string) => ({
       cyr: (s.match(/[а-яё]/gi) ?? []).length,
-      lat: (s.match(/[a-zăâîșț]/gi) ?? []).length,
+      lat: (s.match(/[a-zăâîșțşţ]/gi) ?? []).length,
     });
     for (let i = messages.length - 1; i >= 0; i--) {
       const m = messages[i];

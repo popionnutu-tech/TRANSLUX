@@ -8,7 +8,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Anthropic from '@anthropic-ai/sdk';
 import {
   apologyFor,
-  looksLikeThinkingAloud,
+  couldBeThinkingAloud,
   OpenAIMessage,
   OpenAITool,
   SSE_DONE,
@@ -157,8 +157,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const flushLead = (force = false) => {
     if (leadDone) return;
-    const narration = looksLikeThinkingAloud(leadBuffer);
-    if (force || (!narration && leadBuffer.length >= 30) || leadBuffer.length >= 120 || /[.!?…][")]?(\s|$)/.test(leadBuffer)) {
+    // Plecăm în clipa în care primul cuvânt exclude toate alternativele
+    // regexului de narare — de obicei după 3-6 caractere, nu după 30 fixe.
+    // Restul cazurilor (chiar E narare, sau încă ambiguu) așteaptă prima
+    // propoziție, ca stripThinkingAloud să aibă ce tăia.
+    if (force || !couldBeThinkingAloud(leadBuffer) || leadBuffer.length >= 120 || /[.!?…][")]?(\s|$)/.test(leadBuffer)) {
       const cleaned = stripLeadingGreeting(stripMarkdownForTts(stripThinkingAloud(leadBuffer)));
       leadDone = true;
       if (cleaned) { send(sseChunk(completionId, MODEL, { role: 'assistant', content: cleaned })); sentAnything = true; }

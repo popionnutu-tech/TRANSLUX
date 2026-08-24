@@ -173,6 +173,34 @@ export function looksLikeThinkingAloud(text: string): boolean {
   return THINKING_ALOUD_RE.test(text);
 }
 
+// Alternativele regexului de mai sus, scrise ÎNTREGI. Nu doar primul cuvânt:
+// „Bine" singur nu e narare, „Bine," e — iar o replică normală care începe cu
+// „Bine ați venit" nu are voie să aștepte degeaba. Ține lista sincronizată cu
+// THINKING_ALOUD_RE: o alternativă adăugată acolo și uitată aici lasă narare
+// să treacă la TTS.
+const NARRATION_OPENERS = [
+  "bine,", "bine.", "deci,", "deci.", "ok,", "ok.", "okay,", "okay.",
+  "să văd", "să analizez", "să verific", "analizez",
+  "utilizatorul vrea", "utilizatorul cere", "utilizatorul întreabă",
+  "the user wants", "the user asks", "the user is asking", "let me ",
+  "i'll check", "i'll look", "i'll analyze",
+  "i will check", "i will look", "i will analyze",
+  "хорошо,", "хорошо.", "итак,", "итак.",
+];
+
+/**
+ * Poate începutul ăsta să fie încă narare de proces? Un „nu" e definitiv:
+ * niciun deltă viitor nu mai schimbă începutul deja scris. Înlocuiește pragul
+ * fix de 30 de caractere — acela ținea în tăcere și replicile care NU aveau cum
+ * să fie narare, iar fiecare caracter așteptat degeaba e tăcere în receptor.
+ * (Portat din TLX, 24.08: acolo primul chunk pleacă acum după 3-6 caractere.)
+ */
+export function couldBeThinkingAloud(lead: string): boolean {
+  const s = lead.trimStart().toLowerCase();
+  if (!s) return true;
+  return NARRATION_OPENERS.some((o) => o.startsWith(s)) || THINKING_ALOUD_RE.test(lead);
+}
+
 export function stripThinkingAloud(firstText: string): string {
   if (!THINKING_ALOUD_RE.test(firstText)) return firstText;
   const dot = firstText.search(/[.!?]\s/);
@@ -218,9 +246,12 @@ const APOLOGY_RO = "Îmi cer scuze, am o mică problemă tehnică. Puteți repet
 
 export function apologyFor(messages: OpenAIMessage[]): string {
   try {
+    // Cedilele ş/ţ (U+015F, U+0163) NU sunt același caracter cu ș/ț cu virgulă —
+    // ASR-ul și sursele vechi le produc des. Fără ele o replică românească plină
+    // de „şi"/„preţ" își pierde literele latine și decizia alunecă spre rusă.
     const letters = (s: string) => ({
       cyr: (s.match(/[а-яё]/gi) ?? []).length,
-      lat: (s.match(/[a-zăâîșț]/gi) ?? []).length,
+      lat: (s.match(/[a-zăâîșțşţ]/gi) ?? []).length,
     });
     for (let i = messages.length - 1; i >= 0; i--) {
       const m = messages[i];

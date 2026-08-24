@@ -59,7 +59,10 @@ async function lastCallLocale(phone: string): Promise<'ru' | null> {
       .map((t) => t.message)
       .join(' ');
     const cyr = (userText.match(/[а-яёА-ЯЁ]/g) ?? []).length;
-    const lat = (userText.match(/[a-zA-ZăâîșțĂÂÎȘȚ]/g) ?? []).length;
+    // Cedilele ş/ţ (U+015F, U+0163) sunt alte caractere decât ș/ț cu virgulă, iar
+    // ASR-ul le produce des: fără ele un vorbitor de română care scrie „şi"/„preţ"
+    // pierde litere latine, iar pragul de mai jos îl salută în rusă.
+    const lat = (userText.match(/[a-zA-ZăâîșțşţĂÂÎȘȚŞŢ]/g) ?? []).length;
     return cyr + lat >= 10 && cyr > lat ? 'ru' : null;
   } catch {
     return null;

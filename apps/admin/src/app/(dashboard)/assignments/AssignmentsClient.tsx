@@ -399,35 +399,15 @@ function AssignmentRowEditor({
             )}
           </div>
         )}
-        {showReturDriver ? (
-          <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ fontSize: 11, color: '#888' }}>Retur:</span>
-            <select
-              value={driverIdRetur}
-              onChange={(e) => setDriverIdRetur(e.target.value)}
-              style={{ minWidth: 140, fontSize: 12 }}
-            >
-              <option value="">— Același</option>
-              {drivers.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.full_name}
-                </option>
-              ))}
-            </select>
-            <button
-              onClick={() => { setShowReturDriver(false); setDriverIdRetur(''); }}
-              style={{ fontSize: 11, cursor: 'pointer', background: 'none', border: 'none', color: '#999' }}
-            >
-              ✕
-            </button>
+        {/* «+ Alt șofer retur» SCOS (Ion 24.08: «retur șoferi merge doar la uzine,
+            nu are nimic cu căsieria») — lanțul foilor/căsieriei se leagă pe
+            driver_id și un șofer doar-pe-retur ar orfaniza foaia (audit BL, FAIL).
+            Coloana driver_id_retur + rezolvarea în lib rămân: inofensive nefolosite,
+            iar site-ul/agentul vocal le-ar onora corect dacă apar vreodată date. */}
+        {driverIdRetur && (
+          <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+            Retur: {drivers.find((d) => d.id === driverIdRetur)?.full_name ?? driverIdRetur}
           </div>
-        ) : (
-          <button
-            onClick={() => setShowReturDriver(true)}
-            style={{ display: 'block', marginTop: 2, fontSize: 11, cursor: 'pointer', background: 'none', border: 'none', color: '#9B1B30', padding: 0 }}
-          >
-            + Alt șofer retur
-          </button>
         )}
       </td>
       <td>

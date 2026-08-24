@@ -30,15 +30,38 @@ const FALLBACK_KEYWORDS = [
 ];
 
 // Маркеры критичных секций промпта. Отсутствие = prompt_drift (журнал);
-// секция ORELE лечится добавлением заново (идемпотентно по маркеру, в КОНЕЦ —
-// префикс промпта не трогаем, кэш Anthropic не инвалидируем).
-const PROMPT_MARKERS = ['DOSLOVEN DIN TOOL', 'UNIVERSUL localităților', 'Doriți numărul lui?', 'A DOUA OARĂ LA RÂND'];
+// секции ORELE и ZIUA лечатся до-записью в конец (идемпотентно по маркеру).
+// Позиция вставки кэш НЕ спасает: точка кэша одна, на весь system.
+// Markerele TREBUIE să fie unice: un marker care apare și în alt bloc face detectorul
+// orb la ștergerea blocului propriu (ORELE a fost mascat de titlul blocului ZIUA).
+const PROMPT_MARKERS = ['ORELE — DOSLOVEN', 'UNIVERSUL localităților', 'Doriți numărul lui?', 'A DOUA OARĂ LA RÂND', 'ZIUA — DOSLOVEN'];
 const ORELE_BLOCK = `
 
 ORELE — DOSLOVEN DIN TOOL:
-- Ora plecării/sosirii o rostești DOAR din câmpul departure_spoken_ro (română) / departure_spoken_ru (rusă) al rezultatului tool-ului — cuvânt cu cuvânt. NU converti niciodată singur HH:MM în cuvinte.
-- Compararea cu ora cerută de client o faci pe câmpul «departure» (HH:MM). NICIODATĂ nu spui «nu am cursă la ora X» fără să fi scanat toată lista.
+- Ora plecării/sosirii o rostești DOAR din câmpul departure_spoken_ro (română) / departure_spoken_ru (rusă) al rezultatului tool-ului — cuvânt cu cuvânt. La fel arrival_spoken_*. NU converti niciodată singur HH:MM în cuvinte.
+- CEA MAI APROPIATĂ / PRIMA cursă = PRIMUL element din câmpul departures_ro (română) / departures_ru (rusă) — ultimul element = ultima. Enumerarea curselor o citești DIN ACEST câmp, în ordinea dată. NU alege «cea mai apropiată» scanând singur lista.
+- Compararea cu ora cerută de client o faci pe câmpul «departure» (HH:MM), rostirea — pe «departure_spoken_*». NICIODATĂ nu spui «nu am cursă la ora X» fără să fi scanat toată lista.
+- Numerele DOAR cu cuvinte românești sau rusești corecte. Forme ca «ventitre» nu există.
+- Aceeași cursă = aceeași oră în TOATE replicile. Nu «reciti» lista din memorie — dacă nu mai știi, cheamă tool-ul din nou.
 - Câmpul _spoken lipsește? Spui ora cifra cu cifra din «departure», fără conversii creative.`;
+
+// Ziua. Apel real 24.08 (Bălți→Ocnița): modelul a primit cursele de AZI, le-a anunțat
+// «mâine, 24 august», iar la «сегодня» a răspuns «на сегодня рейсов нет». Al doilea apel,
+// 17:30: la «prima cursă de dimineață devreme» a dat cursa de 18:10 — lista de azi e
+// tăiată de server la ora curentă, iar modelul nu avea cum să știe.
+// Ceasul NU intră în prompt: ar fi singurul element volatil dintr-un system cache-uit
+// integral (~6k tokeni) și l-ar rescrie la fiecare minut de convorbire. În schimb
+// modelul trimite cuvântul rostit, iar serverul îl transformă în dată.
+const DATA_BLOCK = `
+
+ZIUA — DOSLOVEN DIN TOOL:
+- Tu NU știi ce zi e azi și nu ai voie să ghicești. Ziua o hotărăște serverul.
+- În parametrul «date» al lui search_trips trimiți CUVÂNTUL rostit de client: «azi», «mâine», «poimâine» sau ziua săptămânii («sâmbătă», «в субботу»). O dată calendaristică exactă o trimiți ca zi.lună — «30.08». Serverul le rezolvă pe toate. NU compune niciodată o dată cu un an — anul îl pune serverul.
+- Clientul nu a spus nicio zi? Lași «date» gol: serverul ia ziua de azi.
+- Ziua curselor o rostești DOAR din câmpul date_label_ro (română) / date_label_ru (rusă) al rezultatului — cuvânt cu cuvânt. Câmpul lipsește? Atunci nu numești ziua deloc.
+- is_today true = sunt EXACT cursele de azi. NICIODATĂ nu spui «pe azi nu sunt curse» când tool-ul tocmai a întors curse.
+- only_remaining_today true = cursele mai devreme ale zilei au plecat deja. Atunci prima din listă e «cea mai apropiată de azi», NU «prima cursă a zilei» — nu o numi așa.
+- Clientul cere o oră care azi a trecut deja (cere «dimineața devreme», iar cursele rămase sunt toate de seară)? Aici regula «cea mai apropiată la sau după ora cerută» NU se aplică: o cursă de seară nu e răspuns la «dimineața devreme». Ceri search_trips cu date=«mâine» și dai orele de atunci.`;
 
 // Descrierea tool-ului language_detection (sesiunea translux-a9, 24.08): filtrul
 // anti-comutare-falsă STĂ în schema tool-ului, exact la punctul de decizie al
@@ -133,11 +156,22 @@ async function checkAndHealConfig(cfg: any): Promise<Drift[]> {
   }
   const prompt: string = cc.agent?.prompt?.prompt ?? '';
   const missing = PROMPT_MARKERS.filter((m) => !prompt.includes(m));
-  if (missing.includes('DOSLOVEN DIN TOOL')) {
-    ccPatch.agent = { prompt: { prompt: prompt + ORELE_BLOCK } };
-    drifts.push({ field: 'prompt.ORELE', healed: true });
+  // Blocurile auto-vindecabile se adaugă în COADĂ, idempotent după marker. Poziția NU
+  // salvează cache-ul (punctul de cache e unul singur, pe tot system-ul) — de aceea
+  // blocurile trebuie să rămână statice, fără variabile care se schimbă în timpul apelului.
+  const HEALABLE = [
+    { marker: 'ORELE — DOSLOVEN', block: ORELE_BLOCK, field: 'prompt.ORELE' },
+    { marker: 'ZIUA — DOSLOVEN', block: DATA_BLOCK, field: 'prompt.ZIUA' },
+  ];
+  let healedPrompt = prompt;
+  for (const h of HEALABLE) {
+    if (missing.includes(h.marker)) {
+      healedPrompt += h.block;
+      drifts.push({ field: h.field, healed: true });
+    }
   }
-  for (const m of missing.filter((x) => x !== 'DOSLOVEN DIN TOOL')) {
+  if (healedPrompt !== prompt) ccPatch.agent = { prompt: { prompt: healedPrompt } };
+  for (const m of missing.filter((x) => !HEALABLE.some((h) => h.marker === x))) {
     drifts.push({ field: `prompt.${m}`, healed: false });
   }
   // cascade_timeout 12s: scuza de avarie (FIRST_CHUNK_MS=6500 în proxy) trebuie să

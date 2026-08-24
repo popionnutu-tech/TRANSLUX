@@ -25,6 +25,7 @@ export interface TripResult {
   price: number;
   originalPrice: number | null; // non-null when an offer applies (show crossed out)
   isAwaitingDriver?: boolean; // true when departure is >7 days out and no driver assigned yet
+  isDeparted?: boolean; // true doar la căutarea pe AZI: cursa a plecat deja (ora Chișinăului)
 }
 
 export interface ActiveOffer {
@@ -255,6 +256,10 @@ export async function searchTrips(
   fromRo: string,
   toRo: string,
   date: string,
+  // keepDeparted: cursele de azi deja plecate rămân în listă, marcate isDeparted.
+  // Agentul vocal are nevoie de ele ca SEMNAL (lista de azi e trunchiată), nu ca ofertă
+  // — altfel anunță «prima cursă a zilei» o cursă de seară (apel 24.08, 17:30, Bălți).
+  opts?: { keepDeparted?: boolean },
 ): Promise<TripResult[]> {
   const supabase = getSupabase();
 
@@ -521,10 +526,11 @@ export async function searchTrips(
   if (date === today) {
     const now = new Date().toLocaleTimeString('en-GB', { timeZone: 'Europe/Chisinau', hour: '2-digit', minute: '2-digit', hour12: false });
     const nowMin = parseInt(now.split(':')[0]) * 60 + parseInt(now.split(':')[1]);
-    return results.filter(r => {
+    for (const r of results) {
       const [h, m] = r.time.split(':').map(Number);
-      return h * 60 + m > nowMin;
-    });
+      r.isDeparted = h * 60 + m <= nowMin;
+    }
+    if (!opts?.keepDeparted) return results.filter((r) => !r.isDeparted);
   }
 
   return results;

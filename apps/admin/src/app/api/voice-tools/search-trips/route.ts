@@ -4,6 +4,8 @@ import { searchTrips } from '@/lib/trips-search';
 import { localitiesToRo, unknownLocalityResponse } from '@/lib/voice-locality';
 import { phoneSpoken } from '@/lib/phone-spoken';
 import { timeSpoken } from '@/lib/time-spoken';
+import { dateSpoken, resolveVoiceDate } from '@/lib/date-spoken';
+import { chisinauTodayIso } from '@/lib/chisinau-time';
 import { driverFirstName } from '@/lib/driver-name';
 
 
@@ -18,13 +20,32 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing "from" or "to" parameter' }, { status: 400 });
   }
 
-  const tripDate = date || new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
+  const today = chisinauTodayIso();
+  // Ziua o hotărăște serverul din cuvântul rostit («mâine», «в субботу», «30.08»):
+  // modelul nu știe ce zi e azi și un an inventat de el ar da 0 curse tăcut.
+  const tripDate = resolveVoiceDate(date, today);
+  // Ziua GATA de rostit: modelul a anunțat cursele de AZI drept «mâine» și apoi
+  // le-a negat la «сегодня» (apel 24.08, Bălți→Ocnița).
+  const label = dateSpoken(tripDate, today);
+  // Fără etichetă nu trimitem câmpul deloc — promptul cere citire dosloven, iar o
+  // dată brută citită dosloven e exact ce evită schema asta.
+  const dateLabels = {
+    is_today: tripDate === today,
+    ...(label ? { date_label_ro: label.ro, date_label_ru: label.ru } : {}),
+  };
+  // Completat după căutare (unknown_locality iese mai devreme, fără listă).
+  let truncation = { only_remaining_today: false };
 
   const { values: [fromRo, toRo], unknown } = await localitiesToRo([from, to]);
   if (unknown.length > 0) {
-    return NextResponse.json({ count: 0, date: tripDate, trips: [], ...unknownLocalityResponse(unknown) });
+    return NextResponse.json({ count: 0, date: tripDate, ...dateLabels, ...truncation, trips: [], ...unknownLocalityResponse(unknown) });
   }
-  let trips = await searchTrips(fromRo as string, toRo as string, tripDate);
+  // Lista de AZI e trunchiată de server (cursele plecate dispar). Le cerem marcate,
+  // ca să putem SPUNE modelului că ziua a avut și curse mai devreme — altfel el
+  // anunță drept «prima cursă a zilei» prima rămasă (apel 24.08, 17:30: «prima» = 18:10).
+  const allTrips = await searchTrips(fromRo as string, toRo as string, tripDate, { keepDeparted: true });
+  const departedCount = allTrips.filter((t) => t.isDeparted).length;
+  let trips = allTrips.filter((t) => !t.isDeparted);
   // Один рейс по точному времени: агент ОБЯЗАН перезапросить так перед выдачей
   // водителя/номера — модель путала строки в длинном списке (24.08: «7:30» получил
   // водителя рейса 05:25). Одна строка = нечего перепутать.
@@ -48,6 +69,8 @@ export async function POST(req: NextRequest) {
 
   // Enumerarea orelor GATA de citit, în ordine: «cea mai apropiată» = PRIMUL element.
   // Apel 24.08: modelul anunța «ближайший 07:10» deși prima cursă era 04:00.
+  truncation = { only_remaining_today: departedCount > 0 };
+
   const departures = {
     departures_ro: trips.map((t) => timeSpoken(t.time)?.ro ?? t.time).join(', '),
     departures_ru: trips.map((t) => timeSpoken(t.time)?.ru ?? t.time).join(', '),
@@ -56,6 +79,8 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     count: trips.length,
     date: tripDate,
+    ...dateLabels,
+    ...truncation,
     ...departures,
     ...singleLine,
     trips: trips.map(t => ({

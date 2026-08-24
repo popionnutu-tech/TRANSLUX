@@ -12,9 +12,14 @@ export async function POST(req: NextRequest) {
 
   let body: any = {};
   try { body = await req.json(); } catch { /* body opțional */ }
+  // Numărul apelantului vine din dynamic_variable system__caller_id al schemei tool-ului,
+  // NU din ce scrie modelul: măsurat pe prod 24.08 — toate cele 3 cereri din
+  // voice_callback_requests aveau caller_phone = null, deci nimeni nu putea suna înapoi.
+  // `stated_phone` = numărul dictat de client, dacă vrea să fie sunat pe altul (are prioritate).
+  // `phone` rămâne acceptat pentru compatibilitate cu versiunea veche a schemei.
   const input = {
     conversation_id: body.conversation_id ?? null,
-    caller_phone: body.phone ?? null,
+    caller_phone: body.stated_phone || body.caller_phone || body.phone || null,
     reason: body.reason ?? null,
   };
 

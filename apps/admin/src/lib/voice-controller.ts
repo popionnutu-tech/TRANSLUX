@@ -18,15 +18,17 @@ const CUSTOM_LLM_URL = 'https://translux-voice-llm.vercel.app/api';
 const MAX_CALLS_PER_RUN = 8;
 
 // Фолбэк эталона словаря (решение Иона 23.08); боевой эталон — в voice_agent_canon.
+// Русские формы выверены по районным реестрам (миграция 275): подсказывать
+// распознавателю «Единцы»/«Калининск» — значит учить его словам, отменённым в 1991-м.
 const FALLBACK_KEYWORDS = [
   'TRANSLUX',
-  'Chișinău', 'Кишинёв', 'Bălți', 'Бельцы', 'Orhei', 'Орхей', 'Sîngerei', 'Сынжерея',
-  'Rîșcani', 'Рышканы', 'Briceni', 'Бричаны', 'Lipcani', 'Липканы', 'Edineț', 'Единцы',
-  'Cupcini', 'Калининск', 'Ocnița', 'Окница', 'Otaci', 'Отачь', 'Criva', 'Крива',
-  'Peresecina', 'Пересечина', 'Corjeuți', 'Коржеуць', 'Măgdăcești', 'Магдачешты',
-  'Brătușeni', 'Братушаны', 'Larga', 'Ларга', 'Grimăncăuți', 'Гримэнкэуць',
-  'Caracușenii Vechi', 'Старые Каракушаны', 'Tîrnova', 'Тырнова', 'Tabani', 'Табаны',
-  'Vălcineț', 'Вэлчинец', 'Cotiujeni', 'Котюжаны', 'Tețcani', 'Тецканы', 'Drepcăuți',
+  'Chișinău', 'Кишинёв', 'Bălți', 'Бельцы', 'Orhei', 'Орхей', 'Sîngerei', 'Сынжерей',
+  'Rîșcani', 'Рышканы', 'Briceni', 'Бричаны', 'Lipcani', 'Липканы', 'Edineț', 'Единец',
+  'Cupcini', 'Купчинь', 'Ocnița', 'Окница', 'Otaci', 'Отачь', 'Criva', 'Крива',
+  'Peresecina', 'Пересечино', 'Corjeuți', 'Коржеуцы', 'Măgdăcești', 'Магдачешты',
+  'Brătușeni', 'Братушаны', 'Larga', 'Ларга', 'Grimăncăuți', 'Гриманкауцы',
+  'Caracușenii Vechi', 'Старые Каракушаны', 'Tîrnova', 'Тырново', 'Tabani', 'Табаны',
+  'Vălcineț', 'Волчинец', 'Cotiujeni', 'Котюжены', 'Tețcani', 'Тецканы', 'Drepcăuți',
 ];
 
 // Маркеры критичных секций промпта. Отсутствие = prompt_drift (журнал);

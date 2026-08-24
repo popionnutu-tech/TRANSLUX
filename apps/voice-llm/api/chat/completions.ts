@@ -19,6 +19,7 @@ import {
   toAnthropic,
   toAnthropicTools,
 } from '../../lib/openai-compat';
+import { pendingLanguageTransfer } from '../../lib/language';
 
 const MODEL = 'claude-haiku-4-5';
 const MAX_TOKENS = 350;
@@ -89,6 +90,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // De verificat în logs după un apel cu schimbare de limbă; apoi linia se poate scoate.
   const histTools = body.messages.flatMap((m) => m.tool_calls?.map((t) => t.function.name) ?? []);
   if (histTools.length) console.log('[voice-llm] history tool_calls:', histTools.join(','));
+
+  // SCURTĂTURA DE PREDARE ÎNTRE AGENȚI. Tura în care se decide limba e mută
+  // (agentul nu vorbește înainte de predare), iar modelul consumă pentru ea
+  // 2,2-2,4s doar ca să numere litere — măsurat pe apeluri reale TLX. Proxy-ul
+  // răspunde la fel în ~2 ms, cu exact același tool call.
+  //
+  // `agent_number: 0` — indexul din lista `transfers` a agentului, NU un
+  // agent_id (verificat pe apeluri reale: params_as_json e {"agent_number": 0}).
+  // Fiecare dintre cei doi agenți are exact o singură intrare, spre celălalt,
+  // deci 0 e corect în ambele sensuri. DACĂ cineva adaugă un al doilea transfer
+  // la vreun agent, scurtătura asta trebuie să afle indexul, nu să ghicească.
+  //
+  // Prudența trăiește în lib/language.ts: la orice îndoială întoarce null și
+  // tura pleacă la model, ca înainte. Cererea explicită („давайте по-русски")
+  // rămâne tot la model — ea cere sens, nu litere.
+  const hasTransferTool = (body.tools ?? []).some((t) => t.function?.name === 'transfer_to_agent');
+  const transferTo = body.stream !== false && hasTransferTool
+    ? pendingLanguageTransfer(body.messages)
+    : null;
+  if (transferTo) {
+    console.log(`[voice-llm] transfer_to_agent -> ${transferTo} din proxy (fără model)`);
+    res.status(200);
+    res.setHeader('content-type', 'text/event-stream; charset=utf-8');
+    res.setHeader('cache-control', 'no-cache, no-transform');
+    res.setHeader('connection', 'keep-alive');
+    res.write(sseChunk(completionId, MODEL, {
+      tool_calls: [{
+        index: 0, id: `call_${crypto.randomUUID()}`, type: 'function',
+        function: { name: 'transfer_to_agent', arguments: JSON.stringify({ agent_number: 0 }) },
+      }],
+    }));
+    res.write(sseChunk(completionId, MODEL, {}, 'tool_calls'));
+    res.write(SSE_DONE);
+    return res.end();
+  }
 
   const anthropic = new Anthropic({ maxRetries: 1 });
   const abort = new AbortController();

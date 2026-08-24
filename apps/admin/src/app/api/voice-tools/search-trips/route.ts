@@ -36,8 +36,8 @@ export async function POST(req: NextRequest) {
   // modelul nu mai asamblează nimic — numele și numărul nu se pot amesteca.
   // Doar prenumele (Ion, 24.08): formatul din DB e «Nume Prenume» → ultimul cuvânt.
   const single = trips.length === 1 ? trips[0] : null;
-  const firstName = single ? single.driver.trim().split(/\s+/).pop() : null;
-  const singleLine = single && phoneSpoken(single.phone) ? {
+  const firstName = single?.driver ? single.driver.trim().split(/\s+/).pop() : null;
+  const singleLine = single && firstName && phoneSpoken(single.phone) ? {
     driver_line_ro: `Șoferul cursei de ${timeSpoken(single.time)?.ro ?? single.time} este ${firstName}. Numărul lui: ${phoneSpoken(single.phone)?.ro}.`,
     driver_line_ru: `Водитель рейса ${timeSpoken(single.time)?.ru ?? single.time} — ${firstName}. Его номер: ${phoneSpoken(single.phone)?.ru}.`,
   } : {};

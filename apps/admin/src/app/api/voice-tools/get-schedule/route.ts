@@ -15,9 +15,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Provide "from" or "to" (or both) to filter schedule' }, { status: 400 });
   }
 
-  const { values: [from, to], unknown } = await localitiesToRo([fromRaw, toRaw]);
+  const { values: [from, to], unknown, suggestions } = await localitiesToRo([fromRaw, toRaw]);
   if (unknown.length > 0) {
-    return NextResponse.json({ schedules: [], ...unknownLocalityResponse(unknown) });
+    return NextResponse.json({ schedules: [], ...unknownLocalityResponse(unknown, suggestions) });
   }
 
   const supabase = getSupabase();

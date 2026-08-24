@@ -43,9 +43,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing "from" or "to" parameter' }, { status: 400 });
   }
 
-  const { values, unknown } = await localitiesToRo([fromRaw, toRaw]);
+  const { values, unknown, suggestions } = await localitiesToRo([fromRaw, toRaw]);
   if (unknown.length > 0) {
-    return NextResponse.json(unknownLocalityResponse(unknown));
+    return NextResponse.json(unknownLocalityResponse(unknown, suggestions));
   }
   const from = values[0] as string;
   const to = values[1] as string;

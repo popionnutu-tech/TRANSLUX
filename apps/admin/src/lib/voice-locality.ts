@@ -20,16 +20,22 @@ const norm = (s: string) =>
 // key/lev экспортированы: learner-ом проверяется похожесть кандидатов на алиасы.
 export const key = (s: string) => norm(s).replace(/[\s-]/g, '').replace(/[ьъ]/g, '').replace(/[ыиеаяоу]+$/, '');
 
-// Расстояние Левенштейна; быстрый выход «≥3» при разнице длин >2 (реальное расстояние
-// не меньше разницы длин) — хватает для ASR-ошибок в одной-двух буквах.
-export function lev(a: string, b: string): number {
-  if (Math.abs(a.length - b.length) > 2) return 3;
+/** Levenshtein complet. O singură formulă în tot fișierul. */
+export function levFull(a: string, b: string): number {
   const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...new Array<number>(b.length).fill(0)]);
   for (let j = 0; j <= b.length; j++) d[0][j] = j;
   for (let i = 1; i <= a.length; i++)
     for (let j = 1; j <= b.length; j++)
       d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
   return d[a.length][b.length];
+}
+
+// Расстояние Левенштейна; быстрый выход «≥3» при разнице длин >2 (реальное расстояние
+// не меньше разницы длин) — хватает для ASR-ошибок в одной-двух буквах. Тело — levFull:
+// формула одна, иначе правка в одной копии не доедет до другой.
+export function lev(a: string, b: string): number {
+  if (Math.abs(a.length - b.length) > 2) return 3;
+  return levFull(a, b);
 }
 
 // Разговорные русские имена, которых нет в localities.name_ru (ключи — через key()).
@@ -58,15 +64,65 @@ async function dbAliases(): Promise<Record<string, string>> {
   return map;
 }
 
+// Praguri pentru SUGESTII — nu pentru potrivire automată. Alegerea automată rămâne
+// strictă dinadins: la un prag mai larg «Lipcani» și «Rîșcani» ajung la distanță 2
+// unul de altul (măsurat pe toate cele 180 de forme), iar omul ar pleca în alt oraș.
+// Aici doar ÎNTREBĂM, deci ne putem permite mai mult.
+//
+// Pragul e ȘI absolut, ȘI relativ. Doar absolut, «Cahul» (5 litere) primea drept
+// candidat «Ratuș», iar «Комрат» primea «Корпачь» — la nume scurte trei litere
+// diferență e deja alt cuvânt. Raportul păstrează toate cazurile reale din apeluri
+// (Brătieni, Brăcești, Târnăvă, Отаки) și taie zgomotul.
+//
+// 0.45 nu e rotunjire: cazul care a pornit toată treaba, «Brătieni» → Briceni, cere
+// exact 0.375. Mai strâns, l-am pierde. Rămân două nimereli slabe pe toate cele 90 de
+// nume — «Ungheni»→Dîngeni și «Киев»→Chișinău — acceptate conștient: agentul ÎNTREABĂ,
+// nu decide, iar dacă omul spune «nu», a doua oară primește răspunsul sincer.
+const SUGGEST_MAX_DIST = 3;
+const SUGGEST_MAX_RATIO = 0.45;
+const SUGGEST_LIMIT = 2;
+// Cel mai lung nume real are 25 de caractere în cheie. Peste 40 nu mai poate fi o
+// localitate rostită, iar levFull plătește liniar fiecare caracter: 50 000 = 438 ms
+// măsurate, adică tot bugetul. Ieșirea rapidă din `lev` era și limita de intrare.
+const SUGGEST_MAX_KEY = 40;
+
+export type LocalityRow = { name_ro: string; name_ru: string };
+/** Candidat propus clientului, în AMBELE alfabete — vezi comentariul de mai jos. */
+export interface Suggestion { ro: string; ru: string }
+
+/**
+ * Cele mai apropiate localități de ce s-a auzit. Gol = nimic destul de aproape.
+ *
+ * Întoarce ambele forme dinadins: ASR-ul scrie des româna cu chirilice, deci
+ * alfabetul intrării NU spune în ce limbă e convorbirea. Dând doar forma auzită,
+ * agentul ar fi pus să rostească «Крива» în mijlocul unei fraze românești.
+ */
+export function closestNames(heard: string, rows: LocalityRow[], alphabet: 'ro' | 'ru'): Suggestion[] {
+  const k = key(heard);
+  if (!k || k.length > SUGGEST_MAX_KEY) return [];
+  return rows
+    .map((r) => {
+      const candidat = key(alphabet === 'ru' ? r.name_ru : r.name_ro);
+      const d = levFull(k, candidat);
+      return { r, d, raport: d / Math.max(k.length, candidat.length, 1) };
+    })
+    .filter((c) => c.d <= SUGGEST_MAX_DIST && c.raport <= SUGGEST_MAX_RATIO)
+    .sort((a, b) => a.d - b.d || a.r.name_ro.localeCompare(b.r.name_ro))
+    .slice(0, SUGGEST_LIMIT)
+    .map((c) => ({ ro: c.r.name_ro, ru: c.r.name_ru }));
+}
+
 export interface LocalityResolution {
   /** Входы в порядке подачи: name_ro для распознанной кириллицы, иначе вход как есть. */
   values: (string | undefined)[];
   /** Кириллические входы, которые не удалось сопоставить, — агент должен переспросить. */
   unknown: string[];
+  /** Для каждого непонятого входа — ближайшие названия, чтобы агент спросил, а не гадал. */
+  suggestions: Record<string, Suggestion[]>;
 }
 
 export async function localitiesToRo(inputs: (string | undefined)[]): Promise<LocalityResolution> {
-  if (!inputs.some((s) => s && /\p{L}/u.test(s))) return { values: inputs, unknown: [] };
+  if (!inputs.some((s) => s && /\p{L}/u.test(s))) return { values: inputs, unknown: [], suggestions: {} };
 
   const { data } = await getSupabase()
     .from('localities')
@@ -77,6 +133,7 @@ export async function localitiesToRo(inputs: (string | undefined)[]): Promise<Lo
   const learned = await dbAliases();
 
   const unknown: string[] = [];
+  const suggestions: Record<string, Suggestion[]> = {};
   const values = inputs.map((input) => {
     if (!input || !/\p{L}/u.test(input)) return input;
     // De la 24.08 se rezolvă AMBELE alfabete: și numele latine stâlcite de ASR
@@ -108,18 +165,37 @@ export async function localitiesToRo(inputs: (string | undefined)[]): Promise<Lo
         return scored[0].r.name_ro;
       }
     }
-    unknown.push(input);
+    if (!unknown.includes(input)) unknown.push(input); // ambele capete pot fi același nume
+    // Nu ghicim, dar nici nu lăsăm agentul cu mâinile goale: îi dăm cele mai apropiate
+    // nume ca să ÎNTREBE clientul care din ele. Apel 24.08: transcrierea a scris
+    // «Brătieni», care stă între Brătușeni și Briceni — o alegere automată l-ar fi
+    // putut trimite în alt sat.
+    suggestions[input] = closestNames(input, rows, isCyr ? 'ru' : 'ro');
     return input;
   });
 
-  return { values, unknown };
+  return { values, unknown, suggestions };
 }
 
-/** Ответ тула, когда кириллическое название не распознано: агент должен переспросить. */
-export function unknownLocalityResponse(unknown: string[]) {
+/**
+ * Ответ тула, когда название не распознано.
+ *
+ * ВАЖНО про «нет на наших маршрутах». Таблица localities — это ТОЛЬКО сеть TRANSLUX,
+ * 90 пунктов, а не справочник Молдовы. Клиент, спросивший Кагул или Комрат, попадает
+ * сюда законно. Глухой запрет говорить правду загонял бы такой звонок в круг:
+ * «повторите» → снова непонятно → «повторите». Поэтому запрет действует только на
+ * ПЕРВЫЙ раз и только когда есть что предложить; выход из круга назван явно.
+ */
+export function unknownLocalityResponse(unknown: string[], suggestions: Record<string, Suggestion[]> = {}) {
+  const apropiate = unknown
+    .filter((u) => suggestions[u]?.length)
+    .map((u) => `«${u}» seamănă cu ${suggestions[u].map((c) => c.ro).join(' sau ')}`);
   return {
     found: false,
     unknown_locality: unknown,
-    message: `Nu am recunoscut localitatea: ${unknown.join(', ')}. Roagă clientul să repete numele sau spune-l în română.`,
+    did_you_mean: suggestions,
+    message: apropiate.length
+      ? `Nu am recunoscut: ${unknown.join(', ')}. ${apropiate.join('; ')}. ÎNTREABĂ clientul care dintre ele — NU alege singur. Numele le rostești în limba conversației (fiecare candidat vine cu forma română și cea rusă).`
+      : `Nu am recunoscut localitatea: ${unknown.join(', ')} și nu am nimic apropiat de propus. Roagă clientul să repete numele. Dacă ai primit deja unknown_locality pe același nume, spune-i sincer că nu e pe rutele noastre și oferă request_callback — nu întreba a treia oară.`,
   };
 }

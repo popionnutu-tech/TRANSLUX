@@ -6,7 +6,7 @@ import { phoneSpoken } from '@/lib/phone-spoken';
 import { timeSpoken } from '@/lib/time-spoken';
 import { dateSpoken, resolveVoiceDate } from '@/lib/date-spoken';
 import { chisinauTodayIso } from '@/lib/chisinau-time';
-import { driverFirstName } from '@/lib/driver-name';
+import { driverFirstName, driverFirstNameRu } from '@/lib/driver-name';
 
 
 export async function POST(req: NextRequest) {
@@ -36,9 +36,9 @@ export async function POST(req: NextRequest) {
   // Completat după căutare (unknown_locality iese mai devreme, fără listă).
   let truncation = { only_remaining_today: false };
 
-  const { values: [fromRo, toRo], unknown } = await localitiesToRo([from, to]);
+  const { values: [fromRo, toRo], unknown, suggestions } = await localitiesToRo([from, to]);
   if (unknown.length > 0) {
-    return NextResponse.json({ count: 0, date: tripDate, ...dateLabels, ...truncation, trips: [], ...unknownLocalityResponse(unknown) });
+    return NextResponse.json({ count: 0, date: tripDate, ...dateLabels, ...truncation, trips: [], ...unknownLocalityResponse(unknown, suggestions) });
   }
   // Lista de AZI e trunchiată de server (cursele plecate dispar). Le cerem marcate,
   // ca să putem SPUNE modelului că ziua a avut și curse mai devreme — altfel el
@@ -58,10 +58,13 @@ export async function POST(req: NextRequest) {
   // modelul nu mai asamblează nimic — numele și numărul nu se pot amesteca.
   const single = trips.length === 1 ? trips[0] : null;
   const firstName = driverFirstName(single?.driver);
+  // Fraza rusească primește numele în chirilice: latina dintr-o frază rusească
+  // e citită de TTS cu fonetică engleză («Vladimir» → «Влэдаймер»).
+  const firstNameRu = driverFirstNameRu(single?.driver);
   // Fără prenume real (inițiale/gol) — fraza dă DOAR numărul (Ion: nu se spune numele).
   const singleLine = single && phoneSpoken(single.phone) ? (firstName ? {
     driver_line_ro: `Șoferul cursei de ${timeSpoken(single.time)?.ro ?? single.time} este ${firstName}. Numărul lui: ${phoneSpoken(single.phone)?.ro}.`,
-    driver_line_ru: `Водитель рейса ${timeSpoken(single.time)?.ru ?? single.time} — ${firstName}. Его номер: ${phoneSpoken(single.phone)?.ru}.`,
+    driver_line_ru: `Водитель рейса ${timeSpoken(single.time)?.ru ?? single.time} — ${firstNameRu}. Его номер: ${phoneSpoken(single.phone)?.ru}.`,
   } : {
     driver_line_ro: `Numărul șoferului cursei de ${timeSpoken(single.time)?.ro ?? single.time}: ${phoneSpoken(single.phone)?.ro}.`,
     driver_line_ru: `Номер водителя рейса ${timeSpoken(single.time)?.ru ?? single.time}: ${phoneSpoken(single.phone)?.ru}.`,

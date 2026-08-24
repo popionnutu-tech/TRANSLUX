@@ -24,7 +24,7 @@ const FALLBACK_KEYWORDS = [
   'TRANSLUX',
   'Chișinău', 'Кишинёв', 'Bălți', 'Бельцы', 'Orhei', 'Орхей', 'Sîngerei', 'Сынжерей',
   'Rîșcani', 'Рышканы', 'Briceni', 'Бричаны', 'Lipcani', 'Липканы', 'Edineț', 'Единец',
-  'Cupcini', 'Купчинь', 'Ocnița', 'Окница', 'Otaci', 'Отачь', 'Criva', 'Крива',
+  'Cupcini', 'Купчинь', 'Ocnița', 'Окница', 'Otaci', 'Атаки', 'Criva', 'Крива',
   'Peresecina', 'Пересечино', 'Corjeuți', 'Коржеуцы', 'Măgdăcești', 'Магдачешты',
   'Brătușeni', 'Братушаны', 'Larga', 'Ларга', 'Grimăncăuți', 'Гриманкауцы',
   'Caracușenii Vechi', 'Старые Каракушаны', 'Tîrnova', 'Тырново', 'Tabani', 'Табаны',

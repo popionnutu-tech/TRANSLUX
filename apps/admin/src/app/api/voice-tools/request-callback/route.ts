@@ -39,6 +39,8 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json({
-    result: 'Am înregistrat cererea dumneavoastră. Un coleg vă va suna înapoi cât de curând.',
+    // Fără promisiuni de apel înapoi — nu există operatori care sună (decizia
+    // lui Ion 24.08: «agentul nu promite... doar spune ca a colectat datele»).
+    result: 'Am notat datele. Nu promite clientului că cineva îl sună înapoi.',
   });
 }

@@ -40,6 +40,18 @@ ORELE — DOSLOVEN DIN TOOL:
 - Compararea cu ora cerută de client o faci pe câmpul «departure» (HH:MM). NICIODATĂ nu spui «nu am cursă la ora X» fără să fi scanat toată lista.
 - Câmpul _spoken lipsește? Spui ora cifra cu cifra din «departure», fără conversii creative.`;
 
+// Descrierea tool-ului language_detection (sesiunea translux-a9, 24.08): filtrul
+// anti-comutare-falsă STĂ în schema tool-ului, exact la punctul de decizie al
+// modelului (regula din prompt a picat 3/3). Dashboard-ul o poate șterge tăcut
+// (s-a întâmplat la TLX 22.08) — de aceea intră în canon cu self-heal.
+const LANG_DETECT_DESC = `Schimbă limba conversației. ATENȚIE: schimbarea e IREVERSIBILĂ — după ea transcrierea trece pe limba nouă și tot ce spune clientul, chiar în română curată, apare scris cu chirilice. Nu mai există drum înapoi.
+
+NU chema acest tool pentru replici scurte. Cuvintele «da», «alo», «aha», «nu», «bine», «mersi», «poftim», «gata», «ok», «hai», «așa», «anume» sună IDENTIC în română și rusă; transcrierea le scrie des cu chirilice deși clientul vorbește română. Ele NU sunt niciodată dovadă de limbă.
+
+Cheamă tool-ul DOAR când clientul a rostit DOUĂ propoziții COMPLETE la rând (minimum 3 cuvinte fiecare, cu verb) în limba nouă. O singură replică, oricât de clar rusească pare, NU e motiv de schimbare.
+
+Transcriere fără sens sau amestecată? Rămâi pe limba curentă și roagă scurt să repete. Ai orice dubiu? NU chema tool-ul.`;
+
 const elHeaders = () => ({ 'xi-api-key': process.env.ELEVENLABS_API_KEY ?? '', 'content-type': 'application/json' });
 
 async function elGet(path: string): Promise<Record<string, unknown>> {
@@ -139,6 +151,18 @@ async function checkAndHealConfig(cfg: any): Promise<Drift[]> {
     agentPatch.prompt = { ...(agentPatch.prompt ?? {}), cascade_timeout_seconds: 12 };
     ccPatch.agent = agentPatch;
     drifts.push({ field: 'cascade_timeout_seconds', healed: true });
+  }
+  // built_in_tools.language_detection.description — filtrul anti-comutare-falsă.
+  const bit = cc.agent?.prompt?.built_in_tools;
+  if (bit?.language_detection && bit.language_detection.description !== LANG_DETECT_DESC) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const agentPatch: any = ccPatch.agent ?? {};
+    agentPatch.prompt = {
+      ...(agentPatch.prompt ?? {}),
+      built_in_tools: { ...bit, language_detection: { ...bit.language_detection, description: LANG_DETECT_DESC } },
+    };
+    ccPatch.agent = agentPatch;
+    drifts.push({ field: 'language_detection.description', healed: true });
   }
   if (Object.keys(ccPatch).length) await elPatchAgent({ conversation_config: ccPatch });
 

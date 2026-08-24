@@ -130,6 +130,9 @@ async function checkAndHealConfig(cfg: any): Promise<Drift[]> {
   }
   // cascade_timeout 12s: scuza de avarie (FIRST_CHUNK_MS=6500 în proxy) trebuie să
   // apuce să iasă înaintea cascadei EL (incident TLX 24.08, portat).
+  // PATCH parțial pe agent.prompt e SIGUR: verificat empiric 24.08 — după PATCH doar
+  // cu cascade_timeout_seconds, prompt-ul (17k), custom_llm.url și tool_ids au rămas
+  // intacte (merge per-cheie, ca la platform_settings; scratchpad cristina-check).
   if (cc.agent?.prompt?.cascade_timeout_seconds !== 12) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const agentPatch: any = ccPatch.agent ?? {};

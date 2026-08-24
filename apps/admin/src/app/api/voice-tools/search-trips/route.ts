@@ -32,9 +32,18 @@ export async function POST(req: NextRequest) {
     trips = trips.filter((t) => t.time.padStart(5, '0') === norm);
   }
 
+  // O singură cursă (recherea cu departure) => frază GATA de citit dosloven:
+  // modelul nu mai asamblează nimic — numele și numărul nu se pot amesteca.
+  const single = trips.length === 1 ? trips[0] : null;
+  const singleLine = single && phoneSpoken(single.phone) ? {
+    driver_line_ro: `Șoferul cursei de ${timeSpoken(single.time)?.ro ?? single.time} este ${single.driver}. Numărul lui: ${phoneSpoken(single.phone)?.ro}.`,
+    driver_line_ru: `Водитель рейса ${timeSpoken(single.time)?.ru ?? single.time} — ${single.driver}. Его номер: ${phoneSpoken(single.phone)?.ru}.`,
+  } : {};
+
   return NextResponse.json({
     count: trips.length,
     date: tripDate,
+    ...singleLine,
     trips: trips.map(t => ({
       departure: t.time,
       departure_spoken_ro: timeSpoken(t.time)?.ro ?? null,

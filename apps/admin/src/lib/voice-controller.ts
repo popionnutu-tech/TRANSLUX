@@ -189,7 +189,26 @@ export function parseSpokenTimes(text: string): string[] {
   return out;
 }
 
-type Incident = { conversation_id: string; kind: string; details: Record<string, unknown> };
+// ---- Продиктованные телефоны: цепочка цифро-слов ≥9 → строка цифр ----
+const DIGIT_RO = new Map(RO_UNITS.slice(0, 10).map((w, i) => [w, String(i)]));
+const DIGIT_RU = new Map(RU_UNITS.slice(0, 10).map((w, i) => [w, String(i)]));
+
+export function parseSpokenPhones(text: string): string[] {
+  const out: string[] = [];
+  const tokens = text.toLowerCase().split(/[^\p{L}]+/u).filter(Boolean);
+  let run = '';
+  const flush = () => {
+    if (run.length >= 9) out.push(run.slice(0, 9));
+    run = '';
+  };
+  for (const tok of tokens) {
+    const d = DIGIT_RO.get(tok) ?? DIGIT_RU.get(tok);
+    if (d !== undefined) run += d;
+    else flush();
+  }
+  flush();
+  return out;
+}
 
 async function validateRecentCalls(): Promise<Incident[]> {
   const incidents: Incident[] = [];
@@ -209,6 +228,7 @@ async function validateRecentCalls(): Promise<Incident[]> {
     const d: any = res.value;
     const turns: any[] = d.transcript ?? [];
     const allowed = new Set<string>();
+    const allowedPhones = new Set<string>();
     let sawTripTool = false;
     for (const t of turns) {
       for (const tr of t.tool_results ?? []) {
@@ -216,6 +236,11 @@ async function validateRecentCalls(): Promise<Incident[]> {
         for (const mm of raw.matchAll(/"(?:departure|arrival)":"(\d{1,2}:\d{2})"/g)) {
           sawTripTool = true;
           allowed.add(mm[1].padStart(5, '0'));
+        }
+        // Телефоны из тулов: 373XXXXXXXX → локальный 0XXXXXXXX (как их диктует phone_spoken).
+        for (const mm of raw.matchAll(/"phone":"\+?(\d{8,12})"/g)) {
+          const digits = mm[1];
+          allowedPhones.add(digits.startsWith('373') ? '0' + digits.slice(3) : digits);
         }
       }
     }
@@ -227,6 +252,17 @@ async function validateRecentCalls(): Promise<Incident[]> {
           conversation_id: recent[i].conversation_id,
           kind: 'spoken_time_mismatch',
           details: { spoken, allowed: [...allowed].sort() },
+        });
+      }
+    }
+    // Аналогично для номеров: продиктованное не из тулов = инцидент (жалоба Иона
+    // 24.08: не тот водитель/номер при чтении длинного списка).
+    for (const spoken of new Set(parseSpokenPhones(agentText))) {
+      if (allowedPhones.size > 0 && !allowedPhones.has(spoken)) {
+        incidents.push({
+          conversation_id: recent[i].conversation_id,
+          kind: 'spoken_phone_mismatch',
+          details: { spoken, allowed: [...allowedPhones].sort() },
         });
       }
     }

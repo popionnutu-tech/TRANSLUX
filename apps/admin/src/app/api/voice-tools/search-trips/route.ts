@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
   if (authError) return authError;
 
   const body = await req.json();
-  const { from, to, date } = body as { from?: string; to?: string; date?: string };
+  const { from, to, date, departure } = body as { from?: string; to?: string; date?: string; departure?: string };
 
   if (!from || !to) {
     return NextResponse.json({ error: 'Missing "from" or "to" parameter' }, { status: 400 });
@@ -23,7 +23,14 @@ export async function POST(req: NextRequest) {
   if (unknown.length > 0) {
     return NextResponse.json({ count: 0, date: tripDate, trips: [], ...unknownLocalityResponse(unknown) });
   }
-  const trips = await searchTrips(fromRo as string, toRo as string, tripDate);
+  let trips = await searchTrips(fromRo as string, toRo as string, tripDate);
+  // Один рейс по точному времени: агент ОБЯЗАН перезапросить так перед выдачей
+  // водителя/номера — модель путала строки в длинном списке (24.08: «7:30» получил
+  // водителя рейса 05:25). Одна строка = нечего перепутать.
+  if (departure) {
+    const norm = departure.trim().padStart(5, '0');
+    trips = trips.filter((t) => t.time.padStart(5, '0') === norm);
+  }
 
   return NextResponse.json({
     count: trips.length,

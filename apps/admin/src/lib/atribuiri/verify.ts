@@ -49,6 +49,35 @@ async function stopsOfDay(date: string): Promise<Map<string, { locs: Set<string>
   return byVeh;
 }
 
+export interface JudecataCtx {
+  accepted: Array<{ key: string; name: string }>; // localitățile uzinei (oraș + gps_localities)
+  city: string;
+  hasGps: (vehicleId: string) => boolean;
+  stops: Map<string, { locs: Set<string>; firstAt: Map<string, string> }>;
+  plateOf: (vehicleId: string) => string;
+}
+
+/** Verdictul GPS al unei ture. `masini` = [tur] sau [tur, retur] — o tură cu retur pe altă
+ *  mașină se judecă pe AMBELE, altfel fiecare înlocuire ar cădea automat în nepotrivire.
+ *  Placa intră în notă doar când sunt două mașini: «nu a ajuns în Orhei» trebuie să spună CARE. */
+export function judecaTura(masini: string[], ctx: JudecataCtx): { status: string; note: string } {
+  const nume = (id: string) => (masini.length > 1 ? `${ctx.plateOf(id)} ` : '');
+
+  const faraGps = masini.find((v) => !ctx.hasGps(v));
+  if (faraGps) return { status: 'fara_date_gps', note: `${nume(faraGps)}fără date GPS în ziua respectivă`.trim() };
+
+  const gasite: string[] = [];
+  for (const v of masini) {
+    const veh = ctx.stops.get(v);
+    const hit = ctx.accepted.find((a) => veh?.locs.has(a.key));
+    if (!hit) return { status: 'nepotrivire', note: `GPS: ${nume(v)}nu a ajuns în ${ctx.city}` };
+    const at = veh?.firstAt.get(hit.key);
+    const ora = at ? new Intl.DateTimeFormat('ro-RO', { timeZone: 'Europe/Chisinau', hour: '2-digit', minute: '2-digit' }).format(new Date(at)) : '';
+    gasite.push(`${nume(v)}${hit.name}${ora ? ` ${ora}` : ''}`);
+  }
+  return { status: 'confirmat_auto', note: `GPS: ${gasite.join(' · ')}` };
+}
+
 export async function verificaZi(date: string, dry: boolean, reverify = false): Promise<VerifySummary> {
   const db = getSupabase();
   await ensureDayMaterialized(date);
@@ -60,7 +89,7 @@ export async function verificaZi(date: string, dry: boolean, reverify = false): 
 
   const [{ data: rows }, { data: uzine }, gpsDaily, stops] = await Promise.all([
     db.from('lde_atribuiri_zilnice')
-      .select('id, direction, vehicle_id, status, verification_note')
+      .select('id, direction, vehicle_id, vehicle_id_retur, status, verification_note')
       .eq('date', date).eq('route_kind', 'uzina')
       .in('status', statuses),
     db.from('lde_uzine').select('id, city, gps_localities'),
@@ -79,6 +108,18 @@ export async function verificaZi(date: string, dry: boolean, reverify = false): 
   }
   const cityOf = new Map((uzine ?? []).map((u) => [u.id as string, u.city as string]));
 
+  // Plăcile intră în note DOAR pentru turele cu retur pe altă mașină: acolo «nu a ajuns
+  // în Orhei» e ambiguu — dispecerul trebuie să știe CARE mașină lipsește. Zilele fără
+  // retur (regula) nu plătesc nicio interogare în plus.
+  const cuRetur = (rows ?? []).filter((r) => r.vehicle_id_retur);
+  const plateOf = new Map<string, string>();
+  if (cuRetur.length) {
+    const ids = [...new Set(cuRetur.flatMap((r) => [r.vehicle_id, r.vehicle_id_retur]).filter(Boolean))] as string[];
+    const { data: vehs, error: vErr } = await db.from('vehicles').select('id, plate_number').in('id', ids);
+    if (vErr) throw new Error(`vehicles: ${vErr.message}`);
+    for (const v of vehs ?? []) plateOf.set(v.id as string, (v.plate_number as string).replace(/\s+/g, ''));
+  }
+
   const summary: VerifySummary = {
     date, verificate: 0, confirmate_auto: 0, nepotriviri: 0, fara_date_gps: 0, fara_masina: 0, actualizate: 0, push_trimise: 0, dry,
   };
@@ -95,24 +136,21 @@ export async function verificaZi(date: string, dry: boolean, reverify = false): 
     const city = cityOf.get(r.direction as string);
     if (!city) continue;
 
-    if (!gpsDaily.has(r.vehicle_id as string)) {
-      summary.fara_date_gps++;
-      propune('fara_date_gps', 'fără date GPS în ziua respectivă');
-      continue;
-    }
-    const veh = stops.get(r.vehicle_id as string);
-    const hit = (acceptedOf.get(r.direction as string) ?? [])
-      .find((a) => veh?.locs.has(a.key));
-    if (hit) {
-      summary.confirmate_auto++;
-      const at = veh?.firstAt.get(hit.key);
-      const ora = at ? new Intl.DateTimeFormat('ro-RO', { timeZone: 'Europe/Chisinau', hour: '2-digit', minute: '2-digit' }).format(new Date(at)) : '';
-      propune('confirmat_auto', `GPS: ${hit.name}${ora ? ` ${ora}` : ''}`);
-    } else {
+    const masini = [r.vehicle_id, r.vehicle_id_retur].filter(Boolean) as string[];
+    const { status, note } = judecaTura(masini, {
+      accepted: acceptedOf.get(r.direction as string) ?? [],
+      city,
+      hasGps: (v) => gpsDaily.has(v),
+      stops,
+      plateOf: (v) => plateOf.get(v) ?? '?',
+    });
+    if (status === 'fara_date_gps') summary.fara_date_gps++;
+    else if (status === 'confirmat_auto') summary.confirmate_auto++;
+    else {
       summary.nepotriviri++;
       nepotriviriByDir.set(r.direction as string, (nepotriviriByDir.get(r.direction as string) ?? 0) + 1);
-      propune('nepotrivire', `GPS: nu a ajuns în ${city}`);
     }
+    propune(status, note);
   }
 
   summary.actualizate = updates.length;

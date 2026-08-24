@@ -27,6 +27,8 @@ export interface AtribuireRow {
   crm_route_id: number | null;
   vehicle_id: string | null;
   driver_id: string | null;
+  vehicle_id_retur: string | null; // NULL = returul îl face mașina turului
+  driver_id_retur: string | null;  // NULL = returul îl face șoferul turului
   status: string;
   verification_note: string | null;
   route_key: string;
@@ -37,11 +39,13 @@ export interface AtribuireView extends AtribuireRow {
   route_label: string;      // «R3 · Bălți–Sadovoe» / «Chișinău → Briceni 07:40»
   plate: string | null;     // numărul mașinii atribuite (fără spații)
   driver_name: string | null;
+  plate_retur: string | null;       // completat doar când returul are altă mașină
+  driver_name_retur: string | null;
   foaie: string | null;     // nr. foii de parcurs (doar interurban/suburban, din driver_cashin_receipts)
   template_vehicle_id: string | null; // default-ul din șablon (primul în picker)
 }
 
-const ROW_COLS = 'id, date, direction, route_kind, factory_route_id, shift_number, crm_route_id, vehicle_id, driver_id, status, verification_note, route_key, slot';
+const ROW_COLS = 'id, date, direction, route_kind, factory_route_id, shift_number, crm_route_id, vehicle_id, driver_id, vehicle_id_retur, driver_id_retur, status, verification_note, route_key, slot';
 
 const normPlate = (s: string | null | undefined) => (s ?? '').replace(/\s+/g, '');
 
@@ -100,8 +104,10 @@ export async function ensureDaysMaterialized(dates: string[]): Promise<void> {
   // ── curse de uzină: rută×schimb (aceleași pentru toate zilele) ──
   const { data: shifts, error: shiftsErr } = await db
     .from('lde_factory_route_shifts')
-    .select('id, shift_number, route:lde_factory_routes!inner ( id, uzina_id, uzina:lde_uzine!inner ( id, active, has_weekly_template, works_saturday, works_sunday ) )');
+    .select('id, shift_number, route:lde_factory_routes!inner ( id, uzina_id, uzina:lde_uzine!inner ( id, active, has_weekly_template, works_saturday, works_sunday ) )')
+    .limit(500); // sentinelă contra tăierii tăcute PostgREST la 1000 (aceeași lecție ca lde_weekly_template)
   if (shiftsErr) throw new Error(`materializare: ${shiftsErr.message}`);
+  if ((shifts ?? []).length === 500) throw new Error('materializare: lde_factory_route_shifts a depășit 500 — paginați citirea');
   type ShiftRow = {
     id: string; shift_number: number;
     route: { id: string; uzina_id: string; uzina: { id: string; active: boolean; has_weekly_template: boolean; works_saturday: boolean; works_sunday: boolean } };
@@ -288,8 +294,9 @@ export async function listZi(date: string, directions: string[] | null, alreadyM
   // etichete: rute uzină / curse crm / plăci / șoferi / foi de parcurs
   const frIds = [...new Set(rows.map((r) => r.factory_route_id).filter(Boolean))] as string[];
   const crmIds = [...new Set(rows.map((r) => r.crm_route_id).filter((x) => x != null))] as number[];
-  const vehIds = [...new Set(rows.map((r) => r.vehicle_id).filter(Boolean))] as string[];
-  const drvIds = [...new Set(rows.map((r) => r.driver_id).filter(Boolean))] as string[];
+  // mașinile/șoferii de retur intră în ACELEAȘI hărți: fără interogări noi, doar id-uri în plus
+  const vehIds = [...new Set(rows.flatMap((r) => [r.vehicle_id, r.vehicle_id_retur]).filter(Boolean))] as string[];
+  const drvIds = [...new Set(rows.flatMap((r) => [r.driver_id, r.driver_id_retur]).filter(Boolean))] as string[];
   const wd = isoWeekday(date);
 
   const [frRes, crmRes, vehRes, tplRes, drvRes, foiRes] = await Promise.all([
@@ -331,6 +338,8 @@ export async function listZi(date: string, directions: string[] | null, alreadyM
       route_label: label,
       plate: r.vehicle_id ? vehMap.get(r.vehicle_id) ?? null : null,
       driver_name: r.driver_id ? drvMap.get(r.driver_id) ?? null : null,
+      plate_retur: r.vehicle_id_retur ? vehMap.get(r.vehicle_id_retur) ?? null : null,
+      driver_name_retur: r.driver_id_retur ? drvMap.get(r.driver_id_retur) ?? null : null,
       foaie: r.route_kind !== 'uzina' && r.driver_id
         ? (r.crm_route_id != null ? foaieByRoute.get(`${r.driver_id}|${r.crm_route_id}`) : undefined) ?? foaieMap.get(r.driver_id) ?? null
         : null,
@@ -675,6 +684,8 @@ export interface AtribuieMultiParams {
   dates: string[];             // YYYY-MM-DD — zilele bifate
   vehicleId?: string | null;   // omis = nu atinge mașina (doar șofer); null = golește cursa (curăță și șoferul); string = setează
   driverId?: string | null;    // la vehicleId omis: obligatoriu; la vehicleId string: omis/null = auto (titularul mașinii, fallback șoferul zilei)
+  returVehicleId?: string | null; // omis = nu atinge returul; null = elimină returul; string = altă mașină DOAR pe retur
+  returDriverId?: string | null;  // doar cu returVehicleId string: omis/null = titularul mașinii de retur (null = șoferul turului)
   siInSablon?: boolean;        // scrie/șterge și lde_weekly_template pe weekday-urile zilelor (doar când vehicleId nu e omis)
 }
 
@@ -694,6 +705,21 @@ export async function atribuieMulti(
   const onlyDriver = p.vehicleId === undefined;
   if (onlyDriver && p.driverId == null) throw new Error('Alege șoferul');
 
+  // Returul (defecțiune pe rută): calculat O SINGURĂ DATĂ — titularul nu depinde de zi.
+  // Nu intră niciodată în șablon: defecțiunea e un eveniment de zi, nu o regulă de săptămână.
+  let patchRetur: Record<string, unknown> | null = null;
+  if (p.vehicleId === null) {
+    patchRetur = { vehicle_id_retur: null, driver_id_retur: null }; // cursa golită nu poate avea retur
+  } else if (p.returVehicleId !== undefined) {
+    patchRetur = p.returVehicleId === null
+      ? { vehicle_id_retur: null, driver_id_retur: null }
+      : {
+          vehicle_id_retur: p.returVehicleId,
+          // null = returul îl face șoferul turului (ca driver_id_retur la interurban)
+          driver_id_retur: p.returDriverId ?? await titularForVehicle(p.returVehicleId, p.shiftNumber),
+        };
+  }
+
   await ensureDaysMaterialized(dates);
   let updated = 0;
   let skipped = 0;
@@ -703,7 +729,7 @@ export async function atribuieMulti(
     if (!row) continue;
 
     if (onlyDriver) {
-      await updateRow(row.id, { driver_id: p.driverId }, userId, adminId);
+      await updateRow(row.id, { driver_id: p.driverId, ...(patchRetur ?? {}) }, userId, adminId);
       updated++;
       continue;
     }
@@ -719,7 +745,7 @@ export async function atribuieMulti(
       driverId = titular ?? (row.driver_id as string | null);
       if (driverId == null) { skipped++; continue; } // nici titular, nici șofer existent — se sare, nu se blochează toată aplicarea
     }
-    await updateRow(row.id, { vehicle_id: p.vehicleId, driver_id: driverId }, userId, adminId);
+    await updateRow(row.id, { vehicle_id: p.vehicleId, driver_id: driverId, ...(patchRetur ?? {}) }, userId, adminId);
     updated++;
   }
   if (updated === 0 && skipped > 0) throw new Error('Mașina nu are șofer titular — alege șoferul explicit');

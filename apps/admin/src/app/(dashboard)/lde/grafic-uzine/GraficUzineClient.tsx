@@ -46,6 +46,14 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
   const [inSablon, setInSablon] = useState(false);
   const [qVeh, setQVeh] = useState('');
   const [qSof, setQSof] = useState('');
+  // returul: altă mașină DOAR pe întoarcere (s-a stricat rutiera pe rută). Bloc închis
+  // până e nevoie — defecțiunea e rară, ziua normală nu plătește pentru ea.
+  const [showRetur, setShowRetur] = useState(false);
+  const [selReturVehicle, setSelReturVehicle] = useState<string | null>(null);
+  const [selReturDriver, setSelReturDriver] = useState<string | null>(null);
+  const [qVehRet, setQVehRet] = useState('');
+  const [qSofRet, setQSofRet] = useState('');
+  const returReqRef = useRef<string | null>(null);
   const vehicleReqRef = useRef<string | null>(null); // ultima mașină cerută la getTitularId — anulează răspunsurile vechi
   const pickersCache = useRef<Map<string, Pickers>>(new Map()); // cache per uzină — revizitarea unui tab nu mai refetch-uiește
 
@@ -105,17 +113,42 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
     setInSablon(false);
     setQVeh(''); setQSof('');
     vehicleReqRef.current = r.vehicle_id;
+    setSelReturVehicle(r.vehicle_id_retur);
+    setSelReturDriver(r.driver_id_retur);
+    setShowRetur(!!r.vehicle_id_retur); // rândul care ARE deja retur îl arată fără să-l cauți
+    setQVehRet(''); setQSofRet('');
+    returReqRef.current = r.vehicle_id_retur;
   }
 
   async function pickVehicle(vid: string | null) {
     if (vid === selVehicle) return; // click pe mașina deja selectată = no-op, nu suprascrie șoferul ales
     vehicleReqRef.current = vid;
     setSelVehicle(vid);
-    if (vid == null) { setSelDriver(null); setInSablon(false); return; } // golește mașina — «și în șablon» nu mai are sens, nu rămâne bifat din greșeală
+    // golește mașina — «și în șablon» nu mai are sens, nu rămâne bifat din greșeală;
+    // o cursă fără mașină nu poate avea retur (serverul curăță oricum ambele coloane)
+    if (vid == null) { setSelDriver(null); setInSablon(false); eliminaRetur(); return; }
     // titularul se completează automat (spec: mașina merge mereu cu șofer)
     const tit = await getTitularId(vid, popup!.shift_number!).catch(() => null);
     if (vehicleReqRef.current !== vid) return; // altă mașină aleasă între timp — ignorăm răspunsul vechi
     setSelDriver(tit);
+  }
+
+  async function pickReturVehicle(vid: string | null) {
+    if (vid === selReturVehicle) return; // click pe mașina deja aleasă = no-op, nu suprascrie șoferul
+    returReqRef.current = vid;
+    setSelReturVehicle(vid);
+    if (vid == null) { setSelReturDriver(null); return; }
+    const tit = await getTitularId(vid, popup!.shift_number!).catch(() => null);
+    if (returReqRef.current !== vid) return; // altă mașină aleasă între timp
+    setSelReturDriver(tit); // null = returul îl face șoferul turului
+  }
+
+  function eliminaRetur() {
+    returReqRef.current = null;
+    setSelReturVehicle(null);
+    setSelReturDriver(null);
+    setShowRetur(false);
+    setQVehRet(''); setQSofRet('');
   }
 
   async function save() {
@@ -125,6 +158,9 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
       const res = await salveazaMulti({
         factoryRouteId: popup.factory_route_id!, shiftNumber: popup.shift_number!, slot: popup.slot,
         dates: selDates, vehicleId: selVehicle, driverId: selDriver,
+        // returul NU intră în șablon: defecțiunea e un eveniment de zi, nu o regulă de săptămână
+        returVehicleId: selVehicle != null ? selReturVehicle : null,
+        returDriverId: selVehicle != null ? selReturDriver : null,
         // defense in depth: șablonul se scrie doar cât timp popup-ul chiar are o mașină selectată
         siInSablon: selVehicle != null ? inSablon : false,
       });
@@ -181,6 +217,16 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
     const n = qSof.trim().toLowerCase();
     return n ? pickers.soferi.filter((s) => s.name.toLowerCase().includes(n)).slice(0, 8) : [];
   }, [pickers, qSof]);
+  const vehListRet = useMemo(() => {
+    if (!pickers) return [];
+    const n = qVehRet.trim().toUpperCase().replace(/\s+/g, '');
+    return n ? pickers.vehicles.filter((v) => v.plate.includes(n)).slice(0, 8) : [];
+  }, [pickers, qVehRet]);
+  const sofListRet = useMemo(() => {
+    if (!pickers) return [];
+    const n = qSofRet.trim().toLowerCase();
+    return n ? pickers.soferi.filter((s) => s.name.toLowerCase().includes(n)).slice(0, 8) : [];
+  }, [pickers, qSofRet]);
   const plateOf = (id: string | null) => (id ? pickers?.vehicles.find((v) => v.id === id)?.plate ?? '…' : null);
   const nameOf = (id: string | null) => (id ? pickers?.soferi.find((s) => s.id === id)?.name ?? '…' : null);
 
@@ -271,6 +317,10 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
                           }}>
                           <b style={{ fontFamily: 'ui-monospace, monospace' }}>{r.plate ?? '—'}</b>
                           <div style={{ opacity: 0.78, fontSize: 11 }}>{r.driver_name ? shortName(r.driver_name) : (r.vehicle_id ? '' : 'alege')}</div>
+                          {r.plate_retur && (
+                            <div style={{ opacity: 0.7, fontSize: 10, fontFamily: 'ui-monospace, monospace' }}
+                              title={`Retur: ${r.plate_retur}${r.driver_name_retur ? ` · ${r.driver_name_retur}` : ''}`}>↩ {r.plate_retur}</div>
+                          )}
                         </td>
                       );
                     })}
@@ -374,6 +424,70 @@ export default function GraficUzineClient({ uzine, initialUzina, initial }: {
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
             </select>
+
+            {/* ↩ Retur cu altă mașină: s-a stricat rutiera pe rută. Rândul din grilă NU se
+                dublează (o tură = un rând) și returul nu intră niciodată în șablon. */}
+            {!showRetur ? (
+              <button onClick={() => setShowRetur(true)} disabled={!selVehicle}
+                style={{
+                  display: 'block', width: '100%', padding: '9px 0', borderRadius: 10, fontSize: 13, marginBottom: 14,
+                  border: '1px dashed #d4d4d8', background: '#fafafa', color: selVehicle ? '#3f3f46' : '#a1a1aa',
+                  cursor: selVehicle ? 'pointer' : 'default',
+                }}>↩ Altă mașină pe retur</button>
+            ) : (
+              <div style={{ border: '1px solid #e4e4e7', borderRadius: 12, padding: 12, marginBottom: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#71717a', textTransform: 'uppercase', letterSpacing: 0.4 }}>↩ Mașina de retur</span>
+                  <button onClick={eliminaRetur}
+                    style={{ border: 'none', background: 'none', color: '#b91c1c', fontSize: 12, cursor: 'pointer', padding: 0 }}>Elimină returul</button>
+                </div>
+
+                <input placeholder="Scrie numărul…" value={qVehRet} onChange={(e) => setQVehRet(e.target.value)}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 10, fontSize: 14, border: '1px solid #e4e4e7', boxSizing: 'border-box', marginBottom: 6 }} />
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
+                  {!qVehRet.trim() && selReturVehicle && (
+                    <span style={{ padding: '7px 12px', borderRadius: 9, fontSize: 13, fontWeight: 700, fontFamily: 'ui-monospace, monospace', background: '#7c3aed', color: '#fff' }}>
+                      {plateOf(selReturVehicle)}
+                    </span>
+                  )}
+                  {vehListRet.map((v) => (
+                    <button key={v.id} onClick={() => { pickReturVehicle(v.id); setQVehRet(''); }}
+                      style={{
+                        padding: '7px 12px', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                        fontFamily: 'ui-monospace, monospace', border: '1px solid transparent',
+                        background: v.id === selReturVehicle ? '#7c3aed' : '#f4f4f5',
+                        color: v.id === selReturVehicle ? '#fff' : v.inDirection ? '#3f3f46' : '#a1a1aa',
+                      }}>{v.plate}</button>
+                  ))}
+                </div>
+                <select value={selReturVehicle ?? ''} onChange={(e) => pickReturVehicle(e.target.value || null)}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: 10, fontSize: 14, border: '1px solid #e4e4e7', background: '#fff', marginBottom: 10 }}>
+                  <option value="">— alege mașina de retur —</option>
+                  {(pickers?.vehicles ?? []).map((v) => (
+                    <option key={v.id} value={v.id}>{v.plate}</option>
+                  ))}
+                </select>
+
+                <input placeholder="Alt șofer pe retur…" value={qSofRet} onChange={(e) => setQSofRet(e.target.value)} disabled={!selReturVehicle}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 10, fontSize: 14, border: '1px solid #e4e4e7', boxSizing: 'border-box', marginBottom: 6, opacity: selReturVehicle ? 1 : 0.5 }} />
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6, opacity: selReturVehicle ? 1 : 0.5 }}>
+                  {!qSofRet.trim() && selReturDriver && (
+                    <span style={{ padding: '7px 12px', borderRadius: 9, fontSize: 13, fontWeight: 600, background: '#7c3aed', color: '#fff' }}>{nameOf(selReturDriver)}</span>
+                  )}
+                  {sofListRet.map((sf) => (
+                    <button key={sf.id} onClick={() => { if (selReturVehicle) { setSelReturDriver(sf.id); setQSofRet(''); } }} disabled={!selReturVehicle}
+                      style={{
+                        padding: '7px 12px', borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none',
+                        background: sf.id === selReturDriver ? '#7c3aed' : '#f4f4f5',
+                        color: sf.id === selReturDriver ? '#fff' : sf.inDirection ? '#3f3f46' : '#a1a1aa',
+                      }}>{sf.name}</button>
+                  ))}
+                </div>
+                <div style={{ fontSize: 11, color: '#a1a1aa' }}>
+                  Șoferul se completează cu titularul mașinii de retur. Gol = returul îl face șoferul turului.
+                </div>
+              </div>
+            )}
 
             <div style={{ fontSize: 11, fontWeight: 700, color: '#71717a', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 }}>Se aplică pe zilele</div>
             <div style={{ display: 'flex', gap: 5, marginBottom: 6 }}>

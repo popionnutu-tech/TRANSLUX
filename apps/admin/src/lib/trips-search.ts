@@ -442,9 +442,13 @@ export async function searchTrips(
         const details = resolveDetails(returDriverMap.get(route.id));
         const hasDriver = !!(details?.driver && details?.phone);
         if (!hasDriver) {
-          // For departures more than 7 days out, show route with a "driver coming soon" placeholder.
-          // For today (0) or near-future (1–7), keep current behaviour: hide the route.
-          if (daysUntilDeparture > 7) {
+          // Cursa fără șofer se ARATĂ pentru orice zi viitoare, cu semnul isAwaitingDriver.
+          // Decizia lui Ion, 25.08: «dacă nu este șoferul, el trebuie să spună că ruta va fi,
+          // dar datele șoferului mai târziu». Graficul de mâine se completează abia după-amiaza,
+          // iar cine sună dimineața afla altfel că prima cursă e la 10:40, deși la 06:55 chiar
+          // circulă una. Pentru AZI rămâne ascunsă: azi graficul e complet, iar lipsa șoferului
+          // înseamnă de obicei că nu se merge.
+          if (daysUntilDeparture >= 1) {
             results.push({
               time,
               arrivalTime: arrival,
@@ -454,8 +458,10 @@ export async function searchTrips(
               driver: null,
               phone: null,
               vehicle_plate: null,
-              price: 0,
-              originalPrice: null,
+              // Peste 7 zile tariful se mai poate schimba, deci 0; pentru zilele
+              // apropiate prețul e cunoscut și clientul are dreptul să-l audă.
+              price: daysUntilDeparture > 7 ? 0 : displayPrice,
+              originalPrice: daysUntilDeparture > 7 ? null : displayOriginal,
               isAwaitingDriver: true,
             });
           }
@@ -482,7 +488,8 @@ export async function searchTrips(
         const details = resolveDetails(turDriverMap.get(route.id));
         const hasDriver = !!(details?.driver && details?.phone);
         if (!hasDriver) {
-          if (daysUntilDeparture > 7) {
+          // Vezi comentariul din ramura RETUR: se arată pentru orice zi viitoare.
+          if (daysUntilDeparture >= 1) {
             results.push({
               time,
               arrivalTime: arrival,
@@ -492,8 +499,10 @@ export async function searchTrips(
               driver: null,
               phone: null,
               vehicle_plate: null,
-              price: 0,
-              originalPrice: null,
+              // Peste 7 zile tariful se mai poate schimba, deci 0; pentru zilele
+              // apropiate prețul e cunoscut și clientul are dreptul să-l audă.
+              price: daysUntilDeparture > 7 ? 0 : displayPrice,
+              originalPrice: daysUntilDeparture > 7 ? null : displayOriginal,
               isAwaitingDriver: true,
             });
           }

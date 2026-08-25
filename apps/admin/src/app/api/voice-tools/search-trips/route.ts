@@ -61,18 +61,30 @@ export async function POST(req: NextRequest) {
   // Fraza rusească primește numele în chirilice: latina dintr-o frază rusească
   // e citită de TTS cu fonetică engleză («Vladimir» → «Влэдаймер»).
   const firstNameRu = driverFirstNameRu(single?.driver);
+  // Cursa e în orar, dar șoferul nu e încă repartizat (graficul zilei următoare se
+  // completează abia după-amiaza). Ion, 25.08: «dacă nu este șoferul, el trebuie să
+  // spună că ruta va fi, dar datele șoferului mai târziu». Fraza vine gata, ca toate
+  // celelalte — modelul n-are ce improviza.
+  const awaitingLine = single?.isAwaitingDriver ? {
+    driver_line_ro: `Cursa de ${timeSpoken(single.time)?.ro ?? single.time} circulă, dar șoferul nu e încă repartizat. Datele lui apar mai aproape de ziua plecării.`,
+    driver_line_ru: `Рейс в ${timeSpoken(single.time)?.ru ?? single.time} будет, но водитель ещё не назначен. Его данные появятся ближе ко дню отправления.`,
+  } : null;
+
   // Fără prenume real (inițiale/gol) — fraza dă DOAR numărul (Ion: nu se spune numele).
-  const singleLine = single && phoneSpoken(single.phone) ? (firstName ? {
+  const singleLine = awaitingLine ?? (single && phoneSpoken(single.phone) ? (firstName ? {
     driver_line_ro: `Șoferul cursei de ${timeSpoken(single.time)?.ro ?? single.time} este ${firstName}. Numărul lui: ${phoneSpoken(single.phone)?.ro}.`,
     driver_line_ru: `Водитель рейса ${timeSpoken(single.time)?.ru ?? single.time} — ${firstNameRu}. Его номер: ${phoneSpoken(single.phone)?.ru}.`,
   } : {
     driver_line_ro: `Numărul șoferului cursei de ${timeSpoken(single.time)?.ro ?? single.time}: ${phoneSpoken(single.phone)?.ro}.`,
     driver_line_ru: `Номер водителя рейса ${timeSpoken(single.time)?.ru ?? single.time}: ${phoneSpoken(single.phone)?.ru}.`,
-  }) : {};
+  }) : {});
 
   // Enumerarea orelor GATA de citit, în ordine: «cea mai apropiată» = PRIMUL element.
   // Apel 24.08: modelul anunța «ближайший 07:10» deși prima cursă era 04:00.
   truncation = { only_remaining_today: departedCount > 0 };
+  // Cursele din orar cărora încă nu li s-a repartizat șofer. Există DOAR pentru zile
+  // viitoare: cursa se anunță, numărul șoferului nu.
+  const asteaptaSofer = trips.filter((t) => t.isAwaitingDriver).length;
 
   const departures = {
     departures_ro: trips.map((t) => timeSpoken(t.time)?.ro ?? t.time).join(', '),
@@ -84,10 +96,13 @@ export async function POST(req: NextRequest) {
     date: tripDate,
     ...dateLabels,
     ...truncation,
+    trips_awaiting_driver: asteaptaSofer,
     ...departures,
     ...singleLine,
     trips: trips.map(t => ({
       departure: t.time,
+      // true = cursa circulă, dar șoferul nu e încă repartizat: NU cere numărul.
+      awaiting_driver: !!t.isAwaitingDriver,
       departure_spoken_ro: timeSpoken(t.time)?.ro ?? null,
       departure_spoken_ru: timeSpoken(t.time)?.ru ?? null,
       arrival: t.arrivalTime || null,

@@ -7,40 +7,13 @@
 
 import { NextResponse, after } from 'next/server';
 import { timingSafeEqual } from 'crypto';
+import { greetingRo } from '@/lib/voice-greeting';
 
 // Rulează în dub1 (regiunea proiectului din vercel.json — lângă Supabase; per-route
 // preferredRegion e IGNORAT când proiectul are «regions»). Hop-ul spre ElevenLabs (US)
 // e acceptat conștient: ttfb măsurat 0.56s la buget ~1s; ruta citește doar
 // memoria limbii din voice_calls, sub race 700ms.
 const CUSTOM_LLM_URL = 'https://translux-voice-llm.vercel.app/api/chat/completions';
-
-function greetingRo(): string {
-  const hour = Number(
-    new Intl.DateTimeFormat('en-GB', {
-      timeZone: 'Europe/Chisinau',
-      hour: 'numeric',
-      hour12: false,
-    }).format(new Date()),
-  );
-  const salut = hour >= 5 && hour < 11 ? 'Bună dimineața' : hour >= 11 && hour < 18 ? 'Bună ziua' : 'Bună seara';
-  return `${salut}! Ați sunat la TRANSLUX. Convorbirea este înregistrată. Cu ce vă pot ajuta?`;
-}
-
-// Păstrat pentru agentul RUSESC: dacă i se va cere vreodată salut după oră,
-// textul e deja aici, cu brandul fonetic corect. Nu se folosește pe ruta asta —
-// aici preia apelul agentul românesc.
-export function greetingRu(): string {
-  const hour = Number(
-    new Intl.DateTimeFormat('en-GB', {
-      timeZone: 'Europe/Chisinau',
-      hour: 'numeric',
-      hour12: false,
-    }).format(new Date()),
-  );
-  const salut = hour >= 5 && hour < 11 ? 'Доброе утро' : hour >= 11 && hour < 18 ? 'Добрый день' : 'Добрый вечер';
-  // Brandul FONETIC in rusa — TTS-ul citeste gresit literele latine (lectia TLX).
-  return `${salut}! Вы позвонили в ТрансЛюкс. Разговор записывается. Чем могу помочь?`;
-}
 
 function authorized(req: Request): boolean {
   const key = req.headers.get('x-voice-api-key');

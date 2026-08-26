@@ -14,6 +14,7 @@ import {
   deleteInvite,
   createAdminAccount,
   updateAdminWarehouse,
+  updateAdminRole,
 } from './actions';
 import type { InviteWithAdmin, AdminAccountInfo } from './actions';
 // SURSĂ UNICĂ (fișier fără 'server-only', importabil din client): ce roluri se leagă de un depozit.
@@ -82,6 +83,16 @@ export default function UsersClient({
     setError('');
     try {
       await updateAdminWarehouse(id, warehouseId);
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
+
+  async function handleAdminRole(id: string, role: string) {
+    setError('');
+    try {
+      await updateAdminRole(id, role);
       router.refresh();
     } catch (err: any) {
       setError(err.message);
@@ -545,7 +556,22 @@ export default function UsersClient({
                     {a.name && <span className="u-username">{a.name}</span>}
                   </td>
                   <td style={{ fontFamily: 'monospace', fontSize: 12 }}>•••</td>
-                  <td>{ROLE_LABELS[a.role] || a.role}</td>
+                  <td>
+                    {/* Rolul e sursa drepturilor (piese-access.ts + piese-nav.ts + middleware).
+                        Intră în vigoare după ce contul se re-autentifică — rolul stă în JWT (24h). */}
+                    <select
+                      className="u-select"
+                      value={a.role}
+                      onChange={(e) => handleAdminRole(a.id, e.target.value)}
+                    >
+                      {/* Rol prezent în DB dar necunoscut UI-ului: îl arătăm ca atare, ca select-ul
+                          să nu afișeze din greșeală alt rol decât cel real al contului. */}
+                      {!ROLE_LABELS[a.role] && <option value={a.role}>{a.role}</option>}
+                      {Object.entries(ROLE_LABELS).map(([val, label]) => (
+                        <option key={val} value={val}>{label}</option>
+                      ))}
+                    </select>
+                  </td>
                   <td>
                     {/* Doar rolurile de depozit se leagă de un depozit; „Toate" = drepturi extinse. */}
                     {(DEPOT_BOUND_ROLES as string[]).includes(a.role) ? (

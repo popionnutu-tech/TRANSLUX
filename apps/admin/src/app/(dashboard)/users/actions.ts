@@ -101,6 +101,40 @@ export async function updateAdminWarehouse(id: string, warehouseId: number | nul
 
 const VALID_ADMIN_ROLES = ['ADMIN', 'DISPATCHER', 'GRAFIC', 'UZINE', 'OPERATOR_CAMERE', 'ADMIN_CAMERE', 'EVALUATOR_INCASARI', 'CONTABIL', 'DEPOZITAR', 'VINZATOR', 'MANAGER', 'GESTIONAR'];
 
+// Schimbă rolul unui cont administrativ (ex. acces lărgit pe durata testării, apoi restrâns). Doar ADMIN.
+// ATENȚIE: rolul e purtat de JWT-ul de sesiune (24h, vezi lib/auth.ts) — contul afectat trebuie să se
+// re-autentifice ca noul rol să intre în vigoare; până atunci middleware-ul îl vede tot cu rolul vechi.
+export async function updateAdminRole(id: string, role: string): Promise<void> {
+  const session = await verifySession();
+  if (!session || session.role !== 'ADMIN') throw new Error('Acces interzis');
+  if (!VALID_ADMIN_ROLES.includes(role)) throw new Error('Rol invalid');
+
+  const db = getSupabase();
+  const { data: acc } = await db.from('admin_accounts').select('role').eq('id', id).maybeSingle();
+  if (!acc) throw new Error('Cont inexistent');
+  const current = (acc as { role: AdminRole }).role;
+  if (current === role) return;
+
+  // Nu lăsăm sistemul fără administrator (acoperă și auto-retrogradarea propriului cont).
+  if (current === 'ADMIN') {
+    const { count } = await db
+      .from('admin_accounts')
+      .select('id', { count: 'exact', head: true })
+      .eq('role', 'ADMIN')
+      .eq('active', true);
+    if ((count ?? 0) <= 1) throw new Error('Nu poți schimba rolul ultimului administrator');
+  }
+
+  // Legarea de depozit are sens doar pentru DEPOT_BOUND_ROLES. La ieșirea din ele curățăm warehouse_id,
+  // ca să nu rămână în DB o valoare fără efect (userWarehouseId o ignoră oricum) dar derutantă la citire.
+  const patch: { role: string; warehouse_id?: null } = { role };
+  if (!DEPOT_BOUND_ROLES.includes(role as AdminRole)) patch.warehouse_id = null;
+
+  const { error } = await db.from('admin_accounts').update(patch).eq('id', id);
+  if (error) throw new Error(error.message);
+  revalidatePath('/users');
+}
+
 export async function createAdminAccount(email: string, password: string, role: string): Promise<void> {
   const session = await verifySession();
   if (!session || session.role !== 'ADMIN') throw new Error('Acces interzis');

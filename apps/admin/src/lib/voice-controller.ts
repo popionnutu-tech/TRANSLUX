@@ -36,7 +36,7 @@ const FALLBACK_KEYWORDS = [
 // Позиция вставки кэш НЕ спасает: точка кэша одна, на весь system.
 // Markerele TREBUIE să fie unice: un marker care apare și în alt bloc face detectorul
 // orb la ștergerea blocului propriu (ORELE a fost mascat de titlul blocului ZIUA).
-const PROMPT_MARKERS = ['ORELE — DOSLOVEN', 'UNIVERSUL localităților', 'Doriți numărul lui?', 'A DOUA OARĂ LA RÂND', 'ZIUA — DOSLOVEN'];
+const PROMPT_MARKERS = ['ORELE — DOSLOVEN', 'UNIVERSUL localităților', 'Doriți numărul lui?', 'A DOUA OARĂ LA RÂND', 'ZIUA — DOSLOVEN', 'e un CORIDOR', 'SFÂRȘIT NUME RUSEȘTI'];
 const ORELE_BLOCK = `
 
 ORELE — DOSLOVEN DIN TOOL:
@@ -76,6 +76,29 @@ NU chema acest tool pentru replici scurte. Cuvintele «da», «alo», «aha», �
 Cheamă tool-ul DOAR când clientul a rostit DOUĂ propoziții COMPLETE la rând (minimum 3 cuvinte fiecare, cu verb) în limba nouă. O singură replică, oricât de clar rusească pare, NU e motiv de schimbare.
 
 Transcriere fără sens sau amestecată? Rămâi pe limba curentă și roagă scurt să repete. Ai orice dubiu? NU chema tool-ul.`;
+
+// Rețeaua e un CORIDOR, nu o stea cu centrul la Chișinău. Promptul spunea «toată
+// rețeaua e Chișinău ↔ Nord», iar modelul a citit-o literal: refuza din capul lui
+// orice pereche nord–nord, FĂRĂ să cheme tool-ul. Apeluri reale pierdute: 26.08
+// «Bălți și Tețcani nu sunt pe ruta noastră» (existau 6 curse), 24.08 «Ocnița și
+// Briceni nu sunt pe ruta TRANSLUX» (sunt noduri ale rețelei), 22.08 «не обслуживаем
+// маршрут из Коржеуца». Regula stă în prompt fiindcă tool-ul nici nu era chemat.
+const CORIDOR_BLOCK = `
+
+REȚEAUA E UN CORIDOR:
+- Rețeaua TRANSLUX e un CORIDOR: Chișinău – Bălți – Nord, cu zeci de opriri pe el. Se circulă între ORICARE două opriri de pe coridor, nu doar dinspre sau spre Chișinău. Bălți–Tețcani, Bălți–Ocnița, Briceni–Bălți, Sîngerei–Edineț sunt curse REALE, cu orar și șofer.
+- NU refuza NICIODATĂ o pereche de localități din capul tău și NU spune «noi mergem doar din Chișinău» — trimiți perechea în search_trips și serverul răspunde dacă există curse.
+- Dacă clientul numește O SINGURĂ localitate, celălalt capăt e cel mai probabil Chișinău — NU întreba «spre unde?», caută așa.`;
+
+// Filtrul anti-comutare-falsă. A trăit în descrierea tool-ului language_detection, dar
+// 25.08 s-a văzut limita: dacă modelul NU cheamă tool-ul, textul din tool nu există
+// pentru el. De aceea regula stă acum și în prompt, sub marker propriu.
+const LIMBA_BLOCK = `
+
+LIMBA — A DOUA OARĂ LA RÂND:
+- Treci pe rusă DOAR când clientul vorbește rusește A DOUA OARĂ LA RÂND — două propoziții COMPLETE (minimum 3 cuvinte fiecare, cu verb) în rusă.
+- O SINGURĂ replică ce pare rusească NU e motiv de schimbare: transcrierea scrie des româna cu chirilice, iar «da», «alo», «aha», «nu», «bine», «mersi» sună identic în ambele limbi.
+- Transcriere fără sens sau orice dubiu? Rămâi pe limba curentă și roagă scurt să repete.`;
 
 const elHeaders = () => ({ 'xi-api-key': process.env.ELEVENLABS_API_KEY ?? '', 'content-type': 'application/json' });
 
@@ -164,6 +187,8 @@ async function checkAndHealConfig(cfg: any): Promise<Drift[]> {
   const HEALABLE = [
     { marker: 'ORELE — DOSLOVEN', block: ORELE_BLOCK, field: 'prompt.ORELE' },
     { marker: 'ZIUA — DOSLOVEN', block: DATA_BLOCK, field: 'prompt.ZIUA' },
+    { marker: 'e un CORIDOR', block: CORIDOR_BLOCK, field: 'prompt.CORIDOR' },
+    { marker: 'A DOUA OARĂ LA RÂND', block: LIMBA_BLOCK, field: 'prompt.LIMBA' },
   ];
   let healedPrompt = prompt;
   for (const h of HEALABLE) {

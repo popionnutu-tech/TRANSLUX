@@ -305,7 +305,10 @@ export async function searchTrips(
     to_locality: toRo,
     search_date: date,
     ...(await clientFingerprint()),
-  }).then(() => {});
+  }).then(({ error }) => {
+    // Un deploy peste o bază fără migrația 282 ar goli analiza căutărilor în tăcere.
+    if (error) console.warn('[search_log] insert eșuat:', error.message);
+  });
 
   const assignmentDate = await resolveAssignmentDate(supabase, date);
 

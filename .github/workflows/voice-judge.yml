@@ -1,0 +1,25 @@
+name: voice-judge
+
+# Ночной судья бизнес-логики голосового агента + прогон экзаменов ElevenLabs.
+# 01:07 UTC = 04:07 Кишинёв — после voice-learner (00:30) и мимо тика
+# voice-controller (:00/:30), чтобы не столкнуться на дочитывании экзаменов.
+
+on:
+  schedule:
+    - cron: '7 1 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run TRANSLUX voice judge
+        run: |
+          code=$(curl -s -m 120 -o /tmp/out.json -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://central-hub-md.vercel.app/api/cron/voice-judge)
+          echo "judge responded: HTTP $code"
+          cat /tmp/out.json
+          if [ "$code" -lt 200 ] || [ "$code" -ge 400 ]; then
+            echo "::warning::voice-judge endpoint returned HTTP $code"
+          fi

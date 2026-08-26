@@ -10,10 +10,10 @@
 // PATCH на секцию — меньше запросов, нет зависимости от порядка.
 import { getSupabase } from '@/lib/supabase';
 import { auditAliasShadow, syncCanonKeywords } from '@/lib/voice-canon';
+import { AGENT_ID, elGet, elPatchAgent } from '@/lib/voice/el';
+import { drainPendingExams } from '@/lib/voice-exams';
 import { RO_UNITS, RO_TENS, RU_UNITS, RU_TENS } from '@/lib/time-spoken';
 
-const AGENT_ID = 'agent_3301kn4qwa6jep38d4b63m6s6pkh';
-const EL = 'https://api.elevenlabs.io';
 const INIT_WEBHOOK_URL = 'https://central-hub-md.vercel.app/api/voice/webhooks/init';
 const CUSTOM_LLM_URL = 'https://translux-voice-llm.vercel.app/api';
 const MAX_CALLS_PER_RUN = 8;
@@ -103,21 +103,6 @@ LIMBA — A DOUA OARĂ LA RÂND:
 - Treci pe rusă DOAR când clientul vorbește rusește A DOUA OARĂ LA RÂND — două propoziții COMPLETE (minimum 3 cuvinte fiecare, cu verb) în rusă.
 - O SINGURĂ replică ce pare rusească NU e motiv de schimbare: transcrierea scrie des româna cu chirilice, iar «da», «alo», «aha», «nu», «bine», «mersi» sună identic în ambele limbi.
 - Transcriere fără sens sau orice dubiu? Rămâi pe limba curentă și roagă scurt să repete.`;
-
-const elHeaders = () => ({ 'xi-api-key': process.env.ELEVENLABS_API_KEY ?? '', 'content-type': 'application/json' });
-
-async function elGet(path: string): Promise<Record<string, unknown>> {
-  const r = await fetch(`${EL}${path}`, { headers: elHeaders(), signal: AbortSignal.timeout(10000) });
-  if (!r.ok) throw new Error(`EL GET ${path}: ${r.status}`);
-  return r.json();
-}
-
-async function elPatchAgent(body: unknown): Promise<void> {
-  const r = await fetch(`${EL}/v1/convai/agents/${AGENT_ID}`, {
-    method: 'PATCH', headers: elHeaders(), body: JSON.stringify(body), signal: AbortSignal.timeout(15000),
-  });
-  if (!r.ok) throw new Error(`EL PATCH agent: ${r.status} ${await r.text()}`);
-}
 
 async function canonKeywords(): Promise<string[]> {
   try {
@@ -388,6 +373,7 @@ async function validateRecentCalls(): Promise<Incident[]> {
 }
 
 export async function runVoiceController(): Promise<{ drifts: Drift[]; incidents: number }> {
+  const t0 = Date.now();
   // ДО чтения канона: гасим алиасы, накрывшие чужое имя (кнопка ✓ у человека may
   // промахнуться), и доливаем выученное в asr_keywords — heal ниже донесёт до EL.
   await auditAliasShadow();
@@ -420,5 +406,11 @@ export async function runVoiceController(): Promise<{ drifts: Drift[]; incidents
       .insert({ ...inc, healed: false });
     if (error && error.code !== '23505') console.error('[voice-controller] insert:', error.message);
   }
+
+  // Экзамены: дочитать прогон, который судья не успел (claim атомарный). Гейт по
+  // бюджету: в дорогом прогоне (heal+валидатор упёрлись в таймауты EL) драйн
+  // пропускается — он идемпотентен и повторится через 30 минут (perf-ревью).
+  if (Date.now() - t0 < 35_000) await drainPendingExams();
+
   return { drifts, incidents: incidents.length };
 }

@@ -40,7 +40,7 @@ const FALLBACK_KEYWORDS = [
 // Позиция вставки кэш НЕ спасает: точка кэша одна, на весь system.
 // Markerele TREBUIE să fie unice: un marker care apare și în alt bloc face detectorul
 // orb la ștergerea blocului propriu (ORELE a fost mascat de titlul blocului ZIUA).
-const PROMPT_MARKERS = ['ORELE — DOSLOVEN', 'UNIVERSUL localităților', 'Doriți numărul lui?', 'A DOUA OARĂ LA RÂND', 'ZIUA — DOSLOVEN', 'e un CORIDOR', 'SFÂRȘIT NUME RUSEȘTI', 'ÎNTÂI TOOL-UL, APOI PROMISIUNEA'];
+const PROMPT_MARKERS = ['ORELE — DOSLOVEN', 'UNIVERSUL localităților', 'Doriți numărul lui?', 'A DOUA OARĂ LA RÂND', 'ZIUA — DOSLOVEN', 'e un CORIDOR', 'SFÂRȘIT NUME RUSEȘTI', 'APEL ÎNAPOI — NICIO PROMISIUNE'];
 const ORELE_BLOCK = `
 
 ORELE — DOSLOVEN DIN TOOL:
@@ -98,15 +98,16 @@ REȚEAUA E UN CORIDOR:
 // 25.08 s-a văzut limita: dacă modelul NU cheamă tool-ul, textul din tool nu există
 // pentru el. De aceea regula stă acum și în prompt, sub marker propriu.
 // Экзамен «TLX fara promisiune callback» (первый прогон 26.08) поймал: агент
-// говорит «un coleg vă va suna înapoi» ДО вызова request_callback. Правила 8/9
-// требуют подтверждать перезвон ПОСЛЕ успешной заявки — порядок был не закреплён.
-// Ион 26.08 («fa acum»): порядок в канон. Судья (voice-judge) настроен зеркально:
-// обещание без request_callback = нарушение, после — предписано.
+// обещает «un coleg vă va suna înapoi». Решение Иона 24.08 (route request-callback,
+// 019ad44): операторов, которые перезванивают, НЕТ — обещание запрещено ВСЕГДА,
+// и до, и после заявки. Секции RECLAMAȚII/OPERATOR UMAN это уже говорят, но
+// правило тонуло в 17k промпта — дублируем маркированным блоком в хвосте.
+// Судья (voice-judge) зеркален: обещание перезвона = нарушение, без исключений.
 const CALLBACK_ORDER_BLOCK = `
 
-ÎNTÂI TOOL-UL, APOI PROMISIUNEA:
-- Promiți că cineva sună clientul înapoi DOAR DUPĂ ce request_callback a întors succes în ACEST apel. Ordinea e strictă: ceri numărul, chemi tool-ul, aștepți rezultatul — abia apoi confirmi că va fi sunat.
-- Fără solicitare înregistrată, formulări ca «vă sunăm noi», «un coleg vă va suna», «мы вам перезвоним» sunt INTERZISE: nimeni nu sună înapoi fără cerere în sistem, iar clientul ar aștepta degeaba.`;
+APEL ÎNAPOI — NICIO PROMISIUNE:
+- NU promiți NICIODATĂ că cineva sună clientul înapoi — nici tu, nici «un coleg», nici compania. Formulările «vă sunăm noi», «un coleg vă va suna», «мы вам перезвоним» sunt INTERZISE în orice moment al apelului, inclusiv DUPĂ request_callback.
+- Clientul cere să fie sunat înapoi? Chemi request_callback și spui DOAR: «Am notat solicitarea.» — atât. Fără nicio promisiune de apel: nu există operatori care sună înapoi, iar clientul ar aștepta degeaba.`;
 
 const LIMBA_BLOCK = `
 
@@ -123,6 +124,18 @@ async function canonKeywords(): Promise<string[]> {
   } catch { /* fallback mai jos */ }
   return FALLBACK_KEYWORDS;
 }
+
+// Надгробия: САМО-ДОПИСАННЫЕ ранее блоки, чьи правила отменены. Вычищаются из
+// живого промпта точным совпадением строки (никакой ручной перепечатки 17k).
+// Первый случай: блок e2c6263 разрешал обещать перезвон ПОСЛЕ request_callback —
+// отменён решением Иона 24.08 «операторов, которые перезванивают, нет».
+const OBSOLETE_BLOCKS = [
+  `
+
+ÎNTÂI TOOL-UL, APOI PROMISIUNEA:
+- Promiți că cineva sună clientul înapoi DOAR DUPĂ ce request_callback a întors succes în ACEST apel. Ordinea e strictă: ceri numărul, chemi tool-ul, aștepți rezultatul — abia apoi confirmi că va fi sunat.
+- Fără solicitare înregistrată, formulări ca «vă sunăm noi», «un coleg vă va suna», «мы вам перезвоним» sunt INTERZISE: nimeni nu sună înapoi fără cerere în sistem, iar clientul ar aștepta degeaba.`,
+];
 
 type Drift = { field: string; healed: boolean };
 
@@ -189,9 +202,15 @@ async function checkAndHealConfig(cfg: any): Promise<Drift[]> {
     { marker: 'ZIUA — DOSLOVEN', block: DATA_BLOCK, field: 'prompt.ZIUA' },
     { marker: 'e un CORIDOR', block: CORIDOR_BLOCK, field: 'prompt.CORIDOR' },
     { marker: 'A DOUA OARĂ LA RÂND', block: LIMBA_BLOCK, field: 'prompt.LIMBA' },
-    { marker: 'ÎNTÂI TOOL-UL, APOI PROMISIUNEA', block: CALLBACK_ORDER_BLOCK, field: 'prompt.CALLBACK_ORDER' },
+    { marker: 'APEL ÎNAPOI — NICIO PROMISIUNE', block: CALLBACK_ORDER_BLOCK, field: 'prompt.CALLBACK_ORDER' },
   ];
   let healedPrompt = prompt;
+  for (const ob of OBSOLETE_BLOCKS) {
+    if (healedPrompt.includes(ob)) {
+      healedPrompt = healedPrompt.replace(ob, '');
+      drifts.push({ field: 'prompt.obsolete_removed', healed: true });
+    }
+  }
   for (const h of HEALABLE) {
     if (missing.includes(h.marker)) {
       healedPrompt += h.block;

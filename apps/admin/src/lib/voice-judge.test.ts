@@ -84,17 +84,17 @@ describe('верификаторы', () => {
     expect(hasSearchForPair(cross, f)).toBe(false); // key() не транслитерирует — межалфавитное закрывает verifyCoridorRefuz
   });
 
-  it('promite_callback: цитата+regex; после request_callback обещание ПРЕДПИСАНО — не нарушение', () => {
+  it('promite_callback: запрещено ВСЕГДА (Ion 24.08) — даже после request_callback', () => {
     const promise = { role: 'agent', message: 'Nu vă faceți griji, vă sunăm noi înapoi.', time_in_call_secs: 1 };
     const yes = buildFacts('c', '2026-08-26T18:00:00Z', [promise]);
     const v: JudgeViolation = { rule: 'promite_callback', quote: 'vă sunăm noi înapoi', summary_ru: 's' };
     expect(verifyCallbackPromise(v, yes)).toBe(true);
-    // Та же фраза, но заявка через request_callback была — промпт ОБЯЗЫВАЕТ обещать.
+    // Заявка была — обещание ВСЁ РАВНО нарушение: перезванивающих операторов нет.
     const withTool = buildFacts('c', '2026-08-26T18:00:00Z', [
       { role: 'agent', message: null, time_in_call_secs: 0, tool_calls: [{ tool_name: 'request_callback', params_as_json: '{}' }] },
       promise,
     ]);
-    expect(verifyCallbackPromise(v, withTool)).toBe(false);
+    expect(verifyCallbackPromise(v, withTool)).toBe(true);
     // Цитата не из белого списка обещаний → шум LLM отбрасывается.
     const weak: JudgeViolation = { rule: 'promite_callback', quote: 'vă pot ajuta cu orarul', summary_ru: 's' };
     const noPromise = buildFacts('c', '2026-08-26T18:00:00Z', [{ role: 'agent', message: 'Vă pot ajuta cu orarul.', time_in_call_secs: 1 }]);

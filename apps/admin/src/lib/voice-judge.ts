@@ -132,7 +132,7 @@ export type JudgeViolation = {
 const JUDGE_SYSTEM = `Ești un auditor de apeluri pentru compania de transport TRANSLUX (Moldova). Primești FAPTELE (ce tool-uri s-au chemat și ce au întors) și TRANSCRIPTUL. Verifici DOAR aceste reguli:
 1. coridor_refuz — agentul a REFUZAT o pereche de localități («nu avem această rută», «nu circulăm acolo») FĂRĂ să fi chemat search_trips pentru acea pereche. Notează from/to exact cum le-a spus clientul și, dacă s-a spus, ziua (date_word: azi/mâine/zi a săptămânii/zi.lună).
 2. neaga_curse — tool-ul a întors count>0, iar agentul a spus că nu sunt curse.
-3. promite_callback — agentul promite un apel înapoi FĂRĂ să fi înregistrat o solicitare prin tool-ul request_callback (după request_callback promisiunea e OBLIGATORIE și nu e încălcare).
+3. promite_callback — agentul promite un apel înapoi («vă sunăm noi», «un coleg vă va suna»). Interzis ÎNTOTDEAUNA, și înainte, și după request_callback: nu există operatori care sună înapoi.
 4. zi_gresita — agentul numește o zi/dată care NU apare în date_label din rezultatele tool-ului (day_said = ziua rostită).
 5. pret_gresit — agentul numește un preț care NU apare în rezultatele tool-urilor (price_said = numărul în lei).
 Răspunde DOAR JSON:
@@ -197,12 +197,11 @@ export function verifyNeagaCurse(v: JudgeViolation, f: JudgeFacts): boolean {
     && quoteInText(v.quote, f.agentText);
 }
 
-// (c) Обещание перезвона. ПОСЛЕ request_callback обещание ПРЕДПИСАНО промптом
-// (правила 8/9) — нарушение только когда заявки не было (ревью C1). Цитата-якорь
-// обязательна + regex-белый список против выдумок LLM.
-export const CALLBACK_RE = /(vă\s+sun[ăa]m|vă\s+voi\s+suna|te\s+sun\s+eu|revenim\s+cu\s+un\s+apel|о?\s*перезвон(ю|им)|мы\s+вам\s+позвоним|вам\s+перезвонят|(colegul|un\s+coleg)[^.]{0,40}va\s+suna)/iu;
+// (c) Обещание перезвона. Запрещено ВСЕГДА — и до, и после request_callback:
+// операторов, которые перезванивают, нет (решение Иона 24.08, route 019ad44).
+// Цитата-якорь обязательна + regex-белый список против выдумок LLM.
+export const CALLBACK_RE = /(vă\s+sun[ăa]m|vă\s+sunez|vă\s+voi\s+suna|te\s+sun\s+eu|revenim\s+cu\s+un\s+apel|о?\s*перезвон(ю|им)|мы\s+вам\s+позвоним|вам\s+перезвонят|(colegul|un\s+coleg)[^.]{0,40}va\s+suna)/iu;
 export function verifyCallbackPromise(v: JudgeViolation, f: JudgeFacts): boolean {
-  if (f.calledRequestCallback) return false;
   return quoteInText(v.quote, f.agentText) && CALLBACK_RE.test(v.quote);
 }
 

@@ -315,7 +315,7 @@ export async function searchTrips(
   const [{ data: routes }, { data: kmPairsA }, { data: kmPairsB }, { data: assignments }, { data: returOverrides }, { data: activeOffers }, { data: periodData }] = await Promise.all([
     supabase
       .from('crm_routes')
-      .select('id, dest_to_ro, dest_to_ru, dest_from_ro, dest_from_ru, time_chisinau, time_nord, tariff_id_tur, tariff_id_retur')
+      .select('id, dest_to_ro, dest_to_ru, dest_from_ro, dest_from_ru, time_chisinau, time_nord, tariff_id_tur, tariff_id_retur, retur_ascuns')
       .in('id', matchingRouteIds)
       .eq('active', true),
     supabase
@@ -440,7 +440,11 @@ export async function searchTrips(
     const displayOriginal = offerPrice ? price : null;
 
     if (goingNorth) {
-      // RETUR direction (Chișinău → Nord) — use retur assignment map
+      // RETUR direction (Chișinău → Nord) — use retur assignment map.
+      // Ruta poate avea plecarea din Chișinău ascunsă (migr. 284): slotul există în
+      // orar, dar nu se operează ca plecare separată — de ex. ruta 2, al cărei șofer
+      // face returul la 10:40. Nu e o gaură de completat, deci n-o oferim nimănui.
+      if (route.retur_ascuns) continue;
       const time = from.hour_from_chisinau;
       const arrival = to.hour_from_chisinau && to.hour_from_chisinau !== '0:00' ? to.hour_from_chisinau : '';
       if (time && time !== '0:00') {

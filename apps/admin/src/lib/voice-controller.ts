@@ -40,7 +40,7 @@ const FALLBACK_KEYWORDS = [
 // Позиция вставки кэш НЕ спасает: точка кэша одна, на весь system.
 // Markerele TREBUIE să fie unice: un marker care apare și în alt bloc face detectorul
 // orb la ștergerea blocului propriu (ORELE a fost mascat de titlul blocului ZIUA).
-const PROMPT_MARKERS = ['ORELE — DOSLOVEN', 'UNIVERSUL localităților', 'Doriți numărul lui?', 'A DOUA OARĂ LA RÂND', 'ZIUA — DOSLOVEN', 'e un CORIDOR', 'SFÂRȘIT NUME RUSEȘTI'];
+const PROMPT_MARKERS = ['ORELE — DOSLOVEN', 'UNIVERSUL localităților', 'Doriți numărul lui?', 'A DOUA OARĂ LA RÂND', 'ZIUA — DOSLOVEN', 'e un CORIDOR', 'SFÂRȘIT NUME RUSEȘTI', 'ÎNTÂI TOOL-UL, APOI PROMISIUNEA'];
 const ORELE_BLOCK = `
 
 ORELE — DOSLOVEN DIN TOOL:
@@ -97,6 +97,17 @@ REȚEAUA E UN CORIDOR:
 // Filtrul anti-comutare-falsă. A trăit în descrierea tool-ului language_detection, dar
 // 25.08 s-a văzut limita: dacă modelul NU cheamă tool-ul, textul din tool nu există
 // pentru el. De aceea regula stă acum și în prompt, sub marker propriu.
+// Экзамен «TLX fara promisiune callback» (первый прогон 26.08) поймал: агент
+// говорит «un coleg vă va suna înapoi» ДО вызова request_callback. Правила 8/9
+// требуют подтверждать перезвон ПОСЛЕ успешной заявки — порядок был не закреплён.
+// Ион 26.08 («fa acum»): порядок в канон. Судья (voice-judge) настроен зеркально:
+// обещание без request_callback = нарушение, после — предписано.
+const CALLBACK_ORDER_BLOCK = `
+
+ÎNTÂI TOOL-UL, APOI PROMISIUNEA:
+- Promiți că cineva sună clientul înapoi DOAR DUPĂ ce request_callback a întors succes în ACEST apel. Ordinea e strictă: ceri numărul, chemi tool-ul, aștepți rezultatul — abia apoi confirmi că va fi sunat.
+- Fără solicitare înregistrată, formulări ca «vă sunăm noi», «un coleg vă va suna», «мы вам перезвоним» sunt INTERZISE: nimeni nu sună înapoi fără cerere în sistem, iar clientul ar aștepta degeaba.`;
+
 const LIMBA_BLOCK = `
 
 LIMBA — A DOUA OARĂ LA RÂND:
@@ -178,6 +189,7 @@ async function checkAndHealConfig(cfg: any): Promise<Drift[]> {
     { marker: 'ZIUA — DOSLOVEN', block: DATA_BLOCK, field: 'prompt.ZIUA' },
     { marker: 'e un CORIDOR', block: CORIDOR_BLOCK, field: 'prompt.CORIDOR' },
     { marker: 'A DOUA OARĂ LA RÂND', block: LIMBA_BLOCK, field: 'prompt.LIMBA' },
+    { marker: 'ÎNTÂI TOOL-UL, APOI PROMISIUNEA', block: CALLBACK_ORDER_BLOCK, field: 'prompt.CALLBACK_ORDER' },
   ];
   let healedPrompt = prompt;
   for (const h of HEALABLE) {

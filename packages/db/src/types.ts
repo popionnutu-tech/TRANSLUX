@@ -49,6 +49,9 @@ export interface AdminAccount {
   created_at: string;
   // Etapa 2 (Piese): depozitul de care e legat contul. NULL = toate (drepturi extinse). Vezi migr. 231.
   warehouse_id: number | null;
+  // Migr. 282 — drepturi fine per cont (perioada de implementare), NU per rol:
+  edit_window_days: number;      // zile în urmă în care poate corecta documente; 0 = doar azi. ADMIN e nelimitat.
+  sees_all_invoices: boolean;    // true = vede toate facturile în e-Factura, nu doar ale lui. ADMIN/CONTABIL oricum le văd.
 }
 
 export interface User {

@@ -48,7 +48,10 @@ export async function verifySession(): Promise<Session | null> {
 
   try {
     const { payload } = await jwtVerify(token, secret);
-    if (!payload.role) return null;
+    // `sub` e la fel de esențial ca rolul: din el iese Session.id, folosit ca filtru de proprietate
+    // (facturile mele, depozitul meu, fereastra mea). Un `sub` lipsă ar da `undefined`, iar filtrele
+    // care tratează valoarea falsy drept „fără restricție" s-ar deschide tăcut.
+    if (!payload.role || !payload.sub) return null;
     return {
       id: payload.sub as string,
       email: payload.email as string,

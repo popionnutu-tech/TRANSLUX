@@ -1,7 +1,7 @@
 'use server';
 
-import { verifySession, requireRole } from '@/lib/auth';
-import { assertWarehouseAllowed, userWarehouseId } from '@/lib/piese-access';
+import { verifySession, requireRole, type Session } from '@/lib/auth';
+import { assertWarehouseAllowed, userWarehouseId, editWindowDays } from '@/lib/piese-access';
 import { createReceipt, receiptDocs, receiptDocLines, receiptDocWarehouse, setReceiptCreator, setReceiptNote,
   receiptDocHeaderForEdit, receiptEditInfo, updateReceiptHeader, replaceReceiptLines } from '@/lib/piese';
 import { chisinauDayStartIso, chisinauDayBounds, chisinauDayOf, chisinauTodayIso } from '@/lib/chisinau-time';
@@ -47,9 +47,26 @@ export async function loadReceiptLines(docId: number) {
 }
 
 // ── Modificarea unui document de recepție (#1b) ──
-// Regula pe zi: ADMIN modifică orice document; ceilalți doar documentele create AZI (ora Chișinău).
-function canEditDay(role: string, createdAt: string): boolean {
-  return role === 'ADMIN' || chisinauDayOf(createdAt) === chisinauTodayIso();
+// Regula pe zi: ADMIN modifică orice document; ceilalți, doar în fereastra contului lor (migr. 287):
+// edit_window_days = 0 → doar AZI (comportamentul istoric), 7 → ultimele 7 zile, etc. Toate în ora Chișinău.
+// NOTĂ: fereastra e doar un strat grosier. Protecția reală a stocului e `receiptEditInfo` (piese.ts), care
+// blochează editarea liniilor dacă marfa a fost deja consumată — indiferent cât de largă e fereastra.
+function daysBetweenIsoDays(fromIso: string, toIso: string): number {
+  // Ambele sunt YYYY-MM-DD (zile calendaristice Chișinău), deci le comparăm ca date UTC pure — fără DST.
+  const a = Date.parse(fromIso + 'T00:00:00Z');
+  const b = Date.parse(toIso + 'T00:00:00Z');
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return Number.POSITIVE_INFINITY; // fail-closed: pare „prea vechi"
+  return Math.round((b - a) / 86400000);
+}
+
+async function canEditDay(session: Session, createdAt: string): Promise<boolean> {
+  // NU scurtcircuităm pe session.role: rolul din JWT e vechi de până la 24h. `editWindowDays` întoarce
+  // Infinity pentru ADMIN pe baza rolului DIN DB, deci retrogradarea unui admin are efect imediat.
+  const docDay = chisinauDayOf(createdAt);
+  const today = chisinauTodayIso();
+  const age = daysBetweenIsoDays(docDay, today);
+  if (age < 0) return true;                 // document „din viitor" (ceas/fus) — nu-l blocăm pe seama contului
+  return age <= (await editWindowDays(session));
 }
 
 function cleanHeader(h: { supplier_id?: number | null; series?: string | null; number?: string | null; note?: string | null }) {
@@ -73,9 +90,11 @@ async function guardReceiptEdit(docId: number) {
   const header = await receiptDocHeaderForEdit(Number(docId));
   if (!header) throw new Error('Document inexistent');
   assertEditableDoc(header.series);
+  // Autorizarea ÎNAINTEA regulii de business, la fel ca în loadReceiptForEdit: altfel mesajul „a fost deja
+  // corectat" ar confirma statusul unui document din alt depozit, la care contul n-are acces.
   await assertWarehouseAllowed(session, header.warehouseId); // cont legat: doar depozitul lui
   if (header.status !== 'CONFIRMED') throw new Error('Documentul nu mai poate fi modificat (a fost deja corectat).');
-  if (!canEditDay(session.role, header.createdAt)) throw new Error('Doar administratorul poate modifica documente din zile anterioare.');
+  if (!(await canEditDay(session, header.createdAt))) throw new Error('Documentul e mai vechi decât fereastra ta de corecție. Cere administratorului.');
   return { session, header };
 }
 
@@ -87,13 +106,16 @@ export async function loadReceiptForEdit(docId: number) {
   assertEditableDoc(header.series);
   await assertWarehouseAllowed(session, header.warehouseId);
   if (header.status !== 'CONFIRMED') throw new Error('Documentul nu mai poate fi modificat.');
-  const [lines, info] = await Promise.all([receiptDocLines(Number(docId)), receiptEditInfo(Number(docId))]);
+  // Fereastra de corecție e independentă de linii/consum → intră în același Promise.all, nu după el.
+  const [lines, info, canEdit] = await Promise.all([
+    receiptDocLines(Number(docId)), receiptEditInfo(Number(docId)), canEditDay(session, header.createdAt),
+  ]);
   return {
     header: { supplierId: header.supplierId, series: header.series, number: header.number, note: header.note, createdAt: header.createdAt },
     lines: lines.map((l) => ({ part_id: l.partId, label: l.article ? `${l.name} · ${l.article}` : l.name, qty: l.qty, unit_cost: l.unitCost })),
     canEditLines: info.canEditLines,
     consumedBy: info.consumedBy,
-    canEdit: canEditDay(session.role, header.createdAt), // dreptul pe zi (server îl reimpune la salvare)
+    canEdit, // fereastra de corecție (server o reimpune la salvare)
   };
 }
 

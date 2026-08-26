@@ -15,12 +15,18 @@ import {
   createAdminAccount,
   updateAdminWarehouse,
   updateAdminRole,
+  updateAdminEditWindow,
+  updateAdminInvoiceVisibility,
 } from './actions';
 import type { InviteWithAdmin, AdminAccountInfo } from './actions';
 // SURSĂ UNICĂ (fișier fără 'server-only', importabil din client): ce roluri se leagă de un depozit.
-import { DEPOT_BOUND_ROLES } from '@/lib/piese-roles';
+import { DEPOT_BOUND_ROLES, SELLER_SCOPED_ROLES, EDIT_WINDOW_OPTIONS } from '@/lib/piese-roles';
 
 type WarehouseOpt = { id: number; name: string };
+
+// Oglindește requirePieseFiscal() din piese-access.ts — cine ajunge deloc la ecranul e-Factura.
+// Restul rolurilor primesc „—" în coloană, ca la DEPOZIT, nu „toate" (care ar sugera un acces inexistent).
+const FISCAL_ROLES = ['ADMIN', 'CONTABIL', 'VINZATOR', 'GESTIONAR'];
 
 const ROLE_LABELS: Record<string, string> = {
   ADMIN: 'Administrator',
@@ -93,6 +99,26 @@ export default function UsersClient({
     setError('');
     try {
       await updateAdminRole(id, role);
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
+
+  async function handleEditWindow(id: string, days: string) {
+    setError('');
+    try {
+      await updateAdminEditWindow(id, Number(days));
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
+
+  async function handleInvoiceVisibility(id: string, seesAll: boolean) {
+    setError('');
+    try {
+      await updateAdminInvoiceVisibility(id, seesAll);
       router.refresh();
     } catch (err: any) {
       setError(err.message);
@@ -546,6 +572,8 @@ export default function UsersClient({
                 <th>PAROLA</th>
                 <th>ROL</th>
                 <th>DEPOZIT</th>
+                <th>CORECȚII</th>
+                <th>FACTURI</th>
               </tr>
             </thead>
             <tbody>
@@ -585,6 +613,44 @@ export default function UsersClient({
                           <option key={w.id} value={w.id}>{w.name}</option>
                         ))}
                       </select>
+                    ) : (
+                      <span style={{ color: '#ccc' }}>—</span>
+                    )}
+                  </td>
+                  <td>
+                    {/* Migr. 282: câte zile în urmă poate corecta documente. ADMIN e nelimitat prin cod. */}
+                    {a.role === 'ADMIN' ? (
+                      <span style={{ color: '#ccc' }}>nelimitat</span>
+                    ) : (
+                      <select
+                        className="u-select"
+                        value={String(a.edit_window_days ?? 0)}
+                        onChange={(e) => handleEditWindow(a.id, e.target.value)}
+                      >
+                        {/* Valoare din DB în afara treptelor: o arătăm ca atare, ca select-ul să nu afișeze
+                            din greșeală „Doar azi" pentru un cont care are de fapt o fereastră deschisă. */}
+                        {!EDIT_WINDOW_OPTIONS.includes(Number(a.edit_window_days ?? 0)) && (
+                          <option value={String(a.edit_window_days)}>{a.edit_window_days} zile</option>
+                        )}
+                        {EDIT_WINDOW_OPTIONS.map((d) => (
+                          <option key={d} value={String(d)}>{d === 0 ? 'Doar azi' : d === 1 ? '1 zi' : `${d} zile`}</option>
+                        ))}
+                      </select>
+                    )}
+                  </td>
+                  <td>
+                    {/* Migr. 282: doar rolurile scoped pe seller sunt limitate la facturile lor. */}
+                    {(SELLER_SCOPED_ROLES as string[]).includes(a.role) ? (
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                        <input
+                          type="checkbox"
+                          checked={!!a.sees_all_invoices}
+                          onChange={(e) => handleInvoiceVisibility(a.id, e.target.checked)}
+                        />
+                        toate
+                      </label>
+                    ) : FISCAL_ROLES.includes(a.role) ? (
+                      <span style={{ color: '#ccc' }}>toate</span>
                     ) : (
                       <span style={{ color: '#ccc' }}>—</span>
                     )}

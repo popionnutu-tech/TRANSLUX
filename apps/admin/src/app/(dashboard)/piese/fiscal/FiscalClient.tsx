@@ -7,13 +7,32 @@ import { sendToSfs } from './actions';
 const lei = (n: number) => Number(n || 0).toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' lei';
 interface Inv { id: number; invoice_series: string | null; invoice_number: string | null; created_at: string; efactura_status: string | null; client_name: string | null; net: number }
 
-export default function FiscalClient({ invoices }: { invoices: Inv[] }) {
+export default function FiscalClient({ invoices, truncated = false, pending = false }: { invoices: Inv[]; truncated?: boolean; pending?: boolean }) {
   const router = useRouter();
   const [busy, setBusy] = useState<number | null>(null);
-  async function send(id: number) { setBusy(id); try { await sendToSfs(id); router.refresh(); } finally { setBusy(null); } }
+  const [err, setErr] = useState('');
+  async function send(id: number) {
+    setBusy(id); setErr('');
+    // Fără catch, o respingere de server (ex. factură care nu e a ta) ar trece nevăzută: butonul doar s-ar reseta.
+    try { await sendToSfs(id); router.refresh(); }
+    catch (e: any) { setErr(e?.message || 'Nu am putut marca factura'); }
+    finally { setBusy(null); }
+  }
   return (
     <div className="card">
       <h2>Facturi de vânzare (e-Factura)</h2>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', margin: '8px 0 14px' }}>
+        <a className={pending ? 'badge gray' : 'badge info'} href="/piese/fiscal">Toate</a>
+        {/* „De trimis" ocolește plafonul de 500 — altfel o factură veche nesincronizată ar deveni inaccesibilă. */}
+        <a className={pending ? 'badge info' : 'badge gray'} href="/piese/fiscal?pending=1">Doar de trimis</a>
+      </div>
+      {err && <div className="alert danger">{err}</div>}
+      {truncated && (
+        <div className="alert info">
+          Lista e prea lungă și a fost tăiată — se afișează cele mai recente {invoices.length} de facturi.
+          Pentru cele nesincronizate mai vechi, folosește „Doar de trimis".
+        </div>
+      )}
       {invoices.length === 0 ? <div className="empty">Nicio vânzare încă.</div> : (
         <table>
           <thead><tr><th>Factură</th><th>Client</th><th className="num">Fără TVA</th><th className="num">Cu TVA 20%</th><th>Status SFS</th><th>Acțiuni</th></tr></thead>

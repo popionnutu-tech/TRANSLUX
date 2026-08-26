@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
-import { DEPOT_BOUND_ROLES } from '@/lib/piese-roles';
+import { DEPOT_BOUND_ROLES, SELLER_SCOPED_ROLES, MAX_EDIT_WINDOW_DAYS, EDIT_WINDOW_ROLES } from '@/lib/piese-roles';
 import type { User, UserRole, InviteToken, PointEnum, AdminRole } from '@translux/db';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
@@ -69,6 +69,8 @@ export interface AdminAccountInfo {
   role: string;
   name: string | null;
   warehouse_id: number | null; // Etapa 2 (Piese): depozitul de care e legat contul; null = toate
+  edit_window_days: number;    // migr. 287: zile în urmă în care poate corecta documente (0 = doar azi)
+  sees_all_invoices: boolean;  // migr. 287: vede toate facturile în e-Factura, nu doar ale lui
 }
 
 export async function getAdminAccounts(): Promise<AdminAccountInfo[]> {
@@ -76,7 +78,7 @@ export async function getAdminAccounts(): Promise<AdminAccountInfo[]> {
   if (!session || session.role !== 'ADMIN') return [];
   const { data } = await getSupabase()
     .from('admin_accounts')
-    .select('id, email, role, name, warehouse_id')
+    .select('id, email, role, name, warehouse_id, edit_window_days, sees_all_invoices')
     .order('role')
     .order('email');
   return (data || []) as AdminAccountInfo[];
@@ -127,10 +129,56 @@ export async function updateAdminRole(id: string, role: string): Promise<void> {
 
   // Legarea de depozit are sens doar pentru DEPOT_BOUND_ROLES. La ieșirea din ele curățăm warehouse_id,
   // ca să nu rămână în DB o valoare fără efect (userWarehouseId o ignoră oricum) dar derutantă la citire.
-  const patch: { role: string; warehouse_id?: null } = { role };
+  const patch: { role: string; warehouse_id?: null; sees_all_invoices?: false; edit_window_days?: 0 } = { role };
   if (!DEPOT_BOUND_ROLES.includes(role as AdminRole)) patch.warehouse_id = null;
+  // Migr. 282: drepturile fine se resetează NECONDIȚIONAT la orice schimbare de rol.
+  // Nu doar când rolul-țintă e nepotrivit — altfel traseul GESTIONAR(30 zile) → CONTABIL → GESTIONAR
+  // readuce fereastra intactă, fără ca cineva s-o rebifeze. Un drept acordat punctual, pentru un rol anume,
+  // nu supraviețuiește rolului pentru care a fost dat; adminul îl reacordă explicit dacă mai e nevoie.
+  patch.sees_all_invoices = false;
+  patch.edit_window_days = 0;
+
 
   const { error } = await db.from('admin_accounts').update(patch).eq('id', id);
+  if (error) throw new Error(error.message);
+  revalidatePath('/users');
+}
+
+// Migr. 282 — fereastra de corecție a documentelor, PER CONT. Doar ADMIN.
+// Lărgirea e punctuală (un om, pe durata implementării), nu o slăbire a rolului pentru toți cei care îl poartă.
+// Plafon 0..MAX_EDIT_WINDOW_DAYS, oglindind constrângerea din DB (admin_accounts_edit_window_days_ck), ca UI-ul să dea
+// un mesaj clar în loc să lase baza să arunce.
+export async function updateAdminEditWindow(id: string, days: number): Promise<void> {
+  const session = await verifySession();
+  if (!session || session.role !== 'ADMIN') throw new Error('Acces interzis');
+  const d = Math.trunc(Number(days));
+  if (!Number.isFinite(d) || d < 0 || d > MAX_EDIT_WINDOW_DAYS) throw new Error(`Fereastra trebuie să fie între 0 și ${MAX_EDIT_WINDOW_DAYS} de zile`);
+  const db = getSupabase();
+  const { data: acc } = await db.from('admin_accounts').select('role').eq('id', id).maybeSingle();
+  if (!acc) throw new Error('Cont inexistent'); // altfel UPDATE-ul pe 0 rânduri ar raporta fals „salvat"
+  // Ca la depozit și la vizibilitatea facturilor: refuzăm setarea pe un rol unde n-are efect, ca să nu rămână
+  // în DB o stare latentă care s-ar activa la o viitoare rotație de rol. Doar rolurile care chiar corectează
+  // recepții (RECEIPT_ROLES din prihod/actions.ts, fără ADMIN care e nelimitat prin cod) au fereastră.
+  const accRole = (acc as { role: AdminRole }).role;
+  if (d > 0 && !EDIT_WINDOW_ROLES.includes(accRole)) throw new Error('Doar depozitarul și gestionarul corectează recepții; pentru restul fereastra n-are efect');
+  const { error } = await db.from('admin_accounts').update({ edit_window_days: d }).eq('id', id);
+  if (error) throw new Error(error.message);
+  revalidatePath('/users');
+}
+
+// Migr. 282 — vizibilitatea facturilor în e-Factura, PER CONT. Doar ADMIN.
+// Contează doar pentru rolurile scoped pe seller (VINZATOR/GESTIONAR); ADMIN și CONTABIL văd oricum toate.
+export async function updateAdminInvoiceVisibility(id: string, seesAll: boolean): Promise<void> {
+  const session = await verifySession();
+  if (!session || session.role !== 'ADMIN') throw new Error('Acces interzis');
+  const db = getSupabase();
+  const { data: acc } = await db.from('admin_accounts').select('role').eq('id', id).maybeSingle();
+  if (!acc) throw new Error('Cont inexistent');
+  // Ca la depozit: refuzăm setarea pe un rol unde n-are efect, ca să nu rămână în DB o stare latentă
+  // care s-ar activa la o viitoare schimbare de rol.
+  const isScoped = SELLER_SCOPED_ROLES.includes((acc as { role: AdminRole }).role);
+  if (seesAll && !isScoped) throw new Error('Doar vânzătorul și gestionarul sunt limitați la facturile lor; pentru restul nu are efect');
+  const { error } = await db.from('admin_accounts').update({ sees_all_invoices: !!seesAll }).eq('id', id);
   if (error) throw new Error(error.message);
   revalidatePath('/users');
 }

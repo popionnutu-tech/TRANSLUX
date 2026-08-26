@@ -71,11 +71,29 @@ export async function shopProfit() {
 }
 
 // ── Fiscal (e-Factura) ──
-export async function saleInvoices(opts: { sellerId?: string } = {}) {
-  let q = getSupabase().from('piese_sale_invoices').select('*');
+// Plafon pe listă: fără el, ecranul ar crește nemărginit cu vechimea firmei (ADMIN/CONTABIL au primit
+// dintotdeauna lista nefiltrată). Cerem LIMIT+1 ca să știm dacă s-a tăiat ceva și să putem spune în UI —
+// o trunchiere tăcută ar face facturile vechi să pară inexistente.
+// `pending: true` = doar cele NEtrimise la SFS. Are plafonul LUI, mai larg — NU e nemărginit: trimiterea
+// live către SFS nu e activată încă, deci `piese_create_sale` lasă fiecare vânzare pe 'PENDING' și practic
+// TOATE facturile sunt „de trimis". Filtrul e util ca să ajungi la o factură veche nesincronizată (care ar
+// cădea sub linia plafonului obișnuit), nu ca portiță către o listă fără limită.
+const SALE_INVOICES_LIMIT = 500;
+const SALE_INVOICES_PENDING_LIMIT = 2000;
+// Coloane EXPLICITE: `select('*')` ar trimite la client și `created_by_admin` (UUID-ul contului care a emis),
+// de care interfața nu are nevoie — iar un vânzător cu `sees_all_invoices` ar colecta astfel id-urile colegilor.
+const SALE_INVOICE_COLS = 'id, invoice_series, invoice_number, created_at, efactura_status, client_name, net';
+export async function saleInvoices(opts: { sellerId?: string; pending?: boolean } = {}): Promise<{ rows: any[]; truncated: boolean }> {
+  const limit = opts.pending ? SALE_INVOICES_PENDING_LIMIT : SALE_INVOICES_LIMIT;
+  let q = getSupabase().from('piese_sale_invoices').select(SALE_INVOICE_COLS);
   if (opts.sellerId) q = q.eq('created_by_admin', opts.sellerId); // vânzătorul vede doar facturile lui
-  const { data } = await q;
-  return data || [];
+  if (opts.pending) q = q.neq('efactura_status', 'SENT');
+  // Ordonare EXPLICITĂ: ORDER BY-ul din interiorul unui view nu e garantat să supraviețuiască sub LIMIT,
+  // iar dacă n-ar supraviețui s-ar tăia rânduri arbitrare, nu cele mai vechi.
+  // LIMIT+1: cerem un rând peste plafon doar ca să ȘTIM că s-a tăiat și s-o putem spune în UI.
+  const { data } = await q.order('created_at', { ascending: false }).order('id', { ascending: false }).limit(limit + 1);
+  const rows = data || [];
+  return { rows: rows.slice(0, limit), truncated: rows.length > limit };
 }
 export async function markSfs(docId: number, sellerId?: string) {
   if (sellerId) { // vânzătorul poate marca doar facturile lui

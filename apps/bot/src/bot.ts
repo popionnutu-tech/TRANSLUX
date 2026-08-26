@@ -16,6 +16,7 @@ import { taxiZoneReportConversation } from './conversations/taxiZoneReport.js';
 import { initAdminAlert } from './services/adminAlert.js';
 import { handleDaily, handleSmmWeekly, handleSmmMonth } from './handlers/smm.js';
 import { initTaskBoard, bindTaskBoard, getBoardAssignee, sweepTaskBoards } from './services/taskBoard.js';
+import { sendVoiceLessonDigest, decideVoiceLesson } from './services/voiceLessons.js';
 
 /** Operator comutabil (Aurel): setează rolul pe azi și revine la meniu. */
 async function setRoleAndMenu(ctx: BotContext, role: 'TAXI_ZONE' | 'MAIN') {
@@ -117,6 +118,40 @@ export function createBot(): Bot<BotContext> {
     const n = await sweepTaskBoards();
     if (n > 0) await ctx.reply(`Am postat ${n} sarcină(i) activă(e). Sarcinile noi vor apărea automat.`);
     else await ctx.reply('Nu sunt sarcini active acum. Cele noi vor apărea automat.');
+  });
+
+  // Уроки голосового агента: ручной запуск дайджеста (тест-рычаг, только ADMIN).
+  bot.command('lectii', async (ctx) => {
+    if (!ctx.dbUser || ctx.dbUser.role !== 'ADMIN') {
+      await ctx.reply('Doar administratorii.');
+      return;
+    }
+    const n = await sendVoiceLessonDigest();
+    await ctx.reply(n > 0 ? `Отправлено уроков: ${n}.` : 'Новых уроков нет.');
+  });
+
+  // Решение по уроку ✓/✗. У каждого админа своя копия сообщения; гонку двух
+  // админов разрешает атомарный claim в decideVoiceLesson — проигравший видит
+  // «уже решено». editMessageText без reply_markup убирает кнопки.
+  bot.callbackQuery(/^vl:(ok|no):(\d+)$/, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    if (!ctx.dbUser || ctx.dbUser.role !== 'ADMIN') {
+      await ctx.reply('Доступно только администраторам.');
+      return;
+    }
+    const approve = ctx.match[1] === 'ok';
+    const id = Number(ctx.match[2]);
+    const res = await decideVoiceLesson(id, approve, Number(ctx.dbUser.telegram_id));
+    if (res === 'error') {
+      await ctx.reply('Ошибка — попробуйте ещё раз.'); // кнопки остаются, можно повторить
+      return;
+    }
+    const verdict =
+      res === 'approved' ? '✓ Принято' :
+      res === 'rejected' ? '✗ Отклонено' :
+      res === 'already_approved' ? 'Уже решено ранее: принято' : 'Уже решено ранее: отклонено';
+    const base = ctx.callbackQuery.message?.text ?? '';
+    await ctx.editMessageText(`${base}\n\n${verdict}`).catch(() => {});
   });
 
   // Menu callback handlers

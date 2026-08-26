@@ -121,15 +121,26 @@ export interface LocalityResolution {
   suggestions: Record<string, Suggestion[]>;
 }
 
-export async function localitiesToRo(inputs: (string | undefined)[]): Promise<LocalityResolution> {
-  if (!inputs.some((s) => s && /\p{L}/u.test(s))) return { values: inputs, unknown: [], suggestions: {} };
-
+// Кэш localities на время жизни инстанса (5 мин, как у алиасов): резолвер дёргается
+// на каждый голосовой тул + на каждую пару-кандидата в learner-е (N+1, perf-ревью 26.08).
+// Пустой результат НЕ кэшируем: сбой запроса не должен на 5 минут ослепить резолвер.
+let locCache: { at: number; rows: { name_ro: string; name_ru: string }[] } | null = null;
+async function dbLocalities(): Promise<{ name_ro: string; name_ru: string }[]> {
+  if (locCache && Date.now() - locCache.at < 5 * 60 * 1000) return locCache.rows;
   const { data } = await getSupabase()
     .from('localities')
     .select('name_ro, name_ru')
     .eq('active', true)
     .order('name_ro');
   const rows = (data || []) as { name_ro: string; name_ru: string }[];
+  if (rows.length > 0) locCache = { at: Date.now(), rows };
+  return rows;
+}
+
+export async function localitiesToRo(inputs: (string | undefined)[]): Promise<LocalityResolution> {
+  if (!inputs.some((s) => s && /\p{L}/u.test(s))) return { values: inputs, unknown: [], suggestions: {} };
+
+  const rows = await dbLocalities();
   const learned = await dbAliases();
 
   const unknown: string[] = [];

@@ -9,6 +9,7 @@
 // мёржится ПО-КЛЮЧЕВО (соседние ключи не стираются); объединяем всё равно в один
 // PATCH на секцию — меньше запросов, нет зависимости от порядка.
 import { getSupabase } from '@/lib/supabase';
+import { auditAliasShadow, syncCanonKeywords } from '@/lib/voice-canon';
 import { RO_UNITS, RO_TENS, RU_UNITS, RU_TENS } from '@/lib/time-spoken';
 
 const AGENT_ID = 'agent_3301kn4qwa6jep38d4b63m6s6pkh';
@@ -18,6 +19,9 @@ const CUSTOM_LLM_URL = 'https://translux-voice-llm.vercel.app/api';
 const MAX_CALLS_PER_RUN = 8;
 
 // Фолбэк эталона словаря (решение Иона 23.08); боевой эталон — в voice_agent_canon.
+// С 26.08 канон в БД ЖИВОЙ: его дописывает syncCanonKeywords (voice-canon.ts) из
+// выученных алиасов. Список ниже — аварийный, НЕ «истинное» состояние: не чините
+// канон по нему, сотрёте выученное.
 // Русские формы выверены по районным реестрам (миграция 275): подсказывать
 // распознавателю «Единцы»/«Калининск» — значит учить его словам, отменённым в 1991-м.
 const FALLBACK_KEYWORDS = [
@@ -384,6 +388,11 @@ async function validateRecentCalls(): Promise<Incident[]> {
 }
 
 export async function runVoiceController(): Promise<{ drifts: Drift[]; incidents: number }> {
+  // ДО чтения канона: гасим алиасы, накрывшие чужое имя (кнопка ✓ у человека may
+  // промахнуться), и доливаем выученное в asr_keywords — heal ниже донесёт до EL.
+  await auditAliasShadow();
+  await syncCanonKeywords();
+
   const cfg = await elGet(`/v1/convai/agents/${AGENT_ID}`);
   const drifts = await checkAndHealConfig(cfg);
 

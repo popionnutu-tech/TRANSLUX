@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { validateVoiceApiKey } from '../auth';
 import { searchTrips } from '@/lib/trips-search';
 import { localitiesToRo, unknownLocalityResponse } from '@/lib/voice-locality';
+import { logUnknownLocalities } from '@/lib/voice-unknown';
 import { phoneSpoken } from '@/lib/phone-spoken';
 import { timeSpoken } from '@/lib/time-spoken';
 import { dateSpoken, resolveVoiceDate } from '@/lib/date-spoken';
@@ -38,6 +39,7 @@ export async function POST(req: NextRequest) {
 
   const { values: [fromRo, toRo], unknown, suggestions } = await localitiesToRo([from, to]);
   if (unknown.length > 0) {
+    after(() => logUnknownLocalities('search-trips', unknown, suggestions));
     return NextResponse.json({ count: 0, date: tripDate, ...dateLabels, ...truncation, trips: [], ...unknownLocalityResponse(unknown, suggestions) });
   }
   // Lista de AZI e trunchiată de server (cursele plecate dispar). Le cerem marcate,

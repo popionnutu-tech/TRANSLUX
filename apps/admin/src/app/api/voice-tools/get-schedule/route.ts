@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { validateVoiceApiKey } from '../auth';
 import { getSupabase } from '@/lib/supabase';
 import { localitiesToRo, unknownLocalityResponse } from '@/lib/voice-locality';
+import { logUnknownLocalities } from '@/lib/voice-unknown';
 import { timeSpoken } from '@/lib/time-spoken';
 
 export async function POST(req: NextRequest) {
@@ -17,6 +18,7 @@ export async function POST(req: NextRequest) {
 
   const { values: [from, to], unknown, suggestions } = await localitiesToRo([fromRaw, toRaw]);
   if (unknown.length > 0) {
+    after(() => logUnknownLocalities('get-schedule', unknown, suggestions));
     return NextResponse.json({ schedules: [], ...unknownLocalityResponse(unknown, suggestions) });
   }
 

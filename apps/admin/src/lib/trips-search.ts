@@ -263,12 +263,17 @@ export async function searchTrips(
 ): Promise<TripResult[]> {
   const supabase = getSupabase();
 
-  // Fire-and-forget: log search query for analytics
+  // Fire-and-forget: log search query for analytics.
+  // user_agent marchează sursa: căutările de aici vin din apeluri, nu de pe site.
+  // Fără marcaj, un ip_hash gol ar însemna deopotrivă «apel» și «vizitator neidentificat».
   supabase.from('search_log').insert({
     from_locality: fromRo,
     to_locality: toRo,
     search_date: date,
-  }).then(() => {});
+    user_agent: 'voice-tools',
+  }).then(({ error }) => {
+    if (error) console.warn('[search_log] insert eșuat:', error.message);
+  });
 
   const assignmentDate = await resolveAssignmentDate(supabase, date);
 

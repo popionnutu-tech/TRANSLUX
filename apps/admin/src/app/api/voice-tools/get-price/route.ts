@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { validateVoiceApiKey } from '../auth';
 import { getSupabase } from '@/lib/supabase';
 import { resolveOfferPriceForDate } from '@translux/db';
 import { localitiesToRo, unknownLocalityResponse } from '@/lib/voice-locality';
+import { logUnknownLocalities } from '@/lib/voice-unknown';
 
 function normalizeStop(name: string): string {
   let n = name.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
@@ -45,6 +46,7 @@ export async function POST(req: NextRequest) {
 
   const { values, unknown, suggestions } = await localitiesToRo([fromRaw, toRaw]);
   if (unknown.length > 0) {
+    after(() => logUnknownLocalities('get-price', unknown, suggestions));
     return NextResponse.json(unknownLocalityResponse(unknown, suggestions));
   }
   const from = values[0] as string;

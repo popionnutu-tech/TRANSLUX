@@ -7,6 +7,7 @@ import { sendCompactDigest } from './services/dailyDigest.js';
 import { sendAntaWeeklyReport } from './services/antaReport.js';
 import { sweepTaskBoards } from './services/taskBoard.js';
 import { sendAdminAlert, escapeHtml } from './services/adminAlert.js';
+import { sendVoiceLessonDigest } from './services/voiceLessons.js';
 
 const CHECK_INTERVAL_MS = 60 * 1000; // check every minute
 const SEND_DAY = 1;   // Monday
@@ -218,6 +219,33 @@ export function scheduleRecurringGenerator(): void {
       }
     } finally {
       recurringRunning = false;
+    }
+  }, CHECK_INTERVAL_MS);
+}
+
+// ── Уроки голосового агента (>=08:00, с recuperare) ────────────────
+// Рассылает админам pending-уроки ночного learner-а с кнопками ✓/✗.
+// Окно «любой тик после 08:00» вместо точной минуты: рестарт Railway в 08:00
+// не съедает день. Двойную рассылку держит claim по notified_at в БД, поэтому
+// день закрывается только после успешного прогона (как у recurring).
+
+const VOICE_LESSONS_HOUR = 8;
+let lastVoiceLessonsDate = '';
+
+export function scheduleVoiceLessonDigest(): void {
+  console.log('Voice lessons digest started (>=08:00 Europe/Chisinau, cu recuperare)');
+
+  setInterval(async () => {
+    const now = getNowInTz();
+    const todayStr = now.toISOString().slice(0, 10);
+    if (lastVoiceLessonsDate === todayStr) return;
+    if (now.getHours() < VOICE_LESSONS_HOUR) return;
+    try {
+      const n = await sendVoiceLessonDigest();
+      lastVoiceLessonsDate = todayStr;
+      if (n > 0) console.log(`Voice lessons: sent ${n}`);
+    } catch (err) {
+      console.error('Voice lessons digest error:', err);
     }
   }, CHECK_INTERVAL_MS);
 }

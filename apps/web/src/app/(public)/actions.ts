@@ -1,6 +1,8 @@
 'use server';
 
 import { unstable_cache } from 'next/cache';
+import { headers } from 'next/headers';
+import { createHash } from 'crypto';
 import { getSupabase } from '@/lib/supabase';
 import { buildTurAssignmentMap, buildReturAssignmentMap } from '@/lib/assignments';
 import { resolveOfferPriceForDate, resolveOfferForDate } from '@translux/db';
@@ -266,6 +268,30 @@ async function resolveAssignmentDate(
   return date;
 }
 
+/**
+ * Sursa unei căutări, pentru search_log.
+ *
+ * IP-ul NU se păstrează: se scrie doar SHA-256(sare + IP). Atât e de ajuns ca două
+ * căutări să fie legate de aceeași sursă, dar adresa nu poate fi citită înapoi.
+ * Sarea vine din IP_HASH_SALT; fără ea cade pe cheia anon, care e oricum în env-ul
+ * fiecărui deploy — hash-urile rămân comparabile între ele.
+ *
+ * Nu aruncă niciodată: un log lipsă nu are voie să rupă căutarea.
+ */
+async function clientFingerprint(): Promise<{ ip_hash: string | null; user_agent: string | null }> {
+  try {
+    const h = await headers();
+    const ip = h.get('x-forwarded-for')?.split(',')[0].trim() || h.get('x-real-ip') || null;
+    const salt = process.env.IP_HASH_SALT || process.env.SUPABASE_ANON_KEY || '';
+    return {
+      ip_hash: ip ? createHash('sha256').update(salt + ip).digest('hex').slice(0, 16) : null,
+      user_agent: h.get('user-agent')?.slice(0, 200) || null,
+    };
+  } catch {
+    return { ip_hash: null, user_agent: null };
+  }
+}
+
 export async function searchTrips(
   fromRo: string,
   toRo: string,
@@ -278,6 +304,7 @@ export async function searchTrips(
     from_locality: fromRo,
     to_locality: toRo,
     search_date: date,
+    ...(await clientFingerprint()),
   }).then(() => {});
 
   const assignmentDate = await resolveAssignmentDate(supabase, date);
@@ -450,9 +477,14 @@ export async function searchTrips(
         const details = resolveDetails(returDriverMap.get(route.id));
         const hasDriver = !!(details?.driver && details?.phone);
         if (!hasDriver) {
-          // For departures more than 7 days out, show route with a "driver coming soon" placeholder.
-          // For today (0) or near-future (1–7), keep current behaviour: hide the route.
-          if (daysUntilDeparture > 7) {
+          // Cursa fără șofer se ARATĂ pentru orice zi viitoare. Decizia lui Ion (25.08,
+          // pe agentul vocal; 26.08 aceeași lipsă văzută pe site): «dacă nu este șoferul,
+          // trebuie spus că ruta va fi, dar datele șoferului mai târziu». Graficul zilei
+          // următoare se completează după-amiaza, iar oamenii caută dimineața — altfel
+          // cursa de 10:40 Chișinău–Bălți pur și simplu lipsea din listă.
+          // Pentru AZI rămâne ascunsă: azi graficul e complet, iar lipsa șoferului
+          // înseamnă de obicei că nu se merge.
+          if (daysUntilDeparture >= 1) {
             results.push({
               time,
               arrivalTime: arrival,
@@ -462,8 +494,10 @@ export async function searchTrips(
               driver: null,
               phone: null,
               vehicle_plate: null,
-              price: 0,
-              originalPrice: null,
+              // Peste 7 zile tariful se mai poate schimba, deci 0; pentru zilele
+              // apropiate prețul e cunoscut și pasagerul are dreptul să-l vadă.
+              price: daysUntilDeparture > 7 ? 0 : displayPrice,
+              originalPrice: daysUntilDeparture > 7 ? null : displayOriginal,
               isAwaitingDriver: true,
             });
           }
@@ -490,7 +524,8 @@ export async function searchTrips(
         const details = resolveDetails(turDriverMap.get(route.id));
         const hasDriver = !!(details?.driver && details?.phone);
         if (!hasDriver) {
-          if (daysUntilDeparture > 7) {
+          // Vezi comentariul din ramura RETUR: se arată pentru orice zi viitoare.
+          if (daysUntilDeparture >= 1) {
             results.push({
               time,
               arrivalTime: arrival,
@@ -500,8 +535,10 @@ export async function searchTrips(
               driver: null,
               phone: null,
               vehicle_plate: null,
-              price: 0,
-              originalPrice: null,
+              // Peste 7 zile tariful se mai poate schimba, deci 0; pentru zilele
+              // apropiate prețul e cunoscut și pasagerul are dreptul să-l vadă.
+              price: daysUntilDeparture > 7 ? 0 : displayPrice,
+              originalPrice: daysUntilDeparture > 7 ? null : displayOriginal,
               isAwaitingDriver: true,
             });
           }

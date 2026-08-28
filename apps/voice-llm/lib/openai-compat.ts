@@ -235,6 +235,222 @@ export function stripLeadingGreeting(text: string): string {
   return text.replace(LEADING_GREETING_RE, '').trimStart();
 }
 
+// ---- Tool-вызов, «написанный» текстом (Haiku, звонки 27-28.08) ----
+// Модель иногда выдаёт вызов инструмента не структурой tool_use, а голым XML
+// в тексте: <invoke name="language_detection">... За 27-28.08 — 5 утечек в 4
+// звонках (conv_4001m13y...: румынский голос прочитал XML вслух, клиент услышал
+// «чужой язык» и повесил трубку). Текст, начинающийся с <invoke, не озвучивается
+// НИКОГДА: либо парсится в настоящий tool-вызов, либо выбрасывается.
+
+/**
+ * Парсит текстовый <invoke name="X"><parameter name="p">v</parameter>...</invoke>
+ * в {name, args, rest}. rest = текст вокруг XML (обычно пуст). Обрыв без
+ * </invoke> тоже парсится — стрим мог оборваться на середине. Не XML → null.
+ */
+export function parseInvokeToolCall(
+  text: string,
+): { name: string; args: Record<string, string>; rest: string } | null {
+  const m = text.match(/<invoke\s+name="([\w-]+)"\s*>([\s\S]*?)(?:<\/invoke>|$)/);
+  if (!m || m.index === undefined) return null;
+  const args: Record<string, string> = {};
+  const paramRe = /<parameter\s+name="([\w-]+)"\s*>([\s\S]*?)<\/parameter>/g;
+  let p: RegExpExecArray | null;
+  while ((p = paramRe.exec(m[2]))) args[p[1]] = p[2].trim();
+  const rest = (text.slice(0, m.index) + text.slice(m.index + m[0].length)).trim();
+  return { name: m[1], args, rest };
+}
+
+// ---- Жёсткое правило языка (Ion, 28.08): наружу ТОЛЬКО румынский или русский ----
+// Слой EL уже жёсткий (у агента только ro + пресет ru), дыра — текст LLM в TTS.
+// Скрипт-чек: >2 букв вне латиницы(+диакритика RO)+кириллицы = нарушение
+// (азербайджанский ə, греческий, CJK...). Английский легален по алфавиту,
+// поэтому ловится по стоп-словам: ≥3 РАЗНЫХ сильно-английских слова.
+// «are» в списке нет — это частый румынский глагол.
+const ALLOWED_LETTER_RE = /[a-zA-Zа-яёА-ЯЁăâîșțĂÂÎȘȚşţŞŢ]/;
+const ENGLISH_MARKERS = new Set([
+  "the", "you", "your", "is", "was", "were", "have", "has", "will", "would",
+  "can", "could", "please", "hello", "thank", "thanks", "sorry", "what",
+  "when", "where", "this", "that", "with", "from", "about", "help", "how",
+]);
+
+// Румынские улики: служебные слова без диакритики. Английский из «содержательных»
+// слов («Sure, there are three buses tomorrow morning») не содержит ни одного
+// стоп-слова из ENGLISH_MARKERS — его ловит правило доминирующей латиницы БЕЗ
+// румынских улик (аудит 28.08, C1). «are» намеренно не улика: англ. «there are».
+const RO_EVIDENCE = new Set([
+  "de", "la", "cu", "pe", "din", "spre", "nu", "este", "sunt", "pentru",
+  "lei", "ora", "orele", "cursa", "curse", "rog", "un", "mersi", "bine",
+  "va", "sa", "si", "cel", "cea", "doua", "trei", "mai", "dus",
+]);
+const RO_DIACRITIC_RE = /[ăâîșțşţĂÂÎȘȚŞŢ]/;
+
+/**
+ * @param dominanceMinWords порог правила «латиница без румынских улик».
+ * На РАСТУЩЕМ префиксе (стрим) улика могла ещё не прийти — порог поднимается
+ * до 12, иначе честное «Soferul va suna cand...» режется на пятом слове
+ * (security-ревью 28.08, H1). На полном тексте (батч) хватает 5.
+ */
+export function violatesLanguagePolicy(text: string, dominanceMinWords = 5): boolean {
+  let foreign = 0;
+  let cyr = 0;
+  let lat = 0;
+  for (const ch of text) {
+    if (/[а-яёА-ЯЁ]/.test(ch)) cyr += 1;
+    else if (/[a-zA-ZăâîșțĂÂÎȘȚşţŞŢ]/.test(ch)) lat += 1;
+    else if (/\p{L}/u.test(ch) && !ALLOWED_LETTER_RE.test(ch)) {
+      foreign += 1;
+      if (foreign > 2) return true;
+    }
+  }
+  const hits = new Set<string>();
+  const latWords = text.toLowerCase().match(/[a-zăâîșțşţ]{2,}/g) ?? [];
+  for (const w of latWords) {
+    if (ENGLISH_MARKERS.has(w)) hits.add(w);
+  }
+  if (hits.size >= 3) return true;
+  // Латиница доминирует, слов достаточно, а румынских улик ноль — это не румынский.
+  if (lat > cyr && latWords.length >= dominanceMinWords && !RO_DIACRITIC_RE.test(text) && !latWords.some((w) => RO_EVIDENCE.has(w))) {
+    return true;
+  }
+  return false;
+}
+
+// XML-спасение — ТОЛЬКО инструменты смены языка. Спасать из текста бизнес-тулы
+// (request_callback...) значит превратить «уговорил модель произнести текст» в
+// «уговорил модель совершить действие» (security-ревью 28.08, M1). Реальные
+// утечки — только language_detection.
+const XML_RESCUABLE = new Set(["language_detection", "transfer_to_agent"]);
+
+export function rescuableCall(
+  inv: { name: string; args: Record<string, string> } | null,
+  toolNames: ReadonlySet<string>,
+): { name: string; args: Record<string, string | number> } | null {
+  if (!inv || !XML_RESCUABLE.has(inv.name) || !toolNames.has(inv.name)) return null;
+  // agent_number у transfer_to_agent — число; из XML всё приходит строками.
+  const args: Record<string, string | number> = { ...inv.args };
+  if (inv.name === "transfer_to_agent" && typeof args.agent_number === "string" && /^\d+$/.test(args.agent_number)) {
+    args.agent_number = Number(args.agent_number);
+  }
+  return { name: inv.name, args };
+}
+
+// ---- TtsGate: единственная дверь между текстом модели и TTS ----
+// Держит ВСЁ состояние стрима: lead-буфер (как прежний flushLead), НАКОПЛЕННЫЙ
+// уже-озвученный текст и решение о блокировке. Ловушка, из-за которой гейт
+// нельзя было оставить в flushLead (ревью 28.08): реплика уходит кусками по
+// 3-6 символов, и на отдельном куске порог «≥3 английских слова» недостижим —
+// «The bus leaves...» уходила в TTS целиком. Проверка идёт по НАКОПЛЕННОМУ:
+// первые слова не вернуть, но с третьего маркера реплика обрезается.
+// Второе правило: после lead-а символ «<» в речи не живёт вообще — до «<»
+// озвучиваем, дальше глушим (XML-вызов, разорванный между дельтами, ловится
+// без сборки литерала «<invoke»).
+
+export interface TtsGateOut {
+  speech: string;
+  toolCall: { name: string; args: Record<string, string | number> } | null;
+}
+
+export class TtsGate {
+  private lead = "";
+  private leadDone = false;
+  private spoken = "";
+  private blocked = false;
+  private suppressedAny = false;
+  // Хвост, заглушенный по «<» посреди реплики: копится, чтобы в finish() достать
+  // из него tool-вызов («Un moment. <invoke…» — аудит 28.08, H4: без этого
+  // переключение языка терялось, клиент слышал обрывок и мёртвый эфир).
+  private tail = "";
+
+  constructor(private toolNames: ReadonlySet<string>) {}
+
+  /** Уже глушим? (для раннего выхода вызывающего кода) */
+  get blockedNow(): boolean { return this.blocked; }
+  /** Хоть что-то реально ушло в TTS? */
+  get spokeSomething(): boolean { return this.spoken.length > 0; }
+  /** Мы подавили текст? (тогда молчание в конце лечится извинением) */
+  get suppressed(): boolean { return this.suppressedAny; }
+
+  /** Скармливает дельту; возвращает, что можно озвучить/вызвать СЕЙЧАС. */
+  push(rawDelta: string, force = false): TtsGateOut {
+    const out: TtsGateOut = { speech: "", toolCall: null };
+    const delta = stripMarkdownForTts(rawDelta);
+    if (this.blocked) {
+      if (delta) this.suppressedAny = true;
+      if (this.tail) this.tail = (this.tail + delta).slice(0, 4000);
+      return out;
+    }
+
+    if (!this.leadDone) {
+      this.lead += delta;
+      const s = this.lead.trimStart();
+      // Речь никогда не начинается с «<» — любое ведущее «<» = разметка
+      // (<invoke, <function_calls>, <tool_use>...). Держим до конца и решаем.
+      if (s.startsWith("<")) {
+        if (!force) return out;
+        this.leadDone = true;
+        this.lead = "";
+        const call = rescuableCall(parseInvokeToolCall(s), this.toolNames);
+        if (call) {
+          out.toolCall = call;
+        } else {
+          // Неспасаемый тул или непарсибельная разметка — глушим, не озвучиваем.
+          this.blocked = true;
+          this.suppressedAny = true;
+        }
+        return out;
+      }
+      if (force || !couldBeThinkingAloud(this.lead) || this.lead.length >= 120 || /[.!?…][")]?(\s|$)/.test(this.lead)) {
+        const cleaned = stripLeadingGreeting(stripThinkingAloud(this.lead));
+        this.leadDone = true;
+        this.lead = "";
+        if (cleaned && violatesLanguagePolicy(cleaned, 12)) {
+          this.blocked = true;
+          this.suppressedAny = true;
+          return out;
+        }
+        if (cleaned) {
+          this.spoken = cleaned;
+          out.speech = cleaned;
+        }
+      }
+      return out;
+    }
+
+    if (!delta) return out;
+    // «<» посреди реплики: до него — обычная речь, после — глушим навсегда.
+    const lt = delta.indexOf("<");
+    const sayable = lt >= 0 ? delta.slice(0, lt) : delta;
+    const candidate = this.spoken + sayable;
+    // Порог 12: на растущем префиксе румынская улика могла ещё не прозвучать.
+    if (violatesLanguagePolicy(candidate, 12)) {
+      this.blocked = true;
+      this.suppressedAny = true;
+      return out;
+    }
+    if (lt >= 0) {
+      this.blocked = true;
+      this.suppressedAny = true;
+      this.tail = delta.slice(lt);
+    }
+    if (sayable) {
+      this.spoken = candidate;
+      out.speech = sayable;
+    }
+    return out;
+  }
+
+  /** Конец стрима: дожать lead-буфер и вытащить tool-вызов из заглушенного хвоста. */
+  finish(): TtsGateOut {
+    const out = this.push("", true);
+    if (!out.toolCall && this.tail) {
+      const call = rescuableCall(parseInvokeToolCall(this.tail), this.toolNames);
+      this.tail = "";
+      if (call) out.toolCall = call;
+    }
+    return out;
+  }
+}
+
 // Limba scuzei de avarie = limba VOCII curente (nu a apelantului): fraza continuă
 // conversația prin TTS — o scuză RO într-un dialog rusesc derapează și ASR-ul
 // (incident TLX 24.08, portat). Prioritate: ultimul language_detection al

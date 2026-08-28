@@ -8,16 +8,17 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Anthropic from '@anthropic-ai/sdk';
 import {
   apologyFor,
-  couldBeThinkingAloud,
   OpenAIMessage,
   OpenAITool,
+  parseInvokeToolCall,
+  rescuableCall,
   SSE_DONE,
   sseChunk,
-  stripLeadingGreeting,
-  stripMarkdownForTts,
-  stripThinkingAloud,
   toAnthropic,
   toAnthropicTools,
+  TtsGate,
+  TtsGateOut,
+  violatesLanguagePolicy,
 } from '../../lib/openai-compat';
 import { pendingLanguageTransfer } from '../../lib/language';
 
@@ -154,24 +155,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       const msg = await anthropic.messages.create({ ...params, stream: false }, { signal: abort.signal });
       clearTimeout(totalTimer);
-      const text = msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('');
+      let text = msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('');
       const toolCalls = msg.content
         .filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use')
         .map((b, i) => ({
           index: i, id: b.id, type: 'function' as const,
           function: { name: b.name, arguments: JSON.stringify(b.input) },
         }));
+      // Те же заслоны, что и в стриме: XML-вызов текстом → настоящий tool-вызов
+      // (только спасаемые тулы из body.tools); текст вокруг XML выбрасывается;
+      // реплика не на ro/ru → извинение вместо неё.
+      const inv = parseInvokeToolCall(text);
+      if (inv) {
+        const call = rescuableCall(inv, new Set(
+          (body.tools ?? []).map((t) => t.function?.name).filter((n): n is string => Boolean(n)),
+        ));
+        if (call) {
+          toolCalls.push({
+            index: toolCalls.length, id: `call_${crypto.randomUUID()}`, type: 'function' as const,
+            function: { name: call.name, arguments: JSON.stringify(call.args) },
+          });
+        }
+        text = '';
+        if (!call && !toolCalls.length) text = apology;
+      }
+      // «<» в речи не живёт (разметка без <invoke> внутри — тоже не для TTS).
+      if (text && (text.includes('<') || violatesLanguagePolicy(text))) text = toolCalls.length ? '' : apology;
       return res.status(200).json({
         id: completionId, object: 'chat.completion',
         created: Math.floor(Date.now() / 1000), model: MODEL,
         choices: [{
-          index: 0, finish_reason: msg.stop_reason === 'tool_use' ? 'tool_calls' : 'stop',
+          index: 0, finish_reason: msg.stop_reason === 'tool_use' || toolCalls.length ? 'tool_calls' : 'stop',
           message: { role: 'assistant', content: text || null, ...(toolCalls.length ? { tool_calls: toolCalls } : {}) },
         }],
       });
     } catch (e) {
       clearTimeout(totalTimer);
-      return res.status(502).json({ error: { message: String(e) } });
+      console.error('[voice-llm] non-stream upstream error:', e);
+      return res.status(502).json({ error: { message: 'upstream error' } });
     }
   }
 
@@ -189,24 +210,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let gotFirst = false;
   const firstChunkTimer = setTimeout(() => { if (!gotFirst) abort.abort(); }, FIRST_CHUNK_MS);
 
-  let leadBuffer = '';
-  let leadDone = false;
+  // Единственная дверь текста в TTS: держит lead-буфер (прежний flushLead),
+  // копит уже-озвученное и глушит XML-вызовы, «написанные» текстом, и реплики
+  // не на румынском/русском (решение Иона 28.08). Логика — в lib, под тестами.
+  const gate = new TtsGate(new Set(
+    (body.tools ?? []).map((t) => t.function?.name).filter((n): n is string => Boolean(n)),
+  ));
   let sentAnything = false;
+  let speechStarted = false;
   let finish: string | null = null;
   let toolCallIdx = -1;
   let pendingTool: { id: string; name: string; args: string } | null = null;
 
-  const flushLead = (force = false) => {
-    if (leadDone) return;
-    // Plecăm în clipa în care primul cuvânt exclude toate alternativele
-    // regexului de narare — de obicei după 3-6 caractere, nu după 30 fixe.
-    // Restul cazurilor (chiar E narare, sau încă ambiguu) așteaptă prima
-    // propoziție, ca stripThinkingAloud să aibă ce tăia.
-    if (force || !couldBeThinkingAloud(leadBuffer) || leadBuffer.length >= 120 || /[.!?…][")]?(\s|$)/.test(leadBuffer)) {
-      const cleaned = stripLeadingGreeting(stripMarkdownForTts(stripThinkingAloud(leadBuffer)));
-      leadDone = true;
-      if (cleaned) { send(sseChunk(completionId, MODEL, { role: 'assistant', content: cleaned })); sentAnything = true; }
-      leadBuffer = '';
+  const sendToolCall = (name: string, args: string) => {
+    toolCallIdx += 1;
+    send(sseChunk(completionId, MODEL, {
+      tool_calls: [{ index: toolCallIdx, id: `call_${crypto.randomUUID()}`, type: 'function', function: { name, arguments: args || '{}' } }],
+    }));
+    sentAnything = true;
+  };
+
+  let apologySent = false;
+  const handleGate = (out: TtsGateOut) => {
+    if (out.toolCall) {
+      console.log(`[voice-llm] invoke-XML din text -> tool_call ${out.toolCall.name}`);
+      sendToolCall(out.toolCall.name, JSON.stringify(out.toolCall.args));
+      finish = 'tool_calls';
+    }
+    if (out.speech) {
+      send(sseChunk(completionId, MODEL, speechStarted ? { content: out.speech } : { role: 'assistant', content: out.speech }));
+      speechStarted = true;
+      sentAnything = true;
+    }
+    // Реплика заглушена целиком, тула нет — извинение СРАЗУ, не в конце стрима:
+    // дожёвывание 350 токенов молча = 2-3 секунды мёртвого эфира (perf-ревью 28.08).
+    if (gate.blockedNow && !gate.spokeSomething && !pendingTool && finish !== 'tool_calls' && !apologySent) {
+      console.log('[voice-llm] replică suprimată — trimit scuza imediat');
+      send(sseChunk(completionId, MODEL, { role: 'assistant', content: apology }));
+      apologySent = true;
+      sentAnything = true;
     }
   };
 
@@ -227,17 +269,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       clearTimeout(firstChunkTimer);
 
       if (event.type === 'content_block_start' && event.content_block.type === 'tool_use') {
-        flushLead(true);
+        // pendingTool ДО handleGate: его сторож извинения читает — иначе ложная
+        // «tehnică problemă» на ходу, где следом идёт настоящий tool_use (M3).
         pendingTool = { id: event.content_block.id, name: event.content_block.name, args: '' };
+        handleGate(gate.push('', true));
       } else if (event.type === 'content_block_delta') {
         if (event.delta.type === 'text_delta') {
-          if (!leadDone) {
-            leadBuffer += stripMarkdownForTts(event.delta.text);
-            flushLead();
-          } else {
-            const cleaned = stripMarkdownForTts(event.delta.text);
-            if (cleaned) { send(sseChunk(completionId, MODEL, { content: cleaned })); sentAnything = true; }
-          }
+          handleGate(gate.push(event.delta.text));
         } else if (event.delta.type === 'input_json_delta' && pendingTool) {
           pendingTool.args += event.delta.partial_json;
         }
@@ -251,8 +289,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (event.usage) console.log(`[voice-llm] usage output_tokens=${event.usage.output_tokens}`);
       }
     }
-    flushLead(true);
+    handleGate(gate.finish());
     emitPendingTool();
+    // Подавили всю речь (чужой язык/разметка), тула нет, извинение ещё не ушло
+    // (блок случился на самом force-flush) — молчание хуже извинения.
+    if (gate.suppressed && !gate.spokeSomething && finish !== 'tool_calls' && !apologySent) {
+      console.log('[voice-llm] replică suprimată integral — trimit scuza');
+      send(sseChunk(completionId, MODEL, { role: 'assistant', content: apology }));
+      sentAnything = true;
+    }
     send(sseChunk(completionId, MODEL, {}, finish ?? 'stop'));
   } catch (err) {
     console.error('[voice-llm] upstream error:', err);

@@ -267,30 +267,79 @@ export function parseInvokeToolCall(
 // поэтому ловится по стоп-словам: ≥3 РАЗНЫХ сильно-английских слова.
 // «are» в списке нет — это частый румынский глагол.
 const ALLOWED_LETTER_RE = /[a-zA-Zа-яёА-ЯЁăâîșțĂÂÎȘȚşţŞŢ]/;
+// Ion (28.08): «никаких английских вообще слов». Порог — 2 РАЗНЫХ слова из
+// списка. В списке НЕТ румынских омографов (are, cost, minute, in, sat, mare…) —
+// два разных слова отсюда в честной румынской реплике не встречаются
+// (проверено на всех исторических репликах агента из voice_calls).
 const ENGLISH_MARKERS = new Set([
+  // служебные
   "the", "you", "your", "is", "was", "were", "have", "has", "will", "would",
   "can", "could", "please", "hello", "thank", "thanks", "sorry", "what",
   "when", "where", "this", "that", "with", "from", "about", "help", "how",
+  "there", "here", "now", "next", "first", "last", "sure", "yes", "okay",
+  "and", "for", "not", "but", "they", "them", "then", "than", "of", "at", "to",
+  "we", "our", "my", "it", "its",
+  // предметные (транспорт, время)
+  "bus", "buses", "trip", "trips", "ticket", "tickets", "station", "driver",
+  "schedule", "timetable", "route", "price", "number", "phone",
+  "leave", "leaves", "leaving", "arrive", "arrives", "arrival", "departure",
+  "departs", "going", "coming", "wait", "waiting",
+  "today", "tomorrow", "yesterday", "morning", "evening", "afternoon", "night",
+  "hour", "hours", "minutes", "clock", "day", "week",
+  "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+  "ten", "eleven", "twelve", "fifteen", "twenty", "thirty", "forty", "fifty",
+  "need", "want", "know", "tell", "give", "take", "get", "make", "pay",
+  "call", "back", "good", "directly", "available",
 ]);
 
-// Румынские улики: служебные слова без диакритики. Английский из «содержательных»
-// слов («Sure, there are three buses tomorrow morning») не содержит ни одного
-// стоп-слова из ENGLISH_MARKERS — его ловит правило доминирующей латиницы БЕЗ
-// румынских улик (аудит 28.08, C1). «are» намеренно не улика: англ. «there are».
+// Чужие романские/славянские/немецкие стоп-слова: правило доминирования их
+// больше не ловит (короткие улики am/ce/se/te/mi живут и в итальянском с
+// испанским — ревью 28.08, H1), поэтому у них СВОЙ словарь с тем же порогом 2.
+// Проверено на румынские омографы: «non» (magazin non-stop), «pardon», «voce»,
+// «pas», «ne», «merci/mersi» в список НЕ входят.
+const FOREIGN_MARKERS = new Set([
+  // итальянский
+  "scusi", "grazie", "prego", "posso", "puo", "vuole", "capito", "sono",
+  "questo", "gli", "anche", "ripetere", "ho",
+  // испанский
+  "siento", "entiendo", "puede", "usted", "gracias", "hola", "por", "favor", "repetir",
+  // французский
+  "vous", "je", "comprends", "repetez", "bonjour", "madame", "monsieur",
+  // португальский
+  "puder", "muito", "obrigado", "devagar", "agradeco", "mais",
+  // польский
+  "przepraszam", "rozumiem", "prosze", "czy", "mozesz", "dzien",
+  // немецкий
+  "ich", "nicht", "bitte", "danke", "sprechen", "haben",
+]);
+
+// Румынские улики: служебные слова без диакритики. Они отключают ТОЛЬКО правило
+// доминирования — словари ENGLISH_MARKERS/FOREIGN_MARKERS срабатывают раньше и
+// независимо от улик. «are» намеренно не улика: англ. «there are».
 const RO_EVIDENCE = new Set([
   "de", "la", "cu", "pe", "din", "spre", "nu", "este", "sunt", "pentru",
   "lei", "ora", "orele", "cursa", "curse", "rog", "un", "mersi", "bine",
   "va", "sa", "si", "cel", "cea", "doua", "trei", "mai", "dus",
+  // короткие частые слова из ложных срабатываний на истории (28.08):
+  // «N-am prins localitatea», «Te ascult, spune-mi ce ai nevoie»
+  "am", "ce", "se", "te", "ai", "mi", "cum", "unde", "cand", "care",
+  "spune", "nevoie", "ascult", "vreti", "doriti", "aveti", "numarul",
+  // топливный домен TLX (ревью порта 28.08, M1) — словари в двух репо ИДЕНТИЧНЫ
+  "pret", "preturi", "statie", "statii", "motorina", "benzina",
+  "litru", "litri", "azi", "costa", "avem", "program",
 ]);
 const RO_DIACRITIC_RE = /[ăâîșțşţĂÂÎȘȚŞŢ]/;
 
 /**
- * @param dominanceMinWords порог правила «латиница без румынских улик».
- * На РАСТУЩЕМ префиксе (стрим) улика могла ещё не прийти — порог поднимается
- * до 12, иначе честное «Soferul va suna cand...» режется на пятом слове
- * (security-ревью 28.08, H1). На полном тексте (батч) хватает 5.
+ * Порог правила «латиница без румынских улик» — единый 12: улика в честной
+ * румынской реплике могла прийти поздно (стрим — «Soferul va suna cand...»),
+ * а в батче порог 5 резал «Pasagerul José Müller are loc rezervat» и
+ * «Sigur, verific imediat orarul complet» (ревью 28.08, M2). Английский и
+ * романские языки ловятся словарями ДО этого правила, им порог не нужен.
  */
-export function violatesLanguagePolicy(text: string, dominanceMinWords = 5): boolean {
+const DOMINANCE_MIN_WORDS = 12;
+
+export function violatesLanguagePolicy(text: string): boolean {
   let foreign = 0;
   let cyr = 0;
   let lat = 0;
@@ -302,14 +351,16 @@ export function violatesLanguagePolicy(text: string, dominanceMinWords = 5): boo
       if (foreign > 2) return true;
     }
   }
-  const hits = new Set<string>();
+  const eng = new Set<string>();
+  const frn = new Set<string>();
   const latWords = text.toLowerCase().match(/[a-zăâîșțşţ]{2,}/g) ?? [];
   for (const w of latWords) {
-    if (ENGLISH_MARKERS.has(w)) hits.add(w);
+    if (ENGLISH_MARKERS.has(w)) eng.add(w);
+    if (FOREIGN_MARKERS.has(w)) frn.add(w);
   }
-  if (hits.size >= 3) return true;
+  if (eng.size >= 2 || frn.size >= 2) return true;
   // Латиница доминирует, слов достаточно, а румынских улик ноль — это не румынский.
-  if (lat > cyr && latWords.length >= dominanceMinWords && !RO_DIACRITIC_RE.test(text) && !latWords.some((w) => RO_EVIDENCE.has(w))) {
+  if (lat > cyr && latWords.length >= DOMINANCE_MIN_WORDS && !RO_DIACRITIC_RE.test(text) && !latWords.some((w) => RO_EVIDENCE.has(w))) {
     return true;
   }
   return false;
@@ -319,7 +370,10 @@ export function violatesLanguagePolicy(text: string, dominanceMinWords = 5): boo
 // (request_callback...) значит превратить «уговорил модель произнести текст» в
 // «уговорил модель совершить действие» (security-ревью 28.08, M1). Реальные
 // утечки — только language_detection.
-const XML_RESCUABLE = new Set(["language_detection", "transfer_to_agent"]);
+// end_call тоже спасаем: «прощание + <invoke end_call> текстом» иначе оставляет
+// линию висеть до max_duration (аудит TLX 28.08, High). Вреда нет — звонящий
+// «вешает трубку сам себе», это security уже оценил как безопасное.
+const XML_RESCUABLE = new Set(["language_detection", "transfer_to_agent", "end_call"]);
 
 export function rescuableCall(
   inv: { name: string; args: Record<string, string> } | null,
@@ -367,6 +421,13 @@ export class TtsGate {
   get blockedNow(): boolean { return this.blocked; }
   /** Хоть что-то реально ушло в TTS? */
   get spokeSomething(): boolean { return this.spoken.length > 0; }
+  /** Сколько символов озвучено. Короткий зачин («Sigur. », «Da. ») перед
+   * заглушенным XML — НЕ полноценная реплика: извинение всё равно нужно
+   * (аудит TLX 28.08: зачин обезоруживал страховку, клиент слышал обрывок). */
+  get spokenChars(): number { return this.spoken.length; }
+  /** Копится ли заглушенный хвост с кандидатом на спасение тула? Пока да —
+   * извинение и abort рано: спасение (end_call/language) важнее секунды тишины. */
+  get hasTail(): boolean { return this.tail.length > 0; }
   /** Мы подавили текст? (тогда молчание в конце лечится извинением) */
   get suppressed(): boolean { return this.suppressedAny; }
 
@@ -403,7 +464,7 @@ export class TtsGate {
         const cleaned = stripLeadingGreeting(stripThinkingAloud(this.lead));
         this.leadDone = true;
         this.lead = "";
-        if (cleaned && violatesLanguagePolicy(cleaned, 12)) {
+        if (cleaned && violatesLanguagePolicy(cleaned)) {
           this.blocked = true;
           this.suppressedAny = true;
           return out;
@@ -421,8 +482,7 @@ export class TtsGate {
     const lt = delta.indexOf("<");
     const sayable = lt >= 0 ? delta.slice(0, lt) : delta;
     const candidate = this.spoken + sayable;
-    // Порог 12: на растущем префиксе румынская улика могла ещё не прозвучать.
-    if (violatesLanguagePolicy(candidate, 12)) {
+    if (violatesLanguagePolicy(candidate)) {
       this.blocked = true;
       this.suppressedAny = true;
       return out;

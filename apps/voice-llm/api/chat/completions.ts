@@ -242,13 +242,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       speechStarted = true;
       sentAnything = true;
     }
-    // Реплика заглушена целиком, тула нет — извинение СРАЗУ, не в конце стрима:
-    // дожёвывание 350 токенов молча = 2-3 секунды мёртвого эфира (perf-ревью 28.08).
-    if (gate.blockedNow && !gate.spokeSomething && !pendingTool && finish !== 'tool_calls' && !apologySent) {
+    // Заглушено, тула нет и хвост-кандидат не копится — извинение СРАЗУ, не в
+    // конце стрима (2-3с мёртвого эфира). Порог 40 симв.: короткий зачин
+    // («Sigur. », «Da. ») перед XML — не полноценная реплика, извинение нужно
+    // (аудит TLX 28.08). Копится хвост — ждём finish(): спасение тула важнее.
+    if (gate.blockedNow && !gate.hasTail && gate.spokenChars < 40 && !pendingTool && finish !== 'tool_calls' && !apologySent) {
       console.log('[voice-llm] replică suprimată — trimit scuza imediat');
-      send(sseChunk(completionId, MODEL, { role: 'assistant', content: apology }));
+      // role один раз на choice (контракт OpenAI): после зачина — только content.
+      send(sseChunk(completionId, MODEL, speechStarted ? { content: ` ${apology}` } : { role: 'assistant', content: apology }));
+      speechStarted = true;
       apologySent = true;
       sentAnything = true;
+      // БЕЗ abort(): обрыв здесь убивал structured tool_use, идущий ПОСЛЕ
+      // заглушенного текста (security-ревью 28.08, Medium) — end_call терялся,
+      // линия висела. Дожёвывание остатка молча стоит 1-3с и безопасно.
     }
   };
 
@@ -260,6 +267,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }));
     sentAnything = true;
     pendingTool = null;
+    // Тул реально ушёл: message_delta придёт позже, а сторож извинения смотрит
+    // finish УЖЕ СЕЙЧАС — без этого текст-после-тула давал ложное извинение (L1).
+    finish = 'tool_calls';
   };
 
   try {
@@ -291,11 +301,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     handleGate(gate.finish());
     emitPendingTool();
-    // Подавили всю речь (чужой язык/разметка), тула нет, извинение ещё не ушло
-    // (блок случился на самом force-flush) — молчание хуже извинения.
-    if (gate.suppressed && !gate.spokeSomething && finish !== 'tool_calls' && !apologySent) {
+    // Подавили речь (озвучен максимум короткий зачин), тула нет, извинение ещё
+    // не ушло — молчание хуже извинения.
+    if (gate.suppressed && gate.spokenChars < 40 && finish !== 'tool_calls' && !apologySent) {
       console.log('[voice-llm] replică suprimată integral — trimit scuza');
-      send(sseChunk(completionId, MODEL, { role: 'assistant', content: apology }));
+      send(sseChunk(completionId, MODEL, speechStarted ? { content: ` ${apology}` } : { role: 'assistant', content: apology }));
       sentAnything = true;
     }
     send(sseChunk(completionId, MODEL, {}, finish ?? 'stop'));

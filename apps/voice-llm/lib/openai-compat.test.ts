@@ -76,6 +76,33 @@ describe('violatesLanguagePolicy (на полном тексте)', () => {
     expect(violatesLanguagePolicy('Next departure leaves at seven fifteen sharp.')).toBe(true);
   });
 
+  it('Ion 28.08: «никаких английских вообще» — 2 слова из словаря достаточно', () => {
+    expect(violatesLanguagePolicy('Bus station near you.')).toBe(true);
+    // Ровно 2 маркера и 2 слова: различает порог 2 от 3 (мутационная ловушка H2)
+    expect(violatesLanguagePolicy('Good day.')).toBe(true);
+  });
+
+  it('романские языки ловятся своим словарём (ревью 28.08, H1)', () => {
+    expect(violatesLanguagePolicy('Mi scusi, non ho capito bene, puo ripetere?')).toBe(true); // итальянский
+    expect(violatesLanguagePolicy('Lo siento, no te entiendo. Puede repetir por favor?')).toBe(true); // испанский
+    expect(violatesLanguagePolicy('Je ne comprends pas ce que vous dites, repetez lentement.')).toBe(true); // французский
+    expect(violatesLanguagePolicy('Se puder repetir mais devagar, agradeco muito.')).toBe(true); // португальский
+  });
+
+  it('батч-ложные из ревью M2 больше не режутся (порог доминирования един = 12)', () => {
+    expect(violatesLanguagePolicy('Pasagerul José Müller are loc rezervat.')).toBe(false);
+    expect(violatesLanguagePolicy('Sigur, verific imediat orarul complet.')).toBe(false);
+  });
+
+  it('польская утечка из истории ловится (правило чужого алфавита: ż/ó/ę)', () => {
+    expect(violatesLanguagePolicy('Przepraszam, nie rozumiem. Czy możesz powtórzyć, proszę?')).toBe(true);
+  });
+
+  it('короткий румынский без диакритики из истории НЕ ловится', () => {
+    expect(violatesLanguagePolicy('N-am prins localitatea. Cum se...')).toBe(false);
+    expect(violatesLanguagePolicy('Te ascult, spune-mi ce ai nevoie.')).toBe(false);
+  });
+
   it('русская фраза с латинскими именами НЕ ловится (кириллица доминирует)', () => {
     expect(violatesLanguagePolicy('Водитель Ion Popescu, машина Mercedes Sprinter, номер продиктую.')).toBe(false);
   });
@@ -106,7 +133,14 @@ describe('TtsGate — стрим дельтами (главная поверхн
   it('английская реплика обрезается по накопленному тексту (ловушка ревью 28.08)', () => {
     const phrase = 'The bus leaves at seven, you can pay the driver directly at the station.';
     const { gate, speech } = runStream(phrase, 3);
-    expect(speech.length).toBeLessThan(phrase.length / 2); // первые слова не вернуть, но хвост отрезан
+    expect(speech.length).toBeLessThan(phrase.length / 4); // порог 2: режется на втором слове
+    expect(gate.suppressed).toBe(true);
+  });
+
+  it('короткий содержательный английский режется в стриме почти сразу (Ion 28.08)', () => {
+    const phrase = 'Sure, there are three buses tomorrow morning.';
+    const { gate, speech } = runStream(phrase, 3);
+    expect(speech.length).toBeLessThan(phrase.length / 2);
     expect(gate.suppressed).toBe(true);
   });
 
@@ -122,6 +156,20 @@ describe('TtsGate — стрим дельтами (главная поверхн
     expect(speech).toBe('Îndată vă spun. ');
     expect(toolCalls).toEqual([]);
     expect(gate.suppressed).toBe(true);
+  });
+
+  it('прощание + end_call текстом: прощание озвучено, вызов спасён — линия закрывается (аудит TLX, High)', () => {
+    const { speech, toolCalls } = runStream('Vă mulțumesc pentru apel! O zi bună! <invoke name="end_call"></invoke>', 4);
+    expect(speech).toBe('Vă mulțumesc pentru apel! O zi bună! ');
+    expect(toolCalls).toEqual([{ name: 'end_call', args: {} }]);
+  });
+
+  it('короткий зачин + бизнес-XML: зачин не считается полноценной репликой (spokenChars < 40 → извинение)', () => {
+    const { gate, speech, toolCalls } = runStream('Sigur. <invoke name="request_callback">\n<parameter name="reason">x</parameter>\n</invoke>', 4);
+    expect(speech).toBe('Sigur. ');
+    expect(toolCalls).toEqual([]); // бизнес-тул из текста не спасается — верно
+    expect(gate.suppressed).toBe(true);
+    expect(gate.spokenChars).toBeLessThan(40);
   });
 
   it('нормальные румынская и русская реплики проходят дословно', () => {

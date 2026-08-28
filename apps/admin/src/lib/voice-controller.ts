@@ -40,11 +40,11 @@ const FALLBACK_KEYWORDS = [
 // Позиция вставки кэш НЕ спасает: точка кэша одна, на весь system.
 // Markerele TREBUIE să fie unice: un marker care apare și în alt bloc face detectorul
 // orb la ștergerea blocului propriu (ORELE a fost mascat de titlul blocului ZIUA).
-const PROMPT_MARKERS = ['ORELE — DOSLOVEN', 'UNIVERSUL localităților', 'Doriți numărul lui?', 'A DOUA OARĂ LA RÂND', 'ZIUA — DOSLOVEN', 'e un CORIDOR', 'SFÂRȘIT NUME RUSEȘTI', 'APEL ÎNAPOI — NICIO PROMISIUNE', 'STAȚIA CHIȘINĂU — AUTOGARA TRANSLUX', 'STAȚIA BĂLȚI — PEROANELE'];
+const PROMPT_MARKERS = ['ORELE — DOSLOVEN', 'UNIVERSUL localităților', 'Doriți numărul lui?', 'A DOUA OARĂ LA RÂND', 'ZIUA — DOSLOVEN', 'e un CORIDOR', 'SFÂRȘIT NUME RUSEȘTI', 'APEL ÎNAPOI — NICIO PROMISIUNE', 'STAȚIA CHIȘINĂU — AUTOGARA TRANSLUX', 'STAȚIA BĂLȚI — PEROANELE', 'ORA SOSIRII — NU SE SPUNE'];
 const ORELE_BLOCK = `
 
 ORELE — DOSLOVEN DIN TOOL:
-- Ora plecării/sosirii o rostești DOAR din câmpul departure_spoken_ro (română) / departure_spoken_ru (rusă) al rezultatului tool-ului — cuvânt cu cuvânt. La fel arrival_spoken_*. NU converti niciodată singur HH:MM în cuvinte.
+- Ora plecării o rostești DOAR din câmpul departure_spoken_ro (română) / departure_spoken_ru (rusă) al rezultatului tool-ului — cuvânt cu cuvânt. NU converti niciodată singur HH:MM în cuvinte.
 - CEA MAI APROPIATĂ / PRIMA cursă = PRIMUL element din câmpul departures_ro (română) / departures_ru (rusă) — ultimul element = ultima. Enumerarea curselor o citești DIN ACEST câmp, în ordinea dată. NU alege «cea mai apropiată» scanând singur lista.
 - Compararea cu ora cerută de client o faci pe câmpul «departure» (HH:MM), rostirea — pe «departure_spoken_*». NICIODATĂ nu spui «nu am cursă la ora X» fără să fi scanat toată lista.
 - Numerele DOAR cu cuvinte românești sau rusești corecte. Forme ca «ventitre» nu există.
@@ -130,6 +130,17 @@ STAȚIA BĂLȚI — PEROANELE CINCISPREZECE ȘI ȘAISPREZECE:
 - La Autogara Bălți ne aflăm la peroanele cincisprezece și șaisprezece — NU la peronul șaptesprezece.
 - În rusă: перроны пятнадцать и шестнадцать.`;
 
+// Ion 28.08: «sa nu spuna operatorul ora cand ajunge masina la destinatie, doar ora
+// pornirii» — interdicție ABSOLUTĂ; înlocuiește regula veche «doar dacă cere explicit»
+// (надгробия mai jos). Câmpurile arrival_* au fost scoase și din search-trips același
+// commit — ce nu există în date nu poate fi rostit; blocul acoperă întrebarea directă.
+const SOSIREA_BLOCK = `
+
+ORA SOSIRII — NU SE SPUNE NICIODATĂ:
+- Spui DOAR ora plecării. Ora sosirii la destinație NU o spui NICIODATĂ — nici în prezentare, nici la întrebare directă; search_trips nici nu o mai trimite.
+- Clientul întreabă când ajunge? Spui scurt că ora sosirii depinde de trafic și nu o poți promite, apoi repeți ora plecării.
+- Ora plecării o rostești DOAR din câmpul departure_spoken_ro (română) / departure_spoken_ru (rusă) al rezultatului tool-ului — cuvânt cu cuvânt. NU converti niciodată singură HH:MM în cuvinte.`;
+
 // RU-агент живёт только в дашборде (полного эталона нет) — лечим ТОЧЕЧНО одну
 // станцию, остальной его конфиг не трогаем. Строка сверена побайтово с живым
 // промптом 28.08 (у RU после ═══ нет пустой строки — ведущий \n здесь разделитель).
@@ -147,6 +158,17 @@ const BALTI_BLOCK_RU = `
 
 СТАНЦИЯ БЕЛЬЦЫ — ПЕРРОНЫ ПЯТНАДЦАТЬ И ШЕСТНАДЦАТЬ:
 - На автовокзале Бельцы мы находимся на перронах пятнадцать и шестнадцать — НЕ на семнадцатом.`;
+
+const SOSIREA_OBSOLETE_RU = '\n- Время ПРИБЫТИЯ не называешь при представлении рейса — только отправление. Прибытие называешь ТОЛЬКО если клиент спросил явно.';
+// Rândul-pereche VIU din blocul «ВРЕМЯ — ДОСЛОВНО» al promptului RU de bază (побайтово).
+const SOSIREA2_OBSOLETE_RU = '\n- Время отправления/прибытия произносишь ТОЛЬКО из поля departure_spoken_ru результата tool-а — слово в слово. Так же arrival_spoken_ru. НИКОГДА не преобразуй HH:MM в слова сама.';
+const SOSIREA_MARKER_RU = 'ВРЕМЯ ПРИБЫТИЯ — НЕ НАЗЫВАЕТСЯ';
+const SOSIREA_BLOCK_RU = `
+
+ВРЕМЯ ПРИБЫТИЯ — НЕ НАЗЫВАЕТСЯ НИКОГДА:
+- Называешь ТОЛЬКО время отправления. Время прибытия НЕ называешь НИКОГДА — ни в презентации, ни на прямой вопрос; из search_trips оно больше не приходит.
+- Клиент спрашивает, когда приедет? Коротко скажи, что время прибытия зависит от дороги и обещать его нельзя, затем повтори время отправления.
+- Время отправления произносишь ТОЛЬКО из поля departure_spoken_ru результата tool-а — слово в слово. НИКОГДА не преобразуй HH:MM в слова сама.`;
 
 const LIMBA_BLOCK = `
 
@@ -179,6 +201,14 @@ const OBSOLETE_BLOCKS = [
   '\n• Stația Chișinău: Autogara Nord, str. Calea Moșilor 2',
   // Ion 28.08: peroanele 15–16, nu 17. Înlocuit de BALTI_BLOCK.
   '\n• Stația Bălți: Autogara, peronul 17',
+  // Ion 28.08: sosirea nu se spune NICIODATĂ — regula veche «doar dacă cere explicit»
+  // e anulată. Înlocuit de SOSIREA_BLOCK.
+  '\n- Ora SOSIRII nu o spui în prezentarea cursei — doar plecarea. Sosirea o spui DOAR dacă clientul o cere explicit.',
+  // Rândul VIU din blocul ORELE (28.08, побайтово din promptul agentului — ATENȚIE:
+  // blocul viu a fost editat de mână și DIFERĂ de constanta ORELE_BLOCK de mai sus,
+  // «singură» vs «singur»). Învăța cum se rostește sosirea — anulat: interdicție
+  // absolută. Înlocuirea (doar plecarea) stă în SOSIREA_BLOCK.
+  '\n- Ora plecării/sosirii o rostești DOAR din câmpul departure_spoken_ro (română) / departure_spoken_ru (rusă) al rezultatului tool-ului — cuvânt cu cuvânt. La fel arrival_spoken_*. NU converti niciodată singură HH:MM în cuvinte.',
 ];
 
 type Drift = { field: string; healed: boolean };
@@ -249,6 +279,7 @@ async function checkAndHealConfig(cfg: any): Promise<Drift[]> {
     { marker: 'APEL ÎNAPOI — NICIO PROMISIUNE', block: CALLBACK_ORDER_BLOCK, field: 'prompt.CALLBACK_ORDER' },
     { marker: 'STAȚIA CHIȘINĂU — AUTOGARA TRANSLUX', block: STATIA_BLOCK, field: 'prompt.STATIA' },
     { marker: 'STAȚIA BĂLȚI — PEROANELE', block: BALTI_BLOCK, field: 'prompt.BALTI' },
+    { marker: 'ORA SOSIRII — NU SE SPUNE', block: SOSIREA_BLOCK, field: 'prompt.SOSIREA' },
   ];
   let healedPrompt = prompt;
   for (const ob of OBSOLETE_BLOCKS) {
@@ -306,6 +337,8 @@ async function healRuStation(): Promise<Drift[]> {
   let healed = prompt;
   if (healed.includes(STATIA_OBSOLETE_RU)) healed = healed.replace(STATIA_OBSOLETE_RU, '');
   if (healed.includes(BALTI_OBSOLETE_RU)) healed = healed.replace(BALTI_OBSOLETE_RU, '');
+  if (healed.includes(SOSIREA_OBSOLETE_RU)) healed = healed.replace(SOSIREA_OBSOLETE_RU, '');
+  if (healed.includes(SOSIREA2_OBSOLETE_RU)) healed = healed.replace(SOSIREA2_OBSOLETE_RU, '');
   // Santinelă pe SENS, nu pe rând exact: «Северный автовокзал» rescris de mână în
   // dashboard nu mai potrivește надгробие-ul. Atunci NU adăugăm blocul peste
   // contradicție — raportăm drift nevindecat. Blocul PROPRIU conține fraza în
@@ -317,6 +350,7 @@ async function healRuStation(): Promise<Drift[]> {
   const vindecate: string[] = [];
   if (!healed.includes(STATIA_MARKER_RU)) { healed += STATIA_BLOCK_RU; vindecate.push('ru.prompt.STATIA'); }
   if (!healed.includes(BALTI_MARKER_RU)) { healed += BALTI_BLOCK_RU; vindecate.push('ru.prompt.BALTI'); }
+  if (!healed.includes(SOSIREA_MARKER_RU)) { healed += SOSIREA_BLOCK_RU; vindecate.push('ru.prompt.SOSIREA'); }
   if (healed === prompt) return [];
   await elPatchAgent({ conversation_config: { agent: { prompt: { prompt: healed } } } }, RU_AGENT_ID);
   return (vindecate.length ? vindecate : ['ru.prompt.STATIA']).map((f) => ({ field: f, healed: true }));

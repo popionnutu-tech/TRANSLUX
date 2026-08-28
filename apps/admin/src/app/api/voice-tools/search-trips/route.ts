@@ -107,9 +107,7 @@ export async function POST(req: NextRequest) {
       awaiting_driver: !!t.isAwaitingDriver,
       departure_spoken_ro: timeSpoken(t.time)?.ro ?? null,
       departure_spoken_ru: timeSpoken(t.time)?.ru ?? null,
-      arrival: t.arrivalTime || null,
-      arrival_spoken_ro: timeSpoken(t.arrivalTime)?.ro ?? null,
-      arrival_spoken_ru: timeSpoken(t.arrivalTime)?.ru ?? null,
+      // arrival_* scoase (Ion 28.08: doar ora plecării) — ce nu e în date nu se rostește.
       price: t.price,
       original_price: t.originalPrice,
       driver: t.driver,

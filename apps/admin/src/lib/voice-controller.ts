@@ -10,7 +10,7 @@
 // PATCH на секцию — меньше запросов, нет зависимости от порядка.
 import { getSupabase } from '@/lib/supabase';
 import { auditAliasShadow, syncCanonKeywords } from '@/lib/voice-canon';
-import { AGENT_ID, elGet, elPatchAgent } from '@/lib/voice/el';
+import { AGENT_ID, RU_AGENT_ID, elGet, elPatchAgent } from '@/lib/voice/el';
 import { drainPendingExams } from '@/lib/voice-exams';
 import { RO_UNITS, RO_TENS, RU_UNITS, RU_TENS } from '@/lib/time-spoken';
 
@@ -40,7 +40,7 @@ const FALLBACK_KEYWORDS = [
 // Позиция вставки кэш НЕ спасает: точка кэша одна, на весь system.
 // Markerele TREBUIE să fie unice: un marker care apare și în alt bloc face detectorul
 // orb la ștergerea blocului propriu (ORELE a fost mascat de titlul blocului ZIUA).
-const PROMPT_MARKERS = ['ORELE — DOSLOVEN', 'UNIVERSUL localităților', 'Doriți numărul lui?', 'A DOUA OARĂ LA RÂND', 'ZIUA — DOSLOVEN', 'e un CORIDOR', 'SFÂRȘIT NUME RUSEȘTI', 'APEL ÎNAPOI — NICIO PROMISIUNE'];
+const PROMPT_MARKERS = ['ORELE — DOSLOVEN', 'UNIVERSUL localităților', 'Doriți numărul lui?', 'A DOUA OARĂ LA RÂND', 'ZIUA — DOSLOVEN', 'e un CORIDOR', 'SFÂRȘIT NUME RUSEȘTI', 'APEL ÎNAPOI — NICIO PROMISIUNE', 'STAȚIA CHIȘINĂU — AUTOGARA TRANSLUX'];
 const ORELE_BLOCK = `
 
 ORELE — DOSLOVEN DIN TOOL:
@@ -109,6 +109,29 @@ APEL ÎNAPOI — NICIO PROMISIUNE:
 - NU promiți NICIODATĂ că cineva sună clientul înapoi — nici tu, nici «un coleg», nici compania. Formulările «vă sunăm noi», «un coleg vă va suna», «мы вам перезвоним» sunt INTERZISE în orice moment al apelului, inclusiv DUPĂ request_callback.
 - Clientul cere să fie sunat înapoi? Chemi request_callback și spui DOAR: «Am notat solicitarea.» — atât. Fără nicio promisiune de apel: nu există operatori care sună înapoi, iar clientul ar aștepta degeaba.`;
 
+// Stația din Chișinău. Apel real 27.08: agentul a trimis clientul la Autogara Nord —
+// TRANSLUX pleacă de la autogara PROPRIE (Ion, 28.08: «noi pornim de la autogara
+// TRANSLUX, nu autogara nord»). Rândul vechi din blocul INFORMAȚII CHEIE e în
+// OBSOLETE_BLOCKS; adevărul stă aici și în tool-ul get_company_info (route.ts) —
+// se schimbă ÎMPREUNĂ, același commit.
+const STATIA_BLOCK = `
+
+STAȚIA CHIȘINĂU — AUTOGARA TRANSLUX:
+- Plecarea din Chișinău e de la Autogara TRANSLUX, strada Calea Moșilor doi a. NU pomeni niciodată Autogara Nord — nu plecăm de acolo.
+- În rusă: автовокзал ТРАНСЛЮКС, улица Каля Мошилор, два а.
+- Orice adresă de stație o citești DOSLOVEN din câmpul address_spoken_ro (română) / address_spoken_ru (rusă) al lui get_company_info — nu din address_ro/address_ru.`;
+
+// RU-агент живёт только в дашборде (полного эталона нет) — лечим ТОЧЕЧНО одну
+// станцию, остальной его конфиг не трогаем. Строка сверена побайтово с живым
+// промптом 28.08 (у RU после ═══ нет пустой строки — ведущий \n здесь разделитель).
+const STATIA_OBSOLETE_RU = '\n• Станция Кишинёв: Северный автовокзал, улица Каля Мошилор два';
+const STATIA_MARKER_RU = 'СТАНЦИЯ КИШИНЁВ — АВТОВОКЗАЛ ТРАНСЛЮКС';
+const STATIA_BLOCK_RU = `
+
+СТАНЦИЯ КИШИНЁВ — АВТОВОКЗАЛ ТРАНСЛЮКС:
+- Отправление из Кишинёва — с автовокзала ТРАНСЛЮКС, улица Каля Мошилор, два а. НИКОГДА не называй «Северный автовокзал» или «Автогара Норд» — мы оттуда не отправляемся.
+- Любой адрес станции читай ДОСЛОВНО из поля address_spoken_ru инструмента get_company_info.`;
+
 const LIMBA_BLOCK = `
 
 LIMBA — A DOUA OARĂ LA RÂND:
@@ -135,6 +158,9 @@ const OBSOLETE_BLOCKS = [
 ÎNTÂI TOOL-UL, APOI PROMISIUNEA:
 - Promiți că cineva sună clientul înapoi DOAR DUPĂ ce request_callback a întors succes în ACEST apel. Ordinea e strictă: ceri numărul, chemi tool-ul, aștepți rezultatul — abia apoi confirmi că va fi sunat.
 - Fără solicitare înregistrată, formulări ca «vă sunăm noi», «un coleg vă va suna», «мы вам перезвоним» sunt INTERZISE: nimeni nu sună înapoi fără cerere în sistem, iar clientul ar aștepta degeaba.`,
+  // Rând din promptul ORIGINAL (nu auto-dopisat), anulat de Ion 28.08: plecarea e de la
+  // Autogara TRANSLUX (Calea Moșilor 2/a), nu Autogara Nord. Înlocuit de STATIA_BLOCK.
+  '\n• Stația Chișinău: Autogara Nord, str. Calea Moșilor 2',
 ];
 
 type Drift = { field: string; healed: boolean };
@@ -203,6 +229,7 @@ async function checkAndHealConfig(cfg: any): Promise<Drift[]> {
     { marker: 'e un CORIDOR', block: CORIDOR_BLOCK, field: 'prompt.CORIDOR' },
     { marker: 'A DOUA OARĂ LA RÂND', block: LIMBA_BLOCK, field: 'prompt.LIMBA' },
     { marker: 'APEL ÎNAPOI — NICIO PROMISIUNE', block: CALLBACK_ORDER_BLOCK, field: 'prompt.CALLBACK_ORDER' },
+    { marker: 'STAȚIA CHIȘINĂU — AUTOGARA TRANSLUX', block: STATIA_BLOCK, field: 'prompt.STATIA' },
   ];
   let healedPrompt = prompt;
   for (const ob of OBSOLETE_BLOCKS) {
@@ -248,6 +275,29 @@ async function checkAndHealConfig(cfg: any): Promise<Drift[]> {
   if (Object.keys(ccPatch).length) await elPatchAgent({ conversation_config: ccPatch });
 
   return drifts;
+}
+
+// Лечение RU-агента: ТОЛЬКО станция (см. комментарий у STATIA_BLOCK_RU).
+// Идемпотентно: надгробие — точное совпадение, блок — по маркеру.
+async function healRuStation(): Promise<Drift[]> {
+  const cfg = await elGet(`/v1/convai/agents/${RU_AGENT_ID}`);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const prompt: string = (cfg as any).conversation_config?.agent?.prompt?.prompt ?? '';
+  if (!prompt) return [{ field: 'ru.prompt.empty', healed: false }];
+  let healed = prompt;
+  if (healed.includes(STATIA_OBSOLETE_RU)) healed = healed.replace(STATIA_OBSOLETE_RU, '');
+  // Santinelă pe SENS, nu pe rând exact: «Северный автовокзал» rescris de mână în
+  // dashboard nu mai potrivește надгробие-ul. Atunci NU adăugăm blocul peste
+  // contradicție — raportăm drift nevindecat. Blocul PROPRIU conține fraza în
+  // interdicție, deci îl scoatem înainte de test (altfel alarmă falsă la fiecare rulare).
+  const inAfara = healed.replace(STATIA_BLOCK_RU, '');
+  if (inAfara.includes('Северный автовокзал') || inAfara.includes('Автогара Норд')) {
+    return [{ field: 'ru.prompt.STATIA', healed: false }];
+  }
+  if (!healed.includes(STATIA_MARKER_RU)) healed += STATIA_BLOCK_RU;
+  if (healed === prompt) return [];
+  await elPatchAgent({ conversation_config: { agent: { prompt: { prompt: healed } } } }, RU_AGENT_ID);
+  return [{ field: 'ru.prompt.STATIA', healed: true }];
 }
 
 // ---- Обратный парсер времён из речи агента (таблицы — из time-spoken) ----
@@ -412,6 +462,15 @@ export async function runVoiceController(): Promise<{ drifts: Drift[]; incidents
 
   const cfg = await elGet(`/v1/convai/agents/${AGENT_ID}`);
   const drifts = await checkAndHealConfig(cfg);
+
+  // RU-агент: точечное лечение станции. Падение RU-ветки не должно ронять прогон.
+  try {
+    drifts.push(...await healRuStation());
+  } catch (e) {
+    console.error('[voice-controller] ru-station:', e);
+    // În jurnal, nu doar în log: altfel o cheie/ID căzut tace 48 de prognoane/zi.
+    drifts.push({ field: 'ru.station.error', healed: false });
+  }
 
   const incidents = await validateRecentCalls();
   const supabase = getSupabase();

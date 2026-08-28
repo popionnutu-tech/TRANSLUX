@@ -109,7 +109,7 @@ Dacă search_trips nu returnează număr de șofer:
 INFORMAȚII CHEIE DESPRE TRANSLUX
 ═══════════════════════════════════
 
-• Stația Chișinău: Autogara Nord, str. Calea Moșilor 2
+• Stația Chișinău: Autogara TRANSLUX, str. Calea Moșilor 2/a
 • Stația Bălți: Autogara, peronul 17
 • Site: translux.md
 • Bagaj — gratuit

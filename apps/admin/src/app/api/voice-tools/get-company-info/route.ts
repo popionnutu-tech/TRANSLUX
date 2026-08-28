@@ -12,14 +12,21 @@ const COMPANY_INFO = {
   phone_spoken_ro: phoneSpoken(COMPANY_PHONE)?.ro ?? null,
   stations: {
     chisinau: {
-      name_ro: 'Stația Chișinău (Autogara Nord)',
-      name_ru: 'Станция Кишинёв (Северный автовокзал)',
-      address: 'str. Calea Moșilor 2, Chișinău',
+      name_ro: 'Stația Chișinău (Autogara TRANSLUX)',
+      name_ru: 'Станция Кишинёв (автовокзал ТРАНСЛЮКС)',
+      // address_* — text (FB bot); address_spoken_* — vocea le citește DOSLOVEN (TTS strică «2/a»)
+      address_ro: 'str. Calea Moșilor 2/a, Chișinău',
+      address_ru: 'ул. Каля Мошилор 2/а, Кишинёв',
+      address_spoken_ro: 'strada Calea Moșilor doi a',
+      address_spoken_ru: 'улица Каля Мошилор, два а',
     },
     balti: {
       name_ro: 'Stația Bălți (Autogara)',
       name_ru: 'Станция Бельцы (Автовокзал)',
-      address: 'str. Independenței, Bălți',
+      address_ro: 'str. Independenței, Bălți',
+      address_ru: 'ул. Индепенденцей, Бельцы',
+      address_spoken_ro: 'strada Independenței',
+      address_spoken_ru: 'улица Индепенденцей',
     },
   },
   policies: {

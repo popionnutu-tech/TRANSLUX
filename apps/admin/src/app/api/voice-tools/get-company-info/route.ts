@@ -21,12 +21,12 @@ const COMPANY_INFO = {
       address_spoken_ru: 'улица Каля Мошилор, два а',
     },
     balti: {
-      name_ro: 'Stația Bălți (Autogara)',
-      name_ru: 'Станция Бельцы (Автовокзал)',
-      address_ro: 'str. Independenței, Bălți',
-      address_ru: 'ул. Индепенденцей, Бельцы',
-      address_spoken_ro: 'strada Independenței',
-      address_spoken_ru: 'улица Индепенденцей',
+      name_ro: 'Stația Bălți (Autogara, peroanele 15–16)',
+      name_ru: 'Станция Бельцы (автовокзал, перроны 15–16)',
+      address_ro: 'Autogara Bălți, str. Independenței, peroanele 15–16',
+      address_ru: 'автовокзал Бельцы, ул. Индепенденцей, перроны 15–16',
+      address_spoken_ro: 'Autogara Bălți, strada Independenței, peroanele cincisprezece și șaisprezece',
+      address_spoken_ru: 'автовокзал Бельцы, улица Индепенденцей, перроны пятнадцать и шестнадцать',
     },
   },
   policies: {

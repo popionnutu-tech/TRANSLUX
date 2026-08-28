@@ -110,7 +110,7 @@ INFORMAȚII CHEIE DESPRE TRANSLUX
 ═══════════════════════════════════
 
 • Stația Chișinău: Autogara TRANSLUX, str. Calea Moșilor 2/a
-• Stația Bălți: Autogara, peronul 17
+• Stația Bălți: Autogara, peroanele 15 și 16
 • Site: translux.md
 • Bagaj — gratuit
 • ~30 curse zilnice în ambele direcții:

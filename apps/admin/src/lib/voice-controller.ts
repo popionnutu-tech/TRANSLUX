@@ -40,7 +40,7 @@ const FALLBACK_KEYWORDS = [
 // Позиция вставки кэш НЕ спасает: точка кэша одна, на весь system.
 // Markerele TREBUIE să fie unice: un marker care apare și în alt bloc face detectorul
 // orb la ștergerea blocului propriu (ORELE a fost mascat de titlul blocului ZIUA).
-const PROMPT_MARKERS = ['ORELE — DOSLOVEN', 'UNIVERSUL localităților', 'Doriți numărul lui?', 'A DOUA OARĂ LA RÂND', 'ZIUA — DOSLOVEN', 'e un CORIDOR', 'SFÂRȘIT NUME RUSEȘTI', 'APEL ÎNAPOI — NICIO PROMISIUNE', 'STAȚIA CHIȘINĂU — AUTOGARA TRANSLUX'];
+const PROMPT_MARKERS = ['ORELE — DOSLOVEN', 'UNIVERSUL localităților', 'Doriți numărul lui?', 'A DOUA OARĂ LA RÂND', 'ZIUA — DOSLOVEN', 'e un CORIDOR', 'SFÂRȘIT NUME RUSEȘTI', 'APEL ÎNAPOI — NICIO PROMISIUNE', 'STAȚIA CHIȘINĂU — AUTOGARA TRANSLUX', 'STAȚIA BĂLȚI — PEROANELE'];
 const ORELE_BLOCK = `
 
 ORELE — DOSLOVEN DIN TOOL:
@@ -121,6 +121,15 @@ STAȚIA CHIȘINĂU — AUTOGARA TRANSLUX:
 - În rusă: автовокзал ТРАНСЛЮКС, улица Каля Мошилор, два а.
 - Orice adresă de stație o citești DOSLOVEN din câmpul address_spoken_ro (română) / address_spoken_ru (rusă) al lui get_company_info — nu din address_ro/address_ru.`;
 
+// Bălți: Ion 28.08 — «in autogara balti noi ne aflam la peronul 15 si 16», nu 17.
+// Bloc SEPARAT de STATIA_BLOCK: corpul unui bloc HEALABLE deja livrat nu se mai
+// atinge (idempotența e pe marker) — fapt nou = marker nou.
+const BALTI_BLOCK = `
+
+STAȚIA BĂLȚI — PEROANELE CINCISPREZECE ȘI ȘAISPREZECE:
+- La Autogara Bălți ne aflăm la peroanele cincisprezece și șaisprezece — NU la peronul șaptesprezece.
+- În rusă: перроны пятнадцать и шестнадцать.`;
+
 // RU-агент живёт только в дашборде (полного эталона нет) — лечим ТОЧЕЧНО одну
 // станцию, остальной его конфиг не трогаем. Строка сверена побайтово с живым
 // промптом 28.08 (у RU после ═══ нет пустой строки — ведущий \n здесь разделитель).
@@ -131,6 +140,13 @@ const STATIA_BLOCK_RU = `
 СТАНЦИЯ КИШИНЁВ — АВТОВОКЗАЛ ТРАНСЛЮКС:
 - Отправление из Кишинёва — с автовокзала ТРАНСЛЮКС, улица Каля Мошилор, два а. НИКОГДА не называй «Северный автовокзал» или «Автогара Норд» — мы оттуда не отправляемся.
 - Любой адрес станции читай ДОСЛОВНО из поля address_spoken_ru инструмента get_company_info.`;
+
+const BALTI_OBSOLETE_RU = '\n• Станция Бельцы: автовокзал, перрон семнадцать';
+const BALTI_MARKER_RU = 'СТАНЦИЯ БЕЛЬЦЫ — ПЕРРОНЫ';
+const BALTI_BLOCK_RU = `
+
+СТАНЦИЯ БЕЛЬЦЫ — ПЕРРОНЫ ПЯТНАДЦАТЬ И ШЕСТНАДЦАТЬ:
+- На автовокзале Бельцы мы находимся на перронах пятнадцать и шестнадцать — НЕ на семнадцатом.`;
 
 const LIMBA_BLOCK = `
 
@@ -161,6 +177,8 @@ const OBSOLETE_BLOCKS = [
   // Rând din promptul ORIGINAL (nu auto-dopisat), anulat de Ion 28.08: plecarea e de la
   // Autogara TRANSLUX (Calea Moșilor 2/a), nu Autogara Nord. Înlocuit de STATIA_BLOCK.
   '\n• Stația Chișinău: Autogara Nord, str. Calea Moșilor 2',
+  // Ion 28.08: peroanele 15–16, nu 17. Înlocuit de BALTI_BLOCK.
+  '\n• Stația Bălți: Autogara, peronul 17',
 ];
 
 type Drift = { field: string; healed: boolean };
@@ -230,6 +248,7 @@ async function checkAndHealConfig(cfg: any): Promise<Drift[]> {
     { marker: 'A DOUA OARĂ LA RÂND', block: LIMBA_BLOCK, field: 'prompt.LIMBA' },
     { marker: 'APEL ÎNAPOI — NICIO PROMISIUNE', block: CALLBACK_ORDER_BLOCK, field: 'prompt.CALLBACK_ORDER' },
     { marker: 'STAȚIA CHIȘINĂU — AUTOGARA TRANSLUX', block: STATIA_BLOCK, field: 'prompt.STATIA' },
+    { marker: 'STAȚIA BĂLȚI — PEROANELE', block: BALTI_BLOCK, field: 'prompt.BALTI' },
   ];
   let healedPrompt = prompt;
   for (const ob of OBSOLETE_BLOCKS) {
@@ -286,6 +305,7 @@ async function healRuStation(): Promise<Drift[]> {
   if (!prompt) return [{ field: 'ru.prompt.empty', healed: false }];
   let healed = prompt;
   if (healed.includes(STATIA_OBSOLETE_RU)) healed = healed.replace(STATIA_OBSOLETE_RU, '');
+  if (healed.includes(BALTI_OBSOLETE_RU)) healed = healed.replace(BALTI_OBSOLETE_RU, '');
   // Santinelă pe SENS, nu pe rând exact: «Северный автовокзал» rescris de mână în
   // dashboard nu mai potrivește надгробие-ul. Atunci NU adăugăm blocul peste
   // contradicție — raportăm drift nevindecat. Blocul PROPRIU conține fraza în
@@ -294,10 +314,12 @@ async function healRuStation(): Promise<Drift[]> {
   if (inAfara.includes('Северный автовокзал') || inAfara.includes('Автогара Норд')) {
     return [{ field: 'ru.prompt.STATIA', healed: false }];
   }
-  if (!healed.includes(STATIA_MARKER_RU)) healed += STATIA_BLOCK_RU;
+  const vindecate: string[] = [];
+  if (!healed.includes(STATIA_MARKER_RU)) { healed += STATIA_BLOCK_RU; vindecate.push('ru.prompt.STATIA'); }
+  if (!healed.includes(BALTI_MARKER_RU)) { healed += BALTI_BLOCK_RU; vindecate.push('ru.prompt.BALTI'); }
   if (healed === prompt) return [];
   await elPatchAgent({ conversation_config: { agent: { prompt: { prompt: healed } } } }, RU_AGENT_ID);
-  return [{ field: 'ru.prompt.STATIA', healed: true }];
+  return (vindecate.length ? vindecate : ['ru.prompt.STATIA']).map((f) => ({ field: f, healed: true }));
 }
 
 // ---- Обратный парсер времён из речи агента (таблицы — из time-spoken) ----

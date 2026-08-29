@@ -8,6 +8,20 @@ import { receiptLinesSum, totalMatches, totalDiffBani } from '@/lib/piese-receip
 import { chisinauDayStartIso, chisinauDayBounds, chisinauDayOf, chisinauTodayIso } from '@/lib/chisinau-time';
 
 const RECEIPT_ROLES = ['ADMIN', 'DEPOZITAR', 'GESTIONAR'] as const;
+
+// Mesaje prietenoase pentru codurile ridicate de RPC-ul de corecție (și de UPDATE-ul de antet: NOT_CONFIRMED).
+const RPC_ERR: Record<string, string> = {
+  CONSUMED: 'Marfa din această recepție a fost deja vândută/casată/mutată — nu se pot modifica liniile. Poți modifica doar antetul (furnizor/serie/număr/comentariu/total factură).',
+  NOT_CONFIRMED: 'Documentul a fost deja modificat între timp. Reîncarcă lista și încearcă din nou.',
+  NOT_RECEIPT: 'Document invalid.',
+  SOLD_INITIAL: 'Soldul inițial nu se modifică din acest ecran.',
+  SOLD_SERIES: 'Seria „SOLD" e rezervată soldului inițial.',
+  NO_LINES: 'Adaugă cel puțin o piesă.',
+  BAD_PART: 'O piesă selectată nu există în catalog.',
+  BAD_QTY: 'Cantitatea trebuie să fie mai mare ca 0.',
+  BAD_COST: 'Prețul unitar nu poate fi negativ.',
+};
+
 const NOTE_MAX = 500; // plafon sanity pentru comentariul la factură
 
 // Suma de control a facturii (migr. 288). Dacă depozitarul a tastat totalul de pe factura furnizorului,
@@ -48,12 +62,20 @@ export async function submitReceipt(payload: { warehouse_id: number; supplier_id
   // CREARE nu avea niciuna, iar `piese_create_receipt` nu verifică nimic: un cost negativ ar fi intrat ca
   // strat FIFO și ar fi otrăvit costul mediu, deci și prețurile de vânzare. Suma de control nu acoperă asta —
   // două linii care se anulează reciproc (200 și −100) se potrivesc perfect cu un total de 100.
-  const lines = payload.lines
-    .map((l) => ({ part_id: Number(l.part_id), qty: Number(l.qty), unit_cost: Number(l.unit_cost) || 0 }))
-    .filter((l) => l.part_id && l.qty > 0);
-  if (!lines.length) throw new Error('Adaugă cel puțin o piesă');
-  if (lines.some((l) => !Number.isFinite(l.qty) || l.qty <= 0)) throw new Error('Cantitatea trebuie să fie mai mare ca 0.');
-  if (lines.some((l) => !Number.isFinite(l.unit_cost) || l.unit_cost < 0)) throw new Error('Prețul unitar nu poate fi negativ.');
+  if (!Array.isArray(payload.lines)) throw new Error('Adaugă cel puțin o piesă');
+  // Validăm pe valorile BRUTE, ÎNAINTE de filtrare. Ordinea contează: dacă filtrăm întâi, verificările
+  // devin cod mort (un `qty` invalid e deja eliminat), iar `Number(x) || 0` ar transforma „abc"/null în
+  // cost ZERO — adică marfă gratuită intrată tăcut în stratul FIFO, exact ce voiam să prevenim.
+  // Rândurile complet goale (fără piesă) se ignoră: formularul ține mereu un rând liber la final.
+  const raw = payload.lines
+    .map((l) => ({ part_id: Number(l.part_id), qty: Number(l.qty), unit_cost: Number(l.unit_cost) }))
+    .filter((l) => l.part_id);
+  if (!raw.length) throw new Error('Adaugă cel puțin o piesă');
+  // Aceleași praguri ca RPC-ul de corecție (migr. 244), ca o linie creabilă să fie și corectabilă:
+  // sub epsilonul lui, o cantitate ar fi acceptată la creare și refuzată pentru totdeauna la editare.
+  if (raw.some((l) => !Number.isFinite(l.qty) || l.qty <= 0.0000001)) throw new Error(RPC_ERR.BAD_QTY);
+  if (raw.some((l) => !Number.isFinite(l.unit_cost) || l.unit_cost < 0)) throw new Error(RPC_ERR.BAD_COST);
+  const lines = raw;
   const total = cleanTotal(payload.invoice_total);
   assertInvoiceTotal(total, lines); // ÎNAINTE de a scrie: o recepție greșită nu trebuie să intre deloc în stoc
   const docId = await createReceipt({ ...payload, lines });
@@ -184,18 +206,6 @@ export async function saveReceiptHeader(docId: number, h: { supplier_id?: number
   return { ok: true };
 }
 
-// Mesaje prietenoase pentru codurile ridicate de RPC-ul de corecție (și de UPDATE-ul de antet: NOT_CONFIRMED).
-const RPC_ERR: Record<string, string> = {
-  CONSUMED: 'Marfa din această recepție a fost deja vândută/casată/mutată — nu se pot modifica liniile. Poți modifica doar antetul (furnizor/serie/număr/comentariu/total factură).',
-  NOT_CONFIRMED: 'Documentul a fost deja modificat între timp. Reîncarcă lista și încearcă din nou.',
-  NOT_RECEIPT: 'Document invalid.',
-  SOLD_INITIAL: 'Soldul inițial nu se modifică din acest ecran.',
-  SOLD_SERIES: 'Seria „SOLD" e rezervată soldului inițial.',
-  NO_LINES: 'Adaugă cel puțin o piesă.',
-  BAD_PART: 'O piesă selectată nu există în catalog.',
-  BAD_QTY: 'Cantitatea trebuie să fie mai mare ca 0.',
-  BAD_COST: 'Prețul unitar nu poate fi negativ.',
-};
 
 // Salvează antet + LINII (anulare + refacere prin RPC). Întoarce id-ul documentului nou corectat.
 export async function saveReceiptLines(docId: number, payload: { supplier_id?: number | null; series?: string | null; number?: string | null; note?: string | null; invoice_total?: number | string | null; lines: { part_id: number; qty: number; unit_cost: number }[] }) {

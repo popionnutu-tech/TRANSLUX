@@ -7,10 +7,13 @@ interface Rack { rack: string; items: Item[]; types: number }
 interface Section { section: string; racks: Rack[]; types: number }
 interface Layout { sections: Section[]; totalTypes: number }
 
-export default function PieseDepotMap({ layout, highlight, highlightSection }: {
+export default function PieseDepotMap({ layout, highlight, highlightSection, highlightRacks }: {
   layout: Layout; highlight?: { section: string; rack: string } | null; highlightSection?: string | null;
+  // Mai multe rânduri deodată — folosit când se caută o GRUPĂ întreagă, nu o singură piesă.
+  highlightRacks?: { section: string; rack: string }[];
 }) {
   const [sel, setSel] = useState<{ section: string; rack: string } | null>(null);
+  const rackSet = new Set((highlightRacks || []).map((r) => `${r.section}|${r.rack}`));
   const active = sel || (highlight ?? null);
   const selRack = active ? layout.sections.find((s) => s.section === active.section)?.racks.find((r) => r.rack === active.rack) : null;
 
@@ -20,13 +23,14 @@ export default function PieseDepotMap({ layout, highlight, highlightSection }: {
     <div>
       <div className="depot-map">
         {layout.sections.map((s) => {
-          const secHot = highlightSection === s.section || (highlight?.section === s.section);
+          const secHot = highlightSection === s.section || (highlight?.section === s.section)
+            || (highlightRacks || []).some((r) => r.section === s.section);
           return (
             <div key={s.section} className={`depot-section${secHot ? ' hot' : ''}`}>
               <div className="depot-section-head"><span className="sec-badge">{s.section}</span> Stelajul {s.section} <span className="muted">· {s.types} piese</span></div>
               <div className="depot-racks">
                 {s.racks.map((r) => {
-                  const hot = active?.section === s.section && active?.rack === r.rack;
+                  const hot = (active?.section === s.section && active?.rack === r.rack) || rackSet.has(`${s.section}|${r.rack}`);
                   const isSel = sel?.section === s.section && sel?.rack === r.rack;
                   return (
                     <button key={r.rack} type="button" className={`depot-rack${hot ? ' hot' : ''}${isSel ? ' sel' : ''}${r.types === 0 ? ' empty' : ''}`}

@@ -3,9 +3,9 @@ export const dynamic = 'force-dynamic';
 import { dashboardStats, lowStock, recentDocs } from '@/lib/piese';
 import { verifySession } from '@/lib/auth';
 import { canSeeCost } from '@/lib/piese-access';
+import RecentDocsCard from './RecentDocsCard';
 
 const lei = (n: number) => Number(n || 0).toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' lei';
-const DOC: Record<string, string> = { RECEIPT: 'Prihod', ISSUE: 'Rashod', TRANSFER: 'Mutare', SALE: 'Vânzare', INVENTORY: 'Inventariere', RETURN_SUPPLIER: 'Retur', WRITE_OFF: 'Spisanie', DONOR: 'Donor' };
 
 export default async function PieseDashboard() {
   const [s, low, recent] = await Promise.all([dashboardStats(), lowStock(), recentDocs(8)]);
@@ -39,22 +39,7 @@ export default async function PieseDashboard() {
             </table>
           )}
         </div>
-        <div className="card">
-          <h2>Ultimele documente</h2>
-          <table>
-            <thead><tr><th>Tip</th><th>Depozit</th><th className="num">Poziții</th><th>Status</th></tr></thead>
-            <tbody>
-              {(recent as any[]).map((d) => (
-                <tr key={d.id}>
-                  <td>{DOC[d.doc_type] || d.doc_type}</td>
-                  <td>{d.warehouse_name}{d.to_warehouse_name ? ` → ${d.to_warehouse_name}` : ''}</td>
-                  <td className="num">{d.line_count}</td>
-                  <td><span className={`badge ${d.status === 'CONFIRMED' ? 'ok' : d.status === 'IN_TRANSIT' ? 'info' : 'gray'}`}>{d.status}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <RecentDocsCard docs={recent as any[]} showCost={showCost} />
       </div>
     </>
   );

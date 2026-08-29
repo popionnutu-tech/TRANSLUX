@@ -68,7 +68,10 @@ export async function partLabelInfo(partId: number, warehouseId: number | null) 
 
 // Filtrele ecranului Stoc (depozit / grupă / căutare). SURSĂ UNICĂ — folosite identic
 // și de query-ul de rânduri, și de cel care însumează valoarea, ca totalul să corespundă listei.
-type StockFilters = { warehouseId?: number; groupId?: number; search?: string };
+// Filtrele listei de stoc. `manufacturer` și `model` se potrivesc EXACT (vin din dropdown, nu tastate),
+// `location` e prefix (ca „A-12" să prindă tot rândul, nu doar celula exactă) — cerut de Eduard, ca să poată
+// scoate rapid „ce am pe rândul ăsta".
+type StockFilters = { warehouseId?: number; groupId?: number; search?: string; manufacturer?: string; model?: string; location?: string };
 const stockSearchOr = (s: string) => `name_long.ilike."%${s}%",name_ro.ilike."%${s}%",group_name.ilike."%${s}%",article_code.ilike."%${s}%",oem_code.ilike."%${s}%",barcode.ilike."%${s}%",model.ilike."%${s}%"`;
 function stockFiltered(select: string, opts: StockFilters, exactCount = false): any {
   let q: any = exactCount
@@ -77,7 +80,29 @@ function stockFiltered(select: string, opts: StockFilters, exactCount = false): 
   if (opts.warehouseId) q = q.eq('warehouse_id', opts.warehouseId);
   if (opts.groupId) q = q.eq('group_id', opts.groupId);
   if (opts.search?.trim()) q = q.or(stockSearchOr(orVal(opts.search.trim())));
+  if (opts.manufacturer?.trim()) q = q.eq('manufacturer', opts.manufacturer.trim());
+  if (opts.model?.trim()) q = q.eq('model', opts.model.trim());
+  // Prefix pe locație: normalizat ca la scriere, ca „a-12" să prindă „A-12-3-5".
+  // Escapăm `%` și `_` — altfel `?loc=%` ar deveni `LIKE '%%'`, adică un scan complet al celui mai scump
+  // view din modul, comandat dintr-un parametru de URL. Tăiem și lungimea, ca la căutarea din jurnal.
+  if (opts.location?.trim()) {
+    const esc = normalizeLocation(opts.location).slice(0, 40).replace(/([%_\\])/g, '\\$1');
+    q = q.like('location_label', `${esc}%`);
+  }
   return q;
+}
+
+// Valorile distincte pentru dropdown-urile de filtrare din Stoc, prin RPC cu DISTINCT (migr. 290).
+// Varianta naivă citea mii de rânduri din `piese_stock_rows` — cel mai scump view al modulului — ca să scoată
+// câteva zeci de valori, iar `LIMIT` fără `ORDER BY` putea TĂIA arbitrar, deci un producător real lipsea
+// tăcut din listă. DISTINCT în bază întoarce zeci de rânduri și nu poate fi trunchiat.
+export async function stockFilterOptions(warehouseId?: number): Promise<{ manufacturers: string[]; models: string[] }> {
+  const { data, error } = await getSupabase().rpc('piese_stock_facets', { p_wh: warehouseId ?? null });
+  if (error) return { manufacturers: [], models: [] }; // filtrele lipsă nu trebuie să doboare pagina de stoc
+  const rows = (data as { manufacturer: string | null; model: string | null }[]) || [];
+  const uniq = (vals: (string | null)[]) =>
+    Array.from(new Set(vals.filter((v): v is string => !!v && v.trim() !== ''))).sort((a, b) => a.localeCompare(b, 'ro'));
+  return { manufacturers: uniq(rows.map((r) => r.manufacturer)), models: uniq(rows.map((r) => r.model)) };
 }
 
 // Plafon de siguranță pentru însumarea valorii (o singură coloană numerică, nu rândurile întregi).
@@ -186,6 +211,43 @@ export async function lowStock() {
 export async function recentDocs(limit = 8) {
   const { data } = await getSupabase().from('piese_recent_docs').select('*').limit(limit);
   return data || [];
+}
+
+// Depozitul (sursă și, la mutare, destinație) unui document ORICE tip — pentru garda de acces.
+// `null` = document inexistent; apelantul trebuie să arunce, nu să treacă mai departe.
+export async function docWarehouses(docId: number): Promise<{ from: number; to: number | null } | null> {
+  const { data } = await getSupabase().from('piese_stock_documents')
+    .select('warehouse_id, to_warehouse_id').eq('id', docId).maybeSingle();
+  if (!data) return null;
+  const d = data as { warehouse_id: number; to_warehouse_id: number | null };
+  return { from: Number(d.warehouse_id), to: d.to_warehouse_id == null ? null : Number(d.to_warehouse_id) };
+}
+
+// Plafon pe poziţiile aduse la extinderea unui rând. Un document de INVENTARIERE are o linie per piesă
+// din depozit (mii) — fără plafon, extinderea lui ar trage tot în payload-ul acţiunii și ar randa mii de rânduri.
+export const DOC_LINES_LIMIT = 200;
+
+// Poziţiile oricărui document. `withCost=false` NU aduce deloc costul din bază — apărare în adâncime,
+// ca la lista de stoc: service-role trece peste RLS, deci codul e singura barieră.
+//
+// SEMNUL cantităţii se PĂSTREAZĂ. Verificat pe date: liniile de prihod/rashod/vânzare/mutare sunt toate
+// pozitive (semnul stă în `piese_stock_movements.qty_delta`, nu pe linie), iar singurele linii negative sunt
+// cele de INVENTARIERE — unde −3 înseamnă LIPSĂ. O valoare absolută ar fi transformat lipsa în plus.
+export async function docLines(docId: number, withCost: boolean): Promise<{ rows: { partId: number; name: string; article: string | null; qty: number; unitCost: number | null }[]; truncated: boolean }> {
+  const cols = withCost
+    ? 'part_id, qty, unit_cost, part:piese_parts(name_ro, name_long, article_code)'
+    : 'part_id, qty, part:piese_parts(name_ro, name_long, article_code)';
+  const { data, error } = await getSupabase().from('piese_stock_document_lines')
+    .select(cols).eq('document_id', docId).limit(DOC_LINES_LIMIT + 1);
+  if (error) throw new Error('Nu am putut încărca poziţiile documentului');
+  const all = ((data as any[]) || []).map((l) => ({
+    partId: Number(l.part_id),
+    name: (l.part?.name_ro || l.part?.name_long || `#${l.part_id}`) as string,
+    article: (l.part?.article_code as string) || null,
+    qty: Number(l.qty),
+    unitCost: withCost && l.unit_cost != null ? Number(l.unit_cost) : null,
+  }));
+  return { rows: all.slice(0, DOC_LINES_LIMIT), truncated: all.length > DOC_LINES_LIMIT };
 }
 
 // ── Documente de prihod (jurnal recepții) ──
@@ -428,10 +490,51 @@ export async function createIssue(p: { warehouse_id: number; vehicle_id: number 
 // Parsarea locației trăiește în lib/piese-location.ts (fără 'server-only'), ca formularele să valideze
 // exact ce validează serverul. Re-exportat aici pentru apelanții existenți.
 export { parseLocation, formatLocation } from './piese-location';
-import { parseLocation as parseLoc } from './piese-location';
+import { parseLocation as parseLoc, normalizeLocation } from './piese-location';
 import { receiptLinesSum } from './piese-receipt';
 
 const sortKey = (s: string) => { const n = Number(s); return isNaN(n) ? s : String(n).padStart(6, '0'); };
+
+// Unde stă o GRUPĂ de piese într-un depozit: lista de rânduri (stelaj+rând) în care are măcar o piesă.
+// Cerută de Eduard pentru hartă — „arată-mi unde sunt filtrele", fără să caute piesă cu piesă.
+export async function groupPlacements(warehouseId: number, groupId: number): Promise<{ section: string; rack: string }[]> {
+  // Prin `piese_part_locations` + join intern pe piese: view-ul `piese_locations_full` are doar `group_name`,
+  // iar potrivirea pe nume ar fi fragilă la redenumirea unei grupe.
+  const { data } = await getSupabase()
+    .from('piese_part_locations').select('location_label, part:piese_parts!inner(group_id)')
+    .eq('warehouse_id', warehouseId).eq('part.group_id', groupId);
+  const seen = new Set<string>();
+  const out: { section: string; rack: string }[] = [];
+  for (const r of ((data as any[]) || [])) {
+    const { section, rack } = parseLoc(r.location_label);
+    const k = `${section}|${rack}`;
+    if (seen.has(k)) continue;
+    seen.add(k); out.push({ section, rack });
+  }
+  return out;
+}
+
+// Locația SUGERATĂ pentru o piesă nouă: rândul (stelaj-rând) unde stau deja cele mai multe piese din
+// aceeaşi grupă, în acest depozit. Cerută de Eduard — la introducerea unei piese noi în recepție, nu avea
+// de unde şti unde se pune, deşi grupa ei are deja un loc pe raft. E doar o propunere: câmpul rămâne editabil.
+export async function suggestLocation(warehouseId: number, groupId: number): Promise<string | null> {
+  if (!warehouseId || !groupId) return null;
+  // O SINGURĂ interogare: numărăm rândurile direct. (Varianta cu `groupPlacements` înainte făcea un
+  // round-trip suplimentar, folosit doar ca să afle dacă setul e gol — lucru pe care numărătoarea îl spune.)
+  const { data } = await getSupabase()
+    .from('piese_part_locations').select('location_label, part:piese_parts!inner(group_id)')
+    .eq('warehouse_id', warehouseId).eq('part.group_id', groupId).limit(2000);
+  const tally = new Map<string, number>();
+  for (const r of ((data as any[]) || [])) {
+    const { section, rack } = parseLoc(r.location_label);
+    if (section === '—' || rack === '—') continue;
+    const k = `${section}-${rack}`;
+    tally.set(k, (tally.get(k) || 0) + 1);
+  }
+  let best: string | null = null; let bestN = 0;
+  for (const [k, n] of tally) if (n > bestN) { best = k; bestN = n; }
+  return best;
+}
 
 export async function warehouseLayout(warehouseId: number) {
   const { data } = await getSupabase().from('piese_locations_full').select('*').eq('warehouse_id', warehouseId);

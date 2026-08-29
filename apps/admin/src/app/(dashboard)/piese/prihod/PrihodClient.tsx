@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { submitReceipt } from './actions';
 import { receiptLinesSum, countableLines, totalMatches } from '@/lib/piese-receipt';
@@ -8,6 +8,8 @@ import { loadPart } from '../part-actions';
 import { searchParts } from '../search-parts';
 import SearchSelect from '@/components/SearchSelect';
 import PartForm, { type PartFormValues } from '@/components/PartForm';
+import { suggestPartLocation, savePartLocation } from '../part-actions';
+import { LOCATION_EXAMPLE, LOCATION_FORMAT, locationError } from '@/lib/piese-location';
 
 interface Opt { id: number; label: string }
 interface Line { part_id: number | ''; part_label?: string; qty: number; unit_cost: number; sum: number }
@@ -19,6 +21,7 @@ const blankLine = (): Line => ({ part_id: '', qty: 1, unit_cost: 0, sum: 0 });
 export default function PrihodClient({ warehouses, suppliers, groups }: { warehouses: Opt[]; suppliers: Opt[]; groups: Opt[] }) {
   const router = useRouter();
   const [warehouseId, setWarehouseId] = useState(warehouses[0]?.id || 0);
+  const warehouseLabel = warehouses.find((w) => w.id === warehouseId)?.label || 'depozit';
   const [supplierId, setSupplierId] = useState<number | ''>('');
   const [series, setSeries] = useState('');
   const [number, setNumber] = useState('');
@@ -28,6 +31,23 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ t: 'ok' | 'danger'; m: string } | null>(null);
   const [newPartFor, setNewPartFor] = useState<number | null>(null); // indexul poziției care adaugă o piesă nouă
+  // Locația piesei noi: se propune după grupă (unde stau deja surorile ei), dar rămâne editabilă.
+  const [newLoc, setNewLoc] = useState('');
+  const [locHint, setLocHint] = useState<string | null>(null);
+  const [locErrMsg, setLocErrMsg] = useState('');
+  // Contor de cereri: dacă utilizatorul schimbă grupa de două ori, răspunsul mai vechi nu are voie să
+  // suprascrie sugestia celei noi.
+  const sugSeq = useRef(0);
+
+  function closeNewPart() { setNewPartFor(null); setNewLoc(''); setLocHint(null); setLocErrMsg(''); }
+
+  async function askSuggestion(gid: number) {
+    const seq = ++sugSeq.current;
+    const sug = await suggestPartLocation(warehouseId, gid).catch(() => null);
+    if (seq !== sugSeq.current) return; // a venit prea târziu — grupa s-a schimbat între timp
+    setLocHint(sug);
+    setNewLoc((cur) => (cur.trim() === '' && sug ? sug : cur));
+  }
   const [editPart, setEditPart] = useState<{ index: number; initial: PartFormValues } | null>(null); // editare piesă chiar din recepție
   const [editBusy, setEditBusy] = useState<number | null>(null); // indexul rândului care încarcă piesa pentru editare
 
@@ -95,7 +115,7 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   <div style={{ flex: 1 }}><SearchSelect searchFn={searchParts} value={l.part_id} selectedLabel={l.part_label} onSelect={(o) => setLine(i, { part_id: o ? o.id : '', part_label: o?.label })} placeholder="— caută piesa (denumire, cod, articol) —" /></div>
                   {l.part_id !== '' && <button type="button" className="btn btn-outline" style={{ padding: '4px 10px', whiteSpace: 'nowrap' }} disabled={editBusy === i} onClick={() => openEditPart(i, Number(l.part_id))} title="Corectează denumirea / codul de bare / datele piesei alese, direct din recepție">{editBusy === i ? '…' : '✎ Editează'}</button>}
-                  <button type="button" className="btn btn-outline" style={{ padding: '4px 10px', whiteSpace: 'nowrap' }} onClick={() => setNewPartFor(i)} title="Adaugă o piesă care nu există încă în catalog">+ nouă</button>
+                  <button type="button" className="btn btn-outline" style={{ padding: '4px 10px', whiteSpace: 'nowrap' }} onClick={() => { setNewPartFor(i); if (groups[0]) askSuggestion(Number(groups[0].id)); }} title="Adaugă o piesă care nu există încă în catalog">+ nouă</button>
                 </div>
               </td>
               <td><input type="number" min={1} value={l.qty} onChange={(e) => { const qty = Number(e.target.value); setLine(i, { qty, sum: r2(qty * l.unit_cost) }); }} /></td>
@@ -128,15 +148,40 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
       {!totalOk && <p className="muted" style={{ textAlign: 'center', marginTop: 8, marginBottom: 0 }}>Suma liniilor nu coincide cu totalul facturii. Verifică o cantitate sau un preț, ori golește câmpul de control.</p>}
 
       {newPartFor !== null && (
-        <div onClick={() => setNewPartFor(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '6vh 16px', zIndex: 1000, overflowY: 'auto' }}>
+        <div onClick={closeNewPart} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '6vh 16px', zIndex: 1000, overflowY: 'auto' }}>
           <div onClick={(e) => e.stopPropagation()} className="card" style={{ maxWidth: 900, width: '100%', margin: 0 }}>
             <h2 style={{ marginTop: 0 }}>Piesă nouă în catalog</h2>
             <p className="muted" style={{ marginTop: -6 }}>Se adaugă în catalog cu <strong>stoc 0</strong> și se completează automat pe poziția curentă. Cantitatea și costul le pui în tabelul de prihod.</p>
             <PartForm
               groups={groups}
-              onSaved={(p) => { setLine(newPartFor, { part_id: p.id, part_label: p.label }); setNewPartFor(null); }}
-              onCancel={() => setNewPartFor(null)}
-            />
+              onGroupChange={askSuggestion}
+              disabled={!!locationError(newLoc)}
+              onSaved={async (p) => {
+                const idx = newPartFor;
+                const loc = newLoc.trim();
+                if (idx !== null) setLine(idx, { part_id: p.id, part_label: p.label });
+                // Locația se scrie DUPĂ piesă (are nevoie de part_id). Piesa e deja în catalog și pusă pe rând,
+                // deci un eșec aici nu trebuie să piardă recepția — dar TREBUIE spus, altfel omul nu află
+                // niciodată că locația n-a intrat și că trebuie pusă din Catalog.
+                if (loc) {
+                  try { await savePartLocation(p.id, warehouseId, { location_label: loc }); }
+                  catch (e: any) { setMsg({ t: 'danger', m: `Piesa a fost creată, dar locația nu s-a salvat: ${e?.message || 'eroare'}. Pune-o din Catalog.` }); }
+                }
+                closeNewPart();
+              }}
+              onCancel={closeNewPart}
+            >
+              <div className="form-group" style={{ marginBottom: 0, minWidth: 170 }}>
+                <label>Locație în {warehouseLabel}</label>
+                <input value={newLoc} onChange={(e) => setNewLoc(e.target.value)} placeholder={LOCATION_EXAMPLE}
+                  style={locationError(newLoc) ? { borderColor: 'var(--danger, #c0392b)' } : undefined} />
+                {locationError(newLoc)
+                  ? <div style={{ fontSize: 11, color: 'var(--danger, #c0392b)' }}>{locationError(newLoc)} — corectează sau golește</div>
+                  : locHint
+                    ? <div className="muted" style={{ fontSize: 11 }}>grupa stă pe rândul {locHint} — completează polița și celula</div>
+                    : <div className="muted" style={{ fontSize: 11 }}>{LOCATION_FORMAT}, opțional</div>}
+              </div>
+            </PartForm>
           </div>
         </div>
       )}

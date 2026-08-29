@@ -2,25 +2,32 @@ export const dynamic = 'force-dynamic';
 
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { stockPage, listWarehouses, listGroups } from '@/lib/piese';
+import { stockPage, listWarehouses, listGroups, stockFilterOptions } from '@/lib/piese';
 import { verifySession } from '@/lib/auth';
 import { canSeeCost } from '@/lib/piese-access';
 
 const lei = (n: number) => Number(n || 0).toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' lei';
 
-export default async function StocPage({ searchParams }: { searchParams: Promise<{ q?: string; w?: string; grup?: string; page?: string }> }) {
+export default async function StocPage({ searchParams }: { searchParams: Promise<{ q?: string; w?: string; grup?: string; prod?: string; model?: string; loc?: string; page?: string }> }) {
   const sp = await searchParams;
   const q = sp.q?.trim() || '';
   const warehouseId = sp.w ? Number(sp.w) : undefined;
   const groupId = sp.grup ? Number(sp.grup) : undefined;
+  // Filtre cerute de Eduard: producător și model (potrivire exactă, din dropdown) + locație (prefix,
+  // ca „A-12" să scoată tot rândul). Se păstrează în URL, deci se pot pune la favorite și trimite mai departe.
+  const manufacturer = sp.prod?.trim() || undefined;
+  const model = sp.model?.trim() || undefined;
+  const location = sp.loc?.trim() || undefined;
   const pageRaw = Math.floor(Number(sp.page)); // normalizează 2.5 / NaN / Infinity
   const page = Number.isFinite(pageRaw) && pageRaw > 0 ? pageRaw : 1;
 
-  const [warehouses, groups, session] = await Promise.all([listWarehouses(), listGroups(), verifySession()]);
+  const [warehouses, groups, session, filterOpts] = await Promise.all([
+    listWarehouses(), listGroups(), verifySession(), stockFilterOptions(warehouseId),
+  ]);
   const showCost = session ? canSeeCost(session.role) : false; // vânzătorul: doar cantitate + locație, fără cost/valoare
 
   const { rows, total, pageSize, totalValue, valueTruncated } = await stockPage({
-    warehouseId, groupId, search: q, page, withValue: showCost,
+    warehouseId, groupId, search: q, manufacturer, model, location, page, withValue: showCost,
   });
 
   const pages = Math.max(1, Math.ceil(total / pageSize));
@@ -31,6 +38,9 @@ export default async function StocPage({ searchParams }: { searchParams: Promise
     if (q) params.set('q', q);
     if (warehouseId) params.set('w', String(warehouseId));
     if (groupId) params.set('grup', String(groupId));
+    if (manufacturer) params.set('prod', manufacturer);
+    if (model) params.set('model', model);
+    if (location) params.set('loc', location);
     if (p > 1) params.set('page', String(p));
     const qs = params.toString();
     return qs ? `/piese/stoc?${qs}` : '/piese/stoc';
@@ -57,6 +67,16 @@ export default async function StocPage({ searchParams }: { searchParams: Promise
           <option value="">Toate depozitele</option>
           {(warehouses as any[]).map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
         </select>
+        <select name="prod" defaultValue={manufacturer ?? ''}>
+          <option value="">Toți producătorii</option>
+          {filterOpts.manufacturers.map((m) => <option key={m} value={m}>{m}</option>)}
+        </select>
+        <select name="model" defaultValue={model ?? ''}>
+          <option value="">Toate modelele</option>
+          {filterOpts.models.map((m) => <option key={m} value={m}>{m}</option>)}
+        </select>
+        {/* Locația e prefix: „A" = tot stelajul, „A-12" = tot rândul, „A-12-3-5" = celula exactă. */}
+        <input className="search" name="loc" placeholder="Locație: A-12…" defaultValue={location ?? ''} style={{ maxWidth: 150 }} />
         <button className="btn btn-primary" type="submit">Caută</button>
         <span className="muted">
           {total.toLocaleString('ro-RO')} poziții{total > 0 ? ` · ${from}–${to}` : ''}

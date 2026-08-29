@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { submitTransfer, receiveTransfer } from './actions';
+import { submitTransfer, receiveTransfer, loadTransferLines } from './actions';
 import { searchParts } from '../search-parts';
 import SearchSelect from '@/components/SearchSelect';
 
@@ -11,12 +11,34 @@ interface Line { part_id: number | ''; part_label?: string; qty: number }
 interface Transit { id: number; from_name: string; to_name: string; line_count: number }
 
 // `warehouses` = toate (pentru „Către"); `fromWarehouses` = doar depozitul contului legat (pentru „De la"). Egale la ADMIN/cont extins.
+type TLine = { partId: number; name: string; article: string | null; qty: number };
+type TBody = { rows: TLine[]; truncated: boolean };
+
 export default function MutariClient({ warehouses, fromWarehouses, transit }: { warehouses: Opt[]; fromWarehouses: Opt[]; transit: Transit[] }) {
   const router = useRouter();
   const [from, setFrom] = useState(fromWarehouses[0]?.id || 0);
   const [to, setTo] = useState(warehouses.find((w) => w.id !== (fromWarehouses[0]?.id || 0))?.id || 0);
   const [lines, setLines] = useState<Line[]>([{ part_id: '', qty: 1 }]);
   const [busy, setBusy] = useState(false);
+  // Poziţiile mutărilor „pe drum", încărcate la cerere (o mutare are rar mai mult de câteva rânduri).
+  const [openId, setOpenId] = useState<number | null>(null);
+  const [tLines, setTLines] = useState<Record<number, TBody | 'loading' | 'error'>>({});
+  async function toggleTransit(id: number) {
+    if (openId === id) { setOpenId(null); return; }
+    setOpenId(id);
+    if (!tLines[id] || tLines[id] === 'error') {
+      setTLines((m) => ({ ...m, [id]: 'loading' }));
+      try {
+        const rows = await loadTransferLines(id);
+        setTLines((m) => ({ ...m, [id]: rows }));
+      } catch {
+        // Stare explicită de eroare: ștergerea cheii ar fi lăsat rândul pe „Se încarcă…" la nesfârșit,
+        // fiindcă „lipsă" și „în curs" arătau la fel.
+        setTLines((m) => ({ ...m, [id]: 'error' }));
+      }
+    }
+  }
+
   const [msg, setMsg] = useState<{ t: 'ok' | 'danger'; m: string } | null>(null);
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
 
@@ -41,7 +63,40 @@ export default function MutariClient({ warehouses, fromWarehouses, transit }: { 
             <thead><tr><th>De la</th><th>La</th><th className="num">Poziții</th><th></th></tr></thead>
             <tbody>
               {transit.map((t) => (
-                <tr key={t.id}><td>{t.from_name}</td><td>{t.to_name}</td><td className="num">{t.line_count}</td><td><button className="btn btn-primary" disabled={busy} onClick={() => receive(t.id)} style={{ padding: '6px 14px' }}>Confirmă primirea</button></td></tr>
+                <Fragment key={t.id}>
+                  <tr onClick={() => toggleTransit(t.id)} style={{ cursor: 'pointer' }} title="Apasă ca să vezi ce piese conține">
+                    <td>{t.from_name}</td><td>{t.to_name}</td>
+                    <td className="num">{openId === t.id ? '▾' : '▸'} {t.line_count}</td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <button className="btn btn-primary" disabled={busy} onClick={() => receive(t.id)} style={{ padding: '6px 14px' }}>Confirmă primirea</button>
+                    </td>
+                  </tr>
+                  {openId === t.id && (
+                    <tr>
+                      <td colSpan={4} style={{ padding: 0 }}>
+                        <div style={{ padding: '10px 14px', borderLeft: '4px solid var(--accent, #0d5c4d)' }}>
+                          {tLines[t.id] === 'loading' && <span className="muted">Se încarcă…</span>}
+                          {tLines[t.id] === 'error' && <span className="muted">Nu am putut încărca poziţiile. Apasă din nou.</span>}
+                          {typeof tLines[t.id] === 'object' && ((tLines[t.id] as TBody).rows.length === 0
+                            ? <span className="muted">Fără poziții.</span>
+                            : (
+                              <table>
+                                <thead><tr><th>Piesă</th><th className="num">Cantitate</th></tr></thead>
+                                <tbody>
+                                  {(tLines[t.id] as TBody).rows.map((l, i) => (
+                                    <tr key={`${l.partId}-${i}`}>
+                                      <td>{l.name}{l.article && <span className="muted"> · {l.article}</span>}</td>
+                                      <td className="num">{l.qty}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            ))}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))}
             </tbody>
           </table>

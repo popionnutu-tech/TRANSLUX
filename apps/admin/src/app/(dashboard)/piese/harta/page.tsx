@@ -1,11 +1,11 @@
 export const dynamic = 'force-dynamic';
 
-import { listWarehouses, warehouseLayout } from '@/lib/piese';
+import { listWarehouses, warehouseLayout, listGroups } from '@/lib/piese';
 import HartaClient from './HartaClient';
 
 export default async function HartaPage({ searchParams }: { searchParams: Promise<{ w?: string }> }) {
   const sp = await searchParams;
-  const warehouses = await listWarehouses();
+  const [warehouses, groups] = await Promise.all([listWarehouses(), listGroups()]);
   const wid = sp.w ? Number(sp.w) : ((warehouses as any[])[0]?.id ?? 0);
   const layout = await warehouseLayout(wid);
 
@@ -18,7 +18,7 @@ export default async function HartaPage({ searchParams }: { searchParams: Promis
         <button className="btn btn-primary" type="submit">Vezi</button>
         <span className="muted">{layout.sections.length} stelaje · {layout.totalTypes} piese amplasate</span>
       </form>
-      <HartaClient warehouseId={wid} layout={layout} />
+      <HartaClient warehouseId={wid} layout={layout} groups={(groups as any[]).map((g) => ({ id: Number(g.id), label: g.name_ro as string }))} />
     </>
   );
 }

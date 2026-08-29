@@ -5,6 +5,7 @@ import { verifySession, requireRole } from '@/lib/auth';
 import { createPart, updatePart, setPartLocation } from '@/lib/piese-nomenclator';
 import { partLabel, getPartById, getPartLocation, partLabelInfo } from '@/lib/piese';
 import { PART_WRITE_ROLES, assertWarehouseAllowed, userWarehouseId } from '@/lib/piese-access';
+import { suggestLocation } from '@/lib/piese';
 
 // Cine poate adăuga/edita o piesă în catalog: aceleași roluri care fac recepția (prihod) — depozitar,
 // gestionar (depozitar intern), admin. Vânzătorul NU creează piese. Sursă unică de autorizare (server action).
@@ -54,4 +55,13 @@ export async function partLabelData(partId: number) {
   const session = requireRole(await verifySession(), 'ADMIN', 'DEPOZITAR', 'VINZATOR', 'CONTABIL', 'MANAGER', 'GESTIONAR');
   if (!partId || partId <= 0) return null;
   return partLabelInfo(partId, await userWarehouseId(session));
+}
+
+// Propune locația unei piese noi după grupa ei (unde stau deja surorile ei în acest depozit).
+// Doar sugestie — cine o folosește o poate schimba înainte de salvare.
+export async function suggestPartLocation(warehouseId: number, groupId: number): Promise<string | null> {
+  const session = await requirePartWrite();
+  if (!warehouseId || !groupId) return null;
+  await assertWarehouseAllowed(session, warehouseId);
+  return suggestLocation(Number(warehouseId), Number(groupId));
 }

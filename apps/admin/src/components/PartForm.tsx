@@ -20,12 +20,19 @@ export interface PartFormValues {
 // Formular COMUN de piesă (adăugare + editare). Folosit în Nomenclator (tab „Piese") și inline în Prihod.
 // Grupa (categoria) e obligatorie; stocul NU se setează aici — piesa nouă pornește cu stoc 0.
 export default function PartForm({
-  groups, initial, onSaved, onCancel,
+  groups, initial, onSaved, onCancel, onGroupChange, children, disabled,
 }: {
   groups: { id: number; label: string }[];
   initial?: PartFormValues;
   onSaved: (p: { id: number; label: string }) => void;
   onCancel?: () => void;
+  // Anunţă grupa aleasă, ca apelantul (Prihod) să poată propune o locaţie pe baza ei. Opţional:
+  // în Nomenclator formularul e folosit fără locaţie.
+  onGroupChange?: (groupId: number) => void;
+  // Apelantul poate bloca salvarea cât câmpurile LUI din `children` sunt invalide (ex. locația în Prihod).
+  disabled?: boolean;
+  // Câmpuri suplimentare ale apelantului (ex. locaţia), randate în acelaşi formular ca să se salveze odată.
+  children?: React.ReactNode;
 }) {
   const [f, setF] = useState<PartFormValues>({
     group_id: initial?.group_id ?? (groups[0]?.id ?? ''),
@@ -57,7 +64,7 @@ export default function PartForm({
     <form onSubmit={submit} style={{ display: 'flex', gap: 10, alignItems: 'end', flexWrap: 'wrap' }}>
       <div className="form-group" style={{ marginBottom: 0, minWidth: 180 }}>
         <label>Grup (categorie) *</label>
-        <select value={String(f.group_id ?? '')} onChange={(e) => set('group_id', e.target.value)} required>
+        <select value={String(f.group_id ?? '')} onChange={(e) => { set('group_id', e.target.value); onGroupChange?.(Number(e.target.value)); }} required>
           {groups.length === 0 && <option value="">— nicio grupă —</option>}
           {groups.map((g) => <option key={g.id} value={g.id}>{g.label}</option>)}
         </select>
@@ -100,7 +107,8 @@ export default function PartForm({
           De vânzare
         </label>
       </div>
-      <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Se salvează…' : (initial?.id ? 'Salvează' : 'Adaugă piesa')}</button>
+      {children}
+      <button type="submit" className="btn btn-primary" disabled={loading || !!disabled}>{loading ? 'Se salvează…' : (initial?.id ? 'Salvează' : 'Adaugă piesa')}</button>
       {onCancel && <button type="button" className="btn btn-outline" onClick={onCancel} disabled={loading}>Anulează</button>}
       {error && <p style={{ color: 'var(--danger)', fontSize: 14, margin: '4px 0 0', flexBasis: '100%' }}>{error}</p>}
     </form>

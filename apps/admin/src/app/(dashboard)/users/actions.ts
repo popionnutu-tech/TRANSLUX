@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
 import { DEPOT_BOUND_ROLES, SELLER_SCOPED_ROLES, MAX_EDIT_WINDOW_DAYS, EDIT_WINDOW_ROLES } from '@/lib/piese-roles';
+import { auditWrite } from '@/lib/audit';
 import type { User, UserRole, InviteToken, PointEnum, AdminRole } from '@translux/db';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
@@ -98,6 +99,7 @@ export async function updateAdminWarehouse(id: string, warehouseId: number | nul
   if (value != null && !isBound) throw new Error('Doar conturile de depozit pot fi legate de un depozit');
   const { error } = await db.from('admin_accounts').update({ warehouse_id: value }).eq('id', id);
   if (error) throw new Error(error.message);
+  await auditWrite({ adminId: session.id, action: 'WAREHOUSE', entity: 'admin_account', subjectId: id, after: { warehouse_id: value } });
   revalidatePath('/users');
 }
 
@@ -141,6 +143,14 @@ export async function updateAdminRole(id: string, role: string): Promise<void> {
 
   const { error } = await db.from('admin_accounts').update(patch).eq('id', id);
   if (error) throw new Error(error.message);
+  // Acordarea/retragerea unui drept lasă urmă: altfel nu se poate verifica retroactiv că o lărgire
+  // temporară a fost și retrasă. `entityId: 0` — subiectul e un cont (uuid), care stă în `detail`.
+  // Resetarea drepturilor fine e un EFECT LATERAL al schimbării de rol — dacă n-ar apărea în urmă,
+  // exact retragerea unei lărgiri temporare ar fi cazul care nu se vede.
+  await auditWrite({
+    adminId: session.id, action: 'ROLE', entity: 'admin_account', subjectId: id,
+    before: { rol: current }, after: { rol: role, sees_all_invoices: false, edit_window_days: 0 },
+  });
   revalidatePath('/users');
 }
 
@@ -163,6 +173,7 @@ export async function updateAdminEditWindow(id: string, days: number): Promise<v
   if (d > 0 && !EDIT_WINDOW_ROLES.includes(accRole)) throw new Error('Doar depozitarul și gestionarul corectează recepții; pentru restul fereastra n-are efect');
   const { error } = await db.from('admin_accounts').update({ edit_window_days: d }).eq('id', id);
   if (error) throw new Error(error.message);
+  await auditWrite({ adminId: session.id, action: 'EDIT_WINDOW', entity: 'admin_account', subjectId: id, after: { edit_window_days: d } });
   revalidatePath('/users');
 }
 
@@ -180,6 +191,7 @@ export async function updateAdminInvoiceVisibility(id: string, seesAll: boolean)
   if (seesAll && !isScoped) throw new Error('Doar vânzătorul și gestionarul sunt limitați la facturile lor; pentru restul nu are efect');
   const { error } = await db.from('admin_accounts').update({ sees_all_invoices: !!seesAll }).eq('id', id);
   if (error) throw new Error(error.message);
+  await auditWrite({ adminId: session.id, action: 'INVOICE_VISIBILITY', entity: 'admin_account', subjectId: id, after: { sees_all_invoices: !!seesAll } });
   revalidatePath('/users');
 }
 

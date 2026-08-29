@@ -3,7 +3,9 @@
 import { verifySession, requireRole, type Session } from '@/lib/auth';
 import { assertWarehouseAllowed, userWarehouseId, editWindowDays } from '@/lib/piese-access';
 import { createReceipt, receiptDocs, receiptDocLines, receiptDocWarehouse, finalizeReceipt,
-  receiptDocHeaderForEdit, receiptEditInfo, updateReceiptHeader, replaceReceiptLines } from '@/lib/piese';
+  receiptDocHeaderForEdit, receiptEditInfo, updateReceiptHeader, replaceReceiptLines,
+  supplierNames } from '@/lib/piese';
+import { auditWrite, auditHistoryForDoc, changedFields, type AuditFields } from '@/lib/audit';
 import { receiptLinesSum, totalMatches, totalDiffBani } from '@/lib/piese-receipt';
 import { chisinauDayStartIso, chisinauDayBounds, chisinauDayOf, chisinauTodayIso } from '@/lib/chisinau-time';
 
@@ -174,8 +176,11 @@ export async function loadReceiptForEdit(docId: number) {
   await assertWarehouseAllowed(session, header.warehouseId);
   if (header.status !== 'CONFIRMED') throw new Error('Documentul nu mai poate fi modificat.');
   // Fereastra de corecție e independentă de linii/consum → intră în același Promise.all, nu după el.
-  const [lines, info, canEdit] = await Promise.all([
+  const [lines, info, canEdit, history] = await Promise.all([
     receiptDocLines(Number(docId)), receiptEditInfo(Number(docId)), canEditDay(session, header.createdAt),
+    // Istoricul intră AICI, nu într-un apel separat din client: altfel ajungea pe ecran după ce omul
+    // începuse deja să editeze — exact invers față de scopul lui.
+    auditHistoryForDoc('receipt', Number(docId)).catch(() => null),
   ]);
   return {
     header: { supplierId: header.supplierId, series: header.series, number: header.number, note: header.note, invoiceTotal: header.invoiceTotal, createdAt: header.createdAt },
@@ -183,12 +188,13 @@ export async function loadReceiptForEdit(docId: number) {
     canEditLines: info.canEditLines,
     consumedBy: info.consumedBy,
     canEdit, // fereastra de corecție (server o reimpune la salvare)
+    history, // `null` = n-am putut citi urma; NU e același lucru cu „documentul n-a fost modificat"
   };
 }
 
 // Salvează DOAR antetul (furnizor/serie/număr/comentariu/total factură) — permis chiar și când marfa a fost consumată.
 export async function saveReceiptHeader(docId: number, h: { supplier_id?: number | null; series?: string | null; number?: string | null; note?: string | null; invoice_total?: number | string | null }) {
-  await guardReceiptEdit(Number(docId));
+  const { session, header } = await guardReceiptEdit(Number(docId));
   const hh = cleanHeader(h);
   if (hh.invoice_series === 'SOLD') throw new Error('Seria „SOLD" e rezervată soldului inițial.');
   // Totalul se verifică față de liniile CURENTE ale documentului (aici se schimbă doar antetul), ca martorul
@@ -203,13 +209,16 @@ export async function saveReceiptHeader(docId: number, h: { supplier_id?: number
     const code = (e?.message || '').trim();
     throw new Error(RPC_ERR[code] || 'Nu am putut salva antetul. Reîncearcă.');
   }
+  // Urma modificării. Calea asta e un UPDATE direct — până acum nu lăsa nimic în jurnal, deși e permisă
+  // CHIAR ȘI când marfa a fost consumată, adică pe documente deja reconciliate contabil.
+  await auditHeaderChange(session.id, Number(docId), header, hh);
   return { ok: true };
 }
 
 
 // Salvează antet + LINII (anulare + refacere prin RPC). Întoarce id-ul documentului nou corectat.
 export async function saveReceiptLines(docId: number, payload: { supplier_id?: number | null; series?: string | null; number?: string | null; note?: string | null; invoice_total?: number | string | null; lines: { part_id: number; qty: number; unit_cost: number }[] }) {
-  const { header } = await guardReceiptEdit(Number(docId));
+  const { session, header } = await guardReceiptEdit(Number(docId));
   const hh = cleanHeader(payload);
   const lines = (payload.lines || [])
     .filter((l) => l.part_id && Number(l.qty) > 0)
@@ -232,5 +241,56 @@ export async function saveReceiptLines(docId: number, payload: { supplier_id?: n
   // primi „documentul a fost deja modificat". finalizeReceipt e oricum non-fatală și loghează.
   // Corecția creează un document NOU (RPC-ul îl anulează pe cel vechi); martorul îl însoțește.
   if (effectiveTotal != null) await finalizeReceipt(newId, { invoiceTotal: effectiveTotal });
+  // RPC-ul scrie deja un rând, dar cu `p_user` NULL (BIGINT, pentru utilizatori Telegram) — deci fără autor.
+  // Adăugăm urma cu identitatea reală a contului, pe documentul NOU (cel vechi rămâne anulat).
+  //
+  // `replaces_doc_id` e VERIGA LANȚULUI: corecția nu modifică documentul, ci îl anulează și creează altul.
+  // Urmele scrise înainte rămân pe id-ul vechi, care dispare din liste — fără veriga asta, istoricul unei
+  // schimbări de furnizor ar deveni invizibil exact când cineva corectează o cantitate.
+  await auditWrite({
+    adminId: session.id, action: 'EDIT_LINES', entity: 'receipt', entityId: Number(newId),
+    before: { replaces_doc_id: Number(docId) },
+    after: { pozitii: lines.length },
+  });
+  // Antetul se poate schimba și pe calea asta — o consemnăm la fel, altfel drumul cel mai distructiv
+  // ar lăsa o urmă mai săracă decât cel banal.
+  await auditHeaderChange(session.id, Number(newId), header, hh);
   return { ok: true, newId };
+}
+
+// Consemnează schimbarea de antet, structurat. Numele furnizorilor se rezolvă DOAR dacă furnizorul
+// chiar s-a schimbat — altfel nicio interogare în plus la o corecție de serie sau de comentariu.
+async function auditHeaderChange(
+  adminId: string,
+  docId: number,
+  before: { supplierId: number | null; series: string | null; number: string | null; note: string | null; invoiceTotal: number | null },
+  after: { supplier_id: number | null; invoice_series: string | null; invoice_number: string | null; note: string | null; invoice_total?: number | null },
+): Promise<void> {
+  const b: AuditFields = {
+    furnizor: before.supplierId, serie: before.series, numar: before.number,
+    comentariu: before.note, total_factura: before.invoiceTotal,
+  };
+  const a: AuditFields = {
+    furnizor: after.supplier_id, serie: after.invoice_series, numar: after.invoice_number,
+    comentariu: after.note,
+    ...(after.invoice_total !== undefined ? { total_factura: after.invoice_total } : {}),
+  };
+  const diff = changedFields(b, a);
+  if (!diff) return; // nimic schimbat → niciun rând (jurnalul rămâne citibil)
+
+  if ('furnizor' in diff.after) {
+    const names = await supplierNames([before.supplierId, after.supplier_id].filter((x): x is number => typeof x === 'number'));
+    diff.before.furnizor = before.supplierId == null ? null : (names.get(before.supplierId) || `#${before.supplierId}`);
+    diff.after.furnizor = after.supplier_id == null ? null : (names.get(after.supplier_id) || `#${after.supplier_id}`);
+  }
+  await auditWrite({ adminId, action: 'EDIT_HEADER', entity: 'receipt', entityId: docId, before: diff.before, after: diff.after });
+}
+
+// Istoricul modificărilor unui document de recepție, pentru ecranul de modificare.
+export async function loadReceiptHistory(docId: number) {
+  const session = requireRole(await verifySession(), ...RECEIPT_ROLES);
+  const wh = await receiptDocWarehouse(Number(docId));
+  if (wh == null) throw new Error('Document inexistent');
+  await assertWarehouseAllowed(session, wh); // cont legat: doar documentele depozitului lui
+  return auditHistoryForDoc('receipt', Number(docId));
 }

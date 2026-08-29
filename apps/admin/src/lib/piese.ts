@@ -213,6 +213,15 @@ export async function recentDocs(limit = 8) {
   return data || [];
 }
 
+// Numele câtorva furnizori, pentru urma de audit. Punctual (`.in`), nu toată tabela: se cheamă doar
+// când furnizorul chiar s-a schimbat, iar la restul editărilor n-are rost nicio interogare.
+export async function supplierNames(ids: number[]): Promise<Map<number, string>> {
+  const list = ids.filter((x): x is number => typeof x === 'number' && x > 0);
+  if (!list.length) return new Map();
+  const { data } = await getSupabase().from('piese_suppliers').select('id, name').in('id', list);
+  return new Map(((data as any[]) || []).map((r) => [Number(r.id), String(r.name)]));
+}
+
 // Depozitul (sursă și, la mutare, destinație) unui document ORICE tip — pentru garda de acces.
 // `null` = document inexistent; apelantul trebuie să arunce, nu să treacă mai departe.
 export async function docWarehouses(docId: number): Promise<{ from: number; to: number | null } | null> {

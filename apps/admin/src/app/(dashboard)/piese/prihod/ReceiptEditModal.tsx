@@ -9,9 +9,32 @@ import { receiptLinesSum, countableLines, totalMatches } from '@/lib/piese-recei
 type Opt = { id: number; label: string };
 type Line = { part_id: number | ''; label?: string; qty: number; unit_cost: number };
 type ConsumedBy = { docType: string; series: string | null; number: string | null; createdAt: string | null; qty: number };
+type Fields = Record<string, string | number | boolean | null>;
+type Hist = { at: string; action: string; who: string | null; before: Fields | null; after: Fields | null; notes: string | null; docId: number | null };
+
+const FIELD_RO: Record<string, string> = {
+  furnizor: 'furnizor', serie: 'serie', numar: 'număr', comentariu: 'comentariu',
+  total_factura: 'total factură', pozitii: 'poziții', replaces_doc_id: 'corectat din documentul',
+  rol: 'rol', edit_window_days: 'zile de corecție', sees_all_invoices: 'vede toate facturile', warehouse_id: 'depozit',
+};
+const val = (v: unknown) => (v === null || v === undefined || v === '' ? '—' : typeof v === 'boolean' ? (v ? 'da' : 'nu') : String(v));
+
+// Diferența, din stările structurate. Nu dintr-o frază salvată în bază: aceea putea fi tăiată la plafon
+// (pierzând tocmai schimbarea totalului) sau fabricată de un comentariu care conținea separatorii.
+function renderDiff(h: Hist): string {
+  const after = h.after || {};
+  const before = h.before || {};
+  const keys = Object.keys(after).filter((k) => k !== 'replaces_doc_id');
+  if (!keys.length && before.replaces_doc_id != null) return `corectat din documentul #${before.replaces_doc_id}`;
+  return keys.map((k) => {
+    const label = FIELD_RO[k] || k;
+    return k in before ? `${label}: ${val(before[k])} → ${val(after[k])}` : `${label}: ${val(after[k])}`;
+  }).join('; ');
+}
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const dt = (s: string | null) => s ? new Date(s).toLocaleString('ro-RO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+const ACTION_RO: Record<string, string> = { EDIT_HEADER: 'Antet modificat', EDIT_LINES: 'Poziții corectate', CREATE: 'Creat', EDIT: 'Corectat (sistem)' };
 const docTypeRo = (t: string) => ({ SALE: 'Vânzare', ISSUE: 'Casare', TRANSFER: 'Mutare' } as Record<string, string>)[t] || t;
 
 // Ecran de modificare a unei recepții (#1b). Antetul (furnizor/serie/număr/comentariu) se poate modifica cât timp
@@ -35,6 +58,9 @@ export default function ReceiptEditModal({ docId, suppliers, onClose, onSaved }:
   const [createdAt, setCreatedAt] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ t: 'ok' | 'danger'; m: string } | null>(null);
+  // Istoricul modificărilor (migr. 291). Se încarcă odată cu documentul: dacă cineva a schimbat ceva
+  // înainte, cel care deschide ecranul trebuie să vadă asta ÎNAINTE să schimbe și el.
+  const [hist, setHist] = useState<Hist[] | null>([]); // null = urma n-a putut fi citită
 
   useEffect(() => {
     let alive = true;
@@ -52,6 +78,7 @@ export default function ReceiptEditModal({ docId, suppliers, onClose, onSaved }:
         setCanEditLines(d.canEditLines);
         setCanEdit(d.canEdit);
         setConsumedBy(d.consumedBy || []);
+        setHist(d.history as Hist[] | null);
       } catch (e: any) { if (alive) setErr(e?.message || 'Eroare la încărcare'); }
       finally { if (alive) setLoading(false); }
     })();
@@ -161,6 +188,32 @@ export default function ReceiptEditModal({ docId, suppliers, onClose, onSaved }:
                     </span>
               )}
             </div>
+
+            {hist === null && (
+              <div className="alert warn" style={{ marginTop: 14 }}>Nu am putut citi istoricul modificărilor. Nu înseamnă că documentul n-a fost modificat.</div>
+            )}
+            {hist !== null && hist.length > 0 && (
+              <div style={{ marginTop: 14, borderTop: '1px solid var(--pline, #eee)', paddingTop: 10 }}>
+                <h3 style={{ margin: '0 0 6px', fontSize: 14 }}>Modificări anterioare</h3>
+                <table>
+                  <thead><tr><th style={{ width: 130 }}>Când</th><th style={{ width: 150 }}>Cine</th><th>Ce</th></tr></thead>
+                  <tbody>
+                    {hist.map((h, i) => (
+                      <tr key={i}>
+                        <td className="muted">{dt(h.at)}</td>
+                        <td>{h.who || <span className="muted">necunoscut</span>}</td>
+                        <td className="muted">
+                          {ACTION_RO[h.action] || h.action}
+                          {renderDiff(h) ? ` — ${renderDiff(h)}` : ''}
+                          {/* Urma poate veni de pe un document anterior din lanțul de corecții. */}
+                          {h.docId != null && h.docId !== docId && <span className="muted"> (doc. #{h.docId})</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             {!totalOk && <div className="alert warn" style={{ marginTop: 10 }}>Suma liniilor nu coincide cu totalul facturii. Corectează o cantitate sau un preț, ori golește câmpul de control.</div>}
             {msg && <div className={`alert ${msg.t}`} style={{ marginTop: 10 }}>{msg.m}</div>}

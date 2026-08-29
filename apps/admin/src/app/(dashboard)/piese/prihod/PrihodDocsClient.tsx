@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useMemo, useState, useTransition } from 'react';
 import { listReceiptDocs, loadReceiptLines } from './actions';
 import ReceiptEditModal from './ReceiptEditModal';
+import { TOLERANCE_BANI } from '@/lib/piese-receipt';
 
 export type ReceiptDoc = {
   id: number; createdAt: string; warehouseId: number;
@@ -133,7 +134,7 @@ export default function PrihodDocsClient({ warehouses, suppliers, initialDocs }:
                       ulterior — iar dispariția lui (document corectat cu câmpul golit) ar trece neobservată. */}
                   {d.invoiceTotal == null
                     ? <div className="muted" style={{ fontSize: 11 }}>fără control</div>
-                    : Math.abs(d.total - d.invoiceTotal) <= 0.01
+                    : Math.abs(Math.round(d.total * 100) - Math.round(d.invoiceTotal * 100)) <= TOLERANCE_BANI
                       ? <div style={{ fontSize: 11, color: 'var(--ok, #16a34a)' }}>✓ verificat</div>
                       : <div style={{ fontSize: 11, color: 'var(--danger, #c0392b)' }}>≠ factura {lei(d.invoiceTotal)}</div>}
                 </td>

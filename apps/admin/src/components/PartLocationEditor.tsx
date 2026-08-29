@@ -33,7 +33,10 @@ export default function PartLocationEditor({ partId, warehouses }: { partId: num
     e.preventDefault();
     setSaving(true); setMsg(''); setError('');
     try {
-      await savePartLocation(partId, wid, { location_label: label, min_qty: minQty });
+      // Trimitem eticheta DOAR dacă a fost schimbată. Altfel serverul o revalidează degeaba — iar o etichetă
+      // veche neconformă ar face nesalvabil chiar și stocul minim, care n-are legătură cu locația.
+      await savePartLocation(partId, wid, label === loadedLabel ? { min_qty: minQty } : { location_label: label, min_qty: minQty });
+      setLoadedLabel(label);
       setMsg('✓ Locație salvată');
     } catch (err: any) { setError(err?.message || 'Eroare la salvare'); }
     finally { setSaving(false); }

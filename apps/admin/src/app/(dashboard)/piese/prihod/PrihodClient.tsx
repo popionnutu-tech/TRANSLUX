@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { submitReceipt } from './actions';
-import { receiptLinesSum, countableLines, TOTAL_TOLERANCE } from '@/lib/piese-receipt';
+import { receiptLinesSum, countableLines, totalMatches } from '@/lib/piese-receipt';
 import { loadPart } from '../part-actions';
 import { searchParts } from '../search-parts';
 import SearchSelect from '@/components/SearchSelect';
@@ -39,7 +39,7 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
   const total = receiptLinesSum(countableLines(lines).map((l) => ({ qty: l.qty, unit_cost: l.unit_cost })));
   // Suma de control: diferența se arată LIVE, cât încă se poate corecta. Serverul o reimpune la salvare.
   const declared = invoiceTotal.trim() === '' ? null : Number(invoiceTotal);
-  const totalOk = declared == null || (Number.isFinite(declared) && Math.abs(total - declared) <= TOTAL_TOLERANCE);
+  const totalOk = totalMatches(declared, countableLines(lines).map((l) => ({ qty: l.qty, unit_cost: l.unit_cost })));
   const totalDiff = declared != null && Number.isFinite(declared) ? total - declared : 0;
 
   // Deschide formularul de editare pentru piesa deja aleasă pe rândul i (corectezi denumire/cod/etc. fără să pleci în Catalog).

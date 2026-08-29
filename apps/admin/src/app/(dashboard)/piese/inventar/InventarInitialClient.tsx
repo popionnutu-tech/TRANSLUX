@@ -62,7 +62,8 @@ export default function InventarInitialClient({ warehouses, groups, initialLayou
 
   const filled = rows.filter((l) => l.part_id && l.qty > 0);
   // Numărul de rânduri cu locație greșită — butonul se blochează, ca salvarea să nu pice la jumătatea lotului.
-  const badLocations = rows.filter((l) => locationError(l.location)).length;
+  // Aceeași bază ca serverul (`filled`): un rând fără piesă aleasă nu se trimite, deci nu blochează.
+  const badLocations = filled.filter((l) => locationError(l.location)).length;
   const placedCount = filled.filter((l) => l.location.trim()).length;
 
   async function submit() {

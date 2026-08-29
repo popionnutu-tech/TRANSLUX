@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import SearchSelect from '@/components/SearchSelect';
 import { searchParts } from '../search-parts';
 import { loadReceiptForEdit, saveReceiptHeader, saveReceiptLines } from './actions';
-import { receiptLinesSum, countableLines, TOTAL_TOLERANCE } from '@/lib/piese-receipt';
+import { receiptLinesSum, countableLines, totalMatches } from '@/lib/piese-receipt';
 
 type Opt = { id: number; label: string };
 type Line = { part_id: number | ''; label?: string; qty: number; unit_cost: number };
@@ -65,7 +65,7 @@ export default function ReceiptEditModal({ docId, suppliers, onClose, onSaved }:
   const sentLines = countableLines(lines).map((l) => ({ qty: Number(l.qty), unit_cost: Number(l.unit_cost) }));
   const total = receiptLinesSum(sentLines);
   const declared = invoiceTotal.trim() === '' ? null : Number(invoiceTotal);
-  const totalOk = declared == null || (Number.isFinite(declared) && Math.abs(total - declared) <= TOTAL_TOLERANCE);
+  const totalOk = totalMatches(declared, sentLines);
   const totalDiff = declared != null && Number.isFinite(declared) ? total - declared : 0;
   const supplierName = supplierId ? (suppliers.find((s) => s.id === supplierId)?.label || `#${supplierId}`) : '—';
   const readOnlyLines = !canEdit || !canEditLines;

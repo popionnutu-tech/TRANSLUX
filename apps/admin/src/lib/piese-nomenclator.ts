@@ -75,13 +75,21 @@ export async function updatePart(id: number, d: any) {
 // Altfel upsert (o singură locație per piesă+depozit). Alimentează Harta + alertele „de comandat".
 export async function setPartLocation(partId: number, warehouseId: number, d: any) {
   if (!Number(partId) || !Number(warehouseId)) throw new Error('Piesă/depozit invalide');
+  const minQty = Math.max(0, Number(d.min_qty) || 0);
+  // `location_label` NETRIMIS (undefined) = „nu atinge locația, schimb doar stocul minim". Fără distincția
+  // asta, un apelant care trimite doar min_qty ar ȘTERGE rândul de locație — și, mai subtil, o piesă cu
+  // etichetă veche neconformă ar deveni nesalvabilă pe stoc minim, deși locația ei nici nu se modifică.
+  if (d.location_label === undefined) {
+    check(await getSupabase().from('piese_part_locations')
+      .update({ min_qty: minQty }).eq('part_id', partId).eq('warehouse_id', warehouseId));
+    return;
+  }
   const raw = txt(d.location_label);
   // Aceeași validare ca la inventarul inițial — altfel calea „editează piesa din Catalog" ar fi o portiță
   // prin care intră etichete pe care harta nu le poate desena.
   const locErr = locationError(raw);
   if (locErr) throw new Error(`Locație în format greșit (${LOCATION_FORMAT}): ${locErr}`);
   const label = normalizeLocation(raw);
-  const minQty = Math.max(0, Number(d.min_qty) || 0);
   const sb = getSupabase();
   if (!label) {
     check(await sb.from('piese_part_locations').delete().eq('part_id', partId).eq('warehouse_id', warehouseId));

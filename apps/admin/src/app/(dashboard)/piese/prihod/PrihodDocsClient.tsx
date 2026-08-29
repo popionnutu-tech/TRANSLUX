@@ -8,6 +8,7 @@ export type ReceiptDoc = {
   id: number; createdAt: string; warehouseId: number;
   series: string | null; number: string | null; note: string | null; supplier: string | null;
   positions: number; total: number; creator: string | null;
+  invoiceTotal: number | null; // suma de control declarată (migr. 288); null = introdusă fără verificare
 };
 type Line = { partId: number; name: string; article: string | null; qty: number; unitCost: number; total: number };
 type Opt = { id: number; label: string };
@@ -126,7 +127,16 @@ export default function PrihodDocsClient({ warehouses, suppliers, initialDocs }:
                 </td>
                 {showDepot && <td className="muted">{whName(d.warehouseId)}</td>}
                 <td className="num">{d.positions}</td>
-                <td className="num"><strong>{lei(d.total)}</strong></td>
+                <td className="num">
+                  <strong>{lei(d.total)}</strong>
+                  {/* Martorul sumei de control: fără el, verificarea de la introducere n-ar fi vizibilă nicăieri
+                      ulterior — iar dispariția lui (document corectat cu câmpul golit) ar trece neobservată. */}
+                  {d.invoiceTotal == null
+                    ? <div className="muted" style={{ fontSize: 11 }}>fără control</div>
+                    : Math.abs(d.total - d.invoiceTotal) <= 0.01
+                      ? <div style={{ fontSize: 11, color: 'var(--ok, #16a34a)' }}>✓ verificat</div>
+                      : <div style={{ fontSize: 11, color: 'var(--danger, #c0392b)' }}>≠ factura {lei(d.invoiceTotal)}</div>}
+                </td>
                 <td className="muted">{d.creator || '—'}</td>
                 <td onClick={(e) => e.stopPropagation()}>
                   <button className="btn btn-outline" style={{ padding: '2px 8px', whiteSpace: 'nowrap' }} onClick={() => setEditId(d.id)} title="Modifică documentul (antet și, dacă marfa nu e folosită, liniile)">✎ Modifică</button>

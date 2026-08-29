@@ -6,6 +6,7 @@ import { assertWarehouseAllowed, PART_WRITE_ROLES } from '@/lib/piese-access';
 import { getCountSheet, submitInventory } from '@/lib/piese-ops';
 import { warehouseLayout, createInitialReceipt, partStock, recostPart } from '@/lib/piese';
 import { setPartLocationsBulk, ensureSupplierByName } from '@/lib/piese-nomenclator';
+import { locationError, LOCATION_FORMAT, LOCATION_EXAMPLE } from '@/lib/piese-location';
 
 export async function loadSheet(warehouseId: number) {
   const session = requireRole(await verifySession(), 'ADMIN', 'DEPOZITAR', 'VINZATOR', 'GESTIONAR');
@@ -19,7 +20,7 @@ export async function saveInventory(warehouseId: number, counts: { part_id: numb
 }
 
 // ── Inventar „de la zero" (greenfield): pornirea unui depozit gol dintr-un singur ecran ──
-// Pilotul Marcel la MAGAZIN: scanează/caută piesa → pune cantitatea faptică + locația (SECȚIE-RAFT-POLIȚĂ).
+// Scanează/caută piesa → pune cantitatea faptică + locația (STELAJ-RÂND-POLIȚĂ-CELULĂ).
 // Gardă: rolurile care SCRIU LOCAȚII (PART_WRITE_ROLES = ADMIN/DEPOZITAR/GESTIONAR, NU VINZATOR — vânzătorul
 // are inventarul clasic de numărare, nu pornirea) + contul legat de depozitul lui (assertWarehouseAllowed).
 
@@ -57,13 +58,14 @@ export async function saveInitialInventory(
   const clean = Array.from(byPart.values());
   if (!clean.length) throw new Error('Nicio poziție validă (piesă + cantitate > 0).');
 
-  // Validare ușoară de format ÎNAINTE de a scrie ceva: măcar SECȚIE-RAFT (un „-"), ca harta să nu se deformeze
-  // din intrări gen „raft 5". Permite A-12-3, A-12 etc.; nu blocăm formate mai bogate. Eticheta goală e permisă.
+  // Validare de format ÎNAINTE de a scrie ceva (sursă unică: piese-location.ts), ca harta să nu se deformeze
+  // din intrări gen „raft 5" și — important — ca un al cincilea nivel să fie REFUZAT, nu tăiat tăcut.
+  // Eticheta goală e permisă (piesă fără loc atribuit încă).
   const badLoc = clean
     .map((r) => (r.location_label || '').trim())
-    .filter((l) => l && !/^[^-]+-[^-]+/.test(l));
+    .filter((l) => locationError(l) !== null);
   if (badLoc.length) {
-    throw new Error(`Locație în format greșit (folosește SECȚIE-RAFT-POLIȚĂ, ex. A-12-3): ${badLoc.slice(0, 3).join(', ')}${badLoc.length > 3 ? '…' : ''}`);
+    throw new Error(`Locație în format greșit (folosește ${LOCATION_FORMAT}, ex. ${LOCATION_EXAMPLE}): ${badLoc.slice(0, 3).join(', ')}${badLoc.length > 3 ? '…' : ''}`);
   }
 
   const withCost = clean.filter((r) => r.unit_cost > 0);

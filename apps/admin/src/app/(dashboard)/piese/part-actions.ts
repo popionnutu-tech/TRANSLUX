@@ -31,7 +31,7 @@ export async function loadPart(id: number): Promise<Record<string, unknown> | nu
   return (await getPartById(id)) as Record<string, unknown> | null;
 }
 
-// Locația piesei într-un depozit (SECȚIE-RAFT-POLIȚĂ + stoc minim) — pentru editarea din Catalog.
+// Locația piesei într-un depozit (STELAJ-RÂND-POLIȚĂ-CELULĂ + stoc minim) — pentru editarea din Catalog.
 export async function loadPartLocation(partId: number, warehouseId: number): Promise<{ location_label: string; min_qty: number } | null> {
   const session = await requirePartWrite();
   if (!partId || !warehouseId) return null;

@@ -1,5 +1,7 @@
 'use client';
 
+import { LOCATION_FORMAT, LOCATION_EXAMPLE, locationError } from '@/lib/piese-location';
+
 import { useState, useEffect } from 'react';
 import { loadPartLocation, savePartLocation } from '@/app/(dashboard)/piese/part-actions';
 
@@ -8,6 +10,7 @@ import { loadPartLocation, savePartLocation } from '@/app/(dashboard)/piese/part
 export default function PartLocationEditor({ partId, warehouses }: { partId: number; warehouses: { id: number; label: string }[] }) {
   const [wid, setWid] = useState<number>(warehouses[0]?.id || 0);
   const [label, setLabel] = useState('');
+  const [loadedLabel, setLoadedLabel] = useState(''); // eticheta din DB, ca să nu blocăm salvarea când n-a fost atinsă
   const [minQty, setMinQty] = useState('');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -20,7 +23,7 @@ export default function PartLocationEditor({ partId, warehouses }: { partId: num
     let alive = true;
     setLoading(true); setMsg(''); setError('');
     loadPartLocation(partId, wid)
-      .then((loc) => { if (alive) { setLabel(loc?.location_label || ''); setMinQty(loc?.min_qty != null ? String(loc.min_qty) : ''); } })
+      .then((loc) => { if (alive) { setLabel(loc?.location_label || ''); setLoadedLabel(loc?.location_label || ''); setMinQty(loc?.min_qty != null ? String(loc.min_qty) : ''); } })
       .catch(() => { if (alive) { setLabel(''); setMinQty(''); } })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
@@ -36,12 +39,16 @@ export default function PartLocationEditor({ partId, warehouses }: { partId: num
     finally { setSaving(false); }
   }
 
+  // Validăm cu aceeași funcție ca garda de server — dar NU blocăm o etichetă veche nemodificată:
+  // altfel o piesă cu locație scrisă înainte de regulile actuale ar deveni nesalvabilă inclusiv pe stoc minim.
+  const locErr = label !== loadedLabel ? locationError(label) : null;
+
   if (warehouses.length === 0) return null;
 
   return (
     <div style={{ marginTop: 16, borderTop: '1px solid var(--pline, #eee)', paddingTop: 14 }}>
       <h3 style={{ margin: '0 0 4px' }}>Locație în depozit</h3>
-      <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>Cod SECȚIE-RAFT-POLIȚĂ (ex: A-05-3) — apare pe Hartă. Gol = fără locație.</p>
+      <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>Cod {LOCATION_FORMAT} (ex: {LOCATION_EXAMPLE}) — apare pe Hartă. Gol = fără locație.</p>
       <form onSubmit={save} style={{ display: 'flex', gap: 10, alignItems: 'end', flexWrap: 'wrap' }}>
         <div className="form-group" style={{ marginBottom: 0, minWidth: 160 }}>
           <label>Depozit</label>
@@ -51,13 +58,15 @@ export default function PartLocationEditor({ partId, warehouses }: { partId: num
         </div>
         <div className="form-group" style={{ marginBottom: 0, minWidth: 140 }}>
           <label>Locație</label>
-          <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="A-05-3" disabled={loading} />
+          <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={LOCATION_EXAMPLE} disabled={loading}
+            style={locErr ? { borderColor: 'var(--danger, #c0392b)' } : undefined} />
+          {locErr && <div className="muted" style={{ fontSize: 11, color: 'var(--danger, #c0392b)' }}>{locErr}</div>}
         </div>
         <div className="form-group" style={{ marginBottom: 0, minWidth: 110 }}>
           <label>Stoc minim</label>
           <input type="number" min={0} step="1" value={minQty} onChange={(e) => setMinQty(e.target.value)} placeholder="0" disabled={loading} />
         </div>
-        <button type="submit" className="btn" disabled={saving || loading}>{saving ? 'Se salvează…' : 'Salvează locația'}</button>
+        <button type="submit" className="btn" disabled={saving || loading || !!locErr}>{saving ? 'Se salvează…' : 'Salvează locația'}</button>
         {msg && <span style={{ color: 'var(--success, #16a34a)', fontSize: 14 }}>{msg}</span>}
         {error && <span style={{ color: 'var(--danger)', fontSize: 14 }}>{error}</span>}
       </form>

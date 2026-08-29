@@ -11,12 +11,12 @@ export default async function HartaPage({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <div className="page-header"><h1>Hartă depozit</h1><p>Schemă orientativă: secții → rafturi → polițe. Caută o piesă să vezi pe ce raft e (la prihod/rashod); la inventariere vezi secția de azi.</p></div>
+      <div className="page-header"><h1>Hartă depozit</h1><p>Schemă orientativă: stelaje → rânduri → polițe → celule. Caută o piesă să vezi pe ce raft e (la prihod/rashod); la inventariere vezi secția de azi.</p></div>
       <form className="toolbar" method="get">
         <label style={{ fontWeight: 600, fontSize: 13 }}>Depozit:</label>
         <select name="w" defaultValue={wid}>{(warehouses as any[]).map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select>
         <button className="btn btn-primary" type="submit">Vezi</button>
-        <span className="muted">{layout.sections.length} secții · {layout.totalTypes} piese amplasate</span>
+        <span className="muted">{layout.sections.length} stelaje · {layout.totalTypes} piese amplasate</span>
       </form>
       <HartaClient warehouseId={wid} layout={layout} />
     </>

@@ -194,7 +194,7 @@ export async function recentDocs(limit = 8) {
 export async function receiptDocs(opts: { warehouseId?: number; supplierId?: number; search?: string; from?: string; to?: string; limit?: number } = {}) {
   const sb = getSupabase();
   let q = sb.from('piese_stock_documents')
-    .select('id, created_at, warehouse_id, invoice_series, invoice_number, note, created_by_admin, supplier:piese_suppliers(name), lines:piese_stock_document_lines(qty, unit_cost)')
+    .select('id, created_at, warehouse_id, invoice_series, invoice_number, note, invoice_total, created_by_admin, supplier:piese_suppliers(name), lines:piese_stock_document_lines(qty, unit_cost)')
     .eq('doc_type', 'RECEIPT')
     .neq('status', 'CANCELLED') // ascunde recepțiile anulate de o corecție (rămâne doar documentul corectat)
     // Exclude „Sold inițial" (invoice_series='SOLD'): e stoc de pornire încărcat din Inventar, NU recepție de la
@@ -231,7 +231,11 @@ export async function receiptDocs(opts: { warehouseId?: number; supplierId?: num
       note: (r.note as string) || null,
       supplier: (r.supplier?.name as string) || null,
       positions: lines.length,
-      total: lines.reduce((s: number, l: any) => s + Number(l.qty) * Number(l.unit_cost), 0),
+      // Aceeași însumare ca la verificare (rotunjire pe linie) — altfel totalul din jurnal ar putea
+      // diferi cu bani de cel pe care garda l-a validat, și cifrele n-ar mai fi comparabile.
+      total: receiptLinesSum(lines.map((l: any) => ({ qty: l.qty, unit_cost: l.unit_cost }))),
+      // Suma de control declarată de depozitar (migr. 288). null = recepție introdusă fără verificare.
+      invoiceTotal: r.invoice_total == null ? null : Number(r.invoice_total),
       creator: r.created_by_admin ? (names.get(r.created_by_admin) || null) : null,
     };
   });
@@ -263,30 +267,34 @@ export async function receiptDocLines(docId: number) {
 }
 
 // Atribuie creatorul unui document de recepție (created_by_admin = contul care a făcut prihodul).
-// Non-fatal: recepția a reușit deja; dacă marcarea „Cine" pică, doar o logăm (nu stricăm prihodul).
-export async function setReceiptCreator(docId: number, adminId: string): Promise<void> {
+// Completează, ÎNTR-UN SINGUR UPDATE, câmpurile pe care RPC-ul de creare nu le cunoaște: autorul, comentariul
+// la factură și suma de control (migr. 288). Erau trei UPDATE-uri pe același rând, deci trei round-trip-uri
+// pe drumul în care depozitarul așteaptă — și trei ferestre în care recepția putea rămâne fără martor.
+// Non-fatal: recepția e deja scrisă și corectă; dacă asta pică, lipsesc doar însoțitoarele — dar rămâne log.
+export async function finalizeReceipt(
+  docId: number,
+  d: { createdBy?: string | null; note?: string | null; invoiceTotal?: number | null },
+): Promise<void> {
+  const patch: Record<string, unknown> = {};
+  if (d.createdBy) patch.created_by_admin = d.createdBy;
+  if (d.note) patch.note = d.note;
+  if (d.invoiceTotal != null) patch.invoice_total = d.invoiceTotal;
+  if (!Object.keys(patch).length) return;
   const { error } = await getSupabase()
-    .from('piese_stock_documents').update({ created_by_admin: adminId }).eq('id', docId).eq('doc_type', 'RECEIPT');
-  if (error) console.error('[prihod] setReceiptCreator:', error.message);
-}
-
-// Salvează comentariul la factură (coloana `note` a documentului). Non-fatal: recepția a reușit deja.
-export async function setReceiptNote(docId: number, note: string): Promise<void> {
-  const { error } = await getSupabase()
-    .from('piese_stock_documents').update({ note }).eq('id', docId).eq('doc_type', 'RECEIPT');
-  if (error) console.error('[prihod] setReceiptNote:', error.message);
+    .from('piese_stock_documents').update(patch).eq('id', docId).eq('doc_type', 'RECEIPT');
+  if (error) console.error('[prihod] finalizeReceipt:', error.message);
 }
 
 // ── Modificarea unei recepții (#1b) ──
 // Antetul unui document de recepție (pentru ecranul de modificare). Doar RECEIPT ne-anulat.
-export async function receiptDocHeaderForEdit(docId: number): Promise<{ id: number; warehouseId: number; supplierId: number | null; series: string | null; number: string | null; note: string | null; createdAt: string; status: string } | null> {
+export async function receiptDocHeaderForEdit(docId: number): Promise<{ id: number; warehouseId: number; supplierId: number | null; series: string | null; number: string | null; note: string | null; invoiceTotal: number | null; createdAt: string; status: string } | null> {
   const { data, error } = await getSupabase().from('piese_stock_documents')
-    .select('id, warehouse_id, supplier_id, invoice_series, invoice_number, note, created_at, status, doc_type')
+    .select('id, warehouse_id, supplier_id, invoice_series, invoice_number, note, invoice_total, created_at, status, doc_type')
     .eq('id', docId).maybeSingle();
   if (error) throw new Error('Nu am putut încărca documentul');
   const d = data as any;
   if (!d || d.doc_type !== 'RECEIPT') return null;
-  return { id: d.id, warehouseId: d.warehouse_id, supplierId: d.supplier_id ?? null, series: d.invoice_series ?? null, number: d.invoice_number ?? null, note: d.note ?? null, createdAt: d.created_at, status: d.status };
+  return { id: d.id, warehouseId: d.warehouse_id, supplierId: d.supplier_id ?? null, series: d.invoice_series ?? null, number: d.invoice_number ?? null, note: d.note ?? null, invoiceTotal: d.invoice_total == null ? null : Number(d.invoice_total), createdAt: d.created_at, status: d.status };
 }
 
 // Poate fi editat pe LINII documentul? (adevărat doar dacă niciun strat FIFO al recepției nu a fost consumat.)
@@ -325,9 +333,13 @@ export async function receiptEditInfo(docId: number): Promise<{ canEditLines: bo
 }
 
 // Modifică DOAR antetul (furnizor/serie/număr/comentariu) — sigur chiar și când marfa a fost consumată (nu atinge stocul).
-export async function updateReceiptHeader(docId: number, h: { supplier_id: number | null; invoice_series: string | null; invoice_number: string | null; note: string | null }): Promise<void> {
+export async function updateReceiptHeader(docId: number, h: { supplier_id: number | null; invoice_series: string | null; invoice_number: string | null; note: string | null; invoice_total?: number | null }): Promise<void> {
+  // `invoice_total` se scrie DOAR dacă apelantul l-a trimis: `undefined` = „nu atinge", `null` = „golește".
+  // Fără asta, un apelant care omite câmpul ar șterge tăcut suma de control.
+  const patch: Record<string, unknown> = { supplier_id: h.supplier_id, invoice_series: h.invoice_series, invoice_number: h.invoice_number, note: h.note };
+  if (h.invoice_total !== undefined) patch.invoice_total = h.invoice_total;
   const { data, error } = await getSupabase().from('piese_stock_documents')
-    .update({ supplier_id: h.supplier_id, invoice_series: h.invoice_series, invoice_number: h.invoice_number, note: h.note })
+    .update(patch)
     .eq('id', docId).eq('doc_type', 'RECEIPT').eq('status', 'CONFIRMED').select('id');
   if (error) throw new Error(error.message);
   if (!data || (data as any[]).length === 0) throw new Error('NOT_CONFIRMED'); // anulat concurent între gardă și UPDATE → nu raporta fals „salvat"
@@ -412,11 +424,13 @@ export async function createIssue(p: { warehouse_id: number; vehicle_id: number 
   return { docId: res.doc_id as number, shortages: (res.shortages || []) as string[] };
 }
 
-// Layout pentru harta depozitului — derivat din codurile de locație "SECȚIE-RAFT-POLIȚĂ"
-export function parseLocation(label: string | null | undefined) {
-  const m = (label || '').trim().toUpperCase().split('-');
-  return { section: m[0] || '—', rack: m[1] || '—', shelf: m[2] || '' };
-}
+// Layout pentru harta depozitului — derivat din codurile de locație "STELAJ-RÂND-POLIȚĂ-CELULĂ"
+// Parsarea locației trăiește în lib/piese-location.ts (fără 'server-only'), ca formularele să valideze
+// exact ce validează serverul. Re-exportat aici pentru apelanții existenți.
+export { parseLocation, formatLocation } from './piese-location';
+import { parseLocation as parseLoc } from './piese-location';
+import { receiptLinesSum } from './piese-receipt';
+
 const sortKey = (s: string) => { const n = Number(s); return isNaN(n) ? s : String(n).padStart(6, '0'); };
 
 export async function warehouseLayout(warehouseId: number) {
@@ -424,14 +438,16 @@ export async function warehouseLayout(warehouseId: number) {
   const rows = (data || []) as any[];
   const sec: Record<string, Record<string, any[]>> = {};
   for (const r of rows) {
-    const { section, rack, shelf } = parseLocation(r.location_label);
+    const { section, rack, shelf, cell } = parseLoc(r.location_label);
     sec[section] = sec[section] || {};
     sec[section][rack] = sec[section][rack] || [];
-    sec[section][rack].push({ partId: r.part_id, group: r.group_name, name: r.name_long, shelf, qty: Number(r.qty) });
+    sec[section][rack].push({ partId: r.part_id, group: r.group_name, name: r.name_long, shelf, cell, qty: Number(r.qty) });
   }
   const sections = Object.keys(sec).sort((a, b) => sortKey(a).localeCompare(sortKey(b))).map((section) => {
     const racks = Object.keys(sec[section]).sort((a, b) => sortKey(a).localeCompare(sortKey(b))).map((rack) => {
-      const items = sec[section][rack].sort((a, b) => sortKey(a.shelf).localeCompare(sortKey(b.shelf)));
+      // Ordinea de pe raft: întâi poliță, apoi celulă — ca lista să urmeze drumul mâinii, nu ordinea din bază.
+      const items = sec[section][rack].sort((a, b) =>
+        sortKey(a.shelf).localeCompare(sortKey(b.shelf)) || sortKey(a.cell).localeCompare(sortKey(b.cell)));
       return { rack, items, types: items.length };
     });
     return { section, racks, types: racks.reduce((s: number, r: any) => s + r.types, 0) };
@@ -448,6 +464,6 @@ export async function locatePart(warehouseId: number, code: string) {
     .or(`barcode.eq."${e}",article_code.eq."${e}",oem_code.eq."${e}",group_name.ilike."%${e}%",name_long.ilike."%${e}%",name_ro.ilike."%${e}%"`).limit(1).maybeSingle();
   if (!p) return { found: false as const };
   const { data: loc } = await getSupabase().from('piese_part_locations').select('location_label').eq('warehouse_id', warehouseId).eq('part_id', (p as any).id).maybeSingle();
-  const placement = loc ? { ...parseLocation((loc as any).location_label), label: (loc as any).location_label } : null;
+  const placement = loc ? { ...parseLoc((loc as any).location_label), label: (loc as any).location_label } : null;
   return { found: true as const, label: `${(p as any).group_name} ${(p as any).manufacturer ?? ''} ${(p as any).model ? '(' + (p as any).model + ')' : ''}`.trim(), placement };
 }

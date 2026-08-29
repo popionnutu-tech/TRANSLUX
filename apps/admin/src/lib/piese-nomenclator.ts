@@ -1,4 +1,5 @@
 import { getSupabase } from './supabase';
+import { locationError, normalizeLocation, LOCATION_FORMAT } from './piese-location';
 
 // Strat de SCRIERE pentru nomenclatoarele modulului „Piese".
 // Citirile există deja în piese.ts / piese-ops.ts; aici sunt doar create/update.
@@ -74,7 +75,12 @@ export async function updatePart(id: number, d: any) {
 // Altfel upsert (o singură locație per piesă+depozit). Alimentează Harta + alertele „de comandat".
 export async function setPartLocation(partId: number, warehouseId: number, d: any) {
   if (!Number(partId) || !Number(warehouseId)) throw new Error('Piesă/depozit invalide');
-  const label = txt(d.location_label);
+  const raw = txt(d.location_label);
+  // Aceeași validare ca la inventarul inițial — altfel calea „editează piesa din Catalog" ar fi o portiță
+  // prin care intră etichete pe care harta nu le poate desena.
+  const locErr = locationError(raw);
+  if (locErr) throw new Error(`Locație în format greșit (${LOCATION_FORMAT}): ${locErr}`);
+  const label = normalizeLocation(raw);
   const minQty = Math.max(0, Number(d.min_qty) || 0);
   const sb = getSupabase();
   if (!label) {
@@ -93,9 +99,11 @@ export async function setPartLocation(partId: number, warehouseId: number, d: an
 export async function setPartLocationsBulk(warehouseId: number, items: { part_id: number; location_label: string }[]): Promise<number> {
   const wid = Number(warehouseId);
   if (!wid) throw new Error('Depozit invalid');
+  // Normalizăm la scriere (majuscule, fără spații lângă cratime), ca „a-12 - 3" și „A-12-3" să fie
+  // aceeași celulă pe hartă, nu două. Validarea o face apelantul înainte de a ajunge aici.
   const rows = items
     .filter((it) => Number(it.part_id) && txt(it.location_label))
-    .map((it) => ({ part_id: Number(it.part_id), warehouse_id: wid, location_label: txt(it.location_label) }));
+    .map((it) => ({ part_id: Number(it.part_id), warehouse_id: wid, location_label: normalizeLocation(it.location_label) }));
   if (!rows.length) return 0;
   check(await getSupabase().from('piese_part_locations').upsert(rows, { onConflict: 'part_id,warehouse_id' }));
   return rows.length;

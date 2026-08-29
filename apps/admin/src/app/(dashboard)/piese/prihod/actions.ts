@@ -2,22 +2,54 @@
 
 import { verifySession, requireRole, type Session } from '@/lib/auth';
 import { assertWarehouseAllowed, userWarehouseId, editWindowDays } from '@/lib/piese-access';
-import { createReceipt, receiptDocs, receiptDocLines, receiptDocWarehouse, setReceiptCreator, setReceiptNote,
+import { createReceipt, receiptDocs, receiptDocLines, receiptDocWarehouse, finalizeReceipt,
   receiptDocHeaderForEdit, receiptEditInfo, updateReceiptHeader, replaceReceiptLines } from '@/lib/piese';
+import { receiptLinesSum, TOTAL_TOLERANCE } from '@/lib/piese-receipt';
 import { chisinauDayStartIso, chisinauDayBounds, chisinauDayOf, chisinauTodayIso } from '@/lib/chisinau-time';
 
 const RECEIPT_ROLES = ['ADMIN', 'DEPOZITAR', 'GESTIONAR'] as const;
 const NOTE_MAX = 500; // plafon sanity pentru comentariul la factură
 
-export async function submitReceipt(payload: { warehouse_id: number; supplier_id: number | null; invoice_series?: string; invoice_number?: string; note?: string; lines: { part_id: number; qty: number; unit_cost: number }[] }) {
+// Suma de control a facturii (migr. 288). Dacă depozitarul a tastat totalul de pe factura furnizorului,
+// suma liniilor TREBUIE să coincidă. Prinde cantitatea sau prețul tastat greșit ACUM, la introducere —
+// altfel greșeala intră în stoc și în costul FIFO și se descoperă abia la inventariere.
+// Necompletat (null) = fără verificare, ca recepțiile introduse până acum să rămână valide.
+// Însumarea e în piese-receipt.ts, aceeași folosită de formular.
+function assertInvoiceTotal(total: number | null, lines: { qty: number; unit_cost: number }[]): void {
+  if (total == null) return;
+  const sum = receiptLinesSum(lines);
+  const diff = Math.abs(sum - total);
+  if (!(diff <= TOTAL_TOLERANCE)) { // scris negat: `NaN > x` e false, deci `NaN` ar fi TRECUT
+    const fmt = (n: number) => n.toFixed(2);
+    throw new Error(
+      `Suma liniilor (${fmt(sum)} lei) nu se potrivește cu totalul facturii (${fmt(total)} lei). ` +
+      `Diferență: ${fmt(diff)} lei. Verifică o cantitate sau un preț.`,
+    );
+  }
+}
+
+// Normalizează totalul primit de la client: gol/necompletat → null (fără verificare), altfel număr >= 0.
+function cleanTotal(v: unknown): number | null {
+  if (v === null || v === undefined) return null;
+  if (typeof v !== 'number' && typeof v !== 'string') throw new Error('Total factură invalid');
+  if (typeof v === 'string' && v.trim() === '') return null; // câmp gol (inclusiv doar spații) = fără verificare
+  const n = Number(v);
+  if (!Number.isFinite(n) || n < 0) throw new Error('Totalul facturii trebuie să fie un număr pozitiv');
+  const r = Math.round(n * 100) / 100;
+  if (!Number.isFinite(r)) throw new Error('Totalul facturii e prea mare'); // 1e307 devine Infinity la rotunjire
+  return r;
+}
+
+export async function submitReceipt(payload: { warehouse_id: number; supplier_id: number | null; invoice_series?: string; invoice_number?: string; note?: string; invoice_total?: number | string | null; lines: { part_id: number; qty: number; unit_cost: number }[] }) {
   const session = requireRole(await verifySession(), ...RECEIPT_ROLES);
   await assertWarehouseAllowed(session, payload.warehouse_id); // Etapa 2: nu poate face recepție în alt depozit
   const lines = payload.lines.filter((l) => l.part_id && l.qty > 0);
   if (!lines.length) throw new Error('Adaugă cel puțin o piesă');
+  const total = cleanTotal(payload.invoice_total);
+  assertInvoiceTotal(total, lines); // ÎNAINTE de a scrie: o recepție greșită nu trebuie să intre deloc în stoc
   const docId = await createReceipt({ ...payload, lines });
-  await setReceiptCreator(docId, session.id); // „Cine" a făcut recepția (non-fatal dacă pică)
-  const note = (payload.note || '').trim().slice(0, NOTE_MAX);
-  if (note) await setReceiptNote(docId, note); // comentariu la factură (non-fatal dacă pică)
+  // Autor + comentariu + suma de control, într-un singur UPDATE (vezi finalizeReceipt).
+  await finalizeReceipt(docId, { createdBy: session.id, note: (payload.note || '').trim().slice(0, NOTE_MAX), invoiceTotal: total });
   return { ok: true, docId };
 }
 
@@ -69,12 +101,16 @@ async function canEditDay(session: Session, createdAt: string): Promise<boolean>
   return age <= (await editWindowDays(session));
 }
 
-function cleanHeader(h: { supplier_id?: number | null; series?: string | null; number?: string | null; note?: string | null }) {
+function cleanHeader(h: { supplier_id?: number | null; series?: string | null; number?: string | null; note?: string | null; invoice_total?: number | string | null }) {
   return {
     supplier_id: h.supplier_id && Number(h.supplier_id) > 0 ? Number(h.supplier_id) : null,
     invoice_series: (h.series || '').trim().slice(0, 60) || null,
     invoice_number: (h.number || '').trim().slice(0, 60) || null,
     note: (h.note || '').trim().slice(0, NOTE_MAX) || null,
+    // `undefined` = apelantul NU a trimis câmpul → nu-l atingem. `null`/'' = golire deliberată.
+    // Fără distincția asta, orice apelant care omite câmpul ar șterge tăcut suma de control —
+    // exact cum s-a întâmplat înainte ca modalul de editare să înceapă să o trimită.
+    invoice_total: 'invoice_total' in h ? cleanTotal(h.invoice_total) : undefined,
   };
 }
 
@@ -111,7 +147,7 @@ export async function loadReceiptForEdit(docId: number) {
     receiptDocLines(Number(docId)), receiptEditInfo(Number(docId)), canEditDay(session, header.createdAt),
   ]);
   return {
-    header: { supplierId: header.supplierId, series: header.series, number: header.number, note: header.note, createdAt: header.createdAt },
+    header: { supplierId: header.supplierId, series: header.series, number: header.number, note: header.note, invoiceTotal: header.invoiceTotal, createdAt: header.createdAt },
     lines: lines.map((l) => ({ part_id: l.partId, label: l.article ? `${l.name} · ${l.article}` : l.name, qty: l.qty, unit_cost: l.unitCost })),
     canEditLines: info.canEditLines,
     consumedBy: info.consumedBy,
@@ -120,10 +156,16 @@ export async function loadReceiptForEdit(docId: number) {
 }
 
 // Salvează DOAR antetul (furnizor/serie/număr/comentariu) — permis chiar și când marfa a fost consumată.
-export async function saveReceiptHeader(docId: number, h: { supplier_id?: number | null; series?: string | null; number?: string | null; note?: string | null }) {
+export async function saveReceiptHeader(docId: number, h: { supplier_id?: number | null; series?: string | null; number?: string | null; note?: string | null; invoice_total?: number | string | null }) {
   await guardReceiptEdit(Number(docId));
   const hh = cleanHeader(h);
   if (hh.invoice_series === 'SOLD') throw new Error('Seria „SOLD" e rezervată soldului inițial.');
+  // Totalul se verifică față de liniile CURENTE ale documentului (aici se schimbă doar antetul), ca martorul
+  // salvat să nu poată rămâne în dezacord cu marfa. Necompletat → fără verificare.
+  if (hh.invoice_total != null) { // undefined (netrimis) sau null (golit) → nimic de verificat
+    const cur = await receiptDocLines(Number(docId));
+    assertInvoiceTotal(hh.invoice_total, cur.map((l) => ({ qty: l.qty, unit_cost: l.unitCost })));
+  }
   try {
     await updateReceiptHeader(Number(docId), hh);
   } catch (e: any) {
@@ -147,18 +189,29 @@ const RPC_ERR: Record<string, string> = {
 };
 
 // Salvează antet + LINII (anulare + refacere prin RPC). Întoarce id-ul documentului nou corectat.
-export async function saveReceiptLines(docId: number, payload: { supplier_id?: number | null; series?: string | null; number?: string | null; note?: string | null; lines: { part_id: number; qty: number; unit_cost: number }[] }) {
-  await guardReceiptEdit(Number(docId));
+export async function saveReceiptLines(docId: number, payload: { supplier_id?: number | null; series?: string | null; number?: string | null; note?: string | null; invoice_total?: number | string | null; lines: { part_id: number; qty: number; unit_cost: number }[] }) {
+  const { header } = await guardReceiptEdit(Number(docId));
   const hh = cleanHeader(payload);
   const lines = (payload.lines || [])
     .filter((l) => l.part_id && Number(l.qty) > 0)
     .map((l) => ({ part_id: Number(l.part_id), qty: Number(l.qty), unit_cost: Number(l.unit_cost) || 0 }));
   if (!lines.length) throw new Error('Adaugă cel puțin o piesă.');
+  // Câmp NETRIMIS (undefined) → păstrăm martorul documentului și verificăm liniile noi față de EL. Altfel
+  // un apelant care omite câmpul ar rescrie stocul FIFO fără nicio verificare, iar documentul corectat ar
+  // rămâne și fără martor. Golirea rămâne posibilă, dar doar explicit (null/'' trimis de om din formular).
+  const effectiveTotal = hh.invoice_total === undefined ? header.invoiceTotal : hh.invoice_total;
+  assertInvoiceTotal(effectiveTotal, lines); // verificare pe liniile NOI, înainte de a rescrie stocul
+  let newId: number;
   try {
-    const newId = await replaceReceiptLines(Number(docId), { ...hh, lines });
-    return { ok: true, newId };
+    newId = await replaceReceiptLines(Number(docId), { ...hh, lines });
   } catch (e: any) {
     const code = (e?.message || '').trim();
     throw new Error(RPC_ERR[code] || 'Nu am putut salva modificarea. Reîncearcă.');
   }
+  // ÎN AFARA try-ului: corecția a reușit deja și stocul a fost rescris. Dacă am lăsa asta înăuntru, un eșec
+  // al scrierii martorului ar raporta „nu am putut salva", deși modificarea e comisă — iar reîncercarea ar
+  // primi „documentul a fost deja modificat". finalizeReceipt e oricum non-fatală și loghează.
+  // Corecția creează un document NOU (RPC-ul îl anulează pe cel vechi); martorul îl însoțește.
+  if (effectiveTotal != null) await finalizeReceipt(newId, { invoiceTotal: effectiveTotal });
+  return { ok: true, newId };
 }

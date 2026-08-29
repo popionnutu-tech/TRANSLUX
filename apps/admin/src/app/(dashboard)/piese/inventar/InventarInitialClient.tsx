@@ -1,5 +1,7 @@
 'use client';
 
+import { LOCATION_FORMAT, LOCATION_EXAMPLE, locationError } from '@/lib/piese-location';
+
 import { useState, useRef } from 'react';
 import { saveInitialInventory, loadLayout } from './actions';
 import { searchParts } from '../search-parts';
@@ -59,6 +61,8 @@ export default function InventarInitialClient({ warehouses, groups, initialLayou
   })();
 
   const filled = rows.filter((l) => l.part_id && l.qty > 0);
+  // Numărul de rânduri cu locație greșită — butonul se blochează, ca salvarea să nu pice la jumătatea lotului.
+  const badLocations = rows.filter((l) => locationError(l.location)).length;
   const placedCount = filled.filter((l) => l.location.trim()).length;
 
   async function submit() {
@@ -83,7 +87,7 @@ export default function InventarInitialClient({ warehouses, groups, initialLayou
       <div className="card">
         <h2>Inventar inițial — pornește depozitul de la zero</h2>
         <p className="muted" style={{ marginTop: -6 }}>
-          Scanează sau caută piesa, pune <strong>cantitatea faptică</strong> și <strong>locația</strong> (format <code>SECȚIE-RAFT-POLIȚĂ</code>, ex. <code>A-12-3</code>).
+          Scanează sau caută piesa, pune <strong>cantitatea faptică</strong> și <strong>locația</strong> (format <code>{LOCATION_FORMAT}</code>, ex. <code>{LOCATION_EXAMPLE}</code>).
           Locația se <strong>păstrează pe rândul următor</strong> — numeri un raft întreg fără s-o re-scrii. <strong>Costul e opțional</strong>: dacă îl completezi, piesa intră ca recepție (valoare corectă) — <strong>introdu piesa cu cost o singură dată</strong>; dacă îl lași gol, intră cu cost 0 (îl pui mai târziu din Prihod / Revizuire cost).
         </p>
         <div className="row" style={{ alignItems: 'flex-end' }}>
@@ -113,7 +117,13 @@ export default function InventarInitialClient({ warehouses, groups, initialLayou
                   </td>
                   <td><input type="number" min={1} value={l.qty} onChange={(e) => setRow(i, { qty: Number(e.target.value) })} /></td>
                   <td><input type="number" min={0} step="0.01" value={l.cost || ''} onChange={(e) => setRow(i, { cost: Number(e.target.value) })} placeholder="opțional" /></td>
-                  <td><input value={l.location} onChange={(e) => setRow(i, { location: e.target.value })} placeholder="A-12-3" /></td>
+                  {/* Validăm la tastare, cu aceeași funcție ca serverul: altfel greșeala apare abia la salvare,
+                      după ce depozitarul a introdus zeci de rânduri, iar mesajul nu spune care rând e vinovat. */}
+                  <td>
+                    <input value={l.location} onChange={(e) => setRow(i, { location: e.target.value })} placeholder={LOCATION_EXAMPLE}
+                      style={locationError(l.location) ? { borderColor: 'var(--danger, #c0392b)' } : undefined} />
+                    {locationError(l.location) && <div className="muted" style={{ fontSize: 11, color: 'var(--danger, #c0392b)' }}>{locationError(l.location)}</div>}
+                  </td>
                   <td>{rows.length > 1 && <button className="btn" onClick={() => { setRows((ls) => ls.filter((_, j) => j !== i)); setFocusIdx(null); }} style={{ padding: '4px 10px' }}>×</button>}</td>
                 </tr>
               );
@@ -125,7 +135,8 @@ export default function InventarInitialClient({ warehouses, groups, initialLayou
           <span className="muted">{filled.length} piese · {placedCount} cu locație</span>
         </div>
         {msg && <div className={`alert ${msg.t}`} style={{ marginTop: 12 }}>{msg.m}</div>}
-        <button className="btn btn-primary btn-lg btn-block" style={{ marginTop: 12 }} disabled={busy || !warehouseId} onClick={submit}>
+        {badLocations > 0 && <div className="alert warn" style={{ marginTop: 10 }}>{badLocations === 1 ? 'Un rând are' : `${badLocations} rânduri au`} locația în format greșit ({LOCATION_FORMAT}, ex. {LOCATION_EXAMPLE}). Corectează înainte de salvare.</div>}
+        <button className="btn btn-primary btn-lg btn-block" style={{ marginTop: 12 }} disabled={busy || !warehouseId || badLocations > 0} onClick={submit}>
           {busy ? 'Se salvează…' : 'Salvează inventarul inițial'}
         </button>
       </div>

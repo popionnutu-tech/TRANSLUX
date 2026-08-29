@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { submitReceipt } from './actions';
+import { receiptLinesSum, countableLines, TOTAL_TOLERANCE } from '@/lib/piese-receipt';
 import { loadPart } from '../part-actions';
 import { searchParts } from '../search-parts';
 import SearchSelect from '@/components/SearchSelect';
@@ -22,6 +23,7 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
   const [series, setSeries] = useState('');
   const [number, setNumber] = useState('');
   const [note, setNote] = useState(''); // comentariu la factură (se salvează pe document)
+  const [invoiceTotal, setInvoiceTotal] = useState(''); // suma de control de pe factura furnizorului (migr. 288)
   const [lines, setLines] = useState<Line[]>([blankLine()]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ t: 'ok' | 'danger'; m: string } | null>(null);
@@ -32,7 +34,13 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
   // Copiază rândul i cu toate datele (piesă, cantitate, preț, sumă) și îl inserează imediat dedesubt.
   const copyLine = (i: number) => setLines((ls) => { const next = [...ls]; next.splice(i + 1, 0, { ...ls[i] }); return next; });
-  const total = lines.reduce((s, l) => s + l.qty * l.unit_cost, 0);
+  // Însumăm DOAR liniile pe care le trimitem serverului, rotunjite pe linie — sursă unică (piese-receipt.ts),
+  // ca ecranul să nu poată arăta „se potrivește" pentru o sumă pe care serverul o respinge.
+  const total = receiptLinesSum(countableLines(lines).map((l) => ({ qty: l.qty, unit_cost: l.unit_cost })));
+  // Suma de control: diferența se arată LIVE, cât încă se poate corecta. Serverul o reimpune la salvare.
+  const declared = invoiceTotal.trim() === '' ? null : Number(invoiceTotal);
+  const totalOk = declared == null || (Number.isFinite(declared) && Math.abs(total - declared) <= TOTAL_TOLERANCE);
+  const totalDiff = declared != null && Number.isFinite(declared) ? total - declared : 0;
 
   // Deschide formularul de editare pentru piesa deja aleasă pe rândul i (corectezi denumire/cod/etc. fără să pleci în Catalog).
   async function openEditPart(i: number, partId: number) {
@@ -56,10 +64,12 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
     try {
       const r = await submitReceipt({
         warehouse_id: warehouseId, supplier_id: supplierId ? Number(supplierId) : null, invoice_series: series, invoice_number: number, note,
+        invoice_total: declared,
         lines: lines.filter((l) => l.part_id).map((l) => ({ part_id: Number(l.part_id), qty: l.qty, unit_cost: l.unit_cost })),
       });
       setMsg({ t: 'ok', m: `Prihod #${r.docId} înregistrat. Stocul a crescut.` });
-      setLines([blankLine()]); setSeries(''); setNumber(''); setNote('');
+      // setInvoiceTotal: fără el, totalul facturii precedente ar rămâne în câmp și ar bloca următoarea recepție.
+      setLines([blankLine()]); setSeries(''); setNumber(''); setNote(''); setInvoiceTotal('');
       router.refresh();
     } catch (e: any) { setMsg({ t: 'danger', m: e.message }); } finally { setBusy(false); }
   }
@@ -72,6 +82,7 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
         <div className="form-row"><label>Furnizor</label><SearchSelect options={suppliers} value={supplierId} onSelect={(o) => setSupplierId(o ? o.id : '')} placeholder="— caută furnizor —" /></div>
         <div className="form-row"><label>Serie</label><input value={series} onChange={(e) => setSeries(e.target.value)} placeholder="AA" /></div>
         <div className="form-row"><label>Număr</label><input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="123456" /></div>
+        <div className="form-row"><label>Total factură (control)</label><input type="number" min={0} step="0.01" value={invoiceTotal} onChange={(e) => setInvoiceTotal(e.target.value)} placeholder="opțional" style={{ textAlign: 'right' }} /></div>
         <div className="form-row" style={{ flex: 1, minWidth: 220 }}><label>Comentariu la factură</label><input value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} placeholder="observații (opțional)" /></div>
       </div>
       <p className="muted" style={{ marginTop: 4, marginBottom: 8 }}>Completează fie <strong>Prețul unitar</strong>, fie <strong>Suma</strong> pe rând — celălalt se calculează automat (sumă ÷ cantitate = preț unitar).</p>
@@ -103,9 +114,18 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
         <button className="btn" onClick={() => setLines((ls) => [...ls, blankLine()])}>+ Adaugă poziție</button>
         <strong>Total: {total.toFixed(2)} lei</strong>
+        {declared != null && Number.isFinite(declared) && (
+          totalOk
+            ? <span className="badge ok" style={{ marginLeft: 10 }}>✓ se potrivește cu factura</span>
+            : <span className="badge warn" style={{ marginLeft: 10 }}>
+                {totalDiff > 0 ? 'peste factură cu ' : 'sub factură cu '}{Math.abs(totalDiff).toFixed(2)} lei
+              </span>
+        )}
       </div>
       {msg && <div className={`alert ${msg.t}`} style={{ marginTop: 12 }}>{msg.m}</div>}
-      <button className="btn btn-primary btn-lg btn-block" style={{ marginTop: 12 }} disabled={busy} onClick={submit}>{busy ? 'Se înregistrează…' : 'Confirmă prihodul'}</button>
+      {/* Butonul se blochează cât suma nu se potrivește — serverul refuză oricum, dar aici se vede DE CE. */}
+      <button className="btn btn-primary btn-lg btn-block" style={{ marginTop: 12 }} disabled={busy || !totalOk} onClick={submit}>{busy ? 'Se înregistrează…' : 'Confirmă prihodul'}</button>
+      {!totalOk && <p className="muted" style={{ textAlign: 'center', marginTop: 8, marginBottom: 0 }}>Suma liniilor nu coincide cu totalul facturii. Verifică o cantitate sau un preț, ori golește câmpul de control.</p>}
 
       {newPartFor !== null && (
         <div onClick={() => setNewPartFor(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '6vh 16px', zIndex: 1000, overflowY: 'auto' }}>

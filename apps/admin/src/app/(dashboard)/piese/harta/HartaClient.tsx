@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import PieseDepotMap from '@/components/PieseDepotMap';
 import { locate } from './actions';
+import { formatLocation } from '@/lib/piese-location';
 
 export default function HartaClient({ warehouseId, layout }: { warehouseId: number; layout: any }) {
   const [q, setQ] = useState('');
@@ -11,7 +12,7 @@ export default function HartaClient({ warehouseId, layout }: { warehouseId: numb
 
   async function find(code: string) {
     const r = await locate(warehouseId, code);
-    if (r.found && r.placement) { setHl({ section: r.placement.section, rack: r.placement.rack }); setMsg({ t: 'ok', m: `${r.label} → Secția ${r.placement.section}, raft ${r.placement.rack}, poliță ${r.placement.shelf || '—'}` }); }
+    if (r.found && r.placement) { setHl({ section: r.placement.section, rack: r.placement.rack }); setMsg({ t: 'ok', m: `${r.label} → ${formatLocation(r.placement.label)}` }); }
     else if (r.found) { setHl(null); setMsg({ t: 'warn', m: `${r.label}: nu are locație în acest depozit` }); }
     else { setHl(null); setMsg({ t: 'danger', m: `Nu am găsit piesa: ${code}` }); }
   }

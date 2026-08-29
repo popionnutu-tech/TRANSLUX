@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import SearchSelect from '@/components/SearchSelect';
 import { searchParts } from '../search-parts';
 import { loadReceiptForEdit, saveReceiptHeader, saveReceiptLines } from './actions';
+import { receiptLinesSum, countableLines, TOTAL_TOLERANCE } from '@/lib/piese-receipt';
 
 type Opt = { id: number; label: string };
 type Line = { part_id: number | ''; label?: string; qty: number; unit_cost: number };
@@ -26,6 +27,7 @@ export default function ReceiptEditModal({ docId, suppliers, onClose, onSaved }:
   const [series, setSeries] = useState('');
   const [number, setNumber] = useState('');
   const [note, setNote] = useState('');
+  const [invoiceTotal, setInvoiceTotal] = useState(''); // suma de control (migr. 288) — se ÎNCARCĂ, ca salvarea să n-o șteargă
   const [lines, setLines] = useState<Line[]>([]);
   const [canEditLines, setCanEditLines] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
@@ -44,6 +46,7 @@ export default function ReceiptEditModal({ docId, suppliers, onClose, onSaved }:
         setSeries(d.header.series || '');
         setNumber(d.header.number || '');
         setNote(d.header.note || '');
+        setInvoiceTotal(d.header.invoiceTotal == null ? '' : String(d.header.invoiceTotal));
         setCreatedAt(d.header.createdAt);
         setLines(d.lines.map((l) => ({ part_id: l.part_id, label: l.label, qty: l.qty, unit_cost: l.unit_cost })));
         setCanEditLines(d.canEditLines);
@@ -57,14 +60,20 @@ export default function ReceiptEditModal({ docId, suppliers, onClose, onSaved }:
 
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
   const copyLine = (i: number) => setLines((ls) => { const next = [...ls]; next.splice(i + 1, 0, { ...ls[i] }); return next; });
-  const total = lines.reduce((s, l) => s + Number(l.qty) * Number(l.unit_cost), 0);
+  // ATENȚIE: însumăm DOAR liniile pe care le trimitem serverului (cu piesă aleasă și cantitate > 0) și
+  // rotunjim pe linie — altfel ecranul ar arăta „se potrivește" pentru o sumă pe care serverul o respinge.
+  const sentLines = countableLines(lines).map((l) => ({ qty: Number(l.qty), unit_cost: Number(l.unit_cost) }));
+  const total = receiptLinesSum(sentLines);
+  const declared = invoiceTotal.trim() === '' ? null : Number(invoiceTotal);
+  const totalOk = declared == null || (Number.isFinite(declared) && Math.abs(total - declared) <= TOTAL_TOLERANCE);
+  const totalDiff = declared != null && Number.isFinite(declared) ? total - declared : 0;
   const supplierName = supplierId ? (suppliers.find((s) => s.id === supplierId)?.label || `#${supplierId}`) : '—';
   const readOnlyLines = !canEdit || !canEditLines;
 
   async function saveHeader() {
     setBusy(true); setMsg(null);
     try {
-      await saveReceiptHeader(docId, { supplier_id: supplierId ? Number(supplierId) : null, series, number, note });
+      await saveReceiptHeader(docId, { supplier_id: supplierId ? Number(supplierId) : null, series, number, note, invoice_total: invoiceTotal });
       onSaved(); onClose();
     } catch (e: any) { setMsg({ t: 'danger', m: e?.message || 'Eroare la salvare' }); } finally { setBusy(false); }
   }
@@ -73,7 +82,7 @@ export default function ReceiptEditModal({ docId, suppliers, onClose, onSaved }:
     setBusy(true); setMsg(null);
     try {
       await saveReceiptLines(docId, {
-        supplier_id: supplierId ? Number(supplierId) : null, series, number, note,
+        supplier_id: supplierId ? Number(supplierId) : null, series, number, note, invoice_total: invoiceTotal,
         lines: lines.filter((l) => l.part_id).map((l) => ({ part_id: Number(l.part_id), qty: Number(l.qty), unit_cost: Number(l.unit_cost) })),
       });
       onSaved(); onClose();
@@ -114,6 +123,7 @@ export default function ReceiptEditModal({ docId, suppliers, onClose, onSaved }:
               </div>
               <div className="form-row"><label>Serie</label>{canEdit ? <input value={series} onChange={(e) => setSeries(e.target.value)} placeholder="AA" /> : <div>{series || '—'}</div>}</div>
               <div className="form-row"><label>Număr</label>{canEdit ? <input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="123456" /> : <div>{number || '—'}</div>}</div>
+              <div className="form-row"><label>Total factură (control)</label>{canEdit ? <input type="number" min={0} step="0.01" value={invoiceTotal} onChange={(e) => setInvoiceTotal(e.target.value)} placeholder="opțional" style={{ textAlign: 'right' }} /> : <div>{invoiceTotal || '—'}</div>}</div>
               <div className="form-row" style={{ flex: 1, minWidth: 180 }}><label>Comentariu</label>{canEdit ? <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="observații la factură" /> : <div>{note || '—'}</div>}</div>
             </div>
 
@@ -141,15 +151,25 @@ export default function ReceiptEditModal({ docId, suppliers, onClose, onSaved }:
               </tbody>
             </table>
             {!readOnlyLines && <button type="button" className="btn" style={{ marginTop: 8 }} onClick={() => setLines((ls) => [...ls, { part_id: '', qty: 1, unit_cost: 0 }])}>+ Adaugă poziție</button>}
-            <div style={{ textAlign: 'right', marginTop: 8 }}><strong>Total: {total.toFixed(2)} lei</strong></div>
+            <div style={{ textAlign: 'right', marginTop: 8 }}>
+              <strong>Total: {total.toFixed(2)} lei</strong>
+              {declared != null && Number.isFinite(declared) && (
+                totalOk
+                  ? <span className="badge ok" style={{ marginLeft: 10 }}>✓ se potrivește cu factura</span>
+                  : <span className="badge warn" style={{ marginLeft: 10 }}>
+                      {totalDiff > 0 ? 'peste factură cu ' : 'sub factură cu '}{Math.abs(totalDiff).toFixed(2)} lei
+                    </span>
+              )}
+            </div>
 
+            {!totalOk && <div className="alert warn" style={{ marginTop: 10 }}>Suma liniilor nu coincide cu totalul facturii. Corectează o cantitate sau un preț, ori golește câmpul de control.</div>}
             {msg && <div className={`alert ${msg.t}`} style={{ marginTop: 10 }}>{msg.m}</div>}
 
             {canEdit && (
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
                 {readOnlyLines
-                  ? <button className="btn btn-primary" disabled={busy} onClick={saveHeader}>{busy ? 'Se salvează…' : 'Salvează antetul'}</button>
-                  : <button className="btn btn-primary" disabled={busy} onClick={saveAll}>{busy ? 'Se salvează…' : 'Salvează modificările'}</button>}
+                  ? <button className="btn btn-primary" disabled={busy || !totalOk} onClick={saveHeader}>{busy ? 'Se salvează…' : 'Salvează antetul'}</button>
+                  : <button className="btn btn-primary" disabled={busy || !totalOk} onClick={saveAll}>{busy ? 'Se salvează…' : 'Salvează modificările'}</button>}
               </div>
             )}
           </>

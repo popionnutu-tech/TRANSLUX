@@ -485,14 +485,48 @@ export async function issueAlert(warehouseId: number, vehicleId: number | null, 
   return { stock: Number(cs?.qty) || 0, alert };
 }
 
-export async function createIssue(p: { warehouse_id: number; vehicle_id: number | null; mechanic_id: number | null; breakdown_reason_id: number | null; part_id: number; qty: number }) {
+export interface IssueLine { part_id: number; qty: number }
+
+// Rashod NOU, cu una sau mai multe poziții. RPC-ul accepta `p_lines` de la bun început — aplicația îi
+// trimitea un singur element, de aceea fiecare piesă eliberată devenea un document separat.
+export async function createIssue(p: { warehouse_id: number; vehicle_id: number | null; mechanic_id: number | null; breakdown_reason_id: number | null; lines: IssueLine[] }) {
   const { data, error } = await getSupabase().rpc('piese_create_issue', {
     p_wh: p.warehouse_id, p_vehicle: p.vehicle_id, p_mechanic: p.mechanic_id, p_reason: p.breakdown_reason_id,
-    p_lines: [{ part_id: p.part_id, qty: p.qty }], p_user: null,
+    p_lines: p.lines, p_user: null,
   });
   if (error) throw new Error(error.message);
   const res = data as any;
   return { docId: res.doc_id as number, shortages: (res.shortages || []) as string[] };
+}
+
+// Adaugă poziții pe un rashod EXISTENT (migr. 294). Stocul se mișcă la fiecare adăugare, nu la sfârșitul
+// zilei: depozitul trebuie să spună adevărul în fiecare moment.
+export async function appendIssue(docId: number, warehouseId: number, vehicleId: number, lines: IssueLine[]) {
+  const { data, error } = await getSupabase().rpc('piese_append_issue', {
+    p_doc: docId, p_wh: warehouseId, p_vehicle: vehicleId, p_lines: lines, p_user: null,
+  });
+  if (error) throw error; // codurile (NOT_TODAY/NOT_ISSUE/…) se mapează în actions
+  const res = data as any;
+  return { docId: res.doc_id as number, added: res.added as number, shortages: (res.shortages || []) as string[] };
+}
+
+// Rashodurile DE AZI ale unei mașini într-un depozit.
+//
+// TOATE, nu doar ultimul: până acum fiecare piesă eliberată producea un document separat, deci o mașină
+// cu trei piese date azi are trei documente. Dacă am arăta doar ultimul, panoul „ce s-a dat deja azi" ar
+// ascunde restul — adică ar răspunde greșit exact la întrebarea pentru care există.
+// Adăugarea se face pe cel mai RECENT (primul din listă).
+export async function todayIssueDocs(warehouseId: number, vehicleId: number): Promise<{ id: number; createdAt: string }[]> {
+  const { fromIso, toIso } = chisinauDayBounds(chisinauTodayIso());
+  const { data, error } = await getSupabase().from('piese_stock_documents')
+    .select('id, created_at')
+    .eq('doc_type', 'ISSUE').eq('status', 'CONFIRMED')
+    .eq('warehouse_id', warehouseId).eq('vehicle_id', vehicleId)
+    .gte('created_at', fromIso).lt('created_at', toIso)
+    .order('created_at', { ascending: false }).order('id', { ascending: false })
+    .limit(50);
+  if (error) throw new Error('Nu am putut citi rashodul de azi');
+  return ((data as any[]) || []).map((d) => ({ id: Number(d.id), createdAt: d.created_at as string }));
 }
 
 // Layout pentru harta depozitului — derivat din codurile de locație "STELAJ-RÂND-POLIȚĂ-CELULĂ"
@@ -501,6 +535,7 @@ export async function createIssue(p: { warehouse_id: number; vehicle_id: number 
 export { parseLocation, formatLocation } from './piese-location';
 import { parseLocation as parseLoc, normalizeLocation } from './piese-location';
 import { receiptLinesSum } from './piese-receipt';
+import { chisinauDayBounds, chisinauTodayIso } from './chisinau-time';
 
 const sortKey = (s: string) => { const n = Number(s); return isNaN(n) ? s : String(n).padStart(6, '0'); };
 

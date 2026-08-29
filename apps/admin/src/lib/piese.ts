@@ -242,6 +242,30 @@ export const DOC_LINES_LIMIT = 200;
 // SEMNUL cantităţii se PĂSTREAZĂ. Verificat pe date: liniile de prihod/rashod/vânzare/mutare sunt toate
 // pozitive (semnul stă în `piese_stock_movements.qty_delta`, nu pe linie), iar singurele linii negative sunt
 // cele de INVENTARIERE — unde −3 înseamnă LIPSĂ. O valoare absolută ar fi transformat lipsa în plus.
+// Poziţiile mai multor documente deodată. `loadTodayIssue` avea nevoie de ele pentru fiecare document
+// al zilei — iar istoricul are câte un document per piesă, deci o mașină cu 10 piese date azi însemna
+// 10 interogări simultane la fiecare schimbare de mașină în ecran.
+export async function docLinesMany(docIds: number[], withCost: boolean): Promise<{ rows: { partId: number; name: string; article: string | null; qty: number; unitCost: number | null }[]; truncated: boolean }> {
+  if (!docIds.length) return { rows: [], truncated: false };
+  const cols = withCost
+    ? 'document_id, part_id, qty, unit_cost, part:piese_parts(name_ro, name_long, article_code)'
+    : 'document_id, part_id, qty, part:piese_parts(name_ro, name_long, article_code)';
+  const { data, error } = await getSupabase().from('piese_stock_document_lines')
+    .select(cols).in('document_id', docIds)
+    .order('document_id', { ascending: true }).order('id', { ascending: true })
+    .limit(DOC_LINES_LIMIT + 1);
+  if (error) throw new Error('Nu am putut încărca poziţiile documentelor');
+  const all = ((data as any[]) || []).map((l) => ({
+    partId: Number(l.part_id),
+    name: (l.part?.name_ro || l.part?.name_long || `#${l.part_id}`) as string,
+    article: (l.part?.article_code as string) || null,
+    qty: Number(l.qty),
+    unitCost: withCost && l.unit_cost != null ? Number(l.unit_cost) : null,
+  }));
+  // Plafonul e pe TOTAL, nu per document: altfel 50 de documente × 200 de linii ar fi ajuns în ecran.
+  return { rows: all.slice(0, DOC_LINES_LIMIT), truncated: all.length > DOC_LINES_LIMIT };
+}
+
 export async function docLines(docId: number, withCost: boolean): Promise<{ rows: { partId: number; name: string; article: string | null; qty: number; unitCost: number | null }[]; truncated: boolean }> {
   const cols = withCost
     ? 'part_id, qty, unit_cost, part:piese_parts(name_ro, name_long, article_code)'

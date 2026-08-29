@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { checkIssue, submitIssue, loadTodayIssue } from './actions';
+import { checkIssue, checkIssueMany, submitIssue, loadTodayIssue } from './actions';
 import { searchParts } from '../search-parts';
 import SearchSelect from '@/components/SearchSelect';
 
@@ -28,6 +28,8 @@ export default function RashodClient({ warehouses, vehicles, mechanics, reasons 
   // Avertismentele (stoc, normă de km, schimbat prea des) sunt PER LINIE: la o reparație cu opt piese,
   // un singur mesaj global n-ar spune despre care dintre ele e vorba.
   const [alerts, setAlerts] = useState<Record<string, Alert>>({});
+  // Oglinda liniilor curente, pentru efectul de mai jos: îl vrem declanșat de depozit/mașină, nu de tastare.
+  const linesRef = useRef<Line[]>([]);
   const [today, setToday] = useState<Today>(null);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<string | null>(null);
@@ -36,6 +38,7 @@ export default function RashodClient({ warehouses, vehicles, mechanics, reasons 
   const km = vehicles.find((v) => v.id === Number(vehicleId))?.km;
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
   const filled = lines.filter((l) => l.part_id && l.qty > 0);
+  linesRef.current = lines;
 
   // Ce s-a dat DEJA azi pe mașina asta — încărcat la alegerea mașinii, ca depozitarul să vadă înainte
   // de a adăuga, nu după. Fără asta, „am pus deja filtrul?" se răspundea doar căutând prin documente.
@@ -67,11 +70,25 @@ export default function RashodClient({ warehouses, vehicles, mechanics, reasons 
   }, []);
 
   // Stocul și norma depind de depozit și de mașină: la schimbarea lor, avertismentele afișate devin
-  // false (arătau stocul din alt depozit). Le recalculăm pentru toate rândurile cu piesă aleasă.
+  // false (arătau stocul din alt depozit). Le recalculăm pentru toate rândurile cu piesă aleasă —
+  // într-o SINGURĂ acțiune, fiindcă acțiunile de server se execută secvențial, nu în paralel.
+  const bulkSeq = useRef(0);
   useEffect(() => {
-    for (const l of lines) if (l.part_id) checkLine(l.uid, Number(l.part_id), warehouseId, vehicleId);
+    const withPart = linesRef.current.filter((l) => l.part_id);
+    if (!withPart.length || !warehouseId) return;
+    const my = ++bulkSeq.current;
+    checkIssueMany(warehouseId, vehicleId ? Number(vehicleId) : null, withPart.map((l) => Number(l.part_id)))
+      .then((byPart) => {
+        if (my !== bulkSeq.current) return; // a venit prea târziu — depozitul/mașina s-au schimbat între timp
+        setAlerts(Object.fromEntries(
+          withPart.filter((l) => byPart[Number(l.part_id)]).map((l) => [l.uid, byPart[Number(l.part_id)] as Alert]),
+        ));
+      })
+      .catch(() => { /* avertismentele lipsă nu blochează eliberarea */ });
+    // Intenționat fără `lines` în dependențe: efectul se declanșează la schimbarea DEPOZITULUI sau a
+    // MAȘINII, nu la fiecare tastă. Liniile curente se citesc din ref, ca să nu fie „înghețate" în closure.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [warehouseId, vehicleId, checkLine]);
+  }, [warehouseId, vehicleId]);
 
   async function submit() {
     setErr(null); setDone(null); setBusy(true);
@@ -148,10 +165,10 @@ export default function RashodClient({ warehouses, vehicles, mechanics, reasons 
                   placeholder="— caută piesa (denumire, cod, articol) —" />
                 {alerts[l.uid] && (
                   <div style={{ marginTop: 4 }}>
-                    <span className={`badge ${alerts[i].stock <= 0 ? 'warn' : 'gray'}`}>
-                      stoc: {alerts[i].stock}{alerts[i].stock <= 0 ? ' — epuizat!' : ''}
+                    <span className={`badge ${alerts[l.uid].stock <= 0 ? 'warn' : 'gray'}`}>
+                      stoc: {alerts[l.uid].stock}{alerts[l.uid].stock <= 0 ? ' — epuizat!' : ''}
                     </span>
-                    {alerts[i].alert?.messages.map((m, k) => (
+                    {alerts[l.uid].alert?.messages.map((m, k) => (
                       <div key={k} className="muted" style={{ fontSize: 11, marginTop: 2 }}>{m}</div>
                     ))}
                   </div>

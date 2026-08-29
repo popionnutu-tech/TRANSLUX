@@ -2,7 +2,7 @@
 
 import { verifySession, requireRole } from '@/lib/auth';
 import { assertWarehouseAllowed } from '@/lib/piese-access';
-import { issueAlert, createIssue, appendIssue, todayIssueDocs, docLines, docWarehouses, type IssueLine } from '@/lib/piese';
+import { issueAlert, createIssue, appendIssue, todayIssueDocs, docLinesMany, docWarehouses, type IssueLine } from '@/lib/piese';
 import { canSeeCost } from '@/lib/piese-access';
 import { auditWrite } from '@/lib/audit';
 
@@ -25,6 +25,20 @@ export async function checkIssue(warehouseId: number, vehicleId: number | null, 
   const session = requireRole(await verifySession(), ...ISSUE_ROLES);
   await assertWarehouseAllowed(session, warehouseId); // Etapa 2: doar depozitul lui
   return issueAlert(warehouseId, vehicleId, partId);
+}
+
+// Avertismentele pentru MAI MULTE piese, într-o singură acțiune.
+//
+// De ce nu opt apeluri paralele: în App Router acțiunile de server se execută SECVENȚIAL — `Promise.all`
+// peste ele nu le paralelizează, doar le pune la coadă. Cu opt rânduri pe ecran, o schimbare de mașină
+// însemna opt dus-întors în serie, fiecare cu propria verificare de sesiune și de depozit, iar un click
+// pe „Înregistrează" aștepta în spatele lor.
+export async function checkIssueMany(warehouseId: number, vehicleId: number | null, partIds: number[]) {
+  const session = requireRole(await verifySession(), ...ISSUE_ROLES);
+  await assertWarehouseAllowed(session, warehouseId);
+  const ids = Array.from(new Set(partIds.map(Number).filter((x) => Number.isInteger(x) && x > 0))).slice(0, MAX_LINES);
+  const results = await Promise.all(ids.map((pid) => issueAlert(warehouseId, vehicleId, pid)));
+  return Object.fromEntries(ids.map((pid, i) => [pid, results[i]]));
 }
 
 // Curăță și validează liniile primite de la client. Aceleași praguri ca RPC-ul, ca o linie acceptată aici
@@ -51,10 +65,8 @@ export async function loadTodayIssue(warehouseId: number, vehicleId: number) {
   if (!docs.length) return null;
   // Panoul arată doar denumire + cantitate, deci nu cerem costul deloc (apărare în adâncime: dacă nu-l
   // aducem din bază, nu poate ajunge nici din greșeală la un rol care n-are voie să-l vadă).
-  const perDoc = await Promise.all(docs.map((d) => docLines(d.id, false)));
-  const lines = perDoc.flatMap((r) => r.rows);
-  const truncated = perDoc.some((r) => r.truncated);
-  return { id: docs[0].id, docCount: docs.length, positions: lines.length, lines, truncated };
+  const { rows, truncated } = await docLinesMany(docs.map((d) => d.id), false);
+  return { id: docs[0].id, docCount: docs.length, positions: rows.length, lines: rows, truncated };
 }
 
 /**

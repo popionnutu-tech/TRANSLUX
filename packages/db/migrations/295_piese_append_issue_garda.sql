@@ -146,8 +146,4 @@ END $$;
 REVOKE ALL ON FUNCTION piese_create_issue(bigint, bigint, bigint, bigint, jsonb, bigint) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION piese_create_issue(bigint, bigint, bigint, bigint, jsonb, bigint) TO service_role;
 
--- Alerta „schimbat prea des" citea toate mișcările mașinii și sorta, cu un singur index pe vehicle_id.
--- La un istoric de câțiva ani, asta se plătea la FIECARE alegere de piesă — iar acum sunt 8 pe ecran.
-CREATE INDEX IF NOT EXISTS idx_pmov_vehicle_part_issue
-  ON piese_stock_movements (vehicle_id, part_id, created_at DESC)
-  WHERE movement_type = 'ISSUE';
+-- (Indexul pentru alerta „schimbat prea des" e în migr. 298 — forma creată aici era greșită.)

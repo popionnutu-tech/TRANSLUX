@@ -19,12 +19,17 @@ export function changedFields(
   after: AuditFields,
 ): { before: AuditFields; after: AuditFields } | null {
   const b: AuditFields = {}; const a: AuditFields = {};
-  // Parcurgem reuniunea cheilor: un câmp adăugat mai târziu în antet intră automat în urmă,
-  // fără să fie nevoie ca cineva să-l treacă într-o listă (locul unde varianta veche se strica tăcut).
+  // Parcurgem reuniunea cheilor celor două obiecte primite. ATENȚIE: obiectele sunt construite manual de
+  // apelant (vezi `auditHeaderChange`), deci un câmp nou adăugat în antet TOT trebuie trecut acolo —
+  // funcția asta nu-l poate ghici. Ce s-a câștigat față de varianta cu frază e că nu se mai poate TĂIA
+  // la plafon și nu se mai poate FABRICA prin separatori, nu că maparea ar fi dispărut.
   for (const k of new Set([...Object.keys(before), ...Object.keys(after)])) {
     if (after[k] === undefined) continue; // câmp netrimis = neatins, nu „golit"
-    if (before[k] === after[k]) continue;
-    b[k] = before[k] ?? null; a[k] = after[k] ?? null;
+    // `''` și `null` sunt aceeași absență: fără normalizare ar apărea rânduri fantomă „comentariu: — → —".
+    const bv = before[k] === '' ? null : before[k] ?? null;
+    const av = after[k] === '' ? null : after[k] ?? null;
+    if (bv === av) continue;
+    b[k] = bv; a[k] = av;
   }
   return Object.keys(a).length ? { before: b, after: a } : null;
 }
@@ -38,6 +43,8 @@ export function changedFields(
  */
 export async function auditWrite(d: {
   adminId: string;
+  /** Numele autorului la momentul faptei. Dacă lipsește, îl citim noi — dar apelanții care îl au îl dau. */
+  actorLabel?: string | null;
   action: string;
   entity: string;
   entityId?: number | null;
@@ -46,8 +53,13 @@ export async function auditWrite(d: {
   after?: AuditFields | null;
   notes?: string;
 }): Promise<void> {
+  // Eticheta autorului se FOTOGRAFIAZĂ (migr. 293): `admin_accounts.name` e gol pentru majoritatea
+  // conturilor, iar rezolvarea la citire ar fi făcut ca urma să depindă de starea curentă a contului —
+  // deci s-ar fi schimbat la redenumire și s-ar fi pierdut la ștergere.
+  const actor = d.actorLabel ?? (await actorLabelFor(d.adminId));
   const { error } = await getSupabase().from('piese_audit_log').insert({
     admin_id: d.adminId,
+    actor_label: actor,
     action: d.action,
     entity: d.entity,
     entity_id: d.entityId ?? null,
@@ -63,20 +75,34 @@ export interface AuditRow {
   at: string;
   action: string;
   who: string | null;
+  /** Urma are un autor înregistrat? `false` = scrisă de motorul bazei (RPC), nu de un om. */
+  hasActor: boolean;
   before: AuditFields | null;
   after: AuditFields | null;
   notes: string | null;
   docId: number | null; // pe ce document a fost scrisă urma (contează la lanțul de corecții)
 }
 
-// Rezolvă numele conturilor. DOAR `name` — emailul e identificatorul de login și n-are ce căuta
-// într-un ecran deschis de depozitar (restul aplicației expune tot doar numele).
+// Eticheta unui cont pentru jurnal. `name`, dacă există; altfel partea dinaintea lui @ din email —
+// NU emailul întreg, care e identificatorul de login. Pentru „admin@translux.md" iese „admin", adică
+// exact cum îi spun oamenii între ei, fără să publice credențialul.
+async function actorLabelFor(adminId: string): Promise<string | null> {
+  const { data } = await getSupabase().from('admin_accounts').select('name, email').eq('id', adminId).maybeSingle();
+  const a = data as { name: string | null; email: string | null } | null;
+  if (!a) return null;
+  return a.name || (a.email ? a.email.split('@')[0] : null);
+}
+
+// Etichetele pentru rândurile VECHI, scrise înainte de migr. 293 (fără `actor_label`).
 async function resolveActors(ids: string[]): Promise<Map<string, string>> {
   const names = new Map<string, string>();
   if (!ids.length) return names;
-  const { data } = await getSupabase().from('admin_accounts').select('id, name').in('id', ids);
-  for (const a of ((data as { id: string; name: string | null }[]) || [])) {
-    if (a.name) names.set(a.id, a.name);
+  const { data, error } = await getSupabase().from('admin_accounts').select('id, name, email').in('id', ids);
+  // Aruncă: „n-am putut afla cine" nu are voie să arate ca „nu se știe cine" — vezi comentariul de la citire.
+  if (error) throw new Error('Nu am putut identifica autorii modificărilor');
+  for (const a of ((data as { id: string; name: string | null; email: string | null }[]) || [])) {
+    const label = a.name || (a.email ? a.email.split('@')[0] : null);
+    if (label) names.set(a.id, label);
   }
   return names;
 }
@@ -89,34 +115,58 @@ async function resolveActors(ids: string[]): Promise<Map<string, string>> {
  * lanțului, istoricul unei schimbări de furnizor ar deveni invizibil imediat ce cineva corectează
  * o cantitate — adică exact atunci când contează mai mult.
  */
-export async function auditHistoryForDoc(entity: string, docId: number, maxDepth = 10): Promise<AuditRow[]> {
+const HISTORY_LIMIT = 100;
+
+export async function auditHistoryForDoc(
+  entity: string, docId: number, maxDepth = 10,
+): Promise<{ rows: AuditRow[]; partial: boolean }> {
   const ids: number[] = [];
   let cur: number | null = Number(docId);
-  for (let i = 0; i < maxDepth && cur != null; i++) {
+  let depthHit = false;
+  for (let i = 0; ; i++) {
+    if (cur == null) break;
+    if (i >= maxDepth) { depthHit = true; break; } // lanț mai lung decât citim → istoric parțial, și o spunem
     ids.push(cur);
     // Documentul curent a apărut dintr-o corecție? Atunci predecesorul lui poartă restul urmei.
-    const res: { data: { before_data: AuditFields | null }[] | null } = await getSupabase()
-      .from('piese_audit_log')
+    // `.order` explicit: fără el, „primul" rând ar fi arbitrar dacă ar exista vreodată două verigi.
+    // Tipare explicită: fără ea, TS nu poate infera printr-o variabilă folosită în propria buclă.
+    const linkRes = await getSupabase().from('piese_audit_log')
       .select('before_data').eq('entity', entity).eq('entity_id', cur)
-      .not('before_data->>replaces_doc_id', 'is', null).limit(1);
-    const prev = (res.data || [])[0]?.before_data?.replaces_doc_id;
-    cur = prev == null ? null : Number(prev);
+      .not('before_data->>replaces_doc_id', 'is', null)
+      .order('created_at', { ascending: true }).limit(1);
+    const eLink = linkRes.error;
+    const link = linkRes.data as { before_data: AuditFields | null }[] | null;
+    // Eroarea NU se înghite: altfel lanțul s-ar opri tăcut, iar ecranul ar arăta un istoric incomplet
+    // ca și cum ar fi complet — exact confuzia pe care restul funcției o interzice.
+    if (eLink) throw new Error('Nu am putut urmări lanțul de corecții');
+    const prev: unknown = (link || [])[0]?.before_data?.replaces_doc_id;
+    const prevNum = Number(prev);
+    cur = prev == null || !Number.isFinite(prevNum) ? null : prevNum;
     if (cur != null && ids.includes(cur)) break; // gardă contra unui lanț circular
   }
 
   const { data, error } = await getSupabase().from('piese_audit_log')
-    .select('created_at, action, detail, admin_id, before_data, after_data, entity_id')
+    .select('created_at, action, detail, admin_id, actor_label, before_data, after_data, entity_id')
     .eq('entity', entity).in('entity_id', ids)
-    .order('created_at', { ascending: false }).limit(100);
+    .order('created_at', { ascending: false }).order('id', { ascending: false })
+    .limit(HISTORY_LIMIT + 1);
   // Aruncăm: „n-am putut citi urma" nu are voie să arate la fel ca „documentul n-a fost modificat".
   if (error) throw new Error('Nu am putut încărca istoricul modificărilor');
 
-  const rows = (data as any[]) || [];
-  const names = await resolveActors(Array.from(new Set(rows.map((r) => r.admin_id).filter(Boolean))));
+  const all = (data as any[]) || [];
+  const rows = all.slice(0, HISTORY_LIMIT);
+  return { rows: await toAuditRows(rows), partial: depthHit || all.length > HISTORY_LIMIT };
+}
+
+// Rândurile vechi (dinainte de migr. 293) n-au etichetă fotografiată — pentru ele o rezolvăm acum.
+async function toAuditRows(rows: any[]): Promise<AuditRow[]> {
+  const needLookup = rows.filter((r) => r.admin_id && !r.actor_label).map((r) => r.admin_id);
+  const names = await resolveActors(Array.from(new Set(needLookup)));
   return rows.map((r) => ({
     at: r.created_at as string,
     action: r.action as string,
-    who: r.admin_id ? (names.get(r.admin_id) || null) : null,
+    who: (r.actor_label as string) || (r.admin_id ? names.get(r.admin_id) || null : null),
+    hasActor: !!r.admin_id,
     before: (r.before_data as AuditFields) || null,
     after: (r.after_data as AuditFields) || null,
     notes: (r.detail as string) || null,
@@ -125,21 +175,16 @@ export async function auditHistoryForDoc(entity: string, docId: number, maxDepth
 }
 
 /** Istoricul unui SUBIECT non-numeric (ex. un cont administrativ, identificat prin uuid). */
-export async function auditHistoryForSubject(entity: string, subjectId: string): Promise<AuditRow[]> {
+export async function auditHistoryForSubject(
+  entity: string, subjectId: string,
+): Promise<{ rows: AuditRow[]; partial: boolean }> {
   const { data, error } = await getSupabase().from('piese_audit_log')
-    .select('created_at, action, detail, admin_id, before_data, after_data')
+    .select('created_at, action, detail, admin_id, actor_label, before_data, after_data')
     .eq('entity', entity).eq('subject_id', subjectId)
-    .order('created_at', { ascending: false }).limit(100);
+    .order('created_at', { ascending: false }).order('id', { ascending: false })
+    .limit(HISTORY_LIMIT + 1);
   if (error) throw new Error('Nu am putut încărca istoricul');
-  const rows = (data as any[]) || [];
-  const names = await resolveActors(Array.from(new Set(rows.map((r) => r.admin_id).filter(Boolean))));
-  return rows.map((r) => ({
-    at: r.created_at as string,
-    action: r.action as string,
-    who: r.admin_id ? (names.get(r.admin_id) || null) : null,
-    before: (r.before_data as AuditFields) || null,
-    after: (r.after_data as AuditFields) || null,
-    notes: (r.detail as string) || null,
-    docId: null,
-  }));
+  const all = (data as any[]) || [];
+  const rows = all.slice(0, HISTORY_LIMIT).map((r) => ({ ...r, entity_id: null }));
+  return { rows: await toAuditRows(rows), partial: all.length > HISTORY_LIMIT };
 }

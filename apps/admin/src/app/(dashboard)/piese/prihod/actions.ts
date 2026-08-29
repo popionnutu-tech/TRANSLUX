@@ -286,11 +286,3 @@ async function auditHeaderChange(
   await auditWrite({ adminId, action: 'EDIT_HEADER', entity: 'receipt', entityId: docId, before: diff.before, after: diff.after });
 }
 
-// Istoricul modificărilor unui document de recepție, pentru ecranul de modificare.
-export async function loadReceiptHistory(docId: number) {
-  const session = requireRole(await verifySession(), ...RECEIPT_ROLES);
-  const wh = await receiptDocWarehouse(Number(docId));
-  if (wh == null) throw new Error('Document inexistent');
-  await assertWarehouseAllowed(session, wh); // cont legat: doar documentele depozitului lui
-  return auditHistoryForDoc('receipt', Number(docId));
-}

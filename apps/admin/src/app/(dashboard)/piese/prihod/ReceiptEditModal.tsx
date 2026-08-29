@@ -10,7 +10,8 @@ type Opt = { id: number; label: string };
 type Line = { part_id: number | ''; label?: string; qty: number; unit_cost: number };
 type ConsumedBy = { docType: string; series: string | null; number: string | null; createdAt: string | null; qty: number };
 type Fields = Record<string, string | number | boolean | null>;
-type Hist = { at: string; action: string; who: string | null; before: Fields | null; after: Fields | null; notes: string | null; docId: number | null };
+type Hist = { at: string; action: string; who: string | null; hasActor: boolean; before: Fields | null; after: Fields | null; notes: string | null; docId: number | null };
+type History = { rows: Hist[]; partial: boolean };
 
 const FIELD_RO: Record<string, string> = {
   furnizor: 'furnizor', serie: 'serie', numar: 'număr', comentariu: 'comentariu',
@@ -24,12 +25,16 @@ const val = (v: unknown) => (v === null || v === undefined || v === '' ? '—' :
 function renderDiff(h: Hist): string {
   const after = h.after || {};
   const before = h.before || {};
-  const keys = Object.keys(after).filter((k) => k !== 'replaces_doc_id');
-  if (!keys.length && before.replaces_doc_id != null) return `corectat din documentul #${before.replaces_doc_id}`;
-  return keys.map((k) => {
+  const parts: string[] = [];
+  // Veriga lanțului se arată ÎNTOTDEAUNA când există: altfel omul n-ar afla niciodată că documentul
+  // pe care-l are în față înlocuiește un altul, iar urmele de dinainte i-ar părea rătăcite.
+  if (before.replaces_doc_id != null) parts.push(`înlocuiește documentul #${before.replaces_doc_id}`);
+  for (const k of Object.keys(after)) {
+    if (k === 'replaces_doc_id') continue;
     const label = FIELD_RO[k] || k;
-    return k in before ? `${label}: ${val(before[k])} → ${val(after[k])}` : `${label}: ${val(after[k])}`;
-  }).join('; ');
+    parts.push(k in before ? `${label}: ${val(before[k])} → ${val(after[k])}` : `${label}: ${val(after[k])}`);
+  }
+  return parts.join('; ');
 }
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -60,7 +65,7 @@ export default function ReceiptEditModal({ docId, suppliers, onClose, onSaved }:
   const [msg, setMsg] = useState<{ t: 'ok' | 'danger'; m: string } | null>(null);
   // Istoricul modificărilor (migr. 291). Se încarcă odată cu documentul: dacă cineva a schimbat ceva
   // înainte, cel care deschide ecranul trebuie să vadă asta ÎNAINTE să schimbe și el.
-  const [hist, setHist] = useState<Hist[] | null>([]); // null = urma n-a putut fi citită
+  const [hist, setHist] = useState<History | null>({ rows: [], partial: false }); // null = urma n-a putut fi citită
 
   useEffect(() => {
     let alive = true;
@@ -78,7 +83,7 @@ export default function ReceiptEditModal({ docId, suppliers, onClose, onSaved }:
         setCanEditLines(d.canEditLines);
         setCanEdit(d.canEdit);
         setConsumedBy(d.consumedBy || []);
-        setHist(d.history as Hist[] | null);
+        setHist(d.history as History | null);
       } catch (e: any) { if (alive) setErr(e?.message || 'Eroare la încărcare'); }
       finally { if (alive) setLoading(false); }
     })();
@@ -192,19 +197,20 @@ export default function ReceiptEditModal({ docId, suppliers, onClose, onSaved }:
             {hist === null && (
               <div className="alert warn" style={{ marginTop: 14 }}>Nu am putut citi istoricul modificărilor. Nu înseamnă că documentul n-a fost modificat.</div>
             )}
-            {hist !== null && hist.length > 0 && (
+            {hist !== null && hist.rows.length > 0 && (
               <div style={{ marginTop: 14, borderTop: '1px solid var(--pline, #eee)', paddingTop: 10 }}>
                 <h3 style={{ margin: '0 0 6px', fontSize: 14 }}>Modificări anterioare</h3>
                 <table>
                   <thead><tr><th style={{ width: 130 }}>Când</th><th style={{ width: 150 }}>Cine</th><th>Ce</th></tr></thead>
                   <tbody>
-                    {hist.map((h, i) => (
+                    {hist.rows.map((h, i) => (
                       <tr key={i}>
                         <td className="muted">{dt(h.at)}</td>
-                        <td>{h.who || <span className="muted">necunoscut</span>}</td>
+                        {/* „sistem" (scris de motorul bazei, fără autor) NU trebuie să arate ca „cont fără nume". */}
+                        <td>{h.who || <span className="muted">{h.hasActor ? 'cont fără nume' : 'sistem'}</span>}</td>
                         <td className="muted">
                           {ACTION_RO[h.action] || h.action}
-                          {renderDiff(h) ? ` — ${renderDiff(h)}` : ''}
+                          {(() => { const d = renderDiff(h); return d ? ` — ${d}` : ''; })()}
                           {/* Urma poate veni de pe un document anterior din lanțul de corecții. */}
                           {h.docId != null && h.docId !== docId && <span className="muted"> (doc. #{h.docId})</span>}
                         </td>
@@ -212,6 +218,11 @@ export default function ReceiptEditModal({ docId, suppliers, onClose, onSaved }:
                     ))}
                   </tbody>
                 </table>
+                {hist.partial && (
+                  <p className="muted" style={{ marginTop: 6, marginBottom: 0, fontSize: 12 }}>
+                    Istoric parțial — există modificări mai vechi care nu încap în această listă.
+                  </p>
+                )}
               </div>
             )}
 

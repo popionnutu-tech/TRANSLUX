@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
 import { DEPOT_BOUND_ROLES, SELLER_SCOPED_ROLES, MAX_EDIT_WINDOW_DAYS, EDIT_WINDOW_ROLES } from '@/lib/piese-roles';
-import { auditWrite } from '@/lib/audit';
+import { auditWrite, changedFields } from '@/lib/audit';
 import type { User, UserRole, InviteToken, PointEnum, AdminRole } from '@translux/db';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
@@ -92,14 +92,15 @@ export async function updateAdminWarehouse(id: string, warehouseId: number | nul
   const db = getSupabase();
   // Defense-in-depth: doar rolurile de depozit (DEPOT_BOUND_ROLES) pot fi legate; pentru celelalte, warehouse_id nu are efect
   // (userWarehouseId le tratează oricum ca „toate"), deci refuzăm setarea ca să nu rămână date derutante în DB.
-  const { data: acc } = await db.from('admin_accounts').select('role').eq('id', id).maybeSingle();
+  const { data: acc } = await db.from('admin_accounts').select('role, warehouse_id').eq('id', id).maybeSingle();
   if (!acc) throw new Error('Cont inexistent');
   const isBound = DEPOT_BOUND_ROLES.includes((acc as { role: AdminRole }).role);
   const value = warehouseId == null || Number.isNaN(Number(warehouseId)) ? null : Number(warehouseId);
   if (value != null && !isBound) throw new Error('Doar conturile de depozit pot fi legate de un depozit');
   const { error } = await db.from('admin_accounts').update({ warehouse_id: value }).eq('id', id);
   if (error) throw new Error(error.message);
-  await auditWrite({ adminId: session.id, action: 'WAREHOUSE', entity: 'admin_account', subjectId: id, after: { warehouse_id: value } });
+  const dPrev = (acc as { warehouse_id: number | null }).warehouse_id;
+  if (dPrev !== value) await auditWrite({ adminId: session.id, action: 'WAREHOUSE', entity: 'admin_account', subjectId: id, before: { depozit: dPrev }, after: { depozit: value } });
   revalidatePath('/users');
 }
 
@@ -114,9 +115,10 @@ export async function updateAdminRole(id: string, role: string): Promise<void> {
   if (!VALID_ADMIN_ROLES.includes(role)) throw new Error('Rol invalid');
 
   const db = getSupabase();
-  const { data: acc } = await db.from('admin_accounts').select('role').eq('id', id).maybeSingle();
+  const { data: acc } = await db.from('admin_accounts').select('role, edit_window_days, sees_all_invoices, warehouse_id').eq('id', id).maybeSingle();
   if (!acc) throw new Error('Cont inexistent');
-  const current = (acc as { role: AdminRole }).role;
+  const prev = acc as { role: AdminRole; edit_window_days: number; sees_all_invoices: boolean; warehouse_id: number | null };
+  const current = prev.role;
   if (current === role) return;
 
   // Nu lăsăm sistemul fără administrator (acoperă și auto-retrogradarea propriului cont).
@@ -145,12 +147,20 @@ export async function updateAdminRole(id: string, role: string): Promise<void> {
   if (error) throw new Error(error.message);
   // Acordarea/retragerea unui drept lasă urmă: altfel nu se poate verifica retroactiv că o lărgire
   // temporară a fost și retrasă. `entityId: 0` — subiectul e un cont (uuid), care stă în `detail`.
-  // Resetarea drepturilor fine e un EFECT LATERAL al schimbării de rol — dacă n-ar apărea în urmă,
-  // exact retragerea unei lărgiri temporare ar fi cazul care nu se vede.
-  await auditWrite({
-    adminId: session.id, action: 'ROLE', entity: 'admin_account', subjectId: id,
-    before: { rol: current }, after: { rol: role, sees_all_invoices: false, edit_window_days: 0 },
-  });
+  // Consemnăm PATCH-ul efectiv aplicat, nu o replică scrisă de mână a lui: dacă regula de resetare se
+  // schimbă vreodată, urma o urmează automat. Un jurnal care afirmă un efect vechi e mai rău decât lipsa lui.
+  // Valorile de DINAINTE sunt esențiale: fără ele nu se distinge 30 → 0 de 0 → 0, adică exact retragerea
+  // unei lărgiri temporare, cazul pentru care s-a făcut jurnalul.
+  const diff = changedFields(
+    { rol: current, sees_all_invoices: prev.sees_all_invoices, edit_window_days: prev.edit_window_days, depozit: prev.warehouse_id },
+    {
+      rol: role,
+      ...(patch.sees_all_invoices !== undefined ? { sees_all_invoices: patch.sees_all_invoices } : {}),
+      ...(patch.edit_window_days !== undefined ? { edit_window_days: patch.edit_window_days } : {}),
+      ...(patch.warehouse_id !== undefined ? { depozit: patch.warehouse_id } : {}),
+    },
+  );
+  if (diff) await auditWrite({ adminId: session.id, action: 'ROLE', entity: 'admin_account', subjectId: id, before: diff.before, after: diff.after });
   revalidatePath('/users');
 }
 
@@ -164,7 +174,7 @@ export async function updateAdminEditWindow(id: string, days: number): Promise<v
   const d = Math.trunc(Number(days));
   if (!Number.isFinite(d) || d < 0 || d > MAX_EDIT_WINDOW_DAYS) throw new Error(`Fereastra trebuie să fie între 0 și ${MAX_EDIT_WINDOW_DAYS} de zile`);
   const db = getSupabase();
-  const { data: acc } = await db.from('admin_accounts').select('role').eq('id', id).maybeSingle();
+  const { data: acc } = await db.from('admin_accounts').select('role, edit_window_days').eq('id', id).maybeSingle();
   if (!acc) throw new Error('Cont inexistent'); // altfel UPDATE-ul pe 0 rânduri ar raporta fals „salvat"
   // Ca la depozit și la vizibilitatea facturilor: refuzăm setarea pe un rol unde n-are efect, ca să nu rămână
   // în DB o stare latentă care s-ar activa la o viitoare rotație de rol. Doar rolurile care chiar corectează
@@ -173,7 +183,8 @@ export async function updateAdminEditWindow(id: string, days: number): Promise<v
   if (d > 0 && !EDIT_WINDOW_ROLES.includes(accRole)) throw new Error('Doar depozitarul și gestionarul corectează recepții; pentru restul fereastra n-are efect');
   const { error } = await db.from('admin_accounts').update({ edit_window_days: d }).eq('id', id);
   if (error) throw new Error(error.message);
-  await auditWrite({ adminId: session.id, action: 'EDIT_WINDOW', entity: 'admin_account', subjectId: id, after: { edit_window_days: d } });
+  const wPrev = (acc as { edit_window_days: number }).edit_window_days;
+  if (wPrev !== d) await auditWrite({ adminId: session.id, action: 'EDIT_WINDOW', entity: 'admin_account', subjectId: id, before: { edit_window_days: wPrev }, after: { edit_window_days: d } });
   revalidatePath('/users');
 }
 
@@ -183,7 +194,7 @@ export async function updateAdminInvoiceVisibility(id: string, seesAll: boolean)
   const session = await verifySession();
   if (!session || session.role !== 'ADMIN') throw new Error('Acces interzis');
   const db = getSupabase();
-  const { data: acc } = await db.from('admin_accounts').select('role').eq('id', id).maybeSingle();
+  const { data: acc } = await db.from('admin_accounts').select('role, sees_all_invoices').eq('id', id).maybeSingle();
   if (!acc) throw new Error('Cont inexistent');
   // Ca la depozit: refuzăm setarea pe un rol unde n-are efect, ca să nu rămână în DB o stare latentă
   // care s-ar activa la o viitoare schimbare de rol.
@@ -191,7 +202,8 @@ export async function updateAdminInvoiceVisibility(id: string, seesAll: boolean)
   if (seesAll && !isScoped) throw new Error('Doar vânzătorul și gestionarul sunt limitați la facturile lor; pentru restul nu are efect');
   const { error } = await db.from('admin_accounts').update({ sees_all_invoices: !!seesAll }).eq('id', id);
   if (error) throw new Error(error.message);
-  await auditWrite({ adminId: session.id, action: 'INVOICE_VISIBILITY', entity: 'admin_account', subjectId: id, after: { sees_all_invoices: !!seesAll } });
+  const vPrev = !!(acc as { sees_all_invoices: boolean }).sees_all_invoices;
+  if (vPrev !== !!seesAll) await auditWrite({ adminId: session.id, action: 'INVOICE_VISIBILITY', entity: 'admin_account', subjectId: id, before: { sees_all_invoices: vPrev }, after: { sees_all_invoices: !!seesAll } });
   revalidatePath('/users');
 }
 

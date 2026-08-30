@@ -8,7 +8,7 @@ import { key, type Suggestion } from '@/lib/voice-locality';
 const MAX_PER_CALL = 5;
 
 export async function logUnknownLocalities(
-  tool: 'search-trips' | 'get-price' | 'get-schedule',
+  tool: 'search-trips' | 'get-price' | 'get-schedule' | 'find-past-trip',
   unknown: string[],
   suggestions: Record<string, Suggestion[]>,
 ): Promise<void> {

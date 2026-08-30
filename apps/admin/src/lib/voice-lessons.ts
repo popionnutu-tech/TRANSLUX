@@ -16,7 +16,8 @@ export type LessonCandidate = {
 
 const LESSON_SYSTEM = `Ești un analist de transcrieri telefonice pentru compania de transport TRANSLUX (Moldova).
 Sarcina: găsește locurile unde CLIENTUL CORECTEAZĂ EXPLICIT ceva afirmat de AGENT — ora, data, un refuz de rută dat greșit, numărul de telefon, un nume. Corecție explicită = clientul contrazice sau corectează direct («нет, я сказал…», repetă apăsat același lucru, «не туда»).
-Răspunde DOAR cu JSON: {"lessons":[{"type":"time"|"date"|"route_refusal"|"phone"|"name"|"other","what_agent_did":"<ce a afirmat agentul>","what_client_corrected":"<ce a corectat clientul>","quote":"<citat scurt din dialog>","summary_ru":"<o propoziție pe rusă pentru administrator: ce a greșit agentul și ce era corect>"}]}
+Cazul aparte «lost_item»: clientul a UITAT/PIERDUT un obiect în autobuz, iar agentul l-a tratat greșit (refuz de rută, număr de șofer greșit, «am notat» fără urmare) — folosește type «lost_item», NU «route_refusal».
+Răspunde DOAR cu JSON: {"lessons":[{"type":"time"|"date"|"route_refusal"|"phone"|"name"|"lost_item"|"other","what_agent_did":"<ce a afirmat agentul>","what_client_corrected":"<ce a corectat clientul>","quote":"<citat scurt din dialog>","summary_ru":"<o propoziție pe rusă pentru administrator: ce a greșit agentul și ce era corect>"}]}
 Reguli stricte: DOAR corecții explicite prezente în dialog, fără deducții. Nume de localități stâlcite NU se raportează aici — au canalul lor separat. Nemulțumiri generale fără corecție concretă nu se raportează. Maxim 3 lecții.`;
 
 export function buildLessonPrompt(negativeSummaries: string[]): string {

@@ -40,7 +40,7 @@ const FALLBACK_KEYWORDS = [
 // Позиция вставки кэш НЕ спасает: точка кэша одна, на весь system.
 // Markerele TREBUIE să fie unice: un marker care apare și în alt bloc face detectorul
 // orb la ștergerea blocului propriu (ORELE a fost mascat de titlul blocului ZIUA).
-const PROMPT_MARKERS = ['ORELE — DOSLOVEN', 'UNIVERSUL localităților', 'Doriți numărul lui?', 'A DOUA OARĂ LA RÂND', 'ZIUA — DOSLOVEN', 'e un CORIDOR', 'SFÂRȘIT NUME RUSEȘTI', 'APEL ÎNAPOI — NICIO PROMISIUNE', 'STAȚIA CHIȘINĂU — AUTOGARA TRANSLUX', 'STAȚIA BĂLȚI — PEROANELE', 'ORA SOSIRII — NU SE SPUNE'];
+const PROMPT_MARKERS = ['ORELE — DOSLOVEN', 'UNIVERSUL localităților', 'Doriți numărul lui?', 'A DOUA OARĂ LA RÂND', 'ZIUA — DOSLOVEN', 'e un CORIDOR', 'SFÂRȘIT NUME RUSEȘTI', 'APEL ÎNAPOI — NICIO PROMISIUNE', 'STAȚIA CHIȘINĂU — AUTOGARA TRANSLUX', 'STAȚIA BĂLȚI — PEROANELE', 'ORA SOSIRII — NU SE SPUNE', 'LUCRURI UITATE — DOAR ȘOFERUL IDENTIFICAT'];
 const ORELE_BLOCK = `
 
 ORELE — DOSLOVEN DIN TOOL:
@@ -170,6 +170,40 @@ const SOSIREA_BLOCK_RU = `
 - Клиент спрашивает, когда приедет? Коротко скажи, что время прибытия зависит от дороги и обещать его нельзя, затем повтори время отправления.
 - Время отправления произносишь ТОЛЬКО из поля departure_spoken_ru результата tool-а — слово в слово. НИКОГДА не преобразуй HH:MM в слова сама.`;
 
+// Lucruri uitate. 11 apeluri în 10 zile (21–30.08), jumătate din coada de callback.
+// Incident 29.08 (9ab2043d): search_trips ascunde cursele plecate, agentul a dat
+// numărul șoferului cursei de seară unei cliente care mersese la amiază — om străin.
+// Decizia lui Ion 30.08: obiectul rămâne la șofer; agentul identifică șoferul CORECT
+// (rută+zi+oră SAU număr de mașină SAU nume) cu tool-ul find_past_trip și dă numărul
+// DOAR la un singur candidat. Eталon: agent-config.mjs, secțiunea LUCRURI UITATE —
+// se schimbă împreună, același commit.
+const LUCRURI_BLOCK = `
+
+LUCRURI UITATE — DOAR ȘOFERUL IDENTIFICAT:
+- Clientul a uitat sau a pierdut ORICE obiect în autobuz (geantă, telefon, acte, pachet)? Obiectul rămâne la șofer. Tu identifici șoferul corect și dai clientului numărul lui — atât.
+- Folosește DOAR tool-ul find_past_trip, NICIODATĂ search_trips: search_trips vede doar cursele viitoare, cursa cu obiectul a plecat deja.
+- Strânge ce știe clientul (maximum 3 întrebări, câte una pe replică): ruta, ziua («ieri», «alaltăieri», ziua săptămânii — trimite CUVÂNTUL în «date», serverul îl rezolvă înapoi), ora aproximativă («departure»), numărul mașinii («plate», merge și parțial), numele șoferului («driver_name»).
+- count = 1 → citește DOSLOVEN driver_line_ro / driver_line_ru.
+- count > 1 → enumeră candidații și cere detaliul care alege unul; recheamă tool-ul. Numărul se dă DOAR la UN singur candidat.
+- count = 0 → citește DOSLOVEN company_phone_line_ro / company_phone_line_ru. Excepție: răspunsul are unknown_locality — atunci ÎNTÂI clarifici localitatea după mesajul lui și recherci. NU da NICIODATĂ numărul unui șofer «apropiat» sau «de pe aceeași rută» — e un om străin de problema clientului.
+- need_more = true → pui întrebarea din result_ro/result_ru și rechemi tool-ul cu răspunsul. NU citești company_phone_line și NU închizi discuția.
+- NU promite că suni tu șoferul, că cineva caută obiectul sau că cineva sună înapoi. NU spune «am notat».
+- NU chema request_callback pentru lucruri uitate — regula generală «nu ai informația → oferă request_callback» NU se aplică aici: cazul se rezolvă cu find_past_trip.`;
+
+const LUCRURI_MARKER_RU = 'ЗАБЫТЫЕ ВЕЩИ — ТОЛЬКО ОПОЗНАННЫЙ ВОДИТЕЛЬ';
+const LUCRURI_BLOCK_RU = `
+
+ЗАБЫТЫЕ ВЕЩИ — ТОЛЬКО ОПОЗНАННЫЙ ВОДИТЕЛЬ:
+- Клиент забыл или потерял ЛЮБУЮ вещь в автобусе (сумку, телефон, документы, пакет)? Вещь остаётся у водителя. Ты определяешь правильного водителя и даёшь клиенту его номер — всё.
+- Используй ТОЛЬКО инструмент find_past_trip, НИКОГДА search_trips: search_trips видит только будущие рейсы, а рейс с вещью уже ушёл.
+- Собери, что клиент помнит (максимум 3 вопроса, по одному за реплику): маршрут, день («вчера», «позавчера», день недели — отправь СЛОВО в «date», сервер сам решит назад), примерное время («departure»), номер машины («plate», можно частично), имя водителя («driver_name»).
+- count = 1 → читай ДОСЛОВНО driver_line_ru.
+- count > 1 → перечисли кандидатов и попроси деталь, которая выберет одного; вызови инструмент снова. Номер даётся ТОЛЬКО при ОДНОМ кандидате.
+- count = 0 → читай ДОСЛОВНО company_phone_line_ru. Исключение: в ответе есть unknown_locality — тогда СНАЧАЛА уточни населённый пункт по его сообщению и повтори поиск. НИКОГДА не давай номер «похожего» водителя или «с того же маршрута» — это чужой человек.
+- need_more = true → задай вопрос из result_ru и вызови инструмент снова с ответом. НЕ читай company_phone_line и НЕ завершай разговор.
+- НЕ обещай, что ты позвонишь водителю, что кто-то ищет вещь или перезвонит. НЕ говори «беру на заметку» — здесь ничего не записывается, здесь опознаётся водитель.
+- НЕ вызывай request_callback для забытых вещей — общее правило «нет информации → предложи request_callback» здесь НЕ действует: случай решается через find_past_trip.`;
+
 const LIMBA_BLOCK = `
 
 LIMBA — A DOUA OARĂ LA RÂND:
@@ -212,6 +246,31 @@ const OBSOLETE_BLOCKS = [
 ];
 
 type Drift = { field: string; healed: boolean };
+
+// Tool-ul lucrurilor uitate e workspace tool legat prin tool_ids — dashboard-ul îl
+// poate dezlega tăcut, iar promptul ar cere atunci un tool inexistent (review M6).
+// Id-ul se caută o dată pe rulare; lipsa TOOL-ului din workspace = drift nevindecat
+// (crearea e treaba scriptului add-find-past-trip-tool.mjs, nu a controlerului).
+async function findPastTripToolId(): Promise<string | null> {
+  try {
+    const list = await elGet('/v1/convai/tools?search=find_past_trip&page_size=10');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hit = (((list as any).tools ?? []) as any[]).find((t) => t.tool_config?.name === 'find_past_trip');
+    return hit?.id ?? null;
+  } catch { return null; }
+}
+
+// Relegarea tool-ului dacă a dispărut din tool_ids. PATCH separat de restul
+// (tool_ids e listă — merge-ul per-cheie o înlocuiește integral, deci trimitem
+// lista completă). Idempotent: legat deja = niciun apel.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function healToolBinding(cfg: any, toolId: string | null, agentId: string, fieldPrefix: string): Promise<Drift[]> {
+  if (!toolId) return [{ field: `${fieldPrefix}.workspace_tool_missing`, healed: false }];
+  const ids: string[] = cfg?.conversation_config?.agent?.prompt?.tool_ids ?? [];
+  if (ids.includes(toolId)) return [];
+  await elPatchAgent({ conversation_config: { agent: { prompt: { tool_ids: [...ids, toolId] } } } }, agentId);
+  return [{ field: `${fieldPrefix}.tool_ids`, healed: true }];
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function checkAndHealConfig(cfg: any): Promise<Drift[]> {
@@ -280,6 +339,7 @@ async function checkAndHealConfig(cfg: any): Promise<Drift[]> {
     { marker: 'STAȚIA CHIȘINĂU — AUTOGARA TRANSLUX', block: STATIA_BLOCK, field: 'prompt.STATIA' },
     { marker: 'STAȚIA BĂLȚI — PEROANELE', block: BALTI_BLOCK, field: 'prompt.BALTI' },
     { marker: 'ORA SOSIRII — NU SE SPUNE', block: SOSIREA_BLOCK, field: 'prompt.SOSIREA' },
+    { marker: 'LUCRURI UITATE — DOAR ȘOFERUL IDENTIFICAT', block: LUCRURI_BLOCK, field: 'prompt.LUCRURI' },
   ];
   let healedPrompt = prompt;
   for (const ob of OBSOLETE_BLOCKS) {
@@ -329,11 +389,13 @@ async function checkAndHealConfig(cfg: any): Promise<Drift[]> {
 
 // Лечение RU-агента: ТОЛЬКО станция (см. комментарий у STATIA_BLOCK_RU).
 // Идемпотентно: надгробие — точное совпадение, блок — по маркеру.
-async function healRuStation(): Promise<Drift[]> {
+async function healRuStation(lostToolId: string | null): Promise<Drift[]> {
   const cfg = await elGet(`/v1/convai/agents/${RU_AGENT_ID}`);
+  // Legarea find_past_trip la RU — pe config-ul deja citit, fără GET suplimentar.
+  const bindDrifts = await healToolBinding(cfg, lostToolId, RU_AGENT_ID, 'ru.tools.find_past_trip');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const prompt: string = (cfg as any).conversation_config?.agent?.prompt?.prompt ?? '';
-  if (!prompt) return [{ field: 'ru.prompt.empty', healed: false }];
+  if (!prompt) return [...bindDrifts, { field: 'ru.prompt.empty', healed: false }];
   let healed = prompt;
   if (healed.includes(STATIA_OBSOLETE_RU)) healed = healed.replace(STATIA_OBSOLETE_RU, '');
   if (healed.includes(BALTI_OBSOLETE_RU)) healed = healed.replace(BALTI_OBSOLETE_RU, '');
@@ -345,15 +407,16 @@ async function healRuStation(): Promise<Drift[]> {
   // interdicție, deci îl scoatem înainte de test (altfel alarmă falsă la fiecare rulare).
   const inAfara = healed.replace(STATIA_BLOCK_RU, '');
   if (inAfara.includes('Северный автовокзал') || inAfara.includes('Автогара Норд')) {
-    return [{ field: 'ru.prompt.STATIA', healed: false }];
+    return [...bindDrifts, { field: 'ru.prompt.STATIA', healed: false }];
   }
   const vindecate: string[] = [];
   if (!healed.includes(STATIA_MARKER_RU)) { healed += STATIA_BLOCK_RU; vindecate.push('ru.prompt.STATIA'); }
   if (!healed.includes(BALTI_MARKER_RU)) { healed += BALTI_BLOCK_RU; vindecate.push('ru.prompt.BALTI'); }
   if (!healed.includes(SOSIREA_MARKER_RU)) { healed += SOSIREA_BLOCK_RU; vindecate.push('ru.prompt.SOSIREA'); }
-  if (healed === prompt) return [];
+  if (!healed.includes(LUCRURI_MARKER_RU)) { healed += LUCRURI_BLOCK_RU; vindecate.push('ru.prompt.LUCRURI'); }
+  if (healed === prompt) return bindDrifts;
   await elPatchAgent({ conversation_config: { agent: { prompt: { prompt: healed } } } }, RU_AGENT_ID);
-  return (vindecate.length ? vindecate : ['ru.prompt.STATIA']).map((f) => ({ field: f, healed: true }));
+  return [...bindDrifts, ...(vindecate.length ? vindecate : ['ru.prompt.STATIA']).map((f) => ({ field: f, healed: true }))];
 }
 
 // ---- Обратный парсер времён из речи агента (таблицы — из time-spoken) ----
@@ -516,12 +579,22 @@ export async function runVoiceController(): Promise<{ drifts: Drift[]; incidents
   await auditAliasShadow();
   await syncCanonKeywords();
 
-  const cfg = await elGet(`/v1/convai/agents/${AGENT_ID}`);
+  // GET-ul listei de tool-uri nu depinde de config — merge în paralel (perf LOW).
+  const [cfg, lostToolId] = await Promise.all([
+    elGet(`/v1/convai/agents/${AGENT_ID}`),
+    findPastTripToolId(),
+  ]);
   const drifts = await checkAndHealConfig(cfg);
+  try {
+    drifts.push(...await healToolBinding(cfg, lostToolId, AGENT_ID, 'tools.find_past_trip'));
+  } catch (e) {
+    console.error('[voice-controller] tool-binding ro:', e);
+    drifts.push({ field: 'tools.find_past_trip.error', healed: false });
+  }
 
   // RU-агент: точечное лечение станции. Падение RU-ветки не должно ронять прогон.
   try {
-    drifts.push(...await healRuStation());
+    drifts.push(...await healRuStation(lostToolId));
   } catch (e) {
     console.error('[voice-controller] ru-station:', e);
     // În jurnal, nu doar în log: altfel o cheie/ID căzut tace 48 de prognoane/zi.

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { dateSpoken, resolveVoiceDate } from './date-spoken';
+import { dateSpoken, resolveVoiceDate, resolveVoiceDatePast } from './date-spoken';
 
 describe('dateSpoken', () => {
   it('marchează ziua curentă drept «azi» / «сегодня» (apelul Bălți→Ocnița, 24.08)', () => {
@@ -119,5 +119,56 @@ describe('resolveVoiceDate — doar ziua, fără lună și an', () => {
   it('numere imposibile cad pe azi', () => {
     expect(resolveVoiceDate('32', '2026-08-24')).toBe('2026-08-24');
     expect(resolveVoiceDate('0', '2026-08-24')).toBe('2026-08-24');
+  });
+});
+
+// ---- Rezolvarea ÎNAPOI (lucruri uitate) ----
+// 2026-08-30 e duminică.
+describe('resolveVoiceDatePast', () => {
+  const TODAY = '2026-08-30';
+
+  it('«ieri»/«вчера»/«alaltăieri»/«позавчера» merg înapoi', () => {
+    expect(resolveVoiceDatePast('ieri', TODAY)).toBe('2026-08-29');
+    expect(resolveVoiceDatePast('вчера', TODAY)).toBe('2026-08-29');
+    expect(resolveVoiceDatePast('alaltăieri', TODAY)).toBe('2026-08-28');
+    expect(resolveVoiceDatePast('позавчера', TODAY)).toBe('2026-08-28');
+  });
+
+  it('«azi» sau nimic rostit cad pe azi (obiectul se uită cel mai des azi)', () => {
+    expect(resolveVoiceDatePast('azi', TODAY)).toBe(TODAY);
+    expect(resolveVoiceDatePast('', TODAY)).toBe(TODAY);
+    expect(resolveVoiceDatePast(undefined, TODAY)).toBe(TODAY);
+  });
+
+  it('rostit dar nerecunoscut → null, nu «azi» tăcut (audit H2: azi ar da alt șofer)', () => {
+    expect(resolveVoiceDatePast('cândva', TODAY)).toBe(null);
+    expect(resolveVoiceDatePast('acum trei zile', TODAY)).toBe(null);
+    expect(resolveVoiceDatePast('32', TODAY)).toBe(null);
+  });
+
+  it('ziua săptămânii = cea mai recentă apariție, azi inclus', () => {
+    expect(resolveVoiceDatePast('sâmbătă', TODAY)).toBe('2026-08-29');
+    expect(resolveVoiceDatePast('в субботу', TODAY)).toBe('2026-08-29');
+    // Duminică rostit duminica = azi, nu acum o săptămână.
+    expect(resolveVoiceDatePast('duminică', TODAY)).toBe(TODAY);
+    expect(resolveVoiceDatePast('luni', TODAY)).toBe('2026-08-24');
+  });
+
+  it('doar numărul zilei = cea mai recentă zi cu acest număr, ÎNAPOI (nu 22 septembrie!)', () => {
+    expect(resolveVoiceDatePast('22', '2026-08-24')).toBe('2026-08-22');
+    expect(resolveVoiceDatePast('24', '2026-08-24')).toBe('2026-08-24');
+    // Peste graniță de lună: «31» rostit pe 2 septembrie = 31 august.
+    expect(resolveVoiceDatePast('31', '2026-09-02')).toBe('2026-08-31');
+  });
+
+  it('zi.lună: viitorul cade pe anul trecut', () => {
+    expect(resolveVoiceDatePast('22.08', TODAY)).toBe('2026-08-22');
+    expect(resolveVoiceDatePast('15.12', TODAY)).toBe('2025-12-15');
+  });
+
+  it('ISO trecut trece, ISO VIITOR se taie la azi (modelul nu știe ce zi e), invalid → null', () => {
+    expect(resolveVoiceDatePast('2026-08-25', TODAY)).toBe('2026-08-25');
+    expect(resolveVoiceDatePast('2026-09-05', TODAY)).toBe(TODAY);
+    expect(resolveVoiceDatePast('2026-02-31', TODAY)).toBe(null);
   });
 });

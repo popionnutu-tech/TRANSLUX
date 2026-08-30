@@ -122,9 +122,11 @@ export function resolveVoiceDate(raw: string | undefined | null, todayIso: strin
     return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === w ? w : todayIso;
   }
 
-  if (w in RELATIVE_DAYS) return addDays(todayIso, RELATIVE_DAYS[w]);
+  // Object.hasOwn, nu `in`: «constructor» din prototip trecea drept zi și
+  // toISOString arunca — 500 pe apel viu (security M4; tiparul din driver-name).
+  if (Object.hasOwn(RELATIVE_DAYS, w)) return addDays(todayIso, RELATIVE_DAYS[w]);
 
-  if (w in WEEKDAYS) {
+  if (Object.hasOwn(WEEKDAYS, w)) {
     const today = new Date(`${todayIso}T12:00:00Z`);
     if (Number.isNaN(today.getTime())) return todayIso;
     // 1..7: «sâmbătă» rostit sâmbăta înseamnă sâmbăta viitoare — pentru azi
@@ -173,4 +175,86 @@ export function resolveVoiceDate(raw: string | undefined | null, todayIso: strin
   }
 
   return todayIso;
+}
+
+// ---- Rezolvarea zilei în TRECUT (lucruri uitate) ----
+// resolveVoiceDate e croit pe vânzare și rezolvă totul ÎNAINTE («22» rostit pe 24.08
+// = 22 septembrie). Cursa în care s-a uitat un obiect e mereu în urmă — de aceea
+// resolverul de aici e SEPARAT: «ieri»/«вчера» există, ziua săptămânii și numărul
+// zilei se caută ÎNAPOI. Tool-ul de vânzare nu-l atinge.
+
+const RELATIVE_DAYS_PAST: Record<string, number> = {
+  azi: 0, astazi: 0, today: 0, сегодня: 0,
+  ieri: -1, yesterday: -1, вчера: -1,
+  alaltaieri: -2, позавчера: -2,
+};
+
+/**
+ * Ziua cursei TRECUTE, din ce a rostit clientul. Acceptă:
+ *   «azi»/«ieri»/«alaltăieri» și echivalentele ruse, ziua săptămânii (cea mai
+ *   recentă apariție, azi inclus), DOAR ziua («22» — cea mai recentă zi cu acest
+ *   număr, azi inclus), «22.08» (dacă pică în viitor — anul trecut) și YYYY-MM-DD
+ *   (viitorul se taie la azi — modelul nu știe ce zi e).
+ * Nimic rostit → azi (obiectele se uită cel mai des în cursa de azi).
+ * Rostit dar NERECUNOSCUT («acum trei zile») → null: aici «azi» tăcut ar da
+ * numărul unui șofer greșit cu toată încrederea (audit H2) — apelantul întreabă.
+ */
+export function resolveVoiceDatePast(raw: string | undefined | null, todayIso: string): string | null {
+  if (!raw) return todayIso;
+  const w = normalizeWord(String(raw));
+  if (!w) return todayIso;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(w)) {
+    const d = new Date(`${w}T12:00:00Z`);
+    if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== w) return null;
+    return w <= todayIso ? w : todayIso;
+  }
+
+  if (Object.hasOwn(RELATIVE_DAYS_PAST, w)) return addDays(todayIso, RELATIVE_DAYS_PAST[w]);
+
+  if (Object.hasOwn(WEEKDAYS, w)) {
+    const today = new Date(`${todayIso}T12:00:00Z`);
+    if (Number.isNaN(today.getTime())) return todayIso;
+    // 0..-6: «sâmbătă» rostit sâmbăta = azi (cursa de mai devreme), altfel cea trecută.
+    const delta = -((today.getUTCDay() - WEEKDAYS[w] + 7) % 7);
+    return addDays(todayIso, delta);
+  }
+
+  // DOAR ziua («pe douăzeci și doi») — cea mai recentă zi cu acest număr, ÎNAPOI.
+  const dOnly = w.match(/^(\d{1,2})$/);
+  if (dOnly) {
+    const day = Number(dOnly[1]);
+    if (day >= 1 && day <= 31) {
+      let year = Number(todayIso.slice(0, 4));
+      let month = Number(todayIso.slice(5, 7));
+      for (let i = 0; i < 24; i++) {
+        const iso = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const probe = new Date(`${iso}T12:00:00Z`);
+        if (!Number.isNaN(probe.getTime()) && probe.toISOString().slice(0, 10) === iso && iso <= todayIso) {
+          return iso;
+        }
+        month -= 1;
+        if (month < 1) { month = 12; year -= 1; }
+      }
+    }
+    return null;
+  }
+
+  // Zi-lună («22.08»): anul curent; dacă pică în viitor — anul trecut.
+  const dm = w.match(/^(\d{1,2})[.\-/](\d{1,2})$/);
+  if (dm) {
+    const day = Number(dm[1]);
+    const month = Number(dm[2]);
+    if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
+      const year = Number(todayIso.slice(0, 4));
+      const iso = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const probe = new Date(`${iso}T12:00:00Z`);
+      if (!Number.isNaN(probe.getTime()) && probe.toISOString().slice(0, 10) === iso) {
+        return iso <= todayIso ? iso : `${year - 1}${iso.slice(4)}`;
+      }
+    }
+    return null;
+  }
+
+  return null;
 }

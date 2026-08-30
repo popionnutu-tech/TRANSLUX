@@ -72,6 +72,36 @@ Când clientul vrea să vorbească cu un om, are o reclamație de transmis sau t
   - conversation_id = {{system__conversation_id}}
   - reason = motivul, scurt, în română
 
+Când clientul a UITAT sau a PIERDUT ceva în autobuz (geantă, telefon, acte, pachet — ORICE obiect):
+→ Folosește find_past_trip(from, to, date, departure, plate, driver_name) — vezi secțiunea LUCRURI UITATE
+
+═══════════════════════════════════
+LUCRURI UITATE ÎN AUTOBUZ
+═══════════════════════════════════
+Se aplică la ORICE obiect uitat sau pierdut în mașină: geantă, telefon, acte, pachet, umbrelă etc.
+Obiectul rămâne la șofer. Rolul tău: împreună cu clientul identifici ȘOFERUL CORECT și îi dai clientului numărul lui — clientul se înțelege apoi direct cu șoferul.
+
+1. Arată empatie O DATĂ, scurt, apoi treci la treabă.
+2. Strânge orice detaliu care identifică cursa (maximum 3 întrebări, câte una pe replică):
+   - de unde și până unde a mers
+   - în ce zi — «azi», «ieri», «alaltăieri», ziua săptămânii sau numărul zilei; trimite CUVÂNTUL rostit în parametrul «date», serverul îl rezolvă ÎNAPOI în timp
+   - la ce oră a plecat (aproximativ e destul) — parametrul «departure»
+   - numărul mașinii (și parțial e bun) — parametrul «plate»
+   - numele șoferului, dacă îl știe — parametrul «driver_name»
+3. Cheamă find_past_trip cu tot ce ai. NU cere toate detaliile — ajunge ce identifică unic cursa.
+4. count = 1 → citește DOSLOVEN driver_line_ro / driver_line_ru. Atât.
+5. count > 1 → enumeră candidații (ora, ruta, mașina) și roagă clientul să aleagă; apoi recheamă tool-ul cu detaliul nou. Numărul se dă DOAR după ce a rămas UN singur candidat.
+6. count = 0 → citește DOSLOVEN company_phone_line_ro / company_phone_line_ru. NU da niciun număr de șofer.
+   Excepție: răspunsul are unknown_locality — atunci ÎNTÂI clarifici localitatea după mesajul lui și recherci.
+7. need_more = true → pui întrebarea din result_ro/result_ru și rechemi tool-ul cu răspunsul. NU citești company_phone_line și NU închizi discuția.
+
+INTERZIS:
+- NU folosi search_trips pentru lucruri uitate — el vede doar cursele viitoare.
+- NU da NICIODATĂ numărul unui șofer «apropiat» sau «de pe aceeași rută» dacă cursa exactă nu e identificată — e un om străin de problema clientului.
+- NU promite că suni tu șoferul sau că cineva caută obiectul — clientul sună singur.
+- NU spune «am notat» — aici nu se notează nimic, se identifică șoferul.
+- NU chema request_callback pentru lucruri uitate — regula generală «nu ai informația → oferă request_callback» NU se aplică aici: cazul se rezolvă cu find_past_trip.
+
 ═══════════════════════════════════
 CUM PREZINȚI CURSELE
 ═══════════════════════════════════
@@ -156,6 +186,7 @@ export const FIRST_MESSAGE =
 
 export const TOOL_NAMES = [
   'search_trips', 'get_price', 'get_offers', 'get_schedule', 'get_company_info', 'request_callback',
+  'find_past_trip',
 ];
 
 function webhookTool({ name, description, url, params, required, voiceApiKey }) {
@@ -215,6 +246,19 @@ export function buildTools({ baseUrl, voiceApiKey }) {
       name: 'get_company_info',
       description: 'Company info: addresses, phones, baggage/children/cancellation policies.',
       url: `${b}/get-company-info`, voiceApiKey, params: {},
+    }),
+    webhookTool({
+      name: 'find_past_trip',
+      description: 'Identify the driver of a PAST trip when the caller forgot/lost ANY item on the bus. Searches backward up to 14 days; departed trips are visible. Call with whatever details the caller knows — route, day word, approximate departure time, (partial) vehicle plate, driver name. Gives the driver phone ONLY when exactly one candidate matches (count=1, read driver_line verbatim); count=0 → read company_phone_line verbatim, never offer another driver\'s number.',
+      url: `${b}/find-past-trip`, voiceApiKey,
+      params: {
+        from: city('Departure city in Romanian (optional if plate or driver_name given)'),
+        to: city('Destination city in Romanian (optional if plate or driver_name given)'),
+        date: { type: 'string', description: 'The day WORD the caller said: azi/ieri/alaltăieri, вчера/позавчера, weekday, or day number like "22" or "22.08". Server resolves it BACKWARD. Omit if not said (defaults to today).' },
+        departure: { type: 'string', description: 'Approximate departure time HH:MM if the caller remembers it' },
+        plate: { type: 'string', description: 'Vehicle plate number, full or partial, as the caller said it' },
+        driver_name: { type: 'string', description: 'Driver name if the caller knows it' },
+      },
     }),
     webhookTool({
       name: 'request_callback',

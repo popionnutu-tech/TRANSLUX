@@ -16,6 +16,8 @@ import { chisinauTodayIso, chisinauDayOf } from '@/lib/chisinau-time';
 import { insertLesson } from '@/lib/voice-lessons';
 import { alertAdmins, escapeHtml } from '@/lib/telegram-notify';
 import { generateLessonTests, startExams, pollExams, reportExamOutcome } from '@/lib/voice-exams';
+import { parseSpokenPhones } from '@/lib/voice-controller';
+import { COMPANY_PHONE_LOCAL } from '@/lib/company-phone';
 
 const MAX_CALLS = 45;
 const LLM_CONCURRENCY = 5;
@@ -27,10 +29,11 @@ const TAIL_DEADLINE_MS = 50_000;
 // приоритет — потерянные звонки (порядок RULES ниже).
 const MAX_JUDGE_LESSONS = 6;
 
-export const RULES = ['coridor_refuz', 'neaga_curse', 'promite_callback', 'zi_gresita', 'pret_gresit'] as const;
+export const RULES = ['coridor_refuz', 'neaga_curse', 'lucru_uitat', 'promite_callback', 'zi_gresita', 'pret_gresit'] as const;
 export type JudgeRule = (typeof RULES)[number];
 
 export type SearchCall = { from?: string; to?: string; date?: string };
+export type PastTripResult = { count: number };
 export type SearchResult = {
   count: number;
   dateLabels: string[];
@@ -42,12 +45,20 @@ export type JudgeFacts = {
   userTurns: number;
   agentTurns: number;
   agentText: string;
+  clientText: string;
   dialog: string;
   searchCalls: SearchCall[];
   searchResults: SearchResult[];
   priceValues: number[];
   calledSearchTrips: boolean;
   calledRequestCallback: boolean;
+  // Lucruri uitate: numărul de șofer are voie să iasă DOAR dintr-un find_past_trip
+  // cu un singur candidat (incident 29.08: numărul șoferului ALTEI curse).
+  pastTripCounts: number[];
+  // Replicile agentului de DUPĂ ultimul rezultat find_past_trip (= tot agentText
+  // când tool-ul nu s-a chemat). Numărul citit legitim la count=1 nu trebuie să
+  // otrăvească judecata frazei corecte de după count=0 (security Low 5).
+  agentTextAfterPastTrip: string;
 };
 
 function parseJsonSafe(raw: unknown): Record<string, unknown> | null {
@@ -61,15 +72,21 @@ export function buildFacts(convId: string, createdAt: string, transcript: unknow
   const searchCalls: SearchCall[] = [];
   const searchResults: SearchResult[] = [];
   const priceValues: number[] = [];
+  const pastTripCounts: number[] = [];
   const agentMsgs: string[] = [];
+  let agentMsgsAfterPastTrip: string[] = [];
+  const clientMsgs: string[] = [];
   let userTurns = 0;
   let agentTurns = 0;
   let calledRequestCallback = false;
   for (const t of turns) {
-    if (t.role === 'user' && t.message) userTurns++;
+    if (t.role === 'user' && t.message) { userTurns++; clientMsgs.push(String(t.message)); }
     if (t.role === 'agent') {
       agentTurns++;
-      if (t.message) agentMsgs.push(String(t.message));
+      if (t.message) {
+        agentMsgs.push(String(t.message));
+        agentMsgsAfterPastTrip.push(String(t.message));
+      }
     }
     for (const tc of t.tool_calls ?? []) {
       if (tc.tool_name === 'request_callback') calledRequestCallback = true;
@@ -94,6 +111,10 @@ export function buildFacts(convId: string, createdAt: string, transcript: unknow
         searchResults.push({ count: Number(rv.count ?? 0), dateLabels, prices });
         priceValues.push(...prices);
       }
+      if (tr.tool_name === 'find_past_trip') {
+        pastTripCounts.push(Number(rv.count ?? 0));
+        agentMsgsAfterPastTrip = []; // judecata pe numere pornește de la ULTIMUL rezultat
+      }
       if (typeof rv.price === 'number') priceValues.push(rv.price);
       if (typeof rv.original_price === 'number') priceValues.push(rv.original_price);
     }
@@ -109,12 +130,17 @@ export function buildFacts(convId: string, createdAt: string, transcript: unknow
     userTurns,
     agentTurns,
     agentText: agentMsgs.join('\n'),
+    // «. » ca separator: fereastra de 60 de caractere a lui LOST_ITEM_RE nu are
+    // voie să traverseze replici — \n nu e în [.!?] (round 3 Important 2).
+    clientText: clientMsgs.join('. '),
     dialog,
     searchCalls,
     searchResults,
     priceValues,
     calledSearchTrips: searchCalls.length > 0,
     calledRequestCallback,
+    pastTripCounts,
+    agentTextAfterPastTrip: agentMsgsAfterPastTrip.join('\n'),
   };
 }
 
@@ -135,8 +161,9 @@ const JUDGE_SYSTEM = `Ești un auditor de apeluri pentru compania de transport T
 3. promite_callback — agentul promite un apel înapoi («vă sunăm noi», «un coleg vă va suna»). Interzis ÎNTOTDEAUNA, și înainte, și după request_callback: nu există operatori care sună înapoi.
 4. zi_gresita — agentul numește o zi/dată care NU apare în date_label din rezultatele tool-ului (day_said = ziua rostită).
 5. pret_gresit — agentul numește un preț care NU apare în rezultatele tool-urilor (price_said = numărul în lei).
+6. lucru_uitat — clientul spune că a UITAT sau PIERDUT un obiect în autobuz (geantă, telefon, acte, orice), iar agentul îi dictează un număr de șofer FĂRĂ ca tool-ul find_past_trip să fi întors exact un candidat (count=1) — de exemplu numărul unui șofer din search_trips sau al unei curse «apropiate».
 Răspunde DOAR JSON:
-{"violations":[{"rule":"coridor_refuz"|"neaga_curse"|"promite_callback"|"zi_gresita"|"pret_gresit","from":"...","to":"...","date_word":"...","day_said":"...","price_said":123,"quote":"<citat EXACT din replica agentului>","summary_ru":"<одна фраза по-русски для администратора: что агент сделал не так>"}]}
+{"violations":[{"rule":"coridor_refuz"|"neaga_curse"|"promite_callback"|"zi_gresita"|"pret_gresit"|"lucru_uitat","from":"...","to":"...","date_word":"...","day_said":"...","price_said":123,"quote":"<citat EXACT din replica agentului>","summary_ru":"<одна фраза по-русски для администратора: что агент сделал не так>"}]}
 Reguli stricte: doar încălcări VIZIBILE în transcript, cu citat exact al agentului. Fără deducții și fără «probabil». Nicio încălcare = {"violations":[]}. Maxim 3.`;
 
 export function buildJudgePrompt(negativeSummaries: string[]): string {
@@ -211,6 +238,38 @@ export function verifyWrongDay(v: JudgeViolation, f: JudgeFacts): boolean {
   if (!quoteInText(v.quote, f.agentText)) return false;
   const said = normText(v.day_said);
   return !f.searchResults.some((r) => r.dateLabels.some((l) => normText(l).includes(said) || said.includes(normText(l))));
+}
+
+// (f) Lucru uitat: numărul de șofer dictat fără find_past_trip cu UN candidat.
+// Anchore de cod peste verdictul LLM: (1) CLIENTUL (nu agentul) chiar vorbește de
+// un obiect uitat — verb + obiect apropiate, nu filler («am uitat să întreb» din
+// apelul de vânzare NU e obiect, review High 2), (2) agentul chiar a dictat un
+// număr (parseSpokenPhones), (3) niciun find_past_trip din apel n-a întors
+// count=1. Toate trei — altfel nu există.
+// Verbele și obiectele acoperă SINONIMELE, nu doar formularea din incident
+// (delta-audit High: «am lăsat geanta», «оставил рюкзак», «uitasem» treceau
+// neprinse). «ceva»/«lucru» au ieșit din lista de obiecte (delta-audit M1:
+// «am uitat să întreb ceva» dădea fals pozitiv) — cazul «am uitat ceva în
+// autobuz» îl prinde cuvântul de context autobuz/mașină din aceeași listă.
+// Filler-ul are lookahead în AMBELE limbi (round 2 Critical: «Я забыл спросить,
+// какой у вас телефон» trecea prin varianta doar-românească).
+// (?![а-яё]) după [аи]? oprește backtracking-ul: fără el, motorul retrăgea
+// sufixul («забылА» → «забыл» + «а спросить») și lookahead-ul de filler nu mai
+// vedea filler-ul (round 3 Critical: apelurile de vânzare ale femeilor). NU \b:
+// în JS \w nu cuprinde chirilicele, granița după literă rusă nu există.
+const LOST_ITEM_RE = /((?:(?:mi-|[șs]i-|ne-|v-)?a[mu]?|a[țt]i)\s+(?:uitat|pierdut|l[ăa]sat|sc[ăa]pat)(?!\s*,?\s*s[ăa]\s)|uitasem|l[ăa]sasem|(?:забыл|потерял|оставил)[аи]?(?![а-яё])(?!\s*,?\s*(?:спросить|уточнить|узнать|сказать|как|что|какой|какая)))[^.!?]{0,60}(geant|bagaj|valiz|borset|rucsac|umbrel|pachet|acte|portofel|portmone|chei|telefonul|autobuz|microbuz|ma[șs]in|сумк|чемодан|барсетк|зонт|пакет|вещ|рюкзак|кошел|ключ|документ|телефон|автобус|машин|маршрутк)|(geant|bagaj|valiz|borset|rucsac|portofel|сумк|чемодан|рюкзак|барсетк|кошел)[^.!?]{0,60}(uitat|pierdut|l[ăa]sat|забыл|потерял|оставил)/iu;
+// Numărul COMPANIEI citit dosloven din company_phone_line_* la count=0 e purtarea
+// CORECTĂ — nu «număr dictat» (round 2 Critical: parseSpokenPhones îl prindea și
+// judecătorul pedepsea exact ce cere promptul). Sursa unică: lib/company-phone.ts.
+export function verifyLucruUitat(v: JudgeViolation, f: JudgeFacts): boolean {
+  if (!quoteInText(v.quote, f.agentText)) return false;
+  if (!LOST_ITEM_RE.test(f.clientText)) return false;
+  // ULTIMUL rezultat decide (round 3 Medium): un count=1 timpuriu, corectat apoi
+  // de client (căutarea următoare dă 0), nu mai legitimează numărul repetat.
+  if (f.pastTripCounts.at(-1) === 1) return false; // identificare confirmată — numărul e legitim
+  // DOAR numerele de după ultimul rezultat: numărul legitim citit la un count=1
+  // timpuriu nu incriminează fraza corectă a companiei de după count=0.
+  return parseSpokenPhones(f.agentTextAfterPastTrip).some((p) => p !== COMPANY_PHONE_LOCAL);
 }
 
 // (e) Названная цена не из тулов. Цен в тулах не было — не применяется.
@@ -384,6 +443,7 @@ export async function runVoiceJudge(): Promise<{
           if (out.confirmed) confirmedList.push({ v, f, reverifiedFor: out.reverifiedFor });
         } else if (
           (v.rule === 'neaga_curse' && verifyNeagaCurse(v, f)) ||
+          (v.rule === 'lucru_uitat' && verifyLucruUitat(v, f)) ||
           (v.rule === 'promite_callback' && verifyCallbackPromise(v, f)) ||
           (v.rule === 'zi_gresita' && verifyWrongDay(v, f)) ||
           (v.rule === 'pret_gresit' && verifyWrongPrice(v, f))

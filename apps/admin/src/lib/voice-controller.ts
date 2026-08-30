@@ -40,7 +40,7 @@ const FALLBACK_KEYWORDS = [
 // Позиция вставки кэш НЕ спасает: точка кэша одна, на весь system.
 // Markerele TREBUIE să fie unice: un marker care apare și în alt bloc face detectorul
 // orb la ștergerea blocului propriu (ORELE a fost mascat de titlul blocului ZIUA).
-const PROMPT_MARKERS = ['ORELE — DOSLOVEN', 'UNIVERSUL localităților', 'Doriți numărul lui?', 'A DOUA OARĂ LA RÂND', 'ZIUA — DOSLOVEN', 'e un CORIDOR', 'SFÂRȘIT NUME RUSEȘTI', 'APEL ÎNAPOI — NICIO PROMISIUNE', 'STAȚIA CHIȘINĂU — AUTOGARA TRANSLUX', 'STAȚIA BĂLȚI — PEROANELE', 'ORA SOSIRII — NU SE SPUNE', 'LUCRURI UITATE — DOAR ȘOFERUL IDENTIFICAT', 'CÂMPURILE _RU — DOAR ÎN REPLICI RUSEȘTI'];
+const PROMPT_MARKERS = ['ORELE — DOSLOVEN', 'UNIVERSUL localităților', 'Doriți numărul lui?', 'A DOUA OARĂ LA RÂND', 'ZIUA — DOSLOVEN', 'e un CORIDOR', 'SFÂRȘIT NUME RUSEȘTI', 'APEL ÎNAPOI — NICIO PROMISIUNE', 'STAȚIA CHIȘINĂU — AUTOGARA TRANSLUX', 'STAȚIA BĂLȚI — PEROANELE', 'ORA SOSIRII — NU SE SPUNE', 'LUCRURI UITATE — ȘOFERUL IDENTIFICAT, OBIECTUL FĂRĂ NUME', 'CÂMPURILE _RU — DOAR ÎN REPLICI RUSEȘTI'];
 const ORELE_BLOCK = `
 
 ORELE — DOSLOVEN DIN TOOL:
@@ -162,6 +162,19 @@ const BALTI_BLOCK_RU = `
 const SOSIREA_OBSOLETE_RU = '\n- Время ПРИБЫТИЯ не называешь при представлении рейса — только отправление. Прибытие называешь ТОЛЬКО если клиент спросил явно.';
 // Rândul-pereche VIU din blocul «ВРЕМЯ — ДОСЛОВНО» al promptului RU de bază (побайтово).
 const SOSIREA2_OBSOLETE_RU = '\n- Время отправления/прибытия произносишь ТОЛЬКО из поля departure_spoken_ru результата tool-а — слово в слово. Так же arrival_spoken_ru. НИКОГДА не преобразуй HH:MM в слова сама.';
+// Ion 30.08: + правило «вещь без названия» — блок пересоздан под новым маркером.
+const LUCRURI_OBSOLETE_RU = `
+
+ЗАБЫТЫЕ ВЕЩИ — ТОЛЬКО ОПОЗНАННЫЙ ВОДИТЕЛЬ:
+- Клиент забыл или потерял ЛЮБУЮ вещь в автобусе (сумку, телефон, документы, пакет)? Вещь остаётся у водителя. Ты определяешь правильного водителя и даёшь клиенту его номер — всё.
+- Используй ТОЛЬКО инструмент find_past_trip, НИКОГДА search_trips: search_trips видит только будущие рейсы, а рейс с вещью уже ушёл.
+- Собери, что клиент помнит (максимум 3 вопроса, по одному за реплику): маршрут, день («вчера», «позавчера», день недели — отправь СЛОВО в «date», сервер сам решит назад), примерное время («departure»), номер машины («plate», можно частично), имя водителя («driver_name»).
+- count = 1 → читай ДОСЛОВНО driver_line_ru.
+- count > 1 → перечисли кандидатов и попроси деталь, которая выберет одного; вызови инструмент снова. Номер даётся ТОЛЬКО при ОДНОМ кандидате.
+- count = 0 → читай ДОСЛОВНО company_phone_line_ru. Исключение: в ответе есть unknown_locality — тогда СНАЧАЛА уточни населённый пункт по его сообщению и повтори поиск. НИКОГДА не давай номер «похожего» водителя или «с того же маршрута» — это чужой человек.
+- need_more = true → задай вопрос из result_ru и вызови инструмент снова с ответом. НЕ читай company_phone_line и НЕ завершай разговор.
+- НЕ обещай, что ты позвонишь водителю, что кто-то ищет вещь или перезвонит. НЕ говори «беру на заметку» — здесь ничего не записывается, здесь опознаётся водитель.
+- НЕ вызывай request_callback для забытых вещей — общее правило «нет информации → предложи request_callback» здесь НЕ действует: случай решается через find_past_trip.`;
 const SOSIREA_MARKER_RU = 'ВРЕМЯ ПРИБЫТИЯ — НЕ НАЗЫВАЕТСЯ';
 const SOSIREA_BLOCK_RU = `
 
@@ -177,10 +190,18 @@ const SOSIREA_BLOCK_RU = `
 // (rută+zi+oră SAU număr de mașină SAU nume) cu tool-ul find_past_trip și dă numărul
 // DOAR la un singur candidat. Eталon: agent-config.mjs, secțiunea LUCRURI UITATE —
 // se schimbă împreună, același commit.
+// Apel real 30.08 (conv_0801m19b1vf6efbr1phztbrzkxce): «ochelari» stâlcit de ASR în
+// «chelarie» → agentul a ghicit «geantă», la corecție «chiloți». De aici regula:
+// numele obiectului nu se repetă, nu se ghicește — nu contează pentru flux (Ion 30.08).
+// Markerul e REDENUMIT la fiecare schimbare de conținut (30.08: + regula obiectului):
+// vindecarea e idempotentă pe marker, corpul unui bloc livrat nu se mai retrimite.
+// Procedeu: marker nou în bloc + PROMPT_MARKERS + HEALABLE, blocul VECHI la
+// OBSOLETE_BLOCKS (același drum ca Autogara Nord / peron 17 / ora sosirii).
 const LUCRURI_BLOCK = `
 
-LUCRURI UITATE — DOAR ȘOFERUL IDENTIFICAT:
+LUCRURI UITATE — ȘOFERUL IDENTIFICAT, OBIECTUL FĂRĂ NUME:
 - Clientul a uitat sau a pierdut ORICE obiect în autobuz (geantă, telefon, acte, pachet)? Obiectul rămâne la șofer. Tu identifici șoferul corect și dai clientului numărul lui — atât.
+- Numele obiectului NU contează pentru căutare și NU se transmite nicăieri: nu-l repeta după client, nu-l ghici, nu-l «corecta». Nu l-ai înțeles clar? Spune «obiectul pierdut» și treci direct la întrebările despre cursă.
 - Folosește DOAR tool-ul find_past_trip, NICIODATĂ search_trips: search_trips vede doar cursele viitoare, cursa cu obiectul a plecat deja.
 - Strânge ce știe clientul (maximum 3 întrebări, câte una pe replică): ruta, ziua («ieri», «alaltăieri», ziua săptămânii — trimite CUVÂNTUL în «date», serverul îl rezolvă înapoi), ora aproximativă («departure»), numărul mașinii («plate», merge și parțial), numele șoferului («driver_name»).
 - count = 1 → citește DOSLOVEN driver_line_ro / driver_line_ru.
@@ -190,11 +211,12 @@ LUCRURI UITATE — DOAR ȘOFERUL IDENTIFICAT:
 - NU promite că suni tu șoferul, că cineva caută obiectul sau că cineva sună înapoi. NU spune «am notat».
 - NU chema request_callback pentru lucruri uitate — regula generală «nu ai informația → oferă request_callback» NU se aplică aici: cazul se rezolvă cu find_past_trip.`;
 
-const LUCRURI_MARKER_RU = 'ЗАБЫТЫЕ ВЕЩИ — ТОЛЬКО ОПОЗНАННЫЙ ВОДИТЕЛЬ';
+const LUCRURI_MARKER_RU = 'ЗАБЫТЫЕ ВЕЩИ — ОПОЗНАННЫЙ ВОДИТЕЛЬ, ВЕЩЬ БЕЗ НАЗВАНИЯ';
 const LUCRURI_BLOCK_RU = `
 
-ЗАБЫТЫЕ ВЕЩИ — ТОЛЬКО ОПОЗНАННЫЙ ВОДИТЕЛЬ:
+ЗАБЫТЫЕ ВЕЩИ — ОПОЗНАННЫЙ ВОДИТЕЛЬ, ВЕЩЬ БЕЗ НАЗВАНИЯ:
 - Клиент забыл или потерял ЛЮБУЮ вещь в автобусе (сумку, телефон, документы, пакет)? Вещь остаётся у водителя. Ты определяешь правильного водителя и даёшь клиенту его номер — всё.
+- Название вещи НЕ важно для поиска и НИКУДА не передаётся: не повторяй его за клиентом, не угадывай и не «поправляй». Не расслышала — скажи «потерянная вещь» и сразу переходи к вопросам о рейсе.
 - Используй ТОЛЬКО инструмент find_past_trip, НИКОГДА search_trips: search_trips видит только будущие рейсы, а рейс с вещью уже ушёл.
 - Собери, что клиент помнит (максимум 3 вопроса, по одному за реплику): маршрут, день («вчера», «позавчера», день недели — отправь СЛОВО в «date», сервер сам решит назад), примерное время («departure»), номер машины («plate», можно частично), имя водителя («driver_name»).
 - count = 1 → читай ДОСЛОВНО driver_line_ru.
@@ -253,6 +275,20 @@ const OBSOLETE_BLOCKS = [
   // Ion 28.08: sosirea nu se spune NICIODATĂ — regula veche «doar dacă cere explicit»
   // e anulată. Înlocuit de SOSIREA_BLOCK.
   '\n- Ora SOSIRII nu o spui în prezentarea cursei — doar plecarea. Sosirea o spui DOAR dacă clientul o cere explicit.',
+  // Ion 30.08: + regula «obiectul fără nume» (apel conv_0801m19b1vf6efbr1phztbrzkxce:
+  // «ochelari» stâlcit → «geantă», «chiloți»). Înlocuit de LUCRURI_BLOCK cu marker nou.
+  `
+
+LUCRURI UITATE — DOAR ȘOFERUL IDENTIFICAT:
+- Clientul a uitat sau a pierdut ORICE obiect în autobuz (geantă, telefon, acte, pachet)? Obiectul rămâne la șofer. Tu identifici șoferul corect și dai clientului numărul lui — atât.
+- Folosește DOAR tool-ul find_past_trip, NICIODATĂ search_trips: search_trips vede doar cursele viitoare, cursa cu obiectul a plecat deja.
+- Strânge ce știe clientul (maximum 3 întrebări, câte una pe replică): ruta, ziua («ieri», «alaltăieri», ziua săptămânii — trimite CUVÂNTUL în «date», serverul îl rezolvă înapoi), ora aproximativă («departure»), numărul mașinii («plate», merge și parțial), numele șoferului («driver_name»).
+- count = 1 → citește DOSLOVEN driver_line_ro / driver_line_ru.
+- count > 1 → enumeră candidații și cere detaliul care alege unul; recheamă tool-ul. Numărul se dă DOAR la UN singur candidat.
+- count = 0 → citește DOSLOVEN company_phone_line_ro / company_phone_line_ru. Excepție: răspunsul are unknown_locality — atunci ÎNTÂI clarifici localitatea după mesajul lui și recherci. NU da NICIODATĂ numărul unui șofer «apropiat» sau «de pe aceeași rută» — e un om străin de problema clientului.
+- need_more = true → pui întrebarea din result_ro/result_ru și rechemi tool-ul cu răspunsul. NU citești company_phone_line și NU închizi discuția.
+- NU promite că suni tu șoferul, că cineva caută obiectul sau că cineva sună înapoi. NU spune «am notat».
+- NU chema request_callback pentru lucruri uitate — regula generală «nu ai informația → oferă request_callback» NU se aplică aici: cazul se rezolvă cu find_past_trip.`,
   // Rândul VIU din blocul ORELE (28.08, побайтово din promptul agentului — ATENȚIE:
   // blocul viu a fost editat de mână și DIFERĂ de constanta ORELE_BLOCK de mai sus,
   // «singură» vs «singur»). Învăța cum se rostește sosirea — anulat: interdicție
@@ -354,7 +390,7 @@ async function checkAndHealConfig(cfg: any): Promise<Drift[]> {
     { marker: 'STAȚIA CHIȘINĂU — AUTOGARA TRANSLUX', block: STATIA_BLOCK, field: 'prompt.STATIA' },
     { marker: 'STAȚIA BĂLȚI — PEROANELE', block: BALTI_BLOCK, field: 'prompt.BALTI' },
     { marker: 'ORA SOSIRII — NU SE SPUNE', block: SOSIREA_BLOCK, field: 'prompt.SOSIREA' },
-    { marker: 'LUCRURI UITATE — DOAR ȘOFERUL IDENTIFICAT', block: LUCRURI_BLOCK, field: 'prompt.LUCRURI' },
+    { marker: 'LUCRURI UITATE — ȘOFERUL IDENTIFICAT, OBIECTUL FĂRĂ NUME', block: LUCRURI_BLOCK, field: 'prompt.LUCRURI' },
     { marker: 'CÂMPURILE _RU — DOAR ÎN REPLICI RUSEȘTI', block: CAMPURI_RU_BLOCK, field: 'prompt.CAMPURI_RU' },
   ];
   let healedPrompt = prompt;
@@ -417,6 +453,7 @@ async function healRuStation(lostToolId: string | null): Promise<Drift[]> {
   if (healed.includes(BALTI_OBSOLETE_RU)) healed = healed.replace(BALTI_OBSOLETE_RU, '');
   if (healed.includes(SOSIREA_OBSOLETE_RU)) healed = healed.replace(SOSIREA_OBSOLETE_RU, '');
   if (healed.includes(SOSIREA2_OBSOLETE_RU)) healed = healed.replace(SOSIREA2_OBSOLETE_RU, '');
+  if (healed.includes(LUCRURI_OBSOLETE_RU)) healed = healed.replace(LUCRURI_OBSOLETE_RU, '');
   // Santinelă pe SENS, nu pe rând exact: «Северный автовокзал» rescris de mână în
   // dashboard nu mai potrivește надгробие-ul. Atunci NU adăugăm blocul peste
   // contradicție — raportăm drift nevindecat. Blocul PROPRIU conține fraza în

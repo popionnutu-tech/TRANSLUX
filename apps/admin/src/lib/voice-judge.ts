@@ -15,7 +15,7 @@ import { resolveVoiceDate } from '@/lib/date-spoken';
 import { chisinauTodayIso, chisinauDayOf } from '@/lib/chisinau-time';
 import { insertLesson } from '@/lib/voice-lessons';
 import { alertAdmins, escapeHtml } from '@/lib/telegram-notify';
-import { generateLessonTests, startExams, pollExams, reportExamOutcome, normText } from '@/lib/voice-exams';
+import { generateLessonTests, startExams, pollExams, reportExamOutcome, normText, tgCut } from '@/lib/voice-exams';
 import { parseSpokenPhones } from '@/lib/voice-controller';
 import { COMPANY_PHONE_LOCAL } from '@/lib/company-phone';
 
@@ -23,6 +23,8 @@ const MAX_CALLS = 45;
 const LLM_CONCURRENCY = 5;
 // Потолок Hobby 60 c. Сторожа согласованы (perf-ревью): волна, стартовавшая на
 // границе бюджета, кончается в 18+30=48 c < TAIL_DEADLINE — хвост достижим.
+// Преамбула экзаменов живёт ВНУТРИ бюджета: ночь с созданием теста судит на
+// ~волну меньше, хвост добирает следующая (замер 30.08: судья закрывает приток).
 const TIME_BUDGET_MS = 18_000;
 const TAIL_DEADLINE_MS = 50_000;
 // Очередь Иона не резиновая: дайджест шлёт 20/день, судья отдаёт максимум 6,
@@ -375,11 +377,13 @@ export async function runVoiceJudge(): Promise<{
   const t0 = Date.now();
   const supabase = getSupabase();
 
-  // Экзамены стартуют первыми (варятся на стороне EL, пока судим).
+  // СТАРТ экзаменов — первым (варятся на стороне EL, пока судим); СОЗДАНИЕ новых
+  // тестов уехало в хвост ночи: прогону всё равно, когда тест создан — он войдёт
+  // в ротацию следующей ночью, а секунда преамбулы стоила ~1.7 несуждённых
+  // звонка (perf-ревью раунд 3). Преамбула теперь ~1-3с (2 select + POST).
   let examsStarted = false;
   try {
-    await generateLessonTests(t0 + 8_000);
-    examsStarted = await startExams(t0 + 10_000);
+    examsStarted = await startExams(t0 + 8_000);
   } catch (err) {
     console.error('[voice-judge] exams start:', err);
   }
@@ -412,7 +416,11 @@ export async function runVoiceJudge(): Promise<{
   const { data: calls } = await supabase.from('voice_calls')
     .select('conversation_id, transcript, created_at')
     .is('judged_at', null)
-    .gte('created_at', new Date(Date.now() - 26 * 3600 * 1000).toISOString())
+    // 50ч, не 26: прогоны идут с джиттером (GH Actions decay, ручные dispatch до
+    // 15:40), и звонок пропущенной ночи выпадал из окна НАВСЕГДА — 28.08 так
+    // потеряны 4 звонка (perf-ревью Critical, замер по judged_at). limit(45) +
+    // order(asc) держат вес запроса прежним; бэклог долечивается за две ночи.
+    .gte('created_at', new Date(Date.now() - 50 * 3600 * 1000).toISOString())
     .order('created_at', { ascending: true })
     .limit(MAX_CALLS);
 
@@ -506,7 +514,68 @@ export async function runVoiceJudge(): Promise<{
     console.error('[voice-judge] exams poll:', err);
   }
 
+  // Хрупкое — первым (insert-then-notify внутри), sweeper и генерация — после.
   await maybeWeeklySummary(supabase);
+
+  // Sweeper: провалы и снятия с ротации, дочитанные МОЛЧАЛИВЫМ контролёром
+  // (drainPendingExams, alert:false — распоряжение Иона 23.08 о тишине
+  // контролёра), иначе не доходят до Иона никогда: claim прогона почти всегда
+  // выигрывает контролёр (каждые 30 мин против одного судейского хвоста).
+  // healed на exam_failed/exam_retired = «алерт отправлен» — ставится ПОСЛЕ
+  // подтверждённой отправки (alertAdmins → bool): потерянный Telegram ретраится
+  // следующей ночью, дубль возможен только при убийстве между отправкой и update.
+  // Сторож 54с: без него пн-ср (weekly + sweeper с Telegram-таймаутами 5с)
+  // выходили за 60с Hobby, и убийство между отправкой и claim-ом давало
+  // ПОВТОРЯЮЩИЙСЯ дубль алерта (arch-ревью раунд 4). Пропущенный sweeper
+  // безвреден — дочитает следующая ночь.
+  try {
+    // 52с, не 54: собственная стоимость sweeper-а (~5.9с worst с Telegram 5с)
+    // должна помещаться до стены 60с вместе с cold-start (perf/arch раунд 5).
+    // limit 12/10 держат сообщение под tgCut — claim гасит только показанное.
+    if (Date.now() < t0 + 52_000) {
+      const sevenDaysAgo = new Date(t0 - 7 * 24 * 3600 * 1000).toISOString();
+      const { data: silentFails } = await supabase.from('voice_controller_incidents')
+        .select('id, details').eq('kind', 'exam_failed').eq('healed', false)
+        .gte('details->streak', 2).gte('created_at', sevenDaysAgo)
+        .order('created_at', { ascending: true }).limit(12);
+      const { data: silentOther } = await supabase.from('voice_controller_incidents')
+        .select('id, kind, details').in('kind', ['exam_retired', 'exam_recovered', 'exam_stuck', 'exam_capacity'])
+        .eq('healed', false).gte('created_at', sevenDaysAgo)
+        .order('created_at', { ascending: true }).limit(10);
+      type Inc = { id: number; kind?: string; details: { name?: string; rationale?: string; invocation_id?: string } };
+      const fails = (silentFails ?? []) as Inc[];
+      const other = (silentOther ?? []) as Inc[];
+      if (fails.length || other.length) {
+        const names = (k: string) => other.filter((r) => r.kind === k)
+          .map((r) => String(r.details?.name ?? r.details?.invocation_id ?? '')).join(', ');
+        const lines = fails.map((r) => `• ${escapeHtml(String(r.details?.name ?? ''))}: ${escapeHtml(String(r.details?.rationale ?? '').slice(0, 120))}`);
+        const tails = [
+          names('exam_retired') && `Сняты с ротации (5 провалов подряд): ${escapeHtml(names('exam_retired'))}`,
+          names('exam_recovered') && `Самоизлечились после ≥2 провалов: ${escapeHtml(names('exam_recovered'))}`,
+          names('exam_stuck') && `Прогон завис >24ч: ${escapeHtml(names('exam_stuck'))}`,
+          names('exam_capacity') && `Кап ротации: ${escapeHtml(names('exam_capacity'))}`,
+        ].filter(Boolean).map((s) => `\n${s}`).join('');
+        // Заголовок нейтральный: сюда попадают и события ЭТОЙ же инвокации
+        // (exam_recovered при упавшем Telegram), не только дренаж контролёра.
+        const sent = await alertAdmins(tgCut(`🎓 <b>Экзамены агента: невручённые события</b>\n${lines.join('\n')}${tails}`));
+        if (sent) {
+          const { error } = await supabase.from('voice_controller_incidents')
+            .update({ healed: true }).in('id', [...fails, ...other].map((r) => r.id));
+          if (error) console.error('[voice-judge] sweeper claim:', error.message);
+        }
+      }
+    }
+  } catch { /* sweeper не имеет права ломать прогон */ }
+
+  // Создание тестов из уроков — самый низкий приоритет ночи: вход согласован с
+  // внутренним резервом 9.5с (дедлайн 58с → входить позже 48.5с бессмысленно —
+  // два запроса и выход с нулём, arch-ревью раунд 4). Свежий тест попадёт в
+  // прогон следующей ночи (perf-ревью раунд 3 — раньше это крало волны судейства).
+  try {
+    if (Date.now() < t0 + 48_500) await generateLessonTests(t0 + 58_000);
+  } catch (err) {
+    console.error('[voice-judge] lesson tests:', err);
+  }
 
   return {
     scanned: toJudge.length, prefiltered: prefilteredIds.length,

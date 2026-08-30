@@ -14,6 +14,9 @@ export type LessonCandidate = {
   summary_ru: string;
 };
 
+// КОНТРАКТ ФОРМАТА quote: диалог подаётся с этикетками CLIENT:/AGENT:, и LLM цитирует
+// С НИМИ. buildLessonTest (voice-exams.ts) парсит эти этикетки регексом — правишь
+// формулировку «citat scurt din dialog» → правь и парсер тем же коммитом.
 const LESSON_SYSTEM = `Ești un analist de transcrieri telefonice pentru compania de transport TRANSLUX (Moldova).
 Sarcina: găsește locurile unde CLIENTUL CORECTEAZĂ EXPLICIT ceva afirmat de AGENT — ora, data, un refuz de rută dat greșit, numărul de telefon, un nume. Corecție explicită = clientul contrazice sau corectează direct («нет, я сказал…», repetă apăsat același lucru, «не туда»).
 Cazul aparte «lost_item»: clientul a UITAT/PIERDUT un obiect în autobuz, iar agentul l-a tratat greșit (refuz de rută, număr de șofer greșit, «am notat» fără urmare) — folosește type «lost_item», NU «route_refusal».

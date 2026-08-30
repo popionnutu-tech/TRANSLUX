@@ -26,7 +26,10 @@ export type TestRow = {
   active: boolean;
 };
 
-const normText = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
+// Единственный источник нормализации цитат (voice-judge импортирует отсюда — обратное
+// направление дало бы цикл). Пунктуация вычищается: диктовка номера теперь с точками
+// (phone-spoken, 30.08), а LLM при цитировании склонен «причёсывать» их.
+export const normText = (s: string) => s.toLowerCase().replace(/[.,;:!?…]+/g, ' ').replace(/\s+/g, ' ').trim();
 
 /**
  * Тест из одобренного урока: история звонка ДО реплики-провала (обрезка по
@@ -42,6 +45,9 @@ export function buildLessonTest(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const turns: any[] = Array.isArray(transcript) ? transcript : [];
   const q = normText(quote);
+  // Как у якоря судьи (quoteInText): после чистки пунктуации цитата из одних точек
+  // давала бы q='' и includes('') → ложный срез по первой реплике.
+  if (q.length < 8) return null;
   let cutIdx = -1;
   for (let i = 0; i < turns.length; i++) {
     const t = turns[i];

@@ -72,6 +72,31 @@ describe('верификаторы', () => {
     expect(quoteInText('фраза которой не было в звонке', f.agentText)).toBe(false);
   });
 
+  it('quoteInText не чувствителен к пунктуации диктовки (phone-spoken 30.08)', () => {
+    const speech = 'Numărul lui: zero. șase. nouă... opt. patru. zero... unu. zero. unu.';
+    expect(quoteInText('zero șase nouă opt patru zero unu zero unu', speech)).toBe(true);
+    expect(quoteInText('zero, șase, nouă, opt, patru, zero, unu, zero, unu', speech)).toBe(true);
+    expect(quoteInText('zero cinci cinci patru patru patru zero zero', speech)).toBe(false);
+  });
+
+  it('цитата не склеивается из кусков двух реплик (граница «¦» в agentText)', () => {
+    const twoReplies = 'Pentru astăzi avem locuri la ora șapte. ¦ Nu sunt curse spre Bălți.';
+    expect(quoteInText('la ora șapte nu sunt curse spre bălți', twoReplies)).toBe(false);
+    expect(quoteInText('avem locuri la ora șapte', twoReplies)).toBe(true);
+  });
+
+  it('buildFacts сам ставит границу: цитата через две реальные реплики не проходит', () => {
+    // Не рукописная строка, а выход buildFacts — запирает join(' ¦ ') в самом коде:
+    // откат на join('\n') снова склеивал бы реплики после чистки пунктуации.
+    const f2 = buildFacts('conv_y', '2026-08-26T18:00:00Z', [
+      ...transcript,
+      { role: 'agent', message: 'Un coleg vă va suna diseară.', time_in_call_secs: 9 },
+    ]);
+    expect(quoteInText('pe această rută un coleg vă va suna', f2.agentText)).toBe(false);
+    expect(quoteInText('un coleg vă va suna diseară', f2.agentText)).toBe(true);
+    expect(quoteInText('nu sunt curse mâine pe această rută', f2.agentText)).toBe(true);
+  });
+
   it('neaga_curse подтверждается: count>0 и цитата на месте', () => {
     const v: JudgeViolation = { rule: 'neaga_curse', quote: 'nu sunt curse mâine pe această rută', summary_ru: 's' };
     expect(verifyNeagaCurse(v, f)).toBe(true);
@@ -153,6 +178,20 @@ describe('lucru_uitat (incident 29.08: numărul șoferului ALTEI curse)', () => 
     ]);
     // Citat prezent, dar în speech nu există lanț de 9 cifre-cuvinte → nu e număr dictat.
     expect(verifyLucruUitat(v, noPhone)).toBe(false);
+  });
+
+  it('NU confirmă când coada unei replici («ora șapte») se lipește de numărul companiei din următoarea', () => {
+    // Parsare per replică (audit runda 3, Medium): pe text lipit, «șapte»+060401010
+    // dădea lanțul 706040101 ≠ numărul companiei → fals pozitiv.
+    const f2 = buildFacts('c', '2026-08-29T12:00:00Z', [
+      lostTurns[0],
+      { role: 'agent', message: 'Prima cursă de mâine pleacă la ora șapte', time_in_call_secs: 4 },
+      // Replica începe DIRECT cu dictarea — doar așa lanțul se lipește de «șapte»
+      // (orice cuvânt ne-cifră între ele rupe run-ul în parseSpokenPhones).
+      { role: 'agent', message: 'Zero. șase. zero... patru. zero. unu... zero. unu. zero. E numărul companiei.', time_in_call_secs: 6 },
+    ]);
+    const v2: JudgeViolation = { rule: 'lucru_uitat', quote: 'zero șase zero patru zero unu zero unu zero', summary_ru: 's' };
+    expect(verifyLucruUitat(v2, f2)).toBe(false);
   });
 });
 

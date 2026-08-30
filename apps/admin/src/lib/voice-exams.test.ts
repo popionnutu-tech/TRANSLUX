@@ -37,4 +37,9 @@ describe('buildLessonTest', () => {
     const t = [{ role: 'agent', message: 'Bălți și Tețcani nu sunt pe ruta noastră.', time_in_call_secs: 0 }];
     expect(buildLessonTest(lesson, t)).toBeNull();
   });
+
+  it('цитата из одной пунктуации/короче 8 симв. после normText → null, а не срез по первой реплике', () => {
+    expect(buildLessonTest({ ...lesson, payload: { ...lesson.payload, quote: '...!?' } }, transcript)).toBeNull();
+    expect(buildLessonTest({ ...lesson, payload: { ...lesson.payload, quote: 'Da.' } }, transcript)).toBeNull();
+  });
 });

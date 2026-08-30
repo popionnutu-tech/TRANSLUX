@@ -15,7 +15,7 @@ import { resolveVoiceDate } from '@/lib/date-spoken';
 import { chisinauTodayIso, chisinauDayOf } from '@/lib/chisinau-time';
 import { insertLesson } from '@/lib/voice-lessons';
 import { alertAdmins, escapeHtml } from '@/lib/telegram-notify';
-import { generateLessonTests, startExams, pollExams, reportExamOutcome } from '@/lib/voice-exams';
+import { generateLessonTests, startExams, pollExams, reportExamOutcome, normText } from '@/lib/voice-exams';
 import { parseSpokenPhones } from '@/lib/voice-controller';
 import { COMPANY_PHONE_LOCAL } from '@/lib/company-phone';
 
@@ -55,10 +55,13 @@ export type JudgeFacts = {
   // Lucruri uitate: numărul de șofer are voie să iasă DOAR dintr-un find_past_trip
   // cu un singur candidat (incident 29.08: numărul șoferului ALTEI curse).
   pastTripCounts: number[];
-  // Replicile agentului de DUPĂ ultimul rezultat find_past_trip (= tot agentText
+  // Replicile agentului de DUPĂ ultimul rezultat find_past_trip (= toate replicile
   // când tool-ul nu s-a chemat). Numărul citit legitim la count=1 nu trebuie să
   // otrăvească judecata frazei corecte de după count=0 (security Low 5).
-  agentTextAfterPastTrip: string;
+  // ARRAY, nu text lipit: parseSpokenPhones șterge orice separator ([^\p{L}]+),
+  // deci pe concatenare coada «...la ora șapte» + numărul companiei din replica
+  // următoare dădeau 7+06040101 → fals pozitiv lucru_uitat (audit runda 3, Medium).
+  agentMsgsAfterPastTrip: string[];
 };
 
 function parseJsonSafe(raw: unknown): Record<string, unknown> | null {
@@ -129,7 +132,10 @@ export function buildFacts(convId: string, createdAt: string, transcript: unknow
     createdAt,
     userTurns,
     agentTurns,
-    agentText: agentMsgs.join('\n'),
+    // «¦» — граница реплик, которую normText НЕ вычищает: после чистки пунктуации
+    // (30.08) «\n» схлопнулся бы в пробел и цитата могла бы склеиться из кусков
+    // ДВУХ корректных реплик (ложный confirm, хуже всего для promite_callback).
+    agentText: agentMsgs.join(' ¦ '),
     // «. » ca separator: fereastra de 60 de caractere a lui LOST_ITEM_RE nu are
     // voie să traverseze replici — \n nu e în [.!?] (round 3 Important 2).
     clientText: clientMsgs.join('. '),
@@ -140,7 +146,7 @@ export function buildFacts(convId: string, createdAt: string, transcript: unknow
     calledSearchTrips: searchCalls.length > 0,
     calledRequestCallback,
     pastTripCounts,
-    agentTextAfterPastTrip: agentMsgsAfterPastTrip.join('\n'),
+    agentMsgsAfterPastTrip: [...agentMsgsAfterPastTrip],
   };
 }
 
@@ -194,7 +200,9 @@ export function parseVerdicts(raw: string): JudgeViolation[] {
   }
 }
 
-const normText = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
+// normText живёт в voice-exams (единственный источник, см. комментарий там):
+// пунктуация вычищается, иначе якорь отбрасывал бы цитаты, где LLM «причесал»
+// точки диктовки номера (phone-spoken, 30.08).
 /** Цитата обязана дословно существовать в речи агента — якорь против выдумок LLM. */
 export function quoteInText(quote: string, text: string): boolean {
   const q = normText(quote);
@@ -269,7 +277,7 @@ export function verifyLucruUitat(v: JudgeViolation, f: JudgeFacts): boolean {
   if (f.pastTripCounts.at(-1) === 1) return false; // identificare confirmată — numărul e legitim
   // DOAR numerele de după ultimul rezultat: numărul legitim citit la un count=1
   // timpuriu nu incriminează fraza corectă a companiei de după count=0.
-  return parseSpokenPhones(f.agentTextAfterPastTrip).some((p) => p !== COMPANY_PHONE_LOCAL);
+  return f.agentMsgsAfterPastTrip.flatMap((m) => parseSpokenPhones(m)).some((p) => p !== COMPANY_PHONE_LOCAL);
 }
 
 // (e) Названная цена не из тулов. Цен в тулах не было — не применяется.
@@ -387,7 +395,7 @@ export async function runVoiceJudge(): Promise<{
   // Ключ дедупа несёт и цитату: у беспарных правил (callback/день/цена) голое
   // rule глушило бы весь класс на 14 дней одним ✗ (ревью I3).
   const rejKey = (p: { rule?: string; from?: string; to?: string; quote?: string }) =>
-    `${p.rule}|${key(p.from ?? '')}|${key(p.to ?? '')}|${(p.quote ?? '').toLowerCase().replace(/\s+/g, ' ').slice(0, 40)}`;
+    `${p.rule}|${key(p.from ?? '')}|${key(p.to ?? '')}|${normText(p.quote ?? '').slice(0, 40)}`;
   const rejectedKeys = new Set(
     ((negRows || []) as { payload: { rule?: string; from?: string; to?: string; quote?: string } }[])
       .map((r) => rejKey(r.payload ?? {})),

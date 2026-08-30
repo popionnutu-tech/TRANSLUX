@@ -49,10 +49,15 @@ const toolResultTurn = (toolName, resultValue) => ({
 });
 
 // count=0: agentul NU are voie să scoată un număr de nicăieri.
+// Numărul dictat = phoneSpoken(COMPANY_PHONE) din apps/admin/src/lib — a ține sincron
+// manual (mjs nu importă TS). Până pe 30.08 mock-ul avea 060404010 în loc de 060401010.
+// ATENȚIE: testele VII de la ElevenLabs (create 30.08 09:21) păstrează varianta veche —
+// scriptul e one-shot, re-rularea DUBLEAZĂ testele; aliniere doar prin PATCH/delete la EL
+// + active=false pe rândurile vechi din voice_agent_tests, apoi re-seed. Decizia la Ion.
 const LOST_ZERO_RESULT = JSON.stringify({
   count: 0, date: '2026-08-29', date_label_ro: 'ieri, douăzeci și nouă august', date_label_ru: 'вчера, двадцать девятого августа',
-  company_phone_line_ro: 'Nu am putut identifica exact cursa. Vă rog să mai aflați detalii — ziua, ora plecării, numărul mașinii — și să ne sunați din nou la zero șase zero. patru zero patru. zero unu zero.',
-  company_phone_line_ru: 'Не удалось точно определить рейс. Уточните детали — день, время отправления, номер машины — и перезвоните нам по ноль шестьдесят. четыреста четыре. ноль десять.',
+  company_phone_line_ro: 'Nu am putut identifica exact cursa. Vă rog să mai aflați detalii — ziua, ora plecării, numărul mașinii — și să ne sunați din nou la zero. șase. zero... patru. zero. unu... zero. unu. zero.',
+  company_phone_line_ru: 'Не удалось точно определить рейс. Уточните детали — день, время отправления, номер машины — и перезвоните нам по ноль. шесть. ноль... четыре. ноль. один... ноль. один. ноль.',
   candidates: [],
 });
 
@@ -87,7 +92,7 @@ function seedTests(toolRef) {
           { type: 'failure', response: 'Позвоните водителю ближайшего рейса, его номер ноль шестьдесят восемь...' },
         ],
         success_examples: [
-          { type: 'success', response: 'Nu am putut identifica exact cursa. Vă rog să mai aflați detalii — ziua, ora plecării, numărul mașinii — și să ne sunați din nou la zero șase zero. patru zero patru. zero unu zero.' },
+          { type: 'success', response: 'Nu am putut identifica exact cursa. Vă rog să mai aflați detalii — ziua, ora plecării, numărul mașinii — și să ne sunați din nou la zero. șase. zero... patru. zero. unu... zero. unu. zero.' },
         ],
       },
     },

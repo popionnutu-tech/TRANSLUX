@@ -14,6 +14,7 @@ import {
   rescuableCall,
   SSE_DONE,
   sseChunk,
+  stripRuToolFields,
   toAnthropic,
   toAnthropicTools,
   TtsGate,
@@ -82,11 +83,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: { message: 'messages required' } });
   }
 
-  const { system, messages } = toAnthropic(body.messages);
-  const tools = toAnthropicTools(body.tools);
-  const completionId = `chatcmpl-${crypto.randomUUID()}`;
   // Limba scuzei de avarie — calculată AICI, înainte de try: un throw în catch = agent mut.
   const apology = apologyFor(body.messages);
+  // Cât clientul vorbește dovedit română, câmpurile _ru nu ajung la model: apel real
+  // 30.08 — un «Да.» chirilizat l-a făcut să citească driver_line_ru unui client român.
+  // DUPĂ apology: scuza se calculează pe istoricul original, nefiltrat.
+  const { system, messages } = toAnthropic(stripRuToolFields(body.messages));
+  const tools = toAnthropicTools(body.tools);
+  const completionId = `chatcmpl-${crypto.randomUUID()}`;
   // Diagnostic (întrebarea TLX 24.08): ecou-iește EL tool-callurile de SISTEM în istorie?
   // De verificat în logs după un apel cu schimbare de limbă; apoi linia se poate scoate.
   const histTools = body.messages.flatMap((m) => m.tool_calls?.map((t) => t.function.name) ?? []);
@@ -105,7 +109,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   //
   // Prudența trăiește în lib/language.ts: la orice îndoială întoarce null și
   // tura pleacă la model, ca înainte. Cererea explicită („давайте по-русски")
-  // rămâne tot la model — ea cere sens, nu litere.
+  // intră din 30.08 în seria de două — la prima predă modelul (conform
+  // promptului), scurtătura prinde abia a doua.
   const hasTransferTool = (body.tools ?? []).some((t) => t.function?.name === 'transfer_to_agent');
   const transferTo = body.stream !== false && hasTransferTool
     ? pendingLanguageTransfer(body.messages)

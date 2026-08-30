@@ -3,6 +3,7 @@
 // Funcții pure, fără I/O — testabile izolat.
 
 import type Anthropic from "@anthropic-ai/sdk";
+import { langOfUtterance } from "./language";
 
 // ---- Formatul OpenAI primit de la ElevenLabs ----
 
@@ -521,6 +522,16 @@ const APOLOGY_RU = "Извините, небольшая техническая 
 const APOLOGY_RO = "Îmi cer scuze, am o mică problemă tehnică. Puteți repeta, vă rog?";
 
 export function apologyFor(messages: OpenAIMessage[]): string {
+  return voiceLanguage(messages) === "ru" ? APOLOGY_RU : APOLOGY_RO;
+}
+
+/** Limba VOCII curente, dedusă deterministic din istoric. Semnalul de agent cel mai
+ *  recent câștigă: `transfer_to_agent` = rusă (invariantul «o singură predare, RO→RU,
+ *  agent_number: 0» e documentat la scurtătura din api/chat/completions.ts — un al
+ *  doilea transfer, de ex. spre un operator uman, sparge AMBELE locuri) sau
+ *  `language_detection` cu limba lui; apoi ultima replică assistant concludentă;
+ *  apoi scorul replicilor user; altfel RO. */
+export function voiceLanguage(messages: OpenAIMessage[]): "ro" | "ru" {
   try {
     // Cedilele ş/ţ (U+015F, U+0163) NU sunt același caracter cu ș/ț cu virgulă —
     // ASR-ul și sursele vechi le produc des. Fără ele o replică românească plină
@@ -533,11 +544,12 @@ export function apologyFor(messages: OpenAIMessage[]): string {
       const m = messages[i];
       if (m.role !== "assistant") continue;
       for (const tc of m.tool_calls ?? []) {
+        if (tc.function?.name === "transfer_to_agent") return "ru";
         if (tc.function?.name === "language_detection") {
           try {
             const lang = String(JSON.parse(tc.function.arguments || "{}").language ?? "");
-            if (lang.startsWith("ru")) return APOLOGY_RU;
-            if (lang.startsWith("ro")) return APOLOGY_RO;
+            if (lang.startsWith("ru")) return "ru";
+            if (lang.startsWith("ro")) return "ro";
           } catch { /* prioritatea următoare */ }
         }
       }
@@ -548,7 +560,7 @@ export function apologyFor(messages: OpenAIMessage[]): string {
       const text = contentToText(m.content);
       if (!text) continue;
       const { cyr, lat } = letters(text);
-      if (cyr + lat >= 4 && Math.abs(cyr - lat) >= 3) return cyr > lat ? APOLOGY_RU : APOLOGY_RO;
+      if (cyr + lat >= 4 && Math.abs(cyr - lat) >= 3) return cyr > lat ? "ru" : "ro";
       break; // ultima replică nu decide clar → scorul user-ilor
     }
     let cyrU = 0;
@@ -559,7 +571,70 @@ export function apologyFor(messages: OpenAIMessage[]): string {
       cyrU += cyr;
       latU += lat;
     }
-    if (cyrU > latU) return APOLOGY_RU;
+    if (cyrU > latU) return "ru";
   } catch { /* RO mai jos */ }
-  return APOLOGY_RO;
+  return "ro";
+}
+
+// Apel real 30.08 (conv_3101m18kxmbce2br16snwy8detmc): la un «Да.» chirilizat de ASR
+// modelul a citit driver_line_ru deși clientul vorbea română — pentru el a fost
+// selecție de câmp, nu schimbare de limbă, deci regula limbii din prompt nu l-a
+// oprit. Cât timp clientul vorbește DOVEDIT română, câmpurile _ru se taie din
+// rezultatele tool: ce nu ajunge la model nu poate fi rostit. Sens unic (ro→ru);
+// _ro nu se taie niciodată.
+//
+// Poarta cere AMBELE dovezi. Auditul din 30.08 (replay pe 233 de transcripturi
+// reale) a arătat că poarta doar pe replica agentului tăia _ru la 10 apelanți
+// ruși REALI pentru 1 caz de bug: salutul e mereu românesc, iar tura de comutare
+// e mută, deci «ultima replică assistant» rămâne ro exact când rusul e servit.
+//  1. nicio fază rusească stabilită (voiceLanguage = ro);
+//  2. ultima replică user cu limbă determinabilă e românească — langOfUtterance
+//     cere cuvinte de serviciu și întoarce null pe «Да.»/«Алло»/toponime; peste
+//     replicile ambigue se sare. Niciun user concludent => nu tăiem (partea sigură).
+//
+// ATENȚIE cache: poarta reevaluează istoria la fiecare tură și o rescrie RETROACTIV
+// (o frază rusească întoarce _ru și în tool-result-urile vechi). Azi e gratuit —
+// messages nu se cache-uiesc. Un breakpoint de cache pe messages se poate adăuga
+// DOAR împreună cu fixarea deciziei porții pe prima tură a apelului (perf 30.08).
+function shouldStripRu(messages: OpenAIMessage[]): boolean {
+  try {
+    if (voiceLanguage(messages) !== "ro") return false;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      if (m.role !== "user") continue;
+      const lang = langOfUtterance(contentToText(m.content));
+      if (lang) return lang === "ro";
+    }
+  } catch { /* fără dovadă = fără tăiere */ }
+  return false;
+}
+
+// Doar sufixul `_ru`, nu cheia goală `ru`: did_you_mean din unknownLocalityResponse
+// trimite DINADINS ambele grafii {ro, ru} — modelul potrivește după varianta ru o
+// localitate transcrisă cu chirilice. Ea trebuie să supraviețuiască tăierii.
+function dropRuKeys(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(dropRuKeys);
+  if (v && typeof v === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, val] of Object.entries(v)) {
+      if (k.endsWith("_ru")) continue;
+      out[k] = dropRuKeys(val);
+    }
+    return out;
+  }
+  return v;
+}
+
+export function stripRuToolFields(messages: OpenAIMessage[]): OpenAIMessage[] {
+  if (!shouldStripRu(messages)) return messages;
+  return messages.map((m) => {
+    if (m.role !== "tool") return m;
+    try {
+      const text = contentToText(m.content);
+      if (!text.includes("_ru")) return m;
+      return { ...m, content: JSON.stringify(dropRuKeys(JSON.parse(text))) };
+    } catch {
+      return m; // conținut ne-JSON (mesaj de eroare) — rămâne cum e
+    }
+  });
 }

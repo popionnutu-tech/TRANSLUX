@@ -23,6 +23,7 @@ import {
   sseChunk,
   stripLeadingGreeting,
   stripMarkdownForTts,
+  stripRuToolFields,
   stripThinkingAloud,
   toAnthropic,
   toAnthropicTools,
@@ -86,9 +87,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: { message: 'messages required' } }, { status: 400 });
   }
 
-  const { system, messages } = toAnthropic(body.messages);
   // Limba scuzei de avarie — calculată AICI, înainte de try: un throw în catch = agent mut.
   const apology = apologyFor(body.messages);
+  // Cât clientul vorbește dovedit română, câmpurile _ru nu ajung la model: apel real
+  // 30.08 — un «Да.» chirilizat l-a făcut să citească driver_line_ru unui client român.
+  // DUPĂ apology: scuza se calculează pe istoricul original, nefiltrat.
+  const { system, messages } = toAnthropic(stripRuToolFields(body.messages));
   const tools = toAnthropicTools(body.tools);
   const completionId = `chatcmpl-${crypto.randomUUID()}`;
 

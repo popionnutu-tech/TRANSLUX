@@ -40,7 +40,7 @@ const FALLBACK_KEYWORDS = [
 // Позиция вставки кэш НЕ спасает: точка кэша одна, на весь system.
 // Markerele TREBUIE să fie unice: un marker care apare și în alt bloc face detectorul
 // orb la ștergerea blocului propriu (ORELE a fost mascat de titlul blocului ZIUA).
-const PROMPT_MARKERS = ['ORELE — DOSLOVEN', 'UNIVERSUL localităților', 'Doriți numărul lui?', 'A DOUA OARĂ LA RÂND', 'ZIUA — DOSLOVEN', 'e un CORIDOR', 'SFÂRȘIT NUME RUSEȘTI', 'APEL ÎNAPOI — NICIO PROMISIUNE', 'STAȚIA CHIȘINĂU — AUTOGARA TRANSLUX', 'STAȚIA BĂLȚI — PEROANELE', 'ORA SOSIRII — NU SE SPUNE', 'LUCRURI UITATE — DOAR ȘOFERUL IDENTIFICAT'];
+const PROMPT_MARKERS = ['ORELE — DOSLOVEN', 'UNIVERSUL localităților', 'Doriți numărul lui?', 'A DOUA OARĂ LA RÂND', 'ZIUA — DOSLOVEN', 'e un CORIDOR', 'SFÂRȘIT NUME RUSEȘTI', 'APEL ÎNAPOI — NICIO PROMISIUNE', 'STAȚIA CHIȘINĂU — AUTOGARA TRANSLUX', 'STAȚIA BĂLȚI — PEROANELE', 'ORA SOSIRII — NU SE SPUNE', 'LUCRURI UITATE — DOAR ȘOFERUL IDENTIFICAT', 'CÂMPURILE _RU — DOAR ÎN REPLICI RUSEȘTI'];
 const ORELE_BLOCK = `
 
 ORELE — DOSLOVEN DIN TOOL:
@@ -211,6 +211,21 @@ LIMBA — A DOUA OARĂ LA RÂND:
 - O SINGURĂ replică ce pare rusească NU e motiv de schimbare: transcrierea scrie des româna cu chirilice, iar «da», «alo», «aha», «nu», «bine», «mersi» sună identic în ambele limbi.
 - Transcriere fără sens sau orice dubiu? Rămâi pe limba curentă și roagă scurt să repete.`;
 
+// Apel real 30.08 (conv_3101m18kxmbce2br16snwy8detmc): la un «Да.» chirilizat de ASR
+// modelul a citit driver_line_ru unui client care vorbea română — fără language_detection.
+// Pentru model a fost selecție de câmp, nu schimbare de limbă, deci LIMBA_BLOCK nu l-a
+// oprit. Blocul NU definește CÂND se schimbă limba (aia e treaba regulii limbii de mai
+// sus — textul de aici nu are voie să conțină șirul-marker al acelui bloc, altfel
+// orbește detectorul) — leagă doar alegerea câmpului de limba replicii. Plasa de
+// siguranță e pe server (stripRuToolFields în voice-llm și în fallback-ul de aici).
+// DOAR agentul RO: la agentul RU formularea ar fi falsă — el vorbește rusa by design.
+const CAMPURI_RU_BLOCK = `
+
+CÂMPURILE _RU — DOAR ÎN REPLICI RUSEȘTI:
+- Tool-urile întorc câmpuri pereche: *_ro (română) și *_ru (rusă). Un câmp _ru îl citești DOAR într-o replică pe care o spui în rusă; în orice replică românească citești varianta _ro.
+- O replică scurtă a clientului scrisă cu chirilice («Да», «Алло», numele unei localități) NU înseamnă că el a trecut pe rusă și NU e motiv să citești un câmp _ru.
+- Alegerea câmpului URMEAZĂ limba în care răspunzi, stabilită de regulile de schimbare a limbii — alegerea câmpului nu schimbă niciodată ea însăși limba.`;
+
 async function canonKeywords(): Promise<string[]> {
   try {
     const { data } = await getSupabase().from('voice_agent_canon').select('value').eq('key', 'asr_keywords').maybeSingle();
@@ -340,6 +355,7 @@ async function checkAndHealConfig(cfg: any): Promise<Drift[]> {
     { marker: 'STAȚIA BĂLȚI — PEROANELE', block: BALTI_BLOCK, field: 'prompt.BALTI' },
     { marker: 'ORA SOSIRII — NU SE SPUNE', block: SOSIREA_BLOCK, field: 'prompt.SOSIREA' },
     { marker: 'LUCRURI UITATE — DOAR ȘOFERUL IDENTIFICAT', block: LUCRURI_BLOCK, field: 'prompt.LUCRURI' },
+    { marker: 'CÂMPURILE _RU — DOAR ÎN REPLICI RUSEȘTI', block: CAMPURI_RU_BLOCK, field: 'prompt.CAMPURI_RU' },
   ];
   let healedPrompt = prompt;
   for (const ob of OBSOLETE_BLOCKS) {

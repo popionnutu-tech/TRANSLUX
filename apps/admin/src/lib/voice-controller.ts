@@ -428,6 +428,39 @@ async function checkAndHealConfig(cfg: any, drifts: Drift[]): Promise<void> {
   // Blocurile auto-vindecabile se adaugă în COADĂ, idempotent după marker. Poziția NU
   // salvează cache-ul (punctul de cache e unul singur, pe tot system-ul) — de aceea
   // blocurile trebuie să rămână statice, fără variabile care se schimbă în timpul apelului.
+  //
+  // ATENȚIE — VINDECAREA E DOAR PE MARKER, NU PE CONȚINUT (măsurat 31.08).
+  //
+  // DECIZIA LUI ION (31.08): sursa adevărului pentru prompt e AGENTUL VIU, nu fișierul
+  // ăsta. Deci comparația pe conținut NU se pune, iar textul scris din dashboard NU se
+  // aliniază la constante — el rămâne stăpân. Canonul de mai jos e o plasă de PORNIRE:
+  // livrează blocul când markerul lipsește și după aceea nu se mai amestecă.
+  // Prețul acceptat conștient: o substituire de text în dashboard nu o vede nimeni.
+  // Blocul se adaugă DOAR când markerul lipsește. Marker prezent ⇒ textul nu se compară
+  // NICIODATĂ, deci un bloc odată livrat poate diverge la nesfârșit de constanta de mai
+  // jos, iar controlerul nu vede nimic. Măsurat pe ORELE: blocul viu are 9 rânduri față
+  // de 10 aici, iar două rânduri comune sunt mai lungi în viu, cu exemple din apeluri
+  // reale («ai anunțat 07:10 drept prima când prima era 04:00», «INTERZIS „patru și
+  // douăzeci după-amiază"»). Relația e viu ⊃ constantă: o comparație pe prefix ar trece,
+  // una pe conținut ar pica. Formulările din viu sunt mai bune — nu le aliniem la repo.
+  // Trei consecințe, în ordinea în care mușcă:
+  //  1. Constantele astea NU sunt oglinda a ce aude clientul. Cine trage concluzii despre
+  //     comportamentul agentului citind DOAR fișierul ăsta se înșală — se citește
+  //     promptul viu prin API (GET /v1/convai/agents/<id>).
+  //  2. O modificare într-un bloc DEJA livrat NU ajunge la agent păstrând markerul vechi.
+  //     Calea durabilă e cea de la OBSOLETE_BLOCKS: marker NOU + rândul vechi ca piatră
+  //     de mormânt (are granularitate de rând — vezi tocmai rândul cu departure_spoken_ro).
+  //     PATCH-ul punctual pe conversation_config.agent.prompt.prompt e varianta rapidă
+  //     (a9adfcd), dar lasă în urmă exact divergența descrisă aici.
+  //  3. `setup.mjs --force-config` rescrie promptul viu întreg. Controlerul întoarce
+  //     cele 10 blocuri de mai jos, dar markerii DOAR-detectare («UNIVERSUL localităților»,
+  //     «Doriți numărul lui?», «SFÂRȘIT NUME RUSEȘTI» — numele rusești generate din BD)
+  //     nu se întorc niciodată, ca și orice text scris din dashboard.
+  // Notă de precizie, fiindcă a păcălit două sesiuni într-o zi: regula «Ora plecării o
+  // rostești DOAR din departure_spoken_ro» LIPSEȘTE din ORELE-ul viu, dar NU s-a pierdut —
+  // stă în secțiunea «ORA SOSIRII — NU SE SPUNE NICIODATĂ» (SOSIREA_BLOCK). E o clasare
+  // greșită: regula despre PLECARE trăiește sub un titlu despre SOSIRE. Cine o caută în
+  // ORELE n-o găsește și e tentat s-o adauge a doua oară — nu o face.
   const HEALABLE = [
     { marker: 'ORELE — DOSLOVEN', block: ORELE_BLOCK, field: 'prompt.ORELE' },
     { marker: 'ZIUA — DOSLOVEN', block: DATA_BLOCK, field: 'prompt.ZIUA' },

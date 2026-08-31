@@ -1,7 +1,7 @@
 // Teste pentru metricile unei curse (node --test lde-geo-worker/trip-metrics.test.mjs).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { detectArrival, inRaza, stopsOver, tripKm, tripMetrics } from './trip-metrics.mjs';
+import { detectArrival, inRaza, punctePlauzibile, stopsOver, tripKm, tripMetrics } from './trip-metrics.mjs';
 
 const T0 = Math.floor(new Date('2026-09-01T06:00:00Z').getTime() / 1000);
 const pt = (sec, lat, lon, speed = 60) => ({ t: T0 + sec, lat, lon, speed });
@@ -117,4 +117,24 @@ test('tripMetrics: descărcarea se caută DUPĂ încărcare, nu înainte', () =>
   });
   assert.equal(m.load_actual_at, new Date((T0 + 3600) * 1000).toISOString());
   assert.equal(m.unload_actual_at, new Date((T0 + 7200) * 1000).toISOString());
+});
+
+test('punctePlauzibile aruncă gunoiul din Wialon (timestamp aberant, coordonate lipsă)', () => {
+  const bune = [pt(0, 47.0, 28.8), pt(60, 47.1, 28.9)];
+  const gunoi = [
+    { t: 'abc', lat: 47, lon: 28, speed: 0 },
+    { t: 1e15, lat: 47, lon: 28, speed: 0 },
+    { t: T0, lat: null, lon: 28, speed: 0 },
+  ];
+  assert.equal(punctePlauzibile([...bune, ...gunoi]).length, 2);
+});
+
+test('tripMetrics nu crapă pe puncte cu timestamp aberant', () => {
+  const m = tripMetrics({
+    points: [{ t: 1e15, lat: 47, lon: 28, speed: 0 }, pt(0, CHISINAU.lat, CHISINAU.lon, 0)],
+    loadPoint: CHISINAU, unloadPoint: BALTI, razaM: 500,
+    plannedLoad: '2026-09-01T06:00:00Z', plannedUnload: '2026-09-01T08:00:00Z',
+  });
+  assert.equal(typeof m.km_real, 'number');
+  assert.equal(m.unload_actual_at, null);
 });

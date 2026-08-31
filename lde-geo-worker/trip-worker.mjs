@@ -40,7 +40,13 @@ async function sb(path, init = {}) {
     },
   });
   if (!r.ok) throw new Error(`supabase ${path}: ${r.status} ${(await r.text()).slice(0, 300)}`);
-  return r.status === 204 ? null : r.json();
+  // PostgREST întoarce 201 cu corp GOL la POST fără `return=representation`.
+  // r.json() pe corp gol arunca SyntaxError și workerul murea la PRIMA cursă
+  // scrisă, în fiecare noapte (arch review 31.08, Critical).
+  const ct = r.headers.get('content-type') || '';
+  if (r.status === 204 || !ct.includes('application/json')) return null;
+  const text = await r.text();
+  return text ? JSON.parse(text) : null;
 }
 
 /** Aceeași regulă ca în wialon-worker: numele unității → plăcuță normalizată. */
@@ -76,17 +82,33 @@ async function kmIdeali(a, b) {
 async function main() {
   console.log(`[trip-worker] ziua ${ziua}${WRITE ? ' (write)' : ' (probă)'}`);
 
-  // Cursele care ating ziua: încărcarea înainte de sfârșitul zilei, descărcarea
-  // după începutul ei. Anulatele nu se măsoară.
-  const de = `${ziua}T00:00:00+02:00`;
-  const la = `${ziua}T23:59:59+03:00`;
-  const curse = await sb(
-    `lde_truck_trips?select=id,vehicle_id,load_planned_at,unload_planned_at,status,` +
+  // Cursele ÎNCHEIATE în ziua dată (descărcarea planificată cade în ea). O cursă
+  // de 3 zile atingea 3 nopți, se descărca track-ul de 3 ori și primele două
+  // rulări scriau metrici pe o cursă neterminată — apoi le suprascria a treia
+  // (perf review 31.08). Anulatele nu se măsoară.
+  // Fus: la fel ca wialon-worker — ora locală a VPS-ului (TZ=Europe/Chisinau),
+  // nu offset fix (vara +03, iarna +02).
+  const de = new Date(`${ziua}T00:00:00`).toISOString();
+  const la = new Date(`${ziua}T23:59:59.999`).toISOString();
+  const CAMPURI =
+    `select=id,vehicle_id,load_planned_at,unload_planned_at,status,` +
     `load_point:load_point_id(name,lat,lng,radius_m),unload_point:unload_point_id(name,lat,lng,radius_m),` +
-    `vehicles:vehicle_id(plate_number)` +
-    `&status=neq.anulata&load_planned_at=lte.${encodeURIComponent(la)}&unload_planned_at=gte.${encodeURIComponent(de)}`,
-  );
-  console.log(`[trip-worker] curse de măsurat: ${curse.length}`);
+    `vehicles:vehicle_id(plate_number)`;
+
+  const [incheiateAzi, restante] = await Promise.all([
+    sb(`lde_truck_trips?${CAMPURI}&status=neq.anulata` +
+       `&unload_planned_at=gte.${encodeURIComponent(de)}&unload_planned_at=lte.${encodeURIComponent(la)}`),
+    // A DOUA trecere: cursele rămase DESCHISE, cu descărcarea planificată în
+    // ultimele 7 zile. Fără ea, o cursă care întârzia peste fereastră nu mai era
+    // niciodată recalculată — și tocmai întârzierile mari dispăreau din analitică
+    // (arch/business review 31.08). Se recalculează până se închid.
+    sb(`lde_truck_trips?${CAMPURI}&status=not.in.(incheiata,anulata)` +
+       `&unload_planned_at=lt.${encodeURIComponent(de)}` +
+       `&unload_planned_at=gte.${encodeURIComponent(new Date(Date.parse(de) - 7 * 86400e3).toISOString())}`),
+  ]);
+  const vazute = new Set();
+  const curse = [...incheiateAzi, ...restante].filter((t) => !vazute.has(t.id) && vazute.add(t.id));
+  console.log(`[trip-worker] curse de măsurat: ${curse.length} (${incheiateAzi.length} încheiate azi, ${restante.length} restante)`);
   if (curse.length === 0) return;
 
   const { sid } = await login(WIALON_TOKEN);
@@ -98,13 +120,30 @@ async function main() {
   }
 
   let scrise = 0;
+  let esuate = 0;
   for (const t of curse) {
+    try {
     const placa = normPlaca(t.vehicles?.plate_number);
     const unitId = unitDupaPlaca.get(placa);
     if (!unitId) { console.log(`  ${placa}: fără unitate Wialon — sar`); continue; }
 
-    const from = Math.floor(Date.parse(t.load_planned_at) / 1000) - 3600;   // o oră înainte
-    const to = Math.floor(Date.parse(t.unload_planned_at) / 1000) + 3600;   // o oră după
+    // Fereastra e ASIMETRICĂ: o oră înainte de încărcare (camionul poate ajunge
+    // devreme), dar 24h după descărcarea planificată. Cu doar +1h, cursa care
+    // întârzia peste o oră ieșea din fereastră, sosirea nu se detecta, iar
+    // analitica o număra «la timp» — exact cursele care contează dispăreau
+    // (audit 31.08, Critical).
+    const to = Math.min(
+      Math.floor(Date.now() / 1000),
+      Math.floor(Date.parse(t.unload_planned_at) / 1000) + 24 * 3600,
+    );
+    // Plafon dur pe fereastră: o cursă cu anul greșit la încărcare cerea de la
+    // Wialon un interval de ani întregi, în fiecare noapte, pe contul comun cu
+    // gps-worker/fuel-worker (security review 31.08, High).
+    const MAX_ZILE_TRACK = 14;
+    const from = Math.max(
+      Math.floor(Date.parse(t.load_planned_at) / 1000) - 3600,
+      to - MAX_ZILE_TRACK * 86400,
+    );
     const points = await loadTrack(sid, unitId, from, to);
     if (points.length < 2) { console.log(`  ${placa}: track gol — sar`); continue; }
 
@@ -113,12 +152,20 @@ async function main() {
     // Raza e editabilă de dispecer (până la 20 km în formular), iar ea decide
     // când «a sosit» camionul — deci și întârzierea din analitică. O plafonăm la
     // 2 km la CALCUL: cel evaluat nu-și alege singur toleranța (security 31.08).
+    // Fiecare punct cu raza LUI: maximul comun impunea unui punct mic toleranța
+    // terminalului mare și ascundea întârzierea (arch review 31.08).
+    // Plafon ȘI podea: dispecerul putea coborî raza sub distanța dintre două
+    // ping-uri GPS, sosirea nu se mai detecta și cursa ieșea din punctualitate
+    // ca «nemăsurată» (security review 31.08).
     const RAZA_MAX_M = 2000;
-    const raza = Math.min(RAZA_MAX_M, Math.max(t.load_point?.radius_m ?? 500, t.unload_point?.radius_m ?? 500));
+    const RAZA_MIN_M = 200;
+    const raza = (p) => Math.min(RAZA_MAX_M, Math.max(RAZA_MIN_M, p?.radius_m ?? 500));
+    const razaLoad = raza(t.load_point);
+    const razaUnload = raza(t.unload_point);
 
     const ideal = await kmIdeali(lp, up);
     const m = tripMetrics({
-      points, loadPoint: lp, unloadPoint: up, razaM: raza,
+      points, loadPoint: lp, unloadPoint: up, razaLoad, razaUnload,
       kmIdeal: ideal,
       plannedLoad: t.load_planned_at,
       plannedUnload: t.unload_planned_at,
@@ -128,7 +175,10 @@ async function main() {
       trip_id: t.id,
       ...m,
       computed_at: new Date().toISOString(),
-      note: ideal === null ? 'traseu ideal indisponibil (fără ROUTING_URL sau puncte fără coordonate)' : null,
+      note: [
+        t.status !== 'incheiata' ? `provizoriu (cursa e în «${t.status}»)` : null,
+        ideal === null ? 'traseu ideal indisponibil (fără ROUTING_URL sau puncte fără coordonate)' : null,
+      ].filter(Boolean).join('; ') || null,
     };
     console.log(`  ${placa}: ${m.km_real} km real, ideal ${ideal ?? '—'}, opriri ${m.stops_over_30min}, ` +
       `întârziere desc. ${m.unload_delay_min ?? '—'} min`);
@@ -136,13 +186,20 @@ async function main() {
     if (WRITE) {
       await sb('lde_truck_trip_metrics?on_conflict=trip_id', {
         method: 'POST',
-        headers: { Prefer: 'resolution=merge-duplicates' },
+        headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
         body: JSON.stringify([rand]),
       });
       scrise++;
     }
+    } catch (e) {
+      // O cursă căzută (unitate lipsă, rețea, punct fără coordonate) nu are voie
+      // să omoare toată noaptea: cursele deja încheiate nu s-ar mai reîncerca
+      // niciodată (security review 31.08).
+      esuate++;
+      console.error(`  cursa ${t.id}: ${e instanceof Error ? e.message : e}`);
+    }
   }
-  console.log(`[trip-worker] gata${WRITE ? `, scrise ${scrise}` : ''}`);
+  console.log(`[trip-worker] gata${WRITE ? `, scrise ${scrise}` : ''}${esuate ? `, eșuate ${esuate}` : ''}`);
 }
 
 main().catch((e) => { console.error('[trip-worker]', e); process.exit(1); });

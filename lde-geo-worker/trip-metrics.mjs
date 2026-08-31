@@ -95,14 +95,33 @@ export function feliaz(points, fromUnix, toUnix) {
  * `kmIdeal` vine din afară (furnizor de rutare) — poate fi null, și atunci
  * abaterea rămâne null: nu inventăm un traseu ideal pe care nu-l cunoaștem.
  */
-export function tripMetrics({ points, loadPoint, unloadPoint, razaM = 500, kmIdeal = null, plannedLoad, plannedUnload }) {
+/** Timestamp unix plauzibil (2000..2100): Wialon poate întoarce gunoi, iar
+ *  new Date(t*1000).toISOString() ar arunca RangeError. */
+export function punctePlauzibile(points) {
+  return points.filter((p) =>
+    Number.isFinite(p?.t) && p.t > 946684800 && p.t < 4102444800 &&
+    Number.isFinite(p?.lat) && Number.isFinite(p?.lon));
+}
+
+export function tripMetrics({
+  points: pointsBrute, loadPoint, unloadPoint, razaM = 500,
+  razaLoad = razaM, razaUnload = razaM,
+  kmIdeal = null, plannedLoad, plannedUnload,
+}) {
+  const points = punctePlauzibile(pointsBrute);
   const kmReal = tripKm(points);
-  const loadActual = detectArrival(points, loadPoint, razaM);
+  const loadActual = detectArrival(points, loadPoint, razaLoad);
   const unloadActual = detectArrival(
     loadActual ? points.filter((p) => p.t >= loadActual) : points,
-    unloadPoint, razaM,
+    unloadPoint, razaUnload,
   );
-  const opriri = stopsOver(points, STOP_MIN_MIN, [loadPoint, unloadPoint].filter(Boolean), razaM);
+  // Opririle se exclud cu raza fiecărui punct: o rază comună ascundea staționări
+  // reale lângă punctul mic (arch review 31.08).
+  const opririToate = [
+    ...stopsOver(points, STOP_MIN_MIN, [loadPoint].filter(Boolean), razaLoad),
+  ];
+  const opriri = opririToate.filter((o) =>
+    !unloadPoint || !inRaza({ lat: o.lat, lon: o.lon }, unloadPoint, razaUnload));
 
   const intarziere = (actualUnix, plannedIso) => {
     if (actualUnix == null || !plannedIso) return null;

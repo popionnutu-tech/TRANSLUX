@@ -133,6 +133,30 @@ Fiecare etapă e utilizabilă singură; fiecare trece prin ciclul obișnuit de r
 (architecture-guardian + performance-reviewer + business-logic-auditor, security la
 final) înainte de deploy.
 
+## Abateri conștiente față de designul inițial (după implementare)
+
+Constatate în review și decise pe loc, ca să nu rămână doar în cod:
+
+1. **Tipul camionului** stă în `lde_truck_profile`, nu ca o coloană pe `vehicles`:
+   tabela e partajată cu autobuzele și cu workerul Wialon.
+2. **«km ideali» depind de `ROUTING_URL`**, care nu există încă în infrastructură
+   (Valhalla de pe VPS acoperă doar Moldova, camioanele merg în UA/RO/BG). Fără
+   el metrica rămâne NULL și blocul «Abateri de traseu» spune deschis că lipsește.
+   De decis separat: instalare hartă Europa sau furnizor extern.
+3. **«Are șofer»** = atribuire activă în parc SAU șofer pus pe cursa activă.
+   Numai prima sursă ar fi ascuns cursele celor 23 de camioane fără atribuire.
+4. **Cursa activă bate starea zilei** în kanban (reparația apare ca insignă):
+   altfel butonul care încheie cursa devenea inaccesibil.
+5. **Km-ii pentru semnalul «merge fără șofer» sunt de IERI** — `lde_vehicle_gps_daily`
+   se scrie noaptea, pe «azi» n-ar fi pornit niciodată.
+6. **«Km goi» e o estimare**, nu o măsurătoare: diferență între calculul zilnic al
+   flotei și suma curselor măsurate, două calcule apropiate dar nu identice.
+   Coloana `empty_km` rămâne nescrisă până la o măsurare directă a segmentului gol.
+7. **Punctualitatea se judecă doar pe cursele măsurate**; cele fără sosire detectată
+   apar separat în coloana «Măsurate», nu se numără punctuale.
+8. **Workerul face două treceri** (curse încheiate în ziua dată + curse rămase
+   deschise din ultimele 7 zile), ca întârzierile mari să nu iasă din fereastră.
+
 ## Praguri și detalii amânate deliberat
 
 - Raza implicită a punctelor (propunere: 500 m; terminalele mari pot primi mai mult) —

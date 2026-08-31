@@ -10,4 +10,7 @@ node --env-file=.env gps-worker.mjs "$Y" --write >> nightly.log 2>&1
 node --env-file=.env fuel-worker.mjs --write >> nightly.log 2>&1
 node --env-file=.env price-worker.mjs 7 >> nightly.log 2>&1
 node --env-file=.env wialon-worker.mjs "$Y" --write >> nightly.log 2>&1
+# Metricile curselor de camioane — DUPĂ wialon-worker: are nevoie de aceleași
+# track-uri, iar km-ii se calculează cu același nucleu (km-core), nu cu altul.
+node --env-file=.env trip-worker.mjs "$Y" --write >> nightly.log 2>&1
 echo "----- gata -----" >> nightly.log

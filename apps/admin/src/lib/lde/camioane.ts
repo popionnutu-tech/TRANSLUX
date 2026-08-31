@@ -48,7 +48,11 @@ export function camioaneMaiAproape(
   candidate: { vehicleId: string; plate: string; lat: number; lng: number }[],
   maxRezultate = 3,
 ): { vehicleId: string; plate: string; km: number; economieKm: number }[] {
-  const kmAles = ales ? haversineKm(target, ales) : Infinity;
+  // Fără poziția camionului ales nu există comparație: altfel kmAles = Infinity
+  // și panoul arăta toate camioanele cu «0 km mai puțin» (audit 31.08, Medium #5).
+  // Ieri doar 21 din 39 de camioane au raportat GPS — cazul e frecvent.
+  if (!ales) return [];
+  const kmAles = haversineKm(target, ales);
   return candidate
     .filter((c) => !ales || c.vehicleId !== ales.vehicleId)
     .map((c) => ({ vehicleId: c.vehicleId, plate: c.plate, km: haversineKm(target, c) }))
@@ -81,9 +85,15 @@ export function coloanaKanban(
   input: { areSofer: boolean; kmAzi: number; stareZi: 'reparatie' | 'odihna' | null; cursaActiva: boolean },
   pragKmFaraSofer = 5,
 ): KanbanColumn | null {
+  // Cursa activă bate TOT — și lipsa șoferului, și starea zilei. Altfel prima
+  // cursă pusă pe unul din cele 23 de camioane fără atribuire dispărea de pe
+  // tablou cu tot cu cursă (audit 31.08, High #2), iar o reparație pusă peste o
+  // cursă deschisă ascundea butonul care o încheie. Starea zilei rămâne vizibilă
+  // ca insignă pe cartonaș.
+  if (input.cursaActiva) return 'in_cursa';
   if (input.stareZi) return input.stareZi;
   if (!input.areSofer) return input.kmAzi > pragKmFaraSofer ? 'fara_sofer' : null;
-  return input.cursaActiva ? 'in_cursa' : 'liber';
+  return 'liber';
 }
 
 /** Ordinea stărilor cursei. Dispecerul le mută manual, dar nu sare peste etape. */

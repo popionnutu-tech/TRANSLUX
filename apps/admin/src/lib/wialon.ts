@@ -50,6 +50,24 @@ export function placaDinNume(nume: string): string | null {
 
 export type PozitieLive = { plate: string; lat: number; lng: number; speed: number; at: string };
 
+// Instantaneu comun: N dispeceri cu tabloul deschis nu trebuie să însemne N
+// interogări ale flotei la Wialon (cota lui e resursă externă, fără rezervă
+// măsurabilă). TTL 45s < refresh-ul de 60s din client, deci fiecare ciclu ia
+// date proaspete, dar cererile paralele se lipesc de aceeași promisiune.
+let instantaneu: { la: number; date: PozitieLive[] } | null = null;
+let inZbor: Promise<PozitieLive[]> | null = null;
+const TTL_MS = 45_000;
+
+export async function pozitiiLiveCached(): Promise<PozitieLive[]> {
+  if (instantaneu && Date.now() - instantaneu.la < TTL_MS) return instantaneu.date;
+  if (!inZbor) {
+    inZbor = pozitiiLive()
+      .then((d) => { instantaneu = { la: Date.now(), date: d }; return d; })
+      .finally(() => { inZbor = null; });
+  }
+  return inZbor;
+}
+
 /** Pozițiile curente ale tuturor unităților. Flags 1|1024 = nume + ultima poziție. */
 export async function pozitiiLive(): Promise<PozitieLive[]> {
   const s = await sid();

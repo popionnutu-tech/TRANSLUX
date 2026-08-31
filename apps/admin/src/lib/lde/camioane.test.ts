@@ -67,16 +67,25 @@ describe('camioaneMaiAproape', () => {
     expect(camioaneMaiAproape(constanta, chisinau, [balti, chisinau])).toEqual([]);
   });
 
-  it('fără camion ales întoarce cele mai apropiate, fără economie', () => {
-    const r = camioaneMaiAproape(constanta, null, [balti]);
-    expect(r[0].economieKm).toBe(0);
+  it('fără poziția camionului ales nu avertizează deloc (nu are cu ce compara)', () => {
+    expect(camioaneMaiAproape(constanta, null, [balti])).toEqual([]);
   });
 });
 
 describe('coloanaKanban', () => {
-  it('reparația și odihna bat cursa activă', () => {
-    expect(coloanaKanban({ areSofer: true, kmAzi: 0, stareZi: 'reparatie', cursaActiva: true })).toBe('reparatie');
+  it('cursa activă bate starea zilei — altfel butonul care o încheie dispărea', () => {
+    expect(coloanaKanban({ areSofer: true, kmAzi: 0, stareZi: 'reparatie', cursaActiva: true })).toBe('in_cursa');
+  });
+
+  it('fără cursă, reparația și odihna decid', () => {
+    expect(coloanaKanban({ areSofer: true, kmAzi: 0, stareZi: 'reparatie', cursaActiva: false })).toBe('reparatie');
     expect(coloanaKanban({ areSofer: true, kmAzi: 0, stareZi: 'odihna', cursaActiva: false })).toBe('odihna');
+  });
+
+  it('cursa activă pe un camion FĂRĂ șofer rămâne pe tablou (audit High #2)', () => {
+    // 23 din 39 de camioane n-au atribuire; dacă dispecerul le dă o cursă fără
+    // șofer, cursa trebuie să rămână mișcabilă, nu să dispară.
+    expect(coloanaKanban({ areSofer: false, kmAzi: 0, stareZi: null, cursaActiva: true })).toBe('in_cursa');
   });
 
   it('fără șofer și fără km — ascuns din kanban (nu lucrează, nu se ia în considerare)', () => {

@@ -41,7 +41,7 @@ export type StareZi = {
   expectedEnd: string | null;
 };
 
-export type PunctScurt = { id: string; name: string; hasCoords: boolean };
+export type PunctScurt = { id: string; name: string; hasCoords: boolean; lat: number | null; lng: number | null };
 export type SoferScurt = { id: string; name: string };
 
 const CALE = '/lde/camioane/planificare';
@@ -193,7 +193,7 @@ export async function getPlanificare(fromDate: string, zile: number): Promise<{
       reason: s.reason, expectedEnd: s.expected_end,
     })),
     puncte: ((puncteRes.data ?? []) as PunctRow[]).map((p) => ({
-      id: p.id, name: p.name, hasCoords: p.lat !== null && p.lng !== null,
+      id: p.id, name: p.name, hasCoords: p.lat !== null && p.lng !== null, lat: p.lat, lng: p.lng,
     })),
     soferi: ((soferiRes.data ?? []) as SoferRow[]).map((s) => ({ id: s.id, name: s.full_name })),
   };

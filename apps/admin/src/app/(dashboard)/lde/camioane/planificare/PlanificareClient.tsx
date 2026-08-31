@@ -1,8 +1,8 @@
 'use client';
 
-import { Fragment, useMemo, useState, useTransition } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { zileleCursei } from '@/lib/lde/camioane';
+import { camioaneMaiAproape, zileleCursei } from '@/lib/lde/camioane';
 import {
   anuleazaCursa, salveazaCursa, seteazaStareZi, seteazaTipCamion, stergeStareZi,
   type Camion, type Cursa, type PunctScurt, type Rezultat, type SoferScurt, type StareZi,
@@ -62,6 +62,67 @@ export default function PlanificareClient({ from, zile, camioane, curse, stari, 
   const [eroare, setEroare] = useState('');
   const [form, setForm] = useState<typeof formGol | null>(null);
   const [punctNou, setPunctNou] = useState<{ pentru: 'load' | 'unload'; name: string; country: string; lat: string; lng: string } | null>(null);
+  const [pozitii, setPozitii] = useState<{ plate: string; lat: number; lng: number }[]>([]);
+
+  // Pozițiile live se cer DOAR când formularul e deschis: ele servesc exclusiv
+  // avertizarea «ai un camion mai aproape».
+  const incarcaPozitii = useCallback(async () => {
+    try {
+      const r = await fetch('/api/lde/camioane/pozitii', { cache: 'no-store' });
+      const j = await r.json();
+      setPozitii(j.positions ?? []);
+    } catch { /* fără GPS, avertizarea pur și simplu nu apare */ }
+  }, []);
+  // Dependența e BOOLEANĂ, nu obiectul `form`: acesta se recreează la fiecare
+  // tastă («marfă», «client», «note»), iar efectul interoga toată flota Wialon la
+  // fiecare literă — zeci de apeluri pe un singur formular (perf review, Critical).
+  const formDeschis = form !== null;
+  useEffect(() => { if (formDeschis) void incarcaPozitii(); }, [formDeschis, incarcaPozitii]);
+
+  const cheiePlaca = (p: string) => p.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+
+  /**
+   * Cazul lui Ion: camionul din Bălți trimis la Constanța când cel din Chișinău era
+   * mai aproape. Propunem DOAR camioane chiar disponibile — un camion în reparație,
+   * ocupat sau de alt tip ar fi o greșeală nouă în locul celei vechi (audit High #4).
+   * Pozițiile sunt de ACUM, deci avertizăm doar pentru încărcări în ≤ 24 h.
+   */
+  const avertisment = useMemo(() => {
+    if (!form || !form.loadPointId || !form.vehicleId || pozitii.length === 0) return [];
+    const punct = puncte.find((p) => p.id === form.loadPointId);
+    if (!punct || punct.lat === null || punct.lng === null) return [];
+
+    const incarcareLa = Date.parse(form.loadPlannedAt);
+    if (!Number.isFinite(incarcareLa) || incarcareLa - Date.now() > 24 * 3600 * 1000) return [];
+
+    const alesCamion = camioane.find((c) => c.id === form.vehicleId);
+    const ziIncarcare = new Date(incarcareLa).toISOString().slice(0, 10);
+    const ocupate = new Set(
+      curse.filter((c) => c.id !== form.id &&
+        Date.parse(c.loadPlannedAt) < Date.parse(form.unloadPlannedAt || form.loadPlannedAt) &&
+        Date.parse(c.unloadPlannedAt) > incarcareLa)
+        .map((c) => c.vehicleId),
+    );
+    const indisponibile = new Set(stari.filter((s) => s.date === ziIncarcare).map((s) => s.vehicleId));
+
+    const pozDupaPlaca = new Map(pozitii.map((p) => [cheiePlaca(p.plate), p]));
+    const candidate = camioane.flatMap((c) => {
+      if (c.id === form.vehicleId) return [];
+      if (ocupate.has(c.id) || indisponibile.has(c.id)) return [];
+      if (!c.driverId) return [];                                  // fără șofer nu lucrează
+      if (alesCamion?.fleetType && c.fleetType !== alesCamion.fleetType) return []; // cisternă ≠ zernovoz
+      const poz = pozDupaPlaca.get(cheiePlaca(c.plate));
+      return poz ? [{ vehicleId: c.id, plate: c.plate, lat: poz.lat, lng: poz.lng }] : [];
+    });
+
+    const alesPoz = pozDupaPlaca.get(cheiePlaca(alesCamion?.plate ?? ''));
+    if (!alesPoz) return [];
+    return camioaneMaiAproape(
+      { lat: punct.lat, lng: punct.lng },
+      { vehicleId: form.vehicleId, lat: alesPoz.lat, lng: alesPoz.lng },
+      candidate,
+    );
+  }, [form, pozitii, puncte, camioane, curse, stari]);
 
   function ruleaza(actiune: () => Promise<Rezultat>, dupaSucces: () => void) {
     setMesaj(''); setEroare('');
@@ -273,6 +334,24 @@ export default function PlanificareClient({ from, zile, camioane, curse, stari, 
                 <button className="btn-outline" onClick={() => setPunctNou(null)} disabled={inCurs}>Renunță</button>
               </div>
               <p className="text-muted">După adăugare, alege-l din listă (pagina se reîmprospătează).</p>
+            </div>
+          )}
+
+          {avertisment.length > 0 && (
+            <div className="card" style={{ borderLeft: '3px solid var(--warning)' }}>
+              <strong>Acum, la ora aceasta, mai aproape de punctul de încărcare sunt:</strong>
+              <ul style={{ margin: '6px 0 0 18px' }}>
+                {avertisment.map((a) => (
+                  <li key={a.vehicleId}>
+                    {a.plate} — la {Math.round(a.km)} km ({a.economieKm} km mai puțin decât camionul ales)
+                  </li>
+                ))}
+              </ul>
+              <p className="text-muted" style={{ marginTop: 4 }}>
+                Doar camioane libere în interval, de același tip și cu șofer. Distanțe în linie
+                dreaptă, din pozițiile GPS de acum — până la încărcare se mai schimbă.
+                Decizia rămâne a ta.
+              </p>
             </div>
           )}
 

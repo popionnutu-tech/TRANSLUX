@@ -173,15 +173,22 @@ export async function getPlanificare(fromDate: string, zile: number): Promise<{
       .select('id, vehicle_id, date, state, reason, expected_end')
       .gte('date', listaZile[0]).lte('date', listaZile[listaZile.length - 1]),
     sb.from('lde_dispatch_points').select('id, name, lat, lng').eq('active', true).order('name'),
-    // Doar șoferii de camioane: lista completă LDE (114) amestecă uzine și autobuze.
-    sb.from('drivers').select('id, full_name')
-      .eq('active', true).eq('is_lde', true).contains('directions', ['camioane']).order('full_name'),
+    // Șoferii de camioane NU sunt marcați prin directions (verificat pe prod:
+    // toți cei 16 au directions gol) — legătura reală e atribuirea activă la un
+    // camion. Filtrul pe directions golea complet selectorul.
+    sb.from('lde_active_assignments')
+      .select('driver_id, drivers:driver_id ( id, full_name ), vehicles:vehicle_id ( directions )')
+      .is('valid_to', null),
   ]);
   for (const r of [stariRes, puncteRes, soferiRes]) if (r.error) { console.error('[camioane]', r.error.message); throw new Error('Nu am putut citi planificarea'); }
 
   type StareRow = { id: string; vehicle_id: string; date: string; state: 'reparatie' | 'odihna'; reason: string | null; expected_end: string | null };
   type PunctRow = { id: string; name: string; lat: number | null; lng: number | null };
-  type SoferRow = { id: string; full_name: string };
+  type SoferRow = {
+    driver_id: string;
+    drivers: { id: string; full_name: string } | { id: string; full_name: string }[] | null;
+    vehicles: { directions: string[] | null } | { directions: string[] | null }[] | null;
+  };
 
   return {
     from: listaZile[0],
@@ -195,7 +202,19 @@ export async function getPlanificare(fromDate: string, zile: number): Promise<{
     puncte: ((puncteRes.data ?? []) as PunctRow[]).map((p) => ({
       id: p.id, name: p.name, hasCoords: p.lat !== null && p.lng !== null, lat: p.lat, lng: p.lng,
     })),
-    soferi: ((soferiRes.data ?? []) as SoferRow[]).map((s) => ({ id: s.id, name: s.full_name })),
+    soferi: (() => {
+      const unul = <T,>(x: T | T[] | null): T | null => (Array.isArray(x) ? x[0] ?? null : x);
+      const m = new Map<string, string>();
+      for (const r of (soferiRes.data ?? []) as SoferRow[]) {
+        const dirs = unul(r.vehicles)?.directions ?? [];
+        if (!dirs.includes('camioane')) continue;
+        const d = unul(r.drivers);
+        if (d) m.set(d.id, d.full_name);
+      }
+      return [...m.entries()]
+        .map(([id, name]) => ({ id, name }))
+        .sort((a, b) => a.name.localeCompare(b.name, 'ro'));
+    })(),
   };
 }
 

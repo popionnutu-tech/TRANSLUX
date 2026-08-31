@@ -182,8 +182,13 @@ REGULI STRICTE
 • Dacă nu ai informația → spune sincer, oferă request_callback sau o alternativă utilă
 • Închei MEREU cu sloganul: "Cu noi nu aștepți — cu noi pleci!" / "С нами не ждёшь — с нами едешь!"`;
 
+// Salutul de REZERVĂ: se rostește doar dacă init-webhook-ul nu răspunde (altfel
+// vorbește greetingRo() din voice-greeting.ts). Anunțul de înregistrare e obligatoriu
+// și aici — apelul se înregistrează în ambele cazuri, iar clientul trebuie să afle.
+// Fraza despre înregistrare e copiată CUVÂNT CU CUVÂNT din voice-greeting.ts (restul
+// salutului diferă intenționat): anunțul juridic sună la fel oriunde apare.
 export const FIRST_MESSAGE =
-  'Bună ziua! Mă numesc Cristina, sunt de la TRANSLUX — cu noi nu aștepți, cu noi pleci! Cu ce vă pot ajuta?\nЗдравствуйте! Меня зовут Кристина, я из компании ТРАНСЛЮКС — с нами не ждёшь, с нами едешь! Чем могу помочь?';
+  'Bună ziua! Mă numesc Cristina, sunt de la TRANSLUX — cu noi nu aștepți, cu noi pleci! Convorbirea este înregistrată. Cu ce vă pot ajuta?\nЗдравствуйте! Меня зовут Кристина, я из компании ТРАНСЛЮКС — с нами не ждёшь, с нами едешь! Разговор записывается. Чем могу помочь?';
 
 export const TOOL_NAMES = [
   'search_trips', 'get_price', 'get_offers', 'get_schedule', 'get_company_info', 'request_callback',

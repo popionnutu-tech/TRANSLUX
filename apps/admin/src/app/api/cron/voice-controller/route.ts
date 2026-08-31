@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyCronSecret } from '@/lib/cron-auth';
 import { runVoiceController } from '@/lib/voice-controller';
+import { redactSecrets } from '@/lib/voice/el';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -20,9 +21,12 @@ export async function GET(req: NextRequest) {
     }
     return NextResponse.json({ ok: true, ...result });
   } catch (err) {
-    console.error('[voice-controller]', err);
+    // Redactat: workflow-ul face `cat` pe acest JSON, iar repo-ul e PUBLIC — un corp
+    // de eroare de la ElevenLabs poate purta ecoul cheii trimise în PATCH.
+    const safe = redactSecrets(String(err));
+    console.error('[voice-controller]', safe);
     // 200: prăbușirea controlorului nu e o urgență pentru GitHub Actions;
     // eșecul rămâne vizibil în Vercel logs.
-    return NextResponse.json({ ok: false, error: String(err) });
+    return NextResponse.json({ ok: false, error: safe });
   }
 }

@@ -10,9 +10,10 @@
 // PATCH на секцию — меньше запросов, нет зависимости от порядка.
 import { getSupabase } from '@/lib/supabase';
 import { auditAliasShadow, syncCanonKeywords } from '@/lib/voice-canon';
-import { AGENT_ID, RU_AGENT_ID, elGet, elPatchAgent } from '@/lib/voice/el';
+import { AGENT_ID, RU_AGENT_ID, elGet, elPatchAgent, redactSecrets } from '@/lib/voice/el';
 import { drainPendingExams } from '@/lib/voice-exams';
 import { RO_UNITS, RO_TENS, RU_UNITS, RU_TENS } from '@/lib/time-spoken';
+import { RECORDING_NOTICE_RO, RECORDING_NOTICE_RU } from '@/lib/voice-greeting';
 
 const INIT_WEBHOOK_URL = 'https://central-hub-md.vercel.app/api/voice/webhooks/init';
 const CUSTOM_LLM_URL = 'https://translux-voice-llm.vercel.app/api';
@@ -302,7 +303,16 @@ LUCRURI UITATE — DOAR ȘOFERUL IDENTIFICAT:
   '\n- Ora plecării/sosirii o rostești DOAR din câmpul departure_spoken_ro (română) / departure_spoken_ru (rusă) al rezultatului tool-ului — cuvânt cu cuvânt. La fel arrival_spoken_*. NU converti niciodată singură HH:MM în cuvinte.',
 ];
 
-type Drift = { field: string; healed: boolean };
+// `msg` poartă cauza în jurnal: `details` e jsonb și primește obiectul întreg.
+// Fără el, o lecuire căzută definitiv se vede ca o linie fără nume pe zi (dedup 24h),
+// iar textul erorii trăiește doar în logurile Vercel (review 31.08).
+type Drift = { field: string; healed: boolean; msg?: string };
+
+// Anunțul de înregistrare vine din voice-greeting.ts — sursa saluturilor înseși, ca
+// reformularea de acolo să nu producă drift fantomă aici. Era nepăzit: șters din
+// dashboard, dispărea tăcut din ambele căi. NU vindecăm orb — textul salutului e
+// decizie umană; raportăm drift, ca la custom_llm.url.
+
 
 // Tool-ul lucrurilor uitate e workspace tool legat prin tool_ids — dashboard-ul îl
 // poate dezlega tăcut, iar promptul ar cere atunci un tool inexistent (review M6).
@@ -329,14 +339,30 @@ async function healToolBinding(cfg: any, toolId: string | null, agentId: string,
   return [{ field: `${fieldPrefix}.tool_ids`, healed: true }];
 }
 
+// `drifts` vine din AFARĂ, nu se întoarce la final: funcția face DOUĂ PATCH-uri, iar
+// un throw pe al doilea ștergea tot ce apucase să vindece primul — jurnalul rămânea
+// fără liniile lecuirilor reale și fără drift-urile nevindecate deja găsite (review 31.08).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function checkAndHealConfig(cfg: any): Promise<Drift[]> {
-  const drifts: Drift[] = [];
+async function checkAndHealConfig(cfg: any, drifts: Drift[]): Promise<void> {
   const ps = cfg.platform_settings ?? {};
   const cc = cfg.conversation_config ?? {};
+  // «Vindecat» se scrie în jurnal DOAR după ce PATCH-ul a reușit: altfel un PATCH
+  // respins lăsa linii «healed: true» pentru lecuiri care nu s-au întâmplat, iar
+  // dedup-ul de 24h bloca apoi o zi linia sinceră (review 31.08). Drift-urile
+  // report-only (healed:false) nu depind de PATCH — ele merg direct în `drifts`.
+  const flush = async (patch: () => Promise<unknown>, pending: Drift[]) => {
+    try {
+      await patch();
+    } catch (e) {
+      drifts.push(...pending.map((d) => ({ ...d, healed: false })));
+      throw e;
+    }
+    drifts.push(...pending);
+  };
 
   // --- platform_settings: un singur PATCH pentru tot ce a deviat ---
   const psPatch: Record<string, unknown> = {};
+  const psHealed: Drift[] = [];
   const ov = ps.overrides ?? {};
   const agOv = ov.conversation_config_override?.agent ?? {};
   if (!ov.enable_conversation_initiation_client_data_from_webhook || !agOv.first_message || !agOv.language) {
@@ -348,7 +374,7 @@ async function checkAndHealConfig(cfg: any): Promise<Drift[]> {
         agent: { ...agOv, first_message: true, language: true },
       },
     };
-    drifts.push({ field: 'overrides.webhook_flags', healed: true });
+    psHealed.push({ field: 'overrides.webhook_flags', healed: true });
   }
   const wh = ps.workspace_overrides?.conversation_initiation_client_data_webhook;
   if (wh?.url !== INIT_WEBHOOK_URL || !wh?.request_headers?.['x-voice-api-key']) {
@@ -358,21 +384,31 @@ async function checkAndHealConfig(cfg: any): Promise<Drift[]> {
         request_headers: { 'x-voice-api-key': process.env.VOICE_API_KEY ?? '' },
       },
     };
-    drifts.push({ field: 'init_webhook_url', healed: true });
+    psHealed.push({ field: 'init_webhook_url', healed: true });
   }
-  if (Object.keys(psPatch).length) await elPatchAgent({ platform_settings: psPatch });
-
   if (cc.agent?.prompt?.custom_llm?.url !== CUSTOM_LLM_URL) {
     drifts.push({ field: 'custom_llm.url', healed: false }); // URL-ul se schimbă doar de om — nu-l «vindecăm» orb
+  }
+  // Salutul de rezervă (se aude când pică init-webhook-ul) TREBUIE să spună că apelul
+  // se înregistrează — apelul se înregistrează oricum. Ștergerea lui din dashboard nu
+  // mai e tăcută. Salutul poate fi într-o singură limbă: cerem anunțul în limba lui.
+  // Gol = și mai rău decât fără anunț (agentul tace la începutul apelului), deci are
+  // drift propriu. Aici nu vindecăm orb: textul salutului e decizie umană.
+  const fm: string = cc.agent?.first_message ?? '';
+  if (!fm) {
+    drifts.push({ field: 'first_message.empty', healed: false });
+  } else if (!fm.includes(RECORDING_NOTICE_RO) && !fm.includes(RECORDING_NOTICE_RU)) {
+    drifts.push({ field: 'first_message.recording_notice', healed: false, msg: fm.slice(0, 120) });
   }
 
   // --- conversation_config: la fel, un singur PATCH ---
   const ccPatch: Record<string, unknown> = {};
+  const ccHealed: Drift[] = [];
   const canon = await canonKeywords();
   const kw: string[] = cc.asr?.keywords ?? [];
   if (kw.join('|') !== canon.join('|')) {
     ccPatch.asr = { ...cc.asr, keywords: canon };
-    drifts.push({ field: 'asr.keywords', healed: true });
+    ccHealed.push({ field: 'asr.keywords', healed: true });
   }
   const bg = cc.conversation?.background_sound;
   if (bg?.source_id !== 'office1' || bg?.volume !== 0.1) {
@@ -380,7 +416,7 @@ async function checkAndHealConfig(cfg: any): Promise<Drift[]> {
       ...cc.conversation,
       background_sound: { source_type: 'preset', source_id: 'office1', volume: 0.1, crossfade_loop: true },
     };
-    drifts.push({ field: 'background_sound', healed: true });
+    ccHealed.push({ field: 'background_sound', healed: true });
   }
   const prompt: string = cc.agent?.prompt?.prompt ?? '';
   const missing = PROMPT_MARKERS.filter((m) => !prompt.includes(m));
@@ -403,13 +439,13 @@ async function checkAndHealConfig(cfg: any): Promise<Drift[]> {
   for (const ob of OBSOLETE_BLOCKS) {
     if (healedPrompt.includes(ob)) {
       healedPrompt = healedPrompt.replace(ob, '');
-      drifts.push({ field: 'prompt.obsolete_removed', healed: true });
+      ccHealed.push({ field: 'prompt.obsolete_removed', healed: true });
     }
   }
   for (const h of HEALABLE) {
     if (missing.includes(h.marker)) {
       healedPrompt += h.block;
-      drifts.push({ field: h.field, healed: true });
+      ccHealed.push({ field: h.field, healed: true });
     }
   }
   // Merge, nu asignare: blocurile de mai jos (cascade, language_detection,
@@ -434,7 +470,7 @@ async function checkAndHealConfig(cfg: any): Promise<Drift[]> {
     const agentPatch: any = ccPatch.agent ?? {};
     agentPatch.prompt = { ...(agentPatch.prompt ?? {}), cascade_timeout_seconds: 12 };
     ccPatch.agent = agentPatch;
-    drifts.push({ field: 'cascade_timeout_seconds', healed: true });
+    ccHealed.push({ field: 'cascade_timeout_seconds', healed: true });
   }
   // built_in_tools.language_detection.description — filtrul anti-comutare-falsă.
   const bit = cc.agent?.prompt?.built_in_tools;
@@ -446,7 +482,7 @@ async function checkAndHealConfig(cfg: any): Promise<Drift[]> {
       built_in_tools: { ...bit, language_detection: { ...bit.language_detection, description: LANG_DETECT_DESC } },
     };
     ccPatch.agent = agentPatch;
-    drifts.push({ field: 'language_detection.description', healed: true });
+    ccHealed.push({ field: 'language_detection.description', healed: true });
   }
   // Salutul se rostește PÂNĂ LA CAPĂT (Ion, 31.08): apelanții strigau «alo alo»
   // peste primul mesaj, barge-in-ul îl tăia și conversația începea ruptă. După
@@ -456,7 +492,7 @@ async function checkAndHealConfig(cfg: any): Promise<Drift[]> {
     const agentPatch: any = ccPatch.agent ?? {};
     agentPatch.disable_first_message_interruptions = true;
     ccPatch.agent = agentPatch;
-    drifts.push({ field: 'disable_first_message_interruptions', healed: true });
+    ccHealed.push({ field: 'disable_first_message_interruptions', healed: true });
   }
   // «alo»/«da» nu mai opresc agentul din vorbit (aceeași decizie Ion 31.08).
   // transcribe_on_disabled_interruptions=true e OBLIGATORIU lângă listă: un «da»
@@ -482,11 +518,26 @@ async function checkAndHealConfig(cfg: any): Promise<Drift[]> {
       merge_with_default_ignore_terms: false,
       transcribe_on_disabled_interruptions: true,
     };
-    for (const field of turnDrifts) drifts.push({ field, healed: true });
+    for (const field of turnDrifts) ccHealed.push({ field, healed: true });
   }
-  if (Object.keys(ccPatch).length) await elPatchAgent({ conversation_config: ccPatch });
-
-  return drifts;
+  // PATCH-urile stau AICI, după TOATĂ detectarea: cât timp lecuirea secțiunii ps era
+  // trimisă la mijloc, un PATCH respins de EL arunca din funcție și orbea definitiv
+  // restul verificărilor — promptul, tool-urile, întreruperile — la fiecare prögon
+  // (review 31.08). Detectarea nu depinde de PATCH: citește `cfg` luat la început.
+  // Fiecare secțiune are try-ul ei, ca eșecul uneia să nu o înghită pe cealaltă;
+  // prima eroare se aruncă la final, ca prögonul s-o poată scrie în jurnal.
+  let patchError: unknown = null;
+  if (psHealed.length) {
+    try {
+      await flush(() => elPatchAgent({ platform_settings: psPatch }), psHealed);
+    } catch (e) { patchError ??= e; }
+  }
+  if (ccHealed.length) {
+    try {
+      await flush(() => elPatchAgent({ conversation_config: ccPatch }), ccHealed);
+    } catch (e) { patchError ??= e; }
+  }
+  if (patchError) throw patchError;
 }
 
 // Лечение RU-агента: ТОЛЬКО станция (см. комментарий у STATIA_BLOCK_RU).
@@ -687,7 +738,20 @@ export async function runVoiceController(): Promise<{ drifts: Drift[]; incidents
     elGet(`/v1/convai/agents/${AGENT_ID}`),
     findPastTripToolId(),
   ]);
-  const drifts = await checkAndHealConfig(cfg);
+  // Lecuirea configului cade la fel de «moale» ca vecinele de mai jos: un singur
+  // câmp refuzat de EL (422 pe o cheie depreciată, un read-only întors de spread)
+  // arunca din tot prögonul — legarea tool-ului, stația RU, validatorul, examenele —
+  // și NU lăsa nicio linie în jurnal, doar în logurile Vercel (security review 31.08).
+  const drifts: Drift[] = [];
+  try {
+    await checkAndHealConfig(cfg, drifts);
+  } catch (e) {
+    // Redactat și aici: logurile Vercel persistă și ele, iar corpul PATCH-ului
+    // pentru platform_settings poartă cheia webhook-ului.
+    console.error('[voice-controller] heal-config:', redactSecrets(String(e)));
+    // Cauza intră în JURNAL, nu doar în logurile efemere Vercel — cu cheia tăiată.
+    drifts.push({ field: 'config.heal.error', healed: false, msg: redactSecrets(String(e)).slice(0, 200) });
+  }
   try {
     drifts.push(...await healToolBinding(cfg, lostToolId, AGENT_ID, 'tools.find_past_trip'));
   } catch (e) {
@@ -709,9 +773,12 @@ export async function runVoiceController(): Promise<{ drifts: Drift[]; incidents
   for (const d of drifts) {
     // Dedupe 24h pentru drift-uri (n-au conversation_id — indexul unic nu le acoperă):
     // altfel un URL nevindecat intenționat ar umple jurnalul la fiecare 30 min.
+    // `healed` intră în cheie: altfel o linie «nevindecat» (PATCH căzut) ar înghiți
+    // o zi linia sinceră de peste 30 de minute, când lecuirea chiar reușește.
     const { data: recent } = await supabase.from('voice_controller_incidents')
       .select('id').eq('kind', d.field.startsWith('prompt.') ? 'prompt_drift' : 'config_drift')
       .eq('details->>field', d.field)
+      .eq('healed', d.healed)
       .gte('created_at', new Date(Date.now() - 24 * 3600 * 1000).toISOString())
       .limit(1);
     if (recent?.length) continue;

@@ -60,6 +60,10 @@ const PAGE_SIZE = 50;
 export async function getReports(filters: ReportFilters): Promise<ReportsResult> {
   const session = await verifySession();
   if (!session) throw new Error('Neautorizat');
+  // Rolul, nu doar sesiunea: Next dispecerizează acțiunile server după un id
+  // GLOBAL, deci un rol îngust (UZINE, DISPECER…) le poate invoca de pe calea LUI.
+  // Middleware-ul filtrează calea, nu acțiunea (security review 31.08).
+  if (session.role !== 'ADMIN') throw new Error('Acces interzis');
   const page = filters.page || 0;
   const from = page * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
@@ -164,6 +168,10 @@ export interface PassengersSummary {
 export async function getPassengersSummary(filters: ReportFilters): Promise<PassengersSummary> {
   const session = await verifySession();
   if (!session) throw new Error('Neautorizat');
+  // Rolul, nu doar sesiunea: Next dispecerizează acțiunile server după un id
+  // GLOBAL, deci un rol îngust (UZINE, DISPECER…) le poate invoca de pe calea LUI.
+  // Middleware-ul filtrează calea, nu acțiunea (security review 31.08).
+  if (session.role !== 'ADMIN') throw new Error('Acces interzis');
   let query = getSupabase()
     .from('reports')
     .select('point, passengers_count, trips!inner(direction, route_id)')
@@ -222,6 +230,10 @@ export interface ComplianceSummary {
 export async function getComplianceSummary(filters: ReportFilters): Promise<ComplianceSummary> {
   const session = await verifySession();
   if (!session) throw new Error('Neautorizat');
+  // Rolul, nu doar sesiunea: Next dispecerizează acțiunile server după un id
+  // GLOBAL, deci un rol îngust (UZINE, DISPECER…) le poate invoca de pe calea LUI.
+  // Middleware-ul filtrează calea, nu acțiunea (security review 31.08).
+  if (session.role !== 'ADMIN') throw new Error('Acces interzis');
   let query = getSupabase()
     .from('reports')
     .select('exterior_ok, uniform_ok, auto_curat, reclama_ok, reclama_deadline, report_date, driver_id, drivers(full_name), trips!inner(direction, route_id)')
@@ -281,6 +293,10 @@ export async function getComplianceSummary(filters: ReportFilters): Promise<Comp
 export async function exportReportsCSV(filters: ReportFilters): Promise<string> {
   const session = await verifySession();
   if (!session) throw new Error('Neautorizat');
+  // Rolul, nu doar sesiunea: Next dispecerizează acțiunile server după un id
+  // GLOBAL, deci un rol îngust (UZINE, DISPECER…) le poate invoca de pe calea LUI.
+  // Middleware-ul filtrează calea, nu acțiunea (security review 31.08).
+  if (session.role !== 'ADMIN') throw new Error('Acces interzis');
   // Fetch all reports for these filters (no pagination)
   let query = getSupabase()
     .from('reports')
@@ -350,6 +366,10 @@ export interface PivotRawRow {
 export async function getPivotReport(dateFrom: string, dateTo: string, point?: PointEnum): Promise<PivotRawRow[]> {
   const session = await verifySession();
   if (!session) throw new Error('Neautorizat');
+  // Rolul, nu doar sesiunea: Next dispecerizează acțiunile server după un id
+  // GLOBAL, deci un rol îngust (UZINE, DISPECER…) le poate invoca de pe calea LUI.
+  // Middleware-ul filtrează calea, nu acțiunea (security review 31.08).
+  if (session.role !== 'ADMIN') throw new Error('Acces interzis');
   let query = getSupabase()
     .from('reports')
     .select('point, report_date, passengers_count, status, trips!inner(departure_time)')
@@ -382,6 +402,10 @@ export async function getPivotReport(dateFrom: string, dateTo: string, point?: P
 export async function getTaxiZonePivotReport(dateFrom: string, dateTo: string): Promise<PivotRawRow[]> {
   const session = await verifySession();
   if (!session) throw new Error('Neautorizat');
+  // Rolul, nu doar sesiunea: Next dispecerizează acțiunile server după un id
+  // GLOBAL, deci un rol îngust (UZINE, DISPECER…) le poate invoca de pe calea LUI.
+  // Middleware-ul filtrează calea, nu acțiunea (security review 31.08).
+  if (session.role !== 'ADMIN') throw new Error('Acces interzis');
   let query = getSupabase()
     .from('taxi_zone_reports')
     .select('report_date, passengers_count, status, trips!inner(departure_time)')
@@ -411,6 +435,10 @@ export async function getTaxiZonePivotReport(dateFrom: string, dateTo: string): 
 export async function getFilterOptions() {
   const session = await verifySession();
   if (!session) throw new Error('Neautorizat');
+  // Rolul, nu doar sesiunea: Next dispecerizează acțiunile server după un id
+  // GLOBAL, deci un rol îngust (UZINE, DISPECER…) le poate invoca de pe calea LUI.
+  // Middleware-ul filtrează calea, nu acțiunea (security review 31.08).
+  if (session.role !== 'ADMIN') throw new Error('Acces interzis');
   const [routesRes, driversRes] = await Promise.all([
     getSupabase().from('routes').select('id, name').eq('active', true).order('name'),
     getSupabase().from('drivers').select('id, full_name').eq('active', true).eq('is_lde', false).order('full_name'),

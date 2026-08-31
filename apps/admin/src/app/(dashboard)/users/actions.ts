@@ -104,7 +104,7 @@ export async function updateAdminWarehouse(id: string, warehouseId: number | nul
   revalidatePath('/users');
 }
 
-const VALID_ADMIN_ROLES = ['ADMIN', 'DISPATCHER', 'GRAFIC', 'UZINE', 'OPERATOR_CAMERE', 'ADMIN_CAMERE', 'EVALUATOR_INCASARI', 'CONTABIL', 'DEPOZITAR', 'VINZATOR', 'MANAGER', 'GESTIONAR'];
+const VALID_ADMIN_ROLES = ['ADMIN', 'DISPATCHER', 'GRAFIC', 'UZINE', 'OPERATOR_CAMERE', 'ADMIN_CAMERE', 'EVALUATOR_INCASARI', 'CONTABIL', 'DEPOZITAR', 'VINZATOR', 'MANAGER', 'GESTIONAR', 'DISPECER'];
 
 // Schimbă rolul unui cont administrativ (ex. acces lărgit pe durata testării, apoi restrâns). Doar ADMIN.
 // ATENȚIE: rolul e purtat de JWT-ul de sesiune (24h, vezi lib/auth.ts) — contul afectat trebuie să se

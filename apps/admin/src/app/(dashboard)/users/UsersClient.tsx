@@ -30,7 +30,9 @@ const FISCAL_ROLES = ['ADMIN', 'CONTABIL', 'VINZATOR', 'GESTIONAR'];
 
 const ROLE_LABELS: Record<string, string> = {
   ADMIN: 'Administrator',
-  DISPATCHER: 'Dispecer',
+  // Două roluri diferite, etichete care trebuie să se distingă în ecran:
+  // DISPATCHER = graficul autobuzelor, DISPECER = cursele camioanelor (31.08.2026).
+  DISPATCHER: 'Dispecer autobuze (grafic)',
   GRAFIC: 'Grafic',
   UZINE: 'Manager uzine (grafic)',
   OPERATOR_CAMERE: 'Operator camere',
@@ -41,6 +43,7 @@ const ROLE_LABELS: Record<string, string> = {
   VINZATOR: 'Vânzător (magazin)',
   MANAGER: 'Manager piese',
   GESTIONAR: 'Gestionar (depozitar intern)',
+  DISPECER: 'Dispecer camioane',
 };
 
 export default function UsersClient({

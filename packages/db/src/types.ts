@@ -37,7 +37,10 @@ export const STATUS_LABELS: Record<ReportStatus, string> = {
 // Database Row Types
 // ============================================================
 
-export type AdminRole = 'ADMIN' | 'DISPATCHER' | 'GRAFIC' | 'OPERATOR_CAMERE' | 'ADMIN_CAMERE' | 'EVALUATOR_INCASARI' | 'CONTABIL' | 'DEPOZITAR' | 'VINZATOR' | 'MANAGER' | 'GESTIONAR' | 'UZINE';
+// DISPECER (31.08.2026): planifică cursele camioanelor în /lde/camioane. A NU se
+// confunda cu DISPATCHER (graficul autobuzelor) — sunt roluri diferite, la fel cum
+// MANAGER (piese) diferă de MANAGER_LDE (users.role, mini app).
+export type AdminRole = 'ADMIN' | 'DISPATCHER' | 'GRAFIC' | 'OPERATOR_CAMERE' | 'ADMIN_CAMERE' | 'EVALUATOR_INCASARI' | 'CONTABIL' | 'DEPOZITAR' | 'VINZATOR' | 'MANAGER' | 'GESTIONAR' | 'UZINE' | 'DISPECER';
 
 export interface AdminAccount {
   id: string;

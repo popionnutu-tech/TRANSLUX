@@ -29,6 +29,12 @@ const PUBLIC_PREFIXES = [
 const DISPATCHER_ALLOWED = ['/grafic', '/drivers', '/vehicles'];
 const GRAFIC_ALLOWED = ['/grafic'];
 const UZINE_ALLOWED = ['/lde/grafic-uzine', '/lde/parc'];
+// DISPECER: doar modulul camioanelor. Fila Analitică e tăiată separat, în layout-ul
+// modulului (middleware-ul nu poate deosebi filele fără să dubleze regula).
+// Include ȘI calea API a modulului: fără ea harta dispeceratului primea 307 exact
+// pentru rolul căruia îi e destinată. NU se lărgește la /api/lde (celelalte rute
+// LDE rămân închise pentru DISPECER).
+const DISPECER_ALLOWED = ['/lde/camioane', '/api/lde/camioane'];
 const NUMARARE_ONLY_ROLES = ['OPERATOR_CAMERE', 'ADMIN_CAMERE', 'EVALUATOR_INCASARI'] as const;
 
 export async function middleware(request: NextRequest) {
@@ -68,6 +74,11 @@ export async function middleware(request: NextRequest) {
     if (role === 'UZINE') {
       const allowed = UZINE_ALLOWED.some(r => pathname === r || pathname.startsWith(r + '/'));
       if (!allowed) return NextResponse.redirect(new URL('/lde/grafic-uzine', request.url));
+    }
+
+    if (role === 'DISPECER') {
+      const allowed = DISPECER_ALLOWED.some(r => pathname === r || pathname.startsWith(r + '/'));
+      if (!allowed) return NextResponse.redirect(new URL('/lde/camioane', request.url));
     }
 
     if (NUMARARE_ONLY_ROLES.includes(role as any)) {

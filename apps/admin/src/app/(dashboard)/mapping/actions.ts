@@ -21,6 +21,10 @@ export interface CrmRouteOption {
 export async function getMappings(): Promise<MappingRow[]> {
   const session = await verifySession();
   if (!session) throw new Error('Neautorizat');
+  // Rolul, nu doar sesiunea: Next dispecerizează acțiunile server după un id
+  // GLOBAL, deci un rol îngust (UZINE, DISPECER…) le poate invoca de pe calea LUI.
+  // Middleware-ul filtrează calea, nu acțiunea (security review 31.08).
+  if (session.role !== 'ADMIN') throw new Error('Acces interzis');
   const { data } = await getSupabase()
     .from('trips')
     .select('id, departure_time, direction, crm_route_id, active')
@@ -39,6 +43,10 @@ export async function getMappings(): Promise<MappingRow[]> {
 export async function getCrmRoutes(): Promise<CrmRouteOption[]> {
   const session = await verifySession();
   if (!session) throw new Error('Neautorizat');
+  // Rolul, nu doar sesiunea: Next dispecerizează acțiunile server după un id
+  // GLOBAL, deci un rol îngust (UZINE, DISPECER…) le poate invoca de pe calea LUI.
+  // Middleware-ul filtrează calea, nu acțiunea (security review 31.08).
+  if (session.role !== 'ADMIN') throw new Error('Acces interzis');
   const { data } = await getSupabase()
     .from('crm_routes')
     .select('id, time_chisinau, dest_to_ro')
@@ -50,6 +58,10 @@ export async function getCrmRoutes(): Promise<CrmRouteOption[]> {
 export async function updateMapping(tripId: string, crmRouteId: number | null) {
   const session = await verifySession();
   if (!session) throw new Error('Neautorizat');
+  // Rolul, nu doar sesiunea: Next dispecerizează acțiunile server după un id
+  // GLOBAL, deci un rol îngust (UZINE, DISPECER…) le poate invoca de pe calea LUI.
+  // Middleware-ul filtrează calea, nu acțiunea (security review 31.08).
+  if (session.role !== 'ADMIN') throw new Error('Acces interzis');
   const { error } = await getSupabase()
     .from('trips')
     .update({ crm_route_id: crmRouteId })

@@ -295,6 +295,9 @@ export function buildAgentPayload({ baseUrl, voiceApiKey, voiceId }) {
       agent: {
         first_message: FIRST_MESSAGE,
         language: 'ro',
+        // Salutul se rostește până la capăt (Ion, 31.08): apelanții strigau
+        // «alo alo» peste el. Oglindit aici ca --force-config să nu-l șteargă.
+        disable_first_message_interruptions: true,
         prompt: {
           prompt: SYSTEM_PROMPT,
           llm: 'claude-haiku-4-5',
@@ -307,6 +310,14 @@ export function buildAgentPayload({ baseUrl, voiceApiKey, voiceId }) {
         },
       },
       tts: { model_id: 'eleven_v3_conversational', voice_id: voiceId },
+      // «alo»/«da» nu opresc agentul din vorbit, dar rămân în transcriere
+      // (Ion, 31.08). Canonul viu e în voice-controller.ts — aici doar oglinda.
+      turn: {
+        interruption_ignore_terms: ['alo', 'алло', 'da', 'да', 'aha'],
+        interruption_ignore_term_languages: [],
+        merge_with_default_ignore_terms: false,
+        transcribe_on_disabled_interruptions: true,
+      },
       // Fonul de call-center e decizia lui Ion (23.08, repus după ce s-a dovedit
       // nevinovat de bâlbâială) — oglindit aici ca --force-config să nu-l șteargă.
       conversation: {

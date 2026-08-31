@@ -18,6 +18,12 @@ const INIT_WEBHOOK_URL = 'https://central-hub-md.vercel.app/api/voice/webhooks/i
 const CUSTOM_LLM_URL = 'https://translux-voice-llm.vercel.app/api';
 const MAX_CALLS_PER_RUN = 8;
 
+// «Alo alo alo» peste salut (Ion, 31.08): strigătele de contact și confirmările
+// scurte nu sunt întreruperi — agentul își termină replica. DOAR cuvinte fără
+// conținut propriu: orice cuvânt nou adăugat aici = risc să ignorăm un răspuns
+// real rostit peste coada întrebării.
+const IGNORE_TERMS = ['alo', 'алло', 'da', 'да', 'aha'];
+
 // Фолбэк эталона словаря (решение Иона 23.08); боевой эталон — в voice_agent_canon.
 // С 26.08 канон в БД ЖИВОЙ: его дописывает syncCanonKeywords (voice-canon.ts) из
 // выученных алиасов. Список ниже — аварийный, НЕ «истинное» состояние: не чините
@@ -406,7 +412,15 @@ async function checkAndHealConfig(cfg: any): Promise<Drift[]> {
       drifts.push({ field: h.field, healed: true });
     }
   }
-  if (healedPrompt !== prompt) ccPatch.agent = { prompt: { prompt: healedPrompt } };
+  // Merge, nu asignare: blocurile de mai jos (cascade, language_detection,
+  // disable_first_message_interruptions) completează același ccPatch.agent — o
+  // asignare aici ar pierde tăcut câmpurile lor la orice reordonare a blocurilor.
+  if (healedPrompt !== prompt) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const agentPatch: any = ccPatch.agent ?? {};
+    agentPatch.prompt = { ...(agentPatch.prompt ?? {}), prompt: healedPrompt };
+    ccPatch.agent = agentPatch;
+  }
   for (const m of missing.filter((x) => !HEALABLE.some((h) => h.marker === x))) {
     drifts.push({ field: `prompt.${m}`, healed: false });
   }
@@ -433,6 +447,42 @@ async function checkAndHealConfig(cfg: any): Promise<Drift[]> {
     };
     ccPatch.agent = agentPatch;
     drifts.push({ field: 'language_detection.description', healed: true });
+  }
+  // Salutul se rostește PÂNĂ LA CAPĂT (Ion, 31.08): apelanții strigau «alo alo»
+  // peste primul mesaj, barge-in-ul îl tăia și conversația începea ruptă. După
+  // salut, întreruperile rămân active — câmpul acoperă DOAR first_message.
+  if (cc.agent?.disable_first_message_interruptions !== true) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const agentPatch: any = ccPatch.agent ?? {};
+    agentPatch.disable_first_message_interruptions = true;
+    ccPatch.agent = agentPatch;
+    drifts.push({ field: 'disable_first_message_interruptions', healed: true });
+  }
+  // «alo»/«da» nu mai opresc agentul din vorbit (aceeași decizie Ion 31.08).
+  // transcribe_on_disabled_interruptions=true e OBLIGATORIU lângă listă: un «da»
+  // rostit peste coada întrebării nu întrerupe, dar TREBUIE să rămână în
+  // transcriere — altfel răspunsul clientului dispare tăcut și agentul așteaptă.
+  // merge_with_default=false + languages=[] intră și ele în canon: pornite din
+  // dashboard, ar amesteca lista EL implicită / ar limita cuvintele pe limbi,
+  // iar spread-ul {...turn} le-ar perpetua tăcut la fiecare heal.
+  const turn = cc.turn ?? {};
+  // Eticheta numește câmpul care chiar a deviat: cu una singură pentru toate patru,
+  // un drift la merge_with_default ar fi citit în jurnal drept «lista de cuvinte».
+  const turnDrifts = [
+    (turn.interruption_ignore_terms ?? []).join('|') !== IGNORE_TERMS.join('|') && 'turn.interruption_ignore_terms',
+    turn.transcribe_on_disabled_interruptions !== true && 'turn.transcribe_on_disabled_interruptions',
+    turn.merge_with_default_ignore_terms !== false && 'turn.merge_with_default_ignore_terms',
+    (turn.interruption_ignore_term_languages ?? []).length !== 0 && 'turn.interruption_ignore_term_languages',
+  ].filter((f): f is string => typeof f === 'string');
+  if (turnDrifts.length) {
+    ccPatch.turn = {
+      ...turn,
+      interruption_ignore_terms: [...IGNORE_TERMS],
+      interruption_ignore_term_languages: [],
+      merge_with_default_ignore_terms: false,
+      transcribe_on_disabled_interruptions: true,
+    };
+    for (const field of turnDrifts) drifts.push({ field, healed: true });
   }
   if (Object.keys(ccPatch).length) await elPatchAgent({ conversation_config: ccPatch });
 

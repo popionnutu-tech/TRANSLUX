@@ -37,8 +37,62 @@ export default function FlotaClient({ camioane, soferi, candidati }: Props) {
     ruleaza(() => atribuieSofer(cam.id, idNou || null));
   }
 
-  const faraSofer = camioane.filter((c) => !c.driverId).length;
+  // Ion, 01.09: lista se împarte în active și inactive. «Inactiv» = mașina e a
+  // noastră, dar n-are șofer — ea nu lucrează și nu apare în dispecerat.
+  const active = camioane.filter((c) => c.driverId);
+  const inactive = camioane.filter((c) => !c.driverId);
   const liberi = soferi.filter((s) => !s.peCamion).length;
+
+  function tabelCamioane(lista: CamionFlota[], gol: string) {
+    return (
+      <div className="pivot-wrap">
+        <table className="pivot-table">
+          <thead>
+            <tr><th>Plăcuță</th><th>Tip</th><th>Șofer</th></tr>
+          </thead>
+          <tbody>
+            {lista.map((c) => (
+              <tr key={c.id}>
+                <td><strong>{c.plate}</strong></td>
+                <td>
+                  <select
+                    value={c.fleetType ?? ''}
+                    disabled={inCurs}
+                    onChange={(e) => {
+                      const v = e.target.value as 'cisterna' | 'zernovoz' | '';
+                      if (!v) return;
+                      ruleaza(() => seteazaTipCamion(c.id, v));
+                    }}
+                  >
+                    <option value="">— tip —</option>
+                    <option value="cisterna">cisternă</option>
+                    <option value="zernovoz">zernovoz</option>
+                  </select>
+                </td>
+                <td>
+                  <select
+                    value={c.driverId ?? ''}
+                    disabled={inCurs}
+                    onChange={(e) => schimbaSofer(c, e.target.value)}
+                  >
+                    <option value="">— fără șofer —</option>
+                    {soferi.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}{s.peCamion && s.id !== c.driverId ? ` (acum pe ${s.peCamion})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+              </tr>
+            ))}
+            {lista.length === 0 && (
+              <tr><td colSpan={3} className="pivot-empty">{gol}</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
 
   return (
     <div className="page">
@@ -54,53 +108,21 @@ export default function FlotaClient({ camioane, soferi, candidati }: Props) {
       {eroare && <div className="card" style={{ borderLeft: '3px solid var(--danger)' }}>{eroare}</div>}
 
       <div className="card">
-        <h3>Camioane ({camioane.length}) — {faraSofer} fără șofer</h3>
-        <div className="pivot-wrap">
-          <table className="pivot-table">
-            <thead>
-              <tr><th>Plăcuță</th><th>Tip</th><th>Șofer</th></tr>
-            </thead>
-            <tbody>
-              {camioane.map((c) => (
-                <tr key={c.id}>
-                  <td><strong>{c.plate}</strong></td>
-                  <td>
-                    <select
-                      value={c.fleetType ?? ''}
-                      disabled={inCurs}
-                      onChange={(e) => {
-                        const v = e.target.value as 'cisterna' | 'zernovoz' | '';
-                        if (!v) return;
-                        ruleaza(() => seteazaTipCamion(c.id, v));
-                      }}
-                    >
-                      <option value="">— tip —</option>
-                      <option value="cisterna">cisternă</option>
-                      <option value="zernovoz">zernovoz</option>
-                    </select>
-                  </td>
-                  <td>
-                    <select
-                      value={c.driverId ?? ''}
-                      disabled={inCurs}
-                      onChange={(e) => schimbaSofer(c, e.target.value)}
-                    >
-                      <option value="">— fără șofer —</option>
-                      {soferi.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name}{s.peCamion && s.id !== c.driverId ? ` (acum pe ${s.peCamion})` : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                </tr>
-              ))}
-              {camioane.length === 0 && (
-                <tr><td colSpan={3} className="pivot-empty">Niciun camion în flotă.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <h3>Camioane cu șofer ({active.length})</h3>
+        <p className="text-muted">Au titular din parc, deci lucrează.</p>
+        {tabelCamioane(active, 'Niciun camion n-are șofer atribuit.')}
+      </div>
+
+      <div className="card">
+        <h3>Camioane fără șofer ({inactive.length})</h3>
+        <p className="text-muted">
+          Mașina e a noastră, dar n-are titular. Alege un șofer pe rândul ei și trece în lista de sus.
+          Lipsa titularului nu înseamnă că stă: dacă i s-a pus un șofer direct pe cursă, camionul merge
+          și apare în dispecerat ca «în cursă», iar dacă face kilometri fără niciun șofer, dispeceratul
+          îl arată cu avertisment. Camionul scos din uz nu e în nicio listă de aici — el se reactivează
+          din pagina de mașini.
+        </p>
+        {tabelCamioane(inactive, 'Toate camioanele au șofer.')}
       </div>
 
       <div className="card">

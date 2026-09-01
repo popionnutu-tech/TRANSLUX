@@ -4,9 +4,11 @@
 // tabelurile» — de aici o singură rută-rădăcină cu file, nu pagini împrăștiate.
 export type CamioaneTab = { href: string; label: string };
 
+// Ion, 01.09: «у этих трёх должна остаться только одна банда» — dispeceratul pe
+// stări și grila de planificare s-au contopit în bandă. Vechile căi redirectează
+// spre rădăcină, ca semnele salvate să nu ducă în gol.
 const TOATE: CamioaneTab[] = [
-  { href: '/lde/camioane', label: 'Dispecerat' },
-  { href: '/lde/camioane/planificare', label: 'Planificare' },
+  { href: '/lde/camioane', label: 'Bandă' },
   { href: '/lde/camioane/flota', label: 'Flotă' },
   { href: '/lde/camioane/puncte', label: 'Puncte' },
   { href: '/lde/camioane/analitica', label: 'Analitică' },

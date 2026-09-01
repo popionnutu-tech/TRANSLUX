@@ -3,6 +3,10 @@
 # Cron: 0 3 * * *. Logă în nightly.log. Idempotent (re-rularea nu dublează).
 # NOTĂ: la 06:30 rulează pe același VPS și verificarea atribuirilor (crontab):
 #   30 6 * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://central-hub-md.vercel.app/api/cron/lde-verifica-atribuiri >> /root/lde-worker/verify-atribuiri.log 2>&1
+# Și la 06:45, judecata deciziilor dispecerului de camioane (alertă la ADMIN dacă
+# două camioane au fost trimise încrucișat). DUPĂ trip-worker, ca opririle GPS de
+# ieri să fie deja scrise:
+#   45 6 * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://central-hub-md.vercel.app/api/cron/lde-decizii-camioane >> /root/lde-worker/decizii-camioane.log 2>&1
 cd /root/lde-worker || exit 1
 Y=$(TZ=Europe/Chisinau date -d yesterday +%F)
 echo "===== $(TZ=Europe/Chisinau date '+%F %T') | ziua $Y =====" >> nightly.log

@@ -4,15 +4,21 @@ import { camioaneTabsForRole, poateAccesa } from './camioane-nav';
 describe('camioaneTabsForRole', () => {
   it('ADMIN vede toate filele, inclusiv Analitica', () => {
     expect(camioaneTabsForRole('ADMIN').map((x) => x.href)).toEqual([
-      '/lde/camioane', '/lde/camioane/planificare', '/lde/camioane/flota',
-      '/lde/camioane/puncte', '/lde/camioane/analitica',
+      '/lde/camioane', '/lde/camioane/flota', '/lde/camioane/puncte', '/lde/camioane/analitica',
     ]);
   });
 
   it('DISPECER planifică, dar nu vede Analitica', () => {
     const t = camioaneTabsForRole('DISPECER').map((x) => x.href);
     expect(t).not.toContain('/lde/camioane/analitica');
-    expect(t).toHaveLength(4);
+    expect(t).toHaveLength(3);
+  });
+
+  it('rutele vechi rămân permise, ca redirectul lor să funcționeze', () => {
+    // Dispeceratul și grila s-au contopit în bandă; căile lor se potrivesc acum
+    // cu rădăcina, deci un semn salvat ajunge la redirect, nu la /login.
+    expect(poateAccesa('DISPECER', '/lde/camioane/planificare')).toBe(true);
+    expect(poateAccesa('DISPECER', '/lde/camioane/banda')).toBe(true);
   });
 
   it('alte roluri nu văd modulul deloc', () => {
@@ -22,8 +28,9 @@ describe('camioaneTabsForRole', () => {
 });
 
 describe('poateAccesa', () => {
-  it('DISPECER intră pe dispecerat, planificare, flotă, puncte', () => {
+  it('DISPECER intră pe dispecerat, bandă, planificare, flotă, puncte', () => {
     expect(poateAccesa('DISPECER', '/lde/camioane')).toBe(true);
+    expect(poateAccesa('DISPECER', '/lde/camioane/banda')).toBe(true);
     expect(poateAccesa('DISPECER', '/lde/camioane/planificare')).toBe(true);
     expect(poateAccesa('DISPECER', '/lde/camioane/flota')).toBe(true);
     expect(poateAccesa('DISPECER', '/lde/camioane/puncte')).toBe(true);

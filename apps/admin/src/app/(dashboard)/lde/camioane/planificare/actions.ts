@@ -4,6 +4,7 @@ import { getSupabase } from '@/lib/supabase';
 import { verifySession, type Session } from '@/lib/auth';
 import { poateAccesa } from '@/lib/lde/camioane-nav';
 import { seSuprapune, urmatoareaStare, type TripWindow } from '@/lib/lde/camioane';
+import { poateFiMutata } from '@/lib/lde/banda';
 import { chisinauDayBounds } from '@/lib/chisinau-time';
 
 export type Rezultat = { ok: true; mesaj: string } | { error: string };
@@ -104,8 +105,9 @@ async function camioane(): Promise<Camion[]> {
 }
 
 /** Cursele care ating fereastra [from, to] — o cursă multi-zi începută înainte
- *  trebuie să apară în grilă, deci filtrul e pe suprapunere, nu pe data de start. */
-async function curseInFereastra(fromIso: string, toIso: string): Promise<Cursa[]> {
+ *  trebuie să apară în grilă, deci filtrul e pe suprapunere, nu pe data de start.
+ *  `taiat` = selecția a atins plafonul PostgREST și ultimele zile lipsesc. */
+async function curseInFereastra(fromIso: string, toIso: string): Promise<{ curse: Cursa[]; taiat: boolean }> {
   const { data, error } = await getSupabase()
     .from('lde_truck_trips')
     .select(`id, vehicle_id, driver_id, cargo, client, status, notes,
@@ -116,10 +118,13 @@ async function curseInFereastra(fromIso: string, toIso: string): Promise<Cursa[]
     .gte('unload_planned_at', fromIso)
     .neq('status', 'anulata')
     .order('load_planned_at')
-    // PostgREST taie TĂCUT la 1000: la 14 zile × 39 camioane ferestrele reale dau
-    // ~150 curse, dar limita explicită face plafonul vizibil dacă cineva mărește ZILE.
+    // PostgREST taie TĂCUT la 1000 și `.limit()` nu ridică plafonul (db-max-rows).
+    // La 39 de camioane și o cursă pe zi, pragul se atinge din ziua 26 — de aceea
+    // tăierea se DETECTEAZĂ, nu se speră că nu vine (review performanță, 01.09).
     .limit(1000);
   if (error) { console.error('[camioane]', error.message); throw new Error('Nu am putut citi cursele'); }
+  const taiat = (data ?? []).length >= 1000;
+  if (taiat) console.error('[camioane] fereastra a atins plafonul de 1000 de curse — ultimele zile lipsesc');
 
   type Row = {
     id: string; vehicle_id: string; driver_id: string | null; cargo: string | null; client: string | null;
@@ -130,7 +135,7 @@ async function curseInFereastra(fromIso: string, toIso: string): Promise<Cursa[]
   };
   const nume = (x: Row['load_point']) => (Array.isArray(x) ? x[0]?.name : x?.name) ?? null;
 
-  return ((data ?? []) as Row[]).map((t) => ({
+  const curse = ((data ?? []) as Row[]).map((t) => ({
     id: t.id,
     vehicleId: t.vehicle_id,
     driverId: t.driver_id,
@@ -145,11 +150,12 @@ async function curseInFereastra(fromIso: string, toIso: string): Promise<Cursa[]
     status: t.status,
     notes: t.notes,
   }));
+  return { curse, taiat };
 }
 
 export async function getPlanificare(fromDate: string, zile: number): Promise<{
   from: string; zile: string[]; camioane: Camion[]; curse: Cursa[]; stari: StareZi[];
-  puncte: PunctScurt[]; soferi: SoferScurt[];
+  puncte: PunctScurt[]; soferi: SoferScurt[]; taiat: boolean;
 }> {
   await cerereRol();
   const sb = getSupabase();
@@ -166,11 +172,15 @@ export async function getPlanificare(fromDate: string, zile: number): Promise<{
   const fromIso = chisinauDayBounds(listaZile[0]).fromIso;
   const toIso = chisinauDayBounds(listaZile[listaZile.length - 1]).toIso;
 
-  const [cam, curse, stariRes, puncteRes, soferiRes] = await Promise.all([
+  const [cam, curseRes, stariRes, puncteRes, soferiRes] = await Promise.all([
     camioane(),
     curseInFereastra(fromIso, toIso),
+    // Plafon explicit + ordine stabilă: 39 de camioane × 21 de zile dau 819 rânduri,
+    // aproape de pragul PostgREST. Fără `order`, o tăiere ar da un set diferit la
+    // fiecare reîncărcare — reparații care apar și dispar (review perf, 01.09).
     sb.from('lde_truck_day_states')
       .select('id, vehicle_id, date, state, reason, expected_end')
+      .order('date').order('vehicle_id').limit(1000)
       .gte('date', listaZile[0]).lte('date', listaZile[listaZile.length - 1]),
     sb.from('lde_dispatch_points').select('id, name, lat, lng').eq('active', true).order('name'),
     // Șoferii de camioane NU sunt marcați prin directions (verificat pe prod:
@@ -194,7 +204,8 @@ export async function getPlanificare(fromDate: string, zile: number): Promise<{
     from: listaZile[0],
     zile: listaZile,
     camioane: cam,
-    curse,
+    curse: curseRes.curse,
+    taiat: curseRes.taiat,
     stari: ((stariRes.data ?? []) as StareRow[]).map((s) => ({
       id: s.id, vehicleId: s.vehicle_id, date: s.date, state: s.state,
       reason: s.reason, expectedEnd: s.expected_end,
@@ -259,6 +270,28 @@ export async function salveazaCursa(input: CursaInput): Promise<Rezultat> {
   }
   if (!(await esteCamion(input.vehicleId))) return { error: 'Mașina aleasă nu e camion din flota LDE' };
 
+  // Aceeași poartă ca la `mutaCursa`: tabela are DOUĂ drumuri de scriere spre
+  // `vehicle_id` și ferestrele planificate, iar poarta stătea doar pe unul.
+  // Prin editare, o cursă întârziată putea fi rescrisă ca punctuală — exact
+  // cifra din Analitică pe care o citește administratorul (security review, 01.09).
+  if (input.id) {
+    const { data: veche, error: eVeche } = await getSupabase().from('lde_truck_trips')
+      .select('status, vehicle_id, load_planned_at, unload_planned_at').eq('id', input.id).maybeSingle();
+    if (eVeche) return { error: eroareCurata(eVeche, 'Cursa nu a putut fi citită') };
+    if (!veche) return { error: 'Cursa nu mai există — reîmprospătează pagina' };
+    if (!poateFiMutata(veche.status as string)) {
+      const schimbatCamion = veche.vehicle_id !== input.vehicleId;
+      const schimbatPlan = Date.parse(veche.load_planned_at as string) !== Date.parse(input.loadPlannedAt)
+        || Date.parse(veche.unload_planned_at as string) !== Date.parse(input.unloadPlannedAt);
+      if (schimbatCamion || schimbatPlan) {
+        return {
+          error: `Cursa e în «${veche.status}»: marfa, clientul și nota se pot corecta, `
+            + 'dar camionul și orele planificate nu se mai schimbă — din ele se calculează punctualitatea.',
+        };
+      }
+    }
+  }
+
   // Suprapunerea se verifică ȘI pe server, nu doar în formular: două file deschise
   // pot salva simultan.
   const { data: vecine, error: eVecine } = await getSupabase()
@@ -311,6 +344,94 @@ export async function salveazaCursa(input: CursaInput): Promise<Rezultat> {
   return { ok: true, mesaj: 'Cursa a fost planificată' };
 }
 
+/**
+ * Mută cursa: altă zi, alt camion, sau capetele întinse. Cheamă banda de timp,
+ * unde gestul e o tragere de maus — celelalte câmpuri (marfă, puncte, client)
+ * rămân cum erau, altfel fiecare mutare ar cere reintroducerea lor.
+ * Aceleași verificări ca la salvare: camion din flotă și fără suprapunere.
+ */
+export async function mutaCursa(input: {
+  id: string; vehicleId: string; loadPlannedAt: string; unloadPlannedAt: string;
+}): Promise<Rezultat> {
+  let s: Session;
+  try { s = await cerereRol(); } catch { return { error: 'Neautorizat' }; }
+  if (!UUID_RE.test(input.id)) return { error: 'Identificator invalid' };
+  if (!UUID_RE.test(input.vehicleId)) return { error: 'Camion invalid' };
+  if (!Number.isFinite(Date.parse(input.loadPlannedAt)) || !Number.isFinite(Date.parse(input.unloadPlannedAt))) {
+    return { error: 'Data sau ora nu e validă' };
+  }
+  if (Date.parse(input.unloadPlannedAt) < Date.parse(input.loadPlannedAt)) {
+    return { error: 'Descărcarea nu poate fi înaintea încărcării' };
+  }
+  if (!(await esteCamion(input.vehicleId))) return { error: 'Mașina aleasă nu e camion din flota LDE' };
+
+  const sb = getSupabase();
+  const { data: cursa, error: eCursa } = await sb.from('lde_truck_trips')
+    .select('id, status, vehicle_id').eq('id', input.id).maybeSingle();
+  if (eCursa) return { error: eroareCurata(eCursa, 'Cursa nu a putut fi citită') };
+  if (!cursa) return { error: 'Cursa nu mai există — reîmprospătează pagina' };
+
+  // Cursa pornită NU se mută. Workerul de noapte măsoară kilometrii și
+  // punctualitatea din fereastra planificată și din GPS-ul camionului: mutarea
+  // unei curse deja plecate ar rescrie tăcut cifrele pe altă mașină sau pe alt
+  // interval (review arhitectură + audit business, 01.09). Se anulează cu motiv
+  // și se replanifică — istoricul rămâne.
+  if (!poateFiMutata(cursa.status as string)) {
+    return {
+      error: cursa.status === 'anulata'
+        ? 'Cursa e anulată și nu se mai mută'
+        : `Cursa e deja în «${cursa.status}» — nu se mai mută. Anuleaz-o cu motiv și planifică alta.`,
+    };
+  }
+
+  // Marfa nu trece dintr-un tip de camion în altul: motorina nu intră în zernovoz.
+  if (cursa.vehicle_id !== input.vehicleId) {
+    const { data: tipuri, error: eTip } = await sb.from('lde_truck_profile')
+      .select('vehicle_id, fleet_type').in('vehicle_id', [cursa.vehicle_id as string, input.vehicleId]);
+    if (eTip) return { error: eroareCurata(eTip, 'Nu am putut citi tipul camioanelor') };
+    type Tip = { vehicle_id: string; fleet_type: string | null };
+    const dinTip = ((tipuri ?? []) as Tip[]).find((t) => t.vehicle_id === cursa.vehicle_id)?.fleet_type ?? null;
+    const inTip = ((tipuri ?? []) as Tip[]).find((t) => t.vehicle_id === input.vehicleId)?.fleet_type ?? null;
+    if (dinTip && inTip && dinTip !== inTip) {
+      return { error: `Cursa e de pe un camion ${dinTip} — nu se mută pe un ${inTip}` };
+    }
+  }
+
+  const { data: vecine, error: eVecine } = await sb.from('lde_truck_trips')
+    .select('id, vehicle_id, load_planned_at, unload_planned_at, status')
+    .eq('vehicle_id', input.vehicleId)
+    .neq('status', 'anulata')
+    .lte('load_planned_at', input.unloadPlannedAt)
+    .gte('unload_planned_at', input.loadPlannedAt);
+  if (eVecine) return { error: eroareCurata(eVecine, 'Nu am putut verifica intervalul') };
+
+  type W = { id: string; vehicle_id: string; load_planned_at: string; unload_planned_at: string; status: string };
+  const conflict = seSuprapune(
+    { id: input.id, vehicleId: input.vehicleId, loadAt: input.loadPlannedAt, unloadAt: input.unloadPlannedAt },
+    ((vecine ?? []) as W[]).map((t) => ({
+      id: t.id, vehicleId: t.vehicle_id, loadAt: t.load_planned_at, unloadAt: t.unload_planned_at, status: t.status,
+    })),
+  );
+  if (conflict) {
+    const de = new Date(conflict.loadAt).toLocaleString('ro-MD', { timeZone: 'Europe/Chisinau' });
+    const la = new Date(conflict.unloadAt).toLocaleString('ro-MD', { timeZone: 'Europe/Chisinau' });
+    return { error: `Camionul are deja o cursă în acest interval (${de} → ${la})` };
+  }
+
+  const { data, error } = await sb.from('lde_truck_trips')
+    .update({
+      vehicle_id: input.vehicleId,
+      load_planned_at: input.loadPlannedAt,
+      unload_planned_at: input.unloadPlannedAt,
+      updated_at: new Date().toISOString(),
+      updated_by: s.email,
+    })
+    .eq('id', input.id).select('id');
+  if (error) return { error: eroareCurata(error, 'Cursa nu a putut fi mutată') };
+  if (!data || data.length === 0) return { error: 'Cursa nu mai există — reîmprospătează pagina' };
+  return { ok: true, mesaj: 'Cursa a fost mutată' };
+}
+
 export async function anuleazaCursa(id: string, motiv: string): Promise<Rezultat> {
   let s: Session;
   try { s = await cerereRol(); } catch { return { error: 'Neautorizat' }; }
@@ -358,35 +479,96 @@ export async function seteazaTipCamion(vehicleId: string, fleetType: 'cisterna' 
   return { ok: true, mesaj: `Tip setat: ${fleetType === 'cisterna' ? 'cisternă' : 'zernovoz'}` };
 }
 
-export async function seteazaStareZi(input: {
-  vehicleId: string; date: string; state: 'reparatie' | 'odihna'; reason: string | null; expectedEnd: string | null;
+// `seteazaStareZi` (o singură zi) a fost ștearsă odată cu contopirea: butonul «+»
+// din bandă dă întotdeauna o PERIOADĂ, iar textul ei de avertisment devenise fals
+// după așezarea barelor pe benzi (starea nu se mai ascunde sub bară).
+
+/**
+ * Reparație sau odihnă pe o PERIOADĂ. Ion, 01.09: butonul «+» din bandă deschide
+ * și asta, iar perioada se dă o dată — nu se bifează fiecare zi separat.
+ */
+export async function seteazaStarePerioada(input: {
+  vehicleId: string; de: string; pana: string; state: 'reparatie' | 'odihna'; reason: string | null;
 }): Promise<Rezultat> {
   let s: Session;
   try { s = await cerereRol(); } catch { return { error: 'Neautorizat' }; }
+  if (!UUID_RE.test(input.vehicleId)) return { error: 'Camion invalid' };
+  if (input.state !== 'reparatie' && input.state !== 'odihna') return { error: 'Stare necunoscută' };
+  const ZI = /^\d{4}-\d{2}-\d{2}$/;
+  if (!ZI.test(input.de) || !ZI.test(input.pana)) return { error: 'Perioada nu e validă' };
+  // Formatul nu garantează o zi din calendar: «9999-99-99» trece regexul, iar
+  // `toISOString()` de mai jos ar arunca RangeError (security review, 01.09).
+  if (!Number.isFinite(Date.parse(`${input.de}T12:00:00Z`))
+      || !Number.isFinite(Date.parse(`${input.pana}T12:00:00Z`))) {
+    return { error: 'Perioada nu e validă' };
+  }
+  if (input.pana < input.de) return { error: 'Ultima zi nu poate fi înaintea primei' };
   if (!(await esteCamion(input.vehicleId))) return { error: 'Mașina aleasă nu e camion din flota LDE' };
 
-  // Starea de zi ascunde bara cursei în grilă (celula de stare se randează prima).
-  // Nu o interzicem — camionul chiar poate intra în reparație în mijlocul cursei —
-  // dar spunem explicit ce se întâmplă, ca dispecerul să nu creadă că a rupt cursa.
-  const { fromIso, toIso } = chisinauDayBounds(input.date);
+  // Plafon explicit: o perioadă din formular nu are de ce să depășească un trimestru,
+  // iar fără el un interval greșit ar scrie mii de rânduri.
+  const zile: string[] = [];
+  const d = new Date(`${input.de}T12:00:00Z`);
+  for (let i = 0; i < 92; i++) {
+    const zi = d.toISOString().slice(0, 10);
+    zile.push(zi);
+    if (zi === input.pana) break;
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  if (zile[zile.length - 1] !== input.pana) return { error: 'Perioada e prea lungă (maxim 92 de zile)' };
+
+  // Avertismentul care exista pe o zi singură nu se pierde pe perioadă: camionul
+  // poate intra în reparație în mijlocul unei curse, dar dispecerul trebuie să afle.
+  const { fromIso } = chisinauDayBounds(input.de);
+  const { toIso } = chisinauDayBounds(input.pana);
   const { data: peste } = await getSupabase().from('lde_truck_trips')
     .select('id').eq('vehicle_id', input.vehicleId).neq('status', 'anulata')
     .lt('load_planned_at', toIso).gte('unload_planned_at', fromIso).limit(1);
   const avertisment = peste && peste.length > 0
-    ? ' Atenție: în această zi camionul are o cursă planificată — bara ei nu se mai vede, dar cursa rămâne.'
+    ? ' Atenție: în această perioadă camionul are o cursă planificată — ea rămâne pe bandă.'
     : '';
 
   const { error } = await getSupabase().from('lde_truck_day_states')
-    .upsert({
-      vehicle_id: input.vehicleId,
-      date: input.date,
-      state: input.state,
-      reason: taie(input.reason),
-      expected_end: input.expectedEnd || null,
-      created_by: s.email,
-    }, { onConflict: 'vehicle_id,date' });
-  if (error) return { error: eroareCurata(error, 'Starea nu a putut fi salvată') };
-  return { ok: true, mesaj: (input.state === 'reparatie' ? 'Marcat la reparație.' : 'Marcat odihnă.') + avertisment };
+    .upsert(
+      zile.map((zi) => ({
+        vehicle_id: input.vehicleId,
+        date: zi,
+        state: input.state,
+        reason: taie(input.reason),
+        expected_end: input.pana,
+        created_by: s.email,
+      })),
+      { onConflict: 'vehicle_id,date' },
+    );
+  if (error) return { error: eroareCurata(error, 'Perioada nu a putut fi salvată') };
+
+  const eticheta = input.state === 'reparatie' ? 'la reparație' : 'în odihnă';
+  return {
+    ok: true,
+    mesaj: (zile.length === 1
+      ? `Marcat ${eticheta} pe ${input.de}`
+      : `Marcat ${eticheta}, ${zile.length} zile (${input.de} → ${input.pana})`) + avertisment,
+  };
+}
+
+/** Scoate starea de pe TOATE zilele unui interval — simetric cu marcarea pe perioadă. */
+export async function stergeStarePerioada(vehicleId: string, de: string, pana: string): Promise<Rezultat> {
+  try { await cerereRol(); } catch { return { error: 'Neautorizat' }; }
+  if (!UUID_RE.test(vehicleId)) return { error: 'Camion invalid' };
+  const ZI = /^\d{4}-\d{2}-\d{2}$/;
+  if (!ZI.test(de) || !ZI.test(pana) || pana < de) return { error: 'Perioada nu e validă' };
+  // Același plafon ca la scriere: fără el, `0001-01-01 → 9999-12-31` golea tot
+  // istoricul de stări al camionului dintr-un apel (security review, 01.09).
+  const zileInterval = Math.round((Date.parse(`${pana}T12:00:00Z`) - Date.parse(`${de}T12:00:00Z`)) / 86400000) + 1;
+  if (!Number.isFinite(zileInterval)) return { error: 'Perioada nu e validă' };
+  if (zileInterval > 92) return { error: 'Perioada e prea lungă (maxim 92 de zile)' };
+  if (!(await esteCamion(vehicleId))) return { error: 'Mașina aleasă nu e camion din flota LDE' };
+
+  const { data, error } = await getSupabase().from('lde_truck_day_states')
+    .delete().eq('vehicle_id', vehicleId).gte('date', de).lte('date', pana).select('id');
+  if (error) return { error: eroareCurata(error, 'Perioada nu a putut fi ștearsă') };
+  if (!data || data.length === 0) return { error: 'Nu era nicio stare în acest interval' };
+  return { ok: true, mesaj: `Scoase ${data.length} ${data.length === 1 ? 'zi' : 'zile'}` };
 }
 
 export async function stergeStareZi(vehicleId: string, date: string): Promise<Rezultat> {

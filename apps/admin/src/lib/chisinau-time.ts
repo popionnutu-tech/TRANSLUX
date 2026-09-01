@@ -4,14 +4,23 @@
 
 const TZ = 'Europe/Chisinau';
 
+// Formatoarele se refolosesc: `toLocaleDateString` cu opțiuni construiește un
+// Intl.DateTimeFormat nou la fiecare apel — 23 µs față de 0,6 µs. Banda cheamă
+// funcția de sute de ori la fiecare randare, iar diferența se vedea ca lag la
+// tragerea unei bare (review performanță, 01.09).
+const FMT_ZI = new Intl.DateTimeFormat('en-CA', { timeZone: TZ });
+const FMT_ORA = new Intl.DateTimeFormat('en-GB', {
+  timeZone: TZ, hour: '2-digit', minute: '2-digit', hour12: false,
+});
+
 /** Azi, ca 'YYYY-MM-DD' în ora Chișinăului. */
 export function chisinauTodayIso(): string {
-  return new Date().toLocaleDateString('en-CA', { timeZone: TZ });
+  return FMT_ZI.format(new Date());
 }
 
 /** Ziua calendaristică Chișinău ('YYYY-MM-DD') a unui instant (timestamptz din DB). */
 export function chisinauDayOf(ts: string): string {
-  return new Date(ts).toLocaleDateString('en-CA', { timeZone: TZ });
+  return FMT_ZI.format(new Date(ts));
 }
 
 // Offset-ul («+03:00»/«+02:00») al zilei date — sondat la prânz, stabil în afara orei de tranziție DST
@@ -28,6 +37,21 @@ function dayOffset(dateStr: string): string {
 /** Miezul nopții Chișinău al zilei date, ca ISO cu offset — pentru filtre pe timestamptz. */
 export function chisinauDayStartIso(dateStr: string): string {
   return `${dateStr}T00:00:00${dayOffset(dateStr)}`;
+}
+
+/**
+ * Instantul unei zile + ore locale Chișinău ('2026-09-10' + '07:00'), ca ISO cu offset.
+ * `new Date('2026-09-10T07:00')` ia fusul BROWSERULUI: un dispecer aflat în altă
+ * țară ar fi salvat cursa cu ore deplasate.
+ */
+export function chisinauInstantIso(dateStr: string, hhmm: string): string {
+  const ora = /^\d{2}:\d{2}$/.test(hhmm) ? hhmm : '00:00';
+  return `${dateStr}T${ora}:00${dayOffset(dateStr)}`;
+}
+
+/** Ora locală Chișinău ('HH:MM') a unui instant. */
+export function chisinauTimeOf(ts: string): string {
+  return FMT_ORA.format(new Date(ts));
 }
 
 function nextDayIso(dateStr: string): string {

@@ -887,3 +887,17 @@ body {
     @apply font-sans;
   }
 }
+
+/* Numărul de camioane dintr-un grup de pe harta flotei (FleetMap): eticheta stă
+   PESTE marker, fără fundal, ca punctul să rămână vizibil. */
+.leaflet-tooltip.pin-count {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 0;
+  pointer-events: none;
+}
+.leaflet-tooltip.pin-count::before { display: none; }

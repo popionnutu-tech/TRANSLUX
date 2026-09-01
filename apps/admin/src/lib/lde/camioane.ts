@@ -73,6 +73,21 @@ export function areSofer(input: { atribuireActiva: boolean; soferPeCursaActiva: 
   return input.atribuireActiva || input.soferPeCursaActiva;
 }
 
+/** O poziție GPS e «actuală» 24h. Wialon păstrează ultima poziție cunoscută
+ *  oricât de veche — măsurat 01.09: 18 din 39 de camioane aveau poziții de luni,
+ *  una din august 2025. Afișată ca actuală, ea minte dispecerul. */
+export const PROSPETIME_POZITIE_ORE = 24;
+
+export function pozitieRecenta(atIso: string, acumMs = Date.now(), ore = PROSPETIME_POZITIE_ORE): boolean {
+  const t = Date.parse(atIso);
+  if (!Number.isFinite(t)) return false;
+  const varsta = acumMs - t;
+  // Fereastra e cu DOUĂ capete: un tracker cu ceasul stricat raportează în viitor,
+  // vârsta iese negativă și poziția ar rămâne «proaspătă» pe veci — exact minciuna
+  // pe care filtrul o repară (security review 01.09).
+  return varsta >= 0 && varsta <= ore * 3600 * 1000;
+}
+
 export type KanbanColumn = 'liber' | 'in_cursa' | 'reparatie' | 'odihna' | 'fara_sofer';
 
 /**

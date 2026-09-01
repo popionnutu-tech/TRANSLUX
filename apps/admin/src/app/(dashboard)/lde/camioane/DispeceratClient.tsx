@@ -42,6 +42,7 @@ export default function DispeceratClient({ cartonase, azi }: { cartonase: Carton
   const [mesaj, setMesaj] = useState('');
   const [eroare, setEroare] = useState('');
   const [pozitii, setPozitii] = useState<Pozitie[]>([]);
+  const [faraPozitie, setFaraPozitie] = useState(0);
   const [gpsMesaj, setGpsMesaj] = useState('');
   const primaIncarcare = useRef(true);
 
@@ -50,6 +51,7 @@ export default function DispeceratClient({ cartonase, azi }: { cartonase: Carton
       const r = await fetch('/api/lde/camioane/pozitii', { cache: 'no-store' });
       const j = await r.json();
       setPozitii(j.positions ?? []);
+      setFaraPozitie(j.faraPozitieRecenta ?? 0);
       setGpsMesaj(r.ok ? '' : (j.error ?? 'GPS indisponibil'));
     } catch {
       setGpsMesaj('GPS indisponibil');
@@ -84,16 +86,20 @@ export default function DispeceratClient({ cartonase, azi }: { cartonase: Carton
   const pins = useMemo<PinCamion[]>(() => {
     const dupaPlaca = new Map(cartonase.map((c) => [normalizeazaPlaca(c.plate), c]));
     const culori = new Map(COLOANE.map((c) => [c.cheie, c.culoare]));
-    return pozitii.flatMap((p) => {
-      const cheie = normalizeazaPlaca(p.plate);
-      const c = dupaPlaca.get(cheie);
-      if (!c) return [];
-      return [{
-        plate: c.plate,
+    return pozitii.map((p) => {
+      const c = dupaPlaca.get(normalizeazaPlaca(p.plate));
+      // Camionul fără cartonaș (fără șofer și sub pragul de km) NU apare în kanban,
+      // dar poziția lui e reală — îl desenăm gri. Altfel el lipsea și de pe hartă,
+      // și din numărul «fără poziție recentă», iar cifrele nu închideau flota
+      // (audit 01.09).
+      return {
+        plate: c?.plate ?? p.plate,
         lat: p.lat, lng: p.lng, speed: p.speed, at: p.at,
-        culoare: culori.get(c.coloana) ?? '#6b7280',
-        eticheta: c.cursa ? `${c.cursa.de ?? '?'} → ${c.cursa.la ?? '?'}` : COLOANE.find((x) => x.cheie === c.coloana)?.titlu ?? '',
-      }];
+        culoare: c ? culori.get(c.coloana) ?? '#6b7280' : '#9ca3af',
+        eticheta: c
+          ? (c.cursa ? `${c.cursa.de ?? '?'} → ${c.cursa.la ?? '?'}` : COLOANE.find((x) => x.cheie === c.coloana)?.titlu ?? '')
+          : 'fără șofer, în afara tabloului',
+      };
     });
   }, [pozitii, cartonase]);
 
@@ -177,7 +183,14 @@ export default function DispeceratClient({ cartonase, azi }: { cartonase: Carton
       </div>
 
       <div className="card">
-        <h3>Harta flotei ({pins.length} camioane cu poziție)</h3>
+        <h3>Harta flotei ({pins.length} camioane cu poziție din ultimele 24h)</h3>
+        {faraPozitie > 0 && (
+          <p className="text-muted">
+            {faraPozitie === 1 ? 'Încă un camion n-a raportat' : `Încă ${faraPozitie} camioane n-au raportat`} GPS
+            în ultimele 24h — nu {faraPozitie === 1 ? 'apare' : 'apar'} pe hartă, fiindcă ultima poziție
+            cunoscută e prea veche ca să spună unde {faraPozitie === 1 ? 'e' : 'sunt'} acum.
+          </p>
+        )}
         <FleetMap pins={pins} />
       </div>
     </div>

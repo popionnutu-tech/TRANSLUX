@@ -63,6 +63,7 @@ export default function PlanificareClient({ from, zile, camioane, curse, stari, 
   const [form, setForm] = useState<typeof formGol | null>(null);
   const [punctNou, setPunctNou] = useState<{ pentru: 'load' | 'unload'; name: string; country: string; lat: string; lng: string } | null>(null);
   const [pozitii, setPozitii] = useState<{ plate: string; lat: number; lng: number }[]>([]);
+  const [gpsLipsa, setGpsLipsa] = useState(0);
 
   // Pozițiile live se cer DOAR când formularul e deschis: ele servesc exclusiv
   // avertizarea «ai un camion mai aproape».
@@ -71,6 +72,7 @@ export default function PlanificareClient({ from, zile, camioane, curse, stari, 
       const r = await fetch('/api/lde/camioane/pozitii', { cache: 'no-store' });
       const j = await r.json();
       setPozitii(j.positions ?? []);
+      setGpsLipsa(j.faraPozitieRecenta ?? 0);
     } catch { /* fără GPS, avertizarea pur și simplu nu apare */ }
   }, []);
   // Dependența e BOOLEANĂ, nu obiectul `form`: acesta se recreează la fiecare
@@ -220,6 +222,24 @@ export default function PlanificareClient({ from, zile, camioane, curse, stari, 
 
   const numeCamion = (id: string) => camioane.find((c) => c.id === id)?.plate ?? '—';
 
+  /** De ce lipsește avertizarea? Tăcerea nemotivată se citește ca «alegerea e bună». */
+  const motivFaraAvertisment = useMemo(() => {
+    if (!form || !form.vehicleId || !form.loadPointId) return null;
+    if (avertisment.length > 0) return null;
+    const punct = puncte.find((p) => p.id === form.loadPointId);
+    if (!punct || punct.lat === null) return 'Punctul de încărcare n-are coordonate — nu se poate compara distanța.';
+    const incarcareLa = Date.parse(form.loadPlannedAt);
+    if (Number.isFinite(incarcareLa) && incarcareLa - Date.now() > 24 * 3600 * 1000) {
+      return 'Încărcarea e peste mai mult de o zi — pozițiile de acum nu spun nimic despre unde vor fi camioanele atunci.';
+    }
+    const alesCamion = camioane.find((c) => c.id === form.vehicleId);
+    const arePozitie = pozitii.some((p) => cheiePlaca(p.plate) === cheiePlaca(alesCamion?.plate ?? ''));
+    if (!arePozitie) {
+      return `Camionul ales n-a raportat GPS în ultimele 24h — nu are cu ce fi comparat${gpsLipsa ? ` (${gpsLipsa} camioane din flotă sunt în aceeași situație)` : ''}.`;
+    }
+    return 'Niciun camion liber de același tip nu e mai aproape de punctul de încărcare.';
+  }, [form, avertisment, puncte, camioane, pozitii, gpsLipsa]);
+
   return (
     <div className="page">
       <div className="page-header">
@@ -353,6 +373,12 @@ export default function PlanificareClient({ from, zile, camioane, curse, stari, 
                 Decizia rămâne a ta.
               </p>
             </div>
+          )}
+
+          {motivFaraAvertisment && (
+            <p className="text-muted" style={{ borderLeft: '3px solid var(--pline)', paddingLeft: 8 }}>
+              {motivFaraAvertisment}
+            </p>
           )}
 
           <div className="flex gap-2">

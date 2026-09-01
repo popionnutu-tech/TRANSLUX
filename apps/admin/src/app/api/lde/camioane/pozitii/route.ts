@@ -4,6 +4,7 @@ import { getSupabase } from '@/lib/supabase';
 import { poateAccesa } from '@/lib/lde/camioane-nav';
 import { pozitiiLiveCached } from '@/lib/wialon';
 import { normalizeazaPlaca } from '@/lib/lde/parc';
+import { pozitieRecenta } from '@/lib/lde/camioane';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -29,8 +30,25 @@ export async function GET() {
     const permise = new Set(
       ((camioane ?? []) as { plate_number: string }[]).map((v) => normalizeazaPlaca(v.plate_number)),
     );
-    const positions = toate.filter((p) => permise.has(normalizeazaPlaca(p.plate)));
-    return NextResponse.json({ positions });
+    const aleFlotei = toate.filter((p) => permise.has(normalizeazaPlaca(p.plate)));
+    // Regula «poziția e actuală 24h» stă în lib/lde/camioane.ts, lângă celelalte
+    // praguri ale modulului, și e testată acolo (arch review 01.09).
+    const acum = Date.now();
+    const positions = aleFlotei.filter((p) => pozitieRecenta(p.at, acum));
+    return NextResponse.json({
+      positions,
+      // Numărat față de FLOTĂ, nu față de ce a întors Wialon: un camion lipsă din
+      // Wialon sau cu nume neinterpretabil nu apărea în niciun contor, iar textul
+      // de pe ecran promitea totuși completitudine (arch review 01.09).
+      totalFlota: permise.size,
+      // Plăcuțe DISTINCTE, nu poziții: două unități Wialon redenumite spre aceeași
+      // plăcuță ar fi făcut contorul negativ, iar avertismentul ar fi dispărut
+      // tăcut (security review 01.09).
+      faraPozitieRecenta: Math.max(
+        0,
+        permise.size - new Set(positions.map((p) => normalizeazaPlaca(p.plate))).size,
+      ),
+    });
   } catch (e) {
     // Tokenul lipsă sau Wialon căzut nu are voie să rupă dispeceratul: harta
     // rămâne goală, kanbanul (care nu depinde de GPS live) funcționează.

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   seSuprapune, haversineKm, camioaneMaiAproape, coloanaKanban, urmatoareaStare, zileleCursei, areSofer,
+  pozitieRecenta,
 } from './camioane';
 
 const cursa = (id: string, loadAt: string, unloadAt: string, vehicleId = 'v1') =>
@@ -115,6 +116,30 @@ describe('areSofer', () => {
 
   it('nici una, nici alta → fără șofer', () => {
     expect(areSofer({ atribuireActiva: false, soferPeCursaActiva: false })).toBe(false);
+  });
+});
+
+describe('pozitieRecenta', () => {
+  const acum = Date.parse('2026-09-01T12:00:00Z');
+  const cuOreInUrma = (h: number) => new Date(acum - h * 3600 * 1000).toISOString();
+
+  it('23 de ore = încă actuală, 25 = nu', () => {
+    expect(pozitieRecenta(cuOreInUrma(23), acum)).toBe(true);
+    expect(pozitieRecenta(cuOreInUrma(25), acum)).toBe(false);
+  });
+
+  it('poziția din august 2025 nu e actuală (cazul real măsurat 01.09)', () => {
+    expect(pozitieRecenta('2025-08-29T17:57:05.000Z', acum)).toBe(false);
+  });
+
+  it('timestamp din VIITOR nu e «proaspăt» — tracker cu ceasul stricat', () => {
+    expect(pozitieRecenta(new Date(acum + 3600 * 1000).toISOString(), acum)).toBe(false);
+    expect(pozitieRecenta('2126-01-01T00:00:00Z', acum)).toBe(false);
+  });
+
+  it('timestamp lipsă sau invalid → nu e actuală, nu «acum»', () => {
+    expect(pozitieRecenta('', acum)).toBe(false);
+    expect(pozitieRecenta('gunoi', acum)).toBe(false);
   });
 });
 

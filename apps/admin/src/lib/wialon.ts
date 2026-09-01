@@ -81,12 +81,19 @@ export async function pozitiiLive(): Promise<PozitieLive[]> {
     if (!u.pos) continue;
     const plate = placaDinNume(u.nm ?? '');
     if (!plate) continue;
+    // Fără timestamp nu știm CÂND a fost raportată poziția; `Date.now()` ca
+    // rezervă ar face-o să treacă drept proaspătă la filtrul de 24h (perf review
+    // 01.09). Mai bine lipsește decât să mintă.
+    // Interval plauzibil (2000..2100): `Number.isFinite(1e15)` e true, dar
+    // `new Date(1e18).toISOString()` aruncă RangeError, iar o singură unitate
+    // stricată stingea harta pentru tot dispeceratul (security review 01.09).
+    if (!Number.isFinite(u.pos.t) || (u.pos.t as number) < 946684800 || (u.pos.t as number) > 4102444800) continue;
     out.push({
       plate,
       lat: u.pos.y,
       lng: u.pos.x,
       speed: u.pos.s ?? 0,
-      at: new Date((u.pos.t ?? Math.floor(Date.now() / 1000)) * 1000).toISOString(),
+      at: new Date((u.pos.t as number) * 1000).toISOString(),
     });
   }
   return out;

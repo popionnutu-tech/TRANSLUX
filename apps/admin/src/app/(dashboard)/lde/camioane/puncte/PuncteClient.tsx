@@ -3,10 +3,11 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { adaugaPunct, dezactiveazaPunct, editeazaPunct, type Punct, type Rezultat } from './actions';
+import type { LocFrecvent } from '@/lib/lde/locuri-frecvente';
 
 const gol = { name: '', country: '', lat: '', lng: '', radius_m: '500' };
 
-export default function PuncteClient({ data }: { data: Punct[] }) {
+export default function PuncteClient({ data, locuri = [] }: { data: Punct[]; locuri?: LocFrecvent[] }) {
   const router = useRouter();
   const [inCurs, pornesteTranzitia] = useTransition();
   const [form, setForm] = useState(gol);
@@ -93,6 +94,65 @@ export default function PuncteClient({ data }: { data: Punct[] }) {
               Renunță
             </button>
           )}
+        </div>
+      </div>
+
+      <div className="card">
+        <h3>Locuri unde stau camioanele, încă fără nume ({locuri.length})</h3>
+        <p className="text-muted">
+          Găsite automat din GPS: opriri mai lungi de o oră, din ultimele 30 de zile, grupate pe loc.
+          Dacă un loc înseamnă ceva pentru voi — terminal, vamă, bază — dă-i nume și intră în listă.
+        </p>
+        <div className="pivot-wrap">
+          <table className="pivot-table">
+            <thead>
+              {/* «Opriri», nu «vizite»: workerul taie staționarea la miezul nopții,
+                  deci o așteptare de trei zile în vamă apare ca trei opriri. */}
+              <tr><th>Unde</th><th>Coordonate</th><th>Opriri</th><th>Camioane</th><th>Ore stat</th><th>Rază</th><th>Ultima dată</th><th></th></tr>
+            </thead>
+            <tbody>
+              {locuri.map((l) => (
+                <tr key={l.cheie}>
+                  <td>
+                    {l.sugestie ?? <span className="text-muted">necunoscut</span>}
+                    <div className="text-muted" style={{ fontSize: 11 }}>{l.placi.join(', ')}</div>
+                  </td>
+                  <td>{l.lat.toFixed(4)}, {l.lng.toFixed(4)}</td>
+                  <td>{l.vizite}</td>
+                  <td>{l.camioane}</td>
+                  <td><strong>{l.oreTotal}</strong></td>
+                  <td>{l.razaSugerata} m</td>
+                  <td>{new Date(l.ultimaVizita).toLocaleDateString('ro-MD', { timeZone: 'Europe/Chisinau', day: '2-digit', month: '2-digit' })}</td>
+                  <td>
+                    <button
+                      className="btn-outline"
+                      disabled={inCurs}
+                      onClick={() => {
+                        setEditId(null);
+                        setForm({
+                          name: l.sugestie ?? '',
+                          country: '',
+                          lat: String(l.lat),
+                          lng: String(l.lng),
+                          // Raza vine din întinderea reală a opririlor: cu 500 m fix,
+                          // portul rămânea pe jumătate în afară și se propunea la nesfârșit.
+                          radius_m: String(l.razaSugerata),
+                        });
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                    >
+                      Dă-i nume
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {locuri.length === 0 && (
+                <tr><td colSpan={8} className="pivot-empty">
+                  Niciun loc nou — sau toate opririle lungi sunt deja în nomenclator.
+                </td></tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 

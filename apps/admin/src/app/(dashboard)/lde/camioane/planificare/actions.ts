@@ -398,3 +398,7 @@ export async function stergeStareZi(vehicleId: string, date: string): Promise<Re
   if (!data || data.length === 0) return { error: 'Nu era nicio stare pe această zi' };
   return { ok: true, mesaj: 'Starea a fost ștearsă' };
 }
+
+// Atribuirea șoferului pe camion NU mai stă aici: Ion, 01.09 — «распределение
+// водителя идёт только в номенклатуру авто». A trecut în fila Flotă, împreună cu
+// nomenclatorul șoferilor de camion (apps/.../camioane/flota/actions.ts).

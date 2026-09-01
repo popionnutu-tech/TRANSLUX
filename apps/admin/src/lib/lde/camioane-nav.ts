@@ -7,6 +7,7 @@ export type CamioaneTab = { href: string; label: string };
 const TOATE: CamioaneTab[] = [
   { href: '/lde/camioane', label: 'Dispecerat' },
   { href: '/lde/camioane/planificare', label: 'Planificare' },
+  { href: '/lde/camioane/flota', label: 'Flotă' },
   { href: '/lde/camioane/puncte', label: 'Puncte' },
   { href: '/lde/camioane/analitica', label: 'Analitică' },
 ];

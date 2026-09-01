@@ -24,6 +24,10 @@ const PUBLIC_PREFIXES = [
   '/api/zadachnik/',
   // Mini App atribuiri — se protejează singur prin initData, ca zadachnik.
   '/api/atribuiri/',
+  // API între proiecte (mini app-ul TLX cere banda camioanelor) — se protejează
+  // singur prin CAMIOANE_API_KEY. Fără prefixul ăsta, cererea fără cookie era
+  // redirectată la /login și celălalt serviciu primea HTML în loc de JSON.
+  '/api/extern/',
 ];
 
 const DISPATCHER_ALLOWED = ['/grafic', '/drivers', '/vehicles'];
@@ -35,6 +39,9 @@ const UZINE_ALLOWED = ['/lde/grafic-uzine', '/lde/parc'];
 // pentru rolul căruia îi e destinată. NU se lărgește la /api/lde (celelalte rute
 // LDE rămân închise pentru DISPECER).
 const DISPECER_ALLOWED = ['/lde/camioane', '/api/lde/camioane'];
+// OBSERVATOR vede aceleași căi, dar fără drept de scriere — interdicția aceea stă
+// în `poateScrie` (lib/lde/camioane-nav.ts), pe fiecare acțiune de server.
+const OBSERVATOR_ALLOWED = ['/lde/camioane', '/api/lde/camioane'];
 const NUMARARE_ONLY_ROLES = ['OPERATOR_CAMERE', 'ADMIN_CAMERE', 'EVALUATOR_INCASARI'] as const;
 
 export async function middleware(request: NextRequest) {
@@ -78,6 +85,11 @@ export async function middleware(request: NextRequest) {
 
     if (role === 'DISPECER') {
       const allowed = DISPECER_ALLOWED.some(r => pathname === r || pathname.startsWith(r + '/'));
+      if (!allowed) return NextResponse.redirect(new URL('/lde/camioane', request.url));
+    }
+
+    if (role === 'OBSERVATOR') {
+      const allowed = OBSERVATOR_ALLOWED.some(r => pathname === r || pathname.startsWith(r + '/'));
       if (!allowed) return NextResponse.redirect(new URL('/lde/camioane', request.url));
     }
 

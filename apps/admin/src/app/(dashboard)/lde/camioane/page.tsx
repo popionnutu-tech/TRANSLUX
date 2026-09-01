@@ -3,7 +3,7 @@ export const maxDuration = 60;
 
 import { redirect } from 'next/navigation';
 import { verifySession } from '@/lib/auth';
-import { poateAccesa } from '@/lib/lde/camioane-nav';
+import { poateAccesa, poateScrie } from '@/lib/lde/camioane-nav';
 import { chisinauTodayIso } from '@/lib/chisinau-time';
 import { getPlanificare } from './planificare/actions';
 import BandaClient from './BandaClient';
@@ -30,5 +30,7 @@ export default async function BandaPage({ searchParams }: { searchParams: Promis
   const n = Math.min(ZILE_MAX, Math.max(3, Number(zile) || ZILE_IMPLICIT));
 
   const data = await getPlanificare(start, n);
-  return <BandaClient {...data} />;
+  // OBSERVATOR vede banda și harta, dar fără nicio unealtă de scriere. Ascunderea
+  // e doar politețe — refuzul real stă în `cerereScriere`, pe fiecare acțiune.
+  return <BandaClient {...data} poateEdita={poateScrie(session.role)} />;
 }

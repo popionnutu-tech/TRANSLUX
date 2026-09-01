@@ -325,7 +325,7 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
 
   const filteredNav = role === 'ADMIN' ? nav
     : role === 'GRAFIC' || role === 'DISPATCHER' ? nav.filter(n => n.href === '/grafic' && n.label === 'Grafic')
-    : role === 'UZINE' || role === 'DISPECER' ? []
+    : role === 'UZINE' || role === 'DISPECER' || role === 'OBSERVATOR' ? []
     : role === 'OPERATOR_CAMERE' || role === 'ADMIN_CAMERE' || role === 'EVALUATOR_INCASARI' || role === 'CONTABIL' || role === 'DEPOZITAR' || role === 'MANAGER' || role === 'GESTIONAR' ? []
     : nav;
 
@@ -338,7 +338,7 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
     : (role === 'OPERATOR_CAMERE' || role === 'ADMIN_CAMERE' || role === 'EVALUATOR_INCASARI') ? moduleItems.filter(m => m.href === '/numarare').map(m => ({ ...m, children: undefined }))
     : role === 'UZINE'
       ? moduleItems.filter(m => m.href === '/lde').map(m => ({ ...m, children: m.children?.filter(c => c.href === '/lde/grafic-uzine' || c.href === '/lde/parc'), subGroup: undefined }))
-    : role === 'DISPECER'
+    : role === 'DISPECER' || role === 'OBSERVATOR'
       ? moduleItems.filter(m => m.href === '/lde').map(m => ({ ...m, children: m.children?.filter(c => c.href === '/lde/camioane'), subGroup: undefined }))
     : [];
 

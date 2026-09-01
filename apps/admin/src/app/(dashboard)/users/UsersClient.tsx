@@ -44,6 +44,7 @@ const ROLE_LABELS: Record<string, string> = {
   MANAGER: 'Manager piese',
   GESTIONAR: 'Gestionar (depozitar intern)',
   DISPECER: 'Dispecer camioane',
+  OBSERVATOR: 'Observator camioane (doar citește)',
 };
 
 export default function UsersClient({

@@ -12,7 +12,7 @@
 import { revalidatePath } from 'next/cache';
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, type Session } from '@/lib/auth';
-import { poateAccesa } from '@/lib/lde/camioane-nav';
+import { poateAccesa, poateScrie } from '@/lib/lde/camioane-nav';
 import { chisinauTodayIso } from '@/lib/chisinau-time';
 
 export type Rezultat = { ok: true; mesaj: string } | { error: string };
@@ -44,6 +44,16 @@ const MESAJ_SALARIZAT =
 async function cerereRol(): Promise<Session> {
   const s = await verifySession();
   if (!s || !poateAccesa(s.role, CALE)) throw new Error('Neautorizat');
+  return s;
+}
+
+/**
+ * Ca `cerereRol`, dar cere ȘI dreptul de scriere. A vedea un ecran și a-l
+ * modifica sunt drepturi diferite: OBSERVATOR intră pe bandă, dar nu scrie nimic.
+ */
+async function cerereScriere(): Promise<Session> {
+  const s = await cerereRol();
+  if (!poateScrie(s.role)) throw new Error('Neautorizat');
   return s;
 }
 
@@ -163,7 +173,7 @@ export async function getFlota(): Promise<{
  */
 export async function atribuieSofer(vehicleId: string, driverId: string | null): Promise<Rezultat> {
   let s: Session;
-  try { s = await cerereRol(); } catch { return { error: 'Neautorizat' }; }
+  try { s = await cerereScriere(); } catch { return { error: 'Neautorizat' }; }
   if (!UUID_RE.test(vehicleId)) return { error: 'Camion invalid' };
   if (driverId !== null && !UUID_RE.test(driverId)) return { error: 'Șofer invalid' };
 
@@ -186,7 +196,7 @@ export async function atribuieSofer(vehicleId: string, driverId: string | null):
 /** Adaugă un șofer în nomenclatorul de camioane. */
 export async function adaugaSoferCamion(driverId: string): Promise<Rezultat> {
   let s: Session;
-  try { s = await cerereRol(); } catch { return { error: 'Neautorizat' }; }
+  try { s = await cerereScriere(); } catch { return { error: 'Neautorizat' }; }
   if (!UUID_RE.test(driverId)) return { error: 'Șofer invalid' };
   const sb = getSupabase();
 
@@ -223,7 +233,7 @@ export async function adaugaSoferCamion(driverId: string): Promise<Rezultat> {
 /** Scoate un șofer din nomenclator. Dacă e pe un camion, îl eliberează întâi. */
 export async function scoateSoferCamion(driverId: string): Promise<Rezultat> {
   let s: Session;
-  try { s = await cerereRol(); } catch { return { error: 'Neautorizat' }; }
+  try { s = await cerereScriere(); } catch { return { error: 'Neautorizat' }; }
   if (!UUID_RE.test(driverId)) return { error: 'Șofer invalid' };
   const sb = getSupabase();
 

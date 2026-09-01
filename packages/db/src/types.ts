@@ -40,7 +40,9 @@ export const STATUS_LABELS: Record<ReportStatus, string> = {
 // DISPECER (31.08.2026): planifică cursele camioanelor în /lde/camioane. A NU se
 // confunda cu DISPATCHER (graficul autobuzelor) — sunt roluri diferite, la fel cum
 // MANAGER (piese) diferă de MANAGER_LDE (users.role, mini app).
-export type AdminRole = 'ADMIN' | 'DISPATCHER' | 'GRAFIC' | 'OPERATOR_CAMERE' | 'ADMIN_CAMERE' | 'EVALUATOR_INCASARI' | 'CONTABIL' | 'DEPOZITAR' | 'VINZATOR' | 'MANAGER' | 'GESTIONAR' | 'UZINE' | 'DISPECER';
+// OBSERVATOR (01.09.2026, Ion): vede banda camioanelor și harta, atât. Nicio scriere —
+// nu planifică, nu mută, nu marchează. Ion: «видят только календарь и карту».
+export type AdminRole = 'ADMIN' | 'DISPATCHER' | 'GRAFIC' | 'OPERATOR_CAMERE' | 'ADMIN_CAMERE' | 'EVALUATOR_INCASARI' | 'CONTABIL' | 'DEPOZITAR' | 'VINZATOR' | 'MANAGER' | 'GESTIONAR' | 'UZINE' | 'DISPECER' | 'OBSERVATOR';
 
 export interface AdminAccount {
   id: string;

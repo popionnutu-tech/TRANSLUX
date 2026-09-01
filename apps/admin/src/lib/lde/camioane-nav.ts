@@ -19,7 +19,25 @@ export function camioaneTabsForRole(role: string): CamioaneTab[] {
   // Analitica e a administratorului (decizia Ion): dispecerul planifică, nu se
   // evaluează singur.
   if (role === 'DISPECER') return TOATE.filter((t) => t.href !== '/lde/camioane/analitica');
+  // OBSERVATOR (Ion, 01.09): «видят только календарь и карту». Banda le arată
+  // amândouă într-un ecran; nomenclatoarele și analitica nu-i privesc.
+  if (role === 'OBSERVATOR') return TOATE.filter((t) => t.href === '/lde/camioane');
   return [];
+}
+
+/**
+ * Rolul are voie să SCRIE în modul? Verificare separată de cea pe cale, pentru că
+ * a intra pe un ecran și a-l modifica sunt două drepturi diferite.
+ *
+ * Nu se deduce din `poateAccesa`: acțiunile de server folosesc o cale care nu mai
+ * e filă ('/lde/camioane/planificare'), iar potrivirea pe prefix o rezolvă la
+ * rădăcină — un observator ar fi trecut de ea. Lista e albă, nu neagră: un rol nou
+ * nu capătă drept de scriere din neatenție.
+ */
+const ROLURI_CU_SCRIERE = ['ADMIN', 'DISPECER'];
+
+export function poateScrie(role: string): boolean {
+  return ROLURI_CU_SCRIERE.includes(role);
 }
 
 /** Rolul are voie pe această cale din modul? Folosit de layout și de acțiuni. */

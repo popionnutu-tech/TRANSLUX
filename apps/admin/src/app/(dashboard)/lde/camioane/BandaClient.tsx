@@ -40,6 +40,8 @@ type Props = {
   puncte: PunctScurt[];
   soferi: SoferScurt[];
   taiat: boolean;
+  /** false = OBSERVATOR: vede banda și harta, fără nicio unealtă de scriere. */
+  poateEdita: boolean;
 };
 
 type Pozitie = { plate: string; lat: number; lng: number; at: string; speed?: number };
@@ -73,9 +75,12 @@ const formGol = {
 /** Aceeași normalizare ca pe server, ca joinul pe plăcuță să țină. */
 const placaCurata = (p: string) => p.toUpperCase().replace(/[^A-Z0-9]/g, '');
 
-export default function BandaClient({ zile, camioane, curse, stari, puncte, soferi, taiat }: Props) {
+export default function BandaClient({ zile, camioane, curse, stari, puncte, soferi, taiat, poateEdita }: Props) {
   const router = useRouter();
-  const [inCurs, pornesteTranzitia] = useTransition();
+  const [inLucru, pornesteTranzitia] = useTransition();
+  // Un singur comutator pentru toate uneltele: ori se salvează ceva, ori rolul
+  // n-are drept de scriere. Butoanele nu se randează degeaba pentru observator.
+  const inCurs = inLucru || !poateEdita;
   const [mesaj, setMesaj] = useState('');
   const [eroare, setEroare] = useState('');
   const [form, setForm] = useState<typeof formGol | null>(null);
@@ -429,6 +434,7 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
                 puncte={puncteScurte}
                 pozitieDupaPlaca={pozitieDupaPlaca}
                 inCurs={inCurs}
+                poateEdita={poateEdita}
                 tras={tras}
                 setTras={setTras}
                 lasaBara={lasaBara}
@@ -474,7 +480,7 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
               și pune alta.
             </p>
           )}
-          <div className="flex gap-2" style={{ marginTop: 12, flexWrap: 'wrap' }}>
+          {poateEdita && <div className="flex gap-2" style={{ marginTop: 12, flexWrap: 'wrap' }}>
             <button className="btn-outline" disabled={inCurs} onClick={() => editeaza(detaliu)}>Editează</button>
             {urmatoareaStare(detaliu.status) && (
               <button
@@ -488,15 +494,15 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
                 Treci în «{urmatoareaStare(detaliu.status)}»
               </button>
             )}
-          </div>
+          </div>}
           <div className="flex gap-2" style={{ marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-            <input
+            {poateEdita && <input
               value={motivAnulare}
               onChange={(e) => setMotivAnulare(e.target.value)}
               placeholder="Motivul anulării"
               style={{ minWidth: 220 }}
-            />
-            <button
+            />}
+            {poateEdita && <button
               className="btn-danger"
               disabled={inCurs || !motivAnulare.trim()}
               onClick={() => ruleaza(
@@ -505,7 +511,7 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
               )}
             >
               Anulează cursa
-            </button>
+            </button>}
             <button className="btn-outline" disabled={inCurs} onClick={() => setDetaliu(null)}>Închide</button>
           </div>
         </div>
@@ -687,6 +693,7 @@ const Grup = memo(function Grup(props: {
   puncte: { name: string; lat: number | null; lng: number | null }[];
   pozitieDupaPlaca: Map<string, Pozitie>;
   inCurs: boolean;
+  poateEdita: boolean;
   tras: string | null;
   setTras: (v: string | null) => void;
   lasaBara: (cursaId: string, vehicleId: string, zi: string) => void;
@@ -697,7 +704,7 @@ const Grup = memo(function Grup(props: {
 }) {
   const {
     nume, nrColoane, camioane, zile, azi, curseDupaCamion, stariDupaCheie, puncte,
-    pozitieDupaPlaca, inCurs, tras, setTras, lasaBara, deschideFormular, setDetaliu, numePunct, ruleaza,
+    pozitieDupaPlaca, inCurs, poateEdita, tras, setTras, lasaBara, deschideFormular, setDetaliu, numePunct, ruleaza,
   } = props;
   const acum = Date.now();
 
@@ -733,7 +740,7 @@ const Grup = memo(function Grup(props: {
                 <div className="text-muted" style={{ fontSize: 10.5 }}>
                   {poz ? `acum: ${undeEste(poz, puncte)}` : 'fără poziție GPS recentă'}
                 </div>
-                <select
+                {poateEdita && <select
                   value={cam.fleetType ?? ''}
                   disabled={inCurs}
                   style={{ fontSize: 11, padding: '1px 2px', marginTop: 2 }}
@@ -746,7 +753,7 @@ const Grup = memo(function Grup(props: {
                   <option value="">tip?</option>
                   <option value="cisterna">cisternă</option>
                   <option value="zernovoz">zernovoz</option>
-                </select>
+                </select>}
               </td>
               {zile.map((z) => {
                 const stare = stariDupaCheie.get(`${cam.id}|${z}`);
@@ -793,7 +800,7 @@ const Grup = memo(function Grup(props: {
                       >
                         {stare.state === 'reparatie' ? 'reparație' : 'odihnă'}
                       </button>
-                    ) : (
+                    ) : poateEdita ? (
                       <button
                         className="btn-outline"
                         disabled={inCurs}
@@ -803,7 +810,7 @@ const Grup = memo(function Grup(props: {
                       >
                         +
                       </button>
-                    )}
+                    ) : null}
                   </td>
                 );
               })}

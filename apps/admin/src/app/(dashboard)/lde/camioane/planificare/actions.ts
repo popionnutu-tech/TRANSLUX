@@ -2,7 +2,7 @@
 
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, type Session } from '@/lib/auth';
-import { poateAccesa } from '@/lib/lde/camioane-nav';
+import { poateAccesa, poateScrie } from '@/lib/lde/camioane-nav';
 import { seSuprapune, urmatoareaStare, type TripWindow } from '@/lib/lde/camioane';
 import { poateFiMutata } from '@/lib/lde/banda';
 import { chisinauDayBounds } from '@/lib/chisinau-time';
@@ -66,6 +66,16 @@ const taie = (v: string | null | undefined) => (v?.trim() || null)?.slice(0, MAX
 async function cerereRol(): Promise<Session> {
   const s = await verifySession();
   if (!s || !poateAccesa(s.role, CALE)) throw new Error('Neautorizat');
+  return s;
+}
+
+/**
+ * Ca `cerereRol`, dar cere ȘI dreptul de scriere. A vedea un ecran și a-l
+ * modifica sunt drepturi diferite: OBSERVATOR intră pe bandă, dar nu scrie nimic.
+ */
+async function cerereScriere(): Promise<Session> {
+  const s = await cerereRol();
+  if (!poateScrie(s.role)) throw new Error('Neautorizat');
   return s;
 }
 
@@ -252,7 +262,7 @@ export type CursaInput = {
 
 export async function salveazaCursa(input: CursaInput): Promise<Rezultat> {
   let s: Session;
-  try { s = await cerereRol(); } catch { return { error: 'Neautorizat' }; }
+  try { s = await cerereScriere(); } catch { return { error: 'Neautorizat' }; }
 
   if (!UUID_RE.test(input.vehicleId)) return { error: 'Alege camionul' };
   if (input.id && !UUID_RE.test(input.id)) return { error: 'Identificator invalid' };
@@ -354,7 +364,7 @@ export async function mutaCursa(input: {
   id: string; vehicleId: string; loadPlannedAt: string; unloadPlannedAt: string;
 }): Promise<Rezultat> {
   let s: Session;
-  try { s = await cerereRol(); } catch { return { error: 'Neautorizat' }; }
+  try { s = await cerereScriere(); } catch { return { error: 'Neautorizat' }; }
   if (!UUID_RE.test(input.id)) return { error: 'Identificator invalid' };
   if (!UUID_RE.test(input.vehicleId)) return { error: 'Camion invalid' };
   if (!Number.isFinite(Date.parse(input.loadPlannedAt)) || !Number.isFinite(Date.parse(input.unloadPlannedAt))) {
@@ -434,7 +444,7 @@ export async function mutaCursa(input: {
 
 export async function anuleazaCursa(id: string, motiv: string): Promise<Rezultat> {
   let s: Session;
-  try { s = await cerereRol(); } catch { return { error: 'Neautorizat' }; }
+  try { s = await cerereScriere(); } catch { return { error: 'Neautorizat' }; }
   if (!UUID_RE.test(id)) return { error: 'Identificator invalid' };
   if (!motiv.trim()) return { error: 'Scrie motivul anulării' };
   // Cursele nu se șterg: analitica are nevoie de istoric.
@@ -450,7 +460,7 @@ export async function anuleazaCursa(id: string, motiv: string): Promise<Rezultat
 
 export async function schimbaStareaCursei(id: string, status: string): Promise<Rezultat> {
   let s: Session;
-  try { s = await cerereRol(); } catch { return { error: 'Neautorizat' }; }
+  try { s = await cerereScriere(); } catch { return { error: 'Neautorizat' }; }
   if (!UUID_RE.test(id)) return { error: 'Identificator invalid' };
   const { data: cursa, error: eCitire } = await getSupabase()
     .from('lde_truck_trips').select('status').eq('id', id).maybeSingle();
@@ -470,7 +480,7 @@ export async function schimbaStareaCursei(id: string, status: string): Promise<R
 /** Tipul camionului (cisternă/zernovoz). Fără el gruparea din grilă e decorativă. */
 export async function seteazaTipCamion(vehicleId: string, fleetType: 'cisterna' | 'zernovoz'): Promise<Rezultat> {
   let s: Session;
-  try { s = await cerereRol(); } catch { return { error: 'Neautorizat' }; }
+  try { s = await cerereScriere(); } catch { return { error: 'Neautorizat' }; }
   if (!(await esteCamion(vehicleId))) return { error: 'Mașina aleasă nu e camion din flota LDE' };
   const { error } = await getSupabase().from('lde_truck_profile')
     .upsert({ vehicle_id: vehicleId, fleet_type: fleetType, updated_at: new Date().toISOString(), updated_by: s.email },
@@ -491,7 +501,7 @@ export async function seteazaStarePerioada(input: {
   vehicleId: string; de: string; pana: string; state: 'reparatie' | 'odihna'; reason: string | null;
 }): Promise<Rezultat> {
   let s: Session;
-  try { s = await cerereRol(); } catch { return { error: 'Neautorizat' }; }
+  try { s = await cerereScriere(); } catch { return { error: 'Neautorizat' }; }
   if (!UUID_RE.test(input.vehicleId)) return { error: 'Camion invalid' };
   if (input.state !== 'reparatie' && input.state !== 'odihna') return { error: 'Stare necunoscută' };
   const ZI = /^\d{4}-\d{2}-\d{2}$/;
@@ -553,7 +563,7 @@ export async function seteazaStarePerioada(input: {
 
 /** Scoate starea de pe TOATE zilele unui interval — simetric cu marcarea pe perioadă. */
 export async function stergeStarePerioada(vehicleId: string, de: string, pana: string): Promise<Rezultat> {
-  try { await cerereRol(); } catch { return { error: 'Neautorizat' }; }
+  try { await cerereScriere(); } catch { return { error: 'Neautorizat' }; }
   if (!UUID_RE.test(vehicleId)) return { error: 'Camion invalid' };
   const ZI = /^\d{4}-\d{2}-\d{2}$/;
   if (!ZI.test(de) || !ZI.test(pana) || pana < de) return { error: 'Perioada nu e validă' };
@@ -572,7 +582,7 @@ export async function stergeStarePerioada(vehicleId: string, de: string, pana: s
 }
 
 export async function stergeStareZi(vehicleId: string, date: string): Promise<Rezultat> {
-  try { await cerereRol(); } catch { return { error: 'Neautorizat' }; }
+  try { await cerereScriere(); } catch { return { error: 'Neautorizat' }; }
   if (!(await esteCamion(vehicleId))) return { error: 'Mașina aleasă nu e camion din flota LDE' };
   const { data, error } = await getSupabase().from('lde_truck_day_states')
     .delete().eq('vehicle_id', vehicleId).eq('date', date).select('id');

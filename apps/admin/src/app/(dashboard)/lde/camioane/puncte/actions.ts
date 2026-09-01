@@ -2,7 +2,7 @@
 
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, type Session } from '@/lib/auth';
-import { poateAccesa } from '@/lib/lde/camioane-nav';
+import { poateAccesa, poateScrie } from '@/lib/lde/camioane-nav';
 import { locuriFrecvente, type LocFrecvent, type OprireGps, type PunctCunoscut } from '@/lib/lde/locuri-frecvente';
 
 // Acțiunile de scriere întorc { error } în loc să arunce: Next maschează în
@@ -25,6 +25,16 @@ const CALE = '/lde/camioane/puncte';
 async function cerereRol(): Promise<Session> {
   const s = await verifySession();
   if (!s || !poateAccesa(s.role, CALE)) throw new Error('Neautorizat');
+  return s;
+}
+
+/**
+ * Ca `cerereRol`, dar cere ȘI dreptul de scriere. A vedea un ecran și a-l
+ * modifica sunt drepturi diferite: OBSERVATOR intră pe bandă, dar nu scrie nimic.
+ */
+async function cerereScriere(): Promise<Session> {
+  const s = await cerereRol();
+  if (!poateScrie(s.role)) throw new Error('Neautorizat');
   return s;
 }
 
@@ -76,7 +86,7 @@ export async function adaugaPunct(p: {
   name: string; country: string | null; lat: number | null; lng: number | null; radius_m: number;
 }): Promise<Rezultat> {
   let s: Session;
-  try { s = await cerereRol(); } catch { return { error: 'Neautorizat' }; }
+  try { s = await cerereScriere(); } catch { return { error: 'Neautorizat' }; }
   const gresit = valideaza(p);
   if (gresit) return { error: gresit };
 
@@ -94,7 +104,7 @@ export async function editeazaPunct(p: {
   id: string; name: string; country: string | null; lat: number | null; lng: number | null; radius_m: number;
 }): Promise<Rezultat> {
   let s: Session;
-  try { s = await cerereRol(); } catch { return { error: 'Neautorizat' }; }
+  try { s = await cerereScriere(); } catch { return { error: 'Neautorizat' }; }
   const gresit = valideaza(p);
   if (gresit) return { error: gresit };
 
@@ -113,7 +123,7 @@ export async function editeazaPunct(p: {
 }
 
 export async function dezactiveazaPunct(id: string): Promise<Rezultat> {
-  try { await cerereRol(); } catch { return { error: 'Neautorizat' }; }
+  try { await cerereScriere(); } catch { return { error: 'Neautorizat' }; }
   // Nu ștergem: cursele istorice trimit spre punct prin FK, iar analitica are
   // nevoie de nume. Dezactivarea îl scoate doar din selectoare.
   if (!UUID_RE.test(id)) return { error: 'Identificator invalid' };

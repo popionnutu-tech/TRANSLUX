@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { camioaneTabsForRole, poateAccesa } from './camioane-nav';
+import { camioaneTabsForRole, poateAccesa, poateScrie } from './camioane-nav';
 
 describe('camioaneTabsForRole', () => {
   it('ADMIN vede toate filele, inclusiv Analitica', () => {
@@ -49,5 +49,34 @@ describe('poateAccesa', () => {
 
   it('rol străin nu intră nicăieri', () => {
     expect(poateAccesa('UZINE', '/lde/camioane')).toBe(false);
+  });
+
+  it('OBSERVATOR vede DOAR banda — nu flota, nu punctele, nu analitica', () => {
+    expect(camioaneTabsForRole('OBSERVATOR').map((x) => x.href)).toEqual(['/lde/camioane']);
+    expect(poateAccesa('OBSERVATOR', '/lde/camioane')).toBe(true);
+    expect(poateAccesa('OBSERVATOR', '/lde/camioane/flota')).toBe(false);
+    expect(poateAccesa('OBSERVATOR', '/lde/camioane/puncte')).toBe(false);
+    expect(poateAccesa('OBSERVATOR', '/lde/camioane/analitica')).toBe(false);
+  });
+});
+
+describe('poateScrie', () => {
+  it('scriu doar administratorul și dispecerul', () => {
+    expect(poateScrie('ADMIN')).toBe(true);
+    expect(poateScrie('DISPECER')).toBe(true);
+  });
+
+  it('OBSERVATOR nu scrie — deși vede banda', () => {
+    // Gaura pe care o închide: acțiunile de server verifică o cale care nu mai e
+    // filă ('/lde/camioane/planificare'), iar potrivirea pe prefix o rezolvă la
+    // rădăcină. `poateAccesa` singur ar fi lăsat observatorul să salveze.
+    expect(poateAccesa('OBSERVATOR', '/lde/camioane/planificare')).toBe(true);
+    expect(poateScrie('OBSERVATOR')).toBe(false);
+  });
+
+  it('lista e albă: un rol nou nu capătă scriere din neatenție', () => {
+    expect(poateScrie('UZINE')).toBe(false);
+    expect(poateScrie('DISPATCHER')).toBe(false);
+    expect(poateScrie('ROL_INVENTAT')).toBe(false);
   });
 });

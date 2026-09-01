@@ -40,13 +40,12 @@ export default function FleetMap({ pins }: { pins: PinCamion[] }) {
 
   return (
     <MapContainer center={centru} zoom={7} style={{ height: 520, width: '100%', borderRadius: 8 }} scrollWheelZoom>
-      {/* Carto voyager: ~2x mai usor decat stratul standard OSM, iar politica de
-          folosire a tile-urilor OSM nu acopera panourile de business. */}
+      {/* OSM standard. Carto voyager (încercat 31.08) cere acum cheie API și
+          desenează «API KEY REQUIRED» peste toată harta — verificat în producție
+          01.09. Un fundal mai greu, dar care se vede, bate unul ușor și stricat. */}
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-        url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-        subdomains={['a', 'b', 'c', 'd']}
-        detectRetina
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <Incadreaza pins={pins} />
       {pins.map((p) => (

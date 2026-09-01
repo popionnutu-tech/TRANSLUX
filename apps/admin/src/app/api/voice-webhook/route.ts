@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { verifyElevenLabsSignature } from '@/lib/voice/webhook-verify';
 import { extractCall, saveVoiceCall, hasCallbackRequest, formatCallReport } from '@/lib/voice/calls';
+import { getComplaintSummary } from '@/lib/voice/complaints';
 import { alertAdmins } from '@/lib/telegram-notify';
 import { getSupabase } from '@/lib/supabase';
 
@@ -50,7 +51,8 @@ export async function POST(req: NextRequest) {
             .update({ callback_requested: true })
             .eq('conversation_id', row.conversation_id);
         }
-        await alertAdmins(formatCallReport(row, callbackAlerted));
+        const complaint = await getComplaintSummary(row.conversation_id);
+        await alertAdmins(formatCallReport(row, callbackAlerted, complaint));
       } catch (err) {
         console.error('voice-webhook notify failed:', err);
       }

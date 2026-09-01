@@ -63,4 +63,16 @@ describe('formatCallReport', () => {
     expect(text).toContain('&lt;b&gt;');
     expect(text).not.toContain('<b>ofertă</b>');
   });
+  it('arată vinovatul reclamației în raportul apelului', () => {
+    const row = {
+      conversation_id: 'conv_3', direction: 'in' as const, caller_phone: '+37360000001',
+      transcript: null, summary: 'Reclamație', analysis: null, duration_secs: 110, cost: 50, status: 'done',
+    };
+    expect(formatCallReport(row, false, { identified: true, driver_name: 'Mihai Popescu', plate: 'ABC 123' }))
+      .toContain('vinovat: Mihai Popescu · ABC 123');
+    expect(formatCallReport(row, false, { identified: false, driver_name: null, plate: null }))
+      .toContain('vinovat NEIDENTIFICAT');
+    // Apel fără reclamație — raportul rămâne cum era.
+    expect(formatCallReport(row, false)).not.toContain('Reclamație înregistrată');
+  });
 });

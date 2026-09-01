@@ -19,6 +19,9 @@ export interface TripResult {
   destination_ro: string;
   destination_ru: string;
   duration: string;
+  // driver_id există DOAR pentru legături interne (reclamația se leagă de omul
+  // din nomenclator, nu de un nume scris de model). Nu se rostește niciodată.
+  driver_id?: string | null;
   driver: string | null;
   phone: string | null;
   vehicle_plate: string | null;
@@ -416,6 +419,7 @@ export async function searchTrips(
     const driver = driverMap.get(resolved.driver_id);
     const vehicle = resolved.vehicle_id ? vehicleMap.get(resolved.vehicle_id) : null;
     return {
+      driver_id: resolved.driver_id,
       driver: driver?.full_name || null,
       phone: driver?.phone || null,
       plate: vehicle?.plate_number || null,
@@ -486,6 +490,7 @@ export async function searchTrips(
           destination_ro: route.dest_to_ro,
           destination_ru: route.dest_to_ru,
           duration: route.time_chisinau || '',
+          driver_id: details!.driver_id,
           driver: details!.driver,
           phone: details!.phone,
           vehicle_plate: details?.plate || null,
@@ -527,6 +532,7 @@ export async function searchTrips(
           destination_ro: route.dest_from_ro,
           destination_ru: route.dest_from_ru,
           duration: route.time_nord || '',
+          driver_id: details!.driver_id,
           driver: details!.driver,
           phone: details!.phone,
           vehicle_plate: details?.plate || null,

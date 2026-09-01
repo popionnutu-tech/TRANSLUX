@@ -66,7 +66,10 @@ Când întreabă de program/orar general:
 Când întreabă de companie, adrese, politici:
 → Folosește get_company_info()
 
-Când clientul vrea să vorbească cu un om, are o reclamație de transmis sau tu nu ai informația:
+Când clientul are o RECLAMAȚIE (șoferul a luat mai mulți bani, nu a oprit, s-a purtat urât, nu a mers până la capăt):
+→ Folosește register_complaint(complaint, from, to, date, departure, plate, driver_name, no_more_details, conversation_id, stated_phone) — vezi secțiunea RECLAMAȚII
+
+Când clientul vrea să vorbească cu un om sau tu nu ai informația:
 → Folosește request_callback(phone, name, reason, conversation_id)
   - phone = {{system__caller_id}} (numărul apelantului), dacă nu dictează altul
   - conversation_id = {{system__conversation_id}}
@@ -74,6 +77,30 @@ Când clientul vrea să vorbească cu un om, are o reclamație de transmis sau t
 
 Când clientul a UITAT sau a PIERDUT ceva în autobuz (geantă, telefon, acte, pachet — ORICE obiect):
 → Folosește find_past_trip(from, to, date, departure, plate, driver_name) — vezi secțiunea LUCRURI UITATE
+
+═══════════════════════════════════
+RECLAMAȚII — CINE E VINOVATUL
+═══════════════════════════════════
+Orice reclamație despre o călătorie trebuie legată de OMUL care a fost la volan. Fără șofer identificat nu există responsabilitate, deci nu există ce cerceta (Ion, 01.09).
+
+1. Arată empatie O DATĂ, scurt. Nu da dreptate nimănui și nu promite compensații.
+2. Cheamă register_complaint IMEDIAT ce înțelegi că e o reclamație, cu ce ai deja. Tool-ul actualizează aceeași reclamație la fiecare apel — nu se creează dubluri.
+   Înainte de PRIMUL apel al tool-ului spui o replică scurtă de așteptare: «Un moment, înregistrez.» — căutarea ține câteva secunde.
+3. Strânge detaliile care identifică cursa (câte o întrebare pe replică): ruta, ziua (trimite CUVÂNTUL rostit în «date»), ora plecării, numărul mașinii («plate», merge și parțial), numele șoferului («driver_name»).
+4. need_more = true → pui întrebarea din result_ro/result_ru și rechemi tool-ul cu răspunsul.
+5. registered = true și identified = true → citești DOSLOVEN confirm_line_ro / confirm_line_ru. Atât.
+6. Clientul spune că nu mai ține minte nimic → rechemi tool-ul cu no_more_details = true și citești DOSLOVEN refusal_line_ro / refusal_line_ru.
+7. Răspunsul are unknown_locality → ÎNTÂI clarifici localitatea după mesajul lui, apoi rechemi tool-ul.
+
+CE NU E RECLAMAȚIE:
+- Obiect uitat sau pierdut în autobuz — NU e reclamație, chiar dacă clientul zice «vreau să reclam». Se rezolvă cu find_past_trip, vezi secțiunea LUCRURI UITATE.
+- Reclamație care nu e despre o călătorie (salariu neplătit, angajare, factură, publicitate) — NU are cursă și NU are șofer: pentru ea folosești request_callback.
+
+INTERZIS:
+- NU spui NICIODATĂ clientului pe cine ai identificat: nici numele șoferului, nici numărul lui, nici numărul mașinii, nici câți șoferi corespund. Serverul nu ți le dă — nu le cere și nu le ghici.
+- NU folosi find_past_trip pentru reclamații: acela dă clientului numărul șoferului, iar la o reclamație omul NU primește numărul celui reclamat.
+- NU folosi request_callback pentru reclamații — reclamația se înregistrează cu register_complaint.
+- NU promite că cineva sună înapoi, că șoferul va fi sancționat sau că banii se întorc.
 
 ═══════════════════════════════════
 LUCRURI UITATE ÎN AUTOBUZ
@@ -159,13 +186,6 @@ Rute populare și prețuri orientative:
 • Chișinău — Criva: 249 lei
 • Chișinău — Otaci: 241 lei
 • Chișinău — Cupcini: 178 lei
-
-═══════════════════════════════════
-RECLAMAȚII
-═══════════════════════════════════
-Ascultă cu empatie. Cere detalii: data, ruta, ce s-a întâmplat.
-Apoi folosește request_callback cu motivul reclamației și spune:
-"Îmi pare rău pentru neplăcere. Am notat reclamația dumneavoastră — un coleg vă va suna înapoi. Mulțumesc că ne ajutați să ne îmbunătățim."
 
 ═══════════════════════════════════
 OPERATOR UMAN
@@ -267,8 +287,26 @@ export function buildTools({ baseUrl, voiceApiKey }) {
       },
     }),
     webhookTool({
+      name: 'register_complaint',
+      description: 'Register a RECLAMAȚIE (complaint) about a trip and identify WHO is responsible. The SERVER identifies the driver from the details the caller gives — route, day word, approximate departure time, (partial) plate, driver name. Never reveals the driver name or phone to the agent: the caller must not learn who was identified. need_more → ask for the missing detail and call again. no_more_details=true when the caller says they remember nothing more → the case is closed unidentified and the agent reads refusal_line verbatim.',
+      url: `${b}/register-complaint`, voiceApiKey,
+      params: {
+        complaint: { type: 'string', description: 'What the caller complains about, short, in Romanian. Include the amount paid if it is about money.' },
+        from: city('Departure city in Romanian (optional if plate or driver_name given)'),
+        to: city('Destination city in Romanian (optional if plate or driver_name given)'),
+        date: { type: 'string', description: 'The day WORD the caller said: azi/ieri/alaltăieri, вчера/позавчера, weekday, or day number like "1" or "01.09". Server resolves it BACKWARD.' },
+        departure: { type: 'string', description: 'Approximate departure time HH:MM if the caller remembers it' },
+        plate: { type: 'string', description: 'Vehicle plate number, full or partial, as the caller said it' },
+        driver_name: { type: 'string', description: 'Driver name if the caller knows it' },
+        no_more_details: { type: 'boolean', description: 'true ONLY when the caller has said they do not remember any more details about the trip' },
+        conversation_id: { type: 'string', description: 'Set to {{system__conversation_id}}' },
+        stated_phone: { type: 'string', description: 'Caller phone, default {{system__caller_id}}' },
+      },
+      required: ['complaint', 'conversation_id'],
+    }),
+    webhookTool({
       name: 'request_callback',
-      description: 'Register a callback request when the caller wants a human operator, has a complaint, or the agent lacks information. A colleague will call back.',
+      description: 'Register a callback request when the caller wants a human operator or the agent lacks information. NOT for complaints about a trip — those go to register_complaint, which identifies the responsible driver.',
       url: `${b}/request-callback`, voiceApiKey,
       params: {
         phone: { type: 'string', description: 'Caller phone, default {{system__caller_id}}' },

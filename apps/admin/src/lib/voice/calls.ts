@@ -50,7 +50,10 @@ export async function hasCallbackRequest(conversationId: string): Promise<boolea
   return (count ?? 0) > 0;
 }
 
-export function formatCallReport(row: VoiceCallRow, callbackAlreadyAlerted: boolean): string {
+/** Reclamația acestui apel, așa cum apare în raportul din Telegram. */
+export interface ComplaintNote { identified: boolean; driver_name: string | null; plate: string | null }
+
+export function formatCallReport(row: VoiceCallRow, callbackAlreadyAlerted: boolean, complaint?: ComplaintNote | null): string {
   const min = Math.floor((row.duration_secs ?? 0) / 60);
   const sec = (row.duration_secs ?? 0) % 60;
   const lines = [
@@ -61,6 +64,13 @@ export function formatCallReport(row: VoiceCallRow, callbackAlreadyAlerted: bool
   ];
   if (callbackAlreadyAlerted) {
     lines.push('ℹ️ Există deja o cerere de apel înapoi pentru acest apel (alertă trimisă).');
+  }
+  // Rezumatul EL povestește reclamația, dar nu spune pe cine cade vina — exact
+  // lipsa semnalată de Ion pe apelul din 01.09. Linia asta o spune.
+  if (complaint) {
+    lines.push(complaint.identified
+      ? `⚠️ Reclamație înregistrată — vinovat: ${[complaint.driver_name, complaint.plate].filter((x): x is string => !!x).map(escapeHtml).join(' · ') || 'șofer fără nume'}`
+      : '⚠️ Reclamație înregistrată — vinovat NEIDENTIFICAT (clientul nu a dat mașina sau șoferul).');
   }
   return lines.join('\n');
 }

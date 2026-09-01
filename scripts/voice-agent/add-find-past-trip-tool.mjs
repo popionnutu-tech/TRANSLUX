@@ -1,13 +1,16 @@
-// Înregistrează tool-ul find_past_trip (lucruri uitate) ca workspace tool în
-// ElevenLabs și îl leagă de AMBII agenți (RO Cristina + RU). Idempotent: tool
-// existent nu se recreează, id deja legat nu se dublează.
+// Înregistrează un tool din agent-config.mjs ca workspace tool în ElevenLabs și
+// îl leagă de AMBII agenți (RO Cristina + RU). Idempotent: tool existent nu se
+// recreează, id deja legat nu se dublează.
+// Numele tool-ului e primul argument; fără el rămâne find_past_trip (numele
+// istoric al scriptului). 01.09: al doilea client e register_complaint.
 // Rulare:
 //   ELEVENLABS_API_KEY=... ADMIN_BASE_URL=https://<admin>.vercel.app VOICE_API_KEY=... \
-//     node scripts/voice-agent/add-find-past-trip-tool.mjs [--dry]
+//     node scripts/voice-agent/add-find-past-trip-tool.mjs [register_complaint] [--dry]
 import { buildTools } from './agent-config.mjs';
 
 const KEY = process.env.ELEVENLABS_API_KEY;
 const DRY = process.argv.includes('--dry');
+const TOOL_NAME = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'find_past_trip';
 // Aceiași agenți ca în apps/admin/src/lib/voice/el.ts — se schimbă împreună.
 const AGENT_IDS = [
   'agent_3301kn4qwa6jep38d4b63m6s6pkh', // RO (Cristina, numărul e pe el)
@@ -50,8 +53,8 @@ async function resolveBaseAndKey() {
 
 const { baseUrl, voiceApiKey } = await resolveBaseAndKey();
 const toolConfig = buildTools({ baseUrl, voiceApiKey })
-  .find((t) => t.name === 'find_past_trip');
-if (!toolConfig) { console.error('find_past_trip lipsește din agent-config.mjs'); process.exit(1); }
+  .find((t) => t.name === TOOL_NAME);
+if (!toolConfig) { console.error(`${TOOL_NAME} lipsește din agent-config.mjs`); process.exit(1); }
 
 // Cheia NU se tipărește (security High 1: scrollback/istoric = scurgere).
 if (DRY) {
@@ -60,11 +63,16 @@ if (DRY) {
   process.exit(0);
 }
 
-// 1) Workspace tool: refolosește-l dacă există deja.
-const list = await el('GET', '/v1/convai/tools?search=find_past_trip&page_size=10');
-let tool = (list.tools ?? []).find((t) => t.tool_config?.name === 'find_past_trip');
+// 1) Workspace tool: creează-l, iar pe cel existent ACTUALIZEAZĂ-l.
+// Descrierea tool-ului e un al doilea canal de ordine spre model, la fel de
+// puternic ca promptul. «Refolosește dacă există» însemna că o descriere veche
+// nu se mai repara niciodată din agent-config.mjs (audit 01.09: request_callback
+// spunea încă «has a complaint», exact contrariul regulii noi).
+const list = await el('GET', `/v1/convai/tools?search=${TOOL_NAME}&page_size=10`);
+let tool = (list.tools ?? []).find((t) => t.tool_config?.name === TOOL_NAME);
 if (tool) {
-  console.log(`Tool există deja: ${tool.id}`);
+  await el('PATCH', `/v1/convai/tools/${tool.id}`, { tool_config: toolConfig });
+  console.log(`Tool actualizat: ${tool.id}`);
 } else {
   tool = await el('POST', '/v1/convai/tools', { tool_config: toolConfig });
   console.log(`Tool creat: ${tool.id}`);

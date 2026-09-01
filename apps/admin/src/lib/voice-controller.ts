@@ -47,7 +47,7 @@ const FALLBACK_KEYWORDS = [
 // Позиция вставки кэш НЕ спасает: точка кэша одна, на весь system.
 // Markerele TREBUIE să fie unice: un marker care apare și în alt bloc face detectorul
 // orb la ștergerea blocului propriu (ORELE a fost mascat de titlul blocului ZIUA).
-const PROMPT_MARKERS = ['ORELE — DOSLOVEN', 'UNIVERSUL localităților', 'Doriți numărul lui?', 'A DOUA OARĂ LA RÂND', 'ZIUA — DOSLOVEN', 'e un CORIDOR', 'SFÂRȘIT NUME RUSEȘTI', 'APEL ÎNAPOI — NICIO PROMISIUNE', 'STAȚIA CHIȘINĂU — AUTOGARA TRANSLUX', 'STAȚIA BĂLȚI — PEROANELE', 'ORA SOSIRII — NU SE SPUNE', 'LUCRURI UITATE — ȘOFERUL IDENTIFICAT, OBIECTUL FĂRĂ NUME', 'CÂMPURILE _RU — DOAR ÎN REPLICI RUSEȘTI'];
+const PROMPT_MARKERS = ['ORELE — DOSLOVEN', 'UNIVERSUL localităților', 'Doriți numărul lui?', 'A DOUA OARĂ LA RÂND', 'ZIUA — DOSLOVEN', 'e un CORIDOR', 'SFÂRȘIT NUME RUSEȘTI', 'APEL ÎNAPOI — NICIO PROMISIUNE', 'STAȚIA CHIȘINĂU — AUTOGARA TRANSLUX', 'STAȚIA BĂLȚI — PEROANELE', 'ORA SOSIRII — NU SE SPUNE', 'LUCRURI UITATE — ȘOFERUL IDENTIFICAT, OBIECTUL FĂRĂ NUME', 'RECLAMAȚIA — VINOVATUL IDENTIFICAT', 'CÂMPURILE _RU — DOAR ÎN REPLICI RUSEȘTI'];
 const ORELE_BLOCK = `
 
 ORELE — DOSLOVEN DIN TOOL:
@@ -238,6 +238,50 @@ const LUCRURI_BLOCK_RU = `
 - НЕ обещай, что ты позвонишь водителю, что кто-то ищет вещь или перезвонит. НЕ говори «беру на заметку» — здесь ничего не записывается, здесь опознаётся водитель.
 - НЕ вызывай request_callback для забытых вещей — общее правило «нет информации → предложи request_callback» здесь НЕ действует: случай решается через find_past_trip.`;
 
+// Reclamațiile. Apel 01.09 (+380960426128): client acuză un șofer «Mihai» că a
+// luat 250 lei în loc de 68 pe Bălți–Criva, ora 01:30 — rezumatul a ajuns în
+// Telegram fără cursă și fără om, deci fără responsabil. Ion: «în cazul
+// reclamațiilor noi trebuie clar să identificăm cine este vinovatul, dacă nu
+// identificăm șoferul — nu e clar responsabilitatea».
+// Două decizii ale lui Ion din aceeași zi, ambele în bloc:
+//   1) fără vinovat identificat îi spunem clientului pe față că nu putem cerceta;
+//   2) clientul NU află pe cine am identificat (nici nume, nici număr).
+// Eталон: agent-config.mjs, secțiunea RECLAMAȚII — se schimbă împreună, același commit.
+const RECLAMATII_BLOCK = `
+
+RECLAMAȚIA — VINOVATUL IDENTIFICAT:
+- Orice reclamație despre o călătorie (bani luați în plus, nu a oprit, purtare urâtă, nu a mers până la capăt) se înregistrează cu register_complaint, NU cu request_callback.
+- Cheamă tool-ul IMEDIAT ce înțelegi că e reclamație, cu ce ai; el actualizează aceeași reclamație la fiecare apel nou, nu creează dubluri.
+- Înainte de PRIMUL apel al tool-ului spui o replică scurtă de așteptare: «Un moment, înregistrez.» — căutarea ține câteva secunde și tăcerea sună a linie căzută.
+- Strânge detaliile care identifică cursa, câte o întrebare pe replică: ruta, ziua (trimite CUVÂNTUL rostit în «date»), ora plecării, numărul mașinii («plate», merge și parțial), numele șoferului («driver_name»).
+- Arată empatie O DATĂ, scurt. Nu da dreptate nimănui și nu promite compensații.
+- need_more = true → pui întrebarea din result_ro/result_ru și rechemi tool-ul cu răspunsul.
+- Răspunsul are unknown_locality → ÎNTÂI clarifici localitatea după mesajul lui, apoi rechemi tool-ul.
+- identified = true → citești DOSLOVEN confirm_line_ro / confirm_line_ru.
+- Clientul nu mai ține minte nimic → rechemi tool-ul cu no_more_details = true și citești DOSLOVEN refusal_line_ro / refusal_line_ru. Fără șofer identificat reclamația nu poate fi cercetată și i-o spui pe față.
+- NU spui NICIODATĂ clientului pe cine ai identificat: nici numele șoferului, nici numărul lui, nici numărul mașinii, nici câți șoferi corespund.
+- Obiect uitat sau pierdut NU e reclamație, chiar dacă clientul spune «vreau să reclam»: acolo mergi pe find_past_trip. Reclamația care nu e despre o călătorie (salariu, angajare, factură, publicitate) nu are cursă și nici șofer — pentru ea folosești request_callback.
+- NU folosi find_past_trip pentru reclamații despre călătorie: acela dă numărul șoferului, iar cel reclamat nu se dă niciodată.
+- NU promite compensații, sancțiuni sau că cineva sună înapoi.`;
+
+const RECLAMATII_MARKER_RU = 'ЖАЛОБА — ВИНОВНЫЙ ОПОЗНАН';
+const RECLAMATII_BLOCK_RU = `
+
+ЖАЛОБА — ВИНОВНЫЙ ОПОЗНАН:
+- Любая жалоба на поездку (взял больше денег, не остановился, грубил, не довёз) регистрируется инструментом register_complaint, НЕ request_callback.
+- Вызывай инструмент СРАЗУ, как понял, что это жалоба, с тем, что уже есть; он обновляет ту же жалобу при каждом новом вызове и не создаёт дублей.
+- Перед ПЕРВЫМ вызовом инструмента скажи короткую реплику ожидания: «Одну минуту, записываю.» — поиск идёт несколько секунд, и тишина звучит как оборванная связь.
+- Собери детали, которые определяют рейс, по одному вопросу за реплику: маршрут, день (отправь СЛОВО клиента в «date»), время отправления, номер машины («plate», можно частично), имя водителя («driver_name»).
+- Прояви сочувствие ОДИН раз, коротко. Никого не оправдывай и не обещай компенсаций.
+- need_more = true → задай вопрос из result_ru и вызови инструмент снова с ответом.
+- В ответе есть unknown_locality → СНАЧАЛА уточни населённый пункт по его сообщению, потом вызови инструмент снова.
+- identified = true → читай ДОСЛОВНО confirm_line_ru.
+- Клиент больше ничего не помнит → вызови инструмент с no_more_details = true и читай ДОСЛОВНО refusal_line_ru. Без опознанного водителя жалобу разобрать нельзя, и ты говоришь это прямо.
+- НИКОГДА не говори клиенту, кого ты опознал: ни имени водителя, ни его номера, ни номера машины, ни сколько водителей подходит.
+- Забытая или потерянная вещь — НЕ жалоба, даже если клиент говорит «хочу пожаловаться»: там работает find_past_trip. Жалоба не о поездке (зарплата, приём на работу, счёт, реклама) не имеет ни рейса, ни водителя — для неё используй request_callback.
+- НЕ используй find_past_trip для жалоб на поездку: он выдаёт номер водителя, а номер того, на кого жалуются, не даётся никогда.
+- НЕ обещай компенсаций, наказаний или обратного звонка.`;
+
 const LIMBA_BLOCK = `
 
 LIMBA — A DOUA OARĂ LA RÂND:
@@ -301,6 +345,18 @@ LUCRURI UITATE — DOAR ȘOFERUL IDENTIFICAT:
 - need_more = true → pui întrebarea din result_ro/result_ru și rechemi tool-ul cu răspunsul. NU citești company_phone_line și NU închizi discuția.
 - NU promite că suni tu șoferul, că cineva caută obiectul sau că cineva sună înapoi. NU spune «am notat».
 - NU chema request_callback pentru lucruri uitate — regula generală «nu ai informația → oferă request_callback» NU se aplică aici: cazul se rezolvă cu find_past_trip.`,
+  // Secțiunea RECLAMAȚII din promptul ORIGINAL, anulată de Ion 01.09: reclamația
+  // nu mai merge la request_callback (text liber, fără vinovat) și nu se mai
+  // promite apel înapoi. Înlocuită de RECLAMATII_BLOCK. Fără надгробие, cele două
+  // reguli ar sta una lângă alta în promptul viu și modelul ar asculta-o pe cea veche.
+  `═══════════════════════════════════
+RECLAMAȚII
+═══════════════════════════════════
+Ascultă cu empatie. Cere detalii: data, ruta, ce s-a întâmplat.
+Apoi folosește request_callback cu motivul reclamației și spune:
+"Îmi pare rău pentru neplăcere. Am notat reclamația dumneavoastră — un coleg vă va suna înapoi. Mulțumesc că ne ajutați să ne îmbunătățim."
+
+`,
   // Rândul VIU din blocul ORELE (28.08, побайтово din promptul agentului — ATENȚIE:
   // blocul viu a fost editat de mână și DIFERĂ de constanta ORELE_BLOCK de mai sus,
   // «singură» vs «singur»). Învăța cum se rostește sosirea — anulat: interdicție
@@ -319,36 +375,47 @@ type Drift = { field: string; healed: boolean; msg?: string };
 // decizie umană; raportăm drift, ca la custom_llm.url.
 
 
-// Tool-ul lucrurilor uitate e workspace tool legat prin tool_ids — dashboard-ul îl
-// poate dezlega tăcut, iar promptul ar cere atunci un tool inexistent (review M6).
-// Id-ul se caută o dată pe rulare; lipsa TOOL-ului din workspace = drift nevindecat
-// (crearea e treaba scriptului add-find-past-trip-tool.mjs, nu a controlerului).
-async function findPastTripToolId(): Promise<string | null> {
+// Tool-urile care poartă flux propriu (lucruri uitate, reclamații) sunt workspace
+// tools legate prin tool_ids — dashboard-ul le poate dezlega tăcut, iar promptul
+// ar cere atunci un tool inexistent (review M6). Id-ul se caută o dată pe rulare;
+// lipsa TOOL-ului din workspace = drift nevindecat (crearea e treaba scriptului
+// add-find-past-trip-tool.mjs, nu a controlerului).
+async function workspaceToolId(name: string): Promise<string | null> {
   try {
-    const list = await elGet('/v1/convai/tools?search=find_past_trip&page_size=10');
+    const list = await elGet(`/v1/convai/tools?search=${name}&page_size=10`);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const hit = (((list as any).tools ?? []) as any[]).find((t) => t.tool_config?.name === 'find_past_trip');
+    const hit = (((list as any).tools ?? []) as any[]).find((t) => t.tool_config?.name === name);
     return hit?.id ?? null;
   } catch { return null; }
 }
 
-// Relegarea tool-ului dacă a dispărut din tool_ids. PATCH separat de restul
+// Relegarea tool-urilor dispărute din tool_ids. PATCH separat de restul
 // (tool_ids e listă — merge-ul per-cheie o înlocuiește integral, deci trimitem
-// lista completă). Idempotent: legat deja = niciun apel.
+// lista completă). TOATE tool-urile lipsă intră într-un SINGUR PATCH: două
+// PATCH-uri construite din același cfg citit o dată s-ar șterge unul pe altul —
+// al doilea ar trimite lista veche plus tool-ul lui, fără cel legat de primul.
+// Idempotent: totul legat deja = niciun apel.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function healToolBinding(cfg: any, toolId: string | null, agentId: string, fieldPrefix: string): Promise<Drift[]> {
-  if (!toolId) return [{ field: `${fieldPrefix}.workspace_tool_missing`, healed: false }];
+async function healToolBindings(cfg: any, tools: { id: string | null; field: string }[], agentId: string): Promise<Drift[]> {
   const ids: string[] = cfg?.conversation_config?.agent?.prompt?.tool_ids ?? [];
-  if (ids.includes(toolId)) return [];
-  await elPatchAgent({ conversation_config: { agent: { prompt: { tool_ids: [...ids, toolId] } } } }, agentId);
-  return [{ field: `${fieldPrefix}.tool_ids`, healed: true }];
+  const drifts: Drift[] = [];
+  const toAdd: string[] = [];
+  for (const t of tools) {
+    if (!t.id) { drifts.push({ field: `${t.field}.workspace_tool_missing`, healed: false }); continue; }
+    if (ids.includes(t.id) || toAdd.includes(t.id)) continue;
+    toAdd.push(t.id);
+    drifts.push({ field: `${t.field}.tool_ids`, healed: true });
+  }
+  if (toAdd.length === 0) return drifts;
+  await elPatchAgent({ conversation_config: { agent: { prompt: { tool_ids: [...ids, ...toAdd] } } } }, agentId);
+  return drifts;
 }
 
 // `drifts` vine din AFARĂ, nu se întoarce la final: funcția face DOUĂ PATCH-uri, iar
 // un throw pe al doilea ștergea tot ce apucase să vindece primul — jurnalul rămânea
 // fără liniile lecuirilor reale și fără drift-urile nevindecate deja găsite (review 31.08).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function checkAndHealConfig(cfg: any, drifts: Drift[]): Promise<void> {
+async function checkAndHealConfig(cfg: any, drifts: Drift[], complaintToolExists: boolean): Promise<void> {
   const ps = cfg.platform_settings ?? {};
   const cc = cfg.conversation_config ?? {};
   // «Vindecat» se scrie în jurnal DOAR după ce PATCH-ul a reușit: altfel un PATCH
@@ -471,6 +538,13 @@ async function checkAndHealConfig(cfg: any, drifts: Drift[]): Promise<void> {
     { marker: 'STAȚIA BĂLȚI — PEROANELE', block: BALTI_BLOCK, field: 'prompt.BALTI' },
     { marker: 'ORA SOSIRII — NU SE SPUNE', block: SOSIREA_BLOCK, field: 'prompt.SOSIREA' },
     { marker: 'LUCRURI UITATE — ȘOFERUL IDENTIFICAT, OBIECTUL FĂRĂ NUME', block: LUCRURI_BLOCK, field: 'prompt.LUCRURI' },
+    // Blocul reclamațiilor intră DOAR dacă tool-ul există în workspace: el
+    // interzice request_callback pentru reclamații și trimite la register_complaint.
+    // Livrat înaintea tool-ului, ar lăsa agentul cu o singură cale — una moartă,
+    // iar reclamația s-ar pierde fără nicio eroare vizibilă (audit 01.09).
+    ...(complaintToolExists
+      ? [{ marker: 'RECLAMAȚIA — VINOVATUL IDENTIFICAT', block: RECLAMATII_BLOCK, field: 'prompt.RECLAMATII' }]
+      : []),
     { marker: 'CÂMPURILE _RU — DOAR ÎN REPLICI RUSEȘTI', block: CAMPURI_RU_BLOCK, field: 'prompt.CAMPURI_RU' },
   ];
   let healedPrompt = prompt;
@@ -580,10 +654,13 @@ async function checkAndHealConfig(cfg: any, drifts: Drift[]): Promise<void> {
 
 // Лечение RU-агента: ТОЛЬКО станция (см. комментарий у STATIA_BLOCK_RU).
 // Идемпотентно: надгробие — точное совпадение, блок — по маркеру.
-async function healRuStation(lostToolId: string | null): Promise<Drift[]> {
+async function healRuStation(lostToolId: string | null, complaintToolId: string | null): Promise<Drift[]> {
   const cfg = await elGet(`/v1/convai/agents/${RU_AGENT_ID}`);
   // Legarea find_past_trip la RU — pe config-ul deja citit, fără GET suplimentar.
-  const bindDrifts = await healToolBinding(cfg, lostToolId, RU_AGENT_ID, 'ru.tools.find_past_trip');
+  const bindDrifts = await healToolBindings(cfg, [
+    { id: lostToolId, field: 'ru.tools.find_past_trip' },
+    { id: complaintToolId, field: 'ru.tools.register_complaint' },
+  ], RU_AGENT_ID);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const prompt: string = (cfg as any).conversation_config?.agent?.prompt?.prompt ?? '';
   if (!prompt) return [...bindDrifts, { field: 'ru.prompt.empty', healed: false }];
@@ -606,6 +683,9 @@ async function healRuStation(lostToolId: string | null): Promise<Drift[]> {
   if (!healed.includes(BALTI_MARKER_RU)) { healed += BALTI_BLOCK_RU; vindecate.push('ru.prompt.BALTI'); }
   if (!healed.includes(SOSIREA_MARKER_RU)) { healed += SOSIREA_BLOCK_RU; vindecate.push('ru.prompt.SOSIREA'); }
   if (!healed.includes(LUCRURI_MARKER_RU)) { healed += LUCRURI_BLOCK_RU; vindecate.push('ru.prompt.LUCRURI'); }
+  // Aceeași condiție ca pe RO: fără tool în workspace, blocul ar trimite agentul
+  // spre o cale moartă și i-ar tăia singura cale rămasă (request_callback).
+  if (complaintToolId && !healed.includes(RECLAMATII_MARKER_RU)) { healed += RECLAMATII_BLOCK_RU; vindecate.push('ru.prompt.RECLAMATII'); }
   if (healed === prompt) return bindDrifts;
   await elPatchAgent({ conversation_config: { agent: { prompt: { prompt: healed } } } }, RU_AGENT_ID);
   return [...bindDrifts, ...(vindecate.length ? vindecate : ['ru.prompt.STATIA']).map((f) => ({ field: f, healed: true }))];
@@ -772,9 +852,10 @@ export async function runVoiceController(): Promise<{ drifts: Drift[]; incidents
   await syncCanonKeywords();
 
   // GET-ul listei de tool-uri nu depinde de config — merge în paralel (perf LOW).
-  const [cfg, lostToolId] = await Promise.all([
+  const [cfg, lostToolId, complaintToolId] = await Promise.all([
     elGet(`/v1/convai/agents/${AGENT_ID}`),
-    findPastTripToolId(),
+    workspaceToolId('find_past_trip'),
+    workspaceToolId('register_complaint'),
   ]);
   // Lecuirea configului cade la fel de «moale» ca vecinele de mai jos: un singur
   // câmp refuzat de EL (422 pe o cheie depreciată, un read-only întors de spread)
@@ -782,7 +863,7 @@ export async function runVoiceController(): Promise<{ drifts: Drift[]; incidents
   // și NU lăsa nicio linie în jurnal, doar în logurile Vercel (security review 31.08).
   const drifts: Drift[] = [];
   try {
-    await checkAndHealConfig(cfg, drifts);
+    await checkAndHealConfig(cfg, drifts, complaintToolId !== null);
   } catch (e) {
     // Redactat și aici: logurile Vercel persistă și ele, iar corpul PATCH-ului
     // pentru platform_settings poartă cheia webhook-ului.
@@ -791,15 +872,18 @@ export async function runVoiceController(): Promise<{ drifts: Drift[]; incidents
     drifts.push({ field: 'config.heal.error', healed: false, msg: redactSecrets(String(e)).slice(0, 200) });
   }
   try {
-    drifts.push(...await healToolBinding(cfg, lostToolId, AGENT_ID, 'tools.find_past_trip'));
+    drifts.push(...await healToolBindings(cfg, [
+      { id: lostToolId, field: 'tools.find_past_trip' },
+      { id: complaintToolId, field: 'tools.register_complaint' },
+    ], AGENT_ID));
   } catch (e) {
     console.error('[voice-controller] tool-binding ro:', e);
-    drifts.push({ field: 'tools.find_past_trip.error', healed: false });
+    drifts.push({ field: 'tools.binding.error', healed: false });
   }
 
   // RU-агент: точечное лечение станции. Падение RU-ветки не должно ронять прогон.
   try {
-    drifts.push(...await healRuStation(lostToolId));
+    drifts.push(...await healRuStation(lostToolId, complaintToolId));
   } catch (e) {
     console.error('[voice-controller] ru-station:', e);
     // În jurnal, nu doar în log: altfel o cheie/ID căzut tace 48 de prognoane/zi.

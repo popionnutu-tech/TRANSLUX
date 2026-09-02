@@ -52,7 +52,7 @@ CUM FOLOSEȘTI TOOL-URILE
 Când clientul întreabă de curse/bilete/orar:
 → Folosește search_trips(from, to, date)
   - "from" și "to" = numele localității în română
-  - "date" = format YYYY-MM-DD (dacă nu specifică, folosește data de azi)
+  - "date" = CUVÂNTUL rostit de client («azi», «mâine», «duminică», «30», «30.08»); serverul îl rezolvă. NU compune o dată întreagă și nu scrie niciun an. Clientul nu a spus nicio zi? Lași parametrul gol.
 
 Când întreabă de preț:
 → Folosește get_price(from, to)
@@ -242,12 +242,32 @@ export function buildTools({ baseUrl, voiceApiKey }) {
   return [
     webhookTool({
       name: 'search_trips',
-      description: 'Search available trips between two cities on a date. Use for questions about trips, buses, departures, tickets.',
+      // Oglinda EXACTĂ a tool-ului viu (citit 02.09 prin MCP). Fișierul rămăsese
+      // în urmă cu tot ce s-a învățat din apeluri: coridorul, interdicția de a
+      // nega o localitate, contractul zilei și parametrul «departure». Din 01.09
+      // scriptul de înregistrare face PATCH pe tool-ul existent, deci un etalon
+      // stătut nu mai e o notă veche — e o suprascriere a producției.
+      description: `Search available trips between two cities on a date. Use for questions about trips, buses, departures, tickets.
+
+Cheamă ACEST tool ori de câte ori clientul numește o localitate — inclusiv când numele ți se pare necunoscut. Tu NU ești sursa de adevăr despre ce localități există; serverul e.
+
+Rețeaua e un CORIDOR Chișinău – Bălți – Nord, cu zeci de opriri. Se circulă între ORICARE două opriri, nu doar dinspre sau spre Chișinău: Bălți–Tețcani, Bălți–Ocnița, Briceni–Bălți sunt curse reale. INTERZIS să spui «nu mergem pe ruta asta» sau «mergem doar din Chișinău» fără să fi chemat tool-ul cu acea pereche. Apel real 26.08: agentul a refuzat Bălți–Tețcani din capul lui, deși existau șase curse în acea zi, iar clientul a închis.`,
       url: `${b}/search-trips`, voiceApiKey,
       params: {
-        from: city('Departure city in Romanian, e.g. "Chișinău", "Bălți"'),
-        to: city('Destination city in Romanian'),
-        date: { type: 'string', description: 'Date YYYY-MM-DD; omit for today' },
+        from: city(`Localitatea de plecare, EXACT cum ai auzit-o — română sau rusă, ambele merg.
+
+Nu o corecta, nu o «traduce» și nu o înlocui cu alt sat care ți se pare apropiat. Serverul potrivește formele stâlcite de transcriere în ambele alfabete și știe aliasurile.
+
+INTERZIS să-i spui clientului că o localitate nu e pe rutele noastre înainte de a trimite numele aici. Serverul răspunde cu unknown_locality dacă nu a recunoscut-o — abia atunci rogi clientul să repete numele. Doar după al DOILEA unknown_locality pe același nume poți spune că nu e pe rutele noastre. (Apel real 24.08: transcrierea a scris «Brătieni» în loc de «Briceni», iar agentul a anunțat din capul lui că satul nu e pe rute — clientul a trebuit să se contrazică cu el.)`),
+        to: city('Localitatea de destinație, EXACT cum ai auzit-o — română sau rusă. Aceleași reguli ca la «from»: nu corecta numele singur și nu declara niciodată că o localitate nu există înainte de răspunsul serverului.'),
+        date: { type: 'string', description: `Ziua, ca CUVÂNT rostit de client — serverul o rezolvă. Tu NU știi ce zi e azi: nu compune date și nu scrie niciodată un an.
+
+Valori acceptate: «azi»/«сегодня», «mâine»/«завтра», «poimâine»/«послезавтра», ziua săptămânii («sâmbătă», «в субботу», «luni», «среду»), sau zi.lună pentru o dată calendaristică exactă («30.08» — anul îl pune serverul).
+
+Clientul nu a spus nicio zi? OMITE complet acest câmp: serverul ia ziua de azi.
+
+Orice altceva (de exemplu «la weekend», «через неделю», un an inventat) cade tăcut pe ziua de azi și clientul va auzi cursele greșite — nu trimite astfel de valori, cere clientului ziua concretă.` },
+        departure: { type: 'string', description: 'Ora exactă de plecare HH:MM a cursei alese. OBLIGATORIU înainte de a da numele/numărul șoferului: întoarce O SINGURĂ cursă.' },
       },
       required: ['from', 'to'],
     }),

@@ -110,7 +110,12 @@ function addDays(iso: string, days: number): string {
  *   «azi»/«mâine»/«poimâine» și echivalentele ruse, ziua săptămânii (următoarea
  *   apariție, niciodată azi), DOAR ziua («30» — cea mai apropiată zi cu acest număr),
  *   «30.08» / «30-08» (zi-lună) și YYYY-MM-DD gata format. Luna și anul le pune serverul.
- * Orice altceva — inclusiv un an inventat de model — cade pe ziua de azi.
+ * Orice altceva — un cuvânt nerecunoscut, «la weekend», «через неделю» — cade
+ * pe ziua de azi, TĂCUT: clientul aude cursele altei zile fără nicio eroare.
+ * ATENȚIE, aici plasa NU prinde: un YYYY-MM-DD bine format trece ca atare, chiar
+ * dacă anul e inventat de model (2025-09-07 → 2025-09-07, zero curse). De aceea
+ * contractul «doar cuvântul rostit, niciodată un an» stă în descrierea tool-ului
+ * și în promptul agentului — el e singura barieră (audit 02.09).
  */
 export function resolveVoiceDate(raw: string | undefined | null, todayIso: string): string {
   if (!raw) return todayIso;

@@ -290,6 +290,36 @@ const RECLAMATII_BLOCK_RU = `
 - НЕ используй find_past_trip для жалоб на поездку: он выдаёт номер водителя, а номер того, на кого жалуются, не даётся никогда.
 - НЕ обещай компенсаций, наказаний или обратного звонка.`;
 
+// Apel real 02.09 (conv_8401m1ggzbwtff0vb17mh2hcged1, 39 s): la «De unde plecați
+// și unde mergeți?» clientul a răspuns «merg de Duminica rutiera» — adică ZIUA
+// (duminică) plus felul transportului (rutieră), nu o localitate. Agentul a cerut
+// «repetați numele localității», omul a închis și a resunat 7 secunde mai târziu,
+// tot fără să ajungă undeva. Ion, 02.09: se adaugă regula.
+// Fondul problemei: agentul cere să se repete ceva ce clientul NU a spus. Omul aude
+// că nu e înțeles deloc și pleacă — pierdem apelul pe o neînțelegere de o secundă.
+const ZIUA_LOCALITATE_BLOCK = `
+
+ZIUA ÎN LOC DE LOCALITATE:
+- Clientul răspunde la «de unde și până unde» cu o ZI («duminică», «mâine», «в воскресенье») sau cu felul transportului («rutieră», «autobuz», «microbuz», «cursa»)? Acela NU e nume de localitate și nu se caută ca localitate.
+- Ce faci: reții ziua în tăcere și ceri DOAR ce lipsește — localitățile. Exemplu: «Am notat ziua. De unde plecați și unde mergeți?»
+- NU cere NICIODATĂ «repetați numele localității» când clientul nu a rostit nicio localitate: omul aude că nu e înțeles deloc și închide.
+- NU rosti numele zilei în confirmare. Ziua se rostește DOAR mai târziu, din câmpul date_label_ro / date_label_ru al rezultatului — regula despre ziua rostită dosloven din tool rămâne întreagă.
+- Ziua reținută o trimiți în «date», cuvânt cu cuvânt, doar dacă e o zi pe care serverul o poate rezolva: «azi», «mâine», «poimâine», o zi a săptămânii sau un număr de zi. Clientul a spus ceva vag («pe la sfârșit de săptămână», «zilele astea», «на выходных»)? Aceea NU e o zi: întrebi ce zi anume, nu o trimiți ca atare.
+- Nu o întrebi a doua oară după ce clientul spune localitățile.
+- Regula asta e pentru curse VIITOARE. La lucruri uitate și la reclamații rămân regulile secțiunilor lor — acolo ziua se caută înapoi, cu tool-ul lor.`;
+
+const ZIUA_LOCALITATE_MARKER_RU = 'ДЕНЬ ВМЕСТО НАСЕЛЁННОГО ПУНКТА';
+const ZIUA_LOCALITATE_BLOCK_RU = `
+
+ДЕНЬ ВМЕСТО НАСЕЛЁННОГО ПУНКТА:
+- Клиент на вопрос «откуда и куда» отвечает ДНЁМ («в воскресенье», «завтра», «duminică») или видом транспорта («маршрутка», «автобус», «rutieră», «рейс»)? Это НЕ название населённого пункта и не ищется как населённый пункт.
+- Что делаешь: запоминаешь день молча и спрашиваешь ТОЛЬКО то, чего не хватает, — населённые пункты. Пример: «День записал. Откуда выезжаете и куда едете?»
+- НИКОГДА не проси повторить название населённого пункта, если клиент не назвал никакого: человек слышит, что его вообще не поняли, и кладёт трубку.
+- НЕ произноси название дня в подтверждении. День называется ТОЛЬКО позже, из поля date_label_ru результата — правило блока о дне остаётся в силе целиком.
+- Запомненный день отправляешь в «date» слово в слово, только если это день, который сервер может разрешить: «сегодня», «завтра», «послезавтра», день недели или число. Клиент сказал расплывчато («на выходных», «на днях»)? Это НЕ день: спроси, какой именно, и не отправляй это как есть.
+- Не переспрашивай день после того, как клиент назовёт пункты.
+- Это правило про БУДУЩИЕ рейсы. Для забытых вещей и жалоб действуют правила их разделов — там день ищется назад, своим инструментом.`;
+
 const LIMBA_BLOCK = `
 
 LIMBA — A DOUA OARĂ LA RÂND:
@@ -602,6 +632,7 @@ async function checkAndHealConfig(cfg: any, drifts: Drift[], complaintToolExists
     ...(complaintToolExists
       ? [{ marker: 'RECLAMAȚIA — VINOVATUL IDENTIFICAT', block: RECLAMATII_BLOCK, field: 'prompt.RECLAMATII' }]
       : []),
+    { marker: 'ZIUA ÎN LOC DE LOCALITATE', block: ZIUA_LOCALITATE_BLOCK, field: 'prompt.ZIUA_LOCALITATE' },
     { marker: 'CÂMPURILE _RU — DOAR ÎN REPLICI RUSEȘTI', block: CAMPURI_RU_BLOCK, field: 'prompt.CAMPURI_RU' },
   ];
   let healedPrompt = prompt;
@@ -752,6 +783,7 @@ async function healRuStation(lostToolId: string | null, complaintToolId: string 
   // Aceeași condiție ca pe RO: fără tool în workspace, blocul ar trimite agentul
   // spre o cale moartă și i-ar tăia singura cale rămasă (request_callback).
   if (complaintToolId && !healed.includes(RECLAMATII_MARKER_RU)) { healed += RECLAMATII_BLOCK_RU; vindecate.push('ru.prompt.RECLAMATII'); }
+  if (!healed.includes(ZIUA_LOCALITATE_MARKER_RU)) { healed += ZIUA_LOCALITATE_BLOCK_RU; vindecate.push('ru.prompt.ZIUA_LOCALITATE'); }
   // Lista tipurilor, în rusă. Sincronizată pe conținut, ca la RO — vezi syncTypesBlock.
   const nevindecate: Drift[] = [];
   if (tipuriInTool) {

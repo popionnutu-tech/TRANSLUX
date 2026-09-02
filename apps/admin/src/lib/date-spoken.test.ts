@@ -172,3 +172,17 @@ describe('resolveVoiceDatePast', () => {
     expect(resolveVoiceDatePast('2026-02-31', TODAY)).toBe(null);
   });
 });
+
+describe('resolveVoiceDate — plasa care NU prinde', () => {
+  // Fixăm comportamentul REAL, ca docstring-ul să nu mai promită o plasă
+  // inexistentă: un an inventat, dar bine format, trece neatins și dă zero curse.
+  // Bariera e contractul din descrierea tool-ului, nu resolverul (audit 02.09).
+  it('un YYYY-MM-DD bine format trece ca atare, chiar cu an greșit', () => {
+    expect(resolveVoiceDate('2025-09-07', '2026-09-02')).toBe('2025-09-07');
+  });
+
+  it('un cuvânt vag cade tăcut pe azi', () => {
+    expect(resolveVoiceDate('la weekend', '2026-09-02')).toBe('2026-09-02');
+    expect(resolveVoiceDate('на выходных', '2026-09-02')).toBe('2026-09-02');
+  });
+});

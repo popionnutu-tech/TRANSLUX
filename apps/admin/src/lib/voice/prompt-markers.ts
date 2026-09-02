@@ -26,6 +26,7 @@ export const PROMPT_MARKERS_RO = [
   'ORA SOSIRII — NU SE SPUNE',
   'LUCRURI UITATE — ȘOFERUL IDENTIFICAT, OBIECTUL FĂRĂ NUME',
   'RECLAMAȚIA — VINOVATUL IDENTIFICAT',
+  'ZIUA ÎN LOC DE LOCALITATE',
   'CÂMPURILE _RU — DOAR ÎN REPLICI RUSEȘTI',
 ];
 
@@ -36,6 +37,7 @@ export const PROMPT_MARKERS_RU = [
   'ВРЕМЯ ПРИБЫТИЯ — НЕ НАЗЫВАЕТСЯ',
   'ЗАБЫТЫЕ ВЕЩИ — ОПОЗНАННЫЙ ВОДИТЕЛЬ, ВЕЩЬ БЕЗ НАЗВАНИЯ',
   'ЖАЛОБА — ВИНОВНЫЙ ОПОЗНАН',
+  'ДЕНЬ ВМЕСТО НАСЕЛЁННОГО ПУНКТА',
 ];
 
 export const TOATE_MARKERELE = [...PROMPT_MARKERS_RO, ...PROMPT_MARKERS_RU];

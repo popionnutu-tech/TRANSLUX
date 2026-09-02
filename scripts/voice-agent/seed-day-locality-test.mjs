@@ -11,8 +11,10 @@
 // mașina de dezvoltare — EL pare să filtreze pe IP. Dacă apare 401, testul se
 // încarcă prin MCP-ul claude.ai ElevenLabs, nu de aici; --dry rămâne util local.
 // Înainte de încărcare verifică rotația examenelor: capacul din voice-exams.ts
-// e 14, iar în 02.09 erau deja 18 teste active — un test în plus adâncește
-// blocajul lanțului lecție→examen, nu doar «se adaugă».
+// a fost ridicat la 30 pe 02.09, după ce măsurătoarea a arătat că EL paralelizează
+// (18 teste = 25 s la buget 60 s). Cu 18 active + 19 lecții în coadă, plafonul se
+// atinge din nou în ~2 săptămâni — atunci se retrag teste verzi vechi, nu se ridică
+// iar plafonul. Un test în plus NU e gratis: verifică numărul înainte.
 const KEY = process.env.ELEVENLABS_API_KEY;
 const SB_URL = process.env.SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;

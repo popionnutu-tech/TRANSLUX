@@ -25,11 +25,13 @@ describe('formatComplaintForGroup', () => {
     expect(t).toContain('Fumat la volan');
   });
 
-  it('spune de fiecare dată că reclamația e neverificată', () => {
-    // Prețul acceptat pentru numele pe față: fără rândul ăsta, o acuzație
-    // necercetată arată în grupă ca un fapt stabilit.
-    expect(formatComplaintForGroup(bazaReclamatie)).toContain('neverificată');
-    expect(formatComplaintForGroup({ ...bazaReclamatie, identified: false })).toContain('neverificată');
+  it('spune de fiecare dată cine a verificat-o — call-centrul AI', () => {
+    // Ion (02.09): «reclamatiile sunt verificat de ai call centru intodeauna».
+    // Cuvântul «neverificată» a fost scos la cererea lui; temeiul identificării
+    // (rândul TEMEI_GRUPA) rămâne — el spune cât cântărește acuzația.
+    expect(formatComplaintForGroup(bazaReclamatie)).toContain('Verificată de call-centrul AI');
+    expect(formatComplaintForGroup({ ...bazaReclamatie, identified: false })).toContain('Verificată de call-centrul AI');
+    expect(formatComplaintForGroup(bazaReclamatie)).not.toContain('neverificată');
   });
 
   it('fără șofer identificat cere ajutorul grupei, nu numește pe nimeni', () => {

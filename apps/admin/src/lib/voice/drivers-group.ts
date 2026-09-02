@@ -129,7 +129,7 @@ function omul(driver_name: string | null, plate: string | null): string | null {
  *
  * Ion a cerut numele și mașina pe față. I-am arătat prețul: o acuzație încă
  * necercetată rămâne în grupă și atunci când clientul a greșit mașina. De aceea
- * mesajul spune limpede că e neverificată, iar schimbarea șoferului în dosar
+ * mesajul poartă temeiul identificării, iar schimbarea șoferului în dosar
  * trimite o corectare — altfel în chat ar rămâne numit un om nevinovat.
  */
 export function formatComplaintForGroup(
@@ -159,7 +159,11 @@ export function formatComplaintForGroup(
     // fallback, un `evidence` neprevăzut ar fi șters tăcut exact rândul care
     // spune că acuzația vine doar din orar.
     cine ? (TEMEI_GRUPA[c.evidence] ?? TEMEI_GRUPA.trip_only) : null,
-    '<i>Reclamație neverificată — se cercetează.</i>',
+    // Ion (02.09, la primul mesaj văzut în grupă): «reclamatiile sunt verificat
+    // de ai call centru intodeauna» — cuvântul «neverificată» a zburat. Ce
+    // rămâne adevărat și spus: verificarea A FĂCUT-O call-centrul AI (cursa și
+    // omul identificate de server), iar temeiul ei stă pe rândul de deasupra.
+    '<i>Verificată de call-centrul AI.</i>',
   ].filter(Boolean).join('\n');
 }
 

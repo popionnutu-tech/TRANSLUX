@@ -4,8 +4,9 @@ import { unknownLocalityResponse } from '@/lib/voice-locality';
 import { logUnknownLocalities } from '@/lib/voice-unknown';
 import { chisinauTodayIso } from '@/lib/chisinau-time';
 import { alertAdmins } from '@/lib/telegram-notify';
-import { saveComplaint, formatComplaintAlert, type ComplaintInput, type Evidence } from '@/lib/voice/complaints';
+import { saveComplaint, formatComplaintAlert, markComplaintGroupNotified, type ComplaintInput, type Evidence } from '@/lib/voice/complaints';
 import { resolveComplaintType, complaintTypeLabel } from '@/lib/voice/complaint-types';
+import { notifyDriversGroup, formatComplaintForGroup, formatComplaintRetraction } from '@/lib/voice/drivers-group';
 import { normalizePhone } from '@/lib/voice/phone';
 import {
   identifyTrip, normPlate, normName, uniqueDrivers, COMPLAINT_MAX_DAYS_BACK,
@@ -28,6 +29,9 @@ import {
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+// Coada `after()` face până la două apeluri Telegram, iar calea de răspuns are
+// deja identifyTrip. Limita explicită, ca la celelalte rute grele.
+export const maxDuration = 30;
 
 // Aceeași căutare scumpă ca find-past-trip, dar chemată mult mai rar: o
 // reclamație pe apel, 2-3 apeluri ale tool-ului. 15/min taie doar abuzul.
@@ -90,7 +94,11 @@ export async function POST(req: NextRequest) {
   // Clientul a spus că nu mai știe nimic: cazul se închide aici, cu vinovatul
   // neidentificat — rândul rămâne pentru statistică, clientul aude refuzul.
   const noMoreDetails = body.no_more_details === true || body.no_more_details === 'true';
-  const conversationId = str(body.conversation_id, 120) || null;
+  // Doar forma reală a id-urilor ElevenLabs. Un literal nesubstituit
+  // ({{system__conversation_id}}) ar deveni, prin unique, UN singur dosar global
+  // în care s-ar contopi reclamațiile tuturor apelurilor (audit 02.09).
+  const convRaw = str(body.conversation_id, 120);
+  const conversationId = /^conv_[A-Za-z0-9_-]+$/.test(convRaw) ? convRaw : null;
   // Numărul vine din dynamic_variable, nu din ce scrie modelul (lecția 24.08:
   // toate cererile de callback aveau caller_phone null).
   // Normalizat ca peste tot în voice (calls.ts): altfel același om apare în două
@@ -128,14 +136,63 @@ export async function POST(req: NextRequest) {
       alreadyIdentified = alreadyIdentified || res.alreadyIdentified || input.identified;
       // Alerta poartă textul ÎNTREG al reclamației, nu doar ultima bucată trimisă
       // de model: mesajul din Telegram e singurul lucru pe care îl citește omul.
-      const full = { ...input, complaint: res.complaint ?? input.complaint };
+      // Mesajele se compun din DOSAR, nu din apelul curent al tool-ului: un apel
+      // ulterior mai sărac trimitea în grupă «Șofer neidentificat» peste un dosar
+      // care ține în continuare omul (audit 02.09).
+      const full = { ...input, ...res.row, complaint: res.complaint ?? input.complaint };
       // Telegram DUPĂ răspunsul către agent — nu ține vocea în loc.
       // Eticheta o luăm după tipul RĂMAS în dosar, nu după cel trimis acum: un
       // ALTUL de la al doilea apel nu suprascrie un tip concret, deci altfel
       // alerta ar spune «Altceva» peste un dosar care zice «Starea mașinii».
       if (res.shouldAlert) after(async () => {
-        const eticheta = await complaintTypeLabel(res.complaint_type);
-        await alertAdmins(formatComplaintAlert(full, res.corrected, eticheta, res.typeCorrected));
+        const [eticheta, anterioara] = await Promise.all([
+          complaintTypeLabel(res.complaint_type),
+          complaintTypeLabel(res.previous_type),
+        ]);
+        // Grupa șoferilor primește DOAR ce cade pe ei (Ion, 02.09). Starea
+        // mașinii, textul de pe site și rezervarea sunt ale companiei — acolo
+        // mesajul n-ar avea destinatar.
+        const eSofer = eticheta?.culprit === 'SOFER';
+        // Retragerea se hotărăște pe FAPTE, nu pe steagul `typeCorrected`: acela
+        // e stins când se schimbă și omul, și tipul în același apel, iar atunci
+        // în chat rămânea tăcut acuzat primul șofer pentru ceva de care nu mai
+        // răspunde nici el, nici cel nou (security 02.09).
+        //
+        // Iar «văzut» înseamnă văzut de GRUPĂ (migr. 316), nu de admini:
+        // corectarea și retragerea numesc omul de dinainte DOAR unui public care
+        // l-a văzut acuzat — altfel mesajul disculpant l-ar numi prima dată.
+        const eraSofer = anterioara?.culprit === 'SOFER';
+        const pentruGrupa = eSofer
+          ? formatComplaintForGroup({
+            driver_name: full.driver_name,
+            plate: full.plate,
+            identified: full.identified,
+            route: full.route,
+            departure: full.departure,
+            trip_date: full.trip_date,
+            complaint: full.complaint,
+            type_name: eticheta.name_ro,
+            evidence: full.evidence,
+          },
+          res.corrected && res.wasGroupNotified,
+          res.wasGroupNotified ? res.previous_driver : null,
+          res.typeCorrected && res.wasGroupNotified)
+          : (eraSofer && res.wasGroupNotified
+            ? formatComplaintRetraction({
+              // Se disculpă omul pe care grupa l-a VĂZUT numit, nu cel de acum.
+              driver_name: res.previous_driver?.driver_name ?? full.driver_name,
+              plate: res.previous_driver?.plate ?? full.plate,
+              identified: !!res.previous_driver || full.identified,
+              route: full.route, departure: full.departure, trip_date: full.trip_date,
+            }, eticheta?.name_ro ?? null)
+            : null);
+        // Aceeași clipă, două audiențe — și în paralel: două taimauturi Telegram
+        // puse în serie s-ar aduna în bugetul invocării.
+        const [, grupOk] = await Promise.all([
+          alertAdmins(formatComplaintAlert(full, res.corrected, eticheta, res.typeCorrected)),
+          pentruGrupa ? notifyDriversGroup(pentruGrupa) : Promise.resolve(false),
+        ]);
+        if (grupOk && conversationId) await markComplaintGroupNotified(conversationId);
       });
       return true;
     } catch (err) {

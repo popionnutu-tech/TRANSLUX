@@ -76,7 +76,7 @@ Când clientul vrea să vorbească cu un om sau tu nu ai informația:
   - reason = motivul, scurt, în română
 
 Când clientul a UITAT sau a PIERDUT ceva în autobuz (geantă, telefon, acte, pachet — ORICE obiect):
-→ Folosește find_past_trip(from, to, date, departure, plate, driver_name) — vezi secțiunea LUCRURI UITATE
+→ Folosește find_past_trip(from, to, date, departure, plate, driver_name, conversation_id) — vezi secțiunea LUCRURI UITATE
 
 ═══════════════════════════════════
 RECLAMAȚII — CINE E VINOVATUL
@@ -285,7 +285,15 @@ export function buildTools({ baseUrl, voiceApiKey }) {
         departure: { type: 'string', description: 'Approximate departure time HH:MM if the caller remembers it' },
         plate: { type: 'string', description: 'Vehicle plate number, full or partial, as the caller said it' },
         driver_name: { type: 'string', description: 'Driver name if the caller knows it' },
+        // Fără el, obiectul uitat nu se poate lega de un apel: rândul din
+        // voice_lost_items s-ar dubla la fiecare chemare a tool-ului, iar
+        // mesajul din grupa șoferilor ar pleca de trei ori pentru același obiect.
+        conversation_id: { type: 'string', description: 'Set to {{system__conversation_id}}' },
       },
+      // Obligatoriu, ca la register_complaint: fără el rândul lucrului uitat nu
+      // se poate lega de apel, iar modelul are voie să omită orice parametru
+      // care nu e cerut — tăcut, ca la orice altă lipsă.
+      required: ['conversation_id'],
     }),
     webhookTool({
       name: 'register_complaint',

@@ -38,6 +38,37 @@ export interface SaveResult {
   corrected: boolean;
   /** Alerta corectează TIPUL anunțat anterior — deci și cine răspunde de el. */
   typeCorrected: boolean;
+  /** Tipul de DINAINTE. Grupa șoferilor are nevoie de el ca să știe dacă
+   *  acuzația pe care a văzut-o trebuie retrasă. */
+  previous_type: string | null;
+  /** Rândul primise deja o alertă ÎNAINTE de acest apel — deci grupa a văzut ceva. */
+  wasAlerted: boolean;
+  /** GRUPA șoferilor a văzut acuzația (migr. 316). Alerta adminilor nu ajunge:
+   *  grupa primește doar tipurile care cad pe șofer, deci cele două steaguri
+   *  diverg — iar «Nu mai e vorba de X» n-are voie să-l numească pe X unui
+   *  public care nu l-a văzut acuzat. */
+  wasGroupNotified: boolean;
+  /** Omul numit ÎNAINTE. Mesajul de corectare trebuie să-l și disculpe, nu doar
+   *  să numească pe altul: altfel în chat rămân două acuzații, nu o corectare. */
+  previous_driver: { driver_name: string | null; plate: string | null } | null;
+  /**
+   * Dosarul așa cum a RĂMAS, nu ce a trimis apelul curent al tool-ului.
+   *
+   * Mesajele se compun din el. Altfel un al doilea apel mai sărac (tip nou,
+   * cursă nelămurită) trimitea în grupa șoferilor «Șofer neidentificat» peste un
+   * dosar care ține în continuare omul — chatul contrazicea baza (audit 02.09).
+   */
+  row: {
+    identified: boolean;
+    driver_name: string | null;
+    plate: string | null;
+    route: string | null;
+    departure: string | null;
+    trip_date: string | null;
+    /** Pe ce stă acuzația RĂMASĂ. Din apelul curent, un al doilea apel fără
+     *  plăcuță ar fi pus «dedus din orar» sub un om identificat cu plăcuța. */
+    evidence: Evidence;
+  };
   /** Textul ÎNTREG al reclamației după îmbogățire, nu doar ultima bucată. */
   complaint: string | null;
   /**
@@ -47,6 +78,17 @@ export interface SaveResult {
    */
   complaint_type: string | null;
 }
+
+/** Rândul nou = exact ce a trimis apelul: nu există încă un «înainte». */
+const dosarDinInput = (i: ComplaintInput): SaveResult['row'] => ({
+  identified: i.identified,
+  driver_name: i.driver_name,
+  plate: i.plate,
+  route: i.route,
+  departure: i.departure,
+  trip_date: i.trip_date,
+  evidence: i.evidence,
+});
 
 export async function saveComplaint(input: ComplaintInput): Promise<SaveResult> {
   const supabase = getSupabase();
@@ -58,7 +100,7 @@ export async function saveComplaint(input: ComplaintInput): Promise<SaveResult> 
   if (input.conversation_id) {
     const { data: existing } = await supabase
       .from('voice_complaints')
-      .select('id, complaint, caller_phone, identified, alerted, driver_id, complaint_type')
+      .select('id, complaint, caller_phone, identified, alerted, driver_id, complaint_type, driver_name, plate, route, departure, trip_date, evidence, group_notified')
       .eq('conversation_id', input.conversation_id)
       .maybeSingle();
     if (existing) {
@@ -122,6 +164,22 @@ export async function saveComplaint(input: ComplaintInput): Promise<SaveResult> 
         complaint: (patch.complaint as string | null) ?? null,
         // Ce a rămas în dosar: tipul nou dacă l-am scris, altfel cel de dinainte.
         complaint_type: (patch.complaint_type as string | undefined) ?? existing.complaint_type ?? null,
+        previous_type: existing.complaint_type ?? null,
+        wasAlerted: existing.alerted,
+        wasGroupNotified: !!existing.group_notified,
+        previous_driver: existing.identified
+          ? { driver_name: existing.driver_name ?? null, plate: existing.plate ?? null }
+          : null,
+        // Ce a rămas în rând: valoarea nouă dacă am scris-o, altfel cea veche.
+        row: {
+          identified: (patch.identified as boolean | undefined) ?? existing.identified,
+          driver_name: (patch.driver_name as string | undefined) ?? existing.driver_name ?? null,
+          plate: (patch.plate as string | undefined) ?? existing.plate ?? null,
+          route: (patch.route as string | undefined) ?? existing.route ?? null,
+          departure: (patch.departure as string | undefined) ?? existing.departure ?? null,
+          trip_date: (patch.trip_date as string | undefined) ?? existing.trip_date ?? null,
+          evidence: (patch.evidence as Evidence | undefined) ?? (existing.evidence as Evidence | undefined) ?? input.evidence,
+        },
       };
     }
   }
@@ -132,8 +190,8 @@ export async function saveComplaint(input: ComplaintInput): Promise<SaveResult> 
   // o trimite atunci celălalt apel, care a scris primul.
   if (error && error.code !== '23505') throw new Error(`voice_complaints insert failed: ${error.message}`);
   // Dublul respins de unique: rândul e al celuilalt apel, el trimite și alerta.
-  if (error) return { shouldAlert: false, alreadyIdentified: false, corrected: false, typeCorrected: false, complaint: input.complaint, complaint_type: input.complaint_type };
-  return { shouldAlert: final, alreadyIdentified: false, corrected: false, typeCorrected: false, complaint: input.complaint, complaint_type: input.complaint_type };
+  if (error) return { shouldAlert: false, alreadyIdentified: false, corrected: false, typeCorrected: false, previous_type: null, wasAlerted: false, wasGroupNotified: false, previous_driver: null, complaint: input.complaint, complaint_type: input.complaint_type, row: dosarDinInput(input) };
+  return { shouldAlert: final, alreadyIdentified: false, corrected: false, typeCorrected: false, previous_type: null, wasAlerted: false, wasGroupNotified: false, previous_driver: null, complaint: input.complaint, complaint_type: input.complaint_type, row: dosarDinInput(input) };
 }
 
 /** Tipul, pentru alertă: numele lui și cine răspunde de lucrul reclamat. */
@@ -197,7 +255,10 @@ export function formatComplaintAlert(
     cursa ? `Cursa: ${cursa}` : 'Cursa: —',
     // Cine cercetează trebuie să vadă cât cântărește acuzația, nu doar pe cine cade.
     input.identified ? `Temei: ${TEMEI[input.evidence]}` : null,
-    `Reclamație: ${input.complaint ? escapeHtml(input.complaint) : '—'}`,
+    // Plafon: textul se ADAUGĂ la fiecare apel al tool-ului (2000 de caractere
+    // fiecare). Peste 4096, Telegram respinge TOT mesajul — adminii n-ar afla
+    // nimic, deși grupa a primit acuzația (security 02.09).
+    `Reclamație: ${input.complaint ? escapeHtml(input.complaint.slice(0, 3000)) : '—'}`,
   ].filter(Boolean).join('\n');
 }
 
@@ -208,6 +269,38 @@ export function formatComplaintAlert(
  * să știe măcar ce s-a reclamat — la starea mașinii sau la textul de pe site,
  * acuzația cădea pe cine nu răspunde de ele (audit 02.09).
  */
+/** Grupa a primit mesajul: din clipa asta, corectarea are voie să numească omul. */
+export async function markComplaintGroupNotified(conversationId: string): Promise<void> {
+  const { error } = await getSupabase()
+    .from('voice_complaints')
+    .update({ group_notified: true })
+    .eq('conversation_id', conversationId);
+  if (error) console.error('markComplaintGroupNotified:', error.message);
+}
+
+/**
+ * Apelul ăsta a produs deja o reclamație?
+ *
+ * Poarta pentru apelul mixt (Ion, 02.09): dacă da, fluxul lucrurilor uitate NU
+ * dă numărul șoferului. Altfel reclamantul pleca din apel cu telefonul personal
+ * al omului pe care tocmai îl acuzase — singurul loc din tot fluxul unde regula
+ * «reclamantul nu află pe cine s-a identificat» se rupea.
+ */
+export async function hasComplaint(conversationId: string): Promise<boolean> {
+  const { data, error } = await getSupabase()
+    .from('voice_complaints')
+    .select('id')
+    .eq('conversation_id', conversationId)
+    .maybeSingle();
+  if (error) {
+    // Baza mută: NU reținem numărul. Poarta e o protecție, nu o barieră — omul
+    // care și-a uitat geanta n-are de ce să plătească o eroare de bază.
+    console.error('hasComplaint:', error.message);
+    return false;
+  }
+  return !!data;
+}
+
 export async function getComplaintSummary(conversationId: string): Promise<{
   identified: boolean; driver_name: string | null; plate: string | null;
   type_name: string | null; culprit: Culprit | null;

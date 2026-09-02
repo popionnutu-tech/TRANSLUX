@@ -15,13 +15,21 @@ import { greetingRo } from '@/lib/voice-greeting';
 // memoria limbii din voice_calls, sub race 700ms.
 const CUSTOM_LLM_URL = 'https://translux-voice-llm.vercel.app/api/chat/completions';
 
+// Aceleași DOUĂ chei ca la voice-tools cât ține rotația (VOICE_API_KEY +
+// VOICE_API_KEY_PREV): antetul webhook-ului îl scrie controlerul din mediul lui,
+// deci se schimbă la alt moment decât variabila citită aici. Cu o singură cheie,
+// între cele două momente salutul ar cădea pe varianta de avarie.
 function authorized(req: Request): boolean {
   const key = req.headers.get('x-voice-api-key');
-  const expected = process.env.VOICE_API_KEY;
-  if (!expected || !key) return false;
+  if (!key) return false;
   const a = Buffer.from(key);
-  const b = Buffer.from(expected);
-  return a.length === b.length && timingSafeEqual(a, b);
+  return [process.env.VOICE_API_KEY, process.env.VOICE_API_KEY_PREV]
+    .map((k) => (k ?? '').trim())
+    .filter(Boolean)
+    .some((asteptat) => {
+      const b = Buffer.from(asteptat);
+      return a.length === b.length && timingSafeEqual(a, b);
+    });
 }
 
 export async function POST(req: Request) {

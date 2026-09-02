@@ -25,7 +25,9 @@ export function redactSecrets(s: string): string {
     /("?(?:x-voice-api-key|xi-api-key|authorization)"?\s*[:=]\s*)("(?:[^"\\]|\\.)*"|"[^"\n]*|[^",}\s]*)/gi,
     '$1***',
   );
-  for (const key of [process.env.VOICE_API_KEY, process.env.ELEVENLABS_API_KEY, process.env.CRON_SECRET]) {
+  // Și cheia VECHE, cât ține rotația: jurnalul jsonb și logul GitHub Actions
+  // sunt persistente, iar repo-ul e public.
+  for (const key of [process.env.VOICE_API_KEY, process.env.VOICE_API_KEY_PREV, process.env.ELEVENLABS_API_KEY, process.env.CRON_SECRET]) {
     if (!key || key.length < 8) continue;
     for (let n = key.length; n >= 8; n--) out = out.split(key.slice(0, n)).join('***');
   }

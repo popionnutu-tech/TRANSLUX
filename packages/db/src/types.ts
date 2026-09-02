@@ -10,6 +10,12 @@ export type OperatorKind = 'MAIN' | 'TAXI_ZONE';
 export type DirectionEnum = 'CHISINAU_BALTI' | 'BALTI_CHISINAU';
 export type ReportStatus = 'OK' | 'ABSENT' | 'FULL';
 
+// Cheia din app_config unde stă id-ul grupei de șoferi (Ion, 02.09.2026).
+// Are DOI consumatori în procese diferite: botul o scrie cu /lega_reclamatii
+// (Railway), panoul o citește ca să trimită reclamațiile și lucrurile uitate
+// (Vercel). Scrisă de două ori, o schimbare într-un loc taie tăcut mesajele.
+export const DRIVERS_GROUP_CONFIG_KEY = 'drivers_group_chat_id';
+
 // Map: controller point → direction they report for
 export const POINT_DIRECTION_MAP: Record<PointEnum, DirectionEnum> = {
   CHISINAU: 'CHISINAU_BALTI',

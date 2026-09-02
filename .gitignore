@@ -28,3 +28,6 @@ graphify-out/
 
 # Documente de la client (cerințe, răspunsuri) — nu intră în repo
 *.docx
+
+# Cheia noua a tool-urilor vocale, folosita o singura data de rotate-voice-key.mjs.
+.voice-key.new

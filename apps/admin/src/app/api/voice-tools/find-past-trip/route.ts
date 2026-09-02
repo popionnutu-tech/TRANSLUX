@@ -9,9 +9,11 @@ import { chisinauTodayIso } from '@/lib/chisinau-time';
 import { driverFirstName, driverFirstNameRu } from '@/lib/driver-name';
 import { COMPANY_PHONE } from '@/lib/company-phone';
 import {
-  identifyTrip, normPlate, normName, toMinutes, uniqueDrivers,
+  identifyTrip, normPlate, normName, uniqueDrivers, singleCandidate,
   MAX_DAYS_BACK, type Candidate,
 } from '@/lib/voice/trip-identify';
+import { saveLostItem, type LostItemInput } from '@/lib/voice/lost-items';
+import { hasComplaint } from '@/lib/voice/complaints';
 
 // Identificarea șoferului pentru LUCRURI UITATE (decizia lui Ion, 30.08: «rolul
 // agentului împreună cu călătorul să identifice șoferul corect ca să ofere din
@@ -39,6 +41,10 @@ function rateLimited(): boolean {
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+// Cea mai scumpă rută a proiectului, iar coada `after()` scrie acum și în bază.
+// Limita explicită, ca la celelalte două rute atinse de aceeași modificare: nu
+// depindem de valoarea implicită a platformei.
+export const maxDuration = 30;
 
 // Numele câmpului e ACELAȘI în toate formele cu count=0 (audit M3): promptul cere
 // «count = 0 → citește DOSLOVEN company_phone_line_*», deci câmpul trebuie să existe
@@ -81,21 +87,10 @@ function buildResponse(candidates: Candidate[], dateIso: string, today: string, 
   // spus ora → plecarea cea mai apropiată de ea; altfel fraza merge fără oră —
   // ora celuilalt sens rostită dosloven = spoken_time_mismatch la controlor
   // (delta-audit M2, round 2 Important 4).
-  const closestByTime = (list: Candidate[]) => {
-    if (depMin === null) return null;
-    let best: Candidate | null = null;
-    let bestDiff = Infinity;
-    for (const c of list) {
-      const m = c.departure ? toMinutes(c.departure) : null;
-      if (m === null) continue;
-      const diff = Math.abs(m - depMin);
-      if (diff < bestDiff) { best = c; bestDiff = diff; }
-    }
-    return best;
-  };
-  const single = uniquePhones.length === 1
-    ? (withPhone.length === 1 ? withPhone[0] : closestByTime(withPhone) ?? { ...withPhone[0], departure: null })
-    : null;
+  // Aceeași funcție decide și ce se scrie în rândul lucrului uitat: două formule
+  // pentru «cursa e identificată» numeau în grupă un om căruia clientul nu-i
+  // primise numărul (audit 02.09).
+  const single = singleCandidate(candidates, depMin);
   return NextResponse.json({
     count: uniquePhones.length,
     date: dateIso,
@@ -127,15 +122,58 @@ export async function POST(req: NextRequest) {
 
   let body: Record<string, unknown> = {};
   try { body = await req.json(); } catch { /* body opțional */ }
-  const from = typeof body.from === 'string' ? body.from : '';
-  const to = typeof body.to === 'string' ? body.to : '';
-  const date = typeof body.date === 'string' ? body.date : '';
-  const departure = typeof body.departure === 'string' ? body.departure : '';
-  const plate = typeof body.plate === 'string' ? normPlate(body.plate) : '';
-  const driverName = typeof body.driver_name === 'string' ? normName(body.driver_name) : '';
+  // Plafoane ca la register-complaint: textele astea ajung acum și în bază, și
+  // în mesajul din grupă. Un text lung de model ar umple rândul și ar trece
+  // mesajul peste limita Telegram, care respinge atunci TOT mesajul.
+  const str = (v: unknown, max: number) => (typeof v === 'string' ? v.slice(0, max) : '');
+  const from = str(body.from, 80);
+  const to = str(body.to, 80);
+  const date = str(body.date, 40);
+  const departure = str(body.departure, 20);
+  const plate = normPlate(str(body.plate, 40));
+  const driverName = normName(str(body.driver_name, 120));
+  // Fără conversation_id nu există «un apel = un obiect»: rândul nu se poate lega
+  // de convorbire, iar mesajul din grupă ar pleca de câte ori e chemat tool-ul.
+  // Lipsa lui NU oprește nimic din ce făcea ruta până acum — doar nu se scrie.
+  // Doar forma reală a id-urilor EL: un literal nesubstituit ar contopi toate
+  // apelurile într-un singur rând, iar poarta reclamațiilor s-ar închide global.
+  const convRaw = str(body.conversation_id, 120);
+  const conversationId = /^conv_[A-Za-z0-9_-]+$/.test(convRaw) ? convRaw : '';
 
   const today = chisinauTodayIso();
-  const outcome = await identifyTrip({ from, to, date, departure, plate, driverName, today });
+  // Poarta apelului mixt (Ion, 02.09): pe un apel care a produs deja o
+  // reclamație, numărul șoferului NU se dă. Obiectul se recuperează prin birou.
+  // Fără conversation_id nu avem cum verifica — atunci rămâne ca până acum.
+  const [outcome, areReclamatie] = await Promise.all([
+    identifyTrip({ from, to, date, departure, plate, driverName, today }),
+    conversationId ? hasComplaint(conversationId) : Promise.resolve(false),
+  ]);
+
+  // Scrierea merge DUPĂ răspuns (`after`) și nu are voie să strice apelul: rostul
+  // rutei rămâne să-i dea clientului numărul șoferului, nu să țină evidența.
+  const noteazaObiectul = (row: Omit<LostItemInput, 'conversation_id'>) => {
+    if (!conversationId) return;
+    // Un rând fără cursă n-are ce spune nimănui în grupă. Ziua SINGURĂ nu e un
+    // fir: «Lucru uitat, cursă neidentificată, 2026-09-01» nu ajută pe nimeni
+    // din douăzeci de oameni să se recunoască. Se scrie doar cu rută sau plăcuță.
+    if (!row.identified && !row.route && !row.plate) return;
+    after(async () => {
+      try {
+        await saveLostItem({ conversation_id: conversationId, ...row });
+      } catch (err) {
+        console.error('find-past-trip: saveLostItem', err);
+      }
+    });
+  };
+  // Cursa așa cum a spus-o clientul, când serverul n-a găsit-o: după rută și zi
+  // se poate recunoaște șoferul care citește grupa.
+  const neidentificat = (tripDate: string | null): Omit<LostItemInput, 'conversation_id'> => ({
+    trip_date: tripDate,
+    departure: departure || null,
+    route: from && to ? `${from} – ${to}` : null,
+    driver_id: null, driver_name: null, plate: plate || null,
+    identified: false,
+  });
 
   switch (outcome.kind) {
     // Formele need_more NU poartă count și NICI fraza companiei (round 2 Critical:
@@ -158,18 +196,45 @@ export async function POST(req: NextRequest) {
     // propriul mesaj «întreabă clientul care localitate» — două ordine
     // doslovene contradictorii ar închide apelul în loc să-l clarifice.
     case 'unknown_locality':
+      noteazaObiectul(neidentificat(outcome.tripDate));
       after(() => logUnknownLocalities('find-past-trip', outcome.unknown, outcome.suggestions));
       return NextResponse.json({
         count: 0, date: outcome.tripDate, candidates: [],
         ...unknownLocalityResponse(outcome.unknown, outcome.suggestions),
       });
     case 'need_route':
+      noteazaObiectul(neidentificat(outcome.tripDate));
       return NextResponse.json({
         date: outcome.tripDate, need_more: true,
         result_ro: 'Pentru căutare am nevoie de rută (de unde și până unde), sau de numărul mașinii, sau de numele șoferului.',
         result_ru: 'Для поиска нужен маршрут (откуда и куда), или номер машины, или имя водителя.',
       });
-    default:
+    default: {
+      // ACEEAȘI alegere ca în răspunsul către client: dacă el a primit numărul,
+      // în grupă apare omul; dacă nu, apare cursa fără nume.
+      const c = singleCandidate(outcome.candidates, outcome.depMin);
+      noteazaObiectul(c
+        ? {
+          trip_date: outcome.tripDate, departure: c.departure, route: c.route_ro,
+          driver_id: c.driver_id, driver_name: c.driver, plate: c.plate, identified: true,
+          phone_withheld: areReclamatie,
+        }
+        : neidentificat(outcome.tripDate));
+      // Reclamație pe același apel: cursa e identificată în dosar și în grupă,
+      // dar clientul primește calea prin birou, nu numărul omului reclamat.
+      // Forma răspunsului e cea de la «nu am găsit» (count 0 + company_phone_line),
+      // fiindcă exact pe ea promptul cere să citească dosloven — un câmp nou ar
+      // fi improvizat de model.
+      if (c && areReclamatie) {
+        return NextResponse.json({
+          count: 0, date: outcome.tripDate, candidates: [],
+          ...companyLine(
+            `Obiectul rămâne la șofer, iar noi vi-l predăm la birou. Sunați la ${phoneSpoken(COMPANY_PHONE)?.ro} și vă spunem când îl puteți ridica.`,
+            `Вещь остаётся у водителя, а мы передадим её вам в офисе. Позвоните по ${phoneSpoken(COMPANY_PHONE)?.ru}, и мы скажем, когда её можно забрать.`,
+          ),
+        });
+      }
       return buildResponse(outcome.candidates, outcome.tripDate, today, outcome.depMin);
+    }
   }
 }

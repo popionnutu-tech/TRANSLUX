@@ -12,6 +12,7 @@ import { getSupabase } from '../supabase';
 import { localitiesToRo, type Suggestion } from '../voice-locality';
 import { resolveVoiceDatePast } from '../date-spoken';
 import { parseTimeLabel } from '../assignments';
+import { phoneSpoken } from '../phone-spoken';
 
 // Lucruri uitate: obiectul nu mai stă la șofer după două săptămâni.
 export const MAX_DAYS_BACK = 14;
@@ -219,4 +220,42 @@ export async function identifyTrip(input: IdentifyInput): Promise<IdentifyOutcom
 export function uniqueDrivers(candidates: Candidate[]): { withPhone: Candidate[]; uniquePhones: string[] } {
   const withPhone = candidates.filter((c) => c.phone);
   return { withPhone, uniquePhones: [...new Set(withPhone.map((c) => c.phone as string))] };
+}
+
+/**
+ * Un telefon pe DOUĂ plecări (tur+retur): numărul e cert, ora nu. Clientul a
+ * spus ora → plecarea cea mai apropiată de ea.
+ */
+export function closestByTime(list: Candidate[], depMin: number | null): Candidate | null {
+  if (depMin === null) return null;
+  let best: Candidate | null = null;
+  let bestDiff = Infinity;
+  for (const c of list) {
+    const m = c.departure ? toMinutes(c.departure) : null;
+    if (m === null) continue;
+    const diff = Math.abs(m - depMin);
+    if (diff < bestDiff) { best = c; bestDiff = diff; }
+  }
+  return best;
+}
+
+/**
+ * Cursa identificată UNIC — o singură definiție, pentru toți.
+ *
+ * Exista în două locuri, cu formule diferite: fraza spusă clientului număra doar
+ * telefoanele rostibile, iar rândul scris pentru grupa șoferilor număra toți
+ * candidații. Un număr în format nestandard făcea ca omul să fie numit în grupă
+ * («clientul are numărul și sună») deși clientul auzise «nu am găsit cursa» —
+ * un om așteptând un telefon care nu vine, cu numele afișat degeaba (audit 02.09).
+ *
+ * `phoneSpoken` e filtrul: fără număr rostibil, candidatul nu poate fi dat
+ * clientului, deci nu e identificat nici pentru nimeni altcineva.
+ */
+export function singleCandidate(candidates: Candidate[], depMin: number | null): Candidate | null {
+  const { withPhone, uniquePhones } = uniqueDrivers(candidates.filter((c) => phoneSpoken(c.phone)));
+  if (uniquePhones.length !== 1) return null;
+  if (withPhone.length === 1) return withPhone[0];
+  // Ora rămâne necunoscută când nu se poate alege între tur și retur: o oră
+  // greșită trimite șoferul să caute obiectul în cursa care nu trebuie.
+  return closestByTime(withPhone, depMin) ?? { ...withPhone[0], departure: null };
 }

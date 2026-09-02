@@ -501,11 +501,16 @@ async function checkAndHealConfig(cfg: any, drifts: Drift[], complaintToolExists
     psHealed.push({ field: 'overrides.webhook_flags', healed: true });
   }
   const wh = ps.workspace_overrides?.conversation_initiation_client_data_webhook;
-  if (wh?.url !== INIT_WEBHOOK_URL || !wh?.request_headers?.['x-voice-api-key']) {
+  // Antetul se compară pe VALOARE, nu doar pe prezență: la rotația cheii, aici
+  // rămânea pentru totdeauna cheia veche — iar ștergerea lui VOICE_API_KEY_PREV
+  // ar fi lăsat salutul pe varianta de avarie, tăcut (audit 02.09).
+  const cheiaCurenta = (process.env.VOICE_API_KEY ?? '').trim();
+  if (wh?.url !== INIT_WEBHOOK_URL
+    || (cheiaCurenta && wh?.request_headers?.['x-voice-api-key'] !== cheiaCurenta)) {
     psPatch.workspace_overrides = {
       conversation_initiation_client_data_webhook: {
         url: INIT_WEBHOOK_URL,
-        request_headers: { 'x-voice-api-key': process.env.VOICE_API_KEY ?? '' },
+        request_headers: { 'x-voice-api-key': cheiaCurenta },
       },
     };
     psHealed.push({ field: 'init_webhook_url', healed: true });
@@ -923,11 +928,12 @@ export async function runVoiceController(): Promise<{ drifts: Drift[]; incidents
   await syncCanonKeywords();
 
   // GET-ul listei de tool-uri nu depinde de config — merge în paralel (perf LOW).
-  const [cfg, lostToolId, complaintTool] = await Promise.all([
+  const [cfg, lostTool, complaintTool] = await Promise.all([
     elGet(`/v1/convai/agents/${AGENT_ID}`),
-    workspaceToolId('find_past_trip'),
+    workspaceTool('find_past_trip'),
     workspaceTool('register_complaint'),
   ]);
+  const lostToolId = lostTool?.id ?? null;
   const complaintToolId = complaintTool?.id ?? null;
   // Lista tipurilor pleacă în prompt DOAR dacă tool-ul viu chiar primește câmpul.
   // Promptul se vindecă singur, schema tool-ului se schimbă doar cu scriptul
@@ -935,11 +941,21 @@ export async function runVoiceController(): Promise<{ drifts: Drift[]; incidents
   // modelul ar trimite un câmp pe care platforma îl aruncă tăcut — toate
   // reclamațiile ar cădea pe ALTUL, adică exact tipologia pierdută (audit 02.09).
   const tipuriInTool = complaintTool?.params.includes('complaint_type') ?? false;
+  const drifts: Drift[] = [];
+  // Fără câmpul ăsta, lucrurile uitate nu se pot lega de apel: rândul nu se
+  // scrie, grupa șoferilor nu primește nimic, iar poarta apelului mixt e
+  // stinsă — totul TĂCUT, fiindcă schema tool-ului nu se vindecă singură
+  // (doar scriptul o rescrie). Măcar jurnalul spune că livrarea e neterminată.
+  if (lostTool && !lostTool.params.includes('conversation_id')) {
+    drifts.push({ field: 'tools.find_past_trip.conversation_id_missing', healed: false });
+  }
+  if (complaintTool && !tipuriInTool) {
+    drifts.push({ field: 'tools.register_complaint.complaint_type_missing', healed: false });
+  }
   // Lecuirea configului cade la fel de «moale» ca vecinele de mai jos: un singur
   // câmp refuzat de EL (422 pe o cheie depreciată, un read-only întors de spread)
   // arunca din tot prögonul — legarea tool-ului, stația RU, validatorul, examenele —
   // și NU lăsa nicio linie în jurnal, doar în logurile Vercel (security review 31.08).
-  const drifts: Drift[] = [];
   try {
     await checkAndHealConfig(cfg, drifts, complaintToolId !== null, tipuriInTool);
   } catch (e) {

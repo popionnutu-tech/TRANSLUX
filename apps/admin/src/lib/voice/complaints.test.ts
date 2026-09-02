@@ -128,6 +128,27 @@ describe('saveComplaint', () => {
     expect(lastPatch).not.toHaveProperty('complaint_type');
   });
 
+  it('mesajele se compun din DOSAR: rândul întors păstrează omul și temeiul', async () => {
+    // Apelul 2 e mai sărac (fără plăcuță, alt tip). Fără câmpurile astea,
+    // grupa citea «Șofer neidentificat» și «dedus din orar» peste un dosar
+    // identificat cu plăcuța (audit 02.09).
+    existing = {
+      id: 'r1', complaint: 'ceva', caller_phone: null, identified: true, alerted: true,
+      driver_id: 'd-1', complaint_type: 'FUMAT',
+      driver_name: 'Mihai Popescu', plate: 'ABC 123', evidence: 'plate',
+    } as typeof existing;
+    const res = await saveComplaint({
+      ...base, identified: false, driver_id: null, driver_name: null, plate: null,
+      evidence: 'trip_only', complaint_type: 'STARE_MASINA', final: false,
+    });
+    expect(res.wasAlerted).toBe(true);
+    expect(res.previous_driver).toEqual({ driver_name: 'Mihai Popescu', plate: 'ABC 123' });
+    expect(res.previous_type).toBe('FUMAT');
+    expect(res.row.identified).toBe(true);
+    expect(res.row.driver_name).toBe('Mihai Popescu');
+    expect(res.row.evidence).toBe('plate');
+  });
+
   it('detaliul nou se adaugă la textul reclamației, nu îl înlocuiește', async () => {
     existing = { id: 'r1', complaint: 'a luat 250 lei', caller_phone: null, identified: false, alerted: false };
     await saveComplaint({ ...base, complaint: 'a spus că nu merge până la Criva', identified: false, final: false });

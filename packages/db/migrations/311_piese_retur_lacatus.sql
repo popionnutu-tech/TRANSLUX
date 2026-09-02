@@ -1,4 +1,4 @@
--- 299: Returul de la lăcătuș — piesa scoasă pentru o reparație se întoarce în depozit.
+-- 311: Returul de la lăcătuș — piesa scoasă pentru o reparație se întoarce în depozit.
 --
 -- Cerut de Eduard: „при возврате запчасти от слесаря корректировать расход". Până acum rashodul nu avea
 -- NICIO cale de corecție — nici ecran de modificare, nimic. Singura soluție era inventarierea, care

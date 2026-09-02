@@ -258,7 +258,7 @@ export async function docLinesMany(docIds: number[], withCost: boolean): Promise
     // exact panoul „ce e deja pe mașină" ar fi ascuns ce trebuia să arate.
     .limit(DOC_LINES_LIMIT * 2 + 1);
   if (error) throw new Error('Nu am putut încărca poziţiile documentelor');
-  // Returul de la lăcătuș (migr. 299) stă pe același document, ca linie cu cantitate NEGATIVĂ. Aici
+  // Returul de la lăcătuș (migr. 311) stă pe același document, ca linie cu cantitate NEGATIVĂ. Aici
   // interesează ce a RĂMAS pe mașină, deci returul se scade din linia pe care o corectează, în loc să
   // apară ca rând separat cu −1: panoul răspunde la „ce e deja pe mașină", nu la „ce s-a mișcat".
   // Jurnalul documentului (`docLines`) arată în continuare ambele linii — acolo urma contează.
@@ -577,7 +577,7 @@ export async function appendIssue(docId: number, warehouseId: number, vehicleId:
   return { docId: res.doc_id as number, added: res.added as number, shortages: (res.shortages || []) as string[] };
 }
 
-// Retur de la lăcătuș: piesa scoasă pentru o reparație se întoarce în depozit (migr. 299).
+// Retur de la lăcătuș: piesa scoasă pentru o reparație se întoarce în depozit (migr. 311).
 // Stinge straturile FIFO din care a plecat, deci și cantitatea, și valoarea revin exact.
 //
 // `idem` e cheia clicului: o a doua trimitere a ACELUIAȘI clic (dublu-clic, retrimitere) primește înapoi

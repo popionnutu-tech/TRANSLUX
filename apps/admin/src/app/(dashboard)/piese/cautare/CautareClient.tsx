@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { search } from './actions';
+import { search, searchOne } from './actions';
+import { searchParts } from '../search-parts';
+import SearchSelect from '@/components/SearchSelect';
 import type { SearchResult } from '@/lib/piese-search';
 
 type Category = { id: number; name: string; markup: number };
@@ -18,10 +20,28 @@ export default function CautareClient({ categories, warehouses, boundWarehouseId
   const [results, setResults] = useState<SearchResult[] | null>(null);
   const [expanded, setExpanded] = useState<number | null>(null);
   const [pending, start] = useTransition();
+  // Poziția aleasă din sugestii. Calea PRINCIPALĂ: scrii, apar sugestii, alegi una, vezi doar pe aceea.
+  const [partId, setPartId] = useState<number | ''>('');
+  const [partLabel, setPartLabel] = useState<string>('');
+  // Căutarea largă rămâne, dar pliată: e utilă când clientul nu știe denumirea exactă („ceva de la punte").
+  const [wideOpen, setWideOpen] = useState(false);
+
+  function pickPart(o: { id: number; label: string } | null) {
+    setPartId(o ? o.id : '');
+    setPartLabel(o?.label || '');
+    if (!o) { setResults(null); setExpanded(null); return; }
+    start(async () => {
+      const r = await searchOne(o.id, wh === '' ? null : Number(wh));
+      // Poziția aleasă se deschide DIRECT pe detalii: omul a spus deja exact ce vrea, nu are ce alege dintr-o listă.
+      setResults(r ? [r] : []);
+      setExpanded(r ? r.id : null);
+    });
+  }
 
   function run() {
     const query = q.trim();
     if (!query && !cat) { setResults(null); return; }
+    setPartId(''); setPartLabel(''); // căutarea largă anulează poziția fixată
     setExpanded(null);
     start(async () => {
       const r = await search(query, cat === '' ? null : Number(cat), wh === '' ? null : Number(wh));
@@ -33,22 +53,13 @@ export default function CautareClient({ categories, warehouses, boundWarehouseId
     <>
       <div className="card">
         <div className="row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <div className="form-row" style={{ flex: 2, minWidth: 240 }}>
-            <label>Denumire / articul / OEM / cod de bare (sau scanează)</label>
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); run(); } }}
-              placeholder="ex.: amortizator, filtru ulei, штрихкод, articul…"
-              autoFocus
-            />
-          </div>
-          <div className="form-row" style={{ flex: 1, minWidth: 180 }}>
-            <label>Categorie</label>
-            <select value={cat} onChange={(e) => setCat(e.target.value === '' ? '' : Number(e.target.value))}>
-              <option value="">— toate —</option>
-              {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+          <div className="form-row" style={{ flex: 2, minWidth: 260 }}>
+            <label>Piesa</label>
+            {/* Scrii → apar sugestii din nomenclator → alegi UNA. Înainte, căutarea era doar text liber: dacă
+                nu nimereai un cuvânt destul de rar, primeai tot ce e pe depozit și poziția dorită se pierdea. */}
+            <SearchSelect searchFn={searchParts} value={partId} selectedLabel={partLabel}
+              onSelect={pickPart} autoFocus
+              placeholder="— scrie denumirea, articulul, OEM sau scanează —" />
           </div>
           {warehouses.length > 1 ? (
             <div className="form-row" style={{ flex: 1, minWidth: 160 }}>
@@ -64,8 +75,37 @@ export default function CautareClient({ categories, warehouses, boundWarehouseId
               <input value={warehouses[0].name} disabled title="Contul tău e legat de acest depozit" />
             </div>
           ) : null}
-          <button className="btn btn-primary" onClick={run} disabled={pending}>{pending ? 'Caut…' : 'Caută'}</button>
         </div>
+
+        {/* Căutarea largă: pentru „nu știu cum se cheamă exact". Pliată, ca să nu concureze cu alegerea
+            poziției — comportamentul „arată tot ce e pe depozit" era exact reclamația. */}
+        <div style={{ marginTop: 8 }}>
+          <button type="button" className="btn" style={{ padding: '4px 8px' }}
+            onClick={() => setWideOpen((o) => !o)}>
+            {wideOpen ? '▾' : '▸'} Nu găsești? Caută larg
+          </button>
+        </div>
+        {wideOpen && (
+          <div className="row" style={{ alignItems: 'flex-end', flexWrap: 'wrap', marginTop: 8 }}>
+            <div className="form-row" style={{ flex: 2, minWidth: 240 }}>
+              <label>Denumire / articul / OEM / cod de bare</label>
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); run(); } }}
+                placeholder="ex.: amortizator, filtru ulei, штрихкод, articul…"
+              />
+            </div>
+            <div className="form-row" style={{ flex: 1, minWidth: 180 }}>
+              <label>Categorie</label>
+              <select value={cat} onChange={(e) => setCat(e.target.value === '' ? '' : Number(e.target.value))}>
+                <option value="">— toate —</option>
+                {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <button className="btn btn-primary" onClick={run} disabled={pending}>{pending ? 'Caut…' : 'Caută'}</button>
+          </div>
+        )}
       </div>
 
       {results != null && (

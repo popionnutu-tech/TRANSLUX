@@ -25,9 +25,13 @@ export type SearchResult = {
   lastSupplier: { name: string | null; unitCost: number | null; receivedAt: string | null } | null;
 };
 
+// `partId` = „vreau EXACT poziția asta", ales din sugestii. Cerut de Eduard: căutarea liberă se comporta
+// „ca la Google" — dacă nu alegeai nimic, îți dădea tot ce e pe depozit, iar poziția dorită nu se putea fixa.
+// Trece prin ACELAȘI asamblaj (stoc pe depozite, locație, furnizor, preț), ca detaliile să nu difere între
+// cele două căi de căutare.
 export async function searchAssistant(
   query: string,
-  opts: { categoryId?: number; limit?: number; showCost?: boolean; warehouseId?: number } = {},
+  opts: { categoryId?: number; limit?: number; showCost?: boolean; warehouseId?: number; partId?: number } = {},
 ): Promise<SearchResult[]> {
   const sb = getSupabase();
   const s = (query || '').trim();
@@ -40,7 +44,9 @@ export async function searchAssistant(
   // 1) Piesele care se potrivesc (din catalog: denumire / grup / articol / OEM / cod de bare / model).
   let q = sb.from('piese_catalog_rows').select('*').order('group_name').limit(limit);
   if (opts.categoryId) q = q.eq('group_id', opts.categoryId);
-  if (s) { const e = orVal(s); q = q.or(`name_long.ilike."%${e}%",name_ro.ilike."%${e}%",group_name.ilike."%${e}%",article_code.ilike."%${e}%",oem_code.ilike."%${e}%",barcode.ilike."%${e}%",model.ilike."%${e}%"`); }
+  // Poziția aleasă din sugestii bate căutarea textuală: dacă avem id, nu mai filtrăm după cuvinte.
+  if (opts.partId) q = q.eq('id', opts.partId);
+  else if (s) { const e = orVal(s); q = q.or(`name_long.ilike."%${e}%",name_ro.ilike."%${e}%",group_name.ilike."%${e}%",article_code.ilike."%${e}%",oem_code.ilike."%${e}%",barcode.ilike."%${e}%",model.ilike."%${e}%"`); }
   const { data: parts, error: partsErr } = await q;
   if (partsErr) { console.error('[piese-search] catalog query:', partsErr.message); return []; }
   const list = (parts || []) as any[];

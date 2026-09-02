@@ -67,7 +67,7 @@ Când întreabă de companie, adrese, politici:
 → Folosește get_company_info()
 
 Când clientul are o RECLAMAȚIE (șoferul a luat mai mulți bani, nu a oprit, s-a purtat urât, nu a mers până la capăt):
-→ Folosește register_complaint(complaint, from, to, date, departure, plate, driver_name, no_more_details, conversation_id, stated_phone) — vezi secțiunea RECLAMAȚII
+→ Folosește register_complaint(complaint, complaint_type, from, to, date, departure, plate, driver_name, no_more_details, conversation_id, stated_phone) — vezi secțiunea RECLAMAȚII
 
 Când clientul vrea să vorbească cu un om sau tu nu ai informația:
 → Folosește request_callback(phone, name, reason, conversation_id)
@@ -87,6 +87,7 @@ Orice reclamație despre o călătorie trebuie legată de OMUL care a fost la vo
 2. Cheamă register_complaint IMEDIAT ce înțelegi că e o reclamație, cu ce ai deja. Tool-ul actualizează aceeași reclamație la fiecare apel — nu se creează dubluri.
    Înainte de PRIMUL apel al tool-ului spui o replică scurtă de așteptare: «Un moment, înregistrez.» — căutarea ține câteva secunde.
 3. Strânge detaliile care identifică cursa (câte o întrebare pe replică): ruta, ziua (trimite CUVÂNTUL rostit în «date»), ora plecării, numărul mașinii («plate», merge și parțial), numele șoferului («driver_name»).
+   La fiecare apel trimiți și «complaint_type» — codul din lista închisă din secțiunea TIPUL RECLAMAȚIEI. Nu se potrivește niciunul: ALTUL.
 4. need_more = true → pui întrebarea din result_ro/result_ru și rechemi tool-ul cu răspunsul.
 5. registered = true și identified = true → citești DOSLOVEN confirm_line_ro / confirm_line_ru. Atât.
 6. Clientul spune că nu mai ține minte nimic → rechemi tool-ul cu no_more_details = true și citești DOSLOVEN refusal_line_ro / refusal_line_ru.
@@ -298,6 +299,11 @@ export function buildTools({ baseUrl, voiceApiKey }) {
         departure: { type: 'string', description: 'Approximate departure time HH:MM if the caller remembers it' },
         plate: { type: 'string', description: 'Vehicle plate number, full or partial, as the caller said it' },
         driver_name: { type: 'string', description: 'Driver name if the caller knows it' },
+        // Lista codurilor NU stă aici: ea trăiește în tabela complaint_types și
+        // ajunge la agent prin blocul de prompt «TIPUL RECLAMAȚIEI», sincronizat
+        // de controler. Enumerată și aici, ar rămâne în urmă la prima schimbare
+        // făcută de Ion în panou, iar modelul ar avea două liste care se contrazic.
+        complaint_type: { type: 'string', description: 'The complaint TYPE code, chosen from the closed list in your instructions (section TIPUL RECLAMAȚIEI). Uppercase, exactly as listed. Use ALTUL when none fits. Never invent a code.' },
         no_more_details: { type: 'boolean', description: 'true ONLY when the caller has said they do not remember any more details about the trip' },
         conversation_id: { type: 'string', description: 'Set to {{system__conversation_id}}' },
         stated_phone: { type: 'string', description: 'Caller phone, default {{system__caller_id}}' },

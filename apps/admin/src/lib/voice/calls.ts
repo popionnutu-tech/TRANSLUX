@@ -1,6 +1,8 @@
 import { getSupabase } from '../supabase';
 import { escapeHtml } from '../telegram-notify';
 import { normalizePhone } from './phone';
+import { etichetaOmului } from './complaints';
+import type { Culprit } from './complaint-types';
 
 export interface VoiceCallRow {
   conversation_id: string;
@@ -51,7 +53,11 @@ export async function hasCallbackRequest(conversationId: string): Promise<boolea
 }
 
 /** Reclamația acestui apel, așa cum apare în raportul din Telegram. */
-export interface ComplaintNote { identified: boolean; driver_name: string | null; plate: string | null }
+export interface ComplaintNote {
+  identified: boolean; driver_name: string | null; plate: string | null;
+  /** Ce s-a reclamat și cine răspunde de acel lucru (migr. 310). */
+  type_name?: string | null; culprit?: Culprit | null;
+}
 
 export function formatCallReport(row: VoiceCallRow, callbackAlreadyAlerted: boolean, complaint?: ComplaintNote | null): string {
   const min = Math.floor((row.duration_secs ?? 0) / 60);
@@ -68,9 +74,14 @@ export function formatCallReport(row: VoiceCallRow, callbackAlreadyAlerted: bool
   // Rezumatul EL povestește reclamația, dar nu spune pe cine cade vina — exact
   // lipsa semnalată de Ion pe apelul din 01.09. Linia asta o spune.
   if (complaint) {
+    // Tipul stă ÎNAINTEA omului, iar cuvântul «vinovat» se folosește doar când
+    // tipul chiar cade pe șofer: la starea mașinii sau la textul de pe site
+    // răspunde parcul, respectiv site-ul, iar omul de la volan e martor.
+    const tip = complaint.type_name ? ` [${escapeHtml(complaint.type_name)}]` : '';
+    const eticheta = etichetaOmului(complaint.culprit).toLowerCase();
     lines.push(complaint.identified
-      ? `⚠️ Reclamație înregistrată — vinovat: ${[complaint.driver_name, complaint.plate].filter((x): x is string => !!x).map(escapeHtml).join(' · ') || 'șofer fără nume'}`
-      : '⚠️ Reclamație înregistrată — vinovat NEIDENTIFICAT (clientul nu a dat mașina sau șoferul).');
+      ? `⚠️ Reclamație înregistrată${tip} — ${eticheta}: ${[complaint.driver_name, complaint.plate].filter((x): x is string => !!x).map(escapeHtml).join(' · ') || 'șofer fără nume'}`
+      : `⚠️ Reclamație înregistrată${tip} — șofer NEIDENTIFICAT (clientul nu a dat mașina sau șoferul).`);
   }
   return lines.join('\n');
 }

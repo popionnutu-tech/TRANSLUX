@@ -5,6 +5,7 @@ import { logUnknownLocalities } from '@/lib/voice-unknown';
 import { chisinauTodayIso } from '@/lib/chisinau-time';
 import { alertAdmins } from '@/lib/telegram-notify';
 import { saveComplaint, formatComplaintAlert, type ComplaintInput, type Evidence } from '@/lib/voice/complaints';
+import { resolveComplaintType, complaintTypeLabel } from '@/lib/voice/complaint-types';
 import { normalizePhone } from '@/lib/voice/phone';
 import {
   identifyTrip, normPlate, normName, uniqueDrivers, COMPLAINT_MAX_DAYS_BACK,
@@ -109,6 +110,12 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  // Tipul reclamației (migr. 310). Codul îl scrie modelul dintr-o listă închisă
+  // primită în prompt; serverul îl trece prin nomenclator. Necunoscut sau stins
+  // → ALTUL; baza mută → null, adică dosar fără tip. Tipul nu are voie NICIODATĂ
+  // să blocheze înregistrarea: reclamația e lucrul de păstrat, tipul e eticheta.
+  const tip = await resolveComplaintType(body.complaint_type);
+
   const today = chisinauTodayIso();
 
   // Scrierea rândului e aceeași peste tot; se schimbă doar ce știm despre cursă.
@@ -123,7 +130,13 @@ export async function POST(req: NextRequest) {
       // de model: mesajul din Telegram e singurul lucru pe care îl citește omul.
       const full = { ...input, complaint: res.complaint ?? input.complaint };
       // Telegram DUPĂ răspunsul către agent — nu ține vocea în loc.
-      if (res.shouldAlert) after(async () => { await alertAdmins(formatComplaintAlert(full, res.corrected)); });
+      // Eticheta o luăm după tipul RĂMAS în dosar, nu după cel trimis acum: un
+      // ALTUL de la al doilea apel nu suprascrie un tip concret, deci altfel
+      // alerta ar spune «Altceva» peste un dosar care zice «Starea mașinii».
+      if (res.shouldAlert) after(async () => {
+        const eticheta = await complaintTypeLabel(res.complaint_type);
+        await alertAdmins(formatComplaintAlert(full, res.corrected, eticheta, res.typeCorrected));
+      });
       return true;
     } catch (err) {
       console.error('register-complaint save failed:', err);
@@ -140,6 +153,7 @@ export async function POST(req: NextRequest) {
     driver_id: null, driver_name: driverNameRaw || null, plate: plate || null,
     identified: false,
     evidence,
+    complaint_type: tip?.code ?? null,
     final: noMoreDetails,
   });
 
@@ -228,6 +242,7 @@ export async function POST(req: NextRequest) {
           plate: c.plate,
           identified: true,
           evidence,
+          complaint_type: tip?.code ?? null,
           final: true,
         });
         return closed(ok, { registered: true, identified: true, date: outcome.tripDate, ...CONFIRM });

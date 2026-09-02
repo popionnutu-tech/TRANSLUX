@@ -14,6 +14,11 @@ import { AGENT_ID, RU_AGENT_ID, elGet, elPatchAgent, redactSecrets } from '@/lib
 import { drainPendingExams } from '@/lib/voice-exams';
 import { RO_UNITS, RO_TENS, RU_UNITS, RU_TENS } from '@/lib/time-spoken';
 import { RECORDING_NOTICE_RO, RECORDING_NOTICE_RU } from '@/lib/voice-greeting';
+import {
+  activeComplaintTypes, complaintTypesBlockRo, complaintTypesBlockRu,
+  spliceTypesBlock, TYPES_MARKER_RO, TYPES_MARKER_RU,
+} from '@/lib/voice/complaint-types';
+import { PROMPT_MARKERS_RO } from '@/lib/voice/prompt-markers';
 
 const INIT_WEBHOOK_URL = 'https://central-hub-md.vercel.app/api/voice/webhooks/init';
 const CUSTOM_LLM_URL = 'https://translux-voice-llm.vercel.app/api';
@@ -47,7 +52,10 @@ const FALLBACK_KEYWORDS = [
 // Позиция вставки кэш НЕ спасает: точка кэша одна, на весь system.
 // Markerele TREBUIE să fie unice: un marker care apare și în alt bloc face detectorul
 // orb la ștergerea blocului propriu (ORELE a fost mascat de titlul blocului ZIUA).
-const PROMPT_MARKERS = ['ORELE — DOSLOVEN', 'UNIVERSUL localităților', 'Doriți numărul lui?', 'A DOUA OARĂ LA RÂND', 'ZIUA — DOSLOVEN', 'e un CORIDOR', 'SFÂRȘIT NUME RUSEȘTI', 'APEL ÎNAPOI — NICIO PROMISIUNE', 'STAȚIA CHIȘINĂU — AUTOGARA TRANSLUX', 'STAȚIA BĂLȚI — PEROANELE', 'ORA SOSIRII — NU SE SPUNE', 'LUCRURI UITATE — ȘOFERUL IDENTIFICAT, OBIECTUL FĂRĂ NUME', 'RECLAMAȚIA — VINOVATUL IDENTIFICAT', 'CÂMPURILE _RU — DOAR ÎN REPLICI RUSEȘTI'];
+// Lista s-a mutat în voice/prompt-markers.ts, nemodificată: al doilea consumator
+// e panoul nomenclatorului de reclamații, care refuză o denumire ce ar conține un
+// marker — altfel un nume de tip putea orbi detectorul (security 02.09).
+const PROMPT_MARKERS = PROMPT_MARKERS_RO;
 const ORELE_BLOCK = `
 
 ORELE — DOSLOVEN DIN TOOL:
@@ -380,13 +388,57 @@ type Drift = { field: string; healed: boolean; msg?: string };
 // ar cere atunci un tool inexistent (review M6). Id-ul se caută o dată pe rulare;
 // lipsa TOOL-ului din workspace = drift nevindecat (crearea e treaba scriptului
 // add-find-past-trip-tool.mjs, nu a controlerului).
-async function workspaceToolId(name: string): Promise<string | null> {
+// `params` = numele câmpurilor pe care tool-ul VIU le acceptă. Nu e curiozitate:
+// un bloc de prompt care cere un câmp inexistent în schema tool-ului trimite
+// modelul să scrie ceva ce platforma aruncă tăcut (audit 02.09 — promptul se
+// livrează singur, schema tool-ului doar cu scriptul, deci promptul poate ajunge
+// primul). Vezi gardul de la blocul TIPURI.
+async function workspaceTool(name: string): Promise<{ id: string; params: string[] } | null> {
   try {
     const list = await elGet(`/v1/convai/tools?search=${name}&page_size=10`);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const hit = (((list as any).tools ?? []) as any[]).find((t) => t.tool_config?.name === name);
-    return hit?.id ?? null;
+    if (!hit?.id) return null;
+    const props = hit.tool_config?.api_schema?.request_body_schema?.properties ?? {};
+    return { id: hit.id, params: Object.keys(props) };
   } catch { return null; }
+}
+
+async function workspaceToolId(name: string): Promise<string | null> {
+  return (await workspaceTool(name))?.id ?? null;
+}
+
+// Lista tipurilor de reclamații în prompt (migr. 310, Ion 02.09).
+//
+// SINGURUL bloc sincronizat pe CONȚINUT, nu doar pe marker. Restul blocurilor
+// sunt proză de om, iar promptul viu poate fi mai bun decât fișierul — de aceea
+// acolo se livrează o dată și gata (vezi comentariul lung de la HEALABLE).
+// Lista asta e generată dintr-o tabelă pe care o ține Ion din panou: are un
+// singur stăpân. Rămasă în urmă, ar trimite modelul spre coduri inexistente și
+// fiecare reclamație ar cădea tăcut pe ALTUL — adică exact tipologia pierdută.
+// Scrisă de mână în dashboard, se întoarce la ce spune tabela. E intenționat.
+//
+// Trei porți de siguranță, în ordinea în care mușcă:
+//  1. baza mută sau listă goală → NU atingem promptul, raportăm drift nevindecat;
+//  2. marker prezent dar fără sfârșit (cineva a tăiat jumătate de bloc) → la fel:
+//     nu ghicim unde se termină, ca să nu mâncăm restul promptului;
+//  3. identic → niciun PATCH (rulează la fiecare câteva minute).
+async function syncTypesBlock(
+  prompt: string, lang: 'ro' | 'ru',
+): Promise<{ prompt: string; changed: boolean; failed: boolean }> {
+  let types;
+  try {
+    types = await activeComplaintTypes();
+  } catch (e) {
+    console.error('syncTypesBlock:', e);
+    return { prompt, changed: false, failed: true };
+  }
+  // Zero tipuri active = nomenclator golit din greșeală. Un bloc cu lista goală
+  // ar lăsa modelul fără nicio valoare validă, deci nu-l scriem.
+  if (types.length === 0) return { prompt, changed: false, failed: true };
+  return lang === 'ro'
+    ? spliceTypesBlock(prompt, complaintTypesBlockRo(types), TYPES_MARKER_RO)
+    : spliceTypesBlock(prompt, complaintTypesBlockRu(types), TYPES_MARKER_RU);
 }
 
 // Relegarea tool-urilor dispărute din tool_ids. PATCH separat de restul
@@ -415,7 +467,7 @@ async function healToolBindings(cfg: any, tools: { id: string | null; field: str
 // un throw pe al doilea ștergea tot ce apucase să vindece primul — jurnalul rămânea
 // fără liniile lecuirilor reale și fără drift-urile nevindecate deja găsite (review 31.08).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function checkAndHealConfig(cfg: any, drifts: Drift[], complaintToolExists: boolean): Promise<void> {
+async function checkAndHealConfig(cfg: any, drifts: Drift[], complaintToolExists: boolean, tipuriInTool: boolean): Promise<void> {
   const ps = cfg.platform_settings ?? {};
   const cc = cfg.conversation_config ?? {};
   // «Vindecat» se scrie în jurnal DOAR după ce PATCH-ul a reușit: altfel un PATCH
@@ -560,6 +612,15 @@ async function checkAndHealConfig(cfg: any, drifts: Drift[], complaintToolExists
       ccHealed.push({ field: h.field, healed: true });
     }
   }
+  // Lista tipurilor merge cu tool-ul, aceeași condiție ca blocul reclamațiilor:
+  // fără register_complaint în workspace, codurile n-au unde pleca.
+  // Markerul ei NU intră în PROMPT_MARKERS: acolo tot ce nu e în HEALABLE se
+  // raportează ca drift nevindecat, iar blocul ăsta se vindecă singur, aici.
+  if (tipuriInTool) {
+    const s = await syncTypesBlock(healedPrompt, 'ro');
+    if (s.failed) drifts.push({ field: 'prompt.TIPURI', healed: false });
+    else if (s.changed) { healedPrompt = s.prompt; ccHealed.push({ field: 'prompt.TIPURI', healed: true }); }
+  }
   // Merge, nu asignare: blocurile de mai jos (cascade, language_detection,
   // disable_first_message_interruptions) completează același ccPatch.agent — o
   // asignare aici ar pierde tăcut câmpurile lor la orice reordonare a blocurilor.
@@ -654,7 +715,7 @@ async function checkAndHealConfig(cfg: any, drifts: Drift[], complaintToolExists
 
 // Лечение RU-агента: ТОЛЬКО станция (см. комментарий у STATIA_BLOCK_RU).
 // Идемпотентно: надгробие — точное совпадение, блок — по маркеру.
-async function healRuStation(lostToolId: string | null, complaintToolId: string | null): Promise<Drift[]> {
+async function healRuStation(lostToolId: string | null, complaintToolId: string | null, tipuriInTool: boolean): Promise<Drift[]> {
   const cfg = await elGet(`/v1/convai/agents/${RU_AGENT_ID}`);
   // Legarea find_past_trip la RU — pe config-ul deja citit, fără GET suplimentar.
   const bindDrifts = await healToolBindings(cfg, [
@@ -686,9 +747,19 @@ async function healRuStation(lostToolId: string | null, complaintToolId: string 
   // Aceeași condiție ca pe RO: fără tool în workspace, blocul ar trimite agentul
   // spre o cale moartă și i-ar tăia singura cale rămasă (request_callback).
   if (complaintToolId && !healed.includes(RECLAMATII_MARKER_RU)) { healed += RECLAMATII_BLOCK_RU; vindecate.push('ru.prompt.RECLAMATII'); }
-  if (healed === prompt) return bindDrifts;
+  // Lista tipurilor, în rusă. Sincronizată pe conținut, ca la RO — vezi syncTypesBlock.
+  const nevindecate: Drift[] = [];
+  if (tipuriInTool) {
+    const s = await syncTypesBlock(healed, 'ru');
+    if (s.failed) nevindecate.push({ field: 'ru.prompt.TIPURI', healed: false });
+    else if (s.changed) { healed = s.prompt; vindecate.push('ru.prompt.TIPURI'); }
+  }
+  if (healed === prompt) return [...bindDrifts, ...nevindecate];
   await elPatchAgent({ conversation_config: { agent: { prompt: { prompt: healed } } } }, RU_AGENT_ID);
-  return [...bindDrifts, ...(vindecate.length ? vindecate : ['ru.prompt.STATIA']).map((f) => ({ field: f, healed: true }))];
+  return [
+    ...bindDrifts, ...nevindecate,
+    ...(vindecate.length ? vindecate : ['ru.prompt.STATIA']).map((f) => ({ field: f, healed: true })),
+  ];
 }
 
 // ---- Обратный парсер времён из речи агента (таблицы — из time-spoken) ----
@@ -852,18 +923,25 @@ export async function runVoiceController(): Promise<{ drifts: Drift[]; incidents
   await syncCanonKeywords();
 
   // GET-ul listei de tool-uri nu depinde de config — merge în paralel (perf LOW).
-  const [cfg, lostToolId, complaintToolId] = await Promise.all([
+  const [cfg, lostToolId, complaintTool] = await Promise.all([
     elGet(`/v1/convai/agents/${AGENT_ID}`),
     workspaceToolId('find_past_trip'),
-    workspaceToolId('register_complaint'),
+    workspaceTool('register_complaint'),
   ]);
+  const complaintToolId = complaintTool?.id ?? null;
+  // Lista tipurilor pleacă în prompt DOAR dacă tool-ul viu chiar primește câmpul.
+  // Promptul se vindecă singur, schema tool-ului se schimbă doar cu scriptul
+  // add-find-past-trip-tool.mjs: fără gardul ăsta, blocul ar ajunge primul și
+  // modelul ar trimite un câmp pe care platforma îl aruncă tăcut — toate
+  // reclamațiile ar cădea pe ALTUL, adică exact tipologia pierdută (audit 02.09).
+  const tipuriInTool = complaintTool?.params.includes('complaint_type') ?? false;
   // Lecuirea configului cade la fel de «moale» ca vecinele de mai jos: un singur
   // câmp refuzat de EL (422 pe o cheie depreciată, un read-only întors de spread)
   // arunca din tot prögonul — legarea tool-ului, stația RU, validatorul, examenele —
   // și NU lăsa nicio linie în jurnal, doar în logurile Vercel (security review 31.08).
   const drifts: Drift[] = [];
   try {
-    await checkAndHealConfig(cfg, drifts, complaintToolId !== null);
+    await checkAndHealConfig(cfg, drifts, complaintToolId !== null, tipuriInTool);
   } catch (e) {
     // Redactat și aici: logurile Vercel persistă și ele, iar corpul PATCH-ului
     // pentru platform_settings poartă cheia webhook-ului.
@@ -883,7 +961,7 @@ export async function runVoiceController(): Promise<{ drifts: Drift[]; incidents
 
   // RU-агент: точечное лечение станции. Падение RU-ветки не должно ронять прогон.
   try {
-    drifts.push(...await healRuStation(lostToolId, complaintToolId));
+    drifts.push(...await healRuStation(lostToolId, complaintToolId, tipuriInTool));
   } catch (e) {
     console.error('[voice-controller] ru-station:', e);
     // În jurnal, nu doar în log: altfel o cheie/ID căzut tace 48 de prognoane/zi.

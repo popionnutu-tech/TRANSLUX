@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Fals Supabase: ține UN rând și înregistrează patch-urile. Interesează două
 // invariante, ambele pe rândul deja existent — identificarea găsită nu se
 // pierde la un apel ulterior mai sărac, iar alerta pleacă o singură dată.
-type Row = { id: string; complaint: string | null; caller_phone: string | null; identified: boolean; alerted: boolean; driver_id?: string | null };
+type Row = { id: string; complaint: string | null; caller_phone: string | null; identified: boolean; alerted: boolean; driver_id?: string | null; complaint_type?: string | null };
 let existing: Row | null = null;
 let lastPatch: Record<string, unknown> | null = null;
 let inserted: Record<string, unknown> | null = null;
@@ -24,7 +24,7 @@ const base: ComplaintInput = {
   conversation_id: 'conv_1', caller_phone: '+37360000001', complaint: 'a luat 250 lei în loc de 68',
   trip_date: '2026-09-01', departure: '01:30', route: 'Bălți – Criva',
   driver_id: 'd-1', driver_name: 'Mihai Popescu', plate: 'ABC 123',
-  identified: true, evidence: 'plate', final: true,
+  identified: true, evidence: 'plate', complaint_type: 'TARIF_MARIT', final: true,
 };
 
 beforeEach(() => { existing = null; lastPatch = null; inserted = null; });
@@ -87,6 +87,47 @@ describe('saveComplaint', () => {
     expect(res.shouldAlert).toBe(false);
   });
 
+  it('pune tipul pe rândul care încă nu are niciunul', async () => {
+    existing = { id: 'r1', complaint: 'ceva', caller_phone: null, identified: false, alerted: false, complaint_type: null };
+    await saveComplaint({ ...base, complaint_type: 'ALTUL', identified: false, final: false });
+    expect(lastPatch).toMatchObject({ complaint_type: 'ALTUL' });
+  });
+
+  it('un ALTUL venit mai târziu NU șterge tipul concret deja pus', async () => {
+    existing = { id: 'r1', complaint: 'ceva', caller_phone: null, identified: false, alerted: false, complaint_type: 'FUMAT' };
+    await saveComplaint({ ...base, complaint_type: 'ALTUL', identified: false, final: false });
+    expect(lastPatch).not.toHaveProperty('complaint_type');
+  });
+
+  it('un tip concret îl corectează pe cel pus mai devreme', async () => {
+    existing = { id: 'r1', complaint: 'ceva', caller_phone: null, identified: false, alerted: false, complaint_type: 'ALTUL' };
+    await saveComplaint({ ...base, complaint_type: 'FUMAT', identified: false, final: false });
+    expect(lastPatch).toMatchObject({ complaint_type: 'FUMAT' });
+  });
+
+  it('tipul schimbat DUPĂ alertă cere o alertă nouă — el mută răspunderea', async () => {
+    // Alerta a spus «răspunde parcul auto». Dacă tipul devine FUMAT în tăcere,
+    // răspunderea trece pe omul de la volan și nimeni nu află (security 02.09).
+    existing = { id: 'r1', complaint: 'ceva', caller_phone: null, identified: true, alerted: true, driver_id: 'd-1', complaint_type: 'STARE_MASINA' };
+    const res = await saveComplaint({ ...base, complaint_type: 'FUMAT', final: false });
+    expect(res.shouldAlert).toBe(true);
+    expect(res.typeCorrected).toBe(true);
+    expect(res.complaint_type).toBe('FUMAT');
+  });
+
+  it('tipul nemodificat nu declanșează a doua alertă', async () => {
+    existing = { id: 'r1', complaint: 'ceva', caller_phone: null, identified: true, alerted: true, driver_id: 'd-1', complaint_type: 'FUMAT' };
+    const res = await saveComplaint({ ...base, complaint_type: 'FUMAT', final: false });
+    expect(res.shouldAlert).toBe(false);
+    expect(res.typeCorrected).toBe(false);
+  });
+
+  it('baza mută (tip null) nu atinge tipul din rând', async () => {
+    existing = { id: 'r1', complaint: 'ceva', caller_phone: null, identified: false, alerted: false, complaint_type: 'FUMAT' };
+    await saveComplaint({ ...base, complaint_type: null, identified: false, final: false });
+    expect(lastPatch).not.toHaveProperty('complaint_type');
+  });
+
   it('detaliul nou se adaugă la textul reclamației, nu îl înlocuiește', async () => {
     existing = { id: 'r1', complaint: 'a luat 250 lei', caller_phone: null, identified: false, alerted: false };
     await saveComplaint({ ...base, complaint: 'a spus că nu merge până la Criva', identified: false, final: false });
@@ -111,6 +152,20 @@ describe('formatComplaintAlert', () => {
     expect(text).toContain('&lt;b&gt;hack&lt;/b&gt;');
     expect(text).not.toContain('<b>hack');
   });
+  it('tipul și cine răspunde de el apar în alertă', () => {
+    const text = formatComplaintAlert(base, false, { name_ro: 'Starea mașinii (scaune, curățenie)', culprit: 'PARC' });
+    expect(text).toContain('Tip: Starea mașinii (scaune, curățenie) — răspunde parcul auto');
+    // Tipul nu cade pe om: rândul cu șoferul NU-l numește vinovat.
+    expect(text).toContain('La volan era: Mihai Popescu');
+    expect(text).not.toContain('Vinovat: Mihai');
+    // Fără tip rezolvat, alerta rămâne cea de până acum: nicio linie goală în plus.
+    expect(formatComplaintAlert(base)).not.toContain('Tip:');
+    expect(formatComplaintAlert(base)).toContain('Vinovat: Mihai Popescu');
+    // Tip al cărui vinovat E șoferul: cuvântul rămâne «Vinovat».
+    expect(formatComplaintAlert(base, false, { name_ro: 'Fumat la volan', culprit: 'SOFER' }))
+      .toContain('Vinovat: Mihai Popescu');
+  });
+
   it('titlul alertei corectate se distinge de prima', () => {
     expect(formatComplaintAlert(base, true)).toContain('VINOVAT CORECTAT');
     expect(formatComplaintAlert(base)).not.toContain('VINOVAT CORECTAT');

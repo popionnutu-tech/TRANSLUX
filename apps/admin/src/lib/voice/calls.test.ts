@@ -71,7 +71,16 @@ describe('formatCallReport', () => {
     expect(formatCallReport(row, false, { identified: true, driver_name: 'Mihai Popescu', plate: 'ABC 123' }))
       .toContain('vinovat: Mihai Popescu · ABC 123');
     expect(formatCallReport(row, false, { identified: false, driver_name: null, plate: null }))
-      .toContain('vinovat NEIDENTIFICAT');
+      .toContain('șofer NEIDENTIFICAT');
+    // Tipul cade pe parc, nu pe om: raportul NU-l numește vinovat pe cel care
+    // conducea, dar îl arată — el rămâne firul de cercetare (Ion, 02.09).
+    const parc = formatCallReport(row, false, {
+      identified: true, driver_name: 'Mihai Popescu', plate: 'ABC 123',
+      type_name: 'Starea mașinii (scaune, curățenie)', culprit: 'PARC',
+    });
+    expect(parc).toContain('[Starea mașinii (scaune, curățenie)]');
+    expect(parc).toContain('la volan era: Mihai Popescu · ABC 123');
+    expect(parc).not.toContain('vinovat:');
     // Apel fără reclamație — raportul rămâne cum era.
     expect(formatCallReport(row, false)).not.toContain('Reclamație înregistrată');
   });

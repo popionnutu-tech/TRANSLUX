@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { checkIssue, checkIssueMany, submitIssue, loadTodayIssue } from './actions';
+import { checkIssue, checkIssueMany, submitIssue, loadTodayIssue, loadVehicleIssues, submitReturn } from './actions';
 import { searchParts } from '../search-parts';
 import SearchSelect from '@/components/SearchSelect';
 
@@ -11,8 +11,13 @@ interface Opt { id: number; label: string }
 // piesă care era pe stoc. E și cheia React, ca `SearchSelect` să nu-și mute starea internă între rânduri.
 type Line = { uid: string; part_id: number | ''; label?: string; qty: number };
 type Alert = { stock: number; alert: { level: string; messages: string[] } | null };
-type TodayLine = { partId: number; name: string; article: string | null; qty: number; unitCost: number | null };
+type TodayLine = { lineId: number; partId: number; name: string; article: string | null; qty: number; unitCost: number | null };
 type Today = { id: number; docCount: number; positions: number; lines: TodayLine[]; truncated: boolean } | null;
+// O eliberare din care lăcătușul mai poate întoarce ceva. `available` = cât s-a dat minus cât s-a întors deja.
+type RetLine = {
+  lineId: number; docId: number; createdAt: string; partId: number; name: string; article: string | null;
+  issued: number; returned: number; available: number;
+};
 
 let seq = 0;
 const blank = (): Line => ({ uid: `l${++seq}`, part_id: '', qty: 1 });
@@ -34,6 +39,21 @@ export default function RashodClient({ warehouses, vehicles, mechanics, reasons 
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  // Returul de la lăcătuș: panou separat, deschis la cerere. Nu se încarcă odată cu ecranul fiindcă
+  // acțiunile de server se execută SECVENȚIAL — o listă cerută degeaba ar întârzia panoul zilei.
+  const [retOpen, setRetOpen] = useState(false);
+  const [ret, setRet] = useState<RetLine[] | null>(null);
+  const [retQty, setRetQty] = useState<Record<number, string>>({});
+  const [retBusy, setRetBusy] = useState<number | null>(null);
+  // Gardă SINCRONĂ: `setRetBusy` se aplică la următorul render, deci două clicuri în aceeași bătaie de
+  // ceas treceau amândouă de butonul dezactivat. Scrierea e ireversibilă — piesa s-ar întoarce de două ori.
+  const retLock = useRef(false);
+  // Cheia de idempotență trăiește per LINIE, nu per apel. Generată la fiecare clic, o retrimitere după
+  // timeout ar fi purtat o cheie nouă și ar fi returnat piesa a doua oară — exact ce cheia trebuia să
+  // prevină. Se șterge abia după un răspuns confirmat, deci reîncercarea aceleiași intenții e inofensivă.
+  const retKeys = useRef<Record<number, string>>({});
+  const [retErr, setRetErr] = useState<string | null>(null);
+  const [retDone, setRetDone] = useState<string | null>(null);
 
   const km = vehicles.find((v) => v.id === Number(vehicleId))?.km;
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
@@ -90,6 +110,84 @@ export default function RashodClient({ warehouses, vehicles, mechanics, reasons 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [warehouseId, vehicleId]);
 
+  // Lista eliberărilor din care se mai poate returna. Se cere DOAR când panoul e deschis, iar contorul
+  // apără de aceeași cursă ca la panoul zilei: un răspuns întârziat al mașinii precedente ar pune pe ecran
+  // `lineId`-uri străine, iar butonul „Returnează" ar trimite id-ul unei linii a altei mașini.
+  const retSeq = useRef(0);
+  const retInFlight = useRef(false);
+  const refreshRet = useCallback(async (wid: number, vid: number | '') => {
+    const my = ++retSeq.current;
+    if (!wid || !vid) { setRet(null); return; }
+    retInFlight.current = true;
+    try {
+      const r = await loadVehicleIssues(wid, Number(vid)) as RetLine[];
+      if (my === retSeq.current) { setRet(r); setRetErr(null); }
+    } catch {
+      if (my === retSeq.current) { setRet([]); setRetErr('Nu am putut încărca eliberările mașinii.'); }
+    } finally {
+      if (my === retSeq.current) retInFlight.current = false;
+    }
+  }, []);
+
+  // La schimbarea depozitului/mașinii lista afișată devine a altcuiva: se golește imediat.
+  useEffect(() => {
+    setRet(null); setRetQty({}); setRetDone(null); setRetErr(null);
+  }, [warehouseId, vehicleId]);
+
+  // Se cere doar când panoul e deschis ȘI nu avem deja lista. Închiderea panoului NU aruncă rezultatul:
+  // altfel un ciclu deschis/închis/deschis punea la coadă două acțiuni de server pentru aceleași date.
+  useEffect(() => {
+    // `ret === null` singur nu e destul: cât timp cererea e în zbor, `ret` e tot null, deci un ciclu
+    // deschide/închide/deschide punea la coadă o a doua acțiune de server pentru aceleași date.
+    if (retOpen && ret === null && !retInFlight.current && warehouseId && vehicleId) refreshRet(warehouseId, vehicleId);
+  }, [retOpen, ret, warehouseId, vehicleId, refreshRet]);
+
+  async function doReturn(l: RetLine) {
+    if (retLock.current) return;
+    const raw = retQty[l.lineId];
+    const q = raw === undefined || raw === '' ? l.available : Number(raw.replace(',', '.'));
+    if (!Number.isFinite(q) || q <= 0) { setRetErr('Cantitatea de returnat trebuie să fie mai mare ca 0.'); return; }
+    if (q > l.available) { setRetErr(`Din această poziție se mai pot returna cel mult ${l.available}.`); return; }
+    retLock.current = true;
+    setRetErr(null); setRetDone(null); setRetBusy(l.lineId);
+    try {
+      // `randomUUID` există doar în context securizat; în depozit se intră uneori pe IP simplu (HTTP).
+      const rnd = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+      const idem = (retKeys.current[l.lineId] ||= `${l.lineId}-${rnd}`);
+      await submitReturn({
+        warehouse_id: warehouseId, vehicle_id: Number(vehicleId), line_id: l.lineId, qty: q, idem,
+      });
+      setRetDone(`Returnat ${q} × ${l.name} în depozit. Stocul și costul mașinii s-au corectat.`);
+      setRetQty((m) => { const n = { ...m }; delete n[l.lineId]; return n; });
+      delete retKeys.current[l.lineId]; // intenția s-a încheiat; un retur următor pe aceeași linie e altul
+      // Ambele panouri se actualizează LOCAL, din ce tocmai am trimis. Trei acțiuni de server în lanț
+      // (retur + două reîncărcări) însemnau trei dus-întors în serie: în App Router acțiunile NU rulează
+      // în paralel, iar fiecare își plătește propria verificare de sesiune și de depozit.
+      setRet((rs) => (rs || [])
+        .map((x) => (x.lineId === l.lineId
+          ? { ...x, returned: x.returned + q, available: x.available - q } : x))
+        .filter((x) => x.available > 0.0000001));
+      // Panoul zilei se corectează DOAR dacă linia returnată e chiar una de azi. Potrivirea pe piesă era
+      // greșită: lista de retur acoperă 180 de zile, deci returul unei piese de acum trei săptămâni ștergea
+      // din ecran o eliberare de AZI care chiar avusese loc — iar panoul ăsta există tocmai ca să
+      // împiedice a doua eliberare a aceleiași piese în aceeași zi.
+      setToday((t) => {
+        if (!t || !t.lines.some((tl) => tl.lineId === l.lineId)) return t;
+        const lines = t.lines
+          .map((tl) => (tl.lineId === l.lineId ? { ...tl, qty: tl.qty - q } : tl))
+          .filter((tl) => tl.qty > 0.0000001);
+        return { ...t, lines, positions: lines.length };
+      });
+    } catch (e: any) {
+      setRetErr(e.message);
+      // Eșecul poate însemna că altcineva a returnat între timp: lista afișată e atunci depășită, iar
+      // reîncercarea ar da aceeași eroare la nesfârșit. Se invalidează, ca panoul să se reîncarce.
+      setRet(null);
+    } finally { retLock.current = false; setRetBusy(null); }
+  }
+
   async function submit() {
     setErr(null); setDone(null); setBusy(true);
     try {
@@ -110,6 +208,9 @@ export default function RashodClient({ warehouses, vehicles, mechanics, reasons 
       setLines([blank()]); setAlerts({});
       // Doar panoul zilei se reîncarcă: pagina server (depozite, mașini, mecanici) nu depinde de rashod.
       await refreshToday(warehouseId, vehicleId);
+      // Lista de retur conține acum o poziție în plus. Se golește, nu se recere: dacă panoul e închis,
+      // n-are rost o acțiune de server pentru un ecran pe care nimeni nu-l vede.
+      setRet(null);
     } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   }
 
@@ -206,6 +307,76 @@ export default function RashodClient({ warehouses, vehicles, mechanics, reasons 
       <button className="btn btn-primary btn-lg btn-block" disabled={busy || !filled.length} onClick={submit}>
         {busy ? 'Se înregistrează…' : today ? `Adaugă la rashodul de azi (${filled.length})` : `Înregistrează rashod (${filled.length})`}
       </button>
+
+      {/* Retur de la lăcătuș: piesa scoasă pentru o reparație se întoarce în depozit. Panou separat și
+          închis implicit — e operațiunea rară, iar ecranul rămâne al eliberării. Fără fereastră de zile:
+          piesa se poate întoarce și peste o săptămână, returul fiind un fapt nou, nu o corecție a zilei. */}
+      <div style={{ marginTop: 18, borderTop: '1px solid var(--border, #ddd)', paddingTop: 10 }}>
+        <button type="button" className="btn" disabled={!vehicleId}
+          onClick={() => setRetOpen((o) => !o)}
+          title={vehicleId ? 'Piesa nefolosită se întoarce în depozit' : 'Alege întâi mașina'}>
+          {retOpen ? '▾' : '▸'} Retur de la lăcătuș
+        </button>
+        {!vehicleId && <span className="muted" style={{ marginLeft: 8, fontSize: 12 }}>alege întâi mașina</span>}
+
+        {retOpen && vehicleId && (
+          <div style={{ marginTop: 10 }}>
+            {ret === null && <div className="muted">Se încarcă eliberările mașinii…</div>}
+            {ret !== null && !ret.length && (
+              <div className="muted">
+                Nu e nimic de returnat pe această mașină. (Se arată eliberările din ultimele 180 de zile
+                din care a mai rămas ceva neîntors.)
+              </div>
+            )}
+            {ret !== null && ret.length > 0 && (
+              <table>
+                <thead>
+                  <tr>
+                    <th>Piesă</th><th style={{ width: 90 }}>Data</th>
+                    <th className="num" style={{ width: 60 }}>Dat</th>
+                    <th className="num" style={{ width: 80 }}>Returnat</th>
+                    <th style={{ width: 110 }}>De returnat</th>
+                    <th style={{ width: 110 }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ret.map((l) => (
+                    <tr key={l.lineId} style={l.available <= 0 ? { opacity: 0.5 } : undefined}>
+                      <td>
+                        {l.name}{l.article && <span className="muted"> · {l.article}</span>}
+                        <span className="muted" style={{ fontSize: 11 }}> · doc #{l.docId}</span>
+                      </td>
+                      <td className="muted">{new Date(l.createdAt).toLocaleDateString('ro-RO')}</td>
+                      <td className="num">{l.issued}</td>
+                      <td className="num">{l.returned || '—'}</td>
+                      <td>
+                        <input type="number" min={0} max={l.available} step="any"
+                          disabled={l.available <= 0 || retBusy !== null}
+                          placeholder={String(l.available)}
+                          value={retQty[l.lineId] ?? ''}
+                          onChange={(e) => setRetQty((m) => ({ ...m, [l.lineId]: e.target.value }))} />
+                      </td>
+                      <td>
+                        <button type="button" className="btn"
+                          disabled={l.available <= 0 || retBusy !== null}
+                          onClick={() => doReturn(l)}>
+                          {retBusy === l.lineId ? 'Se returnează…' : 'Returnează'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>
+              Lăsat gol, se returnează tot ce a mai rămas din poziție. Piesa se întoarce în depozit la
+              costul cu care a plecat, iar costul mașinii scade cu exact aceeași sumă.
+            </div>
+            {retErr && <div className="alert danger" style={{ marginTop: 8 }}>{retErr}</div>}
+            {retDone && <div className="alert ok" style={{ marginTop: 8 }}>{retDone}</div>}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

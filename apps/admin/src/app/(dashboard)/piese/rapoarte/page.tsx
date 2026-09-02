@@ -9,7 +9,7 @@ import CollapsibleCard from './CollapsibleCard';
 const lei = (n: number) => Number(n || 0).toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' lei';
 const km = (n: number) => Number(n || 0).toLocaleString('ro-RO') + ' km';
 const dt = (s: string) => s ? new Date(s).toLocaleString('ro-RO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
-const MOV: Record<string, string> = { RECEIPT: 'Prihod', ISSUE: 'Rashod', TRANSFER_OUT: 'Mutare ieș.', TRANSFER_IN: 'Mutare intr.', SALE: 'Vânzare', ADJUST_PLUS: 'Inventar +', ADJUST_MINUS: 'Inventar −', RETURN_SUPPLIER: 'Retur', WRITE_OFF: 'Spisanie', DONOR_IN: 'Donor', STORNO: 'Storno' };
+const MOV: Record<string, string> = { RECEIPT: 'Prihod', ISSUE: 'Rashod', TRANSFER_OUT: 'Mutare ieș.', TRANSFER_IN: 'Mutare intr.', SALE: 'Vânzare', RETURN_ISSUE: 'Retur lăcătuș', ADJUST_PLUS: 'Inventar +', ADJUST_MINUS: 'Inventar −', RETURN_SUPPLIER: 'Retur', WRITE_OFF: 'Spisanie', DONOR_IN: 'Donor', STORNO: 'Storno' };
 
 export default async function RapoartePage() {
   const [costs, over, reli, low, dead, ledger] = await Promise.all([

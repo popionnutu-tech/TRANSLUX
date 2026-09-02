@@ -245,33 +245,75 @@ export const DOC_LINES_LIMIT = 200;
 // Poziţiile mai multor documente deodată. `loadTodayIssue` avea nevoie de ele pentru fiecare document
 // al zilei — iar istoricul are câte un document per piesă, deci o mașină cu 10 piese date azi însemna
 // 10 interogări simultane la fiecare schimbare de mașină în ecran.
-export async function docLinesMany(docIds: number[], withCost: boolean): Promise<{ rows: { partId: number; name: string; article: string | null; qty: number; unitCost: number | null }[]; truncated: boolean }> {
+export async function docLinesMany(docIds: number[], withCost: boolean): Promise<{ rows: { lineId: number; partId: number; name: string; article: string | null; qty: number; unitCost: number | null }[]; truncated: boolean }> {
   if (!docIds.length) return { rows: [], truncated: false };
   const cols = withCost
-    ? 'document_id, part_id, qty, unit_cost, part:piese_parts(name_ro, name_long, article_code)'
-    : 'document_id, part_id, qty, part:piese_parts(name_ro, name_long, article_code)';
+    ? 'id, document_id, part_id, qty, unit_cost, reverses_line_id, part:piese_parts(name_ro, name_long, article_code)'
+    : 'id, document_id, part_id, qty, reverses_line_id, part:piese_parts(name_ro, name_long, article_code)';
   const { data, error } = await getSupabase().from('piese_stock_document_lines')
     .select(cols).in('document_id', docIds)
     .order('document_id', { ascending: true }).order('id', { ascending: true })
-    .limit(DOC_LINES_LIMIT + 1);
+    // Se cere DUBLU plus unu, fiindcă liniile de retur intră în același plafon ca cele de eliberare, deși
+    // nu se afișează. Fără marja asta, câteva returi ar fi împins tăcut poziții reale în afara ecranului —
+    // exact panoul „ce e deja pe mașină" ar fi ascuns ce trebuia să arate.
+    .limit(DOC_LINES_LIMIT * 2 + 1);
   if (error) throw new Error('Nu am putut încărca poziţiile documentelor');
-  const all = ((data as any[]) || []).map((l) => ({
-    partId: Number(l.part_id),
-    name: (l.part?.name_ro || l.part?.name_long || `#${l.part_id}`) as string,
-    article: (l.part?.article_code as string) || null,
-    qty: Number(l.qty),
-    unitCost: withCost && l.unit_cost != null ? Number(l.unit_cost) : null,
-  }));
+  // Returul de la lăcătuș (migr. 299) stă pe același document, ca linie cu cantitate NEGATIVĂ. Aici
+  // interesează ce a RĂMAS pe mașină, deci returul se scade din linia pe care o corectează, în loc să
+  // apară ca rând separat cu −1: panoul răspunde la „ce e deja pe mașină", nu la „ce s-a mișcat".
+  // Jurnalul documentului (`docLines`) arată în continuare ambele linii — acolo urma contează.
+  const raw = (data as any[]) || [];
+  const returned = new Map<number, number>();
+  for (const l of raw) {
+    if (l.reverses_line_id == null) continue;
+    const k = Number(l.reverses_line_id);
+    returned.set(k, (returned.get(k) || 0) + Math.abs(Number(l.qty)));
+  }
+  const all = raw
+    .filter((l) => l.reverses_line_id == null)
+    .map((l) => {
+      const back = returned.get(Number(l.id)) || 0;
+      return {
+        // `lineId` pleacă spre ecran fiindcă panoul zilei trebuie să scadă returul din LINIA exactă.
+        // Potrivirea pe piesă nu e suficientă: aceeași piesă poate fi și pe o eliberare veche, iar
+        // returul ei ar fi șters din ecran o eliberare de azi care chiar a avut loc.
+        lineId: Number(l.id),
+        partId: Number(l.part_id),
+        name: (l.part?.name_ro || l.part?.name_long || `#${l.part_id}`) as string,
+        article: (l.part?.article_code as string) || null,
+        qty: Number(l.qty) - back,
+        unitCost: withCost && l.unit_cost != null ? Number(l.unit_cost) : null,
+        back,
+      };
+    })
+    // Se scot DOAR liniile returnate integral. Filtrul e pe `back`, nu pe semnul cantităţii: liniile de
+    // inventariere sunt negative prin natura lor (−3 = LIPSĂ) şi n-au voie să dispară din alţi apelanţi.
+    .filter((l) => l.back === 0 || l.qty > 0.0000001)
+    .map(({ back: _back, ...l }) => l);
   // Plafonul e pe TOTAL, nu per document: altfel 50 de documente × 200 de linii ar fi ajuns în ecran.
-  return { rows: all.slice(0, DOC_LINES_LIMIT), truncated: all.length > DOC_LINES_LIMIT };
+  // `truncated` are DOUĂ cauze, și amândouă trebuie raportate:
+  //  · au rămas mai multe linii afișabile decât încap;
+  //  · s-a atins plafonul de CITIRE, deci în bază pot exista linii pe care nu le-am văzut deloc.
+  // A doua lipsea, iar asta greșea în direcția periculoasă: un document cu multe returi consuma plafonul
+  // de citire, iar panoul „ce e deja pe mașină" raporta `truncated: false` — adică afirma că e complet
+  // tocmai când ascundea poziții.
+  const hitReadCap = raw.length > DOC_LINES_LIMIT * 2;
+  return { rows: all.slice(0, DOC_LINES_LIMIT), truncated: all.length > DOC_LINES_LIMIT || hitReadCap };
 }
 
-export async function docLines(docId: number, withCost: boolean): Promise<{ rows: { partId: number; name: string; article: string | null; qty: number; unitCost: number | null }[]; truncated: boolean }> {
+// Poziţiile UNUI document — jurnalul lui. Spre deosebire de `docLinesMany`, aici returul NU se netează:
+// jurnalul trebuie să arate şi ce s-a dat, şi ce s-a întors. De aceea linia de retur vine marcată
+// (`isReturn`), ca ecranul să n-o afişeze ca un „−1" fără explicaţie — semnul negativ înseamnă LIPSĂ la
+// inventariere, deci acelaşi simbol ar fi însemnat două lucruri diferite.
+export async function docLines(docId: number, withCost: boolean): Promise<{ rows: { partId: number; name: string; article: string | null; qty: number; unitCost: number | null; isReturn: boolean }[]; truncated: boolean }> {
   const cols = withCost
-    ? 'part_id, qty, unit_cost, part:piese_parts(name_ro, name_long, article_code)'
-    : 'part_id, qty, part:piese_parts(name_ro, name_long, article_code)';
+    ? 'part_id, qty, unit_cost, reverses_line_id, part:piese_parts(name_ro, name_long, article_code)'
+    : 'part_id, qty, reverses_line_id, part:piese_parts(name_ro, name_long, article_code)';
   const { data, error } = await getSupabase().from('piese_stock_document_lines')
-    .select(cols).eq('document_id', docId).limit(DOC_LINES_LIMIT + 1);
+    // Ordine explicită: linia de retur are întotdeauna `id` mai mare decât eliberarea pe care o corectează,
+    // deci la trunchiere se taie returul, nu invers. Fără `order`, ordinea nu e garantată și pe ecran putea
+    // apărea un retur fără eliberarea lui.
+    .select(cols).eq('document_id', docId).order('id', { ascending: true }).limit(DOC_LINES_LIMIT + 1);
   if (error) throw new Error('Nu am putut încărca poziţiile documentului');
   const all = ((data as any[]) || []).map((l) => ({
     partId: Number(l.part_id),
@@ -279,6 +321,7 @@ export async function docLines(docId: number, withCost: boolean): Promise<{ rows
     article: (l.part?.article_code as string) || null,
     qty: Number(l.qty),
     unitCost: withCost && l.unit_cost != null ? Number(l.unit_cost) : null,
+    isReturn: l.reverses_line_id != null,
   }));
   return { rows: all.slice(0, DOC_LINES_LIMIT), truncated: all.length > DOC_LINES_LIMIT };
 }
@@ -532,6 +575,51 @@ export async function appendIssue(docId: number, warehouseId: number, vehicleId:
   if (error) throw error; // codurile (NOT_TODAY/NOT_ISSUE/…) se mapează în actions
   const res = data as any;
   return { docId: res.doc_id as number, added: res.added as number, shortages: (res.shortages || []) as string[] };
+}
+
+// Retur de la lăcătuș: piesa scoasă pentru o reparație se întoarce în depozit (migr. 299).
+// Stinge straturile FIFO din care a plecat, deci și cantitatea, și valoarea revin exact.
+//
+// `idem` e cheia clicului: o a doua trimitere a ACELUIAȘI clic (dublu-clic, retrimitere) primește înapoi
+// rezultatul primei, nu returnează piesa a doua oară. Scrierea e ireversibilă — jurnalul e append-only.
+export async function returnIssue(
+  lineId: number, warehouseId: number, vehicleId: number, qty: number, idem: string,
+): Promise<{ docId: number; lineId: number; qty: number; value: number; replay: boolean }> {
+  const { data, error } = await getSupabase().rpc('piese_return_issue', {
+    p_line: lineId, p_wh: warehouseId, p_vehicle: vehicleId, p_qty: qty, p_user: null, p_idem: idem,
+  });
+  if (error) throw error; // codurile (TOO_MUCH/DOC_MISMATCH/…) se mapează în actions
+  const r = data as any;
+  return {
+    docId: Number(r.doc_id), lineId: Number(r.line_id), qty: Number(r.qty),
+    value: Number(r.value), replay: r.replay === true,
+  };
+}
+
+// Eliberările unei mașini din care se mai poate returna ceva.
+//
+// Netarea (cât s-a întors deja) și plafonul se calculează în SQL, nu aici: liniile de retur stau pe ACELAȘI
+// document ca eliberarea, deci intrau în același plafon de rânduri — iar dacă plafonul tăia tocmai linia de
+// retur, ecranul oferea spre returnare o cantitate deja returnată, și omul primea „se returnează mai mult
+// decât s-a eliberat" fără nicio explicație. RPC-ul aplică plafonul pe liniile de ELIBERARE, după netare.
+//
+// Fereastra (180 de zile) e a RPC-ului, aceeași în motor și pe ecran: ecranul nu are voie să ofere ce
+// motorul refuză.
+export async function vehicleIssueLines(warehouseId: number, vehicleId: number): Promise<{
+  lineId: number; docId: number; createdAt: string; partId: number; name: string; article: string | null;
+  issued: number; returned: number; available: number;
+}[]> {
+  const { data, error } = await getSupabase().rpc('piese_vehicle_issue_lines', {
+    p_wh: warehouseId, p_vehicle: vehicleId, p_limit: 200,
+  });
+  if (error) throw new Error('Nu am putut încărca eliberările mașinii');
+  return ((data as any[]) || []).map((r) => ({
+    lineId: Number(r.line_id), docId: Number(r.doc_id), createdAt: r.created_at as string,
+    partId: Number(r.part_id),
+    name: (r.name || `#${r.part_id}`) as string,
+    article: (r.article as string) || null,
+    issued: Number(r.issued), returned: Number(r.returned), available: Number(r.available),
+  }));
 }
 
 // Rashodurile DE AZI ale unei mașini într-un depozit.

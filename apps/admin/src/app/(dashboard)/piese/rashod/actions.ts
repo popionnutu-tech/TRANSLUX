@@ -2,7 +2,8 @@
 
 import { verifySession, requireRole } from '@/lib/auth';
 import { assertWarehouseAllowed } from '@/lib/piese-access';
-import { issueAlert, createIssue, appendIssue, todayIssueDocs, docLinesMany, docWarehouses, type IssueLine } from '@/lib/piese';
+import { issueAlert, createIssue, appendIssue, todayIssueDocs, docLinesMany, docWarehouses,
+  returnIssue, vehicleIssueLines, type IssueLine } from '@/lib/piese';
 import { canSeeCost } from '@/lib/piese-access';
 import { auditWrite } from '@/lib/audit';
 
@@ -19,7 +20,19 @@ const RPC_ERR: Record<string, string> = {
   NO_LINES: 'Adaugă cel puțin o piesă.',
   BAD_PART: 'O piesă selectată nu există în catalog.',
   BAD_QTY: 'Cantitatea trebuie să fie mai mare ca 0.',
+  NO_MOVEMENT: 'Poziția nu are mișcare de stoc — nu se poate returna.',
+  TOO_MUCH: 'Se returnează mai mult decât s-a eliberat.',
+  TOO_OLD: 'Eliberarea e mai veche de 180 de zile — returul se face prin inventariere.',
+  FIFO_MISMATCH: 'Nu am putut reconstitui straturile de cost. Anunță administratorul.',
 };
+
+// Codurile care descriu EXISTENȚA sau APARTENENȚA unei linii primesc toate același mesaj. Mesaje distincte
+// ar fi răspuns, pentru un `line_id` ghicit, dacă linia există, dacă e a altui depozit și în ce stare e
+// documentul — adică ar fi transformat butonul într-un instrument de cartografiat depozitele altora.
+// Codurile rămân distincte în bază, pentru log-ul serverului. `NOT_ISSUE`/`NOT_CONFIRMED` sunt ridicate și
+// de fluxul de ADĂUGARE (migr. 294), care are alt public — de aceea maparea e locală returului, nu globală.
+const RETURN_OPAQUE = new Set(['NO_LINE', 'IS_RETURN', 'NOT_ISSUE', 'NOT_CONFIRMED', 'DOC_MISMATCH']);
+const RETURN_OPAQUE_MSG = 'Poziția nu mai e disponibilă pentru retur. Reîncarcă lista.';
 
 export async function checkIssue(warehouseId: number, vehicleId: number | null, partId: number) {
   const session = requireRole(await verifySession(), ...ISSUE_ROLES);
@@ -126,4 +139,67 @@ export async function submitIssue(payload: {
     after: { pozitii: lines.length },
   });
   return { ok: true, docId: r.docId, appended: false, shortages: r.shortages };
+}
+
+// Eliberările mașinii din care se mai poate returna ceva.
+export async function loadVehicleIssues(warehouseId: number, vehicleId: number) {
+  const session = requireRole(await verifySession(), ...ISSUE_ROLES);
+  await assertWarehouseAllowed(session, warehouseId);
+  return vehicleIssueLines(Number(warehouseId), Number(vehicleId));
+}
+
+/**
+ * Retur de la lăcătuș. Piesa se întoarce în depozit, stingând straturile FIFO din care a plecat — deci și
+ * cantitatea, și valoarea revin exact, fără să inventăm un strat nou la costul curent.
+ *
+ * `line_id` vine de la client, deci se verifică față de DOCUMENT (ca la adăugare): RPC-ul confruntă
+ * depozitul ȘI mașina documentului cu cele pentru care apelantul a trecut de gardă. Fără verificarea
+ * mașinii, un `line_id` rămas pe ecran ar fi putut corecta rashodul altei mașini din același depozit.
+ *
+ * `idem` e cheia clicului: dublu-clicul sau o retrimitere nu returnează piesa a doua oară.
+ */
+export async function submitReturn(payload: {
+  warehouse_id: number; vehicle_id: number; line_id: number; qty: number; idem: string;
+}) {
+  const session = requireRole(await verifySession(), ...ISSUE_ROLES);
+  await assertWarehouseAllowed(session, payload.warehouse_id);
+  const qty = Number(payload.qty);
+  if (!Number.isFinite(qty) || qty <= 0) throw new Error(RPC_ERR.BAD_QTY);
+  if (!Number.isInteger(Number(payload.line_id))) throw new Error(RETURN_OPAQUE_MSG);
+  // Mașina se validează ca ÎNTREG POZITIV, nu doar se convertește: `Number(undefined)` dă NaN, care pleacă
+  // spre bază ca `null`, iar `NULL IS DISTINCT FROM NULL` e fals — deci garda de mașină ar fi dispărut
+  // exact pe rashodurile fără mașină (casare, consum general). Baza respinge acum și ea NULL-ul; asta e
+  // al doilea strat, ca la `doc_id` după IDOR-ul din migr. 295.
+  const vehicleId = Number(payload.vehicle_id);
+  if (!Number.isInteger(vehicleId) || vehicleId <= 0) throw new Error(RETURN_OPAQUE_MSG);
+  const idem = String(payload.idem || '').slice(0, 64);
+  if (!idem) throw new Error('Cerere invalidă.');
+
+  let r: Awaited<ReturnType<typeof returnIssue>>;
+  try {
+    r = await returnIssue(Number(payload.line_id), Number(payload.warehouse_id), vehicleId, qty, idem);
+  } catch (e: any) {
+    const code = (e?.message || '').trim();
+    if (RETURN_OPAQUE.has(code)) throw new Error(RETURN_OPAQUE_MSG);
+    throw new Error(RPC_ERR[code] || 'Nu am putut înregistra returul. Reîncearcă.');
+  }
+  // ÎN AFARA try-ului: stocul s-a mișcat deja. Un eșec al urmei nu are voie să raporteze „reîncearcă",
+  // fiindcă reîncercarea ar returna piesa a doua oară.
+  // Reluarea aceluiași clic nu se consemnează: n-a fost un fapt nou, iar în urmă ar fi arătat ca două returi.
+  if (!r.replay) {
+    await auditWrite({
+      adminId: session.id, action: 'RETURN_ISSUE', entity: 'issue', entityId: r.docId,
+      after: {
+        retur_din_pozitia: Number(payload.line_id), cantitate: r.qty,
+        masina_id: vehicleId, valoare: r.value,
+      },
+    });
+  }
+  // Costul NU pleacă spre client dacă rolul n-are voie să-l vadă: un vânzător putea elibera o piesă și o
+  // returna imediat — efect zero pe stoc — iar răspunsul îi spunea prețul de achiziție. Repetat pe catalog,
+  // asta e lista de prețuri a furnizorilor. Ecranul nu afișează valoarea, dar ea circula pe rețea.
+  return {
+    ok: true, docId: r.docId, lineId: r.lineId, qty: r.qty, replay: r.replay,
+    value: canSeeCost(session.role) ? r.value : null,
+  };
 }

@@ -25,3 +25,6 @@ graphify-out/
 .graphifyignore
 *.tsbuildinfo
 .superpowers/
+
+# Documente de la client (cerințe, răspunsuri) — nu intră în repo
+*.docx

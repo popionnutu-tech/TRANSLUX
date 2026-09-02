@@ -4,7 +4,7 @@ import { Fragment, useState } from 'react';
 import { loadDocLines } from './doc-actions';
 
 type Doc = { id: number; doc_type: string; status: string; created_at: string; warehouse_name: string | null; to_warehouse_name: string | null; line_count: number };
-type DLine = { partId: number; name: string; article: string | null; qty: number; unitCost: number | null };
+type DLine = { partId: number; name: string; article: string | null; qty: number; unitCost: number | null; isReturn?: boolean };
 type DBody = { rows: DLine[]; truncated: boolean };
 
 const DOC: Record<string, string> = { RECEIPT: 'Prihod', ISSUE: 'Rashod', TRANSFER: 'Mutare', SALE: 'Vânzare', INVENTORY: 'Inventariere', RETURN_SUPPLIER: 'Retur', WRITE_OFF: 'Spisanie', DONOR: 'Donor' };
@@ -62,7 +62,12 @@ export default function RecentDocsCard({ docs, showCost }: { docs: Doc[]; showCo
                                 <tbody>
                                   {(lines[d.id] as DBody).rows.map((l, i) => (
                                     <tr key={`${l.partId}-${i}`}>
-                                      <td>{l.name}{l.article && <span className="muted"> · {l.article}</span>}</td>
+                                      <td>
+                                        {l.name}{l.article && <span className="muted"> · {l.article}</span>}
+                                        {/* Fără eticheta asta, returul ar fi arătat ca un „−1" gol, iar minusul
+                                            înseamnă deja LIPSĂ la inventariere — două sensuri, același semn. */}
+                                        {l.isReturn && <span className="badge info" style={{ marginLeft: 6 }}>retur de la lăcătuș</span>}
+                                      </td>
                                       {/* Semnul se PĂSTREAZĂ: la inventariere, −3 înseamnă LIPSĂ, nu „trei bucăți". */}
                                       <td className="num" style={l.qty < 0 ? { color: 'var(--danger, #c0392b)' } : undefined}>
                                         {l.qty > 0 && d.doc_type === 'INVENTORY' ? '+' : ''}{l.qty}
@@ -74,7 +79,10 @@ export default function RecentDocsCard({ docs, showCost }: { docs: Doc[]; showCo
                               </table>
                               {(lines[d.id] as DBody).truncated && (
                                 <p className="muted" style={{ marginTop: 6, marginBottom: 0, fontSize: 12 }}>
-                                  Se afișează primele {(lines[d.id] as DBody).rows.length} poziţii din {d.line_count}.
+                                  {/* Se numără doar poziţiile de eliberare, ca `line_count` din listă: liniile de
+                                      retur se afişează, dar nu sunt poziţii în plus pe document — altfel scria
+                                      „primele 200 din 150", ceea ce e vizibil fals. */}
+                                  Se afișează primele {(lines[d.id] as DBody).rows.filter((l) => !l.isReturn).length} poziţii din {d.line_count}.
                                 </p>
                               )}
                             </>

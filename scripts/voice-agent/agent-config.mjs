@@ -308,15 +308,12 @@ Orice altceva (de exemplu «la weekend», «через неделю», un an inv
         departure: { type: 'string', description: 'Approximate departure time HH:MM if the caller remembers it' },
         plate: { type: 'string', description: 'Vehicle plate number, full or partial, as the caller said it' },
         driver_name: { type: 'string', description: 'Driver name if the caller knows it' },
-        // Fără el, obiectul uitat nu se poate lega de un apel: rândul din
-        // voice_lost_items s-ar dubla la fiecare chemare a tool-ului, iar
-        // mesajul din grupa șoferilor ar pleca de trei ori pentru același obiect.
-        conversation_id: { type: 'string', description: 'Set to {{system__conversation_id}}' },
+        // dynamic_variable, NU description cu {{...}}: EL nu substituie
+        // variabilele în valorile scrise de MODEL — literalul ajungea pe server
+        // și validarea îl respingea, deci niciun lucru uitat nu se scria
+        // (testele lui Ion, 02.09). Injectat de platformă, nu cerut modelului.
+        conversation_id: { type: 'string', dynamic_variable: 'system__conversation_id' },
       },
-      // Obligatoriu, ca la register_complaint: fără el rândul lucrului uitat nu
-      // se poate lega de apel, iar modelul are voie să omită orice parametru
-      // care nu e cerut — tăcut, ca la orice altă lipsă.
-      required: ['conversation_id'],
     }),
     webhookTool({
       name: 'register_complaint',
@@ -336,20 +333,25 @@ Orice altceva (de exemplu «la weekend», «через неделю», un an inv
         // făcută de Ion în panou, iar modelul ar avea două liste care se contrazic.
         complaint_type: { type: 'string', description: 'The complaint TYPE code, chosen from the closed list in your instructions (section TIPUL RECLAMAȚIEI). Uppercase, exactly as listed. Use ALTUL when none fits. Never invent a code.' },
         no_more_details: { type: 'boolean', description: 'true ONLY when the caller has said they do not remember any more details about the trip' },
-        conversation_id: { type: 'string', description: 'Set to {{system__conversation_id}}' },
-        stated_phone: { type: 'string', description: 'Caller phone, default {{system__caller_id}}' },
+        // dynamic_variable, NU description cu {{...}}: modelul trimitea
+        // literalul, serverul îl respingea și fiecare apel al tool-ului se
+        // învârtea în «recheamă cu conversation_id» (testele lui Ion, 02.09).
+        conversation_id: { type: 'string', dynamic_variable: 'system__conversation_id' },
+        caller_phone: { type: 'string', dynamic_variable: 'system__caller_id' },
+        stated_phone: { type: 'string', description: 'ONLY if the caller dictates a DIFFERENT phone number than the one they call from' },
       },
-      required: ['complaint', 'conversation_id'],
+      required: ['complaint'],
     }),
     webhookTool({
       name: 'request_callback',
       description: 'Register a callback request when the caller wants a human operator or the agent lacks information. NOT for complaints about a trip — those go to register_complaint, which identifies the responsible driver.',
       url: `${b}/request-callback`, voiceApiKey,
       params: {
-        phone: { type: 'string', description: 'Caller phone, default {{system__caller_id}}' },
+        phone: { type: 'string', description: 'ONLY if the caller dictates a DIFFERENT phone number than the one they call from' },
+        caller_phone: { type: 'string', dynamic_variable: 'system__caller_id' },
         name: { type: 'string', description: 'Caller name if given' },
         reason: { type: 'string', description: 'Short reason in Romanian' },
-        conversation_id: { type: 'string', description: 'Set to {{system__conversation_id}}' },
+        conversation_id: { type: 'string', dynamic_variable: 'system__conversation_id' },
       },
       required: ['reason'],
     }),

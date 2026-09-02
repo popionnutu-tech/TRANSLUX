@@ -67,7 +67,35 @@ const RU_MARKERS = /(^|[^а-яё])(и|не|да|нет|что|сколько|с�
 // „nu", „ce", „de", „pe", „cu" lipsesc dinadins, altfel româna adevărată ar fi
 // respinsă. Ce rămâne acoperă oricum frazele reale.
 const EN_VETO = /(^|[^a-zăâîșțşţ])(you|your|the|is|do|does|have|has|what|how|much|many|can|could|at|for|near|right|now|hello|hi|please|thank|thanks|want|need|there|my|we|it|and|open|bus|trip|ticket|driver|luggage|parcel|seat|pay|by|looking|price|prices|tell|me|about|working|hours|available)([^a-zăâîșțşţ]|$)/i;
-const UA_VETO = /[іїєґ]|(^|[^а-яё])(дякую|будь ласка|скільки|немає|місце)([^а-яё]|$)/i;
+// Semnele ucrainene au O SINGURĂ sursă: vetoul apelantului (aici), gardul TTS
+// al agentului (openai-compat.violatesLanguagePolicy, Ion 02.09) și, prin
+// langOfUtterance, shouldStripRu (a treia gură — costul erorii lui e invers:
+// o replică rusească respinsă de veto NU trebuie să ducă la tăierea câmpurilor
+// _ru; shouldStripRu se apără singur, vezi acolo) le citesc de aici.
+// Două liste au divergat deja o dată (review 02.09). Literele і ї є ґ nu există nici
+// în română, nici în rusă. Cuvintele — FĂRĂ omografe rusești: «зараз» (rus. colocvial),
+// «будь», «ласка», «рейс», «коли», «ви» NU intră. «будь ласка» e o expresie de două
+// cuvinte — gardul o caută ca frază, nu ca token. «хочете» a fost scos (review 02.09):
+// e și rusă colocvială, iar vetoul de aici trage de la UN cuvânt. «чекайте» e din
+// producție: modelul a spus «Чекайте, я вас соединю» — ucrainism fără literă і.
+export const UA_LETTER_RE = /[іїєґ]/i;
+export const UA_WORDS: readonly string[] = [
+  "дякую", "будь ласка", "скільки", "немає", "місце", "місця",
+  "що", "вибачте", "розклад", "квиток", "квитки", "куди", "також",
+  "допомогти", "добрий", "гарного", "чим", "можу", "чекайте", "зачекайте",
+  "хвилинку", "побачення", "розумію", "скажіть", "підкажіть",
+];
+const UA_VETO = new RegExp(`${UA_LETTER_RE.source}|(^|[^а-яёіїєґ])(${UA_WORDS.join("|")})([^а-яёіїєґ]|$)`, "i");
+
+/**
+ * Replică chirilică CU cuvinte de serviciu rusești, respinsă totuși de vetoul
+ * ucrainean. Pentru shouldStripRu: omul nu vorbește română, deci căutarea NU sare
+ * peste ea spre o replică românească mai veche (review 02.09). «Алло»/«Да» fără
+ * marker rusesc NU intră aici — peste ele se sare ca înainte.
+ */
+export function vetoedRussian(text: string): boolean {
+  return langOfText(text) === "ru" && RU_MARKERS.test(text) && UA_VETO.test(text);
+}
 
 /**
  * Limba unei replici a APELANTULUI. Mai strictă decât `langOfText`: cere un

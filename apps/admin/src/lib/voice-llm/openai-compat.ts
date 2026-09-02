@@ -3,7 +3,7 @@
 // Funcții pure, fără I/O — testabile izolat.
 
 import type Anthropic from "@anthropic-ai/sdk";
-import { langOfUtterance } from "./language";
+import { langOfUtterance, vetoedRussian } from "./language";
 
 // ---- Formatul OpenAI primit de la ElevenLabs ----
 
@@ -298,7 +298,13 @@ function shouldStripRu(messages: OpenAIMessage[]): boolean {
     for (let i = messages.length - 1; i >= 0; i--) {
       const m = messages[i];
       if (m.role !== "user") continue;
-      const lang = langOfUtterance(contentToText(m.content));
+      const text = contentToText(m.content);
+      // Replică rusească (cu markeri) respinsă de vetoul ucrainean (UA_WORDS a
+      // crescut la 25, review 02.09): omul NU vorbește română, deci nu sărim peste
+      // ea spre o replică românească mai veche — aia ar tăia câmpurile _ru unui
+      // client rus. «Алло»/«Да» fără marker rămân ambigue și se sar ca înainte.
+      if (vetoedRussian(text)) return false;
+      const lang = langOfUtterance(text);
       if (lang) return lang === "ro";
     }
   } catch { /* fără dovadă = fără tăiere */ }

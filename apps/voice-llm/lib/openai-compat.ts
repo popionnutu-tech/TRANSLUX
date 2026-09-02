@@ -3,7 +3,7 @@
 // Funcții pure, fără I/O — testabile izolat.
 
 import type Anthropic from "@anthropic-ai/sdk";
-import { langOfUtterance } from "./language";
+import { langOfUtterance, vetoedRussian, UA_LETTER_RE, UA_WORDS } from "./language";
 
 // ---- Formatul OpenAI primit de la ElevenLabs ----
 
@@ -331,6 +331,49 @@ const RO_EVIDENCE = new Set([
 ]);
 const RO_DIACRITIC_RE = /[ăâîșțşţĂÂÎȘȚŞŢ]/;
 
+// Украинский (Ion, 02.09, conv_0601m1gtmb3ker5v063fpz51vgqp): на одно слово
+// «Палата?» модель ответила «Що вас цікавить — курси, ціни…». Общее правило
+// «>2 чужих букв» его не взяло: украинский делит с русским почти весь алфавит.
+// Два класса улик с РАЗНЫМИ порогами (ревью 02.09):
+//  • СИЛЬНАЯ — слово из UA_WORDS или однобуквенное слово «і»/«є»: ни в румынском,
+//    ни в русском не встречается → нарушение с ПЕРВОЙ («Добрий день!», «Дякую»).
+//  • СЛАБАЯ — прочее слово с буквой і/ї/є/ґ: нужна вторая улика. За 90 дней в
+//    voice_calls единственная такая буква в честной русской реплике — опечатка
+//    модели «Кобироі Олег» (аудит 02.09); правило «одна буква» резало бы ответ.
+// Признаки — из language.ts, общие с вето апеллянта: второй список уже расходился.
+const UA_WORD_SET = new Set(UA_WORDS);
+const UA_PHRASES = UA_WORDS.filter((w) => w.includes(" "));
+
+/** Украинские улики: true при сильной улике или ≥2 разных слабых (см. выше).
+ *  Текст заканчивается на границе слова: недописанный хвост стрима TtsGate держит
+ *  в буфере (аудит 02.09: «Чим» от «Чимишлия» совпадал со словарём). Исключения —
+ *  конец стрима (force) и текст перед «<»: там слово уже полное или дальше XML. */
+function ukrainianDetected(text: string): boolean {
+  const low = text.toLowerCase();
+  for (const ph of UA_PHRASES) if (low.includes(ph)) return true;
+  const weak = new Set<string>();
+  for (const w of low.match(/[а-яёіїєґ]+/g) ?? []) {
+    if (UA_WORD_SET.has(w)) return true;
+    if (!UA_LETTER_RE.test(w)) continue;
+    if (w.length === 1) return true;
+    weak.add(w);
+    if (weak.size >= 2) return true;
+  }
+  return false;
+}
+
+// Хвост накопленного текста, который ещё может быть НЕДОПИСАННЫМ словом. Пока не
+// пришла граница (пробел, знак), он не озвучивается и не проверяется: русский
+// префикс мог совпасть с украинской уликой, а украинское слово — уйти в TTS по
+// буквам до того, как гейт его увидел (ревью 02.09). Слов длиннее 40 букв нет —
+// такой «хвост» отдаём как есть, чтобы буфер не рос.
+const HOLD_MAX = 40;
+function splitTrailingWord(text: string): { emit: string; keep: string } {
+  const m = /[\p{L}\p{N}'’-]+$/u.exec(text);
+  if (!m || m[0].length > HOLD_MAX) return { emit: text, keep: "" };
+  return { emit: text.slice(0, m.index), keep: m[0] };
+}
+
 /**
  * Порог правила «латиница без румынских улик» — единый 12: улика в честной
  * румынской реплике могла прийти поздно (стрим — «Soferul va suna cand...»),
@@ -341,11 +384,12 @@ const RO_DIACRITIC_RE = /[ăâîșțşţĂÂÎȘȚŞŢ]/;
 const DOMINANCE_MIN_WORDS = 12;
 
 export function violatesLanguagePolicy(text: string): boolean {
+  if (ukrainianDetected(text)) return true;
   let foreign = 0;
   let cyr = 0;
   let lat = 0;
   for (const ch of text) {
-    if (/[а-яёА-ЯЁ]/.test(ch)) cyr += 1;
+    if (/[а-яёіїєґА-ЯЁІЇЄҐ]/.test(ch)) cyr += 1;
     else if (/[a-zA-ZăâîșțĂÂÎȘȚşţŞŢ]/.test(ch)) lat += 1;
     else if (/\p{L}/u.test(ch) && !ALLOWED_LETTER_RE.test(ch)) {
       foreign += 1;
@@ -415,6 +459,8 @@ export class TtsGate {
   // из него tool-вызов («Un moment. <invoke…» — аудит 28.08, H4: без этого
   // переключение языка терялось, клиент слышал обрывок и мёртвый эфир).
   private tail = "";
+  // Недописанное последнее слово (см. splitTrailingWord). Отдаётся на границе или в finish().
+  private hold = "";
 
   constructor(private toolNames: ReadonlySet<string>) {}
 
@@ -439,6 +485,14 @@ export class TtsGate {
     if (this.blocked) {
       if (delta) this.suppressedAny = true;
       if (this.tail) this.tail = (this.tail + delta).slice(0, 4000);
+      else {
+        // Блок по ЯЗЫКУ, а XML пришёл позже: «Що вас цікавить? <invoke language_detection…»
+        // (ревью 02.09). Копим хвост с первого «<» — иначе переключение языка теряется
+        // и клиент остаётся в том же круге. До «<» ничего не копим: hasTail лишь
+        // откладывает извинение, а чистый текст спасать нечем.
+        const lt = delta.indexOf("<");
+        if (lt >= 0) this.tail = delta.slice(lt, lt + 4000);
+      }
       return out;
     }
 
@@ -465,27 +519,35 @@ export class TtsGate {
         const cleaned = stripLeadingGreeting(stripThinkingAloud(this.lead));
         this.leadDone = true;
         this.lead = "";
-        if (cleaned && violatesLanguagePolicy(cleaned)) {
+        const { emit, keep } = force ? { emit: cleaned, keep: "" } : splitTrailingWord(cleaned);
+        this.hold = keep;
+        if (emit && violatesLanguagePolicy(emit)) {
           this.blocked = true;
           this.suppressedAny = true;
           return out;
         }
-        if (cleaned) {
-          this.spoken = cleaned;
-          out.speech = cleaned;
+        if (emit) {
+          this.spoken = emit;
+          out.speech = emit;
         }
       }
       return out;
     }
 
-    if (!delta) return out;
+    if (!delta && !(force && this.hold)) return out;
     // «<» посреди реплики: до него — обычная речь, после — глушим навсегда.
     const lt = delta.indexOf("<");
     const sayable = lt >= 0 ? delta.slice(0, lt) : delta;
-    const candidate = this.spoken + sayable;
+    // Перед «<» и при force слово точно закончено — держать нечего.
+    const { emit, keep } = lt >= 0 || force
+      ? { emit: this.hold + sayable, keep: "" }
+      : splitTrailingWord(this.hold + sayable);
+    this.hold = keep;
+    const candidate = this.spoken + emit;
     if (violatesLanguagePolicy(candidate)) {
       this.blocked = true;
       this.suppressedAny = true;
+      if (lt >= 0) this.tail = delta.slice(lt, lt + 4000);
       return out;
     }
     if (lt >= 0) {
@@ -493,9 +555,9 @@ export class TtsGate {
       this.suppressedAny = true;
       this.tail = delta.slice(lt);
     }
-    if (sayable) {
+    if (emit) {
       this.spoken = candidate;
-      out.speech = sayable;
+      out.speech = emit;
     }
     return out;
   }
@@ -602,7 +664,13 @@ function shouldStripRu(messages: OpenAIMessage[]): boolean {
     for (let i = messages.length - 1; i >= 0; i--) {
       const m = messages[i];
       if (m.role !== "user") continue;
-      const lang = langOfUtterance(contentToText(m.content));
+      const text = contentToText(m.content);
+      // Replică rusească (cu markeri) respinsă de vetoul ucrainean (UA_WORDS a
+      // crescut la 25, review 02.09): omul NU vorbește română, deci nu sărim peste
+      // ea spre o replică românească mai veche — aia ar tăia câmpurile _ru unui
+      // client rus. «Алло»/«Да» fără marker rămân ambigue și se sar ca înainte.
+      if (vetoedRussian(text)) return false;
+      const lang = langOfUtterance(text);
       if (lang) return lang === "ro";
     }
   } catch { /* fără dovadă = fără tăiere */ }

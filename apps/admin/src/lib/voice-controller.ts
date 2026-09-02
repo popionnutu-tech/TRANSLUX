@@ -320,6 +320,31 @@ const ZIUA_LOCALITATE_BLOCK_RU = `
 - Не переспрашивай день после того, как клиент назовёт пункты.
 - Это правило про БУДУЩИЕ рейсы. Для забытых вещей и жалоб действуют правила их разделов — там день ищется назад, своим инструментом.`;
 
+// Apel real 02.09 (conv_0601m1gtmb3ker5v063fpz51vgqp, 16 s): la un singur cuvânt
+// chirilic al clientului («Палата?») modelul a răspuns în UCRAINEANĂ («Що вас
+// цікавить — курси, ціни…»). language_detection NU s-a chemat — regula «a doua oară
+// la rând» a ținut; modelul a schimbat pur și simplu limba propriei replici. Gardul
+// TTS (voice-llm, violatesLanguagePolicy) a fost întărit în același commit; blocul de
+// aici taie cauza. Ion (28.08, reafirmat 02.09): în aer DOAR româna sau rusa.
+// «Limba curentă», nu «română»: agentul RO vorbește legitim rusă după language_detection
+// în ~37% din apeluri (audit 02.09) — un ordin «răspunde în română» ar contrazice
+// LIMBA_BLOCK și descrierea tool-ului. Etalon: agent-config.mjs, secțiunea LIMBA.
+// Markerul nu conține și nu e conținut de niciun alt marker (vezi prompt-markers.ts).
+const LIMBA_VOCII_BLOCK = `
+
+LIMBA VOCII — DOAR ROMÂNĂ SAU RUSĂ:
+- Vorbești DOAR română sau rusă. Nicio altă limbă, niciodată: nici ucraineană, nici engleză, nici amestec. Un răspuns în altă limbă e tăiat de sistem înainte de a ajunge la client — el aude o scuză tehnică, iar replica ta e pierdută.
+- Un singur cuvânt al clientului în altă limbă sau scris cu chirilice («Палата?», «Алло», un nume) NU schimbă limba conversației. Rămâi pe limba curentă (română sau rusă) și întrebi scurt, în ea, ce dorește.
+- Nu ai înțeles ce a spus? O spui în limba curentă: «Nu v-am înțeles, repetați, vă rog» / «Я вас не поняла, повторите, пожалуйста» — niciodată în altă limbă.`;
+
+const LIMBA_VOCII_MARKER_RU = 'ЯЗЫК ГОЛОСА — ТОЛЬКО РУССКИЙ ИЛИ РУМЫНСКИЙ';
+const LIMBA_VOCII_BLOCK_RU = `
+
+ЯЗЫК ГОЛОСА — ТОЛЬКО РУССКИЙ ИЛИ РУМЫНСКИЙ:
+- Ты говоришь ТОЛЬКО по-русски или по-румынски. Никакого другого языка, никогда: ни украинского, ни английского, ни смеси. Ответ на другом языке система обрезает до клиента — он слышит техническое извинение, а твоя реплика потеряна.
+- Одно непонятное или украинское слово клиента («Палата?») НЕ повод отвечать по-украински. Остаёшься на русском и коротко переспрашиваешь по-русски.
+- Не поняла, что сказал клиент? Говоришь по-РУССКИ: «Я вас не поняла, повторите, пожалуйста» — никогда на другом языке.`;
+
 const LIMBA_BLOCK = `
 
 LIMBA — A DOUA OARĂ LA RÂND:
@@ -620,6 +645,7 @@ async function checkAndHealConfig(cfg: any, drifts: Drift[], complaintToolExists
     { marker: 'ZIUA — DOSLOVEN', block: DATA_BLOCK, field: 'prompt.ZIUA' },
     { marker: 'e un CORIDOR', block: CORIDOR_BLOCK, field: 'prompt.CORIDOR' },
     { marker: 'A DOUA OARĂ LA RÂND', block: LIMBA_BLOCK, field: 'prompt.LIMBA' },
+    { marker: 'LIMBA VOCII — DOAR ROMÂNĂ SAU RUSĂ', block: LIMBA_VOCII_BLOCK, field: 'prompt.LIMBA_VOCII' },
     { marker: 'APEL ÎNAPOI — NICIO PROMISIUNE', block: CALLBACK_ORDER_BLOCK, field: 'prompt.CALLBACK_ORDER' },
     { marker: 'STAȚIA CHIȘINĂU — AUTOGARA TRANSLUX', block: STATIA_BLOCK, field: 'prompt.STATIA' },
     { marker: 'STAȚIA BĂLȚI — PEROANELE', block: BALTI_BLOCK, field: 'prompt.BALTI' },
@@ -784,6 +810,7 @@ async function healRuStation(lostToolId: string | null, complaintToolId: string 
   // spre o cale moartă și i-ar tăia singura cale rămasă (request_callback).
   if (complaintToolId && !healed.includes(RECLAMATII_MARKER_RU)) { healed += RECLAMATII_BLOCK_RU; vindecate.push('ru.prompt.RECLAMATII'); }
   if (!healed.includes(ZIUA_LOCALITATE_MARKER_RU)) { healed += ZIUA_LOCALITATE_BLOCK_RU; vindecate.push('ru.prompt.ZIUA_LOCALITATE'); }
+  if (!healed.includes(LIMBA_VOCII_MARKER_RU)) { healed += LIMBA_VOCII_BLOCK_RU; vindecate.push('ru.prompt.LIMBA_VOCII'); }
   // Lista tipurilor, în rusă. Sincronizată pe conținut, ca la RO — vezi syncTypesBlock.
   const nevindecate: Drift[] = [];
   if (tipuriInTool) {

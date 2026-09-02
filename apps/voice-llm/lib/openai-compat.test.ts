@@ -106,6 +106,35 @@ describe('violatesLanguagePolicy (на полном тексте)', () => {
   it('русская фраза с латинскими именами НЕ ловится (кириллица доминирует)', () => {
     expect(violatesLanguagePolicy('Водитель Ion Popescu, машина Mercedes Sprinter, номер продиктую.')).toBe(false);
   });
+
+  // Реальный звонок conv_0601m1gtmb3ker5v063fpz51vgqp (02.09): на одно слово
+  // «Палата?» модель ответила по-украински, а гейт пропустил — украинский делит
+  // с русским почти весь алфавит, «чужих» букв было две, порог >2 не взят.
+  it('Ion 02.09: слабые улики — слова с і/ї/є/ґ вне словаря — ловятся от двух разных', () => {
+    expect(violatesLanguagePolicy('Не разумею. Що вас цікавить — курси, ціни, роз')).toBe(true);
+    expect(violatesLanguagePolicy('Їдете завтра до Києва?')).toBe(true); // два слова с буквами
+    expect(violatesLanguagePolicy('Іллінці')).toBe(false); // одно слово, три буквы — всё ещё одна улика
+  });
+
+  it('сильные улики — слово из UA_WORDS или однобуквенное «і»/«є» — ловятся с первой (ревью 02.09, C1)', () => {
+    expect(violatesLanguagePolicy('Добрий день!')).toBe(true);
+    expect(violatesLanguagePolicy('Дякую, гарного дня.')).toBe(true);
+    expect(violatesLanguagePolicy('Так, є місця на завтра.')).toBe(true);
+    expect(violatesLanguagePolicy('Що?')).toBe(true);
+    expect(violatesLanguagePolicy('Будь ласка, зачекайте хвилинку.')).toBe(true);
+    expect(violatesLanguagePolicy('Чекайте, я вас соединю с коллегой.')).toBe(true); // украинизм из прода
+  });
+
+  it('одна слабая улика — НЕ нарушение: опечатка модели «Кобироі» в русской реплике (аудит 02.09, H1)', () => {
+    expect(violatesLanguagePolicy('Стоимость двести пятьдесят лей за место. Водитель Кобироі Олег. Назовите ваше имя.')).toBe(false);
+    expect(violatesLanguagePolicy('Їдете завтра?')).toBe(false);
+  });
+
+  it('русские омографы не в словаре: «зараз», «будь», «место», «рейс», «хочете» проходят', () => {
+    expect(violatesLanguagePolicy('Зараз посмотрю расписание, будь добр, подожди.')).toBe(false);
+    expect(violatesLanguagePolicy('Что вас интересует — рейсы, цены, расписание, место?')).toBe(false);
+    expect(violatesLanguagePolicy('Что вы хочете сказать? Повторите, пожалуйста, куда вы едете?')).toBe(false);
+  });
 });
 
 describe('TtsGate — стрим дельтами (главная поверхность)', () => {
@@ -170,6 +199,54 @@ describe('TtsGate — стрим дельтами (главная поверхн
     expect(toolCalls).toEqual([]); // бизнес-тул из текста не спасается — верно
     expect(gate.suppressed).toBe(true);
     expect(gate.spokenChars).toBeLessThan(40);
+  });
+
+  it('Ion 02.09: украинская реплика из реального звонка режется в стриме на первой «і»', () => {
+    const { gate, speech } = runStream('Не разумею. Що вас цікавить — курси, ціни, розклад?', 4);
+    expect(speech).toBe('Не разумею. ');
+    expect(gate.suppressed).toBe(true);
+    expect(gate.blockedNow).toBe(true);
+  });
+
+  it('реплика БЕЗ точки в конце: последнее слово проверяется в finish() (ревью 02.09, C1)', () => {
+    for (const n of [1, 3, 5, 8]) {
+      expect(runStream('Одну хвилинку', n).speech).not.toContain('хвилинку');
+      expect(runStream('Я вас розумію', n).speech).not.toContain('розумію');
+      expect(runStream('Зараз перевірю розклад', n).speech).not.toContain('розклад');
+      // а честная русская без точки уходит целиком
+      expect(runStream('Нашла два рейса на завтра', n).speech).toBe('Нашла два рейса на завтра');
+    }
+  });
+
+  it('украинское слово не уходит в TTS по буквам: до улики озвучены только ЗАКОНЧЕННЫЕ слова', () => {
+    for (const n of [1, 2, 3, 4]) {
+      expect(runStream('Дякую, гарного дня.', n).speech).toBe('');
+      expect(runStream('Чекайте, я вас соединю.', n).speech).toBe('');
+      expect(runStream('Не разумею. Що вас цікавить — курси, ціни, розклад?', n).speech).toBe('Не разумею. ');
+    }
+  });
+
+  it('блок по языку + XML позже в той же реплике: текст заглушен, language_detection спасён (ревью 02.09)', () => {
+    for (const n of [2, 4, 7]) {
+      const { speech, toolCalls } = runStream('Що вас цікавить? ' + LEAKED, n);
+      expect(speech).toBe('');
+      expect(toolCalls.map((t) => t.name)).toEqual(['language_detection']);
+    }
+    // удержанное слово перед «<» отдано, тул спасён
+    const r = runStream('Un moment' + LEAKED, 3);
+    expect(r.speech).toBe('Un moment');
+    expect(r.toolCalls.map((t) => t.name)).toEqual(['language_detection']);
+  });
+
+  it('обрыв стрима посреди русского слова НЕ считается сильной уликой: «Чим» от «Чимишлия» (аудит 02.09)', () => {
+    for (const n of [1, 2, 3, 4, 6, 8, 9]) {
+      const a = runStream('Есть рейс до Чимишлии в семь утра.', n);
+      expect(a.speech).toBe('Есть рейс до Чимишлии в семь утра.');
+      const b = runStream('Вас интересует Чимишлия или Комрат?', n);
+      expect(b.speech).toBe('Вас интересует Чимишлия или Комрат?');
+    }
+    // а полное слово «чим» на границе — улика, как и прежде
+    expect(runStream('Добрий день, чим можу допомогти?', 4).gate.blockedNow).toBe(true);
   });
 
   it('нормальные румынская и русская реплики проходят дословно', () => {

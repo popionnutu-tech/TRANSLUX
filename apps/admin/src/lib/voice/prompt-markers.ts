@@ -27,6 +27,7 @@ export const PROMPT_MARKERS_RO = [
   'LUCRURI UITATE — ȘOFERUL IDENTIFICAT, OBIECTUL FĂRĂ NUME',
   'RECLAMAȚIA — VINOVATUL IDENTIFICAT',
   'ZIUA ÎN LOC DE LOCALITATE',
+  'LIMBA VOCII — DOAR ROMÂNĂ SAU RUSĂ',
   'CÂMPURILE _RU — DOAR ÎN REPLICI RUSEȘTI',
 ];
 
@@ -38,6 +39,7 @@ export const PROMPT_MARKERS_RU = [
   'ЗАБЫТЫЕ ВЕЩИ — ОПОЗНАННЫЙ ВОДИТЕЛЬ, ВЕЩЬ БЕЗ НАЗВАНИЯ',
   'ЖАЛОБА — ВИНОВНЫЙ ОПОЗНАН',
   'ДЕНЬ ВМЕСТО НАСЕЛЁННОГО ПУНКТА',
+  'ЯЗЫК ГОЛОСА — ТОЛЬКО РУССКИЙ ИЛИ РУМЫНСКИЙ',
 ];
 
 export const TOATE_MARKERELE = [...PROMPT_MARKERS_RO, ...PROMPT_MARKERS_RU];

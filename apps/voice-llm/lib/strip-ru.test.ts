@@ -103,6 +103,31 @@ describe("stripRuToolFields", () => {
     expect(JSON.parse(tool?.content as string).driver_line_ru).toContain("Сергей");
   });
 
+  it("apelant rus cu un cuvânt ucrainean (veto) după o replică românească veche: nu taie nimic (review 02.09)", () => {
+    // UA_WORDS a crescut la 25: «дякую» respinge replica din langOfUtterance. Fără
+    // apărare, shouldStripRu ar sări peste ea la replica românească de mai sus și
+    // ar tăia _ru exact clientului rus.
+    const messages: OpenAIMessage[] = [
+      { role: "user", content: "Bună ziua, vreau să întreb ceva despre curse." },
+      { role: "assistant", content: "Bună ziua! Ați sunat la TRANSLUX. Cu ce vă pot ajuta?" },
+      { role: "user", content: "Дякую. Вот сколько сегодня последняя маршрутка из Кишинёва в Бельцы?" },
+      { role: "tool", tool_call_id: "t3", content: searchTripsResult },
+    ];
+    const tool = stripRuToolFields(messages).find((m) => m.role === "tool");
+    expect(JSON.parse(tool?.content as string).driver_line_ru).toContain("Сергей");
+  });
+
+  it("«Алло» fără marker rusesc rămâne ambiguu: se sare la replica românească și SE taie (comportamentul 30.08)", () => {
+    const messages: OpenAIMessage[] = [
+      { role: "user", content: "Bună ziua, vreau să întreb ceva despre curse." },
+      { role: "assistant", content: "Bună ziua! Ați sunat la TRANSLUX. Cu ce vă pot ajuta?" },
+      { role: "user", content: "Алло, алло." },
+      { role: "tool", tool_call_id: "t3", content: searchTripsResult },
+    ];
+    const tool = stripRuToolFields(messages).find((m) => m.role === "tool");
+    expect(JSON.parse(tool?.content as string).driver_line_ru).toBeUndefined();
+  });
+
   it("cererea comutării «Давайте по-русски» după dialog românesc: nu taie nimic", () => {
     // Gaura din review-ul rundei 2: fraza cererii nu avea cuvinte de serviciu în
     // RU_MARKERS → null → mersul înapoi găsea replicile românești și tăia _ru

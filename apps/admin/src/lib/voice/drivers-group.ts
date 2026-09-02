@@ -160,10 +160,13 @@ export function formatComplaintForGroup(
     // spune că acuzația vine doar din orar.
     cine ? (TEMEI_GRUPA[c.evidence] ?? TEMEI_GRUPA.trip_only) : null,
     // Ion (02.09, la primul mesaj văzut în grupă): «reclamatiile sunt verificat
-    // de ai call centru intodeauna» — cuvântul «neverificată» a zburat. Ce
-    // rămâne adevărat și spus: verificarea A FĂCUT-O call-centrul AI (cursa și
-    // omul identificate de server), iar temeiul ei stă pe rândul de deasupra.
-    '<i>Verificată de call-centrul AI.</i>',
+    // de ai call centru intodeauna» — cuvântul «neverificată» a zburat.
+    // Complementul «cursa și șoferul» nu e stil: fără el, «Verificată» se lipea
+    // de «Reclamația» și rândul afirma că ACUZAȚIA e confirmată — fals, cu
+    // numele unui om, în fața a douăzeci de colegi (review 02.09). Ce a
+    // verificat AI-ul e cursa și cine era pe ea; cât de tare, spune rândul cu
+    // temeiul. Fără șofer identificat nu s-a verificat nimic — rândul lipsește.
+    cine ? '<i>Verificată de call-centrul AI: cursa și șoferul.</i>' : null,
   ].filter(Boolean).join('\n');
 }
 

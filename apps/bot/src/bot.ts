@@ -152,7 +152,9 @@ export function createBot(): Bot<BotContext> {
       '✓ Grupa a fost legată.\n'
       + 'Aici vor apărea reclamațiile clienților care cad pe șofer și lucrurile uitate în autobuz.\n'
       // Ion (02.09): reclamațiile sunt verificate de call-centrul AI, întotdeauna.
-      + 'Reclamațiile sunt verificate de call-centrul AI.',
+      // Cu complement, ca în mesajele per-reclamație: verificată e CURSA și
+      // ȘOFERUL, nu substanța acuzației.
+      + 'Reclamațiile sunt verificate de call-centrul AI: cursa și șoferul.',
     );
   });
 

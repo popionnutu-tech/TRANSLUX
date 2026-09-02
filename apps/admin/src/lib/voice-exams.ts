@@ -150,13 +150,20 @@ export async function generateLessonTests(deadlineTs: number): Promise<number> {
   const supabase = getSupabase();
   // Судейские уроки НЕ становятся экзаменами: их правила уже покрыты seed-набором,
   // а шаблон без what_client_corrected даёт грейдеру слабый материал (ревью).
-  // Кап на ОБЩЕЕ число активных тестов: прогон ~2.7с/тест, окно опроса судьи ~40с —
-  // за ~14 тестами прогон перестаёт доживать до settled в его хвосте, и алерты
-  // уходят только через ночной sweeper (perf/arch-ревью 30.08, замер на 7 тестах).
+  // Кап на ОБЩЕЕ число активных тестов. Старый потолок 14 стоял на замере 30.08
+  // (7 тестов, предположение ~2.7с/тест ПОСЛЕДОВАТЕЛЬНО) — и оказался неверным:
+  // EL гоняет тесты параллельно. Замер на проде 02.09: 7 тестов = 21.9с,
+  // 12 = 18.6с, 18 = 25.0с при бюджете 60с, наклон ~0.5с/тест. Из-за потолка 14
+  // ротация простояла запертой (18 активных), а 19 одобренных уроков ночами
+  // выходили на return 0. 30 вмещает всё по ВРЕМЕНИ с запасом ~2x; по ЧИСЛУ —
+  // нет: 18 активных + 19 ждущих = 37, потолок снова упрётся через ~12 ночей,
+  // и exam_capacity сработает опять. Это ожидаемо — тогда решается отставка
+  // старых зелёных тестов, не очередное поднятие потолка.
   const { count: activeTests } = await supabase.from('voice_agent_tests')
     .select('test_id', { count: 'exact', head: true })
     .eq('active', true);
-  if ((activeTests ?? 0) >= 14) {
+  const EXAM_CAP = 30;
+  if ((activeTests ?? 0) >= EXAM_CAP) {
     // Заморозка очереди НЕ молчит: снаружи она неотличима от «нет уроков» —
     // ровно симптом, с которым цепочка простояла мёртвой (business-ревью).
     // Один открытый инцидент, дедуп по healed=false; sweeper доносит.
@@ -164,11 +171,24 @@ export async function generateLessonTests(deadlineTs: number): Promise<number> {
       .select('id').eq('kind', 'exam_capacity').eq('healed', false).limit(1);
     if (!capOpen?.length) {
       await supabase.from('voice_controller_incidents').insert({
-        kind: 'exam_capacity', healed: false, details: { name: `ротация полна (${activeTests}/14), уроки ждут` },
+        kind: 'exam_capacity', healed: false, details: { name: `ротация полна (${activeTests}/${EXAM_CAP}), уроки ждут` },
       });
     }
     return 0;
   }
+  // Locul s-a eliberat: incidentele VECHI deschise se închid, altfel dedup-ul pe
+  // healed=false ar înghiți pentru totdeauna următoarea înfundare reală.
+  // DOAR cele pe care sweeper-ul nu le mai poate livra oricum (fereastra lui e
+  // 7 zile): un rând recent încă deschis e o alertă NELIVRATĂ — sweeper-ul o
+  // duce în Telegram la noapte și o stinge singur după `sent`. Închisă orb de
+  // aici, ea dispărea fără să fi ajuns la nimeni (review 02.09) — fix simptomul
+  // «lanțul stă mort și nimeni nu află» pentru care există incidentul.
+  const { error: healErr } = await supabase.from('voice_controller_incidents')
+    .update({ healed: true })
+    .eq('kind', 'exam_capacity')
+    .eq('healed', false)
+    .lt('created_at', new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString());
+  if (healErr) console.error('exam_capacity heal:', healErr.message);
   const { data } = await supabase.from('voice_lessons')
     .select('id, conversation_id, payload, summary')
     .eq('kind', 'prompt_lesson').eq('status', 'approved')

@@ -74,7 +74,54 @@ export type LessonRow = {
   summary: string;
 };
 
-/** Вставка урока. Для алиасов: отклонённый ранее heard не предлагается снова. */
+/**
+ * Алиас авто-одобренного урока → сразу в резолвер.
+ *
+ * Локальность НЕ перепроверяем: сюда приходят из ночного learner-а через
+ * миллисекунды после validRo.has(intended). В боте, где между майнингом и ✓
+ * человека проходили часы, перепроверка нужна — там она и осталась.
+ *
+ * 23505 (heard уже есть) НЕ реактивируем — в отличие от кнопки в боте. Там за ✓
+ * стоит человек, и его решение главнее авто-гашения. Здесь стоит та же пара,
+ * которую verifyPair отклонил: реактивация дралась бы с auditAliasShadow() —
+ * learner поднимает в 00:30, контроллер гасит в 01:00, и так каждую ночь.
+ */
+async function activateAlias(
+  supabase: SupabaseClient,
+  lessonId: number,
+  payload: Record<string, unknown>,
+): Promise<void> {
+  const heard = String(payload.heard ?? '');
+  const intended = String(payload.intended_ro ?? '');
+  if (!heard || !intended) return;
+  const { error } = await supabase.from('voice_asr_aliases').insert({
+    heard,
+    canonical_ro: intended,
+    // Отдельный source, а не 'learner': эти прошли барьер Левенштейна, но НЕ
+    // прошли verifyPair. Ошибочный — гасит auditAliasShadow() (≤30 мин).
+    source: 'learner_unverified',
+    evidence: {
+      lesson_id: lessonId,
+      quote: String(payload.quote ?? '').slice(0, 300),
+      auto_approved: true,
+    },
+  });
+  if (error && error.code !== '23505') {
+    console.error('[voice-lessons] alias auto-insert:', error.message);
+  }
+}
+
+/**
+ * Вставка урока. Для алиасов: отклонённый ранее heard не предлагается снова.
+ *
+ * Авто-приём (Ион, 04.09): уроки рождаются approved — ✓/✗ в Telegram больше не
+ * ждут человека. Дайджест бота отбирает по status='pending', поэтому рассылка
+ * умолкает сама; кнопки в боте остаются ради исторических pending-строк.
+ *
+ * Принятое следствие: в status='rejected' больше ничего не попадает, значит
+ * список негативов в buildLessonPrompt застывает на том, что уже отклонено —
+ * майнер перестаёт учиться на «так не предлагай».
+ */
 export async function insertLesson(supabase: SupabaseClient, row: LessonRow): Promise<boolean> {
   if (row.kind === 'alias') {
     const heard = String(row.payload.heard ?? '');
@@ -88,11 +135,18 @@ export async function insertLesson(supabase: SupabaseClient, row: LessonRow): Pr
       .limit(1);
     if (was?.length) return false;
   }
-  const { error } = await supabase.from('voice_lessons').insert(row);
+  const { data: inserted, error } = await supabase
+    .from('voice_lessons')
+    .insert({ ...row, status: 'approved', decided_at: new Date().toISOString(), decided_by: null })
+    .select('id')
+    .maybeSingle();
   if (error) {
     // 23505 = дубль pending по частичному индексу — норма при повторном прогоне.
     if (error.code !== '23505') console.error('[voice-lessons] insert:', error.message);
     return false;
   }
+  // Урок промпта эффекта здесь не даёт: его подхватит drainPendingExams
+  // (voice-exams) и превратит в постоянный ночной экзамен.
+  if (row.kind === 'alias' && inserted) await activateAlias(supabase, inserted.id, row.payload);
   return true;
 }

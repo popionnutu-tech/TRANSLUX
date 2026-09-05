@@ -11,14 +11,104 @@ export async function transfersTransit() {
   const { data } = await getSupabase().from('piese_transfers_transit').select('*');
   return data || [];
 }
-export async function transferSend(p: { from_warehouse_id: number; to_warehouse_id: number; lines: { part_id: number; qty: number }[] }) {
-  const { data, error } = await getSupabase().rpc('piese_transfer_send', { p_from: p.from_warehouse_id, p_to: p.to_warehouse_id, p_lines: p.lines, p_user: null });
-  if (error) throw new Error(error.message);
+// `vehicle_id` pe o mutare = INTENȚIA („se trimite PENTRU mașina asta"), nu faptul. Marfa devine rashod
+// abia la confirmarea din ecranul Rashod (migr. 319). Fără mașină, mutarea rămâne exact ce era.
+export async function transferSend(p: {
+  from_warehouse_id: number; to_warehouse_id: number; lines: { part_id: number; qty: number }[];
+  vehicle_id?: number | null; mechanic_id?: number | null;
+}) {
+  const { data, error } = await getSupabase().rpc('piese_transfer_send', {
+    p_from: p.from_warehouse_id, p_to: p.to_warehouse_id, p_lines: p.lines, p_user: null,
+    p_vehicle: p.vehicle_id ?? null, p_mechanic: p.mechanic_id ?? null,
+  });
+  if (error) throw new Error(TRANSFER_ERR[(error.message || '').trim()] || error.message);
   return Number(data);
+}
+
+const TRANSFER_ERR: Record<string, string> = {
+  BAD_WAREHOUSE: 'Alege depozitul sursă și cel destinație.',
+  SAME_WAREHOUSE: 'Alege două depozite diferite.',
+  BAD_VEHICLE: 'Mașina selectată nu există.',
+  BAD_MECHANIC: 'Lăcătușul selectat nu există.',
+  MECHANIC_WITHOUT_VEHICLE: 'Lăcătușul se alege doar împreună cu mașina.',
+  BAD_QTY: 'Cantitatea trebuie să fie mai mare ca 0.',
+  BAD_PART: 'O piesă selectată nu există în catalog.',
+  FOR_VEHICLE: 'Mutarea e marcată pentru o mașină — se confirmă în ecranul Rashod, nu aici.',
+  NOT_TRANSFER: 'Documentul nu e o mutare.',
+  NOT_IN_TRANSIT: 'Mutarea nu mai e pe drum — poate a confirmat-o altcineva.',
+  NOT_FOR_VEHICLE: 'Mutarea nu e marcată pentru o mașină.',
+  DOC_MISMATCH: 'Mutarea nu e adresată acestui depozit.',
+  NO_LINES: 'Mutarea nu are poziții.',
+  DEST_NOT_INTERNAL: 'O mutare pe mașină trebuie trimisă către un depozit intern — confirmarea se face acolo.',
+};
+
+// Ce a trimis depozitul ăsta și încă nu i s-a confirmat. Mutările pe mașină nu mai apar în lista de
+// tranzit (se confirmă în Rashod), deci fără asta expeditorul își pierdea din vedere propria marfă:
+// ieșită din stoc, neintrată nicăieri.
+export async function transfersSent(fromWarehouseId: number) {
+  const { data, error } = await getSupabase().from('piese_transfers_sent')
+    .select('*').eq('from_warehouse_id', fromWarehouseId).limit(100);
+  if (error) throw new Error('Nu am putut încărca mutările trimise');
+  return ((data as any[]) || []).map((r) => ({
+    id: Number(r.id), toName: r.to_name as string,
+    vehiclePlate: (r.vehicle_plate as string) || null,
+    createdAt: r.created_at as string, lineCount: Number(r.line_count),
+  }));
+}
+
+// Anulează o mutare încă „pe drum": marfa se întoarce în depozitul-sursă, prin STORNO (mișcările sunt
+// append-only). Fără ea, o mutare pe care nimeni n-o confirmă lăsa marfa blocată permanent — ieșită din
+// sursă, neintrată la destinație — iar singurul ocol era „confirmă greșit, apoi retur".
+export async function transferCancel(docId: number, fromWarehouseId: number) {
+  const { data, error } = await getSupabase().rpc('piese_transfer_cancel', {
+    p_doc: docId, p_wh: fromWarehouseId, p_user: null,
+  });
+  if (error) throw new Error(TRANSFER_ERR[(error.message || '').trim()] || 'Nu am putut anula mutarea. Reîncearcă.');
+  return { docId: Number((data as any).doc_id), restored: Number((data as any).restored) };
+}
+
+// Mutările „pe drum" marcate pentru o mașină, adresate unui depozit — apar în Rashod, de confirmat.
+export async function transfersForVehicle(toWarehouseId: number) {
+  const { data, error } = await getSupabase().from('piese_transfers_for_vehicle')
+    // Plafon ca peste tot în modul: dacă confirmările rămân în urmă — exact scenariul pe care panoul îl
+    // face vizibil — fiecare deschidere a ecranului ar aduce toate restanțele deodată.
+    .select('*').eq('to_warehouse_id', toWarehouseId).order('created_at', { ascending: false }).limit(100);
+  if (error) throw new Error('Nu am putut încărca mutările de confirmat');
+  return ((data as any[]) || []).map((r) => ({
+    id: Number(r.id), fromName: r.from_name as string,
+    vehicleId: Number(r.vehicle_id), vehiclePlate: r.vehicle_plate as string,
+    mechanicId: r.mechanic_id == null ? null : Number(r.mechanic_id),
+    mechanicName: (r.mechanic_name as string) || null,
+    createdAt: r.created_at as string, lineCount: Number(r.line_count),
+  }));
+}
+
+/**
+ * Confirmarea în Rashod: primirea mutării ȘI eliberarea pe mașină, într-o singură tranzacție.
+ *
+ * Cele două nu au voie să se despartă — dacă marfa s-ar primi și rashodul ar eșua, piesa ar rămâne pe
+ * stocul intern neatribuită, iar mutarea ar apărea deja ca primită, deci nimeni n-ar ști că mai e ceva
+ * de făcut. De aceea un singur RPC.
+ *
+ * Mașina și lăcătușul pot diferi de cele propuse la mutare: mutarea e o intenție, adevărul e ce s-a
+ * montat efectiv. Ambele rămân în urma de audit.
+ */
+export async function transferReceiveToVehicle(
+  docId: number, warehouseId: number, vehicleId: number, mechanicId: number | null,
+) {
+  const { data, error } = await getSupabase().rpc('piese_transfer_receive_to_vehicle', {
+    p_doc: docId, p_wh: warehouseId, p_vehicle: vehicleId, p_mechanic: mechanicId, p_user: null,
+  });
+  if (error) throw new Error(TRANSFER_ERR[(error.message || '').trim()] || 'Nu am putut confirma mutarea. Reîncearcă.');
+  const r = data as any;
+  return {
+    transferId: Number(r.transfer_id), issueId: Number(r.issue_id),
+    shortages: (r.shortages || []) as string[], vehicleChanged: r.vehicle_changed === true,
+  };
 }
 export async function transferReceive(docId: number) {
   const { error } = await getSupabase().rpc('piese_transfer_receive', { p_doc: docId, p_user: null });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(TRANSFER_ERR[(error.message || '').trim()] || error.message);
 }
 // Etapa 2: depozitul-DESTINAȚIE al unui document de mutare (pentru garda de la confirmarea primirii).
 // Pe un doc TRANSFER, `warehouse_id` = sursa, `to_warehouse_id` = destinația.

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { checkIssue, checkIssueMany, submitIssue, loadTodayIssue, loadVehicleIssues, submitReturn } from './actions';
+import { checkIssue, checkIssueMany, submitIssue, loadTodayIssue, loadVehicleIssues, submitReturn,
+  loadPendingTransfers, confirmTransferToVehicle } from './actions';
 import { searchParts } from '../search-parts';
 import SearchSelect from '@/components/SearchSelect';
 
@@ -17,6 +18,11 @@ type Today = { id: number; docCount: number; positions: number; lines: TodayLine
 type RetLine = {
   lineId: number; docId: number; createdAt: string; partId: number; name: string; article: string | null;
   issued: number; returned: number; available: number;
+};
+// Mutare venită din alt depozit (tipic magazinul), marcată pentru o mașină — de confirmat aici (migr. 319).
+type Pending = {
+  id: number; fromName: string; vehicleId: number; vehiclePlate: string;
+  mechanicId: number | null; mechanicName: string | null; createdAt: string; lineCount: number;
 };
 
 let seq = 0;
@@ -54,6 +60,15 @@ export default function RashodClient({ warehouses, vehicles, mechanics, reasons 
   const retKeys = useRef<Record<number, string>>({});
   const [retErr, setRetErr] = useState<string | null>(null);
   const [retDone, setRetDone] = useState<string | null>(null);
+  // Mutările „pe automobil" adresate acestui depozit. Se încarcă odată cu depozitul, nu la cerere: dacă
+  // marfa a sosit și nimeni nu confirmă, ea stă blocată pe drum — deci trebuie să sară în ochi.
+  const [pending, setPending] = useState<Pending[]>([]);
+  const [pBusy, setPBusy] = useState<number | null>(null);
+  const [pErr, setPErr] = useState<string | null>(null);
+  const [pDone, setPDone] = useState<string | null>(null);
+  // Mașina și lăcătușul se pot CORECTA la confirmare: mutarea e o intenție, adevărul e ce s-a montat.
+  const [pVeh, setPVeh] = useState<Record<number, number>>({});
+  const [pMec, setPMec] = useState<Record<number, number | ''>>({});
 
   const km = vehicles.find((v) => v.id === Number(vehicleId))?.km;
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
@@ -77,6 +92,53 @@ export default function RashodClient({ warehouses, vehicles, mechanics, reasons 
   }, []);
 
   useEffect(() => { refreshToday(warehouseId, vehicleId); }, [warehouseId, vehicleId, refreshToday]);
+
+  // Lista depinde DOAR de depozit (nu de mașina aleasă): sunt mutări care așteaptă, indiferent ce
+  // completează omul mai jos.
+  const pendSeq = useRef(0);
+  const refreshPending = useCallback(async (wid: number) => {
+    const my = ++pendSeq.current;
+    if (!wid) { setPending([]); return; }
+    try {
+      const r = await loadPendingTransfers(wid) as Pending[];
+      if (my === pendSeq.current) {
+        setPending(r);
+        // Valorile propuse la mutare devin cele preselectate — corectura e excepția, nu regula.
+        setPVeh(Object.fromEntries(r.map((x) => [x.id, x.vehicleId])));
+        setPMec(Object.fromEntries(r.map((x) => [x.id, x.mechanicId ?? ''])));
+      }
+    } catch {
+      // NU se înghite: „nu e nimic de confirmat" și „n-am putut verifica" arătau identic, deși al doilea
+      // înseamnă marfă posibil blocată pe drum. Exact starea pentru care există panoul.
+      if (my === pendSeq.current) { setPending([]); setPErr('Nu am putut verifica mutările de confirmat. Reîncarcă pagina.'); }
+    }
+  }, []);
+  useEffect(() => { setPErr(null); setPDone(null); refreshPending(warehouseId); }, [warehouseId, refreshPending]);
+
+  async function confirmPending(t: Pending) {
+    if (pBusy !== null) return;
+    setPBusy(t.id); setPErr(null); setPDone(null);
+    try {
+      const r = await confirmTransferToVehicle({
+        doc_id: t.id, warehouse_id: warehouseId,
+        vehicle_id: pVeh[t.id] ?? t.vehicleId,
+        mechanic_id: pMec[t.id] === '' ? null : Number(pMec[t.id]),
+      });
+      setPDone(`Confirmat — rashod #${r.issueId} pe mașină.`
+        + (r.vehicleChanged ? ' Mașina a fost corectată față de cea propusă la mutare.' : '')
+        + (r.shortages.length ? ' Atenție: ' + r.shortages.join('; ') : ''));
+      // Rândul se scoate LOCAL: acțiunile de server rulează secvențial, iar o reîncărcare completă ar fi
+      // însemnat încă un dus-întors ca să afle ce știm deja. Ar fi șters și corecturile nesalvate de pe
+      // celelalte rânduri, fiindcă `refreshPending` rescrie `pVeh`/`pMec` din datele serverului.
+      setPending((ps) => ps.filter((x) => x.id !== t.id));
+      // Panoul zilei se reîncarcă DOAR dacă mașina confirmată e chiar cea afișată — altfel n-are ce
+      // să se schimbe în el.
+      if (vehicleId && Number(vehicleId) === (pVeh[t.id] ?? t.vehicleId)) {
+        await refreshToday(warehouseId, vehicleId);
+      }
+    } catch (e: any) { setPErr(e.message); await refreshPending(warehouseId); }
+    finally { setPBusy(null); }
+  }
 
   // Avertismentul (stoc, normă de km, schimbat prea des) se cere pe RÂND, identificat prin `uid`.
   const alertSeq = useRef<Record<string, number>>({});
@@ -234,6 +296,62 @@ export default function RashodClient({ warehouses, vehicles, mechanics, reasons 
             title="Kilometrajul vine din softul GPS, nu se introduce manual" />
         </div>
       </div>
+
+      {/* Marfa venită din alt depozit (tipic magazinul) PENTRU o mașină. Stă „pe drum" până o confirmă
+          cineva de aici — de aceea panoul e sus și mereu vizibil, nu ascuns sub un buton. */}
+      {pending.length > 0 && (
+        <div className="alert warn" style={{ marginTop: 4 }}>
+          <strong>De confirmat: {pending.length} {pending.length === 1 ? 'mutare' : 'mutări'} pe mașină</strong>
+          <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+            Marfa a fost trimisă din alt depozit pentru o mașină. La confirmare intră pe depozitul tău și
+            pleacă imediat pe mașină, ca rashod. Mașina și lăcătușul se pot corecta aici.
+          </div>
+          <table style={{ marginTop: 8 }}>
+            <thead>
+              <tr>
+                <th>Din</th><th className="num" style={{ width: 70 }}>Poziții</th>
+                <th style={{ width: 170 }}>Mașina</th><th style={{ width: 170 }}>Lăcătuș</th>
+                <th style={{ width: 130 }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {pending.map((t) => (
+                <tr key={t.id}>
+                  <td>
+                    {t.fromName}
+                    <div className="muted" style={{ fontSize: 11 }}>
+                      #{t.id} · {new Date(t.createdAt).toLocaleDateString('ro-RO')}
+                      {' · propusă: '}{t.vehiclePlate}{t.mechanicName ? ` / ${t.mechanicName}` : ''}
+                    </div>
+                  </td>
+                  <td className="num">{t.lineCount}</td>
+                  <td>
+                    <select value={pVeh[t.id] ?? t.vehicleId} disabled={pBusy !== null}
+                      onChange={(e) => setPVeh((m) => ({ ...m, [t.id]: Number(e.target.value) }))}>
+                      {vehicles.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
+                    </select>
+                  </td>
+                  <td>
+                    <select value={pMec[t.id] ?? ''} disabled={pBusy !== null}
+                      onChange={(e) => setPMec((m) => ({ ...m, [t.id]: e.target.value ? Number(e.target.value) : '' }))}>
+                      <option value="">—</option>
+                      {mechanics.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+                    </select>
+                  </td>
+                  <td>
+                    <button type="button" className="btn btn-primary" style={{ padding: '4px 10px' }}
+                      disabled={pBusy !== null} onClick={() => confirmPending(t)}>
+                      {pBusy === t.id ? 'Se confirmă…' : 'Confirmă'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {pErr && <div className="alert danger" style={{ marginTop: 8 }}>{pErr}</div>}
+          {pDone && <div className="alert ok" style={{ marginTop: 8 }}>{pDone}</div>}
+        </div>
+      )}
 
       {/* Rashodul zilei: piesele adăugate acum intră pe ACELAȘI document, nu pe unul nou. */}
       {today && (

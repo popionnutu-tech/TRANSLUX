@@ -6,6 +6,7 @@ import { issueAlert, createIssue, appendIssue, todayIssueDocs, docLinesMany, doc
   returnIssue, vehicleIssueLines, type IssueLine } from '@/lib/piese';
 import { canSeeCost } from '@/lib/piese-access';
 import { auditWrite } from '@/lib/audit';
+import { transfersForVehicle, transferReceiveToVehicle } from '@/lib/piese-ops';
 
 const ISSUE_ROLES = ['ADMIN', 'VINZATOR', 'GESTIONAR'] as const;
 // Plafon de sanity: RPC-ul ține un lock pe document și pe fiecare piesă, într-o singură tranzacție.
@@ -202,4 +203,41 @@ export async function submitReturn(payload: {
     ok: true, docId: r.docId, lineId: r.lineId, qty: r.qty, replay: r.replay,
     value: canSeeCost(session.role) ? r.value : null,
   };
+}
+
+// ── Mutări de confirmat, marcate pentru o mașină (migr. 319) ──
+// Cerut de Eduard: marfa din magazin ajunge pe autobuz printr-o mutare care poartă intenția, iar aici se
+// confirmă ce s-a montat efectiv. Confirmă cine PRIMEȘTE — el ia piesa în mână.
+export async function loadPendingTransfers(warehouseId: number) {
+  const session = requireRole(await verifySession(), ...ISSUE_ROLES);
+  await assertWarehouseAllowed(session, warehouseId);
+  return transfersForVehicle(Number(warehouseId));
+}
+
+/**
+ * Confirmă o mutare marcată pentru mașină: marfa intră pe depozit ȘI pleacă pe mașină, atomic.
+ *
+ * Mașina și lăcătușul pot fi CORECTATE aici — mutarea e o intenție, adevărul e ce s-a montat. Dacă am fi
+ * forțat anularea și refacerea mutării, oamenii ar fi confirmat greșit doar ca să scape de birocrație.
+ */
+export async function confirmTransferToVehicle(payload: {
+  doc_id: number; warehouse_id: number; vehicle_id: number; mechanic_id: number | null;
+}) {
+  const session = requireRole(await verifySession(), ...ISSUE_ROLES);
+  // Garda e pe depozitul pentru care apelantul are drept; RPC-ul confruntă apoi DESTINAȚIA documentului
+  // cu el, deci un `doc_id` de la client nu poate atinge stocul altui depozit.
+  await assertWarehouseAllowed(session, payload.warehouse_id);
+  const vid = Number(payload.vehicle_id);
+  if (!Number.isInteger(vid) || vid <= 0) throw new Error('Alege mașina.');
+  const mid = Number(payload.mechanic_id);
+  const mechanicId = Number.isInteger(mid) && mid > 0 ? mid : null;
+
+  const r = await transferReceiveToVehicle(Number(payload.doc_id), Number(payload.warehouse_id), vid, mechanicId);
+  // ÎN AFARA unui try: stocul s-a mișcat deja, în ambele sensuri. Un eșec al urmei n-are voie să raporteze
+  // „reîncearcă" — reîncercarea ar găsi mutarea deja confirmată și ar arăta o eroare derutantă.
+  await auditWrite({
+    adminId: session.id, action: 'CONFIRM_TRANSFER', entity: 'issue', entityId: r.issueId,
+    after: { din_mutarea: r.transferId, masina_id: vid, masina_schimbata: r.vehicleChanged },
+  });
+  return { ok: true, ...r };
 }

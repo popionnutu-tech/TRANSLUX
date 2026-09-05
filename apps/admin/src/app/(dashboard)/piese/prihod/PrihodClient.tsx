@@ -2,7 +2,8 @@
 
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { submitReceipt } from './actions';
+import { submitReceipt, loadReceiptLabels } from './actions';
+import LabelSheet, { type SheetLabel } from './LabelSheet';
 import { receiptLinesSum, countableLines, totalMatches } from '@/lib/piese-receipt';
 import { loadPart } from '../part-actions';
 import { searchParts } from '../search-parts';
@@ -49,6 +50,11 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
     setNewLoc((cur) => (cur.trim() === '' && sug ? sug : cur));
   }
   const [editPart, setEditPart] = useState<{ index: number; initial: PartFormValues } | null>(null); // editare piesă chiar din recepție
+  // Recepția tocmai salvată — ca etichetele să se poată tipări FĂRĂ să pleci din ecran și fără să cauți
+  // documentul înapoi. Marfa se pune pe raft o singură dată; eticheta trebuie să fie gata atunci.
+  const [lastDoc, setLastDoc] = useState<number | null>(null);
+  const [sheet, setSheet] = useState<SheetLabel[] | null>(null);
+  const [sheetBusy, setSheetBusy] = useState(false);
   const [editBusy, setEditBusy] = useState<number | null>(null); // indexul rândului care încarcă piesa pentru editare
 
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
@@ -76,6 +82,10 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
         // TOATE codurile piesei, nu doar cel de pe etichetă: altfel deschiderea unei piese cu două
         // coduri și salvarea ei l-ar fi șters tăcut pe al doilea.
         barcodes: (p.barcodes as string[]) ?? [], unit: (p.unit as string) ?? 'buc', is_for_sale: !!p.is_for_sale,
+        // `updatePart` rescrie TOATE coloanele editabile: un câmp netrimis se golește. Fără linia asta,
+        // deschiderea unei piese cu adaos propriu și salvarea ei l-ar fi șters, iar prețul de raft ar fi
+        // sărit tăcut înapoi la adaosul grupei.
+        markup_pct: (p.markup_pct as number | null) ?? '',
       } });
     } catch { alert('Nu am putut încărca piesa pentru editare. Reîncearcă.'); }
     finally { setEditBusy(null); }
@@ -90,14 +100,24 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
         lines: lines.filter((l) => l.part_id).map((l) => ({ part_id: Number(l.part_id), qty: l.qty, unit_cost: l.unit_cost })),
       });
       setMsg({ t: 'ok', m: `Prihod #${r.docId} înregistrat. Stocul a crescut.` });
+      setLastDoc(r.docId);
       // setInvoiceTotal: fără el, totalul facturii precedente ar rămâne în câmp și ar bloca următoarea recepție.
       setLines([blankLine()]); setSeries(''); setNumber(''); setNote(''); setInvoiceTotal('');
       router.refresh();
     } catch (e: any) { setMsg({ t: 'danger', m: e.message }); } finally { setBusy(false); }
   }
 
+  async function openLabels() {
+    if (!lastDoc) return;
+    setSheetBusy(true);
+    try { setSheet(await loadReceiptLabels(lastDoc) as SheetLabel[]); }
+    catch (e: any) { setMsg({ t: 'danger', m: e?.message || 'Nu am putut încărca etichetele' }); }
+    finally { setSheetBusy(false); }
+  }
+
   return (
     <div className="card">
+      {sheet && <LabelSheet labels={sheet} onClose={() => setSheet(null)} />}
       <h2>Recepție marfă (накладная)</h2>
       <div className="row">
         <div className="form-row"><label>Depozit</label><select value={warehouseId} onChange={(e) => setWarehouseId(Number(e.target.value))}>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.label}</option>)}</select></div>
@@ -144,7 +164,22 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
               </span>
         )}
       </div>
-      {msg && <div className={`alert ${msg.t}`} style={{ marginTop: 12 }}>{msg.m}</div>}
+      {msg && (
+        <div className={`alert ${msg.t}`} style={{ marginTop: 12 }}>
+          {msg.m}
+          {/* Butonul apare DUPĂ salvare, pe recepția tocmai înregistrată: atunci e marfa în mână și
+              atunci se lipesc etichetele. Dacă recepția n-are nicio piesă „de vânzare", foaia o spune. */}
+          {msg.t === 'ok' && lastDoc && (
+            <>
+              {' '}
+              <button type="button" className="btn" style={{ padding: '2px 9px', marginLeft: 6 }}
+                disabled={sheetBusy} onClick={openLabels}>
+                {sheetBusy ? 'Se pregătesc…' : '🏷 Etichete de raft'}
+              </button>
+            </>
+          )}
+        </div>
+      )}
       {/* Butonul se blochează cât suma nu se potrivește — serverul refuză oricum, dar aici se vede DE CE. */}
       <button className="btn btn-primary btn-lg btn-block" style={{ marginTop: 12 }} disabled={busy || !totalOk} onClick={submit}>{busy ? 'Se înregistrează…' : 'Confirmă prihodul'}</button>
       {!totalOk && <p className="muted" style={{ textAlign: 'center', marginTop: 8, marginBottom: 0 }}>Suma liniilor nu coincide cu totalul facturii. Verifică o cantitate sau un preț, ori golește câmpul de control.</p>}

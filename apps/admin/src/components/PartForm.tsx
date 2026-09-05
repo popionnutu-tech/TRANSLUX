@@ -18,6 +18,7 @@ export interface PartFormValues {
   barcodes?: string[];   // toate codurile piesei, primul fiind cel principal (migr. 312)
   unit?: string;
   is_for_sale?: boolean;
+  markup_pct?: number | string | null;   // gol = adaosul grupei (migr. 318)
 }
 
 // Formular COMUN de piesă (adăugare + editare). Folosit în Nomenclator (tab „Piese") și inline în Prihod.
@@ -50,6 +51,7 @@ export default function PartForm({
     oem_code: initial?.oem_code ?? '',
     unit: initial?.unit ?? 'buc',
     is_for_sale: initial?.is_for_sale ?? false,
+    markup_pct: initial?.markup_pct ?? '',
   });
   const [codes, setCodes] = useState<string[]>(initialCodes.length ? initialCodes : ['']);
   const [error, setError] = useState('');
@@ -228,6 +230,17 @@ export default function PartForm({
           De vânzare
         </label>
       </div>
+      {/* Adaosul piesei are sens doar dacă piesa se vinde. Gol = adaosul grupei: într-o grupă intră și
+          piese ieftine de rotație rapidă, și piese scumpe rare, iar un singur procent pentru toate e o
+          aproximare pe care până acum n-o putea corecta nimeni. */}
+      {f.is_for_sale && (
+        <div className="form-group" style={{ marginBottom: 0, minWidth: 110 }}>
+          <label>Adaos % <span className="muted" style={{ fontWeight: 400 }}>(piesă)</span></label>
+          <input type="number" min={0} max={1000} step="any" value={f.markup_pct ?? ''}
+            onChange={(e) => set('markup_pct', e.target.value)} placeholder="ca grupa" />
+          <div style={hint}>gol = adaosul grupei</div>
+        </div>
+      )}
       {children}
       <button type="submit" className="btn btn-primary" disabled={loading || !!disabled}>{loading ? 'Se salvează…' : (initial?.id ? 'Salvează' : 'Adaugă piesa')}</button>
       {onCancel && <button type="button" className="btn btn-outline" onClick={onCancel} disabled={loading}>Anulează</button>}

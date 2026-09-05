@@ -163,14 +163,21 @@ export async function catalogRows(opts: { search?: string; groupId?: number } = 
 // Catalog paginat pentru ecranul „Catalog" (browse): întoarce rândurile paginii + totalul real.
 // Separat de catalogRows (folosit de searchParts, cu limită fixă) ca să nu-i schimb semnătura.
 // count:'exact' dă numărul total al setului filtrat într-un singur round-trip; filtrul pe grup e index-asistat.
-export async function catalogPage(opts: { search?: string; groupId?: number; page?: number; pageSize?: number } = {}) {
+export async function catalogPage(opts: { search?: string; groupId?: number; page?: number; pageSize?: number; withCost?: boolean } = {}) {
   const pageSize = opts.pageSize && opts.pageSize > 0 ? opts.pageSize : 100;
   const page = Math.max(1, opts.page || 1);
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
+  // Listă ALBĂ de coloane, nu `*`. `markup_pct` (migr. 318) nu are voie să ajungă la vânzător: din el și
+  // din prețul de vânzare — pe care ARE dreptul să-l vadă — costul de achiziție se calculează exact
+  // (`cost = preț / (1 + adaos/100)`), deci `*` ar fi ocolit tăcut `canSeeCost`. Adaosul e nevoie doar la
+  // EDITARE, iar editarea e a rolurilor care oricum văd costul.
+  const cols = 'id, group_id, name_long, name_ro, manufacturer, model, article_code, oem_code, '
+    + 'barcode, barcodes_all, unit, is_for_sale, active, created_at, group_name'
+    + (opts.withCost ? ', markup_pct' : '');
   let q = getSupabase()
     .from('piese_catalog_rows')
-    .select('*', { count: 'exact' })
+    .select(cols, { count: 'exact' })
     .order('group_name')
     .order('name_long')
     .range(from, to);
@@ -756,4 +763,28 @@ export async function locatePart(warehouseId: number, code: string) {
   const { data: loc } = await sb.from('piese_part_locations').select('location_label').eq('warehouse_id', warehouseId).eq('part_id', (p as any).id).maybeSingle();
   const placement = loc ? { ...parseLoc((loc as any).location_label), label: (loc as any).location_label } : null;
   return { found: true as const, label: `${(p as any).group_name} ${(p as any).manufacturer ?? ''} ${(p as any).model ? '(' + (p as any).model + ')' : ''}`.trim(), placement };
+}
+
+// Etichetele de tipărit pentru o recepție (migr. 318). Cerut de Eduard odată cu adaosul: marfa se pune pe
+// raft O SINGURĂ DATĂ, cu eticheta pe ea — altfel a doua zi se caută piesă cu piesă în Catalog.
+//
+// Doar piesele marcate „de vânzare": pentru una de uz intern nu există preț de raft, iar o etichetă cu preț
+// pe ea ar induce în eroare. Prețul e cel de DUPĂ recepție — media include deja mișcările tocmai scrise.
+export type ReceiptLabel = {
+  partId: number; name: string; manufacturer: string; articleCode: string;
+  barcode: string; unit: string; qty: number; price: number | null; markupPct: number | null;
+};
+
+export async function receiptLabels(docId: number, warehouseId: number): Promise<ReceiptLabel[]> {
+  // `warehouseId` e obligatoriu, nu opțional: RPC-ul îl reverifică, deci un apelant care îl uită nu
+  // primește „toate depozitele", ci nimic. Semnătura e cea care avertizează, nu un comentariu.
+  const { data, error } = await getSupabase().rpc('piese_receipt_labels', { p_doc: docId, p_wh: warehouseId });
+  if (error) throw new Error('Nu am putut încărca etichetele recepției');
+  return ((data as any[]) || []).map((r) => ({
+    partId: Number(r.part_id), name: r.name as string,
+    manufacturer: (r.manufacturer as string) || '', articleCode: (r.article_code as string) || '',
+    barcode: (r.barcode as string) || '', unit: (r.unit as string) || 'buc',
+    qty: Number(r.qty), price: r.price == null ? null : Number(r.price),
+    markupPct: r.markup_pct == null ? null : Number(r.markup_pct),
+  }));
 }

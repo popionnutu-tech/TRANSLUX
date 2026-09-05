@@ -51,6 +51,10 @@ const partRow = (d: any) => ({
   // triggerul din migr. 312. Dacă am scrie-o și noi, o piesă cu două coduri ar avea pe etichetă unul care
   // nu mai e în listă — două adevăruri pentru același lucru. Codurile se trimit prin `syncPartBarcodes`.
   unit: txt(d.unit) || 'buc',
+  // Adaosul PIESEI (migr. 318). Gol = se folosește adaosul grupei — de aceea `null`, nu `0`: zero ar
+  // însemna „vinde la cost", ceea ce nimeni nu vrea să seteze din greșeală lăsând câmpul necompletat.
+  markup_pct: d.markup_pct === '' || d.markup_pct == null || !Number.isFinite(Number(d.markup_pct))
+    ? null : Number(d.markup_pct),
   is_for_sale: d.is_for_sale === true || d.is_for_sale === 'true' || d.is_for_sale === '1' || d.is_for_sale === 'da',
 });
 function validatePart(d: any) {

@@ -4,7 +4,7 @@ import { verifySession, requireRole, type Session } from '@/lib/auth';
 import { assertWarehouseAllowed, userWarehouseId, editWindowDays } from '@/lib/piese-access';
 import { createReceipt, receiptDocs, receiptDocLines, receiptDocWarehouse, finalizeReceipt,
   receiptDocHeaderForEdit, receiptEditInfo, updateReceiptHeader, replaceReceiptLines,
-  supplierNames } from '@/lib/piese';
+  supplierNames, receiptLabels} from '@/lib/piese';
 import { auditWrite, auditHistoryForDoc, changedFields, type AuditFields } from '@/lib/audit';
 import { receiptLinesSum, totalMatches, totalDiffBani } from '@/lib/piese-receipt';
 import { chisinauDayStartIso, chisinauDayBounds, chisinauDayOf, chisinauTodayIso } from '@/lib/chisinau-time';
@@ -286,3 +286,12 @@ async function auditHeaderChange(
   await auditWrite({ adminId, action: 'EDIT_HEADER', entity: 'receipt', entityId: docId, before: diff.before, after: diff.after });
 }
 
+// Etichetele piesei de raft dintr-o recepție (migr. 318) — pentru tipărire imediat după salvare.
+// Aceeași gardă ca `loadReceiptLines`: documentul decide depozitul, nu clientul.
+export async function loadReceiptLabels(docId: number) {
+  const session = requireRole(await verifySession(), ...RECEIPT_ROLES);
+  const wh = await receiptDocWarehouse(Number(docId));
+  if (wh == null) throw new Error('Document inexistent');
+  await assertWarehouseAllowed(session, wh);
+  return receiptLabels(Number(docId), wh);
+}

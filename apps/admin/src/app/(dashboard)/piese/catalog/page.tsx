@@ -13,13 +13,16 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
   const groupId = sp.grup ? Number(sp.grup) : undefined;
   const page = Math.max(1, Number(sp.page) || 1);
 
-  const [groups, warehouses, session, { rows, total, pageSize }] = await Promise.all([
+  // Sesiunea se citește ÎNAINTE de catalog: adaosul piesei se cere doar dacă rolul chiar poate edita.
+  // El e nevoie exclusiv pentru formularul de editare — iar din adaos plus prețul de vânzare se poate
+  // calcula costul de achiziție, pe care vânzătorul n-are voie să-l vadă.
+  const session = await verifySession();
+  const canEdit = session ? canEditParts(session.role) : false;
+  const [groups, warehouses, { rows, total, pageSize }] = await Promise.all([
     listGroups(),
     listWarehouses(),
-    verifySession(),
-    catalogPage({ search: q, groupId, page }),
+    catalogPage({ search: q, groupId, page, withCost: canEdit }),
   ]);
-  const canEdit = session ? canEditParts(session.role) : false;
   // Etapa 2: contul legat de un depozit vede în editorul de locație doar depozitul lui (garda reală e în part-actions).
   const allowedWarehouses = session ? warehousesForUser(warehouses as any[], await userWarehouseId(session)) : (warehouses as any[]);
 

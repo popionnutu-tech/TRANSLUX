@@ -44,6 +44,7 @@ export default function CatalogTable({ rows, groups, warehouses, canEdit }: {
       : (edit.barcode ? [String(edit.barcode)] : []),
     unit: edit.unit ?? 'buc',
     is_for_sale: !!edit.is_for_sale,
+    markup_pct: (edit.markup_pct as number | null) ?? '',
   };
 
   return (

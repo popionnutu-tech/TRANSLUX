@@ -1,5 +1,5 @@
 import { getSupabase } from './supabase';
-import { orVal } from './piese';
+import { orVal, catalogSearchOr } from './piese';
 
 // Asistent de căutare piesă (vânzător): după denumire / categorie / cod (articol, OEM, cod de bare) / model
 // → denumire corectă + producător + OEM + articol + cod de bare, stoc pe depozite + locație,
@@ -46,7 +46,10 @@ export async function searchAssistant(
   if (opts.categoryId) q = q.eq('group_id', opts.categoryId);
   // Poziția aleasă din sugestii bate căutarea textuală: dacă avem id, nu mai filtrăm după cuvinte.
   if (opts.partId) q = q.eq('id', opts.partId);
-  else if (s) { const e = orVal(s); q = q.or(`name_long.ilike."%${e}%",name_ro.ilike."%${e}%",group_name.ilike."%${e}%",article_code.ilike."%${e}%",oem_code.ilike."%${e}%",barcode.ilike."%${e}%",model.ilike."%${e}%"`); }
+  // Predicatul e IMPORTAT, nu copiat: era o a doua definiție a aceleiași reguli, iar când căutarea a
+  // trecut pe toate codurile de bare (migr. 312), ecranul vânzătorului ar fi rămas în urmă în tăcere —
+  // scanarea celui de-al doilea ambalaj n-ar fi găsit nimic exact acolo unde se scanează cel mai des.
+  else if (s) { q = q.or(catalogSearchOr(orVal(s))); }
   const { data: parts, error: partsErr } = await q;
   if (partsErr) { console.error('[piese-search] catalog query:', partsErr.message); return []; }
   const list = (parts || []) as any[];

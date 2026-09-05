@@ -34,3 +34,9 @@ graphify-out/
 
 # kit — loguri de rulare autonomă
 .kit/
+
+# Copia locală a .env pentru `next dev` (Next citește din directorul aplicației, nu din rădăcină).
+apps/admin/.env
+
+# Capturi de ecran de lucru — nu intră în repo
+*.png

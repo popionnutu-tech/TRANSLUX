@@ -36,7 +36,12 @@ export default function CatalogTable({ rows, groups, warehouses, canEdit }: {
     model: edit.model ?? '',
     article_code: edit.article_code ?? '',
     oem_code: edit.oem_code ?? '',
-    barcode: edit.barcode ?? '',
+    // TOATE codurile, luate din `barcodes_all` al rândului: cu un singur cod trimis, salvarea — care
+    // scrie exact ce vede formularul — le-ar fi șters tăcut pe celelalte. Catalogul e ecranul unde se
+    // editează cel mai des (rândul e clicabil), deci era calea cea mai probabilă spre pierderea lor.
+    barcodes: typeof edit.barcodes_all === 'string' && edit.barcodes_all.trim()
+      ? String(edit.barcodes_all).trim().split(/\s+/)
+      : (edit.barcode ? [String(edit.barcode)] : []),
     unit: edit.unit ?? 'buc',
     is_for_sale: !!edit.is_for_sale,
   };

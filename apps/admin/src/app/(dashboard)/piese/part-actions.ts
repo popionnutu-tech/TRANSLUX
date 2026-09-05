@@ -2,7 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { verifySession, requireRole } from '@/lib/auth';
-import { createPart, updatePart, setPartLocation } from '@/lib/piese-nomenclator';
+import { createPart, updatePart, setPartLocation,
+  listManufacturers, listCarModels, addManufacturer, addCarModel } from '@/lib/piese-nomenclator';
 import { partLabel, getPartById, getPartLocation, partLabelInfo } from '@/lib/piese';
 import { PART_WRITE_ROLES, assertWarehouseAllowed, userWarehouseId } from '@/lib/piese-access';
 import { suggestLocation } from '@/lib/piese';
@@ -64,4 +65,42 @@ export async function suggestPartLocation(warehouseId: number, groupId: number):
   if (!warehouseId || !groupId) return null;
   await assertWarehouseAllowed(session, warehouseId);
   return suggestLocation(Number(warehouseId), Number(groupId));
+}
+
+// ── Nomenclatoarele de producători și mărci (migr. 312) ──
+// Cerut de Eduard: „то что вносил уже раз одно выдавать, с возможностью добавить в каталог новую фирму".
+// Citirea e deschisă tuturor rolurilor care pot scrie o piesă — e aceeași listă pe care oricum o vor vedea
+// în formular; ADĂUGAREA trece prin aceeași gardă, fiindcă îmbogățește un nomenclator comun.
+export async function loadPartLookups(): Promise<{ manufacturers: string[]; carModels: string[] }> {
+  await requirePartWrite();
+  const [m, c] = await Promise.all([listManufacturers(), listCarModels()]);
+  return { manufacturers: m.map((x) => x.name), carModels: c.map((x) => x.name) };
+}
+
+// Întoarce ortografia CANONICĂ, nu ce s-a tastat: dacă cineva scrie „trw" iar catalogul are „TRW", piesa
+// primește „TRW". Altfel am fi creat exact perechea de variante pe care nomenclatorul o elimină.
+export async function addPartLookup(kind: 'manufacturer' | 'carModel', name: string): Promise<{ name: string }> {
+  await requirePartWrite();
+  const v = String(name ?? '');
+  const canonical = kind === 'manufacturer' ? await addManufacturer(v) : await addCarModel(v);
+  return { name: canonical };
+}
+
+// „Copiază de la o piesă existentă" — cerut de Eduard: aceeași piesă, alt producător, iar denumirea se
+// retasta de la zero (și ieșea altfel scrisă la fiecare introducere).
+//
+// Se copiază ce ține de IDENTITATEA piesei (denumire, grupă, unitate, marca mașinii). NU se copiază ce e
+// specific exemplarului: producătorul, articolul, codul OEM și codurile de bare — exact câmpurile prin care
+// noua poziție diferă de cea veche. Dacă le-am copia, s-ar salva un duplicat cu aceleași coduri, iar
+// unicitatea codului de bare ar respinge salvarea abia la final.
+export async function copyPartFields(sourceId: number): Promise<Record<string, unknown> | null> {
+  await requirePartWrite();
+  const src = await getPartById(Number(sourceId));
+  if (!src) return null;
+  const p = src as Record<string, unknown>;
+  return {
+    group_id: p.group_id, name_long: p.name_long, name_ro: p.name_ro,
+    model: p.model, unit: p.unit, is_for_sale: p.is_for_sale,
+    manufacturer: '', article_code: '', oem_code: '', barcodes: [],
+  };
 }

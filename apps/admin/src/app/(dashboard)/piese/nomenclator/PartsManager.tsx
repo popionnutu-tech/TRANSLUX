@@ -31,7 +31,7 @@ export default function PartsManager({ groups }: { groups: { id: number; label: 
       model: (row.model as string) ?? '',
       article_code: (row.article_code as string) ?? '',
       oem_code: (row.oem_code as string) ?? '',
-      barcode: (row.barcode as string) ?? '',
+      barcodes: (row.barcodes as string[]) ?? ((row.barcode as string) ? [row.barcode as string] : []),
       unit: (row.unit as string) ?? 'buc',
       is_for_sale: !!row.is_for_sale,
     } : null);

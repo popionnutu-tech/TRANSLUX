@@ -73,7 +73,9 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
         name_long: (p.name_long as string) ?? '', name_ro: (p.name_ro as string) ?? '',
         manufacturer: (p.manufacturer as string) ?? '', model: (p.model as string) ?? '',
         article_code: (p.article_code as string) ?? '', oem_code: (p.oem_code as string) ?? '',
-        barcode: (p.barcode as string) ?? '', unit: (p.unit as string) ?? 'buc', is_for_sale: !!p.is_for_sale,
+        // TOATE codurile piesei, nu doar cel de pe etichetă: altfel deschiderea unei piese cu două
+        // coduri și salvarea ei l-ar fi șters tăcut pe al doilea.
+        barcodes: (p.barcodes as string[]) ?? [], unit: (p.unit as string) ?? 'buc', is_for_sale: !!p.is_for_sale,
       } });
     } catch { alert('Nu am putut încărca piesa pentru editare. Reîncearcă.'); }
     finally { setEditBusy(null); }

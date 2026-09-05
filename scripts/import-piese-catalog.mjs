@@ -210,8 +210,17 @@ async function run() {
       const ckey = composite(r);
       if (r.barcode && haveBarcode.has(r.barcode)) { skipped++; continue; }
       if (!r.barcode && haveComposite.has(ckey)) { skipped++; continue; }
-      const { error } = await sb.from('piese_parts').insert({ group_id: gid, name_long: r.name_long, manufacturer: r.manufacturer, model: r.model, article_code: r.article_code, oem_code: r.oem_code, barcode: r.barcode, unit: r.unit, is_for_sale: r.is_for_sale });
+      // `barcode` NU se scrie direct: din migr. 312 e oglinda codului principal din `piese_part_barcodes`,
+      // ținută de trigger. O piesă importată cu codul doar în coloană n-ar avea rânduri în tabel, iar
+      // prima editare din formular — care scrie exact lista pe care o vede — i l-ar fi șters.
+      const { data: ins, error } = await sb.from('piese_parts')
+        .insert({ group_id: gid, name_long: r.name_long, manufacturer: r.manufacturer, model: r.model, article_code: r.article_code, oem_code: r.oem_code, unit: r.unit, is_for_sale: r.is_for_sale })
+        .select('id').single();
       if (error) { if (error.code === '23505') { skipped++; continue; } throw new Error(`Piesă „${r.name_long}": ${error.message}`); }
+      if (r.barcode) {
+        const { error: eBc } = await sb.rpc('piese_set_part_barcodes', { p_part: ins.id, p_codes: [r.barcode] });
+        if (eBc) throw new Error(`Piesă „${r.name_long}" — cod de bare: ${eBc.message}`);
+      }
       if (r.barcode) haveBarcode.add(r.barcode);
       haveComposite.add(ckey);
       inserted++;

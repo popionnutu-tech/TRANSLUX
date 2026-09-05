@@ -8,7 +8,9 @@ export const orVal = (v: string) => v.replace(/\\/g, '\\\\').replace(/"/g, '\\"'
 
 // Filtrul .or(...) comun pentru catalog (căutare pe 6 coloane). SURSĂ UNICĂ — folosit de
 // catalogRows (liste/forme) și catalogPage (browse), ca predicatele să nu diverge. `s` trebuie deja escapat cu orVal.
-const catalogSearchOr = (s: string) => `name_long.ilike."%${s}%",name_ro.ilike."%${s}%",group_name.ilike."%${s}%",article_code.ilike."%${s}%",oem_code.ilike."%${s}%",barcode.ilike."%${s}%",model.ilike."%${s}%"`;
+// `barcodes_all` (migr. 312) conține TOATE codurile piesei, nu doar cel principal: aceeași piesă vine de
+// la furnizori diferiți, iar scanarea ambalajului mai vechi trebuie să găsească piesa la fel de bine.
+export const catalogSearchOr = (s: string) => `name_long.ilike."%${s}%",name_ro.ilike."%${s}%",group_name.ilike."%${s}%",article_code.ilike."%${s}%",oem_code.ilike."%${s}%",barcodes_all.ilike."%${s}%",model.ilike."%${s}%"`;
 
 export async function listWarehouses() {
   const { data } = await getSupabase().from('piese_warehouses').select('*').order('id');
@@ -72,7 +74,7 @@ export async function partLabelInfo(partId: number, warehouseId: number | null) 
 // `location` e prefix (ca „A-12" să prindă tot rândul, nu doar celula exactă) — cerut de Eduard, ca să poată
 // scoate rapid „ce am pe rândul ăsta".
 type StockFilters = { warehouseId?: number; groupId?: number; search?: string; manufacturer?: string; model?: string; location?: string };
-const stockSearchOr = (s: string) => `name_long.ilike."%${s}%",name_ro.ilike."%${s}%",group_name.ilike."%${s}%",article_code.ilike."%${s}%",oem_code.ilike."%${s}%",barcode.ilike."%${s}%",model.ilike."%${s}%"`;
+const stockSearchOr = (s: string) => `name_long.ilike."%${s}%",name_ro.ilike."%${s}%",group_name.ilike."%${s}%",article_code.ilike."%${s}%",oem_code.ilike."%${s}%",barcodes_all.ilike."%${s}%",model.ilike."%${s}%"`;
 function stockFiltered(select: string, opts: StockFilters, exactCount = false): any {
   let q: any = exactCount
     ? getSupabase().from('piese_stock_rows').select(select, { count: 'exact' })
@@ -190,7 +192,20 @@ export function partLabel(p: Record<string, unknown>): string {
 // O singură piesă (câmpuri editabile) pentru formularul de editare din Nomenclator.
 export async function getPartById(id: number) {
   const { data } = await getSupabase().from('piese_catalog_rows').select('*').eq('id', id).maybeSingle();
-  return data || null;
+  if (!data) return null;
+  // Codurile de bare vin ca LISTĂ (migr. 312), cu cel principal primul — formularul le editează pe toate.
+  // Fără asta, deschiderea unei piese cu două coduri și salvarea ei ar fi păstrat doar unul.
+  const { data: bc, error: eBc } = await getSupabase().from('piese_part_barcodes')
+    .select('barcode, is_primary').eq('part_id', id)
+    .order('is_primary', { ascending: false }).order('id');
+  if (eBc) throw new Error('Nu am putut încărca codurile de bare ale piesei');
+  const list = ((bc as { barcode: string }[]) || []).map((b) => b.barcode);
+  // FALLBACK REAL, nu decorativ: piesele scrise direct în coloană (scriptul de import) n-au rânduri în
+  // tabel. Fără asta, formularul le-ar deschide cu lista goală, iar salvarea — care trimite exact ce vede
+  // formularul — le-ar fi șters codul. Un câmp gol nu are voie să însemne „șterge".
+  const mirror = (data as Record<string, unknown>).barcode;
+  const codes = list.length ? list : (typeof mirror === 'string' && mirror.trim() ? [mirror.trim()] : []);
+  return { ...(data as Record<string, unknown>), barcodes: codes };
 }
 
 // Locația unei piese într-un depozit anume (pentru editarea locației din Catalog → alimentează Harta).
@@ -717,12 +732,28 @@ export async function warehouseLayout(warehouseId: number) {
 export async function locatePart(warehouseId: number, code: string) {
   const c = code.trim();
   if (!c) return { found: false as const };
-  const e = orVal(c);
-  const { data: p } = await getSupabase().from('piese_catalog_rows')
-    .select('id, group_name, manufacturer, model')
-    .or(`barcode.eq."${e}",article_code.eq."${e}",oem_code.eq."${e}",group_name.ilike."%${e}%",name_long.ilike."%${e}%",name_ro.ilike."%${e}%"`).limit(1).maybeSingle();
+  const sb = getSupabase();
+  // ÎNTÂI potrivire EXACTĂ pe codul de bare, prin indexul unic. O căutare `ilike "%cod%"` pe lista
+  // concatenată ar fi găsit piesa greșită: codul „1234" se potrivește și în „912345", iar `limit(1)`
+  // fără ordonare alege arbitrar — depozitarul ar fi fost trimis la alt raft. Scanarea trebuie să fie
+  // exactă sau să nu găsească nimic.
+  const { data: hit } = await sb.from('piese_part_barcodes').select('part_id').ilike('barcode', c).limit(1).maybeSingle();
+  let p: any = null;
+  if (hit) {
+    const { data } = await sb.from('piese_catalog_rows')
+      .select('id, group_name, manufacturer, model').eq('id', (hit as any).part_id).maybeSingle();
+    p = data;
+  }
+  if (!p) {
+    // Nu e un cod de bare cunoscut: căutare textuală, ca înainte.
+    const e = orVal(c);
+    const { data } = await sb.from('piese_catalog_rows')
+      .select('id, group_name, manufacturer, model')
+      .or(`article_code.eq."${e}",oem_code.eq."${e}",group_name.ilike."%${e}%",name_long.ilike."%${e}%",name_ro.ilike."%${e}%"`).limit(1).maybeSingle();
+    p = data;
+  }
   if (!p) return { found: false as const };
-  const { data: loc } = await getSupabase().from('piese_part_locations').select('location_label').eq('warehouse_id', warehouseId).eq('part_id', (p as any).id).maybeSingle();
+  const { data: loc } = await sb.from('piese_part_locations').select('location_label').eq('warehouse_id', warehouseId).eq('part_id', (p as any).id).maybeSingle();
   const placement = loc ? { ...parseLoc((loc as any).location_label), label: (loc as any).location_label } : null;
   return { found: true as const, label: `${(p as any).group_name} ${(p as any).manufacturer ?? ''} ${(p as any).model ? '(' + (p as any).model + ')' : ''}`.trim(), placement };
 }

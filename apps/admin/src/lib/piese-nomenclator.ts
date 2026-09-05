@@ -47,7 +47,9 @@ const partRow = (d: any) => ({
   model: txtOrNull(d.model),
   article_code: txtOrNull(d.article_code),
   oem_code: txtOrNull(d.oem_code),
-  barcode: txtOrNull(d.barcode),
+  // `barcode` NU se scrie de aici: e oglinda codului principal din `piese_part_barcodes`, ținută de
+  // triggerul din migr. 312. Dacă am scrie-o și noi, o piesă cu două coduri ar avea pe etichetă unul care
+  // nu mai e în listă — două adevăruri pentru același lucru. Codurile se trimit prin `syncPartBarcodes`.
   unit: txt(d.unit) || 'buc',
   is_for_sale: d.is_for_sale === true || d.is_for_sale === 'true' || d.is_for_sale === '1' || d.is_for_sale === 'da',
 });
@@ -55,11 +57,49 @@ function validatePart(d: any) {
   if (!Number(d.group_id)) throw new Error('Grupa (categoria) este obligatorie');
   if (!txt(d.name_long)) throw new Error('Denumirea piesei este obligatorie');
 }
+// Codurile de bare ale unei piese, în ordine: PRIMUL e cel principal (apare pe etichetă).
+// Aceeași piesă vine de la furnizori diferiți, fiecare cu ambalajul lui — cu o singură coloană, al doilea
+// cod îl ștergea pe primul, iar scanarea vechiului ambalaj nu mai găsea nimic (cerut de Eduard).
+export function cleanBarcodes(input: unknown): string[] {
+  const arr = Array.isArray(input) ? input : input == null ? [] : [input];
+  const out: string[] = [];
+  for (const v of arr) {
+    const c = txt(v);
+    // Comparația de duplicate e insensibilă la litere, ca unicitatea din bază.
+    if (c && !out.some((x) => x.toLowerCase() === c.toLowerCase())) out.push(c);
+  }
+  return out;
+}
+
+// Aduce lista de coduri a piesei la exact `codes`, ÎNTR-O SINGURĂ TRANZACȚIE.
+//
+// Varianta anterioară făcea patru cereri separate, deci patru tranzacții — iar prima ridica marcajul de
+// „principal", ceea ce golea imediat codul de pe etichetă. Dacă a treia eșua (cel mai banal caz: codul
+// introdus aparține altei piese), piesa rămânea fără niciun cod, permanent, iar omul vedea doar
+// „cod duplicat". Pierdere de date dintr-o greșeală de tastare.
+export async function syncPartBarcodes(partId: number, codes: string[]) {
+  const { error } = await getSupabase().rpc('piese_set_part_barcodes', {
+    p_part: partId, p_codes: cleanBarcodes(codes),
+  });
+  if (error) {
+    const m = error.message || '';
+    // RPC-ul spune CARE cod e ocupat; mesajul din bază singur n-ar fi ajutat pe nimeni.
+    const taken = m.match(/BARCODE_TAKEN:(.+)/);
+    if (taken) throw new Error(`Codul de bare „${taken[1].trim()}" e deja folosit de altă piesă.`);
+    if (m.includes('BAD_PART')) throw new Error('Piesa nu mai există — reîncarcă pagina.');
+    throw new Error('Nu am putut salva codurile de bare. Reîncearcă.');
+  }
+}
+
 export async function createPart(d: any): Promise<{ id: number }> {
   validatePart(d);
   const { data, error } = await getSupabase().from('piese_parts').insert(partRow(d)).select('id').single();
   check({ error });
-  return { id: (data as { id: number }).id };
+  const id = (data as { id: number }).id;
+  // `d.barcodes` (listă) sau `d.barcode` (un singur cod) — al doilea pentru apelanții vechi.
+  const codes = cleanBarcodes(d.barcodes ?? d.barcode);
+  if (codes.length) await syncPartBarcodes(id, codes);
+  return { id };
 }
 export async function updatePart(id: number, d: any) {
   // Atenție: e un „replace complet" al coloanelor editabile (partRow). Formularul PartForm trimite mereu
@@ -67,7 +107,58 @@ export async function updatePart(id: number, d: any) {
   // nouă editabilă la piese_parts, adaug-o și în partRow + PartForm, altfel update-ul o resetează.
   validatePart(d);
   check(await getSupabase().from('piese_parts').update(partRow(d)).eq('id', id));
+  // `barcodes` lipsă = apelant vechi care nu știe de coduri multiple → nu atingem lista existentă.
+  // Un array gol înseamnă „șterge toate", și e trimis explicit de formular.
+  if (d.barcodes !== undefined || d.barcode !== undefined) {
+    await syncPartBarcodes(id, cleanBarcodes(d.barcodes ?? d.barcode));
+  }
 }
+
+// ── Nomenclatoare: producători și mărci de mașini (migr. 312) ──
+// Textul liber a produs „TRW" și „Trw", „Higer" și „HIGER NOU", plus un producător numit „111".
+// Filtrele din „Stoc" listează valorile distincte, deci fiecare variantă apărea ca opțiune separată.
+async function listLookup(table: string): Promise<{ id: number; name: string }[]> {
+  const { data, error } = await getSupabase().from(table).select('id, name').eq('active', true).order('name');
+  if (error) throw new Error('Nu am putut încărca nomenclatorul');
+  return ((data as { id: number; name: string }[]) || []);
+}
+export const listManufacturers = () => listLookup('piese_manufacturers');
+export const listCarModels = () => listLookup('piese_car_models');
+
+// Adaugă în catalog și întoarce ortografia CANONICĂ. Dacă valoarea există deja scrisă altfel („trw" peste
+// „TRW"), se întoarce cea din catalog: altfel am fi acceptat tăcut a doua variantă a aceluiași lucru.
+async function addLookup(table: string, name: string): Promise<string> {
+  const v = txt(name);
+  if (!v) throw new Error('Denumirea nu poate fi goală');
+  if (v.length > 80) throw new Error('Denumirea e prea lungă (maxim 80 de caractere)');
+  const sb = getSupabase();
+  // `ilike` tratează `%` și `_` ca JOKER. Cu textul utilizatorului trimis neescapat, cine tasta „TR%"
+  // primea înapoi „TRW" ca „ortografie canonică" și piesa se salva cu producătorul greșit — o substituție
+  // tăcută pornită dintr-o greșeală de tastare. Escapăm, ca potrivirea să fie pe text, nu pe tipar.
+  const pattern = v.replace(/([\\%_])/g, '\\$1');
+  const { data: found, error: eFind } = await sb.from(table).select('id, name, active').ilike('name', pattern).maybeSingle();
+  // Eroarea NU se mai înghite: tratată ca „nu există", ducea direct la un INSERT care dubla intrarea.
+  if (eFind) throw new Error('Nu am putut verifica nomenclatorul. Reîncearcă.');
+  if (found) {
+    const f = found as { id: number; name: string; active: boolean };
+    // O intrare dezactivată de administrator NU se reactivează tăcut la simpla tastare a numelui —
+    // altfel `active` n-ar mai fi o decizie administrativă, ci o sugestie.
+    if (!f.active) throw new Error(`„${f.name}" a fost scos din nomenclator. Cere-i administratorului să-l reactiveze.`);
+    return f.name;
+  }
+  const { error } = await sb.from(table).insert({ name: v });
+  if (error) {
+    if (error.code === '23505') {
+      // A intrat între timp din altă sesiune: recitim, ca să întoarcem ortografia STOCATĂ, nu ce s-a tastat.
+      const { data: race } = await sb.from(table).select('name').ilike('name', pattern).maybeSingle();
+      return ((race as { name: string } | null)?.name) ?? v;
+    }
+    throw new Error('Nu am putut adăuga în nomenclator. Reîncearcă.');
+  }
+  return v;
+}
+export const addManufacturer = (name: string) => addLookup('piese_manufacturers', name);
+export const addCarModel = (name: string) => addLookup('piese_car_models', name);
 
 // ── Locația piesei (per depozit) ──
 // piese_part_locations: UNIQUE(part_id, warehouse_id), location_label NOT NULL, min_qty default 0.

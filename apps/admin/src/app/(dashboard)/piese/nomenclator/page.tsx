@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-import { requirePieseNomenclator } from '@/lib/piese-access';
+import { requirePieseNomenclator, LOOKUP_ADMIN_ROLES } from '@/lib/piese-access';
 import { listWarehouses, listGroups, listSuppliers, listMechanics, listReasons } from '@/lib/piese';
 import { listClients } from '@/lib/piese-ops';
 import NomenclatorClient from './NomenclatorClient';
@@ -18,7 +18,11 @@ const SECTIONS_BY_ROLE: Record<string, string[]> = {
 
 export default async function NomenclatorPage() {
   const session = await requirePieseNomenclator();
-  const sections = SECTIONS_BY_ROLE[session.role] || [];
+  // 'lookups' se adaugă din aceeași listă pe care o verifică server action-ul, nu dintr-o a doua copie.
+  const sections = [
+    ...(SECTIONS_BY_ROLE[session.role] || []),
+    ...(LOOKUP_ADMIN_ROLES.includes(session.role) ? ['lookups'] : []),
+  ];
   const [warehouses, groups, suppliers, clients, mechanics, reasons] = await Promise.all([
     listWarehouses(), listGroups(), listSuppliers(), listClients(), listMechanics(), listReasons(),
   ]);

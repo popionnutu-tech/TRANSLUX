@@ -116,6 +116,12 @@ export async function editWindowDays(session: Session): Promise<number> {
 // Folosită ȘI de garda server `requirePartWrite` (part-actions.ts), ȘI de UI (`canEditParts`) — o singură listă,
 // ca gardul real și afișarea butonului „Editează" să nu poată diverge.
 export const PART_WRITE_ROLES: AdminRole[] = ['ADMIN', 'DEPOZITAR', 'GESTIONAR'];
+
+// Curățarea nomenclatoarelor de producători/mărci (migr. 317). DOAR admin: redenumirea de acolo MUTĂ
+// piesele, deci e o modificare în masă a catalogului, nu editarea unui rând.
+// Sursă unică: e citită și de garda din server actions, și de lista de taburi din pagină — altfel tabul
+// s-ar putea randa pentru un rol care apoi primește „Acces interzis" la fiecare clic.
+export const LOOKUP_ADMIN_ROLES: AdminRole[] = ['ADMIN'];
 export function canEditParts(role: AdminRole): boolean {
   return PART_WRITE_ROLES.includes(role);
 }

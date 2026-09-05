@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createNomenclator, updateNomenclator } from './actions';
 import PartsManager from './PartsManager';
+import LookupManager from './LookupManager';
 
 type Field = { key: string; label: string; type?: 'text' | 'number' | 'select'; options?: { value: string; label: string }[]; required?: boolean; placeholder?: string };
 type SectionCfg = { key: string; title: string; fields: Field[] };
@@ -46,7 +47,14 @@ export default function NomenclatorClient({ sections, data }: { sections: string
   const visible = SECTIONS.filter((s) => sections.includes(s.key));
   // „Piese (catalog)" nu e un tab generic (are mii de rânduri) — se randează separat cu PartsManager.
   const hasParts = sections.includes('parts');
-  const pills = [...visible.map((s) => ({ key: s.key, title: s.title })), ...(hasParts ? [{ key: 'parts', title: 'Piese (catalog)' }] : [])];
+  // Producătorii și mărcile nu sunt taburi generice: nu se ADAUGĂ de aici (intră singure la salvarea unei
+  // piese), ci se CURĂȚĂ — redenumire care mută piesele și ascundere. Alt set de operațiuni, altă componentă.
+  const hasLookups = sections.includes('lookups');
+  const pills = [
+    ...visible.map((s) => ({ key: s.key, title: s.title })),
+    ...(hasParts ? [{ key: 'parts', title: 'Piese (catalog)' }] : []),
+    ...(hasLookups ? [{ key: 'manufacturers', title: 'Producători' }, { key: 'carModels', title: 'Mărci mașini' }] : []),
+  ];
   const [active, setActive] = useState(pills[0]?.key || '');
   const groupOptions = (data.groups || []).map((g: any) => ({ id: g.id, label: g.name_ro as string }));
 
@@ -61,8 +69,15 @@ export default function NomenclatorClient({ sections, data }: { sections: string
           <button key={s.key} className={`btn${active === s.key ? ' btn-primary' : ''}`} style={{ padding: '8px 14px' }} onClick={() => setActive(s.key)}>{s.title}</button>
         ))}
       </div>
-      {active === 'parts'
-        ? <PartsManager groups={groupOptions} />
+      {active === 'parts' ? <PartsManager groups={groupOptions} />
+        : active === 'manufacturers' ? (
+          <LookupManager kind="manufacturer" title="Producători"
+            hint="Se completează singur când salvezi o piesă cu producător nou. Aici se corectează: redenumirea mută și piesele, iar o denumire care există deja contopește cele două." />
+        )
+        : active === 'carModels' ? (
+          <LookupManager kind="carModel" title="Mărci de mașini"
+            hint="La fel ca la producători: intră singure la salvarea unei piese, iar aici se curăță ce s-a scris greșit." />
+        )
         : cfg && <Section key={cfg.key} cfg={cfg} rows={data[cfg.key] || []} />}
     </>
   );

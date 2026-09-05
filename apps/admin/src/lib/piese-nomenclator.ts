@@ -91,9 +91,22 @@ export async function syncPartBarcodes(partId: number, codes: string[]) {
   }
 }
 
+// Producătorul și marca trec ÎNTOTDEAUNA prin nomenclator, la salvare, pe server.
+//
+// Înainte, formularul decidea: dacă valoarea tastată exista deja (comparat insensibil la litere), nu mai
+// apela nimic — deci cine scria „trw" peste catalogul care are „TRW" salva pe piesă „trw". Adică exact
+// perechea de variante pe care nomenclatorul o elimină, reapărută în filtrul din „Stoc". Decizia nu poate
+// sta la client: doar serverul știe ortografia stocată.
+async function canonicalPart(d: any) {
+  const row = partRow(d);
+  if (row.manufacturer) row.manufacturer = (await addManufacturer(row.manufacturer)) || null;
+  if (row.model) row.model = (await addCarModel(row.model)) || null;
+  return row;
+}
+
 export async function createPart(d: any): Promise<{ id: number }> {
   validatePart(d);
-  const { data, error } = await getSupabase().from('piese_parts').insert(partRow(d)).select('id').single();
+  const { data, error } = await getSupabase().from('piese_parts').insert(await canonicalPart(d)).select('id').single();
   check({ error });
   const id = (data as { id: number }).id;
   // `d.barcodes` (listă) sau `d.barcode` (un singur cod) — al doilea pentru apelanții vechi.
@@ -106,7 +119,7 @@ export async function updatePart(id: number, d: any) {
   // toate câmpurile (prefill din loadPart), deci nu se golește nimic accidental. Dacă adaugi o coloană
   // nouă editabilă la piese_parts, adaug-o și în partRow + PartForm, altfel update-ul o resetează.
   validatePart(d);
-  check(await getSupabase().from('piese_parts').update(partRow(d)).eq('id', id));
+  check(await getSupabase().from('piese_parts').update(await canonicalPart(d)).eq('id', id));
   // `barcodes` lipsă = apelant vechi care nu știe de coduri multiple → nu atingem lista existentă.
   // Un array gol înseamnă „șterge toate", și e trimis explicit de formular.
   if (d.barcodes !== undefined || d.barcode !== undefined) {
@@ -127,25 +140,27 @@ export const listCarModels = () => listLookup('piese_car_models');
 
 // Adaugă în catalog și întoarce ortografia CANONICĂ. Dacă valoarea există deja scrisă altfel („trw" peste
 // „TRW"), se întoarce cea din catalog: altfel am fi acceptat tăcut a doua variantă a aceluiași lucru.
-async function addLookup(table: string, name: string): Promise<string> {
+// Întoarce ortografia CANONICĂ a unei valori, adăugând-o în catalog dacă lipsește.
+//
+// REGULA: ascunderea (`active = false`) afectează DOAR sugestiile, niciodată salvarea. Varianta
+// anterioară arunca eroare pentru o intrare ascunsă — ceea ce bloca editarea TUTUROR pieselor care o
+// purtau: un producător ascuns făcea cele 11 piese ale lui imposibil de salvat, chiar și pentru o
+// corectură de denumire fără legătură. Ecranul promite „rămâne pe piesele existente"; codul trebuie să
+// respecte promisiunea.
+//
+// Nu reactivează nimic: o intrare scoasă de administrator rămâne scoasă din sugestii.
+async function canonicalizeLookup(table: string, name: string): Promise<string> {
   const v = txt(name);
-  if (!v) throw new Error('Denumirea nu poate fi goală');
-  if (v.length > 80) throw new Error('Denumirea e prea lungă (maxim 80 de caractere)');
+  if (!v) return '';
+  if (v.length > 80) throw new Error('Denumirea producătorului/mărcii e prea lungă (maxim 80 de caractere)');
   const sb = getSupabase();
-  // `ilike` tratează `%` și `_` ca JOKER. Cu textul utilizatorului trimis neescapat, cine tasta „TR%"
-  // primea înapoi „TRW" ca „ortografie canonică" și piesa se salva cu producătorul greșit — o substituție
-  // tăcută pornită dintr-o greșeală de tastare. Escapăm, ca potrivirea să fie pe text, nu pe tipar.
+  // `ilike` tratează `%` și `_` ca JOKER. Neescapate, cine tasta „TR%" primea înapoi „TRW" ca ortografie
+  // canonică și piesa se salva cu producătorul greșit — substituție tăcută pornită dintr-un typo.
   const pattern = v.replace(/([\\%_])/g, '\\$1');
-  const { data: found, error: eFind } = await sb.from(table).select('id, name, active').ilike('name', pattern).maybeSingle();
-  // Eroarea NU se mai înghite: tratată ca „nu există", ducea direct la un INSERT care dubla intrarea.
+  const { data: found, error: eFind } = await sb.from(table).select('id, name').ilike('name', pattern).maybeSingle();
+  // Eroarea NU se înghite: tratată ca „nu există", ar duce la un INSERT care dublează intrarea.
   if (eFind) throw new Error('Nu am putut verifica nomenclatorul. Reîncearcă.');
-  if (found) {
-    const f = found as { id: number; name: string; active: boolean };
-    // O intrare dezactivată de administrator NU se reactivează tăcut la simpla tastare a numelui —
-    // altfel `active` n-ar mai fi o decizie administrativă, ci o sugestie.
-    if (!f.active) throw new Error(`„${f.name}" a fost scos din nomenclator. Cere-i administratorului să-l reactiveze.`);
-    return f.name;
-  }
+  if (found) return (found as { name: string }).name;
   const { error } = await sb.from(table).insert({ name: v });
   if (error) {
     if (error.code === '23505') {
@@ -157,8 +172,9 @@ async function addLookup(table: string, name: string): Promise<string> {
   }
   return v;
 }
-export const addManufacturer = (name: string) => addLookup('piese_manufacturers', name);
-export const addCarModel = (name: string) => addLookup('piese_car_models', name);
+
+export const addManufacturer = (name: string) => canonicalizeLookup('piese_manufacturers', name);
+export const addCarModel = (name: string) => canonicalizeLookup('piese_car_models', name);
 
 // ── Locația piesei (per depozit) ──
 // piese_part_locations: UNIQUE(part_id, warehouse_id), location_label NOT NULL, min_qty default 0.
@@ -261,4 +277,62 @@ export async function createReason(d: any) {
 export async function updateReason(id: number, d: any) {
   if (!txt(d.name)) throw new Error('Denumirea motivului este obligatorie');
   check(await getSupabase().from('piese_breakdown_reasons').update({ name: txt(d.name), category: txtOrNull(d.category) }).eq('id', id));
+}
+
+// ── Administrarea nomenclatoarelor (migr. 317) ──
+// Un catalog în care se poate DOAR adăuga se degradează: oamenii tastează greșit, iar greșeala devine
+// sugestie oficială pentru toți ceilalți. Migrația 312 a preluat și gunoiul existent („111",
+// „Scoda Octavia 2020"), deci trebuie o cale de curățare — altfel cererea lui Eduard e doar mutată.
+export type LookupKind = 'manufacturer' | 'carModel';
+export type LookupRow = { id: number; name: string; active: boolean; partsCount: number };
+
+// Numărul de piese e esențial: fără el nu se poate deosebi „111 — 1 piesă" de „TRW — 11 piese".
+export async function listLookupAdmin(kind: LookupKind): Promise<LookupRow[]> {
+  const { data, error } = await getSupabase().rpc('piese_lookup_admin', { p_kind: kind });
+  if (error) throw new Error('Nu am putut încărca nomenclatorul');
+  return ((data as any[]) || []).map((r) => ({
+    id: Number(r.id), name: r.name as string, active: r.active === true, partsCount: Number(r.parts_count),
+  }));
+}
+
+/**
+ * Redenumire care MUTĂ ȘI PIESELE — miezul ecranului.
+ *
+ * Dacă noul nume există deja, nu e redenumire ci CONTOPIRE: piesele trec pe intrarea existentă, iar cea
+ * veche dispare. Fără asta, „Trw" → „TRW" ar fi lovit indexul unic și n-ar fi existat nicio cale de a uni
+ * două variante ale aceluiași producător — exact defectul de reparat.
+ *
+ * Totul într-un RPC: dacă rândul din nomenclator s-ar redenumi separat de piese și ceva ar pica la mijloc,
+ * filtrul din „Stoc" ar arăta din nou două intrări — starea din care tocmai am ieșit.
+ */
+export async function renameLookup(kind: LookupKind, id: number, newName: string) {
+  const { data, error } = await getSupabase().rpc('piese_rename_lookup', {
+    p_kind: kind, p_id: id, p_new: newName,
+  });
+  if (error) {
+    const m = error.message || '';
+    if (m.includes('EMPTY_NAME')) throw new Error('Denumirea nu poate fi goală');
+    if (m.includes('TOO_LONG')) throw new Error('Denumirea e prea lungă (maxim 80 de caractere)');
+    if (m.includes('NO_ROW')) throw new Error('Intrarea nu mai există — reîncarcă pagina');
+    const hidden = m.match(/TARGET_HIDDEN:(.+)/);
+    if (hidden) throw new Error(`„${hidden[1].trim()}" e ascuns. Arată-l întâi, apoi contopește — altfel piesele ar ajunge pe o valoare care nu se mai propune.`);
+    throw new Error('Nu am putut redenumi. Reîncearcă.');
+  }
+  const r = data as any;
+  return {
+    old: r.old as string, next: r.new as string, moved: Number(r.moved), merged: r.merged === true,
+    targetId: r.target_id == null ? null : Number(r.target_id),
+  };
+}
+
+// Scoate din sugestii FĂRĂ să atingă piesele: valoarea rămâne pe ele, doar nu se mai propune la
+// introducere. Ștergerea nu e oferită — o intrare folosită de piese n-are ce să dispară.
+export async function setLookupActive(kind: LookupKind, id: number, active: boolean) {
+  const table = kind === 'manufacturer' ? 'piese_manufacturers' : 'piese_car_models';
+  // `.select()` ca să știm dacă rândul a existat: fără el, un id inexistent nu e eroare în PostgREST, iar
+  // ecranul ar fi confirmat „nu se mai propune" pentru o intrare care nu există, plus o urmă de audit
+  // pentru ceva ce nu s-a întâmplat.
+  const { data, error } = await getSupabase().from(table).update({ active }).eq('id', id).select('id');
+  check({ error });
+  if (!((data as unknown[]) || []).length) throw new Error('Intrarea nu mai există — reîncarcă pagina');
 }

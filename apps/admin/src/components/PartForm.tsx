@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useId } from 'react';
-import { savePart, loadPartLookups, addPartLookup, copyPartFields } from '@/app/(dashboard)/piese/part-actions';
+import { savePart, loadPartLookups, copyPartFields } from '@/app/(dashboard)/piese/part-actions';
 import { searchParts } from '@/app/(dashboard)/piese/search-parts';
 import SearchSelect from '@/components/SearchSelect';
 
@@ -118,13 +118,11 @@ export default function PartForm({
     e.preventDefault();
     setError(''); setLoading(true);
     try {
-      // Valorile noi intră în nomenclator ÎNAINTE de salvare, iar piesa primește ortografia canonică
-      // întoarsă de server. Altfel „trw" s-ar fi salvat pe piesă chiar dacă în catalog scrie „TRW".
-      let manufacturer = (f.manufacturer ?? '').trim();
-      let model = (f.model ?? '').trim();
-      if (newManuf) manufacturer = (await addPartLookup('manufacturer', manufacturer)).name;
-      if (newModel) model = (await addPartLookup('carModel', model)).name;
-      const res = await savePart({ ...f, manufacturer, model, barcodes: filledCodes } as Record<string, unknown>, initial?.id);
+      // Nomenclatorul se completează pe SERVER, la salvare. Aici se trimite doar ce s-a tastat.
+      // Varianta anterioară decidea în client dacă valoarea e nouă și abia atunci o canonicaliza — deci
+      // cine scria „trw" peste catalogul care are „TRW" salva pe piesă „trw", fiindcă formularul o vedea
+      // ca deja existentă și nu mai apela nimic. Ortografia stocată o știe doar serverul.
+      const res = await savePart({ ...f, barcodes: filledCodes } as Record<string, unknown>, initial?.id);
       onSaved(res);
     } catch (err: any) { setError(err?.message || 'Eroare la salvare'); }
     finally { setLoading(false); }

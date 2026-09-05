@@ -95,7 +95,8 @@ export type RouteStatus =
 
 export type OrphanReason = 'no_driver' | 'no_grafic';
 
-export type FoaieSource = 'explicit' | 'implied' | null;
+// 'manual' = foaia nu vine din /grafic, ci de pe rândul introdus la casă (documentul Numerar).
+export type FoaieSource = 'explicit' | 'implied' | 'manual' | null;
 
 export interface GraficRouteRow {
   assignment_id: string | null;
@@ -150,10 +151,24 @@ export interface OrphanNumerar {
   reason: OrphanReason;
 }
 
+/** Numerar introdus manual care nu s-a legat de nicio rută din raport — bani de recuperat. */
+export interface OrphanManual {
+  id: string;
+  ziua: string;
+  data_foaie: string | null;
+  foaie_nr: string | null;
+  driver_name: string | null;
+  route_name: string | null;
+  total_lei: number;
+  incasare_numerar: number;
+  reason: 'dublura_terminal' | 'fara_ruta' | 'fara_identificare';
+}
+
 export interface GraficReportResult {
   routes: GraficRouteRow[];
   orphan_numerar: OrphanNumerar[];
   orphan_incasare: Anomaly[];
+  orphan_manual: OrphanManual[];
   confirmation: Confirmation | null;
 }
 
@@ -220,6 +235,7 @@ export async function getGraficReport(
       routes: payload?.routes || [],
       orphan_numerar: payload?.orphan_numerar || [],
       orphan_incasare: payload?.orphan_incasare || [],
+      orphan_manual: payload?.orphan_manual || [],
       confirmation: payload?.confirmation || null,
     },
   };
@@ -241,7 +257,9 @@ export interface RouteOption {
 
 export async function getActiveVehiclesForPicker(): Promise<VehicleOption[]> {
   const session = await verifySession();
-  if (!session) return [];
+  // Nomenclatorul se folosește doar la editarea rândurilor manuale — nu-l deschidem
+  // oricărui cont autentificat (parcul auto e listă internă).
+  if (!session || !isEditor(session.role)) return [];
   const sb = getSupabase();
   const { data } = await sb
     .from('vehicles')
@@ -261,7 +279,8 @@ function parseFirstTimeForSort(s: string | null): number {
 
 export async function getActiveRoutesForPicker(): Promise<RouteOption[]> {
   const session = await verifySession();
-  if (!session) return [];
+  // Rutele se folosesc și la simpla AFIȘARE a documentului (route_type), deci viewer, nu editor.
+  if (!session || !isViewer(session.role)) return [];
   const sb = getSupabase();
   const { data } = await sb
     .from('crm_routes')
@@ -327,6 +346,51 @@ export async function getCasierDocument(date: string): Promise<CasierRow[]> {
   const { data, error } = await sb.rpc('get_casier_document', { p_date: date });
   if (error) return [];
   return (data as CasierRow[]) || [];
+}
+
+// ─── Curse din /grafic fără plată la terminal (picker «Document casier Numerar») ───
+
+/** O cursă planificată pentru care foaia nu s-a întors (nicio plată la terminal). */
+export interface GraficFoaieCandidate {
+  assignment_id: string;
+  data_foaie: string;
+  crm_route_id: number;
+  route_name: string;
+  route_type: string | null;
+  time_nord: string | null;
+  driver_id: string | null;
+  driver_name: string | null;
+  vehicle_plate: string | null;
+  foaie_nr: string | null;
+  /** Ziua documentului în care cursa/foaia e DEJA introdusă manual. null = liberă. */
+  already_added_ziua: string | null;
+}
+
+/**
+ * Cursele din /grafic pentru care nu s-a întors foaia, pentru ziua documentului.
+ * Cu `search` (număr de foaie sau nume de șofer) caută în ultimele 60 de zile —
+ * pentru foile întârziate, care ajung la casă în altă zi decât cea a cursei.
+ */
+export async function getCasierGraficCandidates(
+  ziua: string,
+  search?: string,
+): Promise<{ data?: GraficFoaieCandidate[]; error?: string }> {
+  const session = await verifySession();
+  if (!session) return { error: 'Neautorizat' };
+  if (!isEditor(session.role)) return { error: 'Doar evaluatorul poate adăuga foi' };
+  if (!ziua) return { error: 'Zi lipsă' };
+
+  const sb = getSupabase();
+  const { data, error } = await sb.rpc('get_casier_grafic_candidates', {
+    p_date: ziua,
+    p_search: search?.trim() || null,
+  });
+  if (error) {
+    // Mesajul brut de Postgres (nume de tabele/constrângeri) rămâne în log-ul serverului.
+    console.error('get_casier_grafic_candidates:', error.message);
+    return { error: 'Nu am putut încărca foile din /grafic. Încearcă din nou.' };
+  }
+  return { data: (data as GraficFoaieCandidate[]) || [] };
 }
 
 // ─── Numele operatorului curent (pentru antet Document casier) ───
@@ -484,7 +548,11 @@ export interface CasierCorrectionInput {
   comment: string | null;
 }
 
-/** Rând manual (foaie fizică fără tomberon). id null = insert nou; uuid = update. Fără cash. */
+/**
+ * Rând manual (foaie fizică fără tomberon). id null = insert nou; uuid = update.
+ * Din migr. 313 are și cash propriu (incasare_numerar) — banii primiți la casă
+ * pentru o foaie care n-a trecut prin terminal («Document casier Numerar»).
+ */
 export interface CasierManualInput {
   id: string | null;
   foaie_nr: string | null;
@@ -494,6 +562,9 @@ export interface CasierManualInput {
   crm_route_id: number | null;
   route_name: string | null;
   vehicle_plate: string | null;
+  /** Cursa din /grafic din care a fost creat rândul. Se scrie DOAR la inserare. */
+  assignment_id: string | null;
+  incasare_numerar: number;
   diagrama: number;
   ligotniki0_suma: number;
   ligotniki_vokzal_suma: number;
@@ -513,6 +584,35 @@ const CORR_SUM_KEYS = [
 ] as const;
 
 /**
+ * Sumele vin din payload-ul clientului — `min={0}`/`step` din input-uri sunt doar ajutor de
+ * browser, nu o garanție. Sunt bani: o valoare negativă sau NaN se respinge, nu se corectează
+ * tăcut, ca să nu ajungă într-un total fără ca cineva să afle.
+ */
+// Plafon sanitar: nicio foaie nu aduce zece milioane de lei. Prinde greșeli de tastare și
+// valori fabricate care ar face totalurile de nerecunoscut.
+const MAX_SUMA = 10_000_000;
+
+/** Corecție: null = «fără corecție», deci permis. Restul: număr finit, între 0 și MAX_SUMA. */
+function isBadSum(v: number | null | undefined): boolean {
+  return v !== null && v !== undefined && (!Number.isFinite(v) || v < 0 || v > MAX_SUMA);
+}
+
+/** Rând manual: coloanele sunt NOT NULL, deci lipsa valorii nu e acceptată. */
+function isBadManualSum(v: number | null | undefined): boolean {
+  return typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > MAX_SUMA;
+}
+
+/** norm_foaie() din DB face `::bigint`; peste 18 cifre ar arunca «out of range». */
+const MAX_FOAIE_LEN = 18;
+/** Câmpurile text sunt instantanee afișate, nu documente — plafon ca să nu intre romane în DB. */
+const MAX_TEXT_LEN = 200;
+
+/** Rotunjire la bani, ca totalurile să nu adune resturi de virgulă mobilă. */
+function round2(v: number): number {
+  return Math.round(v * 100) / 100;
+}
+
+/**
  * Salvează corecțiile de sume și rândurile manuale pentru o zi.
  * Corecție cu toate câmpurile null = ștergere (revocare completă).
  * Întoarce documentul reîncărcat, ca UI-ul să primească manual_id/corrected_fields reale.
@@ -525,6 +625,34 @@ export async function saveCasierCorrections(
   if (!session) return { error: 'Neautorizat' };
   if (!isEditor(session.role)) return { error: 'Doar evaluatorul poate corecta' };
   if (!ziua) return { error: 'Zi lipsă' };
+
+  // Payload-ul vine deserializat de la client — nu presupunem nici măcar forma lui.
+  if (!Array.isArray(payload?.corrections) || !Array.isArray(payload?.manualUpserts)
+      || !Array.isArray(payload?.manualDeletes)) {
+    return { error: 'Date de salvare invalide.' };
+  }
+
+  // Validarea înainte de ORICE scriere: altfel o parte a payload-ului ar intra în DB și
+  // restul ar fi respins (scrierile nu sunt într-o tranzacție).
+  const badCorrection = payload.corrections.some(c => CORR_SUM_KEYS.some(k => isBadSum(c[k])));
+  const badManual = payload.manualUpserts.some(m =>
+    isBadManualSum(m.incasare_numerar) || CORR_SUM_KEYS.some(k => isBadManualSum(m[k])));
+  if (badCorrection || badManual) {
+    return { error: `Sumele trebuie să fie numere între 0 și ${MAX_SUMA.toLocaleString('ro-RO')}. Verifică rândurile marcate.` };
+  }
+  if (payload.manualUpserts.some(m => (m.foaie_nr?.trim().length ?? 0) > MAX_FOAIE_LEN)) {
+    return { error: `Numărul foii e prea lung (maxim ${MAX_FOAIE_LEN} caractere).` };
+  }
+  // Un rând fără cursă ȘI fără număr de foaie n-are cum să ajungă vreodată pe o rută —
+  // banii lui ar rămâne doar în documentul de casier. Îl oprim aici, cu un mesaj clar.
+  if (payload.manualUpserts.some(m => !m.assignment_id && !m.foaie_nr?.trim())) {
+    return { error: 'Fiecare rând are nevoie de un număr de foaie (sau de o cursă aleasă cu «+ Din /grafic»).' };
+  }
+  if (payload.manualUpserts.some(m =>
+    [m.driver_name, m.route_name, m.vehicle_plate, m.comment]
+      .some(t => (t?.length ?? 0) > MAX_TEXT_LEN))) {
+    return { error: `Textele (șofer, rută, mașină, comentariu) sunt limitate la ${MAX_TEXT_LEN} caractere.` };
+  }
 
   const sb = getSupabase();
   const now = new Date().toISOString();
@@ -548,11 +676,11 @@ export async function saveCasierCorrections(
         toUpsert.push({
           ziua,
           norm_nr: c.norm_nr,
-          diagrama: c.diagrama,
-          ligotniki0_suma: c.ligotniki0_suma,
-          ligotniki_vokzal_suma: c.ligotniki_vokzal_suma,
-          dt_suma: c.dt_suma,
-          dop_rashodi: c.dop_rashodi,
+          diagrama: c.diagrama === null ? null : round2(c.diagrama),
+          ligotniki0_suma: c.ligotniki0_suma === null ? null : round2(c.ligotniki0_suma),
+          ligotniki_vokzal_suma: c.ligotniki_vokzal_suma === null ? null : round2(c.ligotniki_vokzal_suma),
+          dt_suma: c.dt_suma === null ? null : round2(c.dt_suma),
+          dop_rashodi: c.dop_rashodi === null ? null : round2(c.dop_rashodi),
           comment: c.comment,
           created_by: session.id,
           updated_by: session.id,
@@ -588,18 +716,21 @@ export async function saveCasierCorrections(
     for (const m of payload.manualUpserts) {
       const base = {
         ziua,
-        foaie_nr: m.foaie_nr,
+        // Trim obligatoriu pe server: norm_foaie() din DB NU face trim, deci ' 142961' ar
+        // trece pe lângă indexul unic și pe lângă verificarea de dublură.
+        foaie_nr: m.foaie_nr?.trim() || null,
         data_foaie: m.data_foaie,
         driver_id: m.driver_id,
         driver_name: m.driver_name,
         crm_route_id: m.crm_route_id,
         route_name: m.route_name,
         vehicle_plate: m.vehicle_plate,
-        diagrama: m.diagrama,
-        ligotniki0_suma: m.ligotniki0_suma,
-        ligotniki_vokzal_suma: m.ligotniki_vokzal_suma,
-        dt_suma: m.dt_suma,
-        dop_rashodi: m.dop_rashodi,
+        incasare_numerar: round2(m.incasare_numerar),
+        diagrama: round2(m.diagrama),
+        ligotniki0_suma: round2(m.ligotniki0_suma),
+        ligotniki_vokzal_suma: round2(m.ligotniki_vokzal_suma),
+        dt_suma: round2(m.dt_suma),
+        dop_rashodi: round2(m.dop_rashodi),
         comment: m.comment,
         updated_by: session.id,
         updated_at: now,
@@ -613,14 +744,28 @@ export async function saveCasierCorrections(
           .eq('ziua', ziua);
         if (error) throw new Error(error.message);
       } else {
+        // assignment_id se scrie o singură dată, la inserare: e proveniența rândului, nu un
+        // câmp editabil. Update-urile nu-l ating, ca o corectare din UI să nu-l piardă.
         const { error } = await sb
           .from('casier_manual_rows')
-          .insert({ ...base, created_by: session.id });
+          .insert({ ...base, assignment_id: m.assignment_id, created_by: session.id });
         if (error) throw new Error(error.message);
       }
     }
   } catch (e) {
-    opError = e instanceof Error ? e.message : 'Eroare la salvare';
+    const raw = e instanceof Error ? e.message : 'Eroare la salvare';
+    // Gărzile din DB (migr. 313) vorbesc în limbaj de constrângeri — le traducem.
+    if (raw.includes('uq_casier_manual_assignment') || raw.includes('uq_casier_manual_foaie_libera')) {
+      opError = 'Cursa (sau foaia) e deja introdusă manual, poate în documentul altei zile. Caut-o cu «+ Din /grafic» — acolo apare blocată, cu ziua în care a fost introdusă.';
+    } else if (raw.includes('chk_casier_manual_sume_pozitive') || raw.includes('chk_casier_corr_sume_pozitive')) {
+      opError = 'Sumele nu pot fi negative.';
+    } else if (raw.includes('chk_casier_manual_identificare')) {
+      opError = 'Fiecare rând are nevoie de un număr de foaie (sau de o cursă aleasă cu «+ Din /grafic»).';
+    } else {
+      // Restul mesajelor de Postgres (nume de tabele, constrângeri) rămân în log-ul serverului.
+      console.error('saveCasierCorrections:', raw);
+      opError = 'Salvarea nu a reușit. Reîncearcă; dacă se repetă, anunță administratorul.';
+    }
   }
 
   // 3. Reîncarcă documentul, cu id-urile/câmpurile reale (și pe eroare, pentru re-sincronizare).

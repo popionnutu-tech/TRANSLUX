@@ -1,0 +1,496 @@
+-- 320: numerarul din «Document casier Numerar» (migr. 313) intră în raportul pe rute,
+-- la fel ca banii de pe terminal. Plus două lucruri fără de care integrarea ar pierde bani.
+--
+-- De ce: documentul Numerar e completarea documentului de casier — sunt rutele la care
+-- șoferul predă foaia la casă dar n-o trece prin tomberon. Până acum banii aceia existau
+-- DOAR în documentul de casier: în «Pe rute (sumar)» cursele respective apăreau ca
+-- «fără încasare», deși fuseseră încasate. Nu era o dublare, era o gaură în sens invers.
+--
+-- (1) norm_foaie(): plafon de 18 cifre. `s::bigint` arunca «out of range» la un număr de foaie
+--     mai lung, iar funcția e apelată nefiltrat peste tot tabelul în foaie_last_owner — un
+--     singur rând greșit ar fi oprit TOATE rapoartele modulului, pentru toți, până la curățare
+--     manuală. Numerele reale au 6-8 cifre (verificat), deci nicio valoare existentă nu se
+--     schimbă și niciun index funcțional nu devine invalid.
+--
+-- (2) get_grafic_report: numerarul manual se adaugă pe rută, cu anti-dublare consecventă —
+--     cheia e CURSA pentru rândurile venite din picker (două curse ale aceluiași șofer pot
+--     împărți «foaia zilei», iar a doua trebuie să-și păstreze banii) și FOAIA pentru
+--     rândurile introduse complet manual. O cursă care a primit bani de la terminal nu mai
+--     primește și numerar manual, și nu primește niciodată și pe cursă, și pe foaie.
+--
+-- (3) `orphan_manual`: numerarul manual care nu s-a legat de nicio rută (foaie greșită, cursă
+--     ștearsă, rând fără identificare, foaie ajunsă între timp la terminal). Terminalul avea
+--     deja `orphan_incasare` pentru asta; fără perechea lui, o greșeală de introducere ar fi
+--     scos banii din raport în tăcere.
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- (1) norm_foaie devine totală: peste 18 cifre păstrează textul, nu mai aruncă.
+CREATE OR REPLACE FUNCTION public.norm_foaie(s text)
+RETURNS text LANGUAGE sql IMMUTABLE
+AS $$
+  SELECT CASE WHEN s ~ '^[0-9]{1,18}$' THEN s::bigint::text ELSE s END;
+$$;
+
+COMMENT ON FUNCTION public.norm_foaie(text) IS
+  'Normalizează numărul foii de parcurs: «0142961» și «142961» sunt aceeași foaie. Peste 18 cifre păstrează textul — bigint ar arunca «out of range» și ar opri rapoartele. Perechea din TypeScript: apps/admin/src/lib/norm-foaie.ts.';
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- (2)+(3) get_grafic_report. Restul funcției e neatins față de migr. 246.
+CREATE OR REPLACE FUNCTION public.get_grafic_report(p_from date, p_to date)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'tomberon', 'pg_temp'
+AS $function$
+DECLARE
+  v_routes          jsonb;
+  v_orphan_num      jsonb;
+  v_orphan_inc      jsonb;
+  v_orphan_manual   jsonb;
+  v_manual_atasate  uuid[];   -- rândurile manuale care chiar au ajuns pe o rută
+  v_confirmation    jsonb;
+BEGIN
+  WITH
+  foaie_last_owner AS (
+    SELECT DISTINCT ON (norm_foaie(receipt_nr)) norm_foaie(receipt_nr) AS receipt_nr, driver_id
+    FROM driver_cashin_receipts ORDER BY norm_foaie(receipt_nr), ziua DESC
+  ),
+  explicit_attributions AS (
+    -- foaia legată de rută merge doar la ruta ei; foaia «neancorată» (fără rută,
+    -- sau legată de o rută pe care șoferul n-o mai are azi) merge pe (șofer, zi)
+    -- ca înainte, dar NU fură atribuirea unei rute care-și are deja foaia proprie
+    SELECT da.id AS assignment_id, da.driver_id, da.assignment_date AS ziua,
+           da.crm_route_id,
+           norm_foaie(dcr.receipt_nr) AS foaie_nr, 'explicit'::text AS source,
+           -- IS NOT DISTINCT FROM: niciodată NULL (da.crm_route_id e nullable,
+           -- iar NULL ar sări în fața lui true la ORDER BY bound DESC)
+           (dcr.crm_route_id IS NOT NULL AND dcr.crm_route_id IS NOT DISTINCT FROM da.crm_route_id) AS bound
+    FROM daily_assignments da
+    JOIN driver_cashin_receipts dcr ON dcr.driver_id = da.driver_id AND dcr.ziua = da.assignment_date
+    WHERE dcr.crm_route_id = da.crm_route_id
+       OR (
+            (dcr.crm_route_id IS NULL OR NOT EXISTS (
+               SELECT 1 FROM daily_assignments da2
+               WHERE da2.driver_id = dcr.driver_id AND da2.assignment_date = dcr.ziua
+                 AND da2.crm_route_id = dcr.crm_route_id))
+        AND NOT EXISTS (
+               SELECT 1 FROM driver_cashin_receipts d2
+               WHERE d2.driver_id = da.driver_id AND d2.ziua = da.assignment_date
+                 AND d2.crm_route_id = da.crm_route_id)
+       )
+  ),
+  implied_raw AS (
+    SELECT da.id AS assignment_id, da.driver_id, da.assignment_date AS ziua,
+           da.crm_route_id, norm_foaie(t.sofer_id) AS foaie_nr
+    FROM daily_assignments da
+    JOIN tomberon.transactions t ON t.ziua = da.assignment_date
+    JOIN foaie_last_owner flo ON flo.receipt_nr = norm_foaie(t.sofer_id) AND flo.driver_id = da.driver_id
+    -- fallback-ul din kiosk se stinge doar pentru ruta care are deja foaie
+    -- (a ei sau a zilei), nu pentru toate rutele șoferului
+    WHERE NOT EXISTS (SELECT 1 FROM driver_cashin_receipts dcr
+                      WHERE dcr.driver_id = da.driver_id AND dcr.ziua = da.assignment_date
+                        AND (dcr.crm_route_id IS NULL OR dcr.crm_route_id = da.crm_route_id))
+    AND NOT EXISTS (SELECT 1 FROM driver_cashin_receipts dcr_other
+                    WHERE norm_foaie(dcr_other.receipt_nr) = norm_foaie(t.sofer_id) AND dcr_other.ziua = da.assignment_date)
+  ),
+  implied_attributions AS (
+    SELECT DISTINCT ON (assignment_id) assignment_id, driver_id, ziua, crm_route_id, foaie_nr, 'implied'::text AS source, false AS bound
+    FROM implied_raw ORDER BY assignment_id, foaie_nr
+  ),
+  effective_attributions AS (
+    SELECT * FROM explicit_attributions UNION ALL SELECT * FROM implied_attributions
+  ),
+  -- base_pairs mutat ÎNAINTEA dedup-ului: dedup trebuie să prefere atribuirile care
+  -- chiar apar în raport (altfel foaia se leagă de o rută filtrată afară → bani dispăruți).
+  base_pairs AS (
+    SELECT da.crm_route_id, da.assignment_date AS ziua, da.id AS assignment_id
+    FROM daily_assignments da
+    JOIN crm_routes cr ON cr.id = da.crm_route_id
+    WHERE da.assignment_date BETWEEN p_from AND p_to
+      AND (
+        cr.route_type != 'suburban'
+        OR NOT EXISTS (SELECT 1 FROM crm_route_schedules crs WHERE crs.route_id = da.crm_route_id AND crs.active = true)
+        OR EXISTS (SELECT 1 FROM crm_route_schedules crs WHERE crs.route_id = da.crm_route_id AND crs.active = true
+                   AND EXTRACT(ISODOW FROM da.assignment_date)::int = ANY(crs.days_of_week))
+      )
+    UNION
+    SELECT cr.id, gs.d::date, NULL::uuid
+    FROM crm_routes cr
+    CROSS JOIN generate_series(p_from::timestamp, p_to::timestamp, interval '1 day') gs(d)
+    WHERE cr.active = true AND cr.route_type = 'suburban'
+      AND EXISTS (SELECT 1 FROM crm_route_schedules crs WHERE crs.route_id = cr.id AND crs.active = true
+                  AND EXTRACT(ISODOW FROM gs.d::date)::int = ANY(crs.days_of_week))
+      AND NOT EXISTS (SELECT 1 FROM daily_assignments da WHERE da.crm_route_id = cr.id AND da.assignment_date = gs.d::date)
+  ),
+  -- O foaie se atribuie unei SINGURE rute (anti-dublare). Precedență:
+  --   1) atribuirea care e ÎN raport (base_pairs) — ca să nu dispară banii;
+  --   2) override manual (foaie → rută);
+  --   3) foaie legată de rută, apoi explicită (din /grafic) înaintea celei implicite;
+  --   4) crm_route_id minim; 5) assignment_id (tiebreak determinist final).
+  -- NB: pentru foile LEGATE de rută există un singur candidat (ruta lor), deci
+  -- pasul 1 nu le mai poate «salva» dintr-o rută filtrată afară din base_pairs —
+  -- cazul e detectat separat, ca orfan FOAIE_FARA_CURSA (mai jos).
+  effective_dedup AS (
+    SELECT DISTINCT ON (ea.foaie_nr, ea.ziua)
+           ea.assignment_id, ea.driver_id, ea.ziua, ea.foaie_nr, ea.source, ea.bound
+    FROM effective_attributions ea
+    LEFT JOIN foaie_route_overrides fro
+      ON fro.ziua = ea.ziua AND norm_foaie(fro.foaie_nr) = ea.foaie_nr
+    ORDER BY ea.foaie_nr, ea.ziua,
+             (EXISTS (SELECT 1 FROM base_pairs bp WHERE bp.assignment_id = ea.assignment_id)) DESC,
+             (CASE WHEN fro.crm_route_id = ea.crm_route_id THEN 0 ELSE 1 END),
+             ea.bound DESC,
+             (ea.source = 'explicit') DESC,
+             ea.crm_route_id,
+             ea.assignment_id
+  ),
+  -- invariantul-pereche al lui effective_dedup: și o RUTĂ primește o singură
+  -- foaie (altfel foaia zilei + cea legată ar dubla banii aceleiași curse)
+  effective_route AS (
+    SELECT DISTINCT ON (assignment_id)
+           assignment_id, driver_id, ziua, foaie_nr, source
+    FROM effective_dedup
+    ORDER BY assignment_id, bound DESC, (source = 'explicit') DESC, foaie_nr
+  ),
+  route_stops AS (
+    SELECT crm_route_id, COUNT(*) AS stop_count,
+      (array_agg(name_ro ORDER BY id))[GREATEST(2, COUNT(*)::int / 2)] AS middle_stop
+    FROM crm_stop_fares GROUP BY crm_route_id
+  ),
+  kiosk_effective AS (
+    SELECT DISTINCT ON (t.id)
+      t.id, norm_foaie(t.sofer_id) AS sofer_id, t.ziua AS kiosk_ziua,
+      r.ziua AS effective_ziua,
+      t.suma_numerar, t.diagrama_suma, t.ligotniki0_suma, t.ligotniki_vokzal_suma,
+      t.dt_suma, t.dop_rashodi, t.suma_incash, t.comment, t.fiscal_receipt_nr
+    FROM tomberon.transactions t
+    LEFT JOIN driver_cashin_receipts r ON norm_foaie(r.receipt_nr) = norm_foaie(t.sofer_id)
+    ORDER BY t.id, ABS(r.ziua - t.ziua) NULLS LAST
+  ),
+  tomberon_per_foaie AS (
+    SELECT k.sofer_id AS foaie_nr, k.effective_ziua AS ziua,
+      SUM(COALESCE(k.suma_numerar,0))::numeric          AS incasare_numerar,
+      SUM(COALESCE(k.diagrama_suma,0))::numeric         AS incasare_diagrama,
+      SUM(COALESCE(k.ligotniki0_suma,0))::numeric       AS ligotniki0_suma,
+      SUM(COALESCE(k.ligotniki_vokzal_suma,0))::numeric AS ligotniki_vokzal_suma,
+      SUM(COALESCE(k.dt_suma,0))::numeric               AS dt_suma,
+      SUM(COALESCE(k.dop_rashodi,0))::numeric           AS dop_rashodi,
+      COUNT(*)::int                                       AS plati,
+      string_agg(DISTINCT NULLIF(k.comment,''),           ' | ') AS comment,
+      string_agg(DISTINCT NULLIF(k.fiscal_receipt_nr,''), ', ')  AS fiscal_nrs
+    FROM kiosk_effective k
+    WHERE k.effective_ziua IS NOT NULL
+      AND k.effective_ziua BETWEEN p_from AND p_to
+    GROUP BY k.sofer_id, k.effective_ziua
+  ),
+  -- ─── Numerarul introdus manual la casă (migr. 313) ───
+  manual_rows AS (
+    SELECT m.*,
+      COALESCE(m.data_foaie, m.ziua) AS ziua_efectiva,
+      EXISTS (SELECT 1 FROM tomberon.transactions t
+              WHERE m.foaie_nr IS NOT NULL
+                AND norm_foaie(t.sofer_id) = norm_foaie(m.foaie_nr)) AS foaie_la_terminal
+    FROM casier_manual_rows m
+    -- Doar ce poate ajunge în raportul acestei perioade: altfel anti-join-ul peste
+    -- tomberon.transactions s-ar plăti pentru tot istoricul, la fiecare apel.
+    WHERE COALESCE(m.data_foaie, m.ziua) BETWEEN p_from AND p_to
+       OR m.assignment_id IN (SELECT bp.assignment_id FROM base_pairs bp WHERE bp.assignment_id IS NOT NULL)
+  ),
+  -- Rândurile venite din picker: se leagă exact de cursa lor din /grafic. Cheia de
+  -- anti-dublare e CURSA, nu foaia (migr. 313) — două curse ale aceluiași șofer pot împărți
+  -- «foaia zilei», iar a doua trebuie să-și păstreze numerarul. Excluderea se face la join,
+  -- pe cursele care au primit deja bani de la terminal.
+  manual_per_assignment AS (
+    SELECT m.assignment_id,
+      SUM(m.incasare_numerar)::numeric      AS incasare_numerar,
+      SUM(m.diagrama)::numeric              AS incasare_diagrama,
+      SUM(m.ligotniki0_suma)::numeric       AS ligotniki0_suma,
+      SUM(m.ligotniki_vokzal_suma)::numeric AS ligotniki_vokzal_suma,
+      SUM(m.dt_suma)::numeric               AS dt_suma,
+      SUM(m.dop_rashodi)::numeric           AS dop_rashodi,
+      array_agg(m.id)                       AS ids,
+      (array_agg(m.foaie_nr) FILTER (WHERE m.foaie_nr IS NOT NULL))[1] AS foaie_nr,
+      string_agg(DISTINCT NULLIF(m.comment, ''), ' | ') AS comment
+    FROM manual_rows m
+    WHERE m.assignment_id IS NOT NULL
+    GROUP BY m.assignment_id
+  ),
+  -- Rândurile introduse complet manual (fără cursă): singura cheie e numărul foii, deci aici
+  -- excluderea pe foaie e cea corectă — dacă foaia a ajuns și la terminal, cifra mașinii câștigă.
+  manual_per_foaie AS (
+    SELECT norm_foaie(m.foaie_nr) AS foaie_nr, m.ziua_efectiva AS ziua,
+      SUM(m.incasare_numerar)::numeric      AS incasare_numerar,
+      SUM(m.diagrama)::numeric              AS incasare_diagrama,
+      SUM(m.ligotniki0_suma)::numeric       AS ligotniki0_suma,
+      SUM(m.ligotniki_vokzal_suma)::numeric AS ligotniki_vokzal_suma,
+      SUM(m.dt_suma)::numeric               AS dt_suma,
+      SUM(m.dop_rashodi)::numeric           AS dop_rashodi,
+      array_agg(m.id)                       AS ids,
+      string_agg(DISTINCT NULLIF(m.comment, ''), ' | ') AS comment
+    FROM manual_rows m
+    WHERE m.assignment_id IS NULL AND m.foaie_nr IS NOT NULL AND NOT m.foaie_la_terminal
+    GROUP BY 1, 2
+  ),
+  routes_view AS (
+    SELECT
+      bp.assignment_id, bp.crm_route_id, bp.ziua,
+      COALESCE(bp.assignment_id::text, 'route-' || bp.crm_route_id || '-' || bp.ziua) AS row_key,
+      CASE
+        WHEN cr.route_type = 'suburban' AND COALESCE(rs.stop_count, 0) > 6 AND rs.middle_stop IS NOT NULL
+          THEN cr.dest_to_ro || ' - ' || rs.middle_stop || ' - ' || cr.dest_from_ro
+        WHEN cr.route_type = 'suburban' THEN cr.dest_to_ro || ' - ' || cr.dest_from_ro
+        ELSE cr.dest_to_ro
+      END AS route_name,
+      cr.time_nord,
+      COALESCE(cr_retur.time_chisinau, cr.time_chisinau) AS time_chisinau,
+      da.driver_id, d.full_name AS driver_name,
+      v.plate_number AS vehicle_plate, vr.plate_number AS vehicle_plate_retur,
+      -- foaia cursei: cea din /grafic, altfel cea scrisă pe rândul manual (altfel cursa ar
+      -- apărea «fără foaie» deși casierul a introdus-o cu tot cu număr)
+      COALESCE(ea.foaie_nr, mpa.foaie_nr) AS foaie_nr,
+      COALESCE(ea.source, CASE WHEN mpa.assignment_id IS NOT NULL THEN 'manual' END) AS foaie_source,
+      cs.id AS counting_session_id, cs.tur_total_lei, cs.retur_total_lei, cs.status AS counting_status,
+      cs.tur_single_lei, cs.retur_single_lei,
+      (COALESCE(cs.tur_total_lei,0) + COALESCE(cs.retur_total_lei,0))::numeric AS numarare_lei,
+      CASE
+        WHEN cs.tur_single_lei IS NULL AND cs.retur_single_lei IS NULL THEN NULL
+        ELSE (COALESCE(cs.tur_single_lei,0) + COALESCE(cs.retur_single_lei,0))::numeric
+      END AS numarare_single_lei,
+      -- terminal + numerar introdus manual (pe cursă, respectiv pe foaie)
+      COALESCE(tpf.incasare_numerar, 0) + COALESCE(mpa.incasare_numerar, 0) + COALESCE(mpf.incasare_numerar, 0) AS incasare_numerar,
+      COALESCE(tpf.incasare_diagrama, 0) + COALESCE(mpa.incasare_diagrama, 0) + COALESCE(mpf.incasare_diagrama, 0) AS incasare_diagrama,
+      COALESCE(tpf.ligotniki0_suma, 0) + COALESCE(mpa.ligotniki0_suma, 0) + COALESCE(mpf.ligotniki0_suma, 0) AS ligotniki0_suma,
+      COALESCE(tpf.ligotniki_vokzal_suma, 0) + COALESCE(mpa.ligotniki_vokzal_suma, 0) + COALESCE(mpf.ligotniki_vokzal_suma, 0) AS ligotniki_vokzal_suma,
+      COALESCE(tpf.dt_suma, 0) + COALESCE(mpa.dt_suma, 0) + COALESCE(mpf.dt_suma, 0) AS dt_suma,
+      COALESCE(tpf.dop_rashodi, 0) + COALESCE(mpa.dop_rashodi, 0) + COALESCE(mpf.dop_rashodi, 0) AS dop_rashodi,
+      (COALESCE(tpf.incasare_numerar, 0) + COALESCE(mpa.incasare_numerar, 0) + COALESCE(mpf.incasare_numerar, 0))
+        + (COALESCE(tpf.incasare_diagrama, 0) + COALESCE(mpa.incasare_diagrama, 0) + COALESCE(mpf.incasare_diagrama, 0)) AS incasare_lei,
+      NULLIF(concat_ws(' | ', tpf.comment, mpa.comment, mpf.comment), '') AS incasare_comment,
+      -- «plăți» înseamnă tranzacții la terminal; un rând manual e prin definiție zero
+      COALESCE(tpf.plati, 0) AS plati,
+      tpf.fiscal_nrs,
+      COALESCE(mpa.ids, '{}'::uuid[]) || COALESCE(mpf.ids, '{}'::uuid[]) AS manual_ids,
+      EXISTS (SELECT 1 FROM route_cancellations rc WHERE rc.crm_route_id = bp.crm_route_id AND rc.ziua = bp.ziua) AS cancelled
+    FROM base_pairs bp
+    LEFT JOIN crm_routes cr ON cr.id = bp.crm_route_id
+    LEFT JOIN daily_assignments da ON da.id = bp.assignment_id
+    LEFT JOIN crm_routes cr_retur ON cr_retur.id = da.retur_route_id
+    LEFT JOIN drivers d ON d.id = da.driver_id
+    LEFT JOIN vehicles v ON v.id = da.vehicle_id
+    LEFT JOIN vehicles vr ON vr.id = da.vehicle_id_retur
+    LEFT JOIN effective_route ea ON ea.assignment_id = bp.assignment_id
+    LEFT JOIN counting_sessions cs ON cs.crm_route_id = bp.crm_route_id AND cs.assignment_date = bp.ziua
+    -- tpf.foaie_nr vine deja normalizat din kiosk_effective — nu-l mai normalizăm o dată
+    LEFT JOIN tomberon_per_foaie tpf ON tpf.foaie_nr = norm_foaie(ea.foaie_nr) AND tpf.ziua = bp.ziua
+    -- numerarul manual intră DOAR pe cursele care n-au primit bani de la terminal: altfel
+    -- «foaia zilei» trecută prin casă plus foaia predată în numerar s-ar aduna pe aceeași cursă
+    LEFT JOIN manual_per_assignment mpa
+      ON mpa.assignment_id = bp.assignment_id
+     AND tpf.foaie_nr IS NULL
+    -- iar o cursă nu primește și pe cursă, și pe foaie
+    LEFT JOIN manual_per_foaie mpf
+      ON mpf.foaie_nr = norm_foaie(ea.foaie_nr) AND mpf.ziua = bp.ziua
+     AND tpf.foaie_nr IS NULL AND mpa.assignment_id IS NULL
+    LEFT JOIN route_stops rs ON rs.crm_route_id = bp.crm_route_id
+  ),
+  routes_status AS (
+    SELECT rv.*,
+      ((rv.incasare_numerar + rv.incasare_diagrama) + rv.ligotniki0_suma + rv.dop_rashodi - rv.numarare_lei) AS diff,
+      CASE
+        WHEN rv.numarare_single_lei IS NULL THEN NULL
+        ELSE (rv.numarare_lei - rv.numarare_single_lei)
+      END AS extra_2tarife_lei,
+      CASE
+        WHEN rv.cancelled THEN 'cancelled'
+        WHEN rv.driver_id IS NULL THEN 'no_driver'
+        WHEN rv.foaie_nr IS NULL AND rv.numarare_lei = 0 AND rv.incasare_lei = 0 THEN 'empty'
+        WHEN rv.foaie_nr IS NULL AND rv.numarare_lei > 0 THEN 'no_foaie'
+        WHEN rv.numarare_lei = 0 AND rv.incasare_lei = 0 THEN 'no_data'
+        WHEN rv.numarare_lei > 0 AND rv.incasare_lei = 0 THEN 'no_incasare'
+        WHEN rv.numarare_lei = 0 AND rv.incasare_lei > 0 THEN 'no_numarare'
+        WHEN rv.numarare_lei > 0 AND ABS((rv.incasare_numerar + rv.incasare_diagrama) + rv.ligotniki0_suma + rv.dop_rashodi - rv.numarare_lei) / rv.numarare_lei <= 0.05 THEN 'ok'
+        WHEN ((rv.incasare_numerar + rv.incasare_diagrama) + rv.ligotniki0_suma + rv.dop_rashodi) < rv.numarare_lei THEN 'underpaid'
+        ELSE 'overpaid'
+      END AS status
+    FROM routes_view rv
+  )
+  SELECT COALESCE(jsonb_agg(jsonb_build_object(
+      'assignment_id', rs.assignment_id, 'row_key', rs.row_key,
+      'crm_route_id', rs.crm_route_id, 'ziua', rs.ziua,
+      'route_name', rs.route_name, 'time_nord', rs.time_nord, 'time_chisinau', rs.time_chisinau,
+      'driver_id', rs.driver_id, 'driver_name', rs.driver_name,
+      'vehicle_plate', rs.vehicle_plate, 'vehicle_plate_retur', rs.vehicle_plate_retur,
+      'foaie_nr', rs.foaie_nr, 'foaie_source', rs.foaie_source, 'cancelled', rs.cancelled,
+      'counting_session_id', rs.counting_session_id, 'counting_status', rs.counting_status,
+      'tur_total_lei', rs.tur_total_lei, 'retur_total_lei', rs.retur_total_lei,
+      'tur_single_lei', rs.tur_single_lei, 'retur_single_lei', rs.retur_single_lei,
+      'numarare_lei', ROUND(rs.numarare_lei, 2),
+      'numarare_single_lei', CASE WHEN rs.numarare_single_lei IS NULL THEN NULL ELSE ROUND(rs.numarare_single_lei, 2) END,
+      'extra_2tarife_lei', CASE WHEN rs.extra_2tarife_lei IS NULL THEN NULL ELSE ROUND(rs.extra_2tarife_lei, 2) END,
+      'incasare_numerar', ROUND(rs.incasare_numerar, 2),
+      'incasare_diagrama', ROUND(rs.incasare_diagrama, 2),
+      'ligotniki0_suma', ROUND(rs.ligotniki0_suma, 2),
+      'ligotniki_vokzal_suma', ROUND(rs.ligotniki_vokzal_suma, 2),
+      'dt_suma', ROUND(rs.dt_suma, 2),
+      'dop_rashodi', ROUND(rs.dop_rashodi, 2),
+      'incasare_lei', ROUND(rs.incasare_lei, 2),
+      'plati', rs.plati, 'comment', rs.incasare_comment, 'fiscal_nrs', rs.fiscal_nrs,
+      'diff', ROUND(rs.diff, 2), 'status', rs.status
+    ) ORDER BY rs.ziua DESC, rs.time_nord NULLS LAST, rs.route_name
+  ), '[]'::jsonb),
+  -- ce rânduri manuale au ajuns efectiv pe o rută; restul sunt bani rătăciți (mai jos)
+  COALESCE((SELECT array_agg(DISTINCT mid)
+            FROM routes_status rs2, unnest(rs2.manual_ids) AS mid), '{}'::uuid[])
+  INTO v_routes, v_manual_atasate
+  FROM routes_status rs;
+
+  -- Numerar manual care NU s-a legat de nicio rută din raport: foaie tastată greșit, cursă
+  -- ștearsă din /grafic, rând fără cursă și fără număr, sau foaie ajunsă între timp la
+  -- terminal. Fără lista asta banii ar dispărea tăcut din «Pe rute» — exact ce trebuia evitat.
+  SELECT COALESCE(jsonb_agg(jsonb_build_object(
+      'id', m.id, 'ziua', m.ziua, 'data_foaie', m.data_foaie, 'foaie_nr', m.foaie_nr,
+      'driver_name', COALESCE(d.full_name, m.driver_name), 'route_name', m.route_name,
+      'total_lei', ROUND((m.incasare_numerar + m.diagrama + m.ligotniki0_suma
+                          + m.ligotniki_vokzal_suma + m.dt_suma + m.dop_rashodi)::numeric, 2),
+      'incasare_numerar', ROUND(m.incasare_numerar, 2),
+      'reason', CASE
+        WHEN EXISTS (SELECT 1 FROM tomberon.transactions t
+                     WHERE m.foaie_nr IS NOT NULL
+                       AND norm_foaie(t.sofer_id) = norm_foaie(m.foaie_nr)) THEN 'dublura_terminal'
+        WHEN m.assignment_id IS NULL AND m.foaie_nr IS NULL THEN 'fara_identificare'
+        ELSE 'fara_ruta'
+      END
+    ) ORDER BY COALESCE(m.data_foaie, m.ziua) DESC, m.created_at), '[]'::jsonb) INTO v_orphan_manual
+  FROM casier_manual_rows m
+  LEFT JOIN drivers d ON d.id = m.driver_id
+  WHERE COALESCE(m.data_foaie, m.ziua) BETWEEN p_from AND p_to
+    AND NOT (m.id = ANY(v_manual_atasate))
+    AND (m.incasare_numerar + m.diagrama + m.ligotniki0_suma
+         + m.ligotniki_vokzal_suma + m.dt_suma + m.dop_rashodi) > 0;
+
+  WITH cs_orphans AS (
+    SELECT cs.id AS session_id, cs.crm_route_id,
+      cr.dest_to_ro AS route_name, cr.time_nord,
+      cs.assignment_date AS ziua, cs.driver_id, d.full_name AS driver_name,
+      cs.tur_total_lei, cs.retur_total_lei,
+      (COALESCE(cs.tur_total_lei,0) + COALESCE(cs.retur_total_lei,0))::numeric AS total_lei,
+      cs.status AS counting_status,
+      CASE
+        WHEN cs.driver_id IS NULL THEN 'no_driver'
+        WHEN NOT EXISTS (SELECT 1 FROM daily_assignments da
+                         WHERE da.crm_route_id = cs.crm_route_id AND da.assignment_date = cs.assignment_date) THEN 'no_grafic'
+        ELSE NULL
+      END AS reason
+    FROM counting_sessions cs
+    LEFT JOIN crm_routes cr ON cr.id = cs.crm_route_id
+    LEFT JOIN drivers d ON d.id = cs.driver_id
+    -- Idem: numărările orfane se raportează pentru perioada cerută, nu pentru tot istoricul.
+    WHERE (COALESCE(cs.tur_total_lei,0) + COALESCE(cs.retur_total_lei,0)) > 0
+      AND cs.assignment_date BETWEEN p_from AND p_to
+  )
+  SELECT COALESCE(jsonb_agg(jsonb_build_object(
+      'session_id', o.session_id, 'crm_route_id', o.crm_route_id,
+      'route_name', o.route_name, 'time_nord', o.time_nord, 'ziua', o.ziua,
+      'driver_id', o.driver_id, 'driver_name', o.driver_name,
+      'tur_total_lei', o.tur_total_lei, 'retur_total_lei', o.retur_total_lei,
+      'total_lei', ROUND(o.total_lei, 2), 'counting_status', o.counting_status,
+      'reason', o.reason
+    ) ORDER BY o.ziua DESC, o.time_nord NULLS LAST), '[]'::jsonb) INTO v_orphan_num
+  FROM cs_orphans o WHERE o.reason IS NOT NULL;
+
+  WITH ir AS (
+    SELECT norm_foaie(t.sofer_id) AS receipt_nr, t.ziua,
+           SUM(COALESCE(t.suma_numerar,0))::numeric AS cash,
+           SUM(COALESCE(t.suma_incash,0))::numeric  AS incash,
+           COUNT(*)::int                              AS plati,
+           SUM(COALESCE(t.ligotniki0_suma,0))::numeric AS ligotniki0,
+           SUM(COALESCE(t.diagrama_suma,0))::numeric  AS diagrama,
+           SUM(COALESCE(t.ligotniki_vokzal_suma,0))::numeric AS ligotniki_vokzal,
+           SUM(COALESCE(t.dt_suma,0))::numeric AS dt,
+           SUM(COALESCE(t.dop_rashodi,0))::numeric AS dop_rashodi,
+           string_agg(DISTINCT NULLIF(t.comment,''), ' | ') AS comment,
+           string_agg(DISTINCT NULLIF(t.fiscal_receipt_nr,''), ', ') AS fiscal_nr
+    -- Limitat la perioada cerută: fără WHERE, blocul agrega TOT istoricul terminalului și
+    -- întorcea ~4000 de rânduri (1,5 MB) la fiecare deschidere a tabului, din care interfața
+    -- folosea doar cele din ziua curentă. Peste ~75 de zile, funcția intra în timeout.
+    FROM tomberon.transactions t
+    WHERE t.ziua BETWEEN p_from AND p_to
+    GROUP BY norm_foaie(t.sofer_id), t.ziua
+  ),
+  matches AS (
+    SELECT ir.*,
+      (SELECT COUNT(*) FROM driver_cashin_receipts r WHERE norm_foaie(r.receipt_nr) = ir.receipt_nr) AS grafic_count,
+      -- foaia e în grafic, dar șoferul ei n-are NICIO atribuire în ziua foii
+      -- (cursa ștearsă/mutată) → banii n-ar apărea nicăieri fără categoria asta
+      NOT EXISTS(SELECT 1 FROM driver_cashin_receipts r
+                 JOIN daily_assignments da ON da.driver_id = r.driver_id AND da.assignment_date = r.ziua
+                 WHERE norm_foaie(r.receipt_nr) = ir.receipt_nr) AS fara_cursa,
+      CASE WHEN ir.receipt_nr ~ '^[0-9]+$' THEN true ELSE false END AS valid_format,
+      EXISTS(SELECT 1 FROM tomberon_payment_overrides ovr
+             WHERE norm_foaie(ovr.receipt_nr) = ir.receipt_nr AND ovr.ziua = ir.ziua) AS has_override
+    FROM ir
+  )
+  SELECT COALESCE(jsonb_agg(jsonb_build_object(
+      'receipt_nr', m.receipt_nr, 'ziua', m.ziua,
+      'category', CASE WHEN NOT m.valid_format THEN 'INVALID_FORMAT'
+                       WHEN m.grafic_count = 0 THEN 'NO_FOAIE'
+                       ELSE 'FOAIE_FARA_CURSA' END,
+      'plati', m.plati, 'incasare_lei', ROUND((m.cash + m.diagrama)::numeric, 2),
+      'breakdown', jsonb_build_object(
+        'numerar', ROUND(m.cash::numeric, 2),
+        'diagrama', ROUND(m.diagrama::numeric, 2),
+        'ligotniki0_suma', ROUND(m.ligotniki0::numeric, 2),
+        'ligotniki_vokzal_suma', ROUND(m.ligotniki_vokzal::numeric, 2),
+        'dt_suma', ROUND(m.dt::numeric, 2),
+        'dop_rashodi', ROUND(m.dop_rashodi::numeric, 2),
+        'comment', m.comment, 'fiscal_nr', m.fiscal_nr
+      ),
+      'foaie_history',
+        (SELECT COALESCE(jsonb_agg(jsonb_build_object('ziua', ev.ziua, 'driver_id', ev.driver_id, 'driver_name', ev.driver_name, 'source', ev.source) ORDER BY ev.ziua DESC), '[]'::jsonb)
+         FROM (
+           SELECT DISTINCT t.ziua AS ziua, NULL::uuid AS driver_id, NULL::text AS driver_name, 'kiosk'::text AS source
+           FROM tomberon.transactions t WHERE norm_foaie(t.sofer_id) = m.receipt_nr
+         ) ev LIMIT 20),
+      'duplicate_candidates', NULL
+    ) ORDER BY m.ziua DESC, (m.cash + m.diagrama) DESC), '[]'::jsonb) INTO v_orphan_inc
+  FROM matches m
+  WHERE NOT m.has_override AND (m.grafic_count = 0 OR m.fara_cursa);
+
+  IF p_from = p_to THEN
+    SELECT jsonb_build_object(
+      'confirmed_by_id', c.confirmed_by, 'confirmed_by_name', a.name,
+      'confirmed_at', c.confirmed_at, 'note', c.note,
+      'has_new_payments_after', EXISTS(SELECT 1 FROM tomberon.transactions t WHERE t.ziua = p_from AND t.synced_at > c.confirmed_at)
+    ) INTO v_confirmation
+    FROM incasare_day_confirmations c LEFT JOIN admin_accounts a ON a.id = c.confirmed_by WHERE c.ziua = p_from;
+  END IF;
+
+  RETURN jsonb_build_object('routes', v_routes, 'orphan_numerar', v_orphan_num,
+                            'orphan_incasare', v_orphan_inc,
+                            'orphan_manual', v_orphan_manual,
+                            'confirmation', COALESCE(v_confirmation, 'null'::jsonb));
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.get_grafic_report(date, date) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_grafic_report(date, date) TO service_role;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Indecșii pe expresie de care depinde fiecare potrivire foaie-cu-foaie din rapoarte există
+-- în producție, dar nu apar în nicio migrație (migr. 071 spune «sursa autoritară e în baza de
+-- date»). Fără ei, o reconstrucție de la zero produce seq scan-uri și rapoarte care nu se mai
+-- încarcă. IF NOT EXISTS → în producție nu se schimbă nimic.
+CREATE INDEX IF NOT EXISTS idx_tomberon_tx_norm_foaie
+  ON tomberon.transactions (public.norm_foaie(sofer_id));
+CREATE INDEX IF NOT EXISTS idx_dcr_norm_foaie
+  ON public.driver_cashin_receipts (public.norm_foaie(receipt_nr));
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Un rând manual trebuie să poată fi legat de ceva: fie de cursa din /grafic, fie de un
+-- număr de foaie. Fără niciunul, banii lui n-ar avea cum să ajungă vreodată pe o rută.
+ALTER TABLE public.casier_manual_rows
+  DROP CONSTRAINT IF EXISTS chk_casier_manual_identificare;
+ALTER TABLE public.casier_manual_rows
+  ADD CONSTRAINT chk_casier_manual_identificare CHECK (
+    assignment_id IS NOT NULL OR foaie_nr IS NOT NULL
+  );

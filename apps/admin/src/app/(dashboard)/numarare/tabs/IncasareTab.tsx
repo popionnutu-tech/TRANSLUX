@@ -8,6 +8,7 @@ import {
   getCurrentOperatorName,
   type GraficRouteRow,
   type Anomaly,
+  type OrphanManual,
   type Confirmation,
 } from './incasareActions';
 import RoutesTable from './RoutesTable';
@@ -21,7 +22,7 @@ function yesterdayChisinau(): string {
   return d.toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
 }
 
-type SubTab = 'casier' | 'routes';
+type SubTab = 'casier' | 'numerar' | 'routes';
 
 interface Props {
   role: string;  // 'ADMIN' | 'EVALUATOR_INCASARI'
@@ -32,9 +33,15 @@ export default function IncasareTab({ role }: Props) {
   const [from, setFrom] = useState<string>(yesterdayChisinau);
   const [to, setTo] = useState<string>(yesterdayChisinau);
   const [subTab, setSubTab] = useState<SubTab>('casier');
+  // Câte rânduri are fiecare document de casier — raportate de tabelul montat, pentru badge-uri.
+  const [casierCounts, setCasierCounts] = useState({ terminal: 0, manual: 0 });
+  // Documentul montat are modificări nesalvate? Schimbarea sub-tab-ului îl demontează.
+  const [casierDirty, setCasierDirty] = useState(false);
 
   const [routes, setRoutes] = useState<GraficRouteRow[]>([]);
   const [orphanInc, setOrphanInc] = useState<Anomaly[]>([]);
+  // Numerar introdus manual care n-a nimerit nicio rută — bani care altfel ar dispărea tăcut.
+  const [orphanManual, setOrphanManual] = useState<OrphanManual[]>([]);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -45,6 +52,40 @@ export default function IncasareTab({ role }: Props) {
     getCurrentOperatorName().then(setOperatorName);
   }, []);
 
+  // Identitate stabilă + bail-out la valori egale: altfel actualizarea badge-urilor ar
+  // re-crea callback-ul la fiecare randare și ar reporni efectul din tabel la nesfârșit.
+  const handleCasierCounts = useCallback((c: { terminal: number; manual: number }) => {
+    setCasierCounts(prev =>
+      prev.terminal === c.terminal && prev.manual === c.manual ? prev : c);
+  }, []);
+
+  const handleCasierDirty = useCallback((dirty: boolean) => {
+    setCasierDirty(prev => (prev === dirty ? prev : dirty));
+  }, []);
+
+  // Comutarea filei demontează tabelul, iar schimbarea zilei îl reîncarcă: în ambele cazuri
+  // rândurile introduse și încă nesalvate dispar fără niciun avertisment, iar documentul
+  // Numerar e singura lor evidență.
+  function confirmaAbandonul(ce: string): boolean {
+    if (!casierDirty) return true;
+    return confirm(`Sunt modificări nesalvate în documentul de casier. Sigur ${ce}? Modificările se pierd.`);
+  }
+
+  function selectSubTab(next: SubTab) {
+    if (next === subTab) return;
+    if (!confirmaAbandonul('schimbi fila')) return;
+    setCasierDirty(false);
+    setSubTab(next);
+  }
+
+  function selectFrom(next: string) {
+    if (next === from) return;
+    if (!confirmaAbandonul('schimbi ziua')) return;
+    setCasierDirty(false);
+    setFrom(next);
+    if (next > to) setTo(next);
+  }
+
   const isSingleDay = from === to;
 
   const load = useCallback(async () => {
@@ -53,10 +94,11 @@ export default function IncasareTab({ role }: Props) {
       const res = await getGraficReport(from, to);
       if (res.error) {
         setError(res.error);
-        setRoutes([]); setOrphanInc([]); setConfirmation(null);
+        setRoutes([]); setOrphanInc([]); setOrphanManual([]); setConfirmation(null);
       } else if (res.data) {
         setRoutes(res.data.routes);
         setOrphanInc(res.data.orphan_incasare);
+        setOrphanManual(res.data.orphan_manual);
         setConfirmation(res.data.confirmation);
       }
     } finally { setLoading(false); }
@@ -95,7 +137,7 @@ export default function IncasareTab({ role }: Props) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span className="text-muted" style={{ fontSize: 13 }}>De la</span>
-          <input type="date" value={from} onChange={e => { const v = e.target.value; setFrom(v); if (v > to) setTo(v); }} className="form-control" style={{ width: 150 }} />
+          <input type="date" value={from} onChange={e => selectFrom(e.target.value)} className="form-control" style={{ width: 150 }} />
           <span className="text-muted" style={{ fontSize: 13 }}>până la</span>
           <input type="date" value={to} min={from} onChange={e => setTo(e.target.value)} className="form-control" style={{ width: 150 }} />
         </div>
@@ -153,11 +195,45 @@ export default function IncasareTab({ role }: Props) {
         </div>
       )}
 
+      {/* Numerar manual care nu s-a legat de nicio rută: nu intră în totalurile de mai jos,
+          deci trebuie spus explicit, altfel banii ar părea pur și simplu inexistenți. */}
+      {orphanManual.length > 0 && (
+        <div style={{
+          background: 'var(--warning-dim, #fff3cd)', border: '1px solid #f5c518',
+          borderRadius: 'var(--radius-xs)', padding: '10px 14px', marginBottom: 12, fontSize: 13,
+        }}>
+          <strong>⚠ {orphanManual.length} rând(uri) din «Document casier Numerar» nu s-au legat de nicio rută</strong>
+          {' '}({Math.round(orphanManual.reduce((s, o) => s + o.total_lei, 0))} lei) — banii NU sunt în totalurile de mai jos.
+          <ul style={{ margin: '6px 0 0 0', paddingLeft: 18 }}>
+            {orphanManual.slice(0, 8).map(o => (
+              <li key={o.id} style={{ fontSize: 12 }}>
+                <span style={{ fontFamily: 'var(--font-mono)' }}>{o.foaie_nr || '(fără nr.)'}</span>
+                {' · '}{o.driver_name || '—'}{' · '}{o.route_name || '—'}
+                {' · '}<strong>{Math.round(o.total_lei)} lei</strong>
+                {' — '}
+                {o.reason === 'dublura_terminal'
+                  ? 'foaia a venit între timp și de pe terminal (șterge rândul manual)'
+                  : o.reason === 'fara_identificare'
+                    ? 'rândul n-are nici cursă, nici număr de foaie'
+                    : 'cursa nu e în /grafic pentru ziua foii (verifică data foii)'}
+              </li>
+            ))}
+            {orphanManual.length > 8 && (
+              <li style={{ fontSize: 12 }}>… și încă {orphanManual.length - 8}</li>
+            )}
+          </ul>
+        </div>
+      )}
+
       {/* Sub-tab switcher */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 4, borderBottom: '1px solid var(--border)', alignItems: 'flex-end' }}>
-        <SubTabBtn active={subTab === 'casier'} onClick={() => setSubTab('casier')}
-          label="Document casier" badge={routes.length} badgeColor="var(--primary)" />
-        <SubTabBtn active={subTab === 'routes'} onClick={() => setSubTab('routes')}
+        <SubTabBtn active={subTab === 'casier'} onClick={() => selectSubTab('casier')}
+          label="Document casier" badge={casierCounts.terminal} badgeColor="var(--primary)"
+          title="Doar ce se încarcă de pe terminalul Tomberon" />
+        <SubTabBtn active={subTab === 'numerar'} onClick={() => selectSubTab('numerar')}
+          label="Document casier Numerar" badge={casierCounts.manual} badgeColor="#2a5db0"
+          title="Doar foile introduse manual la casă (numerar fără terminal)" />
+        <SubTabBtn active={subTab === 'routes'} onClick={() => selectSubTab('routes')}
           label="Pe rute (sumar)" badge={routes.length} badgeColor="var(--text-muted)" />
         <span className="text-muted" style={{ fontSize: 11, marginLeft: 'auto', paddingBottom: 8 }}>
           filtru pe perioadă
@@ -179,6 +255,19 @@ export default function IncasareTab({ role }: Props) {
         <CasierDocumentTab
           ziua={from}
           operatorName={operatorName}
+          mode="terminal"
+          onCounts={handleCasierCounts}
+          onDirtyChange={handleCasierDirty}
+        />
+      )}
+
+      {subTab === 'numerar' && (
+        <CasierDocumentTab
+          ziua={from}
+          operatorName={operatorName}
+          mode="numerar"
+          onCounts={handleCasierCounts}
+          onDirtyChange={handleCasierDirty}
         />
       )}
     </div>
@@ -186,18 +275,20 @@ export default function IncasareTab({ role }: Props) {
 }
 
 function SubTabBtn({
-  active, onClick, label, badge, badgeColor,
+  active, onClick, label, badge, badgeColor, title,
 }: {
   active: boolean;
   onClick: () => void;
   label: string;
   badge: number;
   badgeColor: string;
+  title?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      title={title}
       style={{
         background: 'transparent',
         border: 'none',

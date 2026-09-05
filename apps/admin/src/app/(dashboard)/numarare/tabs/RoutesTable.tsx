@@ -248,11 +248,16 @@ export default function RoutesTable({ routes }: Props) {
               </span>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>
                 {r.foaie_nr ? (
-                  <span style={{ color: r.foaie_source === 'implied' ? '#f57c00' : 'inherit' }}
-                        title={r.foaie_source === 'implied' ? 'Asociat automat din istoric' : ''}>
+                  <span style={{ color: r.foaie_source === 'implied' ? '#f57c00'
+                                      : r.foaie_source === 'manual' ? '#2a5db0' : 'inherit' }}
+                        title={r.foaie_source === 'implied' ? 'Asociat automat din istoric'
+                             : r.foaie_source === 'manual' ? 'Introdusă manual la casă (Document casier Numerar)' : ''}>
                     {r.foaie_nr}
                     {r.foaie_source === 'implied' && (
                       <span style={{ fontSize: 9, marginLeft: 3, opacity: 0.7 }}>auto</span>
+                    )}
+                    {r.foaie_source === 'manual' && (
+                      <span style={{ fontSize: 9, marginLeft: 3, opacity: 0.7 }}>casă</span>
                     )}
                   </span>
                 ) : <span className="text-muted">—</span>}

@@ -844,9 +844,15 @@ const RU_W: Record<string, number> = {};
 const NUM_ALT_RO = Object.keys(RO_W).sort((a, b) => b.length - a.length).join('|');
 const NUM_ALT_RU = Object.keys(RU_W).sort((a, b) => b.length - a.length).join('|');
 // Минуты — ТОЛЬКО формы, которые реально излучает time-spoken: «fix»/«ноль-ноль»,
-// «ноль X» (RU), десятки и составные. Голые единицы 1-9 исключены → «двадцать шесть
-// лей» и «douăzeci și trei august» не парсятся как время (ревью 5bed93a, Important 1).
-const RO_MIN_ALT = ['fix', ...Object.keys(RO_W).filter((k) => RO_W[k] >= 10)].sort((a, b) => b.length - a.length).join('|');
+// «ноль X» (RU), «zero X» (RO), десятки и составные. Голые единицы 1-9 исключены →
+// «двадцать шесть лей» и «douăzeci și trei august» не парсятся как время
+// (ревью 5bed93a, Important 1).
+// 06.09: у RO этой симметрии НЕ БЫЛО — эмиттер выдавал «douăzeci și cinci» (20:05),
+// а сюда попадали только минуты ≥10, поэтому ЛЮБОЕ время с минутами 01-09 было для
+// валидатора невидимым. Именно так выдуманный рейс «la douăzeci și cinci» прошёл мимо
+// spoken_time_mismatch. Теперь эмиттер даёт «zero X», и форма парсится однозначно.
+const RO_MIN_ALT = ['fix', ...Object.keys(RO_W).filter((k) => RO_W[k] >= 10), ...RO_UNITS.slice(1, 10).map((u) => `zero ${u}`)]
+  .sort((a, b) => b.length - a.length).join('|');
 const RU_MIN_ALT = ['ноль-ноль', ...Object.keys(RU_W).filter((k) => RU_W[k] >= 10).map((k) => k), ...RU_UNITS.slice(1, 10).map((u) => `ноль ${u}`)]
   .sort((a, b) => b.length - a.length).join('|');
 // «...douăzeci și cinci de lei» / «двадцать пять лей» — цены и даты режем lookahead-ом.
@@ -867,11 +873,13 @@ export function parseSpokenTimes(text: string): string[] {
       const h = dict[m[1].toLowerCase()];
       const minRaw = m[2].toLowerCase();
       // RO: minutele normale se leagă OBLIGATORIU cu «și» — fără el, «douăzeci trei»
-      // dintr-o enumerare ar deveni «20:03». «fix» e singura formă fără «și».
-      if (dict === RO_W && minRaw !== 'fix' && !/\sși\s/.test(m[0])) continue;
+      // dintr-o enumerare ar deveni «20:03». «fix» și «zero X» sunt singurele forme
+      // fără «și» — și tocmai de aceea neambigue («zero» nu apare în numerale).
+      if (dict === RO_W && minRaw !== 'fix' && !minRaw.startsWith('zero ') && !/\sși\s/.test(m[0])) continue;
       let min: number | undefined;
       if (minRaw === 'ноль-ноль' || minRaw === 'fix') min = 0;
       else if (minRaw.startsWith('ноль ')) min = dict[minRaw.slice(5)];
+      else if (minRaw.startsWith('zero ')) min = dict[minRaw.slice(5)];
       else min = dict[minRaw];
       if (h === undefined || h > 23 || min === undefined || min > 59) continue;
       // Orarul real are mereu minutele multiplu de 5 — restul e zgomot (prețuri, km).

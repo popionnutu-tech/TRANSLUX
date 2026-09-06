@@ -35,7 +35,15 @@ export function timeSpoken(raw: string | null | undefined): { ro: string; ru: st
   const min = Number(m[2]);
   if (h > 23 || min > 59) return null;
   if (min === 0) return { ro: `${roNum(h)} fix`, ru: `${ruNum(h)} ноль-ноль` };
-  // Minutele 1-9 în rusă cer «ноль» explicit («шестнадцать ноль пять»), altfel sună a 16:50.
+  // Minutele 1-9 cer «zero»/«ноль» explicit în AMBELE limbi.
+  // RU: altfel «шестнадцать пять» sună a 16:50.
+  // RO: «X și <unitate>» e litera-cu-literă un numeral — 20:05 ieșea «douăzeci și
+  // cinci», adică exact numărul 25, iar 20:01…20:09 dădeau 21…29. Apel 06.09,
+  // Briceni→Chișinău: ultima cursă e 18:20, agentul a mai oferit una «la douăzeci
+  // și cinci» — de nedeosebit de un numeral, și invizibilă pentru controlor
+  // (RO_MIN_ALT accepta doar minute ≥10, pe premisa greșită că atât emitem).
+  // «zero» nu apare niciodată în interiorul unui numeral, deci forma e neambiguă.
+  const roMin = min < 10 ? `zero ${roNum(min)}` : `și ${roNum(min)}`;
   const ruMin = min < 10 ? `ноль ${ruNum(min)}` : ruNum(min);
-  return { ro: `${roNum(h)} și ${roNum(min)}`, ru: `${ruNum(h)} ${ruMin}` };
+  return { ro: `${roNum(h)} ${roMin}`, ru: `${ruNum(h)} ${ruMin}` };
 }

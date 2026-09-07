@@ -29,6 +29,7 @@ export const PROMPT_MARKERS_RO = [
   'ZIUA ÎN LOC DE LOCALITATE',
   'LIMBA VOCII — DOAR ROMÂNĂ SAU RUSĂ',
   'CÂMPURILE _RU — DOAR ÎN REPLICI RUSEȘTI',
+  'ALT NUMĂR NU EXISTĂ',
 ];
 
 /** Aceleași repere, în promptul agentului rusesc. */
@@ -40,6 +41,7 @@ export const PROMPT_MARKERS_RU = [
   'ЖАЛОБА — ВИНОВНЫЙ ОПОЗНАН',
   'ДЕНЬ ВМЕСТО НАСЕЛЁННОГО ПУНКТА',
   'ЯЗЫК ГОЛОСА — ТОЛЬКО РУССКИЙ ИЛИ РУМЫНСКИЙ',
+  'ДРУГОГО НОМЕРА НЕ СУЩЕСТВУЕТ',
 ];
 
 export const TOATE_MARKERELE = [...PROMPT_MARKERS_RO, ...PROMPT_MARKERS_RU];

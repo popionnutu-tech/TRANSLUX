@@ -32,3 +32,19 @@ describe('reperele promptului', () => {
     expect(TOATE_MARKERELE).toEqual([...PROMPT_MARKERS_RO, ...PROMPT_MARKERS_RU]);
   });
 });
+
+describe('ALT NUMĂR NU EXISTĂ — markerul e livrabil și unic', () => {
+  it('markerul e în ambele liste, ca panoul să nu-l poată șterge din dashboard', () => {
+    expect(PROMPT_MARKERS_RO).toContain('ALT NUMĂR NU EXISTĂ');
+    expect(PROMPT_MARKERS_RU).toContain('ДРУГОГО НОМЕРА НЕ СУЩЕСТВУЕТ');
+  });
+
+  it('niciun marker nu conține alt marker — altfel detectorul e orb la ștergere', () => {
+    for (const a of TOATE_MARKERELE) {
+      for (const b of TOATE_MARKERELE) {
+        if (a === b) continue;
+        expect(a.includes(b), `«${a}» conține «${b}»`).toBe(false);
+      }
+    }
+  });
+});

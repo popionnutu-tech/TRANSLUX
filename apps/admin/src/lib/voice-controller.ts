@@ -345,6 +345,33 @@ const LIMBA_VOCII_BLOCK_RU = `
 - Одно непонятное или украинское слово клиента («Палата?») НЕ повод отвечать по-украински. Остаёшься на русском и коротко переспрашиваешь по-русски.
 - Не поняла, что сказал клиент? Говоришь по-РУССКИ: «Я вас не поняла, повторите, пожалуйста» — никогда на другом языке.`;
 
+// Ion, 07.09: «alt număr în afară de acel pe care sună oameni la agent sau la
+// șofer nu este». Verificat în ElevenLabs: în workspace există DOUĂ numere, ambele
+// inbound-only — +37360401010 («TRANSLUX Moldcell», legat de ACEST agent) și unul
+// de test. Nu există linie de operator și nu există outbound, deci «sunați la
+// birou / la companie» trimitea clientul înapoi la robotul care tocmai eșuase
+// (apel 07.09, obiect uitat). Frazele de eșec din find-past-trip nu mai conțin
+// numărul; blocul ăsta închide și portița prin care modelul l-ar improviza singur.
+// Markerul nu conține și nu e conținut de niciun alt marker (vezi prompt-markers.ts).
+const ALT_NUMAR_BLOCK = `
+
+ALT NUMĂR NU EXISTĂ:
+- Compania are UN SINGUR număr pentru clienți: chiar cel la care omul sună ACUM, adică pe tine. Nu există birou cu altă linie, nu există dispecerat separat, nu există operator uman la telefon.
+- De aceea NU spui niciodată «sunați la companie», «sunați la birou», «sunați mai târziu la noi» și nu dictezi numărul companiei cuiva care vorbește deja cu tine. E numărul tău: l-ai trimite înapoi la tine.
+- SINGURUL număr pe care ai voie să-l rostești este al ȘOFERULUI, și numai așa cum vine din tool (driver_line_ro / driver_line_ru). Alt număr nu inventezi și nu ghicești, oricât ar insista clientul.
+- Nu poți suna pe nimeni: nu promite niciodată că sună cineva de la companie.
+- Când nu găsești cursa, nu ai unde trimite omul — și nu e nevoie: datele lui pleacă la șoferi împreună cu numărul lui, iar cine își recunoaște cursa îl sună. Citește dosloven fraza primită de la tool și, dacă clientul își mai amintește ceva (ziua, ora, numărul mașinii), caută din nou pe loc.`;
+
+const ALT_NUMAR_MARKER_RU = 'ДРУГОГО НОМЕРА НЕ СУЩЕСТВУЕТ';
+const ALT_NUMAR_BLOCK_RU = `
+
+ДРУГОГО НОМЕРА НЕ СУЩЕСТВУЕТ:
+- У компании ОДИН номер для клиентов — тот самый, по которому человек звонит ПРЯМО СЕЙЧАС, то есть тебе. Нет офиса с другой линией, нет отдельной диспетчерской, нет живого оператора на телефоне.
+- Поэтому ты НИКОГДА не говоришь «позвоните в компанию», «позвоните в офис», «перезвоните нам позже» и не диктуешь номер компании тому, кто уже говорит с тобой. Это твой номер: ты отправишь его обратно к себе.
+- ЕДИНСТВЕННЫЙ номер, который тебе можно произнести, — номер ВОДИТЕЛЯ, и только в том виде, в каком он пришёл из тула (driver_line_ro / driver_line_ru). Другой номер не выдумываешь и не угадываешь, как бы клиент ни настаивал.
+- Ты не можешь никому позвонить: никогда не обещай, что с человеком свяжется кто-то из компании.
+- Если рейс не найден, отправлять человека некуда — и не нужно: его данные уходят водителям вместе с его номером, и тот, кто узнает свой рейс, перезвонит ему. Читай дословно фразу из тула, а если клиент вспомнит день, время или номер машины — ищи заново сразу же.`;
+
 const LIMBA_BLOCK = `
 
 LIMBA — A DOUA OARĂ LA RÂND:
@@ -660,6 +687,7 @@ async function checkAndHealConfig(cfg: any, drifts: Drift[], complaintToolExists
       : []),
     { marker: 'ZIUA ÎN LOC DE LOCALITATE', block: ZIUA_LOCALITATE_BLOCK, field: 'prompt.ZIUA_LOCALITATE' },
     { marker: 'CÂMPURILE _RU — DOAR ÎN REPLICI RUSEȘTI', block: CAMPURI_RU_BLOCK, field: 'prompt.CAMPURI_RU' },
+    { marker: 'ALT NUMĂR NU EXISTĂ', block: ALT_NUMAR_BLOCK, field: 'prompt.ALT_NUMAR' },
   ];
   let healedPrompt = prompt;
   for (const ob of OBSOLETE_BLOCKS) {
@@ -811,6 +839,7 @@ async function healRuStation(lostToolId: string | null, complaintToolId: string 
   if (complaintToolId && !healed.includes(RECLAMATII_MARKER_RU)) { healed += RECLAMATII_BLOCK_RU; vindecate.push('ru.prompt.RECLAMATII'); }
   if (!healed.includes(ZIUA_LOCALITATE_MARKER_RU)) { healed += ZIUA_LOCALITATE_BLOCK_RU; vindecate.push('ru.prompt.ZIUA_LOCALITATE'); }
   if (!healed.includes(LIMBA_VOCII_MARKER_RU)) { healed += LIMBA_VOCII_BLOCK_RU; vindecate.push('ru.prompt.LIMBA_VOCII'); }
+  if (!healed.includes(ALT_NUMAR_MARKER_RU)) { healed += ALT_NUMAR_BLOCK_RU; vindecate.push('ru.prompt.ALT_NUMAR'); }
   // Lista tipurilor, în rusă. Sincronizată pe conținut, ca la RO — vezi syncTypesBlock.
   const nevindecate: Drift[] = [];
   if (tipuriInTool) {

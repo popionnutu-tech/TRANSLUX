@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateVoiceApiKey } from '../auth';
-import { phoneSpoken } from '@/lib/phone-spoken';
 import { COMPANY_PHONE } from '@/lib/company-phone';
 const COMPANY_INFO = {
   name: 'TRANSLUX',
   description_ro: 'Companie de transport pasageri pe ruta Chișinău–Bălți și localitățile intermediare',
   description_ru: 'Компания пассажирских перевозок по маршруту Кишинёв–Бельцы и промежуточные населённые пункты',
+  // `phone` rămâne pentru botul de Facebook: acolo omul NU e pe linie, iar
+  // numărul e un răspuns util. `phone_spoken_*` existau DOAR ca vocea să-l
+  // rostească — și tocmai asta nu mai are voie (Ion, 07.09): numărul e chiar
+  // linia agentului, deci rostit la telefon trimite clientul înapoi la robot.
+  // Câmpurile lipsesc acum de tot: o regulă în prompt care se bate cu un câmp
+  // «gata de citit» în tool e o luptă pe care promptul o pierde uneori.
   phone: COMPANY_PHONE,
-  phone_spoken_ru: phoneSpoken(COMPANY_PHONE)?.ru ?? null,
-  phone_spoken_ro: phoneSpoken(COMPANY_PHONE)?.ro ?? null,
   stations: {
     chisinau: {
       name_ro: 'Stația Chișinău (Autogara TRANSLUX)',

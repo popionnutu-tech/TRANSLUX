@@ -2,6 +2,7 @@ import { getSupabase } from '@/lib/supabase';
 import { verificaTelefonSofer } from '@/lib/driver-guard';
 import { scrieFoaie } from '@/lib/foaie';
 import { valideazaZileMulti } from '@/lib/atribuiri/saptamana';
+import { notifyGraficChanged } from '@/lib/grafic-group-sync';
 
 // Ядро atribuiri zilnice (Mini App manageri): materializare lazy șablon→zi,
 // atribuire mașină per cursă, write-through daily_assignments (DOAR UPDATE),
@@ -412,13 +413,16 @@ async function writeThroughCrm(date: string, crmRouteId: number, vehicleId: stri
     .eq('assignment_date', date).eq('crm_route_id', crmRouteId)
     .select('id');
   if (e1) throw new Error(`grafic (tur): ${e1.message}`);
-  if (tur?.length) return true;
+  // Grupa Mejgorod (Ion, 07.09): dacă ziua a fost deja trimisă, schimbarea
+  // de mașină din mini-app pleacă și ea, cu imaginea nouă.
+  if (tur?.length) { await notifyGraficChanged(date); return true; }
   // retur
   const { data: ret, error: e2 } = await db.from('daily_assignments')
     .update({ vehicle_id_retur: vehicleId, auto_copied: false })
     .eq('assignment_date', date).eq('retur_route_id', crmRouteId)
     .select('id');
   if (e2) throw new Error(`grafic (retur): ${e2.message}`);
+  if (ret?.length) await notifyGraficChanged(date);
   return !!ret?.length;
 }
 
@@ -433,7 +437,7 @@ async function writeThroughDriverCrm(date: string, crmRouteId: number, driverId:
     .eq('assignment_date', date).eq('crm_route_id', crmRouteId)
     .select('id');
   if (e1) throw new Error(`grafic șofer (tur): ${e1.message}`);
-  if (tur?.length) return true;
+  if (tur?.length) { await notifyGraficChanged(date); return true; }
   // Ramura RETUR scrie driver_id_retur, NU titularul (audit 24.08: schimbarea
   // șoferului pe retur în mini-app suprascria șoferul TURULUI) — simetric cu
   // writeThroughVehicleCrm de mai sus.
@@ -442,6 +446,7 @@ async function writeThroughDriverCrm(date: string, crmRouteId: number, driverId:
     .eq('assignment_date', date).eq('retur_route_id', crmRouteId)
     .select('id');
   if (e2) throw new Error(`grafic șofer (retur): ${e2.message}`);
+  if (ret?.length) await notifyGraficChanged(date);
   return !!ret?.length;
 }
 

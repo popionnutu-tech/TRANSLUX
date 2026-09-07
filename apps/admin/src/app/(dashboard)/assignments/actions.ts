@@ -6,6 +6,7 @@ import { verifySession, requireRole } from '@/lib/auth';
 import { verificaTelefonSofer } from '@/lib/driver-guard';
 import { parseFirstTime, parseTimeLabel } from '@/lib/assignments';
 import { normalizeDriverPhone } from '@translux/db';
+import { notifyGraficChanged } from '@/lib/grafic-group-sync';
 
 export interface AssignmentRow {
   id: string | null;
@@ -187,6 +188,10 @@ export async function upsertAssignment(
     );
   }
 
+  // Grupa Mejgorod: dacă ziua a fost deja trimisă, pleacă imaginea nouă cu schimbarea.
+  await notifyGraficChanged(date);
+  if (!existing) await notifyGraficChanged(tomorrow);
+
   revalidatePath('/assignments');
   return {};
 }
@@ -254,12 +259,15 @@ function nextDay(date: string): string {
 export async function deleteAssignment(id: string): Promise<{ error?: string }> {
   try { requireRole(await verifySession(), 'ADMIN'); } catch { return { error: 'Acces interzis' }; }
 
-  const { error } = await getSupabase()
+  const db = getSupabase();
+  const { data: cur } = await db.from('daily_assignments').select('assignment_date').eq('id', id).maybeSingle();
+  const { error } = await db
     .from('daily_assignments')
     .delete()
     .eq('id', id);
 
   if (error) return { error: error.message };
+  await notifyGraficChanged((cur as any)?.assignment_date);
   revalidatePath('/assignments');
   return {};
 }
@@ -303,6 +311,7 @@ export async function copyAssignments(
     );
 
   if (error) return { error: `Eroare copiere: ${error.message}` };
+  await notifyGraficChanged(targetDate);
   revalidatePath('/assignments');
   return {};
 }

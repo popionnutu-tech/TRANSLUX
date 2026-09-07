@@ -122,6 +122,9 @@ export default function UnifiedGraficList({
         cancelled: r.cancelled,
       }));
       setRows([...interurban, ...suburban]);
+      // După o schimbare pe o zi deja trimisă, imaginea nouă a plecat singură:
+      // bifa trebuie să arate ora și numărul trimiterii la zi.
+      try { setGroupStatus(await getGraficGroupStatus(date)); } catch {}
     } catch (err: any) {
       setError(err.message || 'Eroare');
     } finally {

@@ -19,7 +19,15 @@ export interface LostItemInput {
   identified: boolean;
   /** Clientul NU a primit numărul: avea reclamație pe același apel (migr. 315). */
   phone_withheld?: boolean;
+  /** Numele clientului, cum l-a spus (migr. 321). Șoferul îl caută după el. */
+  caller_name?: string | null;
 }
+
+// Numele se PĂSTREAZĂ, nu se șterge: un apel ulterior al tool-ului fără nume
+// (modelul a cerut doar ziua, de pildă) nu are voie să golească ce s-a cules
+// deja. Se rescrie doar cu un nume nou, nevid.
+const numeDeScris = (input: LostItemInput): { caller_name: string } | Record<string, never> =>
+  input.caller_name && input.caller_name.trim() ? { caller_name: input.caller_name.trim() } : {};
 
 /**
  * Un apel = un rând, îmbogățit la fiecare chemare a tool-ului.
@@ -40,10 +48,19 @@ export async function saveLostItem(input: LostItemInput): Promise<void> {
   if (existing) {
     // Rândul deja identificat nu se rescrie de un apel mai sărac. O identificare
     // NOUĂ îl rescrie: clientul își amintește plăcuța corectă și cursa se mută
-    // pe alt om — la fel ca la reclamații.
-    if (existing.identified && !input.identified) return;
+    // pe alt om — la fel ca la reclamații. NUMELE trece oricum: e singurul lucru
+    // pe care apelul mai sărac îl poate aduce în plus (clientul l-a spus abia la
+    // a doua întrebare a agentului).
+    const nume = numeDeScris(input);
+    if (existing.identified && !input.identified) {
+      if (!('caller_name' in nume)) return;
+      const { error } = await supabase.from('voice_lost_items').update(nume).eq('id', existing.id);
+      if (error) throw new Error(`voice_lost_items update (nume) failed: ${error.message}`);
+      return;
+    }
     const patch = input.identified
       ? {
+        ...nume,
         identified: true,
         trip_date: input.trip_date,
         departure: input.departure,
@@ -61,13 +78,16 @@ export async function saveLostItem(input: LostItemInput): Promise<void> {
       }
       // Neidentificat: păstrăm ce știm despre cursă, ca mesajul din grupă să
       // aibă măcar ruta și ziua — după ele se recunoaște șoferul.
-      : { trip_date: input.trip_date, departure: input.departure, route: input.route };
+      : { ...nume, trip_date: input.trip_date, departure: input.departure, route: input.route };
     const { error } = await supabase.from('voice_lost_items').update(patch).eq('id', existing.id);
     if (error) throw new Error(`voice_lost_items update failed: ${error.message}`);
     return;
   }
 
-  const { error } = await supabase.from('voice_lost_items').insert(input);
+  // Numele intră curățat (trim) sau deloc — niciodată ca șir gol.
+  const { caller_name: _ignorat, ...faraNume } = input;
+  void _ignorat;
+  const { error } = await supabase.from('voice_lost_items').insert({ ...faraNume, ...numeDeScris(input) });
   if (!error) return;
   if (error.code !== '23505') {
     throw new Error(`voice_lost_items insert failed: ${error.message}`);
@@ -79,6 +99,7 @@ export async function saveLostItem(input: LostItemInput): Promise<void> {
   const { error: updErr } = await supabase
     .from('voice_lost_items')
     .update({
+      ...numeDeScris(input),
       identified: true,
       trip_date: input.trip_date,
       departure: input.departure,
@@ -103,6 +124,8 @@ export interface ClaimedLostItem {
   plate: string | null;
   identified: boolean;
   phone_withheld: boolean;
+  /** Numele clientului (migr. 321) — merge în grupă lângă numărul lui. */
+  caller_name: string | null;
 }
 
 /**
@@ -118,7 +141,7 @@ export async function claimLostItemForGroup(conversationId: string): Promise<Cla
     .update({ group_notified: true })
     .eq('conversation_id', conversationId)
     .eq('group_notified', false)
-    .select('trip_date, departure, route, driver_name, plate, identified, phone_withheld');
+    .select('trip_date, departure, route, driver_name, plate, identified, phone_withheld, caller_name');
   if (error) {
     console.error('claimLostItemForGroup:', error.message);
     return null;
@@ -130,7 +153,7 @@ export async function claimLostItemForGroup(conversationId: string): Promise<Cla
 export async function getLostItemSummary(conversationId: string): Promise<ClaimedLostItem | null> {
   const { data, error } = await getSupabase()
     .from('voice_lost_items')
-    .select('trip_date, departure, route, driver_name, plate, identified, phone_withheld')
+    .select('trip_date, departure, route, driver_name, plate, identified, phone_withheld, caller_name')
     .eq('conversation_id', conversationId)
     .maybeSingle();
   if (error) { console.error('getLostItemSummary:', error.message); return null; }

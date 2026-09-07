@@ -216,17 +216,19 @@ export function formatLostItemForGroup(l: GroupLostItem, areReclamatie = false):
   const cine = l.identified ? omul(l.driver_name, l.plate) : null;
   // Clientul, ca șoferul să-l poată suna: fără asta, o cursă neidentificată era
   // un fir mort — omul n-are unde suna, numărul public e chiar agentul AI.
-  const client = [l.caller_name, l.caller_phone]
-    .filter((x): x is string => !!x && !!x.trim())
-    .map((x) => escapeHtml(x.trim()))
-    .join(' · ');
+  // Rândul e OBLIGATORIU (Ion, 07.09): nume și număr, mereu. Ce lipsește se
+  // spune pe față — un rând absent arată ca o uitare, unul cu «necules» arată
+  // ca un fapt, iar șoferul știe că trebuie să întrebe dispecerul.
+  const nume = l.caller_name?.trim() ? escapeHtml(l.caller_name.trim()) : null;
+  const numar = l.caller_phone?.trim() ? escapeHtml(l.caller_phone.trim()) : null;
+  const client = `${nume ?? '⚠️ nume necules'} · ${numar ?? '⚠️ număr ascuns'}`;
   return [
     '🎒 <b>Lucru uitat în autobuz</b>',
     cine ? `<b>${cine}</b>` : '<b>Cursă neidentificată</b> — cine recunoaște cursa să anunțe dispecerul.',
     cursa(l),
-    client ? `📞 Clientul: <b>${client}</b>` : null,
+    `📞 Clientul: <b>${client}</b>`,
     !cine
-      ? client
+      ? numar
         // Firul se închide invers: nu clientul sună compania, ci șoferul clientul.
         ? '<i>Obiectul rămâne la șofer. Cine recunoaște cursa — sunați clientul.</i>'
         : '<i>Obiectul rămâne la șofer până îl caută clientul.</i>'

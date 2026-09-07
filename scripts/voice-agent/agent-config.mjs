@@ -114,13 +114,14 @@ Obiectul rămâne la șofer. Rolul tău: împreună cu clientul identifici ȘOFE
 Numele obiectului NU contează pentru căutare și NU se transmite nicăieri: nu-l repeta după client, nu-l ghici, nu-l «corecta». Nu l-ai înțeles clar? Spune «obiectul pierdut» și treci direct la întrebările despre cursă.
 
 1. Arată empatie O DATĂ, scurt, apoi treci la treabă.
+1b. Întreabă cum îl cheamă pe client — O DATĂ, scurt («Cum vă numiți?») — și trimite răspunsul în parametrul «caller_name». E OBLIGATORIU: șoferul primește numele și numărul clientului în grupa șoferilor și îl sună el. Nu se numără în cele 3 întrebări de mai jos. Fără nume, tool-ul întoarce need_more și îți cere să-l întrebi — nu ocoli.
 2. Strânge orice detaliu care identifică cursa (maximum 3 întrebări, câte una pe replică):
    - de unde și până unde a mers
    - în ce zi — «azi», «ieri», «alaltăieri», ziua săptămânii sau numărul zilei; trimite CUVÂNTUL rostit în parametrul «date», serverul îl rezolvă ÎNAPOI în timp
    - la ce oră a plecat (aproximativ e destul) — parametrul «departure»
    - numărul mașinii (și parțial e bun) — parametrul «plate»
    - numele șoferului, dacă îl știe — parametrul «driver_name»
-3. Cheamă find_past_trip cu tot ce ai. NU cere toate detaliile — ajunge ce identifică unic cursa.
+3. Cheamă find_past_trip cu tot ce ai, inclusiv caller_name. NU cere toate detaliile despre cursă — ajunge ce o identifică unic.
 4. count = 1 → citește DOSLOVEN driver_line_ro / driver_line_ru. Atât.
 5. count > 1 → enumeră candidații (ora, ruta, mașina) și roagă clientul să aleagă; apoi recheamă tool-ul cu detaliul nou. Numărul se dă DOAR după ce a rămas UN singur candidat.
 6. count = 0 → citește DOSLOVEN company_phone_line_ro / company_phone_line_ru. NU da niciun număr de șofer.
@@ -308,6 +309,11 @@ Orice altceva (de exemplu «la weekend», «через неделю», un an inv
         departure: { type: 'string', description: 'Approximate departure time HH:MM if the caller remembers it' },
         plate: { type: 'string', description: 'Vehicle plate number, full or partial, as the caller said it' },
         driver_name: { type: 'string', description: 'Driver name if the caller knows it' },
+        // Obligatoriu pe FOND, nu în `required`: cu `required` modelul ar fi
+        // chemat tool-ul cu un nume inventat ca să treacă de schemă, iar în grupă
+        // ar fi ajuns un om fictiv. Serverul e poarta: fără nume întoarce
+        // need_more și cere să-l întrebe (Ion, 07.09).
+        caller_name: { type: 'string', description: "The CALLER's own name as they said it (first name is enough). ALWAYS ask for it before calling: the driver gets it together with the caller's phone in the drivers' group and calls them back. Mandatory — without it the server answers need_more asking you to collect it." },
         // dynamic_variable, NU description cu {{...}}: EL nu substituie
         // variabilele în valorile scrise de MODEL — literalul ajungea pe server
         // și validarea îl respingea, deci niciun lucru uitat nu se scria

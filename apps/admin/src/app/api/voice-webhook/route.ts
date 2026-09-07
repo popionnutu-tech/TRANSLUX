@@ -106,11 +106,16 @@ async function raporteaza(
     // Telegram să respingă ÎNTREG raportul apelului.
     const cine = [obiect.driver_name, obiect.plate]
       .filter((x): x is string => !!x).map(escapeHtml).join(' · ');
+    // Numele clientului e obligatoriu din 07.09; lipsa lui e o abatere a
+    // agentului și trebuie să se vadă la birou, nu doar în grupă.
+    const client = obiect.caller_name?.trim()
+      ? `; clientul: ${escapeHtml(obiect.caller_name.trim())}`
+      : '; ⚠️ numele clientului NU a fost cules';
     liniaObiect = obiect.identified
       ? (obiect.phone_withheld
-        ? `\n🎒 Lucru uitat — la ${cine || 'șofer'}; clientul NU are numărul (avea reclamație): obiectul se predă LA BIROU.`
-        : `\n🎒 Lucru uitat — la ${cine || 'șofer'}; clientul are numărul și sună direct.`)
-      : '\n🎒 Lucru uitat — cursă neidentificată; obiectul rămâne la șofer.';
+        ? `\n🎒 Lucru uitat — la ${cine || 'șofer'}; clientul NU are numărul (avea reclamație): obiectul se predă LA BIROU${client}.`
+        : `\n🎒 Lucru uitat — la ${cine || 'șofer'}; clientul are numărul și sună direct${client}.`)
+      : `\n🎒 Lucru uitat — cursă neidentificată; obiectul rămâne la șofer${client}.`;
     if (!grupaLegata) {
       liniaObiect += '\n⚠️ Grupa șoferilor nu e legată — scrieți /lega_reclamatii în grupă.';
     }

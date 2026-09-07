@@ -136,6 +136,10 @@ export async function POST(req: NextRequest) {
   const departure = str(body.departure, 20);
   const plate = normPlate(str(body.plate, 40));
   const driverName = normName(str(body.driver_name, 120));
+  // Numele clientului, cum l-a spus — NU normName (acela e cheie de căutare, cu
+  // litere mici și fără diacritice; ăsta se citește de un om în grupă). Plafon
+  // scurt: ajunge într-un chat cu douăzeci de șoferi (migr. 321).
+  const callerName = str(body.caller_name, 80).replace(/\s+/g, ' ').trim();
   // Fără conversation_id nu există «un apel = un obiect»: rândul nu se poate lega
   // de convorbire, iar mesajul din grupă ar pleca de câte ori e chemat tool-ul.
   // Lipsa lui NU oprește nimic din ce făcea ruta până acum — doar nu se scrie.
@@ -155,7 +159,7 @@ export async function POST(req: NextRequest) {
 
   // Scrierea merge DUPĂ răspuns (`after`) și nu are voie să strice apelul: rostul
   // rutei rămâne să-i dea clientului numărul șoferului, nu să țină evidența.
-  const noteazaObiectul = (row: Omit<LostItemInput, 'conversation_id'>) => {
+  const noteazaObiectul = (row: Omit<LostItemInput, 'conversation_id' | 'caller_name'>) => {
     if (!conversationId) return;
     // Un rând fără cursă n-are ce spune nimănui în grupă. Ziua SINGURĂ nu e un
     // fir: «Lucru uitat, cursă neidentificată, 2026-09-01» nu ajută pe nimeni
@@ -163,7 +167,7 @@ export async function POST(req: NextRequest) {
     if (!row.identified && !row.route && !row.plate) return;
     after(async () => {
       try {
-        await saveLostItem({ conversation_id: conversationId, ...row });
+        await saveLostItem({ conversation_id: conversationId, caller_name: callerName || null, ...row });
       } catch (err) {
         console.error('find-past-trip: saveLostItem', err);
       }
@@ -171,7 +175,7 @@ export async function POST(req: NextRequest) {
   };
   // Cursa așa cum a spus-o clientul, când serverul n-a găsit-o: după rută și zi
   // se poate recunoaște șoferul care citește grupa.
-  const neidentificat = (tripDate: string | null): Omit<LostItemInput, 'conversation_id'> => ({
+  const neidentificat = (tripDate: string | null): Omit<LostItemInput, 'conversation_id' | 'caller_name'> => ({
     trip_date: tripDate,
     departure: departure || null,
     route: from && to ? `${from} – ${to}` : null,
@@ -224,6 +228,19 @@ export async function POST(req: NextRequest) {
           phone_withheld: areReclamatie,
         }
         : neidentificat(outcome.tripDate));
+      // NUMELE E OBLIGATORIU (Ion, 07.09: «numărul clientului și numele
+      // obligatoriu»). Poarta stă DUPĂ notarea cursei — ce s-a aflat despre
+      // cursă rămâne scris chiar dacă apelul cade aici — și ÎNAINTE de orice
+      // rezultat: nici numărul șoferului, nici «am notat» nu se dau până nu
+      // există cine să fie sunat. Fără conversation_id rândul nu se scrie
+      // oricum, deci n-ar avea rost să oprim clientul.
+      if (conversationId && !callerName) {
+        return NextResponse.json({
+          date: outcome.tripDate, need_more: true,
+          result_ro: 'Întreabă clientul cum îl cheamă (numele e obligatoriu — șoferul îl caută și îl sună după el), apoi recheamă tool-ul cu caller_name și cu toate detaliile de până acum.',
+          result_ru: 'Спроси, как зовут клиента (имя обязательно — водитель найдёт и позвонит ему по имени), затем вызови инструмент снова с caller_name и всеми деталями, что уже есть.',
+        });
+      }
       // Reclamație pe același apel: cursa e identificată în dosar și în grupă,
       // dar clientul primește calea prin birou, nu numărul omului reclamat.
       // Forma răspunsului e cea de la «nu am găsit» (count 0 + company_phone_line),

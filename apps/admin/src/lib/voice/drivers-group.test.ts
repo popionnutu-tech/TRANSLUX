@@ -187,14 +187,34 @@ describe('lucru uitat — clientul, ca șoferul să-l poată suna', () => {
     expect(t).toContain('sunați clientul');
   });
 
-  it('fără număr, mesajul rămâne exact cum era', () => {
+  it('fără număr, rândul clientului rămâne și spune pe față că numărul e ascuns', () => {
+    // Ion 07.09: «numărul clientului și numele obligatoriu». Un rând absent
+    // arată ca o uitare; unul cu «ascuns» e un fapt pe care șoferul îl duce
+    // la dispecer.
     const t = formatLostItemForGroup(neidentificat);
-    expect(t).not.toContain('Clientul:');
+    expect(t).toContain('Clientul:');
+    expect(t).toContain('număr ascuns');
     expect(t).toContain('Obiectul rămâne la șofer până îl caută clientul.');
+    expect(t).not.toContain('sunați clientul');
   });
 
   it('numele apare lângă număr când există', () => {
     const t = formatLostItemForGroup({ ...neidentificat, caller_name: 'Vasile', caller_phone: '+37369034315' });
     expect(t).toContain('Vasile · +37369034315');
+  });
+
+  it('fără nume, rândul spune că numele NU a fost cules — nu lasă gol', () => {
+    const t = formatLostItemForGroup({ ...neidentificat, caller_phone: '+37369034315' });
+    expect(t).toContain('nume necules · +37369034315');
+  });
+
+  it('numele trece prin escapeHtml — un «&» nu are voie să omoare mesajul', () => {
+    const t = formatLostItemForGroup({ ...neidentificat, caller_name: 'Ion & Maria', caller_phone: '+37369034315' });
+    expect(t).toContain('Ion &amp; Maria');
+  });
+
+  it('numele gol sau doar spații e ca lipsa lui', () => {
+    const t = formatLostItemForGroup({ ...neidentificat, caller_name: '   ', caller_phone: '+37369034315' });
+    expect(t).toContain('nume necules');
   });
 });

@@ -40,6 +40,33 @@ export type Candidate = {
 };
 
 export const normPlate = (s: string) => s.toUpperCase().replace(/[^A-ZĂÂÎȘȚ0-9]/gu, '');
+
+/**
+ * Plăcuța, spartă în grupul de cifre și cel de litere.
+ *
+ * Plăcuțele MD se scriu cifre-apoi-litere («319YEK»), dar oamenii le rostesc în
+ * ambele ordini, iar ASR-ul le mai și transpune. Compararea pe ȘIR era deci
+ * ordine-sensibilă: apel 07.09, clientul a spus «YEK 319», în bază stă «319YEK»,
+ * iar `"319YEK".includes("YEK319")` = false — cursa n-a fost identificată deși
+ * plăcuța era corectă și mașina activă.
+ */
+export function plateParts(s: string): { digits: string; letters: string } {
+  const n = normPlate(s);
+  return { digits: n.replace(/\D/gu, ''), letters: n.replace(/[0-9]/gu, '') };
+}
+
+/** Potrivire pe grupuri, nu pe șir: ordinea rostită nu mai contează. */
+export function plateMatches(dbPlate: string | null | undefined, spoken: string): boolean {
+  if (!spoken) return true;
+  if (!dbPlate) return false;
+  const a = plateParts(dbPlate);
+  const b = plateParts(spoken);
+  if (!b.digits && !b.letters) return true;
+  // Fiecare grup rostit trebuie să se regăsească în grupul lui — cel lipsă nu
+  // constrânge («319» singur potrivește orice plăcuță cu 319).
+  return (!b.digits || a.digits.includes(b.digits))
+    && (!b.letters || a.letters.includes(b.letters));
+}
 export const normName = (s: string) =>
   s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
@@ -101,10 +128,9 @@ async function searchByPlateOrDriver(tripDate: string, plate: string, driverName
       const driver = driverMap.get(leg.driverId);
       const vehicle = leg.vehicleId ? vehicleMap.get(leg.vehicleId) : null;
       if (!driver?.phone) continue;
-      const plateNorm = vehicle?.plate_number ? normPlate(vehicle.plate_number) : '';
       const nameNorm = normName(driver.full_name ?? '');
       // ȘI: criteriul transmis care nu se potrivește ELIMINĂ candidatul.
-      if (plate.length >= MIN_PLATE && !plateNorm.includes(plate)) continue;
+      if (plate.length >= MIN_PLATE && !plateMatches(vehicle?.plate_number, plate)) continue;
       if (driverName.length >= MIN_NAME && !nameNorm.includes(driverName)) continue;
       const key = `${leg.driverId}|${leg.vehicleId ?? ''}|${leg.dir}|${leg.routeId}`;
       if (seen.has(key)) continue;
@@ -193,19 +219,27 @@ export async function identifyTrip(input: IdentifyInput): Promise<IdentifyOutcom
       const exact = matched.filter((t) => toMinutes(t.time) === depMin);
       if (exact.length === 1) matched = exact;
     }
-    if (plate.length >= MIN_PLATE) matched = matched.filter((t) => t.vehicle_plate && normPlate(t.vehicle_plate).includes(plate));
+    // Cursele de pe rută ÎNAINTE de filtrele pe detalii — plasa de siguranță de mai jos.
+    const peRuta = matched;
+    if (plate.length >= MIN_PLATE) matched = matched.filter((t) => plateMatches(t.vehicle_plate, plate));
     if (driverName.length >= MIN_NAME) matched = matched.filter((t) => t.driver && normName(t.driver).includes(driverName));
-    const candidates: Candidate[] = matched.map((t) => ({
+    const toCandidate = (t: typeof matched[number]): Candidate => ({
       driver_id: t.driver_id ?? null,
       departure: t.time,
       route_ro: `${fromRo} – ${t.destination_ro}`,
       route_ru: `${fromRo} – ${t.destination_ru}`,
       driver: t.driver, phone: t.phone, plate: t.vehicle_plate,
-    }));
+    });
+    const candidates: Candidate[] = matched.map(toCandidate);
     // Ruta n-a dat nimic, dar clientul știe mașina/șoferul? Nu-l lăsăm cu zero:
     // ruta putea fi ținută minte greșit, plăcuța nu (audit L3).
     if (candidates.length === 0 && (plate.length >= MIN_PLATE || driverName.length >= MIN_NAME)) {
-      return { kind: 'candidates', tripDate, depMin, candidates: await searchByPlateOrDriver(tripDate, plate, driverName, depMin, today) };
+      const largi = await searchByPlateOrDriver(tripDate, plate, driverName, depMin, today);
+      if (largi.length > 0) return { kind: 'candidates', tripDate, depMin, candidates: largi };
+      // Detaliul nu s-a potrivit NICĂIERI — atunci nu are voie să golească
+      // rezultatul: clientul care dă o plăcuță greșită ajungea mai rău decât cel
+      // care n-o dă deloc. Cade înapoi pe cursele rutei, ca la un apel fără plăcuță.
+      if (peRuta.length > 0) return { kind: 'candidates', tripDate, depMin, candidates: peRuta.map(toCandidate) };
     }
     return { kind: 'candidates', tripDate, candidates, depMin };
   }

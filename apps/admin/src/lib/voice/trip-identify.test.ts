@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 vi.mock('../supabase', () => ({ getSupabase: () => ({}) }));
-import { toMinutes, normPlate, normName, uniqueDrivers, type Candidate } from './trip-identify';
+import { toMinutes, normPlate, normName, uniqueDrivers, plateMatches, plateParts, type Candidate } from './trip-identify';
 
 // Funcțiile au fost MUTATE din route-ul find-past-trip fără schimbare de
 // comportament; testele fixează exact acel comportament, ca mutarea să nu poată
@@ -48,5 +48,35 @@ describe('uniqueDrivers', () => {
   it('doi oameni diferiți rămân doi', () => {
     const { uniquePhones } = uniqueDrivers([c({ phone: '069000001' }), c({ phone: '069000002' })]);
     expect(uniquePhones).toHaveLength(2);
+  });
+});
+
+describe('plateMatches — ordinea rostită nu contează', () => {
+  it('apelul 07.09: «YEK 319» găsește mașina «319YEK»', () => {
+    // Cazul real: plăcuța era corectă și mașina activă, dar compararea pe șir
+    // («319YEK».includes('YEK319')) era ordine-sensibilă și a golit rezultatul.
+    expect(plateMatches('319YEK', normPlate('YEK 319'))).toBe(true);
+    expect(plateMatches('319YEK', normPlate('319 YEK'))).toBe(true);
+  });
+
+  it('grupul rostit parțial potrivește; cel care lipsește nu constrânge', () => {
+    expect(plateMatches('319YEK', '319')).toBe(true);
+    expect(plateMatches('319YEK', 'YEK')).toBe(true);
+  });
+
+  it('mașina greșită rămâne greșită', () => {
+    expect(plateMatches('319YEK', normPlate('BRAT 319'))).toBe(false);
+    expect(plateMatches('319BRAT', normPlate('YEK 319'))).toBe(false);
+    expect(plateMatches('123ABC', '999')).toBe(false);
+  });
+
+  it('fără plăcuță rostită nu filtrează nimic; fără plăcuță în bază nu potrivește', () => {
+    expect(plateMatches('319YEK', '')).toBe(true);
+    expect(plateMatches(null, '319')).toBe(false);
+  });
+
+  it('plateParts separă cifrele de litere', () => {
+    expect(plateParts('YEK 319')).toEqual({ digits: '319', letters: 'YEK' });
+    expect(plateParts('319-YEK')).toEqual({ digits: '319', letters: 'YEK' });
   });
 });

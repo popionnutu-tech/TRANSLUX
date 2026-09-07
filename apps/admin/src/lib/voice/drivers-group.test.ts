@@ -161,3 +161,40 @@ describe('formatLostItemForGroup', () => {
     expect(formatLostItemForGroup(bazaObiect)).not.toMatch(/geant|telefon|obiect uitat:/i);
   });
 });
+
+describe('lucru uitat — clientul, ca șoferul să-l poată suna', () => {
+  const neidentificat = {
+    driver_name: null, plate: null, identified: false,
+    route: 'Chișinău – Briceni', departure: null, trip_date: '2026-09-07',
+  };
+
+  it('numărul clientului intră în mesaj (regula veche răsturnată 07.09)', () => {
+    const t = formatLostItemForGroup({ ...neidentificat, caller_phone: '+37369034315' });
+    expect(t).toContain('+37369034315');
+    expect(t).toContain('Clientul');
+  });
+
+  it('numărul NU trece prin redactarea textului de model', () => {
+    // pentruGrupa() taie șirurile de 7+ cifre — dar acelea vin de la model.
+    // Numărul ăsta vine din telefonie, deci trebuie să rămână întreg.
+    const t = formatLostItemForGroup({ ...neidentificat, caller_phone: '069034315' });
+    expect(t).not.toContain('[număr ascuns]');
+    expect(t).toContain('069034315');
+  });
+
+  it('cu număr, cursa neidentificată cere șoferului să sune', () => {
+    const t = formatLostItemForGroup({ ...neidentificat, caller_phone: '+37369034315' });
+    expect(t).toContain('sunați clientul');
+  });
+
+  it('fără număr, mesajul rămâne exact cum era', () => {
+    const t = formatLostItemForGroup(neidentificat);
+    expect(t).not.toContain('Clientul:');
+    expect(t).toContain('Obiectul rămâne la șofer până îl caută clientul.');
+  });
+
+  it('numele apare lângă număr când există', () => {
+    const t = formatLostItemForGroup({ ...neidentificat, caller_name: 'Vasile', caller_phone: '+37369034315' });
+    expect(t).toContain('Vasile · +37369034315');
+  });
+});

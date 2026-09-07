@@ -7,7 +7,6 @@ import { timeSpoken } from '@/lib/time-spoken';
 import { dateSpoken } from '@/lib/date-spoken';
 import { chisinauTodayIso } from '@/lib/chisinau-time';
 import { driverFirstName, driverFirstNameRu } from '@/lib/driver-name';
-import { COMPANY_PHONE } from '@/lib/company-phone';
 import {
   identifyTrip, normPlate, normName, uniqueDrivers, singleCandidate,
   MAX_DAYS_BACK, type Candidate,
@@ -53,9 +52,14 @@ const companyLine = (ro: string, ru: string) => ({
   company_phone_line_ro: ro,
   company_phone_line_ru: ru,
 });
+// «Sunați compania» a DISPĂRUT din toate frazele astea (Ion, 07.09: «agentul e
+// ultima instanță»). Singurul număr public, +37360401010, e chiar linia acestui
+// agent — clientul era trimis înapoi la robotul care tocmai eșuase. Acum firul
+// se închide invers: cursa neidentificată pleacă în grupa șoferilor ÎMPREUNĂ cu
+// numărul clientului, iar cine își recunoaște cursa îl sună el.
 const NOT_FOUND_LINE = companyLine(
-  `Nu am putut identifica exact cursa. Vă rog să mai aflați detalii — ziua, ora plecării, numărul mașinii — și să ne sunați din nou la ${phoneSpoken(COMPANY_PHONE)?.ro}.`,
-  `Не удалось точно определить рейс. Уточните детали — день, время отправления, номер машины — и перезвоните нам по ${phoneSpoken(COMPANY_PHONE)?.ru}.`,
+  'Nu am putut identifica exact cursa. Transmit acum datele șoferilor, cu numărul dumneavoastră — cine recunoaște cursa vă sună. Dacă vă amintiți ziua, ora plecării sau numărul mașinii, spuneți-mi acum și caut din nou.',
+  'Не удалось точно определить рейс. Передаю данные водителям вместе с вашим номером — кто узнает свой рейс, перезвонит вам. Если вспомните день, время отправления или номер машины, скажите сейчас — поищу ещё раз.',
 );
 
 // Fraza GATA de rostit — același tipar ca driver_line din search-trips: modelul
@@ -188,8 +192,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         count: 0, date: outcome.tripDate, too_old: true,
         ...companyLine(
-          `Cursa e mai veche de ${MAX_DAYS_BACK} zile — nu mai pot identifica șoferul. Sunați compania la ${phoneSpoken(COMPANY_PHONE)?.ro}.`,
-          `Рейс старше ${MAX_DAYS_BACK} дней — водителя уже не определить. Позвоните в компанию по ${phoneSpoken(COMPANY_PHONE)?.ru}.`,
+          `Cursa e mai veche de ${MAX_DAYS_BACK} zile — atât ține evidența, nu mai pot identifica șoferul.`,
+          `Рейс старше ${MAX_DAYS_BACK} дней — столько хранится учёт, водителя уже не определить.`,
         ),
       });
     // FĂRĂ fraza companiei aici (delta-audit M4): unknown_locality poartă
@@ -229,8 +233,8 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({
           count: 0, date: outcome.tripDate, candidates: [],
           ...companyLine(
-            `Obiectul rămâne la șofer, iar noi vi-l predăm la birou. Sunați la ${phoneSpoken(COMPANY_PHONE)?.ro} și vă spunem când îl puteți ridica.`,
-            `Вещь остаётся у водителя, а мы передадим её вам в офисе. Позвоните по ${phoneSpoken(COMPANY_PHONE)?.ru}, и мы скажем, когда её можно забрать.`,
+            'Obiectul rămâne la șofer. Am notat cursa și numărul dumneavoastră și le transmit mai departe — veți fi contactat pentru predare.',
+            'Вещь остаётся у водителя. Я записала рейс и ваш номер и передаю дальше — с вами свяжутся, чтобы вернуть вещь.',
           ),
         });
       }

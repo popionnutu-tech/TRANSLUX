@@ -124,7 +124,9 @@ async function raporteaza(
       // `complaint !== null` = același apel are și o reclamație. Poarta din
       // find-past-trip acoperă doar ordinea «reclamație → obiect»; în ordinea
       // inversă numărul a plecat deja, iar mesajul măcar îl spune cinstit.
-      ? notifyDriversGroup(formatLostItemForGroup(lostItem, complaint !== null))
+      // Numărul vine din apelul însuși, nu din ce a scris modelul — aceeași
+      // sursă ca la callback (măsurat 24.08: ce scrie modelul e adesea null).
+      ? notifyDriversGroup(formatLostItemForGroup({ ...lostItem, caller_phone: row.caller_phone }, complaint !== null))
         .catch((err) => { console.error('voice-webhook: grup', err); return false; })
       : Promise.resolve(true),
   ]);

@@ -11,12 +11,16 @@ import type { Evidence } from './complaints';
 // schimbarea grupei nu cere nici variabilă de mediu, nici deploy.
 //
 // CE NU INTRĂ ÎN GRUPĂ, hotărât la livrare:
-//  - telefonul clientului: sunt datele unui străin într-un chat cu douăzeci de
-//    oameni. Cine își recunoaște cursa răspunde în grupă sau sună la birou;
 //  - numele obiectului uitat: decizia lui Ion din 30.08 — nu se păstrează și nu
 //    se transmite nicăieri, fiindcă ASR-ul îl stâlcește și modelul îl ghicește;
 //  - reclamațiile care nu cad pe șofer (starea mașinii, site-ul, rezervarea):
 //    acolo răspunde compania, iar în grupă ar fi doar zgomot.
+//
+// TELEFONUL CLIENTULUI la lucruri uitate: intră, din 07.09. Regula veche («datele
+// unui străin într-un chat cu douăzeci de oameni») presupunea că omul are unde
+// suna. N-are: singurul număr public, +37360401010, e chiar linia agentului AI,
+// deci «sunați la birou» îl trimitea înapoi la robot. Agentul e ultima instanță
+// (Ion, 07.09), așa că firul se închide invers — șoferul sună clientul.
 
 // Cheia e în @translux/db: botul o scrie, panoul o citește — o singură definiție.
 export { DRIVERS_GROUP_CONFIG_KEY } from '@translux/db';
@@ -202,16 +206,30 @@ export interface GroupLostItem {
   trip_date: string | null;
   /** Clientul NU a primit numărul: avea reclamație pe același apel (migr. 315). */
   phone_withheld?: boolean;
+  /** Numărul de pe care a sunat clientul (voice_calls.caller_phone). */
+  caller_phone?: string | null;
+  /** Numele dat de client. Există doar dacă apelul l-a cules (migr. 321). */
+  caller_name?: string | null;
 }
 
 export function formatLostItemForGroup(l: GroupLostItem, areReclamatie = false): string {
   const cine = l.identified ? omul(l.driver_name, l.plate) : null;
+  // Clientul, ca șoferul să-l poată suna: fără asta, o cursă neidentificată era
+  // un fir mort — omul n-are unde suna, numărul public e chiar agentul AI.
+  const client = [l.caller_name, l.caller_phone]
+    .filter((x): x is string => !!x && !!x.trim())
+    .map((x) => escapeHtml(x.trim()))
+    .join(' · ');
   return [
     '🎒 <b>Lucru uitat în autobuz</b>',
     cine ? `<b>${cine}</b>` : '<b>Cursă neidentificată</b> — cine recunoaște cursa să anunțe dispecerul.',
     cursa(l),
+    client ? `📞 Clientul: <b>${client}</b>` : null,
     !cine
-      ? '<i>Obiectul rămâne la șofer până îl caută clientul.</i>'
+      ? client
+        // Firul se închide invers: nu clientul sună compania, ci șoferul clientul.
+        ? '<i>Obiectul rămâne la șofer. Cine recunoaște cursa — sunați clientul.</i>'
+        : '<i>Obiectul rămâne la șofer până îl caută clientul.</i>'
       : l.phone_withheld
         // Clientul n-a primit numărul (avea și reclamație pe același apel):
         // șoferul nu trebuie să aștepte un telefon care nu vine.

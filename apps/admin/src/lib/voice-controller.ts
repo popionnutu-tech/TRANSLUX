@@ -438,6 +438,37 @@ const ALT_NUMAR_BLOCK_RU = `
 - Ты не можешь никому позвонить: никогда не обещай, что с человеком свяжется кто-то из компании.
 - Если рейс не найден, отправлять человека некуда — и не нужно: его данные уходят водителям вместе с его номером, и тот, кто узнает свой рейс, перезвонит ему. Читай дословно фразу из тула, а если клиент вспомнит день, время или номер машины — ищи заново сразу же.`;
 
+// Ion, 07.09: «să nu inventeze niciodată orele agentul, niciodată». Apel real
+// (conv_3201m1ygxgnjefprgw97vw05n664, Chișinău→Bălți, 21:09): search_trips a întors
+// 0 curse pe azi; rândul de mai jos (ZI_FARA_CURSE_OBSOLETE) cerea recăutarea pe
+// «mâine» cu tool-ul, iar modelul a sărit peste tool și a anunțat «patru și douăzeci»
+// și «șase și jumătate» — inventate (prima cursă reală de a doua zi: 06:55).
+// De acum tool-ul caută SINGUR următoarea zi cu curse și o dă gata de citit
+// (no_trips_line_ro/ru + next_day) — un al doilea apel de tool e un pas pe care
+// modelul îl poate sări, un câmp în răspuns nu. Iar proxy-ul vocal (apps/voice-llm,
+// lib/spoken-times.ts) taie orice oră care nu vine dintr-un tool: regula de mai jos
+// îi spune modelului că replica i s-ar rupe.
+const ZI_FARA_CURSE_OBSOLETE = `
+- search_trips a dat 0 curse pe ziua cerută? NU te opri la «nu sunt curse»: verifică IMEDIAT ziua următoare cu search_trips (date=«mâine») și propune cea mai apropiată cursă. Ruta EXISTĂ — spune când e următoarea plecare.`;
+const ZI_FARA_CURSE_BLOCK = `
+
+ZI FĂRĂ CURSE — URMĂTOAREA VINE DIN TOOL:
+- search_trips a întors count 0 pe ziua cerută? NU chemi tool-ul din nou pentru «mâine» și NU propui nicio oră din capul tău. Răspunsul conține deja no_trips_line_ro (română) / no_trips_line_ru (rusă): îl citești DOSLOVEN — spune că în ziua cerută nu sunt curse și care e următoarea zi cu curse, cu primele ore.
+- Orele următoarei zile stau în blocul next_day (departures_ro / departures_ru, trips). Doar de acolo le rostești, cuvânt cu cuvânt. Clientul vrea și alte ore din ziua aceea? Le citești din next_day.departures_ro. Vrea șoferul unei curse de acolo? Rechemi search_trips cu date = cuvântul din next_day.date_word_ro și departure = ora aleasă — o singură cursă, apoi driver_line_ro.
+- next_day e null? Citești no_trips_line_ro/ru așa cum e: nu sunt curse în următoarele zile pe ruta asta. Nu inventezi o alternativă și nu propui altă rută.
+- O oră care nu apare într-un rezultat de tool din această convorbire NU EXISTĂ. Serverul taie orice oră inventată înainte să ajungă la client, împreună cu restul replicii — clientul ar auzi o frază ruptă. Nu ai ora din tool? Cheamă tool-ul.`;
+
+const ZI_FARA_CURSE_MARKER_RU = 'ДЕНЬ БЕЗ РЕЙСОВ — СЛЕДУЮЩИЙ ПРИХОДИТ ИЗ ТУЛА';
+const ZI_FARA_CURSE_OBSOLETE_RU = `
+- search_trips вернул 0 рейсов на запрошенный день? НЕ останавливайся на «рейсов нет»: НЕМЕДЛЕННО проверь следующий день через search_trips с date=«завтра» и предложи ближайший рейс. Маршрут СУЩЕСТВУЕТ — скажи, когда следующее отправление.`;
+const ZI_FARA_CURSE_BLOCK_RU = `
+
+ДЕНЬ БЕЗ РЕЙСОВ — СЛЕДУЮЩИЙ ПРИХОДИТ ИЗ ТУЛА:
+- search_trips вернул count 0 на запрошенный день? НЕ вызывай тул повторно на «завтра» и НЕ предлагай никакого времени из головы. В ответе уже есть no_trips_line_ru: читай его ДОСЛОВНО — там сказано, что в запрошенный день рейсов нет и какой следующий день с рейсами, с первыми временами.
+- Времена следующего дня лежат в блоке next_day (departures_ru, trips). Произносишь их только оттуда, слово в слово. Клиенту нужны и другие времена того дня? Читаешь из next_day.departures_ru. Нужен водитель одного из тех рейсов? Вызываешь search_trips повторно с date = слово из next_day.date_word_ru и departure = выбранное время — один рейс, затем driver_line_ru.
+- next_day равен null? Читаешь no_trips_line_ru как есть: рейсов в ближайшие дни по этому маршруту нет. Альтернативу не выдумываешь и другой маршрут не предлагаешь.
+- Время, которого нет ни в одном результате тула в этом разговоре, НЕ СУЩЕСТВУЕТ. Сервер вырезает любое выдуманное время до того, как оно дойдёт до клиента, вместе с остатком реплики — клиент услышит оборванную фразу. Нет времени из тула? Вызови тул.`;
+
 const LIMBA_BLOCK = `
 
 LIMBA — A DOUA OARĂ LA RÂND:
@@ -474,6 +505,9 @@ async function canonKeywords(): Promise<string[]> {
 // Первый случай: блок e2c6263 разрешал обещать перезвон ПОСЛЕ request_callback —
 // отменён решением Иона 24.08 «операторов, которые перезванивают, нет».
 const OBSOLETE_BLOCKS = [
+  // Ion 07.09: 0 curse → tool-ul aduce singur ziua următoare; rândul care cerea al
+  // doilea apel a produs ore inventate. Înlocuit de ZI_FARA_CURSE_BLOCK.
+  ZI_FARA_CURSE_OBSOLETE,
   // Ion 07.09: numele reclamantului devine obligatoriu (migr. 324). Înlocuit de
   // RECLAMATII_BLOCK cu marker nou «…NUMELE CLIENTULUI OBLIGATORIU».
   RECLAMATII_OBSOLETE_01_09,
@@ -760,6 +794,7 @@ async function checkAndHealConfig(cfg: any, drifts: Drift[], complaintToolExists
     { marker: 'ZIUA ÎN LOC DE LOCALITATE', block: ZIUA_LOCALITATE_BLOCK, field: 'prompt.ZIUA_LOCALITATE' },
     { marker: 'CÂMPURILE _RU — DOAR ÎN REPLICI RUSEȘTI', block: CAMPURI_RU_BLOCK, field: 'prompt.CAMPURI_RU' },
     { marker: 'ALT NUMĂR NU EXISTĂ', block: ALT_NUMAR_BLOCK, field: 'prompt.ALT_NUMAR' },
+    { marker: 'ZI FĂRĂ CURSE — URMĂTOAREA VINE DIN TOOL', block: ZI_FARA_CURSE_BLOCK, field: 'prompt.ZI_FARA_CURSE' },
   ];
   let healedPrompt = prompt;
   for (const ob of OBSOLETE_BLOCKS) {
@@ -892,6 +927,7 @@ async function healRuStation(lostToolId: string | null, complaintToolId: string 
   if (healed.includes(BALTI_OBSOLETE_RU)) healed = healed.replace(BALTI_OBSOLETE_RU, '');
   if (healed.includes(SOSIREA_OBSOLETE_RU)) healed = healed.replace(SOSIREA_OBSOLETE_RU, '');
   if (healed.includes(SOSIREA2_OBSOLETE_RU)) healed = healed.replace(SOSIREA2_OBSOLETE_RU, '');
+  if (healed.includes(ZI_FARA_CURSE_OBSOLETE_RU)) healed = healed.replace(ZI_FARA_CURSE_OBSOLETE_RU, '');
   if (healed.includes(LUCRURI_OBSOLETE_RU)) healed = healed.replace(LUCRURI_OBSOLETE_RU, '');
   if (healed.includes(LUCRURI_OBSOLETE_RU_30_08)) healed = healed.replace(LUCRURI_OBSOLETE_RU_30_08, '');
   if (healed.includes(RECLAMATII_OBSOLETE_RU_01_09)) healed = healed.replace(RECLAMATII_OBSOLETE_RU_01_09, '');
@@ -914,6 +950,7 @@ async function healRuStation(lostToolId: string | null, complaintToolId: string 
   if (!healed.includes(ZIUA_LOCALITATE_MARKER_RU)) { healed += ZIUA_LOCALITATE_BLOCK_RU; vindecate.push('ru.prompt.ZIUA_LOCALITATE'); }
   if (!healed.includes(LIMBA_VOCII_MARKER_RU)) { healed += LIMBA_VOCII_BLOCK_RU; vindecate.push('ru.prompt.LIMBA_VOCII'); }
   if (!healed.includes(ALT_NUMAR_MARKER_RU)) { healed += ALT_NUMAR_BLOCK_RU; vindecate.push('ru.prompt.ALT_NUMAR'); }
+  if (!healed.includes(ZI_FARA_CURSE_MARKER_RU)) { healed += ZI_FARA_CURSE_BLOCK_RU; vindecate.push('ru.prompt.ZI_FARA_CURSE'); }
   // Lista tipurilor, în rusă. Sincronizată pe conținut, ca la RO — vezi syncTypesBlock.
   const nevindecate: Drift[] = [];
   if (tipuriInTool) {

@@ -8,6 +8,45 @@ import { timeSpoken } from '@/lib/time-spoken';
 import { dateSpoken, resolveVoiceDate } from '@/lib/date-spoken';
 import { chisinauTodayIso } from '@/lib/chisinau-time';
 import { driverFirstName, driverFirstNameRu } from '@/lib/driver-name';
+import type { TripResult } from '@/lib/trips-search';
+
+function addDays(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function cap(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+// Cuvântul pe care modelul îl trimite în «date» ca să ajungă EXACT la ziua asta:
+// «mâine»/«poimâine» când se poate, altfel zi.lună — ambele rezolvate de server
+// (resolveVoiceDate). Ziua săptămânii nu: la exact 7 zile ar sări la săptămâna următoare.
+function dateWord(iso: string, today: string): { ro: string; ru: string } {
+  const diff = Math.round((Date.parse(`${iso}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 86_400_000);
+  if (diff === 1) return { ro: 'mâine', ru: 'завтра' };
+  if (diff === 2) return { ro: 'poimâine', ru: 'послезавтра' };
+  const dm = `${iso.slice(8, 10)}.${iso.slice(5, 7)}`;
+  return { ro: dm, ru: dm };
+}
+
+const NEXT_DAY_HORIZON = 7;
+
+// Ziua cerută n-are curse? Serverul caută SINGUR următoarea zi cu curse (până la 7
+// zile) și o dă gata de citit. Apel 07.09, Chișinău→Bălți la 21:09: tool-ul a întors
+// corect 0 curse pe azi, promptul cerea recăutarea pe «mâine», iar modelul a sărit
+// peste tool și a inventat «patru și douăzeci» și «șase și jumătate» (prima cursă
+// reală de a doua zi: 06:55). Un al doilea apel de tool e un pas pe care modelul îl
+// poate sări; un câmp în răspuns nu. Sondările nu intră în search_log (skipLog).
+async function nextDayWithTrips(fromRo: string, toRo: string, fromDate: string): Promise<{ date: string; trips: TripResult[] } | null> {
+  for (let i = 1; i <= NEXT_DAY_HORIZON; i++) {
+    const date = addDays(fromDate, i);
+    const trips = await searchTrips(fromRo, toRo, date, { skipLog: true });
+    if (trips.length > 0) return { date, trips };
+  }
+  return null;
+}
 
 
 export async function POST(req: NextRequest) {
@@ -93,6 +132,65 @@ export async function POST(req: NextRequest) {
     departures_ru: trips.map((t) => timeSpoken(t.time)?.ru ?? t.time).join(', '),
   };
 
+  const tripJson = (t: TripResult) => ({
+    departure: t.time,
+    // true = cursa circulă, dar șoferul nu e încă repartizat: NU cere numărul.
+    awaiting_driver: !!t.isAwaitingDriver,
+    departure_spoken_ro: timeSpoken(t.time)?.ro ?? null,
+    departure_spoken_ru: timeSpoken(t.time)?.ru ?? null,
+    // arrival_* scoase (Ion 28.08: doar ora plecării) — ce nu e în date nu se rostește.
+    price: t.price,
+    original_price: t.originalPrice,
+    driver: t.driver,
+    phone: t.phone,
+    phone_spoken_ru: phoneSpoken(t.phone)?.ru ?? null,
+    phone_spoken_ro: phoneSpoken(t.phone)?.ro ?? null,
+  });
+
+  // 0 curse pe ziua cerută (fără filtru de oră): următoarea zi cu curse + fraza gata
+  // de citit. Cu «departure» lipsa înseamnă doar «nu e cursă la ora asta» — lista
+  // zilei o are deja modelul din apelul anterior.
+  let nextDay: Record<string, unknown> = {};
+  if (trips.length === 0 && !departure) {
+    const next = await nextDayWithTrips(fromRo as string, toRo as string, tripDate);
+    const noTripsRo = tripDate === today
+      ? `Azi nu ${departedCount > 0 ? 'mai ' : ''}sunt curse.`
+      : `${cap(label?.ro ?? tripDate)}, nu sunt curse.`;
+    const noTripsRu = tripDate === today
+      ? `Сегодня рейсов ${departedCount > 0 ? 'больше ' : ''}нет.`
+      : `${cap(label?.ru ?? tripDate)}, рейсов нет.`;
+    if (next) {
+      const nextLabel = dateSpoken(next.date, today);
+      const word = dateWord(next.date, today);
+      const spokenRo = next.trips.map((t) => timeSpoken(t.time)?.ro ?? t.time);
+      const spokenRu = next.trips.map((t) => timeSpoken(t.time)?.ru ?? t.time);
+      const firstRo = spokenRo.length === 1 ? `singura cursă e la ${spokenRo[0]}` : `prima cursă e la ${spokenRo[0]}, apoi la ${spokenRo[1]}`;
+      const firstRu = spokenRu.length === 1 ? `единственный рейс в ${spokenRu[0]}` : `первый рейс в ${spokenRu[0]}, потом в ${spokenRu[1]}`;
+      nextDay = {
+        no_trips_line_ro: `${noTripsRo} Următoarea zi cu curse e ${nextLabel?.ro ?? next.date}: ${firstRo}.`,
+        no_trips_line_ru: `${noTripsRu} Следующий день с рейсами — ${nextLabel?.ru ?? next.date}: ${firstRu}.`,
+        next_day: {
+          date: next.date,
+          ...(nextLabel ? { date_label_ro: nextLabel.ro, date_label_ru: nextLabel.ru } : {}),
+          // Cuvântul de trimis în «date» dacă clientul vrea șoferul unei curse din ziua asta.
+          date_word_ro: word.ro,
+          date_word_ru: word.ru,
+          count: next.trips.length,
+          trips_awaiting_driver: next.trips.filter((t) => t.isAwaitingDriver).length,
+          departures_ro: spokenRo.join(', '),
+          departures_ru: spokenRu.join(', '),
+          trips: next.trips.map(tripJson),
+        },
+      };
+    } else {
+      nextDay = {
+        no_trips_line_ro: `${noTripsRo} În următoarele șapte zile nu sunt curse pe această rută.`,
+        no_trips_line_ru: `${noTripsRu} В ближайшие семь дней рейсов по этому маршруту нет.`,
+        next_day: null,
+      };
+    }
+  }
+
   return NextResponse.json({
     count: trips.length,
     date: tripDate,
@@ -101,19 +199,7 @@ export async function POST(req: NextRequest) {
     trips_awaiting_driver: asteaptaSofer,
     ...departures,
     ...singleLine,
-    trips: trips.map(t => ({
-      departure: t.time,
-      // true = cursa circulă, dar șoferul nu e încă repartizat: NU cere numărul.
-      awaiting_driver: !!t.isAwaitingDriver,
-      departure_spoken_ro: timeSpoken(t.time)?.ro ?? null,
-      departure_spoken_ru: timeSpoken(t.time)?.ru ?? null,
-      // arrival_* scoase (Ion 28.08: doar ora plecării) — ce nu e în date nu se rostește.
-      price: t.price,
-      original_price: t.originalPrice,
-      driver: t.driver,
-      phone: t.phone,
-      phone_spoken_ru: phoneSpoken(t.phone)?.ru ?? null,
-      phone_spoken_ro: phoneSpoken(t.phone)?.ro ?? null,
-    })),
+    ...nextDay,
+    trips: trips.map(tripJson),
   });
 }

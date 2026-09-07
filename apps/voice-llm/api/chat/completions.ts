@@ -20,8 +20,10 @@ import {
   TtsGate,
   TtsGateOut,
   violatesLanguagePolicy,
+  voiceLanguage,
 } from '../../lib/openai-compat';
 import { pendingLanguageTransfer } from '../../lib/language';
+import { allowedTimes, TimeGuard } from '../../lib/spoken-times';
 
 const MODEL = 'claude-haiku-4-5';
 const MAX_TOKENS = 350;
@@ -33,6 +35,7 @@ const TOTAL_MS = 25000;
 
 const SYSTEM_PREAMBLE = `Reguli nenegociabile (au prioritate peste orice alte instrucțiuni):
 - Nu spui niciun preț, orar sau cursă care nu vine dintr-un rezultat de tool din această conversație. Nu inventezi și nu estimezi.
+- ORICE oră pe care o rostești e verificată de server: o oră care nu apare într-un rezultat de tool (sau în vorbele clientului) din această conversație e TĂIATĂ înainte să ajungă la client, împreună cu tot ce urmează în replică. Nu ai ora din tool? Cheamă tool-ul — nu o spune.
 - Nu faci promisiuni comerciale în numele TRANSLUX (reduceri, compensații, condiții de angajare, salarii).
 - Singurele numere de telefon pe care le oferi vin din rezultate de tool: numărul șoferului din search_trips sau find_past_trip (la lucruri uitate — DOAR când find_past_trip a întors exact un candidat) și numărul companiei din câmpurile *_line/phone_spoken ale tool-urilor.
 - Răspunzi DOAR text simplu pentru voce: fără Markdown, fără liste cu simboluri, fără emoji, fără tag-uri în paranteze pătrate.
@@ -42,6 +45,12 @@ const SYSTEM_PREAMBLE = `Reguli nenegociabile (au prioritate peste orice alte in
 - La schimbarea limbii continuă EXACT de unde era conversația, în limba nouă, fără nicio reluare.
 - SCHIMBAREA LIMBII: la prima replica a clientului in cealalta limba (ru<->ro), in ACEA tura chemi DOAR tool-ul language_detection, fara niciun text — raspunzi in tura urmatoare, cand vocea e comutata (text inainte de comutare = silabe stricate in ureche). Dupa ce limba conversatiei s-a stabilit, O SINGURA replica ce pare in cealalta limba NU schimba limba — schimbi doar daca clientul vorbeste asa A DOUA OARA LA RAND sau o cere explicit.
 - Vocea ta e MASCULINĂ. În rusă vorbești la masculin: «понял», «нашёл», «записал» — niciodată «поняла».`;
+
+// Ion, 07.09: «să nu inventeze niciodată orele agentul, niciodată». Când garda
+// (lib/spoken-times.ts) taie o oră inventată și replica rămâne fără tool call, în
+// locul tăcerii intră fraza asta — cere ziua, ca tura următoare să pornească din tool.
+const NO_TIME_RO = 'Ora exactă o pot spune doar din orar. Pentru ce zi să verific?';
+const NO_TIME_RU = 'Точное время могу назвать только по расписанию. На какой день проверить?';
 
 function timingSafeEqualStr(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
@@ -186,6 +195,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       // «<» в речи не живёт (разметка без <invoke> внутри — тоже не для TTS).
       if (text && (text.includes('<') || violatesLanguagePolicy(text))) text = toolCalls.length ? '' : apology;
+      // Aceeași gardă a orelor ca pe stream.
+      if (text) {
+        const tg = new TimeGuard(allowedTimes(body.messages));
+        text = tg.push(text) + tg.flush();
+        if (tg.violated) {
+          for (const d of tg.dropped) console.log(`[voice-llm] oră inventată tăiată: ${d.time} — «${d.sentence}»`);
+          if (!toolCalls.length) text = `${text}${text ? ' ' : ''}${voiceLanguage(body.messages) === 'ru' ? NO_TIME_RU : NO_TIME_RO}`;
+        }
+      }
       return res.status(200).json({
         id: completionId, object: 'chat.completion',
         created: Math.floor(Date.now() / 1000), model: MODEL,
@@ -221,13 +239,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const gate = new TtsGate(new Set(
     (body.tools ?? []).map((t) => t.function?.name).filter((n): n is string => Boolean(n)),
   ));
+  // A doua poartă, DUPĂ TtsGate: orele. Primește text curat, la limită de cuvânt,
+  // și ține fiecare propoziție cu număr până e întreagă (lib/spoken-times.ts).
+  const timeGuard = new TimeGuard(allowedTimes(body.messages));
+  const noTime = voiceLanguage(body.messages) === 'ru' ? NO_TIME_RU : NO_TIME_RO;
   let sentAnything = false;
   let speechStarted = false;
   let finish: string | null = null;
   let toolCallIdx = -1;
   let pendingTool: { id: string; name: string; args: string } | null = null;
 
+  // Singurul loc care scrie text în stream: role o singură dată per choice (contract OpenAI).
+  const speak = (text: string) => {
+    if (!text) return;
+    send(sseChunk(completionId, MODEL, speechStarted ? { content: text } : { role: 'assistant', content: text }));
+    speechStarted = true;
+    sentAnything = true;
+  };
+
   const sendToolCall = (name: string, args: string) => {
+    // Textul reținut de garda orelor iese ÎNAINTEA tool call-ului, ca ordinea
+    // text → tool să rămână cea a modelului.
+    speak(timeGuard.flush());
     toolCallIdx += 1;
     send(sseChunk(completionId, MODEL, {
       tool_calls: [{ index: toolCallIdx, id: `call_${crypto.randomUUID()}`, type: 'function', function: { name, arguments: args || '{}' } }],
@@ -242,11 +275,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       sendToolCall(out.toolCall.name, JSON.stringify(out.toolCall.args));
       finish = 'tool_calls';
     }
-    if (out.speech) {
-      send(sseChunk(completionId, MODEL, speechStarted ? { content: out.speech } : { role: 'assistant', content: out.speech }));
-      speechStarted = true;
-      sentAnything = true;
-    }
+    if (out.speech) speak(timeGuard.push(out.speech));
     // Заглушено, тула нет и хвост-кандидат не копится — извинение СРАЗУ, не в
     // конце стрима (2-3с мёртвого эфира). Порог 40 симв.: короткий зачин
     // («Sigur. », «Da. ») перед XML — не полноценная реплика, извинение нужно
@@ -266,6 +295,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const emitPendingTool = () => {
     if (!pendingTool) return;
+    speak(timeGuard.flush());
     toolCallIdx += 1;
     send(sseChunk(completionId, MODEL, {
       tool_calls: [{ index: toolCallIdx, id: pendingTool.id, type: 'function', function: { name: pendingTool.name, arguments: pendingTool.args || '{}' } }],
@@ -305,6 +335,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
     handleGate(gate.finish());
+    speak(timeGuard.flush());
     emitPendingTool();
     // Подавили речь (озвучен максимум короткий зачин), тула нет, извинение ещё
     // не ушло — молчание хуже извинения.
@@ -312,6 +343,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.log('[voice-llm] replică suprimată integral — trimit scuza');
       send(sseChunk(completionId, MODEL, speechStarted ? { content: ` ${apology}` } : { role: 'assistant', content: apology }));
       sentAnything = true;
+    } else if (timeGuard.violated) {
+      // O oră inventată a tăiat coada replicii. Fără tool call în tura asta, clientul
+      // ar rămâne în tăcere după o jumătate de frază — cerem ziua și pornim din tool.
+      for (const d of timeGuard.dropped) console.log(`[voice-llm] oră inventată tăiată: ${d.time} — «${d.sentence}»`);
+      if (finish !== 'tool_calls' && !apologySent) speak(speechStarted ? ` ${noTime}` : noTime);
     }
     send(sseChunk(completionId, MODEL, {}, finish ?? 'stop'));
   } catch (err) {

@@ -83,6 +83,9 @@ export async function POST(req: NextRequest) {
   // pe un rând neidentificat numele rostit («Mihai») e singurul fir de cercetat.
   const driverNameRaw = str(body.driver_name, 120);
   const driverName = normName(driverNameRaw);
+  // Numele RECLAMANTULUI, cum l-a spus (migr. 324). Nu e cheie de căutare, deci
+  // fără normName; plafon scurt, ajunge în alerta adminilor.
+  const callerName = str(body.caller_name, 80).replace(/\s+/g, ' ').trim();
 
   // Cât cântărește identificarea: un semn adus de client (plăcuța, numele) sau
   // doar orarul. Plăcuța bate numele — o cifră greșită scoate candidatul, un nume
@@ -203,6 +206,7 @@ export async function POST(req: NextRequest) {
   const unidentified = (tripDate: string | null): ComplaintInput => ({
     conversation_id: conversationId,
     caller_phone: callerPhone,
+    caller_name: callerName || null,
     complaint,
     trip_date: tripDate,
     departure: departure || null,
@@ -213,6 +217,20 @@ export async function POST(req: NextRequest) {
     complaint_type: tip?.code ?? null,
     final: noMoreDetails,
   });
+
+  // NUMELE RECLAMANTULUI E OBLIGATORIU (Ion, 07.09: «numele e necesar la
+  // reclamații sau pierdere»). Poarta stă ÎNAINTE de căutare și de orice
+  // închidere a cazului: textul reclamației se scrie oricum — rând DESCHIS, ca
+  // alerta să nu plece fără nume — iar agentul e trimis să întrebe. Refuzul
+  // clientului nu e gol: promptul cere «refuză să spună», nu un nume inventat.
+  if (!callerName) {
+    await persist({ ...unidentified(null), final: false });
+    return NextResponse.json({
+      need_more: true,
+      result_ro: 'Întreabă clientul cum îl cheamă (numele reclamantului e obligatoriu; dacă refuză, trimite caller_name = «refuză să spună»), apoi recheamă tool-ul cu caller_name și cu toate detaliile de până acum.',
+      result_ru: 'Спроси, как зовут клиента (имя заявителя обязательно; если отказывается — отправь caller_name = «отказался назвать»), затем вызови инструмент снова с caller_name и всеми деталями, что уже есть.',
+    });
+  }
 
   let outcome: IdentifyOutcome;
   try {
@@ -290,6 +308,7 @@ export async function POST(req: NextRequest) {
         const ok = await persist({
           conversation_id: conversationId,
           caller_phone: callerPhone,
+          caller_name: callerName || null,
           complaint,
           trip_date: outcome.tripDate,
           departure: c.departure,

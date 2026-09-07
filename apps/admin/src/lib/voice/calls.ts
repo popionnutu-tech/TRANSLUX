@@ -57,6 +57,8 @@ export interface ComplaintNote {
   identified: boolean; driver_name: string | null; plate: string | null;
   /** Ce s-a reclamat și cine răspunde de acel lucru (migr. 310). */
   type_name?: string | null; culprit?: Culprit | null;
+  /** Reclamantul, cum s-a prezentat (migr. 324). Obligatoriu din 07.09. */
+  caller_name?: string | null;
 }
 
 export function formatCallReport(row: VoiceCallRow, callbackAlreadyAlerted: boolean, complaint?: ComplaintNote | null): string {
@@ -79,9 +81,13 @@ export function formatCallReport(row: VoiceCallRow, callbackAlreadyAlerted: bool
     // răspunde parcul, respectiv site-ul, iar omul de la volan e martor.
     const tip = complaint.type_name ? ` [${escapeHtml(complaint.type_name)}]` : '';
     const eticheta = etichetaOmului(complaint.culprit).toLowerCase();
+    // Numele reclamantului e obligatoriu din 07.09; lipsa lui se vede la birou.
+    const reclamant = complaint.caller_name?.trim()
+      ? `; reclamant: ${escapeHtml(complaint.caller_name.trim())}`
+      : '; ⚠️ numele reclamantului NU a fost cules';
     lines.push(complaint.identified
-      ? `⚠️ Reclamație înregistrată${tip} — ${eticheta}: ${[complaint.driver_name, complaint.plate].filter((x): x is string => !!x).map(escapeHtml).join(' · ') || 'șofer fără nume'}`
-      : `⚠️ Reclamație înregistrată${tip} — șofer NEIDENTIFICAT (clientul nu a dat mașina sau șoferul).`);
+      ? `⚠️ Reclamație înregistrată${tip} — ${eticheta}: ${[complaint.driver_name, complaint.plate].filter((x): x is string => !!x).map(escapeHtml).join(' · ') || 'șofer fără nume'}${reclamant}`
+      : `⚠️ Reclamație înregistrată${tip} — șofer NEIDENTIFICAT (clientul nu a dat mașina sau șoferul)${reclamant}.`);
   }
   return lines.join('\n');
 }

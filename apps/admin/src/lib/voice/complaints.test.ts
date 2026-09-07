@@ -156,6 +156,33 @@ describe('saveComplaint', () => {
   });
 });
 
+describe('numele reclamantului (Ion 07.09: obligatoriu la reclamații)', () => {
+  it('rândul nou îl scrie curățat; gol → null, nu șir gol', async () => {
+    await saveComplaint({ ...base, caller_name: '  Vasile Lungu ' });
+    expect(inserted).toMatchObject({ caller_name: 'Vasile Lungu' });
+    await saveComplaint({ ...base, caller_name: '   ' });
+    expect(inserted).toMatchObject({ caller_name: null });
+  });
+
+  it('un apel ulterior fără nume NU șterge numele deja cules', async () => {
+    existing = { id: 'r1', complaint: 'x', caller_phone: '+37360000001', identified: false, alerted: false, caller_name: 'Vasile' } as typeof existing;
+    await saveComplaint({ ...base, identified: false, final: false, caller_name: null });
+    expect(lastPatch).toMatchObject({ caller_name: 'Vasile' });
+  });
+
+  it('alerta poartă numele lângă număr', () => {
+    expect(formatComplaintAlert({ ...base, caller_name: 'Vasile Lungu' })).toContain('De la: Vasile Lungu · +37360000001');
+  });
+
+  it('fără nume, alerta spune pe față că nu a fost cules — nu lasă gol', () => {
+    expect(formatComplaintAlert(base)).toContain('De la: ⚠️ nume necules · +37360000001');
+  });
+
+  it('numele trece prin escapeHtml', () => {
+    expect(formatComplaintAlert({ ...base, caller_name: 'Ion & Maria' })).toContain('Ion &amp; Maria');
+  });
+});
+
 describe('formatComplaintAlert', () => {
   it('arată vinovatul când e identificat', () => {
     const text = formatComplaintAlert(base);

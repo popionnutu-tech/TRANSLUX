@@ -14,6 +14,8 @@ export type Evidence = 'plate' | 'name' | 'trip_only';
 export interface ComplaintInput {
   conversation_id: string | null;
   caller_phone: string | null;
+  /** Numele clientului, cum l-a spus (migr. 324). Doar pentru admini, nu pentru grupă. */
+  caller_name?: string | null;
   complaint: string | null;
   trip_date: string | null;
   departure: string | null;
@@ -90,6 +92,9 @@ const dosarDinInput = (i: ComplaintInput): SaveResult['row'] => ({
   evidence: i.evidence,
 });
 
+/** Nume curățat sau null — niciodată șir gol în bază. */
+const numeCurat = (n: string | null | undefined): string | null => (n && n.trim() ? n.trim() : null);
+
 export async function saveComplaint(input: ComplaintInput): Promise<SaveResult> {
   const supabase = getSupabase();
   // O conversație = O reclamație (migr. 307, unique pe conversation_id): agentul
@@ -100,7 +105,7 @@ export async function saveComplaint(input: ComplaintInput): Promise<SaveResult> 
   if (input.conversation_id) {
     const { data: existing } = await supabase
       .from('voice_complaints')
-      .select('id, complaint, caller_phone, identified, alerted, driver_id, complaint_type, driver_name, plate, route, departure, trip_date, evidence, group_notified')
+      .select('id, complaint, caller_phone, caller_name, identified, alerted, driver_id, complaint_type, driver_name, plate, route, departure, trip_date, evidence, group_notified')
       .eq('conversation_id', input.conversation_id)
       .maybeSingle();
     if (existing) {
@@ -110,6 +115,8 @@ export async function saveComplaint(input: ComplaintInput): Promise<SaveResult> 
       const patch: Record<string, unknown> = {
         complaint,
         caller_phone: input.caller_phone ?? existing.caller_phone,
+        // Numele se păstrează: un apel ulterior fără el nu golește ce s-a cules.
+        caller_name: numeCurat(input.caller_name) ?? existing.caller_name ?? null,
       };
       // Pe rândul încă neidentificat eticheta urmează ultimul apel; pe cel
       // identificat o rescrie doar o identificare nouă (blocul de mai jos).
@@ -184,7 +191,7 @@ export async function saveComplaint(input: ComplaintInput): Promise<SaveResult> 
     }
   }
   const { final, ...row } = input;
-  const { error } = await supabase.from('voice_complaints').insert({ ...row, alerted: final });
+  const { error } = await supabase.from('voice_complaints').insert({ ...row, caller_name: numeCurat(input.caller_name), alerted: final });
   // Cursa rară select→insert concurent: unique-ul respinge dublul (23505) —
   // rândul există deja, obiectivul e atins, nu aruncăm eroare spre agent. Alerta
   // o trimite atunci celălalt apel, care a scris primul.
@@ -246,7 +253,9 @@ export function formatComplaintAlert(
       : typeCorrected
         ? '⚠️ <b>Reclamație (agent vocal) — TIP CORECTAT</b>'
         : '⚠️ <b>Reclamație (agent vocal)</b>',
-    `De la: ${input.caller_phone ? escapeHtml(input.caller_phone) : 'necunoscut'}`,
+    // Numele e obligatoriu din 07.09 (migr. 324); lipsa lui e o abatere a
+    // agentului și trebuie să se vadă la birou.
+    `De la: ${numeCurat(input.caller_name) ? escapeHtml(numeCurat(input.caller_name)!) : '⚠️ nume necules'} · ${input.caller_phone ? escapeHtml(input.caller_phone) : 'necunoscut'}`,
     // Tipul spune CE s-a reclamat, linia de mai jos CINE era la volan. Sunt două
     // lucruri diferite: la «starea mașinii» sau «info de pe site» șoferul e doar
     // omul care conducea, nu cel care răspunde (Ion, 02.09).
@@ -303,12 +312,12 @@ export async function hasComplaint(conversationId: string): Promise<boolean> {
 
 export async function getComplaintSummary(conversationId: string): Promise<{
   identified: boolean; driver_name: string | null; plate: string | null;
-  type_name: string | null; culprit: Culprit | null;
+  type_name: string | null; culprit: Culprit | null; caller_name: string | null;
 } | null> {
   const supabase = getSupabase();
   const { data } = await supabase
     .from('voice_complaints')
-    .select('identified, driver_name, plate, complaint_type')
+    .select('identified, driver_name, plate, complaint_type, caller_name')
     .eq('conversation_id', conversationId)
     .maybeSingle();
   if (!data) return null;
@@ -319,5 +328,6 @@ export async function getComplaintSummary(conversationId: string): Promise<{
     plate: data.plate,
     type_name: tip?.name_ro ?? null,
     culprit: tip?.culprit ?? null,
+    caller_name: (data as { caller_name?: string | null }).caller_name ?? null,
   };
 }

@@ -70,7 +70,7 @@ Când întreabă de companie, adrese, politici:
 → Folosește get_company_info()
 
 Când clientul are o RECLAMAȚIE (șoferul a luat mai mulți bani, nu a oprit, s-a purtat urât, nu a mers până la capăt):
-→ Folosește register_complaint(complaint, complaint_type, from, to, date, departure, plate, driver_name, no_more_details, conversation_id, stated_phone) — vezi secțiunea RECLAMAȚII
+→ Folosește register_complaint(complaint, complaint_type, caller_name, from, to, date, departure, plate, driver_name, no_more_details, conversation_id, stated_phone) — vezi secțiunea RECLAMAȚII
 
 Când clientul vrea să vorbească cu un om sau tu nu ai informația:
 → Folosește request_callback(phone, name, reason, conversation_id)
@@ -87,7 +87,8 @@ RECLAMAȚII — CINE E VINOVATUL
 Orice reclamație despre o călătorie trebuie legată de OMUL care a fost la volan. Fără șofer identificat nu există responsabilitate, deci nu există ce cerceta (Ion, 01.09).
 
 1. Arată empatie O DATĂ, scurt. Nu da dreptate nimănui și nu promite compensații.
-2. Cheamă register_complaint IMEDIAT ce înțelegi că e o reclamație, cu ce ai deja. Tool-ul actualizează aceeași reclamație la fiecare apel — nu se creează dubluri.
+1b. Întreabă cum îl cheamă pe client — O DATĂ, scurt («Cum vă numiți?») — și trimite răspunsul în parametrul «caller_name». E OBLIGATORIU la reclamații: fără nume tool-ul întoarce need_more și îți cere să-l întrebi. Clientul refuză? Trimite caller_name = «refuză să spună» — NU inventa un nume.
+2. Cheamă register_complaint IMEDIAT ce înțelegi că e o reclamație, cu ce ai deja (inclusiv caller_name). Tool-ul actualizează aceeași reclamație la fiecare apel — nu se creează dubluri.
    Înainte de PRIMUL apel al tool-ului spui o replică scurtă de așteptare: «Un moment, înregistrez.» — căutarea ține câteva secunde.
 3. Strânge detaliile care identifică cursa (câte o întrebare pe replică): ruta, ziua (trimite CUVÂNTUL rostit în «date»), ora plecării, numărul mașinii («plate», merge și parțial), numele șoferului («driver_name»).
    La fiecare apel trimiți și «complaint_type» — codul din lista închisă din secțiunea TIPUL RECLAMAȚIEI. Nu se potrivește niciunul: ALTUL.
@@ -345,6 +346,10 @@ Orice altceva (de exemplu «la weekend», «через неделю», un an inv
         conversation_id: { type: 'string', dynamic_variable: 'system__conversation_id' },
         caller_phone: { type: 'string', dynamic_variable: 'system__caller_id' },
         stated_phone: { type: 'string', description: 'ONLY if the caller dictates a DIFFERENT phone number than the one they call from' },
+        // Obligatoriu pe FOND, nu în `required` — aceeași socoteală ca la
+        // find_past_trip: cu `required` modelul ar inventa un nume ca să treacă
+        // de schemă. Serverul întoarce need_more fără el (Ion, 07.09).
+        caller_name: { type: 'string', description: "The COMPLAINANT's own name as they said it (first name is enough). ALWAYS ask for it: the office needs to know who is complaining. Mandatory — without it the server answers need_more asking you to collect it. If the caller refuses, send exactly «refuză să spună» — never invent a name." },
       },
       required: ['complaint'],
     }),

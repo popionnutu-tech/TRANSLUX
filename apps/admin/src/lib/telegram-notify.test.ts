@@ -5,7 +5,7 @@ vi.mock('./supabase', () => ({
   getSupabase: () => ({ from: fromMock }),
 }));
 
-import { sendTelegram, alertAdmins, escapeHtml } from './telegram-notify';
+import { sendTelegram, sendTelegramPhoto, alertAdmins, escapeHtml } from './telegram-notify';
 
 describe('telegram-notify', () => {
   const fetchMock = vi.fn();
@@ -36,6 +36,33 @@ describe('telegram-notify', () => {
   it('sendTelegram возвращает false без токена', async () => {
     vi.stubEnv('TELEGRAM_BOT_TOKEN', '');
     await expect(sendTelegram(42, 'x')).resolves.toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('sendTelegramPhoto: multipart la sendPhoto, întoarce message_id', async () => {
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ ok: true, result: { message_id: 777 } }) });
+    const res = await sendTelegramPhoto(-100123, Buffer.from('png'), '<b>cap</b>', 'grafic.png');
+    expect(res).toEqual({ ok: true, messageId: 777 });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://api.telegram.org/botTEST_TOKEN/sendPhoto');
+    const form = init.body as FormData;
+    expect(form.get('chat_id')).toBe('-100123');
+    expect(form.get('caption')).toBe('<b>cap</b>');
+    expect(form.get('parse_mode')).toBe('HTML');
+    expect((form.get('photo') as File).name).toBe('grafic.png');
+  });
+
+  it('sendTelegramPhoto: răspuns non-2xx → ok=false, fără excepție', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    fetchMock.mockResolvedValue({ ok: false, status: 400, text: async () => 'chat not found' });
+    await expect(sendTelegramPhoto(1, Buffer.from('x'), 'c')).resolves.toEqual({ ok: false, messageId: null });
+    expect(errSpy).toHaveBeenCalled();
+    errSpy.mockRestore();
+  });
+
+  it('sendTelegramPhoto: fără token nu apelează Telegram', async () => {
+    vi.stubEnv('TELEGRAM_BOT_TOKEN', '');
+    await expect(sendTelegramPhoto(1, Buffer.from('x'), 'c')).resolves.toEqual({ ok: false, messageId: null });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

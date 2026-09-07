@@ -16,6 +16,12 @@ export type ReportStatus = 'OK' | 'ABSENT' | 'FULL';
 // (Vercel). Scrisă de două ori, o schimbare într-un loc taie tăcut mesajele.
 export const DRIVERS_GROUP_CONFIG_KEY = 'drivers_group_chat_id';
 
+// Grupa «Mejgorod» — șoferii de interurban (Ion, 07.09.2026): acolo pleacă
+// imaginea graficului pe ziua următoare, ca fiecare să știe pe ce cursă e.
+// Cheie SEPARATĂ de grupa reclamațiilor: nu știm că e același chat, iar un
+// grafic postat în grupa greșită nu se mai retrage. Legată cu /lega_grafic.
+export const GRAFIC_GROUP_CONFIG_KEY = 'grafic_group_chat_id';
+
 // Map: controller point → direction they report for
 export const POINT_DIRECTION_MAP: Record<PointEnum, DirectionEnum> = {
   CHISINAU: 'CHISINAU_BALTI',

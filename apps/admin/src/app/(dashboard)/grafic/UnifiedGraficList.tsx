@@ -10,6 +10,9 @@ import {
   setCashinReceipt,
   setRouteCancellation,
   updateReturRoute,
+  getGraficGroupStatus,
+  sendGraficToGroup,
+  type GraficGroupStatus,
   type GraficRow,
   type SuburbanGraficRow,
   type DriverOption,
@@ -70,6 +73,11 @@ export default function UnifiedGraficList({
   const [returPopupRow, setReturPopupRow] = useState<UnifiedRow | null>(null);
   const [popReturRouteId, setPopReturRouteId] = useState('');
   const [savingRetur, setSavingRetur] = useState(false);
+  // Bifa «grafic complet → grupa Mejgorod» (Ion, 07.09). Starea vine din bază,
+  // nu din pagină: bifa rămâne la reîncărcare și o vede și al doilea dispecer.
+  const [groupStatus, setGroupStatus] = useState<GraficGroupStatus | null>(null);
+  const [sendingGroup, setSendingGroup] = useState(false);
+  const [groupError, setGroupError] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -122,6 +130,24 @@ export default function UnifiedGraficList({
   }, [date]);
 
   useEffect(() => { load(); }, [load]);
+
+  const loadGroupStatus = useCallback(async () => {
+    try { setGroupStatus(await getGraficGroupStatus(date)); } catch { setGroupStatus(null); }
+  }, [date]);
+  useEffect(() => { setGroupError(''); loadGroupStatus(); }, [loadGroupStatus]);
+
+  async function handleSendToGroup() {
+    if (readOnly || sendingGroup) return;
+    setSendingGroup(true);
+    setGroupError('');
+    try {
+      const res = await sendGraficToGroup(date);
+      if (res.error) { setGroupError(res.error); return; }
+      if (res.status) setGroupStatus(res.status);
+    } finally {
+      setSendingGroup(false);
+    }
+  }
 
   async function handleDriverChange(row: UnifiedRow, driverId: string) {
     if (readOnly) return;
@@ -286,6 +312,11 @@ export default function UnifiedGraficList({
           <tbody>
             {rows.map((row, i) => {
               const isFirstSub = i === firstSubIdx;
+              // Bifa stă la SFÂRȘITUL interurbanului: după ultima cursă
+              // interurbană, înainte de «Rute suburbane» (sau ultimul rând,
+              // dacă azi nu circulă suburbane).
+              const isLastInter = row.kind === 'inter'
+                && (i === rows.length - 1 || rows[i + 1].kind !== 'inter');
               return (
                 <>
                   {isFirstSub && (
@@ -397,6 +428,18 @@ export default function UnifiedGraficList({
                       </td>
                     )}
                   </tr>
+                  {isLastInter && canSeeReceipt && (
+                    <GraficGroupRow
+                      key="grafic-group"
+                      colSpan={9}
+                      status={groupStatus}
+                      sending={sendingGroup}
+                      error={groupError}
+                      readOnly={readOnly}
+                      interFaraSofer={rows.filter(r => r.kind === 'inter' && !r.driver_id && !r.cancelled).length}
+                      onSend={handleSendToGroup}
+                    />
+                  )}
                   {canSeeReceipt && !validations[i].isValid && (
                     <tr key={`${row.key}-err`}>
                       <td colSpan={9} style={{
@@ -480,6 +523,83 @@ export default function UnifiedGraficList({
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Rândul cu bifa «Graficul interurban e complet → trimite în grupa Mejgorod».
+ * Bifarea trimite imaginea; bifa bifată = graficul a plecat pe ziua asta (cu
+ * ora și cine). După o corectare se poate retrimite — imaginea nouă vine cu
+ * mențiunea «grafic corectat», ca șoferii să știe care e cea bună.
+ */
+function GraficGroupRow({
+  colSpan,
+  status,
+  sending,
+  error,
+  readOnly,
+  interFaraSofer,
+  onSend,
+}: {
+  colSpan: number;
+  status: GraficGroupStatus | null;
+  sending: boolean;
+  error: string;
+  readOnly: boolean;
+  interFaraSofer: number;
+  onSend: () => void;
+}) {
+  const sent = !!status?.post;
+  const oraTrimiterii = status?.post
+    ? new Date(status.post.sent_at).toLocaleString('ro-RO', {
+        timeZone: 'Europe/Chisinau', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit',
+      })
+    : null;
+  return (
+    <tr style={{ background: sent ? 'var(--success-dim)' : 'rgba(155,27,48,0.04)', borderTop: '1px solid rgba(0,0,0,0.05)' }}>
+      <td colSpan={colSpan} style={{ padding: '10px 12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: readOnly || sending || sent ? 'default' : 'pointer', fontWeight: 600, fontSize: 13 }}>
+            <input
+              type="checkbox"
+              checked={sent}
+              disabled={readOnly || sending || sent}
+              onChange={e => { if (e.target.checked) onSend(); }}
+              style={{ width: 18, height: 18 }}
+              title={sent ? 'Graficul a fost trimis în grupă' : 'Bifează când graficul interurban e complet — imaginea pleacă în grupa Mejgorod'}
+            />
+            {sending
+              ? 'Se trimite imaginea în grupa Mejgorod…'
+              : sent
+                ? `Graficul a plecat în grupa Mejgorod la ${oraTrimiterii}`
+                : 'Graficul interurban e complet — trimite imaginea în grupa Mejgorod (Telegram)'}
+          </label>
+          {sent && status?.post && (
+            <span className="text-muted" style={{ fontSize: 12 }}>
+              {status.post.rows_count} curse
+              {status.post.sent_by_email ? ` · ${status.post.sent_by_email}` : ''}
+              {status.post.send_count > 1 ? ` · trimis de ${status.post.send_count} ori` : ''}
+            </span>
+          )}
+          {sent && !readOnly && (
+            <button className="btn btn-outline" onClick={onSend} disabled={sending} style={{ fontSize: 12, padding: '4px 10px' }}>
+              {sending ? 'Se retrimite…' : 'Retrimite (după corectări)'}
+            </button>
+          )}
+          {!sent && interFaraSofer > 0 && !sending && (
+            <span style={{ fontSize: 12, color: 'var(--danger)' }}>
+              ⚠ {interFaraSofer} {interFaraSofer === 1 ? 'cursă interurbană fără șofer nu va apărea' : 'curse interurbane fără șofer nu vor apărea'} pe imagine.
+            </span>
+          )}
+          {status && !status.bound && !sent && (
+            <span style={{ fontSize: 12, color: 'var(--danger)' }}>
+              Grupa nu e legată încă: un administrator scrie <code>/lega_grafic</code> în grupa Telegram Mejgorod.
+            </span>
+          )}
+        </div>
+        {error && <div style={{ marginTop: 6, fontSize: 12, color: 'var(--danger)', fontWeight: 500 }}>⚠ {error}</div>}
+      </td>
+    </tr>
   );
 }
 

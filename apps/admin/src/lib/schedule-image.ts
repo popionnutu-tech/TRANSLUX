@@ -122,9 +122,20 @@ function truncText(font: opentype.Font, text: string, size: number, maxW: number
 
 /* ── Main image generator ── */
 
+export interface ScheduleImageOptions {
+  /**
+   * Numele complet al șoferului în loc de prenume. Pentru grupa «Mejgorod»
+   * (Ion, 07.09): «față de imaginea care deja este cu ruta completă se adaugă
+   * doar numele și familia complet, ca șoferul să înțeleagă». Imaginea
+   * publică (site, descărcare) rămâne cu prenumele.
+   */
+  fullNames?: boolean;
+}
+
 export async function generateScheduleImage(
   rows: GraficRow[],
   date: string,
+  opts: ScheduleImageOptions = {},
 ): Promise<Buffer> {
   const assigned = rows.filter(r => r.driver_id);
   const { r: fR, b: fB, i: fI } = fonts();
@@ -237,8 +248,12 @@ export async function generateScheduleImage(
     if (row.driver_phone) {
       const phoneY = rY + ROW_H * 0.38;
       svg.push(textPath(fB, row.driver_phone, driverCx, phoneY, FS.phone, MAROON_DK, 'middle'));
-      if (row.driver_name) {
-        svg.push(textPath(fR, row.driver_name, driverCx, phoneY + 16 * S, FS.name, '#555', 'middle'));
+      const name = opts.fullNames ? (row.driver_full_name || row.driver_name) : row.driver_name;
+      if (name) {
+        // Numele complet poate depăși coloana («Docuciaev Dumitru Petru»): se
+        // taie cu «…» în loc să iasă peste chenar. Prenumele nu avea nevoie.
+        const maxNameW = COL_W.driver - 16 * S;
+        svg.push(textPath(fR, truncText(fR, name, FS.name, maxNameW), driverCx, phoneY + 16 * S, FS.name, '#555', 'middle'));
       }
     }
   }

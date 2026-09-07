@@ -17,7 +17,7 @@ import { initAdminAlert } from './services/adminAlert.js';
 import { handleDaily, handleSmmWeekly, handleSmmMonth } from './handlers/smm.js';
 import { initTaskBoard, bindTaskBoard, getBoardAssignee, sweepTaskBoards } from './services/taskBoard.js';
 import { sendVoiceLessonDigest, decideVoiceLesson } from './services/voiceLessons.js';
-import { bindDriversGroup, currentDriversGroup } from './services/driversGroup.js';
+import { bindDriversGroup, currentDriversGroup, bindGraficGroup, currentGraficGroup } from './services/driversGroup.js';
 
 /** Operator comutabil (Aurel): setează rolul pe azi și revine la meniu. */
 async function setRoleAndMenu(ctx: BotContext, role: 'TAXI_ZONE' | 'MAIN') {
@@ -155,6 +155,37 @@ export function createBot(): Bot<BotContext> {
       // Cu complement, ca în mesajele per-reclamație: verificată e CURSA și
       // ȘOFERUL, nu substanța acuzației.
       + 'Reclamațiile sunt verificate de call-centrul AI: cursa și șoferul.',
+    );
+  });
+
+  // Grupa «Mejgorod» (Ion, 07.09): aici panoul trimite imaginea graficului
+  // interurban pe ziua următoare, când dispecerul bifează «grafic complet».
+  // Același tipar ca /lega_reclamatii; cheie separată, fiindcă nu e sigur că
+  // reclamațiile și graficul merg în același chat.
+  bot.command('lega_grafic', async (ctx) => {
+    if (!ctx.dbUser || ctx.dbUser.role !== 'ADMIN') {
+      await ctx.reply('Doar administratorii pot lega o grupă.');
+      return;
+    }
+    if (ctx.chat?.type !== 'group' && ctx.chat?.type !== 'supergroup') {
+      await ctx.reply('Comanda funcționează doar într-o grupă.');
+      return;
+    }
+    try {
+      const veche = await currentGraficGroup();
+      if (veche && veche !== String(ctx.chat.id)) {
+        await ctx.reply('Atenție: era legată altă grupă. De acum graficul vine aici, iar acolo nu mai vine deloc.');
+      }
+      await bindGraficGroup(ctx.chat.id);
+    } catch (err) {
+      console.error('lega_grafic:', err);
+      await ctx.reply('Nu am putut lega grupa acum. Încercați din nou peste un minut.');
+      return;
+    }
+    await ctx.reply(
+      '✓ Grupa a fost legată.\n'
+      + 'Aici va apărea graficul interurban (imaginea cu toate cursele și șoferii) '
+      + 'de fiecare dată când dispecerul îl marchează complet.',
     );
   });
 

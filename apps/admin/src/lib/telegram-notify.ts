@@ -25,6 +25,44 @@ export async function sendTelegram(chatId: string | number, text: string, replyM
   }
 }
 
+/** Trimite o imagine (PNG) cu subtitlu HTML. Nu aruncă niciodată.
+ *  Întoarce message_id-ul din Telegram — se păstrează ca la nevoie imaginea să
+ *  poată fi găsită/ștearsă mai târziu. Multipart, nu JSON: Bot API primește
+ *  fișierul doar așa. Timeout mai mare decât la text — pleacă ~1 MB. */
+export async function sendTelegramPhoto(
+  chatId: string | number,
+  png: Buffer | Uint8Array,
+  caption: string,
+  filename = 'image.png',
+): Promise<{ ok: boolean; messageId: number | null }> {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  if (!botToken) return { ok: false, messageId: null };
+  try {
+    const form = new FormData();
+    form.append('chat_id', String(chatId));
+    form.append('caption', caption);
+    form.append('parse_mode', 'HTML');
+    form.append('photo', new Blob([new Uint8Array(png)], { type: 'image/png' }), filename);
+    const resp = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+      method: 'POST',
+      body: form,
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!resp.ok) {
+      // Textul erorii Telegram («chat not found», «bot was kicked») e singurul
+      // indiciu pentru dispecer/log — fără el, un eșec arată ca «nu merge».
+      const body = await resp.text().catch(() => '');
+      console.error('sendTelegramPhoto failed:', resp.status, body.slice(0, 300));
+      return { ok: false, messageId: null };
+    }
+    const json = (await resp.json().catch(() => null)) as { result?: { message_id?: number } } | null;
+    return { ok: true, messageId: json?.result?.message_id ?? null };
+  } catch (err) {
+    console.error('sendTelegramPhoto failed:', err);
+    return { ok: false, messageId: null };
+  }
+}
+
 /** Алерт всем активным админам (users: role=ADMIN, active, telegram_id).
  *  Возвращает true, если сообщение приняли хотя бы у одного адресата — вызывающий
  *  код может отличить «предупредили» от «предупредить не удалось» (нет токена,

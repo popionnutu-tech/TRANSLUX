@@ -1,10 +1,13 @@
 'use server';
 
 import { getSupabase } from '@/lib/supabase';
-import { verifySession, requireRole } from '@/lib/auth';
+import { verifySession, requireRole, type Session } from '@/lib/auth';
 import { verificaTelefonSofer } from '@/lib/driver-guard';
 import { parseFirstTime, parseTimeLabel, resolveReturTime } from '@/lib/assignments';
 import { scrieFoaie } from '@/lib/foaie';
+import { generateScheduleImage } from '@/lib/schedule-image';
+import { sendTelegramPhoto } from '@/lib/telegram-notify';
+import { graficGroupChatId, graficGroupCaption } from '@/lib/grafic-group';
 
 /* ── Types ── */
 
@@ -29,6 +32,8 @@ export interface GraficRow {
   driver_id: string | null;
   driver_phone: string | null;    // local format "069..."
   driver_name: string | null;     // first name only
+  /** Numele complet, așa cum e în nomenclator — pentru imaginea din grupa Mejgorod. */
+  driver_full_name: string | null;
   vehicle_id: string | null;
   vehicle_plate: string | null;
   vehicle_id_retur: string | null;
@@ -154,6 +159,7 @@ export async function getGraficData(date: string): Promise<{
       driver_id: a?.driver_id || null,
       driver_phone: toLocalPhone(driver?.phone || null),
       driver_name: driver ? extractFirstName(driver.full_name) : null,
+      driver_full_name: driver?.full_name || null,
       vehicle_id: a?.vehicle_id || null,
       vehicle_plate: vTur?.plate_number || null,
       vehicle_id_retur: a?.vehicle_id_retur || null,
@@ -181,6 +187,7 @@ export async function getGraficData(date: string): Promise<{
     driver_id: r.driver_id,
     driver_phone: r.driver_phone,
     driver_name: r.driver_name,
+    driver_full_name: r.driver_full_name,
     vehicle_id: r.vehicle_id,
     vehicle_plate: r.vehicle_plate,
     vehicle_id_retur: r.vehicle_id_retur,
@@ -699,4 +706,101 @@ export async function setRouteCancellation(
   );
   if (error) return { error: error.message };
   return {};
+}
+
+/* ── Grafic → grupa Telegram «Mejgorod» (Ion, 07.09.2026) ── */
+
+export interface GraficGroupStatus {
+  /** Grupa e legată (un admin a scris /lega_grafic în ea). */
+  bound: boolean;
+  /** Ultima trimitere pe ziua asta, sau null dacă n-a plecat încă. */
+  post: {
+    sent_at: string;
+    sent_by_email: string | null;
+    rows_count: number;
+    send_count: number;
+  } | null;
+}
+
+export async function getGraficGroupStatus(date: string): Promise<GraficGroupStatus> {
+  requireRole(await verifySession(), 'ADMIN', 'DISPATCHER', 'GRAFIC');
+  const db = getSupabase();
+  const [chatId, postRes] = await Promise.all([
+    graficGroupChatId(),
+    db.from('grafic_group_posts')
+      .select('sent_at, rows_count, send_count, sent_by, sent_by_account:admin_accounts(email)')
+      .eq('ziua', date)
+      .maybeSingle(),
+  ]);
+  const p = postRes.data as any;
+  return {
+    bound: !!chatId,
+    post: p
+      ? {
+          sent_at: p.sent_at,
+          sent_by_email: p.sent_by_account?.email ?? null,
+          rows_count: p.rows_count ?? 0,
+          send_count: p.send_count ?? 1,
+        }
+      : null,
+  };
+}
+
+/**
+ * Bifa «grafic complet»: imaginea cu TOATE cursele interurbane cu șofer (o
+ * singură imagine, nu paginile de tipar) pleacă în grupa Mejgorod, cu numele
+ * complet al șoferului. Se ține minte cine și când a trimis, ca bifa să rămână
+ * bifată la reîncărcare și ca al doilea dispecer să vadă că graficul a plecat.
+ */
+export async function sendGraficToGroup(date: string): Promise<{ error?: string; status?: GraficGroupStatus }> {
+  let session: Session;
+  try { session = requireRole(await verifySession(), 'ADMIN', 'DISPATCHER'); } catch { return { error: 'Acces interzis' }; }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { error: 'Dată invalidă' };
+
+  const chatId = await graficGroupChatId();
+  if (!chatId) {
+    return { error: 'Grupa Mejgorod nu e legată. Un administrator scrie /lega_grafic în grupa Telegram, apoi bifați din nou.' };
+  }
+
+  const db = getSupabase();
+  const [data, existing] = await Promise.all([
+    getGraficData(date),
+    db.from('grafic_group_posts').select('send_count').eq('ziua', date).maybeSingle(),
+  ]);
+  const rows = data.pages.flat().filter(r => r.driver_id);
+  if (rows.length === 0) return { error: 'Nicio cursă cu șofer pe această zi — nu e ce trimite.' };
+
+  const prevCount = (existing.data as any)?.send_count ?? 0;
+  const resend = prevCount > 0;
+
+  let png: Buffer;
+  try {
+    png = await generateScheduleImage(rows, date, { fullNames: true });
+  } catch (err: any) {
+    console.error('sendGraficToGroup: image failed:', err);
+    return { error: 'Nu s-a putut genera imaginea graficului.' };
+  }
+
+  const [y, m, d] = date.split('-');
+  const sent = await sendTelegramPhoto(chatId, png, graficGroupCaption(date, rows.length, resend), `grafic-${d}.${m}.${y}.png`);
+  if (!sent.ok) {
+    return { error: 'Telegram nu a primit imaginea. Verificați că botul e în grupa Mejgorod și încercați din nou.' };
+  }
+
+  const { error } = await db.from('grafic_group_posts').upsert(
+    {
+      ziua: date,
+      sent_at: new Date().toISOString(),
+      sent_by: session.id,
+      rows_count: rows.length,
+      telegram_message_id: sent.messageId,
+      send_count: prevCount + 1,
+    },
+    { onConflict: 'ziua' },
+  );
+  // Imaginea a plecat: un eșec la evidență nu e motiv să-i spunem dispecerului
+  // «n-a mers» — ar retrimite și grupa ar primi două grafice.
+  if (error) console.error('sendGraficToGroup: post log failed:', error.message);
+
+  return { status: await getGraficGroupStatus(date) };
 }

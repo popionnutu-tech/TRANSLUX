@@ -118,7 +118,15 @@ Decise de mine (nu se reevaluează în timpul rulării):
   06:55 și 20:00). Fără lat/lon (permisiune refuzată) → `location_ok = false` și
   încălcare «locație». Aplicația cere permisiunea la login și o re-cere la fiecare
   trimitere, cu explicație.
-- `status = 'FULL'` nu există la Chișinău (doar Bălți), aplicația nu-l oferă.
+- **Bălți intră în aplicație** (Ion, 08.09: «acum varianta pentru Bălți»), cu fluxul
+  scurt al botului: cursa = numărul de pasageri + «Absent» + «Microbuzul full»
+  (`status = 'FULL'`, stocat ca în bot: `status 'OK'`, `passengers_count = -1`).
+  Fără șofer, auto, verificări, poza șoferului sau poze de curățenie. Locația e cerută
+  la toate cursele din Bălți (fără excepții de oră), `location_ok` calculat față de
+  `config.stations.BALTI`. Efectul secundar după raport: `updateLoadingBoardBalti()`.
+  Codul de conectare se poate genera pentru CONTROLLER cu `point` CHISINAU sau BALTI;
+  `point`-ul user-ului decide ce ecran de cursă vede aplicația. «Microbuzul full» nu
+  există la Chișinău.
 - **Aplicația stă în afara workspace-ului npm**, în `peron-android/` la rădăcina
   repo-ului, cu `package.json` și lockfile proprii (ca `lde-geo-worker`). Motiv: React
   Native (React 18) și `apps/admin` (React 19) nu pot fi hoistate împreună de npm
@@ -162,7 +170,6 @@ Decise de mine (nu se reevaluează în timpul rulării):
 
 ## Nu intră în scop
 
-- Bălți. Aplicația refuză login pentru orice user cu `point != 'CHISINAU'`.
 - Coadă offline, sincronizare în fundal, notificări push.
 - Play Store, iOS, actualizare automată a aplicației.
 - Migrarea altor roluri din bot (admini, DIGITAL, șoferi, taxi).
@@ -237,6 +244,9 @@ Decise de mine (nu se reevaluează în timpul rulării):
 - [ ] `POST /app/v1/cleaning-photo` cu un JPEG base64 scrie poza în
       `report-photos/curatenie/<data>/<slot>/<zona>-<ts>.jpg`, o linie în
       `peron_cleaning_checks` cu `source = 'app'` și întoarce verdictul.
+- [ ] Un user din Bălți: `/day` întoarce cursele Bălți fără repartizări/curățenie;
+      `/report` cu `status: 'FULL'` scrie `passengers_count = -1`; aplicația arată
+      ecranul scurt (cifră, Absent, Microbuzul full, GPS, Trimite).
 - [ ] Aplicația: login cu cod → ecranul zilei → cursa `next` → un singur ecran cu tot,
       inclusiv poza șoferului cu verdictele propuse → «Trimite» → rezumat → înapoi pe
       grilă cu cursa bifată. Niciun câmp de notă de spălare. Fără să trimită locația
@@ -352,13 +362,13 @@ cu `approve: [migration]` — Ion aplică 328.
 
 **Depinde de:** S01 — tipurile `PeronAppLinkCode`, `PeronAppSession`, `Report.source`.
 
-**Scop:** un operator din Chișinău poate primi un cod de la admin, îl schimbă pe token
-și primește starea zilei (curse, repartizări, liste, curățenie) de la bot.
+**Scop:** un operator de peron (Chișinău sau Bălți) poate primi un cod de la admin, îl
+schimbă pe token și primește starea zilei (curse, repartizări, liste, curățenie) de la bot.
 
 **Pași:**
 1. **Admin, pagina Utilizatori** (`apps/admin/src/app/(dashboard)/users/`): server
    action `createPeronAppLinkCode(userId)` în `actions.ts`: refuză dacă user-ul nu e
-   `role = 'CONTROLLER'` + `point = 'CHISINAU'` + `active`; generează 6 cifre
+   `role = 'CONTROLLER'` + `point` în (`CHISINAU`, `BALTI`) + `active`; generează 6 cifre
    (`crypto.randomInt(100000, 999999)`), reîncearcă la coliziune; `expires_at = now +
    24h`; `created_by` = adminul curent (vezi cum obțin celelalte acțiuni contul admin).
    În UI: buton «📱 Cod aplicație» pe rândul user-ului, afișează codul mare, cu textul
@@ -372,17 +382,21 @@ cu `approve: [migration]` — Ion aplică 328.
 3. **Bot, auth:** `apps/bot/src/api/auth.ts`: `hashToken(token)` = sha256 hex;
    `linkWithCode(code, deviceLabel)` → validează în `peron_app_link_codes` (există,
    `used_at is null`, `expires_at > now`), user activ CHISINAU CONTROLLER, marchează
-   `used_at`, creează sesiunea, întoarce `{ token, user: { id, name, point } }`;
+   `used_at`, creează sesiunea, întoarce `{ token, user: { id, name, point } }`
+   (user activ, CONTROLLER, `point` CHISINAU sau BALTI);
    `authenticate(req)` → user din Bearer (`token_hash`, `revoked_at is null`),
    actualizează `last_seen_at` cel mult o dată pe minut. 401 în rest.
 4. **Endpoint `POST /app/v1/auth/link`** `{ code, deviceLabel }` → 200 cu token;
    cod greșit/expirat/folosit → 401 `code: 'BAD_CODE'`.
 5. **Endpoint `GET /app/v1/day`** (autentificat), în `apps/bot/src/api/day.ts`,
    refolosind `services/db.ts`:
-   - `date` (`getTodayDate()`), `point: 'CHISINAU'`;
-   - `trips[]`: `getAllTripsForDirection(getDirectionForPoint('CHISINAU'))`, fiecare cu
+   - `date` (`getTodayDate()`), `point: user.point` (CHISINAU sau BALTI);
+   - `trips[]`: `getAllTripsForDirection(getDirectionForPoint(point))`, fiecare cu
      `id, departure_time (HH:MM), state: 'done'|'next'|'locked'` după
-     `getReportedTripIds(date, 'CHISINAU')` și regula «prima neraportată = next»;
+     `getReportedTripIds(date, point)` și regula «prima neraportată = next»;
+   - pentru BALTI câmpurile `assignments`, `drivers`, `vehicles`, `openReclama`,
+     `climate`, `cleaning` vin goale, `cleaningGateTripTime: null`,
+     `locationExemptTimes: []`, `station: config.stations.BALTI`, `allowFull: true`;
    - `assignments`: per `trip_id`, din `getAssignmentForTrip` (driver_id, driver_name,
      vehicle_id, plate);
    - `drivers[]`: `getActiveDrivers()` minus `getUsedDriverIds(date, 'CHISINAU')`;
@@ -432,7 +446,7 @@ raport din bot (digest, loading board, sarcină reclamă, validarea zilei).
    ca «există deja», la fel ca `report.ts:515–524`) → `{ id, plate_number }`.
 2. `POST /app/v1/report`, corp:
    ```ts
-   { tripId, status: 'OK' | 'ABSENT', passengersCount: number | null,   // 0–27 la OK
+   { tripId, status: 'OK' | 'ABSENT' | 'FULL', passengersCount: number | null, // 0–27 la OK; FULL doar la BALTI
      driverId: string | null, vehicleId: string | null, assignmentChanged: boolean,
      loadingHelpOk: boolean, autoCurat: boolean,
      driverCheckId: string | null,            // poza șoferului (S04); null la ABSENT
@@ -446,6 +460,11 @@ raport din bot (digest, loading board, sarcină reclamă, validarea zilei).
    Logica în `apps/bot/src/api/report.ts`, cu partea pură (validare corp, calcul
    `location_ok`, `late`) în `reportRules.ts` + test Vitest:
    - cursa trebuie să fie `next` (`tripStates`) → altfel 409 `NOT_NEXT`;
+   - **BALTI:** se acceptă doar `status`, `passengersCount`, `lat`, `lon`, `accuracyM`;
+     restul câmpurilor se ignoră și se scriu `null`; `FULL` → `status 'OK'`,
+     `passengers_count -1` (exact ca `createReport` din bot); fără poartă de
+     curățenie, fără `driverCheckId`; `location_ok` fără excepții de oră; efectul
+     secundar de board e `updateLoadingBoardBalti()`. `FULL` la CHISINAU → 400;
    - poarta de curățenie: prima cursă a zilei cere `getCleaningZonesDone(date,
      'DIMINEATA').size === 3`; cursa cu `formatTime(departure_time) ===
      config.cleaningGateTripTime` cere ZIUA → altfel 409 `CLEANING_REQUIRED` cu
@@ -614,7 +633,10 @@ root-ul nu s-a schimbat (`git status` arată doar `peron-android/` și `.gitigno
 obișnuit, iar locația pleacă singură.
 
 **Pași:**
-1. `app/trip/[id].tsx`, secțiuni de sus în jos, toate pe un ecran cu scroll:
+1. `app/trip/[id].tsx`, secțiuni de sus în jos, toate pe un ecran cu scroll. Dacă
+   `day.point === 'BALTI'`, ecranul are doar: antet, cardul Pasageri (cifră, −/+,
+   butoane rapide 5/10/15/20/25), rândul «Absent» / «Microbuzul full», rândul de
+   locație și «Trimite» — nimic din secțiunile de mai jos. Pentru CHISINAU:
    - **Antet:** ora cursei; dacă `minutesLate > 10` (calcul local din ora telefonului)
      o bandă galbenă «Întârziere: N min — se va nota».
    - **Pasageri:** câmp numeric mare (0–27), butoane rapide −/+, buton «Absent» care

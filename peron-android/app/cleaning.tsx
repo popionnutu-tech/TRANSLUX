@@ -1,28 +1,33 @@
 /**
- * Pozele de curățenie (spec peron-app-android, S08): 3 zone (peron, pietoni «GARA»,
- * veceu), de două ori pe zi (DIMINEATA / ZIUA, aleasă după oră sau primită ca
- * parametru). Doar camera aplicației — galeria nu există. Pentru prima zonă neînchisă:
- * textul de cadru, «📷 Fă poza» → cameră pe tot ecranul → previzualizare «Trimite» /
- * «Refă» → verdictul modelului pe loc. La 3/3: «✔ Pozele de curățenie sunt complete».
+ * Pozele de curățenie — `Curatenie.dc.html`, element cu element: antet «Curățenie · 15:00» /
+ * «Curățenie · dimineață» + «N din 3 zone trimise», un card per zonă în ordinea PERON,
+ * PIETONI, VECEU (închisă-curat, închisă-murdar, activă cu previzualizarea camerei și
+ * «Fă poza», viitoare), textul de jos. Doar camera aplicației — galeria nu există.
  *
  * Parametri: `slot` (DIMINEATA | ZIUA) și `gate` (HH:MM) — de la poarta din day.tsx
- * sau de la 409 CLEANING_REQUIRED din ecranul de cursă.
+ * sau de la 409 CLEANING_REQUIRED din ecranul de cursă. Logica (src/cleaning.ts,
+ * camera, locația, API-ul) e cea de dinainte.
  */
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
 import { ApiError, getDay, postCleaningPhoto } from '../src/api';
 import type { Coords } from '../src/buildReport';
 import { PhotoCamera, type CapturedPhoto } from '../src/camera';
-import { CLEANING_ZONES, isCleaningSlot, mergeDone, MURDAR_WARNING, nextZone, SLOT_LABEL, slotForTime, ZONE_HINT, ZONE_LABEL } from '../src/cleaning';
-import { BigButton, Body, Card, Muted, Screen, SectionTitle, Title } from '../src/components';
+import { CLEANING_ZONES, isCleaningSlot, mergeDone, nextZone, slotForTime, ZONE_HINT } from '../src/cleaning';
+import { Body, Card, Footnote, Header, OutlineButton, PrimaryButton, Screen, Spacer } from '../src/components';
+import { CameraIcon, CheckIcon, ShutterIcon, XIcon } from '../src/icons';
 import { findLocation, hasForegroundPermission } from '../src/location';
-import { colors, sizes } from '../src/theme';
+import { colors, radius, shadowCard, weight } from '../src/theme';
 import type { CleaningPhotoResponse, CleaningSlot, CleaningZone } from '../src/types';
 
+/** Numele zonelor și textele exact ca în mockup (ZONE_LABEL din src/cleaning.ts e cel din bot). */
+const ZONE_TITLE: Record<CleaningZone, string> = { PERON: 'Peron', PIETONI: 'Zona pietoni', VECEU: 'Zona veceu' };
+const SLOT_TITLE: Record<CleaningSlot, string> = { DIMINEATA: 'Curățenie · dimineață', ZIUA: 'Curățenie · 15:00' };
+const CAMERA_ONLY = 'Poza se face doar cu camera aplicației.';
+const PENALTY = 'Informația se stochează și va fi penalizată.';
+
 interface ZoneResult {
-  zone: CleaningZone;
   verdict: CleaningPhotoResponse['verdict'];
   problems: string[];
   description: string;
@@ -42,8 +47,9 @@ export default function CleaningScreen() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [camera, setCamera] = useState(false);
   const [pending, setPending] = useState<CapturedPhoto | null>(null); // poză confirmată, netrimisă (fără internet)
+  const [shot, setShot] = useState<{ zone: CleaningZone; photo: CapturedPhoto } | null>(null); // ultima poză, pentru previzualizare
   const [sending, setSending] = useState(false);
-  const [result, setResult] = useState<ZoneResult | null>(null);
+  const [results, setResults] = useState<Partial<Record<CleaningZone, ZoneResult>>>({}); // verdictele primite în sesiunea asta
   const [error, setError] = useState<string | null>(null);
   const [coords, setCoords] = useState<Coords | null>(null);
   const locationRef = useRef<Promise<Coords | null> | null>(null);
@@ -100,7 +106,7 @@ export default function CleaningScreen() {
         const c = coords ?? (await locationRef.current) ?? null;
         const res = await postCleaningPhoto({ slot, zone: forZone, imageBase64: photo.base64, lat: c?.lat ?? null, lon: c?.lon ?? null });
         setPending(null);
-        setResult({ zone: forZone, verdict: res.verdict, problems: res.problems ?? [], description: res.description ?? '' });
+        setResults((r) => ({ ...r, [forZone]: { verdict: res.verdict, problems: res.problems ?? [], description: res.description ?? '' } }));
         // `zonesDone` de la server e sursa de adevăr; dacă a picat citirea lui, zona abia judecată (≠ ALT_LOC) e închisă oricum
         setDone((prev) => mergeDone(prev ?? [], res.zonesDone ?? [], res.verdict === 'ALT_LOC' ? [] : [forZone]));
       } catch (e) {
@@ -123,7 +129,9 @@ export default function CleaningScreen() {
   function onCaptured(photo: CapturedPhoto) {
     if (!zone) return;
     setCamera(false);
-    setResult(null);
+    setError(null);
+    setResults((r) => (r[zone] ? { ...r, [zone]: undefined } : r));
+    setShot({ zone, photo });
     setPending(photo);
     submit(photo, zone);
   }
@@ -134,149 +142,219 @@ export default function CleaningScreen() {
     setCamera(true);
   }
 
-  return (
-    <SafeAreaView style={styles.safe}>
-      <Screen>
-        <View style={styles.header}>
-          <Pressable onPress={goBack} hitSlop={12} accessibilityRole="button" accessibilityLabel="Înapoi">
-            <Text style={styles.back}>‹ Înapoi</Text>
-          </Pressable>
-          <Title>📷 Curățenie</Title>
-        </View>
-        <Muted>Tura: {SLOT_LABEL[slot]}</Muted>
+  const sent = done?.length ?? 0;
+  const subtitle = `${sent} din 3 zone trimise${gateTime ? ` · înainte de cursa ${gateTime}` : ''}`;
 
-        {gateTime ? (
-          <Card tone="warning" style={{ paddingVertical: 10 }}>
-            <Text style={styles.gateText}>Înainte de cursa {gateTime} trebuie pozele de curățenie</Text>
-          </Card>
-        ) : null}
+  return (
+    <>
+      <Screen padding={{ bottom: 24 }}>
+        <Header title={SLOT_TITLE[slot]} titleSize={24} subtitle={subtitle} onBack={goBack} />
 
         {loadError ? (
           <Card tone="danger">
-            <Body>{loadError}</Body>
-            <BigButton label="Reîncarcă" tone="neutral" onPress={load} />
+            <Body color={colors.danger}>{loadError}</Body>
+            <OutlineButton label="Reîncarcă" tone="neutral" height={48} onPress={load} />
           </Card>
         ) : null}
 
         {done === null && !loadError ? <ActivityIndicator size="large" color={colors.primary} /> : null}
 
-        {done !== null ? (
-          <Card>
-            <SectionTitle>Zonele ({done.length}/3)</SectionTitle>
-            {CLEANING_ZONES.map((z) => {
-              const isDone = done.includes(z);
-              const current = z === zone;
-              return (
-                <Text key={z} style={[styles.zoneRow, current ? styles.zoneCurrent : null]}>
-                  {isDone ? '✅' : current ? '▶' : '⬜'} {ZONE_LABEL[z]}
-                </Text>
-              );
-            })}
-          </Card>
-        ) : null}
-
-        {result ? <ResultCard result={result} /> : null}
-
-        {error ? (
-          <Card tone="danger">
-            <Body>{error}</Body>
-          </Card>
-        ) : null}
+        {done !== null
+          ? CLEANING_ZONES.map((z) => {
+              if (done.includes(z)) return <ClosedZone key={z} zone={z} result={results[z] ?? null} />;
+              if (z === zone) {
+                return (
+                  <ActiveZone
+                    key={z}
+                    zone={z}
+                    photo={shot?.zone === z ? shot.photo : null}
+                    rejected={results[z]?.verdict === 'ALT_LOC'}
+                    error={error}
+                    sending={sending}
+                    pending={pending}
+                    onShoot={() => setCamera(true)}
+                    onResend={() => pending && submit(pending, z)}
+                    onRetake={retake}
+                  />
+                );
+              }
+              return <FutureZone key={z} zone={z} />;
+            })
+          : null}
 
         {complete ? (
           <Card tone="success">
-            <SectionTitle>✔ Pozele de curățenie sunt complete</SectionTitle>
-            <Body>Setul «{SLOT_LABEL[slot]}» e închis pentru azi.</Body>
-            <BigButton label="Înapoi" tone="success" onPress={goBack} big />
+            <Body color={colors.doneText}>Pozele de curățenie sunt complete.</Body>
+            <PrimaryButton label="Înapoi la ziua de azi" size="md" shadow={false} onPress={goBack} />
           </Card>
         ) : null}
 
-        {zone && !complete ? (
-          <Card tone="warning">
-            <SectionTitle>
-              Poza {CLEANING_ZONES.indexOf(zone) + 1}/3: {ZONE_LABEL[zone]}
-            </SectionTitle>
-            <Body>{ZONE_HINT[zone]}</Body>
-            {sending ? (
-              <View style={styles.analyzing}>
-                <ActivityIndicator size="large" color={colors.primary} />
-                <Body>Se verifică poza…</Body>
-              </View>
-            ) : pending ? (
-              <View style={styles.photoRow}>
-                <Image source={{ uri: pending.uri }} style={styles.thumb} />
-                <View style={{ flex: 1, gap: 8 }}>
-                  <BigButton label="Trimite din nou" onPress={() => submit(pending, zone)} />
-                  <BigButton label="Refă poza" tone="neutral" onPress={retake} />
-                </View>
-              </View>
-            ) : (
-              <BigButton label="📷 Fă poza" onPress={() => setCamera(true)} big />
-            )}
-          </Card>
-        ) : null}
+        <Spacer />
+        <Footnote>Pozele se păstrează 30 de zile. Verdictul intră în raportul de seară al administratorului.</Footnote>
       </Screen>
 
-      {camera && zone ? (
-        <PhotoCamera
-          title={`${ZONE_LABEL[zone]} (${CLEANING_ZONES.indexOf(zone) + 1}/3)`}
-          hint={ZONE_HINT[zone]}
-          confirm
-          confirmLabel="Trimite"
-          onCaptured={onCaptured}
-          onCancel={() => setCamera(false)}
-        />
-      ) : null}
-    </SafeAreaView>
+      {camera && zone ? <PhotoCamera title={ZONE_TITLE[zone]} hint={ZONE_HINT[zone]} confirm confirmLabel="Trimite" onCaptured={onCaptured} onCancel={() => setCamera(false)} /> : null}
+    </>
   );
 }
 
-/** Verdictul modelului pentru zona abia trimisă: verde (CURAT), roșu (MURDAR / ALT_LOC), galben (EROARE). */
-function ResultCard({ result }: { result: ZoneResult }) {
-  const label = ZONE_LABEL[result.zone];
-  if (result.verdict === 'CURAT') {
+// ── Cardurile zonelor ─────────────────────────────────────────────────────────
+
+/**
+ * Zonă închisă. Curat: bordură 2 `#b7dcc1`, cerc 40 `#e8f3ea` cu bifă, «Curat · descriere»
+ * 14 / 600 verde. Murdar: bordură `#e4a3ad`, cerc roz cu X, «MURDAR», lista cu «·» (15 `#333`,
+ * la 52 de la stânga), caseta roz cu textul de penalizare. Zonele închise înainte de
+ * sesiunea asta (din /day) n-au verdict în aplicație — se arată «Trimisă».
+ */
+function ClosedZone({ zone, result }: { zone: CleaningZone; result: ZoneResult | null }) {
+  const title = ZONE_TITLE[zone];
+  if (result?.verdict === 'MURDAR') {
     return (
-      <Card tone="success">
-        <SectionTitle>✅ {label}: curat</SectionTitle>
-        {result.description ? <Body>{result.description}</Body> : null}
-      </Card>
+      <View style={styles.dirtyCard}>
+        <View style={styles.zoneRow}>
+          <View style={[styles.circle, { backgroundColor: colors.dangerBg }]}>
+            <XIcon size={22} />
+          </View>
+          <View style={{ gap: 2, flexShrink: 1 }}>
+            <Text style={styles.zoneTitle}>{title}</Text>
+            <Text style={styles.dirtyLabel}>MURDAR</Text>
+          </View>
+        </View>
+        {result.problems.length > 0 ? (
+          <View style={styles.problems}>
+            {result.problems.map((p, i) => (
+              <Text key={i} style={styles.problem}>
+                · {p}
+              </Text>
+            ))}
+          </View>
+        ) : result.description ? (
+          <View style={styles.problems}>
+            <Text style={styles.problem}>· {result.description}</Text>
+          </View>
+        ) : null}
+        <View style={styles.penalty}>
+          <Text style={styles.penaltyText}>{PENALTY}</Text>
+        </View>
+      </View>
     );
   }
-  if (result.verdict === 'MURDAR') {
-    return (
-      <Card tone="danger">
-        <SectionTitle>🔴 {label}: MURDAR</SectionTitle>
-        {result.problems.length > 0 ? result.problems.map((p, i) => <Body key={i}>• {p}</Body>) : result.description ? <Body>{result.description}</Body> : null}
-        <Text style={styles.penalty}>{MURDAR_WARNING}</Text>
-      </Card>
-    );
-  }
-  if (result.verdict === 'ALT_LOC') {
-    return (
-      <Card tone="danger">
-        <SectionTitle>❌ Poza nu pare din zona {label}</SectionTitle>
-        {result.description ? <Body>{result.description}</Body> : null}
-        <Body>Refă din locul corect: {ZONE_HINT[result.zone]}</Body>
-      </Card>
-    );
-  }
+  const clean = result?.verdict === 'CURAT';
+  const detail = clean
+    ? `Curat${result.description ? ` · ${result.description}` : ''}`
+    : result?.verdict === 'EROARE'
+      ? 'Trimisă · verificarea automată nu a mers, o vede administratorul'
+      : 'Trimisă';
   return (
-    <Card tone="warning">
-      <SectionTitle>⚠️ {label}: verificarea automată nu a mers</SectionTitle>
-      <Body>Poza e salvată și va fi verificată de administrator.</Body>
-    </Card>
+    <View style={styles.cleanCard}>
+      <View style={[styles.circle, { backgroundColor: colors.doneBg }]}>
+        <CheckIcon size={22} />
+      </View>
+      <View style={{ gap: 2, flexShrink: 1 }}>
+        <Text style={styles.zoneTitle}>{title}</Text>
+        <Text style={[styles.cleanDetail, clean ? null : { color: colors.muted }]}>{detail}</Text>
+      </View>
+    </View>
+  );
+}
+
+/**
+ * Zona activă: bordură 2 bordo, umbră, cerc punctat, numele 20 / 800, hint-ul 15 `#666`,
+ * previzualizarea 200 înaltă pe `#2a2426` (ultima poză sau camera cu «imaginea camerei»),
+ * «Fă poza» 64 cu declanșator. Când poza nu a plecat: «Trimite din nou» + «Refă poza».
+ */
+function ActiveZone({
+  zone,
+  photo,
+  rejected,
+  error,
+  sending,
+  pending,
+  onShoot,
+  onResend,
+  onRetake,
+}: {
+  zone: CleaningZone;
+  photo: CapturedPhoto | null;
+  rejected: boolean;
+  error: string | null;
+  sending: boolean;
+  pending: CapturedPhoto | null;
+  onShoot: () => void;
+  onResend: () => void;
+  onRetake: () => void;
+}) {
+  const title = ZONE_TITLE[zone];
+  return (
+    <View style={[styles.activeCard, shadowCard]}>
+      <View style={styles.zoneRow}>
+        <View style={styles.dashedCircle} />
+        <Text style={styles.activeTitle}>{title}</Text>
+      </View>
+      <Text style={styles.hint}>
+        {ZONE_HINT[zone]} {CAMERA_ONLY}
+      </Text>
+      <View style={styles.preview}>
+        {photo ? (
+          <Image source={{ uri: photo.uri }} style={styles.previewImage} resizeMode="cover" accessibilityLabel={`Poza pentru ${title}`} />
+        ) : (
+          <>
+            <CameraIcon size={44} color={colors.primaryText} strokeWidth={1.8} />
+            <Text style={styles.previewText}>imaginea camerei</Text>
+          </>
+        )}
+      </View>
+      {rejected ? <Body color={colors.danger}>Poza nu pare din zona {title}. Refă din locul corect.</Body> : null}
+      {error ? <Body color={colors.danger}>{error}</Body> : null}
+      {sending ? (
+        <PrimaryButton label="Se verifică poza…" shadow={false} disabled onPress={() => undefined} />
+      ) : pending ? (
+        <>
+          <PrimaryButton label="Trimite din nou" shadow={false} onPress={onResend} />
+          <OutlineButton label="Refă poza" tone="neutral" height={48} onPress={onRetake} />
+        </>
+      ) : (
+        <PrimaryButton label="Fă poza" shadow={false} icon={<ShutterIcon />} onPress={onShoot} />
+      )}
+    </View>
+  );
+}
+
+/** Zonă viitoare: ca cea activă, fără cameră și fără umbră. */
+function FutureZone({ zone }: { zone: CleaningZone }) {
+  return (
+    <View style={styles.activeCard}>
+      <View style={styles.zoneRow}>
+        <View style={styles.dashedCircle} />
+        <Text style={styles.activeTitle}>{ZONE_TITLE[zone]}</Text>
+      </View>
+      <Text style={styles.hint}>
+        {ZONE_HINT[zone]} {CAMERA_ONLY}
+      </Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  back: { fontSize: sizes.text + 2, fontWeight: '700', color: colors.primary, paddingVertical: 8 },
-  gateText: { fontSize: sizes.text, fontWeight: '700', color: colors.warning },
-  zoneRow: { fontSize: sizes.text, color: colors.text, paddingVertical: 4 },
-  zoneCurrent: { fontWeight: '700' },
-  analyzing: { alignItems: 'center', gap: 8, paddingVertical: 8 },
-  photoRow: { flexDirection: 'row', gap: 12, alignItems: 'stretch' },
-  thumb: { width: 110, height: 146, borderRadius: sizes.radius, backgroundColor: colors.locked },
-  penalty: { fontSize: sizes.text, fontWeight: '700', color: colors.danger },
+  cleanCard: { flexDirection: 'row', gap: 12, alignItems: 'center', backgroundColor: colors.card, borderWidth: 2, borderColor: colors.doneBorder, borderRadius: radius.card, paddingVertical: 14, paddingHorizontal: 16 },
+  dirtyCard: { gap: 12, backgroundColor: colors.card, borderWidth: 2, borderColor: colors.dangerBorder, borderRadius: radius.card, paddingVertical: 14, paddingHorizontal: 16 },
+  activeCard: { gap: 14, backgroundColor: colors.card, borderWidth: 2, borderColor: colors.primary, borderRadius: radius.card, padding: 16 },
+
+  zoneRow: { flexDirection: 'row', gap: 12, alignItems: 'center' },
+  circle: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  dashedCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.card, borderWidth: 2, borderStyle: 'dashed', borderColor: colors.primary, flexShrink: 0 },
+  zoneTitle: { fontSize: 18, ...weight(700), color: colors.text },
+  activeTitle: { fontSize: 20, ...weight(800), color: colors.text, flexShrink: 1 },
+  cleanDetail: { fontSize: 14, ...weight(600), color: colors.doneText },
+  dirtyLabel: { fontSize: 14, ...weight(700), color: colors.danger },
+
+  problems: { gap: 6, paddingLeft: 52 },
+  problem: { fontSize: 15, ...weight(400), color: colors.textSoft, lineHeight: 21 },
+  penalty: { marginLeft: 52, backgroundColor: colors.pinkBg, borderRadius: radius.option, paddingVertical: 10, paddingHorizontal: 12 },
+  penaltyText: { fontSize: 14, ...weight(700), color: colors.primaryDark, lineHeight: 20 },
+
+  hint: { fontSize: 15, ...weight(400), color: colors.muted, lineHeight: 22 },
+  preview: { height: 200, backgroundColor: colors.camera, borderRadius: radius.button, alignItems: 'center', justifyContent: 'center', gap: 8, overflow: 'hidden' },
+  previewImage: { width: '100%', height: 200 },
+  previewText: { fontSize: 13, ...weight(400), color: colors.cameraText },
 });

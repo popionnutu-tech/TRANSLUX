@@ -3,16 +3,19 @@
  * pe tot ecranul — galeria nu există nicăieri în aplicație. Poza se comprimă la
  * 1280 px lățime, JPEG 0.8, și pleacă la server ca base64.
  *
+ * Aspect după mockup-ul TRANSLUX: fundal `#2a2426`, titlul și hint-ul de cadru sus,
+ * declanșator 72 alb cu inel, «Renunță» la stânga; în previzualizare «Refă» / «Trimite».
+ *
  * `PhotoCamera` e folosită de ecranul de cursă (poza șoferului, trimisă imediat) și
  * de ecranul de curățenie (`confirm`: previzualizare cu «Trimite» / «Refă»).
  */
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Image, Modal, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { BigButton, Body } from './components';
-import { colors, sizes } from './theme';
+import { Body, OutlineButton, PrimaryButton } from './components';
+import { colors, weight } from './theme';
 
 export const PHOTO_MAX_WIDTH = 1280;
 export const PHOTO_JPEG_QUALITY = 0.8;
@@ -76,11 +79,15 @@ export function PhotoCamera({
     }
   }
 
+  const canShoot = !!permission?.granted && ready && !busy;
+
   return (
     <Modal visible animationType="slide" onRequestClose={onCancel}>
       <SafeAreaView style={styles.screen}>
-        <Text style={styles.title}>{title}</Text>
-        {hint ? <Text style={styles.hint}>{hint}</Text> : null}
+        <View style={styles.top}>
+          <Text style={styles.title}>{title}</Text>
+          {hint ? <Text style={styles.hint}>{hint}</Text> : null}
+        </View>
         {preview ? (
           <Image source={{ uri: preview.uri }} style={{ flex: 1 }} resizeMode="contain" accessibilityLabel="Previzualizarea pozei" />
         ) : permission?.granted ? (
@@ -88,24 +95,29 @@ export function PhotoCamera({
         ) : (
           <View style={styles.denied}>
             <Body>Aplicația are nevoie de cameră ca să facă poza pe loc.</Body>
-            <BigButton label="Permite camera" onPress={() => requestPermission()} />
+            <PrimaryButton label="Permite camera" size="md" shadow={false} onPress={() => requestPermission()} />
           </View>
         )}
         {preview ? (
           <View style={styles.bar}>
-            <BigButton label="Refă" tone="neutral" onPress={() => setPreview(null)} style={{ flex: 1 }} />
-            <BigButton label={confirmLabel} tone="success" onPress={() => onCaptured(preview)} big style={{ flex: 2 }} />
+            <OutlineButton label="Refă" tone="neutral" height={64} fontSize={19} fontWeight={700} borderRadius={12} onPress={() => setPreview(null)} style={styles.barButton} />
+            <PrimaryButton label={confirmLabel} onPress={() => onCaptured(preview)} style={[styles.barButton, { flexGrow: 2 }]} />
           </View>
         ) : (
-          <View style={styles.bar}>
-            <BigButton label="Renunță" tone="neutral" onPress={onCancel} disabled={busy} style={{ flex: 1 }} />
-            <BigButton
-              label={busy ? 'Se procesează…' : '📷 Fotografiază'}
+          <View style={styles.shutterBar}>
+            <Pressable onPress={onCancel} disabled={busy} accessibilityRole="button" hitSlop={8} style={({ pressed }) => [styles.cancel, { opacity: pressed ? 0.7 : 1 }]}>
+              <Text style={styles.cancelText}>Renunță</Text>
+            </Pressable>
+            <Pressable
               onPress={shoot}
-              disabled={!permission?.granted || !ready || busy}
-              big
-              style={{ flex: 2 }}
-            />
+              disabled={!canShoot}
+              accessibilityRole="button"
+              accessibilityLabel="Fotografiază"
+              style={({ pressed }) => [styles.shutter, { opacity: !canShoot && !busy ? 0.45 : pressed ? 0.8 : 1 }]}
+            >
+              <View style={styles.shutterInner}>{busy ? <ActivityIndicator color={colors.camera} /> : null}</View>
+            </Pressable>
+            <View style={styles.cancel} />
           </View>
         )}
       </SafeAreaView>
@@ -114,9 +126,16 @@ export function PhotoCamera({
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#000' },
-  title: { fontSize: sizes.text + 2, fontWeight: '700', color: '#fff', paddingHorizontal: sizes.padding, paddingTop: sizes.padding, paddingBottom: 4 },
-  hint: { fontSize: sizes.textSmall, color: '#e5e7eb', paddingHorizontal: sizes.padding, paddingBottom: 8 },
-  denied: { flex: 1, justifyContent: 'center', padding: sizes.padding, gap: sizes.gap, backgroundColor: colors.bg },
-  bar: { flexDirection: 'row', gap: 8, padding: sizes.padding, backgroundColor: '#000' },
+  screen: { flex: 1, backgroundColor: colors.camera },
+  top: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8, gap: 4 },
+  title: { fontSize: 17, ...weight(700), color: colors.primaryText },
+  hint: { fontSize: 14, ...weight(400), color: colors.cameraText, lineHeight: 20 },
+  denied: { flex: 1, justifyContent: 'center', padding: 16, gap: 14, backgroundColor: colors.bg },
+  bar: { flexDirection: 'row', gap: 10, padding: 16 },
+  barButton: { flexGrow: 1, flexBasis: 0 },
+  shutterBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 20, paddingHorizontal: 24 },
+  cancel: { width: 88, height: 44, justifyContent: 'center' },
+  cancelText: { fontSize: 16, ...weight(600), color: colors.primaryText },
+  shutter: { width: 72, height: 72, borderRadius: 36, borderWidth: 3, borderColor: colors.primaryText, alignItems: 'center', justifyContent: 'center' },
+  shutterInner: { width: 58, height: 58, borderRadius: 29, backgroundColor: colors.primaryText, alignItems: 'center', justifyContent: 'center' },
 });

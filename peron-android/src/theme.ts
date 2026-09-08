@@ -1,8 +1,7 @@
 /**
  * Tema aplicației de peron — tokenii sunt luați literal din mockup-ul aprobat
  * (`docs/design/peron-android/*.dc.html`). Nicio culoare nu se scrie în ecrane;
- * totul trece pe aici. Numele vechi (`success`, `warning`, `locked`, `sizes.text`)
- * rămân ca aliasuri până sunt rescrise ecranele S02.
+ * totul trece pe aici.
  */
 import type { TextStyle, ViewStyle } from 'react-native';
 
@@ -44,12 +43,6 @@ export const colors = {
   /** Previzualizarea camerei și textul de pe ea. */
   camera: '#2a2426',
   cameraText: '#cfc7c9',
-
-  // ── aliasuri pentru ecranele încă nerescrise (S02) ──
-  success: '#16a34a',
-  successBg: '#e8f3ea',
-  warning: '#8a4500',
-  locked: '#e6e2de',
 } as const;
 
 export const radius = {
@@ -109,15 +102,6 @@ export const sizes = {
   backHit: 44,
   /** Pin-ul din rândul GPS. */
   gpsPin: 22,
-
-  // ── aliasuri pentru ecranele încă nerescrise (S02) ──
-  text: 15,
-  textSmall: 14,
-  title: 24,
-  big: 40,
-  radius: 12,
-  gap: 12,
-  padding: 16,
 } as const;
 
 /** Umbra butonului principal `0 4px 12px rgba(155,27,48,0.35)`; pe Android = elevation. */

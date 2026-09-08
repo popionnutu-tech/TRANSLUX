@@ -1,9 +1,6 @@
 /**
  * Componentele de ecran, transpuse din mockup-ul `docs/design/peron-android/*.dc.html`
  * cu aceleași numere. Toate culorile vin din `theme.ts`.
- *
- * La coadă sunt aliasurile vechi (`Title`, `Body`, `Muted`, `BigButton`, `OptionGroup`,
- * `SectionTitle`, `YES_NO`), ca ecranele încă nerescrise (S02) să compileze.
  */
 import { createContext, useContext, useState, type PropsWithChildren, type ReactNode } from 'react';
 import {
@@ -230,7 +227,9 @@ export function PrimaryButton({
 /**
  * Butonul de contur. `tone="primary"`: alb, bordură 2 bordo, 60 înalt, text 19 / 700 bordo
  * («Poze curățenie»). `tone="neutral"`: bordură 2 `#ddd9d5`, text `#333` («Refă poza» 44,
- * «Microbuzul a fost absent» 48 / 15 / 600 `#666`, «Absent» 56 / 16 / 700).
+ * «Microbuzul a fost absent» 48 / 15 / 600 `#666`, «Absent» 56 / 16 / 700, rază 10 sau
+ * `borderRadius` 12). `selected` = starea aleasă, în verdele opțiunii selectate sau, cu
+ * `selectedTone="danger"`, în roșu («Absent»).
  */
 export function OutlineButton({
   label,
@@ -241,6 +240,9 @@ export function OutlineButton({
   fontSize = tone === 'primary' ? 19 : 15,
   fontWeight = tone === 'primary' ? 700 : 600,
   color,
+  borderRadius = tone === 'primary' ? radius.button : radius.option,
+  selected = false,
+  selectedTone = 'success',
   icon,
   style,
 }: {
@@ -252,42 +254,45 @@ export function OutlineButton({
   fontSize?: number;
   fontWeight?: 600 | 700;
   color?: string;
+  borderRadius?: number;
+  selected?: boolean;
+  selectedTone?: 'success' | 'danger';
   icon?: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
   const primary = tone === 'primary';
-  const textColor = color ?? (primary ? colors.primary : colors.textSoft);
+  const danger = selectedTone === 'danger';
+  const selectedStyle: ViewStyle | null = !selected
+    ? null
+    : danger
+      ? { backgroundColor: colors.dangerBg, borderColor: colors.dangerBorder }
+      : { backgroundColor: colors.selectedBg, borderColor: colors.selectedBorder };
+  const textColor = selected ? (danger ? colors.danger : colors.selectedText) : color ?? (primary ? colors.primary : colors.textSoft);
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
+      accessibilityState={{ selected }}
       style={({ pressed }) => [
         styles.outline,
         {
           height,
           borderColor: primary ? colors.primary : colors.border,
-          borderRadius: primary ? radius.button : radius.option,
+          borderRadius,
           opacity: disabled ? 0.45 : pressed ? 0.7 : 1,
         },
+        selectedStyle,
         style,
       ]}
     >
       {icon}
-      <Text style={[weight(fontWeight), { fontSize, color: textColor, textAlign: 'center' }]}>{label}</Text>
+      <Text style={[selected ? weight(700) : weight(fontWeight), { fontSize, color: textColor, textAlign: 'center' }]}>{label}</Text>
     </Pressable>
   );
 }
 
 // ── Opțiuni (segment) ─────────────────────────────────────────────────────────
-
-/** O opțiune din listă (alias vechi, folosit de `OptionGroup`). */
-export interface Option<K extends string> {
-  key: K;
-  label: string;
-  /** Culoarea când e selectată: verde («Da», «OK»), roșie («Nu» la verdicte). Implicit verde. */
-  tone?: 'success' | 'danger' | 'primary';
-}
 
 /**
  * Segmentul din mockup: `flexGrow 1`, `minHeight 52`, alb, bordură 2 `#ddd9d5`, rază 10,
@@ -426,112 +431,19 @@ export function Banner({ bold, children }: PropsWithChildren<{ bold?: string }>)
 export type GpsState = 'in' | 'out' | 'off';
 
 /**
- * Rândul GPS: alb, bordură 2 `#b7dcc1`, rază 12, padding 10 / 14, gap 10, pin 22 `#16a34a`;
- * titlul 15 / 700 `#1f6b34`, textul mic 13 `#6b6560`. `out`: roșu; `off`: gri.
- * `boxed={false}` = varianta din Cursa (fără casetă, padding 4 / 6, text 15 / 600).
+ * Rândul GPS din Cursa: fără casetă, padding 4 / 6, gap 10, pin 22 `#16a34a`, text 15 / 600
+ * `#1f6b34` («la 42 m de stație · locație confirmată automat»). `out`: roșu; `off`: gri.
  */
-export function GpsRow({ state, title, detail, boxed = true }: { state: GpsState; title: string; detail?: string | null; boxed?: boolean }) {
+export function GpsRow({ state, title }: { state: GpsState; title: string }) {
   const accent = state === 'in' ? colors.selectedBorder : state === 'out' ? colors.danger : colors.faint;
   const titleColor = state === 'in' ? colors.doneText : state === 'out' ? colors.danger : colors.faint;
-  const border = state === 'in' ? colors.doneBorder : state === 'out' ? colors.dangerBorder : colors.border;
-  if (!boxed) {
-    return (
-      <View style={styles.gpsPlain}>
-        <PinIcon color={accent} />
-        <Text style={[styles.gpsPlainText, { color: titleColor }]}>{title}</Text>
-      </View>
-    );
-  }
   return (
-    <View style={[styles.gps, { borderColor: border }]}>
+    <View style={styles.gps}>
       <PinIcon color={accent} />
-      <View style={{ gap: 1, flexShrink: 1 }}>
-        <Text style={[styles.gpsTitle, { color: titleColor }]}>{title}</Text>
-        {detail ? <Text style={styles.gpsDetail}>{detail}</Text> : null}
-      </View>
+      <Text style={[styles.gpsText, { color: titleColor }]}>{title}</Text>
     </View>
   );
 }
-
-// ── Aliasuri pentru ecranele nerescrise (S02) ─────────────────────────────────
-
-/** Titlu de ecran 24 / 800 (alias; ecranele noi folosesc `DayHeader` / `Header`). */
-export function Title({ children }: PropsWithChildren) {
-  return <Text style={styles.dayTitle}>{children}</Text>;
-}
-
-/** Text discret 14 `#6b6560` (alias pentru `Footnote` aliniat la stânga). */
-export function Muted({ children }: PropsWithChildren) {
-  return <Text style={[styles.footnote, { textAlign: 'left' }]}>{children}</Text>;
-}
-
-/** Alias pentru `Question`. */
-export function SectionTitle({ children }: PropsWithChildren) {
-  return <Question>{children}</Question>;
-}
-
-export type Tone = 'primary' | 'neutral' | 'danger' | 'success';
-
-/** Alias vechi: `primary` / `success` → butonul bordo, `neutral` → contur neutru, `danger` → roșu. */
-export function BigButton({
-  label,
-  onPress,
-  tone = 'primary',
-  disabled = false,
-  big = false,
-  style,
-}: {
-  label: string;
-  onPress: () => void;
-  tone?: Tone;
-  disabled?: boolean;
-  big?: boolean;
-  style?: StyleProp<ViewStyle>;
-}) {
-  if (tone === 'neutral') {
-    return <OutlineButton label={label} onPress={onPress} disabled={disabled} tone="neutral" height={big ? sizes.buttonHeightBig : sizes.buttonHeight} fontSize={16} fontWeight={700} style={style} />;
-  }
-  return (
-    <PrimaryButton
-      label={label}
-      onPress={onPress}
-      disabled={disabled}
-      size={big ? 'lg' : 'md'}
-      style={[tone === 'danger' ? { backgroundColor: colors.danger } : null, style]}
-    />
-  );
-}
-
-/** Alias vechi: eticheta (`Question`) + rândul de opțiuni; opțiunile selectate verzi, `danger` roșii. */
-export function OptionGroup<K extends string>({
-  label,
-  options,
-  value,
-  onChange,
-  disabled = false,
-}: {
-  label?: string;
-  options: readonly Option<K>[];
-  value: K | null;
-  onChange: (key: K) => void;
-  disabled?: boolean;
-}) {
-  return (
-    <View style={{ gap: 8 }}>
-      {label ? <Question>{label}</Question> : null}
-      <OptionRow style={{ flexWrap: 'wrap' }}>
-        {options.map((o) => (
-          <Option key={o.key} label={o.label} selected={o.key === value} onPress={() => onChange(o.key)} disabled={disabled} tone={o.tone === 'danger' ? 'danger' : 'success'} style={{ minWidth: 96 }} />
-        ))}
-      </OptionRow>
-    </View>
-  );
-}
-
-export const YES_NO: readonly Option<'yes' | 'no'>[] = [
-  { key: 'yes', label: 'Da', tone: 'success' },
-  { key: 'no', label: 'Nu', tone: 'danger' },
-];
 
 // ── Stiluri ───────────────────────────────────────────────────────────────────
 
@@ -599,9 +511,6 @@ const styles = StyleSheet.create({
 
   banner: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.warningBg, borderWidth: 2, borderColor: colors.warningBorder, borderRadius: radius.button, paddingVertical: 12, paddingHorizontal: 14 },
 
-  gps: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.card, borderWidth: 2, borderRadius: radius.button, paddingVertical: 10, paddingHorizontal: 14 },
-  gpsTitle: { fontSize: 15, ...weight(700) },
-  gpsDetail: { fontSize: 13, ...weight(400), color: colors.faint },
-  gpsPlain: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4, paddingHorizontal: 6 },
-  gpsPlainText: { fontSize: 15, ...weight(600), flexShrink: 1 },
+  gps: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4, paddingHorizontal: 6 },
+  gpsText: { fontSize: 15, ...weight(600), flexShrink: 1 },
 });

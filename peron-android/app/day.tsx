@@ -1,7 +1,8 @@
 /**
  * Ecranul zilei — `Main.dc.html` (Chișinău) / `ZiuaBalti.dc.html` (Bălți), în ordinea
- * din mockup: antet, progres, rândul GPS, banner-ul de curățenie (doar Chișinău, când
- * lipsește setul turei), grila curselor, spațiu, «Poze curățenie» / textul de la Bălți.
+ * din mockup: antet, progres, banner-ul de curățenie (doar Chișinău, când lipsește setul
+ * turei), grila curselor, spațiu, «Poze curățenie» / textul de la Bălți. Fără rând GPS
+ * (Ion, 08.09): urmărirea merge în fundal, fără indicator pe ecran.
  * Logica (încărcarea zilei, permisiunile, urmărirea, poarta de curățenie) e cea de dinainte.
  */
 import { router, useFocusEffect } from 'expo-router';
@@ -9,19 +10,10 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Platform, ToastAndroid } from 'react-native';
 import { ApiError, getDay, logout } from '../src/api';
 import { cleaningGateFor, missingZones, slotForTime } from '../src/cleaning';
-import { Banner, Body, Card, DayHeader, Footnote, Grid, GridCell, GpsRow, OutlineButton, PrimaryButton, ProgressBar, Question, Screen, Spacer } from '../src/components';
-import { formatDayRo, localHHMM, pointLabel } from '../src/format';
+import { Banner, Body, Card, DayHeader, Footnote, Grid, GridCell, OutlineButton, PrimaryButton, ProgressBar, Question, Screen, Spacer } from '../src/components';
+import { formatDayRo, pointLabel } from '../src/format';
 import { CameraIcon } from '../src/icons';
-import {
-  flushPresenceQueue,
-  getLastReading,
-  getPermissionState,
-  isWithinWindow,
-  requestPresencePermissions,
-  syncPresenceTracking,
-  type LastReading,
-  type PermissionState,
-} from '../src/presence';
+import { flushPresenceQueue, getPermissionState, requestPresencePermissions, syncPresenceTracking, type PermissionState } from '../src/presence';
 import { colors } from '../src/theme';
 import type { DayResponse, DayTrip } from '../src/types';
 
@@ -35,8 +27,6 @@ export default function Day() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [permission, setPermission] = useState<PermissionState | null>(null);
-  const [tracking, setTracking] = useState(false);
-  const [last, setLast] = useState<LastReading | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -46,9 +36,8 @@ export default function Day() {
       setDay(d);
       const perm = await getPermissionState();
       setPermission(perm);
-      const on = await syncPresenceTracking({ date: d.date, window: d.presenceWindow, station: d.station });
-      setTracking(on);
-      setLast(await getLastReading());
+      // urmărirea se (re)armează singură; pe ecran nu există indicator GPS
+      await syncPresenceTracking({ date: d.date, window: d.presenceWindow, station: d.station });
       flushPresenceQueue().catch(() => undefined);
     } catch (e) {
       if (e instanceof ApiError) {
@@ -101,7 +90,6 @@ export default function Day() {
   }
 
   const now = new Date();
-  const inWindow = !!day?.presenceWindow && isWithinWindow(localHHMM(now), day.presenceWindow);
   const cleaning = day ? cleaningBanner(day, now) : null;
   const kicker = `TRANSLUX · ${day?.point === 'BALTI' ? 'BĂLȚI' : 'CHIȘINĂU'}`;
 
@@ -134,8 +122,6 @@ export default function Day() {
 
       {day && permission === 'granted' ? (
         <>
-          <PresenceRow tracking={tracking} inWindow={inWindow} last={last} window={day.presenceWindow} />
-
           {cleaning ? <Banner bold={cleaning.bold}>{cleaning.rest}</Banner> : null}
 
           <Grid>
@@ -173,25 +159,4 @@ function cleaningBanner(day: DayResponse, now: Date): { bold: string; rest: stri
   }
   const gate = day.cleaningGateTripTime;
   return { bold: 'Pozele de la 15:00 lipsesc.', rest: gate ? `Sunt obligatorii înainte de cursa ${gate}.` : 'Sunt obligatorii înainte de cursa de după-amiază.' };
-}
-
-/** Rândul GPS: verde în zonă, roșu în afara zonei, gri când urmărirea nu rulează. */
-function PresenceRow({
-  tracking,
-  inWindow,
-  last,
-  window,
-}: {
-  tracking: boolean;
-  inWindow: boolean;
-  last: LastReading | null;
-  window: DayResponse['presenceWindow'];
-}) {
-  const detail = window ? `Se urmărește pe toată tura, ${window.from}–${window.to}.` : null;
-  if (!window) return <GpsRow state="off" title="Fără curse azi · GPS oprit" />;
-  if (!inWindow) return <GpsRow state="off" title="În afara turei · GPS oprit" detail={detail} />;
-  if (!tracking) return <GpsRow state="out" title="GPS oprit" detail={detail} />;
-  if (last?.inZone === true) return <GpsRow state="in" title="În zona de lucru · GPS activ" detail={detail} />;
-  if (last?.inZone === false) return <GpsRow state="out" title="În afara zonei · GPS activ" detail={detail} />;
-  return <GpsRow state="off" title="GPS activ · se așteaptă prima citire" detail={detail} />;
 }

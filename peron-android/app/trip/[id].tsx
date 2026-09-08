@@ -1,28 +1,16 @@
 /**
- * Ecranul de cursă (spec peron-app-android, S07): totul pe un singur ecran cu scroll.
- * Chișinău: antet + întârziere, pasageri / Absent, șofer și auto, poza șoferului cu
- * verdictele propuse de model, verificările manuale (toate OK implicit), locația luată
- * singură, «Trimite». Bălți: doar pasageri, Absent / Microbuzul full, locație, Trimite.
- * Logica pură (starea → corpul cererii, validarea) e în src/buildReport.ts.
+ * Ecranul de cursă — `Cursa.dc.html` (Chișinău) / `CursaBalti.dc.html` (Bălți), element cu
+ * element: antet cu pastila de întârziere, Pasageri (−/cifră/+ și «Microbuzul a fost
+ * absent»), Șofer și auto (nume, placă mono, Confirm/Schimbă), Poza șoferului (miniatură
+ * 104×128, verdictele verzi/roșii, «Refă poza»), Verificări, rândul GPS, «Trimite raportul».
+ * La Bălți: Pasageri cu butoanele rapide, «Absent» / «Microbuzul full», GPS, Trimite, text.
  *
- * Camera (src/camera.tsx) și locația (src/location.ts) sunt module comune cu ecranul
- * de curățenie.
+ * Logica (src/buildReport.ts, camera, locația, apelurile API) e cea de dinainte — aici
+ * doar prezentarea.
  */
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Image,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, Alert, FlatList, Image, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ApiError, getDay, postDriverPhoto, postReport, postVehicle } from '../../src/api';
 import {
   blockingReason,
@@ -31,8 +19,6 @@ import {
   climateKindFor,
   initialState,
   LATE_THRESHOLD_MIN,
-  locationLabel,
-  MAX_PASSENGERS,
   minutesLate,
   missionDoneText,
   needsQuality,
@@ -43,21 +29,21 @@ import {
   withPhoto,
   type Coords,
   type DriverPhotoState,
-  type ReclamaChoice,
-  type RepairAnswer,
   type TripContext,
   type TripFormState,
 } from '../../src/buildReport';
 import { PhotoCamera, type CapturedPhoto } from '../../src/camera';
-import { BigButton, Body, Card, Muted, OptionGroup, Screen, SectionTitle, Title, YES_NO, type Option } from '../../src/components';
+import { Body, Card, Footnote, GpsRow, Header, Label, Option, OptionRow, OutlineButton, Pill, PrimaryButton, Question, Screen, Spacer, type GpsState } from '../../src/components';
 import { haversineDistance } from '../../src/format';
+import { CameraIcon, CheckIcon, PersonIcon, XIcon } from '../../src/icons';
 import { explainThenRequestPermission, findLocation, hasForegroundPermission } from '../../src/location';
-import { colors, sizes } from '../../src/theme';
-import type { CleaningRequiredDetails, ClimateStatus, DayResponse, DayTrip } from '../../src/types';
+import { colors, font, radius, weight } from '../../src/theme';
+import type { CleaningRequiredDetails, DayResponse, DayTrip } from '../../src/types';
 
-// Locația și camera sunt module comune (src/location.ts, src/camera.tsx) — refolosite la curățenie (S08).
+/** Cursa și Curățenia au 24 jos în mockup (ziua are 20). */
+const SCREEN_PADDING = { bottom: 24 };
 
-// ── Lista derulantă (șoferi / auto) ───────────────────────────────────────────
+// ── Lista derulantă (șoferi / auto) — stare fără mockup, în stilul opțiunilor ────
 
 interface PickItem {
   id: string;
@@ -84,32 +70,18 @@ function PickerModal({
   const data: PickItem[] = [{ id: '', label: noneLabel }, ...items];
   return (
     <Modal visible animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
-        <View style={styles.pickerHeader}>
-          <Title>{title}</Title>
-          <BigButton label="Închide" tone="neutral" onPress={onClose} />
-        </View>
+      <Screen scroll={false} padding={SCREEN_PADDING}>
+        <Header title={title} onBack={onClose} />
         <FlatList
+          style={{ flex: 1 }}
           data={data}
           keyExtractor={(i) => i.id || '__none__'}
-          contentContainerStyle={{ padding: sizes.padding, gap: 8 }}
+          contentContainerStyle={{ gap: 8 }}
           keyboardShouldPersistTaps="handled"
-          renderItem={({ item }) => {
-            const selected = (item.id || null) === selectedId;
-            return (
-              <Pressable
-                onPress={() => onSelect(item.id || null)}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                style={({ pressed }) => [styles.pickRow, selected ? styles.pickRowSelected : null, { opacity: pressed ? 0.8 : 1 }]}
-              >
-                <Text style={[styles.pickText, selected ? { color: colors.primaryText } : null]}>{item.label}</Text>
-              </Pressable>
-            );
-          }}
-          ListFooterComponent={footer ? <View style={{ paddingTop: sizes.gap }}>{footer}</View> : null}
+          renderItem={({ item }) => <Option label={item.label} selected={(item.id || null) === selectedId} onPress={() => onSelect(item.id || null)} style={styles.pickRow} />}
+          ListFooterComponent={footer ? <View style={{ paddingTop: 14 }}>{footer}</View> : null}
         />
-      </SafeAreaView>
+      </Screen>
     </Modal>
   );
 }
@@ -126,7 +98,7 @@ export default function TripScreen() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [vehicles, setVehicles] = useState<DayResponse['vehicles']>([]);
   const [form, setForm] = useState<TripFormState | null>(null);
-  const [changing, setChanging] = useState(false); // «✏️ Schimbă» apăsat
+  const [changing, setChanging] = useState(false); // «Schimbă» apăsat
   const [picker, setPicker] = useState<'driver' | 'vehicle' | null>(null);
   const [newPlate, setNewPlate] = useState('');
   const [addingVehicle, setAddingVehicle] = useState(false);
@@ -265,6 +237,15 @@ export default function TripScreen() {
     update({ vehicleId, reclama: 'ok', repair: null, climate: 'works' });
   }
 
+  /** «Confirm»: înapoi la repartizarea din /day (după «Schimbă»). */
+  function confirmAssignment() {
+    const a = ctx?.assignment;
+    if (!a) return;
+    setChanging(false);
+    chooseVehicle(a.vehicle_id);
+    chooseDriver(a.driver_id);
+  }
+
   async function addVehicle() {
     const plate = newPlate.trim().toUpperCase().replace(/\s/g, '');
     if (plate.length < 4 || addingVehicle) return;
@@ -309,7 +290,7 @@ export default function TripScreen() {
       Alert.alert('Raport trimis', text, [{ text: 'OK', onPress: () => router.replace('/day') }], { cancelable: false });
     } catch (e) {
       if (!(e instanceof ApiError)) {
-        setError({ message: 'Ceva nu a mers. Apasă din nou «Trimite».' });
+        setError({ message: 'Ceva nu a mers. Apasă din nou «Trimite raportul».' });
       } else if (e.status === 401) {
         return; // api.ts a trimis la login
       } else if (e.isOffline) {
@@ -331,252 +312,251 @@ export default function TripScreen() {
   }
 
   // ── Randare ──
+  const back = () => router.replace('/day');
+
   if (loadError) {
     return (
-      <SafeAreaView style={styles.safe}>
-        <Screen>
-          <Title>Cursa</Title>
-          <Card tone="warning">
-            <Body>{loadError}</Body>
-          </Card>
-          <BigButton label="Înapoi la ziua de azi" onPress={() => router.replace('/day')} />
-        </Screen>
-      </SafeAreaView>
+      <Screen padding={SCREEN_PADDING}>
+        <Header title="Cursa" onBack={back} />
+        <Card tone="warning">
+          <Body>{loadError}</Body>
+        </Card>
+        <PrimaryButton label="Înapoi la ziua de azi" onPress={back} size="md" />
+      </Screen>
     );
   }
   if (!day || !trip || !ctx || !form) {
     return (
-      <SafeAreaView style={styles.safe}>
-        <Screen>
-          <Title>Cursa</Title>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </Screen>
-      </SafeAreaView>
+      <Screen padding={SCREEN_PADDING}>
+        <Header title="Cursa" onBack={back} />
+        <ActivityIndicator size="large" color={colors.primary} />
+      </Screen>
     );
   }
 
+  const balti = ctx.point === 'BALTI';
   const late = minutesLate(now, trip.departure_time);
   const distanceM = coords ? haversineDistance(coords.lat, coords.lon, day.station.lat, day.station.lon) : null;
   const quality = needsQuality(ctx, form);
   const reason = blockingReason(ctx, form);
   const assignment = ctx.assignment;
   const showPickers = changing || !assignment;
-  const driverName = ctx.point === 'CHISINAU' ? day.drivers.find((d) => d.id === form.driverId)?.name ?? (assignment && assignment.driver_id === form.driverId ? assignment.driver_name : null) : null;
+  const driverName = !balti ? day.drivers.find((d) => d.id === form.driverId)?.name ?? (assignment && assignment.driver_id === form.driverId ? assignment.driver_name : null) : null;
   const plate = plateOf(ctx, form.vehicleId);
   const openTask = openReclamaFor(ctx, form.vehicleId);
   const climateKind = climateKindFor(ctx, form.vehicleId);
+  const counting = form.status === 'OK';
+  const thumbUri = form.photo?.uri ?? pending?.uri ?? null;
 
-  const statusOptions: Option<'OK' | 'ABSENT' | 'FULL'>[] = [
-    { key: 'ABSENT', label: 'Absent', tone: 'danger' },
-    ...(day.allowFull ? [{ key: 'FULL' as const, label: 'Microbuzul full', tone: 'primary' as const }] : []),
-  ];
+  const gps: { state: GpsState; text: string } = searching
+    ? { state: 'off', text: 'se caută locația…' }
+    : distanceM === null
+      ? { state: 'out', text: 'fără locație · raportul pleacă fără GPS' }
+      : distanceM <= day.station.radiusM
+        ? { state: 'in', text: `la ${Math.round(distanceM)} m de stație · locație confirmată automat` }
+        : { state: 'out', text: `la ${Math.round(distanceM)} m de stație · în afara zonei stației` };
+
+  const toggleStatus = (s: 'ABSENT' | 'FULL') => update({ status: form.status === s ? 'OK' : s });
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <Screen>
-        <View style={styles.header}>
-          <Pressable onPress={() => router.replace('/day')} hitSlop={12} accessibilityRole="button" accessibilityLabel="Înapoi la ziua de azi">
-            <Text style={styles.back}>‹ Ziua</Text>
-          </Pressable>
-          <Title>Cursa {trip.departure_time}</Title>
-        </View>
-        <Muted>{trip.route_name}</Muted>
-        {late > LATE_THRESHOLD_MIN ? (
-          <Card tone="warning" style={{ paddingVertical: 10 }}>
-            <Text style={styles.lateText}>⏱ Întârziere: {late} min — se va nota</Text>
-          </Card>
-        ) : null}
+    <>
+      <Screen padding={SCREEN_PADDING}>
+        <Header title={`Cursa ${trip.departure_time}`} subtitle={balti ? trip.route_name : null} onBack={back} right={late > LATE_THRESHOLD_MIN ? <Pill>întârziere {late} min</Pill> : null} />
 
-        {/* Pasageri / Absent / Full */}
-        {form.status === 'OK' ? (
-          <Card>
-            <SectionTitle>Pasageri</SectionTitle>
-            <View style={styles.counterRow}>
-              <BigButton label="−" tone="neutral" onPress={() => update({ passengers: clampPassengers((form.passengers ?? 0) - 1) })} style={styles.counterBtn} big />
-              <TextInput
-                value={form.passengers === null ? '' : String(form.passengers)}
-                onChangeText={(t) => {
-                  const digits = t.replace(/\D/g, '');
-                  update({ passengers: digits === '' ? null : clampPassengers(Number(digits)) });
-                }}
-                keyboardType="number-pad"
-                maxLength={2}
-                placeholder="0"
-                placeholderTextColor={colors.border}
-                style={styles.counterInput}
-                accessibilityLabel="Numărul de pasageri"
-              />
-              <BigButton label="+" tone="neutral" onPress={() => update({ passengers: clampPassengers((form.passengers ?? 0) + 1) })} style={styles.counterBtn} big />
-            </View>
+        {/* Pasageri */}
+        <Card>
+          <Label>Pasageri</Label>
+          <View style={styles.counter}>
+            <CounterButton label="−" balti={balti} disabled={!counting} onPress={() => update({ passengers: clampPassengers((form.passengers ?? 0) - 1) })} />
+            <TextInput
+              value={form.passengers === null ? '' : String(form.passengers)}
+              onChangeText={(t) => {
+                const digits = t.replace(/\D/g, '');
+                update({ passengers: digits === '' ? null : clampPassengers(Number(digits)) });
+              }}
+              keyboardType="number-pad"
+              maxLength={2}
+              placeholder="0"
+              placeholderTextColor={colors.border}
+              editable={counting}
+              style={[styles.counterField, balti ? styles.counterFieldBalti : null, counting ? null : styles.dimmed]}
+              accessibilityLabel="Numărul de pasageri"
+            />
+            <CounterButton label="+" balti={balti} disabled={!counting} onPress={() => update({ passengers: clampPassengers((form.passengers ?? 0) + 1) })} />
+          </View>
+          {balti ? (
             <View style={styles.quickRow}>
-              {QUICK_PASSENGERS.map((n) => (
-                <BigButton key={n} label={String(n)} tone={form.passengers === n ? 'primary' : 'neutral'} onPress={() => update({ passengers: n })} style={styles.quickBtn} />
-              ))}
+              {QUICK_PASSENGERS.map((n) => {
+                const selected = counting && form.passengers === n;
+                return (
+                  <Pressable
+                    key={n}
+                    onPress={() => update({ passengers: n })}
+                    disabled={!counting}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    style={({ pressed }) => [styles.quick, selected ? styles.quickSelected : null, { opacity: !counting ? 0.45 : pressed ? 0.7 : 1 }]}
+                  >
+                    <Text style={[styles.quickText, selected ? styles.quickTextSelected : null]}>{n}</Text>
+                  </Pressable>
+                );
+              })}
             </View>
-            <Muted>0–{MAX_PASSENGERS} pasageri</Muted>
-            <OptionGroup options={statusOptions} value={null} onChange={(s) => update({ status: s })} />
-          </Card>
-        ) : (
-          <Card tone={form.status === 'ABSENT' ? 'danger' : 'success'}>
-            <SectionTitle>{form.status === 'ABSENT' ? 'Cursa marcată «Absent»' : 'Microbuzul full'}</SectionTitle>
-            <Body>{form.status === 'ABSENT' ? 'Se trimite fără pasageri, șofer, auto sau poză.' : 'Se trimite ca microbuz complet, fără număr de pasageri.'}</Body>
-            <BigButton label="Renunță — completez normal" tone="neutral" onPress={() => update({ status: 'OK' })} />
-          </Card>
-        )}
+          ) : (
+            <View style={styles.statusRow}>
+              <OutlineButton label="Microbuzul a fost absent" tone="neutral" height={48} color={colors.muted} selected={form.status === 'ABSENT'} selectedTone="danger" onPress={() => toggleStatus('ABSENT')} style={styles.grow} />
+              {day.allowFull ? <OutlineButton label="Microbuzul full" tone="neutral" height={48} color={colors.muted} selected={form.status === 'FULL'} onPress={() => toggleStatus('FULL')} style={styles.grow} /> : null}
+            </View>
+          )}
+        </Card>
+
+        {balti ? (
+          <View style={styles.statusRow}>
+            <OutlineButton label="Absent" tone="neutral" height={56} fontSize={16} fontWeight={700} borderRadius={radius.button} selected={form.status === 'ABSENT'} selectedTone="danger" onPress={() => toggleStatus('ABSENT')} style={styles.grow} />
+            {day.allowFull ? (
+              <OutlineButton label="Microbuzul full" tone="neutral" height={56} fontSize={16} fontWeight={700} borderRadius={radius.button} selected={form.status === 'FULL'} onPress={() => toggleStatus('FULL')} style={styles.grow} />
+            ) : null}
+          </View>
+        ) : null}
 
         {/* Șofer și auto */}
         {quality ? (
           <Card>
-            <SectionTitle>Șofer și auto</SectionTitle>
-            {assignment && !changing ? (
-              <>
-                <Body>
-                  👤 {driverName ?? assignment.driver_name} · 🚌 {plate ?? 'fără auto'}
-                </Body>
-                <OptionGroup
-                  options={[
-                    { key: 'ok', label: '✅ OK', tone: 'success' },
-                    { key: 'change', label: '✏️ Schimbă' },
-                  ]}
-                  value="ok"
-                  onChange={(k) => {
-                    if (k === 'change') setChanging(true);
-                  }}
-                />
-              </>
+            <Label>{assignment && !changing ? 'Șofer și auto · din repartizare' : 'Șofer și auto'}</Label>
+            <View style={{ gap: 4 }}>
+              <Text style={styles.driverName}>{driverName ?? 'Fără șofer'}</Text>
+              <Text style={styles.plate}>{plate ?? 'Fără auto'}</Text>
+            </View>
+            {assignment ? (
+              <OptionRow>
+                <Option label="Confirm" selected={!changing} onPress={confirmAssignment} />
+                <Option label="Schimbă" selected={changing} onPress={() => setChanging(true)} />
+              </OptionRow>
             ) : null}
             {showPickers ? (
-              <>
-                <BigButton label={`👤 ${driverName ?? 'Fără șofer'} ▾`} tone="neutral" onPress={() => setPicker('driver')} />
-                <BigButton label={`🚌 ${plate ?? 'Fără auto'} ▾`} tone="neutral" onPress={() => setPicker('vehicle')} />
-                {assignment ? (
-                  <BigButton
-                    label="Înapoi la repartizare"
-                    tone="neutral"
-                    onPress={() => {
-                      setChanging(false);
-                      chooseVehicle(assignment.vehicle_id);
-                      chooseDriver(assignment.driver_id);
-                    }}
-                  />
-                ) : null}
-              </>
+              <View style={{ gap: 8 }}>
+                <OutlineButton label="Alege șoferul" tone="neutral" height={48} onPress={() => setPicker('driver')} />
+                <OutlineButton label="Alege auto" tone="neutral" height={48} onPress={() => setPicker('vehicle')} />
+              </View>
             ) : null}
           </Card>
         ) : null}
 
         {/* Poza șoferului */}
         {quality ? (
-          <Card tone={form.photo ? 'neutral' : 'warning'}>
-            <SectionTitle>Poza șoferului</SectionTitle>
-            {analyzing ? (
-              <View style={styles.analyzing}>
-                <ActivityIndicator size="large" color={colors.primary} />
-                <Body>Se analizează poza…</Body>
-              </View>
-            ) : null}
-            {photoError ? (
-              <Text style={styles.photoError}>{photoError}</Text>
-            ) : null}
-            {!analyzing && pending && !form.photo ? (
-              <View style={styles.photoRow}>
-                <Image source={{ uri: pending.uri }} style={styles.thumb} />
-                <View style={{ flex: 1, gap: 8 }}>
-                  <BigButton label="Trimite din nou poza" onPress={() => analyze(pending, form.driverId)} />
-                  <BigButton label="Refă poza" tone="neutral" onPress={retakePhoto} />
-                </View>
-              </View>
-            ) : null}
-            {!analyzing && !pending && !form.photo ? (
-              <BigButton label="📷 Fă poza șoferului" onPress={() => setCamera(true)} big />
-            ) : null}
-            {form.photo && !analyzing ? (
-              <>
-                <View style={styles.photoRow}>
-                  <Image source={{ uri: form.photo.uri }} style={styles.thumb} />
-                  <View style={{ flex: 1, gap: 8 }}>
-                    <VerdictButton label="Uniformă" value={form.uniformOk} onToggle={() => update({ uniformOk: form.uniformOk === true ? false : true })} />
-                    <VerdictButton label="Aspect îngrijit" value={form.exteriorOk} onToggle={() => update({ exteriorOk: form.exteriorOk === true ? false : true })} />
+          <Card>
+            <Label>Poza șoferului · verdict automat</Label>
+            <View style={styles.photoRow}>
+              <View style={styles.thumb}>{thumbUri ? <Image source={{ uri: thumbUri }} style={styles.thumbImage} accessibilityLabel="Poza șoferului" /> : <PersonIcon />}</View>
+              <View style={styles.photoSide}>
+                {analyzing ? (
+                  <View style={styles.analyzing}>
+                    <ActivityIndicator size="large" color={colors.primary} />
+                    <Text style={styles.analyzingText}>Se analizează poza…</Text>
                   </View>
-                </View>
-                {form.photo.verdict === 'EROARE' ? (
-                  <Muted>Modelul nu a putut judeca poza — bifează tu verdictele.</Muted>
+                ) : form.photo ? (
+                  <>
+                    <VerdictRow label="Uniformă" value={form.uniformOk} onPress={() => update({ uniformOk: form.uniformOk === true ? false : true })} />
+                    <VerdictRow label="Aspect îngrijit" value={form.exteriorOk} onPress={() => update({ exteriorOk: form.exteriorOk === true ? false : true })} />
+                  </>
+                ) : pending ? (
+                  <PrimaryButton label="Trimite din nou poza" size="md" shadow={false} onPress={() => analyze(pending, form.driverId)} />
                 ) : (
-                  <Muted>Propunerea modelului: atinge un verdict ca să-l corectezi.{form.photo.description ? ` ${form.photo.description}` : ''}</Muted>
+                  <PrimaryButton label="Fă poza" size="md" shadow={false} icon={<CameraIcon color={colors.primaryText} />} onPress={() => setCamera(true)} />
                 )}
-                <BigButton label="Refă poza" tone="neutral" onPress={retakePhoto} />
+              </View>
+            </View>
+            {photoError ? <Body color={colors.danger}>{photoError}</Body> : null}
+            {(form.photo || pending) && !analyzing ? (
+              <View style={styles.photoFooter}>
+                {form.photo ? (
+                  <Text style={styles.photoNote}>{form.photo.verdict === 'EROARE' ? 'Modelul nu a putut judeca poza. Atinge un verdict ca să-l alegi.' : 'Propus automat din poză. Atinge un verdict ca să-l corectezi.'}</Text>
+                ) : (
+                  <View style={styles.grow} />
+                )}
+                <OutlineButton label="Refă poza" tone="neutral" height={44} onPress={retakePhoto} />
+              </View>
+            ) : null}
+          </Card>
+        ) : null}
+
+        {/* Verificări */}
+        {quality ? (
+          <Card>
+            <Label>Verificări · totul e bifat OK, schimbă doar ce nu e</Label>
+
+            <Question>Ajută la încărcat?</Question>
+            <OptionRow>
+              <Option label="Da" selected={form.loadingHelpOk} onPress={() => update({ loadingHelpOk: true })} />
+              <Option label="Nu" selected={!form.loadingHelpOk} onPress={() => update({ loadingHelpOk: false })} />
+            </OptionRow>
+
+            <Question>Auto exterior curat?</Question>
+            <OptionRow>
+              <Option label="Da" selected={form.autoCurat} onPress={() => update({ autoCurat: true })} />
+              <Option label="Nu" selected={!form.autoCurat} onPress={() => update({ autoCurat: false })} />
+            </OptionRow>
+
+            {form.vehicleId ? (
+              <>
+                <Question>Reclamă</Question>
+                <View style={{ gap: 8 }}>
+                  <OptionRow>
+                    <Option label="Totul OK" selected={form.reclama === 'ok'} onPress={() => update({ reclama: 'ok' })} />
+                    <Option label="Doar autobuz" selected={form.reclama === 'bus'} onPress={() => update({ reclama: 'bus', repair: null })} />
+                  </OptionRow>
+                  <OptionRow>
+                    <Option label="Doar panou rută" selected={form.reclama === 'panou_ruta'} onPress={() => update({ reclama: 'panou_ruta', repair: null })} />
+                    <Option label="Ambele" selected={form.reclama === 'ambele'} onPress={() => update({ reclama: 'ambele', repair: null })} />
+                  </OptionRow>
+                </View>
+                {form.reclama === 'ok' && openTask ? (
+                  <Card tone="warning">
+                    <Body bold="Era marcat defect:">{openTask.description.replace(/\.\s*$/, '')}. A fost reparat?</Body>
+                    <OptionRow>
+                      <Option label="Da, reparat" selected={form.repair === 'da'} onPress={() => update({ repair: 'da' })} />
+                      <Option label="Nu, încă defect" selected={form.repair === 'nu'} onPress={() => update({ repair: 'nu' })} />
+                    </OptionRow>
+                  </Card>
+                ) : null}
+              </>
+            ) : null}
+
+            {climateKind ? (
+              <>
+                <Question>Clima în salon</Question>
+                <OptionRow>
+                  <Option label="Funcționează" selected={form.climate === 'works'} onPress={() => update({ climate: 'works' })} />
+                  <Option label="Stricat" selected={form.climate === 'broken'} onPress={() => update({ climate: 'broken' })} />
+                  <Option label="Nu are" selected={form.climate === 'none'} onPress={() => update({ climate: 'none' })} />
+                </OptionRow>
+                <Footnote align="left">Vara întreabă de aerul condiționat, din noiembrie de căldură. O dată pe lună pentru fiecare auto; în restul anului rândul nu apare.</Footnote>
               </>
             ) : null}
           </Card>
         ) : null}
 
-        {/* Calitate */}
-        {quality ? (
-          <Card>
-            <SectionTitle>Verificări</SectionTitle>
-            <OptionGroup label="Ajută la încărcat" options={YES_NO} value={form.loadingHelpOk ? 'yes' : 'no'} onChange={(k) => update({ loadingHelpOk: k === 'yes' })} />
-            <OptionGroup label="Auto exterior curat" options={YES_NO} value={form.autoCurat ? 'yes' : 'no'} onChange={(k) => update({ autoCurat: k === 'yes' })} />
-            {form.vehicleId ? (
-              <OptionGroup<ReclamaChoice>
-                label="Reclamă"
-                options={[
-                  { key: 'ok', label: 'Totul OK', tone: 'success' },
-                  { key: 'bus', label: 'Doar autobuz', tone: 'danger' },
-                  { key: 'panou_ruta', label: 'Doar panou rută', tone: 'danger' },
-                  { key: 'ambele', label: 'Ambele', tone: 'danger' },
-                ]}
-                value={form.reclama}
-                onChange={(k) => update({ reclama: k, repair: k === 'ok' ? form.repair : null })}
-              />
-            ) : null}
-            {form.vehicleId && form.reclama === 'ok' && openTask ? (
-              <Card tone="warning">
-                <Body>🔧 Era marcat defect: {openTask.description}</Body>
-                {openTask.lastComment ? <Muted>💬 Comentariu: {openTask.lastComment}</Muted> : null}
-                <OptionGroup<RepairAnswer>
-                  label="A fost reparat?"
-                  options={[
-                    { key: 'da', label: 'Da, reparat', tone: 'success' },
-                    { key: 'nu', label: 'Nu, încă defect', tone: 'danger' },
-                  ]}
-                  value={form.repair}
-                  onChange={(k) => update({ repair: k })}
-                />
-                {form.repair === 'nu' ? <Muted>Alege mai sus ce e defect: autobuz, panou rută sau ambele.</Muted> : null}
-              </Card>
-            ) : null}
-            {climateKind ? (
-              <OptionGroup<ClimateStatus>
-                label={climateKind === 'ac' ? '❄️ Aerul condiționat' : '🔥 Căldura'}
-                options={[
-                  { key: 'works', label: 'Lucrează', tone: 'success' },
-                  { key: 'broken', label: 'Stricat', tone: 'danger' },
-                  { key: 'none', label: 'Nu are' },
-                ]}
-                value={form.climate}
-                onChange={(k) => update({ climate: k })}
-              />
-            ) : null}
-          </Card>
-        ) : null}
-
         {/* Locația — fără niciun buton, pleacă singură */}
-        <Card tone={searching ? 'neutral' : distanceM === null ? 'danger' : distanceM <= day.station.radiusM ? 'success' : 'warning'} style={{ paddingVertical: 10 }}>
-          <Text style={styles.locText}>{locationLabel(distanceM, searching)}</Text>
-          {coords?.accuracyM != null && !searching ? <Muted>precizie ±{coords.accuracyM} m</Muted> : null}
-        </Card>
+        <GpsRow state={gps.state} title={gps.text} />
 
         {error ? (
           <Card tone="danger">
-            <Body>{error.message}</Body>
+            <Body color={colors.danger}>{error.message}</Body>
             {error.cleaning ? (
-              <BigButton label="📷 Poze curățenie" onPress={() => router.push(`/cleaning?slot=${error.cleaning?.slot ?? ''}&gate=${trip.departure_time}`)} />
+              <PrimaryButton label="Poze curățenie" size="md" shadow={false} icon={<CameraIcon color={colors.primaryText} />} onPress={() => router.push(`/cleaning?slot=${error.cleaning?.slot ?? ''}&gate=${trip.departure_time}`)} />
             ) : null}
           </Card>
         ) : null}
 
-        <BigButton label={sending ? 'Se trimite…' : 'Trimite'} onPress={send} disabled={!!reason || sending || analyzing} big tone="success" />
-        {reason ? <Muted>{reason}</Muted> : null}
+        <PrimaryButton label={sending ? 'Se trimite…' : 'Trimite raportul'} onPress={send} disabled={!!reason || sending || analyzing} />
+        {reason ? <Footnote>{reason}</Footnote> : null}
+
+        {balti ? (
+          <>
+            <Spacer />
+            <Footnote>Fără șofer, auto sau verificări: la Bălți se numără doar pasagerii. Două atingeri per cursă.</Footnote>
+          </>
+        ) : null}
       </Screen>
 
       {camera ? <PhotoCamera title="Poza șoferului" onCaptured={onCaptured} onCancel={() => setCamera(false)} /> : null}
@@ -600,11 +580,11 @@ export default function TripScreen() {
           onClose={() => setPicker(null)}
           footer={
             <Card>
-              <SectionTitle>+ Adaugă auto</SectionTitle>
+              <Label>Adaugă auto</Label>
               <TextInput
                 value={newPlate}
                 onChangeText={setNewPlate}
-                placeholder="ex. 998TCP"
+                placeholder="ex. LYY 735"
                 placeholderTextColor={colors.border}
                 autoCapitalize="characters"
                 autoCorrect={false}
@@ -613,28 +593,43 @@ export default function TripScreen() {
                 onSubmitEditing={addVehicle}
                 editable={!addingVehicle}
               />
-              <BigButton label={addingVehicle ? 'Se adaugă…' : 'Adaugă'} onPress={addVehicle} disabled={newPlate.trim().length < 4 || addingVehicle} />
+              <PrimaryButton label={addingVehicle ? 'Se adaugă…' : 'Adaugă'} size="md" shadow={false} onPress={addVehicle} disabled={newPlate.trim().length < 4 || addingVehicle} />
             </Card>
           }
         />
       ) : null}
-    </SafeAreaView>
+    </>
   );
 }
 
-/** «Uniformă: da» verde / «nu» roșie / «necunoscut» gri; atingerea răstoarnă verdictul. */
-function VerdictButton({ label, value, onToggle }: { label: string; value: boolean | null; onToggle: () => void }) {
-  const bg = value === true ? colors.success : value === false ? colors.danger : colors.locked;
-  const fg = value === null ? colors.text : colors.primaryText;
-  const text = value === true ? 'da' : value === false ? 'nu' : 'necunoscut';
+/** «−» / «+»: 64 lat (72 la Bălți), bordură 2 `#ddd9d5`, rază 12, cifra 30 / 700 `#333` (34 la Bălți). */
+function CounterButton({ label, balti, disabled, onPress }: { label: string; balti: boolean; disabled: boolean; onPress: () => void }) {
   return (
     <Pressable
-      onPress={onToggle}
+      onPress={onPress}
+      disabled={disabled}
       accessibilityRole="button"
-      accessibilityLabel={`${label}: ${text}. Atinge ca să schimbi`}
-      style={({ pressed }) => [styles.verdict, { backgroundColor: bg, opacity: pressed ? 0.8 : 1 }]}
+      accessibilityLabel={label === '+' ? 'Un pasager în plus' : 'Un pasager în minus'}
+      style={({ pressed }) => [styles.counterButton, balti ? styles.counterButtonBalti : null, { opacity: disabled ? 0.45 : pressed ? 0.7 : 1 }]}
     >
-      <Text style={[styles.verdictText, { color: fg }]}>
+      <Text style={[styles.counterButtonText, balti ? styles.counterButtonTextBalti : null]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/**
+ * Verdictul pozei: verde «Uniformă: da» (`#e8f3ea` / `#16a34a` / `#1f6b34`, bifă), roșu
+ * «Uniformă: nu» (`#fbe9ec` / `#e4a3ad` / `#b91c1c`, X); necunoscut (modelul n-a putut judeca)
+ * = bordură neutră. Atingerea răstoarnă verdictul.
+ */
+function VerdictRow({ label, value, onPress }: { label: string; value: boolean | null; onPress: () => void }) {
+  const box = value === true ? styles.verdictYes : value === false ? styles.verdictNo : styles.verdictUnknown;
+  const color = value === true ? colors.selectedText : value === false ? colors.danger : colors.textSoft;
+  const text = value === true ? 'da' : value === false ? 'nu' : 'necunoscut';
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`${label}: ${text}. Atinge ca să schimbi`} style={({ pressed }) => [styles.verdict, box, { opacity: pressed ? 0.7 : 1 }]}>
+      {value === true ? <CheckIcon /> : value === false ? <XIcon /> : null}
+      <Text style={[styles.verdictText, { color }]}>
         {label}: {text}
       </Text>
     </Pressable>
@@ -642,47 +637,65 @@ function VerdictButton({ label, value, onToggle }: { label: string; value: boole
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  back: { fontSize: sizes.text + 2, fontWeight: '700', color: colors.primary, paddingVertical: 8 },
-  lateText: { fontSize: sizes.text, fontWeight: '700', color: colors.warning },
-  counterRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  counterBtn: { width: 72 },
-  counterInput: {
-    flex: 1,
-    fontSize: 44,
-    fontWeight: '700',
+  grow: { flexGrow: 1, flexBasis: 0 },
+  dimmed: { opacity: 0.45 },
+
+  counter: { flexDirection: 'row', gap: 10, alignItems: 'stretch' },
+  counterButton: { width: 64, backgroundColor: colors.card, borderWidth: 2, borderColor: colors.border, borderRadius: radius.button, alignItems: 'center', justifyContent: 'center' },
+  counterButtonBalti: { width: 72 },
+  counterButtonText: { fontSize: 30, ...weight(700), color: colors.textSoft },
+  counterButtonTextBalti: { fontSize: 34 },
+  counterField: {
+    flexGrow: 1,
+    flexBasis: 0,
+    height: 72,
+    backgroundColor: colors.card,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    borderRadius: radius.button,
     textAlign: 'center',
+    fontSize: 40,
+    ...weight(800),
     color: colors.text,
+    padding: 0,
+  },
+  counterFieldBalti: { height: 96, fontSize: 52 },
+  quickRow: { flexDirection: 'row', gap: 8 },
+  quick: { flexGrow: 1, flexBasis: 0, height: 52, backgroundColor: colors.card, borderWidth: 2, borderColor: colors.border, borderRadius: radius.option, alignItems: 'center', justifyContent: 'center' },
+  quickSelected: { backgroundColor: colors.selectedBg, borderColor: colors.selectedBorder },
+  quickText: { fontSize: 18, ...weight(700), color: colors.textSoft },
+  quickTextSelected: { color: colors.selectedText },
+  statusRow: { flexDirection: 'row', gap: 10 },
+
+  driverName: { fontSize: 20, ...weight(700), color: colors.text },
+  plate: { fontSize: 17, fontFamily: font.mono, fontWeight: '600', color: colors.muted, letterSpacing: 1 },
+
+  photoRow: { flexDirection: 'row', gap: 14, alignItems: 'stretch' },
+  thumb: { width: 104, height: 128, backgroundColor: colors.camera, borderRadius: radius.button, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 },
+  thumbImage: { width: 104, height: 128 },
+  photoSide: { flexGrow: 1, flexBasis: 0, gap: 8, justifyContent: 'center' },
+  verdict: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, borderWidth: 2, borderRadius: radius.option, paddingVertical: 6, paddingHorizontal: 12 },
+  verdictYes: { backgroundColor: colors.selectedBg, borderColor: colors.selectedBorder },
+  verdictNo: { backgroundColor: colors.dangerBg, borderColor: colors.dangerBorder },
+  verdictUnknown: { backgroundColor: colors.card, borderColor: colors.border },
+  verdictText: { fontSize: 15, ...weight(700), flexShrink: 1 },
+  analyzing: { alignItems: 'center', gap: 8 },
+  analyzingText: { fontSize: 14, ...weight(600), color: colors.muted },
+  photoFooter: { flexDirection: 'row', gap: 10, alignItems: 'center' },
+  photoNote: { fontSize: 14, ...weight(400), color: colors.faint, lineHeight: 20, flexGrow: 1, flexShrink: 1 },
+
+  pickRow: { flexGrow: 0, flexBasis: 'auto' },
+  plateInput: {
+    height: 60,
+    backgroundColor: colors.card,
     borderWidth: 2,
     borderColor: colors.border,
-    borderRadius: sizes.radius,
-    paddingVertical: 8,
-    backgroundColor: colors.bg,
-  },
-  quickRow: { flexDirection: 'row', gap: 8 },
-  quickBtn: { flex: 1, paddingHorizontal: 4 },
-  analyzing: { alignItems: 'center', gap: 8, paddingVertical: 8 },
-  photoError: { fontSize: sizes.text, fontWeight: '600', color: colors.danger },
-  photoRow: { flexDirection: 'row', gap: 12, alignItems: 'stretch' },
-  thumb: { width: 110, height: 146, borderRadius: sizes.radius, backgroundColor: colors.locked },
-  verdict: { flex: 1, borderRadius: sizes.radius, alignItems: 'center', justifyContent: 'center', minHeight: sizes.buttonHeight, paddingHorizontal: 8 },
-  verdictText: { fontSize: sizes.text, fontWeight: '700', textAlign: 'center' },
-  locText: { fontSize: sizes.text, fontWeight: '600', color: colors.text },
-  pickerHeader: { padding: sizes.padding, gap: sizes.gap },
-  pickRow: { minHeight: sizes.buttonHeight, borderRadius: sizes.radius, backgroundColor: colors.card, justifyContent: 'center', paddingHorizontal: sizes.padding },
-  pickRowSelected: { backgroundColor: colors.primary },
-  pickText: { fontSize: sizes.text + 2, fontWeight: '600', color: colors.text },
-  plateInput: {
-    fontSize: 28,
+    borderRadius: radius.button,
+    textAlign: 'center',
+    fontSize: 24,
+    fontFamily: font.mono,
     fontWeight: '700',
     letterSpacing: 2,
-    textAlign: 'center',
     color: colors.text,
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderRadius: sizes.radius,
-    paddingVertical: 12,
-    backgroundColor: colors.bg,
   },
 });

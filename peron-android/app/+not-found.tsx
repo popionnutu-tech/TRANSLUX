@@ -1,18 +1,12 @@
 import { router } from 'expo-router';
-import { View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { BigButton, Screen, Title, Muted } from '../src/components';
-import { sizes } from '../src/theme';
+import { Footnote, Header, PrimaryButton, Screen } from '../src/components';
 
 export default function NotFound() {
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <Screen>
-        <Title>Ecran indisponibil</Title>
-        <Muted>Ecranul acesta nu există în versiunea instalată a aplicației.</Muted>
-        <View style={{ height: sizes.gap }} />
-        <BigButton label="Înapoi la ziua de azi" onPress={() => router.replace('/day')} />
-      </Screen>
-    </SafeAreaView>
+    <Screen>
+      <Header title="Ecran indisponibil" titleSize={24} />
+      <Footnote align="left">Ecranul acesta nu există în versiunea instalată a aplicației.</Footnote>
+      <PrimaryButton label="Înapoi la ziua de azi" size="md" onPress={() => router.replace('/day')} />
+    </Screen>
   );
 }

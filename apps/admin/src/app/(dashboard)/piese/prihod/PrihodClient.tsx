@@ -56,6 +56,12 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
   // Adaos pe TOATĂ factura, cerut de Eduard: la 30 de poziții se punea de 30 de ori, manual.
   // Gol = fiecare piesă rămâne cu adaosul ei (sau al grupei).
   const [markup, setMarkup] = useState('');
+  // Rândul tocmai adăugat primește cursorul, ca omul să scrie mai departe fără să ia mâna de pe
+  // tastatură. Cerut de Eduard pentru TOATE ecranele: „раз добавил строку курсор чтоб автоматически
+  // был в поле выбора позиции. Это во всех разделах не только в приходе."
+  // Marcajul se șterge după focus (`onFocused`) fiindcă rândurile au `key={i}`: la o inserție în mijloc
+  // (butonul de copiere a rândului) un indice rămas în urmă ar duce cursorul pe rândul greșit.
+  const [focusIdx, setFocusIdx] = useState<number | null>(null);
   const [sheet, setSheet] = useState<SheetLabel[] | null>(null);
   const [sheetBusy, setSheetBusy] = useState(false);
   const [editBusy, setEditBusy] = useState<number | null>(null); // indexul rândului care încarcă piesa pentru editare
@@ -146,7 +152,7 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
             <tr key={i}>
               <td>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <div style={{ flex: 1 }}><SearchSelect searchFn={searchParts} value={l.part_id} selectedLabel={l.part_label} onSelect={(o) => setLine(i, { part_id: o ? o.id : '', part_label: o?.label })} placeholder="— caută piesa (denumire, cod, articol) —" /></div>
+                  <div style={{ flex: 1 }}><SearchSelect searchFn={searchParts} value={l.part_id} selectedLabel={l.part_label} onSelect={(o) => setLine(i, { part_id: o ? o.id : '', part_label: o?.label })} placeholder="— caută piesa (denumire, cod, articol) —" autoFocus={focusIdx === i} onFocused={() => setFocusIdx(null)} /></div>
                   {l.part_id !== '' && <button type="button" className="btn btn-outline" style={{ padding: '4px 10px', whiteSpace: 'nowrap' }} disabled={editBusy === i} onClick={() => openEditPart(i, Number(l.part_id))} title="Corectează denumirea / codul de bare / datele piesei alese, direct din recepție">{editBusy === i ? '…' : '✎ Editează'}</button>}
                   <button type="button" className="btn btn-outline" style={{ padding: '4px 10px', whiteSpace: 'nowrap' }} onClick={() => { setNewPartFor(i); if (groups[0]) askSuggestion(Number(groups[0].id)); }} title="Adaugă o piesă care nu există încă în catalog">+ nouă</button>
                 </div>
@@ -165,7 +171,7 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
         </tbody>
       </table>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
-        <button className="btn" onClick={() => setLines((ls) => [...ls, blankLine()])}>+ Adaugă poziție</button>
+        <button className="btn" onClick={() => { setLines((ls) => [...ls, blankLine()]); setFocusIdx(lines.length); }}>+ Adaugă poziție</button>
         <strong>Total: {total.toFixed(2)} lei</strong>
         {declared != null && Number.isFinite(declared) && (
           totalOk

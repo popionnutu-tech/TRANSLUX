@@ -33,6 +33,12 @@ export default function MutariClient({ warehouses, fromWarehouses, transit, vehi
   // panoul ăsta expeditorul n-ar mai vedea marfa proprie ieșită din stoc.
   const [sent, setSent] = useState<{ id: number; toName: string; vehiclePlate: string | null; createdAt: string; lineCount: number }[]>([]);
   const [cancelBusy, setCancelBusy] = useState<number | null>(null);
+  // Rândul tocmai adăugat primește cursorul, ca omul să scrie mai departe fără să ia mâna de pe
+  // tastatură. Cerut de Eduard pentru TOATE ecranele: „раз добавил строку курсор чтоб автоматически
+  // был в поле выбора позиции. Это во всех разделах не только в приходе."
+  // Marcajul se șterge după focus (`onFocused`) fiindcă rândurile au `key={i}`: la o inserție în mijloc
+  // (butonul de copiere a rândului) un indice rămas în urmă ar duce cursorul pe rândul greșit.
+  const [focusIdx, setFocusIdx] = useState<number | null>(null);
 
   const refreshSent = useCallback(async (wid: number) => {
     if (!wid) { setSent([]); return; }
@@ -234,14 +240,14 @@ export default function MutariClient({ warehouses, fromWarehouses, transit, vehi
           <tbody>
             {lines.map((l, i) => (
               <tr key={i}>
-                <td><SearchSelect searchFn={searchParts} value={l.part_id} selectedLabel={l.part_label} onSelect={(o) => setLine(i, { part_id: o ? o.id : '', part_label: o?.label })} placeholder="— caută piesa —" /></td>
+                <td><SearchSelect searchFn={searchParts} value={l.part_id} selectedLabel={l.part_label} onSelect={(o) => setLine(i, { part_id: o ? o.id : '', part_label: o?.label })} placeholder="— caută piesa —" autoFocus={focusIdx === i} onFocused={() => setFocusIdx(null)} /></td>
                 <td><input type="number" min={1} value={l.qty} onChange={(e) => setLine(i, { qty: Number(e.target.value) })} /></td>
                 <td>{lines.length > 1 && <button className="btn" onClick={() => setLines((ls) => ls.filter((_, j) => j !== i))} style={{ padding: '4px 10px' }}>×</button>}</td>
               </tr>
             ))}
           </tbody>
         </table>
-        <button className="btn" onClick={() => setLines((ls) => [...ls, { part_id: '', qty: 1 }])} style={{ marginTop: 10 }}>+ Adaugă poziție</button>
+        <button className="btn" onClick={() => { setLines((ls) => [...ls, { part_id: '', qty: 1 }]); setFocusIdx(lines.length); }} style={{ marginTop: 10 }}>+ Adaugă poziție</button>
         <button className="btn btn-primary btn-lg btn-block" style={{ marginTop: 12 }}
           disabled={busy || (forVehicle && !vehicleId)} onClick={send}>
           {forVehicle ? 'Trimite mutarea pe mașină' : 'Trimite mutarea'}

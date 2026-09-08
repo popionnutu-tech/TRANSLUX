@@ -50,6 +50,12 @@ export default function ReceiptEditModal({ docId, suppliers, onClose, onSaved }:
   docId: number; suppliers: Opt[]; onClose: () => void; onSaved: () => void;
 }) {
   const [loading, setLoading] = useState(true);
+  // Rândul tocmai adăugat primește cursorul, ca omul să scrie mai departe fără să ia mâna de pe
+  // tastatură. Cerut de Eduard pentru TOATE ecranele: „раз добавил строку курсор чтоб автоматически
+  // был в поле выбора позиции. Это во всех разделах не только в приходе."
+  // Marcajul se șterge după focus (`onFocused`) fiindcă rândurile au `key={i}`: la o inserție în mijloc
+  // (butonul de copiere a rândului) un indice rămas în urmă ar duce cursorul pe rândul greșit.
+  const [focusIdx, setFocusIdx] = useState<number | null>(null);
   const [err, setErr] = useState('');
   const [supplierId, setSupplierId] = useState<number | ''>('');
   const [series, setSeries] = useState('');
@@ -165,7 +171,7 @@ export default function ReceiptEditModal({ docId, suppliers, onClose, onSaved }:
               <tbody>
                 {lines.map((l, i) => (
                   <tr key={i}>
-                    <td>{readOnlyLines ? <span>{l.label || `#${l.part_id}`}</span> : <SearchSelect searchFn={searchParts} value={l.part_id} selectedLabel={l.label} onSelect={(o) => setLine(i, { part_id: o ? o.id : '', label: o?.label })} placeholder="— caută piesa —" />}</td>
+                    <td>{readOnlyLines ? <span>{l.label || `#${l.part_id}`}</span> : <SearchSelect searchFn={searchParts} value={l.part_id} selectedLabel={l.label} onSelect={(o) => setLine(i, { part_id: o ? o.id : '', label: o?.label })} placeholder="— caută piesa —" autoFocus={focusIdx === i} onFocused={() => setFocusIdx(null)} />}</td>
                     <td>{readOnlyLines ? l.qty : <input type="number" min={1} value={l.qty} onChange={(e) => setLine(i, { qty: Number(e.target.value) })} />}</td>
                     <td>{readOnlyLines ? r2(Number(l.unit_cost)).toFixed(2) : <input type="number" min={0} step="0.0001" value={l.unit_cost || ''} onChange={(e) => setLine(i, { unit_cost: Number(e.target.value) })} placeholder="preț" />}</td>
                     <td className="num">{r2(Number(l.qty) * Number(l.unit_cost)).toFixed(2)}</td>
@@ -182,7 +188,7 @@ export default function ReceiptEditModal({ docId, suppliers, onClose, onSaved }:
                 {lines.length === 0 && <tr><td colSpan={readOnlyLines ? 4 : 5} className="muted">Fără linii.</td></tr>}
               </tbody>
             </table>
-            {!readOnlyLines && <button type="button" className="btn" style={{ marginTop: 8 }} onClick={() => setLines((ls) => [...ls, { part_id: '', qty: 1, unit_cost: 0 }])}>+ Adaugă poziție</button>}
+            {!readOnlyLines && <button type="button" className="btn" style={{ marginTop: 8 }} onClick={() => { setLines((ls) => [...ls, { part_id: '', qty: 1, unit_cost: 0 }]); setFocusIdx(lines.length); }}>+ Adaugă poziție</button>}
             <div style={{ textAlign: 'right', marginTop: 8 }}>
               <strong>Total: {total.toFixed(2)} lei</strong>
               {declared != null && Number.isFinite(declared) && (

@@ -39,6 +39,11 @@ export default function RashodClient({ warehouses, vehicles, mechanics, reasons 
   // Avertismentele (stoc, normă de km, schimbat prea des) sunt PER LINIE: la o reparație cu opt piese,
   // un singur mesaj global n-ar spune despre care dintre ele e vorba.
   const [alerts, setAlerts] = useState<Record<string, Alert>>({});
+  // Rândul tocmai adăugat primește cursorul, ca omul să scaneze mai departe fără să ia mâna de pe
+  // tastatură. Cerut de Eduard pentru TOATE ecranele, nu doar prihod.
+  // Aici se ține `uid`, nu indicele: rândurile se pot șterge din mijloc, iar un indice memorat ar muta
+  // cursorul pe alt rând decât cel nou.
+  const [focusUid, setFocusUid] = useState<string | null>(null);
   // Oglinda liniilor curente, pentru efectul de mai jos: îl vrem declanșat de depozit/mașină, nu de tastare.
   const linesRef = useRef<Line[]>([]);
   const [today, setToday] = useState<Today>(null);
@@ -381,7 +386,8 @@ export default function RashodClient({ warehouses, vehicles, mechanics, reasons 
               <td>
                 <SearchSelect searchFn={searchParts} value={l.part_id} selectedLabel={l.label}
                   onSelect={(o) => { setLine(i, { part_id: o ? o.id : '', label: o?.label }); checkLine(l.uid, o ? o.id : 0, warehouseId, vehicleId); }}
-                  placeholder="— caută piesa (denumire, cod, articol) —" />
+                  placeholder="— caută piesa (denumire, cod, articol) —"
+                  autoFocus={focusUid === l.uid} onFocused={() => setFocusUid(null)} />
                 {alerts[l.uid] && (
                   <div style={{ marginTop: 4 }}>
                     <span className={`badge ${alerts[l.uid].stock <= 0 ? 'warn' : 'gray'}`}>
@@ -405,7 +411,7 @@ export default function RashodClient({ warehouses, vehicles, mechanics, reasons 
           ))}
         </tbody>
       </table>
-      <button type="button" className="btn" style={{ marginTop: 8 }} onClick={() => setLines((ls) => [...ls, blank()])}>+ Adaugă poziție</button>
+      <button type="button" className="btn" style={{ marginTop: 8 }} onClick={() => { const b = blank(); setLines((ls) => [...ls, b]); setFocusUid(b.uid); }}>+ Adaugă poziție</button>
 
       <div className="row" style={{ marginTop: 10 }}>
         <div className="form-row"><label>Mecanic / lăcătuș</label>

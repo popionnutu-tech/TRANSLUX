@@ -12,6 +12,12 @@ interface Line { part_id: number | ''; qty: number; unit_price: number }
 export default function MagazinClient({ shopId, clients, parts }: { shopId: number; clients: Opt[]; parts: PartOpt[] }) {
   const router = useRouter();
   const [clientId, setClientId] = useState<number | ''>('');
+  // Rândul tocmai adăugat primește cursorul, ca omul să scrie mai departe fără să ia mâna de pe
+  // tastatură. Cerut de Eduard pentru TOATE ecranele: „раз добавил строку курсор чтоб автоматически
+  // был в поле выбора позиции. Это во всех разделах не только в приходе."
+  // Marcajul se șterge după focus (`onFocused`) fiindcă rândurile au `key={i}`: la o inserție în mijloc
+  // (butonul de copiere a rândului) un indice rămas în urmă ar duce cursorul pe rândul greșit.
+  const [focusIdx, setFocusIdx] = useState<number | null>(null);
   const [series, setSeries] = useState('MG');
   const [number, setNumber] = useState('');
   const [lines, setLines] = useState<Line[]>([{ part_id: '', qty: 1, unit_price: 0 }]);
@@ -46,7 +52,7 @@ export default function MagazinClient({ shopId, clients, parts }: { shopId: numb
         <tbody>
           {lines.map((l, i) => (
             <tr key={i}>
-              <td><SearchSelect options={parts} value={l.part_id} onSelect={(o) => { if (o) onPart(i, o.id); else setLine(i, { part_id: '', unit_price: 0 }); }} placeholder="— caută piesa —" /></td>
+              <td><SearchSelect options={parts} value={l.part_id} onSelect={(o) => { if (o) onPart(i, o.id); else setLine(i, { part_id: '', unit_price: 0 }); }} placeholder="— caută piesa —" autoFocus={focusIdx === i} onFocused={() => setFocusIdx(null)} /></td>
               <td><input type="number" min={1} value={l.qty} onChange={(e) => setLine(i, { qty: Number(e.target.value) })} /></td>
               <td><input type="number" min={0} step="0.01" value={l.unit_price} onChange={(e) => setLine(i, { unit_price: Number(e.target.value) })} /></td>
               <td className="num">{(l.qty * l.unit_price).toFixed(2)}</td>
@@ -56,7 +62,7 @@ export default function MagazinClient({ shopId, clients, parts }: { shopId: numb
         </tbody>
       </table>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
-        <button className="btn" onClick={() => setLines((ls) => [...ls, { part_id: '', qty: 1, unit_price: 0 }])}>+ Adaugă poziție</button>
+        <button className="btn" onClick={() => { setLines((ls) => [...ls, { part_id: '', qty: 1, unit_price: 0 }]); setFocusIdx(lines.length); }}>+ Adaugă poziție</button>
         <strong>Total: {total.toFixed(2)} lei</strong>
       </div>
       {err && <div className="alert danger" style={{ marginTop: 12 }}>{err}</div>}

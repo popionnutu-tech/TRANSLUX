@@ -16,6 +16,10 @@ echo "===== $(TZ=Europe/Chisinau date '+%F %T') | ziua $Y =====" >> nightly.log
 node --env-file=.env gps-worker.mjs "$Y" --write >> nightly.log 2>&1
 node --env-file=.env fuel-worker.mjs --write >> nightly.log 2>&1
 node --env-file=.env price-worker.mjs 7 >> nightly.log 2>&1
+# Tipul camionului din recepțiile TLX: cine a descărcat carburant în ultimele
+# 60 de zile e cisternă (Ion, 08.09). Înainte de trip-live/trip-worker, ca
+# potrivirea cu recepțiile să vadă flota completă.
+node --env-file=.env truck-profile-sync.mjs --write >> nightly.log 2>&1
 node --env-file=.env wialon-worker.mjs "$Y" --write >> nightly.log 2>&1
 # Metricile curselor de camioane — DUPĂ wialon-worker: are nevoie de aceleași
 # track-uri, iar km-ii se calculează cu același nucleu (km-core), nu cu altul.

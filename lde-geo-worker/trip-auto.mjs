@@ -169,3 +169,48 @@ export function deciziaTlx(cursa, receptii, statii, folosite = new Set(), acumMs
     tlx_receipt_liters: aleasa.volume == null ? null : Number(aleasa.volume),
   };
 }
+
+// ── Tipul camionului din recepțiile TLX (Ion, 08.09: «automat, auto care au
+// descărcări în ultimele 1–2 luni la TLX să se fixeze ca cisterne») ──
+export const ZILE_CISTERNA_DIN_TLX = 60;
+
+/**
+ * Ce trebuie scris ca flota TRANSLUX să reflecte cine a descărcat carburant la TLX.
+ * @param receptii  [{ nr_auto, unloaded_at, created_at, is_deleted }] din TLX
+ * @param vehicule  [{ id, plate_number, directions }] din TRANSLUX (active)
+ * @param profiluri [{ vehicle_id, fleet_type }] din lde_truck_profile
+ * @returns { cisterneNoi: [{ vehicleId, plate }], directiiDeAdaugat: [{ vehicleId, plate, directions }],
+ *            conflicte: [{ plate, fleetType }], necunoscute: [plăcuțe din TLX fără mașină în TRANSLUX] }
+ * Un «zernovoz» cu recepții de carburant NU se răstoarnă automat — e un conflict
+ * de spus omului, nu o decizie de luat noaptea: dispecerul a pus tipul cu mâna.
+ */
+export function planCisterneDinTlx(receptii, vehicule, profiluri, acumMs = Date.now()) {
+  const deLa = acumMs - ZILE_CISTERNA_DIN_TLX * 86400e3;
+  const placiCuDescarcari = new Set();
+  for (const r of receptii || []) {
+    if (r.is_deleted) continue;
+    const t = momentulReceptiei(r);
+    if (t === null || t < deLa || t > acumMs + 86400e3) continue;
+    const p = normPlaca(r.nr_auto);
+    if (p) placiCuDescarcari.add(p);
+  }
+  const vehDupaPlaca = new Map((vehicule || []).map((v) => [normPlaca(v.plate_number), v]));
+  const profilDupaVehicul = new Map((profiluri || []).map((p) => [p.vehicle_id, p.fleet_type]));
+
+  const cisterneNoi = [];
+  const directiiDeAdaugat = [];
+  const conflicte = [];
+  const necunoscute = [];
+  for (const placa of [...placiCuDescarcari].sort()) {
+    const v = vehDupaPlaca.get(placa);
+    if (!v) { necunoscute.push(placa); continue; }
+    const tip = profilDupaVehicul.get(v.id) ?? null;
+    if (tip === null) cisterneNoi.push({ vehicleId: v.id, plate: v.plate_number });
+    else if (tip !== 'cisterna') conflicte.push({ plate: v.plate_number, fleetType: tip });
+    const directii = Array.isArray(v.directions) ? v.directions : [];
+    if (!directii.includes('camioane')) {
+      directiiDeAdaugat.push({ vehicleId: v.id, plate: v.plate_number, directions: [...directii, 'camioane'] });
+    }
+  }
+  return { cisterneNoi, directiiDeAdaugat, conflicte, necunoscute };
+}

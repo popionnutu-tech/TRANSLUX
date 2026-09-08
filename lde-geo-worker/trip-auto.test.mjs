@@ -1,7 +1,7 @@
 // Teste pentru stările automate (node --test lde-geo-worker/trip-auto.test.mjs).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { deciziaGps, deciziaTlx, statiaPunctului, razaEfectiva, normPlaca, inMoldova } from './trip-auto.mjs';
+import { deciziaGps, deciziaTlx, statiaPunctului, razaEfectiva, normPlaca, inMoldova, planCisterneDinTlx } from './trip-auto.mjs';
 
 const ACUM = Date.parse('2026-09-08T12:00:00Z');
 const iso = (min) => new Date(ACUM + min * 60e3).toISOString();
@@ -161,4 +161,26 @@ test('GPS: dieselul trece «la descărcare» doar în Moldova; biodieselul și l
   assert.equal(deciziaGps(cursa({ cargo: 'biodiesel', unloadPoint: RUSE, unload_seen_at: iso(-20) }), stand(IN_RUSE), ACUM)?.status, 'la_descarcare');
   assert.equal(deciziaGps(cursa({ cargo: 'cereale', unloadPoint: RUSE, unload_seen_at: iso(-20) }), stand(IN_RUSE), ACUM)?.status, 'la_descarcare');
   assert.equal(deciziaGps(cursa({ cargo: 'diesel', unload_seen_at: iso(-20) }), stand(IN_RAZA), ACUM)?.status, 'la_descarcare');
+});
+
+test('planCisterneDinTlx: descărcările din ultimele 60 de zile fac cisterne; restul nu', () => {
+  const veh = [
+    { id: 'v1', plate_number: 'HMK145', directions: ['camioane'] },
+    { id: 'v2', plate_number: 'LJN075', directions: [] },
+    { id: 'v3', plate_number: 'BNQ085', directions: ['camioane'] },
+    { id: 'v4', plate_number: 'KWX620', directions: ['camioane'] },
+  ];
+  const prof = [{ vehicle_id: 'v3', fleet_type: 'zernovoz' }, { vehicle_id: 'v4', fleet_type: 'cisterna' }];
+  const r = (nr, zileInUrma, extra = {}) => ({ nr_auto: nr, unloaded_at: new Date(ACUM - zileInUrma * 86400e3).toISOString(), created_at: null, is_deleted: false, ...extra });
+  const plan = planCisterneDinTlx([
+    r('HMK 145', 10), r('LJN 075', 4), r('BNQ 085', 30), r('KWX 620', 1),
+    r('MOW 218', 120),                 // prea veche
+    r('BRAY 589', 5),                  // nu există în TRANSLUX
+    r('RWN 169', 3, { is_deleted: true }),
+    r(null, 2),
+  ], veh, prof, ACUM);
+  assert.deepEqual(plan.cisterneNoi.map((x) => x.plate), ['HMK145', 'LJN075']);
+  assert.deepEqual(plan.directiiDeAdaugat, [{ vehicleId: 'v2', plate: 'LJN075', directions: ['camioane'] }]);
+  assert.deepEqual(plan.conflicte, [{ plate: 'BNQ085', fleetType: 'zernovoz' }]);
+  assert.deepEqual(plan.necunoscute, ['BRAY589']);
 });

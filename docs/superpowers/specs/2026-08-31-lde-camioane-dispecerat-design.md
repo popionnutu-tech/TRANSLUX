@@ -260,3 +260,20 @@ Decizii:
   recentă». Țara punctului vine din `lde_dispatch_points.country`.
 - Banda arată scena sub numele șoferului (în locul vechiului «acum: …»); API-ul
   extern pentru mini app-ul TLX întoarce `scena` și `tara` lângă `unde`.
+
+## Completare 08.09.2026 — tipul camionului din recepțiile TLX
+
+Ion: «automat, auto care au descărcări în ultimele 1–2 luni la TLX să se fixeze ca
+cisterne». Nomenclatoarele s-au comparat pe 08.09: 18 camioane pe ambele părți, 6 fără
+tip sau în afara flotei în TRANSLUX (LJN075, HMK145, RWN169, BNQ076, BNQ088, MOW218),
+corectate pe loc.
+
+Decizii:
+- `truck-profile-sync.mjs`, în rulajul nocturn, după fuel-worker: recepțiile TLX din
+  ultimele 60 de zile (după `unloaded_at`, altfel `created_at`) → `lde_truck_profile
+  .fleet_type = 'cisterna'` unde tipul lipsea, `directions += 'camioane'` unde mașina
+  exista dar nu era în flotă. Regula e `planCisterneDinTlx` (trip-auto.mjs, testată).
+- Un «zernovoz» pus de om NU se răstoarnă automat: apare în log ca CONFLICT (cazul
+  BNQ085: zernovoz în TRANSLUX, recepții diesel în mar–apr în TLX).
+- Plăcuțele din TLX fără mașină în TRANSLUX se scriu în log ca necunoscute (BRAY 589,
+  MMQ 790, RZN 768 pe 08.09) — mașina nu se inventează.

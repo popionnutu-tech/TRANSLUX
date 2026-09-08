@@ -1,7 +1,7 @@
 ---
 kit: spec
 name: peron-app-android
-title: Aplicație Android pentru operatorul de peron Chișinău (curse + curățenie)
+title: Aplicație Android pentru operatorul de peron Chișinău (curse, poza șoferului, curățenie)
 created: 2026-09-08
 sessions:
   - id: S01
@@ -17,7 +17,7 @@ sessions:
     gates: [build-bot, test-bot]
     approve: []
   - id: S04
-    title: Bot API — POST /app/v1/cleaning-photo și ștergerea pozelor după 30 de zile
+    title: Bot API — POST /app/v1/cleaning-photo, POST /app/v1/driver-photo și ștergerea pozelor după 30 de zile
     gates: [build-bot, test-bot]
     approve: []
   - id: S05
@@ -25,7 +25,7 @@ sessions:
     gates: [typecheck-app]
     approve: []
   - id: S06
-    title: Aplicația — ecranul de cursă pe un singur ecran, cu GPS automat
+    title: Aplicația — ecranul de cursă pe un singur ecran, cu poza șoferului și GPS automat
     gates: [typecheck-app]
     approve: []
   - id: S07
@@ -38,7 +38,7 @@ sessions:
     approve: []
 ---
 
-# Aplicație Android pentru operatorul de peron Chișinău (curse + curățenie)
+# Aplicație Android pentru operatorul de peron Chișinău (curse, poza șoferului, curățenie)
 
 ## De ce
 
@@ -51,13 +51,24 @@ lucreze în mare parte prin poze și curățenia la peron». După: o cursă = u
 totul pre-completat, GPS luat singur, pozele de curățenie făcute doar cu camera
 aplicației și judecate de Claude pe loc. Botul rămâne pentru Bălți și celelalte roluri.
 
-Poza șoferului (uniformă / bărbierit / aspect, cu verdict propus de model) e a doua
-specă, pornită imediat după aceasta. Nu intră aici.
+Poza șoferului intră în aceeași versiune (Ion, 08.09, la mockup): «conformitate șofer
+— dacă este în uniformă sau nu, aspect îngrijit sau nu — face OCR». Operatorul face
+poza șoferului la cursă, modelul propune verdictul, operatorul confirmă sau corectează
+cu o atingere. Nota de spălare interior dispare din aplicație («spălare interior
+scoate»).
 
 ## Decizii fixate înainte de start
 
 Răspunsurile lui Ion (08.09.2026):
-- Prima versiune: **curse + curățenie**. Poza șoferului — specă separată, după.
+- Prima versiune: **curse + curățenie + poza șoferului** (inițial poza șoferului era
+  amânată; la mockup Ion a cerut-o în locul butoanelor de conformitate).
+- **Conformitate șofer nu se mai bifează manual.** La fiecare cursă operatorul face
+  poza șoferului cu camera; modelul propune `uniform_ok` și `exterior_ok` (aspect
+  îngrijit: bărbierit, curat); operatorul confirmă sau răstoarnă fiecare verdict cu
+  o atingere. Ce trimite aplicația în raport e verdictul confirmat de operator, nu al
+  modelului; ambele se păstrează.
+- **Nota de spălare interior nu se mai cere.** Rapoartele din aplicație au
+  `wash_grade = null`. Botul o cere în continuare (Bălți).
 - GPS la peste 150 m de stație: **se acceptă și se marchează încălcarea**, ca azi.
   Nu blochează raportarea.
 - Fără internet la trimitere: **mesaj de eroare și reîncearcă**. Datele rămân pe ecran.
@@ -70,11 +81,10 @@ Răspunsurile lui Ion (08.09.2026):
   «informația se stochează și va fi penalizată». «Trebuie să fie măturat»: praf,
   nisip, pietriș pe pavaj = MURDAR.
 - Numai poze făcute pe loc: aplicația deschide **camera**, galeria nu există în app.
-- Toate verificările de azi rămân în ecranul de cursă: ajută la încărcat, uniformă,
-  aspect, auto curat, reclamă (cu «a fost reparat?» când există sarcină deschisă),
-  nota de spălare 1/2/3, clima în sezon (o dată pe lună per auto). Toate cu «OK»
-  bifat implicit; operatorul schimbă doar ce nu e în regulă. Nota de spălare rămâne
-  obligatorie (fără valoare implicită), ca azi.
+- Verificările manuale rămase în ecranul de cursă: ajută la încărcat, auto curat,
+  reclamă (cu «a fost reparat?» când există sarcină deschisă), clima în sezon (o dată
+  pe lună per auto). Toate cu «OK» bifat implicit; operatorul schimbă doar ce nu e în
+  regulă.
 
 Decise de mine (nu se reevaluează în timpul rulării):
 - **API-ul aplicației trăiește în bot** (`apps/bot`, Railway), pe serverul HTTP care
@@ -133,10 +143,21 @@ Decise de mine (nu se reevaluează în timpul rulării):
 - Modelul pentru poze: `claude-opus-5`, `output_config: { effort: 'low', format:
   json_schema }`, promptul și criteriile deja scrise în
   `apps/bot/src/services/cleaningCheck.ts`. Nu se rescriu.
+- **Poza șoferului:** tabel nou `driver_appearance_checks` (migrația 328), poza în
+  `report-photos/soferi/<data>/<trip>-<ts>.jpg`, aceeași ștergere după 30 de zile.
+  Promptul modelului (nou, în `apps/bot/src/services/driverCheck.ts`) răspunde
+  `uniforma: boolean`, `aspect_ingrijit: boolean`, `persoana_vizibila: boolean`,
+  `descriere`. «Uniformă» = îmbrăcăminte de serviciu TRANSLUX; descrierea exactă a
+  uniformei (culoare, însemne) o dă Ion — până atunci promptul folosește constanta
+  `DRIVER_UNIFORM_DESCRIPTION` din `config.ts` cu textul «îmbrăcăminte de serviciu
+  cu însemne TRANSLUX» și verdictul e doar propunere. Fața șoferului e dată
+  personală: pozele nu se arată nicăieri în admin, se șterg la 30 de zile, iar
+  acordul șoferilor îl obține Ion (nu e treaba kitului).
+- Raportul din aplicație leagă poza: `reports.driver_check_id` → `driver_appearance_checks.id`
+  (nullable; la ABSENT nu există poză).
 
 ## Nu intră în scop
 
-- Poza șoferului și verdictul model pentru uniformă / bărbierit / aspect (specă separată).
 - Bălți. Aplicația refuză login pentru orice user cu `point != 'CHISINAU'`.
 - Coadă offline, sincronizare în fundal, notificări push.
 - Play Store, iOS, actualizare automată a aplicației.
@@ -179,6 +200,10 @@ Decise de mine (nu se reevaluează în timpul rulării):
   (per placă) și afișează întrebarea «a fost reparat?» doar când operatorul alege
   «Totul OK» la reclamă pentru o mașină cu sarcină deschisă — aceeași logică ca
   `report.ts:640–712`.
+- **Descrierea uniformei TRANSLUX lipsește.** Fără ea modelul judecă «uniformă» după
+  însemne vizibile TRANSLUX și haine de serviciu; verdictul e propunere, operatorul
+  confirmă. Ion completează `DRIVER_UNIFORM_DESCRIPTION` (sau dă o poză de referință
+  pentru a doua iterație). Nu e HOLD.
 - **Migrația 328 nu se aplică de kit.** S01 scrie fișierul și se oprește. Sesiunile
   S02–S04 compilează fără baza nouă (tipurile vin din `packages/db`), dar orice
   test manual pe prod înainte de aplicare va da eroare de coloană — S08 nu face
@@ -201,11 +226,16 @@ Decise de mine (nu se reevaluează în timpul rulării):
       — exact ca după un raport din bot. Pe o cursă `locked` → 409.
 - [ ] Pe prima cursă fără setul DIMINEATA complet → 409 `CLEANING_REQUIRED`; la fel pe
       16:25 fără setul ZIUA.
+- [ ] `POST /app/v1/driver-photo` cu un JPEG base64 scrie poza în
+      `report-photos/soferi/…`, o linie în `driver_appearance_checks` cu verdictele
+      modelului și întoarce `driverCheckId`; `POST /app/v1/report` pe OK fără
+      `driverCheckId` → 400.
 - [ ] `POST /app/v1/cleaning-photo` cu un JPEG base64 scrie poza în
       `report-photos/curatenie/<data>/<slot>/<zona>-<ts>.jpg`, o linie în
       `peron_cleaning_checks` cu `source = 'app'` și întoarce verdictul.
-- [ ] Aplicația: login cu cod → ecranul zilei → cursa `next` → un singur ecran cu tot →
-      «Trimite» → rezumat → înapoi pe grilă cu cursa bifată. Fără să trimită locația
+- [ ] Aplicația: login cu cod → ecranul zilei → cursa `next` → un singur ecran cu tot,
+      inclusiv poza șoferului cu verdictele propuse → «Trimite» → rezumat → înapoi pe
+      grilă cu cursa bifată. Niciun câmp de notă de spălare. Fără să trimită locația
       manual. Pe telefon: `npx expo run:android` sau APK-ul din EAS pornește și
       parcurge fluxul pe prod (verificat de Ion, nu de kit).
 - [ ] Butonul «Poze curățenie» deschide camera (nu galeria), cere pe rând 3 zone, arată
@@ -232,6 +262,31 @@ compilează, iar sesiunea se oprește înainte de a atinge baza.
    alter table reports add column if not exists location_lat double precision;
    alter table reports add column if not exists location_lon double precision;
    alter table reports add column if not exists location_accuracy_m integer;
+
+   -- Poza șoferului la cursă: verdictul modelului și cel confirmat de operator
+   create table if not exists driver_appearance_checks (
+     id uuid primary key default gen_random_uuid(),
+     check_date date not null,
+     trip_id uuid not null references trips(id),
+     driver_id uuid references drivers(id),
+     storage_key text not null,
+     person_visible boolean,
+     uniform_ok_model boolean,
+     groomed_ok_model boolean,
+     uniform_ok boolean,          -- confirmat de operator
+     groomed_ok boolean,          -- confirmat de operator
+     description text,
+     model text,
+     location_lat double precision,
+     location_lon double precision,
+     photo_deleted_at timestamptz,
+     created_by_user uuid references users(id),
+     created_at timestamptz not null default now()
+   );
+   create index if not exists idx_driver_appearance_checks_day
+     on driver_appearance_checks (check_date, trip_id);
+   alter table driver_appearance_checks enable row level security;
+   alter table reports add column if not exists driver_check_id uuid references driver_appearance_checks(id);
 
    -- peron_cleaning_checks: sursa, coordonatele, ștergerea pozei după 30 de zile
    alter table peron_cleaning_checks add column if not exists source text not null default 'bot'
@@ -266,8 +321,9 @@ compilează, iar sesiunea se oprește înainte de a atinge baza.
    ```
 3. În `packages/db/src/types.ts`: la `Report` adaugă `source: 'bot' | 'app'`,
    `location_lat: number | null`, `location_lon: number | null`,
-   `location_accuracy_m: number | null`. Adaugă interfețele `PeronAppLinkCode`,
-   `PeronAppSession`, `PeronCleaningCheck` (mută tipul `CleaningCheckRow` din
+   `location_accuracy_m: number | null`, `driver_check_id: string | null`. Adaugă
+   interfețele `PeronAppLinkCode`, `PeronAppSession`, `DriverAppearanceCheck`,
+   `PeronCleaningCheck` (mută tipul `CleaningCheckRow` din
    `apps/bot/src/services/db.ts` aici, cu `source` și `photo_deleted_at`, plus
    tipurile `CleaningSlot`, `CleaningZone`, `CleaningVerdict`). Botul importă de aici
    și șterge definițiile locale; `createReport` din bot primește `source?: 'bot' | 'app'`.
@@ -374,10 +430,12 @@ raport din bot (digest, loading board, sarcină reclamă, validarea zilei).
    ```ts
    { tripId, status: 'OK' | 'ABSENT', passengersCount: number | null,   // 0–27 la OK
      driverId: string | null, vehicleId: string | null, assignmentChanged: boolean,
-     loadingHelpOk: boolean, uniformOk: boolean, exteriorOk: boolean, autoCurat: boolean,
+     loadingHelpOk: boolean, autoCurat: boolean,
+     driverCheckId: string | null,            // poza șoferului (S04); null la ABSENT
+     uniformOk: boolean, exteriorOk: boolean, // verdictele confirmate de operator
      reclamaOk: boolean, reclamaProblem: 'bus' | 'panou_ruta' | 'ambele' | null,
      reclamaRepairConfirmed: boolean, reclamaTaskId: string | null,
-     washGrade: 1 | 2 | 3 | null, acStatus: 'works'|'broken'|'none'|null,
+     acStatus: 'works'|'broken'|'none'|null,
      heatStatus: 'works'|'broken'|'none'|null,
      lat: number | null, lon: number | null, accuracyM: number | null }
    ```
@@ -392,10 +450,13 @@ raport din bot (digest, loading board, sarcină reclamă, validarea zilei).
      lat/lon lipsesc; altfel `haversineDistance(...) <= radiusM`;
    - `late = minutesLate(departure_time)` (utils), ca în bot;
    - la `ABSENT`: toate câmpurile de calitate se scriu `null`, `passengers_count null`;
-   - la `OK` fără `washGrade` → 400 `WASH_GRADE_REQUIRED`; `passengersCount` în 0–27
-     → altfel 400;
-   - `createReport({... , source: 'app', location_lat, location_lon,
-     location_accuracy_m })`; 23505 → 409 `ALREADY_REPORTED`;
+   - la `OK` fără `driverCheckId` (sau cu un id inexistent / de altă zi) → 400
+     `DRIVER_PHOTO_REQUIRED`; `passengersCount` în 0–27 → altfel 400;
+     `wash_grade` se scrie mereu `null`;
+   - `createReport({... , source: 'app', driver_check_id, wash_grade: null,
+     location_lat, location_lon, location_accuracy_m })`; după inserare,
+     `update driver_appearance_checks set uniform_ok, groomed_ok` cu valorile
+     confirmate; 23505 → 409 `ALREADY_REPORTED`;
    - dacă `assignmentChanged` și există repartizare: `updateAssignmentDriverVehicle`
      ca în `report.ts:540–548`;
    - efecte secundare, în aceeași ordine ca `report.ts:745–830`: `addViolation` (dacă
@@ -409,8 +470,8 @@ raport din bot (digest, loading board, sarcină reclamă, validarea zilei).
    - răspuns: `{ ok: true, summary: string, allDone: boolean }` cu `summary` construit
      exact ca textul din `report.ts:848–866` («☑ 14:30 — 12 pas. | Ion P. · spălare 2
      ⚠ uniformă»).
-3. Teste (`reportRules.test.ts`): validare corp (lipsă washGrade la OK; 28 pasageri;
-   ABSENT fără cifră e valid), `location_ok` (exempt → null; fără coordonate → false;
+3. Teste (`reportRules.test.ts`): validare corp (lipsă driverCheckId la OK; 28
+   pasageri; ABSENT fără cifră și fără poză e valid), `location_ok` (exempt → null; fără coordonate → false;
    la 50 m → true; la 400 m → false), poarta de curățenie (prima cursă + set incomplet
    → CLEANING_REQUIRED; a doua cursă → nu cere).
 
@@ -429,13 +490,13 @@ funcțiile din `services/*`), `apps/admin`.
 
 ---
 
-## S04 — Bot API — POST /app/v1/cleaning-photo și ștergerea pozelor după 30 de zile
+## S04 — Bot API — POST /app/v1/cleaning-photo, POST /app/v1/driver-photo și ștergerea pozelor după 30 de zile
 
 **Depinde de:** S02 — router și auth; S01 — coloanele `source`, `location_*`,
 `photo_deleted_at`.
 
-**Scop:** o poză din aplicație e salvată, judecată de model și înregistrată la fel ca
-una din bot, iar fișierele mai vechi de 30 de zile dispar singure.
+**Scop:** pozele din aplicație (curățenie și șofer) sunt salvate, judecate de model și
+înregistrate, iar fișierele mai vechi de 30 de zile dispar singure.
 
 **Pași:**
 1. În `apps/bot/src/services/cleaningCheck.ts` separă `processCleaningPhoto` în două:
@@ -447,23 +508,41 @@ una din bot, iar fișierele mai vechi de 30 de zile dispar singure.
    'VECEU', imageBase64, lat, lon }` → 400 dacă base64 nu e JPEG (primele 3 octeți
    `FF D8 FF`) sau depășește 6 MB decodat → `checkCleaningBuffer(..., source: 'app')`
    → `{ ok: true, verdict, problems, description, zonesDone: string[] }`.
-3. Scheduler `schedulePeronPhotoRetention()` în `scheduler.ts`: zilnic la 03:10
-   Chișinău (același tipar ca `scheduleDailyDigest`): selectează din
-   `peron_cleaning_checks` liniile cu `created_at < now() - 30 zile` și
-   `photo_deleted_at is null`, șterge `storage_key` din bucket-ul `report-photos`
+3. `apps/bot/src/services/driverCheck.ts`: `analyzeDriverPhoto(jpegBase64)` →
+   Claude `claude-opus-5`, `effort: 'low'`, `json_schema` cu `persoana_vizibila`,
+   `uniforma`, `aspect_ingrijit`, `descriere`. Prompt (română): inspector TRANSLUX;
+   uniforma = `config.DRIVER_UNIFORM_DESCRIPTION`; «aspect îngrijit» = bărbierit sau
+   barbă îngrijită, păr aranjat, haine curate; dacă nu se vede o persoană de la
+   brâu în sus → `persoana_vizibila: false`. Orice eșec → `{ verdict: 'EROARE' }`
+   (aplicația arată verdicte «necunoscut», operatorul le bifează manual).
+4. `POST /app/v1/driver-photo` `{ tripId, driverId, imageBase64, lat, lon }` →
+   validare JPEG ca la curățenie → upload `report-photos/soferi/<data>/<tripId>-<ts>.jpg`
+   → `analyzeDriverPhoto` → insert `driver_appearance_checks` (câmpurile `*_model`
+   completate, `uniform_ok`/`groomed_ok` inițial egale cu cele ale modelului) →
+   `{ ok: true, driverCheckId, personVisible, uniformOk, groomedOk, description }`.
+   `personVisible: false` → 200 cu `code: 'NO_PERSON'` și fără insert (aplicația
+   cere refacerea).
+5. Scheduler `schedulePeronPhotoRetention()` în `scheduler.ts`: zilnic la 03:10
+   Chișinău (același tipar ca `scheduleDailyDigest`): pentru `peron_cleaning_checks`
+   și `driver_appearance_checks`, liniile cu `created_at < now() - 30 zile` și
+   `photo_deleted_at is null`: șterge `storage_key` din bucket-ul `report-photos`
    (`.remove([...])` în loturi de 100), pune `photo_deleted_at = now()`. Loghează
    numărul șters. Înregistrează în `index.ts` lângă celelalte schedulere.
-4. Test Vitest pentru funcția pură `isJpeg(buffer)` și pentru calculul pragului de
-   30 de zile (`retentionCutoff(now)`).
+6. Test Vitest pentru funcția pură `isJpeg(buffer)`, pentru calculul pragului de
+   30 de zile (`retentionCutoff(now)`) și pentru parsarea răspunsului modelului
+   (`parseDriverAnswer`: câmp lipsă → EROARE).
 
-**Fișiere:** `apps/bot/src/services/cleaningCheck.ts`, `apps/bot/src/api/cleaning.ts`,
+**Fișiere:** `apps/bot/src/services/cleaningCheck.ts`, `apps/bot/src/services/driverCheck.ts`,
+`apps/bot/src/api/cleaning.ts`, `apps/bot/src/api/driverPhoto.ts`,
 `apps/bot/src/api/cleaning.test.ts`, `apps/bot/src/scheduler.ts`,
-`apps/bot/src/index.ts`, `apps/bot/src/services/db.ts` (`createCleaningCheck` primește
-`source`, `location_lat/lon`; funcție nouă `getExpiredCleaningPhotos`,
-`markCleaningPhotosDeleted`).
+`apps/bot/src/index.ts`, `apps/bot/src/config.ts` (`DRIVER_UNIFORM_DESCRIPTION`),
+`apps/bot/src/services/db.ts` (`createCleaningCheck` primește `source`,
+`location_lat/lon`; funcții noi `createDriverCheck`, `getDriverCheck`,
+`confirmDriverCheck`, `getExpiredPhotos`, `markPhotosDeleted`).
 
 **Gata când:** build-bot și test-bot verzi; `conversations/cleaningPhotos.ts` compilează
-neschimbat; în `index.ts` apare `schedulePeronPhotoRetention()`.
+neschimbat; în `index.ts` apare `schedulePeronPhotoRetention()`; `driverCheck.ts` nu
+conține nicio descriere inventată a uniformei în afara constantei din config.
 
 **Gate-uri:** build-bot, test-bot.
 
@@ -522,9 +601,10 @@ root-ul nu s-a schimbat (`git status` arată doar `peron-android/` și `.gitigno
 
 ---
 
-## S06 — Aplicația — ecranul de cursă pe un singur ecran, cu GPS automat
+## S06 — Aplicația — ecranul de cursă pe un singur ecran, cu poza șoferului și GPS automat
 
-**Depinde de:** S05 — client API, ecranul zilei; S03 — corpul lui `/report`.
+**Depinde de:** S05 — client API, ecranul zilei; S03 — corpul lui `/report`; S04 —
+`/driver-photo`.
 
 **Scop:** operatorul raportează o cursă de pe un singur ecran, cu 2–3 atingeri în cazul
 obișnuit, iar locația pleacă singură.
@@ -539,19 +619,27 @@ obișnuit, iar locația pleacă singură.
      cu «✅ OK» (implicit selectat) și «✏️ Schimbă» → două liste derulante (șoferi
      disponibili, auto disponibile) + «+ Adaugă auto» (câmp placă → `postVehicle`)
      + «Fără șofer» / «Fără auto». Fără repartizare → listele apar direct.
+   - **Poza șoferului:** card cu «📷 Fă poza șoferului» → `CameraView` (aceeași
+     componentă ca la curățenie, S07 o mută în `src/camera.ts`; în S06 se scrie aici
+     și S07 o refolosește), comprimare 1280 px / JPEG 0.8, `postDriverPhoto`. După
+     răspuns: miniatura pozei și două verdicte mari «Uniformă: da/nu», «Aspect
+     îngrijit: da/nu», verzi când e «da», roșii când e «nu»; atingerea unui verdict
+     îl răstoarnă (operatorul corectează modelul); «Refă poza». `NO_PERSON` → «Nu se
+     vede șoferul, refă poza». EROARE → verdictele apar gri «necunoscut» și
+     operatorul le bifează manual. Fără poză nu se poate trimite un raport OK
+     (Absent nu cere poză).
    - **Calitate** (toate implicit OK, atingere = schimbă): «Ajută la încărcat»
-     Da/Nu; «Conformitate șofer» Totul OK / Fără uniformă / Aspect neîngrijit /
-     Ambele; «Auto exterior curat» Da/Nu; «Reclamă» Totul OK / Doar autobuz / Doar
+     Da/Nu; «Auto exterior curat» Da/Nu; «Reclamă» Totul OK / Doar autobuz / Doar
      panou rută / Ambele — dacă auto ales are `openReclama[plate]` și se alege
      «Totul OK», apare cardul «🔧 Era marcat defect: … A fost reparat?» cu «Da,
      reparat» / «Nu, încă defect» (Nu → forțează alegerea unui defect), ca în
-     `report.ts:664–712`; «Notă spălare» 1 / 2 / 3, obligatoriu, fără implicit, cu
-     etichetele din bot; «Clima» apare doar dacă `climate[vehicleId]` ≠ null:
+     `report.ts:664–712`; fără notă de spălare; «Clima» apare doar dacă
+     `climate[vehicleId]` ≠ null:
      «❄️ Aerul condiționat» sau «🔥 Căldura» — Lucrează / Stricat / Nu are.
    - **Locație:** rând mic «📍 se caută…» → «📍 42 m de stație» / «📍 fără GPS»;
      `expo-location` pornește la montarea ecranului (`getCurrentPositionAsync`,
      `accuracy: High`, timeout 15 s), fără nicio acțiune a operatorului.
-   - **Trimite:** dezactivat până la cifră validă (sau Absent) și nota de spălare;
+   - **Trimite:** dezactivat până la cifră validă și poza șoferului (sau Absent);
      la apăsare → `postReport`; succes → ecran/alertă cu `summary` și, dacă `allDone`,
      textul «✦ MISIUNE ÎNDEPLINITĂ …» din bot; apoi înapoi pe `day`.
    - Erori: `OFFLINE` → «Fără internet. Datele rămân aici, apasă din nou când revine
@@ -566,9 +654,11 @@ obișnuit, iar locația pleacă singură.
 `src/components/*` (butoane de opțiune, card).
 
 **Gata când:** typecheck-app verde; `buildReport` produce, pentru starea «Absent», un
-corp cu `status: 'ABSENT'` și toate câmpurile de calitate `null`; pentru starea
-implicită cu 12 pasageri și spălare 2 → toate `*_ok: true`, `reclamaOk: true`,
-`washGrade: 2`; ecranul nu are niciun buton de «trimite locația».
+corp cu `status: 'ABSENT'`, `driverCheckId: null` și toate câmpurile de calitate
+`null`; pentru starea implicită cu 12 pasageri și verdictele modelului confirmate →
+toate `*_ok: true`, `reclamaOk: true`, `driverCheckId` setat; corpul nu conține
+`washGrade`; ecranul nu are niciun buton de «trimite locația» și niciun buton
+manual de uniformă/aspect în afara verdictelor de sub poză.
 
 **Gate-uri:** typecheck-app.
 

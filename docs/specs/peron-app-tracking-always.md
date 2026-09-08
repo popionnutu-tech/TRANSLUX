@@ -45,9 +45,14 @@ ca operatorul să facă ceva și fără ca aplicația să fie deschisă.
   ping-uri. Fereastra și stația se citesc din `AsyncStorage` (salvate la ultimul `/day`),
   ca task-ul să nu depindă de rețea; dacă lipsesc, cere `/day` cu token-ul din
   SecureStore.
-- **Repornirea telefonului:** `startOnBoot: true` la background fetch acoperă
-  re-armarea în cel mult 15 min după boot; în plus, permisiunea `RECEIVE_BOOT_COMPLETED`
-  în `app.json` (expo-background-fetch o cere). Nu se scrie cod nativ.
+- **Repornirea telefonului — corectat după S02 (HOLD: spec-wrong, acceptat de dirijor,
+  varianta 1 din propunere):** `expo-location` nu lasă serviciul cu notificare să
+  pornească din fundal (`LocationModule.kt:267`), deci după boot urmărirea completă
+  reîncepe **la prima deschidere a aplicației**; până atunci Android livrează doar
+  locații rare (câteva pe oră) dacă repornirea a fost în fereastră. Re-armarea din
+  fundal rămâne pentru golirea cozii și oprirea în afara ferestrei. Cod nativ pentru
+  boot (varianta 3) se face doar dacă raportul de seară arată goluri reale după
+  reporniri.
 - **Bateria:** la login, după permisiuni, ecranul «Ultimul pas» explică și deschide
   setările de optimizare a bateriei pentru aplicație (`expo-intent-launcher`,
   `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` cu `package:md.translux.peron`; dacă

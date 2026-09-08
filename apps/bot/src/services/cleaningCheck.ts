@@ -7,11 +7,11 @@
 // pietrișul pe pavaj înseamnă direct MURDAR, nu «atenție».
 import Anthropic from '@anthropic-ai/sdk';
 import { config } from '../config.js';
-import { getSupabase } from '../supabase.js';
+import type { ReportSource } from '@translux/db';
 import { createCleaningCheck, type CleaningSlot, type CleaningZone, type CleaningVerdict } from './db.js';
+import { uploadReportPhoto } from './photoStorage.js';
 
 const MODEL = 'claude-opus-5';
-const BUCKET = 'report-photos';
 
 export const CLEANING_ZONES: CleaningZone[] = ['PERON', 'PIETONI', 'VECEU'];
 
@@ -143,9 +143,53 @@ async function downloadTelegramFile(filePath: string): Promise<Buffer> {
   return Buffer.from(await res.arrayBuffer());
 }
 
+export interface CleaningBufferInput {
+  checkDate: string;
+  slot: CleaningSlot;
+  zone: CleaningZone;
+  jpeg: Buffer;
+  userId: string;
+  source: ReportSource;
+  /** Telegram: file_id-ul pozei; aplicația nu are așa ceva → '' (coloana e not null). */
+  telegramFileId?: string;
+  lat?: number | null;
+  lon?: number | null;
+}
+
 /**
- * Pasul complet pentru o poză: descarcă din Telegram, urcă în Storage, judecă,
- * scrie linia în peron_cleaning_checks. Rulează în conversation.external().
+ * Pasul comun pentru o poză deja în memorie (din Telegram sau din aplicație):
+ * urcă în Storage, judecă, scrie linia în peron_cleaning_checks. Nu aruncă la
+ * upload eșuat (verdictul contează); aruncă dacă insert-ul pică.
+ */
+export async function checkCleaningBuffer(input: CleaningBufferInput): Promise<CleaningResult> {
+  const storageKey = `curatenie/${input.checkDate}/${input.slot}/${input.zone}-${Date.now()}.jpg`;
+  await uploadReportPhoto(storageKey, input.jpeg);
+
+  const result = await analyzeCleaningPhoto(input.zone, input.jpeg.toString('base64'));
+
+  await createCleaningCheck({
+    check_date: input.checkDate,
+    slot: input.slot,
+    zone: input.zone,
+    storage_key: storageKey,
+    telegram_file_id: input.telegramFileId ?? '',
+    verdict: result.verdict,
+    problems: result.problems,
+    description: result.description,
+    model: MODEL,
+    created_by_user: input.userId,
+    // Botul nu trimite source/coordonate (default-urile din DB); aplicația le trimite.
+    ...(input.source === 'app'
+      ? { source: 'app' as const, location_lat: input.lat ?? null, location_lon: input.lon ?? null }
+      : {}),
+  });
+
+  return result;
+}
+
+/**
+ * Pasul complet pentru o poză din bot: descarcă din Telegram, apoi
+ * checkCleaningBuffer cu source 'bot'. Rulează în conversation.external().
  */
 export async function processCleaningPhoto(input: {
   checkDate: string;
@@ -155,28 +199,14 @@ export async function processCleaningPhoto(input: {
   telegramFilePath: string;
   userId: string;
 }): Promise<CleaningResult> {
-  const buf = await downloadTelegramFile(input.telegramFilePath);
-
-  const storageKey = `curatenie/${input.checkDate}/${input.slot}/${input.zone}-${Date.now()}.jpg`;
-  const { error: upErr } = await getSupabase()
-    .storage.from(BUCKET)
-    .upload(storageKey, buf, { contentType: 'image/jpeg' });
-  if (upErr) console.error('[cleaning] upload storage:', upErr.message);
-
-  const result = await analyzeCleaningPhoto(input.zone, buf.toString('base64'));
-
-  await createCleaningCheck({
-    check_date: input.checkDate,
+  const jpeg = await downloadTelegramFile(input.telegramFilePath);
+  return checkCleaningBuffer({
+    checkDate: input.checkDate,
     slot: input.slot,
     zone: input.zone,
-    storage_key: storageKey,
-    telegram_file_id: input.telegramFileId,
-    verdict: result.verdict,
-    problems: result.problems,
-    description: result.description,
-    model: MODEL,
-    created_by_user: input.userId,
+    jpeg,
+    userId: input.userId,
+    source: 'bot',
+    telegramFileId: input.telegramFileId,
   });
-
-  return result;
 }

@@ -1360,6 +1360,15 @@ export async function getDriverAppearanceCheck(id: string): Promise<DriverAppear
   return (data as DriverAppearanceCheck | null) ?? null;
 }
 
+export type DriverAppearanceCheckInsert = Omit<DriverAppearanceCheck, 'id' | 'created_at' | 'photo_deleted_at'>;
+
+/** Linia pozei șoferului; întoarce id-ul (driverCheckId pentru POST /report). */
+export async function createDriverAppearanceCheck(row: DriverAppearanceCheckInsert): Promise<string> {
+  const { data, error } = await db().from('driver_appearance_checks').insert(row).select('id').single();
+  if (error) throw error;
+  return (data as { id: string }).id;
+}
+
 export async function confirmDriverAppearance(
   id: string,
   confirmed: { uniform_ok: boolean | null; groomed_ok: boolean | null },
@@ -1377,4 +1386,34 @@ export async function getCleaningZonesDone(checkDate: string, slot: CleaningSlot
     if (r.verdict !== 'ALT_LOC') done.add(zone);
   }
   return done;
+}
+
+// ── Ștergerea pozelor după 30 de zile (curățenie + șofer) ────────────────────
+// Fișierul dispare din bucket, linia rămâne cu photo_deleted_at (verdictele sunt
+// permanente). Rulează schedulePeronPhotoRetention() din scheduler.ts, 03:10.
+
+export type PhotoTable = 'peron_cleaning_checks' | 'driver_appearance_checks';
+
+export interface ExpiredPhotoRow {
+  id: string;
+  storage_key: string;
+}
+
+/** Liniile cu poza încă în bucket și mai vechi decât `cutoffIso`, cele mai vechi primele. */
+export async function getExpiredPhotos(table: PhotoTable, cutoffIso: string, limit = 1000): Promise<ExpiredPhotoRow[]> {
+  const { data, error } = await db()
+    .from(table)
+    .select('id, storage_key')
+    .lt('created_at', cutoffIso)
+    .is('photo_deleted_at', null)
+    .order('created_at', { ascending: true })
+    .limit(limit);
+  if (error) throw error;
+  return (data as ExpiredPhotoRow[] | null) ?? [];
+}
+
+export async function markPhotosDeleted(table: PhotoTable, ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const { error } = await db().from(table).update({ photo_deleted_at: new Date().toISOString() }).in('id', ids);
+  if (error) throw error;
 }

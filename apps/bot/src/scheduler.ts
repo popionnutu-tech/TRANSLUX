@@ -8,6 +8,7 @@ import { sendAntaWeeklyReport } from './services/antaReport.js';
 import { sweepTaskBoards } from './services/taskBoard.js';
 import { sendAdminAlert, escapeHtml } from './services/adminAlert.js';
 import { sendVoiceLessonDigest } from './services/voiceLessons.js';
+import { runPeronPhotoRetention } from './services/photoRetention.js';
 
 const CHECK_INTERVAL_MS = 60 * 1000; // check every minute
 const SEND_DAY = 1;   // Monday
@@ -262,6 +263,35 @@ export function scheduleTaskBoardSweep(): void {
       if (n > 0) console.log(`Task board: posted ${n} task(s)`);
     } catch (err) {
       console.error('Task board sweep error:', err);
+    }
+  }, CHECK_INTERVAL_MS);
+}
+
+// ── Ștergerea pozelor de peron după 30 de zile (03:10) ──────────────
+// Același tipar ca digestul: minutul exact, o dată pe zi per proces. Rularea
+// e idempotentă (liniile nemarcate rămân eligibile), deci o zi sărită se
+// recuperează a doua zi.
+
+const PHOTO_RETENTION_HOUR = 3;
+const PHOTO_RETENTION_MINUTE = 10;
+let lastPhotoRetentionDate = '';
+
+export function schedulePeronPhotoRetention(): void {
+  console.log('Peron photo retention started (03:10 Europe/Chisinau, 30 de zile)');
+
+  setInterval(async () => {
+    const now = getNowInTz();
+    if (now.getHours() !== PHOTO_RETENTION_HOUR || now.getMinutes() !== PHOTO_RETENTION_MINUTE) return;
+
+    const todayStr = now.toISOString().slice(0, 10);
+    if (lastPhotoRetentionDate === todayStr) return;
+    lastPhotoRetentionDate = todayStr;
+
+    try {
+      const { deleted, failed } = await runPeronPhotoRetention();
+      console.log(`Peron photo retention: ${deleted} fișier(e) șters(e)${failed ? `, ${failed} nereușite` : ''}`);
+    } catch (err) {
+      console.error('Peron photo retention error:', err);
     }
   }, CHECK_INTERVAL_MS);
 }

@@ -8,6 +8,7 @@ import {
   blockingReason,
   buildReportBody,
   climateKindFor,
+  exteriorOkOf,
   initialState,
   locationLabel,
   minutesLate,
@@ -51,10 +52,13 @@ const photo: DriverPhotoState = {
   driverCheckId: 'chk-1',
   uri: 'file:///x.jpg',
   verdict: 'OK',
-  modelUniformOk: true,
-  modelGroomedOk: true,
-  description: 'ok',
+  uniformOk: true,
+  shavedOk: true,
+  groomedOk: true,
+  description: 'uniformă: da · bărbierit: da · aspect: da · cămașă vișinie TRANSLUX, pantofi negri',
 };
+/** Modelul n-a răspuns: rândul există, verdictele sunt null. */
+const eroarePhoto: DriverPhotoState = { ...photo, driverCheckId: 'chk-err', verdict: 'EROARE', uniformOk: null, shavedOk: null, groomedOk: null, description: '' };
 const coords = { lat: 47.0001, lon: 28.8001, accuracyM: 12 };
 
 describe('initialState', () => {
@@ -99,7 +103,7 @@ describe('buildReportBody', () => {
     assert.equal(blockingReason(ctx, s), null);
   });
 
-  it('starea implicită cu 12 pasageri și verdictele modelului confirmate → toate *_ok true, reclamaOk true, driverCheckId setat', () => {
+  it('starea implicită cu 12 pasageri și verdictul modelului OK → toate *_ok true, reclamaOk true, driverCheckId setat', () => {
     const s = { ...withPhoto(initialState(ctx), photo), passengers: 12 };
     assert.equal(blockingReason(ctx, s), null);
     const body = buildReportBody(ctx, s, coords);
@@ -122,10 +126,44 @@ describe('buildReportBody', () => {
     assert.ok(!('washGrade' in body));
   });
 
-  it('operatorul răstoarnă verdictul modelului → pleacă verdictul operatorului', () => {
-    const s = { ...withPhoto(initialState(ctx), photo), passengers: 3, uniformOk: false };
-    assert.equal(buildReportBody(ctx, s, null).uniformOk, false);
-    assert.equal(buildReportBody(ctx, s, null).lat, null);
+  it('verdictul modelului pleacă neschimbat: uniformOk = uniforma, exteriorOk = bărbierit && aspect', () => {
+    const noUniform = { ...withPhoto(initialState(ctx), { ...photo, uniformOk: false }), passengers: 3 };
+    assert.equal(buildReportBody(ctx, noUniform, null).uniformOk, false);
+    assert.equal(buildReportBody(ctx, noUniform, null).exteriorOk, true);
+    assert.equal(buildReportBody(ctx, noUniform, null).lat, null);
+
+    const unshaved = { ...withPhoto(initialState(ctx), { ...photo, shavedOk: false }), passengers: 3 };
+    assert.equal(buildReportBody(ctx, unshaved, null).uniformOk, true);
+    assert.equal(buildReportBody(ctx, unshaved, null).exteriorOk, false);
+
+    const untidy = { ...withPhoto(initialState(ctx), { ...photo, groomedOk: false }), passengers: 3 };
+    assert.equal(buildReportBody(ctx, untidy, null).exteriorOk, false);
+    assert.equal(blockingReason(ctx, untidy), null);
+  });
+
+  it('starea formularului nu are verdicte proprii — nu există nimic de răsturnat', () => {
+    const s = withPhoto(initialState(ctx), photo);
+    assert.ok(!('uniformOk' in s));
+    assert.ok(!('exteriorOk' in s));
+  });
+
+  it('EROARE (modelul n-a răspuns): raportul pleacă cu driverCheckId și verdicte null, nu se inventează', () => {
+    const s = { ...withPhoto(initialState(ctx), eroarePhoto), passengers: 3 };
+    assert.equal(blockingReason(ctx, s), null);
+    const body = buildReportBody(ctx, s, null);
+    assert.equal(body.driverCheckId, 'chk-err');
+    assert.equal(body.uniformOk, null);
+    assert.equal(body.exteriorOk, null);
+  });
+
+  it('exteriorOkOf: null dacă lipsește vreun verdict, altfel bărbierit && aspect', () => {
+    assert.equal(exteriorOkOf(null), null);
+    assert.equal(exteriorOkOf(eroarePhoto), null);
+    assert.equal(exteriorOkOf({ ...photo, shavedOk: null }), null);
+    assert.equal(exteriorOkOf({ ...photo, groomedOk: null }), null);
+    assert.equal(exteriorOkOf(photo), true);
+    assert.equal(exteriorOkOf({ ...photo, shavedOk: false }), false);
+    assert.equal(exteriorOkOf({ ...photo, groomedOk: false }), false);
   });
 
   it('reclamă ≠ OK → reclamaOk false + reclamaProblem', () => {
@@ -177,14 +215,16 @@ describe('buildReportBody', () => {
 });
 
 describe('blockingReason', () => {
-  it('cere pe rând cifra, poza și verdictele', () => {
+  it('cere pe rând cifra și poza; după poză nu mai cere nimic (verdictul e al modelului)', () => {
     const s = initialState(ctx);
     assert.match(blockingReason(ctx, s) ?? '', /pasageri/);
     assert.match(blockingReason(ctx, { ...s, passengers: 28 }) ?? '', /pasageri/);
     assert.match(blockingReason(ctx, { ...s, passengers: 0 }) ?? '', /poza/);
-    const eroare = withPhoto({ ...s, passengers: 0 }, { ...photo, verdict: 'EROARE', modelUniformOk: null, modelGroomedOk: null });
-    assert.match(blockingReason(ctx, eroare) ?? '', /verdictele/);
-    assert.equal(blockingReason(ctx, { ...eroare, uniformOk: true, exteriorOk: false }), null);
+    assert.equal(blockingReason(ctx, withPhoto({ ...s, passengers: 0 }, photo)), null);
+    assert.equal(blockingReason(ctx, withPhoto({ ...s, passengers: 0 }, { ...photo, uniformOk: false, shavedOk: false, groomedOk: false })), null);
+    assert.equal(blockingReason(ctx, withPhoto({ ...s, passengers: 0 }, eroarePhoto)), null);
+    // «Refă poza» / alt șofer → poza dispare → iar cere poza
+    assert.match(blockingReason(ctx, withPhoto(withPhoto({ ...s, passengers: 0 }, photo), null)) ?? '', /poza/);
   });
 });
 

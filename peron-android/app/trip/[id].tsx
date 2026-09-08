@@ -2,7 +2,10 @@
  * Ecranul de cursă — `Cursa.dc.html` (Chișinău) / `CursaBalti.dc.html` (Bălți), element cu
  * element: antet cu pastila de întârziere, Pasageri (−/cifră/+ și «Microbuzul a fost
  * absent»), Șofer și auto (nume, placă mono, Confirm/Schimbă), Poza șoferului (miniatură
- * 104×128, verdictele verzi/roșii, «Refă poza»), Verificări, rândul GPS, «Trimite raportul».
+ * 104×128, trei verdicte fixe ale modelului — uniformă, bărbierit, aspect — verzi/roșii,
+ * fără atingere; «Refă poza»), Verificări, rândul GPS, «Trimite raportul».
+ * Verdictul e al modelului (Ion, 08.09: «aplicația fixează, operatorul doar face poza»):
+ * la `REFA_POZA` / `NO_PERSON` apare mesajul serverului și «Refă poza».
  * La Bălți: Pasageri cu butoanele rapide, «Absent» / «Microbuzul full», GPS, Trimite, text.
  *
  * Logica (src/buildReport.ts, camera, locația, apelurile API) e cea de dinainte — aici
@@ -32,7 +35,7 @@ import {
   type TripContext,
   type TripFormState,
 } from '../../src/buildReport';
-import { PhotoCamera, type CapturedPhoto } from '../../src/camera';
+import { DRIVER_FRAME_HINT, PhotoCamera, type CapturedPhoto } from '../../src/camera';
 import { Body, Card, Footnote, GpsRow, Header, Label, Option, OptionRow, OutlineButton, Pill, PrimaryButton, Question, Screen, Spacer, type GpsState } from '../../src/components';
 import { haversineDistance } from '../../src/format';
 import { CameraIcon, CheckIcon, PersonIcon, XIcon } from '../../src/icons';
@@ -88,6 +91,9 @@ function PickerModal({
 
 // ── Ecranul ───────────────────────────────────────────────────────────────────
 
+/** Când serverul nu trimite `message` la refacere (client nou pe server vechi). */
+const RETAKE_FALLBACK = `Refă poza. ${DRIVER_FRAME_HINT}.`;
+
 type ScreenError = { message: string; cleaning?: CleaningRequiredDetails };
 
 export default function TripScreen() {
@@ -104,6 +110,7 @@ export default function TripScreen() {
   const [addingVehicle, setAddingVehicle] = useState(false);
   const [camera, setCamera] = useState(false);
   const [pending, setPending] = useState<CapturedPhoto | null>(null); // poză făcută, încă nejudecată de server
+  const [rejected, setRejected] = useState<{ uri: string; message: string } | null>(null); // NO_PERSON / REFA_POZA: poza + de ce
   const [analyzing, setAnalyzing] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [coords, setCoords] = useState<Coords | null>(null);
@@ -182,20 +189,23 @@ export default function TripScreen() {
       setPhotoError(null);
       try {
         const res = await postDriverPhoto({ tripId: ctx.tripId, driverId, imageBase64: photo.base64, lat: coords?.lat ?? null, lon: coords?.lon ?? null });
-        if (res.verdict === 'NO_PERSON' || !res.driverCheckId) {
+        // Poza trebuie refăcută (nimeni în cadru / nu se văd încălțămintea și capul): serverul n-a scris nimic.
+        if (res.code || res.verdict === 'NO_PERSON' || res.verdict === 'REFA_POZA' || !res.driverCheckId) {
           setPending(null);
-          setPhotoError('Nu se vede șoferul, refă poza.');
+          setRejected({ uri: photo.uri, message: res.message?.trim() || RETAKE_FALLBACK });
           return;
         }
         const state: DriverPhotoState = {
           driverCheckId: res.driverCheckId,
           uri: photo.uri,
           verdict: res.verdict,
-          modelUniformOk: res.uniformOk,
-          modelGroomedOk: res.groomedOk,
+          uniformOk: res.uniformOk,
+          shavedOk: res.shavedOk,
+          groomedOk: res.groomedOk,
           description: res.description,
         };
         setPending(null);
+        setRejected(null);
         setForm((f) => (f ? withPhoto(f, state) : f));
       } catch (e) {
         // poza rămâne pe ecran: «Trimite din nou poza» fără să o refacă
@@ -210,12 +220,14 @@ export default function TripScreen() {
 
   function onCaptured(photo: CapturedPhoto) {
     setCamera(false);
+    setRejected(null);
     setPending(photo);
     if (form) analyze(photo, form.driverId);
   }
 
   function retakePhoto() {
     setPending(null);
+    setRejected(null);
     setPhotoError(null);
     setForm((f) => (f ? withPhoto(f, null) : f));
     setCamera(true);
@@ -228,6 +240,7 @@ export default function TripScreen() {
     // poza e legată de șoferul ales — alt șofer = altă poză
     const hadPhoto = !!form.photo || !!pending;
     setPending(null);
+    setRejected(null);
     setPhotoError(hadPhoto ? 'Șoferul s-a schimbat — refă poza șoferului.' : null);
     setForm((f) => (f ? withPhoto({ ...f, driverId }, null) : f));
   }
@@ -346,7 +359,7 @@ export default function TripScreen() {
   const openTask = openReclamaFor(ctx, form.vehicleId);
   const climateKind = climateKindFor(ctx, form.vehicleId);
   const counting = form.status === 'OK';
-  const thumbUri = form.photo?.uri ?? pending?.uri ?? null;
+  const thumbUri = form.photo?.uri ?? pending?.uri ?? rejected?.uri ?? null;
 
   const gps: { state: GpsState; text: string } = searching
     ? { state: 'off', text: 'se caută locația…' }
@@ -456,21 +469,23 @@ export default function TripScreen() {
                   </View>
                 ) : form.photo ? (
                   <>
-                    <VerdictRow label="Uniformă" value={form.uniformOk} onPress={() => update({ uniformOk: form.uniformOk === true ? false : true })} />
-                    <VerdictRow label="Aspect îngrijit" value={form.exteriorOk} onPress={() => update({ exteriorOk: form.exteriorOk === true ? false : true })} />
+                    <VerdictRow label="Uniformă" value={form.photo.uniformOk} />
+                    <VerdictRow label="Bărbierit" value={form.photo.shavedOk} />
+                    <VerdictRow label="Aspect îngrijit" value={form.photo.groomedOk} />
                   </>
                 ) : pending ? (
                   <PrimaryButton label="Trimite din nou poza" size="md" shadow={false} onPress={() => analyze(pending, form.driverId)} />
                 ) : (
-                  <PrimaryButton label="Fă poza" size="md" shadow={false} icon={<CameraIcon color={colors.primaryText} />} onPress={() => setCamera(true)} />
+                  <PrimaryButton label={rejected ? 'Refă poza' : 'Fă poza'} size="md" shadow={false} icon={<CameraIcon color={colors.primaryText} />} onPress={() => setCamera(true)} />
                 )}
               </View>
             </View>
+            {rejected && !analyzing ? <Body color={colors.danger}>{rejected.message}</Body> : null}
             {photoError ? <Body color={colors.danger}>{photoError}</Body> : null}
             {(form.photo || pending) && !analyzing ? (
               <View style={styles.photoFooter}>
                 {form.photo ? (
-                  <Text style={styles.photoNote}>{form.photo.verdict === 'EROARE' ? 'Modelul nu a putut judeca poza. Atinge un verdict ca să-l alegi.' : 'Propus automat din poză. Atinge un verdict ca să-l corectezi.'}</Text>
+                  <Text style={styles.photoNote}>{form.photo.verdict === 'EROARE' ? 'Modelul nu a putut judeca poza — raportul pleacă fără verdicte. Poți reface poza.' : 'Verdict automat din poză. Nu se poate schimba.'}</Text>
                 ) : (
                   <View style={styles.grow} />
                 )}
@@ -559,7 +574,7 @@ export default function TripScreen() {
         ) : null}
       </Screen>
 
-      {camera ? <PhotoCamera title="Poza șoferului" onCaptured={onCaptured} onCancel={() => setCamera(false)} /> : null}
+      {camera ? <PhotoCamera title="Poza șoferului" hint={DRIVER_FRAME_HINT} onCaptured={onCaptured} onCancel={() => setCamera(false)} /> : null}
       {picker === 'driver' ? (
         <PickerModal
           title="Șoferul"
@@ -618,21 +633,21 @@ function CounterButton({ label, balti, disabled, onPress }: { label: string; bal
 }
 
 /**
- * Verdictul pozei: verde «Uniformă: da» (`#e8f3ea` / `#16a34a` / `#1f6b34`, bifă), roșu
- * «Uniformă: nu» (`#fbe9ec` / `#e4a3ad` / `#b91c1c`, X); necunoscut (modelul n-a putut judeca)
- * = bordură neutră. Atingerea răstoarnă verdictul.
+ * Verdictul modelului, ca text fix: verde «Uniformă: da» (`#e8f3ea` / `#16a34a` / `#1f6b34`,
+ * bifă), roșu «Uniformă: nu» (`#fbe9ec` / `#e4a3ad` / `#b91c1c`, X); necunoscut (modelul
+ * n-a putut judeca) = bordură neutră. Nu se poate atinge — operatorul nu schimbă verdictul.
  */
-function VerdictRow({ label, value, onPress }: { label: string; value: boolean | null; onPress: () => void }) {
+function VerdictRow({ label, value }: { label: string; value: boolean | null }) {
   const box = value === true ? styles.verdictYes : value === false ? styles.verdictNo : styles.verdictUnknown;
   const color = value === true ? colors.selectedText : value === false ? colors.danger : colors.textSoft;
   const text = value === true ? 'da' : value === false ? 'nu' : 'necunoscut';
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`${label}: ${text}. Atinge ca să schimbi`} style={({ pressed }) => [styles.verdict, box, { opacity: pressed ? 0.7 : 1 }]}>
+    <View accessibilityRole="text" accessibilityLabel={`${label}: ${text}`} style={[styles.verdict, box]}>
       {value === true ? <CheckIcon /> : value === false ? <XIcon /> : null}
       <Text style={[styles.verdictText, { color }]}>
         {label}: {text}
       </Text>
-    </Pressable>
+    </View>
   );
 }
 
@@ -674,7 +689,7 @@ const styles = StyleSheet.create({
   thumb: { width: 104, height: 128, backgroundColor: colors.camera, borderRadius: radius.button, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 },
   thumbImage: { width: 104, height: 128 },
   photoSide: { flexGrow: 1, flexBasis: 0, gap: 8, justifyContent: 'center' },
-  verdict: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, borderWidth: 2, borderRadius: radius.option, paddingVertical: 6, paddingHorizontal: 12 },
+  verdict: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44, borderWidth: 2, borderRadius: radius.option, paddingVertical: 4, paddingHorizontal: 12 },
   verdictYes: { backgroundColor: colors.selectedBg, borderColor: colors.selectedBorder },
   verdictNo: { backgroundColor: colors.dangerBg, borderColor: colors.dangerBorder },
   verdictUnknown: { backgroundColor: colors.card, borderColor: colors.border },

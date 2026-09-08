@@ -131,12 +131,28 @@ export interface DriverPhotoBody {
   lon: number | null;
 }
 
+/** Poza trebuie refăcută: nimeni în cadru, sau cadrul nu e cel cerut (din față, întreg, încălțăminte → cap). */
+export type DriverPhotoRetakeCode = 'NO_PERSON' | 'REFA_POZA';
+
+/**
+ * Răspunsul lui apps/bot/src/api/driverPhoto.ts. Verdictul modelului e final — aplicația
+ * doar îl afișează. La `NO_PERSON` / `REFA_POZA`: 200 cu `code` + `message` gata de afișat,
+ * `driverCheckId` null, fără rând în DB. La `EROARE` (modelul n-a răspuns): rândul există,
+ * toate verdictele sunt null și raportul pleacă fără ele.
+ */
 export interface DriverPhotoResponse {
-  verdict: 'OK' | 'EROARE' | 'NO_PERSON';
-  code?: 'NO_PERSON';
+  verdict: 'OK' | 'EROARE' | DriverPhotoRetakeCode;
+  /** Prezent doar când poza trebuie refăcută; `message` spune de ce. */
+  code?: DriverPhotoRetakeCode;
+  message?: string;
   driverCheckId: string | null;
   personVisible: boolean | null;
+  frameOk: boolean | null;
+  /** uniforma (îmbrăcăminte de serviciu + încălțăminte corespunzătoare) */
   uniformOk: boolean | null;
+  /** bărbierit sau barbă îngrijită */
+  shavedOk: boolean | null;
+  /** aspect îngrijit (păr, haine curate) — brut; în `reports.exterior_ok` intră bărbierit && aspect */
   groomedOk: boolean | null;
   description: string;
 }

@@ -5,8 +5,9 @@
  *
  * Regulile sunt cele din apps/bot/src/api/reportRules.ts (serverul le re-validează):
  * - ABSENT / FULL / Bălți → toate câmpurile de calitate null;
- * - Chișinău + OK → cifră 0–27, poza șoferului (driverCheckId) și verdictele confirmate
- *   de operator, verificările manuale (toate «OK» implicit);
+ * - Chișinău + OK → cifră 0–27, poza șoferului (driverCheckId) cu verdictul modelului
+ *   (final — operatorul nu-l poate schimba; serverul îl copiază din DB și ignoră
+ *   uniformOk/exteriorOk din corp), verificările manuale (toate «OK» implicit);
  * - reclamaOk se trimite doar când există auto; la «Totul OK» pe o mașină cu sarcină
  *   reclamă deschisă operatorul confirmă «a fost reparat?» (report.ts:664–712);
  * - clima doar când /day spune că sezonul cere întrebarea pentru mașina aleasă.
@@ -30,14 +31,24 @@ export const QUICK_PASSENGERS: readonly number[] = [5, 10, 15, 20, 25];
 export type ReclamaChoice = 'ok' | ReclamaProblem;
 export type RepairAnswer = 'da' | 'nu';
 
-/** Poza șoferului după răspunsul serverului — verdictele de aici sunt propunerea modelului. */
+/**
+ * Poza șoferului după răspunsul serverului — verdictele modelului, finale. Toate null la
+ * 'EROARE' (modelul n-a răspuns): raportul pleacă cu null, nu se inventează.
+ */
 export interface DriverPhotoState {
   driverCheckId: string;
   uri: string; // miniatura locală
-  verdict: DriverPhotoResponse['verdict'];
-  modelUniformOk: boolean | null;
-  modelGroomedOk: boolean | null;
+  verdict: Extract<DriverPhotoResponse['verdict'], 'OK' | 'EROARE'>;
+  uniformOk: boolean | null;
+  shavedOk: boolean | null;
+  groomedOk: boolean | null;
   description: string;
+}
+
+/** `reports.exterior_ok` după regula botului: bărbierit && aspect îngrijit; null dacă vreunul lipsește. */
+export function exteriorOkOf(photo: DriverPhotoState | null): boolean | null {
+  if (!photo || photo.shavedOk === null || photo.groomedOk === null) return null;
+  return photo.shavedOk && photo.groomedOk;
 }
 
 export interface Coords {
@@ -52,9 +63,6 @@ export interface TripFormState {
   driverId: string | null;
   vehicleId: string | null;
   photo: DriverPhotoState | null;
-  /** Verdictele confirmate de operator (pornesc de la propunerea modelului; null = «necunoscut», trebuie ales). */
-  uniformOk: boolean | null;
-  exteriorOk: boolean | null;
   loadingHelpOk: boolean;
   autoCurat: boolean;
   reclama: ReclamaChoice;
@@ -92,8 +100,6 @@ export function initialState(ctx: TripContext): TripFormState {
     driverId: ctx.assignment?.driver_id ?? null,
     vehicleId: ctx.assignment?.vehicle_id ?? null,
     photo: null,
-    uniformOk: null,
-    exteriorOk: null,
     loadingHelpOk: true,
     autoCurat: true,
     reclama: 'ok',
@@ -102,14 +108,9 @@ export function initialState(ctx: TripContext): TripFormState {
   };
 }
 
-/** Starea după ce serverul a judecat poza: verdictele modelului devin propunerea de pe ecran. */
+/** Starea după ce serverul a judecat poza (sau după «Refă poza» / alt șofer: null). */
 export function withPhoto(state: TripFormState, photo: DriverPhotoState | null): TripFormState {
-  return {
-    ...state,
-    photo,
-    uniformOk: photo?.modelUniformOk ?? null,
-    exteriorOk: photo?.modelGroomedOk ?? null,
-  };
+  return { ...state, photo };
 }
 
 export function plateOf(ctx: TripContext, vehicleId: string | null): string | null {
@@ -157,7 +158,6 @@ export function blockingReason(ctx: TripContext, state: TripFormState): string |
   if (!isValidPassengers(state.passengers)) return `Introdu numărul de pasageri (0–${MAX_PASSENGERS})`;
   if (ctx.point !== 'CHISINAU') return null;
   if (!state.photo) return 'Fă poza șoferului';
-  if (state.uniformOk === null || state.exteriorOk === null) return 'Alege verdictele de sub poza șoferului';
   if (state.vehicleId && state.reclama === 'ok' && openReclamaFor(ctx, state.vehicleId)) {
     if (state.repair === null) return 'Răspunde: a fost reparat defectul marcat?';
     if (state.repair === 'nu') return 'Dacă nu e reparat, alege defectul la «Reclamă»';
@@ -207,8 +207,9 @@ export function buildReportBody(ctx: TripContext, state: TripFormState, coords: 
     loadingHelpOk: state.loadingHelpOk,
     autoCurat: state.autoCurat,
     driverCheckId: state.photo?.driverCheckId ?? null,
-    uniformOk: state.uniformOk,
-    exteriorOk: state.exteriorOk,
+    // verdictul modelului, ca informație — serverul scrie oricum ce are în driver_appearance_checks
+    uniformOk: state.photo?.uniformOk ?? null,
+    exteriorOk: exteriorOkOf(state.photo),
     reclamaOk,
     reclamaProblem: reclamaOk === false ? state.reclama as ReclamaProblem : null,
     reclamaRepairConfirmed: repairConfirmed,

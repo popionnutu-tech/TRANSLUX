@@ -26,7 +26,7 @@ export const config = {
   // Poza șoferului (aplicația de peron): ce înseamnă «uniformă» pentru model.
   // Descrierea exactă (culoare, însemne) o dă Ion; până atunci verdictul e doar
   // propunere, operatorul confirmă. Singurul loc unde se descrie uniforma.
-  DRIVER_UNIFORM_DESCRIPTION: 'îmbrăcăminte de serviciu cu însemne TRANSLUX',
+  DRIVER_UNIFORM_DESCRIPTION: 'tricou vișiniu (bordo) cu emblema TRANSLUX pe piept; orice altă haină pe deasupra sau alt tricou înseamnă fără uniformă',
 } as const;
 
 export function validateConfig() {

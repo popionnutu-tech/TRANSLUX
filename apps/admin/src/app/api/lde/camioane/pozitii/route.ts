@@ -5,6 +5,7 @@ import { poateAccesa } from '@/lib/lde/camioane-nav';
 import { pozitiiLiveCached } from '@/lib/wialon';
 import { normalizeazaPlaca } from '@/lib/lde/parc';
 import { pozitieRecenta } from '@/lib/lde/camioane';
+import { taraDinPozitie } from '@/lib/lde/tara';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -34,7 +35,11 @@ export async function GET() {
     // Regula «poziția e actuală 24h» stă în lib/lde/camioane.ts, lângă celelalte
     // praguri ale modulului, și e testată acolo (arch review 01.09).
     const acum = Date.now();
-    const positions = aleFlotei.filter((p) => pozitieRecenta(p.at, acum));
+    // Țara se calculează AICI, pe server: poligoanele au ~200 KB și n-au ce
+    // căuta în browser (Ion, 08.09: «când e în drum, trebuie numită țara»).
+    const positions = aleFlotei
+      .filter((p) => pozitieRecenta(p.at, acum))
+      .map((p) => ({ ...p, tara: taraDinPozitie(p.lat, p.lng) }));
     return NextResponse.json({
       positions,
       // Numărat față de FLOTĂ, nu față de ce a întors Wialon: un camion lipsă din

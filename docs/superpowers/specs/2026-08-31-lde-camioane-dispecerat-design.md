@@ -237,3 +237,26 @@ Limite cunoscute:
 - O cisternă care descarcă la mai multe stații într-o zi are o singură cursă cu un
   singur punct de descărcare: se închide la recepția de la ACEA stație, celelalte
   recepții n-o ating.
+
+## Completare 08.09.2026 — «scena» camionului, cu țara
+
+Ion: «când e în drum pe traseu, trebuie numită țara. Dacă nu e în reparație, nu în
+odihnă, nu la descărcare în Moldova, ori la descărcare cu biodiesel în Bulgaria sau
+România — atunci unde se află. Toate scenele astea trebuie să se vadă.»
+
+Decizii:
+- **Țara din GPS, fără serviciu extern**: `lib/lde/tara.ts` + `tari-poligoane.json`
+  (Natural Earth 10m, 22 de țări de pe drumurile camioanelor, simplificate la ~300 m
+  pentru MD/RO/UA/BG și ~800 m pentru rest; ~200 KB). Se calculează DOAR pe server
+  (ruta de poziții și API-ul extern), clientul primește `tara` gata. În afara
+  poligoanelor (mare, țări neincluse) → null, iar textul rămâne fără țară — nu ghicește.
+  Transnistria e Moldova. Testat pe vămi (Leușeni/Huși, Giurgiulești/Galați, Ruse/Giurgiu).
+- **`undeEste` primește țara**: «în drum prin România, 250 km de Port Constanța»;
+  aproape de punct «la 12 km de TLX Bălți (Moldova)»; în punct «la TLX Bălți».
+- **`scenaCamion`** (pur, testat) dă propoziția, în ordinea dovezilor: reparație /
+  odihnă (cu «până la») → starea cursei la punct («la descărcare diesel, TLX Bălți
+  (Moldova)», «la descărcare biodiesel, Ruse (Bulgaria)», «plin, așteaptă descărcarea
+  la …», «la încărcare, Port Constanța (România)») → GPS cu țara → «fără poziție GPS
+  recentă». Țara punctului vine din `lde_dispatch_points.country`.
+- Banda arată scena sub numele șoferului (în locul vechiului «acum: …»); API-ul
+  extern pentru mini app-ul TLX întoarce `scena` și `tara` lângă `unde`.

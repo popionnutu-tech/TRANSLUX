@@ -19,7 +19,7 @@ import {
 } from './planificare/actions';
 import {
   aIntarziat, asteaptaDescarcarea, camioaneInBanda, esteInCursa, grupeazaPeTip, mutaPastrandDurata,
-  poateFiMutata, progresCursa, segmentInFereastra, undeEste, asazaInBenzi,
+  poateFiMutata, progresCursa, scenaCamion, segmentInFereastra, asazaInBenzi,
 } from '@/lib/lde/banda';
 import { camioaneMaiAproape, descriereSursaStare, etichetaStareCursa, stariUrmatoare } from '@/lib/lde/camioane';
 import { chisinauDayOf, chisinauInstantIso, chisinauTimeOf, chisinauTodayIso } from '@/lib/chisinau-time';
@@ -44,7 +44,7 @@ type Props = {
   poateEdita: boolean;
 };
 
-type Pozitie = { plate: string; lat: number; lng: number; at: string; speed?: number };
+type Pozitie = { plate: string; lat: number; lng: number; at: string; speed?: number; tara?: string | null };
 
 const CULOARE: Record<string, string> = {
   diesel: 'linear-gradient(135deg,#3271f0,#1c48c9)',
@@ -172,9 +172,9 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
     return m;
   }, [stari]);
 
-  // Lista pentru `undeEste` se construiește o dată, nu la fiecare rând al benzii.
+  // Lista pentru `undeEste`/`scenaCamion` se construiește o dată, nu la fiecare rând al benzii.
   const puncteScurte = useMemo(
-    () => puncte.map((p) => ({ name: p.name, lat: p.lat, lng: p.lng })),
+    () => puncte.map((p) => ({ id: p.id, name: p.name, lat: p.lat, lng: p.lng, country: p.country })),
     [puncte],
   );
 
@@ -716,7 +716,7 @@ const Grup = memo(function Grup(props: {
   azi: string;
   curseDupaCamion: Map<string, Cursa[]>;
   stariDupaCheie: Map<string, StareZi>;
-  puncte: { name: string; lat: number | null; lng: number | null }[];
+  puncte: { id: string; name: string; lat: number | null; lng: number | null; country: string | null }[];
   pozitieDupaPlaca: Map<string, Pozitie>;
   inCurs: boolean;
   poateEdita: boolean;
@@ -764,7 +764,23 @@ const Grup = memo(function Grup(props: {
                   {cam.driverName ?? 'șofer doar pe cursă'}
                 </div>
                 <div className="text-muted" style={{ fontSize: 10.5 }}>
-                  {poz ? `acum: ${undeEste(poz, puncte)}` : 'fără poziție GPS recentă'}
+                  {/* Scena camionului (Ion, 08.09): reparație / odihnă / la descărcare
+                      în Moldova / la descărcare biodiesel în Bulgaria / în drum prin România… */}
+                  acum: {scenaCamion({
+                    stareZi: stariDupaCheie.get(`${cam.id}|${azi}`) ?? null,
+                    cursa: (() => {
+                      const activa = curseCam.find((c) => esteInCursa(c.status)) ?? null;
+                      if (!activa) return null;
+                      const tara = (id: string | null) => puncte.find((p) => p.id === id)?.country ?? null;
+                      return {
+                        status: activa.status, cargo: activa.cargo,
+                        unloadPointName: activa.unloadPointName, unloadPointCountry: tara(activa.unloadPointId),
+                        loadPointName: activa.loadPointName, loadPointCountry: tara(activa.loadPointId),
+                      };
+                    })(),
+                    poz: poz ?? null,
+                    puncte,
+                  })}
                 </div>
                 {poateEdita && <select
                   value={cam.fleetType ?? ''}

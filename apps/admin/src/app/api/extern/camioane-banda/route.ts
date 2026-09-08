@@ -4,7 +4,8 @@ import { getSupabase } from '@/lib/supabase';
 import { pozitiiLiveCached } from '@/lib/wialon';
 import { normalizeazaPlaca } from '@/lib/lde/parc';
 import { pozitieRecenta } from '@/lib/lde/camioane';
-import { asazaInBenzi, asteaptaDescarcarea, camioaneInBanda, esteInCursa, segmentInFereastra, undeEste } from '@/lib/lde/banda';
+import { asazaInBenzi, asteaptaDescarcarea, camioaneInBanda, esteInCursa, scenaCamion, segmentInFereastra, undeEste } from '@/lib/lde/banda';
+import { taraDinPozitie } from '@/lib/lde/tara';
 import { chisinauDayBounds, chisinauTodayIso } from '@/lib/chisinau-time';
 
 // Flota de camioane pentru mini app-ul TLX (Ion, 01.09: «чтобы было не отдельное,
@@ -97,7 +98,7 @@ export async function GET(req: NextRequest) {
         .select('vehicle_id, date, state, reason, expected_end')
         .gte('date', zile[0]).lte('date', zile[zile.length - 1])
         .order('date').order('vehicle_id').limit(1000),
-      sb.from('lde_dispatch_points').select('name, lat, lng').eq('active', true),
+      sb.from('lde_dispatch_points').select('name, lat, lng, country').eq('active', true),
     ]);
     for (const r of [vehRes, legRes, curseRes, stariRes, puncteRes]) {
       if (r.error) { console.error('[extern/camioane]', r.error.message); throw new Error('citire eșuată'); }
@@ -138,18 +139,19 @@ export async function GET(req: NextRequest) {
     const stari = (stariRes.data ?? []) as StareRow[];
     const stariPeCheie = new Map(stari.map((s) => [`${s.vehicle_id}|${s.date}`, s]));
 
-    type Punct = { name: string; lat: number | null; lng: number | null };
+    type Punct = { name: string; lat: number | null; lng: number | null; country: string | null };
     const puncte = (puncteRes.data ?? []) as Punct[];
 
     // Pozițiile live, filtrate la flota de camioane și la 24h prospețime.
-    let pozitii: { plate: string; lat: number; lng: number; at: string; speed?: number }[] = [];
+    let pozitii: { plate: string; lat: number; lng: number; at: string; speed?: number; tara: string | null }[] = [];
     let gpsViu = true;
     try {
       const brute = await pozitiiLiveCached();
       const permise = new Set(randuri.map((c) => normalizeazaPlaca(c.plate)));
       const acum = Date.now();
       pozitii = brute
-        .filter((p) => permise.has(normalizeazaPlaca(p.plate)) && pozitieRecenta(p.at, acum));
+        .filter((p) => permise.has(normalizeazaPlaca(p.plate)) && pozitieRecenta(p.at, acum))
+        .map((p) => ({ ...p, tara: taraDinPozitie(p.lat, p.lng) }));
     } catch (e) {
       // Wialon căzut nu rupe ecranul: banda merge, coloana «acum» tace.
       console.error('[extern/camioane] wialon:', e);
@@ -190,8 +192,23 @@ export async function GET(req: NextRequest) {
         urmatoareaCursa: urmatoarea
           ? { de: urmatoarea.load_planned_at, ruta: `${unu(urmatoarea.load_point)?.name ?? '—'} → ${unu(urmatoarea.unload_point)?.name ?? '—'}` }
           : null,
-        // Poziția spusă omenește, nu în coordonate: numele punctului cel mai apropiat.
-        unde: poz ? undeEste({ lat: poz.lat, lng: poz.lng }, puncte) : null,
+        // Poziția spusă omenește, nu în coordonate: numele punctului cel mai apropiat, cu țara.
+        unde: poz ? undeEste({ lat: poz.lat, lng: poz.lng, tara: poz.tara }, puncte) : null,
+        tara: poz?.tara ?? null,
+        // «Scena» într-o propoziție (Ion, 08.09): reparație / odihnă / la descărcare
+        // în Moldova / la descărcare biodiesel în Bulgaria / în drum prin România…
+        scena: scenaCamion({
+          stareZi: stareAzi ? { state: stareAzi.state, expectedEnd: stareAzi.expected_end } : null,
+          cursa: activa ? {
+            status: activa.status, cargo: activa.cargo,
+            unloadPointName: unu(activa.unload_point)?.name ?? null,
+            unloadPointCountry: puncte.find((p) => p.name === unu(activa.unload_point)?.name)?.country ?? null,
+            loadPointName: unu(activa.load_point)?.name ?? null,
+            loadPointCountry: puncte.find((p) => p.name === unu(activa.load_point)?.name)?.country ?? null,
+          } : null,
+          poz: poz ? { lat: poz.lat, lng: poz.lng, tara: poz.tara } : null,
+          puncte,
+        }),
         // Segmentele pentru banda de o săptămână, DEJA așezate pe benzi care nu se
         // ating. Așezarea e regulă, nu desen: fără ea, cursa care începe în
         // interiorul alteia dispare — greșeala pe care calculatorul a reparat-o deja.

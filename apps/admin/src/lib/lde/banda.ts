@@ -155,7 +155,7 @@ export function camioaneInBanda<T extends CamionBanda>(
  * «44.131, 28.616» nu (audit business, 01.09).
  */
 export function undeEste(
-  poz: { lat: number; lng: number },
+  poz: { lat: number; lng: number; tara?: string | null },
   puncte: { name: string; lat: number | null; lng: number | null; radiusM?: number }[],
 ): string {
   let cel: { name: string; km: number } | null = null;
@@ -164,10 +164,42 @@ export function undeEste(
     const km = haversineKm(poz, { lat: p.lat, lng: p.lng });
     if (!cel || km < cel.km) cel = { name: p.name, km };
   }
-  if (!cel) return 'poziție cunoscută, fără punct apropiat';
+  // Țara vine calculată pe server (lib/lde/tara.ts) — Ion, 08.09: «când e în drum
+  // pe traseu, trebuie numită țara». Fără ea textul rămâne cel vechi, nu ghicește.
+  const tara = poz.tara ? ` prin ${poz.tara}` : '';
+  if (!cel) return poz.tara ? `în ${poz.tara}, fără punct apropiat` : 'poziție cunoscută, fără punct apropiat';
   if (cel.km <= 1) return `la ${cel.name}`;
-  if (cel.km <= 60) return `la ${Math.round(cel.km)} km de ${cel.name}`;
-  return `în drum, ${Math.round(cel.km)} km de ${cel.name}`;
+  if (cel.km <= 60) return `la ${Math.round(cel.km)} km de ${cel.name}${poz.tara ? ` (${poz.tara})` : ''}`;
+  return `în drum${tara}, ${Math.round(cel.km)} km de ${cel.name}`;
+}
+
+/**
+ * «Scena» camionului, într-o propoziție (Ion, 08.09): reparație, odihnă, la
+ * descărcare în Moldova, la descărcare cu biodiesel în Bulgaria/România, altfel
+ * unde e după GPS, cu țara. Ordinea e a dovezilor: starea de zi bate cursa,
+ * starea cursei la punct bate GPS-ul (dispecerul sau automatul au spus-o),
+ * GPS-ul rămâne pentru drum.
+ */
+export function scenaCamion(input: {
+  stareZi: { state: 'reparatie' | 'odihna'; expectedEnd?: string | null } | null;
+  cursa: { status: string; cargo: string | null; unloadPointName: string | null; unloadPointCountry?: string | null;
+           loadPointName: string | null; loadPointCountry?: string | null } | null;
+  poz: { lat: number; lng: number; tara?: string | null } | null;
+  puncte: { name: string; lat: number | null; lng: number | null }[];
+}): string {
+  const { stareZi, cursa, poz, puncte } = input;
+  if (stareZi?.state === 'reparatie') return stareZi.expectedEnd ? `în reparație, până la ${stareZi.expectedEnd}` : 'în reparație';
+  if (stareZi?.state === 'odihna') return stareZi.expectedEnd ? `odihnă șofer, până la ${stareZi.expectedEnd}` : 'odihnă șofer';
+  const cuTara = (nume: string | null, tara: string | null | undefined) =>
+    nume ? (tara ? `${nume} (${tara})` : nume) : 'punct necunoscut';
+  const marfa = cursa?.cargo ? ` ${cursa.cargo}` : '';
+  if (cursa) {
+    if (cursa.status === 'la_descarcare') return `la descărcare${marfa}, ${cuTara(cursa.unloadPointName, cursa.unloadPointCountry)}`;
+    if (cursa.status === STARE_ASTEAPTA_DESCARCARE) return `plin${marfa}, așteaptă descărcarea la ${cuTara(cursa.unloadPointName, cursa.unloadPointCountry)}`;
+    if (cursa.status === 'la_incarcare') return `la încărcare${marfa}, ${cuTara(cursa.loadPointName, cursa.loadPointCountry)}`;
+  }
+  if (!poz) return 'fără poziție GPS recentă';
+  return undeEste(poz, puncte);
 }
 
 export type GrupBanda<T> = { cheie: 'cisterna' | 'zernovoz' | 'fara_tip'; nume: string; camioane: T[] };

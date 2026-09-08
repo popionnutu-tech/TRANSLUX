@@ -48,7 +48,7 @@ export type StareZi = {
   expectedEnd: string | null;
 };
 
-export type PunctScurt = { id: string; name: string; hasCoords: boolean; lat: number | null; lng: number | null };
+export type PunctScurt = { id: string; name: string; hasCoords: boolean; lat: number | null; lng: number | null; country: string | null };
 export type SoferScurt = { id: string; name: string };
 
 const CALE = '/lde/camioane/planificare';
@@ -205,7 +205,7 @@ export async function getPlanificare(fromDate: string, zile: number): Promise<{
       .select('id, vehicle_id, date, state, reason, expected_end')
       .order('date').order('vehicle_id').limit(1000)
       .gte('date', listaZile[0]).lte('date', listaZile[listaZile.length - 1]),
-    sb.from('lde_dispatch_points').select('id, name, lat, lng').eq('active', true).order('name'),
+    sb.from('lde_dispatch_points').select('id, name, lat, lng, country').eq('active', true).order('name'),
     // Șoferii de camioane NU sunt marcați prin directions (verificat pe prod:
     // toți cei 16 au directions gol) — legătura reală e atribuirea activă la un
     // camion. Filtrul pe directions golea complet selectorul.
@@ -216,7 +216,7 @@ export async function getPlanificare(fromDate: string, zile: number): Promise<{
   for (const r of [stariRes, puncteRes, soferiRes]) if (r.error) { console.error('[camioane]', r.error.message); throw new Error('Nu am putut citi planificarea'); }
 
   type StareRow = { id: string; vehicle_id: string; date: string; state: 'reparatie' | 'odihna'; reason: string | null; expected_end: string | null };
-  type PunctRow = { id: string; name: string; lat: number | null; lng: number | null };
+  type PunctRow = { id: string; name: string; lat: number | null; lng: number | null; country: string | null };
   type SoferRow = {
     driver_id: string;
     drivers: { id: string; full_name: string } | { id: string; full_name: string }[] | null;
@@ -234,7 +234,7 @@ export async function getPlanificare(fromDate: string, zile: number): Promise<{
       reason: s.reason, expectedEnd: s.expected_end,
     })),
     puncte: ((puncteRes.data ?? []) as PunctRow[]).map((p) => ({
-      id: p.id, name: p.name, hasCoords: p.lat !== null && p.lng !== null, lat: p.lat, lng: p.lng,
+      id: p.id, name: p.name, hasCoords: p.lat !== null && p.lng !== null, lat: p.lat, lng: p.lng, country: p.country,
     })),
     soferi: (() => {
       const unul = <T,>(x: T | T[] | null): T | null => (Array.isArray(x) ? x[0] ?? null : x);

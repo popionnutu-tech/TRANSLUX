@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   segmentInFereastra, progresCursa, aIntarziat, camioaneInBanda, grupeazaPeTip, mutaPastrandDurata,
-  asazaInBenzi, esteInCursa, asteaptaDescarcarea,
+  asazaInBenzi, esteInCursa, asteaptaDescarcarea, undeEste, scenaCamion,
 } from './banda';
 
 const ZILE = ['2026-09-01','2026-09-02','2026-09-03','2026-09-04','2026-09-05'];
@@ -205,5 +205,63 @@ describe('mutaPastrandDurata', () => {
 
   it('datele stricate nu produc o mutare', () => {
     expect(mutaPastrandDurata('x', '2026-09-03T14:00:00+03:00', '2026-09-05')).toBeNull();
+  });
+});
+
+describe('undeEste — cu țara (Ion, 08.09)', () => {
+  const PUNCTE = [
+    { name: 'Port Constanța', lat: 44.1312, lng: 28.6163 },
+    { name: 'TLX Bălți', lat: 47.75288, lng: 27.87852 },
+  ];
+  it('pe drum spune țara: «în drum prin România, N km de …»', () => {
+    const t = undeEste({ lat: 45.9, lng: 28.4, tara: 'România' }, PUNCTE);
+    expect(t).toMatch(/^în drum prin România, \d+ km de /);
+  });
+  it('fără țară textul rămâne cel vechi — nu se inventează', () => {
+    expect(undeEste({ lat: 45.9, lng: 28.4 }, PUNCTE)).toMatch(/^în drum, \d+ km de /);
+    expect(undeEste({ lat: 45.9, lng: 28.4, tara: null }, PUNCTE)).toMatch(/^în drum, /);
+  });
+  it('aproape de punct: punctul, cu țara în paranteză; în punct: doar punctul', () => {
+    expect(undeEste({ lat: 47.7699, lng: 27.9236, tara: 'Moldova' }, PUNCTE)).toMatch(/^la \d+ km de TLX Bălți \(Moldova\)$/);
+    expect(undeEste({ lat: 47.7529, lng: 27.8786, tara: 'Moldova' }, PUNCTE)).toBe('la TLX Bălți');
+  });
+  it('fără puncte cu coordonate: măcar țara', () => {
+    expect(undeEste({ lat: 45.9, lng: 28.4, tara: 'România' }, [])).toBe('în România, fără punct apropiat');
+  });
+});
+
+describe('scenaCamion — toate scenele (Ion, 08.09)', () => {
+  const PUNCTE = [{ name: 'Port Constanța', lat: 44.1312, lng: 28.6163 }];
+  const poz = { lat: 45.9, lng: 28.4, tara: 'România' };
+  const cursa = (status: string, extra: Record<string, unknown> = {}) => ({
+    status, cargo: 'diesel', unloadPointName: 'TLX Bălți', unloadPointCountry: 'Moldova',
+    loadPointName: 'Port Constanța', loadPointCountry: 'România', ...extra,
+  });
+  it('reparația și odihna bat orice', () => {
+    expect(scenaCamion({ stareZi: { state: 'reparatie', expectedEnd: '2026-09-10' }, cursa: cursa('la_descarcare'), poz, puncte: PUNCTE }))
+      .toBe('în reparație, până la 2026-09-10');
+    expect(scenaCamion({ stareZi: { state: 'odihna' }, cursa: null, poz, puncte: PUNCTE })).toBe('odihnă șofer');
+  });
+  it('la descărcare în Moldova', () => {
+    expect(scenaCamion({ stareZi: null, cursa: cursa('la_descarcare'), poz, puncte: PUNCTE }))
+      .toBe('la descărcare diesel, TLX Bălți (Moldova)');
+  });
+  it('la descărcare cu biodiesel în Bulgaria', () => {
+    expect(scenaCamion({ stareZi: null, cursa: cursa('la_descarcare', { cargo: 'biodiesel', unloadPointName: 'Ruse', unloadPointCountry: 'Bulgaria' }), poz, puncte: PUNCTE }))
+      .toBe('la descărcare biodiesel, Ruse (Bulgaria)');
+  });
+  it('plin și așteaptă, la încărcare', () => {
+    expect(scenaCamion({ stareZi: null, cursa: cursa('asteapta_descarcare'), poz, puncte: PUNCTE }))
+      .toBe('plin diesel, așteaptă descărcarea la TLX Bălți (Moldova)');
+    expect(scenaCamion({ stareZi: null, cursa: cursa('la_incarcare'), poz, puncte: PUNCTE }))
+      .toBe('la încărcare diesel, Port Constanța (România)');
+  });
+  it('în drum: unde e după GPS, cu țara', () => {
+    expect(scenaCamion({ stareZi: null, cursa: cursa('spre_descarcare'), poz, puncte: PUNCTE }))
+      .toMatch(/^în drum prin România, \d+ km de Port Constanța$/);
+    expect(scenaCamion({ stareZi: null, cursa: null, poz, puncte: PUNCTE })).toMatch(/^în drum prin România/);
+  });
+  it('fără GPS și fără stare la punct: spune că nu știe', () => {
+    expect(scenaCamion({ stareZi: null, cursa: cursa('spre_incarcare'), poz: null, puncte: PUNCTE })).toBe('fără poziție GPS recentă');
   });
 });

@@ -42,7 +42,8 @@ const FS = {
   name: 13 * S,
   // Varianta pentru grupa șoferilor: numele complet e rândul principal.
   driverName: 16 * S,
-  plate: 14 * S,
+  plate: 13 * S,
+  plateBig: 24 * S,
 };
 
 /* ── Caches ── */
@@ -117,10 +118,12 @@ export interface ScheduleImageOptions {
   /**
    * Varianta pentru grupa șoferilor «Mejgorod». Ion, 07.09: «se adaugă doar
    * numele și familia complet»; Ion, 08.09: «doar în el să apară numele complet
-   * șofer și număr mașina». Coloana șoferului devine ȘOFER / MAȘINA: numele
-   * complet din nomenclator, sub el numărul mașinii și telefonul. Coloana e
-   * mai lată (260 în loc de 220), ruta cedează diferența. Imaginea publică
-   * (site, descărcare) rămâne cu prenumele și telefonul, ca înainte.
+   * șofer și număr mașina», apoi: «scoate de sub denumirea rutelor satele, doar
+   * denumirea rutei — fiecare rând mai îngust; numărul mașinii pune în loc de ora
+   * plecare din Chișinău, să fie mare». Deci: RUTA (ora + numele rutei, fără
+   * opriri, rând scund) | MAȘINA (numărul, mare) | ȘOFER (numele complet,
+   * telefonul sub el). Imaginea publică (site, descărcare) rămâne neschimbată:
+   * opriri, ora din Chișinău, telefon + prenume.
    */
   forDrivers?: boolean;
 }
@@ -151,9 +154,12 @@ export async function generateScheduleImage(
   const { r: fR, b: fB, i: fI } = fonts();
   const logo = logoBase64();
   const { w: COL_W, x: COL_X } = columns(opts.forDrivers ? 260 * S : 220 * S);
+  // Fără rândul opririlor, rândul e mai scund (Ion, 08.09) — 30 de curse încap
+  // pe o imagine pe care șoferul o citește fără zoom.
+  const rowH = opts.forDrivers ? 42 * S : ROW_H;
 
   const n = Math.max(assigned.length, 1);
-  const H = PAD + LOGO_AREA + SUB_LINE + TH_H + n * ROW_H + PAD;
+  const H = PAD + LOGO_AREA + SUB_LINE + TH_H + n * rowH + PAD;
 
   const svg: string[] = [];
 
@@ -185,7 +191,7 @@ export async function generateScheduleImage(
 
   /* ── Table ── */
   const tableY = PAD + LOGO_AREA + SUB_LINE;
-  const tableH = TH_H + n * ROW_H;
+  const tableH = TH_H + n * rowH;
   const bw = 2 * S; // border width
 
   // Outer border
@@ -200,17 +206,15 @@ export async function generateScheduleImage(
   // "RUTA" (left-aligned in route column)
   svg.push(textPath(fB, 'RUTA', COL_X.route + 50 * S, thMidY + FS.th * 0.35, FS.th, '#fff'));
 
-  // "PLECARE DIN / CHIȘINĂU" (centered, two lines)
+  // Coloana din mijloc: "PLECARE DIN / CHIȘINĂU" (public) sau "MAȘINA" (șoferi)
   const departCx = COL_X.depart + COL_W.depart / 2;
-  svg.push(textPath(fB, 'PLECARE DIN', departCx, thMidY - 2 * S, FS.th * 0.82, '#fff', 'middle'));
-  svg.push(textPath(fB, 'CHIȘINĂU', departCx, thMidY + FS.th * 0.75, FS.th * 0.82, '#fff', 'middle'));
-
-  // "NR. ȘOFER" (centered) — sau "ȘOFER / MAȘINA" pentru grupa șoferilor
   const driverCx = COL_X.driver + COL_W.driver / 2;
   if (opts.forDrivers) {
-    svg.push(textPath(fB, 'ȘOFER', driverCx, thMidY - 2 * S, FS.th * 0.82, '#fff', 'middle'));
-    svg.push(textPath(fB, 'MAȘINA', driverCx, thMidY + FS.th * 0.75, FS.th * 0.82, '#fff', 'middle'));
+    svg.push(textPath(fB, 'MAȘINA', departCx, thMidY + FS.th * 0.35, FS.th, '#fff', 'middle'));
+    svg.push(textPath(fB, 'ȘOFER', driverCx, thMidY + FS.th * 0.35, FS.th, '#fff', 'middle'));
   } else {
+    svg.push(textPath(fB, 'PLECARE DIN', departCx, thMidY - 2 * S, FS.th * 0.82, '#fff', 'middle'));
+    svg.push(textPath(fB, 'CHIȘINĂU', departCx, thMidY + FS.th * 0.75, FS.th * 0.82, '#fff', 'middle'));
     svg.push(textPath(fB, 'NR. ȘOFER', driverCx, thMidY + FS.th * 0.35, FS.th, '#fff', 'middle'));
   }
 
@@ -220,22 +224,23 @@ export async function generateScheduleImage(
 
   for (let i = 0; i < assigned.length; i++) {
     const row = assigned[i];
-    const rY = bodyY + i * ROW_H;
+    const rY = bodyY + i * rowH;
 
     // Alternating background
-    svg.push(`<rect x="${PAD + bw / 2}" y="${rY}" width="${TABLE_W - bw}" height="${ROW_H}" fill="${ROW_BG[i % 2]}"/>`);
+    svg.push(`<rect x="${PAD + bw / 2}" y="${rY}" width="${TABLE_W - bw}" height="${rowH}" fill="${ROW_BG[i % 2]}"/>`);
 
     // Bottom divider line
     if (i < assigned.length - 1) {
-      svg.push(`<line x1="${PAD}" y1="${rY + ROW_H}" x2="${PAD + TABLE_W}" y2="${rY + ROW_H}" stroke="rgba(155,27,48,0.15)" stroke-width="1"/>`);
+      svg.push(`<line x1="${PAD}" y1="${rY + rowH}" x2="${PAD + TABLE_W}" y2="${rY + rowH}" stroke="rgba(155,27,48,0.15)" stroke-width="1"/>`);
     }
 
     // Column dividers
-    svg.push(`<line x1="${COL_X.depart}" y1="${rY}" x2="${COL_X.depart}" y2="${rY + ROW_H}" stroke="rgba(155,27,48,0.1)" stroke-width="1"/>`);
-    svg.push(`<line x1="${COL_X.driver}" y1="${rY}" x2="${COL_X.driver}" y2="${rY + ROW_H}" stroke="rgba(155,27,48,0.1)" stroke-width="1"/>`);
+    svg.push(`<line x1="${COL_X.depart}" y1="${rY}" x2="${COL_X.depart}" y2="${rY + rowH}" stroke="rgba(155,27,48,0.1)" stroke-width="1"/>`);
+    svg.push(`<line x1="${COL_X.driver}" y1="${rY}" x2="${COL_X.driver}" y2="${rY + rowH}" stroke="rgba(155,27,48,0.1)" stroke-width="1"/>`);
 
-    // ── Route column: time + route name + stops ──
-    const timeBaseY = rY + ROW_H * 0.42;
+    // ── Route column: time + route name (+ stops, doar pe imaginea publică) ──
+    // Pe varianta șoferilor ora și ruta stau pe mijlocul rândului scund.
+    const timeBaseY = opts.forDrivers ? rY + rowH / 2 + FS.time * 0.35 : rY + ROW_H * 0.42;
 
     // Departure time from Nord (big bold)
     svg.push(textPath(fB, row.time_nord, COL_X.route + cellPad, timeBaseY, FS.time, MAROON_DK));
@@ -247,15 +252,21 @@ export async function generateScheduleImage(
     const maxRouteW = COL_X.depart - routeX - cellPad;
     svg.push(textPath(fB, truncText(fB, routeName, FS.route, maxRouteW), routeX, timeBaseY, FS.route, '#333'));
 
-    // Stops (smaller, below)
-    if (row.stops) {
+    // Stops (smaller, below) — nu și pe varianta șoferilor (Ion, 08.09)
+    if (row.stops && !opts.forDrivers) {
       const stopsY = timeBaseY + 14 * S;
       const maxStopsW = COL_W.route - 2 * cellPad;
       svg.push(textPath(fR, truncText(fR, row.stops, FS.stops, maxStopsW), COL_X.route + cellPad, stopsY, FS.stops, '#888'));
     }
 
-    // ── Departure from Chișinău ──
-    if (row.time_chisinau) {
+    // ── Coloana din mijloc: ora din Chișinău (public) / numărul mașinii (șoferi) ──
+    if (opts.forDrivers) {
+      const plate = row.vehicle_plate?.trim();
+      if (plate) {
+        const py = rY + rowH / 2 + FS.plateBig * 0.35;
+        svg.push(textPath(fB, plate, departCx, py, FS.plateBig, MAROON_DK, 'middle'));
+      }
+    } else if (row.time_chisinau) {
       const dtY = rY + ROW_H / 2 + FS.depart * 0.35;
       svg.push(textPath(fB, row.time_chisinau, departCx, dtY, FS.depart, MAROON_DK, 'middle'));
     }
@@ -263,31 +274,16 @@ export async function generateScheduleImage(
     // ── Driver column ──
     const maxNameW = COL_W.driver - 16 * S;
     if (opts.forDrivers) {
-      // Grupa șoferilor: numele complet (rândul mare), sub el mașina și telefonul.
-      // Numele complet poate depăși coloana («Docuciaev Dumitru Petru»): se taie
-      // cu «…» în loc să iasă peste chenar.
+      // Grupa șoferilor: numele complet (rândul mare), telefonul sub el. Numele
+      // complet poate depăși coloana («Docuciaev Dumitru Petru»): se taie cu «…»
+      // în loc să iasă peste chenar.
       const fullName = row.driver_full_name || row.driver_name;
-      const nameY = rY + ROW_H * 0.40;
+      const nameY = rY + rowH * 0.46;
       if (fullName) {
         svg.push(textPath(fB, truncText(fB, fullName, FS.driverName, maxNameW), driverCx, nameY, FS.driverName, MAROON_DK, 'middle'));
       }
-      const plate = row.vehicle_plate?.trim() || null;
-      const phone = row.driver_phone;
-      const lineY = nameY + 17 * S;
-      if (plate && phone) {
-        // «TL 123 AB · 069593693»: mașina îngroșată, telefonul obișnuit, centrate
-        // împreună. Spațiile nu au lățime în bounding box-ul glifelor — golul dintre
-        // ele se dă în pixeli, nu prin caractere.
-        const gap = 9 * S;
-        const wPlate = textW(fB, plate, FS.plate);
-        const wDot = textW(fR, '·', FS.plate);
-        const wPhone = textW(fR, phone, FS.plate);
-        const x0 = driverCx - (wPlate + gap + wDot + gap + wPhone) / 2;
-        svg.push(textPath(fB, plate, x0, lineY, FS.plate, '#333'));
-        svg.push(textPath(fR, '·', x0 + wPlate + gap, lineY, FS.plate, '#999'));
-        svg.push(textPath(fR, phone, x0 + wPlate + gap + wDot + gap, lineY, FS.plate, '#555'));
-      } else if (plate || phone) {
-        svg.push(textPath(plate ? fB : fR, (plate ?? phone) as string, driverCx, lineY, FS.plate, plate ? '#333' : '#555', 'middle'));
+      if (row.driver_phone) {
+        svg.push(textPath(fR, row.driver_phone, driverCx, nameY + 15 * S, FS.plate, '#555', 'middle'));
       }
     } else if (row.driver_phone) {
       const phoneY = rY + ROW_H * 0.38;

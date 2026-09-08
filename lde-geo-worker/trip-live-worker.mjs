@@ -72,8 +72,8 @@ async function main() {
   // Cursele cu marfa în camion. Cele planificate/spre încărcare nu ne interesează:
   // un camion gol oprit lângă stație nu descarcă nimic.
   const curse = await sb(
-    `lde_truck_trips?select=id,status,unload_seen_at,load_planned_at,unload_planned_at,` +
-    `unload_point:unload_point_id(name,lat,lng,radius_m),vehicles:vehicle_id(plate_number)` +
+    `lde_truck_trips?select=id,status,cargo,unload_seen_at,load_planned_at,unload_planned_at,` +
+    `unload_point:unload_point_id(name,country,lat,lng,radius_m),vehicles:vehicle_id(plate_number)` +
     `&status=in.(la_incarcare,asteapta_descarcare,spre_descarcare,la_descarcare)&limit=500`,
   ) || [];
   if (curse.length === 0) { console.log('  nicio cursă cu marfă — nimic de făcut'); return; }
@@ -121,9 +121,9 @@ async function main() {
     const placa = normPlaca(t.vehicles?.plate_number);
     const up = t.unload_point;
     const cursa = {
-      id: t.id, status: t.status, plate: placa, unload_seen_at: t.unload_seen_at,
+      id: t.id, status: t.status, cargo: t.cargo, plate: placa, unload_seen_at: t.unload_seen_at,
       load_planned_at: t.load_planned_at, unload_planned_at: t.unload_planned_at,
-      unloadPoint: up ? { lat: up.lat, lon: up.lng, radius_m: up.radius_m } : null,
+      unloadPoint: up ? { lat: up.lat, lon: up.lng, radius_m: up.radius_m, country: up.country } : null,
     };
     try {
       // Recepția TLX e dovada mai tare — închide cursa indiferent de GPS.

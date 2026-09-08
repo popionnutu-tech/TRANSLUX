@@ -1,18 +1,18 @@
 // Teste pentru stările automate (node --test lde-geo-worker/trip-auto.test.mjs).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { deciziaGps, deciziaTlx, statiaPunctului, razaEfectiva, normPlaca } from './trip-auto.mjs';
+import { deciziaGps, deciziaTlx, statiaPunctului, razaEfectiva, normPlaca, inMoldova } from './trip-auto.mjs';
 
 const ACUM = Date.parse('2026-09-08T12:00:00Z');
 const iso = (min) => new Date(ACUM + min * 60e3).toISOString();
 
 // TLX Bălți, punct cu raza 300 m; poziții: în rază / la 2 km
-const BALTI = { lat: 47.75288, lon: 27.87852, radius_m: 300 };
+const BALTI = { lat: 47.75288, lon: 27.87852, radius_m: 300, country: 'Moldova' };
 const IN_RAZA = { lat: 47.7530, lon: 27.8786 };
 const DEPARTE = { lat: 47.7699, lon: 27.9236 };
 
 const cursa = (extra = {}) => ({
-  id: 'c1', status: 'spre_descarcare', plate: 'KWX620', unload_seen_at: null, unloadPoint: BALTI,
+  id: 'c1', status: 'spre_descarcare', plate: 'KWX620', cargo: 'diesel', unload_seen_at: null, unloadPoint: BALTI,
   load_planned_at: '2026-09-07T06:00:00Z', unload_planned_at: '2026-09-08T10:00:00Z', ...extra,
 });
 
@@ -131,4 +131,34 @@ test('TLX: închide din orice stare cu marfă, inclusiv «la descărcare»; nu d
 test('TLX: dintre mai multe recepții potrivite se ia cea mai timpurie', () => {
   const d = deciziaTlx(cursa(), [rec({ id: 'r2', unloaded_at: '2026-09-08T10:30:00Z' }), rec()], STATII);
   assert.equal(d.tlx_receipt_id, 'r1');
+});
+
+test('inMoldova: Moldova / Republica Moldova / MD, nu România sau gol', () => {
+  assert.equal(inMoldova({ country: 'Moldova' }), true);
+  assert.equal(inMoldova({ country: 'Republica Moldova' }), true);
+  assert.equal(inMoldova({ country: ' md ' }), true);
+  assert.equal(inMoldova({ country: 'România' }), false);
+  assert.equal(inMoldova({ country: null }), false);
+  assert.equal(inMoldova(null), false);
+});
+
+// Punct în afara Moldovei, cu aceleași coordonate ca stația (cazul teoretic în
+// care cineva pune o stație TLX cu țara greșită) — regula e în cod, nu în hartă.
+const BALTI_RO = { ...BALTI, country: 'România' };
+const RUSE = { lat: 43.8564, lon: 25.9707, radius_m: 2000, country: 'Bulgaria' };
+const IN_RUSE = { lat: 43.8570, lon: 25.9710 };
+
+test('TLX: închiderea automată doar în Moldova', () => {
+  assert.equal(deciziaTlx(cursa({ unloadPoint: BALTI_RO }), [rec()], STATII), null);
+  assert.equal(deciziaTlx(cursa({ unloadPoint: { ...BALTI, country: null } }), [rec()], STATII), null);
+  assert.ok(deciziaTlx(cursa(), [rec()], STATII));
+});
+
+test('GPS: dieselul trece «la descărcare» doar în Moldova; biodieselul și la Ruse', () => {
+  const stand = (pozitie) => ({ ...pozitie, speed: 0, at: iso(-1) });
+  assert.equal(deciziaGps(cursa({ cargo: 'diesel', unloadPoint: RUSE, unload_seen_at: iso(-20) }), stand(IN_RUSE), ACUM), null);
+  assert.equal(deciziaGps(cursa({ cargo: 'diesel', unloadPoint: RUSE }), stand(IN_RUSE), ACUM), null);
+  assert.equal(deciziaGps(cursa({ cargo: 'biodiesel', unloadPoint: RUSE, unload_seen_at: iso(-20) }), stand(IN_RUSE), ACUM)?.status, 'la_descarcare');
+  assert.equal(deciziaGps(cursa({ cargo: 'cereale', unloadPoint: RUSE, unload_seen_at: iso(-20) }), stand(IN_RUSE), ACUM)?.status, 'la_descarcare');
+  assert.equal(deciziaGps(cursa({ cargo: 'diesel', unload_seen_at: iso(-20) }), stand(IN_RAZA), ACUM)?.status, 'la_descarcare');
 });

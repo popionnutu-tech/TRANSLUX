@@ -211,6 +211,12 @@ Decizii:
     cursei (1 h înainte de încărcare … 3 zile după descărcarea planificată). O recepție
     închide o singură cursă (index unic pe `tlx_receipt_id`). Punct fără stație TLX
     (bază, depozit Briceni, Ruse, Sofia) → nimic automat, rămâne dispecerul.
+- **Doar în Moldova** (Ion, 08.09: «închiderea automată e posibilă doar în Moldova;
+  de fapt descărcarea de diesel se închide doar în Moldova»): închiderea din TLX cere
+  `country` = Moldova pe punctul de descărcare, indiferent de coordonate; trecerea GPS
+  «la descărcare» pentru marfa `diesel` cere același lucru — o cisternă cu motorină
+  oprită la Constanța sau în vamă nu e la descărcare. Biodieselul (Ruse, Sofia) și
+  cerealele primesc trecerea GPS oriunde e punctul lor.
 - **Scrierea e optimistă**: `PATCH … status=eq.<starea citită>`. Dacă dispecerul a
   apăsat între timp, automatul nu suprascrie. Acțiunea manuală pune `status_source =
   'manual'`, deci omul bate mereu automatul.

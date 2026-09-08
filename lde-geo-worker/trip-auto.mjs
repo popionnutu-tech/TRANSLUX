@@ -43,6 +43,17 @@ export const STARI_TLX_INCHEIATA = [...STARI_GPS_LA_DESCARCARE, 'la_descarcare']
 
 export const normPlaca = (p) => (p || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
 
+/** Țara punctului e Moldova? (Ion, 08.09: «închiderea automată e posibilă doar
+ *  în Moldova; de fapt descărcarea de diesel se închide doar în Moldova».)
+ *  Se acceptă «Moldova», «Republica Moldova», «MD», cu sau fără diacritice. */
+export function inMoldova(punct) {
+  const tara = String(punct?.country ?? '').trim().toLowerCase();
+  return tara === 'md' || tara.includes('moldova');
+}
+
+/** Marfa e diesel (nu biodiesel, nu cereale)? Codurile vin din formularul cursei. */
+export const esteDiesel = (cargo) => String(cargo ?? '').trim().toLowerCase() === 'diesel';
+
 export function razaEfectiva(radiusM) {
   // Number(null) e 0, nu NaN — fără verificarea explicită punctul fără rază
   // primea 200 m în loc de cei 500 impliciți din bază.
@@ -55,7 +66,7 @@ const distM = (a, b) => hav({ lat: Number(a.lat), lon: Number(a.lon) }, { lat: N
 
 /**
  * Decizia GPS pentru o cursă.
- * @param cursa { status, unload_seen_at, unloadPoint: { lat, lon, radius_m } | null }
+ * @param cursa { status, cargo, unload_seen_at, unloadPoint: { lat, lon, radius_m, country } | null }
  * @param pozitie { lat, lon, speed (km/h), at (ISO) } | null
  * @param acumMs
  * @returns null (nimic de scris) | { unload_seen_at } | { status:'la_descarcare', ... }
@@ -63,6 +74,9 @@ const distM = (a, b) => hav({ lat: Number(a.lat), lon: Number(a.lon) }, { lat: N
 export function deciziaGps(cursa, pozitie, acumMs = Date.now()) {
   if (!STARI_GPS_LA_DESCARCARE.includes(cursa.status)) return null;
   if (!areCoordonate(cursa.unloadPoint)) return null;
+  // Dieselul se descarcă doar în Moldova: o cisternă cu motorină oprită la
+  // Constanța sau în vamă nu e «la descărcare». Biodieselul (Ruse, Sofia) trece.
+  if (esteDiesel(cursa.cargo) && !inMoldova(cursa.unloadPoint)) return null;
   if (!pozitie) return null;
   const t = Date.parse(pozitie.at);
   if (!Number.isFinite(t)) return null;
@@ -112,7 +126,7 @@ export function momentulReceptiei(r) {
 
 /**
  * Decizia TLX pentru o cursă.
- * @param cursa { id, status, plate, load_planned_at, unload_planned_at, unloadPoint }
+ * @param cursa { id, status, plate, load_planned_at, unload_planned_at, unloadPoint: { …, country } }
  * @param receptii [{ id, station_id, nr_auto, volume, unloaded_at, created_at, is_deleted }]
  * @param statii [{ id, lat, lon }]  (stations din TLX, lng→lon făcut de apelant)
  * @param folosite Set de fuel_receipts.id deja legate de alte curse
@@ -120,6 +134,9 @@ export function momentulReceptiei(r) {
  */
 export function deciziaTlx(cursa, receptii, statii, folosite = new Set(), acumMs = Date.now()) {
   if (!STARI_TLX_INCHEIATA.includes(cursa.status)) return null;
+  // Închiderea automată e posibilă DOAR în Moldova (stațiile TLX sunt toate aici;
+  // regula stă și în cod, nu doar în geografie).
+  if (!inMoldova(cursa.unloadPoint)) return null;
   const statie = statiaPunctului(cursa.unloadPoint, statii);
   if (!statie) return null; // descarcă în altă parte decât la o stație TLX — rămâne dispecerul
   const placa = normPlaca(cursa.plate);

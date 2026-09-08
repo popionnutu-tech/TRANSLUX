@@ -21,7 +21,7 @@ sessions:
     gates: [build-bot, test-bot]
     approve: []
   - id: S05
-    title: Bot API — prezență GPS pe toată tura, perioade de lipsă, alertă și digest
+    title: Bot API — prezență GPS pe toată tura, perioade de lipsă în raportul de seară
     gates: [build-bot, test-bot]
     approve: []
   - id: S06
@@ -163,9 +163,8 @@ Decise de mine (nu se reevaluează în timpul rulării):
     afara razei pe cel puțin **5 minute**; **fără semnal** = pauză între ping-uri de
     cel puțin **10 minute** în fereastră (telefon închis, GPS oprit, aplicație
     omorâtă). Sub aceste praguri nu se raportează nimic (GPS-ul sare).
-  - **Alertă imediată** în grupul adminilor când o lipsă sau o pauză de semnal
-    depășește **15 minute**, o singură dată per perioadă: «⚠️ Vitalie (Chișinău)
-    lipsește din zona de lucru de 17 min (de la 12:40)».
+  - **Fără alertă în timpul zilei** (Ion, 08.09: «am nevoie la sfârșit de zi doar,
+    un raport»). Nimic nu pleacă spre admini până seara.
   - **Raportul de seară** (digestul de la 20:30) primește secțiunea «Prezență în
     zona de lucru», un rând per operator: perioadele cu durata lor sau «toată tura
     în zonă»; plus «urmărire pornită abia la HH:MM» dacă primul ping e la peste
@@ -283,7 +282,7 @@ Decise de mine (nu se reevaluează în timpul rulării):
 - [ ] `POST /app/v1/presence` cu un lot de ping-uri scrie liniile cu `in_zone`
       calculat; funcția de perioade dă, pentru ping-uri în afara razei 12:40–13:05,
       exact o perioadă «lipsă 12:40–13:05 (25 min)»; digestul de seară are secțiunea
-      «Prezență în zona de lucru»; alerta pleacă o singură dată la ≥ 15 min.
+      «Prezență în zona de lucru»; niciun mesaj către admini în timpul zilei.
 - [ ] Un user din Bălți: `/day` întoarce cursele Bălți fără repartizări/curățenie;
       `/report` cu `status: 'FULL'` scrie `passengers_count = -1`; aplicația arată
       ecranul scurt (cifră, Absent, Microbuzul full, GPS, Trimite).
@@ -355,17 +354,6 @@ compilează, iar sesiunea se oprește înainte de a atinge baza.
    );
    create index if not exists idx_peron_presence_pings_user_at on peron_presence_pings (user_id, at);
    alter table peron_presence_pings enable row level security;
-
-   -- Perioadele de lipsă / fără semnal deja alertate (o alertă per perioadă)
-   create table if not exists peron_presence_alerts (
-     id uuid primary key default gen_random_uuid(),
-     user_id uuid not null references users(id),
-     kind text not null check (kind in ('LIPSA', 'FARA_SEMNAL')),
-     started_at timestamptz not null,
-     alerted_at timestamptz not null default now(),
-     unique (user_id, kind, started_at)
-   );
-   alter table peron_presence_alerts enable row level security;
 
    -- peron_cleaning_checks: sursa, coordonatele, ștergerea pozei după 30 de zile
    alter table peron_cleaning_checks add column if not exists source text not null default 'bot'
@@ -639,13 +627,12 @@ conține nicio descriere inventată a uniformei în afara constantei din config.
 
 ---
 
-## S05 — Bot API — prezență GPS pe toată tura, perioade de lipsă, alertă și digest
+## S05 — Bot API — prezență GPS pe toată tura, perioade de lipsă în raportul de seară
 
-**Depinde de:** S01 — `peron_presence_pings`, `peron_presence_alerts`; S02 — router și
-auth.
+**Depinde de:** S01 — `peron_presence_pings`; S02 — router și auth.
 
-**Scop:** botul știe, minut cu minut, dacă fiecare operator e în zona de lucru, alertează
-adminii la lipsă de peste 15 minute și pune perioadele în raportul de seară.
+**Scop:** botul primește poziția fiecărui operator pe toată tura și pune perioadele de
+lipsă din zonă sau fără semnal în raportul de seară. Nimic nu pleacă în timpul zilei.
 
 **Pași:**
 1. `GET /app/v1/day` (S02) primește în plus `presenceWindow: { from: 'HH:MM', to:
@@ -663,28 +650,22 @@ adminii la lipsă de peste 15 minute și pune perioadele în raportul de seară.
    sau de la ultimul ping până la `now`/sfârșitul ferestrei). Teste Vitest: fără
    ping-uri → o perioadă FARA_SEMNAL cât fereastra; 12:40–13:05 în afara razei → o
    LIPSA de 25 min; o singură citire în afara razei între două în zonă → nimic.
-4. Scheduler `schedulePresenceWatch()` în `scheduler.ts`, la fiecare 5 minute în
-   fereastră: pentru fiecare operator cu sesiune de aplicație activă și `point`
-   setat, ia ping-urile zilei, calculează perioadele, și pentru cea în curs
-   (`to` = acum) cu `minutes ≥ 15` trimite `sendAdminAlert` dacă nu există deja
-   rând în `peron_presence_alerts` pentru `(user, kind, from)`; apoi inserează rândul.
-   Text: «⚠️ <nume> (<Chișinău|Bălți>) lipsește din zona de lucru de N min (de la
-   HH:MM)» / «… fără semnal GPS de N min (de la HH:MM)».
-5. `dailyDigest.ts`: secțiunea «Prezență în zona de lucru» după încălcări, un rând
+4. `dailyDigest.ts`: secțiunea «Prezență în zona de lucru» după încălcări, un rând
    per operator care are ping-uri sau rapoarte azi: «Vitalie (Chișinău): lipsă
    12:40–13:05 (25 min) · fără semnal 17:10–17:18 (8 min)» sau «Andrei (Bălți): toată
    tura în zonă»; dacă primul ping e la > 15 min după `window.from`: «urmărire
    pornită abia la HH:MM».
-6. Ștergerea ping-urilor și a alertelor mai vechi de 30 de zile: în
-   `schedulePeronPhotoRetention()` (S04), un `delete` suplimentar.
+5. Ștergerea ping-urilor mai vechi de 30 de zile: în `schedulePeronPhotoRetention()`
+   (S04), un `delete` suplimentar.
 
 **Fișiere:** `apps/bot/src/api/presence.ts`, `presence.test.ts`, `apps/bot/src/api/day.ts`,
-`apps/bot/src/api/server.ts`, `apps/bot/src/scheduler.ts`, `apps/bot/src/services/dailyDigest.ts`,
-`apps/bot/src/services/db.ts` (`insertPresencePings`, `getPresencePings(userId, date)`,
-`getActiveAppOperators`, `presenceAlertExists`, `insertPresenceAlert`).
+`apps/bot/src/api/server.ts`, `apps/bot/src/scheduler.ts` (doar ștergerea la 30 de zile),
+`apps/bot/src/services/dailyDigest.ts`, `apps/bot/src/services/db.ts`
+(`insertPresencePings`, `getPresencePings(userId, date)`, `getActiveAppOperators`).
 
-**Gata când:** build-bot și test-bot verzi cu testele de la pasul 3; în `index.ts` apare
-`schedulePresenceWatch()`; digestul compilează cu secțiunea nouă.
+**Gata când:** build-bot și test-bot verzi cu testele de la pasul 3; digestul compilează
+cu secțiunea nouă; `grep -rn "sendAdminAlert" apps/bot/src/api/presence.ts` nu găsește
+nimic.
 
 **Gate-uri:** build-bot, test-bot.
 

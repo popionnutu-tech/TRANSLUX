@@ -1267,3 +1267,54 @@ export async function getUnvalidatedDay(
 
   return validation ? null : yesterdayStr;
 }
+
+// ── Curățenie peron Chișinău (poze la deschidere și la 15:00) ──
+export type CleaningSlot = 'DIMINEATA' | 'ZIUA';
+export type CleaningZone = 'PERON' | 'PIETONI' | 'VECEU';
+export type CleaningVerdict = 'CURAT' | 'MURDAR' | 'ALT_LOC' | 'EROARE';
+
+export interface CleaningCheckRow {
+  id: string;
+  check_date: string;
+  slot: CleaningSlot;
+  zone: CleaningZone;
+  storage_key: string;
+  telegram_file_id: string;
+  verdict: CleaningVerdict;
+  problems: string[];
+  description: string | null;
+  model: string | null;
+  created_by_user: string | null;
+  created_at: string;
+}
+
+export async function createCleaningCheck(row: Omit<CleaningCheckRow, 'id' | 'created_at'>): Promise<void> {
+  const { error } = await db().from('peron_cleaning_checks').insert(row);
+  if (error) throw error;
+}
+
+/** Toate pozele unei zile, în ordinea trimiterii. */
+export async function getCleaningChecksForDate(checkDate: string): Promise<CleaningCheckRow[]> {
+  const { data } = await db()
+    .from('peron_cleaning_checks')
+    .select('*')
+    .eq('check_date', checkDate)
+    .order('created_at', { ascending: true });
+  return (data as CleaningCheckRow[] | null) ?? [];
+}
+
+/**
+ * Zonele «închise» pe (zi, tură): ultima poză a zonei are verdict CURAT, MURDAR
+ * sau EROARE (poza există, verificarea a picat — nu blochează operatorul).
+ * ALT_LOC nu închide zona: trebuie refăcută.
+ */
+export async function getCleaningZonesDone(checkDate: string, slot: CleaningSlot): Promise<Set<CleaningZone>> {
+  const rows = (await getCleaningChecksForDate(checkDate)).filter((r) => r.slot === slot);
+  const lastByZone = new Map<CleaningZone, CleaningCheckRow>();
+  for (const r of rows) lastByZone.set(r.zone, r); // ordonate crescător → rămâne ultima
+  const done = new Set<CleaningZone>();
+  for (const [zone, r] of lastByZone) {
+    if (r.verdict !== 'ALT_LOC') done.add(zone);
+  }
+  return done;
+}

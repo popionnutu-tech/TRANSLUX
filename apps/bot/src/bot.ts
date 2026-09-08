@@ -11,6 +11,7 @@ import { handleCancelLastReport } from './handlers/cancel.js';
 import { handleWeeklyReport, handleDigest } from './handlers/admin.js';
 import { reportConversation } from './conversations/report.js';
 import { addDriverConversation } from './conversations/addDriver.js';
+import { cleaningPhotosConversation } from './conversations/cleaningPhotos.js';
 import { initAdminAlert } from './services/adminAlert.js';
 import { handleDaily, handleSmmWeekly, handleSmmMonth } from './handlers/smm.js';
 import { initTaskBoard, bindTaskBoard, getBoardAssignee, sweepTaskBoards } from './services/taskBoard.js';
@@ -73,6 +74,7 @@ export function createBot(): Bot<BotContext> {
 
   bot.use(createConversation(reportConversation, 'report'));
   bot.use(createConversation(addDriverConversation, 'addDriver'));
+  bot.use(createConversation(cleaningPhotosConversation, 'cleaningPhotos'));
 
   // /start command
   bot.command('start', handleStart);
@@ -230,6 +232,15 @@ export function createBot(): Bot<BotContext> {
       return;
     }
     await ctx.conversation.enter('addDriver');
+  });
+
+  bot.callbackQuery('menu:cleaning', async (ctx) => {
+    await ctx.answerCallbackQuery();
+    if (!ctx.dbUser || ctx.dbUser.point !== 'CHISINAU') {
+      await ctx.reply('Pozele de curățenie se trimit doar de operatorii din Chișinău.');
+      return;
+    }
+    await ctx.conversation.enter('cleaningPhotos');
   });
 
   bot.callbackQuery('menu:cancel_last', async (ctx) => {

@@ -1,6 +1,7 @@
 import { sendAdminAlert } from './adminAlert.js';
 import { formatDate, getTodayDate } from '../utils.js';
 import { getSupabase } from '../supabase.js';
+import { getCleaningChecksForDate, type CleaningSlot, type CleaningZone } from './db.js';
 
 // ── Types ────────────────────────────────────────────
 export interface Violation {
@@ -76,9 +77,9 @@ export async function addViolation(v: Violation): Promise<void> {
 /** Send compact daily digest at 20:30. Returns true if sent. */
 export async function sendCompactDigest(): Promise<boolean> {
   const state = await loadState();
-  if (state.violations.length === 0) return false;
-
   const today = state.date;
+  const cleaningLines = await buildCleaningLines(today);
+  if (state.violations.length === 0 && cleaningLines.length === 0) return false;
 
   // Count total reports today from DB per point
   const reportsByPoint: Record<string, number> = {};
@@ -122,7 +123,47 @@ export async function sendCompactDigest(): Promise<boolean> {
     msg += `\n${point}: ${total} (${parts.join(', ')})`;
   }
 
+  if (cleaningLines.length > 0) {
+    msg += `\n\n🧹 Curățenie Chișinău\n` + cleaningLines.join('\n');
+  }
+
   await sendAdminAlert(msg);
   console.log(`Compact daily digest sent: ${totalViolations} violations`);
   return true;
+}
+
+// ── Curățenie peron Chișinău (poze la deschidere și la 15:00) ──
+
+const CLEAN_SLOTS: CleaningSlot[] = ['DIMINEATA', 'ZIUA'];
+const CLEAN_ZONES: CleaningZone[] = ['PERON', 'PIETONI', 'VECEU'];
+const CLEAN_SLOT_LABEL: Record<CleaningSlot, string> = { DIMINEATA: 'dimineață', ZIUA: '15:00' };
+const CLEAN_ZONE_LABEL: Record<CleaningZone, string> = { PERON: 'peron', PIETONI: 'pietoni', VECEU: 'veceu' };
+
+/**
+ * O linie pe tură: «dimineață: ✅ peron · 🔴 pietoni (praf pe pavaj) · ⬜ veceu lipsă».
+ * Contează ultima poză a fiecărei zone; ALT_LOC neurmat de o poză bună = lipsă.
+ */
+async function buildCleaningLines(date: string): Promise<string[]> {
+  let rows: Awaited<ReturnType<typeof getCleaningChecksForDate>>;
+  try {
+    rows = await getCleaningChecksForDate(date);
+  } catch {
+    return [];
+  }
+  const lines: string[] = [];
+  for (const slot of CLEAN_SLOTS) {
+    const parts: string[] = [];
+    for (const zone of CLEAN_ZONES) {
+      const last = rows.filter((r) => r.slot === slot && r.zone === zone).at(-1);
+      const label = CLEAN_ZONE_LABEL[zone];
+      if (!last || last.verdict === 'ALT_LOC') parts.push(`⬜ ${label} lipsă`);
+      else if (last.verdict === 'CURAT') parts.push(`✅ ${label}`);
+      else if (last.verdict === 'MURDAR') {
+        const why = last.problems.length ? ` (${last.problems.slice(0, 2).join('; ')})` : '';
+        parts.push(`🔴 ${label}${why}`);
+      } else parts.push(`❔ ${label} neverificat`);
+    }
+    lines.push(`${CLEAN_SLOT_LABEL[slot]}: ${parts.join(' · ')}`);
+  }
+  return lines;
 }

@@ -68,7 +68,7 @@ export async function showMainMenu(ctx: BotContext) {
     .row();
 
   if (ctx.dbUser.point === 'CHISINAU') {
-    kb.text('➕ Adaugă șofer', 'menu:add_driver').row();
+    kb.text('📷 Poze curățenie', 'menu:cleaning').text('➕ Adaugă șofer', 'menu:add_driver').row();
   }
 
   kb.text('🔙 Anulează ultimul', 'menu:cancel_last')

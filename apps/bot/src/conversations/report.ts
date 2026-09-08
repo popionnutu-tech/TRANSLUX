@@ -28,6 +28,7 @@ import { updateLoadingBoard, updateLoadingBoardBalti } from '../services/loading
 import { getTodayDate, formatTime, formatDate, haversineDistance, minutesLate } from '../utils.js';
 import { config } from '../config.js';
 import { showMainMenu } from '../handlers/start.js';
+import { collectCleaningPhotos } from './cleaningPhotos.js';
 
 const COLS = 4;
 const DRIVER_COLS = 2;
@@ -186,6 +187,20 @@ export async function reportConversation(
 
     if (!selectedTrip) return;
     const trip = selectedTrip;
+
+    // ── Poartă curățenie (Chișinău): poze înaintea primei curse și înaintea cursei 16:25 ──
+    if (point === 'CHISINAU') {
+      const isFirstTrip = trip.id === allTrips[0]?.id;
+      const isGateTrip = formatTime(trip.departure_time) === config.cleaningGateTripTime;
+      const slot = isFirstTrip ? 'DIMINEATA' : isGateTrip ? 'ZIUA' : null;
+      if (slot) {
+        const complete = await collectCleaningPhotos(
+          conversation, ctx, slot,
+          `🧹 Înainte de cursa ${formatTime(trip.departure_time)} trebuie trimise pozele de curățenie (peron, zona pietoni, veceu).`
+        );
+        if (!complete) return; // a ieșit cu /start
+      }
+    }
 
     // ── Show pre-assigned driver/vehicle (Chișinău only) ──
     let assignmentConfirmed = false;

@@ -18,6 +18,10 @@ export const config = {
 
   // Chișinău trips exempt from location check (first and last)
   chisinauExemptTimes: ['06:55', '20:00'],
+
+  // Curățenie peron Chișinău: setul de dimineață e cerut înaintea primei curse,
+  // setul de zi înaintea cursei de mai jos (Ion, 08.09: «la 16:25 fără poze nu poate»).
+  cleaningGateTripTime: '16:25',
 } as const;
 
 export function validateConfig() {

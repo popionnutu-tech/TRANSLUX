@@ -22,8 +22,7 @@ const USER_COLS = 'id, role, name, username, point, operator_kind, telegram_id';
 export function userLabel(u: Pick<ZUser, 'name' | 'username' | 'point' | 'operator_kind'>): string {
   if (u.name) return u.name;
   if (u.username) return u.username;
-  const k = u.operator_kind === 'TAXI_ZONE' ? ' · taxi' : '';
-  return `Controlor ${u.point ?? ''}${k}`.trim();
+  return `Controlor ${u.point ?? ''}`.trim();
 }
 
 function verifyInitData(initData: string, botToken: string): number | null {

@@ -8,7 +8,6 @@ import type {
   Driver,
   Trip,
   Report,
-  TaxiZoneReport,
   PointEnum,
   DirectionEnum,
 } from '@translux/db';
@@ -979,7 +978,6 @@ export async function createReport(report: {
   vehicle_id: string | null;
   created_by_user: string;
   location_ok: boolean | null;
-  taxi_zone_skipped?: boolean;
 }): Promise<Report> {
   // DB enum only has OK/ABSENT — store FULL as OK with passengers_count=-1
   const dbRecord = report.status === 'FULL'
@@ -1026,129 +1024,6 @@ export async function cancelReport(reportId: string, cancelledBy: string): Promi
 
 export function getDirectionForPoint(point: PointEnum): DirectionEnum {
   return POINT_DIRECTION_MAP[point];
-}
-
-// ── Taxi-zone reports (Chișinău loading-zone operator) ──
-
-export async function createTaxiZoneReport(r: {
-  report_date: string;
-  trip_id: string;
-  status: 'OK' | 'ABSENT';
-  passengers_count: number | null;
-  location_ok: boolean | null;
-  created_by_user: string;
-}): Promise<void> {
-  const { error } = await db().from('taxi_zone_reports').insert(r);
-  if (error) throw error;
-}
-
-/** The active taxi-zone report for a trip (date), if any. */
-export async function getTaxiZoneReportForTrip(
-  reportDate: string,
-  tripId: string
-): Promise<TaxiZoneReport | null> {
-  const { data } = await db()
-    .from('taxi_zone_reports')
-    .select('*')
-    .eq('report_date', reportDate)
-    .eq('trip_id', tripId)
-    .is('cancelled_at', null)
-    .maybeSingle();
-  return (data as TaxiZoneReport | null) ?? null;
-}
-
-/** Trip IDs that already have an active taxi-zone report today. */
-export async function getTaxiZoneReportedTripIds(reportDate: string): Promise<Set<string>> {
-  const { data } = await db()
-    .from('taxi_zone_reports')
-    .select('trip_id')
-    .eq('report_date', reportDate)
-    .is('cancelled_at', null);
-  return new Set((data || []).map((r: any) => r.trip_id));
-}
-
-// ── Rol de operator pe zi (Aurel: zona taxi / peron) ──
-export type OperatorRole = 'MAIN' | 'TAXI_ZONE';
-
-/** Astăzi în Chișinău, 'YYYY-MM-DD'. */
-function chisinauTodayYMD(): string {
-  return new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Chisinau' })).toISOString().slice(0, 10);
-}
-
-/** Rolul ales de user pe ziua de azi (Chișinău), sau null dacă n-a ales. */
-export async function getOperatorDayRole(userId: string): Promise<OperatorRole | null> {
-  const { data } = await db()
-    .from('operator_day_role')
-    .select('role')
-    .eq('user_id', userId)
-    .eq('work_date', chisinauTodayYMD())
-    .maybeSingle();
-  return (data?.role as OperatorRole | undefined) ?? null;
-}
-
-/** Setează (upsert) rolul userului pe azi. */
-export async function setOperatorDayRole(userId: string, role: OperatorRole): Promise<void> {
-  await db()
-    .from('operator_day_role')
-    .upsert(
-      { user_id: userId, work_date: chisinauTodayYMD(), role, set_at: new Date().toISOString() },
-      { onConflict: 'user_id,work_date' }
-    );
-}
-
-/** Rolul efectiv azi: override-ul pe zi dacă există, altfel operator_kind (primarul/fallback). */
-export async function effectiveRoleToday(user: { id: string; operator_kind: string | null }): Promise<OperatorRole> {
-  const picked = await getOperatorDayRole(user.id);
-  if (picked) return picked;
-  return user.operator_kind === 'TAXI_ZONE' ? 'TAXI_ZONE' : 'MAIN';
-}
-
-/** Doar operatorii „comutabili" (primar TAXI_ZONE) aleg rolul pe zi — deocamdată doar Aurel. */
-export function isSwitchableOperator(user: { operator_kind: string | null }): boolean {
-  return user.operator_kind === 'TAXI_ZONE';
-}
-
-/**
- * Zona taxi e acoperită azi? = există un operator-taxi (primar TAXI_ZONE) activ care NU a ales
- * „peron" (MAIN) azi. Înlocuiește vechiul hasActiveTaxiOperator (verificare statică pe coloană).
- */
-export async function isTaxiZoneCoveredToday(): Promise<boolean> {
-  const { data: primaryTaxi } = await db()
-    .from('users')
-    .select('id')
-    .eq('active', true)
-    .eq('operator_kind', 'TAXI_ZONE');
-  if (!primaryTaxi || primaryTaxi.length === 0) return false;
-
-  const ids = primaryTaxi.map((u: any) => u.id as string);
-  const { data: picks } = await db()
-    .from('operator_day_role')
-    .select('user_id, role')
-    .eq('work_date', chisinauTodayYMD())
-    .in('user_id', ids);
-  const pickByUser = new Map((picks ?? []).map((p: any) => [p.user_id as string, p.role as string]));
-
-  // Acoperit dacă vreun operator-taxi NU a ales 'MAIN' azi (default taxi sau a ales taxi explicit).
-  return ids.some((id) => pickByUser.get(id) !== 'MAIN');
-}
-
-export async function getLastTaxiZoneReportByUser(userId: string): Promise<TaxiZoneReport | null> {
-  const { data } = await db()
-    .from('taxi_zone_reports')
-    .select('*')
-    .eq('created_by_user', userId)
-    .is('cancelled_at', null)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return (data as TaxiZoneReport | null) ?? null;
-}
-
-export async function cancelTaxiZoneReport(id: string, cancelledBy: string): Promise<void> {
-  await db()
-    .from('taxi_zone_reports')
-    .update({ cancelled_at: new Date().toISOString(), cancelled_by: cancelledBy })
-    .eq('id', id);
 }
 
 // ── Weekly report data ────────────────────────────────

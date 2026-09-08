@@ -1,6 +1,6 @@
 import { InlineKeyboard } from 'grammy';
 import type { BotContext } from '../types.js';
-import { validateInviteToken, markInviteUsed, createOrUpdateUser, getOperatorDayRole, isSwitchableOperator } from '../services/db.js';
+import { validateInviteToken, markInviteUsed, createOrUpdateUser } from '../services/db.js';
 import { POINT_LABELS } from '@translux/db';
 
 export async function handleStart(ctx: BotContext) {
@@ -63,39 +63,16 @@ export async function showMainMenu(ctx: BotContext) {
     return;
   }
 
-  // Operator comutabil (ex. Aurel): o dată pe zi alege rolul (zona taxi / peron) înainte de meniu.
-  let isTaxi: boolean;
-  if (isSwitchableOperator(ctx.dbUser)) {
-    const picked = await getOperatorDayRole(ctx.dbUser.id);
-    if (!picked) { await showRolePicker(ctx); return; }
-    isTaxi = picked === 'TAXI_ZONE';
-  } else {
-    isTaxi = ctx.dbUser.operator_kind === 'TAXI_ZONE';
-  }
-
   const kb = new InlineKeyboard()
-    .text(isTaxi ? '🚕 Raportează zona taxi' : '📋 Raportează cursă', 'menu:report')
+    .text('📋 Raportează cursă', 'menu:report')
     .row();
 
-  if (ctx.dbUser.point === 'CHISINAU' && !isTaxi) {
+  if (ctx.dbUser.point === 'CHISINAU') {
     kb.text('➕ Adaugă șofer', 'menu:add_driver').row();
-  }
-
-  // Operator comutabil: poate schimba rolul pe azi.
-  if (isSwitchableOperator(ctx.dbUser)) {
-    kb.text(`🔁 Schimbă rolul (azi: ${isTaxi ? 'zona taxi' : 'peron'})`, 'menu:switch_role').row();
   }
 
   kb.text('🔙 Anulează ultimul', 'menu:cancel_last')
     .text('❓ Ajutor', 'menu:help');
 
   await ctx.reply('Meniu principal:', { reply_markup: kb });
-}
-
-/** Prompt de alegere a rolului pe azi (operator comutabil — ex. Aurel). */
-export async function showRolePicker(ctx: BotContext) {
-  const kb = new InlineKeyboard()
-    .text('🚕 Zona taxi', 'rolepick:taxi')
-    .text('🚉 Peron Chișinău', 'rolepick:peron');
-  await ctx.reply('Azi ce faci? Alege rolul pentru ziua de azi:', { reply_markup: kb });
 }

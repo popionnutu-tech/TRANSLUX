@@ -10,8 +10,6 @@ import {
   getActiveVehicles,
   getDirectionForPoint,
   getReportedTripIds,
-  getTaxiZoneReportForTrip,
-  isTaxiZoneCoveredToday,
   createReport,
   validateDay,
   getUsedDriverIds,
@@ -189,48 +187,6 @@ export async function reportConversation(
     if (!selectedTrip) return;
     const trip = selectedTrip;
 
-    // ── Taxi-zone gate + hint (Chișinău only; only when a taxi operator is active) ──
-    let taxiZoneSkipped = false;
-    let taxiAbsent = false;
-    let taxiHint: number | null = null; // taxi-zone count to suggest, if reported
-    if (point === 'CHISINAU') {
-      const taxiActive = await conversation.external(() => isTaxiZoneCoveredToday());
-      if (taxiActive) {
-        const taxiReport = await conversation.external(() =>
-          getTaxiZoneReportForTrip(reportDate, trip.id)
-        );
-        if (taxiReport && taxiReport.status === 'OK' && taxiReport.passengers_count !== null) {
-          taxiHint = taxiReport.passengers_count;
-        } else if (taxiReport && taxiReport.status === 'ABSENT') {
-          taxiAbsent = true; // zona taxi a raportat explicit „absent"
-        } else if (!taxiReport) {
-          // Zona taxi n-a raportat încă această cursă — așteaptă sau continuă fără verificare.
-          const gateKb = new InlineKeyboard()
-            .text('⏳ Aștept zona taxi', 'gate:wait')
-            .text('▶ Continui fără', 'gate:skip');
-          await ctx.reply(
-            `🚕 Zona taxi încă n-a raportat cursa ${formatTime(trip.departure_time)}.\n` +
-            `Aștepți operatorul zona taxi, sau continui fără verificare?`,
-            { reply_markup: gateKb }
-          );
-          let proceed = false;
-          while (true) {
-            const gCtx = await conversation.wait();
-            if (gCtx.message?.text === '/start') { await showMainMenu(gCtx as BotContext); return; }
-            if (gCtx.callbackQuery?.data === 'gate:wait') {
-              await gCtx.answerCallbackQuery({ text: 'Revino după ce zona taxi raportează.' });
-              break;
-            }
-            if (gCtx.callbackQuery?.data === 'gate:skip') {
-              await gCtx.answerCallbackQuery();
-              taxiZoneSkipped = true; proceed = true; break;
-            }
-          }
-          if (!proceed) continue; // înapoi la grila de curse
-        }
-      }
-    }
-
     // ── Show pre-assigned driver/vehicle (Chișinău only) ──
     let assignmentConfirmed = false;
     let confirmedDriverId: string | null = null;
@@ -360,21 +316,14 @@ export async function reportConversation(
 
     // ── Step 2: Passengers or ABSENT / FULL ────────────
     const statusKb = new InlineKeyboard();
-    if (taxiHint !== null) statusKb.text(`✅ Confirm ${taxiHint}`, 'confirm_taxi').row();
     statusKb.text('Absent', 'status:ABSENT');
     if (point === 'BALTI') {
       statusKb.text('Microbuzul full', 'status:FULL');
     }
 
-    const taxiLine = taxiHint !== null
-      ? `\n🚕 Zona taxi: ${taxiHint}`
-      : taxiAbsent
-        ? '\n🚕 Zona taxi: absent'
-        : (taxiZoneSkipped ? '\n🚕 Zona taxi: — (fără verificare)' : '');
-
     await ctx.reply(
-      `⏱ ${formatTime(trip.departure_time)}${taxiLine}\n\n` +
-      `Câți pasageri? (scrie cifra${taxiHint !== null ? ', apasă „Confirm"' : ''} sau apasă butonul)`,
+      `⏱ ${formatTime(trip.departure_time)}\n\n` +
+      `Câți pasageri? (scrie cifra sau apasă butonul)`,
       { reply_markup: statusKb }
     );
 
@@ -397,12 +346,6 @@ export async function reportConversation(
       if (inputCtx.callbackQuery?.data === 'status:FULL') {
         await inputCtx.answerCallbackQuery();
         status = 'FULL';
-        break;
-      }
-      if (inputCtx.callbackQuery?.data === 'confirm_taxi' && taxiHint !== null) {
-        await inputCtx.answerCallbackQuery();
-        passengersCount = taxiHint;
-        status = 'OK';
         break;
       }
 
@@ -782,7 +725,6 @@ export async function reportConversation(
         vehicle_id: vehicleId,
         created_by_user: user.id,
         location_ok: needsLoc ? locationOk : null,
-        taxi_zone_skipped: taxiZoneSkipped,
       }));
 
       // Update daily digest (single editable message for all violations)

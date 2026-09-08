@@ -5,30 +5,17 @@ import { config } from './config.js';
 import { supabaseSessionStorage, supabaseConversationAdapter, CONVERSATION_STATE_VERSION } from './services/sessionStorage.js';
 import { authMiddleware } from './middleware/auth.js';
 import { rateLimitMiddleware } from './middleware/rateLimit.js';
-import { handleStart, showMainMenu, showRolePicker } from './handlers/start.js';
+import { handleStart, showMainMenu } from './handlers/start.js';
 import { handleCancelLastReport } from './handlers/cancel.js';
-import { effectiveRoleToday, setOperatorDayRole, isSwitchableOperator } from './services/db.js';
 
 import { handleWeeklyReport, handleDigest } from './handlers/admin.js';
 import { reportConversation } from './conversations/report.js';
 import { addDriverConversation } from './conversations/addDriver.js';
-import { taxiZoneReportConversation } from './conversations/taxiZoneReport.js';
 import { initAdminAlert } from './services/adminAlert.js';
 import { handleDaily, handleSmmWeekly, handleSmmMonth } from './handlers/smm.js';
 import { initTaskBoard, bindTaskBoard, getBoardAssignee, sweepTaskBoards } from './services/taskBoard.js';
 import { sendVoiceLessonDigest, decideVoiceLesson } from './services/voiceLessons.js';
 import { bindDriversGroup, currentDriversGroup, bindGraficGroup, currentGraficGroup } from './services/driversGroup.js';
-
-/** Operator comutabil (Aurel): setează rolul pe azi și revine la meniu. */
-async function setRoleAndMenu(ctx: BotContext, role: 'TAXI_ZONE' | 'MAIN') {
-  if (!ctx.dbUser || !isSwitchableOperator(ctx.dbUser)) {
-    await ctx.reply('Această opțiune nu este disponibilă pentru tine.');
-    return;
-  }
-  await setOperatorDayRole(ctx.dbUser.id, role);
-  await ctx.reply(role === 'TAXI_ZONE' ? '✓ Azi: 🚕 zona taxi.' : '✓ Azi: 🚉 peron Chișinău.');
-  await showMainMenu(ctx);
-}
 
 export function createBot(): Bot<BotContext> {
   const bot = new Bot<BotContext>(config.botToken);
@@ -86,7 +73,6 @@ export function createBot(): Bot<BotContext> {
 
   bot.use(createConversation(reportConversation, 'report'));
   bot.use(createConversation(addDriverConversation, 'addDriver'));
-  bot.use(createConversation(taxiZoneReportConversation, 'taxiZoneReport'));
 
   // /start command
   bot.command('start', handleStart);
@@ -234,17 +220,12 @@ export function createBot(): Bot<BotContext> {
       await ctx.reply('Rolul tău este doar pentru sarcini — raportarea curselor nu este disponibilă.');
       return;
     }
-    const role = await effectiveRoleToday(ctx.dbUser);
-    if (role === 'TAXI_ZONE') {
-      await ctx.conversation.enter('taxiZoneReport');
-    } else {
-      await ctx.conversation.enter('report');
-    }
+    await ctx.conversation.enter('report');
   });
 
   bot.callbackQuery('menu:add_driver', async (ctx) => {
     await ctx.answerCallbackQuery();
-    if (!ctx.dbUser || ctx.dbUser.point !== 'CHISINAU' || (await effectiveRoleToday(ctx.dbUser)) === 'TAXI_ZONE') {
+    if (!ctx.dbUser || ctx.dbUser.point !== 'CHISINAU') {
       await ctx.reply('Această funcție este disponibilă doar pentru operatorii din Chișinău.');
       return;
     }
@@ -254,24 +235,6 @@ export function createBot(): Bot<BotContext> {
   bot.callbackQuery('menu:cancel_last', async (ctx) => {
     await ctx.answerCallbackQuery();
     await handleCancelLastReport(ctx as BotContext);
-  });
-
-  // Operator comutabil (Aurel): alegerea / schimbarea rolului pe azi.
-  bot.callbackQuery('rolepick:taxi', async (ctx) => {
-    await ctx.answerCallbackQuery();
-    await setRoleAndMenu(ctx as BotContext, 'TAXI_ZONE');
-  });
-  bot.callbackQuery('rolepick:peron', async (ctx) => {
-    await ctx.answerCallbackQuery();
-    await setRoleAndMenu(ctx as BotContext, 'MAIN');
-  });
-  bot.callbackQuery('menu:switch_role', async (ctx) => {
-    await ctx.answerCallbackQuery();
-    if (!ctx.dbUser || !isSwitchableOperator(ctx.dbUser)) {
-      await ctx.reply('Indisponibil.');
-      return;
-    }
-    await showRolePicker(ctx as BotContext);
   });
 
   bot.callbackQuery('menu:help', async (ctx) => {

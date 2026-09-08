@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap">
+  <style>
+    body { margin: 0; font-family: 'Open Sans', 'Segoe UI', Arial, sans-serif; background: #f4f0ed; }
+    a { color: #9B1B30; } a:hover { color: #7a1526; }
+    .card { background: #ffffff; border: 1px solid #e6e2de; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .label { font-size: 13px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #666; }
+  </style>
+</helmet>
+<div style="width: 390px; height: 844px; background: #f4f0ed; display: flex; flex-direction: column; box-sizing: border-box; padding: 56px 16px 24px 16px; gap: 14px;">
+
+  <div style="display: flex; align-items: center; gap: 12px;">
+    <div style="width: 44px; height: 44px; margin-left: -8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9B1B30" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"></path></svg></div>
+    <div style="display: flex; flex-direction: column;">
+      <div style="font-size: 26px; font-weight: 800; color: #1f1a1b;">Cursa 15:20</div>
+      <div style="font-size: 14px; font-weight: 600; color: #666;">Bălți → Chișinău</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="label">Pasageri</div>
+    <div style="display: flex; gap: 10px; align-items: stretch;">
+      <div style="width: 72px; background: #ffffff; border: 2px solid #ddd9d5; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 34px; font-weight: 700; color: #333;">−</div>
+      <div style="flex-grow: 1; height: 96px; background: #ffffff; border: 2px solid #9B1B30; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 52px; font-weight: 800; color: #1f1a1b;">18</div>
+      <div style="width: 72px; background: #ffffff; border: 2px solid #ddd9d5; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 34px; font-weight: 700; color: #333;">+</div>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px;">
+      <div style="height: 52px; border: 2px solid #ddd9d5; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: #333;">5</div>
+      <div style="height: 52px; border: 2px solid #ddd9d5; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: #333;">10</div>
+      <div style="height: 52px; border: 2px solid #ddd9d5; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: #333;">15</div>
+      <div style="height: 52px; border: 2px solid #ddd9d5; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: #333;">20</div>
+      <div style="height: 52px; border: 2px solid #ddd9d5; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: #333;">25</div>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 10px;">
+    <div style="flex-grow: 1; height: 56px; border: 2px solid #ddd9d5; background: #ffffff; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: #333;">Absent</div>
+    <div style="flex-grow: 1; height: 56px; border: 2px solid #ddd9d5; background: #ffffff; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: #333;">Microbuzul full</div>
+  </div>
+
+  <div style="display: flex; gap: 10px; align-items: center; padding: 4px 6px;">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"></path><circle cx="12" cy="10" r="2.5"></circle></svg>
+    <div style="font-size: 15px; font-weight: 600; color: #1f6b34;">la 31 m de stație · locație confirmată automat</div>
+  </div>
+
+  <div style="height: 64px; background: #9B1B30; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 21px; font-weight: 800; color: #ffffff; box-shadow: 0 4px 12px rgba(155,27,48,0.35);">Trimite raportul</div>
+
+  <div style="flex-grow: 1;"></div>
+  <div style="font-size: 14px; color: #6b6560; text-align: center; line-height: 1.4;">Fără șofer, auto sau verificări: la Bălți se numără doar pasagerii. Două atingeri per cursă.</div>
+</div>
+</x-dc>
+</body>
+</html>

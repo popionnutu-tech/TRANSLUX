@@ -1,0 +1,69 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap">
+  <style>
+    body { margin: 0; font-family: 'Open Sans', 'Segoe UI', Arial, sans-serif; background: #f4f0ed; }
+    a { color: #9B1B30; } a:hover { color: #7a1526; }
+    .done { height: 64px; background: #e8f3ea; border: 2px solid #b7dcc1; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 17px; font-weight: 700; color: #1f6b34; }
+    .lock { height: 64px; background: #ffffff; border: 2px solid #e6e2de; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 17px; font-weight: 600; color: #6b6560; }
+  </style>
+</helmet>
+<div style="width: 390px; height: 1040px; background: #f4f0ed; display: flex; flex-direction: column; box-sizing: border-box; padding: 56px 16px 20px 16px; gap: 14px;">
+
+  <div style="display: flex; align-items: flex-end; justify-content: space-between;">
+    <div style="display: flex; flex-direction: column; gap: 2px;">
+      <div style="font-size: 14px; font-weight: 600; color: #9B1B30; letter-spacing: 2px;">TRANSLUX · CHIȘINĂU</div>
+      <div style="font-size: 24px; font-weight: 800; color: #1f1a1b;">Luni, 8 septembrie</div>
+    </div>
+    <div style="font-size: 15px; font-weight: 600; color: #666;">Vitalie</div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 6px;">
+    <div style="display: flex; justify-content: space-between; font-size: 15px; font-weight: 600; color: #333;">
+      <div>Completate 17 din 29</div>
+      <div style="color: #9B1B30;">Urmează 15:15</div>
+    </div>
+    <div style="height: 8px; background: #e6e2de; border-radius: 4px; overflow: hidden;">
+      <div style="height: 8px; width: 59%; background: #9B1B30; border-radius: 4px;"></div>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 10px; align-items: center; background: #ffffff; border: 2px solid #b7dcc1; border-radius: 12px; padding: 10px 14px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"></path><circle cx="12" cy="10" r="2.5"></circle></svg><div style="display: flex; flex-direction: column; gap: 1px;"><div style="font-size: 15px; font-weight: 700; color: #1f6b34;">În zona de lucru · GPS activ</div><div style="font-size: 13px; color: #6b6560;">Se urmărește pe toată tura, 06:25–20:30. Azi: în afara zonei 12:40–13:05.</div></div></div>
+
+  <div style="display: flex; gap: 12px; align-items: center; background: #fff7e6; border: 2px solid #f0c674; border-radius: 12px; padding: 12px 14px;">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+    <div style="font-size: 15px; color: #1f1a1b; line-height: 1.4;"><span style="font-weight: 700;">Pozele de la 15:00 lipsesc.</span> Sunt obligatorii înainte de cursa 16:25.</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px;">
+    <div class="done">06:55</div><div class="done">07:35</div><div class="done">08:15</div><div class="done">08:50</div>
+    <div class="done">09:25</div><div class="done">10:00</div><div class="done">10:30</div><div class="done">11:00</div>
+    <div class="done">11:28</div><div class="done">11:55</div><div class="done">12:20</div><div class="done">12:45</div>
+    <div class="done">13:10</div><div class="done">13:35</div><div class="done">14:00</div><div class="done">14:25</div>
+    <div class="done">14:50</div>
+    <div style="height: 64px; background: #9B1B30; border: 2px solid #9B1B30; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 18px; font-weight: 800; color: #ffffff; box-shadow: 0 4px 10px rgba(155,27,48,0.35);">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="#ffffff" stroke="none"><path d="M6 4l14 8-14 8z"></path></svg>15:15
+    </div>
+    <div class="lock">15:40</div><div class="lock">16:05</div>
+    <div class="lock">16:25</div><div class="lock">16:45</div><div class="lock">17:20</div><div class="lock">17:50</div>
+    <div class="lock">18:10</div><div class="lock">18:30</div><div class="lock">18:55</div><div class="lock">19:25</div>
+    <div class="lock">20:00</div>
+  </div>
+
+  <div style="flex-grow: 1;"></div>
+
+  <div style="height: 60px; background: #ffffff; border: 2px solid #9B1B30; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 19px; font-weight: 700; color: #9B1B30;">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9B1B30" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+    Poze curățenie
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

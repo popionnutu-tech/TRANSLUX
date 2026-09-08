@@ -1,0 +1,60 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap">
+  <style>
+    body { margin: 0; font-family: 'Open Sans', 'Segoe UI', Arial, sans-serif; background: #f4f0ed; }
+    a { color: #9B1B30; } a:hover { color: #7a1526; }
+    .done { height: 64px; background: #e8f3ea; border: 2px solid #b7dcc1; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 17px; font-weight: 700; color: #1f6b34; }
+    .lock { height: 64px; background: #ffffff; border: 2px solid #e6e2de; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 17px; font-weight: 600; color: #6b6560; }
+  </style>
+</helmet>
+<div style="width: 390px; height: 920px; background: #f4f0ed; display: flex; flex-direction: column; box-sizing: border-box; padding: 56px 16px 20px 16px; gap: 14px;">
+
+  <div style="display: flex; align-items: flex-end; justify-content: space-between;">
+    <div style="display: flex; flex-direction: column; gap: 2px;">
+      <div style="font-size: 14px; font-weight: 600; color: #9B1B30; letter-spacing: 2px;">TRANSLUX · BĂLȚI</div>
+      <div style="font-size: 24px; font-weight: 800; color: #1f1a1b;">Luni, 8 septembrie</div>
+    </div>
+    <div style="font-size: 15px; font-weight: 600; color: #666;">Andrei</div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 6px;">
+    <div style="display: flex; justify-content: space-between; font-size: 15px; font-weight: 600; color: #333;">
+      <div>Completate 20 din 29</div>
+      <div style="color: #9B1B30;">Urmează 15:20</div>
+    </div>
+    <div style="height: 8px; background: #e6e2de; border-radius: 4px; overflow: hidden;">
+      <div style="height: 8px; width: 69%; background: #9B1B30; border-radius: 4px;"></div>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 10px; align-items: center; background: #ffffff; border: 2px solid #b7dcc1; border-radius: 12px; padding: 10px 14px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"></path><circle cx="12" cy="10" r="2.5"></circle></svg><div style="display: flex; flex-direction: column; gap: 1px;"><div style="font-size: 15px; font-weight: 700; color: #1f6b34;">În zona de lucru · GPS activ</div><div style="font-size: 13px; color: #6b6560;">Se urmărește pe toată tura, 04:50–20:50. Azi: fără lipsă din zonă.</div></div></div>
+
+  <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px;">
+    <div class="done">05:20</div><div class="done">05:30</div><div class="done">06:30</div><div class="done">06:55</div>
+    <div class="done">07:35</div><div class="done">08:15</div><div class="done">08:35</div><div class="done">09:00</div>
+    <div class="done">09:20</div><div class="done">09:30</div><div class="done">10:05</div><div class="done">10:25</div>
+    <div class="done">10:50</div><div class="done">11:10</div><div class="done">11:45</div><div class="done">12:10</div>
+    <div class="done">12:45</div><div class="done">13:10</div><div class="done">13:55</div><div class="done">14:20</div>
+    <div style="height: 64px; background: #9B1B30; border: 2px solid #9B1B30; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 18px; font-weight: 800; color: #ffffff; box-shadow: 0 4px 10px rgba(155,27,48,0.35);">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="#ffffff" stroke="none"><path d="M6 4l14 8-14 8z"></path></svg>15:20
+    </div>
+    <div class="lock">15:45</div><div class="lock">16:00</div><div class="lock">16:20</div>
+    <div class="lock">17:00</div><div class="lock">18:25</div><div class="lock">18:40</div><div class="lock">19:20</div>
+    <div class="lock">20:20</div>
+  </div>
+
+  <div style="flex-grow: 1;"></div>
+
+  <div style="font-size: 14px; color: #6b6560; text-align: center; line-height: 1.4;">La Bălți se raportează doar numărul de pasageri. Locația pleacă automat.</div>
+</div>
+</x-dc>
+</body>
+</html>

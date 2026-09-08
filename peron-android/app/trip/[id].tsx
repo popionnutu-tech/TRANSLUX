@@ -5,14 +5,11 @@
  * singură, «Trimite». Bălți: doar pasageri, Absent / Microbuzul full, locație, Trimite.
  * Logica pură (starea → corpul cererii, validarea) e în src/buildReport.ts.
  *
- * Camera e scrisă aici (DriverCamera + takeCompressedPhoto); S08 o mută în src/camera.ts
- * și o refolosește la curățenie.
+ * Camera (src/camera.tsx) și locația (src/location.ts) sunt module comune cu ecranul
+ * de curățenie.
  */
-import { CameraView, useCameraPermissions } from 'expo-camera';
-import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
-import * as Location from 'expo-location';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -51,152 +48,14 @@ import {
   type TripContext,
   type TripFormState,
 } from '../../src/buildReport';
+import { PhotoCamera, type CapturedPhoto } from '../../src/camera';
 import { BigButton, Body, Card, Muted, OptionGroup, Screen, SectionTitle, Title, YES_NO, type Option } from '../../src/components';
 import { haversineDistance } from '../../src/format';
+import { explainThenRequestPermission, findLocation, hasForegroundPermission } from '../../src/location';
 import { colors, sizes } from '../../src/theme';
 import type { CleaningRequiredDetails, ClimateStatus, DayResponse, DayTrip } from '../../src/types';
 
-const LOCATION_TIMEOUT_MS = 15_000;
-const PHOTO_MAX_WIDTH = 1280;
-const PHOTO_JPEG_QUALITY = 0.8;
-
-// ── Locația (getCurrentPositionAsync, separat de urmărirea din fundal) ────────
-
-function toCoords(loc: Location.LocationObject): Coords {
-  return {
-    lat: loc.coords.latitude,
-    lon: loc.coords.longitude,
-    accuracyM: loc.coords.accuracy == null ? null : Math.max(0, Math.round(loc.coords.accuracy)),
-  };
-}
-
-async function hasForegroundPermission(): Promise<boolean> {
-  try {
-    return (await Location.getForegroundPermissionsAsync()).granted;
-  } catch {
-    return false;
-  }
-}
-
-/** Explicația de dinaintea re-cererii permisiunii (spec: «o re-cere la fiecare trimitere, cu explicație»). */
-function explainThenRequestPermission(): Promise<boolean> {
-  return new Promise((resolve) => {
-    Alert.alert(
-      'Locația lipsește',
-      'Locația confirmă că raportul e făcut la stație. Fără ea raportul se trimite, dar se notează încălcare «locație». Permite accesul la locație la pasul următor.',
-      [
-        { text: 'Trimit fără locație', style: 'cancel', onPress: () => resolve(false) },
-        {
-          text: 'Permite',
-          onPress: () => {
-            Location.requestForegroundPermissionsAsync()
-              .then((r) => resolve(r.granted))
-              .catch(() => resolve(false));
-          },
-        },
-      ],
-      { cancelable: false },
-    );
-  });
-}
-
-/**
- * Citirea curentă cu precizie mare, cel mult 15 s; la expirare, ultima poziție cunoscută
- * (≤ 2 min), altfel null. Dacă citirea bună sosește după expirare, `onUpdate` o mai livrează o dată.
- */
-async function findLocation(onUpdate: (c: Coords | null) => void): Promise<void> {
-  let settled = false;
-  const timer = setTimeout(async () => {
-    settled = true;
-    let last: Location.LocationObject | null = null;
-    try {
-      last = await Location.getLastKnownPositionAsync({ maxAge: 2 * 60 * 1000 });
-    } catch {
-      last = null;
-    }
-    onUpdate(last ? toCoords(last) : null);
-  }, LOCATION_TIMEOUT_MS);
-  try {
-    const cur = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-    clearTimeout(timer);
-    onUpdate(toCoords(cur));
-  } catch {
-    if (!settled) {
-      clearTimeout(timer);
-      onUpdate(null);
-    }
-  }
-}
-
-// ── Camera + comprimare (1280 px lățime, JPEG 0.8) ────────────────────────────
-
-export interface CapturedPhoto {
-  uri: string;
-  base64: string;
-}
-
-async function takeCompressedPhoto(camera: CameraView): Promise<CapturedPhoto | null> {
-  const pic = await camera.takePictureAsync({ quality: 0.9 });
-  if (!pic) return null;
-  const ctx = ImageManipulator.manipulate(pic.uri);
-  if (pic.width > PHOTO_MAX_WIDTH) ctx.resize({ width: PHOTO_MAX_WIDTH });
-  const rendered = await ctx.renderAsync();
-  const out = await rendered.saveAsync({ format: SaveFormat.JPEG, compress: PHOTO_JPEG_QUALITY, base64: true });
-  if (!out.base64) return null;
-  return { uri: out.uri, base64: out.base64 };
-}
-
-/** Camera pe tot ecranul, doar spate, doar poză făcută pe loc — galeria nu există. */
-function DriverCamera({ title, onCaptured, onCancel }: { title: string; onCaptured: (p: CapturedPhoto) => void; onCancel: () => void }) {
-  const [permission, requestPermission] = useCameraPermissions();
-  const cameraRef = useRef<CameraView>(null);
-  const [ready, setReady] = useState(false);
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (permission && !permission.granted && permission.canAskAgain) requestPermission();
-  }, [permission, requestPermission]);
-
-  async function shoot() {
-    if (!cameraRef.current || busy || !ready) return;
-    setBusy(true);
-    try {
-      const photo = await takeCompressedPhoto(cameraRef.current);
-      if (photo) onCaptured(photo);
-      else Alert.alert('Poza nu a reușit', 'Încearcă din nou.');
-    } catch {
-      Alert.alert('Poza nu a reușit', 'Încearcă din nou.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <Modal visible animationType="slide" onRequestClose={onCancel}>
-      <SafeAreaView style={styles.cameraScreen}>
-        <Text style={styles.cameraTitle}>{title}</Text>
-        {permission?.granted ? (
-          <CameraView ref={cameraRef} style={{ flex: 1 }} facing="back" onCameraReady={() => setReady(true)} />
-        ) : (
-          <View style={styles.cameraDenied}>
-            <Body>Aplicația are nevoie de cameră ca să facă poza pe loc.</Body>
-            <BigButton label="Permite camera" onPress={() => requestPermission()} />
-          </View>
-        )}
-        <View style={styles.cameraBar}>
-          <BigButton label="Renunță" tone="neutral" onPress={onCancel} disabled={busy} style={{ flex: 1 }} />
-          <BigButton
-            label={busy ? 'Se procesează…' : '📷 Fotografiază'}
-            onPress={shoot}
-            disabled={!permission?.granted || !ready || busy}
-            big
-            style={{ flex: 2 }}
-          />
-        </View>
-      </SafeAreaView>
-    </Modal>
-  );
-}
+// Locația și camera sunt module comune (src/location.ts, src/camera.tsx) — refolosite la curățenie (S08).
 
 // ── Lista derulantă (șoferi / auto) ───────────────────────────────────────────
 
@@ -710,7 +569,9 @@ export default function TripScreen() {
         {error ? (
           <Card tone="danger">
             <Body>{error.message}</Body>
-            {error.cleaning ? <BigButton label="📷 Poze curățenie" onPress={() => router.push('/cleaning')} /> : null}
+            {error.cleaning ? (
+              <BigButton label="📷 Poze curățenie" onPress={() => router.push(`/cleaning?slot=${error.cleaning?.slot ?? ''}&gate=${trip.departure_time}`)} />
+            ) : null}
           </Card>
         ) : null}
 
@@ -718,7 +579,7 @@ export default function TripScreen() {
         {reason ? <Muted>{reason}</Muted> : null}
       </Screen>
 
-      {camera ? <DriverCamera title="Poza șoferului" onCaptured={onCaptured} onCancel={() => setCamera(false)} /> : null}
+      {camera ? <PhotoCamera title="Poza șoferului" onCaptured={onCaptured} onCancel={() => setCamera(false)} /> : null}
       {picker === 'driver' ? (
         <PickerModal
           title="Șoferul"
@@ -808,10 +669,6 @@ const styles = StyleSheet.create({
   verdict: { flex: 1, borderRadius: sizes.radius, alignItems: 'center', justifyContent: 'center', minHeight: sizes.buttonHeight, paddingHorizontal: 8 },
   verdictText: { fontSize: sizes.text, fontWeight: '700', textAlign: 'center' },
   locText: { fontSize: sizes.text, fontWeight: '600', color: colors.text },
-  cameraScreen: { flex: 1, backgroundColor: '#000' },
-  cameraTitle: { fontSize: sizes.text + 2, fontWeight: '700', color: '#fff', padding: sizes.padding },
-  cameraDenied: { flex: 1, justifyContent: 'center', padding: sizes.padding, gap: sizes.gap, backgroundColor: colors.bg },
-  cameraBar: { flexDirection: 'row', gap: 8, padding: sizes.padding, backgroundColor: '#000' },
   pickerHeader: { padding: sizes.padding, gap: sizes.gap },
   pickRow: { minHeight: sizes.buttonHeight, borderRadius: sizes.radius, backgroundColor: colors.card, justifyContent: 'center', paddingHorizontal: sizes.padding },
   pickRowSelected: { backgroundColor: colors.primary },

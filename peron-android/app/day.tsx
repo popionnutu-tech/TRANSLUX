@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Platform, Pressable, StyleSheet, Text, ToastAndroid, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError, getDay, logout } from '../src/api';
+import { cleaningGateFor } from '../src/cleaning';
 import { BigButton, Body, Card, Muted, Screen, Title } from '../src/components';
 import { formatDateRo, localHHMM, pointLabel } from '../src/format';
 import {
@@ -75,6 +76,12 @@ export default function Day() {
 
   function openTrip(trip: DayTrip) {
     if (trip.state === 'next') {
+      // Poarta de curățenie (S08): prima cursă cere setul DIMINEATA, 16:25 setul ZIUA. Serverul verifică oricum.
+      const gate = day ? cleaningGateFor(day, trip.id) : null;
+      if (gate) {
+        router.push(`/cleaning?slot=${gate.slot}&gate=${trip.departure_time}`);
+        return;
+      }
       router.push(`/trip/${trip.id}`);
     } else if (trip.state === 'locked') {
       toast(nextTrip ? `Completează mai întâi ora ${nextTrip.departure_time}` : 'Cursa e blocată');

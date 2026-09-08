@@ -90,6 +90,18 @@ export function nextAction(state: PresenceState): PresenceAction {
   return state.tracking ? 'stop' : 'keep';
 }
 
+/**
+ * Din prim-plan (ecranul zilei), când `nextAction` zice `keep` pentru că serviciul e deja
+ * «pornit»: trebuie re-chemat `startLocationUpdatesAsync`. expo-location pornește
+ * serviciul cu notificare DOAR când aplicația e în prim-plan; după repornirea
+ * telefonului task-ul e restaurat cu locații rare și fără notificare, iar din fundal
+ * (task-ul de re-armare) pornirea aruncă `ForegroundServiceStartNotAllowedException`.
+ * Re-înregistrarea e idempotentă în nativ (aceeași cerere de locație, aceeași notificare).
+ */
+export function shouldRefreshForeground(state: PresenceState): boolean {
+  return state.inWindow && state.tracking && state.permitted;
+}
+
 /** Aruncă ping-urile mai vechi de o zi și păstrează cel mult QUEUE_MAX_LENGTH (cele mai noi). */
 export function pruneQueue(queue: PresencePing[], now: Date): PresencePing[] {
   const cutoff = now.getTime() - QUEUE_MAX_AGE_MS;

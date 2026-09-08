@@ -7,7 +7,10 @@ export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
 export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
 export EXPO_PUBLIC_API_URL="${EXPO_PUBLIC_API_URL:-https://bot-production-6376.up.railway.app}"
 [ -d node_modules ] || npm install
-[ -d android ] || CI=1 npx expo prebuild --platform android --no-install
+# android/ e ignorat de git și se regenerează mereu din app.json — altfel un folder vechi
+# rămâne fără permisiunile/pluginurile adăugate între timp (S02: lipseau RECEIVE_BOOT_COMPLETED
+# și REQUEST_IGNORE_BATTERY_OPTIMIZATIONS și APK-ul s-ar fi construit fără ele).
+CI=1 npx expo prebuild --platform android --no-install --clean
 echo "sdk.dir=$ANDROID_HOME" > android/local.properties
 # doar arm64 (toate telefoanele Android moderne): APK-ul scade de la ~90 MB la ~35 MB
 sed -i '' 's/^reactNativeArchitectures=.*/reactNativeArchitectures=arm64-v8a/' android/gradle.properties

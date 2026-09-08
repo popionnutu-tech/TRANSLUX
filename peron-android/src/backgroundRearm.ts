@@ -1,13 +1,16 @@
 /**
  * Re-armarea urmăririi fără aplicație (spec peron-app-tracking-always, S01): un task
- * `expo-background-fetch` (WorkManager pe Android) la cel puțin 15 minute, care rulează
- * și după închiderea aplicației din «recente» (`stopOnTerminate: false`) și după
- * repornirea telefonului (pornire la boot; permisiunea RECEIVE_BOOT_COMPLETED e în
- * app.json). E plasa de siguranță — mecanismul principal rămâne serviciul de locație
- * persistent din presence.ts.
+ * `expo-background-fetch` (pe Android: `AlarmManager.setInexactRepeating`, nu WorkManager —
+ * verificat în S02) la cel puțin 15 minute, care rulează și după închiderea aplicației
+ * din «recente» (`stopOnTerminate: false`) și după repornirea telefonului (pornire la
+ * boot; permisiunea RECEIVE_BOOT_COMPLETED e în app.json). E plasa de siguranță —
+ * mecanismul principal rămâne serviciul de locație persistent din presence.ts.
  *
- * La fiecare rulare: dacă suntem în fereastră și serviciul nu e pornit, îl pornește;
- * dacă am ieșit din fereastră și e pornit, îl oprește; golește coada de ping-uri.
+ * La fiecare rulare: dacă am ieșit din fereastră și serviciul e pornit, îl oprește;
+ * golește coada de ping-uri. Încearcă și pornirea în fereastră, dar din fundal
+ * expo-location o refuză (`ForegroundServiceStartNotAllowedException` — serviciul cu
+ * notificare pornește doar din prim-plan; vezi antetul din presence.ts), deci pornirea
+ * reală se face la prima deschidere a aplicației în fereastră.
  * Planul se citește din AsyncStorage (`presence:plan`); dacă lipsește sau e pentru altă
  * zi, cere /day cu token-ul din SecureStore (fără navigare la login din fundal).
  *

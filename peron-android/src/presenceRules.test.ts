@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { QUEUE_MAX_LENGTH, nextAction, planFromDay, planFromStorage, pruneQueue, shouldTrack } from './presenceRules.ts';
+import { QUEUE_MAX_LENGTH, nextAction, planFromDay, planFromStorage, pruneQueue, shouldRefreshForeground, shouldTrack } from './presenceRules.ts';
 import type { PresencePing } from './types';
 
 const window = { from: '06:25', to: '23:30' };
@@ -60,6 +60,13 @@ test('nextAction: în afara ferestrei oprește doar dacă e pornit', () => {
   assert.equal(nextAction({ inWindow: false, tracking: true, permitted: true }), 'stop');
   assert.equal(nextAction({ inWindow: false, tracking: true, permitted: false }), 'stop');
   assert.equal(nextAction({ inWindow: false, tracking: false, permitted: true }), 'keep');
+});
+
+test('shouldRefreshForeground: doar în fereastră, cu serviciul pornit și permisiunea dată', () => {
+  assert.equal(shouldRefreshForeground({ inWindow: true, tracking: true, permitted: true }), true);
+  assert.equal(shouldRefreshForeground({ inWindow: true, tracking: false, permitted: true }), false); // aici e `start`, nu refresh
+  assert.equal(shouldRefreshForeground({ inWindow: true, tracking: true, permitted: false }), false);
+  assert.equal(shouldRefreshForeground({ inWindow: false, tracking: true, permitted: true }), false); // aici e `stop`
 });
 
 test('pruneQueue: aruncă ce e mai vechi de o zi și ce nu se parsează, taie la cele mai noi 1500', () => {

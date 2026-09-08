@@ -4,11 +4,19 @@
  *
  * În fereastra turei (`presenceWindow` din /day: prima cursă − 30 min … ultima + 30 min)
  * un serviciu în prim-plan Android cu notificare permanentă trimite poziția la 2 minute.
- * Serviciul se pornește o dată (la login / la prima deschidere în fereastră / din task-ul
- * de re-armare) și NU se oprește la părăsirea ecranului sau la închiderea aplicației din
- * «recente» (`killServiceOnDestroy: false`). Se oprește în exact două situații: ieșirea
- * din fereastră (verificată la fiecare ping, din chiar task-ul de locație) și
- * deconectarea (`session.ts` → logout, sau token șters la 401).
+ * Serviciul se pornește din prim-plan (login / ecranul zilei, în fereastră) și NU se
+ * oprește la părăsirea ecranului sau la închiderea aplicației din «recente»
+ * (`killServiceOnDestroy: false`). Se oprește în exact două situații: ieșirea din
+ * fereastră (verificată la fiecare ping, din chiar task-ul de locație) și deconectarea
+ * (`session.ts` → logout, sau token șters la 401).
+ *
+ * Adevărul nativ (expo-location 18, verificat în S02): `startLocationUpdatesAsync` cu
+ * `foregroundService` aruncă `ForegroundServiceStartNotAllowedException` când aplicația
+ * nu e în prim-plan — task-ul de re-armare din fundal NU poate porni serviciul, doar
+ * să-l oprească și să golească coada. După repornirea telefonului task-ul de locație e
+ * restaurat de expo-task-manager fără serviciu (locații rare, fără notificare); de aceea
+ * `syncPresenceTracking` (prim-plan) re-cheamă `startLocationUpdatesAsync` și când
+ * task-ul e deja pornit — nativ e idempotent și aduce serviciul înapoi.
  *
  * Planul zilei `{ date, window, station, point }` stă în AsyncStorage sub `presence:plan`,
  * scris la fiecare /day, ca task-urile din fundal să nu depindă de rețea.
@@ -24,9 +32,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
+import { PermissionsAndroid, Platform } from 'react-native';
 import { MAX_PINGS_PER_REQUEST, getToken, isApiError, postPresence } from './api';
 import { haversineDistance, localDate, localHHMM } from './format';
-import { nextAction, planFromDay, planFromStorage, pruneQueue, shouldTrack, type PresenceAction, type PresencePlan } from './presenceRules';
+import { nextAction, planFromDay, planFromStorage, pruneQueue, shouldRefreshForeground, shouldTrack, type PresenceAction, type PresencePlan } from './presenceRules';
 import { colors } from './theme';
 import type { DayResponse, PresencePing, Station } from './types';
 
@@ -152,11 +161,28 @@ export async function getPermissionState(): Promise<PermissionState> {
   return bg.status === 'granted' ? 'granted' : 'foreground-only';
 }
 
-/** La login: întâi permisiunea în prim-plan, apoi «Permite tot timpul». */
+/**
+ * Android 13+ (API 33): notificarea serviciului apare în bară doar dacă aplicația are
+ * POST_NOTIFICATIONS (serviciul merge și fără, dar operatorul n-ar vedea nimic — și
+ * spec-ul zice că notificarea e singurul lucru pe care îl vede). Refuzul nu blochează nimic.
+ */
+async function requestNotificationPermission(): Promise<void> {
+  if (Platform.OS !== 'android' || Number(Platform.Version) < 33) return;
+  const permission = PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS;
+  if (!permission) return;
+  try {
+    await PermissionsAndroid.request(permission);
+  } catch (e) {
+    console.warn('[presence] permisiunea de notificări:', e);
+  }
+}
+
+/** La login: întâi permisiunea în prim-plan, apoi «Permite tot timpul», apoi notificările (Android 13+). */
 export async function requestPresencePermissions(): Promise<PermissionState> {
   const fg = await Location.requestForegroundPermissionsAsync();
   if (fg.status !== 'granted') return 'denied';
   const bg = await Location.requestBackgroundPermissionsAsync();
+  await requestNotificationPermission();
   return bg.status === 'granted' ? 'granted' : 'foreground-only';
 }
 
@@ -173,10 +199,12 @@ export async function isTracking(): Promise<boolean> {
 /**
  * Serviciul persistent: notificare permanentă, `killServiceOnDestroy: false` ca să
  * supraviețuiască închiderii aplicației din «recente». Un singur task (`'presence'`),
- * deci ping-urile nu se dublează când aplicația e și deschisă.
+ * deci ping-urile nu se dublează când aplicația e și deschisă. Chemat și când task-ul e
+ * deja pornit (din prim-plan): nativ înseamnă `setOptions` — aceeași cerere de locație,
+ * serviciul pornit dacă lipsește (după repornirea telefonului), notificarea reafișată.
+ * Din fundal aruncă (`ForegroundServiceStartNotAllowedException`) — vezi antetul.
  */
 async function startTracking(): Promise<void> {
-  if (await isTracking()) return;
   await Location.startLocationUpdatesAsync(PRESENCE_TASK, {
     accuracy: Location.Accuracy.Balanced,
     timeInterval: PING_INTERVAL_MS,
@@ -206,20 +234,23 @@ export async function stopTracking(): Promise<void> {
  * Aliniază serviciul cu planul, prin `nextAction`: pornește dacă suntem în fereastră
  * (și avem «tot timpul»), oprește dacă am ieșit din ea, altfel nu atinge nimic.
  * `plan` null = nicio fereastră azi. Se cheamă la fiecare /day (ecranul zilei, cu
- * planul proaspăt) și din task-ul de re-armare (cu planul stocat).
+ * planul proaspăt, `foreground: true`) și din task-ul de re-armare (cu planul stocat).
+ * Cu `foreground` și serviciul deja pornit, re-cheamă pornirea (`shouldRefreshForeground`)
+ * ca serviciul cu notificare să revină după repornirea telefonului.
  */
-export async function applyPresencePlan(plan: PresencePlan | null, now = new Date()): Promise<PresenceAction> {
-  const action = nextAction({
+export async function applyPresencePlan(plan: PresencePlan | null, now = new Date(), opts: { foreground?: boolean } = {}): Promise<PresenceAction> {
+  const state = {
     inWindow: shouldTrack(localHHMM(now), plan?.window ?? null),
     tracking: await isTracking(),
     permitted: (await getPermissionState()) === 'granted',
-  });
-  if (action === 'start') {
+  };
+  const action = nextAction(state);
+  if (action === 'start' || (opts.foreground && action === 'keep' && shouldRefreshForeground(state))) {
     try {
       await startTracking();
     } catch (e) {
-      // Android 12+ refuză pornirea unui serviciu în prim-plan din fundal dacă aplicația
-      // nu e scoasă de la optimizarea bateriei — ecranul «Ultimul pas» există pentru asta.
+      // Din fundal expo-location refuză serviciul cu notificare (aplicația nu e în prim-plan);
+      // în prim-plan, Android 12+ îl refuză dacă lipsesc permisiunile de serviciu.
       console.warn('[presence] nu pot porni urmărirea:', e);
       return 'keep';
     }
@@ -229,9 +260,9 @@ export async function applyPresencePlan(plan: PresencePlan | null, now = new Dat
   return action;
 }
 
-/** La fiecare /day din ecranul zilei: salvează planul și aliniază serviciul. */
+/** La fiecare /day din ecranul zilei (prim-plan): salvează planul și aliniază serviciul. */
 export async function syncPresenceTracking(day: DayResponse): Promise<PresenceAction> {
-  return applyPresencePlan(await savePlan(day));
+  return applyPresencePlan(await savePlan(day), new Date(), { foreground: true });
 }
 
 // ── Task-ul de locație ────────────────────────────────────────────────────────

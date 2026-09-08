@@ -183,9 +183,31 @@ export default function CleaningScreen() {
           : null}
 
         {complete ? (
-          <Card tone="success">
-            <Body color={colors.doneText}>Pozele de curățenie sunt complete.</Body>
-            <PrimaryButton label="Înapoi la ziua de azi" size="md" shadow={false} onPress={goBack} />
+          <Card tone={CLEANING_ZONES.some((z) => results[z]?.verdict === 'MURDAR') ? 'danger' : 'success'}>
+            <Text style={styles.summaryTitle}>Rezumat curățenie</Text>
+            {CLEANING_ZONES.map((z) => {
+              const r = results[z];
+              const dirty = r?.verdict === 'MURDAR';
+              const line = !r
+                ? 'trimisă mai devreme'
+                : r.verdict === 'CURAT'
+                  ? 'curat'
+                  : dirty
+                    ? `MURDAR — ${r.problems.length > 0 ? r.problems.join('; ') : r.description || 'vezi mai sus'}`
+                    : 'trimisă, verificarea automată nu a mers';
+              return (
+                <Text key={z} style={[styles.summaryLine, dirty ? styles.summaryDirty : styles.summaryClean]}>
+                  <Text style={styles.summaryZone}>{ZONE_TITLE[z]}: </Text>
+                  {line}
+                </Text>
+              );
+            })}
+            {CLEANING_ZONES.some((z) => results[z]?.verdict === 'MURDAR') ? (
+              <Text style={styles.summaryPenalty}>{PENALTY}</Text>
+            ) : (
+              <Body color={colors.doneText}>Toate zonele sunt curate. Pozele de curățenie sunt complete.</Body>
+            )}
+            <PrimaryButton label="Am înțeles, înapoi la ziua de azi" size="md" shadow={false} onPress={goBack} />
           </Card>
         ) : null}
 
@@ -352,6 +374,14 @@ const styles = StyleSheet.create({
   problem: { fontSize: 15, ...weight(400), color: colors.textSoft, lineHeight: 21 },
   penalty: { marginLeft: 52, backgroundColor: colors.pinkBg, borderRadius: radius.option, paddingVertical: 10, paddingHorizontal: 12 },
   penaltyText: { fontSize: 14, ...weight(700), color: colors.primaryDark, lineHeight: 20 },
+
+  // Rezumatul de la final (Ion, 08.09: «să spună lui unde e curat și ce e murdar»)
+  summaryTitle: { fontSize: 17, ...weight(800), color: colors.text },
+  summaryLine: { fontSize: 15, ...weight(600), lineHeight: 22 },
+  summaryZone: { ...weight(800), color: colors.text },
+  summaryClean: { color: colors.doneText },
+  summaryDirty: { color: colors.danger },
+  summaryPenalty: { fontSize: 14, ...weight(700), color: colors.primaryDark, lineHeight: 20 },
 
   hint: { fontSize: 15, ...weight(400), color: colors.muted, lineHeight: 22 },
   preview: { height: 200, backgroundColor: colors.camera, borderRadius: radius.button, alignItems: 'center', justifyContent: 'center', gap: 8, overflow: 'hidden' },

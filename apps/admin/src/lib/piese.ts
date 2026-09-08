@@ -768,11 +768,13 @@ export async function locatePart(warehouseId: number, code: string) {
 // Etichetele de tipărit pentru o recepție (migr. 318). Cerut de Eduard odată cu adaosul: marfa se pune pe
 // raft O SINGURĂ DATĂ, cu eticheta pe ea — altfel a doua zi se caută piesă cu piesă în Catalog.
 //
-// Doar piesele marcate „de vânzare": pentru una de uz intern nu există preț de raft, iar o etichetă cu preț
-// pe ea ar induce în eroare. Prețul e cel de DUPĂ recepție — media include deja mișcările tocmai scrise.
+// TOATE piesele recepției, nu doar cele de vânzare: pentru depozitele interne eticheta e de raft, fără
+// preț („для других депозитов тоже должна быть возможность распечатать ценник без цены"). Prețul apare
+// doar la recepția în MAGAZIN, și e cel de DUPĂ recepție — media include mișcările tocmai scrise.
 export type ReceiptLabel = {
   partId: number; name: string; manufacturer: string; articleCode: string;
   barcode: string; unit: string; qty: number; price: number | null; markupPct: number | null;
+  receivedAt: string; isShop: boolean;
 };
 
 export async function receiptLabels(docId: number, warehouseId: number): Promise<ReceiptLabel[]> {
@@ -786,5 +788,28 @@ export async function receiptLabels(docId: number, warehouseId: number): Promise
     barcode: (r.barcode as string) || '', unit: (r.unit as string) || 'buc',
     qty: Number(r.qty), price: r.price == null ? null : Number(r.price),
     markupPct: r.markup_pct == null ? null : Number(r.markup_pct),
+    receivedAt: r.received_at as string, isShop: r.is_shop === true,
   }));
+}
+
+// Adaos pe TOATĂ factura (migr. 328). La o recepție de 30 de poziții, adaosul se punea de 30 de ori.
+export async function receiptSetMarkup(docId: number, warehouseId: number, markup: number | null) {
+  const { data, error } = await getSupabase().rpc('piese_receipt_set_markup', {
+    p_doc: docId, p_wh: warehouseId, p_markup: markup, p_user: null,
+  });
+  if (error) {
+    if ((error.message || '').includes('BAD_MARKUP')) throw new Error('Adaosul trebuie să fie între 0 și 1000%.');
+    throw new Error('Nu am putut aplica adaosul pe factură.');
+  }
+  return Number(data);
+}
+
+// „De vânzare" se bifează singur la recepția în MAGAZIN: marfa care intră acolo e prin definiție de
+// vânzare, iar bifa manuală per piesă se uita — și fără ea eticheta cu preț nu se tipărea.
+export async function receiptMarkForSale(docId: number, warehouseId: number) {
+  const { data, error } = await getSupabase().rpc('piese_receipt_mark_for_sale', {
+    p_doc: docId, p_wh: warehouseId,
+  });
+  if (error) return 0; // nu blochează recepția: e o comoditate, nu o condiție
+  return Number(data);
 }

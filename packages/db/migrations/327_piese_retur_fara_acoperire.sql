@@ -1,4 +1,4 @@
--- 321: Returul unei eliberări NEACOPERITE de stoc — reparație raportată din producție.
+-- 327: Returul unei eliberări NEACOPERITE de stoc — reparație raportată din producție.
 --
 -- SEMNALAT DE EDUARD: „нажимаешь возврат от слесаря, документ создается, уходит с остатка депозит Бричень,
 -- но не возвращается в магазин, остаток 0."

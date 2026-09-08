@@ -4,7 +4,7 @@ import { verifySession, requireRole, type Session } from '@/lib/auth';
 import { assertWarehouseAllowed, userWarehouseId, editWindowDays } from '@/lib/piese-access';
 import { createReceipt, receiptDocs, receiptDocLines, receiptDocWarehouse, finalizeReceipt,
   receiptDocHeaderForEdit, receiptEditInfo, updateReceiptHeader, replaceReceiptLines,
-  supplierNames, receiptLabels} from '@/lib/piese';
+  supplierNames, receiptLabels, receiptSetMarkup, receiptMarkForSale} from '@/lib/piese';
 import { auditWrite, auditHistoryForDoc, changedFields, type AuditFields } from '@/lib/audit';
 import { receiptLinesSum, totalMatches, totalDiffBani } from '@/lib/piese-receipt';
 import { chisinauDayStartIso, chisinauDayBounds, chisinauDayOf, chisinauTodayIso } from '@/lib/chisinau-time';
@@ -57,7 +57,7 @@ function cleanTotal(v: unknown): number | null {
   return r;
 }
 
-export async function submitReceipt(payload: { warehouse_id: number; supplier_id: number | null; invoice_series?: string; invoice_number?: string; note?: string; invoice_total?: number | string | null; lines: { part_id: number; qty: number; unit_cost: number }[] }) {
+export async function submitReceipt(payload: { warehouse_id: number; supplier_id: number | null; invoice_series?: string; invoice_number?: string; note?: string; invoice_total?: number | string | null; markup_pct?: number | string | null; lines: { part_id: number; qty: number; unit_cost: number }[] }) {
   const session = requireRole(await verifySession(), ...RECEIPT_ROLES);
   await assertWarehouseAllowed(session, payload.warehouse_id); // Etapa 2: nu poate face recepție în alt depozit
   // Coerciție + validare, la paritate cu RPC-ul de corecție (BAD_QTY/BAD_COST din migr. 244). Calea de
@@ -81,6 +81,18 @@ export async function submitReceipt(payload: { warehouse_id: number; supplier_id
   const total = cleanTotal(payload.invoice_total);
   assertInvoiceTotal(total, lines); // ÎNAINTE de a scrie: o recepție greșită nu trebuie să intre deloc în stoc
   const docId = await createReceipt({ ...payload, lines });
+  // „De vânzare" automat pentru recepția în magazin, plus adaosul pe toată factura — ambele cerute de
+  // Eduard. Se fac DUPĂ crearea documentului (au nevoie de liniile lui) și nu blochează recepția:
+  // marfa a intrat deja în stoc, iar astea sunt comodități, nu condiții.
+  await receiptMarkForSale(docId, payload.warehouse_id);
+  const mk = payload.markup_pct;
+  if (mk !== undefined && mk !== null && String(mk).trim() !== '') {
+    const v = Number(mk);
+    if (Number.isFinite(v)) {
+      try { await receiptSetMarkup(docId, payload.warehouse_id, v); }
+      catch (e: any) { /* adaosul e opțional: recepția rămâne validă */ }
+    }
+  }
   // Autor + comentariu + suma de control, într-un singur UPDATE (vezi finalizeReceipt).
   await finalizeReceipt(docId, { createdBy: session.id, note: (payload.note || '').trim().slice(0, NOTE_MAX), invoiceTotal: total });
   return { ok: true, docId };

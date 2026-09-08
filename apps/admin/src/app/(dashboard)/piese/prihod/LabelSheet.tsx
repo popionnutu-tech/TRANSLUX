@@ -6,6 +6,7 @@ import { code128BarsSvg, cleanCode128 } from '@/lib/code128';
 export type SheetLabel = {
   partId: number; name: string; manufacturer: string; articleCode: string;
   barcode: string; unit: string; qty: number; price: number | null; markupPct: number | null;
+  receivedAt: string; isShop: boolean;
 };
 
 // Foaia de etichete a unei recepții (migr. 318). Cerut de Eduard odată cu adaosul: „Печать этикеток?"
@@ -51,6 +52,8 @@ export default function LabelSheet({ labels, onClose }: { labels: SheetLabel[]; 
   // Lista desfășurată: fiecare etichetă de tipărit devine un element.
   const sheet = labels.flatMap((l) => Array.from({ length: counts[l.partId] ?? 0 }, () => l));
   const total = sheet.length;
+  // Recepția e într-un singur depozit, deci toate etichetele au aceeași natură.
+  const isShop = labels.some((l) => l.isShop);
   const overCap = total > MAX_SHEET;
 
   return (
@@ -85,29 +88,32 @@ export default function LabelSheet({ labels, onClose }: { labels: SheetLabel[]; 
       <div className="card" style={{ margin: 0, maxWidth: 1000, width: '100%' }}>
         <div className="row no-print" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
           <h2 style={{ margin: 0, fontSize: 16 }}>
-            Etichete de raft <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}>· mărime reală 58×40 mm</span>
+            Etichete de raft <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}>
+              · mărime reală 58×40 mm{isShop ? ' · cu preț' : ' · fără preț (nu e magazin)'}</span>
           </h2>
           <button className="btn btn-outline" style={{ padding: '2px 10px' }} onClick={onClose}>Închide</button>
         </div>
 
         {labels.length === 0 ? (
-          <div className="empty no-print">
-            Nicio piesă „de vânzare" în această recepție. Eticheta cu preț are sens doar pentru marfa de
-            magazin — bifează „De vânzare" pe piesă dacă trebuie să ajungă pe raft.
-          </div>
+          <div className="empty no-print">Recepția nu are poziții de etichetat.</div>
         ) : (
           <>
             <table className="no-print" style={{ marginBottom: 12 }}>
-              <thead><tr><th>Piesă</th><th className="num">Recepționat</th><th className="num">Adaos</th><th className="num">Preț raft</th><th style={{ width: 110 }}>Etichete</th></tr></thead>
+              <thead><tr><th>Piesă</th><th className="num">Recepționat</th>
+                {isShop && <><th className="num">Adaos</th><th className="num">Preț raft</th></>}
+                <th style={{ width: 110 }}>Etichete</th></tr></thead>
               <tbody>
                 {labels.map((l) => (
                   <tr key={l.partId}>
                     <td>{l.name}{l.articleCode && <span className="muted"> · {l.articleCode}</span>}</td>
                     <td className="num">{l.qty} {l.unit}</td>
-                    <td className="num">{l.markupPct == null ? '—' : `${l.markupPct}%`}</td>
-                    {/* `0` nu e preț: view-ul întoarce 0 (nu NULL) pentru o piesă fără recepții cu cost,
-                        iar o etichetă de raft cu „0 lei" pe ea ar ajunge în mâna clientului. */}
-                    <td className="num"><strong>{!l.price ? '—' : `${l.price.toLocaleString('ro-RO')} lei`}</strong></td>
+                    {/* Prețul se arată DOAR la magazin: la un depozit intern nu există preț de raft.
+                        `0` nu e preț — view-ul întoarce 0 (nu NULL) pentru o piesă fără recepții cu cost,
+                        iar o etichetă cu „0 lei" ar ajunge în mâna clientului. */}
+                    {isShop && <>
+                      <td className="num">{l.markupPct == null ? '—' : `${l.markupPct}%`}</td>
+                      <td className="num"><strong>{!l.price ? '—' : `${l.price.toLocaleString('ro-RO')} lei`}</strong></td>
+                    </>}
                     <td>
                       <input type="number" min={0} max={99} value={counts[l.partId] ?? 0}
                         onChange={(e) => setCount(l.partId, Number(e.target.value))} />
@@ -160,22 +166,25 @@ export default function LabelSheet({ labels, onClose }: { labels: SheetLabel[]; 
 // Aceeași formă ca eticheta din Catalog (58×40 mm, cod Code128 scanabil + numărul dedesubt ca rezervă
 // manuală). Diferența e doar că aici apar multe deodată.
 const Label = memo(function Label({ l, bars }: { l: SheetLabel; bars: string }) {
-  const codeText = cleanCode128(l.barcode);
+  const dt = new Date(l.receivedAt).toLocaleDateString('ro-RO');
   const sub = [l.manufacturer, l.articleCode && `Art: ${l.articleCode}`].filter(Boolean).join(' · ');
   return (
     <div className="piese-label" style={{ width: '58mm', height: '40mm', padding: '2mm', boxSizing: 'border-box', background: '#fff', color: '#000', fontFamily: 'Arial, sans-serif', display: 'flex', flexDirection: 'column', gap: '0.8mm', border: '1px solid #cbd5e1' }}>
       <div style={{ fontWeight: 700, fontSize: '8.5pt', lineHeight: 1.08, maxHeight: '8.5mm', overflow: 'hidden' }}>{l.name || '—'}</div>
       <div style={{ fontSize: '6.5pt', color: '#333', lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub || ' '}</div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'baseline', marginTop: '0.4mm' }}>
-        <span style={{ fontSize: '12.5pt', fontWeight: 800 }}>
-          {!l.price ? '— lei' : `${l.price.toLocaleString('ro-RO')} lei`}
-        </span>
+      {/* Data recepției — cerută explicit de Eduard, ca să se vadă pe raft cât de veche e marfa. */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '0.4mm' }}>
+        <span style={{ fontSize: '6.5pt', color: '#555' }}>{dt}</span>
+        {l.isShop && (
+          <span style={{ fontSize: '12.5pt', fontWeight: 800 }}>
+            {!l.price ? '— lei' : `${l.price.toLocaleString('ro-RO')} lei`}
+          </span>
+        )}
       </div>
+      {/* Codul de bare FĂRĂ cifrele de dedesubt — cerut de Eduard. Scanerul citește barele; cifrele doar
+          furau din înălțimea disponibilă, iar pe 40 mm fiecare milimetru contează. */}
       {bars ? (
-        <>
-          <div style={{ height: '9mm', width: '100%', marginTop: 'auto' }} dangerouslySetInnerHTML={{ __html: bars }} />
-          <div style={{ fontFamily: 'monospace', fontSize: '7pt', textAlign: 'center', letterSpacing: '0.5px', lineHeight: 1 }}>{codeText}</div>
-        </>
+        <div style={{ height: '11mm', width: '100%', marginTop: 'auto' }} dangerouslySetInnerHTML={{ __html: bars }} />
       ) : (
         <div style={{ fontSize: '7pt', color: '#888', marginTop: 'auto', textAlign: 'center', paddingBottom: '2mm' }}>fără cod de bare</div>
       )}

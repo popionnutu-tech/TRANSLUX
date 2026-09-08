@@ -53,6 +53,9 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
   // Recepția tocmai salvată — ca etichetele să se poată tipări FĂRĂ să pleci din ecran și fără să cauți
   // documentul înapoi. Marfa se pune pe raft o singură dată; eticheta trebuie să fie gata atunci.
   const [lastDoc, setLastDoc] = useState<number | null>(null);
+  // Adaos pe TOATĂ factura, cerut de Eduard: la 30 de poziții se punea de 30 de ori, manual.
+  // Gol = fiecare piesă rămâne cu adaosul ei (sau al grupei).
+  const [markup, setMarkup] = useState('');
   const [sheet, setSheet] = useState<SheetLabel[] | null>(null);
   const [sheetBusy, setSheetBusy] = useState(false);
   const [editBusy, setEditBusy] = useState<number | null>(null); // indexul rândului care încarcă piesa pentru editare
@@ -97,12 +100,13 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
       const r = await submitReceipt({
         warehouse_id: warehouseId, supplier_id: supplierId ? Number(supplierId) : null, invoice_series: series, invoice_number: number, note,
         invoice_total: declared,
+        markup_pct: markup.trim() === '' ? null : markup,
         lines: lines.filter((l) => l.part_id).map((l) => ({ part_id: Number(l.part_id), qty: l.qty, unit_cost: l.unit_cost })),
       });
       setMsg({ t: 'ok', m: `Prihod #${r.docId} înregistrat. Stocul a crescut.` });
       setLastDoc(r.docId);
       // setInvoiceTotal: fără el, totalul facturii precedente ar rămâne în câmp și ar bloca următoarea recepție.
-      setLines([blankLine()]); setSeries(''); setNumber(''); setNote(''); setInvoiceTotal('');
+      setLines([blankLine()]); setSeries(''); setNumber(''); setNote(''); setInvoiceTotal(''); setMarkup('');
       router.refresh();
     } catch (e: any) { setMsg({ t: 'danger', m: e.message }); } finally { setBusy(false); }
   }
@@ -125,6 +129,11 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
         <div className="form-row"><label>Serie</label><input value={series} onChange={(e) => setSeries(e.target.value)} placeholder="AA" /></div>
         <div className="form-row"><label>Număr</label><input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="123456" /></div>
         <div className="form-row"><label>Total factură (control)</label><input type="number" min={0} step="0.01" value={invoiceTotal} onChange={(e) => setInvoiceTotal(e.target.value)} placeholder="opțional" style={{ textAlign: 'right' }} /></div>
+        <div className="form-row"><label>Adaos % pe toată factura</label>
+          <input type="number" min={0} max={1000} step="any" value={markup}
+            onChange={(e) => setMarkup(e.target.value)} placeholder="opțional" style={{ textAlign: 'right' }}
+            title="Se aplică tuturor pieselor din această factură. Gol = rămâne adaosul fiecărei piese sau al grupei." />
+        </div>
         <div className="form-row" style={{ flex: 1, minWidth: 220 }}><label>Comentariu la factură</label><input value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} placeholder="observații (opțional)" /></div>
       </div>
       <p className="muted" style={{ marginTop: 4, marginBottom: 8 }}>Completează fie <strong>Prețul unitar</strong>, fie <strong>Suma</strong> pe rând — celălalt se calculează automat (sumă ÷ cantitate = preț unitar).</p>
@@ -186,7 +195,10 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
 
       {newPartFor !== null && (
         <div onClick={closeNewPart} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '6vh 16px', zIndex: 1000, overflowY: 'auto' }}>
-          <div onClick={(e) => e.stopPropagation()} className="card" style={{ maxWidth: 900, width: '100%', margin: 0 }}>
+          {/* `maxHeight` + scroll propriu: formularul are acum mai multe câmpuri (coduri multiple, adaos,
+              marca mașinii) și se tăia sub marginea ferestrei — butonul „Adaugă piesa" rămânea invizibil. */}
+          <div onClick={(e) => e.stopPropagation()} className="card"
+            style={{ maxWidth: 900, width: '100%', margin: 0, maxHeight: '88vh', overflowY: 'auto' }}>
             <h2 style={{ marginTop: 0 }}>Piesă nouă în catalog</h2>
             <p className="muted" style={{ marginTop: -6 }}>Se adaugă în catalog cu <strong>stoc 0</strong> și se completează automat pe poziția curentă. Cantitatea și costul le pui în tabelul de prihod.</p>
             <PartForm

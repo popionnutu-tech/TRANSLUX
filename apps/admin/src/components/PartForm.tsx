@@ -137,8 +137,11 @@ export default function PartForm({
       {/* Copierea are sens doar la o piesă NOUĂ: la editare, câmpurile sunt deja ale piesei curente. */}
       {!initial?.id && (
         <div style={{ flexBasis: '100%', marginBottom: copyOpen ? 4 : 0 }}>
+          {/* Buton VIZIBIL, nu o pastilă gri: Eduard n-a găsit funcția în Prihod, deși era acolo.
+              Exista, dar arăta ca un detaliu de subsol — o funcție pe care nimeni n-o vede e ca și
+              cum n-ar exista. */}
           {!copyOpen ? (
-            <button type="button" className="btn" style={{ padding: '3px 8px', fontSize: 12 }}
+            <button type="button" className="btn btn-outline" style={{ padding: '6px 12px', fontWeight: 600 }}
               onClick={() => setCopyOpen(true)}
               title="Aceeași piesă de la alt producător — copiază denumirea în loc s-o retastezi">
               ⧉ Copiază de la o piesă existentă

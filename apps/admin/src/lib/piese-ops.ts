@@ -127,12 +127,35 @@ export async function transferDestWarehouse(docId: number): Promise<number | nul
 }
 
 // ── Inventariere ──
+// Sortare NATURALĂ pe fiecare nivel: „A-2" trebuie să vină înaintea lui „A-12". Ordonarea pe textul
+// întreg (cum era) le pune invers, fiindcă „1" < „2" alfabetic — iar foaia de numărare e chiar drumul
+// fizic prin depozit, deci ordinea greșită înseamnă mers înainte și înapoi printre rafturi.
+const locKey = (v: string) => { const n = Number(v); return isNaN(n) ? (v || '').padStart(6, ' ') : String(n).padStart(6, '0'); };
+
 export async function getCountSheet(warehouseId: number) {
-  const { data } = await getSupabase().from('piese_stock_rows').select('*').eq('warehouse_id', warehouseId).order('location_label');
-  const rows = (data as any[] || []).filter((r) => r.location_label).map((r) => {
+  const { data } = await getSupabase().from('piese_stock_rows').select('*').eq('warehouse_id', warehouseId);
+  const all = (data as any[]) || [];
+  const rows = all.map((r) => {
     const l = parseLocation(r.location_label);
-    return { part_id: r.part_id, label: `${r.group_name} — ${r.manufacturer ?? ''} ${r.model ? '(' + r.model + ')' : ''}`.trim(), current: Number(r.qty), section: l.section, rack: l.rack };
-  });
+    return {
+      part_id: r.part_id,
+      label: `${r.group_name} — ${r.manufacturer ?? ''} ${r.model ? '(' + r.model + ')' : ''}`.trim(),
+      current: Number(r.qty),
+      // TOATE cele patru niveluri, nu doar primele două. Foaia arăta „A-12" și atât, deși poliția și
+      // celula erau în bază — depozitarul primea „undeva pe rândul A-12" și căuta mai departe cu ochii.
+      section: l.section, rack: l.rack, shelf: l.shelf, cell: l.cell,
+      location: (r.location_label || '').trim(),
+      // Piesele fără adresă NU se mai pierd: erau filtrate afară, deci o piesă cu stoc și fără locație
+      // nu apărea niciodată la numărare și rămânea necontrolată la nesfârșit.
+      placed: !!(r.location_label && String(r.location_label).trim()),
+    };
+  }).sort((a, b) =>
+    Number(b.placed) - Number(a.placed) ||
+    locKey(a.section).localeCompare(locKey(b.section)) ||
+    locKey(a.rack).localeCompare(locKey(b.rack)) ||
+    locKey(a.shelf).localeCompare(locKey(b.shelf)) ||
+    locKey(a.cell).localeCompare(locKey(b.cell)) ||
+    a.label.localeCompare(b.label));
   const layout = await warehouseLayout(warehouseId);
   return { rows, layout };
 }

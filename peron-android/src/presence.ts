@@ -16,6 +16,7 @@ import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import { MAX_PINGS_PER_REQUEST, isApiError, postPresence } from './api';
 import { haversineDistance, localDate, localHHMM } from './format';
+import { colors } from './theme';
 import type { PresencePing, PresenceWindow, Station } from './types';
 
 export const PRESENCE_TASK = 'presence';
@@ -190,7 +191,7 @@ async function startTracking(): Promise<void> {
     foregroundService: {
       notificationTitle: 'TRANSLUX Peron',
       notificationBody: 'Urmărește locația în timpul turei',
-      notificationColor: '#1d4ed8',
+      notificationColor: colors.primary,
       killServiceOnDestroy: false,
     },
   });

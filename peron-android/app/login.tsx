@@ -1,14 +1,20 @@
+/**
+ * Ecranul de conectare — `docs/design/peron-android/Login.dc.html`, element cu element.
+ * Codul se tastează într-un TextInput invizibil întins peste cele 6 casete; casetele
+ * doar desenează cifrele și cursorul.
+ */
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { Alert, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRef, useState } from 'react';
+import { Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ApiError, link, setToken } from '../src/api';
-import { BigButton, Body, Card, Muted, Screen, Title } from '../src/components';
+import { Body, Card, Footnote, PrimaryButton, Screen, Spacer } from '../src/components';
+import { PinIcon } from '../src/icons';
 import { requestPresencePermissions } from '../src/presence';
-import { colors, sizes } from '../src/theme';
+import { colors, radius, weight } from '../src/theme';
 
 const CODE_RE = /^\d{6}$/;
+const CODE_LENGTH = 6;
 
 /** Explicația de dinaintea cererii de permisiune — Android arată apoi dialogul sistemului. */
 function explainLocation(): Promise<void> {
@@ -26,6 +32,7 @@ export default function Login() {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const input = useRef<TextInput>(null);
 
   const valid = CODE_RE.test(code);
 
@@ -54,52 +61,84 @@ export default function Login() {
     }
   }
 
+  const version = Constants.expoConfig?.version ?? '1.0';
+  const deviceName = Constants.deviceName;
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
-      <Screen>
-        <Title>TRANSLUX Peron</Title>
-        <Body>Introdu codul de 6 cifre primit de la administrator.</Body>
-        <TextInput
-          value={code}
-          onChangeText={(t) => {
-            setCode(t.replace(/\D/g, '').slice(0, 6));
-            setError(null);
-          }}
-          keyboardType="number-pad"
-          maxLength={6}
-          autoFocus
-          placeholder="000000"
-          placeholderTextColor={colors.border}
-          style={styles.input}
-          accessibilityLabel="Cod de conectare"
-          onSubmitEditing={connect}
-          editable={!busy}
-        />
+    <Screen padding={{ top: 96, side: 24, bottom: 40 }} gap={40}>
+      <View style={styles.brand}>
+        <Text style={styles.wordmark}>TRANSLUX</Text>
+        <Text style={styles.brandSub}>Peron</Text>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Cod de conectare</Text>
+        <Text style={styles.sectionText}>Șase cifre, de la administrator. Codul e valabil 24 de ore și se folosește o singură dată.</Text>
+        <Pressable onPress={() => input.current?.focus()} accessibilityLabel="Cod de conectare" style={styles.boxes}>
+          {Array.from({ length: CODE_LENGTH }, (_, i) => {
+            const digit = code[i];
+            const current = !busy && i === code.length;
+            const active = digit !== undefined || current;
+            return (
+              <View key={i} style={[styles.box, { borderColor: active ? colors.primary : colors.border }]}>
+                {digit !== undefined ? <Text style={styles.digit}>{digit}</Text> : current ? <View style={styles.cursor} /> : null}
+              </View>
+            );
+          })}
+          <TextInput
+            ref={input}
+            value={code}
+            onChangeText={(t) => {
+              setCode(t.replace(/\D/g, '').slice(0, CODE_LENGTH));
+              setError(null);
+            }}
+            keyboardType="number-pad"
+            maxLength={CODE_LENGTH}
+            autoFocus
+            caretHidden
+            editable={!busy}
+            onSubmitEditing={connect}
+            style={styles.hiddenInput}
+            accessibilityLabel="Cod de conectare"
+          />
+        </Pressable>
         {error ? (
           <Card tone="danger">
-            <Text style={styles.error}>{error}</Text>
+            <Body color={colors.danger}>{error}</Body>
           </Card>
         ) : null}
-        <BigButton label={busy ? 'Se conectează…' : 'Conectează'} onPress={connect} disabled={!valid || busy} big />
-        <View style={{ height: sizes.gap }} />
-        <Muted>Codul se generează în admin → Utilizatori → «📱 Cod aplicație» și e valabil 24 de ore, o singură dată.</Muted>
-      </Screen>
-    </SafeAreaView>
+      </View>
+
+      <PrimaryButton label={busy ? 'Se conectează…' : 'Conectează'} onPress={connect} disabled={!valid || busy} size="md" />
+
+      <View style={styles.permissions}>
+        <PinIcon size={24} color={colors.primary} strokeWidth={2} />
+        <Text style={styles.permissionsText}>
+          După conectare, aplicația cere acces la locație și la cameră. Locația confirmă că raportul e făcut la stație; camera face pozele de curățenie.
+        </Text>
+      </View>
+
+      <Spacer />
+      <Footnote>{deviceName ? `Telefon: ${deviceName} · versiunea ${version}` : `versiunea ${version}`}</Footnote>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  input: {
-    fontSize: 40,
-    fontWeight: '700',
-    letterSpacing: 8,
-    textAlign: 'center',
-    color: colors.text,
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderRadius: sizes.radius,
-    paddingVertical: 16,
-    backgroundColor: colors.card,
-  },
-  error: { fontSize: sizes.text, color: colors.danger, fontWeight: '600' },
+  brand: { gap: 6, alignItems: 'flex-start' },
+  wordmark: { fontSize: 34, ...weight(800), letterSpacing: 3, color: colors.primary, lineHeight: 34 },
+  brandSub: { fontSize: 18, ...weight(600), color: colors.muted },
+
+  section: { gap: 14 },
+  sectionTitle: { fontSize: 20, ...weight(700), color: colors.text },
+  sectionText: { fontSize: 16, ...weight(400), color: colors.muted, lineHeight: 23 },
+
+  boxes: { flexDirection: 'row', gap: 8 },
+  box: { flex: 1, height: 64, backgroundColor: colors.card, borderWidth: 2, borderRadius: radius.option, alignItems: 'center', justifyContent: 'center' },
+  digit: { fontSize: 30, ...weight(700), color: colors.text },
+  cursor: { width: 3, height: 34, backgroundColor: colors.primary, borderRadius: 2 },
+  hiddenInput: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0, fontSize: 30 },
+
+  permissions: { flexDirection: 'row', gap: 12, alignItems: 'flex-start', backgroundColor: colors.card, borderWidth: 1, borderColor: colors.cardBorder, borderRadius: radius.button, paddingVertical: 14, paddingHorizontal: 16 },
+  permissionsText: { fontSize: 15, ...weight(400), color: colors.textSoft, lineHeight: 22, flexShrink: 1 },
 });

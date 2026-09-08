@@ -1,31 +1,34 @@
+/**
+ * Ecranul zilei — `Main.dc.html` (Chișinău) / `ZiuaBalti.dc.html` (Bălți), în ordinea
+ * din mockup: antet, progres, rândul GPS, banner-ul de curățenie (doar Chișinău, când
+ * lipsește setul turei), grila curselor, spațiu, «Poze curățenie» / textul de la Bălți.
+ * Logica (încărcarea zilei, permisiunile, urmărirea, poarta de curățenie) e cea de dinainte.
+ */
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Platform, Pressable, StyleSheet, Text, ToastAndroid, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, Alert, Linking, Platform, ToastAndroid } from 'react-native';
 import { ApiError, getDay, logout } from '../src/api';
-import { cleaningGateFor } from '../src/cleaning';
-import { BigButton, Body, Card, Muted, Screen, Title } from '../src/components';
-import { formatDateRo, localHHMM, pointLabel } from '../src/format';
+import { cleaningGateFor, missingZones, slotForTime } from '../src/cleaning';
+import { Banner, Body, Card, DayHeader, Footnote, Grid, GridCell, GpsRow, OutlineButton, PrimaryButton, ProgressBar, Question, Screen, Spacer } from '../src/components';
+import { formatDayRo, localHHMM, pointLabel } from '../src/format';
+import { CameraIcon } from '../src/icons';
 import {
   flushPresenceQueue,
   getLastReading,
   getPermissionState,
-  isTracking,
   isWithinWindow,
   requestPresencePermissions,
   syncPresenceTracking,
   type LastReading,
   type PermissionState,
 } from '../src/presence';
-import { colors, sizes } from '../src/theme';
+import { colors } from '../src/theme';
 import type { DayResponse, DayTrip } from '../src/types';
 
 function toast(message: string) {
   if (Platform.OS === 'android') ToastAndroid.show(message, ToastAndroid.SHORT);
   else Alert.alert(message);
 }
-
-const STATE_ICON: Record<DayTrip['state'], string> = { done: '✅', next: '▶', locked: '🔒' };
 
 export default function Day() {
   const [day, setDay] = useState<DayResponse | null>(null);
@@ -50,9 +53,9 @@ export default function Day() {
     } catch (e) {
       if (e instanceof ApiError) {
         if (e.status === 401) return; // api.ts a trimis deja la login
-        setError(e.isOffline ? 'Fără internet. Apasă «Reîncarcă» când revine semnalul.' : e.message);
+        setError(e.isOffline ? 'Fără internet. Trage în jos ca să reîncarci când revine semnalul.' : e.message);
       } else {
-        setError('Ceva nu a mers. Apasă «Reîncarcă».');
+        setError('Ceva nu a mers. Trage în jos ca să reîncarci.');
       }
     } finally {
       setLoading(false);
@@ -97,62 +100,82 @@ export default function Day() {
     ]);
   }
 
-  const inWindow = !!day?.presenceWindow && isWithinWindow(localHHMM(new Date()), day.presenceWindow);
+  const now = new Date();
+  const inWindow = !!day?.presenceWindow && isWithinWindow(localHHMM(now), day.presenceWindow);
+  const cleaning = day ? cleaningBanner(day, now) : null;
+  const kicker = `TRANSLUX · ${day?.point === 'BALTI' ? 'BĂLȚI' : 'CHIȘINĂU'}`;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
-      <Screen>
-        {day ? (
-          <Title>
-            ⚔ {formatDateRo(day.date)} — {pointLabel(day.point)} · Completate {done}/{day.trips.length}
-          </Title>
-        ) : (
-          <Title>⚔ Ziua de azi</Title>
-        )}
+    <Screen refreshing={loading} onRefresh={load}>
+      <DayHeader kicker={kicker} title={formatDayRo(day?.date ?? now)} right={day?.user.name ?? null} onPressRight={confirmLogout} />
 
-        {error ? (
-          <Card tone="danger">
-            <Body>{error}</Body>
-          </Card>
-        ) : null}
+      {error ? (
+        <Card tone="danger">
+          <Body color={colors.danger}>{error}</Body>
+          <OutlineButton label={loading ? 'Se încarcă…' : 'Reîncarcă'} onPress={load} disabled={loading} tone="neutral" height={48} />
+        </Card>
+      ) : null}
 
-        {loading && !day ? <ActivityIndicator size="large" color={colors.primary} /> : null}
+      {loading && !day ? <ActivityIndicator size="large" color={colors.primary} /> : null}
 
-        {day && permission !== null && permission !== 'granted' ? (
-          <Card tone="warning">
-            <Text style={styles.cardTitle}>Fără acces la locație în fundal</Text>
-            <Body>
-              Urmărirea locației în timpul turei e condiție de lucru. Deschide setările, alege «Permisiuni → Locație → Permite tot timpul», apoi
-              revino în aplicație.
-            </Body>
-            <BigButton label="Deschide setările" onPress={() => Linking.openSettings()} />
-            <BigButton label="Cere permisiunea din nou" tone="neutral" onPress={askPermission} />
-          </Card>
-        ) : null}
+      {day ? <ProgressBar done={done} total={day.trips.length} next={nextTrip?.departure_time ?? null} /> : null}
 
-        {day && permission === 'granted' ? (
-          <>
-            <PresenceRow tracking={tracking} inWindow={inWindow} last={last} window={day.presenceWindow} />
-            <View style={styles.grid}>
-              {day.trips.map((t) => (
-                <TripCell key={t.id} trip={t} onPress={() => openTrip(t)} />
-              ))}
-            </View>
-            {day.trips.length === 0 ? <Muted>Nu există curse active pentru {pointLabel(day.point)}.</Muted> : null}
-            {day.point === 'CHISINAU' ? <BigButton label="📷 Poze curățenie" onPress={() => router.push('/cleaning')} big /> : null}
-          </>
-        ) : null}
+      {day && permission !== null && permission !== 'granted' ? (
+        <Card tone="warning">
+          <Question>Fără acces la locație în fundal</Question>
+          <Body>
+            Urmărirea locației în timpul turei e condiție de lucru. Deschide setările, alege «Permisiuni → Locație → Permite tot timpul», apoi revino în
+            aplicație.
+          </Body>
+          <PrimaryButton label="Deschide setările" onPress={() => Linking.openSettings()} size="md" />
+          <OutlineButton label="Cere permisiunea din nou" onPress={askPermission} tone="neutral" height={48} />
+        </Card>
+      ) : null}
 
-        <BigButton label={loading ? 'Se încarcă…' : 'Reîncarcă'} tone="neutral" onPress={load} disabled={loading} />
-        <View style={{ flexGrow: 1 }} />
-        <Pressable onPress={confirmLogout} style={{ paddingVertical: 8 }}>
-          <Muted>{day?.user.name ? `Conectat ca ${day.user.name} · ` : ''}Deconectează</Muted>
-        </Pressable>
-      </Screen>
-    </SafeAreaView>
+      {day && permission === 'granted' ? (
+        <>
+          <PresenceRow tracking={tracking} inWindow={inWindow} last={last} window={day.presenceWindow} />
+
+          {cleaning ? <Banner bold={cleaning.bold}>{cleaning.rest}</Banner> : null}
+
+          <Grid>
+            {day.trips.map((t) => (
+              <GridCell key={t.id} label={t.departure_time} state={t.state} onPress={() => openTrip(t)} />
+            ))}
+          </Grid>
+          {day.trips.length === 0 ? <Footnote>Nu există curse active pentru {pointLabel(day.point)}.</Footnote> : null}
+
+          <Spacer />
+
+          {day.point === 'CHISINAU' ? (
+            <OutlineButton label="Poze curățenie" onPress={() => router.push('/cleaning')} icon={<CameraIcon size={24} color={colors.primary} />} />
+          ) : (
+            <Footnote>La Bălți se raportează doar numărul de pasageri. Locația pleacă automat.</Footnote>
+          )}
+        </>
+      ) : null}
+    </Screen>
   );
 }
 
+/**
+ * Banner-ul galben din mockup: setul de curățenie al turei curente lipsește (doar Chișinău).
+ * Până la 12:00 e vorba de setul de dimineață (obligatoriu înainte de prima cursă), după —
+ * de setul de la 15:00 (obligatoriu înainte de cursa-poartă, 16:25).
+ */
+function cleaningBanner(day: DayResponse, now: Date): { bold: string; rest: string } | null {
+  if (day.point !== 'CHISINAU') return null;
+  const slot = slotForTime(now);
+  if (missingZones(day.cleaning?.[slot] ?? []).length === 0) return null;
+  if (slot === 'DIMINEATA') {
+    const first = day.trips[0]?.departure_time;
+    return { bold: 'Pozele de dimineață lipsesc.', rest: first ? `Sunt obligatorii înainte de cursa ${first}.` : 'Sunt obligatorii înainte de prima cursă.' };
+  }
+  const gate = day.cleaningGateTripTime;
+  return { bold: 'Pozele de la 15:00 lipsesc.', rest: gate ? `Sunt obligatorii înainte de cursa ${gate}.` : 'Sunt obligatorii înainte de cursa de după-amiază.' };
+}
+
+/** Rândul GPS: verde în zonă, roșu în afara zonei, gri când urmărirea nu rulează. */
 function PresenceRow({
   tracking,
   inWindow,
@@ -164,63 +187,11 @@ function PresenceRow({
   last: LastReading | null;
   window: DayResponse['presenceWindow'];
 }) {
-  let text: string;
-  let tone: 'neutral' | 'success' | 'warning' | 'danger';
-  if (!window) {
-    text = 'Fără curse azi · GPS oprit';
-    tone = 'neutral';
-  } else if (!inWindow) {
-    text = `În afara turei (${window.from}–${window.to}) · GPS oprit`;
-    tone = 'neutral';
-  } else if (!tracking) {
-    text = 'GPS oprit';
-    tone = 'danger';
-  } else if (last?.inZone === true) {
-    text = 'În zona de lucru · GPS activ';
-    tone = 'success';
-  } else if (last?.inZone === false) {
-    text = 'În afara zonei · GPS activ';
-    tone = 'warning';
-  } else {
-    text = 'GPS activ · se așteaptă prima citire';
-    tone = 'neutral';
-  }
-  return (
-    <Card tone={tone} style={{ paddingVertical: 10 }}>
-      <Text style={styles.presence}>📍 {text}</Text>
-      {last && inWindow && tracking ? <Muted>Ultima citire {localHHMM(new Date(last.at))}</Muted> : null}
-    </Card>
-  );
+  const detail = window ? `Se urmărește pe toată tura, ${window.from}–${window.to}.` : null;
+  if (!window) return <GpsRow state="off" title="Fără curse azi · GPS oprit" />;
+  if (!inWindow) return <GpsRow state="off" title="În afara turei · GPS oprit" detail={detail} />;
+  if (!tracking) return <GpsRow state="out" title="GPS oprit" detail={detail} />;
+  if (last?.inZone === true) return <GpsRow state="in" title="În zona de lucru · GPS activ" detail={detail} />;
+  if (last?.inZone === false) return <GpsRow state="out" title="În afara zonei · GPS activ" detail={detail} />;
+  return <GpsRow state="off" title="GPS activ · se așteaptă prima citire" detail={detail} />;
 }
-
-function TripCell({ trip, onPress }: { trip: DayTrip; onPress: () => void }) {
-  const bg = trip.state === 'done' ? colors.successBg : trip.state === 'next' ? colors.primary : colors.locked;
-  const fg = trip.state === 'next' ? colors.primaryText : colors.text;
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={`Cursa ${trip.departure_time}`}
-      style={({ pressed }) => [styles.cell, { backgroundColor: bg, opacity: pressed ? 0.8 : 1 }]}
-    >
-      <Text style={[styles.cellIcon, { color: fg }]}>{STATE_ICON[trip.state]}</Text>
-      <Text style={[styles.cellTime, { color: fg }]}>{trip.departure_time}</Text>
-    </Pressable>
-  );
-}
-
-const styles = StyleSheet.create({
-  cardTitle: { fontSize: sizes.text + 2, fontWeight: '700', color: colors.text },
-  presence: { fontSize: sizes.text, fontWeight: '600', color: colors.text },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  cell: {
-    width: '23%',
-    minHeight: 76,
-    borderRadius: sizes.radius,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 2,
-  },
-  cellIcon: { fontSize: 20 },
-  cellTime: { fontSize: sizes.text, fontWeight: '700' },
-});

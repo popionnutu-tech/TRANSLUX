@@ -32,3 +32,35 @@ export function haversineDistance(lat1: number, lon1: number, lat2: number, lon2
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
+
+const DAY_RO = ['Duminică', 'Luni', 'Marți', 'Miercuri', 'Joi', 'Vineri', 'Sâmbătă'] as const;
+const MONTH_RO = [
+  'ianuarie',
+  'februarie',
+  'martie',
+  'aprilie',
+  'mai',
+  'iunie',
+  'iulie',
+  'august',
+  'septembrie',
+  'octombrie',
+  'noiembrie',
+  'decembrie',
+] as const;
+
+/**
+ * Antetul zilei din mockup: «Luni, 8 septembrie». Primește un `Date` sau 'YYYY-MM-DD'
+ * (data din `/day`, citită ca zi locală, ca să nu alunece cu fusul). Alt format → neschimbat.
+ */
+export function formatDayRo(date: Date | string): string {
+  let d: Date;
+  if (typeof date === 'string') {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+    if (!m) return date;
+    d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  } else {
+    d = date;
+  }
+  return `${DAY_RO[d.getDay()]}, ${d.getDate()} ${MONTH_RO[d.getMonth()]}`;
+}

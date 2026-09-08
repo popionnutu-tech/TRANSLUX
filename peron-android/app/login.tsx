@@ -8,6 +8,8 @@ import { router } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ApiError, link, setToken } from '../src/api';
+import { registerRearm } from '../src/backgroundRearm';
+import { isBatteryDone } from '../src/battery';
 import { Body, Card, Footnote, PrimaryButton, Screen, Spacer } from '../src/components';
 import { PinIcon } from '../src/icons';
 import { requestPresencePermissions } from '../src/presence';
@@ -46,7 +48,10 @@ export default function Login() {
       await setToken(res.token);
       await explainLocation();
       await requestPresencePermissions();
-      router.replace('/day');
+      // Re-armarea din fundal (15 min, supraviețuiește închiderii și repornirii) — o dată, la login.
+      await registerRearm().catch((e) => console.warn('[login] re-armarea din fundal nu s-a înregistrat:', e));
+      // «Ultimul pas» (bateria) o singură dată; apoi direct ziua.
+      router.replace((await isBatteryDone()) ? '/day' : '/battery');
     } catch (e) {
       if (e instanceof ApiError) {
         if (e.status === 401) setError('Cod greșit sau expirat');

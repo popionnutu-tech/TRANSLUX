@@ -1,4 +1,7 @@
-import '../src/presence'; // definește task-ul de fundal la nivel de modul — trebuie importat înainte de orice ecran
+// Task-urile de fundal se definesc la nivel de modul. Importul de aici acoperă rularea cu interfață;
+// `index.ts` (entry-ul rădăcină) le importă și el, pentru rularea headless, când rutele nu se încarcă.
+import '../src/presence';
+import '../src/backgroundRearm';
 import { OpenSans_400Regular, OpenSans_600SemiBold, OpenSans_700Bold, OpenSans_800ExtraBold, useFonts } from '@expo-google-fonts/open-sans';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';

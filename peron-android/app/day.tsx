@@ -3,17 +3,22 @@
  * din mockup: antet, progres, banner-ul de curățenie (doar Chișinău, când lipsește setul
  * turei), grila curselor, spațiu, «Poze curățenie» / textul de la Bălți. Fără rând GPS
  * (Ion, 08.09): urmărirea merge în fundal, fără indicator pe ecran.
+ * Cât timp operatorul n-a confirmat «Ultimul pas» (bateria), sub progres stă un rând de
+ * reamintire cu link spre ecranul de baterie.
  * Logica (încărcarea zilei, permisiunile, urmărirea, poarta de curățenie) e cea de dinainte.
  */
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Platform, ToastAndroid } from 'react-native';
-import { ApiError, getDay, logout } from '../src/api';
+import { ActivityIndicator, Alert, Linking, Platform, Pressable, ToastAndroid } from 'react-native';
+import { ApiError, getDay } from '../src/api';
+import { registerRearm } from '../src/backgroundRearm';
+import { isBatteryDone } from '../src/battery';
 import { cleaningGateFor, missingZones, slotForTime } from '../src/cleaning';
 import { Banner, Body, Card, DayHeader, Footnote, Grid, GridCell, OutlineButton, PrimaryButton, ProgressBar, Question, Screen, Spacer } from '../src/components';
 import { formatDayRo, pointLabel } from '../src/format';
 import { CameraIcon } from '../src/icons';
 import { flushPresenceQueue, getPermissionState, requestPresencePermissions, syncPresenceTracking, type PermissionState } from '../src/presence';
+import { logout } from '../src/session';
 import { colors } from '../src/theme';
 import type { DayResponse, DayTrip } from '../src/types';
 
@@ -27,6 +32,7 @@ export default function Day() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [permission, setPermission] = useState<PermissionState | null>(null);
+  const [batteryDone, setBatteryDone] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -36,9 +42,12 @@ export default function Day() {
       setDay(d);
       const perm = await getPermissionState();
       setPermission(perm);
-      // urmărirea se (re)armează singură; pe ecran nu există indicator GPS
-      await syncPresenceTracking({ date: d.date, window: d.presenceWindow, station: d.station });
+      // urmărirea se (re)armează singură (planul zilei → AsyncStorage → serviciul persistent);
+      // pe ecran nu există indicator GPS
+      await syncPresenceTracking(d);
+      registerRearm().catch((e) => console.warn('[day] re-armarea din fundal nu s-a înregistrat:', e));
       flushPresenceQueue().catch(() => undefined);
+      setBatteryDone(await isBatteryDone());
     } catch (e) {
       if (e instanceof ApiError) {
         if (e.status === 401) return; // api.ts a trimis deja la login
@@ -122,6 +131,14 @@ export default function Day() {
 
       {day && permission === 'granted' ? (
         <>
+          {!batteryDone ? (
+            <Pressable onPress={() => router.push('/battery')} accessibilityRole="link" hitSlop={6}>
+              <Body bold="Optimizarea bateriei:" color={colors.textSoft}>
+                verifică setările ›
+              </Body>
+            </Pressable>
+          ) : null}
+
           {cleaning ? <Banner bold={cleaning.bold}>{cleaning.rest}</Banner> : null}
 
           <Grid>

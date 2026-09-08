@@ -63,7 +63,9 @@ Instalarea pe telefonul operatorului:
    Instalare aplicații necunoscute → browserul folosit → **Permite**. Apoi deschide
    APK-ul din Descărcări → Instalează.
 3. **Dezactivează optimizarea bateriei** pentru «TRANSLUX Peron», altfel telefonul
-   omoară urmărirea GPS din fundal și seara apar perioade «fără semnal»:
+   omoară urmărirea GPS din fundal și seara apar perioade «fără semnal». La primul
+   login aplicația deschide singură ecranul «Ultimul pas», cu butonul care duce la
+   dialogul Android; pe telefoanele de mai jos mai e nevoie și de pașii manuali:
    - Android standard / Samsung: Setări → Aplicații → TRANSLUX Peron → Baterie →
      **Fără restricții** (sau «Neoptimizată»).
    - Xiaomi / Redmi (MIUI): Setări → Aplicații → Gestionare aplicații → TRANSLUX Peron →

@@ -21,7 +21,7 @@ import {
   aIntarziat, asteaptaDescarcarea, camioaneInBanda, esteInCursa, grupeazaPeTip, mutaPastrandDurata,
   poateFiMutata, progresCursa, segmentInFereastra, undeEste, asazaInBenzi,
 } from '@/lib/lde/banda';
-import { camioaneMaiAproape, etichetaStareCursa, stariUrmatoare } from '@/lib/lde/camioane';
+import { camioaneMaiAproape, descriereSursaStare, etichetaStareCursa, stariUrmatoare } from '@/lib/lde/camioane';
 import { chisinauDayOf, chisinauInstantIso, chisinauTimeOf, chisinauTodayIso } from '@/lib/chisinau-time';
 import type { PinCamion } from '@/components/FleetMap';
 
@@ -469,7 +469,23 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
           <div className="grid-3">
             <div><span className="text-muted">Marfă:</span> {detaliu.cargo ?? '—'}</div>
             <div><span className="text-muted">Client:</span> {detaliu.client ?? '—'}</div>
-            <div><span className="text-muted">Stare:</span> {etichetaStareCursa(detaliu.status)}</div>
+            <div>
+              <span className="text-muted">Stare:</span> {etichetaStareCursa(detaliu.status)}
+              {detaliu.statusChangedAt && (
+                <span className="text-muted">
+                  {' '}· {new Date(detaliu.statusChangedAt).toLocaleString('ro-MD', { timeZone: 'Europe/Chisinau' })}
+                </span>
+              )}
+              {/* Starea pusă de automat se explică: dispecerul trebuie să știe că n-a apăsat nimeni. */}
+              {descriereSursaStare(detaliu.statusSource, { litri: detaliu.tlxReceiptLiters }) && (
+                <div className="text-muted" style={{ fontSize: 12 }}>
+                  {descriereSursaStare(detaliu.statusSource, { litri: detaliu.tlxReceiptLiters })}
+                  {detaliu.statusSource === 'tlx' && detaliu.tlxReceiptAt
+                    ? `, descărcat ${new Date(detaliu.tlxReceiptAt).toLocaleString('ro-MD', { timeZone: 'Europe/Chisinau' })}`
+                    : ''}
+                </div>
+              )}
+            </div>
             <div>
               <span className="text-muted">Încărcare:</span>{' '}
               {new Date(detaliu.loadPlannedAt).toLocaleString('ro-MD', { timeZone: 'Europe/Chisinau' })}

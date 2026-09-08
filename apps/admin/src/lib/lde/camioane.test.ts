@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   seSuprapune, haversineKm, camioaneMaiAproape, coloanaKanban, urmatoareaStare, zileleCursei, areSofer,
   pozitieRecenta, stariUrmatoare, etichetaStareCursa, STARE_ASTEAPTA_DESCARCARE, TRIP_STATES,
+  STARI_AUTO_GPS_LA_DESCARCARE, STARI_AUTO_TLX_INCHEIATA, descriereSursaStare,
 } from './camioane';
 
 const cursa = (id: string, loadAt: string, unloadAt: string, vehicleId = 'v1') =>
@@ -188,5 +189,26 @@ describe('zileleCursei', () => {
   });
   it('cursa multi-zi acoperă toate zilele, inclusiv capetele', () => {
     expect(zileleCursei('2026-09-01T08:00:00Z', '2026-09-03T18:00:00Z')).toEqual(['2026-09-01', '2026-09-02', '2026-09-03']);
+  });
+});
+
+describe('stările automate (Ion, 08.09)', () => {
+  it('GPS-ul trece «la descărcare» doar un camion deja plin', () => {
+    expect(STARI_AUTO_GPS_LA_DESCARCARE).toEqual(['la_incarcare', STARE_ASTEAPTA_DESCARCARE, 'spre_descarcare']);
+    expect(STARI_AUTO_GPS_LA_DESCARCARE).not.toContain('planificata');
+    expect(STARI_AUTO_GPS_LA_DESCARCARE).not.toContain('spre_incarcare');
+    expect(STARI_AUTO_GPS_LA_DESCARCARE).not.toContain('la_descarcare');
+  });
+  it('recepția TLX închide și o cursă pusă deja «la descărcare», dar nu una încheiată', () => {
+    expect(STARI_AUTO_TLX_INCHEIATA).toContain('la_descarcare');
+    expect(STARI_AUTO_TLX_INCHEIATA).not.toContain('incheiata');
+    expect(STARI_AUTO_TLX_INCHEIATA).not.toContain('anulata');
+  });
+  it('descrierea sursei: manualul nu primește explicație, TLX arată litrii', () => {
+    expect(descriereSursaStare('manual')).toBeNull();
+    expect(descriereSursaStare(null)).toBeNull();
+    expect(descriereSursaStare('gps')).toMatch(/GPS|raza/i);
+    expect(descriereSursaStare('tlx', { litri: 23995 })).toContain('23.995 l');
+    expect(descriereSursaStare('tlx', { litri: null })).toBe('închisă automat: recepție de carburant în TLX');
   });
 });

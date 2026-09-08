@@ -185,3 +185,49 @@ Decizii:
 - Întârzierea se calculează la fel: plin peste ora planificată = întârziat, pentru că
   marfa n-a ajuns.
 - Stările se afișează cu cuvinte (`etichetaStareCursa`), nu cu codul din bază.
+
+## Completare 08.09.2026 — stările automate: GPS → «la descărcare», TLX → «încheiată»
+
+Ion: «dacă mașina s-a încărcat la Constanța, a ajuns în Moldova și stă, stă, stă, și
+încă nu e descărcare în TLX — se pune singură «la descărcare». Dacă descarcă la o
+stație TLX, luăm din TLX când s-a descărcat și închidem cursa. Dacă descarcă în altă
+parte (baza Briceni), nu va fi închidere — dispecerul o face manual.» Ne-scopul «fără
+mutare automată a stărilor din GPS» din v1 se ridică parțial: DOAR aceste două treceri,
+doar cu dovadă, și dispecerul păstrează toate butoanele.
+
+Decizii:
+- **Două surse, două treceri**, în `lde-geo-worker/trip-auto.mjs` (pur, testat) și
+  `trip-live-worker.mjs` (I/O, crontab la 5 minute pe VPS-ul `lde-worker`):
+  - **GPS → `la_descarcare`**: din `la_incarcare` / `asteapta_descarcare` /
+    `spre_descarcare`, când camionul stă (sub 5,6 km/h) în raza punctului de descărcare
+    (plafonată 200–2000 m, ca în trip-worker), cu poziție Wialon de cel mult 30 min, și
+    rămâne acolo ≥ 15 minute. Prima observare se ține în `unload_seen_at`; ieșirea din
+    rază sau mișcarea o șterge. Din «planificată»/«spre încărcare» nu se trece: un camion
+    gol lângă stație nu descarcă nimic.
+  - **TLX → `incheiata`**: din orice stare cu marfă (și din `la_descarcare`), când în
+    TLX `fuel_receipts` apare o recepție cu `nr_auto` = plăcuța camionului, la stația
+    care stă pe punctul de descărcare al cursei (stația TLX la ≤ 300 m sau în raza
+    punctului), cu momentul descărcării (`unloaded_at`, altfel `created_at`) în fereastra
+    cursei (1 h înainte de încărcare … 3 zile după descărcarea planificată). O recepție
+    închide o singură cursă (index unic pe `tlx_receipt_id`). Punct fără stație TLX
+    (bază, depozit Briceni, Ruse, Sofia) → nimic automat, rămâne dispecerul.
+- **Scrierea e optimistă**: `PATCH … status=eq.<starea citită>`. Dacă dispecerul a
+  apăsat între timp, automatul nu suprascrie. Acțiunea manuală pune `status_source =
+  'manual'`, deci omul bate mereu automatul.
+- **Se vede cine a pus starea**: `status_source` (manual/gps/tlx), `status_changed_at`,
+  iar la închiderea din TLX: `tlx_receipt_at`, `tlx_receipt_liters`. Panoul cursei din
+  bandă le arată cu cuvinte (`descriereSursaStare`). Audit-ul complet rămâne în
+  `lde_audit_log` (`updated_by = 'auto:gps' / 'auto:tlx'`).
+- **Migrația 329** adaugă coloanele; CHECK-ul stărilor nu se schimbă.
+- **De ce pe VPS, nu în Vercel**: cron-ul Vercel de pe planul curent rulează cel mult
+  zilnic, iar cheile TLX și Wialon există deja în `.env`-ul workerului. Fișiere de
+  copiat pe VPS: `trip-auto.mjs`, `trip-live-worker.mjs`, `wialon-api.mjs`
+  (funcția nouă `listUnitsPozitii`), plus linia de crontab din `run-nightly.sh`.
+
+Limite cunoscute:
+- Recepțiile TLX se introduc uneori cu zile întârziere (văzut 08.09: descărcare pe
+  04.09, scrisă pe 08.09) — închiderea automată vine când vine recepția; între timp
+  cursa stă «la descărcare», iar dispecerul o poate închide manual oricând.
+- O cisternă care descarcă la mai multe stații într-o zi are o singură cursă cu un
+  singur punct de descărcare: se închide la recepția de la ACEA stație, celelalte
+  recepții n-o ating.

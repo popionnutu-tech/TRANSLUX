@@ -51,3 +51,20 @@ export async function loadTrack(sid, itemId, fromUnix, toUnix) {
   await call('messages/unload', {}, sid).catch(() => {}); // eliberează bufferul sesiunii
   return msgs;
 }
+
+/** Toate unitățile CU ultima poziție cunoscută: [{ id, name, lat, lon, speed, t }].
+ *  Flags 1|1024 = nume + poziție. Unitățile fără poziție sau cu timestamp
+ *  neplauzibil (în afara 2000..2100) se sar: o poziție fără «când» minte. */
+export async function listUnitsPozitii(sid) {
+  const j = await call('core/search_items', {
+    spec: { itemsType: 'avl_unit', propName: 'sys_name', propValueMask: '*', sortType: 'sys_name' },
+    force: 1, flags: 1 | 1024, from: 0, to: 0,
+  }, sid);
+  const out = [];
+  for (const u of j.items || []) {
+    const p = u.pos;
+    if (!p || !Number.isFinite(p.t) || p.t < 946684800 || p.t > 4102444800) continue;
+    out.push({ id: u.id, name: u.nm, lat: p.y, lon: p.x, speed: p.s ?? 0, t: p.t });
+  }
+  return out;
+}

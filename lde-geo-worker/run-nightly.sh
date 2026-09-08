@@ -7,6 +7,9 @@
 # două camioane au fost trimise încrucișat). DUPĂ trip-worker, ca opririle GPS de
 # ieri să fie deja scrise:
 #   45 6 * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://central-hub-md.vercel.app/api/cron/lde-decizii-camioane >> /root/lde-worker/decizii-camioane.log 2>&1
+# Și la fiecare 5 minute, stările automate ale curselor (GPS → «la descărcare»,
+# recepție TLX → «încheiată»), cu flock ca două rulări să nu se calce:
+#   */5 * * * * cd /root/lde-worker && flock -n /tmp/trip-live.lock node --env-file=.env trip-live-worker.mjs --write >> /root/lde-worker/trip-live.log 2>&1
 cd /root/lde-worker || exit 1
 Y=$(TZ=Europe/Chisinau date -d yesterday +%F)
 echo "===== $(TZ=Europe/Chisinau date '+%F %T') | ziua $Y =====" >> nightly.log

@@ -180,3 +180,35 @@ export function zileleCursei(loadAt: string, unloadAt: string): string[] {
   }
   return out;
 }
+
+/**
+ * Cine a pus starea curentă a cursei (Ion, 08.09: «на разгрузке» se poate pune
+ * și automat). `manual` = dispecerul; `gps` = camionul stă în raza punctului de
+ * descărcare; `tlx` = a apărut recepția de carburant în TLX. Automatul apasă
+ * primul când are dovada — butoanele dispecerului rămân toate la locul lor.
+ */
+export type SursaStare = 'manual' | 'gps' | 'tlx';
+
+/** Stările din care GPS-ul poate trece cursa singur «la descărcare»: camionul
+ *  e deja plin (a trecut de încărcare). Din «planificată» sau «spre încărcare»
+ *  un camion oprit lângă punct nu spune nimic — poate fi gol. */
+export const STARI_AUTO_GPS_LA_DESCARCARE: readonly string[] = [
+  'la_incarcare', STARE_ASTEAPTA_DESCARCARE, 'spre_descarcare',
+];
+
+/** Stările din care recepția TLX închide cursa singură: orice stare cu marfa
+ *  în camion, inclusiv «la descărcare» pusă de om sau de GPS. */
+export const STARI_AUTO_TLX_INCHEIATA: readonly string[] = [
+  ...STARI_AUTO_GPS_LA_DESCARCARE, 'la_descarcare',
+];
+
+/** Cum se explică omului o stare pusă automat; null pentru cea manuală. */
+export function descriereSursaStare(sursa: string | null | undefined, extra?: { litri?: number | null }): string | null {
+  if (sursa === 'gps') return 'pusă automat: camionul stă în raza punctului de descărcare';
+  if (sursa === 'tlx') {
+    const l = extra?.litri;
+    const litri = typeof l === 'number' && Number.isFinite(l) ? ` (${Math.round(l).toLocaleString('ro-MD')} l)` : '';
+    return `închisă automat: recepție de carburant în TLX${litri}`;
+  }
+  return null;
+}

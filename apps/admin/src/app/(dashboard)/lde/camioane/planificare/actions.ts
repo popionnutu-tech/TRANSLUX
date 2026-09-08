@@ -30,6 +30,12 @@ export type Cursa = {
   unloadPointName: string | null;
   unloadPlannedAt: string;
   status: string;
+  /** Cine a pus starea: dispecerul, GPS-ul (stă în raza descărcării) sau recepția TLX. */
+  statusSource: 'manual' | 'gps' | 'tlx';
+  statusChangedAt: string | null;
+  /** Recepția TLX care a închis cursa — ca dispecerul să vadă DE CE s-a închis. */
+  tlxReceiptAt: string | null;
+  tlxReceiptLiters: number | null;
   notes: string | null;
 };
 
@@ -121,6 +127,7 @@ async function curseInFereastra(fromIso: string, toIso: string): Promise<{ curse
   const { data, error } = await getSupabase()
     .from('lde_truck_trips')
     .select(`id, vehicle_id, driver_id, cargo, client, status, notes,
+             status_source, status_changed_at, tlx_receipt_at, tlx_receipt_liters,
              load_point_id, load_planned_at, unload_point_id, unload_planned_at,
              load_point:load_point_id ( name ), unload_point:unload_point_id ( name )`)
     // toIso e exclusiv (începutul zilei următoare) — de aceea .lt, nu .lte.
@@ -139,6 +146,8 @@ async function curseInFereastra(fromIso: string, toIso: string): Promise<{ curse
   type Row = {
     id: string; vehicle_id: string; driver_id: string | null; cargo: string | null; client: string | null;
     status: string; notes: string | null; load_point_id: string | null; load_planned_at: string;
+    status_source: string | null; status_changed_at: string | null;
+    tlx_receipt_at: string | null; tlx_receipt_liters: number | string | null;
     unload_point_id: string | null; unload_planned_at: string;
     load_point: { name: string } | { name: string }[] | null;
     unload_point: { name: string } | { name: string }[] | null;
@@ -158,6 +167,10 @@ async function curseInFereastra(fromIso: string, toIso: string): Promise<{ curse
     unloadPointName: nume(t.unload_point),
     unloadPlannedAt: t.unload_planned_at,
     status: t.status,
+    statusSource: (t.status_source === 'gps' || t.status_source === 'tlx' ? t.status_source : 'manual') as Cursa['statusSource'],
+    statusChangedAt: t.status_changed_at,
+    tlxReceiptAt: t.tlx_receipt_at,
+    tlxReceiptLiters: t.tlx_receipt_liters === null ? null : Number(t.tlx_receipt_liters),
     notes: t.notes,
   }));
   return { curse, taiat };
@@ -449,7 +462,10 @@ export async function anuleazaCursa(id: string, motiv: string): Promise<Rezultat
   if (!motiv.trim()) return { error: 'Scrie motivul anulării' };
   // Cursele nu se șterg: analitica are nevoie de istoric.
   const { data, error } = await getSupabase().from('lde_truck_trips')
-    .update({ status: 'anulata', cancel_reason: taie(motiv), updated_at: new Date().toISOString(), updated_by: s.email })
+    .update({
+      status: 'anulata', cancel_reason: taie(motiv), status_source: 'manual', status_changed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(), updated_by: s.email,
+    })
     .eq('id', id).neq('status', 'anulata').select('id');
   if (error) return { error: eroareCurata(error, 'Cursa nu a putut fi anulată') };
   // Supabase întoarce error=null și pe 0 rânduri: fără verificare, UI-ul ar raporta
@@ -471,8 +487,15 @@ export async function schimbaStareaCursei(id: string, status: string): Promise<R
   if (!stariUrmatoare(cursa.status as string).includes(status)) {
     return { error: `Din «${etichetaStareCursa(cursa.status as string)}» nu se poate trece direct în «${etichetaStareCursa(status)}»` };
   }
+  // Omul a apăsat: sursa devine «manual» chiar dacă starea dinainte o pusese
+  // automatul. Ceea ce a văzut GPS-ul (unload_seen_at) nu mai contează după ce
+  // cursa a trecut de descărcare — se șterge ca să nu mai fie citit.
   const { error } = await getSupabase().from('lde_truck_trips')
-    .update({ status, updated_at: new Date().toISOString(), updated_by: s.email })
+    .update({
+      status, status_source: 'manual', status_changed_at: new Date().toISOString(),
+      ...(status === 'la_descarcare' || status === 'incheiata' ? { unload_seen_at: null } : {}),
+      updated_at: new Date().toISOString(), updated_by: s.email,
+    })
     .eq('id', id);
   if (error) return { error: eroareCurata(error, 'Starea nu a putut fi schimbată') };
   return { ok: true, mesaj: `Cursa a trecut în «${etichetaStareCursa(status)}»` };

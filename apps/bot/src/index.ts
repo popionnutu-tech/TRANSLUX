@@ -4,6 +4,7 @@ import { webhookCallback } from 'grammy';
 import { validateConfig } from './config.js';
 import { createBot } from './bot.js';
 import { getSupabase } from './supabase.js';
+import { handleAppApi } from './api/server.js';
 import { scheduleWeeklyReport, scheduleSmmJobs, scheduleDailyDigest, scheduleRecurringGenerator, scheduleTaskBoardSweep, scheduleVoiceLessonDigest } from './scheduler.js';
 
 const HEARTBEAT_KEY = 'bot:heartbeat';
@@ -60,6 +61,8 @@ async function main() {
   // unhealthy / restart-loops it in polling mode), plus the webhook POST when
   // in webhook mode.
   const server = createServer(async (req, res) => {
+    // API-ul aplicației de peron (/app/v1/*), orice metodă — înaintea webhook-ului.
+    if (await handleAppApi(req, res)) return;
     if (req.method !== 'POST') {
       res.writeHead(200, { 'Content-Type': 'text/plain' });
       res.end(`TRANSLUX bot ok (${mode})`);

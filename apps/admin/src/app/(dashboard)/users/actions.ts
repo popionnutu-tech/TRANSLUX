@@ -7,6 +7,7 @@ import { DEPOT_BOUND_ROLES, SELLER_SCOPED_ROLES, MAX_EDIT_WINDOW_DAYS, EDIT_WIND
 import { auditWrite, changedFields } from '@/lib/audit';
 import type { User, UserRole, InviteToken, PointEnum, AdminRole } from '@translux/db';
 import crypto from 'crypto';
+import { canReceiveLinkCode, generateLinkCode, linkCodeExpiry } from './linkCode';
 import bcrypt from 'bcryptjs';
 
 // ── Users ────────────────────────────────────────────
@@ -273,4 +274,45 @@ export async function deleteInvite(token: string) {
   if (session.role !== 'ADMIN') throw new Error('Acces interzis');
   await getSupabase().from('invite_tokens').delete().eq('token', token);
   revalidatePath('/users');
+}
+
+// ── Aplicația de peron: cod de conectare (spec peron-app-android, S02) ──────
+// Adminul dă operatorului un cod de 6 cifre; aplicația îl schimbă pe token la
+// POST /app/v1/auth/link (botul). 24 h, o singură folosire. Doar CONTROLLER activ
+// din Chișinău sau Bălți — punctul user-ului decide ce ecran vede aplicația.
+
+export interface PeronAppLinkCodeResult {
+  code: string;
+  expiresAt: string;
+}
+
+export async function createPeronAppLinkCode(userId: string): Promise<PeronAppLinkCodeResult> {
+  const session = await verifySession();
+  if (!session) throw new Error('Neautorizat');
+  if (session.role !== 'ADMIN') throw new Error('Acces interzis');
+
+  const db = getSupabase();
+  const { data: u } = await db.from('users').select('id, role, point, active').eq('id', userId).maybeSingle();
+  const user = u as { id: string; role: string; point: string | null; active: boolean } | null;
+  if (!user) throw new Error('Utilizator inexistent');
+  if (!canReceiveLinkCode(user)) throw new Error('Codul se dă doar unui operator de peron activ (Controller, Chișinău sau Bălți)');
+
+  // Codul e cheie primară: la coliziune (23505) generăm altul. 5 încercări ajung —
+  // spațiul e de 900k coduri, cele vechi rămân în tabel dar sunt puține.
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const code = generateLinkCode(crypto.randomInt);
+    const expiresAt = linkCodeExpiry();
+    const { error } = await db.from('peron_app_link_codes').insert({
+      code,
+      user_id: user.id,
+      created_by: session.id,
+      expires_at: expiresAt,
+    });
+    if (!error) {
+      revalidatePath('/users');
+      return { code, expiresAt };
+    }
+    if (error.code !== '23505') throw new Error(error.message);
+  }
+  throw new Error('Nu s-a putut genera un cod unic, încearcă din nou');
 }

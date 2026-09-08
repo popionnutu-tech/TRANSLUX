@@ -17,10 +17,12 @@ import {
   updateAdminRole,
   updateAdminEditWindow,
   updateAdminInvoiceVisibility,
+  createPeronAppLinkCode,
 } from './actions';
 import type { InviteWithAdmin, AdminAccountInfo } from './actions';
 // SURSĂ UNICĂ (fișier fără 'server-only', importabil din client): ce roluri se leagă de un depozit.
 import { DEPOT_BOUND_ROLES, SELLER_SCOPED_ROLES, EDIT_WINDOW_OPTIONS } from '@/lib/piese-roles';
+import { canReceiveLinkCode } from './linkCode';
 
 type WarehouseOpt = { id: number; name: string };
 
@@ -62,6 +64,9 @@ export default function UsersClient({
   const [point, setPoint] = useState<PointEnum>('CHISINAU');
   const [lastLink, setLastLink] = useState('');
   const [invLoading, setInvLoading] = useState(false);
+  // Aplicația de peron: ultimul cod generat (se arată mare, sub tabelul echipei)
+  const [appCode, setAppCode] = useState<{ userId: string; code: string; expiresAt: string } | null>(null);
+  const [appCodeLoading, setAppCodeLoading] = useState<string | null>(null);
   const router = useRouter();
 
   // ── Creare cont administrativ ──
@@ -161,6 +166,20 @@ export default function UsersClient({
       router.refresh();
     } catch (err: any) {
       setError(err.message);
+    }
+  }
+
+  async function handleAppCode(userId: string) {
+    setError('');
+    setAppCodeLoading(userId);
+    try {
+      const result = await createPeronAppLinkCode(userId);
+      setAppCode({ userId, ...result });
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setAppCodeLoading(null);
     }
   }
 
@@ -475,6 +494,17 @@ export default function UsersClient({
           gap: 12px;
           align-items: center;
         }
+        .u-app-code-box { align-items: flex-start; }
+        .u-app-code-label { font-size: 12px; color: #6b6b6b; margin-bottom: 4px; }
+        .u-app-code {
+          display: block;
+          font-size: 40px;
+          letter-spacing: 8px;
+          font-weight: 700;
+          color: #6E0E14;
+          font-family: 'SF Mono', 'JetBrains Mono', monospace;
+        }
+        .u-app-code-hint { font-size: 12px; color: #6b6b6b; margin-top: 6px; }
         .u-link-code {
           flex: 1;
           font-size: 12px;
@@ -778,6 +808,16 @@ export default function UsersClient({
                 </td>
                 <td style={{ textAlign: 'right' }}>
                   <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                    {canReceiveLinkCode(user) && (
+                      <button
+                        className="u-btn"
+                        title="Cod de conectare pentru aplicația Android de peron (24 h, o singură folosire)"
+                        disabled={appCodeLoading === user.id}
+                        onClick={() => handleAppCode(user.id)}
+                      >
+                        {appCodeLoading === user.id ? 'Se generează...' : '📱 Cod aplicație'}
+                      </button>
+                    )}
                     <button
                       className="u-btn"
                       onClick={() => handleToggle(user.id, user.active)}
@@ -803,6 +843,25 @@ export default function UsersClient({
             )}
           </tbody>
         </table>
+        {appCode && (
+          <div className="u-link-box u-app-code-box">
+            <div style={{ flex: 1 }}>
+              <div className="u-app-code-label">
+                Cod aplicație pentru {(() => { const u = initialUsers.find((x) => x.id === appCode.userId); return u ? getOperatorName(u.telegram_id, u.username) : '—'; })()}
+              </div>
+              <code className="u-app-code">{appCode.code}</code>
+              <div className="u-app-code-hint">
+                Valabil 24 h, o singură folosire (până la {formatDate(appCode.expiresAt)}). Operatorul îl introduce în aplicație la «Conectare».
+              </div>
+            </div>
+            <button onClick={() => navigator.clipboard.writeText(appCode.code)} className="u-link-copy">
+              Copiază
+            </button>
+            <button onClick={() => setAppCode(null)} className="u-btn">
+              Închide
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Invite section */}

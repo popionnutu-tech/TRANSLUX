@@ -399,6 +399,40 @@ export async function getOpenReclamaTask(
 }
 
 /**
+ * Toate sarcinile reclamă deschise, una per placă (cea mai recentă), cu ultimul
+ * raport al executantului. Varianta «dintr-o singură trecere» a lui getOpenReclamaTask —
+ * o folosește GET /app/v1/day ca să nu facă o interogare per auto.
+ */
+export async function getOpenReclamaTasks(): Promise<
+  Array<{ id: string; plate: string; description: string; lastReport: string | null }>
+> {
+  const supa = db();
+  const { data: obs } = await supa.from('obligations')
+    .select('id, description, vehicle_plate, created_at')
+    .eq('source', 'reclama')
+    .in('current_state', NONTERMINAL_OB)
+    .not('vehicle_plate', 'is', null)
+    .order('created_at', { ascending: false });
+  const latestByPlate = new Map<string, { id: string; description: string }>();
+  for (const ob of (obs || []) as Array<{ id: string; description: string | null; vehicle_plate: string }>) {
+    if (!latestByPlate.has(ob.vehicle_plate)) latestByPlate.set(ob.vehicle_plate, { id: ob.id, description: ob.description ?? '' });
+  }
+  if (latestByPlate.size === 0) return [];
+  const ids = Array.from(latestByPlate.values()).map((o) => o.id);
+  const { data: atts } = await supa.from('obligation_attempts')
+    .select('obligation_id, report_text, number')
+    .in('obligation_id', ids)
+    .order('number', { ascending: false });
+  const lastReport = new Map<string, string | null>();
+  for (const a of (atts || []) as Array<{ obligation_id: string; report_text: string | null }>) {
+    if (!lastReport.has(a.obligation_id)) lastReport.set(a.obligation_id, a.report_text ?? null);
+  }
+  return Array.from(latestByPlate, ([plate, o]) => ({
+    id: o.id, plate, description: o.description, lastReport: lastReport.get(o.id) ?? null,
+  }));
+}
+
+/**
  * Operatorul confirmă explicit repararea („Totul OK" la sarcină deschisă → „A fost reparat?" → Da).
  * Ce se întâmplă cu sarcina depinde de EXECUTANT (Ion, 17.08.2026 — «se închide doar dacă a
  * făcut-o Iurie»):

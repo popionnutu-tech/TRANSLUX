@@ -15,6 +15,7 @@ import type {
   CleaningZone,
   CleaningVerdict,
   PeronCleaningCheck,
+  DriverAppearanceCheck,
 } from '@translux/db';
 import { POINT_DIRECTION_MAP } from '@translux/db';
 
@@ -1017,8 +1018,13 @@ export async function createReport(report: {
   vehicle_id: string | null;
   created_by_user: string;
   location_ok: boolean | null;
-  // 'bot' implicit (default în DB); aplicația de peron trimite 'app' (migrația 328).
+  // 'bot' implicit (default în DB); aplicația de peron trimite 'app' (migrația 328)
+  // împreună cu poza șoferului și coordonatele brute. Botul nu le trimite deloc.
   source?: ReportSource;
+  driver_check_id?: string | null;
+  location_lat?: number | null;
+  location_lon?: number | null;
+  location_accuracy_m?: number | null;
 }): Promise<Report> {
   // DB enum only has OK/ABSENT — store FULL as OK with passengers_count=-1
   const dbRecord = report.status === 'FULL'
@@ -1339,6 +1345,29 @@ export async function getCleaningChecksForDate(checkDate: string): Promise<Clean
  * sau EROARE (poza există, verificarea a picat — nu blochează operatorul).
  * ALT_LOC nu închide zona: trebuie refăcută.
  */
+// ── Poza șoferului la cursă (driver_appearance_checks, migrația 328) ──────────
+// Inserarea o face POST /app/v1/driver-photo (S04). Aici doar ce-i trebuie lui
+// POST /app/v1/report: să verifice că poza există și e de azi, apoi să scrie
+// verdictele confirmate de operator peste propunerea modelului.
+
+export async function getDriverAppearanceCheck(id: string): Promise<DriverAppearanceCheck | null> {
+  const { data, error } = await db()
+    .from('driver_appearance_checks')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as DriverAppearanceCheck | null) ?? null;
+}
+
+export async function confirmDriverAppearance(
+  id: string,
+  confirmed: { uniform_ok: boolean | null; groomed_ok: boolean | null },
+): Promise<void> {
+  const { error } = await db().from('driver_appearance_checks').update(confirmed).eq('id', id);
+  if (error) throw error;
+}
+
 export async function getCleaningZonesDone(checkDate: string, slot: CleaningSlot): Promise<Set<CleaningZone>> {
   const rows = (await getCleaningChecksForDate(checkDate)).filter((r) => r.slot === slot);
   const lastByZone = new Map<CleaningZone, CleaningCheckRow>();

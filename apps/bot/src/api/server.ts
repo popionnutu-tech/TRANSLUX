@@ -14,6 +14,8 @@ import type { IncomingMessage, ServerResponse } from 'http';
 import { ApiError, badRequest } from './errors.js';
 import { authenticate, linkWithCode, type AppUser } from './auth.js';
 import { getDay } from './day.js';
+import { postReport } from './report.js';
+import { postVehicle } from './vehicle.js';
 
 export const API_PREFIX = '/app/v1/';
 export const MAX_BODY_BYTES = 8 * 1024 * 1024;
@@ -35,7 +37,7 @@ interface Route {
   handler: ApiHandler;
 }
 
-// Rutele se adaugă aici (S03: report, vehicle; S04: cleaning-photo, driver-photo;
+// Rutele se adaugă aici (S04: cleaning-photo, driver-photo;
 // S05: presence). Handler-ul întoarce câmpurile care se lipesc peste `{ ok: true }`.
 const routes: Route[] = [
   {
@@ -56,6 +58,18 @@ const routes: Route[] = [
     path: 'day',
     auth: true,
     handler: async ({ user }) => getDay(user!),
+  },
+  {
+    method: 'POST',
+    path: 'report',
+    auth: true,
+    handler: async ({ user, body }) => postReport(user!, body),
+  },
+  {
+    method: 'POST',
+    path: 'vehicle',
+    auth: true,
+    handler: async ({ body }) => postVehicle(body),
   },
 ];
 
@@ -89,7 +103,7 @@ export async function handleAppApi(req: IncomingMessage, res: ServerResponse): P
     sendJson(res, 200, { ok: true, ...result });
   } catch (err) {
     if (err instanceof ApiError) {
-      sendJson(res, err.status, { ok: false, code: err.code, message: err.message });
+      sendJson(res, err.status, { ok: false, code: err.code, message: err.message, ...(err.details ?? {}) });
     } else {
       console.error(`[app-api] ${method} /app/v1/${path} a picat:`, err);
       sendJson(res, 500, { ok: false, code: 'INTERNAL', message: 'Eroare internă, încearcă din nou' });

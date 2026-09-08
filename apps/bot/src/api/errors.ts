@@ -8,6 +8,8 @@ export class ApiError extends Error {
     public readonly status: number,
     public readonly code: string,
     message: string,
+    /** Câmpuri în plus în răspuns (ex. CLEANING_REQUIRED → { slot, missing }). */
+    public readonly details?: Record<string, unknown>,
   ) {
     super(message);
     this.name = 'ApiError';

@@ -32,3 +32,11 @@ comment on table route_retur_defaults is
   'Returul implicit al unei rute: cu ce plecare din Chișinău se întoarce șoferul ei. '
   'Aplicat automat de trigger (SECURITY DEFINER) la scrierea în daily_assignments când retur_route_id e NULL. '
   'RLS deny-all: se scrie doar cu service_role.';
+
+-- Funcția e apelată doar de trigger; ca SECURITY DEFINER nu trebuie să fie
+-- executabilă prin /rest/v1/rpc de anon/authenticated (avertismentele
+-- anon_/authenticated_security_definer_function_executable din linter).
+revoke execute on function public.aplica_retur_implicit() from public, anon, authenticated;
+-- service_role (admin, bot, worker) trebuie să poată declanșa trigger-ul la scrierea
+-- în daily_assignments — verificat cu insert + rollback ca service_role.
+grant execute on function public.aplica_retur_implicit() to service_role;

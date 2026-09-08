@@ -4,7 +4,7 @@ import { getSupabase } from '@/lib/supabase';
 import { pozitiiLiveCached } from '@/lib/wialon';
 import { normalizeazaPlaca } from '@/lib/lde/parc';
 import { pozitieRecenta } from '@/lib/lde/camioane';
-import { asazaInBenzi, camioaneInBanda, esteInCursa, segmentInFereastra, undeEste } from '@/lib/lde/banda';
+import { asazaInBenzi, asteaptaDescarcarea, camioaneInBanda, esteInCursa, segmentInFereastra, undeEste } from '@/lib/lde/banda';
 import { chisinauDayBounds, chisinauTodayIso } from '@/lib/chisinau-time';
 
 // Flota de camioane pentru mini app-ul TLX (Ion, 01.09: «чтобы было не отдельное,
@@ -54,7 +54,9 @@ function preaDes(): boolean {
   return apeluri > MAX_PE_FEREASTRA;
 }
 
-type StareCamion = 'in_cursa' | 'liber' | 'reparatie' | 'odihna';
+// «asteapta_descarcare» = camionul e plin și stă (Ion, 08.09). E tot cursă
+// deschisă, dar mini app-ul îl arată separat de cele care rulează.
+type StareCamion = 'in_cursa' | 'asteapta_descarcare' | 'liber' | 'reparatie' | 'odihna';
 
 export async function GET(req: NextRequest) {
   if (!cheieValida(req)) {
@@ -164,8 +166,9 @@ export async function GET(req: NextRequest) {
       const stareAzi = stariPeCheie.get(`${cam.id}|${azi}`) ?? null;
       const poz = pozPePlaca.get(normalizeazaPlaca(cam.plate));
 
-      const stare: StareCamion = cuCursaAcum.has(cam.id)
-        ? 'in_cursa'
+      const stare: StareCamion = activa
+        ? (asteaptaDescarcarea(activa.status) ? 'asteapta_descarcare' : 'in_cursa')
+        : cuCursaAcum.has(cam.id) ? 'in_cursa'
         : stareAzi ? stareAzi.state : 'liber';
 
       // Următoarea cursă planificată, ca liberul să nu pară gol pe veci.
@@ -217,6 +220,7 @@ export async function GET(req: NextRequest) {
       gpsViu,
       rezumat: {
         inCursa: iesire.filter((c) => c.stare === 'in_cursa').length,
+        pline: iesire.filter((c) => c.stare === 'asteapta_descarcare').length,
         libere: iesire.filter((c) => c.stare === 'liber').length,
         stare: iesire.filter((c) => c.stare === 'reparatie' || c.stare === 'odihna').length,
         faraSofer: toate.length - randuri.length,

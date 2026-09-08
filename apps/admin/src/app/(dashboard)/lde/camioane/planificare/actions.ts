@@ -3,7 +3,7 @@
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, type Session } from '@/lib/auth';
 import { poateAccesa, poateScrie } from '@/lib/lde/camioane-nav';
-import { seSuprapune, urmatoareaStare, type TripWindow } from '@/lib/lde/camioane';
+import { seSuprapune, stariUrmatoare, etichetaStareCursa, type TripWindow } from '@/lib/lde/camioane';
 import { poateFiMutata } from '@/lib/lde/banda';
 import { chisinauDayBounds } from '@/lib/chisinau-time';
 
@@ -467,14 +467,15 @@ export async function schimbaStareaCursei(id: string, status: string): Promise<R
   if (eCitire) return { error: eroareCurata(eCitire, 'Cursa nu a putut fi citită') };
   if (!cursa) return { error: 'Cursa nu există' };
   // Stările se mută pas cu pas (decizia Ion: manual, dar fără sărituri peste etape).
-  if (urmatoareaStare(cursa.status as string) !== status) {
-    return { error: `Din «${cursa.status}» nu se poate trece direct în «${status}»` };
+  // «Așteaptă descărcarea» e pas lateral, nu obligatoriu — lista o dă lib-ul.
+  if (!stariUrmatoare(cursa.status as string).includes(status)) {
+    return { error: `Din «${etichetaStareCursa(cursa.status as string)}» nu se poate trece direct în «${etichetaStareCursa(status)}»` };
   }
   const { error } = await getSupabase().from('lde_truck_trips')
     .update({ status, updated_at: new Date().toISOString(), updated_by: s.email })
     .eq('id', id);
   if (error) return { error: eroareCurata(error, 'Starea nu a putut fi schimbată') };
-  return { ok: true, mesaj: `Cursa a trecut în «${status}»` };
+  return { ok: true, mesaj: `Cursa a trecut în «${etichetaStareCursa(status)}»` };
 }
 
 /** Tipul camionului (cisternă/zernovoz). Fără el gruparea din grilă e decorativă. */

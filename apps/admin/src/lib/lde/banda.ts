@@ -5,7 +5,7 @@
 // ca să poată fi testate pe cazurile care ne-au mușcat deja (cursa multi-zi
 // tăiată de marginea ferestrei, cursa care începe înaintea ferestrei).
 import { chisinauDayOf, chisinauInstantIso, chisinauTimeOf } from '../chisinau-time';
-import { TRIP_FLOW, haversineKm } from './camioane';
+import { STARE_ASTEAPTA_DESCARCARE, TRIP_FLOW, haversineKm } from './camioane';
 
 /** Bara unei curse în grilă. `start` e indexul coloanei, `span` numărul de zile. */
 export type Segment = {
@@ -70,7 +70,8 @@ const STARE_FINALA = TRIP_FLOW[TRIP_FLOW.length - 1];
  * Stările vin din TRIP_FLOW, nu din literale — o listă proprie avea deja
  * «descarcata», stare care nu există nicăieri în flux.
  * `la_descarcare` RĂMÂNE întârziat: dacă mai stă sub descărcare după ora
- * planificată, întârzierea e reală și dispecerul trebuie s-o vadă.
+ * planificată, întârzierea e reală și dispecerul trebuie s-o vadă. La fel
+ * camionul plin care așteaptă: marfa n-a ajuns, întârzierea e a clientului.
  */
 export function aIntarziat(unloadAt: string, status: string, acumMs = Date.now()): boolean {
   if (status === 'anulata' || status === STARE_FINALA) return false;
@@ -83,10 +84,20 @@ export function poateFiMutata(status: string): boolean {
   return status === TRIP_FLOW[0];
 }
 
-/** Camionul e «în cursă» după STARE, nu după ceas — regula modulului din 31.08. */
+/**
+ * Camionul e «în cursă» după STARE, nu după ceas — regula modulului din 31.08.
+ * Camionul plin care așteaptă descărcarea e tot în cursă: nu e liber pentru
+ * altă marfă, doar nu se mișcă.
+ */
 export function esteInCursa(status: string): boolean {
+  if (status === STARE_ASTEAPTA_DESCARCARE) return true;
   const i = TRIP_FLOW.indexOf(status);
   return i > 0 && i < TRIP_FLOW.length - 1;
+}
+
+/** Camionul e plin și stă: cursa e deschisă, dar nu rulează. */
+export function asteaptaDescarcarea(status: string): boolean {
+  return status === STARE_ASTEAPTA_DESCARCARE;
 }
 
 /**

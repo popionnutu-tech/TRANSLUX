@@ -164,3 +164,24 @@ Constatate în review și decise pe loc, ca să nu rămână doar în cod:
 - Pragul «km substanțiali» pentru semnalul fără-șofer (pornim 5 km/zi) — la fel.
 - Definiția segmentului «gol» pentru km goi vs încărcați: de la descărcarea cursei
   precedente până la încărcarea cursei curente.
+
+## Completare 08.09.2026 — starea «plin, așteaptă descărcarea»
+
+Ion: «auto uneori sunt pline și așteaptă descărcarea». Pe teren, între încărcare și
+descărcare camionul stă uneori plin — la bază, până vine comanda, sau la coadă la
+destinație. Până acum asta se vedea ca «spre descărcare» ori «la descărcare», deci
+ca un camion care rulează.
+
+Decizii:
+- E stare de **cursă** (`lde_truck_trips.status = 'asteapta_descarcare'`), nu stare de
+  zi: camionul nu e liber (are marfă), doar nu se mișcă. Migrația 325 lărgește CHECK-ul.
+- E **laterală**, nu pe drumul obișnuit: o cursă normală nu face un click în plus.
+  Se intră din «la încărcare» sau «spre descărcare» (al doilea buton, mai șters), se iese
+  «spre descărcare» sau «la descărcare». Tranzițiile sunt în `lib/lde/camioane.ts`
+  (`stariUrmatoare`), nu în UI.
+- Rămâne «în cursă» pentru numărătoare și pentru constrângerea de suprapunere, dar
+  banda, kanban-ul și mini app-ul TLX o numără și o filtrează separat («pline»).
+  Bara păstrează culoarea mărfii, hașurată — marfa e acolo, camionul stă.
+- Întârzierea se calculează la fel: plin peste ora planificată = întârziat, pentru că
+  marfa n-a ajuns.
+- Stările se afișează cu cuvinte (`etichetaStareCursa`), nu cu codul din bază.

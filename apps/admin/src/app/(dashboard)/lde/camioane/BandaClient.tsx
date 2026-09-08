@@ -18,10 +18,10 @@ import {
   type Camion, type Cursa, type PunctScurt, type Rezultat, type SoferScurt, type StareZi,
 } from './planificare/actions';
 import {
-  aIntarziat, camioaneInBanda, esteInCursa, grupeazaPeTip, mutaPastrandDurata,
+  aIntarziat, asteaptaDescarcarea, camioaneInBanda, esteInCursa, grupeazaPeTip, mutaPastrandDurata,
   poateFiMutata, progresCursa, segmentInFereastra, undeEste, asazaInBenzi,
 } from '@/lib/lde/banda';
-import { camioaneMaiAproape, urmatoareaStare } from '@/lib/lde/camioane';
+import { camioaneMaiAproape, etichetaStareCursa, stariUrmatoare } from '@/lib/lde/camioane';
 import { chisinauDayOf, chisinauInstantIso, chisinauTimeOf, chisinauTodayIso } from '@/lib/chisinau-time';
 import type { PinCamion } from '@/components/FleetMap';
 
@@ -84,7 +84,7 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
   const [mesaj, setMesaj] = useState('');
   const [eroare, setEroare] = useState('');
   const [form, setForm] = useState<typeof formGol | null>(null);
-  const [filtru, setFiltru] = useState<'toate' | 'in_cursa' | 'liber' | 'stare'>('toate');
+  const [filtru, setFiltru] = useState<'toate' | 'in_cursa' | 'plin' | 'liber' | 'stare'>('toate');
   const [pozitii, setPozitii] = useState<Pozitie[]>([]);
   const [gpsRupt, setGpsRupt] = useState(false);
   const [detaliu, setDetaliu] = useState<Cursa | null>(null);
@@ -129,22 +129,28 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
     // «În cursă» se citește din STARE, nu din ceas: o cursă planificată nu
     // înseamnă camion plecat, iar una întârziată nu înseamnă camion liber.
     const cuCursa = new Set(curseVii.filter((c) => esteInCursa(c.status)).map((c) => c.vehicleId));
+    // Plin și așteaptă descărcarea: e în cursă, dar dispecerul vrea să-l vadă
+    // separat — e marfă care stă, nu camion care rulează (Ion, 08.09).
+    const cuPlin = new Set(curseVii.filter((c) => asteaptaDescarcarea(c.status)).map((c) => c.vehicleId));
     const cuStare = new Set(stari.map((s) => s.vehicleId));
     // Categoriile se exclud: cursa bate starea, altfel suma depășea totalul.
     return {
       toate: randuri.length,
-      in_cursa: randuri.filter((c) => cuCursa.has(c.id)).length,
+      in_cursa: randuri.filter((c) => cuCursa.has(c.id) && !cuPlin.has(c.id)).length,
+      plin: randuri.filter((c) => cuPlin.has(c.id)).length,
       liber: randuri.filter((c) => !cuCursa.has(c.id) && !cuStare.has(c.id)).length,
       stare: randuri.filter((c) => !cuCursa.has(c.id) && cuStare.has(c.id)).length,
       faraSofer: camioane.length - randuri.length,
       cuCursa,
+      cuPlin,
       cuStare,
     };
   }, [randuri, curseVii, stari, camioane.length]);
 
   const vizibile = useMemo(() => {
     if (filtru === 'toate') return randuri;
-    if (filtru === 'in_cursa') return randuri.filter((c) => numarStari.cuCursa.has(c.id));
+    if (filtru === 'in_cursa') return randuri.filter((c) => numarStari.cuCursa.has(c.id) && !numarStari.cuPlin.has(c.id));
+    if (filtru === 'plin') return randuri.filter((c) => numarStari.cuPlin.has(c.id));
     if (filtru === 'stare') return randuri.filter((c) => !numarStari.cuCursa.has(c.id) && numarStari.cuStare.has(c.id));
     return randuri.filter((c) => !numarStari.cuCursa.has(c.id) && !numarStari.cuStare.has(c.id));
   }, [filtru, randuri, numarStari]);
@@ -378,6 +384,7 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
           {([
             ['toate', 'toate', numarStari.toate],
             ['in_cursa', 'în cursă', numarStari.in_cursa],
+            ['plin', 'pline, așteaptă descărcarea', numarStari.plin],
             ['liber', 'libere', numarStari.liber],
             ['stare', 'reparație / odihnă', numarStari.stare],
           ] as const).map(([cheie, eticheta, n]) => (
@@ -462,7 +469,7 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
           <div className="grid-3">
             <div><span className="text-muted">Marfă:</span> {detaliu.cargo ?? '—'}</div>
             <div><span className="text-muted">Client:</span> {detaliu.client ?? '—'}</div>
-            <div><span className="text-muted">Stare:</span> {detaliu.status}</div>
+            <div><span className="text-muted">Stare:</span> {etichetaStareCursa(detaliu.status)}</div>
             <div>
               <span className="text-muted">Încărcare:</span>{' '}
               {new Date(detaliu.loadPlannedAt).toLocaleString('ro-MD', { timeZone: 'Europe/Chisinau' })}
@@ -482,18 +489,21 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
           )}
           {poateEdita && <div className="flex gap-2" style={{ marginTop: 12, flexWrap: 'wrap' }}>
             <button className="btn-outline" disabled={inCurs} onClick={() => editeaza(detaliu)}>Editează</button>
-            {urmatoareaStare(detaliu.status) && (
+            {stariUrmatoare(detaliu.status).map((urm, i) => (
+              // Primul buton e drumul obișnuit; al doilea, când există, e pasul
+              // lateral («plin, așteaptă descărcarea») — mai șters, ca să nu se apese din reflex.
               <button
-                className="btn-primary"
+                key={urm}
+                className={i === 0 ? 'btn-primary' : 'btn-outline'}
                 disabled={inCurs}
                 onClick={() => ruleaza(
-                  () => schimbaStareaCursei(detaliu.id, urmatoareaStare(detaliu.status) as string),
+                  () => schimbaStareaCursei(detaliu.id, urm),
                   () => setDetaliu(null),
                 )}
               >
-                Treci în «{urmatoareaStare(detaliu.status)}»
+                Treci în «{etichetaStareCursa(urm)}»
               </button>
-            )}
+            ))}
           </div>}
           <div className="flex gap-2" style={{ marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
             {poateEdita && <input
@@ -841,6 +851,10 @@ const Grup = memo(function Grup(props: {
                           background: Object.hasOwn(CULOARE, marfa) ? CULOARE[marfa] : CULOARE.alta, overflow: 'hidden',
                           borderLeft: seg.taiatStanga ? '3px dashed rgba(255,255,255,.75)' : undefined,
                           borderRight: seg.taiatDreapta ? '3px dashed rgba(255,255,255,.75)' : undefined,
+                          // Plin și așteaptă: bara rămâne în culoarea mărfii, dar hașurată — marfa e acolo, camionul stă.
+                          backgroundImage: asteaptaDescarcarea(c.status)
+                            ? 'repeating-linear-gradient(135deg, rgba(255,255,255,.18) 0 6px, transparent 6px 12px)'
+                            : undefined,
                           opacity: tras === c.id ? .4 : 1,
                         }}
                       >
@@ -848,7 +862,7 @@ const Grup = memo(function Grup(props: {
                           {numePunct(c.loadPointId)} → {numePunct(c.unloadPointId)}
                         </div>
                         <div style={{ fontSize: 10.5, opacity: .9, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {c.cargo ?? 'fără marfă'} · {c.status}{intarziat ? ' · ÎNTÂRZIAT' : ''}
+                          {c.cargo ?? 'fără marfă'} · {etichetaStareCursa(c.status)}{intarziat ? ' · ÎNTÂRZIAT' : ''}
                         </div>
                         {prog > 0 && prog < 1 && (
                           <span style={{

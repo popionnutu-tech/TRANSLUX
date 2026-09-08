@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   segmentInFereastra, progresCursa, aIntarziat, camioaneInBanda, grupeazaPeTip, mutaPastrandDurata,
-  asazaInBenzi,
+  asazaInBenzi, esteInCursa, asteaptaDescarcarea,
 } from './banda';
 
 const ZILE = ['2026-09-01','2026-09-02','2026-09-03','2026-09-04','2026-09-05'];
@@ -131,6 +131,23 @@ describe('aIntarziat', () => {
 
   it('cursa cu descărcarea în viitor nu e întârziată', () => {
     expect(aIntarziat('2026-09-05T10:00:00Z', 'in_cursa', acum)).toBe(false);
+  });
+
+  it('camionul plin care așteaptă peste ora planificată E întârziat — marfa n-a ajuns', () => {
+    expect(aIntarziat(trecut, 'asteapta_descarcare', acum)).toBe(true);
+  });
+});
+
+describe('esteInCursa / asteaptaDescarcarea', () => {
+  it('planificată și încheiată nu sunt «în cursă»', () => {
+    expect(esteInCursa('planificata')).toBe(false);
+    expect(esteInCursa('incheiata')).toBe(false);
+    expect(esteInCursa('anulata')).toBe(false);
+  });
+  it('camionul plin care așteaptă e în cursă — nu e liber pentru altă marfă', () => {
+    expect(esteInCursa('asteapta_descarcare')).toBe(true);
+    expect(asteaptaDescarcarea('asteapta_descarcare')).toBe(true);
+    expect(asteaptaDescarcarea('spre_descarcare')).toBe(false);
   });
 });
 

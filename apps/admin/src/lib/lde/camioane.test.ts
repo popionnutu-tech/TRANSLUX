@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   seSuprapune, haversineKm, camioaneMaiAproape, coloanaKanban, urmatoareaStare, zileleCursei, areSofer,
-  pozitieRecenta,
+  pozitieRecenta, stariUrmatoare, etichetaStareCursa, STARE_ASTEAPTA_DESCARCARE, TRIP_STATES,
 } from './camioane';
 
 const cursa = (id: string, loadAt: string, unloadAt: string, vehicleId = 'v1') =>
@@ -151,6 +151,34 @@ describe('urmatoareaStare', () => {
   it('din încheiată sau anulată nu mai există pas', () => {
     expect(urmatoareaStare('incheiata')).toBeNull();
     expect(urmatoareaStare('anulata')).toBeNull();
+  });
+  it('drumul obișnuit NU trece prin «așteaptă descărcarea»', () => {
+    // Starea e laterală: o cursă normală n-are de ce să facă un click în plus.
+    expect(urmatoareaStare('la_incarcare')).toBe('spre_descarcare');
+    expect(urmatoareaStare('spre_descarcare')).toBe('la_descarcare');
+  });
+});
+
+describe('stariUrmatoare — «plin, așteaptă descărcarea»', () => {
+  it('se intră din «la încărcare» sau din «spre descărcare», ca al doilea buton', () => {
+    expect(stariUrmatoare('la_incarcare')).toEqual(['spre_descarcare', STARE_ASTEAPTA_DESCARCARE]);
+    expect(stariUrmatoare('spre_descarcare')).toEqual(['la_descarcare', STARE_ASTEAPTA_DESCARCARE]);
+  });
+  it('se iese doar spre descărcare — nu înapoi și nu direct la încheiată', () => {
+    expect(stariUrmatoare(STARE_ASTEAPTA_DESCARCARE)).toEqual(['spre_descarcare', 'la_descarcare']);
+    expect(stariUrmatoare(STARE_ASTEAPTA_DESCARCARE)).not.toContain('incheiata');
+  });
+  it('din planificată nu se poate sări direct în așteptare: camionul nu e încă plin', () => {
+    expect(stariUrmatoare('planificata')).not.toContain(STARE_ASTEAPTA_DESCARCARE);
+    expect(stariUrmatoare('spre_incarcare')).not.toContain(STARE_ASTEAPTA_DESCARCARE);
+  });
+  it('lista completă de stări o conține, ca CHECK-ul din bază să aibă cu ce se compara', () => {
+    expect(TRIP_STATES).toContain(STARE_ASTEAPTA_DESCARCARE);
+    expect(TRIP_STATES).toContain('anulata');
+  });
+  it('are etichetă omenească', () => {
+    expect(etichetaStareCursa(STARE_ASTEAPTA_DESCARCARE)).toBe('plin, așteaptă descărcarea');
+    expect(etichetaStareCursa('necunoscuta')).toBe('necunoscuta');
   });
 });
 

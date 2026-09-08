@@ -111,16 +111,57 @@ export function coloanaKanban(
   return 'liber';
 }
 
-/** Ordinea stărilor cursei. Dispecerul le mută manual, dar nu sare peste etape. */
+/** Ordinea stărilor cursei pe drumul obișnuit. Dispecerul le mută manual, dar nu sare peste etape. */
 export const TRIP_FLOW: readonly string[] = [
   'planificata', 'spre_incarcare', 'la_incarcare', 'spre_descarcare', 'la_descarcare', 'incheiata',
 ];
 
-/** Următoarea stare permisă, sau null dacă cursa e la capăt/anulată. */
+/**
+ * Starea laterală: camionul e PLIN și așteaptă descărcarea (Ion, 08.09: «auto
+ * uneori sunt pline și așteaptă descărcarea»). Nu e pe drumul obișnuit, pentru
+ * că nu orice cursă trece prin ea — se intră în ea doar când dispecerul o spune.
+ * Se intră din «la_incarcare» (a încărcat și stă la bază) sau din
+ * «spre_descarcare» (a ajuns și stă la coadă) și se iese spre descărcare.
+ */
+export const STARE_ASTEAPTA_DESCARCARE = 'asteapta_descarcare';
+
+/** Toate stările pe care le poate avea o cursă, cu cele laterale și cu anularea. */
+export const TRIP_STATES: readonly string[] = [...TRIP_FLOW, STARE_ASTEAPTA_DESCARCARE, 'anulata'];
+
+const TRANZITII: Readonly<Record<string, readonly string[]>> = {
+  planificata: ['spre_incarcare'],
+  spre_incarcare: ['la_incarcare'],
+  la_incarcare: ['spre_descarcare', STARE_ASTEAPTA_DESCARCARE],
+  spre_descarcare: ['la_descarcare', STARE_ASTEAPTA_DESCARCARE],
+  [STARE_ASTEAPTA_DESCARCARE]: ['spre_descarcare', 'la_descarcare'],
+  la_descarcare: ['incheiata'],
+  incheiata: [],
+};
+
+/** Stările în care poate trece cursa de aici; goală la capăt sau după anulare. */
+export function stariUrmatoare(status: string): readonly string[] {
+  return TRANZITII[status] ?? [];
+}
+
+/** Următoarea stare de pe drumul obișnuit, sau null dacă cursa e la capăt/anulată. */
 export function urmatoareaStare(status: string): string | null {
-  const i = TRIP_FLOW.indexOf(status);
-  if (i < 0 || i === TRIP_FLOW.length - 1) return null;
-  return TRIP_FLOW[i + 1];
+  return stariUrmatoare(status)[0] ?? null;
+}
+
+/** Cum se citește starea pe ecran. Codul rămâne în bază, omul vede cuvinte. */
+export const ETICHETA_STARE_CURSA: Readonly<Record<string, string>> = {
+  planificata: 'planificată',
+  spre_incarcare: 'spre încărcare',
+  la_incarcare: 'la încărcare',
+  [STARE_ASTEAPTA_DESCARCARE]: 'plin, așteaptă descărcarea',
+  spre_descarcare: 'spre descărcare',
+  la_descarcare: 'la descărcare',
+  incheiata: 'încheiată',
+  anulata: 'anulată',
+};
+
+export function etichetaStareCursa(status: string): string {
+  return ETICHETA_STARE_CURSA[status] ?? status;
 }
 
 /** Zilele (ISO, fus Chișinău) acoperite de cursă — pentru desenul barei în grilă. */

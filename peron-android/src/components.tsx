@@ -81,3 +81,83 @@ const styles = StyleSheet.create({
   buttonText: { fontSize: sizes.text + 2, fontWeight: '700', textAlign: 'center' },
   card: { borderRadius: sizes.radius, padding: sizes.padding, gap: 8 },
 });
+
+// ── Butoane de opțiune (S07) ──────────────────────────────────────────────────
+
+export interface Option<K extends string> {
+  key: K;
+  label: string;
+  /** Culoarea când e selectată: verde («OK»), roșie («Nu»), albastră (implicit). */
+  tone?: 'success' | 'danger' | 'primary';
+}
+
+/** Rând de opțiuni mari, una singură selectată; atingere = schimbă. Pentru «Da/Nu», «Lucrează/Stricat/Nu are» etc. */
+export function OptionGroup<K extends string>({
+  label,
+  options,
+  value,
+  onChange,
+  disabled = false,
+}: {
+  label?: string;
+  options: readonly Option<K>[];
+  value: K | null;
+  onChange: (key: K) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <View style={optionStyles.wrap}>
+      {label ? <Text style={optionStyles.label}>{label}</Text> : null}
+      <View style={optionStyles.row}>
+        {options.map((o) => {
+          const selected = o.key === value;
+          const bg = !selected ? colors.card : o.tone === 'success' ? colors.success : o.tone === 'danger' ? colors.danger : colors.primary;
+          return (
+            <Pressable
+              key={o.key}
+              onPress={() => onChange(o.key)}
+              disabled={disabled}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              style={({ pressed }) => [
+                optionStyles.option,
+                { backgroundColor: bg, borderColor: selected ? bg : colors.border, opacity: disabled ? 0.5 : pressed ? 0.8 : 1 },
+              ]}
+            >
+              <Text style={[optionStyles.optionText, { color: selected ? colors.primaryText : colors.text }]}>{o.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+export const YES_NO: readonly Option<'yes' | 'no'>[] = [
+  { key: 'yes', label: 'Da', tone: 'success' },
+  { key: 'no', label: 'Nu', tone: 'danger' },
+];
+
+export function SectionTitle({ children }: PropsWithChildren) {
+  return <Text style={optionStyles.section}>{children}</Text>;
+}
+
+const optionStyles = StyleSheet.create({
+  wrap: { gap: 6 },
+  label: { fontSize: sizes.text, fontWeight: '600', color: colors.text },
+  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  option: {
+    flexGrow: 1,
+    flexBasis: 0,
+    minWidth: 96,
+    minHeight: sizes.buttonHeight,
+    borderRadius: sizes.radius,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  optionText: { fontSize: sizes.text, fontWeight: '700', textAlign: 'center' },
+  section: { fontSize: sizes.text + 2, fontWeight: '700', color: colors.text },
+});

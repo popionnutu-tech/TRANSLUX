@@ -86,7 +86,9 @@ export interface AuditRow {
 // Eticheta unui cont pentru jurnal. `name`, dacă există; altfel partea dinaintea lui @ din email —
 // NU emailul întreg, care e identificatorul de login. Pentru „admin@translux.md" iese „admin", adică
 // exact cum îi spun oamenii între ei, fără să publice credențialul.
-async function actorLabelFor(adminId: string): Promise<string | null> {
+// Exportat pentru RPC-urile care își scriu singure urma ÎN ACEEAȘI tranzacție cu fapta (ex. schimbarea
+// adaosului): acolo nu se poate folosi `auditWrite`, dar eticheta autorului trebuie să fie aceeași.
+export async function actorLabelFor(adminId: string): Promise<string | null> {
   const { data } = await getSupabase().from('admin_accounts').select('name, email').eq('id', adminId).maybeSingle();
   const a = data as { name: string | null; email: string | null } | null;
   if (!a) return null;

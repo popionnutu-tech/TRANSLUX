@@ -5,7 +5,7 @@ import { assertWarehouseAllowed, userWarehouseId, editWindowDays } from '@/lib/p
 import { createReceipt, receiptDocs, receiptDocLines, receiptDocWarehouse, finalizeReceipt,
   receiptDocHeaderForEdit, receiptEditInfo, updateReceiptHeader, replaceReceiptLines,
   supplierNames, receiptLabels, receiptSetMarkup, receiptMarkForSale} from '@/lib/piese';
-import { auditWrite, auditHistoryForDoc, changedFields, type AuditFields } from '@/lib/audit';
+import { auditWrite, auditHistoryForDoc, changedFields, actorLabelFor, type AuditFields } from '@/lib/audit';
 import { receiptLinesSum, totalMatches, totalDiffBani } from '@/lib/piese-receipt';
 import { chisinauDayStartIso, chisinauDayBounds, chisinauDayOf, chisinauTodayIso } from '@/lib/chisinau-time';
 
@@ -57,6 +57,17 @@ function cleanTotal(v: unknown): number | null {
   return r;
 }
 
+// Simetric cu `cleanTotal`: `undefined` = „nu s-a cerut adaos", altfel un număr valid sau eroare.
+// `Number()` singur ar fi acceptat „0x10" ca 16 și „1e2" ca 100 — pe un câmp care stabilește prețuri.
+function cleanMarkup(v: unknown): number | undefined {
+  if (v === undefined || v === null || String(v).trim() === '') return undefined;
+  const s = String(v).trim().replace(',', '.');
+  if (!/^\d+(\.\d+)?$/.test(s)) throw new Error('Adaosul trebuie să fie un număr între 0 și 1000.');
+  const n = Number(s);
+  if (!Number.isFinite(n) || n < 0 || n > 1000) throw new Error('Adaosul trebuie să fie între 0 și 1000%.');
+  return n;
+}
+
 export async function submitReceipt(payload: { warehouse_id: number; supplier_id: number | null; invoice_series?: string; invoice_number?: string; note?: string; invoice_total?: number | string | null; markup_pct?: number | string | null; lines: { part_id: number; qty: number; unit_cost: number }[] }) {
   const session = requireRole(await verifySession(), ...RECEIPT_ROLES);
   await assertWarehouseAllowed(session, payload.warehouse_id); // Etapa 2: nu poate face recepție în alt depozit
@@ -80,22 +91,25 @@ export async function submitReceipt(payload: { warehouse_id: number; supplier_id
   const lines = raw;
   const total = cleanTotal(payload.invoice_total);
   assertInvoiceTotal(total, lines); // ÎNAINTE de a scrie: o recepție greșită nu trebuie să intre deloc în stoc
+  // Adaosul se validează ÎNAINTE de a atinge stocul, ca `invoice_total`: e o modificare de PREȚURI, iar
+  // un „0x10" interpretat ca 16 sau un negativ acceptat tăcut ar ajunge pe raft, nu într-un mesaj.
+  const markup = cleanMarkup(payload.markup_pct);
+
   const docId = await createReceipt({ ...payload, lines });
+  const actor = await actorLabelFor(session.id);
   // „De vânzare" automat pentru recepția în magazin, plus adaosul pe toată factura — ambele cerute de
-  // Eduard. Se fac DUPĂ crearea documentului (au nevoie de liniile lui) și nu blochează recepția:
-  // marfa a intrat deja în stoc, iar astea sunt comodități, nu condiții.
-  await receiptMarkForSale(docId, payload.warehouse_id);
-  const mk = payload.markup_pct;
-  if (mk !== undefined && mk !== null && String(mk).trim() !== '') {
-    const v = Number(mk);
-    if (Number.isFinite(v)) {
-      try { await receiptSetMarkup(docId, payload.warehouse_id, v); }
-      catch (e: any) { /* adaosul e opțional: recepția rămâne validă */ }
-    }
+  // Eduard. Se fac DUPĂ crearea documentului (au nevoie de liniile lui).
+  await receiptMarkForSale(docId, payload.warehouse_id, session.id, actor);
+  let markupNote = '';
+  if (markup !== undefined) {
+    // Eșecul NU se mai înghite. Marfa e deja în stoc, deci recepția nu se anulează — dar omul trebuie să
+    // afle că adaosul n-a intrat, altfel crede că prețul de raft s-a schimbat și descoperă la casă că nu.
+    try { await receiptSetMarkup(docId, payload.warehouse_id, markup, session.id, actor); }
+    catch (e: any) { markupNote = e?.message || 'Adaosul nu s-a aplicat.'; }
   }
   // Autor + comentariu + suma de control, într-un singur UPDATE (vezi finalizeReceipt).
   await finalizeReceipt(docId, { createdBy: session.id, note: (payload.note || '').trim().slice(0, NOTE_MAX), invoiceTotal: total });
-  return { ok: true, docId };
+  return { ok: true, docId, markupNote: markupNote || null };
 }
 
 // ── Jurnal documente de prihod (tab „Documente") ──

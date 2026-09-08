@@ -793,12 +793,20 @@ export async function receiptLabels(docId: number, warehouseId: number): Promise
 }
 
 // Adaos pe TOATĂ factura (migr. 328). La o recepție de 30 de poziții, adaosul se punea de 30 de ori.
-export async function receiptSetMarkup(docId: number, warehouseId: number, markup: number | null) {
+//
+// DOAR pentru recepțiile în MAGAZIN: `piese_parts.markup_pct` e o coloană globală din care se calculează
+// prețul de raft, deci un adaos pus la un depozit intern ar fi rescris tăcut prețurile de vânzare.
+// Autorul se trimite explicit — schimbarea prețurilor în masă n-are voie să rămână fără nume.
+export async function receiptSetMarkup(
+  docId: number, warehouseId: number, markup: number | null, adminId: string, actorLabel: string | null,
+) {
   const { data, error } = await getSupabase().rpc('piese_receipt_set_markup', {
-    p_doc: docId, p_wh: warehouseId, p_markup: markup, p_user: null,
+    p_doc: docId, p_wh: warehouseId, p_markup: markup, p_admin: adminId, p_actor: actorLabel,
   });
   if (error) {
-    if ((error.message || '').includes('BAD_MARKUP')) throw new Error('Adaosul trebuie să fie între 0 și 1000%.');
+    const m = error.message || '';
+    if (m.includes('BAD_MARKUP')) throw new Error('Adaosul trebuie să fie între 0 și 1000%.');
+    if (m.includes('NOT_SHOP')) throw new Error('Adaosul pe factură se pune doar la recepția în magazin — la depozitele interne nu există preț de raft.');
     throw new Error('Nu am putut aplica adaosul pe factură.');
   }
   return Number(data);
@@ -806,10 +814,14 @@ export async function receiptSetMarkup(docId: number, warehouseId: number, marku
 
 // „De vânzare" se bifează singur la recepția în MAGAZIN: marfa care intră acolo e prin definiție de
 // vânzare, iar bifa manuală per piesă se uita — și fără ea eticheta cu preț nu se tipărea.
-export async function receiptMarkForSale(docId: number, warehouseId: number) {
+export async function receiptMarkForSale(
+  docId: number, warehouseId: number, adminId: string, actorLabel: string | null,
+) {
   const { data, error } = await getSupabase().rpc('piese_receipt_mark_for_sale', {
-    p_doc: docId, p_wh: warehouseId,
+    p_doc: docId, p_wh: warehouseId, p_admin: adminId, p_actor: actorLabel,
   });
-  if (error) return 0; // nu blochează recepția: e o comoditate, nu o condiție
+  // Nu blochează recepția — marfa e deja în stoc, iar bifa e o comoditate. Dar eroarea NU se pierde:
+  // „0 piese marcate" și „n-am putut marca" arătau identic, inclusiv pentru un refuz de acces.
+  if (error) { console.error('[piese] mark_for_sale:', error.message); return 0; }
   return Number(data);
 }

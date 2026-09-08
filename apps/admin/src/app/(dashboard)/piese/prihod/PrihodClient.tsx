@@ -103,7 +103,9 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
         markup_pct: markup.trim() === '' ? null : markup,
         lines: lines.filter((l) => l.part_id).map((l) => ({ part_id: Number(l.part_id), qty: l.qty, unit_cost: l.unit_cost })),
       });
-      setMsg({ t: 'ok', m: `Prihod #${r.docId} înregistrat. Stocul a crescut.` });
+      setMsg({ t: r.markupNote ? 'danger' : 'ok',
+        m: `Prihod #${r.docId} înregistrat. Stocul a crescut.`
+          + (r.markupNote ? ` ATENȚIE: ${r.markupNote} Pune-l din Catalog, pe piesă.` : '') });
       setLastDoc(r.docId);
       // setInvoiceTotal: fără el, totalul facturii precedente ar rămâne în câmp și ar bloca următoarea recepție.
       setLines([blankLine()]); setSeries(''); setNumber(''); setNote(''); setInvoiceTotal(''); setMarkup('');
@@ -177,7 +179,7 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
         <div className={`alert ${msg.t}`} style={{ marginTop: 12 }}>
           {msg.m}
           {/* Butonul apare DUPĂ salvare, pe recepția tocmai înregistrată: atunci e marfa în mână și
-              atunci se lipesc etichetele. Dacă recepția n-are nicio piesă „de vânzare", foaia o spune. */}
+              atunci se lipesc etichetele. Foaia conține toate poziţiile; preţul apare doar la magazin. */}
           {msg.t === 'ok' && lastDoc && (
             <>
               {' '}

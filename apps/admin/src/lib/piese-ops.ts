@@ -132,9 +132,30 @@ export async function transferDestWarehouse(docId: number): Promise<number | nul
 // fizic prin depozit, deci ordinea greșită înseamnă mers înainte și înapoi printre rafturi.
 const locKey = (v: string) => { const n = Number(v); return isNaN(n) ? (v || '').padStart(6, ' ') : String(n).padStart(6, '0'); };
 
+// Plafon explicit, ca peste tot în modul: fără el, un depozit mare ar fi tăiat de limita API-ului, iar
+// FĂRĂ `order` în SQL subsetul tăiat ar fi fost arbitrar — și posibil ALTUL la a doua încărcare, ceea ce
+// ar fi pierdut tăcut numărători în curs. Ordonarea din SQL dă măcar determinism; rafinarea naturală
+// (A-2 înaintea lui A-12) se face după, în JS.
+const COUNT_SHEET_LIMIT = 2000;
+
 export async function getCountSheet(warehouseId: number) {
-  const { data } = await getSupabase().from('piese_stock_rows').select('*').eq('warehouse_id', warehouseId);
-  const all = (data as any[]) || [];
+  // Cele două citiri sunt independente — în serie dublau timpul de așteptare al ecranului degeaba
+  // (măsurat: ~380 ms secvențial față de ~160 ms în paralel), plătit la fiecare deschidere ȘI după
+  // fiecare salvare.
+  const [sheetRes, layout] = await Promise.all([
+    getSupabase().from('piese_stock_rows')
+      .select('part_id, group_name, manufacturer, model, qty, location_label')
+      .eq('warehouse_id', warehouseId)
+      .order('location_label', { nullsFirst: false }).order('part_id')
+      .limit(COUNT_SHEET_LIMIT + 1),
+    warehouseLayout(warehouseId),
+  ]);
+  const { data, error } = sheetRes;
+  // Eroarea NU se mai înghite: o foaie goală arăta identic cu un depozit gol.
+  if (error) throw new Error('Nu am putut încărca foaia de inventariere');
+  const raw = (data as any[]) || [];
+  const truncated = raw.length > COUNT_SHEET_LIMIT;
+  const all = raw.slice(0, COUNT_SHEET_LIMIT);
   const rows = all.map((r) => {
     const l = parseLocation(r.location_label);
     return {
@@ -156,8 +177,7 @@ export async function getCountSheet(warehouseId: number) {
     locKey(a.shelf).localeCompare(locKey(b.shelf)) ||
     locKey(a.cell).localeCompare(locKey(b.cell)) ||
     a.label.localeCompare(b.label));
-  const layout = await warehouseLayout(warehouseId);
-  return { rows, layout };
+  return { rows, layout, truncated };
 }
 export async function submitInventory(warehouseId: number, counts: { part_id: number; counted_qty: number }[]) {
   const { data, error } = await getSupabase().rpc('piese_inventory_count', { p_wh: warehouseId, p_counts: counts, p_user: null });

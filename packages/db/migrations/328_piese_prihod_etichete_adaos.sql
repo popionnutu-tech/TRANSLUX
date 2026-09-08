@@ -53,59 +53,80 @@ $$;
 REVOKE ALL ON FUNCTION piese_receipt_labels(bigint, bigint) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION piese_receipt_labels(bigint, bigint) TO service_role;
 
--- ── Adaos pe TOATĂ factura ────────────────────────────────────────────────────
+-- ── Adaos pe TOATĂ factura, DOAR la magazin ──────────────────────────────────
 -- Adaosul trăiește pe PIESĂ (migr. 318), iar prețul de raft se recalculează singur din el. Aici se aplică
--- pieselor de pe o recepție dintr-un singur pas: la o factură de 30 de poziții se punea de 30 de ori.
-CREATE OR REPLACE FUNCTION piese_receipt_set_markup(p_doc bigint, p_wh bigint, p_markup real, p_user bigint)
-RETURNS integer LANGUAGE plpgsql
+-- pieselor unei recepții dintr-un singur pas: la o factură de 30 de poziții se punea de 30 de ori.
+--
+-- `w.kind = 'SHOP'` E OBLIGATORIU. Fără el, o recepție într-un depozit INTERN rescria `markup_pct`, care
+-- e o coloană GLOBALĂ — deci un depozitar din Bălți, completând firesc câmpul „Adaos" pentru eticheta lui
+-- (unde adaosul nici măcar nu se afișează), rescria tăcut prețurile de vânzare ale magazinului. Funcția
+-- soră `piese_receipt_mark_for_sale` avea deja condiția; absența ei aici a fost o scăpare, nu o decizie.
+--
+-- `status = 'CONFIRMED'`: după o corecție, documentul vechi rămâne CANCELLED — adaosul n-are ce căuta
+-- pe un document care nu mai e valabil.
+--
+-- Autorul se scrie ca `admin_id` + `actor_label`, nu ca `user_id`: conturile administrative sunt UUID,
+-- iar coloana veche e BIGINT (utilizatori Telegram). Migr. 291 a introdus perechea asta tocmai fiindcă
+-- modificările fără autor s-au dovedit inutile la investigație — iar asta e o schimbare de PREȚURI.
+CREATE OR REPLACE FUNCTION piese_receipt_set_markup(
+  p_doc bigint, p_wh bigint, p_markup real, p_admin uuid, p_actor text
+) RETURNS integer LANGUAGE plpgsql
 SET search_path = public, pg_temp
 AS $$
 DECLARE v_n integer;
 BEGIN
   IF p_doc IS NULL OR p_wh IS NULL THEN RAISE EXCEPTION 'DOC_MISMATCH'; END IF;
   IF p_markup IS NOT NULL AND (p_markup < 0 OR p_markup > 1000) THEN RAISE EXCEPTION 'BAD_MARKUP'; END IF;
-  -- Documentul decide depozitul, ca peste tot în modul: `p_wh` e depozitul pentru care apelantul a trecut
-  -- de gardă, iar dacă documentul nu e al lui, operațiunea nu are ce căuta acolo.
-  PERFORM 1 FROM piese_stock_documents
-   WHERE id = p_doc AND doc_type = 'RECEIPT' AND warehouse_id = p_wh;
-  IF NOT FOUND THEN RAISE EXCEPTION 'DOC_MISMATCH'; END IF;
+  PERFORM 1 FROM piese_stock_documents d JOIN piese_warehouses w ON w.id = d.warehouse_id
+   WHERE d.id = p_doc AND d.doc_type = 'RECEIPT' AND d.status = 'CONFIRMED'
+     AND d.warehouse_id = p_wh AND w.kind = 'SHOP';
+  IF NOT FOUND THEN RAISE EXCEPTION 'NOT_SHOP'; END IF;
 
   UPDATE piese_parts p SET markup_pct = p_markup
    WHERE p.id IN (SELECT l.part_id FROM piese_stock_document_lines l
                    WHERE l.document_id = p_doc AND l.reverses_line_id IS NULL);
   GET DIAGNOSTICS v_n = ROW_COUNT;
-  INSERT INTO piese_audit_log(user_id, action, entity, entity_id, detail)
-    VALUES(p_user, 'MARKUP', 'receipt', p_doc,
-           'Adaos ' || COALESCE(p_markup::text, 'grupă') || '% pe ' || v_n || ' piese');
+  INSERT INTO piese_audit_log(admin_id, actor_label, action, entity, entity_id, detail)
+    VALUES(p_admin, p_actor, 'MARKUP', 'receipt', p_doc,
+           'Adaos ' || COALESCE(p_markup::text || '%', 'ca la grupă') || ' pe ' || v_n || ' piese');
   RETURN v_n;
 END $$;
 
-REVOKE ALL ON FUNCTION piese_receipt_set_markup(bigint, bigint, real, bigint) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION piese_receipt_set_markup(bigint, bigint, real, bigint) TO service_role;
+DROP FUNCTION IF EXISTS piese_receipt_set_markup(bigint, bigint, real, bigint);
+REVOKE ALL ON FUNCTION piese_receipt_set_markup(bigint, bigint, real, uuid, text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION piese_receipt_set_markup(bigint, bigint, real, uuid, text) TO service_role;
 
 -- ── „De vânzare" automat la recepția în magazin ───────────────────────────────
 -- Marfa care intră în magazin e prin definiție marfă de vânzare. Bifa manuală per piesă se uita, iar
--- fără ea eticheta cu preț nu se tipărea deloc — omul descoperea asta abia în fața imprimantei.
+-- fără ea eticheta cu preț nu se tipărea deloc — omul afla asta abia în fața imprimantei.
 --
--- Atinge DOAR recepțiile în magazin și DOAR piesele nebifate; pentru orice alt depozit iese cu 0, fără
--- să modifice nimic. Nu e o condiție a recepției, ci o comoditate: dacă eșuează, marfa e deja în stoc.
-CREATE OR REPLACE FUNCTION piese_receipt_mark_for_sale(p_doc bigint, p_wh bigint)
-RETURNS integer LANGUAGE plpgsql
+-- Ridică un flag GLOBAL pe piesă, deci PUBLICĂ marfa în magazin: de aceea lasă urmă. Fără jurnal, nimeni
+-- n-ar fi putut spune cine a scos la vânzare o piesă ținută pentru uz intern.
+CREATE OR REPLACE FUNCTION piese_receipt_mark_for_sale(
+  p_doc bigint, p_wh bigint, p_admin uuid, p_actor text
+) RETURNS integer LANGUAGE plpgsql
 SET search_path = public, pg_temp
 AS $$
 DECLARE v_n integer;
 BEGIN
   IF p_doc IS NULL OR p_wh IS NULL THEN RETURN 0; END IF;
   PERFORM 1 FROM piese_stock_documents d JOIN piese_warehouses w ON w.id = d.warehouse_id
-   WHERE d.id = p_doc AND d.doc_type = 'RECEIPT' AND d.warehouse_id = p_wh AND w.kind = 'SHOP';
+   WHERE d.id = p_doc AND d.doc_type = 'RECEIPT' AND d.status = 'CONFIRMED'
+     AND d.warehouse_id = p_wh AND w.kind = 'SHOP';
   IF NOT FOUND THEN RETURN 0; END IF;
   UPDATE piese_parts p SET is_for_sale = true
    WHERE p.is_for_sale = false
      AND p.id IN (SELECT l.part_id FROM piese_stock_document_lines l
                    WHERE l.document_id = p_doc AND l.reverses_line_id IS NULL);
   GET DIAGNOSTICS v_n = ROW_COUNT;
+  IF v_n > 0 THEN
+    INSERT INTO piese_audit_log(admin_id, actor_label, action, entity, entity_id, detail)
+      VALUES(p_admin, p_actor, 'FOR_SALE', 'receipt', p_doc,
+             v_n || ' piese marcate „de vânzare" la recepția în magazin');
+  END IF;
   RETURN v_n;
 END $$;
 
-REVOKE ALL ON FUNCTION piese_receipt_mark_for_sale(bigint, bigint) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION piese_receipt_mark_for_sale(bigint, bigint) TO service_role;
+DROP FUNCTION IF EXISTS piese_receipt_mark_for_sale(bigint, bigint);
+REVOKE ALL ON FUNCTION piese_receipt_mark_for_sale(bigint, bigint, uuid, text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION piese_receipt_mark_for_sale(bigint, bigint, uuid, text) TO service_role;

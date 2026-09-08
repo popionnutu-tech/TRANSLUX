@@ -28,7 +28,10 @@ export default function InventarClient({ warehouses }: { warehouses: Opt[] }) {
     setBusy(true); setMsg(null);
     const sheet = await loadSheet(warehouseId);
     setRows(sheet.rows.map((s: any) => ({ ...s, counted: s.current })));
-    setLayout(sheet.layout); setSection(''); setLoaded(true); setBusy(false);
+    // `setRack('')` obligatoriu lângă `setSection('')`: fără el, filtrul de rând supraviețuia — foaia
+    // arăta „tot depozitul" dar afișa doar rândurile 12 din toate stelajele, iar salvarea considera că
+    // s-a numărat tot și ștergea numărătorile nesalvate din rest.
+    setLayout(sheet.layout); setSection(''); setRack(''); setLoaded(true); setBusy(false);
   }
   async function submit() {
     setBusy(true); setMsg(null);
@@ -74,6 +77,7 @@ export default function InventarClient({ warehouses }: { warehouses: Opt[] }) {
   const visible = rows.filter((r) =>
     (!section || r.section === section) && (!rack || r.rack === rack));
   const unplaced = rows.filter((r) => !r.placed).length;
+  const idxByPart = new Map(rows.map((r, i) => [r.part_id, i] as const));
   const diffCount = rows.filter((r) => r.counted !== r.current).length;        // total, tot depozitul
   const scopeDiffs = visible.filter((r) => r.counted !== r.current).length;     // doar ce se va comite (secția curentă)
   const otherDiffs = diffCount - scopeDiffs;                                    // diferențe rămase pe alte stelaje
@@ -92,7 +96,7 @@ export default function InventarClient({ warehouses }: { warehouses: Opt[] }) {
           <div className="card">
             <h2>Alege stelajul de numărat azi</h2>
             <div className="pill-row" style={{ marginBottom: 14 }}>
-              <button className={`btn${section === '' ? ' btn-primary' : ''}`} onClick={() => setSection('')} style={{ padding: '7px 14px' }}>Tot depozitul</button>
+              <button className={`btn${section === '' ? ' btn-primary' : ''}`} onClick={() => { setSection(''); setRack(''); }} style={{ padding: '7px 14px' }}>Tot depozitul</button>
               {sections.map((s) => <button key={s} className={`btn${section === s ? ' btn-primary' : ''}`} onClick={() => { setSection(s); setRack(''); }} style={{ padding: '7px 14px' }}>Stelajul {s}</button>)}
             </div>
             {/* Al doilea nivel de filtrare — rândul. Apare doar după ce s-a ales un stelaj, ca să nu
@@ -117,7 +121,9 @@ export default function InventarClient({ warehouses }: { warehouses: Opt[] }) {
               <thead><tr><th>Rând</th><th>Piesă</th><th className="num">În program</th><th className="num" style={{ width: 150 }}>Numărat faptic</th><th className="num">Diferență</th></tr></thead>
               <tbody>
                 {visible.map((r) => {
-                  const idx = rows.indexOf(r); const d = r.counted - r.current;
+                  // `indexOf` per rând era O(n²), refăcut la fiecare tastă apăsată în orice câmp.
+                  const idx = idxByPart.get(r.part_id) ?? -1;
+                  const d = r.counted - r.current;
                   return (
                     <tr key={r.part_id}>
                       {/* Adresa COMPLETĂ, nu doar stelaj-rând: exact ce trebuie ca să pui mâna pe piesă. */}

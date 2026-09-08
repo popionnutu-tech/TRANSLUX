@@ -53,7 +53,9 @@ export default function LabelSheet({ labels, onClose }: { labels: SheetLabel[]; 
   const sheet = labels.flatMap((l) => Array.from({ length: counts[l.partId] ?? 0 }, () => l));
   const total = sheet.length;
   // Recepția e într-un singur depozit, deci toate etichetele au aceeași natură.
-  const isShop = labels.some((l) => l.isShop);
+  // `some` pe listă goală ar da `false`, deci o recepție în magazin fără poziții etichetabile ar fi
+  // scris „fără preț (nu e magazin)". Lista goală n-are ce eticheta oricum, dar textul n-are voie să mintă.
+  const isShop = labels.length > 0 && labels.every((l) => l.isShop);
   const overCap = total > MAX_SHEET;
 
   return (
@@ -163,10 +165,13 @@ export default function LabelSheet({ labels, onClose }: { labels: SheetLabel[]; 
   );
 }
 
-// Aceeași formă ca eticheta din Catalog (58×40 mm, cod Code128 scanabil + numărul dedesubt ca rezervă
-// manuală). Diferența e doar că aici apar multe deodată.
+// Eticheta de 58×40 mm cu cod Code128 scanabil. DIFERĂ intenționat de cea din Catalog (`LabelModal`):
+// aici nu se tipăresc cifrele codului (cerere explicită — furau din înălțime, iar scanerul citește barele)
+// și prețul apare doar la magazin. Dacă se aliniază vreodată cele două, aici e locul de pornit.
 const Label = memo(function Label({ l, bars }: { l: SheetLabel; bars: string }) {
-  const dt = new Date(l.receivedAt).toLocaleDateString('ro-RO');
+  // Fusul CHIȘINĂU, nu al browserului: o recepție după 21:00 UTC ar fi ieșit pe etichetă cu ziua
+  // precedentă pe orice stație setată pe alt fus. E chiar câmpul cerut de client.
+  const dt = new Date(l.receivedAt).toLocaleDateString('ro-RO', { timeZone: 'Europe/Chisinau' });
   const sub = [l.manufacturer, l.articleCode && `Art: ${l.articleCode}`].filter(Boolean).join(' · ');
   return (
     <div className="piese-label" style={{ width: '58mm', height: '40mm', padding: '2mm', boxSizing: 'border-box', background: '#fff', color: '#000', fontFamily: 'Arial, sans-serif', display: 'flex', flexDirection: 'column', gap: '0.8mm', border: '1px solid #cbd5e1' }}>

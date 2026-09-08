@@ -21,18 +21,22 @@ sessions:
     gates: [build-bot, test-bot]
     approve: []
   - id: S05
+    title: Bot API — prezență GPS pe toată tura, perioade de lipsă, alertă și digest
+    gates: [build-bot, test-bot]
+    approve: []
+  - id: S06
     title: Aplicația Expo — schelet, login cu cod, ecranul zilei
     gates: [typecheck-app]
     approve: []
-  - id: S06
+  - id: S07
     title: Aplicația — ecranul de cursă pe un singur ecran, cu poza șoferului și GPS automat
     gates: [typecheck-app]
     approve: []
-  - id: S07
+  - id: S08
     title: Aplicația — pozele de curățenie cu camera, poarta 06:55 / 16:25, config APK
     gates: [typecheck-app]
     approve: []
-  - id: S08
+  - id: S09
     title: Verificare — toate gate-urile, scenariul operatorului parcurs pe cod, lista pentru telefon
     gates: [build-packages, build-bot, test-bot, typecheck-admin, test-admin, typecheck-app]
     approve: []
@@ -141,6 +145,32 @@ Decise de mine (nu se reevaluează în timpul rulării):
   în `apps/bot/src/scheduler.ts`), șterge obiectele din bucket-ul `report-photos`
   cu prefixul `curatenie/` mai vechi de 30 de zile și pune `photo_deleted_at` pe
   liniile din `peron_cleaning_checks`. Fără cron în GitHub.
+- **GPS pe toată tura** (Ion, 08.09: «GPS-ul e necesar să fixeze pe parcursul
+  întregii zile dacă se află în zona de lucru; dacă nu, în ce perioadă n-a fost —
+  mie raport»):
+  - **Fereastra turei** = de la 30 min înainte de prima cursă a punctului până la
+    30 min după ultima (Chișinău 06:25–20:30, Bălți 04:50–20:50, calculate din
+    `trips`, nu scrise în cod). În afara ferestrei aplicația nu urmărește nimic.
+  - **Aplicația** trimite poziția **la fiecare 2 minute** în fereastră, din fundal
+    (`expo-location` `startLocationUpdatesAsync` cu serviciu în prim-plan Android și
+    notificarea permanentă «TRANSLUX Peron urmărește locația în timpul turei»).
+    Cere permisiunea «Permite tot timpul»; fără ea ecranul zilei arată instrucțiunea
+    și nu deschide nicio cursă (urmărirea e condiție de lucru, nu opțiune).
+    Ping-urile neexpediate (fără internet) se păstrează pe telefon și pleacă în lot
+    la următoarea ocazie — singura coadă offline din aplicație.
+  - **Serverul** decide «în zonă» față de stația punctului (raza 150 m, ca la
+    raport) și calculează perioadele: **lipsă din zonă** = ping-uri consecutive în
+    afara razei pe cel puțin **5 minute**; **fără semnal** = pauză între ping-uri de
+    cel puțin **10 minute** în fereastră (telefon închis, GPS oprit, aplicație
+    omorâtă). Sub aceste praguri nu se raportează nimic (GPS-ul sare).
+  - **Alertă imediată** în grupul adminilor când o lipsă sau o pauză de semnal
+    depășește **15 minute**, o singură dată per perioadă: «⚠️ Vitalie (Chișinău)
+    lipsește din zona de lucru de 17 min (de la 12:40)».
+  - **Raportul de seară** (digestul de la 20:30) primește secțiunea «Prezență în
+    zona de lucru», un rând per operator: perioadele cu durata lor sau «toată tura
+    în zonă»; plus «urmărire pornită abia la HH:MM» dacă primul ping e la peste
+    15 min după începutul ferestrei.
+  - Ping-urile se șterg după 30 de zile, ca pozele.
 - Fluxul de curățenie din bot (`conversations/cleaningPhotos.ts`, commit `751c154`)
   **rămâne** cât timp operatorii mai folosesc botul; ambele scriu în aceeași tabelă,
   deci setul făcut într-un loc e văzut și în celălalt.
@@ -170,7 +200,7 @@ Decise de mine (nu se reevaluează în timpul rulării):
 
 ## Nu intră în scop
 
-- Coadă offline, sincronizare în fundal, notificări push.
+- Coadă offline pentru rapoarte și poze (doar ping-urile GPS au coadă), notificări push.
 - Play Store, iOS, actualizare automată a aplicației.
 - Migrarea altor roluri din bot (admini, DIGITAL, șoferi, taxi).
 - Galerie de poze în admin. Adminul vede verdictele în digestul zilnic (există) și, la
@@ -194,7 +224,7 @@ Decise de mine (nu se reevaluează în timpul rulării):
   rulează `deploy-railway.sh` seara. Codul trebuie să fie compatibil cu botul actual
   (aceleași tabele, aceleași efecte).
 - **npm workspaces vs. Expo.** Dacă `npm install` în `peron-android/` sau `npx expo
-  ...` se lovește de `node_modules` din root (metro urcă în părinți), S05 adaugă
+  ...` se lovește de `node_modules` din root (metro urcă în părinți), S06 adaugă
   `metro.config.js` cu `watchFolders` restrâns la folderul aplicației și
   `resolver.disableHierarchicalLookup = true`. Dacă nici așa nu compilează
   `tsc --noEmit`: `HOLD: spec-wrong` (structura de foldere trebuie regândită).
@@ -211,13 +241,19 @@ Decise de mine (nu se reevaluează în timpul rulării):
   (per placă) și afișează întrebarea «a fost reparat?» doar când operatorul alege
   «Totul OK» la reclamă pentru o mașină cu sarcină deschisă — aceeași logică ca
   `report.ts:640–712`.
+- **Locația în fundal pe Android e capricioasă.** Producătorii (Xiaomi, Huawei, Samsung)
+  omoară serviciile în fundal la economisire de baterie. Serviciul în prim-plan cu
+  notificare permanentă e cea mai robustă variantă în Expo; `INSTALL.md` (S08)
+  trebuie să conțină pașii de dezactivare a optimizării bateriei pentru aplicație pe
+  telefoanele operatorilor. Pauzele rezultate apar oricum în raport ca «fără semnal»,
+  deci Ion vede dacă telefonul unui operator taie urmărirea. Nu e HOLD.
 - **Descrierea uniformei TRANSLUX lipsește.** Fără ea modelul judecă «uniformă» după
   însemne vizibile TRANSLUX și haine de serviciu; verdictul e propunere, operatorul
   confirmă. Ion completează `DRIVER_UNIFORM_DESCRIPTION` (sau dă o poză de referință
   pentru a doua iterație). Nu e HOLD.
 - **Migrația 328 nu se aplică de kit.** S01 scrie fișierul și se oprește. Sesiunile
   S02–S04 compilează fără baza nouă (tipurile vin din `packages/db`), dar orice
-  test manual pe prod înainte de aplicare va da eroare de coloană — S08 nu face
+  test manual pe prod înainte de aplicare va da eroare de coloană — S09 nu face
   apeluri pe prod.
 
 ## Cum înțelegem că totul a reușit
@@ -244,6 +280,10 @@ Decise de mine (nu se reevaluează în timpul rulării):
 - [ ] `POST /app/v1/cleaning-photo` cu un JPEG base64 scrie poza în
       `report-photos/curatenie/<data>/<slot>/<zona>-<ts>.jpg`, o linie în
       `peron_cleaning_checks` cu `source = 'app'` și întoarce verdictul.
+- [ ] `POST /app/v1/presence` cu un lot de ping-uri scrie liniile cu `in_zone`
+      calculat; funcția de perioade dă, pentru ping-uri în afara razei 12:40–13:05,
+      exact o perioadă «lipsă 12:40–13:05 (25 min)»; digestul de seară are secțiunea
+      «Prezență în zona de lucru»; alerta pleacă o singură dată la ≥ 15 min.
 - [ ] Un user din Bălți: `/day` întoarce cursele Bălți fără repartizări/curățenie;
       `/report` cu `status: 'FULL'` scrie `passengers_count = -1`; aplicația arată
       ecranul scurt (cifră, Absent, Microbuzul full, GPS, Trimite).
@@ -302,6 +342,31 @@ compilează, iar sesiunea se oprește înainte de a atinge baza.
    alter table driver_appearance_checks enable row level security;
    alter table reports add column if not exists driver_check_id uuid references driver_appearance_checks(id);
 
+   -- Prezență GPS pe toată tura (ping la 2 minute din aplicație)
+   create table if not exists peron_presence_pings (
+     id bigserial primary key,
+     user_id uuid not null references users(id),
+     point point_enum not null,
+     at timestamptz not null,
+     lat double precision not null,
+     lon double precision not null,
+     accuracy_m integer,
+     in_zone boolean not null
+   );
+   create index if not exists idx_peron_presence_pings_user_at on peron_presence_pings (user_id, at);
+   alter table peron_presence_pings enable row level security;
+
+   -- Perioadele de lipsă / fără semnal deja alertate (o alertă per perioadă)
+   create table if not exists peron_presence_alerts (
+     id uuid primary key default gen_random_uuid(),
+     user_id uuid not null references users(id),
+     kind text not null check (kind in ('LIPSA', 'FARA_SEMNAL')),
+     started_at timestamptz not null,
+     alerted_at timestamptz not null default now(),
+     unique (user_id, kind, started_at)
+   );
+   alter table peron_presence_alerts enable row level security;
+
    -- peron_cleaning_checks: sursa, coordonatele, ștergerea pozei după 30 de zile
    alter table peron_cleaning_checks add column if not exists source text not null default 'bot'
      check (source in ('bot', 'app'));
@@ -337,7 +402,7 @@ compilează, iar sesiunea se oprește înainte de a atinge baza.
    `location_lat: number | null`, `location_lon: number | null`,
    `location_accuracy_m: number | null`, `driver_check_id: string | null`. Adaugă
    interfețele `PeronAppLinkCode`, `PeronAppSession`, `DriverAppearanceCheck`,
-   `PeronCleaningCheck` (mută tipul `CleaningCheckRow` din
+   `PeronPresencePing`, `PeronCleaningCheck` (mută tipul `CleaningCheckRow` din
    `apps/bot/src/services/db.ts` aici, cu `source` și `photo_deleted_at`, plus
    tipurile `CleaningSlot`, `CleaningZone`, `CleaningVerdict`). Botul importă de aici
    și șterge definițiile locale; `createReport` din bot primește `source?: 'bot' | 'app'`.
@@ -574,7 +639,60 @@ conține nicio descriere inventată a uniformei în afara constantei din config.
 
 ---
 
-## S05 — Aplicația Expo — schelet, login cu cod, ecranul zilei
+## S05 — Bot API — prezență GPS pe toată tura, perioade de lipsă, alertă și digest
+
+**Depinde de:** S01 — `peron_presence_pings`, `peron_presence_alerts`; S02 — router și
+auth.
+
+**Scop:** botul știe, minut cu minut, dacă fiecare operator e în zona de lucru, alertează
+adminii la lipsă de peste 15 minute și pune perioadele în raportul de seară.
+
+**Pași:**
+1. `GET /app/v1/day` (S02) primește în plus `presenceWindow: { from: 'HH:MM', to:
+   'HH:MM' }` = prima cursă − 30 min, ultima cursă + 30 min, din `trips` ale punctului
+   (funcție pură `presenceWindow(trips)` în `apps/bot/src/api/presence.ts`, cu test).
+2. `POST /app/v1/presence` `{ pings: [{ at: ISO, lat, lon, accuracyM }] }`, maximum
+   200 per cerere; serverul ignoră ping-urile din afara ferestrei zilei curente și
+   duplicatele (același `at`), calculează `in_zone` cu `haversineDistance` față de
+   `config.stations[user.point]` (raza 150 m) și inserează în `peron_presence_pings`.
+   Răspuns `{ ok: true, accepted: n }`.
+3. Funcție pură `presencePeriods(pings, window, now)` în `presence.ts` →
+   `[{ kind: 'LIPSA'|'FARA_SEMNAL', from, to, minutes }]` după regulile din
+   «Decizii»: LIPSA = ping-uri consecutive `in_zone=false` ≥ 5 min; FARA_SEMNAL =
+   pauză ≥ 10 min între ping-uri (sau de la începutul ferestrei până la primul ping,
+   sau de la ultimul ping până la `now`/sfârșitul ferestrei). Teste Vitest: fără
+   ping-uri → o perioadă FARA_SEMNAL cât fereastra; 12:40–13:05 în afara razei → o
+   LIPSA de 25 min; o singură citire în afara razei între două în zonă → nimic.
+4. Scheduler `schedulePresenceWatch()` în `scheduler.ts`, la fiecare 5 minute în
+   fereastră: pentru fiecare operator cu sesiune de aplicație activă și `point`
+   setat, ia ping-urile zilei, calculează perioadele, și pentru cea în curs
+   (`to` = acum) cu `minutes ≥ 15` trimite `sendAdminAlert` dacă nu există deja
+   rând în `peron_presence_alerts` pentru `(user, kind, from)`; apoi inserează rândul.
+   Text: «⚠️ <nume> (<Chișinău|Bălți>) lipsește din zona de lucru de N min (de la
+   HH:MM)» / «… fără semnal GPS de N min (de la HH:MM)».
+5. `dailyDigest.ts`: secțiunea «Prezență în zona de lucru» după încălcări, un rând
+   per operator care are ping-uri sau rapoarte azi: «Vitalie (Chișinău): lipsă
+   12:40–13:05 (25 min) · fără semnal 17:10–17:18 (8 min)» sau «Andrei (Bălți): toată
+   tura în zonă»; dacă primul ping e la > 15 min după `window.from`: «urmărire
+   pornită abia la HH:MM».
+6. Ștergerea ping-urilor și a alertelor mai vechi de 30 de zile: în
+   `schedulePeronPhotoRetention()` (S04), un `delete` suplimentar.
+
+**Fișiere:** `apps/bot/src/api/presence.ts`, `presence.test.ts`, `apps/bot/src/api/day.ts`,
+`apps/bot/src/api/server.ts`, `apps/bot/src/scheduler.ts`, `apps/bot/src/services/dailyDigest.ts`,
+`apps/bot/src/services/db.ts` (`insertPresencePings`, `getPresencePings(userId, date)`,
+`getActiveAppOperators`, `presenceAlertExists`, `insertPresenceAlert`).
+
+**Gata când:** build-bot și test-bot verzi cu testele de la pasul 3; în `index.ts` apare
+`schedulePresenceWatch()`; digestul compilează cu secțiunea nouă.
+
+**Gate-uri:** build-bot, test-bot.
+
+**Nu atinge:** `conversations/*`, `apps/admin`.
+
+---
+
+## S06 — Aplicația Expo — schelet, login cu cod, ecranul zilei
 
 **Depinde de:** S02 — forma răspunsurilor `/auth/link` și `/day`.
 
@@ -610,11 +728,31 @@ cu starea fiecăreia.
 5. `src/theme.ts`: fonturi mari (butoane ≥ 56 px înălțime, text ≥ 18), contrast mare
    — se folosește la soare, cu o mână.
 6. `.env.example` cu `EXPO_PUBLIC_API_URL=https://<domeniul-serviciului-bot>`.
+7. **Urmărirea GPS pe toată tura** (`src/presence.ts`): la login cere permisiunea de
+   locație în prim-plan, apoi «Permite tot timpul» (`requestBackgroundPermissionsAsync`),
+   cu explicația «Aplicația urmărește locația doar în timpul turei, ca administratorul
+   să știe că ești în zona de lucru». `day.tsx`: dacă lipsește permisiunea de fundal,
+   arată în locul grilei cardul «Fără acces la locație în fundal» cu butonul spre
+   setările sistemului; grila nu se deschide. Cu permisiune: definește
+   `TaskManager.defineTask('presence', …)` la nivel de modul și pornește
+   `Location.startLocationUpdatesAsync('presence', { accuracy: Balanced,
+   timeInterval: 120000, distanceInterval: 0, foregroundService: { notificationTitle:
+   'TRANSLUX Peron', notificationBody: 'Urmărește locația în timpul turei' } })` când
+   ora e în `presenceWindow` din `/day`, și îl oprește în afara ei (verificare la
+   fiecare deschidere a aplicației și la fiecare ping). Ping-urile se pun în coadă
+   în `AsyncStorage` (`expo-sqlite` nu e nevoie) și pleacă în lot la
+   `postPresence`; la 401 sau eroare de rețea rămân în coadă (maximum o zi).
+   `app.json`: permisiunile `ACCESS_BACKGROUND_LOCATION`, `FOREGROUND_SERVICE`,
+   `FOREGROUND_SERVICE_LOCATION`; plugin-ul `expo-location` cu
+   `isAndroidBackgroundLocationEnabled: true` și `isAndroidForegroundServiceEnabled: true`.
+   Rând pe `day.tsx`: «În zona de lucru · GPS activ» / «În afara zonei» / «GPS
+   oprit», din ultima citire.
 
 **Fișiere:** `peron-android/**` (nou), `.gitignore` (3 linii).
 
 **Gata când:** `cd peron-android && npm install && npx tsc --noEmit` verde; `npx expo
 export --platform android` (bundle JS, fără build nativ) se termină fără eroare;
+`src/presence.ts` există și `app.json` conține `ACCESS_BACKGROUND_LOCATION`;
 root-ul nu s-a schimbat (`git status` arată doar `peron-android/` și `.gitignore`);
 `npm run build --workspace=packages/db` încă verde.
 
@@ -624,9 +762,9 @@ root-ul nu s-a schimbat (`git status` arată doar `peron-android/` și `.gitigno
 
 ---
 
-## S06 — Aplicația — ecranul de cursă pe un singur ecran, cu poza șoferului și GPS automat
+## S07 — Aplicația — ecranul de cursă pe un singur ecran, cu poza șoferului și GPS automat
 
-**Depinde de:** S05 — client API, ecranul zilei; S03 — corpul lui `/report`; S04 —
+**Depinde de:** S06 — client API, ecranul zilei; S03 — corpul lui `/report`; S04 —
 `/driver-photo`.
 
 **Scop:** operatorul raportează o cursă de pe un singur ecran, cu 2–3 atingeri în cazul
@@ -646,8 +784,8 @@ obișnuit, iar locația pleacă singură.
      disponibili, auto disponibile) + «+ Adaugă auto» (câmp placă → `postVehicle`)
      + «Fără șofer» / «Fără auto». Fără repartizare → listele apar direct.
    - **Poza șoferului:** card cu «📷 Fă poza șoferului» → `CameraView` (aceeași
-     componentă ca la curățenie, S07 o mută în `src/camera.ts`; în S06 se scrie aici
-     și S07 o refolosește), comprimare 1280 px / JPEG 0.8, `postDriverPhoto`. După
+     componentă ca la curățenie, S08 o mută în `src/camera.ts`; în S07 se scrie aici
+     și S08 o refolosește), comprimare 1280 px / JPEG 0.8, `postDriverPhoto`. După
      răspuns: miniatura pozei și două verdicte mari «Uniformă: da/nu», «Aspect
      îngrijit: da/nu», verzi când e «da», roșii când e «nu»; atingerea unui verdict
      îl răstoarnă (operatorul corectează modelul); «Refă poza». `NO_PERSON` → «Nu se
@@ -692,9 +830,9 @@ manual de uniformă/aspect în afara verdictelor de sub poză.
 
 ---
 
-## S07 — Aplicația — pozele de curățenie cu camera, poarta 06:55 / 16:25, config APK
+## S08 — Aplicația — pozele de curățenie cu camera, poarta 06:55 / 16:25, config APK
 
-**Depinde de:** S05, S06; S04 — `/cleaning-photo`.
+**Depinde de:** S06, S07; S04 — `/cleaning-photo`.
 
 **Scop:** operatorul face cele 3 poze doar cu camera aplicației, primește verdictul pe
 loc, iar prima cursă și 16:25 sunt blocate în aplicație până când setul e complet.
@@ -740,9 +878,9 @@ peron-android/app peron-android/src` nu găsește nimic; `eas.json` are profilul
 
 ---
 
-## S08 — Verificare — toate gate-urile, scenariul operatorului parcurs pe cod, lista pentru telefon
+## S09 — Verificare — toate gate-urile, scenariul operatorului parcurs pe cod, lista pentru telefon
 
-**Depinde de:** S01–S07.
+**Depinde de:** S01–S08.
 
 **Scop:** dovada că totul din «Cum înțelegem că totul a reușit» care se poate verifica
 fără telefon și fără prod este verificat, iar restul e o listă clară pentru Ion.

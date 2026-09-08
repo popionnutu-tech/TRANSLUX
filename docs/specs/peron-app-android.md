@@ -85,6 +85,10 @@ Răspunsurile lui Ion (08.09.2026):
   reclamă (cu «a fost reparat?» când există sarcină deschisă), clima în sezon (o dată
   pe lună per auto). Toate cu «OK» bifat implicit; operatorul schimbă doar ce nu e în
   regulă.
+- **Clima** (Ion, 08.09: «aer condiționat vara, căldură începând din noiembrie»):
+  aceleași date ca în bot, `climateKindForDate` din `apps/bot/src/services/db.ts` —
+  aer condiționat 15 mai–31 iulie, căldură 1 noiembrie–15 februarie; în rest rândul
+  nu apare. Aplicația nu redefinește sezonul, îl primește gata calculat din `/day`.
 
 Decise de mine (nu se reevaluează în timpul rulării):
 - **API-ul aplicației trăiește în bot** (`apps/bot`, Railway), pe serverul HTTP care

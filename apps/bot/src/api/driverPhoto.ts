@@ -1,14 +1,17 @@
 /**
  * POST /app/v1/driver-photo { tripId, driverId, imageBase64, lat, lon } — poza
  * șoferului la cursă. Storage (soferi/<data>/<tripId>-<ts>.jpg) → Claude →
- * driver_appearance_checks cu verdictele modelului (*_model) și, inițial, aceleași
- * valori în uniform_ok/groomed_ok; POST /report le suprascrie cu ce confirmă
- * operatorul. Întoarce driverCheckId pe care /report îl cere la status OK.
+ * driver_appearance_checks cu verdictele modelului. Verdictul e final (Ion, 08.09:
+ * «aplicația fixează, operatorul doar face poza»): *_model și uniform_ok/groomed_ok
+ * primesc aceleași valori, POST /report le copiază în `reports` și ignoră ce trimite
+ * aplicația. Întoarce driverCheckId pe care /report îl cere la status OK.
  *
- * Nu se vede o persoană → 200 cu code 'NO_PERSON', fără linie în tabel, fișierul
- * se scoate din bucket (aplicația cere refacerea pozei).
+ * Nu se vede o persoană → 200 cu code 'NO_PERSON'; cadrul nu e cel cerut (din față,
+ * întreg, încălțăminte → cap) → 200 cu code 'REFA_POZA' și `message` cu ce lipsește.
+ * În ambele cazuri nu se scrie nimic, fișierul se scoate din bucket, aplicația cere
+ * refacerea pozei.
  * Model indisponibil / răspuns stricat → verdict 'EROARE': linia se scrie cu
- * verdictele null, aplicația arată «necunoscut» și operatorul bifează manual.
+ * verdictele null, raportul se scrie cu null — nu se inventează.
  */
 import { createDriverAppearanceCheck, getAllTripsForDirection, getDirectionForPoint } from '../services/db.js';
 import { DRIVER_CHECK_MODEL, analyzeDriverPhoto } from '../services/driverCheck.js';
@@ -19,12 +22,18 @@ import { ApiError, badRequest } from './errors.js';
 import { decodeJpegBase64, parseCoords, requireId } from './photo.js';
 import { asObject } from './server.js';
 
+export type DriverPhotoRetakeCode = 'NO_PERSON' | 'REFA_POZA';
+
 export interface DriverPhotoResponse {
-  verdict: 'OK' | 'EROARE' | 'NO_PERSON';
-  code?: 'NO_PERSON';
+  verdict: 'OK' | 'EROARE' | DriverPhotoRetakeCode;
+  /** Prezent doar când poza trebuie refăcută; `message` spune de ce. */
+  code?: DriverPhotoRetakeCode;
+  message?: string;
   driverCheckId: string | null;
   personVisible: boolean | null;
+  frameOk: boolean | null;
   uniformOk: boolean | null;
+  shavedOk: boolean | null;
   groomedOk: boolean | null;
   description: string;
 }
@@ -36,6 +45,13 @@ export function parseDriverPhotoBody(rawBody: unknown): { tripId: string; driver
   const jpeg = decodeJpegBase64(b.imageBase64);
   const { lat, lon } = parseCoords(b);
   return { tripId, driverId, jpeg, lat, lon };
+}
+
+/** Mesajul pentru operator la refacerea pozei: ce a văzut modelul + cadrul cerut. */
+export function retakeMessage(code: DriverPhotoRetakeCode, description: string): string {
+  const seen = description.trim();
+  const lead = code === 'NO_PERSON' ? 'Nu se vede nicio persoană în poză.' : 'Poza nu arată tot șoferul.';
+  return `${seen || lead} Refă poza: șoferul din față, întreg, să se vadă încălțămintea și capul.`;
 }
 
 export async function postDriverPhoto(user: AppUser, rawBody: unknown): Promise<DriverPhotoResponse> {
@@ -53,24 +69,32 @@ export async function postDriverPhoto(user: AppUser, rawBody: unknown): Promise<
 
   const result = await analyzeDriverPhoto(body.jpeg.toString('base64'));
 
-  if (result.verdict === 'OK' && !result.personVisible) {
+  // Poza trebuie refăcută: nimeni în cadru sau cadrul nu e cel cerut. Fără rând, fără fișier.
+  if (result.verdict === 'OK' && (!result.personVisible || !result.frameOk)) {
+    const code: DriverPhotoRetakeCode = result.personVisible ? 'REFA_POZA' : 'NO_PERSON';
     try {
       await removeReportPhotos([storageKey]);
     } catch (e) {
       console.error('[app-api] removeReportPhotos error:', e);
     }
     return {
-      verdict: 'NO_PERSON',
-      code: 'NO_PERSON',
+      verdict: code,
+      code,
+      message: retakeMessage(code, result.description),
       driverCheckId: null,
-      personVisible: false,
+      personVisible: result.personVisible,
+      frameOk: false,
       uniformOk: null,
+      shavedOk: null,
       groomedOk: null,
       description: result.description,
     };
   }
 
   const ok = result.verdict === 'OK' ? result : null;
+  // Verdictele care intră în raport: uniform_ok = uniforma; groomed_ok = bărbierit && aspect îngrijit.
+  const uniformOk = ok ? ok.uniformOk : null;
+  const groomedOk = ok ? ok.shavedOk && ok.groomedOk : null;
   let driverCheckId: string;
   try {
     driverCheckId = await createDriverAppearanceCheck({
@@ -79,10 +103,10 @@ export async function postDriverPhoto(user: AppUser, rawBody: unknown): Promise<
       driver_id: body.driverId,
       storage_key: storageKey,
       person_visible: ok ? ok.personVisible : null,
-      uniform_ok_model: ok ? ok.uniformOk : null,
-      groomed_ok_model: ok ? ok.groomedOk : null,
-      uniform_ok: ok ? ok.uniformOk : null,
-      groomed_ok: ok ? ok.groomedOk : null,
+      uniform_ok_model: uniformOk,
+      groomed_ok_model: groomedOk,
+      uniform_ok: uniformOk,
+      groomed_ok: groomedOk,
       description: result.description,
       model: DRIVER_CHECK_MODEL,
       location_lat: body.lat,
@@ -98,7 +122,9 @@ export async function postDriverPhoto(user: AppUser, rawBody: unknown): Promise<
     verdict: ok ? 'OK' : 'EROARE',
     driverCheckId,
     personVisible: ok ? ok.personVisible : null,
-    uniformOk: ok ? ok.uniformOk : null,
+    frameOk: ok ? ok.frameOk : null,
+    uniformOk,
+    shavedOk: ok ? ok.shavedOk : null,
     groomedOk: ok ? ok.groomedOk : null,
     description: result.description,
   };

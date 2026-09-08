@@ -57,9 +57,24 @@ const CLEAN_OK: ModelAnswer = { json: { loc_corect: true, verdict: 'CURAT', prob
 const CLEAN_DIRTY: ModelAnswer = { json: { loc_corect: true, verdict: 'MURDAR', probleme: ['praf pe pavaj', 'mucuri la stâlp'], descriere: 'Nemăturat la bordură.' } };
 const CLEAN_WRONG_PLACE: ModelAnswer = { json: { loc_corect: false, verdict: 'CURAT', probleme: [], descriere: 'Nu se vede stația GARA.' } };
 const CLEAN_THROWS: ModelAnswer = { throws: new Error('model indisponibil') };
-const DRIVER_OK: ModelAnswer = { json: { persoana_vizibila: true, uniforma: true, aspect_ingrijit: true, descriere: 'Cămașă TRANSLUX, aspect îngrijit.' } };
-const DRIVER_UNIFORM_NOT_GROOMED: ModelAnswer = { json: { persoana_vizibila: true, uniforma: true, aspect_ingrijit: false, descriere: 'Cămașă TRANSLUX, nebărbierit.' } };
-const DRIVER_NOBODY: ModelAnswer = { json: { persoana_vizibila: false, uniforma: false, aspect_ingrijit: false, descriere: 'Nimeni în cadru.' } };
+/** Răspunsul modelului la poza șoferului: cadrul încălțăminte → cap, cele trei verdicte. */
+type DriverJson = { cadru_complet: boolean; persoana_vizibila: boolean; uniforma: boolean; barbierit: boolean; aspect_ingrijit: boolean; descriere: string };
+const driverJson = (o: Partial<DriverJson>): ModelAnswer => ({
+  json: { cadru_complet: true, persoana_vizibila: true, uniforma: true, barbierit: true, aspect_ingrijit: true, descriere: 'Cămașă TRANSLUX, pantofi negri, bărbierit.', ...o },
+});
+const DRIVER_OK = driverJson({});
+const DRIVER_UNIFORM_NOT_SHAVED = driverJson({ barbierit: false, descriere: 'Cămașă TRANSLUX, nebărbierit.' });
+const DRIVER_NO_UNIFORM = driverJson({ uniforma: false, descriere: 'Tricou negru, șlapi.' });
+const DRIVER_NOBODY = driverJson({ cadru_complet: false, persoana_vizibila: false, uniforma: false, barbierit: false, aspect_ingrijit: false, descriere: 'Nimeni în cadru.' });
+const DRIVER_CUT_FRAME = driverJson({ cadru_complet: false, uniforma: false, barbierit: false, aspect_ingrijit: false, descriere: 'Nu se vede încălțămintea.' });
+const DRIVER_MODEL_DOWN: ModelAnswer = { throws: new Error('model indisponibil') };
+
+/** Ce scrie serverul în reports din verdictul modelului: uniform_ok = uniforma, exterior_ok = bărbierit && aspect. */
+function modelVerdicts(answer: ModelAnswer): { uniformOk: boolean | null; exteriorOk: boolean | null } {
+  const j = answer.json as DriverJson | undefined;
+  if (!j) return { uniformOk: null, exteriorOk: null }; // EROARE
+  return { uniformOk: j.uniforma, exteriorOk: j.barbierit && j.aspect_ingrijit };
+}
 
 // ── Etalonul: ce scrie botul (copiat din conversations/report.ts) ────────────
 
@@ -215,8 +230,12 @@ function okBody(time: string, driverCheckId: string | null, o: OkOverrides = {})
   };
 }
 
-/** Variabilele botului pentru același raport OK. */
-function botVarsFor(body: ReturnType<typeof okBody>, time: string): BotVars {
+/**
+ * Variabilele botului pentru același raport OK. Uniforma și aspectul NU vin din corp:
+ * operatorul nu mai bifează nimic, verdictul e al modelului din poza șoferului.
+ */
+function botVarsFor(body: ReturnType<typeof okBody>, time: string, driverAnswer: ModelAnswer): BotVars {
+  const verdict = modelVerdicts(driverAnswer);
   return {
     point: 'CHISINAU',
     time,
@@ -225,8 +244,8 @@ function botVarsFor(body: ReturnType<typeof okBody>, time: string): BotVars {
     driverId: body.driverId,
     driverFull: body.driverId ? DRIVER_NAME[body.driverId] ?? null : null,
     vehicleId: body.vehicleId,
-    exteriorOk: body.exteriorOk,
-    uniformOk: body.uniformOk,
+    exteriorOk: verdict.exteriorOk,
+    uniformOk: verdict.uniformOk,
     loadingHelpOk: body.loadingHelpOk,
     autoCurat: body.autoCurat,
     reclamaOk: body.vehicleId ? body.reclamaOk : null,
@@ -280,7 +299,7 @@ async function fullTrip(time: string, o: OkOverrides = {}, driverAnswer: ModelAn
   const body = okBody(time, driverCheckId, o);
   const res = await report(body);
   expect(res.status, `report ${time}: ${JSON.stringify(res.body)}`).toBe(200);
-  const vars = botVarsFor(body, time);
+  const vars = botVarsFor(body, time, driverAnswer);
   expectRowLikeBot(reportFor(time), vars);
   expect(reportFor(time).driver_check_id).toBe(driverCheckId);
   expect(res.body.summary).toBe(botSummary(vars));
@@ -496,7 +515,11 @@ describe('5. Poza șoferului', () => {
     const before = Object.keys(fake._storage['report-photos']).filter((k) => k.startsWith('soferi/'));
     const res = await driverPhoto('06:55', IDS.drivers.ionMunteanu, DRIVER_NOBODY);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true, verdict: 'NO_PERSON', code: 'NO_PERSON', driverCheckId: null, personVisible: false, uniformOk: null, groomedOk: null, description: 'Nimeni în cadru.' });
+    expect(res.body).toEqual({
+      ok: true, verdict: 'NO_PERSON', code: 'NO_PERSON',
+      message: 'Nimeni în cadru. Refă poza: șoferul din față, întreg, să se vadă încălțămintea și capul.',
+      driverCheckId: null, personVisible: false, frameOk: false, uniformOk: null, shavedOk: null, groomedOk: null, description: 'Nimeni în cadru.',
+    });
     expect(fake._tables.driver_appearance_checks).toHaveLength(0);
     noPersonKeys = fake._storageOps.filter((o) => o.op === 'remove').flatMap((o) => o.paths);
     expect(noPersonKeys).toHaveLength(1);
@@ -504,11 +527,35 @@ describe('5. Poza șoferului', () => {
     expect(Object.keys(fake._storage['report-photos']).filter((k) => k.startsWith('soferi/'))).toEqual(before);
   });
 
-  it('uniforma=true, aspect=false → rând în driver_appearance_checks cu *_model și driverCheckId', async () => {
-    clock('06:42');
-    const res = await driverPhoto('06:55', IDS.drivers.ionMunteanu, DRIVER_UNIFORM_NOT_GROOMED);
+  it('cadru_complet=false (nu se vede încălțămintea) → 200 REFA_POZA cu mesaj, fără rând, poza scoasă din Storage', async () => {
+    clock('06:41');
+    const before = Object.keys(fake._storage['report-photos']).filter((k) => k.startsWith('soferi/'));
+    const res = await driverPhoto('06:55', IDS.drivers.ionMunteanu, DRIVER_CUT_FRAME);
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ verdict: 'OK', personVisible: true, uniformOk: true, groomedOk: false, description: 'Cămașă TRANSLUX, nebărbierit.' });
+    expect(res.body).toEqual({
+      ok: true, verdict: 'REFA_POZA', code: 'REFA_POZA',
+      message: 'Nu se vede încălțămintea. Refă poza: șoferul din față, întreg, să se vadă încălțămintea și capul.',
+      driverCheckId: null, personVisible: true, frameOk: false, uniformOk: null, shavedOk: null, groomedOk: null, description: 'Nu se vede încălțămintea.',
+    });
+    expect(fake._tables.driver_appearance_checks).toHaveLength(0);
+    const removed = fake._storageOps.filter((o) => o.op === 'remove').flatMap((o) => o.paths);
+    expect(removed).toHaveLength(2); // NO_PERSON + REFA_POZA
+    expect(removed[1]).toMatch(new RegExp(`^soferi/${DATE}/${T('06:55')}-\\d+\\.jpg$`));
+    expect(Object.keys(fake._storage['report-photos']).filter((k) => k.startsWith('soferi/'))).toEqual(before);
+    // modelul a fost chemat cu poza și cu cerința de cadru
+    expect(modelCalls.at(-1)).toMatchObject({ model: 'claude-opus-5', hasImage: true });
+    expect(modelCalls.at(-1)!.userText).toContain('încălțăminte');
+  });
+
+  it('uniforma=true, bărbierit=false → rând în driver_appearance_checks: *_model = uniform_ok/groomed_ok (verdict final), descrierea cu cele trei verdicte', async () => {
+    clock('06:42');
+    const res = await driverPhoto('06:55', IDS.drivers.ionMunteanu, DRIVER_UNIFORM_NOT_SHAVED);
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      verdict: 'OK', personVisible: true, frameOk: true, uniformOk: true, shavedOk: false, groomedOk: true,
+      description: 'uniformă: da · bărbierit: nu · aspect: da · Cămașă TRANSLUX, nebărbierit.',
+    });
+    expect(res.body.code).toBeUndefined();
     expect(res.body.driverCheckId).toMatch(UUID);
     const rows = fake._tables.driver_appearance_checks;
     expect(rows).toHaveLength(1);
@@ -519,9 +566,10 @@ describe('5. Poza șoferului', () => {
       driver_id: IDS.drivers.ionMunteanu,
       person_visible: true,
       uniform_ok_model: true,
-      groomed_ok_model: false,
+      groomed_ok_model: false, // bărbierit && aspect
       uniform_ok: true,
       groomed_ok: false,
+      description: 'uniformă: da · bărbierit: nu · aspect: da · Cămașă TRANSLUX, nebărbierit.',
       model: 'claude-opus-5',
       location_lat: IN_ZONE.lat,
       location_lon: IN_ZONE.lon,
@@ -534,21 +582,22 @@ describe('5. Poza șoferului', () => {
 });
 
 describe('6. Raport 06:55', () => {
-  it('200; rândul din reports are exact coloanele botului (location_ok null — cursă exceptată) + source app, driver_check_id', async () => {
+  it('200; rândul din reports are exact coloanele botului (location_ok null — cursă exceptată) + source app, driver_check_id; exterior_ok = verdictul modelului (nebărbierit), nu ce a bifat aplicația', async () => {
     clock('06:55');
     const driverCheckId = fake._tables.driver_appearance_checks[0].id as string;
-    const body = okBody('06:55', driverCheckId, { passengersCount: 12, acStatus: 'works', coords: null });
+    // aplicația trimite uniformOk/exteriorOk true (clienți vechi) — serverul le ignoră
+    const body = okBody('06:55', driverCheckId, { passengersCount: 12, acStatus: 'works', coords: null, uniformOk: true, exteriorOk: true });
     const res = await report(body);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true, summary: '☑ 06:55 — 12 pas. | Ion M.', allDone: false });
+    expect(res.body).toEqual({ ok: true, summary: '☑ 06:55 — 12 pas. | Ion M.\n⚠ aspect', allDone: false });
 
     expect(reports()).toHaveLength(1);
     const row = reportFor('06:55');
-    const vars = botVarsFor(body, '06:55');
+    const vars = botVarsFor(body, '06:55', DRIVER_UNIFORM_NOT_SHAVED);
     expectRowLikeBot(row, vars);
     expect(row).toMatchObject({
       status: 'OK', passengers_count: 12, driver_id: IDS.drivers.ionMunteanu, vehicle_id: IDS.vehicles.tcp998,
-      exterior_ok: true, uniform_ok: true, loading_help_ok: true, auto_curat: true, reclama_ok: true, reclama_problem: null,
+      exterior_ok: false, uniform_ok: true, loading_help_ok: true, auto_curat: true, reclama_ok: true, reclama_problem: null,
       wash_grade: null, ac_status: 'works', heat_status: null, location_ok: null, source: 'app',
       driver_check_id: driverCheckId, created_by_user: IDS.users.vitalie, location_lat: null, location_lon: null, location_accuracy_m: null,
     });
@@ -556,8 +605,8 @@ describe('6. Raport 06:55', () => {
     expect(res.body.summary).toBe(botSummary(vars));
   });
 
-  it('verdictele confirmate de operator suprascriu uniform_ok/groomed_ok; propunerea modelului rămâne în *_model', () => {
-    expect(fake._tables.driver_appearance_checks[0]).toMatchObject({ uniform_ok: true, groomed_ok: true, uniform_ok_model: true, groomed_ok_model: false });
+  it('rândul pozei rămâne neatins de raport: uniform_ok/groomed_ok = *_model (nu există confirmare de operator)', () => {
+    expect(fake._tables.driver_appearance_checks[0]).toMatchObject({ uniform_ok: true, groomed_ok: false, uniform_ok_model: true, groomed_ok_model: false });
   });
 
   it('loading board: un sendMessage către admin cu «06:55», starea salvată în Storage; nicio alertă (06:55 e exceptată)', () => {
@@ -620,12 +669,13 @@ describe('8. 07:35 cu schimbare de repartizare și auto nou', () => {
     expect(body.climate[abc.id]).toBe('ac');
   });
 
-  it('raport cu assignmentChanged, Sergiu Lungu și ABC123, aspect neîngrijit → daily_assignments actualizat, summary cu ⚠ aspect', async () => {
+  it('raport cu assignmentChanged, Sergiu Lungu și ABC123; modelul zice fără uniformă, aplicația trimite invers → serverul scrie verdictul modelului, summary cu ⚠ uniformă', async () => {
     clock('07:35');
-    const { res, vars } = await fullTrip('07:35', { passengersCount: 9, driverId: IDS.drivers.sergiuLungu, vehicleId: abc.id, assignmentChanged: true, exteriorOk: false }, DRIVER_UNIFORM_NOT_GROOMED);
-    expect(res.body.summary).toBe('☑ 07:35 — 9 pas. | Sergiu L.\n⚠ aspect');
-    expect(botSummary(vars)).toBe('☑ 07:35 — 9 pas. | Sergiu L.\n⚠ aspect');
-    expect(reportFor('07:35')).toMatchObject({ location_ok: true, location_lat: IN_ZONE.lat, location_lon: IN_ZONE.lon, location_accuracy_m: 8, exterior_ok: false });
+    const { res, vars } = await fullTrip('07:35', { passengersCount: 9, driverId: IDS.drivers.sergiuLungu, vehicleId: abc.id, assignmentChanged: true, uniformOk: true, exteriorOk: false }, DRIVER_NO_UNIFORM);
+    expect(res.body.summary).toBe('☑ 07:35 — 9 pas. | Sergiu L.\n⚠ uniformă');
+    expect(botSummary(vars)).toBe('☑ 07:35 — 9 pas. | Sergiu L.\n⚠ uniformă');
+    expect(reportFor('07:35')).toMatchObject({ location_ok: true, location_lat: IN_ZONE.lat, location_lon: IN_ZONE.lon, location_accuracy_m: 8, uniform_ok: false, exterior_ok: true });
+    expect(fake._tables.driver_appearance_checks.at(-1)).toMatchObject({ uniform_ok_model: false, groomed_ok_model: true, uniform_ok: false, groomed_ok: true });
 
     const assignment = fake._tables.daily_assignments.find((a) => a.trip_id === T('07:35'));
     expect(assignment).toMatchObject({ crm_route_id: crmRouteId('07:35'), driver_id: IDS.drivers.sergiuLungu, vehicle_id: abc.id });
@@ -759,18 +809,24 @@ describe('12. Restul curselor până la 16:05', () => {
   const DRIVERS = [IDS.drivers.ionMunteanu, IDS.drivers.vasileRusu, IDS.drivers.petruCiobanu, IDS.drivers.sergiuLungu];
   const VEHICLES = () => [IDS.vehicles.tcp998, IDS.vehicles.wvw526, IDS.vehicles.lyy735, fake._tables.vehicles.find((v) => v.plate_number === 'ABC123')!.id];
 
-  it('28 de pasageri → 400 (limita botului e 27); 11:28 trimis la exact +10 min nu e întârziere', async () => {
+  it('28 de pasageri → 400 (limita botului e 27); 11:28 trimis la exact +10 min nu e întârziere; modelul picat → EROARE, raportul cu uniform_ok/exterior_ok null', async () => {
     clock('11:38');
-    const photo = await driverPhoto('11:28', IDS.drivers.ionMunteanu, DRIVER_OK);
+    const photo = await driverPhoto('11:28', IDS.drivers.ionMunteanu, DRIVER_MODEL_DOWN);
+    expect(photo.status).toBe(200);
+    expect(photo.body).toMatchObject({ verdict: 'EROARE', personVisible: null, frameOk: null, uniformOk: null, shavedOk: null, groomedOk: null, description: 'Verificarea automată a eșuat.' });
+    expect(photo.body.driverCheckId).toMatch(UUID);
+    expect(fake._tables.driver_appearance_checks.at(-1)).toMatchObject({ id: photo.body.driverCheckId, uniform_ok_model: null, groomed_ok_model: null, uniform_ok: null, groomed_ok: null });
+
     const tooMany = await report(okBody('11:28', photo.body.driverCheckId, { passengersCount: 28 }));
     expect(tooMany.status).toBe(400);
     expect(tooMany.body.code).toBe('BAD_REQUEST');
     expect(tooMany.body.message).toContain('27');
 
-    const ok = await report(okBody('11:28', photo.body.driverCheckId, { passengersCount: PAX[0], driverId: DRIVERS[0], vehicleId: VEHICLES()[0] }));
+    // aplicația (client vechi) trimite false/false — nu se inventează nimic peste EROARE
+    const ok = await report(okBody('11:28', photo.body.driverCheckId, { passengersCount: PAX[0], driverId: DRIVERS[0], vehicleId: VEHICLES()[0], uniformOk: false, exteriorOk: false }));
     expect(ok.status).toBe(200);
     expect(ok.body.summary).toBe('☑ 11:28 — 0 pas. | Ion M.');
-    expect(reportFor('11:28')).toMatchObject({ passengers_count: 0, location_ok: true });
+    expect(reportFor('11:28')).toMatchObject({ passengers_count: 0, location_ok: true, uniform_ok: null, exterior_ok: null });
     expect((await digestState())!.violations).toHaveLength(2);
   });
 
@@ -851,7 +907,7 @@ describe('14. Sfârșit de zi', () => {
     expect(fake._tables.day_validations[0]).toMatchObject({ user_id: IDS.users.vitalie, validation_date: DATE });
     expect(reports()).toHaveLength(29);
     // 28 rapoarte OK, fiecare cu poza lui de șofer; +1 poză pentru 16:25 rămasă fără raport (poarta ZIUA a refuzat
-    // cererea) — rândul ei există, dar nu e referit de nimeni. Cea NO_PERSON n-a lăsat rând.
+    // cererea) — rândul ei există, dar nu e referit de nimeni. NO_PERSON și REFA_POZA n-au lăsat rând.
     expect(fake._tables.driver_appearance_checks).toHaveLength(29);
     const referenced = new Set(reports().filter((r) => r.status === 'OK').map((r) => r.driver_check_id));
     expect(referenced.size).toBe(28);

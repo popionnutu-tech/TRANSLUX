@@ -224,12 +224,18 @@ describe('modelul fals', () => {
     expect(await analyzeCleaningPhoto('VECEU', jpeg)).toMatchObject({ verdict: 'EROARE', description: 'Modelul a refuzat evaluarea.' });
   });
 
-  it('șofer: verdicte, persoana_vizibila=false, JSON stricat → EROARE; coadă goală → testul pică zgomotos', async () => {
-    nextModelAnswer({ json: { persoana_vizibila: true, uniforma: true, aspect_ingrijit: false, descriere: 'Cămașă TRANSLUX, nebărbierit.' } });
-    expect(await analyzeDriverPhoto('AAAA')).toEqual({ verdict: 'OK', personVisible: true, uniformOk: true, groomedOk: false, description: 'Cămașă TRANSLUX, nebărbierit.' });
+  it('șofer: verdicte, persoana_vizibila=false, cadru_complet=false, JSON stricat → EROARE; coadă goală → testul pică zgomotos', async () => {
+    nextModelAnswer({ json: { cadru_complet: true, persoana_vizibila: true, uniforma: true, barbierit: false, aspect_ingrijit: true, descriere: 'Cămașă TRANSLUX, nebărbierit.' } });
+    expect(await analyzeDriverPhoto('AAAA')).toEqual({
+      verdict: 'OK', frameOk: true, personVisible: true, uniformOk: true, shavedOk: false, groomedOk: true,
+      description: 'uniformă: da · bărbierit: nu · aspect: da · Cămașă TRANSLUX, nebărbierit.',
+    });
 
-    nextModelAnswer({ json: { persoana_vizibila: false, uniforma: false, aspect_ingrijit: false, descriere: 'Nimeni în cadru.' } });
-    expect(await analyzeDriverPhoto('AAAA')).toMatchObject({ verdict: 'OK', personVisible: false });
+    nextModelAnswer({ json: { cadru_complet: false, persoana_vizibila: false, uniforma: false, barbierit: false, aspect_ingrijit: false, descriere: 'Nimeni în cadru.' } });
+    expect(await analyzeDriverPhoto('AAAA')).toMatchObject({ verdict: 'OK', frameOk: false, personVisible: false });
+
+    nextModelAnswer({ json: { cadru_complet: false, persoana_vizibila: true, uniforma: false, barbierit: false, aspect_ingrijit: false, descriere: 'Nu se vede încălțămintea.' } });
+    expect(await analyzeDriverPhoto('AAAA')).toMatchObject({ verdict: 'OK', frameOk: false, personVisible: true, description: 'Nu se vede încălțămintea.' });
 
     nextModelAnswer({ text: '{nu e json' });
     expect(await analyzeDriverPhoto('AAAA')).toMatchObject({ verdict: 'EROARE' });

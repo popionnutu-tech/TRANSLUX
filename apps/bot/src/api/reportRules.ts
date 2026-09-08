@@ -27,6 +27,7 @@ export interface ReportBody {
   loadingHelpOk: boolean | null;
   autoCurat: boolean | null;
   driverCheckId: string | null;
+  /** Acceptate de la clienți vechi, dar IGNORATE: verdictul e al modelului (vezi withModelVerdicts). */
   uniformOk: boolean | null;
   exteriorOk: boolean | null;
   reclamaOk: boolean | null;
@@ -59,6 +60,11 @@ function bool(v: unknown, name: string): boolean {
   return v;
 }
 
+function boolOrNull(v: unknown, name: string): boolean | null {
+  if (v === null || v === undefined) return null;
+  return bool(v, name);
+}
+
 function numOrNull(v: unknown, name: string): number | null {
   if (v === null || v === undefined) return null;
   if (typeof v !== 'number' || !Number.isFinite(v)) throw badRequest(`${name} trebuie să fie număr sau null`);
@@ -75,7 +81,8 @@ function oneOfOrNull<T extends string>(v: unknown, allowed: readonly string[], n
  * Validează corpul cererii pentru punctul operatorului. Aruncă ApiError 400.
  * - FULL doar la BALTI; OK cere passengersCount 0–27; ABSENT/FULL → fără cifră.
  * - BALTI: se acceptă doar status, passengersCount, lat, lon, accuracyM; restul → null.
- * - CHISINAU + OK: cere driverCheckId (DRIVER_PHOTO_REQUIRED) și verificările manuale.
+ * - CHISINAU + OK: cere driverCheckId (DRIVER_PHOTO_REQUIRED) și verificările manuale;
+ *   uniformOk / exteriorOk sunt opționale și nu contează — verdictul vine din poza șoferului.
  * - ABSENT: toate câmpurile de calitate → null (ca în bot).
  */
 export function parseReportBody(body: unknown, point: PointEnum): ReportBody {
@@ -148,8 +155,8 @@ export function parseReportBody(body: unknown, point: PointEnum): ReportBody {
     loadingHelpOk: bool(b.loadingHelpOk, 'loadingHelpOk'),
     autoCurat: bool(b.autoCurat, 'autoCurat'),
     driverCheckId,
-    uniformOk: bool(b.uniformOk, 'uniformOk'),
-    exteriorOk: bool(b.exteriorOk, 'exteriorOk'),
+    uniformOk: boolOrNull(b.uniformOk, 'uniformOk'),
+    exteriorOk: boolOrNull(b.exteriorOk, 'exteriorOk'),
     reclamaOk,
     reclamaProblem,
     reclamaRepairConfirmed,
@@ -157,6 +164,20 @@ export function parseReportBody(body: unknown, point: PointEnum): ReportBody {
     acStatus: oneOfOrNull<ClimateStatus>(b.acStatus, CLIMATE_STATUSES, 'acStatus'),
     heatStatus: oneOfOrNull<ClimateStatus>(b.heatStatus, CLIMATE_STATUSES, 'heatStatus'),
   };
+}
+
+/**
+ * Verdictul șoferului e al modelului, nu al operatorului (Ion, 08.09): `uniform_ok` =
+ * uniforma, `exterior_ok` = bărbierit && aspect îngrijit, ambele deja calculate în
+ * driver_appearance_checks (*_model). La EROARE (model picat) rămân null — nu se
+ * inventează. Ce a trimis aplicația în uniformOk / exteriorOk se pierde aici.
+ */
+export function withModelVerdicts(
+  body: ReportBody,
+  check: { uniform_ok_model: boolean | null; groomed_ok_model: boolean | null } | null,
+): ReportBody {
+  if (!body.driverCheckId) return body;
+  return { ...body, uniformOk: check?.uniform_ok_model ?? null, exteriorOk: check?.groomed_ok_model ?? null };
 }
 
 /** Cursa cere locație? Bălți: toate. Chișinău: toate în afară de 06:55 și 20:00 (ca în bot). */

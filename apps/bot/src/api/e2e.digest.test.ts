@@ -62,7 +62,7 @@ const CLEAN_OK: ModelAnswer = { json: { loc_corect: true, verdict: 'CURAT', prob
 const CLEAN_DIRTY_ONE: ModelAnswer = { json: { loc_corect: true, verdict: 'MURDAR', probleme: ['praf pe pavaj'], descriere: 'Nemăturat.' } };
 const CLEAN_WRONG_PLACE: ModelAnswer = { json: { loc_corect: false, verdict: 'CURAT', probleme: [], descriere: 'Alt loc.' } };
 const CLEAN_THROWS: ModelAnswer = { throws: new Error('model indisponibil') };
-const DRIVER_OK: ModelAnswer = { json: { persoana_vizibila: true, uniforma: true, aspect_ingrijit: true, descriere: 'OK.' } };
+const DRIVER_OK: ModelAnswer = { json: { cadru_complet: true, persoana_vizibila: true, uniforma: true, barbierit: true, aspect_ingrijit: true, descriere: 'OK.' } };
 
 // ── Starea scenariului ───────────────────────────────────────────────────────
 

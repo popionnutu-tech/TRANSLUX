@@ -11,6 +11,7 @@ import {
   parseReportBody,
   shortDriverName,
   toReportRow,
+  withModelVerdicts,
 } from './reportRules.js';
 
 const okBody = {
@@ -55,6 +56,15 @@ describe('parseReportBody — CHISINAU', () => {
     expect(b.reclamaOk).toBe(true);
     expect(b.reclamaProblem).toBeNull();
     expect(b.accuracyM).toBe(12);
+  });
+
+  it('uniformOk / exteriorOk sunt opționale (verdictul e al pozei); alt tip decât boolean → 400', () => {
+    const { uniformOk: _u, exteriorOk: _e, ...withoutVerdicts } = okBody;
+    const b = parseReportBody(withoutVerdicts, 'CHISINAU');
+    expect(b.uniformOk).toBeNull();
+    expect(b.exteriorOk).toBeNull();
+    expect(parseReportBody({ ...okBody, uniformOk: null, exteriorOk: null }, 'CHISINAU')).toMatchObject({ uniformOk: null, exteriorOk: null });
+    expect(apiErr(() => parseReportBody({ ...okBody, uniformOk: 'da' }, 'CHISINAU')).status).toBe(400);
   });
 
   it('OK fără driverCheckId → 400 DRIVER_PHOTO_REQUIRED', () => {
@@ -137,6 +147,27 @@ describe('parseReportBody — BALTI', () => {
     expect(b.passengersCount).toBe(9);
     expect(b.driverId).toBeNull();
     expect(b.uniformOk).toBeNull();
+  });
+});
+
+describe('withModelVerdicts', () => {
+  it('uniform_ok / exterior_ok vin din *_model, ce a trimis aplicația se pierde', () => {
+    const sent = parseReportBody({ ...okBody, uniformOk: true, exteriorOk: true }, 'CHISINAU');
+    const b = withModelVerdicts(sent, { uniform_ok_model: false, groomed_ok_model: true });
+    expect(b).toMatchObject({ uniformOk: false, exteriorOk: true });
+    expect(toReportRow(b, { date: '2026-06-10', point: 'CHISINAU', userId: 'u', locationOk: true })).toMatchObject({ uniform_ok: false, exterior_ok: true });
+    expect(buildSummary(b, { point: 'CHISINAU', departureTime: '14:30:00', driverName: null })).toBe('☑ 14:30 — 12 pas. | —\n⚠ uniformă');
+  });
+
+  it('EROARE (verdicte null în rând) → null în raport, nu se inventează; fără rând → null', () => {
+    const sent = parseReportBody({ ...okBody, uniformOk: false, exteriorOk: false }, 'CHISINAU');
+    expect(withModelVerdicts(sent, { uniform_ok_model: null, groomed_ok_model: null })).toMatchObject({ uniformOk: null, exteriorOk: null });
+    expect(withModelVerdicts(sent, null)).toMatchObject({ uniformOk: null, exteriorOk: null });
+  });
+
+  it('fără driverCheckId (ABSENT, Bălți) corpul rămâne neatins', () => {
+    const absent = parseReportBody({ tripId: 't', status: 'ABSENT' }, 'CHISINAU');
+    expect(withModelVerdicts(absent, { uniform_ok_model: false, groomed_ok_model: false })).toBe(absent);
   });
 });
 

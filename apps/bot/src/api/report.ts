@@ -14,7 +14,6 @@
 import { POINT_LABELS } from '@translux/db';
 import {
   autoCloseReclamaTask,
-  confirmDriverAppearance,
   createReclamaTask,
   createReport,
   getActiveDrivers,
@@ -42,6 +41,7 @@ import {
   computeLocation,
   parseReportBody,
   toReportRow,
+  withModelVerdicts,
 } from './reportRules.js';
 
 export const LATE_THRESHOLD_MIN = 10;
@@ -60,14 +60,14 @@ export function operatorLabel(user: Pick<AppUser, 'name' | 'telegram_id' | 'id'>
 
 export async function postReport(user: AppUser, rawBody: unknown): Promise<ReportResponse> {
   const point = user.point;
-  const body = parseReportBody(rawBody, point);
+  const sent = parseReportBody(rawBody, point);
   const date = getTodayDate();
 
   const [allTrips, reportedIds] = await Promise.all([
     getAllTripsForDirection(getDirectionForPoint(point)),
     getReportedTripIds(date, point),
   ]);
-  const trip = allTrips.find((t) => t.id === body.tripId);
+  const trip = allTrips.find((t) => t.id === sent.tripId);
   if (!trip) throw badRequest('Cursă necunoscută pentru punctul tău', 'UNKNOWN_TRIP');
 
   // Ordinea rămâne secvențială, ca în bot: doar prima cursă neraportată se poate raporta.
@@ -89,12 +89,15 @@ export async function postReport(user: AppUser, rawBody: unknown): Promise<Repor
     if (missing.length > 0) throw new CleaningRequiredError(slot, missing, trip.departure_time);
   }
 
-  // Poza șoferului trebuie să existe și să fie de azi (S04 o creează).
-  if (body.driverCheckId) {
-    const check = await getDriverAppearanceCheck(body.driverCheckId);
+  // Poza șoferului trebuie să existe și să fie de azi. Verdictele (uniformă, aspect) sunt
+  // ale modelului, din rândul pozei — ce a trimis aplicația în uniformOk/exteriorOk se ignoră.
+  let body = sent;
+  if (sent.driverCheckId) {
+    const check = await getDriverAppearanceCheck(sent.driverCheckId);
     if (!check || check.check_date !== date) {
       throw new ApiError(400, 'DRIVER_PHOTO_REQUIRED', 'Poza șoferului lipsește sau nu e de azi — fă poza din nou');
     }
+    body = withModelVerdicts(sent, check);
   }
 
   const location = computeLocation(point, trip.departure_time, body.lat, body.lon);
@@ -105,15 +108,6 @@ export async function postReport(user: AppUser, rawBody: unknown): Promise<Repor
   } catch (err: any) {
     if (err?.code === '23505') throw new ApiError(409, 'ALREADY_REPORTED', 'Această cursă a fost deja înregistrată');
     throw err;
-  }
-
-  // Verdictele confirmate de operator, peste propunerea modelului (ambele rămân).
-  if (body.driverCheckId) {
-    try {
-      await confirmDriverAppearance(body.driverCheckId, { uniform_ok: body.uniformOk, groomed_ok: body.exteriorOk });
-    } catch (e) {
-      console.error('[app-api] confirmDriverAppearance error:', e);
-    }
   }
 
   // Operatorul a schimbat repartizarea din grafic → se scrie în daily_assignments, ca în bot.

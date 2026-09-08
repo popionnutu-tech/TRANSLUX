@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ApiError } from './errors.js';
 import { MAX_PHOTO_BYTES, decodeJpegBase64, isJpeg, parseCoords } from './photo.js';
-import { parseDriverAnswer } from '../services/driverCheck.js';
 import { PHOTO_RETENTION_DAYS, chunk, retentionCutoff } from '../services/photoRetention.js';
 
 const jpegBytes = (n = 16) => {
@@ -66,23 +65,6 @@ describe('parseCoords', () => {
     expect(codeOf(() => parseCoords({ lat: 47 }))).toBe('400 BAD_REQUEST');
     expect(codeOf(() => parseCoords({ lat: '47', lon: 28 }))).toBe('400 BAD_REQUEST');
     expect(codeOf(() => parseCoords({ lat: 95, lon: 28 }))).toBe('400 BAD_REQUEST');
-  });
-});
-
-describe('parseDriverAnswer', () => {
-  it('răspuns complet → OK cu cele trei verdicte', () => {
-    const r = parseDriverAnswer(
-      JSON.stringify({ persoana_vizibila: true, uniforma: false, aspect_ingrijit: true, descriere: 'Bărbat în tricou negru.' }),
-    );
-    expect(r).toEqual({ verdict: 'OK', personVisible: true, uniformOk: false, groomedOk: true, description: 'Bărbat în tricou negru.' });
-  });
-  it('câmp lipsă / tip greșit / JSON stricat / nu obiect → EROARE', () => {
-    expect(parseDriverAnswer(JSON.stringify({ persoana_vizibila: true, uniforma: true, descriere: 'x' })).verdict).toBe('EROARE');
-    expect(parseDriverAnswer(JSON.stringify({ persoana_vizibila: 'da', uniforma: true, aspect_ingrijit: true, descriere: 'x' })).verdict).toBe('EROARE');
-    expect(parseDriverAnswer(JSON.stringify({ persoana_vizibila: true, uniforma: true, aspect_ingrijit: true })).verdict).toBe('EROARE');
-    expect(parseDriverAnswer('nu e json').verdict).toBe('EROARE');
-    expect(parseDriverAnswer('[]').verdict).toBe('EROARE');
-    expect(parseDriverAnswer('null').verdict).toBe('EROARE');
   });
 });
 

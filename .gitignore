@@ -43,3 +43,5 @@ apps/admin/.env
 peron-android/node_modules/
 peron-android/.expo/
 peron-android/.env
+peron-android/android/
+peron-android/dist/

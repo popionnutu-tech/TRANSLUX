@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Construiește APK-ul TRANSLUX Peron local (fără EAS). Rezultat: dist/translux-peron.apk
+set -euo pipefail
+cd "$(dirname "$0")"
+export JAVA_HOME=/opt/homebrew/opt/openjdk@17
+export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
+export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
+export EXPO_PUBLIC_API_URL="${EXPO_PUBLIC_API_URL:-https://bot-production-6376.up.railway.app}"
+[ -d node_modules ] || npm install
+[ -d android ] || CI=1 npx expo prebuild --platform android --no-install
+echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+# doar arm64 (toate telefoanele Android moderne): APK-ul scade de la ~90 MB la ~35 MB
+sed -i '' 's/^reactNativeArchitectures=.*/reactNativeArchitectures=arm64-v8a/' android/gradle.properties
+( cd android && ./gradlew assembleRelease --no-daemon -q )
+mkdir -p dist
+cp android/app/build/outputs/apk/release/app-release.apk dist/translux-peron.apk
+echo "APK: $(pwd)/dist/translux-peron.apk"

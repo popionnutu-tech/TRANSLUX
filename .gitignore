@@ -40,3 +40,6 @@ apps/admin/.env
 
 # Capturi de ecran de lucru — nu intră în repo
 *.png
+peron-android/node_modules/
+peron-android/.expo/
+peron-android/.env

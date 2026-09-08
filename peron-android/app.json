@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "TRANSLUX Peron",
+    "slug": "translux-peron",
+    "scheme": "translux-peron",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "backgroundColor": "#ffffff",
+    "android": {
+      "package": "md.translux.peron",
+      "permissions": [
+        "CAMERA",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Aplicația face poze la peron pentru verificarea curățeniei",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Locația confirmă că raportul e făcut la stație",
+          "locationAlwaysAndWhenInUsePermission": "Aplicația urmărește locația doar în timpul turei, ca administratorul să știe că ești în zona de lucru",
+          "locationAlwaysPermission": "Aplicația urmărește locația doar în timpul turei, ca administratorul să știe că ești în zona de lucru",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      "expo-asset"
+    ],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}

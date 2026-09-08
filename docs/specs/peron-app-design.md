@@ -88,8 +88,8 @@ corespunzător, element cu element, cu valorile numerice din HTML, nu «în spir
 - **Ziua**: banner galben cu camera când setul de curățenie al turei lipsește (textul
   «Pozele de la 15:00 lipsesc. Sunt obligatorii înainte de cursa 16:25.» respectiv
   varianta de dimineață «Pozele de dimineață lipsesc. Sunt obligatorii înainte de cursa
-  06:55.»), rândul GPS «În zona de lucru · GPS activ» + textul mic cu fereastra turei și
-  perioadele de azi (dacă aplicația nu le are, doar fereastra), grila 4 coloane, spațiu,
+  06:55.»), **fără rând GPS** (Ion, 08.09: «nu trebuie rândul GPS» — urmărirea merge în
+  fundal fără indicator pe ecran; mockup-ul a fost actualizat), grila 4 coloane, spațiu,
   butonul contur bordo «Poze curățenie» cu cameră (doar Chișinău; la Bălți, textul
   «La Bălți se raportează doar numărul de pasageri. Locația pleacă automat.»).
 - **Curățenie**: antet «Curățenie · 15:00» / «Curățenie · dimineață» + «N din 3 zone
@@ -166,7 +166,7 @@ ziua (Chișinău și Bălți) arată ca `Login.dc.html`, `Main.dc.html`, `ZiuaBa
    `YES_NO`) ca aliasuri, ca ecranele S02 să compileze până sunt rescrise.
 6. `app/_layout.tsx`: încarcă fonturile (`useFonts`), ține splash-ul până se încarcă.
 7. `app/login.tsx` după `Login.dc.html`; `app/day.tsx` după `Main.dc.html` /
-   `ZiuaBalti.dc.html` (antet, progres, banner condiționat, rând GPS, grilă, buton).
+   `ZiuaBalti.dc.html` (antet, progres, banner condiționat, grilă, buton; fără rând GPS).
    Data în română din `src/format.ts` (`formatDayRo(date)` → «Luni, 8 septembrie»),
    cu test în `npm test`.
 

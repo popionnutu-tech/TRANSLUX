@@ -55,9 +55,9 @@ ca operatorul să facă ceva și fără ca aplicația să fie deschisă.
   verifică cu `expo-battery`? — nu există API pentru whitelist în Expo; se afișează
   ecranul o singură dată și un rând în ecranul zilei «Optimizarea bateriei: verifică
   setările» cu link, până când operatorul apasă «Am făcut».
-- **Ce vede operatorul:** notificarea permanentă «TRANSLUX Peron · urmărește locația în
-  timpul turei» pe toată fereastra; rândul GPS din ecranul zilei arată ora ultimului
-  ping trimis («ultimul semnal 12:42»).
+- **Ce vede operatorul:** doar notificarea permanentă «TRANSLUX Peron · urmărește
+  locația în timpul turei» pe toată fereastra. Niciun rând sau indicator GPS în ecranele
+  aplicației (Ion, 08.09: «nu trebuie rândul GPS»).
 - **Serverul nu se schimbă.** `/presence` acceptă deja loturi; perioadele se calculează
   seara.
 - **Când aplicația e deschisă** comportamentul e același ca azi; nu se dublează
@@ -89,7 +89,6 @@ ca operatorul să facă ceva și fără ca aplicația să fie deschisă.
 - [ ] `app.json` are `RECEIVE_BOOT_COMPLETED`; `expo-background-fetch`,
       `expo-intent-launcher` instalate.
 - [ ] Ecranul «Ultimul pas» cu deschiderea setărilor de baterie există și apare o dată.
-- [ ] Rândul GPS arată ora ultimului ping.
 - [ ] typecheck-app și `npm test` verzi; `npx expo export --platform android` verde.
 
 ---
@@ -115,8 +114,7 @@ ca operatorul să facă ceva și fără ca aplicația să fie deschisă.
 5. `app/battery.tsx` («Ultimul pas»): text scurt + butonul «Deschide setările» (intent)
    + «Am făcut» (salvează `battery:done` în AsyncStorage); `login.tsx` trimite aici
    după permisiuni dacă nu e făcut; `day.tsx` arată rândul de reamintire cât timp nu e.
-6. `day.tsx`: rândul GPS afișează «ultimul semnal HH:MM» din `presence:lastPing`
-   (scris de task la fiecare ping trimis sau pus în coadă).
+6. `day.tsx`: nu se adaugă niciun rând GPS; dacă există unul, se scoate.
 
 **Fișiere:** `peron-android/src/presence.ts`, `src/presenceRules.ts` (+ test),
 `src/backgroundRearm.ts`, `app/battery.tsx`, `app/login.tsx`, `app/day.tsx`,

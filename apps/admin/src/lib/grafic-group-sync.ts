@@ -53,7 +53,7 @@ export async function sendGraficImageToGroup(
 
   let png: Buffer;
   try {
-    png = await generateScheduleImage(rows, date, { fullNames: true });
+    png = await generateScheduleImage(rows, date, { forDrivers: true });
   } catch (err) {
     console.error('sendGraficImageToGroup: image failed:', err);
     return { error: 'Nu s-a putut genera imaginea graficului.' };

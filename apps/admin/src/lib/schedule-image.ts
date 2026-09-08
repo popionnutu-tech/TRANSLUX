@@ -16,19 +16,7 @@ const PAD = 16 * S;
 /* ── Table (868px at 1× = 900 - 2×16 padding, border-box) ── */
 const TABLE_W = (900 - 32) * S;
 
-/* ── Columns (tableLayout:fixed colgroup widths at 2×) ── */
-const COL_W = {
-  empty: 10 * S,
-  route: (900 - 32 - 10 - 200 - 220) * S, // 438×2 = 876
-  depart: 200 * S,
-  driver: 220 * S,
-};
-const COL_X = {
-  empty: PAD,
-  route: PAD + COL_W.empty,
-  depart: PAD + COL_W.empty + COL_W.route,
-  driver: PAD + COL_W.empty + COL_W.route + COL_W.depart,
-};
+/* ── Columns (tableLayout:fixed colgroup widths at 2×): vezi columns() ── */
 
 /* ── Row heights ── */
 const LOGO_AREA = 76 * S;
@@ -52,6 +40,9 @@ const FS = {
   depart: 20 * S,
   phone: 18 * S,
   name: 13 * S,
+  // Varianta pentru grupa șoferilor: numele complet e rândul principal.
+  driverName: 16 * S,
+  plate: 14 * S,
 };
 
 /* ── Caches ── */
@@ -124,12 +115,31 @@ function truncText(font: opentype.Font, text: string, size: number, maxW: number
 
 export interface ScheduleImageOptions {
   /**
-   * Numele complet al șoferului în loc de prenume. Pentru grupa «Mejgorod»
-   * (Ion, 07.09): «față de imaginea care deja este cu ruta completă se adaugă
-   * doar numele și familia complet, ca șoferul să înțeleagă». Imaginea
-   * publică (site, descărcare) rămâne cu prenumele.
+   * Varianta pentru grupa șoferilor «Mejgorod». Ion, 07.09: «se adaugă doar
+   * numele și familia complet»; Ion, 08.09: «doar în el să apară numele complet
+   * șofer și număr mașina». Coloana șoferului devine ȘOFER / MAȘINA: numele
+   * complet din nomenclator, sub el numărul mașinii și telefonul. Coloana e
+   * mai lată (260 în loc de 220), ruta cedează diferența. Imaginea publică
+   * (site, descărcare) rămâne cu prenumele și telefonul, ca înainte.
    */
-  fullNames?: boolean;
+  forDrivers?: boolean;
+}
+
+/** Coloanele tabelului: lățimea coloanei șoferului diferă între cele două variante. */
+function columns(driverW: number) {
+  const w = {
+    empty: 10 * S,
+    route: (900 - 32 - 10 - 200) * S - driverW,
+    depart: 200 * S,
+    driver: driverW,
+  };
+  const x = {
+    empty: PAD,
+    route: PAD + w.empty,
+    depart: PAD + w.empty + w.route,
+    driver: PAD + w.empty + w.route + w.depart,
+  };
+  return { w, x };
 }
 
 export async function generateScheduleImage(
@@ -140,6 +150,7 @@ export async function generateScheduleImage(
   const assigned = rows.filter(r => r.driver_id);
   const { r: fR, b: fB, i: fI } = fonts();
   const logo = logoBase64();
+  const { w: COL_W, x: COL_X } = columns(opts.forDrivers ? 260 * S : 220 * S);
 
   const n = Math.max(assigned.length, 1);
   const H = PAD + LOGO_AREA + SUB_LINE + TH_H + n * ROW_H + PAD;
@@ -194,9 +205,14 @@ export async function generateScheduleImage(
   svg.push(textPath(fB, 'PLECARE DIN', departCx, thMidY - 2 * S, FS.th * 0.82, '#fff', 'middle'));
   svg.push(textPath(fB, 'CHIȘINĂU', departCx, thMidY + FS.th * 0.75, FS.th * 0.82, '#fff', 'middle'));
 
-  // "NR. ȘOFER" (centered)
+  // "NR. ȘOFER" (centered) — sau "ȘOFER / MAȘINA" pentru grupa șoferilor
   const driverCx = COL_X.driver + COL_W.driver / 2;
-  svg.push(textPath(fB, 'NR. ȘOFER', driverCx, thMidY + FS.th * 0.35, FS.th, '#fff', 'middle'));
+  if (opts.forDrivers) {
+    svg.push(textPath(fB, 'ȘOFER', driverCx, thMidY - 2 * S, FS.th * 0.82, '#fff', 'middle'));
+    svg.push(textPath(fB, 'MAȘINA', driverCx, thMidY + FS.th * 0.75, FS.th * 0.82, '#fff', 'middle'));
+  } else {
+    svg.push(textPath(fB, 'NR. ȘOFER', driverCx, thMidY + FS.th * 0.35, FS.th, '#fff', 'middle'));
+  }
 
   /* ── Data rows ── */
   const bodyY = tableY + TH_H;
@@ -244,16 +260,40 @@ export async function generateScheduleImage(
       svg.push(textPath(fB, row.time_chisinau, departCx, dtY, FS.depart, MAROON_DK, 'middle'));
     }
 
-    // ── Driver phone + name ──
-    if (row.driver_phone) {
+    // ── Driver column ──
+    const maxNameW = COL_W.driver - 16 * S;
+    if (opts.forDrivers) {
+      // Grupa șoferilor: numele complet (rândul mare), sub el mașina și telefonul.
+      // Numele complet poate depăși coloana («Docuciaev Dumitru Petru»): se taie
+      // cu «…» în loc să iasă peste chenar.
+      const fullName = row.driver_full_name || row.driver_name;
+      const nameY = rY + ROW_H * 0.40;
+      if (fullName) {
+        svg.push(textPath(fB, truncText(fB, fullName, FS.driverName, maxNameW), driverCx, nameY, FS.driverName, MAROON_DK, 'middle'));
+      }
+      const plate = row.vehicle_plate?.trim() || null;
+      const phone = row.driver_phone;
+      const lineY = nameY + 17 * S;
+      if (plate && phone) {
+        // «TL 123 AB · 069593693»: mașina îngroșată, telefonul obișnuit, centrate
+        // împreună. Spațiile nu au lățime în bounding box-ul glifelor — golul dintre
+        // ele se dă în pixeli, nu prin caractere.
+        const gap = 9 * S;
+        const wPlate = textW(fB, plate, FS.plate);
+        const wDot = textW(fR, '·', FS.plate);
+        const wPhone = textW(fR, phone, FS.plate);
+        const x0 = driverCx - (wPlate + gap + wDot + gap + wPhone) / 2;
+        svg.push(textPath(fB, plate, x0, lineY, FS.plate, '#333'));
+        svg.push(textPath(fR, '·', x0 + wPlate + gap, lineY, FS.plate, '#999'));
+        svg.push(textPath(fR, phone, x0 + wPlate + gap + wDot + gap, lineY, FS.plate, '#555'));
+      } else if (plate || phone) {
+        svg.push(textPath(plate ? fB : fR, (plate ?? phone) as string, driverCx, lineY, FS.plate, plate ? '#333' : '#555', 'middle'));
+      }
+    } else if (row.driver_phone) {
       const phoneY = rY + ROW_H * 0.38;
       svg.push(textPath(fB, row.driver_phone, driverCx, phoneY, FS.phone, MAROON_DK, 'middle'));
-      const name = opts.fullNames ? (row.driver_full_name || row.driver_name) : row.driver_name;
-      if (name) {
-        // Numele complet poate depăși coloana («Docuciaev Dumitru Petru»): se
-        // taie cu «…» în loc să iasă peste chenar. Prenumele nu avea nevoie.
-        const maxNameW = COL_W.driver - 16 * S;
-        svg.push(textPath(fR, truncText(fR, name, FS.name, maxNameW), driverCx, phoneY + 16 * S, FS.name, '#555', 'middle'));
+      if (row.driver_name) {
+        svg.push(textPath(fR, truncText(fR, row.driver_name, FS.name, maxNameW), driverCx, phoneY + 16 * S, FS.name, '#555', 'middle'));
       }
     }
   }

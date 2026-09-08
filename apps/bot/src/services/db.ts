@@ -8,8 +8,13 @@ import type {
   Driver,
   Trip,
   Report,
+  ReportSource,
   PointEnum,
   DirectionEnum,
+  CleaningSlot,
+  CleaningZone,
+  CleaningVerdict,
+  PeronCleaningCheck,
 } from '@translux/db';
 import { POINT_DIRECTION_MAP } from '@translux/db';
 
@@ -978,6 +983,8 @@ export async function createReport(report: {
   vehicle_id: string | null;
   created_by_user: string;
   location_ok: boolean | null;
+  // 'bot' implicit (default în DB); aplicația de peron trimite 'app' (migrația 328).
+  source?: ReportSource;
 }): Promise<Report> {
   // DB enum only has OK/ABSENT — store FULL as OK with passengers_count=-1
   const dbRecord = report.status === 'FULL'
@@ -1269,26 +1276,16 @@ export async function getUnvalidatedDay(
 }
 
 // ── Curățenie peron Chișinău (poze la deschidere și la 15:00) ──
-export type CleaningSlot = 'DIMINEATA' | 'ZIUA';
-export type CleaningZone = 'PERON' | 'PIETONI' | 'VECEU';
-export type CleaningVerdict = 'CURAT' | 'MURDAR' | 'ALT_LOC' | 'EROARE';
+// Tipurile stau în @translux/db (le folosește și API-ul aplicației de peron).
+export type { CleaningSlot, CleaningZone, CleaningVerdict };
+export type CleaningCheckRow = PeronCleaningCheck;
 
-export interface CleaningCheckRow {
-  id: string;
-  check_date: string;
-  slot: CleaningSlot;
-  zone: CleaningZone;
-  storage_key: string;
-  telegram_file_id: string;
-  verdict: CleaningVerdict;
-  problems: string[];
-  description: string | null;
-  model: string | null;
-  created_by_user: string | null;
-  created_at: string;
-}
-
-export async function createCleaningCheck(row: Omit<CleaningCheckRow, 'id' | 'created_at'>): Promise<void> {
+// Coloanele adăugate de migrația 328 au default în DB (source 'bot', restul null);
+// botul nu le trimite — așa scrierea merge și înainte de aplicarea migrației.
+export async function createCleaningCheck(
+  row: Omit<CleaningCheckRow, 'id' | 'created_at' | 'source' | 'location_lat' | 'location_lon' | 'photo_deleted_at'>
+    & Partial<Pick<CleaningCheckRow, 'source' | 'location_lat' | 'location_lon'>>,
+): Promise<void> {
   const { error } = await db().from('peron_cleaning_checks').insert(row);
   if (error) throw error;
 }

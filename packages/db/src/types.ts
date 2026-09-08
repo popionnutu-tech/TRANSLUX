@@ -9,6 +9,9 @@ export type PointEnum = 'CHISINAU' | 'BALTI';
 export type OperatorKind = 'MAIN' | 'TAXI_ZONE';
 export type DirectionEnum = 'CHISINAU_BALTI' | 'BALTI_CHISINAU';
 export type ReportStatus = 'OK' | 'ABSENT' | 'FULL';
+// De unde a venit un raport / o poză de curățenie: botul Telegram sau aplicația
+// Android de peron (migrația 328).
+export type ReportSource = 'bot' | 'app';
 
 // Cheia din app_config unde stă id-ul grupei de șoferi (Ion, 02.09.2026).
 // Are DOI consumatori în procese diferite: botul o scrie cu /lega_reclamatii
@@ -154,6 +157,14 @@ export interface Report {
   created_at: string;
   cancelled_at: string | null;
   cancelled_by: string | null;
+  // Aplicația de peron (migrația 328): de unde a venit raportul și coordonatele
+  // brute trimise de telefon. Botul scrie 'bot' și lasă coordonatele null.
+  source: ReportSource;
+  location_lat: number | null;
+  location_lon: number | null;
+  location_accuracy_m: number | null;
+  // Poza șoferului la cursă (driver_appearance_checks); null la ABSENT / bot.
+  driver_check_id: string | null;
 }
 
 // Taxi-zone loading report (Chișinău): the count the taxi-zone operator brought
@@ -185,6 +196,92 @@ export interface ReportPhoto {
   telegram_file_id: string;
   file_unique_id: string | null;
   created_at: string;
+}
+
+// ============================================================
+// Aplicația Android de peron (migrația 328)
+// ============================================================
+
+// Curățenia peronului Chișinău: 3 zone, de două ori pe zi (migrația 326).
+// Ambele surse (bot și aplicație) scriu în peron_cleaning_checks.
+export type CleaningSlot = 'DIMINEATA' | 'ZIUA';
+export type CleaningZone = 'PERON' | 'PIETONI' | 'VECEU';
+export type CleaningVerdict = 'CURAT' | 'MURDAR' | 'ALT_LOC' | 'EROARE';
+
+export interface PeronCleaningCheck {
+  id: string;
+  check_date: string; // YYYY-MM-DD
+  slot: CleaningSlot;
+  zone: CleaningZone;
+  storage_key: string;
+  telegram_file_id: string; // '' când poza vine din aplicație
+  verdict: CleaningVerdict;
+  problems: string[];
+  description: string | null;
+  model: string | null;
+  created_by_user: string | null;
+  created_at: string;
+  source: ReportSource;
+  location_lat: number | null;
+  location_lon: number | null;
+  photo_deleted_at: string | null; // fișierul șters din bucket după 30 de zile
+}
+
+// Cod de conectare de 6 cifre, generat de admin pentru un CONTROLLER; 24 h,
+// o singură folosire (used_at).
+export interface PeronAppLinkCode {
+  code: string;
+  user_id: string;
+  created_by: string | null; // admin_accounts.id
+  created_at: string;
+  expires_at: string;
+  used_at: string | null;
+}
+
+// Sesiune a aplicației: token-ul stă pe telefon, aici doar sha256(token).
+export interface PeronAppSession {
+  id: string;
+  user_id: string;
+  token_hash: string;
+  device_label: string | null;
+  created_at: string;
+  last_seen_at: string | null;
+  revoked_at: string | null;
+}
+
+// Poza șoferului la cursă: verdictul propus de model (*_model) și cel confirmat
+// de operator. Raportul trimite verdictul operatorului; ambele rămân aici.
+export interface DriverAppearanceCheck {
+  id: string;
+  check_date: string; // YYYY-MM-DD
+  trip_id: string;
+  driver_id: string | null;
+  storage_key: string;
+  person_visible: boolean | null;
+  uniform_ok_model: boolean | null;
+  groomed_ok_model: boolean | null;
+  uniform_ok: boolean | null;
+  groomed_ok: boolean | null;
+  description: string | null;
+  model: string | null;
+  location_lat: number | null;
+  location_lon: number | null;
+  photo_deleted_at: string | null;
+  created_by_user: string | null;
+  created_at: string;
+}
+
+// Ping GPS la 2 minute pe toată tura; in_zone e calculat pe server (raza 150 m
+// față de stația punctului).
+export interface PeronPresencePing {
+  id: number;
+  user_id: string;
+  point: PointEnum;
+  at: string;
+  lat: number;
+  lon: number;
+  accuracy_m: number | null;
+  in_zone: boolean;
 }
 
 export type ScheduleDirection = 'CHISINAU_NORD' | 'NORD_CHISINAU';

@@ -3,7 +3,7 @@
 // Se apelează din raportarea curselor (poartă obligatorie) sau din meniu.
 import type { Conversation } from '@grammyjs/conversations';
 import type { BotContext } from '../types.js';
-import { getCleaningZonesDone, type CleaningSlot, type CleaningZone } from '../services/db.js';
+import { getCleaningZonesDone, getUserByTelegramId, type CleaningSlot, type CleaningZone } from '../services/db.js';
 import {
   CLEANING_ZONES,
   ZONE_LABEL,
@@ -24,15 +24,18 @@ export function currentCleaningSlot(): CleaningSlot {
 /**
  * Cere pe rând pozele lipsă ale turei. Întoarce true când toate cele 3 zone
  * sunt închise, false dacă operatorul a ieșit cu /start.
+ *
+ * `userId` vine de la apelant: în interiorul conversațiilor grammY v2 contextul
+ * e reconstruit din update și NU are câmpurile puse de middleware (ctx.dbUser
+ * e undefined aici) — de aceea utilizatorul se citește prin conversation.external.
  */
 export async function collectCleaningPhotos(
   conversation: Conv,
   ctx: BotContext,
   slot: CleaningSlot,
+  userId: string,
   intro?: string
 ): Promise<boolean> {
-  const user = ctx.dbUser;
-  if (!user) return false;
   const checkDate = getTodayDate();
 
   const done = new Set(
@@ -83,7 +86,7 @@ export async function collectCleaningPhotos(
           zone,
           telegramFileId: best.file_id,
           telegramFilePath: file.file_path!,
-          userId: user.id,
+          userId,
         })
       );
 
@@ -123,6 +126,12 @@ export async function collectCleaningPhotos(
 
 /** Din meniu: «📷 Poze curățenie» — tura după oră. */
 export async function cleaningPhotosConversation(conversation: Conv, ctx: BotContext) {
+  const telegramId = ctx.from?.id;
+  const user = telegramId ? await conversation.external(() => getUserByTelegramId(telegramId)) : null;
+  if (!user) {
+    await ctx.reply('⛔ Drum interzis. Identitatea ta nu este recunoscută.');
+    return;
+  }
   const slot = currentCleaningSlot();
   const done = new Set(
     await conversation.external(() => getCleaningZonesDone(getTodayDate(), slot).then((s) => Array.from(s)))
@@ -132,7 +141,7 @@ export async function cleaningPhotosConversation(conversation: Conv, ctx: BotCon
     await showMainMenu(ctx);
     return;
   }
-  const complete = await collectCleaningPhotos(conversation, ctx, slot);
+  const complete = await collectCleaningPhotos(conversation, ctx, slot, user.id);
   if (complete) await showMainMenu(ctx);
 }
 

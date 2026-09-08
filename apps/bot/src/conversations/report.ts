@@ -195,7 +195,7 @@ export async function reportConversation(
       const slot = isFirstTrip ? 'DIMINEATA' : isGateTrip ? 'ZIUA' : null;
       if (slot) {
         const complete = await collectCleaningPhotos(
-          conversation, ctx, slot,
+          conversation, ctx, slot, user.id,
           `🧹 Înainte de cursa ${formatTime(trip.departure_time)} trebuie trimise pozele de curățenie (peron, zona pietoni, veceu).`
         );
         if (!complete) return; // a ieșit cu /start

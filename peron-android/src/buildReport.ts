@@ -225,7 +225,7 @@ export function locationLabel(distanceM: number | null, searching: boolean): str
   return `📍 ${Math.round(distanceM)} m de stație`;
 }
 
-/** Textul de după «Trimite» când toate cursele zilei sunt raportate — identic cu botul (report.ts). */
+/** Textul de după «Trimite» când toate cursele zilei sunt raportate — ca la bot (report.ts), fără emoji (mockup-ul nu are emoji în UI). */
 export function missionDoneText(tripCount: number): string {
-  return `✦ MISIUNE ÎNDEPLINITĂ\n\nToate cele ${tripCount} curse au fost completate.\n\nDrumul de azi e parcurs.\nOdihnește-te. Noapte bună. 🌙`;
+  return `MISIUNE ÎNDEPLINITĂ\n\nToate cele ${tripCount} curse au fost completate.\n\nDrumul de azi e parcurs.\nOdihnește-te. Noapte bună.`;
 }

@@ -277,7 +277,7 @@ const PHOTO_RETENTION_MINUTE = 10;
 let lastPhotoRetentionDate = '';
 
 export function schedulePeronPhotoRetention(): void {
-  console.log('Peron photo retention started (03:10 Europe/Chisinau, 30 de zile)');
+  console.log('Peron photo retention started (03:10 Europe/Chisinau, 30 de zile — poze și ping-uri GPS)');
 
   setInterval(async () => {
     const now = getNowInTz();
@@ -288,8 +288,11 @@ export function schedulePeronPhotoRetention(): void {
     lastPhotoRetentionDate = todayStr;
 
     try {
-      const { deleted, failed } = await runPeronPhotoRetention();
-      console.log(`Peron photo retention: ${deleted} fișier(e) șters(e)${failed ? `, ${failed} nereușite` : ''}`);
+      const { deleted, failed, pings } = await runPeronPhotoRetention();
+      console.log(
+        `Peron photo retention: ${deleted} fișier(e) șters(e)${failed ? `, ${failed} nereușite` : ''}, ` +
+          `${pings < 0 ? 'ping-urile GPS nu s-au șters' : `${pings} ping(uri) GPS șterse`}`,
+      );
     } catch (err) {
       console.error('Peron photo retention error:', err);
     }

@@ -26,6 +26,7 @@ import {
 import type { CleaningZone, PointEnum } from '@translux/db';
 import type { AppUser } from './auth.js';
 import { tripStates, type TripState } from './dayState.js';
+import { presenceWindow, type PresenceWindow } from './presence.js';
 
 export interface DayTrip {
   id: string;
@@ -57,6 +58,8 @@ export interface DayResponse {
   locationExemptTimes: string[];
   station: { lat: number; lon: number; radiusM: number };
   allowFull: boolean;
+  /** Fereastra turei (prima cursă − 30 min … ultima + 30 min): aplicația urmărește GPS-ul doar în ea. */
+  presenceWindow: PresenceWindow | null;
 }
 
 export async function getDay(user: AppUser): Promise<DayResponse> {
@@ -81,6 +84,7 @@ export async function getDay(user: AppUser): Promise<DayResponse> {
     point,
     user: { id: user.id, name: user.name, point },
     trips,
+    presenceWindow: presenceWindow(allTrips),
   };
 
   if (point === 'BALTI') {

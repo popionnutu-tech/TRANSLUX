@@ -2,8 +2,9 @@
 // (Ion, 08.09), apoi fișierul dispare din bucket; linia din tabel rămâne cu
 // photo_deleted_at, verdictele sunt permanente. Rulează zilnic la 03:10 din
 // scheduler.ts. Ștergerea din bucket merge în loturi de 100; un lot care pică
-// nu se marchează și se reia a doua zi.
-import { getExpiredPhotos, markPhotosDeleted, type PhotoTable } from './db.js';
+// nu se marchează și se reia a doua zi. Ping-urile GPS (peron_presence_pings)
+// au aceeași retenție și se șterg de tot, cu același prag.
+import { deletePresencePingsBefore, getExpiredPhotos, markPhotosDeleted, type PhotoTable } from './db.js';
 import { removeReportPhotos } from './photoStorage.js';
 
 export const PHOTO_RETENTION_DAYS = 30;
@@ -24,12 +25,14 @@ export function chunk<T>(items: T[], size: number): T[][] {
 export interface RetentionStats {
   deleted: number;
   failed: number;
+  /** Ping-uri GPS șterse; -1 dacă ștergerea a picat (se reia a doua zi). */
+  pings: number;
 }
 
-/** O rulare completă pe ambele tabele; întoarce câte fișiere s-au șters. */
+/** O rulare completă: pozele din ambele tabele + ping-urile GPS; întoarce câte s-au șters. */
 export async function runPeronPhotoRetention(now = new Date()): Promise<RetentionStats> {
   const cutoff = retentionCutoff(now);
-  const stats: RetentionStats = { deleted: 0, failed: 0 };
+  const stats: RetentionStats = { deleted: 0, failed: 0, pings: 0 };
   for (const table of TABLES) {
     const rows = await getExpiredPhotos(table, cutoff);
     for (const batch of chunk(rows, RETENTION_BATCH)) {
@@ -42,6 +45,12 @@ export async function runPeronPhotoRetention(now = new Date()): Promise<Retentio
         console.error(`[photos] retention ${table}: lot de ${batch.length} a picat:`, err);
       }
     }
+  }
+  try {
+    stats.pings = await deletePresencePingsBefore(cutoff);
+  } catch (err) {
+    stats.pings = -1;
+    console.error('[presence] retention peron_presence_pings a picat:', err);
   }
   return stats;
 }

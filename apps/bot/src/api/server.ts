@@ -18,6 +18,7 @@ import { postReport } from './report.js';
 import { postVehicle } from './vehicle.js';
 import { postCleaningPhoto } from './cleaning.js';
 import { postDriverPhoto } from './driverPhoto.js';
+import { postPresence } from './presence.js';
 
 export const API_PREFIX = '/app/v1/';
 export const MAX_BODY_BYTES = 8 * 1024 * 1024;
@@ -39,7 +40,7 @@ interface Route {
   handler: ApiHandler;
 }
 
-// Rutele se adaugă aici (S05: presence). Handler-ul întoarce câmpurile care se lipesc peste `{ ok: true }`.
+// Rutele se adaugă aici. Handler-ul întoarce câmpurile care se lipesc peste `{ ok: true }`.
 const routes: Route[] = [
   {
     method: 'POST',
@@ -83,6 +84,12 @@ const routes: Route[] = [
     path: 'driver-photo',
     auth: true,
     handler: async ({ user, body }) => postDriverPhoto(user!, body),
+  },
+  {
+    method: 'POST',
+    path: 'presence',
+    auth: true,
+    handler: async ({ user, body }) => postPresence(user!, body),
   },
 ];
 

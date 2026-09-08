@@ -16,6 +16,7 @@ import type {
   CleaningVerdict,
   PeronCleaningCheck,
   DriverAppearanceCheck,
+  PeronPresencePing,
 } from '@translux/db';
 import { POINT_DIRECTION_MAP } from '@translux/db';
 
@@ -1416,4 +1417,78 @@ export async function markPhotosDeleted(table: PhotoTable, ids: string[]): Promi
   if (ids.length === 0) return;
   const { error } = await db().from(table).update({ photo_deleted_at: new Date().toISOString() }).in('id', ids);
   if (error) throw error;
+}
+
+// ── Prezență GPS pe toată tura (aplicația de peron, S05) ──────────────────────
+
+export type PresencePingInsert = Omit<PeronPresencePing, 'id'>;
+
+export async function insertPresencePings(rows: PresencePingInsert[]): Promise<void> {
+  if (rows.length === 0) return;
+  const { error } = await db().from('peron_presence_pings').insert(rows);
+  if (error) throw error;
+}
+
+/** Ping-urile unui operator între două momente (inclusiv), în ordinea timpului. */
+export async function getPresencePings(userId: string, fromIso: string, toIso: string): Promise<PeronPresencePing[]> {
+  const { data, error } = await db()
+    .from('peron_presence_pings')
+    .select('*')
+    .eq('user_id', userId)
+    .gte('at', fromIso)
+    .lte('at', toIso)
+    .order('at', { ascending: true })
+    .limit(2000);
+  if (error) throw error;
+  return (data as PeronPresencePing[] | null) ?? [];
+}
+
+export type AppOperator = Pick<User, 'id' | 'username' | 'telegram_id'> & { point: PointEnum };
+
+/**
+ * Operatorii de peron care au folosit aplicația azi: au ping-uri în [fromIso, toIso]
+ * sau rapoarte cu source 'app' pe `date`. Cei care raportează doar din bot nu apar —
+ * pentru ei «fără semnal toată tura» ar fi zgomot.
+ */
+export async function getActiveAppOperators(date: string, fromIso: string, toIso: string): Promise<AppOperator[]> {
+  const { data: users, error } = await db()
+    .from('users')
+    .select('id, username, telegram_id, point')
+    .eq('role', 'CONTROLLER')
+    .eq('active', true)
+    .not('point', 'is', null);
+  if (error) throw error;
+  const candidates = ((users as AppOperator[] | null) ?? []).filter((u) => u.point === 'CHISINAU' || u.point === 'BALTI');
+  if (candidates.length === 0) return [];
+
+  const { data: reports } = await db()
+    .from('reports')
+    .select('created_by_user')
+    .eq('report_date', date)
+    .eq('source', 'app')
+    .is('cancelled_at', null);
+  const reported = new Set<string>(((reports as Array<{ created_by_user: string }> | null) ?? []).map((r) => r.created_by_user));
+
+  const active: AppOperator[] = [];
+  for (const u of candidates) {
+    if (reported.has(u.id)) {
+      active.push(u);
+      continue;
+    }
+    const { count } = await db()
+      .from('peron_presence_pings')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', u.id)
+      .gte('at', fromIso)
+      .lte('at', toIso);
+    if ((count ?? 0) > 0) active.push(u);
+  }
+  return active;
+}
+
+/** Ștergerea ping-urilor mai vechi de `cutoffIso` (retenția de 30 de zile). Întoarce câte s-au șters. */
+export async function deletePresencePingsBefore(cutoffIso: string): Promise<number> {
+  const { count, error } = await db().from('peron_presence_pings').delete({ count: 'exact' }).lt('at', cutoffIso);
+  if (error) throw error;
+  return count ?? 0;
 }

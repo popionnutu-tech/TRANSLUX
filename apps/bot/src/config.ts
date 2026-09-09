@@ -24,9 +24,11 @@ export const config = {
   cleaningGateTripTime: '16:25',
 
   // Poza șoferului (aplicația de peron): ce înseamnă «uniformă» pentru model.
-  // Descrierea exactă (culoare, însemne) o dă Ion; până atunci verdictul e doar
-  // propunere, operatorul confirmă. Singurul loc unde se descrie uniforma.
-  DRIVER_UNIFORM_DESCRIPTION: 'tricou vișiniu (bordo) cu emblema TRANSLUX pe piept; orice altă haină pe deasupra sau alt tricou înseamnă fără uniformă',
+  // Ion (interviu 09.09): «tricoul vișiniu, sau cămașă albă ori albastru-deschis
+  // într-o singură culoare (cămășile băgate în pantaloni)». Singurul loc unde se
+  // descrie uniforma; verdictul modelului e final.
+  DRIVER_UNIFORM_DESCRIPTION:
+    'tricou vișiniu (bordo) cu emblema TRANSLUX pe piept, SAU cămașă albă ori bleu (albastru-deschis), într-o singură culoare (fără carouri, fără dungi, fără model), băgată în pantaloni',
 } as const;
 
 export function validateConfig() {

@@ -5,6 +5,9 @@
  * «aplicația fixează, operatorul doar face poza»): *_model și uniform_ok/groomed_ok
  * primesc aceleași valori, POST /report le copiază în `reports` și ignoră ce trimite
  * aplicația. Întoarce driverCheckId pe care /report îl cere la status OK.
+ * `driverId` din corp se scrie în driver_id: pe el GET /day întoarce `driverChecks`
+ * (prima poză acceptată de azi per șofer), iar poza e valabilă la toate cursele
+ * șoferului din ziua aceea (Ion, 09.09: «o dată pe zi per șofer»).
  *
  * Nu se vede o persoană → 200 cu code 'NO_PERSON'; cadrul nu e cel cerut (din față,
  * întreg, încălțăminte → cap) → 200 cu code 'REFA_POZA' și `message` cu ce lipsește.

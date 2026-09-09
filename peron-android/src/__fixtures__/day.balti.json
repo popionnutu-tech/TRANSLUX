@@ -224,6 +224,7 @@
     "DIMINEATA": [],
     "ZIUA": []
   },
+  "driverChecks": {},
   "cleaningGateTripTime": null,
   "locationExemptTimes": [],
   "station": {

@@ -1370,6 +1370,38 @@ export async function createDriverAppearanceCheck(row: DriverAppearanceCheckInse
   return (data as { id: string }).id;
 }
 
+/** Prima poză acceptată de azi per șofer (id-ul rândului + verdictele modelului + când s-a făcut). */
+export interface TodayDriverCheck {
+  id: string;
+  driver_id: string;
+  uniform_ok_model: boolean;
+  groomed_ok_model: boolean;
+  created_at: string;
+}
+
+/**
+ * Poza șoferului e valabilă toată ziua (Ion, 09.09: «o dată pe zi per șofer»):
+ * pentru fiecare șofer cu `driver_id` setat, prima linie de azi cu persoana vizibilă
+ * și verdict al modelului (nu EROARE). Cheia e driver_id; ordinea created_at ASC →
+ * rămâne prima. Liniile fără driver_id (clienți vechi) nu intră.
+ */
+export async function getTodayDriverChecks(checkDate: string): Promise<Map<string, TodayDriverCheck>> {
+  const { data, error } = await db()
+    .from('driver_appearance_checks')
+    .select('id, driver_id, uniform_ok_model, groomed_ok_model, created_at')
+    .eq('check_date', checkDate)
+    .eq('person_visible', true)
+    .not('driver_id', 'is', null)
+    .not('uniform_ok_model', 'is', null)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  const first = new Map<string, TodayDriverCheck>();
+  for (const r of (data as TodayDriverCheck[] | null) ?? []) {
+    if (r.driver_id && !first.has(r.driver_id)) first.set(r.driver_id, r);
+  }
+  return first;
+}
+
 export async function confirmDriverAppearance(
   id: string,
   confirmed: { uniform_ok: boolean | null; groomed_ok: boolean | null },

@@ -429,6 +429,7 @@ describe('2. /day la 06:20', () => {
     expect(body.locationExemptTimes).toEqual(['06:55', '20:00']);
     expect(body.station).toEqual(STATION);
     expect(body.allowFull).toBe(false);
+    expect(body.driverChecks).toEqual({}); // nicio poză de șofer încă
   });
 });
 
@@ -629,6 +630,13 @@ describe('6. Raport 06:55', () => {
     expect(body.vehicles.map((v: any) => v.plate)).toEqual([PLATES.wvw526, PLATES.lyy735]);
     expect(body.climate).toEqual({ [IDS.vehicles.lyy735]: 'ac', [IDS.vehicles.tcp998]: null, [IDS.vehicles.wvw526]: 'ac' });
   });
+
+  it('/day: driverChecks[Ion Munteanu] = poza de la 06:42 (id-ul rândului, verdictele modelului, ora) — valabilă toată ziua', async () => {
+    const { body } = await day();
+    expect(body.driverChecks).toEqual({
+      [IDS.drivers.ionMunteanu]: { id: fake._tables.driver_appearance_checks[0].id, uniformOk: true, groomedOk: false, at: '06:42' },
+    });
+  });
 });
 
 describe('7. Ordinea curselor', () => {
@@ -689,6 +697,11 @@ describe('8. 07:35 cu schimbare de repartizare și auto nou', () => {
     expect(body.vehicles.map((v: any) => v.plate)).toEqual([PLATES.wvw526, PLATES.lyy735]);
     expect(body.assignments[T('07:35')]).toEqual({ driver_id: IDS.drivers.sergiuLungu, driver_name: 'Sergiu Lungu', vehicle_id: abc.id, plate: 'ABC123' });
     expect(telegram.filter((t) => t.method === 'editMessageText')).toHaveLength(1);
+    // poza lui Sergiu (fără uniformă) intră în driverChecks; a lui Ion rămâne cea de la 06:42
+    expect(body.driverChecks).toEqual({
+      [IDS.drivers.ionMunteanu]: { id: fake._tables.driver_appearance_checks[0].id, uniformOk: true, groomedOk: false, at: '06:42' },
+      [IDS.drivers.sergiuLungu]: { id: reportFor('07:35').driver_check_id, uniformOk: false, groomedOk: true, at: '07:35' },
+    });
   });
 });
 
@@ -765,9 +778,22 @@ describe('10. Locație și întârziere', () => {
     expect(alerts).toEqual([]);
   });
 
-  it('10:00 trimis la 10:12 → încălcare de întârziere (12 min), locația e bună', async () => {
+  it('10:00 trimis la 10:12 → încălcare de întârziere (12 min), locația e bună; a doua cursă a lui Ion Munteanu FĂRĂ poză nouă — driverCheckId din /day.driverChecks → 200 cu verdictele pozei de la 06:42', async () => {
     clock('10:12');
-    await fullTrip('10:00', { passengersCount: 20, driverId: IDS.drivers.ionMunteanu, vehicleId: IDS.vehicles.tcp998 });
+    const before = fake._tables.driver_appearance_checks.length;
+    const { body: dayBody } = await day();
+    const todays = dayBody.driverChecks[IDS.drivers.ionMunteanu];
+    expect(todays).toEqual({ id: fake._tables.driver_appearance_checks[0].id, uniformOk: true, groomedOk: false, at: '06:42' });
+
+    const body = okBody('10:00', todays.id, { passengersCount: 20, driverId: IDS.drivers.ionMunteanu, vehicleId: IDS.vehicles.tcp998 });
+    const res = await report(body);
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    const vars = botVarsFor(body, '10:00', DRIVER_UNIFORM_NOT_SHAVED);
+    expectRowLikeBot(reportFor('10:00'), vars);
+    expect(res.body.summary).toBe(botSummary(vars));
+    expect(res.body.summary).toBe('☑ 10:00 — 20 pas. | Ion M.\n⚠ aspect');
+    expect(reportFor('10:00')).toMatchObject({ driver_check_id: todays.id, uniform_ok: true, exterior_ok: false });
+    expect(fake._tables.driver_appearance_checks).toHaveLength(before); // niciun rând nou, nicio poză nouă
     expect(reportFor('10:00')).toMatchObject({ location_ok: true });
     expect(reportFor('10:00').created_at).toBe(iso('10:12'));
     const digest = await digestState();
@@ -851,6 +877,10 @@ describe('12. Restul curselor până la 16:05', () => {
     expect(body.trips[20].departure_time).toBe('16:25');
     expect(body.drivers).toEqual([]);
     expect(body.vehicles).toEqual([]);
+    // toți cei 4 șoferi au poza zilei; a lui Ion e tot cea de la 06:42 — nu cea de la 11:28 (EROARE, fără verdict)
+    expect(Object.keys(body.driverChecks).sort()).toEqual([...DRIVERS].sort());
+    expect(body.driverChecks[IDS.drivers.ionMunteanu]).toEqual({ id: fake._tables.driver_appearance_checks[0].id, uniformOk: true, groomedOk: false, at: '06:42' });
+    expect(body.driverChecks[IDS.drivers.vasileRusu]).toEqual({ id: reportFor('09:25').driver_check_id, uniformOk: true, groomedOk: true, at: '09:25' });
   });
 });
 
@@ -906,11 +936,12 @@ describe('14. Sfârșit de zi', () => {
     expect(fake._tables.day_validations).toHaveLength(1);
     expect(fake._tables.day_validations[0]).toMatchObject({ user_id: IDS.users.vitalie, validation_date: DATE });
     expect(reports()).toHaveLength(29);
-    // 28 rapoarte OK, fiecare cu poza lui de șofer; +1 poză pentru 16:25 rămasă fără raport (poarta ZIUA a refuzat
-    // cererea) — rândul ei există, dar nu e referit de nimeni. NO_PERSON și REFA_POZA n-au lăsat rând.
-    expect(fake._tables.driver_appearance_checks).toHaveLength(29);
+    // 28 rapoarte OK; 10:00 a refolosit poza lui Ion de la 06:42 (o poză pe zi per șofer) → 27 poze referite;
+    // +1 poză pentru 16:25 rămasă fără raport (poarta ZIUA a refuzat cererea) — rândul ei există, dar nu e
+    // referit de nimeni. NO_PERSON și REFA_POZA n-au lăsat rând.
+    expect(fake._tables.driver_appearance_checks).toHaveLength(28);
     const referenced = new Set(reports().filter((r) => r.status === 'OK').map((r) => r.driver_check_id));
-    expect(referenced.size).toBe(28);
+    expect(referenced.size).toBe(27);
     expect(fake._tables.driver_appearance_checks.filter((c) => !referenced.has(c.id))).toHaveLength(1);
   });
 

@@ -2,7 +2,9 @@
  * GET /app/v1/day — tot ce îi trebuie aplicației ca să deseneze ziua operatorului:
  * cursele cu starea lor (done / next / locked), repartizările din grafic, listele de
  * șoferi și auto încă nefolosite azi, sarcinile reclamă deschise per placă, întrebarea
- * de climă per auto, zonele de curățenie închise și configul de locație al punctului.
+ * de climă per auto, zonele de curățenie închise, poza de azi a fiecărui șofer
+ * (`driverChecks` — valabilă la toate cursele lui din zi, Ion 09.09) și configul de
+ * locație al punctului.
  *
  * Bălți primește fluxul scurt: doar cursele + stația; listele vin goale, `allowFull`.
  * Totul se citește prin services/db.ts, exact ca în conversations/report.ts.
@@ -20,6 +22,7 @@ import {
   getDirectionForPoint,
   getOpenReclamaTasks,
   getReportedTripIds,
+  getTodayDriverChecks,
   getUsedDriverIds,
   getUsedVehicleIds,
 } from '../services/db.js';
@@ -43,6 +46,14 @@ export interface DayAssignment {
   plate: string | null;
 }
 
+/** Prima poză acceptată de azi a unui șofer: id-ul pentru POST /report, verdictele modelului, ora (HH:MM Chișinău). */
+export interface DayDriverCheck {
+  id: string;
+  uniformOk: boolean;
+  groomedOk: boolean;
+  at: string;
+}
+
 export interface DayResponse {
   date: string;
   point: PointEnum;
@@ -54,12 +65,19 @@ export interface DayResponse {
   openReclama: Record<string, { taskId: string; description: string; lastComment: string | null }>; // per placă
   climate: Record<string, 'ac' | 'heat' | null>; // per vehicle_id
   cleaning: { DIMINEATA: CleaningZone[]; ZIUA: CleaningZone[] };
+  /** Per driver_id: poza de azi (o dată pe zi per șofer); lipsă → aplicația cere poza. */
+  driverChecks: Record<string, DayDriverCheck>;
   cleaningGateTripTime: string | null;
   locationExemptTimes: string[];
   station: { lat: number; lon: number; radiusM: number };
   allowFull: boolean;
   /** Fereastra turei (prima cursă − 30 min … ultima + 30 min): aplicația urmărește GPS-ul doar în ea. */
   presenceWindow: PresenceWindow | null;
+}
+
+/** ISO → HH:MM pe ora Chișinăului (ora la care s-a făcut poza). */
+function timeHHMM(iso: string): string {
+  return new Date(iso).toLocaleTimeString('sv-SE', { timeZone: config.timezone, hour: '2-digit', minute: '2-digit' });
 }
 
 export async function getDay(user: AppUser): Promise<DayResponse> {
@@ -96,6 +114,7 @@ export async function getDay(user: AppUser): Promise<DayResponse> {
       openReclama: {},
       climate: {},
       cleaning: { DIMINEATA: [], ZIUA: [] },
+      driverChecks: {},
       cleaningGateTripTime: null,
       locationExemptTimes: [],
       station: config.stations.BALTI,
@@ -103,7 +122,7 @@ export async function getDay(user: AppUser): Promise<DayResponse> {
     };
   }
 
-  const [assignmentRows, activeDrivers, usedDriverIds, activeVehicles, usedVehicleIds, reclamaTasks, morningDone, dayDone] =
+  const [assignmentRows, activeDrivers, usedDriverIds, activeVehicles, usedVehicleIds, reclamaTasks, morningDone, dayDone, todayChecks] =
     await Promise.all([
       Promise.all(allTrips.map((t) => getAssignmentForTrip(t.crm_route_id, date))),
       getActiveDrivers(),
@@ -113,6 +132,7 @@ export async function getDay(user: AppUser): Promise<DayResponse> {
       getOpenReclamaTasks(),
       getCleaningZonesDone(date, 'DIMINEATA'),
       getCleaningZonesDone(date, 'ZIUA'),
+      getTodayDriverChecks(date),
     ]);
 
   const assignments: Record<string, DayAssignment> = {};
@@ -123,6 +143,12 @@ export async function getDay(user: AppUser): Promise<DayResponse> {
 
   const drivers = activeDrivers.filter((d) => !usedDriverIds.has(d.id)).map((d) => ({ id: d.id, name: d.full_name }));
   const vehicles = activeVehicles.filter((v) => !usedVehicleIds.has(v.id)).map((v) => ({ id: v.id, plate: v.plate_number }));
+
+  // Poza șoferului e pe zi: prima acceptată de azi per șofer (verdict al modelului, persoana vizibilă).
+  const driverChecks: DayResponse['driverChecks'] = {};
+  for (const [driverId, c] of todayChecks) {
+    driverChecks[driverId] = { id: c.id, uniformOk: c.uniform_ok_model, groomedOk: c.groomed_ok_model, at: timeHHMM(c.created_at) };
+  }
 
   const openReclama: DayResponse['openReclama'] = {};
   for (const t of reclamaTasks) openReclama[t.plate] = { taskId: t.id, description: t.description, lastComment: t.lastReport };
@@ -148,6 +174,7 @@ export async function getDay(user: AppUser): Promise<DayResponse> {
     openReclama,
     climate,
     cleaning: { DIMINEATA: Array.from(morningDone), ZIUA: Array.from(dayDone) },
+    driverChecks,
     cleaningGateTripTime: config.cleaningGateTripTime,
     locationExemptTimes: [...config.chisinauExemptTimes],
     station: config.stations.CHISINAU,

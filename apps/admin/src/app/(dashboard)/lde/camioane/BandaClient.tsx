@@ -9,7 +9,7 @@
 //  · unde e camionul acum, după GPS, stă în bandă;
 //  · harta e jos, sub bandă.
 
-import { Fragment, memo, useCallback, useEffect, useMemo, useState, useTransition } from 'react';
+import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import {
@@ -90,6 +90,21 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
   const [detaliu, setDetaliu] = useState<Cursa | null>(null);
   const [tras, setTras] = useState<string | null>(null);
   const [motivAnulare, setMotivAnulare] = useState('');
+  const formRef = useRef<HTMLDivElement>(null);
+  const mesajRef = useRef<HTMLDivElement>(null);
+
+  // Formularul stă SUB bandă — la 17 rânduri, dincolo de ecran. Ion, 09.09:
+  // «вообще не сохраняет то что ввожу» — apăsa «Pune cursa», serverul răspundea
+  // «camionul are deja o cursă», dar mesajul apărea sus, în afara ecranului, iar
+  // formularul rămânea pe loc ca și cum nu s-ar fi întâmplat nimic. Formularul
+  // se aduce în ecran când se deschide, mesajele când apar.
+  const formDeschis = form !== null;
+  useEffect(() => {
+    if (formDeschis) formRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }, [formDeschis]);
+  useEffect(() => {
+    if (mesaj || eroare) mesajRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [mesaj, eroare]);
 
   useEffect(() => {
     let viu = true;
@@ -106,8 +121,17 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
     }
     ia();
     const t = setInterval(ia, 60_000);
-    return () => { viu = false; clearInterval(t); };
-  }, []);
+    // Dispecerul ține banda în mai multe file: o cursă pusă într-una nu apărea în
+    // cealaltă până la un F5 — și părea că nu s-a salvat. La întoarcerea în filă
+    // se recitesc și pozițiile, și banda.
+    const laRevenire = () => {
+      if (document.visibilityState !== 'visible') return;
+      ia();
+      router.refresh();
+    };
+    document.addEventListener('visibilitychange', laRevenire);
+    return () => { viu = false; clearInterval(t); document.removeEventListener('visibilitychange', laRevenire); };
+  }, [router]);
 
   const pozitieDupaPlaca = useMemo(() => {
     const m = new Map<string, Pozitie>();
@@ -354,6 +378,15 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
     };
   };
 
+  // Un singur bloc, montat ori sus (fără formular), ori în formular — ref-ul
+  // arată mereu spre cel vizibil.
+  const mesaje = (mesaj || eroare) ? (
+    <div ref={mesajRef}>
+      {mesaj && <div className="card" style={{ borderLeft: '3px solid var(--success)' }}>{mesaj}</div>}
+      {eroare && <div className="card" style={{ borderLeft: '3px solid var(--danger)' }}>{eroare}</div>}
+    </div>
+  ) : null;
+
   return (
     <div className="page">
       <div className="page-header">
@@ -365,8 +398,8 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
         </p>
       </div>
 
-      {mesaj && <div className="card" style={{ borderLeft: '3px solid var(--success)' }}>{mesaj}</div>}
-      {eroare && <div className="card" style={{ borderLeft: '3px solid var(--danger)' }}>{eroare}</div>}
+      {/* Cu formularul deschis, mesajul se arată în formular — acolo se uită omul. */}
+      {!form && mesaje}
       {taiat && (
         <div className="card" style={{ borderLeft: '3px solid var(--danger)' }}>
           Fereastra e prea largă: s-a atins plafonul de 1000 de curse și ultimele zile lipsesc din
@@ -544,7 +577,7 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
       )}
 
       {form && (
-        <div className="card">
+        <div className="card" ref={formRef}>
           <h3>{form.id ? 'Editează cursa' : 'Ce pui pe camion'}</h3>
           {!form.id && (
             <div className="flex gap-2" style={{ marginBottom: 12, flexWrap: 'wrap' }}>
@@ -672,6 +705,7 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
             </div>
           )}
 
+          {mesaje}
           <div className="flex gap-2" style={{ marginTop: 12 }}>
             <button className="btn-primary" onClick={salveaza} disabled={inCurs}>
               {form.id ? 'Salvează' : form.fel === 'cursa' ? 'Pune cursa în bandă' : 'Marchează perioada'}

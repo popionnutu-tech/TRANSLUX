@@ -59,7 +59,8 @@ export function camioaneMaiAproape(
     .filter((c) => c.km < kmAles)
     .sort((x, y) => x.km - y.km)
     .slice(0, maxRezultate)
-    .map((c) => ({ ...c, economieKm: Number.isFinite(kmAles) ? Math.round(kmAles - c.km) : 0 }));
+    // Km întregi: pe ecran apărea «297.2739407188048 km» (Ion, 09.09).
+    .map((c) => ({ ...c, km: Math.round(c.km), economieKm: Number.isFinite(kmAles) ? Math.round(kmAles - c.km) : 0 }));
 }
 
 /**

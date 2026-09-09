@@ -337,7 +337,12 @@ export async function salveazaCursa(input: CursaInput): Promise<Rezultat> {
   if (conflict) {
     const de = new Date(conflict.loadAt).toLocaleString('ro-MD', { timeZone: 'Europe/Chisinau' });
     const la = new Date(conflict.unloadAt).toLocaleString('ro-MD', { timeZone: 'Europe/Chisinau' });
-    return { error: `Camionul are deja o cursă în acest interval (${de} → ${la})` };
+    // Ion, 09.09: a pus aceeași cursă de două ori, crezând că prima nu s-a salvat.
+    // Mesajul spune unde e cea veche și ce are de făcut.
+    return {
+      error: `Camionul are deja o cursă în acest interval (${de} → ${la}) — e pe bandă, pe rândul lui. `
+        + 'Ca s-o schimbi, apasă pe bară și modific-o; ca să pui alta, alege alt camion sau alte zile.',
+    };
   }
 
   const camp = {

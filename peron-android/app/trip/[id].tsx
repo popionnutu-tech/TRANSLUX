@@ -76,12 +76,12 @@ function PickerModal({
   title: string;
   items: PickItem[];
   selectedId: string | null;
-  noneLabel: string;
+  noneLabel?: string | null; // lipsă = fără opțiunea «fără» (Ion, 09.09: șoferul e obligatoriu)
   onSelect: (id: string | null) => void;
   onClose: () => void;
   footer?: ReactNode;
 }) {
-  const data: PickItem[] = [{ id: '', label: noneLabel }, ...items];
+  const data: PickItem[] = noneLabel ? [{ id: '', label: noneLabel }, ...items] : items;
   return (
     <Modal visible animationType="slide" onRequestClose={onClose}>
       <Screen scroll={false} padding={SCREEN_PADDING}>
@@ -522,7 +522,7 @@ export default function TripScreen() {
           <Card>
             <Label>{assignment && !changing ? 'Șofer și auto · din repartizare' : 'Șofer și auto'}</Label>
             <View style={{ gap: 4 }}>
-              <Text style={styles.driverName}>{driverName ?? 'Fără șofer'}</Text>
+              <Text style={styles.driverName}>{driverName ?? 'Alege șoferul'}</Text>
               <Text style={styles.plate}>{plate ?? 'Fără auto'}</Text>
             </View>
             {assignment ? (
@@ -674,7 +674,6 @@ export default function TripScreen() {
           title="Șoferul"
           items={day.drivers.map((d) => ({ id: d.id, label: d.name }))}
           selectedId={form.driverId}
-          noneLabel="Fără șofer"
           onSelect={chooseDriver}
           onClose={() => setPicker(null)}
         />

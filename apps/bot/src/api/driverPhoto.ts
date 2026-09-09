@@ -68,10 +68,17 @@ export async function postDriverPhoto(user: AppUser, rawBody: unknown): Promise<
   await uploadReportPhoto(storageKey, body.jpeg);
 
   const result = await analyzeDriverPhoto(body.jpeg.toString('base64'));
+  if (result.verdict === 'EROARE') {
+    console.warn(`[driver-photo] ${user.name ?? user.id} cursa ${body.tripId.slice(-4)} → EROARE (modelul n-a răspuns): ${result.description}`);
+  } else if (result.personVisible && result.frameOk) {
+    console.log(`[driver-photo] ${user.name ?? user.id} cursa ${body.tripId.slice(-4)} → uniformă=${result.uniformOk} bărbierit=${result.shavedOk} aspect=${result.groomedOk}: ${result.description}`);
+  }
 
   // Poza trebuie refăcută: nimeni în cadru sau cadrul nu e cel cerut. Fără rând, fără fișier.
   if (result.verdict === 'OK' && (!result.personVisible || !result.frameOk)) {
     const code: DriverPhotoRetakeCode = result.personVisible ? 'REFA_POZA' : 'NO_PERSON';
+    // Ion (09.09): «să vedem motivele» — fiecare refuz rămâne în jurnal cu ce a văzut modelul.
+    console.warn(`[driver-photo] ${user.name ?? user.id} cursa ${body.tripId.slice(-4)} → ${code}: ${result.description}`);
     try {
       await removeReportPhotos([storageKey]);
     } catch (e) {

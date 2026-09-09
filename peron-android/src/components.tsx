@@ -16,7 +16,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BackIcon, CameraIcon, PinIcon, PlayIcon } from './icons';
+import { BackIcon, CameraIcon, CheckIcon, PinIcon, PlayIcon } from './icons';
 import { colors, radius, shadowNext, shadowPrimary, sizes, weight } from './theme';
 
 // ── Ecranul ───────────────────────────────────────────────────────────────────
@@ -366,16 +366,21 @@ const GridWidth = createContext<number | null>(null);
  * `locked`: alb / `#e6e2de`, 17 / 600 `#6b6560`; `next`: bordo, 18 / 800 alb, play 16, gap 6,
  * umbra `0 4px 10px rgba(155,27,48,0.35)`.
  */
-export function GridCell({ label, state, onPress }: { label: string; state: 'done' | 'next' | 'locked'; onPress?: () => void }) {
+/**
+ * Celula cursei. `prepared` (doar la `next`): pregătirea e făcută și salvată pe telefon —
+ * o bifă mică albă în colțul din dreapta sus; eticheta rămâne ora.
+ */
+export function GridCell({ label, state, prepared = false, onPress }: { label: string; state: 'done' | 'next' | 'locked'; prepared?: boolean; onPress?: () => void }) {
   const cellWidth = useContext(GridWidth);
   const box = state === 'done' ? styles.cellDone : state === 'next' ? styles.cellNext : styles.cellLocked;
   const text = state === 'done' ? styles.cellDoneText : state === 'next' ? styles.cellNextText : styles.cellLockedText;
+  const showPrepared = state === 'next' && prepared;
   return (
     <Pressable
       onPress={onPress}
       disabled={!onPress}
       accessibilityRole="button"
-      accessibilityLabel={`Cursa ${label}`}
+      accessibilityLabel={showPrepared ? `Cursa ${label}, pregătită` : `Cursa ${label}`}
       style={({ pressed }) => [
         styles.cell,
         box,
@@ -386,6 +391,11 @@ export function GridCell({ label, state, onPress }: { label: string; state: 'don
     >
       {state === 'next' ? <PlayIcon /> : null}
       <Text style={text}>{label}</Text>
+      {showPrepared ? (
+        <View style={styles.cellPrepared}>
+          <CheckIcon size={12} color={colors.primaryText} strokeWidth={3.2} />
+        </View>
+      ) : null}
     </Pressable>
   );
 }
@@ -503,6 +513,7 @@ const styles = StyleSheet.create({
   cellDoneText: { fontSize: 17, ...weight(700), color: colors.doneText },
   cellLockedText: { fontSize: 17, ...weight(600), color: colors.faint },
   cellNextText: { fontSize: 18, ...weight(800), color: colors.primaryText },
+  cellPrepared: { position: 'absolute', top: 4, right: 4, width: 16, height: 16, borderRadius: 8, borderWidth: 1.5, borderColor: colors.primaryText, alignItems: 'center', justifyContent: 'center' },
 
   progressRow: { flexDirection: 'row', justifyContent: 'space-between' },
   progressText: { fontSize: 15, ...weight(600), color: colors.textSoft },

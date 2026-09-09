@@ -151,18 +151,27 @@ export function needsQuality(ctx: TripContext, state: TripFormState): boolean {
 }
 
 /**
- * De ce nu se poate trimite încă (null = se poate). Textul e cel arătat sub butonul «Trimite».
+ * De ce nu e gata pregătirea (etapa 1 din două: poza șoferului și reclama; null = gata).
+ * Textul e cel arătat sub butonul «Pregătit, aștept plecarea». Fără cifra de pasageri —
+ * ea vine la plecare.
  */
-export function blockingReason(ctx: TripContext, state: TripFormState): string | null {
-  if (state.status !== 'OK') return null;
-  if (!isValidPassengers(state.passengers)) return `Introdu numărul de pasageri (0–${MAX_PASSENGERS})`;
-  if (ctx.point !== 'CHISINAU') return null;
+export function preparationReason(ctx: TripContext, state: TripFormState): string | null {
+  if (state.status !== 'OK' || ctx.point !== 'CHISINAU') return null;
   if (!state.photo) return 'Fă poza șoferului';
   if (state.vehicleId && state.reclama === 'ok' && openReclamaFor(ctx, state.vehicleId)) {
     if (state.repair === null) return 'Răspunde: a fost reparat defectul marcat?';
     if (state.repair === 'nu') return 'Dacă nu e reparat, alege defectul la «Reclamă»';
   }
   return null;
+}
+
+/**
+ * De ce nu se poate trimite încă (null = se poate). Textul e cel arătat sub butonul «Trimite».
+ */
+export function blockingReason(ctx: TripContext, state: TripFormState): string | null {
+  if (state.status !== 'OK') return null;
+  if (!isValidPassengers(state.passengers)) return `Introdu numărul de pasageri (0–${MAX_PASSENGERS})`;
+  return preparationReason(ctx, state);
 }
 
 /** Corpul exact pentru POST /app/v1/report. Nu conține washGrade. */

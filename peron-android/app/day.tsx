@@ -5,10 +5,13 @@
  * (Ion, 08.09): urmărirea merge în fundal, fără indicator pe ecran.
  * Cât timp operatorul n-a confirmat «Ultimul pas» (bateria), sub progres stă un rând de
  * reamintire cu link spre ecranul de baterie.
+ * Cursa `next` cu pregătirea salvată pe telefon (src/tripDraft.ts) arată o bifă albă în
+ * colț și «Urmează 07:35 · pregătită»; atingerea deschide ecranul de cursă direct la pasul 2.
  * Logica (încărcarea zilei, permisiunile, urmărirea, poarta de curățenie) e cea de dinainte.
  */
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ActivityIndicator, Alert, Linking, Platform, Pressable, ToastAndroid } from 'react-native';
 import { ApiError, getDay } from '../src/api';
 import { registerRearm } from '../src/backgroundRearm';
@@ -20,6 +23,7 @@ import { CameraIcon } from '../src/icons';
 import { flushPresenceQueue, getPermissionState, requestPresencePermissions, syncPresenceTracking, type PermissionState } from '../src/presence';
 import { logout } from '../src/session';
 import { colors } from '../src/theme';
+import { clearOtherDays, loadDraft } from '../src/tripDraft';
 import type { DayResponse, DayTrip } from '../src/types';
 
 function toast(message: string) {
@@ -33,6 +37,8 @@ export default function Day() {
   const [error, setError] = useState<string | null>(null);
   const [permission, setPermission] = useState<PermissionState | null>(null);
   const [batteryDone, setBatteryDone] = useState(true);
+  /** Cursa `next` are ciornă de pregătire salvată azi (Chișinău). */
+  const [prepared, setPrepared] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -48,6 +54,9 @@ export default function Day() {
       registerRearm().catch((e) => console.warn('[day] re-armarea din fundal nu s-a înregistrat:', e));
       flushPresenceQueue().catch(() => undefined);
       setBatteryDone(await isBatteryDone());
+      const next = d.trips.find((t) => t.state === 'next');
+      setPrepared(d.point === 'CHISINAU' && !!next && (await loadDraft(AsyncStorage, d.date, next.id)) !== null);
+      clearOtherDays(AsyncStorage, d.date).catch(() => undefined);
     } catch (e) {
       if (e instanceof ApiError) {
         if (e.status === 401) return; // api.ts a trimis deja la login
@@ -115,7 +124,7 @@ export default function Day() {
 
       {loading && !day ? <ActivityIndicator size="large" color={colors.primary} /> : null}
 
-      {day ? <ProgressBar done={done} total={day.trips.length} next={nextTrip?.departure_time ?? null} /> : null}
+      {day ? <ProgressBar done={done} total={day.trips.length} next={nextTrip ? `${nextTrip.departure_time}${prepared ? ' · pregătită' : ''}` : null} /> : null}
 
       {day && permission !== null && permission !== 'granted' ? (
         <Card tone="warning">
@@ -143,7 +152,7 @@ export default function Day() {
 
           <Grid>
             {day.trips.map((t) => (
-              <GridCell key={t.id} label={t.departure_time} state={t.state} onPress={() => openTrip(t)} />
+              <GridCell key={t.id} label={t.departure_time} state={t.state} prepared={t.state === 'next' && prepared} onPress={() => openTrip(t)} />
             ))}
           </Grid>
           {day.trips.length === 0 ? <Footnote>Nu există curse active pentru {pointLabel(day.point)}.</Footnote> : null}

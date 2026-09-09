@@ -1,16 +1,25 @@
 /**
  * Ecranul de cursă — `Cursa.dc.html` (Chișinău) / `CursaBalti.dc.html` (Bălți), element cu
- * element: antet cu pastila de întârziere, Pasageri (−/cifră/+ și «Microbuzul a fost
- * absent»), Șofer și auto (nume, placă mono, Confirm/Schimbă), Poza șoferului (miniatură
- * 104×128, trei verdicte fixe ale modelului — uniformă, bărbierit, aspect — verzi/roșii,
- * fără atingere; «Refă poza»), Verificări, rândul GPS, «Trimite raportul».
+ * element. La Chișinău cursa se fixează în două etape (Ion, 09.09: «operatorul de peron nu
+ * dovedește la sfârșit să facă poza»):
+ * - pasul 1 «Pregătire», când mașina e la peron: Șofer și auto (nume, placă mono,
+ *   Confirm/Schimbă), Poza șoferului (miniatură 104×128, trei verdicte fixe ale modelului —
+ *   uniformă, bărbierit, aspect — verzi/roșii, fără atingere; «Refă poza»), Verificări,
+ *   rândul GPS, «Pregătit, aștept plecarea». Ciorna se salvează pe telefon
+ *   (src/tripDraft.ts, `trip:draft:<date>:<tripId>`) și supraviețuiește închiderii aplicației;
+ * - pasul 2 «Plecare»: rezumatul pregătirii într-un rând, Pasageri mare (ca la Bălți, cu
+ *   butoanele rapide), «Microbuzul a fost absent», GPS luat din nou, «Trimite raportul»,
+ *   link «Modifică pregătirea». O cursă deschisă cu ciornă pornește direct la pasul 2.
+ * «Absent» se trimite din oricare pas, fără poză și fără ciornă. La server pleacă un singur
+ * POST /report, la pasul 2, cu același corp ca înainte (bodyFromDraft = buildReportBody).
  * Verdictul e al modelului (Ion, 08.09: «aplicația fixează, operatorul doar face poza»):
  * la `REFA_POZA` / `NO_PERSON` apare mesajul serverului și «Refă poza».
- * La Bălți: Pasageri cu butoanele rapide, «Absent» / «Microbuzul full», GPS, Trimite, text.
+ * La Bălți nu există etape: Pasageri cu butoanele rapide, «Absent» / «Microbuzul full», GPS, Trimite, text.
  *
  * Logica (src/buildReport.ts, camera, locația, apelurile API) e cea de dinainte — aici
- * doar prezentarea.
+ * doar prezentarea și trecerea între pași.
  */
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Alert, FlatList, Image, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -27,6 +36,7 @@ import {
   needsQuality,
   openReclamaFor,
   plateOf,
+  preparationReason,
   QUICK_PASSENGERS,
   tripContext,
   withPhoto,
@@ -35,6 +45,7 @@ import {
   type TripContext,
   type TripFormState,
 } from '../../src/buildReport';
+import { bodyFromDraft, clearDraft, clearOtherDays, draftFromState, draftSummary, formFromDraft, loadDraft, saveDraft, type TripDraft } from '../../src/tripDraft';
 import { DRIVER_FRAME_HINT, PhotoCamera, type CapturedPhoto } from '../../src/camera';
 import { Body, Card, Footnote, GpsRow, Header, Label, Option, OptionRow, OutlineButton, Pill, PrimaryButton, Question, Screen, Spacer, type GpsState } from '../../src/components';
 import { haversineDistance } from '../../src/format';
@@ -118,6 +129,9 @@ export default function TripScreen() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<ScreenError | null>(null);
   const [now, setNow] = useState(() => new Date());
+  /** Pasul (doar Chișinău): 1 = pregătirea, 2 = plecarea. null până se știe dacă există ciornă. */
+  const [step, setStep] = useState<1 | 2 | null>(null);
+  const [draft, setDraft] = useState<TripDraft | null>(null);
 
   const trip: DayTrip | null = useMemo(() => day?.trips.find((t) => t.id === tripId) ?? null, [day, tripId]);
   const ctx: TripContext | null = useMemo(() => {
@@ -125,7 +139,8 @@ export default function TripScreen() {
     return { ...tripContext(day, tripId), vehicles };
   }, [day, tripId, vehicles]);
 
-  // /day → cursa; doar cursa `next` se raportează (serverul refuză oricum cu 409)
+  // /day → cursa; doar cursa `next` se raportează (serverul refuză oricum cu 409).
+  // Cu ciornă salvată pentru azi, ecranul pornește la pasul 2 cu formularul refăcut din ea.
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -142,9 +157,22 @@ export default function TripScreen() {
           setLoadError(t.state === 'done' ? `Cursa ${t.departure_time} e deja raportată.` : next ? `Completează mai întâi ora ${next.departure_time}.` : 'Cursa e blocată.');
           return;
         }
+        const c = tripContext(d, tripId);
+        const saved = d.point === 'CHISINAU' ? await loadDraft(AsyncStorage, d.date, tripId) : null;
+        if (!alive) return;
         setDay(d);
         setVehicles(d.vehicles);
-        setForm(initialState(tripContext(d, tripId)));
+        if (saved) {
+          const a = c.assignment;
+          setDraft(saved);
+          setForm(formFromDraft(saved));
+          setChanging(!!a && (a.driver_id !== saved.driverId || (a.vehicle_id ?? null) !== saved.vehicleId));
+          setStep(2);
+        } else {
+          setForm(initialState(c));
+          setStep(1);
+        }
+        clearOtherDays(AsyncStorage, d.date).catch(() => undefined);
       } catch (e) {
         if (!alive) return;
         if (e instanceof ApiError && e.status === 401) return; // api.ts a trimis deja la login
@@ -156,25 +184,31 @@ export default function TripScreen() {
     };
   }, [tripId]);
 
-  // Locația pornește la montare, fără nicio acțiune a operatorului
+  // Locația pornește fără nicio acțiune a operatorului: la pasul 1 și din nou la plecare
+  // (pasul 2) — raportul pleacă cu poziția de acum, nu cu cea de la pregătire.
   useEffect(() => {
+    if (step === null) return;
     let alive = true;
     (async () => {
       if (!(await hasForegroundPermission())) {
         if (alive) setSearching(false);
         return;
       }
+      if (alive) setSearching(true);
       await findLocation((c) => {
         if (!alive) return;
         setCoords((prev) => c ?? prev);
         setSearching(false);
       });
     })();
-    const tick = setInterval(() => setNow(new Date()), 30_000);
     return () => {
       alive = false;
-      clearInterval(tick);
     };
+  }, [step]);
+
+  useEffect(() => {
+    const tick = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(tick);
   }, []);
 
   const update = useCallback((patch: Partial<TripFormState>) => {
@@ -275,6 +309,28 @@ export default function TripScreen() {
     }
   }
 
+  // ── Pasul 1 → 2: «Pregătit, aștept plecarea» — ciorna pe telefon, nimic la server ──
+  async function prepare() {
+    if (!ctx || !form || !day || sending) return;
+    const d = draftFromState(ctx, form, new Date());
+    if (!d) return;
+    try {
+      await saveDraft(AsyncStorage, day.date, ctx.tripId, d);
+    } catch (e) {
+      // fără spațiu / stocare stricată: pasul 2 merge oricum, doar că nu supraviețuiește închiderii
+      console.warn('[trip] ciorna nu s-a salvat:', e);
+    }
+    setDraft(d);
+    setError(null);
+    setStep(2);
+  }
+
+  /** «Modifică pregătirea»: înapoi la pasul 1 cu formularul de acum (refăcut din ciornă la deschidere). */
+  function editPreparation() {
+    setError(null);
+    setStep(1);
+  }
+
   // ── Trimite ──
   async function send() {
     if (!ctx || !form || !day || !trip || sending) return;
@@ -297,8 +353,11 @@ export default function TripScreen() {
           if (c) setCoords(c);
         }
       }
-      const body = buildReportBody(ctx, form, c);
+      // La pasul 2 corpul vine din ciornă + cifră + GPS-ul de acum (identic cu buildReportBody
+      // pentru aceeași stare — tripDraft.test.ts). Absent / Full / Bălți / fără ciornă: ca înainte.
+      const body = step === 2 && draft && form.status === 'OK' && form.passengers !== null ? bodyFromDraft(ctx.tripId, draft, form.passengers, c) : buildReportBody(ctx, form, c);
       const res = await postReport(body);
+      await clearDraft(AsyncStorage, day.date, ctx.tripId).catch(() => undefined);
       const text = res.allDone ? `${res.summary}\n\n${missionDoneText(day.trips.length)}` : res.summary;
       Alert.alert('Raport trimis', text, [{ text: 'OK', onPress: () => router.replace('/day') }], { cancelable: false });
     } catch (e) {
@@ -315,6 +374,8 @@ export default function TripScreen() {
           cleaning: { slot: details.slot ?? 'DIMINEATA', missing: details.missing ?? [] },
         });
       } else if (e.code === 'NOT_NEXT' || e.code === 'ALREADY_REPORTED') {
+        // cursa e deja în bază — ciorna ei nu mai folosește nimănui
+        if (e.code === 'ALREADY_REPORTED') await clearDraft(AsyncStorage, day.date, ctx.tripId).catch(() => undefined);
         Alert.alert('Cursa nu poate fi raportată', e.message, [{ text: 'OK', onPress: () => router.replace('/day') }], { cancelable: false });
       } else {
         setError({ message: e.message });
@@ -338,7 +399,7 @@ export default function TripScreen() {
       </Screen>
     );
   }
-  if (!day || !trip || !ctx || !form) {
+  if (!day || !trip || !ctx || !form || step === null) {
     return (
       <Screen padding={SCREEN_PADDING}>
         <Header title="Cursa" onBack={back} />
@@ -348,9 +409,12 @@ export default function TripScreen() {
   }
 
   const balti = ctx.point === 'BALTI';
+  const preparing = !balti && step === 1; // pasul 1: șofer, poză, verificări — fără cifră
+  const departing = !balti && step === 2; // pasul 2: cifra + Trimite
   const late = minutesLate(now, trip.departure_time);
   const distanceM = coords ? haversineDistance(coords.lat, coords.lon, day.station.lat, day.station.lon) : null;
   const quality = needsQuality(ctx, form);
+  const prepReason = preparationReason(ctx, form);
   const reason = blockingReason(ctx, form);
   const assignment = ctx.assignment;
   const showPickers = changing || !assignment;
@@ -359,7 +423,9 @@ export default function TripScreen() {
   const openTask = openReclamaFor(ctx, form.vehicleId);
   const climateKind = climateKindFor(ctx, form.vehicleId);
   const counting = form.status === 'OK';
-  const thumbUri = form.photo?.uri ?? pending?.uri ?? rejected?.uri ?? null;
+  const bigCounter = balti || departing; // câmp 96 / cifra 52 / butoanele rapide, ca la Bălți
+  const thumbUri = form.photo?.uri || pending?.uri || rejected?.uri || null;
+  const summary = departing && draft ? draftSummary(draft, { driverName, plate }) : null;
 
   const gps: { state: GpsState; text: string } = searching
     ? { state: 'off', text: 'se caută locația…' }
@@ -371,57 +437,76 @@ export default function TripScreen() {
 
   const toggleStatus = (s: 'ABSENT' | 'FULL') => update({ status: form.status === s ? 'OK' : s });
 
+  /** «Microbuzul a fost absent» / «Microbuzul full» (Chișinău) — în cardul Pasageri sau singur la pasul 1. */
+  const statusRow = (
+    <View style={styles.statusRow}>
+      <OutlineButton label="Microbuzul a fost absent" tone="neutral" height={48} color={colors.muted} selected={form.status === 'ABSENT'} selectedTone="danger" onPress={() => toggleStatus('ABSENT')} style={styles.grow} />
+      {day.allowFull ? <OutlineButton label="Microbuzul full" tone="neutral" height={48} color={colors.muted} selected={form.status === 'FULL'} onPress={() => toggleStatus('FULL')} style={styles.grow} /> : null}
+    </View>
+  );
+
   return (
     <>
       <Screen padding={SCREEN_PADDING}>
         <Header title={`Cursa ${trip.departure_time}`} subtitle={balti ? trip.route_name : null} onBack={back} right={late > LATE_THRESHOLD_MIN ? <Pill>întârziere {late} min</Pill> : null} />
 
-        {/* Pasageri */}
-        <Card>
-          <Label>Pasageri</Label>
-          <View style={styles.counter}>
-            <CounterButton label="−" balti={balti} disabled={!counting} onPress={() => update({ passengers: clampPassengers((form.passengers ?? 0) - 1) })} />
-            <TextInput
-              value={form.passengers === null ? '' : String(form.passengers)}
-              onChangeText={(t) => {
-                const digits = t.replace(/\D/g, '');
-                update({ passengers: digits === '' ? null : clampPassengers(Number(digits)) });
-              }}
-              keyboardType="number-pad"
-              maxLength={2}
-              placeholder="0"
-              placeholderTextColor={colors.border}
-              editable={counting}
-              style={[styles.counterField, balti ? styles.counterFieldBalti : null, counting ? null : styles.dimmed]}
-              accessibilityLabel="Numărul de pasageri"
-            />
-            <CounterButton label="+" balti={balti} disabled={!counting} onPress={() => update({ passengers: clampPassengers((form.passengers ?? 0) + 1) })} />
-          </View>
-          {balti ? (
-            <View style={styles.quickRow}>
-              {QUICK_PASSENGERS.map((n) => {
-                const selected = counting && form.passengers === n;
-                return (
-                  <Pressable
-                    key={n}
-                    onPress={() => update({ passengers: n })}
-                    disabled={!counting}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected }}
-                    style={({ pressed }) => [styles.quick, selected ? styles.quickSelected : null, { opacity: !counting ? 0.45 : pressed ? 0.7 : 1 }]}
-                  >
-                    <Text style={[styles.quickText, selected ? styles.quickTextSelected : null]}>{n}</Text>
-                  </Pressable>
-                );
-              })}
+        {/* Pasul 2: rezumatul pregătirii într-un rând + «Modifică pregătirea» */}
+        {departing ? (
+          <Card>
+            <Label>Pregătire</Label>
+            {summary ? <Body>{summary}</Body> : null}
+            <Pressable onPress={editPreparation} accessibilityRole="link" hitSlop={6} style={styles.linkRow}>
+              <Text style={styles.link}>Modifică pregătirea ›</Text>
+            </Pressable>
+          </Card>
+        ) : null}
+
+        {/* Pasageri — la Bălți și la plecare; pregătirea nu cere cifra, doar «Absent» */}
+        {preparing ? (
+          statusRow
+        ) : (
+          <Card>
+            <Label>Pasageri</Label>
+            <View style={styles.counter}>
+              <CounterButton label="−" big={bigCounter} disabled={!counting} onPress={() => update({ passengers: clampPassengers((form.passengers ?? 0) - 1) })} />
+              <TextInput
+                value={form.passengers === null ? '' : String(form.passengers)}
+                onChangeText={(t) => {
+                  const digits = t.replace(/\D/g, '');
+                  update({ passengers: digits === '' ? null : clampPassengers(Number(digits)) });
+                }}
+                keyboardType="number-pad"
+                maxLength={2}
+                placeholder="0"
+                placeholderTextColor={colors.border}
+                editable={counting}
+                style={[styles.counterField, bigCounter ? styles.counterFieldBig : null, counting ? null : styles.dimmed]}
+                accessibilityLabel="Numărul de pasageri"
+              />
+              <CounterButton label="+" big={bigCounter} disabled={!counting} onPress={() => update({ passengers: clampPassengers((form.passengers ?? 0) + 1) })} />
             </View>
-          ) : (
-            <View style={styles.statusRow}>
-              <OutlineButton label="Microbuzul a fost absent" tone="neutral" height={48} color={colors.muted} selected={form.status === 'ABSENT'} selectedTone="danger" onPress={() => toggleStatus('ABSENT')} style={styles.grow} />
-              {day.allowFull ? <OutlineButton label="Microbuzul full" tone="neutral" height={48} color={colors.muted} selected={form.status === 'FULL'} onPress={() => toggleStatus('FULL')} style={styles.grow} /> : null}
-            </View>
-          )}
-        </Card>
+            {bigCounter ? (
+              <View style={styles.quickRow}>
+                {QUICK_PASSENGERS.map((n) => {
+                  const selected = counting && form.passengers === n;
+                  return (
+                    <Pressable
+                      key={n}
+                      onPress={() => update({ passengers: n })}
+                      disabled={!counting}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      style={({ pressed }) => [styles.quick, selected ? styles.quickSelected : null, { opacity: !counting ? 0.45 : pressed ? 0.7 : 1 }]}
+                    >
+                      <Text style={[styles.quickText, selected ? styles.quickTextSelected : null]}>{n}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : null}
+            {balti ? null : statusRow}
+          </Card>
+        )}
 
         {balti ? (
           <View style={styles.statusRow}>
@@ -432,8 +517,8 @@ export default function TripScreen() {
           </View>
         ) : null}
 
-        {/* Șofer și auto */}
-        {quality ? (
+        {/* Șofer și auto — doar la pregătire */}
+        {quality && preparing ? (
           <Card>
             <Label>{assignment && !changing ? 'Șofer și auto · din repartizare' : 'Șofer și auto'}</Label>
             <View style={{ gap: 4 }}>
@@ -455,8 +540,8 @@ export default function TripScreen() {
           </Card>
         ) : null}
 
-        {/* Poza șoferului */}
-        {quality ? (
+        {/* Poza șoferului — doar la pregătire */}
+        {quality && preparing ? (
           <Card>
             <Label>Poza șoferului · verdict automat</Label>
             <View style={styles.photoRow}>
@@ -495,8 +580,8 @@ export default function TripScreen() {
           </Card>
         ) : null}
 
-        {/* Verificări */}
-        {quality ? (
+        {/* Verificări — doar la pregătire */}
+        {quality && preparing ? (
           <Card>
             <Label>Verificări · totul e bifat OK, schimbă doar ce nu e</Label>
 
@@ -563,8 +648,17 @@ export default function TripScreen() {
           </Card>
         ) : null}
 
-        <PrimaryButton label={sending ? 'Se trimite…' : 'Trimite raportul'} onPress={send} disabled={!!reason || sending || analyzing} />
-        {reason ? <Footnote>{reason}</Footnote> : null}
+        {preparing && counting ? (
+          <>
+            <PrimaryButton label="Pregătit, aștept plecarea" onPress={prepare} disabled={!!prepReason || analyzing} />
+            {prepReason ? <Footnote>{prepReason}</Footnote> : <Footnote>Cifra de pasageri o introduci la plecare.</Footnote>}
+          </>
+        ) : (
+          <>
+            <PrimaryButton label={sending ? 'Se trimite…' : 'Trimite raportul'} onPress={send} disabled={!!reason || sending || analyzing} />
+            {reason ? <Footnote>{reason}</Footnote> : null}
+          </>
+        )}
 
         {balti ? (
           <>
@@ -617,17 +711,17 @@ export default function TripScreen() {
   );
 }
 
-/** «−» / «+»: 64 lat (72 la Bălți), bordură 2 `#ddd9d5`, rază 12, cifra 30 / 700 `#333` (34 la Bălți). */
-function CounterButton({ label, balti, disabled, onPress }: { label: string; balti: boolean; disabled: boolean; onPress: () => void }) {
+/** «−» / «+»: 64 lat (72 la Bălți și la plecare), bordură 2 `#ddd9d5`, rază 12, cifra 30 / 700 `#333` (34 la mare). */
+function CounterButton({ label, big, disabled, onPress }: { label: string; big: boolean; disabled: boolean; onPress: () => void }) {
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={label === '+' ? 'Un pasager în plus' : 'Un pasager în minus'}
-      style={({ pressed }) => [styles.counterButton, balti ? styles.counterButtonBalti : null, { opacity: disabled ? 0.45 : pressed ? 0.7 : 1 }]}
+      style={({ pressed }) => [styles.counterButton, big ? styles.counterButtonBig : null, { opacity: disabled ? 0.45 : pressed ? 0.7 : 1 }]}
     >
-      <Text style={[styles.counterButtonText, balti ? styles.counterButtonTextBalti : null]}>{label}</Text>
+      <Text style={[styles.counterButtonText, big ? styles.counterButtonTextBig : null]}>{label}</Text>
     </Pressable>
   );
 }
@@ -657,9 +751,9 @@ const styles = StyleSheet.create({
 
   counter: { flexDirection: 'row', gap: 10, alignItems: 'stretch' },
   counterButton: { width: 64, backgroundColor: colors.card, borderWidth: 2, borderColor: colors.border, borderRadius: radius.button, alignItems: 'center', justifyContent: 'center' },
-  counterButtonBalti: { width: 72 },
+  counterButtonBig: { width: 72 },
   counterButtonText: { fontSize: 30, ...weight(700), color: colors.textSoft },
-  counterButtonTextBalti: { fontSize: 34 },
+  counterButtonTextBig: { fontSize: 34 },
   counterField: {
     flexGrow: 1,
     flexBasis: 0,
@@ -674,13 +768,16 @@ const styles = StyleSheet.create({
     color: colors.text,
     padding: 0,
   },
-  counterFieldBalti: { height: 96, fontSize: 52 },
+  counterFieldBig: { height: 96, fontSize: 52 },
   quickRow: { flexDirection: 'row', gap: 8 },
   quick: { flexGrow: 1, flexBasis: 0, height: 52, backgroundColor: colors.card, borderWidth: 2, borderColor: colors.border, borderRadius: radius.option, alignItems: 'center', justifyContent: 'center' },
   quickSelected: { backgroundColor: colors.selectedBg, borderColor: colors.selectedBorder },
   quickText: { fontSize: 18, ...weight(700), color: colors.textSoft },
   quickTextSelected: { color: colors.selectedText },
   statusRow: { flexDirection: 'row', gap: 10 },
+
+  linkRow: { alignSelf: 'flex-start' },
+  link: { fontSize: 15, ...weight(700), color: colors.primary },
 
   driverName: { fontSize: 20, ...weight(700), color: colors.text },
   plate: { fontSize: 17, fontFamily: font.mono, fontWeight: '600', color: colors.muted, letterSpacing: 1 },

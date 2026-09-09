@@ -138,6 +138,9 @@ export function parseReportBody(body: unknown, point: PointEnum): ReportBody {
 
   const driverCheckId = strOrNull(b.driverCheckId, 'driverCheckId');
   if (!driverCheckId) throw new ApiError(400, 'DRIVER_PHOTO_REQUIRED', 'Lipsește poza șoferului (driverCheckId)');
+  // Ion (09.09): «să nu poată pune operatorul fără șofer poza, obligatoriu» — o cursă OK are
+  // întotdeauna un șofer; «Fără șofer» nu există în aplicație.
+  if (!strOrNull(b.driverId, 'driverId')) throw new ApiError(400, 'DRIVER_REQUIRED', 'Alege șoferul — o cursă cu pasageri are întotdeauna șofer');
 
   const vehicleId = strOrNull(b.vehicleId, 'vehicleId');
   const reclamaOk = vehicleId ? bool(b.reclamaOk, 'reclamaOk') : null;

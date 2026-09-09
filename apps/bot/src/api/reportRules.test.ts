@@ -73,6 +73,12 @@ describe('parseReportBody — CHISINAU', () => {
     expect(e.code).toBe('DRIVER_PHOTO_REQUIRED');
   });
 
+  it('OK fără driverId → 400 DRIVER_REQUIRED (Ion, 09.09: poza și șoferul sunt obligatorii)', () => {
+    const e = apiErr(() => parseReportBody({ ...okBody, driverId: null }, 'CHISINAU'));
+    expect(e.status).toBe(400);
+    expect(e.code).toBe('DRIVER_REQUIRED');
+  });
+
   it('28 pasageri → 400; -1 și 3.5 la fel', () => {
     for (const n of [28, -1, 3.5, null, '12']) {
       const e = apiErr(() => parseReportBody({ ...okBody, passengersCount: n }, 'CHISINAU'));

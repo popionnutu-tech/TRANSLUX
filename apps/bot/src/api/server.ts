@@ -118,11 +118,18 @@ export async function handleAppApi(req: IncomingMessage, res: ServerResponse): P
     if (route === 'method') throw new ApiError(405, 'METHOD_NOT_ALLOWED', `Metoda ${method} nu e permisă`);
 
     const user = route.auth ? await authenticate(req) : null;
+    if (user) (req as any).__appUserName = user.name ?? user.id;
     const body = method === 'POST' ? await readJsonBody(req) : null;
     const result = await route.handler({ req, method, path, body, user });
     sendJson(res, 200, { ok: true, ...result });
   } catch (err) {
     if (err instanceof ApiError) {
+      // Ion (09.09): «de ce n-a ajuns raportul?» — orice refuz al API-ului rămâne în jurnalul Railway,
+      // cu utilizatorul (dacă s-a autentificat), fără corp și fără token.
+      if (err.status !== 401) {
+        const who = (req as any).__appUserName ?? '-';
+        console.warn(`[app-api] ${method} /app/v1/${path} → ${err.status} ${err.code} (${who}): ${err.message}`);
+      }
       sendJson(res, err.status, { ok: false, code: err.code, message: err.message, ...(err.details ?? {}) });
     } else {
       console.error(`[app-api] ${method} /app/v1/${path} a picat:`, err);

@@ -438,6 +438,36 @@ const ALT_NUMAR_BLOCK_RU = `
 - Ты не можешь никому позвонить: никогда не обещай, что с человеком свяжется кто-то из компании.
 - Если рейс не найден, отправлять человека некуда — и не нужно: его данные уходят водителям вместе с его номером, и тот, кто узнает свой рейс, перезвонит ему. Читай дословно фразу из тула, а если клиент вспомнит день, время или номер машины — ищи заново сразу же.`;
 
+// Ion, 09.09 (apel conv_8601m23arqpaetd895ekc41aqp6p, «îmi trebuiește operator»):
+// agentul a spus «datele dumneavoastră au fost transmise». Nu au fost — nu există
+// operator și nu există cui transmite (vezi blocul «un singur număr», 07.09).
+// Ion: «agentul trebuie să spună că nu are cui să transmită info». Rândul original
+// «spune că ai NOTAT solicitarea și datele lui» din secțiunea OPERATOR UMAN e în
+// OBSOLETE_BLOCKS (RO și RU): «am notat datele» se aude ca «le-am dat cuiva».
+// request_callback rămâne (alerta ajunge în Telegram, Ion vede cererea), dar
+// clientului i se spune adevărul, nu «s-au transmis». Judecătorul (voice-judge,
+// regula promite_callback) prinde și «au fost transmise».
+const OPERATOR_BLOCK = `
+
+OPERATOR — NU AM CUI TRANSMITE:
+- Clientul cere operator, «un om», «o persoană», «pe cineva de la companie»? Îi spui deschis, de la prima cerere: NU există operator uman și NU ai cui transmite solicitarea — tu ești singura persoană de contact a companiei la telefon. Exemplu: «Nu există operator la acest număr și nu am cui transmite solicitarea — eu răspund la tot. Vă pot ajuta eu cu orarul, cu numărul șoferului, cu o reclamație sau cu un obiect uitat.»
+- INTERZIS să spui «datele au fost transmise», «am transmis solicitarea», «am notat și transmit mai departe», «se ocupă cineva» — nu le primește nimeni, iar clientul ar aștepta degeaba un răspuns.
+- NU ceri numele și NU ceri detalii «pentru operator»: nu au unde ajunge. Chemi request_callback o singură dată, cu reason «Client solicită operator uman», și treci imediat la ce poți rezolva tu.
+- Insistă a doua oară? Repeți același adevăr, calm, cu alte cuvinte, și întrebi din nou cu ce îl poți ajuta tu. Nu inventezi un program, un birou sau un moment «când va fi cineva».`;
+
+const OPERATOR_MARKER_RU = 'ОПЕРАТОР — ПЕРЕДАТЬ НЕКОМУ';
+const OPERATOR_BLOCK_RU = `
+
+ОПЕРАТОР — ПЕРЕДАТЬ НЕКОМУ:
+- Клиент просит оператора, «человека», «кого-нибудь из компании»? С первой же просьбы говоришь прямо: живого оператора НЕТ и передать обращение НЕКОМУ — ты единственный контакт компании по телефону. Пример: «На этом номере нет оператора, и передать обращение мне некому — на всё отвечаю я. Могу помочь с расписанием, номером водителя, жалобой или забытой вещью.»
+- ЗАПРЕЩЕНО говорить «данные переданы», «я передала обращение», «записала и передам», «этим займутся» — их никто не получит, и клиент напрасно будет ждать ответа.
+- НЕ спрашивай имя и НЕ собирай детали «для оператора»: им некуда попасть. Вызови request_callback один раз с reason «Client solicită operator uman» и сразу переходи к тому, что можешь решить сама.
+- Настаивает второй раз? Спокойно повторяешь ту же правду другими словами и снова спрашиваешь, чем можешь помочь ты. Не выдумывай график, офис или момент, «когда кто-то будет».`;
+
+// Rândurile originale din secțiunile OPERATOR UMAN / ЖИВОЙ ОПЕРАТОР, anulate 09.09.
+const OPERATOR_OBSOLETE = '\nDacă clientul insistă să vorbească cu un om: folosește request_callback și spune că ai NOTAT solicitarea și datele lui. NU promite că cineva îl va suna înapoi.';
+const OPERATOR_OBSOLETE_RU = '\nКлиент настаивает на разговоре с человеком: вызови request_callback и скажи, что ЗАПИСАЛА обращение и его данные. НЕ обещай, что кто-то перезвонит.';
+
 // Ion, 07.09: «să nu inventeze niciodată orele agentul, niciodată». Apel real
 // (conv_3201m1ygxgnjefprgw97vw05n664, Chișinău→Bălți, 21:09): search_trips a întors
 // 0 curse pe azi; rândul de mai jos (ZI_FARA_CURSE_OBSOLETE) cerea recăutarea pe
@@ -505,6 +535,9 @@ async function canonKeywords(): Promise<string[]> {
 // Первый случай: блок e2c6263 разрешал обещать перезвон ПОСЛЕ request_callback —
 // отменён решением Иона 24.08 «операторов, которые перезванивают, нет».
 const OBSOLETE_BLOCKS = [
+  // Ion 09.09: la cerere de operator agentul spune că nu are cui transmite.
+  // Înlocuit de OPERATOR_BLOCK.
+  OPERATOR_OBSOLETE,
   // Ion 07.09: 0 curse → tool-ul aduce singur ziua următoare; rândul care cerea al
   // doilea apel a produs ore inventate. Înlocuit de ZI_FARA_CURSE_BLOCK.
   ZI_FARA_CURSE_OBSOLETE,
@@ -795,6 +828,7 @@ async function checkAndHealConfig(cfg: any, drifts: Drift[], complaintToolExists
     { marker: 'CÂMPURILE _RU — DOAR ÎN REPLICI RUSEȘTI', block: CAMPURI_RU_BLOCK, field: 'prompt.CAMPURI_RU' },
     { marker: 'ALT NUMĂR NU EXISTĂ', block: ALT_NUMAR_BLOCK, field: 'prompt.ALT_NUMAR' },
     { marker: 'ZI FĂRĂ CURSE — URMĂTOAREA VINE DIN TOOL', block: ZI_FARA_CURSE_BLOCK, field: 'prompt.ZI_FARA_CURSE' },
+    { marker: 'OPERATOR — NU AM CUI TRANSMITE', block: OPERATOR_BLOCK, field: 'prompt.OPERATOR' },
   ];
   let healedPrompt = prompt;
   for (const ob of OBSOLETE_BLOCKS) {
@@ -931,6 +965,7 @@ async function healRuStation(lostToolId: string | null, complaintToolId: string 
   if (healed.includes(LUCRURI_OBSOLETE_RU)) healed = healed.replace(LUCRURI_OBSOLETE_RU, '');
   if (healed.includes(LUCRURI_OBSOLETE_RU_30_08)) healed = healed.replace(LUCRURI_OBSOLETE_RU_30_08, '');
   if (healed.includes(RECLAMATII_OBSOLETE_RU_01_09)) healed = healed.replace(RECLAMATII_OBSOLETE_RU_01_09, '');
+  if (healed.includes(OPERATOR_OBSOLETE_RU)) healed = healed.replace(OPERATOR_OBSOLETE_RU, '');
   // Santinelă pe SENS, nu pe rând exact: «Северный автовокзал» rescris de mână în
   // dashboard nu mai potrivește надгробие-ul. Atunci NU adăugăm blocul peste
   // contradicție — raportăm drift nevindecat. Blocul PROPRIU conține fraza în
@@ -951,6 +986,7 @@ async function healRuStation(lostToolId: string | null, complaintToolId: string 
   if (!healed.includes(LIMBA_VOCII_MARKER_RU)) { healed += LIMBA_VOCII_BLOCK_RU; vindecate.push('ru.prompt.LIMBA_VOCII'); }
   if (!healed.includes(ALT_NUMAR_MARKER_RU)) { healed += ALT_NUMAR_BLOCK_RU; vindecate.push('ru.prompt.ALT_NUMAR'); }
   if (!healed.includes(ZI_FARA_CURSE_MARKER_RU)) { healed += ZI_FARA_CURSE_BLOCK_RU; vindecate.push('ru.prompt.ZI_FARA_CURSE'); }
+  if (!healed.includes(OPERATOR_MARKER_RU)) { healed += OPERATOR_BLOCK_RU; vindecate.push('ru.prompt.OPERATOR'); }
   // Lista tipurilor, în rusă. Sincronizată pe conținut, ca la RO — vezi syncTypesBlock.
   const nevindecate: Drift[] = [];
   if (tipuriInTool) {

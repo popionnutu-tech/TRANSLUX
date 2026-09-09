@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     // Fără promisiuni de apel înapoi — nu există operatori care sună (decizia
     // lui Ion 24.08: «agentul nu promite... doar spune ca a colectat datele»).
-    result: 'Am notat datele. Nu promite clientului că cineva îl sună înapoi.',
+    // Ion 09.09: nici «datele au fost transmise» — nu există cui (OPERATOR_BLOCK).
+    result: 'Am notat datele. Nu promite clientului că cineva îl sună înapoi și nu-i spune că datele au fost transmise cuiva: nu există operator care să le primească.',
   });
 }

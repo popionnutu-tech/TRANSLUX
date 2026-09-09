@@ -31,6 +31,7 @@ export const PROMPT_MARKERS_RO = [
   'CÂMPURILE _RU — DOAR ÎN REPLICI RUSEȘTI',
   'ALT NUMĂR NU EXISTĂ',
   'ZI FĂRĂ CURSE — URMĂTOAREA VINE DIN TOOL',
+  'OPERATOR — NU AM CUI TRANSMITE',
 ];
 
 /** Aceleași repere, în promptul agentului rusesc. */
@@ -44,6 +45,7 @@ export const PROMPT_MARKERS_RU = [
   'ЯЗЫК ГОЛОСА — ТОЛЬКО РУССКИЙ ИЛИ РУМЫНСКИЙ',
   'ДРУГОГО НОМЕРА НЕ СУЩЕСТВУЕТ',
   'ДЕНЬ БЕЗ РЕЙСОВ — СЛЕДУЮЩИЙ ПРИХОДИТ ИЗ ТУЛА',
+  'ОПЕРАТОР — ПЕРЕДАТЬ НЕКОМУ',
 ];
 
 export const TOATE_MARKERELE = [...PROMPT_MARKERS_RO, ...PROMPT_MARKERS_RU];

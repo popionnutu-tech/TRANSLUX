@@ -124,6 +124,13 @@ describe('верификаторы', () => {
     const weak: JudgeViolation = { rule: 'promite_callback', quote: 'vă pot ajuta cu orarul', summary_ru: 's' };
     const noPromise = buildFacts('c', '2026-08-26T18:00:00Z', [{ role: 'agent', message: 'Vă pot ajuta cu orarul.', time_in_call_secs: 1 }]);
     expect(verifyCallbackPromise(weak, noPromise)).toBe(false);
+    // Ion 09.09: «datele au fost transmise» la cererea de operator — nu există cui.
+    const sent = buildFacts('c', '2026-09-09T15:00:00Z', [{ role: 'agent', message: 'Am notat solicitarea. Datele dumneavoastră au fost transmise.', time_in_call_secs: 1 }]);
+    const vSent: JudgeViolation = { rule: 'promite_callback', quote: 'datele dumneavoastră au fost transmise', summary_ru: 's' };
+    expect(verifyCallbackPromise(vSent, sent)).toBe(true);
+    const sentRu = buildFacts('c', '2026-09-09T15:00:00Z', [{ role: 'agent', message: 'Я записала и передала ваше обращение.', time_in_call_secs: 1 }]);
+    const vSentRu: JudgeViolation = { rule: 'promite_callback', quote: 'передала ваше обращение', summary_ru: 's' };
+    expect(verifyCallbackPromise(vSentRu, sentRu)).toBe(true);
   });
 
   it('zi_gresita: день не из date_label → true; совпадающий → false; без тулов → false', () => {

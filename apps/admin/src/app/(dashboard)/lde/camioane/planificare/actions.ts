@@ -340,8 +340,9 @@ export async function salveazaCursa(input: CursaInput): Promise<Rezultat> {
     // Ion, 09.09: a pus aceeași cursă de două ori, crezând că prima nu s-a salvat.
     // Mesajul spune unde e cea veche și ce are de făcut.
     return {
-      error: `Camionul are deja o cursă în acest interval (${de} → ${la}) — e pe bandă, pe rândul lui. `
-        + 'Ca s-o schimbi, apasă pe bară și modific-o; ca să pui alta, alege alt camion sau alte zile.',
+      error: `Camionul are deja o cursă în acest interval (${de} → ${la}). `
+        + 'O vezi ca bara colorată de pe rândul camionului, în bandă. '
+        + 'Ca s-o schimbi, dă click pe bara colorată și modific-o; ca să pui alta, alege alt camion sau alte zile.',
     };
   }
 

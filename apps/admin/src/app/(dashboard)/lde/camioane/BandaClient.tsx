@@ -229,7 +229,10 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
     setMesaj(''); setEroare('');
     pornesteTranzitia(async () => {
       const r = await actiune();
-      if ('error' in r) { setEroare(r.error); return; }
+      // Și la eroare se recitește banda: «camionul are deja o cursă» venea într-o
+      // filă deschisă de dimineață, unde bara acelei curse încă nu apăruse — Ion
+      // (09.09) nu găsea «bara» din mesaj. Acum, după refuz, ea se vede pe rând.
+      if ('error' in r) { setEroare(r.error); router.refresh(); return; }
       setMesaj(r.mesaj);
       dupaSucces?.();
       router.refresh();

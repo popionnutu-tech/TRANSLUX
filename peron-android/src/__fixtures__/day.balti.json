@@ -215,6 +215,8 @@
     "from": "04:50",
     "to": "20:50"
   },
+  "dayOff": false,
+  "dayOffText": null,
   "assignments": {},
   "drivers": [],
   "vehicles": [],

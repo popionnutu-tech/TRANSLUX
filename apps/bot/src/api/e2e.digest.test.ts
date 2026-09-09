@@ -285,3 +285,127 @@ describe('2. Ziua cu ambele puncte', () => {
     expect(telegram.filter((t) => t.method === 'sendMessage')).toHaveLength(2);
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// Spec docs/specs/peron-app-skip-and-dayoff.md: cursele sărite într-un rând per
+// punct și vinerea ca zi fără operator la Chișinău (fără curățenie și prezență
+// pentru Chișinău în digest, rutele de scriere refuză cu 409 DAY_OFF).
+
+function clockOn(date: string, hhmm: string): void {
+  vi.setSystemTime(new Date(`${date}T${hhmm}:00+03:00`));
+}
+function isoOn(date: string, hhmm: string): string {
+  return new Date(`${date}T${hhmm}:00+03:00`).toISOString();
+}
+
+describe('3. Joi: «N-am fost la cursă» la ambele puncte', () => {
+  const THU = '2026-06-11';
+
+  it('Vitalie sare 06:55 și 07:35, Andrei sare 05:20 — fără rânduri în reports', async () => {
+    fake = installMocks(seedDay(THU));
+    clockOn(THU, '07:30');
+    tokenA = await link('573202', IDS.users.andrei);
+    tokenV = await link('482914', IDS.users.vitalie);
+
+    for (const t of ['06:55', '07:35']) {
+      const res = await srv.api('POST', 'skip', { tripId: TC(t) }, tokenV);
+      expect(res.status, `skip ${t}`).toBe(200);
+    }
+    const res = await srv.api('POST', 'skip', { tripId: TB('05:20') }, tokenA);
+    expect(res.status).toBe(200);
+    expect(res.body.next).toBe(TB('05:30'));
+    expect(fake._tables.operator_trip_skips).toHaveLength(3);
+    expect(fake._tables.reports).toHaveLength(0);
+
+    const dayB = await srv.api('GET', 'day', undefined, tokenA);
+    expect(dayB.body.trips.slice(0, 2).map((t: any) => t.state)).toEqual(['skipped', 'next']);
+  });
+
+  it('digestul: un rând per punct cu orele și numele; curățenia rămâne lipsă (joi e zi de lucru)', async () => {
+    clockOn(THU, '20:30');
+    expect(await sendCompactDigest()).toBe(true);
+    expect(alerts).toEqual([
+      [
+        '📋 Raport 11.06 — 0 încălcări din 0 rapoarte',
+        '',
+        '⏭ Curse sărite',
+        'Chișinău: operatorul n-a fost la 06:55, 07:35 (Vitalie)',
+        'Bălți: operatorul n-a fost la 05:20 (Andrei)',
+        '',
+        '🧹 Curățenie Chișinău',
+        'dimineață: ⬜ peron lipsă · ⬜ pietoni lipsă · ⬜ veceu lipsă',
+        '15:00: ⬜ peron lipsă · ⬜ pietoni lipsă · ⬜ veceu lipsă',
+      ].join('\n'),
+    ]);
+  });
+});
+
+describe('4. Vineri: zi fără operator la Chișinău', () => {
+  const FRI = '2026-06-12';
+
+  it('/day al lui Vitalie: dayOff true cu textul, presenceWindow null, cursele rămân; al lui Andrei: zi normală', async () => {
+    fake = installMocks(seedDay(FRI));
+    clockOn(FRI, '05:00');
+    tokenA = await link('573203', IDS.users.andrei);
+    tokenV = await link('482915', IDS.users.vitalie);
+
+    const v = await srv.api('GET', 'day', undefined, tokenV);
+    expect(v.status).toBe(200);
+    expect(v.body).toMatchObject({ dayOff: true, dayOffText: 'Vineri: zi fără operator la Chișinău', presenceWindow: null });
+    expect(v.body.trips).toHaveLength(29);
+
+    const a = await srv.api('GET', 'day', undefined, tokenA);
+    expect(a.body).toMatchObject({ dayOff: false, dayOffText: null });
+    expect(a.body.presenceWindow).toEqual({ from: '04:50', to: '20:50' });
+  });
+
+  it('la Chișinău /report, /skip, /cleaning-photo și /driver-photo → 409 DAY_OFF, fără rânduri, fără apel la model', async () => {
+    clockOn(FRI, '06:55');
+    const calls = [
+      srv.api('POST', 'report', { tripId: TC('06:55'), status: 'ABSENT' }, tokenV),
+      srv.api('POST', 'skip', { tripId: TC('06:55') }, tokenV),
+      srv.api('POST', 'cleaning-photo', { slot: 'DIMINEATA', zone: 'PERON', imageBase64: JPEG_B64, lat: CH.lat, lon: CH.lon }, tokenV),
+      srv.api('POST', 'driver-photo', { tripId: TC('06:55'), driverId: IDS.drivers.ionMunteanu, imageBase64: JPEG_B64, lat: CH.lat, lon: CH.lon }, tokenV),
+    ];
+    for (const res of await Promise.all(calls)) {
+      expect(res.status).toBe(409);
+      expect(res.body.code).toBe('DAY_OFF');
+      expect(res.body.message).toContain('Vineri: zi fără operator la Chișinău');
+    }
+    expect(fake._tables.reports).toHaveLength(0);
+    expect(fake._tables.operator_trip_skips).toHaveLength(0);
+    expect(fake._tables.peron_cleaning_checks).toHaveLength(0);
+    expect(fake._tables.driver_appearance_checks).toHaveLength(0);
+    expect(Object.keys(fake._storage['report-photos'] ?? {})).toEqual([]);
+  });
+
+  it('Bălți lucrează normal: 05:20 OK în zonă → 200; ping-urile lui Vitalie se acceptă totuși', async () => {
+    clockOn(FRI, '05:20');
+    const res = await srv.api('POST', 'report', { tripId: TB('05:20'), status: 'OK', passengersCount: 10, ...BA_ZONE }, tokenA);
+    expect(res.status).toBe(200);
+
+    clockOn(FRI, '20:29');
+    const andrei = every('04:50', '20:30', 2).map((t) => ({ at: isoOn(FRI, t), lat: BA.lat, lon: BA.lon, accuracyM: 10 }));
+    for (let i = 0; i < andrei.length; i += 200) {
+      expect((await srv.api('POST', 'presence', { pings: andrei.slice(i, i + 200) }, tokenA)).status).toBe(200);
+    }
+    const vitalie = every('07:00', '09:00', 2).map((t) => ({ at: isoOn(FRI, t), lat: CH.lat, lon: CH.lon, accuracyM: 10 }));
+    const ping = await srv.api('POST', 'presence', { pings: vitalie }, tokenV);
+    expect(ping.status).toBe(200);
+    expect(ping.body.accepted).toBe(vitalie.length);
+  });
+
+  it('digestul: rândul de zi liberă, FĂRĂ curățenie și fără prezența lui Vitalie; Bălți apare', async () => {
+    clockOn(FRI, '20:30');
+    expect(await sendCompactDigest()).toBe(true);
+    expect(alerts).toEqual([
+      [
+        '📋 Raport 12.06 — 0 încălcări din 1 rapoarte',
+        'Chișinău: vineri, zi fără operator',
+        '',
+        '📍 Prezență în zona de lucru',
+        '@andrei_balti (Bălți): toată tura în zonă',
+      ].join('\n'),
+    ]);
+  });
+});

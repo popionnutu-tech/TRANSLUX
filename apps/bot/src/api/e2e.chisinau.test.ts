@@ -1034,3 +1034,163 @@ describe('15. Prezența GPS pe toată tura', () => {
     expect(msg).not.toContain('Bălți');
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// Spec docs/specs/peron-app-skip-and-dayoff.md — «N-am fost la cursă». Zi NOUĂ
+// (joi 11.06), fake reinstalat: Vitalie (în rolul lui Aurel) vine la 07:30, sare
+// 06:55 și 07:35, face pozele de dimineață la 08:15; după-amiază sare tot până la
+// 16:25 inclusiv, iar poarta de zi cade pe 16:45.
+
+describe('16. «N-am fost la cursă» (Aurel vine la 07:30)', () => {
+  const DATE2 = '2026-06-11'; // joi
+  const clock2 = (hhmm: string) => vi.setSystemTime(at(hhmm, DATE2));
+  const skip = (time: string) => srv.api('POST', 'skip', { tripId: T(time) }, token);
+  const skips = () => fake._tables.operator_trip_skips;
+  const stateOf = (body: any, time: string) => body.trips.find((t: any) => t.id === T(time)).state;
+  /** Poza șoferului + raport OK → 200 (etalonul botului din `fullTrip` e legat de DATE, aici e altă zi). */
+  async function okTrip(time: string, o: OkOverrides = {}) {
+    const photo = await driverPhoto(time, o.driverId === undefined ? IDS.drivers.ionMunteanu : o.driverId, DRIVER_OK);
+    expect(photo.status, `driver-photo ${time}`).toBe(200);
+    const res = await report(okBody(time, photo.body.driverCheckId, o));
+    expect(res.status, `report ${time}: ${JSON.stringify(res.body)}`).toBe(200);
+    expect(reportFor(time)).toMatchObject({ report_date: DATE2, trip_id: T(time), status: 'OK', source: 'app', driver_check_id: photo.body.driverCheckId });
+    return res;
+  }
+
+  it('zi nouă: Vitalie se conectează la 07:30; /day: 06:55 next, dayOff false, fereastra de prezență există', async () => {
+    fake = installMocks(seedDay(DATE2));
+    clock2('07:30');
+    fake._tables.peron_app_link_codes.push(linkCodeRow('770011', IDS.users.vitalie));
+    const link = await srv.api('POST', 'auth/link', { code: '770011' });
+    expect(link.status).toBe(200);
+    token = link.body.token;
+
+    const { status, body } = await day();
+    expect(status).toBe(200);
+    expect(body.dayOff).toBe(false);
+    expect(body.dayOffText).toBeNull();
+    expect(body.presenceWindow).toEqual({ from: '06:25', to: '20:30' });
+    expect(stateOf(body, '06:55')).toBe('next');
+  });
+
+  it('sărirea lui 07:35 când urmează 06:55 → 409 NOT_NEXT; fără tripId → 400; cursă străină → 400 UNKNOWN_TRIP', async () => {
+    let res = await skip('07:35');
+    expect(res.status).toBe(409);
+    expect(res.body).toMatchObject({ code: 'NOT_NEXT' });
+    expect(res.body.message).toContain('06:55');
+    res = await srv.api('POST', 'skip', {}, token);
+    expect(res.status).toBe(400);
+    res = await srv.api('POST', 'skip', { tripId: tripId('BALTI', '05:20') }, token);
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('UNKNOWN_TRIP');
+    expect(skips()).toHaveLength(0);
+  });
+
+  it('06:55 sărită → 200 { next: 07:35 }; încă o dată → 409 ALREADY_SKIPPED; 07:35 sărită → next 08:15', async () => {
+    let res = await skip('06:55');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true, next: T('07:35') });
+    res = await skip('06:55');
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('ALREADY_SKIPPED');
+    res = await skip('07:35');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true, next: T('08:15') });
+
+    expect(skips()).toHaveLength(2);
+    expect(skips()[0]).toMatchObject({ skip_date: DATE2, point: 'CHISINAU', trip_id: T('06:55'), user_id: IDS.users.vitalie });
+    expect(skips()[1]).toMatchObject({ skip_date: DATE2, point: 'CHISINAU', trip_id: T('07:35'), user_id: IDS.users.vitalie });
+    expect(reports()).toHaveLength(0); // nimic în reports — cursa sărită nu e «absent»
+  });
+
+  it('/day: 06:55 și 07:35 `skipped`, 08:15 `next`, restul locked', async () => {
+    const { body } = await day();
+    expect(body.trips.map((t: any) => t.state).slice(0, 4)).toEqual(['skipped', 'skipped', 'next', 'locked']);
+    expect(body.trips.filter((t: any) => t.state === 'next')).toHaveLength(1);
+  });
+
+  it('raport pe o cursă sărită → 409 ALREADY_SKIPPED; pe 08:50 → 409 NOT_NEXT (urmează 08:15)', async () => {
+    let res = await report({ tripId: T('06:55'), status: 'ABSENT' });
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('ALREADY_SKIPPED');
+    res = await report({ tripId: T('08:50'), status: 'ABSENT' });
+    expect(res.status).toBe(409);
+    expect(res.body).toMatchObject({ code: 'NOT_NEXT' });
+    expect(res.body.message).toContain('08:15');
+  });
+
+  it('08:15 — prima cursă raportată efectiv — cere setul DIMINEATA (409 CLEANING_REQUIRED), deși nu e prima din orar', async () => {
+    clock2('08:10');
+    const photo = await driverPhoto('08:15', IDS.drivers.petruCiobanu, DRIVER_OK);
+    expect(photo.status).toBe(200);
+    const res = await report(okBody('08:15', photo.body.driverCheckId, { driverId: IDS.drivers.petruCiobanu, vehicleId: IDS.vehicles.lyy735 }));
+    expect(res.status).toBe(409);
+    expect(res.body).toMatchObject({ code: 'CLEANING_REQUIRED', slot: 'DIMINEATA', missing: ['PERON', 'PIETONI', 'VECEU'] });
+    expect(res.body.message).toContain('08:15');
+    expect(reports()).toHaveLength(0);
+  });
+
+  it('setul DIMINEATA din 3 poze → 08:15 trece (200), rândul e ca la bot; sărirea unei curse raportate → 409 ALREADY_REPORTED', async () => {
+    for (const zone of ['PERON', 'PIETONI', 'VECEU'] as const) {
+      expect((await cleaningPhoto('DIMINEATA', zone, CLEAN_OK)).status).toBe(200);
+    }
+    clock2('08:15');
+    const ok = await okTrip('08:15', { driverId: IDS.drivers.petruCiobanu, vehicleId: IDS.vehicles.lyy735 });
+    expect(ok.body.summary).toBe('☑ 08:15 — 12 pas. | Petru C.');
+    expect(reports()).toHaveLength(1);
+
+    const res = await skip('08:15');
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('ALREADY_REPORTED');
+    expect(skips()).toHaveLength(2);
+
+    const { body } = await day();
+    expect(body.trips.map((t: any) => t.state).slice(0, 5)).toEqual(['skipped', 'skipped', 'done', 'next', 'locked']);
+  });
+
+  it('după-amiază: operatorul sare tot de la 08:50 până la 16:25 inclusiv — fiecare sărire mută `next` cu una', async () => {
+    clock2('16:30');
+    const times = CHISINAU_TIMES.slice(CHISINAU_TIMES.indexOf('08:50'), CHISINAU_TIMES.indexOf('16:25') + 1);
+    for (let i = 0; i < times.length; i++) {
+      const res = await skip(times[i]);
+      expect(res.status, `skip ${times[i]}: ${JSON.stringify(res.body)}`).toBe(200);
+      expect(res.body.next).toBe(T(i + 1 < times.length ? times[i + 1] : '16:45'));
+    }
+    expect(skips()).toHaveLength(2 + times.length);
+    const { body } = await day();
+    expect(stateOf(body, '16:25')).toBe('skipped');
+    expect(stateOf(body, '16:45')).toBe('next');
+  });
+
+  it('16:25 sărită → poarta de zi cade pe 16:45: fără setul ZIUA → 409 CLEANING_REQUIRED { ZIUA }', async () => {
+    clock2('16:45');
+    const photo = await driverPhoto('16:45', IDS.drivers.ionMunteanu, DRIVER_OK);
+    expect(photo.status).toBe(200);
+    const res = await report(okBody('16:45', photo.body.driverCheckId));
+    expect(res.status).toBe(409);
+    expect(res.body).toMatchObject({ code: 'CLEANING_REQUIRED', slot: 'ZIUA', missing: ['PERON', 'PIETONI', 'VECEU'] });
+    expect(res.body.message).toContain('16:45');
+  });
+
+  it('setul ZIUA → 16:45 trece; 17:20 nu mai are nicio poartă', async () => {
+    for (const zone of ['PERON', 'PIETONI', 'VECEU'] as const) {
+      expect((await cleaningPhoto('ZIUA', zone, CLEAN_OK)).status).toBe(200);
+    }
+    await okTrip('16:45');
+    clock2('17:20');
+    await okTrip('17:20', { driverId: IDS.drivers.vasileRusu, vehicleId: IDS.vehicles.wvw526 });
+    expect(reports()).toHaveLength(3);
+  });
+
+  it('digestul: rândul «Chișinău: operatorul n-a fost la 06:55, 07:35, … 16:25 (Vitalie)», curățenia completă, 3 rapoarte', async () => {
+    clock2('20:30');
+    expect(await sendCompactDigest()).toBe(true);
+    const msg = alerts.at(-1)!;
+    expect(msg).toContain('📋 Raport 11.06 — 0 încălcări din 3 rapoarte');
+    expect(msg).toContain('\n\n⏭ Curse sărite\nChișinău: operatorul n-a fost la 06:55, 07:35, 08:50, 09:25, ');
+    expect(msg).toContain(', 16:05, 16:25 (Vitalie)\n');
+    expect(msg).not.toContain('Bălți');
+    expect(msg).toContain('dimineață: ✅ peron · ✅ pietoni · ✅ veceu');
+    expect(msg).toContain('15:00: ✅ peron · ✅ pietoni · ✅ veceu');
+  });
+});

@@ -1,12 +1,16 @@
 /**
  * GET /app/v1/day — tot ce îi trebuie aplicației ca să deseneze ziua operatorului:
- * cursele cu starea lor (done / next / locked), repartizările din grafic, listele de
+ * cursele cu starea lor (done / skipped / next / locked), repartizările din grafic, listele de
  * șoferi și auto încă nefolosite azi, sarcinile reclamă deschise per placă, întrebarea
  * de climă per auto, zonele de curățenie închise, poza de azi a fiecărui șofer
  * (`driverChecks` — valabilă la toate cursele lui din zi, Ion 09.09) și configul de
  * locație al punctului.
  *
  * Bălți primește fluxul scurt: doar cursele + stația; listele vin goale, `allowFull`.
+ *
+ * Zi fără operator la punct (vineri la Chișinău): `dayOff: true` cu textul pentru
+ * ecran, `presenceWindow: null` (aplicația nu urmărește GPS-ul); restul rămâne ca să
+ * nu se schimbe contractul.
  * Totul se citește prin services/db.ts, exact ca în conversations/report.ts.
  */
 import { config } from '../config.js';
@@ -22,13 +26,14 @@ import {
   getDirectionForPoint,
   getOpenReclamaTasks,
   getReportedTripIds,
+  getSkippedTripIds,
   getTodayDriverChecks,
   getUsedDriverIds,
   getUsedVehicleIds,
 } from '../services/db.js';
 import type { CleaningZone, PointEnum } from '@translux/db';
 import type { AppUser } from './auth.js';
-import { tripStates, type TripState } from './dayState.js';
+import { dayOffText, tripStates, type TripState } from './dayState.js';
 import { presenceWindow, type PresenceWindow } from './presence.js';
 
 export interface DayTrip {
@@ -71,8 +76,12 @@ export interface DayResponse {
   locationExemptTimes: string[];
   station: { lat: number; lon: number; radiusM: number };
   allowFull: boolean;
-  /** Fereastra turei (prima cursă − 30 min … ultima + 30 min): aplicația urmărește GPS-ul doar în ea. */
+  /** Fereastra turei (prima cursă − 30 min … ultima + 30 min): aplicația urmărește GPS-ul doar în ea; null la zi liberă. */
   presenceWindow: PresenceWindow | null;
+  /** Zi fără operator la punct (config.noOperatorWeekdays): fără grilă, fără GPS, rutele de scriere dau 409 DAY_OFF. */
+  dayOff: boolean;
+  /** «Vineri: zi fără operator la Chișinău» — textul ecranului; null în zilele de lucru. */
+  dayOffText: string | null;
 }
 
 /** ISO → HH:MM pe ora Chișinăului (ora la care s-a făcut poza). */
@@ -84,11 +93,12 @@ export async function getDay(user: AppUser): Promise<DayResponse> {
   const date = getTodayDate();
   const point = user.point;
 
-  const [allTrips, reportedIds] = await Promise.all([
+  const [allTrips, reportedIds, skippedIds] = await Promise.all([
     getAllTripsForDirection(getDirectionForPoint(point)),
     getReportedTripIds(date, point),
+    getSkippedTripIds(date, point),
   ]);
-  const states = new Map(tripStates(allTrips, reportedIds).map((s) => [s.id, s.state]));
+  const states = new Map(tripStates(allTrips, reportedIds, skippedIds).map((s) => [s.id, s.state]));
   const trips: DayTrip[] = allTrips.map((t) => ({
     id: t.id,
     departure_time: formatTime(t.departure_time),
@@ -97,12 +107,15 @@ export async function getDay(user: AppUser): Promise<DayResponse> {
     state: states.get(t.id) ?? 'locked',
   }));
 
+  const offText = dayOffText(point, date);
   const base = {
     date,
     point,
     user: { id: user.id, name: user.name, point },
     trips,
-    presenceWindow: presenceWindow(allTrips),
+    presenceWindow: offText ? null : presenceWindow(allTrips),
+    dayOff: offText !== null,
+    dayOffText: offText,
   };
 
   if (point === 'BALTI') {

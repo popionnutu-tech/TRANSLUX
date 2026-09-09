@@ -23,6 +23,12 @@ export const config = {
   // setul de zi înaintea cursei de mai jos (Ion, 08.09: «la 16:25 fără poze nu poate»).
   cleaningGateTripTime: '16:25',
 
+  // Zile fără operator la punct (ISO: 1 = luni … 7 = duminică). Vitalie (09.09):
+  // «Vinerea? Cum fără fotografie» — vineri nu e operator la Chișinău, aplicația
+  // arată «zi fără operator», rutele de scriere refuză (409 DAY_OFF), digestul nu
+  // reclamă poze și prezență lipsă.
+  noOperatorWeekdays: { CHISINAU: [5], BALTI: [] },
+
   // Poza șoferului (aplicația de peron): ce înseamnă «uniformă» pentru model.
   // Ion (interviu 09.09): «tricoul vișiniu, sau cămașă albă ori albastru-deschis
   // într-o singură culoare (cămășile băgate în pantaloni)». Singurul loc unde se

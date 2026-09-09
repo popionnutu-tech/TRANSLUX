@@ -23,6 +23,7 @@ import {
   getDirectionForPoint,
   getDriverAppearanceCheck,
   getReportedTripIds,
+  getSkippedTripIds,
   getVehiclePlate,
   updateAssignmentDriverVehicle,
   validateDay,
@@ -31,7 +32,7 @@ import { addViolation } from '../services/dailyDigest.js';
 import { updateLoadingBoard, updateLoadingBoardBalti } from '../services/loadingBoard.js';
 import { formatTime, getTodayDate, minutesLate } from '../utils.js';
 import type { AppUser } from './auth.js';
-import { nextTripId } from './dayState.js';
+import { assertNotDayOff, nextTripId } from './dayState.js';
 import { ApiError, badRequest } from './errors.js';
 import {
   CleaningRequiredError,
@@ -62,18 +63,21 @@ export async function postReport(user: AppUser, rawBody: unknown): Promise<Repor
   const point = user.point;
   const sent = parseReportBody(rawBody, point);
   const date = getTodayDate();
+  assertNotDayOff(point, date);
 
-  const [allTrips, reportedIds] = await Promise.all([
+  const [allTrips, reportedIds, skippedIds] = await Promise.all([
     getAllTripsForDirection(getDirectionForPoint(point)),
     getReportedTripIds(date, point),
+    getSkippedTripIds(date, point),
   ]);
   const trip = allTrips.find((t) => t.id === sent.tripId);
   if (!trip) throw badRequest('Cursă necunoscută pentru punctul tău', 'UNKNOWN_TRIP');
 
-  // Ordinea rămâne secvențială, ca în bot: doar prima cursă neraportată se poate raporta.
-  const next = nextTripId(allTrips, reportedIds);
+  // Ordinea rămâne secvențială, ca în bot: doar prima cursă nici raportată, nici sărită se poate raporta.
+  const next = nextTripId(allTrips, reportedIds, skippedIds);
   if (next !== trip.id) {
     if (reportedIds.has(trip.id)) throw new ApiError(409, 'ALREADY_REPORTED', 'Această cursă a fost deja înregistrată');
+    if (skippedIds.has(trip.id)) throw new ApiError(409, 'ALREADY_SKIPPED', 'Ai marcat că n-ai fost la această cursă');
     const nextTrip = allTrips.find((t) => t.id === next);
     throw new ApiError(
       409,
@@ -82,8 +86,9 @@ export async function postReport(user: AppUser, rawBody: unknown): Promise<Repor
     );
   }
 
-  // Poarta de curățenie (Chișinău): prima cursă cere setul DIMINEATA, 16:25 setul ZIUA.
-  const slot = cleaningGateSlot(point, allTrips, trip.id);
+  // Poarta de curățenie (Chișinău): prima cursă raportată efectiv azi cere setul DIMINEATA,
+  // 16:25 (sau prima raportată după ea, dacă 16:25 a fost sărită) setul ZIUA.
+  const slot = cleaningGateSlot(point, allTrips, trip.id, reportedIds, skippedIds);
   if (slot) {
     const missing = cleaningMissing(await getCleaningZonesDone(date, slot));
     if (missing.length > 0) throw new CleaningRequiredError(slot, missing, trip.departure_time);

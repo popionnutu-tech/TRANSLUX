@@ -1,5 +1,5 @@
 import { sendAdminAlert } from './adminAlert.js';
-import { formatDate, getTodayDate } from '../utils.js';
+import { formatDate, formatTime, getTodayDate } from '../utils.js';
 import { getSupabase } from '../supabase.js';
 import {
   getActiveAppOperators,
@@ -7,11 +7,15 @@ import {
   getCleaningChecksForDate,
   getDirectionForPoint,
   getPresencePings,
+  getSkipsForDate,
   type CleaningSlot,
   type CleaningZone,
 } from './db.js';
 import { formatPresenceLine, lateStart, localToUtcMs, presencePeriods, presenceWindow, windowBounds } from '../api/presence.js';
 import { POINT_LABELS, type PointEnum } from '@translux/db';
+import { isDayOff, weekdayName } from '../api/dayState.js';
+
+const POINTS: readonly PointEnum[] = ['CHISINAU', 'BALTI'];
 
 // ── Types ────────────────────────────────────────────
 export interface Violation {
@@ -88,9 +92,13 @@ export async function addViolation(v: Violation): Promise<void> {
 export async function sendCompactDigest(): Promise<boolean> {
   const state = await loadState();
   const today = state.date;
-  const cleaningLines = await buildCleaningLines(today);
-  const presenceLines = await buildPresenceLines(today);
-  if (state.violations.length === 0 && cleaningLines.length === 0 && presenceLines.length === 0) return false;
+  // Zi fără operator la punct (vineri la Chișinău): nu reclamăm poze și prezență lipsă degeaba.
+  const dayOffPoints = new Set<PointEnum>(POINTS.filter((pt) => isDayOff(pt, today)));
+  const dayOffLines = Array.from(dayOffPoints).map((pt) => `${POINT_LABELS[pt]}: ${weekdayName(today)}, zi fără operator`);
+  const skipLines = await buildSkipLines(today);
+  const cleaningLines = dayOffPoints.has('CHISINAU') ? [] : await buildCleaningLines(today);
+  const presenceLines = await buildPresenceLines(today, new Date(), dayOffPoints);
+  if (state.violations.length === 0 && dayOffLines.length === 0 && skipLines.length === 0 && cleaningLines.length === 0 && presenceLines.length === 0) return false;
 
   // Count total reports today from DB per point
   const reportsByPoint: Record<string, number> = {};
@@ -134,6 +142,12 @@ export async function sendCompactDigest(): Promise<boolean> {
     msg += `\n${point}: ${total} (${parts.join(', ')})`;
   }
 
+  for (const line of dayOffLines) msg += `\n${line}`;
+
+  if (skipLines.length > 0) {
+    msg += `\n\n⏭ Curse sărite\n` + skipLines.join('\n');
+  }
+
   if (cleaningLines.length > 0) {
     msg += `\n\n🧹 Curățenie Chișinău\n` + cleaningLines.join('\n');
   }
@@ -145,6 +159,33 @@ export async function sendCompactDigest(): Promise<boolean> {
   await sendAdminAlert(msg);
   console.log(`Compact daily digest sent: ${totalViolations} violations`);
   return true;
+}
+
+// ── Cursele la care operatorul n-a fost (operator_trip_skips, migrația 332) ──
+
+/**
+ * Un rând per punct: «Chișinău: operatorul n-a fost la 06:55, 07:35 (Aurel)». Orele
+ * în ordinea plecării, numele operatorilor care au sărit (de obicei unul).
+ */
+async function buildSkipLines(date: string): Promise<string[]> {
+  try {
+    const skips = await getSkipsForDate(date);
+    if (skips.length === 0) return [];
+    const lines: string[] = [];
+    for (const pt of POINTS) {
+      const ofPoint = skips.filter((s) => s.point === pt);
+      if (ofPoint.length === 0) continue;
+      const trips = await getAllTripsForDirection(getDirectionForPoint(pt));
+      const skipped = new Set(ofPoint.map((s) => s.trip_id));
+      const times = trips.filter((t) => skipped.has(t.id)).map((t) => formatTime(t.departure_time));
+      const names = Array.from(new Set(ofPoint.map((s) => s.user_name ?? '—')));
+      lines.push(`${POINT_LABELS[pt]}: operatorul n-a fost la ${times.join(', ')} (${names.join(', ')})`);
+    }
+    return lines;
+  } catch (err) {
+    console.error('[digest] secțiunea curselor sărite a picat:', err);
+    return [];
+  }
 }
 
 // ── Curățenie peron Chișinău (poze la deschidere și la 15:00) ──
@@ -196,11 +237,11 @@ function presenceOperatorLabel(u: { id: string; username: string | null; telegra
  * plus «urmărire pornită abia la HH:MM» când primul ping vine la > 15 min după
  * începutul ferestrei. Nimic nu se trimite în timpul zilei — doar aici, seara.
  */
-async function buildPresenceLines(date: string, now: Date = new Date()): Promise<string[]> {
+async function buildPresenceLines(date: string, now: Date = new Date(), skipPoints: ReadonlySet<PointEnum> = new Set()): Promise<string[]> {
   try {
     const dayFrom = new Date(localToUtcMs(date, '00:00')).toISOString();
     const dayTo = new Date(localToUtcMs(date, '23:59')).toISOString();
-    const operators = await getActiveAppOperators(date, dayFrom, dayTo);
+    const operators = (await getActiveAppOperators(date, dayFrom, dayTo)).filter((op) => !skipPoints.has(op.point));
     if (operators.length === 0) return [];
 
     const boundsByPoint = new Map<PointEnum, { fromMs: number; toMs: number } | null>();

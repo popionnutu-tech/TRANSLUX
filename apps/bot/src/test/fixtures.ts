@@ -206,6 +206,7 @@ export function seedDay(date: string): Seed {
       peron_cleaning_checks: [],
       driver_appearance_checks: [],
       peron_presence_pings: [],
+      operator_trip_skips: [],
     },
     storage: { 'report-photos': {} },
   };

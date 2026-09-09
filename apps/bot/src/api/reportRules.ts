@@ -212,19 +212,33 @@ export function computeLocation(
 }
 
 /**
- * Poarta de curățenie (doar Chișinău): prima cursă a zilei cere setul DIMINEATA,
- * cursa `config.cleaningGateTripTime` cere setul ZIUA. Altfel null.
+ * Poarta de curățenie (doar Chișinău):
+ *  - DIMINEATA la PRIMA cursă raportată efectiv azi (niciun rând în `reports`), nu la
+ *    prima din orar — operatorul care a sărit 06:55 și 07:35 face pozele la 08:15
+ *    (Vitalie, 09.09);
+ *  - ZIUA la cursa `config.cleaningGateTripTime` (16:25) sau, dacă aceea a fost sărită,
+ *    la prima cursă raportată după ea.
+ * Altfel null. Când ambele s-ar aplica (toate cursele de până după 16:25 sărite), întâi
+ * DIMINEATA — următoarea încercare cere ZIUA.
  */
 export function cleaningGateSlot<T extends { id: string; departure_time: string }>(
   point: PointEnum,
   trips: readonly T[],
   tripId: string,
+  reportedIds: ReadonlySet<string>,
+  skippedIds: ReadonlySet<string>,
 ): CleaningSlot | null {
   if (point !== 'CHISINAU') return null;
-  const trip = trips.find((t) => t.id === tripId);
-  if (!trip) return null;
-  if (trip.id === trips[0]?.id) return 'DIMINEATA';
+  const idx = trips.findIndex((t) => t.id === tripId);
+  if (idx < 0) return null;
+  if (reportedIds.size === 0) return 'DIMINEATA';
+  const trip = trips[idx];
   if (formatTime(trip.departure_time) === config.cleaningGateTripTime) return 'ZIUA';
+  const gateIdx = trips.findIndex((t) => formatTime(t.departure_time) === config.cleaningGateTripTime);
+  if (gateIdx >= 0 && gateIdx < idx && skippedIds.has(trips[gateIdx].id)) {
+    const reportedBetween = trips.slice(gateIdx + 1, idx).some((t) => reportedIds.has(t.id));
+    if (!reportedBetween) return 'ZIUA';
+  }
   return null;
 }
 

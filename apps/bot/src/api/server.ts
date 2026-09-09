@@ -19,6 +19,7 @@ import { postVehicle } from './vehicle.js';
 import { postCleaningPhoto } from './cleaning.js';
 import { postDriverPhoto } from './driverPhoto.js';
 import { postPresence } from './presence.js';
+import { postSkip } from './skip.js';
 
 export const API_PREFIX = '/app/v1/';
 export const MAX_BODY_BYTES = 8 * 1024 * 1024;
@@ -66,6 +67,12 @@ const routes: Route[] = [
     path: 'report',
     auth: true,
     handler: async ({ user, body }) => postReport(user!, body),
+  },
+  {
+    method: 'POST',
+    path: 'skip',
+    auth: true,
+    handler: async ({ user, body }) => postSkip(user!, body),
   },
   {
     method: 'POST',

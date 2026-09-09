@@ -240,6 +240,11 @@ const SCHEMA: Record<string, TableMeta> = {
     defaults: { id: () => ++pingSeq, accuracy_m: () => null },
     relations: {},
   },
+  operator_trip_skips: {
+    ...COMMON,
+    columns: ['id', 'skip_date', 'point', 'trip_id', 'user_id', 'created_at'],
+    uniques: [{ name: 'idx_operator_trip_skips_unique', cols: ['skip_date', 'point', 'trip_id'] }],
+  },
   peron_app_link_codes: {
     pk: ['code'],
     columns: ['code', 'user_id', 'created_by', 'created_at', 'expires_at', 'used_at'],

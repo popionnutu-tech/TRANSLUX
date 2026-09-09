@@ -242,12 +242,33 @@ describe('poarta de curățenie', () => {
     { id: 'd', departure_time: '20:00:00' },
   ];
 
+  const none = new Set<string>();
+  const ids = (...xs: string[]) => new Set(xs);
+
   it('prima cursă → DIMINEATA; 16:25 → ZIUA; a doua → nimic; Bălți → nimic', () => {
-    expect(cleaningGateSlot('CHISINAU', trips, 'a')).toBe('DIMINEATA');
-    expect(cleaningGateSlot('CHISINAU', trips, 'c')).toBe('ZIUA');
-    expect(cleaningGateSlot('CHISINAU', trips, 'b')).toBeNull();
-    expect(cleaningGateSlot('CHISINAU', trips, 'd')).toBeNull();
-    expect(cleaningGateSlot('BALTI', trips, 'a')).toBeNull();
+    expect(cleaningGateSlot('CHISINAU', trips, 'a', none, none)).toBe('DIMINEATA');
+    expect(cleaningGateSlot('CHISINAU', trips, 'c', ids('a', 'b'), none)).toBe('ZIUA');
+    expect(cleaningGateSlot('CHISINAU', trips, 'b', ids('a'), none)).toBeNull();
+    expect(cleaningGateSlot('CHISINAU', trips, 'd', ids('a', 'b', 'c'), none)).toBeNull();
+    expect(cleaningGateSlot('BALTI', trips, 'a', none, none)).toBeNull();
+  });
+
+  it('DIMINEATA la prima cursă raportată EFECTIV: 06:55 sărită → poarta cade pe 08:30; după un raport nu se mai cere', () => {
+    expect(cleaningGateSlot('CHISINAU', trips, 'b', none, ids('a'))).toBe('DIMINEATA');
+    expect(cleaningGateSlot('CHISINAU', trips, 'c', none, ids('a', 'b'))).toBe('DIMINEATA'); // întâi dimineața, apoi ZIUA
+    expect(cleaningGateSlot('CHISINAU', trips, 'b', ids('a'), none)).toBeNull();
+  });
+
+  it('ZIUA la prima raportată după 16:25 când 16:25 e sărită; nu și când între ele e deja un raport', () => {
+    expect(cleaningGateSlot('CHISINAU', trips, 'd', ids('a', 'b'), ids('c'))).toBe('ZIUA');
+    expect(cleaningGateSlot('CHISINAU', trips, 'd', ids('a', 'b', 'c'), none)).toBeNull(); // 16:25 raportată normal
+    const five = [...trips, { id: 'e', departure_time: '20:30:00' }];
+    expect(cleaningGateSlot('CHISINAU', five, 'e', ids('a', 'b', 'd'), ids('c'))).toBeNull(); // 20:00 a purtat deja poarta
+    expect(cleaningGateSlot('CHISINAU', five, 'e', ids('a', 'b'), ids('c', 'd'))).toBe('ZIUA'); // și 20:00 sărită
+  });
+
+  it('cursă necunoscută → nimic', () => {
+    expect(cleaningGateSlot('CHISINAU', trips, 'zzz', none, none)).toBeNull();
   });
 
   it('set incomplet → CLEANING_REQUIRED cu slot și zonele lipsă', () => {

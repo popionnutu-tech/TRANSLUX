@@ -21,6 +21,7 @@ import { DRIVER_CHECK_MODEL, analyzeDriverPhoto } from '../services/driverCheck.
 import { removeReportPhotos, uploadReportPhoto } from '../services/photoStorage.js';
 import { getTodayDate } from '../utils.js';
 import type { AppUser } from './auth.js';
+import { assertNotDayOff } from './dayState.js';
 import { ApiError, badRequest } from './errors.js';
 import { decodeJpegBase64, parseCoords, requireId } from './photo.js';
 import { asObject } from './server.js';
@@ -63,6 +64,7 @@ export async function postDriverPhoto(user: AppUser, rawBody: unknown): Promise<
   }
   const body = parseDriverPhotoBody(rawBody);
   const checkDate = getTodayDate();
+  assertNotDayOff(user.point, checkDate);
 
   const trips = await getAllTripsForDirection(getDirectionForPoint(user.point));
   if (!trips.some((t) => t.id === body.tripId)) throw badRequest('Cursă necunoscută pentru punctul tău', 'UNKNOWN_TRIP');

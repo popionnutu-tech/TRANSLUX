@@ -10,6 +10,7 @@ import { getCleaningZonesDone } from '../services/db.js';
 import { CLEANING_ZONES, checkCleaningBuffer, type CleaningResult } from '../services/cleaningCheck.js';
 import { getTodayDate } from '../utils.js';
 import type { AppUser } from './auth.js';
+import { assertNotDayOff } from './dayState.js';
 import { ApiError, badRequest } from './errors.js';
 import { decodeJpegBase64, parseCoords } from './photo.js';
 import { asObject } from './server.js';
@@ -41,6 +42,7 @@ export async function postCleaningPhoto(user: AppUser, rawBody: unknown): Promis
   }
   const body = parseCleaningBody(rawBody);
   const checkDate = getTodayDate();
+  assertNotDayOff(user.point, checkDate);
 
   const result = await checkCleaningBuffer({
     checkDate,

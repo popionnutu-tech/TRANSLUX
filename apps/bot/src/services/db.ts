@@ -17,6 +17,7 @@ import type {
   PeronCleaningCheck,
   DriverAppearanceCheck,
   PeronPresencePing,
+  OperatorTripSkip,
 } from '@translux/db';
 import { POINT_DIRECTION_MAP } from '@translux/db';
 
@@ -1523,4 +1524,44 @@ export async function deletePresencePingsBefore(cutoffIso: string): Promise<numb
   const { count, error } = await db().from('peron_presence_pings').delete({ count: 'exact' }).lt('at', cutoffIso);
   if (error) throw error;
   return count ?? 0;
+}
+
+// ── «N-am fost la cursă» (operator_trip_skips, migrația 332) ─────────────────
+// Cursa sărită de operator nu scrie nimic în `reports` — doar aici. GET /day o
+// arată `skipped`, POST /skip o inserează, digestul o listează cu numele.
+
+/** Cursele sărite azi la punct (ca getReportedTripIds, dar din operator_trip_skips). */
+export async function getSkippedTripIds(skipDate: string, point: PointEnum): Promise<Set<string>> {
+  const { data, error } = await db()
+    .from('operator_trip_skips')
+    .select('trip_id')
+    .eq('skip_date', skipDate)
+    .eq('point', point);
+  if (error) throw error;
+  return new Set(((data as Array<{ trip_id: string }> | null) ?? []).map((r) => r.trip_id));
+}
+
+/** Rândul sării; 23505 (aceeași cursă de două ori) îl aruncă mai departe — /skip îl face 409 ALREADY_SKIPPED. */
+export async function createTripSkip(row: Omit<OperatorTripSkip, 'id' | 'created_at'>): Promise<OperatorTripSkip> {
+  const { data, error } = await db().from('operator_trip_skips').insert(row).select().single();
+  if (error) throw error;
+  return data as OperatorTripSkip;
+}
+
+export type TripSkipForDigest = OperatorTripSkip & { user_name: string | null };
+
+/** Toate cursele sărite într-o zi (ambele puncte), cu numele operatorului — pentru digest. */
+export async function getSkipsForDate(skipDate: string): Promise<TripSkipForDigest[]> {
+  const { data, error } = await db()
+    .from('operator_trip_skips')
+    .select('*')
+    .eq('skip_date', skipDate)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  const skips = (data as OperatorTripSkip[] | null) ?? [];
+  if (skips.length === 0) return [];
+  const userIds = Array.from(new Set(skips.map((s) => s.user_id)));
+  const { data: users } = await db().from('users').select('id, name').in('id', userIds);
+  const nameById = new Map<string, string | null>(((users as Array<{ id: string; name: string | null }> | null) ?? []).map((u) => [u.id, u.name]));
+  return skips.map((s) => ({ ...s, user_name: nameById.get(s.user_id) ?? null }));
 }

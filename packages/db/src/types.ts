@@ -284,6 +284,19 @@ export interface PeronPresencePing {
   in_zone: boolean;
 }
 
+/**
+ * «Operatorul n-a fost la cursă» (aplicația de peron, migrația 332): cursa e sărită
+ * pentru ziua aceea la punct — nu se scrie nimic în `reports`, apare doar în digest.
+ */
+export interface OperatorTripSkip {
+  id: string;
+  skip_date: string;
+  point: PointEnum;
+  trip_id: string;
+  user_id: string;
+  created_at: string;
+}
+
 export type ScheduleDirection = 'CHISINAU_NORD' | 'NORD_CHISINAU';
 
 export const SCHEDULE_DIRECTION_LABELS: Record<ScheduleDirection, string> = {

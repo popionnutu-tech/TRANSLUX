@@ -280,12 +280,19 @@ export async function reopenTask(ob: Obligation, actorId: string): Promise<boole
   return true;
 }
 
-/** «Marchează făcută» — corectarea automatului, nu o scurtătură: sarcina închisă greșit ca 'failed'
- *  devine 'resolved', fără să-l pună pe om să depună iar raportul și să aștepte aprobarea.
+/** «Marchează făcută» — adminul închide sarcina ca 'resolved' fără raport de la executant.
+ *  Două situații (Ion, 09.09.2026 — «la sarcini angajat eu ca admin să pot spune că sarcina e făcută»):
+ *   - sarcină ACTIVĂ (de făcut / de refăcut / întârziată): adminul a văzut lucrarea cu ochii lui,
+ *     nu-l mai pune pe om să scrie raport și să aștepte aprobarea;
+ *   - sarcină închisă greșit de automat ('failed'/'cancelled'): corectarea de dinainte (17.08).
+ *  Din 'report_pending' verdictul intră și pe ultimul raport, ca la «Aprobă» — altfel rămânea 'pending'.
  *  Contează și pentru norma săptămânală, care numără doar 'resolved'. */
 export async function markTaskDone(ob: Obligation, actorId: string, comment: string | null): Promise<boolean> {
-  if (!(await transition(ob, REVERSIBLE_CLOSURES, 'resolved', actorId))) return false;
-  await logEvent(ob.id, 'approved', actorId, { comment, reason: 'auto_close_correction' });
+  const from = ob.current_state;
+  if (!(await transition(ob, [...NONTERMINAL, ...REVERSIBLE_CLOSURES], 'resolved', actorId))) return false;
+  if (from === 'report_pending') await decideLastAttempt(ob.id, 'accepted', comment);
+  const reason = REVERSIBLE_CLOSURES.includes(from) ? 'auto_close_correction' : 'admin_marked_done';
+  await logEvent(ob.id, 'approved', actorId, { comment, reason, from_state: from });
   await notify(
     await telegramOf(ob.assignee_id),
     `✅ <b>Sarcină trecută la făcută</b>\n${ob.title ?? ob.description.slice(0, 60)}\n+${ob.points} pct${comment ? `\n${comment}` : ''}`

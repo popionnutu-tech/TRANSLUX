@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { C, api, ready, STATE, fmt, CAT, CAT_ORDER, catOf, chisinauLocalToISO, type Task } from '../ui';
+import { C, api, ready, STATE, fmt, CAT, CAT_ORDER, catOf, chisinauLocalToISO, confirmDialog, type Task } from '../ui';
 
 interface Attempt {
   id: string; number: number; report_text: string | null;
@@ -202,6 +202,17 @@ export default function TaskDetail() {
             <button onClick={() => act('reject', { comment })} disabled={busy} style={{ ...danger, flex: 1 }}>❌ Respinge</button>
           </div>
         </div>
+      )}
+      {/* Adminul închide sarcina ca făcută FĂRĂ raport de la executant (Ion, 09.09.2026): a văzut
+          lucrarea, nu-l mai pune pe om să scrie raport și să aștepte. Pe 'report_pending' rămâne
+          «Aprobă» de mai sus (același rezultat, dar cu decizia pe raport). */}
+      {isAdmin && !TERMINAL.includes(st) && st !== 'report_pending' && (
+        <button disabled={busy} style={{ ...primary, width: '100%', marginTop: 14 }}
+          onClick={async () => {
+            if (await confirmDialog('Trec sarcina la făcută, fără raport de la executant?')) await act('mark_done');
+          }}>
+          ✅ Marchează făcută
+        </button>
       )}
       {isAdmin && !TERMINAL.includes(st) && (
         <button onClick={() => act('cancel')} disabled={busy} style={{ ...secondary, width: '100%', marginTop: 12, color: C.muted }}>🚫 Anulează sarcina</button>

@@ -105,7 +105,7 @@ async function searchByPlateOrDriver(tripDate: string, plate: string, driverName
   const [{ data: drivers }, { data: vehicles }, { data: routes }] = await Promise.all([
     driverIds.length ? supabase.from('drivers').select('id, full_name, phone').in('id', driverIds) : Promise.resolve({ data: [] }),
     vehicleIds.length ? supabase.from('vehicles').select('id, plate_number').in('id', vehicleIds) : Promise.resolve({ data: [] }),
-    routeIds.length ? supabase.from('crm_routes').select('id, dest_to_ro, dest_to_ru, dest_from_ro, dest_from_ru, time_nord, time_chisinau, retur_ascuns').in('id', routeIds) : Promise.resolve({ data: [] }),
+    routeIds.length ? supabase.from('crm_routes').select('id, dest_to_ro, dest_to_ru, dest_from_ro, dest_from_ru, time_nord, time_chisinau, retur_ascuns, tur_ascuns').in('id', routeIds) : Promise.resolve({ data: [] }),
   ]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const driverMap = new Map(((drivers || []) as any[]).map((d) => [d.id, d]));
@@ -139,6 +139,7 @@ async function searchByPlateOrDriver(tripDate: string, plate: string, driverName
       // Plecarea din Chișinău ascunsă (migr. 284) nu se operează — nici aici
       // candidat (round 2 Minor 11, aceeași regulă ca în searchTrips).
       if (leg.dir === 'retur' && route?.retur_ascuns) continue;
+      if (leg.dir === 'tur' && route?.tur_ascuns) continue;
       // dest_to_* = capătul de nord, dest_from_* = capătul de sud (trips-search).
       const depRaw = route ? parseTimeLabel(leg.dir === 'tur' ? route.time_nord || '' : route.time_chisinau || '') : '';
       const departure = /^\d{2}:\d{2}$/.test(depRaw) && depRaw !== '00:00' ? depRaw : null;

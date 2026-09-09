@@ -322,7 +322,7 @@ export async function searchTrips(
   const [{ data: routes }, { data: kmPairsA }, { data: kmPairsB }, { data: assignments }, { data: returOverrides }, { data: activeOffers }, { data: periodData }] = await Promise.all([
     supabase
       .from('crm_routes')
-      .select('id, dest_to_ro, dest_to_ru, dest_from_ro, dest_from_ru, time_chisinau, time_nord, tariff_id_tur, tariff_id_retur, retur_ascuns')
+      .select('id, dest_to_ro, dest_to_ru, dest_from_ro, dest_from_ru, time_chisinau, time_nord, tariff_id_tur, tariff_id_retur, retur_ascuns, tur_ascuns')
       .in('id', matchingRouteIds)
       .eq('active', true),
     supabase
@@ -500,6 +500,9 @@ export async function searchTrips(
       }
     } else {
       // TUR direction (Nord → Chișinău) — use tur assignment map
+      // Plecarea din Nord poate fi ascunsă (migr. 332): ruta 13, Lipcani prin Rîșcani
+      // 15:00, nu se mai operează, dar returul ei de 08:00 din Chișinău da (Ion, 09.09).
+      if (route.tur_ascuns) continue;
       const time = from.hour_from_nord;
       const arrival = to.hour_from_nord && to.hour_from_nord !== '0:00' ? to.hour_from_nord : '';
       if (time && time !== '0:00') {

@@ -10,12 +10,15 @@
  *   uniformOk/exteriorOk din corp), verificările manuale (toate «OK» implicit);
  * - reclamaOk se trimite doar când există auto; la «Totul OK» pe o mașină cu sarcină
  *   reclamă deschisă operatorul confirmă «a fost reparat?» (report.ts:664–712);
- * - clima doar când /day spune că sezonul cere întrebarea pentru mașina aleasă.
+ * - clima doar când /day spune că sezonul cere întrebarea pentru mașina aleasă;
+ * - poza șoferului e «o dată pe zi per șofer» (Ion, 09.09): dacă /day are `driverChecks[driverId]`,
+ *   poza de azi se refolosește (`photoForDriver`) — `driverCheckId` pleacă în corp, fără poză nouă.
  * Corpul nu conține washGrade — nota de spălare nu se mai cere în aplicație.
  */
 import type {
   ClimateStatus,
   DayAssignment,
+  DayDriverCheck,
   DayResponse,
   DriverPhotoResponse,
   PointEnum,
@@ -37,12 +40,48 @@ export type RepairAnswer = 'da' | 'nu';
  */
 export interface DriverPhotoState {
   driverCheckId: string;
-  uri: string; // miniatura locală
+  uri: string; // miniatura locală; '' când poza e cea de azi din /day (nu există fișier local)
   verdict: Extract<DriverPhotoResponse['verdict'], 'OK' | 'EROARE'>;
   uniformOk: boolean | null;
   shavedOk: boolean | null;
   groomedOk: boolean | null;
   description: string;
+}
+
+/**
+ * Poza de azi a șoferului (din `/day.driverChecks`) ca stare de poză: `driverCheckId` e al
+ * ei, fără miniatură locală. DB-ul ține doar `groomed_ok = bărbierit && aspect`, deci
+ * `shavedOk` și `groomedOk` primesc amândouă valoarea combinată — `exteriorOkOf` dă exact
+ * ce are serverul; ecranul arată «Bărbierit și aspect» ca un singur verdict.
+ */
+export function photoFromTodayCheck(check: DayDriverCheck): DriverPhotoState {
+  return {
+    driverCheckId: check.id,
+    uri: '',
+    verdict: 'OK',
+    uniformOk: check.uniformOk,
+    shavedOk: check.groomedOk,
+    groomedOk: check.groomedOk,
+    description: `Poză făcută azi la ${check.at}`,
+  };
+}
+
+/** Poza de azi a șoferului ales, sau null (fără șofer / fără poză azi / Bălți). */
+export function todayCheckFor(ctx: TripContext, driverId: string | null): DayDriverCheck | null {
+  if (!driverId) return null;
+  return ctx.driverChecks[driverId] ?? null;
+}
+
+/** Starea pozei la alegerea unui șofer: poza lui de azi, dacă există; altfel null (trebuie făcută). */
+export function photoForDriver(ctx: TripContext, driverId: string | null): DriverPhotoState | null {
+  const check = todayCheckFor(ctx, driverId);
+  return check ? photoFromTodayCheck(check) : null;
+}
+
+/** Poza din formular e cea de azi din /day (nu una făcută acum)? */
+export function isTodayPhoto(ctx: TripContext, state: TripFormState): boolean {
+  const check = todayCheckFor(ctx, state.driverId);
+  return !!check && !!state.photo && state.photo.driverCheckId === check.id;
 }
 
 /** `reports.exterior_ok` după regula botului: bărbierit && aspect îngrijit; null dacă vreunul lipsește. */
@@ -79,6 +118,8 @@ export interface TripContext {
   vehicles: DayResponse['vehicles'];
   openReclama: DayResponse['openReclama'];
   climate: DayResponse['climate'];
+  /** Prima poză acceptată de azi, per șofer — `{}` dacă nimeni nu are încă (sau client vechi pe server nou: lipsă). */
+  driverChecks: DayResponse['driverChecks'];
 }
 
 export function tripContext(day: DayResponse, tripId: string): TripContext {
@@ -89,17 +130,22 @@ export function tripContext(day: DayResponse, tripId: string): TripContext {
     vehicles: day.vehicles,
     openReclama: day.openReclama,
     climate: day.climate,
+    driverChecks: day.driverChecks ?? {}, // server vechi fără câmp → ca înainte, poză la fiecare cursă
   };
 }
 
-/** Starea implicită: repartizarea din /day, toate verificările «OK», fără cifră și fără poză. */
+/**
+ * Starea implicită: repartizarea din /day, toate verificările «OK», fără cifră. Poza e cea
+ * de azi a șoferului repartizat, dacă există; altfel null (trebuie făcută).
+ */
 export function initialState(ctx: TripContext): TripFormState {
+  const driverId = ctx.assignment?.driver_id ?? null;
   return {
     status: 'OK',
     passengers: null,
-    driverId: ctx.assignment?.driver_id ?? null,
+    driverId,
     vehicleId: ctx.assignment?.vehicle_id ?? null,
-    photo: null,
+    photo: photoForDriver(ctx, driverId),
     loadingHelpOk: true,
     autoCurat: true,
     reclama: 'ok',

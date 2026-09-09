@@ -66,6 +66,7 @@ const day: DayResponse = {
   openReclama: { '998TCP': { taskId: 'task-9', description: 'panou rută rupt', lastComment: null } },
   climate: { v1: 'ac', v2: null },
   cleaning: { DIMINEATA: ['PERON', 'PIETONI', 'VECEU'], ZIUA: [] },
+  driverChecks: {},
   cleaningGateTripTime: '16:25',
   locationExemptTimes: ['06:55', '20:00'],
   station: { lat: 47.0, lon: 28.8, radiusM: 150 },
@@ -272,5 +273,30 @@ describe('draftSummary', () => {
     const err = draftFromState(ctx, withPhoto(prepared, eroarePhoto), at)!;
     assert.equal(draftSummary({ ...err, preparedAt: 'x' }, { driverName: 'A', plate: 'B' }), 'A · B · uniformă necunoscut · bărbierit necunoscut · pregătit');
     assert.equal(preparedHHMM('x'), '');
+  });
+});
+
+// ── Poza de azi din /day (spec peron-app-criteria-v2, S02) ────────────────────
+
+describe('ciorna cu poza de azi din /day.driverChecks', () => {
+  const dayWithChecks: DayResponse = { ...day, driverChecks: { d1: { id: 'chk-today', uniformOk: true, groomedOk: true, at: '06:42' } } };
+  const ctxChecks = tripContext(dayWithChecks, 't2');
+
+  it('«Pregătit» fără poză nouă: ciorna ia driverCheckId din /day, fără miniatură; corpul de la plecare îl trimite', () => {
+    const state = initialState(ctxChecks);
+    assert.equal(state.photo?.driverCheckId, 'chk-today');
+    const d = draftFromState(ctxChecks, state, new Date('2026-09-09T07:12:00'));
+    assert.ok(d);
+    assert.equal(d.driverCheckId, 'chk-today');
+    assert.equal(d.photoUri, null);
+    assert.deepEqual(d.verdicts, { verdict: 'OK', uniformOk: true, shavedOk: true, groomedOk: true, description: 'Poză făcută azi la 06:42' });
+    const body = bodyFromDraft('t2', d, 7, null);
+    assert.equal(body.driverCheckId, 'chk-today');
+    assert.equal(body.uniformOk, true);
+    assert.equal(body.exteriorOk, true);
+    assert.deepEqual(body, buildReportBody(ctxChecks, { ...state, passengers: 7 }, null));
+    // dus-întors prin JSON: ciorna rămâne valabilă și cu photoUri null
+    assert.deepEqual(parseDraft(JSON.parse(serializeDraft(d))), d);
+    assert.equal(formFromDraft(d).photo?.driverCheckId, 'chk-today');
   });
 });

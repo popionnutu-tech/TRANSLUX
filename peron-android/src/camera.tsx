@@ -21,11 +21,11 @@ export const PHOTO_MAX_WIDTH = 1280;
 export const PHOTO_JPEG_QUALITY = 0.8;
 
 /**
- * Cadrul cerut la poza șoferului — copiat literal din apps/bot/src/services/driverCheck.ts
- * (`DRIVER_FRAME_HINT`; aplicația nu importă din bot). Modelul refuză poza (`REFA_POZA`)
- * dacă nu se văd încălțămintea și capul.
+ * Cadrul cerut la poza șoferului (aplicația nu importă din bot). Modelul refuză poza
+ * (`REFA_POZA`) dacă nu se văd încălțămintea și capul; șapca, ochelarii de soare și masca
+ * sunt în regulă (Ion, 09.09) — nu se cere refacerea pentru ele.
  */
-export const DRIVER_FRAME_HINT = 'Șoferul din față, întreg: să se vadă încălțămintea și capul';
+export const DRIVER_FRAME_HINT = 'Șoferul din față, întreg: să se vadă încălțămintea și capul. Șapca și ochelarii sunt în regulă.';
 
 export interface CapturedPhoto {
   uri: string;

@@ -14,6 +14,9 @@
  * POST /report, la pasul 2, cu același corp ca înainte (bodyFromDraft = buildReportBody).
  * Verdictul e al modelului (Ion, 08.09: «aplicația fixează, operatorul doar face poza»):
  * la `REFA_POZA` / `NO_PERSON` apare mesajul serverului și «Refă poza».
+ * Poza șoferului e o dată pe zi (Ion, 09.09): dacă /day are `driverChecks[driverId]`, cardul
+ * arată verdictele de azi + «Poză făcută azi la HH:MM», «Pregătit» merge fără poză nouă, iar
+ * «Refă poza» rămâne opțional; `driverCheckId` din /day pleacă în ciornă și în raport.
  * La Bălți nu există etape: Pasageri cu butoanele rapide, «Absent» / «Microbuzul full», GPS, Trimite, text.
  *
  * Logica (src/buildReport.ts, camera, locația, apelurile API) e cea de dinainte — aici
@@ -30,14 +33,17 @@ import {
   clampPassengers,
   climateKindFor,
   initialState,
+  isTodayPhoto,
   LATE_THRESHOLD_MIN,
   minutesLate,
   missionDoneText,
   needsQuality,
   openReclamaFor,
+  photoForDriver,
   plateOf,
   preparationReason,
   QUICK_PASSENGERS,
+  todayCheckFor,
   tripContext,
   withPhoto,
   type Coords,
@@ -103,7 +109,7 @@ function PickerModal({
 // ── Ecranul ───────────────────────────────────────────────────────────────────
 
 /** Când serverul nu trimite `message` la refacere (client nou pe server vechi). */
-const RETAKE_FALLBACK = `Refă poza. ${DRIVER_FRAME_HINT}.`;
+const RETAKE_FALLBACK = `Refă poza. ${DRIVER_FRAME_HINT}`;
 
 type ScreenError = { message: string; cleaning?: CleaningRequiredDetails };
 
@@ -267,16 +273,24 @@ export default function TripScreen() {
     setCamera(true);
   }
 
+  /** «Renunță» în cameră: dacă șoferul are poza de azi și n-a rămas nimic pe card, ea revine — refacerea e opțională. */
+  function cancelCamera() {
+    setCamera(false);
+    if (!ctx) return;
+    setForm((f) => (f && !f.photo && !pending && !rejected ? withPhoto(f, photoForDriver(ctx, f.driverId)) : f));
+  }
+
   // ── Șofer / auto ──
   function chooseDriver(driverId: string | null) {
     setPicker(null);
-    if (!form || driverId === form.driverId) return;
-    // poza e legată de șoferul ales — alt șofer = altă poză
+    if (!form || !ctx || driverId === form.driverId) return;
+    // poza e legată de șoferul ales — alt șofer = altă poză (sau poza lui de azi, dacă există)
+    const todayPhoto = photoForDriver(ctx, driverId);
     const hadPhoto = !!form.photo || !!pending;
     setPending(null);
     setRejected(null);
-    setPhotoError(hadPhoto ? 'Șoferul s-a schimbat — refă poza șoferului.' : null);
-    setForm((f) => (f ? withPhoto({ ...f, driverId }, null) : f));
+    setPhotoError(hadPhoto && !todayPhoto ? 'Șoferul s-a schimbat — refă poza șoferului.' : null);
+    setForm((f) => (f ? withPhoto({ ...f, driverId }, todayPhoto) : f));
   }
 
   function chooseVehicle(vehicleId: string | null) {
@@ -426,6 +440,9 @@ export default function TripScreen() {
   const bigCounter = balti || departing; // câmp 96 / cifra 52 / butoanele rapide, ca la Bălți
   const thumbUri = form.photo?.uri || pending?.uri || rejected?.uri || null;
   const summary = departing && draft ? draftSummary(draft, { driverName, plate }) : null;
+  // poza de azi din /day (o dată pe zi per șofer): fără miniatură locală, verdictele așa cum le ține DB-ul
+  const todayCheck = todayCheckFor(ctx, form.driverId);
+  const reusedPhoto = !!form.photo && isTodayPhoto(ctx, form);
 
   const gps: { state: GpsState; text: string } = searching
     ? { state: 'off', text: 'se caută locația…' }
@@ -552,6 +569,12 @@ export default function TripScreen() {
                     <ActivityIndicator size="large" color={colors.primary} />
                     <Text style={styles.analyzingText}>Se analizează poza…</Text>
                   </View>
+                ) : form.photo && reusedPhoto ? (
+                  <>
+                    {/* DB-ul ține bărbierit && aspect într-un singur câmp — un singur verdict pentru amândouă */}
+                    <VerdictRow label="Uniformă" value={form.photo.uniformOk} />
+                    <VerdictRow label="Bărbierit și aspect" value={form.photo.groomedOk} />
+                  </>
                 ) : form.photo ? (
                   <>
                     <VerdictRow label="Uniformă" value={form.photo.uniformOk} />
@@ -570,7 +593,13 @@ export default function TripScreen() {
             {(form.photo || pending) && !analyzing ? (
               <View style={styles.photoFooter}>
                 {form.photo ? (
-                  <Text style={styles.photoNote}>{form.photo.verdict === 'EROARE' ? 'Modelul nu a putut judeca poza — raportul pleacă fără verdicte. Poți reface poza.' : 'Verdict automat din poză. Nu se poate schimba.'}</Text>
+                  <Text style={styles.photoNote}>
+                    {reusedPhoto && todayCheck
+                      ? `Poză făcută azi la ${todayCheck.at} — valabilă la toate cursele lui de azi. Poți reface poza.`
+                      : form.photo.verdict === 'EROARE'
+                        ? 'Modelul nu a putut judeca poza — raportul pleacă fără verdicte. Poți reface poza.'
+                        : 'Verdict automat din poză. Nu se poate schimba.'}
+                  </Text>
                 ) : (
                   <View style={styles.grow} />
                 )}
@@ -668,7 +697,7 @@ export default function TripScreen() {
         ) : null}
       </Screen>
 
-      {camera ? <PhotoCamera title="Poza șoferului" hint={DRIVER_FRAME_HINT} onCaptured={onCaptured} onCancel={() => setCamera(false)} /> : null}
+      {camera ? <PhotoCamera title="Poza șoferului" hint={DRIVER_FRAME_HINT} onCaptured={onCaptured} onCancel={cancelCamera} /> : null}
       {picker === 'driver' ? (
         <PickerModal
           title="Șoferul"

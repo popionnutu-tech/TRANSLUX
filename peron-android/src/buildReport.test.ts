@@ -10,9 +10,14 @@ import {
   climateKindFor,
   exteriorOkOf,
   initialState,
+  isTodayPhoto,
   locationLabel,
   minutesLate,
   openReclamaFor,
+  photoForDriver,
+  photoFromTodayCheck,
+  preparationReason,
+  todayCheckFor,
   tripContext,
   withPhoto,
   type DriverPhotoState,
@@ -40,6 +45,7 @@ const day: DayResponse = {
   openReclama: { '998TCP': { taskId: 'task-9', description: 'panou rută rupt', lastComment: null } },
   climate: { v1: 'ac', v2: null },
   cleaning: { DIMINEATA: ['PERON', 'PIETONI', 'VECEU'], ZIUA: [] },
+  driverChecks: {},
   cleaningGateTripTime: '16:25',
   locationExemptTimes: ['06:55', '20:00'],
   station: { lat: 47.0, lon: 28.8, radiusM: 150 },
@@ -237,5 +243,74 @@ describe('minutesLate / locationLabel', () => {
     assert.equal(locationLabel(null, true), '📍 se caută…');
     assert.equal(locationLabel(null, false), '📍 fără GPS');
     assert.equal(locationLabel(41.6, false), '📍 42 m de stație');
+  });
+});
+
+// ── Poza șoferului o dată pe zi (spec peron-app-criteria-v2, S02) ─────────────
+
+describe('poza de azi din /day.driverChecks', () => {
+  /** Ion Moldovan (d1) are deja poza de azi, făcută la cursa de 06:55; Vasile Rusu (d2) nu. */
+  const dayWithChecks: DayResponse = { ...day, driverChecks: { d1: { id: 'chk-today', uniformOk: true, groomedOk: false, at: '06:42' } } };
+  const ctxChecks = tripContext(dayWithChecks, 't2');
+
+  it('tripContext duce driverChecks mai departe; fără câmp (server vechi) → {}', () => {
+    assert.deepEqual(ctxChecks.driverChecks, dayWithChecks.driverChecks);
+    assert.deepEqual(ctx.driverChecks, {});
+    const old = { ...day } as Partial<DayResponse>;
+    delete old.driverChecks;
+    assert.deepEqual(tripContext(old as DayResponse, 't2').driverChecks, {});
+  });
+
+  it('todayCheckFor / photoForDriver: șoferul cu poză azi → starea pozei cu id-ul din /day; fără șofer sau fără poză → null', () => {
+    assert.equal(todayCheckFor(ctxChecks, 'd1')?.id, 'chk-today');
+    assert.equal(todayCheckFor(ctxChecks, 'd2'), null);
+    assert.equal(todayCheckFor(ctxChecks, null), null);
+    const p = photoForDriver(ctxChecks, 'd1');
+    assert.ok(p);
+    assert.equal(p.driverCheckId, 'chk-today');
+    assert.equal(p.uri, '', 'nu există miniatură locală pentru poza de azi');
+    assert.equal(p.verdict, 'OK');
+    assert.equal(p.uniformOk, true);
+    assert.match(p.description, /Poză făcută azi la 06:42/);
+    assert.equal(photoForDriver(ctxChecks, 'd2'), null);
+    assert.equal(photoForDriver(ctx, 'd1'), null);
+  });
+
+  it('DB-ul ține bărbierit && aspect într-un câmp: shavedOk = groomedOk = groomed_ok, deci exteriorOk pleacă exact ca în DB', () => {
+    const p = photoFromTodayCheck({ id: 'x', uniformOk: false, groomedOk: false, at: '07:00' });
+    assert.equal(p.shavedOk, false);
+    assert.equal(p.groomedOk, false);
+    assert.equal(exteriorOkOf(p), false);
+    const ok = photoFromTodayCheck({ id: 'y', uniformOk: true, groomedOk: true, at: '07:00' });
+    assert.equal(exteriorOkOf(ok), true);
+  });
+
+  it('initialState: șoferul repartizat cu poză azi → poza e pusă deja, «Pregătit» nu mai cere poză nouă', () => {
+    const s = initialState(ctxChecks);
+    assert.equal(s.driverId, 'd1');
+    assert.equal(s.photo?.driverCheckId, 'chk-today');
+    assert.equal(isTodayPhoto(ctxChecks, s), true);
+    assert.equal(preparationReason(ctxChecks, s), null);
+    assert.equal(blockingReason(ctxChecks, { ...s, passengers: 4 }), null);
+  });
+
+  it('driverCheckId din driverChecks ajunge în corpul raportului, cu verdictele DB-ului; nimic nou în corp', () => {
+    const s = { ...initialState(ctxChecks), passengers: 4 };
+    const body = buildReportBody(ctxChecks, s, coords);
+    assert.equal(body.driverCheckId, 'chk-today');
+    assert.equal(body.driverId, 'd1');
+    assert.equal(body.uniformOk, true);
+    assert.equal(body.exteriorOk, false);
+    assert.deepEqual(Object.keys(body).sort(), Object.keys(buildReportBody(ctx, { ...withPhoto(initialState(ctx), photo), passengers: 4 }, coords)).sort());
+  });
+
+  it('alt șofer fără poză azi → poza e null și pregătirea cere poza; poză nouă pentru d1 → nu mai e «cea de azi»', () => {
+    const s = { ...initialState(ctxChecks), driverId: 'd2', photo: photoForDriver(ctxChecks, 'd2') };
+    assert.equal(s.photo, null);
+    assert.equal(isTodayPhoto(ctxChecks, s), false);
+    assert.match(preparationReason(ctxChecks, s) ?? '', /poza/);
+    const fresh = withPhoto(initialState(ctxChecks), photo); // chk-1, făcută acum
+    assert.equal(isTodayPhoto(ctxChecks, fresh), false);
+    assert.equal(buildReportBody(ctxChecks, { ...fresh, passengers: 1 }, null).driverCheckId, 'chk-1');
   });
 });

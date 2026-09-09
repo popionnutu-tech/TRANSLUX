@@ -47,6 +47,18 @@ export interface Station {
   radiusM: number;
 }
 
+/**
+ * Prima poză acceptată AZI a unui șofer (spec peron-app-criteria-v2: «o dată pe zi per
+ * șofer»). `driver_appearance_checks` ține doar `groomed_ok = bărbierit && aspect`, deci
+ * nu există `shavedOk` separat. `at` = HH:MM, ora Chișinăului.
+ */
+export interface DayDriverCheck {
+  id: string;
+  uniformOk: boolean;
+  groomedOk: boolean;
+  at: string; // HH:MM
+}
+
 /** GET /app/v1/day */
 export interface DayResponse {
   date: string; // YYYY-MM-DD
@@ -59,6 +71,7 @@ export interface DayResponse {
   openReclama: Record<string, { taskId: string; description: string; lastComment: string | null }>; // per placă
   climate: Record<string, 'ac' | 'heat' | null>; // per vehicle_id
   cleaning: { DIMINEATA: CleaningZone[]; ZIUA: CleaningZone[] };
+  driverChecks: Record<string, DayDriverCheck>; // per driver_id; {} la Bălți sau când nimeni nu are poză azi
   cleaningGateTripTime: string | null;
   locationExemptTimes: string[];
   station: Station;

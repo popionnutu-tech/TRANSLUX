@@ -62,6 +62,16 @@ function checkDay(day: DayResponse, point: 'CHISINAU' | 'BALTI') {
   for (const slot of ['DIMINEATA', 'ZIUA'] as const) {
     for (const z of day.cleaning[slot]) assert.ok(ZONES.has(z), `zonă necunoscută: ${z}`);
   }
+  // poza șoferului o dată pe zi: per driver_id, prima poză acceptată de azi (S02 criteria-v2)
+  assert.ok(day.driverChecks && typeof day.driverChecks === 'object' && !Array.isArray(day.driverChecks));
+  for (const [driverId, c] of Object.entries(day.driverChecks)) {
+    assert.match(driverId, UUID);
+    assert.match(c.id, UUID);
+    assert.equal(typeof c.uniformOk, 'boolean');
+    assert.equal(typeof c.groomedOk, 'boolean');
+    assert.match(c.at, HHMM);
+    assert.ok(!('shavedOk' in c), 'DB-ul ține doar groomed_ok = bărbierit && aspect');
+  }
   assert.ok(day.cleaningGateTripTime === null || HHMM.test(day.cleaningGateTripTime));
   for (const t of day.locationExemptTimes) assert.match(t, HHMM);
   assert.ok(Number.isFinite(day.station.lat) && Number.isFinite(day.station.lon) && day.station.radiusM > 0);

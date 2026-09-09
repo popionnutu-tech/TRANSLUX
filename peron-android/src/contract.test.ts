@@ -25,7 +25,7 @@ const reportOk = fixture<ReportResponse>('report.ok');
 const HHMM = /^\d{2}:\d{2}$/;
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const STATES = new Set(['done', 'next', 'locked']);
+const STATES = new Set(['done', 'skipped', 'next', 'locked']);
 const ZONES = new Set(['PERON', 'PIETONI', 'VECEU']);
 
 function checkDay(day: DayResponse, point: 'CHISINAU' | 'BALTI') {
@@ -76,6 +76,9 @@ function checkDay(day: DayResponse, point: 'CHISINAU' | 'BALTI') {
   for (const t of day.locationExemptTimes) assert.match(t, HHMM);
   assert.ok(Number.isFinite(day.station.lat) && Number.isFinite(day.station.lon) && day.station.radiusM > 0);
   assert.equal(typeof day.allowFull, 'boolean');
+  // zi de lucru: fără text de zi liberă, iar fereastra de prezență există
+  assert.equal(day.dayOff, false);
+  assert.equal(day.dayOffText, null);
   assert.ok(day.presenceWindow !== null, 'punctul are curse → are fereastră de prezență');
   assert.match(day.presenceWindow.from, HHMM);
   assert.match(day.presenceWindow.to, HHMM);

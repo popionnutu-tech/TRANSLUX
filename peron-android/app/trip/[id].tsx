@@ -18,6 +18,8 @@
  * arată verdictele de azi + «Poză făcută azi la HH:MM», «Pregătit» merge fără poză nouă, iar
  * «Refă poza» rămâne opțional; `driverCheckId` din /day pleacă în ciornă și în raport.
  * La Bălți nu există etape: Pasageri cu butoanele rapide, «Absent» / «Microbuzul full», GPS, Trimite, text.
+ * «N-am fost la cursă» (Vitalie, 09.09): sub antet, cât timp cursa `next` n-are ciornă (nu s-a
+ * apăsat «Pregătit») — confirmare, POST /skip, înapoi la zi. Fără cifră, poze sau GPS.
  *
  * Logica (src/buildReport.ts, camera, locația, apelurile API) e cea de dinainte — aici
  * doar prezentarea și trecerea între pași.
@@ -26,7 +28,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Alert, FlatList, Image, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { ApiError, getDay, postDriverPhoto, postReport, postVehicle } from '../../src/api';
+import { ApiError, getDay, postDriverPhoto, postReport, postSkip, postVehicle } from '../../src/api';
 import {
   blockingReason,
   buildReportBody,
@@ -133,6 +135,7 @@ export default function TripScreen() {
   const [coords, setCoords] = useState<Coords | null>(null);
   const [searching, setSearching] = useState(true);
   const [sending, setSending] = useState(false);
+  const [skipping, setSkipping] = useState(false);
   const [error, setError] = useState<ScreenError | null>(null);
   const [now, setNow] = useState(() => new Date());
   /** Pasul (doar Chișinău): 1 = pregătirea, 2 = plecarea. null până se știe dacă există ciornă. */
@@ -160,7 +163,15 @@ export default function TripScreen() {
         }
         if (t.state !== 'next') {
           const next = d.trips.find((x) => x.state === 'next');
-          setLoadError(t.state === 'done' ? `Cursa ${t.departure_time} e deja raportată.` : next ? `Completează mai întâi ora ${next.departure_time}.` : 'Cursa e blocată.');
+          setLoadError(
+            t.state === 'done'
+              ? `Cursa ${t.departure_time} e deja raportată.`
+              : t.state === 'skipped'
+                ? `Cursa ${t.departure_time}: ai marcat că n-ai fost la ea.`
+                : next
+                  ? `Completează mai întâi ora ${next.departure_time}.`
+                  : 'Cursa e blocată.',
+          );
           return;
         }
         const c = tripContext(d, tripId);
@@ -345,6 +356,36 @@ export default function TripScreen() {
     setStep(1);
   }
 
+  // ── «N-am fost la cursă» — fără cifră, poze sau GPS; doar cât timp nu există ciornă ──
+  function confirmSkip() {
+    if (!ctx || !day || !trip || sending || skipping) return;
+    Alert.alert('N-am fost la cursă', `Marchezi cursa ${trip.departure_time} ca nefăcută de tine? Nu se cere cifră, nici poze.`, [
+      { text: 'Renunță', style: 'cancel' },
+      { text: 'Da, n-am fost', style: 'destructive', onPress: () => skip() },
+    ]);
+  }
+
+  async function skip() {
+    if (!ctx || !day || !trip) return;
+    setSkipping(true);
+    setError(null);
+    try {
+      await postSkip(ctx.tripId);
+      await clearDraft(AsyncStorage, day.date, ctx.tripId).catch(() => undefined);
+      router.replace('/day');
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) return; // api.ts a trimis la login
+      if (e instanceof ApiError && (e.code === 'NOT_NEXT' || e.code === 'ALREADY_REPORTED' || e.code === 'ALREADY_SKIPPED' || e.code === 'DAY_OFF')) {
+        // grila de pe server s-a schimbat între timp — ziua e adevărul
+        Alert.alert('Cursa nu poate fi marcată', e.message, [{ text: 'OK', onPress: () => router.replace('/day') }], { cancelable: false });
+        return;
+      }
+      setError({ message: e instanceof ApiError ? (e.isOffline ? 'Fără internet. Încearcă din nou când revine semnalul.' : e.message) : 'Ceva nu a mers. Încearcă din nou.' });
+    } finally {
+      setSkipping(false);
+    }
+  }
+
   // ── Trimite ──
   async function send() {
     if (!ctx || !form || !day || !trip || sending) return;
@@ -466,6 +507,9 @@ export default function TripScreen() {
     <>
       <Screen padding={SCREEN_PADDING}>
         <Header title={`Cursa ${trip.departure_time}`} subtitle={balti ? trip.route_name : null} onBack={back} right={late > LATE_THRESHOLD_MIN ? <Pill>întârziere {late} min</Pill> : null} />
+
+        {/* «N-am fost la cursă» — doar cât timp nu există ciornă (pregătirea făcută = operatorul a fost) */}
+        {!draft ? <OutlineButton label={skipping ? 'Se marchează…' : 'N-am fost la cursă'} tone="neutral" height={52} color={colors.faint} onPress={confirmSkip} disabled={skipping || sending} /> : null}
 
         {/* Pasul 2: rezumatul pregătirii într-un rând + «Modifică pregătirea» */}
         {departing ? (

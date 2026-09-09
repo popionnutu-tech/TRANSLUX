@@ -1,7 +1,7 @@
 /**
  * Logica pură a pozelor de curățenie (spec S08, fără React): zonele și textele de
  * cadru (copiate din apps/bot/src/services/cleaningCheck.ts), tura după oră și
- * poarta 06:55 / 16:25 — oglinda lui `cleaningGateSlot` + `cleaningMissing` din
+ * poarta «prima cursă raportată» / 16:25 — oglinda lui `cleaningGateSlot` + `cleaningMissing` din
  * apps/bot/src/api/reportRules.ts. Serverul verifică oricum; aici doar ca operatorul
  * să fie dus la camera înainte să completeze cursa degeaba.
  */
@@ -61,8 +61,12 @@ export interface CleaningGate {
 }
 
 /**
- * Poarta de curățenie pentru o cursă (doar Chișinău): prima cursă a zilei cere setul
- * DIMINEATA complet, cursa `cleaningGateTripTime` (16:25) cere setul ZIUA complet.
+ * Poarta de curățenie pentru o cursă (doar Chișinău) — oglinda lui `cleaningGateSlot` din
+ * bot, cu stările din /day în loc de seturile de id-uri:
+ *  - DIMINEATA: prima cursă raportată EFECTIV azi (nicio cursă `done`), nu prima din orar —
+ *    cursele sărite («N-am fost la cursă») nu contează (Vitalie, 09.09: Aurel vine la 07:30);
+ *  - ZIUA: cursa `cleaningGateTripTime` (16:25) sau, dacă aceea e `skipped`, prima cursă
+ *    de după ea fără nicio cursă `done` între ele.
  * Întoarce null când cursa nu are poartă sau setul e deja complet.
  */
 export function cleaningGateFor(
@@ -70,12 +74,24 @@ export function cleaningGateFor(
   tripId: string,
 ): CleaningGate | null {
   if (day.point !== 'CHISINAU') return null;
-  const trip = day.trips.find((t) => t.id === tripId);
-  if (!trip) return null;
-  let slot: CleaningSlot | null = null;
-  if (trip.id === day.trips[0]?.id) slot = 'DIMINEATA';
-  else if (day.cleaningGateTripTime && trip.departure_time === day.cleaningGateTripTime) slot = 'ZIUA';
+  const idx = day.trips.findIndex((t) => t.id === tripId);
+  if (idx < 0) return null;
+  const slot = gateSlotFor(day, idx);
   if (!slot) return null;
   const missing = missingZones(day.cleaning?.[slot] ?? []);
   return missing.length > 0 ? { slot, missing } : null;
+}
+
+function gateSlotFor(day: Pick<DayResponse, 'trips' | 'cleaningGateTripTime'>, idx: number): CleaningSlot | null {
+  const trips = day.trips;
+  if (!trips.some((t) => t.state === 'done')) return 'DIMINEATA';
+  const gateTime = day.cleaningGateTripTime;
+  if (!gateTime) return null;
+  if (trips[idx]!.departure_time === gateTime) return 'ZIUA';
+  const gateIdx = trips.findIndex((t) => t.departure_time === gateTime);
+  if (gateIdx >= 0 && gateIdx < idx && trips[gateIdx]!.state === 'skipped') {
+    const doneBetween = trips.slice(gateIdx + 1, idx).some((t) => t.state === 'done');
+    if (!doneBetween) return 'ZIUA';
+  }
+  return null;
 }

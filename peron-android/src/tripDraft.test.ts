@@ -72,6 +72,8 @@ const day: DayResponse = {
   station: { lat: 47.0, lon: 28.8, radiusM: 150 },
   allowFull: false,
   presenceWindow: { from: '06:25', to: '20:30' },
+  dayOff: false,
+  dayOffText: null,
 };
 
 const ctx: TripContext = tripContext(day, 't2');

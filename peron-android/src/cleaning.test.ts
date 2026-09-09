@@ -44,12 +44,60 @@ test('poarta: prima cursă a zilei cere DIMINEATA', () => {
   assert.equal(cleaningGateFor(day({ cleaning: { DIMINEATA: ['PERON', 'PIETONI', 'VECEU'], ZIUA: [] } }), 't1'), null);
 });
 
+test('poarta: DIMINEATA e la prima cursă raportată efectiv — cursele sărite nu contează (scenariul Aurel)', () => {
+  const skipped = day({
+    trips: [
+      { id: 't1', departure_time: '06:55', route_name: 'Chișinău – Bălți', crm_route_id: null, state: 'skipped' },
+      { id: 't2', departure_time: '07:35', route_name: 'Chișinău – Bălți', crm_route_id: null, state: 'skipped' },
+      { id: 't3', departure_time: '08:15', route_name: 'Chișinău – Bălți', crm_route_id: null, state: 'next' },
+      { id: 't4', departure_time: '16:25', route_name: 'Chișinău – Bălți', crm_route_id: null, state: 'locked' },
+    ],
+  });
+  assert.deepEqual(cleaningGateFor(skipped, 't3'), { slot: 'DIMINEATA', missing: ['PERON', 'PIETONI', 'VECEU'] });
+  // după setul de dimineață poarta dispare
+  assert.equal(cleaningGateFor({ ...skipped, cleaning: { DIMINEATA: ['PERON', 'PIETONI', 'VECEU'], ZIUA: [] } }, 't3'), null);
+});
+
+test('poarta: după o cursă raportată, cursele obișnuite nu mai cer DIMINEATA', () => {
+  const d = day({
+    trips: [
+      { id: 't1', departure_time: '06:55', route_name: 'Chișinău – Bălți', crm_route_id: null, state: 'done' },
+      { id: 't2', departure_time: '07:35', route_name: 'Chișinău – Bălți', crm_route_id: null, state: 'next' },
+      { id: 't3', departure_time: '16:25', route_name: 'Chișinău – Bălți', crm_route_id: null, state: 'locked' },
+    ],
+  });
+  assert.equal(cleaningGateFor(d, 't2'), null);
+});
+
 test('poarta: 16:25 cere ZIUA, restul curselor nu au poartă', () => {
-  assert.deepEqual(cleaningGateFor(day(), 't3'), { slot: 'ZIUA', missing: ['PERON', 'PIETONI', 'VECEU'] });
-  assert.equal(cleaningGateFor(day({ cleaning: { DIMINEATA: [], ZIUA: ['PERON', 'PIETONI', 'VECEU'] } }), 't3'), null);
-  assert.equal(cleaningGateFor(day(), 't2'), null);
-  assert.equal(cleaningGateFor(day({ cleaningGateTripTime: null }), 't3'), null);
-  assert.equal(cleaningGateFor(day(), 'lipsă'), null);
+  const d = day({
+    trips: [
+      { id: 't1', departure_time: '06:55', route_name: 'Chișinău – Bălți', crm_route_id: null, state: 'done' },
+      { id: 't2', departure_time: '08:00', route_name: 'Chișinău – Bălți', crm_route_id: null, state: 'done' },
+      { id: 't3', departure_time: '16:25', route_name: 'Chișinău – Bălți', crm_route_id: null, state: 'next' },
+      { id: 't4', departure_time: '16:45', route_name: 'Chișinău – Bălți', crm_route_id: null, state: 'locked' },
+    ],
+  });
+  assert.deepEqual(cleaningGateFor(d, 't3'), { slot: 'ZIUA', missing: ['PERON', 'PIETONI', 'VECEU'] });
+  assert.equal(cleaningGateFor({ ...d, cleaning: { DIMINEATA: [], ZIUA: ['PERON', 'PIETONI', 'VECEU'] } }, 't3'), null);
+  assert.equal(cleaningGateFor(d, 't2'), null);
+  assert.equal(cleaningGateFor(d, 't4'), null);
+  assert.equal(cleaningGateFor({ ...d, cleaningGateTripTime: null }, 't3'), null);
+  assert.equal(cleaningGateFor(d, 'lipsă'), null);
+});
+
+test('poarta: 16:25 sărită → ZIUA se cere la prima cursă de după ea', () => {
+  const trips = (afterGate: 'next' | 'done', last: 'locked' | 'next') => [
+    { id: 't1', departure_time: '06:55', route_name: 'Chișinău – Bălți', crm_route_id: null, state: 'done' as const },
+    { id: 't2', departure_time: '16:25', route_name: 'Chișinău – Bălți', crm_route_id: null, state: 'skipped' as const },
+    { id: 't3', departure_time: '16:45', route_name: 'Chișinău – Bălți', crm_route_id: null, state: afterGate },
+    { id: 't4', departure_time: '17:20', route_name: 'Chișinău – Bălți', crm_route_id: null, state: last },
+  ];
+  assert.deepEqual(cleaningGateFor(day({ trips: trips('next', 'locked') }), 't3'), { slot: 'ZIUA', missing: ['PERON', 'PIETONI', 'VECEU'] });
+  // 16:45 raportată între timp → 17:20 nu mai are poartă
+  assert.equal(cleaningGateFor(day({ trips: trips('done', 'next') }), 't4'), null);
+  // setul ZIUA complet → nimic
+  assert.equal(cleaningGateFor(day({ trips: trips('next', 'locked'), cleaning: { DIMINEATA: [], ZIUA: ['PERON', 'PIETONI', 'VECEU'] } }), 't3'), null);
 });
 
 test('poarta: Bălți nu are curățenie', () => {

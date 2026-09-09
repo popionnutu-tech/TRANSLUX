@@ -4,7 +4,8 @@
  * cleaning.ts / driverPhoto.ts (S04), presence.ts (S05).
  */
 export type PointEnum = 'CHISINAU' | 'BALTI';
-export type TripState = 'done' | 'next' | 'locked';
+/** `skipped` = operatorul n-a fost la cursă (POST /skip): închisă pentru ordine, dar fără raport. */
+export type TripState = 'done' | 'skipped' | 'next' | 'locked';
 export type CleaningSlot = 'DIMINEATA' | 'ZIUA';
 export type CleaningZone = 'PERON' | 'PIETONI' | 'VECEU';
 export type CleaningVerdict = 'CURAT' | 'MURDAR' | 'ALT_LOC' | 'EROARE';
@@ -76,7 +77,21 @@ export interface DayResponse {
   locationExemptTimes: string[];
   station: Station;
   allowFull: boolean;
+  /** null când punctul n-are curse azi sau e zi fără operator — aplicația nu urmărește. */
   presenceWindow: PresenceWindow | null;
+  /** Zi fără operator la punct (config.noOperatorWeekdays din bot — vineri la Chișinău). */
+  dayOff: boolean;
+  /** «Vineri: zi fără operator la Chișinău» — se afișează ca atare; null în zilele de lucru. */
+  dayOffText: string | null;
+}
+
+/**
+ * POST /app/v1/skip { tripId } — «N-am fost la cursă» pe cursa `next` (apps/bot/src/api/skip.ts).
+ * `next` = id-ul cursei care devine următoarea, sau null când nu mai e niciuna.
+ * Refuzuri: 400 UNKNOWN_TRIP; 409 DAY_OFF / ALREADY_REPORTED / ALREADY_SKIPPED / NOT_NEXT.
+ */
+export interface SkipResponse {
+  next: string | null;
 }
 
 export type ReportStatus = 'OK' | 'ABSENT' | 'FULL';

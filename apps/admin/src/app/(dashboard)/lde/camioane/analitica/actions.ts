@@ -49,7 +49,7 @@ export async function getAnalitica(de: string, la: string): Promise<DateAnalitic
 
   const [curseRes, stariRes, kmRes] = await Promise.all([
     sb.from('lde_truck_trips')
-      .select(`id, vehicle_id, cargo, status, load_planned_at, unload_planned_at,
+      .select(`id, vehicle_id, cargo, status, load_planned_at, unload_planned_at, load_place, unload_place,
                vehicles:vehicle_id ( plate_number ), drivers:driver_id ( full_name ),
                load_point:load_point_id ( name ), unload_point:unload_point_id ( name ),
                metrici:lde_truck_trip_metrics ( km_real, km_ideal, km_deviation, stops_over_30min,
@@ -84,6 +84,7 @@ export async function getAnalitica(de: string, la: string): Promise<DateAnalitic
     load_planned_at: string; unload_planned_at: string;
     vehicles: Emb<{ plate_number: string }>; drivers: Emb<{ full_name: string }>;
     load_point: Emb<{ name: string }>; unload_point: Emb<{ name: string }>;
+    load_place: string | null; unload_place: string | null;
     metrici: Emb<MetriciRow>;
   };
 
@@ -95,8 +96,8 @@ export async function getAnalitica(de: string, la: string): Promise<DateAnalitic
       plate: unul(t.vehicles)?.plate_number ?? '—',
       driverName: unul(t.drivers)?.full_name ?? null,
       cargo: t.cargo,
-      de: unul(t.load_point)?.name ?? null,
-      la: unul(t.unload_point)?.name ?? null,
+      de: unul(t.load_point)?.name ?? t.load_place ?? null,
+      la: unul(t.unload_point)?.name ?? t.unload_place ?? null,
       status: t.status,
       loadPlannedAt: t.load_planned_at,
       unloadPlannedAt: t.unload_planned_at,

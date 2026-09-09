@@ -24,10 +24,14 @@ export type Cursa = {
   cargo: string | null;
   client: string | null;
   loadPointId: string | null;
+  /** Numele punctului din listă SAU locul scris liber (load_place) — ce se arată pe bară. */
   loadPointName: string | null;
+  /** Loc scris de mână, când nu e în nomenclator (Eduard, 09.09: șantierul lui Nuțu Ivanovici). */
+  loadPlace: string | null;
   loadPlannedAt: string;
   unloadPointId: string | null;
   unloadPointName: string | null;
+  unloadPlace: string | null;
   unloadPlannedAt: string;
   status: string;
   /** Cine a pus starea: dispecerul, GPS-ul (stă în raza descărcării) sau recepția TLX. */
@@ -128,7 +132,7 @@ async function curseInFereastra(fromIso: string, toIso: string): Promise<{ curse
     .from('lde_truck_trips')
     .select(`id, vehicle_id, driver_id, cargo, client, status, notes,
              status_source, status_changed_at, tlx_receipt_at, tlx_receipt_liters,
-             load_point_id, load_planned_at, unload_point_id, unload_planned_at,
+             load_point_id, load_place, load_planned_at, unload_point_id, unload_place, unload_planned_at,
              load_point:load_point_id ( name ), unload_point:unload_point_id ( name )`)
     // toIso e exclusiv (începutul zilei următoare) — de aceea .lt, nu .lte.
     .lt('load_planned_at', toIso)
@@ -149,6 +153,7 @@ async function curseInFereastra(fromIso: string, toIso: string): Promise<{ curse
     status_source: string | null; status_changed_at: string | null;
     tlx_receipt_at: string | null; tlx_receipt_liters: number | string | null;
     unload_point_id: string | null; unload_planned_at: string;
+    load_place: string | null; unload_place: string | null;
     load_point: { name: string } | { name: string }[] | null;
     unload_point: { name: string } | { name: string }[] | null;
   };
@@ -161,10 +166,12 @@ async function curseInFereastra(fromIso: string, toIso: string): Promise<{ curse
     cargo: t.cargo,
     client: t.client,
     loadPointId: t.load_point_id,
-    loadPointName: nume(t.load_point),
+    loadPointName: nume(t.load_point) ?? t.load_place,
+    loadPlace: t.load_place,
     loadPlannedAt: t.load_planned_at,
     unloadPointId: t.unload_point_id,
-    unloadPointName: nume(t.unload_point),
+    unloadPointName: nume(t.unload_point) ?? t.unload_place,
+    unloadPlace: t.unload_place,
     unloadPlannedAt: t.unload_planned_at,
     status: t.status,
     statusSource: (t.status_source === 'gps' || t.status_source === 'tlx' ? t.status_source : 'manual') as Cursa['statusSource'],
@@ -266,12 +273,27 @@ export type CursaInput = {
   driverId: string | null;
   cargo: string | null;
   client: string | null;
-  loadPointId: string;
+  /** Punct din listă (uuid) sau null când locul e scris liber în `loadPlace`. */
+  loadPointId: string | null;
+  loadPlace: string | null;
   loadPlannedAt: string;
-  unloadPointId: string;
+  unloadPointId: string | null;
+  unloadPlace: string | null;
   unloadPlannedAt: string;
   notes: string | null;
 };
+
+/**
+ * Locul cursei: punctul din nomenclator SAU un loc scris de mână — exact unul.
+ * Eduard (09.09): camionul a plecat pe șantierul lui Nuțu Ivanovici, care nu e
+ * și n-are de ce să fie în lista noastră de puncte. `null` = nici punct, nici text.
+ */
+function locCursa(pointId: string | null, place: string | null): { pointId: string | null; place: string | null } | null {
+  if (pointId && UUID_RE.test(pointId)) return { pointId, place: null };
+  const text = (place ?? '').trim();
+  if (pointId || text.length < 2) return null;
+  return { pointId: null, place: text.slice(0, 200) };
+}
 
 export async function salveazaCursa(input: CursaInput): Promise<Rezultat> {
   let s: Session;
@@ -280,13 +302,14 @@ export async function salveazaCursa(input: CursaInput): Promise<Rezultat> {
   if (!UUID_RE.test(input.vehicleId)) return { error: 'Alege camionul' };
   if (input.id && !UUID_RE.test(input.id)) return { error: 'Identificator invalid' };
   if (input.driverId && !UUID_RE.test(input.driverId)) return { error: 'Șofer invalid' };
-  if (!UUID_RE.test(input.loadPointId) || !UUID_RE.test(input.unloadPointId)) {
-    return { error: 'Alege punctul de încărcare și cel de descărcare' };
+  const locIncarcare = locCursa(input.loadPointId, input.loadPlace);
+  const locDescarcare = locCursa(input.unloadPointId, input.unloadPlace);
+  if (!locIncarcare || !locDescarcare) {
+    return { error: 'Alege punctul de încărcare și cel de descărcare — sau «alt loc» și scrie-l, dacă nu e în listă' };
   }
   if (!Number.isFinite(Date.parse(input.loadPlannedAt)) || !Number.isFinite(Date.parse(input.unloadPlannedAt))) {
     return { error: 'Data sau ora nu e validă' };
   }
-  if (!input.loadPointId || !input.unloadPointId) return { error: 'Alege punctul de încărcare și cel de descărcare' };
   if (!input.loadPlannedAt || !input.unloadPlannedAt) return { error: 'Pune data și ora pentru încărcare și descărcare' };
   if (Date.parse(input.unloadPlannedAt) < Date.parse(input.loadPlannedAt)) {
     return { error: 'Descărcarea nu poate fi înaintea încărcării' };
@@ -351,9 +374,11 @@ export async function salveazaCursa(input: CursaInput): Promise<Rezultat> {
     driver_id: input.driverId,
     cargo: taie(input.cargo),
     client: taie(input.client),
-    load_point_id: input.loadPointId,
+    load_point_id: locIncarcare.pointId,
+    load_place: locIncarcare.place,
     load_planned_at: input.loadPlannedAt,
-    unload_point_id: input.unloadPointId,
+    unload_point_id: locDescarcare.pointId,
+    unload_place: locDescarcare.place,
     unload_planned_at: input.unloadPlannedAt,
     notes: taie(input.notes),
   };

@@ -90,7 +90,7 @@ export async function GET(req: NextRequest) {
       sb.from('lde_active_assignments')
         .select('vehicle_id, drivers:driver_id ( full_name )').is('valid_to', null),
       sb.from('lde_truck_trips')
-        .select(`id, vehicle_id, cargo, status, load_planned_at, unload_planned_at,
+        .select(`id, vehicle_id, cargo, status, load_planned_at, unload_planned_at, load_place, unload_place,
                  load_point:load_point_id ( name ), unload_point:unload_point_id ( name )`)
         .lt('load_planned_at', toIso).gte('unload_planned_at', fromIso)
         .neq('status', 'anulata').order('load_planned_at').limit(1000),
@@ -128,6 +128,9 @@ export async function GET(req: NextRequest) {
       load_planned_at: string; unload_planned_at: string;
       load_point: { name: string } | { name: string }[] | null;
       unload_point: { name: string } | { name: string }[] | null;
+      /** Loc scris liber când capătul nu e în nomenclator (migr. 331). */
+      load_place: string | null;
+      unload_place: string | null;
     };
     const curse = (curseRes.data ?? []) as CursaRow[];
 
@@ -185,12 +188,12 @@ export async function GET(req: NextRequest) {
         stare,
         marfa: activa?.cargo ?? null,
         ruta: activa
-          ? `${unu(activa.load_point)?.name ?? '—'} → ${unu(activa.unload_point)?.name ?? '—'}`
+          ? `${unu(activa.load_point)?.name ?? activa.load_place ?? '—'} → ${unu(activa.unload_point)?.name ?? activa.unload_place ?? '—'}`
           : null,
         pana: activa ? activa.unload_planned_at : null,
         stareaPanaLa: stareAzi?.expected_end ?? null,
         urmatoareaCursa: urmatoarea
-          ? { de: urmatoarea.load_planned_at, ruta: `${unu(urmatoarea.load_point)?.name ?? '—'} → ${unu(urmatoarea.unload_point)?.name ?? '—'}` }
+          ? { de: urmatoarea.load_planned_at, ruta: `${unu(urmatoarea.load_point)?.name ?? urmatoarea.load_place ?? '—'} → ${unu(urmatoarea.unload_point)?.name ?? urmatoarea.unload_place ?? '—'}` }
           : null,
         // Poziția spusă omenește, nu în coordonate: numele punctului cel mai apropiat, cu țara.
         unde: poz ? undeEste({ lat: poz.lat, lng: poz.lng, tara: poz.tara }, puncte) : null,
@@ -201,9 +204,9 @@ export async function GET(req: NextRequest) {
           stareZi: stareAzi ? { state: stareAzi.state, expectedEnd: stareAzi.expected_end } : null,
           cursa: activa ? {
             status: activa.status, cargo: activa.cargo,
-            unloadPointName: unu(activa.unload_point)?.name ?? null,
+            unloadPointName: unu(activa.unload_point)?.name ?? activa.unload_place ?? null,
             unloadPointCountry: puncte.find((p) => p.name === unu(activa.unload_point)?.name)?.country ?? null,
-            loadPointName: unu(activa.load_point)?.name ?? null,
+            loadPointName: unu(activa.load_point)?.name ?? activa.load_place ?? null,
             loadPointCountry: puncte.find((p) => p.name === unu(activa.load_point)?.name)?.country ?? null,
           } : null,
           poz: poz ? { lat: poz.lat, lng: poz.lng, tara: poz.tara } : null,

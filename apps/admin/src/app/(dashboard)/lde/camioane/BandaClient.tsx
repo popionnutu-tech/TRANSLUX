@@ -63,14 +63,24 @@ const formGol = {
   cargo: 'diesel',
   client: '',
   loadPointId: '',
+  loadPlace: '',
   loadDate: '',
   loadTime: '07:00',
   unloadPointId: '',
+  unloadPlace: '',
   unloadDate: '',
   unloadTime: '14:00',
   notes: '',
   motiv: '',
 };
+
+/**
+ * Valoarea din selectorul de puncte pentru «alt loc — îl scriu eu». Eduard, 09.09:
+ * zernovozul a plecat cu materiale pe șantierul lui Nuțu Ivanovici — un loc de o
+ * singură dată, care n-are ce căuta în nomenclator. Nu e uuid, deci nu se poate
+ * confunda cu un punct.
+ */
+const ALT_LOC = '__alt__';
 
 /** Aceeași normalizare ca pe server, ca joinul pe plăcuță să țină. */
 const placaCurata = (p: string) => p.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -276,12 +286,14 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
       driverId: c.driverId ?? '',
       cargo: c.cargo ?? 'diesel',
       client: c.client ?? '',
-      loadPointId: c.loadPointId ?? '',
+      loadPointId: c.loadPointId ?? (c.loadPlace ? ALT_LOC : ''),
+      loadPlace: c.loadPlace ?? '',
       // Ziua ȘI ora se citesc amândouă în ora Chișinăului. Ziua din `slice(0,10)`
       // e ziua UTC: o încărcare la 00:30 local sărea o zi înapoi la resalvare.
       loadDate: chisinauDayOf(c.loadPlannedAt),
       loadTime: chisinauTimeOf(c.loadPlannedAt),
-      unloadPointId: c.unloadPointId ?? '',
+      unloadPointId: c.unloadPointId ?? (c.unloadPlace ? ALT_LOC : ''),
+      unloadPlace: c.unloadPlace ?? '',
       unloadDate: chisinauDayOf(c.unloadPlannedAt),
       unloadTime: chisinauTimeOf(c.unloadPlannedAt),
       notes: c.notes ?? '',
@@ -306,7 +318,12 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
       return;
     }
 
-    if (!form.loadPointId || !form.unloadPointId) { setEroare('Alege punctul de încărcare și cel de descărcare'); return; }
+    // Fiecare capăt: ori punct din listă, ori «alt loc» cu textul scris.
+    const locOk = (id: string, text: string) => (id !== '' && id !== ALT_LOC) || (id === ALT_LOC && text.trim().length >= 2);
+    if (!locOk(form.loadPointId, form.loadPlace) || !locOk(form.unloadPointId, form.unloadPlace)) {
+      setEroare('Alege punctul de încărcare și cel de descărcare — sau «alt loc» și scrie-l');
+      return;
+    }
     ruleaza(
       () => salveazaCursa({
         id: form.id || undefined,
@@ -314,11 +331,13 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
         driverId: form.driverId || null,
         cargo: form.cargo || null,
         client: form.client || null,
-        loadPointId: form.loadPointId,
+        loadPointId: form.loadPointId === ALT_LOC ? null : form.loadPointId,
+        loadPlace: form.loadPointId === ALT_LOC ? form.loadPlace.trim() : null,
         // Ora e a Chișinăului, nu a browserului: un dispecer din altă țară ar fi
         // salvat cursa cu ore deplasate.
         loadPlannedAt: chisinauInstantIso(form.loadDate, form.loadTime),
-        unloadPointId: form.unloadPointId,
+        unloadPointId: form.unloadPointId === ALT_LOC ? null : form.unloadPointId,
+        unloadPlace: form.unloadPointId === ALT_LOC ? form.unloadPlace.trim() : null,
         unloadPlannedAt: chisinauInstantIso(form.unloadDate, form.unloadTime),
         notes: form.notes || null,
       }),
@@ -370,7 +389,6 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
     );
   }, [form, puncte, camioane, pozitieDupaPlaca, curseVii, stari, randuri]);
 
-  const numePunct = useCallback((id: string | null) => puncte.find((p) => p.id === id)?.name ?? '—', [puncte]);
   const azi = chisinauTodayIso();
   const ziScurta = (z: string) => {
     const d = new Date(`${z}T12:00:00Z`);
@@ -483,7 +501,6 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
                 lasaBara={lasaBara}
                 deschideFormular={deschideFormular}
                 setDetaliu={setDetaliu}
-                numePunct={numePunct}
                 ruleaza={ruleaza}
               />
             ))}
@@ -501,7 +518,7 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
 
       {detaliu && (
         <div className="card">
-          <h3>{numePunct(detaliu.loadPointId)} → {numePunct(detaliu.unloadPointId)}</h3>
+          <h3>{detaliu.loadPointName ?? '—'} → {detaliu.unloadPointName ?? '—'}</h3>
           <div className="grid-3">
             <div><span className="text-muted">Marfă:</span> {detaliu.cargo ?? '—'}</div>
             <div><span className="text-muted">Client:</span> {detaliu.client ?? '—'}</div>
@@ -633,7 +650,20 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
                 </div>
                 <div className="form-group">
                   <label>Marfă</label>
-                  <select value={form.cargo} onChange={(e) => setForm({ ...form, cargo: e.target.value })}>
+                  <select
+                    value={form.cargo}
+                    onChange={(e) => {
+                      const cargo = e.target.value;
+                      // «alta» e de obicei o treabă în afara punctelor noastre (Eduard, 09.09):
+                      // capetele încă nealese trec pe «alt loc», ca să apară câmpul de scris.
+                      setForm({
+                        ...form,
+                        cargo,
+                        loadPointId: cargo === 'alta' && form.loadPointId === '' ? ALT_LOC : form.loadPointId,
+                        unloadPointId: cargo === 'alta' && form.unloadPointId === '' ? ALT_LOC : form.unloadPointId,
+                      });
+                    }}
+                  >
                     <option value="diesel">diesel</option>
                     <option value="biodiesel">biodiesel</option>
                     <option value="cereale">cereale</option>
@@ -649,7 +679,18 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
                   <select value={form.loadPointId} onChange={(e) => setForm({ ...form, loadPointId: e.target.value })}>
                     <option value="">— alege —</option>
                     {puncte.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    <option value={ALT_LOC}>✎ alt loc — nu e în listă, îl scriu</option>
                   </select>
+                  {form.loadPointId === ALT_LOC && (
+                    <input
+                      value={form.loadPlace}
+                      onChange={(e) => setForm({ ...form, loadPlace: e.target.value })}
+                      placeholder="ex. șantier Nuțu Ivanovici, Stăuceni"
+                      maxLength={200}
+                      style={{ marginTop: 6 }}
+                      autoFocus
+                    />
+                  )}
                 </div>
                 <div className="form-group">
                   <label>Ora încărcării</label>
@@ -660,7 +701,17 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
                   <select value={form.unloadPointId} onChange={(e) => setForm({ ...form, unloadPointId: e.target.value })}>
                     <option value="">— alege —</option>
                     {puncte.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    <option value={ALT_LOC}>✎ alt loc — nu e în listă, îl scriu</option>
                   </select>
+                  {form.unloadPointId === ALT_LOC && (
+                    <input
+                      value={form.unloadPlace}
+                      onChange={(e) => setForm({ ...form, unloadPlace: e.target.value })}
+                      placeholder="ex. depozit client, Orhei"
+                      maxLength={200}
+                      style={{ marginTop: 6 }}
+                    />
+                  )}
                 </div>
                 <div className="form-group">
                   <label>Ora descărcării</label>
@@ -670,6 +721,12 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
                   <label>Notă</label>
                   <input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
                 </div>
+                {(form.loadPointId === ALT_LOC || form.unloadPointId === ALT_LOC) && (
+                  <p className="text-muted" style={{ gridColumn: '1 / -1', margin: 0, fontSize: 12 }}>
+                    Loc scris de mână: n-are coordonate, deci automatul nu-i mută starea (GPS «la descărcare»,
+                    TLX «încheiată») și nu se dă sfatul «camion mai aproape». Starea o treci tu, din detaliile cursei.
+                  </p>
+                )}
               </>
             ) : (
               <div className="form-group">
@@ -762,12 +819,11 @@ const Grup = memo(function Grup(props: {
   lasaBara: (cursaId: string, vehicleId: string, zi: string) => void;
   deschideFormular: (vehicleId: string, zi: string) => void;
   setDetaliu: (c: Cursa | null) => void;
-  numePunct: (id: string | null) => string;
   ruleaza: (a: () => Promise<Rezultat>, d?: () => void) => void;
 }) {
   const {
     nume, nrColoane, camioane, zile, azi, curseDupaCamion, stariDupaCheie, puncte,
-    pozitieDupaPlaca, inCurs, poateEdita, tras, setTras, lasaBara, deschideFormular, setDetaliu, numePunct, ruleaza,
+    pozitieDupaPlaca, inCurs, poateEdita, tras, setTras, lasaBara, deschideFormular, setDetaliu, ruleaza,
   } = props;
   const acum = Date.now();
 
@@ -928,7 +984,7 @@ const Grup = memo(function Grup(props: {
                         }}
                       >
                         <div style={{ fontSize: 11.5, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {numePunct(c.loadPointId)} → {numePunct(c.unloadPointId)}
+                          {c.loadPointName ?? '—'} → {c.unloadPointName ?? '—'}
                         </div>
                         <div style={{ fontSize: 10.5, opacity: .9, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {c.cargo ?? 'fără marfă'} · {etichetaStareCursa(c.status)}{intarziat ? ' · ÎNTÂRZIAT' : ''}

@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
 
     // Cursele care AU PORNIT în ziua judecată. Cele anulate nu sunt decizii.
     const { data, error } = await sb.from('lde_truck_trips')
-      .select(`id, vehicle_id, load_planned_at,
+      .select(`id, vehicle_id, load_planned_at, load_place,
                vehicles:vehicle_id ( plate_number, lde_truck_profile ( fleet_type ) ),
                drivers:driver_id ( full_name ),
                load_point:load_point_id ( name, lat, lng )`)
@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
     }
 
     type Row = {
-      id: string; vehicle_id: string; load_planned_at: string;
+      id: string; vehicle_id: string; load_planned_at: string; load_place: string | null;
       vehicles: { plate_number: string; lde_truck_profile: { fleet_type: string } | { fleet_type: string }[] | null }
         | { plate_number: string; lde_truck_profile: { fleet_type: string } | { fleet_type: string }[] | null }[] | null;
       drivers: { full_name: string } | { full_name: string }[] | null;
@@ -139,7 +139,9 @@ export async function GET(req: NextRequest) {
         plate: veh?.plate_number ?? '—',
         plecare: stop ? { lat: Number(stop.lat), lng: Number(stop.lon) } : null,
         incarcare: pct && pct.lat !== null && pct.lng !== null ? { lat: pct.lat, lng: pct.lng } : null,
-        incarcareNume: pct?.name ?? 'punct fără nume',
+        // Loc scris liber (migr. 331): n-are coordonate, deci fără judecată de
+        // încrucișare — dar numele lui se spune, nu «punct fără nume».
+        incarcareNume: pct?.name ?? r.load_place ?? 'punct fără nume',
         loadPlannedAt: r.load_planned_at,
         fleetType: prof?.fleet_type ?? null,
         sofer: unu(r.drivers)?.full_name ?? null,

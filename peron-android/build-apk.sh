@@ -18,3 +18,10 @@ sed -i '' 's/^reactNativeArchitectures=.*/reactNativeArchitectures=arm64-v8a/' a
 mkdir -p dist
 cp android/app/build/outputs/apk/release/app-release.apk dist/translux-peron.apk
 echo "APK: $(pwd)/dist/translux-peron.apk"
+# Copie directă pe MacBook (Tailscale + Remote Login), în ~/Downloads — fără iCloud (Ion, 09.09).
+MACBOOK="${MACBOOK_SSH:-ionpop@100.82.41.116}"
+if ssh -o BatchMode=yes -o ConnectTimeout=5 -i ~/.ssh/id_ed25519 "$MACBOOK" true 2>/dev/null; then
+  scp -q -i ~/.ssh/id_ed25519 dist/translux-peron.apk "$MACBOOK:Downloads/translux-peron.apk" && echo "Copiat pe MacBook: ~/Downloads/translux-peron.apk"
+else
+  echo "MacBook indisponibil (Remote Login sau Tailscale oprit) — APK-ul rămâne doar local"
+fi

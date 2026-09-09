@@ -220,7 +220,7 @@ export async function GET(req: NextRequest) {
             const seg = segmentInFereastra(c.load_planned_at, c.unload_planned_at, zile);
             if (!seg) return null;
             const marfa = (c.cargo ?? '').toLowerCase();
-            const tip = marfa === 'biodiesel' || marfa === 'cereale' || marfa === 'diesel' ? marfa : 'alta';
+            const tip = marfa === 'biodiesel' || marfa === 'cereale' || marfa === 'diesel' || marfa === 'benzina' ? marfa : 'alta';
             return { start: seg.start, span: seg.span, tip };
           }).filter(Boolean),
           ...zile.map((z, i) => {

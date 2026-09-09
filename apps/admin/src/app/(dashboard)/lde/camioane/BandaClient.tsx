@@ -48,6 +48,8 @@ type Pozitie = { plate: string; lat: number; lng: number; at: string; speed?: nu
 
 const CULOARE: Record<string, string> = {
   diesel: 'linear-gradient(135deg,#3271f0,#1c48c9)',
+  // Eduard, 09.09: «нужно добавить Бензин в номенклатуру топлива».
+  benzina: 'linear-gradient(135deg,#e2543a,#b8321c)',
   biodiesel: 'linear-gradient(135deg,#12a6b6,#0a7f92)',
   cereale: 'linear-gradient(135deg,#d9a441,#b07c14)',
   alta: 'linear-gradient(135deg,#6b7280,#4b5563)',
@@ -665,6 +667,7 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
                     }}
                   >
                     <option value="diesel">diesel</option>
+                    <option value="benzina">benzină</option>
                     <option value="biodiesel">biodiesel</option>
                     <option value="cereale">cereale</option>
                     <option value="alta">alta</option>
@@ -969,7 +972,7 @@ const Grup = memo(function Grup(props: {
                         onDragStart={() => setTras(c.id)}
                         onDragEnd={() => setTras(null)}
                         onClick={() => setDetaliu(c)}
-                        title={mutabila ? 'Trage ca s-o muți · click pentru detalii' : 'Cursa a pornit — nu se mai mută'}
+                        title={mutabila ? 'Trage ca s-o muți · click pentru detalii' : 'Cursa a pornit — nu se trage; camionul se schimbă din «Editează»'}
                         style={{
                           position: 'relative', borderRadius: 8, padding: '5px 9px', color: '#fff',
                           cursor: mutabila ? 'grab' : 'pointer',

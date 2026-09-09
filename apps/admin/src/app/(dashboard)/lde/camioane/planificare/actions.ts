@@ -320,22 +320,29 @@ export async function salveazaCursa(input: CursaInput): Promise<Rezultat> {
   // `vehicle_id` și ferestrele planificate, iar poarta stătea doar pe unul.
   // Prin editare, o cursă întârziată putea fi rescrisă ca punctuală — exact
   // cifra din Analitică pe care o citește administratorul (security review, 01.09).
+  let resetGps = false;
   if (input.id) {
     const { data: veche, error: eVeche } = await getSupabase().from('lde_truck_trips')
       .select('status, vehicle_id, load_planned_at, unload_planned_at').eq('id', input.id).maybeSingle();
     if (eVeche) return { error: eroareCurata(eVeche, 'Cursa nu a putut fi citită') };
     if (!veche) return { error: 'Cursa nu mai există — reîmprospătează pagina' };
+    // Doar ORELE planificate rămân blocate după plecare. Camionul se poate
+    // corecta: Eduard, 09.09 — «водители поменяли машины, я заполнил на одну
+    // машину, он уехал на другой». Cursa greșit pusă pe alt camion nu-i o
+    // rescriere a punctualității, ci o greșeală de dispecerat; lăsată așa,
+    // metricile GPS s-ar lega de camionul care n-a plecat nicăieri.
     if (!poateFiMutata(veche.status as string)) {
-      const schimbatCamion = veche.vehicle_id !== input.vehicleId;
       const schimbatPlan = Date.parse(veche.load_planned_at as string) !== Date.parse(input.loadPlannedAt)
         || Date.parse(veche.unload_planned_at as string) !== Date.parse(input.unloadPlannedAt);
-      if (schimbatCamion || schimbatPlan) {
+      if (schimbatPlan) {
         return {
-          error: `Cursa e în «${veche.status}»: marfa, clientul și nota se pot corecta, `
-            + 'dar camionul și orele planificate nu se mai schimbă — din ele se calculează punctualitatea.',
+          error: `Cursa e în «${etichetaStareCursa(veche.status as string)}»: camionul, șoferul, marfa, clientul și nota se pot corecta, `
+            + 'dar orele planificate nu se mai schimbă — din ele se calculează punctualitatea.',
         };
       }
     }
+    // Ce a văzut GPS-ul aparținea camionului vechi: pe cel nou se ia de la zero.
+    if (veche.vehicle_id !== input.vehicleId) resetGps = true;
   }
 
   // Suprapunerea se verifică ȘI pe server, nu doar în formular: două file deschise
@@ -386,7 +393,11 @@ export async function salveazaCursa(input: CursaInput): Promise<Rezultat> {
   const sb = getSupabase();
   if (input.id) {
     const { data, error } = await sb.from('lde_truck_trips')
-      .update({ ...camp, updated_at: new Date().toISOString(), updated_by: s.email })
+      .update({
+        ...camp,
+        ...(resetGps ? { unload_seen_at: null } : {}),
+        updated_at: new Date().toISOString(), updated_by: s.email,
+      })
       .eq('id', input.id).select('id');
     if (error) return { error: eroareCurata(error, 'Cursa nu a putut fi salvată') };
     if (!data || data.length === 0) return { error: 'Cursa nu mai există — poate a fost ștearsă între timp' };

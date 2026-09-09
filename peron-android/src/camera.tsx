@@ -71,6 +71,25 @@ export function PhotoCamera({
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
   const [ready, setReady] = useState(false);
+  // Dimensiune medie cerută direct camerei (≈1280–1920 px lățime): poza iese mică de la
+  // început, micșorarea devine opțională, iar originalul de rezervă nu depășește limita
+  // serverului nici pe telefoane cu 50 MP (Samsung A05, 09.09).
+  const [pictureSize, setPictureSize] = useState<string | undefined>(undefined);
+  async function onReady() {
+    setReady(true);
+    try {
+      const sizes = (await cameraRef.current?.getAvailablePictureSizesAsync()) ?? [];
+      const parsed = sizes
+        .map((sz) => ({ sz, w: Number(sz.split('x')[0]), h: Number(sz.split('x')[1]) }))
+        .filter((x) => Number.isFinite(x.w) && Number.isFinite(x.h));
+      const pick = parsed
+        .filter((x) => Math.max(x.w, x.h) >= 1024 && Math.max(x.w, x.h) <= 2048)
+        .sort((a, b) => Math.max(b.w, b.h) - Math.max(a.w, a.h))[0];
+      if (pick) setPictureSize(pick.sz);
+    } catch (e) {
+      console.warn('[camera] getAvailablePictureSizesAsync a picat:', e instanceof Error ? e.message : e);
+    }
+  }
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<CapturedPhoto | null>(null);
 
@@ -106,7 +125,7 @@ export function PhotoCamera({
         {preview ? (
           <Image source={{ uri: preview.uri }} style={{ flex: 1 }} resizeMode="contain" accessibilityLabel="Previzualizarea pozei" />
         ) : permission?.granted ? (
-          <CameraView ref={cameraRef} style={{ flex: 1 }} facing="back" onCameraReady={() => setReady(true)} />
+          <CameraView ref={cameraRef} style={{ flex: 1 }} facing="back" pictureSize={pictureSize} onCameraReady={onReady} />
         ) : (
           <View style={styles.denied}>
             <Body>Aplicația are nevoie de cameră ca să facă poza pe loc.</Body>

@@ -34,14 +34,21 @@ export interface CapturedPhoto {
 
 /** Declanșează, redimensionează la 1280 px lățime și dă JPEG 0.8 ca base64. */
 export async function takeCompressedPhoto(camera: CameraView): Promise<CapturedPhoto | null> {
-  const pic = await camera.takePictureAsync({ quality: 0.9 });
+  // base64 cerut și de la cameră: dacă micșorarea pică (Samsung A05, 09.09 — «Poza nu a reușit»),
+  // poza pleacă așa cum e, mai mare, dar pleacă.
+  const pic = await camera.takePictureAsync({ quality: 0.8, base64: true, skipProcessing: false });
   if (!pic) return null;
-  const ctx = ImageManipulator.manipulate(pic.uri);
-  if (pic.width > PHOTO_MAX_WIDTH) ctx.resize({ width: PHOTO_MAX_WIDTH });
-  const rendered = await ctx.renderAsync();
-  const out = await rendered.saveAsync({ format: SaveFormat.JPEG, compress: PHOTO_JPEG_QUALITY, base64: true });
-  if (!out.base64) return null;
-  return { uri: out.uri, base64: out.base64 };
+  try {
+    const ctx = ImageManipulator.manipulate(pic.uri);
+    if (pic.width > PHOTO_MAX_WIDTH) ctx.resize({ width: PHOTO_MAX_WIDTH });
+    const rendered = await ctx.renderAsync();
+    const out = await rendered.saveAsync({ format: SaveFormat.JPEG, compress: PHOTO_JPEG_QUALITY, base64: true });
+    if (out.base64) return { uri: out.uri, base64: out.base64 };
+  } catch (e) {
+    console.warn('[camera] micșorarea a picat, trimit originalul:', e instanceof Error ? e.message : e);
+  }
+  if (pic.base64) return { uri: pic.uri, base64: pic.base64 };
+  return null;
 }
 
 export function PhotoCamera({
@@ -76,11 +83,12 @@ export function PhotoCamera({
     setBusy(true);
     try {
       const photo = await takeCompressedPhoto(cameraRef.current);
-      if (!photo) Alert.alert('Poza nu a reușit', 'Încearcă din nou.');
+      if (!photo) Alert.alert('Poza nu a reușit', 'Camera nu a dat nicio imagine. Încearcă din nou.');
       else if (confirm) setPreview(photo);
       else onCaptured(photo);
-    } catch {
-      Alert.alert('Poza nu a reușit', 'Încearcă din nou.');
+    } catch (e) {
+      // motivul e afișat ca să-l putem citi de pe telefon (Ion, 09.09: «să vedem motivele»)
+      Alert.alert('Poza nu a reușit', `Încearcă din nou.\n\nMotiv: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setBusy(false);
     }

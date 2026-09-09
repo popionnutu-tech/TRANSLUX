@@ -5,6 +5,7 @@ import { headers } from 'next/headers';
 import { createHash } from 'crypto';
 import { getSupabase } from '@/lib/supabase';
 import { buildTurAssignmentMap, buildReturAssignmentMap } from '@/lib/assignments';
+import { depasesteLimita, FEREASTRA_MINUTE } from '@/lib/search-rate-limit';
 import { resolveOfferPriceForDate, resolveOfferForDate } from '@translux/db';
 
 export interface Locality {
@@ -298,17 +299,35 @@ export async function searchTrips(
   date: string,
 ): Promise<TripResult[]> {
   const supabase = getSupabase();
+  const sursa = await clientFingerprint();
 
-  // Fire-and-forget: log search query for analytics
+  // Anti-scraper (Ion, 09.09): peste 10 căutări în 10 minute de la aceeași sursă,
+  // răspunsul e listă goală. Numărăm ÎNAINTE de a loga căutarea curentă, prin RPC-ul
+  // cautari_recente (migr. 334) — anon nu poate citi search_log. Orice eroare → nu
+  // blocăm: limita nu are voie să rupă căutarea clienților.
+  let blocata = false;
+  if (sursa.ip_hash) {
+    const { data: anterioare, error } = await supabase.rpc('cautari_recente', {
+      p_ip_hash: sursa.ip_hash,
+      p_minute: FEREASTRA_MINUTE,
+    });
+    if (error) console.warn('[search_log] cautari_recente eșuat:', error.message);
+    else blocata = depasesteLimita(anterioare as number | null);
+  }
+
+  // Fire-and-forget: log search query for analytics (și cele blocate — scraperul
+  // rămâne vizibil în analytics, iar fereastra lui nu se «răcește» cât insistă).
   supabase.from('search_log').insert({
     from_locality: fromRo,
     to_locality: toRo,
     search_date: date,
-    ...(await clientFingerprint()),
+    ...sursa,
   }).then(({ error }) => {
     // Un deploy peste o bază fără migrația 282 ar goli analiza căutărilor în tăcere.
     if (error) console.warn('[search_log] insert eșuat:', error.message);
   });
+
+  if (blocata) return [];
 
   const assignmentDate = await resolveAssignmentDate(supabase, date);
 

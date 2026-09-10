@@ -209,8 +209,17 @@ export const STARI_AUTO_TLX_INCHEIATA: readonly string[] = [
 ];
 
 /** Cum se explică omului o stare pusă automat; null pentru cea manuală. */
-export function descriereSursaStare(sursa: string | null | undefined, extra?: { litri?: number | null }): string | null {
-  if (sursa === 'gps') return 'pusă automat: camionul stă în raza punctului de descărcare';
+export function descriereSursaStare(sursa: string | null | undefined, extra?: { litri?: number | null; status?: string | null }): string | null {
+  if (sursa === 'gps') {
+    // Automatul pune de acum orice stare a drumului (Ion, 10.09: «AI maximal,
+    // dispecerul minimal») — explicația spune ce a văzut GPS-ul la fiecare.
+    switch (extra?.status) {
+      case 'la_incarcare': return 'pusă automat: camionul a stat în raza punctului de încărcare';
+      case 'spre_descarcare': return 'pusă automat: camionul a plecat de la încărcare';
+      case 'la_descarcare': return 'pusă automat: camionul stă în raza punctului de descărcare';
+      default: return 'pusă automat, după GPS';
+    }
+  }
   if (sursa === 'tlx') {
     const l = extra?.litri;
     const litri = typeof l === 'number' && Number.isFinite(l) ? ` (${Math.round(l).toLocaleString('ro-MD')} l)` : '';

@@ -210,6 +210,9 @@ describe('stările automate (Ion, 08.09)', () => {
     expect(descriereSursaStare('manual')).toBeNull();
     expect(descriereSursaStare(null)).toBeNull();
     expect(descriereSursaStare('gps')).toMatch(/GPS|raza/i);
+    expect(descriereSursaStare('gps', { status: 'la_incarcare' })).toContain('încărcare');
+    expect(descriereSursaStare('gps', { status: 'spre_descarcare' })).toContain('plecat');
+    expect(descriereSursaStare('gps', { status: 'la_descarcare' })).toContain('descărcare');
     expect(descriereSursaStare('tlx', { litri: 23995 })).toContain('23.995 l');
     expect(descriereSursaStare('tlx', { litri: null })).toBe('închisă automat: recepție de carburant în TLX');
   });

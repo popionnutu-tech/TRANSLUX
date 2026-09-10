@@ -1,7 +1,7 @@
 // Teste pentru stările automate (node --test lde-geo-worker/trip-auto.test.mjs).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { deciziaGps, deciziaTlx, statiaPunctului, razaEfectiva, normPlaca, inMoldova, planCisterneDinTlx } from './trip-auto.mjs';
+import { deciziaGps, deciziaTlx, statiaPunctului, punctulStatiei, momentulReceptiei, razaEfectiva, normPlaca, inMoldova, planCisterneDinTlx } from './trip-auto.mjs';
 
 const ACUM = Date.parse('2026-09-08T12:00:00Z');
 const iso = (min) => new Date(ACUM + min * 60e3).toISOString();
@@ -102,16 +102,30 @@ test('TLX: altă stație, alt camion, recepție ștearsă sau deja folosită —
   assert.equal(deciziaTlx(cursa(), [rec({ nr_auto: null })], STATII), null);
 });
 
-test('TLX: recepția din afara ferestrei cursei nu o închide (e a altei curse)', () => {
-  assert.equal(deciziaTlx(cursa(), [rec({ unloaded_at: '2026-09-01T09:30:00Z' })], STATII), null);
-  assert.equal(deciziaTlx(cursa(), [rec({ unloaded_at: '2026-09-20T09:30:00Z' })], STATII), null);
-  // întârziere de 2 zile față de plan — încă în fereastră
-  assert.ok(deciziaTlx(cursa(), [rec({ unloaded_at: '2026-09-10T09:30:00Z' })], STATII));
+test('TLX (D9): fereastra e de la încărcare până la acum + 1 zi, nu după planul de descărcare', () => {
+  assert.equal(deciziaTlx(cursa(), [rec({ unloaded_at: '2026-09-01T09:30:00Z' })], STATII, new Set(), ACUM), null);
+  assert.equal(deciziaTlx(cursa(), [rec({ unloaded_at: '2026-09-20T09:30:00Z' })], STATII, new Set(), ACUM), null);
+  // întârziere de 2 zile față de planul decorativ — se închide, planul nu mai contează
+  assert.ok(deciziaTlx(cursa(), [rec({ unloaded_at: '2026-09-10T09:30:00Z' })], STATII, new Set(), Date.parse('2026-09-11T12:00:00Z')));
 });
 
-test('TLX: fără unloaded_at se ia created_at', () => {
-  const d = deciziaTlx(cursa(), [rec({ unloaded_at: null })], STATII);
-  assert.equal(d.tlx_receipt_at, '2026-09-08T11:00:00.000Z');
+test('TLX (D9): data descărcării e cea din document — unloaded_at, altfel delivery_date la prânz; created_at doar la urmă', () => {
+  assert.equal(momentulReceptiei(rec({ unloaded_at: null, delivery_date: '2026-09-06', created_at: '2026-09-08T11:00:00Z' })), Date.parse('2026-09-06T12:00:00+03:00'));
+  assert.equal(momentulReceptiei(rec({ unloaded_at: null, delivery_date: null })), Date.parse('2026-09-08T11:00:00Z'));
+  // Bon scris pe 08.09 pentru descărcarea din 06.09 (cursa începută pe 07.09): NU e al cursei ăsteia.
+  assert.equal(deciziaTlx(cursa(), [rec({ unloaded_at: null, delivery_date: '2026-09-06' })], STATII, new Set(), ACUM), null);
+  const d = deciziaTlx(cursa(), [rec({ unloaded_at: null, delivery_date: '2026-09-08' })], STATII, new Set(), ACUM);
+  assert.equal(d.tlx_receipt_at, new Date(Date.parse('2026-09-08T12:00:00+03:00')).toISOString());
+});
+
+test('TLX (D1/D3): cursa pornită de automat, fără punct de descărcare — orice stație TLX o închide și îi pune punctul', () => {
+  const PUNCTE = [{ id: 'p-balti', lat: 47.75288, lon: 27.87852, radius_m: 300 }, { id: 'p-bri', lat: 48.3535, lon: 27.1013, radius_m: 800 }];
+  const d = deciziaTlx(cursa({ unloadPoint: null }), [rec()], STATII, new Set(), ACUM, PUNCTE);
+  assert.equal(d.status, 'incheiata');
+  assert.equal(d.unload_point_id, 'p-balti');
+  assert.equal(punctulStatiei(STATII[0], PUNCTE)?.id, 'p-balti');
+  // stație necunoscută în lista TLX → nimic
+  assert.equal(deciziaTlx(cursa({ unloadPoint: null }), [rec({ station_id: 'st-x' })], STATII, new Set(), ACUM, PUNCTE), null);
 });
 
 test('TLX: punctul de descărcare fără stație TLX (baza Briceni) — rămâne dispecerul', () => {

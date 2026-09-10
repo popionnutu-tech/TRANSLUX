@@ -118,39 +118,70 @@ export function statiaPunctului(punct, statii) {
   return best ? best.s : null;
 }
 
-/** Momentul descărcării din recepție: unloaded_at (dacă e), altfel când a fost scrisă. */
+/** Recepția poate fi scrisă înainte ca ceasul nostru să ajungă la data ei (fus, ora 12 implicită). */
+export const FEREASTRA_DUPA_ACUM_MS = 86400e3;
+
+/**
+ * Momentul descărcării din recepție — DATA DOCUMENTULUI, nu momentul introducerii
+ * (Ion, 10.09: «noi ne uităm după data descărcării, că bonul recepție poate să fie
+ * introdus azi pe alaltăieri»): unloaded_at (ora exactă), altfel delivery_date la
+ * prânz, ora Chișinău; created_at rămâne ultima scăpare pentru înregistrările vechi.
+ */
 export function momentulReceptiei(r) {
-  const t = Date.parse(r.unloaded_at || r.created_at || '');
+  let t = Date.parse(r.unloaded_at || '');
+  if (!Number.isFinite(t) && r.delivery_date) t = Date.parse(`${String(r.delivery_date).slice(0, 10)}T12:00:00+03:00`);
+  if (!Number.isFinite(t)) t = Date.parse(r.created_at || '');
   return Number.isFinite(t) ? t : null;
+}
+
+/** Punctul din nomenclator pe care stă stația (invers față de statiaPunctului), sau null. */
+export function punctulStatiei(statie, puncte) {
+  if (!areCoordonate(statie)) return null;
+  let best = null;
+  for (const p of puncte || []) {
+    if (!areCoordonate(p)) continue;
+    const d = distM(statie, p);
+    if (d <= Math.max(POTRIVIRE_STATIE_M, razaEfectiva(p.radius_m)) && (!best || d < best.d)) best = { p, d };
+  }
+  return best ? best.p : null;
 }
 
 /**
  * Decizia TLX pentru o cursă.
- * @param cursa { id, status, plate, load_planned_at, unload_planned_at, unloadPoint: { …, country } }
- * @param receptii [{ id, station_id, nr_auto, volume, unloaded_at, created_at, is_deleted }]
+ * @param cursa { id, status, plate, load_planned_at, unloadPoint: { …, country } | null }
+ *   unloadPoint null = cursa pornită de automat, descărcarea încă necunoscută: orice stație TLX o închide
+ *   și îi pune punctul (D1, D3).
+ * @param receptii [{ id, station_id, nr_auto, volume, unloaded_at, delivery_date, created_at, is_deleted }]
  * @param statii [{ id, lat, lon }]  (stations din TLX, lng→lon făcut de apelant)
  * @param folosite Set de fuel_receipts.id deja legate de alte curse
- * @returns null | { status:'incheiata', status_source:'tlx', tlx_receipt_id, tlx_receipt_at, tlx_receipt_liters, ... }
+ * @param puncte [{ id, lat, lon, radius_m }] din nomenclator, pentru completarea punctului lipsă
+ * Fereastra (D9): de la încărcare (−1 h) până la acum (+1 zi) — NU după unload_planned_at,
+ * care e decorativ (cursele se introduc retroactiv cu ore implicite).
+ * @returns null | { status:'incheiata', status_source:'tlx', tlx_receipt_id, tlx_receipt_at, tlx_receipt_liters, unload_point_id?, ... }
  */
-export function deciziaTlx(cursa, receptii, statii, folosite = new Set(), acumMs = Date.now()) {
+export function deciziaTlx(cursa, receptii, statii, folosite = new Set(), acumMs = Date.now(), puncte = []) {
   if (!STARI_TLX_INCHEIATA.includes(cursa.status)) return null;
-  // Închiderea automată e posibilă DOAR în Moldova (stațiile TLX sunt toate aici;
-  // regula stă și în cod, nu doar în geografie).
-  if (!inMoldova(cursa.unloadPoint)) return null;
-  const statie = statiaPunctului(cursa.unloadPoint, statii);
-  if (!statie) return null; // descarcă în altă parte decât la o stație TLX — rămâne dispecerul
+  let statie = null;
+  if (cursa.unloadPoint) {
+    // Închiderea automată e posibilă DOAR în Moldova (stațiile TLX sunt toate aici;
+    // regula stă și în cod, nu doar în geografie).
+    if (!inMoldova(cursa.unloadPoint)) return null;
+    statie = statiaPunctului(cursa.unloadPoint, statii);
+    if (!statie) return null; // descarcă în altă parte decât la o stație TLX — rămâne dispecerul
+  }
   const placa = normPlaca(cursa.plate);
   if (!placa) return null;
   const deLa = Date.parse(cursa.load_planned_at) - FEREASTRA_INAINTE_INCARCARE_MS;
-  const panaLa = Date.parse(cursa.unload_planned_at) + FEREASTRA_DUPA_PLAN_ZILE * 86400e3;
-  if (!Number.isFinite(deLa) || !Number.isFinite(panaLa)) return null;
+  const panaLa = acumMs + FEREASTRA_DUPA_ACUM_MS;
+  if (!Number.isFinite(deLa)) return null;
+  const statiiDupaId = new Map((statii || []).map((s) => [s.id, s]));
 
   let aleasa = null;
   let aleasaT = Infinity;
   for (const r of receptii || []) {
     if (r.is_deleted) continue;
     if (folosite.has(r.id)) continue;
-    if (r.station_id !== statie.id) continue;
+    if (statie ? r.station_id !== statie.id : !statiiDupaId.has(r.station_id)) continue;
     if (normPlaca(r.nr_auto) !== placa) continue;
     const t = momentulReceptiei(r);
     if (t === null || t < deLa || t > panaLa) continue;
@@ -158,7 +189,7 @@ export function deciziaTlx(cursa, receptii, statii, folosite = new Set(), acumMs
   }
   if (!aleasa) return null;
   const acum = new Date(acumMs).toISOString();
-  return {
+  const out = {
     status: 'incheiata',
     status_source: 'tlx',
     status_changed_at: acum,
@@ -168,6 +199,11 @@ export function deciziaTlx(cursa, receptii, statii, folosite = new Set(), acumMs
     tlx_receipt_at: new Date(aleasaT).toISOString(),
     tlx_receipt_liters: aleasa.volume == null ? null : Number(aleasa.volume),
   };
+  if (!cursa.unloadPoint) {
+    const p = punctulStatiei(statiiDupaId.get(aleasa.station_id), puncte);
+    if (p) out.unload_point_id = p.id;
+  }
+  return out;
 }
 
 // ── Tipul camionului din recepțiile TLX (Ion, 08.09: «automat, auto care au

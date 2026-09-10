@@ -532,9 +532,9 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
                 </span>
               )}
               {/* Starea pusă de automat se explică: dispecerul trebuie să știe că n-a apăsat nimeni. */}
-              {descriereSursaStare(detaliu.statusSource, { litri: detaliu.tlxReceiptLiters }) && (
+              {descriereSursaStare(detaliu.statusSource, { litri: detaliu.tlxReceiptLiters, status: detaliu.status }) && (
                 <div className="text-muted" style={{ fontSize: 12 }}>
-                  {descriereSursaStare(detaliu.statusSource, { litri: detaliu.tlxReceiptLiters })}
+                  {descriereSursaStare(detaliu.statusSource, { litri: detaliu.tlxReceiptLiters, status: detaliu.status })}
                   {detaliu.statusSource === 'tlx' && detaliu.tlxReceiptAt
                     ? `, descărcat ${new Date(detaliu.tlxReceiptAt).toLocaleString('ro-MD', { timeZone: 'Europe/Chisinau' })}`
                     : ''}

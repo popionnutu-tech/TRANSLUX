@@ -183,9 +183,12 @@ async function curseInFereastra(fromIso: string, toIso: string): Promise<{ curse
   return { curse, taiat };
 }
 
+/** Ce n-a putut decide automatul de stări (lde_truck_auto_alerte), încă nerezolvat. */
+export type AlertaAuto = { id: string; fel: string; mesaj: string; createdAt: string; plate: string | null };
+
 export async function getPlanificare(fromDate: string, zile: number): Promise<{
   from: string; zile: string[]; camioane: Camion[]; curse: Cursa[]; stari: StareZi[];
-  puncte: PunctScurt[]; soferi: SoferScurt[]; taiat: boolean;
+  puncte: PunctScurt[]; soferi: SoferScurt[]; taiat: boolean; alerte: AlertaAuto[];
 }> {
   await cerereRol();
   const sb = getSupabase();
@@ -202,7 +205,7 @@ export async function getPlanificare(fromDate: string, zile: number): Promise<{
   const fromIso = chisinauDayBounds(listaZile[0]).fromIso;
   const toIso = chisinauDayBounds(listaZile[listaZile.length - 1]).toIso;
 
-  const [cam, curseRes, stariRes, puncteRes, soferiRes] = await Promise.all([
+  const [cam, curseRes, stariRes, puncteRes, soferiRes, alerteRes] = await Promise.all([
     camioane(),
     curseInFereastra(fromIso, toIso),
     // Plafon explicit + ordine stabilă: 39 de camioane × 21 de zile dau 819 rânduri,
@@ -219,8 +222,15 @@ export async function getPlanificare(fromDate: string, zile: number): Promise<{
     sb.from('lde_active_assignments')
       .select('driver_id, drivers:driver_id ( id, full_name ), vehicles:vehicle_id ( directions )')
       .is('valid_to', null),
+    // Alertele automatului de stări, nerezolvate: dispecerul le vede deasupra benzii.
+    sb.from('lde_truck_auto_alerte')
+      .select('id, fel, mesaj, created_at, vehicles:vehicle_id ( plate_number )')
+      .is('resolved_at', null).order('created_at', { ascending: false }).limit(30),
   ]);
   for (const r of [stariRes, puncteRes, soferiRes]) if (r.error) { console.error('[camioane]', r.error.message); throw new Error('Nu am putut citi planificarea'); }
+  // Alertele lipsă nu rup banda: tabela e nouă (migr. 335), iar un rând în log ajunge.
+  if (alerteRes.error) console.error('[camioane] alerte:', alerteRes.error.message);
+  type AlertaRow = { id: string; fel: string; mesaj: string; created_at: string; vehicles: { plate_number: string } | { plate_number: string }[] | null };
 
   type StareRow = { id: string; vehicle_id: string; date: string; state: 'reparatie' | 'odihna'; reason: string | null; expected_end: string | null };
   type PunctRow = { id: string; name: string; lat: number | null; lng: number | null; country: string | null };
@@ -242,6 +252,10 @@ export async function getPlanificare(fromDate: string, zile: number): Promise<{
     })),
     puncte: ((puncteRes.data ?? []) as PunctRow[]).map((p) => ({
       id: p.id, name: p.name, hasCoords: p.lat !== null && p.lng !== null, lat: p.lat, lng: p.lng, country: p.country,
+    })),
+    alerte: ((alerteRes.data ?? []) as AlertaRow[]).map((a) => ({
+      id: a.id, fel: a.fel, mesaj: a.mesaj, createdAt: a.created_at,
+      plate: (Array.isArray(a.vehicles) ? a.vehicles[0] : a.vehicles)?.plate_number ?? null,
     })),
     soferi: (() => {
       const unul = <T,>(x: T | T[] | null): T | null => (Array.isArray(x) ? x[0] ?? null : x);
@@ -553,6 +567,16 @@ export async function seteazaTipCamion(vehicleId: string, fleetType: 'cisterna' 
       { onConflict: 'vehicle_id' });
   if (error) return { error: eroareCurata(error, 'Tipul nu a putut fi salvat') };
   return { ok: true, mesaj: `Tip setat: ${fleetType === 'cisterna' ? 'cisternă' : 'zernovoz'}` };
+}
+
+/** Dispecerul a văzut alerta automatului și a rezolvat-o (sau n-are ce): dispare de deasupra benzii. */
+export async function rezolvaAlerta(id: string): Promise<Rezultat> {
+  try { await cerereScriere(); } catch { return { error: 'Neautorizat' }; }
+  if (!UUID_RE.test(id)) return { error: 'Alertă necunoscută' };
+  const { error } = await getSupabase().from('lde_truck_auto_alerte')
+    .update({ resolved_at: new Date().toISOString() }).eq('id', id).is('resolved_at', null);
+  if (error) return { error: eroareCurata(error, 'Alerta nu a putut fi închisă') };
+  return { ok: true, mesaj: 'Alertă închisă' };
 }
 
 // `seteazaStareZi` (o singură zi) a fost ștearsă odată cu contopirea: butonul «+»

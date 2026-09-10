@@ -30,6 +30,9 @@ const WIALON_TOKEN = process.env.WIALON_TOKEN;
 const TLX_URL = process.env.TLX_SUPABASE_URL;
 const TLX_KEY = process.env.TLX_SERVICE_KEY;
 const WRITE = process.argv.includes('--write');
+/** Central-hub trimite alertele pe Telegram (el știe cine e dispecerul); cheia e aceeași ca la cron-urile din crontab. */
+const HUB_URL = (process.env.CAMIOANE_HUB_URL || 'https://central-hub-md.vercel.app').replace(/\/$/, '');
+const CRON_SECRET = (process.env.CRON_SECRET || '').trim();
 
 if (!SB_URL || !SB_KEY) { console.error('Lipsesc SUPABASE_URL / SUPABASE_SERVICE_KEY'); process.exit(1); }
 if (!WIALON_TOKEN) { console.error('Lipsește WIALON_TOKEN'); process.exit(1); }
@@ -259,6 +262,15 @@ async function main() {
           method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' }, body: JSON.stringify(alerteDeScris),
         });
       } catch (e) { esuate++; console.error(`  alerte: ${e instanceof Error ? e.message : e}`); }
+      // Trimiterea pe Telegram o face central-hub (știe cine e dispecerul); aici doar o pornim.
+      if (CRON_SECRET) {
+        try {
+          const r = await fetch(`${HUB_URL}/api/cron/lde-camioane-alerte`, {
+            headers: { Authorization: `Bearer ${CRON_SECRET}` }, signal: AbortSignal.timeout(25000),
+          });
+          console.log(`  alerte trimise: ${r.status} ${(await r.text()).slice(0, 120)}`);
+        } catch (e) { console.error(`  alerte Telegram: ${e instanceof Error ? e.message : e}`); }
+      }
     }
   }
 

@@ -202,7 +202,12 @@ export function scenaCamion(input: {
   return undeEste(poz, puncte);
 }
 
-export type FazaCamion = 'la_incarcare' | 'in_drum' | 'la_descarcare';
+/**
+ * «plin» = cisterna stă la BAZĂ cu marfa în ea: la bază descărcarea o dovedește
+ * doar bonul TLX, nu GPS-ul (Ion, 10.09, ANT344: «dacă auto a venit de la România
+ * și nu a apărut încă descărcat în TLX și stă la bază — starea este încărcat»).
+ */
+export type FazaCamion = 'la_incarcare' | 'in_drum' | 'la_descarcare' | 'plin';
 
 /** Cât de aproape de punct înseamnă «la punct», când punctul n-are rază proprie. Aceeași măsură ca în `undeEste`. */
 const RAZA_LA_PUNCT_KM = 1;
@@ -219,6 +224,8 @@ const RAZA_LA_PUNCT_KM = 1;
  * ce s-a apucat să bifeze. «Planificată» cere ca ora de încărcare să fi trecut:
  * camionul care stă la bază cu cursa de mâine nu e «la încărcare».
  * Cursa plină care așteaptă, cea încheiată și cea anulată n-au fază.
+ * Când locul de încărcare e scris liber (fără coordonate), GPS-ul nu poate fi
+ * martor și planul decide: ora trecută = «în drum», cu `dupaPlan: true`.
  */
 /** O oprire din istoricul GPS (lde_gps_stops), destul de lungă ca să fie o încărcare. */
 export type OprireGps = { lat: number; lng: number; dwellMin: number; arrivalAt: string };
@@ -228,7 +235,11 @@ const OPRIRE_INCARCARE_MIN = 60;
 /** Cât de devreme față de ora planificată poate ajunge camionul la încărcare și tot să conteze. */
 const TOLERANTA_INCARCARE_MS = 24 * 3600_000;
 
-export type PunctFaza = { lat: number | null; lng: number | null; radiusM?: number | null };
+/** `kind` = tipul punctului (migr. 335); «baza» schimbă «la descărcare» în «plin». */
+export type PunctFaza = { lat: number | null; lng: number | null; radiusM?: number | null; kind?: string | null };
+
+const areCoordonate = (p: PunctFaza | null): p is PunctFaza & { lat: number; lng: number } =>
+  p !== null && p.lat !== null && p.lng !== null;
 
 function inRazaPunctului(poz: { lat: number; lng: number }, p: PunctFaza | null): boolean {
   if (!p || p.lat === null || p.lng === null) return false;
@@ -261,6 +272,8 @@ export function fazaCamion(input: {
     loadPlannedAt: string;
     loadPoint: PunctFaza | null;
     unloadPoint: PunctFaza | null;
+    /** Marfa: doar carburantul cu bon TLX (diesel/benzină) rămâne «plin» la bază. */
+    cargo?: string | null;
   };
   poz: { lat: number; lng: number } | null;
   /**
@@ -273,12 +286,18 @@ export function fazaCamion(input: {
    */
   opriri?: OprireGps[];
   acumMs?: number;
-}): { faza: FazaCamion; dupaGps: boolean } | null {
+}): { faza: FazaCamion; dupaGps: boolean; dupaPlan?: true } | null {
   const { cursa, poz, opriri } = input;
   const acumMs = input.acumMs ?? Date.now();
   const laPunct = (p: PunctFaza | null): boolean => poz !== null && inRazaPunctului(poz, p);
   const aIncarcat = (): boolean =>
     opriri === undefined || oprireaDeIncarcare(opriri, cursa.loadPoint, cursa.loadPlannedAt) !== null;
+  // La punctul de descărcare: «la descărcare», dar la BAZĂ cisterna rămâne plină —
+  // acolo doar bonul TLX spune că s-a descărcat (Ion, 10.09, ANT344).
+  const marfa = (cursa.cargo ?? '').trim().toLowerCase();
+  const plinLaBaza = cursa.unloadPoint?.kind === 'baza' && (marfa === 'diesel' || marfa === 'benzina');
+  const laDescarcare = (): { faza: FazaCamion; dupaGps: true } =>
+    ({ faza: plinLaBaza ? 'plin' : 'la_descarcare', dupaGps: true });
 
   switch (cursa.status) {
     case 'la_incarcare': return { faza: 'la_incarcare', dupaGps: false };
@@ -286,13 +305,20 @@ export function fazaCamion(input: {
     case 'spre_incarcare':
       return laPunct(cursa.loadPoint) ? { faza: 'la_incarcare', dupaGps: true } : { faza: 'in_drum', dupaGps: false };
     case 'spre_descarcare':
-      return laPunct(cursa.unloadPoint) ? { faza: 'la_descarcare', dupaGps: true } : { faza: 'in_drum', dupaGps: false };
+      return laPunct(cursa.unloadPoint) ? laDescarcare() : { faza: 'in_drum', dupaGps: false };
     case TRIP_FLOW[0]: {
       const t = Date.parse(cursa.loadPlannedAt);
       if (!Number.isFinite(t) || acumMs < t) return null;
       if (laPunct(cursa.loadPoint)) return { faza: 'la_incarcare', dupaGps: true };
+      // Locul de încărcare scris liber, fără coordonate (RWN169: «Santier Nutu
+      // Ivanovici» → «el amu la Romanie», Ion, 10.09: «cum poate fi el liber???»):
+      // GPS-ul n-are cu ce să confirme sau să infirme încărcarea, deci planul e
+      // singurul martor — ora de încărcare a trecut, camionul e în drum «după plan».
+      if (!areCoordonate(cursa.loadPoint)) {
+        return laPunct(cursa.unloadPoint) ? laDescarcare() : { faza: 'in_drum', dupaGps: false, dupaPlan: true };
+      }
       if (!aIncarcat()) return null;
-      if (laPunct(cursa.unloadPoint)) return { faza: 'la_descarcare', dupaGps: true };
+      if (laPunct(cursa.unloadPoint)) return laDescarcare();
       // A stat la încărcare și nu mai e acolo: e plin și pe drum. Fără istoric nu
       // se ajunge aici cu opriri goale — `aIncarcat` e true doar când istoricul
       // lipsește, iar atunci poziția de acum nu spune că a plecat de undeva.

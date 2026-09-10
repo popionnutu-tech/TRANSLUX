@@ -217,6 +217,7 @@ export function descriereSursaStare(sursa: string | null | undefined, extra?: { 
       case 'la_incarcare': return 'pusă automat: camionul a stat în raza punctului de încărcare';
       case 'spre_descarcare': return 'pusă automat: camionul a plecat de la încărcare';
       case 'la_descarcare': return 'pusă automat: camionul stă în raza punctului de descărcare';
+      case STARE_ASTEAPTA_DESCARCARE: return 'pusă automat: camionul stă la bază cu marfa, fără bon TLX';
       default: return 'pusă automat, după GPS';
     }
   }

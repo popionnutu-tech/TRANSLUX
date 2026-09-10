@@ -152,10 +152,10 @@ test('spre descărcare + biodiesel la Briceni 31 h → NIMIC (D4); la Ruse 15 mi
   assert.equal(deciziaCamion({ camion: CISTERNA, cursa, ultimaCursa: cursa, puncteDupaId: dupaId, ...stand(RUSE, 10) }).schimba, null);
 });
 
-test('spre descărcare + diesel: Briceni cere 120 min, stația TLX 15 min; ZEL Ungheni nu descarcă nimic', () => {
+test('spre descărcare + diesel: Briceni cere 120 min (și e bază → plin, nu la descărcare), stația TLX 15 min; ZEL Ungheni nu descarcă nimic', () => {
   const cursa = { id: 'c1', status: 'spre_descarcare', cargo: 'diesel', load_point_id: 'p-petro', unload_point_id: null, load_planned_at: min(0), status_changed_at: min(200) };
   assert.equal(deciziaCamion({ camion: CISTERNA, cursa, ultimaCursa: cursa, puncteDupaId: dupaId, ...stand(BRICENI, 100) }).schimba, null);
-  assert.equal(deciziaCamion({ camion: CISTERNA, cursa, ultimaCursa: cursa, puncteDupaId: dupaId, ...stand(BRICENI, 125) }).schimba?.patch.status, 'la_descarcare');
+  assert.equal(deciziaCamion({ camion: CISTERNA, cursa, ultimaCursa: cursa, puncteDupaId: dupaId, ...stand(BRICENI, 125) }).schimba?.patch.status, 'asteapta_descarcare');
   assert.equal(deciziaCamion({ camion: CISTERNA, cursa, ultimaCursa: cursa, puncteDupaId: dupaId, ...stand(UNGHENI, 16) }).schimba?.patch.status, 'la_descarcare');
   assert.equal(deciziaCamion({ camion: CISTERNA, cursa, ultimaCursa: cursa, puncteDupaId: dupaId, ...stand(ZEL, 300) }).schimba, null);
 });
@@ -246,4 +246,43 @@ test('ANT344: planificată, stă la Bacioi (descărcare) de zile, dar istoricul 
   assert.equal(d.schimba?.patch.status, 'la_incarcare');
   // Fără istoric: stă la descărcare cu cursa planificată = poate fi gol → nimic.
   assert.equal(deciziaCamion({ camion: CISTERNA, cursa, ultimaCursa: cursa, stationare: s, punct: BACIOI, pozitie: la(BACIOI, '2026-09-10T14:59:00Z'), puncteDupaId: dupaId, opriri: [], acumMs }).schimba, null);
+});
+
+// ── 10.09, seara: ANT344 la Bacioi, RWN169 în România ──
+const BACIOI = { id: 'p-bacioi', name: 'Bază Chișinău — stație Bacioi', lat: 46.941, lon: 28.8669, radius_m: 500, kind: 'baza' };
+const CONSTANTA = { id: 'p-const', name: 'Port Constanța', lat: 44.1312, lon: 28.6163, radius_m: 1500, kind: 'incarcare_diesel' };
+
+test('ANT344: planificată, stă la BAZĂ (nu la încărcare), dar istoricul îl arată 10 h la Constanța → la încărcare (nu «nimic»)', () => {
+  const { stationare, punct, pozitie, acumMs } = stand(BACIOI, 20);
+  const cursa = { id: 't-ant', status: 'planificata', cargo: 'diesel', load_point_id: CONSTANTA.id, unload_point_id: BACIOI.id,
+    load_planned_at: min(-7 * 1440), status_changed_at: null, loadPoint: CONSTANTA, unloadPoint: BACIOI };
+  const opriri = [{ lat: 44.1314, lon: 28.6194, dwell_min: 604, arrival_at: min(-7 * 1440 + 320), departure_at: min(-7 * 1440 + 924) }];
+  const d = deciziaCamion({ camion: CISTERNA, cursa, ultimaCursa: null, stationare, punct, pozitie, puncteDupaId: new Map([[BACIOI.id, BACIOI], [CONSTANTA.id, CONSTANTA]]), opriri, acumMs });
+  assert.equal(d.schimba?.patch.status, 'la_incarcare');
+  assert.equal(d.schimba?.patch.status_changed_at, min(-7 * 1440 + 924));
+  // Stă la punctul de încărcare sub prag: tot nimic — istoricul nu adaugă nimic cât e încă acolo.
+  const s2 = stand(CONSTANTA, 10);
+  const d2 = deciziaCamion({ camion: CISTERNA, cursa, ultimaCursa: null, ...s2, puncteDupaId: dupaId, opriri, acumMs: s2.acumMs });
+  assert.equal(d2.schimba, null);
+});
+
+test('la bază cisterna e PLINĂ până apare bonul TLX: spre descărcare + 15 min la Bacioi (punctul cursei) → plin, așteaptă descărcarea; nu «la descărcare»', () => {
+  const { stationare, punct, pozitie, acumMs } = stand(BACIOI, 16);
+  const cursa = { id: 't-ant', status: 'spre_descarcare', cargo: 'diesel', load_point_id: CONSTANTA.id, unload_point_id: BACIOI.id,
+    load_planned_at: min(-7 * 1440), status_changed_at: min(-60), loadPoint: CONSTANTA, unloadPoint: BACIOI };
+  const d = deciziaCamion({ camion: CISTERNA, cursa, ultimaCursa: null, stationare, punct, pozitie, puncteDupaId: dupaId, acumMs });
+  assert.equal(d.schimba?.patch.status, 'asteapta_descarcare');
+  assert.match(d.motiv, /fără bon TLX/);
+  // Deja plin: nimic de schimbat, oricât ar sta.
+  const d2 = deciziaCamion({ camion: CISTERNA, cursa: { ...cursa, status: 'asteapta_descarcare' }, ultimaCursa: null, ...stand(BACIOI, 3000), puncteDupaId: dupaId });
+  assert.equal(d2.schimba, null);
+  // Briceni fără punct explicit pe cursă: tot bază, tot plin, dar abia după 120 min.
+  const laBriceni = { ...cursa, unload_point_id: null, unloadPoint: null };
+  assert.equal(deciziaCamion({ camion: CISTERNA, cursa: laBriceni, ultimaCursa: null, ...stand(BRICENI, 60), puncteDupaId: dupaId }).schimba, null);
+  const d3 = deciziaCamion({ camion: CISTERNA, cursa: laBriceni, ultimaCursa: null, ...stand(BRICENI, 130), puncteDupaId: dupaId });
+  assert.equal(d3.schimba?.patch.status, 'asteapta_descarcare');
+  assert.equal(d3.schimba?.patch.unload_point_id, BRICENI.id);
+  // Stația TLX rămâne «la descărcare».
+  const d4 = deciziaCamion({ camion: CISTERNA, cursa: laBriceni, ultimaCursa: null, ...stand(UNGHENI, 16), puncteDupaId: dupaId });
+  assert.equal(d4.schimba?.patch.status, 'la_descarcare');
 });

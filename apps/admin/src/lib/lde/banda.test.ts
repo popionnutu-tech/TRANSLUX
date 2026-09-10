@@ -298,8 +298,26 @@ describe('fazaCamion — faza cursei, cu GPS-ul ca martor (Ion, 10.09)', () => {
     expect(fazaCamion({ cursa: cursa('planificata'), poz: peDrum, acumMs: acum })).toBeNull();
     expect(fazaCamion({ cursa: cursa('planificata'), poz: null, acumMs: acum })).toBeNull();
   });
-  it('punct scris liber, fără coordonate: GPS-ul nu poate spune nimic', () => {
-    expect(fazaCamion({ cursa: { status: 'planificata', loadPlannedAt: '2026-09-09T07:00:00+03:00', loadPoint: null, unloadPoint: null }, poz: laPetromidia, acumMs: acum })).toBeNull();
+  it('RWN169: loc de încărcare scris liber, fără coordonate — GPS-ul nu poate fi martor, planul decide: ora trecută = în drum, după plan (Ion, 10.09: «cum poate fi el liber???»)', () => {
+    const liber = { status: 'planificata', loadPlannedAt: '2026-09-09T07:00:00+03:00', loadPoint: null, unloadPoint: null };
+    expect(fazaCamion({ cursa: liber, poz: laPetromidia, acumMs: acum })).toEqual({ faza: 'in_drum', dupaGps: false, dupaPlan: true });
+    expect(fazaCamion({ cursa: liber, poz: null, opriri: [], acumMs: acum })).toEqual({ faza: 'in_drum', dupaGps: false, dupaPlan: true });
+    // Ora de încărcare încă n-a venit: planul nu spune nimic.
+    expect(fazaCamion({ cursa: { ...liber, loadPlannedAt: '2026-09-11T07:00:00+03:00' }, poz: laPetromidia, acumMs: acum })).toBeNull();
+    // Descărcarea are coordonate și camionul stă acolo: la descărcare, după GPS.
+    expect(fazaCamion({ cursa: { ...liber, unloadPoint: BACIOI }, poz: { lat: 46.9150, lng: 28.8630 }, acumMs: acum })).toEqual({ faza: 'la_descarcare', dupaGps: true });
+  });
+  it('ANT344: cisterna cu diesel la BAZĂ (kind baza) fără bon TLX = plin, nu la descărcare (Ion, 10.09)', () => {
+    const laBaza = { ...cursa('planificata'), cargo: 'diesel', unloadPoint: { ...BACIOI, kind: 'baza' } };
+    const dinConstanta: Parameters<typeof fazaCamion>[0]['opriri'] = [
+      { lat: 44.3270, lng: 28.6250, dwellMin: 604, arrivalAt: '2026-09-09T09:22:17Z' },
+    ];
+    expect(fazaCamion({ cursa: laBaza, poz: { lat: 46.9150, lng: 28.8630 }, opriri: dinConstanta, acumMs: acum })).toEqual({ faza: 'plin', dupaGps: true });
+    expect(fazaCamion({ cursa: { ...laBaza, status: 'spre_descarcare' }, poz: { lat: 46.9150, lng: 28.8630 }, acumMs: acum })).toEqual({ faza: 'plin', dupaGps: true });
+    // Biodieselul n-are bon TLX: la baza pusă explicit rămâne «la descărcare».
+    expect(fazaCamion({ cursa: { ...laBaza, cargo: 'biodiesel', status: 'spre_descarcare' }, poz: { lat: 46.9150, lng: 28.8630 }, acumMs: acum })).toEqual({ faza: 'la_descarcare', dupaGps: true });
+    // Stația TLX (descarcare_diesel) e descărcare adevărată.
+    expect(fazaCamion({ cursa: { ...laBaza, unloadPoint: { ...BACIOI, kind: 'descarcare_diesel' } }, poz: { lat: 46.9150, lng: 28.8630 }, opriri: dinConstanta, acumMs: acum })).toEqual({ faza: 'la_descarcare', dupaGps: true });
   });
   it('raza punctului bate kilometrul implicit', () => {
     const departe = { lat: 44.3266 + 0.006, lng: 28.6247 }; // ~670 m: în raza de 800 m, ar fi și sub 1 km
@@ -354,7 +372,8 @@ describe('fazaCamion cu istoricul opririlor — «în drum» după GPS (Ion, 10.
     ], BERDICHEV, cursa.loadPlannedAt);
     expect(o?.arrivalAt).toBe('2026-09-05T16:49:21Z');
   });
-  it('punct fără coordonate: istoricul nu ajută', () => {
-    expect(fazaCamion({ cursa: { ...cursa, loadPoint: null }, poz: langaUngheni, opriri: laBerdichev33h, acumMs: acum })).toBeNull();
+  it('punct de încărcare fără coordonate: istoricul nu ajută, planul decide — în drum, după plan', () => {
+    expect(fazaCamion({ cursa: { ...cursa, loadPoint: null }, poz: langaUngheni, opriri: laBerdichev33h, acumMs: acum })).toEqual({ faza: 'in_drum', dupaGps: false, dupaPlan: true });
+    expect(fazaCamion({ cursa: { ...cursa, loadPoint: null }, poz: langaUngheni, opriri: [], acumMs: acum })).toEqual({ faza: 'in_drum', dupaGps: false, dupaPlan: true });
   });
 });

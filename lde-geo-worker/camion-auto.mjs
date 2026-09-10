@@ -19,7 +19,9 @@
 //    → «spre descărcare» (manevrele de 9,6 km ale lui MOW214 nu sunt plecare);
 //  · «spre descărcare»/«plin, așteaptă» + stă ≥ prag la un punct al cărui tip se
 //    potrivește cu marfa SAU la punctul pus explicit pe cursă → «la descărcare»
-//    (D4: biodieselul parcat la Briceni e tranzit, nu descărcare);
+//    (D4: biodieselul parcat la Briceni e tranzit, nu descărcare); dacă punctul e
+//    o BAZĂ → «plin, așteaptă descărcarea»: la bază cisterna e tot plină până
+//    apare bonul TLX (Ion, 10.09, ANT344 la Bacioi);
 //  · «la descărcare» → «încheiată» vine din bonul TLX (trip-auto.mjs, D9).
 // Punctele «tranzit acte», «vamă», «parcare» nu schimbă nimic.
 // Manualul bate automatul: scrierea e optimistă pe starea citită, iar automatul
@@ -69,6 +71,11 @@ export function descarcaAici(cargo, kind) {
   if (m === 'diesel' || m === 'benzina') return kind === 'descarcare_diesel' || kind === 'baza';
   if (m === 'biodiesel') return kind === 'descarcare_biodiesel';
   return false;
+}
+/** Marfa a cărei descărcare se dovedește cu bon TLX: la bază rămâne «plin» până apare bonul. */
+export function plinLaBaza(cargo) {
+  const m = norm(cargo);
+  return m === 'diesel' || m === 'benzina';
 }
 /** Marfa se încarcă la un punct de tipul ăsta? Fără marfă pe cursă: orice punct de încărcare. */
 export function incarcaAici(cargo, kind) {
@@ -225,7 +232,7 @@ export function deciziaCamion(input) {
       if (!norm(cursa.cargo) && MARFA_DIN_KIND[punct.kind]) patch.cargo = MARFA_DIN_KIND[punct.kind];
       return { creeaza: null, schimba: { cursaId: cursa.id, deLa: cursa.status, patch }, motiv: `${Math.round(minute)} min la «${numePunct(punct)}» → la încărcare` };
     }
-    // Nu e la niciun punct, dar ISTORICUL opririlor (lde_gps_stops) îl arată stând la
+    // Nu e la încărcare, dar ISTORICUL opririlor (lde_gps_stops) îl arată stând la
     // încărcare după ora planificată: a încărcat înainte ca automatul să-l vadă
     // (pornirea la rece — MOW214, IIC263, LJN080 pe 10.09 erau de zile pe drum cu
     // cursa «planificată»). Starea se pune cu ora plecării de la punct; ticul următor
@@ -270,6 +277,17 @@ export function deciziaCamion(input) {
     // Punctul explicit al cursei se confirmă în 15 min chiar dacă e «bază»; Briceni fără cursă explicită cere 2 h.
     const prag = alCursei ? Math.min(PRAG_MIN[punct.kind] ?? 15, 15) : (PRAG_MIN[punct.kind] ?? 15);
     if (minute < prag) return nimic;
+    // La BAZĂ cisterna cu carburant TLX e tot plină: descărcarea o dovedește DOAR
+    // bonul TLX (Ion, 10.09: «dacă auto a venit de la România și nu a apărut încă
+    // descărcat în TLX și stă la bază — starea este încărcat»). Deci «plin, așteaptă
+    // descărcarea», nu «la descărcare»; bonul închide și de aici (STARI_TLX_INCHEIATA).
+    // Biodieselul n-are bon TLX — cu baza pusă explicit pe cursă rămâne «la descărcare».
+    if (punct.kind === 'baza' && plinLaBaza(cursa.cargo)) {
+      if (cursa.status === 'asteapta_descarcare') return nimic;
+      const patch = { status: 'asteapta_descarcare', ...marca };
+      if (!cursa.unload_point_id) patch.unload_point_id = punct.id;
+      return { creeaza: null, schimba: { cursaId: cursa.id, deLa: cursa.status, patch }, motiv: `${Math.round(minute)} min la «${numePunct(punct)}», fără bon TLX → plin, așteaptă descărcarea` };
+    }
     const patch = { status: 'la_descarcare', ...marca, unload_seen_at: null };
     if (!cursa.unload_point_id) patch.unload_point_id = punct.id;
     return { creeaza: null, schimba: { cursaId: cursa.id, deLa: cursa.status, patch }, motiv: `${Math.round(minute)} min la «${numePunct(punct)}» → la descărcare` };

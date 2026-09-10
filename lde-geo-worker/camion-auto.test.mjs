@@ -234,3 +234,16 @@ test('pornire la rece merge și cu GPS-ul vechi (camion parcat, tracker adormit)
   const dupa = { ...cursa, status: 'la_incarcare', status_changed_at: '2026-09-05T09:30:00.000Z' };
   assert.equal(deciziaCamion({ camion: CISTERNA, cursa: dupa, ultimaCursa: dupa, stationare: null, punct: null, pozitie: veche, puncteDupaId: dupaId, opriri, acumMs }).schimba, null);
 });
+
+test('ANT344: planificată, stă la Bacioi (descărcare) de zile, dar istoricul îl arată la Constanța → la încărcare, nu «liber»', () => {
+  const CONSTANTA = { id: 'p-const', name: 'Port Constanța', lat: 44.1312, lon: 28.6163, radius_m: 1500, kind: 'incarcare_diesel' };
+  const BACIOI = { id: 'p-bac', name: 'Bacioi', lat: 46.941, lon: 28.8669, radius_m: 500, kind: 'descarcare_diesel' };
+  const cursa = { id: 'c1', status: 'planificata', cargo: 'diesel', load_point_id: 'p-const', unload_point_id: 'p-bac', load_planned_at: '2026-09-03T04:00:00Z', status_changed_at: null, loadPoint: CONSTANTA };
+  const opriri = [{ lat: 44.1312, lon: 28.6163, dwell_min: 604, arrival_at: '2026-09-03T09:22:00Z', departure_at: '2026-09-03T19:26:00Z' }];
+  const acumMs = Date.parse('2026-09-10T15:00:00Z');
+  const s = { point_id: 'p-bac', since: '2026-09-10T11:45:00Z', last_seen_at: '2026-09-10T14:59:00Z', prev_point_id: null, prev_since: null, prev_until: null };
+  const d = deciziaCamion({ camion: CISTERNA, cursa, ultimaCursa: cursa, stationare: s, punct: BACIOI, pozitie: la(BACIOI, '2026-09-10T14:59:00Z'), puncteDupaId: new Map([[CONSTANTA.id, CONSTANTA], [BACIOI.id, BACIOI]]), opriri, acumMs });
+  assert.equal(d.schimba?.patch.status, 'la_incarcare');
+  // Fără istoric: stă la descărcare cu cursa planificată = poate fi gol → nimic.
+  assert.equal(deciziaCamion({ camion: CISTERNA, cursa, ultimaCursa: cursa, stationare: s, punct: BACIOI, pozitie: la(BACIOI, '2026-09-10T14:59:00Z'), puncteDupaId: dupaId, opriri: [], acumMs }).schimba, null);
+});

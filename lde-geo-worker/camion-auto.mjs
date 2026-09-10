@@ -212,9 +212,12 @@ export function deciziaCamion(input) {
 
   // ── Planificată / spre încărcare: stă la încărcare → la încărcare ──
   if (cursa.status === 'planificata' || cursa.status === 'spre_incarcare') {
-    if (proaspata && punct) {
-      const alCursei = cursa.load_point_id && cursa.load_point_id === punct.id;
-      if (!alCursei && !incarcaAici(cursa.cargo, punct.kind)) return nimic;
+    // Stă la un punct de încărcare (al cursei sau potrivit mărfii): numără minutele.
+    // Stă la ALT fel de punct (la bază, la descărcare): nu spune nimic despre
+    // încărcare — se trece la istoric. ANT344 stătea la Bacioi de 5 zile, după ce
+    // încărcase la Constanța, și rămânea «planificată» fiindcă returnam de aici.
+    const laIncarcare = proaspata && punct && ((cursa.load_point_id && cursa.load_point_id === punct.id) || incarcaAici(cursa.cargo, punct.kind));
+    if (laIncarcare) {
       const prag = PRAG_MIN[punct.kind] ?? PRAG_MIN.incarcare_diesel;
       if (minute < prag) return nimic;
       const patch = { status: 'la_incarcare', ...marca };

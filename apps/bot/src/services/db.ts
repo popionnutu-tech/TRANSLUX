@@ -966,6 +966,25 @@ export async function getReportedTripIds(
   return new Set((data || []).map((r: any) => r.trip_id));
 }
 
+/**
+ * Cursele raportate azi la punct → cifra de pasageri (−1 = «full», null = absent) și
+ * statusul. Pentru /day (cifra lângă oră) și digest (cursele sărite cu cifra).
+ */
+export async function getReportedPassengers(
+  reportDate: string,
+  point: PointEnum
+): Promise<Map<string, { passengers_count: number | null; status: 'OK' | 'ABSENT' }>> {
+  const { data, error } = await db()
+    .from('reports')
+    .select('trip_id, passengers_count, status')
+    .eq('report_date', reportDate)
+    .eq('point', point)
+    .is('cancelled_at', null);
+  if (error) throw error;
+  const rows = (data as Array<{ trip_id: string; passengers_count: number | null; status: 'OK' | 'ABSENT' }> | null) ?? [];
+  return new Map(rows.map((r) => [r.trip_id, { passengers_count: r.passengers_count, status: r.status }]));
+}
+
 /** Get driver IDs already assigned to reports for a given date+point */
 export async function getUsedDriverIds(
   reportDate: string,

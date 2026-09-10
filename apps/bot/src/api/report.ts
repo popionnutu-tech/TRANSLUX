@@ -76,8 +76,10 @@ export async function postReport(user: AppUser, rawBody: unknown): Promise<Repor
   // Ordinea rămâne secvențială, ca în bot: doar prima cursă nici raportată, nici sărită se poate raporta.
   const next = nextTripId(allTrips, reportedIds, skippedIds);
   if (next !== trip.id) {
-    if (reportedIds.has(trip.id)) throw new ApiError(409, 'ALREADY_REPORTED', 'Această cursă a fost deja înregistrată');
+    // Sărirea bate: cursa sărită are și rând în reports (cifra de la șofer), dar operatorul
+    // trebuie să audă «ai marcat că n-ai fost», nu «deja înregistrată».
     if (skippedIds.has(trip.id)) throw new ApiError(409, 'ALREADY_SKIPPED', 'Ai marcat că n-ai fost la această cursă');
+    if (reportedIds.has(trip.id)) throw new ApiError(409, 'ALREADY_REPORTED', 'Această cursă a fost deja înregistrată');
     const nextTrip = allTrips.find((t) => t.id === next);
     throw new ApiError(
       409,
@@ -88,7 +90,10 @@ export async function postReport(user: AppUser, rawBody: unknown): Promise<Repor
 
   // Poarta de curățenie (Chișinău): prima cursă raportată efectiv azi cere setul DIMINEATA,
   // 16:25 (sau prima raportată după ea, dacă 16:25 a fost sărită) setul ZIUA.
-  const slot = cleaningGateSlot(point, allTrips, trip.id, reportedIds, skippedIds);
+  // Rândurile scrise de /skip (cifra de la șofer) nu sunt curse la care operatorul a
+  // fost — poarta se uită doar la rapoartele lui adevărate.
+  const reportedByOperator = new Set(Array.from(reportedIds).filter((id) => !skippedIds.has(id)));
+  const slot = cleaningGateSlot(point, allTrips, trip.id, reportedByOperator, skippedIds);
   if (slot) {
     const missing = cleaningMissing(await getCleaningZonesDone(date, slot));
     if (missing.length > 0) throw new CleaningRequiredError(slot, missing, trip.departure_time);

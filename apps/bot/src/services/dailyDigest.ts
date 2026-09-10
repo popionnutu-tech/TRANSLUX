@@ -7,6 +7,7 @@ import {
   getCleaningChecksForDate,
   getDirectionForPoint,
   getPresencePings,
+  getReportedPassengers,
   getSkipsForDate,
   type CleaningSlot,
   type CleaningZone,
@@ -164,8 +165,9 @@ export async function sendCompactDigest(): Promise<boolean> {
 // ── Cursele la care operatorul n-a fost (operator_trip_skips, migrația 332) ──
 
 /**
- * Un rând per punct: «Chișinău: operatorul n-a fost la 06:55, 07:35 (Aurel)». Orele
- * în ordinea plecării, numele operatorilor care au sărit (de obicei unul).
+ * Un rând per punct: «Chișinău: operatorul n-a fost la 06:55 (12 pas.), 07:35 (absent)
+ * (Aurel)». Orele în ordinea plecării, cifra luată de la șofer lângă fiecare (Ion,
+ * 10.09), numele operatorilor care au sărit (de obicei unul).
  */
 async function buildSkipLines(date: string): Promise<string[]> {
   try {
@@ -177,7 +179,12 @@ async function buildSkipLines(date: string): Promise<string[]> {
       if (ofPoint.length === 0) continue;
       const trips = await getAllTripsForDirection(getDirectionForPoint(pt));
       const skipped = new Set(ofPoint.map((s) => s.trip_id));
-      const times = trips.filter((t) => skipped.has(t.id)).map((t) => formatTime(t.departure_time));
+      const reported = await getReportedPassengers(date, pt);
+      const times = trips.filter((t) => skipped.has(t.id)).map((t) => {
+        const r = reported.get(t.id);
+        const figure = !r ? 'fără cifră' : r.status === 'ABSENT' ? 'absent' : r.passengers_count === -1 ? 'full' : `${r.passengers_count} pas.`;
+        return `${formatTime(t.departure_time)} (${figure})`;
+      });
       const names = Array.from(new Set(ofPoint.map((s) => s.user_name ?? '—')));
       lines.push(`${POINT_LABELS[pt]}: operatorul n-a fost la ${times.join(', ')} (${names.join(', ')})`);
     }

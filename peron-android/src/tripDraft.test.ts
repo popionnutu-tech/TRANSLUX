@@ -51,8 +51,8 @@ const day: DayResponse = {
   point: 'CHISINAU',
   user: { id: 'u1', name: 'ion', point: 'CHISINAU' },
   trips: [
-    { id: 't1', departure_time: '06:55', route_name: 'Chișinău–Briceni', crm_route_id: null, state: 'done' },
-    { id: 't2', departure_time: '08:30', route_name: 'Chișinău–Briceni', crm_route_id: null, state: 'next' },
+    { id: 't1', departure_time: '06:55', route_name: 'Chișinău–Briceni', crm_route_id: null, passengers: null, state: 'done' },
+    { id: 't2', departure_time: '08:30', route_name: 'Chișinău–Briceni', crm_route_id: null, passengers: null, state: 'next' },
   ],
   assignments: { t2: { driver_id: 'd1', driver_name: 'Ion Moldovan', vehicle_id: 'v1', plate: 'LYY735' } },
   drivers: [

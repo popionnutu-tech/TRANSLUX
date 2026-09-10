@@ -12,203 +12,232 @@
       "departure_time": "05:20",
       "route_name": "Chișinău – Bălți",
       "crm_route_id": null,
-      "state": "next"
+      "state": "next",
+      "passengers": null
     },
     {
       "id": "ba000000-0000-4000-8000-000000000530",
       "departure_time": "05:30",
       "route_name": "Chișinău – Bălți",
       "crm_route_id": null,
-      "state": "locked"
+      "state": "locked",
+      "passengers": null
     },
     {
       "id": "ba000000-0000-4000-8000-000000000630",
       "departure_time": "06:30",
       "route_name": "Chișinău – Bălți",
       "crm_route_id": null,
-      "state": "locked"
+      "state": "locked",
+      "passengers": null
     },
     {
       "id": "ba000000-0000-4000-8000-000000000655",
       "departure_time": "06:55",
       "route_name": "Chișinău – Bălți",
       "crm_route_id": null,
-      "state": "locked"
+      "state": "locked",
+      "passengers": null
     },
     {
       "id": "ba000000-0000-4000-8000-000000000735",
       "departure_time": "07:35",
       "route_name": "Chișinău – Bălți",
       "crm_route_id": null,
-      "state": "locked"
+      "state": "locked",
+      "passengers": null
     },
     {
       "id": "ba000000-0000-4000-8000-000000000815",
       "departure_time": "08:15",
       "route_name": "Chișinău – Bălți",
       "crm_route_id": null,
-      "state": "locked"
+      "state": "locked",
+      "passengers": null
     },
     {
       "id": "ba000000-0000-4000-8000-000000000835",
       "departure_time": "08:35",
       "route_name": "Chișinău – Bălți",
       "crm_route_id": null,
-      "state": "locked"
+      "state": "locked",
+      "passengers": null
     },
     {
       "id": "ba000000-0000-4000-8000-000000000900",
       "departure_time": "09:00",
       "route_name": "Chișinău – Bălți",
       "crm_route_id": null,
-      "state": "locked"
+      "state": "locked",
+      "passengers": null
     },
     {
       "id": "ba000000-0000-4000-8000-000000000920",
       "departure_time": "09:20",
       "route_name": "Chișinău – Bălți",
       "crm_route_id": null,
-      "state": "locked"
+      "state": "locked",
+      "passengers": null
     },
     {
       "id": "ba000000-0000-4000-8000-000000000930",
       "departure_time": "09:30",
       "route_name": "Chișinău – Bălți",
       "crm_route_id": null,
-      "state": "locked"
+      "state": "locked",
+      "passengers": null
     },
     {
       "id": "ba000000-0000-4000-8000-000000001005",
       "departure_time": "10:05",
       "route_name": "Chișinău – Bălți",
       "crm_route_id": null,
-      "state": "locked"
+      "state": "locked",
+      "passengers": null
     },
     {
       "id": "ba000000-0000-4000-8000-000000001025",
       "departure_time": "10:25",
       "route_name": "Chișinău – Bălți",
       "crm_route_id": null,
-      "state": "locked"
+      "state": "locked",
+      "passengers": null
     },
     {
       "id": "ba000000-0000-4000-8000-000000001050",
       "departure_time": "10:50",
       "route_name": "Chișinău – Bălți",
       "crm_route_id": null,
-      "state": "locked"
+      "state": "locked",
+      "passengers": null
     },
     {
       "id": "ba000000-0000-4000-8000-000000001110",
       "departure_time": "11:10",
       "route_name": "Chișinău – Bălți",
       "crm_route_id": null,
-      "state": "locked"
+      "state": "locked",
+      "passengers": null
     },
     {
       "id": "ba000000-0000-4000-8000-000000001145",
       "departure_time": "11:45",
       "route_name": "Chișinău – Bălți",
       "crm_route_id": null,
-      "state": "locked"
+      "state": "locked",
+      "passengers": null
     },
     {
       "id": "ba000000-0000-4000-8000-000000001210",
       "departure_time": "12:10",
       "route_name": "Chișinău – Bălți",
       "crm_route_id": null,
-      "state": "locked"
+      "state": "locked",
+      "passengers": null
     },
     {
       "id": "ba000000-0000-4000-8000-000000001245",
       "departure_time": "12:45",
       "route_name": "Chișinău – Bălți",
       "crm_route_id": null,
-      "state": "locked"
+      "state": "locked",
+      "passengers": null
     },
     {
       "id": "ba000000-0000-4000-8000-000000001310",
       "departure_time": "13:10",
       "route_name": "Chișinău – Bălți",
       "crm_route_id": null,
-      "state": "locked"
+      "state": "locked",
+      "passengers": null
     },
     {
       "id": "ba000000-0000-4000-8000-000000001355",
       "departure_time": "13:55",
       "route_name": "Chișinău – Bălți",
       "crm_route_id": null,
-      "state": "locked"
+      "state": "locked",
+      "passengers": null
     },
     {
       "id": "ba000000-0000-4000-8000-000000001420",
       "departure_time": "14:20",
       "route_name": "Chișinău – Bălți",
       "crm_route_id": null,
-      "state": "locked"
+      "state": "locked",
+      "passengers": null
     },
     {
       "id": "ba000000-0000-4000-8000-000000001520",
       "departure_time": "15:20",
       "route_name": "Chișinău – Bălți",
       "crm_route_id": null,
-      "state": "locked"
+      "state": "locked",
+      "passengers": null
     },
     {
       "id": "ba000000-0000-4000-8000-000000001545",
       "departure_time": "15:45",
       "route_name": "Chișinău – Bălți",
       "crm_route_id": null,
-      "state": "locked"
+      "state": "locked",
+      "passengers": null
     },
     {
       "id": "ba000000-0000-4000-8000-000000001600",
       "departure_time": "16:00",
       "route_name": "Chișinău – Bălți",
       "crm_route_id": null,
-      "state": "locked"
+      "state": "locked",
+      "passengers": null
     },
     {
       "id": "ba000000-0000-4000-8000-000000001620",
       "departure_time": "16:20",
       "route_name": "Chișinău – Bălți",
       "crm_route_id": null,
-      "state": "locked"
+      "state": "locked",
+      "passengers": null
     },
     {
       "id": "ba000000-0000-4000-8000-000000001700",
       "departure_time": "17:00",
       "route_name": "Chișinău – Bălți",
       "crm_route_id": null,
-      "state": "locked"
+      "state": "locked",
+      "passengers": null
     },
     {
       "id": "ba000000-0000-4000-8000-000000001825",
       "departure_time": "18:25",
       "route_name": "Chișinău – Bălți",
       "crm_route_id": null,
-      "state": "locked"
+      "state": "locked",
+      "passengers": null
     },
     {
       "id": "ba000000-0000-4000-8000-000000001840",
       "departure_time": "18:40",
       "route_name": "Chișinău – Bălți",
       "crm_route_id": null,
-      "state": "locked"
+      "state": "locked",
+      "passengers": null
     },
     {
       "id": "ba000000-0000-4000-8000-000000001920",
       "departure_time": "19:20",
       "route_name": "Chișinău – Bălți",
       "crm_route_id": null,
-      "state": "locked"
+      "state": "locked",
+      "passengers": null
     },
     {
       "id": "ba000000-0000-4000-8000-000000002020",
       "departure_time": "20:20",
       "route_name": "Chișinău – Bălți",
       "crm_route_id": null,
-      "state": "locked"
+      "state": "locked",
+      "passengers": null
     }
   ],
   "presenceWindow": {

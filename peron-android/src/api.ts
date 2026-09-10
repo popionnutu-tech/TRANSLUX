@@ -19,6 +19,7 @@ import type {
   PresenceResponse,
   ReportBody,
   ReportResponse,
+  SkipBody,
   SkipResponse,
   VehicleResponse,
 } from './types';
@@ -160,9 +161,9 @@ export function postReport(body: ReportBody): Promise<ReportResponse> {
   return request<ReportResponse>('report', { method: 'POST', body });
 }
 
-/** «N-am fost la cursă»: doar cursa `next`, fără cifră, poze sau GPS. */
-export function postSkip(tripId: string): Promise<SkipResponse> {
-  return request<SkipResponse>('skip', { method: 'POST', body: { tripId } });
+/** «N-am fost la cursă»: doar cursa `next`, cu cifra de la șofer (sau absent); fără poze sau GPS. */
+export function postSkip(body: SkipBody): Promise<SkipResponse> {
+  return request<SkipResponse>('skip', { method: 'POST', body });
 }
 
 export function postVehicle(plate: string): Promise<VehicleResponse> {

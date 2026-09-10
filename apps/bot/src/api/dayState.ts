@@ -5,7 +5,9 @@
  *
  * Cursa la care operatorul n-a fost (operator_trip_skips) e `skipped`: contează ca
  * închisă pentru regula «prima neraportată = next» (Vitalie, 09.09: Aurel vine la
- * 07:30 și nu poate raporta 06:55), dar nu e `done` — în `reports` nu există rând.
+ * 07:30 și nu poate raporta 06:55), dar nu e `done`. De la 10.09 (Ion) sărirea scrie
+ * și rândul cu cifra de pasageri în `reports`, deci o cursă e și raportată, și sărită
+ * — sărirea bate: pe ecran rămâne «n-am fost», cu cifra lângă oră.
  *
  * Tot aici: ziua fără operator la punct (config.noOperatorWeekdays, vineri la
  * Chișinău) — pură, pe data 'YYYY-MM-DD', fără DB.
@@ -26,8 +28,8 @@ export function tripStates<T extends { id: string }>(
 ): Array<{ id: string; state: TripState }> {
   let nextFound = false;
   return trips.map((t) => {
-    if (reportedIds.has(t.id)) return { id: t.id, state: 'done' as const };
     if (skippedIds.has(t.id)) return { id: t.id, state: 'skipped' as const };
+    if (reportedIds.has(t.id)) return { id: t.id, state: 'done' as const };
     if (!nextFound) {
       nextFound = true;
       return { id: t.id, state: 'next' as const };
@@ -72,7 +74,8 @@ export function weekdayName(date: string): string {
   return WEEKDAY_NAMES[isoWeekday(date) - 1];
 }
 
-/** 409 DAY_OFF pe rutele de scriere (/report, /skip, /cleaning-photo, /driver-photo). */
+/** 409 DAY_OFF pe rutele de scriere (/report, /cleaning-photo, /driver-photo). /skip rămâne
+ *  deschis: vinerea cifrele de pasageri intră pe acolo (Ion, 10.09). */
 export function assertNotDayOff(point: PointEnum, date: string): void {
   const text = dayOffText(point, date);
   if (text) throw new ApiError(409, 'DAY_OFF', `${text} — azi nu se raportează nimic`);

@@ -289,7 +289,9 @@ describe('2. Ziua cu ambele puncte', () => {
 // ════════════════════════════════════════════════════════════════════════════
 // Spec docs/specs/peron-app-skip-and-dayoff.md: cursele sărite într-un rând per
 // punct și vinerea ca zi fără operator la Chișinău (fără curățenie și prezență
-// pentru Chișinău în digest, rutele de scriere refuză cu 409 DAY_OFF).
+// pentru Chișinău în digest, rutele de scriere refuză cu 409 DAY_OFF). De la 10.09
+// (Ion) sărirea cere cifra de pasageri și scrie rândul în reports; vinerea cifrele
+// intră tot prin /skip — singura rută de scriere deschisă în ziua fără operator.
 
 function clockOn(date: string, hhmm: string): void {
   vi.setSystemTime(new Date(`${date}T${hhmm}:00+03:00`));
@@ -301,40 +303,51 @@ function isoOn(date: string, hhmm: string): string {
 describe('3. Joi: «N-am fost la cursă» la ambele puncte', () => {
   const THU = '2026-06-11';
 
-  it('Vitalie sare 06:55 și 07:35, Andrei sare 05:20 — fără rânduri în reports', async () => {
+  it('Vitalie sare 06:55 (12 pas.) și 07:35 (absent), Andrei sare 05:20 (4 pas.) — trei rânduri cu cifra în reports, fără șofer și fără GPS', async () => {
     fake = installMocks(seedDay(THU));
     clockOn(THU, '07:30');
     tokenA = await link('573202', IDS.users.andrei);
     tokenV = await link('482914', IDS.users.vitalie);
 
-    for (const t of ['06:55', '07:35']) {
-      const res = await srv.api('POST', 'skip', { tripId: TC(t) }, tokenV);
-      expect(res.status, `skip ${t}`).toBe(200);
-    }
-    const res = await srv.api('POST', 'skip', { tripId: TB('05:20') }, tokenA);
+    let res = await srv.api('POST', 'skip', { tripId: TC('06:55'), passengersCount: 12 }, tokenV);
+    expect(res.status).toBe(200);
+    res = await srv.api('POST', 'skip', { tripId: TC('07:35'), status: 'ABSENT' }, tokenV);
+    expect(res.status).toBe(200);
+    res = await srv.api('POST', 'skip', { tripId: TB('05:20'), passengersCount: 4 }, tokenA);
     expect(res.status).toBe(200);
     expect(res.body.next).toBe(TB('05:30'));
     expect(fake._tables.operator_trip_skips).toHaveLength(3);
-    expect(fake._tables.reports).toHaveLength(0);
+    expect(fake._tables.reports).toHaveLength(3);
+    expect(fake._tables.reports.map((r: any) => [r.trip_id, r.status, r.passengers_count, r.driver_id, r.location_ok, r.source])).toEqual([
+      [TC('06:55'), 'OK', 12, null, null, 'app'],
+      [TC('07:35'), 'ABSENT', null, null, null, 'app'],
+      [TB('05:20'), 'OK', 4, null, null, 'app'],
+    ]);
 
     const dayB = await srv.api('GET', 'day', undefined, tokenA);
-    expect(dayB.body.trips.slice(0, 2).map((t: any) => t.state)).toEqual(['skipped', 'next']);
+    expect(dayB.body.trips.slice(0, 2).map((t: any) => [t.state, t.passengers])).toEqual([['skipped', 4], ['next', null]]);
   });
 
-  it('digestul: un rând per punct cu orele și numele; curățenia rămâne lipsă (joi e zi de lucru)', async () => {
+  it('digestul: un rând per punct cu orele, cifrele și numele; curățenia rămâne lipsă (joi e zi de lucru)', async () => {
     clockOn(THU, '20:30');
     expect(await sendCompactDigest()).toBe(true);
     expect(alerts).toEqual([
       [
-        '📋 Raport 11.06 — 0 încălcări din 0 rapoarte',
+        '📋 Raport 11.06 — 0 încălcări din 3 rapoarte',
         '',
         '⏭ Curse sărite',
-        'Chișinău: operatorul n-a fost la 06:55, 07:35 (Vitalie)',
-        'Bălți: operatorul n-a fost la 05:20 (Andrei)',
+        'Chișinău: operatorul n-a fost la 06:55 (12 pas.), 07:35 (absent) (Vitalie)',
+        'Bălți: operatorul n-a fost la 05:20 (4 pas.) (Andrei)',
         '',
         '🧹 Curățenie Chișinău',
         'dimineață: ⬜ peron lipsă · ⬜ pietoni lipsă · ⬜ veceu lipsă',
         '15:00: ⬜ peron lipsă · ⬜ pietoni lipsă · ⬜ veceu lipsă',
+        '',
+        // Cifrele date din aplicație îi fac «activi în aplicație» — și, într-o zi de lucru
+        // în care n-au fost la nicio cursă, lipsa semnalului e exact ce trebuie să se vadă.
+        '📍 Prezență în zona de lucru',
+        '@vitalie_peron (Chișinău): fără semnal 06:25–20:30 (14 h 05 min)',
+        '@andrei_balti (Bălți): fără semnal 04:50–20:30 (15 h 40 min)',
       ].join('\n'),
     ]);
   });
@@ -359,11 +372,10 @@ describe('4. Vineri: zi fără operator la Chișinău', () => {
     expect(a.body.presenceWindow).toEqual({ from: '04:50', to: '20:50' });
   });
 
-  it('la Chișinău /report, /skip, /cleaning-photo și /driver-photo → 409 DAY_OFF, fără rânduri, fără apel la model', async () => {
+  it('la Chișinău /report, /cleaning-photo și /driver-photo → 409 DAY_OFF, fără rânduri, fără apel la model', async () => {
     clockOn(FRI, '06:55');
     const calls = [
       srv.api('POST', 'report', { tripId: TC('06:55'), status: 'ABSENT' }, tokenV),
-      srv.api('POST', 'skip', { tripId: TC('06:55') }, tokenV),
       srv.api('POST', 'cleaning-photo', { slot: 'DIMINEATA', zone: 'PERON', imageBase64: JPEG_B64, lat: CH.lat, lon: CH.lon }, tokenV),
       srv.api('POST', 'driver-photo', { tripId: TC('06:55'), driverId: IDS.drivers.ionMunteanu, imageBase64: JPEG_B64, lat: CH.lat, lon: CH.lon }, tokenV),
     ];
@@ -377,6 +389,23 @@ describe('4. Vineri: zi fără operator la Chișinău', () => {
     expect(fake._tables.peron_cleaning_checks).toHaveLength(0);
     expect(fake._tables.driver_appearance_checks).toHaveLength(0);
     expect(Object.keys(fake._storage['report-photos'] ?? {})).toEqual([]);
+  });
+
+  it('vinerea cifrele intră prin /skip (Ion, 10.09): 06:55 cu 7 pas. → 200, rândul în reports, cursa `skipped` cu cifra; fără cifră → 400', async () => {
+    clockOn(FRI, '07:00');
+    let res = await srv.api('POST', 'skip', { tripId: TC('06:55') }, tokenV);
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('PASSENGERS_REQUIRED');
+    res = await srv.api('POST', 'skip', { tripId: TC('06:55'), passengersCount: 7 }, tokenV);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true, next: TC('07:35'), summary: '☑ 06:55 — 7 pas. (n-ai fost)', allDone: false });
+    expect(fake._tables.reports).toHaveLength(1);
+    expect(fake._tables.reports[0]).toMatchObject({ report_date: FRI, point: 'CHISINAU', trip_id: TC('06:55'), status: 'OK', passengers_count: 7, driver_id: null, location_ok: null, source: 'app' });
+    expect(fake._tables.operator_trip_skips).toHaveLength(1);
+
+    const v = await srv.api('GET', 'day', undefined, tokenV);
+    expect(v.body.dayOff).toBe(true);
+    expect(v.body.trips.slice(0, 2).map((t: any) => [t.state, t.passengers])).toEqual([['skipped', 7], ['next', null]]);
   });
 
   it('Bălți lucrează normal: 05:20 OK în zonă → 200; ping-urile lui Vitalie se acceptă totuși', async () => {
@@ -400,8 +429,11 @@ describe('4. Vineri: zi fără operator la Chișinău', () => {
     expect(await sendCompactDigest()).toBe(true);
     expect(alerts).toEqual([
       [
-        '📋 Raport 12.06 — 0 încălcări din 1 rapoarte',
+        '📋 Raport 12.06 — 0 încălcări din 2 rapoarte',
         'Chișinău: vineri, zi fără operator',
+        '',
+        '⏭ Curse sărite',
+        'Chișinău: operatorul n-a fost la 06:55 (7 pas.) (Vitalie)',
         '',
         '📍 Prezență în zona de lucru',
         '@andrei_balti (Bălți): toată tura în zonă',

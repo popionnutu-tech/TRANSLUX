@@ -8,9 +8,11 @@
  * Cursa `next` cu pregătirea salvată pe telefon (src/tripDraft.ts) arată o bifă albă în
  * colț și «Urmează 07:35 · pregătită»; atingerea deschide ecranul de cursă direct la pasul 2.
  * «N-am fost la cursă» (Vitalie, 09.09: Aurel vine la 07:30 și nu poate raporta 06:55): sub
- * grilă, pentru cursa `next`, un buton de contur gri cu confirmare → POST /skip → /day din nou.
- * Cursa sărită rămâne în grilă, gri, cu «—» după oră; nu se cere cifră, poze sau GPS.
- * Zi fără operator (`dayOff`, vineri la Chișinău): doar textul serverului, fără grilă;
+ * grilă, pentru cursa `next`, un buton de contur gri care deschide cardul cu cifra de
+ * pasageri (src/SkipCard.tsx) → POST /skip → /day din nou. Cifra e obligatorie și aici
+ * (Ion, 10.09); cursa sărită rămâne în grilă, gri, cu cifra sub oră. Fără poze sau GPS.
+ * Zi fără operator (`dayOff`, vineri la Chișinău): textul serverului + grila, iar pentru
+ * cursa `next` cardul cu cifra stă mereu deschis — și vinerea cifrele se pun (Ion, 10.09);
  * `presenceWindow` e null, deci `syncPresenceTracking` oprește urmărirea dacă rula.
  * Logica (încărcarea zilei, permisiunile, urmărirea, poarta de curățenie) e cea de dinainte.
  */
@@ -18,7 +20,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ActivityIndicator, Alert, Linking, Platform, Pressable, ToastAndroid } from 'react-native';
-import { ApiError, getDay, postSkip } from '../src/api';
+import { ApiError, getDay } from '../src/api';
 import { registerRearm } from '../src/backgroundRearm';
 import { isBatteryDone } from '../src/battery';
 import { cleaningGateFor, missingZones, slotForTime } from '../src/cleaning';
@@ -27,13 +29,21 @@ import { formatDayRo, pointLabel } from '../src/format';
 import { CameraIcon } from '../src/icons';
 import { flushPresenceQueue, getPermissionState, requestPresencePermissions, syncPresenceTracking, type PermissionState } from '../src/presence';
 import { logout } from '../src/session';
+import { SkipCard } from '../src/SkipCard';
 import { colors } from '../src/theme';
 import { clearDraft, clearOtherDays, loadDraft } from '../src/tripDraft';
-import type { DayResponse, DayTrip } from '../src/types';
+import type { DayResponse, DayTrip, SkipResponse } from '../src/types';
 
 function toast(message: string) {
   if (Platform.OS === 'android') ToastAndroid.show(message, ToastAndroid.SHORT);
   else Alert.alert(message);
+}
+
+/** Cifra de sub oră în celula sărită: «12 pas.», «absent», «full». */
+function skippedNote(trip: Pick<DayTrip, 'passengers'>): string {
+  if (trip.passengers === null) return 'absent';
+  if (trip.passengers === -1) return 'full';
+  return `${trip.passengers} pas.`;
 }
 
 export default function Day() {
@@ -44,8 +54,8 @@ export default function Day() {
   const [batteryDone, setBatteryDone] = useState(true);
   /** Cursa `next` are ciornă de pregătire salvată azi (Chișinău). */
   const [prepared, setPrepared] = useState(false);
-  /** POST /skip în curs — butonul «N-am fost la cursă» e dezactivat între timp. */
-  const [skipping, setSkipping] = useState(false);
+  /** Cardul «N-am fost la cursă» e deschis pentru cursa cu acest id (doar `next`). */
+  const [skipFor, setSkipFor] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -89,9 +99,17 @@ export default function Day() {
   }
 
   const nextTrip = day?.trips.find((t) => t.state === 'next') ?? null;
-  const done = day?.trips.filter((t) => t.state === 'done').length ?? 0;
+  // Progresul numără cursele închise: raportate sau sărite cu cifra.
+  const done = day?.trips.filter((t) => t.state === 'done' || t.state === 'skipped').length ?? 0;
+  /** Cardul cu cifra: vinerea mereu, altfel după apăsarea butonului; doar pentru cursa `next`. */
+  const skipOpen = !!day && !!nextTrip && (day.dayOff || skipFor === nextTrip.id);
 
   function openTrip(trip: DayTrip) {
+    // Vinerea nu există ecranul cursei (poze, GPS): cifra se pune în cardul de sub grilă.
+    if (day?.dayOff && (trip.state === 'next' || trip.state === 'locked')) {
+      toast(trip.state === 'next' ? `Pune cifra cursei ${trip.departure_time} în cardul de mai jos` : nextTrip ? `Completează mai întâi ora ${nextTrip.departure_time}` : 'Cursa e blocată');
+      return;
+    }
     if (trip.state === 'next') {
       // Poarta de curățenie (S08): prima cursă cere setul DIMINEATA, 16:25 setul ZIUA. Serverul verifică oricum.
       const gate = day ? cleaningGateFor(day, trip.id) : null;
@@ -103,37 +121,24 @@ export default function Day() {
     } else if (trip.state === 'locked') {
       toast(nextTrip ? `Completează mai întâi ora ${nextTrip.departure_time}` : 'Cursa e blocată');
     } else if (trip.state === 'skipped') {
-      toast(`Cursa ${trip.departure_time}: n-ai fost la ea`);
+      toast(`Cursa ${trip.departure_time}: n-ai fost la ea · ${skippedNote(trip)}`);
     } else {
       toast(`Cursa ${trip.departure_time} e deja raportată`);
     }
   }
 
-  /** «N-am fost la cursă» pe cursa `next`: confirmare, POST /skip, apoi ziua se reîncarcă. */
-  function confirmSkip() {
-    if (!day || !nextTrip || skipping) return;
-    const trip = nextTrip;
-    Alert.alert('N-am fost la cursă', `Marchezi cursa ${trip.departure_time} ca nefăcută de tine? Nu se cere cifră, nici poze.`, [
-      { text: 'Renunță', style: 'cancel' },
-      { text: 'Da, n-am fost', style: 'destructive', onPress: () => skip(day, trip) },
-    ]);
+  /** Cifra a intrat: toast cu rezumatul serverului, ciorna cursei nu mai folosește, ziua se reîncarcă. */
+  async function skipSaved(d: DayResponse, trip: DayTrip, res: SkipResponse) {
+    setSkipFor(null);
+    await clearDraft(AsyncStorage, d.date, trip.id).catch(() => undefined);
+    toast(res.allDone ? `${res.summary} · toate cursele sunt închise` : res.summary);
+    load();
   }
 
-  async function skip(d: DayResponse, trip: DayTrip) {
-    setSkipping(true);
-    try {
-      await postSkip(trip.id);
-      // o pregătire salvată pentru cursa asta nu mai folosește nimănui
-      await clearDraft(AsyncStorage, d.date, trip.id).catch(() => undefined);
-      toast(`Cursa ${trip.departure_time} e marcată: n-ai fost la ea`);
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 401) return; // api.ts a trimis deja la login
-      const message = e instanceof ApiError ? (e.isOffline ? 'Fără internet. Încearcă din nou când revine semnalul.' : e.message) : 'Ceva nu a mers. Încearcă din nou.';
-      Alert.alert('Cursa nu a putut fi marcată', message);
-    } finally {
-      setSkipping(false);
-    }
-    // și după refuz (409 NOT_NEXT / ALREADY_*): grila de pe server e adevărul
+  /** 400 / 409 de la server: grila de pe server e adevărul — se spune și se reîncarcă. */
+  function skipConflict(message: string) {
+    setSkipFor(null);
+    Alert.alert('Cursa nu a putut fi marcată', message);
     load();
   }
 
@@ -179,9 +184,19 @@ export default function Day() {
         <>
           <Card>
             <Question>{day.dayOffText ?? 'Zi fără operator'}</Question>
-            <Body>Azi nu se raportează curse, nu se fac poze și locația nu se urmărește.</Body>
+            <Body>Azi nu se fac poze și locația nu se urmărește. Cifra de pasageri se pune totuși la fiecare cursă, luată de la șofer.</Body>
           </Card>
-          <Footnote>Trage în jos ca să reîncarci ziua.</Footnote>
+          <ProgressBar done={done} total={day.trips.length} next={nextTrip ? nextTrip.departure_time : null} />
+          <Grid>
+            {day.trips.map((t) => (
+              <GridCell key={t.id} label={t.departure_time} state={t.state} note={t.state === 'skipped' ? skippedNote(t) : null} onPress={() => openTrip(t)} />
+            ))}
+          </Grid>
+          {nextTrip ? (
+            <SkipCard key={nextTrip.id} trip={nextTrip} dayOff onSaved={(res) => skipSaved(day, nextTrip, res)} onConflict={skipConflict} onCancel={null} />
+          ) : (
+            <Footnote>Toate cursele de azi au cifra. Trage în jos ca să reîncarci ziua.</Footnote>
+          )}
         </>
       ) : null}
 
@@ -199,20 +214,22 @@ export default function Day() {
 
           <Grid>
             {day.trips.map((t) => (
-              <GridCell key={t.id} label={t.departure_time} state={t.state} prepared={t.state === 'next' && prepared} onPress={() => openTrip(t)} />
+              <GridCell
+                key={t.id}
+                label={t.departure_time}
+                state={t.state}
+                prepared={t.state === 'next' && prepared}
+                note={t.state === 'skipped' ? skippedNote(t) : null}
+                onPress={() => openTrip(t)}
+              />
             ))}
           </Grid>
           {day.trips.length === 0 ? <Footnote>Nu există curse active pentru {pointLabel(day.point)}.</Footnote> : null}
 
-          {nextTrip ? (
-            <OutlineButton
-              label={skipping ? 'Se marchează…' : 'N-am fost la cursă'}
-              tone="neutral"
-              height={52}
-              color={colors.faint}
-              onPress={confirmSkip}
-              disabled={skipping}
-            />
+          {nextTrip && skipOpen ? (
+            <SkipCard key={nextTrip.id} trip={nextTrip} dayOff={false} onSaved={(res) => skipSaved(day, nextTrip, res)} onConflict={skipConflict} onCancel={() => setSkipFor(null)} />
+          ) : nextTrip ? (
+            <OutlineButton label="N-am fost la cursă" tone="neutral" height={52} color={colors.faint} onPress={() => setSkipFor(nextTrip.id)} />
           ) : null}
 
           <Spacer />

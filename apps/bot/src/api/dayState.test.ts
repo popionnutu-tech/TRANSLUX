@@ -48,8 +48,8 @@ describe('tripStates cu curse sărite («N-am fost la cursă»)', () => {
     expect(nextTripId(trips, new Set(['a', 'c']), new Set(['b', 'd']))).toBeNull();
   });
 
-  it('raportată ȘI sărită (nu ar trebui să existe) → câștigă `done`', () => {
-    expect(withSkips(['a'], ['a'])).toEqual(['done', 'next', 'locked', 'locked']);
+  it('raportată ȘI sărită (de la 10.09 sărirea scrie și cifra în reports) → câștigă `skipped`', () => {
+    expect(withSkips(['a'], ['a'])).toEqual(['skipped', 'next', 'locked', 'locked']);
   });
 });
 

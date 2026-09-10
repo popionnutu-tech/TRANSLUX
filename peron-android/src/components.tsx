@@ -365,12 +365,26 @@ const GridWidth = createContext<number | null>(null);
  * Celula 64 înaltă, rază 10, bordură 2. `done`: `#e8f3ea` / `#b7dcc1`, 17 / 700 `#1f6b34`;
  * `locked`: alb / `#e6e2de`, 17 / 600 `#6b6560`; `next`: bordo, 18 / 800 alb, play 16, gap 6,
  * umbra `0 4px 10px rgba(155,27,48,0.35)`; `skipped` («N-am fost la cursă»): fundalul
- * ecranului `#f4f0ed` / `#e6e2de`, 17 / 600 `#6b6560`, ora urmată de «—».
+ * ecranului `#f4f0ed` / `#e6e2de`, 17 / 600 `#6b6560`, sub oră `note` («12 pas.» /
+ * «absent» — cifra dată de operator, Ion 10.09) sau «—» când lipsește.
  *
  * `prepared` (doar la `next`): pregătirea e făcută și salvată pe telefon —
  * o bifă mică albă în colțul din dreapta sus; eticheta rămâne ora.
  */
-export function GridCell({ label, state, prepared = false, onPress }: { label: string; state: 'done' | 'skipped' | 'next' | 'locked'; prepared?: boolean; onPress?: () => void }) {
+export function GridCell({
+  label,
+  state,
+  prepared = false,
+  note = null,
+  onPress,
+}: {
+  label: string;
+  state: 'done' | 'skipped' | 'next' | 'locked';
+  prepared?: boolean;
+  /** Doar la `skipped`: cifra de sub oră. */
+  note?: string | null;
+  onPress?: () => void;
+}) {
   const cellWidth = useContext(GridWidth);
   const box = state === 'done' ? styles.cellDone : state === 'next' ? styles.cellNext : state === 'skipped' ? styles.cellSkipped : styles.cellLocked;
   const text = state === 'done' ? styles.cellDoneText : state === 'next' ? styles.cellNextText : styles.cellLockedText;
@@ -380,7 +394,7 @@ export function GridCell({ label, state, prepared = false, onPress }: { label: s
       onPress={onPress}
       disabled={!onPress}
       accessibilityRole="button"
-      accessibilityLabel={showPrepared ? `Cursa ${label}, pregătită` : state === 'skipped' ? `Cursa ${label}, n-ai fost la ea` : `Cursa ${label}`}
+      accessibilityLabel={showPrepared ? `Cursa ${label}, pregătită` : state === 'skipped' ? `Cursa ${label}, n-ai fost la ea, ${note ?? 'fără cifră'}` : `Cursa ${label}`}
       style={({ pressed }) => [
         styles.cell,
         box,
@@ -390,7 +404,14 @@ export function GridCell({ label, state, prepared = false, onPress }: { label: s
       ]}
     >
       {state === 'next' ? <PlayIcon /> : null}
-      <Text style={text}>{state === 'skipped' ? `${label} —` : label}</Text>
+      {state === 'skipped' ? (
+        <View style={styles.cellSkippedInner}>
+          <Text style={text}>{label}</Text>
+          <Text style={styles.cellNote}>{note ?? '—'}</Text>
+        </View>
+      ) : (
+        <Text style={text}>{label}</Text>
+      )}
       {showPrepared ? (
         <View style={styles.cellPrepared}>
           <CheckIcon size={12} color={colors.primaryText} strokeWidth={3.2} />
@@ -511,6 +532,8 @@ const styles = StyleSheet.create({
   cellLocked: { backgroundColor: colors.card, borderColor: colors.cardBorder, gap: 4 },
   cellSkipped: { backgroundColor: colors.bg, borderColor: colors.cardBorder, gap: 4 },
   cellNext: { backgroundColor: colors.primary, borderColor: colors.primary, gap: 6 },
+  cellSkippedInner: { alignItems: 'center', gap: 1 },
+  cellNote: { fontSize: 12, ...weight(600), color: colors.faint },
   cellDoneText: { fontSize: 17, ...weight(700), color: colors.doneText },
   cellLockedText: { fontSize: 17, ...weight(600), color: colors.faint },
   cellNextText: { fontSize: 18, ...weight(800), color: colors.primaryText },

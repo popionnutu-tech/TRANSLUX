@@ -28,6 +28,8 @@ export interface DayTrip {
   route_name: string;
   crm_route_id: number | null;
   state: TripState;
+  /** Cifra din raport (și la cursa sărită — Ion, 10.09); −1 = «microbuzul full»; null = absent sau încă fără raport. */
+  passengers: number | null;
 }
 
 export interface DayAssignment {
@@ -86,12 +88,25 @@ export interface DayResponse {
 }
 
 /**
- * POST /app/v1/skip { tripId } — «N-am fost la cursă» pe cursa `next` (apps/bot/src/api/skip.ts).
- * `next` = id-ul cursei care devine următoarea, sau null când nu mai e niciuna.
- * Refuzuri: 400 UNKNOWN_TRIP; 409 DAY_OFF / ALREADY_REPORTED / ALREADY_SKIPPED / NOT_NEXT.
+ * POST /app/v1/skip — «N-am fost la cursă» pe cursa `next` (apps/bot/src/api/skip.ts), CU
+ * cifra de pasageri luată de la șofer (Ion, 10.09) sau `status: 'ABSENT'` când microbuzul
+ * n-a venit. Merge și în ziua fără operator — acolo e singura rută de scriere deschisă.
+ * Refuzuri: 400 UNKNOWN_TRIP / PASSENGERS_REQUIRED; 409 ALREADY_REPORTED / ALREADY_SKIPPED / NOT_NEXT.
  */
+export interface SkipBody {
+  tripId: string;
+  status: 'OK' | 'ABSENT';
+  /** 0–27 la OK; null la ABSENT. */
+  passengersCount: number | null;
+}
+
+/** `next` = id-ul cursei care devine următoarea, sau null când nu mai e niciuna. */
 export interface SkipResponse {
   next: string | null;
+  /** «☑ 06:55 — 12 pas. (n-ai fost)» — pentru toast. */
+  summary: string;
+  /** Toate cursele zilei au rând — ziua s-a validat singură. */
+  allDone: boolean;
 }
 
 export type ReportStatus = 'OK' | 'ABSENT' | 'FULL';

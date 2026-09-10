@@ -28,7 +28,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Alert, FlatList, Image, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { ApiError, getDay, postDriverPhoto, postReport, postSkip, postVehicle } from '../../src/api';
+import { ApiError, getDay, postDriverPhoto, postReport, postVehicle } from '../../src/api';
 import {
   blockingReason,
   buildReportBody,
@@ -57,6 +57,7 @@ import { bodyFromDraft, clearDraft, clearOtherDays, draftFromState, draftSummary
 import { DRIVER_FRAME_HINT, PhotoCamera, type CapturedPhoto } from '../../src/camera';
 import { Body, Card, Footnote, GpsRow, Header, Label, Option, OptionRow, OutlineButton, Pill, PrimaryButton, Question, Screen, Spacer, type GpsState } from '../../src/components';
 import { haversineDistance } from '../../src/format';
+import { SkipCard } from '../../src/SkipCard';
 import { CameraIcon, CheckIcon, PersonIcon, XIcon } from '../../src/icons';
 import { explainThenRequestPermission, findLocation, hasForegroundPermission } from '../../src/location';
 import { colors, font, radius, weight } from '../../src/theme';
@@ -135,7 +136,8 @@ export default function TripScreen() {
   const [coords, setCoords] = useState<Coords | null>(null);
   const [searching, setSearching] = useState(true);
   const [sending, setSending] = useState(false);
-  const [skipping, setSkipping] = useState(false);
+  /** Cardul «N-am fost la cursă» (cifra de la șofer) e deschis deasupra pregătirii. */
+  const [skipOpen, setSkipOpen] = useState(false);
   const [error, setError] = useState<ScreenError | null>(null);
   const [now, setNow] = useState(() => new Date());
   /** Pasul (doar Chișinău): 1 = pregătirea, 2 = plecarea. null până se știe dacă există ciornă. */
@@ -356,34 +358,16 @@ export default function TripScreen() {
     setStep(1);
   }
 
-  // ── «N-am fost la cursă» — fără cifră, poze sau GPS; doar cât timp nu există ciornă ──
-  function confirmSkip() {
-    if (!ctx || !day || !trip || sending || skipping) return;
-    Alert.alert('N-am fost la cursă', `Marchezi cursa ${trip.departure_time} ca nefăcută de tine? Nu se cere cifră, nici poze.`, [
-      { text: 'Renunță', style: 'cancel' },
-      { text: 'Da, n-am fost', style: 'destructive', onPress: () => skip() },
-    ]);
+  // ── «N-am fost la cursă» — cu cifra de la șofer (Ion, 10.09), fără poze sau GPS; doar cât timp nu există ciornă ──
+  async function skipSaved(summary: string) {
+    if (!ctx || !day) return;
+    await clearDraft(AsyncStorage, day.date, ctx.tripId).catch(() => undefined);
+    Alert.alert('Cursa e închisă', summary, [{ text: 'OK', onPress: () => router.replace('/day') }], { cancelable: false });
   }
 
-  async function skip() {
-    if (!ctx || !day || !trip) return;
-    setSkipping(true);
-    setError(null);
-    try {
-      await postSkip(ctx.tripId);
-      await clearDraft(AsyncStorage, day.date, ctx.tripId).catch(() => undefined);
-      router.replace('/day');
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 401) return; // api.ts a trimis la login
-      if (e instanceof ApiError && (e.code === 'NOT_NEXT' || e.code === 'ALREADY_REPORTED' || e.code === 'ALREADY_SKIPPED' || e.code === 'DAY_OFF')) {
-        // grila de pe server s-a schimbat între timp — ziua e adevărul
-        Alert.alert('Cursa nu poate fi marcată', e.message, [{ text: 'OK', onPress: () => router.replace('/day') }], { cancelable: false });
-        return;
-      }
-      setError({ message: e instanceof ApiError ? (e.isOffline ? 'Fără internet. Încearcă din nou când revine semnalul.' : e.message) : 'Ceva nu a mers. Încearcă din nou.' });
-    } finally {
-      setSkipping(false);
-    }
+  /** Grila de pe server s-a schimbat între timp — ziua e adevărul. */
+  function skipConflict(message: string) {
+    Alert.alert('Cursa nu poate fi marcată', message, [{ text: 'OK', onPress: () => router.replace('/day') }], { cancelable: false });
   }
 
   // ── Trimite ──
@@ -509,7 +493,11 @@ export default function TripScreen() {
         <Header title={`Cursa ${trip.departure_time}`} subtitle={balti ? trip.route_name : null} onBack={back} right={late > LATE_THRESHOLD_MIN ? <Pill>întârziere {late} min</Pill> : null} />
 
         {/* «N-am fost la cursă» — doar cât timp nu există ciornă (pregătirea făcută = operatorul a fost) */}
-        {!draft ? <OutlineButton label={skipping ? 'Se marchează…' : 'N-am fost la cursă'} tone="neutral" height={52} color={colors.faint} onPress={confirmSkip} disabled={skipping || sending} /> : null}
+        {!draft && skipOpen ? (
+          <SkipCard trip={trip} dayOff={false} onSaved={(res) => skipSaved(res.summary)} onConflict={skipConflict} onCancel={() => setSkipOpen(false)} />
+        ) : !draft ? (
+          <OutlineButton label="N-am fost la cursă" tone="neutral" height={52} color={colors.faint} onPress={() => setSkipOpen(true)} disabled={sending} />
+        ) : null}
 
         {/* Pasul 2: rezumatul pregătirii într-un rând + «Modifică pregătirea» */}
         {departing ? (

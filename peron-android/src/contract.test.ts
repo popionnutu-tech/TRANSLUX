@@ -43,6 +43,8 @@ function checkDay(day: DayResponse, point: 'CHISINAU' | 'BALTI') {
     assert.ok(t.route_name.length > 0);
     assert.ok(t.crm_route_id === null || Number.isInteger(t.crm_route_id));
     assert.ok(STATES.has(t.state), `stare necunoscută: ${t.state}`);
+    // cifra din raport: întreg 0–27, −1 la «full», null fără raport / absent
+    assert.ok(t.passengers === null || (Number.isInteger(t.passengers) && t.passengers >= -1 && t.passengers <= 27), `pasageri: ${t.passengers}`);
   }
   const times = day.trips.map((t) => t.departure_time);
   assert.deepEqual(times, [...times].sort(), 'cursele vin în ordinea plecării');

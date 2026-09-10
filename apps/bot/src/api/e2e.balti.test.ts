@@ -166,7 +166,7 @@ describe('2. /day la 05:00 — fluxul scurt', () => {
     expect(body.trips).toHaveLength(29);
     expect(body.trips.map((t: any) => t.departure_time)).toEqual([...BALTI_TIMES]);
     expect(body.trips.map((t: any) => t.state)).toEqual(['next', ...Array(28).fill('locked')]);
-    expect(body.trips[0]).toEqual({ id: T('05:20'), departure_time: '05:20', route_name: 'Chișinău – Bălți', crm_route_id: null, state: 'next' });
+    expect(body.trips[0]).toEqual({ id: T('05:20'), departure_time: '05:20', route_name: 'Chișinău – Bălți', crm_route_id: null, state: 'next', passengers: null });
   });
 
   it('listele goale, fără poartă de curățenie, fără excepții de locație, allowFull, fereastra 04:50–20:50, stația Bălți', async () => {

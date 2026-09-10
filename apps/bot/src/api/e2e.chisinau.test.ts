@@ -400,7 +400,7 @@ describe('2. /day la 06:20', () => {
     expect(body.trips).toHaveLength(29);
     expect(body.trips.map((t: any) => t.departure_time)).toEqual([...CHISINAU_TIMES]);
     expect(body.trips.map((t: any) => t.state)).toEqual(['next', ...Array(28).fill('locked')]);
-    expect(body.trips[0]).toEqual({ id: T('06:55'), departure_time: '06:55', route_name: 'Chișinău – Bălți', crm_route_id: crmRouteId('06:55'), state: 'next' });
+    expect(body.trips[0]).toEqual({ id: T('06:55'), departure_time: '06:55', route_name: 'Chișinău – Bălți', crm_route_id: crmRouteId('06:55'), state: 'next', passengers: null });
   });
 
   it('repartizări pentru 3 curse, 4 șoferi, 3 auto', async () => {
@@ -1040,11 +1040,20 @@ describe('15. Prezența GPS pe toată tura', () => {
 // (joi 11.06), fake reinstalat: Vitalie (în rolul lui Aurel) vine la 07:30, sare
 // 06:55 și 07:35, face pozele de dimineață la 08:15; după-amiază sare tot până la
 // 16:25 inclusiv, iar poarta de zi cade pe 16:45.
+// De la 10.09 (Ion) sărirea cere cifra de pasageri (de la șofer) și scrie rândul în
+// reports — fără șofer, auto, poze sau GPS; poarta de curățenie nu vede rândurile astea.
 
 describe('16. «N-am fost la cursă» (Aurel vine la 07:30)', () => {
   const DATE2 = '2026-06-11'; // joi
   const clock2 = (hhmm: string) => vi.setSystemTime(at(hhmm, DATE2));
-  const skip = (time: string) => srv.api('POST', 'skip', { tripId: T(time) }, token);
+  const skip = (time: string, passengersCount: number | 'absent' = 9) =>
+    srv.api('POST', 'skip', passengersCount === 'absent' ? { tripId: T(time), status: 'ABSENT' } : { tripId: T(time), passengersCount }, token);
+  /** Rândul scris de /skip: doar cifra; totul ce operatorul n-a văzut e null. */
+  const skipRow = (time: string, passengers: number | null) => ({
+    report_date: DATE2, point: 'CHISINAU', trip_id: T(time), status: passengers === null ? 'ABSENT' : 'OK', passengers_count: passengers,
+    driver_id: null, vehicle_id: null, driver_check_id: null, uniform_ok: null, exterior_ok: null, loading_help_ok: null, auto_curat: null,
+    reclama_ok: null, location_ok: null, location_lat: null, location_lon: null, source: 'app', created_by_user: IDS.users.vitalie,
+  });
   const skips = () => fake._tables.operator_trip_skips;
   const stateOf = (body: any, time: string) => body.trips.find((t: any) => t.id === T(time)).state;
   /** Poza șoferului + raport OK → 200 (etalonul botului din `fullTrip` e legat de DATE, aici e altă zi). */
@@ -1080,32 +1089,49 @@ describe('16. «N-am fost la cursă» (Aurel vine la 07:30)', () => {
     expect(res.body.message).toContain('06:55');
     res = await srv.api('POST', 'skip', {}, token);
     expect(res.status).toBe(400);
-    res = await srv.api('POST', 'skip', { tripId: tripId('BALTI', '05:20') }, token);
+    res = await srv.api('POST', 'skip', { tripId: tripId('BALTI', '05:20'), passengersCount: 3 }, token);
     expect(res.status).toBe(400);
     expect(res.body.code).toBe('UNKNOWN_TRIP');
     expect(skips()).toHaveLength(0);
   });
 
-  it('06:55 sărită → 200 { next: 07:35 }; încă o dată → 409 ALREADY_SKIPPED; 07:35 sărită → next 08:15', async () => {
-    let res = await skip('06:55');
+  it('fără cifră → 400 PASSENGERS_REQUIRED (și la 28, și la 1.5, și la status necunoscut); nimic scris', async () => {
+    for (const body of [{ tripId: T('06:55') }, { tripId: T('06:55'), passengersCount: 28 }, { tripId: T('06:55'), passengersCount: 1.5 }, { tripId: T('06:55'), passengersCount: '12' }]) {
+      const res = await srv.api('POST', 'skip', body, token);
+      expect(res.status, JSON.stringify(body)).toBe(400);
+      expect(res.body.code).toBe('PASSENGERS_REQUIRED');
+      expect(res.body.message).toContain('numărul de pasageri');
+    }
+    const res = await srv.api('POST', 'skip', { tripId: T('06:55'), status: 'FULL' }, token);
+    expect(res.status).toBe(400);
+    expect(skips()).toHaveLength(0);
+    expect(reports()).toHaveLength(0);
+  });
+
+  it('06:55 sărită cu 12 pas. → 200 { next: 07:35, summary }; încă o dată → 409 ALREADY_SKIPPED; 07:35 sărită «absent» → next 08:15', async () => {
+    let res = await skip('06:55', 12);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true, next: T('07:35') });
-    res = await skip('06:55');
+    expect(res.body).toEqual({ ok: true, next: T('07:35'), summary: '☑ 06:55 — 12 pas. (n-ai fost)', allDone: false });
+    res = await skip('06:55', 12);
     expect(res.status).toBe(409);
     expect(res.body.code).toBe('ALREADY_SKIPPED');
-    res = await skip('07:35');
+    res = await skip('07:35', 'absent');
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true, next: T('08:15') });
+    expect(res.body).toEqual({ ok: true, next: T('08:15'), summary: '☑ 07:35 — absent (n-ai fost)', allDone: false });
 
     expect(skips()).toHaveLength(2);
     expect(skips()[0]).toMatchObject({ skip_date: DATE2, point: 'CHISINAU', trip_id: T('06:55'), user_id: IDS.users.vitalie });
     expect(skips()[1]).toMatchObject({ skip_date: DATE2, point: 'CHISINAU', trip_id: T('07:35'), user_id: IDS.users.vitalie });
-    expect(reports()).toHaveLength(0); // nimic în reports — cursa sărită nu e «absent»
+    // Cifra intră în reports (tabla de încărcare, pivotul), dar fără nimic din ce operatorul n-a văzut.
+    expect(reports()).toHaveLength(2);
+    expect(reportFor('06:55')).toMatchObject(skipRow('06:55', 12));
+    expect(reportFor('07:35')).toMatchObject(skipRow('07:35', null));
   });
 
-  it('/day: 06:55 și 07:35 `skipped`, 08:15 `next`, restul locked', async () => {
+  it('/day: 06:55 și 07:35 `skipped` (cu cifra: 12 și null), 08:15 `next`, restul locked', async () => {
     const { body } = await day();
     expect(body.trips.map((t: any) => t.state).slice(0, 4)).toEqual(['skipped', 'skipped', 'next', 'locked']);
+    expect(body.trips.map((t: any) => t.passengers).slice(0, 4)).toEqual([12, null, null, null]);
     expect(body.trips.filter((t: any) => t.state === 'next')).toHaveLength(1);
   });
 
@@ -1127,7 +1153,7 @@ describe('16. «N-am fost la cursă» (Aurel vine la 07:30)', () => {
     expect(res.status).toBe(409);
     expect(res.body).toMatchObject({ code: 'CLEANING_REQUIRED', slot: 'DIMINEATA', missing: ['PERON', 'PIETONI', 'VECEU'] });
     expect(res.body.message).toContain('08:15');
-    expect(reports()).toHaveLength(0);
+    expect(reports()).toHaveLength(2); // doar rândurile cu cifra de la /skip — ele nu sting poarta
   });
 
   it('setul DIMINEATA din 3 poze → 08:15 trece (200), rândul e ca la bot; sărirea unei curse raportate → 409 ALREADY_REPORTED', async () => {
@@ -1137,7 +1163,7 @@ describe('16. «N-am fost la cursă» (Aurel vine la 07:30)', () => {
     clock2('08:15');
     const ok = await okTrip('08:15', { driverId: IDS.drivers.petruCiobanu, vehicleId: IDS.vehicles.lyy735 });
     expect(ok.body.summary).toBe('☑ 08:15 — 12 pas. | Petru C.');
-    expect(reports()).toHaveLength(1);
+    expect(reports()).toHaveLength(3);
 
     const res = await skip('08:15');
     expect(res.status).toBe(409);
@@ -1152,11 +1178,13 @@ describe('16. «N-am fost la cursă» (Aurel vine la 07:30)', () => {
     clock2('16:30');
     const times = CHISINAU_TIMES.slice(CHISINAU_TIMES.indexOf('08:50'), CHISINAU_TIMES.indexOf('16:25') + 1);
     for (let i = 0; i < times.length; i++) {
-      const res = await skip(times[i]);
+      const res = await skip(times[i], 9);
       expect(res.status, `skip ${times[i]}: ${JSON.stringify(res.body)}`).toBe(200);
       expect(res.body.next).toBe(T(i + 1 < times.length ? times[i + 1] : '16:45'));
     }
     expect(skips()).toHaveLength(2 + times.length);
+    expect(reports()).toHaveLength(3 + times.length);
+    for (const t of times) expect(reportFor(t)).toMatchObject(skipRow(t, 9));
     const { body } = await day();
     expect(stateOf(body, '16:25')).toBe('skipped');
     expect(stateOf(body, '16:45')).toBe('next');
@@ -1179,16 +1207,16 @@ describe('16. «N-am fost la cursă» (Aurel vine la 07:30)', () => {
     await okTrip('16:45');
     clock2('17:20');
     await okTrip('17:20', { driverId: IDS.drivers.vasileRusu, vehicleId: IDS.vehicles.wvw526 });
-    expect(reports()).toHaveLength(3);
+    expect(reports()).toHaveLength(skips().length + 3);
   });
 
-  it('digestul: rândul «Chișinău: operatorul n-a fost la 06:55, 07:35, … 16:25 (Vitalie)», curățenia completă, 3 rapoarte', async () => {
+  it('digestul: rândul «Chișinău: operatorul n-a fost la 06:55 (12 pas.), 07:35 (absent), … 16:25 (9 pas.) (Vitalie)», curățenia completă, rapoartele cu tot cu cifrele sărite', async () => {
     clock2('20:30');
     expect(await sendCompactDigest()).toBe(true);
     const msg = alerts.at(-1)!;
-    expect(msg).toContain('📋 Raport 11.06 — 0 încălcări din 3 rapoarte');
-    expect(msg).toContain('\n\n⏭ Curse sărite\nChișinău: operatorul n-a fost la 06:55, 07:35, 08:50, 09:25, ');
-    expect(msg).toContain(', 16:05, 16:25 (Vitalie)\n');
+    expect(msg).toContain(`📋 Raport 11.06 — 0 încălcări din ${reports().length} rapoarte`);
+    expect(msg).toContain('\n\n⏭ Curse sărite\nChișinău: operatorul n-a fost la 06:55 (12 pas.), 07:35 (absent), 08:50 (9 pas.), 09:25 (9 pas.), ');
+    expect(msg).toContain(', 16:05 (9 pas.), 16:25 (9 pas.) (Vitalie)\n');
     expect(msg).not.toContain('Bălți');
     expect(msg).toContain('dimineață: ✅ peron · ✅ pietoni · ✅ veceu');
     expect(msg).toContain('15:00: ✅ peron · ✅ pietoni · ✅ veceu');

@@ -9,8 +9,8 @@
  * Bălți primește fluxul scurt: doar cursele + stația; listele vin goale, `allowFull`.
  *
  * Zi fără operator la punct (vineri la Chișinău): `dayOff: true` cu textul pentru
- * ecran, `presenceWindow: null` (aplicația nu urmărește GPS-ul); restul rămâne ca să
- * nu se schimbe contractul.
+ * ecran, `presenceWindow: null` (aplicația nu urmărește GPS-ul); grila rămâne — cifrele
+ * de pasageri intră și atunci, prin /skip (Ion, 10.09).
  * Totul se citește prin services/db.ts, exact ca în conversations/report.ts.
  */
 import { config } from '../config.js';
@@ -25,7 +25,7 @@ import {
   getCleaningZonesDone,
   getDirectionForPoint,
   getOpenReclamaTasks,
-  getReportedTripIds,
+  getReportedPassengers,
   getSkippedTripIds,
   getTodayDriverChecks,
   getUsedDriverIds,
@@ -42,6 +42,8 @@ export interface DayTrip {
   route_name: string;
   crm_route_id: number | null;
   state: TripState;
+  /** Cifra din raport (și la cursa sărită — Ion, 10.09); −1 = «microbuzul full»; null = absent sau încă fără raport. */
+  passengers: number | null;
 }
 
 export interface DayAssignment {
@@ -93,11 +95,12 @@ export async function getDay(user: AppUser): Promise<DayResponse> {
   const date = getTodayDate();
   const point = user.point;
 
-  const [allTrips, reportedIds, skippedIds] = await Promise.all([
+  const [allTrips, reported, skippedIds] = await Promise.all([
     getAllTripsForDirection(getDirectionForPoint(point)),
-    getReportedTripIds(date, point),
+    getReportedPassengers(date, point),
     getSkippedTripIds(date, point),
   ]);
+  const reportedIds = new Set(reported.keys());
   const states = new Map(tripStates(allTrips, reportedIds, skippedIds).map((s) => [s.id, s.state]));
   const trips: DayTrip[] = allTrips.map((t) => ({
     id: t.id,
@@ -105,6 +108,7 @@ export async function getDay(user: AppUser): Promise<DayResponse> {
     route_name: t.route_name,
     crm_route_id: t.crm_route_id,
     state: states.get(t.id) ?? 'locked',
+    passengers: reported.get(t.id)?.passengers_count ?? null,
   }));
 
   const offText = dayOffText(point, date);

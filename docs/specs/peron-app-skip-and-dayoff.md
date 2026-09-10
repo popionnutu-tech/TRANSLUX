@@ -24,6 +24,25 @@ n-o să poată face. Vinerea? Cum fără fotografie». Azi grila e strict secven
 Un operator care vine la 07:30 nu poate raporta nimic. Iar vinerea, când nu e operator
 deloc la Chișinău, raportul de seară ar reclama poze și prezență lipsă degeaba.
 
+## Schimbare 10.09 (Ion): cifra de pasageri e obligatorie și la cursele sărite, și vinerea
+
+«Obligatoriu la rutele la care chiar nu a fost operatorul de introdus numărul de
+pasageri, și la ziua când operatorul nu este.» Față de deciziile de mai jos:
+
+- `POST /skip` cere `passengersCount` (0–27) sau `status: 'ABSENT'`; fără → 400
+  `PASSENGERS_REQUIRED`. Scrie rândul în `reports` (source `app`, fără șofer, auto, poze,
+  verificări sau GPS — nimic din ce operatorul n-a văzut) **și** rândul din
+  `operator_trip_skips`. Tabla de încărcare, pivotul și validarea zilei văd cifra.
+- `tripStates`: sărirea bate raportul (cursa sărită are acum și rând în `reports`).
+  Poarta de curățenie se uită doar la rapoartele operatorului (fără cele scrise de `/skip`).
+- `/day`: fiecare cursă are `passengers` (cifra din raport, −1 = full, null = absent / fără).
+- Zi fără operator: `/skip` rămâne deschis (singura rută de scriere); `/report`,
+  `/cleaning-photo`, `/driver-photo` dau în continuare 409 `DAY_OFF`. Aplicația arată
+  grila și cardul cu cifra pentru cursa `next`, mereu deschis.
+- Digest: «Chișinău: operatorul n-a fost la 06:55 (12 pas.), 07:35 (absent) (Vitalie)».
+- Aplicația: butonul «N-am fost la cursă» deschide `src/SkipCard.tsx` (contor, cifre
+  rapide, «Microbuzul a fost absent», Salvează); celula sărită arată cifra sub oră.
+
 ## Decizii fixate înainte de start
 
 - **Cursă sărită** = «operatorul n-a fost la cursă». Nu e «microbuz absent» (acela rămâne

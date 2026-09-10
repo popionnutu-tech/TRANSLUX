@@ -152,12 +152,15 @@ export function graficGroupCaption(
   rowsCount: number,
   resend: boolean,
   changes: string[] = [],
+  /** albumul are și a doua imagine, cu plecările din Chișinău (10.09) */
+  withRetur = false,
 ): string {
   const curse = rowsCount === 1 ? '1 cursă' : `${rowsCount} curse`;
   const cap = [
     `📋 <b>Grafic interurban — ${ziuaRo(dateIso)}</b>`,
     `${curse} cu șofer. Fiecare își găsește numele în coloana din dreapta.`,
   ];
+  if (withRetur) cap.push('1️⃣ spre Chișinău · 2️⃣ plecările din Chișinău');
   if (changes.length) {
     cap.push('🔁 <b>Grafic actualizat — ce s-a schimbat:</b>');
     const esc = changes.map(escapeHtml);

@@ -1,5 +1,5 @@
 import { getSupabase } from '@/lib/supabase';
-import { parseFirstTime, parseTimeLabel, resolveReturTime } from '@/lib/assignments';
+import { parseFirstTime, parseTimeLabel, resolveReturTime, buildReturAssignmentMap, type RawAssignment } from '@/lib/assignments';
 
 export interface GraficRow {
   crm_route_id: number;
@@ -178,4 +178,89 @@ export async function loadGraficPages(date: string, canSeeReceipt: boolean): Pro
   ];
 
   return { pages };
+}
+
+/* ── Plecările din Chișinău (returul), pentru grupa șoferilor ── */
+
+/**
+ * Un rând al graficului «din Chișinău»: cursa văzută de la capătul din
+ * Chișinău — ora plecării de acolo, mașina și șoferul care fac RETURUL.
+ * Șoferii au cerut-o pe lângă imaginea cu plecările din nord (10.09, în grupă:
+ * «Da din Chișinău? ... să sun șoferii, mai ușor»).
+ */
+export interface GraficReturRow {
+  crm_route_id: number;
+  /** ora plecării din Chișinău, ex. «14:30» */
+  time_chisinau: string;
+  /** «Chișinău - Lipcani» */
+  dest_to: string;
+  driver_id: string | null;
+  driver_phone: string | null;
+  driver_name: string | null;
+  driver_full_name: string | null;
+  /** mașina de pe retur (înlocuirea, dacă e; altfel cea de la tur) */
+  vehicle_plate: string | null;
+  cancelled: boolean;
+}
+
+/**
+ * Cine pleacă din Chișinău pe fiecare rută, din aceleași programări ca
+ * graficul de tur: șoferul rutei face și returul ei, dacă nu i s-a dat alt
+ * retur (retur_route_id) — atunci returul rutei lui rămâne al celui care l-a
+ * luat, sau fără șofer. Mașina de retur are prioritate față de cea de la tur.
+ * Ordinea: după ora plecării din Chișinău.
+ */
+export function buildGraficReturRows(
+  routes: Array<{ id: number; time_chisinau: string | null; dest_to_ro: string | null }>,
+  assignments: RawAssignment[],
+  drivers: Map<string, { full_name: string; phone: string | null }>,
+  vehicles: Map<string, { plate_number: string }>,
+  cancelled: Set<number>,
+): GraficReturRow[] {
+  const returMap = buildReturAssignmentMap(assignments);
+  const rows = routes
+    .filter(r => parseTimeLabel(r.time_chisinau || '').includes(':'))
+    .map(r => {
+      const res = returMap.get(r.id);
+      const driver = res ? drivers.get(res.driver_id) : null;
+      const vehicle = res?.vehicle_id ? vehicles.get(res.vehicle_id) : null;
+      const dest = (r.dest_to_ro || '').replace(/^Chi[sș]in[aă]u\s*[-–]\s*/i, '');
+      return {
+        _sortKey: parseFirstTime(r.time_chisinau || ''),
+        crm_route_id: r.id,
+        time_chisinau: parseTimeLabel(r.time_chisinau || ''),
+        dest_to: `Chișinău - ${dest}`,
+        driver_id: driver ? res!.driver_id : null,
+        driver_phone: toLocalPhone(driver?.phone || null),
+        driver_name: driver ? extractFirstName(driver.full_name) : null,
+        driver_full_name: driver?.full_name || null,
+        vehicle_plate: vehicle?.plate_number || null,
+        cancelled: cancelled.has(r.id),
+      };
+    });
+  rows.sort((a, b) => a._sortKey - b._sortKey);
+  return rows.map(({ _sortKey, ...rest }) => rest);
+}
+
+/** Rândurile «din Chișinău» ale zilei, fără verificare de sesiune (ca loadGraficPages). */
+export async function loadGraficReturRows(date: string): Promise<GraficReturRow[]> {
+  const db = getSupabase();
+  const [routesRes, assignmentsRes, driversRes, vehiclesRes, cancellationsRes] = await Promise.all([
+    db.from('crm_routes').select('id, time_chisinau, dest_to_ro').eq('active', true).not('time_nord', 'is', null).neq('time_nord', ''),
+    db.from('daily_assignments')
+      .select('crm_route_id, driver_id, vehicle_id, vehicle_id_retur, driver_id_retur, retur_route_id')
+      .eq('assignment_date', date)
+      .eq('auto_copied', false)
+      .not('driver_id', 'is', null),
+    db.from('drivers').select('id, full_name, phone').eq('active', true).eq('is_lde', false),
+    db.from('vehicles').select('id, plate_number').eq('active', true).eq('is_lde', false),
+    db.from('route_cancellations').select('crm_route_id').eq('ziua', date),
+  ]);
+  return buildGraficReturRows(
+    (routesRes.data || []) as any[],
+    (assignmentsRes.data || []) as RawAssignment[],
+    new Map(((driversRes.data || []) as any[]).map(d => [d.id, d])),
+    new Map(((vehiclesRes.data || []) as any[]).map(v => [v.id, v])),
+    new Set<number>(((cancellationsRes.data || []) as any[]).map(c => c.crm_route_id)),
+  );
 }

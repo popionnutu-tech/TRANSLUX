@@ -2,7 +2,7 @@ import sharp from 'sharp';
 import fs from 'fs';
 import path from 'path';
 import opentype from 'opentype.js';
-import type { GraficRow, GraficEdinetRow } from '@/app/(dashboard)/grafic/actions';
+import type { GraficEdinetRow } from '@/app/(dashboard)/grafic/actions';
 
 /* ── Hi-res 2× scale (matches html2canvas scale:2) ── */
 const S = 2;
@@ -126,7 +126,32 @@ export interface ScheduleImageOptions {
    * opriri, ora din Chișinău, telefon + prenume.
    */
   forDrivers?: boolean;
+  /**
+   * Graficul «din Chișinău» (10.09, cerut de șoferi în grupă: «Da din Chișinău?
+   * ... să sun șoferii, mai ușor»): aceeași imagine ca pentru șoferi, dar cu
+   * cursele văzute de la Chișinău — ora plecării de acolo, ruta «Chișinău - X»,
+   * mașina și șoferul de pe retur. Are titlu deasupra tabelului ca să nu se
+   * confunde cu imaginea plecărilor din nord. Implică varianta șoferilor.
+   */
+  fromChisinau?: boolean;
 }
+
+/** Ce are nevoie imaginea dintr-un rând — GraficRow și GraficReturRow îl satisfac. */
+export interface ScheduleImageRow {
+  driver_id: string | null;
+  /** ora plecării din nord — goală pe rândurile «din Chișinău» */
+  time_nord?: string;
+  time_chisinau: string;
+  dest_to: string;
+  stops?: string;
+  vehicle_plate: string | null;
+  driver_phone: string | null;
+  driver_name: string | null;
+  driver_full_name?: string | null;
+}
+
+/** Înălțimea titlului «PLECĂRI DIN CHIȘINĂU» de deasupra tabelului. */
+const RETUR_HEADING_H = 40 * S;
 
 /** Coloanele tabelului: lățimea coloanei șoferului diferă între cele două variante. */
 function columns(driverW: number) {
@@ -146,20 +171,23 @@ function columns(driverW: number) {
 }
 
 export async function generateScheduleImage(
-  rows: GraficRow[],
+  rows: ScheduleImageRow[],
   date: string,
   opts: ScheduleImageOptions = {},
 ): Promise<Buffer> {
+  const fromChisinau = !!opts.fromChisinau;
+  const forDrivers = !!opts.forDrivers || fromChisinau;
   const assigned = rows.filter(r => r.driver_id);
   const { r: fR, b: fB, i: fI } = fonts();
   const logo = logoBase64();
-  const { w: COL_W, x: COL_X } = columns(opts.forDrivers ? 260 * S : 220 * S);
+  const { w: COL_W, x: COL_X } = columns(forDrivers ? 260 * S : 220 * S);
   // Fără rândul opririlor, rândul e mai scund (Ion, 08.09) — 30 de curse încap
   // pe o imagine pe care șoferul o citește fără zoom.
-  const rowH = opts.forDrivers ? 42 * S : ROW_H;
+  const rowH = forDrivers ? 42 * S : ROW_H;
+  const headingH = fromChisinau ? RETUR_HEADING_H : 0;
 
   const n = Math.max(assigned.length, 1);
-  const H = PAD + LOGO_AREA + SUB_LINE + TH_H + n * rowH + PAD;
+  const H = PAD + LOGO_AREA + SUB_LINE + headingH + TH_H + n * rowH + PAD;
 
   const svg: string[] = [];
 
@@ -189,8 +217,15 @@ export async function generateScheduleImage(
   svg.push(textPath(fR, sub1, subX, subBaseY, FS.sub, MAROON));
   svg.push(textPath(fB, sub2, subX + w1, subBaseY, FS.sub, MAROON));
 
+  /* ── Titlu «PLECĂRI DIN CHIȘINĂU» (doar pe graficul din Chișinău) ── */
+  if (fromChisinau) {
+    const headingSize = 22 * S;
+    const headingY = PAD + LOGO_AREA + SUB_LINE + headingH / 2 + headingSize * 0.35;
+    svg.push(textPath(fB, 'PLECĂRI DIN CHIȘINĂU', CANVAS_W / 2, headingY, headingSize, MAROON, 'middle'));
+  }
+
   /* ── Table ── */
-  const tableY = PAD + LOGO_AREA + SUB_LINE;
+  const tableY = PAD + LOGO_AREA + SUB_LINE + headingH;
   const tableH = TH_H + n * rowH;
   const bw = 2 * S; // border width
 
@@ -209,7 +244,7 @@ export async function generateScheduleImage(
   // Coloana din mijloc: "PLECARE DIN / CHIȘINĂU" (public) sau "MAȘINA" (șoferi)
   const departCx = COL_X.depart + COL_W.depart / 2;
   const driverCx = COL_X.driver + COL_W.driver / 2;
-  if (opts.forDrivers) {
+  if (forDrivers) {
     svg.push(textPath(fB, 'MAȘINA', departCx, thMidY + FS.th * 0.35, FS.th, '#fff', 'middle'));
     svg.push(textPath(fB, 'ȘOFER', driverCx, thMidY + FS.th * 0.35, FS.th, '#fff', 'middle'));
   } else {
@@ -240,27 +275,29 @@ export async function generateScheduleImage(
 
     // ── Route column: time + route name (+ stops, doar pe imaginea publică) ──
     // Pe varianta șoferilor ora și ruta stau pe mijlocul rândului scund.
-    const timeBaseY = opts.forDrivers ? rY + rowH / 2 + FS.time * 0.35 : rY + ROW_H * 0.42;
+    const timeBaseY = forDrivers ? rY + rowH / 2 + FS.time * 0.35 : rY + ROW_H * 0.42;
 
-    // Departure time from Nord (big bold)
-    svg.push(textPath(fB, row.time_nord, COL_X.route + cellPad, timeBaseY, FS.time, MAROON_DK));
-    const timeWidth = textW(fB, row.time_nord, FS.time);
+    // Ora plecării: din nord pe graficul obișnuit, din Chișinău pe cel «din Chișinău»
+    const time = fromChisinau ? row.time_chisinau : (row.time_nord ?? '');
+    svg.push(textPath(fB, time, COL_X.route + cellPad, timeBaseY, FS.time, MAROON_DK));
+    const timeWidth = textW(fB, time, FS.time);
 
-    // Route name (next to time)
-    const routeName = row.dest_to.replace(/^Chi[sș]in[aă]u\s*[-–]\s*/i, '') + ' - Chișinău';
+    // Route name (next to time): «Lipcani - Chișinău» la tur, «Chișinău - Lipcani» la retur
+    const dest = row.dest_to.replace(/^Chi[sș]in[aă]u\s*[-–]\s*/i, '');
+    const routeName = fromChisinau ? `Chișinău - ${dest}` : `${dest} - Chișinău`;
     const routeX = COL_X.route + cellPad + timeWidth + 8 * S;
     const maxRouteW = COL_X.depart - routeX - cellPad;
     svg.push(textPath(fB, truncText(fB, routeName, FS.route, maxRouteW), routeX, timeBaseY, FS.route, '#333'));
 
     // Stops (smaller, below) — nu și pe varianta șoferilor (Ion, 08.09)
-    if (row.stops && !opts.forDrivers) {
+    if (row.stops && !forDrivers) {
       const stopsY = timeBaseY + 14 * S;
       const maxStopsW = COL_W.route - 2 * cellPad;
       svg.push(textPath(fR, truncText(fR, row.stops, FS.stops, maxStopsW), COL_X.route + cellPad, stopsY, FS.stops, '#888'));
     }
 
     // ── Coloana din mijloc: ora din Chișinău (public) / numărul mașinii (șoferi) ──
-    if (opts.forDrivers) {
+    if (forDrivers) {
       const plate = row.vehicle_plate?.trim();
       if (plate) {
         const py = rY + rowH / 2 + FS.plateBig * 0.35;
@@ -273,7 +310,7 @@ export async function generateScheduleImage(
 
     // ── Driver column ──
     const maxNameW = COL_W.driver - 16 * S;
-    if (opts.forDrivers) {
+    if (forDrivers) {
       // Grupa șoferilor: numele complet (rândul mare), telefonul sub el. Numele
       // complet poate depăși coloana («Docuciaev Dumitru Petru»): se taie cu «…»
       // în loc să iasă peste chenar.

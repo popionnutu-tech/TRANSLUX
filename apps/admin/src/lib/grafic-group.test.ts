@@ -75,3 +75,10 @@ describe('grafic-group', () => {
     expect(lung).toMatch(/… și încă \d+ schimbări/);
   });
 });
+
+describe('grafic-group: albumul cu plecările din Chișinău', () => {
+  it('caption: spune care imagine e care doar când pleacă și a doua', () => {
+    expect(graficGroupCaption('2026-09-10', 27, false, [], true)).toContain('2️⃣ plecările din Chișinău');
+    expect(graficGroupCaption('2026-09-10', 27, false, [], false)).not.toContain('plecările din Chișinău');
+  });
+});

@@ -4,7 +4,8 @@ import { getSupabase } from '@/lib/supabase';
 import { pozitiiLiveCached } from '@/lib/wialon';
 import { normalizeazaPlaca } from '@/lib/lde/parc';
 import { pozitieRecenta } from '@/lib/lde/camioane';
-import { asazaInBenzi, asteaptaDescarcarea, camioaneInBanda, esteInCursa, fazaCamion, scenaCamion, segmentInFereastra, undeEste } from '@/lib/lde/banda';
+import { asazaInBenzi, asteaptaDescarcarea, camioaneInBanda, esteInCursa, fazaCamion, oprireaDeIncarcare, scenaCamion, segmentInFereastra, undeEste } from '@/lib/lde/banda';
+import type { OprireGps } from '@/lib/lde/banda';
 import { etichetaStareCursa } from '@/lib/lde/camioane';
 import { taraDinPozitie } from '@/lib/lde/tara';
 import { chisinauDayBounds, chisinauTodayIso } from '@/lib/chisinau-time';
@@ -25,6 +26,13 @@ export const maxDuration = 30;
 
 const ZILE_IMPLICIT = 7;
 const ZILE_MAX = 14;
+/** Cât înapoi se citesc opririle GPS pentru dovada încărcării: o cursă de biodiesel ține sub o săptămână. */
+const ZILE_OPRIRI = 10;
+
+/** «05.09», ora Chișinău. */
+function ziScurtaRo(iso: string): string {
+  return new Date(iso).toLocaleDateString('ro-MD', { timeZone: 'Europe/Chisinau', day: '2-digit', month: '2-digit' });
+}
 
 // Ancorat și case-insensitive: «bearer» cu minusculă e legal (RFC 7235), iar un
 // `.replace('Bearer ', '')` accepta și cheia goală, fără schemă.
@@ -83,7 +91,13 @@ export async function GET(req: NextRequest) {
     const fromIso = chisinauDayBounds(zile[0]).fromIso;
     const toIso = chisinauDayBounds(zile[zile.length - 1]).toIso;
 
-    const [vehRes, legRes, curseRes, stariRes, puncteRes] = await Promise.all([
+    // Opririle din ultimele zile, doar cele de cel puțin o oră: dovada că o cursă
+    // «planificată» a trecut deja prin încărcare (Ion, 10.09: «MOW214 e în drum
+    // spre descărcare biodiesel»). Importate noaptea de worker-ul GPS, deci
+    // încărcarea de AZI se vede abia mâine; azi o acoperă poziția live.
+    const deLaOpriri = new Date(`${azi}T00:00:00Z`);
+    deLaOpriri.setUTCDate(deLaOpriri.getUTCDate() - ZILE_OPRIRI);
+    const [vehRes, legRes, curseRes, stariRes, puncteRes, opririRes] = await Promise.all([
       sb.from('vehicles')
         .select('id, plate_number, lde_truck_profile ( fleet_type )')
         .eq('active', true).eq('is_lde', true).contains('directions', ['camioane'])
@@ -100,8 +114,12 @@ export async function GET(req: NextRequest) {
         .gte('date', zile[0]).lte('date', zile[zile.length - 1])
         .order('date').order('vehicle_id').limit(1000),
       sb.from('lde_dispatch_points').select('name, lat, lng, country').eq('active', true),
+      sb.from('lde_gps_stops')
+        .select('vehicle_id, lat, lon, dwell_min, arrival_at')
+        .gte('date', deLaOpriri.toISOString().slice(0, 10)).gte('dwell_min', 60)
+        .order('arrival_at').limit(3000),
     ]);
-    for (const r of [vehRes, legRes, curseRes, stariRes, puncteRes]) {
+    for (const r of [vehRes, legRes, curseRes, stariRes, puncteRes, opririRes]) {
       if (r.error) { console.error('[extern/camioane]', r.error.message); throw new Error('citire eșuată'); }
     }
 
@@ -149,6 +167,16 @@ export async function GET(req: NextRequest) {
     type Punct = { name: string; lat: number | null; lng: number | null; country: string | null };
     const puncte = (puncteRes.data ?? []) as Punct[];
 
+    type OprireRow = { vehicle_id: string; lat: number | string | null; lon: number | string | null; dwell_min: number | null; arrival_at: string };
+    const opririPeCamion = new Map<string, OprireGps[]>();
+    for (const o of (opririRes.data ?? []) as OprireRow[]) {
+      const lat = Number(o.lat); const lng = Number(o.lon);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng) || o.lat === null || o.lon === null) continue;
+      const l = opririPeCamion.get(o.vehicle_id) ?? [];
+      l.push({ lat, lng, dwellMin: o.dwell_min ?? 0, arrivalAt: o.arrival_at });
+      opririPeCamion.set(o.vehicle_id, l);
+    }
+
     // Pozițiile live, filtrate la flota de camioane și la 24h prospețime.
     let pozitii: { plate: string; lat: number; lng: number; at: string; speed?: number; tara: string | null }[] = [];
     let gpsViu = true;
@@ -191,6 +219,7 @@ export async function GET(req: NextRequest) {
               loadPoint: punctCoord(unu(cursaFazei.load_point)), unloadPoint: punctCoord(unu(cursaFazei.unload_point)),
             },
             poz: poz ? { lat: poz.lat, lng: poz.lng } : null,
+            opriri: opririPeCamion.get(cam.id) ?? [],
           })
         : null;
       // Cursa planificată pe care GPS-ul o vede la punct devine «în cursă» pe ecran;
@@ -209,10 +238,21 @@ export async function GET(req: NextRequest) {
 
       const numeLoc = (c: CursaRow, capat: 'load' | 'unload') =>
         unu(capat === 'load' ? c.load_point : c.unload_point)?.name ?? (capat === 'load' ? c.load_place : c.unload_place) ?? null;
+      const marfaText = cursaVazuta?.cargo ? ` ${cursaVazuta.cargo}` : '';
+      const incaStarea = cursaVazuta ? `cursa e încă «${etichetaStareCursa(cursaVazuta.status)}»` : '';
       const scenaDupaGps = faza?.dupaGps && cursaVazuta
-        ? `${faza.faza === 'la_incarcare' ? 'la încărcare' : 'la descărcare'}${cursaVazuta.cargo ? ` ${cursaVazuta.cargo}` : ''}, `
-          + `${numeLoc(cursaVazuta, faza.faza === 'la_incarcare' ? 'load' : 'unload') ?? 'punct necunoscut'}`
-          + ` — după GPS, cursa e încă «${etichetaStareCursa(cursaVazuta.status)}»`
+        ? faza.faza === 'in_drum'
+          ? (() => {
+              const o = oprireaDeIncarcare(
+                opririPeCamion.get(cam.id) ?? [], punctCoord(unu(cursaVazuta.load_point)), cursaVazuta.load_planned_at,
+              );
+              const cand = o ? ` pe ${ziScurtaRo(o.arrivalAt)}` : '';
+              return `în drum${marfaText} spre ${numeLoc(cursaVazuta, 'unload') ?? 'punct necunoscut'}`
+                + ` — după GPS a încărcat la ${numeLoc(cursaVazuta, 'load') ?? 'punct necunoscut'}${cand}; ${incaStarea}`;
+            })()
+          : `${faza.faza === 'la_incarcare' ? 'la încărcare' : 'la descărcare'}${marfaText}, `
+            + `${numeLoc(cursaVazuta, faza.faza === 'la_incarcare' ? 'load' : 'unload') ?? 'punct necunoscut'}`
+            + ` — după GPS, ${incaStarea}`
         : null;
 
       return {

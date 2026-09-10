@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   segmentInFereastra, progresCursa, aIntarziat, camioaneInBanda, grupeazaPeTip, mutaPastrandDurata,
-  asazaInBenzi, esteInCursa, asteaptaDescarcarea, undeEste, scenaCamion, fazaCamion,
+  asazaInBenzi, esteInCursa, asteaptaDescarcarea, undeEste, scenaCamion, fazaCamion, oprireaDeIncarcare,
 } from './banda';
 
 const ZILE = ['2026-09-01','2026-09-02','2026-09-03','2026-09-04','2026-09-05'];
@@ -313,5 +313,48 @@ describe('fazaCamion — faza cursei, cu GPS-ul ca martor (Ion, 10.09)', () => {
     for (const s of ['asteapta_descarcare', 'incheiata', 'anulata']) {
       expect(fazaCamion({ cursa: cursa(s), poz: laPetromidia, acumMs: acum })).toBeNull();
     }
+  });
+});
+
+describe('fazaCamion cu istoricul opririlor — «în drum» după GPS (Ion, 10.09: MOW214, IIC263)', () => {
+  const BERDICHEV = { lat: 49.8852, lng: 28.5433, radiusM: 800 };
+  const RUSE = { lat: 43.8564, lng: 25.9706, radiusM: 500 };
+  const acum = Date.parse('2026-09-10T18:00:00+03:00');
+  const cursa = { status: 'planificata', loadPlannedAt: '2026-09-05T07:00:00+03:00', loadPoint: BERDICHEV, unloadPoint: RUSE };
+  const laBerdichev33h: Parameters<typeof fazaCamion>[0]['opriri'] = [
+    { lat: 49.8852, lng: 28.5433, dwellMin: 1347, arrivalAt: '2026-09-05T21:48:45Z' },
+  ];
+  const langaUngheni = { lat: 47.0, lng: 27.6 };
+
+  it('MOW214: a stat la Berdichev, acum e pe drum = în drum, după GPS', () => {
+    expect(fazaCamion({ cursa, poz: langaUngheni, opriri: laBerdichev33h, acumMs: acum })).toEqual({ faza: 'in_drum', dupaGps: true });
+  });
+  it('a încărcat și acum stă la Ruse = la descărcare, după GPS', () => {
+    expect(fazaCamion({ cursa, poz: { lat: 43.8566, lng: 25.9708 }, opriri: laBerdichev33h, acumMs: acum })).toEqual({ faza: 'la_descarcare', dupaGps: true });
+  });
+  it('KYK742: n-a fost la încărcare, stă la punctul de descărcare = liber, n-a plecat încă', () => {
+    expect(fazaCamion({ cursa, poz: { lat: 43.8566, lng: 25.9708 }, opriri: [], acumMs: acum })).toBeNull();
+  });
+  it('fără nicio oprire la încărcare: pe drum rămâne liber', () => {
+    expect(fazaCamion({ cursa, poz: langaUngheni, opriri: [], acumMs: acum })).toBeNull();
+  });
+  it('stă la încărcare acum: la încărcare, indiferent de istoric', () => {
+    expect(fazaCamion({ cursa, poz: { lat: 49.8853, lng: 28.5434 }, opriri: [], acumMs: acum })).toEqual({ faza: 'la_incarcare', dupaGps: true });
+  });
+  it('oprirea scurtă sau dinaintea cursei nu e încărcare', () => {
+    expect(oprireaDeIncarcare([{ lat: 49.8852, lng: 28.5433, dwellMin: 13, arrivalAt: '2026-09-05T15:51:30Z' }], BERDICHEV, cursa.loadPlannedAt)).toBeNull();
+    expect(oprireaDeIncarcare([{ lat: 49.8852, lng: 28.5433, dwellMin: 600, arrivalAt: '2026-08-30T15:51:30Z' }], BERDICHEV, cursa.loadPlannedAt)).toBeNull();
+    // Cu o zi înainte de ora planificată: contează (a ajuns mai devreme).
+    expect(oprireaDeIncarcare([{ lat: 49.8852, lng: 28.5433, dwellMin: 600, arrivalAt: '2026-09-04T12:00:00Z' }], BERDICHEV, cursa.loadPlannedAt)).not.toBeNull();
+  });
+  it('cea mai veche oprire bună e momentul încărcării', () => {
+    const o = oprireaDeIncarcare([
+      { lat: 49.8852, lng: 28.5433, dwellMin: 300, arrivalAt: '2026-09-06T21:01:40Z' },
+      { lat: 49.8852, lng: 28.5433, dwellMin: 249, arrivalAt: '2026-09-05T16:49:21Z' },
+    ], BERDICHEV, cursa.loadPlannedAt);
+    expect(o?.arrivalAt).toBe('2026-09-05T16:49:21Z');
+  });
+  it('punct fără coordonate: istoricul nu ajută', () => {
+    expect(fazaCamion({ cursa: { ...cursa, loadPoint: null }, poz: langaUngheni, opriri: laBerdichev33h, acumMs: acum })).toBeNull();
   });
 });

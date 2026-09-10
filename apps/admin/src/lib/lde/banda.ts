@@ -220,23 +220,65 @@ const RAZA_LA_PUNCT_KM = 1;
  * camionul care stă la bază cu cursa de mâine nu e «la încărcare».
  * Cursa plină care așteaptă, cea încheiată și cea anulată n-au fază.
  */
+/** O oprire din istoricul GPS (lde_gps_stops), destul de lungă ca să fie o încărcare. */
+export type OprireGps = { lat: number; lng: number; dwellMin: number; arrivalAt: string };
+
+/** Sub o oră la punct nu e încărcare: cisterna se umple în ore, nu în minute. */
+const OPRIRE_INCARCARE_MIN = 60;
+/** Cât de devreme față de ora planificată poate ajunge camionul la încărcare și tot să conteze. */
+const TOLERANTA_INCARCARE_MS = 24 * 3600_000;
+
+export type PunctFaza = { lat: number | null; lng: number | null; radiusM?: number | null };
+
+function inRazaPunctului(poz: { lat: number; lng: number }, p: PunctFaza | null): boolean {
+  if (!p || p.lat === null || p.lng === null) return false;
+  const razaKm = Math.max(RAZA_LA_PUNCT_KM, (p.radiusM ?? 0) / 1000);
+  return haversineKm(poz, { lat: p.lat, lng: p.lng }) <= razaKm;
+}
+
+/**
+ * Oprirea care dovedește încărcarea: în raza punctului, cel puțin o oră, nu
+ * mai devreme de o zi față de ora planificată. Cea mai veche câștigă — e
+ * momentul încărcării, nu ultima staționare.
+ */
+export function oprireaDeIncarcare(
+  opriri: OprireGps[],
+  loadPoint: PunctFaza | null,
+  loadPlannedAt: string,
+): OprireGps | null {
+  const t = Date.parse(loadPlannedAt);
+  if (!Number.isFinite(t)) return null;
+  return opriri
+    .filter((o) => o.dwellMin >= OPRIRE_INCARCARE_MIN
+      && Date.parse(o.arrivalAt) >= t - TOLERANTA_INCARCARE_MS
+      && inRazaPunctului(o, loadPoint))
+    .sort((a, b) => Date.parse(a.arrivalAt) - Date.parse(b.arrivalAt))[0] ?? null;
+}
+
 export function fazaCamion(input: {
   cursa: {
     status: string;
     loadPlannedAt: string;
-    loadPoint: { lat: number | null; lng: number | null; radiusM?: number | null } | null;
-    unloadPoint: { lat: number | null; lng: number | null; radiusM?: number | null } | null;
+    loadPoint: PunctFaza | null;
+    unloadPoint: PunctFaza | null;
   };
   poz: { lat: number; lng: number } | null;
+  /**
+   * Istoricul opririlor camionului (Ion, 10.09: «MOW214 e în drum spre
+   * descărcare biodiesel», deși cursa era «planificată» și ecranul zicea liber).
+   * Cu el, cursa planificată al cărei camion a stat la încărcare și a plecat
+   * devine «în drum», iar camionul care stă la punctul de descărcare FĂRĂ să fi
+   * fost la încărcare rămâne liber — n-a plecat încă. Fără istoric (undefined)
+   * se judecă doar după poziția de acum.
+   */
+  opriri?: OprireGps[];
   acumMs?: number;
 }): { faza: FazaCamion; dupaGps: boolean } | null {
-  const { cursa, poz } = input;
+  const { cursa, poz, opriri } = input;
   const acumMs = input.acumMs ?? Date.now();
-  const laPunct = (p: { lat: number | null; lng: number | null; radiusM?: number | null } | null): boolean => {
-    if (!poz || !p || p.lat === null || p.lng === null) return false;
-    const razaKm = Math.max(RAZA_LA_PUNCT_KM, (p.radiusM ?? 0) / 1000);
-    return haversineKm(poz, { lat: p.lat, lng: p.lng }) <= razaKm;
-  };
+  const laPunct = (p: PunctFaza | null): boolean => poz !== null && inRazaPunctului(poz, p);
+  const aIncarcat = (): boolean =>
+    opriri === undefined || oprireaDeIncarcare(opriri, cursa.loadPoint, cursa.loadPlannedAt) !== null;
 
   switch (cursa.status) {
     case 'la_incarcare': return { faza: 'la_incarcare', dupaGps: false };
@@ -249,8 +291,12 @@ export function fazaCamion(input: {
       const t = Date.parse(cursa.loadPlannedAt);
       if (!Number.isFinite(t) || acumMs < t) return null;
       if (laPunct(cursa.loadPoint)) return { faza: 'la_incarcare', dupaGps: true };
+      if (!aIncarcat()) return null;
       if (laPunct(cursa.unloadPoint)) return { faza: 'la_descarcare', dupaGps: true };
-      return null;
+      // A stat la încărcare și nu mai e acolo: e plin și pe drum. Fără istoric nu
+      // se ajunge aici cu opriri goale — `aIncarcat` e true doar când istoricul
+      // lipsește, iar atunci poziția de acum nu spune că a plecat de undeva.
+      return opriri !== undefined ? { faza: 'in_drum', dupaGps: true } : null;
     }
     default: return null;
   }

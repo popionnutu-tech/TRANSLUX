@@ -4,7 +4,7 @@ import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole, type Session } from '@/lib/auth';
 import { verificaTelefonSofer } from '@/lib/driver-guard';
 import { parseFirstTime, parseTimeLabel, resolveReturTime } from '@/lib/assignments';
-import { scrieFoaie } from '@/lib/foaie';
+import { scrieFoaie, mutaFoaiaLaSofer } from '@/lib/foaie';
 import { loadGraficPages, toLocalPhone, extractFirstName, type GraficRow } from '@/lib/grafic-data';
 import { graficGroupChatId } from '@/lib/grafic-group';
 import { sendGraficImageToGroup, notifyGraficChanged } from '@/lib/grafic-group-sync';
@@ -138,6 +138,10 @@ export async function upsertAssignment(
   if (errTelefon) return { error: errTelefon };
 
   const db = getSupabase();
+  // Șoferul de dinainte: dacă se schimbă, foaia legată de cursă trece pe cel nou
+  // (altfel rămâne orfană pe vechiul — invizibilă în grafic, dar trimisă la terminal).
+  const { data: prev } = await db.from('daily_assignments')
+    .select('driver_id').eq('crm_route_id', crmRouteId).eq('assignment_date', date).maybeSingle();
   // Any dispatcher touch promotes the row to manual (clears auto_copied).
   const { error } = await db.from('daily_assignments').upsert(
     {
@@ -152,6 +156,7 @@ export async function upsertAssignment(
   );
 
   if (error) return { error: error.message };
+  await mutaFoaiaLaSofer(db, date, crmRouteId, prev?.driver_id as string | undefined, driverId);
   await notifyGraficChanged(date);
   return {};
 }

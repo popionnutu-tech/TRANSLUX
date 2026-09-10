@@ -307,8 +307,9 @@ function DirectieInner() {
             <input
               inputMode="numeric"
               placeholder="nr. foii (gol = șterge)"
+              maxLength={7}
               value={foaieVal}
-              onChange={(e) => setFoaieVal(e.target.value)}
+              onChange={(e) => setFoaieVal(e.target.value.replace(/\D/g, ''))}
               style={{
                 width: '100%', padding: '10px 12px', borderRadius: 10, fontSize: 16,
                 border: `1px solid ${C.border}`, background: C.panel, boxSizing: 'border-box', marginBottom: 8,

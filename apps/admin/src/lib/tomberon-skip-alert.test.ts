@@ -96,3 +96,16 @@ describe('formatSkipAlert', () => {
     expect(text).toMatch(/…și încă \d+ foi/);
   });
 });
+
+describe('codurile noi (10.09.2026)', () => {
+  it('«diferit» și «orfana» au cronometrul lor, separat de celelalte coduri ale aceleiași foi', () => {
+    // foaia a plecat la terminal pe șoferul vechi; după mutarea cursei apare DIFERIT
+    const t1 = decideAlerts(null, zi([s('1125689', 'diferit', 'la terminal e pe alt șofer')]), T0);
+    expect(t1.alerts).toEqual([]);
+    const t2 = decideAlerts(t1.state, zi([s('1125689', 'diferit', 'la terminal e pe alt șofer')]), T0 + GRACE_MS);
+    expect(t2.alerts[0].items.map(i => i.cod)).toEqual(['diferit']);
+    const t3 = decideAlerts(t2.state, zi([s('1125689', 'orfana', 'șoferul nu mai e pe cursă')]), T0 + GRACE_MS + 1000);
+    expect(t3.alerts).toEqual([]);
+    expect(t3.state.zile[AZI]['1125689|orfana'].firstSeen).toBe(T0 + GRACE_MS + 1000);
+  });
+});

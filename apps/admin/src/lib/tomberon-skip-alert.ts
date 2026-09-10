@@ -13,7 +13,7 @@ import { escapeHtml } from './telegram-notify';
  * motivul conține plăcuța sau mesajul MS SQL, care se schimbă de la o rulare la
  * alta — cu el în cheie cronometrul s-ar reseta mereu și alerta n-ar pleca NICIODATĂ.
  */
-export const SKIP_CODES = ['nemapat', 'fara_masina', 'auto_lipsa', 'insert_esuat', 'foaie_nenumerica'] as const;
+export const SKIP_CODES = ['nemapat', 'fara_masina', 'auto_lipsa', 'insert_esuat', 'foaie_nenumerica', 'orfana', 'diferit'] as const;
 export type SkipCode = (typeof SKIP_CODES)[number];
 
 export type SkipItem = { foaie: string; sofer: string; cod: SkipCode; motiv: string };

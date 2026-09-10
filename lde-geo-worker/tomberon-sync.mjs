@@ -58,6 +58,7 @@ const pool = await sql.connect({
 try {
   // ── nomenclatoarele terminalului ──
   const tAuto = (await pool.request().query('SELECT AutoID, AutoValue FROM auto')).recordset;
+  const tAutoName = new Map(tAuto.map(a => [a.AutoID, a.AutoValue]));
   const autoByPlate = new Map();
   for (const a of tAuto) {
     const norm = normPlate(a.AutoValue);
@@ -258,7 +259,9 @@ try {
   const drvIds = [...new Set(foi.map(f => f.driver_id))];
   const [drvRes, daRes, mapRes] = await Promise.all([
     supa.from('drivers').select('id, full_name, active').in('id', drvIds),
-    supa.from('daily_assignments').select('driver_id, vehicle_id, vehicle_id_retur, crm_route_id').eq('assignment_date', DATE).in('driver_id', drvIds),
+    // toate atribuirile zilei (nu doar ale șoferilor cu foaie): ca să știm cine
+    // face azi cursa unei foi rămase pe șoferul vechi (foaie orfană)
+    supa.from('daily_assignments').select('driver_id, vehicle_id, vehicle_id_retur, crm_route_id').eq('assignment_date', DATE),
     supa.from('tomberon_driver_map').select('driver_id, terminal_id').in('driver_id', drvIds),
   ]);
   for (const r of [drvRes, daRes, mapRes]) if (r.error) throw new Error(`Supabase: ${r.error.message}`);
@@ -343,6 +346,10 @@ try {
     daByDrv.get(a.driver_id).push(a);
     if (a.crm_route_id != null) daByRoute.set(`${a.driver_id}|${a.crm_route_id}`, a);
   }
+  const routeOwner = new Map(daRes.data.filter(a => a.crm_route_id != null).map(a => [a.crm_route_id, a.driver_id]));
+  // numele unui șofer care n-are foaie azi (titularul unei curse cu foaie orfană) — rar, lazy
+  const numeSofer = async id => nameMap.get(id)
+    ?? (await supa.from('drivers').select('full_name').eq('id', id).maybeSingle()).data?.full_name ?? id;
   const boundRoutes = new Map(); // driver -> Set(crm_route_id cu foaie legată)
   for (const f of foi) {
     if (f.crm_route_id == null) continue;
@@ -386,28 +393,47 @@ try {
     const wb = normWb(f.receipt_nr);
     const name = nameMap.get(f.driver_id) ?? f.driver_id;
     if (!/^\d{1,7}$/.test(wb)) {
-      console.warn(`  SKIP foaie ne-numerică «${f.receipt_nr}» (${name})`);
-      skips.push({ foaie: String(f.receipt_nr ?? '?'), sofer: name, cod: 'foaie_nenumerica', motiv: 'numărul foii nu e numeric' });
+      // 10.09.2026: «11256890» — dispecerul a pus un 0 la coadă ca să treacă de
+      // «foaia e deja folosită»; «nu e numeric» îl derutase, spunem exact regula
+      console.warn(`  SKIP foaie «${f.receipt_nr}» (${name}): numărul trebuie să aibă 1–7 cifre`);
+      skips.push({ foaie: String(f.receipt_nr ?? '?'), sofer: name, cod: 'foaie_nenumerica', motiv: 'numărul foii trebuie să aibă 1–7 cifre — corectează-l în grafic' });
       continue;
     }
     const ale = daByDrv.get(f.driver_id) ?? [];
     const acoperite = boundRoutes.get(f.driver_id);
     const a = (f.crm_route_id != null ? daByRoute.get(`${f.driver_id}|${f.crm_route_id}`) : null)
       ?? ale.find(x => !acoperite?.has(x.crm_route_id)) ?? ale[0];
+    // Foaie orfană: legată de o cursă pe care azi o face ALT șofer (dispecerul a
+    // mutat cursa, iar foaia a rămas pe cel vechi). Nu se vede în grafic; dacă ar
+    // pleca, ar ajunge la terminal pe șoferul greșit, cu mașina altei curse.
+    const titular = f.crm_route_id != null ? routeOwner.get(f.crm_route_id) : null;
+    if (f.crm_route_id != null && !daByRoute.has(`${f.driver_id}|${f.crm_route_id}`) && titular && titular !== f.driver_id) {
+      const numeTitular = await numeSofer(titular);
+      console.warn(`  SKIP foaie ${wb} (${name}): cursa e la ${numeTitular} azi — foaia a rămas pe șoferul vechi`);
+      skips.push({ foaie: wb, sofer: name, cod: 'orfana', motiv: `cursa e la ${numeTitular} azi — scrie foaia pe el în grafic` });
+      continue;
+    }
     const plate = a ? plateMap.get(a.vehicle_id) ?? plateMap.get(a.vehicle_id_retur) : null;
     if (existWb.has(wb)) {
       // foaia există deja — doar raportăm dacă terminalul o are pe ALT șofer sau
       // ALTĂ mașină (ex. dispecerul a mutat cursa după ce rândul a plecat;
-      // INSERT-only → nu modificăm nimic)
+      // INSERT-only → nu modificăm nimic). Din 10.09.2026 diferența ajunge și în
+      // alerta Telegram: foaia 1125689 a plecat pe Oglasevici/298RQR, cursa era a
+      // lui Goreaci/805BXI — nimeni nu citea logul.
       const rows = existWb.get(wb);
       const ourTid = termId.get(f.driver_id);
       const ourAuto = plate ? findAuto(plate) : null;
       if (ourTid != null && !rows.some(r => r.drv === ourTid)) {
         difs++;
+        const tDrvName = new Map((await getTDrivers()).map(d => [d.DriverID, d.DriverName]));
+        const laTerminal = rows.map(r => tDrvName.get(r.drv) ?? `#${r.drv}`).join(' / ');
         console.warn(`  DIFERIT foaie ${wb}: la terminal drv=#${rows.map(r => r.drv).join('/#')}, la noi ${name} (#${ourTid}) — corectează manual la terminal dacă e cazul`);
+        skips.push({ foaie: wb, sofer: name, cod: 'diferit', motiv: `la terminal e pe ${laTerminal} — corectează manual la terminal` });
       } else if (ourAuto != null && !rows.some(r => r.car === ourAuto)) {
         difs++;
+        const laTerminal = rows.map(r => tAutoName.get(r.car) ?? `#${r.car}`).join(' / ');
         console.warn(`  DIFERIT foaie ${wb}: la terminal auto=#${rows.map(r => r.car).join('/#')}, la noi ${plate} (#${ourAuto})`);
+        skips.push({ foaie: wb, sofer: name, cod: 'diferit', motiv: `la terminal e pe mașina ${laTerminal}, la noi ${plate} — corectează manual la terminal` });
       }
       skipped++;
       continue;

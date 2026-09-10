@@ -1,6 +1,6 @@
 import { getSupabase } from '@/lib/supabase';
 import { verificaTelefonSofer } from '@/lib/driver-guard';
-import { scrieFoaie } from '@/lib/foaie';
+import { scrieFoaie, mutaFoaiaLaSofer } from '@/lib/foaie';
 import { valideazaZileMulti } from '@/lib/atribuiri/saptamana';
 import { notifyGraficChanged } from '@/lib/grafic-group-sync';
 
@@ -432,21 +432,33 @@ async function writeThroughCrm(date: string, crmRouteId: number, vehicleId: stri
 async function writeThroughDriverCrm(date: string, crmRouteId: number, driverId: string | null): Promise<boolean> {
   if (driverId == null) return false;
   const db = getSupabase();
+  // Șoferul de dinainte, ca foaia legată de cursă să treacă pe cel nou (vezi mutaFoaiaLaSofer).
+  const { data: prevTur } = await db.from('daily_assignments')
+    .select('driver_id').eq('assignment_date', date).eq('crm_route_id', crmRouteId).maybeSingle();
   const { data: tur, error: e1 } = await db.from('daily_assignments')
     .update({ driver_id: driverId, auto_copied: false })
     .eq('assignment_date', date).eq('crm_route_id', crmRouteId)
     .select('id');
   if (e1) throw new Error(`grafic șofer (tur): ${e1.message}`);
-  if (tur?.length) { await notifyGraficChanged(date); return true; }
+  if (tur?.length) {
+    await mutaFoaiaLaSofer(db, date, crmRouteId, prevTur?.driver_id as string | undefined, driverId);
+    await notifyGraficChanged(date);
+    return true;
+  }
   // Ramura RETUR scrie driver_id_retur, NU titularul (audit 24.08: schimbarea
   // șoferului pe retur în mini-app suprascria șoferul TURULUI) — simetric cu
   // writeThroughVehicleCrm de mai sus.
+  const { data: prevRet } = await db.from('daily_assignments')
+    .select('driver_id_retur').eq('assignment_date', date).eq('retur_route_id', crmRouteId).maybeSingle();
   const { data: ret, error: e2 } = await db.from('daily_assignments')
     .update({ driver_id_retur: driverId, auto_copied: false })
     .eq('assignment_date', date).eq('retur_route_id', crmRouteId)
     .select('id');
   if (e2) throw new Error(`grafic șofer (retur): ${e2.message}`);
-  if (ret?.length) await notifyGraficChanged(date);
+  if (ret?.length) {
+    await mutaFoaiaLaSofer(db, date, crmRouteId, prevRet?.driver_id_retur as string | undefined, driverId);
+    await notifyGraficChanged(date);
+  }
   return !!ret?.length;
 }
 

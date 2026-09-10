@@ -631,7 +631,7 @@ function ReceiptInput({
       onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
       disabled={disabled}
       placeholder="0945xxx"
-      maxLength={10}
+      maxLength={7}
       style={{
         width: '100%',
         padding: '4px 8px',

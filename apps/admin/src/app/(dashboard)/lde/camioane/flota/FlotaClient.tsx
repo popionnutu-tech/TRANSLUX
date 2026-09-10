@@ -3,10 +3,11 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  adaugaSoferCamion, atribuieSofer, scoateSoferCamion,
-  type CamionFlota, type Candidat, type Rezultat, type SoferCamion,
+  adaugaCamionNou, adaugaSoferCamion, adaugaSoferNou, atribuieSofer, scoateSoferCamion,
+  type CamionFlota, type Candidat, type Rezultat, type SoferCamion, type TipCamion,
 } from './actions';
 import { seteazaTipCamion } from '../planificare/actions';
+import { normalizeazaPlaca } from '@/lib/lde/parc';
 
 type Props = { camioane: CamionFlota[]; soferi: SoferCamion[]; candidati: Candidat[] };
 
@@ -16,6 +17,12 @@ export default function FlotaClient({ camioane, soferi, candidati }: Props) {
   const [mesaj, setMesaj] = useState('');
   const [eroare, setEroare] = useState('');
   const [candidatAles, setCandidatAles] = useState('');
+  // Ion, 10.09: dispecerul adaugă și înregistrări noi, nu doar alege din ce există.
+  const [placaNoua, setPlacaNoua] = useState('');
+  const [tipNou, setTipNou] = useState<TipCamion | ''>('');
+  const [numeNou, setNumeNou] = useState('');
+  const [telefonNou, setTelefonNou] = useState('');
+  const placaPreview = normalizeazaPlaca(placaNoua);
 
   function ruleaza(actiune: () => Promise<Rezultat>) {
     setMesaj(''); setEroare('');
@@ -123,6 +130,40 @@ export default function FlotaClient({ camioane, soferi, candidati }: Props) {
           din pagina de mașini.
         </p>
         {tabelCamioane(inactive, 'Toate camioanele au șofer.')}
+
+        <h4 style={{ marginTop: 16, marginBottom: 4 }}>Camion nou</h4>
+        <p className="text-muted" style={{ marginTop: 0 }}>
+          Camionul intră în flotă direct în lista de mai sus, fără șofer. Tipul și șoferul i le pui apoi din tabel.
+        </p>
+        <div className="flex gap-2" style={{ flexWrap: 'wrap', alignItems: 'flex-start' }}>
+          <div>
+            <input
+              value={placaNoua}
+              onChange={(e) => setPlacaNoua(e.target.value)}
+              placeholder="număr, ex: 029 BRAS"
+              disabled={inCurs}
+            />
+            {placaPreview && placaPreview !== placaNoua.trim() && (
+              <p className="text-muted" style={{ fontSize: 13, margin: '4px 0 0' }}>Se salvează ca <b>{placaPreview}</b></p>
+            )}
+          </div>
+          <select value={tipNou} onChange={(e) => setTipNou(e.target.value as TipCamion | '')} disabled={inCurs}>
+            <option value="">— tip (opțional) —</option>
+            <option value="cisterna">cisternă</option>
+            <option value="zernovoz">zernovoz</option>
+          </select>
+          <button
+            className="btn-primary"
+            disabled={inCurs || !placaPreview}
+            onClick={() => ruleaza(async () => {
+              const r = await adaugaCamionNou(placaNoua, tipNou || null);
+              if (!('error' in r)) { setPlacaNoua(''); setTipNou(''); }
+              return r;
+            })}
+          >
+            Adaugă camionul
+          </button>
+        </div>
       </div>
 
       <div className="card">
@@ -151,6 +192,37 @@ export default function FlotaClient({ camioane, soferi, candidati }: Props) {
             })}
           >
             Adaugă
+          </button>
+        </div>
+
+        <h4 style={{ marginTop: 4, marginBottom: 4 }}>Șofer nou</h4>
+        <p className="text-muted" style={{ marginTop: 0 }}>
+          Pentru cine nu e deloc în sistem. Se creează ca șofer LDE și intră direct în nomenclator.
+          Telefonul e opțional — șoferul de camion nu apare pe site.
+        </p>
+        <div className="flex gap-2" style={{ marginBottom: 12, flexWrap: 'wrap' }}>
+          <input
+            value={numeNou}
+            onChange={(e) => setNumeNou(e.target.value)}
+            placeholder="nume complet, ex: Struna Valeriu"
+            disabled={inCurs}
+          />
+          <input
+            value={telefonNou}
+            onChange={(e) => setTelefonNou(e.target.value)}
+            placeholder="telefon (opțional), ex: 069123456"
+            disabled={inCurs}
+          />
+          <button
+            className="btn-primary"
+            disabled={inCurs || numeNou.trim().split(/\s+/).length < 2}
+            onClick={() => ruleaza(async () => {
+              const r = await adaugaSoferNou(numeNou, telefonNou);
+              if (!('error' in r)) { setNumeNou(''); setTelefonNou(''); }
+              return r;
+            })}
+          >
+            Creează șoferul
           </button>
         </div>
 

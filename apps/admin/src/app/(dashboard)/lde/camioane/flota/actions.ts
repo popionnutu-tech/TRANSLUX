@@ -14,6 +14,8 @@ import { getSupabase } from '@/lib/supabase';
 import { verifySession, type Session } from '@/lib/auth';
 import { poateAccesa, poateScrie } from '@/lib/lde/camioane-nav';
 import { chisinauTodayIso } from '@/lib/chisinau-time';
+import { normalizeazaPlaca } from '@/lib/lde/parc';
+import { normalizeDriverPhone, PhoneError } from '@translux/db';
 
 export type Rezultat = { ok: true; mesaj: string } | { error: string };
 
@@ -253,6 +255,135 @@ export async function scoateSoferCamion(driverId: string): Promise<Rezultat> {
   console.info('[camioane/flota] scos din nomenclator', driverId, 'de', s.email);
   revalidatePath(CALE);
   return { ok: true, mesaj: 'Șoferul a ieșit din nomenclatorul de camioane' };
+}
+
+// ---------------------------------------------------------------------------
+// Înregistrări NOI, nu doar alegeri din ce există. Ion, 10.09: «la dispecer
+// camioane să poată adăuga în nomenclator șoferi și mașină noi». Până acum
+// dispecerul putea doar alege dintre șoferii LDE deja creați de admin/uzine, iar
+// camionul nou trebuia cerut administratorului (/vehicles + direcția «camioane»).
+// Tiparul e cel din /lde/parc (rolul UZINE): aceleași reguli de nume, telefon și
+// număr, dar semnele sunt ale flotei de camioane.
+// ---------------------------------------------------------------------------
+
+export type TipCamion = 'cisterna' | 'zernovoz';
+
+/**
+ * Camion nou în flota LDE. Intră direct în lista «fără șofer»; șoferul i se pune
+ * din tabel. Semnul flotei e `directions @> {camioane}` (de el depind și gardienii
+ * SQL din migr. 303, și lde-geo-worker) — de aceea se scrie aici, nu se lasă gol.
+ */
+export async function adaugaCamionNou(placaBruta: string, fleetType: TipCamion | null): Promise<Rezultat> {
+  let s: Session;
+  try { s = await cerereScriere(); } catch { return { error: 'Neautorizat' }; }
+  const placa = normalizeazaPlaca(placaBruta);
+  if (!placa) return { error: 'Scrie numărul camionului' };
+  if (fleetType !== null && fleetType !== 'cisterna' && fleetType !== 'zernovoz') return { error: 'Tip necunoscut' };
+  const sb = getSupabase();
+
+  // Comparăm pe forma normalizată: în bază există numere și cu spațiu («692 TWK»),
+  // deci un eq() exact nu le-ar găsi și am face a doua mașină pentru același camion.
+  const { data: toate, error: eToate } = await sb.from('vehicles')
+    .select('id, plate_number, active, is_lde, directions');
+  if (eToate) return { error: eroareCurata(eToate, 'Nu am putut verifica numărul') };
+  const existent = (toate ?? []).find((v) => normalizeazaPlaca(v.plate_number as string) === placa);
+  if (existent) {
+    const scris = existent.plate_number as string;
+    const cumApare = scris === placa ? '' : ` (scrisă în sistem ca «${scris}»)`;
+    if (!existent.active) {
+      return { error: `Mașina ${placa} există deja${cumApare}, dar e scoasă din uz. Reactivarea o face administratorul din pagina de mașini.` };
+    }
+    if (((existent.directions as string[] | null) ?? []).includes('camioane')) {
+      return { error: `Camionul ${placa} e deja în flotă${cumApare} — caută-l în listele de mai sus.` };
+    }
+    // Un autobuz de uzină sau de interurban nu se «mută» în camioane de aici:
+    // atribuirile lui poartă rută/schimb și intră la salariu.
+    return { error: `Numărul ${placa} există deja${cumApare}, dar la o mașină din afara flotei de camioane. Trecerea ei la camioane se face de administrator.` };
+  }
+
+  const { data: creat, error } = await sb.from('vehicles')
+    .insert({ plate_number: placa, is_lde: true, active: true, directions: ['camioane'] })
+    .select('id').single();
+  if (error) {
+    if (error.code === '23505') return { error: `Numărul ${placa} există deja` };
+    return { error: eroareCurata(error, 'Camionul nu a putut fi adăugat') };
+  }
+
+  revalidatePath(CALE);
+  revalidatePath('/lde/camioane');
+  if (!fleetType) return { ok: true, mesaj: `Camionul ${placa} a fost adăugat. Alege-i tipul și șoferul din tabelul «fără șofer».` };
+
+  // Tipul e separat de mașină (lde_truck_profile). Dacă pică doar el, camionul
+  // există și tipul se pune din tabel — nu are rost să anulăm mașina.
+  const { error: eTip } = await sb.from('lde_truck_profile')
+    .upsert({ vehicle_id: creat.id, fleet_type: fleetType, updated_at: new Date().toISOString(), updated_by: s.email },
+      { onConflict: 'vehicle_id' });
+  if (eTip) {
+    console.error('[camioane/flota] tip camion nou', eTip.code, eTip.message);
+    return { ok: true, mesaj: `Camionul ${placa} a fost adăugat, dar tipul nu s-a salvat — alege-l din tabelul «fără șofer».` };
+  }
+  return { ok: true, mesaj: `Camionul ${placa} (${fleetType === 'cisterna' ? 'cisternă' : 'zernovoz'}) a fost adăugat. Pune-i șoferul din tabelul «fără șofer».` };
+}
+
+/**
+ * Șofer nou, creat direct ca șofer de camion: rândul din `drivers` + intrarea în
+ * nomenclator, într-un singur pas. `directions` rămâne gol — șoferii de camion
+ * n-au uzină (migr. 303: «directions e gol la toți 16»), semnul lor e nomenclatorul.
+ */
+export async function adaugaSoferNou(numeBrut: string, telefonBrut: string): Promise<Rezultat> {
+  let s: Session;
+  try { s = await cerereScriere(); } catch { return { error: 'Neautorizat' }; }
+  const nume = (numeBrut ?? '').trim().replace(/\s+/g, ' ');
+  if (!nume) return { error: 'Scrie numele șoferului' };
+  // aceeași regulă ca la /drivers și /lde/parc — altfel apar «Ion» fără familie
+  if (nume.split(' ').length < 2) return { error: 'Scrie numele complet (nume + prenume)' };
+
+  // Telefonul e opțional la LDE (triggerul migr. 256 îl cere doar la interurban),
+  // dar dacă e scris trebuie să fie valid — o singură regulă, cea din @translux/db.
+  let telefon: string | null = null;
+  if ((telefonBrut ?? '').trim()) {
+    try {
+      telefon = normalizeDriverPhone(telefonBrut);
+    } catch (e) {
+      return { error: e instanceof PhoneError ? e.message : 'Telefon invalid' };
+    }
+  }
+
+  const sb = getSupabase();
+  // ilike fără % = egalitate fără sensibilitate la majuscule («STRUNA Valeriu» = «Struna Valeriu»)
+  const { data: omonimi, error: eOm } = await sb.from('drivers')
+    .select('id, is_lde, lde_camion_soferi ( driver_id )')
+    .ilike('full_name', nume).eq('active', true);
+  if (eOm) return { error: eroareCurata(eOm, 'Nu am putut verifica numele') };
+  const omonim = omonimi?.[0];
+  if (omonim) {
+    const inNom = Array.isArray(omonim.lde_camion_soferi) ? omonim.lde_camion_soferi.length > 0 : !!omonim.lde_camion_soferi;
+    if (inNom) return { error: `«${nume}» e deja în nomenclatorul de camioane — caută-l în lista de mai jos.` };
+    if (omonim.is_lde) return { error: `Există deja un șofer LDE activ cu numele «${nume}». Dacă e el, adaugă-l din lista «alege un șofer de adăugat», nu ca șofer nou.` };
+    return { error: `Există deja un șofer activ cu numele «${nume}» (interurban). Verifică cu administratorul înainte de a-l crea a doua oară.` };
+  }
+
+  const { data: creat, error } = await sb.from('drivers')
+    .insert({ full_name: nume, phone: telefon, is_lde: true, active: true, directions: [] })
+    .select('id').single();
+  if (error) return { error: eroareCurata(error, 'Șoferul nu a putut fi creat') };
+
+  const { error: eNom } = await sb.from('lde_camion_soferi')
+    .insert({ driver_id: creat.id, created_by: s.email, updated_by: s.email });
+  if (eNom) {
+    // Cele două scrieri trăiesc sau mor împreună: un șofer LDE fără nomenclator ar
+    // apărea doar la candidați, iar verificarea de omonim de mai sus l-ar bloca la
+    // reîncercare. Îl scoatem la loc — n-a apucat să fie legat de nimic.
+    const { error: eDel } = await sb.from('drivers').delete().eq('id', creat.id);
+    if (eDel) {
+      return { error: `Șoferul a fost creat, dar n-a intrat în nomenclator (${eNom.message}), și nici anularea n-a mers. Spune-i unui administrator.` };
+    }
+    return { error: eroareCurata(eNom, 'Șoferul n-a putut intra în nomenclator — nu s-a salvat nimic, încearcă din nou') };
+  }
+
+  console.info('[camioane/flota] șofer nou', creat.id, nume, 'de', s.email);
+  revalidatePath(CALE);
+  return { ok: true, mesaj: `Șoferul ${nume} a fost creat și e în nomenclatorul de camioane. Pune-l pe un camion din tabel.` };
 }
 
 // Tipul camionului (cisternă/zernovoz) rămâne `seteazaTipCamion` din

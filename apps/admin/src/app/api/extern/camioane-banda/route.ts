@@ -91,13 +91,7 @@ export async function GET(req: NextRequest) {
     const fromIso = chisinauDayBounds(zile[0]).fromIso;
     const toIso = chisinauDayBounds(zile[zile.length - 1]).toIso;
 
-    // Opririle din ultimele zile, doar cele de cel puțin o oră: dovada că o cursă
-    // «planificată» a trecut deja prin încărcare (Ion, 10.09: «MOW214 e în drum
-    // spre descărcare biodiesel»). Importate noaptea de worker-ul GPS, deci
-    // încărcarea de AZI se vede abia mâine; azi o acoperă poziția live.
-    const deLaOpriri = new Date(`${azi}T00:00:00Z`);
-    deLaOpriri.setUTCDate(deLaOpriri.getUTCDate() - ZILE_OPRIRI);
-    const [vehRes, legRes, curseRes, stariRes, puncteRes, opririRes] = await Promise.all([
+    const [vehRes, legRes, curseRes, stariRes, puncteRes] = await Promise.all([
       sb.from('vehicles')
         .select('id, plate_number, lde_truck_profile ( fleet_type )')
         .eq('active', true).eq('is_lde', true).contains('directions', ['camioane'])
@@ -114,12 +108,8 @@ export async function GET(req: NextRequest) {
         .gte('date', zile[0]).lte('date', zile[zile.length - 1])
         .order('date').order('vehicle_id').limit(1000),
       sb.from('lde_dispatch_points').select('name, lat, lng, country').eq('active', true),
-      sb.from('lde_gps_stops')
-        .select('vehicle_id, lat, lon, dwell_min, arrival_at')
-        .gte('date', deLaOpriri.toISOString().slice(0, 10)).gte('dwell_min', 60)
-        .order('arrival_at').limit(3000),
     ]);
-    for (const r of [vehRes, legRes, curseRes, stariRes, puncteRes, opririRes]) {
+    for (const r of [vehRes, legRes, curseRes, stariRes, puncteRes]) {
       if (r.error) { console.error('[extern/camioane]', r.error.message); throw new Error('citire eșuată'); }
     }
 
@@ -166,6 +156,24 @@ export async function GET(req: NextRequest) {
 
     type Punct = { name: string; lat: number | null; lng: number | null; country: string | null };
     const puncte = (puncteRes.data ?? []) as Punct[];
+
+    // Opririle din ultimele zile, doar cele de cel puțin o oră: dovada că o cursă
+    // «planificată» a trecut deja prin încărcare (Ion, 10.09: «MOW214 e în drum
+    // spre descărcare biodiesel»). Importate noaptea de worker-ul GPS, deci
+    // încărcarea de AZI se vede abia mâine; azi o acoperă poziția live.
+    // DOAR camioanele din bandă și de la nou spre vechi: Supabase taie orice
+    // răspuns la 1000 de rânduri, iar toată flota pe 10 zile depășea plafonul —
+    // primele 1000 se terminau pe 3 septembrie, înainte de Berdichev (10.09).
+    const deLaOpriri = new Date(`${azi}T00:00:00Z`);
+    deLaOpriri.setUTCDate(deLaOpriri.getUTCDate() - ZILE_OPRIRI);
+    const opririRes = randuri.length > 0
+      ? await sb.from('lde_gps_stops')
+          .select('vehicle_id, lat, lon, dwell_min, arrival_at')
+          .in('vehicle_id', randuri.map((c) => c.id))
+          .gte('date', deLaOpriri.toISOString().slice(0, 10)).gte('dwell_min', 60)
+          .order('arrival_at', { ascending: false }).limit(1000)
+      : { data: [], error: null };
+    if (opririRes.error) { console.error('[extern/camioane] opriri:', opririRes.error.message); throw new Error('citire eșuată'); }
 
     type OprireRow = { vehicle_id: string; lat: number | string | null; lon: number | string | null; dwell_min: number | null; arrival_at: string };
     const opririPeCamion = new Map<string, OprireGps[]>();

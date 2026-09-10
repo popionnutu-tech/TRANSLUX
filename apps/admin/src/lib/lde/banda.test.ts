@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   segmentInFereastra, progresCursa, aIntarziat, camioaneInBanda, grupeazaPeTip, mutaPastrandDurata,
-  asazaInBenzi, esteInCursa, asteaptaDescarcarea, undeEste, scenaCamion,
+  asazaInBenzi, esteInCursa, asteaptaDescarcarea, undeEste, scenaCamion, fazaCamion,
 } from './banda';
 
 const ZILE = ['2026-09-01','2026-09-02','2026-09-03','2026-09-04','2026-09-05'];
@@ -263,5 +263,55 @@ describe('scenaCamion — toate scenele (Ion, 08.09)', () => {
   });
   it('fără GPS și fără stare la punct: spune că nu știe', () => {
     expect(scenaCamion({ stareZi: null, cursa: cursa('spre_incarcare'), poz: null, puncte: PUNCTE })).toBe('fără poziție GPS recentă');
+  });
+});
+
+describe('fazaCamion — faza cursei, cu GPS-ul ca martor (Ion, 10.09)', () => {
+  const PETROMIDIA = { lat: 44.3266, lng: 28.6247, radiusM: 800 };
+  const BACIOI = { lat: 46.9146, lng: 28.8623, radiusM: null };
+  const laPetromidia = { lat: 44.3270, lng: 28.6250 };
+  const peDrum = { lat: 45.9, lng: 28.4 };
+  const acum = Date.parse('2026-09-10T10:00:00+03:00');
+  const cursa = (status: string, loadPlannedAt = '2026-09-09T07:00:00+03:00') =>
+    ({ status, loadPlannedAt, loadPoint: PETROMIDIA, unloadPoint: BACIOI });
+
+  it('starea bifată la punct e adevăr, indiferent de GPS', () => {
+    expect(fazaCamion({ cursa: cursa('la_incarcare'), poz: peDrum, acumMs: acum })).toEqual({ faza: 'la_incarcare', dupaGps: false });
+    expect(fazaCamion({ cursa: cursa('la_descarcare'), poz: null, acumMs: acum })).toEqual({ faza: 'la_descarcare', dupaGps: false });
+  });
+  it('«spre …» e în drum, dar GPS-ul la punct îl pune la punct', () => {
+    expect(fazaCamion({ cursa: cursa('spre_incarcare'), poz: peDrum, acumMs: acum })).toEqual({ faza: 'in_drum', dupaGps: false });
+    expect(fazaCamion({ cursa: cursa('spre_incarcare'), poz: laPetromidia, acumMs: acum })).toEqual({ faza: 'la_incarcare', dupaGps: true });
+    expect(fazaCamion({ cursa: cursa('spre_descarcare'), poz: { lat: 46.9150, lng: 28.8630 }, acumMs: acum })).toEqual({ faza: 'la_descarcare', dupaGps: true });
+    expect(fazaCamion({ cursa: cursa('spre_incarcare'), poz: null, acumMs: acum })).toEqual({ faza: 'in_drum', dupaGps: false });
+  });
+  it('KWX620: planificată, ora de încărcare trecută, GPS la Petromidia = la încărcare după GPS', () => {
+    expect(fazaCamion({ cursa: cursa('planificata'), poz: laPetromidia, acumMs: acum })).toEqual({ faza: 'la_incarcare', dupaGps: true });
+  });
+  it('planificată și GPS la punctul de descărcare = la descărcare după GPS', () => {
+    expect(fazaCamion({ cursa: cursa('planificata'), poz: { lat: 46.9150, lng: 28.8630 }, acumMs: acum })).toEqual({ faza: 'la_descarcare', dupaGps: true });
+  });
+  it('planificată pe mâine: camionul care stă la punct NU e la încărcare', () => {
+    expect(fazaCamion({ cursa: cursa('planificata', '2026-09-11T07:00:00+03:00'), poz: laPetromidia, acumMs: acum })).toBeNull();
+  });
+  it('planificată, dar pe drum sau fără GPS: fără fază, rămâne liber', () => {
+    expect(fazaCamion({ cursa: cursa('planificata'), poz: peDrum, acumMs: acum })).toBeNull();
+    expect(fazaCamion({ cursa: cursa('planificata'), poz: null, acumMs: acum })).toBeNull();
+  });
+  it('punct scris liber, fără coordonate: GPS-ul nu poate spune nimic', () => {
+    expect(fazaCamion({ cursa: { status: 'planificata', loadPlannedAt: '2026-09-09T07:00:00+03:00', loadPoint: null, unloadPoint: null }, poz: laPetromidia, acumMs: acum })).toBeNull();
+  });
+  it('raza punctului bate kilometrul implicit', () => {
+    const departe = { lat: 44.3266 + 0.006, lng: 28.6247 }; // ~670 m: în raza de 800 m, ar fi și sub 1 km
+    const maiDeparte = { lat: 44.3266 + 0.012, lng: 28.6247 }; // ~1.3 km: afară
+    expect(fazaCamion({ cursa: cursa('planificata'), poz: departe, acumMs: acum })?.faza).toBe('la_incarcare');
+    expect(fazaCamion({ cursa: cursa('planificata'), poz: maiDeparte, acumMs: acum })).toBeNull();
+    const larg = { ...cursa('planificata'), loadPoint: { ...PETROMIDIA, radiusM: 2000 } };
+    expect(fazaCamion({ cursa: larg, poz: maiDeparte, acumMs: acum })?.faza).toBe('la_incarcare');
+  });
+  it('plin și așteaptă, încheiată, anulată: fără fază', () => {
+    for (const s of ['asteapta_descarcare', 'incheiata', 'anulata']) {
+      expect(fazaCamion({ cursa: cursa(s), poz: laPetromidia, acumMs: acum })).toBeNull();
+    }
   });
 });

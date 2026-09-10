@@ -4,7 +4,8 @@ import { getSupabase } from '@/lib/supabase';
 import { pozitiiLiveCached } from '@/lib/wialon';
 import { normalizeazaPlaca } from '@/lib/lde/parc';
 import { pozitieRecenta } from '@/lib/lde/camioane';
-import { asazaInBenzi, asteaptaDescarcarea, camioaneInBanda, esteInCursa, scenaCamion, segmentInFereastra, undeEste } from '@/lib/lde/banda';
+import { asazaInBenzi, asteaptaDescarcarea, camioaneInBanda, esteInCursa, fazaCamion, scenaCamion, segmentInFereastra, undeEste } from '@/lib/lde/banda';
+import { etichetaStareCursa } from '@/lib/lde/camioane';
 import { taraDinPozitie } from '@/lib/lde/tara';
 import { chisinauDayBounds, chisinauTodayIso } from '@/lib/chisinau-time';
 
@@ -91,7 +92,7 @@ export async function GET(req: NextRequest) {
         .select('vehicle_id, drivers:driver_id ( full_name )').is('valid_to', null),
       sb.from('lde_truck_trips')
         .select(`id, vehicle_id, cargo, status, load_planned_at, unload_planned_at, load_place, unload_place,
-                 load_point:load_point_id ( name ), unload_point:unload_point_id ( name )`)
+                 load_point:load_point_id ( name, lat, lng, radius_m ), unload_point:unload_point_id ( name, lat, lng, radius_m )`)
         .lt('load_planned_at', toIso).gte('unload_planned_at', fromIso)
         .neq('status', 'anulata').order('load_planned_at').limit(1000),
       sb.from('lde_truck_day_states')
@@ -105,6 +106,8 @@ export async function GET(req: NextRequest) {
     }
 
     const unu = <T,>(x: T | T[] | null): T | null => (Array.isArray(x) ? x[0] ?? null : x);
+    const punctCoord = (p: { lat: number | null; lng: number | null; radius_m: number | null } | null) =>
+      p ? { lat: p.lat, lng: p.lng, radiusM: p.radius_m } : null;
 
     type Leg = { vehicle_id: string; drivers: { full_name: string } | { full_name: string }[] | null };
     // Atribuirea EXISTĂ chiar dacă join-ul pe nume tace: camionul rămâne în bandă,
@@ -123,11 +126,12 @@ export async function GET(req: NextRequest) {
       driverName: soferPeCamion.get(v.id) ?? null,
     }));
 
+    type PunctCursa = { name: string; lat: number | null; lng: number | null; radius_m: number | null };
     type CursaRow = {
       id: string; vehicle_id: string; cargo: string | null; status: string;
       load_planned_at: string; unload_planned_at: string;
-      load_point: { name: string } | { name: string }[] | null;
-      unload_point: { name: string } | { name: string }[] | null;
+      load_point: PunctCursa | PunctCursa[] | null;
+      unload_point: PunctCursa | PunctCursa[] | null;
       /** Loc scris liber când capătul nu e în nomenclator (migr. 331). */
       load_place: string | null;
       unload_place: string | null;
@@ -171,8 +175,30 @@ export async function GET(req: NextRequest) {
       const stareAzi = stariPeCheie.get(`${cam.id}|${azi}`) ?? null;
       const poz = pozPePlaca.get(normalizeazaPlaca(cam.plate));
 
-      const stare: StareCamion = activa
-        ? (asteaptaDescarcarea(activa.status) ? 'asteapta_descarcare' : 'in_cursa')
+      // Faza cursei (la încărcare / în drum / la descărcare), cu GPS-ul ca martor
+      // pentru cursa încă «planificată»: KWX620 stătea la Petromidia și ecranul îl
+      // arăta liber (Ion, 10.09). Reparația și odihna bat cursa, ca peste tot.
+      const planificataAzi = !activa && !stareAzi
+        ? aleLui
+          .filter((c) => c.status === 'planificata' && Date.parse(c.load_planned_at) <= Date.now())
+          .sort((a, b) => Date.parse(b.load_planned_at) - Date.parse(a.load_planned_at))[0] ?? null
+        : null;
+      const cursaFazei = activa ?? planificataAzi;
+      const faza = cursaFazei && !stareAzi
+        ? fazaCamion({
+            cursa: {
+              status: cursaFazei.status, loadPlannedAt: cursaFazei.load_planned_at,
+              loadPoint: punctCoord(unu(cursaFazei.load_point)), unloadPoint: punctCoord(unu(cursaFazei.unload_point)),
+            },
+            poz: poz ? { lat: poz.lat, lng: poz.lng } : null,
+          })
+        : null;
+      // Cursa planificată pe care GPS-ul o vede la punct devine «în cursă» pe ecran;
+      // în bază rămâne planificată — dispecerul o trece el.
+      const cursaVazuta = activa ?? (faza ? planificataAzi : null);
+
+      const stare: StareCamion = cursaVazuta
+        ? (asteaptaDescarcarea(cursaVazuta.status) ? 'asteapta_descarcare' : 'in_cursa')
         : cuCursaAcum.has(cam.id) ? 'in_cursa'
         : stareAzi ? stareAzi.state : 'liber';
 
@@ -181,16 +207,29 @@ export async function GET(req: NextRequest) {
         .filter((c) => !esteInCursa(c.status) && Date.parse(c.load_planned_at) > Date.now())
         .sort((a, b) => Date.parse(a.load_planned_at) - Date.parse(b.load_planned_at))[0] ?? null;
 
+      const numeLoc = (c: CursaRow, capat: 'load' | 'unload') =>
+        unu(capat === 'load' ? c.load_point : c.unload_point)?.name ?? (capat === 'load' ? c.load_place : c.unload_place) ?? null;
+      const scenaDupaGps = faza?.dupaGps && cursaVazuta
+        ? `${faza.faza === 'la_incarcare' ? 'la încărcare' : 'la descărcare'}${cursaVazuta.cargo ? ` ${cursaVazuta.cargo}` : ''}, `
+          + `${numeLoc(cursaVazuta, faza.faza === 'la_incarcare' ? 'load' : 'unload') ?? 'punct necunoscut'}`
+          + ` — după GPS, cursa e încă «${etichetaStareCursa(cursaVazuta.status)}»`
+        : null;
+
       return {
         placa: cam.plate,
         tip: cam.fleetType,
         sofer: cam.driverName,
         stare,
-        marfa: activa?.cargo ?? null,
-        ruta: activa
-          ? `${unu(activa.load_point)?.name ?? activa.load_place ?? '—'} → ${unu(activa.unload_point)?.name ?? activa.unload_place ?? '—'}`
+        // Faza cursei deschise: la_incarcare | in_drum | la_descarcare; null la
+        // liber, plin, reparație, odihnă. `fazaDupaGps` = faza vine din poziție,
+        // nu din starea bifată — ecranul o arată cu semn.
+        faza: faza?.faza ?? null,
+        fazaDupaGps: faza?.dupaGps ?? false,
+        marfa: cursaVazuta?.cargo ?? null,
+        ruta: cursaVazuta
+          ? `${numeLoc(cursaVazuta, 'load') ?? '—'} → ${numeLoc(cursaVazuta, 'unload') ?? '—'}`
           : null,
-        pana: activa ? activa.unload_planned_at : null,
+        pana: cursaVazuta ? cursaVazuta.unload_planned_at : null,
         stareaPanaLa: stareAzi?.expected_end ?? null,
         urmatoareaCursa: urmatoarea
           ? { de: urmatoarea.load_planned_at, ruta: `${unu(urmatoarea.load_point)?.name ?? urmatoarea.load_place ?? '—'} → ${unu(urmatoarea.unload_point)?.name ?? urmatoarea.unload_place ?? '—'}` }
@@ -200,7 +239,7 @@ export async function GET(req: NextRequest) {
         tara: poz?.tara ?? null,
         // «Scena» într-o propoziție (Ion, 08.09): reparație / odihnă / la descărcare
         // în Moldova / la descărcare biodiesel în Bulgaria / în drum prin România…
-        scena: scenaCamion({
+        scena: scenaDupaGps ?? scenaCamion({
           stareZi: stareAzi ? { state: stareAzi.state, expectedEnd: stareAzi.expected_end } : null,
           cursa: activa ? {
             status: activa.status, cargo: activa.cargo,
@@ -240,6 +279,9 @@ export async function GET(req: NextRequest) {
       gpsViu,
       rezumat: {
         inCursa: iesire.filter((c) => c.stare === 'in_cursa').length,
+        laIncarcare: iesire.filter((c) => c.faza === 'la_incarcare').length,
+        inDrum: iesire.filter((c) => c.faza === 'in_drum').length,
+        laDescarcare: iesire.filter((c) => c.faza === 'la_descarcare').length,
         pline: iesire.filter((c) => c.stare === 'asteapta_descarcare').length,
         libere: iesire.filter((c) => c.stare === 'liber').length,
         stare: iesire.filter((c) => c.stare === 'reparatie' || c.stare === 'odihna').length,

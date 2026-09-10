@@ -202,6 +202,60 @@ export function scenaCamion(input: {
   return undeEste(poz, puncte);
 }
 
+export type FazaCamion = 'la_incarcare' | 'in_drum' | 'la_descarcare';
+
+/** Cât de aproape de punct înseamnă «la punct», când punctul n-are rază proprie. Aceeași măsură ca în `undeEste`. */
+const RAZA_LA_PUNCT_KM = 1;
+
+/**
+ * Faza cursei deschise: la încărcare, în drum, la descărcare (Ion, 10.09: «este
+ * la încărcare diesel» — despre un camion pe care ecranul îl arăta liber, pentru
+ * că dispecerul nu apucase să treacă cursa din «planificată»).
+ *
+ * Ordinea dovezilor: starea bifată la punct e adevăr. Pe drum («spre …») și pe
+ * «planificată» GPS-ul poate spune că camionul STĂ deja la punctul cursei — a
+ * ajuns înaintea apăsării. Atunci faza vine din poziție, cu `dupaGps: true`.
+ * Starea din bază NU se schimbă: se citește doar, ca omul să vadă adevărul, nu
+ * ce s-a apucat să bifeze. «Planificată» cere ca ora de încărcare să fi trecut:
+ * camionul care stă la bază cu cursa de mâine nu e «la încărcare».
+ * Cursa plină care așteaptă, cea încheiată și cea anulată n-au fază.
+ */
+export function fazaCamion(input: {
+  cursa: {
+    status: string;
+    loadPlannedAt: string;
+    loadPoint: { lat: number | null; lng: number | null; radiusM?: number | null } | null;
+    unloadPoint: { lat: number | null; lng: number | null; radiusM?: number | null } | null;
+  };
+  poz: { lat: number; lng: number } | null;
+  acumMs?: number;
+}): { faza: FazaCamion; dupaGps: boolean } | null {
+  const { cursa, poz } = input;
+  const acumMs = input.acumMs ?? Date.now();
+  const laPunct = (p: { lat: number | null; lng: number | null; radiusM?: number | null } | null): boolean => {
+    if (!poz || !p || p.lat === null || p.lng === null) return false;
+    const razaKm = Math.max(RAZA_LA_PUNCT_KM, (p.radiusM ?? 0) / 1000);
+    return haversineKm(poz, { lat: p.lat, lng: p.lng }) <= razaKm;
+  };
+
+  switch (cursa.status) {
+    case 'la_incarcare': return { faza: 'la_incarcare', dupaGps: false };
+    case 'la_descarcare': return { faza: 'la_descarcare', dupaGps: false };
+    case 'spre_incarcare':
+      return laPunct(cursa.loadPoint) ? { faza: 'la_incarcare', dupaGps: true } : { faza: 'in_drum', dupaGps: false };
+    case 'spre_descarcare':
+      return laPunct(cursa.unloadPoint) ? { faza: 'la_descarcare', dupaGps: true } : { faza: 'in_drum', dupaGps: false };
+    case TRIP_FLOW[0]: {
+      const t = Date.parse(cursa.loadPlannedAt);
+      if (!Number.isFinite(t) || acumMs < t) return null;
+      if (laPunct(cursa.loadPoint)) return { faza: 'la_incarcare', dupaGps: true };
+      if (laPunct(cursa.unloadPoint)) return { faza: 'la_descarcare', dupaGps: true };
+      return null;
+    }
+    default: return null;
+  }
+}
+
 export type GrupBanda<T> = { cheie: 'cisterna' | 'zernovoz' | 'fara_tip'; nume: string; camioane: T[] };
 
 const NUME_GRUP: Record<GrupBanda<unknown>['cheie'], string> = {

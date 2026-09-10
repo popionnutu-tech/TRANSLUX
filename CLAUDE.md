@@ -4,7 +4,9 @@
 
 When you see `[AUTO-DEPLOY]` in hook output after a `git commit`, you MUST automatically:
 
-1. **Push:** `git push origin main` (never `--force`)
+1. **Push:** `git push origin HEAD:main` (never `--force`). Repo is under git-guards:
+   commits are made in a per-task worktree via `git-safe-commit.sh`, so the local
+   `main` ref may lag — push `HEAD`, not `main`. Rules: global `~/.claude/CLAUDE.md`, section «git-guards».
 2. **Deploy Vercel (background):** Launch `vercel-deploy-monitor` agent with prompt:
    > "Run `bash .claude/scripts/deploy-vercel.sh` in /Users/ionpop/Desktop/TRANSLUX. If it fails, analyze the error, fix TypeScript or build issues, commit the fix with `[deploy-fix]` in the message, and redeploy. Max 4 attempts. Report final status."
 

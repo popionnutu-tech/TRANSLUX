@@ -195,6 +195,8 @@ export function deciziaTlx(cursa, receptii, statii, folosite = new Set(), acumMs
     status_changed_at: acum,
     updated_at: acum,
     updated_by: 'auto:tlx',
+    status_confirmed_at: null,
+    status_confirmed_by: null,
     tlx_receipt_id: aleasa.id,
     tlx_receipt_at: new Date(aleasaT).toISOString(),
     tlx_receipt_liters: aleasa.volume == null ? null : Number(aleasa.volume),

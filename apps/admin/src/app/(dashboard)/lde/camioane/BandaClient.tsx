@@ -13,7 +13,7 @@ import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState, useT
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import {
-  anuleazaCursa, mutaCursa, rezolvaAlerta, salveazaCursa, schimbaStareaCursei, seteazaStarePerioada,
+  anuleazaCursa, confirmaStarea, corecteazaStarea, mutaCursa, rezolvaAlerta, salveazaCursa, schimbaStareaCursei, seteazaStarePerioada,
   seteazaTipCamion, stergeStarePerioada, stergeStareZi,
   type AlertaAuto, type Camion, type Cursa, type PunctScurt, type Rezultat, type SoferScurt, type StareZi,
 } from './planificare/actions';
@@ -21,7 +21,7 @@ import {
   aIntarziat, asteaptaDescarcarea, camioaneInBanda, esteInCursa, grupeazaPeTip, mutaPastrandDurata,
   poateFiMutata, progresCursa, scenaCamion, segmentInFereastra, asazaInBenzi,
 } from '@/lib/lde/banda';
-import { camioaneMaiAproape, descriereSursaStare, etichetaStareCursa, stariUrmatoare } from '@/lib/lde/camioane';
+import { camioaneMaiAproape, descriereSursaStare, etichetaStareCursa, stariUrmatoare, TRIP_STATES } from '@/lib/lde/camioane';
 import { chisinauDayOf, chisinauInstantIso, chisinauTimeOf, chisinauTodayIso } from '@/lib/chisinau-time';
 import type { PinCamion } from '@/components/FleetMap';
 
@@ -104,6 +104,8 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
   const [detaliu, setDetaliu] = useState<Cursa | null>(null);
   const [tras, setTras] = useState<string | null>(null);
   const [motivAnulare, setMotivAnulare] = useState('');
+  // «Greșit»: starea adevărată aleasă de dispecer pentru cursa din detaliu.
+  const [corectare, setCorectare] = useState('');
   const formRef = useRef<HTMLDivElement>(null);
   const mesajRef = useRef<HTMLDivElement>(null);
 
@@ -154,6 +156,14 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
   }, [pozitii]);
 
   const curseVii = useMemo(() => curse.filter((c) => c.status !== 'anulata'), [curse]);
+  const placaDupaVehicul = useMemo(() => new Map(camioane.map((c) => [c.id, c.plate])), [camioane]);
+  // Stările puse de automat (GPS / bon TLX) pe care omul nu le-a văzut încă, cele mai noi sus.
+  const deConfirmat = useMemo(
+    () => curseVii
+      .filter((c) => c.statusSource !== 'manual' && !c.statusConfirmedAt)
+      .sort((a, b) => Date.parse(b.statusChangedAt ?? '') - Date.parse(a.statusChangedAt ?? '')),
+    [curseVii],
+  );
 
   // Camionul fără șofer iese din bandă, DAR cursa lui nu dispare niciodată:
   // constrângerea din bază o vede în continuare, iar dispecerul ar primi
@@ -453,6 +463,46 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
           </ul>
         </div>
       )}
+      {/* Dispecerul nu mai pune stări, le confirmă (Ion, 10.09): tot ce a pus
+          automatul și n-a fost încă văzut de om stă aici, cu «corect» / «greșit». */}
+      {deConfirmat.length > 0 && (
+        <div className="card" style={{ borderLeft: '3px solid var(--primary)' }}>
+          <strong>De confirmat</strong>
+          <span className="text-muted" style={{ fontSize: 12 }}> · {deConfirmat.length} {deConfirmat.length === 1 ? 'stare pusă' : 'stări puse'} de automat</span>
+          <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+            {deConfirmat.map((c) => (
+              <li key={c.id} style={{ marginBottom: 5 }}>
+                <strong>{placaDupaVehicul.get(c.vehicleId) ?? '?'}</strong>{' '}
+                <span>{etichetaStareCursa(c.status)}</span>
+                <span className="text-muted" style={{ fontSize: 12 }}>
+                  {' '}· {c.cargo ?? 'fără marfă'} · {c.loadPointName ?? '—'} → {c.unloadPointName ?? '—'}
+                  {c.statusChangedAt && ` · ${new Date(c.statusChangedAt).toLocaleString('ro-MD', { timeZone: 'Europe/Chisinau', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`}
+                </span>
+                {poateEdita && (
+                  <>
+                    <button
+                      className="btn-primary"
+                      style={{ marginLeft: 8, fontSize: 11, padding: '1px 8px' }}
+                      disabled={inCurs}
+                      onClick={() => ruleaza(() => confirmaStarea(c.id))}
+                    >
+                      ✓ Corect
+                    </button>
+                    <button
+                      className="btn-outline"
+                      style={{ marginLeft: 4, fontSize: 11, padding: '1px 8px' }}
+                      disabled={inCurs}
+                      onClick={() => { setCorectare(''); setDetaliu(c); }}
+                    >
+                      ✗ Greșit
+                    </button>
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {taiat && (
         <div className="card" style={{ borderLeft: '3px solid var(--danger)' }}>
           Fereastra e prea largă: s-a atins plafonul de 1000 de curse și ultimele zile lipsesc din
@@ -571,6 +621,31 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
                 </div>
               )}
             </div>
+            {poateEdita && detaliu.statusSource !== 'manual' && detaliu.status !== 'anulata' && (
+              <div className="card" style={{ marginTop: 6, padding: 8, borderLeft: '3px solid var(--primary)' }}>
+                {detaliu.statusConfirmedAt
+                  ? <span className="text-muted" style={{ fontSize: 12 }}>Confirmată de dispecer pe {new Date(detaliu.statusConfirmedAt).toLocaleString('ro-MD', { timeZone: 'Europe/Chisinau' })}</span>
+                  : <span>Automatul a pus «{etichetaStareCursa(detaliu.status)}». E corect?</span>}
+                <div className="flex gap-2" style={{ marginTop: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                  {!detaliu.statusConfirmedAt && (
+                    <button className="btn-primary" disabled={inCurs} onClick={() => ruleaza(() => confirmaStarea(detaliu.id), () => setDetaliu(null))}>
+                      ✓ Corect
+                    </button>
+                  )}
+                  <select value={corectare} onChange={(e) => setCorectare(e.target.value)} disabled={inCurs}>
+                    <option value="">✗ Greșit — starea adevărată…</option>
+                    {TRIP_STATES.filter((st) => st !== 'anulata' && st !== detaliu.status).map((st) => (
+                      <option key={st} value={st}>{etichetaStareCursa(st)}</option>
+                    ))}
+                  </select>
+                  {corectare && (
+                    <button className="btn-outline" disabled={inCurs} onClick={() => ruleaza(() => corecteazaStarea(detaliu.id, corectare), () => { setDetaliu(null); setCorectare(''); })}>
+                      Salvează corectura
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
             <div>
               <span className="text-muted">Încărcare:</span>{' '}
               {new Date(detaliu.loadPlannedAt).toLocaleString('ro-MD', { timeZone: 'Europe/Chisinau' })}

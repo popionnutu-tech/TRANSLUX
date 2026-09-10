@@ -174,7 +174,8 @@ export function deciziaCamion(input) {
   const proaspata = pozitieProaspata(pozitie, acumMs);
   const minute = proaspata ? minuteLaPunct(stationare) : 0;
   const acum = iso(acumMs);
-  const marca = { status_source: 'gps', status_changed_at: acum, updated_at: acum, updated_by: 'auto:gps' };
+  // Fiecare stare nouă pusă de automat așteaptă confirmarea dispecerului (migr. 336).
+  const marca = { status_source: 'gps', status_changed_at: acum, updated_at: acum, updated_by: 'auto:gps', status_confirmed_at: null, status_confirmed_by: null };
   const numePunct = (p) => p?.name ?? 'punct';
 
   // ── Fără cursă deschisă: stă la încărcare destul → cursa se naște (D1) ──

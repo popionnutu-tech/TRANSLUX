@@ -3,7 +3,7 @@
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, type Session } from '@/lib/auth';
 import { poateAccesa, poateScrie } from '@/lib/lde/camioane-nav';
-import { seSuprapune, stariUrmatoare, etichetaStareCursa, type TripWindow } from '@/lib/lde/camioane';
+import { seSuprapune, stariUrmatoare, etichetaStareCursa, TRIP_STATES, type TripWindow } from '@/lib/lde/camioane';
 import { poateFiMutata } from '@/lib/lde/banda';
 import { chisinauDayBounds } from '@/lib/chisinau-time';
 
@@ -37,6 +37,8 @@ export type Cursa = {
   /** Cine a pus starea: dispecerul, GPS-ul (stă în raza descărcării) sau recepția TLX. */
   statusSource: 'manual' | 'gps' | 'tlx';
   statusChangedAt: string | null;
+  /** Dispecerul a confirmat starea pusă de automat («corect»); null = încă neconfirmată. Manualul e confirmat prin definiție. */
+  statusConfirmedAt: string | null;
   /** Recepția TLX care a închis cursa — ca dispecerul să vadă DE CE s-a închis. */
   tlxReceiptAt: string | null;
   tlxReceiptLiters: number | null;
@@ -131,7 +133,7 @@ async function curseInFereastra(fromIso: string, toIso: string): Promise<{ curse
   const { data, error } = await getSupabase()
     .from('lde_truck_trips')
     .select(`id, vehicle_id, driver_id, cargo, client, status, notes,
-             status_source, status_changed_at, tlx_receipt_at, tlx_receipt_liters,
+             status_source, status_changed_at, status_confirmed_at, tlx_receipt_at, tlx_receipt_liters,
              load_point_id, load_place, load_planned_at, unload_point_id, unload_place, unload_planned_at,
              load_point:load_point_id ( name ), unload_point:unload_point_id ( name )`)
     // toIso e exclusiv (începutul zilei următoare) — de aceea .lt, nu .lte.
@@ -150,7 +152,7 @@ async function curseInFereastra(fromIso: string, toIso: string): Promise<{ curse
   type Row = {
     id: string; vehicle_id: string; driver_id: string | null; cargo: string | null; client: string | null;
     status: string; notes: string | null; load_point_id: string | null; load_planned_at: string;
-    status_source: string | null; status_changed_at: string | null;
+    status_source: string | null; status_changed_at: string | null; status_confirmed_at: string | null;
     tlx_receipt_at: string | null; tlx_receipt_liters: number | string | null;
     unload_point_id: string | null; unload_planned_at: string;
     load_place: string | null; unload_place: string | null;
@@ -176,6 +178,7 @@ async function curseInFereastra(fromIso: string, toIso: string): Promise<{ curse
     status: t.status,
     statusSource: (t.status_source === 'gps' || t.status_source === 'tlx' ? t.status_source : 'manual') as Cursa['statusSource'],
     statusChangedAt: t.status_changed_at,
+    statusConfirmedAt: t.status_confirmed_at,
     tlxReceiptAt: t.tlx_receipt_at,
     tlxReceiptLiters: t.tlx_receipt_liters === null ? null : Number(t.tlx_receipt_liters),
     notes: t.notes,
@@ -549,12 +552,62 @@ export async function schimbaStareaCursei(id: string, status: string): Promise<R
   const { error } = await getSupabase().from('lde_truck_trips')
     .update({
       status, status_source: 'manual', status_changed_at: new Date().toISOString(),
+      status_confirmed_at: new Date().toISOString(), status_confirmed_by: s.email,
       ...(status === 'la_descarcare' || status === 'incheiata' ? { unload_seen_at: null } : {}),
       updated_at: new Date().toISOString(), updated_by: s.email,
     })
     .eq('id', id);
   if (error) return { error: eroareCurata(error, 'Starea nu a putut fi schimbată') };
   return { ok: true, mesaj: `Cursa a trecut în «${etichetaStareCursa(status)}»` };
+}
+
+/**
+ * Dispecerul confirmă starea pusă de automat — «corect» (Ion, 10.09: «acum tot ce
+ * face dispecerul — confirmă starea, dacă e corect sau nu corect identificat de AI»).
+ * Starea rămâne a automatului; se scrie doar cine și când a văzut-o.
+ */
+export async function confirmaStarea(id: string): Promise<Rezultat> {
+  let s: Session;
+  try { s = await cerereScriere(); } catch { return { error: 'Neautorizat' }; }
+  if (!UUID_RE.test(id)) return { error: 'Identificator invalid' };
+  const { data: cursa, error: eCitire } = await getSupabase()
+    .from('lde_truck_trips').select('status, status_source, status_confirmed_at').eq('id', id).maybeSingle();
+  if (eCitire) return { error: eroareCurata(eCitire, 'Cursa nu a putut fi citită') };
+  if (!cursa) return { error: 'Cursa nu există' };
+  if (cursa.status_confirmed_at) return { ok: true, mesaj: 'Starea era deja confirmată' };
+  const { error } = await getSupabase().from('lde_truck_trips')
+    .update({ status_confirmed_at: new Date().toISOString(), status_confirmed_by: s.email })
+    .eq('id', id).eq('status', cursa.status as string);
+  if (error) return { error: eroareCurata(error, 'Confirmarea nu a putut fi salvată') };
+  return { ok: true, mesaj: `Confirmat: «${etichetaStareCursa(cursa.status as string)}»` };
+}
+
+/**
+ * «Greșit»: dispecerul spune care e starea adevărată. Spre deosebire de butoanele
+ * de drum (pas cu pas, doar înainte), corectura poate merge în ORICE stare,
+ * inclusiv înapoi — automatul a greșit, omul repară. Devine manuală și confirmată;
+ * automatul nu se mai ceartă cu ea, dar merge mai departe de aici când are dovezi.
+ */
+export async function corecteazaStarea(id: string, status: string): Promise<Rezultat> {
+  let s: Session;
+  try { s = await cerereScriere(); } catch { return { error: 'Neautorizat' }; }
+  if (!UUID_RE.test(id)) return { error: 'Identificator invalid' };
+  if (!TRIP_STATES.includes(status) || status === 'anulata') return { error: 'Stare necunoscută; anularea se face cu motiv, din buton' };
+  const { data: cursa, error: eCitire } = await getSupabase()
+    .from('lde_truck_trips').select('status').eq('id', id).maybeSingle();
+  if (eCitire) return { error: eroareCurata(eCitire, 'Cursa nu a putut fi citită') };
+  if (!cursa) return { error: 'Cursa nu există' };
+  const acum = new Date().toISOString();
+  const { error } = await getSupabase().from('lde_truck_trips')
+    .update({
+      status, status_source: 'manual', status_changed_at: acum,
+      status_confirmed_at: acum, status_confirmed_by: s.email,
+      unload_seen_at: null,
+      updated_at: acum, updated_by: s.email,
+    })
+    .eq('id', id);
+  if (error) return { error: eroareCurata(error, 'Starea nu a putut fi corectată') };
+  return { ok: true, mesaj: `Corectat: «${etichetaStareCursa(cursa.status as string)}» → «${etichetaStareCursa(status)}»` };
 }
 
 /** Tipul camionului (cisternă/zernovoz). Fără el gruparea din grilă e decorativă. */

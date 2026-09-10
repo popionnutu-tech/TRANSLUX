@@ -169,8 +169,10 @@ describe('stariUrmatoare — «plin, așteaptă descărcarea»', () => {
     expect(stariUrmatoare(STARE_ASTEAPTA_DESCARCARE)).toEqual(['spre_descarcare', 'la_descarcare']);
     expect(stariUrmatoare(STARE_ASTEAPTA_DESCARCARE)).not.toContain('incheiata');
   });
-  it('din planificată nu se poate sări direct în așteptare: camionul nu e încă plin', () => {
-    expect(stariUrmatoare('planificata')).not.toContain(STARE_ASTEAPTA_DESCARCARE);
+  it('din planificată se intră direct, ca al doilea buton: camionul poate sta deja plin (Ion, 10.09)', () => {
+    expect(stariUrmatoare('planificata')).toEqual(['spre_incarcare', STARE_ASTEAPTA_DESCARCARE]);
+  });
+  it('din «spre încărcare» nu se poate sări în așteptare: camionul e sigur gol', () => {
     expect(stariUrmatoare('spre_incarcare')).not.toContain(STARE_ASTEAPTA_DESCARCARE);
   });
   it('lista completă de stări o conține, ca CHECK-ul din bază să aibă cu ce se compara', () => {

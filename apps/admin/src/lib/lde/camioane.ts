@@ -121,8 +121,9 @@ export const TRIP_FLOW: readonly string[] = [
  * Starea laterală: camionul e PLIN și așteaptă descărcarea (Ion, 08.09: «auto
  * uneori sunt pline și așteaptă descărcarea»). Nu e pe drumul obișnuit, pentru
  * că nu orice cursă trece prin ea — se intră în ea doar când dispecerul o spune.
- * Se intră din «la_incarcare» (a încărcat și stă la bază) sau din
- * «spre_descarcare» (a ajuns și stă la coadă) și se iese spre descărcare.
+ * Se intră din «planificata» (stătea deja plin când i s-a pus cursa), din
+ * «la_incarcare» (a încărcat și stă la bază) sau din «spre_descarcare» (a ajuns
+ * și stă la coadă) și se iese spre descărcare.
  */
 export const STARE_ASTEAPTA_DESCARCARE = 'asteapta_descarcare';
 
@@ -130,7 +131,11 @@ export const STARE_ASTEAPTA_DESCARCARE = 'asteapta_descarcare';
 export const TRIP_STATES: readonly string[] = [...TRIP_FLOW, STARE_ASTEAPTA_DESCARCARE, 'anulata'];
 
 const TRANZITII: Readonly<Record<string, readonly string[]>> = {
-  planificata: ['spre_incarcare'],
+  // Și din «planificată»: camionul poate sta deja ÎNCĂRCAT când i se pune cursa
+  // (Ion, 10.09: «кнопку для автомобилей которые стоят загружены»). Fără asta
+  // dispecerul apăsa trei butoane la rând ca să ajungă la o stare pe care o vedea
+  // pe rampă. Din «spre încărcare» rămâne interzis — acolo camionul e sigur gol.
+  planificata: ['spre_incarcare', STARE_ASTEAPTA_DESCARCARE],
   spre_incarcare: ['la_incarcare'],
   la_incarcare: ['spre_descarcare', STARE_ASTEAPTA_DESCARCARE],
   spre_descarcare: ['la_descarcare', STARE_ASTEAPTA_DESCARCARE],

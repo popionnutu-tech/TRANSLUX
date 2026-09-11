@@ -2,7 +2,7 @@ import { getSupabase } from '../supabase';
 import { escapeHtml, sendTelegram } from '../telegram-notify';
 import { DRIVERS_GROUP_CONFIG_KEY } from '@translux/db';
 import type { Evidence } from './complaints';
-import { CULPRIT_RO, type Culprit } from './complaint-types';
+import { CULPRIT_RU, type Culprit } from './complaint-types';
 
 // Grupa șoferilor (Ion, 02.09): «cum apare plingere care e din vina lor sa apara
 // in grupa soferi reclamatii. Sau daca cineva ceva a pierdut — tot sa apara».
@@ -21,6 +21,11 @@ import { CULPRIT_RO, type Culprit } from './complaint-types';
 // tipurile cu vinovat «șoferul», iar o reclamație «Altceva» cu șofer
 // neidentificat (apelul din 11.09) nu ajungea la nimeni în afară de admini.
 // Ca să nu arate ca o acuzație, mesajul spune pe față pe cine cade după tip.
+//
+// LIMBA GRUPEI E RUSA (Ion, 11.09: «toate le trimiți în rusă»): șoferii citesc
+// rusește. Tot ce compune fișierul ăsta pentru grupă e în rusă — titluri, rânduri,
+// denumirea tipului (name_ru din nomenclator), «[номер скрыт]». Alerta adminilor
+// (complaints.ts) rămâne în română; codul și comentariile, la fel.
 //
 // TELEFONUL CLIENTULUI la lucruri uitate: intră, din 07.09. Regula veche («datele
 // unui străin într-un chat cu douăzeci de oameni») presupunea că omul are unde
@@ -73,7 +78,7 @@ export interface GroupComplaint {
   departure: string | null;
   trip_date: string | null;
   complaint: string | null;
-  /** Denumirea tipului, deja luată din nomenclator. */
+  /** Denumirea tipului, deja luată din nomenclator — cea RUSĂ (name_ru). */
   type_name: string | null;
   /** Pe cine cade după tip (nomenclator). Lipsă = dosar fără tip. */
   culprit?: Culprit | null;
@@ -87,9 +92,9 @@ export interface GroupComplaint {
 // spune asta din 01.09; grupa TREBUIE să o spună cu atât mai mult, fiindcă acolo
 // mesajul îl citesc douăzeci de colegi ai omului (security 02.09).
 const TEMEI_GRUPA: Record<Evidence, string> = {
-  plate: 'Clientul a dat numărul mașinii.',
-  name: 'Clientul a dat numele șoferului.',
-  trip_only: '⚠️ Clientul NU a dat nici mașina, nici numele — cursa a fost dedusă din orar.',
+  plate: 'Клиент назвал номер машины.',
+  name: 'Клиент назвал имя водителя.',
+  trip_only: '⚠️ Клиент НЕ назвал ни машину, ни имя — рейс определён по расписанию.',
 };
 
 // `route` și `departure` sunt tot text scris de model (pe calea neidentificată,
@@ -104,7 +109,7 @@ function cursa(c: { route: string | null; departure: string | null; trip_date: s
     c.departure ? pentruGrupa(c.departure) : null,
     c.trip_date,
   ];
-  return parti.filter(Boolean).map((x) => escapeHtml(String(x))).join(' · ') || 'cursă neidentificată';
+  return parti.filter(Boolean).map((x) => escapeHtml(String(x))).join(' · ') || 'рейс не установлен';
 }
 
 /**
@@ -126,7 +131,7 @@ function pentruGrupa(text: string): string {
   // firești — en-dash-ul chiar apare în propriile noastre rute («Bălți – Criva»).
   const fara = text.replace(
     /\p{Nd}(?:[\s.,\-()/:_‐-―]*\p{Nd}){6,}/gu,
-    '[număr ascuns]',
+    '[номер скрыт]',
   );
   return fara.length > 300 ? `${fara.slice(0, 300)}…` : fara;
 }
@@ -154,16 +159,16 @@ export function formatComplaintForGroup(
   const vechi = corectare ? omul(inlocuit?.driver_name ?? null, inlocuit?.plate ?? null) : null;
   return [
     corectare
-      ? '⚠️ <b>Reclamație — CORECTARE: alt șofer</b>'
+      ? '⚠️ <b>Жалоба — ИСПРАВЛЕНИЕ: другой водитель</b>'
       // Tipul s-a schimbat pe ACEEAȘI reclamație: fără titlu propriu, al doilea
       // mesaj arăta în grupă ca a doua acuzație pe același om.
       : tipCorectat
-        ? '⚠️ <b>Reclamație — TIP CORECTAT (același caz)</b>'
-        : '⚠️ <b>Reclamație de la un client</b>',
+        ? '⚠️ <b>Жалоба — ТИП ИСПРАВЛЕН (тот же случай)</b>'
+        : '⚠️ <b>Жалоба клиента</b>',
     // Corectarea trebuie să-l și DISCULPE pe cel numit înainte. Fără rândul ăsta,
     // cine intră mai târziu în chat vede două acuzații, nu o corectare.
-    vechi ? `Nu mai e vorba de ${vechi}.` : null,
-    cine ? `<b>${cine}</b>` : '<b>Șofer neidentificat</b> — cine recunoaște cursa să anunțe dispecerul.',
+    vechi ? `Речь уже не о ${vechi}.` : null,
+    cine ? `<b>${cine}</b>` : '<b>Водитель не установлен</b> — кто узнаёт рейс, сообщите диспетчеру.',
     cursa(c),
     c.type_name ? escapeHtml(c.type_name) : null,
     // Din 11.09 grupa vede TOATE reclamațiile, deci și pe cele de care nu răspunde
@@ -171,8 +176,8 @@ export function formatComplaintForGroup(
     // vinovat. La «de stabilit» nu se știe încă — se spune exact așa.
     c.culprit && c.culprit !== 'SOFER'
       ? (c.culprit === 'NECLAR'
-        ? 'ℹ️ Pe cine cade: de stabilit la cercetare.'
-        : `ℹ️ Nu cade pe șofer — răspunde ${CULPRIT_RO[c.culprit]}.`)
+        ? 'ℹ️ Кто отвечает: выяснится при проверке.'
+        : `ℹ️ Не вина водителя — отвечает ${CULPRIT_RU[c.culprit]}.`)
       : null,
     c.complaint ? `«${escapeHtml(pentruGrupa(c.complaint))}»` : null,
     // Valoare necunoscută → avertismentul cel mai prudent, nu lipsa lui: fără
@@ -186,7 +191,7 @@ export function formatComplaintForGroup(
     // numele unui om, în fața a douăzeci de colegi (review 02.09). Ce a
     // verificat AI-ul e cursa și cine era pe ea; cât de tare, spune rândul cu
     // temeiul. Fără șofer identificat nu s-a verificat nimic — rândul lipsește.
-    cine ? '<i>Verificată de call-centrul AI: cursa și șoferul.</i>' : null,
+    cine ? '<i>Проверено AI колл-центром: рейс и водитель.</i>' : null,
   ].filter(Boolean).join('\n');
 }
 
@@ -219,29 +224,29 @@ export function formatLostItemForGroup(l: GroupLostItem, areReclamatie = false):
   // ca un fapt, iar șoferul știe că trebuie să întrebe dispecerul.
   const nume = l.caller_name?.trim() ? escapeHtml(l.caller_name.trim()) : null;
   const numar = l.caller_phone?.trim() ? escapeHtml(l.caller_phone.trim()) : null;
-  const client = `${nume ?? '⚠️ nume necules'} · ${numar ?? '⚠️ număr ascuns'}`;
+  const client = `${nume ?? '⚠️ имя не записано'} · ${numar ?? '⚠️ номер скрыт'}`;
   return [
-    '🎒 <b>Lucru uitat în autobuz</b>',
-    cine ? `<b>${cine}</b>` : '<b>Cursă neidentificată</b> — cine recunoaște cursa să anunțe dispecerul.',
+    '🎒 <b>Забытая вещь в автобусе</b>',
+    cine ? `<b>${cine}</b>` : '<b>Рейс не установлен</b> — кто узнаёт рейс, сообщите диспетчеру.',
     cursa(l),
-    `📞 Clientul: <b>${client}</b>`,
+    `📞 Клиент: <b>${client}</b>`,
     !cine
       ? numar
         // Firul se închide invers: nu clientul sună compania, ci șoferul clientul.
-        ? '<i>Obiectul rămâne la șofer. Cine recunoaște cursa — sunați clientul.</i>'
-        : '<i>Obiectul rămâne la șofer până îl caută clientul.</i>'
+        ? '<i>Вещь остаётся у водителя. Кто узнаёт рейс — позвоните клиенту.</i>'
+        : '<i>Вещь остаётся у водителя, пока клиент её не заберёт.</i>'
       : l.phone_withheld
         // Clientul n-a primit numărul (avea și reclamație pe același apel):
         // șoferul nu trebuie să aștepte un telefon care nu vine.
-        ? '<i>Obiectul se predă la birou — clientul NU are numărul.</i>'
+        ? '<i>Вещь сдаётся в офис — у клиента НЕТ номера.</i>'
         // Clientul are deja numărul șoferului (find_past_trip i l-a dat):
         // șoferul trebuie doar să știe că îl va suna cineva.
-        : '<i>Clientul are numărul și sună direct.</i>',
+        : '<i>У клиента есть номер, он позвонит сам.</i>',
     // Ordinea inversă a apelului mixt: numărul a fost dat ÎNAINTE ca reclamația
     // să existe, deci poarta din find-past-trip n-a avut ce opri. Nu se mai
     // poate retrage — dar șoferul trebuie să știe cine îl va suna.
     cine && !l.phone_withheld && areReclamatie
-      ? '⚠️ <i>Pe același apel există și o reclamație — clientul care sună e reclamantul.</i>'
+      ? '⚠️ <i>По этому же звонку есть и жалоба — звонящий клиент и есть заявитель.</i>'
       : null,
   ].filter(Boolean).join('\n');
 }

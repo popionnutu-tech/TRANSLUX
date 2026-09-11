@@ -165,7 +165,8 @@ export async function POST(req: NextRequest) {
           departure: full.departure,
           trip_date: full.trip_date,
           complaint: full.complaint,
-          type_name: eticheta?.name_ro ?? null,
+          // Grupa citește în rusă (Ion, 11.09) — denumirea rusă din nomenclator.
+          type_name: eticheta?.name_ru ?? null,
           culprit: eticheta?.culprit ?? null,
           evidence: full.evidence,
         },

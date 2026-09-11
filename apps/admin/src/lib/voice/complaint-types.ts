@@ -42,6 +42,15 @@ export const CULPRIT_RO: Record<Culprit, string> = {
   NECLAR: 'de stabilit la cercetare',
 };
 
+/** Același vinovat, pentru grupa șoferilor — care citește în rusă (Ion, 11.09). */
+export const CULPRIT_RU: Record<Culprit, string> = {
+  SOFER: 'водитель',
+  COMPANIE: 'компания',
+  PARC: 'автопарк',
+  SITE: 'сайт',
+  NECLAR: 'выяснится при проверке',
+};
+
 // Cache de proces. Lista se schimbă de câteva ori pe an, iar ruta reclamațiilor
 // e chemată de 2-3 ori pe apel: fără cache, fiecare apel al tool-ului ar mai
 // adăuga o interogare pe calea în care clientul așteaptă în tăcere.
@@ -107,6 +116,8 @@ function normalizeCode(raw: string): string {
 export interface ResolvedType {
   code: string;
   name_ro: string;
+  /** Pentru grupa șoferilor, care citește în rusă. */
+  name_ru: string;
   culprit: Culprit;
 }
 
@@ -128,7 +139,7 @@ export async function resolveComplaintType(raw: unknown): Promise<ResolvedType |
   }
   const pick = (lista: ComplaintType[], code: string) => {
     const t = lista.find((r) => r.code === code && r.active);
-    return t ? { code: t.code, name_ro: t.name_ro, culprit: t.culprit } : null;
+    return t ? { code: t.code, name_ro: t.name_ro, name_ru: t.name_ru, culprit: t.culprit } : null;
   };
   // Tipul stins din panou nu se mai pune pe dosare noi: Ion l-a scos din listă,
   // iar agentul putea încă să-l poarte din promptul livrat mai demult.
@@ -160,7 +171,7 @@ export async function complaintTypeLabel(code: string | null): Promise<ResolvedT
     // Aici NU filtrăm după `active`: dosarul poate purta un tip stins între timp,
     // iar alerta trebuie să spună ce scrie în dosar, nu ce mai e în listă.
     const t = rows.find((r) => r.code === code);
-    return t ? { code: t.code, name_ro: t.name_ro, culprit: t.culprit } : null;
+    return t ? { code: t.code, name_ro: t.name_ro, name_ru: t.name_ru, culprit: t.culprit } : null;
   } catch {
     return null;
   }

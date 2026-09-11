@@ -4,6 +4,8 @@ import { formatComplaintForGroup, formatLostItemForGroup } from './drivers-group
 // Grupa șoferilor (Ion, 02.09). Mesajele le citesc douăzeci de oameni, deci
 // contează exact două lucruri: să nu apară acolo ce n-are voie (telefonul
 // clientului) și să se vadă că acuzația e încă necercetată.
+// Din 11.09 grupa citește în RUSĂ (Ion: «toate le trimiți în rusă») — testele
+// verifică textul rusesc; tipul vine din nomenclator cu name_ru.
 
 const bazaReclamatie = {
   driver_name: 'Burlacu Iurii',
@@ -13,40 +15,46 @@ const bazaReclamatie = {
   departure: '01:30',
   trip_date: '2026-09-02',
   complaint: 'a fumat tot drumul',
-  type_name: 'Fumat la volan',
+  type_name: 'Курение за рулём',
   evidence: 'plate' as const,
 };
 
 describe('formatComplaintForGroup', () => {
-  it('numește omul și mașina — decizia lui Ion', () => {
+  it('numește omul și mașina — decizia lui Ion; totul în rusă', () => {
     const t = formatComplaintForGroup(bazaReclamatie);
+    expect(t).toContain('Жалоба клиента');
     expect(t).toContain('Burlacu Iurii · ANT344');
     expect(t).toContain('Bălți – Criva · 01:30 · 2026-09-02');
-    expect(t).toContain('Fumat la volan');
+    expect(t).toContain('Курение за рулём');
+    // nicio rămășiță românească în mesaj (comentariile nu contează, textul da)
+    expect(t).not.toMatch(/Reclamație|Verificată|Clientul/);
   });
 
   it('spune cine a verificat și CE anume — cursa și șoferul, nu acuzația', () => {
     // Ion (02.09): «reclamatiile sunt verificat de ai call centru intodeauna».
-    // «Neverificată» a fost scos la cererea lui. Complementul e obligatoriu:
-    // fără el, rândul afirma că ACUZAȚIA e confirmată (review 02.09).
-    expect(formatComplaintForGroup(bazaReclamatie)).toContain('Verificată de call-centrul AI: cursa și șoferul');
-    expect(formatComplaintForGroup(bazaReclamatie)).not.toContain('neverificată');
+    // Complementul e obligatoriu: fără el, rândul afirma că ACUZAȚIA e confirmată.
+    expect(formatComplaintForGroup(bazaReclamatie)).toContain('Проверено AI колл-центром: рейс и водитель');
     // Fără șofer identificat nu s-a verificat nimic — ștampila nu apare.
     expect(formatComplaintForGroup({ ...bazaReclamatie, identified: false }))
-      .not.toContain('Verificată');
+      .not.toContain('Проверено');
   });
 
   it('fără șofer identificat cere ajutorul grupei, nu numește pe nimeni', () => {
     const t = formatComplaintForGroup({ ...bazaReclamatie, identified: false, driver_name: null, plate: null });
-    expect(t).toContain('Șofer neidentificat');
+    expect(t).toContain('Водитель не установлен');
     expect(t).toContain('Bălți – Criva');
     expect(t).not.toContain('Burlacu');
   });
 
+  it('fără nimic despre cursă, rândul spune «рейс не установлен»', () => {
+    const t = formatComplaintForGroup({ ...bazaReclamatie, identified: false, driver_name: null, plate: null, route: null, departure: null, trip_date: null });
+    expect(t).toContain('рейс не установлен');
+  });
+
   it('corectarea se distinge de primul mesaj', () => {
     // Clientul a dat altă plăcuță: în grupă rămăsese numit un om nevinovat.
-    expect(formatComplaintForGroup(bazaReclamatie, true)).toContain('CORECTARE');
-    expect(formatComplaintForGroup(bazaReclamatie)).not.toContain('CORECTARE');
+    expect(formatComplaintForGroup(bazaReclamatie, true)).toContain('ИСПРАВЛЕНИЕ');
+    expect(formatComplaintForGroup(bazaReclamatie)).not.toContain('ИСПРАВЛЕНИЕ');
   });
 
   it('escapează textul venit de la client prin model', () => {
@@ -60,7 +68,7 @@ describe('formatComplaintForGroup', () => {
     // lui înăuntru. Adminii îl primesc întreg; grupa, nu.
     const t = formatComplaintForGroup({ ...bazaReclamatie, complaint: 'sunați-mă la 069 123 456, am plătit dublu' });
     expect(t).not.toContain('069 123 456');
-    expect(t).toContain('[număr ascuns]');
+    expect(t).toContain('[номер скрыт]');
     expect(t).toContain('am plătit dublu');
   });
 
@@ -74,12 +82,12 @@ describe('formatComplaintForGroup', () => {
     // 78,8% din perechile rută+zi au un singur șofer. Fără rândul ăsta, o
     // acuzație scoasă din orar arată în grupă identic cu una probată de client.
     const dinOrar = formatComplaintForGroup({ ...bazaReclamatie, evidence: 'trip_only' });
-    expect(dinOrar).toContain('NU a dat nici mașina, nici numele');
-    expect(formatComplaintForGroup(bazaReclamatie)).toContain('a dat numărul mașinii');
-    expect(formatComplaintForGroup({ ...bazaReclamatie, evidence: 'name' })).toContain('a dat numele șoferului');
+    expect(dinOrar).toContain('НЕ назвал ни машину, ни имя');
+    expect(formatComplaintForGroup(bazaReclamatie)).toContain('назвал номер машины');
+    expect(formatComplaintForGroup({ ...bazaReclamatie, evidence: 'name' })).toContain('назвал имя водителя');
     // Fără om numit, temeiul n-are ce sprijini.
     expect(formatComplaintForGroup({ ...bazaReclamatie, identified: false, evidence: 'trip_only' }))
-      .not.toContain('dedusă din orar');
+      .not.toContain('по расписанию');
   });
 
   it('corectarea îl disculpă pe cel numit înainte', () => {
@@ -88,14 +96,14 @@ describe('formatComplaintForGroup', () => {
       true,
       { driver_name: 'Burlacu Iurii', plate: 'ANT344' },
     );
-    expect(t).toContain('Nu mai e vorba de Burlacu Iurii · ANT344');
+    expect(t).toContain('Речь уже не о Burlacu Iurii · ANT344');
     expect(t).toContain('Vasile Rusu · BNQ085');
   });
 
   it('ascunde numărul și când clientul îl dictează cu alte separatoare', () => {
     for (const scris of ['069/12/34/56', '069:12:34:56', '069_123_456', '069.123.456']) {
       const t = formatComplaintForGroup({ ...bazaReclamatie, complaint: `sunați la ${scris}` });
-      expect(t, scris).toContain('[număr ascuns]');
+      expect(t, scris).toContain('[номер скрыт]');
     }
   });
 
@@ -106,29 +114,29 @@ describe('formatComplaintForGroup', () => {
 
   it('un dosar identificat dar fără nume și fără plăcuță nu minte că știe cine e', () => {
     const t = formatComplaintForGroup({ ...bazaReclamatie, driver_name: null, plate: null });
-    expect(t).toContain('Șofer neidentificat');
+    expect(t).toContain('Водитель не установлен');
   });
 });
 
 describe('toate reclamațiile intră în grupă (Ion, 11.09)', () => {
   it('reclamația care nu cade pe șofer spune pe față cine răspunde', () => {
     // Înainte nu pleca deloc în grupă; acum pleacă, dar omul numit e martor.
-    const t = formatComplaintForGroup({ ...bazaReclamatie, type_name: 'Starea mașinii (scaune, curățenie)', culprit: 'PARC' });
-    expect(t).toContain('Nu cade pe șofer — răspunde parcul auto');
+    const t = formatComplaintForGroup({ ...bazaReclamatie, type_name: 'Состояние машины (сиденья, чистота)', culprit: 'PARC' });
+    expect(t).toContain('Не вина водителя — отвечает автопарк');
     expect(t).toContain('Burlacu Iurii · ANT344');
-    expect(formatComplaintForGroup({ ...bazaReclamatie, culprit: 'COMPANIE' })).toContain('răspunde compania');
-    expect(formatComplaintForGroup({ ...bazaReclamatie, culprit: 'SITE' })).toContain('răspunde site-ul');
+    expect(formatComplaintForGroup({ ...bazaReclamatie, culprit: 'COMPANIE' })).toContain('отвечает компания');
+    expect(formatComplaintForGroup({ ...bazaReclamatie, culprit: 'SITE' })).toContain('отвечает сайт');
   });
 
   it('«Altceva» (de stabilit) cu șofer neidentificat pleacă și el, fără să acuze pe nimeni', () => {
     // Apelul din 11.09: reclamație «Altceva», șofer neidentificat — nu ajungea la nimeni.
     const t = formatComplaintForGroup({
       ...bazaReclamatie, identified: false, driver_name: null, plate: null,
-      type_name: 'Altceva', culprit: 'NECLAR', evidence: 'trip_only',
+      type_name: 'Другое', culprit: 'NECLAR', evidence: 'trip_only',
     });
-    expect(t).toContain('Șofer neidentificat');
-    expect(t).toContain('Pe cine cade: de stabilit la cercetare');
-    expect(t).not.toContain('Nu cade pe șofer');
+    expect(t).toContain('Водитель не установлен');
+    expect(t).toContain('Кто отвечает: выяснится при проверке');
+    expect(t).not.toContain('Не вина водителя');
   });
 
   it('pe vinovat «șoferul» sau fără tip nu apare niciun rând în plus', () => {
@@ -137,9 +145,9 @@ describe('toate reclamațiile intră în grupă (Ion, 11.09)', () => {
   });
 
   it('tipul corectat de pe șofer pe companie disculpă prin rândul cu vinovatul, nu prin mesaj separat', () => {
-    const t = formatComplaintForGroup({ ...bazaReclamatie, type_name: 'Starea mașinii', culprit: 'PARC' }, false, null, true);
-    expect(t).toContain('TIP CORECTAT');
-    expect(t).toContain('Nu cade pe șofer');
+    const t = formatComplaintForGroup({ ...bazaReclamatie, type_name: 'Состояние машины', culprit: 'PARC' }, false, null, true);
+    expect(t).toContain('ТИП ИСПРАВЛЕН');
+    expect(t).toContain('Не вина водителя');
   });
 });
 
@@ -153,15 +161,17 @@ describe('formatLostItemForGroup', () => {
     trip_date: '2026-09-02',
   };
 
-  it('numește șoferul la care a rămas obiectul', () => {
+  it('numește șoferul la care a rămas obiectul; în rusă', () => {
     const t = formatLostItemForGroup(bazaObiect);
+    expect(t).toContain('Забытая вещь в автобусе');
     expect(t).toContain('Matievici Serghei · HMK139');
-    expect(t).toContain('Clientul are numărul');
+    expect(t).toContain('У клиента есть номер');
+    expect(t).not.toMatch(/Lucru uitat|Clientul|Obiectul/);
   });
 
   it('fără cursă identificată cere să se recunoască cineva', () => {
     const t = formatLostItemForGroup({ ...bazaObiect, identified: false, driver_name: null, plate: null });
-    expect(t).toContain('Cursă neidentificată');
+    expect(t).toContain('Рейс не установлен');
     expect(t).toContain('Chișinău – Bălți');
   });
 
@@ -169,15 +179,21 @@ describe('formatLostItemForGroup', () => {
     // Apel mixt: clientul a reclamat pe același apel, deci numărul nu i s-a dat.
     // Fără rândul ăsta, șoferul ar aștepta un apel care nu vine.
     const t = formatLostItemForGroup({ ...bazaObiect, phone_withheld: true });
-    expect(t).toContain('se predă la birou');
-    expect(t).not.toContain('Clientul are numărul');
+    expect(t).toContain('сдаётся в офис');
+    expect(t).not.toContain('У клиента есть номер');
   });
 
   it('nu poartă numele obiectului — nu există câmp pentru el', () => {
     // Decizia lui Ion din 30.08: obiectul poate fi orice, ASR-ul îl stâlcește.
     // Testul e o santinelă: dacă cineva adaugă câmpul, aici se vede.
     expect(Object.keys(bazaObiect)).not.toContain('item');
-    expect(formatLostItemForGroup(bazaObiect)).not.toMatch(/geant|telefon|obiect uitat:/i);
+    expect(formatLostItemForGroup(bazaObiect)).not.toMatch(/geant|telefon|obiect uitat:|сумк|забыт[а-я]* предмет:/i);
+  });
+
+  it('apelul mixt cu numărul deja dat spune că cel care sună e reclamantul', () => {
+    const t = formatLostItemForGroup(bazaObiect, true);
+    expect(t).toContain('звонящий клиент и есть заявитель');
+    expect(formatLostItemForGroup(bazaObiect, false)).not.toContain('заявитель');
   });
 });
 
@@ -190,20 +206,20 @@ describe('lucru uitat — clientul, ca șoferul să-l poată suna', () => {
   it('numărul clientului intră în mesaj (regula veche răsturnată 07.09)', () => {
     const t = formatLostItemForGroup({ ...neidentificat, caller_phone: '+37369034315' });
     expect(t).toContain('+37369034315');
-    expect(t).toContain('Clientul');
+    expect(t).toContain('Клиент');
   });
 
   it('numărul NU trece prin redactarea textului de model', () => {
     // pentruGrupa() taie șirurile de 7+ cifre — dar acelea vin de la model.
     // Numărul ăsta vine din telefonie, deci trebuie să rămână întreg.
     const t = formatLostItemForGroup({ ...neidentificat, caller_phone: '069034315' });
-    expect(t).not.toContain('[număr ascuns]');
+    expect(t).not.toContain('[номер скрыт]');
     expect(t).toContain('069034315');
   });
 
   it('cu număr, cursa neidentificată cere șoferului să sune', () => {
     const t = formatLostItemForGroup({ ...neidentificat, caller_phone: '+37369034315' });
-    expect(t).toContain('sunați clientul');
+    expect(t).toContain('позвоните клиенту');
   });
 
   it('fără număr, rândul clientului rămâne și spune pe față că numărul e ascuns', () => {
@@ -211,10 +227,10 @@ describe('lucru uitat — clientul, ca șoferul să-l poată suna', () => {
     // arată ca o uitare; unul cu «ascuns» e un fapt pe care șoferul îl duce
     // la dispecer.
     const t = formatLostItemForGroup(neidentificat);
-    expect(t).toContain('Clientul:');
-    expect(t).toContain('număr ascuns');
-    expect(t).toContain('Obiectul rămâne la șofer până îl caută clientul.');
-    expect(t).not.toContain('sunați clientul');
+    expect(t).toContain('Клиент:');
+    expect(t).toContain('номер скрыт');
+    expect(t).toContain('Вещь остаётся у водителя, пока клиент её не заберёт.');
+    expect(t).not.toContain('позвоните клиенту');
   });
 
   it('numele apare lângă număr când există', () => {
@@ -224,7 +240,7 @@ describe('lucru uitat — clientul, ca șoferul să-l poată suna', () => {
 
   it('fără nume, rândul spune că numele NU a fost cules — nu lasă gol', () => {
     const t = formatLostItemForGroup({ ...neidentificat, caller_phone: '+37369034315' });
-    expect(t).toContain('nume necules · +37369034315');
+    expect(t).toContain('имя не записано · +37369034315');
   });
 
   it('numele trece prin escapeHtml — un «&» nu are voie să omoare mesajul', () => {
@@ -234,6 +250,6 @@ describe('lucru uitat — clientul, ca șoferul să-l poată suna', () => {
 
   it('numele gol sau doar spații e ca lipsa lui', () => {
     const t = formatLostItemForGroup({ ...neidentificat, caller_name: '   ', caller_phone: '+37369034315' });
-    expect(t).toContain('nume necules');
+    expect(t).toContain('имя не записано');
   });
 });

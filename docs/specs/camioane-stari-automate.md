@@ -350,6 +350,13 @@ schimbă (zernovozul rămâne manual, D6).
 - Dacă GPS-ul nu are camionul la acea stație în acea zi, **cursa se închide oricum**,
   dar pleacă alertă: «bon la Orhei, GPS la Bălți pe 08.09».
 - **Fereastra nu se mai leagă de `unload_planned_at`** (§2.2).
+- **Fereastra începe de la plecarea REALĂ de la încărcare** (11.09, KYK742): `load_planned_at`
+  e și el scris retroactiv (§2.2). Cursa KYK742 avea încărcarea «04.09», camionul a încărcat de
+  fapt la Petromidia pe 06.09 (451 min, plecat 13:49), iar bonul din 05.09 — descărcarea marfei
+  PRECEDENTE — a închis-o singur; dispecerul: «он не разгрузился, стоит в Бачой». Regula:
+  dacă istoricul opririlor (`lde_gps_stops`, 30 de zile, ≥ 60 min, în raza punctului de
+  încărcare) arată când a plecat camionul de acolo, bonul trebuie să fie mai nou decât
+  plecarea (`plecareaDeLaIncarcare`); fără istoric rămâne `load_planned_at − 1h`.
 
 ---
 

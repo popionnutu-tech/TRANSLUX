@@ -146,20 +146,48 @@ export function punctulStatiei(statie, puncte) {
   return best ? best.p : null;
 }
 
+/** Sub o oră la punctul de încărcare nu e încărcare (aceeași regulă ca în camion-auto / banda.ts). */
+export const OPRIRE_INCARCARE_MIN = 60;
+
+/**
+ * Când a plecat camionul ULTIMA dată de la punctul de încărcare, după istoricul
+ * opririlor (lde_gps_stops): cea mai nouă oprire ≥ 60 min în raza punctului (cel
+ * puțin 1 km). Bonul TLX de dinainte de plecarea asta e al MARFEI PRECEDENTE, nu al
+ * cursei — KYK742, 11.09: cursa scrisă cu încărcarea «04.09», camionul a încărcat
+ * de fapt la Petromidia pe 06.09, iar bonul din 05.09 (descărcarea de dinainte) a
+ * închis-o singur; dispecerul: «он не разгрузился, стоит в Бачой».
+ * @param opriri [{ lat, lon, dwell_min, arrival_at, departure_at }]
+ * @returns ms sau null (punct fără coordonate, nicio oprire acolo în istoric)
+ */
+export function plecareaDeLaIncarcare(opriri, loadPoint) {
+  if (!areCoordonate(loadPoint)) return null;
+  const razaM = Math.max(1000, razaEfectiva(loadPoint.radius_m));
+  let ultima = null;
+  for (const o of opriri || []) {
+    if (Number(o.dwell_min) < OPRIRE_INCARCARE_MIN || !areCoordonate(o) || distM(o, loadPoint) > razaM) continue;
+    const t = Date.parse(o.departure_at ?? '');
+    if (Number.isFinite(t) && (ultima === null || t > ultima)) ultima = t;
+  }
+  return ultima;
+}
+
 /**
  * Decizia TLX pentru o cursă.
- * @param cursa { id, status, plate, load_planned_at, unloadPoint: { …, country } | null }
+ * @param cursa { id, status, plate, load_planned_at, loadPoint, unloadPoint: { …, country } | null }
  *   unloadPoint null = cursa pornită de automat, descărcarea încă necunoscută: orice stație TLX o închide
  *   și îi pune punctul (D1, D3).
  * @param receptii [{ id, station_id, nr_auto, volume, unloaded_at, delivery_date, created_at, is_deleted }]
  * @param statii [{ id, lat, lon }]  (stations din TLX, lng→lon făcut de apelant)
  * @param folosite Set de fuel_receipts.id deja legate de alte curse
  * @param puncte [{ id, lat, lon, radius_m }] din nomenclator, pentru completarea punctului lipsă
+ * @param opriri istoricul opririlor camionului (lde_gps_stops), pentru plecarea reală de la încărcare
  * Fereastra (D9): de la încărcare (−1 h) până la acum (+1 zi) — NU după unload_planned_at,
- * care e decorativ (cursele se introduc retroactiv cu ore implicite).
+ * care e decorativ (cursele se introduc retroactiv cu ore implicite). Ora planificată a
+ * încărcării e și ea aproximativă (scrisă retroactiv): dacă GPS-ul arată când a plecat
+ * camionul de la încărcare, fereastra începe de ACOLO — un bon mai vechi e al marfei precedente.
  * @returns null | { status:'incheiata', status_source:'tlx', tlx_receipt_id, tlx_receipt_at, tlx_receipt_liters, unload_point_id?, ... }
  */
-export function deciziaTlx(cursa, receptii, statii, folosite = new Set(), acumMs = Date.now(), puncte = []) {
+export function deciziaTlx(cursa, receptii, statii, folosite = new Set(), acumMs = Date.now(), puncte = [], opriri = []) {
   if (!STARI_TLX_INCHEIATA.includes(cursa.status)) return null;
   let statie = null;
   if (cursa.unloadPoint) {
@@ -171,9 +199,11 @@ export function deciziaTlx(cursa, receptii, statii, folosite = new Set(), acumMs
   }
   const placa = normPlaca(cursa.plate);
   if (!placa) return null;
-  const deLa = Date.parse(cursa.load_planned_at) - FEREASTRA_INAINTE_INCARCARE_MS;
+  const dupaPlan = Date.parse(cursa.load_planned_at) - FEREASTRA_INAINTE_INCARCARE_MS;
+  if (!Number.isFinite(dupaPlan)) return null;
+  const plecarea = plecareaDeLaIncarcare(opriri, cursa.loadPoint);
+  const deLa = plecarea === null ? dupaPlan : Math.max(dupaPlan, plecarea);
   const panaLa = acumMs + FEREASTRA_DUPA_ACUM_MS;
-  if (!Number.isFinite(deLa)) return null;
   const statiiDupaId = new Map((statii || []).map((s) => [s.id, s]));
 
   let aleasa = null;

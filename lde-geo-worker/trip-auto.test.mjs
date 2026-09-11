@@ -1,7 +1,7 @@
 // Teste pentru stările automate (node --test lde-geo-worker/trip-auto.test.mjs).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { deciziaGps, deciziaTlx, statiaPunctului, punctulStatiei, momentulReceptiei, razaEfectiva, normPlaca, inMoldova, planCisterneDinTlx } from './trip-auto.mjs';
+import { deciziaGps, deciziaTlx, plecareaDeLaIncarcare, statiaPunctului, punctulStatiei, momentulReceptiei, razaEfectiva, normPlaca, inMoldova, planCisterneDinTlx } from './trip-auto.mjs';
 
 const ACUM = Date.parse('2026-09-08T12:00:00Z');
 const iso = (min) => new Date(ACUM + min * 60e3).toISOString();
@@ -107,6 +107,29 @@ test('TLX (D9): fereastra e de la încărcare până la acum + 1 zi, nu după pl
   assert.equal(deciziaTlx(cursa(), [rec({ unloaded_at: '2026-09-20T09:30:00Z' })], STATII, new Set(), ACUM), null);
   // întârziere de 2 zile față de planul decorativ — se închide, planul nu mai contează
   assert.ok(deciziaTlx(cursa(), [rec({ unloaded_at: '2026-09-10T09:30:00Z' })], STATII, new Set(), Date.parse('2026-09-11T12:00:00Z')));
+});
+
+test('TLX: bonul de dinainte de plecarea reală de la încărcare (GPS) e al marfei precedente — nu închide (KYK742, 11.09)', () => {
+  // Cursa scrisă retroactiv cu încărcarea «04.09 07:00», camionul a încărcat de fapt pe 06.09
+  // (451 min la Petromidia, plecat 13:49), bonul din 05.09 e descărcarea de dinainte.
+  const PETROMIDIA = { lat: 44.3357, lon: 28.6394, radius_m: 1200, country: 'România' };
+  const c = cursa({ status: 'asteapta_descarcare', loadPoint: PETROMIDIA, load_planned_at: '2026-09-04T04:00:00Z' });
+  const opriri = [
+    { lat: 44.3360551, lon: 28.6402553, dwell_min: 451, arrival_at: '2026-09-06T06:18:26Z', departure_at: '2026-09-06T13:49:26Z' },
+    { lat: 44.3359948, lon: 28.6398937, dwell_min: 344, arrival_at: '2026-09-05T23:12:02Z', departure_at: '2026-09-06T04:56:24Z' },
+    { lat: 46.9410377, lon: 28.8669350, dwell_min: 902, arrival_at: '2026-09-07T05:57:57Z', departure_at: '2026-09-07T20:59:56Z' },
+  ];
+  const acum = Date.parse('2026-09-10T15:20:00Z');
+  const bonVechi = rec({ unloaded_at: '2026-09-05T06:30:00Z', volume: 10983 });
+  assert.equal(plecareaDeLaIncarcare(opriri, PETROMIDIA), Date.parse('2026-09-06T13:49:26Z'));
+  assert.equal(deciziaTlx(c, [bonVechi], STATII, new Set(), acum, [], opriri), null);
+  // fără istoric GPS rămâne fereastra planului — bonul vechi ar închide (așa s-a și întâmplat)
+  assert.equal(deciziaTlx(c, [bonVechi], STATII, new Set(), acum, [], [])?.status, 'incheiata');
+  // bonul de după plecare închide
+  assert.equal(deciziaTlx(c, [rec({ unloaded_at: '2026-09-09T08:00:00Z' })], STATII, new Set(), acum, [], opriri)?.status, 'incheiata');
+  // opririle scurte sau în altă parte nu contează ca încărcare; punct fără coordonate → null
+  assert.equal(plecareaDeLaIncarcare([{ ...opriri[0], dwell_min: 20 }, opriri[2]], PETROMIDIA), null);
+  assert.equal(plecareaDeLaIncarcare(opriri, { lat: null, lon: null }), null);
 });
 
 test('TLX (D9): data descărcării e cea din document — unloaded_at, altfel delivery_date la prânz; created_at doar la urmă', () => {

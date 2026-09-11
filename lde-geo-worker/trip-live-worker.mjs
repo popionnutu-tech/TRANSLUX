@@ -43,8 +43,10 @@ const ZILE_RECEPTII = 14;
 const ZILE_FOLOSITE = 60;
 /** Ultima cursă a camionului (orice stare) se caută atât în urmă — ca să nu refacem ce tocmai s-a închis. */
 const ZILE_ULTIMA_CURSA = 30;
-/** Cât înapoi se citește istoricul opririlor pentru pornirea la rece: o cursă de biodiesel ține sub o săptămână. */
-const ZILE_OPRIRI = 10;
+/** Cât înapoi se citește istoricul opririlor: pornirea la rece ține sub o săptămână, dar
+ *  cisterna plină poate sta la bază și două-trei săptămâni până descarcă — plecarea de la
+ *  încărcare trebuie să fie încă în fereastră când vine bonul, altfel bonul vechi ar închide iar. */
+const ZILE_OPRIRI = 30;
 
 function rest(baseUrl, key) {
   return async (path, init = {}) => {
@@ -107,17 +109,19 @@ async function main() {
   const ultimaDupaVehicul = new Map();
   for (const t of curseRecente || []) if (!ultimaDupaVehicul.has(t.vehicle_id)) ultimaDupaVehicul.set(t.vehicle_id, t);
 
-  // Istoricul opririlor (importat noaptea), doar pentru camioanele cu cursa încă
-  // «planificată»/«spre încărcare»: pornirea la rece — au încărcat înainte ca
-  // automatul să existe. Doar opririle lungi, doar aceste camioane: Supabase taie
-  // răspunsul la 1000 de rânduri.
+  // Istoricul opririlor (importat noaptea), pentru camioanele cu o cursă deschisă:
+  // pornirea la rece (au încărcat înainte ca automatul să existe) și plecarea
+  // reală de la încărcare, de care bonul TLX trebuie să fie mai nou (KYK742, 11.09).
+  // Doar opririle lungi, doar aceste camioane: Supabase taie răspunsul la 1000 de
+  // rânduri (11 camioane × 30 de zile ≈ 620 de rânduri pe 11.09).
   const opririDupaVehicul = new Map();
-  const cuCursaNeporita = [...new Set((curseDeschise || []).filter((t) => t.status === 'planificata' || t.status === 'spre_incarcare').map((t) => t.vehicle_id))];
-  if (cuCursaNeporita.length > 0) {
+  const cuCursaDeschisa = [...new Set((curseDeschise || []).map((t) => t.vehicle_id))];
+  if (cuCursaDeschisa.length > 0) {
     try {
       const deLa = new Date(acumMs - ZILE_OPRIRI * 86400e3).toISOString().slice(0, 10);
       const opriri = await sb(`lde_gps_stops?select=vehicle_id,lat,lon,dwell_min,arrival_at,departure_at` +
-        `&vehicle_id=in.(${cuCursaNeporita.join(',')})&date=gte.${deLa}&dwell_min=gte.60&order=arrival_at.desc&limit=1000`) || [];
+        `&vehicle_id=in.(${cuCursaDeschisa.join(',')})&date=gte.${deLa}&dwell_min=gte.60&order=arrival_at.desc&limit=1000`) || [];
+      if (opriri.length >= 1000) console.error('  opriri: răspunsul a atins plafonul de 1000 de rânduri — istoricul vechi lipsește');
       for (const o of opriri) {
         const l = opririDupaVehicul.get(o.vehicle_id) ?? [];
         l.push(o); opririDupaVehicul.set(o.vehicle_id, l);
@@ -197,7 +201,7 @@ async function main() {
   for (const t of curseDeschise || []) {
     const cursa = cursaIO(t);
     try {
-      const d = deciziaTlx(cursa, receptii, statii, folosite, acumMs, puncte);
+      const d = deciziaTlx(cursa, receptii, statii, folosite, acumMs, puncte, opririDupaVehicul.get(t.vehicle_id) ?? []);
       if (!d) continue;
       await scrieStare(t, d, `bon TLX ${d.tlx_receipt_id.slice(0, 8)} din ${d.tlx_receipt_at.slice(0, 10)}${d.unload_point_id ? ', punctul completat' : ''}`);
       folosite.add(d.tlx_receipt_id);

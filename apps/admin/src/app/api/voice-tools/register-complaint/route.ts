@@ -6,7 +6,7 @@ import { chisinauTodayIso } from '@/lib/chisinau-time';
 import { alertAdmins } from '@/lib/telegram-notify';
 import { saveComplaint, formatComplaintAlert, markComplaintGroupNotified, type ComplaintInput, type Evidence } from '@/lib/voice/complaints';
 import { resolveComplaintType, complaintTypeLabel } from '@/lib/voice/complaint-types';
-import { notifyDriversGroup, formatComplaintForGroup, formatComplaintRetraction } from '@/lib/voice/drivers-group';
+import { notifyDriversGroup, formatComplaintForGroup } from '@/lib/voice/drivers-group';
 import { normalizePhone } from '@/lib/voice/phone';
 import {
   identifyTrip, normPlate, normName, uniqueDrivers, COMPLAINT_MAX_DAYS_BACK,
@@ -148,52 +148,35 @@ export async function POST(req: NextRequest) {
       // ALTUL de la al doilea apel nu suprascrie un tip concret, deci altfel
       // alerta ar spune «Altceva» peste un dosar care zice «Starea mașinii».
       if (res.shouldAlert) after(async () => {
-        const [eticheta, anterioara] = await Promise.all([
-          complaintTypeLabel(res.complaint_type),
-          complaintTypeLabel(res.previous_type),
-        ]);
-        // Grupa șoferilor primește DOAR ce cade pe ei (Ion, 02.09). Starea
-        // mașinii, textul de pe site și rezervarea sunt ale companiei — acolo
-        // mesajul n-ar avea destinatar.
-        const eSofer = eticheta?.culprit === 'SOFER';
-        // Retragerea se hotărăște pe FAPTE, nu pe steagul `typeCorrected`: acela
-        // e stins când se schimbă și omul, și tipul în același apel, iar atunci
-        // în chat rămânea tăcut acuzat primul șofer pentru ceva de care nu mai
-        // răspunde nici el, nici cel nou (security 02.09).
+        const eticheta = await complaintTypeLabel(res.complaint_type);
+        // Grupa șoferilor primește TOATE reclamațiile (Ion, 11.09: «pune toate
+        // reclamațiile să plece în chat cu șoferii») — până atunci doar pe cele cu
+        // vinovat «șoferul» (02.09), iar «Altceva» cu șofer neidentificat nu ajungea
+        // la nimeni. Pe cine cade după tip spune mesajul însuși (`culprit`).
         //
-        // Iar «văzut» înseamnă văzut de GRUPĂ (migr. 316), nu de admini:
-        // corectarea și retragerea numesc omul de dinainte DOAR unui public care
-        // l-a văzut acuzat — altfel mesajul disculpant l-ar numi prima dată.
-        const eraSofer = anterioara?.culprit === 'SOFER';
-        const pentruGrupa = eSofer
-          ? formatComplaintForGroup({
-            driver_name: full.driver_name,
-            plate: full.plate,
-            identified: full.identified,
-            route: full.route,
-            departure: full.departure,
-            trip_date: full.trip_date,
-            complaint: full.complaint,
-            type_name: eticheta.name_ro,
-            evidence: full.evidence,
-          },
-          res.corrected && res.wasGroupNotified,
-          res.wasGroupNotified ? res.previous_driver : null,
-          res.typeCorrected && res.wasGroupNotified)
-          : (eraSofer && res.wasGroupNotified
-            ? formatComplaintRetraction({
-              // Se disculpă omul pe care grupa l-a VĂZUT numit, nu cel de acum.
-              driver_name: res.previous_driver?.driver_name ?? full.driver_name,
-              plate: res.previous_driver?.plate ?? full.plate,
-              identified: !!res.previous_driver || full.identified,
-              route: full.route, departure: full.departure, trip_date: full.trip_date,
-            }, eticheta?.name_ro ?? null)
-            : null);
+        // «Văzut» înseamnă văzut de GRUPĂ (migr. 316), nu de admini: corectarea
+        // numește omul de dinainte DOAR unui public care l-a văzut acuzat — altfel
+        // mesajul disculpant l-ar numi prima dată.
+        const pentruGrupa = formatComplaintForGroup({
+          driver_name: full.driver_name,
+          plate: full.plate,
+          identified: full.identified,
+          route: full.route,
+          departure: full.departure,
+          trip_date: full.trip_date,
+          complaint: full.complaint,
+          type_name: eticheta?.name_ro ?? null,
+          culprit: eticheta?.culprit ?? null,
+          evidence: full.evidence,
+        },
+        res.corrected && res.wasGroupNotified,
+        res.wasGroupNotified ? res.previous_driver : null,
+        res.typeCorrected && res.wasGroupNotified);
         // Aceeași clipă, două audiențe — și în paralel: două taimauturi Telegram
         // puse în serie s-ar aduna în bugetul invocării.
         const [, grupOk] = await Promise.all([
           alertAdmins(formatComplaintAlert(full, res.corrected, eticheta, res.typeCorrected)),
-          pentruGrupa ? notifyDriversGroup(pentruGrupa) : Promise.resolve(false),
+          notifyDriversGroup(pentruGrupa),
         ]);
         if (grupOk && conversationId) await markComplaintGroupNotified(conversationId);
       });

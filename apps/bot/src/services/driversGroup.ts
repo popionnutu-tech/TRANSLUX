@@ -2,8 +2,8 @@ import { getSupabase } from '../supabase.js';
 
 const db = () => getSupabase();
 
-// Grupa șoferilor (Ion, 02.09): acolo ajung reclamațiile care cad pe ei și
-// lucrurile uitate în autobuz. Mesajele le trimite panoul (apps/admin), care
+// Grupa șoferilor (Ion, 02.09): acolo ajung reclamațiile clienților (toate, din
+// 11.09) și lucrurile uitate în autobuz. Mesajele le trimite panoul (apps/admin), care
 // citește id-ul de aici — botul doar leagă grupa.
 //
 // Id-ul stă în app_config, nu într-o variabilă de mediu: schimbarea grupei nu

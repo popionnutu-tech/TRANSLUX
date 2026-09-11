@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatComplaintForGroup, formatLostItemForGroup, formatComplaintRetraction } from './drivers-group';
+import { formatComplaintForGroup, formatLostItemForGroup } from './drivers-group';
 
 // Grupa șoferilor (Ion, 02.09). Mesajele le citesc douăzeci de oameni, deci
 // contează exact două lucruri: să nu apară acolo ce n-are voie (telefonul
@@ -110,17 +110,36 @@ describe('formatComplaintForGroup', () => {
   });
 });
 
-describe('formatComplaintRetraction', () => {
-  it('retrage acuzația când tipul iese de sub șofer', () => {
-    // Altfel în chat rămâne numit un om pentru ceva de care nu răspunde.
-    const t = formatComplaintRetraction({
-      driver_name: 'Burlacu Iurii', plate: 'ANT344', identified: true,
-      route: 'Bălți – Criva', departure: '01:30', trip_date: '2026-09-02',
-    }, 'Starea mașinii (scaune, curățenie)');
-    expect(t).toContain('RETRASĂ');
+describe('toate reclamațiile intră în grupă (Ion, 11.09)', () => {
+  it('reclamația care nu cade pe șofer spune pe față cine răspunde', () => {
+    // Înainte nu pleca deloc în grupă; acum pleacă, dar omul numit e martor.
+    const t = formatComplaintForGroup({ ...bazaReclamatie, type_name: 'Starea mașinii (scaune, curățenie)', culprit: 'PARC' });
+    expect(t).toContain('Nu cade pe șofer — răspunde parcul auto');
     expect(t).toContain('Burlacu Iurii · ANT344');
-    expect(t).toContain('Starea mașinii');
-    expect(t).toContain('nu ține de șofer');
+    expect(formatComplaintForGroup({ ...bazaReclamatie, culprit: 'COMPANIE' })).toContain('răspunde compania');
+    expect(formatComplaintForGroup({ ...bazaReclamatie, culprit: 'SITE' })).toContain('răspunde site-ul');
+  });
+
+  it('«Altceva» (de stabilit) cu șofer neidentificat pleacă și el, fără să acuze pe nimeni', () => {
+    // Apelul din 11.09: reclamație «Altceva», șofer neidentificat — nu ajungea la nimeni.
+    const t = formatComplaintForGroup({
+      ...bazaReclamatie, identified: false, driver_name: null, plate: null,
+      type_name: 'Altceva', culprit: 'NECLAR', evidence: 'trip_only',
+    });
+    expect(t).toContain('Șofer neidentificat');
+    expect(t).toContain('Pe cine cade: de stabilit la cercetare');
+    expect(t).not.toContain('Nu cade pe șofer');
+  });
+
+  it('pe vinovat «șoferul» sau fără tip nu apare niciun rând în plus', () => {
+    expect(formatComplaintForGroup({ ...bazaReclamatie, culprit: 'SOFER' })).not.toContain('ℹ️');
+    expect(formatComplaintForGroup({ ...bazaReclamatie, culprit: null, type_name: null })).not.toContain('ℹ️');
+  });
+
+  it('tipul corectat de pe șofer pe companie disculpă prin rândul cu vinovatul, nu prin mesaj separat', () => {
+    const t = formatComplaintForGroup({ ...bazaReclamatie, type_name: 'Starea mașinii', culprit: 'PARC' }, false, null, true);
+    expect(t).toContain('TIP CORECTAT');
+    expect(t).toContain('Nu cade pe șofer');
   });
 });
 

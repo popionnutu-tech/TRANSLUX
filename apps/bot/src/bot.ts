@@ -109,8 +109,8 @@ export function createBot(): Bot<BotContext> {
     else await ctx.reply('Nu sunt sarcini active acum. Cele noi vor apărea automat.');
   });
 
-  // Grupa șoferilor (Ion, 02.09): acolo ajung reclamațiile care cad pe ei și
-  // lucrurile uitate. Doar ADMIN, doar în grupă — același tipar ca /lega_sarcini.
+  // Grupa șoferilor (Ion, 02.09): acolo ajung reclamațiile clienților (toate, din
+  // 11.09) și lucrurile uitate. Doar ADMIN, doar în grupă — același tipar ca /lega_sarcini.
   // Mesajele le trimite panoul; botul doar ține minte unde e grupa.
   bot.command('lega_reclamatii', async (ctx) => {
     if (!ctx.dbUser || ctx.dbUser.role !== 'ADMIN') {
@@ -138,7 +138,7 @@ export function createBot(): Bot<BotContext> {
     }
     await ctx.reply(
       '✓ Grupa a fost legată.\n'
-      + 'Aici vor apărea reclamațiile clienților care cad pe șofer și lucrurile uitate în autobuz.\n'
+      + 'Aici vor apărea toate reclamațiile clienților și lucrurile uitate în autobuz.\n'
       // Ion (02.09): reclamațiile sunt verificate de call-centrul AI, întotdeauna.
       // Cu complement, ca în mesajele per-reclamație: verificată e CURSA și
       // ȘOFERUL, nu substanța acuzației.

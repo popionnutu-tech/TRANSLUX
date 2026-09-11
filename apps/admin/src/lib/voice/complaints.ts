@@ -40,15 +40,16 @@ export interface SaveResult {
   corrected: boolean;
   /** Alerta corectează TIPUL anunțat anterior — deci și cine răspunde de el. */
   typeCorrected: boolean;
-  /** Tipul de DINAINTE. Grupa șoferilor are nevoie de el ca să știe dacă
-   *  acuzația pe care a văzut-o trebuie retrasă. */
+  /** Tipul de DINAINTE. Din 11.09 grupa primește toate tipurile, deci nu mai
+   *  hotărăște nimic după el; rămâne pentru dosar și pentru `typeCorrected`. */
   previous_type: string | null;
   /** Rândul primise deja o alertă ÎNAINTE de acest apel — deci grupa a văzut ceva. */
   wasAlerted: boolean;
   /** GRUPA șoferilor a văzut acuzația (migr. 316). Alerta adminilor nu ajunge:
-   *  grupa primește doar tipurile care cad pe șofer, deci cele două steaguri
-   *  diverg — iar «Nu mai e vorba de X» n-are voie să-l numească pe X unui
-   *  public care nu l-a văzut acuzat. */
+   *  grupa poate să nu fie legată, sau trimiterea să fi picat, deci cele două
+   *  steaguri diverg — iar «Nu mai e vorba de X» n-are voie să-l numească pe X
+   *  unui public care nu l-a văzut acuzat. (Până pe 11.09 divergeau și fiindcă
+   *  grupa primea doar tipurile care cad pe șofer; acum primește toate.) */
   wasGroupNotified: boolean;
   /** Omul numit ÎNAINTE. Mesajul de corectare trebuie să-l și disculpe, nu doar
    *  să numească pe altul: altfel în chat rămân două acuzații, nu o corectare. */

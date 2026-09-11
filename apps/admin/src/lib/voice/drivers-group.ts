@@ -2,6 +2,7 @@ import { getSupabase } from '../supabase';
 import { escapeHtml, sendTelegram } from '../telegram-notify';
 import { DRIVERS_GROUP_CONFIG_KEY } from '@translux/db';
 import type { Evidence } from './complaints';
+import { CULPRIT_RO, type Culprit } from './complaint-types';
 
 // Grupa șoferilor (Ion, 02.09): «cum apare plingere care e din vina lor sa apara
 // in grupa soferi reclamatii. Sau daca cineva ceva a pierdut — tot sa apara».
@@ -12,9 +13,14 @@ import type { Evidence } from './complaints';
 //
 // CE NU INTRĂ ÎN GRUPĂ, hotărât la livrare:
 //  - numele obiectului uitat: decizia lui Ion din 30.08 — nu se păstrează și nu
-//    se transmite nicăieri, fiindcă ASR-ul îl stâlcește și modelul îl ghicește;
-//  - reclamațiile care nu cad pe șofer (starea mașinii, site-ul, rezervarea):
-//    acolo răspunde compania, iar în grupă ar fi doar zgomot.
+//    se transmite nicăieri, fiindcă ASR-ul îl stâlcește și modelul îl ghicește.
+//
+// TOATE reclamațiile intră, din 11.09 (Ion: «pune toate reclamațiile să plece în
+// chat cu șoferii») — și cele care nu cad pe șofer (starea mașinii, site-ul,
+// rezervarea), și cele cu șoferul neidentificat. Până atunci grupa primea doar
+// tipurile cu vinovat «șoferul», iar o reclamație «Altceva» cu șofer
+// neidentificat (apelul din 11.09) nu ajungea la nimeni în afară de admini.
+// Ca să nu arate ca o acuzație, mesajul spune pe față pe cine cade după tip.
 //
 // TELEFONUL CLIENTULUI la lucruri uitate: intră, din 07.09. Regula veche («datele
 // unui străin într-un chat cu douăzeci de oameni») presupunea că omul are unde
@@ -69,6 +75,8 @@ export interface GroupComplaint {
   complaint: string | null;
   /** Denumirea tipului, deja luată din nomenclator. */
   type_name: string | null;
+  /** Pe cine cade după tip (nomenclator). Lipsă = dosar fără tip. */
+  culprit?: Culprit | null;
   /** Pe ce se sprijină identificarea (migr. 308). */
   evidence: Evidence;
 }
@@ -158,6 +166,14 @@ export function formatComplaintForGroup(
     cine ? `<b>${cine}</b>` : '<b>Șofer neidentificat</b> — cine recunoaște cursa să anunțe dispecerul.',
     cursa(c),
     c.type_name ? escapeHtml(c.type_name) : null,
+    // Din 11.09 grupa vede TOATE reclamațiile, deci și pe cele de care nu răspunde
+    // șoferul. Rândul ăsta le deosebește de o acuzație: omul numit e martor, nu
+    // vinovat. La «de stabilit» nu se știe încă — se spune exact așa.
+    c.culprit && c.culprit !== 'SOFER'
+      ? (c.culprit === 'NECLAR'
+        ? 'ℹ️ Pe cine cade: de stabilit la cercetare.'
+        : `ℹ️ Nu cade pe șofer — răspunde ${CULPRIT_RO[c.culprit]}.`)
+      : null,
     c.complaint ? `«${escapeHtml(pentruGrupa(c.complaint))}»` : null,
     // Valoare necunoscută → avertismentul cel mai prudent, nu lipsa lui: fără
     // fallback, un `evidence` neprevăzut ar fi șters tăcut exact rândul care
@@ -174,28 +190,10 @@ export function formatComplaintForGroup(
   ].filter(Boolean).join('\n');
 }
 
-/**
- * Retragerea acuzației din grupă.
- *
- * Se trimite când tipul reclamației se mută de pe șofer pe companie DUPĂ ce
- * grupa a văzut mesajul. Fără ea, în chat rămânea numit un om pentru ceva de
- * care nu răspunde — iar mecanismul de corectare exista doar pentru cazul în
- * care se schimba PERSOANA (audit 02.09).
- */
-export function formatComplaintRetraction(
-  c: Omit<GroupComplaint, 'complaint' | 'type_name' | 'evidence'>,
-  tipNou: string | null,
-): string {
-  const cine = c.identified ? omul(c.driver_name, c.plate) : null;
-  return [
-    '✅ <b>Reclamație RETRASĂ de pe șofer</b>',
-    cine ? `<b>${cine}</b>` : null,
-    cursa(c),
-    tipNou
-      ? `S-a stabilit alt tip: ${escapeHtml(tipNou)} — nu ține de șofer.`
-      : 'S-a stabilit că nu ține de șofer.',
-  ].filter(Boolean).join('\n');
-}
+// «Reclamație RETRASĂ de pe șofer» (audit 02.09) a dispărut pe 11.09: exista doar
+// pentru cazul în care tipul ieșea de sub șofer și grupa nu mai primea nimic.
+// Acum grupa primește și tipul nou, cu titlul «TIP CORECTAT» și cu rândul «Nu
+// cade pe șofer» — același caz, spus o dată, fără un al treilea fel de mesaj.
 
 export interface GroupLostItem {
   driver_name: string | null;

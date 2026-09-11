@@ -126,21 +126,13 @@ export interface ScheduleImageOptions {
    * opriri, ora din Chișinău, telefon + prenume.
    */
   forDrivers?: boolean;
-  /**
-   * Graficul «din Chișinău» (10.09, cerut de șoferi în grupă: «Da din Chișinău?
-   * ... să sun șoferii, mai ușor»): aceeași imagine ca pentru șoferi, dar cu
-   * cursele văzute de la Chișinău — ora plecării de acolo, ruta «Chișinău - X»,
-   * mașina și șoferul de pe retur. Are titlu deasupra tabelului ca să nu se
-   * confunde cu imaginea plecărilor din nord. Implică varianta șoferilor.
-   */
-  fromChisinau?: boolean;
 }
 
-/** Ce are nevoie imaginea dintr-un rând — GraficRow și GraficReturRow îl satisfac. */
+/** Ce are nevoie imaginea dintr-un rând — GraficRow îl satisface. */
 export interface ScheduleImageRow {
   driver_id: string | null;
-  /** ora plecării din nord — goală pe rândurile «din Chișinău» */
-  time_nord?: string;
+  /** ora plecării din nord */
+  time_nord: string;
   time_chisinau: string;
   dest_to: string;
   stops?: string;
@@ -149,9 +141,6 @@ export interface ScheduleImageRow {
   driver_name: string | null;
   driver_full_name?: string | null;
 }
-
-/** Înălțimea titlului «PLECĂRI DIN CHIȘINĂU» de deasupra tabelului. */
-const RETUR_HEADING_H = 40 * S;
 
 /** Coloanele tabelului: lățimea coloanei șoferului diferă între cele două variante. */
 function columns(driverW: number) {
@@ -175,8 +164,7 @@ export async function generateScheduleImage(
   date: string,
   opts: ScheduleImageOptions = {},
 ): Promise<Buffer> {
-  const fromChisinau = !!opts.fromChisinau;
-  const forDrivers = !!opts.forDrivers || fromChisinau;
+  const forDrivers = !!opts.forDrivers;
   const assigned = rows.filter(r => r.driver_id);
   const { r: fR, b: fB, i: fI } = fonts();
   const logo = logoBase64();
@@ -184,10 +172,9 @@ export async function generateScheduleImage(
   // Fără rândul opririlor, rândul e mai scund (Ion, 08.09) — 30 de curse încap
   // pe o imagine pe care șoferul o citește fără zoom.
   const rowH = forDrivers ? 42 * S : ROW_H;
-  const headingH = fromChisinau ? RETUR_HEADING_H : 0;
 
   const n = Math.max(assigned.length, 1);
-  const H = PAD + LOGO_AREA + SUB_LINE + headingH + TH_H + n * rowH + PAD;
+  const H = PAD + LOGO_AREA + SUB_LINE + TH_H + n * rowH + PAD;
 
   const svg: string[] = [];
 
@@ -217,15 +204,8 @@ export async function generateScheduleImage(
   svg.push(textPath(fR, sub1, subX, subBaseY, FS.sub, MAROON));
   svg.push(textPath(fB, sub2, subX + w1, subBaseY, FS.sub, MAROON));
 
-  /* ── Titlu «PLECĂRI DIN CHIȘINĂU» (doar pe graficul din Chișinău) ── */
-  if (fromChisinau) {
-    const headingSize = 22 * S;
-    const headingY = PAD + LOGO_AREA + SUB_LINE + headingH / 2 + headingSize * 0.35;
-    svg.push(textPath(fB, 'PLECĂRI DIN CHIȘINĂU', CANVAS_W / 2, headingY, headingSize, MAROON, 'middle'));
-  }
-
   /* ── Table ── */
-  const tableY = PAD + LOGO_AREA + SUB_LINE + headingH;
+  const tableY = PAD + LOGO_AREA + SUB_LINE;
   const tableH = TH_H + n * rowH;
   const bw = 2 * S; // border width
 
@@ -277,14 +257,14 @@ export async function generateScheduleImage(
     // Pe varianta șoferilor ora și ruta stau pe mijlocul rândului scund.
     const timeBaseY = forDrivers ? rY + rowH / 2 + FS.time * 0.35 : rY + ROW_H * 0.42;
 
-    // Ora plecării: din nord pe graficul obișnuit, din Chișinău pe cel «din Chișinău»
-    const time = fromChisinau ? row.time_chisinau : (row.time_nord ?? '');
+    // Ora plecării din nord
+    const time = row.time_nord;
     svg.push(textPath(fB, time, COL_X.route + cellPad, timeBaseY, FS.time, MAROON_DK));
     const timeWidth = textW(fB, time, FS.time);
 
-    // Route name (next to time): «Lipcani - Chișinău» la tur, «Chișinău - Lipcani» la retur
+    // Route name (next to time): «Lipcani - Chișinău»
     const dest = row.dest_to.replace(/^Chi[sș]in[aă]u\s*[-–]\s*/i, '');
-    const routeName = fromChisinau ? `Chișinău - ${dest}` : `${dest} - Chișinău`;
+    const routeName = `${dest} - Chișinău`;
     const routeX = COL_X.route + cellPad + timeWidth + 8 * S;
     const maxRouteW = COL_X.depart - routeX - cellPad;
     svg.push(textPath(fB, truncText(fB, routeName, FS.route, maxRouteW), routeX, timeBaseY, FS.route, '#333'));

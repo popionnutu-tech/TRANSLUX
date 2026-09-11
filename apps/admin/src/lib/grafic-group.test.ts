@@ -76,9 +76,8 @@ describe('grafic-group', () => {
   });
 });
 
-describe('grafic-group: albumul cu plecările din Chișinău', () => {
-  it('caption: spune care imagine e care doar când pleacă și a doua', () => {
-    expect(graficGroupCaption('2026-09-10', 27, false, [], true)).toContain('2️⃣ plecările din Chișinău');
-    expect(graficGroupCaption('2026-09-10', 27, false, [], false)).not.toContain('plecările din Chișinău');
+describe('grafic-group: o singură imagine (Ion, 11.09: «a doilea grafic nu trebuiește»)', () => {
+  it('caption: nu mai pomenește a doua imagine cu plecările din Chișinău', () => {
+    expect(graficGroupCaption('2026-09-11', 27, false, [])).not.toContain('plecările din Chișinău');
   });
 });

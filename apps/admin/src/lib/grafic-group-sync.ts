@@ -1,7 +1,7 @@
 import { getSupabase } from './supabase';
-import { loadGraficPages, loadGraficReturRows } from './grafic-data';
+import { loadGraficPages } from './grafic-data';
 import { generateScheduleImage } from './schedule-image';
-import { sendTelegramPhoto, sendTelegramMediaGroup } from './telegram-notify';
+import { sendTelegramPhoto } from './telegram-notify';
 import {
   graficGroupChatId, graficGroupCaption, graficSnapshot, diffGraficSnapshots, type GraficSnapshot,
 } from './grafic-group';
@@ -59,29 +59,12 @@ export async function sendGraficImageToGroup(
     return { error: 'Nu s-a putut genera imaginea graficului.' };
   }
 
-  // A doua imagine: plecările din Chișinău (10.09, șoferii în grupă: «Da din
-  // Chișinău? ... să sun șoferii, mai ușor»). Dacă nu iese, pleacă doar prima —
-  // graficul de tur nu așteaptă după retur.
-  let pngRetur: Buffer | null = null;
-  try {
-    const returRows = (await loadGraficReturRows(date)).filter(r => r.driver_id && !r.cancelled);
-    if (returRows.length > 0) pngRetur = await generateScheduleImage(returRows, date, { fromChisinau: true });
-  } catch (err) {
-    console.error('sendGraficImageToGroup: retur image failed:', err);
-  }
-
+  // O singură imagine: plecările din nord. A doua, cu plecările din Chișinău,
+  // a stat în grupă o zi (10.09) și Ion a scos-o pe 11.09: «la Mejgorod să vie
+  // doar grafic cu ora pornirii de la nord, a doilea grafic nu trebuiește».
   const [y, m, d] = date.split('-');
-  const caption = graficGroupCaption(date, rows.length, prevCount > 0, changes, !!pngRetur);
-  const sent = pngRetur
-    ? await sendTelegramMediaGroup(
-        chatId,
-        [
-          { png, filename: `grafic-${d}.${m}.${y}.png` },
-          { png: pngRetur, filename: `grafic-din-chisinau-${d}.${m}.${y}.png` },
-        ],
-        caption,
-      )
-    : await sendTelegramPhoto(chatId, png, caption, `grafic-${d}.${m}.${y}.png`);
+  const caption = graficGroupCaption(date, rows.length, prevCount > 0, changes);
+  const sent = await sendTelegramPhoto(chatId, png, caption, `grafic-${d}.${m}.${y}.png`);
   if (!sent.ok) {
     return { error: 'Telegram nu a primit imaginea. Verificați că botul e în grupa Mejgorod și încercați din nou.' };
   }

@@ -34,7 +34,8 @@ type Pending = {
 let seq = 0;
 const blank = (): Line => ({ uid: `l${++seq}`, part_id: '', qty: 1 });
 
-export default function RashodClient({ warehouses, vehicles, mechanics, reasons }: {
+export default function RashodClient({ canOverrideStock, warehouses, vehicles, mechanics, reasons }: {
+  canOverrideStock: boolean;
   warehouses: Opt[]; vehicles: (Opt & { km: number })[]; mechanics: Opt[]; reasons: Opt[];
 }) {
   const [warehouseId, setWarehouseId] = useState(warehouses[0]?.id || 0);
@@ -357,16 +358,25 @@ export default function RashodClient({ warehouses, vehicles, mechanics, reasons 
               </tbody>
             </table>
             <p className="muted" style={{ fontSize: 12 }}>
-              Nu s-a înregistrat nimic încă. Dacă marfa e fizic pe raft și doar recepția n-a fost introdusă,
-              poți continua — dar depozitul va rămâne pe minus cu cantitățile de mai sus, iar diferența se
-              închide abia la o inventariere. Dacă nu ești sigur, închide și verifică întâi intrările.
+              Nu s-a înregistrat nimic încă.{' '}
+              {canOverrideStock
+                ? 'Dacă marfa e fizic pe raft și doar recepția n-a fost introdusă, poți continua — dar depozitul va rămâne pe minus cu cantitățile de mai sus, iar diferența se închide abia la o inventariere. Dacă nu ești sigur, închide și verifică întâi intrările.'
+                : 'Dacă marfa e fizic pe raft și doar recepția n-a fost introdusă, trebuie mai întâi introdusă recepția — sau cheamă gestionarul, care poate elibera și pe minus.'}
             </p>
             {shortErr && <div className="alert error" style={{ marginBottom: 8 }}>{shortErr}</div>}
             <div className="row" style={{ gap: 8 }}>
               <button type="button" className="btn" onClick={() => { setShort(null); setShortErr(null); }} disabled={busy} autoFocus>Închide și verific</button>
-              <button type="button" className="btn btn-primary" onClick={() => doSubmit(true, short.payload)} disabled={busy}>
-                {busy ? 'Se înregistrează…' : 'Eliberez oricum'}
-              </button>
+              {canOverrideStock ? (
+                <button type="button" className="btn btn-primary" onClick={() => doSubmit(true, short.payload)} disabled={busy}>
+                  {busy ? 'Se înregistrează…' : 'Eliberez oricum'}
+                </button>
+              ) : (
+                // Butonul LIPSEȘTE, nu e doar refuzat la apăsare: un buton care dă eroare arată ca o
+                // defecțiune, iar omul îl apasă de mai multe ori. Așa vede din prima ce are de făcut.
+                <span className="muted" style={{ fontSize: 12, alignSelf: 'center' }}>
+                  Doar gestionarul sau administratorul poate elibera peste stoc.
+                </span>
+              )}
             </div>
           </div>
         </div>

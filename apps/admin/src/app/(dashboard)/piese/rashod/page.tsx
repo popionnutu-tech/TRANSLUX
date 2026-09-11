@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { listWarehouses, listVehicles, listMechanics, listReasons } from '@/lib/piese';
-import { requirePieseIssue, userWarehouseId, warehousesForUser } from '@/lib/piese-access';
+import { requirePieseIssue, userWarehouseId, warehousesForUser, canOverrideStock } from '@/lib/piese-access';
 import RashodClient from './RashodClient';
 
 export default async function RashodPage() {
@@ -18,6 +18,7 @@ export default async function RashodPage() {
     <>
       <div className="page-header"><h1>Rashod — eliberare piesă</h1><p>Ecran simplu. La alegerea piesei și a mașinii, programul avertizează pe loc despre normă (km din GPS) și schimbări recente.</p></div>
       <RashodClient
+        canOverrideStock={await canOverrideStock(session)}
         warehouses={allowed.map((w) => ({ id: w.id, label: w.name }))}
         vehicles={(vehicles as any[]).map((v) => ({ id: v.id, label: `${v.plate} · ${v.model ?? ''}`.trim(), km: v.km_current }))}
         mechanics={(mechanics as any[]).map((m) => ({ id: m.id, label: m.name }))}

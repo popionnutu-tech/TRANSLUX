@@ -126,6 +126,32 @@ export function canEditParts(role: AdminRole): boolean {
   return PART_WRITE_ROLES.includes(role);
 }
 
+// SURSĂ UNICĂ: cine poate elibera PESTE stocul existent, după ce programul întreabă (migr. 330-332).
+// Decizia Marianei, 11.09: rămâne la cei care răspund de soldul depozitului. VINZATOR e scos — vinde din
+// magazin, n-are voie nici măcar să vadă prețul de achiziție, iar dreptul ăsta nu e despre comoditate, ci
+// despre cine semnează o diferență între hârtie și raft, pe care altcineva o închide la inventariere.
+//
+// Aici, nu în piese-roles.ts: acolo stau listele de care are nevoie un COMPONENT DE CLIENT (UsersClient).
+// Pe asta o consultă doar serverul — garda din `submitIssue` și pagina care calculează prop-ul ecranului —
+// exact ca `PART_WRITE_ROLES`/`canEditParts` de mai sus.
+//
+// ATENȚIE dacă se adaugă un rol: lista apare și în două texte pentru oameni („Cheamă gestionarul sau
+// administratorul") — în `rashod/actions.ts` și în `RashodClient.tsx`. Typecheck-ul nu le prinde.
+//
+// Rolul se ia din DB, nu din JWT. Token-ul e o fotografie de la login, valabilă 24h, iar `updateAdminRole`
+// schimbă doar rândul din bază — deci un GESTIONAR retrogradat azi ar fi păstrat până mâine dreptul de a
+// scrie o eliberare pe care baza altfel o refuză, ireversibil și cu depozitul lăsat pe minus. Aceeași
+// regulă ca `editWindowDays` și `userWarehouseId`. Nu costă nimic în plus: `accountFlags` e memoizat per
+// cerere, iar `assertWarehouseAllowed` îl încarcă oricum pe același drum.
+// FAIL-CLOSED: cont inexistent, dezactivat sau eroare de DB → fără drept.
+export const STOCK_OVERRIDE_ROLES: AdminRole[] = ['ADMIN', 'GESTIONAR'];
+
+export async function canOverrideStock(session: Session): Promise<boolean> {
+  const flags = await accountFlags(session);
+  if (!flags) return false;
+  return STOCK_OVERRIDE_ROLES.includes(flags.role);
+}
+
 // ── Etapa 2: legarea contului de UN depozit ──────────────────────────────────
 // Rolurile de depozit care se pot lega de un singur depozit — SURSĂ UNICĂ în piese-roles.ts (importabilă și din client).
 export { DEPOT_BOUND_ROLES, SELLER_SCOPED_ROLES } from './piese-roles';

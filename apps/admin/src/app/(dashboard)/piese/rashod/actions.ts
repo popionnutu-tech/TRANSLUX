@@ -1,7 +1,7 @@
 'use server';
 
 import { verifySession, requireRole } from '@/lib/auth';
-import { assertWarehouseAllowed } from '@/lib/piese-access';
+import { assertWarehouseAllowed, canOverrideStock } from '@/lib/piese-access';
 import { issueAlert, createIssue, appendIssue, issueShortages, todayIssueDocs, docLinesMany, docWarehouses,
   returnIssue, vehicleIssueLines, type IssueLine } from '@/lib/piese';
 import { canSeeCost } from '@/lib/piese-access';
@@ -114,6 +114,20 @@ export async function submitIssue(payload: {
   const lines = cleanLines(payload.lines);
   // `=== true`, nu truthy: acordul de a elibera peste stoc vine de la client, deci se acceptă doar forma
   // exactă. Un `"false"` sau un `1` rătăcit într-un payload nu are voie să treacă drept „da, sunt de acord".
+  //
+  // ȘI rolul, nu doar forma: dialogul e o măsură de interfață, iar cine trimite cererea direct poate pune
+  // acordul de la început. Dreptul de a scrie o eliberare pe care baza altfel o refuză stă la cei care
+  // răspund de soldul depozitului.
+  if (payload.allow_short === true && !(await canOverrideStock(session))) {
+    // Încercarea refuzată lasă ȘI ea urmă. Modelul de amenințare al gărzii e tocmai cererea trimisă fără
+    // ecran; dacă refuzul e mut, cine sondează o poate face la nesfârșit, invizibil.
+    await auditWrite({
+      adminId: session.id, action: 'ISSUE_SHORT_DENIED', entity: 'issue',
+      after: { depozit: Number(payload.warehouse_id), pozitii: lines.length },
+      notes: 'Cerere de eliberare peste stoc, refuzată — rol fără drept',
+    });
+    throw new Error('Nu ai dreptul să eliberezi peste stoc. Cheamă gestionarul sau administratorul.');
+  }
   const allowShort = payload.allow_short === true;
 
   // Fără mașină nu există „rashodul mașinii" — se creează mereu document nou (casare, consum general).

@@ -1,7 +1,7 @@
 import { getSupabase } from './supabase';
 import { loadGraficPages } from './grafic-data';
 import { generateScheduleImage } from './schedule-image';
-import { sendTelegramPhoto } from './telegram-notify';
+import { sendTelegramPhoto, deleteTelegramMessage } from './telegram-notify';
 import {
   graficGroupChatId, graficGroupCaption, graficSnapshot, diffGraficSnapshots, type GraficSnapshot,
 } from './grafic-group';
@@ -15,6 +15,11 @@ import {
 //    și ceva ce vede șoferul s-a schimbat, pleacă imaginea nouă cu schimbarea
 //    scrisă sub ea. Dacă nu s-a schimbat nimic vizibil (ex. doar foaia de
 //    parcurs), nu pleacă nimic — grupa nu e un jurnal de click-uri.
+//
+// O zi = o imagine în grupă (Ion, 11.09: «cum apare ultimul grafic pe ziua
+// următoare, precedentul pe aceeași zi se șterge»): după ce a plecat imaginea
+// nouă, cea veche pe aceeași zi se șterge din grupă, ca șoferul să nu aibă
+// două grafice cu nume diferite pe aceeași zi și să-l ia pe cel vechi.
 
 export interface SendGraficOptions {
   chatId?: string | null;
@@ -33,14 +38,16 @@ export async function sendGraficImageToGroup(
   const db = getSupabase();
   const [data, existing] = await Promise.all([
     loadGraficPages(date, false),
-    db.from('grafic_group_posts').select('send_count, snapshot, sent_by').eq('ziua', date).maybeSingle(),
+    db.from('grafic_group_posts').select('send_count, snapshot, sent_by, telegram_message_id').eq('ziua', date).maybeSingle(),
   ]);
   const toate = data.pages.flat();
   // Cursa anulată nu apare pe imaginea din grupă: imaginea spune «mergi», iar
   // anularea spune «nu mergi». La descărcare rămâne cum era.
   const rows = toate.filter(r => r.driver_id && !r.cancelled);
 
-  const prev = existing.data as { send_count?: number; snapshot?: GraficSnapshot | null; sent_by?: string | null } | null;
+  const prev = existing.data as {
+    send_count?: number; snapshot?: GraficSnapshot | null; sent_by?: string | null; telegram_message_id?: number | null;
+  } | null;
   const prevCount = prev?.send_count ?? 0;
   const nextSnap = graficSnapshot(toate);
   const changes = prev?.snapshot ? diffGraficSnapshots(prev.snapshot, nextSnap) : [];
@@ -67,6 +74,15 @@ export async function sendGraficImageToGroup(
   const sent = await sendTelegramPhoto(chatId, png, caption, `grafic-${d}.${m}.${y}.png`);
   if (!sent.ok) {
     return { error: 'Telegram nu a primit imaginea. Verificați că botul e în grupa Mejgorod și încercați din nou.' };
+  }
+
+  // Întâi pleacă imaginea nouă, apoi se șterge cea veche: grupa nu rămâne nicio
+  // clipă fără grafic, iar dacă trimiterea pică, cel vechi stă pe loc. Ștergerea
+  // ratată (mesaj mai vechi de 48 h, șters de mână) nu e un eșec al trimiterii.
+  const prevMessageId = prev?.telegram_message_id ?? null;
+  if (prevMessageId && prevMessageId !== sent.messageId) {
+    const deleted = await deleteTelegramMessage(chatId, prevMessageId);
+    if (!deleted) console.error(`sendGraficImageToGroup ${date}: graficul precedent (msg ${prevMessageId}) nu s-a șters`);
   }
 
   const { error } = await db.from('grafic_group_posts').upsert(

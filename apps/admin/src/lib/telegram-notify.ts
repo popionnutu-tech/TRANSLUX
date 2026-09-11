@@ -63,6 +63,32 @@ export async function sendTelegramPhoto(
   }
 }
 
+/** Șterge un mesaj trimis de bot (ex. graficul precedent din grupa Mejgorod,
+ *  când pleacă unul nou pe aceeași zi). Nu aruncă niciodată. Telegram lasă
+ *  botul să-și șteargă propriile mesaje doar în 48 h — după, întoarce false și
+ *  mesajul vechi rămâne; cel nou e deja în grupă, deci nu e o pierdere. */
+export async function deleteTelegramMessage(chatId: string | number, messageId: number): Promise<boolean> {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  if (!botToken) return false;
+  try {
+    const resp = await fetch(`https://api.telegram.org/bot${botToken}/deleteMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, message_id: messageId }),
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!resp.ok) {
+      const body = await resp.text().catch(() => '');
+      console.error('deleteTelegramMessage failed:', resp.status, body.slice(0, 300));
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('deleteTelegramMessage failed:', err);
+    return false;
+  }
+}
+
 /** Алерт всем активным админам (users: role=ADMIN, active, telegram_id).
  *  Возвращает true, если сообщение приняли хотя бы у одного адресата — вызывающий
  *  код может отличить «предупредили» от «предупредить не удалось» (нет токена,

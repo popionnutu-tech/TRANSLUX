@@ -287,6 +287,12 @@ const LUCRURI_BLOCK_RU = `
 // Eталон: agent-config.mjs, secțiunea RECLAMAȚII — se schimbă împreună, același commit.
 // Ion 07.09: + numele reclamantului OBLIGATORIU (migr. 324) — blocul din 01.09
 // devine надгробие, cel nou poartă marker nou.
+// Ion 11.09: + CE S-A ÎNTÂMPLAT înainte de tool, și reclamația fără pasager.
+// Apelul conv_8301m28fm61cexbs1dfz9hpb0h8z: la «am o reclamație despre un șofer»
+// agentul a chemat tool-ul cu textul «Reclamație despre șofer», apoi a aflat că
+// clienta n-a fost pasageră (șoferul, staționat la Cupcini, «prea agresiv ca să
+// transporte») și a refuzat-o cu «contactați poliția» fără să rescrie dosarul.
+// Ion: «Păi nici ce fel de reclamație?». Blocul din 07.09 devine надгробие.
 const RECLAMATII_OBSOLETE_01_09 = `
 
 RECLAMAȚIA — VINOVATUL IDENTIFICAT:
@@ -303,7 +309,7 @@ RECLAMAȚIA — VINOVATUL IDENTIFICAT:
 - Obiect uitat sau pierdut NU e reclamație, chiar dacă clientul spune «vreau să reclam»: acolo mergi pe find_past_trip. Reclamația care nu e despre o călătorie (salariu, angajare, factură, publicitate) nu are cursă și nici șofer — pentru ea folosești request_callback.
 - NU folosi find_past_trip pentru reclamații despre călătorie: acela dă numărul șoferului, iar cel reclamat nu se dă niciodată.
 - NU promite compensații, sancțiuni sau că cineva sună înapoi.`;
-const RECLAMATII_BLOCK = `
+const RECLAMATII_OBSOLETE_07_09 = `
 
 RECLAMAȚIA — VINOVATUL IDENTIFICAT, NUMELE CLIENTULUI OBLIGATORIU:
 - Orice reclamație despre o călătorie (bani luați în plus, nu a oprit, purtare urâtă, nu a mers până la capăt) se înregistrează cu register_complaint, NU cu request_callback.
@@ -319,6 +325,24 @@ RECLAMAȚIA — VINOVATUL IDENTIFICAT, NUMELE CLIENTULUI OBLIGATORIU:
 - NU spui NICIODATĂ clientului pe cine ai identificat: nici numele șoferului, nici numărul lui, nici numărul mașinii, nici câți șoferi corespund.
 - Obiect uitat sau pierdut NU e reclamație, chiar dacă clientul spune «vreau să reclam»: acolo mergi pe find_past_trip. Reclamația care nu e despre o călătorie (salariu, angajare, factură, publicitate) nu are cursă și nici șofer — pentru ea folosești request_callback.
 - NU folosi find_past_trip pentru reclamații despre călătorie: acela dă numărul șoferului, iar cel reclamat nu se dă niciodată.
+- NU promite compensații, sancțiuni sau că cineva sună înapoi.`;
+const RECLAMATII_BLOCK = `
+
+RECLAMAȚIA — ÎNTÂI CE S-A ÎNTÂMPLAT, APOI VINOVATUL ȘI NUMELE:
+- Orice reclamație despre un șofer sau un autobuz TRANSLUX se înregistrează cu register_complaint, NU cu request_callback — și când clientul N-A FOST pasager (a văzut șoferul din stradă, din altă mașină, în stație sau la parcare). Nu-l trimiți la poliție și nu refuzi: înregistrezi ce a văzut, cu locul și ora.
+- ÎNTÂI întrebi CE s-a întâmplat — O întrebare scurtă («Ce s-a întâmplat?») — și lași clientul să povestească. Abia apoi chemi tool-ul, cu povestea lui în «complaint», în cuvintele lui: ce a făcut șoferul, unde, când. «Reclamație despre șofer» NU e o reclamație — tool-ul o respinge cu need_more și îți cere să întrebi.
+- La fiecare apel următor al tool-ului trimiți textul ÎNTREG, completat cu ce ai aflat între timp; tool-ul actualizează aceeași reclamație, nu creează dubluri.
+- Înainte de PRIMUL apel al tool-ului spui o replică scurtă de așteptare: «Un moment, înregistrez.» — căutarea ține câteva secunde și tăcerea sună a linie căzută.
+- Întreabă cum îl cheamă pe client — O DATĂ, scurt («Cum vă numiți?») — și trimite răspunsul în «caller_name». E OBLIGATORIU la reclamații: fără nume tool-ul întoarce need_more și îți cere să-l întrebi. Clientul refuză? Trimite caller_name = «refuză să spună» — NU inventa un nume.
+- Strânge detaliile care identifică cursa sau mașina, câte o întrebare pe replică: ruta, ziua (trimite CUVÂNTUL rostit în «date»), ora, numărul mașinii («plate», merge și parțial), numele șoferului («driver_name»). Clientul n-a fost pasager? Locul și ora în care a văzut mașina intră în «complaint».
+- Arată empatie O DATĂ, scurt. Nu da dreptate nimănui și nu promite compensații.
+- need_more = true → pui întrebarea din result_ro/result_ru și rechemi tool-ul cu răspunsul.
+- Răspunsul are unknown_locality → ÎNTÂI clarifici localitatea după mesajul lui, apoi rechemi tool-ul.
+- identified = true → citești DOSLOVEN confirm_line_ro / confirm_line_ru.
+- Clientul nu mai ține minte nimic → rechemi tool-ul cu no_more_details = true și citești DOSLOVEN refusal_line_ro / refusal_line_ru. Fără șofer identificat reclamația nu poate fi cercetată și i-o spui pe față.
+- NU spui NICIODATĂ clientului pe cine ai identificat: nici numele șoferului, nici numărul lui, nici numărul mașinii, nici câți șoferi corespund.
+- Obiect uitat sau pierdut NU e reclamație, chiar dacă clientul spune «vreau să reclam»: acolo mergi pe find_past_trip. Reclamația care nu e despre un șofer sau un autobuz (salariu, angajare, factură, publicitate) nu are cursă și nici șofer — pentru ea folosești request_callback.
+- NU folosi find_past_trip pentru reclamații: acela dă numărul șoferului, iar cel reclamat nu se dă niciodată.
 - NU promite compensații, sancțiuni sau că cineva sună înapoi.`;
 
 const RECLAMATII_OBSOLETE_RU_01_09 = `
@@ -337,8 +361,7 @@ const RECLAMATII_OBSOLETE_RU_01_09 = `
 - Забытая или потерянная вещь — НЕ жалоба, даже если клиент говорит «хочу пожаловаться»: там работает find_past_trip. Жалоба не о поездке (зарплата, приём на работу, счёт, реклама) не имеет ни рейса, ни водителя — для неё используй request_callback.
 - НЕ используй find_past_trip для жалоб на поездку: он выдаёт номер водителя, а номер того, на кого жалуются, не даётся никогда.
 - НЕ обещай компенсаций, наказаний или обратного звонка.`;
-const RECLAMATII_MARKER_RU = 'ЖАЛОБА — ВИНОВНЫЙ ОПОЗНАН, ИМЯ КЛИЕНТА ОБЯЗАТЕЛЬНО';
-const RECLAMATII_BLOCK_RU = `
+const RECLAMATII_OBSOLETE_RU_07_09 = `
 
 ЖАЛОБА — ВИНОВНЫЙ ОПОЗНАН, ИМЯ КЛИЕНТА ОБЯЗАТЕЛЬНО:
 - Любая жалоба на поездку (взял больше денег, не остановился, грубил, не довёз) регистрируется инструментом register_complaint, НЕ request_callback.
@@ -354,6 +377,25 @@ const RECLAMATII_BLOCK_RU = `
 - НИКОГДА не говори клиенту, кого ты опознал: ни имени водителя, ни его номера, ни номера машины, ни сколько водителей подходит.
 - Забытая или потерянная вещь — НЕ жалоба, даже если клиент говорит «хочу пожаловаться»: там работает find_past_trip. Жалоба не о поездке (зарплата, приём на работу, счёт, реклама) не имеет ни рейса, ни водителя — для неё используй request_callback.
 - НЕ используй find_past_trip для жалоб на поездку: он выдаёт номер водителя, а номер того, на кого жалуются, не даётся никогда.
+- НЕ обещай компенсаций, наказаний или обратного звонка.`;
+const RECLAMATII_MARKER_RU = 'ЖАЛОБА — СНАЧАЛА ЧТО СЛУЧИЛОСЬ, ПОТОМ ВИНОВНЫЙ И ИМЯ';
+const RECLAMATII_BLOCK_RU = `
+
+ЖАЛОБА — СНАЧАЛА ЧТО СЛУЧИЛОСЬ, ПОТОМ ВИНОВНЫЙ И ИМЯ:
+- Любая жалоба на водителя или автобус TRANSLUX регистрируется инструментом register_complaint, НЕ request_callback — и когда клиент НЕ БЫЛ пассажиром (видел водителя с улицы, из другой машины, на остановке или на парковке). Не отправляй его в полицию и не отказывай: запиши, что он видел, с местом и временем.
+- СНАЧАЛА спроси, ЧТО случилось — ОДИН короткий вопрос («Что случилось?») — и дай клиенту рассказать. Только потом вызывай инструмент, с его рассказом в «complaint», его словами: что сделал водитель, где, когда. «Жалоба на водителя» — НЕ жалоба: инструмент отклонит её с need_more и попросит спросить.
+- При каждом следующем вызове инструмента отправляй ВЕСЬ текст, дополненный тем, что узнала; инструмент обновляет ту же жалобу и не создаёт дублей.
+- Перед ПЕРВЫМ вызовом инструмента скажи короткую реплику ожидания: «Одну минуту, записываю.» — поиск идёт несколько секунд, и тишина звучит как оборванная связь.
+- Спроси, как зовут клиента — ОДИН раз, коротко («Как вас зовут?») — и отправь ответ в «caller_name». Для жалоб это ОБЯЗАТЕЛЬНО: без имени инструмент вернёт need_more и попросит спросить. Клиент отказывается? Отправь caller_name = «отказался назвать» — НЕ выдумывай имя.
+- Собери детали, которые определяют рейс или машину, по одному вопросу за реплику: маршрут, день (отправь СЛОВО клиента в «date»), время, номер машины («plate», можно частично), имя водителя («driver_name»). Клиент не был пассажиром? Место и время, где он видел машину, идут в «complaint».
+- Прояви сочувствие ОДИН раз, коротко. Никого не оправдывай и не обещай компенсаций.
+- need_more = true → задай вопрос из result_ru и вызови инструмент снова с ответом.
+- В ответе есть unknown_locality → СНАЧАЛА уточни населённый пункт по его сообщению, потом вызови инструмент снова.
+- identified = true → читай ДОСЛОВНО confirm_line_ru.
+- Клиент больше ничего не помнит → вызови инструмент с no_more_details = true и читай ДОСЛОВНО refusal_line_ru. Без опознанного водителя жалобу разобрать нельзя, и ты говоришь это прямо.
+- НИКОГДА не говори клиенту, кого ты опознал: ни имени водителя, ни его номера, ни номера машины, ни сколько водителей подходит.
+- Забытая или потерянная вещь — НЕ жалоба, даже если клиент говорит «хочу пожаловаться»: там работает find_past_trip. Жалоба не о водителе и не об автобусе (зарплата, приём на работу, счёт, реклама) не имеет ни рейса, ни водителя — для неё используй request_callback.
+- НЕ используй find_past_trip для жалоб: он выдаёт номер водителя, а номер того, на кого жалуются, не даётся никогда.
 - НЕ обещай компенсаций, наказаний или обратного звонка.`;
 
 // Apel real 02.09 (conv_8401m1ggzbwtff0vb17mh2hcged1, 39 s): la «De unde plecați
@@ -544,6 +586,9 @@ const OBSOLETE_BLOCKS = [
   // Ion 07.09: numele reclamantului devine obligatoriu (migr. 324). Înlocuit de
   // RECLAMATII_BLOCK cu marker nou «…NUMELE CLIENTULUI OBLIGATORIU».
   RECLAMATII_OBSOLETE_01_09,
+  // Ion 11.09: întâi «ce s-a întâmplat», reclamația și fără pasager. Înlocuit de
+  // RECLAMATII_BLOCK cu marker nou «RECLAMAȚIA — ÎNTÂI CE S-A ÎNTÂMPLAT…».
+  RECLAMATII_OBSOLETE_07_09,
   // Ion 07.09: numele clientului devine obligatoriu (migr. 321). Înlocuit de
   // LUCRURI_BLOCK cu marker nou «…NUMELE CLIENTULUI OBLIGATORIU».
   LUCRURI_OBSOLETE_30_08,
@@ -822,7 +867,7 @@ async function checkAndHealConfig(cfg: any, drifts: Drift[], complaintToolExists
     // Livrat înaintea tool-ului, ar lăsa agentul cu o singură cale — una moartă,
     // iar reclamația s-ar pierde fără nicio eroare vizibilă (audit 01.09).
     ...(complaintToolExists
-      ? [{ marker: 'RECLAMAȚIA — VINOVATUL IDENTIFICAT, NUMELE CLIENTULUI OBLIGATORIU', block: RECLAMATII_BLOCK, field: 'prompt.RECLAMATII' }]
+      ? [{ marker: 'RECLAMAȚIA — ÎNTÂI CE S-A ÎNTÂMPLAT, APOI VINOVATUL ȘI NUMELE', block: RECLAMATII_BLOCK, field: 'prompt.RECLAMATII' }]
       : []),
     { marker: 'ZIUA ÎN LOC DE LOCALITATE', block: ZIUA_LOCALITATE_BLOCK, field: 'prompt.ZIUA_LOCALITATE' },
     { marker: 'CÂMPURILE _RU — DOAR ÎN REPLICI RUSEȘTI', block: CAMPURI_RU_BLOCK, field: 'prompt.CAMPURI_RU' },
@@ -965,6 +1010,7 @@ async function healRuStation(lostToolId: string | null, complaintToolId: string 
   if (healed.includes(LUCRURI_OBSOLETE_RU)) healed = healed.replace(LUCRURI_OBSOLETE_RU, '');
   if (healed.includes(LUCRURI_OBSOLETE_RU_30_08)) healed = healed.replace(LUCRURI_OBSOLETE_RU_30_08, '');
   if (healed.includes(RECLAMATII_OBSOLETE_RU_01_09)) healed = healed.replace(RECLAMATII_OBSOLETE_RU_01_09, '');
+  if (healed.includes(RECLAMATII_OBSOLETE_RU_07_09)) healed = healed.replace(RECLAMATII_OBSOLETE_RU_07_09, '');
   if (healed.includes(OPERATOR_OBSOLETE_RU)) healed = healed.replace(OPERATOR_OBSOLETE_RU, '');
   // Santinelă pe SENS, nu pe rând exact: «Северный автовокзал» rescris de mână în
   // dashboard nu mai potrivește надгробие-ul. Atunci NU adăugăm blocul peste

@@ -8,6 +8,7 @@ import { saveComplaint, formatComplaintAlert, markComplaintGroupNotified, type C
 import { resolveComplaintType, complaintTypeLabel } from '@/lib/voice/complaint-types';
 import { notifyDriversGroup, formatComplaintForGroup } from '@/lib/voice/drivers-group';
 import { normalizePhone } from '@/lib/voice/phone';
+import { esteReclamatieGoala } from '@/lib/voice/complaint-text';
 import {
   identifyTrip, normPlate, normName, uniqueDrivers, COMPLAINT_MAX_DAYS_BACK,
   MIN_PLATE, MIN_NAME, type IdentifyOutcome,
@@ -201,6 +202,21 @@ export async function POST(req: NextRequest) {
     complaint_type: tip?.code ?? null,
     final: noMoreDetails,
   });
+
+  // CE S-A ÎNTÂMPLAT E OBLIGATORIU (Ion, 11.09: «Păi nici ce fel de reclamație?»).
+  // Apelul din 11.09: agentul a chemat tool-ul cu «Reclamație despre șofer» înainte
+  // să întrebe ce s-a întâmplat, apoi a refuzat clienta și n-a mai rescris dosarul —
+  // în grupa șoferilor a plecat o reclamație fără conținut. Poarta stă PRIMA, înaintea
+  // numelui și a cursei: fără poveste n-avem ce cerceta și n-avem ce spune nimănui.
+  // Nu se scrie niciun rând: o etichetă nu e o reclamație de păstrat, iar textul
+  // adevărat vine la apelul următor, întreg.
+  if (esteReclamatieGoala(complaint)) {
+    return NextResponse.json({
+      need_more: true,
+      result_ro: 'Întreabă clientul CE s-a întâmplat (o întrebare scurtă: «Ce s-a întâmplat?»), apoi recheamă tool-ul cu complaint = povestea lui, în cuvintele lui: ce a făcut șoferul, unde, când. «Reclamație despre șofer» nu e o reclamație.',
+      result_ru: 'Спроси клиента, ЧТО случилось (один короткий вопрос: «Что случилось?»), затем вызови инструмент снова с complaint = его рассказ, его словами: что сделал водитель, где, когда. «Жалоба на водителя» — не жалоба.',
+    });
+  }
 
   // NUMELE RECLAMANTULUI E OBLIGATORIU (Ion, 07.09: «numele e necesar la
   // reclamații sau pierdere»). Poarta stă ÎNAINTE de căutare și de orice

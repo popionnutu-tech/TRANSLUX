@@ -2,7 +2,7 @@
 
 import { verifySession, requireRole } from '@/lib/auth';
 import { assertWarehouseAllowed } from '@/lib/piese-access';
-import { issueAlert, createIssue, appendIssue, todayIssueDocs, docLinesMany, docWarehouses,
+import { issueAlert, createIssue, appendIssue, issueShortages, todayIssueDocs, docLinesMany, docWarehouses,
   returnIssue, vehicleIssueLines, type IssueLine } from '@/lib/piese';
 import { canSeeCost } from '@/lib/piese-access';
 import { auditWrite } from '@/lib/audit';
@@ -25,6 +25,9 @@ const RPC_ERR: Record<string, string> = {
   TOO_MUCH: 'Se returnează mai mult decât s-a eliberat.',
   TOO_OLD: 'Eliberarea e mai veche de 180 de zile — returul se face prin inventariere.',
   FIFO_MISMATCH: 'Nu am putut reconstitui straturile de cost. Anunță administratorul.',
+  // Plasa de siguranță pentru cazul în care stocul a scăzut între întrebare și răspuns: ecranul întreabă
+  // înainte de salvare, dar decizia se ia sub lock, la scriere. Omul reia — și primește întrebarea corectă.
+  SHORTAGE: 'Stocul s-a schimbat între timp și nu mai acoperă cantitatea. Reîncearcă.',
 };
 
 // Codurile care descriu EXISTENȚA sau APARTENENȚA unei linii primesc toate același mesaj. Mesaje distincte
@@ -58,6 +61,19 @@ export async function checkIssueMany(warehouseId: number, vehicleId: number | nu
 // Curăță și validează liniile primite de la client. Aceleași praguri ca RPC-ul, ca o linie acceptată aici
 // să nu fie refuzată acolo (și invers) — inclusiv epsilonul, altfel o cantitate infimă ar trece la creare
 // și ar fi refuzată la adăugare.
+// Codul brut ridicat de RPC, tradus o singură dată. Ambele căi — document nou și adăugare pe cel de azi —
+// trec prin ea: înainte, `createIssue` arunca `error.message` neatins, deci omul primea „SHORTAGE" ca atare,
+// iar calea de creare e majoritatea (prima eliberare a zilei și tot ce nu are mașină).
+function rpcMessage(e: any): string {
+  const code = (e?.message || '').trim();
+  if (RPC_ERR[code]) return RPC_ERR[code];
+  // Codul necunoscut înseamnă altceva decât o regulă de business — rețea, PostgREST, 500. Omul primește un
+  // text generic, dar serverul păstrează originalul: altfel un incident de infrastructură arată în log
+  // exact ca o eliberare refuzată corect.
+  console.error('[rashod] cod RPC netradus:', code);
+  return 'Nu am putut înregistra eliberarea. Reîncearcă.';
+}
+
 function cleanLines(raw: unknown): IssueLine[] {
   if (!Array.isArray(raw)) throw new Error('Adaugă cel puțin o piesă');
   const lines = raw
@@ -91,10 +107,14 @@ export async function loadTodayIssue(warehouseId: number, vehicleId: number) {
 export async function submitIssue(payload: {
   warehouse_id: number; vehicle_id: number | null; mechanic_id: number | null;
   breakdown_reason_id: number | null; lines: IssueLine[]; doc_id?: number | null;
+  allow_short?: boolean;
 }) {
   const session = requireRole(await verifySession(), ...ISSUE_ROLES);
   await assertWarehouseAllowed(session, payload.warehouse_id); // nu poate elibera din alt depozit
   const lines = cleanLines(payload.lines);
+  // `=== true`, nu truthy: acordul de a elibera peste stoc vine de la client, deci se acceptă doar forma
+  // exactă. Un `"false"` sau un `1` rătăcit într-un payload nu are voie să treacă drept „da, sunt de acord".
+  const allowShort = payload.allow_short === true;
 
   // Fără mașină nu există „rashodul mașinii" — se creează mereu document nou (casare, consum general).
   let target: number | null = null;
@@ -113,33 +133,64 @@ export async function submitIssue(payload: {
     }
   }
 
+  // Se ÎNCEARCĂ scrierea, nu se verifică înainte. Baza refuză cu `SHORTAGE` și anulează tot, iar lista o
+  // compune serverul chiar aici, în același dus-întors. Ordinea inversă (verifică, apoi scrie) costa o
+  // acțiune de server în plus la FIECARE salvare — iar acțiunile de server se execută secvențial, deci se
+  // adăuga integral la ceasul depozitarului — pentru un caz care apare la sub una din o sută de salvări.
+  // În plus, lăsa o fereastră între întrebare și scriere; aici nu mai există: decizia se ia sub lock.
+  const refuz = async () => {
+    try {
+      return { ok: false as const, shortages: await issueShortages(payload.warehouse_id, lines) };
+    } catch {
+      // Refuzul e cert — scrierea s-a anulat. Doar detaliile lipsesc, iar un mesaj vag e mai bun decât o
+      // eroare tehnică pentru ceva ce, din punctul omului, s-a întâmplat corect: nu s-a scris nimic.
+      throw new Error('Nu ajunge marfa în depozit, iar detaliile nu s-au putut încărca. Reîncearcă.');
+    }
+  };
+
   if (target) {
     let r: Awaited<ReturnType<typeof appendIssue>> | null = null;
     try {
-      r = await appendIssue(target, payload.warehouse_id, payload.vehicle_id!, lines);
+      r = await appendIssue(target, payload.warehouse_id, payload.vehicle_id!, lines, allowShort);
     } catch (e: any) {
       const code = (e?.message || '').trim();
+      if (code === 'SHORTAGE') return refuz();
       // NOT_TODAY = documentul a trecut de miezul nopții între încărcarea ecranului și salvare.
       // Nu e o eroare a omului: cădem pe crearea unui document nou.
-      if (code !== 'NOT_TODAY') throw new Error(RPC_ERR[code] || 'Nu am putut adăuga piesele. Reîncearcă.');
+      if (code !== 'NOT_TODAY') throw new Error(rpcMessage(e));
     }
     if (r) {
       // ÎN AFARA try-ului de mai sus: stocul s-a mișcat deja. Dacă auditul ar arunca înăuntru, omul ar
       // primi „reîncearcă" pentru o operațiune reușită — iar reîncercarea ar elibera piesele a doua oară.
       await auditWrite({
         adminId: session.id, action: 'APPEND_ISSUE', entity: 'issue', entityId: target,
-        after: { pozitii_adaugate: r.added },
+        after: auditDetail(lines.length, allowShort, r.shortages),
       });
-      return { ok: true, docId: r.docId, appended: true, shortages: r.shortages };
+      return { ok: true as const, docId: r.docId, appended: true, shortages: r.shortages };
     }
   }
 
-  const r = await createIssue({ ...payload, lines });
+  let r: Awaited<ReturnType<typeof createIssue>>;
+  try {
+    r = await createIssue({ ...payload, lines }, allowShort);
+  } catch (e: any) {
+    if ((e?.message || '').trim() === 'SHORTAGE') return refuz();
+    throw new Error(rpcMessage(e));
+  }
   await auditWrite({
     adminId: session.id, action: 'CREATE_ISSUE', entity: 'issue', entityId: r.docId,
-    after: { pozitii: lines.length },
+    after: auditDetail(lines.length, allowShort, r.shortages),
   });
-  return { ok: true, docId: r.docId, appended: false, shortages: r.shortages };
+  return { ok: true as const, docId: r.docId, appended: false, shortages: r.shortages };
+}
+
+// Urma trebuie să spună nu doar CÂT s-a eliberat, ci și DACĂ s-a trecut peste stoc și cu ce lipsuri.
+// Fără asta, un rashod făcut peste stoc arată în jurnal identic cu unul normal — iar scopul întregii
+// migrații era tocmai să existe dovada. Se scrie pe calea de scriere, deci acoperă și o cerere trimisă
+// direct, fără ecran: cine pune `allow_short` în payload lasă urma oricum.
+function auditDetail(pozitii: number, allowShort: boolean, shortages: string[]) {
+  // Jurnalul ține valori simple, nu liste — lipsurile se lipesc într-un singur text.
+  return { pozitii, peste_stoc: allowShort, lipsuri: shortages.join('; ') || null };
 }
 
 // Eliberările mașinii din care se mai poate returna ceva.

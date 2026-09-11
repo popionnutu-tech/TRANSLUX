@@ -578,11 +578,12 @@ export interface IssueLine { part_id: number; qty: number }
 
 // Rashod NOU, cu una sau mai multe poziții. RPC-ul accepta `p_lines` de la bun început — aplicația îi
 // trimitea un singur element, de aceea fiecare piesă eliberată devenea un document separat.
-export async function createIssue(p: { warehouse_id: number; vehicle_id: number | null; mechanic_id: number | null; breakdown_reason_id: number | null; lines: IssueLine[] }) {
+export async function createIssue(p: { warehouse_id: number; vehicle_id: number | null; mechanic_id: number | null; breakdown_reason_id: number | null; lines: IssueLine[] }, allowShort = false) {
   const { data, error } = await getSupabase().rpc('piese_create_issue', {
     p_wh: p.warehouse_id, p_vehicle: p.vehicle_id, p_mechanic: p.mechanic_id, p_reason: p.breakdown_reason_id,
-    p_lines: p.lines, p_user: null,
+    p_lines: p.lines, p_user: null, p_allow_short: allowShort,
   });
+  // Codul `SHORTAGE` (migr. 330) trebuie să ajungă la apelant ca atare, ca ecranul să poată pune întrebarea.
   if (error) throw new Error(error.message);
   const res = data as any;
   return { docId: res.doc_id as number, shortages: (res.shortages || []) as string[] };
@@ -590,13 +591,33 @@ export async function createIssue(p: { warehouse_id: number; vehicle_id: number 
 
 // Adaugă poziții pe un rashod EXISTENT (migr. 294). Stocul se mișcă la fiecare adăugare, nu la sfârșitul
 // zilei: depozitul trebuie să spună adevărul în fiecare moment.
-export async function appendIssue(docId: number, warehouseId: number, vehicleId: number, lines: IssueLine[]) {
+export async function appendIssue(docId: number, warehouseId: number, vehicleId: number, lines: IssueLine[], allowShort = false) {
   const { data, error } = await getSupabase().rpc('piese_append_issue', {
-    p_doc: docId, p_wh: warehouseId, p_vehicle: vehicleId, p_lines: lines, p_user: null,
+    p_doc: docId, p_wh: warehouseId, p_vehicle: vehicleId, p_lines: lines, p_user: null, p_allow_short: allowShort,
   });
   if (error) throw error; // codurile (NOT_TODAY/NOT_ISSUE/…) se mapează în actions
   const res = data as any;
   return { docId: res.doc_id as number, added: res.added as number, shortages: (res.shortages || []) as string[] };
+}
+
+// `stoc` = registrul (poate fi negativ, e ce arată și rândul din ecran); `disponibil` = ce se poate
+// efectiv elibera, limitat la zero și la straturile FIFO. Două cifre diferite, ambele necesare (migr. 331).
+export interface IssueShortage {
+  part_id: number; name: string; cerut: number; stoc: number; disponibil: number; lipsa: number;
+}
+
+// Cât lipsește din stoc pentru liniile astea, ÎNAINTE de scriere (migr. 330). Doar pentru textul întrebării
+// pusă omului; refuzul propriu-zis stă în RPC-ul de scriere, sub lock — între întrebare și răspuns stocul
+// se poate mișca, iar o gardă care se bazează pe o citire de acum zece secunde nu e o gardă.
+export async function issueShortages(warehouseId: number, lines: IssueLine[]): Promise<IssueShortage[]> {
+  const { data, error } = await getSupabase().rpc('piese_issue_shortages', {
+    p_wh: warehouseId, p_lines: lines,
+  });
+  if (error) throw new Error(error.message); // codul se traduce în actions, ca la celelalte RPC-uri
+  return ((data as any[]) || []).map((r) => ({
+    part_id: Number(r.part_id), name: String(r.name), cerut: Number(r.cerut),
+    stoc: Number(r.stoc), disponibil: Number(r.disponibil), lipsa: Number(r.lipsa),
+  }));
 }
 
 // Retur de la lăcătuș: piesa scoasă pentru o reparație se întoarce în depozit (migr. 311).

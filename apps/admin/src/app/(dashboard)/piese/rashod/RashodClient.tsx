@@ -11,6 +11,12 @@ interface Opt { id: number; label: string }
 // ștergerea unui rând din mijloc muta avertismentele pe piesele vecine — „stoc epuizat" apărea sub o
 // piesă care era pe stoc. E și cheia React, ca `SearchSelect` să nu-și mute starea internă între rânduri.
 type Line = { uid: string; part_id: number | ''; label?: string; qty: number };
+// Tot ce descrie o eliberare. Se fotografiază la refuz, ca „Eliberez oricum" să scrie exact ce s-a
+// confirmat — inclusiv depozitul și mașina, nu doar piesele.
+type SubmitPayload = {
+  warehouse_id: number; vehicle_id: number | null; mechanic_id: number | null;
+  breakdown_reason_id: number | null; lines: { part_id: number; qty: number }[]; doc_id: number | null;
+};
 type Alert = { stock: number; alert: { level: string; messages: string[] } | null };
 type TodayLine = { lineId: number; partId: number; name: string; article: string | null; qty: number; unitCost: number | null };
 type Today = { id: number; docCount: number; positions: number; lines: TodayLine[]; truncated: boolean } | null;
@@ -44,6 +50,18 @@ export default function RashodClient({ warehouses, vehicles, mechanics, reasons 
   // Aici se ține `uid`, nu indicele: rândurile se pot șterge din mijloc, iar un indice memorat ar muta
   // cursorul pe alt rând decât cel nou.
   const [focusUid, setFocusUid] = useState<string | null>(null);
+  // Eliberarea peste stoc nu mai trece tăcut (migr. 330-331). Baza refuză și anulează scrierea, iar aici
+  // ajunge refuzul împreună cu lista lipsurilor. Se păstrează ȘI liniile trimise, nu doar cifrele: dacă
+  // omul modifică formularul cât dialogul e deschis, „Eliberez oricum" trebuie să scrie exact ce a
+  // confirmat, nu ce e în casete în clipa clicului.
+  const [shortErr, setShortErr] = useState<string | null>(null);
+  const [short, setShort] = useState<{
+    payload: SubmitPayload;
+    items: { part_id: number; name: string; cerut: number; stoc: number; disponibil: number; lipsa: number }[];
+  } | null>(null);
+  // Lacăt sincron, ca la retur: `busy` e stare, deci două clicuri în aceeași bătaie de ceas trec amândouă,
+  // iar scrierea e ireversibilă. Cu atât mai mult aici, unde se eliberează peste stoc.
+  const submitLock = useRef(false);
   // Oglinda liniilor curente, pentru efectul de mai jos: îl vrem declanșat de depozit/mașină, nu de tastare.
   const linesRef = useRef<Line[]>([]);
   const [today, setToday] = useState<Today>(null);
@@ -255,22 +273,43 @@ export default function RashodClient({ warehouses, vehicles, mechanics, reasons 
     } finally { retLock.current = false; setRetBusy(null); }
   }
 
-  async function submit() {
-    setErr(null); setDone(null); setBusy(true);
+  function submit() {
+    // Se fotografiază TOT contextul, nu doar liniile: depozitul și mașina se pot schimba cu tastatura cât
+    // dialogul e deschis, iar acordul dat pentru lipsurile unui depozit n-are ce căuta în altul.
+    return doSubmit(false, {
+      warehouse_id: warehouseId,
+      vehicle_id: vehicleId ? Number(vehicleId) : null,
+      mechanic_id: mechanicId ? Number(mechanicId) : null,
+      breakdown_reason_id: reasonId ? Number(reasonId) : null,
+      lines: filled.map((l) => ({ part_id: Number(l.part_id), qty: l.qty })),
+      // Documentul pe care omul chiar l-a văzut pe ecran: dacă între timp apare altul, nu-l folosim pe acela.
+      doc_id: today?.id ?? null,
+    });
+  }
+
+  async function doSubmit(allowShort: boolean, payload: SubmitPayload) {
+    if (submitLock.current) return;
+    submitLock.current = true;
+    setErr(null); setDone(null); setShortErr(null); setBusy(true);
     try {
-      const r = await submitIssue({
-        warehouse_id: warehouseId,
-        vehicle_id: vehicleId ? Number(vehicleId) : null,
-        mechanic_id: mechanicId ? Number(mechanicId) : null,
-        breakdown_reason_id: reasonId ? Number(reasonId) : null,
-        lines: filled.map((l) => ({ part_id: Number(l.part_id), qty: l.qty })),
-        // Documentul pe care omul chiar l-a văzut pe ecran: dacă între timp apare altul, nu-l folosim pe acela.
-        doc_id: today?.id ?? null,
-      });
-      const what = `${filled.length} ${filled.length === 1 ? 'poziție' : 'poziții'}`;
+      const r = await submitIssue({ ...payload, allow_short: allowShort });
+      // Refuz, nu eroare: baza a anulat tot și a spus exact ce lipsește. Nimic nu s-a scris.
+      if (!r.ok) {
+        // Listă goală = stocul s-a completat între anularea scrierii și citirea detaliilor (sunt tranzacții
+        // diferite). Un dialog fără nicio cifră, cu buton de confirmare, ar cere un acord pentru ceva ce
+        // omul nu poate vedea — și l-ar consemna în jurnal ca „peste stoc". Mai bine reîncearcă.
+        if (!r.shortages.length) { setErr('Stocul s-a schimbat între timp. Încearcă din nou.'); return; }
+        setShort({ payload, items: r.shortages });
+        return;
+      }
+      setShort(null);
+      const n = payload.lines.length;
+      const what = `${n} ${n === 1 ? 'poziție' : 'poziții'}`;
       setDone(
         (r.appended ? `Adăugat ${what} la rashodul de azi.` : `Rashod înregistrat — ${what}.`) +
-        (r.shortages.length ? ' Atenție: ' + r.shortages.join('; ') : ' Stocul s-a actualizat.'),
+        // Lista vine de la MOTOR, nu din dialog: acordul e per salvare, deci o piesă care a devenit scurtă
+        // între întrebare și confirmare e scrisă și ea. Dialogul n-o avea; motorul o are.
+        (r.shortages.length ? ' Atenție — eliberat peste stoc: ' + r.shortages.join('; ') : ' Stocul s-a actualizat.'),
       );
       setLines([blank()]); setAlerts({});
       // Doar panoul zilei se reîncarcă: pagina server (depozite, mașini, mecanici) nu depinde de rashod.
@@ -278,12 +317,60 @@ export default function RashodClient({ warehouses, vehicles, mechanics, reasons 
       // Lista de retur conține acum o poziție în plus. Se golește, nu se recere: dacă panoul e închis,
       // n-are rost o acțiune de server pentru un ecran pe care nimeni nu-l vede.
       setRet(null);
-    } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
+    } catch (e: any) {
+      // Cât dialogul e deschis, bannerul de eroare de sub formular e ACOPERIT de overlay. Fără asta, un
+      // eșec la „Eliberez oricum" nu s-ar vedea deloc: butonul revine din „Se înregistrează…" și atât.
+      if (short) setShortErr(e.message); else setErr(e.message);
+    } finally { submitLock.current = false; setBusy(false); }
   }
 
   return (
     <div className="card" style={{ maxWidth: 900 }}>
       <h2>Eliberare piese pe mașină</h2>
+
+      {short && (
+        // Întrebarea, nu un avertisment: nimic nu s-a scris încă. Cifrele sunt pe masă — cât s-a cerut, cât
+        // e în depozit, cât lipsește — fiindcă „stoc insuficient" fără cantități nu ajută pe nimeni să
+        // decidă dacă e o piesă uitată la recepție sau o greșeală de tastare.
+        <div role="dialog" aria-modal="true" aria-labelledby="short-title"
+          // `tabIndex` ca overlay-ul să poată primi focusul: fără el, după un clic pe fundalul întunecat
+          // focusul cade pe `body` și Escape încetează să mai funcționeze.
+          tabIndex={-1}
+          onKeyDown={(e) => { if (e.key === 'Escape' && !busy) { setShort(null); setShortErr(null); } }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '5vh 16px', zIndex: 1100, overflowY: 'auto' }}>
+          <div className="card" style={{ maxWidth: 620, width: '100%' }}>
+            <h3 id="short-title" style={{ marginTop: 0 }}>Nu ajunge marfa în depozit</h3>
+            <table style={{ marginBottom: 10 }}>
+              <thead><tr><th>Piesă</th><th style={{ width: 80 }}>Cerut</th><th style={{ width: 80 }}>În stoc</th><th style={{ width: 90 }}>Lipsește</th></tr></thead>
+              <tbody>
+                {short.items.map((x) => (
+                  // Cheia e id-ul, nu denumirea: două piese diferite pot purta același nume.
+                  <tr key={x.part_id}>
+                    <td>{x.name}</td>
+                    <td>{x.cerut.toLocaleString('ro-RO')}</td>
+                    {/* Stocul din registru, același număr ca pe rând — inclusiv negativ. Dacă am fi arătat
+                        aici disponibilul limitat la zero, aceeași piesă ar fi avut două „stocuri" pe ecran. */}
+                    <td>{x.stoc.toLocaleString('ro-RO')}</td>
+                    <td><span className="badge warn">{x.lipsa.toLocaleString('ro-RO')}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="muted" style={{ fontSize: 12 }}>
+              Nu s-a înregistrat nimic încă. Dacă marfa e fizic pe raft și doar recepția n-a fost introdusă,
+              poți continua — dar depozitul va rămâne pe minus cu cantitățile de mai sus, iar diferența se
+              închide abia la o inventariere. Dacă nu ești sigur, închide și verifică întâi intrările.
+            </p>
+            {shortErr && <div className="alert error" style={{ marginBottom: 8 }}>{shortErr}</div>}
+            <div className="row" style={{ gap: 8 }}>
+              <button type="button" className="btn" onClick={() => { setShort(null); setShortErr(null); }} disabled={busy} autoFocus>Închide și verific</button>
+              <button type="button" className="btn btn-primary" onClick={() => doSubmit(true, short.payload)} disabled={busy}>
+                {busy ? 'Se înregistrează…' : 'Eliberez oricum'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="row">
         <div className="form-row"><label>Depozit</label>
           <select value={warehouseId} onChange={(e) => setWarehouseId(Number(e.target.value))}>

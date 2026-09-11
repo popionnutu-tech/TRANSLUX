@@ -40,6 +40,10 @@ const TRANSFER_ERR: Record<string, string> = {
   DOC_MISMATCH: 'Mutarea nu e adresată acestui depozit.',
   NO_LINES: 'Mutarea nu are poziții.',
   DEST_NOT_INTERNAL: 'O mutare pe mașină trebuie trimisă către un depozit intern — confirmarea se face acolo.',
+  // Nu se poate întâmpla prin construcție: confirmarea eliberează exact cantitatea intrată o clipă mai
+  // devreme, în aceeași tranzacție, deci disponibilul o include mereu. Dacă apare totuși, e semn de date
+  // stricate — iar „reîncearcă" ar fi trimis omul într-o buclă fără ieșire, cu marfa blocată pe drum.
+  SHORTAGE: 'Confirmarea a fost oprită: stocul depozitului nu se potrivește cu marfa primită. Anunță administratorul.',
 };
 
 // Ce a trimis depozitul ăsta și încă nu i s-a confirmat. Mutările pe mașină nu mai apar în lista de

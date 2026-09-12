@@ -6,6 +6,7 @@ import { assertWarehouseAllowed, PART_WRITE_ROLES } from '@/lib/piese-access';
 import { getCountSheet, submitInventory } from '@/lib/piese-ops';
 import { warehouseLayout, createInitialReceipt, partStock, recostPart } from '@/lib/piese';
 import { setPartLocationsBulk, ensureSupplierByName } from '@/lib/piese-nomenclator';
+import { actorLabelFor } from '@/lib/audit';
 import { locationError, LOCATION_FORMAT, LOCATION_EXAMPLE } from '@/lib/piese-location';
 
 export async function loadSheet(warehouseId: number) {
@@ -113,7 +114,7 @@ export async function loadPartStock(warehouseId: number, partId: number) {
 export async function recostPartAction(warehouseId: number, partId: number, newCost: number) {
   const session = requireRole(await verifySession(), ...PART_WRITE_ROLES);
   await assertWarehouseAllowed(session, warehouseId);
-  const res = await recostPart(warehouseId, partId, newCost);
+  const res = await recostPart(warehouseId, partId, newCost, session.id, await actorLabelFor(session.id));
   revalidatePath('/piese/stoc');
   revalidatePath('/piese/harta');
   return res;

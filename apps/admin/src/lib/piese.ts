@@ -556,8 +556,13 @@ export async function partStock(warehouseId: number, partId: number): Promise<{ 
 }
 
 // Revizuirea costului mediu al unei piese, PĂSTRÂND cantitatea (RPC piese_recost, migr. 235).
-export async function recostPart(warehouseId: number, partId: number, newCost: number): Promise<{ qty: number; oldAvg: number; newCost: number }> {
-  const { data, error } = await getSupabase().rpc('piese_recost', { p_wh: warehouseId, p_part: partId, p_new_cost: newCost, p_user: null });
+export async function recostPart(
+  warehouseId: number, partId: number, newCost: number, adminId?: string, actorLabel?: string | null,
+): Promise<{ qty: number; oldAvg: number; newCost: number }> {
+  const { data, error } = await getSupabase().rpc('piese_recost', {
+    p_wh: warehouseId, p_part: partId, p_new_cost: newCost, p_user: null,
+    p_admin: adminId ?? null, p_actor: actorLabel ?? null,
+  });
   if (error) throw new Error(error.message);
   const r = data as { qty: number; old_avg: number; new_cost: number };
   return { qty: Number(r.qty), oldAvg: Number(r.old_avg), newCost: Number(r.new_cost) };

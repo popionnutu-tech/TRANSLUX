@@ -44,6 +44,8 @@ const FMT = new Intl.DateTimeFormat('ro-RO', {
   timeZone: 'Europe/Chisinau',
 });
 
+const zi = (s: string) => { const [a, l, z] = s.split('-'); return `${z}.${l}.${a}`; };
+
 const val = (v: unknown) =>
   v === null || v === undefined || v === '' ? '—'
     : v === true ? 'da' : v === false ? 'nu'
@@ -100,7 +102,8 @@ const Rand = memo(function Rand({ r, open, onToggle }: {
   );
 });
 
-export default function JurnalClient({ initialRows, initialHasMore, actors, kinds }: {
+export default function JurnalClient({ implicitDe, zileImplicit, initialRows, initialHasMore, actors, kinds }: {
+  implicitDe: string; zileImplicit: number;
   initialRows: AuditFeedRow[]; initialHasMore: boolean; actors: Actor[]; kinds: Kind[];
 }) {
   const [rows, setRows] = useState(initialRows);
@@ -112,8 +115,12 @@ export default function JurnalClient({ initialRows, initialHasMore, actors, kind
   // Ce e în casete (se schimbă la fiecare tastă) vs. ce s-a APLICAT la ultima căutare. „Încă 50" trebuie să
   // continue lista afișată, nu să lipească peste ea prima pagină a unui filtru pe care omul l-a schimbat
   // dar nu l-a aplicat — două seturi de rezultate amestecate, fără niciun semn.
-  const [f, setF] = useState<Filtre>(GOL);
-  const aplicate = useRef<Filtre>(GOL);
+  // Pornim de la ultimele zile, dar starea „aplicată" e aceeași cu ce vede omul în casete — altfel rândul
+  // de deasupra listei ar minți despre ce e afișat.
+  const START: Filtre = { ...GOL, from: implicitDe };
+  const [f, setF] = useState<Filtre>(START);
+  const aplicate = useRef<Filtre>(START);
+  const [afisat, setAfisat] = useState<Filtre>(START);
 
   // Numărul cererii: un răspuns întârziat de la o filtrare veche n-are voie să suprascrie rezultatul curent.
   const seq = useRef(0);
@@ -133,6 +140,7 @@ export default function JurnalClient({ initialRows, initialHasMore, actors, kind
       // filtrul nou ca „aplicat", „Încă 50" ar fi lipit pagina a doua a altei căutări peste ea — exact
       // amestecul pe care fixarea filtrelor trebuia să-l împiedice.
       aplicate.current = nou;
+      setAfisat(nou);
       setRows(r.rows); setHasMore(r.hasMore); setOpen(null);
     } catch (e: any) {
       if (my === seq.current) setErr(e.message);
@@ -159,7 +167,10 @@ export default function JurnalClient({ initialRows, initialHasMore, actors, kind
     }
   }
 
-  const filtrat = !!(f.from || f.to || f.adminId || f.entity || f.action || f.q.trim());
+  // „Filtrat" înseamnă altceva decât starea de pornire, nu „are vreun filtru": la deschidere data e deja
+  // completată, iar un buton de golire afișat din prima ar fi sugerat că cineva a filtrat înaintea ta.
+  const filtrat = JSON.stringify(f) !== JSON.stringify(START);
+  const totIstoricul = !afisat.from && !afisat.to;
   const set = (k: keyof Filtre) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value }));
 
   return (
@@ -190,10 +201,30 @@ export default function JurnalClient({ initialRows, initialHasMore, actors, kind
             onKeyDown={(e) => { if (e.key === 'Enter') cauta(f); }} />
         </div>
         <button className="btn btn-primary" onClick={() => cauta(f)} disabled={busy}>{busy ? 'Caut…' : 'Filtrează'}</button>
-        {filtrat && <button className="btn btn-outline" onClick={() => { setF(GOL); cauta(GOL); }} disabled={busy}>✕ Șterge filtrele</button>}
+        {filtrat && <button className="btn btn-outline" onClick={() => { setF(START); cauta(START); }} disabled={busy}>✕ Înapoi la ultimele {zileImplicit} de zile</button>}
       </div>
 
       {err && <div className="alert error" style={{ marginTop: 10 }}>{err}</div>}
+
+      {/* Rândul ăsta e obligatoriu, nu decorativ: ecranul pornește cu o perioadă completată, iar dacă n-ar
+          spune-o, absența unei urme vechi ar semăna leit cu inexistența ei. */}
+      <div className="muted" style={{ fontSize: 12, marginTop: 12, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <span>
+          Se afișează:{' '}
+          <strong>
+            {totIstoricul ? 'tot istoricul'
+              : afisat.from && afisat.to ? `${zi(afisat.from)} – ${zi(afisat.to)}`
+                : afisat.from ? `din ${zi(afisat.from)} până azi`
+                  : `până la ${zi(afisat.to)}`}
+          </strong>
+        </span>
+        {!totIstoricul && (
+          <button className="btn" style={{ padding: '2px 10px', fontSize: 12 }} disabled={busy}
+            onClick={() => { const n = { ...f, from: '', to: '' }; setF(n); cauta(n); }}>
+            Vezi tot istoricul
+          </button>
+        )}
+      </div>
 
       <table style={{ marginTop: 12 }}>
         <thead>
@@ -219,12 +250,12 @@ export default function JurnalClient({ initialRows, initialHasMore, actors, kind
       )}
 
       <p className="muted" style={{ fontSize: 11, marginTop: 12 }}>
-        <strong>Autor „necunoscut" nu înseamnă „vechi".</strong> O parte din operațiuni sunt scrise direct
-        de motorul bazei, care nu primește contul omului — recepția, mutările trimise, primite și anulate,
-        inventarierea, vânzarea din magazin, marcarea la SFS și revizuirea costului. Apar fără autor și azi,
-        nu doar în trecut. Au autor: eliberările de piese, catalogul, nomenclatoarele și schimbările de
-        permisiuni. Corectarea unei recepții lasă <em>două</em> rânduri — unul cu autor („poziții corectate"
-        sau „antet modificat") și unul tehnic, fără autor, scris de bază.
+        <strong>Autor „necunoscut" nu înseamnă „vechi".</strong> Câteva operațiuni sunt încă scrise direct
+        de motorul bazei, care nu primește contul omului: <em>recepția, mutările trimise, primite și
+        anulate, și inventarierea</em>. Apar fără autor și azi, nu doar în trecut — se repară pe rând.
+        Au autor: eliberările de piese, vânzarea din magazin, marcarea la SFS, revizuirea costului,
+        catalogul, nomenclatoarele și schimbările de permisiuni. Corectarea unei recepții lasă <em>două</em>
+        rânduri — unul cu autor („poziții corectate" sau „antet modificat") și unul tehnic, fără autor.
       </p>
     </div>
   );

@@ -194,9 +194,11 @@ export async function saleParts() {
   const { data } = await getSupabase().from('piese_sale_parts').select('*');
   return data || [];
 }
-export async function createSale(p: { warehouse_id: number; client_id: number | null; invoice_series?: string; invoice_number?: string; userId?: string; lines: { part_id: number; qty: number; unit_price: number }[] }) {
+export async function createSale(p: { warehouse_id: number; client_id: number | null; invoice_series?: string; invoice_number?: string; userId?: string; actorLabel?: string | null; lines: { part_id: number; qty: number; unit_price: number }[] }) {
   // created_by_admin e setat ATOMIC în RPC (p_created_by), nu printr-un UPDATE separat.
-  const { data, error } = await getSupabase().rpc('piese_create_sale', { p_wh: p.warehouse_id, p_client: p.client_id, p_series: p.invoice_series || null, p_number: p.invoice_number || null, p_lines: p.lines, p_user: null, p_created_by: p.userId || null });
+  // `p_admin`/`p_actor` (migr. 339): urma vânzării avea autor „necunoscut", fiindcă RPC-ul scria doar în
+  // coloana veche `user_id`, pe care aplicația o trimite mereu NULL.
+  const { data, error } = await getSupabase().rpc('piese_create_sale', { p_wh: p.warehouse_id, p_client: p.client_id, p_series: p.invoice_series || null, p_number: p.invoice_number || null, p_lines: p.lines, p_user: null, p_created_by: p.userId || null, p_admin: p.userId || null, p_actor: p.actorLabel ?? null });
   if (error) throw new Error(error.message);
   const r = data as any;
   return { docId: r.doc_id as number, total: Number(r.total), cost: Number(r.cost), profit: Number(r.total) - Number(r.cost) };
@@ -232,12 +234,12 @@ export async function saleInvoices(opts: { sellerId?: string; pending?: boolean 
   const rows = data || [];
   return { rows: rows.slice(0, limit), truncated: rows.length > limit };
 }
-export async function markSfs(docId: number, sellerId?: string) {
+export async function markSfs(docId: number, sellerId?: string, adminId?: string, actorLabel?: string | null) {
   if (sellerId) { // vânzătorul poate marca doar facturile lui
     const { data } = await getSupabase().from('piese_stock_documents').select('created_by_admin').eq('id', docId).maybeSingle();
     if (!data || (data as any).created_by_admin !== sellerId) throw new Error('Nu poți marca o factură care nu e a ta');
   }
-  const { error } = await getSupabase().rpc('piese_mark_sfs', { p_doc: docId, p_user: null });
+  const { error } = await getSupabase().rpc('piese_mark_sfs', { p_doc: docId, p_user: null, p_admin: adminId ?? null, p_actor: actorLabel ?? null });
   if (error) throw new Error(error.message);
 }
 // Vânzătorul din facturile UBL. Ion, 12.09.2026: «Translux este SRL Parcul de Autobuze și Taximetrie nr. 9 Briceni»;

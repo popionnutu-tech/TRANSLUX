@@ -5,7 +5,7 @@ import { assertWarehouseAllowed, canOverrideStock } from '@/lib/piese-access';
 import { issueAlert, createIssue, appendIssue, issueShortages, todayIssueDocs, docLinesMany, docWarehouses,
   returnIssue, vehicleIssueLines, type IssueLine } from '@/lib/piese';
 import { canSeeCost } from '@/lib/piese-access';
-import { auditWrite } from '@/lib/audit';
+import { auditWrite, actorLabelFor } from '@/lib/audit';
 import { transfersForVehicle, transferReceiveToVehicle } from '@/lib/piese-ops';
 
 const ISSUE_ROLES = ['ADMIN', 'VINZATOR', 'GESTIONAR'] as const;
@@ -297,7 +297,8 @@ export async function confirmTransferToVehicle(payload: {
   const mid = Number(payload.mechanic_id);
   const mechanicId = Number.isInteger(mid) && mid > 0 ? mid : null;
 
-  const r = await transferReceiveToVehicle(Number(payload.doc_id), Number(payload.warehouse_id), vid, mechanicId);
+  const r = await transferReceiveToVehicle(Number(payload.doc_id), Number(payload.warehouse_id), vid, mechanicId,
+    { adminId: session.id, label: await actorLabelFor(session.id) });
   // ÎN AFARA unui try: stocul s-a mișcat deja, în ambele sensuri. Un eșec al urmei n-are voie să raporteze
   // „reîncearcă" — reîncercarea ar găsi mutarea deja confirmată și ar arăta o eroare derutantă.
   await auditWrite({

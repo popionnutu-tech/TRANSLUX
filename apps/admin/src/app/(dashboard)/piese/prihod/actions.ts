@@ -95,8 +95,8 @@ export async function submitReceipt(payload: { warehouse_id: number; supplier_id
   // un „0x10" interpretat ca 16 sau un negativ acceptat tăcut ar ajunge pe raft, nu într-un mesaj.
   const markup = cleanMarkup(payload.markup_pct);
 
-  const docId = await createReceipt({ ...payload, lines });
   const actor = await actorLabelFor(session.id);
+  const docId = await createReceipt({ ...payload, lines }, { adminId: session.id, label: actor });
   // „De vânzare" automat pentru recepția în magazin, plus adaosul pe toată factura — ambele cerute de
   // Eduard. Se fac DUPĂ crearea documentului (au nevoie de liniile lui).
   await receiptMarkForSale(docId, payload.warehouse_id, session.id, actor);
@@ -257,7 +257,8 @@ export async function saveReceiptLines(docId: number, payload: { supplier_id?: n
   assertInvoiceTotal(effectiveTotal, lines); // verificare pe liniile NOI, înainte de a rescrie stocul
   let newId: number;
   try {
-    newId = await replaceReceiptLines(Number(docId), { ...hh, lines });
+    newId = await replaceReceiptLines(Number(docId), { ...hh, lines },
+      { adminId: session.id, label: await actorLabelFor(session.id) });
   } catch (e: any) {
     const code = (e?.message || '').trim();
     throw new Error(RPC_ERR[code] || 'Nu am putut salva modificarea. Reîncearcă.');

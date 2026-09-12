@@ -250,12 +250,11 @@ export default function JurnalClient({ implicitDe, zileImplicit, initialRows, in
       )}
 
       <p className="muted" style={{ fontSize: 11, marginTop: 12 }}>
-        <strong>Autor „necunoscut" nu înseamnă „vechi".</strong> Câteva operațiuni sunt încă scrise direct
-        de motorul bazei, care nu primește contul omului: <em>recepția, mutările trimise, primite și
-        anulate, și inventarierea</em>. Apar fără autor și azi, nu doar în trecut — se repară pe rând.
-        Au autor: eliberările de piese, vânzarea din magazin, marcarea la SFS, revizuirea costului,
-        catalogul, nomenclatoarele și schimbările de permisiuni. Corectarea unei recepții lasă <em>două</em>
-        rânduri — unul cu autor („poziții corectate" sau „antet modificat") și unul tehnic, fără autor.
+        <strong>Autor „necunoscut" înseamnă acum doar „vechi".</strong> Din 12 septembrie 2026, toate
+        operațiunile modulului scriu cine le-a făcut. Urmele de dinainte rămân anonime acolo unde erau
+        scrise direct de motorul bazei, care pe atunci nu primea contul omului — nu se pot completa
+        retroactiv, fiindcă jurnalul nu se rescrie. Corectarea unei recepții lasă <em>două</em> rânduri:
+        „poziții corectate" sau „antet modificat", plus unul tehnic care marchează refacerea documentului.
       </p>
     </div>
   );

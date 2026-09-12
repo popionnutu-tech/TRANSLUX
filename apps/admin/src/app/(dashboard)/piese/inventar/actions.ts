@@ -17,7 +17,8 @@ export async function loadSheet(warehouseId: number) {
 export async function saveInventory(warehouseId: number, counts: { part_id: number; counted_qty: number }[]) {
   const session = requireRole(await verifySession(), 'ADMIN', 'DEPOZITAR', 'VINZATOR', 'GESTIONAR');
   await assertWarehouseAllowed(session, warehouseId); // Etapa 2: nu poate inventaria alt depozit
-  return submitInventory(warehouseId, counts);
+  return submitInventory(warehouseId, counts,
+    { adminId: session.id, label: await actorLabelFor(session.id) });
 }
 
 // ── Inventar „de la zero" (greenfield): pornirea unui depozit gol dintr-un singur ecran ──
@@ -76,7 +77,8 @@ export async function saveInitialInventory(
   // (1) Stoc fără cost — inventar (set-to-counted, idempotent).
   let diffs = 0;
   if (noCost.length) {
-    const inv = await submitInventory(warehouseId, noCost.map((r) => ({ part_id: r.part_id, counted_qty: r.counted_qty })));
+    const inv = await submitInventory(warehouseId, noCost.map((r) => ({ part_id: r.part_id, counted_qty: r.counted_qty })),
+      { adminId: session.id, label: await actorLabelFor(session.id) });
     diffs = inv.diffs;
   }
   // (2) Locații — upsert în masă (idempotent). Dacă pică, aruncă ÎNAINTE de recepție → retry sigur.
@@ -91,7 +93,7 @@ export async function saveInitialInventory(
     const r = await createInitialReceipt({
       warehouse_id: warehouseId, supplier_id: supplierId, idem_key: idemKey,
       lines: withCost.map((r) => ({ part_id: r.part_id, qty: r.counted_qty, unit_cost: r.unit_cost })),
-    });
+    }, { adminId: session.id, label: await actorLabelFor(session.id) });
     if (r.duplicate) alreadyReceived = true; else received = withCost.length;
   }
 

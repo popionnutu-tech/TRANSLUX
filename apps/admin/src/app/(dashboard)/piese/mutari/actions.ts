@@ -4,7 +4,7 @@ import { verifySession, requireRole } from '@/lib/auth';
 import { assertWarehouseAllowed } from '@/lib/piese-access';
 import { transferSend, transferReceive, transferDestWarehouse, transferCancel, transfersSent } from '@/lib/piese-ops';
 import { docLines } from '@/lib/piese';
-import { auditWrite } from '@/lib/audit';
+import { auditWrite, actorLabelFor } from '@/lib/audit';
 
 // Plafon de sanity, ca la rashod: RPC-ul ține un lock pe fiecare piesă, într-o singură tranzacție, iar
 // lock-ul e pe rândul din CATALOG — deci agnostic de depozit. O mutare cu zeci de mii de linii ar bloca
@@ -30,7 +30,8 @@ export async function submitTransfer(payload: {
   const vehicle_id = Number.isInteger(vid) && vid > 0 ? vid : null;
   const mechanic_id = Number.isInteger(mid) && mid > 0 ? mid : null;
   if (mechanic_id != null && vehicle_id == null) throw new Error('Lăcătușul se alege doar împreună cu mașina');
-  const docId = await transferSend({ ...payload, lines, vehicle_id, mechanic_id });
+  const docId = await transferSend({ ...payload, lines, vehicle_id, mechanic_id },
+    { adminId: session.id, label: await actorLabelFor(session.id) });
   return { ok: true, docId, forVehicle: vehicle_id != null };
 }
 
@@ -42,7 +43,7 @@ export async function receiveTransfer(docId: number) {
   const dest = await transferDestWarehouse(docId);
   if (dest == null) throw new Error('Mutare inexistentă');
   await assertWarehouseAllowed(session, dest);
-  await transferReceive(docId);
+  await transferReceive(docId, { adminId: session.id, label: await actorLabelFor(session.id) });
   return { ok: true };
 }
 
@@ -71,7 +72,8 @@ export async function loadSentTransfers(warehouseId: number) {
 export async function cancelTransfer(docId: number, fromWarehouseId: number) {
   const session = requireRole(await verifySession(), 'ADMIN', 'VINZATOR', 'GESTIONAR');
   await assertWarehouseAllowed(session, Number(fromWarehouseId));
-  const r = await transferCancel(Number(docId), Number(fromWarehouseId));
+  const r = await transferCancel(Number(docId), Number(fromWarehouseId),
+    { adminId: session.id, label: await actorLabelFor(session.id) });
   // ÎN AFARA unui try: stocul s-a mișcat deja. Anularea readuce marfă în stoc — e singura scriere nouă
   // din acest flux, deci n-are voie să rămână fără autor (migr. 291-293).
   await auditWrite({

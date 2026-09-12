@@ -16,14 +16,20 @@ export async function transfersTransit() {
 export async function transferSend(p: {
   from_warehouse_id: number; to_warehouse_id: number; lines: { part_id: number; qty: number }[];
   vehicle_id?: number | null; mechanic_id?: number | null;
-}) {
+}, autor?: Autor) {
   const { data, error } = await getSupabase().rpc('piese_transfer_send', {
     p_from: p.from_warehouse_id, p_to: p.to_warehouse_id, p_lines: p.lines, p_user: null,
     p_vehicle: p.vehicle_id ?? null, p_mechanic: p.mechanic_id ?? null,
+    p_admin: autor?.adminId ?? null, p_actor: autor?.label ?? null,
   });
   if (error) throw new Error(TRANSFER_ERR[(error.message || '').trim()] || error.message);
   return Number(data);
 }
+
+// Autorul faptei — tipul e definit în `piese.ts` (vezi motivul acolo). Opțional peste tot: un apelant care
+// nu-l are se comportă exact ca înainte.
+import type { Autor } from './piese';
+export type { Autor };
 
 const TRANSFER_ERR: Record<string, string> = {
   BAD_WAREHOUSE: 'Alege depozitul sursă și cel destinație.',
@@ -63,9 +69,10 @@ export async function transfersSent(fromWarehouseId: number) {
 // Anulează o mutare încă „pe drum": marfa se întoarce în depozitul-sursă, prin STORNO (mișcările sunt
 // append-only). Fără ea, o mutare pe care nimeni n-o confirmă lăsa marfa blocată permanent — ieșită din
 // sursă, neintrată la destinație — iar singurul ocol era „confirmă greșit, apoi retur".
-export async function transferCancel(docId: number, fromWarehouseId: number) {
+export async function transferCancel(docId: number, fromWarehouseId: number, autor?: Autor) {
   const { data, error } = await getSupabase().rpc('piese_transfer_cancel', {
     p_doc: docId, p_wh: fromWarehouseId, p_user: null,
+    p_admin: autor?.adminId ?? null, p_actor: autor?.label ?? null,
   });
   if (error) throw new Error(TRANSFER_ERR[(error.message || '').trim()] || 'Nu am putut anula mutarea. Reîncearcă.');
   return { docId: Number((data as any).doc_id), restored: Number((data as any).restored) };
@@ -98,10 +105,11 @@ export async function transfersForVehicle(toWarehouseId: number) {
  * montat efectiv. Ambele rămân în urma de audit.
  */
 export async function transferReceiveToVehicle(
-  docId: number, warehouseId: number, vehicleId: number, mechanicId: number | null,
+  docId: number, warehouseId: number, vehicleId: number, mechanicId: number | null, autor?: Autor,
 ) {
   const { data, error } = await getSupabase().rpc('piese_transfer_receive_to_vehicle', {
     p_doc: docId, p_wh: warehouseId, p_vehicle: vehicleId, p_mechanic: mechanicId, p_user: null,
+    p_admin: autor?.adminId ?? null, p_actor: autor?.label ?? null,
   });
   if (error) throw new Error(TRANSFER_ERR[(error.message || '').trim()] || 'Nu am putut confirma mutarea. Reîncearcă.');
   const r = data as any;
@@ -110,8 +118,10 @@ export async function transferReceiveToVehicle(
     shortages: (r.shortages || []) as string[], vehicleChanged: r.vehicle_changed === true,
   };
 }
-export async function transferReceive(docId: number) {
-  const { error } = await getSupabase().rpc('piese_transfer_receive', { p_doc: docId, p_user: null });
+export async function transferReceive(docId: number, autor?: Autor) {
+  const { error } = await getSupabase().rpc('piese_transfer_receive', {
+    p_doc: docId, p_user: null, p_admin: autor?.adminId ?? null, p_actor: autor?.label ?? null,
+  });
   if (error) throw new Error(TRANSFER_ERR[(error.message || '').trim()] || error.message);
 }
 // Etapa 2: depozitul-DESTINAȚIE al unui document de mutare (pentru garda de la confirmarea primirii).
@@ -183,8 +193,11 @@ export async function getCountSheet(warehouseId: number) {
     a.label.localeCompare(b.label));
   return { rows, layout, truncated };
 }
-export async function submitInventory(warehouseId: number, counts: { part_id: number; counted_qty: number }[]) {
-  const { data, error } = await getSupabase().rpc('piese_inventory_count', { p_wh: warehouseId, p_counts: counts, p_user: null });
+export async function submitInventory(warehouseId: number, counts: { part_id: number; counted_qty: number }[], autor?: Autor) {
+  const { data, error } = await getSupabase().rpc('piese_inventory_count', {
+    p_wh: warehouseId, p_counts: counts, p_user: null,
+    p_admin: autor?.adminId ?? null, p_actor: autor?.label ?? null,
+  });
   if (error) throw new Error(error.message);
   return { diffs: (data as any).diffs as number };
 }

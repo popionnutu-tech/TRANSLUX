@@ -223,3 +223,76 @@ END $$;
 
 REVOKE ALL ON FUNCTION piese_append_issue(bigint, bigint, bigint, jsonb, bigint, boolean) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION piese_append_issue(bigint, bigint, bigint, jsonb, bigint, boolean) TO service_role;
+
+-- ── Confirmarea sosirii nu se mai poate bloca ────────────────────────────────
+-- Singura schimbare față de migr. 319: `p_allow_short => true` la apelul motorului, plus mențiunea
+-- lipsurilor în jurnal. Restul e identic.
+CREATE OR REPLACE FUNCTION piese_transfer_receive_to_vehicle(
+  p_doc bigint, p_wh bigint, p_vehicle bigint, p_mechanic bigint, p_user bigint
+) RETURNS jsonb LANGUAGE plpgsql
+SET search_path = public, pg_temp
+AS $$
+DECLARE d record; l record; v_lines jsonb := '[]'::jsonb; v_issue jsonb;
+BEGIN
+  IF p_wh IS NULL OR p_doc IS NULL OR p_vehicle IS NULL THEN RAISE EXCEPTION 'DOC_MISMATCH'; END IF;
+
+  SELECT * INTO d FROM piese_stock_documents WHERE id = p_doc FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'DOC_MISMATCH'; END IF;
+  -- APARTENENȚA ÎNTÂI (lecția din migr. 311): cu tipul și starea verificate primele, codurile distincte
+  -- descriau documente STRĂINE, deci iterând `doc_id` se putea cartografia activitatea altor depozite.
+  IF d.to_warehouse_id IS DISTINCT FROM p_wh THEN RAISE EXCEPTION 'DOC_MISMATCH'; END IF;
+  IF d.doc_type <> 'TRANSFER' THEN RAISE EXCEPTION 'NOT_TRANSFER'; END IF;
+  IF d.status <> 'IN_TRANSIT' THEN RAISE EXCEPTION 'NOT_IN_TRANSIT'; END IF;
+  IF d.vehicle_id IS NULL THEN RAISE EXCEPTION 'NOT_FOR_VEHICLE'; END IF;
+
+  PERFORM 1 FROM piese_vehicles WHERE id = p_vehicle;
+  IF NOT FOUND THEN RAISE EXCEPTION 'BAD_VEHICLE'; END IF;
+  IF p_mechanic IS NOT NULL THEN
+    PERFORM 1 FROM piese_mechanics WHERE id = p_mechanic;
+    IF NOT FOUND THEN RAISE EXCEPTION 'BAD_MECHANIC'; END IF;
+  END IF;
+
+  -- (1) Primirea: marfa intră pe stocul depozitului-destinație, ca la o mutare obișnuită.
+  --     `ORDER BY part_id` — ordine de blocare sortată, ca în migr. 295.
+  FOR l IN SELECT * FROM piese_stock_document_lines WHERE document_id = p_doc ORDER BY part_id LOOP
+    INSERT INTO piese_stock_movements(part_id, warehouse_id, movement_type, qty_delta, unit_cost, document_id, line_id, created_by)
+      VALUES(l.part_id, d.to_warehouse_id, 'TRANSFER_IN', abs(l.qty), l.unit_cost, p_doc, l.id, p_user);
+    v_lines := v_lines || jsonb_build_object('part_id', l.part_id, 'qty', abs(l.qty));
+  END LOOP;
+  IF jsonb_array_length(v_lines) = 0 THEN RAISE EXCEPTION 'NO_LINES'; END IF;
+
+  UPDATE piese_stock_documents
+     SET status = 'CONFIRMED', confirmed_by = p_user, confirmed_at = now()
+   WHERE id = p_doc;
+
+  -- (2) Eliberarea pe mașină, din depozitul-destinație.
+  --
+  -- `p_allow_short => true` (migr. 332): aici nu se cere consimțământ, fiindcă nu există decizie de luat.
+  -- Se eliberează exact cantitatea intrată cu câteva rânduri mai sus, în aceeași tranzacție. Dacă piesa avea
+  -- registrul deja pe minus dintr-o greșeală anterioară, garda ar refuza — și ar bloca mutarea în tranzit
+  -- pentru totdeauna, fiindcă pe calea asta nu există dialog de confirmare. Cine ia marfa în mână n-are cum
+  -- să repare un minus lăsat de altcineva; lipsurile rămân raportate în `shortages`, mai jos.
+  --
+  -- ATENȚIE la ce NU garantează asta: motorul consumă straturile FIFO peste TOT stocul depozitului, nu doar
+  -- peste cele sosite acum. Dacă depozitul avea deja piesa, pe mașină ajunge costul stratului MAI VECHI.
+  -- Contabil e corect, dar nu e „pass-through" de cost.
+  v_issue := piese_create_issue(p_wh, p_vehicle, p_mechanic, NULL, v_lines, p_user, true);
+
+  INSERT INTO piese_audit_log(user_id, action, entity, entity_id, detail)
+    VALUES(p_user, 'RECEIVE', 'transfer', p_doc,
+           'Primită și eliberată pe mașina #' || p_vehicle ||
+           CASE WHEN d.vehicle_id <> p_vehicle THEN ' (propusă: #' || d.vehicle_id || ')' ELSE '' END ||
+           CASE WHEN d.mechanic_id IS DISTINCT FROM p_mechanic
+                THEN ' (lăcătuș propus: ' || COALESCE(d.mechanic_id::text, '—') || ')' ELSE '' END ||
+           ' → rashod #' || (v_issue->>'doc_id') ||
+           CASE WHEN jsonb_array_length(COALESCE(v_issue->'shortages','[]'::jsonb)) > 0
+                THEN ' — ATENȚIE, peste stoc: ' || (v_issue->'shortages')::text ELSE '' END);
+
+  RETURN jsonb_build_object('transfer_id', p_doc, 'issue_id', (v_issue->>'doc_id')::bigint,
+                            'shortages', COALESCE(v_issue->'shortages', '[]'::jsonb),
+                            'vehicle_changed', d.vehicle_id <> p_vehicle,
+                            'mechanic_changed', d.mechanic_id IS DISTINCT FROM p_mechanic);
+END $$;
+
+REVOKE ALL ON FUNCTION piese_transfer_receive_to_vehicle(bigint, bigint, bigint, bigint, bigint) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION piese_transfer_receive_to_vehicle(bigint, bigint, bigint, bigint, bigint) TO service_role;

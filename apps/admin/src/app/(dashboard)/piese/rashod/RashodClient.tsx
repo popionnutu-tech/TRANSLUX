@@ -34,11 +34,14 @@ type Pending = {
 let seq = 0;
 const blank = (): Line => ({ uid: `l${++seq}`, part_id: '', qty: 1 });
 
-export default function RashodClient({ canOverrideStock, warehouses, vehicles, mechanics, reasons }: {
+export default function RashodClient({ initialWarehouseId, canOverrideStock, warehouses, vehicles, mechanics, reasons }: {
+  initialWarehouseId: number | null;
   canOverrideStock: boolean;
   warehouses: Opt[]; vehicles: (Opt & { km: number })[]; mechanics: Opt[]; reasons: Opt[];
 }) {
-  const [warehouseId, setWarehouseId] = useState(warehouses[0]?.id || 0);
+  // Depozitul din adresă are prioritate (linkul „Confirmă la …" din Mutări); pagina l-a validat deja față
+  // de lista permisă. Fără el, un admin cu trei depozite ateriza pe primul, cu panoul de confirmat gol.
+  const [warehouseId, setWarehouseId] = useState(initialWarehouseId ?? (warehouses[0]?.id || 0));
   const [vehicleId, setVehicleId] = useState<number | ''>('');
   const [lines, setLines] = useState<Line[]>([blank()]);
   const [mechanicId, setMechanicId] = useState<number | ''>('');

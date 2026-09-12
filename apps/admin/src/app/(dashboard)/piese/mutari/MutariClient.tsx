@@ -18,10 +18,17 @@ interface Transit { id: number; from_name: string; to_name: string; line_count: 
 type TLine = { partId: number; name: string; article: string | null; qty: number };
 type TBody = { rows: TLine[]; truncated: boolean };
 
-export default function MutariClient({ warehouses, fromWarehouses, transit, peMasina, vehicles, mechanics }: {
+// De cât timp așteaptă mutarea, în cuvinte scurte.
+function zile(iso: string): string {
+  const z = Math.floor((Date.now() - new Date(iso).getTime()) / 86400_000);
+  return z <= 0 ? 'azi' : z === 1 ? 'de ieri' : `de ${z} zile`;
+}
+
+export default function MutariClient({ warehouses, fromWarehouses, transit, peMasina, peMasinaTruncat, peMasinaEsuat, vehicles, mechanics }: {
   warehouses: WhOpt[]; fromWarehouses: Opt[]; transit: Transit[];
-  peMasina: { id: number; fromName: string; toName: string; vehiclePlate: string;
-             mechanicName: string | null; createdAt: string; lineCount: number }[];
+  peMasina: { id: number; fromName: string; toName: string; toWarehouseId: number | null;
+             vehiclePlate: string; mechanicName: string | null; lineCount: number; createdAt: string }[];
+  peMasinaTruncat: boolean; peMasinaEsuat: boolean;
   vehicles: Opt[]; mechanics: Opt[];
 }) {
   const router = useRouter();
@@ -120,6 +127,11 @@ export default function MutariClient({ warehouses, fromWarehouses, transit, peMa
           fiindcă primirea și eliberarea trebuie să se facă împreună (migr. 319). Dar nici invizibile n-au
           voie să fie — exact așa s-a pierdut mutarea 417, iar piesa a fost eliberată a doua oară manual.
           Aici se VĂD, cu locul unde se confirmă scris pe rând. */}
+      {peMasinaEsuat && (
+        <div className="alert error">
+          Nu am putut încărca mutările pe mașină. Marfa poate fi pe drum fără să apară aici — anunță administratorul.
+        </div>
+      )}
       {peMasina.length > 0 && (
         <div className="card">
           <h2>Pe mașină — se confirmă în Rashod</h2>
@@ -128,24 +140,36 @@ export default function MutariClient({ warehouses, fromWarehouses, transit, peMa
             depozitul care primește: acolo intră pe stoc și pleacă pe mașină dintr-o singură apăsare.
           </p>
           <table>
-            <thead><tr><th>De la</th><th>La</th><th>Mașina</th><th>Lăcătuș</th><th className="num">Poziții</th><th></th></tr></thead>
+            <thead><tr><th>De când</th><th>De la</th><th>La</th><th>Mașina</th><th>Lăcătuș</th><th className="num">Poziții</th><th></th></tr></thead>
             <tbody>
               {peMasina.map((t) => (
                 <tr key={t.id}>
+                  {/* „De când așteaptă" e semnalul cel mai util pentru marfă blocată: mutarea 417 a stat
+                      patru zile fără ca cineva să observe. */}
+                  <td>{zile(t.createdAt)}</td>
                   <td>{t.fromName}</td>
                   <td>{t.toName}</td>
                   <td><strong>{t.vehiclePlate}</strong></td>
                   <td>{t.mechanicName || <span className="muted">—</span>}</td>
                   <td className="num">{t.lineCount}</td>
                   <td>
-                    <Link href="/piese/rashod" className="btn btn-outline" style={{ padding: '4px 10px', whiteSpace: 'nowrap' }}>
-                      Deschide Rashod
+                    {/* Linkul duce DIRECT la depozitul care primește. Fără el, un admin cu trei depozite
+                        interne ajungea pe primul din listă, cu panoul de confirmat gol — adică exact
+                        reflexul „nu merge, hai s-o fac manual" care a produs incidentul. */}
+                    <Link href={t.toWarehouseId ? `/piese/rashod?w=${t.toWarehouseId}` : '/piese/rashod'}
+                      className="btn btn-outline" style={{ padding: '4px 10px', whiteSpace: 'nowrap' }}>
+                      Confirmă la {t.toName}
                     </Link>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          {peMasinaTruncat && (
+            <div className="alert warn" style={{ marginTop: 8, fontSize: 12 }}>
+              Sunt mai multe de o sută. Lista de aici e tăiată — confirmă-le în Rashod, pe depozite.
+            </div>
+          )}
         </div>
       )}
 

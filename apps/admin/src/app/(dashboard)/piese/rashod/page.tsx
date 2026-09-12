@@ -4,7 +4,7 @@ import { listWarehouses, listVehicles, listMechanics, listReasons } from '@/lib/
 import { requirePieseIssue, userWarehouseId, warehousesForUser, canOverrideStock } from '@/lib/piese-access';
 import RashodClient from './RashodClient';
 
-export default async function RashodPage() {
+export default async function RashodPage({ searchParams }: { searchParams: Promise<{ w?: string }> }) {
   const session = await requirePieseIssue();
   const [warehouses, vehicles, mechanics, reasons] = await Promise.all([
     listWarehouses(), listVehicles(), listMechanics(), listReasons(),
@@ -14,10 +14,15 @@ export default async function RashodPage() {
     (warehouses as any[]).filter((w) => w.kind === 'INTERNAL'),
     await userWarehouseId(session),
   );
+  const cerut = Number((await searchParams)?.w) || null;
   return (
     <>
       <div className="page-header"><h1>Rashod — eliberare piesă</h1><p>Ecran simplu. La alegerea piesei și a mașinii, programul avertizează pe loc despre normă (km din GPS) și schimbări recente.</p></div>
       <RashodClient
+        // Depozitul cerut în adresă (`?w=`), venit din linkul „Confirmă la …" din Mutări. Se acceptă doar
+        // dacă e chiar în lista permisă contului — altfel un id pus de mână ar fi preselectat un depozit
+        // la care omul n-are drept, iar ecranul ar fi arătat un panou pe care serverul îl refuză oricum.
+        initialWarehouseId={cerut && allowed.some((w) => Number(w.id) === cerut) ? cerut : null}
         canOverrideStock={await canOverrideStock(session)}
         warehouses={allowed.map((w) => ({ id: w.id, label: w.name }))}
         vehicles={(vehicles as any[]).map((v) => ({ id: v.id, label: `${v.plate} · ${v.model ?? ''}`.trim(), km: v.km_current }))}

@@ -11,17 +11,38 @@ export async function listClients() {
 // Mutările pe mașină aflate pe drum, TOATE — nu doar cele către un depozit anume. Ecranul Mutări arată
 // deja tranzitul obișnuit nefiltrat; asta e perechea lui, ca marfa să nu mai fie invizibilă acolo unde o
 // caută omul. Confirmarea rămâne în Rashod: aici e doar vizibilitate, cu limită de sanity.
-export async function transfersTransitForVehicle() {
-  const { data, error } = await getSupabase().from('piese_transfers_for_vehicle')
-    .select('id, from_name, to_name, to_warehouse_id, vehicle_plate, mechanic_name, created_at, line_count')
-    .order('created_at', { ascending: false }).limit(100);
-  if (error) throw new Error('Nu am putut încărca mutările pe mașină');
-  return ((data as any[]) || []).map((r) => ({
-    id: Number(r.id), fromName: r.from_name as string, toName: r.to_name as string,
-    toWarehouseId: Number(r.to_warehouse_id),
-    vehiclePlate: r.vehicle_plate as string, mechanicName: (r.mechanic_name as string) || null,
-    createdAt: r.created_at as string, lineCount: Number(r.line_count),
-  }));
+const TRANSIT_VEHICLE_LIMIT = 100;
+
+// `wid` = depozitul contului; `null` (admin sau cont nelegat) înseamnă toate. Se arată mutările în care
+// contul e PARTE — a trimis sau primește. Restul nu-l privesc: corelația „ce autobuz, prin ce lăcătuș, între
+// ce depozite" e o informație pe care un vânzător legat de magazin n-are de ce s-o aibă despre Briceni.
+// Nu reintroduce invizibilitatea: cei doi care trebuie să acționeze sunt exact expeditorul și destinatarul.
+export async function transfersTransitForVehicle(wid: number | null) {
+  let q = getSupabase().from('piese_transfers_for_vehicle')
+    // `id` ca departajator: la două mutări trimise în aceeași clipă, ordinea trebuie să fie stabilă.
+    .select('id, from_name, to_name, to_warehouse_id, vehicle_plate, mechanic_name, line_count, created_at')
+    .order('created_at', { ascending: false }).order('id', { ascending: false })
+    .limit(TRANSIT_VEHICLE_LIMIT + 1);
+  if (wid != null) q = q.or(`to_warehouse_id.eq.${wid},from_warehouse_id.eq.${wid}`);
+  const { data, error } = await q;
+  // NU aruncă: secțiunea asta e secundară, iar `Promise.all` din pagină ar fi dus la 500 pe TOT ecranul —
+  // ar fi dispărut și lista de tranzit, și formularul de trimitere. Dar nici tăcut nu degradează: „n-am
+  // putut citi" și „nu e nimic pe drum" arată identic, iar confuzia asta e chiar ce repară ecranul.
+  if (error) { console.error('[piese] transfersTransitForVehicle:', error.message); return { rows: [], truncated: false, failed: true }; }
+  const all = (data as any[]) || [];
+  // Se cere unul în plus ca să ȘTIM că lista s-a tăiat. Ecranul ăsta există tocmai ca marfa să nu mai fie
+  // ascunsă; o tăiere tăcută la o sută ar fi reintrodus exact defectul, doar mai sus.
+  return {
+    rows: all.slice(0, TRANSIT_VEHICLE_LIMIT).map((r) => ({
+      id: Number(r.id), fromName: r.from_name as string, toName: r.to_name as string,
+      toWarehouseId: r.to_warehouse_id == null ? null : Number(r.to_warehouse_id),
+      createdAt: r.created_at as string,
+      vehiclePlate: r.vehicle_plate as string, mechanicName: (r.mechanic_name as string) || null,
+      lineCount: Number(r.line_count),
+    })),
+    truncated: all.length > TRANSIT_VEHICLE_LIMIT,
+    failed: false,
+  };
 }
 
 export async function transfersTransit() {

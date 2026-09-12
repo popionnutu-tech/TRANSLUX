@@ -1,4 +1,5 @@
 import { getSupabase } from './supabase';
+import type { Autor } from './audit';
 import { parseLocation, warehouseLayout } from './piese';
 
 export async function listClients() {
@@ -16,20 +17,16 @@ export async function transfersTransit() {
 export async function transferSend(p: {
   from_warehouse_id: number; to_warehouse_id: number; lines: { part_id: number; qty: number }[];
   vehicle_id?: number | null; mechanic_id?: number | null;
-}, autor?: Autor) {
+}, autor: Autor) {
   const { data, error } = await getSupabase().rpc('piese_transfer_send', {
     p_from: p.from_warehouse_id, p_to: p.to_warehouse_id, p_lines: p.lines, p_user: null,
     p_vehicle: p.vehicle_id ?? null, p_mechanic: p.mechanic_id ?? null,
-    p_admin: autor?.adminId ?? null, p_actor: autor?.label ?? null,
+    p_admin: autor.adminId, p_actor: autor.label,
   });
   if (error) throw new Error(TRANSFER_ERR[(error.message || '').trim()] || error.message);
   return Number(data);
 }
 
-// Autorul faptei — tipul e definit în `piese.ts` (vezi motivul acolo). Opțional peste tot: un apelant care
-// nu-l are se comportă exact ca înainte.
-import type { Autor } from './piese';
-export type { Autor };
 
 const TRANSFER_ERR: Record<string, string> = {
   BAD_WAREHOUSE: 'Alege depozitul sursă și cel destinație.',
@@ -69,10 +66,10 @@ export async function transfersSent(fromWarehouseId: number) {
 // Anulează o mutare încă „pe drum": marfa se întoarce în depozitul-sursă, prin STORNO (mișcările sunt
 // append-only). Fără ea, o mutare pe care nimeni n-o confirmă lăsa marfa blocată permanent — ieșită din
 // sursă, neintrată la destinație — iar singurul ocol era „confirmă greșit, apoi retur".
-export async function transferCancel(docId: number, fromWarehouseId: number, autor?: Autor) {
+export async function transferCancel(docId: number, fromWarehouseId: number, autor: Autor) {
   const { data, error } = await getSupabase().rpc('piese_transfer_cancel', {
     p_doc: docId, p_wh: fromWarehouseId, p_user: null,
-    p_admin: autor?.adminId ?? null, p_actor: autor?.label ?? null,
+    p_admin: autor.adminId, p_actor: autor.label,
   });
   if (error) throw new Error(TRANSFER_ERR[(error.message || '').trim()] || 'Nu am putut anula mutarea. Reîncearcă.');
   return { docId: Number((data as any).doc_id), restored: Number((data as any).restored) };
@@ -105,11 +102,11 @@ export async function transfersForVehicle(toWarehouseId: number) {
  * montat efectiv. Ambele rămân în urma de audit.
  */
 export async function transferReceiveToVehicle(
-  docId: number, warehouseId: number, vehicleId: number, mechanicId: number | null, autor?: Autor,
+  docId: number, warehouseId: number, vehicleId: number, mechanicId: number | null, autor: Autor,
 ) {
   const { data, error } = await getSupabase().rpc('piese_transfer_receive_to_vehicle', {
     p_doc: docId, p_wh: warehouseId, p_vehicle: vehicleId, p_mechanic: mechanicId, p_user: null,
-    p_admin: autor?.adminId ?? null, p_actor: autor?.label ?? null,
+    p_admin: autor.adminId, p_actor: autor.label,
   });
   if (error) throw new Error(TRANSFER_ERR[(error.message || '').trim()] || 'Nu am putut confirma mutarea. Reîncearcă.');
   const r = data as any;
@@ -118,9 +115,9 @@ export async function transferReceiveToVehicle(
     shortages: (r.shortages || []) as string[], vehicleChanged: r.vehicle_changed === true,
   };
 }
-export async function transferReceive(docId: number, autor?: Autor) {
+export async function transferReceive(docId: number, autor: Autor) {
   const { error } = await getSupabase().rpc('piese_transfer_receive', {
-    p_doc: docId, p_user: null, p_admin: autor?.adminId ?? null, p_actor: autor?.label ?? null,
+    p_doc: docId, p_user: null, p_admin: autor.adminId, p_actor: autor.label,
   });
   if (error) throw new Error(TRANSFER_ERR[(error.message || '').trim()] || error.message);
 }
@@ -193,10 +190,10 @@ export async function getCountSheet(warehouseId: number) {
     a.label.localeCompare(b.label));
   return { rows, layout, truncated };
 }
-export async function submitInventory(warehouseId: number, counts: { part_id: number; counted_qty: number }[], autor?: Autor) {
+export async function submitInventory(warehouseId: number, counts: { part_id: number; counted_qty: number }[], autor: Autor) {
   const { data, error } = await getSupabase().rpc('piese_inventory_count', {
     p_wh: warehouseId, p_counts: counts, p_user: null,
-    p_admin: autor?.adminId ?? null, p_actor: autor?.label ?? null,
+    p_admin: autor.adminId, p_actor: autor.label,
   });
   if (error) throw new Error(error.message);
   return { diffs: (data as any).diffs as number };
@@ -207,11 +204,14 @@ export async function saleParts() {
   const { data } = await getSupabase().from('piese_sale_parts').select('*');
   return data || [];
 }
-export async function createSale(p: { warehouse_id: number; client_id: number | null; invoice_series?: string; invoice_number?: string; userId?: string; actorLabel?: string | null; lines: { part_id: number; qty: number; unit_price: number }[] }) {
+export async function createSale(p: { warehouse_id: number; client_id: number | null; invoice_series?: string; invoice_number?: string; userId?: string; lines: { part_id: number; qty: number; unit_price: number }[] }, autor: Autor) {
   // created_by_admin e setat ATOMIC în RPC (p_created_by), nu printr-un UPDATE separat.
   // `p_admin`/`p_actor` (migr. 339): urma vânzării avea autor „necunoscut", fiindcă RPC-ul scria doar în
   // coloana veche `user_id`, pe care aplicația o trimite mereu NULL.
-  const { data, error } = await getSupabase().rpc('piese_create_sale', { p_wh: p.warehouse_id, p_client: p.client_id, p_series: p.invoice_series || null, p_number: p.invoice_number || null, p_lines: p.lines, p_user: null, p_created_by: p.userId || null, p_admin: p.userId || null, p_actor: p.actorLabel ?? null });
+  const { data, error } = await getSupabase().rpc('piese_create_sale', { p_wh: p.warehouse_id, p_client: p.client_id, p_series: p.invoice_series || null, p_number: p.invoice_number || null, p_lines: p.lines, p_user: null, p_created_by: p.userId || null,
+    // `p_created_by` e PROPRIETARUL facturii (filtrul care decide ce vede un vânzător), `p_admin` e AUTORUL
+    // urmei. Azi coincid; în ziua în care un admin emite o factură în numele altcuiva, nu vor mai coincide.
+    p_admin: autor.adminId, p_actor: autor.label });
   if (error) throw new Error(error.message);
   const r = data as any;
   return { docId: r.doc_id as number, total: Number(r.total), cost: Number(r.cost), profit: Number(r.total) - Number(r.cost) };
@@ -247,12 +247,15 @@ export async function saleInvoices(opts: { sellerId?: string; pending?: boolean 
   const rows = data || [];
   return { rows: rows.slice(0, limit), truncated: rows.length > limit };
 }
-export async function markSfs(docId: number, sellerId?: string, adminId?: string, actorLabel?: string | null) {
+// `autor` e OBIECT, iar `sellerId` rămâne separat: erau doi uuid-uri opționale consecutivi cu semantici
+// diferite — proprietarul facturii (cine o poate marca) și autorul urmei. Inversate la un apel, tipurile
+// n-ar fi obiectat, iar rezultatul ar fi fost și o gardă greșită, și un autor greșit în jurnal.
+export async function markSfs(docId: number, autor: Autor, sellerId?: string) {
   if (sellerId) { // vânzătorul poate marca doar facturile lui
     const { data } = await getSupabase().from('piese_stock_documents').select('created_by_admin').eq('id', docId).maybeSingle();
     if (!data || (data as any).created_by_admin !== sellerId) throw new Error('Nu poți marca o factură care nu e a ta');
   }
-  const { error } = await getSupabase().rpc('piese_mark_sfs', { p_doc: docId, p_user: null, p_admin: adminId ?? null, p_actor: actorLabel ?? null });
+  const { error } = await getSupabase().rpc('piese_mark_sfs', { p_doc: docId, p_user: null, p_admin: autor.adminId, p_actor: autor.label });
   if (error) throw new Error(error.message);
 }
 // Vânzătorul din facturile UBL. Ion, 12.09.2026: «Translux este SRL Parcul de Autobuze și Taximetrie nr. 9 Briceni»;

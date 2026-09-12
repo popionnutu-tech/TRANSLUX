@@ -1,3 +1,7 @@
+-- SANTINELĂ (migr. 341): definiția CURENTĂ a funcțiilor de mai jos NU mai e cea din acest fișier — migrațiile
+-- 340/341 le-au adăugat argumentele `p_admin`/`p_actor` transformând definiția din bază. Nu copia antetul
+-- sau rândul de audit de aici: ai crea o suprasarcină cu semnătura veche, cu urmă anonimă și cu grantul
+-- implicit pentru `anon`. Citește definiția curentă cu `pg_get_functiondef`.
 -- 311: Returul de la lăcătuș — piesa scoasă pentru o reparație se întoarce în depozit.
 --
 -- Cerut de Eduard: „при возврате запчасти от слесаря корректировать расход". Până acum rashodul nu avea

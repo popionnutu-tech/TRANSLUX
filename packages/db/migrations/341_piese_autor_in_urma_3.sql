@@ -4,6 +4,9 @@
 -- `user_id` — coloana veche pentru utilizatorii Telegram, pe care aplicația o trimite mereu NULL — scriu
 -- acum autorul real. Jurnalul nu mai are rânduri anonime pentru fapte noi.
 
+-- SE APLICĂ O SINGURĂ DATĂ. Spre deosebire de restul migrațiilor din modul, care sînt `CREATE OR REPLACE`
+-- idempotente, blocul ăsta transformă ce găsește: la a doua rulare ar adăuga încă o pereche de argumente și
+-- ar cădea cu „parameter name used more than once". Eșec zgomotos, deci sigur — dar de știut.
 DO $mig$
 DECLARE r record; def text; sig text; n int;
 BEGIN

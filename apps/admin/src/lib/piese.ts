@@ -1,4 +1,5 @@
 import { getSupabase } from './supabase';
+import type { Autor } from './audit';
 
 // Strat de date pentru modulul „Piese" — citește din view-urile piese_* și apelează funcțiile Postgres (FIFO etc.).
 
@@ -506,10 +507,10 @@ export async function updateReceiptHeader(docId: number, h: { supplier_id: numbe
 }
 
 // Modifică LINIILE (anulare + refacere prin RPC). Aruncă cu codul RPC (CONSUMED/NOT_CONFIRMED/…) — se mapează în actions.
-export async function replaceReceiptLines(docId: number, p: { supplier_id: number | null; invoice_series: string | null; invoice_number: string | null; note: string | null; lines: { part_id: number; qty: number; unit_cost: number }[] }, autor?: Autor): Promise<number> {
+export async function replaceReceiptLines(docId: number, p: { supplier_id: number | null; invoice_series: string | null; invoice_number: string | null; note: string | null; lines: { part_id: number; qty: number; unit_cost: number }[] }, autor: Autor): Promise<number> {
   const { data, error } = await getSupabase().rpc('piese_replace_receipt', {
     p_doc: docId, p_supplier: p.supplier_id, p_series: p.invoice_series, p_number: p.invoice_number, p_note: p.note, p_lines: p.lines, p_user: null,
-    p_admin: autor?.adminId ?? null, p_actor: autor?.label ?? null,
+    p_admin: autor.adminId, p_actor: autor.label,
   });
   if (error) throw error;
   return Number(data);
@@ -525,10 +526,10 @@ export async function dashboardStats() {
   return { parts, vehicles, movements, warehouses, stockValue: Number(val.data) || 0, lowStock: (low as any[]).length };
 }
 
-export async function createReceipt(p: { warehouse_id: number; supplier_id: number | null; invoice_series?: string; invoice_number?: string; lines: { part_id: number; qty: number; unit_cost: number }[] }, autor?: Autor) {
+export async function createReceipt(p: { warehouse_id: number; supplier_id: number | null; invoice_series?: string; invoice_number?: string; lines: { part_id: number; qty: number; unit_cost: number }[] }, autor: Autor) {
   const { data, error } = await getSupabase().rpc('piese_create_receipt', {
     p_wh: p.warehouse_id, p_supplier: p.supplier_id, p_series: p.invoice_series || null, p_number: p.invoice_number || null,
-    p_lines: p.lines, p_user: null, p_admin: autor?.adminId ?? null, p_actor: autor?.label ?? null,
+    p_lines: p.lines, p_user: null, p_admin: autor.adminId, p_actor: autor.label,
   });
   if (error) throw new Error(error.message);
   return Number(data);
@@ -537,10 +538,10 @@ export async function createReceipt(p: { warehouse_id: number; supplier_id: numb
 // Recepție de SOLD INIȚIAL, IDEMPOTENTĂ pe cheia clientului (trecută ca invoice_number, series='SOLD').
 // Indexul unic parțial `uq_piese_sold_initial_receipt` (migr. 235) respinge un duplicat cu aceeași cheie în
 // același depozit (pană de rețea + re-click) → 23505, pe care îl tratăm ca „deja înregistrat" (nu se dublează).
-export async function createInitialReceipt(p: { warehouse_id: number; supplier_id: number; idem_key: string; lines: { part_id: number; qty: number; unit_cost: number }[] }, autor?: Autor): Promise<{ docId: number | null; duplicate: boolean }> {
+export async function createInitialReceipt(p: { warehouse_id: number; supplier_id: number; idem_key: string; lines: { part_id: number; qty: number; unit_cost: number }[] }, autor: Autor): Promise<{ docId: number | null; duplicate: boolean }> {
   const { data, error } = await getSupabase().rpc('piese_create_receipt', {
     p_wh: p.warehouse_id, p_supplier: p.supplier_id, p_series: 'SOLD', p_number: p.idem_key, p_lines: p.lines, p_user: null,
-    p_admin: autor?.adminId ?? null, p_actor: autor?.label ?? null,
+    p_admin: autor.adminId, p_actor: autor.label,
   });
   if (error) {
     if ((error as { code?: string }).code === '23505') return { docId: null, duplicate: true };
@@ -559,11 +560,11 @@ export async function partStock(warehouseId: number, partId: number): Promise<{ 
 
 // Revizuirea costului mediu al unei piese, PĂSTRÂND cantitatea (RPC piese_recost, migr. 235).
 export async function recostPart(
-  warehouseId: number, partId: number, newCost: number, adminId?: string, actorLabel?: string | null,
+  warehouseId: number, partId: number, newCost: number, autor: Autor,
 ): Promise<{ qty: number; oldAvg: number; newCost: number }> {
   const { data, error } = await getSupabase().rpc('piese_recost', {
     p_wh: warehouseId, p_part: partId, p_new_cost: newCost, p_user: null,
-    p_admin: adminId ?? null, p_actor: actorLabel ?? null,
+    p_admin: autor.adminId, p_actor: autor.label,
   });
   if (error) throw new Error(error.message);
   const r = data as { qty: number; old_avg: number; new_cost: number };
@@ -583,11 +584,7 @@ export async function issueAlert(warehouseId: number, vehicleId: number | null, 
 
 export interface IssueLine { part_id: number; qty: number }
 
-// Autorul faptei, dus până în RPC (migr. 339-341). Definit AICI, nu importat din `piese-ops`: acela importă
-// deja din fișierul ăsta, iar un import în ambele sensuri e o dependență circulară care se rupe urât.
-// Motivul: funcțiile din bază scriau urma prin coloana veche `user_id`, pe care aplicația o trimite mereu
-// NULL — deci recepțiile, mutările și inventarierile apăreau în jurnal fără autor.
-export type Autor = { adminId: string; label: string | null };
+
 
 // Rashod NOU, cu una sau mai multe poziții. RPC-ul accepta `p_lines` de la bun început — aplicația îi
 // trimitea un singur element, de aceea fiecare piesă eliberată devenea un document separat.

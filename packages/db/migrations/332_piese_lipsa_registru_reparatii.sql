@@ -225,6 +225,11 @@ REVOKE ALL ON FUNCTION piese_append_issue(bigint, bigint, bigint, jsonb, bigint,
 GRANT EXECUTE ON FUNCTION piese_append_issue(bigint, bigint, bigint, jsonb, bigint, boolean) TO service_role;
 
 -- ── Confirmarea sosirii nu se mai poate bloca ────────────────────────────────
+-- ADĂUGAT RETROACTIV, 12.09.2026: blocul de mai jos fusese aplicat direct în bază pe 10.09, cu unealta de
+-- migrare, dar a lipsit din fișier. Repo-ul n-are registru de migrații, deci comentariul ăsta e singura
+-- evidență. Descoperit când o migrație ulterioară a încercat să citească definiția din fișier și n-a
+-- găsit-o — adică o reluare de la zero ar fi reintrodus blocajul pe care 332 tocmai îl repara.
+-- ATENȚIE: pe o bază unde migr. 340 a rulat deja, blocul ăsta recreează suprasarcina cu 5 argumente.
 -- Singura schimbare față de migr. 319: `p_allow_short => true` la apelul motorului, plus mențiunea
 -- lipsurilor în jurnal. Restul e identic.
 CREATE OR REPLACE FUNCTION piese_transfer_receive_to_vehicle(

@@ -23,4 +23,14 @@ BEGIN
     n := n + 1;
   END LOOP;
   RAISE NOTICE 'Funcții curățate: %', n;
+
+  -- Se AFIRMĂ rezultatul, nu se raportează. Un `NOTICE` printr-un POST la API e practic invizibil, iar
+  -- criteriul de succes al unei migrații de securitate nu are voie să depindă de cine se uită în log.
+  SELECT count(*) INTO n FROM pg_proc p
+   WHERE p.pronamespace = 'public'::regnamespace AND p.proname LIKE 'piese\_%'
+     AND (has_function_privilege('anon', p.oid, 'EXECUTE')
+          OR has_function_privilege('authenticated', p.oid, 'EXECUTE'));
+  IF n > 0 THEN
+    RAISE EXCEPTION 'Au rămas % funcții piese_* executabile de anon/authenticated', n;
+  END IF;
 END $rev$;

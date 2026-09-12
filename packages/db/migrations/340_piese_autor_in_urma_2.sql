@@ -10,6 +10,9 @@
 -- câte o sută de linii, copiate manual ca să schimbi două rânduri în fiecare, e felul în care se strecoară
 -- o diferență pe care n-o vede nimeni. Aici se schimbă exact antetul și rândul de audit, verificat.
 
+-- SE APLICĂ O SINGURĂ DATĂ. Spre deosebire de restul migrațiilor din modul, care sînt `CREATE OR REPLACE`
+-- idempotente, blocul ăsta transformă ce găsește: la a doua rulare ar adăuga încă o pereche de argumente și
+-- ar cădea cu „parameter name used more than once". Eșec zgomotos, deci sigur — dar de știut.
 DO $mig$
 DECLARE r record; def text; sig text; n int;
 BEGIN

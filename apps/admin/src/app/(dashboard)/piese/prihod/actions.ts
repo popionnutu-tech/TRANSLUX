@@ -5,7 +5,7 @@ import { assertWarehouseAllowed, userWarehouseId, editWindowDays } from '@/lib/p
 import { createReceipt, receiptDocs, receiptDocLines, receiptDocWarehouse, finalizeReceipt,
   receiptDocHeaderForEdit, receiptEditInfo, updateReceiptHeader, replaceReceiptLines,
   supplierNames, receiptLabels, receiptSetMarkup, receiptMarkForSale} from '@/lib/piese';
-import { auditWrite, auditHistoryForDoc, changedFields, actorLabelFor, type AuditFields } from '@/lib/audit';
+import { auditWrite, auditHistoryForDoc, changedFields, actorLabelFor, type AuditFields, autorFor } from '@/lib/audit';
 import { receiptLinesSum, totalMatches, totalDiffBani } from '@/lib/piese-receipt';
 import { chisinauDayStartIso, chisinauDayBounds, chisinauDayOf, chisinauTodayIso } from '@/lib/chisinau-time';
 
@@ -95,16 +95,16 @@ export async function submitReceipt(payload: { warehouse_id: number; supplier_id
   // un „0x10" interpretat ca 16 sau un negativ acceptat tăcut ar ajunge pe raft, nu într-un mesaj.
   const markup = cleanMarkup(payload.markup_pct);
 
-  const actor = await actorLabelFor(session.id);
-  const docId = await createReceipt({ ...payload, lines }, { adminId: session.id, label: actor });
+  const autor = await autorFor(session.id);
+  const docId = await createReceipt({ ...payload, lines }, autor);
   // „De vânzare" automat pentru recepția în magazin, plus adaosul pe toată factura — ambele cerute de
   // Eduard. Se fac DUPĂ crearea documentului (au nevoie de liniile lui).
-  await receiptMarkForSale(docId, payload.warehouse_id, session.id, actor);
+  await receiptMarkForSale(docId, payload.warehouse_id, session.id, autor.label);
   let markupNote = '';
   if (markup !== undefined) {
     // Eșecul NU se mai înghite. Marfa e deja în stoc, deci recepția nu se anulează — dar omul trebuie să
     // afle că adaosul n-a intrat, altfel crede că prețul de raft s-a schimbat și descoperă la casă că nu.
-    try { await receiptSetMarkup(docId, payload.warehouse_id, markup, session.id, actor); }
+    try { await receiptSetMarkup(docId, payload.warehouse_id, markup, session.id, autor.label); }
     catch (e: any) { markupNote = e?.message || 'Adaosul nu s-a aplicat.'; }
   }
   // Autor + comentariu + suma de control, într-un singur UPDATE (vezi finalizeReceipt).
@@ -258,7 +258,7 @@ export async function saveReceiptLines(docId: number, payload: { supplier_id?: n
   let newId: number;
   try {
     newId = await replaceReceiptLines(Number(docId), { ...hh, lines },
-      { adminId: session.id, label: await actorLabelFor(session.id) });
+      await autorFor(session.id));
   } catch (e: any) {
     const code = (e?.message || '').trim();
     throw new Error(RPC_ERR[code] || 'Nu am putut salva modificarea. Reîncearcă.');
@@ -268,7 +268,7 @@ export async function saveReceiptLines(docId: number, payload: { supplier_id?: n
   // primi „documentul a fost deja modificat". finalizeReceipt e oricum non-fatală și loghează.
   // Corecția creează un document NOU (RPC-ul îl anulează pe cel vechi); martorul îl însoțește.
   if (effectiveTotal != null) await finalizeReceipt(newId, { invoiceTotal: effectiveTotal });
-  // RPC-ul scrie deja un rând, dar cu `p_user` NULL (BIGINT, pentru utilizatori Telegram) — deci fără autor.
+  // RPC-ul scrie deja un rând, cu autor (migr. 341), dar acela e urma TEHNICĂ a refacerii documentului.
   // Adăugăm urma cu identitatea reală a contului, pe documentul NOU (cel vechi rămâne anulat).
   //
   // `replaces_doc_id` e VERIGA LANȚULUI: corecția nu modifică documentul, ci îl anulează și creează altul.

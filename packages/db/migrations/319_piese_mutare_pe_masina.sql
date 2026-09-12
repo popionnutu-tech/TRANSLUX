@@ -1,3 +1,7 @@
+-- SANTINELĂ (migr. 340): definiția CURENTĂ a funcțiilor de mai jos NU mai e cea din acest fișier — migrațiile
+-- 340/341 le-au adăugat argumentele `p_admin`/`p_actor` transformând definiția din bază. Nu copia antetul
+-- sau rândul de audit de aici: ai crea o suprasarcină cu semnătura veche, cu urmă anonimă și cu grantul
+-- implicit pentru `anon`. Citește definiția curentă cu `pg_get_functiondef`.
 -- 319: Mutarea marcată pentru o mașină — se confirmă în Rashod și devine eliberare pe mașină.
 --
 -- Cerut de Eduard: „Давай в MUTARI добавляем какую то галочку (на автомобиль) и выбором механика, а в

@@ -1,4 +1,5 @@
 import 'server-only';
+import { cache } from 'react';
 import { unstable_cache } from 'next/cache';
 import { getSupabase } from './supabase';
 
@@ -13,6 +14,16 @@ import { getSupabase } from './supabase';
 // câmp-cu-câmp se strica în tăcere când cineva adăuga un câmp nou în antet.
 
 export type AuditFields = Record<string, string | number | boolean | null>;
+
+// Autorul unei fapte, dus până în funcțiile din bază (migr. 339-341). Trăiește AICI, nu în `piese.ts`:
+// e conceptul frate cu `auditWrite` și `actorLabelFor`, iar modulul e neutru — îl folosește și „utilizatori",
+// nu doar „piese".
+export type Autor = { adminId: string; label: string | null };
+
+/** Autorul cererii curente, gata de trimis. O singură formă, ca să nu se inverseze două uuid-uri la apel. */
+export async function autorFor(adminId: string): Promise<Autor> {
+  return { adminId, label: await actorLabelFor(adminId) };
+}
 
 /** Perechea de stări reduse la CE s-a schimbat efectiv. `null` = nimic schimbat, deci nimic de scris. */
 export function changedFields(
@@ -101,12 +112,15 @@ export interface AuditRow {
 // exact cum îi spun oamenii între ei, fără să publice credențialul.
 // Exportat pentru RPC-urile care își scriu singure urma ÎN ACEEAȘI tranzacție cu fapta (ex. schimbarea
 // adaosului): acolo nu se poate folosi `auditWrite`, dar eticheta autorului trebuie să fie aceeași.
-export async function actorLabelFor(adminId: string): Promise<string | null> {
+// Memoizat per CERERE, ca `accountFlags` din piese-access: aceeași etichetă se cere de două-trei ori pe
+// același drum de scriere (o dată explicit, o dată din `auditWrite` care o rezolvă singur când nu o
+// primește). Fără asta, fiecare salvare plătea două-trei dus-întors identice către bază.
+export const actorLabelFor = cache(async function actorLabelFor(adminId: string): Promise<string | null> {
   const { data } = await getSupabase().from('admin_accounts').select('name, email').eq('id', adminId).maybeSingle();
   const a = data as { name: string | null; email: string | null } | null;
   if (!a) return null;
   return a.name || (a.email ? a.email.split('@')[0] : null);
-}
+});
 
 // Etichetele pentru rândurile VECHI, scrise înainte de migr. 293 (fără `actor_label`).
 async function resolveActors(ids: string[]): Promise<Map<string, string>> {

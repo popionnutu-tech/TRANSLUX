@@ -6,7 +6,7 @@ import { assertWarehouseAllowed, PART_WRITE_ROLES } from '@/lib/piese-access';
 import { getCountSheet, submitInventory } from '@/lib/piese-ops';
 import { warehouseLayout, createInitialReceipt, partStock, recostPart } from '@/lib/piese';
 import { setPartLocationsBulk, ensureSupplierByName } from '@/lib/piese-nomenclator';
-import { actorLabelFor } from '@/lib/audit';
+import { autorFor } from '@/lib/audit';
 import { locationError, LOCATION_FORMAT, LOCATION_EXAMPLE } from '@/lib/piese-location';
 
 export async function loadSheet(warehouseId: number) {
@@ -18,7 +18,7 @@ export async function saveInventory(warehouseId: number, counts: { part_id: numb
   const session = requireRole(await verifySession(), 'ADMIN', 'DEPOZITAR', 'VINZATOR', 'GESTIONAR');
   await assertWarehouseAllowed(session, warehouseId); // Etapa 2: nu poate inventaria alt depozit
   return submitInventory(warehouseId, counts,
-    { adminId: session.id, label: await actorLabelFor(session.id) });
+    await autorFor(session.id));
 }
 
 // ── Inventar „de la zero" (greenfield): pornirea unui depozit gol dintr-un singur ecran ──
@@ -78,7 +78,7 @@ export async function saveInitialInventory(
   let diffs = 0;
   if (noCost.length) {
     const inv = await submitInventory(warehouseId, noCost.map((r) => ({ part_id: r.part_id, counted_qty: r.counted_qty })),
-      { adminId: session.id, label: await actorLabelFor(session.id) });
+      await autorFor(session.id));
     diffs = inv.diffs;
   }
   // (2) Locații — upsert în masă (idempotent). Dacă pică, aruncă ÎNAINTE de recepție → retry sigur.
@@ -93,7 +93,7 @@ export async function saveInitialInventory(
     const r = await createInitialReceipt({
       warehouse_id: warehouseId, supplier_id: supplierId, idem_key: idemKey,
       lines: withCost.map((r) => ({ part_id: r.part_id, qty: r.counted_qty, unit_cost: r.unit_cost })),
-    }, { adminId: session.id, label: await actorLabelFor(session.id) });
+    }, await autorFor(session.id));
     if (r.duplicate) alreadyReceived = true; else received = withCost.length;
   }
 
@@ -116,7 +116,7 @@ export async function loadPartStock(warehouseId: number, partId: number) {
 export async function recostPartAction(warehouseId: number, partId: number, newCost: number) {
   const session = requireRole(await verifySession(), ...PART_WRITE_ROLES);
   await assertWarehouseAllowed(session, warehouseId);
-  const res = await recostPart(warehouseId, partId, newCost, session.id, await actorLabelFor(session.id));
+  const res = await recostPart(warehouseId, partId, newCost, await autorFor(session.id));
   revalidatePath('/piese/stoc');
   revalidatePath('/piese/harta');
   return res;

@@ -20,6 +20,9 @@ const TABS = [
   { href: '/piese/fiscal', label: 'e-Factura' },
   { href: '/piese/integrare-1c', label: '1C' },
   { href: '/piese/rapoarte', label: 'Rapoarte' },
+  // Doar ADMIN: `pieseHrefsForRole` întoarce null pentru el (toate taburile), iar seturile celorlalte
+  // roluri nu conțin href-ul — deci tabul nu se poate strecura printr-un rol nou uitat pe listă.
+  { href: '/piese/jurnal', label: 'Jurnal' },
 ];
 
 export default function PieseNav({ role }: { role: AdminRole }) {

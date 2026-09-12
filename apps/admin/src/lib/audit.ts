@@ -1,4 +1,5 @@
 import 'server-only';
+import { unstable_cache } from 'next/cache';
 import { getSupabase } from './supabase';
 
 // Urma modificărilor: CINE a schimbat, CE era înainte și ce e după (migr. 291 + 292).
@@ -190,3 +191,79 @@ export async function auditHistoryForSubject(
   const rows = all.slice(0, HISTORY_LIMIT).map((r) => ({ ...r, entity_id: null }));
   return { rows: await toAuditRows(rows), partial: all.length > HISTORY_LIMIT };
 }
+
+// ── Fluxul jurnalului, pentru ecranul administratorului (migr. 338) ──────────
+// Urma exista de la migr. 291, dar se putea citi doar din baza de date. Aici o scoatem la suprafață.
+//
+// Tip PROPRIU, nu `AuditRow`: istoricul unui document n-are nevoie de `entity`/`subject`, iar refolosirea
+// lui a costat deja o informație — `subject_id` a fost omis din prima versiune, deci schimbările de rol
+// apăreau fără să se vadă PE CINE. Aici e feed global, deci fiecare rând trebuie să spună singur ce atinge.
+export interface AuditFeedRow {
+  id: number;
+  at: string;
+  action: string;
+  entity: string | null;
+  entityId: number | null;
+  subjectId: string | null;
+  who: string | null;
+  before: AuditFields | null;
+  after: AuditFields | null;
+  notes: string | null;
+}
+
+export interface AuditFeedFilter {
+  from?: string | null; to?: string | null; adminId?: string | null;
+  entity?: string | null; action?: string | null; q?: string | null;
+  /** Cursor: ultimul rând deja afișat. Paginare pe poziție, nu pe număr de rânduri sărite (migr. 338). */
+  afterAt?: string | null; afterId?: number | null;
+}
+
+export const AUDIT_PAGE = 50;
+
+export async function auditFeed(f: AuditFeedFilter): Promise<{ rows: AuditFeedRow[]; hasMore: boolean }> {
+  const { data, error } = await getSupabase().rpc('piese_audit_feed', {
+    p_from: f.from || null, p_to: f.to || null, p_admin: f.adminId || null,
+    p_entity: f.entity || null, p_action: f.action || null, p_q: f.q || null,
+    // Se cere unul în plus: așa aflăm dacă mai există pagină, fără un `count` peste tot jurnalul.
+    p_limit: AUDIT_PAGE + 1,
+    p_after_at: f.afterAt || null, p_after_id: f.afterId ?? null,
+  });
+  if (error) {
+    // Se loghează originalul: altfel o migrație aplicată pe jumătate arată la fel ca un jurnal gol.
+    console.error('[audit] auditFeed:', error.message);
+    throw new Error('Nu am putut încărca jurnalul');
+  }
+  const all = (data as any[]) || [];
+  const rows = all.slice(0, AUDIT_PAGE).map((r) => ({
+    id: Number(r.id),
+    at: r.created_at as string,
+    action: r.action as string,
+    entity: (r.entity as string) || null,
+    entityId: r.entity_id == null ? null : Number(r.entity_id),
+    subjectId: (r.subject_id as string) || null,
+    who: (r.actor_label as string) || null,
+    before: (r.before_data as AuditFields) || null,
+    after: (r.after_data as AuditFields) || null,
+    notes: (r.detail as string) || null,
+  }));
+  return { rows, hasMore: all.length > AUDIT_PAGE };
+}
+
+// Listele pentru filtre agregă peste TOT jurnalul, iar conținutul lor se schimbă doar când apare un cod de
+// acțiune nou sau un autor nou — adică rar. Fără cache, fiecare deschidere a paginii ar fi plătit două
+// scanări complete ale unui tabel care crește la nesfârșit, ca să umple două liste derulante.
+const CACHE = { revalidate: 3600, tags: ['piese-audit-lists'] };
+
+/** Cine apare în jurnal — pentru filtrul „autor". Din jurnal, nu din lista de conturi (vezi migr. 338). */
+export const auditActors = unstable_cache(async (): Promise<{ id: string; label: string }[]> => {
+  const { data, error } = await getSupabase().rpc('piese_audit_actors');
+  if (error) { console.error('[audit] auditActors:', error.message); throw new Error('Nu am putut încărca lista autorilor'); }
+  return ((data as any[]) || []).map((r) => ({ id: String(r.admin_id), label: String(r.label) }));
+}, ['piese-audit-actors'], CACHE);
+
+/** Ce tipuri de urme există — pentru filtrele „ce" și „acțiune". */
+export const auditKinds = unstable_cache(async (): Promise<{ entity: string | null; action: string }[]> => {
+  const { data, error } = await getSupabase().rpc('piese_audit_kinds');
+  if (error) { console.error('[audit] auditKinds:', error.message); throw new Error('Nu am putut încărca tipurile de urme'); }
+  return ((data as any[]) || []).map((r) => ({ entity: (r.entity as string) || null, action: String(r.action) }));
+}, ['piese-audit-kinds'], CACHE);

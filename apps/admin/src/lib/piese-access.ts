@@ -27,6 +27,26 @@ export const requirePieseFiscal = () => gate(['ADMIN', 'CONTABIL', 'VINZATOR', '
 export const requirePiese1C = () => gate(['ADMIN', 'CONTABIL']);
 // Nomenclatoare (cine poate ajunge la pagină): cei care editează cel puțin o secțiune.
 export const requirePieseNomenclator = () => gate(['ADMIN', 'DEPOZITAR', 'VINZATOR', 'GESTIONAR']);
+// Jurnalul modulului (migr. 338): DOAR administratorul. Arată cine ce a făcut în tot modulul — inclusiv
+// eliberări peste stoc, costuri de achiziție și schimbări de permisiuni. E un ecran de control, nu unul de
+// lucru; dat mai departe, ar deveni un mod de a urmări colegii, nu de a verifica depozitul.
+//
+// SURSĂ UNICĂ pentru pagină ȘI pentru acțiunea de server. Rolul se reconfirmă din DB, nu doar din token:
+// tokenul e valabil 24h și nu se invalidează nici la retrogradare, nici la dezactivarea contului — iar
+// jurnalul e mai sensibil decât ecranele pentru care regula asta e deja scrisă mai jos.
+export const AUDIT_ROLES: AdminRole[] = ['ADMIN'];
+
+export async function canReadAudit(session: Session): Promise<boolean> {
+  const flags = await accountFlags(session);
+  if (!flags) return false; // cont inexistent sau dezactivat
+  return AUDIT_ROLES.includes(flags.role);
+}
+
+export async function requirePieseAudit(): Promise<Session> {
+  const session = await gate(AUDIT_ROLES);
+  if (!(await canReadAudit(session))) redirect('/piese/stoc');
+  return session;
+}
 // Asistent căutare piesă: citire pentru toate rolurile modulului (vânzător, depozitar, contabil, manager, admin).
 export const requirePieseSearch = () => gate(['ADMIN', 'VINZATOR', 'DEPOZITAR', 'CONTABIL', 'MANAGER', 'GESTIONAR']);
 

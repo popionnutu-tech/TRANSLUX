@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 import { Fragment, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { submitTransfer, receiveTransfer, loadTransferLines, loadSentTransfers, cancelTransfer } from './actions';
@@ -16,8 +18,10 @@ interface Transit { id: number; from_name: string; to_name: string; line_count: 
 type TLine = { partId: number; name: string; article: string | null; qty: number };
 type TBody = { rows: TLine[]; truncated: boolean };
 
-export default function MutariClient({ warehouses, fromWarehouses, transit, vehicles, mechanics }: {
+export default function MutariClient({ warehouses, fromWarehouses, transit, peMasina, vehicles, mechanics }: {
   warehouses: WhOpt[]; fromWarehouses: Opt[]; transit: Transit[];
+  peMasina: { id: number; fromName: string; toName: string; vehiclePlate: string;
+             mechanicName: string | null; createdAt: string; lineCount: number }[];
   vehicles: Opt[]; mechanics: Opt[];
 }) {
   const router = useRouter();
@@ -112,6 +116,39 @@ export default function MutariClient({ warehouses, fromWarehouses, transit, vehi
   return (
     <>
       {msg && <div className={`alert ${msg.t}`}>{msg.m}</div>}
+      {/* Mutările marcate pentru o mașină NU apar în lista de mai jos: pe calea aceea nu pot fi confirmate,
+          fiindcă primirea și eliberarea trebuie să se facă împreună (migr. 319). Dar nici invizibile n-au
+          voie să fie — exact așa s-a pierdut mutarea 417, iar piesa a fost eliberată a doua oară manual.
+          Aici se VĂD, cu locul unde se confirmă scris pe rând. */}
+      {peMasina.length > 0 && (
+        <div className="card">
+          <h2>Pe mașină — se confirmă în Rashod</h2>
+          <p className="muted" style={{ fontSize: 12, marginTop: -6 }}>
+            Marfa a ieșit din depozitul-sursă și așteaptă. Se confirmă în <strong>Rashod</strong>, la
+            depozitul care primește: acolo intră pe stoc și pleacă pe mașină dintr-o singură apăsare.
+          </p>
+          <table>
+            <thead><tr><th>De la</th><th>La</th><th>Mașina</th><th>Lăcătuș</th><th className="num">Poziții</th><th></th></tr></thead>
+            <tbody>
+              {peMasina.map((t) => (
+                <tr key={t.id}>
+                  <td>{t.fromName}</td>
+                  <td>{t.toName}</td>
+                  <td><strong>{t.vehiclePlate}</strong></td>
+                  <td>{t.mechanicName || <span className="muted">—</span>}</td>
+                  <td className="num">{t.lineCount}</td>
+                  <td>
+                    <Link href="/piese/rashod" className="btn btn-outline" style={{ padding: '4px 10px', whiteSpace: 'nowrap' }}>
+                      Deschide Rashod
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       <div className="card">
         <h2>„Pe drum" — de confirmat la primire</h2>
         {transit.length === 0 ? <div className="empty">Nicio mutare în așteptare.</div> : (

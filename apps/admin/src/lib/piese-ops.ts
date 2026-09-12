@@ -8,6 +8,22 @@ export async function listClients() {
 }
 
 // ── Mutări ──
+// Mutările pe mașină aflate pe drum, TOATE — nu doar cele către un depozit anume. Ecranul Mutări arată
+// deja tranzitul obișnuit nefiltrat; asta e perechea lui, ca marfa să nu mai fie invizibilă acolo unde o
+// caută omul. Confirmarea rămâne în Rashod: aici e doar vizibilitate, cu limită de sanity.
+export async function transfersTransitForVehicle() {
+  const { data, error } = await getSupabase().from('piese_transfers_for_vehicle')
+    .select('id, from_name, to_name, to_warehouse_id, vehicle_plate, mechanic_name, created_at, line_count')
+    .order('created_at', { ascending: false }).limit(100);
+  if (error) throw new Error('Nu am putut încărca mutările pe mașină');
+  return ((data as any[]) || []).map((r) => ({
+    id: Number(r.id), fromName: r.from_name as string, toName: r.to_name as string,
+    toWarehouseId: Number(r.to_warehouse_id),
+    vehiclePlate: r.vehicle_plate as string, mechanicName: (r.mechanic_name as string) || null,
+    createdAt: r.created_at as string, lineCount: Number(r.line_count),
+  }));
+}
+
 export async function transfersTransit() {
   const { data } = await getSupabase().from('piese_transfers_transit').select('*');
   return data || [];

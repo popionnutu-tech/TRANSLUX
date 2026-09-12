@@ -11,6 +11,9 @@ export const translations = {
     popular: "Destinații populare",
     selectDateTime: "Selectează data și ora",
     scrollHint: "↕ scroll pentru alte curse",
+    privacy: "Confidențialitate",
+    cookies: "Cookie-uri",
+    cookieSettings: "Setări cookie",
     calendarLocale: "ro-RO" as const,
   },
   ru: {
@@ -23,6 +26,9 @@ export const translations = {
     popular: "Популярные направления",
     selectDateTime: "Выберите дату и время",
     scrollHint: "↕ прокрутите для других рейсов",
+    privacy: "Конфиденциальность",
+    cookies: "Cookie",
+    cookieSettings: "Настройки cookie",
     calendarLocale: "ru-RU" as const,
   },
 } as const;

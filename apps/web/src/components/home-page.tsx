@@ -21,6 +21,8 @@ const ShaderBackground = dynamic(
 );
 import { MiniCalendar } from '@/components/ui/mini-calendar';
 import { RouteResults } from '@/components/ui/route-results';
+import CookieConsent from '@/components/CookieConsent';
+import { openConsentSettings } from '@/lib/consent';
 import { type Locale, t } from '@/lib/i18n';
 import { searchTrips, type Locality, type TripResult, type PopularRoutePrice } from '@/app/(public)/actions';
 
@@ -300,9 +302,23 @@ export function HomePage({ locale, localities = [], popularPrices = [] }: HomePa
               </a>
             </div>
           </div>
+          {/* Legal — Legea 195/2024: politica de confidențialitate, cookie-uri, redeschiderea notificării */}
+          <div className="legal-links" style={{
+            maxWidth: 720, margin: '0 auto', padding: '0 36px 18px',
+            display: 'flex', flexWrap: 'wrap', gap: '6px 18px', fontSize: 12,
+          }}>
+            <a href={`/${locale}/confidentialitate`} style={{ color: '#777', textDecoration: 'none' }}>{i.privacy}</a>
+            <a href={`/${locale}/cookies`} style={{ color: '#777', textDecoration: 'none' }}>{i.cookies}</a>
+            <button type="button" onClick={openConsentSettings} style={{
+              background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+              color: '#777', fontSize: 12, fontFamily: 'inherit',
+            }}>{i.cookieSettings}</button>
+          </div>
         </footer>
 
       </div>
+
+      <CookieConsent locale={locale} />
 
       {/* Lang toggle */}
       <div className="lang-toggle-3d" style={{

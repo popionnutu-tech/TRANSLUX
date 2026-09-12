@@ -887,3 +887,39 @@ body {
     @apply font-sans;
   }
 }
+
+/* ── Legal pages & cookie notice (Legea 195/2024) ───────────── */
+.legal-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #fff 0%, #f5f5f6 100%);
+  font-family: var(--font-opensans), 'Open Sans', sans-serif;
+  color: #333;
+}
+.legal-lang {
+  color: #9B1B30; font-weight: 700; font-size: 12px; letter-spacing: 1.2px;
+  text-decoration: none; padding: 5px 10px; border-radius: 8px;
+  background: rgba(155,27,48,0.08);
+}
+.legal-main {
+  max-width: 760px; margin: 0 auto; padding: 8px 24px 64px;
+  font-size: 15px; line-height: 1.65;
+}
+.legal-main h1 { font-size: 28px; color: #9B1B30; margin: 8px 0 12px; }
+.legal-main h2 { font-size: 17px; margin: 28px 0 8px; color: #222; }
+.legal-main p { margin: 0 0 10px; }
+.legal-main ul { margin: 0 0 10px; padding-left: 22px; }
+.legal-main li { margin-bottom: 4px; }
+.legal-intro { color: #555; }
+.legal-nav {
+  display: flex; flex-wrap: wrap; gap: 18px; margin-top: 40px;
+  padding-top: 16px; border-top: 1px solid rgba(155,27,48,0.15); font-size: 14px;
+}
+.legal-nav a { color: #9B1B30; text-decoration: none; }
+.legal-nav a:hover { text-decoration: underline; }
+.legal-links a:hover, .legal-links button:hover { color: #9B1B30; }
+
+@media (max-width: 640px) {
+  /* deasupra comutatorului RO/RU fixat în colțul din dreapta jos */
+  .cookie-banner { bottom: 64px !important; }
+  .legal-main { padding: 4px 16px 48px; font-size: 14px; }
+}

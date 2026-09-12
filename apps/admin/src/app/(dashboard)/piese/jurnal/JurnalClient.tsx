@@ -11,6 +11,8 @@ const ENTITY: Record<string, string> = {
   receipt: 'Prihod', issue: 'Rashod', transfer: 'Mutare', sale: 'Vânzare',
   inventory: 'Inventariere', recost: 'Revizuire cost', document: 'Document fiscal',
   admin_account: 'Cont', piese_lookup: 'Nomenclator',
+  part: 'Piesă', part_group: 'Grupă', warehouse: 'Depozit',
+  supplier: 'Furnizor', client: 'Client', mechanic: 'Lăcătuș', reason: 'Motiv defecțiune',
 };
 const ACTION: Record<string, string> = {
   CREATE: 'creat', CREATE_ISSUE: 'creat', APPEND_ISSUE: 'poziții adăugate',
@@ -60,6 +62,9 @@ const Rand = memo(function Rand({ r, open, onToggle }: {
   const peste = (r.after as any)?.peste_stoc === true || r.action === 'ISSUE_SHORT_DENIED';
   return (
     <tr onClick={() => chei.length && onToggle(r.id)}
+      tabIndex={chei.length ? 0 : undefined}
+      aria-expanded={chei.length ? open : undefined}
+      onKeyDown={(e) => { if (chei.length && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onToggle(r.id); } }}
       style={{ cursor: chei.length ? 'pointer' : 'default', background: open ? 'var(--hover, #f6f7f9)' : undefined }}>
       <td>{FMT.format(new Date(r.at))}</td>
       <td>{r.who || <span className="muted">— necunoscut</span>}</td>
@@ -68,7 +73,8 @@ const Rand = memo(function Rand({ r, open, onToggle }: {
         {r.entityId != null && <span className="muted"> #{r.entityId}</span>}
         {/* Schimbările de conturi și de nomenclator nu au id numeric — subiectul lor stă separat. Fără el,
             un rând „rol schimbat" n-ar fi spus AL CUI cont, adică exact ce trebuie urmărit. */}
-        {r.subjectId && <div className="muted" style={{ fontSize: 11 }}>{r.subjectId}</div>}
+        {(r.subjectLabel || r.subjectId) &&
+          <div className="muted" style={{ fontSize: 11 }}>{r.subjectLabel || r.subjectId}</div>}
         <div style={{ fontSize: 11, marginTop: 2 }}>
           <span className={`badge ${peste ? 'warn' : 'gray'}`}>{ACTION[r.action] || r.action}</span>
         </div>
@@ -119,11 +125,14 @@ export default function JurnalClient({ initialRows, initialHasMore, actors, kind
 
   async function cauta(nou: Filtre) {
     const my = ++seq.current;
-    aplicate.current = nou;
     setBusy(true); setErr(null);
     try {
       const r = await loadJurnal(nou);
       if (my !== seq.current) return;
+      // DUPĂ ce cererea a reușit, nu înainte: pe eroare, lista rămâne cea veche, iar dacă marcasem deja
+      // filtrul nou ca „aplicat", „Încă 50" ar fi lipit pagina a doua a altei căutări peste ea — exact
+      // amestecul pe care fixarea filtrelor trebuia să-l împiedice.
+      aplicate.current = nou;
       setRows(r.rows); setHasMore(r.hasMore); setOpen(null);
     } catch (e: any) {
       if (my === seq.current) setErr(e.message);
@@ -177,7 +186,7 @@ export default function JurnalClient({ initialRows, initialHasMore, actors, kind
           </select>
         </div>
         <div className="form-row" style={{ minWidth: 220 }}><label>Caută în detalii</label>
-          <input value={f.q} onChange={set('q')} placeholder="denumire, cifră, «peste stoc»"
+          <input value={f.q} onChange={set('q')} placeholder="denumire, cifră, «peste_stoc»"
             onKeyDown={(e) => { if (e.key === 'Enter') cauta(f); }} />
         </div>
         <button className="btn btn-primary" onClick={() => cauta(f)} disabled={busy}>{busy ? 'Caut…' : 'Filtrează'}</button>
@@ -210,11 +219,12 @@ export default function JurnalClient({ initialRows, initialHasMore, actors, kind
       )}
 
       <p className="muted" style={{ fontSize: 11, marginTop: 12 }}>
-        <strong>Autor „necunoscut" nu înseamnă „vechi".</strong> O parte din operațiuni — recepția și
-        corectarea ei, mutările trimise, primite și anulate, inventarierea, vânzarea din magazin, marcarea
-        la SFS și revizuirea costului — sunt scrise direct de motorul bazei, care nu primește contul omului.
-        Rândurile acelea apar fără autor și azi, nu doar în trecut. Eliberările de piese, corecțiile de
-        recepție, nomenclatoarele și schimbările de permisiuni au autor.
+        <strong>Autor „necunoscut" nu înseamnă „vechi".</strong> O parte din operațiuni sunt scrise direct
+        de motorul bazei, care nu primește contul omului — recepția, mutările trimise, primite și anulate,
+        inventarierea, vânzarea din magazin, marcarea la SFS și revizuirea costului. Apar fără autor și azi,
+        nu doar în trecut. Au autor: eliberările de piese, catalogul, nomenclatoarele și schimbările de
+        permisiuni. Corectarea unei recepții lasă <em>două</em> rânduri — unul cu autor („poziții corectate"
+        sau „antet modificat") și unul tehnic, fără autor, scris de bază.
       </p>
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { verifySession, requireRole } from '@/lib/auth';
-import { auditWrite } from '@/lib/audit';
+import { auditWrite, changedFields, type AuditFields } from '@/lib/audit';
 import { LOOKUP_ADMIN_ROLES } from '@/lib/piese-access';
 import type { AdminRole } from '@translux/db';
 import {
@@ -12,35 +12,82 @@ import {
   createClient, updateClient,
   createMechanic, updateMechanic,
   createReason, updateReason,
-  listLookupAdmin, renameLookup, setLookupActive, type LookupKind,
+  listLookupAdmin, renameLookup, setLookupActive, lookupSnapshot, type LookupKind,
 } from '@/lib/piese-nomenclator';
 
 // Autorizare centralizată pe secțiune (single source of truth pentru drepturile de editare nomenclator).
-type Handler = { roles: AdminRole[]; create: (d: any) => Promise<void>; update: (id: number, d: any) => Promise<void> };
+// `entity`/`table`/`audit` alimentează urma din jurnal (migr. 338). Lista de câmpuri e ALBĂ, nu `*`:
+// o coloană adăugată mâine n-are voie să ajungă în jurnal fără ca cineva să fi decis asta.
+//
+// Grupa poartă `markup_pct` — adaosul care stabilește prețul de raft pentru TOATE piesele din categorie.
+// Până acum se putea schimba fără să rămână nicio urmă nicăieri; e chiar lucrul pe care Mariana voia să-l
+// poată verifica.
+type Handler = {
+  roles: AdminRole[]; create: (d: any) => Promise<void>; update: (id: number, d: any) => Promise<void>;
+  entity: string; table: string; audit: string[];
+};
 const HANDLERS: Record<string, Handler> = {
-  warehouses: { roles: ['ADMIN'], create: createWarehouse, update: updateWarehouse },
-  groups: { roles: ['ADMIN', 'DEPOZITAR', 'GESTIONAR'], create: createGroup, update: updateGroup },
-  suppliers: { roles: ['ADMIN', 'DEPOZITAR', 'GESTIONAR'], create: createSupplier, update: updateSupplier },
-  clients: { roles: ['ADMIN', 'VINZATOR', 'GESTIONAR'], create: createClient, update: updateClient },
-  mechanics: { roles: ['ADMIN', 'VINZATOR', 'GESTIONAR'], create: createMechanic, update: updateMechanic },
-  reasons: { roles: ['ADMIN', 'VINZATOR', 'GESTIONAR'], create: createReason, update: updateReason },
+  warehouses: { roles: ['ADMIN'], create: createWarehouse, update: updateWarehouse,
+    entity: 'warehouse', table: 'piese_warehouses', audit: ['code', 'name', 'kind'] },
+  groups: { roles: ['ADMIN', 'DEPOZITAR', 'GESTIONAR'], create: createGroup, update: updateGroup,
+    entity: 'part_group', table: 'piese_part_groups', audit: ['name_ro', 'name_ru', 'markup_pct', 'norm_km'] },
+  suppliers: { roles: ['ADMIN', 'DEPOZITAR', 'GESTIONAR'], create: createSupplier, update: updateSupplier,
+    entity: 'supplier', table: 'piese_suppliers', audit: ['name', 'idno', 'contact'] },
+  clients: { roles: ['ADMIN', 'VINZATOR', 'GESTIONAR'], create: createClient, update: updateClient,
+    entity: 'client', table: 'piese_clients', audit: ['name', 'idno', 'bank', 'address'] },
+  mechanics: { roles: ['ADMIN', 'VINZATOR', 'GESTIONAR'], create: createMechanic, update: updateMechanic,
+    entity: 'mechanic', table: 'piese_mechanics', audit: ['name'] },
+  reasons: { roles: ['ADMIN', 'VINZATOR', 'GESTIONAR'], create: createReason, update: updateReason,
+    entity: 'reason', table: 'piese_breakdown_reasons', audit: ['name', 'category'] },
 };
 
 export async function createNomenclator(section: string, data: Record<string, unknown>) {
   const h = HANDLERS[section];
   if (!h) throw new Error('Secțiune invalidă');
-  requireRole(await verifySession(), ...h.roles);
+  const session = requireRole(await verifySession(), ...h.roles);
   await h.create(data);
+  // ÎN AFARA oricărui try: rândul s-a scris deja. Fără `entityId` — `create` nu întoarce id-ul, iar o
+  // urmă fără id e tot mai bună decât nicio urmă.
+  await auditWrite({
+    adminId: session.id, action: 'CREATE', entity: h.entity,
+    after: pick(data, h.audit),
+  });
   revalidatePath('/piese/nomenclator');
   return { ok: true };
+}
+
+// Doar câmpurile din lista albă, aduse la scalari — `AuditFields` nu ține obiecte.
+function pick(d: Record<string, unknown>, fields: string[]): AuditFields {
+  const out: AuditFields = {};
+  for (const k of fields) {
+    const v = d[k];
+    // Câmpul NETRIMIS rămâne în afara comparației. `changedFields` sare peste cheile absente, dar dacă le-am
+    // transforma aici în `null` ar apărea ca „schimbat în gol" — iar formularul de piesă nu trimite `active`,
+    // deci fiecare salvare ar fi raportat o dezactivare care nu s-a întâmplat.
+    if (v === undefined) continue;
+    out[k] = v === null || v === '' ? null
+      : typeof v === 'number' || typeof v === 'boolean' ? v : String(v);
+  }
+  return out;
 }
 
 export async function updateNomenclator(section: string, id: number, data: Record<string, unknown>) {
   const h = HANDLERS[section];
   if (!h) throw new Error('Secțiune invalidă');
   if (!id || id <= 0) throw new Error('ID invalid');
-  requireRole(await verifySession(), ...h.roles);
+  const session = requireRole(await verifySession(), ...h.roles);
+  // Starea dinainte se citește ÎNAINTE de scriere — altfel n-ar mai avea de unde.
+  const before = await lookupSnapshot(h.table, id, h.audit);
   await h.update(id, data);
+  const diff = before ? changedFields(before, pick(data, h.audit)) : null;
+  // Se scrie doar dacă S-A schimbat ceva: cine deschide formularul și apasă „Salvează" fără să atingă
+  // nimic n-are ce căuta în jurnal — altfel urmele reale s-ar îneca în zgomot.
+  if (diff) {
+    await auditWrite({
+      adminId: session.id, action: 'EDIT', entity: h.entity, entityId: id,
+      before: diff.before, after: diff.after,
+    });
+  }
   revalidatePath('/piese/nomenclator');
   return { ok: true };
 }

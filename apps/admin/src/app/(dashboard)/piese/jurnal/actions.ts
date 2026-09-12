@@ -22,8 +22,11 @@ export async function loadJurnal(f: AuditFeedFilter) {
     entity: str(f.entity),
     action: str(f.action),
     q: str(f.q),
-    afterAt: typeof f.afterAt === 'string' ? f.afterAt : null,
-    afterId: Number.isFinite(Number(f.afterId)) ? Number(f.afterId) : null,
+    // Cursorul e o PERECHE: ori amândouă, ori niciuna. `Number(null)` dă 0, deci o verificare naivă ar fi
+    // transformat „fără cursor" într-un cursor la id 0 — care sare tăcut toate urmele din aceeași secundă.
+    ...(isMoment(f.afterAt) && Number.isInteger(f.afterId) && Number(f.afterId) > 0
+      ? { afterAt: f.afterAt, afterId: Number(f.afterId) }
+      : { afterAt: null, afterId: null }),
   });
 }
 
@@ -32,6 +35,9 @@ function isDay(v: unknown): v is string {
 }
 function isUuid(v: unknown): v is string {
   return typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+}
+function isMoment(v: unknown): v is string {
+  return typeof v === 'string' && !Number.isNaN(Date.parse(v));
 }
 function str(v: unknown): string | null {
   return typeof v === 'string' && v.trim() ? v.trim().slice(0, 100) : null;

@@ -340,3 +340,17 @@ export async function setLookupActive(kind: LookupKind, id: number, active: bool
   check({ error });
   if (!((data as unknown[]) || []).length) throw new Error('Intrarea nu mai există — reîncarcă pagina');
 }
+
+// Starea unui rând de nomenclator ÎNAINTE de modificare, pentru urmă (migr. 338 a scos jurnalul la
+// suprafață și a arătat că schimbările de preț nu lăsau nimic în urmă).
+// `fields` e o listă albă dată de apelant — nu `select('*')`, ca o coloană nouă adăugată mâine să nu ajungă
+// tăcut în jurnal fără ca cineva să fi decis că are ce căuta acolo.
+export async function lookupSnapshot(
+  table: string, id: number, fields: string[],
+): Promise<Record<string, string | number | boolean | null> | null> {
+  if (!id || id <= 0 || !fields.length) return null;
+  const { data, error } = await getSupabase().from(table).select(fields.join(',')).eq('id', id).maybeSingle();
+  // NU aruncă: urma e utilă, dar o citire eșuată n-are voie să blocheze modificarea în sine.
+  if (error || !data) return null;
+  return data as any;
+}

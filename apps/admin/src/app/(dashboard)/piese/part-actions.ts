@@ -6,6 +6,7 @@ import { createPart, updatePart, setPartLocation,
   listManufacturers, listCarModels, addManufacturer, addCarModel } from '@/lib/piese-nomenclator';
 import { partLabel, getPartById, getPartLocation, partLabelInfo } from '@/lib/piese';
 import { PART_WRITE_ROLES, assertWarehouseAllowed, userWarehouseId } from '@/lib/piese-access';
+import { auditWrite, changedFields, type AuditFields } from '@/lib/audit';
 import { suggestLocation } from '@/lib/piese';
 
 // Cine poate adăuga/edita o piesă în catalog: aceleași roluri care fac recepția (prihod) — depozitar,
@@ -17,13 +18,55 @@ function requirePartWrite() {
 // Creează sau actualizează o piesă. Întoarce id + eticheta bogată ca apelantul (Prihod) s-o poată
 // selecta imediat, fără un apel suplimentar de căutare. Piesa pornește cu stoc 0.
 export async function savePart(data: Record<string, unknown>, id?: number): Promise<{ id: number; label: string }> {
-  await requirePartWrite();
+  const session = await requirePartWrite();
   let partId: number;
-  if (id && id > 0) { await updatePart(id, data); partId = id; }
-  else { partId = (await createPart(data)).id; }
+  if (id && id > 0) {
+    // Starea dinainte, citită ÎNAINTE de scriere: `updatePart` e un „replace complet" al coloanelor
+    // editabile, deci după el n-ar mai avea de unde.
+    const before = await getPartById(id) as Record<string, unknown> | null;
+    await updatePart(id, data);
+    partId = id;
+    const diff = before ? changedFields(pick(before), pick(data)) : null;
+    // Doar dacă s-a schimbat ceva. Formularul retrimite toate câmpurile la fiecare salvare, deci fără
+    // filtrul ăsta jurnalul s-ar umple cu „a deschis și a apăsat Salvează".
+    if (diff) {
+      await auditWrite({
+        adminId: session.id, action: 'EDIT', entity: 'part', entityId: id,
+        before: diff.before, after: diff.after,
+      });
+    }
+  } else {
+    partId = (await createPart(data)).id;
+    await auditWrite({
+      adminId: session.id, action: 'CREATE', entity: 'part', entityId: partId, after: pick(data),
+    });
+  }
   revalidatePath('/piese/catalog');
   revalidatePath('/piese/nomenclator');
   return { id: partId, label: partLabel(data) };
+}
+
+// Ce se urmărește la o piesă. Listă ALBĂ, nu tot rândul: `markup_pct` și `is_for_sale` sunt aici fiindcă
+// stabilesc PREȚUL de raft și dacă marfa e publicată în magazin — schimbări care până acum nu lăsau nicio
+// urmă nicăieri. Restul sunt câmpurile de identificare, ca urma să spună despre CE piesă e vorba.
+// O coloană nouă nu ajunge în jurnal până nu e trecută aici, deliberat.
+const PART_AUDIT = [
+  'name_ro', 'name_long', 'article_code', 'manufacturer', 'model', 'unit',
+  'group_id', 'markup_pct', 'is_for_sale', 'active',
+] as const;
+
+function pick(d: Record<string, unknown>): AuditFields {
+  const out: AuditFields = {};
+  for (const k of PART_AUDIT) {
+    const v = d[k];
+    // Câmpul NETRIMIS rămâne în afara comparației. `changedFields` sare peste cheile absente, dar dacă le-am
+    // transforma aici în `null` ar apărea ca „schimbat în gol" — iar formularul de piesă nu trimite `active`,
+    // deci fiecare salvare ar fi raportat o dezactivare care nu s-a întâmplat.
+    if (v === undefined) continue;
+    out[k] = v === null || v === '' ? null
+      : typeof v === 'number' || typeof v === 'boolean' ? v : String(v);
+  }
+  return out;
 }
 
 // Câmpurile editabile ale unei piese, pentru prefill în formularul de editare.

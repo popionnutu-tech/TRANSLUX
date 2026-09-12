@@ -42,6 +42,18 @@ export function changedFields(
  * `entityId` pentru documente (numeric), `subjectId` pentru restul (ex. uuid-ul unui cont). Tabelul are
  * `entity_id BIGINT` din istoric, de aceea uuid-urile stau separat în `subject_id` (migr. 292).
  */
+// Chei care nu au ce căuta într-o urmă, oricât de convins ar fi apelantul. Azi niciun apelant nu trimite
+// așa ceva — verificat pe toate cele douăzeci. Dar de când jurnalul e ȘI afișat, ȘI căutabil, un apelant
+// viitor care pasează un rând întreg de cont ar publica hash-ul parolei fără ca nimic să obiecteze.
+const SECRET_KEY = /pass|parol|token|secret|hash|api[_-]?key/i;
+
+function redact(f: AuditFields | null | undefined): AuditFields | null {
+  if (!f) return f ?? null;
+  const out: AuditFields = {};
+  for (const [k, v] of Object.entries(f)) out[k] = SECRET_KEY.test(k) ? '[redactat]' : v;
+  return out;
+}
+
 export async function auditWrite(d: {
   adminId: string;
   /** Numele autorului la momentul faptei. Dacă lipsește, îl citim noi — dar apelanții care îl au îl dau. */
@@ -65,8 +77,8 @@ export async function auditWrite(d: {
     entity: d.entity,
     entity_id: d.entityId ?? null,
     subject_id: d.subjectId ?? null,
-    before_data: d.before ?? null,
-    after_data: d.after ?? null,
+    before_data: redact(d.before),
+    after_data: redact(d.after),
     detail: d.notes ? d.notes.slice(0, 500) : null,
   });
   if (error) console.error('[audit] auditWrite:', error.message);
@@ -205,6 +217,7 @@ export interface AuditFeedRow {
   entity: string | null;
   entityId: number | null;
   subjectId: string | null;
+  subjectLabel: string | null;
   who: string | null;
   before: AuditFields | null;
   after: AuditFields | null;
@@ -241,6 +254,7 @@ export async function auditFeed(f: AuditFeedFilter): Promise<{ rows: AuditFeedRo
     entity: (r.entity as string) || null,
     entityId: r.entity_id == null ? null : Number(r.entity_id),
     subjectId: (r.subject_id as string) || null,
+    subjectLabel: (r.subject_label as string) || null,
     who: (r.actor_label as string) || null,
     before: (r.before_data as AuditFields) || null,
     after: (r.after_data as AuditFields) || null,
@@ -252,6 +266,9 @@ export async function auditFeed(f: AuditFeedFilter): Promise<{ rows: AuditFeedRo
 // Listele pentru filtre agregă peste TOT jurnalul, iar conținutul lor se schimbă doar când apare un cod de
 // acțiune nou sau un autor nou — adică rar. Fără cache, fiecare deschidere a paginii ar fi plătit două
 // scanări complete ale unui tabel care crește la nesfârșit, ca să umple două liste derulante.
+// O oră de întârziere e acceptată deliberat: un autor nou sau o acțiune nouă apare în listele derulante
+// cu până la o oră mai târziu, dar FEED-ul e complet imediat — filtrele doar nu îl pot ținti încă.
+// Tag-ul există pentru o invalidare manuală, dacă va fi vreodată nevoie; nimic nu-l cheamă azi.
 const CACHE = { revalidate: 3600, tags: ['piese-audit-lists'] };
 
 /** Cine apare în jurnal — pentru filtrul „autor". Din jurnal, nu din lista de conturi (vezi migr. 338). */

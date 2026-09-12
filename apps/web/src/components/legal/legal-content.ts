@@ -9,10 +9,11 @@ import type { Locale } from '@/lib/i18n';
  * sediul, IDNO-ul sau adresa de contact, se corectează AICI, nu în texte.
  */
 export const OPERATOR = {
-  name: 'TRANSLUX S.R.L.',
-  /** IDNO — se completează când e confirmat; gol = nu se afișează. */
-  idno: '',
-  address: 'mun. Edineț, Republica Moldova',
+  /** Ion, 12.09.2026: «Translux este SRL Parcul de Autobuze și Taximetrie nr. 9 Briceni»; registru: IDNO 1003604001469, MD-4701 Briceni, str. Olimpică 3. */
+  name: 'S.R.L. „Parcul de Autobuze și Taximetre nr. 9 din Briceni”',
+  brand: 'TRANSLUX',
+  idno: '1003604001469',
+  address: 'MD-4701, or. Briceni, str. Olimpică 3, Republica Moldova',
   phone: '+373 60 40 10 10',
   phoneHref: 'tel:+37360401010',
   email: 'admin@translux.md',
@@ -43,7 +44,7 @@ export function privacyDoc(locale: Locale): LegalDoc {
     return {
       title: 'Политика конфиденциальности',
       intro:
-        `Настоящая политика объясняет, какие персональные данные обрабатывает ${OPERATOR.name} («мы»), с какой целью и какие права у вас есть. Она составлена в соответствии с Законом Республики Молдова № 195/2024 о защите персональных данных.`,
+        `Настоящая политика объясняет, какие персональные данные обрабатывает ${OPERATOR.name} — компания, работающая под маркой ${OPERATOR.brand} («мы»), — с какой целью и какие права у вас есть. Она составлена в соответствии с Законом Республики Молдова № 195/2024 о защите персональных данных.`,
       sections: [
         {
           title: '1. Оператор данных',
@@ -111,7 +112,7 @@ export function privacyDoc(locale: Locale): LegalDoc {
   return {
     title: 'Politica de confidențialitate',
     intro:
-      `Această politică explică ce date cu caracter personal prelucrează ${OPERATOR.name} («noi»), în ce scop și ce drepturi aveți. Este întocmită conform Legii Republicii Moldova nr. 195/2024 privind protecția datelor cu caracter personal.`,
+      `Această politică explică ce date cu caracter personal prelucrează ${OPERATOR.name}, compania care activează sub marca ${OPERATOR.brand} («noi»), în ce scop și ce drepturi aveți. Este întocmită conform Legii Republicii Moldova nr. 195/2024 privind protecția datelor cu caracter personal.`,
     sections: [
       {
         title: '1. Operatorul de date',

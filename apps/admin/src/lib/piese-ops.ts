@@ -240,7 +240,9 @@ export async function markSfs(docId: number, sellerId?: string) {
   const { error } = await getSupabase().rpc('piese_mark_sfs', { p_doc: docId, p_user: null });
   if (error) throw new Error(error.message);
 }
-const COMPANY = { name: 'TRANSLUX SRL', idno: '1003600000000', address: 'mun. Edineț, Republica Moldova' };
+// Vânzătorul din facturile UBL. Ion, 12.09.2026: «Translux este SRL Parcul de Autobuze și Taximetrie nr. 9 Briceni»;
+// registru: IDNO 1003604001469, MD-4701 Briceni, str. Olimpică 3. Până atunci stătea un IDNO fictiv și „Edineț”.
+const COMPANY = { name: 'S.R.L. „Parcul de Autobuze și Taximetre nr. 9 din Briceni”', idno: '1003604001469', address: 'MD-4701, or. Briceni, str. Olimpică 3, Republica Moldova' };
 export async function saleUblData(docId: number, sellerId?: string) {
   const sb = getSupabase();
   let q = sb.from('piese_stock_documents').select('*, piese_clients(name, idno, address)').eq('id', docId).eq('doc_type', 'SALE').eq('status', 'CONFIRMED');

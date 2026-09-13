@@ -21,6 +21,7 @@ export interface PartFormValues {
   markup_pct?: number | string | null;   // gol = adaosul grupei (migr. 318)
   is_used?: boolean;                     // piesă б/у — articol de catalog distinct (migr. 345)
   origin_part_id?: number | string | null; // piesa NOUĂ corespunzătoare; de acolo vine sugestia de valoare
+  origin_label?: string;                 // textul ei, pentru combobox — vezi comentariul de la câmp
 }
 
 // Formular COMUN de piesă (adăugare + editare). Folosit în Nomenclator (tab „Piese") și inline în Prihod.
@@ -56,6 +57,7 @@ export default function PartForm({
     markup_pct: initial?.markup_pct ?? '',
     is_used: initial?.is_used ?? false,
     origin_part_id: initial?.origin_part_id ?? '',
+    origin_label: initial?.origin_label ?? '',
   });
   const [codes, setCodes] = useState<string[]>(initialCodes.length ? initialCodes : ['']);
   const [error, setError] = useState('');
@@ -250,8 +252,12 @@ export default function PartForm({
       {f.is_used && (
         <div className="form-group" style={{ marginBottom: 0, minWidth: 260 }}>
           <label>Corespunde piesei noi</label>
+          {/* `selectedLabel` e obligatoriu în modul async: combobox-ul nu poate afla singur textul unei
+              legături deja făcute. Fără el, deschiderea unei piese б/у arăta câmpul GOL deși legătura
+              exista — omul ar fi crezut că lipsește și ar fi rescris-o, sau ar fi salvat fără ea. */}
           <SearchSelect searchFn={searchNewParts} value={(f.origin_part_id as number | '') ?? ''}
-            onSelect={(o) => set('origin_part_id', o ? o.id : '')}
+            selectedLabel={f.origin_label as string}
+            onSelect={(o) => { set('origin_part_id', o ? o.id : ''); set('origin_label', o?.label ?? ''); }}
             placeholder="— caută piesa nouă —" />
           <div style={hint}>din costul ei se propune valoarea la intrare</div>
         </div>

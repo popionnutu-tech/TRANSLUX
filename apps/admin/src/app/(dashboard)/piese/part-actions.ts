@@ -53,6 +53,11 @@ export async function savePart(data: Record<string, unknown>, id?: number): Prom
 const PART_AUDIT = [
   'name_ro', 'name_long', 'article_code', 'manufacturer', 'model', 'unit',
   'group_id', 'markup_pct', 'is_for_sale', 'active',
+  // `is_used` NU e un câmp oarecare: E garda. Singurul lucru care împiedică documentul „Donor" să devină
+  // a doua cale de a băga marfă nouă în stoc, fără furnizor și fără factură, e bifa asta — iar cine poate
+  // opera Donor poate și s-o pună. Bifezi piesa nouă ca б/у, o bagi la ce valoare vrei, o debifezi la loc.
+  // Documentul rămâne, dar fără urma flagului nimeni n-ar înțelege ce s-a întâmplat.
+  'is_used', 'origin_part_id',
 ] as const;
 
 function pick(d: Record<string, unknown>): AuditFields {

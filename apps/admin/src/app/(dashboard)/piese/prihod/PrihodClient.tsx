@@ -98,6 +98,7 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
         // Din același motiv: fără ele, editarea unei piese б/у din recepție ar fi transformat-o tăcut
         // într-una nouă, cu tot cu legătura spre originea ei.
         is_used: !!p.is_used, origin_part_id: (p.origin_part_id as number | null) ?? '',
+        origin_label: (p.origin_label as string) ?? '',
       } });
     } catch { alert('Nu am putut încărca piesa pentru editare. Reîncearcă.'); }
     finally { setEditBusy(null); }

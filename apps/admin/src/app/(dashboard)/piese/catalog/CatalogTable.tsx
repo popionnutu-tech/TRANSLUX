@@ -49,6 +49,7 @@ export default function CatalogTable({ rows, groups, warehouses, canEdit }: {
     // netrimis se pierde. O piesă б/у editată din catalog ar fi redevenit „nouă" în tăcere.
     is_used: !!edit.is_used,
     origin_part_id: (edit.origin_part_id as number | null) ?? '',
+    origin_label: (edit.origin_label as string) ?? '',
   };
 
   return (

@@ -378,7 +378,13 @@ export async function donorIntake(p: {
     p_wh: p.warehouse_id, p_vehicle: p.vehicle_id, p_note: p.note, p_lines: p.lines, p_user: null,
     p_admin: autor.adminId, p_actor: autor.label,
   });
-  if (error) throw new Error(DONOR_ERR[(error.message || '').trim()] || 'Nu am putut înregistra intrarea. Reîncearcă.');
+  if (error) {
+    const cod = (error.message || '').trim();
+    // Originalul rămâne pe server: o migrație aplicată pe jumătate ar arăta altfel identic cu o eroare
+    // trecătoare de rețea.
+    if (!DONOR_ERR[cod]) console.error('[piese] donorIntake:', error.message);
+    throw new Error(DONOR_ERR[cod] || 'Nu am putut înregistra intrarea. Reîncearcă.');
+  }
   const r = data as any;
   return { docId: Number(r.doc_id), lines: Number(r.lines), total: Number(r.total) };
 }

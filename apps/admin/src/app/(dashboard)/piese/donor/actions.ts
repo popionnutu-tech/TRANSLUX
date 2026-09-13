@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { verifySession, requireRole } from '@/lib/auth';
-import { assertWarehouseAllowed } from '@/lib/piese-access';
+import { assertWarehouseAllowed, userWarehouseId } from '@/lib/piese-access';
 import { donorIntake, usedValueHint } from '@/lib/piese-ops';
 import { autorFor } from '@/lib/audit';
 
@@ -15,7 +15,11 @@ const DONOR_ROLES = ['ADMIN', 'DEPOZITAR', 'GESTIONAR'] as const;
 const MAX_LINES = 200;
 
 export async function loadUsedHint(partId: number): Promise<number | null> {
-  requireRole(await verifySession(), ...DONOR_ROLES);
+  const session = requireRole(await verifySession(), ...DONOR_ROLES);
+  // Contul se reconfirmă din BAZĂ, nu doar din token: sugestia e derivată din costul de achiziție, iar
+  // `userWarehouseId` aruncă pentru un cont dezactivat. Fără asta, un cont închis azi ar fi putut extrage
+  // costuri, piesă cu piesă, până expira token-ul. E memoizat pe cerere, deci nu costă un drum în plus.
+  await userWarehouseId(session);
   const id = Number(partId);
   return Number.isInteger(id) && id > 0 ? usedValueHint(id) : null;
 }

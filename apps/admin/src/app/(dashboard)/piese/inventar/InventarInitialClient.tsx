@@ -98,7 +98,7 @@ export default function InventarInitialClient({ warehouses, groups, initialLayou
             </select>
           </div>
         </div>
-        <table>
+        <table className="has-combo">
           <thead><tr><th>Piesă</th><th style={{ width: 90 }}>Cant.</th><th style={{ width: 130 }}>Cost achiziție</th><th style={{ width: 180 }}>Locație</th><th style={{ width: 36 }}></th></tr></thead>
           <tbody>
             {rows.map((l, i) => {

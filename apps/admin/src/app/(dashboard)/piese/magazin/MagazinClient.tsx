@@ -47,7 +47,7 @@ export default function MagazinClient({ shopId, clients, parts }: { shopId: numb
         <div className="form-row"><label>Serie</label><input value={series} onChange={(e) => setSeries(e.target.value)} /></div>
         <div className="form-row"><label>Număr</label><input value={number} onChange={(e) => setNumber(e.target.value)} /></div>
       </div>
-      <table>
+      <table className="has-combo">
         <thead><tr><th>Piesă</th><th style={{ width: 100 }}>Cant.</th><th style={{ width: 140 }}>Preț vânzare</th><th className="num" style={{ width: 110 }}>Sumă</th><th style={{ width: 36 }}></th></tr></thead>
         <tbody>
           {lines.map((l, i) => (

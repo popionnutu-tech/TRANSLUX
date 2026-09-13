@@ -166,7 +166,7 @@ export default function ReceiptEditModal({ docId, suppliers, onClose, onSaved }:
             </div>
 
             {/* Linii */}
-            <table style={{ marginTop: 10 }}>
+            <table className="has-combo" style={{ marginTop: 10 }}>
               <thead><tr><th>Piesă</th><th style={{ width: 96 }}>Cant.</th><th style={{ width: 130 }}>Preț unitar</th><th style={{ width: 110 }} className="num">Sumă</th>{!readOnlyLines && <th style={{ width: 80 }}></th>}</tr></thead>
               <tbody>
                 {lines.map((l, i) => (

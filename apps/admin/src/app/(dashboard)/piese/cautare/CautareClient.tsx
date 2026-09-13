@@ -117,7 +117,11 @@ export default function CautareClient({ categories, warehouses, boundWarehouseId
           ) : (
             <>
               <div className="muted" style={{ marginBottom: 12 }}>{results.length} rezultate · apasă pe un rând pentru detalii (stoc pe depozite, locație{showCost ? ', furnizor' : ''})</div>
-              <table>
+              {/* `cautare-rez`: pe ecran îngust, coloanele 2-4 se ascund din CSS. Un tabel cu șase coloane
+                  nu încape în 250 de pixeli, iar „Stoc" — chiar informația pentru care există ecranul — ar
+                  fi rămas dincolo de margine. Grupa și producătorul sunt ajutoare de căutare, nu răspunsuri;
+                  articulul și OEM-ul apar oricum în detaliul rândului, ca etichete. */}
+              <table className="cautare-rez">
                 <thead><tr><th>Denumire</th><th>Grup</th><th>Producător / Model</th><th>Articul / OEM</th><th className="num">Stoc</th><th className="num">Preț vânzare</th></tr></thead>
                 <tbody>
                   {results.map((r) => (

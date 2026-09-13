@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useRef } from 'react';
 import type { AdminRole } from '@translux/db';
 import { pieseHrefsForRole } from '@/lib/piese-nav';
 
@@ -28,6 +29,12 @@ const TABS = [
 
 export default function PieseNav({ role }: { role: AdminRole }) {
   const path = usePathname();
+  // Pe ecran îngust banda se derulează și se văd vreo trei taburi din șaisprezece. Fără asta, omul deschide
+  // o pagină și nu vede pe care e — tabul activ poate fi în afara câmpului vizual.
+  const activRef = useRef<HTMLAnchorElement>(null);
+  useEffect(() => {
+    activRef.current?.scrollIntoView({ block: 'nearest', inline: 'center' });
+  }, [path]);
   const allowed = pieseHrefsForRole(role); // null = ADMIN (toate taburile)
   const tabs = allowed ? TABS.filter((t) => allowed.has(t.href)) : TABS;
   return (
@@ -35,7 +42,8 @@ export default function PieseNav({ role }: { role: AdminRole }) {
       {tabs.map((t) => {
         const active = t.href === '/piese' ? path === '/piese' : path.startsWith(t.href);
         return (
-          <Link key={t.href} href={t.href} className={`btn${active ? ' btn-primary' : ''}`} style={{ padding: '8px 14px' }}>{t.label}</Link>
+          <Link key={t.href} href={t.href} ref={active ? activRef : undefined}
+            className={`btn${active ? ' btn-primary' : ''}`} style={{ padding: '8px 14px' }}>{t.label}</Link>
         );
       })}
     </div>

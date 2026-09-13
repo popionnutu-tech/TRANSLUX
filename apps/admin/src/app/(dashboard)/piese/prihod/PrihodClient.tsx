@@ -149,7 +149,7 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
         <div className="form-row" style={{ flex: 1, minWidth: 220 }}><label>Comentariu la factură</label><input value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} placeholder="observații (opțional)" /></div>
       </div>
       <p className="muted" style={{ marginTop: 4, marginBottom: 8 }}>Completează fie <strong>Prețul unitar</strong>, fie <strong>Suma</strong> pe rând — celălalt se calculează automat (sumă ÷ cantitate = preț unitar).</p>
-      <table>
+      <table className="has-combo">
         <thead><tr><th>Piesă</th><th style={{ width: 110 }}>Cant.</th><th style={{ width: 140 }}>Preț unitar</th><th style={{ width: 130 }}>Sumă</th><th style={{ width: 84 }}></th></tr></thead>
         <tbody>
           {lines.map((l, i) => (

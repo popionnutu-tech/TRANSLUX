@@ -93,7 +93,7 @@ export default function DonorClient({ warehouses, vehicles, nrUzate }: { warehou
         </div>
       </div>
 
-      <table style={{ marginTop: 10 }}>
+      <table className="has-combo" style={{ marginTop: 10 }}>
         <thead>
           <tr>
             <th>Piesa б/у</th>

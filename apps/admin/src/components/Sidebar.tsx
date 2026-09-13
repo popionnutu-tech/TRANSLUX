@@ -311,29 +311,36 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
   // Bara strânsă (doar iconițe) — reținut între pagini/reîncărcări.
   //
   // Pe ecran îngust pornește strânsă indiferent de preferință: 240 de pixeli din 360 nu lasă loc de lucru,
-  // iar aplicația se deschide acum și pe terminalul de scanare din depozit. Preferința omului NU se
-  // suprascrie — se ignoră doar cât timp ecranul e mic, ca la întoarcerea pe calculator să fie cum a lăsat-o.
+  // iar aplicația se deschide și pe terminalul de scanare din depozit. Preferința omului NU se suprascrie —
+  // se ignoră cât timp ecranul e mic, ca la întoarcerea pe calculator să fie cum a lăsat-o.
+  //
+  // LĂȚIMEA vine din CSS (`.app-sidebar`, prag 768px), nu de aici: altfel primul cadru ar fi 240px, iar
+  // pagina s-ar reașeza după hidratare, cu blur redesenat pe fiecare cadru al tranziției. Starea de aici
+  // decide doar CE se afișează (iconițe sau iconițe + text).
+  const NARROW = '(max-width: 768px)';
+  const citestePref = () => { try { return localStorage.getItem('sidebar-collapsed') === '1'; } catch { return false; } };
   const [collapsed, setCollapsed] = useState(false);
   const [narrow, setNarrow] = useState(false);
   useEffect(() => {
-    const mq = window.matchMedia('(max-width: 900px)');
-    const pref = (() => { try { return localStorage.getItem('sidebar-collapsed') === '1'; } catch { return false; } })();
-    const apply = () => { setNarrow(mq.matches); setCollapsed(mq.matches ? true : pref); };
+    const mq = window.matchMedia(NARROW);
+    // Preferința se recitește la FIECARE aplicare, nu o dată la montare: altfel, după ce omul strânge bara
+    // pe calculator, o redimensionare sub prag și înapoi i-ar fi redeschis-o cu valoarea veche.
+    const apply = () => { setNarrow(mq.matches); setCollapsed(mq.matches ? true : citestePref()); };
     apply();
-    mq.addEventListener('change', apply);
-    return () => mq.removeEventListener('change', apply);
+    // `addListener` e forma veche; unele WebView-uri de Android n-au încă `addEventListener` pe
+    // MediaQueryList, iar o excepție aici ar pica tot shell-ul, nu doar bara.
+    if (mq.addEventListener) { mq.addEventListener('change', apply); return () => mq.removeEventListener('change', apply); }
+    mq.addListener(apply); return () => mq.removeListener(apply);
   }, []);
-  const toggleCollapsed = () => setCollapsed(prev => {
-    const next = !prev;
-    // Pe ecran îngust, deschiderea barei e temporară: n-are rost să-i schimbe omului setarea de pe calculator
-    // fiindcă a apăsat o dată pe terminal.
-    if (!narrow) { try { localStorage.setItem('sidebar-collapsed', next ? '1' : '0'); } catch { /* ignore */ } }
-    return next;
-  });
-  const expand = () => setCollapsed(() => {
-    try { localStorage.setItem('sidebar-collapsed', '0'); } catch { /* ignore */ }
-    return false;
-  });
+  // Pe ecran îngust, orice deschidere a barei e TEMPORARĂ: n-are rost să-i schimbe omului setarea de pe
+  // calculator fiindcă a atins o dată un meniu pe terminal. Se aplică ambelor căi — `expand` nu e una
+  // exotică, e chiar cea prin care un depozitar deschide modulul cu bara strânsă.
+  const scriePref = (v: boolean) => {
+    if (narrow) return;
+    try { localStorage.setItem('sidebar-collapsed', v ? '1' : '0'); } catch { /* ignore */ }
+  };
+  const toggleCollapsed = () => setCollapsed(prev => { scriePref(!prev); return !prev; });
+  const expand = () => setCollapsed(() => { scriePref(false); return false; });
 
   const nomenclatorActive = nomenclatorHrefs.some(h => pathname === h || pathname.startsWith(h + '/'));
 
@@ -368,7 +375,7 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
   }
 
   return (
-    <aside style={{ ...sidebarStyle, width: collapsed ? 64 : 240, transition: 'width 0.2s ease' }}>
+    <aside className="app-sidebar" style={{ ...sidebarStyle, width: collapsed ? 64 : 240, transition: 'width 0.2s ease' }}>
       <div style={{ ...brandStyle, padding: collapsed ? '18px 8px 14px' : '24px 20px 20px', position: 'relative' }}>
         {!collapsed && <span style={logoStyle} />}
         {!collapsed && <div style={subtitleStyle}>Panou Administrativ</div>}

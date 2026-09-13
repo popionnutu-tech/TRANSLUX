@@ -75,34 +75,58 @@
 
 
 /* ── Ecran îngust: terminalul de scanare din depozit ─────────────────────────
-   Aplicația se deschide acum și pe un Android de ~360px lățime. Nu e o versiune
-   „mobilă" separată — sunt trei ajustări ca ecranele existente să încapă. */
-@media (max-width: 700px) {
-  /* Taburile modulului: o singură bandă care se derulează, nu cinci rânduri care mănâncă tot ecranul. */
-  .piese-scope .pill-row {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-  }
-  .piese-scope .pill-row::-webkit-scrollbar { display: none; }
+   Aplicația se deschide și pe un Android de ~360px. Nu e o versiune „mobilă" separată.
+
+   Pragul e 768px, cel pe care proiectul îl folosește deja în globals.css — nu unul nou.
+   Bara laterală se strânge la același prag, dar regula ei stă în globals.css: bara e pe
+   toate paginile, nu doar pe Piese. */
+@media screen and (max-width: 768px) {
+  /* Taburile modulului: o bandă care se derulează, nu cinci rânduri care mănâncă ecranul.
+     Bara de derulare rămâne vizibilă subțire — ascunsă complet, nimic nu spune că mai e conținut. */
+  .piese-scope .pill-row { flex-wrap: nowrap !important; overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .piese-scope .pill-row > * { flex-shrink: 0; }
 
-  /* Tabelele se derulează în interiorul lor, în loc să împingă toată pagina lateral.
-     `display:block` e singurul mod de a face un <table> derulabil fără să-i schimbi marcajul. */
-  .piese-scope table { display: block; overflow-x: auto; white-space: nowrap; }
+  /* Tabelele se derulează în interiorul lor — DAR nu cele care conțin un combobox.
+     `overflow-x:auto` forțează și `overflow-y` la `auto`, deci tabelul devine cutie care DECUPEAZĂ,
+     iar lista de sugestii (poziționată absolut, 260px înălțime) s-ar fi tăiat la marginea de jos.
+     Adică exact ecranele în care se scanează: Prihod, Rashod, Magazin, Donor, sold inițial. */
+  .piese-scope table:not(.has-combo) { display: block; overflow-x: auto; }
 
-  /* Cardurile pierd marginile late: pe 360px, 24px de fiecare parte înseamnă 13% din ecran. */
+  /* FĂRĂ `white-space: nowrap`. Cu el, fiecare coloană se lățea la conținutul cel mai lung, iar pe
+     ecranul de căutare coloana „Stoc" ieșea din ecran — chiar informația pentru care există ecranul.
+     Textul care se rupe pe două rânduri e mai bun decât textul care trebuie derulat. */
+  .piese-scope table { font-size: 13px; }
+  .piese-scope th, .piese-scope td { padding: 6px 8px; }
+  /* Doar CIFRELE rămân pe un rând. Antetele au voie să se rupă: „Preț vânzare" ținut pe un rând forța
+     singur coloana peste marginea ecranului. */
+  .piese-scope .num { white-space: nowrap; }
+
+  /* Rezultatele căutării: rămân denumirea, stocul și prețul. Restul sunt ajutoare de căutare sau apar în
+     detaliul rândului. `colspan` pe rândul extins nu se atinge — browserul ignoră coloanele lipsă. */
+  .piese-scope table.cautare-rez th:nth-child(2), .piese-scope table.cautare-rez td:nth-child(2),
+  .piese-scope table.cautare-rez th:nth-child(3), .piese-scope table.cautare-rez td:nth-child(3),
+  .piese-scope table.cautare-rez th:nth-child(4), .piese-scope table.cautare-rez td:nth-child(4) {
+    display: none;
+  }
+  /* Denumirile de piese sunt lungi și fără spații („Натяжитель ремня-OM611/646.533001710"), deci coloana
+     lor impunea singură lățimea tabelului. `anywhere` le lasă să se rupă oriunde — pe un ecran de 360px,
+     un nume pe trei rânduri e mai bun decât un stoc care trebuie derulat. */
+  .piese-scope table.cautare-rez td:first-child { overflow-wrap: anywhere; }
+
+  /* Marginile: 28px de fiecare parte din 360 înseamnă 15% din ecran, mai mult decât cardul. */
+  .piese-scope { padding: 10px !important; }
   .piese-scope .card { padding: 12px; }
 
-  /* Câmpurile de formular trec una sub alta în loc să se strivească. */
-  .piese-scope .form-row { min-width: 0; flex-basis: 100%; }
+  /* Lățimile minime sunt scrise inline în ecrane, deci bat foaia de stil fără `!important`.
+     Fără asta, un câmp de 260px într-un spațiu util de ~230 împinge toată pagina lateral. */
+  .piese-scope .form-row, .piese-scope .form-group { min-width: 0 !important; flex-basis: 100% !important; }
+  .piese-scope .toolbar .search { min-width: 0 !important; }
 
-  /* Explicația de sub titlu dispare. Măsurat: singură ocupa 246px dintr-un ecran de 740, adică două treimi
-     din tot ce stătea deasupra primului câmp — pe un terminal de scanare trebuia derulat înainte de a
-     putea scana. Textul e pentru cine deschide ecranul întâia oară pe calculator, nu pentru cineva care
-     stă între rafturi cu scanerul în mână. Titlul rămâne, ca să se știe unde ești. */
-  .piese-scope .page-header p { display: none; }
-  .piese-scope .page-header h1 { font-size: 1.4rem; margin-bottom: 4px; }
+  /* Explicația de sub titlu dispare. Măsurat: singură ocupa 246px dintr-un ecran de 740, adică două
+     treimi din tot ce stătea deasupra primului câmp — trebuia derulat înainte de a putea scana. Textul
+     e pentru cine deschide ecranul întâia oară pe calculator, nu pentru cineva care stă între rafturi.
+     Selectorul e pe copilul direct: un `<p>` viitor pus mai adânc n-are de ce să dispară tăcut. */
+  .piese-scope .page-header > p { display: none; }
+  .piese-scope .page-header > h1 { font-size: 22px; margin-bottom: 4px; }
   .piese-scope .page-header { margin-bottom: 10px; }
 }

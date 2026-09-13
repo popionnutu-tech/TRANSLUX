@@ -296,7 +296,7 @@ export default function MutariClient({ warehouses, fromWarehouses, transit, peMa
             </div>
           </div>
         )}
-        <table>
+        <table className="has-combo">
           <thead><tr><th>Piesă</th><th style={{ width: 140 }}>Cantitate</th><th style={{ width: 36 }}></th></tr></thead>
           <tbody>
             {lines.map((l, i) => (

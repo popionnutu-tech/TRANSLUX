@@ -478,7 +478,7 @@ export default function RashodClient({ initialWarehouseId, canOverrideStock, war
         </div>
       )}
 
-      <table style={{ marginTop: 10 }}>
+      <table className="has-combo" style={{ marginTop: 10 }}>
         <thead><tr><th>Piesă</th><th style={{ width: 110 }}>Cantitate</th><th style={{ width: 40 }}></th></tr></thead>
         <tbody>
           {lines.map((l, i) => (

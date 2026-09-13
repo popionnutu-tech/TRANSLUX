@@ -40,6 +40,12 @@ body {
   padding: 16px 40px;
 }
 @media (max-width: 768px) {
+  /* Bara laterală se strânge la iconițe pe ecran îngust — aplicația se deschide și pe terminalul de
+     scanare din depozit, unde 240 de pixeli din 360 n-ar lăsa loc de lucru.
+     Lățimea vine de AICI, nu din starea React: altfel primul cadru ar fi 240px și pagina s-ar reașeza
+     după hidratare, cu blur redesenat pe fiecare cadru al tranziției. */
+  .app-sidebar { width: 64px !important; transition: none !important; }
+
   .site-header {
     justify-content: center;
     padding: 12px 20px;

@@ -35,6 +35,13 @@ export default function PartsManager({ groups }: { groups: { id: number; label: 
       unit: (row.unit as string) ?? 'buc',
       is_for_sale: !!row.is_for_sale,
       markup_pct: (row.markup_pct as number | null) ?? '',
+      // AL PATRULEA ecran care editează piese, și cel mai folosit pentru editare intenționată. `updatePart`
+      // e „replace complet": fără liniile astea, orice piesă б/у deschisă de aici și salvată redevenea
+      // „nouă" în tăcere, cu legătura spre origine ștearsă — și, mai rău, își pierdea prefixul „б/у" din
+      // etichetă, deci putea fi eliberată pe autobuz ca piesă nouă.
+      is_used: !!row.is_used,
+      origin_part_id: (row.origin_part_id as number | null) ?? '',
+      origin_label: (row.origin_label as string) ?? '',
     } : null);
   }
 

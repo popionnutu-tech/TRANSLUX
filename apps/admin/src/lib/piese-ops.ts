@@ -349,3 +349,36 @@ export async function movementLedger(limit = 40) {
   const { data } = await getSupabase().from('piese_movement_ledger').select('*').limit(limit);
   return data || [];
 }
+
+// ── Piese б/у: intrarea prin document „Donor" (migr. 345-346) ────────────────
+
+/** Valoarea propusă pentru o piesă uzată — costul mediu al piesei-origine × procentul grupei. */
+export async function usedValueHint(partId: number): Promise<number | null> {
+  const { data, error } = await getSupabase().rpc('piese_used_value_hint', { p_part: partId });
+  // Sugestia e un ajutor, nu o condiție: dacă nu se poate calcula, omul scrie suma de la zero.
+  if (error) { console.error('[piese] usedValueHint:', error.message); return null; }
+  return data == null ? null : Number(data);
+}
+
+const DONOR_ERR: Record<string, string> = {
+  BAD_WAREHOUSE: 'Alege depozitul în care intră piesele.',
+  BAD_VEHICLE: 'Mașina selectată nu există.',
+  BAD_PART: 'O piesă selectată nu există în catalog.',
+  BAD_QTY: 'Cantitatea trebuie să fie mai mare ca 0.',
+  BAD_COST: 'Valoarea nu poate fi negativă.',
+  NOT_USED_PART: 'Prin „Donor" intră doar piese marcate б/у. O piesă nouă se înregistrează prin Prihod, cu factură.',
+  NO_LINES: 'Adaugă cel puțin o piesă.',
+};
+
+export async function donorIntake(p: {
+  warehouse_id: number; vehicle_id: number | null; note: string | null;
+  lines: { part_id: number; qty: number; unit_cost: number }[];
+}, autor: Autor) {
+  const { data, error } = await getSupabase().rpc('piese_donor_intake', {
+    p_wh: p.warehouse_id, p_vehicle: p.vehicle_id, p_note: p.note, p_lines: p.lines, p_user: null,
+    p_admin: autor.adminId, p_actor: autor.label,
+  });
+  if (error) throw new Error(DONOR_ERR[(error.message || '').trim()] || 'Nu am putut înregistra intrarea. Reîncearcă.');
+  const r = data as any;
+  return { docId: Number(r.doc_id), lines: Number(r.lines), total: Number(r.total) };
+}

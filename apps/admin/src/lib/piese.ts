@@ -153,9 +153,21 @@ export async function stockPage(opts: StockFilters & { page?: number; pageSize?:
   return { rows, total, page, pageSize, totalValue, valueTruncated };
 }
 
-export async function catalogRows(opts: { search?: string; groupId?: number } = {}) {
+/** Câte piese б/у există în catalog. Ecranul „Donor" e inutilizabil fără ele, și trebuie s-o spună. */
+export async function usedPartsCount(): Promise<number> {
+  const { count, error } = await getSupabase().from('piese_parts')
+    .select('id', { count: 'exact', head: true }).eq('is_used', true).eq('active', true);
+  if (error) throw new Error('Nu am putut număra piesele б/у');
+  return count || 0;
+}
+
+export async function catalogRows(opts: { search?: string; groupId?: number; onlyNew?: boolean; onlyUsed?: boolean } = {}) {
   let q = getSupabase().from('piese_catalog_rows').select('*').order('group_name').limit(500);
   if (opts.groupId) q = q.eq('group_id', opts.groupId);
+  // Filtrul merge în INTEROGARE, nu peste rezultat: plafonul e 500, iar o filtrare de după l-ar fi aplicat
+  // pe rândurile deja tăiate — piesa căutată ar fi lipsit fără ca cineva să înțeleagă de ce.
+  if (opts.onlyNew) q = q.eq('is_used', false);
+  if (opts.onlyUsed) q = q.eq('is_used', true);
   if (opts.search?.trim()) q = q.or(catalogSearchOr(orVal(opts.search.trim())));
   const { data } = await q;
   return data || [];
@@ -194,7 +206,11 @@ export function partLabel(p: Record<string, unknown>): string {
   const name = (p.name_ro as string) || (p.name_long as string) || (p.group_name as string) || '';
   const mm = `${(p.manufacturer as string) ?? ''} ${p.model ? '(' + p.model + ')' : ''}`.trim();
   const art = p.article_code ? ' · ' + (p.article_code as string) : '';
-  return `${name}${mm ? ' — ' + mm : ''}${art}`.trim();
+  // Marcajul stă la ÎNCEPUT, nu la sfârșit: eticheta se taie în combobox, iar „б/у" pierdut după numele
+  // lung ar fi însemnat un alternator uzat eliberat pe autobuz în locul unuia nou. Diferența se vede abia
+  // pe drum. E singurul loc prin care piesa ajunge în fața omului la eliberare, deci aici trebuie spus.
+  const bu = p.is_used ? 'б/у · ' : '';
+  return `${bu}${name}${mm ? ' — ' + mm : ''}${art}`.trim();
 }
 
 // O singură piesă (câmpuri editabile) pentru formularul de editare din Nomenclator.

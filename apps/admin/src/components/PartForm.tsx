@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useId } from 'react';
 import { savePart, loadPartLookups, copyPartFields } from '@/app/(dashboard)/piese/part-actions';
-import { searchParts } from '@/app/(dashboard)/piese/search-parts';
+import { searchParts, searchNewParts } from '@/app/(dashboard)/piese/search-parts';
 import SearchSelect from '@/components/SearchSelect';
 
 export interface PartFormValues {
@@ -19,6 +19,8 @@ export interface PartFormValues {
   unit?: string;
   is_for_sale?: boolean;
   markup_pct?: number | string | null;   // gol = adaosul grupei (migr. 318)
+  is_used?: boolean;                     // piesă б/у — articol de catalog distinct (migr. 345)
+  origin_part_id?: number | string | null; // piesa NOUĂ corespunzătoare; de acolo vine sugestia de valoare
 }
 
 // Formular COMUN de piesă (adăugare + editare). Folosit în Nomenclator (tab „Piese") și inline în Prihod.
@@ -52,6 +54,8 @@ export default function PartForm({
     unit: initial?.unit ?? 'buc',
     is_for_sale: initial?.is_for_sale ?? false,
     markup_pct: initial?.markup_pct ?? '',
+    is_used: initial?.is_used ?? false,
+    origin_part_id: initial?.origin_part_id ?? '',
   });
   const [codes, setCodes] = useState<string[]>(initialCodes.length ? initialCodes : ['']);
   const [error, setError] = useState('');
@@ -233,6 +237,25 @@ export default function PartForm({
           De vânzare
         </label>
       </div>
+      {/* Piesa uzată e un articol SEPARAT, nu o stare a celei noi: are alt preț, alt cod de bare, alt stoc.
+          Legătura cu piesa nouă nu e decorativă — din costul ei se propune valoarea la intrarea „Donor". */}
+      <div className="form-group" style={{ marginBottom: 0 }}>
+        <label style={{ display: 'flex', gap: 6, alignItems: 'center', cursor: 'pointer' }}>
+          <input type="checkbox" checked={!!f.is_used}
+            onChange={(e) => { set('is_used', e.target.checked); if (!e.target.checked) set('origin_part_id', ''); }} />
+          Piesă б/у (uzată)
+        </label>
+        <div style={hint}>marcajul apare la căutare, ca să nu fie confundată cu una nouă</div>
+      </div>
+      {f.is_used && (
+        <div className="form-group" style={{ marginBottom: 0, minWidth: 260 }}>
+          <label>Corespunde piesei noi</label>
+          <SearchSelect searchFn={searchNewParts} value={(f.origin_part_id as number | '') ?? ''}
+            onSelect={(o) => set('origin_part_id', o ? o.id : '')}
+            placeholder="— caută piesa nouă —" />
+          <div style={hint}>din costul ei se propune valoarea la intrare</div>
+        </div>
+      )}
       {/* Adaosul piesei are sens doar dacă piesa se vinde. Gol = adaosul grupei: într-o grupă intră și
           piese ieftine de rotație rapidă, și piese scumpe rare, iar un singur procent pentru toate e o
           aproximare pe care până acum n-o putea corecta nimeni. */}

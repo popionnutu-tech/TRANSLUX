@@ -95,6 +95,9 @@ export default function PrihodClient({ warehouses, suppliers, groups }: { wareho
         // deschiderea unei piese cu adaos propriu și salvarea ei l-ar fi șters, iar prețul de raft ar fi
         // sărit tăcut înapoi la adaosul grupei.
         markup_pct: (p.markup_pct as number | null) ?? '',
+        // Din același motiv: fără ele, editarea unei piese б/у din recepție ar fi transformat-o tăcut
+        // într-una nouă, cu tot cu legătura spre originea ei.
+        is_used: !!p.is_used, origin_part_id: (p.origin_part_id as number | null) ?? '',
       } });
     } catch { alert('Nu am putut încărca piesa pentru editare. Reîncearcă.'); }
     finally { setEditBusy(null); }

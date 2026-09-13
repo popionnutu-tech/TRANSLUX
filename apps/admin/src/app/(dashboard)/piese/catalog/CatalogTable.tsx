@@ -45,6 +45,10 @@ export default function CatalogTable({ rows, groups, warehouses, canEdit }: {
     unit: edit.unit ?? 'buc',
     is_for_sale: !!edit.is_for_sale,
     markup_pct: (edit.markup_pct as number | null) ?? '',
+    // Aceeași lecție ca la coduri și la adaos: salvarea scrie exact ce vede formularul, deci un câmp
+    // netrimis se pierde. O piesă б/у editată din catalog ar fi redevenit „nouă" în tăcere.
+    is_used: !!edit.is_used,
+    origin_part_id: (edit.origin_part_id as number | null) ?? '',
   };
 
   return (

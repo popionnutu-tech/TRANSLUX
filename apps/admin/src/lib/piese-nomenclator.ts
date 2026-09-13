@@ -56,6 +56,10 @@ const partRow = (d: any) => ({
   markup_pct: d.markup_pct === '' || d.markup_pct == null || !Number.isFinite(Number(d.markup_pct))
     ? null : Number(d.markup_pct),
   is_for_sale: d.is_for_sale === true || d.is_for_sale === 'true' || d.is_for_sale === '1' || d.is_for_sale === 'da',
+  // Piesă uzată (migr. 345) — articol de catalog distinct, cu preț propriu. `origin_part_id` leagă de piesa
+  // nouă corespunzătoare și alimentează sugestia de valoare la intrarea prin document „Donor".
+  is_used: d.is_used === true || d.is_used === 'true' || d.is_used === '1' || d.is_used === 'da',
+  origin_part_id: Number(d.origin_part_id) > 0 ? Number(d.origin_part_id) : null,
 });
 function validatePart(d: any) {
   if (!Number(d.group_id)) throw new Error('Grupa (categoria) este obligatorie');

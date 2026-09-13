@@ -13,6 +13,7 @@ const TABS = [
   { href: '/piese/nomenclator', label: 'Nomenclator' },
   { href: '/piese/prihod', label: 'Prihod' },
   { href: '/piese/rashod', label: 'Rashod' },
+  { href: '/piese/donor', label: 'Donor' },
   { href: '/piese/mutari', label: 'Mutări' },
   { href: '/piese/inventar', label: 'Inventar' },
   { href: '/piese/harta', label: 'Hartă' },

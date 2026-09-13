@@ -72,3 +72,37 @@
 .piese-scope .depot-legend span{display:inline-flex;align-items:center;gap:6px;}
 .piese-scope .lg{width:14px;height:14px;border-radius:4px;display:inline-block;}
 .piese-scope .lg-norm{background:var(--psurf);border:1px solid var(--pline);} .piese-scope .lg-empty{background:var(--pline2);border:1px solid var(--pline);} .piese-scope .lg-hot{background:var(--pp);}
+
+
+/* ── Ecran îngust: terminalul de scanare din depozit ─────────────────────────
+   Aplicația se deschide acum și pe un Android de ~360px lățime. Nu e o versiune
+   „mobilă" separată — sunt trei ajustări ca ecranele existente să încapă. */
+@media (max-width: 700px) {
+  /* Taburile modulului: o singură bandă care se derulează, nu cinci rânduri care mănâncă tot ecranul. */
+  .piese-scope .pill-row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .piese-scope .pill-row::-webkit-scrollbar { display: none; }
+  .piese-scope .pill-row > * { flex-shrink: 0; }
+
+  /* Tabelele se derulează în interiorul lor, în loc să împingă toată pagina lateral.
+     `display:block` e singurul mod de a face un <table> derulabil fără să-i schimbi marcajul. */
+  .piese-scope table { display: block; overflow-x: auto; white-space: nowrap; }
+
+  /* Cardurile pierd marginile late: pe 360px, 24px de fiecare parte înseamnă 13% din ecran. */
+  .piese-scope .card { padding: 12px; }
+
+  /* Câmpurile de formular trec una sub alta în loc să se strivească. */
+  .piese-scope .form-row { min-width: 0; flex-basis: 100%; }
+
+  /* Explicația de sub titlu dispare. Măsurat: singură ocupa 246px dintr-un ecran de 740, adică două treimi
+     din tot ce stătea deasupra primului câmp — pe un terminal de scanare trebuia derulat înainte de a
+     putea scana. Textul e pentru cine deschide ecranul întâia oară pe calculator, nu pentru cineva care
+     stă între rafturi cu scanerul în mână. Titlul rămâne, ca să se știe unde ești. */
+  .piese-scope .page-header p { display: none; }
+  .piese-scope .page-header h1 { font-size: 1.4rem; margin-bottom: 4px; }
+  .piese-scope .page-header { margin-bottom: 10px; }
+}

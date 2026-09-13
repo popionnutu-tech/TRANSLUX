@@ -309,13 +309,25 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
   const currentTab = searchParams.get('tab');
 
   // Bara strânsă (doar iconițe) — reținut între pagini/reîncărcări.
+  //
+  // Pe ecran îngust pornește strânsă indiferent de preferință: 240 de pixeli din 360 nu lasă loc de lucru,
+  // iar aplicația se deschide acum și pe terminalul de scanare din depozit. Preferința omului NU se
+  // suprascrie — se ignoră doar cât timp ecranul e mic, ca la întoarcerea pe calculator să fie cum a lăsat-o.
   const [collapsed, setCollapsed] = useState(false);
+  const [narrow, setNarrow] = useState(false);
   useEffect(() => {
-    try { setCollapsed(localStorage.getItem('sidebar-collapsed') === '1'); } catch { /* ignore */ }
+    const mq = window.matchMedia('(max-width: 900px)');
+    const pref = (() => { try { return localStorage.getItem('sidebar-collapsed') === '1'; } catch { return false; } })();
+    const apply = () => { setNarrow(mq.matches); setCollapsed(mq.matches ? true : pref); };
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
   }, []);
   const toggleCollapsed = () => setCollapsed(prev => {
     const next = !prev;
-    try { localStorage.setItem('sidebar-collapsed', next ? '1' : '0'); } catch { /* ignore */ }
+    // Pe ecran îngust, deschiderea barei e temporară: n-are rost să-i schimbe omului setarea de pe calculator
+    // fiindcă a apăsat o dată pe terminal.
+    if (!narrow) { try { localStorage.setItem('sidebar-collapsed', next ? '1' : '0'); } catch { /* ignore */ } }
     return next;
   });
   const expand = () => setCollapsed(() => {

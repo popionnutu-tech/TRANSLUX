@@ -6,19 +6,46 @@ import { assertWarehouseAllowed, PART_WRITE_ROLES } from '@/lib/piese-access';
 import { getCountSheet, submitInventory } from '@/lib/piese-ops';
 import { warehouseLayout, createInitialReceipt, partStock, recostPart } from '@/lib/piese';
 import { setPartLocationsBulk, ensureSupplierByName } from '@/lib/piese-nomenclator';
-import { autorFor } from '@/lib/audit';
 import { locationError, LOCATION_FORMAT, LOCATION_EXAMPLE } from '@/lib/piese-location';
+import { autorFor } from '@/lib/audit';
 
 export async function loadSheet(warehouseId: number) {
   const session = requireRole(await verifySession(), 'ADMIN', 'DEPOZITAR', 'VINZATOR', 'GESTIONAR');
   await assertWarehouseAllowed(session, warehouseId); // Etapa 2: doar depozitul lui
   return getCountSheet(warehouseId);
 }
-export async function saveInventory(warehouseId: number, counts: { part_id: number; counted_qty: number }[]) {
+export async function saveInventory(
+  warehouseId: number,
+  counts: { part_id: number; counted_qty: number }[],
+  // Adresele completate în foaie, de omul care ține piesa în mână. Opțional: numărarea rămâne posibilă
+  // fără ele, iar VINZATOR n-are voie să le scrie (vezi mai jos).
+  locations: { part_id: number; location_label: string }[] = [],
+) {
   const session = requireRole(await verifySession(), 'ADMIN', 'DEPOZITAR', 'VINZATOR', 'GESTIONAR');
   await assertWarehouseAllowed(session, warehouseId); // Etapa 2: nu poate inventaria alt depozit
-  return submitInventory(warehouseId, counts,
-    await autorFor(session.id));
+
+  // Adresele se scriu ÎNAINTEA numărătorii. Dacă ar fi invers și scrierea adreselor ar cădea, diferențele
+  // de stoc ar fi deja comise ca mișcări ireversibile, iar omul ar reîncerca — dublându-le. Adresele, în
+  // schimb, se pot rescrie oricând fără urmări: sunt o etichetă, nu o mișcare de marfă.
+  let adrese = 0;
+  const curate = locations
+    .map((l) => ({ part_id: Number(l.part_id), location_label: String(l.location_label ?? '').trim() }))
+    .filter((l) => l.part_id && l.location_label);
+  if (curate.length) {
+    // Dreptul de a SCRIE locații e altul decât cel de a număra: vânzătorul numără, dar nu adresează
+    // (aceeași listă ca la catalog și la inventarul inițial).
+    requireRole(session, ...PART_WRITE_ROLES);
+    if (curate.length > 2000) throw new Error('Prea multe adrese într-o singură salvare.');
+    for (const l of curate) {
+      const err = locationError(l.location_label);
+      if (err) throw new Error(`Adresa „${l.location_label}" nu e bună: ${err}`);
+    }
+    adrese = await setPartLocationsBulk(warehouseId, curate);
+    revalidatePath('/piese/harta');
+  }
+
+  const res = await submitInventory(warehouseId, counts, await autorFor(session.id));
+  return { ...res, adrese };
 }
 
 // ── Inventar „de la zero" (greenfield): pornirea unui depozit gol dintr-un singur ecran ──

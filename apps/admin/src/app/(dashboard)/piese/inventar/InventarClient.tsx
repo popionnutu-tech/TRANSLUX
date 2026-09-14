@@ -9,9 +9,12 @@ interface Opt { id: number; label: string }
 interface Row {
   part_id: number; label: string; current: number; counted: number;
   section: string; rack: string; shelf: string; cell: string; location: string; placed: boolean;
+  // Adresa tastată în foaie, separat de cea salvată: omul o scrie stând în fața raftului, iar `location`
+  // rămâne ce e în bază până la salvare — altfel n-am mai ști ce s-a schimbat.
+  adresa: string;
 }
 
-export default function InventarClient({ warehouses }: { warehouses: Opt[] }) {
+export default function InventarClient({ warehouses, canSetLocation }: { warehouses: Opt[]; canSetLocation: boolean }) {
   const router = useRouter();
   const [warehouseId, setWarehouseId] = useState(warehouses[0]?.id || 0);
   const [rows, setRows] = useState<Row[]>([]);
@@ -27,7 +30,7 @@ export default function InventarClient({ warehouses }: { warehouses: Opt[] }) {
   async function load() {
     setBusy(true); setMsg(null);
     const sheet = await loadSheet(warehouseId);
-    setRows(sheet.rows.map((s: any) => ({ ...s, counted: s.current })));
+    setRows(sheet.rows.map((s: any) => ({ ...s, counted: s.current, adresa: s.location || '' })));
     // `setRack('')` obligatoriu lângă `setSection('')`: fără el, filtrul de rând supraviețuia — foaia
     // arăta „tot depozitul" dar afișa doar rândurile 12 din toate stelajele, iar salvarea considera că
     // s-a numărat tot și ștergea numărătorile nesalvate din rest.
@@ -44,12 +47,19 @@ export default function InventarClient({ warehouses }: { warehouses: Opt[] }) {
       const zone = savedSection ? `stelajul ${savedSection}${savedRack ? `, rândul ${savedRack}` : ''}` : '';
       // `visible` (definit la render) e deja „secția selectată SAU tot depozitul" — o singură sursă comună cu butonul/`scopeDiffs`.
       const counts = visible.filter((r) => r.counted !== r.current).map((r) => ({ part_id: r.part_id, counted_qty: r.counted }));
-      if (!counts.length) { setMsg({ t: 'ok', m: zone ? `Nicio diferență în ${zone}.` : 'Nicio diferență — totul se potrivește.' }); setBusy(false); return; }
+      // Adresele SCHIMBATE, din aceeași zonă. Se trimit chiar dacă nu e nicio diferență de stoc: a adresa
+      // o piesă găsită la locul ei e o muncă în sine — de fapt e chiar felul în care se construiește harta.
+      const locations = canSetLocation
+        ? visible.filter((r) => r.adresa.trim() && r.adresa.trim().toUpperCase() !== (r.location || '').toUpperCase())
+                 .map((r) => ({ part_id: r.part_id, location_label: r.adresa.trim() }))
+        : [];
+      if (!counts.length && !locations.length) { setMsg({ t: 'ok', m: zone ? `Nicio diferență în ${zone}.` : 'Nicio diferență — totul se potrivește.' }); setBusy(false); return; }
       // Cantitățile ÎN CURS din TOATE stelajele, capturate înainte de reîncărcare — ca un operator care numără mai
       // multe stelaje pe același ecran să NU-și piardă munca nesalvată când salvează un singur stelaj.
       const pending = new Map(rows.filter((r) => r.counted !== r.current).map((r) => [r.part_id, r.counted] as const));
-      const res = await saveInventory(warehouseId, counts);
-      setMsg({ t: 'ok', m: `Inventariere salvată${zone ? ` — ${zone}` : ''}: ${res.diffs} diferențe corectate (ca mișcări, fără ștergeri).` });
+      const res = await saveInventory(warehouseId, counts, locations);
+      setMsg({ t: 'ok', m: `Inventariere salvată${zone ? ` — ${zone}` : ''}: ${res.diffs} ${res.diffs === 1 ? 'diferență corectată' : 'diferențe corectate'} (ca mișcări, fără ștergeri)`
+        + (res.adrese ? `, ${res.adrese} ${res.adrese === 1 ? 'adresă pusă pe hartă' : 'adrese puse pe hartă'}.` : '.') });
       // Reîncarc stocul proaspăt (secția salvată reflectă noul stoc), DAR re-aplic cantitățile în curs din CELELALTE
       // stelaje (nesalvate). Rămân pe stelajul curent (nu resetez la „tot depozitul"), ca fluxul pe echipă să curgă.
       const sheet = await loadSheet(warehouseId);
@@ -62,7 +72,7 @@ export default function InventarClient({ warehouses }: { warehouses: Opt[] }) {
           : true;
         const keepPending = !inSavedZone;
         const p = pending.get(s.part_id);
-        return { ...s, counted: keepPending && p !== undefined ? p : s.current };
+        return { ...s, counted: keepPending && p !== undefined ? p : s.current, adresa: s.location || '' };
       }));
       setLayout(sheet.layout);
       router.refresh();
@@ -77,6 +87,10 @@ export default function InventarClient({ warehouses }: { warehouses: Opt[] }) {
   const visible = rows.filter((r) =>
     (!section || r.section === section) && (!rack || r.rack === rack));
   const unplaced = rows.filter((r) => !r.placed).length;
+  // Adresele schimbate în zona vizibilă — aceeași regulă ca la salvare, ca butonul să nu promită altceva.
+  const scopeAdrese = canSetLocation
+    ? visible.filter((r) => r.adresa.trim() && r.adresa.trim().toUpperCase() !== (r.location || '').toUpperCase()).length
+    : 0;
   const idxByPart = new Map(rows.map((r, i) => [r.part_id, i] as const));
   const diffCount = rows.filter((r) => r.counted !== r.current).length;        // total, tot depozitul
   const scopeDiffs = visible.filter((r) => r.counted !== r.current).length;     // doar ce se va comite (secția curentă)
@@ -110,7 +124,10 @@ export default function InventarClient({ warehouses }: { warehouses: Opt[] }) {
             {unplaced > 0 && !section && (
               <p className="muted" style={{ fontSize: 12, marginTop: 8, marginBottom: 0 }}>
                 {unplaced} {unplaced === 1 ? 'piesă are stoc dar n-are adresă' : 'piese au stoc dar n-au adresă'} —
-                sunt la sfârșitul listei. Pune-le locația din Catalog, ca să intre în hartă și în drumul de numărare.
+                sunt la sfârșitul listei.{' '}
+                {canSetLocation
+                  ? 'Scrie-le adresa chiar aici, în coloana din stânga, când ajungi la raft — intră în hartă la salvare.'
+                  : 'Adresa o pune depozitarul sau administratorul, din Catalog.'}
               </p>
             )}
             <PieseDepotMap layout={layout} highlightSection={section || null} />
@@ -126,10 +143,21 @@ export default function InventarClient({ warehouses }: { warehouses: Opt[] }) {
                   const d = r.counted - r.current;
                   return (
                     <tr key={r.part_id}>
-                      {/* Adresa COMPLETĂ, nu doar stelaj-rând: exact ce trebuie ca să pui mâna pe piesă. */}
-                      <td>{r.placed
-                        ? <span className="badge gray" style={{ fontFamily: 'monospace' }}>{r.location}</span>
-                        : <span className="badge warn">fără adresă</span>}</td>
+                      {/* Adresa COMPLETĂ, nu doar stelaj-rând: exact ce trebuie ca să pui mâna pe piesă.
+                          Și EDITABILĂ, pentru cine are dreptul: omul stă în fața raftului cu piesa în mână —
+                          e singurul moment când chiar știe adresa adevărată. Până acum trebuia s-o țină minte
+                          și s-o pună în Catalog, una câte una, de asta harta rămânea goală. */}
+                      <td>
+                        {canSetLocation ? (
+                          <input value={r.adresa}
+                            onChange={(e) => setRows((rs) => rs.map((x, j) => j === idx ? { ...x, adresa: e.target.value } : x))}
+                            placeholder="A-12-3-5" aria-label="Adresa pe raft" title="Stelaj-rând-poliță-celulă"
+                            style={{ width: 110, fontFamily: 'monospace', textTransform: 'uppercase',
+                              borderColor: r.adresa.trim() && !r.placed ? 'var(--ok, #16a34a)' : undefined }} />
+                        ) : r.placed
+                          ? <span className="badge gray" style={{ fontFamily: 'monospace' }}>{r.location}</span>
+                          : <span className="badge warn">fără adresă</span>}
+                      </td>
                       <td>{r.label}</td>
                       <td className="num">{r.current}</td>
                       <td className="num"><input type="number" value={r.counted} onChange={(e) => setRows((rs) => rs.map((x, j) => j === idx ? { ...x, counted: Number(e.target.value) } : x))} style={{ textAlign: 'right' }} /></td>
@@ -139,7 +167,11 @@ export default function InventarClient({ warehouses }: { warehouses: Opt[] }) {
                 })}
               </tbody>
             </table>
-            <button className="btn btn-primary btn-lg btn-block" style={{ marginTop: 14 }} disabled={busy} onClick={submit}>Salvează inventarierea ({scopeDiffs} {scopeDiffs === 1 ? 'diferență' : 'diferențe'} {section ? `în stelajul ${section}${rack ? `, rândul ${rack}` : ''}` : 'în tot depozitul'})</button>
+            <button className="btn btn-primary btn-lg btn-block" style={{ marginTop: 14 }} disabled={busy} onClick={submit}>
+              Salvează inventarierea ({scopeDiffs} {scopeDiffs === 1 ? 'diferență' : 'diferențe'}
+              {scopeAdrese > 0 ? `, ${scopeAdrese} ${scopeAdrese === 1 ? 'adresă' : 'adrese'}` : ''}
+              {' '}{section ? `în stelajul ${section}${rack ? `, rândul ${rack}` : ''}` : 'în tot depozitul'})
+            </button>
             {section && otherDiffs > 0 && <p className="muted" style={{ marginTop: 8, marginBottom: 0, textAlign: 'center' }}>Ai {otherDiffs} {otherDiffs === 1 ? 'diferență' : 'diferențe'} și în afara zonei curente — comută pe fiecare stelaj și salvează separat (așa nu atingi zona altei echipe).</p>}
           </div>
         </>

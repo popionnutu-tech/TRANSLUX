@@ -17,7 +17,7 @@ export default function InventarTabs({ warehouses, groups, canInitial, initialLa
   warehouses: Opt[]; groups: Opt[]; canInitial: boolean; initialLayout: any;
 }) {
   const [tab, setTab] = useState<'count' | 'initial' | 'recost'>('count');
-  if (!canInitial) return <InventarClient warehouses={warehouses} />;
+  if (!canInitial) return <InventarClient warehouses={warehouses} canSetLocation={false} />;
   return (
     <>
       <div className="pill-row" style={{ marginBottom: 14 }}>
@@ -26,7 +26,7 @@ export default function InventarTabs({ warehouses, groups, canInitial, initialLa
         <button className={`btn${tab === 'recost' ? ' btn-primary' : ''}`} onClick={() => setTab('recost')} style={{ padding: '7px 14px' }}>Revizuire cost</button>
       </div>
       {tab === 'count'
-        ? <InventarClient warehouses={warehouses} />
+        ? <InventarClient warehouses={warehouses} canSetLocation={canInitial} />
         : tab === 'initial'
         ? <InventarInitialClient warehouses={warehouses} groups={groups} initialLayout={initialLayout} />
         : <RecostClient warehouses={warehouses} />}

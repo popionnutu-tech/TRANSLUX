@@ -59,14 +59,16 @@ function loadFont(name: string): opentype.Font {
   return opentype.parse(buf.buffer as ArrayBuffer);
 }
 
-function fonts() {
+// Exportate pentru imaginea penalităților de aspect (driver-penalties-image.ts):
+// aceleași fonturi, același logo, același randare text→path.
+export function fonts() {
   _fR ??= loadFont('OpenSans-Regular.ttf');
   _fB ??= loadFont('OpenSans-Bold.ttf');
   _fI ??= loadFont('CormorantGaramond-MediumItalic.ttf');
   return { r: _fR!, b: _fB!, i: _fI! };
 }
 
-function logoBase64(): string {
+export function logoBase64(): string {
   if (!_logo) {
     const p = path.join(process.cwd(), 'public', 'translux-logo-bordo.png');
     _logo = fs.readFileSync(p).toString('base64');
@@ -77,7 +79,7 @@ function logoBase64(): string {
 /* ── SVG helpers ── */
 
 /** Render text as SVG <path> (font-independent rendering) */
-function textPath(
+export function textPath(
   font: opentype.Font,
   text: string,
   x: number,
@@ -105,7 +107,7 @@ function textW(font: opentype.Font, text: string, size: number): number {
 }
 
 /** Truncate text to fit within maxW pixels */
-function truncText(font: opentype.Font, text: string, size: number, maxW: number): string {
+export function truncText(font: opentype.Font, text: string, size: number, maxW: number): string {
   if (textW(font, text, size) <= maxW) return text;
   let t = text;
   while (t.length > 3 && textW(font, t + '…', size) > maxW) t = t.slice(0, -1);

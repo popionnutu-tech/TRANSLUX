@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/supabase';
 import { verifyCronSecret } from '@/lib/cron-auth';
 import { syncWeatherPoints } from '@/lib/weather';
+import { sendWeeklyDriverPenalties } from '@/lib/driver-penalties-sync';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 export async function GET(req: NextRequest) {
   const authError = verifyCronSecret(req);
@@ -17,6 +19,22 @@ export async function GET(req: NextRequest) {
   } catch (e) {
     console.error('syncWeatherPoints error:', e);
   }
+
+  // Luni: imaginea cu penalitățile de aspect pe săptămâna trecută, în grupa
+  // șoferilor (Ion, 14.09) — același piggyback, din același motiv. Idempotent:
+  // dacă săptămâna a plecat deja (de mână, prin /api/cron/driver-penalties), sare.
+  let penalties: string | null = null;
+  try {
+    const dow = new Date().toLocaleDateString('en-US', { timeZone: 'Europe/Chisinau', weekday: 'short' });
+    if (dow === 'Mon') {
+      const r = await sendWeeklyDriverPenalties();
+      penalties = `${r.status}${r.reason ? `: ${r.reason}` : ''} (${r.weekStart})`;
+    }
+  } catch (e) {
+    console.error('sendWeeklyDriverPenalties error:', e);
+    penalties = 'error';
+  }
+  if (penalties) console.log('driver-penalties (luni):', penalties);
 
   try {
     const db = getSupabase();

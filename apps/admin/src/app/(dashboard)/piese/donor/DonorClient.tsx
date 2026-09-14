@@ -117,11 +117,12 @@ export default function DonorClient({ warehouses, vehicles, nrUzate }: { warehou
                   </div>
                 )}
               </td>
-              <td><input type="number" min={1} step="any" value={l.qty}
+              <td><input type="number" min={1} step="any" value={l.qty} aria-label="Cantitate" title="Cantitate"
                 onChange={(e) => setLine(i, { qty: Number(e.target.value) })} /></td>
               <td>
                 <input type="number" min={0} step="any" value={l.unit_cost}
-                  onChange={(e) => setLine(i, { unit_cost: e.target.value })} placeholder="0" />
+                  onChange={(e) => setLine(i, { unit_cost: e.target.value })} placeholder="valoare / buc"
+                  aria-label="Valoare pe bucată" title="Valoare pe bucată" />
                 {l.hint != null && (
                   <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>
                     propus: {lei(l.hint)} lei{' '}

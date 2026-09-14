@@ -92,6 +92,20 @@
      Adică exact ecranele în care se scanează: Prihod, Rashod, Magazin, Donor, sold inițial. */
   .piese-scope table:not(.has-combo) { display: block; overflow-x: auto; }
 
+  /* Tabelele cu combobox se desfac în rânduri. Motivul e concret: lista de sugestii e largă cât CELULA în
+     care stă comboboxul, iar pe 360 de pixeli celula „Piesă" primește vreo sută — Eduard a scanat pe
+     terminal și a văzut doar primele litere din fiecare denumire („прочесть нереально").
+     Piesa primește rândul întreg, restul câmpurilor se așază dedesubt. Antetul dispare: pe un rând desfăcut
+     n-are ce alinia, iar câmpurile se recunosc după text și după cifra din ele. */
+  .piese-scope table.has-combo thead { display: none; }
+  .piese-scope table.has-combo, .piese-scope table.has-combo tbody { display: block; }
+  .piese-scope table.has-combo tr {
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-end;
+    padding: 8px 0; border-bottom: 1px solid var(--pline, #eee);
+  }
+  .piese-scope table.has-combo td { display: block; flex: 1 1 auto; padding: 0; border: none; }
+  .piese-scope table.has-combo td:first-child { flex: 1 0 100%; }
+
   /* FĂRĂ `white-space: nowrap`. Cu el, fiecare coloană se lățea la conținutul cel mai lung, iar pe
      ecranul de căutare coloana „Stoc" ieșea din ecran — chiar informația pentru care există ecranul.
      Textul care se rupe pe două rânduri e mai bun decât textul care trebuie derulat. */

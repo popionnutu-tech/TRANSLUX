@@ -499,7 +499,8 @@ export default function RashodClient({ initialWarehouseId, canOverrideStock, war
                   </div>
                 )}
               </td>
-              <td><input type="number" min={1} value={l.qty} onChange={(e) => setLine(i, { qty: Number(e.target.value) })} /></td>
+              <td><input type="number" min={1} value={l.qty} aria-label="Cantitate" title="Cantitate"
+                onChange={(e) => setLine(i, { qty: Number(e.target.value) })} /></td>
               <td>
                 {lines.length > 1 && (
                   <button type="button" className="btn" style={{ padding: '4px 8px' }}

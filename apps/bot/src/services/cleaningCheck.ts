@@ -10,6 +10,8 @@
 // și noroiul adus de ploaie nu se penalizează; gunoiul da).
 // Ion (14.09): afișele lipite pe stâlp nu se penalizează («nu poate face nimic»),
 // iar după cosit rămân doar rădăcinile lemnoase — acelea nu sunt buruieni.
+// Ion (14.09): «podeaua la veceu e industrială ca asfalt murdar, ea se face curat» —
+// suprafața ei nu e murdărie; contează doar ce stă pe ea.
 import Anthropic from '@anthropic-ai/sdk';
 import { config } from '../config.js';
 import type { ReportSource } from '@translux/db';
@@ -58,7 +60,7 @@ Ce NU se penalizează, deși se vede: afișele, anunțurile și hârtiile lipite
 
 Verdict:
 - CURAT: pavajul e măturat, fără gunoi, fără mucuri, fără resturi, fără buruieni crescute, coșurile nu dau pe dinafară, delimitatoarele sunt la locul lor.
-- MURDAR: oricare dintre: vizibil nemăturat (nisip, pietriș, frunze uscate, praf gros pe pavaj — nu praful fin din rosturi), gunoi sau ambalaje, mucuri de țigară, pete sau băltoace de murdărie, resturi sau obiecte lăsate (moloz, cartoane, saci), buruieni crescute la stâlp sau la bordură, coș plin peste margine, con răsturnat sau lipsă. În zona pietoni buruienile crescute la stâlp și conul răsturnat sau lipsă sunt MURDAR întotdeauna, și pe vreme rea. În veceu: podea, vas, pisoar sau chiuvetă murdare, coș plin, lipsă hârtie — petele vechi, permanente, de pe faianță sau gresie nu contează.
+- MURDAR: oricare dintre: vizibil nemăturat (nisip, pietriș, frunze uscate, praf gros pe pavaj — nu praful fin din rosturi), gunoi sau ambalaje, mucuri de țigară, pete sau băltoace de murdărie, resturi sau obiecte lăsate (moloz, cartoane, saci), buruieni crescute la stâlp sau la bordură, coș plin peste margine, con răsturnat sau lipsă. În zona pietoni buruienile crescute la stâlp și conul răsturnat sau lipsă sunt MURDAR întotdeauna, și pe vreme rea. În veceu: podea, vas, pisoar sau chiuvetă murdare, coș plin, lipsă hârtie — petele vechi, permanente, de pe faianță sau gresie nu contează. Podeaua veceului e industrială, întunecată și aspră, cu aspect de asfalt murdar — așa arată și spălată; culoarea și textura ei NU sunt murdărie. Podeaua e murdară doar dacă se văd pe ea hârtii, gunoi, noroi, băltoace sau urme ude de murdărie.
 
 Scrie problemele scurt, în română, câte una pe element (ex: „praf și nisip pe pavaj la bordură”, „buruieni crescute la baza stâlpului”, „con răsturnat lângă stâlp”). Descrierea: o propoziție cu ce se vede. Răspunzi doar în formatul JSON cerut.`;
 
@@ -68,7 +70,7 @@ const ZONE_TASK: Record<CleaningZone, string> = {
   PIETONI:
     'Zona cerută: ZONA PIETONI (trotuarul de la stația „GARA”, cu stâlpul, conurile portocalii și bordura spre stradă). Aici trec călătorii: caută explicit mucuri la stâlp și la bordură, nisip sau pietriș adus de pe stradă, buruieni crescute la stâlp și la bordură, conuri răsturnate sau lipsă, resturi lângă magazine — buruienile crescute și conul răsturnat sunt MURDAR și pe vreme rea. Afișele lipite pe stâlp și rădăcinile lemnoase rămase după cosit NU se penalizează.',
   VECEU:
-    'Zona cerută: ZONA VECEU (toaleta de la peron). Verifică podeaua, cabinele, vasele, pisoarele, chiuvetele, coșul de gunoi, prezența hârtiei; petele vechi de pe faianță nu contează. Reperele exterioare ale peronului și toleranța de vreme nu se aplică aici: loc_corect=false doar dacă poza nu arată deloc o toaletă.',
+    'Zona cerută: ZONA VECEU (toaleta de la peron). Verifică podeaua, cabinele, vasele, pisoarele, chiuvetele, coșul de gunoi, prezența hârtiei; petele vechi de pe faianță nu contează. Podeaua e industrială, cu aspect de asfalt murdar chiar și spălată: judec-o doar după gunoi, hârtii, noroi sau băltoace de pe ea, nu după culoare sau textură. Reperele exterioare ale peronului și toleranța de vreme nu se aplică aici: loc_corect=false doar dacă poza nu arată deloc o toaletă.',
 };
 
 const OUTPUT_SCHEMA = {

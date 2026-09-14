@@ -34,4 +34,9 @@ describe('promptul de curățenie — criteriile lui Ion', () => {
     expect(CLEANING_SYSTEM_PROMPT).not.toContain('afișe lipite pe stâlpul de stație.');
     expect(CLEANING_SYSTEM_PROMPT).not.toContain('afișele se penalizează');
   });
+
+  it('Ion 14.09: podeaua veceului e industrială, cu aspect de asfalt murdar și spălată — nu se judecă după culoare sau textură', () => {
+    expect(CLEANING_SYSTEM_PROMPT).toContain('cu aspect de asfalt murdar — așa arată și spălată; culoarea și textura ei NU sunt murdărie');
+    expect(CLEANING_SYSTEM_PROMPT).toContain('Podeaua e murdară doar dacă se văd pe ea hârtii, gunoi, noroi, băltoace sau urme ude');
+  });
 });

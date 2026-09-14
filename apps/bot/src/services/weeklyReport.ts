@@ -1,4 +1,9 @@
-import { getDriverViolations, getOperatorAbsences, getActiveReclamaIssues } from './db.js';
+// Raportul săptămânal al adminilor (luni 08:00). Ion (14.09): «să nu mai vie info
+// legate de șoferi și mașini mie — șoferi am setat săptămânal raport, mașini pe urmă»:
+// neconformitățile șoferilor merg în grupa șoferilor ca imaginea de penalități
+// (apps/admin driver-penalties), iar sarcinile reclamă pe auto ies din raport până
+// se decide altceva. Rămân doar absențele operatorilor.
+import { getOperatorAbsences } from './db.js';
 import { sendAdminAlert } from './adminAlert.js';
 import { formatDate } from '../utils.js';
 import { config } from '../config.js';
@@ -29,11 +34,7 @@ function getPreviousWeekRange(): { dateFrom: string; dateTo: string } {
 export async function sendWeeklyReport(): Promise<void> {
   const { dateFrom, dateTo } = getPreviousWeekRange();
 
-  const [violations, absences, reclamaIssues] = await Promise.all([
-    getDriverViolations(dateFrom, dateTo),
-    getOperatorAbsences(dateFrom, dateTo),
-    getActiveReclamaIssues(),
-  ]);
+  const absences = await getOperatorAbsences(dateFrom, dateTo);
 
   const period = `${formatDate(dateFrom)} — ${formatDate(dateTo)}`;
 
@@ -41,25 +42,7 @@ export async function sendWeeklyReport(): Promise<void> {
   msg += `📅 ${period}\n`;
   msg += `${'─'.repeat(28)}\n\n`;
 
-  // ── 1. Drivers ──
-  msg += `🚍 <b>ȘOFERI — Neconformități</b>\n\n`;
-
-  if (violations.length === 0) {
-    msg += `✅ Nicio neconformitate în perioada raportată.\n`;
-  } else {
-    for (const v of violations) {
-      const issues: string[] = [];
-      if (v.uniform_count > 0) issues.push(`uniformă ×${v.uniform_count}`);
-      if (v.aspect_count > 0) issues.push(`aspect neîngrijit ×${v.aspect_count}`);
-      if (v.curat_count > 0) issues.push(`auto murdar ×${v.curat_count}`);
-      if (v.reclama_count > 0) issues.push(`reclamă ×${v.reclama_count}`);
-      msg += `• <b>${v.driver_name}</b> — ${issues.join(', ')}\n`;
-    }
-  }
-
-  msg += `\n${'─'.repeat(28)}\n\n`;
-
-  // ── 2. Operators ──
+  // ── Operatori ──
   msg += `🧍‍♂️ <b>OPERATORI — Absențe</b>\n\n`;
 
   if (absences.length === 0) {
@@ -68,42 +51,6 @@ export async function sendWeeklyReport(): Promise<void> {
     for (const a of absences) {
       const pointLabel = POINT_LABELS[a.point as keyof typeof POINT_LABELS] || a.point;
       msg += `• <b>@${a.username}</b> (${pointLabel}) — ${a.absence_count} zile absent\n`;
-    }
-  }
-
-  msg += `\n${'─'.repeat(28)}\n\n`;
-
-  // ── 3. Reclama status (sarcini auto către executorul zadachnik) ──
-  msg += `📋 <b>RECLAMĂ — Sarcini auto</b>\n\n`;
-
-  if (reclamaIssues.length === 0) {
-    msg += `✅ Nicio sarcină reclamă deschisă.\n`;
-  } else {
-    const overdue = reclamaIssues.filter(i => i.status === 'overdue');
-    const pending = reclamaIssues.filter(i => i.status === 'pending');
-    const inProcess = reclamaIssues.filter(i => i.status === 'in_process');
-
-    if (overdue.length > 0) {
-      msg += `🔴 EXPIRAT (${overdue.length}):\n`;
-      for (const i of overdue) {
-        msg += `• <b>${i.plate_number}</b> — ${i.defect} · termen ${formatDate(i.deadline)} ❌\n`;
-      }
-    }
-    if (pending.length > 0) {
-      if (overdue.length > 0) msg += `\n`;
-      // «NEPRELUATE» ar minți: pasul de preluare a fost scos din flux (17.08.2026), n-are cine
-      // să le «preia». Astea sunt pur și simplu sarcinile deschise, încă în termen.
-      msg += `🆕 ÎN TERMEN (${pending.length}):\n`;
-      for (const i of pending) {
-        msg += `• <b>${i.plate_number}</b> — ${i.defect}\n`;
-      }
-    }
-    if (inProcess.length > 0) {
-      if (overdue.length > 0 || pending.length > 0) msg += `\n`;
-      msg += `🟡 ÎN PROCES (${inProcess.length}):\n`;
-      for (const i of inProcess) {
-        msg += `• <b>${i.plate_number}</b> — ${i.defect} · termen ${formatDate(i.deadline)} ⏳\n`;
-      }
     }
   }
 

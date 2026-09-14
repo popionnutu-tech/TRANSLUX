@@ -279,11 +279,20 @@ const reportFor = (time: string): Row => {
   return r;
 };
 const day = () => srv.api('GET', 'day', undefined, token);
-const report = (body: unknown) => srv.api('POST', 'report', body, token);
+/** Aplicația de după 14.09 (cunoaște poza operatorului) — poarta OPERATOR_PHOTO_REQUIRED i se aplică. */
+const NEW_APP = { 'x-peron-app': '2' };
+const report = (body: unknown) => srv.api('POST', 'report', body, token, NEW_APP);
+/** Aplicația veche, fără antet: poarta pozei operatorului nu i se aplică (n-ar avea cum s-o rezolve). */
+const reportOldApp = (body: unknown) => srv.api('POST', 'report', body, token);
 
 async function cleaningPhoto(slot: 'DIMINEATA' | 'ZIUA', zone: 'PERON' | 'PIETONI' | 'VECEU', answer: ModelAnswer) {
   nextModelAnswer(answer);
   return srv.api('POST', 'cleaning-photo', { slot, zone, imageBase64: JPEG_B64, lat: IN_ZONE.lat, lon: IN_ZONE.lon }, token);
+}
+
+async function operatorPhoto(answer: ModelAnswer) {
+  nextModelAnswer(answer);
+  return srv.api('POST', 'operator-photo', { imageBase64: JPEG_B64, lat: IN_ZONE.lat, lon: IN_ZONE.lon }, token);
 }
 
 async function driverPhoto(time: string, driverId: string | null, answer: ModelAnswer) {
@@ -494,6 +503,69 @@ describe('4. Curățenie de dimineață', () => {
   });
 });
 
+describe('4b. Poza operatorului la deschiderea turei (Ion, 14.09)', () => {
+  it('setul de dimineață e complet, dar raportul aplicației noi pe 06:55 → 409 OPERATOR_PHOTO_REQUIRED; aplicația veche trece de poartă', async () => {
+    clock('06:43');
+    const res = await report(okBody('06:55', '00000000-0000-4000-8000-00000000dead', { coords: null }));
+    expect(res.status).toBe(409);
+    expect(res.body).toMatchObject({ ok: false, code: 'OPERATOR_PHOTO_REQUIRED' });
+    expect(res.body.message).toContain('06:55');
+    // fără antet: poarta nu se aplică — cererea ajunge la pasul următor (poza șoferului)
+    const old = await reportOldApp(okBody('06:55', '00000000-0000-4000-8000-00000000dead', { coords: null }));
+    expect(old.status).toBe(400);
+    expect(old.body.code).toBe('DRIVER_PHOTO_REQUIRED');
+    expect(reports()).toHaveLength(0);
+    const { body } = await day();
+    expect(body.operatorCheck).toBeNull();
+  });
+
+  it('nimeni în cadru → 200 NO_PERSON cu mesajul pentru operator, fără rând, poza scoasă din Storage', async () => {
+    const res = await operatorPhoto(DRIVER_NOBODY);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      ok: true, verdict: 'NO_PERSON', code: 'NO_PERSON',
+      message: 'Nimeni în cadru. Refă poza: dă telefonul unui șofer — tu din față, întreg, să se vadă încălțămintea și capul.',
+      operatorCheckId: null, personVisible: false, frameOk: false, uniformOk: null, shavedOk: null, groomedOk: null, description: 'Nimeni în cadru.',
+    });
+    expect(fake._tables.peron_operator_checks).toHaveLength(0);
+    const removed = fake._storageOps.filter((o) => o.op === 'remove').flatMap((o) => o.paths);
+    expect(removed.at(-1)).toMatch(new RegExp(`^operator/${DATE}/${IDS.users.vitalie}-\\d+\\.jpg$`));
+    expect(Object.keys(fake._storage['report-photos']).some((k) => k.startsWith('operator/'))).toBe(false);
+    // modelul a fost anunțat că e operatorul, nu un șofer
+    expect(modelCalls.at(-1)!.userText).toContain('OPERATORUL DE PERON');
+  });
+
+  it('uniformă da, bărbierit da, aspect nu → rând în peron_operator_checks, /day.operatorCheck cu ora', async () => {
+    clock('06:44');
+    const res = await operatorPhoto(driverJson({ aspect_ingrijit: false, descriere: 'Tricou vișiniu TRANSLUX, blugi rupți.' }));
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      verdict: 'OK', personVisible: true, frameOk: true, uniformOk: true, shavedOk: true, groomedOk: false,
+      description: 'uniformă: da · bărbierit: da · aspect: nu · Tricou vișiniu TRANSLUX, blugi rupți.',
+    });
+    expect(res.body.code).toBeUndefined();
+    expect(res.body.operatorCheckId).toMatch(UUID);
+    const rows = fake._tables.peron_operator_checks;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      id: res.body.operatorCheckId, check_date: DATE, user_id: IDS.users.vitalie, person_visible: true,
+      uniform_ok: true, shaved_ok: true, groomed_ok: false, model: 'claude-opus-5',
+      location_lat: IN_ZONE.lat, location_lon: IN_ZONE.lon, photo_deleted_at: null,
+    });
+    expect(rows[0].storage_key).toMatch(new RegExp(`^operator/${DATE}/${IDS.users.vitalie}-\\d+\\.jpg$`));
+    expect(fake._storage['report-photos'][rows[0].storage_key]).toEqual(JPEG);
+
+    const { body } = await day();
+    expect(body.operatorCheck).toEqual({ id: res.body.operatorCheckId, uniformOk: true, shavedOk: true, groomedOk: false, at: '06:44' });
+  });
+
+  it('cu poza făcută, raportul aplicației noi trece de poarta operatorului (cade abia la poza șoferului)', async () => {
+    const res = await report(okBody('06:55', '00000000-0000-4000-8000-00000000dead', { coords: null }));
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('DRIVER_PHOTO_REQUIRED');
+  });
+});
+
 describe('5. Poza șoferului', () => {
   let noPersonKeys: string[] = [];
 
@@ -522,7 +594,7 @@ describe('5. Poza șoferului', () => {
       driverCheckId: null, personVisible: false, frameOk: false, uniformOk: null, shavedOk: null, groomedOk: null, description: 'Nimeni în cadru.',
     });
     expect(fake._tables.driver_appearance_checks).toHaveLength(0);
-    noPersonKeys = fake._storageOps.filter((o) => o.op === 'remove').flatMap((o) => o.paths);
+    noPersonKeys = fake._storageOps.filter((o) => o.op === 'remove').flatMap((o) => o.paths).filter((k) => k.startsWith('soferi/'));
     expect(noPersonKeys).toHaveLength(1);
     expect(noPersonKeys[0]).toMatch(new RegExp(`^soferi/${DATE}/${T('06:55')}-\\d+\\.jpg$`));
     expect(Object.keys(fake._storage['report-photos']).filter((k) => k.startsWith('soferi/'))).toEqual(before);
@@ -539,7 +611,7 @@ describe('5. Poza șoferului', () => {
       driverCheckId: null, personVisible: true, frameOk: false, uniformOk: null, shavedOk: null, groomedOk: null, description: 'Nu se vede încălțămintea.',
     });
     expect(fake._tables.driver_appearance_checks).toHaveLength(0);
-    const removed = fake._storageOps.filter((o) => o.op === 'remove').flatMap((o) => o.paths);
+    const removed = fake._storageOps.filter((o) => o.op === 'remove').flatMap((o) => o.paths).filter((k) => k.startsWith('soferi/'));
     expect(removed).toHaveLength(2); // NO_PERSON + REFA_POZA
     expect(removed[1]).toMatch(new RegExp(`^soferi/${DATE}/${T('06:55')}-\\d+\\.jpg$`));
     expect(Object.keys(fake._storage['report-photos']).filter((k) => k.startsWith('soferi/'))).toEqual(before);
@@ -1026,6 +1098,8 @@ describe('15. Prezența GPS pe toată tura', () => {
     expect(msg).toContain('dimineață: ✅ peron · 🔴 pietoni (praf pe pavaj; mucuri la stâlp) · ❔ veceu neverificat');
     expect(msg).toContain('15:00: ✅ peron · ✅ pietoni · ✅ veceu');
 
+    expect(msg).toContain('\n\n👤 Operator Chișinău (poza de deschidere)\n@vitalie_peron: 🔴 aspect neîngrijit (06:44)');
+
     expect(msg).toContain('\n\n📍 Prezență în zona de lucru\n');
     expect(msg).toContain('@vitalie_peron (Chișinău): lipsă 12:40–13:05 (25 min) · fără semnal 17:10–17:20 (10 min)');
     // pauza de 8 min (14:59 → 15:07) e sub pragul de 10 min și nu se raportează
@@ -1160,6 +1234,9 @@ describe('16. «N-am fost la cursă» (Aurel vine la 07:30)', () => {
     for (const zone of ['PERON', 'PIETONI', 'VECEU'] as const) {
       expect((await cleaningPhoto('DIMINEATA', zone, CLEAN_OK)).status).toBe(200);
     }
+    // deschiderea turei cere și poza operatorului (Ion, 14.09) — aplicația nouă o face aici
+    clock2('08:14');
+    expect((await operatorPhoto(DRIVER_OK)).body.verdict).toBe('OK');
     clock2('08:15');
     const ok = await okTrip('08:15', { driverId: IDS.drivers.petruCiobanu, vehicleId: IDS.vehicles.lyy735 });
     expect(ok.body.summary).toBe('☑ 08:15 — 12 pas. | Petru C.');

@@ -202,10 +202,17 @@ describe('2. Ziua cu ambele puncte', () => {
     expect([...veceu.zonesDone].sort()).toEqual(['PERON', 'PIETONI', 'VECEU']);
   });
 
-  it('contract: /day al lui Vitalie (repartizări, reclamă, climă, curățenie — toate nenule) e day.chisinau.json', async () => {
+  it('contract: /day al lui Vitalie (repartizări, reclamă, climă, curățenie, poza operatorului — toate nenule) e day.chisinau.json', async () => {
+    clock('06:39');
+    // poza operatorului la deschiderea turei (Ion, 14.09) — ca fixture-ul să aibă și `operatorCheck`
+    nextModelAnswer(DRIVER_OK);
+    const op = await srv.api('POST', 'operator-photo', { imageBase64: JPEG_B64, lat: CH_ZONE.lat, lon: CH_ZONE.lon }, tokenV);
+    expect(op.status).toBe(200);
+    expect(op.body.verdict).toBe('OK');
     clock('06:40');
     const { status, body } = await srv.api('GET', 'day', undefined, tokenV);
     expect(status).toBe(200);
+    expect(body.operatorCheck).toEqual({ id: op.body.operatorCheckId, uniformOk: true, shavedOk: true, groomedOk: true, at: '06:39' });
     expect(Object.keys(body.assignments)).toHaveLength(3);
     expect(body.openReclama[PLATES.lyy735].taskId).toBe(IDS.reclamaTask);
     expect(Object.values(body.climate)).toEqual(['ac', 'ac', 'ac']);
@@ -276,6 +283,9 @@ describe('2. Ziua cu ambele puncte', () => {
         'dimineață: ✅ peron · 🔴 pietoni (praf pe pavaj) · ❔ veceu neverificat',
         '15:00: ✅ peron · ⬜ pietoni lipsă · ⬜ veceu lipsă',
         '',
+        '👤 Operator Chișinău (poza de deschidere)',
+        '@vitalie_peron: ✅ uniformă, bărbierit, aspect (06:39)',
+        '',
         '📍 Prezență în zona de lucru',
         '@vitalie_peron (Chișinău): fără semnal 06:25–06:50 (25 min) · lipsă 09:00–09:12 (12 min) · urmărire pornită abia la 06:50',
         '@andrei_balti (Bălți): toată tura în zonă',
@@ -342,6 +352,9 @@ describe('3. Joi: «N-am fost la cursă» la ambele puncte', () => {
         '🧹 Curățenie Chișinău',
         'dimineață: ⬜ peron lipsă · ⬜ pietoni lipsă · ⬜ veceu lipsă',
         '15:00: ⬜ peron lipsă · ⬜ pietoni lipsă · ⬜ veceu lipsă',
+        '',
+        '👤 Operator Chișinău (poza de deschidere)',
+        '@vitalie_peron: ⬜ fără poză la deschidere',
         '',
         // Cifrele date din aplicație îi fac «activi în aplicație» — și, într-o zi de lucru
         // în care n-au fost la nicio cursă, lipsa semnalului e exact ce trebuie să se vadă.

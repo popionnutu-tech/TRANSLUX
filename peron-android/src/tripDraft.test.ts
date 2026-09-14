@@ -67,6 +67,7 @@ const day: DayResponse = {
   climate: { v1: 'ac', v2: null },
   cleaning: { DIMINEATA: ['PERON', 'PIETONI', 'VECEU'], ZIUA: [] },
   driverChecks: {},
+  operatorCheck: null,
   cleaningGateTripTime: '16:25',
   locationExemptTimes: ['06:55', '20:00'],
   station: { lat: 47.0, lon: 28.8, radiusM: 150 },

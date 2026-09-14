@@ -18,6 +18,7 @@ import { postReport } from './report.js';
 import { postVehicle } from './vehicle.js';
 import { postCleaningPhoto } from './cleaning.js';
 import { postDriverPhoto } from './driverPhoto.js';
+import { postOperatorPhoto } from './operatorPhoto.js';
 import { postPresence } from './presence.js';
 import { postSkip } from './skip.js';
 
@@ -33,6 +34,19 @@ export interface ApiContext {
 }
 
 export type ApiHandler = (ctx: ApiContext) => Promise<object>;
+
+/**
+ * Versiunea protocolului pe care o vorbește aplicația (antetul `X-Peron-App`). Lipsă sau
+ * stricat = 1 (aplicația de dinainte de 14.09). Regulile noi care ar bloca o aplicație
+ * veche (poarta pozei operatorului) se aplică doar de la versiunea care le cunoaște —
+ * altfel operatorul cu APK-ul vechi ar primi un 409 pe care nu-l poate rezolva.
+ */
+export const OPERATOR_PHOTO_PROTOCOL = 2;
+export function appProtocol(req: IncomingMessage): number {
+  const raw = req.headers['x-peron-app'];
+  const v = Number.parseInt(Array.isArray(raw) ? raw[0] : (raw ?? ''), 10);
+  return Number.isFinite(v) && v >= 1 ? v : 1;
+}
 
 interface Route {
   method: 'GET' | 'POST';
@@ -66,7 +80,7 @@ const routes: Route[] = [
     method: 'POST',
     path: 'report',
     auth: true,
-    handler: async ({ user, body }) => postReport(user!, body),
+    handler: async ({ user, body, req }) => postReport(user!, body, { operatorPhotoGate: appProtocol(req) >= OPERATOR_PHOTO_PROTOCOL }),
   },
   {
     method: 'POST',
@@ -91,6 +105,12 @@ const routes: Route[] = [
     path: 'driver-photo',
     auth: true,
     handler: async ({ user, body }) => postDriverPhoto(user!, body),
+  },
+  {
+    method: 'POST',
+    path: 'operator-photo',
+    auth: true,
+    handler: async ({ user, body }) => postOperatorPhoto(user!, body),
   },
   {
     method: 'POST',

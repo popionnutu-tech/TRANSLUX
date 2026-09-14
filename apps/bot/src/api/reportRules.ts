@@ -263,6 +263,17 @@ export class CleaningRequiredError extends ApiError {
   }
 }
 
+/**
+ * 409 OPERATOR_PHOTO_REQUIRED — prima cursă raportată azi cere și poza operatorului
+ * (Ion, 14.09), făcută de un șofer. Se aruncă doar către aplicațiile care cunosc pasul
+ * (X-Peron-App ≥ 2); aplicația arată ecranul de deschidere a turei.
+ */
+export class OperatorPhotoRequiredError extends ApiError {
+  constructor(departureTime: string) {
+    super(409, 'OPERATOR_PHOTO_REQUIRED', `Înainte de cursa ${formatTime(departureTime)} trebuie poza ta de deschidere a turei (făcută de un șofer)`);
+  }
+}
+
 /** Linia pentru `createReport` din services/db.ts — aceleași reguli ca în bot. */
 export interface ReportRow {
   report_date: string;

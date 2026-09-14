@@ -210,6 +210,25 @@ const SCHEMA: Record<string, TableMeta> = {
       photo_deleted_at: () => null,
     },
   },
+  peron_operator_checks: {
+    ...COMMON,
+    columns: [
+      'id', 'check_date', 'user_id', 'storage_key', 'person_visible', 'uniform_ok', 'shaved_ok', 'groomed_ok',
+      'description', 'model', 'location_lat', 'location_lon', 'photo_deleted_at', 'created_at',
+    ],
+    defaults: {
+      ...COMMON.defaults,
+      person_visible: () => null,
+      uniform_ok: () => null,
+      shaved_ok: () => null,
+      groomed_ok: () => null,
+      description: () => null,
+      model: () => null,
+      location_lat: () => null,
+      location_lon: () => null,
+      photo_deleted_at: () => null,
+    },
+  },
   driver_appearance_checks: {
     ...COMMON,
     columns: [

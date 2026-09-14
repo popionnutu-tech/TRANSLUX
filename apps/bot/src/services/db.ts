@@ -16,6 +16,7 @@ import type {
   CleaningVerdict,
   PeronCleaningCheck,
   DriverAppearanceCheck,
+  PeronOperatorCheck,
   PeronPresencePing,
   OperatorTripSkip,
 } from '@translux/db';
@@ -1441,11 +1442,51 @@ export async function getCleaningZonesDone(checkDate: string, slot: CleaningSlot
   return done;
 }
 
-// ── Ștergerea pozelor după 30 de zile (curățenie + șofer) ────────────────────
+// ── Poza operatorului la deschiderea turei (peron_operator_checks, migrația 351) ──
+// Inserarea o face POST /app/v1/operator-photo. GET /day întoarce prima poză
+// acceptată de azi a operatorului; digestul de seară arată verdictul per operator.
+
+export type OperatorCheckInsert = Omit<PeronOperatorCheck, 'id' | 'created_at' | 'photo_deleted_at'>;
+
+/** Linia pozei operatorului; întoarce id-ul. */
+export async function createOperatorCheck(row: OperatorCheckInsert): Promise<string> {
+  const { data, error } = await db().from('peron_operator_checks').insert(row).select('id').single();
+  if (error) throw error;
+  return (data as { id: string }).id;
+}
+
+/** Prima poză acceptată de azi a operatorului (persoana vizibilă, verdict al modelului — nu EROARE). */
+export async function getTodayOperatorCheck(checkDate: string, userId: string): Promise<PeronOperatorCheck | null> {
+  const { data, error } = await db()
+    .from('peron_operator_checks')
+    .select('*')
+    .eq('check_date', checkDate)
+    .eq('user_id', userId)
+    .eq('person_visible', true)
+    .not('uniform_ok', 'is', null)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as PeronOperatorCheck | null) ?? null;
+}
+
+/** Toate pozele operatorilor dintr-o zi, în ordinea trimiterii (pentru digest). */
+export async function getOperatorChecksForDate(checkDate: string): Promise<PeronOperatorCheck[]> {
+  const { data, error } = await db()
+    .from('peron_operator_checks')
+    .select('*')
+    .eq('check_date', checkDate)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data as PeronOperatorCheck[] | null) ?? [];
+}
+
+// ── Ștergerea pozelor după 30 de zile (curățenie + șofer + operator) ─────────
 // Fișierul dispare din bucket, linia rămâne cu photo_deleted_at (verdictele sunt
 // permanente). Rulează schedulePeronPhotoRetention() din scheduler.ts, 03:10.
 
-export type PhotoTable = 'peron_cleaning_checks' | 'driver_appearance_checks';
+export type PhotoTable = 'peron_cleaning_checks' | 'driver_appearance_checks' | 'peron_operator_checks';
 
 export interface ExpiredPhotoRow {
   id: string;

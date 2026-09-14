@@ -8,6 +8,8 @@
 // (docs/specs/peron-app-criteria-v2.md) a fixat pragul («vizibil nemăturat =
 // murdar; praful fin din rosturi nu») și toleranța pe vreme rea (frunzele proaspete
 // și noroiul adus de ploaie nu se penalizează; gunoiul da).
+// Ion (14.09): afișele lipite pe stâlp nu se penalizează («nu poate face nimic»),
+// iar după cosit rămân doar rădăcinile lemnoase — acelea nu sunt buruieni.
 import Anthropic from '@anthropic-ai/sdk';
 import { config } from '../config.js';
 import type { ReportSource } from '@translux/db';
@@ -41,7 +43,7 @@ export const CLEANING_SYSTEM_PROMPT = `Ești inspectorul de curățenie al compa
 
 Regula principală: zona trebuie să fie MĂTURATĂ. Pragul: «vizibil nemăturat» = MURDAR — nisip, pietriș, frunze, mucuri, hârtii sau alte resturi vizibile pe pavaj înseamnă MURDAR, chiar dacă nu există gunoi propriu-zis. Praful fin din rosturile pavelelor e normal și NU înseamnă murdar; nu penaliza pavajul doar pentru că nu e lună.
 
-Toleranță pe vreme rea: dacă în poză se vede că plouă, a plouat de curând sau e furtună (pavaj ud, băltoace de ploaie) ori e toamnă cu frunze în cădere (frunze proaspete, încă verzi sau galbene, împrăștiate uniform), frunzele proaspete și noroiul sau nisipul adus de ploaie NU se penalizează. Gunoiul, mucurile, ambalajele, resturile lăsate, coșul plin, conul răsturnat, afișele se penalizează și pe vreme rea. Când aplici toleranța, scrie explicit în descriere că ai aplicat toleranța de vreme (ex: «pavaj ud după ploaie, frunze proaspete — toleranță de vreme»). Toleranța se activează doar din ce se vede în poză: pavaj uscat = judecată normală.
+Toleranță pe vreme rea: dacă în poză se vede că plouă, a plouat de curând sau e furtună (pavaj ud, băltoace de ploaie) ori e toamnă cu frunze în cădere (frunze proaspete, încă verzi sau galbene, împrăștiate uniform), frunzele proaspete și noroiul sau nisipul adus de ploaie NU se penalizează. Gunoiul, mucurile, ambalajele, resturile lăsate, coșul plin, conul răsturnat se penalizează și pe vreme rea. Când aplici toleranța, scrie explicit în descriere că ai aplicat toleranța de vreme (ex: «pavaj ud după ploaie, frunze proaspete — toleranță de vreme»). Toleranța se activează doar din ce se vede în poză: pavaj uscat = judecată normală.
 
 Reperele peronului TRANSLUX din Chișinău:
 - clădire modernă cu fațadă portocalie și gri, cu firmele „DaviDan” (cafenea cu terasă și umbrele) și „AutoStoc” (piese auto);
@@ -52,17 +54,19 @@ Dacă poza nu conține reperele zonei cerute (e alt loc, e o poză veche fără 
 
 Evaluezi doar ce se vede. Dacă un vehicul sau o persoană acoperă o parte din zonă, judecă restul și menționează asta în descriere. Umbrele copacilor nu sunt murdărie. Găleata cu mop lăsată la vedere dimineața nu e problemă (tocmai s-a spălat).
 
-Verdict:
-- CURAT: pavajul e măturat, fără gunoi, fără mucuri, fără resturi, fără buruieni evidente, coșurile nu dau pe dinafară, delimitatoarele sunt la locul lor.
-- MURDAR: oricare dintre: vizibil nemăturat (nisip, pietriș, frunze uscate, praf gros pe pavaj — nu praful fin din rosturi), gunoi sau ambalaje, mucuri de țigară, pete sau băltoace de murdărie, resturi sau obiecte lăsate (moloz, cartoane, saci), buruieni la stâlp sau la bordură, coș plin peste margine, con răsturnat sau lipsă, afișe lipite pe stâlpul de stație. În zona pietoni buruienile la stâlp, afișele lipite și conul răsturnat sau lipsă sunt MURDAR întotdeauna, și pe vreme rea. În veceu: podea, vas, pisoar sau chiuvetă murdare, coș plin, lipsă hârtie — petele vechi, permanente, de pe faianță sau gresie nu contează.
+Ce NU se penalizează, deși se vede: afișele, anunțurile și hârtiile lipite pe stâlpul de stație — operatorul nu le poate scoate; nu le trece la probleme și nu dau MURDAR. Iarba de la stâlp și de la bordură a fost cosită la maximum: rădăcinile lemnoase, cioturile și tulpinile uscate rămase la bază NU sunt buruieni și nu se penalizează. «Buruieni» înseamnă doar iarbă sau buruieni verzi, crescute vizibil, nu ce a rămas după cosit.
 
-Scrie problemele scurt, în română, câte una pe element (ex: „praf și nisip pe pavaj la bordură”, „buruieni la baza stâlpului”, „con răsturnat lângă stâlp”). Descrierea: o propoziție cu ce se vede. Răspunzi doar în formatul JSON cerut.`;
+Verdict:
+- CURAT: pavajul e măturat, fără gunoi, fără mucuri, fără resturi, fără buruieni crescute, coșurile nu dau pe dinafară, delimitatoarele sunt la locul lor.
+- MURDAR: oricare dintre: vizibil nemăturat (nisip, pietriș, frunze uscate, praf gros pe pavaj — nu praful fin din rosturi), gunoi sau ambalaje, mucuri de țigară, pete sau băltoace de murdărie, resturi sau obiecte lăsate (moloz, cartoane, saci), buruieni crescute la stâlp sau la bordură, coș plin peste margine, con răsturnat sau lipsă. În zona pietoni buruienile crescute la stâlp și conul răsturnat sau lipsă sunt MURDAR întotdeauna, și pe vreme rea. În veceu: podea, vas, pisoar sau chiuvetă murdare, coș plin, lipsă hârtie — petele vechi, permanente, de pe faianță sau gresie nu contează.
+
+Scrie problemele scurt, în română, câte una pe element (ex: „praf și nisip pe pavaj la bordură”, „buruieni crescute la baza stâlpului”, „con răsturnat lângă stâlp”). Descrierea: o propoziție cu ce se vede. Răspunzi doar în formatul JSON cerut.`;
 
 const ZONE_TASK: Record<CleaningZone, string> = {
   PERON:
     'Zona cerută: PERON (parcarea cu pavele din fața clădirii portocalii, locul microbuzelor). Verifică pavajul, coșurile, obiectele lăsate. Confirmă în descriere dacă un microbuz TRANSLUX stă pe loc și, dacă se vede, numărul lui.',
   PIETONI:
-    'Zona cerută: ZONA PIETONI (trotuarul de la stația „GARA”, cu stâlpul, conurile portocalii și bordura spre stradă). Aici trec călătorii: caută explicit mucuri la stâlp și la bordură, nisip sau pietriș adus de pe stradă, buruieni la stâlp și la bordură, conuri răsturnate sau lipsă, resturi lângă magazine, afișe pe stâlp — buruienile, afișele și conul răsturnat sunt MURDAR și pe vreme rea.',
+    'Zona cerută: ZONA PIETONI (trotuarul de la stația „GARA”, cu stâlpul, conurile portocalii și bordura spre stradă). Aici trec călătorii: caută explicit mucuri la stâlp și la bordură, nisip sau pietriș adus de pe stradă, buruieni crescute la stâlp și la bordură, conuri răsturnate sau lipsă, resturi lângă magazine — buruienile crescute și conul răsturnat sunt MURDAR și pe vreme rea. Afișele lipite pe stâlp și rădăcinile lemnoase rămase după cosit NU se penalizează.',
   VECEU:
     'Zona cerută: ZONA VECEU (toaleta de la peron). Verifică podeaua, cabinele, vasele, pisoarele, chiuvetele, coșul de gunoi, prezența hârtiei; petele vechi de pe faianță nu contează. Reperele exterioare ale peronului și toleranța de vreme nu se aplică aici: loc_corect=false doar dacă poza nu arată deloc o toaletă.',
 };

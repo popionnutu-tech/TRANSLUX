@@ -319,6 +319,13 @@
     "ZIUA": []
   },
   "driverChecks": {},
+  "operatorCheck": {
+    "id": "28240ac3-46cb-47ef-920e-e32081d44c8f",
+    "uniformOk": true,
+    "shavedOk": true,
+    "groomedOk": true,
+    "at": "06:39"
+  },
   "cleaningGateTripTime": "16:25",
   "locationExemptTimes": [
     "06:55",

@@ -21,9 +21,17 @@ describe('promptul de curățenie — criteriile lui Ion', () => {
     expect(CLEANING_SYSTEM_PROMPT).toContain('pavaj uscat = judecată normală');
   });
 
-  it('pietoni: buruieni, afișe, con răsturnat rămân murdar; veceu: podea/vas/chiuvetă, coș plin, fără hârtie; petele vechi nu', () => {
-    expect(CLEANING_SYSTEM_PROMPT).toContain('buruienile la stâlp, afișele lipite și conul răsturnat sau lipsă sunt MURDAR întotdeauna');
+  it('pietoni: buruieni crescute, con răsturnat rămân murdar; veceu: podea/vas/chiuvetă, coș plin, fără hârtie; petele vechi nu', () => {
+    expect(CLEANING_SYSTEM_PROMPT).toContain('buruienile crescute la stâlp și conul răsturnat sau lipsă sunt MURDAR întotdeauna');
     expect(CLEANING_SYSTEM_PROMPT).toContain('podea, vas, pisoar sau chiuvetă murdare, coș plin, lipsă hârtie');
     expect(CLEANING_SYSTEM_PROMPT).toContain('petele vechi, permanente, de pe faianță sau gresie nu contează');
+  });
+
+  it('Ion 14.09: afișele de pe stâlp nu se penalizează (operatorul nu le poate scoate); rădăcinile lemnoase rămase după cosit nu sunt buruieni', () => {
+    expect(CLEANING_SYSTEM_PROMPT).toContain('afișele, anunțurile și hârtiile lipite pe stâlpul de stație — operatorul nu le poate scoate');
+    expect(CLEANING_SYSTEM_PROMPT).toContain('rădăcinile lemnoase, cioturile și tulpinile uscate rămase la bază NU sunt buruieni');
+    // afișele nu mai apar la MURDAR și nici în lista penalizată pe vreme rea
+    expect(CLEANING_SYSTEM_PROMPT).not.toContain('afișe lipite pe stâlpul de stație.');
+    expect(CLEANING_SYSTEM_PROMPT).not.toContain('afișele se penalizează');
   });
 });

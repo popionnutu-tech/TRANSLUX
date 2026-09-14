@@ -26,7 +26,7 @@ export interface TestApi {
    * `path` fără prefix ('day', 'auth/link') → `/app/v1/<path>`; cu '/' în față se ia
    * literal (pentru rute din afara API-ului). `body` se serializează ca JSON.
    */
-  api<T = any>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown, token?: string | null): Promise<ApiResponse<T>>;
+  api<T = any>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown, token?: string | null, extraHeaders?: Record<string, string>): Promise<ApiResponse<T>>;
   stop(): Promise<void>;
 }
 
@@ -46,9 +46,9 @@ export async function startApi(): Promise<TestApi> {
 
   return {
     baseUrl,
-    async api(method, path, body, token) {
+    async api(method, path, body, token, extraHeaders) {
       const url = path.startsWith('/') ? `${baseUrl}${path}` : `${baseUrl}/app/v1/${path}`;
-      const headers: Record<string, string> = {};
+      const headers: Record<string, string> = { ...(extraHeaders ?? {}) };
       if (body !== undefined) headers['content-type'] = 'application/json';
       if (token) headers.authorization = `Bearer ${token}`;
       const res = await fetch(url, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });

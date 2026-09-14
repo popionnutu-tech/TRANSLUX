@@ -1,5 +1,5 @@
-// Pozele operatorilor de peron (curatenie/, soferi/) se păstrează 30 de zile
-// (Ion, 08.09), apoi fișierul dispare din bucket; linia din tabel rămâne cu
+// Pozele operatorilor de peron (curatenie/, soferi/, operator/) se păstrează 30 de
+// zile (Ion, 08.09), apoi fișierul dispare din bucket; linia din tabel rămâne cu
 // photo_deleted_at, verdictele sunt permanente. Rulează zilnic la 03:10 din
 // scheduler.ts. Ștergerea din bucket merge în loturi de 100; un lot care pică
 // nu se marchează și se reia a doua zi. Ping-urile GPS (peron_presence_pings)
@@ -9,7 +9,7 @@ import { removeReportPhotos } from './photoStorage.js';
 
 export const PHOTO_RETENTION_DAYS = 30;
 export const RETENTION_BATCH = 100;
-const TABLES: PhotoTable[] = ['peron_cleaning_checks', 'driver_appearance_checks'];
+const TABLES: PhotoTable[] = ['peron_cleaning_checks', 'driver_appearance_checks', 'peron_operator_checks'];
 
 /** Pragul: liniile cu created_at mai vechi decât acest moment își pierd fișierul. */
 export function retentionCutoff(now: Date, days = PHOTO_RETENTION_DAYS): string {

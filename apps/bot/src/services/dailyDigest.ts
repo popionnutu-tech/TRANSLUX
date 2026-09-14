@@ -1,4 +1,5 @@
 import { sendAdminAlert } from './adminAlert.js';
+import { config } from '../config.js';
 import { formatDate, formatTime, getTodayDate } from '../utils.js';
 import { getSupabase } from '../supabase.js';
 import {
@@ -6,6 +7,7 @@ import {
   getAllTripsForDirection,
   getCleaningChecksForDate,
   getDirectionForPoint,
+  getOperatorChecksForDate,
   getPresencePings,
   getReportedPassengers,
   getSkipsForDate,
@@ -98,8 +100,9 @@ export async function sendCompactDigest(): Promise<boolean> {
   const dayOffLines = Array.from(dayOffPoints).map((pt) => `${POINT_LABELS[pt]}: ${weekdayName(today)}, zi fără operator`);
   const skipLines = await buildSkipLines(today);
   const cleaningLines = dayOffPoints.has('CHISINAU') ? [] : await buildCleaningLines(today);
+  const operatorLines = dayOffPoints.has('CHISINAU') ? [] : await buildOperatorLines(today, new Date());
   const presenceLines = await buildPresenceLines(today, new Date(), dayOffPoints);
-  if (state.violations.length === 0 && dayOffLines.length === 0 && skipLines.length === 0 && cleaningLines.length === 0 && presenceLines.length === 0) return false;
+  if (state.violations.length === 0 && dayOffLines.length === 0 && skipLines.length === 0 && cleaningLines.length === 0 && operatorLines.length === 0 && presenceLines.length === 0) return false;
 
   // Count total reports today from DB per point
   const reportsByPoint: Record<string, number> = {};
@@ -151,6 +154,10 @@ export async function sendCompactDigest(): Promise<boolean> {
 
   if (cleaningLines.length > 0) {
     msg += `\n\n🧹 Curățenie Chișinău\n` + cleaningLines.join('\n');
+  }
+
+  if (operatorLines.length > 0) {
+    msg += `\n\n👤 Operator Chișinău (poza de deschidere)\n` + operatorLines.join('\n');
   }
 
   if (presenceLines.length > 0) {
@@ -231,12 +238,53 @@ async function buildCleaningLines(date: string): Promise<string[]> {
   return lines;
 }
 
-// ── Prezență în zona de lucru (GPS din aplicația de peron, S05) ──
-
 /** @username, altfel #telegram_id, altfel id-ul — la fel ca `operator` din încălcări. */
 function presenceOperatorLabel(u: { id: string; username: string | null; telegram_id: number | null }): string {
   return u.username ? `@${u.username}` : u.telegram_id ? `#${u.telegram_id}` : u.id;
 }
+
+// ── Poza operatorului la deschiderea turei (peron_operator_checks, migrația 351) ──
+
+/**
+ * Un rând per operator din Chișinău care a folosit aplicația azi (Ion, 14.09: «să se
+ * vadă că și el respectă uniforma»): «@vitalie_peron: ✅ uniformă, bărbierit, aspect
+ * (06:48)», «🔴 fără uniformă (06:48)», «❔ neverificat» (modelul picat) sau
+ * «⬜ fără poză la deschidere». Contează prima poză acceptată (aceea din /day).
+ */
+async function buildOperatorLines(date: string, now: Date): Promise<string[]> {
+  try {
+    const dayFrom = new Date(localToUtcMs(date, '00:00')).toISOString();
+    const dayTo = new Date(localToUtcMs(date, '23:59')).toISOString();
+    const operators = (await getActiveAppOperators(date, dayFrom, dayTo)).filter((op) => op.point === 'CHISINAU');
+    if (operators.length === 0) return [];
+    const checks = await getOperatorChecksForDate(date);
+    const lines: string[] = [];
+    for (const op of operators) {
+      const mine = checks.filter((c) => c.user_id === op.id);
+      const accepted = mine.find((c) => c.person_visible === true && c.uniform_ok !== null);
+      let verdict: string;
+      if (accepted) {
+        const bad: string[] = [];
+        if (!accepted.uniform_ok) bad.push('fără uniformă');
+        if (!accepted.shaved_ok) bad.push('nebărbierit');
+        if (!accepted.groomed_ok) bad.push('aspect neîngrijit');
+        const at = new Date(accepted.created_at).toLocaleTimeString('sv-SE', { timeZone: config.timezone, hour: '2-digit', minute: '2-digit' });
+        verdict = bad.length === 0 ? `✅ uniformă, bărbierit, aspect (${at})` : `🔴 ${bad.join(', ')} (${at})`;
+      } else if (mine.length > 0) {
+        verdict = '❔ neverificat (modelul n-a răspuns)';
+      } else {
+        verdict = '⬜ fără poză la deschidere';
+      }
+      lines.push(`${presenceOperatorLabel(op)}: ${verdict}`);
+    }
+    return lines;
+  } catch (err) {
+    console.error('[digest] secțiunea pozei operatorului a picat:', err);
+    return [];
+  }
+}
+
+// ── Prezență în zona de lucru (GPS din aplicația de peron, S05) ──
 
 /**
  * Un rând per operator care a folosit aplicația azi (ping-uri sau rapoarte din app):

@@ -256,6 +256,7 @@
     "ZIUA": []
   },
   "driverChecks": {},
+  "operatorCheck": null,
   "cleaningGateTripTime": null,
   "locationExemptTimes": [],
   "station": {

@@ -1,29 +1,37 @@
 /**
  * Pozele de curățenie — `Curatenie.dc.html`, element cu element: antet «Curățenie · 15:00» /
- * «Curățenie · dimineață» + «N din 3 zone trimise», un card per zonă în ordinea PERON,
+ * «Deschiderea turei» + «N din 3/4 trimise», un card per zonă în ordinea PERON,
  * PIETONI, VECEU (închisă-curat, închisă-murdar, activă cu previzualizarea camerei și
  * «Fă poza», viitoare), textul de jos. Doar camera aplicației — galeria nu există.
  *
+ * Dimineața (Ion, 14.09: «la început de smenă operatorul să fie fotografiat de șofer, să se
+ * vadă că și el respectă uniforma») setul are un al patrulea pas, după zone: poza
+ * OPERATORULUI, făcută de un șofer cu telefonul aplicației — POST /operator-photo, aceleași
+ * criterii ca la șofer (uniformă, bărbierit, aspect), verdictul modelului e final. La
+ * NO_PERSON / REFA_POZA apare mesajul serverului și «Refă poza». O dată pe zi: dacă /day
+ * are `operatorCheck`, cardul e închis de la început.
+ *
  * Parametri: `slot` (DIMINEATA | ZIUA) și `gate` (HH:MM) — de la poarta din day.tsx
- * sau de la 409 CLEANING_REQUIRED din ecranul de cursă. Logica (src/cleaning.ts,
- * camera, locația, API-ul) e cea de dinainte.
+ * sau de la 409 CLEANING_REQUIRED / OPERATOR_PHOTO_REQUIRED din ecranul de cursă. Logica
+ * (src/cleaning.ts, camera, locația, API-ul) e cea de dinainte.
  */
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
-import { ApiError, getDay, postCleaningPhoto } from '../src/api';
+import { ApiError, getDay, postCleaningPhoto, postOperatorPhoto } from '../src/api';
 import type { Coords } from '../src/buildReport';
 import { PhotoCamera, type CapturedPhoto } from '../src/camera';
-import { CLEANING_ZONES, isCleaningSlot, mergeDone, nextZone, slotForTime, ZONE_HINT } from '../src/cleaning';
+import { CLEANING_ZONES, isCleaningSlot, mergeDone, nextZone, OPERATOR_FRAME_HINT, slotForTime, ZONE_HINT } from '../src/cleaning';
 import { Body, Card, Footnote, Header, OutlineButton, PrimaryButton, Screen, Spacer } from '../src/components';
-import { CameraIcon, CheckIcon, ShutterIcon, XIcon } from '../src/icons';
+import { CameraIcon, CheckIcon, PersonIcon, ShutterIcon, XIcon } from '../src/icons';
 import { findLocation, hasForegroundPermission } from '../src/location';
 import { colors, radius, shadowCard, weight } from '../src/theme';
-import type { CleaningPhotoResponse, CleaningSlot, CleaningZone } from '../src/types';
+import type { CleaningPhotoResponse, CleaningSlot, CleaningZone, DayOperatorCheck, OperatorPhotoResponse } from '../src/types';
 
 /** Numele zonelor și textele exact ca în mockup (ZONE_LABEL din src/cleaning.ts e cel din bot). */
 const ZONE_TITLE: Record<CleaningZone, string> = { PERON: 'Peron', PIETONI: 'Zona pietoni', VECEU: 'Zona veceu' };
-const SLOT_TITLE: Record<CleaningSlot, string> = { DIMINEATA: 'Curățenie · dimineață', ZIUA: 'Curățenie · 15:00' };
+const SLOT_TITLE: Record<CleaningSlot, string> = { DIMINEATA: 'Deschiderea turei', ZIUA: 'Curățenie · 15:00' };
+const OPERATOR_TITLE = 'Poza ta (operatorul)';
 const CAMERA_ONLY = 'Poza se face doar cu camera aplicației.';
 const PENALTY = 'Informația se stochează și va fi penalizată.';
 
@@ -33,24 +41,49 @@ interface ZoneResult {
   description: string;
 }
 
+/** Verdictul pozei operatorului, în forma cardului închis (din sesiunea asta sau din /day). */
+interface OperatorResult {
+  verdict: 'OK' | 'EROARE';
+  uniformOk: boolean | null;
+  shavedOk: boolean | null;
+  groomedOk: boolean | null;
+  at: string | null; // HH:MM, doar când vine din /day
+}
+
+function fromDay(c: DayOperatorCheck): OperatorResult {
+  return { verdict: 'OK', uniformOk: c.uniformOk, shavedOk: c.shavedOk, groomedOk: c.groomedOk, at: c.at };
+}
+
 function goBack() {
   if (router.canGoBack()) router.back();
   else router.replace('/day');
+}
+
+/** Ce lipsește din verdictul operatorului: «fără uniformă, nebărbierit». Gol = totul în regulă. */
+export function operatorProblems(r: Pick<OperatorResult, 'uniformOk' | 'shavedOk' | 'groomedOk'>): string[] {
+  const out: string[] = [];
+  if (r.uniformOk === false) out.push('fără uniformă');
+  if (r.shavedOk === false) out.push('nebărbierit');
+  if (r.groomedOk === false) out.push('aspect neîngrijit');
+  return out;
 }
 
 export default function CleaningScreen() {
   const params = useLocalSearchParams<{ slot?: string; gate?: string }>();
   const gateTime = typeof params.gate === 'string' && /^\d{2}:\d{2}$/.test(params.gate) ? params.gate : null;
   const [slot] = useState<CleaningSlot>(() => (isCleaningSlot(params.slot) ? params.slot : slotForTime(new Date())));
+  const withOperator = slot === 'DIMINEATA';
 
   const [done, setDone] = useState<CleaningZone[] | null>(null); // null = /day nu s-a încărcat încă
+  const [operator, setOperator] = useState<OperatorResult | null>(null); // poza operatorului de azi (din /day sau din sesiune)
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [camera, setCamera] = useState(false);
+  const [camera, setCamera] = useState<'zone' | 'operator' | null>(null);
   const [pending, setPending] = useState<CapturedPhoto | null>(null); // poză confirmată, netrimisă (fără internet)
-  const [shot, setShot] = useState<{ zone: CleaningZone; photo: CapturedPhoto } | null>(null); // ultima poză, pentru previzualizare
+  const [shot, setShot] = useState<{ zone: CleaningZone | 'OPERATOR'; photo: CapturedPhoto } | null>(null); // ultima poză, pentru previzualizare
   const [sending, setSending] = useState(false);
   const [results, setResults] = useState<Partial<Record<CleaningZone, ZoneResult>>>({}); // verdictele primite în sesiunea asta
   const [error, setError] = useState<string | null>(null);
+  const [retake, setRetake] = useState<string | null>(null); // NO_PERSON / REFA_POZA la poza operatorului: de ce
   const [coords, setCoords] = useState<Coords | null>(null);
   const locationRef = useRef<Promise<Coords | null> | null>(null);
 
@@ -63,6 +96,7 @@ export default function CleaningScreen() {
         return;
       }
       setDone(d.cleaning?.[slot] ?? []);
+      if (d.operatorCheck) setOperator((prev) => prev ?? fromDay(d.operatorCheck!));
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) return; // api.ts a trimis deja la login
       setLoadError(e instanceof ApiError && e.isOffline ? 'Fără internet. Revino când e semnal.' : 'Nu s-a putut încărca starea curățeniei.');
@@ -95,9 +129,12 @@ export default function CleaningScreen() {
   }, []);
 
   const zone = done ? nextZone(done) : null;
-  const complete = done !== null && zone === null;
+  const zonesComplete = done !== null && zone === null;
+  // pasul operatorului e activ după zone; complet = zonele + (dimineața) poza operatorului
+  const operatorActive = withOperator && zonesComplete && operator === null;
+  const complete = zonesComplete && (!withOperator || operator !== null);
 
-  const submit = useCallback(
+  const submitZone = useCallback(
     async (photo: CapturedPhoto, forZone: CleaningZone) => {
       if (sending) return;
       setSending(true);
@@ -126,24 +163,73 @@ export default function CleaningScreen() {
     [coords, sending, slot],
   );
 
+  const submitOperator = useCallback(
+    async (photo: CapturedPhoto) => {
+      if (sending) return;
+      setSending(true);
+      setError(null);
+      setRetake(null);
+      try {
+        const c = coords ?? (await locationRef.current) ?? null;
+        const res: OperatorPhotoResponse = await postOperatorPhoto({ imageBase64: photo.base64, lat: c?.lat ?? null, lon: c?.lon ?? null });
+        setPending(null);
+        // Poza trebuie refăcută (nimeni în cadru / nu se văd încălțămintea și capul): serverul n-a scris nimic.
+        if (res.code || res.verdict === 'NO_PERSON' || res.verdict === 'REFA_POZA' || !res.operatorCheckId) {
+          setRetake(res.message?.trim() || `Refă poza. ${OPERATOR_FRAME_HINT}`);
+          return;
+        }
+        setOperator({ verdict: res.verdict === 'EROARE' ? 'EROARE' : 'OK', uniformOk: res.uniformOk, shavedOk: res.shavedOk, groomedOk: res.groomedOk, at: null });
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 401) return;
+        setError(
+          e instanceof ApiError && e.isOffline
+            ? 'Fără internet. Poza rămâne aici — apasă «Trimite din nou» când revine semnalul.'
+            : e instanceof ApiError
+              ? e.message
+              : 'Poza nu a putut fi trimisă.',
+        );
+      } finally {
+        setSending(false);
+      }
+    },
+    [coords, sending],
+  );
+
   function onCaptured(photo: CapturedPhoto) {
-    if (!zone) return;
-    setCamera(false);
+    const which = camera;
+    setCamera(null);
     setError(null);
+    if (which === 'operator') {
+      setShot({ zone: 'OPERATOR', photo });
+      setPending(photo);
+      submitOperator(photo);
+      return;
+    }
+    if (!zone) return;
     setResults((r) => (r[zone] ? { ...r, [zone]: undefined } : r));
     setShot({ zone, photo });
     setPending(photo);
-    submit(photo, zone);
+    submitZone(photo, zone);
   }
 
-  function retake() {
+  function retakeZone() {
     setPending(null);
     setError(null);
-    setCamera(true);
+    setCamera('zone');
   }
 
-  const sent = done?.length ?? 0;
-  const subtitle = `${sent} din 3 zone trimise${gateTime ? ` · înainte de cursa ${gateTime}` : ''}`;
+  function retakeOperator() {
+    setPending(null);
+    setError(null);
+    setRetake(null);
+    setCamera('operator');
+  }
+
+  const total = withOperator ? 4 : 3;
+  const sent = (done?.length ?? 0) + (withOperator && operator ? 1 : 0);
+  const subtitle = `${sent} din ${total} ${withOperator ? 'pași trimiși' : 'zone trimise'}${gateTime ? ` · înainte de cursa ${gateTime}` : ''}`;
+  const anyDirty = CLEANING_ZONES.some((z) => results[z]?.verdict === 'MURDAR');
+  const operatorBad = operator ? operatorProblems(operator) : [];
 
   return (
     <>
@@ -172,9 +258,9 @@ export default function CleaningScreen() {
                     error={error}
                     sending={sending}
                     pending={pending}
-                    onShoot={() => setCamera(true)}
-                    onResend={() => pending && submit(pending, z)}
-                    onRetake={retake}
+                    onShoot={() => setCamera('zone')}
+                    onResend={() => pending && submitZone(pending, z)}
+                    onRetake={retakeZone}
                   />
                 );
               }
@@ -182,9 +268,28 @@ export default function CleaningScreen() {
             })
           : null}
 
+        {done !== null && withOperator ? (
+          operator ? (
+            <ClosedOperator result={operator} />
+          ) : operatorActive ? (
+            <ActiveOperator
+              photo={shot?.zone === 'OPERATOR' ? shot.photo : null}
+              retake={retake}
+              error={error}
+              sending={sending}
+              pending={pending}
+              onShoot={() => setCamera('operator')}
+              onResend={() => pending && submitOperator(pending)}
+              onRetake={retakeOperator}
+            />
+          ) : (
+            <FutureOperator />
+          )
+        ) : null}
+
         {complete ? (
-          <Card tone={CLEANING_ZONES.some((z) => results[z]?.verdict === 'MURDAR') ? 'danger' : 'success'}>
-            <Text style={styles.summaryTitle}>Rezumat curățenie</Text>
+          <Card tone={anyDirty || operatorBad.length > 0 ? 'danger' : 'success'}>
+            <Text style={styles.summaryTitle}>{withOperator ? 'Rezumat deschidere' : 'Rezumat curățenie'}</Text>
             {CLEANING_ZONES.map((z) => {
               const r = results[z];
               const dirty = r?.verdict === 'MURDAR';
@@ -202,10 +307,17 @@ export default function CleaningScreen() {
                 </Text>
               );
             })}
-            {CLEANING_ZONES.some((z) => results[z]?.verdict === 'MURDAR') ? (
+            {withOperator && operator ? (
+              <Text style={[styles.summaryLine, operatorBad.length > 0 ? styles.summaryDirty : styles.summaryClean]}>
+                <Text style={styles.summaryZone}>Tu: </Text>
+                {operator.verdict === 'EROARE' ? 'poza trimisă, verificarea automată nu a mers' : operatorBad.length > 0 ? operatorBad.join(', ') : 'uniformă, bărbierit, aspect în regulă'}
+                {operator.at ? ` (${operator.at})` : ''}
+              </Text>
+            ) : null}
+            {anyDirty || operatorBad.length > 0 ? (
               <Text style={styles.summaryPenalty}>{PENALTY}</Text>
             ) : (
-              <Body color={colors.doneText}>Toate zonele sunt curate. Pozele de curățenie sunt complete.</Body>
+              <Body color={colors.doneText}>{withOperator ? 'Totul e în regulă. Deschiderea turei e completă.' : 'Toate zonele sunt curate. Pozele de curățenie sunt complete.'}</Body>
             )}
             <PrimaryButton label="Am înțeles, înapoi la ziua de azi" size="md" shadow={false} onPress={goBack} />
           </Card>
@@ -215,7 +327,8 @@ export default function CleaningScreen() {
         <Footnote>Pozele se păstrează 30 de zile. Verdictul intră în raportul de seară al administratorului.</Footnote>
       </Screen>
 
-      {camera && zone ? <PhotoCamera title={ZONE_TITLE[zone]} hint={ZONE_HINT[zone]} confirm confirmLabel="Trimite" onCaptured={onCaptured} onCancel={() => setCamera(false)} /> : null}
+      {camera === 'zone' && zone ? <PhotoCamera title={ZONE_TITLE[zone]} hint={ZONE_HINT[zone]} confirm confirmLabel="Trimite" onCaptured={onCaptured} onCancel={() => setCamera(null)} /> : null}
+      {camera === 'operator' ? <PhotoCamera title={OPERATOR_TITLE} hint={OPERATOR_FRAME_HINT} confirm confirmLabel="Trimite" onCaptured={onCaptured} onCancel={() => setCamera(null)} /> : null}
     </>
   );
 }
@@ -308,25 +421,159 @@ function ActiveZone({
 }) {
   const title = ZONE_TITLE[zone];
   return (
+    <ActiveCard
+      title={title}
+      hint={`${ZONE_HINT[zone]} ${CAMERA_ONLY}`}
+      photo={photo}
+      notice={rejected ? `Poza nu pare din zona ${title}. Refă din locul corect.` : null}
+      error={error}
+      sending={sending}
+      pending={pending}
+      onShoot={onShoot}
+      onResend={onResend}
+      onRetake={onRetake}
+    />
+  );
+}
+
+/** Zonă viitoare: ca cea activă, fără cameră și fără umbră. */
+function FutureZone({ zone }: { zone: CleaningZone }) {
+  return <FutureCard title={ZONE_TITLE[zone]} hint={`${ZONE_HINT[zone]} ${CAMERA_ONLY}`} />;
+}
+
+// ── Pasul operatorului (dimineața) ────────────────────────────────────────────
+
+/** Poza operatorului e făcută: verde când totul e în regulă, roz cu lista abaterilor altfel. */
+function ClosedOperator({ result }: { result: OperatorResult }) {
+  const bad = operatorProblems(result);
+  if (result.verdict === 'OK' && bad.length > 0) {
+    return (
+      <View style={styles.dirtyCard}>
+        <View style={styles.zoneRow}>
+          <View style={[styles.circle, { backgroundColor: colors.dangerBg }]}>
+            <XIcon size={22} />
+          </View>
+          <View style={{ gap: 2, flexShrink: 1 }}>
+            <Text style={styles.zoneTitle}>{OPERATOR_TITLE}</Text>
+            <Text style={styles.dirtyLabel}>NU E ÎN REGULĂ{result.at ? ` · ${result.at}` : ''}</Text>
+          </View>
+        </View>
+        <View style={styles.problems}>
+          {bad.map((p, i) => (
+            <Text key={i} style={styles.problem}>
+              · {p}
+            </Text>
+          ))}
+        </View>
+        <View style={styles.penalty}>
+          <Text style={styles.penaltyText}>{PENALTY}</Text>
+        </View>
+      </View>
+    );
+  }
+  const detail = result.verdict === 'EROARE' ? 'Trimisă · verificarea automată nu a mers, o vede administratorul' : `În regulă · uniformă, bărbierit, aspect${result.at ? ` · ${result.at}` : ''}`;
+  return (
+    <View style={styles.cleanCard}>
+      <View style={[styles.circle, { backgroundColor: colors.doneBg }]}>
+        <CheckIcon size={22} />
+      </View>
+      <View style={{ gap: 2, flexShrink: 1 }}>
+        <Text style={styles.zoneTitle}>{OPERATOR_TITLE}</Text>
+        <Text style={[styles.cleanDetail, result.verdict === 'OK' ? null : { color: colors.muted }]}>{detail}</Text>
+      </View>
+    </View>
+  );
+}
+
+function ActiveOperator({
+  photo,
+  retake,
+  error,
+  sending,
+  pending,
+  onShoot,
+  onResend,
+  onRetake,
+}: {
+  photo: CapturedPhoto | null;
+  retake: string | null;
+  error: string | null;
+  sending: boolean;
+  pending: CapturedPhoto | null;
+  onShoot: () => void;
+  onResend: () => void;
+  onRetake: () => void;
+}) {
+  return (
+    <ActiveCard
+      title={OPERATOR_TITLE}
+      hint={`${OPERATOR_FRAME_HINT} ${CAMERA_ONLY}`}
+      photo={photo}
+      notice={retake}
+      error={error}
+      sending={sending}
+      pending={pending}
+      // poza refuzată de model: butonul principal e «Refă poza», nu «Fă poza»
+      shootLabel={retake ? 'Refă poza' : 'Fă poza'}
+      onShoot={onShoot}
+      onResend={onResend}
+      onRetake={onRetake}
+      icon={<PersonIcon size={44} strokeWidth={1.8} />}
+    />
+  );
+}
+
+function FutureOperator() {
+  return <FutureCard title={OPERATOR_TITLE} hint={`După zone. ${OPERATOR_FRAME_HINT} ${CAMERA_ONLY}`} />;
+}
+
+// ── Cardurile comune (zonă sau operator) ──────────────────────────────────────
+
+function ActiveCard({
+  title,
+  hint,
+  photo,
+  notice,
+  error,
+  sending,
+  pending,
+  shootLabel = 'Fă poza',
+  onShoot,
+  onResend,
+  onRetake,
+  icon,
+}: {
+  title: string;
+  hint: string;
+  photo: CapturedPhoto | null;
+  notice: string | null;
+  error: string | null;
+  sending: boolean;
+  pending: CapturedPhoto | null;
+  shootLabel?: string;
+  onShoot: () => void;
+  onResend: () => void;
+  onRetake: () => void;
+  icon?: ReactNode;
+}) {
+  return (
     <View style={[styles.activeCard, shadowCard]}>
       <View style={styles.zoneRow}>
         <View style={styles.dashedCircle} />
         <Text style={styles.activeTitle}>{title}</Text>
       </View>
-      <Text style={styles.hint}>
-        {ZONE_HINT[zone]} {CAMERA_ONLY}
-      </Text>
+      <Text style={styles.hint}>{hint}</Text>
       <View style={styles.preview}>
         {photo ? (
           <Image source={{ uri: photo.uri }} style={styles.previewImage} resizeMode="cover" accessibilityLabel={`Poza pentru ${title}`} />
         ) : (
           <>
-            <CameraIcon size={44} color={colors.primaryText} strokeWidth={1.8} />
+            {icon ?? <CameraIcon size={44} color={colors.primaryText} strokeWidth={1.8} />}
             <Text style={styles.previewText}>imaginea camerei</Text>
           </>
         )}
       </View>
-      {rejected ? <Body color={colors.danger}>Poza nu pare din zona {title}. Refă din locul corect.</Body> : null}
+      {notice ? <Body color={colors.danger}>{notice}</Body> : null}
       {error ? <Body color={colors.danger}>{error}</Body> : null}
       {sending ? (
         <PrimaryButton label="Se verifică poza…" shadow={false} disabled onPress={() => undefined} />
@@ -336,23 +583,20 @@ function ActiveZone({
           <OutlineButton label="Refă poza" tone="neutral" height={48} onPress={onRetake} />
         </>
       ) : (
-        <PrimaryButton label="Fă poza" shadow={false} icon={<ShutterIcon />} onPress={onShoot} />
+        <PrimaryButton label={shootLabel} shadow={false} icon={<ShutterIcon />} onPress={onShoot} />
       )}
     </View>
   );
 }
 
-/** Zonă viitoare: ca cea activă, fără cameră și fără umbră. */
-function FutureZone({ zone }: { zone: CleaningZone }) {
+function FutureCard({ title, hint }: { title: string; hint: string }) {
   return (
     <View style={styles.activeCard}>
       <View style={styles.zoneRow}>
         <View style={styles.dashedCircle} />
-        <Text style={styles.activeTitle}>{ZONE_TITLE[zone]}</Text>
+        <Text style={styles.activeTitle}>{title}</Text>
       </View>
-      <Text style={styles.hint}>
-        {ZONE_HINT[zone]} {CAMERA_ONLY}
-      </Text>
+      <Text style={styles.hint}>{hint}</Text>
     </View>
   );
 }

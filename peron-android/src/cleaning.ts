@@ -58,11 +58,21 @@ export function mergeDone(...lists: readonly (readonly CleaningZone[])[]): Clean
 export interface CleaningGate {
   slot: CleaningSlot;
   missing: CleaningZone[];
+  /** DIMINEATA: poza operatorului (făcută de un șofer) încă nu e făcută azi (Ion, 14.09). */
+  operatorMissing: boolean;
+}
+
+/** Cadrul cerut la poza operatorului: același ca la șofer, dar telefonul e la un șofer. */
+export const OPERATOR_FRAME_HINT = 'Dă telefonul unui șofer să te fotografieze. Tu din față, întreg: să se vadă încălțămintea și capul. Șapca și ochelarii sunt în regulă.';
+
+/** Deschiderea turei cere și poza operatorului — doar la Chișinău, o dată pe zi. */
+export function operatorMissing(day: Pick<DayResponse, 'point' | 'operatorCheck'>): boolean {
+  return day.point === 'CHISINAU' && !day.operatorCheck;
 }
 
 /**
  * Poarta de curățenie pentru o cursă (doar Chișinău) — oglinda lui `cleaningGateSlot` din
- * bot, cu stările din /day în loc de seturile de id-uri:
+ * bot, cu stările din /day în loc de seturile de id-uri (plus poza operatorului la DIMINEATA):
  *  - DIMINEATA: prima cursă raportată EFECTIV azi (nicio cursă `done`), nu prima din orar —
  *    cursele sărite («N-am fost la cursă») nu contează (Vitalie, 09.09: Aurel vine la 07:30);
  *  - ZIUA: cursa `cleaningGateTripTime` (16:25) sau, dacă aceea e `skipped`, prima cursă
@@ -70,7 +80,7 @@ export interface CleaningGate {
  * Întoarce null când cursa nu are poartă sau setul e deja complet.
  */
 export function cleaningGateFor(
-  day: Pick<DayResponse, 'point' | 'trips' | 'cleaning' | 'cleaningGateTripTime'>,
+  day: Pick<DayResponse, 'point' | 'trips' | 'cleaning' | 'cleaningGateTripTime' | 'operatorCheck'>,
   tripId: string,
 ): CleaningGate | null {
   if (day.point !== 'CHISINAU') return null;
@@ -79,7 +89,9 @@ export function cleaningGateFor(
   const slot = gateSlotFor(day, idx);
   if (!slot) return null;
   const missing = missingZones(day.cleaning?.[slot] ?? []);
-  return missing.length > 0 ? { slot, missing } : null;
+  // Deschiderea turei = setul DIMINEATA + poza operatorului (Ion, 14.09); după-amiaza doar zonele.
+  const opMissing = slot === 'DIMINEATA' && operatorMissing(day);
+  return missing.length > 0 || opMissing ? { slot, missing, operatorMissing: opMissing } : null;
 }
 
 function gateSlotFor(day: Pick<DayResponse, 'trips' | 'cleaningGateTripTime'>, idx: number): CleaningSlot | null {

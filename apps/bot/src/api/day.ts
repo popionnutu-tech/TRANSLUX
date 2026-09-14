@@ -28,6 +28,7 @@ import {
   getReportedPassengers,
   getSkippedTripIds,
   getTodayDriverChecks,
+  getTodayOperatorCheck,
   getUsedDriverIds,
   getUsedVehicleIds,
 } from '../services/db.js';
@@ -61,6 +62,15 @@ export interface DayDriverCheck {
   at: string;
 }
 
+/** Poza de azi a operatorului la deschiderea turei (Ion, 14.09), făcută de un șofer; null → aplicația o cere. */
+export interface DayOperatorCheck {
+  id: string;
+  uniformOk: boolean;
+  shavedOk: boolean;
+  groomedOk: boolean;
+  at: string;
+}
+
 export interface DayResponse {
   date: string;
   point: PointEnum;
@@ -74,6 +84,8 @@ export interface DayResponse {
   cleaning: { DIMINEATA: CleaningZone[]; ZIUA: CleaningZone[] };
   /** Per driver_id: poza de azi (o dată pe zi per șofer); lipsă → aplicația cere poza. */
   driverChecks: Record<string, DayDriverCheck>;
+  /** Poza operatorului de azi (deschiderea turei, doar Chișinău); null la Bălți sau când încă nu e făcută. */
+  operatorCheck: DayOperatorCheck | null;
   cleaningGateTripTime: string | null;
   locationExemptTimes: string[];
   station: { lat: number; lon: number; radiusM: number };
@@ -132,6 +144,7 @@ export async function getDay(user: AppUser): Promise<DayResponse> {
       climate: {},
       cleaning: { DIMINEATA: [], ZIUA: [] },
       driverChecks: {},
+      operatorCheck: null,
       cleaningGateTripTime: null,
       locationExemptTimes: [],
       station: config.stations.BALTI,
@@ -139,7 +152,7 @@ export async function getDay(user: AppUser): Promise<DayResponse> {
     };
   }
 
-  const [assignmentRows, activeDrivers, usedDriverIds, activeVehicles, usedVehicleIds, reclamaTasks, morningDone, dayDone, todayChecks] =
+  const [assignmentRows, activeDrivers, usedDriverIds, activeVehicles, usedVehicleIds, reclamaTasks, morningDone, dayDone, todayChecks, operatorRow] =
     await Promise.all([
       Promise.all(allTrips.map((t) => getAssignmentForTrip(t.crm_route_id, date))),
       getActiveDrivers(),
@@ -150,7 +163,13 @@ export async function getDay(user: AppUser): Promise<DayResponse> {
       getCleaningZonesDone(date, 'DIMINEATA'),
       getCleaningZonesDone(date, 'ZIUA'),
       getTodayDriverChecks(date),
+      getTodayOperatorCheck(date, user.id),
     ]);
+
+  // Poza operatorului la deschiderea turei: prima acceptată de azi (Ion, 14.09).
+  const operatorCheck: DayOperatorCheck | null = operatorRow
+    ? { id: operatorRow.id, uniformOk: operatorRow.uniform_ok === true, shavedOk: operatorRow.shaved_ok === true, groomedOk: operatorRow.groomed_ok === true, at: timeHHMM(operatorRow.created_at) }
+    : null;
 
   const assignments: Record<string, DayAssignment> = {};
   allTrips.forEach((t, i) => {
@@ -192,6 +211,7 @@ export async function getDay(user: AppUser): Promise<DayResponse> {
     climate,
     cleaning: { DIMINEATA: Array.from(morningDone), ZIUA: Array.from(dayDone) },
     driverChecks,
+    operatorCheck,
     cleaningGateTripTime: config.cleaningGateTripTime,
     locationExemptTimes: [...config.chisinauExemptTimes],
     station: config.stations.CHISINAU,

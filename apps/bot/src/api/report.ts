@@ -24,6 +24,7 @@ import {
   getDriverAppearanceCheck,
   getReportedTripIds,
   getSkippedTripIds,
+  getTodayOperatorCheck,
   getVehiclePlate,
   updateAssignmentDriverVehicle,
   validateDay,
@@ -36,6 +37,7 @@ import { assertNotDayOff, nextTripId } from './dayState.js';
 import { ApiError, badRequest } from './errors.js';
 import {
   CleaningRequiredError,
+  OperatorPhotoRequiredError,
   buildSummary,
   cleaningGateSlot,
   cleaningMissing,
@@ -59,7 +61,12 @@ export function operatorLabel(user: Pick<AppUser, 'name' | 'telegram_id' | 'id'>
   return user.id;
 }
 
-export async function postReport(user: AppUser, rawBody: unknown): Promise<ReportResponse> {
+export interface ReportOptions {
+  /** Aplicația cunoaște poza operatorului (X-Peron-App ≥ 2): prima cursă a zilei o cere. */
+  operatorPhotoGate: boolean;
+}
+
+export async function postReport(user: AppUser, rawBody: unknown, opts: ReportOptions = { operatorPhotoGate: false }): Promise<ReportResponse> {
   const point = user.point;
   const sent = parseReportBody(rawBody, point);
   const date = getTodayDate();
@@ -97,6 +104,11 @@ export async function postReport(user: AppUser, rawBody: unknown): Promise<Repor
   if (slot) {
     const missing = cleaningMissing(await getCleaningZonesDone(date, slot));
     if (missing.length > 0) throw new CleaningRequiredError(slot, missing, trip.departure_time);
+  }
+  // Poza operatorului (Ion, 14.09): la deschiderea turei, adică la aceeași primă cursă raportată
+  // efectiv azi ca setul DIMINEATA. Doar pentru aplicațiile care au pasul; cea veche trece.
+  if (slot === 'DIMINEATA' && opts.operatorPhotoGate && !(await getTodayOperatorCheck(date, user.id))) {
+    throw new OperatorPhotoRequiredError(trip.departure_time);
   }
 
   // Poza șoferului trebuie să existe și să fie de azi. Verdictele (uniformă, aspect) sunt

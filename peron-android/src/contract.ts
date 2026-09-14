@@ -19,7 +19,7 @@
 import dayBalti from './__fixtures__/day.balti.json';
 import dayChisinau from './__fixtures__/day.chisinau.json';
 import reportOk from './__fixtures__/report.ok.json';
-import type { AppUserInfo, DayAssignment, DayResponse, DayTrip, PresenceWindow, ReportResponse, Station } from './types';
+import type { AppUserInfo, DayAssignment, DayOperatorCheck, DayResponse, DayTrip, PresenceWindow, ReportResponse, Station } from './types';
 
 /** Tipul cu literalele lărgite, cum le vede TypeScript într-un JSON importat. */
 type Loose<T> = T extends string
@@ -56,6 +56,7 @@ export const dayChisinauReclamaKeys: SameKeys<Values<typeof dayChisinau.openRecl
 export const dayChisinauCleaningKeys: SameKeys<typeof dayChisinau.cleaning, DayResponse['cleaning']> = true;
 export const dayChisinauStationKeys: SameKeys<typeof dayChisinau.station, Station> = true;
 export const dayChisinauWindowKeys: SameKeys<NonNullable<typeof dayChisinau.presenceWindow>, PresenceWindow> = true;
+export const dayChisinauOperatorKeys: SameKeys<NonNullable<typeof dayChisinau.operatorCheck>, DayOperatorCheck> = true;
 
 // ── GET /app/v1/day — Bălți (fluxul scurt: liste goale, allowFull) ──
 

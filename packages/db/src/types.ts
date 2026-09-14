@@ -271,6 +271,26 @@ export interface DriverAppearanceCheck {
   created_at: string;
 }
 
+// Poza operatorului de peron la deschiderea turei, făcută de un șofer (Ion,
+// 14.09.2026: «să se vadă că și el respectă uniforma»). Aceleași verdicte ca la
+// șofer (migrația 351); fără trip_id — e o dată pe zi per operator.
+export interface PeronOperatorCheck {
+  id: string;
+  check_date: string; // YYYY-MM-DD
+  user_id: string;
+  storage_key: string;
+  person_visible: boolean | null;
+  uniform_ok: boolean | null;
+  shaved_ok: boolean | null;
+  groomed_ok: boolean | null;
+  description: string | null;
+  model: string | null;
+  location_lat: number | null;
+  location_lon: number | null;
+  photo_deleted_at: string | null;
+  created_at: string;
+}
+
 // Ping GPS la 2 minute pe toată tura; in_zone e calculat pe server (raza 150 m
 // față de stația punctului).
 export interface PeronPresencePing {

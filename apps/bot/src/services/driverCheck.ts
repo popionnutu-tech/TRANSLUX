@@ -37,6 +37,8 @@ Aspect îngrijit: «aspect_ingrijit» = false dacă hainele sunt rupte (blugi ru
 
 Șapca, ochelarii de soare și masca sunt în regulă: nu ceri refacerea pozei pentru ele și nu le penalizezi. Judeci ce se vede; ce e acoperit de ele nu se ține împotriva șoferului.
 
+Uneori primești, în loc de șofer, poza operatorului de peron — făcută de un șofer la deschiderea turei; mesajul îți spune. Aceleași criterii, aceeași uniformă, același cadru: operatorul se judecă exact ca un șofer.
+
 Judeci doar ce se vede. Descrierea: o propoziție scurtă, în română, cu ce se vede (ex: «tricou vișiniu TRANSLUX, adidași curați, bărbierit», «cămașă bleu băgată în pantaloni, șlapi»). Răspunzi doar în formatul JSON cerut.`;
 
 const OUTPUT_SCHEMA = {
@@ -124,8 +126,18 @@ function anthropic(): Anthropic | null {
   return client;
 }
 
-/** Judecă poza șoferului. Nu aruncă: orice eșec devine EROARE. */
-export async function analyzeDriverPhoto(jpegBase64: string): Promise<DriverPhotoResult> {
+/** Cine e în poză: șoferul la cursă sau operatorul de peron la deschiderea turei (Ion, 14.09). */
+export type PhotoSubject = 'driver' | 'operator';
+
+const SUBJECT_TASK: Record<PhotoSubject, string> = {
+  driver:
+    'Evaluează șoferul din poză: cadrul complet (din față, de la încălțăminte până la cap, poză clară), persoana vizibilă, uniforma (tricou vișiniu sau cămașă albă/bleu uni băgată în pantaloni) și încălțămintea (fără șlapi, curată), bărbieritul, aspectul îngrijit (haine nerupte, curate, fără pantaloni scurți). Șapca, ochelarii și masca sunt în regulă.',
+  operator:
+    'În poză e OPERATORUL DE PERON, fotografiat de un șofer la deschiderea turei — judecă-l exact ca pe un șofer: cadrul complet (din față, de la încălțăminte până la cap, poză clară), persoana vizibilă, uniforma (tricou vișiniu sau cămașă albă/bleu uni băgată în pantaloni) și încălțămintea (fără șlapi, curată), bărbieritul, aspectul îngrijit (haine nerupte, curate, fără pantaloni scurți). Șapca, ochelarii și masca sunt în regulă.',
+};
+
+/** Judecă poza șoferului (sau a operatorului). Nu aruncă: orice eșec devine EROARE. */
+export async function analyzeDriverPhoto(jpegBase64: string, subject: PhotoSubject = 'driver'): Promise<DriverPhotoResult> {
   const c = anthropic();
   if (!c) {
     console.warn('[driver-check] ANTHROPIC_API_KEY lipsește — verdict EROARE');
@@ -142,10 +154,7 @@ export async function analyzeDriverPhoto(jpegBase64: string): Promise<DriverPhot
           role: 'user',
           content: [
             { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: jpegBase64 } },
-            {
-              type: 'text',
-              text: 'Evaluează șoferul din poză: cadrul complet (din față, de la încălțăminte până la cap, poză clară), persoana vizibilă, uniforma (tricou vișiniu sau cămașă albă/bleu uni băgată în pantaloni) și încălțămintea (fără șlapi, curată), bărbieritul, aspectul îngrijit (haine nerupte, curate, fără pantaloni scurți). Șapca, ochelarii și masca sunt în regulă.',
-            },
+            { type: 'text', text: SUBJECT_TASK[subject] },
           ],
         },
       ],

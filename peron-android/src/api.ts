@@ -15,6 +15,8 @@ import type {
   DriverPhotoBody,
   DriverPhotoResponse,
   LinkResponse,
+  OperatorPhotoBody,
+  OperatorPhotoResponse,
   PresencePing,
   PresenceResponse,
   ReportBody,
@@ -26,6 +28,12 @@ import type {
 
 export const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? '').replace(/\/+$/, '');
 export const TOKEN_KEY = 'peron_token';
+/**
+ * Versiunea protocolului pe care o vorbește aplicația (antetul `X-Peron-App`). 2 = cunoaște
+ * poza operatorului la deschiderea turei (14.09); serverul cere pasul (409
+ * OPERATOR_PHOTO_REQUIRED) doar aplicațiilor care îl anunță — APK-ul vechi nu e blocat.
+ */
+export const APP_PROTOCOL = 2;
 export const MAX_PINGS_PER_REQUEST = 200;
 
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -94,7 +102,7 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
   const { method = 'GET', body, auth = true, timeoutMs = DEFAULT_TIMEOUT_MS, keepSessionOn401 = false } = opts;
   if (!API_URL) throw new ApiError('NO_API_URL', 'EXPO_PUBLIC_API_URL nu e setat');
 
-  const headers: Record<string, string> = { Accept: 'application/json' };
+  const headers: Record<string, string> = { Accept: 'application/json', 'X-Peron-App': String(APP_PROTOCOL) };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (auth) {
     const token = await getToken();
@@ -176,6 +184,11 @@ export function postCleaningPhoto(body: CleaningPhotoBody): Promise<CleaningPhot
 
 export function postDriverPhoto(body: DriverPhotoBody): Promise<DriverPhotoResponse> {
   return request<DriverPhotoResponse>('driver-photo', { method: 'POST', body, timeoutMs: PHOTO_TIMEOUT_MS });
+}
+
+/** Poza operatorului la deschiderea turei (făcută de un șofer), o dată pe zi. */
+export function postOperatorPhoto(body: OperatorPhotoBody): Promise<OperatorPhotoResponse> {
+  return request<OperatorPhotoResponse>('operator-photo', { method: 'POST', body, timeoutMs: PHOTO_TIMEOUT_MS });
 }
 
 /** Lot de maximum 200 de ping-uri. `accepted` < trimise e normal (duplicate / în afara ferestrei). */

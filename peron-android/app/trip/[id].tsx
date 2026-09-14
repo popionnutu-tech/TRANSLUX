@@ -412,6 +412,9 @@ export default function TripScreen() {
           message: `Înainte de cursa ${trip.departure_time} trebuie pozele de curățenie${details.missing?.length ? ` (${details.missing.join(', ')})` : ''}.`,
           cleaning: { slot: details.slot ?? 'DIMINEATA', missing: details.missing ?? [] },
         });
+      } else if (e.code === 'OPERATOR_PHOTO_REQUIRED') {
+        // Deschiderea turei (Ion, 14.09): zonele sunt gata, lipsește poza operatorului — același ecran, pasul 4.
+        setError({ message: e.message, cleaning: { slot: 'DIMINEATA', missing: [] } });
       } else if (e.code === 'NOT_NEXT' || e.code === 'ALREADY_REPORTED') {
         // cursa e deja în bază — ciorna ei nu mai folosește nimănui
         if (e.code === 'ALREADY_REPORTED') await clearDraft(AsyncStorage, day.date, ctx.tripId).catch(() => undefined);
@@ -704,7 +707,7 @@ export default function TripScreen() {
           <Card tone="danger">
             <Body color={colors.danger}>{error.message}</Body>
             {error.cleaning ? (
-              <PrimaryButton label="Poze curățenie" size="md" shadow={false} icon={<CameraIcon color={colors.primaryText} />} onPress={() => router.push(`/cleaning?slot=${error.cleaning?.slot ?? ''}&gate=${trip.departure_time}`)} />
+              <PrimaryButton label={error.cleaning.missing.length > 0 ? 'Poze curățenie' : 'Deschiderea turei'} size="md" shadow={false} icon={<CameraIcon color={colors.primaryText} />} onPress={() => router.push(`/cleaning?slot=${error.cleaning?.slot ?? ''}&gate=${trip.departure_time}`)} />
             ) : null}
           </Card>
         ) : null}

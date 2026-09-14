@@ -23,7 +23,7 @@ import { ActivityIndicator, Alert, Linking, Platform, Pressable, ToastAndroid } 
 import { ApiError, getDay } from '../src/api';
 import { registerRearm } from '../src/backgroundRearm';
 import { isBatteryDone } from '../src/battery';
-import { cleaningGateFor, missingZones, slotForTime } from '../src/cleaning';
+import { cleaningGateFor, missingZones, operatorMissing, slotForTime } from '../src/cleaning';
 import { Banner, Body, Card, DayHeader, Footnote, Grid, GridCell, OutlineButton, PrimaryButton, ProgressBar, Question, Screen, Spacer } from '../src/components';
 import { formatDayRo, pointLabel } from '../src/format';
 import { CameraIcon } from '../src/icons';
@@ -235,7 +235,7 @@ export default function Day() {
           <Spacer />
 
           {day.point === 'CHISINAU' ? (
-            <OutlineButton label="Poze curățenie" onPress={() => router.push('/cleaning')} icon={<CameraIcon size={24} color={colors.primary} />} />
+            <OutlineButton label={slotForTime(now) === 'DIMINEATA' ? 'Deschiderea turei · poze' : 'Poze curățenie'} onPress={() => router.push('/cleaning')} icon={<CameraIcon size={24} color={colors.primary} />} />
           ) : (
             <Footnote>La Bălți se raportează doar numărul de pasageri. Locația pleacă automat.</Footnote>
           )}
@@ -253,11 +253,16 @@ export default function Day() {
 function cleaningBanner(day: DayResponse, now: Date): { bold: string; rest: string } | null {
   if (day.point !== 'CHISINAU') return null;
   const slot = slotForTime(now);
-  if (missingZones(day.cleaning?.[slot] ?? []).length === 0) return null;
+  const zonesMissing = missingZones(day.cleaning?.[slot] ?? []).length > 0;
+  // dimineața, deschiderea turei cere și poza operatorului (Ion, 14.09)
+  const opMissing = slot === 'DIMINEATA' && operatorMissing(day);
+  if (!zonesMissing && !opMissing) return null;
   if (slot === 'DIMINEATA') {
     // poarta e la prima cursă raportată efectiv (cursele sărite nu contează) — adică la `next` cât timp nu e nicio `done`
     const first = day.trips.some((t) => t.state === 'done') ? null : day.trips.find((t) => t.state === 'next')?.departure_time;
-    return { bold: 'Pozele de dimineață lipsesc.', rest: first ? `Sunt obligatorii înainte de cursa ${first}.` : 'Sunt obligatorii înainte de prima cursă raportată.' };
+    const bold = zonesMissing && opMissing ? 'Pozele de dimineață și poza ta lipsesc.' : zonesMissing ? 'Pozele de dimineață lipsesc.' : 'Poza ta de deschidere lipsește.';
+    const what = zonesMissing ? 'Sunt obligatorii' : 'Un șofer te fotografiază; e obligatorie';
+    return { bold, rest: first ? `${what} înainte de cursa ${first}.` : `${what} înainte de prima cursă raportată.` };
   }
   const gate = day.cleaningGateTripTime;
   return { bold: 'Pozele de la 15:00 lipsesc.', rest: gate ? `Sunt obligatorii înainte de cursa ${gate}.` : 'Sunt obligatorii înainte de cursa de după-amiază.' };

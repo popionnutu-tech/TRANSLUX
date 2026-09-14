@@ -62,6 +62,19 @@ export interface DayDriverCheck {
   at: string; // HH:MM
 }
 
+/**
+ * Poza operatorului la deschiderea turei (Ion, 14.09: «la început de smenă operatorul să
+ * fie fotografiat de șofer, să se vadă că și el respectă uniforma»). Prima poză acceptată
+ * de azi; null → aplicația o cere înaintea primei curse, împreună cu setul de curățenie.
+ */
+export interface DayOperatorCheck {
+  id: string;
+  uniformOk: boolean;
+  shavedOk: boolean;
+  groomedOk: boolean;
+  at: string; // HH:MM
+}
+
 /** GET /app/v1/day */
 export interface DayResponse {
   date: string; // YYYY-MM-DD
@@ -75,6 +88,7 @@ export interface DayResponse {
   climate: Record<string, 'ac' | 'heat' | null>; // per vehicle_id
   cleaning: { DIMINEATA: CleaningZone[]; ZIUA: CleaningZone[] };
   driverChecks: Record<string, DayDriverCheck>; // per driver_id; {} la Bălți sau când nimeni nu are poză azi
+  operatorCheck: DayOperatorCheck | null; // doar Chișinău; null până la poza de deschidere
   cleaningGateTripTime: string | null;
   locationExemptTimes: string[];
   station: Station;
@@ -196,6 +210,31 @@ export interface DriverPhotoResponse {
   /** bărbierit sau barbă îngrijită */
   shavedOk: boolean | null;
   /** aspect îngrijit (păr, haine curate) — brut; în `reports.exterior_ok` intră bărbierit && aspect */
+  groomedOk: boolean | null;
+  description: string;
+}
+
+/** POST /app/v1/operator-photo — poza operatorului, făcută de un șofer la deschiderea turei. */
+export interface OperatorPhotoBody {
+  imageBase64: string;
+  lat: number | null;
+  lon: number | null;
+}
+
+/**
+ * Răspunsul lui apps/bot/src/api/operatorPhoto.ts — aceeași formă ca la șofer, cu
+ * `operatorCheckId` în loc de `driverCheckId`. La NO_PERSON / REFA_POZA: `message` gata
+ * de afișat, fără rând; la EROARE: rândul există, verdictele null.
+ */
+export interface OperatorPhotoResponse {
+  verdict: 'OK' | 'EROARE' | DriverPhotoRetakeCode;
+  code?: DriverPhotoRetakeCode;
+  message?: string;
+  operatorCheckId: string | null;
+  personVisible: boolean | null;
+  frameOk: boolean | null;
+  uniformOk: boolean | null;
+  shavedOk: boolean | null;
   groomedOk: boolean | null;
   description: string;
 }

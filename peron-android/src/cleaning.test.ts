@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { cleaningGateFor, mergeDone, missingZones, nextZone, slotForTime } from './cleaning.ts';
+import { cleaningGateFor, mergeDone, missingZones, nextZone, operatorMissing, slotForTime } from './cleaning.ts';
 import type { DayResponse } from './types';
 
-type DayLike = Pick<DayResponse, 'point' | 'trips' | 'cleaning' | 'cleaningGateTripTime'>;
+type DayLike = Pick<DayResponse, 'point' | 'trips' | 'cleaning' | 'cleaningGateTripTime' | 'operatorCheck'>;
 
 function day(over: Partial<DayLike> = {}): DayLike {
   return {
@@ -15,6 +15,8 @@ function day(over: Partial<DayLike> = {}): DayLike {
     ],
     cleaning: { DIMINEATA: [], ZIUA: [] },
     cleaningGateTripTime: '16:25',
+    // poza operatorului e făcută: testele de mai jos privesc doar zonele
+    operatorCheck: { id: 'op1', uniformOk: true, shavedOk: true, groomedOk: true, at: '06:40' },
     ...over,
   };
 }
@@ -39,8 +41,8 @@ test('mergeDone: reuniune fără duplicate, ordonată', () => {
 });
 
 test('poarta: prima cursă a zilei cere DIMINEATA', () => {
-  assert.deepEqual(cleaningGateFor(day(), 't1'), { slot: 'DIMINEATA', missing: ['PERON', 'PIETONI', 'VECEU'] });
-  assert.deepEqual(cleaningGateFor(day({ cleaning: { DIMINEATA: ['PERON', 'VECEU'], ZIUA: [] } }), 't1'), { slot: 'DIMINEATA', missing: ['PIETONI'] });
+  assert.deepEqual(cleaningGateFor(day(), 't1'), { slot: 'DIMINEATA', missing: ['PERON', 'PIETONI', 'VECEU'], operatorMissing: false });
+  assert.deepEqual(cleaningGateFor(day({ cleaning: { DIMINEATA: ['PERON', 'VECEU'], ZIUA: [] } }), 't1'), { slot: 'DIMINEATA', missing: ['PIETONI'], operatorMissing: false });
   assert.equal(cleaningGateFor(day({ cleaning: { DIMINEATA: ['PERON', 'PIETONI', 'VECEU'], ZIUA: [] } }), 't1'), null);
 });
 
@@ -53,7 +55,7 @@ test('poarta: DIMINEATA e la prima cursă raportată efectiv — cursele sărite
       { id: 't4', departure_time: '16:25', route_name: 'Chișinău – Bălți', crm_route_id: null, passengers: null, state: 'locked' },
     ],
   });
-  assert.deepEqual(cleaningGateFor(skipped, 't3'), { slot: 'DIMINEATA', missing: ['PERON', 'PIETONI', 'VECEU'] });
+  assert.deepEqual(cleaningGateFor(skipped, 't3'), { slot: 'DIMINEATA', missing: ['PERON', 'PIETONI', 'VECEU'], operatorMissing: false });
   // după setul de dimineață poarta dispare
   assert.equal(cleaningGateFor({ ...skipped, cleaning: { DIMINEATA: ['PERON', 'PIETONI', 'VECEU'], ZIUA: [] } }, 't3'), null);
 });
@@ -78,7 +80,7 @@ test('poarta: 16:25 cere ZIUA, restul curselor nu au poartă', () => {
       { id: 't4', departure_time: '16:45', route_name: 'Chișinău – Bălți', crm_route_id: null, passengers: null, state: 'locked' },
     ],
   });
-  assert.deepEqual(cleaningGateFor(d, 't3'), { slot: 'ZIUA', missing: ['PERON', 'PIETONI', 'VECEU'] });
+  assert.deepEqual(cleaningGateFor(d, 't3'), { slot: 'ZIUA', missing: ['PERON', 'PIETONI', 'VECEU'], operatorMissing: false });
   assert.equal(cleaningGateFor({ ...d, cleaning: { DIMINEATA: [], ZIUA: ['PERON', 'PIETONI', 'VECEU'] } }, 't3'), null);
   assert.equal(cleaningGateFor(d, 't2'), null);
   assert.equal(cleaningGateFor(d, 't4'), null);
@@ -93,7 +95,7 @@ test('poarta: 16:25 sărită → ZIUA se cere la prima cursă de după ea', () =
     { id: 't3', departure_time: '16:45', route_name: 'Chișinău – Bălți', crm_route_id: null, passengers: null, state: afterGate },
     { id: 't4', departure_time: '17:20', route_name: 'Chișinău – Bălți', crm_route_id: null, passengers: null, state: last },
   ];
-  assert.deepEqual(cleaningGateFor(day({ trips: trips('next', 'locked') }), 't3'), { slot: 'ZIUA', missing: ['PERON', 'PIETONI', 'VECEU'] });
+  assert.deepEqual(cleaningGateFor(day({ trips: trips('next', 'locked') }), 't3'), { slot: 'ZIUA', missing: ['PERON', 'PIETONI', 'VECEU'], operatorMissing: false });
   // 16:45 raportată între timp → 17:20 nu mai are poartă
   assert.equal(cleaningGateFor(day({ trips: trips('done', 'next') }), 't4'), null);
   // setul ZIUA complet → nimic
@@ -102,4 +104,29 @@ test('poarta: 16:25 sărită → ZIUA se cere la prima cursă de după ea', () =
 
 test('poarta: Bălți nu are curățenie', () => {
   assert.equal(cleaningGateFor(day({ point: 'BALTI' }), 't1'), null);
+});
+
+test('poarta de dimineață cere și poza operatorului (Ion, 14.09): zonele complete, poza lipsă → poartă doar pentru operator', () => {
+  const zonesDone = { DIMINEATA: ['PERON', 'PIETONI', 'VECEU'] as const, ZIUA: [] as const };
+  assert.deepEqual(cleaningGateFor(day({ cleaning: { DIMINEATA: [...zonesDone.DIMINEATA], ZIUA: [] }, operatorCheck: null }), 't1'), {
+    slot: 'DIMINEATA',
+    missing: [],
+    operatorMissing: true,
+  });
+  // zone lipsă + poză lipsă → ambele în poartă
+  assert.deepEqual(cleaningGateFor(day({ operatorCheck: null }), 't1'), { slot: 'DIMINEATA', missing: ['PERON', 'PIETONI', 'VECEU'], operatorMissing: true });
+  assert.equal(operatorMissing({ point: 'CHISINAU', operatorCheck: null }), true);
+  assert.equal(operatorMissing({ point: 'BALTI', operatorCheck: null }), false);
+});
+
+test('poarta de zi (16:25) nu cere poza operatorului, chiar dacă lipsește', () => {
+  const d = day({
+    trips: [
+      { id: 't1', departure_time: '06:55', route_name: 'Chișinău – Bălți', crm_route_id: null, passengers: null, state: 'done' },
+      { id: 't3', departure_time: '16:25', route_name: 'Chișinău – Bălți', crm_route_id: null, passengers: null, state: 'next' },
+    ],
+    cleaning: { DIMINEATA: [], ZIUA: ['PERON', 'PIETONI', 'VECEU'] },
+    operatorCheck: null,
+  });
+  assert.equal(cleaningGateFor(d, 't3'), null);
 });

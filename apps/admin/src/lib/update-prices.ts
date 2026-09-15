@@ -1,4 +1,5 @@
 import { getSupabase } from '@/lib/supabase';
+import { anuntaPreturiNoi } from '@/lib/price-announce';
 
 // ─── Constants ───
 
@@ -836,6 +837,9 @@ export async function applyProposal(
       const period = await insertTariffPeriod(supabase, effective, applyOn);
 
       if (claimStatus === 'scheduled') {
+        // Anunțul în grupă pleacă ACUM, nu vineri: imaginea spune «de mâine», iar
+        // șoferul află prețul înainte de prima cursă (Ion, 15.09). Nu aruncă.
+        await anuntaPreturiNoi(proposalId, applyOn);
         // Restul (app_config, oferta, nomenclator, log) se scrie în ziua intrării în vigoare.
         return { status: 'scheduled', applyOn };
       }
@@ -844,6 +848,9 @@ export async function applyProposal(
       // refolosit, ca să nu mai facem încă 12 interogări pe v_interurban_v2_km_pairs.
       const storedPreview = Array.isArray(c.preview) ? (c.preview as PopularPrice[]) : undefined;
       const rowsUpdated = await applyRatesToConfigAndOffers(supabase, effective, previous, storedPreview);
+      // Tarif care intră în vigoare CHIAR AZI (dată ANTA în trecut sau confirmare
+      // târzie): anunțul spune «de azi». Aceeași pază, deci fără dublură.
+      await anuntaPreturiNoi(proposalId, applyOn);
       const baltiPrice = Math.round(133 * effective.interurbanLong);
       return {
         status: 'updated',
@@ -928,6 +935,9 @@ export async function applyDueScheduledProposals(): Promise<{ applied: number; e
         // aici pe km-perechile curente (refolosirea rămâne doar pe aplicarea imediată).
         await applyRatesToConfigAndOffers(supabase, effective, previous);
         applied++;
+        // Plasă de siguranță pentru anunț: joi seara grupa putea fi nelegată sau
+        // Telegram căzut. `announced_at` face a doua încercare inofensivă.
+        await anuntaPreturiNoi(String(c.id), String(c.apply_on ?? today));
         await notifyAdmins(
           `✅ <b>Tarifele confirmate au intrat în vigoare</b>\n\n` +
             formatRateLine('Interurban lung', effective.interurbanLong, previous.interurbanLong) + '\n' +

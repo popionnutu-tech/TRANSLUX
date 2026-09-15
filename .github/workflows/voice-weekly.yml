@@ -1,0 +1,28 @@
+name: voice-weekly
+
+# Statistica săptămânală a agentului vocal în Telegram (Ion, 15.09).
+# 05:20 UTC = 08:20 Chișinău, după judecătorul de noapte (01:07 UTC), ca greșelile
+# prinse peste noapte să intre în raportul aceleiași dimineți.
+#
+# Zilnic, nu lunea: ruta trimite doar dacă săptămâna încheiată n-a fost raportată
+# încă, deci o cădere de luni se repară marți, fără mesaj dublu.
+
+on:
+  schedule:
+    - cron: '20 5 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run TRANSLUX voice weekly stats
+        run: |
+          code=$(curl -s -m 120 -o /tmp/out.json -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://central-hub-md.vercel.app/api/cron/voice-weekly)
+          echo "voice-weekly responded: HTTP $code"
+          cat /tmp/out.json
+          if [ "$code" -lt 200 ] || [ "$code" -ge 400 ]; then
+            echo "::warning::voice-weekly endpoint returned HTTP $code"
+          fi

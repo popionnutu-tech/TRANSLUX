@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { verifyElevenLabsSignature } from '@/lib/voice/webhook-verify';
-import { extractCall, saveVoiceCall, hasCallbackRequest, formatCallReport, type VoiceCallRow } from '@/lib/voice/calls';
-import { getComplaintSummary } from '@/lib/voice/complaints';
-import { claimLostItemForGroup, releaseLostItemClaim, getLostItemSummary } from '@/lib/voice/lost-items';
+import { extractCall, saveVoiceCall, hasCallbackRequest, type VoiceCallRow } from '@/lib/voice/calls';
+import {
+  claimLostItemForGroup, releaseLostItemClaim, getLostItemSummary, formatLostItemForAdmins,
+} from '@/lib/voice/lost-items';
 import { notifyDriversGroup, formatLostItemForGroup, driversGroupChatId } from '@/lib/voice/drivers-group';
-import { alertAdmins, escapeHtml } from '@/lib/telegram-notify';
+import { getComplaintSummary } from '@/lib/voice/complaints';
+import { alertAdmins } from '@/lib/telegram-notify';
 import { getSupabase } from '@/lib/supabase';
 
 export const runtime = 'nodejs';
@@ -50,15 +52,13 @@ export async function POST(req: NextRequest) {
     // duplicate и отчёт не уйдёт уже никогда.
     after(async () => {
       try {
-        const callbackAlerted = await hasCallbackRequest(row.conversation_id);
-        if (callbackAlerted) {
+        if (await hasCallbackRequest(row.conversation_id)) {
           // Держим voice_calls.callback_requested в синхроне с voice_callback_requests.
           await getSupabase().from('voice_calls')
             .update({ callback_requested: true })
             .eq('conversation_id', row.conversation_id);
         }
-        const complaint = await getComplaintSummary(row.conversation_id);
-        await raporteaza(row, callbackAlerted, complaint);
+        await raporteaza(row);
       } catch (err) {
         console.error('voice-webhook notify failed:', err);
       }
@@ -68,7 +68,13 @@ export async function POST(req: NextRequest) {
 }
 
 /**
- * Raportul apelului: administratorilor și, dacă e cazul, grupei șoferilor.
+ * Ce mai pleacă din apel la închiderea lui: DOAR lucrul uitat.
+ *
+ * Raportul pe fiecare apel («📞 Apel TRANSLUX») a ieșit pe 15.09 — Ion: «am nevoie
+ * doar statistica săptămânală de sunete, câte sunete agentul a dat în bară și nu a
+ * putut rezolva». Numărătoarea aceea se face acum o dată pe săptămână, în
+ * lib/voice-weekly.ts. Reclamațiile și cererile de operator își au de mult alertele
+ * lor, din tool-uri (register-complaint, request-callback) — nu s-a pierdut nimic.
  *
  * Lucrul uitat pleacă în grupă ACUM, la închiderea apelului (Ion, 02.09). De ce
  * aici și nu din tool: find_past_trip e chemat de 1-3 ori pe convorbire și nu
@@ -79,14 +85,16 @@ export async function POST(req: NextRequest) {
  * bloc, o cădere la primul stingea tăcut al doilea, iar repetarea webhook-ului
  * n-ar mai ajunge aici (apelul e deja salvat, deci `duplicate`).
  */
-async function raporteaza(
-  row: VoiceCallRow,
-  callbackAlerted: boolean,
-  complaint: Awaited<ReturnType<typeof getComplaintSummary>>,
-): Promise<void> {
+async function raporteaza(row: VoiceCallRow): Promise<void> {
+  // Linia lucrului uitat pentru ADMINI, mereu — nu doar când grupa lipsește.
+  // «Vi-l predăm la birou» e singura promisiune din tot fluxul care cere o
+  // acțiune a companiei, iar fără mesajul ăsta n-o citea nimeni de la birou.
+  const obiect = await getLostItemSummary(row.conversation_id);
+  if (!obiect) return;
+
   // Grupa nelegată: rândul NU se revendică. Altfel prima zi de după deploy —
   // fereastra în care Ion încă n-a scris /lega_reclamatii — ar arde tăcut exact
-  // obiectele pentru care s-a făcut totul. Adminii află din raportul apelului.
+  // obiectele pentru care s-a făcut totul. Adminii află din mesajul de mai jos.
   const grupaLegata = (await driversGroupChatId()) !== null;
   let lostItem: Awaited<ReturnType<typeof claimLostItemForGroup>> = null;
   if (grupaLegata) {
@@ -96,34 +104,15 @@ async function raporteaza(
       console.error('voice-webhook: claim lost item', err);
     }
   }
-  // Linia lucrului uitat pentru ADMINI, mereu — nu doar când grupa lipsește.
-  // «Vi-l predăm la birou» e singura promisiune din tot fluxul care cere o
-  // acțiune a companiei, iar fără rândul ăsta n-o citea nimeni de la birou.
-  const obiect = await getLostItemSummary(row.conversation_id);
-  let liniaObiect = '';
-  if (obiect) {
-    // Escapat ca tot restul mesajului: un singur «&» într-un nume ar face
-    // Telegram să respingă ÎNTREG raportul apelului.
-    const cine = [obiect.driver_name, obiect.plate]
-      .filter((x): x is string => !!x).map(escapeHtml).join(' · ');
-    // Numele clientului e obligatoriu din 07.09; lipsa lui e o abatere a
-    // agentului și trebuie să se vadă la birou, nu doar în grupă.
-    const client = obiect.caller_name?.trim()
-      ? `; clientul: ${escapeHtml(obiect.caller_name.trim())}`
-      : '; ⚠️ numele clientului NU a fost cules';
-    liniaObiect = obiect.identified
-      ? (obiect.phone_withheld
-        ? `\n🎒 Lucru uitat — la ${cine || 'șofer'}; clientul NU are numărul (avea reclamație): obiectul se predă LA BIROU${client}.`
-        : `\n🎒 Lucru uitat — la ${cine || 'șofer'}; clientul are numărul și sună direct${client}.`)
-      : `\n🎒 Lucru uitat — cursă neidentificată; obiectul rămâne la șofer${client}.`;
-    if (!grupaLegata) {
-      liniaObiect += '\n⚠️ Grupa șoferilor nu e legată — scrieți /lega_reclamatii în grupă.';
-    }
-  }
+
+  // Reclamația aceluiași apel: în grupă, numărul clientului se dă altfel când
+  // omul a și reclamat (vezi formatLostItemForGroup).
+  const complaint = await getComplaintSummary(row.conversation_id);
+
   // Independente: în serie, două taimauturi Telegram de câte 5 secunde s-ar
   // aduna în bugetul invocării.
   const [, grupOk] = await Promise.all([
-    alertAdmins(formatCallReport(row, callbackAlerted, complaint) + liniaObiect)
+    alertAdmins(formatLostItemForAdmins(obiect, row.caller_phone, grupaLegata))
       .catch((err) => { console.error('voice-webhook: alertAdmins', err); return false; }),
     lostItem
       // `complaint !== null` = același apel are și o reclamație. Poarta din

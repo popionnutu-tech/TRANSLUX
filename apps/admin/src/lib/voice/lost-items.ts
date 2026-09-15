@@ -1,4 +1,5 @@
 import { getSupabase } from '../supabase';
+import { escapeHtml } from '../telegram-notify';
 
 // Lucrurile uitate în autobuz (migr. 314). Până acum find_past_trip identifica
 // șoferul, îi dădea numărul clientului și NU scria nimic — Ion n-avea nici
@@ -174,4 +175,43 @@ export async function releaseLostItemClaim(conversationId: string): Promise<void
     .update({ group_notified: false })
     .eq('conversation_id', conversationId);
   if (error) console.error('releaseLostItemClaim:', error.message);
+}
+
+/**
+ * Anunțul lucrului uitat pentru BIROU.
+ *
+ * Până pe 15.09 linia asta se lipea la raportul fiecărui apel. Rapoartele pe apel
+ * au ieșit (Ion: «am nevoie doar statistica săptămânală de sunete»), dar lucrul
+ * uitat rămâne: «vi-l predăm la birou» e singura promisiune din tot fluxul care
+ * cere o faptă a companiei, iar fără mesajul ăsta n-ar citi-o nimeni.
+ * De aceea mesajul e acum de sine stătător și poartă numărul clientului —
+ * înainte îl aducea antetul raportului.
+ */
+export function formatLostItemForAdmins(
+  obiect: ClaimedLostItem,
+  callerPhone: string | null,
+  grupaLegata: boolean,
+): string {
+  // Escapat tot: un singur «&» într-un nume face Telegram să respingă mesajul.
+  const cine = [obiect.driver_name, obiect.plate]
+    .filter((x): x is string => !!x).map(escapeHtml).join(' · ');
+  // Numele clientului e obligatoriu din 07.09; lipsa lui e o abatere a agentului
+  // și trebuie să se vadă la birou.
+  const client = obiect.caller_name?.trim()
+    ? `Clientul: ${escapeHtml(obiect.caller_name.trim())}`
+    : '⚠️ Numele clientului NU a fost cules';
+  const linii = [
+    '🎒 <b>Lucru uitat (agent vocal)</b>',
+    `De la: ${callerPhone ? escapeHtml(callerPhone) : 'necunoscut'}`,
+    obiect.identified
+      ? (obiect.phone_withheld
+        ? `La ${cine || 'șofer'}; clientul NU are numărul (avea reclamație): obiectul se predă LA BIROU.`
+        : `La ${cine || 'șofer'}; clientul are numărul și sună direct.`)
+      : 'Cursă neidentificată; obiectul rămâne la șofer.',
+    client,
+  ];
+  if (!grupaLegata) {
+    linii.push('⚠️ Grupa șoferilor nu e legată — scrieți /lega_reclamatii în grupă.');
+  }
+  return linii.join('\n');
 }

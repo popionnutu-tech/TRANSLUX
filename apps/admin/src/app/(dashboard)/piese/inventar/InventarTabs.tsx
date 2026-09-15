@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import InventarClient from './InventarClient';
+import ScanClient from './ScanClient';
 import InventarInitialClient from './InventarInitialClient';
 import RecostClient from './RecostClient';
 
@@ -9,6 +10,7 @@ interface Opt { id: number; label: string }
 
 // Moduri pe pagina de Inventariere:
 //  • „numărare" (InventarClient) — corectează stocul existent, disponibil tuturor rolurilor de inventar.
+//  • „cu scanerul" (ScanClient) — aceeași numărare, dar celulă cu celulă, salvată pe parcurs (migr. 351-353).
 //  • „inițial" (InventarInitialClient) — pornirea unui depozit gol.
 //  • „revizuire cost" (RecostClient) — corectează costul mediu păstrând cantitatea.
 // Ultimele două DOAR pentru rolurile care scriu (canInitial = PART_WRITE_ROLES, decis pe server).
@@ -16,17 +18,20 @@ interface Opt { id: number; label: string }
 export default function InventarTabs({ warehouses, groups, canInitial, initialLayout }: {
   warehouses: Opt[]; groups: Opt[]; canInitial: boolean; initialLayout: any;
 }) {
-  const [tab, setTab] = useState<'count' | 'initial' | 'recost'>('count');
+  const [tab, setTab] = useState<'count' | 'scan' | 'initial' | 'recost'>('count');
   if (!canInitial) return <InventarClient warehouses={warehouses} canSetLocation={false} />;
   return (
     <>
       <div className="pill-row" style={{ marginBottom: 14 }}>
         <button className={`btn${tab === 'count' ? ' btn-primary' : ''}`} onClick={() => setTab('count')} style={{ padding: '7px 14px' }}>Numărare (corectare stoc)</button>
+        <button className={`btn${tab === 'scan' ? ' btn-primary' : ''}`} onClick={() => setTab('scan')} style={{ padding: '7px 14px' }}>Numărare cu scanerul</button>
         <button className={`btn${tab === 'initial' ? ' btn-primary' : ''}`} onClick={() => setTab('initial')} style={{ padding: '7px 14px' }}>Inventar inițial (de la zero)</button>
         <button className={`btn${tab === 'recost' ? ' btn-primary' : ''}`} onClick={() => setTab('recost')} style={{ padding: '7px 14px' }}>Revizuire cost</button>
       </div>
       {tab === 'count'
         ? <InventarClient warehouses={warehouses} canSetLocation={canInitial} />
+        : tab === 'scan'
+        ? <ScanClient warehouses={warehouses} />
         : tab === 'initial'
         ? <InventarInitialClient warehouses={warehouses} groups={groups} initialLayout={initialLayout} />
         : <RecostClient warehouses={warehouses} />}

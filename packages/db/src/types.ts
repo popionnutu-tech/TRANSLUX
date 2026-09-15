@@ -112,6 +112,10 @@ export interface Driver {
   cashin_sofer_id: string | null;
   is_lde: boolean;
   directions: string[];
+  /** Scutit medical de verdictul «bărbierit» din poza de la peron (migr. 358). */
+  beard_exempt?: boolean;
+  /** De ce e scutit: cine a hotărât și când. */
+  beard_exempt_note?: string | null;
 }
 
 export interface Vehicle {

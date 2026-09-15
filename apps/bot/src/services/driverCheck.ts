@@ -80,11 +80,25 @@ export function describeDriverVerdicts(v: { uniformOk: boolean; shavedOk: boolea
   return parts.join(' · ');
 }
 
+/** Ce se ține sau nu împotriva omului din poză, dincolo de ce vede modelul. */
+export interface DriverCheckOptions {
+  /**
+   * Șofer scutit medical de bărbierit (drivers.beard_exempt, migr. 358; Ion,
+   * 15.09: «Panteliciuc are alergie dacă se rade la zero»). Modelul judecă barba
+   * mai departe și scrie în descriere ce vede — se schimbă doar verdictul care
+   * intră în groomed_ok și în penalități.
+   */
+  beardExempt?: boolean;
+}
+
+/** Se adaugă la descriere DOAR când scutirea chiar a schimbat verdictul. */
+const NOTA_SCUTIRE = 'barbă: scutit medical';
+
 /**
  * Parsează textul modelului. Orice câmp lipsă sau de alt tip → EROARE
  * (rândul se scrie cu verdicte null, raportul la fel — nu se inventează).
  */
-export function parseDriverAnswer(text: string): DriverPhotoResult {
+export function parseDriverAnswer(text: string, opts: DriverCheckOptions = {}): DriverPhotoResult {
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
@@ -104,18 +118,25 @@ export function parseDriverAnswer(text: string): DriverPhotoResult {
   const personVisible = o.persoana_vizibila as boolean;
   // Fără persoană nu există cadru complet, orice ar fi zis modelul.
   const frameOk = personVisible && (o.cadru_complet as boolean);
+  // Scutirea se aplică DOAR pe cadru bun: la cadru incomplet toate verdictele
+  // rămân false, iar un «bărbierit: da» acolo ar spune că s-a verificat ceva.
+  const scutit = frameOk && opts.beardExempt === true;
   const verdicts = {
     uniformOk: frameOk && (o.uniforma as boolean),
-    shavedOk: frameOk && (o.barbierit as boolean),
+    shavedOk: scutit || (frameOk && (o.barbierit as boolean)),
     groomedOk: frameOk && (o.aspect_ingrijit as boolean),
   };
   const raw = (o.descriere as string).trim();
+  // Nota apare numai când modelul chiar a zis «nebărbierit»: pe un om ras în ziua
+  // aia, «scutit medical» ar fi zgomot și ar arăta ca o abatere iertată.
+  const scutireAplicata = scutit && (o.barbierit as boolean) === false;
+  const descriere = scutireAplicata ? [raw, NOTA_SCUTIRE].filter(Boolean).join(' · ') : raw;
   return {
     verdict: 'OK',
     frameOk,
     personVisible,
     ...verdicts,
-    description: frameOk ? describeDriverVerdicts(verdicts, raw) : raw,
+    description: frameOk ? describeDriverVerdicts(verdicts, descriere) : raw,
   };
 }
 
@@ -137,7 +158,11 @@ const SUBJECT_TASK: Record<PhotoSubject, string> = {
 };
 
 /** Judecă poza șoferului (sau a operatorului). Nu aruncă: orice eșec devine EROARE. */
-export async function analyzeDriverPhoto(jpegBase64: string, subject: PhotoSubject = 'driver'): Promise<DriverPhotoResult> {
+export async function analyzeDriverPhoto(
+  jpegBase64: string,
+  subject: PhotoSubject = 'driver',
+  opts: DriverCheckOptions = {},
+): Promise<DriverPhotoResult> {
   const c = anthropic();
   if (!c) {
     console.warn('[driver-check] ANTHROPIC_API_KEY lipsește — verdict EROARE');
@@ -163,7 +188,7 @@ export async function analyzeDriverPhoto(jpegBase64: string, subject: PhotoSubje
       return { verdict: 'EROARE', description: 'Modelul a refuzat evaluarea.' };
     }
     const text = res.content.find((b) => b.type === 'text')?.text ?? '';
-    return parseDriverAnswer(text);
+    return parseDriverAnswer(text, opts);
   } catch (err) {
     console.error('[driver-check] analiza a eșuat:', err);
     return { verdict: 'EROARE', description: 'Verificarea automată a eșuat.' };

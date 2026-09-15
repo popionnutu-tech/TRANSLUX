@@ -16,7 +16,7 @@
  * Model indisponibil / răspuns stricat → verdict 'EROARE': linia se scrie cu
  * verdictele null, raportul se scrie cu null — nu se inventează.
  */
-import { createDriverAppearanceCheck, getAllTripsForDirection, getDirectionForPoint } from '../services/db.js';
+import { createDriverAppearanceCheck, getAllTripsForDirection, getDirectionForPoint, isDriverBeardExempt } from '../services/db.js';
 import { DRIVER_CHECK_MODEL, analyzeDriverPhoto } from '../services/driverCheck.js';
 import { removeReportPhotos, uploadReportPhoto } from '../services/photoStorage.js';
 import { getTodayDate } from '../utils.js';
@@ -72,11 +72,14 @@ export async function postDriverPhoto(user: AppUser, rawBody: unknown): Promise<
   const storageKey = `soferi/${checkDate}/${body.tripId}-${Date.now()}.jpg`;
   await uploadReportPhoto(storageKey, body.jpeg);
 
-  const result = await analyzeDriverPhoto(body.jpeg.toString('base64'));
+  // Scutirea medicală de bărbierit (migr. 358): verdictul modelului rămâne în
+  // descriere, dar nu mai cade pe șofer și nu mai intră în groomed_ok.
+  const beardExempt = await isDriverBeardExempt(body.driverId);
+  const result = await analyzeDriverPhoto(body.jpeg.toString('base64'), 'driver', { beardExempt });
   if (result.verdict === 'EROARE') {
     console.warn(`[driver-photo] ${user.name ?? user.id} cursa ${body.tripId.slice(-4)} → EROARE (modelul n-a răspuns): ${result.description}`);
   } else if (result.personVisible && result.frameOk) {
-    console.log(`[driver-photo] ${user.name ?? user.id} cursa ${body.tripId.slice(-4)} → uniformă=${result.uniformOk} bărbierit=${result.shavedOk} aspect=${result.groomedOk}: ${result.description}`);
+    console.log(`[driver-photo] ${user.name ?? user.id} cursa ${body.tripId.slice(-4)} → uniformă=${result.uniformOk} bărbierit=${result.shavedOk}${beardExempt ? ' (scutit)' : ''} aspect=${result.groomedOk}: ${result.description}`);
   }
 
   // Poza trebuie refăcută: nimeni în cadru sau cadrul nu e cel cerut. Fără rând, fără fișier.
@@ -104,7 +107,9 @@ export async function postDriverPhoto(user: AppUser, rawBody: unknown): Promise<
   }
 
   const ok = result.verdict === 'OK' ? result : null;
-  // Verdictele care intră în raport: uniform_ok = uniforma; groomed_ok = bărbierit && aspect îngrijit.
+  // Verdictele care intră în raport: uniform_ok = uniforma; groomed_ok = bărbierit
+  // && aspect îngrijit. La șoferul scutit medical, «bărbierit» vine deja true din
+  // parseDriverAnswer, deci barba nu mai trage groomed_ok în jos și nu mai costă.
   const uniformOk = ok ? ok.uniformOk : null;
   const groomedOk = ok ? ok.shavedOk && ok.groomedOk : null;
   let driverCheckId: string;

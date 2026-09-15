@@ -114,3 +114,44 @@ describe('promptul șoferului — criteriile lui Ion (interviu 09.09, spec peron
     expect(DRIVER_SYSTEM_PROMPT).toContain('o dată pe zi');
   });
 });
+
+/**
+ * Scutirea medicală de bărbierit (Ion, 15.09: «Panteliciuc are alergie dacă se rade
+ * la zero, scoatem pe el din verificare barba»). Bifa stă pe șofer, în
+ * drivers.beard_exempt (migr. 358); aici se verifică doar ce face cu verdictul.
+ */
+describe('parseDriverAnswer cu scutire de bărbierit', () => {
+  it('nebărbierit + scutit → verdictul devine da, iar descrierea spune de ce', () => {
+    const r = parseDriverAnswer(full({ barbierit: false, descriere: 'Tricou vișiniu, barbă.' }), { beardExempt: true });
+    expect(r).toMatchObject({
+      shavedOk: true,
+      // Barba nu mai trage aspectul în jos — groomed_ok din driverPhoto.ts e
+      // «bărbierit ȘI aspect», deci exact aici se rupea lanțul spre penalitate.
+      groomedOk: true,
+      description: 'uniformă: da · bărbierit: da · aspect: da · Tricou vișiniu, barbă. · barbă: scutit medical',
+    });
+  });
+
+  it('restul verdictelor rămân neatinse pentru omul scutit', () => {
+    expect(parseDriverAnswer(full({ barbierit: false, uniforma: false, aspect_ingrijit: false }), { beardExempt: true }))
+      .toMatchObject({ uniformOk: false, shavedOk: true, groomedOk: false });
+  });
+
+  it('scutit dar chiar ras în ziua aia → nicio notă, nimic de iertat', () => {
+    const r = parseDriverAnswer(full({ descriere: 'Tricou vișiniu, bărbierit.' }), { beardExempt: true });
+    expect(r.description).not.toContain('scutit');
+    expect(r).toMatchObject({ shavedOk: true });
+  });
+
+  it('cadru incomplet → scutirea nu inventează un verdict', () => {
+    // Pe cadru prost toate verdictele sunt false; un «bărbierit: da» aici ar spune
+    // că s-a verificat ceva ce nu se vede în poză.
+    expect(parseDriverAnswer(full({ cadru_complet: false, barbierit: false, descriere: 'Nu se vede capul.' }), { beardExempt: true }))
+      .toMatchObject({ frameOk: false, shavedOk: false, description: 'Nu se vede capul.' });
+  });
+
+  it('fără scutire, nimic nu se schimbă', () => {
+    expect(parseDriverAnswer(full({ barbierit: false }))).toMatchObject({ shavedOk: false, groomedOk: true });
+    expect(parseDriverAnswer(full({ barbierit: false }), { beardExempt: false })).toMatchObject({ shavedOk: false });
+  });
+});

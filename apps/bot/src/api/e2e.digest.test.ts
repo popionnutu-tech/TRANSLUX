@@ -217,7 +217,15 @@ describe('2. Ziua cu ambele puncte', () => {
     expect(body.openReclama[PLATES.lyy735].taskId).toBe(IDS.reclamaTask);
     expect(Object.values(body.climate)).toEqual(['ac', 'ac', 'ac']);
     expect([...body.cleaning.DIMINEATA].sort()).toEqual(['PERON', 'PIETONI', 'VECEU']);
-    const outcome = syncContractFixture('day.chisinau', withoutOk(body));
+    // Id-ul rândului de verificare vine din inserare, deci e altul la fiecare
+    // rulare: băgat ca atare în fixture, acesta pica MEREU (de la 14.09, când
+    // operatorCheck a intrat în /day). Valoarea reală e verificată o linie mai sus;
+    // în fixture rămâne un semn, ca aplicația să vadă forma câmpului, nu un uuid.
+    const snapshot = withoutOk(body) as Record<string, unknown>;
+    const outcome = syncContractFixture('day.chisinau', {
+      ...snapshot,
+      operatorCheck: { ...(snapshot.operatorCheck as Record<string, unknown>), id: '<id generat la inserare>' },
+    });
     expect(outcome, 'day.chisinau.json lipsește — rulează o dată cu WRITE_FIXTURES=1').not.toBe('missing');
   });
 

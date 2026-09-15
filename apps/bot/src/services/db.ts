@@ -112,6 +112,28 @@ export async function getActiveDrivers(): Promise<Driver[]> {
   return data || [];
 }
 
+/**
+ * Șoferul e scutit medical de verdictul «bărbierit» (drivers.beard_exempt, migr. 358)?
+ *
+ * Fără driverId nu avem pe cine scuti. La eroare de citire răspundem «nu e scutit»,
+ * adins: o cădere de moment n-are voie să stingă tăcut verificarea bărbii pentru
+ * toată lumea. Penalitatea greșită a unui om se vede în imaginea de luni și se
+ * repară; o verificare stinsă în tăcere nu se vede deloc.
+ */
+export async function isDriverBeardExempt(driverId: string | null): Promise<boolean> {
+  if (!driverId) return false;
+  const { data, error } = await db()
+    .from('drivers')
+    .select('beard_exempt')
+    .eq('id', driverId)
+    .maybeSingle();
+  if (error) {
+    console.error('isDriverBeardExempt:', error.message);
+    return false;
+  }
+  return (data as { beard_exempt: boolean } | null)?.beard_exempt === true;
+}
+
 export async function createDriver(fullName: string, phone: string): Promise<Driver> {
   const { data, error } = await db()
     .from('drivers')

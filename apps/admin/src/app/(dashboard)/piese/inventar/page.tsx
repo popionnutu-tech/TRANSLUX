@@ -1,4 +1,7 @@
 export const dynamic = 'force-dynamic';
+// Închiderea unei numărători mari scrie, într-o singură tranzacție, adrese + diferențe de stoc + alocări
+// FIFO. Pe timeout-ul implicit al platformei, o zi de numărat s-ar pierde printr-o eroare la ultimul clic.
+export const maxDuration = 60;
 
 import { listWarehouses, listGroups, warehouseLayout } from '@/lib/piese';
 import { requirePieseInventory, userWarehouseId, warehousesForUser, canEditParts } from '@/lib/piese-access';

@@ -123,11 +123,63 @@ REȚEAUA E UN CORIDOR:
 // и до, и после заявки. Секции RECLAMAȚII/OPERATOR UMAN это уже говорят, но
 // правило тонуло в 17k промпта — дублируем маркированным блоком в хвосте.
 // Судья (voice-judge) зеркален: обещание перезвона = нарушение, без исключений.
-const CALLBACK_ORDER_BLOCK = `
+// Blocul din 26.08, anulat de Ion pe 16.09. Interzicea PROMISIUNEA, dar lăsa
+// OFERTA în picioare («Chemi request_callback și spui: Am notat solicitarea»), iar
+// «am notat» se aude tot ca o promisiune. Înlocuit de NIMENI_BLOCK.
+const CALLBACK_ORDER_OBSOLETE = `
 
 APEL ÎNAPOI — NICIO PROMISIUNE:
 - NU promiți NICIODATĂ că cineva sună clientul înapoi — nici tu, nici «un coleg», nici compania. Formulările «vă sunăm noi», «un coleg vă va suna», «мы вам перезвоним» sunt INTERZISE în orice moment al apelului, inclusiv DUPĂ request_callback.
 - Clientul cere să fie sunat înapoi? Chemi request_callback și spui DOAR: «Am notat solicitarea.» — atât. Fără nicio promisiune de apel: nu există operatori care sună înapoi, iar clientul ar aștepta degeaba.`;
+
+// Ion, 16.09: «Niciodată nimeni nu va fi contactat de cineva din companie».
+//
+// Până acum promptul spunea două lucruri deodată: nu PROMITE apelul înapoi, dar
+// OFERĂ-l ori de câte ori nu ai informația. Ofertele erau în șase locuri (rutarea
+// tool-ului, două reguli stricte, secțiunea reclamațiilor, sugestii, angajare), iar
+// cea mai puternică nici nu stătea în prompt: răspunsul tool-ului de căutare, la
+// localitate nerecunoscută, se termina cu «oferă request_callback». Agentul le-a
+// ascultat — apelul din 16.09 (conv_6801m2md81f0fk8saysqs0tr8rh9) e exact asta,
+// plus un «vă conectez cu un operator» pe deasupra.
+//
+// Acum regula e una singură și fără excepții: compania nu contactează pe nimeni.
+// Tool-ul rămâne, dar coboară la ce a fost mereu în fapt — o evidență TĂCUTĂ
+// pentru ce n-are alt tool (angajare, propunere, salariu, omul care cere un om).
+const NIMENI_MARKER = 'NIMENI NU SUNĂ ÎNAPOI — NICIODATĂ';
+const NIMENI_BLOCK = `
+
+NIMENI NU SUNĂ ÎNAPOI — NICIODATĂ:
+- Compania nu contactează pe nimeni, niciodată: nici tu, nici «un coleg», nici «cineva de la birou», nici mai târziu. Nu există om care să sune înapoi și nu există cui transmite o solicitare.
+- De aceea nu OFERI și nu SUGEREZI niciodată un apel înapoi, o legătură sau o transmitere. «Vă sunăm noi», «un coleg vă va suna», «vă conectez», «vă fac legătura», «am transmis mai departe», «se ocupă cineva», «мы вам перезвоним», «соединю вас», «передам» — INTERZISE în orice moment al apelului, și înainte, și după orice tool.
+- Tu ești singurul contact al companiei la telefon, iar răspunsul se dă ACUM, în apelul ăsta. Nu găsești ce cere? Spui adevărul pe loc și oferi ce poți TU: să recauți cu alt nume de localitate, orarul unei localități mari din apropiere, numărul șoferului, o reclamație înregistrată sau un obiect uitat.
+- request_callback e DOAR o evidență internă, tăcută, pentru ce n-are alt tool: angajare, o propunere, un salariu, sau clientul care insistă să vorbească cu un om. Îl chemi o singură dată, cu reason scurt în română (stated_phone doar dacă dictează ALT număr decât cel de pe care sună), și NU-i spui clientului nici că l-ai notat, nici că ai transmis ceva — treci direct la ce poți rezolva tu.`;
+
+const NIMENI_MARKER_RU = 'НИКТО НЕ ПЕРЕЗВАНИВАЕТ — НИКОГДА';
+const NIMENI_BLOCK_RU = `
+
+НИКТО НЕ ПЕРЕЗВАНИВАЕТ — НИКОГДА:
+- Компания никому и никогда не звонит первой: ни ты, ни «коллега», ни «кто-нибудь из офиса», ни позже. Нет человека, который перезвонит, и нет того, кому можно передать обращение.
+- Поэтому ты никогда не ПРЕДЛАГАЕШЬ и не НАМЕКАЕШЬ на обратный звонок, соединение или передачу. «Мы вам перезвоним», «коллега позвонит», «соединю вас», «передам дальше», «этим займутся», «vă sunăm noi», «vă conectez» — ЗАПРЕЩЕНЫ в любой момент разговора, и до, и после любого инструмента.
+- Ты — единственный контакт компании по телефону, и ответ даётся СЕЙЧАС, в этом разговоре. Не нашла? Говоришь правду сразу и предлагаешь то, что можешь ты: поискать по другому названию, расписание ближайшего крупного пункта, номер водителя, записанную жалобу или забытую вещь.
+- request_callback — ТОЛЬКО молчаливая внутренняя запись для того, у чего нет своего инструмента: приём на работу, предложение, зарплата или клиент, который настаивает на человеке. Вызываешь один раз, с коротким reason по-румынски (stated_phone — только если он диктует ДРУГОЙ номер), и НЕ говоришь клиенту ни что записала, ни что передала — сразу переходишь к тому, что можешь решить сама.`;
+
+// Rândurile VII din promptul livrat care ofereau apelul înapoi — scoase byte cu
+// byte (verificate în promptul agentului pe 16.09). Fără ele, blocul de mai sus ar
+// sta lângă contrariul lui, iar modelul ascultă ce e mai aproape de date.
+const CALLBACK_RUTARE_OBSOLETE = `
+Când clientul vrea să vorbească cu un om, are o reclamație de transmis sau tu nu ai informația:
+→ Folosește request_callback(reason, name, stated_phone)
+  - reason = motivul, scurt, în română; numărul apelantului și conversation_id intră AUTOMAT din sistem
+  - stated_phone = DOAR dacă clientul dictează ALT număr decât cel de pe care sună`;
+const CALLBACK_REGULA_OM_OBSOLETE = '\n• NU trimite clientul în altă parte — tu răspunzi la tot; dacă e nevoie de om, request_callback';
+const CALLBACK_REGULA_INFO_OBSOLETE = '\n• Dacă nu ai informația → spune sincer, oferă request_callback sau o alternativă utilă';
+// Secțiunea RECLAMAȚII rămasă din 01.09: cerea request_callback la PRIMUL semn de
+// reclamație, adică exact invers decât RECLAMATII_BLOCK (register_complaint). Cele
+// două stăteau amândouă în promptul viu — de aici valul de «Reclamație: …» din
+// august. Se scot doar cele două rânduri cu tool-ul; finalul secțiunii e bun.
+const CALLBACK_RECLAMATII_OBSOLETE = `
+Ascultă cu empatie. La PRIMUL semn de reclamație cheamă IMEDIAT request_callback cu reason="Reclamație: <ce se știe până acum>" — numărul apelantului intră automat. NICIODATĂ nu închizi un apel cu reclamație fără să fi chemat request_callback, chiar dacă clientul te întrerupe și nu apuci să ceri detaliile.
+Apoi cere detaliile pe rând: data, ruta și ora cursei, NUMĂRUL mașinii, numele șoferului (dacă îl știe), ce s-a întâmplat. După fiecare detaliu esențial nou recheamă request_callback cu reason completat — serverul actualizează ACEEAȘI cerere, nu creează alta.`;
 
 // Stația din Chișinău. Apel real 27.08: agentul a trimis clientul la Autogara Nord —
 // TRANSLUX pleacă de la autogara PROPRIE (Ion, 28.08: «noi pornim de la autogara
@@ -577,6 +629,13 @@ async function canonKeywords(): Promise<string[]> {
 // Первый случай: блок e2c6263 разрешал обещать перезвон ПОСЛЕ request_callback —
 // отменён решением Иона 24.08 «операторов, которые перезванивают, нет».
 const OBSOLETE_BLOCKS = [
+  // Ion 16.09: «Niciodată nimeni nu va fi contactat de cineva din companie».
+  // Cele cinci locuri care ofereau apelul înapoi. Înlocuite de NIMENI_BLOCK.
+  CALLBACK_ORDER_OBSOLETE,
+  CALLBACK_RUTARE_OBSOLETE,
+  CALLBACK_REGULA_OM_OBSOLETE,
+  CALLBACK_REGULA_INFO_OBSOLETE,
+  CALLBACK_RECLAMATII_OBSOLETE,
   // Ion 09.09: la cerere de operator agentul spune că nu are cui transmite.
   // Înlocuit de OPERATOR_BLOCK.
   OPERATOR_OBSOLETE,
@@ -857,7 +916,7 @@ async function checkAndHealConfig(cfg: any, drifts: Drift[], complaintToolExists
     { marker: 'e un CORIDOR', block: CORIDOR_BLOCK, field: 'prompt.CORIDOR' },
     { marker: 'A DOUA OARĂ LA RÂND', block: LIMBA_BLOCK, field: 'prompt.LIMBA' },
     { marker: 'LIMBA VOCII — DOAR ROMÂNĂ SAU RUSĂ', block: LIMBA_VOCII_BLOCK, field: 'prompt.LIMBA_VOCII' },
-    { marker: 'APEL ÎNAPOI — NICIO PROMISIUNE', block: CALLBACK_ORDER_BLOCK, field: 'prompt.CALLBACK_ORDER' },
+    { marker: NIMENI_MARKER, block: NIMENI_BLOCK, field: 'prompt.NIMENI_CONTACTAT' },
     { marker: 'STAȚIA CHIȘINĂU — AUTOGARA TRANSLUX', block: STATIA_BLOCK, field: 'prompt.STATIA' },
     { marker: 'STAȚIA BĂLȚI — PEROANELE', block: BALTI_BLOCK, field: 'prompt.BALTI' },
     { marker: 'ORA SOSIRII — NU SE SPUNE', block: SOSIREA_BLOCK, field: 'prompt.SOSIREA' },
@@ -1033,6 +1092,8 @@ async function healRuStation(lostToolId: string | null, complaintToolId: string 
   if (!healed.includes(ALT_NUMAR_MARKER_RU)) { healed += ALT_NUMAR_BLOCK_RU; vindecate.push('ru.prompt.ALT_NUMAR'); }
   if (!healed.includes(ZI_FARA_CURSE_MARKER_RU)) { healed += ZI_FARA_CURSE_BLOCK_RU; vindecate.push('ru.prompt.ZI_FARA_CURSE'); }
   if (!healed.includes(OPERATOR_MARKER_RU)) { healed += OPERATOR_BLOCK_RU; vindecate.push('ru.prompt.OPERATOR'); }
+  // Ion 16.09: nimeni nu e contactat de companie — și pe agentul rusesc.
+  if (!healed.includes(NIMENI_MARKER_RU)) { healed += NIMENI_BLOCK_RU; vindecate.push('ru.prompt.NIMENI_CONTACTAT'); }
   // Lista tipurilor, în rusă. Sincronizată pe conținut, ca la RO — vezi syncTypesBlock.
   const nevindecate: Drift[] = [];
   if (tipuriInTool) {

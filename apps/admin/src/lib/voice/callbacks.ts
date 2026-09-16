@@ -39,8 +39,11 @@ export async function createCallbackRequest(input: CallbackInput): Promise<void>
 
 export function formatCallbackAlert(input: CallbackInput, name: string | null): string {
   // Динамические значения приходят из LLM/абонента → экранируем для parse_mode HTML.
+  // Titlul spunea «Cerere de apel înapoi» și suna, și pentru Ion, ca o sarcină de
+  // sunat pe cineva. Nu e: nimeni nu contactează pe nimeni (Ion, 16.09). E o
+  // evidență a ce a cerut omul și n-are alt tool — angajare, propunere, salariu.
   return [
-    '📲 <b>Cerere de apel înapoi (agent vocal)</b>',
+    '📋 <b>Solicitare notată (agent vocal)</b>',
     `Telefon: ${input.caller_phone ? escapeHtml(input.caller_phone) : 'necunoscut'}`,
     name ? `Nume: ${escapeHtml(name)}` : null,
     `Motiv: ${input.reason ? escapeHtml(input.reason) : '—'}`,

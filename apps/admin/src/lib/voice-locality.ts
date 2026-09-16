@@ -207,6 +207,12 @@ export function unknownLocalityResponse(unknown: string[], suggestions: Record<s
     did_you_mean: suggestions,
     message: apropiate.length
       ? `Nu am recunoscut: ${unknown.join(', ')}. ${apropiate.join('; ')}. ÎNTREABĂ clientul care dintre ele — NU alege singur. Numele le rostești în limba conversației (fiecare candidat vine cu forma română și cea rusă).`
-      : `Nu am recunoscut localitatea: ${unknown.join(', ')} și nu am nimic apropiat de propus. Roagă clientul să repete numele. Dacă ai primit deja unknown_locality pe același nume, spune-i sincer că nu e pe rutele noastre și oferă request_callback — nu întreba a treia oară.`,
+      // Ion, 16.09: «Niciodată nimeni nu va fi contactat de cineva din companie».
+      // Rândul de aici spunea agentului să ofere request_callback la a doua
+      // nerecunoaștere — era cel mai puternic ordin din tot sistemul, fiindcă vine
+      // lipit de date. Ieșirea corectă nu e o cerere de apel, ci o a doua încercare
+      // cu un nume pe care ASR-ul îl scrie mai bine: orașul mare din apropiere.
+      // (Apel 16.09: «Чишмэу» era Chișinău, rută pe care o facem în fiecare zi.)
+      : `Nu am recunoscut localitatea: ${unknown.join(', ')} și nu am nimic apropiat de propus. Roagă clientul să repete numele, rar. Dacă ai primit deja unknown_locality pe același nume, NU întreba a treia oară și NU oferi apel înapoi: spune-i că nu prinzi numele și cere-i orașul mare sau centrul de raion cel mai apropiat (Chișinău, Bălți, Edineț, Briceni, Ocnița, Lipcani, Râșcani, Drochia, Soroca), apoi caută după acela.`,
   };
 }

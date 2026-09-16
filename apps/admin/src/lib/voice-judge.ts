@@ -166,7 +166,7 @@ export type JudgeViolation = {
 const JUDGE_SYSTEM = `Ești un auditor de apeluri pentru compania de transport TRANSLUX (Moldova). Primești FAPTELE (ce tool-uri s-au chemat și ce au întors) și TRANSCRIPTUL. Verifici DOAR aceste reguli:
 1. coridor_refuz — agentul a REFUZAT o pereche de localități («nu avem această rută», «nu circulăm acolo») FĂRĂ să fi chemat search_trips pentru acea pereche. Notează from/to exact cum le-a spus clientul și, dacă s-a spus, ziua (date_word: azi/mâine/zi a săptămânii/zi.lună).
 2. neaga_curse — tool-ul a întors count>0, iar agentul a spus că nu sunt curse.
-3. promite_callback — agentul promite un apel înapoi («vă sunăm noi», «un coleg vă va suna») SAU, la o cerere de operator, spune că a transmis cuiva datele ori solicitarea («datele au fost transmise», «am transmis mai departe», «передала»). Interzis ÎNTOTDEAUNA, și înainte, și după request_callback: nu există operatori care sună înapoi și nu există cui transmite.
+3. promite_callback — agentul promite un apel înapoi («vă sunăm noi», «un coleg vă va suna»), spune că îl CONECTEAZĂ cu cineva («vă conectez», «vă fac legătura», «соединю») SAU, la o cerere de operator, spune că a transmis cuiva datele ori solicitarea («datele au fost transmise», «am transmis mai departe», «передала»). Interzis ÎNTOTDEAUNA, și înainte, și după request_callback: compania nu contactează pe nimeni, niciodată, și nu există cui transmite.
 4. zi_gresita — agentul numește o zi/dată care NU apare în date_label din rezultatele tool-ului (day_said = ziua rostită).
 5. pret_gresit — agentul numește un preț care NU apare în rezultatele tool-urilor (price_said = numărul în lei).
 6. lucru_uitat — clientul spune că a UITAT sau PIERDUT un obiect în autobuz (geantă, telefon, acte, orice), iar agentul îi dictează un număr de șofer FĂRĂ ca tool-ul find_past_trip să fi întors exact un candidat (count=1) — de exemplu numărul unui șofer din search_trips sau al unei curse «apropiate».
@@ -239,7 +239,7 @@ export function verifyNeagaCurse(v: JudgeViolation, f: JudgeFacts): boolean {
 // Цитата-якорь обязательна + regex-белый список против выдумок LLM.
 // Ion 09.09: «datele au fost transmise» la cererea de operator e aceeași minciună
 // cu alt verb — nu există cui transmite (OPERATOR_BLOCK în voice-controller).
-export const CALLBACK_RE = /(vă\s+sun[ăa]m|vă\s+sunez|vă\s+voi\s+suna|te\s+sun\s+eu|revenim\s+cu\s+un\s+apel|о?\s*перезвон(ю|им)|мы\s+вам\s+позвоним|вам\s+перезвонят|(colegul|un\s+coleg)[^.]{0,40}va\s+suna|(a|au)\s+fost\s+transmis[eă]?\b|am\s+transmis|transmit\s+mai\s+departe|передал[аи]?(?![а-яё])|передан[оыа]?(?![а-яё])|передам(?![а-яё]))/iu;
+export const CALLBACK_RE = /(v[ăa]\s+conectez|v[ăa]\s+fac\s+leg[ăa]tura|соединю|соединяю|переключу|vă\s+sun[ăa]m|vă\s+sunez|vă\s+voi\s+suna|te\s+sun\s+eu|revenim\s+cu\s+un\s+apel|о?\s*перезвон(ю|им)|мы\s+вам\s+позвоним|вам\s+перезвонят|(colegul|un\s+coleg)[^.]{0,40}va\s+suna|(a|au)\s+fost\s+transmis[eă]?\b|am\s+transmis|transmit\s+mai\s+departe|передал[аи]?(?![а-яё])|передан[оыа]?(?![а-яё])|передам(?![а-яё]))/iu;
 export function verifyCallbackPromise(v: JudgeViolation, f: JudgeFacts): boolean {
   return quoteInText(v.quote, f.agentText) && CALLBACK_RE.test(v.quote);
 }

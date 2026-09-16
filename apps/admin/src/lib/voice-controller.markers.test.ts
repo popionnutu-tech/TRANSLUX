@@ -43,3 +43,66 @@ describe('reperele în corpul blocurilor', () => {
     });
   }
 });
+
+/**
+ * Ion, 16.09: «Niciodată nimeni nu va fi contactat de cineva din companie».
+ *
+ * Nu e o regulă de stil, e una de adevăr: până acum promptul interzicea PROMISIUNEA
+ * apelului înapoi, dar OFEREA apelul în cinci locuri. Testul păzește exact asta —
+ * blocul nou e livrat, iar cele cinci rânduri vechi sunt trecute la pietre de mormânt.
+ */
+describe('nimeni nu e contactat de companie', () => {
+  const bloc = corpuri.get('NIMENI_BLOCK') ?? '';
+  const blocRu = corpuri.get('NIMENI_BLOCK_RU') ?? '';
+
+  it('blocul spune regula fără portiță', () => {
+    expect(bloc).toContain('nu contactează pe nimeni, niciodată');
+    expect(bloc).toContain('nu OFERI și nu SUGEREZI');
+    expect(blocRu).toContain('никому и никогда не звонит первой');
+  });
+
+  it('interzice și formulările prin care s-a scurs în apeluri reale', () => {
+    // «vă conectez» e din apelul conv_6801m2md81f0fk8saysqs0tr8rh9 (16.09).
+    for (const fraza of ['vă conectez', 'vă fac legătura', 'am transmis mai departe', 'se ocupă cineva']) {
+      expect(bloc).toContain(fraza);
+    }
+    expect(blocRu).toContain('соединю вас');
+  });
+
+  it('lasă tool-ul viu, dar tăcut — evidența internă nu se anunță clientului', () => {
+    expect(bloc).toContain('request_callback');
+    expect(bloc).toContain('evidență internă, tăcută');
+    expect(bloc).toContain('NU-i spui clientului nici că l-ai notat');
+  });
+
+  it('spune ce face agentul în loc de apel înapoi', () => {
+    // Fără o ieșire alternativă, interdicția ar lăsa apelul în aer.
+    expect(bloc).toContain('recauți cu alt nume de localitate');
+    expect(bloc).toContain('numărul șoferului');
+  });
+
+  it('blocul vechi, care încă oferea apelul, nu se mai livrează', () => {
+    // Redenumit în …_OBSOLETE: dacă cineva îl repune în HEALABLE, testul cade.
+    expect(sursa).not.toMatch(/block:\s*CALLBACK_ORDER_BLOCK/);
+    expect(corpuri.has('CALLBACK_ORDER_BLOCK')).toBe(false);
+  });
+
+  it('cele cinci rânduri vechi sunt trecute la pietre de mormânt', () => {
+    const obsolete = sursa.slice(sursa.indexOf('const OBSOLETE_BLOCKS = ['));
+    for (const nume of [
+      'CALLBACK_ORDER_OBSOLETE',
+      'CALLBACK_RUTARE_OBSOLETE',
+      'CALLBACK_REGULA_OM_OBSOLETE',
+      'CALLBACK_REGULA_INFO_OBSOLETE',
+      'CALLBACK_RECLAMATII_OBSOLETE',
+    ]) {
+      expect(obsolete).toContain(`  ${nume},`);
+    }
+  });
+
+  it('reperul nou e în lista de repere, cel vechi a ieșit', () => {
+    expect(PROMPT_MARKERS_RO).toContain('NIMENI NU SUNĂ ÎNAPOI — NICIODATĂ');
+    expect(PROMPT_MARKERS_RO).not.toContain('APEL ÎNAPOI — NICIO PROMISIUNE');
+    expect(PROMPT_MARKERS_RU).toContain('НИКТО НЕ ПЕРЕЗВАНИВАЕТ — НИКОГДА');
+  });
+});

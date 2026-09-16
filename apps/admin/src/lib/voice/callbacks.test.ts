@@ -36,3 +36,13 @@ describe('formatCallbackAlert', () => {
     expect(text).toContain('Nume: Ion');
   });
 });
+
+describe('formatCallbackAlert după 16.09', () => {
+  it('nu mai anunță o «cerere de apel înapoi» — nimeni nu sună pe nimeni', () => {
+    const t = formatCallbackAlert({ conversation_id: 'c1', caller_phone: '+37360000000', reason: 'Angajare: șofer' }, null);
+    expect(t).toContain('Solicitare notată (agent vocal)');
+    expect(t).not.toContain('apel înapoi');
+    expect(t).toContain('+37360000000');
+    expect(t).toContain('Angajare: șofer');
+  });
+});

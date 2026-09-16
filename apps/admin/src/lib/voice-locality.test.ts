@@ -107,8 +107,19 @@ describe('unknownLocalityResponse', () => {
     // ar fi fost întrebat la infinit: repetă → tot necunoscut → repetă.
     const r = unknownLocalityResponse(['Cahul'], {});
     expect(r.message).toContain('repete');
-    expect(r.message).toContain('request_callback');
-    expect(r.message).toContain('nu întreba a treia oară');
+    expect(r.message).toContain('NU întreba a treia oară');
     expect(r.did_you_mean).toEqual({});
+  });
+
+  it('ieșirea NU mai e apelul înapoi, ci orașul mare din apropiere (Ion, 16.09)', () => {
+    // Rândul vechi cerea «oferă request_callback». Era cel mai puternic ordin din
+    // sistem — vine lipit de date — și a produs cererea din 16.09.
+    const r = unknownLocalityResponse(['Чишмэу'], {});
+    expect(r.message).not.toContain('request_callback');
+    expect(r.message).toContain('NU oferi apel înapoi');
+    expect(r.message).toContain('centrul de raion');
+    // Numele mari sunt scrise în mesaj: ASR-ul le prinde mult mai bine decât un sat.
+    expect(r.message).toContain('Chișinău');
+    expect(r.message).toContain('Bălți');
   });
 });

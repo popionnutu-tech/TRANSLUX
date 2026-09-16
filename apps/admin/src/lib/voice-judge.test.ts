@@ -371,3 +371,28 @@ describe('lucru_uitat — security round: fraza corectă după count=0 nu e otr�
     expect(verifyLucruUitat(vs, f2)).toBe(false);
   });
 });
+
+describe('promite_callback prinde și «vă conectez» (Ion, 16.09)', () => {
+  // Apel real conv_6801m2md81f0fk8saysqs0tr8rh9: agentul a spus «Un moment, vă
+  // conectez cu un operator» și judecătorul a trecut pe lângă — lista albă avea
+  // doar promisiunile de apel și transmiterile. Nimeni nu conectează pe nimeni.
+  const cazuri: Array<[string, string]> = [
+    ['Un moment, vă conectez cu un operator.', 'vă conectez cu un operator'],
+    ['Vă fac legătura cu cineva de la birou.', 'vă fac legătura'],
+    ['Минуту, соединю вас с оператором.', 'соединю вас с оператором'],
+  ];
+  for (const [replica, citat] of cazuri) {
+    it(`prinde «${citat}»`, () => {
+      const f = buildFacts('c', '2026-09-16T06:00:00Z', [{ role: 'agent', message: replica, time_in_call_secs: 1 }]);
+      const v: JudgeViolation = { rule: 'promite_callback', quote: citat, summary_ru: 's' };
+      expect(verifyCallbackPromise(v, f)).toBe(true);
+    });
+  }
+
+  it('nu prinde o replică cinstită despre lipsa operatorului', () => {
+    const replica = 'Nu există operator la acest număr — eu răspund la tot.';
+    const f = buildFacts('c', '2026-09-16T06:00:00Z', [{ role: 'agent', message: replica, time_in_call_secs: 1 }]);
+    const v: JudgeViolation = { rule: 'promite_callback', quote: 'nu există operator la acest număr', summary_ru: 's' };
+    expect(verifyCallbackPromise(v, f)).toBe(false);
+  });
+});

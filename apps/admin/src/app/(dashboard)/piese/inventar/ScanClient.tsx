@@ -5,7 +5,7 @@ import SearchSelect from '@/components/SearchSelect';
 import { searchParts } from '../search-parts';
 import { locationError, LOCATION_EXAMPLE, LOCATION_FORMAT } from '@/lib/piese-location';
 import {
-  startScanSession, bipCode, scanPart, unscanPart, revealStock, finishScanSession, dropScanSession,
+  startScanSession, bipCode, scanPart, unscanPart, revealStock, refreshLines, finishScanSession, dropScanSession,
 } from './scan-actions';
 
 type Opt = { id: number; label: string };
@@ -164,6 +164,19 @@ export default function ScanClient({ warehouses }: { warehouses: Opt[] }) {
         if (aratStoc) await resincronizeaza(sessionId);
       });
     } catch (e: any) { setErr(e.message); }
+  }
+
+  // Aduce bipurile celuilalt terminal. Nu dezvăluie cifrele programului — rămâne decizia lui
+  // „Completează după program".
+  async function reimprospateaza() {
+    if (sessionId == null) return;
+    setBusy(true); setErr(null);
+    try {
+      const l = await laRand(() => refreshLines(sessionId));
+      setLines(l as Line[]);
+      setInfo(`Foaie reîncărcată: ${l.length} ${l.length === 1 ? 'poziție' : 'poziții'}.`);
+    } catch (e: any) { setErr(e.message); }
+    finally { setBusy(false); }
   }
 
   async function completeazaDupaProgram() {
@@ -373,9 +386,13 @@ export default function ScanClient({ warehouses }: { warehouses: Opt[] }) {
 
       <div className="row" style={{ marginTop: 14, gap: 10, alignItems: 'center' }}>
         {!aratStoc
-          ? <button className="btn" onClick={completeazaDupaProgram} disabled={busy || !lines.length}>
-              Completează după program
-            </button>
+          ? <>
+              <button className="btn" onClick={reimprospateaza} disabled={busy}
+                title="Aduce și ce a scanat celălalt terminal">Reîncarcă foaia</button>
+              <button className="btn" onClick={completeazaDupaProgram} disabled={busy || !lines.length}>
+                Completează după program
+              </button>
+            </>
           : <strong>{difer} {difer === 1 ? 'diferență' : 'diferențe'}{zero.size ? ` + ${zero.size} trecute la zero` : ''}</strong>}
         <button className="btn btn-primary" onClick={() => inchide(false)} disabled={busy || (!lines.length && !zero.size)}>
           {busy ? 'Se închide…' : 'Închide numărătoarea'}
@@ -385,7 +402,8 @@ export default function ScanClient({ warehouses }: { warehouses: Opt[] }) {
 
       <p className="muted" style={{ fontSize: 11, marginTop: 10 }}>
         Cifrele programului apar abia la „Completează după program" — ca să numeri ce vezi, nu ce scrie
-        programul. Până închizi, nimic nu s-a mișcat din stoc.
+        programul. Până închizi, nimic nu s-a mișcat din stoc. Dacă numărați în doi pe același cont,
+        ecranul arată bipurile tale; „Reîncarcă foaia" le aduce și pe ale celuilalt.
       </p>
     </div>
   );

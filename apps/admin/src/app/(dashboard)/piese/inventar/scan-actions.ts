@@ -87,6 +87,14 @@ export async function unscanPart(sessionId: number, partId: number) {
   await unscan(sessionId, partId);
 }
 
+// Reîncarcă DOAR foaia, fără să dezvăluie cifrele programului. Necesară fiindcă doi oameni pot număra pe
+// două terminale sub același cont (așa lucrează Eduard): foaia din bază e comună, dar fiecare ecran își
+// îmbină local propriile bipuri, deci nu le vede pe ale celuilalt până nu recitește.
+export async function refreshLines(sessionId: number) {
+  await guardSession(sessionId);
+  return sessionLines(sessionId);
+}
+
 // „Заполнить по остаткам" — abia acum se arată cifra programului. Până atunci omul numără ce vede, nu
 // spre ce scrie programul.
 export async function revealStock(sessionId: number) {

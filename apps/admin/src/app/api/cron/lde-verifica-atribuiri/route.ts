@@ -7,9 +7,10 @@ import { syncWriteThrough, chisinauToday } from '@/lib/atribuiri/core';
 // Trigger: crontab pe VPS-ul worker-ului GPS (06:30, după rulajul nocturn 03:00):
 //   30 6 * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" \
 //     https://central-hub-md.vercel.app/api/cron/lde-verifica-atribuiri
-// Backtest: ?date=YYYY-MM-DD&dry=1 (nu scrie, nu trimite push-uri).
-// Re-verificare după corecții gps_localities: &reverify=1 (re-judecă și
-// nepotrivire/fara_date_gps; nu re-trimite push-uri).
+// Backtest: ?date=YYYY-MM-DD&dry=1 (nu scrie, nu trimite push-uri, nu alertează).
+// Re-verificare după corecții de porți/gps_localities sau după ce se recuperează o zi
+// fără GPS: &reverify=1 (re-judecă și nepotrivire/fara_date_gps; nu re-trimite push-uri
+// și nu re-alertează ADMIN-ul).
 // (Sloturile de cron Vercel sunt 2/2 ocupate — de-asta VPS.)
 
 export const dynamic = 'force-dynamic';

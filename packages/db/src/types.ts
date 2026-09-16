@@ -604,6 +604,19 @@ export interface LdeUzina {
   gps_localities: string[];                   // localități GPS acceptate la verificare (gol = city)
 }
 
+// Porțile uzinei (migr. 359): punct + rază pentru verdictul GPS al atribuirilor.
+// Uzina cu cel puțin o poartă activă se judecă NUMAI pe porți, nu pe numele localității.
+export interface LdeUzinaGate {
+  id: string;
+  uzina_id: string;
+  label: string;                              // intră în notă: «GPS: Poarta est (ZEL) 06:21»
+  lat: number;
+  lon: number;
+  radius_km: number;                          // ales ca poarta să nu atingă autobaza/autogara
+  active: boolean;
+  created_at: string;
+}
+
 // Curse uzine (110 curse total)
 export interface LdeFactoryRoute {
   id: string;

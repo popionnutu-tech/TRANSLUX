@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { listWarehouses, listVehicles, listMechanics } from '@/lib/piese';
 import { transfersTransit, transfersTransitForVehicle } from '@/lib/piese-ops';
-import { requirePieseIssue, userWarehouseId, warehousesForUser } from '@/lib/piese-access';
+import { requirePieseIssue, userWarehouseId, warehousesForUser, canOverrideStock } from '@/lib/piese-access';
 import MutariClient from './MutariClient';
 
 export default async function MutariPage() {
@@ -18,6 +18,7 @@ export default async function MutariPage() {
     <>
       <div className="page-header"><h1>Mutări între depozite</h1><p>Piesa iese din stoc doar când o trimite depozitarul-sursă. Cât e între depozite, e „pe drum".</p></div>
       <MutariClient
+        canOverrideStock={await canOverrideStock(session)}
         warehouses={(warehouses as any[]).map((w) => ({ id: w.id, label: w.name, kind: w.kind }))}
         fromWarehouses={fromWarehouses.map((w) => ({ id: w.id, label: w.name }))}
         transit={(transit as any[]).map((t) => ({ id: t.id, from_name: t.from_name, to_name: t.to_name, line_count: t.line_count }))}

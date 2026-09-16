@@ -17,6 +17,7 @@ interface Transit { id: number; from_name: string; to_name: string; line_count: 
 // `warehouses` = toate (pentru „Către"); `fromWarehouses` = doar depozitul contului legat (pentru „De la"). Egale la ADMIN/cont extins.
 type TLine = { partId: number; name: string; article: string | null; qty: number };
 type TBody = { rows: TLine[]; truncated: boolean };
+type Shortage = { part_id: number; name: string; cerut: number; stoc: number; disponibil: number; lipsa: number };
 
 // De cât timp așteaptă mutarea, în cuvinte scurte.
 function zile(iso: string): string {
@@ -24,8 +25,8 @@ function zile(iso: string): string {
   return z <= 0 ? 'azi' : z === 1 ? 'de ieri' : `de ${z} zile`;
 }
 
-export default function MutariClient({ warehouses, fromWarehouses, transit, peMasina, peMasinaTruncat, peMasinaEsuat, vehicles, mechanics }: {
-  warehouses: WhOpt[]; fromWarehouses: Opt[]; transit: Transit[];
+export default function MutariClient({ warehouses, fromWarehouses, transit, peMasina, peMasinaTruncat, peMasinaEsuat, vehicles, mechanics, canOverrideStock }: {
+  warehouses: WhOpt[]; fromWarehouses: Opt[]; transit: Transit[]; canOverrideStock: boolean;
   peMasina: { id: number; fromName: string; toName: string; toWarehouseId: number | null;
              vehiclePlate: string; mechanicName: string | null; lineCount: number; createdAt: string }[];
   peMasinaTruncat: boolean; peMasinaEsuat: boolean;
@@ -92,9 +93,12 @@ export default function MutariClient({ warehouses, fromWarehouses, transit, peMa
   }
 
   const [msg, setMsg] = useState<{ t: 'ok' | 'danger'; m: string } | null>(null);
+  // Lipsa la trimitere (migr. 355). Ținem payload-ul ca „trimit oricum" să retrimită EXACT ce s-a refuzat,
+  // nu ce a mai apucat omul să schimbe în formular între timp.
+  const [short, setShort] = useState<{ items: Shortage[] } | null>(null);
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
 
-  async function send() {
+  async function send(allowShort = false) {
     setBusy(true); setMsg(null);
     try {
       const r = await submitTransfer({
@@ -102,12 +106,21 @@ export default function MutariClient({ warehouses, fromWarehouses, transit, peMa
         lines: lines.filter((l) => l.part_id).map((l) => ({ part_id: Number(l.part_id), qty: l.qty })),
         vehicle_id: forVehicle && vehicleId ? Number(vehicleId) : null,
         mechanic_id: forVehicle && mechanicId ? Number(mechanicId) : null,
+        allow_short: allowShort,
       });
+      if (!r.ok) {
+        // Nu s-a scris nimic — baza a anulat tot. Omul vede ce lipsește și decide.
+        if (!r.shortages.length) { setMsg({ t: 'danger', m: 'Stocul s-a schimbat între timp. Încearcă din nou.' }); return; }
+        setShort({ items: r.shortages as Shortage[] });
+        return;
+      }
+      setShort(null);
       // Mesajul spune UNDE se confirmă: altfel depozitarul ar căuta mutarea în lista de aici, unde nu mai
       // apare (ar confirma-o fără rashod, iar marfa ar rămâne pe depozit neatribuită).
-      setMsg({ t: 'ok', m: r.forVehicle
+      setMsg({ t: 'ok', m: (r.forVehicle
         ? 'Mutare trimisă pentru mașină. Se confirmă în ecranul „Eliberare pe mașină" — acolo devine rashod.'
-        : 'Mutare trimisă. Acum e „pe drum" — de confirmat la primire.' });
+        : 'Mutare trimisă. Acum e „pe drum" — de confirmat la primire.')
+        + (allowShort ? ' Atenție: trimisă peste stoc — depozitul sursă a rămas pe minus.' : '') });
       setLines([{ part_id: '', qty: 1 }]); setForVehicle(false); setVehicleId(''); setMechanicId('');
       await refreshSent(from);
       router.refresh();
@@ -123,6 +136,44 @@ export default function MutariClient({ warehouses, fromWarehouses, transit, peMa
   return (
     <>
       {msg && <div className={`alert ${msg.t}`}>{msg.m}</div>}
+
+      {short && (
+        <div className="alert warn" style={{ marginBottom: 12 }}>
+          <strong>Nu ajunge marfa în depozitul sursă.</strong> Nu s-a trimis nimic.
+          <table style={{ marginTop: 8 }}>
+            <thead><tr><th>Piesa</th><th style={{ width: 90 }}>Ceri</th><th style={{ width: 90 }}>Pe stoc</th><th style={{ width: 90 }}>Lipsesc</th></tr></thead>
+            <tbody>
+              {short.items.map((x) => (
+                <tr key={x.part_id}>
+                  <td>{x.name}</td>
+                  <td>{x.cerut.toLocaleString('ro-RO')}</td>
+                  <td>{x.stoc.toLocaleString('ro-RO')}</td>
+                  <td><span className="badge warn">{x.lipsa.toLocaleString('ro-RO')}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="muted" style={{ fontSize: 12 }}>
+            {canOverrideStock
+              ? 'Dacă marfa e fizic pe raft și doar recepția n-a fost introdusă, poți continua — dar depozitul sursă va rămâne pe minus, iar diferența se închide abia la o inventariere. Dacă nu ești sigur, închide și verifică întâi intrările.'
+              : 'Dacă marfa e fizic pe raft și doar recepția n-a fost introdusă, trebuie mai întâi introdusă recepția — sau cheamă gestionarul, care poate trimite și pe minus.'}
+          </p>
+          <div className="row" style={{ gap: 8 }}>
+            <button type="button" className="btn" onClick={() => setShort(null)} disabled={busy} autoFocus>Închide și verific</button>
+            {canOverrideStock ? (
+              <button type="button" className="btn btn-primary" onClick={() => send(true)} disabled={busy}>
+                {busy ? 'Se trimite…' : 'Trimit oricum'}
+              </button>
+            ) : (
+              // Butonul LIPSEȘTE, nu e doar refuzat la apăsare: un buton care dă eroare arată ca o
+              // defecțiune, iar omul îl apasă de mai multe ori. Așa vede din prima ce are de făcut.
+              <span className="muted" style={{ fontSize: 12, alignSelf: 'center' }}>
+                Doar gestionarul sau administratorul poate trimite peste stoc.
+              </span>
+            )}
+          </div>
+        </div>
+      )}
       {/* Mutările marcate pentru o mașină NU apar în lista de mai jos: pe calea aceea nu pot fi confirmate,
           fiindcă primirea și eliberarea trebuie să se facă împreună (migr. 319). Dar nici invizibile n-au
           voie să fie — exact așa s-a pierdut mutarea 417, iar piesa a fost eliberată a doua oară manual.
@@ -311,7 +362,7 @@ export default function MutariClient({ warehouses, fromWarehouses, transit, peMa
         </table>
         <button className="btn" onClick={() => { setLines((ls) => [...ls, { part_id: '', qty: 1 }]); setFocusIdx(lines.length); }} style={{ marginTop: 10 }}>+ Adaugă poziție</button>
         <button className="btn btn-primary btn-lg btn-block" style={{ marginTop: 12 }}
-          disabled={busy || (forVehicle && !vehicleId)} onClick={send}>
+          disabled={busy || (forVehicle && !vehicleId)} onClick={() => send()}>
           {forVehicle ? 'Trimite mutarea pe mașină' : 'Trimite mutarea'}
         </button>
       </div>

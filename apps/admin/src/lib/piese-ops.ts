@@ -54,13 +54,21 @@ export async function transfersTransit() {
 export async function transferSend(p: {
   from_warehouse_id: number; to_warehouse_id: number; lines: { part_id: number; qty: number }[];
   vehicle_id?: number | null; mechanic_id?: number | null;
-}, autor: Autor) {
+}, autor: Autor, allowShort = false) {
   const { data, error } = await getSupabase().rpc('piese_transfer_send', {
     p_from: p.from_warehouse_id, p_to: p.to_warehouse_id, p_lines: p.lines, p_user: null,
     p_vehicle: p.vehicle_id ?? null, p_mechanic: p.mechanic_id ?? null,
-    p_admin: autor.adminId, p_actor: autor.label,
+    p_admin: autor.adminId, p_actor: autor.label, p_allow_short: allowShort,
   });
-  if (error) throw new Error(TRANSFER_ERR[(error.message || '').trim()] || error.message);
+  if (error) {
+    const code = (error.message || '').trim();
+    // `SHORTAGE` NU trece prin harta comună. Acolo mesajul e scris pentru CONFIRMAREA pe mașină, unde
+    // lipsa e imposibilă prin construcție („anunță administratorul"). La TRIMITERE (migr. 355) lipsa e
+    // normală și are răspuns propriu: apelantul compune lista pieselor și întreabă omul. Tradus aici, ar
+    // fi ajuns la depozitar exact sfatul greșit.
+    if (code === 'SHORTAGE') throw new Error('SHORTAGE');
+    throw new Error(TRANSFER_ERR[code] || error.message);
+  }
   return Number(data);
 }
 
@@ -80,9 +88,10 @@ const TRANSFER_ERR: Record<string, string> = {
   DOC_MISMATCH: 'Mutarea nu e adresată acestui depozit.',
   NO_LINES: 'Mutarea nu are poziții.',
   DEST_NOT_INTERNAL: 'O mutare pe mașină trebuie trimisă către un depozit intern — confirmarea se face acolo.',
-  // Nu se poate întâmpla prin construcție: confirmarea eliberează exact cantitatea intrată o clipă mai
-  // devreme, în aceeași tranzacție, deci disponibilul o include mereu. Dacă apare totuși, e semn de date
-  // stricate — iar „reîncearcă" ar fi trimis omul într-o buclă fără ieșire, cu marfa blocată pe drum.
+  // DOAR pentru confirmarea pe mașină; la trimitere, `transferSend` oprește codul înainte de hartă.
+  // Acolo nu se poate întâmpla prin construcție: confirmarea eliberează exact cantitatea intrată o clipă
+  // mai devreme, în aceeași tranzacție, deci disponibilul o include mereu. Dacă apare totuși, e semn de
+  // date stricate — iar „reîncearcă" ar fi trimis omul într-o buclă fără ieșire, cu marfa blocată pe drum.
   SHORTAGE: 'Confirmarea a fost oprită: stocul depozitului nu se potrivește cu marfa primită. Anunță administratorul.',
 };
 

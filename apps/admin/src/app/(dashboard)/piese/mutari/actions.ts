@@ -1,9 +1,9 @@
 'use server';
 
 import { verifySession, requireRole } from '@/lib/auth';
-import { assertWarehouseAllowed } from '@/lib/piese-access';
+import { assertWarehouseAllowed, canOverrideStock } from '@/lib/piese-access';
 import { transferSend, transferReceive, transferDestWarehouse, transferCancel, transfersSent } from '@/lib/piese-ops';
-import { docLines } from '@/lib/piese';
+import { docLines, issueShortages } from '@/lib/piese';
 import { auditWrite, autorFor } from '@/lib/audit';
 
 // Plafon de sanity, ca la rashod: RPC-ul ține un lock pe fiecare piesă, într-o singură tranzacție, iar
@@ -14,6 +14,7 @@ const MAX_LINES = 200;
 export async function submitTransfer(payload: {
   from_warehouse_id: number; to_warehouse_id: number; lines: { part_id: number; qty: number }[];
   vehicle_id?: number | null; mechanic_id?: number | null;
+  allow_short?: boolean;
 }) {
   const session = requireRole(await verifySession(), 'ADMIN', 'VINZATOR', 'GESTIONAR');
   if (!payload.from_warehouse_id || !payload.to_warehouse_id) throw new Error('Alege depozitul sursă și cel destinație');
@@ -30,9 +31,41 @@ export async function submitTransfer(payload: {
   const vehicle_id = Number.isInteger(vid) && vid > 0 ? vid : null;
   const mechanic_id = Number.isInteger(mid) && mid > 0 ? mid : null;
   if (mechanic_id != null && vehicle_id == null) throw new Error('Lăcătușul se alege doar împreună cu mașina');
-  const docId = await transferSend({ ...payload, lines, vehicle_id, mechanic_id },
-    await autorFor(session.id));
-  return { ok: true, docId, forVehicle: vehicle_id != null };
+  // Garda „nu e pe stoc" la MUTĂRI (migr. 355). Până acum exista doar la eliberări: se putea trimite 10
+  // bucăți având 2, iar depozitul rămânea pe minus fără ca nimeni să fie întrebat. Așa a apărut, în
+  // producție, „Magazin −1" la piesa 21068.
+  //
+  // `=== true`, nu truthy: acordul vine de la client, deci se acceptă doar forma exactă. Un `"false"` sau
+  // un `1` rătăcit într-un payload n-are voie să treacă drept „da, sunt de acord".
+  //
+  // Dreptul e același ca la eliberări — ADMIN și GESTIONAR, nu vânzătorul (decizia Marianei, 11.09).
+  // Dialogul e o măsură de interfață; cine trimite cererea direct poate pune acordul de la început.
+  if (payload.allow_short === true && !(await canOverrideStock(session))) {
+    // Încercarea refuzată lasă ȘI ea urmă: dacă refuzul e mut, cine sondează o poate face la nesfârșit.
+    await auditWrite({
+      adminId: session.id, action: 'TRANSFER_SHORT_DENIED', entity: 'transfer',
+      after: { depozit: Number(payload.from_warehouse_id), pozitii: lines.length },
+      notes: 'Cerere de mutare peste stoc, refuzată — rol fără drept',
+    });
+    throw new Error('Nu ai dreptul să muți peste stoc. Cheamă gestionarul sau administratorul.');
+  }
+
+  // Se ÎNCEARCĂ scrierea, nu se verifică înainte — ca la rashod. Baza refuză cu `SHORTAGE` și anulează
+  // tot; lista o compune serverul în același dus-întors, fără o acțiune de server în plus la fiecare
+  // salvare și fără fereastră între întrebare și scriere.
+  let docId: number;
+  try {
+    docId = await transferSend({ ...payload, lines, vehicle_id, mechanic_id },
+      await autorFor(session.id), payload.allow_short === true);
+  } catch (e: any) {
+    if ((e?.message || '').trim() !== 'SHORTAGE') throw e;
+    try {
+      return { ok: false as const, shortages: await issueShortages(payload.from_warehouse_id, lines) };
+    } catch {
+      throw new Error('Nu ajunge marfa în depozit, iar detaliile nu s-au putut încărca. Reîncearcă.');
+    }
+  }
+  return { ok: true as const, docId, forVehicle: vehicle_id != null };
 }
 
 export async function receiveTransfer(docId: number) {

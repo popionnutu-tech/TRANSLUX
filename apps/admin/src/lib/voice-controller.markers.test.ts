@@ -71,8 +71,8 @@ describe('nimeni nu e contactat de companie', () => {
 
   it('lasă tool-ul viu, dar tăcut — evidența internă nu se anunță clientului', () => {
     expect(bloc).toContain('request_callback');
-    expect(bloc).toContain('evidență internă, tăcută');
-    expect(bloc).toContain('NU-i spui clientului nici că l-ai notat');
+    expect(bloc).toContain('evidență internă');
+    expect(bloc).toContain('NICIODATĂ nu spui că ai transmis ceva');
   });
 
   it('spune ce face agentul în loc de apel înapoi', () => {
@@ -101,8 +101,27 @@ describe('nimeni nu e contactat de companie', () => {
   });
 
   it('reperul nou e în lista de repere, cel vechi a ieșit', () => {
-    expect(PROMPT_MARKERS_RO).toContain('NIMENI NU SUNĂ ÎNAPOI — NICIODATĂ');
+    expect(PROMPT_MARKERS_RO).toContain('NIMENI NU SUNĂ ÎNAPOI — NICIODATĂ, IAR «AM NOTAT» NU E O PROMISIUNE');
     expect(PROMPT_MARKERS_RO).not.toContain('APEL ÎNAPOI — NICIO PROMISIUNE');
-    expect(PROMPT_MARKERS_RU).toContain('НИКТО НЕ ПЕРЕЗВАНИВАЕТ — НИКОГДА');
+    expect(PROMPT_MARKERS_RU).toContain('НИКТО НЕ ПЕРЕЗВАНИВАЕТ — НИКОГДА, А «ЗАПИСАЛА» — НЕ ОБЕЩАНИЕ');
+  });
+});
+
+describe('«am notat» nu se ceartă cu secțiunile ANGAJARE și SUGESTII', () => {
+  const bloc = corpuri.get('NIMENI_BLOCK') ?? '';
+
+  it('permite confirmarea scurtă acolo unde promptul o cere, fără urmări promise', () => {
+    expect(bloc).toContain('La ANGAJARE și la o PROPUNERE poți confirma scurt că ai notat-o');
+    expect(bloc).toContain('fără nicio urmare promisă');
+  });
+
+  it('dar interzice «am notat» ca ieșire dintr-o discuție fără răspuns', () => {
+    expect(bloc).toContain('nu se folosește ca să închizi o discuție');
+  });
+
+  it('v1, livrat și retras în aceeași zi, e piatră de mormânt pe amândoi agenții', () => {
+    const obsolete = sursa.slice(sursa.indexOf('const OBSOLETE_BLOCKS = ['));
+    expect(obsolete).toContain('  NIMENI_OBSOLETE_V1,');
+    expect(sursa).toContain('healed.replace(NIMENI_OBSOLETE_V1_RU');
   });
 });

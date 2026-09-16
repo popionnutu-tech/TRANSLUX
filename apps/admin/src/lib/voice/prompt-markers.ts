@@ -20,7 +20,7 @@ export const PROMPT_MARKERS_RO = [
   'ZIUA — DOSLOVEN',
   'e un CORIDOR',
   'SFÂRȘIT NUME RUSEȘTI',
-  'NIMENI NU SUNĂ ÎNAPOI — NICIODATĂ',
+  'NIMENI NU SUNĂ ÎNAPOI — NICIODATĂ, IAR «AM NOTAT» NU E O PROMISIUNE',
   'STAȚIA CHIȘINĂU — AUTOGARA TRANSLUX',
   'STAȚIA BĂLȚI — PEROANELE',
   'ORA SOSIRII — NU SE SPUNE',
@@ -46,7 +46,7 @@ export const PROMPT_MARKERS_RU = [
   'ДРУГОГО НОМЕРА НЕ СУЩЕСТВУЕТ',
   'ДЕНЬ БЕЗ РЕЙСОВ — СЛЕДУЮЩИЙ ПРИХОДИТ ИЗ ТУЛА',
   'ОПЕРАТОР — ПЕРЕДАТЬ НЕКОМУ',
-  'НИКТО НЕ ПЕРЕЗВАНИВАЕТ — НИКОГДА',
+  'НИКТО НЕ ПЕРЕЗВАНИВАЕТ — НИКОГДА, А «ЗАПИСАЛА» — НЕ ОБЕЩАНИЕ',
 ];
 
 export const TOATE_MARKERELE = [...PROMPT_MARKERS_RO, ...PROMPT_MARKERS_RU];

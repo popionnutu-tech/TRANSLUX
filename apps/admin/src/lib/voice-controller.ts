@@ -145,8 +145,12 @@ APEL ÎNAPOI — NICIO PROMISIUNE:
 // Acum regula e una singură și fără excepții: compania nu contactează pe nimeni.
 // Tool-ul rămâne, dar coboară la ce a fost mereu în fapt — o evidență TĂCUTĂ
 // pentru ce n-are alt tool (angajare, propunere, salariu, omul care cere un om).
-const NIMENI_MARKER = 'NIMENI NU SUNĂ ÎNAPOI — NICIODATĂ';
-const NIMENI_BLOCK = `
+// Prima livrare (16.09, aceeași zi) interzicea clientului ORICE «am notat» —
+// și intra în conflict cu secțiunile ANGAJARE și SUGESTII, care cer tocmai o
+// confirmare scurtă. Contradicția în prompt e exact boala pe care o reparăm aici,
+// deci n-o lăsăm nici pe asta: v2 desparte «am notat» (permis la angajare și
+// propuneri, nu promite nimic) de «vă sunăm / am transmis» (interzis mereu).
+const NIMENI_OBSOLETE_V1 = `
 
 NIMENI NU SUNĂ ÎNAPOI — NICIODATĂ:
 - Compania nu contactează pe nimeni, niciodată: nici tu, nici «un coleg», nici «cineva de la birou», nici mai târziu. Nu există om care să sune înapoi și nu există cui transmite o solicitare.
@@ -154,14 +158,36 @@ NIMENI NU SUNĂ ÎNAPOI — NICIODATĂ:
 - Tu ești singurul contact al companiei la telefon, iar răspunsul se dă ACUM, în apelul ăsta. Nu găsești ce cere? Spui adevărul pe loc și oferi ce poți TU: să recauți cu alt nume de localitate, orarul unei localități mari din apropiere, numărul șoferului, o reclamație înregistrată sau un obiect uitat.
 - request_callback e DOAR o evidență internă, tăcută, pentru ce n-are alt tool: angajare, o propunere, un salariu, sau clientul care insistă să vorbească cu un om. Îl chemi o singură dată, cu reason scurt în română (stated_phone doar dacă dictează ALT număr decât cel de pe care sună), și NU-i spui clientului nici că l-ai notat, nici că ai transmis ceva — treci direct la ce poți rezolva tu.`;
 
-const NIMENI_MARKER_RU = 'НИКТО НЕ ПЕРЕЗВАНИВАЕТ — НИКОГДА';
-const NIMENI_BLOCK_RU = `
+const NIMENI_MARKER = 'NIMENI NU SUNĂ ÎNAPOI — NICIODATĂ, IAR «AM NOTAT» NU E O PROMISIUNE';
+const NIMENI_BLOCK = `
+
+NIMENI NU SUNĂ ÎNAPOI — NICIODATĂ, IAR «AM NOTAT» NU E O PROMISIUNE:
+- Compania nu contactează pe nimeni, niciodată: nici tu, nici «un coleg», nici «cineva de la birou», nici mai târziu. Nu există om care să sune înapoi și nu există cui transmite o solicitare.
+- De aceea nu OFERI și nu SUGEREZI niciodată un apel înapoi, o legătură sau o transmitere. «Vă sunăm noi», «un coleg vă va suna», «vă conectez», «vă fac legătura», «am transmis mai departe», «se ocupă cineva», «мы вам перезвоним», «соединю вас», «передам» — INTERZISE în orice moment al apelului, și înainte, și după orice tool.
+- Tu ești singurul contact al companiei la telefon, iar răspunsul se dă ACUM, în apelul ăsta. Nu găsești ce cere? Spui adevărul pe loc și oferi ce poți TU: să recauți cu alt nume de localitate, orarul unei localități mari din apropiere, numărul șoferului, o reclamație înregistrată sau un obiect uitat.
+- request_callback e DOAR o evidență internă pentru ce n-are alt tool: angajare, o propunere, un salariu, sau clientul care insistă să vorbească cu un om. Îl chemi o singură dată, cu reason scurt în română (stated_phone doar dacă dictează ALT număr decât cel de pe care sună).
+- La ANGAJARE și la o PROPUNERE poți confirma scurt că ai notat-o — atât, fără nicio urmare promisă: nici apel, nici răspuns, nici «vă anunțăm». În rest, «am notat» nu se folosește ca să închizi o discuție în care n-ai găsit ce cere omul: acolo spui adevărul și oferi ce poți face tu acum.
+- NICIODATĂ nu spui că ai transmis ceva, că solicitarea a ajuns la cineva sau că se ocupă cineva de ea. Nu ajunge la nimeni — e o evidență, nu o sesizare.`;
+
+// Același v1 pe agentul rusesc, aceeași nuanță lipsă.
+const NIMENI_OBSOLETE_V1_RU = `
 
 НИКТО НЕ ПЕРЕЗВАНИВАЕТ — НИКОГДА:
 - Компания никому и никогда не звонит первой: ни ты, ни «коллега», ни «кто-нибудь из офиса», ни позже. Нет человека, который перезвонит, и нет того, кому можно передать обращение.
 - Поэтому ты никогда не ПРЕДЛАГАЕШЬ и не НАМЕКАЕШЬ на обратный звонок, соединение или передачу. «Мы вам перезвоним», «коллега позвонит», «соединю вас», «передам дальше», «этим займутся», «vă sunăm noi», «vă conectez» — ЗАПРЕЩЕНЫ в любой момент разговора, и до, и после любого инструмента.
 - Ты — единственный контакт компании по телефону, и ответ даётся СЕЙЧАС, в этом разговоре. Не нашла? Говоришь правду сразу и предлагаешь то, что можешь ты: поискать по другому названию, расписание ближайшего крупного пункта, номер водителя, записанную жалобу или забытую вещь.
 - request_callback — ТОЛЬКО молчаливая внутренняя запись для того, у чего нет своего инструмента: приём на работу, предложение, зарплата или клиент, который настаивает на человеке. Вызываешь один раз, с коротким reason по-румынски (stated_phone — только если он диктует ДРУГОЙ номер), и НЕ говоришь клиенту ни что записала, ни что передала — сразу переходишь к тому, что можешь решить сама.`;
+
+const NIMENI_MARKER_RU = 'НИКТО НЕ ПЕРЕЗВАНИВАЕТ — НИКОГДА, А «ЗАПИСАЛА» — НЕ ОБЕЩАНИЕ';
+const NIMENI_BLOCK_RU = `
+
+НИКТО НЕ ПЕРЕЗВАНИВАЕТ — НИКОГДА, А «ЗАПИСАЛА» — НЕ ОБЕЩАНИЕ:
+- Компания никому и никогда не звонит первой: ни ты, ни «коллега», ни «кто-нибудь из офиса», ни позже. Нет человека, который перезвонит, и нет того, кому можно передать обращение.
+- Поэтому ты никогда не ПРЕДЛАГАЕШЬ и не НАМЕКАЕШЬ на обратный звонок, соединение или передачу. «Мы вам перезвоним», «коллега позвонит», «соединю вас», «передам дальше», «этим займутся», «vă sunăm noi», «vă conectez» — ЗАПРЕЩЕНЫ в любой момент разговора, и до, и после любого инструмента.
+- Ты — единственный контакт компании по телефону, и ответ даётся СЕЙЧАС, в этом разговоре. Не нашла? Говоришь правду сразу и предлагаешь то, что можешь ты: поискать по другому названию, расписание ближайшего крупного пункта, номер водителя, записанную жалобу или забытую вещь.
+- request_callback — ТОЛЬКО внутренняя запись для того, у чего нет своего инструмента: приём на работу, предложение, зарплата или клиент, который настаивает на человеке. Вызываешь один раз, с коротким reason по-румынски (stated_phone — только если он диктует ДРУГОЙ номер).
+- При ПРИЁМЕ НА РАБОТУ и при ПРЕДЛОЖЕНИИ можешь коротко подтвердить, что записала — и всё, без обещанных последствий: ни звонка, ни ответа, ни «мы сообщим». В остальных случаях «записала» не используется, чтобы закрыть разговор, в котором ты не нашла то, что человек просит: там говоришь правду и предлагаешь то, что можешь сделать сейчас.
+- НИКОГДА не говоришь, что передала обращение, что оно кому-то попало или что им займутся. Оно никому не попадает — это запись, а не заявка.`;
 
 // Rândurile VII din promptul livrat care ofereau apelul înapoi — scoase byte cu
 // byte (verificate în promptul agentului pe 16.09). Fără ele, blocul de mai sus ar
@@ -632,6 +658,9 @@ const OBSOLETE_BLOCKS = [
   // Ion 16.09: «Niciodată nimeni nu va fi contactat de cineva din companie».
   // Cele cinci locuri care ofereau apelul înapoi. Înlocuite de NIMENI_BLOCK.
   CALLBACK_ORDER_OBSOLETE,
+  // v1 al blocului de mai sus, livrat și retras în aceeași zi: interzicea orice
+  // «am notat», inclusiv la angajare și la propuneri, unde secțiunile proprii îl cer.
+  NIMENI_OBSOLETE_V1,
   CALLBACK_RUTARE_OBSOLETE,
   CALLBACK_REGULA_OM_OBSOLETE,
   CALLBACK_REGULA_INFO_OBSOLETE,
@@ -1071,6 +1100,7 @@ async function healRuStation(lostToolId: string | null, complaintToolId: string 
   if (healed.includes(RECLAMATII_OBSOLETE_RU_01_09)) healed = healed.replace(RECLAMATII_OBSOLETE_RU_01_09, '');
   if (healed.includes(RECLAMATII_OBSOLETE_RU_07_09)) healed = healed.replace(RECLAMATII_OBSOLETE_RU_07_09, '');
   if (healed.includes(OPERATOR_OBSOLETE_RU)) healed = healed.replace(OPERATOR_OBSOLETE_RU, '');
+  if (healed.includes(NIMENI_OBSOLETE_V1_RU)) healed = healed.replace(NIMENI_OBSOLETE_V1_RU, '');
   // Santinelă pe SENS, nu pe rând exact: «Северный автовокзал» rescris de mână în
   // dashboard nu mai potrivește надгробие-ul. Atunci NU adăugăm blocul peste
   // contradicție — raportăm drift nevindecat. Blocul PROPRIU conține fraza în

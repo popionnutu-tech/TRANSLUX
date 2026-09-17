@@ -86,7 +86,10 @@ export default function TraseeClient({ trasee, impacare, propuneri }: { trasee: 
           Sugestii, nimic nu se schimbă automat. Costul unei perechi = km-ii goi de acasă până la
           prima stație a rutei și înapoi. Perechile unde nu se poate calcula distanța ies din listă —
           nu primesc o cifră inventată. Locul de noapte al mașinii e luat ca „acasă" și se ia din
-          mediana a cel puțin trei nopți.
+          mediana a cel puțin trei nopți. Distanțele sunt <strong>în linie dreaptă</strong>, nu pe
+          șosea: economia arată direcția corect, dar mărimea ei e o estimare prudentă. Ruta care are
+          traseu ideal doar într-un sens iese din calcul — jumătate de formulă nu se poate compara cu
+          una întreagă.
         </p>
         {propuneri.economie_km_zi > 0 ? (
           <p className="text-sm mb-3">
@@ -119,6 +122,7 @@ export default function TraseeClient({ trasee, impacare, propuneri }: { trasee: 
           {propuneri.soferi_analizati} șoferi analizați
           {propuneri.fara_baza > 0 && <> · {propuneri.fara_baza} fără loc de noapte cunoscut</>}
           {propuneri.rute_fara_etalon > 0 && <> · {propuneri.rute_fara_etalon} rute fără etalon încă</>}
+          {propuneri.rute_incomplete > 0 && <> · {propuneri.rute_incomplete} rute cu etalon doar pe un sens, scoase din calcul</>}
         </p>
       </div>
 

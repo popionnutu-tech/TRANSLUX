@@ -111,6 +111,7 @@ export type PropuneriRezultat = {
   soferi_analizati: number;
   fara_baza: number;
   rute_fara_etalon: number;
+  rute_incomplete: number;   // au etalon doar pe un sens → costul n-ar fi comparabil
 };
 
 const capat = (geom: unknown, unde: 'prim' | 'ultim'): { lat: number; lon: number } | null => {
@@ -129,7 +130,14 @@ export async function getPropuneri(): Promise<PropuneriRezultat> {
   const de = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
 
   const [{ data: etaloane }, { data: atribuiri }, { data: baze }, { data: soferi }, { data: rute }] = await Promise.all([
-    sb.from('lde_route_etalon').select('factory_route_id, sens, geom').not('geom', 'is', null),
+    // ordonat DETERMINIST: schimbul 1, slotul 1, apoi cel cu cele mai multe observații.
+    // O rută are un etalon pe fiecare (schimb × slot × sens) — la Orhei 17 sunt două de
+    // tur, cu puncte de plecare diferite. Fără ordonare, „primul citit" era la voia bazei,
+    // iar costul aceleiași rute putea ieși altul la fiecare încărcare a paginii.
+    sb.from('lde_route_etalon').select('factory_route_id, sens, shift_number, slot, observations, geom')
+      .not('geom', 'is', null)
+      .order('shift_number', { ascending: true }).order('slot', { ascending: true })
+      .order('observations', { ascending: false }),
     // Ruta unui șofer NU se ia din `lde_active_assignments`: acolo `route_id` e gol pe
     // toate cele 80 de rânduri active — atribuirea de lungă durată leagă doar șoferul de
     // mașină. Ruta trăiește în graficul zilnic, deci se ia ruta pe care omul a fost cel
@@ -163,9 +171,16 @@ export async function getPropuneri(): Promise<PropuneriRezultat> {
   for (const e of etaloane ?? []) {
     const id = e.factory_route_id as string;
     const cur = ruteCost.get(id) ?? { factory_route_id: id, eticheta: eticheta.get(id) ?? id, primaStatie: null, ultimaStatie: null };
-    if (e.sens === 'tur') cur.primaStatie = capat(e.geom, 'prim');
-    else cur.ultimaStatie = capat(e.geom, 'ultim');
+    // PRIMUL din ordinea de mai sus câștigă; nu se suprascrie cu rândurile următoare
+    if (e.sens === 'tur') cur.primaStatie = cur.primaStatie ?? capat(e.geom, 'prim');
+    else cur.ultimaStatie = cur.ultimaStatie ?? capat(e.geom, 'ultim');
     ruteCost.set(id, cur);
+  }
+  // rutele cu un singur capăt nu se pot compara cu celelalte — ies din calcul, nu
+  // primesc jumătate de formulă
+  let ruteIncomplete = 0;
+  for (const [id, r] of [...ruteCost]) {
+    if (!r.primaStatie || !r.ultimaStatie) { ruteCost.delete(id); ruteIncomplete++; }
   }
 
   // ruta „curentă" a unui șofer = cea pe care a fost cel mai des; mașina lui la fel
@@ -202,5 +217,6 @@ export async function getPropuneri(): Promise<PropuneriRezultat> {
     soferi_analizati: lista.length,
     fara_baza: faraBaza,
     rute_fara_etalon: (rute ?? []).length - ruteCost.size,
+    rute_incomplete: ruteIncomplete,
   };
 }

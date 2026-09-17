@@ -60,3 +60,22 @@ describe('propunerile de schimb', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 });
+
+describe('costul cere AMBELE capete (defect găsit 17.09, perechea Popescu–Pangalos)', () => {
+  it('ruta fără etalon de retur nu primește jumătate de formulă', () => {
+    const doarTur: RutaCost = { factory_route_id: 'X', eticheta: 'X', primaStatie: { lat: 47.1, lon: 28.6 }, ultimaStatie: null };
+    expect(costPereche({ lat: 47.5, lon: 28.8 }, doarTur)).toBeNull();
+  });
+
+  it('nu se compară o rută socotită „2 × dus" cu una socotită „dus + întors"', () => {
+    // ruta A: dusul lung, întorsul scurt; ruta B: simetrică. Cu vechea formulă (dublarea
+    // dusului când lipsea returul), A ar fi ieșit artificial scumpă și schimbul propus greșit.
+    const A: RutaCost = { factory_route_id: 'A', eticheta: 'A', primaStatie: { lat: 47.9, lon: 28.0 }, ultimaStatie: { lat: 47.05, lon: 28.0 } };
+    const B: RutaCost = { factory_route_id: 'B', eticheta: 'B', primaStatie: { lat: 47.2, lon: 28.0 }, ultimaStatie: { lat: 47.2, lon: 28.0 } };
+    const baza = { lat: 47.0, lon: 28.0 };
+    const cA = costPereche(baza, A)!, cB = costPereche(baza, B)!;
+    // A = 100 km dus + 5,5 km întors ≈ 105; B = 22 + 22 = 44. Ambele pe aceeași formulă.
+    expect(cA).toBeGreaterThan(cB);
+    expect(cA).toBeLessThan(2 * haversineKm(baza, A.primaStatie!));
+  });
+});

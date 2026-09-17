@@ -54,10 +54,14 @@ export type Propunere = {
  * inventată, ies din propunere (precedentul `km_ideal NULL` din migr. 300).
  */
 export function costPereche(baza: Baza | null, ruta: RutaCost): number | null {
-  if (!baza || !ruta.primaStatie) return null;
-  const dus = haversineKm(baza, ruta.primaStatie);
-  const intors = ruta.ultimaStatie ? haversineKm(ruta.ultimaStatie, baza) : dus;
-  return +(dus + intors).toFixed(2);
+  // AMBELE capete sunt obligatorii. Varianta veche dubla dusul când lipsea returul —
+  // și atunci o rută fără etalon de retur se socotea „2 × dus", iar una cu etalon
+  // „dus + întors": două formule diferite, comparate între ele. O rută unde întorsul
+  // e mult mai scurt decât dusul ieșea artificial scumpă, iar schimbul propus putea
+  // înrăutăți în realitate. Găsit verificând de mână perechea Popescu–Pangalos (Orhei
+  // 26 ↔ 17), unde ruta 26 n-are deloc etalon de retur.
+  if (!baza || !ruta.primaStatie || !ruta.ultimaStatie) return null;
+  return +(haversineKm(baza, ruta.primaStatie) + haversineKm(ruta.ultimaStatie, baza)).toFixed(2);
 }
 
 /**

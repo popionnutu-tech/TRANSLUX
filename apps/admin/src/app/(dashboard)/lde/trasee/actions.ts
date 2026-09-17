@@ -103,7 +103,7 @@ export async function getGeometrie(factory_route_id: string, shift_number: numbe
 // primele stații ale zecilor de rute cu coordonate știute îi localizează casa prin
 // trilaterație, chiar dacă nu afișează nicio coordonată. Rămân ADMIN-only și NU intră în
 // nicio lărgire de rol fără o decizie separată.
-import { propuneriSchimb, propuneriComasare, propuneriAngajare, economieCumulata,
+import { construiesteCosturi, propuneriSchimb, propuneriComasare, propuneriAngajare, economieCumulata,
   type RutaCost, type SoferCurent, type Propunere, type PropunereComasare, type PropunereAngajare } from '@/lib/lde/trasee';
 
 export type PropuneriRezultat = {
@@ -117,12 +117,32 @@ export type PropuneriRezultat = {
   angajari: PropunereAngajare[];
 };
 
+/**
+ * PostgREST taie TĂCUT la 1000 de rânduri. Verificat 17.09: `getPropuneri` citea 1.000
+ * din 3.438 de atribuiri și 1.000 din 4.242 de opriri de bază — cifra afișată descria un
+ * grafic vechi de 16 zile, iar propunerea de vârf ieșea 84 km în loc de 42. Regula era
+ * deja scrisă în comentariul lui `getTrasee`, dar nu era aplicată și aici.
+ */
+async function citesteTot<T>(
+  q: () => { range: (de: number, la: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }> },
+): Promise<T[]> {
+  const out: T[] = []; const pas = 1000;
+  for (let de = 0; ; de += pas) {
+    const { data, error } = await q().range(de, de + pas - 1);
+    if (error) throw new Error(error.message);
+    out.push(...(data ?? []));
+    if (!data || data.length < pas) break;
+  }
+  return out;
+}
+
 export async function getPropuneri(): Promise<PropuneriRezultat> {
   requireRole(await verifySession(), 'ADMIN');
   const sb = getSupabase();
   const de = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
 
-  const [{ data: etaloane }, { data: atribuiri }, { data: baze }, { data: soferi }, { data: rute }] = await Promise.all([
+  const [{ data: etaloane }, atribuiri, baze, { data: soferi }, { data: rute }, { data: porti }, { data: granite }] =
+    await Promise.all([
     // ordonat DETERMINIST: schimbul 1, slotul 1, apoi cel cu cele mai multe observații.
     // O rută are un etalon pe fiecare (schimb × slot × sens) — la Orhei 17 sunt două de
     // tur, cu puncte de plecare diferite. Fără ordonare, „primul citit" era la voia bazei,
@@ -135,112 +155,34 @@ export async function getPropuneri(): Promise<PropuneriRezultat> {
     // toate cele 80 de rânduri active — atribuirea de lungă durată leagă doar șoferul de
     // mașină. Ruta trăiește în graficul zilnic, deci se ia ruta pe care omul a fost cel
     // mai des în ultimele 30 de zile.
-    sb.from('lde_atribuiri_zilnice').select('driver_id, vehicle_id, factory_route_id')
-      .eq('route_kind', 'uzina').gte('date', de)
-      .not('driver_id', 'is', null).not('factory_route_id', 'is', null),
-    sb.from('lde_gps_stops').select('vehicle_id, lat, lon').eq('is_base', true).gte('date', de),
+    citesteTot<{ driver_id: string; vehicle_id: string | null; factory_route_id: string; shift_number: number; date: string }>(
+      () => sb.from('lde_atribuiri_zilnice').select('driver_id, vehicle_id, factory_route_id, shift_number, date')
+        .eq('route_kind', 'uzina').gte('date', de)
+        .not('driver_id', 'is', null).not('factory_route_id', 'is', null)),
+    citesteTot<{ vehicle_id: string; lat: number; lon: number }>(
+      () => sb.from('lde_gps_stops').select('vehicle_id, lat, lon').eq('is_base', true).gte('date', de)),
     sb.from('drivers').select('id, full_name').eq('active', true),
     sb.from('lde_factory_routes').select('id, uzina_id, route_number').eq('active', true),
+    sb.from('lde_uzine_gates').select('uzina_id, lat, lon').eq('active', true),
+    sb.from('lde_uzina_shift_boundaries').select('uzina_id, shift_number, tip, minute_zi'),
   ]);
 
-  // baza unei mașini = mediana nopților ei; o singură noapte nu face o casă
-  const puncte = new Map<string, { lat: number; lon: number }[]>();
-  for (const b of baze ?? []) {
-    if (b.lat == null || b.lon == null) continue;
-    if (!puncte.has(b.vehicle_id)) puncte.set(b.vehicle_id, []);
-    puncte.get(b.vehicle_id)!.push({ lat: Number(b.lat), lon: Number(b.lon) });
-  }
-  const mediana = (v: number[]) => { const s = [...v].sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
-  const bazaMasina = new Map<string, { lat: number; lon: number }>();
-  for (const [vid, ps] of puncte) {
-    if (ps.length < 3) continue;   // sub trei nopți nu tragem concluzii despre unde stă omul
-    bazaMasina.set(vid, { lat: mediana(ps.map((p) => p.lat)), lon: mediana(ps.map((p) => p.lon)) });
-  }
-
-  const numeSofer = new Map((soferi ?? []).map((d) => [d.id, d.full_name as string]));
-  const eticheta = new Map((rute ?? []).map((r) => [r.id, `${r.uzina_id} #${r.route_number}`]));
-
-  const ruteCost = new Map<string, RutaCost>();
-  const turaRutei = new Map<string, number>();   // pentru comasare: două rute din aceeași tură nu se pot uni
-  for (const e of etaloane ?? []) {
-    const id = e.factory_route_id as string;
-    const cur = ruteCost.get(id) ?? { factory_route_id: id, eticheta: eticheta.get(id) ?? id, primaStatie: null, ultimaStatie: null };
-    // Capetele vin din OPRIRILE STABILE, nu din geometrie. Capătul geometriei e primul
-    // punct al zilei, adică locul unde doarme mașina — măsurat 17.09: în 730 din 1.099
-    // de cazuri era la sub 1 km de bază. Costul compara casa unui șofer cu casa altuia.
-    // PRIMUL din ordinea de mai sus câștigă; nu se suprascrie cu rândurile următoare.
-    // Stația se ia doar dacă CHIAR SE REPETĂ. Ion, 17.09: «chiar dacă prima și ultima
-    // oprire e greșită, în ideal ea se repetă». Sub jumătate din curse, locul e instabil
-    // — mașina oprește de fiecare dată altundeva — și un cost calculat pe el ar fi o
-    // cifră cu aparență de adevăr.
-    const PRAG_REPETARE = 0.5;
-    const pct = (v: unknown) => {
-      const o = v as { lat?: number; lon?: number; pondere?: number } | null;
-      if (!o || o.lat == null || o.lon == null) return null;
-      if ((o.pondere ?? 0) < PRAG_REPETARE) return null;
-      return { lat: Number(o.lat), lon: Number(o.lon) };
-    };
-    if (e.sens === 'tur') {
-      const p = pct(e.prima_statie);
-      if (p && !cur.primaStatie) {
-        cur.primaStatie = { ...p, locality: (e.prima_statie as { locality?: string })?.locality ?? null } as never;
-        if (!turaRutei.has(id)) turaRutei.set(id, Number(e.shift_number));
-      }
-    } else cur.ultimaStatie = cur.ultimaStatie ?? pct(e.ultima_statie);
-    ruteCost.set(id, cur);
-  }
-  // rutele cu un singur capăt nu se pot compara cu celelalte — ies din calcul, nu
-  // primesc jumătate de formulă
-  let ruteIncomplete = 0;
-  for (const [id, r] of [...ruteCost]) {
-    if (!r.primaStatie || !r.ultimaStatie) { ruteCost.delete(id); ruteIncomplete++; }
-  }
-
-  // ruta „curentă" a unui șofer = cea pe care a fost cel mai des; mașina lui la fel
-  const nrRute = new Map<string, Map<string, number>>();
-  const nrMasini = new Map<string, Map<string, number>>();
-  const numara = (m: Map<string, Map<string, number>>, k: string, v: string) => {
-    if (!m.has(k)) m.set(k, new Map());
-    const x = m.get(k)!; x.set(v, (x.get(v) ?? 0) + 1);
-  };
-  for (const a of atribuiri ?? []) {
-    const d = a.driver_id as string;
-    numara(nrRute, d, a.factory_route_id as string);
-    if (a.vehicle_id) numara(nrMasini, d, a.vehicle_id as string);
-  }
-  const celMaiDes = (m?: Map<string, number>) =>
-    m ? [...m.entries()].sort((x, y) => y[1] - x[1])[0]?.[0] ?? null : null;
-
-  // Un șofer poate face MAI MULTE ture într-o zi, din zone diferite. Ziua lui e suma
-  // tuturor, nu o singură rută — Ion, 17.09: «pot fi situații când o tură și a doua sunt
-  // din zone similare, și optimal ar fi șofer din sat care se află între aceste 2 zone».
-  // Se iau rutele pe care a fost de cel puțin un sfert din zile, ordonate după cât de des.
-  const lista: SoferCurent[] = [];
-  let faraBaza = 0;
-  for (const [driver_id, rute_] of nrRute) {
-    const total = [...rute_.values()].reduce((s, n) => s + n, 0);
-    const aleLui = [...rute_.entries()]
-      .filter(([id, n]) => ruteCost.has(id) && n / total >= 0.25)
-      .sort((x, y) => y[1] - x[1])
-      .map(([id]) => id);
-    if (!aleLui.length) continue;
-    const masina = celMaiDes(nrMasini.get(driver_id));
-    const baza = masina ? bazaMasina.get(masina) ?? null : null;
-    if (!baza) faraBaza++;
-    lista.push({ driver_id, nume: numeSofer.get(driver_id) ?? '?', baza, rute: aleLui });
-  }
+  const { ruteCost, fereastraRutei, soferi: lista, fara_baza, rute_incomplete } = construiesteCosturi({
+    etaloane: etaloane ?? [], atribuiri, baze: baze ?? [], soferi: soferi ?? [],
+    rute: rute ?? [], porti: porti ?? [], granite: granite ?? [],
+  });
 
   const propuneri = propuneriSchimb(lista, ruteCost);
   const { aplicabile, km_zi } = economieCumulata(propuneri);
-  const comasari = propuneriComasare(lista, ruteCost, turaRutei).slice(0, 10);
+  const comasari = propuneriComasare(lista, ruteCost, fereastraRutei).slice(0, 10);
   const angajari = propuneriAngajare(lista, ruteCost).slice(0, 10);
   return {
     propuneri: aplicabile.slice(0, 20),
     economie_km_zi: km_zi,
     soferi_analizati: lista.length,
-    fara_baza: faraBaza,
+    fara_baza,
     rute_fara_etalon: (rute ?? []).length - ruteCost.size,
-    rute_incomplete: ruteIncomplete,
+    rute_incomplete,
     comasari, angajari,
   };
 }

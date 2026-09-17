@@ -188,43 +188,131 @@ export function imperecheazaTreceri(treceri, granite, shifturi, tol = TOLERANTA_
       const g = granite.find((x) => x.shift_number === sh && x.tip === tip && x.minuteZi != null);
       if (g) cand.push({ shift_number: sh, rol, minuteZi: g.minuteZi });
     }
-  const perechi = new Array(treceri.length).fill(null);
-  if (!cand.length) return perechi;
+  const perechi = treceri.map(() => ({ livrare: null, ridicare: null }));
+  if (!cand.length || !treceri.length) return perechi;
 
   const dist = (a, b) => { const x = Math.abs(a - b); return Math.min(x, 1440 - x); };
+  // Livrarea se măsoară pe SOSIRE (mașina ajunge înainte să înceapă tura), ridicarea pe
+  // PLECARE (pleacă după ce s-a terminat). Între ele stă staționarea, care e 17-51 de
+  // minute și diferă de la o uzină la alta (migr. 359) — cu un singur moment pentru
+  // amândouă, uzina cu staționare lungă ieșea mereu la limita toleranței.
+  const cand_d = (t, c) => dist(minuteZiLocal(c.rol === 'livrare' ? t.tIn : t.tOut), c.minuteZi);
+  const luate = new Set();
+  const pune = (i, c) => {
+    if (perechi[i][c.rol]) return false;
+    perechi[i][c.rol] = { ...c, abatere_min: cand_d(treceri[i], c) };
+    luate.add(`${c.shift_number}|${c.rol}`);
+    return true;
+  };
+
+  // ── granițele COMUNE se împart pe ordinea fizică, nu pe ceas ──
+  // La 15:30 la Draxelmaier sfârșitul schimbului 1 și începutul lui 2 sunt același minut,
+  // deci ceasul nu poate spune care atingere e care — și tocmai acolo sunt cele mai multe
+  // curse. Ordinea, însă, e sigură: oamenii schimbului următor trebuie ADUȘI înainte ca
+  // cei care au terminat să fie LUAȚI. Deci, dintre atingerile din fereastră, cea mai
+  // devreme e livrarea și cea mai târzie e ridicarea. Dacă e una singură, ea le face pe
+  // amândouă — cazul spus de Ion: vine plină cu o rută, pleacă plină cu alta.
+  const peMinut = new Map();
+  for (const c of cand) {
+    if (!peMinut.has(c.minuteZi)) peMinut.set(c.minuteZi, []);
+    peMinut.get(c.minuteZi).push(c);
+  }
+  for (const [minut, grup] of peMinut) {
+    const liv = grup.find((c) => c.rol === 'livrare');
+    const rid = grup.find((c) => c.rol === 'ridicare');
+    if (!liv || !rid) continue;
+    const inFereastra = treceri
+      .map((t, i) => ({ i, t }))
+      .filter(({ t }) => dist(minuteZiLocal(t.tIn), minut) <= tol || dist(minuteZiLocal(t.tOut), minut) <= tol)
+      .sort((a, b) => a.t.tIn - b.t.tIn);
+    if (!inFereastra.length) continue;
+    if (inFereastra.length === 1) { pune(inFereastra[0].i, liv); pune(inFereastra[0].i, rid); }
+    else { pune(inFereastra[0].i, liv); pune(inFereastra[inFereastra.length - 1].i, rid); }
+  }
+
+  // ── restul: cea mai apropiată atingere ia rolul, fiecare rol o singură dată ──
   const optiuni = [];
   treceri.forEach((t, i) => {
-    // Se măsoară pe momentul în care mașina a ATINS poarta, nu pe plecare: staționarea
-    // la poartă e între 17 și 51 de minute și diferă de la o uzină la alta (migr. 359).
-    const m = minuteZiLocal(t.tIn);
-    for (const c of cand) optiuni.push({ i, c, d: dist(m, c.minuteZi) });
+    for (const c of cand) {
+      if (luate.has(`${c.shift_number}|${c.rol}`)) continue;
+      optiuni.push({ i, c, d: cand_d(t, c) });
+    }
   });
   optiuni.sort((a, b) => a.d - b.d || a.i - b.i);
-  const luate = new Set();
   for (const o of optiuni) {
     if (o.d > tol) break;
-    const cheie = `${o.c.shift_number}|${o.c.rol}`;
-    if (perechi[o.i] || luate.has(cheie)) continue;
-    perechi[o.i] = { ...o.c, abatere_min: o.d };
-    luate.add(cheie);
+    if (luate.has(`${o.c.shift_number}|${o.c.rol}`)) continue;
+    // o atingere ia un al doilea rol doar dacă nu-l poate lua o atingere încă nefolosită
+    const areDejaAltRol = perechi[o.i].livrare || perechi[o.i].ridicare;
+    if (areDejaAltRol && optiuni.some((x) => x.c === o.c && x.d <= tol
+        && !perechi[x.i].livrare && !perechi[x.i].ridicare)) continue;
+    pune(o.i, o.c);
   }
   return perechi;
 }
 
-/** Ce e segmentul dinaintea unei atingeri: a adus oamenii sau a venit gol după ei? */
+/**
+ * Ce e segmentul dinaintea unei atingeri și ce e cel de după.
+ *
+ * O atingere poate avea DOUĂ roluri deodată, și asta e cazul cel mai des întâlnit la
+ * ora de mijloc. Ion, 17.09: «când ruta nu se repetă în toate schimburile, el la tur
+ * aduce o rută, iar în același retur ea altă rută; ruta care a adus-o acum, la retur o
+ * ia peste 8 ore». Adică la 15:30 la Draxelmaier mașina vine PLINĂ cu oamenii
+ * schimbului 2 ai unei rute și pleacă PLINĂ cu oamenii schimbului 1 ai alteia — o
+ * singură oprire la poartă, două curse diferite, ale unor rute diferite.
+ *
+ * Cu o singură etichetă pe atingere, jumătate din drumul acela plin se socotea gol și
+ * se punea pe ruta greșită. De aceea fiecare capăt al opririi își are rolul lui:
+ *   · sosirea e plină dacă atingerea are o LIVRARE (a adus schimbul care începe),
+ *     goală dacă are doar o ridicare (a venit după oameni);
+ *   · plecarea e plină dacă are o RIDICARE, goală dacă are doar o livrare.
+ */
 export function stareApropiere(pereche) {
-  if (!pereche) return { stare: 'necunoscut', motiv: 'nicio graniță aproape', shift_number: null };
-  return pereche.rol === 'livrare'
-    ? { stare: 'plin', motiv: null, shift_number: pereche.shift_number }
-    : { stare: 'gol', motiv: 'vine să ia schimbul', shift_number: pereche.shift_number };
+  const p = pereche ?? {};
+  if (p.livrare) return { stare: 'plin', motiv: null, shift_number: p.livrare.shift_number };
+  if (p.ridicare) return { stare: 'gol', motiv: 'vine să ia schimbul', shift_number: p.ridicare.shift_number };
+  return { stare: 'necunoscut', motiv: 'nicio graniță aproape', shift_number: null };
 }
 
-/** Și oglinda lui: ce e segmentul de DUPĂ atingere. */
 export function starePlecare(pereche) {
-  if (!pereche) return { stare: 'necunoscut', motiv: 'nicio graniță aproape', shift_number: null };
-  return pereche.rol === 'ridicare'
-    ? { stare: 'plin', motiv: null, shift_number: pereche.shift_number }
-    : { stare: 'gol', motiv: 'tocmai a livrat schimbul', shift_number: pereche.shift_number };
+  const p = pereche ?? {};
+  if (p.ridicare) return { stare: 'plin', motiv: null, shift_number: p.ridicare.shift_number };
+  if (p.livrare) return { stare: 'gol', motiv: 'tocmai a livrat schimbul', shift_number: p.livrare.shift_number };
+  return { stare: 'necunoscut', motiv: 'nicio graniță aproape', shift_number: null };
+}
+
+/**
+ * Opririle SCURTE de pe un interval — martorul independent pentru plin/gol.
+ *
+ * Ion, 17.09: «mașina când merge acasă la șofer nu are opriri, ori opririle sunt haotice;
+ * în sens se verifică foarte ușor returul sau turul gol». Are dreptate, dar opririle pe
+ * care le salvăm azi (`lde_gps_stops`) cer 90 de secunde — iar urcarea a cinci oameni
+ * într-un sat ține 30-40. Măsurat pe primele curse scrise: 287 din 560 de curse „pline"
+ * ieșeau cu ZERO opriri, iar segmentele goale aveau mai multe decât cele pline (1,62 față
+ * de 0,77) — exact pe dos, fiindcă oprirea de acasă și cea de la magazin trec de 90 de
+ * secunde, iar cea din sat nu.
+ *
+ * Se numără din GEOMETRIE, nu din viteza raportată de tracker: câmpul `speed` lipsește pe
+ * o parte din dispozitive, iar cu el ieșeau curse de 94 km prin 38 de sate cu ZERO opriri.
+ * Punctele vin la ~30 de secunde, deci o oprire = puncte consecutive strânse sub `razaKm`
+ * care acoperă cel puțin `pragS` secunde. Se sar locurile care nu spun nimic despre cursă:
+ * poarta uzinei (staționare de 17-51 min) și baza șoferului.
+ */
+export function opririScurte(pts, from, to, { pragS = 40, razaKm = 0.15, exclude = [], inSat = null } = {}) {
+  let n = 0, i = Math.max(0, from);
+  const deSarit = (p) => exclude.some((e) => e && hav(p, e) <= (e.raza ?? 1.0));
+  while (i < to) {
+    let j = i;
+    while (j + 1 <= to && hav(pts[i], pts[j + 1]) <= razaKm) j++;
+    const secunde = (pts[j].t - pts[i].t) / 1000;
+    // Dacă se cere, se numără DOAR opririle din sat. Ion: opririle unui drum gol sunt
+    // haotice — la magazin, la o benzinărie, la o intersecție — iar cele ale unui drum
+    // plin sunt acolo unde stau oamenii. Numărul brut nu desparte nimic (măsurat pe
+    // 16.09: 3,40 pe segmentele pline față de 3,25 pe cele goale).
+    if (j > i && secunde >= pragS && !deSarit(pts[i]) && (!inSat || inSat(pts[i]))) n++;
+    i = j === i ? i + 1 : j;
+  }
+  return n;
 }
 
 /** Km-ii unui interval, din pașii deja calculați — măsurați, nu reconstruiți din mediane. */

@@ -97,7 +97,7 @@ test('uzina care și-a mutat programul: graniță respinsă cu „program_schimb
   assert.equal(g.minuteZi, null);
 });
 
-const trecere = (h, m = 0) => ({ tIn: at(h * 60 + m), tOut: at(h * 60 + m + 30) });
+const trecere = (h, m = 0, durata = 30) => ({ tIn: at(h * 60 + m), tOut: at(h * 60 + m + durata) });
 
 test('plin/gol pe ceas: aceeași geometrie, verdicte diferite (cazul 041BRAU)', () => {
   // Draxelmaier: schimbul 1 începe 07:00, se termină 15:30
@@ -105,41 +105,51 @@ test('plin/gol pe ceas: aceeași geometrie, verdicte diferite (cazul 041BRAU)', 
     { minuteZi: 7 * 60, tip: 'inceput', shift_number: 1 },
     { minuteZi: 15 * 60 + 30, tip: 'sfarsit', shift_number: 1 },
   ];
-  // atinge poarta la 06:20 (a adus schimbul) și la 15:10 (a venit să-l ia)
+  // atinge poarta la 06:20 (aduce schimbul) și la 15:10-15:40 (vine să-l ia)
   const p = imperecheazaTreceri([trecere(6, 20), trecere(15, 10)], granite, [1]);
-  assert.equal(p[0].rol, 'livrare');
-  assert.equal(p[1].rol, 'ridicare');
+  assert.equal(p[0].livrare?.shift_number, 1);
+  assert.equal(p[1].ridicare?.shift_number, 1);
   assert.equal(stareApropiere(p[0]).stare, 'plin', 'dimineața a adus oamenii');
   assert.equal(starePlecare(p[0]).stare, 'gol', 'și pleacă goală de la poartă');
   assert.equal(stareApropiere(p[1]).stare, 'gol', 'după-amiază vine goală după ei');
   assert.equal(starePlecare(p[1]).stare, 'plin', 'și pleacă cu ei acasă');
 });
 
-test('graniță comună (15:30 = sfârșit 1 = început 2): rolurile nu se iau de două ori', () => {
-  const granite = [
-    { minuteZi: 15 * 60 + 30, tip: 'sfarsit', shift_number: 1 },
-    { minuteZi: 15 * 60 + 30, tip: 'inceput', shift_number: 2 },
-  ];
-  // două atingeri lângă aceeași graniță: 14:50 (aduce schimbul 2) și 15:25 (ia schimbul 1)
-  const p = imperecheazaTreceri([trecere(14, 50), trecere(15, 25)], granite, [1, 2]);
-  assert.equal(p[1].rol, 'ridicare', 'cea mai apropiată de graniță ia ridicarea');
-  assert.equal(p[1].shift_number, 1);
-  assert.equal(p[0].rol, 'livrare', 'cealaltă rămâne cu livrarea schimbului următor');
-  assert.equal(p[0].shift_number, 2);
-});
-
-test('a treia atingere nu e „schimbul 3" — numărătoarea poziției rata tocmai tiparul normal', () => {
-  // tiparul măsurat: 3 atingeri la 2 atribuiri. Draxelmaier, schimburile 1 și 2.
+test('o oprire la poartă poate fi ȘI livrare, ȘI ridicare — cazul spus de Ion', () => {
+  // «când ruta nu se repetă în toate schimburile, el la tur aduce o rută, iar în același
+  // retur ea altă rută; ruta care a adus-o acum, la retur o ia peste 8 ore».
+  // Draxelmaier, 15:30 = sfârșitul schimbului 1 = începutul schimbului 2.
   const granite = [
     { minuteZi: 7 * 60, tip: 'inceput', shift_number: 1 },
     { minuteZi: 15 * 60 + 30, tip: 'sfarsit', shift_number: 1 },
     { minuteZi: 15 * 60 + 30, tip: 'inceput', shift_number: 2 },
     { minuteZi: 0, tip: 'sfarsit', shift_number: 2 },
   ];
-  const p = imperecheazaTreceri([trecere(6, 20), trecere(14, 55), trecere(15, 25)], granite, [1, 2]);
-  assert.deepEqual(p.map((x) => x && `${x.shift_number}${x.rol[0]}`), ['1l', '2l', '1r']);
-  assert.equal(stareApropiere(p[2]).stare, 'gol', 'a venit goală după schimbul 1');
-  assert.equal(starePlecare(p[2]).stare, 'plin', 'și îl duce acasă');
+  // o singură oprire: sosește 15:05 cu oamenii schimbului 2, pleacă 15:45 cu ai lui 1
+  const p = imperecheazaTreceri([trecere(6, 20), trecere(15, 5, 40)], granite, [1, 2]);
+  const a = stareApropiere(p[1]), pl = starePlecare(p[1]);
+  assert.equal(a.stare, 'plin', 'a venit plină, cu schimbul 2');
+  assert.equal(a.shift_number, 2);
+  assert.equal(pl.stare, 'plin', 'și pleacă plină, cu schimbul 1');
+  assert.equal(pl.shift_number, 1);
+});
+
+test('a treia atingere nu e „schimbul 3" — numărătoarea poziției rata tiparul normal', () => {
+  // Tiparul măsurat: 3 atingeri la 2 atribuiri. La granița comună de 15:30 sunt două
+  // atingeri: prima ADUCE schimbul 2, a doua îl IA pe 1 — ordinea fizică, nu ceasul,
+  // fiindcă ceasul le dă aceeași oră.
+  const granite = [
+    { minuteZi: 7 * 60, tip: 'inceput', shift_number: 1 },
+    { minuteZi: 15 * 60 + 30, tip: 'sfarsit', shift_number: 1 },
+    { minuteZi: 15 * 60 + 30, tip: 'inceput', shift_number: 2 },
+    { minuteZi: 23 * 60, tip: 'sfarsit', shift_number: 2 },
+  ];
+  const p = imperecheazaTreceri([trecere(6, 20), trecere(14, 20), trecere(15, 20)], granite, [1, 2]);
+  assert.equal(p[0].livrare?.shift_number, 1);
+  assert.equal(p[1].livrare?.shift_number, 2, 'a doua aduce schimbul 2');
+  assert.equal(p[2].ridicare?.shift_number, 1, 'a treia îl ia pe 1, nu e „schimbul 3"');
+  assert.equal(stareApropiere(p[1]).stare, 'plin', 'dusul cu schimbul 2 e plin');
+  assert.equal(starePlecare(p[2]).stare, 'plin', 'întorsul cu schimbul 1 e plin');
 });
 
 test('un schimb pe care mașina NU îl are atribuit nu poate fi ales', () => {
@@ -148,13 +158,13 @@ test('un schimb pe care mașina NU îl are atribuit nu poate fi ales', () => {
     { minuteZi: 6 * 60 + 30, tip: 'inceput', shift_number: 3 },
   ];
   const p = imperecheazaTreceri([trecere(6, 25)], granite, [1]);
-  assert.equal(p[0].shift_number, 1, 'chiar dacă granița schimbului 3 e mai aproape');
+  assert.equal(p[0].livrare?.shift_number, 1, 'chiar dacă granița schimbului 3 e mai aproape');
 });
 
 test('departe de orice graniță → necunoscut, nu o presupunere', () => {
   const granite = [{ minuteZi: 7 * 60, tip: 'inceput', shift_number: 1 }];
   const p = imperecheazaTreceri([trecere(11, 0)], granite, [1]);
-  assert.equal(p[0], null);
+  assert.equal(p[0].livrare, null);
   assert.equal(starePlecare(p[0]).stare, 'necunoscut');
 });
 
@@ -163,7 +173,20 @@ test('toleranța e cea măsurată, nu 45 de minute', async () => {
   assert.equal(TOLERANTA_SCHIMB_MIN, 75, 'p75 = 43 min, p90 = 87; la 45 rămâneau 22% necunoscute');
   const granite = [{ minuteZi: 7 * 60, tip: 'inceput', shift_number: 1 }];
   const p = imperecheazaTreceri([trecere(5, 50)], granite, [1]);   // 70 de minute înainte
-  assert.equal(p[0].rol, 'livrare');
+  assert.equal(p[0].livrare?.shift_number, 1);
+});
+
+test('opririle scurte se vad: urcarea din sat tine 40 s, nu 90', async () => {
+  const { opririScurte } = await import('./etalon-labels.mjs');
+  const pts = [];
+  const push = (lat, lon, sec, sp) => pts.push({ lat, lon, t: new Date(Date.UTC(2026, 8, 16, 3, 0, sec)), sp });
+  let sec = 0;
+  for (let i = 0; i < 5; i++) push(47.0 + i * 0.01, 28.0, sec += 30, 40);   // merge
+  for (let i = 0; i < 3; i++) push(47.05, 28.0, sec += 25, 1);              // oprire ~50 s in sat
+  for (let i = 0; i < 5; i++) push(47.05 + i * 0.01, 28.0, sec += 30, 40);  // merge mai departe
+  assert.equal(opririScurte(pts, 0, pts.length - 1), 1, 'oprirea scurta din sat se numara');
+  // aceeasi oprire, dar la poarta: nu se numara, e stationarea uzinei
+  assert.equal(opririScurte(pts, 0, pts.length - 1, { exclude: [{ lat: 47.05, lon: 28.0, raza: 1.0 }] }), 0);
 });
 
 test('km-ii unui interval sunt suma pașilor măsurați', () => {

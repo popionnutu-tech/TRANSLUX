@@ -9,7 +9,7 @@
 // ============================================================================
 import { simplifica } from './geom-simplify.mjs';
 import {
-  secvente, treceriPorti, sateDeservite, segmenteZi, PRAG_SAT_KM,
+  secvente, treceriPorti, sateDeservite, segmenteZi, opririScurte, PRAG_SAT_KM,
 } from './etalon-labels.mjs';
 
 /**
@@ -159,6 +159,15 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
     peSchimb.get(a.shift_number).push(a);
   }
 
+  // poarta uzinei și baza șoferului nu spun nimic despre cursă: staționarea de la poartă
+  // e 17-51 de minute, iar acasă mașina stă ore
+  const baze = (r.stops ?? []).filter((st) => st.isBase).map((st) => ({ lat: st.lat, lon: st.lon, raza: 0.5 }));
+  const deSarit = (seg) => [...baze, seg.gate ? { lat: +seg.gate.lat, lon: +seg.gate.lon, raza: 1.0 } : null];
+  // «în sat» = la cel mult 500 m de o localitate cunoscută. Nu 2 km (pragul de etichetare):
+  // aproape orice punct din Moldova e la 2 km de ceva, deci n-ar despărți nimic.
+  const RAZA_OPRIRE_SAT_KM = 0.5;
+  const inSat = (p) => !!ctx.placesIdx?.nearestWithin(p, RAZA_OPRIRE_SAT_KM);
+
   for (const [sh, candidati] of peSchimb) {
     const alSchimbului = (tip, stare) =>
       segs.find((x) => x.shift_number === sh && x.tip === tip && x.stare === stare && x.km >= 1);
@@ -204,6 +213,8 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
         // etalonul există.
         sate_atinse: sate, sate_lipsa: [], sate_extra: [],
         km_real: plin.km, km_goi: gol ? gol.km : 0,
+        opriri_plin: opririScurte(r.pts, plin.from, plin.to, { exclude: deSarit(plin), inSat }),
+        opriri_gol: gol ? opririScurte(r.pts, gol.from, gol.to, { exclude: deSarit(gol), inSat }) : null,
         prima_statie: capete.prima, ultima_statie: capete.ultima,
         stare: 'plin', ambiguu,
         motiv: ambiguu ? (cuScor[0].scor < 0.34 ? 'sate_nepotrivite' : 'doua_rute_la_fel') : null,

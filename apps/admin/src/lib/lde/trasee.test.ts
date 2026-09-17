@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { costPereche, costZi, propuneriSchimb, propuneriComasare, propuneriAngajare, economieCumulata, haversineKm, seSuprapun, PRAG_OM_NOU_KM_ZI, type RutaCost, type SoferCurent } from './trasee';
+import { verificaTurRetur, costPereche, costZi, propuneriSchimb, propuneriComasare, propuneriAngajare, economieCumulata, haversineKm, seSuprapun, PRAG_OM_NOU_KM_ZI, type RutaCost, type SoferCurent } from './trasee';
 
 const ruta = (id: string, lat: number, lon: number): RutaCost => ({
   factory_route_id: id, eticheta: `ruta ${id}`,
@@ -251,5 +251,35 @@ describe('reparațiile din 17.09, după cele trei runde de verificare', () => {
 
   it('pragul „un om în plus" e scris, nu presupus', () => {
     expect(PRAG_OM_NOU_KM_ZI).toBe(100);
+  });
+});
+
+
+describe('verificarea tur ↔ retur (Ion, 17.09)', () => {
+  const rand = (sens: 'tur' | 'retur', sate: string[], observations = 8) => ({
+    factory_route_id: 'R', uzina_id: 'U', route_number: 1,
+    shift_number: 1, slot: 1, sens,
+    sate: sate.map((nume) => ({ nume, pondere: 1 })), observations,
+  });
+
+  it('aceleași sate în ambele sensuri → potrivire 1', () => {
+    const v = verificaTurRetur([rand('tur', ['A', 'B', 'C']), rand('retur', ['C', 'B', 'A'])]);
+    expect(v).toHaveLength(1);
+    expect(v[0].potrivire).toBe(1);
+    expect(v[0].doar_tur).toEqual([]);
+  });
+
+  it('spune CE sat lipsește dintr-un sens, nu doar că nu se potrivesc', () => {
+    const v = verificaTurRetur([rand('tur', ['A', 'B', 'Glodeni']), rand('retur', ['A', 'B'])]);
+    expect(v[0].doar_tur).toEqual(['Glodeni']);
+    expect(v[0].potrivire).toBeCloseTo(0.67, 2);
+  });
+
+  it('un sens fără pereche nu se verifică — nu se declară nici bun, nici rău', () => {
+    expect(verificaTurRetur([rand('tur', ['A'])])).toEqual([]);
+  });
+
+  it('etaloanele subțiri nu intră: o singură cursă nu e o regulă', () => {
+    expect(verificaTurRetur([rand('tur', ['A'], 2), rand('retur', ['A'], 2)])).toEqual([]);
   });
 });

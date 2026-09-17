@@ -548,3 +548,54 @@ export function construiesteCosturi(intrari: RanduriPropuneri): CosturiConstruit
 
   return { ruteCost, fereastraRutei, soferi: lista, fara_baza: faraBaza, rute_incomplete: ruteIncomplete, garaje };
 }
+
+
+// ── Verificarea lui Ion: turul și returul aceleiași ture ─────────────────────
+// Ion, 17.09: «tura care se aduce și are returul peste 8 ore trebuie să fie aceleași sate
+// și orientativ aceleași opriri». E o verificare independentă de ceas: dacă împerecherea
+// atingerilor de poartă cu schimburile ar fi greșită, turul unei rute s-ar lipi de returul
+// alteia, iar satele n-ar mai semăna.
+export type PerecheTurRetur = {
+  factory_route_id: string;
+  eticheta: string;
+  shift_number: number;
+  slot: number;
+  potrivire: number;          // |intersecție| / |reuniune|
+  doar_tur: string[];
+  doar_retur: string[];
+};
+
+type RandEtalon = {
+  factory_route_id: string; uzina_id: string; route_number: number;
+  shift_number: number; slot: number; sens: 'tur' | 'retur';
+  sate: { nume: string; pondere: number }[]; observations: number;
+};
+
+export function verificaTurRetur(randuri: RandEtalon[], minObservatii = 5): PerecheTurRetur[] {
+  const pe = new Map<string, { tur?: RandEtalon; retur?: RandEtalon }>();
+  for (const r of randuri) {
+    if (r.observations < minObservatii) continue;
+    const k = `${r.factory_route_id}|${r.shift_number}|${r.slot}`;
+    if (!pe.has(k)) pe.set(k, {});
+    pe.get(k)![r.sens] = r;
+  }
+  const norm = (x: string) => x.toLowerCase().trim();
+  const out: PerecheTurRetur[] = [];
+  for (const { tur, retur } of pe.values()) {
+    if (!tur || !retur) continue;   // o rută cu un singur sens nu se poate verifica
+    const t = new Set(tur.sate.map((x) => norm(x.nume)));
+    const r = new Set(retur.sate.map((x) => norm(x.nume)));
+    const comune = [...t].filter((x) => r.has(x)).length;
+    const reuniune = new Set([...t, ...r]).size;
+    out.push({
+      factory_route_id: tur.factory_route_id,
+      eticheta: `${tur.uzina_id} #${tur.route_number}`,
+      shift_number: tur.shift_number,
+      slot: tur.slot,
+      potrivire: reuniune ? +(comune / reuniune).toFixed(2) : 0,
+      doar_tur: tur.sate.map((x) => x.nume).filter((x) => !r.has(norm(x))),
+      doar_retur: retur.sate.map((x) => x.nume).filter((x) => !t.has(norm(x))),
+    });
+  }
+  return out.sort((a, b) => a.potrivire - b.potrivire);
+}

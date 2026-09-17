@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { verificaTurRetur } from '@/lib/lde/trasee';
 import type { TraseuRand, ImpacareZi, PropuneriRezultat, GranitaRand } from './actions';
 
 const NUME_UZINE: Record<string, string> = {
@@ -14,6 +15,9 @@ const NUME_UZINE: Record<string, string> = {
 
 export default function TraseeClient({ trasee, impacare, propuneri, granite }: { trasee: TraseuRand[]; impacare: ImpacareZi[]; propuneri: PropuneriRezultat; granite: GranitaRand[] }) {
   const ora = (m: number | null) => (m == null ? '—' : `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`);
+  const perechi = verificaTurRetur(trasee);
+  const bune = perechi.filter((p) => p.potrivire >= 0.7);
+  const slabe = perechi.filter((p) => p.potrivire < 0.7);
   const invatate = granite.filter((g) => g.sursa === 'invatat');
   const peText = granite.filter((g) => g.sursa !== 'invatat');
   const [uzina, setUzina] = useState<string>('toate');
@@ -81,6 +85,36 @@ export default function TraseeClient({ trasee, impacare, propuneri, granite }: {
           </table>
         </div>
       </div>
+
+      {/* ── verificarea tur ↔ retur ── */}
+      {perechi.length > 0 && (
+        <div className="card p-4">
+          <h2 className="font-medium mb-1">Verificare: turul și returul aceleiași ture</h2>
+          <p className="text-xs text-gray-500 mb-2">
+            Ion, 17.09: «tura care se aduce și are returul peste 8 ore trebuie să fie aceleași
+            sate și orientativ aceleași opriri». E o verificare care nu depinde de ceas: dacă
+            împerecherea atingerilor de poartă cu schimburile ar fi greșită, turul unei rute
+            s-ar lipi de returul alteia, iar satele n-ar mai semăna. Acum:{' '}
+            <strong>{bune.length} din {perechi.length}</strong> de perechi trec de 70% sate comune.
+          </p>
+          {slabe.length > 0 && (
+            <table className="w-full text-sm">
+              <thead><tr className="text-left border-b"><th className="py-1">Rută</th><th>Schimb</th><th className="text-right">Sate comune</th><th>Doar la tur</th><th>Doar la retur</th></tr></thead>
+              <tbody>
+                {slabe.map((p, i) => (
+                  <tr key={i} className="border-b last:border-0 align-top">
+                    <td className="py-1">{p.eticheta}</td>
+                    <td>{p.shift_number}{p.slot > 1 ? ` / slot ${p.slot}` : ''}</td>
+                    <td className="text-right">{Math.round(p.potrivire * 100)}%</td>
+                    <td className="text-gray-500">{p.doar_tur.join(', ') || '—'}</td>
+                    <td className="text-gray-500">{p.doar_retur.join(', ') || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
 
       {/* ── ceasul pe care se judecă plin/gol ── */}
       <div className="card p-4">

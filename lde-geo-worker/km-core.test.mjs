@@ -2,7 +2,7 @@
 // Scenariile sunt cele reale care au produs regresia din 10.07.2026.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { computeDay, plausibleBridgeKm, hav } from './km-core.mjs';
+import { computeDay, plausibleBridgeKm, hav, acceptedRuns } from './km-core.mjs';
 
 const T0 = new Date('2026-07-28T00:00:00Z').getTime();
 const at = (sec) => new Date(T0 + sec * 1000);
@@ -81,4 +81,66 @@ test('plausibleBridgeKm taie buclele, păstrează ocolurile normale', () => {
   assert.equal(plausibleBridgeKm(180, 0.1), false, 'buclă: capete suprapuse, 180 km');
   assert.equal(plausibleBridgeKm(48, 39), true, 'ocol normal de drum');
   assert.equal(plausibleBridgeKm(3, 1), true, 'tronson scurt în localitate');
+});
+
+// ── contractul geo (stepAccepted / stepCut / acceptedRuns) ──
+// Adăugat 17.09.2026, după criticul extern: etichetarea satelor și detectarea
+// trecerilor prin porți foloseau lista brută de puncte, inclusiv pe cele pe care
+// calculul km-ilor le ARUNCĂ. „km_total identic" nu dovedea că satele și porțile
+// sunt reale.
+
+test('contractul geo nu mișcă niciun km (aditiv)', () => {
+  const pts = [];
+  for (let i = 0; i < 40; i++) pts.push({ lat: 47.9 + i * 0.004, lon: 28.3, t: at(i * 30), sp: 40 });
+  pts.splice(20, 0, { lat: 49.5, lon: 30.9, t: at(20 * 30 + 5), sp: 40 });   // glitch
+  const r = computeDay(pts, { bridgeKm: bridgeDreaptă, movingKmh: MOVING });
+  const { stepAccepted, stepCut, ...fara } = r;
+  // recalculăm ignorând câmpurile noi: cifrele vechi trebuie să fie bit-identice
+  assert.equal(fara.km, r.km);
+  assert.equal(fara.patched, r.patched);
+  assert.equal(fara.dropped, r.dropped);
+  assert.ok(r.dropped > 0, 'glitch-ul chiar a fost aruncat');
+});
+
+test('punctul aruncat ca glitch NU e acceptat; cel staționar E acceptat', () => {
+  const pts = [
+    { lat: 47.900, lon: 28.300, t: at(0), sp: 0 },
+    { lat: 47.900, lon: 28.300, t: at(30), sp: 0 },     // staționar: km 0, dar poziție bună
+    { lat: 49.500, lon: 30.900, t: at(60), sp: 0 },     // glitch: sare 250 km în 30 s
+    { lat: 47.900, lon: 28.300, t: at(90), sp: 0 },
+  ];
+  const r = computeDay(pts, { bridgeKm: bridgeDreaptă, movingKmh: MOVING });
+  assert.equal(r.stepAccepted[1], true, 'mașina oprită rămâne o poziție de încredere');
+  assert.equal(r.stepKm[1], 0, '...deși n-a produs km — „acceptat" ≠ „a produs km"');
+  assert.equal(r.stepAccepted[2], false, 'saltul de 250 km nu e o poziție reală');
+});
+
+test('gaura de semnal NU devine trecere: cele două capete nu sunt vecini', () => {
+  // autobuzul pierde semnalul 15 min; între capete e o poartă pe care n-a atins-o
+  const pts = [
+    { lat: 47.700, lon: 27.900, t: at(0), sp: 50 },
+    { lat: 47.710, lon: 27.900, t: at(30), sp: 50 },
+    { lat: 47.980, lon: 27.900, t: at(930), sp: 50 },   // 15 min mai târziu, 30 km mai încolo
+    { lat: 47.990, lon: 27.900, t: at(960), sp: 50 },
+  ];
+  const r = computeDay(pts, { bridgeKm: bridgeDreaptă, movingKmh: MOVING });
+  assert.equal(r.stepCut[2], 'gap', 'pauza de semnal e marcată ca tăietură');
+  const runs = acceptedRuns(pts.length, r.stepAccepted, r.stepCut);
+  assert.equal(runs.length, 2, 'ziua se rupe în două secvențe, nu una');
+  assert.deepEqual(runs[0], { from: 0, to: 1 });
+  assert.deepEqual(runs[1], { from: 2, to: 3 });
+});
+
+test('re-ancorarea după glitch are alt motiv decât pauza de semnal', () => {
+  const pts = [{ lat: 47.9, lon: 28.3, t: at(0), sp: 30 }];
+  for (let i = 1; i <= 5; i++) pts.push({ lat: 49.5, lon: 30.9, t: at(i * 20), sp: 30 });
+  const r = computeDay(pts, { bridgeKm: bridgeDreaptă, movingKmh: MOVING });
+  const cuts = r.stepCut.filter(Boolean);
+  assert.ok(cuts.includes('glitch_reanchor'), 'ancora mincinoasă se distinge de gaura de semnal');
+  assert.ok(!cuts.includes('gap'), 'nu e pauză de semnal: punctele vin la 20 s');
+});
+
+test('acceptedRuns aruncă secvențele de un singur punct', () => {
+  const runs = acceptedRuns(4, [true, false, true, false], [null, null, null, null]);
+  assert.deepEqual(runs, [], 'un punct singur nu e traseu');
 });

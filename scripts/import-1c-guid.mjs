@@ -173,8 +173,24 @@ function raport(titlu, r, total) {
   for (const [m, c] of Object.entries(pe)) console.log(`  ${m.padEnd(14)}: ${c}`);
 }
 
+// Blocul de reguli de conversie (~106 KB) se ia din orice export primit și se păstrează: fișierele pe
+// care le trimitem înapoi îl poartă neschimbat. E al lor, noi doar îl cărăm.
+async function preiaReguli(cale) {
+  const xml = readFileSync(cale, 'utf8').replace(/^\uFEFF/, '');
+  const i = xml.indexOf('<ПравилаОбмена>');
+  const j = xml.indexOf('</ПравилаОбмена>');
+  if (i < 0 || j < 0) { console.log('  (fișierul nu conține bloc de reguli — sar peste)'); return; }
+  const reguli = xml.slice(i, j + '</ПравилаОбмена>'.length);
+  const { error } = await sb.from('piese_1c_config')
+    .update({ reguli, sursa: cale.split('/').pop(), actualizat: new Date().toISOString() }).eq('id', 1);
+  if (error) throw new Error(`reguli: ${error.message}`);
+  console.log(`  reguli de conversie păstrate: ${(reguli.length / 1024).toFixed(0)} KB din ${cale.split('/').pop()}`);
+}
+
 const main = async () => {
   const rezultate = {};
+
+  if (val('reguli')) { console.log('preiau blocul de reguli…'); await preiaReguli(val('reguli')); }
 
   if (val('nomenclator')) {
     console.log('citesc nomenclatorul 1C (în flux)…');

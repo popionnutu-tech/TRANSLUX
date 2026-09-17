@@ -10,6 +10,21 @@ import { buildSpisanieXML, type DateSpisanie, type LinieSpisanie } from './piese
 
 export type Lipsa = { ce: string; detaliu: string };
 
+// Lista eliberărilor cu starea lor de pregătire, pentru ecranul de integrare.
+//
+// Se arată ÎNAINTE de a apăsa, nu după: „3 piese nelegate" citit dintr-o privire e altceva decât un buton
+// care refuză la al treilea clic. Cifrele vin dintr-o singură interogare — nu una per document.
+export type RandExport = {
+  id: number; data: string; depozit: string; masina: string | null; lacatus: string | null;
+  linii: number; suma: number; gata: boolean; motiv: string | null; trimis: boolean;
+};
+
+export async function eliberariDeExportat(limita = 100): Promise<RandExport[]> {
+  const { data, error } = await getSupabase().rpc('piese_1c_eliberari', { p_limita: limita });
+  if (error) throw new Error(error.message);
+  return (data as RandExport[]) || [];
+}
+
 function check<T>(r: { data: T; error: { message: string } | null }): T {
   if (r.error) throw new Error(r.error.message);
   return r.data;

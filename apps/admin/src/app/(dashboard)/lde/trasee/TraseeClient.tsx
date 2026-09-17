@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { verificaTurRetur } from '@/lib/lde/trasee';
+import { verificaTurRetur, diferenteTurRetur } from '@/lib/lde/trasee';
 import type { TraseuRand, ImpacareZi, PropuneriRezultat, GranitaRand } from './actions';
 
 const NUME_UZINE: Record<string, string> = {
@@ -16,6 +16,8 @@ const NUME_UZINE: Record<string, string> = {
 export default function TraseeClient({ trasee, impacare, propuneri, granite }: { trasee: TraseuRand[]; impacare: ImpacareZi[]; propuneri: PropuneriRezultat; granite: GranitaRand[] }) {
   const ora = (m: number | null) => (m == null ? '—' : `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`);
   const perechi = verificaTurRetur(trasee);
+  const difSens = diferenteTurRetur(trasee);
+  const difTotal = Math.round(difSens.reduce((t, d) => t + d.diferenta, 0));
   const bune = perechi.filter((p) => p.potrivire >= 0.7);
   const slabe = perechi.filter((p) => p.potrivire < 0.7);
   const invatate = granite.filter((g) => g.sursa === 'invatat');
@@ -85,6 +87,35 @@ export default function TraseeClient({ trasee, impacare, propuneri, granite }: {
           </table>
         </div>
       </div>
+
+      {/* ── aceeași rută, două lungimi ── */}
+      {difSens.length > 0 && (
+        <div className="card p-4">
+          <h2 className="font-medium mb-1">Aceeași rută, două lungimi — {difTotal} km/zi</h2>
+          <p className="text-xs text-gray-500 mb-3">
+            Perechi tur/retur ale aceluiași schimb care trec prin <strong>aceleași sate</strong>
+            (peste 70% comune) dar diferă cu cel puțin 8 km. Nu e o economie promisă: un sens
+            poate fi mai lung din motive reale — sens unic, drum închis, ordinea în care se iau
+            oamenii. E lista de întrebări, ordonată după cât valorează răspunsul. Perechile care
+            NU trec prin aceleași sate sunt lăsate afară: acolo întrebarea e altă, nu de kilometri.
+          </p>
+          <table className="w-full text-sm">
+            <thead><tr className="text-left border-b"><th className="py-1">Rută</th><th>Schimb</th><th className="text-right">Tur</th><th className="text-right">Retur</th><th className="text-right">Diferență</th><th>Sensul lung trece în plus prin</th></tr></thead>
+            <tbody>
+              {difSens.slice(0, 15).map((d, i) => (
+                <tr key={i} className="border-b last:border-0 align-top">
+                  <td className="py-1">{d.eticheta}</td>
+                  <td>{d.shift_number}{d.slot > 1 ? ` / slot ${d.slot}` : ''}</td>
+                  <td className="text-right">{d.km_tur}</td>
+                  <td className="text-right">{d.km_retur}</td>
+                  <td className="text-right font-medium">{d.diferenta} km</td>
+                  <td className="text-gray-500">{d.doar_pe_lung.join(', ') || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* ── verificarea tur ↔ retur ── */}
       {perechi.length > 0 && (

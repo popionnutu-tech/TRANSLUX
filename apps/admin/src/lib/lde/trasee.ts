@@ -571,6 +571,67 @@ type RandEtalon = {
   sate: { nume: string; pondere: number }[]; observations: number;
 };
 
+type RandEtalonKm = RandEtalon & { km_median: number | null };
+
+/**
+ * Aceeași rută, același schimb, aceiași oameni — și două lungimi diferite.
+ *
+ * Ion a ales asta ca următorul pas, 17.09. Măsurat pe etaloanele de acum: 49 din 123 de
+ * perechi tur/retur diferă cu cel puțin 8 km, în total 1.043 km/zi, din care 712 km/zi
+ * pe perechi care trec prin ACELEAȘI sate (peste 70% comune) — adică acolo unde diferența
+ * nu se explică prin „altă rută", ci prin drumul ales.
+ *
+ * Nu e o promisiune de economie: un sens poate fi mai lung din motive reale (sens unic,
+ * un drum închis, ordinea în care se iau oamenii). E o listă de întrebări, ordonată după
+ * cât valorează răspunsul.
+ */
+export type DiferentaSens = {
+  eticheta: string;
+  shift_number: number;
+  slot: number;
+  km_tur: number;
+  km_retur: number;
+  diferenta: number;
+  sate_comune: number;        // 0..1
+  doar_pe_lung: string[];     // ce trece sensul lung și nu trece cel scurt
+};
+
+export function diferenteTurRetur(
+  randuri: RandEtalonKm[], minDiferentaKm = 8, minSateComune = 0.7, minObservatii = 5,
+): DiferentaSens[] {
+  const pe = new Map<string, { tur?: RandEtalonKm; retur?: RandEtalonKm }>();
+  for (const r of randuri) {
+    if (r.observations < minObservatii || r.km_median == null) continue;
+    const k = `${r.factory_route_id}|${r.shift_number}|${r.slot}`;
+    if (!pe.has(k)) pe.set(k, {});
+    pe.get(k)![r.sens] = r;
+  }
+  const norm = (x: string) => x.toLowerCase().trim();
+  const out: DiferentaSens[] = [];
+  for (const { tur, retur } of pe.values()) {
+    if (!tur || !retur) continue;
+    const kt = Number(tur.km_median), kr = Number(retur.km_median);
+    const dif = Math.abs(kt - kr);
+    if (dif < minDiferentaKm) continue;
+    const t = new Set(tur.sate.map((x) => norm(x.nume)));
+    const r = new Set(retur.sate.map((x) => norm(x.nume)));
+    const comune = [...t].filter((x) => r.has(x)).length / new Set([...t, ...r]).size;
+    // Sub prag nu e „același drum cu două lungimi", ci două drumuri diferite — aceea e
+    // altă întrebare (ruta declarată nu se face), nu una de kilometri.
+    if (comune < minSateComune) continue;
+    const lung = kt >= kr ? tur : retur, scurt = kt >= kr ? retur : tur;
+    const aleScurtului = new Set(scurt.sate.map((x) => norm(x.nume)));
+    out.push({
+      eticheta: `${tur.uzina_id} #${tur.route_number}`,
+      shift_number: tur.shift_number, slot: tur.slot,
+      km_tur: +kt.toFixed(1), km_retur: +kr.toFixed(1), diferenta: +dif.toFixed(1),
+      sate_comune: +comune.toFixed(2),
+      doar_pe_lung: lung.sate.map((x) => x.nume).filter((x) => !aleScurtului.has(norm(x))),
+    });
+  }
+  return out.sort((a, b) => b.diferenta - a.diferenta);
+}
+
 export function verificaTurRetur(randuri: RandEtalon[], minObservatii = 5): PerecheTurRetur[] {
   const pe = new Map<string, { tur?: RandEtalon; retur?: RandEtalon }>();
   for (const r of randuri) {

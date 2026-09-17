@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { verificaTurRetur, costPereche, costZi, propuneriSchimb, propuneriComasare, propuneriAngajare, economieCumulata, haversineKm, seSuprapun, PRAG_OM_NOU_KM_ZI, type RutaCost, type SoferCurent } from './trasee';
+import { diferenteTurRetur, verificaTurRetur, costPereche, costZi, propuneriSchimb, propuneriComasare, propuneriAngajare, economieCumulata, haversineKm, seSuprapun, PRAG_OM_NOU_KM_ZI, type RutaCost, type SoferCurent } from './trasee';
 
 const ruta = (id: string, lat: number, lon: number): RutaCost => ({
   factory_route_id: id, eticheta: `ruta ${id}`,
@@ -281,5 +281,33 @@ describe('verificarea tur ↔ retur (Ion, 17.09)', () => {
 
   it('etaloanele subțiri nu intră: o singură cursă nu e o regulă', () => {
     expect(verificaTurRetur([rand('tur', ['A'], 2), rand('retur', ['A'], 2)])).toEqual([]);
+  });
+});
+
+
+describe('aceeași rută cu două lungimi (pasul ales de Ion, 17.09)', () => {
+  const rand = (sens: 'tur' | 'retur', km: number, sate: string[]) => ({
+    factory_route_id: 'R', uzina_id: 'U', route_number: 1, shift_number: 1, slot: 1, sens,
+    km_median: km, sate: sate.map((nume) => ({ nume, pondere: 1 })), observations: 8,
+  });
+
+  it('găsește diferența și spune ce trece în plus sensul lung', () => {
+    const d = diferenteTurRetur([
+      rand('tur', 84, ['A', 'B', 'C', 'Ocol']), rand('retur', 53, ['A', 'B', 'C']),
+    ]);
+    expect(d).toHaveLength(1);
+    expect(d[0].diferenta).toBe(31);
+    expect(d[0].doar_pe_lung).toEqual(['Ocol']);
+  });
+
+  it('diferența mică nu e o întrebare', () => {
+    expect(diferenteTurRetur([rand('tur', 55, ['A']), rand('retur', 52, ['A'])])).toEqual([]);
+  });
+
+  it('două drumuri DIFERITE nu sunt „același drum cu două lungimi"', () => {
+    const d = diferenteTurRetur([
+      rand('tur', 90, ['A', 'B', 'C']), rand('retur', 40, ['X', 'Y', 'Z']),
+    ]);
+    expect(d).toEqual([]);
   });
 });

@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { TraseuRand, ImpacareZi, PropuneriRezultat } from './actions';
+import type { TraseuRand, ImpacareZi, PropuneriRezultat, GranitaRand } from './actions';
 
 const NUME_UZINE: Record<string, string> = {
   DRAXELMAIER_BALTI: 'Draxelmaier Bălți',
@@ -12,7 +12,10 @@ const NUME_UZINE: Record<string, string> = {
   SEBN_STRASENI: 'SEBN Strășeni',
 };
 
-export default function TraseeClient({ trasee, impacare, propuneri }: { trasee: TraseuRand[]; impacare: ImpacareZi[]; propuneri: PropuneriRezultat }) {
+export default function TraseeClient({ trasee, impacare, propuneri, granite }: { trasee: TraseuRand[]; impacare: ImpacareZi[]; propuneri: PropuneriRezultat; granite: GranitaRand[] }) {
+  const ora = (m: number | null) => (m == null ? '—' : `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`);
+  const invatate = granite.filter((g) => g.sursa === 'invatat');
+  const peText = granite.filter((g) => g.sursa !== 'invatat');
   const [uzina, setUzina] = useState<string>('toate');
   const uzine = useMemo(() => [...new Set(trasee.map((t) => t.uzina_id))].sort(), [trasee]);
   const randuri = useMemo(
@@ -77,6 +80,33 @@ export default function TraseeClient({ trasee, impacare, propuneri }: { trasee: 
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* ── ceasul pe care se judecă plin/gol ── */}
+      <div className="card p-4">
+        <h2 className="font-medium mb-1">Ceasul schimburilor — de el atârnă cifra km-ilor goi</h2>
+        <p className="text-xs text-gray-500 mb-2">
+          Plin sau gol se decide după ora la care mașina atinge poarta, față de granița
+          schimbului. Granița se <strong>învață</strong> din grupările atingerilor reale;
+          unde nu se poate, rămâne ora scrisă de mână — nu e greșită, dar n-a verificat-o
+          nimeni. Acum: <strong>{invatate.length} învățate</strong> din {granite.length}.
+        </p>
+        {peText.length > 0 && (
+          <table className="w-full text-sm">
+            <thead><tr className="text-left border-b"><th className="py-1">Uzina</th><th>Schimb</th><th>Capăt</th><th className="text-right">Ora folosită</th><th>De ce nu s-a învățat</th></tr></thead>
+            <tbody>
+              {peText.map((g, i) => (
+                <tr key={i} className="border-b last:border-0">
+                  <td className="py-1">{g.uzina_id}</td>
+                  <td>{g.shift_number}</td>
+                  <td className="text-gray-500">{g.tip === 'inceput' ? 'început' : 'sfârșit'}</td>
+                  <td className="text-right">{ora(g.minute_zi ?? g.minute_declarat)}</td>
+                  <td className="text-gray-500">{g.motiv ?? 'orar declarat'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
       {/* ── schimburile de șoferi ── */}

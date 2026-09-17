@@ -186,3 +186,26 @@ export async function getPropuneri(): Promise<PropuneriRezultat> {
     comasari, angajari,
   };
 }
+
+export type GranitaRand = {
+  uzina_id: string; shift_number: number; tip: 'inceput' | 'sfarsit';
+  minute_zi: number | null; minute_declarat: number | null;
+  sursa: 'invatat' | 'declarat'; motiv: string | null; observations: number;
+};
+
+/**
+ * Ceasul pe care se judecă plin/gol. Se arată pentru că de el atârnă toată cifra km-ilor
+ * goi: o graniță rămasă pe orarul scris de mână nu e greșită, dar nici verificată de
+ * nimeni. Acum 12 din 30 sunt învățate din atingerile de poartă; restul se țin pe text,
+ * fiecare cu motivul lui — la Orhei fiindcă gruparea e bimodală (uzina și-a mutat
+ * programul în fereastră), la Strășeni fiindcă are prea puține curse ca să se poată învăța.
+ */
+export async function getGranite(): Promise<GranitaRand[]> {
+  requireRole(await verifySession(), 'ADMIN');
+  const { data, error } = await getSupabase()
+    .from('lde_uzina_shift_boundaries')
+    .select('uzina_id, shift_number, tip, minute_zi, minute_declarat, sursa, motiv, observations')
+    .order('uzina_id').order('shift_number').order('tip');
+  if (error) throw new Error(`granițe: ${error.message}`);
+  return (data ?? []) as GranitaRand[];
+}

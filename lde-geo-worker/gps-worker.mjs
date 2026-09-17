@@ -43,6 +43,15 @@ function nearest(p) { let b=null,bd=Infinity; for(const pl of places){const d=ha
 function locName(p) { const n = nearest(p); return n.d <= STOP_NEAR_KM ? n.name : null; }
 
 // ── conexiuni ──
+// `track.w_date` e `timestamp without time zone` și conține UTC (verificat 17.09.2026:
+// ultimul punct avea valoarea brută 08:55:17, când UTC real era 08:55:18). Fără parserul
+// de mai jos, node-postgres citește ora „goală" ca oră LOCALĂ, iar VPS-ul e pe
+// Europe/Chisinau → fiecare oprire se scria cu 3 ore mai devreme decât s-a întâmplat.
+// Se vedea în date: la Draxelmaier (schimburi 07:00/15:30/00:00) sosirile la poartă se
+// strângeau la 03–04, 11–12, 19–21. Atenție: mută DOAR arrival_at/departure_at — km-ii și
+// dwell_min sunt diferențe, iar fereastra zilei se taie server-side, pe `w_date` brut.
+// OID 1114 = timestamp without time zone.
+pg.types.setTypeParser(1114, (v) => new Date(v.replace(' ', 'T') + 'Z'));
 const tracker = new pg.Client({ host:process.env.TRACKER_HOST, port:+process.env.TRACKER_PORT, user:process.env.TRACKER_USER, password:process.env.TRACKER_PASS, database:process.env.TRACKER_DB });
 await tracker.connect();
 const supa = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY, { auth: { persistSession: false } });

@@ -73,4 +73,8 @@ done
 if [ ${#ESUATE[@]} -gt 0 ]; then
   echo "----- ESUATE: ${ESUATE[*]} -----"; exit 1
 fi
+# Cursele și etalonul, după ce zilele au fost reimportate: altfel rândurile de abatere
+# rămân cele fictive din perioada căzută și intră în fereastra etalonului.
+node --env-file=.env etalon-aggregate.mjs --write
+
 echo "----- gata: $DE_LA … $PANA_LA -----"

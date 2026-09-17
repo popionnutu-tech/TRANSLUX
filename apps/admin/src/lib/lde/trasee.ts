@@ -132,3 +132,136 @@ export function economieCumulata(propuneri: Propunere[]): { aplicabile: Propuner
   }
   return { aplicabile, km_zi: +aplicabile.reduce((s, p) => s + p.economie_km_zi, 0).toFixed(1) };
 }
+
+
+// ============================================================================
+// Ion, 17.09: «chiar dacă două rute din zonă similară sunt făcute de diferiți șoferi,
+// trebuie să fie propuneri de optimizări sau angajare noi șofer».
+//
+// Schimbul între doi șoferi mută problema, nu o rezolvă, când NICIUNUL nu stă în zonă.
+// Aici sunt celelalte două pârghii: comasarea (un om ia ambele ture din zonă, celălalt
+// se eliberează) și angajarea locală (câți km s-ar tăia dacă ar exista un șofer chiar
+// acolo). A doua e singura care se vede ca decizie de personal, nu de grafic.
+// ============================================================================
+
+export const RAZA_ZONA_KM = 10;
+
+export type PropunereComasare = {
+  zona: string;
+  rute: string[];
+  ramane: { driver_id: string; nume: string };
+  se_elibereaza: { driver_id: string; nume: string };
+  economie_km_zi: number;
+};
+
+export type PropunereAngajare = {
+  zona: string;
+  lat: number;
+  lon: number;
+  rute: string[];
+  soferi_acum: string[];
+  km_acum: number;
+  km_daca_local: number;
+  economie_km_zi: number;
+};
+
+/** Rutele se grupează pe zone după prima lor stație (praguri în km). */
+function grupeazaZone(rute: RutaCost[], razaKm = RAZA_ZONA_KM): RutaCost[][] {
+  const out: RutaCost[][] = [];
+  for (const r of rute) {
+    if (!r.primaStatie) continue;
+    const g = out.find((z) => haversineKm(z[0].primaStatie!, r.primaStatie!) <= razaKm);
+    if (g) g.push(r); else out.push([r]);
+  }
+  return out;
+}
+
+/**
+ * Comasare: două rute din aceeași zonă, ture care NU se suprapun, doi șoferi diferiți.
+ * Unul le poate lua pe amândouă — cel care e deja mai aproape — iar celălalt se
+ * eliberează. Economia raportată sunt km-ii goi ai celui eliberat: ea e reală doar dacă
+ * omul chiar nu e nevoie în altă parte, iar asta o decide Ion, nu calculul.
+ */
+export function propuneriComasare(
+  soferi: SoferCurent[],
+  rute: Map<string, RutaCost>,
+  turaRutei: Map<string, number>,
+  minEconomieKm = 5,
+): PropunereComasare[] {
+  const soferulRutei = new Map<string, SoferCurent>();
+  for (const s of soferi) for (const id of s.rute) if (!soferulRutei.has(id)) soferulRutei.set(id, s);
+
+  const out: PropunereComasare[] = [];
+  for (const zona of grupeazaZone([...rute.values()])) {
+    if (zona.length < 2) continue;
+    for (let i = 0; i < zona.length; i++) {
+      for (let j = i + 1; j < zona.length; j++) {
+        const a = zona[i], b = zona[j];
+        const sa = soferulRutei.get(a.factory_route_id), sb = soferulRutei.get(b.factory_route_id);
+        if (!sa || !sb || sa.driver_id === sb.driver_id) continue;
+        // turele trebuie să fie diferite: în același schimb un om nu poate fi în două locuri
+        const ta = turaRutei.get(a.factory_route_id), tb = turaRutei.get(b.factory_route_id);
+        if (ta == null || tb == null || ta === tb) continue;
+
+        const costA_b = costZi(sa.baza, [b]), costB_b = costZi(sb.baza, [b]);
+        const costB_a = costZi(sb.baza, [a]), costA_a = costZi(sa.baza, [a]);
+        if (costA_b == null || costB_b == null || costB_a == null || costA_a == null) continue;
+
+        // cine rămâne: cel pentru care ambele rute costă mai puțin
+        const ramaneA = costA_a + costA_b <= costB_a + costB_b;
+        const economie = ramaneA ? costB_b : costA_a;
+        if (economie < minEconomieKm) continue;
+        out.push({
+          zona: (a.primaStatie as { locality?: string }).locality ?? a.eticheta,
+          rute: [a.eticheta, b.eticheta],
+          ramane: ramaneA ? { driver_id: sa.driver_id, nume: sa.nume } : { driver_id: sb.driver_id, nume: sb.nume },
+          se_elibereaza: ramaneA ? { driver_id: sb.driver_id, nume: sb.nume } : { driver_id: sa.driver_id, nume: sa.nume },
+          economie_km_zi: +economie.toFixed(1),
+        });
+      }
+    }
+  }
+  return out.sort((x, y) => y.economie_km_zi - x.economie_km_zi);
+}
+
+/**
+ * Angajare locală: câți km s-ar tăia dacă ar exista un șofer care STĂ în zonă.
+ * Costul lui ideal nu e zero — tot trebuie să se întoarcă de la ultima stație la prima —
+ * dar drumul de acasă dispare. Diferența e plafonul a ce se poate câștiga din grafic:
+ * dacă e mare, niciun schimb de șoferi n-o atinge, fiindcă niciunul nu stă acolo.
+ */
+export function propuneriAngajare(
+  soferi: SoferCurent[],
+  rute: Map<string, RutaCost>,
+  minEconomieKm = 20,
+): PropunereAngajare[] {
+  const soferulRutei = new Map<string, SoferCurent>();
+  for (const s of soferi) for (const id of s.rute) if (!soferulRutei.has(id)) soferulRutei.set(id, s);
+
+  const out: PropunereAngajare[] = [];
+  for (const zona of grupeazaZone([...rute.values()])) {
+    const acasa = zona[0].primaStatie!;
+    let kmAcum = 0, kmLocal = 0;
+    const numeSoferi = new Set<string>(), eticheteRute: string[] = [];
+    let complet = true;
+    for (const r of zona) {
+      const s = soferulRutei.get(r.factory_route_id);
+      const c = s ? costZi(s.baza, [r]) : null;
+      const cLocal = costZi(acasa, [r]);
+      if (c == null || cLocal == null) { complet = false; break; }
+      kmAcum += c; kmLocal += cLocal;
+      if (s) numeSoferi.add(s.nume);
+      eticheteRute.push(r.eticheta);
+    }
+    if (!complet) continue;
+    const economie = +(kmAcum - kmLocal).toFixed(1);
+    if (economie < minEconomieKm) continue;
+    out.push({
+      zona: (acasa as { locality?: string }).locality ?? eticheteRute[0],
+      lat: acasa.lat, lon: acasa.lon, rute: eticheteRute,
+      soferi_acum: [...numeSoferi], km_acum: +kmAcum.toFixed(1), km_daca_local: +kmLocal.toFixed(1),
+      economie_km_zi: economie,
+    });
+  }
+  return out.sort((x, y) => y.economie_km_zi - x.economie_km_zi);
+}

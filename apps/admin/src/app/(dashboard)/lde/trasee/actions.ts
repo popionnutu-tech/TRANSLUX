@@ -103,7 +103,8 @@ export async function getGeometrie(factory_route_id: string, shift_number: numbe
 // primele stații ale zecilor de rute cu coordonate știute îi localizează casa prin
 // trilaterație, chiar dacă nu afișează nicio coordonată. Rămân ADMIN-only și NU intră în
 // nicio lărgire de rol fără o decizie separată.
-import { propuneriSchimb, economieCumulata, type RutaCost, type SoferCurent, type Propunere } from '@/lib/lde/trasee';
+import { propuneriSchimb, propuneriComasare, propuneriAngajare, economieCumulata,
+  type RutaCost, type SoferCurent, type Propunere, type PropunereComasare, type PropunereAngajare } from '@/lib/lde/trasee';
 
 export type PropuneriRezultat = {
   propuneri: Propunere[];
@@ -112,6 +113,8 @@ export type PropuneriRezultat = {
   fara_baza: number;
   rute_fara_etalon: number;
   rute_incomplete: number;   // au etalon doar pe un sens → costul n-ar fi comparabil
+  comasari: PropunereComasare[];
+  angajari: PropunereAngajare[];
 };
 
 export async function getPropuneri(): Promise<PropuneriRezultat> {
@@ -158,6 +161,7 @@ export async function getPropuneri(): Promise<PropuneriRezultat> {
   const eticheta = new Map((rute ?? []).map((r) => [r.id, `${r.uzina_id} #${r.route_number}`]));
 
   const ruteCost = new Map<string, RutaCost>();
+  const turaRutei = new Map<string, number>();   // pentru comasare: două rute din aceeași tură nu se pot uni
   for (const e of etaloane ?? []) {
     const id = e.factory_route_id as string;
     const cur = ruteCost.get(id) ?? { factory_route_id: id, eticheta: eticheta.get(id) ?? id, primaStatie: null, ultimaStatie: null };
@@ -176,8 +180,13 @@ export async function getPropuneri(): Promise<PropuneriRezultat> {
       if ((o.pondere ?? 0) < PRAG_REPETARE) return null;
       return { lat: Number(o.lat), lon: Number(o.lon) };
     };
-    if (e.sens === 'tur') cur.primaStatie = cur.primaStatie ?? pct(e.prima_statie);
-    else cur.ultimaStatie = cur.ultimaStatie ?? pct(e.ultima_statie);
+    if (e.sens === 'tur') {
+      const p = pct(e.prima_statie);
+      if (p && !cur.primaStatie) {
+        cur.primaStatie = { ...p, locality: (e.prima_statie as { locality?: string })?.locality ?? null } as never;
+        if (!turaRutei.has(id)) turaRutei.set(id, Number(e.shift_number));
+      }
+    } else cur.ultimaStatie = cur.ultimaStatie ?? pct(e.ultima_statie);
     ruteCost.set(id, cur);
   }
   // rutele cu un singur capăt nu se pot compara cu celelalte — ies din calcul, nu
@@ -223,6 +232,8 @@ export async function getPropuneri(): Promise<PropuneriRezultat> {
 
   const propuneri = propuneriSchimb(lista, ruteCost);
   const { aplicabile, km_zi } = economieCumulata(propuneri);
+  const comasari = propuneriComasare(lista, ruteCost, turaRutei).slice(0, 10);
+  const angajari = propuneriAngajare(lista, ruteCost).slice(0, 10);
   return {
     propuneri: aplicabile.slice(0, 20),
     economie_km_zi: km_zi,
@@ -230,5 +241,6 @@ export async function getPropuneri(): Promise<PropuneriRezultat> {
     fara_baza: faraBaza,
     rute_fara_etalon: (rute ?? []).length - ruteCost.size,
     rute_incomplete: ruteIncomplete,
+    comasari, angajari,
   };
 }

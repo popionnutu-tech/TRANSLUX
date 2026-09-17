@@ -131,6 +131,68 @@ export default function TraseeClient({ trasee, impacare, propuneri }: { trasee: 
         </p>
       </div>
 
+      {/* ── zonele unde schimbul între șoferi NU e de ajuns ── */}
+      {(propuneri.comasari.length > 0 || propuneri.angajari.length > 0) && (
+        <div className="card p-4">
+          <h2 className="font-medium mb-1">Zone unde schimbul de șoferi nu ajunge</h2>
+          <p className="text-xs text-gray-500 mb-3">
+            Când două rute pleacă din aceeași zonă dar niciun șofer nu locuiește acolo, mutarea
+            oamenilor între rute doar plimbă problema. Aici sunt celelalte două pârghii.
+          </p>
+
+          {propuneri.comasari.length > 0 && (
+            <>
+              <h3 className="text-sm font-medium mt-2 mb-1">Un singur șofer ar putea lua ambele ture</h3>
+              <p className="text-xs text-gray-500 mb-2">
+                Turele nu se suprapun, deci un om le poate face pe amândouă. Celălalt se eliberează —
+                economia scrisă sunt km-ii lui goi, și e reală <strong>doar dacă nu e nevoie în altă
+                parte</strong>. Asta o decizi tu, nu calculul.
+              </p>
+              <table className="w-full text-sm mb-4">
+                <thead><tr className="text-left border-b"><th className="py-1">Zona</th><th>Rutele</th><th>Rămâne</th><th>Se eliberează</th><th className="text-right">Economie</th></tr></thead>
+                <tbody>
+                  {propuneri.comasari.map((c, i) => (
+                    <tr key={i} className="border-b last:border-0">
+                      <td className="py-1">{c.zona}</td>
+                      <td className="text-gray-500">{c.rute.join(' + ')}</td>
+                      <td>{c.ramane.nume}</td>
+                      <td className="text-gray-500">{c.se_elibereaza.nume}</td>
+                      <td className="text-right font-medium">−{c.economie_km_zi} km/zi</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+
+          {propuneri.angajari.length > 0 && (
+            <>
+              <h3 className="text-sm font-medium mt-2 mb-1">Cât s-ar tăia cu un șofer care stă chiar acolo</h3>
+              <p className="text-xs text-gray-500 mb-2">
+                Plafonul a ce se poate câștiga din grafic. Dacă cifra e mare, <strong>niciun schimb
+                între șoferii de acum n-o poate atinge</strong> — pentru că niciunul nu locuiește în
+                zonă. Atunci întrebarea nu mai e de grafic, ci de angajare.
+              </p>
+              <table className="w-full text-sm">
+                <thead><tr className="text-left border-b"><th className="py-1">Zona</th><th>Rutele</th><th>Cine le face acum</th><th className="text-right">Acum</th><th className="text-right">Cu om local</th><th className="text-right">Diferența</th></tr></thead>
+                <tbody>
+                  {propuneri.angajari.map((a, i) => (
+                    <tr key={i} className="border-b last:border-0">
+                      <td className="py-1">{a.zona}</td>
+                      <td className="text-gray-500">{a.rute.join(', ')}</td>
+                      <td className="text-gray-500">{a.soferi_acum.join(', ') || '—'}</td>
+                      <td className="text-right">{a.km_acum}</td>
+                      <td className="text-right">{a.km_daca_local}</td>
+                      <td className="text-right font-medium">−{a.economie_km_zi} km/zi</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+        </div>
+      )}
+
       <div className="flex gap-2 items-center">
         <label className="text-sm">Uzina:</label>
         <select className="border rounded px-2 py-1 text-sm" value={uzina} onChange={(e) => setUzina(e.target.value)}>

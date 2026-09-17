@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { costPereche, costZi, propuneriSchimb, economieCumulata, haversineKm, type RutaCost, type SoferCurent } from './trasee';
+import { costPereche, costZi, propuneriSchimb, propuneriComasare, propuneriAngajare, economieCumulata, haversineKm, type RutaCost, type SoferCurent } from './trasee';
 
 const ruta = (id: string, lat: number, lon: number): RutaCost => ({
   factory_route_id: id, eticheta: `ruta ${id}`,
@@ -130,5 +130,48 @@ describe('ziua întreagă, cu întoarcerea dintre ture (Ion, 17.09)', () => {
   it('o rută cu un capăt necunoscut strică toată ziua, nu doar bucata ei', () => {
     const stricata: RutaCost = { ...sud, ultimaStatie: null };
     expect(costZi({ lat: 47.5, lon: 28.0 }, [nord, stricata])).toBeNull();
+  });
+});
+
+
+describe('zona servită de doi șoferi de departe (Ion, 17.09)', () => {
+  // Două rute din ACEEAȘI zonă (sate la 3 km una de alta), ture diferite, doi șoferi care
+  // locuiesc amândoi departe. Schimbul între ei nu rezolvă nimic — niciunul nu stă acolo.
+  const r1: RutaCost = { factory_route_id: 'R1', eticheta: 'ruta 1', primaStatie: { lat: 47.40, lon: 28.00 }, ultimaStatie: { lat: 47.40, lon: 28.00 } };
+  const r2: RutaCost = { factory_route_id: 'R2', eticheta: 'ruta 2', primaStatie: { lat: 47.43, lon: 28.00 }, ultimaStatie: { lat: 47.43, lon: 28.00 } };
+  const rute = new Map([['R1', r1], ['R2', r2]]);
+  const ture = new Map([['R1', 1], ['R2', 2]]);
+  const soferi: SoferCurent[] = [
+    { driver_id: 'd1', nume: 'Unu', baza: { lat: 47.80, lon: 28.0 }, rute: ['R1'] },   // ~44 km nord
+    { driver_id: 'd2', nume: 'Doi', baza: { lat: 47.85, lon: 28.0 }, rute: ['R2'] },   // ~50 km nord
+  ];
+
+  it('propune comasarea: unul ia ambele ture, celălalt se eliberează', () => {
+    const p = propuneriComasare(soferi, rute, ture);
+    expect(p).toHaveLength(1);
+    expect(p[0].ramane.nume).toBe('Unu');          // e mai aproape
+    expect(p[0].se_elibereaza.nume).toBe('Doi');
+    expect(p[0].economie_km_zi).toBeGreaterThan(50);
+  });
+
+  it('NU propune comasarea când turele se suprapun', () => {
+    const acelasiSchimb = new Map([['R1', 1], ['R2', 1]]);
+    expect(propuneriComasare(soferi, rute, acelasiSchimb)).toHaveLength(0);
+  });
+
+  it('propune angajarea locală și spune cât s-ar tăia', () => {
+    const p = propuneriAngajare(soferi, rute);
+    expect(p).toHaveLength(1);
+    expect(p[0].km_daca_local).toBeLessThan(p[0].km_acum);
+    expect(p[0].economie_km_zi).toBeGreaterThan(150);   // doi șoferi × ~45 km dus-întors
+    expect(p[0].soferi_acum.sort()).toEqual(['Doi', 'Unu']);
+  });
+
+  it('nu propune angajare unde șoferii stau deja în zonă', () => {
+    const local: SoferCurent[] = [
+      { driver_id: 'd1', nume: 'Unu', baza: { lat: 47.40, lon: 28.0 }, rute: ['R1'] },
+      { driver_id: 'd2', nume: 'Doi', baza: { lat: 47.43, lon: 28.0 }, rute: ['R2'] },
+    ];
+    expect(propuneriAngajare(local, rute)).toHaveLength(0);
   });
 });

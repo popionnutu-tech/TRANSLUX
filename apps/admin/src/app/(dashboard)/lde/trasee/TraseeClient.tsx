@@ -79,57 +79,34 @@ export default function TraseeClient({ trasee, impacare, propuneri }: { trasee: 
         </div>
       </div>
 
-      {/* ── propunerile: sugestii, nu schimbări. Omul decide. ── */}
-      <div className="card p-4">
-        <h2 className="font-medium mb-1">Schimburi de rute care ar micșora km-ii goi</h2>
-        <p className="text-xs text-gray-500 mb-3">
-          Sugestii, nimic nu se schimbă automat. Costul se socoate pe <strong>ziua întreagă</strong>
-          a șoferului: dus-întorsul gol pentru fiecare tură pe care o face. Între ture mașina trece pe
-          acasă în 8 zile din 10 (măsurat), de aceea turele nu se leagă între ele, ci fiecare își are
-          drumul ei de acasă. Perechile unde nu se poate calcula distanța ies din listă —
-          nu primesc o cifră inventată. Locul de noapte al mașinii e luat ca „acasă" și se ia din
-          mediana a cel puțin trei nopți. Distanțele sunt <strong>în linie dreaptă</strong>, nu pe
-          șosea: economia arată direcția corect, dar mărimea ei e o estimare prudentă. Ruta care are
-          traseu ideal doar într-un sens iese din calcul — jumătate de formulă nu se poate compara cu
-          una întreagă. Prima și ultima stație se iau din <strong>oprirea care se repetă</strong>, nu
-          din mediana coordonatelor: media a două stații aflate la câțiva km una de alta ar cădea
-          undeva unde nu oprește nimeni. Stația care apare în mai puțin de jumătate din curse e
-          considerată instabilă, iar ruta iese din calcul.
+      {/* ── propunerile: OPRITE 17.09.2026 după verificarea pe date. ── */}
+      <div className="card p-4 border-2 border-amber-400 bg-amber-50">
+        <h2 className="font-medium mb-2">⚠ Propunerile de repartizare sunt oprite — nu acționa pe ele</h2>
+        <p className="text-sm mb-2">
+          Verificarea din 17.09 a găsit că formula de cost <strong>omite tocmai drumul care arde cei
+          mai mulți kilometri</strong>: poarta ↔ acasă. Baza unei mașini e la 19,1 km în medie de
+          poartă — 38,3 km dus-întors — iar costul calculat pentru toată ziua e 24,7 km. Bucata omisă
+          e mai mare decât tot ce se măsoară.
         </p>
-        {propuneri.economie_km_zi > 0 ? (
-          <p className="text-sm mb-3">
-            Dacă s-ar face toate schimburile de mai jos:{' '}
-            <strong>−{propuneri.economie_km_zi.toLocaleString('ro-RO')} km/zi</strong>
-            {' '}(~{Math.round(propuneri.economie_km_zi * 30).toLocaleString('ro-RO')} km/lună).
-          </p>
-        ) : (
-          <p className="text-sm mb-3 text-gray-600">Niciun schimb care să merite deranjul.</p>
-        )}
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead><tr className="text-left border-b">
-              <th className="py-1">Șofer</th><th>De pe</th><th>Pe</th>
-              <th>Șofer</th><th>De pe</th><th>Pe</th><th className="text-right">Economie</th>
-            </tr></thead>
-            <tbody>
-              {propuneri.propuneri.map((p, i) => (
-                <tr key={i} className="border-b last:border-0">
-                  <td className="py-1">{p.a.nume}</td><td className="text-gray-500">{p.a.de_pe}</td><td>{p.a.pe}</td>
-                  <td>{p.b.nume}</td><td className="text-gray-500">{p.b.de_pe}</td><td>{p.b.pe}</td>
-                  <td className="text-right font-medium">−{p.economie_km_zi} km/zi</td>
-                </tr>
-              ))}
-              {!propuneri.propuneri.length && <tr><td colSpan={7} className="py-3 text-gray-500">Nimic de propus încă.</td></tr>}
-            </tbody>
-          </table>
-        </div>
-        <p className="text-xs text-gray-500 mt-2">
-          {propuneri.soferi_analizati} șoferi analizați
-          {propuneri.fara_baza > 0 && <> · {propuneri.fara_baza} fără loc de noapte cunoscut</>}
-          {propuneri.rute_fara_etalon > 0 && <> · {propuneri.rute_fara_etalon} rute fără etalon încă</>}
-          {propuneri.rute_incomplete > 0 && <> · {propuneri.rute_incomplete} rute cu etalon doar pe un sens, scoase din calcul</>}
+        <ul className="text-sm list-disc ml-5 mb-2 space-y-1">
+          <li>Două propuneri verificate manual <strong>cresc</strong> kilometrii, nu îi taie: una cu
+            16,6 km/zi, alta cu 115 km/zi. Ambele erau schimburi între uzine diferite.</li>
+          <li><strong>Jumătate din listă</strong> stătea pe două „case" care nu există: o bază
+            calculată ca mediană separată pe latitudine și pe longitudine (iese un punct în câmp,
+            unde mașina n-a dormit niciodată) și un garaj din Bălți unde dorm cinci mașini, luat
+            drept casa a cinci șoferi.</li>
+          <li>Comasarea raporta <strong>de 5,4 ori</strong> mai mult decât economisește — 241 km/zi
+            în loc de 44 — iar toate cele șase propuneri erau imposibile pe ceas.</li>
+          <li>Pagina citea <strong>1.000 din 3.438</strong> de atribuiri, tăcut: cifra descria un
+            grafic vechi de 16 zile.</li>
+        </ul>
+        <p className="text-xs text-gray-600">
+          Măsurarea de mai jos — traseele, satele, km-ii goi, împăcarea — <strong>rămâne validă</strong>:
+          ea nu depinde de formula de cost. Propunerile revin după ce costul include segmentul
+          poartă ↔ acasă, baza se ia ca punct real de dormit, iar comasarea raportează diferența.
         </p>
       </div>
+
 
       {/* ── zonele unde schimbul între șoferi NU e de ajuns ── */}
       {(propuneri.comasari.length > 0 || propuneri.angajari.length > 0) && (

@@ -67,24 +67,34 @@ test('debounce: punctul est + poarta = o singură sosire, nu două + retur gol',
   assert.equal(tr[0].uzina_id, 'ORHEI');
 });
 
-test('granițele se învață din plecări; gruparea sub prag e respinsă, nu ghicită', () => {
+test('granița se învață în fereastra ei; sub prag e respinsă, nu ghicită', () => {
   const plecari = [];
   for (let i = 0; i < 40; i++) plecari.push(at(6 * 60 + (i % 3) * 10));    // ~06:00-06:20, n=40
-  for (let i = 0; i < 5; i++) plecari.push(at(18 * 60));                   // n=5, sub prag
-  const g = invataGranite(plecari);
-  const bune = g.filter((x) => x.minuteZi != null);
-  assert.equal(bune.length, 1, 'doar gruparea cu destule observații devine graniță');
-  assert.ok(Math.abs(bune[0].minuteZi - 375) <= 20, `graniță pe la 06:15, a ieșit ${bune[0].minuteZi}`);
-  assert.equal(g.find((x) => x.n === 5).motiv, 'sub prag');
+  for (let i = 0; i < 5; i++) plecari.push(at(18 * 60));                   // altă oră, n=5
+  const g = invataGranite(plecari, 6 * 60);
+  assert.ok(Math.abs(g.minuteZi - 370) <= 20, `graniță pe la 06:10, a ieșit ${g.minuteZi}`);
+  assert.equal(g.n, 40, 'plecările din altă parte a zilei nu intră în fereastră');
+  assert.equal(invataGranite(plecari, 18 * 60).motiv, 'sub prag');
+});
+
+test('uzina mare nu mai iese „bimodală" doar fiindcă are trafic toată ziua', () => {
+  // Draxelmaier: 39 de mașini ating poarta la toate orele, deci binurile nu se despart
+  // nicăieri. Varianta veche grupa ziua întreagă și respingea TOT ca program_schimbat.
+  const plecari = [];
+  for (let h = 5; h < 24; h++) for (let i = 0; i < 6; i++) plecari.push(at(h * 60 + i * 9));
+  for (let i = 0; i < 30; i++) plecari.push(at(7 * 60 + 10));   // vârful real al graniței
+  const g = invataGranite(plecari, 7 * 60);
+  assert.equal(g.motiv, null, 'traficul de peste zi nu e o mutare de program');
+  assert.ok(Math.abs(g.minuteZi - 430) <= 25, `graniță pe la 07:10, a ieșit ${g.minuteZi}`);
 });
 
 test('uzina care și-a mutat programul: graniță respinsă cu „program_schimbat"', () => {
   const plecari = [];
   for (let i = 0; i < 25; i++) plecari.push(at(6 * 60));        // vechiul program 06:00
-  for (let i = 0; i < 25; i++) plecari.push(at(6 * 60 + 90));   // noul program 07:30, 3 binuri mai încolo
-  const g = invataGranite(plecari).filter((x) => x.n >= 20);
-  assert.ok(g.some((x) => x.motiv === 'program_schimbat' || x.minuteZi != null),
-    'grupările separate se tratează fiecare; dacă se lipesc, bimodalitatea le respinge');
+  for (let i = 0; i < 25; i++) plecari.push(at(6 * 60 + 90));   // noul, 3 binuri mai încolo
+  const g = invataGranite(plecari, 6 * 60 + 45, { fereastraMin: 120 });
+  assert.equal(g.motiv, 'program_schimbat', 'nu se mediază între cele două vârfuri');
+  assert.equal(g.minuteZi, null);
 });
 
 const trecere = (h, m = 0) => ({ tIn: at(h * 60 + m), tOut: at(h * 60 + m + 30) });
@@ -174,9 +184,8 @@ test('granițele învățate cad pe orarul declarat, nu cu 3 ore mai devreme', (
   // plecări la 06:05 ora Chișinăului, vara (= 03:05 UTC)
   const plecari = [];
   for (let i = 0; i < 30; i++) plecari.push(new Date(Date.UTC(2026, 8, 14 + (i % 5), 3, 5)));
-  const g = invataGranite(plecari).filter((x) => x.minuteZi != null);
-  assert.equal(g.length, 1);
-  assert.ok(Math.abs(g[0].minuteZi - 6 * 60) <= 20, `graniță pe la 06:00, a ieșit ${g[0].minuteZi}`);
+  const g = invataGranite(plecari, 6 * 60);
+  assert.ok(Math.abs(g.minuteZi - 6 * 60) <= 20, `graniță pe la 06:00, a ieșit ${g.minuteZi}`);
 });
 
 test('segmentele ACOPERĂ ziua o singură dată — suma lor închide pe km-ii zilei', () => {

@@ -63,19 +63,11 @@ async function recalculeazaGranite() {
   let invatate = 0, respinse = 0;
   for (const d of declarate) {
     const pl = plecariPeUz.get(d.uzina_id) ?? [];
-    const grupuri = invataGranite(pl);
-    // se caută gruparea cea mai apropiată de granița DECLARATĂ — eticheta nu se ghicește
-    let best = null, bd = Infinity;
-    for (const g of grupuri) {
-      if (g.minuteZi == null) continue;
-      const x = Math.abs(g.minuteZi - d.minute_declarat);
-      const dist = Math.min(x, 1440 - x);
-      if (dist < bd) { bd = dist; best = g; }
-    }
-    const rand = best && bd <= TOLERANTA_GRANITA_MIN
-      ? { minute_zi: best.minuteZi, observations: best.n, sursa: 'invatat', motiv: null }
-      : { minute_zi: d.minute_declarat, observations: 0, sursa: 'declarat',
-          motiv: grupuri.some((g) => g.motiv === 'program_schimbat') ? 'program_schimbat' : 'fără grupare aproape' };
+    // granița DECLARATĂ numește ora; aici i se măsoară valoarea, în fereastra ei
+    const g = invataGranite(pl, d.minute_declarat, { fereastraMin: TOLERANTA_GRANITA_MIN });
+    const rand = g.minuteZi != null
+      ? { minute_zi: g.minuteZi, observations: g.n, sursa: 'invatat', motiv: null }
+      : { minute_zi: d.minute_declarat, observations: 0, sursa: 'declarat', motiv: g.motiv };
     if (rand.sursa === 'invatat') invatate++; else respinse++;
     console.log(`  ${d.uzina_id.padEnd(20)} s${d.shift_number} ${d.tip.padEnd(8)} declarat ${String(d.minute_declarat).padStart(4)} → ${String(rand.minute_zi).padStart(4)} (${rand.sursa}${rand.observations ? `, n=${rand.observations}` : ''}${rand.motiv ? `, ${rand.motiv}` : ''})`);
     if (WRITE) await supa.from('lde_uzina_shift_boundaries').update({ ...rand, updated_at: new Date().toISOString() })

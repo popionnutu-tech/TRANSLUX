@@ -102,42 +102,59 @@ export function treceriPorti(pts, secv, gates, debounceMin = DEBOUNCE_POARTA_MIN
 }
 
 /**
- * Granițele de schimb ale unei uzine, învățate din plecările de la poartă.
- * Se învață VALOAREA, nu eticheta (regula 4). Bin de 30 min; două grupări vecine se
- * separă prin cel puțin un bin gol; prag minim de observații PE GRANIȚĂ, nu pe uzină
- * — rarefierea e pe graniță (Trox are 27/83/62, Florești 26/62/51).
- * Bimodalitatea (uzina și-a mutat programul în fereastră) → graniță respinsă, cu motiv.
+ * Valoarea unei granițe de schimb, învățată din plecările de la poartă DIN JURUL EI.
+ *
+ * Se învață VALOAREA, nu eticheta (regula 4): granița pe care o căutăm e numită de orarul
+ * declarat, iar aici doar i se măsoară ora adevărată, în fereastra ei.
+ *
+ * De ce în fereastră și nu pe ziua întreagă: prima variantă grupa toate plecările uzinei în
+ * binuri de 30 de minute și tăia grupările acolo unde apărea un bin gol. La o uzină mare nu
+ * apare niciodată: Draxelmaier are 39 de mașini care ating poarta la toate orele, deci ziua
+ * întreagă ieșea O SINGURĂ grupare, cu trei vârfuri, și era respinsă ca „program_schimbat".
+ * Așa au ajuns 18 din 30 de granițe să fie declarate bimodale — un diagnostic fals: nu uzina
+ * își mutase programul, ci grupările nu se puteau despărți.
+ *
+ * Bimodalitatea rămâne, dar se judecă ÎN fereastră, unde chiar înseamnă ce spune: două
+ * vârfuri depărtate = uzina și-a mutat ora în intervalul de 60 de zile. Atunci granița se
+ * respinge, NU se mediază între vârfuri.
  */
-export function invataGranite(plecari, { binMin = 30, pragN = 20 } = {}) {
-  const binuri = new Map();
+export function invataGranite(plecari, minuteDeclarat, { fereastraMin = 90, binMin = 30, pragN = 20 } = {}) {
+  if (minuteDeclarat == null) return { minuteZi: null, n: 0, motiv: 'orar neparsabil' };
+  const dist = (a, b) => { const x = Math.abs(a - b); return Math.min(x, 1440 - x); };
+  // decalajul față de graniță, cu semn, ca mediana să aibă sens și peste miezul nopții
+  const decalaje = [];
   for (const t of plecari) {
-    const b = Math.floor(minuteZiLocal(t) / binMin);
+    const m = minuteZiLocal(t);
+    if (dist(m, minuteDeclarat) > fereastraMin) continue;
+    let d = m - minuteDeclarat;
+    if (d > 720) d -= 1440;
+    if (d < -720) d += 1440;
+    decalaje.push(d);
+  }
+  if (decalaje.length < pragN) return { minuteZi: null, n: decalaje.length, motiv: 'sub prag' };
+
+  const binuri = new Map();
+  for (const d of decalaje) {
+    const b = Math.floor(d / binMin);
     binuri.set(b, (binuri.get(b) ?? 0) + 1);
   }
   const chei = [...binuri.keys()].sort((a, b) => a - b);
-  const grupuri = [];
-  let g = null;
-  for (const b of chei) {
-    if (g && b === g.pana + 1) { g.pana = b; g.n += binuri.get(b); g.binuri.push([b, binuri.get(b)]); }
-    else { if (g) grupuri.push(g); g = { dela: b, pana: b, n: binuri.get(b), binuri: [[b, binuri.get(b)]] }; }
-  }
-  if (g) grupuri.push(g);
-
-  return grupuri.map((gr) => {
-    if (gr.n < pragN) return { minuteZi: null, n: gr.n, motiv: 'sub prag' };
-    // bimodalitate: două vârfuri despărțite de ≥2 binuri, fiecare peste jumătate de prag
-    const varfuri = gr.binuri.filter(([, n], k) => {
-      const prev = gr.binuri[k - 1]?.[1] ?? 0, next = gr.binuri[k + 1]?.[1] ?? 0;
-      return n >= prev && n >= next && n >= pragN / 2;
-    });
-    if (varfuri.length > 1 && varfuri[varfuri.length - 1][0] - varfuri[0][0] >= 2)
-      return { minuteZi: null, n: gr.n, motiv: 'program_schimbat' };
-    // granița = mediana atingerilor grupării
-    const toate = [];
-    for (const [b, n] of gr.binuri) for (let k = 0; k < n; k++) toate.push(b * binMin + binMin / 2);
-    toate.sort((a, b) => a - b);
-    return { minuteZi: toate[Math.floor(toate.length / 2)], n: gr.n, motiv: null };
+  // Al doilea vârf contează doar dacă e comparabil cu primul. Cu pragul de „jumătate din
+  // pragN" ieșeau bimodale tocmai cele două uzine mari: la Draxelmaier vârful graniței are
+  // 197 de plecări, iar coada de la 08:00 are 26 (13%); la Orhei 533 față de 25 (5%). O
+  // mutare reală de program dă două vârfuri apropiate ca mărime, nu o coadă.
+  const maxBin = Math.max(...binuri.values());
+  const pragVarf = Math.max(pragN / 2, 0.4 * maxBin);
+  const varfuri = chei.filter((b, k) => {
+    const n = binuri.get(b);
+    return n >= (binuri.get(chei[k - 1]) ?? 0) && n >= (binuri.get(chei[k + 1]) ?? 0) && n >= pragVarf;
   });
+  if (varfuri.length > 1 && varfuri[varfuri.length - 1] - varfuri[0] >= 2)
+    return { minuteZi: null, n: decalaje.length, motiv: 'program_schimbat' };
+
+  decalaje.sort((a, b) => a - b);
+  const med = decalaje[Math.floor(decalaje.length / 2)];
+  return { minuteZi: ((minuteDeclarat + med) % 1440 + 1440) % 1440, n: decalaje.length, motiv: null };
 }
 
 /**

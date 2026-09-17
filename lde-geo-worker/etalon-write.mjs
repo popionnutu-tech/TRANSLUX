@@ -137,32 +137,57 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
   // și în numere: 366 de segmente scrise, 264 de rânduri rămase.
   let scrise = 0;
 
+  const peSchimb = new Map();
   for (const a of lista) {
-    const aleSchimbului = lista.filter((x) => x.shift_number === a.shift_number);
-    // două rute ale aceleiași uzine, același schimb, aceeași mașină: nu se poate spune a
-    // cui e cursa. Se scrie `ambiguu` și NU intră în etalon.
-    const ambiguu = aleSchimbului.some((x) => x.factory_route_id !== a.factory_route_id);
-    const ale = ctx.sateRuta.get(a.factory_route_id) ?? [];
+    if (a.shift_number == null) continue;
+    if (!peSchimb.has(a.shift_number)) peSchimb.set(a.shift_number, []);
+    peSchimb.get(a.shift_number).push(a);
+  }
+
+  for (const [sh, candidati] of peSchimb) {
     const alSchimbului = (tip, stare) =>
-      segs.find((x) => x.shift_number === a.shift_number && x.tip === tip && x.stare === stare && x.km >= 1);
+      segs.find((x) => x.shift_number === sh && x.tip === tip && x.stare === stare && x.km >= 1);
 
     for (const [sens, plin, gol] of [
       ['tur', alSchimbului('apropiere', 'plin'), alSchimbului('plecare', 'gol')],
       ['retur', alSchimbului('plecare', 'plin'), alSchimbului('apropiere', 'gol')],
     ]) {
       if (!plin) continue;                       // fără drumul cu pasageri nu există cursă
-      // returul îl face mașina de retur, când atribuirea o numește (verify.ts:213)
-      if (a.eRetur && sens === 'tur') continue;
       const sate = sateDeservite(r.pts, ctx.placesIdx, plin.from, plin.to, PRAG_SAT_KM);
+      const vazute = new Set(sate.map(norm));
+
+      // A CUI e cursa, când mașina are două rute în același schimb (22 din 169 de
+      // perechi mașină×schimb pe 16.09). Întrebarea se pune pe SATE, nu se ocolește:
+      // 302YEK avea rutele 14 și 32; urma ei trece prin toate cele șase sate ale rutei
+      // 14 și prin niciunul dintre cele opt ale rutei 32. Marcând totul `ambiguu`,
+      // rutele Draxelmaier rămâneau fără etalon deși dovada era în date.
+      // Rămâne `ambiguu` doar când dovada chiar lipsește: nicio potrivire, sau două
+      // rute la fel de bune.
+      const potrivire = (rid) => {
+        const decl = ctx.sateRuta.get(rid) ?? [];
+        if (!decl.length) return 0;
+        return decl.filter((x) => vazute.has(x)).length / decl.length;
+      };
+      const eligibili = candidati.filter((x) => (sens === 'tur' ? !x.eRetur : true));
+      if (!eligibili.length) continue;
+      const cuScor = eligibili
+        .map((x) => ({ a: x, scor: potrivire(x.factory_route_id) }))
+        .sort((p, q) => q.scor - p.scor);
+      const a = cuScor[0].a;
+      const alDoilea = cuScor.find((x) => x.a.factory_route_id !== a.factory_route_id);
+      const ambiguu = cuScor[0].scor < 0.34 || (alDoilea != null && alDoilea.scor >= cuScor[0].scor - 0.1);
+
+      const ale = ctx.sateRuta.get(a.factory_route_id) ?? [];
       const capete = capeteReale(r.stops ?? [], r.pts, plin.from, plin.to);
       await supa.from('lde_route_run').upsert({
-        run_date: day, factory_route_id: a.factory_route_id, shift_number: a.shift_number,
+        run_date: day, factory_route_id: a.factory_route_id, shift_number: sh,
         slot: a.slot ?? 1, sens, vehicle_id,
-        sate_atinse: sate, sate_lipsa: ale.filter((x) => !sate.map(norm).includes(x)),
+        sate_atinse: sate, sate_lipsa: ale.filter((x) => !vazute.has(x)),
         sate_extra: sate.filter((x) => !ale.includes(norm(x))),
         km_real: plin.km, km_goi: gol ? gol.km : 0,
         prima_statie: capete.prima, ultima_statie: capete.ultima,
-        stare: 'plin', ambiguu, motiv: ambiguu ? 'porti_coincid' : null,
+        stare: 'plin', ambiguu,
+        motiv: ambiguu ? (cuScor[0].scor < 0.34 ? 'sate_nepotrivite' : 'doua_rute_la_fel') : null,
         geom: simplifica(r.pts, r.calc, plin.from, plin.to),
       }, { onConflict: 'run_date,factory_route_id,shift_number,slot,sens' });
       scrise++;

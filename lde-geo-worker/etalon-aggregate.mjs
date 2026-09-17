@@ -102,6 +102,7 @@ async function recalculeazaEtalon() {
   }
 
   let scrise = 0, insuficiente = 0, abateri = 0;
+  const chei = new Set();
   for (const [k, lista] of peCheie) {
     const [factory_route_id, shift_number, slot, sens] = k.split('|');
     const n = lista.length;
@@ -208,7 +209,27 @@ async function recalculeazaEtalon() {
         abateri++;
       }
     }
+    chei.add(k);
     scrise++;
+  }
+
+  // Etaloanele rămase FĂRĂ dovadă în fereastră se șterg. Upsert-ul singur nu le atinge:
+  // el suprascrie doar cheile care au curse acum, iar o cheie care nu mai produce curse
+  // (ruta a fost oprită, sau cursele ei au devenit `ambiguu` după o corectare de logică)
+  // rămânea pe pagină cu traseul și km-ii unei logici care nu mai există. Găsit pe ruta
+  // 14 Draxelmaier: etalonul arăta un lanț de 17 sate, deși toate cursele ei din
+  // fereastră erau marcate ambigue și niciuna nu intrase în calcul.
+  if (WRITE) {
+    const vechi = await fetchAll('lde_route_etalon', 'factory_route_id,shift_number,slot,sens');
+    let sterse = 0;
+    for (const e of vechi) {
+      if (chei.has(cheie(e))) continue;
+      await supa.from('lde_route_etalon').delete()
+        .eq('factory_route_id', e.factory_route_id).eq('shift_number', e.shift_number)
+        .eq('slot', e.slot).eq('sens', e.sens);
+      sterse++;
+    }
+    if (sterse) console.log(`etalon: ${sterse} combinații șterse — nicio cursă neambiguă în fereastră`);
   }
   console.log(`etalon: ${scrise} combinații rută×schimb×slot×sens, din care ${insuficiente} sub pragul de ${MIN_OBSERVATII} curse`);
   console.log(`abateri scrise pe curse: ${abateri}`);

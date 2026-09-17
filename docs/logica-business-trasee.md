@@ -118,3 +118,54 @@ Deci propunerea de a **interzice** perechile între uzine se retrage. Ele trebui
    așteaptă 6 ore la uzină în loc să meargă acasă, alegerea MAȘINII (nu a șoferului)?
 4. **Unde propune logica o „economie" care nu e o reducere reală de kilometri parcurși?**
 5. Ce regulă de măsurare de mai sus e greșită sau prea slabă?
+
+---
+
+## Răspunsuri măsurate, 17.09.2026 seara
+
+Întrebările de mai sus nu mai sunt deschise toate. Ce s-a măsurat între timp:
+
+### „Cei 49% neclasificați" — ce erau
+
+Trei lucruri diferite, topite într-unul:
+
+1. **Toleranța prea strânsă.** Pragul de ±45 de minute față de granița schimbului tăia
+   22% din atingerile de poartă. Măsurat pe 30 de zile, cele 5.623 de atingeri cad față de
+   cea mai apropiată graniță la 33 de minute (mediana), 43 (p75), 87 (p90). Trecut la ±75:
+   intră 88,6%, iar granițele reale sunt la ore distanță una de alta, deci lărgirea nu
+   poate confunda două schimburi.
+2. **Numărătoarea poziției.** „A k-a atingere = schimbul k" se potrivea în 23% din cazuri;
+   tiparul normal e 3 atingeri la 2 atribuiri. Restul ieșeau `necunoscut` sau, mai rău, pe
+   ruta altui schimb. Acum fiecare atingere primește un rol — livrare sau ridicare — al
+   unui schimb anume, iar fiecare rol se ia o singură dată.
+3. **Segmentul gol scris peste cel plin.** Cheia cursei are un rând pe (zi, rută, schimb,
+   slot, sens), iar repoziționarea goală se scria pe aceeași cheie ca drumul cu pasageri.
+   De acolo veneau cele 545 de curse de „tur" marcate `gol`. Acum cursa e perechea
+   plin + gol: turul = apropierea plină plus plecarea goală de după ea, returul invers.
+
+### Cine e mașina care merge acasă între ture — și cât de des
+
+Din 1.595 de zile-mașină cu cel puțin două atingeri de poartă, în **79,2%** mașina a oprit
+acasă între ele. Numărul opririlor acasă urmărește TURELE, nu atingerile: 2 atingeri (o
+tură) → 0,92 opriri; 4 atingeri → 2,42; 6 atingeri → 2,93. Deci pauza poartă → acasă →
+poartă se face o dată pe tură, iar costul zilei o numără o dată pe tură.
+
+### Ce s-a dovedit greșit în propriile noastre cifre
+
+- **„Ruta făcută de 4 ori pe zi"** nu exista. Rândurile de atribuire numără MAȘINI, nu
+  curse ale unui om: la Draxelmaier, care are două schimburi, ieșeau patru. Măsurat pe
+  perechi (zi, șofer): 1 tură în 1.640 de zile, 2 în 317, 3 în 388 — niciodată 4.
+- **Comasări: zero.** Toate cele 59 de perechi de rute din aceeași zonă cu șoferi diferiți
+  se suprapun pe ceas. Nu e o eroare de calcul, e răspunsul: la Draxelmaier un om ia de
+  obicei ambele ture ale rutei lui, deci nu rămâne loc pentru a doua rută.
+- **Etalon fără dovadă.** Un rând de etalon rămas dintr-o rulare veche supraviețuia la
+  nesfârșit, fiindcă upsert-ul atinge doar cheile care au curse acum. Ruta 14 Draxelmaier
+  arăta un lanț de 17 sate, deși toate cursele ei din fereastră erau ambigue. Acum
+  combinațiile fără nicio cursă neambiguă se șterg.
+
+### Ce rămâne deschis
+
+- **A treia variantă a pauzei** — repoziționarea la altă bază (Bălți) — tot nemăsurată.
+- **Reordonarea satelor** în interiorul unei rute (457 km/zi estimați) nu e implementată.
+- **`passenger_seats` e NULL pe toate cele 15 tipuri de mașină**, deci pârghia „mașină prea
+  mare pentru câți oameni urcă" nu se poate calcula. Depinde de Ion.

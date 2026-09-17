@@ -9,11 +9,19 @@ import { WebSocket as WS } from 'ws';
 import { createClient } from '@supabase/supabase-js';
 import { computeDay, plausibleBridgeKm, hav } from './km-core.mjs';
 import { loadPlaces, buildPlacesIndex } from './places-index.mjs';
+import { incarcaContext, scrieCurse, scrieEsec } from './etalon-write.mjs';
 globalThis.WebSocket = globalThis.WebSocket || WS; // Node 20 nu are WebSocket nativ (supabase-js)
 
 const args = process.argv.slice(2);
 const DAYS = (args.find(a => /^\d{4}-\d{2}-\d{2}/.test(a)) || '').split(',').filter(Boolean);
 const WRITE = args.includes('--write');
+// --no-learn: NU acumula și NU scrie tronsoane învățate. Obligatoriu la re-rularea unei
+// zile deja procesate (backfill, recalcul de curse), fiindcă învățarea NU e idempotentă:
+// `obs = ex.observations + n` la upsert-ul de mai jos numără aceleași observații încă o
+// dată, media rulantă se deplasează, iar `bridgeKm` cârpește altfel ZILELE VIITOARE —
+// adică se mișcă km_total, deci salariile. Verificarea „km_total identic pe zilele
+// atinse" e oarbă la asta: deriva apare pe zile care încă nu există.
+const NO_LEARN = args.includes('--no-learn');
 const LIMIT = (() => { const i = args.indexOf('--limit'); return i >= 0 ? Number(args[i + 1]) : 0; })();
 // --plates 603BRAS,893BRAX — re-calcul punctual pe câteva mașini, fără să plimbăm toată flota
 const PLATES = (() => { const i = args.indexOf('--plates'); return i >= 0 ? (args[i + 1] || '').split(',').map(s => s.toUpperCase().replace(/[^A-Z0-9]/g, '')).filter(Boolean) : []; })();
@@ -181,7 +189,9 @@ async function processDay(v, day) {
     // tronsoanele coord NU se învață aici — le recalculează RPC-ul din istoric (migrația 228)
     prevEnd = c.i1;
   }
-  return { km: calc.km, stops: out, vmax: calc.vmax, viol: calc.viol, patched: calc.patched, check: calc.check, dropped: calc.dropped, npts: pts.length };
+  // pts + calc ies afară pentru etichetare: modulul de curse lucrează pe punctele deja
+  // în memorie, ca să nu existe o a doua citire din baza furnizorului.
+  return { km: calc.km, stops: out, vmax: calc.vmax, viol: calc.viol, patched: calc.patched, check: calc.check, dropped: calc.dropped, npts: pts.length, pts, calc };
 }
 
 // marcare zi suspectă — prag ÎNALT, doar detectorii validați (migrația 226):
@@ -194,8 +204,11 @@ function daySuspect(r) {
   return null;
 }
 
-let totalKm = 0, totalStops = 0, processed = 0;
+let totalKm = 0, totalStops = 0, processed = 0, curseScrise = 0, masiniEsuate = 0;
 for (const day of DAYS) {
+  // contextul zilei (porți, atribuiri, granițe) se încarcă O DATĂ, nu per mașină
+  const ctxCurse = WRITE ? await incarcaContext(supa, day) : null;
+  if (ctxCurse) ctxCurse.placesIdx = placesIdx;
   for (const v of fleet) {
     const r = await processDay(v, day);
     totalKm += r.km; totalStops += r.stops.length; processed++;
@@ -212,13 +225,28 @@ for (const day of DAYS) {
         const { error } = await supa.from('lde_gps_stops').insert(rows);
         if (error) console.error(`    ! stops ${v.plate}: ${error.message}`);
       }
+
+      // ── cursele: DUPĂ km_total și opriri, în plasă proprie ──
+      // Ordinea nu e cosmetică. Bucla asta n-are try/catch, iar km_total duce salariile
+      // (praguri 6.000/7.000 km) și facturarea per_km. O excepție în etichetare — poartă
+      // fără rânduri, orar neparsabil, lat null — ar lăsa RESTUL FLOTEI fără km pe noaptea
+      // aia, iar statutul „fara_date_gps" nu alarmează pe nimeni (vezi antetul
+      // backfill-gps.sh: 191/191 curse, o săptămână nevăzută).
+      try {
+        const c = await scrieCurse(supa, v, day, r, ctxCurse);
+        curseScrise += c.curse ?? 0;
+      } catch (e) {
+        masiniEsuate++;
+        console.error(`    ! curse ${v.plate}: ${e.message}`);
+        try { await scrieEsec(supa, v.vehicle_id, day, e.message); } catch { /* nimic de făcut */ }
+      }
     }
   }
 }
 
 // învățare tronsoane: km_real_median = MEDIE rulantă incrementală (nu mediană strictă;
 // ieftin + incremental cf. perf-reviewer). Doar din leguri 'gps' curate (vezi mai sus).
-if (WRITE && legObs.size) {
+if (WRITE && !NO_LEARN && legObs.size) {
   for (const [k, arr] of legObs) {
     const [from_locality, to_locality] = k.split('→');
     const { data: ex } = await supa.from('lde_route_legs').select('km_real_median,km_real_min,km_real_max,observations').eq('from_locality', from_locality).eq('to_locality', to_locality).maybeSingle();
@@ -233,10 +261,10 @@ if (WRITE && legObs.size) {
 // tronsoanele pe COORDONATE: mediană REALĂ recalculată din tot istoricul lde_gps_stops
 // (RPC din migrația 228; idempotent — re-rulajul unei zile nu dublează observațiile)
 let coordRefreshed = 0;
-if (WRITE) {
+if (WRITE && !NO_LEARN) {
   const { data, error } = await supa.rpc('lde_refresh_route_legs_coord');
   if (error) console.error(`refresh legs coord: ${error.message}`); else coordRefreshed = data;
 }
 
 await tracker.end();
-console.log(`\nTOTAL: ${processed} mașini-zile | km ${totalKm.toFixed(0)} | opriri ${totalStops}${WRITE?` | tronsoane: ${legObs.size} noi (nume), ${coordRefreshed} actualizate (coord)`:''}`);
+console.log(`\nTOTAL: ${processed} mașini-zile | km ${totalKm.toFixed(0)} | opriri ${totalStops}${WRITE?` | tronsoane: ${legObs.size} noi (nume), ${coordRefreshed} actualizate (coord) | curse: ${curseScrise}${masiniEsuate?`, EȘUATE ${masiniEsuate} mașini`:''}`:''}`);

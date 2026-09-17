@@ -4,11 +4,11 @@
 // din baza noastră reală (lde_route_legs) sau linie dreaptă provizorie.
 // Rulare: node --env-file=.env gps-worker.mjs <YYYY-MM-DD>[,zi2...] [--write] [--limit N]
 // ============================================================================
-import fs from 'fs';
 import pg from 'pg';
 import { WebSocket as WS } from 'ws';
 import { createClient } from '@supabase/supabase-js';
 import { computeDay, plausibleBridgeKm, hav } from './km-core.mjs';
+import { loadPlaces, buildPlacesIndex } from './places-index.mjs';
 globalThis.WebSocket = globalThis.WebSocket || WS; // Node 20 nu are WebSocket nativ (supabase-js)
 
 const args = process.argv.slice(2);
@@ -32,15 +32,14 @@ const nmea = v => { const d = Math.floor(v / 100); return d + (v - d * 100) / 60
 const normPlate = s => (s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 
 // ── localități OSM ──
-const places = [];
-for (const line of fs.readFileSync(process.env.PLACES_FILE, 'utf8').split('\n')) {
-  const cl = line.replace(/\x1e/g, '').trim(); if (!cl) continue;
-  let f; try { f = JSON.parse(cl); } catch { continue; }
-  const nm = f.properties && (f.properties['name:ro'] || f.properties.name); if (!nm) continue;
-  const [lon, lat] = f.geometry.coordinates; places.push({ name: nm, lat, lon });
-}
-function nearest(p) { let b=null,bd=Infinity; for(const pl of places){const d=hav(p,pl); if(d<bd){bd=d;b=pl;}} return { name:b.name, d:bd }; }
-function locName(p) { const n = nearest(p); return n.d <= STOP_NEAR_KM ? n.name : null; }
+// Încărcarea și căutarea stau în places-index.mjs (modul frate, ca km-core.mjs), ca
+// etichetarea urmei să folosească ACELEAȘI praguri, nu o copie care poate diverge.
+// `locName` rămâne identic ca semantică: numele celui mai apropiat loc dacă e sub
+// STOP_NEAR_KM, altfel null — stă pe calea banilor (bridgeKm → km_total → salarii),
+// iar grila e testată pe 5.000 de puncte față de scanarea liniară.
+const places = loadPlaces(process.env.PLACES_FILE);
+const placesIdx = buildPlacesIndex(places);
+function locName(p) { const n = placesIdx.nearestWithin(p, STOP_NEAR_KM); return n ? n.name : null; }
 
 // ── conexiuni ──
 // `track.w_date` e `timestamp without time zone` și conține UTC (verificat 17.09.2026:

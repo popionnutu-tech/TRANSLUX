@@ -130,7 +130,13 @@ export async function getPropuneri(): Promise<PropuneriRezultat> {
 
   const [{ data: etaloane }, { data: atribuiri }, { data: baze }, { data: soferi }, { data: rute }] = await Promise.all([
     sb.from('lde_route_etalon').select('factory_route_id, sens, geom').not('geom', 'is', null),
-    sb.from('lde_active_assignments').select('driver_id, vehicle_id, route_id').is('valid_to', null).not('driver_id', 'is', null),
+    // Ruta unui șofer NU se ia din `lde_active_assignments`: acolo `route_id` e gol pe
+    // toate cele 80 de rânduri active — atribuirea de lungă durată leagă doar șoferul de
+    // mașină. Ruta trăiește în graficul zilnic, deci se ia ruta pe care omul a fost cel
+    // mai des în ultimele 30 de zile.
+    sb.from('lde_atribuiri_zilnice').select('driver_id, vehicle_id, factory_route_id')
+      .eq('route_kind', 'uzina').gte('date', de)
+      .not('driver_id', 'is', null).not('factory_route_id', 'is', null),
     sb.from('lde_gps_stops').select('vehicle_id, lat, lon').eq('is_base', true).gte('date', de),
     sb.from('drivers').select('id, full_name').eq('active', true),
     sb.from('lde_factory_routes').select('id, uzina_id, route_number').eq('active', true),
@@ -162,13 +168,30 @@ export async function getPropuneri(): Promise<PropuneriRezultat> {
     ruteCost.set(id, cur);
   }
 
+  // ruta „curentă" a unui șofer = cea pe care a fost cel mai des; mașina lui la fel
+  const nrRute = new Map<string, Map<string, number>>();
+  const nrMasini = new Map<string, Map<string, number>>();
+  const numara = (m: Map<string, Map<string, number>>, k: string, v: string) => {
+    if (!m.has(k)) m.set(k, new Map());
+    const x = m.get(k)!; x.set(v, (x.get(v) ?? 0) + 1);
+  };
+  for (const a of atribuiri ?? []) {
+    const d = a.driver_id as string;
+    numara(nrRute, d, a.factory_route_id as string);
+    if (a.vehicle_id) numara(nrMasini, d, a.vehicle_id as string);
+  }
+  const celMaiDes = (m?: Map<string, number>) =>
+    m ? [...m.entries()].sort((x, y) => y[1] - x[1])[0]?.[0] ?? null : null;
+
   const lista: SoferCurent[] = [];
   let faraBaza = 0;
-  for (const a of atribuiri ?? []) {
-    if (!a.route_id || !ruteCost.has(a.route_id)) continue;
-    const baza = a.vehicle_id ? bazaMasina.get(a.vehicle_id) ?? null : null;
+  for (const [driver_id, rute_] of nrRute) {
+    const ruta = celMaiDes(rute_);
+    if (!ruta || !ruteCost.has(ruta)) continue;
+    const masina = celMaiDes(nrMasini.get(driver_id));
+    const baza = masina ? bazaMasina.get(masina) ?? null : null;
     if (!baza) faraBaza++;
-    lista.push({ driver_id: a.driver_id as string, nume: numeSofer.get(a.driver_id as string) ?? '?', baza, factory_route_id: a.route_id as string });
+    lista.push({ driver_id, nume: numeSofer.get(driver_id) ?? '?', baza, factory_route_id: ruta });
   }
 
   const propuneri = propuneriSchimb(lista, ruteCost);

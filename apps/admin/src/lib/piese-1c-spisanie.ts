@@ -38,8 +38,11 @@ export type DateSpisanie = {
   data: string;              // YYYY-MM-DD
   comentariu: string;
   depozitGuid: string;
-  masinaGuid: string;        // ОсновныеСредства
-  activitateGuid: string;    // ВидыДеятельности — tot mașina, alt catalog
+  // Mașina intră DOAR ca «вид деятельности». `ТранспортноеСредство` (ОсновныеСредства) rămâne gol —
+  // așa e și în documentul-model al contabilei, iar ea a confirmat de ce: «duc evidenta ca cost».
+  // Câmpul se emite oricum, gol, ca structura rândului să rămână identică cu a lor.
+  masinaGuid: string | null; // ОсновныеСредства — de regulă null
+  activitateGuid: string;    // ВидыДеятельности — mașina, pentru evidența pe costuri
   lacatusGuid: string | null;
   linii: LinieSpisanie[];
 };
@@ -104,12 +107,15 @@ ${propRef('Затраты', 'СправочникСсылка.Затраты', r
 ${propRef('ВидыДеятельности', 'СправочникСсылка.ВидыДеятельности', refSimpla(nr++, d.activitateGuid))}
 ${prop('Количество', 'Число', String(l.qty))}
 ${propRef(C1C.atributContMarfaRand, 'ПланСчетовСсылка.Хозрасчетный', refCont(nr++, C1C.contMarfa))}
-${propRef('ТранспортноеСредство', 'СправочникСсылка.ОсновныеСредства', refSimpla(nr++, d.masinaGuid))}
+${d.masinaGuid
+  ? propRef('ТранспортноеСредство', 'СправочникСсылка.ОсновныеСредства', refSimpla(nr++, d.masinaGuid))
+  : propGol('ТранспортноеСредство', 'СправочникСсылка.ОсновныеСредства')}
 ${prop('Сумма', 'Число', n2(l.suma))}
 ${prop('РучнаяКорректировка', 'Булево', 'false')}
 ${d.lacatusGuid
   ? propRef('Слесарь', 'СправочникСсылка.Сотрудники', refSimpla(nr++, d.lacatusGuid))
   : propGol('Слесарь', 'СправочникСсылка.Сотрудники')}
+${propGol('ВидРабот', 'СправочникСсылка.Номенклатура')}
 	</Запись>`).join('\n');
 
   const doc = `<Объект Нпп="${nr++}" Тип="ДокументСсылка.VS_СписаниеЗапчастей" ИмяПравила="VS_СписаниеЗапчастей"><Ссылка Нпп="${nr++}">

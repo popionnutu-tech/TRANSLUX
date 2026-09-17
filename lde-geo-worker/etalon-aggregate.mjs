@@ -101,16 +101,35 @@ async function recalculeazaEtalon() {
     peCheie.get(k).push(c);
   }
 
-  let scrise = 0, insuficiente = 0;
+  let scrise = 0, insuficiente = 0, abateri = 0;
   for (const [k, lista] of peCheie) {
     const [factory_route_id, shift_number, slot, sens] = k.split('|');
     const n = lista.length;
+    // Satele se ordonează DUPĂ TRASEU, nu după cât de des apar. `sate_atinse` e deja în
+    // ordinea în care mașina a intrat în raza fiecăruia, deci poziția unui sat într-o cursă
+    // e indicele lui acolo; peste curse se ia mediana. Ordonarea după pondere (cum era
+    // până acum) punea prima localitatea cea mai des atinsă — de obicei orașul uzinei,
+    // adică ULTIMA de pe drum — și inversa citirea traseului pe pagină. Contează dincolo
+    // de afișare: capătul etalonului e «prima stație», iar pe el se socotesc costurile.
     const frecv = new Map();
-    for (const c of lista) for (const s of new Set(c.sate_atinse ?? [])) frecv.set(s, (frecv.get(s) ?? 0) + 1);
+    const pozitii = new Map();
+    for (const c of lista) {
+      const ale = c.sate_atinse ?? [];
+      const vazute = new Set();
+      for (let i = 0; i < ale.length; i++) {
+        const sat = ale[i];
+        if (vazute.has(sat)) continue;          // un sat traversat și la dus, și la întors
+        vazute.add(sat);                        // contează o dată, cu prima lui poziție
+        frecv.set(sat, (frecv.get(sat) ?? 0) + 1);
+        if (!pozitii.has(sat)) pozitii.set(sat, []);
+        pozitii.get(sat).push(i);
+      }
+    }
     const sate = [...frecv.entries()]
       .filter(([, f]) => f / n >= PRAG_SAT)
-      .map(([nume, f]) => ({ nume, pondere: +(f / n).toFixed(2) }))
-      .sort((a, b) => b.pondere - a.pondere);
+      .map(([nume, f]) => ({ nume, pondere: +(f / n).toFixed(2), poz: median(pozitii.get(nume)) }))
+      .sort((a, b) => a.poz - b.poz || b.pondere - a.pondere)
+      .map(({ nume, pondere }) => ({ nume, pondere }));
 
     const kmuri = lista.map((c) => Number(c.km_real)).filter((x) => x > 0);
     const kmMed = median(kmuri);
@@ -170,9 +189,29 @@ async function recalculeazaEtalon() {
       observations: n, source: 'gps_trace', motiv_lipsa: motivLipsa,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'factory_route_id,shift_number,slot,sens' });
+
+    // Abaterea se scrie ÎNAPOI pe curse. Worker-ul de noapte nu poate: când scrie cursa,
+    // etalonul ei încă nu există — se naște abia din ea și din celelalte. Fără pasul ăsta
+    // `km_etalon` și `abatere_km` rămâneau NULL pe toate cele 2.829 de curse, iar pagina
+    // arăta «abatere medie: —» pe tot tabelul, adică funcția cerută de la bun început
+    // («să vedem devierile de la traseu») nu producea nimic.
+    // Sub pragul de observații NU se scrie o cifră: un etalon dintr-o singură cursă ar
+    // declara-o pe ea însăși «fără abatere», iar pe a doua «abatere mare».
+    if (WRITE && kmMed != null && n >= MIN_OBSERVATII) {
+      for (const c of lista) {
+        const km = Number(c.km_real);
+        if (!(km > 0)) continue;
+        await supa.from('lde_route_run')
+          .update({ km_etalon: kmMed, abatere_km: +(km - kmMed).toFixed(2) })
+          .eq('run_date', c.run_date).eq('factory_route_id', factory_route_id)
+          .eq('shift_number', +shift_number).eq('slot', +slot).eq('sens', sens);
+        abateri++;
+      }
+    }
     scrise++;
   }
   console.log(`etalon: ${scrise} combinații rută×schimb×slot×sens, din care ${insuficiente} sub pragul de ${MIN_OBSERVATII} curse`);
+  console.log(`abateri scrise pe curse: ${abateri}`);
   console.log(`curse citite: ${curse.length} (fereastră ${FEREASTRA_ZILE} zile, de la ${deLa})`);
 }
 

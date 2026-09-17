@@ -267,4 +267,4 @@ if (WRITE && !NO_LEARN) {
 }
 
 await tracker.end();
-console.log(`\nTOTAL: ${processed} mașini-zile | km ${totalKm.toFixed(0)} | opriri ${totalStops}${WRITE?` | tronsoane: ${legObs.size} noi (nume), ${coordRefreshed} actualizate (coord) | curse: ${curseScrise}${masiniEsuate?`, EȘUATE ${masiniEsuate} mașini`:''}`:''}`);
+console.log(`\nTOTAL: ${processed} mașini-zile | km ${totalKm.toFixed(0)} | opriri ${totalStops}${WRITE?` | tronsoane: ${NO_LEARN ? '0 (--no-learn)' : `${legObs.size} noi (nume), ${coordRefreshed} actualizate (coord)`} | curse: ${curseScrise}${masiniEsuate?`, EȘUATE ${masiniEsuate} mașini`:''}`:''}`);

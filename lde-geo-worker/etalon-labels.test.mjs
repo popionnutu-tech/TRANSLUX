@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import { computeDay, hav } from './km-core.mjs';
 import { buildPlacesIndex } from './places-index.mjs';
 import {
-  secvente, sateDeservite, treceriPorti, invataGranite, clasificaPlecare, kmInterval, segmenteZi,
+  secvente, sateDeservite, treceriPorti, invataGranite, imperecheazaTreceri,
+  stareApropiere, starePlecare, kmInterval, segmenteZi,
 } from './etalon-labels.mjs';
 
 const T0 = Date.UTC(2026, 8, 16, 0, 0, 0) - 3 * 3600000;   // 00:00 ora Chișinăului (UTC+3 vara)
@@ -86,31 +87,73 @@ test('uzina care și-a mutat programul: graniță respinsă cu „program_schimb
     'grupările separate se tratează fiecare; dacă se lipesc, bimodalitatea le respinge');
 });
 
+const trecere = (h, m = 0) => ({ tIn: at(h * 60 + m), tOut: at(h * 60 + m + 30) });
+
 test('plin/gol pe ceas: aceeași geometrie, verdicte diferite (cazul 041BRAU)', () => {
   // Draxelmaier: schimbul 1 începe 07:00, se termină 15:30
   const granite = [
     { minuteZi: 7 * 60, tip: 'inceput', shift_number: 1 },
     { minuteZi: 15 * 60 + 30, tip: 'sfarsit', shift_number: 1 },
   ];
-  const dimineata = clasificaPlecare(at(6 * 60 + 40), granite, 1);   // pleacă după ce a livrat
-  const dupaAmiaza = clasificaPlecare(at(15 * 60 + 40), granite, 2); // pleacă cu oamenii acasă
-  assert.equal(dimineata.stare, 'gol');
-  assert.equal(dupaAmiaza.stare, 'plin');
+  // atinge poarta la 06:20 (a adus schimbul) și la 15:10 (a venit să-l ia)
+  const p = imperecheazaTreceri([trecere(6, 20), trecere(15, 10)], granite, [1]);
+  assert.equal(p[0].rol, 'livrare');
+  assert.equal(p[1].rol, 'ridicare');
+  assert.equal(stareApropiere(p[0]).stare, 'plin', 'dimineața a adus oamenii');
+  assert.equal(starePlecare(p[0]).stare, 'gol', 'și pleacă goală de la poartă');
+  assert.equal(stareApropiere(p[1]).stare, 'gol', 'după-amiază vine goală după ei');
+  assert.equal(starePlecare(p[1]).stare, 'plin', 'și pleacă cu ei acasă');
 });
 
-test('graniță comună (15:30 = sfârșit 1 = început 2): ordinea atingerii decide', () => {
+test('graniță comună (15:30 = sfârșit 1 = început 2): rolurile nu se iau de două ori', () => {
   const granite = [
     { minuteZi: 15 * 60 + 30, tip: 'sfarsit', shift_number: 1 },
     { minuteZi: 15 * 60 + 30, tip: 'inceput', shift_number: 2 },
   ];
-  assert.equal(clasificaPlecare(at(15 * 60 + 35), granite, 1).stare, 'gol', 'prima atingere = livrare');
-  assert.equal(clasificaPlecare(at(15 * 60 + 35), granite, 2).stare, 'plin', 'a doua = ridicare');
-  assert.equal(clasificaPlecare(at(15 * 60 + 35), granite, null).stare, 'necunoscut', 'fără ordine → nu ghicim');
+  // două atingeri lângă aceeași graniță: 14:50 (aduce schimbul 2) și 15:25 (ia schimbul 1)
+  const p = imperecheazaTreceri([trecere(14, 50), trecere(15, 25)], granite, [1, 2]);
+  assert.equal(p[1].rol, 'ridicare', 'cea mai apropiată de graniță ia ridicarea');
+  assert.equal(p[1].shift_number, 1);
+  assert.equal(p[0].rol, 'livrare', 'cealaltă rămâne cu livrarea schimbului următor');
+  assert.equal(p[0].shift_number, 2);
+});
+
+test('a treia atingere nu e „schimbul 3" — numărătoarea poziției rata tocmai tiparul normal', () => {
+  // tiparul măsurat: 3 atingeri la 2 atribuiri. Draxelmaier, schimburile 1 și 2.
+  const granite = [
+    { minuteZi: 7 * 60, tip: 'inceput', shift_number: 1 },
+    { minuteZi: 15 * 60 + 30, tip: 'sfarsit', shift_number: 1 },
+    { minuteZi: 15 * 60 + 30, tip: 'inceput', shift_number: 2 },
+    { minuteZi: 0, tip: 'sfarsit', shift_number: 2 },
+  ];
+  const p = imperecheazaTreceri([trecere(6, 20), trecere(14, 55), trecere(15, 25)], granite, [1, 2]);
+  assert.deepEqual(p.map((x) => x && `${x.shift_number}${x.rol[0]}`), ['1l', '2l', '1r']);
+  assert.equal(stareApropiere(p[2]).stare, 'gol', 'a venit goală după schimbul 1');
+  assert.equal(starePlecare(p[2]).stare, 'plin', 'și îl duce acasă');
+});
+
+test('un schimb pe care mașina NU îl are atribuit nu poate fi ales', () => {
+  const granite = [
+    { minuteZi: 7 * 60, tip: 'inceput', shift_number: 1 },
+    { minuteZi: 6 * 60 + 30, tip: 'inceput', shift_number: 3 },
+  ];
+  const p = imperecheazaTreceri([trecere(6, 25)], granite, [1]);
+  assert.equal(p[0].shift_number, 1, 'chiar dacă granița schimbului 3 e mai aproape');
 });
 
 test('departe de orice graniță → necunoscut, nu o presupunere', () => {
   const granite = [{ minuteZi: 7 * 60, tip: 'inceput', shift_number: 1 }];
-  assert.equal(clasificaPlecare(at(11 * 60), granite, 1).stare, 'necunoscut');
+  const p = imperecheazaTreceri([trecere(11, 0)], granite, [1]);
+  assert.equal(p[0], null);
+  assert.equal(starePlecare(p[0]).stare, 'necunoscut');
+});
+
+test('toleranța e cea măsurată, nu 45 de minute', async () => {
+  const { TOLERANTA_SCHIMB_MIN } = await import('./etalon-labels.mjs');
+  assert.equal(TOLERANTA_SCHIMB_MIN, 75, 'p75 = 43 min, p90 = 87; la 45 rămâneau 22% necunoscute');
+  const granite = [{ minuteZi: 7 * 60, tip: 'inceput', shift_number: 1 }];
+  const p = imperecheazaTreceri([trecere(5, 50)], granite, [1]);   // 70 de minute înainte
+  assert.equal(p[0].rol, 'livrare');
 });
 
 test('km-ii unui interval sunt suma pașilor măsurați', () => {
@@ -136,21 +179,6 @@ test('granițele învățate cad pe orarul declarat, nu cu 3 ore mai devreme', (
   assert.ok(Math.abs(g[0].minuteZi - 6 * 60) <= 20, `graniță pe la 06:00, a ieșit ${g[0].minuteZi}`);
 });
 
-test('sosirea se judecă față de ÎNCEPUTUL turei, plecarea față de SFÂRȘIT', async () => {
-  const { clasificaSosire } = await import('./etalon-labels.mjs');
-  const granite = [
-    { minuteZi: 7 * 60, tip: 'inceput', shift_number: 1 },
-    { minuteZi: 15 * 60 + 30, tip: 'sfarsit', shift_number: 1 },
-  ];
-  // 06:40 local: ajunge înainte de începutul turei → a adus oamenii → dusul a fost PLIN
-  assert.equal(clasificaSosire(at(6 * 60 + 40), granite, 1).stare, 'plin');
-  // 15:10 local: ajunge înainte de sfârșitul turei → vine s-o ia → a venit GOALĂ
-  assert.equal(clasificaSosire(at(15 * 60 + 10), granite, 1).stare, 'gol');
-  // aceleași momente, dar pentru PLECARE, dau exact invers
-  assert.equal(clasificaPlecare(at(6 * 60 + 40), granite, 1).stare, 'gol');
-  assert.equal(clasificaPlecare(at(15 * 60 + 40), granite, 2).stare, 'plin');
-});
-
 test('segmentele ACOPERĂ ziua o singură dată — suma lor închide pe km-ii zilei', () => {
   // ziua clasică: acasă → poartă → înapoi spre sate → poartă → acasă
   const gates = [{ uzina_id: 'U', label: 'P', lat: 47.200, lon: 28.0, radius_km: 0.6 }];
@@ -165,7 +193,7 @@ test('segmentele ACOPERĂ ziua o singură dată — suma lor închide pe km-ii z
   const calc = computeDay(pts, { bridgeKm: (a, b) => ({ km: hav(a, b), src: 'straight_line' }), movingKmh: 5.6 });
   const tr = treceriPorti(pts, secvente(pts, calc), gates);
   assert.ok(tr.length >= 1, 'cel puțin o trecere');
-  const segs = segmenteZi(pts, calc, tr, [{ minuteZi: 7 * 60, tip: 'inceput', shift_number: 1 }]);
+  const segs = segmenteZi(pts, calc, tr, [{ minuteZi: 7 * 60, tip: 'inceput', shift_number: 1 }], [1]);
   const suma = segs.reduce((s, x) => s + x.km, 0);
   assert.ok(Math.abs(suma - calc.km) <= 0.5,
     `suma segmentelor (${suma.toFixed(1)}) trebuie să închidă pe km-ii zilei (${calc.km}) — nu de două ori`);

@@ -9,7 +9,7 @@
 // ============================================================================
 import { simplifica } from './geom-simplify.mjs';
 import {
-  secvente, treceriPorti, sateDeservite, segmenteZi, kmInterval, PRAG_SAT_KM,
+  secvente, treceriPorti, sateDeservite, segmenteZi, PRAG_SAT_KM,
 } from './etalon-labels.mjs';
 
 /**
@@ -80,9 +80,20 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
   const gts = ctx.porti.get(uz) ?? [];
   const granite = ctx.granitePeUz.get(uz) ?? [];
 
+  // Ziua se rescrie de la zero pentru mașina asta. Fără ștergere, o re-rulare după o
+  // corecție de segmentare lasă în urmă cursele pe care noul calcul NU le mai produce —
+  // și ele rămân în fereastra de 60 de zile a etalonului, cu km și abateri de la o logică
+  // care nu mai există. Ștergerea e pe (zi, mașină), cheie pe care worker-ul o DEȚINE.
+  // Cursele de noapte ale zilei de IERI nu sunt atinse: ele poartă run_date = ieri, iar
+  // rularea de azi le completează prin upsert, nu le rescrie.
+  await supa.from('lde_route_run').delete().eq('run_date', day).eq('vehicle_id', vehicle_id);
+
   const secv = secvente(r.pts, r.calc);
   const tr = treceriPorti(r.pts, secv, gts);
-  const segs = segmenteZi(r.pts, r.calc, tr, granite);
+  // schimburile pe care mașina chiar le are în ziua aia — împerecherea nu are voie să
+  // aleagă o graniță a unui schimb pe care nimeni nu i l-a dat
+  const shifturi = [...new Set(lista.map((a) => a.shift_number).filter((x) => x != null))];
+  const segs = segmenteZi(r.pts, r.calc, tr, granite, shifturi);
 
   // contribuția pe ziua GPS — cheia e (mașină, zi GPS), diferită de cheia cursei
   const contrib = { km_plin: 0, km_gol: 0, km_necunoscut: 0 };
@@ -112,29 +123,50 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
     return { curse: 0, motiv };
   }
 
-  // fiecare segment cu pasageri devine o cursă, legată de atribuirea din fereastra lui
+  // ── de la segmente la CURSE ────────────────────────────────────────────────
+  // O cursă are un sens și un singur drum cu pasageri. Ziua unui schimb are patru
+  // segmente, nu două, și ele se împerechează câte două:
+  //
+  //   tur   = apropierea PLINĂ (aduce oamenii) + plecarea GOALĂ de după ea
+  //   retur = apropierea GOALĂ (vine să-i ia)  + plecarea PLINĂ cu ei acasă
+  //
+  // Varianta dinainte scria fiecare segment ca pe o cursă separată, iar cheia cursei
+  // are un singur rând pe (zi, rută, schimb, slot, sens): segmentul gol se scria PESTE
+  // cel plin. De acolo veneau cele 545 de curse de „tur" marcate `gol` — nu era mașina
+  // care mergea goală spre uzină, era drumul plin suprascris de repoziționare. Se vedea
+  // și în numere: 366 de segmente scrise, 264 de rânduri rămase.
   let scrise = 0;
-  const declarate = new Set();
-  for (const a of lista) for (const s of ctx.sateRuta.get(a.factory_route_id) ?? []) declarate.add(s);
 
-  for (const s of segs) {
-    if (s.stare === 'necunoscut' || s.km < 1) continue;
-    const a = lista[Math.min(scrise, lista.length - 1)];
-    const sate = sateDeservite(r.pts, ctx.placesIdx, s.from, s.to, PRAG_SAT_KM);
-    const capete = capeteReale(r.stops ?? [], r.pts, s.from, s.to);
+  for (const a of lista) {
+    const aleSchimbului = lista.filter((x) => x.shift_number === a.shift_number);
+    // două rute ale aceleiași uzine, același schimb, aceeași mașină: nu se poate spune a
+    // cui e cursa. Se scrie `ambiguu` și NU intră în etalon.
+    const ambiguu = aleSchimbului.some((x) => x.factory_route_id !== a.factory_route_id);
     const ale = ctx.sateRuta.get(a.factory_route_id) ?? [];
-    const atinse = sate.filter((x) => ale.includes(norm(x)));
-    await supa.from('lde_route_run').upsert({
-      run_date: day, factory_route_id: a.factory_route_id, shift_number: a.shift_number,
-      slot: a.slot ?? 1, sens: s.tip === 'apropiere' ? 'tur' : 'retur', vehicle_id,
-      sate_atinse: sate, sate_lipsa: ale.filter((x) => !sate.map(norm).includes(x)),
-      sate_extra: sate.filter((x) => !ale.includes(norm(x))),
-      km_real: s.km, km_goi: s.stare === 'gol' ? s.km : 0,
-      prima_statie: capete.prima, ultima_statie: capete.ultima,
-      stare: s.stare, ambiguu: false, motiv: s.motiv,
-      geom: simplifica(r.pts, r.calc, s.from, s.to),
-    }, { onConflict: 'run_date,factory_route_id,shift_number,slot,sens' });
-    scrise++;
+    const alSchimbului = (tip, stare) =>
+      segs.find((x) => x.shift_number === a.shift_number && x.tip === tip && x.stare === stare && x.km >= 1);
+
+    for (const [sens, plin, gol] of [
+      ['tur', alSchimbului('apropiere', 'plin'), alSchimbului('plecare', 'gol')],
+      ['retur', alSchimbului('plecare', 'plin'), alSchimbului('apropiere', 'gol')],
+    ]) {
+      if (!plin) continue;                       // fără drumul cu pasageri nu există cursă
+      // returul îl face mașina de retur, când atribuirea o numește (verify.ts:213)
+      if (a.eRetur && sens === 'tur') continue;
+      const sate = sateDeservite(r.pts, ctx.placesIdx, plin.from, plin.to, PRAG_SAT_KM);
+      const capete = capeteReale(r.stops ?? [], r.pts, plin.from, plin.to);
+      await supa.from('lde_route_run').upsert({
+        run_date: day, factory_route_id: a.factory_route_id, shift_number: a.shift_number,
+        slot: a.slot ?? 1, sens, vehicle_id,
+        sate_atinse: sate, sate_lipsa: ale.filter((x) => !sate.map(norm).includes(x)),
+        sate_extra: sate.filter((x) => !ale.includes(norm(x))),
+        km_real: plin.km, km_goi: gol ? gol.km : 0,
+        prima_statie: capete.prima, ultima_statie: capete.ultima,
+        stare: 'plin', ambiguu, motiv: ambiguu ? 'porti_coincid' : null,
+        geom: simplifica(r.pts, r.calc, plin.from, plin.to),
+      }, { onConflict: 'run_date,factory_route_id,shift_number,slot,sens' });
+      scrise++;
+    }
   }
   return { curse: scrise, treceri: tr.length };
 }

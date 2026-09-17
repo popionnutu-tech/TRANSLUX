@@ -24,7 +24,13 @@ import { hav, acceptedRuns } from './km-core.mjs';
 
 export const PRAG_SAT_KM = 2.0;          // = LDE_GEO_VILLAGE_PROXIMITY_KM, regulă fermă
 export const DEBOUNCE_POARTA_MIN = 30;   // plecare→sosire; staționarea la poartă e 17-51 min
-export const TOLERANTA_SCHIMB_MIN = 45;  // cât de departe de graniță mai contează o plecare
+// Cât de departe de graniță mai contează o atingere de poartă. Nu ales din burtă:
+// măsurat pe 30 de zile, cele 5.623 de atingeri de poartă cad față de cea mai apropiată
+// graniță la 33 de minute (mediana), 43 (p75), 87 (p90). Pragul de 45 pe care îl aveam
+// tăia 22% din atingeri — ele nu ieșeau greșite, ieșeau `necunoscut`, iar km-ii lor nu se
+// adunau nicăieri. Cu 75 intră 88,6%, iar granițele reale sunt la ore distanță una de
+// alta, deci lărgirea nu poate confunda două schimburi.
+export const TOLERANTA_SCHIMB_MIN = 75;
 
 const minute = (a, b) => (b - a) / 60000;
 
@@ -135,27 +141,73 @@ export function invataGranite(plecari, { binMin = 30, pragN = 20 } = {}) {
 }
 
 /**
- * Plin sau gol, pe ceas (regula 3).
- * `granite` = [{ minuteZi, tip: 'sfarsit'|'inceput', shift_number }] — eticheta vine
- * din orarul declarat, valoarea poate fi învățată. Plecarea de la poartă lângă
- * SFÂRȘITUL schimbului = mașina duce oamenii acasă (plin); lângă ÎNCEPUT = tocmai i-a
- * livrat și pleacă goală.
- * Dezambiguizarea granițelor comune (sfârșitul lui 1 = începutul lui 2, unde sunt cele
- * mai multe curse): în interiorul ACELEIAȘI atribuiri, prima atingere e livrare
- * (plecare goală), a doua e ridicare (plecare plină).
+ * ÎMPERECHEREA atingerilor de poartă cu schimburile — de aici iese și plin/gol.
+ *
+ * O atingere de poartă are un singur rost: ori mașina a ADUS oamenii schimbului care
+ * începe (livrare), ori a venit să-i IA pe cei care termină (ridicare). Amândouă se
+ * recunosc pe ceas, față de granița schimbului, iar din rol urmează totul: segmentul
+ * dinainte de atingere e plin la livrare și gol la ridicare, cel de după — invers.
+ *
+ * De ce împerechere și nu „a k-a atingere = schimbul k": ordinea nu ține. Măsurat pe
+ * 01–16.09, tiparul NORMAL e 3 atingeri la 2 atribuiri (245 de cazuri), fiindcă o
+ * atribuire produce două atingeri la 8 ore distanță. Numărătoarea poziției dădea cursei
+ * a doua ruta schimbului următor, cu km reali și abatere fabricată.
+ *
+ * Fiecare rol se ia O SINGURĂ DATĂ: mașina nu livrează de două ori același schimb. De
+ * aceea potrivirea e lacomă, în ordinea apropierii de graniță — asta rezolvă și granița
+ * comună de la Draxelmaier (sfârșitul lui 1 = începutul lui 2 = 15:30), unde altfel
+ * ambele roluri sunt adevărate pe același ceas: atingerea mai apropiată de 15:30 ia
+ * ridicarea schimbului 1, cealaltă rămâne cu livrarea schimbului 2.
+ *
+ * @param treceri  [{ tIn, tOut, ... }] — atingerile, în ordine cronologică
+ * @param granite  [{ minuteZi, tip:'inceput'|'sfarsit', shift_number }]
+ * @param shifturi numerele schimburilor pe care mașina chiar le are atribuite în ziua aia
+ * @returns un element pe atingere: { shift_number, rol:'livrare'|'ridicare' } sau null
  */
-export function clasificaPlecare(tPlecare, granite, ordineInAtribuire, tol = TOLERANTA_SCHIMB_MIN) {
-  const m = minuteZiLocal(tPlecare);
-  const dist = (g) => { const x = Math.abs(m - g.minuteZi); return Math.min(x, 1440 - x); };
-  const aproape = granite.filter((g) => g.minuteZi != null && dist(g) <= tol);
-  if (!aproape.length) return { stare: 'necunoscut', motiv: 'nicio graniță aproape' };
+export function imperecheazaTreceri(treceri, granite, shifturi, tol = TOLERANTA_SCHIMB_MIN) {
+  const cand = [];
+  for (const sh of new Set(shifturi ?? []))
+    for (const [rol, tip] of [['livrare', 'inceput'], ['ridicare', 'sfarsit']]) {
+      const g = granite.find((x) => x.shift_number === sh && x.tip === tip && x.minuteZi != null);
+      if (g) cand.push({ shift_number: sh, rol, minuteZi: g.minuteZi });
+    }
+  const perechi = new Array(treceri.length).fill(null);
+  if (!cand.length) return perechi;
 
-  const tipuri = new Set(aproape.map((g) => g.tip));
-  if (tipuri.size === 1) return { stare: tipuri.has('sfarsit') ? 'plin' : 'gol', motiv: null };
-  // graniță comună → ordinea în atribuire decide
-  if (ordineInAtribuire === 1) return { stare: 'gol', motiv: 'graniță comună, prima atingere = livrare' };
-  if (ordineInAtribuire === 2) return { stare: 'plin', motiv: 'graniță comună, a doua atingere = ridicare' };
-  return { stare: 'necunoscut', motiv: 'graniță comună, ordinea atingerii necunoscută' };
+  const dist = (a, b) => { const x = Math.abs(a - b); return Math.min(x, 1440 - x); };
+  const optiuni = [];
+  treceri.forEach((t, i) => {
+    // Se măsoară pe momentul în care mașina a ATINS poarta, nu pe plecare: staționarea
+    // la poartă e între 17 și 51 de minute și diferă de la o uzină la alta (migr. 359).
+    const m = minuteZiLocal(t.tIn);
+    for (const c of cand) optiuni.push({ i, c, d: dist(m, c.minuteZi) });
+  });
+  optiuni.sort((a, b) => a.d - b.d || a.i - b.i);
+  const luate = new Set();
+  for (const o of optiuni) {
+    if (o.d > tol) break;
+    const cheie = `${o.c.shift_number}|${o.c.rol}`;
+    if (perechi[o.i] || luate.has(cheie)) continue;
+    perechi[o.i] = { ...o.c, abatere_min: o.d };
+    luate.add(cheie);
+  }
+  return perechi;
+}
+
+/** Ce e segmentul dinaintea unei atingeri: a adus oamenii sau a venit gol după ei? */
+export function stareApropiere(pereche) {
+  if (!pereche) return { stare: 'necunoscut', motiv: 'nicio graniță aproape', shift_number: null };
+  return pereche.rol === 'livrare'
+    ? { stare: 'plin', motiv: null, shift_number: pereche.shift_number }
+    : { stare: 'gol', motiv: 'vine să ia schimbul', shift_number: pereche.shift_number };
+}
+
+/** Și oglinda lui: ce e segmentul de DUPĂ atingere. */
+export function starePlecare(pereche) {
+  if (!pereche) return { stare: 'necunoscut', motiv: 'nicio graniță aproape', shift_number: null };
+  return pereche.rol === 'ridicare'
+    ? { stare: 'plin', motiv: null, shift_number: pereche.shift_number }
+    : { stare: 'gol', motiv: 'tocmai a livrat schimbul', shift_number: pereche.shift_number };
 }
 
 /** Km-ii unui interval, din pașii deja calculați — măsurați, nu reconstruiți din mediane. */
@@ -166,36 +218,12 @@ export function kmInterval(stepKm, from, to) {
 }
 
 /**
- * Oglinda lui `clasificaPlecare`, pentru segmentul de APROPIERE de poartă.
- *
- * Modelul, scris o dată ca să nu se mai încurce: o vizită la poartă are două capete.
- *  · SOSIREA — se judecă față de ÎNCEPUTUL schimbului: dacă mașina ajunge la poartă
- *    înainte să înceapă tura, a adus oamenii → drumul până acolo a fost PLIN.
- *    Dacă ajunge înainte de SFÂRȘITUL turei, a venit s-o ia → a venit GOALĂ.
- *  · PLECAREA — invers: lângă sfârșitul turei duce oamenii acasă (plin), lângă
- *    început tocmai i-a livrat și pleacă goală. (vezi clasificaPlecare)
- *
- * Fără perechea asta, segmentul de dus se judeca după ora la care mașina PLECA de
- * acasă — adică nicăieri lângă o graniță — și ieșea 'necunoscut' sau, mai rău, 'gol'.
- */
-export function clasificaSosire(tSosire, granite, ordineInAtribuire, tol = TOLERANTA_SCHIMB_MIN) {
-  const m = minuteZiLocal(tSosire);
-  const dist = (g) => { const x = Math.abs(m - g.minuteZi); return Math.min(x, 1440 - x); };
-  const aproape = granite.filter((g) => g.minuteZi != null && dist(g) <= tol);
-  if (!aproape.length) return { stare: 'necunoscut', motiv: 'nicio graniță aproape' };
-  const tipuri = new Set(aproape.map((g) => g.tip));
-  if (tipuri.size === 1) return { stare: tipuri.has('inceput') ? 'plin' : 'gol', motiv: null };
-  if (ordineInAtribuire === 1) return { stare: 'plin', motiv: 'graniță comună, prima sosire = aduce tura' };
-  if (ordineInAtribuire === 2) return { stare: 'gol', motiv: 'graniță comună, a doua sosire = vine s-o ia' };
-  return { stare: 'necunoscut', motiv: 'graniță comună, ordinea sosirii necunoscută' };
-}
-
-/**
  * Segmentele unei mașini-zi, cu starea fiecăruia. Asta e funcția pe care o cheamă
  * worker-ul; celelalte sunt cărămizile ei.
- * @returns [{ tip:'apropiere'|'plecare', from, to, km, stare, uzina_id, gate }]
+ * @returns [{ tip:'apropiere'|'plecare', from, to, km, stare, shift_number, uzina_id, gate }]
  */
-export function segmenteZi(pts, calc, treceri, granite) {
+export function segmenteZi(pts, calc, treceri, granite, shifturi = []) {
+  const perechi = imperecheazaTreceri(treceri, granite, shifturi);
   const out = [];
   if (!treceri.length) {
     out.push({ tip: 'apropiere', from: 0, to: pts.length - 1, km: kmInterval(calc.stepKm, 0, pts.length - 1), stare: 'necunoscut', motiv: 'nicio trecere prin poartă' });
@@ -204,7 +232,7 @@ export function segmenteZi(pts, calc, treceri, granite) {
   // ── de la începutul zilei până la prima poartă: apropiere ──
   out.push({
     tip: 'apropiere', from: 0, to: treceri[0].iIn, uzina_id: treceri[0].uzina_id, gate: treceri[0].gate,
-    km: kmInterval(calc.stepKm, 0, treceri[0].iIn), ...clasificaSosire(treceri[0].tIn, granite, 1),
+    km: kmInterval(calc.stepKm, 0, treceri[0].iIn), ...stareApropiere(perechi[0]),
   });
 
   treceri.forEach((t, k) => {
@@ -215,7 +243,7 @@ export function segmenteZi(pts, calc, treceri, granite) {
       // coada zilei: mașina pleacă de la poartă și se duce acasă
       out.push({
         tip: 'plecare', from: t.iOut, to: pana, uzina_id: t.uzina_id, gate: t.gate,
-        km: kmInterval(calc.stepKm, t.iOut, pana), ...clasificaPlecare(t.tOut, granite, k + 1),
+        km: kmInterval(calc.stepKm, t.iOut, pana), ...starePlecare(perechi[k]),
       });
       return;
     }
@@ -228,11 +256,11 @@ export function segmenteZi(pts, calc, treceri, granite) {
     for (let i = t.iOut; i <= pana; i++) { const d = hav(pts[i], poarta); if (d > vd) { vd = d; vf = i; } }
     out.push({
       tip: 'plecare', from: t.iOut, to: vf, uzina_id: t.uzina_id, gate: t.gate,
-      km: kmInterval(calc.stepKm, t.iOut, vf), ...clasificaPlecare(t.tOut, granite, k + 1),
+      km: kmInterval(calc.stepKm, t.iOut, vf), ...starePlecare(perechi[k]),
     });
     out.push({
       tip: 'apropiere', from: vf, to: pana, uzina_id: urm.uzina_id, gate: urm.gate,
-      km: kmInterval(calc.stepKm, vf, pana), ...clasificaSosire(urm.tIn, granite, k + 2),
+      km: kmInterval(calc.stepKm, vf, pana), ...stareApropiere(perechi[k + 1]),
     });
   });
   return out;

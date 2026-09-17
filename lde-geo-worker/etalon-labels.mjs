@@ -181,7 +181,7 @@ export function invataGranite(plecari, minuteDeclarat, { fereastraMin = 90, binM
  * @param shifturi numerele schimburilor pe care mașina chiar le are atribuite în ziua aia
  * @returns un element pe atingere: { shift_number, rol:'livrare'|'ridicare' } sau null
  */
-export function imperecheazaTreceri(treceri, granite, shifturi, tol = TOLERANTA_SCHIMB_MIN) {
+export function imperecheazaTreceri(treceri, granite, shifturi, tol = TOLERANTA_SCHIMB_MIN, capacitate = null) {
   const cand = [];
   for (const sh of new Set(shifturi ?? []))
     for (const [rol, tip] of [['livrare', 'inceput'], ['ridicare', 'sfarsit']]) {
@@ -197,11 +197,18 @@ export function imperecheazaTreceri(treceri, granite, shifturi, tol = TOLERANTA_
   // minute și diferă de la o uzină la alta (migr. 359) — cu un singur moment pentru
   // amândouă, uzina cu staționare lungă ieșea mereu la limita toleranței.
   const cand_d = (t, c) => dist(minuteZiLocal(c.rol === 'livrare' ? t.tIn : t.tOut), c.minuteZi);
-  const luate = new Set();
+  // Câte curse poate face mașina pe un (schimb, rol). Implicit una — dar o mașină poate
+  // avea DOUĂ rute în același schimb (22 din 169 de perechi mașină×schimb pe 16.09), și
+  // atunci face două livrări și două ridicări. Cu o singură capacitate, a doua cursă
+  // rămânea fără rol, iar km-ii ei se duceau la „necunoscut".
+  const folosite = new Map();
+  const capac = (c) => capacitate?.get(String(c.shift_number)) ?? 1;
+  const plin = (c) => (folosite.get(`${c.shift_number}|${c.rol}`) ?? 0) >= capac(c);
   const pune = (i, c) => {
-    if (perechi[i][c.rol]) return false;
+    if (perechi[i][c.rol] || plin(c)) return false;
     perechi[i][c.rol] = { ...c, abatere_min: cand_d(treceri[i], c) };
-    luate.add(`${c.shift_number}|${c.rol}`);
+    const k = `${c.shift_number}|${c.rol}`;
+    folosite.set(k, (folosite.get(k) ?? 0) + 1);
     return true;
   };
 
@@ -227,21 +234,24 @@ export function imperecheazaTreceri(treceri, granite, shifturi, tol = TOLERANTA_
       .sort((a, b) => a.t.tIn - b.t.tIn);
     if (!inFereastra.length) continue;
     if (inFereastra.length === 1) { pune(inFereastra[0].i, liv); pune(inFereastra[0].i, rid); }
-    else { pune(inFereastra[0].i, liv); pune(inFereastra[inFereastra.length - 1].i, rid); }
+    else {
+      // cele mai devreme atingeri livrează, cele mai târzii ridică — câte una de fiecare
+      // parte pentru fiecare cursă pe care mașina o are în schimbul ăla
+      const n = Math.min(capac(liv), Math.floor(inFereastra.length / 2)) || 1;
+      for (let k = 0; k < n; k++) pune(inFereastra[k].i, liv);
+      for (let k = 0; k < n; k++) pune(inFereastra[inFereastra.length - 1 - k].i, rid);
+    }
   }
 
   // ── restul: cea mai apropiată atingere ia rolul, fiecare rol o singură dată ──
   const optiuni = [];
   treceri.forEach((t, i) => {
-    for (const c of cand) {
-      if (luate.has(`${c.shift_number}|${c.rol}`)) continue;
-      optiuni.push({ i, c, d: cand_d(t, c) });
-    }
+    for (const c of cand) optiuni.push({ i, c, d: cand_d(t, c) });
   });
   optiuni.sort((a, b) => a.d - b.d || a.i - b.i);
   for (const o of optiuni) {
     if (o.d > tol) break;
-    if (luate.has(`${o.c.shift_number}|${o.c.rol}`)) continue;
+    if (plin(o.c)) continue;
     // o atingere ia un al doilea rol doar dacă nu-l poate lua o atingere încă nefolosită
     const areDejaAltRol = perechi[o.i].livrare || perechi[o.i].ridicare;
     if (areDejaAltRol && optiuni.some((x) => x.c === o.c && x.d <= tol
@@ -327,8 +337,7 @@ export function kmInterval(stepKm, from, to) {
  * worker-ul; celelalte sunt cărămizile ei.
  * @returns [{ tip:'apropiere'|'plecare', from, to, km, stare, shift_number, uzina_id, gate }]
  */
-export function segmenteZi(pts, calc, treceri, granite, shifturi = []) {
-  const perechi = imperecheazaTreceri(treceri, granite, shifturi);
+export function segmenteZi(pts, calc, treceri, perechi) {
   const out = [];
   if (!treceri.length) {
     out.push({ tip: 'apropiere', from: 0, to: pts.length - 1, km: kmInterval(calc.stepKm, 0, pts.length - 1), stare: 'necunoscut', motiv: 'nicio trecere prin poartă' });

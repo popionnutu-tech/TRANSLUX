@@ -9,7 +9,8 @@
 // ============================================================================
 import { simplifica } from './geom-simplify.mjs';
 import {
-  secvente, treceriPorti, sateDeservite, segmenteZi, opririScurte, PRAG_SAT_KM,
+  secvente, treceriPorti, sateDeservite, segmenteZi, imperecheazaTreceri,
+  opririScurte, PRAG_SAT_KM,
 } from './etalon-labels.mjs';
 
 /**
@@ -50,7 +51,7 @@ export async function incarcaContext(supa, day) {
     // propriile lui ghiciri.
     supa.from('lde_route_etalon').select('factory_route_id,sate,observations').gte('observations', 5),
   ]);
-  const porti = new Map(), granitePeUz = new Map(), sateRuta = new Map();
+  const porti = new Map(), granitePeUz = new Map(), sateRuta = new Map(), uzinaRutei = new Map();
   for (const g of gates ?? []) {
     if (!porti.has(g.uzina_id)) porti.set(g.uzina_id, []);
     porti.get(g.uzina_id).push({ ...g, lat: +g.lat, lon: +g.lon });
@@ -61,6 +62,7 @@ export async function incarcaContext(supa, day) {
     // asta toate cursele ieșeau 'necunoscut', km_plin 0, km_gol 0.
     granitePeUz.get(b.uzina_id).push({ minuteZi: b.minute_zi, tip: b.tip, shift_number: b.shift_number });
   }
+  for (const r of rute ?? []) uzinaRutei.set(r.id, r.uzina_id);
   for (const r of rute ?? []) sateRuta.set(r.id, (r.stops_in_order || '').replace(/->/g, '→').split('→').map((s) => norm(s)).filter(Boolean));
   const sateEtalon = new Map();
   for (const e of etaloane ?? []) {
@@ -79,7 +81,7 @@ export async function incarcaContext(supa, day) {
       peMasina.get(vid).push({ ...a, eRetur: vid === a.vehicle_id_retur && vid !== a.vehicle_id });
     }
   }
-  return { porti, peMasina, granitePeUz, sateRuta, sateEtalon };
+  return { porti, peMasina, granitePeUz, sateRuta, sateEtalon, uzinaRutei };
 }
 
 /**
@@ -91,9 +93,14 @@ export async function incarcaContext(supa, day) {
 export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
   const lista = ctx.peMasina.get(vehicle_id) ?? [];
   if (!lista.length || !r.pts || r.pts.length < 2) return { curse: 0 };
-  const uz = lista[0].direction;
-  const gts = ctx.porti.get(uz) ?? [];
-  const granite = ctx.granitePeUz.get(uz) ?? [];
+  // UZINELE mașinii, nu prima dintre ele. Ion, 17.09: «schimburile nu pot fi interzise,
+  // ele sunt planificate de client; dacă vorbim de Draxelmaier, el are 2 uzine». Măsurat:
+  // 29 de mașini-zile din 16 au atribuiri la DOUĂ uzine, iar codul lua porțile doar de la
+  // prima — deci la cealaltă nu vedea nicio trecere și toată ziua ieșea „necunoscut".
+  // 9.651 km din 13.089 se pierdeau exact așa (74%). Cazul găsit: 283BRAT pe 16.09, cu
+  // Ungheni #3 prima în listă și Orhei #15 lucrată efectiv — 586 km, toți necunoscuți.
+  const uzine = [...new Set(lista.map((a) => ctx.uzinaRutei.get(a.factory_route_id) ?? a.direction).filter(Boolean))];
+  const gts = uzine.flatMap((u) => ctx.porti.get(u) ?? []);
 
   // Ziua se rescrie de la zero pentru mașina asta. Fără ștergere, o re-rulare după o
   // corecție de segmentare lasă în urmă cursele pe care noul calcul NU le mai produce —
@@ -105,10 +112,25 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
 
   const secv = secvente(r.pts, r.calc);
   const tr = treceriPorti(r.pts, secv, gts);
-  // schimburile pe care mașina chiar le are în ziua aia — împerecherea nu are voie să
-  // aleagă o graniță a unui schimb pe care nimeni nu i l-a dat
-  const shifturi = [...new Set(lista.map((a) => a.shift_number).filter((x) => x != null))];
-  const segs = segmenteZi(r.pts, r.calc, tr, granite, shifturi);
+
+  // Împerecherea se face PE FIECARE UZINĂ: fiecare poartă are orarul ei, iar o atingere
+  // la Orhei nu poate primi rolul unui schimb de la Ungheni. Capacitatea unui (schimb,
+  // rol) = câte rute are mașina în schimbul ăla la uzina aia — o mașină cu două rute în
+  // același schimb face două livrări și două ridicări.
+  const perechi = tr.map(() => ({ livrare: null, ridicare: null }));
+  for (const u of uzine) {
+    const indici = tr.map((t, i) => ({ t, i })).filter((x) => x.t.uzina_id === u);
+    if (!indici.length) continue;
+    const aleUzinei = lista.filter((a) => (ctx.uzinaRutei.get(a.factory_route_id) ?? a.direction) === u);
+    const shifturi = [...new Set(aleUzinei.map((a) => a.shift_number).filter((x) => x != null))];
+    const capacitate = new Map();
+    for (const sh of shifturi)
+      capacitate.set(String(sh), new Set(aleUzinei.filter((a) => a.shift_number === sh)
+        .map((a) => a.factory_route_id)).size);
+    const p = imperecheazaTreceri(indici.map((x) => x.t), ctx.granitePeUz.get(u) ?? [], shifturi, undefined, capacitate);
+    indici.forEach((x, k) => { perechi[x.i] = p[k]; });
+  }
+  const segs = segmenteZi(r.pts, r.calc, tr, perechi);
 
   // contribuția pe ziua GPS — cheia e (mașină, zi GPS), diferită de cheia cursei
   const contrib = { km_plin: 0, km_gol: 0, km_necunoscut: 0 };

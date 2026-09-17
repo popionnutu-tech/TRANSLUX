@@ -189,6 +189,20 @@ test('opririle scurte se vad: urcarea din sat tine 40 s, nu 90', async () => {
   assert.equal(opririScurte(pts, 0, pts.length - 1, { exclude: [{ lat: 47.05, lon: 28.0, raza: 1.0 }] }), 0);
 });
 
+test('doua rute in acelasi schimb: amandoua primesc rol, nu doar prima', () => {
+  const granite = [
+    { minuteZi: 6 * 60, tip: 'inceput', shift_number: 1 },
+    { minuteZi: 14 * 60 + 30, tip: 'sfarsit', shift_number: 1 },
+  ];
+  const treceri = [trecere(5, 20), trecere(6, 10), trecere(14, 0), trecere(14, 50)];
+  const fara = imperecheazaTreceri(treceri, granite, [1]);
+  assert.equal(fara.filter((p) => p.livrare || p.ridicare).length, 2, 'cu o singura capacitate, doua atingeri raman fara rol');
+  const cu = imperecheazaTreceri(treceri, granite, [1], undefined, new Map([['1', 2]]));
+  assert.equal(cu.filter((p) => p.livrare || p.ridicare).length, 4, 'cu doua curse in schimb, toate patru primesc rol');
+  assert.equal(cu.filter((p) => p.livrare).length, 2);
+  assert.equal(cu.filter((p) => p.ridicare).length, 2);
+});
+
 test('km-ii unui interval sunt suma pașilor măsurați', () => {
   const stepKm = [0, 1.5, 2.5, 3.0];
   assert.equal(kmInterval(stepKm, 0, 3), 7);
@@ -225,7 +239,8 @@ test('segmentele ACOPERĂ ziua o singură dată — suma lor închide pe km-ii z
   const calc = computeDay(pts, { bridgeKm: (a, b) => ({ km: hav(a, b), src: 'straight_line' }), movingKmh: 5.6 });
   const tr = treceriPorti(pts, secvente(pts, calc), gates);
   assert.ok(tr.length >= 1, 'cel puțin o trecere');
-  const segs = segmenteZi(pts, calc, tr, [{ minuteZi: 7 * 60, tip: 'inceput', shift_number: 1 }], [1]);
+  const perechi = imperecheazaTreceri(tr, [{ minuteZi: 7 * 60, tip: 'inceput', shift_number: 1 }], [1]);
+  const segs = segmenteZi(pts, calc, tr, perechi);
   const suma = segs.reduce((s, x) => s + x.km, 0);
   assert.ok(Math.abs(suma - calc.km) <= 0.5,
     `suma segmentelor (${suma.toFixed(1)}) trebuie să închidă pe km-ii zilei (${calc.km}) — nu de două ori`);

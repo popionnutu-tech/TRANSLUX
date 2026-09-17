@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { TraseuRand, ImpacareZi } from './actions';
+import type { TraseuRand, ImpacareZi, PropuneriRezultat } from './actions';
 
 const NUME_UZINE: Record<string, string> = {
   DRAXELMAIER_BALTI: 'Draxelmaier Bălți',
@@ -12,7 +12,7 @@ const NUME_UZINE: Record<string, string> = {
   SEBN_STRASENI: 'SEBN Strășeni',
 };
 
-export default function TraseeClient({ trasee, impacare }: { trasee: TraseuRand[]; impacare: ImpacareZi[] }) {
+export default function TraseeClient({ trasee, impacare, propuneri }: { trasee: TraseuRand[]; impacare: ImpacareZi[]; propuneri: PropuneriRezultat }) {
   const [uzina, setUzina] = useState<string>('toate');
   const uzine = useMemo(() => [...new Set(trasee.map((t) => t.uzina_id))].sort(), [trasee]);
   const randuri = useMemo(
@@ -77,6 +77,49 @@ export default function TraseeClient({ trasee, impacare }: { trasee: TraseuRand[
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* ── propunerile: sugestii, nu schimbări. Omul decide. ── */}
+      <div className="card p-4">
+        <h2 className="font-medium mb-1">Schimburi de rute care ar micșora km-ii goi</h2>
+        <p className="text-xs text-gray-500 mb-3">
+          Sugestii, nimic nu se schimbă automat. Costul unei perechi = km-ii goi de acasă până la
+          prima stație a rutei și înapoi. Perechile unde nu se poate calcula distanța ies din listă —
+          nu primesc o cifră inventată. Locul de noapte al mașinii e luat ca „acasă" și se ia din
+          mediana a cel puțin trei nopți.
+        </p>
+        {propuneri.economie_km_zi > 0 ? (
+          <p className="text-sm mb-3">
+            Dacă s-ar face toate schimburile de mai jos:{' '}
+            <strong>−{propuneri.economie_km_zi.toLocaleString('ro-RO')} km/zi</strong>
+            {' '}(~{Math.round(propuneri.economie_km_zi * 30).toLocaleString('ro-RO')} km/lună).
+          </p>
+        ) : (
+          <p className="text-sm mb-3 text-gray-600">Niciun schimb care să merite deranjul.</p>
+        )}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead><tr className="text-left border-b">
+              <th className="py-1">Șofer</th><th>De pe</th><th>Pe</th>
+              <th>Șofer</th><th>De pe</th><th>Pe</th><th className="text-right">Economie</th>
+            </tr></thead>
+            <tbody>
+              {propuneri.propuneri.map((p, i) => (
+                <tr key={i} className="border-b last:border-0">
+                  <td className="py-1">{p.a.nume}</td><td className="text-gray-500">{p.a.de_pe}</td><td>{p.a.pe}</td>
+                  <td>{p.b.nume}</td><td className="text-gray-500">{p.b.de_pe}</td><td>{p.b.pe}</td>
+                  <td className="text-right font-medium">−{p.economie_km_zi} km/zi</td>
+                </tr>
+              ))}
+              {!propuneri.propuneri.length && <tr><td colSpan={7} className="py-3 text-gray-500">Nimic de propus încă.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+        <p className="text-xs text-gray-500 mt-2">
+          {propuneri.soferi_analizati} șoferi analizați
+          {propuneri.fara_baza > 0 && <> · {propuneri.fara_baza} fără loc de noapte cunoscut</>}
+          {propuneri.rute_fara_etalon > 0 && <> · {propuneri.rute_fara_etalon} rute fără etalon încă</>}
+        </p>
       </div>
 
       <div className="flex gap-2 items-center">

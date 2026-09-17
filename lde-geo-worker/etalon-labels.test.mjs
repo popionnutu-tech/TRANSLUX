@@ -5,10 +5,10 @@ import assert from 'node:assert/strict';
 import { computeDay, hav } from './km-core.mjs';
 import { buildPlacesIndex } from './places-index.mjs';
 import {
-  secvente, sateDeservite, treceriPorti, invataGranite, clasificaPlecare, kmInterval,
+  secvente, sateDeservite, treceriPorti, invataGranite, clasificaPlecare, kmInterval, segmenteZi,
 } from './etalon-labels.mjs';
 
-const T0 = Date.UTC(2026, 8, 16, 0, 0, 0);
+const T0 = Date.UTC(2026, 8, 16, 0, 0, 0) - 3 * 3600000;   // 00:00 ora Chișinăului (UTC+3 vara)
 const at = (min) => new Date(T0 + min * 60000);
 const drum = (lat0, lon0, lat1, lon1, n, minStart, pasMin, sp = 40) => {
   const out = [];
@@ -117,4 +117,59 @@ test('km-ii unui interval sunt suma pașilor măsurați', () => {
   const stepKm = [0, 1.5, 2.5, 3.0];
   assert.equal(kmInterval(stepKm, 0, 3), 7);
   assert.equal(kmInterval(stepKm, 1, 2), 2.5, 'pasul de intrare nu se numără de două ori');
+});
+
+test('ora se citește în fusul Chișinăului, nu UTC (bugul prins la proba 2)', async () => {
+  const { minuteZiLocal } = await import('./etalon-labels.mjs');
+  // 06:00 ora Chișinăului vara = 03:00 UTC
+  assert.equal(minuteZiLocal(new Date(Date.UTC(2026, 8, 16, 3, 0))), 6 * 60);
+  // iarna e UTC+2: 06:00 local = 04:00 UTC
+  assert.equal(minuteZiLocal(new Date(Date.UTC(2026, 11, 16, 4, 0))), 6 * 60);
+});
+
+test('granițele învățate cad pe orarul declarat, nu cu 3 ore mai devreme', () => {
+  // plecări la 06:05 ora Chișinăului, vara (= 03:05 UTC)
+  const plecari = [];
+  for (let i = 0; i < 30; i++) plecari.push(new Date(Date.UTC(2026, 8, 14 + (i % 5), 3, 5)));
+  const g = invataGranite(plecari).filter((x) => x.minuteZi != null);
+  assert.equal(g.length, 1);
+  assert.ok(Math.abs(g[0].minuteZi - 6 * 60) <= 20, `graniță pe la 06:00, a ieșit ${g[0].minuteZi}`);
+});
+
+test('sosirea se judecă față de ÎNCEPUTUL turei, plecarea față de SFÂRȘIT', async () => {
+  const { clasificaSosire } = await import('./etalon-labels.mjs');
+  const granite = [
+    { minuteZi: 7 * 60, tip: 'inceput', shift_number: 1 },
+    { minuteZi: 15 * 60 + 30, tip: 'sfarsit', shift_number: 1 },
+  ];
+  // 06:40 local: ajunge înainte de începutul turei → a adus oamenii → dusul a fost PLIN
+  assert.equal(clasificaSosire(at(6 * 60 + 40), granite, 1).stare, 'plin');
+  // 15:10 local: ajunge înainte de sfârșitul turei → vine s-o ia → a venit GOALĂ
+  assert.equal(clasificaSosire(at(15 * 60 + 10), granite, 1).stare, 'gol');
+  // aceleași momente, dar pentru PLECARE, dau exact invers
+  assert.equal(clasificaPlecare(at(6 * 60 + 40), granite, 1).stare, 'gol');
+  assert.equal(clasificaPlecare(at(15 * 60 + 40), granite, 2).stare, 'plin');
+});
+
+test('segmentele ACOPERĂ ziua o singură dată — suma lor închide pe km-ii zilei', () => {
+  // ziua clasică: acasă → poartă → înapoi spre sate → poartă → acasă
+  const gates = [{ uzina_id: 'U', label: 'P', lat: 47.200, lon: 28.0, radius_km: 0.6 }];
+  const pts = [
+    ...drum(47.000, 28.0, 47.200, 28.0, 30, 5 * 60, 2),        // dus spre poartă
+    ...drum(47.2001, 28.0, 47.2002, 28.0, 3, 6 * 60 + 5, 2, 0),// la poartă
+    ...drum(47.200, 28.0, 47.050, 28.0, 25, 6 * 60 + 15, 2),   // iese spre sate
+    ...drum(47.050, 28.0, 47.200, 28.0, 25, 7 * 60 + 10, 2),   // se întoarce
+    ...drum(47.2001, 28.0, 47.2002, 28.0, 3, 8 * 60, 2, 0),    // iar la poartă
+    ...drum(47.200, 28.0, 47.000, 28.0, 30, 8 * 60 + 10, 2),   // acasă
+  ];
+  const calc = computeDay(pts, { bridgeKm: (a, b) => ({ km: hav(a, b), src: 'straight_line' }), movingKmh: 5.6 });
+  const tr = treceriPorti(pts, secvente(pts, calc), gates);
+  assert.ok(tr.length >= 1, 'cel puțin o trecere');
+  const segs = segmenteZi(pts, calc, tr, [{ minuteZi: 7 * 60, tip: 'inceput', shift_number: 1 }]);
+  const suma = segs.reduce((s, x) => s + x.km, 0);
+  assert.ok(Math.abs(suma - calc.km) <= 0.5,
+    `suma segmentelor (${suma.toFixed(1)}) trebuie să închidă pe km-ii zilei (${calc.km}) — nu de două ori`);
+  // niciun interval nu se suprapune cu următorul
+  for (let i = 1; i < segs.length; i++)
+    assert.ok(segs[i].from >= segs[i - 1].to, `segmentul ${i} începe înainte să se termine ${i - 1}`);
 });

@@ -28,6 +28,20 @@ export const TOLERANTA_SCHIMB_MIN = 45;  // cât de departe de graniță mai con
 
 const minute = (a, b) => (b - a) / 60000;
 
+// Orarele uzinelor sunt în ora LOCALĂ (Europe/Chisinau), iar timestamp-urile din tracker
+// sunt UTC. Fără conversie, granițele învățate ies cu 3 ore mai devreme decât cele
+// declarate — exact ce a arătat proba din 17.09: Ungheni 02:45/11:45/20:15 în loc de
+// 06:00/14:30/23:00, iar aproape toate cursele ieșeau 'necunoscut'.
+// Intl, nu un offset fix: la sfârșitul lui octombrie se schimbă ora.
+const FUS = 'Europe/Chisinau';
+const fmt = new Intl.DateTimeFormat('ro-RO', { timeZone: FUS, hour: '2-digit', minute: '2-digit', hour12: false });
+export function minuteZiLocal(t) {
+  const p = fmt.formatToParts(new Date(t));
+  const h = +p.find((x) => x.type === 'hour').value;
+  const m = +p.find((x) => x.type === 'minute').value;
+  return h * 60 + m;
+}
+
 /** Secvențele de puncte pe care avem voie să lucrăm (regula 1). */
 export function secvente(pts, calc) {
   return acceptedRuns(pts.length, calc.stepAccepted, calc.stepCut);
@@ -91,8 +105,7 @@ export function treceriPorti(pts, secv, gates, debounceMin = DEBOUNCE_POARTA_MIN
 export function invataGranite(plecari, { binMin = 30, pragN = 20 } = {}) {
   const binuri = new Map();
   for (const t of plecari) {
-    const d = new Date(t);
-    const b = Math.floor((d.getUTCHours() * 60 + d.getUTCMinutes()) / binMin);
+    const b = Math.floor(minuteZiLocal(t) / binMin);
     binuri.set(b, (binuri.get(b) ?? 0) + 1);
   }
   const chei = [...binuri.keys()].sort((a, b) => a - b);
@@ -132,8 +145,7 @@ export function invataGranite(plecari, { binMin = 30, pragN = 20 } = {}) {
  * (plecare goală), a doua e ridicare (plecare plină).
  */
 export function clasificaPlecare(tPlecare, granite, ordineInAtribuire, tol = TOLERANTA_SCHIMB_MIN) {
-  const d = new Date(tPlecare);
-  const m = d.getUTCHours() * 60 + d.getUTCMinutes();
+  const m = minuteZiLocal(tPlecare);
   const dist = (g) => { const x = Math.abs(m - g.minuteZi); return Math.min(x, 1440 - x); };
   const aproape = granite.filter((g) => g.minuteZi != null && dist(g) <= tol);
   if (!aproape.length) return { stare: 'necunoscut', motiv: 'nicio graniță aproape' };
@@ -151,4 +163,77 @@ export function kmInterval(stepKm, from, to) {
   let s = 0;
   for (let i = from + 1; i <= to; i++) s += stepKm[i];
   return +s.toFixed(2);
+}
+
+/**
+ * Oglinda lui `clasificaPlecare`, pentru segmentul de APROPIERE de poartă.
+ *
+ * Modelul, scris o dată ca să nu se mai încurce: o vizită la poartă are două capete.
+ *  · SOSIREA — se judecă față de ÎNCEPUTUL schimbului: dacă mașina ajunge la poartă
+ *    înainte să înceapă tura, a adus oamenii → drumul până acolo a fost PLIN.
+ *    Dacă ajunge înainte de SFÂRȘITUL turei, a venit s-o ia → a venit GOALĂ.
+ *  · PLECAREA — invers: lângă sfârșitul turei duce oamenii acasă (plin), lângă
+ *    început tocmai i-a livrat și pleacă goală. (vezi clasificaPlecare)
+ *
+ * Fără perechea asta, segmentul de dus se judeca după ora la care mașina PLECA de
+ * acasă — adică nicăieri lângă o graniță — și ieșea 'necunoscut' sau, mai rău, 'gol'.
+ */
+export function clasificaSosire(tSosire, granite, ordineInAtribuire, tol = TOLERANTA_SCHIMB_MIN) {
+  const m = minuteZiLocal(tSosire);
+  const dist = (g) => { const x = Math.abs(m - g.minuteZi); return Math.min(x, 1440 - x); };
+  const aproape = granite.filter((g) => g.minuteZi != null && dist(g) <= tol);
+  if (!aproape.length) return { stare: 'necunoscut', motiv: 'nicio graniță aproape' };
+  const tipuri = new Set(aproape.map((g) => g.tip));
+  if (tipuri.size === 1) return { stare: tipuri.has('inceput') ? 'plin' : 'gol', motiv: null };
+  if (ordineInAtribuire === 1) return { stare: 'plin', motiv: 'graniță comună, prima sosire = aduce tura' };
+  if (ordineInAtribuire === 2) return { stare: 'gol', motiv: 'graniță comună, a doua sosire = vine s-o ia' };
+  return { stare: 'necunoscut', motiv: 'graniță comună, ordinea sosirii necunoscută' };
+}
+
+/**
+ * Segmentele unei mașini-zi, cu starea fiecăruia. Asta e funcția pe care o cheamă
+ * worker-ul; celelalte sunt cărămizile ei.
+ * @returns [{ tip:'apropiere'|'plecare', from, to, km, stare, uzina_id, gate }]
+ */
+export function segmenteZi(pts, calc, treceri, granite) {
+  const out = [];
+  if (!treceri.length) {
+    out.push({ tip: 'apropiere', from: 0, to: pts.length - 1, km: kmInterval(calc.stepKm, 0, pts.length - 1), stare: 'necunoscut', motiv: 'nicio trecere prin poartă' });
+    return out;
+  }
+  // ── de la începutul zilei până la prima poartă: apropiere ──
+  out.push({
+    tip: 'apropiere', from: 0, to: treceri[0].iIn, uzina_id: treceri[0].uzina_id, gate: treceri[0].gate,
+    km: kmInterval(calc.stepKm, 0, treceri[0].iIn), ...clasificaSosire(treceri[0].tIn, granite, 1),
+  });
+
+  treceri.forEach((t, k) => {
+    const urm = treceri[k + 1];
+    const pana = urm ? urm.iIn : pts.length - 1;
+    if (pana <= t.iOut) return;
+    if (!urm) {
+      // coada zilei: mașina pleacă de la poartă și se duce acasă
+      out.push({
+        tip: 'plecare', from: t.iOut, to: pana, uzina_id: t.uzina_id, gate: t.gate,
+        km: kmInterval(calc.stepKm, t.iOut, pana), ...clasificaPlecare(t.tOut, granite, k + 1),
+      });
+      return;
+    }
+    // Între două vizite la poartă mașina IESE spre sate și SE ÎNTOARCE. Sunt două
+    // segmente, nu unul — altfel același drum se numără de două ori (bug prins la
+    // proba din 17.09: suma segmentelor ieșea 105.340 km la un total de 73.089).
+    // Punctul de întoarcere = cel mai depărtat de poartă din tot intervalul.
+    const poarta = pts[t.iOut];
+    let vf = t.iOut, vd = -1;
+    for (let i = t.iOut; i <= pana; i++) { const d = hav(pts[i], poarta); if (d > vd) { vd = d; vf = i; } }
+    out.push({
+      tip: 'plecare', from: t.iOut, to: vf, uzina_id: t.uzina_id, gate: t.gate,
+      km: kmInterval(calc.stepKm, t.iOut, vf), ...clasificaPlecare(t.tOut, granite, k + 1),
+    });
+    out.push({
+      tip: 'apropiere', from: vf, to: pana, uzina_id: urm.uzina_id, gate: urm.gate,
+      km: kmInterval(calc.stepKm, vf, pana), ...clasificaSosire(urm.tIn, granite, k + 2),
+    });
+  });
+  return out;
 }

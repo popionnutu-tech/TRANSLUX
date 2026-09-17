@@ -2,13 +2,16 @@
 
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
+import { ZILE_MAX } from '@/lib/lde/trasee';
 
 // Fereastra e plafonată explicit: 111 rute × 30 de zile × până la 3 schimburi × 2 sensuri
 // trece cu mult peste plafonul PostgREST de 1000 de rânduri, iar tăierea e TĂCUTĂ.
 // De aceea agregarea se face server-side, în `lde_trasee_sumar`, care întoarce un rând pe
 // combinație — FĂRĂ geometrie. Geometria se cere separat, doar pentru ruta aleasă pe hartă
 // (regula scrisă în migr. 206: «NICIODATĂ SELECT * în liste»).
-export const ZILE_MAX = 30;
+// Constanta stă în lib/lde/trasee.ts, NU aici: într-un fișier 'use server' se pot exporta
+// DOAR funcții async. `tsc` nu prinde regula asta — e a lui Next, nu a TypeScript — iar
+// build-ul pică abia pe Vercel.
 
 export type TraseuRand = {
   factory_route_id: string;
@@ -100,7 +103,7 @@ export async function getGeometrie(factory_route_id: string, shift_number: numbe
 // primele stații ale zecilor de rute cu coordonate știute îi localizează casa prin
 // trilaterație, chiar dacă nu afișează nicio coordonată. Rămân ADMIN-only și NU intră în
 // nicio lărgire de rol fără o decizie separată.
-import { costPereche, propuneriSchimb, economieCumulata, type RutaCost, type SoferCurent, type Propunere } from '@/lib/lde/trasee';
+import { propuneriSchimb, economieCumulata, type RutaCost, type SoferCurent, type Propunere } from '@/lib/lde/trasee';
 
 export type PropuneriRezultat = {
   propuneri: Propunere[];

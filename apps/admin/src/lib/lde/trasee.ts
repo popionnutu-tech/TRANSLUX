@@ -9,6 +9,10 @@
 // fraze; o hartă nouă a întregii uzine nu.
 // ============================================================================
 
+/** Fereastra maximă a paginii. Aici, nu în actions.ts: acolo e 'use server', unde se pot
+ *  exporta doar funcții async. */
+export const ZILE_MAX = 30;
+
 /** Distanța în km între două puncte. Aceeași formulă ca în worker (km-core.hav). */
 export function haversineKm(a: { lat: number; lon: number }, b: { lat: number; lon: number }): number {
   const R = 6371;

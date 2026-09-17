@@ -38,6 +38,14 @@ function env(nume) {
 
 const norm = (s) => String(s ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
 const normNr = (s) => String(s ?? '').toUpperCase().replace(/[\s-]/g, '');
+// 1C scrie adesea numărul cu modelul după el: „390 ORBI MERCEDES", „779 IHD SETRA", „595 Ford GAlaxy".
+// Luăm numărul din FAȚA denumirii. `\b` la final apără de tăieturi greșite: pe „949 Mercedes 220D" nu
+// rupe „949 Merc", fiindcă după „Merc" urmează literă, nu graniță de cuvânt.
+const NR_MASINA = /^[.\s]*(\d{2,4}\s*[A-Za-z]{2,4}|[A-Za-z]{3}\d{3})\b/;
+const nrDinNume = (s) => {
+  const m = NR_MASINA.exec(String(s ?? '').trim());
+  return m ? normNr(m[1]) : normNr(s);
+};
 
 // ── Citire în flux a obiectelor dintr-un fișier de schimb 1C ──
 async function* obiecte(cale) {
@@ -199,7 +207,7 @@ const main = async () => {
       .map((v) => ({ id: v.id, cheie: normNr(v.plate) }));
     console.log(`\n1C: ${lor.length} tipuri de activitate · noi: ${noi.length} mașini`);
     // 1C scrie „458 BRAX" cu spațiu, noi „459BRAX" fără — se compară fără spații și cratime.
-    const r = potriveste(lor, noi, (o) => normNr(o.nume));
+    const r = potriveste(lor, noi, (o) => nrDinNume(o.nume));
     raport('MAȘINI ca «вид деятельности» (după număr)', r, noi.length);
     for (const e of r.exceptii.slice(0, 20)) console.log(`    · „${e.cheie}" — ${e.motiv}`);
     if (r.exceptii.length > 20) console.log(`    … și încă ${r.exceptii.length - 20}`);

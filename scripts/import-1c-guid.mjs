@@ -148,13 +148,19 @@ async function toate(tabel, coloane, filtru) {
   }
   return out;
 }
-async function scrie(tabel, coloana, perechi) {
+// În LOTURI, nu rând cu rând: 9 440 de cereri REST pentru o rulare ar fi durat zeci de minute. Funcția
+// din bază (migr. 363) primește tot lotul într-o instrucțiune.
+//
+// Numărul întors sunt rândurile CHIAR schimbate, nu cele trimise — o re-rulare arată „0", nu „9283".
+async function scrie(ce, perechi) {
+  const LOT = 2000;
   let n = 0;
-  for (const p of perechi) {
-    const { error } = await sb.from(tabel).update({ [coloana]: p.guid }).eq('id', p.id);
+  for (let i = 0; i < perechi.length; i += LOT) {
+    const lot = perechi.slice(i, i + LOT).map((p) => ({ id: p.id, guid: p.guid }));
+    const { data, error } = await sb.rpc('piese_1c_set_guid', { p_ce: ce, p_perechi: lot });
     // Indicele unic apără de două piese legate la același articol din 1C — raportăm, nu ignorăm.
-    if (error) { console.error(`  ! ${tabel} id=${p.id}: ${error.message}`); continue; }
-    n++;
+    if (error) { console.error(`  ! lotul ${i / LOT + 1}: ${error.message}`); continue; }
+    n += Number(data) || 0;
   }
   return n;
 }
@@ -178,7 +184,7 @@ const main = async () => {
     console.log(`  1C: ${lor.length} poziții · noi: ${noi.length} piese active`);
     const r = potriveste(lor, noi, (o) => norm(o.articol), true);
     raport('PIESE (după articol, departajat după denumire)', r, noi.filter((n) => n.cheie).length);
-    rezultate.piese = { r, tabel: 'piese_parts', coloana: 'guid_1c' };
+    rezultate.piese = { r, ce: 'piese' };
 
     // Procentul pe tot catalogul NU e cifra care decide. Exportul unui document se blochează doar dacă o
     // piesă DIN ACEL DOCUMENT n-are legătură — deci contează acoperirea pieselor chiar eliberate.
@@ -198,7 +204,7 @@ const main = async () => {
     const r = potriveste(lor, noi, (o) => norm(o.nume));
     raport('LĂCĂTUȘI (după nume)', r, noi.length);
     for (const e of r.exceptii) console.log(`    · „${e.cheie}" — ${e.motiv}`);
-    rezultate.lacatusi = { r, tabel: 'piese_mechanics', coloana: 'guid_1c' };
+    rezultate.lacatusi = { r, ce: 'lacatusi' };
   }
 
   if (val('activitati')) {
@@ -211,7 +217,7 @@ const main = async () => {
     raport('MAȘINI ca «вид деятельности» (după număr)', r, noi.length);
     for (const e of r.exceptii.slice(0, 20)) console.log(`    · „${e.cheie}" — ${e.motiv}`);
     if (r.exceptii.length > 20) console.log(`    … și încă ${r.exceptii.length - 20}`);
-    rezultate.activitati = { r, tabel: 'piese_vehicles', coloana: 'guid_1c_activitate' };
+    rezultate.activitati = { r, ce: 'masini' };
   }
 
   const csv = ['entitate;cheie;motiv;ale_noastre;ale_lor'];
@@ -222,7 +228,7 @@ const main = async () => {
 
   if (!apply) { console.log('\nDRY-RUN — nu s-a scris nimic. Adaugă --apply ca să scrie.'); return; }
   for (const [k, v] of Object.entries(rezultate)) {
-    const n = await scrie(v.tabel, v.coloana, v.r.legate);
+    const n = await scrie(v.ce, v.r.legate);
     console.log(`scris ${k}: ${n} din ${v.r.legate.length}`);
   }
 };

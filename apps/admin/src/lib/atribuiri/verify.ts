@@ -143,10 +143,14 @@ export async function verificaZi(date: string, dry: boolean, reverify = false): 
   const db = getSupabase();
   await ensureDayMaterialized(date);
 
-  // reverify: re-judecă și verdictele automate vechi (după corecții de gps_localities);
-  // confirmat_manual/confirmat_auto nu se ating niciodată.
+  // reverify: re-judecă și verdictele automate vechi — inclusiv `confirmat_auto`, fiindcă
+  // altfel nota lui rămâne înțepenită cu ora veche chiar dacă GPS-ul s-a corectat sub ea
+  // (cazul migrației 361: verdictul era bun, dar nota scria «Poarta est 03:26» în loc de 06:26).
+  // `confirmat_manual` NU intră niciodată: e decizia unui om, nu o re-judecăm noi.
+  // Rescrierea e oricum condiționată — `propune()` de mai jos nu atinge rândul dacă nici
+  // statusul, nici nota nu se schimbă — iar la reverify nu se trimit push-uri (vezi mai jos).
   const statuses = ['planificat', 'modificat_proactiv', 'modificat_reactiv',
-    ...(reverify ? ['nepotrivire', 'fara_date_gps'] : [])];
+    ...(reverify ? ['nepotrivire', 'fara_date_gps', 'confirmat_auto'] : [])];
 
   const [{ data: rows }, { data: uzine }, { data: gates }, gpsDaily, stops] = await Promise.all([
     db.from('lde_atribuiri_zilnice')

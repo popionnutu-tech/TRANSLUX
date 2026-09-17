@@ -14,8 +14,8 @@ export default async function Integrare1CPage() {
   const lei = (n: number) => Number(n).toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return (
     <>
-      <div className="page-header"><h1>Integrare 1C</h1><p>Schimb într-o singură direcție (modulul = sursa), declanșat de buton — exact cum cere contabilitatea. Format CommerceML 2.x.</p></div>
-      <div className="alert info">Fișierele se generează în formatul standard de schimb 1C (CommerceML). Conectarea automată la serverul 1C se activează când avem accesul deservantului 1C.</div>
+      <div className="page-header"><h1>Integrare 1C</h1><p>Schimb într-o singură direcție (modulul = sursa), declanșat de buton — exact cum cere contabilitatea. Două formate: CommerceML pentru catalog și остатки, «Конвертация данных 2.0» pentru documentele de списание.</p></div>
+      <div className="alert info">Fișierele se generează local și se încarcă manual în 1C. Conectarea automată la serverul 1C se activează când avem accesul deservantului 1C.</div>
       <div className="grid cols-2">
         <div className="card">
           <h2>Catalog (nomenclator)</h2>

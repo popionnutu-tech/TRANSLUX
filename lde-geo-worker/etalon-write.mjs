@@ -35,13 +35,20 @@ const norm = (s) => (s || '').toLowerCase()
 
 /** Contextul unei zile: porți, atribuiri, granițe. Se încarcă o dată, nu per mașină. */
 export async function incarcaContext(supa, day) {
-  const [{ data: gates }, { data: atrib }, { data: granite }, { data: rute }] = await Promise.all([
+  const [{ data: gates }, { data: atrib }, { data: granite }, { data: rute }, { data: etaloane }] = await Promise.all([
     supa.from('lde_uzine_gates').select('uzina_id,label,lat,lon,radius_km').eq('active', true),
     supa.from('lde_atribuiri_zilnice')
       .select('factory_route_id,shift_number,slot,vehicle_id,vehicle_id_retur,direction,status')
       .eq('date', day).eq('route_kind', 'uzina').not('vehicle_id', 'is', null),
     supa.from('lde_uzina_shift_boundaries').select('uzina_id,shift_number,tip,minute_zi'),
     supa.from('lde_factory_routes').select('id,uzina_id,stops_in_order').eq('active', true),
+    // Satele ETALON ale fiecărei rute — ce face ruta de obicei, nu cum se numește.
+    // Ion, 17.09: «denumirea rutei e 1-2 sate, de obicei cursa e mai lungă». Numele dă un
+    // semnal slab când trebuie spus a cui e cursa (33 de rute au două nume, drumul real
+    // trece prin 18,8 sate); etalonul dă treisprezece-nouăsprezece. Se ia doar etalonul
+    // cu ≥5 observații, construit DOAR din curse neambigue — deci nu se hrănește din
+    // propriile lui ghiciri.
+    supa.from('lde_route_etalon').select('factory_route_id,sate,observations').gte('observations', 5),
   ]);
   const porti = new Map(), granitePeUz = new Map(), sateRuta = new Map();
   for (const g of gates ?? []) {
@@ -55,6 +62,14 @@ export async function incarcaContext(supa, day) {
     granitePeUz.get(b.uzina_id).push({ minuteZi: b.minute_zi, tip: b.tip, shift_number: b.shift_number });
   }
   for (const r of rute ?? []) sateRuta.set(r.id, (r.stops_in_order || '').replace(/->/g, '→').split('→').map((s) => norm(s)).filter(Boolean));
+  const sateEtalon = new Map();
+  for (const e of etaloane ?? []) {
+    const nume = (e.sate ?? []).map((x) => norm(x.nume)).filter(Boolean);
+    if (!nume.length) continue;
+    const ex = sateEtalon.get(e.factory_route_id);
+    // o rută are etalon pe fiecare schimb×slot×sens; pentru «a cui e cursa» ajunge reuniunea
+    sateEtalon.set(e.factory_route_id, ex ? [...new Set([...ex, ...nume])] : nume);
+  }
   // atribuirile mașinii, inclusiv cele unde e doar mașina de retur
   const peMasina = new Map();
   for (const a of atrib ?? []) {
@@ -64,7 +79,7 @@ export async function incarcaContext(supa, day) {
       peMasina.get(vid).push({ ...a, eRetur: vid === a.vehicle_id_retur && vid !== a.vehicle_id });
     }
   }
-  return { porti, peMasina, granitePeUz, sateRuta };
+  return { porti, peMasina, granitePeUz, sateRuta, sateEtalon };
 }
 
 /**
@@ -164,9 +179,10 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
       // Rămâne `ambiguu` doar când dovada chiar lipsește: nicio potrivire, sau două
       // rute la fel de bune.
       const potrivire = (rid) => {
-        const decl = ctx.sateRuta.get(rid) ?? [];
-        if (!decl.length) return 0;
-        return decl.filter((x) => vazute.has(x)).length / decl.length;
+        // întâi etalonul rutei (13-19 sate), apoi numele ei (2-9) dacă n-are încă etalon
+        const ref = ctx.sateEtalon?.get(rid) ?? ctx.sateRuta.get(rid) ?? [];
+        if (!ref.length) return 0;
+        return ref.filter((x) => vazute.has(x)).length / ref.length;
       };
       const eligibili = candidati.filter((x) => (sens === 'tur' ? !x.eRetur : true));
       if (!eligibili.length) continue;
@@ -182,8 +198,11 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
       await supa.from('lde_route_run').upsert({
         run_date: day, factory_route_id: a.factory_route_id, shift_number: sh,
         slot: a.slot ?? 1, sens, vehicle_id,
-        sate_atinse: sate, sate_lipsa: ale.filter((x) => !vazute.has(x)),
-        sate_extra: sate.filter((x) => !ale.includes(norm(x))),
+        // Satele lipsă/în plus NU se scriu aici: worker-ul n-are cu ce compara. Numele
+        // rutei are 1-2 sate, drumul real are 13-19 (Ion, 17.09), deci comparat cu numele
+        // aproape tot ieșea „în plus". Le umple agregatorul, față de ETALON, după ce
+        // etalonul există.
+        sate_atinse: sate, sate_lipsa: [], sate_extra: [],
         km_real: plin.km, km_goi: gol ? gol.km : 0,
         prima_statie: capete.prima, ultima_statie: capete.ultima,
         stare: 'plin', ambiguu,

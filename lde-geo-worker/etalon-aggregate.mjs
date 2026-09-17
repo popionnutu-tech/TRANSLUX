@@ -78,6 +78,9 @@ async function recalculeazaGranite() {
 
 // ── 2. etalonul ───────────────────────────────────────────────────────────────
 const cheie = (r) => `${r.factory_route_id}|${r.shift_number}|${r.slot}|${r.sens}`;
+const norm = (x) => (x || '').toLowerCase()
+  .replace(/ă|â/g, 'a').replace(/î/g, 'i').replace(/ș|ş/g, 's').replace(/ț|ţ/g, 't')
+  .replace(/[-\s]+/g, ' ').trim();
 const median = (a) => { const s = [...a].sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)] : null; };
 
 async function recalculeazaEtalon() {
@@ -150,6 +153,17 @@ async function recalculeazaEtalon() {
       } else motivLipsa = 'nicio cursă cu geometrie';
     } else { motivLipsa = 'etalon insuficient'; insuficiente++; }
 
+    // Fără etalon solid nu există „sate lipsă": se golesc, ca să nu rămână pe pagină
+    // valorile vechi, socotite față de numele rutei — două înțelesuri în aceeași coloană.
+    if (WRITE && (kmMed == null || n < MIN_OBSERVATII)) {
+      for (const c of lista) {
+        await supa.from('lde_route_run')
+          .update({ sate_lipsa: [], sate_extra: [], km_etalon: null, abatere_km: null })
+          .eq('run_date', c.run_date).eq('factory_route_id', factory_route_id)
+          .eq('shift_number', +shift_number).eq('slot', +slot).eq('sens', sens);
+      }
+    }
+
     // Capetele reale: stația care SE REPETĂ, nu mediana coordonatelor.
     // Ion, 17.09: «chiar dacă prima și ultima oprire e greșită, în ideal ea se repetă».
     // Are dreptate, și e mai tare decât mediana: media a două stații reale aflate la 3 km
@@ -194,8 +208,21 @@ async function recalculeazaEtalon() {
       for (const c of lista) {
         const km = Number(c.km_real);
         if (!(km > 0)) continue;
+        // Satele lipsă/în plus se socot față de ETALON, nu față de numele rutei.
+        // Ion, 17.09: «denumirea rutei e 1-2 sate, de obicei cursa e mai lungă, cu mai
+        // multe sate». Măsurat: 33 din 111 rute sunt numite cu două sate, iar drumul
+        // real trece prin 18,8 în medie; pe toată flota, 2-9 nume față de 13-19 sate.
+        // Comparate cu numele, aproape toate satele reale ieșeau „în plus" și abaterea
+        // nu însemna nimic. Etalonul e singurul etalon: ce face ruta de obicei.
+        const pe = new Set((c.sate_atinse ?? []).map(norm));
+        const lipsa = sate.filter((x) => !pe.has(norm(x.nume))).map((x) => x.nume);
+        const inEtalon = new Set(sate.map((x) => norm(x.nume)));
+        const extra = (c.sate_atinse ?? []).filter((x) => !inEtalon.has(norm(x)));
         await supa.from('lde_route_run')
-          .update({ km_etalon: kmMed, abatere_km: +(km - kmMed).toFixed(2) })
+          .update({
+            km_etalon: kmMed, abatere_km: +(km - kmMed).toFixed(2),
+            sate_lipsa: lipsa, sate_extra: extra,
+          })
           .eq('run_date', c.run_date).eq('factory_route_id', factory_route_id)
           .eq('shift_number', +shift_number).eq('slot', +slot).eq('sens', sens);
         abateri++;

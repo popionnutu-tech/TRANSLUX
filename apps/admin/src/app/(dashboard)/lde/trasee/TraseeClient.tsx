@@ -224,10 +224,18 @@ export default function TraseeClient({ trasee, impacare, propuneri, granite }: {
       </div>
 
       <div className="card p-4 overflow-x-auto">
+        <p className="text-xs text-gray-500 mb-3">
+          <strong>„Numele rutei" nu e itinerarul.</strong> Ion, 17.09: «denumirea rutei e 1–2
+          sate, de obicei cursa e mai lungă, cu mai multe sate». Măsurat: 33 din cele 111 rute
+          sunt numite cu două sate, iar drumul real trece prin <strong>18,8 în medie</strong>;
+          pe toată flota, 2–9 nume față de 13–19 sate. De aceea abaterea NU se socoate față de
+          nume — se socoate față de traseul dedus din GPS, adică față de ce face ruta de obicei.
+          Coloana „Numele rutei" rămâne doar ca să se vadă cum e trecută în grafic.
+        </p>
         <table className="w-full text-sm">
           <thead><tr className="text-left border-b">
             <th className="py-1">Rută</th><th>Schimb</th><th>Sens</th>
-            <th>Traseul declarat</th><th>Satele deduse din GPS</th>
+            <th>Numele rutei (din grafic)</th><th>Traseul real, dedus din GPS</th>
             <th className="text-right">km etalon</th><th className="text-right">curse</th>
             <th className="text-right">abatere</th><th className="text-right">km goi</th>
           </tr></thead>

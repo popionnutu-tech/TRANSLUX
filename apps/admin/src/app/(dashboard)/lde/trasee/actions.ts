@@ -202,15 +202,23 @@ export async function getPropuneri(): Promise<PropuneriRezultat> {
   const celMaiDes = (m?: Map<string, number>) =>
     m ? [...m.entries()].sort((x, y) => y[1] - x[1])[0]?.[0] ?? null : null;
 
+  // Un șofer poate face MAI MULTE ture într-o zi, din zone diferite. Ziua lui e suma
+  // tuturor, nu o singură rută — Ion, 17.09: «pot fi situații când o tură și a doua sunt
+  // din zone similare, și optimal ar fi șofer din sat care se află între aceste 2 zone».
+  // Se iau rutele pe care a fost de cel puțin un sfert din zile, ordonate după cât de des.
   const lista: SoferCurent[] = [];
   let faraBaza = 0;
   for (const [driver_id, rute_] of nrRute) {
-    const ruta = celMaiDes(rute_);
-    if (!ruta || !ruteCost.has(ruta)) continue;
+    const total = [...rute_.values()].reduce((s, n) => s + n, 0);
+    const aleLui = [...rute_.entries()]
+      .filter(([id, n]) => ruteCost.has(id) && n / total >= 0.25)
+      .sort((x, y) => y[1] - x[1])
+      .map(([id]) => id);
+    if (!aleLui.length) continue;
     const masina = celMaiDes(nrMasini.get(driver_id));
     const baza = masina ? bazaMasina.get(masina) ?? null : null;
     if (!baza) faraBaza++;
-    lista.push({ driver_id, nume: numeSofer.get(driver_id) ?? '?', baza, factory_route_id: ruta });
+    lista.push({ driver_id, nume: numeSofer.get(driver_id) ?? '?', baza, rute: aleLui });
   }
 
   const propuneri = propuneriSchimb(lista, ruteCost);

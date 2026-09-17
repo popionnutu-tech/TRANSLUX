@@ -83,8 +83,10 @@ export default function TraseeClient({ trasee, impacare, propuneri }: { trasee: 
       <div className="card p-4">
         <h2 className="font-medium mb-1">Schimburi de rute care ar micșora km-ii goi</h2>
         <p className="text-xs text-gray-500 mb-3">
-          Sugestii, nimic nu se schimbă automat. Costul unei perechi = km-ii goi de acasă până la
-          prima stație a rutei și înapoi. Perechile unde nu se poate calcula distanța ies din listă —
+          Sugestii, nimic nu se schimbă automat. Costul se socoate pe <strong>ziua întreagă</strong>
+          a șoferului: dus-întorsul gol pentru fiecare tură pe care o face. Între ture mașina trece pe
+          acasă în 8 zile din 10 (măsurat), de aceea turele nu se leagă între ele, ci fiecare își are
+          drumul ei de acasă. Perechile unde nu se poate calcula distanța ies din listă —
           nu primesc o cifră inventată. Locul de noapte al mașinii e luat ca „acasă" și se ia din
           mediana a cel puțin trei nopți. Distanțele sunt <strong>în linie dreaptă</strong>, nu pe
           șosea: economia arată direcția corect, dar mărimea ei e o estimare prudentă. Ruta care are

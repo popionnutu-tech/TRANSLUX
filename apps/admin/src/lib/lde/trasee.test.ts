@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { costPereche, propuneriSchimb, economieCumulata, haversineKm, type RutaCost, type SoferCurent } from './trasee';
+import { costPereche, costZi, propuneriSchimb, economieCumulata, haversineKm, type RutaCost, type SoferCurent } from './trasee';
 
 const ruta = (id: string, lat: number, lon: number): RutaCost => ({
   factory_route_id: id, eticheta: `ruta ${id}`,
@@ -23,8 +23,8 @@ describe('propunerile de schimb', () => {
 
   it('găsește schimbul evident: fiecare e pe ruta celuilalt', () => {
     const soferi: SoferCurent[] = [
-      { driver_id: 's1', nume: 'Unu', baza: { lat: 47.0, lon: 28.0 }, factory_route_id: 'A' },
-      { driver_id: 's2', nume: 'Doi', baza: { lat: 47.5, lon: 28.0 }, factory_route_id: 'B' },
+      { driver_id: 's1', nume: 'Unu', baza: { lat: 47.0, lon: 28.0 }, rute: ['A'] },
+      { driver_id: 's2', nume: 'Doi', baza: { lat: 47.5, lon: 28.0 }, rute: ['B'] },
     ];
     const p = propuneriSchimb(soferi, rute);
     expect(p).toHaveLength(1);
@@ -34,16 +34,16 @@ describe('propunerile de schimb', () => {
 
   it('nu propune nimic când fiecare e deja pe ruta lui', () => {
     const soferi: SoferCurent[] = [
-      { driver_id: 's1', nume: 'Unu', baza: { lat: 47.0, lon: 28.0 }, factory_route_id: 'B' },
-      { driver_id: 's2', nume: 'Doi', baza: { lat: 47.5, lon: 28.0 }, factory_route_id: 'A' },
+      { driver_id: 's1', nume: 'Unu', baza: { lat: 47.0, lon: 28.0 }, rute: ['B'] },
+      { driver_id: 's2', nume: 'Doi', baza: { lat: 47.5, lon: 28.0 }, rute: ['A'] },
     ];
     expect(propuneriSchimb(soferi, rute)).toHaveLength(0);
   });
 
   it('sare perechea unde o singură latură e necunoscută', () => {
     const soferi: SoferCurent[] = [
-      { driver_id: 's1', nume: 'Unu', baza: null, factory_route_id: 'A' },
-      { driver_id: 's2', nume: 'Doi', baza: { lat: 47.5, lon: 28.0 }, factory_route_id: 'B' },
+      { driver_id: 's1', nume: 'Unu', baza: null, rute: ['A'] },
+      { driver_id: 's2', nume: 'Doi', baza: { lat: 47.5, lon: 28.0 }, rute: ['B'] },
     ];
     expect(propuneriSchimb(soferi, rute)).toHaveLength(0);
   });
@@ -51,9 +51,9 @@ describe('propunerile de schimb', () => {
   it('economia cumulată nu folosește același șofer de două ori', () => {
     const rute3 = new Map([...rute, ['C', ruta('C', 48.0, 28.0)]]);
     const soferi: SoferCurent[] = [
-      { driver_id: 's1', nume: 'Unu', baza: { lat: 47.0, lon: 28.0 }, factory_route_id: 'A' },
-      { driver_id: 's2', nume: 'Doi', baza: { lat: 47.5, lon: 28.0 }, factory_route_id: 'B' },
-      { driver_id: 's3', nume: 'Trei', baza: { lat: 48.0, lon: 28.0 }, factory_route_id: 'C' },
+      { driver_id: 's1', nume: 'Unu', baza: { lat: 47.0, lon: 28.0 }, rute: ['A'] },
+      { driver_id: 's2', nume: 'Doi', baza: { lat: 47.5, lon: 28.0 }, rute: ['B'] },
+      { driver_id: 's3', nume: 'Trei', baza: { lat: 48.0, lon: 28.0 }, rute: ['C'] },
     ];
     const { aplicabile } = economieCumulata(propuneriSchimb(soferi, rute3));
     const ids = aplicabile.flatMap((p) => [p.a.driver_id, p.b.driver_id]);
@@ -77,5 +77,58 @@ describe('costul cere AMBELE capete (defect găsit 17.09, perechea Popescu–Pan
     // A = 100 km dus + 5,5 km întors ≈ 105; B = 22 + 22 = 44. Ambele pe aceeași formulă.
     expect(cA).toBeGreaterThan(cB);
     expect(cA).toBeLessThan(2 * haversineKm(baza, A.primaStatie!));
+  });
+});
+
+
+describe('ziua întreagă, cu întoarcerea dintre ture (Ion, 17.09)', () => {
+  // Două zone la 60 km una de alta, pe aceeași uzină. Tura 1 pleacă din zona de nord,
+  // tura 2 din zona de sud. Un șofer face amândouă turele.
+  // zonele NU sunt pe aceeasi linie: una la nord, alta la est. Pe o linie, suma
+  // distantelor pana la doua puncte e aceeasi oriunde intre ele, deci mijlocul ar iesi
+  // doar la egalitate — asa arata si realitatea: satele nu stau insirate.
+  const nord: RutaCost = { factory_route_id: 'N', eticheta: 'nord', primaStatie: { lat: 47.8, lon: 28.0 }, ultimaStatie: { lat: 47.8, lon: 28.0 } };
+  const sud: RutaCost = { factory_route_id: 'S', eticheta: 'est', primaStatie: { lat: 47.4, lon: 28.8 }, ultimaStatie: { lat: 47.4, lon: 28.8 } };
+  const rute = new Map([['N', nord], ['S', sud]]);
+
+  it('cu DOUĂ ture, tot coridorul dintre zone e la fel de bun — și mai bun decât în lateral', () => {
+    // Geometria e neînduplecată: suma distanțelor până la două puncte e ACEEAȘI oriunde
+    // pe linia dintre ele. Deci satul din mijloc nu bate satul din zonă — îl EGALEAZĂ.
+    // Ce bate: orice sat aflat în afara coridorului. Asta e forma exactă a intuiției lui
+    // Ion, și e tot utilă — mulțimea șoferilor potriviți e coridorul întreg, nu doar cele
+    // două capete.
+    const laNord = costZi({ lat: 47.8, lon: 28.0 }, [nord, sud])!;
+    const laMijloc = costZi({ lat: 47.6, lon: 28.4 }, [nord, sud])!;
+    const inLateral = costZi({ lat: 47.2, lon: 28.1 }, [nord, sud])!;
+    expect(Math.abs(laMijloc - laNord)).toBeLessThan(0.5);
+    expect(inLateral).toBeGreaterThan(laMijloc + 10);
+  });
+
+  it('cu TREI ture în direcții diferite, mijlocul câștigă STRICT (cazul Orhei)', () => {
+    const vest: RutaCost = { factory_route_id: 'V', eticheta: 'vest', primaStatie: { lat: 47.4, lon: 27.6 }, ultimaStatie: { lat: 47.4, lon: 27.6 } };
+    const laNord = costZi({ lat: 47.8, lon: 28.0 }, [nord, sud, vest])!;
+    const laMijloc = costZi({ lat: 47.53, lon: 28.13 }, [nord, sud, vest])!;
+    expect(laMijloc).toBeLessThan(laNord);
+  });
+
+  it('a doua tură își adaugă propriul dus-întors, nu se lipește de prima', () => {
+    const doarTura1 = costZi({ lat: 47.8, lon: 28.0 }, [nord])!;
+    const ambele = costZi({ lat: 47.8, lon: 28.0 }, [nord, sud])!;
+    expect(ambele).toBeGreaterThan(doarTura1 + 100);
+  });
+
+  it('propune schimbul care apropie fiecare șofer de ziua lui', () => {
+    const soferi: SoferCurent[] = [
+      { driver_id: 's1', nume: 'Nordicul', baza: { lat: 47.8, lon: 28.0 }, rute: ['S'] },
+      { driver_id: 's2', nume: 'Sudicul', baza: { lat: 47.26, lon: 28.0 }, rute: ['N'] },
+    ];
+    const p = propuneriSchimb(soferi, rute);
+    expect(p).toHaveLength(1);
+    expect(p[0].a.pe).toBe('nord');
+  });
+
+  it('o rută cu un capăt necunoscut strică toată ziua, nu doar bucata ei', () => {
+    const stricata: RutaCost = { ...sud, ultimaStatie: null };
+    expect(costZi({ lat: 47.5, lon: 28.0 }, [nord, stricata])).toBeNull();
   });
 });

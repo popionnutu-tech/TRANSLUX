@@ -12,6 +12,23 @@ import {
   secvente, treceriPorti, sateDeservite, segmenteZi, kmInterval, PRAG_SAT_KM,
 } from './etalon-labels.mjs';
 
+/**
+ * Capetele REALE ale unei curse: prima și ultima oprire stabilă care NU e baza.
+ *
+ * Nu primul/ultimul punct al urmei — acelea sunt casa șoferului, iar km-ii de acolo
+ * până la prima stație sunt tocmai livrarea pe care o măsurăm. Ion, 17.09: «unde se
+ * începe și se termină ruta după ultima și prima oprire stabilă față locul de trai la
+ * șofer». Măsurat atunci: în 730 din 1.099 de cazuri capătul geometriei era la sub 1 km
+ * de locul unde doarme mașina.
+ */
+function capeteReale(stops, pts, from, to) {
+  const t0 = pts[from].t, t1 = pts[to].t;
+  const inSegment = stops.filter((st) => !st.isBase && st.arrival >= t0 && st.arrival <= t1);
+  if (!inSegment.length) return { prima: null, ultima: null };
+  const pct = (st) => ({ lat: st.lat, lon: st.lon, locality: st.locality ?? null });
+  return { prima: pct(inSegment[0]), ultima: pct(inSegment[inSegment.length - 1]) };
+}
+
 const norm = (s) => (s || '').toLowerCase()
   .replace(/ă|â/g, 'a').replace(/î/g, 'i').replace(/ș|ş/g, 's').replace(/ț|ţ/g, 't')
   .replace(/[-\s]+/g, ' ').trim();
@@ -104,6 +121,7 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
     if (s.stare === 'necunoscut' || s.km < 1) continue;
     const a = lista[Math.min(scrise, lista.length - 1)];
     const sate = sateDeservite(r.pts, ctx.placesIdx, s.from, s.to, PRAG_SAT_KM);
+    const capete = capeteReale(r.stops ?? [], r.pts, s.from, s.to);
     const ale = ctx.sateRuta.get(a.factory_route_id) ?? [];
     const atinse = sate.filter((x) => ale.includes(norm(x)));
     await supa.from('lde_route_run').upsert({
@@ -112,6 +130,7 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
       sate_atinse: sate, sate_lipsa: ale.filter((x) => !sate.map(norm).includes(x)),
       sate_extra: sate.filter((x) => !ale.includes(norm(x))),
       km_real: s.km, km_goi: s.stare === 'gol' ? s.km : 0,
+      prima_statie: capete.prima, ultima_statie: capete.ultima,
       stare: s.stare, ambiguu: false, motiv: s.motiv,
       geom: simplifica(r.pts, r.calc, s.from, s.to),
     }, { onConflict: 'run_date,factory_route_id,shift_number,slot,sens' });

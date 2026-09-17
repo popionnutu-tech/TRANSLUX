@@ -114,16 +114,6 @@ export type PropuneriRezultat = {
   rute_incomplete: number;   // au etalon doar pe un sens → costul n-ar fi comparabil
 };
 
-const capat = (geom: unknown, unde: 'prim' | 'ultim'): { lat: number; lon: number } | null => {
-  const g = geom as { coordinates?: number[][][] } | null;
-  const linii = g?.coordinates;
-  if (!Array.isArray(linii) || !linii.length) return null;
-  const linie = unde === 'prim' ? linii[0] : linii[linii.length - 1];
-  if (!Array.isArray(linie) || !linie.length) return null;
-  const pct = unde === 'prim' ? linie[0] : linie[linie.length - 1];
-  return Array.isArray(pct) && pct.length >= 2 ? { lat: pct[1], lon: pct[0] } : null;
-};
-
 export async function getPropuneri(): Promise<PropuneriRezultat> {
   requireRole(await verifySession(), 'ADMIN');
   const sb = getSupabase();
@@ -134,8 +124,8 @@ export async function getPropuneri(): Promise<PropuneriRezultat> {
     // O rută are un etalon pe fiecare (schimb × slot × sens) — la Orhei 17 sunt două de
     // tur, cu puncte de plecare diferite. Fără ordonare, „primul citit" era la voia bazei,
     // iar costul aceleiași rute putea ieși altul la fiecare încărcare a paginii.
-    sb.from('lde_route_etalon').select('factory_route_id, sens, shift_number, slot, observations, geom')
-      .not('geom', 'is', null)
+    sb.from('lde_route_etalon').select('factory_route_id, sens, shift_number, slot, observations, prima_statie, ultima_statie')
+      .or('prima_statie.not.is.null,ultima_statie.not.is.null')
       .order('shift_number', { ascending: true }).order('slot', { ascending: true })
       .order('observations', { ascending: false }),
     // Ruta unui șofer NU se ia din `lde_active_assignments`: acolo `route_id` e gol pe
@@ -171,9 +161,16 @@ export async function getPropuneri(): Promise<PropuneriRezultat> {
   for (const e of etaloane ?? []) {
     const id = e.factory_route_id as string;
     const cur = ruteCost.get(id) ?? { factory_route_id: id, eticheta: eticheta.get(id) ?? id, primaStatie: null, ultimaStatie: null };
-    // PRIMUL din ordinea de mai sus câștigă; nu se suprascrie cu rândurile următoare
-    if (e.sens === 'tur') cur.primaStatie = cur.primaStatie ?? capat(e.geom, 'prim');
-    else cur.ultimaStatie = cur.ultimaStatie ?? capat(e.geom, 'ultim');
+    // Capetele vin din OPRIRILE STABILE, nu din geometrie. Capătul geometriei e primul
+    // punct al zilei, adică locul unde doarme mașina — măsurat 17.09: în 730 din 1.099
+    // de cazuri era la sub 1 km de bază. Costul compara casa unui șofer cu casa altuia.
+    // PRIMUL din ordinea de mai sus câștigă; nu se suprascrie cu rândurile următoare.
+    const pct = (v: unknown) => {
+      const o = v as { lat?: number; lon?: number } | null;
+      return o && o.lat != null && o.lon != null ? { lat: Number(o.lat), lon: Number(o.lon) } : null;
+    };
+    if (e.sens === 'tur') cur.primaStatie = cur.primaStatie ?? pct(e.prima_statie);
+    else cur.ultimaStatie = cur.ultimaStatie ?? pct(e.ultima_statie);
     ruteCost.set(id, cur);
   }
   // rutele cu un singur capăt nu se pot compara cu celelalte — ies din calcul, nu

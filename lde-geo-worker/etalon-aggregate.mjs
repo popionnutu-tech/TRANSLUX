@@ -90,7 +90,7 @@ const median = (a) => { const s = [...a].sort((x, y) => x - y); return s.length 
 
 async function recalculeazaEtalon() {
   const curse = await fetchAll('lde_route_run',
-    'factory_route_id,shift_number,slot,sens,sate_atinse,km_real,ambiguu,stare,geom,run_date',
+    'factory_route_id,shift_number,slot,sens,sate_atinse,km_real,ambiguu,stare,geom,run_date,prima_statie,ultima_statie',
     (q) => q.gte('run_date', deLa).eq('ambiguu', false));
 
   const peCheie = new Map();
@@ -138,8 +138,18 @@ async function recalculeazaEtalon() {
       } else motivLipsa = 'nicio cursă cu geometrie';
     } else { motivLipsa = 'etalon insuficient'; insuficiente++; }
 
+    // capetele reale: mediana pe curse, nu dintr-o singură zi
+    const medPct = (camp) => {
+      const v = lista.map((c) => c[camp]).filter((x) => x && x.lat != null);
+      if (!v.length) return null;
+      const la = median(v.map((x) => Number(x.lat))), lo = median(v.map((x) => Number(x.lon)));
+      const apr = v.reduce((b, x) => (Math.hypot(x.lat - la, x.lon - lo) < Math.hypot(b.lat - la, b.lon - lo) ? x : b), v[0]);
+      return { lat: la, lon: lo, locality: apr.locality ?? null };
+    };
+
     if (WRITE) await supa.from('lde_route_etalon').upsert({
       factory_route_id, shift_number: +shift_number, slot: +slot, sens,
+      prima_statie: medPct('prima_statie'), ultima_statie: medPct('ultima_statie'),
       sate, geom, km_median: n >= MIN_OBSERVATII ? kmMed : null,
       observations: n, source: 'gps_trace', motiv_lipsa: motivLipsa,
       updated_at: new Date().toISOString(),

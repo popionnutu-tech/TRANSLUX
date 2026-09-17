@@ -138,18 +138,34 @@ async function recalculeazaEtalon() {
       } else motivLipsa = 'nicio cursă cu geometrie';
     } else { motivLipsa = 'etalon insuficient'; insuficiente++; }
 
-    // capetele reale: mediana pe curse, nu dintr-o singură zi
-    const medPct = (camp) => {
-      const v = lista.map((c) => c[camp]).filter((x) => x && x.lat != null);
+    // Capetele reale: stația care SE REPETĂ, nu mediana coordonatelor.
+    // Ion, 17.09: «chiar dacă prima și ultima oprire e greșită, în ideal ea se repetă».
+    // Are dreptate, și e mai tare decât mediana: media a două stații reale aflate la 3 km
+    // una de alta cade la mijloc, unde nu oprește nimeni. Ziua în care mașina a oprit
+    // aiurea rămâne un grup de unu și pierde; stația adevărată câștigă prin repetiție.
+    // Grupare simplă la 500 m; reprezentantul e punctul observat cel mai apropiat de
+    // centrul grupului (un punct REAL, nu unul calculat).
+    const RAZA_GRUP_KM = 0.5;
+    const modaPct = (camp) => {
+      const v = lista.map((c) => c[camp]).filter((x) => x && x.lat != null)
+        .map((x) => ({ lat: Number(x.lat), lon: Number(x.lon), locality: x.locality ?? null }));
       if (!v.length) return null;
-      const la = median(v.map((x) => Number(x.lat))), lo = median(v.map((x) => Number(x.lon)));
-      const apr = v.reduce((b, x) => (Math.hypot(x.lat - la, x.lon - lo) < Math.hypot(b.lat - la, b.lon - lo) ? x : b), v[0]);
-      return { lat: la, lon: lo, locality: apr.locality ?? null };
+      const grupuri = [];
+      for (const p of v) {
+        const g = grupuri.find((gr) => hav(gr[0], p) <= RAZA_GRUP_KM);
+        if (g) g.push(p); else grupuri.push([p]);
+      }
+      grupuri.sort((a, b) => b.length - a.length);
+      const g = grupuri[0];
+      const cx = g.reduce((s, p) => s + p.lat, 0) / g.length;
+      const cy = g.reduce((s, p) => s + p.lon, 0) / g.length;
+      const medoid = g.reduce((b, p) => (hav(p, { lat: cx, lon: cy }) < hav(b, { lat: cx, lon: cy }) ? p : b), g[0]);
+      return { ...medoid, pondere: +(g.length / v.length).toFixed(2), observatii: g.length };
     };
 
     if (WRITE) await supa.from('lde_route_etalon').upsert({
       factory_route_id, shift_number: +shift_number, slot: +slot, sens,
-      prima_statie: medPct('prima_statie'), ultima_statie: medPct('ultima_statie'),
+      prima_statie: modaPct('prima_statie'), ultima_statie: modaPct('ultima_statie'),
       sate, geom, km_median: n >= MIN_OBSERVATII ? kmMed : null,
       observations: n, source: 'gps_trace', motiv_lipsa: motivLipsa,
       updated_at: new Date().toISOString(),

@@ -89,7 +89,10 @@ export default function TraseeClient({ trasee, impacare, propuneri }: { trasee: 
           mediana a cel puțin trei nopți. Distanțele sunt <strong>în linie dreaptă</strong>, nu pe
           șosea: economia arată direcția corect, dar mărimea ei e o estimare prudentă. Ruta care are
           traseu ideal doar într-un sens iese din calcul — jumătate de formulă nu se poate compara cu
-          una întreagă.
+          una întreagă. Prima și ultima stație se iau din <strong>oprirea care se repetă</strong>, nu
+          din mediana coordonatelor: media a două stații aflate la câțiva km una de alta ar cădea
+          undeva unde nu oprește nimeni. Stația care apare în mai puțin de jumătate din curse e
+          considerată instabilă, iar ruta iese din calcul.
         </p>
         {propuneri.economie_km_zi > 0 ? (
           <p className="text-sm mb-3">

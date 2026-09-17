@@ -165,9 +165,16 @@ export async function getPropuneri(): Promise<PropuneriRezultat> {
     // punct al zilei, adică locul unde doarme mașina — măsurat 17.09: în 730 din 1.099
     // de cazuri era la sub 1 km de bază. Costul compara casa unui șofer cu casa altuia.
     // PRIMUL din ordinea de mai sus câștigă; nu se suprascrie cu rândurile următoare.
+    // Stația se ia doar dacă CHIAR SE REPETĂ. Ion, 17.09: «chiar dacă prima și ultima
+    // oprire e greșită, în ideal ea se repetă». Sub jumătate din curse, locul e instabil
+    // — mașina oprește de fiecare dată altundeva — și un cost calculat pe el ar fi o
+    // cifră cu aparență de adevăr.
+    const PRAG_REPETARE = 0.5;
     const pct = (v: unknown) => {
-      const o = v as { lat?: number; lon?: number } | null;
-      return o && o.lat != null && o.lon != null ? { lat: Number(o.lat), lon: Number(o.lon) } : null;
+      const o = v as { lat?: number; lon?: number; pondere?: number } | null;
+      if (!o || o.lat == null || o.lon == null) return null;
+      if ((o.pondere ?? 0) < PRAG_REPETARE) return null;
+      return { lat: Number(o.lat), lon: Number(o.lon) };
     };
     if (e.sens === 'tur') cur.primaStatie = cur.primaStatie ?? pct(e.prima_statie);
     else cur.ultimaStatie = cur.ultimaStatie ?? pct(e.ultima_statie);

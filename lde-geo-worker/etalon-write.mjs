@@ -311,14 +311,29 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
   };
 
   for (const { uzina, shift_number: sh, lista: candidati } of peSchimb.values()) {
-    const alSchimbului = (tip, stare) =>
-      segs.find((x) => x.shift_number === sh && x.uzina_id === uzina
-        && x.tip === tip && x.stare === stare && x.km >= 1);
+    // TOATE segmentele schimbului, nu primul din fiecare fel. O mașină cu două rute în
+    // același schimb face DOUĂ strângeri și două aduceri; varianta dinainte lua `find`,
+    // deci scria o singură cursă de tur și una de retur pe schimb, oricâte rute ar fi
+    // avut. A doua rută nu primea nimic — iar fără curse nu-și face etalon, deci nu putea
+    // fi recunoscută nici mai târziu, la potrivirea pe sate. Capcană închisă.
+    // Verificat pe Orhei/17.09: 823MUM (Dulghieri Andrei) face șase drumuri
+    // Slobozia Doamnei ↔ Bucuria, toate scrise pe ruta 11; ruta 8, a lui, a rămas goală.
+    const aleSchimbului = (tip, stare) =>
+      segs.filter((x) => x.shift_number === sh && x.uzina_id === uzina
+        && x.tip === tip && x.stare === stare && x.km >= 1)
+        .sort((x, y) => x.from - y.from);
 
-    for (const [sens, plin, gol] of [
-      ['tur', alSchimbului('apropiere', 'plin'), alSchimbului('plecare', 'gol')],
-      ['retur', alSchimbului('plecare', 'plin'), alSchimbului('apropiere', 'gol')],
-    ]) {
+    const perechi = [];
+    for (const [sens, pline, goale] of [
+      ['tur', aleSchimbului('apropiere', 'plin'), aleSchimbului('plecare', 'gol')],
+      ['retur', aleSchimbului('plecare', 'plin'), aleSchimbului('apropiere', 'gol')],
+    ]) pline.forEach((p, i) => perechi.push([sens, p, goale[i] ?? null]));
+
+    // o rută primește o singură cursă pe sens în schimbul ăsta: două drumuri ale aceleiași
+    // mașini sunt ale unor rute diferite, nu aceeași cursă scrisă de două ori
+    const luate = new Set();
+
+    for (const [sens, plin, gol] of perechi) {
       if (!plin) continue;                       // fără drumul cu pasageri nu există cursă
       const sate = sateDeservite(r.pts, ctx.placesIdx, plin.from, plin.to, PRAG_SAT_KM);
       const vazute = new Set(sate.map(norm));
@@ -338,7 +353,8 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
         if (!ref.length) return 0;
         return ref.filter((x) => vazute.has(x)).length / ref.length;
       };
-      const eligibili = candidati.filter((x) => (sens === 'tur' ? !x.eRetur : true));
+      const eligibili = candidati.filter((x) => (sens === 'tur' ? !x.eRetur : true))
+        .filter((x) => !luate.has(`${sens}|${x.factory_route_id}`));
       if (!eligibili.length) continue;
       const cuScor = eligibili
         .map((x) => ({ a: x, scor: potrivire(x.factory_route_id) }))
@@ -355,7 +371,12 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
       // Acum se caută și printre TOATE rutele uzinei, iar graficul e depășit doar când
       // dovada e clară: potrivire de cel puțin 60% și cu 20 de puncte peste tot ce zice
       // graficul. Altfel rămâne ce scrie omul — o bănuială slabă nu răstoarnă un document.
-      if (cuScor[0].scor < 0.6) {
+      // Graficul poate fi contrazis DOAR dacă ruta pe care o scrie are ea însăși etalon:
+      // altfel n-avem cu ce compara, iar o rută fără etalon ar pierde mereu în fața uneia
+      // învățate — și n-ar căpăta niciodată curse din care să-și facă unul. Cazul real:
+      // 034BRAT, ruta 3 Orhei (fără etalon), i s-a luat cursa de ruta 14.
+      const areEtalon = (ctx.sateEtalon?.get(cuScor[0].a.factory_route_id) ?? []).length > 0;
+      if (areEtalon && cuScor[0].scor < 0.6) {
         let best = null;
         for (const rid of ctx.ruteUzinei.get(uzina) ?? []) {
           if (eligibili.some((x) => x.factory_route_id === rid)) continue;
@@ -404,6 +425,7 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
           ?? (ambiguu ? (cuScor[0].scor < 0.34 ? 'sate_nepotrivite' : 'doua_rute_la_fel') : null),
         geom: simplifica(r.pts, r.calc, plin.from, plin.to),
       }, { onConflict: 'run_date,factory_route_id,shift_number,slot,sens' });
+      luate.add(`${sens}|${a.factory_route_id}`);
       scrise++;
     }
   }

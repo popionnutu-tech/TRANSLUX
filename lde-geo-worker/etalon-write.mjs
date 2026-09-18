@@ -196,7 +196,7 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
     for (const sh of shifturi)
       capacitate.set(String(sh), Math.max(1, new Set(aleUzinei.filter((a) => a.shift_number === sh)
         .map((a) => a.factory_route_id)).size));
-    const p = imperecheazaTreceri(indici.map((x) => x.t), ctx.granitePeUz.get(u) ?? [], shifturi, undefined, capacitate);
+    const p = imperecheazaTreceri(indici.map((x) => x.t), ctx.granitePeUz.get(u) ?? [], shifturi, undefined, capacitate, atribuite);
     indici.forEach((x, k) => { perechi[x.i] = p[k]; });
   }
   const segs = segmenteZi(r.pts, r.calc, tr, perechi);

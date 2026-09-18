@@ -181,7 +181,20 @@ export function invataGranite(plecari, minuteDeclarat, { fereastraMin = 90, binM
  * @param shifturi numerele schimburilor pe care mașina chiar le are atribuite în ziua aia
  * @returns un element pe atingere: { shift_number, rol:'livrare'|'ridicare' } sau null
  */
-export function imperecheazaTreceri(treceri, granite, shifturi, tol = TOLERANTA_SCHIMB_MIN, capacitate = null) {
+export function imperecheazaTreceri(treceri, granite, shifturi, tol = TOLERANTA_SCHIMB_MIN, capacitate = null, atribuite = null) {
+  // Schimburile din GRAFIC față de cele doar posibile la uzină. Un schimb neatribuit
+  // poate da un rol numai cât timp mașinii îi lipsește o cursă pentru o rută pe care o
+  // are — bugetul e 2 roluri (livrare + ridicare) pe fiecare rută. Fără buget, la
+  // Ungheni 217RST primea «ridicare s3» pe atingerea de dimineață (sfârșitul lui 3 și
+  // începutul lui 1 cad pe același minut), deși n-are schimbul 3: drumul gol de 80 km
+  // spre casă se scria ca retur PLIN al unui schimb pe care nu-l lucrează. Așa ieșea
+  // Ungheni cu zero km goi în 17 zile. Cu buget, Guzun Ivan (2 rute, ambele s1) tot își
+  // primește livrarea de la 15:00 pe s2 — el chiar are o cursă neacoperită.
+  const atribuit = new Set((atribuite ?? shifturi ?? []).map(String));
+  const eAtribuit = (c) => atribuit.has(String(c.shift_number));
+  let buget = 0;
+  for (const sh of atribuit) buget += 2 * (capacitate?.get(String(sh)) ?? 1);
+  let roluri = 0;
   const cand = [];
   for (const sh of new Set(shifturi ?? []))
     for (const [rol, tip] of [['livrare', 'inceput'], ['ridicare', 'sfarsit']]) {
@@ -206,9 +219,11 @@ export function imperecheazaTreceri(treceri, granite, shifturi, tol = TOLERANTA_
   const plin = (c) => (folosite.get(`${c.shift_number}|${c.rol}`) ?? 0) >= capac(c);
   const pune = (i, c) => {
     if (perechi[i][c.rol] || plin(c)) return false;
+    if (!eAtribuit(c) && roluri >= buget) return false;   // n-are pentru cine
     perechi[i][c.rol] = { ...c, abatere_min: cand_d(treceri[i], c) };
     const k = `${c.shift_number}|${c.rol}`;
     folosite.set(k, (folosite.get(k) ?? 0) + 1);
+    roluri++;
     return true;
   };
 
@@ -225,8 +240,10 @@ export function imperecheazaTreceri(treceri, granite, shifturi, tol = TOLERANTA_
     peMinut.get(c.minuteZi).push(c);
   }
   for (const [minut, grup] of peMinut) {
-    const liv = grup.find((c) => c.rol === 'livrare');
-    const rid = grup.find((c) => c.rol === 'ridicare');
+    // pe granița comună se împart doar rolurile schimburilor din GRAFIC; un schimb
+    // neatribuit își poate lua rolul abia în faza lacomă, dacă mai e buget
+    const liv = grup.find((c) => c.rol === 'livrare' && eAtribuit(c));
+    const rid = grup.find((c) => c.rol === 'ridicare' && eAtribuit(c));
     if (!liv || !rid) continue;
     const inFereastra = treceri
       .map((t, i) => ({ i, t }))
@@ -248,9 +265,9 @@ export function imperecheazaTreceri(treceri, granite, shifturi, tol = TOLERANTA_
   treceri.forEach((t, i) => {
     for (const c of cand) optiuni.push({ i, c, d: cand_d(t, c) });
   });
-  optiuni.sort((a, b) => a.d - b.d || a.i - b.i);
+  optiuni.sort((a, b) => (eAtribuit(b.c) - eAtribuit(a.c)) || a.d - b.d || a.i - b.i);
   for (const o of optiuni) {
-    if (o.d > tol) break;
+    if (o.d > tol) continue;
     if (plin(o.c)) continue;
     // o atingere ia un al doilea rol doar dacă nu-l poate lua o atingere încă nefolosită
     const areDejaAltRol = perechi[o.i].livrare || perechi[o.i].ridicare;

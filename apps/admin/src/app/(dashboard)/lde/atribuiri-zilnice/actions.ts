@@ -140,7 +140,7 @@ export async function saveManagerDirections(userId: string, directions: string[]
 //
 // Citește cursele MĂSURATE ale zilei, nu planul: fiecare cifră e km parcurși, din urma GPS.
 
-import { bazeMasinilor } from '@/lib/lde/trasee';
+import { bazeMasinilor, haversineKm } from '@/lib/lde/trasee';
 import { ghidZilnic, type Alerta, type CursaMasurata } from '@/lib/lde/ghid-zilnic';
 
 export type { Alerta };
@@ -152,7 +152,7 @@ export async function getGhidZilnic(date?: string): Promise<{ zi: string; alerte
   const zi = date ?? new Date(Date.now() - 86400000).toISOString().slice(0, 10);
   const de = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
 
-  const [{ data: curse }, { data: atrib }, { data: soferi }, { data: rute }] = await Promise.all([
+  const [{ data: curse }, { data: atrib }, { data: soferi }, { data: rute }, { data: porti }] = await Promise.all([
     sb.from('lde_route_run')
       .select('factory_route_id, shift_number, sens, vehicle_id, km_real, km_goi, km_gol_acasa, km_gol_pauza, km_livrare, opriri_gol_pe_traseu, sate_gol_pe_traseu, prima_statie, ambiguu')
       .eq('run_date', zi).eq('ambiguu', false).not('km_real', 'is', null),
@@ -161,6 +161,7 @@ export async function getGhidZilnic(date?: string): Promise<{ zi: string; alerte
       .eq('date', zi).eq('route_kind', 'uzina'),
     sb.from('drivers').select('id, full_name'),
     sb.from('lde_factory_routes').select('id, uzina_id, route_number'),
+    sb.from('lde_uzine_gates').select('uzina_id, lat, lon').eq('active', true),
   ]);
 
   const baze: { vehicle_id: string; lat: number; lon: number; locality: string | null }[] = [];
@@ -191,6 +192,19 @@ export async function getGhidZilnic(date?: string): Promise<{ zi: string; alerte
     if (a.vehicle_id_retur) soferulReturului.set(cheie(a.vehicle_id_retur), a.driver_id as string);
   }
 
+  // poarta cea mai apropiată a uzinei față de casa mașinii — „mașină la uzină" sub 10 km
+  const portiUzinei = new Map<string, { lat: number; lon: number }[]>();
+  for (const p of porti ?? []) {
+    if (p.lat == null || p.lon == null) continue;
+    if (!portiUzinei.has(p.uzina_id)) portiUzinei.set(p.uzina_id, []);
+    portiUzinei.get(p.uzina_id)!.push({ lat: Number(p.lat), lon: Number(p.lon) });
+  }
+  const kmPanaLaPoarta = (uz: string, b: { lat: number; lon: number } | null) => {
+    const ps = portiUzinei.get(uz);
+    if (!b || !ps?.length) return null;
+    return Math.min(...ps.map((p) => haversineKm(b, p)));
+  };
+
   const masurate: CursaMasurata[] = [];
   for (const c of curse ?? []) {
     const i = info.get(c.factory_route_id as string);
@@ -212,6 +226,7 @@ export async function getGhidZilnic(date?: string): Promise<{ zi: string; alerte
       prima_statie: p?.lat != null ? { lat: Number(p.lat), lon: Number(p.lon), locality: p.locality ?? null } : null,
       driver_id: did, sofer: did ? numeSofer.get(did) ?? null : null,
       sat_sofer: b?.locality ?? null, baza: b ? { lat: b.lat, lon: b.lon } : null,
+      km_baza_poarta: kmPanaLaPoarta(i.uzina_id, b ? { lat: b.lat, lon: b.lon } : null),
     });
   }
 

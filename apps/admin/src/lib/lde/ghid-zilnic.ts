@@ -38,6 +38,18 @@ export const PRAG_NIMENI_IN_ZONA_KM = 25;
  */
 export const PRAG_ACASA_PE_RUTA_KM = 10;
 
+/**
+ * Sub atât între casa mașinii și poarta uzinei, mașina E la uzină — și atunci drumul gol
+ * până în zonă și înapoi, la fiecare tură, e tiparul acceptat, nu risipă.
+ *
+ * Ion, 18.09: «sunt situații când mașina se află în locația în care este uzina și pentru
+ * noi oricum este mult mai convenabil să facă în toate turele livrare goală tur sau retur».
+ * Măsurat pe 17.09: 12 mașini (6 Draxelmaier, 3 Orhei, 2 Ungheni, 1 Florești), 377 km goi
+ * din 3.730. Pentru ele nu se propune nici schimb de șofer, nici așteptare: alegerea e
+ * făcută dinadins.
+ */
+export const PRAG_BAZA_LA_UZINA_KM = 10;
+
 export type CursaMasurata = {
   vehicle_id: string | null;
   factory_route_id: string;
@@ -60,7 +72,12 @@ export type CursaMasurata = {
   sofer: string | null;
   sat_sofer: string | null;
   baza: Baza | null;
+  /** distanța de la casa mașinii la poarta uzinei; sub PRAG_BAZA_LA_UZINA_KM = mașină la uzină */
+  km_baza_poarta?: number | null;
 };
+
+const laUzina = (c: CursaMasurata) =>
+  c.km_baza_poarta != null && c.km_baza_poarta <= PRAG_BAZA_LA_UZINA_KM;
 
 export type Alerta = {
   fel: 'neglijenta_asteptare' | 'cursa_scurta' | 'drum_acasa_evitabil' | 'livrare_mare' | 'nimeni_in_zona';
@@ -114,6 +131,8 @@ export function ghidZilnic(curse: CursaMasurata[], prag = PRAG_SEMNIFICATIV_KM):
     const peRuta = lista.some((c) => c.baza && c.prima_statie
       && haversineKm(c.baza, c.prima_statie) <= PRAG_ACASA_PE_RUTA_KM);
     if (peRuta) continue;
+    // mașina bazată la uzină: drumul gol e tiparul ales dinadins (Ion, 18.09)
+    if (lista.some(laUzina)) continue;
     // Se numără DOAR plimbarea din pauză, nu naveta. 293QVT pe 17.09 stă acasă peste
     // noapte, pleacă 70 km la lucru și se întoarce 73 km — n-are ce aștepta, mașina
     // trebuie să ajungă de acasă la lucru. Aceea e altă problemă (șofer prea departe),
@@ -156,6 +175,11 @@ export function ghidZilnic(curse: CursaMasurata[], prag = PRAG_SEMNIFICATIV_KM):
     if (!tur || !retur) continue;
     if (!(tur.km_gol_pauza > 0 && retur.km_gol_pauza > 0)) continue;
     if ((tur.opriri_gol_pe_traseu ?? 0) > 0 || (retur.opriri_gol_pe_traseu ?? 0) > 0) continue;
+    // aceleași garduri ca la neglijență: cine stă pe rută se repoziționează, cine stă la
+    // uzină face golul dinadins — niciunul nu e de întrebat
+    if (laUzina(tur) || laUzina(retur)) continue;
+    if ([tur, retur].some((c) => c.baza && c.prima_statie
+      && haversineKm(c.baza, c.prima_statie) <= PRAG_ACASA_PE_RUTA_KM)) continue;
     if (consumate.has(cheia(tur)) || consumate.has(cheia(retur))) continue;
     const km = r1(tur.km_gol_pauza + retur.km_gol_pauza);
     if (km < prag) continue;
@@ -179,6 +203,7 @@ export function ghidZilnic(curse: CursaMasurata[], prag = PRAG_SEMNIFICATIV_KM):
     // km-ii ei sunt deja numărați la «drumul acasă» — aceeași bucată de drum, altă
     // instrucțiune. Dacă ar apărea de două ori, totalul de sus ar fi o economie inventată.
     if (consumate.has(cheia(c))) continue;
+    if (laUzina(c)) continue;
     out.push({
       fel: 'cursa_scurta', uzina_id: c.uzina_id, ruta: c.eticheta, shift_number: c.shift_number,
       sofer: c.sofer, sat_sofer: c.sat_sofer, economie_km_zi: r1(c.km_goi),
@@ -195,6 +220,7 @@ export function ghidZilnic(curse: CursaMasurata[], prag = PRAG_SEMNIFICATIV_KM):
   // fără să se atingă nimic altceva.
   for (const c of cuBaza) {
     if (c.km_livrare < prag) continue;
+    if (laUzina(c)) continue;   // stă la uzină: livrarea goală e acceptată, nu se schimbă omul
     const altii = cuBaza.filter((x) => x.uzina_id === c.uzina_id && x.shift_number === c.shift_number
       && x.driver_id && x.driver_id !== c.driver_id);
     if (!altii.length) continue;

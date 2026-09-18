@@ -120,6 +120,17 @@ describe('ghidul zilnic, pe curse măsurate (Ion, 18.09)', () => {
     expect(a[0].fel).toBe('cursa_scurta');
   });
 
+  it('mașina bazată la uzină nu primește alerte: golul ei e tiparul ales (Ion, 18.09)', () => {
+    const departe = { baza: { lat: 48.2, lon: 27.5 }, km_baza_poarta: 3 };   // casa lângă poartă
+    const a = ghidZilnic([
+      cursa({ sens: 'tur', km_real: 4, km_goi: 90, km_gol_acasa: 90, km_gol_pauza: 90, km_livrare: 60, ...departe }),
+      cursa({ sens: 'retur', km_goi: 80, km_gol_acasa: 80, km_gol_pauza: 80, ...departe }),
+      cursa({ factory_route_id: 'R2', eticheta: 'U #2', driver_id: 'd2', sofer: 'Doi',
+              sat_sofer: 'Sat', baza: { lat: 47.5, lon: 28.0 }, km_baza_poarta: 60 }),
+    ]);
+    expect(a.filter((x) => x.sofer === 'Unu')).toEqual([]);
+  });
+
   it('tace sub prag: o listă lungă nu se mai citește', () => {
     expect(ghidZilnic([cursa({ km_real: 50, km_goi: 5, km_livrare: 3 })])).toEqual([]);
   });

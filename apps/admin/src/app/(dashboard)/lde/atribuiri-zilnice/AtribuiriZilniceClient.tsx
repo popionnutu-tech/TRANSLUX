@@ -68,7 +68,7 @@ export default function AtribuiriZilniceClient(
                     </td>
                     <td className="whitespace-nowrap">{a.ruta} <span className="text-muted-foreground">s{a.shift_number}</span></td>
                     <td className="whitespace-nowrap">
-                      {a.sofer ?? '—'}
+                      {a.sofer ?? <span className="text-amber-700">netrecut în grafic</span>}
                       {a.sat_sofer && <span className="text-muted-foreground"> ({a.sat_sofer})</span>}
                     </td>
                     <td>

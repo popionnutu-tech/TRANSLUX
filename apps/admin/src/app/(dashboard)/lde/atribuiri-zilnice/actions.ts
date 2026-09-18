@@ -156,8 +156,9 @@ export async function getGhidZilnic(date?: string): Promise<{ zi: string; alerte
     sb.from('lde_route_run')
       .select('factory_route_id, shift_number, sens, vehicle_id, km_real, km_goi, km_gol_acasa, km_livrare, prima_statie, ambiguu')
       .eq('run_date', zi).eq('ambiguu', false).not('km_real', 'is', null),
-    sb.from('lde_atribuiri_zilnice').select('driver_id, vehicle_id, factory_route_id, shift_number')
-      .eq('date', zi).eq('route_kind', 'uzina').not('driver_id', 'is', null),
+    sb.from('lde_atribuiri_zilnice')
+      .select('driver_id, vehicle_id, vehicle_id_retur, factory_route_id, shift_number')
+      .eq('date', zi).eq('route_kind', 'uzina'),
     sb.from('drivers').select('id, full_name'),
     sb.from('lde_factory_routes').select('id, uzina_id, route_number'),
   ]);
@@ -174,15 +175,30 @@ export async function getGhidZilnic(date?: string): Promise<{ zi: string; alerte
   const numeSofer = new Map((soferi ?? []).map((d) => [d.id as string, d.full_name as string]));
   const info = new Map((rute ?? []).map((r) => [r.id as string,
     { uzina_id: r.uzina_id as string, eticheta: `${r.uzina_id} #${r.route_number}` }]));
-  const soferulCursei = new Map((atrib ?? []).map((a) =>
-    [`${a.vehicle_id}|${a.factory_route_id}|${a.shift_number}`, a.driver_id as string]));
+  // Cine a condus cursa. Trei capcane, toate întâlnite pe 17.09, toate ocolite aici:
+  //  1. RETURUL poate fi făcut de altă mașină (`vehicle_id_retur`) — 293QVT pe Draxelmaier
+  //     #14 nu se lega de nimic, deși returul era al lui Bordian Marin.
+  //  2. Aceeași (mașină, rută, schimb) poate avea DOUĂ rânduri, unul fără șofer: 246BRAP
+  //     pe Trox #5. Rândul gol nu are voie să-l acopere pe cel plin.
+  //  3. Uneori graficul chiar n-are șofer trecut (456BRAX pe Ungheni #14) — atunci se
+  //     spune asta pe pagină, nu se pune „?": lipsa din grafic e ea însăși o constatare.
+  const soferulCursei = new Map<string, string>();
+  const soferulReturului = new Map<string, string>();
+  for (const a of atrib ?? []) {
+    if (!a.driver_id) continue;
+    const cheie = (v: unknown) => `${v}|${a.factory_route_id}|${a.shift_number}`;
+    if (a.vehicle_id) soferulCursei.set(cheie(a.vehicle_id), a.driver_id as string);
+    if (a.vehicle_id_retur) soferulReturului.set(cheie(a.vehicle_id_retur), a.driver_id as string);
+  }
 
   const masurate: CursaMasurata[] = [];
   for (const c of curse ?? []) {
     const i = info.get(c.factory_route_id as string);
     if (!i) continue;
     const b = c.vehicle_id ? bazaMasina.get(c.vehicle_id as string) ?? null : null;
-    const did = soferulCursei.get(`${c.vehicle_id}|${c.factory_route_id}|${c.shift_number}`) ?? null;
+    const cheie = `${c.vehicle_id}|${c.factory_route_id}|${c.shift_number}`;
+    const did = (c.sens === 'retur' ? soferulReturului.get(cheie) : null)
+      ?? soferulCursei.get(cheie) ?? soferulReturului.get(cheie) ?? null;
     const p = c.prima_statie as { lat?: number; lon?: number; locality?: string } | null;
     masurate.push({
       vehicle_id: (c.vehicle_id as string) ?? null,

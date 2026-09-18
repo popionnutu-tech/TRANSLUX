@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { judecaTura, textAlertaZilnica, type JudecataCtx, type OpririMasina, type Poarta, type VerifySummary } from './verify';
+import { judecaTura, textAlertaZilnica, zileLibere, type JudecataCtx, type OpririMasina, type Poarta, type VerifySummary } from './verify';
 
 // Verdictul GPS al unei ture — cazurile din spec (retur cu altă mașină, 24.08.2026)
 // plus judecata pe porți (migrația 359, 16.09.2026).
@@ -134,7 +134,7 @@ describe('judecaTura — uzină cu porți', () => {
 
 const sumar = (o: Partial<VerifySummary> = {}): VerifySummary => ({
   date: '2026-09-10', verificate: 191, confirmate_auto: 0, nepotriviri: 0, fara_date_gps: 0,
-  fara_masina: 0, actualizate: 0, push_trimise: 0, alerta_admin: false, dry: false, ...o,
+  fara_masina: 0, uzine_libere: 0, actualizate: 0, push_trimise: 0, alerta_admin: false, dry: false, ...o,
 });
 const NUME = new Map([['LEAR_UNGHENI', 'LEAR-Ungheni'], ['TROX_BRICENI', 'Trox-Briceni']]);
 
@@ -178,5 +178,70 @@ describe('textAlertaZilnica', () => {
       sumar({ nepotriviri: 3, fara_date_gps: 160 }), [])!;
     expect(t).toContain('GPS lipsă');
     expect(t).toContain('Atribuiri 2026-09-12');
+  });
+});
+
+// ── ziua în care uzina n-a lucrat (migr. 371) ───────────────────────────────
+// Ion, 17.09: «uneori sâmbăta lucrează ei». Regula e «zero sau nu»: dacă niciun rând
+// al uzinei n-a fost confirmat de GPS, uzina n-a lucrat.
+
+const v = (direction: string, status: string) => ({ direction, status });
+
+describe('zileLibere', () => {
+  it('uzina fără nicio confirmare, cu destule rânduri judecate → zi liberă', () => {
+    expect([...zileLibere([v('UNGHENI', 'nepotrivire'), v('UNGHENI', 'nepotrivire')])])
+      .toEqual(['UNGHENI']);
+  });
+
+  it('o singură confirmare ține uzina în picioare — restul rămân nepotriviri', () => {
+    expect(zileLibere([v('ORHEI', 'confirmat_auto'), v('ORHEI', 'nepotrivire'), v('ORHEI', 'nepotrivire')]).size)
+      .toBe(0);
+  });
+
+  it('uzinele se judecă separat: sâmbăta Orhei lucrează, Ungheni nu', () => {
+    const libere = zileLibere([
+      v('ORHEI', 'confirmat_auto'), v('ORHEI', 'nepotrivire'),
+      v('UNGHENI', 'nepotrivire'), v('UNGHENI', 'nepotrivire'),
+    ]);
+    expect([...libere]).toEqual(['UNGHENI']);
+  });
+
+  it('un singur rând judecat nu declară ziua liberă — o lipsă nu e o zi', () => {
+    expect(zileLibere([v('STRASENI', 'nepotrivire')]).size).toBe(0);
+  });
+
+  it('rândurile fără GPS nu se pun la socoteală', () => {
+    // două fără GPS + una nepotrivire = un singur rând judecat → sub pragul de 2
+    expect(zileLibere([v('TROX', 'fara_date_gps'), v('TROX', 'fara_date_gps'), v('TROX', 'nepotrivire')]).size)
+      .toBe(0);
+  });
+
+  it('ziua întreagă fără GPS nu e zi liberă, e zi oarbă', () => {
+    expect(zileLibere([v('ORHEI', 'fara_date_gps'), v('ORHEI', 'fara_date_gps')]).size).toBe(0);
+  });
+
+  it('confirmarea manuală a unui om bate GPS-ul: uzina a lucrat', () => {
+    expect(zileLibere([v('TROX', 'nepotrivire'), v('TROX', 'nepotrivire')], new Map([['TROX', 1]])).size)
+      .toBe(0);
+  });
+
+  it('a doua rulare pe aceeași zi nu răstoarnă confirmările primei', () => {
+    // rândurile confirmate la prima rulare nu mai vin în `rows`; vin ca `confirmariExistente`
+    expect(zileLibere([v('ORHEI', 'nepotrivire'), v('ORHEI', 'nepotrivire')], new Map([['ORHEI', 49]])).size)
+      .toBe(0);
+  });
+});
+
+describe('textAlertaZilnica — ziua liberă', () => {
+  it('weekend fără nicio nepotrivire reală → niciun mesaj', () => {
+    expect(textAlertaZilnica('2026-09-13', new Map(), NUME, sumar({ verificate: 73, uzine_libere: 47, fara_date_gps: 24 }), []))
+      .toBeNull();
+  });
+
+  it('când există și nepotriviri reale, uzinele libere sunt numite', () => {
+    const t = textAlertaZilnica('2026-09-12', new Map([['LEAR_UNGHENI', 4]]), NUME,
+      sumar({ nepotriviri: 4, uzine_libere: 20 }), [], ['TROX_BRICENI'])!;
+    expect(t).toContain('Nu au lucrat în ziua asta');
+    expect(t).toContain('Trox-Briceni');
   });
 });

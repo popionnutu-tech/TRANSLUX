@@ -104,6 +104,7 @@ export default function AtribuiriZilniceClient({ data }: { data: AtribuiriAdminD
                   <th style={{ textAlign: 'right' }}>Confirmate</th>
                   <th style={{ textAlign: 'right' }}>Nepotriviri</th>
                   <th style={{ textAlign: 'right' }}>Fără GPS</th>
+                  <th style={{ textAlign: 'right' }}>Zi liberă</th>
                 </tr>
               </thead>
               <tbody>
@@ -116,6 +117,7 @@ export default function AtribuiriZilniceClient({ data }: { data: AtribuiriAdminD
                     <td style={{ textAlign: 'right', color: r.confirmate ? 'var(--success, #1a8a4a)' : undefined }}>{r.confirmate || '—'}</td>
                     <td style={{ textAlign: 'right', color: r.nepotriviri ? 'var(--danger, #ef4444)' : undefined }}>{r.nepotriviri || '—'}</td>
                     <td style={{ textAlign: 'right' }}>{r.fara_gps || '—'}</td>
+                    <td style={{ textAlign: 'right' }}>{r.libere || '—'}</td>
                   </tr>
                 ))}
               </tbody>

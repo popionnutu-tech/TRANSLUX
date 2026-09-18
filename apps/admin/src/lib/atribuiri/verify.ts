@@ -43,6 +43,7 @@ export interface VerifySummary {
   nepotriviri: number;
   fara_date_gps: number;
   fara_masina: number;
+  uzine_libere: number; // rânduri ale uzinelor care n-au lucrat în ziua aceea
   actualizate: number; // rânduri chiar rescrise (fără no-op-uri) — la dry: câte AR fi
   push_trimise: number;
   alerta_admin: boolean; // rezumatul zilei a ajuns la cel puțin un ADMIN
@@ -195,17 +196,16 @@ export async function verificaZi(date: string, dry: boolean, reverify = false): 
   }
 
   const summary: VerifySummary = {
-    date, verificate: 0, confirmate_auto: 0, nepotriviri: 0, fara_date_gps: 0, fara_masina: 0, actualizate: 0, push_trimise: 0, alerta_admin: false, dry,
+    date, verificate: 0, confirmate_auto: 0, nepotriviri: 0, fara_date_gps: 0, fara_masina: 0,
+    uzine_libere: 0, actualizate: 0, push_trimise: 0, alerta_admin: false, dry,
   };
-  const nepotriviriByDir = new Map<string, number>();
   const updates: Array<{ id: string; status: string; note: string }> = [];
+  // verdictele se strâng întâi, fiindcă întrebarea «a lucrat uzina azi?» se pune pe
+  // direcție, nu pe rând — vezi zileLibere() de mai jos.
+  const verdicte: Array<{ id: string; direction: string; vechi: string; notaVeche: string | null; status: string; note: string }> = [];
 
   for (const r of rows ?? []) {
     summary.verificate++;
-    // nu rescrie rândurile al căror verdict nu s-a schimbat (relevant la reverify)
-    const propune = (status: string, note: string) => {
-      if (r.status !== status || r.verification_note !== note) updates.push({ id: r.id as string, status, note });
-    };
     if (!r.vehicle_id) { summary.fara_masina++; continue; } // «de completat» — nu e verdict GPS
     const city = cityOf.get(r.direction as string);
     if (!city) continue;
@@ -219,13 +219,43 @@ export async function verificaZi(date: string, dry: boolean, reverify = false): 
       stops,
       plateOf: (v) => plateOf.get(v) ?? '?',
     });
+    verdicte.push({
+      id: r.id as string, direction: r.direction as string,
+      vechi: r.status as string, notaVeche: (r.verification_note as string | null) ?? null,
+      status, note,
+    });
+  }
+
+  // Confirmările pe care rularea asta NU le re-judecă — deci nu sunt în `verdicte`, dar
+  // spun că uzina a lucrat. La o rulare normală: și cele auto (rămase de la o rulare
+  // anterioară a aceleiași zile), și cele manuale. La reverify: doar cele manuale,
+  // fiindcă cele auto intră oricum în judecată și s-ar număra de două ori.
+  const confStatuses = ['confirmat_auto', 'confirmat_manual'].filter((s) => !statuses.includes(s));
+  const { data: confRows } = await db.from('lde_atribuiri_zilnice')
+    .select('direction, status').eq('date', date).eq('route_kind', 'uzina')
+    .in('status', confStatuses);
+  const confirmariExistente = new Map<string, number>();
+  for (const c of confRows ?? []) {
+    confirmariExistente.set(c.direction as string, (confirmariExistente.get(c.direction as string) ?? 0) + 1);
+  }
+
+  // uzinele care n-au lucrat în ziua asta: nepotrivirile lor nu sunt abateri
+  const libere = zileLibere(verdicte, confirmariExistente);
+  const nepotriviriByDir = new Map<string, number>();
+  for (const v of verdicte) {
+    const liber = libere.has(v.direction);
+    const status = liber && v.status === 'nepotrivire' ? 'uzina_nu_a_lucrat' : v.status;
+    const note = status === 'uzina_nu_a_lucrat' ? NOTA_ZI_LIBERA : v.note;
+
     if (status === 'fara_date_gps') summary.fara_date_gps++;
     else if (status === 'confirmat_auto') summary.confirmate_auto++;
+    else if (status === 'uzina_nu_a_lucrat') summary.uzine_libere++;
     else {
       summary.nepotriviri++;
-      nepotriviriByDir.set(r.direction as string, (nepotriviriByDir.get(r.direction as string) ?? 0) + 1);
+      nepotriviriByDir.set(v.direction, (nepotriviriByDir.get(v.direction) ?? 0) + 1);
     }
-    propune(status, note);
+    // nu rescrie rândurile al căror verdict nu s-a schimbat (relevant la reverify)
+    if (v.vechi !== status || v.notaVeche !== note) updates.push({ id: v.id, status, note });
   }
 
   summary.actualizate = updates.length;
@@ -240,9 +270,56 @@ export async function verificaZi(date: string, dry: boolean, reverify = false): 
     }
     // la reverify nu re-spamăm managerii — nepotrivirile vechi au fost deja anunțate
     summary.push_trimise = reverify ? 0 : await pushManagers(date, nepotriviriByDir, summary);
-    if (!reverify) summary.alerta_admin = await alertaZilnica(date, nepotriviriByDir, numeOf, summary);
+    if (!reverify) summary.alerta_admin = await alertaZilnica(date, nepotriviriByDir, numeOf, summary, [...libere]);
   }
   return summary;
+}
+
+export const NOTA_ZI_LIBERA = 'uzina nu a lucrat: nicio mașină din plan n-a ajuns la poartă';
+
+/** Uzinele care nu au lucrat în ziua judecată.
+ *
+ *  Ion, 17.09: «uneori sâmbăta lucrează ei». Planul materializează weekendul întreg de
+ *  fiecare dată (works_saturday/works_sunday sunt steaguri fixe), deci într-o zi liberă
+ *  ies 50–75 de «nepotriviri» care nu sunt abaterea nimănui. Un steag fix n-ar ajuta:
+ *  cu «uneori», works_saturday=false ar ascunde exact sâmbăta în care uzina chiar lucrează.
+ *
+ *  Regula e «zero sau nu», fără prag ales de noi: dacă NICIUN rând al uzinei n-a fost
+ *  confirmat de GPS, uzina n-a lucrat. Măsurat pe 14 weekenduri — într-o zi lucrată la
+ *  Orhei se confirmă 20–50 de rânduri, într-una liberă zero; la Ungheni, zero în toate
+ *  cele 14. Nu există zonă gri.
+ *
+ *  Limita cunoscută, acceptată în cunoștință de cauză: o singură confirmare întâmplătoare
+ *  ține uzina «în lucru». Sâmbătă 29.08 Orhei n-a lucrat, dar o mașină din plan a atins
+ *  poarta, deci ziua rămâne cu nepotriviri. Un prag procentual ar prinde cazul ăsta, dar
+ *  ar declara liber și Bălțiul care sâmbăta chiar lucrează, cu 3 mașini din 39 — adică ar
+ *  ascunde abateri reale. Greșim deliberat în direcția zgomotului, nu a tăcerii.
+ *
+ *  Două garduri împotriva citirii greșite a unei zile în care uzina CHIAR a lucrat:
+ *   • cel puțin două rânduri trebuie să fi fost judecate pe GPS — altfel o uzină cu un
+ *     singur rând fără tracker ar fi declarată liberă dintr-o singură lipsă;
+ *   • `confirmariExistente` = rândurile uzinei deja confirmate în bază (auto sau manual)
+ *     pentru ziua aceea. Contează din două motive: un om care a apăsat «Confirmă manual»
+ *     a spus că s-a lucrat, iar o A DOUA rulare a cronului pe aceeași zi nu mai primește
+ *     în `rows` rândurile confirmate la prima (filtrul pe status le sare) — fără gardul
+ *     ăsta, re-rularea ar declara liberă o zi pe care tocmai a confirmat-o.
+ */
+export function zileLibere(
+  verdicte: Array<{ direction: string; status: string }>,
+  confirmariExistente: Map<string, number> = new Map(),
+): Set<string> {
+  const judecate = new Map<string, number>();   // rânduri cu verdict GPS real
+  const confirmate = new Map<string, number>();
+  for (const v of verdicte) {
+    if (v.status === 'fara_date_gps') continue;
+    judecate.set(v.direction, (judecate.get(v.direction) ?? 0) + 1);
+    if (v.status === 'confirmat_auto') confirmate.set(v.direction, (confirmate.get(v.direction) ?? 0) + 1);
+  }
+  const libere = new Set<string>();
+  for (const [dir, n] of judecate) {
+    if (n >= 2 && !confirmate.get(dir) && !confirmariExistente.get(dir)) libere.add(dir);
+  }
+  return libere;
 }
 
 /** Textul rezumatului de ADMIN. Separat de trimitere ca să poată fi testat. */
@@ -252,8 +329,11 @@ export function textAlertaZilnica(
   numeOf: Map<string, string>,
   s: VerifySummary,
   dirsFaraManager: string[],
+  uzineLibere: string[] = [],
 ): string | null {
   const gpsCazut = s.verificate >= MIN_RANDURI_ALARMA && s.fara_date_gps / s.verificate >= PRAG_GPS_CAZUT;
+  // Ziua liberă a unei uzine NU e motiv de alertă — altfel fiecare weekend ar trimite un
+  // mesaj cu 50–75 de «abateri» care nu există, iar mesajul ar înceta să fie citit.
   if (!gpsCazut && !nepotriviriByDir.size) return null;
 
   const linii: string[] = [];
@@ -282,6 +362,11 @@ export function textAlertaZilnica(
         dirsFaraManager.map((d) => escapeHtml(numeOf.get(d) ?? d)).join(', ')}`);
     }
   }
+  // Spus explicit, ca tăcerea unei uzine să nu fie citită drept «acolo a fost bine».
+  if (uzineLibere.length) {
+    linii.push('', `Nu au lucrat în ziua asta: ${
+      uzineLibere.map((d) => escapeHtml(numeOf.get(d) ?? d)).join(', ')}`);
+  }
   return linii.join('\n');
 }
 
@@ -292,12 +377,13 @@ async function alertaZilnica(
   nepotriviriByDir: Map<string, number>,
   numeOf: Map<string, string>,
   s: VerifySummary,
+  uzineLibere: string[],
 ): Promise<boolean> {
   const db = getSupabase();
   const { data: mds } = await db.from('lde_manager_directions').select('direction');
   const cuManager = new Set((mds ?? []).map((m) => m.direction as string));
   const text = textAlertaZilnica(date, nepotriviriByDir, numeOf, s,
-    [...nepotriviriByDir.keys()].filter((d) => !cuManager.has(d)));
+    [...nepotriviriByDir.keys()].filter((d) => !cuManager.has(d)), uzineLibere);
   if (!text) return false;
   return alertAdmins(text);
 }

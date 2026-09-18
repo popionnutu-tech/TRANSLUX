@@ -52,6 +52,7 @@ export const STATUS_BADGE: Record<string, { label: string; color: string }> = {
   confirmat_manual: { label: 'confirmat manual', color: '#1a8a4a' },
   nepotrivire: { label: 'nepotrivire', color: '#c0392b' },
   fara_date_gps: { label: 'fără GPS', color: '#8a7f86' },
+  uzina_nu_a_lucrat: { label: 'uzina nu a lucrat', color: '#8a7f86' },
 };
 
 /** Azi/Mâine în Chișinău, YYYY-MM-DD (client). */

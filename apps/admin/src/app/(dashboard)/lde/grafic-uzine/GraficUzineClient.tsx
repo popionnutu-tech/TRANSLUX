@@ -16,6 +16,7 @@ const CELL: Record<string, { bg: string; fg: string }> = {
   confirmat_manual:   { bg: '#dcfce7', fg: '#166534' },
   nepotrivire:        { bg: '#fee2e2', fg: '#b91c1c' },
   fara_date_gps:      { bg: '#fafafa', fg: '#8a7f86' },
+  uzina_nu_a_lucrat:  { bg: '#f1f5f9', fg: '#64748b' },
 };
 const shortName = (full: string | null) => {
   if (!full) return '';

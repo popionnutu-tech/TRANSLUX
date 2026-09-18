@@ -24,6 +24,7 @@ export interface MatrixRow {
   confirmate: number;
   nepotriviri: number;
   fara_gps: number;
+  libere: number;            // uzina n-a lucrat în ziua aceea (nu e abatere)
   modificate: number;
 }
 
@@ -68,13 +69,14 @@ export async function getAtribuiriAdmin(date?: string): Promise<AtribuiriAdminDa
   for (const r of rows) {
     const m = byDir.get(r.direction) ?? {
       direction: r.direction, label: labelOf.get(r.direction) ?? r.direction,
-      total: 0, fara_masina: 0, confirmate: 0, nepotriviri: 0, fara_gps: 0, modificate: 0,
+      total: 0, fara_masina: 0, confirmate: 0, nepotriviri: 0, fara_gps: 0, libere: 0, modificate: 0,
     };
     m.total++;
     if (!r.vehicle_id) m.fara_masina++;
     if (r.status === 'confirmat_auto' || r.status === 'confirmat_manual') m.confirmate++;
     if (r.status === 'nepotrivire') m.nepotriviri++;
     if (r.status === 'fara_date_gps') m.fara_gps++;
+    if (r.status === 'uzina_nu_a_lucrat') m.libere++;
     if (r.status === 'modificat_proactiv' || r.status === 'modificat_reactiv') m.modificate++;
     byDir.set(r.direction, m);
   }

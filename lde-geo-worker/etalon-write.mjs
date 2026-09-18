@@ -295,13 +295,16 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
       ctx.locuriPeNume.get(n).push(p);
     }
   }
-  const satulRutei = (rid) => {
+  // Dintre locurile cu același nume se ia cel de care DRUMUL trece cel mai aproape, nu cel
+  // mai apropiat de poartă: sunt două Mihailovca, iar cea mai apropiată de Orhei nu e cea
+  // de pe ruta 9 — Maliovanii, care locuiește chiar în Mihailovca, ieșea cu 52 km livrare.
+  const satulRutei = (rid, seg) => {
     const nume = (ctx.sateRuta.get(rid) ?? [])[0];
     const locuri = nume ? ctx.locuriPeNume?.get(nume) : null;
     if (!locuri?.length) return null;
-    const poarta = (ctx.porti.get(ctx.uzinaRutei.get(rid)) ?? [])[0];
-    if (!poarta) return locuri[0];
-    return locuri.reduce((b, p) => (hav(p, poarta) < hav(b, poarta) ? p : b));
+    if (locuri.length === 1 || !seg) return locuri[0];
+    const dist = (p) => { let m = Infinity; for (let k = seg.from; k <= seg.to; k += 3) m = Math.min(m, hav(r.pts[k], p)); return m; };
+    return locuri.reduce((b, p) => (dist(p) < dist(b) ? p : b));
   };
   const OPRIRE_ORIUNDE_S = 120;
   const scurteInSat = popasuri(r.pts, 0, r.pts.length - 1)
@@ -315,7 +318,7 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
       // la uzina asta și se ia tăietura cea mai mică — apoi, dacă niciuna, oprirea
       const peSat = lista
         .filter((a) => (ctx.uzinaRutei.get(a.factory_route_id) ?? a.direction) === s.uzina_id)
-        .map((a) => taiePeSat(s, r.pts, r.calc, satulRutei(a.factory_route_id)))
+        .map((a) => taiePeSat(s, r.pts, r.calc, satulRutei(a.factory_route_id, s)))
         .filter(Boolean).sort((x, y) => x.livrare - y.livrare)[0];
       const t = peSat ?? taieLivrarea(s, capeteReale(r.stops ?? [], r.pts, s.from, s.to, scurteInSat), r.calc);
       if (t) { contrib.km_plin += t.plin; contrib.km_gol += t.livrare; contrib.km_livrare += t.livrare; }
@@ -547,7 +550,7 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
       // rutei 11. Se acceptă doar o rută al cărei km etalon, pe schimbul și sensul ăsta,
       // e de același ordin cu drumul măsurat: între jumătate și 1,6×. Fără km etalon nu
       // se poate judeca — deci nu se suprascrie, rămâne ce scrie graficul, cu `nepotrivit`.
-      const kmPlin = (rid) => taiePeSat(plin, r.pts, r.calc, satulRutei(rid))?.plin ?? plin.km;
+      const kmPlin = (rid) => taiePeSat(plin, r.pts, r.calc, satulRutei(rid, plin))?.plin ?? plin.km;
       const verosimil = (rid) => {
         const ref = ctx.kmEtalon?.get(rid)?.get(`${sh}|${sens}`);
         return ref != null && kmPlin(rid) >= 0.5 * ref && kmPlin(rid) <= 1.6 * ref;
@@ -571,7 +574,7 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
       // Tăietura livrării, pe ruta DECISĂ: întâi la satul care-i dă numele, altfel la oprire.
       // Satele, capetele și geometria cursei se iau din bucata rămasă — altfel etalonul
       // ar începe acasă la șofer (Popescu: «Începe: Chiperceni», care e casa lui).
-      const taiat = taiePeSat(plin, r.pts, r.calc, satulRutei(a.factory_route_id))
+      const taiat = taiePeSat(plin, r.pts, r.calc, satulRutei(a.factory_route_id, plin))
         ?? taieLivrarea(plin, capeteReale(r.stops ?? [], r.pts, plin.from, plin.to, scurteInSat), r.calc);
       const cut = taiat ? { from: taiat.from, to: taiat.to } : { from: plin.from, to: plin.to };
       const capete = capeteReale(r.stops ?? [], r.pts, cut.from, cut.to, scurteInSat);

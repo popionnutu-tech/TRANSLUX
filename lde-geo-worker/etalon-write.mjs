@@ -361,7 +361,18 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
         .sort((p, q) => q.scor - p.scor);
       let a = cuScor[0].a;
       const alDoilea = cuScor.find((x) => x.a.factory_route_id !== a.factory_route_id);
-      let ambiguu = cuScor[0].scor < 0.34 || (alDoilea != null && alDoilea.scor >= cuScor[0].scor - 0.1);
+      // `ambiguu` înseamnă «nu se poate spune A CUI e cursa». Dacă mașina are o SINGURĂ
+      // rută în schimbul ăsta, n-are cu cine s-o confunzi — chiar dacă satele nu se
+      // potrivesc cu numele scris în grafic. La Ungheni asta ținea uzina blocată: numele
+      // rutelor sunt stații de autobuz, nu sate (26 din 109), deci potrivirea dădea zero,
+      // cursa ieșea ambiguă, ambiguele nu intră în etalon, iar fără etalon potrivirea
+      // rămânea zero. Cerc închis, 24 de curse din 40 pe 17.09.
+      // Nepotrivirea rămâne însemnată în `motiv` — e o constatare despre grafic, nu un
+      // motiv să arunci cursa.
+      const concurenta = new Set(eligibili.map((x) => x.factory_route_id)).size > 1;
+      let ambiguu = concurenta
+        && (cuScor[0].scor < 0.34 || (alDoilea != null && alDoilea.scor >= cuScor[0].scor - 0.1));
+      let nepotrivit = cuScor[0].scor < 0.34;
       let motivGrafic = null;
 
       // GPS-UL BATE GRAFICUL. Ion, 18.09: «GPS-ul e faptic, cum a mers; graficul de mână nu».
@@ -422,7 +433,8 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
         prima_statie: capete.prima, ultima_statie: capete.ultima,
         stare: 'plin', ambiguu,
         motiv: motivGrafic
-          ?? (ambiguu ? (cuScor[0].scor < 0.34 ? 'sate_nepotrivite' : 'doua_rute_la_fel') : null),
+          ?? (ambiguu ? (nepotrivit ? 'sate_nepotrivite' : 'doua_rute_la_fel')
+            : (nepotrivit ? 'sate_nepotrivite' : null)),
         geom: simplifica(r.pts, r.calc, plin.from, plin.to),
       }, { onConflict: 'run_date,factory_route_id,shift_number,slot,sens' });
       luate.add(`${sens}|${a.factory_route_id}`);

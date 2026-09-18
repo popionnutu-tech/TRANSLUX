@@ -227,9 +227,13 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
   }, { onConflict: 'vehicle_id,gps_date' });
 
   if (!tr.length) {
-    // n-a mers, GPS-ul a avut gaură, sau mașina a plecat la reparații? Trei motive
+    // n-a mers, GPS-ul a avut gaură, sau mașina a făcut cu totul altceva? Trei motive
     // distincte, nu unul. Ion, 18.09: «dacă a făcut km, trebuia să fie ruta; ori dacă nu
-    // a avut opriri conform etalon — să plece la reparații».
+    // a avut opriri conform etalon — să plece la reparații». Prima variantă scria chiar
+    // `posibil_service`, dar Ion a cerut să numărăm întâi cazurile, și bine a făcut: pe
+    // 17.09 sunt ZERO. Km-ii fără rută sunt ai camioanelor (11 mașini, 1.664 km) și ai
+    // autobuzelor de pe rute regulate fără atribuire (12 mașini, 2.662 km) — nu ai
+    // reparațiilor. Deci motivul scrie ce s-a văzut, nu de ce: `fara_ruta_pe_urma`.
     // Deci: fără nicio atingere de poartă, se întreabă urma dacă a trecut totuși prin
     // satele rutelor mașinii. Dacă da — a făcut ruta, dar n-a ajuns la poartă (sau poarta
     // n-a fost prinsă). Dacă nu — ziua ei n-are nimic de-a face cu rutele, iar km-ii ei
@@ -244,7 +248,7 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
     const potrivite = [...aleMasinii].filter((x) => sateZi.has(x)).length;
     const acoperireRuta = aleMasinii.size ? potrivite / aleMasinii.size : 0;
     const motiv = acoperire < 0.8 ? 'gaura_semnal'
-      : acoperireRuta < 0.2 ? 'posibil_service' : 'fara_trecere';
+      : acoperireRuta < 0.2 ? 'fara_ruta_pe_urma' : 'fara_trecere';
     for (const a of lista) {
       await supa.from('lde_route_run').upsert({
         run_date: day, factory_route_id: a.factory_route_id, shift_number: a.shift_number,

@@ -37,6 +37,8 @@ export type CursaMasurata = {
   km_gol_acasa: number;
   /** partea din golul prin casă făcută ÎNTRE atingerile de poartă — plimbarea din pauză */
   km_gol_pauza: number;
+  /** opriri de pe drumul „gol", în satele rutelor mașinii. Peste zero: drumul n-a fost gol. */
+  opriri_gol_pe_traseu: number | null;
   km_livrare: number;
   prima_statie: (Baza & { locality?: string | null }) | null;
   driver_id: string | null;
@@ -84,6 +86,13 @@ export function ghidZilnic(curse: CursaMasurata[], prag = PRAG_SEMNIFICATIV_KM):
   for (const lista of peMasina.values()) {
     const ture = new Set(lista.map((c) => c.shift_number)).size;
     if (ture !== 1) continue;
+    // Dacă pe drumul „gol" sunt opriri în satele rutelor mașinii, drumul N-A FOST GOL:
+    // mașina se întorcea în zonă ca să strângă oamenii celeilalte rute. Ion, 18.09: «dacă
+    // au două rute, înseamnă că trebuie să se întoarcă în zonă ca să ridice oamenii de
+    // acolo, nu?» — avea dreptate, iar măsurătoarea i-a dat dreptate pe toate cele patru
+    // cazuri pe care le raportasem drept neglijență (3, 3, 1 și 1 opriri pe drumul „gol").
+    // Acuzația costă încrederea în tot ghidul, deci pragul e ZERO opriri, nu „puține".
+    if (lista.some((c) => (c.opriri_gol_pe_traseu ?? 0) > 0)) continue;
     // Se numără DOAR plimbarea din pauză, nu naveta. 293QVT pe 17.09 stă acasă peste
     // noapte, pleacă 70 km la lucru și se întoarce 73 km — n-are ce aștepta, mașina
     // trebuie să ajungă de acasă la lucru. Aceea e altă problemă (șofer prea departe),
@@ -117,6 +126,7 @@ export function ghidZilnic(curse: CursaMasurata[], prag = PRAG_SEMNIFICATIV_KM):
     const retur = lista.find((c) => c.sens === 'retur');
     if (!tur || !retur) continue;
     if (!(tur.km_gol_pauza > 0 && retur.km_gol_pauza > 0)) continue;
+    if ((tur.opriri_gol_pe_traseu ?? 0) > 0 || (retur.opriri_gol_pe_traseu ?? 0) > 0) continue;
     if (consumate.has(cheia(tur)) || consumate.has(cheia(retur))) continue;
     const km = r1(tur.km_gol_pauza + retur.km_gol_pauza);
     if (km < prag) continue;

@@ -3,7 +3,7 @@ import { ghidZilnic, type CursaMasurata } from './ghid-zilnic';
 
 const cursa = (o: Partial<CursaMasurata>): CursaMasurata => ({
   vehicle_id: 'v1', factory_route_id: 'R', eticheta: 'U #1', uzina_id: 'U', shift_number: 1, sens: 'tur',
-  km_real: 50, km_goi: 0, km_gol_acasa: 0, km_gol_pauza: 0, km_livrare: 0,
+  km_real: 50, km_goi: 0, km_gol_acasa: 0, km_gol_pauza: 0, opriri_gol_pe_traseu: 0, km_livrare: 0,
   prima_statie: { lat: 47.5, lon: 28.0, locality: 'Sat' }, driver_id: 'd1', sofer: 'Unu',
   sat_sofer: 'Acasă', baza: { lat: 47.5, lon: 28.0 }, ...o,
 });
@@ -76,6 +76,17 @@ describe('ghidul zilnic, pe curse măsurate (Ion, 18.09)', () => {
     expect(a.filter((x) => x.fel === 'neglijenta_asteptare')).toHaveLength(1);
     expect(a.some((x) => x.fel === 'cursa_scurta')).toBe(false);
     expect(a.reduce((t, x) => t + x.economie_km_zi, 0)).toBe(170);
+  });
+
+  it('drumul cu opriri în satele rutei NU e gol — cazul celor patru de pe 17.09', () => {
+    // Ion, 18.09: «dacă au două rute, înseamnă că trebuie să se întoarcă în zonă ca să
+    // ridice oamenii de acolo». Vleju Igor avea 3 opriri pe drumul socotit „gol", Guzun
+    // Ivan 3, Neamtu Oleg 1, Juncu Serafim 1 — toți patru strângeau oameni, nu se plimbau.
+    const a = ghidZilnic([
+      cursa({ sens: 'tur', km_goi: 60, km_gol_acasa: 60, km_gol_pauza: 60, opriri_gol_pe_traseu: 0 }),
+      cursa({ sens: 'retur', km_goi: 52, km_gol_acasa: 52, km_gol_pauza: 52, opriri_gol_pe_traseu: 3 }),
+    ]);
+    expect(a.some((x) => x.fel === 'neglijenta_asteptare')).toBe(false);
   });
 
   it('naveta de dimineață NU e neglijență: mașina trebuie să ajungă la lucru', () => {

@@ -270,6 +270,22 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
   // «a oprit într-un sat AL RUTEI LUI» — regula lui Ion, 18.09. Lista de referință e
   // etalonul rutei (satele ei deduse din cursele neambigue), nu numele scris în grafic:
   // numele are 1-2 sate, etalonul are 13-19.
+  // «În satul vreuneia dintre rutele mașinii» — pentru drumul GOL. Ion, 18.09: «dacă au
+  // două rute, înseamnă că trebuie să se întoarcă în zonă ca să ridice oamenii de acolo».
+  // O mașină cu două rute în același schimb primește cursă doar pentru una; drumul plin al
+  // celeilalte e luat drept întoarcerea goală a primei. Dacă pe el sunt opriri în satele
+  // ei, drumul n-a fost gol — și nimeni nu are voie să fie acuzat de neglijență.
+  const toateSateleMasinii = (() => {
+    const t = new Set();
+    for (const a of lista)
+      for (const x of ctx.sateEtalon?.get(a.factory_route_id) ?? ctx.sateRuta.get(a.factory_route_id) ?? [])
+        t.add(x);
+    return t;
+  })();
+  const inSatulMasinii = toateSateleMasinii.size
+    ? (p) => { const n = locul(p); return n != null && toateSateleMasinii.has(norm(n)); }
+    : null;
+
   const inSatulRutei = (rid) => {
     const ale = new Set(ctx.sateEtalon?.get(rid) ?? ctx.sateRuta.get(rid) ?? []);
     return ale.size ? (p) => { const n = locul(p); return n != null && ale.has(norm(n)); } : null;
@@ -325,6 +341,9 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
         km_livrare: taiat ? taiat.livrare : 0,
         km_gol_acasa: gol ? golPrinCasa(gol, r.pts, r.calc, bazeP) : 0,
         km_gol_pauza: gol ? golDinPauza(gol) : 0,
+        opriri_gol_pe_traseu: gol && inSatulMasinii
+          ? opririScurte(r.pts, gol.from, gol.to, { exclude: deSarit(gol), inSat: inSatulMasinii })
+          : null,
         opriri_plin: opririScurte(r.pts, plin.from, plin.to, { exclude: deSarit(plin), inSat }),
         opriri_pe_traseu: (() => {
           const f = inSatulRutei(a.factory_route_id);

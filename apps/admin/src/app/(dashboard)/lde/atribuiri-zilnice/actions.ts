@@ -154,7 +154,7 @@ export async function getGhidZilnic(date?: string): Promise<{ zi: string; alerte
 
   const [{ data: curse }, { data: atrib }, { data: soferi }, { data: rute }] = await Promise.all([
     sb.from('lde_route_run')
-      .select('factory_route_id, shift_number, sens, vehicle_id, km_real, km_goi, km_gol_acasa, km_gol_pauza, km_livrare, opriri_gol_pe_traseu, prima_statie, ambiguu')
+      .select('factory_route_id, shift_number, sens, vehicle_id, km_real, km_goi, km_gol_acasa, km_gol_pauza, km_livrare, opriri_gol_pe_traseu, sate_gol_pe_traseu, prima_statie, ambiguu')
       .eq('run_date', zi).eq('ambiguu', false).not('km_real', 'is', null),
     sb.from('lde_atribuiri_zilnice')
       .select('driver_id, vehicle_id, vehicle_id_retur, factory_route_id, shift_number')
@@ -207,6 +207,7 @@ export async function getGhidZilnic(date?: string): Promise<{ zi: string; alerte
       km_real: Number(c.km_real ?? 0), km_goi: Number(c.km_goi ?? 0),
       km_gol_acasa: Number(c.km_gol_acasa ?? 0), km_gol_pauza: Number(c.km_gol_pauza ?? 0),
       opriri_gol_pe_traseu: c.opriri_gol_pe_traseu == null ? null : Number(c.opriri_gol_pe_traseu),
+      sate_gol_pe_traseu: c.sate_gol_pe_traseu == null ? null : Number(c.sate_gol_pe_traseu),
       km_livrare: Number(c.km_livrare ?? 0),
       prima_statie: p?.lat != null ? { lat: Number(p.lat), lon: Number(p.lon), locality: p.locality ?? null } : null,
       driver_id: did, sofer: did ? numeSofer.get(did) ?? null : null,

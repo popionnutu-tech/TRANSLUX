@@ -25,6 +25,19 @@ export const PRAG_SEMNIFICATIV_KM = 25;
 /** Peste atât, niciun șofer al uzinei nu e „din zonă". */
 export const PRAG_NIMENI_IN_ZONA_KM = 25;
 
+/**
+ * Sub atât, casa șoferului E capătul rutei lui — și atunci „s-a dus acasă" înseamnă
+ * „s-a repoziționat în zonă ca să ia oamenii", nu „s-a plimbat".
+ *
+ * Ion, 18.09: «dacă au două rute, înseamnă că trebuie să se întoarcă în zonă ca să ridice
+ * oamenii de acolo, nu?». Cele patru cazuri pe care le raportasem greșit ca neglijență
+ * locuiesc toate PE ruta lor: Vleju în Dumbrăvița = primul sat al rutelor #25 și #35,
+ * Guzun în Zăicani = primul sat al lui #8, Juncu în Sărata Veche = primul sat al lui #26,
+ * Neamtu în Căinarii Vechi = sat de pe #14. Pentru ei, drumul acasă costă zero în plus:
+ * oricum trebuiau să ajungă acolo ca să înceapă strânsul.
+ */
+export const PRAG_ACASA_PE_RUTA_KM = 10;
+
 export type CursaMasurata = {
   vehicle_id: string | null;
   factory_route_id: string;
@@ -39,6 +52,8 @@ export type CursaMasurata = {
   km_gol_pauza: number;
   /** opriri de pe drumul „gol", în satele rutelor mașinii. Peste zero: drumul n-a fost gol. */
   opriri_gol_pe_traseu: number | null;
+  /** prin câte sate ale rutelor mașinii a trecut drumul „gol" */
+  sate_gol_pe_traseu?: number | null;
   km_livrare: number;
   prima_statie: (Baza & { locality?: string | null }) | null;
   driver_id: string | null;
@@ -93,6 +108,12 @@ export function ghidZilnic(curse: CursaMasurata[], prag = PRAG_SEMNIFICATIV_KM):
     // cazuri pe care le raportasem drept neglijență (3, 3, 1 și 1 opriri pe drumul „gol").
     // Acuzația costă încrederea în tot ghidul, deci pragul e ZERO opriri, nu „puține".
     if (lista.some((c) => (c.opriri_gol_pe_traseu ?? 0) > 0)) continue;
+    // Și, mai important decât opririle: dacă omul stă PE ruta lui, drumul acasă e chiar
+    // repoziționarea în zonă. Nu are ce economisi stând la poartă — ar trebui oricum să
+    // se întoarcă acolo ca să înceapă strânsul.
+    const peRuta = lista.some((c) => c.baza && c.prima_statie
+      && haversineKm(c.baza, c.prima_statie) <= PRAG_ACASA_PE_RUTA_KM);
+    if (peRuta) continue;
     // Se numără DOAR plimbarea din pauză, nu naveta. 293QVT pe 17.09 stă acasă peste
     // noapte, pleacă 70 km la lucru și se întoarce 73 km — n-are ce aștepta, mașina
     // trebuie să ajungă de acasă la lucru. Aceea e altă problemă (șofer prea departe),
@@ -105,10 +126,18 @@ export function ghidZilnic(curse: CursaMasurata[], prag = PRAG_SEMNIFICATIV_KM):
       fel: 'neglijenta_asteptare', uzina_id: c.uzina_id, ruta: c.eticheta,
       shift_number: c.shift_number, sofer: c.sofer, sat_sofer: c.sat_sofer,
       economie_km_zi: km,
-      instructiune: 'Neglijență: mașina are o singură tură în ziua asta și s-a dus acasă între'
-        + ' dus și întors. Trebuia să aștepte — km-ii aceștia nu duc pe nimeni nicăieri.',
-      detaliu: `${km} km până acasă și înapoi la aceeași poartă`
-        + (c.sat_sofer ? ` · ${c.sat_sofer}` : ''),
+      // NU acuză — ÎNTREABĂ. Pe 18.09 am raportat patru șoferi ca neglijenți; operaționalul
+      // a răspuns că fac câte două ture, și au avut dreptate: drumurile „goale" treceau
+      // prin 11-20 de sate ale rutelor lor. Din GPS nu se poate ști sigur dacă au urcat
+      // oameni — opririle de urcare țin 30-40 de secunde, iar punctele vin la 30. Omul de
+      // la grafic știe. Deci ghidul pune întrebarea și îi dă cifrele pe care să răspundă.
+      instructiune: `Verifică: mașina a stat acasă între două atingeri de poartă, iar drumul`
+        + ` dus-întors a fost ${km} km. Dacă n-a strâns pe nimeni pe drum, ei se pot tăia`
+        + ` (să aștepte pe loc). Dacă a strâns — spune-mi, ca să nu-i mai cer asta.`,
+      detaliu: `${km} km până acasă și înapoi`
+        + (c.sat_sofer ? ` · ${c.sat_sofer}` : '')
+        + ` · pe drum: ${lista.reduce((t, x) => t + (x.sate_gol_pe_traseu ?? 0), 0)} sate ale rutei,`
+        + ` ${lista.reduce((t, x) => t + (x.opriri_gol_pe_traseu ?? 0), 0)} opriri văzute`,
     });
   }
 

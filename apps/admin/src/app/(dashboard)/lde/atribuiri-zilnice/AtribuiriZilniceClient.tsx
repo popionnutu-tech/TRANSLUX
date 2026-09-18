@@ -48,13 +48,15 @@ export default function AtribuiriZilniceClient(
       {ghid.alerte.length > 0 && (
         <Card style={{ marginBottom: '1rem', borderColor: '#f59e0b', borderWidth: 2 }}>
           <CardHeader>
-            <CardTitle>Km goi de tăiat — {totalGhid} km în ziua de {ghid.zi}</CardTitle>
+            <CardTitle>De verificat în graficul zilei de {ghid.zi} — până la {totalGhid} km</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-xs text-muted-foreground" style={{ marginBottom: '0.75rem' }}>
-              Fiecare rând e o cursă măsurată din GPS, nu o presupunere. Se arată doar ce
-              depășește pragul; sub el nu merită să te uiți. Nicio propunere nu taie curse și
-              nu scoate sate — uzina plătește serviciul, deci km-ii tăiați rămân la noi.
+              Fiecare rând e o cursă măsurată din GPS. Cifra e ce s-ar putea tăia <em>dacă</em>
+              drumul a fost într-adevăr gol — GPS-ul vede mașina, nu oamenii din ea, iar urcarea
+              dintr-un sat ține 30 de secunde și nu se vede întotdeauna. Unde scrie «verifică»,
+              întreabă omul înainte să schimbi ceva. Nicio propunere nu taie curse și nu scoate
+              sate: uzina plătește serviciul, deci km-ii tăiați rămân la noi.
             </p>
             <table className="w-full text-sm">
               <thead><tr className="text-left border-b">

@@ -177,11 +177,20 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
     const indici = tr.map((t, i) => ({ t, i })).filter((x) => x.t.uzina_id === u);
     if (!indici.length) continue;
     const aleUzinei = lista.filter((a) => (ctx.uzinaRutei.get(a.factory_route_id) ?? a.direction) === u);
-    const shifturi = [...new Set(aleUzinei.map((a) => a.shift_number).filter((x) => x != null))];
+    const atribuite = [...new Set(aleUzinei.map((a) => a.shift_number).filter((x) => x != null))];
+    // TOATE schimburile uzinei intră în împerechere, nu doar cele scrise în grafic.
+    // Graficul spune corect CE RUTĂ face mașina, dar se înșală despre CÂND: cele patru
+    // cazuri din 17.09 aveau ambele rute trecute pe schimbul 1, iar operaționalul a
+    // confirmat că fac câte două ture. GPS-ul le arată: atingerea de la 23:54 cade fix pe
+    // sfârșitul schimbului 2 (00:06 învățat), la 8 ore de granița schimbului 1 — deci
+    // rămânea fără rol, iar drumurile ei, pline de oameni, se scriau ca „gol". Ceasul e
+    // dovada mai tare despre ORĂ; graficul rămâne dovada despre RUTĂ.
+    const shifturi = [...new Set([...atribuite,
+      ...(ctx.granitePeUz.get(u) ?? []).map((g) => g.shift_number)])];
     const capacitate = new Map();
     for (const sh of shifturi)
-      capacitate.set(String(sh), new Set(aleUzinei.filter((a) => a.shift_number === sh)
-        .map((a) => a.factory_route_id)).size);
+      capacitate.set(String(sh), Math.max(1, new Set(aleUzinei.filter((a) => a.shift_number === sh)
+        .map((a) => a.factory_route_id)).size));
     const p = imperecheazaTreceri(indici.map((x) => x.t), ctx.granitePeUz.get(u) ?? [], shifturi, undefined, capacitate);
     indici.forEach((x, k) => { perechi[x.i] = p[k]; });
   }
@@ -341,6 +350,12 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
         km_livrare: taiat ? taiat.livrare : 0,
         km_gol_acasa: gol ? golPrinCasa(gol, r.pts, r.calc, bazeP) : 0,
         km_gol_pauza: gol ? golDinPauza(gol) : 0,
+        // prin câte sate ale rutelor mașinii a trecut drumul „gol" — adnotarea scrisă de
+        // operațional pe hârtie («sate 2», «sate 4») e exact cifra asta
+        sate_gol_pe_traseu: gol
+          ? sateDeservite(r.pts, ctx.placesIdx, gol.from, gol.to, PRAG_SAT_KM)
+              .filter((x) => toateSateleMasinii.has(norm(x))).length
+          : null,
         opriri_gol_pe_traseu: gol && inSatulMasinii
           ? opririScurte(r.pts, gol.from, gol.to, { exclude: deSarit(gol), inSat: inSatulMasinii })
           : null,

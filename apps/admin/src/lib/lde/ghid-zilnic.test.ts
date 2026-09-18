@@ -21,19 +21,22 @@ describe('ghidul zilnic, pe curse măsurate (Ion, 18.09)', () => {
   it('cursa scurtă al cărei gol trece pe acasă e mai întâi NEGLIJENȚĂ', () => {
     // aceeași cursă, dar mașina s-a dus acasă: instrucțiunea corectă e „așteaptă", nu
     // „schimbă șoferul" — și km-ii nu se numără de două ori
-    const a = ghidZilnic([cursa({ km_real: 4, km_goi: 100, km_gol_acasa: 100, km_gol_pauza: 100 })]);
+    const a = ghidZilnic([cursa({ km_real: 4, km_goi: 100, km_gol_acasa: 100, km_gol_pauza: 100,
+      baza: { lat: 48.2, lon: 27.5 } })]);
     expect(a.map((x) => x.fel)).toEqual(['neglijenta_asteptare']);
     expect(a[0].economie_km_zi).toBe(100);
   });
 
   it('o singură tură în zi și s-a dus acasă = neglijență (regula lui Ion, 18.09)', () => {
+    // omul stă departe de ruta lui, deci drumul acasă nu e repoziționare în zonă
+    const departe = { baza: { lat: 48.2, lon: 27.5 } };
     const a = ghidZilnic([
-      cursa({ sens: 'tur', km_real: 50, km_goi: 30, km_gol_acasa: 30, km_gol_pauza: 30 }),
-      cursa({ sens: 'retur', km_real: 50, km_goi: 32, km_gol_acasa: 32, km_gol_pauza: 32 }),
+      cursa({ sens: 'tur', km_real: 50, km_goi: 30, km_gol_acasa: 30, km_gol_pauza: 30, ...departe }),
+      cursa({ sens: 'retur', km_real: 50, km_goi: 32, km_gol_acasa: 32, km_gol_pauza: 32, ...departe }),
     ]);
     const x = a.find((y) => y.fel === 'neglijenta_asteptare')!;
     expect(x.economie_km_zi).toBe(62);
-    expect(x.instructiune).toContain('Trebuia să aștepte');
+    expect(x.instructiune).toContain('să aștepte pe loc');
   });
 
   it('cu DOUĂ ture, drumul acasă nu mai e automat neglijență', () => {
@@ -69,13 +72,33 @@ describe('ghidul zilnic, pe curse măsurate (Ion, 18.09)', () => {
 
   it('aceiași km nu se numără de două ori', () => {
     // o cursă cu 4 km plini și 90 km goi pe acasă se potrivește la AMÂNDOUĂ tiparele
+    const departe = { baza: { lat: 48.2, lon: 27.5 } };
     const a = ghidZilnic([
-      cursa({ sens: 'tur', km_real: 4, km_goi: 90, km_gol_acasa: 90, km_gol_pauza: 90 }),
-      cursa({ sens: 'retur', km_real: 4, km_goi: 80, km_gol_acasa: 80, km_gol_pauza: 80 }),
+      cursa({ sens: 'tur', km_real: 4, km_goi: 90, km_gol_acasa: 90, km_gol_pauza: 90, ...departe }),
+      cursa({ sens: 'retur', km_real: 4, km_goi: 80, km_gol_acasa: 80, km_gol_pauza: 80, ...departe }),
     ]);
     expect(a.filter((x) => x.fel === 'neglijenta_asteptare')).toHaveLength(1);
     expect(a.some((x) => x.fel === 'cursa_scurta')).toBe(false);
     expect(a.reduce((t, x) => t + x.economie_km_zi, 0)).toBe(170);
+  });
+
+  it('cine stă PE ruta lui nu e neglijent: drumul acasă e repoziționarea în zonă', () => {
+    // baza la 0 km de prima stație — cazul celor patru din 17.09 (Vleju în Dumbrăvița,
+    // primul sat al rutei #25; Guzun în Zăicani, primul sat al lui #8)
+    const a = ghidZilnic([
+      cursa({ sens: 'tur', km_goi: 60, km_gol_acasa: 60, km_gol_pauza: 60 }),
+      cursa({ sens: 'retur', km_goi: 52, km_gol_acasa: 52, km_gol_pauza: 52 }),
+    ]);
+    expect(a.some((x) => x.fel === 'neglijenta_asteptare')).toBe(false);
+  });
+
+  it('cine stă DEPARTE de ruta lui și se duce acasă în pauză — aceea e neglijență', () => {
+    const departe = { baza: { lat: 48.2, lon: 27.5 } };   // ~90 km de prima stație
+    const a = ghidZilnic([
+      cursa({ sens: 'tur', km_goi: 60, km_gol_acasa: 60, km_gol_pauza: 60, ...departe }),
+      cursa({ sens: 'retur', km_goi: 52, km_gol_acasa: 52, km_gol_pauza: 52, ...departe }),
+    ]);
+    expect(a.some((x) => x.fel === 'neglijenta_asteptare')).toBe(true);
   });
 
   it('drumul cu opriri în satele rutei NU e gol — cazul celor patru de pe 17.09', () => {

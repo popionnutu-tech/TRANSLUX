@@ -353,14 +353,21 @@ export type CosturiConstruite = {
   garaje: number;
 };
 
-export function construiesteCosturi(intrari: RanduriPropuneri): CosturiConstruite {
-  const { etaloane, atribuiri, baze, soferi, rute, porti, granite } = intrari;
+/**
+ * Baza fiecărei mașini — unde doarme cel mai des — și satul ei.
+ * Extrasă ca funcție proprie fiindcă o folosesc două lucruri diferite: matricea de
+ * costuri pe 30 de zile și ghidul zilnic al operatorului. O a doua copie ar diverge la
+ * prima reglare de prag, iar pragurile astea decid cine cu cine se schimbă.
+ */
+export function bazeMasinilor(
+  opriri: { vehicle_id: string; lat: number | null; lon: number | null; locality?: string | null }[],
+): { baze: Map<string, Baza & { locality: string | null }>; garaje: number } {
   // baza unei mașini = mediana nopților ei; o singură noapte nu face o casă
   const puncte = new Map<string, { lat: number; lon: number }[]>();
-  for (const b of baze) {
+  for (const b of opriri) {
     if (b.lat == null || b.lon == null) continue;
     if (!puncte.has(b.vehicle_id)) puncte.set(b.vehicle_id, []);
-    puncte.get(b.vehicle_id)!.push({ lat: Number(b.lat), lon: Number(b.lon) });
+    puncte.get(b.vehicle_id)!.push({ lat: Number(b.lat), lon: Number(b.lon), locality: b.locality ?? null } as never);
   }
   // Baza = locul unde mașina a dormit CEL MAI DES, nu mediana coordonatelor.
   // Mediana pe latitudine și pe longitudine, luate separat, dă un punct care poate să nu
@@ -400,6 +407,12 @@ export function construiesteCosturi(intrari: RanduriPropuneri): CosturiConstruit
     if (cateMasini >= 3) { bazaMasina.delete(vid); garaje++; }
   }
 
+  return { baze: bazaMasina as Map<string, Baza & { locality: string | null }>, garaje };
+}
+
+export function construiesteCosturi(intrari: RanduriPropuneri): CosturiConstruite {
+  const { etaloane, atribuiri, baze, soferi, rute, porti, granite } = intrari;
+  const { baze: bazaMasina, garaje } = bazeMasinilor(baze);
   const numeSofer = new Map(soferi.map((d) => [d.id, d.full_name as string]));
   const eticheta = new Map(rute.map((r) => [r.id, `${r.uzina_id} #${r.route_number}`]));
   const uzinaRutei = new Map(rute.map((r) => [r.id as string, r.uzina_id as string]));

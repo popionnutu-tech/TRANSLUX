@@ -4,9 +4,12 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import DirectionChips from '@/components/DirectionChips';
-import { saveManagerDirections, addManager, removeManager, type AtribuiriAdminData } from './actions';
+import { saveManagerDirections, addManager, removeManager, type AtribuiriAdminData, type Alerta } from './actions';
 
-export default function AtribuiriZilniceClient({ data }: { data: AtribuiriAdminData }) {
+export default function AtribuiriZilniceClient(
+  { data, ghid }: { data: AtribuiriAdminData; ghid: { zi: string; alerte: Alerta[] } },
+) {
+  const totalGhid = Math.round(ghid.alerte.reduce((t, a) => t + a.economie_km_zi, 0));
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [candidat, setCandidat] = useState('');
@@ -36,6 +39,49 @@ export default function AtribuiriZilniceClient({ data }: { data: AtribuiriAdminD
           Managerii introduc atribuirile în Telegram Mini App «Atribuiri»; GPS-ul confirmă a doua zi.
         </p>
       </div>
+
+      {/* ── ghidul zilnic: unde s-au ars km goi degeaba ──
+          Ion, 18.09: «am nevoie de ghid care să aducă zilnic aminte la operator zona unde
+          economia ar fi semnificativă și noi nu o facem». Cifrele sunt km PARCURȘI ieri,
+          din urma GPS — nu o prognoză. Graficul se repetă, deci risipa de ieri e și a zilei
+          de azi, dacă nimeni n-o atinge. */}
+      {ghid.alerte.length > 0 && (
+        <Card style={{ marginBottom: '1rem', borderColor: '#f59e0b', borderWidth: 2 }}>
+          <CardHeader>
+            <CardTitle>Km goi de tăiat — {totalGhid} km în ziua de {ghid.zi}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground" style={{ marginBottom: '0.75rem' }}>
+              Fiecare rând e o cursă măsurată din GPS, nu o presupunere. Se arată doar ce
+              depășește pragul; sub el nu merită să te uiți. Nicio propunere nu taie curse și
+              nu scoate sate — uzina plătește serviciul, deci km-ii tăiați rămân la noi.
+            </p>
+            <table className="w-full text-sm">
+              <thead><tr className="text-left border-b">
+                <th className="py-1">Cât</th><th>Ruta</th><th>Șoferul de acum</th><th>Ce e de făcut</th>
+              </tr></thead>
+              <tbody>
+                {ghid.alerte.map((a, i) => (
+                  <tr key={i} className="border-b last:border-0 align-top">
+                    <td className="py-1 font-medium whitespace-nowrap">
+                      {a.economie_km_zi > 0 ? `−${a.economie_km_zi} km` : '—'}
+                    </td>
+                    <td className="whitespace-nowrap">{a.ruta} <span className="text-muted-foreground">s{a.shift_number}</span></td>
+                    <td className="whitespace-nowrap">
+                      {a.sofer ?? '—'}
+                      {a.sat_sofer && <span className="text-muted-foreground"> ({a.sat_sofer})</span>}
+                    </td>
+                    <td>
+                      {a.instructiune}
+                      <div className="text-xs text-muted-foreground">{a.detaliu}</div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+      )}
 
       <Card style={{ marginBottom: '1rem' }}>
         <CardHeader className="pb-2"><CardTitle>Manageri și direcțiile lor</CardTitle></CardHeader>

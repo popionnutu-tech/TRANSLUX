@@ -131,3 +131,69 @@ export async function saveManagerDirections(userId: string, directions: string[]
     if (error) throw new Error(error.message);
   }
 }
+
+
+// ── ghidul zilnic: unde, IERI, mașina a făcut km goi degeaba ────────────────
+// Ion, 18.09: «am nevoie de ghid care să aducă zilnic aminte la operator zona unde
+// economia ar fi semnificativă și noi nu o facem». Stă pe pagina unde se uită la graficul
+// zilei, nu într-un raport separat — ca să fie în drumul lui, nu pe lângă.
+//
+// Citește cursele MĂSURATE ale zilei, nu planul: fiecare cifră e km parcurși, din urma GPS.
+
+import { bazeMasinilor } from '@/lib/lde/trasee';
+import { ghidZilnic, type Alerta, type CursaMasurata } from '@/lib/lde/ghid-zilnic';
+
+export type { Alerta };
+
+export async function getGhidZilnic(date?: string): Promise<{ zi: string; alerte: Alerta[] }> {
+  requireRole(await verifySession(), 'ADMIN');
+  const sb = getSupabase();
+  // implicit ziua de IERI: ziua de azi n-a fost încă procesată de worker-ul de noapte
+  const zi = date ?? new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const de = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+
+  const [{ data: curse }, { data: atrib }, { data: soferi }, { data: rute }] = await Promise.all([
+    sb.from('lde_route_run')
+      .select('factory_route_id, shift_number, sens, vehicle_id, km_real, km_goi, km_gol_acasa, km_livrare, prima_statie, ambiguu')
+      .eq('run_date', zi).eq('ambiguu', false).not('km_real', 'is', null),
+    sb.from('lde_atribuiri_zilnice').select('driver_id, vehicle_id, factory_route_id, shift_number')
+      .eq('date', zi).eq('route_kind', 'uzina').not('driver_id', 'is', null),
+    sb.from('drivers').select('id, full_name'),
+    sb.from('lde_factory_routes').select('id, uzina_id, route_number'),
+  ]);
+
+  const baze: { vehicle_id: string; lat: number; lon: number; locality: string | null }[] = [];
+  for (let d = 0; ; d += 1000) {
+    const { data } = await sb.from('lde_gps_stops').select('vehicle_id, lat, lon, locality')
+      .eq('is_base', true).gte('date', de).range(d, d + 999);
+    baze.push(...((data ?? []) as typeof baze));
+    if (!data || data.length < 1000) break;
+  }
+  const { baze: bazaMasina } = bazeMasinilor(baze);
+
+  const numeSofer = new Map((soferi ?? []).map((d) => [d.id as string, d.full_name as string]));
+  const info = new Map((rute ?? []).map((r) => [r.id as string,
+    { uzina_id: r.uzina_id as string, eticheta: `${r.uzina_id} #${r.route_number}` }]));
+  const soferulCursei = new Map((atrib ?? []).map((a) =>
+    [`${a.vehicle_id}|${a.factory_route_id}|${a.shift_number}`, a.driver_id as string]));
+
+  const masurate: CursaMasurata[] = [];
+  for (const c of curse ?? []) {
+    const i = info.get(c.factory_route_id as string);
+    if (!i) continue;
+    const b = c.vehicle_id ? bazaMasina.get(c.vehicle_id as string) ?? null : null;
+    const did = soferulCursei.get(`${c.vehicle_id}|${c.factory_route_id}|${c.shift_number}`) ?? null;
+    const p = c.prima_statie as { lat?: number; lon?: number; locality?: string } | null;
+    masurate.push({
+      factory_route_id: c.factory_route_id as string, eticheta: i.eticheta, uzina_id: i.uzina_id,
+      shift_number: Number(c.shift_number), sens: c.sens as 'tur' | 'retur',
+      km_real: Number(c.km_real ?? 0), km_goi: Number(c.km_goi ?? 0),
+      km_gol_acasa: Number(c.km_gol_acasa ?? 0), km_livrare: Number(c.km_livrare ?? 0),
+      prima_statie: p?.lat != null ? { lat: Number(p.lat), lon: Number(p.lon), locality: p.locality ?? null } : null,
+      driver_id: did, sofer: did ? numeSofer.get(did) ?? null : null,
+      sat_sofer: b?.locality ?? null, baza: b ? { lat: b.lat, lon: b.lon } : null,
+    });
+  }
+
+  return { zi, alerte: ghidZilnic(masurate) };
+}

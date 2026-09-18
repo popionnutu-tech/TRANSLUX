@@ -8,6 +8,7 @@
 // pe noaptea aia.
 // ============================================================================
 import { simplifica } from './geom-simplify.mjs';
+import { hav } from './km-core.mjs';
 import {
   secvente, treceriPorti, sateDeservite, segmenteZi, imperecheazaTreceri,
   opririScurte, kmInterval, PRAG_SAT_KM,
@@ -51,6 +52,23 @@ function capeteReale(stops, pts, from, to) {
  * zero, fiindcă ele încep deja în sat sau la poartă — deci regula se aplică uniform, fără
  * cazuri speciale.
  */
+/**
+ * Golul care trece pe ACASĂ — partea optimizabilă prin repartizare.
+ *
+ * Ion, 18.09: «trebuie să facem distincție între km goi care pot fi optimizați și goi care
+ * nu pot fi optimizați». Un drum gol de la poartă înapoi în zona de unde se iau oamenii
+ * schimbului următor e impus de felul în care uzina își împarte rutele — noi nu-l putem
+ * tăia fără să tăiem serviciul. Un drum gol care trece pe la casa șoferului ține de
+ * REPARTIZARE: cine stă lângă poartă îl face scurt, cine stă departe îl face lung.
+ */
+function golPrinCasa(seg, pts, calc, baze, razaKm = 1.0) {
+  if (seg.stare !== 'gol' || !baze.length) return 0;
+  let km = 0;
+  for (let i = seg.from + 1; i <= seg.to; i++)
+    if (baze.some((b) => hav(pts[i], b) <= razaKm)) km += calc.stepKm[i];
+  return +km.toFixed(2);
+}
+
 function taieLivrarea(seg, capete, calc) {
   if (seg.stare !== 'plin' || !capete) return null;
   const i = seg.tip === 'apropiere' ? capete.iPrima : capete.iUltima;
@@ -165,13 +183,17 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
   // contribuția pe ziua GPS — cheia e (mașină, zi GPS), diferită de cheia cursei
   // Livrarea (casă ↔ capătul rutei) se scade din plin și se adună la gol — altfel ea
   // rămâne ascunsă în cursa cu pasageri, iar cifra care trebuie micșorată nu se vede.
-  const contrib = { km_plin: 0, km_gol: 0, km_necunoscut: 0, km_livrare: 0 };
+  const contrib = { km_plin: 0, km_gol: 0, km_necunoscut: 0, km_livrare: 0, km_gol_acasa: 0 };
+  const bazeP = (r.stops ?? []).filter((st) => st.isBase).map((st) => ({ lat: st.lat, lon: st.lon }));
   for (const s of segs) {
     if (s.stare === 'plin') {
       const t = taieLivrarea(s, capeteReale(r.stops ?? [], r.pts, s.from, s.to), r.calc);
       if (t) { contrib.km_plin += t.plin; contrib.km_gol += t.livrare; contrib.km_livrare += t.livrare; }
       else contrib.km_plin += s.km;
-    } else if (s.stare === 'gol') contrib.km_gol += s.km;
+    } else if (s.stare === 'gol') {
+      contrib.km_gol += s.km;
+      contrib.km_gol_acasa += golPrinCasa(s, r.pts, r.calc, bazeP);
+    }
     else contrib.km_necunoscut += s.km;
   }
   await supa.from('lde_route_day_contrib').upsert({
@@ -179,6 +201,7 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
     km_plin: +contrib.km_plin.toFixed(2), km_gol: +contrib.km_gol.toFixed(2),
     km_necunoscut: +contrib.km_necunoscut.toFixed(2),
     km_livrare: +contrib.km_livrare.toFixed(2),
+    km_gol_acasa: +contrib.km_gol_acasa.toFixed(2),
     stare: 'ok', motiv: null, updated_at: new Date().toISOString(),
   }, { onConflict: 'vehicle_id,gps_date' });
 
@@ -224,7 +247,15 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
   // «în sat» = la cel mult 500 m de o localitate cunoscută. Nu 2 km (pragul de etichetare):
   // aproape orice punct din Moldova e la 2 km de ceva, deci n-ar despărți nimic.
   const RAZA_OPRIRE_SAT_KM = 0.5;
-  const inSat = (p) => !!ctx.placesIdx?.nearestWithin(p, RAZA_OPRIRE_SAT_KM);
+  const locul = (p) => ctx.placesIdx?.nearestWithin(p, RAZA_OPRIRE_SAT_KM)?.name ?? null;
+  const inSat = (p) => locul(p) != null;
+  // «a oprit într-un sat AL RUTEI LUI» — regula lui Ion, 18.09. Lista de referință e
+  // etalonul rutei (satele ei deduse din cursele neambigue), nu numele scris în grafic:
+  // numele are 1-2 sate, etalonul are 13-19.
+  const inSatulRutei = (rid) => {
+    const ale = new Set(ctx.sateEtalon?.get(rid) ?? ctx.sateRuta.get(rid) ?? []);
+    return ale.size ? (p) => { const n = locul(p); return n != null && ale.has(norm(n)); } : null;
+  };
 
   for (const [sh, candidati] of peSchimb) {
     const alSchimbului = (tip, stare) =>
@@ -274,7 +305,12 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
         km_real: taiat ? taiat.plin : plin.km,
         km_goi: gol ? gol.km : 0,
         km_livrare: taiat ? taiat.livrare : 0,
+        km_gol_acasa: gol ? golPrinCasa(gol, r.pts, r.calc, bazeP) : 0,
         opriri_plin: opririScurte(r.pts, plin.from, plin.to, { exclude: deSarit(plin), inSat }),
+        opriri_pe_traseu: (() => {
+          const f = inSatulRutei(a.factory_route_id);
+          return f ? opririScurte(r.pts, plin.from, plin.to, { exclude: deSarit(plin), inSat: f }) : null;
+        })(),
         opriri_gol: gol ? opririScurte(r.pts, gol.from, gol.to, { exclude: deSarit(gol), inSat }) : null,
         prima_statie: capete.prima, ultima_statie: capete.ultima,
         stare: 'plin', ambiguu,

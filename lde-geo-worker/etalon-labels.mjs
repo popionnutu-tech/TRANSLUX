@@ -302,6 +302,11 @@ export function starePlecare(pereche) {
  * de 0,77) — exact pe dos, fiindcă oprirea de acasă și cea de la magazin trec de 90 de
  * secunde, iar cea din sat nu.
  *
+ * `inSat` e un filtru dat din afară. Cu el se pot pune două întrebări diferite: «a oprit
+ * într-un sat?» (migr. 369) și, mai tare, «a oprit într-un sat AL RUTEI LUI?» — regula lui
+ * Ion, 18.09: «dacă auto repetă opririle cum este pe rută, auto a avut pasageri». A doua
+ * deosebește oprirea la a treia stație a rutei de cea la magazinul de pe drumul spre casă.
+ *
  * Se numără din GEOMETRIE, nu din viteza raportată de tracker: câmpul `speed` lipsește pe
  * o parte din dispozitive, iar cu el ieșeau curse de 94 km prin 38 de sate cu ZERO opriri.
  * Punctele vin la ~30 de secunde, deci o oprire = puncte consecutive strânse sub `razaKm`

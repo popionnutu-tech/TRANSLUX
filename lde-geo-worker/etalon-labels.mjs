@@ -25,6 +25,7 @@ import { hav, acceptedRuns } from './km-core.mjs';
 export const PRAG_SAT_KM = 2.0;          // = LDE_GEO_VILLAGE_PROXIMITY_KM, regulă fermă
 export const DEBOUNCE_POARTA_MIN = 30;   // plecare→sosire; staționarea la poartă e 17-51 min
 export const PAUZA_INTOARCERE_MIN = 30;  // o staționare de atât între două vizite la poartă e pauza dintre ture
+export const VITEZA_OPRIT_ND = 8;        // noduri (~15 km/h); sub ea, în raza porții, mașina lasă/ia oameni
 // Cât de departe de graniță mai contează o atingere de poartă. Nu ales din burtă:
 // măsurat pe 30 de zile, cele 5.623 de atingeri de poartă cad față de cea mai apropiată
 // graniță la 33 de minute (mediana), 43 (p75), 87 (p90). Pragul de 45 pe care îl aveam
@@ -86,7 +87,7 @@ export function treceriPorti(pts, secv, gates, debounceMin = DEBOUNCE_POARTA_MIN
       for (const g of gates) if (hav(pts[i], g) <= Number(g.radius_km ?? 0.6)) { lovit = g; break; }
       if (lovit) {
         if (curent && curent.uzina_id === lovit.uzina_id) { curent.iOut = i; curent.tOut = pts[i].t; }
-        else { if (curent) brute.push(curent); curent = { uzina_id: lovit.uzina_id, gate: lovit.label, iIn: i, iOut: i, tIn: pts[i].t, tOut: pts[i].t }; }
+        else { if (curent) brute.push(curent); curent = { uzina_id: lovit.uzina_id, gate: lovit.label, poarta: lovit, iIn: i, iOut: i, tIn: pts[i].t, tOut: pts[i].t }; }
       } else if (curent) { brute.push(curent); curent = null; }
     }
     if (curent) brute.push(curent);
@@ -98,6 +99,32 @@ export function treceriPorti(pts, secv, gates, debounceMin = DEBOUNCE_POARTA_MIN
     if (ultim && ultim.uzina_id === t.uzina_id && minute(ultim.tOut, t.tIn) < debounceMin) {
       ultim.iOut = t.iOut; ultim.tOut = t.tOut;
     } else out.push({ ...t });
+  }
+  // A ATINS poarta sau doar A TRECUT prin dreptul ei? Măsurat pe toată flota, 16.09
+  // (310 atingeri): sub un minut în rază — 23 de atingeri, NICIUNA cu mașina oprită;
+  // peste 10 minute — 218, toate oprite. Între 1 și 3 minute e amestec (19 oprite din
+  // 40). Deci nu timpul desparte, ci OPRIREA: două puncte consecutive la ≤50 m unul de
+  // altul înăuntrul razei. Popescu (552BRAO) trece de trei ori pe zi prin poarta Orhei
+  // în drum spre Strășeni, câte un minut, fără să oprească — și fiecare trecere îi rupea
+  // ziua în bucăți și năștea o cursă pe o rută Orhei pe care n-o face.
+  // Se judecă doar punctele DIN RAZĂ: după debounce, o atingere poate cuprinde și drumul
+  // dintre două treceri (ieșit și revenit în sub 30 de minute), iar o oprire acolo nu e la poartă.
+  // «Oprit» = viteza trackerului (noduri) ≤ VITEZA_OPRIT_ND pe două puncte consecutive;
+  // unde viteza lipsește, două puncte la ≤50 m. Distanța singură nu ajunge: la un stop
+  // de lângă poartă mașina încetinește pentru un punct și „oprea" fals. Pragul nu e 0:
+  // la Strășeni oamenii urcă într-o parcare la marginea razei, iar în rază mașina doar
+  // se târăște cu 9–12 noduri (552BRAO, 22:33); trecerile prin dreptul porții nu coboară
+  // sub 20 de noduri pe niciun punct (aceeași mașină, șase treceri prin Orhei).
+  const inRaza = (p, t) => hav(p, t.poarta) <= Number(t.poarta.radius_km ?? 0.6);
+  const stat = (p) => (p.sp != null && Number.isFinite(+p.sp)) ? +p.sp <= VITEZA_OPRIT_ND : null;
+  for (const t of out) {
+    t.oprit = false;
+    for (let i = t.iIn; i < t.iOut; i++) {
+      if (!inRaza(pts[i], t) || !inRaza(pts[i + 1], t)) continue;
+      const a = stat(pts[i]), b = stat(pts[i + 1]);
+      const oprit = (a != null && b != null) ? (a && b) : hav(pts[i], pts[i + 1]) <= 0.05;
+      if (oprit) { t.oprit = true; break; }
+    }
   }
   return out;
 }

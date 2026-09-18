@@ -200,9 +200,20 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
   // oprească (1–2 minute în rază), iar din asta ieșea zi de zi o cursă de 1,5 km pe ruta 5
   // Florești, cu `uzina_din_gps` — o cursă-fantomă, care intra și în etalonul rutei 5.
   // La uzina din grafic pragul nu se aplică: acolo o atingere scurtă e tot o atingere.
+  // Și la ORICE uzină, o atingere fără oprire în rază e o trecere, nu o atingere
+  // (`oprit` — vezi `treceriPorti`): Popescu trece prin poarta Orhei de trei ori pe zi
+  // în drum spre Strășeni, iar Orhei E în graficul lui, deci pragul de mai sus nu-l prindea.
+  // Măsurat pe flotă, 16.09 (310 atingeri): sub un minut în rază, 1 din 23 oprită; peste
+  // 10 minute, 218 — toate ale uzinei, chiar dacă la 17 dintre ele oprirea e la marginea
+  // razei (mașina trece, stă lângă poartă, trece iar; debounce-ul le unește). Deci: oprit
+  // în rază, SAU cel puțin 10 minute în jurul porții.
   const STATIONARE_MIN_UZINA_STRAINA = 5;
-  const tr = treceriPorti(r.pts, secv, gts).filter((t) =>
-    uzineGrafic.includes(t.uzina_id) || (t.tOut - t.tIn) / 60000 >= STATIONARE_MIN_UZINA_STRAINA);
+  const STATIONARE_LUNGA_MIN = 10;
+  const tr = treceriPorti(r.pts, secv, gts).filter((t) => {
+    const min = (t.tOut - t.tIn) / 60000;
+    if (!t.oprit && min < STATIONARE_LUNGA_MIN) return false;
+    return uzineGrafic.includes(t.uzina_id) || min >= STATIONARE_MIN_UZINA_STRAINA;
+  });
 
   // Împerecherea se face PE FIECARE UZINĂ: fiecare poartă are orarul ei, iar o atingere
   // la Orhei nu poate primi rolul unui schimb de la Ungheni. Capacitatea unui (schimb,
@@ -248,10 +259,14 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
   const RAZA_OPRIRE_SAT_KM = 0.5;
   const locul = (p) => ctx.placesIdx?.nearestWithin(p, RAZA_OPRIRE_SAT_KM)?.name ?? null;
   const inSat = (p) => locul(p) != null;
-  // opririle scurte ale zilei, DIN SAT, nu acasă și nu la poartă — capetele reale ale
-  // cursei se caută și printre ele (vezi `capeteReale`)
-  const scurteInSat = popasuri(r.pts, 0, r.pts.length - 1).map((p) => ({ i: p.from, locality: locul(r.pts[p.from]) }))
-    .filter((p) => p.locality != null
+  // opririle scurte ale zilei care pot fi capete de cursă (vezi `capeteReale`): din sat
+  // (≥40 s), sau de cel puțin 2 minute oriunde — o oprire de 2 minute pe drum nu e
+  // semafor, e o stație al cărei sat stă la peste 500 m de șosea (Popescu, 552BRAO:
+  // oprirea din Vatici, 15:14, 2 min, fără localitate în rază). Nu acasă, nu la poartă.
+  const OPRIRE_ORIUNDE_S = 120;
+  const scurteInSat = popasuri(r.pts, 0, r.pts.length - 1)
+    .map((p) => ({ i: p.from, secunde: p.secunde, locality: locul(r.pts[p.from]) }))
+    .filter((p) => (p.locality != null || p.secunde >= OPRIRE_ORIUNDE_S)
       && !bazeP.some((b) => hav(r.pts[p.i], b) <= 0.5)
       && !gts.some((g) => hav(r.pts[p.i], g) <= 1.0));
   for (const s of segs) {

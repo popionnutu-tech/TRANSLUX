@@ -249,6 +249,22 @@ test('segmentele ACOPERĂ ziua o singură dată — suma lor închide pe km-ii z
     assert.ok(segs[i].from >= segs[i - 1].to, `segmentul ${i} începe înainte să se termine ${i - 1}`);
 });
 
+test('trecerea prin dreptul porții fără oprire nu e atingere (Popescu, 552BRAO/16.09)', () => {
+  const gates = [{ uzina_id: 'U', label: 'P', lat: 47.200, lon: 28.0, radius_km: 0.5 }];
+  // trece prin rază la ~40 km/h: puncte la 30 s, ~330 m între ele
+  const trecere = drum(47.190, 28.0, 47.210, 28.0, 8, 6 * 60, 0.5);
+  // se oprește la poartă: cinci puncte la 30 s în același loc
+  const oprire = [...drum(47.190, 28.0, 47.200, 28.0, 4, 7 * 60, 0.5), ...drum(47.2000, 28.0, 47.2001, 28.0, 5, 7 * 60 + 2, 0.5, 0),
+    ...drum(47.200, 28.0, 47.210, 28.0, 4, 7 * 60 + 5, 0.5)];
+  const pts = [...drum(47.100, 28.0, 47.190, 28.0, 10, 5 * 60, 2), ...trecere,
+    ...drum(47.210, 28.0, 47.190, 28.0, 10, 6 * 60 + 10, 2), ...oprire];
+  const calc = computeDay(pts, { bridgeKm: (a, b) => ({ km: hav(a, b), src: 'straight_line' }), movingKmh: 5.6 });
+  const tr = treceriPorti(pts, secvente(pts, calc), gates);
+  assert.equal(tr.length, 2, 'două atingeri brute');
+  assert.equal(tr[0].oprit, false, 'prima e trecere: n-a oprit în rază');
+  assert.equal(tr[1].oprit, true, 'a doua e atingere: a stat la poartă');
+});
+
 test('întoarcerea e la sfârșitul pauzei, nu în punctul cel mai depărtat (Covalschi, 503BRAR/16.09)', () => {
   // poartă → acasă (pauză 40 min) → drumul turului trece printr-un punct MAI DEPĂRTAT de
   // poartă decât casa → poartă. Cu tăietura pe depărtare, începutul turului cădea pe retur.

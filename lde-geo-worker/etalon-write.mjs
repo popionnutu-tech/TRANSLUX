@@ -118,6 +118,11 @@ export async function incarcaContext(supa, day) {
     granitePeUz.get(b.uzina_id).push({ minuteZi: b.minute_zi, tip: b.tip, shift_number: b.shift_number });
   }
   for (const r of rute ?? []) uzinaRutei.set(r.id, r.uzina_id);
+  const ruteUzinei = new Map();
+  for (const r of rute ?? []) {
+    if (!ruteUzinei.has(r.uzina_id)) ruteUzinei.set(r.uzina_id, []);
+    ruteUzinei.get(r.uzina_id).push(r.id);
+  }
   for (const r of rute ?? []) sateRuta.set(r.id, (r.stops_in_order || '').replace(/->/g, '→').split('→').map((s) => norm(s)).filter(Boolean));
   const sateEtalon = new Map();
   for (const e of etaloane ?? []) {
@@ -136,7 +141,7 @@ export async function incarcaContext(supa, day) {
       peMasina.get(vid).push({ ...a, eRetur: vid === a.vehicle_id_retur && vid !== a.vehicle_id });
     }
   }
-  return { porti, peMasina, granitePeUz, sateRuta, sateEtalon, uzinaRutei };
+  return { porti, peMasina, granitePeUz, sateRuta, sateEtalon, uzinaRutei, ruteUzinei };
 }
 
 /**
@@ -249,11 +254,16 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
   // și în numere: 366 de segmente scrise, 264 de rânduri rămase.
   let scrise = 0;
 
+  // Cheia e (uzină, schimb), nu doar schimbul: o mașină care lucrează la două uzine are
+  // schimbul 1 la amândouă, iar un segment de la poarta Orhei n-are ce căuta pe atribuirea
+  // de la Ungheni.
   const peSchimb = new Map();
   for (const a of lista) {
     if (a.shift_number == null) continue;
-    if (!peSchimb.has(a.shift_number)) peSchimb.set(a.shift_number, []);
-    peSchimb.get(a.shift_number).push(a);
+    const u = ctx.uzinaRutei.get(a.factory_route_id) ?? a.direction;
+    const k = `${u}|${a.shift_number}`;
+    if (!peSchimb.has(k)) peSchimb.set(k, { uzina: u, shift_number: a.shift_number, lista: [] });
+    peSchimb.get(k).lista.push(a);
   }
 
   // poarta uzinei și baza șoferului nu spun nimic despre cursă: staționarea de la poartă
@@ -300,9 +310,10 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
     return ale.size ? (p) => { const n = locul(p); return n != null && ale.has(norm(n)); } : null;
   };
 
-  for (const [sh, candidati] of peSchimb) {
+  for (const { uzina, shift_number: sh, lista: candidati } of peSchimb.values()) {
     const alSchimbului = (tip, stare) =>
-      segs.find((x) => x.shift_number === sh && x.tip === tip && x.stare === stare && x.km >= 1);
+      segs.find((x) => x.shift_number === sh && x.uzina_id === uzina
+        && x.tip === tip && x.stare === stare && x.km >= 1);
 
     for (const [sens, plin, gol] of [
       ['tur', alSchimbului('apropiere', 'plin'), alSchimbului('plecare', 'gol')],
@@ -332,9 +343,31 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
       const cuScor = eligibili
         .map((x) => ({ a: x, scor: potrivire(x.factory_route_id) }))
         .sort((p, q) => q.scor - p.scor);
-      const a = cuScor[0].a;
+      let a = cuScor[0].a;
       const alDoilea = cuScor.find((x) => x.a.factory_route_id !== a.factory_route_id);
-      const ambiguu = cuScor[0].scor < 0.34 || (alDoilea != null && alDoilea.scor >= cuScor[0].scor - 0.1);
+      let ambiguu = cuScor[0].scor < 0.34 || (alDoilea != null && alDoilea.scor >= cuScor[0].scor - 0.1);
+      let motivGrafic = null;
+
+      // GPS-UL BATE GRAFICUL. Ion, 18.09: «GPS-ul e faptic, cum a mers; graficul de mână nu».
+      // Până aici căutam ruta doar printre cele scrise în grafic pentru mașina asta. Dacă
+      // graficul greșește ruta, cursa se scria pe ruta greșită — cu km reali și abatere
+      // fabricată, adică exact minciuna pe care funcția asta trebuie s-o prindă.
+      // Acum se caută și printre TOATE rutele uzinei, iar graficul e depășit doar când
+      // dovada e clară: potrivire de cel puțin 60% și cu 20 de puncte peste tot ce zice
+      // graficul. Altfel rămâne ce scrie omul — o bănuială slabă nu răstoarnă un document.
+      if (cuScor[0].scor < 0.6) {
+        let best = null;
+        for (const rid of ctx.ruteUzinei.get(uzina) ?? []) {
+          if (eligibili.some((x) => x.factory_route_id === rid)) continue;
+          const sc = potrivire(rid);
+          if (!best || sc > best.scor) best = { rid, scor: sc };
+        }
+        if (best && best.scor >= 0.6 && best.scor >= cuScor[0].scor + 0.2) {
+          a = { ...a, factory_route_id: best.rid };
+          ambiguu = false;
+          motivGrafic = 'ruta_din_gps';
+        }
+      }
 
       const ale = ctx.sateRuta.get(a.factory_route_id) ?? [];
       await supa.from('lde_route_run').upsert({
@@ -367,7 +400,8 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
         opriri_gol: gol ? opririScurte(r.pts, gol.from, gol.to, { exclude: deSarit(gol), inSat }) : null,
         prima_statie: capete.prima, ultima_statie: capete.ultima,
         stare: 'plin', ambiguu,
-        motiv: ambiguu ? (cuScor[0].scor < 0.34 ? 'sate_nepotrivite' : 'doua_rute_la_fel') : null,
+        motiv: motivGrafic
+          ?? (ambiguu ? (cuScor[0].scor < 0.34 ? 'sate_nepotrivite' : 'doua_rute_la_fel') : null),
         geom: simplifica(r.pts, r.calc, plin.from, plin.to),
       }, { onConflict: 'run_date,factory_route_id,shift_number,slot,sens' });
       scrise++;

@@ -35,6 +35,8 @@ export type CursaMasurata = {
   km_real: number;
   km_goi: number;
   km_gol_acasa: number;
+  /** partea din golul prin casă făcută ÎNTRE atingerile de poartă — plimbarea din pauză */
+  km_gol_pauza: number;
   km_livrare: number;
   prima_statie: (Baza & { locality?: string | null }) | null;
   driver_id: string | null;
@@ -82,7 +84,11 @@ export function ghidZilnic(curse: CursaMasurata[], prag = PRAG_SEMNIFICATIV_KM):
   for (const lista of peMasina.values()) {
     const ture = new Set(lista.map((c) => c.shift_number)).size;
     if (ture !== 1) continue;
-    const km = r1(lista.reduce((t, c) => t + c.km_gol_acasa, 0));
+    // Se numără DOAR plimbarea din pauză, nu naveta. 293QVT pe 17.09 stă acasă peste
+    // noapte, pleacă 70 km la lucru și se întoarce 73 km — n-are ce aștepta, mașina
+    // trebuie să ajungă de acasă la lucru. Aceea e altă problemă (șofer prea departe),
+    // cu altă instrucțiune, și apare la «livrare mare».
+    const km = r1(lista.reduce((t, c) => t + c.km_gol_pauza, 0));
     if (km < prag) continue;
     const c = lista[0];
     for (const x of lista) consumate.add(cheia(x));
@@ -110,9 +116,9 @@ export function ghidZilnic(curse: CursaMasurata[], prag = PRAG_SEMNIFICATIV_KM):
     const tur = lista.find((c) => c.sens === 'tur');
     const retur = lista.find((c) => c.sens === 'retur');
     if (!tur || !retur) continue;
-    if (!(tur.km_gol_acasa > 0 && retur.km_gol_acasa > 0)) continue;
+    if (!(tur.km_gol_pauza > 0 && retur.km_gol_pauza > 0)) continue;
     if (consumate.has(cheia(tur)) || consumate.has(cheia(retur))) continue;
-    const km = r1(tur.km_gol_acasa + retur.km_gol_acasa);
+    const km = r1(tur.km_gol_pauza + retur.km_gol_pauza);
     if (km < prag) continue;
     out.push({
       fel: 'drum_acasa_evitabil', uzina_id: tur.uzina_id, ruta: tur.eticheta,
@@ -120,7 +126,7 @@ export function ghidZilnic(curse: CursaMasurata[], prag = PRAG_SEMNIFICATIV_KM):
       economie_km_zi: km,
       instructiune: 'Mașina a plecat de la poartă acasă și s-a întors tot la poartă.'
         + ' Dacă șoferul așteaptă pe loc, km-ii aceștia nu se fac deloc.',
-      detaliu: `${r1(tur.km_gol_acasa)} km dus + ${r1(retur.km_gol_acasa)} km întors`,
+      detaliu: `${r1(tur.km_gol_pauza)} km dus + ${r1(retur.km_gol_pauza)} km întors`,
     });
     consumate.add(cheia(tur)); consumate.add(cheia(retur));
   }

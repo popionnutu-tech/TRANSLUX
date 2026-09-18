@@ -250,6 +250,17 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
   // poarta uzinei și baza șoferului nu spun nimic despre cursă: staționarea de la poartă
   // e 17-51 de minute, iar acasă mașina stă ore
   const baze = (r.stops ?? []).filter((st) => st.isBase).map((st) => ({ lat: st.lat, lon: st.lon, raza: 0.5 }));
+  // Ziua de LUCRU a mașinii: de la prima până la ultima atingere de poartă. Ce e în afara
+  // ei e naveta — mașina trebuie să ajungă de acasă la lucru și înapoi, indiferent cine
+  // conduce. Ce e ÎNĂUNTRU și trece pe acasă e plimbarea din pauză, care se evită
+  // așteptând. Ion, 18.09: «dacă auto nu are alte ture decât una pe zi și se întoarce
+  // înapoi acasă în sat — neglijență, trebuie să aștepte». Fără despărțirea asta, regula
+  // prindea și naveta: 293QVT pe 17.09 stă acasă peste noapte, pleacă 70 km la lucru și se
+  // întoarce 73 km — n-are ce aștepta, e altă problemă (șofer prea departe).
+  const intrePorti = tr.length ? { de: tr[0].iOut, la: tr[tr.length - 1].iIn } : null;
+  const golDinPauza = (seg) =>
+    intrePorti && seg.from >= intrePorti.de && seg.to <= intrePorti.la
+      ? golPrinCasa(seg, r.pts, r.calc, bazeP) : 0;
   const deSarit = (seg) => [...baze, seg.gate ? { lat: +seg.gate.lat, lon: +seg.gate.lon, raza: 1.0 } : null];
   // «în sat» = la cel mult 500 m de o localitate cunoscută. Nu 2 km (pragul de etichetare):
   // aproape orice punct din Moldova e la 2 km de ceva, deci n-ar despărți nimic.
@@ -313,6 +324,7 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
         km_goi: gol ? gol.km : 0,
         km_livrare: taiat ? taiat.livrare : 0,
         km_gol_acasa: gol ? golPrinCasa(gol, r.pts, r.calc, bazeP) : 0,
+        km_gol_pauza: gol ? golDinPauza(gol) : 0,
         opriri_plin: opririScurte(r.pts, plin.from, plin.to, { exclude: deSarit(plin), inSat }),
         opriri_pe_traseu: (() => {
           const f = inSatulRutei(a.factory_route_id);

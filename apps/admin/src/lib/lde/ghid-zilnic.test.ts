@@ -3,7 +3,7 @@ import { ghidZilnic, type CursaMasurata } from './ghid-zilnic';
 
 const cursa = (o: Partial<CursaMasurata>): CursaMasurata => ({
   vehicle_id: 'v1', factory_route_id: 'R', eticheta: 'U #1', uzina_id: 'U', shift_number: 1, sens: 'tur',
-  km_real: 50, km_goi: 0, km_gol_acasa: 0, km_livrare: 0,
+  km_real: 50, km_goi: 0, km_gol_acasa: 0, km_gol_pauza: 0, km_livrare: 0,
   prima_statie: { lat: 47.5, lon: 28.0, locality: 'Sat' }, driver_id: 'd1', sofer: 'Unu',
   sat_sofer: 'Acasă', baza: { lat: 47.5, lon: 28.0 }, ...o,
 });
@@ -21,15 +21,15 @@ describe('ghidul zilnic, pe curse măsurate (Ion, 18.09)', () => {
   it('cursa scurtă al cărei gol trece pe acasă e mai întâi NEGLIJENȚĂ', () => {
     // aceeași cursă, dar mașina s-a dus acasă: instrucțiunea corectă e „așteaptă", nu
     // „schimbă șoferul" — și km-ii nu se numără de două ori
-    const a = ghidZilnic([cursa({ km_real: 4, km_goi: 100, km_gol_acasa: 100 })]);
+    const a = ghidZilnic([cursa({ km_real: 4, km_goi: 100, km_gol_acasa: 100, km_gol_pauza: 100 })]);
     expect(a.map((x) => x.fel)).toEqual(['neglijenta_asteptare']);
     expect(a[0].economie_km_zi).toBe(100);
   });
 
   it('o singură tură în zi și s-a dus acasă = neglijență (regula lui Ion, 18.09)', () => {
     const a = ghidZilnic([
-      cursa({ sens: 'tur', km_real: 50, km_goi: 30, km_gol_acasa: 30 }),
-      cursa({ sens: 'retur', km_real: 50, km_goi: 32, km_gol_acasa: 32 }),
+      cursa({ sens: 'tur', km_real: 50, km_goi: 30, km_gol_acasa: 30, km_gol_pauza: 30 }),
+      cursa({ sens: 'retur', km_real: 50, km_goi: 32, km_gol_acasa: 32, km_gol_pauza: 32 }),
     ]);
     const x = a.find((y) => y.fel === 'neglijenta_asteptare')!;
     expect(x.economie_km_zi).toBe(62);
@@ -39,7 +39,7 @@ describe('ghidul zilnic, pe curse măsurate (Ion, 18.09)', () => {
   it('cu DOUĂ ture, drumul acasă nu mai e automat neglijență', () => {
     // a doua tură poate fi în altă zonă, deci deplasarea s-ar fi făcut oricum
     const a = ghidZilnic([
-      cursa({ sens: 'tur', shift_number: 1, km_real: 50, km_goi: 40, km_gol_acasa: 40 }),
+      cursa({ sens: 'tur', shift_number: 1, km_real: 50, km_goi: 40, km_gol_acasa: 40, km_gol_pauza: 40 }),
       cursa({ sens: 'retur', shift_number: 2, factory_route_id: 'R2', eticheta: 'U #2',
               km_real: 50, km_goi: 0, km_gol_acasa: 0 }),
     ]);
@@ -48,7 +48,7 @@ describe('ghidul zilnic, pe curse măsurate (Ion, 18.09)', () => {
 
   it('la mai multe ture, se cere doar dacă mașina s-a întors TOT la poarta de plecare', () => {
     const a = ghidZilnic([
-      cursa({ sens: 'tur', shift_number: 1, km_real: 50, km_goi: 60, km_gol_acasa: 60 }),
+      cursa({ sens: 'tur', shift_number: 1, km_real: 50, km_goi: 60, km_gol_acasa: 60, km_gol_pauza: 60 }),
       cursa({ sens: 'retur', shift_number: 1, km_real: 50, km_goi: 60, km_gol_acasa: 0 }),
       cursa({ sens: 'tur', shift_number: 2, factory_route_id: 'R2', eticheta: 'U #2',
               km_real: 50, km_goi: 0, km_gol_acasa: 0 }),
@@ -70,12 +70,20 @@ describe('ghidul zilnic, pe curse măsurate (Ion, 18.09)', () => {
   it('aceiași km nu se numără de două ori', () => {
     // o cursă cu 4 km plini și 90 km goi pe acasă se potrivește la AMÂNDOUĂ tiparele
     const a = ghidZilnic([
-      cursa({ sens: 'tur', km_real: 4, km_goi: 90, km_gol_acasa: 90 }),
-      cursa({ sens: 'retur', km_real: 4, km_goi: 80, km_gol_acasa: 80 }),
+      cursa({ sens: 'tur', km_real: 4, km_goi: 90, km_gol_acasa: 90, km_gol_pauza: 90 }),
+      cursa({ sens: 'retur', km_real: 4, km_goi: 80, km_gol_acasa: 80, km_gol_pauza: 80 }),
     ]);
     expect(a.filter((x) => x.fel === 'neglijenta_asteptare')).toHaveLength(1);
     expect(a.some((x) => x.fel === 'cursa_scurta')).toBe(false);
     expect(a.reduce((t, x) => t + x.economie_km_zi, 0)).toBe(170);
+  });
+
+  it('naveta de dimineață NU e neglijență: mașina trebuie să ajungă la lucru', () => {
+    // 293QVT pe 17.09: stă acasă peste noapte, 70 km până la poartă, 73 km înapoi seara.
+    // Golul trece pe acasă, dar nu e în pauză — deci nu are ce aștepta.
+    const a = ghidZilnic([cursa({ km_real: 4, km_goi: 143, km_gol_acasa: 143, km_gol_pauza: 0 })]);
+    expect(a.some((x) => x.fel === 'neglijenta_asteptare')).toBe(false);
+    expect(a[0].fel).toBe('cursa_scurta');
   });
 
   it('tace sub prag: o listă lungă nu se mai citește', () => {

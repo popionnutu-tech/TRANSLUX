@@ -248,3 +248,30 @@ test('segmentele ACOPERĂ ziua o singură dată — suma lor închide pe km-ii z
   for (let i = 1; i < segs.length; i++)
     assert.ok(segs[i].from >= segs[i - 1].to, `segmentul ${i} începe înainte să se termine ${i - 1}`);
 });
+
+test('întoarcerea e la sfârșitul pauzei, nu în punctul cel mai depărtat (Covalschi, 503BRAR/16.09)', () => {
+  // poartă → acasă (pauză 40 min) → drumul turului trece printr-un punct MAI DEPĂRTAT de
+  // poartă decât casa → poartă. Cu tăietura pe depărtare, începutul turului cădea pe retur.
+  const gates = [{ uzina_id: 'U', label: 'P', lat: 47.200, lon: 28.0, radius_km: 0.6 }];
+  const pts = [
+    ...drum(47.2001, 28.0, 47.2002, 28.0, 3, 6 * 60, 2, 0),      // la poartă
+    ...drum(47.200, 28.0, 47.050, 28.0, 25, 6 * 60 + 10, 2),     // retur, până acasă
+    ...drum(47.0500, 28.0, 47.0501, 28.0, 20, 7 * 60, 2, 0),     // pauză acasă, 40 min
+    ...drum(47.050, 28.0, 47.020, 28.0, 10, 7 * 60 + 45, 2),     // turul iese mai departe de poartă
+    ...drum(47.020, 28.0, 47.200, 28.0, 30, 8 * 60 + 10, 2),     // și vine la poartă
+    ...drum(47.2001, 28.0, 47.2002, 28.0, 3, 9 * 60 + 15, 2, 0),
+  ];
+  const calc = computeDay(pts, { bridgeKm: (a, b) => ({ km: hav(a, b), src: 'straight_line' }), movingKmh: 5.6 });
+  const tr = treceriPorti(pts, secvente(pts, calc), gates);
+  assert.equal(tr.length, 2);
+  const perechi = tr.map(() => ({ livrare: null, ridicare: null }));
+  const segs = segmenteZi(pts, calc, tr, perechi);
+  const apropiere = segs.find((s, i) => i > 0 && s.tip === 'apropiere');
+  const start = pts[apropiere.from];
+  assert.ok(hav(start, { lat: 47.050, lon: 28.0 }) < 0.3,
+    `turul începe de acasă (47.050), nu din punctul depărtat: a început la ${start.lat.toFixed(3)}`);
+  const plecare = segs.find((s) => s.tip === 'plecare');
+  assert.ok(plecare.to === apropiere.from, 'tăietura e una singură');
+  const suma = segs.reduce((s, x) => s + x.km, 0);
+  assert.ok(Math.abs(suma - calc.km) <= 0.5, 'suma segmentelor închide pe km-ii zilei');
+});

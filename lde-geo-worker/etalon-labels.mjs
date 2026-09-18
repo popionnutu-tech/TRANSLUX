@@ -24,6 +24,7 @@ import { hav, acceptedRuns } from './km-core.mjs';
 
 export const PRAG_SAT_KM = 2.0;          // = LDE_GEO_VILLAGE_PROXIMITY_KM, regulă fermă
 export const DEBOUNCE_POARTA_MIN = 30;   // plecare→sosire; staționarea la poartă e 17-51 min
+export const PAUZA_INTOARCERE_MIN = 30;  // o staționare de atât între două vizite la poartă e pauza dintre ture
 // Cât de departe de graniță mai contează o atingere de poartă. Nu ales din burtă:
 // măsurat pe 30 de zile, cele 5.623 de atingeri de poartă cad față de cea mai apropiată
 // graniță la 33 de minute (mediana), 43 (p75), 87 (p90). Pragul de 45 pe care îl aveam
@@ -359,6 +360,30 @@ export function kmInterval(stepKm, from, to) {
  * worker-ul; celelalte sunt cărămizile ei.
  * @returns [{ tip:'apropiere'|'plecare', from, to, km, stare, shift_number, uzina_id, gate }]
  */
+/**
+ * Staționările din [from, to]: grupuri de puncte la ≤150 m unul de altul, de cel puțin
+ * `pragS` secunde. Aceeași geometrie ca `opririScurte`, dar întoarce popasurile, nu numărul.
+ */
+export function popasuri(pts, from, to, { pragS = 40, razaKm = 0.15 } = {}) {
+  const out = [];
+  let i = Math.max(0, from);
+  while (i < to) {
+    let j = i;
+    while (j + 1 <= to && hav(pts[i], pts[j + 1]) <= razaKm) j++;
+    const secunde = (pts[j].t - pts[i].t) / 1000;
+    if (j > i && secunde >= pragS) out.push({ from: i, to: j, secunde });
+    i = j === i ? i + 1 : j;
+  }
+  return out;
+}
+
+/** Cea mai lungă staționare din [from, to]; null dacă nu e niciuna. */
+export function celMaiLungPopas(pts, from, to, razaKm = 0.15) {
+  let best = null;
+  for (const p of popasuri(pts, from, to, { pragS: 0, razaKm })) if (!best || p.secunde > best.secunde) best = p;
+  return best;
+}
+
 export function segmenteZi(pts, calc, treceri, perechi) {
   const out = [];
   if (!treceri.length) {
@@ -386,10 +411,19 @@ export function segmenteZi(pts, calc, treceri, perechi) {
     // Între două vizite la poartă mașina IESE spre sate și SE ÎNTOARCE. Sunt două
     // segmente, nu unul — altfel același drum se numără de două ori (bug prins la
     // proba din 17.09: suma segmentelor ieșea 105.340 km la un total de 73.089).
-    // Punctul de întoarcere = cel mai depărtat de poartă din tot intervalul.
+    // Punctul de întoarcere = SFÂRȘITUL celei mai lungi staționări dintre cele două vizite
+    // (pauza de acasă sau dintre ture), dacă ține măcar PAUZA_INTOARCERE_MIN; altfel, cel
+    // mai depărtat punct de poartă. Doar depărtarea înșela acolo unde capătul rutei nu e și
+    // punctul cel mai depărtat în linie dreaptă: Covalschi, 503BRAR/16.09, stă 335 de
+    // minute acasă la Lalova, pleacă la 21:22 și oprește în Slobozia-Horodiște și
+    // Horodiște, dar tăietura cădea la 21:50, pe drumul spre Mincenii de Jos. Primii 33 km
+    // ai turului se scriau pe returul dinainte, turul „începea" la Mincenii de Jos și
+    // etalonul lui, la fel — iar livrarea lui ieșea 51 km/zi, deși ruta începe la el în sat.
     const poarta = pts[t.iOut];
     let vf = t.iOut, vd = -1;
     for (let i = t.iOut; i <= pana; i++) { const d = hav(pts[i], poarta); if (d > vd) { vd = d; vf = i; } }
+    const pauza = celMaiLungPopas(pts, t.iOut, pana);
+    if (pauza && pauza.secunde >= PAUZA_INTOARCERE_MIN * 60) vf = pauza.to;
     out.push({
       tip: 'plecare', from: t.iOut, to: vf, uzina_id: t.uzina_id, gate: t.gate,
       km: kmInterval(calc.stepKm, t.iOut, vf), ...starePlecare(perechi[k]),

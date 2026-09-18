@@ -11,7 +11,7 @@ import { simplifica } from './geom-simplify.mjs';
 import { hav } from './km-core.mjs';
 import {
   secvente, treceriPorti, sateDeservite, segmenteZi, imperecheazaTreceri,
-  opririScurte, kmInterval, PRAG_SAT_KM,
+  opririScurte, popasuri, kmInterval, PRAG_SAT_KM,
 } from './etalon-labels.mjs';
 
 /**
@@ -23,9 +23,18 @@ import {
  * șofer». Măsurat atunci: în 730 din 1.099 de cazuri capătul geometriei era la sub 1 km
  * de locul unde doarme mașina.
  */
-function capeteReale(stops, pts, from, to) {
+function capeteReale(stops, pts, from, to, scurte = []) {
   const t0 = pts[from].t, t1 = pts[to].t;
-  const inSegment = stops.filter((st) => !st.isBase && st.arrival >= t0 && st.arrival <= t1);
+  const inSegment = stops.filter((st) => !st.isBase && st.arrival >= t0 && st.arrival <= t1)
+    .map((st) => ({ lat: st.lat, lon: st.lon, locality: st.locality ?? null, arrival: st.arrival }));
+  // Plus opririle SCURTE din sat (≥40 s) — același martor pe care îl folosim la «a oprit
+  // în satele rutei». Cu doar opririle stabile de 90 s, un tur cu șase opriri de un minut
+  // prin sate ieșea „livrare" pe toată lungimea: Lopatenco, 09.09, 29,6 km livrare dintr-un
+  // tur de 29,7. Oamenii urcă într-un minut; 90 de secunde e pragul opririi, nu al stației.
+  for (const p of scurte)
+    if (p.i >= from && p.i <= to)
+      inSegment.push({ lat: pts[p.i].lat, lon: pts[p.i].lon, locality: p.locality ?? null, arrival: pts[p.i].t });
+  inSegment.sort((a, b) => a.arrival - b.arrival);
   if (!inSegment.length) return { prima: null, ultima: null, iPrima: null, iUltima: null };
   const pct = (st) => ({ lat: st.lat, lon: st.lon, locality: st.locality ?? null });
   // indicele punctului la care mașina a ajuns în stație — de acolo începe cursa cu pasageri
@@ -104,7 +113,7 @@ export async function incarcaContext(supa, day) {
     // trece prin 18,8 sate); etalonul dă treisprezece-nouăsprezece. Se ia doar etalonul
     // cu ≥5 observații, construit DOAR din curse neambigue — deci nu se hrănește din
     // propriile lui ghiciri.
-    supa.from('lde_route_etalon').select('factory_route_id,sate,observations').gte('observations', 5),
+    supa.from('lde_route_etalon').select('factory_route_id,sate,observations,km_median,shift_number,sens').gte('observations', 5),
   ]);
   const porti = new Map(), granitePeUz = new Map(), sateRuta = new Map(), uzinaRutei = new Map();
   for (const g of gates ?? []) {
@@ -132,6 +141,14 @@ export async function incarcaContext(supa, day) {
     // o rută are etalon pe fiecare schimb×slot×sens; pentru «a cui e cursa» ajunge reuniunea
     sateEtalon.set(e.factory_route_id, ex ? [...new Set([...ex, ...nume])] : nume);
   }
+  // km-ul etalon pe (rută, schimb, sens) — judecata de verosimilitate din `scrieCurse`:
+  // o rută nu poate fi „recunoscută" pe un drum de cu totul altă lungime decât al ei
+  const kmEtalon = new Map();
+  for (const e of etaloane ?? []) {
+    if (e.km_median == null) continue;
+    if (!kmEtalon.has(e.factory_route_id)) kmEtalon.set(e.factory_route_id, new Map());
+    kmEtalon.get(e.factory_route_id).set(`${e.shift_number}|${e.sens}`, Number(e.km_median));
+  }
   // atribuirile mașinii, inclusiv cele unde e doar mașina de retur
   const peMasina = new Map();
   for (const a of atrib ?? []) {
@@ -141,7 +158,7 @@ export async function incarcaContext(supa, day) {
       peMasina.get(vid).push({ ...a, eRetur: vid === a.vehicle_id_retur && vid !== a.vehicle_id });
     }
   }
-  return { porti, peMasina, granitePeUz, sateRuta, sateEtalon, uzinaRutei, ruteUzinei };
+  return { porti, peMasina, granitePeUz, sateRuta, sateEtalon, kmEtalon, uzinaRutei, ruteUzinei };
 }
 
 /**
@@ -178,7 +195,14 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
   await supa.from('lde_route_run').delete().eq('run_date', day).eq('vehicle_id', vehicle_id);
 
   const secv = secvente(r.pts, r.calc);
-  const tr = treceriPorti(r.pts, secv, gts);
+  // La o uzină pe care graficul N-O ARE, atingerea trebuie să fie o OPRIRE, nu o trecere.
+  // Sochircă, ruta 4 Orhei: returul trece zilnic pe lângă poarta LEAR Florești fără să
+  // oprească (1–2 minute în rază), iar din asta ieșea zi de zi o cursă de 1,5 km pe ruta 5
+  // Florești, cu `uzina_din_gps` — o cursă-fantomă, care intra și în etalonul rutei 5.
+  // La uzina din grafic pragul nu se aplică: acolo o atingere scurtă e tot o atingere.
+  const STATIONARE_MIN_UZINA_STRAINA = 5;
+  const tr = treceriPorti(r.pts, secv, gts).filter((t) =>
+    uzineGrafic.includes(t.uzina_id) || (t.tOut - t.tIn) / 60000 >= STATIONARE_MIN_UZINA_STRAINA);
 
   // Împerecherea se face PE FIECARE UZINĂ: fiecare poartă are orarul ei, iar o atingere
   // la Orhei nu poate primi rolul unui schimb de la Ungheni. Capacitatea unui (schimb,
@@ -219,9 +243,20 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
   // rămâne ascunsă în cursa cu pasageri, iar cifra care trebuie micșorată nu se vede.
   const contrib = { km_plin: 0, km_gol: 0, km_necunoscut: 0, km_livrare: 0, km_gol_acasa: 0 };
   const bazeP = (r.stops ?? []).filter((st) => st.isBase).map((st) => ({ lat: st.lat, lon: st.lon }));
+  // «în sat» = la cel mult 500 m de o localitate cunoscută. Nu 2 km (pragul de etichetare):
+  // aproape orice punct din Moldova e la 2 km de ceva, deci n-ar despărți nimic.
+  const RAZA_OPRIRE_SAT_KM = 0.5;
+  const locul = (p) => ctx.placesIdx?.nearestWithin(p, RAZA_OPRIRE_SAT_KM)?.name ?? null;
+  const inSat = (p) => locul(p) != null;
+  // opririle scurte ale zilei, DIN SAT, nu acasă și nu la poartă — capetele reale ale
+  // cursei se caută și printre ele (vezi `capeteReale`)
+  const scurteInSat = popasuri(r.pts, 0, r.pts.length - 1).map((p) => ({ i: p.from, locality: locul(r.pts[p.from]) }))
+    .filter((p) => p.locality != null
+      && !bazeP.some((b) => hav(r.pts[p.i], b) <= 0.5)
+      && !gts.some((g) => hav(r.pts[p.i], g) <= 1.0));
   for (const s of segs) {
     if (s.stare === 'plin') {
-      const t = taieLivrarea(s, capeteReale(r.stops ?? [], r.pts, s.from, s.to), r.calc);
+      const t = taieLivrarea(s, capeteReale(r.stops ?? [], r.pts, s.from, s.to, scurteInSat), r.calc);
       if (t) { contrib.km_plin += t.plin; contrib.km_gol += t.livrare; contrib.km_livrare += t.livrare; }
       else contrib.km_plin += s.km;
     } else if (s.stare === 'gol') {
@@ -316,11 +351,7 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
     intrePorti && seg.from >= intrePorti.de && seg.to <= intrePorti.la
       ? golPrinCasa(seg, r.pts, r.calc, bazeP) : 0;
   const deSarit = (seg) => [...baze, seg.gate ? { lat: +seg.gate.lat, lon: +seg.gate.lon, raza: 1.0 } : null];
-  // «în sat» = la cel mult 500 m de o localitate cunoscută. Nu 2 km (pragul de etichetare):
-  // aproape orice punct din Moldova e la 2 km de ceva, deci n-ar despărți nimic.
-  const RAZA_OPRIRE_SAT_KM = 0.5;
-  const locul = (p) => ctx.placesIdx?.nearestWithin(p, RAZA_OPRIRE_SAT_KM)?.name ?? null;
-  const inSat = (p) => locul(p) != null;
+  // `locul` / `inSat` sunt definite mai sus, lângă contribuții — aceleași și aici.
   // «a oprit într-un sat AL RUTEI LUI» — regula lui Ion, 18.09. Lista de referință e
   // etalonul rutei (satele ei deduse din cursele neambigue), nu numele scris în grafic:
   // numele are 1-2 sate, etalonul are 13-19.
@@ -394,7 +425,7 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
       if (!plin) continue;                       // fără drumul cu pasageri nu există cursă
       const sate = sateDeservite(r.pts, ctx.placesIdx, plin.from, plin.to, PRAG_SAT_KM);
       const vazute = new Set(sate.map(norm));
-      const capete = capeteReale(r.stops ?? [], r.pts, plin.from, plin.to);
+      const capete = capeteReale(r.stops ?? [], r.pts, plin.from, plin.to, scurteInSat);
       const taiat = taieLivrarea(plin, capete, r.calc);
 
       // A CUI e cursa, când mașina are două rute în același schimb (22 din 169 de
@@ -449,11 +480,24 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
       // altfel n-avem cu ce compara, iar o rută fără etalon ar pierde mereu în fața uneia
       // învățate — și n-ar căpăta niciodată curse din care să-și facă unul. Cazul real:
       // 034BRAT, ruta 3 Orhei (fără etalon), i s-a luat cursa de ruta 14.
+      // VEROSIMILITATE PE KM, nu doar pe sate. Ruta 11 e orașul Orhei (Nordic, Bucuria,
+      // Centru…), prin care trece ORICE cursă a uzinei — deci orice drum care nu-și
+      // potrivea ruta din grafic „devenea" ruta 11: Lopatenco, 09.09, 64 km scriși pe o
+      // rută de 14; Vartic, drumul de 2,8 km de la poartă până acasă, scris drept returul
+      // rutei 11. Se acceptă doar o rută al cărei km etalon, pe schimbul și sensul ăsta,
+      // e de același ordin cu drumul măsurat: între jumătate și 1,6×. Fără km etalon nu
+      // se poate judeca — deci nu se suprascrie, rămâne ce scrie graficul, cu `nepotrivit`.
+      const kmPlin = taiat ? taiat.plin : plin.km;
+      const verosimil = (rid) => {
+        const ref = ctx.kmEtalon?.get(rid)?.get(`${sh}|${sens}`);
+        return ref != null && kmPlin >= 0.5 * ref && kmPlin <= 1.6 * ref;
+      };
       const areEtalon = (ctx.sateEtalon?.get(cuScor[0].a.factory_route_id) ?? []).length > 0;
       if (areEtalon && cuScor[0].scor < 0.6) {
         let best = null;
         for (const rid of ctx.ruteUzinei.get(uzina) ?? []) {
           if (eligibili.some((x) => x.factory_route_id === rid)) continue;
+          if (!verosimil(rid)) continue;
           const sc = potrivire(rid);
           if (!best || sc > best.scor) best = { rid, scor: sc };
         }

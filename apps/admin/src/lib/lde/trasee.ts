@@ -391,7 +391,17 @@ export function bazeMasinilor(
     const cx = g.reduce((t, p) => t + p.lat, 0) / g.length;
     const cy = g.reduce((t, p) => t + p.lon, 0) / g.length;
     const medoid = g.reduce((b, p) => (dist(p, { lat: cx, lon: cy }) < dist(b, { lat: cx, lon: cy }) ? p : b), g[0]);
-    bazaMasina.set(vid, medoid);
+    // Numele locului se ia din TOT grupul, nu de pe punctul reprezentativ. O oprire
+    // primește nume doar dacă e la mai puțin de 2 km de o localitate cunoscută, iar o casă
+    // de la marginea satului cade des în afara pragului: mașina lui Juncu Serafim doarme
+    // în același punct, dar 38 din 46 de nopți au ieșit fără nume, și exact una dintre
+    // ele era reprezentantul. Grupul e un singur loc — dacă vreo noapte îl numește,
+    // acela e numele lui. Cel mai des întâlnit câștigă, ca să nu decidă o singură noapte.
+    const nume = new Map<string, number>();
+    for (const p of g as { locality?: string | null }[])
+      if (p.locality) nume.set(p.locality, (nume.get(p.locality) ?? 0) + 1);
+    const locality = [...nume.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+    bazaMasina.set(vid, { ...medoid, locality } as never);
     nopti.set(vid, g.length);
   }
 

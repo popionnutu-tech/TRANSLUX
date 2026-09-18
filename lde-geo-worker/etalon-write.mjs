@@ -90,8 +90,30 @@ function taieLivrarea(seg, capete, calc) {
   const i = seg.tip === 'apropiere' ? capete.iPrima : capete.iUltima;
   if (i == null || i <= seg.from || i >= seg.to) return null;
   return seg.tip === 'apropiere'
-    ? { livrare: kmInterval(calc.stepKm, seg.from, i), plin: kmInterval(calc.stepKm, i, seg.to) }
-    : { livrare: kmInterval(calc.stepKm, i, seg.to), plin: kmInterval(calc.stepKm, seg.from, i) };
+    ? { livrare: kmInterval(calc.stepKm, seg.from, i), plin: kmInterval(calc.stepKm, i, seg.to), from: i, to: seg.to, sursa: 'oprire' }
+    : { livrare: kmInterval(calc.stepKm, i, seg.to), plin: kmInterval(calc.stepKm, seg.from, i), from: seg.from, to: i, sursa: 'oprire' };
+}
+
+/**
+ * LIVRAREA după regula lui Ion, 18.09: «ruta începe la primul sat din denumire și se
+ * termină la uzină; tot ce e în afara ei e livrare». Popescu, 552BRAO: ruta «Vatici →
+ * Strășeni» e 29 km, făcută de 6 ori pe zi = 175 km; ceilalți 240 km — Chiperceni ↔
+ * Vatici de 6 ori — sunt ai șoferului, nu ai rutei. Tăietura pe OPRIRI (de mai sus) îi
+ * dădea 77: oprirea din Vatici e sub 40 s sau în afara centrului. Aici nu contează nicio
+ * oprire: turul începe la prima intrare în raza satului care dă numele rutei, returul se
+ * termină la ultima ieșire din ea. Cine locuiește în satul ăla iese cu livrare zero.
+ * Dacă urma nu intră deloc în raza satului (nume care nu e localitate — 14% din rute —
+ * sau drum care îl ocolește), se cade înapoi pe tăietura la oprire.
+ */
+function taiePeSat(seg, pts, calc, sat, razaKm = PRAG_SAT_KM) {
+  if (seg.stare !== 'plin' || !sat) return null;
+  let i = null;
+  if (seg.tip === 'apropiere') { for (let k = seg.from; k <= seg.to; k++) if (hav(pts[k], sat) <= razaKm) { i = k; break; } }
+  else { for (let k = seg.to; k >= seg.from; k--) if (hav(pts[k], sat) <= razaKm) { i = k; break; } }
+  if (i == null) return null;
+  return seg.tip === 'apropiere'
+    ? { livrare: kmInterval(calc.stepKm, seg.from, i), plin: kmInterval(calc.stepKm, i, seg.to), from: i, to: seg.to, sursa: 'sat' }
+    : { livrare: kmInterval(calc.stepKm, i, seg.to), plin: kmInterval(calc.stepKm, seg.from, i), from: seg.from, to: i, sursa: 'sat' };
 }
 
 const norm = (s) => (s || '').toLowerCase()
@@ -263,6 +285,24 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
   // (≥40 s), sau de cel puțin 2 minute oriunde — o oprire de 2 minute pe drum nu e
   // semafor, e o stație al cărei sat stă la peste 500 m de șosea (Popescu, 552BRAO:
   // oprirea din Vatici, 15:14, 2 min, fără localitate în rază). Nu acasă, nu la poartă.
+  // Satul care dă numele rutei (primul din grafic), ca punct: dintre locurile cu numele
+  // ăla se ia cel mai apropiat de poarta uzinei — sunt trei „Slobozia" în țară.
+  if (!ctx.locuriPeNume && ctx.placesIdx?.places) {
+    ctx.locuriPeNume = new Map();
+    for (const p of ctx.placesIdx.places) {
+      const n = norm(p.name);
+      if (!ctx.locuriPeNume.has(n)) ctx.locuriPeNume.set(n, []);
+      ctx.locuriPeNume.get(n).push(p);
+    }
+  }
+  const satulRutei = (rid) => {
+    const nume = (ctx.sateRuta.get(rid) ?? [])[0];
+    const locuri = nume ? ctx.locuriPeNume?.get(nume) : null;
+    if (!locuri?.length) return null;
+    const poarta = (ctx.porti.get(ctx.uzinaRutei.get(rid)) ?? [])[0];
+    if (!poarta) return locuri[0];
+    return locuri.reduce((b, p) => (hav(p, poarta) < hav(b, poarta) ? p : b));
+  };
   const OPRIRE_ORIUNDE_S = 120;
   const scurteInSat = popasuri(r.pts, 0, r.pts.length - 1)
     .map((p) => ({ i: p.from, secunde: p.secunde, locality: locul(r.pts[p.from]) }))
@@ -271,7 +311,13 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
       && !gts.some((g) => hav(r.pts[p.i], g) <= 1.0));
   for (const s of segs) {
     if (s.stare === 'plin') {
-      const t = taieLivrarea(s, capeteReale(r.stops ?? [], r.pts, s.from, s.to, scurteInSat), r.calc);
+      // ruta cursei nu e încă știută aici; se încearcă satele-nume ale rutelor mașinii
+      // la uzina asta și se ia tăietura cea mai mică — apoi, dacă niciuna, oprirea
+      const peSat = lista
+        .filter((a) => (ctx.uzinaRutei.get(a.factory_route_id) ?? a.direction) === s.uzina_id)
+        .map((a) => taiePeSat(s, r.pts, r.calc, satulRutei(a.factory_route_id)))
+        .filter(Boolean).sort((x, y) => x.livrare - y.livrare)[0];
+      const t = peSat ?? taieLivrarea(s, capeteReale(r.stops ?? [], r.pts, s.from, s.to, scurteInSat), r.calc);
       if (t) { contrib.km_plin += t.plin; contrib.km_gol += t.livrare; contrib.km_livrare += t.livrare; }
       else contrib.km_plin += s.km;
     } else if (s.stare === 'gol') {
@@ -438,10 +484,9 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
 
     for (const [sens, plin, gol] of perechi) {
       if (!plin) continue;                       // fără drumul cu pasageri nu există cursă
+      // satele DRUMULUI ÎNTREG, pentru «a cui e cursa»; satele cursei se iau după tăietură
       const sate = sateDeservite(r.pts, ctx.placesIdx, plin.from, plin.to, PRAG_SAT_KM);
       const vazute = new Set(sate.map(norm));
-      const capete = capeteReale(r.stops ?? [], r.pts, plin.from, plin.to, scurteInSat);
-      const taiat = taieLivrarea(plin, capete, r.calc);
 
       // A CUI e cursa, când mașina are două rute în același schimb (22 din 169 de
       // perechi mașină×schimb pe 16.09). Întrebarea se pune pe SATE, nu se ocolește:
@@ -502,10 +547,10 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
       // rutei 11. Se acceptă doar o rută al cărei km etalon, pe schimbul și sensul ăsta,
       // e de același ordin cu drumul măsurat: între jumătate și 1,6×. Fără km etalon nu
       // se poate judeca — deci nu se suprascrie, rămâne ce scrie graficul, cu `nepotrivit`.
-      const kmPlin = taiat ? taiat.plin : plin.km;
+      const kmPlin = (rid) => taiePeSat(plin, r.pts, r.calc, satulRutei(rid))?.plin ?? plin.km;
       const verosimil = (rid) => {
         const ref = ctx.kmEtalon?.get(rid)?.get(`${sh}|${sens}`);
-        return ref != null && kmPlin >= 0.5 * ref && kmPlin <= 1.6 * ref;
+        return ref != null && kmPlin(rid) >= 0.5 * ref && kmPlin(rid) <= 1.6 * ref;
       };
       const areEtalon = (ctx.sateEtalon?.get(cuScor[0].a.factory_route_id) ?? []).length > 0;
       if (areEtalon && cuScor[0].scor < 0.6) {
@@ -523,6 +568,14 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
         }
       }
 
+      // Tăietura livrării, pe ruta DECISĂ: întâi la satul care-i dă numele, altfel la oprire.
+      // Satele, capetele și geometria cursei se iau din bucata rămasă — altfel etalonul
+      // ar începe acasă la șofer (Popescu: «Începe: Chiperceni», care e casa lui).
+      const taiat = taiePeSat(plin, r.pts, r.calc, satulRutei(a.factory_route_id))
+        ?? taieLivrarea(plin, capeteReale(r.stops ?? [], r.pts, plin.from, plin.to, scurteInSat), r.calc);
+      const cut = taiat ? { from: taiat.from, to: taiat.to } : { from: plin.from, to: plin.to };
+      const capete = capeteReale(r.stops ?? [], r.pts, cut.from, cut.to, scurteInSat);
+      const sateCursa = sateDeservite(r.pts, ctx.placesIdx, cut.from, cut.to, PRAG_SAT_KM);
       const ale = ctx.sateRuta.get(a.factory_route_id) ?? [];
       await supa.from('lde_route_run').upsert({
         run_date: day, factory_route_id: a.factory_route_id, shift_number: sh,
@@ -531,7 +584,7 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
         // rutei are 1-2 sate, drumul real are 13-19 (Ion, 17.09), deci comparat cu numele
         // aproape tot ieșea „în plus". Le umple agregatorul, față de ETALON, după ce
         // etalonul există.
-        sate_atinse: sate, sate_lipsa: [], sate_extra: [],
+        sate_atinse: sateCursa, sate_lipsa: [], sate_extra: [],
         km_real: taiat ? taiat.plin : plin.km,
         km_goi: gol ? gol.km : 0,
         km_livrare: taiat ? taiat.livrare : 0,
@@ -546,10 +599,10 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
         opriri_gol_pe_traseu: gol && inSatulMasinii
           ? opririScurte(r.pts, gol.from, gol.to, { exclude: deSarit(gol), inSat: inSatulMasinii })
           : null,
-        opriri_plin: opririScurte(r.pts, plin.from, plin.to, { exclude: deSarit(plin), inSat }),
+        opriri_plin: opririScurte(r.pts, cut.from, cut.to, { exclude: deSarit(plin), inSat }),
         opriri_pe_traseu: (() => {
           const f = inSatulRutei(a.factory_route_id);
-          return f ? opririScurte(r.pts, plin.from, plin.to, { exclude: deSarit(plin), inSat: f }) : null;
+          return f ? opririScurte(r.pts, cut.from, cut.to, { exclude: deSarit(plin), inSat: f }) : null;
         })(),
         opriri_gol: gol ? opririScurte(r.pts, gol.from, gol.to, { exclude: deSarit(gol), inSat }) : null,
         prima_statie: capete.prima, ultima_statie: capete.ultima,
@@ -557,7 +610,7 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
         motiv: motivGrafic
           ?? (ambiguu ? (nepotrivit ? 'sate_nepotrivite' : 'doua_rute_la_fel')
             : (nepotrivit ? 'sate_nepotrivite' : null)),
-        geom: simplifica(r.pts, r.calc, plin.from, plin.to),
+        geom: simplifica(r.pts, r.calc, cut.from, cut.to),
       }, { onConflict: 'run_date,factory_route_id,shift_number,slot,sens' });
       luate.add(`${sens}|${a.factory_route_id}`);
       scriseRute.add(`${sens}|${a.factory_route_id}`);

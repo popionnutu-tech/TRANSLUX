@@ -568,10 +568,14 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
       // rutei 11. Se acceptă doar o rută al cărei km etalon, pe schimbul și sensul ăsta,
       // e de același ordin cu drumul măsurat: între jumătate și 1,6×. Fără km etalon nu
       // se poate judeca — deci nu se suprascrie, rămâne ce scrie graficul, cu `nepotrivit`.
-      const kmPlin = (rid) => taiePeSat(plin, r.pts, r.calc, satulRutei(rid, plin))?.plin ?? plin.km;
+      // Se compară DRUMUL ÎNTREG cu km-ul etalon al candidatei, nu drumul tăiat la satul
+      // candidatei: ruta 2 «Cișmea» are 9 km și Cișmea e la marginea Orheiului, deci orice
+      // drum lung tăiat la Cișmea „avea" 9 km și devenea ruta 2 — Sochircă, de la Florești,
+      // ajungea pe ea. Drumul întreg e mai lung decât ruta, de aceea marja de sus e largă.
+      const kmPlin = plin.km;
       const verosimil = (rid) => {
         const ref = ctx.kmEtalon?.get(rid)?.get(`${sh}|${sens}`);
-        return ref != null && kmPlin(rid) >= 0.5 * ref && kmPlin(rid) <= 1.6 * ref;
+        return ref != null && kmPlin >= 0.5 * ref && kmPlin <= 1.6 * ref;
       };
       const areEtalon = (ctx.sateEtalon?.get(cuScor[0].a.factory_route_id) ?? []).length > 0;
       if (areEtalon && cuScor[0].scor < 0.6) {

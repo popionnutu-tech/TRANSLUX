@@ -253,6 +253,9 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
   // care mergea goală spre uzină, era drumul plin suprascris de repoziționare. Se vedea
   // și în numere: 366 de segmente scrise, 264 de rânduri rămase.
   let scrise = 0;
+  // ce rute au primit deja cursă în ziua asta, ca o rută să nu fie scrisă de două ori
+  // când se recuperează segmentele unui schimb care nu e în grafic
+  const scriseRute = new Set();
 
   // Cheia e (uzină, schimb), nu doar schimbul: o mașină care lucrează la două uzine are
   // schimbul 1 la amândouă, iar un segment de la poarta Orhei n-are ce căuta pe atribuirea
@@ -310,7 +313,23 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
     return ale.size ? (p) => { const n = locul(p); return n != null && ale.has(norm(n)); } : null;
   };
 
-  for (const { uzina, shift_number: sh, lista: candidati } of peSchimb.values()) {
+  // Segmentele unui schimb pe care mașina nu-l are în grafic NU se aruncă: ele sunt ale
+  // uneia dintre rutele ei, pe care graficul a pus-o în alt schimb. Ion, 18.09: «GPS-ul e
+  // faptic, cum a mers; graficul de mână nu». Cazul: Guzun Ivan are rutele 6 și 8, ambele
+  // trecute pe schimbul 1; oamenii rutei 8 lucrează însă schimbul 2, iar mașina îi aduce la
+  // 15:00. Ceasul citește corect «livrare schimb 2», dar cursa se pierdea, fiindcă în
+  // grafic mașina n-avea nimic pe schimbul 2 — și ruta 8 rămânea goală toată ziua.
+  const schimburiCuSegmente = [...new Set(segs.filter((x) => x.shift_number != null && x.uzina_id)
+    .map((x) => `${x.uzina_id}|${x.shift_number}`))];
+  for (const k of schimburiCuSegmente) {
+    if (peSchimb.has(k)) continue;
+    const [u, shs] = k.split('|');
+    const aleUzinei = lista.filter((a) => (ctx.uzinaRutei.get(a.factory_route_id) ?? a.direction) === u);
+    if (!aleUzinei.length) continue;
+    peSchimb.set(k, { uzina: u, shift_number: Number(shs), lista: aleUzinei, dinAltSchimb: true });
+  }
+
+  for (const { uzina, shift_number: sh, lista: candidati, dinAltSchimb } of peSchimb.values()) {
     // TOATE segmentele schimbului, nu primul din fiecare fel. O mașină cu două rute în
     // același schimb face DOUĂ strângeri și două aduceri; varianta dinainte lua `find`,
     // deci scria o singură cursă de tur și una de retur pe schimb, oricâte rute ar fi
@@ -354,7 +373,10 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
         return ref.filter((x) => vazute.has(x)).length / ref.length;
       };
       const eligibili = candidati.filter((x) => (sens === 'tur' ? !x.eRetur : true))
-        .filter((x) => !luate.has(`${sens}|${x.factory_route_id}`));
+        .filter((x) => !luate.has(`${sens}|${x.factory_route_id}`))
+        // pe un schimb pe care graficul nu-l are, se iau doar rutele rămase fără cursă în
+        // ziua asta — altfel o rută deja scrisă ar primi o a doua cursă pe același sens
+        .filter((x) => !dinAltSchimb || !scriseRute.has(`${sens}|${x.factory_route_id}`));
       if (!eligibili.length) continue;
       const cuScor = eligibili
         .map((x) => ({ a: x, scor: potrivire(x.factory_route_id) }))
@@ -438,6 +460,7 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
         geom: simplifica(r.pts, r.calc, plin.from, plin.to),
       }, { onConflict: 'run_date,factory_route_id,shift_number,slot,sens' });
       luate.add(`${sens}|${a.factory_route_id}`);
+      scriseRute.add(`${sens}|${a.factory_route_id}`);
       scrise++;
     }
   }

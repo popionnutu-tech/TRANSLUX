@@ -63,10 +63,17 @@ function capeteReale(stops, pts, from, to) {
  */
 function golPrinCasa(seg, pts, calc, baze, razaKm = 1.0) {
   if (seg.stare !== 'gol' || !baze.length) return 0;
-  let km = 0;
-  for (let i = seg.from + 1; i <= seg.to; i++)
-    if (baze.some((b) => hav(pts[i], b) <= razaKm)) km += calc.stepKm[i];
-  return +km.toFixed(2);
+  // Drumul ÎNTREG, dacă atinge casa — nu doar kilometrii de lângă ea. Prima variantă
+  // aduna doar pașii aflați în raza de 1 km, deci dintr-un drum de 60 km poartă → acasă
+  // conta un kilometru și jumătate: ieșeau 137 km/zi la Draxelmaier, deși măsurasem că
+  // mașina oprește acasă în 79% din zilele cu două atingeri de poartă. Un drum care
+  // trece pe acasă ține de REPARTIZARE pe toată lungimea lui: alt șofer, alt drum.
+  const atingeCasa = (() => {
+    for (let i = seg.from; i <= seg.to; i++)
+      if (baze.some((b) => hav(pts[i], b) <= razaKm)) return true;
+    return false;
+  })();
+  return atingeCasa ? seg.km : 0;
 }
 
 function taieLivrarea(seg, capete, calc) {

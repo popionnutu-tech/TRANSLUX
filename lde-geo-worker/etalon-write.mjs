@@ -10,7 +10,7 @@
 import { simplifica } from './geom-simplify.mjs';
 import {
   secvente, treceriPorti, sateDeservite, segmenteZi, imperecheazaTreceri,
-  opririScurte, PRAG_SAT_KM,
+  opririScurte, kmInterval, PRAG_SAT_KM,
 } from './etalon-labels.mjs';
 
 /**
@@ -25,9 +25,39 @@ import {
 function capeteReale(stops, pts, from, to) {
   const t0 = pts[from].t, t1 = pts[to].t;
   const inSegment = stops.filter((st) => !st.isBase && st.arrival >= t0 && st.arrival <= t1);
-  if (!inSegment.length) return { prima: null, ultima: null };
+  if (!inSegment.length) return { prima: null, ultima: null, iPrima: null, iUltima: null };
   const pct = (st) => ({ lat: st.lat, lon: st.lon, locality: st.locality ?? null });
-  return { prima: pct(inSegment[0]), ultima: pct(inSegment[inSegment.length - 1]) };
+  // indicele punctului la care mașina a ajuns în stație — de acolo începe cursa cu pasageri
+  const idx = (st) => {
+    for (let i = from; i <= to; i++) if (pts[i].t >= st.arrival) return i;
+    return to;
+  };
+  const p = inSegment[0], u = inSegment[inSegment.length - 1];
+  return { prima: pct(p), ultima: pct(u), iPrima: idx(p), iUltima: idx(u) };
+}
+
+/**
+ * LIVRAREA: drumul gol dintre casa șoferului și capătul rutei.
+ *
+ * E lucrul pe care Ion l-a cerut din prima frază — «să minimizăm livrarea» — și tocmai el
+ * NU se socotea: segmentul de dimineață începe de acasă, deci km-ii casă → prima stație
+ * stăteau ascunși în `km_real` al cursei pline. Măsurat pe 01-17.09: circa 1.000 km/zi pe
+ * flotă, din care 431 la Draxelmaier și 335 la Orhei. Orhei părea că are 3% gol, fiindcă
+ * nu merge acasă între ture (3 schimburi la rând) — dar tot pleacă de acasă dimineața și
+ * se întoarce seara.
+ *
+ * Tăietura e la prima (respectiv ultima) oprire stabilă care nu e baza: înainte de ea
+ * mașina merge goală după oameni, după ea îi duce. La segmentele de peste zi bucata iese
+ * zero, fiindcă ele încep deja în sat sau la poartă — deci regula se aplică uniform, fără
+ * cazuri speciale.
+ */
+function taieLivrarea(seg, capete, calc) {
+  if (seg.stare !== 'plin' || !capete) return null;
+  const i = seg.tip === 'apropiere' ? capete.iPrima : capete.iUltima;
+  if (i == null || i <= seg.from || i >= seg.to) return null;
+  return seg.tip === 'apropiere'
+    ? { livrare: kmInterval(calc.stepKm, seg.from, i), plin: kmInterval(calc.stepKm, i, seg.to) }
+    : { livrare: kmInterval(calc.stepKm, i, seg.to), plin: kmInterval(calc.stepKm, seg.from, i) };
 }
 
 const norm = (s) => (s || '').toLowerCase()
@@ -133,16 +163,22 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
   const segs = segmenteZi(r.pts, r.calc, tr, perechi);
 
   // contribuția pe ziua GPS — cheia e (mașină, zi GPS), diferită de cheia cursei
-  const contrib = { km_plin: 0, km_gol: 0, km_necunoscut: 0 };
+  // Livrarea (casă ↔ capătul rutei) se scade din plin și se adună la gol — altfel ea
+  // rămâne ascunsă în cursa cu pasageri, iar cifra care trebuie micșorată nu se vede.
+  const contrib = { km_plin: 0, km_gol: 0, km_necunoscut: 0, km_livrare: 0 };
   for (const s of segs) {
-    if (s.stare === 'plin') contrib.km_plin += s.km;
-    else if (s.stare === 'gol') contrib.km_gol += s.km;
+    if (s.stare === 'plin') {
+      const t = taieLivrarea(s, capeteReale(r.stops ?? [], r.pts, s.from, s.to), r.calc);
+      if (t) { contrib.km_plin += t.plin; contrib.km_gol += t.livrare; contrib.km_livrare += t.livrare; }
+      else contrib.km_plin += s.km;
+    } else if (s.stare === 'gol') contrib.km_gol += s.km;
     else contrib.km_necunoscut += s.km;
   }
   await supa.from('lde_route_day_contrib').upsert({
     vehicle_id, gps_date: day,
     km_plin: +contrib.km_plin.toFixed(2), km_gol: +contrib.km_gol.toFixed(2),
     km_necunoscut: +contrib.km_necunoscut.toFixed(2),
+    km_livrare: +contrib.km_livrare.toFixed(2),
     stare: 'ok', motiv: null, updated_at: new Date().toISOString(),
   }, { onConflict: 'vehicle_id,gps_date' });
 
@@ -201,6 +237,8 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
       if (!plin) continue;                       // fără drumul cu pasageri nu există cursă
       const sate = sateDeservite(r.pts, ctx.placesIdx, plin.from, plin.to, PRAG_SAT_KM);
       const vazute = new Set(sate.map(norm));
+      const capete = capeteReale(r.stops ?? [], r.pts, plin.from, plin.to);
+      const taiat = taieLivrarea(plin, capete, r.calc);
 
       // A CUI e cursa, când mașina are două rute în același schimb (22 din 169 de
       // perechi mașină×schimb pe 16.09). Întrebarea se pune pe SATE, nu se ocolește:
@@ -225,7 +263,6 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
       const ambiguu = cuScor[0].scor < 0.34 || (alDoilea != null && alDoilea.scor >= cuScor[0].scor - 0.1);
 
       const ale = ctx.sateRuta.get(a.factory_route_id) ?? [];
-      const capete = capeteReale(r.stops ?? [], r.pts, plin.from, plin.to);
       await supa.from('lde_route_run').upsert({
         run_date: day, factory_route_id: a.factory_route_id, shift_number: sh,
         slot: a.slot ?? 1, sens, vehicle_id,
@@ -234,7 +271,9 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
         // aproape tot ieșea „în plus". Le umple agregatorul, față de ETALON, după ce
         // etalonul există.
         sate_atinse: sate, sate_lipsa: [], sate_extra: [],
-        km_real: plin.km, km_goi: gol ? gol.km : 0,
+        km_real: taiat ? taiat.plin : plin.km,
+        km_goi: gol ? gol.km : 0,
+        km_livrare: taiat ? taiat.livrare : 0,
         opriri_plin: opririScurte(r.pts, plin.from, plin.to, { exclude: deSarit(plin), inSat }),
         opriri_gol: gol ? opririScurte(r.pts, gol.from, gol.to, { exclude: deSarit(gol), inSat }) : null,
         prima_statie: capete.prima, ultima_statie: capete.ultima,

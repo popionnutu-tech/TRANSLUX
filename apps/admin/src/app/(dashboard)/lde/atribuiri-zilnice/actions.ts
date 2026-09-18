@@ -166,8 +166,12 @@ export async function getGhidZilnic(date?: string): Promise<{ zi: string; alerte
     // Ion, 17.09: «chiar dacă prima și ultima oprire e greșită, în ideal ea se repetă».
     // Cu stația unei singure zile, Copaci Mihail ieșea la 30 km de ruta 18, când casa
     // lui e la 5 km de Telenești, de unde pleacă ruta de obicei.
+    // FĂRĂ filtru pe prima_statie: acela e doar pentru harta primei stații. Cu el, rutele
+    // ale căror ture n-au nicio oprire lungă (ruta 10 Orhei, toate trei schimburile)
+    // rămâneau fără lista de sate, ghidul cădea pe „prima stație" și îl dădea pe
+    // Pătrașcu la 30 km de ruta lui — el stă în Mîrzești, al doilea sat al ei.
     sb.from('lde_route_etalon').select('factory_route_id, shift_number, sens, prima_statie, sate, observations')
-      .eq('sens', 'tur').gte('observations', 5).not('prima_statie', 'is', null),
+      .eq('sens', 'tur').gte('observations', 5),
   ]);
 
 

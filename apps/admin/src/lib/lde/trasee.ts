@@ -359,8 +359,17 @@ export type CosturiConstruite = {
  * costuri pe 30 de zile și ghidul zilnic al operatorului. O a doua copie ar diverge la
  * prima reglare de prag, iar pragurile astea decid cine cu cine se schimbă.
  */
+/**
+ * Cheia (`vehicle_id`) poate fi orice id — mașină SAU șofer. Pentru ghid se dau nopțile
+ * pe CHEIA ȘOFERULUI: nopțile mașinii pe care a condus-o, doar în zilele lui. Altfel casa
+ * omului e casa mașinii, iar mașina o conduc mai mulți: 725YOZ a stat parcată la Bălți
+ * din 19.08 până pe 07.09 fără nimeni în grafic, apoi a luat-o Șaptefrați și doarme la
+ * Olișcani în fiecare noapte — pe 30 de zile, mașina ieșea „din Bălți", omul nu e.
+ * Testul de garaj rămâne pe toate nopțile, indiferent de cheie.
+ */
 export function bazeMasinilor(
   opriri: { vehicle_id: string; lat: number | null; lon: number | null; locality?: string | null }[],
+  nopti_garaj?: { vehicle_id: string; lat: number | null; lon: number | null }[],
 ): { baze: Map<string, Baza & { locality: string | null }>; garaje: number } {
   // baza unei mașini = mediana nopților ei; o singură noapte nu face o casă
   const puncte = new Map<string, { lat: number; lon: number }[]>();
@@ -376,8 +385,31 @@ export function bazeMasinilor(
   const RAZA_NOAPTE_KM = 1.0;
   const dist = (p: { lat: number; lon: number }, q: { lat: number; lon: number }) =>
     haversineKm({ lat: p.lat, lon: p.lon }, { lat: q.lat, lon: q.lon });
+  // GARAJELE se recunosc pe NOPȚILE BRUTE, nu pe „casele" mașinilor între ele. Prima
+  // variantă compara doar reprezentanții: cinci case în același punct = garaj. Dar
+  // garajul din Bălți nu e casa nimănui — e locul unde 27 de mașini dorm CÂTEODATĂ,
+  // câte 8 nopți pe lună, în timp ce casa lor e în altă parte. Așa a ieșit Șaptefrați
+  // Dionis „din Bălți" pe ruta 12 (Olișcani): mașina lui doarme la Olișcani 16 nopți
+  // din 17 în zilele lui, dar în fereastra de 30 de zile Bălți adunase destule nopți ca
+  // să iasă grupul cel mai mare. Ion, 18.09: «noi Olișcani face cu șofer din Bălți?» — nu.
+  // Deci: un punct unde dorm 5+ mașini DIFERITE e garaj; grupurile din raza lui se sar,
+  // iar casa e grupul cel mai mare RĂMAS — nu se aruncă mașina, se aruncă garajul.
+  // Pragul e 5, nu 3: la Olișcani dorm două mașini ale rutei 12 plus una de schimb, și
+  // asta nu face din sat un garaj — cu 3, casa lui Șaptefrați sărea pe Susleni.
+  const RAZA_GARAJ_KM = 0.3;
+  const MASINI_GARAJ = 5;
+  const toateNoptile: { lat: number; lon: number; vid: string }[] = [];
+  for (const n of nopti_garaj ?? opriri)
+    if (n.lat != null && n.lon != null) toateNoptile.push({ lat: Number(n.lat), lon: Number(n.lon), vid: n.vehicle_id });
+  const eGaraj = (p: { lat: number; lon: number }) => {
+    const masini = new Set<string>();
+    for (const n of toateNoptile) if (dist(n, p) <= RAZA_GARAJ_KM) { masini.add(n.vid); if (masini.size >= MASINI_GARAJ) return true; }
+    return false;
+  };
+
   const bazaMasina = new Map<string, { lat: number; lon: number }>();
   const nopti = new Map<string, number>();
+  let garaje = 0;
   for (const [vid, ps] of puncte) {
     if (ps.length < 3) continue;   // sub trei nopți nu tragem concluzii despre unde stă omul
     const grupuri: { lat: number; lon: number }[][] = [];
@@ -386,35 +418,19 @@ export function bazeMasinilor(
       if (g) g.push(p); else grupuri.push([p]);
     }
     grupuri.sort((x, y) => y.length - x.length);
-    const g = grupuri[0];
+    const g = grupuri.find((gr) => !eGaraj(gr[0]));
+    if (!g) { garaje++; continue; }            // doarme DOAR în garaj: casă necunoscută
+    if (g !== grupuri[0]) garaje++;           // grupul cel mare era garajul; s-a sărit
     // reprezentantul e un punct REAL din grup, cel mai apropiat de centrul lui
     const cx = g.reduce((t, p) => t + p.lat, 0) / g.length;
     const cy = g.reduce((t, p) => t + p.lon, 0) / g.length;
     const medoid = g.reduce((b, p) => (dist(p, { lat: cx, lon: cy }) < dist(b, { lat: cx, lon: cy }) ? p : b), g[0]);
-    // Numele locului se ia din TOT grupul, nu de pe punctul reprezentativ. O oprire
-    // primește nume doar dacă e la mai puțin de 2 km de o localitate cunoscută, iar o casă
-    // de la marginea satului cade des în afara pragului: mașina lui Juncu Serafim doarme
-    // în același punct, dar 38 din 46 de nopți au ieșit fără nume, și exact una dintre
-    // ele era reprezentantul. Grupul e un singur loc — dacă vreo noapte îl numește,
-    // acela e numele lui. Cel mai des întâlnit câștigă, ca să nu decidă o singură noapte.
     const nume = new Map<string, number>();
     for (const p of g as { locality?: string | null }[])
       if (p.locality) nume.set(p.locality, (nume.get(p.locality) ?? 0) + 1);
     const locality = [...nume.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
     bazaMasina.set(vid, { ...medoid, locality } as never);
     nopti.set(vid, g.length);
-  }
-
-  // GARAJELE nu sunt case. Cinci mașini dorm în același punct din Bălți — e o parcare,
-  // iar sistemul o lua drept casa a cinci șoferi diferiți (Pascari Ion e trecut
-  // „Heciul-Vechi", mașina lui doarme la Bălți 21 din 40 de nopți; apărea în 4 propuneri).
-  // Un punct unde dorm 3+ mașini diferite nu poate spune unde locuiește cineva.
-  const RAZA_GARAJ_KM = 0.3;
-  let garaje = 0;
-  const bazeList = [...bazaMasina.entries()];
-  for (const [vid, b] of bazeList) {
-    const cateMasini = bazeList.filter(([, o]) => dist(b, o) <= RAZA_GARAJ_KM).length;
-    if (cateMasini >= 3) { bazaMasina.delete(vid); garaje++; }
   }
 
   return { baze: bazaMasina as Map<string, Baza & { locality: string | null }>, garaje };

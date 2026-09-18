@@ -164,13 +164,24 @@ export async function getGhidZilnic(date?: string): Promise<{ zi: string; alerte
     sb.from('lde_uzine_gates').select('uzina_id, lat, lon').eq('active', true),
   ]);
 
-  const baze: { vehicle_id: string; lat: number; lon: number; locality: string | null }[] = [];
+  const baze: { vehicle_id: string; date: string; lat: number; lon: number; locality: string | null }[] = [];
   for (let d = 0; ; d += 1000) {
-    const { data } = await sb.from('lde_gps_stops').select('vehicle_id, lat, lon, locality')
+    const { data } = await sb.from('lde_gps_stops').select('vehicle_id, date, lat, lon, locality')
       .eq('is_base', true).gte('date', de).range(d, d + 999);
     baze.push(...((data ?? []) as typeof baze));
     if (!data || data.length < 1000) break;
   }
+  // Casa OMULUI, nu a mașinii: nopțile mașinii pe care a condus-o, doar în zilele lui.
+  // O mașină o conduc mai mulți și stă și parcată; casa ei nu e casa nimănui anume.
+  const { data: cineCand } = await sb.from('lde_atribuiri_zilnice')
+    .select('driver_id, vehicle_id, date').gte('date', de).not('driver_id', 'is', null).not('vehicle_id', 'is', null);
+  const soferulZilei = new Map<string, string>();
+  for (const x of cineCand ?? []) soferulZilei.set(`${x.vehicle_id}|${x.date}`, x.driver_id as string);
+  const noptiSofer = baze.flatMap((n) => {
+    const did = soferulZilei.get(`${n.vehicle_id}|${n.date}`);
+    return did ? [{ ...n, vehicle_id: did }] : [];
+  });
+  const { baze: bazaSofer } = bazeMasinilor(noptiSofer, baze);
   const { baze: bazaMasina } = bazeMasinilor(baze);
 
   const numeSofer = new Map((soferi ?? []).map((d) => [d.id as string, d.full_name as string]));

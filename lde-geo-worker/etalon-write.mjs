@@ -159,8 +159,15 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
   // prima — deci la cealaltă nu vedea nicio trecere și toată ziua ieșea „necunoscut".
   // 9.651 km din 13.089 se pierdeau exact așa (74%). Cazul găsit: 283BRAT pe 16.09, cu
   // Ungheni #3 prima în listă și Orhei #15 lucrată efectiv — 586 km, toți necunoscuți.
-  const uzine = [...new Set(lista.map((a) => ctx.uzinaRutei.get(a.factory_route_id) ?? a.direction).filter(Boolean))];
-  const gts = uzine.flatMap((u) => ctx.porti.get(u) ?? []);
+  const uzineGrafic = [...new Set(lista.map((a) => ctx.uzinaRutei.get(a.factory_route_id) ?? a.direction).filter(Boolean))];
+  // Porțile TUTUROR uzinelor, nu doar ale celor din grafic. Ion, 18.09: «GPS-ul e faptic,
+  // cum a mers; graficul de mână nu» — și se înșală și despre UZINĂ, nu doar despre rută
+  // sau schimb. 073BRAO e trecută 13 zile la rând pe Trox #1, dar la orele schimbului
+  // oprește la Bucuria — poarta SEBN Orhei, la 166 km de Briceni. Cu porțile luate doar
+  // din grafic nu vedea nicio trecere și ieșea «fara_trecere» zi de zi, cu 235 km.
+  // Măsurat pe 13 zile lucrătoare: 34 de mașini-zile ating poarta altei uzine decât cea
+  // din grafic (18 Ungheni→Orhei, 11 Trox→Orhei).
+  const gts = [...ctx.porti.values()].flat();
 
   // Ziua se rescrie de la zero pentru mașina asta. Fără ștergere, o re-rulare după o
   // corecție de segmentare lasă în urmă cursele pe care noul calcul NU le mai produce —
@@ -178,11 +185,17 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
   // rol) = câte rute are mașina în schimbul ăla la uzina aia — o mașină cu două rute în
   // același schimb face două livrări și două ridicări.
   const perechi = tr.map(() => ({ livrare: null, ridicare: null }));
+  // uzinele zilei = cele din grafic + cele ale căror porți le-a atins efectiv
+  const uzine = [...new Set([...uzineGrafic, ...tr.map((t) => t.uzina_id)])];
   for (const u of uzine) {
     const indici = tr.map((t, i) => ({ t, i })).filter((x) => x.t.uzina_id === u);
     if (!indici.length) continue;
     const aleUzinei = lista.filter((a) => (ctx.uzinaRutei.get(a.factory_route_id) ?? a.direction) === u);
-    const atribuite = [...new Set(aleUzinei.map((a) => a.shift_number).filter((x) => x != null))];
+    // la o uzină pe care graficul n-o are, toate schimburile ei sunt „atribuite" cu
+    // capacitate 1 — altfel bugetul de roluri ar fi zero și ziua s-ar pierde iar
+    const atribuite = aleUzinei.length
+      ? [...new Set(aleUzinei.map((a) => a.shift_number).filter((x) => x != null))]
+      : [...new Set((ctx.granitePeUz.get(u) ?? []).map((g) => g.shift_number))];
     // TOATE schimburile uzinei intră în împerechere, nu doar cele scrise în grafic.
     // Graficul spune corect CE RUTĂ face mașina, dar se înșală despre CÂND: cele patru
     // cazuri din 17.09 aveau ambele rute trecute pe schimbul 1, iar operaționalul a
@@ -344,11 +357,17 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
     if (peSchimb.has(k)) continue;
     const [u, shs] = k.split('|');
     const aleUzinei = lista.filter((a) => (ctx.uzinaRutei.get(a.factory_route_id) ?? a.direction) === u);
-    if (!aleUzinei.length) continue;
-    peSchimb.set(k, { uzina: u, shift_number: Number(shs), lista: aleUzinei, dinAltSchimb: true });
+    if (aleUzinei.length) { peSchimb.set(k, { uzina: u, shift_number: Number(shs), lista: aleUzinei, dinAltSchimb: true }); continue; }
+    // UZINA DIN GPS: graficul n-o are deloc, dar mașina i-a atins poarta. Candidații sunt
+    // toate rutele acelei uzine care au etalon — ruta se alege după sate, iar cursa se
+    // însemnează `uzina_din_gps`, ca să se vadă că graficul a fost contrazis la uzină.
+    const candidati = (ctx.ruteUzinei.get(u) ?? [])
+      .filter((rid) => (ctx.sateEtalon?.get(rid) ?? []).length > 0)
+      .map((rid) => ({ factory_route_id: rid, shift_number: Number(shs), slot: 1, eRetur: false, direction: u }));
+    if (candidati.length) peSchimb.set(k, { uzina: u, shift_number: Number(shs), lista: candidati, dinAltSchimb: true, dinAltaUzina: true });
   }
 
-  for (const { uzina, shift_number: sh, lista: candidati, dinAltSchimb } of peSchimb.values()) {
+  for (const { uzina, shift_number: sh, lista: candidati, dinAltSchimb, dinAltaUzina } of peSchimb.values()) {
     // TOATE segmentele schimbului, nu primul din fiecare fel. O mașină cu două rute în
     // același schimb face DOUĂ strângeri și două aduceri; varianta dinainte lua `find`,
     // deci scria o singură cursă de tur și una de retur pe schimb, oricâte rute ar fi
@@ -413,8 +432,11 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
       const concurenta = new Set(eligibili.map((x) => x.factory_route_id)).size > 1;
       let ambiguu = concurenta
         && (cuScor[0].scor < 0.34 || (alDoilea != null && alDoilea.scor >= cuScor[0].scor - 0.1));
+      // la o uzină pe care graficul n-o are, ruta trebuie DOVEDITĂ pe sate — n-avem alt
+      // reper; sub 50% potrivire cursa rămâne ambiguă, nu se inventează o rută
+      if (dinAltaUzina && cuScor[0].scor < 0.5) ambiguu = true;
       let nepotrivit = cuScor[0].scor < 0.34;
-      let motivGrafic = null;
+      let motivGrafic = dinAltaUzina ? 'uzina_din_gps' : null;
 
       // GPS-UL BATE GRAFICUL. Ion, 18.09: «GPS-ul e faptic, cum a mers; graficul de mână nu».
       // Până aici căutam ruta doar printre cele scrise în grafic pentru mașina asta. Dacă

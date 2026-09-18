@@ -90,13 +90,15 @@ APK-ul peste cel vechi (același keystore → datele și token-ul rămân).
 
 1. central-hub → **Utilizatori** → la un utilizator cu rolul **CONTROLLER** și punctul
    **CHISINAU** sau **BALTI** apasă **«📱 Cod aplicație»**.
-2. Apare un cod de 6 cifre, valabil **24 h**, folosit **o singură dată**. Îl dai
+2. Apare codul de 6 cifre al operatorului: **permanent**, același la fiecare apăsare. Îl dai
    operatorului (telefon, Telegram, pe hârtie).
 3. Operatorul îl scrie în aplicație la «Conectează». Aplicația primește un token care
    nu expiră și îl ține în stocarea securizată a telefonului. Codul apare în
    `peron_app_link_codes`; sesiunea în `peron_app_sessions`.
 
-Alt telefon sau reinstalare cu ștergerea datelor = cod nou. Codul nu se poate refolosi.
+Alt telefon sau reinstalare cu ștergerea datelor = același cod, tastat din nou. Codul nu se
+schimbă (Ion, 18.09.2026); dacă totuși trebuie înlocuit, se șterge rândul din
+`peron_app_link_codes` și butonul generează altul.
 
 Revocarea unei sesiuni (telefon pierdut, operator plecat), în SQL pe Supabase:
 

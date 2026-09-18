@@ -213,14 +213,14 @@ export function seedDay(date: string): Seed {
   };
 }
 
-/** Un cod de conectare valid 24 h pentru un utilizator — de inserat în `peron_app_link_codes`. */
+/** Codul permanent de conectare al unui utilizator — de inserat în `peron_app_link_codes`. */
 export function linkCodeRow(code: string, userId: string, now: Date = new Date()): Row {
   return {
     code,
     user_id: userId,
     created_by: null,
     created_at: now.toISOString(),
-    expires_at: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(),
+    expires_at: null,
     used_at: null,
   };
 }

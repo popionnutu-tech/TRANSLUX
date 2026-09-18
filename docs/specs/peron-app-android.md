@@ -106,7 +106,8 @@ Decise de mine (nu se reevaluează în timpul rulării):
   1280 px lățime, JPEG 0.8, ~300 KB). Limita corpului: 8 MB. Fără multipart, fără
   framework — router mic peste `http` în `apps/bot/src/api/`.
 - **Autentificare:** adminul generează în pagina Utilizatori un **cod de conectare de
-  6 cifre**, valabil 24 h, folosit o singură dată, doar pentru utilizatori cu
+  6 cifre** — PIN-ul permanent al operatorului: un cod pe utilizator, fără termen,
+  refolosibil la fiecare conectare (migr. 377, Ion 18.09.2026) — doar pentru utilizatori cu
   `role = 'CONTROLLER'` și `point = 'CHISINAU'`. Aplicația schimbă codul pe un token
   (32 octeți aleatori, hex), păstrat în `expo-secure-store`; serverul păstrează doar
   `sha256(token)` în `peron_app_sessions`. Token-ul nu expiră; adminul îl poate revoca
@@ -362,7 +363,7 @@ compilează, iar sesiunea se oprește înainte de a atinge baza.
    alter table peron_cleaning_checks add column if not exists location_lon double precision;
    alter table peron_cleaning_checks add column if not exists photo_deleted_at timestamptz;
 
-   -- Cod de conectare (6 cifre, 24 h, o singură folosire), generat de admin
+   -- Cod de conectare (6 cifre), generat de admin; din migr. 377 permanent, un cod pe operator
    create table if not exists peron_app_link_codes (
      code text primary key,
      user_id uuid not null references users(id),

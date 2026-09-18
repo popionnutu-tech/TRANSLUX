@@ -7,7 +7,7 @@ import { DEPOT_BOUND_ROLES, SELLER_SCOPED_ROLES, MAX_EDIT_WINDOW_DAYS, EDIT_WIND
 import { auditWrite, changedFields } from '@/lib/audit';
 import type { User, UserRole, InviteToken, PointEnum, AdminRole } from '@translux/db';
 import crypto from 'crypto';
-import { canReceiveLinkCode, generateLinkCode, linkCodeExpiry } from './linkCode';
+import { canReceiveLinkCode, generateLinkCode } from './linkCode';
 import bcrypt from 'bcryptjs';
 
 // ── Users ────────────────────────────────────────────
@@ -278,12 +278,15 @@ export async function deleteInvite(token: string) {
 
 // ── Aplicația de peron: cod de conectare (spec peron-app-android, S02) ──────
 // Adminul dă operatorului un cod de 6 cifre; aplicația îl schimbă pe token la
-// POST /app/v1/auth/link (botul). 24 h, o singură folosire. Doar CONTROLLER activ
-// din Chișinău sau Bălți — punctul user-ului decide ce ecran vede aplicația.
+// POST /app/v1/auth/link (botul). Codul e PIN-ul permanent al operatorului: un cod
+// pe utilizator, fără termen, refolosibil — butonul arată mereu același cod și nu-l
+// schimbă (Ion, 18.09.2026: «să nu se schimbe PIN-urile»; migr. 377). Doar CONTROLLER
+// activ din Chișinău sau Bălți — punctul user-ului decide ce ecran vede aplicația.
 
 export interface PeronAppLinkCodeResult {
   code: string;
-  expiresAt: string;
+  /** true = codul exista deja și a fost doar arătat din nou. */
+  existing: boolean;
 }
 
 export async function createPeronAppLinkCode(userId: string): Promise<PeronAppLinkCodeResult> {
@@ -297,20 +300,28 @@ export async function createPeronAppLinkCode(userId: string): Promise<PeronAppLi
   if (!user) throw new Error('Utilizator inexistent');
   if (!canReceiveLinkCode(user)) throw new Error('Codul se dă doar unui operator de peron activ (Controller, Chișinău sau Bălți)');
 
+  // Codul existent se arată din nou, nu se înlocuiește: operatorul îl știe deja.
+  const { data: current, error: currentErr } = await db
+    .from('peron_app_link_codes')
+    .select('code')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  if (currentErr) throw new Error(currentErr.message);
+  if (current) return { code: (current as { code: string }).code, existing: true };
+
   // Codul e cheie primară: la coliziune (23505) generăm altul. 5 încercări ajung —
-  // spațiul e de 900k coduri, cele vechi rămân în tabel dar sunt puține.
+  // spațiul e de 900k coduri și e câte un cod pe operator.
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = generateLinkCode(crypto.randomInt);
-    const expiresAt = linkCodeExpiry();
     const { error } = await db.from('peron_app_link_codes').insert({
       code,
       user_id: user.id,
       created_by: session.id,
-      expires_at: expiresAt,
+      expires_at: null,
     });
     if (!error) {
       revalidatePath('/users');
-      return { code, expiresAt };
+      return { code, existing: false };
     }
     if (error.code !== '23505') throw new Error(error.message);
   }

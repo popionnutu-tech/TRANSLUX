@@ -238,7 +238,7 @@ export interface PeronAppLinkCode {
   user_id: string;
   created_by: string | null; // admin_accounts.id
   created_at: string;
-  expires_at: string;
+  expires_at: string | null; // null = permanent (migr. 377)
   used_at: string | null;
 }
 

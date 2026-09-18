@@ -190,7 +190,7 @@ describe('rapoarte și validarea zilei', () => {
 });
 
 describe('codul de conectare (auth.ts peste fake)', () => {
-  it('linkWithCode dă token de 64 hex, marchează codul folosit și creează sesiunea cu hash', async () => {
+  it('linkWithCode dă token de 64 hex, notează ultima folosire și creează sesiunea cu hash', async () => {
     fake._tables.peron_app_link_codes.push(linkCodeRow('482913', IDS.users.vitalie));
     const { token, user } = await linkWithCode('482913', 'Pixel test');
     expect(token).toMatch(/^[0-9a-f]{64}$/);
@@ -199,7 +199,24 @@ describe('codul de conectare (auth.ts peste fake)', () => {
     expect(fake._tables.peron_app_sessions).toHaveLength(1);
     expect(fake._tables.peron_app_sessions[0]).toMatchObject({ user_id: IDS.users.vitalie, device_label: 'Pixel test' });
     expect(fake._tables.peron_app_sessions[0].token_hash).not.toBe(token);
-    await expect(linkWithCode('482913', null)).rejects.toMatchObject({ status: 401, code: 'BAD_CODE' });
+  });
+
+  // Ion, 18.09.2026: «la apk operator peron, să nu se schimbe PIN-urile» — codul e permanent,
+  // același operator intră cu el și a doua oară (alt telefon, reinstalare, sesiune revocată).
+  it('același cod merge din nou: a doua conectare dă alt token și a doua sesiune', async () => {
+    fake._tables.peron_app_link_codes.push(linkCodeRow('482913', IDS.users.vitalie));
+    const first = await linkWithCode('482913', 'Pixel test');
+    const second = await linkWithCode('482913', 'Telefon nou');
+    expect(second.token).not.toBe(first.token);
+    expect(fake._tables.peron_app_sessions).toHaveLength(2);
+    expect(fake._tables.peron_app_sessions.map((s) => s.device_label)).toEqual(['Pixel test', 'Telefon nou']);
+  });
+
+  it('refuză codul inexistent și codul vechi cu termen trecut', async () => {
+    fake._tables.peron_app_link_codes.push({ ...linkCodeRow('111222', IDS.users.vitalie), expires_at: '2026-06-01T00:00:00.000Z' });
+    await expect(linkWithCode('999999', null)).rejects.toMatchObject({ status: 401, code: 'BAD_CODE' });
+    await expect(linkWithCode('111222', null)).rejects.toMatchObject({ status: 401, code: 'BAD_CODE' });
+    expect(fake._tables.peron_app_sessions).toHaveLength(0);
   });
 });
 

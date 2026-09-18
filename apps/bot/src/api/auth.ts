@@ -1,10 +1,12 @@
 /**
  * Autentificarea aplicației de peron.
  *
- * Adminul generează în pagina Utilizatori un cod de 6 cifre (peron_app_link_codes,
- * 24 h, o singură folosire). Aplicația îl schimbă pe un token de 32 de octeți
- * aleatori (hex); pe server rămâne doar sha256(token) în peron_app_sessions.
- * Token-ul nu expiră — adminul îl revocă prin `revoked_at`.
+ * Adminul dă operatorului în pagina Utilizatori un cod de 6 cifre (peron_app_link_codes):
+ * PIN-ul lui permanent — un cod pe operator, fără termen, refolosibil la fiecare
+ * conectare (Ion, 18.09.2026: «să nu se schimbe PIN-urile»; migr. 377). Aplicația îl
+ * schimbă pe un token de 32 de octeți aleatori (hex); pe server rămâne doar
+ * sha256(token) în peron_app_sessions. Token-ul nu expiră — adminul îl revocă prin
+ * `revoked_at`. `expires_at` mai contează doar pe rândurile vechi care îl au.
  */
 import { createHash, randomBytes } from 'crypto';
 import type { IncomingMessage } from 'http';
@@ -48,7 +50,7 @@ export function isPeronUser(user: User | null | undefined): user is User & { poi
 }
 
 export async function linkWithCode(code: string, deviceLabel: string | null): Promise<LinkResult> {
-  const bad = () => new ApiError(401, 'BAD_CODE', 'Cod greșit, expirat sau deja folosit');
+  const bad = () => new ApiError(401, 'BAD_CODE', 'Cod greșit');
   if (!LINK_CODE_RE.test(code)) throw bad();
 
   const db = getSupabase();
@@ -59,21 +61,13 @@ export async function linkWithCode(code: string, deviceLabel: string | null): Pr
     .maybeSingle();
   if (error) throw error;
   const link = row as PeronAppLinkCode | null;
-  if (!link || link.used_at || Date.parse(link.expires_at) <= Date.now()) throw bad();
+  if (!link) throw bad();
+  // Codul e permanent și refolosibil. Termenul rămâne doar pe rândurile vechi care îl au.
+  if (link.expires_at && Date.parse(link.expires_at) <= Date.now()) throw bad();
 
   const { data: u } = await db.from('users').select('*').eq('id', link.user_id).maybeSingle();
   const user = u as User | null;
   if (!isPeronUser(user)) throw bad();
-
-  // O singură folosire, și la două telefoane simultan: câștigă cel care marchează used_at.
-  const { data: claimed, error: claimErr } = await db
-    .from('peron_app_link_codes')
-    .update({ used_at: new Date().toISOString() })
-    .eq('code', code)
-    .is('used_at', null)
-    .select('code');
-  if (claimErr) throw claimErr;
-  if (!claimed || claimed.length === 0) throw bad();
 
   const token = generateToken();
   const { error: sessErr } = await db.from('peron_app_sessions').insert({
@@ -83,6 +77,13 @@ export async function linkWithCode(code: string, deviceLabel: string | null): Pr
     last_seen_at: new Date().toISOString(),
   });
   if (sessErr) throw sessErr;
+
+  // used_at = ultima conectare cu acest cod (informativ; nu blochează refolosirea).
+  const { error: seenErr } = await db
+    .from('peron_app_link_codes')
+    .update({ used_at: new Date().toISOString() })
+    .eq('code', code);
+  if (seenErr) console.error('[app-api] link code used_at update failed:', seenErr.message);
 
   return { token, user: { id: user.id, name: displayName(user), point: user.point } };
 }

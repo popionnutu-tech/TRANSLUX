@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import crypto from 'crypto';
-import { LINK_CODE_MAX, LINK_CODE_MIN, canReceiveLinkCode, generateLinkCode, linkCodeExpiry } from './linkCode';
+import { LINK_CODE_MAX, LINK_CODE_MIN, canReceiveLinkCode, generateLinkCode } from './linkCode';
 
 describe('generateLinkCode', () => {
   it('dă mereu exact 6 cifre, fără zero în față', () => {
@@ -18,12 +18,6 @@ describe('generateLinkCode', () => {
     const code = generateLinkCode((min, max) => { calls.push([min, max]); return min; });
     expect(calls).toEqual([[100000, 999999]]);
     expect(code).toBe('100000');
-  });
-});
-
-describe('linkCodeExpiry', () => {
-  it('e la 24 h după momentul dat', () => {
-    expect(linkCodeExpiry(new Date('2026-09-08T10:00:00.000Z'))).toBe('2026-09-09T10:00:00.000Z');
   });
 });
 

@@ -65,7 +65,7 @@ export default function UsersClient({
   const [lastLink, setLastLink] = useState('');
   const [invLoading, setInvLoading] = useState(false);
   // Aplicația de peron: ultimul cod generat (se arată mare, sub tabelul echipei)
-  const [appCode, setAppCode] = useState<{ userId: string; code: string; expiresAt: string } | null>(null);
+  const [appCode, setAppCode] = useState<{ userId: string; code: string } | null>(null);
   const [appCodeLoading, setAppCodeLoading] = useState<string | null>(null);
   const router = useRouter();
 
@@ -811,11 +811,11 @@ export default function UsersClient({
                     {canReceiveLinkCode(user) && (
                       <button
                         className="u-btn"
-                        title="Cod de conectare pentru aplicația Android de peron (24 h, o singură folosire)"
+                        title="Codul permanent de conectare pentru aplicația Android de peron (același la fiecare apăsare)"
                         disabled={appCodeLoading === user.id}
                         onClick={() => handleAppCode(user.id)}
                       >
-                        {appCodeLoading === user.id ? 'Se generează...' : '📱 Cod aplicație'}
+                        {appCodeLoading === user.id ? 'Se caută...' : '📱 Cod aplicație'}
                       </button>
                     )}
                     <button
@@ -851,7 +851,7 @@ export default function UsersClient({
               </div>
               <code className="u-app-code">{appCode.code}</code>
               <div className="u-app-code-hint">
-                Valabil 24 h, o singură folosire (până la {formatDate(appCode.expiresAt)}). Operatorul îl introduce în aplicație la «Conectare».
+                Codul e permanent și rămâne același: operatorul îl tastează în aplicație la «Conectare» ori de câte ori i se cere. Nu se schimbă (Ion, 18.09.2026).
               </div>
             </div>
             <button onClick={() => navigator.clipboard.writeText(appCode.code)} className="u-link-copy">

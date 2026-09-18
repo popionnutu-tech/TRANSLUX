@@ -54,7 +54,7 @@ export default function Login() {
       router.replace((await isBatteryDone()) ? '/day' : '/battery');
     } catch (e) {
       if (e instanceof ApiError) {
-        if (e.status === 401) setError('Cod greșit sau expirat');
+        if (e.status === 401) setError('Cod greșit');
         else if (e.isOffline) setError('Fără internet. Încearcă din nou când revine semnalul.');
         else if (e.code === 'NO_API_URL') setError('Aplicația nu are adresa serverului (EXPO_PUBLIC_API_URL).');
         else setError(e.message);
@@ -78,7 +78,7 @@ export default function Login() {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Cod de conectare</Text>
-        <Text style={styles.sectionText}>Șase cifre, de la administrator. Codul e valabil 24 de ore și se folosește o singură dată.</Text>
+        <Text style={styles.sectionText}>Șase cifre, de la administrator. Codul e al tău și rămâne același: îl tastezi ori de câte ori aplicația cere conectarea.</Text>
         <Pressable onPress={() => input.current?.focus()} accessibilityLabel="Cod de conectare" style={styles.boxes}>
           {Array.from({ length: CODE_LENGTH }, (_, i) => {
             const digit = code[i];

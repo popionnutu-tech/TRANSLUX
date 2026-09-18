@@ -166,9 +166,10 @@ export async function getGhidZilnic(date?: string): Promise<{ zi: string; alerte
     // Ion, 17.09: «chiar dacă prima și ultima oprire e greșită, în ideal ea se repetă».
     // Cu stația unei singure zile, Copaci Mihail ieșea la 30 km de ruta 18, când casa
     // lui e la 5 km de Telenești, de unde pleacă ruta de obicei.
-    sb.from('lde_route_etalon').select('factory_route_id, shift_number, sens, prima_statie, observations')
+    sb.from('lde_route_etalon').select('factory_route_id, shift_number, sens, prima_statie, sate, observations')
       .eq('sens', 'tur').gte('observations', 5).not('prima_statie', 'is', null),
   ]);
+
 
   const baze: { vehicle_id: string; date: string; lat: number; lon: number; locality: string | null }[] = [];
   for (let d = 0; ; d += 1000) {
@@ -177,6 +178,33 @@ export async function getGhidZilnic(date?: string): Promise<{ zi: string; alerte
     baze.push(...((data ?? []) as typeof baze));
     if (!data || data.length < 1000) break;
   }
+  // Coordonatele satelor, din opririle deja salvate: media punctelor cu același nume. Ajunge
+  // pentru un test de „stă pe ruta lui" (prag 10 km) și nu cere gazetteer-ul de pe VPS.
+  const coordSat = new Map<string, { lat: number; lon: number; n: number }>();
+  for (const n of baze) {
+    if (!n.locality) continue;
+    const k = n.locality.toLowerCase();
+    const c = coordSat.get(k) ?? { lat: 0, lon: 0, n: 0 };
+    coordSat.set(k, { lat: c.lat + n.lat, lon: c.lon + n.lon, n: c.n + 1 });
+  }
+  for (let d = 0; ; d += 1000) {
+    const { data } = await sb.from('lde_gps_stops').select('locality, lat, lon')
+      .eq('is_base', false).gte('date', de).not('locality', 'is', null).range(d, d + 999);
+    for (const n of (data ?? []) as { locality: string; lat: number; lon: number }[]) {
+      const k = n.locality.toLowerCase();
+      const c = coordSat.get(k) ?? { lat: 0, lon: 0, n: 0 };
+      coordSat.set(k, { lat: c.lat + Number(n.lat), lon: c.lon + Number(n.lon), n: c.n + 1 });
+    }
+    if (!data || data.length < 1000) break;
+  }
+  const satulUnde = (nume: string) => { const c = coordSat.get(nume.toLowerCase()); return c ? { lat: c.lat / c.n, lon: c.lon / c.n } : null; };
+  const sateEtalon = new Map<string, { lat: number; lon: number }[]>();
+  for (const e of etaloane ?? []) {
+    const k = `${e.factory_route_id}|${e.shift_number}`;
+    if (sateEtalon.has(k)) continue;
+    sateEtalon.set(k, ((e.sate ?? []) as { nume: string }[]).map((x) => satulUnde(x.nume)).filter((x): x is { lat: number; lon: number } => !!x));
+  }
+
   // Casa OMULUI, nu a mașinii: nopțile mașinii pe care a condus-o, doar în zilele lui.
   // O mașină o conduc mai mulți și stă și parcată; casa ei nu e casa nimănui anume.
   // PAGINAT. 30 de zile × ~230 de atribuiri trec de plafonul tăcut de 1.000 de rânduri al
@@ -262,6 +290,11 @@ export async function getGhidZilnic(date?: string): Promise<{ zi: string; alerte
       driver_id: did, sofer: did ? numeSofer.get(did) ?? null : null,
       sat_sofer: b?.locality ?? null, baza: b ? { lat: b.lat, lon: b.lon } : null,
       km_baza_poarta: kmPanaLaPoarta(i.uzina_id, b ? { lat: b.lat, lon: b.lon } : null),
+      km_casa_ruta: (() => {
+        const sate = sateEtalon.get(`${c.factory_route_id}|${c.shift_number}`);
+        if (!b || !sate?.length) return null;
+        return Math.min(...sate.map((x) => haversineKm({ lat: b.lat, lon: b.lon }, x)));
+      })(),
     });
   }
 

@@ -74,7 +74,18 @@ export type CursaMasurata = {
   baza: Baza | null;
   /** distanța de la casa mașinii la poarta uzinei; sub PRAG_BAZA_LA_UZINA_KM = mașină la uzină */
   km_baza_poarta?: number | null;
+  /**
+   * Distanța de la casa omului la CEL MAI APROPIAT sat al rutei (etalonul), nu la prima
+   * oprire lungă. Ruta 15 Orhei începe la Cobîlea și trece prin 30 de sate; prima oprire de
+   * peste 90 s e abia Zahareuca, al 19-lea sat — iar Vieru, care stă în Cobîlea, ieșea „la
+   * 37 km de rută". Omul stă pe ruta lui dacă stă lângă ORICARE dintre satele ei.
+   */
+  km_casa_ruta?: number | null;
 };
+
+/** cât de departe stă omul de ruta lui: satul cel mai apropiat dacă îl știm, altfel prima stație */
+const kmCasaRuta = (c: CursaMasurata): number | null =>
+  c.km_casa_ruta ?? (c.baza && c.prima_statie ? haversineKm(c.baza, c.prima_statie) : null);
 
 const laUzina = (c: CursaMasurata) =>
   c.km_baza_poarta != null && c.km_baza_poarta <= PRAG_BAZA_LA_UZINA_KM;
@@ -128,8 +139,7 @@ export function ghidZilnic(curse: CursaMasurata[], prag = PRAG_SEMNIFICATIV_KM):
     // Și, mai important decât opririle: dacă omul stă PE ruta lui, drumul acasă e chiar
     // repoziționarea în zonă. Nu are ce economisi stând la poartă — ar trebui oricum să
     // se întoarcă acolo ca să înceapă strânsul.
-    const peRuta = lista.some((c) => c.baza && c.prima_statie
-      && haversineKm(c.baza, c.prima_statie) <= PRAG_ACASA_PE_RUTA_KM);
+    const peRuta = lista.some((c) => { const d = kmCasaRuta(c); return d != null && d <= PRAG_ACASA_PE_RUTA_KM; });
     if (peRuta) continue;
     // mașina bazată la uzină: drumul gol e tiparul ales dinadins (Ion, 18.09)
     if (lista.some(laUzina)) continue;
@@ -178,8 +188,7 @@ export function ghidZilnic(curse: CursaMasurata[], prag = PRAG_SEMNIFICATIV_KM):
     // aceleași garduri ca la neglijență: cine stă pe rută se repoziționează, cine stă la
     // uzină face golul dinadins — niciunul nu e de întrebat
     if (laUzina(tur) || laUzina(retur)) continue;
-    if ([tur, retur].some((c) => c.baza && c.prima_statie
-      && haversineKm(c.baza, c.prima_statie) <= PRAG_ACASA_PE_RUTA_KM)) continue;
+    if ([tur, retur].some((c) => { const d = kmCasaRuta(c); return d != null && d <= PRAG_ACASA_PE_RUTA_KM; })) continue;
     if (consumate.has(cheia(tur)) || consumate.has(cheia(retur))) continue;
     const km = r1(tur.km_gol_pauza + retur.km_gol_pauza);
     if (km < prag) continue;
@@ -224,7 +233,8 @@ export function ghidZilnic(curse: CursaMasurata[], prag = PRAG_SEMNIFICATIV_KM):
     const altii = cuBaza.filter((x) => x.uzina_id === c.uzina_id && x.shift_number === c.shift_number
       && x.driver_id && x.driver_id !== c.driver_id);
     if (!altii.length) continue;
-    const acum = haversineKm(c.baza!, c.prima_statie!);
+    const acum = kmCasaRuta(c)!;
+    if (acum <= PRAG_ACASA_PE_RUTA_KM) continue;   // stă pe ruta lui: n-are ce schimba
     let bun = null as null | CursaMasurata, bunKm = acum;
     for (const x of altii) {
       const d = haversineKm(x.baza!, c.prima_statie!);

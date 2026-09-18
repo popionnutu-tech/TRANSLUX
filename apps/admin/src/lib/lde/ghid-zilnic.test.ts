@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { ghidZilnic, type CursaMasurata } from './ghid-zilnic';
 
 const cursa = (o: Partial<CursaMasurata>): CursaMasurata => ({
-  factory_route_id: 'R', eticheta: 'U #1', uzina_id: 'U', shift_number: 1, sens: 'tur',
+  vehicle_id: 'v1', factory_route_id: 'R', eticheta: 'U #1', uzina_id: 'U', shift_number: 1, sens: 'tur',
   km_real: 50, km_goi: 0, km_gol_acasa: 0, km_livrare: 0,
   prima_statie: { lat: 47.5, lon: 28.0, locality: 'Sat' }, driver_id: 'd1', sofer: 'Unu',
   sat_sofer: 'Acasă', baza: { lat: 47.5, lon: 28.0 }, ...o,
@@ -10,26 +10,48 @@ const cursa = (o: Partial<CursaMasurata>): CursaMasurata => ({
 
 describe('ghidul zilnic, pe curse măsurate (Ion, 18.09)', () => {
   it('prinde cursa scurtă făcută de un șofer de departe — cazul Draxelmaier #1', () => {
-    const a = ghidZilnic([cursa({ km_real: 4, km_goi: 100, km_gol_acasa: 100 })]);
+    // golul NU trece pe acasă (mașina s-a dus în altă parte), deci nu e cazul de
+    // neglijență — rămâne întrebarea de fond: de ce o rută de 4 km o face cineva de departe
+    const a = ghidZilnic([cursa({ km_real: 4, km_goi: 100, km_gol_acasa: 0 })]);
     expect(a[0].fel).toBe('cursa_scurta');
     expect(a[0].economie_km_zi).toBe(100);
     expect(a[0].instructiune).toContain('zona uzinei');
   });
 
-  it('prinde drumul acasă din pauză, când mașina se întoarce la aceeași poartă', () => {
+  it('cursa scurtă al cărei gol trece pe acasă e mai întâi NEGLIJENȚĂ', () => {
+    // aceeași cursă, dar mașina s-a dus acasă: instrucțiunea corectă e „așteaptă", nu
+    // „schimbă șoferul" — și km-ii nu se numără de două ori
+    const a = ghidZilnic([cursa({ km_real: 4, km_goi: 100, km_gol_acasa: 100 })]);
+    expect(a.map((x) => x.fel)).toEqual(['neglijenta_asteptare']);
+    expect(a[0].economie_km_zi).toBe(100);
+  });
+
+  it('o singură tură în zi și s-a dus acasă = neglijență (regula lui Ion, 18.09)', () => {
     const a = ghidZilnic([
       cursa({ sens: 'tur', km_real: 50, km_goi: 30, km_gol_acasa: 30 }),
       cursa({ sens: 'retur', km_real: 50, km_goi: 32, km_gol_acasa: 32 }),
     ]);
-    const x = a.find((y) => y.fel === 'drum_acasa_evitabil')!;
+    const x = a.find((y) => y.fel === 'neglijenta_asteptare')!;
     expect(x.economie_km_zi).toBe(62);
-    expect(x.instructiune).toContain('așteaptă');
+    expect(x.instructiune).toContain('Trebuia să aștepte');
   });
 
-  it('NU cere așteptare când doar un capăt al pauzei trece pe acasă', () => {
+  it('cu DOUĂ ture, drumul acasă nu mai e automat neglijență', () => {
+    // a doua tură poate fi în altă zonă, deci deplasarea s-ar fi făcut oricum
     const a = ghidZilnic([
-      cursa({ sens: 'tur', km_real: 50, km_goi: 60, km_gol_acasa: 60 }),
-      cursa({ sens: 'retur', km_real: 50, km_goi: 60, km_gol_acasa: 0 }),
+      cursa({ sens: 'tur', shift_number: 1, km_real: 50, km_goi: 40, km_gol_acasa: 40 }),
+      cursa({ sens: 'retur', shift_number: 2, factory_route_id: 'R2', eticheta: 'U #2',
+              km_real: 50, km_goi: 0, km_gol_acasa: 0 }),
+    ]);
+    expect(a.some((x) => x.fel === 'neglijenta_asteptare')).toBe(false);
+  });
+
+  it('la mai multe ture, se cere doar dacă mașina s-a întors TOT la poarta de plecare', () => {
+    const a = ghidZilnic([
+      cursa({ sens: 'tur', shift_number: 1, km_real: 50, km_goi: 60, km_gol_acasa: 60 }),
+      cursa({ sens: 'retur', shift_number: 1, km_real: 50, km_goi: 60, km_gol_acasa: 0 }),
+      cursa({ sens: 'tur', shift_number: 2, factory_route_id: 'R2', eticheta: 'U #2',
+              km_real: 50, km_goi: 0, km_gol_acasa: 0 }),
     ]);
     expect(a.some((x) => x.fel === 'drum_acasa_evitabil')).toBe(false);
   });
@@ -51,7 +73,7 @@ describe('ghidul zilnic, pe curse măsurate (Ion, 18.09)', () => {
       cursa({ sens: 'tur', km_real: 4, km_goi: 90, km_gol_acasa: 90 }),
       cursa({ sens: 'retur', km_real: 4, km_goi: 80, km_gol_acasa: 80 }),
     ]);
-    expect(a.filter((x) => x.fel === 'drum_acasa_evitabil')).toHaveLength(1);
+    expect(a.filter((x) => x.fel === 'neglijenta_asteptare')).toHaveLength(1);
     expect(a.some((x) => x.fel === 'cursa_scurta')).toBe(false);
     expect(a.reduce((t, x) => t + x.economie_km_zi, 0)).toBe(170);
   });

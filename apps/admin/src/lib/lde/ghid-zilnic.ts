@@ -26,6 +26,7 @@ export const PRAG_SEMNIFICATIV_KM = 25;
 export const PRAG_NIMENI_IN_ZONA_KM = 25;
 
 export type CursaMasurata = {
+  vehicle_id: string | null;
   factory_route_id: string;
   eticheta: string;
   uzina_id: string;
@@ -43,7 +44,7 @@ export type CursaMasurata = {
 };
 
 export type Alerta = {
-  fel: 'cursa_scurta' | 'drum_acasa_evitabil' | 'livrare_mare' | 'nimeni_in_zona';
+  fel: 'neglijenta_asteptare' | 'cursa_scurta' | 'drum_acasa_evitabil' | 'livrare_mare' | 'nimeni_in_zona';
   uzina_id: string;
   ruta: string;
   shift_number: number;
@@ -65,12 +66,40 @@ export function ghidZilnic(curse: CursaMasurata[], prag = PRAG_SEMNIFICATIV_KM):
   const cheia = (c: CursaMasurata) => `${c.factory_route_id}|${c.shift_number}|${c.sens}`;
   const consumate = new Set<string>();
 
-  // ── 1. drumul acasă în pauză, când mașina se întoarce la aceeași poartă ──
-  // Ion, 18.09: «sunt cazuri când șoferul vine de departe, nu are al doilea schimb, poate
-  // să se oprească la Bălți și să aștepte 8 ore, apoi retur». Exact: dacă mașina pleacă de
-  // la poartă și se întoarce tot acolo, așteptarea costă ZERO km. Se cere doar acolo unde
-  // ambele capete ale pauzei trec pe acasă — altfel drumul s-ar fi făcut oricum, ca să
-  // ajungă în zona schimbului următor.
+  // ── 1. O SINGURĂ TURĂ ÎN ZI ȘI S-A DUS ACASĂ = neglijență ──
+  // Ion, 18.09: «dacă auto nu are alte ture decât una pe zi și se întoarce înapoi acasă în
+  // sat — neglijență, trebuie să aștepte». E o REGULĂ, nu o sugestie: cu o singură tură,
+  // mașina lasă oamenii la poartă dimineața și îi ia tot de la poartă seara. Orice drum
+  // făcut între cele două se termină unde a început, deci nu duce pe nimeni nicăieri.
+  // Măsurat pe 15-17.09: 68 de mașini-zile cu o tură, 1.023 km/zi duși acasă degeaba,
+  // 48 de cazuri peste prag. La trei ture (Orhei) — 29 km/zi pe toată uzina.
+  const peMasina = new Map<string, CursaMasurata[]>();
+  for (const c of curse) {
+    if (!c.vehicle_id) continue;
+    if (!peMasina.has(c.vehicle_id)) peMasina.set(c.vehicle_id, []);
+    peMasina.get(c.vehicle_id)!.push(c);
+  }
+  for (const lista of peMasina.values()) {
+    const ture = new Set(lista.map((c) => c.shift_number)).size;
+    if (ture !== 1) continue;
+    const km = r1(lista.reduce((t, c) => t + c.km_gol_acasa, 0));
+    if (km < prag) continue;
+    const c = lista[0];
+    for (const x of lista) consumate.add(cheia(x));
+    out.push({
+      fel: 'neglijenta_asteptare', uzina_id: c.uzina_id, ruta: c.eticheta,
+      shift_number: c.shift_number, sofer: c.sofer, sat_sofer: c.sat_sofer,
+      economie_km_zi: km,
+      instructiune: 'Neglijență: mașina are o singură tură în ziua asta și s-a dus acasă între'
+        + ' dus și întors. Trebuia să aștepte — km-ii aceștia nu duc pe nimeni nicăieri.',
+      detaliu: `${km} km până acasă și înapoi la aceeași poartă`
+        + (c.sat_sofer ? ` · ${c.sat_sofer}` : ''),
+    });
+  }
+
+  // ── 1b. la două sau mai multe ture, drumul acasă se cere doar dacă mașina s-a întors
+  // TOT la poarta de unde a plecat. Cu mai multe ture, drumul poate fi chiar deplasarea
+  // spre zona schimbului următor — acela s-ar fi făcut oricum, indiferent cine conduce.
   const peSchimb = new Map<string, CursaMasurata[]>();
   for (const c of curse) {
     const k = `${c.factory_route_id}|${c.shift_number}`;
@@ -82,6 +111,7 @@ export function ghidZilnic(curse: CursaMasurata[], prag = PRAG_SEMNIFICATIV_KM):
     const retur = lista.find((c) => c.sens === 'retur');
     if (!tur || !retur) continue;
     if (!(tur.km_gol_acasa > 0 && retur.km_gol_acasa > 0)) continue;
+    if (consumate.has(cheia(tur)) || consumate.has(cheia(retur))) continue;
     const km = r1(tur.km_gol_acasa + retur.km_gol_acasa);
     if (km < prag) continue;
     out.push({

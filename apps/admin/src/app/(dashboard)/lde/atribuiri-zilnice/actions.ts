@@ -185,6 +185,7 @@ export async function getGhidZilnic(date?: string): Promise<{ zi: string; alerte
     const did = soferulCursei.get(`${c.vehicle_id}|${c.factory_route_id}|${c.shift_number}`) ?? null;
     const p = c.prima_statie as { lat?: number; lon?: number; locality?: string } | null;
     masurate.push({
+      vehicle_id: (c.vehicle_id as string) ?? null,
       factory_route_id: c.factory_route_id as string, eticheta: i.eticheta, uzina_id: i.uzina_id,
       shift_number: Number(c.shift_number), sens: c.sens as 'tur' | 'retur',
       km_real: Number(c.km_real ?? 0), km_goi: Number(c.km_goi ?? 0),

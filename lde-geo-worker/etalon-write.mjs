@@ -105,15 +105,33 @@ function taieLivrarea(seg, capete, calc) {
  * Dacă urma nu intră deloc în raza satului (nume care nu e localitate — 14% din rute —
  * sau drum care îl ocolește), se cade înapoi pe tăietura la oprire.
  */
-function taiePeSat(seg, pts, calc, sat, razaKm = PRAG_SAT_KM) {
-  if (seg.stare !== 'plin' || !sat) return null;
+function imparteLaSat(seg, pts, calc, sat, razaKm = PRAG_SAT_KM) {
+  if (!sat) return null;
   let i = null;
   if (seg.tip === 'apropiere') { for (let k = seg.from; k <= seg.to; k++) if (hav(pts[k], sat) <= razaKm) { i = k; break; } }
   else { for (let k = seg.to; k >= seg.from; k--) if (hav(pts[k], sat) <= razaKm) { i = k; break; } }
   if (i == null) return null;
   return seg.tip === 'apropiere'
-    ? { livrare: kmInterval(calc.stepKm, seg.from, i), plin: kmInterval(calc.stepKm, i, seg.to), from: i, to: seg.to, sursa: 'sat' }
-    : { livrare: kmInterval(calc.stepKm, i, seg.to), plin: kmInterval(calc.stepKm, seg.from, i), from: seg.from, to: i, sursa: 'sat' };
+    ? { afara: kmInterval(calc.stepKm, seg.from, i), inauntru: kmInterval(calc.stepKm, i, seg.to), from: i, to: seg.to }
+    : { afara: kmInterval(calc.stepKm, i, seg.to), inauntru: kmInterval(calc.stepKm, seg.from, i), from: seg.from, to: i };
+}
+
+function taiePeSat(seg, pts, calc, sat, razaKm = PRAG_SAT_KM) {
+  if (seg.stare !== 'plin') return null;
+  const t = imparteLaSat(seg, pts, calc, sat, razaKm);
+  return t ? { livrare: t.afara, plin: t.inauntru, from: t.from, to: t.to, sursa: 'sat' } : null;
+}
+
+/**
+ * Golul care NU se poate optimiza: partea drumului gol care stă PE rută — între satul-nume
+ * și poartă. Ion, 18.09: «trebuie să facem distincție între km goi care pot fi optimizați
+ * și care nu». Întoarcerea goală Strășeni → Vatici după ce a livrat schimbul e a uzinei
+ * (așa și-a împărțit turele); de la Vatici la Chiperceni e a șoferului. Un drum gol care
+ * nu intră deloc în satul-nume (pleacă de la poartă direct acasă) n-are parte pe rută: 0.
+ */
+function golPeRuta(seg, pts, calc, sat) {
+  if (!seg || seg.stare !== 'gol') return 0;
+  return imparteLaSat(seg, pts, calc, sat)?.inauntru ?? 0;
 }
 
 const norm = (s) => (s || '').toLowerCase()
@@ -593,6 +611,7 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
         km_livrare: taiat ? taiat.livrare : 0,
         km_gol_acasa: gol ? golPrinCasa(gol, r.pts, r.calc, bazeP) : 0,
         km_gol_pauza: gol ? golDinPauza(gol) : 0,
+        km_gol_ruta: +golPeRuta(gol, r.pts, r.calc, satulRutei(a.factory_route_id, gol ?? plin)).toFixed(2),
         // prin câte sate ale rutelor mașinii a trecut drumul „gol" — adnotarea scrisă de
         // operațional pe hârtie («sate 2», «sate 4») e exact cifra asta
         sate_gol_pe_traseu: gol

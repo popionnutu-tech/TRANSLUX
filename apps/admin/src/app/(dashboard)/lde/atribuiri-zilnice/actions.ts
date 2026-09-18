@@ -179,10 +179,19 @@ export async function getGhidZilnic(date?: string): Promise<{ zi: string; alerte
   }
   // Casa OMULUI, nu a mașinii: nopțile mașinii pe care a condus-o, doar în zilele lui.
   // O mașină o conduc mai mulți și stă și parcată; casa ei nu e casa nimănui anume.
-  const { data: cineCand } = await sb.from('lde_atribuiri_zilnice')
-    .select('driver_id, vehicle_id, date').gte('date', de).not('driver_id', 'is', null).not('vehicle_id', 'is', null);
+  // PAGINAT. 30 de zile × ~230 de atribuiri trec de plafonul tăcut de 1.000 de rânduri al
+  // PostgREST; fără paginare rămânea doar sfârșitul lui august, când Șaptefrați a condus
+  // o mașină care dormea la Susleni — și ghidul îl trecea „din Susleni" pe o rută din
+  // Olișcani, unde doarme de fapt 13 nopți din 13 în septembrie.
+  const cineCand: { driver_id: string; vehicle_id: string; date: string }[] = [];
+  for (let d = 0; ; d += 1000) {
+    const { data } = await sb.from('lde_atribuiri_zilnice').select('driver_id, vehicle_id, date')
+      .gte('date', de).not('driver_id', 'is', null).not('vehicle_id', 'is', null).range(d, d + 999);
+    cineCand.push(...((data ?? []) as typeof cineCand));
+    if (!data || data.length < 1000) break;
+  }
   const soferulZilei = new Map<string, string>();
-  for (const x of cineCand ?? []) soferulZilei.set(`${x.vehicle_id}|${x.date}`, x.driver_id as string);
+  for (const x of cineCand) soferulZilei.set(`${x.vehicle_id}|${x.date}`, x.driver_id);
   const noptiSofer = baze.flatMap((n) => {
     const did = soferulZilei.get(`${n.vehicle_id}|${n.date}`);
     return did ? [{ ...n, vehicle_id: did }] : [];

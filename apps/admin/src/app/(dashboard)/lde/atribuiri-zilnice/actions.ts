@@ -152,7 +152,7 @@ export async function getGhidZilnic(date?: string): Promise<{ zi: string; alerte
   const zi = date ?? new Date(Date.now() - 86400000).toISOString().slice(0, 10);
   const de = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
 
-  const [{ data: curse }, { data: atrib }, { data: soferi }, { data: rute }, { data: porti }] = await Promise.all([
+  const [{ data: curse }, { data: atrib }, { data: soferi }, { data: rute }, { data: porti }, { data: etaloane }] = await Promise.all([
     sb.from('lde_route_run')
       .select('factory_route_id, shift_number, sens, vehicle_id, km_real, km_goi, km_gol_acasa, km_gol_pauza, km_livrare, opriri_gol_pe_traseu, sate_gol_pe_traseu, prima_statie, ambiguu')
       .eq('run_date', zi).eq('ambiguu', false).not('km_real', 'is', null),
@@ -162,6 +162,12 @@ export async function getGhidZilnic(date?: string): Promise<{ zi: string; alerte
     sb.from('drivers').select('id, full_name'),
     sb.from('lde_factory_routes').select('id, uzina_id, route_number'),
     sb.from('lde_uzine_gates').select('uzina_id, lat, lon').eq('active', true),
+    // prima stație a rutei = cea care SE REPETĂ (etalonul), nu cea din ziua aceea.
+    // Ion, 17.09: «chiar dacă prima și ultima oprire e greșită, în ideal ea se repetă».
+    // Cu stația unei singure zile, Copaci Mihail ieșea la 30 km de ruta 18, când casa
+    // lui e la 5 km de Telenești, de unde pleacă ruta de obicei.
+    sb.from('lde_route_etalon').select('factory_route_id, shift_number, sens, prima_statie, observations')
+      .eq('sens', 'tur').gte('observations', 5).not('prima_statie', 'is', null),
   ]);
 
   const baze: { vehicle_id: string; date: string; lat: number; lon: number; locality: string | null }[] = [];
@@ -216,6 +222,14 @@ export async function getGhidZilnic(date?: string): Promise<{ zi: string; alerte
     return Math.min(...ps.map((p) => haversineKm(b, p)));
   };
 
+  const statiaEtalon = new Map<string, { lat: number; lon: number; locality: string | null }>();
+  for (const e of etaloane ?? []) {
+    const p = e.prima_statie as { lat?: number; lon?: number; locality?: string; pondere?: number } | null;
+    if (!p || p.lat == null || p.lon == null || (p.pondere ?? 0) < 0.5) continue;
+    const k = `${e.factory_route_id}|${e.shift_number}`;
+    if (!statiaEtalon.has(k)) statiaEtalon.set(k, { lat: Number(p.lat), lon: Number(p.lon), locality: p.locality ?? null });
+  }
+
   const masurate: CursaMasurata[] = [];
   for (const c of curse ?? []) {
     const i = info.get(c.factory_route_id as string);
@@ -224,7 +238,8 @@ export async function getGhidZilnic(date?: string): Promise<{ zi: string; alerte
     const cheie = `${c.vehicle_id}|${c.factory_route_id}|${c.shift_number}`;
     const did = (c.sens === 'retur' ? soferulReturului.get(cheie) : null)
       ?? soferulCursei.get(cheie) ?? soferulReturului.get(cheie) ?? null;
-    const p = c.prima_statie as { lat?: number; lon?: number; locality?: string } | null;
+    const p = statiaEtalon.get(`${c.factory_route_id}|${c.shift_number}`)
+      ?? (c.prima_statie as { lat?: number; lon?: number; locality?: string } | null);
     masurate.push({
       vehicle_id: (c.vehicle_id as string) ?? null,
       factory_route_id: c.factory_route_id as string, eticheta: i.eticheta, uzina_id: i.uzina_id,

@@ -180,13 +180,16 @@ export function descrieZiua(opriri: OprireZi[], sateRute: Set<string>, hh: (iso:
   // Nimic străin pe urmă: km-ii nu s-au făcut ACASĂ, ci pe drumul în plus până acasă și
   // înapoi între ture (Ion, 19.09: «cum pot face km acasă? scrie pe unde au mers»). Se
   // spun drumurile zilei cu km în afara rutei și pauza de acasă dintre ele.
+  // cele mai mari trei drumuri, în ordinea zilei — textul trebuie să încapă pe un rând;
+  // fără «↔»: Open Sans n-are glifa
   const drumuriInPlus = (drumuri ?? [])
     .filter((c) => (Number(c.km_livrare) || 0) >= 10)
+    .sort((a, b) => Number(b.km_livrare) - Number(a.km_livrare)).slice(0, 3)
     .sort((a, b) => (a.shift_number ?? 0) - (b.shift_number ?? 0) || a.sens.localeCompare(b.sens))
-    .map((c) => `${c.sens}${c.shift_number ? ` s${c.shift_number}` : ''} +${Math.round(Number(c.km_livrare))} km`);
-  const acasa = pauzaAcasa ? `acasă${casa ? ` (${casa})` : ''} ${hh(pauzaAcasa.de)}–${hh(pauzaAcasa.la)}` : '';
-  if (drumuriInPlus.length) return `drum în plus ${casa ? `${casa} ↔ rută` : 'până acasă și înapoi'}: ${drumuriInPlus.join(', ')}${acasa ? `; ${acasa}` : ''}`;
-  return acasa ? `${acasa}, nimic în afara rutei` : '';
+    .map((c) => `${c.sens}${c.shift_number ? ` s${c.shift_number}` : ''} +${Math.round(Number(c.km_livrare))}`);
+  const acasa = pauzaAcasa ? `acasă ${hh(pauzaAcasa.de)}–${hh(pauzaAcasa.la)}` : '';
+  if (drumuriInPlus.length) return `${casa ? `${casa}–rută` : 'acasă–rută'} în plus: ${drumuriInPlus.join(', ')} km${acasa ? ` · ${acasa}` : ''}`;
+  return acasa ? `${acasa}${casa ? ` (${casa})` : ''}, nimic în afara rutei` : '';
 }
 
 /** Cadența: din 14 în 14 zile, luni, începând cu PRIMA_LUNI_CADENTA; acoperă cele 14 zile dinainte. */

@@ -1,6 +1,6 @@
 import { getSupabase } from '../supabase';
 import { sendTelegramPhoto } from '../telegram-notify';
-import { generateLivrareImage, type LivrareRow } from './naveta-image';
+import { generateLivrareImage, UZINA_SCURT, type LivrareRow, type BramburaRow } from './naveta-image';
 
 /**
  * Posterul de LIVRARE (подача) pe rutele de uzină, la două săptămâni, în grupa Telegram.
@@ -51,6 +51,7 @@ export function agregaLivrare(input: {
   startReal: Map<string, string>;                  // factory_route_id → sat
   soferi: Map<string, string>;                     // `${vehicle_id}|${factory_route_id}` → «Popescu»
   case: Map<string, string>;                       // vehicle_id → sat
+  masini?: Map<string, string>;                    // vehicle_id → «552BRAO · Sprinter 312»
   prag?: number;
   minZile?: number;
 }): LivrareRow[] {
@@ -90,6 +91,7 @@ export function agregaLivrare(input: {
       return casa ? `${nume} (${casa})` : nume;
     }).filter((x, i, a) => a.indexOf(x) === i).slice(0, 2).join(', ');
     out.push({
+      masina: input.masini?.get(masini[0]) ?? '—',
       uzina: r.uzina_id, ruta: r.route_number, start: primulSat(r.stops_in_order),
       start_real: input.startReal.get(rid) ?? null, sofer, zile: n,
       km_tur: tururi ? Math.round(plinTur / tururi) : null,
@@ -99,6 +101,40 @@ export function agregaLivrare(input: {
     });
   }
   return out.sort((a, b) => b.naveta_total - a.naveta_total);
+}
+
+/**
+ * Km NEAGREAȚI (brambura) pe perioadă — Ion, 19.09: «sub listă, pe perioada asta, ce
+ * mașini au făcut kilometraj neagreat, brambura». O linie pe (mașină, zi) cu excesul
+ * scris de agregator (`km_brambura`), peste `min` km.
+ */
+export const MIN_BRAMBURA_KM = 20;
+export function agregaBrambura(input: {
+  curse: CursaLivrare[];
+  rute: RutaRef[];
+  masini: Map<string, string>;                    // vehicle_id → «552BRAO · Sprinter 312»
+  soferZi: Map<string, string>;                   // `${vehicle_id}|${date}` → «Popescu»
+  min?: number;
+}): BramburaRow[] {
+  const min = input.min ?? MIN_BRAMBURA_KM;
+  const ruta = new Map(input.rute.map((r) => [r.id, r]));
+  const peZi = new Map<string, { km: number; rute: Set<string> }>();
+  for (const c of input.curse) {
+    const b = Number(c.km_brambura) || 0;
+    const r = ruta.get(c.factory_route_id);
+    if (b <= 0 || !r) continue;
+    const k = `${c.vehicle_id}|${c.run_date}`;
+    const z = peZi.get(k) ?? { km: 0, rute: new Set<string>() };
+    z.km += b; z.rute.add(`${UZINA_SCURT[r.uzina_id] ?? r.uzina_id} ${r.route_number}`);
+    peZi.set(k, z);
+  }
+  const out: BramburaRow[] = [];
+  for (const [k, z] of peZi) {
+    if (z.km < min) continue;
+    const [vehicle_id, data] = k.split('|');
+    out.push({ data, masina: input.masini.get(vehicle_id) ?? '—', sofer: input.soferZi.get(k) ?? '—', ruta: [...z.rute].join(', '), km: Math.round(z.km) });
+  }
+  return out.sort((a, b) => b.km - a.km || a.data.localeCompare(b.data));
 }
 
 /** Cadența: din 14 în 14 zile, luni, începând cu PRIMA_LUNI_CADENTA; acoperă cele 14 zile dinainte. */
@@ -122,22 +158,31 @@ async function citesteTot<T>(q: () => { range: (de: number, la: number) => Promi
   return out;
 }
 
-export async function incarcaLivrare(from: string, to: string, prag = PRAG_LIVRARE_KM_ZI, uzine: string[] | 'all' = UZINE_IMPLICITE): Promise<LivrareRow[]> {
+export async function incarcaLivrare(from: string, to: string, prag = PRAG_LIVRARE_KM_ZI, uzine: string[] | 'all' = UZINE_IMPLICITE): Promise<{ rows: LivrareRow[]; brambura: BramburaRow[] }> {
   const sb = getSupabase();
-  const [curse, rute, etaloane, atribuiri, nopti, soferiRows] = await Promise.all([
+  const [curse, rute, etaloane, atribuiri, nopti, soferiRows, vehicule, norme, tipuri] = await Promise.all([
     citesteTot<CursaLivrare>(() => sb.from('lde_route_run')
       .select('run_date,factory_route_id,vehicle_id,sens,km_real,km_livrare,km_brambura,km_service,km_gol_ruta')
       .gte('run_date', from).lte('run_date', to).not('km_real', 'is', null)),
     citesteTot<RutaRef>(() => sb.from('lde_factory_routes').select('id,uzina_id,route_number,stops_in_order').eq('active', true)),
     citesteTot<{ factory_route_id: string; sat_start_real: string | null }>(() => sb.from('lde_route_etalon')
       .select('factory_route_id,sat_start_real').not('sat_start_real', 'is', null)),
-    citesteTot<{ vehicle_id: string; factory_route_id: string; driver_id: string | null }>(() => sb.from('lde_atribuiri_zilnice')
-      .select('vehicle_id,factory_route_id,driver_id').gte('date', from).lte('date', to).eq('route_kind', 'uzina').not('driver_id', 'is', null)),
+    citesteTot<{ date: string; vehicle_id: string; factory_route_id: string; driver_id: string | null }>(() => sb.from('lde_atribuiri_zilnice')
+      .select('date,vehicle_id,factory_route_id,driver_id').gte('date', from).lte('date', to).eq('route_kind', 'uzina').not('driver_id', 'is', null)),
     citesteTot<{ vehicle_id: string; locality: string | null }>(() => sb.from('lde_gps_stops')
       .select('vehicle_id,locality').eq('is_base', true).gte('date', from).lte('date', to).not('locality', 'is', null)),
     citesteTot<{ id: string; full_name: string }>(() => sb.from('drivers').select('id,full_name')),
+    citesteTot<{ id: string; plate_number: string }>(() => sb.from('vehicles').select('id,plate_number')),
+    citesteTot<{ vehicle_id: string; vehicle_type_id: string | null }>(() => sb.from('lde_vehicle_norms').select('vehicle_id,vehicle_type_id')),
+    citesteTot<{ id: string; display_name: string }>(() => sb.from('lde_vehicle_types').select('id,display_name')),
   ]);
   const numeSofer = new Map(soferiRows.map((d) => [d.id, d.full_name.split(' ')[0]]));
+  // «552BRAO · Sprinter 312» — tipul din normele de consum (lde_vehicle_types), unde există
+  const numeTip = new Map(tipuri.map((t) => [t.id, t.display_name]));
+  const tipMasinii = new Map(norme.filter((n) => n.vehicle_type_id).map((n) => [n.vehicle_id, numeTip.get(n.vehicle_type_id!)]));
+  const masiniMap = new Map(vehicule.map((v) => [v.id, tipMasinii.get(v.id) ? `${v.plate_number} · ${tipMasinii.get(v.id)}` : v.plate_number]));
+  const soferZi = new Map<string, string>();
+  for (const a of atribuiri) if (a.driver_id && numeSofer.has(a.driver_id)) soferZi.set(`${a.vehicle_id}|${a.date}`, numeSofer.get(a.driver_id)!);
   const startReal = new Map<string, string>();
   for (const e of etaloane) if (e.sat_start_real && !startReal.has(e.factory_route_id)) startReal.set(e.factory_route_id, e.sat_start_real);
   // valoarea cea mai des întâlnită pe fiecare cheie (cheia poate conține «|»)
@@ -154,7 +199,10 @@ export async function incarcaLivrare(from: string, to: string, prag = PRAG_LIVRA
   // «Slobozia Doamnei» e Orheiul — numele cartierului derutează pe poster
   for (const [k, v] of caseMap) if (/slobozia doamnei|nordic|bucuria|centru|mitoc/i.test(v)) caseMap.set(k, 'Orhei');
   const ruteAlese = uzine === 'all' ? rute : rute.filter((r) => uzine.includes(r.uzina_id));
-  return agregaLivrare({ curse, rute: ruteAlese, startReal, soferi: soferiMap, case: caseMap, prag });
+  return {
+    rows: agregaLivrare({ curse, rute: ruteAlese, startReal, soferi: soferiMap, case: caseMap, masini: masiniMap, prag }),
+    brambura: agregaBrambura({ curse, rute: ruteAlese, masini: masiniMap, soferZi }),
+  };
 }
 
 const ddmm = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}`;
@@ -165,11 +213,12 @@ const zileLucratoare = (from: string, to: string) => {
 };
 
 export async function generarePoster(from: string, to: string, prag = PRAG_LIVRARE_KM_ZI, uzine: string[] | 'all' = UZINE_IMPLICITE): Promise<{ png: Buffer; rows: LivrareRow[] }> {
-  const rows = await incarcaLivrare(from, to, prag, uzine);
+  const { rows, brambura } = await incarcaLivrare(from, to, prag, uzine);
   const png = await generateLivrareImage(rows, {
     titlu: `LIVRARE (ПОДАЧА) PE RUTELE DE UZINĂ · peste ${prag} km/zi`,
     perioada: `${ddmm(from)} – ${ddmm(to)}.${to.slice(0, 4)}`,
     zileLucratoare: zileLucratoare(from, to),
+    brambura,
   });
   return { png, rows };
 }

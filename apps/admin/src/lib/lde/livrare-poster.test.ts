@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { agregaLivrare, perioadaCadentei, type CursaLivrare } from './livrare-poster';
+import { agregaLivrare, agregaBrambura, perioadaCadentei, type CursaLivrare } from './livrare-poster';
 
 const rute = [
   { id: 'r1', uzina_id: 'SEBN_STRASENI', route_number: 1, stops_in_order: 'Vatici → SEBN MD2 Strășeni' },
@@ -23,9 +23,11 @@ describe('agregaLivrare', () => {
       curse, rute, startReal: new Map(), prag: 50, minZile: 1,
       soferi: new Map([['v1|r1', 'Popescu'], ['v2|r2', 'Covalschi']]),
       case: new Map([['v1', 'Chiperceni'], ['v2', 'Lalova']]),
+      masini: new Map([['v1', '552BRAO · Sprinter 312']]),
     });
     expect(rows).toHaveLength(1);
     const r = rows[0];
+    expect(r.masina).toBe('552BRAO · Sprinter 312');
     expect(r.ruta).toBe(1);
     expect(r.start).toBe('Vatici');
     expect(r.sofer).toBe('Popescu (Chiperceni)');
@@ -42,6 +44,24 @@ describe('agregaLivrare', () => {
     expect(gol([cursa({ km_livrare: 10 })], 1)).toEqual([]);
     expect(gol([cursa({ km_real: 0, km_livrare: 120 })], 1)).toEqual([]);                    // mașină fără curse
     expect(gol([cursa({ km_livrare: 120 }), cursa({ run_date: '2026-09-08', km_livrare: 120 })])).toEqual([]);  // 2 zile < 3
+  });
+});
+
+describe('agregaBrambura', () => {
+  it('o linie pe (mașină, zi), peste 20 km, cu șoferul zilei și ruta scurtă', () => {
+    const curse = [
+      cursa({ km_brambura: 15 }), cursa({ sens: 'retur', km_brambura: 10 }),           // 25 în aceeași zi
+      cursa({ run_date: '2026-09-08', km_brambura: 12 }),                                 // sub prag
+      cursa({ factory_route_id: 'r2', vehicle_id: 'v2', run_date: '2026-09-09', km_brambura: 46 }),
+    ];
+    const rows = agregaBrambura({
+      curse, rute, masini: new Map([['v1', '552BRAO · Sprinter 312']]),
+      soferZi: new Map([['v1|2026-09-07', 'Popescu'], ['v2|2026-09-09', 'Covalschi']]),
+    });
+    expect(rows).toEqual([
+      { data: '2026-09-09', masina: '—', sofer: 'Covalschi', ruta: 'Orhei 7', km: 46 },
+      { data: '2026-09-07', masina: '552BRAO · Sprinter 312', sofer: 'Popescu', ruta: 'Strășeni 1', km: 25 },
+    ]);
   });
 });
 

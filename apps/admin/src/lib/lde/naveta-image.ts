@@ -14,9 +14,9 @@ import { fonts, logoBase64, textPath, truncText } from '../schedule-image';
  * fără brambura și fără drumurile la service. Economia = naveta × LEI_PE_KM: cu un
  * șofer din satul de start, drumul ăsta nu mai există.
  */
-// Costul pe km, pe tipul mașinii — Ion, 19.09: «la autobuze economia e cam 5,10 lei/km,
+// Costul pe km, pe tipul mașinii — Ion, 19.09: «la autobuze economia e cam 10 lei/km,
 // la busuri (cele de 20 de locuri) cam 5 lei/km». Categoria vine din lde_vehicle_types.
-export const LEI_PE_KM_AUTOBUZ = 5.10;
+export const LEI_PE_KM_AUTOBUZ = 10.00;
 export const LEI_PE_KM_MICROBUZ = 5.00;
 export const LEI_PE_KM = LEI_PE_KM_MICROBUZ;   // implicit, când tipul mașinii nu e cunoscut
 export const leiPeKm = (categorie: string | null | undefined): number =>

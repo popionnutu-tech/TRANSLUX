@@ -48,3 +48,18 @@ export async function sendAdminAlert(message: string) {
     }
   }
 }
+
+/** Poză + legendă (HTML) către toți adminii; nu aruncă. */
+export async function sendAdminPhoto(jpeg: Buffer, caption: string) {
+  if (!botApi) return;
+  const adminChatIds = await getAdminChatIds();
+  if (adminChatIds.size === 0) return;
+  const { InputFile } = await import('grammy');
+  for (const chatId of adminChatIds) {
+    try {
+      await botApi.sendPhoto(chatId, new InputFile(jpeg, 'poza.jpg'), { caption, parse_mode: 'HTML' });
+    } catch (err) {
+      console.error(`Failed to send photo to admin ${chatId}:`, err);
+    }
+  }
+}

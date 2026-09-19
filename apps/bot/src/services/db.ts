@@ -19,6 +19,7 @@ import type {
   PeronOperatorCheck,
   PeronPresencePing,
   OperatorTripSkip,
+  DriverReferencePhoto,
 } from '@translux/db';
 import { POINT_DIRECTION_MAP } from '@translux/db';
 
@@ -1404,7 +1405,9 @@ export async function getDriverAppearanceCheck(id: string): Promise<DriverAppear
   return (data as DriverAppearanceCheck | null) ?? null;
 }
 
-export type DriverAppearanceCheckInsert = Omit<DriverAppearanceCheck, 'id' | 'created_at' | 'photo_deleted_at'>;
+type DriverIdentityColumns = 'identity_verdict' | 'identity_confidence' | 'identity_reason' | 'identity_refs' | 'rejected_code';
+export type DriverAppearanceCheckInsert = Omit<DriverAppearanceCheck, 'id' | 'created_at' | 'photo_deleted_at' | DriverIdentityColumns> &
+  Partial<Pick<DriverAppearanceCheck, DriverIdentityColumns>>;
 
 /** Linia pozei șoferului; întoarce id-ul (driverCheckId pentru POST /report). */
 export async function createDriverAppearanceCheck(row: DriverAppearanceCheckInsert): Promise<string> {
@@ -1434,6 +1437,7 @@ export async function getTodayDriverChecks(checkDate: string): Promise<Map<strin
     .select('id, driver_id, uniform_ok_model, groomed_ok_model, created_at')
     .eq('check_date', checkDate)
     .eq('person_visible', true)
+    .is('rejected_code', null) // poza refuzată (alt om, migr. 381) nu închide ziua
     .not('driver_id', 'is', null)
     .not('uniform_ok_model', 'is', null)
     .order('created_at', { ascending: true });
@@ -1646,4 +1650,88 @@ export async function getSkipsForDate(skipDate: string): Promise<TripSkipForDige
   const { data: users } = await db().from('users').select('id, name').in('id', userIds);
   const nameById = new Map<string, string | null>(((users as Array<{ id: string; name: string | null }> | null) ?? []).map((u) => [u.id, u.name]));
   return skips.map((s) => ({ ...s, user_name: nameById.get(s.user_id) ?? null }));
+}
+
+// ── Identitatea șoferului la peron (migr. 381) ────────────────────────────────
+
+/** Referințele șoferului, cele mai noi primele. */
+export async function listDriverReferences(driverId: string): Promise<DriverReferencePhoto[]> {
+  const { data, error } = await db()
+    .from('driver_reference_photos')
+    .select('*')
+    .eq('driver_id', driverId)
+    .order('check_date', { ascending: false });
+  if (error) throw error;
+  return (data as DriverReferencePhoto[] | null) ?? [];
+}
+
+export type DriverReferencePhotoInsert = Omit<DriverReferencePhoto, 'id' | 'created_at'>;
+
+export async function insertDriverReference(row: DriverReferencePhotoInsert): Promise<void> {
+  const { error } = await db().from('driver_reference_photos').insert(row);
+  if (error) throw error;
+}
+
+export async function deleteDriverReferences(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const { error } = await db().from('driver_reference_photos').delete().in('id', ids);
+  if (error) throw error;
+}
+
+/** Șoferii care au măcar o referință. */
+export async function listReferencedDriverIds(): Promise<Set<string>> {
+  const { data, error } = await db().from('driver_reference_photos').select('driver_id');
+  if (error) throw error;
+  return new Set(((data as Array<{ driver_id: string }> | null) ?? []).map((r) => r.driver_id));
+}
+
+export async function listActiveDrivers(): Promise<Array<{ id: string; full_name: string }>> {
+  const { data, error } = await db().from('drivers').select('id, full_name').eq('active', true);
+  if (error) throw error;
+  return (data as Array<{ id: string; full_name: string }> | null) ?? [];
+}
+
+export async function getDriverName(driverId: string | null): Promise<string | null> {
+  if (!driverId) return null;
+  const { data, error } = await db().from('drivers').select('full_name').eq('id', driverId).maybeSingle();
+  if (error) {
+    console.error('getDriverName:', error.message);
+    return null;
+  }
+  return (data as { full_name: string } | null)?.full_name ?? null;
+}
+
+export interface UsableDriverPhoto {
+  id: string;
+  check_date: string;
+  storage_key: string;
+  created_at: string;
+}
+
+/** Pozele acceptate ale șoferului cu fișierul încă în bucket, cele mai noi primele. */
+export async function getUsableDriverPhotos(driverId: string, limit = 40): Promise<UsableDriverPhoto[]> {
+  const { data, error } = await db()
+    .from('driver_appearance_checks')
+    .select('id, check_date, storage_key, created_at')
+    .eq('driver_id', driverId)
+    .eq('person_visible', true)
+    .is('photo_deleted_at', null)
+    .is('rejected_code', null)
+    .not('uniform_ok_model', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data as UsableDriverPhoto[] | null) ?? [];
+}
+
+/** Câte poze i-au fost refuzate azi operatorului pentru acest șofer ca «alt om». */
+export async function countIdentityBlocksToday(driverId: string, checkDate: string): Promise<number> {
+  const { count, error } = await db()
+    .from('driver_appearance_checks')
+    .select('id', { count: 'exact', head: true })
+    .eq('driver_id', driverId)
+    .eq('check_date', checkDate)
+    .eq('rejected_code', 'ALT_OM');
+  if (error) throw error;
+  return count ?? 0;
 }

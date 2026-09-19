@@ -32,6 +32,9 @@ let current: FakeSupabase | null = null;
 /** Mesajele trimise adminilor prin sendAdminAlert (HTML, în ordine). */
 export const alerts: string[] = [];
 
+/** Legendele pozelor trimise adminilor prin sendAdminPhoto (HTML, în ordine). */
+export const adminPhotos: string[] = [];
+
 export interface TelegramCall {
   method: 'sendMessage' | 'editMessageText' | 'pinChatMessage';
   chatId: number;
@@ -74,6 +77,7 @@ export function getFake(): FakeSupabase {
 export function reset(): void {
   current = null;
   alerts.length = 0;
+  adminPhotos.length = 0;
   telegram.length = 0;
   modelQueue.length = 0;
   modelCalls.length = 0;
@@ -161,6 +165,9 @@ export function adminAlertModuleFactory() {
     escapeHtml: (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'),
     sendAdminAlert: async (message: string) => {
       alerts.push(message);
+    },
+    sendAdminPhoto: async (_jpeg: Buffer, caption: string) => {
+      adminPhotos.push(caption);
     },
   };
 }

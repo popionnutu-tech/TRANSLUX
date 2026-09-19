@@ -116,7 +116,7 @@ export async function postReport(user: AppUser, rawBody: unknown, opts: ReportOp
   let body = sent;
   if (sent.driverCheckId) {
     const check = await getDriverAppearanceCheck(sent.driverCheckId);
-    if (!check || check.check_date !== date) {
+    if (!check || check.check_date !== date || check.rejected_code) {
       throw new ApiError(400, 'DRIVER_PHOTO_REQUIRED', 'Poza șoferului lipsește sau nu e de azi — fă poza din nou');
     }
     body = withModelVerdicts(sent, check);

@@ -23,3 +23,23 @@ export async function removeReportPhotos(storageKeys: string[]): Promise<void> {
   const { error } = await getSupabase().storage.from(REPORT_PHOTOS_BUCKET).remove(storageKeys);
   if (error) throw error;
 }
+
+/** Descarcă un JPEG; null dacă lipsește sau bucket-ul nu răspunde (apelantul decide). */
+export async function downloadReportPhoto(storageKey: string): Promise<Buffer | null> {
+  const { data, error } = await getSupabase().storage.from(REPORT_PHOTOS_BUCKET).download(storageKey);
+  if (error || !data) {
+    if (error) console.error(`[photos] download ${storageKey}:`, error.message);
+    return null;
+  }
+  return Buffer.from(await data.arrayBuffer());
+}
+
+/** Copiază un obiect în același bucket (referințele șoferilor); nu aruncă. */
+export async function copyReportPhoto(fromKey: string, toKey: string): Promise<boolean> {
+  const { error } = await getSupabase().storage.from(REPORT_PHOTOS_BUCKET).copy(fromKey, toKey);
+  if (error) {
+    console.error(`[photos] copy ${fromKey} → ${toKey}:`, error.message);
+    return false;
+  }
+  return true;
+}

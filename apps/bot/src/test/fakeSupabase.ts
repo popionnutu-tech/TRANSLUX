@@ -71,7 +71,7 @@ export interface QueryResult<T = any> {
 }
 
 export interface StorageOp {
-  op: 'upload' | 'remove' | 'download' | 'createSignedUrl';
+  op: 'upload' | 'remove' | 'download' | 'createSignedUrl' | 'copy';
   bucket: string;
   paths: string[];
   ok: boolean;
@@ -210,6 +210,12 @@ const SCHEMA: Record<string, TableMeta> = {
       photo_deleted_at: () => null,
     },
   },
+  driver_reference_photos: {
+    ...COMMON,
+    uniques: [{ name: 'driver_reference_photos_driver_id_source_check_id_key', cols: ['driver_id', 'source_check_id'] }],
+    columns: ['id', 'driver_id', 'storage_key', 'source_check_id', 'check_date', 'source', 'created_at'],
+    defaults: { ...COMMON.defaults, source_check_id: () => null },
+  },
   peron_operator_checks: {
     ...COMMON,
     columns: [
@@ -234,10 +240,15 @@ const SCHEMA: Record<string, TableMeta> = {
     columns: [
       'id', 'check_date', 'trip_id', 'driver_id', 'storage_key', 'person_visible', 'uniform_ok_model', 'groomed_ok_model',
       'uniform_ok', 'groomed_ok', 'description', 'model', 'location_lat', 'location_lon', 'photo_deleted_at',
-      'created_by_user', 'created_at',
+      'created_by_user', 'created_at', 'identity_verdict', 'identity_confidence', 'identity_reason', 'identity_refs', 'rejected_code',
     ],
     defaults: {
       ...COMMON.defaults,
+      identity_verdict: () => null,
+      identity_confidence: () => null,
+      identity_reason: () => null,
+      identity_refs: () => null,
+      rejected_code: () => null,
       driver_id: () => null,
       person_visible: () => null,
       uniform_ok_model: () => null,
@@ -810,6 +821,22 @@ class FakeBucket {
     }
     this.log.push({ op: 'remove', bucket: this.bucket, paths, ok: true });
     return { data: removed.map((name) => ({ name, bucket_id: this.bucket })), error: null };
+  }
+
+  /** Ca Supabase: sursa lipsă → eroare; destinația existentă → eroare. */
+  async copy(fromPath: string, toPath: string) {
+    const buf = this.objects[fromPath];
+    if (buf === undefined) {
+      this.log.push({ op: 'copy', bucket: this.bucket, paths: [fromPath, toPath], ok: false });
+      return { data: null, error: { message: 'Object not found', statusCode: '400', error: 'not_found' } };
+    }
+    if (this.objects[toPath] !== undefined) {
+      this.log.push({ op: 'copy', bucket: this.bucket, paths: [fromPath, toPath], ok: false });
+      return { data: null, error: { message: 'The resource already exists', statusCode: '409', error: 'Duplicate' } };
+    }
+    this.objects[toPath] = Buffer.from(buf);
+    this.log.push({ op: 'copy', bucket: this.bucket, paths: [fromPath, toPath], ok: true });
+    return { data: { path: toPath }, error: null };
   }
 
   async download(path: string) {

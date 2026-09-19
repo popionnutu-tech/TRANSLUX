@@ -189,7 +189,7 @@ export interface DriverPhotoBody {
 }
 
 /** Poza trebuie refăcută: nimeni în cadru, sau cadrul nu e cel cerut (din față, întreg, încălțăminte → cap). */
-export type DriverPhotoRetakeCode = 'NO_PERSON' | 'REFA_POZA';
+export type DriverPhotoRetakeCode = 'NO_PERSON' | 'REFA_POZA' | 'ALT_OM';
 
 /**
  * Răspunsul lui apps/bot/src/api/driverPhoto.ts. Verdictul modelului e final — aplicația

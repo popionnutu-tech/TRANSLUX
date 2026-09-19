@@ -205,6 +205,7 @@ export function seedDay(date: string): Seed {
       peron_app_sessions: [],
       peron_cleaning_checks: [],
       driver_appearance_checks: [],
+      driver_reference_photos: [],
       peron_operator_checks: [],
       peron_presence_pings: [],
       operator_trip_skips: [],

@@ -9,6 +9,7 @@ import { sweepTaskBoards } from './services/taskBoard.js';
 import { sendAdminAlert, escapeHtml } from './services/adminAlert.js';
 import { sendVoiceLessonDigest } from './services/voiceLessons.js';
 import { runPeronPhotoRetention } from './services/photoRetention.js';
+import { refreshDriverReferences } from './services/driverReferences.js';
 
 const CHECK_INTERVAL_MS = 60 * 1000; // check every minute
 const SEND_DAY = 1;   // Monday
@@ -295,6 +296,38 @@ export function schedulePeronPhotoRetention(): void {
       );
     } catch (err) {
       console.error('Peron photo retention error:', err);
+    }
+  }, CHECK_INTERVAL_MS);
+}
+
+// ── Referințele de identitate ale șoferilor (03:20) ──────────────────
+// După ștergerea pozelor (03:10): șoferii activi fără referințe primesc din
+// pozele lor rămase, comparate între ele; cei inactivi își pierd referințele.
+// Idempotent: cine are deja referințe nu e atins.
+
+const DRIVER_REFERENCES_HOUR = 3;
+const DRIVER_REFERENCES_MINUTE = 20;
+let lastDriverReferencesDate = '';
+
+export function scheduleDriverReferences(): void {
+  console.log('Driver identity references started (03:20 Europe/Chisinau)');
+
+  setInterval(async () => {
+    const now = getNowInTz();
+    if (now.getHours() !== DRIVER_REFERENCES_HOUR || now.getMinutes() !== DRIVER_REFERENCES_MINUTE) return;
+
+    const todayStr = now.toISOString().slice(0, 10);
+    if (lastDriverReferencesDate === todayStr) return;
+    lastDriverReferencesDate = todayStr;
+
+    try {
+      const s = await refreshDriverReferences();
+      console.log(
+        `Driver references: ${s.bootstrapped} șofer(i) cu referințe noi, ${s.conflicts} cu poze nepotrivite, ` +
+          `${s.skipped} fără poze, ${s.retired} inactivi curățați`,
+      );
+    } catch (err) {
+      console.error('Driver references error:', err);
     }
   }, CHECK_INTERVAL_MS);
 }

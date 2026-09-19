@@ -273,6 +273,25 @@ export interface DriverAppearanceCheck {
   photo_deleted_at: string | null;
   created_by_user: string | null;
   created_at: string;
+  /** Identitate (migr. 381): persoana din poză e șoferul din referințe? null = fără comparație. */
+  identity_verdict: 'da' | 'nesigur' | 'nu' | null;
+  identity_confidence: number | null;
+  identity_reason: string | null;
+  identity_refs: number | null;
+  /** ALT_OM = refuzată operatorului; rândul și fișierul rămân ca probă. */
+  rejected_code: 'ALT_OM' | null;
+}
+
+// Poza de referință a șoferului pentru identitate la peron (migr. 381): copie
+// permanentă în report-photos/soferi-referinta/<driver>/<check>.jpg, max 4 per șofer.
+export interface DriverReferencePhoto {
+  id: string;
+  driver_id: string;
+  storage_key: string;
+  source_check_id: string | null;
+  check_date: string; // YYYY-MM-DD
+  source: 'bootstrap' | 'single' | 'match';
+  created_at: string;
 }
 
 // Poza operatorului de peron la deschiderea turei, făcută de un șofer (Ion,

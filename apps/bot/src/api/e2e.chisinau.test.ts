@@ -283,7 +283,7 @@ const day = () => srv.api('GET', 'day', undefined, token);
 const NEW_APP = { 'x-peron-app': '2' };
 const report = (body: unknown) => srv.api('POST', 'report', body, token, NEW_APP);
 /** Aplicația veche, fără antet: poarta pozei operatorului nu i se aplică (n-ar avea cum s-o rezolve). */
-const reportOldApp = (body: unknown) => srv.api('POST', 'report', body, token);
+const reportOldApp = (body: unknown) => srv.api('POST', 'report', body, token, { 'x-peron-app': '1' });
 
 async function cleaningPhoto(slot: 'DIMINEATA' | 'ZIUA', zone: 'PERON' | 'PIETONI' | 'VECEU', answer: ModelAnswer) {
   nextModelAnswer(answer);
@@ -516,6 +516,13 @@ describe('4b. Poza operatorului la deschiderea turei (Ion, 14.09)', () => {
     expect(old.body.code).toBe('OPERATOR_PHOTO_REQUIRED');
     expect(old.body.message).toContain('instalează versiunea nouă');
     expect(res.body.message).not.toContain('instalează');
+    // Ion (19.09): «dacă vor lucra din APK vechi să-mi spui» — o alertă, o singură dată pe zi
+    expect(alerts.filter((a) => a.includes('aplicația <b>veche</b>'))).toHaveLength(1);
+    await reportOldApp(okBody('06:55', '00000000-0000-4000-8000-00000000dead', { coords: null }));
+    expect(alerts.filter((a) => a.includes('aplicația <b>veche</b>'))).toHaveLength(1);
+    expect(alerts.at(-1)).toContain('vitalie_peron');
+    // alerta «aplicație veche» nu e a scenariului — restul zilei se joacă din aplicația nouă, fără alerte
+    for (let i = alerts.length - 1; i >= 0; i--) if (alerts[i].includes('aplicația <b>veche</b>')) alerts.splice(i, 1);
     expect(reports()).toHaveLength(0);
     const { body } = await day();
     expect(body.operatorCheck).toBeNull();

@@ -21,6 +21,8 @@ import { postDriverPhoto } from './driverPhoto.js';
 import { postOperatorPhoto } from './operatorPhoto.js';
 import { postPresence } from './presence.js';
 import { postSkip } from './skip.js';
+import { escapeHtml, sendAdminAlert } from '../services/adminAlert.js';
+import { getTodayDate } from '../utils.js';
 
 export const API_PREFIX = '/app/v1/';
 export const MAX_BODY_BYTES = 8 * 1024 * 1024;
@@ -37,15 +39,39 @@ export type ApiHandler = (ctx: ApiContext) => Promise<object>;
 
 /**
  * Versiunea protocolului pe care o vorbește aplicația (antetul `X-Peron-App`). Lipsă sau
- * stricat = 1 (aplicația de dinainte de 14.09). Regulile noi care ar bloca o aplicație
- * veche (poarta pozei operatorului) se aplică doar de la versiunea care le cunoaște —
- * altfel operatorul cu APK-ul vechi ar primi un 409 pe care nu-l poate rezolva.
+ * stricat = 1 (aplicația de dinainte de 14.09). Din 19.09 poarta pozei operatorului se
+ * aplică și aplicației vechi (Ion: «poza obligatoriu la operator gara»), cu mesajul
+ * «instalează versiunea nouă»; versiunea rămâne aici ca să știm ce mesaj dăm și ca să-l
+ * anunțăm pe admin (noteOldApp).
  */
 export const OPERATOR_PHOTO_PROTOCOL = 2;
 export function appProtocol(req: IncomingMessage): number {
   const raw = req.headers['x-peron-app'];
   const v = Number.parseInt(Array.isArray(raw) ? raw[0] : (raw ?? ''), 10);
   return Number.isFinite(v) && v >= 1 ? v : 1;
+}
+
+/**
+ * Ion (19.09): «dacă vor lucra din APK vechi să-mi spui». La prima cerere autentificată
+ * a zilei venită fără antetul versiunii, adminul primește un mesaj cu cine e; o dată pe
+ * operator pe zi (memorie de proces — după un restart al botului poate veni încă o dată,
+ * mai bine de două ori decât deloc). Nu blochează nimic și nu aruncă.
+ */
+const oldAppNoticed = new Set<string>();
+export async function noteOldApp(user: AppUser, protocol: number): Promise<void> {
+  if (protocol >= OPERATOR_PHOTO_PROTOCOL) return;
+  const key = `${getTodayDate()}:${user.id}`;
+  if (oldAppNoticed.has(key)) return;
+  oldAppNoticed.add(key);
+  const who = user.name ?? user.id;
+  console.warn(`[app-api] ${who} folosește aplicația veche (X-Peron-App ${protocol})`);
+  try {
+    await sendAdminAlert(
+      `📱 <b>${escapeHtml(who)}</b> (${user.point}) lucrează azi din aplicația <b>veche</b> TRANSLUX Peron — fără pasul pozei operatorului. Trimite-i APK-ul nou.`,
+    );
+  } catch (err) {
+    console.error('[app-api] alerta «aplicație veche» a picat:', err);
+  }
 }
 
 interface Route {
@@ -145,7 +171,10 @@ export async function handleAppApi(req: IncomingMessage, res: ServerResponse): P
     if (route === 'method') throw new ApiError(405, 'METHOD_NOT_ALLOWED', `Metoda ${method} nu e permisă`);
 
     const user = route.auth ? await authenticate(req) : null;
-    if (user) (req as any).__appUserName = user.name ?? user.id;
+    if (user) {
+      (req as any).__appUserName = user.name ?? user.id;
+      void noteOldApp(user, appProtocol(req));
+    }
     const body = method === 'POST' ? await readJsonBody(req) : null;
     const result = await route.handler({ req, method, path, body, user });
     sendJson(res, 200, { ok: true, ...result });

@@ -48,7 +48,8 @@ export async function startApi(): Promise<TestApi> {
     baseUrl,
     async api(method, path, body, token, extraHeaders) {
       const url = path.startsWith('/') ? `${baseUrl}${path}` : `${baseUrl}/app/v1/${path}`;
-      const headers: Record<string, string> = { ...(extraHeaders ?? {}) };
+      // Testele vorbesc ca aplicația de azi (X-Peron-App 2); cine vrea «aplicația veche» trimite explicit '1'.
+      const headers: Record<string, string> = { 'x-peron-app': '2', ...(extraHeaders ?? {}) };
       if (body !== undefined) headers['content-type'] = 'application/json';
       if (token) headers.authorization = `Bearer ${token}`;
       const res = await fetch(url, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });

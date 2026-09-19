@@ -104,7 +104,10 @@ export async function syncCanonKeywords(): Promise<void> {
       );
     }
     if (blocked.length > 0) {
-      // Раз в сутки, не каждые 30 минут.
+      // Только журнал, раз в сутки. Telegram-алерт «ASR-словарь полон» снят
+      // (Ион, 19.09: «asta nu am nevoie să mai apară») — словарь полон по
+      // замыслу, решение «что убрать» не ежедневное; факт остаётся в
+      // voice_controller_incidents (kind=canon_full).
       const { data: recent } = await supabase.from('voice_controller_incidents')
         .select('id').eq('kind', 'canon_full')
         .gte('created_at', new Date(Date.now() - 24 * 3600 * 1000).toISOString()).limit(1);
@@ -112,9 +115,6 @@ export async function syncCanonKeywords(): Promise<void> {
         await supabase.from('voice_controller_incidents').insert({
           kind: 'canon_full', details: { blocked, count: current.length }, healed: false,
         });
-        await alertAdmins(
-          `⚠️ <b>ASR-словарь полон</b> (50/50, лимит ElevenLabs). Не поместилось: ${blocked.map((w) => escapeHtml(w)).join(', ')}. Реши в БД (voice_agent_canon), что убрать.`,
-        );
       }
     }
   } catch { /* синк не имеет права ломать вызывающего */ }

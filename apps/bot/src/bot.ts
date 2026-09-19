@@ -16,7 +16,7 @@ import { initAdminAlert } from './services/adminAlert.js';
 import { handleDaily, handleSmmWeekly, handleSmmMonth } from './handlers/smm.js';
 import { initTaskBoard, bindTaskBoard, getBoardAssignee, sweepTaskBoards } from './services/taskBoard.js';
 import { sendVoiceLessonDigest, decideVoiceLesson } from './services/voiceLessons.js';
-import { bindDriversGroup, currentDriversGroup, bindGraficGroup, currentGraficGroup } from './services/driversGroup.js';
+import { bindDriversGroup, currentDriversGroup, bindGraficGroup, currentGraficGroup, bindLivrariGroup, currentLivrariGroup } from './services/driversGroup.js';
 
 export function createBot(): Bot<BotContext> {
   const bot = new Bot<BotContext>(config.botToken);
@@ -174,6 +174,36 @@ export function createBot(): Bot<BotContext> {
       '✓ Grupa a fost legată.\n'
       + 'Aici va apărea graficul interurban (imaginea cu toate cursele și șoferii) '
       + 'de fiecare dată când dispecerul îl marchează complet.',
+    );
+  });
+
+  // Grupa «Livrari Uzini» (Ion, 19.09): la două săptămâni, panoul trimite aici posterul
+  // de livrare (подача) pe rutele de uzină și textul cu economia. Același tipar ca
+  // /lega_grafic; cheie separată — nu e grupa șoferilor, posterul numește oamenii.
+  bot.command('lega_livrari', async (ctx) => {
+    if (!ctx.dbUser || ctx.dbUser.role !== 'ADMIN') {
+      await ctx.reply('Doar administratorii pot lega o grupă.');
+      return;
+    }
+    if (ctx.chat?.type !== 'group' && ctx.chat?.type !== 'supergroup') {
+      await ctx.reply('Comanda funcționează doar într-o grupă.');
+      return;
+    }
+    try {
+      const veche = await currentLivrariGroup();
+      if (veche && veche !== String(ctx.chat.id)) {
+        await ctx.reply('Atenție: era legată altă grupă. De acum posterul de livrare vine aici, iar acolo nu mai vine deloc.');
+      }
+      await bindLivrariGroup(ctx.chat.id);
+    } catch (err) {
+      console.error('lega_livrari:', err);
+      await ctx.reply('Nu am putut lega grupa acum. Încercați din nou peste un minut.');
+      return;
+    }
+    await ctx.reply(
+      '✓ Grupa a fost legată.\n'
+      + 'Aici va veni, la două săptămâni (luni), posterul de livrare (подача) pe rutele de uzină '
+      + 'și textul cu economia posibilă.',
     );
   });
 

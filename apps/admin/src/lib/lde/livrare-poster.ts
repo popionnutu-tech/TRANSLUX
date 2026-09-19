@@ -1,6 +1,6 @@
 import { getSupabase } from '../supabase';
-import { sendTelegramPhoto } from '../telegram-notify';
-import { generateLivrareImage, UZINA_SCURT, type LivrareRow, type BramburaRow } from './naveta-image';
+import { sendTelegram, sendTelegramPhoto } from '../telegram-notify';
+import { generateLivrareImage, LEI_PE_KM, UZINA_SCURT, type LivrareRow, type BramburaRow } from './naveta-image';
 
 /**
  * Posterul de LIVRARE (подача) pe rutele de uzină, la două săptămâni, în grupa Telegram.
@@ -311,6 +311,29 @@ export async function generarePoster(from: string, to: string, prag = PRAG_LIVRA
   return { png, rows };
 }
 
+/** Textul de sub poster, în română: cât se poate economisi și unde. */
+export function textulEconomiei(rows: LivrareRow[], from: string, to: string): string {
+  const nr = (v: number) => Math.round(v).toLocaleString('ro-RO');
+  const km = rows.reduce((s, r) => s + r.naveta_total, 0);
+  const lei = km * LEI_PE_KM;
+  const zile = Math.max(1, ...rows.map((r) => r.zile));
+  const peLuna = (lei / zile) * 22;
+  const uzine = [...new Set(rows.map((r) => UZINA_SCURT[r.uzina] ?? r.uzina))].join(' + ');
+  const linii = rows.slice(0, 5).map((r) => {
+    const start = r.start_real && r.start_real.toLowerCase() !== r.start.toLowerCase() ? r.start_real : r.start;
+    return `• <b>${r.sofer.split(',')[0]}</b>, ruta ${UZINA_SCURT[r.uzina] ?? r.uzina} ${r.ruta} ${r.start}: ${nr(r.naveta_zi)} km/zi în afara rutei — ${nr(r.naveta_total)} km, ${nr(r.naveta_total * LEI_PE_KM)} lei; un șofer din ${start} i-ar face 0`;
+  });
+  return [
+    `<b>Livrare (подача) ${ddmm(from)} – ${ddmm(to)} · ${uzine}</b>`,
+    `Autobuzele fac <b>${nr(km)} km</b> în afara rutei (de acasă până la satul de start și înapoi) = <b>${nr(lei)} lei</b> în ${zile} zile lucrătoare, adică ~${nr(peLuna)} lei pe lună.`,
+    `Se pot economisi cu șoferi din satul de start — nu se taie nicio cursă și niciun sat.`,
+    '',
+    ...linii,
+    '',
+    `Doar rutele cu peste ${PRAG_LIVRARE_KM_ZI} km/zi. Deocamdată ${uzine}; celelalte uzine se adaugă după verificare. Km-ii vin din GPS, pe fiecare cursă; drumurile la service și zilele neobișnuite sunt scoase.`,
+  ].join('\n');
+}
+
 export interface TrimitereLivrare {
   status: 'sent' | 'skipped' | 'error';
   from: string; to: string; rows: number; reason?: string; messageId?: number | null;
@@ -335,6 +358,9 @@ export async function trimitePosterLivrare(opts: { from: string; to: string; for
   const caption = `<b>Livrare (подача) ${ddmm(opts.from)} – ${ddmm(opts.to)}</b>\n${rows.length} rute cu peste ${PRAG_LIVRARE_KM_ZI} km/zi · ${Math.round(total).toLocaleString('ro-RO')} km în afara rutei`;
   const sent = await sendTelegramPhoto(chatId, png, caption, `livrare-${opts.from}-${opts.to}.png`);
   if (!sent.ok) return { status: 'error', from: opts.from, to: opts.to, rows: rows.length, reason: 'Telegram a refuzat poza' };
+  // Ion, 19.09: «pe lângă poză, și text în română — ca să economisim o sumă serioasă».
+  // Textul spune cifra în lei și cine o face, deocamdată pe SEBN; alte uzine vin după validare.
+  await sendTelegram(chatId, textulEconomiei(rows, opts.from, opts.to));
   await sb.from('app_config').upsert({ key: LIVRARE_POSTER_LAST_KEY, value: marca }, { onConflict: 'key' });
   return { status: 'sent', from: opts.from, to: opts.to, rows: rows.length, messageId: sent.messageId };
 }

@@ -10,8 +10,10 @@ const db = () => getSupabase();
 // trebuie să ceară deploy, iar cine leagă grupa e chiar omul din ea.
 
 // Cheia e în @translux/db: panoul citește exact aceeași valoare.
-import { DRIVERS_GROUP_CONFIG_KEY, GRAFIC_GROUP_CONFIG_KEY } from '@translux/db';
+import { DRIVERS_GROUP_CONFIG_KEY, GRAFIC_GROUP_CONFIG_KEY, LIVRARE_POSTER_CONFIG_KEY } from '@translux/db';
 export const DRIVERS_GROUP_KEY = DRIVERS_GROUP_CONFIG_KEY;
+// Grupa «Livrari Uzini» (Ion, 19.09): posterul de livrare la două săptămâni. /lega_livrari.
+export const LIVRARI_GROUP_KEY = LIVRARE_POSTER_CONFIG_KEY;
 // Grupa «Mejgorod» (Ion, 07.09): acolo panoul trimite imaginea graficului
 // interurban pe ziua următoare. Legată cu /lega_grafic, cheie separată.
 export const GRAFIC_GROUP_KEY = GRAFIC_GROUP_CONFIG_KEY;
@@ -46,4 +48,12 @@ export async function bindGraficGroup(chatId: number): Promise<void> {
 
 export async function currentGraficGroup(): Promise<string | null> {
   return currentGroup(GRAFIC_GROUP_KEY);
+}
+
+export async function bindLivrariGroup(chatId: number): Promise<void> {
+  return bindGroup(LIVRARI_GROUP_KEY, chatId, 'bindLivrariGroup');
+}
+
+export async function currentLivrariGroup(): Promise<string | null> {
+  return currentGroup(LIVRARI_GROUP_KEY);
 }

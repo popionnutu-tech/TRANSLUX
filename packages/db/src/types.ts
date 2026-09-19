@@ -25,6 +25,11 @@ export const DRIVERS_GROUP_CONFIG_KEY = 'drivers_group_chat_id';
 // grafic postat în grupa greșită nu se mai retrage. Legată cu /lega_grafic.
 export const GRAFIC_GROUP_CONFIG_KEY = 'grafic_group_chat_id';
 
+// Grupa «Livrari Uzini» (Ion, 19.09.2026): la două săptămâni pleacă acolo posterul de
+// livrare (подача) pe rutele de uzină + textul cu economia. NU e grupa șoferilor —
+// posterul numește oamenii și satele lor. Legată cu /lega_livrari; citită de panou.
+export const LIVRARE_POSTER_CONFIG_KEY = 'livrare_poster_chat_id';
+
 // Map: controller point → direction they report for
 export const POINT_DIRECTION_MAP: Record<PointEnum, DirectionEnum> = {
   CHISINAU: 'CHISINAU_BALTI',

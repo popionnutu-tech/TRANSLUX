@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { agregaLivrare, agregaBrambura, descrieZiua, perioadaCadentei, type CursaLivrare } from './livrare-poster';
+import { agregaLivrare, agregaBrambura, descrieZiua, perioadaCadentei, textulEconomiei, type CursaLivrare } from './livrare-poster';
 
 const rute = [
   { id: 'r1', uzina_id: 'SEBN_STRASENI', route_number: 1, stops_in_order: 'Vatici → SEBN MD2 Strășeni' },
@@ -94,6 +94,21 @@ describe('descrieZiua', () => {
     ];
     expect(descrieZiua(opriri, new Set(), hh, 'Ghindești', drumuri))
       .toBe('Ghindești–rută în plus: retur s1 +47, tur s3 +46 km · acasă 07:12–12:03');
+  });
+});
+
+describe('textulEconomiei', () => {
+  it('spune km-ii, leii, luna și cine face cei mai mulți, în română', () => {
+    const t = textulEconomiei([{
+      masina: '552BRAO · Sprinter 312', uzina: 'SEBN_STRASENI', ruta: 1, start: 'Vatici', start_real: null,
+      sofer: 'Popescu (Chiperceni)', zile: 10, km_tur: 31, total_zi: 390, plin_zi: 122, gol_ruta_zi: 57, naveta_zi: 191, naveta_total: 1906,
+    }], '2026-09-07', '2026-09-18');
+    expect(t).toContain('07.09 – 18.09 · Strășeni');
+    expect(t).toContain('1.906 km');
+    expect(t).toContain('11.646 lei');          // 1906 × 6,11
+    expect(t).toContain('Popescu');
+    expect(t).toContain('un șofer din Vatici');
+    expect(t).toContain('pe lună');
   });
 });
 

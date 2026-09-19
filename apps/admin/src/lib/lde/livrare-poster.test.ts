@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { agregaLivrare, agregaBrambura, perioadaCadentei, type CursaLivrare } from './livrare-poster';
+import { agregaLivrare, agregaBrambura, descrieZiua, perioadaCadentei, type CursaLivrare } from './livrare-poster';
 
 const rute = [
   { id: 'r1', uzina_id: 'SEBN_STRASENI', route_number: 1, stops_in_order: 'Vatici → SEBN MD2 Strășeni' },
@@ -59,9 +59,25 @@ describe('agregaBrambura', () => {
       soferZi: new Map([['v1|2026-09-07', 'Popescu'], ['v2|2026-09-09', 'Covalschi']]),
     });
     expect(rows).toEqual([
-      { data: '2026-09-09', masina: '—', sofer: 'Covalschi', ruta: 'Orhei 7', km: 46 },
-      { data: '2026-09-07', masina: '552BRAO · Sprinter 312', sofer: 'Popescu', ruta: 'Strășeni 1', km: 25 },
+      { vehicle_id: 'v2', data: '2026-09-09', masina: '—', sofer: 'Covalschi', ruta: 'Orhei 7', unde: '', km: 46 },
+      { vehicle_id: 'v1', data: '2026-09-07', masina: '552BRAO · Sprinter 312', sofer: 'Popescu', ruta: 'Strășeni 1', unde: '', km: 25 },
     ]);
+  });
+});
+
+describe('descrieZiua', () => {
+  const hh = (iso: string) => iso.slice(11, 16);
+  it('spune unde a fost în afara rutei și când; casa marcată, cartierele Orheiului și satele rutei sar', () => {
+    const opriri = [
+      { locality: 'Chiperceni', arrival_at: '2026-09-15T16:06:00Z', departure_at: '2026-09-15T21:14:00Z', is_base: true },
+      { locality: 'Bălți', arrival_at: '2026-09-15T08:43:00Z', departure_at: '2026-09-15T10:19:00Z', is_base: false },
+      { locality: 'Bălți', arrival_at: '2026-09-15T10:18:00Z', departure_at: '2026-09-15T10:36:00Z', is_base: false },
+      { locality: 'Fedoreuca', arrival_at: '2026-09-15T11:48:00Z', departure_at: '2026-09-15T12:03:00Z', is_base: false },
+      { locality: 'Vatici', arrival_at: '2026-09-15T05:10:00Z', departure_at: '2026-09-15T05:12:00Z', is_base: false },   // sat al rutei
+      { locality: 'Bucuria', arrival_at: '2026-09-15T15:35:00Z', departure_at: '2026-09-15T15:47:00Z', is_base: false },  // cartier Orhei
+    ];
+    expect(descrieZiua(opriri, new Set(['vatici', 'curchi']), hh))
+      .toBe('Chiperceni (acasă) 16:06–21:14 · Bălți 08:43–10:36 · Fedoreuca 11:48–12:03');
   });
 });
 

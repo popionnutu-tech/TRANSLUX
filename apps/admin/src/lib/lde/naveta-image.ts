@@ -17,10 +17,12 @@ import { fonts, logoBase64, textPath, truncText } from '../schedule-image';
 export const LEI_PE_KM = 6.11;   // costul pe km folosit în toată analiza (docs/logica-business-trasee.md)
 
 export interface BramburaRow {
+  vehicle_id?: string;
   data: string;      // YYYY-MM-DD
   masina: string;    // «552BRAO · Sprinter 312»
   sofer: string;
-  ruta: string;      // «Orhei 20»
+  ruta: string;      // «Orhei 20» — nu se mai afișează, rămâne pentru caption/log
+  unde: string;      // «Bălți 08:43–10:36 · Fedoreuca 11:48–12:03» — unde a fost, în afara rutei, și când
   km: number;
 }
 
@@ -82,8 +84,8 @@ const nr = (v: number) => Math.round(v).toLocaleString('ro-RO').replace(/ /g, '
 const BRAMBURA_COLS = [
   { key: 'data', title: 'Ziua', w: 60, align: 'start' as const },
   { key: 'masina', title: 'Mașina', w: 150, align: 'start' as const },
-  { key: 'sofer', title: 'Șofer', w: 120, align: 'start' as const },
-  { key: 'ruta', title: 'Ruta', w: 140, align: 'start' as const },
+  { key: 'sofer', title: 'Șofer', w: 100, align: 'start' as const },
+  { key: 'unde', title: 'Unde a fost, în afara rutei · când', w: 420, align: 'start' as const },
   { key: 'km', title: 'Km neagreați', w: 100, align: 'end' as const },
 ];
 const BRAMBURA_W = BRAMBURA_COLS.reduce((s, c) => s + c.w, 0) * S;
@@ -182,7 +184,7 @@ export async function generateLivrareImage(rows: LivrareRow[], opts: { titlu: st
       data: `${b.data.slice(8, 10)}.${b.data.slice(5, 7)}`,
       masina: truncText(fR, b.masina, fsz, BRAMBURA_COLS[1].w * S - 10 * S),
       sofer: truncText(fR, b.sofer, fsz, BRAMBURA_COLS[2].w * S - 10 * S),
-      ruta: truncText(fR, b.ruta, fsz, BRAMBURA_COLS[3].w * S - 10 * S),
+      unde: truncText(fR, b.unde || '—', fsz, BRAMBURA_COLS[3].w * S - 10 * S),
       km: nr(b.km),
     };
     let x = PAD;

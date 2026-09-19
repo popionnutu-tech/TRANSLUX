@@ -114,6 +114,7 @@ export function agregaBrambura(input: {
   rute: RutaRef[];
   masini: Map<string, string>;                    // vehicle_id → «552BRAO · Sprinter 312»
   soferZi: Map<string, string>;                   // `${vehicle_id}|${date}` → «Popescu»
+  unde?: Map<string, string>;                     // `${vehicle_id}|${date}` → «Bălți 08:43–10:36»
   min?: number;
 }): BramburaRow[] {
   const min = input.min ?? MIN_BRAMBURA_KM;
@@ -132,9 +133,36 @@ export function agregaBrambura(input: {
   for (const [k, z] of peZi) {
     if (z.km < min) continue;
     const [vehicle_id, data] = k.split('|');
-    out.push({ data, masina: input.masini.get(vehicle_id) ?? '—', sofer: input.soferZi.get(k) ?? '—', ruta: [...z.rute].join(', '), km: Math.round(z.km) });
+    out.push({ vehicle_id, data, masina: input.masini.get(vehicle_id) ?? '—', sofer: input.soferZi.get(k) ?? '—', ruta: [...z.rute].join(', '), unde: input.unde?.get(k) ?? '', km: Math.round(z.km) });
   }
   return out.sort((a, b) => b.km - a.km || a.data.localeCompare(b.data));
+}
+
+export interface OprireZi { locality: string; arrival_at: string; departure_at: string | null; is_base: boolean }
+const CARTIERE_ORHEI = new Set(['bucuria', 'mitoc', 'nordic', 'centru', 'pelivan', 'orhei', 'slobozia doamnei', 'nistreană']);
+const normSat = (s: string) => s.toLowerCase().replace(/ă|â/g, 'a').replace(/î/g, 'i').replace(/ș|ş/g, 's').replace(/ț|ţ/g, 't').trim();
+
+/**
+ * «Unde a fost, în afara rutei, și când» — Ion, 19.09: «nu trebuie ruta; aici trebuie
+ * descrierea: unde a plecat, la ce localitate, și în ce interval de timp». Opririle zilei
+ * (≥90 s) care nu sunt în satele rutelor mașinii și nu-s cartierele Orheiului, grupate pe
+ * localitate: prima sosire – ultima plecare. Casa apare marcată «(acasă)»: pauza lungă
+ * acasă e de multe ori tot excesul zilei.
+ */
+export function descrieZiua(opriri: OprireZi[], sateRute: Set<string>, hh: (iso: string) => string): string {
+  const pe = new Map<string, { de: string; la: string; min: number }>();
+  for (const s of opriri) {
+    const k = normSat(s.locality);
+    if (CARTIERE_ORHEI.has(k) || (!s.is_base && sateRute.has(k))) continue;
+    const nume = s.is_base ? `${s.locality} (acasă)` : s.locality;
+    const la = s.departure_at ?? s.arrival_at;
+    const min = Math.max(0, (Date.parse(la) - Date.parse(s.arrival_at)) / 60000);
+    const cur = pe.get(nume);
+    if (!cur) pe.set(nume, { de: s.arrival_at, la, min });
+    else { if (s.arrival_at < cur.de) cur.de = s.arrival_at; if (la > cur.la) cur.la = la; cur.min += min; }
+  }
+  return [...pe.entries()].sort((a, b) => b[1].min - a[1].min).slice(0, 3)
+    .map(([nume, v]) => `${nume} ${hh(v.de)}–${hh(v.la)}`).join(' · ');
 }
 
 /** Cadența: din 14 în 14 zile, luni, începând cu PRIMA_LUNI_CADENTA; acoperă cele 14 zile dinainte. */
@@ -201,8 +229,39 @@ export async function incarcaLivrare(from: string, to: string, prag = PRAG_LIVRA
   const ruteAlese = uzine === 'all' ? rute : rute.filter((r) => uzine.includes(r.uzina_id));
   return {
     rows: agregaLivrare({ curse, rute: ruteAlese, startReal, soferi: soferiMap, case: caseMap, masini: masiniMap, prag }),
-    brambura: agregaBrambura({ curse, rute: ruteAlese, masini: masiniMap, soferZi }),
+    brambura: await cuDescriere(agregaBrambura({ curse, rute: ruteAlese, masini: masiniMap, soferZi }), curse, ruteAlese, atribuiri),
   };
+}
+
+/** Umple `unde` pentru fiecare (mașină, zi) din listă, cu opririle zilei din lde_gps_stops. */
+async function cuDescriere(
+  brambura: BramburaRow[],
+  curse: CursaLivrare[],
+  rute: RutaRef[],
+  atribuiri: { date: string; vehicle_id: string; factory_route_id: string }[],
+): Promise<BramburaRow[]> {
+  if (!brambura.length) return brambura;
+  const sb = getSupabase();
+  const etaloane = await citesteTot<{ factory_route_id: string; sate: { nume: string }[] | null }>(() =>
+    sb.from('lde_route_etalon').select('factory_route_id,sate').in('factory_route_id', rute.map((r) => r.id)));
+  const sateRutei = new Map<string, Set<string>>();
+  for (const e of etaloane) {
+    const s = sateRutei.get(e.factory_route_id) ?? new Set<string>();
+    for (const x of e.sate ?? []) if (x?.nume) s.add(normSat(x.nume));
+    sateRutei.set(e.factory_route_id, s);
+  }
+  const hh = (iso: string) => new Date(iso).toLocaleTimeString('ro-RO', { timeZone: 'Europe/Chisinau', hour: '2-digit', minute: '2-digit' });
+  const out: BramburaRow[] = [];
+  for (const b of brambura) {
+    const vid = b.vehicle_id;
+    if (!vid) { out.push(b); continue; }
+    const { data: opriri } = await sb.from('lde_gps_stops').select('locality,arrival_at,departure_at,is_base')
+      .eq('vehicle_id', vid).eq('date', b.data).not('locality', 'is', null).order('arrival_at');
+    const sate = new Set<string>();
+    for (const a of atribuiri) if (a.vehicle_id === vid && a.date === b.data) for (const s of sateRutei.get(a.factory_route_id) ?? []) sate.add(s);
+    out.push({ ...b, unde: descrieZiua((opriri ?? []) as OprireZi[], sate, hh) });
+  }
+  return out;
 }
 
 const ddmm = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}`;

@@ -39,9 +39,15 @@ export function generateToken(): string {
   return randomBytes(32).toString('hex');
 }
 
-/** Ce vede aplicația ca nume: @username sau nimic (botul nu are nomenclator de nume). */
-export function displayName(user: Pick<User, 'username'>): string | null {
-  return user.username ? `@${user.username}` : null;
+/**
+ * Ce vede aplicația (și adminul, în alerte și în jurnal) ca nume: @username, altfel
+ * numele din admin (`users.name` — operatorii creați din admin n-au username; Ion a
+ * primit o alertă cu un UUID, 19.09), altfel nimic.
+ */
+export function displayName(user: Pick<User, 'username'> & { name?: string | null }): string | null {
+  if (user.username) return `@${user.username}`;
+  const name = user.name?.trim();
+  return name ? name : null;
 }
 
 /** Operator de peron valid pentru aplicație: activ, CONTROLLER, cu punct CHISINAU/BALTI. */

@@ -134,7 +134,7 @@ const norm = (s) => (s || '').toLowerCase()
 
 /** Contextul unei zile: porți, atribuiri, granițe. Se încarcă o dată, nu per mașină. */
 export async function incarcaContext(supa, day) {
-  const [{ data: gates }, { data: atrib }, { data: granite }, { data: rute }, { data: etaloane }] = await Promise.all([
+  const [{ data: gates }, { data: atrib }, { data: granite }, { data: rute }, { data: etaloane }, { data: locuri }] = await Promise.all([
     supa.from('lde_uzine_gates').select('uzina_id,label,lat,lon,radius_km').eq('active', true),
     supa.from('lde_atribuiri_zilnice')
       .select('factory_route_id,shift_number,slot,vehicle_id,vehicle_id_retur,direction,status')
@@ -148,7 +148,10 @@ export async function incarcaContext(supa, day) {
     // cu ≥5 observații, construit DOAR din curse neambigue — deci nu se hrănește din
     // propriile lui ghiciri.
     supa.from('lde_route_etalon').select('factory_route_id,sate,observations,km_median,shift_number,sens,sat_start_real').gte('observations', 5),
+    // locurile de service (migr. 381): drumul la parc e al mașinii, nu al șoferului
+    supa.from('lde_locuri_cunoscute').select('nume,tip,lat,lon,raza_km').eq('active', true),
   ]);
+  const locuriService = (locuri ?? []).filter((l) => l.tip === 'service').map((l) => ({ ...l, lat: +l.lat, lon: +l.lon }));
   const porti = new Map(), granitePeUz = new Map(), sateRuta = new Map(), uzinaRutei = new Map();
   for (const g of gates ?? []) {
     if (!porti.has(g.uzina_id)) porti.set(g.uzina_id, []);
@@ -208,7 +211,7 @@ export async function incarcaContext(supa, day) {
       peMasina.get(vid).push({ ...a, eRetur: vid === a.vehicle_id_retur && vid !== a.vehicle_id });
     }
   }
-  return { porti, peMasina, granitePeUz, sateRuta, sateEtalon, kmEtalon, sateEtalonTur, satStartReal, uzinaRutei, ruteUzinei, ruteAdm };
+  return { porti, peMasina, granitePeUz, sateRuta, sateEtalon, kmEtalon, sateEtalonTur, satStartReal, uzinaRutei, ruteUzinei, ruteAdm, locuriService };
 }
 
 /**
@@ -794,6 +797,22 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
         for (const [a2, b2] of legAdm) { const de = Math.max(a1, a2), la = Math.min(b1, b2); if (la > de) scad += kmInterval(r.calc.stepKm, de, la); }
       if (scad > 0) x.km_livrare = +Math.max(0, x.km_livrare - scad).toFixed(2);
     }
+  }
+  // ── SERVICE: drumul la parc e al mașinii, nu al șoferului ──────────────────
+  // Ion, 19.09: 11 din 18 zile „brambura" de la Orhei erau drumuri la parcul din Bălți
+  // (47.770/27.923), 07:00–16:00, 1–6 ore stat — punct în care au oprit 94 de mașini din
+  // flotă. Bucata din afara rutei care oprește într-un loc de service (migr. 381) se scrie
+  // km_service și iese din km_livrare: nu e navetă și nu e brambura.
+  const service = ctx.locuriService ?? [];
+  for (const x of randuri) {
+    x.km_service = 0;
+    if (!x._afara?.length || !service.length) continue;
+    for (const [a1, b1] of x._afara) {
+      let atinge = false;
+      for (let i = a1; i <= b1 && !atinge; i++) if (service.some((l) => hav(r.pts[i], l) <= Number(l.raza_km ?? 0.5))) atinge = true;
+      if (atinge) x.km_service = +(x.km_service + kmInterval(r.calc.stepKm, a1, b1)).toFixed(2);
+    }
+    if (x.km_service > 0) x.km_livrare = +Math.max(0, x.km_livrare - x.km_service).toFixed(2);
   }
   for (const x of randuri) {
     const { _afara, _cut, _adm, ...row } = x;

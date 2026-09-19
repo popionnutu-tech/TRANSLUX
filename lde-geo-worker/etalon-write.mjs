@@ -221,8 +221,17 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
   // Rutele ADM nu intră în împerecherea pe ceas: merg pe orar de birou. Vartic duce în
   // fiecare seară oameni la Chișinău (ruta 24), Scurtu la Orhei de la Bălți (ruta 23) —
   // ceasul schimburilor le punea pe ruta 20, respectiv „necunoscut". Se scriu separat, jos.
-  const listaAdm = listaToata.filter((a) => ctx.ruteAdm?.has(a.factory_route_id));
-  const lista = listaToata.filter((a) => !ctx.ruteAdm?.has(a.factory_route_id));
+  // …dar numai dacă orașul din nume NU e sat pe altă rută a mașinii: 26 «Vatici (ADM)» la
+  // Popescu, care trece prin Vatici pe ruta de Strășeni — acolo trecerea nu e vizită ADM,
+  // iar ruta rămâne pe ceas, ca până acum.
+  const eAdm = (a) => {
+    if (!ctx.ruteAdm?.has(a.factory_route_id)) return false;
+    const oras = (ctx.sateRuta.get(a.factory_route_id) ?? [])[0];
+    return !listaToata.some((b) => b !== a && !ctx.ruteAdm.has(b.factory_route_id)
+      && (ctx.sateEtalon?.get(b.factory_route_id) ?? []).includes(oras));
+  };
+  const listaAdm = listaToata.filter(eAdm);
+  const lista = listaToata.filter((a) => !eAdm(a));
   if (!listaToata.length || !r.pts || r.pts.length < 2) return { curse: 0 };
   // UZINELE mașinii, nu prima dintre ele. Ion, 17.09: «schimburile nu pot fi interzise,
   // ele sunt planificate de client; dacă vorbim de Draxelmaier, el are 2 uzine». Măsurat:
@@ -725,7 +734,9 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
   // ANCORĂ: o atingere de poartă, capătul bucății de rută a unei curse deja scrise, sau o
   // staționare de ≥30 min (casa). Dus spre oraș = retur, întors = tur. Km-ii ăștia ies
   // din naveta curselor peste care se suprapun — nu se numără de două ori.
-  const R_ADM_KM = 8, POPAS_ADM_S = 120, ANCORA_PAUZA_S = 1800;
+  // 12 km: Chișinăul e mare — Vartic oprește când în Rîșcani (5 km de centru), când la
+  // Stăuceni (11 km); cu 8 km ziua de 16.09 rămânea fără cursă ADM.
+  const R_ADM_KM = 12, POPAS_ADM_S = 120, ANCORA_PAUZA_S = 1800;
   if (listaAdm.length) {
     const ancore = new Set([...tr.map((t) => t.iIn), ...tr.map((t) => t.iOut)]);
     for (const x of randuri) if (x._cut) { ancore.add(x._cut.from); ancore.add(x._cut.to); }

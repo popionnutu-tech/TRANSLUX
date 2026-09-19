@@ -189,8 +189,9 @@ export async function incarcaContext(supa, day) {
   // satele etalonului de tur ÎN ORDINEA traseului (etalonul cu cele mai multe observații)
   // — rezerva satului-nume, când drumul nu intră în el
   // satul de start REAL al rutei, dedus de agregator din opririle care se repetă (migr. 380)
+  // …pe (rută, schimb): la ruta 22 schimbul 1 pleacă din Ciocîlteni, schimbul 3 din Fedoreuca
   const satStartReal = new Map();
-  for (const e of etaloane ?? []) if (e.sat_start_real) satStartReal.set(e.factory_route_id, norm(e.sat_start_real));
+  for (const e of etaloane ?? []) if (e.sat_start_real) satStartReal.set(`${e.factory_route_id}|${e.shift_number}`, norm(e.sat_start_real));
   const sateEtalonTur = new Map(), obsTur = new Map();
   for (const e of etaloane ?? []) {
     if (e.sens !== 'tur' || !e.sate?.length) continue;
@@ -353,11 +354,11 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
   // asta cursele lui ieșeau «ruta neatinsă». Iar pragul de 5 km: etalonul are și cartierele
   // Orheiului de lângă poartă, prin care trece ORICE drum — inclusiv cel la Chișinău.
   const RAZA_LANGA_POARTA_KM = 5;
-  const satulRutei = (rid, seg) => {
+  const satulRutei = (rid, seg, sh) => {
     // Ion, 19.09: «dacă se întâmplă sistematic, zilnic — e rută; scrii sub denumirea rutei
-    // primul sat de unde urcă». Satul de start REAL (dedus din opririle care se repetă)
-    // bate satul din denumire: ruta 2 «Cișmea» pleacă zilnic din Ocnița-Răzeși.
-    const real = loculNumit(ctx.satStartReal?.get(rid), seg);
+    // primul sat de unde urcă». Satul de start REAL (dedus din opririle care se repetă, pe
+    // schimb) bate satul din denumire: ruta 2 «Cișmea» pleacă în schimbul 1 din Crihana.
+    const real = loculNumit(ctx.satStartReal?.get(`${rid}|${sh}`), seg);
     if (real && seg && imparteLaSat(seg, r.pts, r.calc, real)) return real;
     const numit = loculNumit((ctx.sateRuta.get(rid) ?? [])[0], seg);
     if (!seg) return real ?? numit;
@@ -382,7 +383,7 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
       // la uzina asta și se ia tăietura cea mai mică — apoi, dacă niciuna, oprirea
       const peSat = lista
         .filter((a) => (ctx.uzinaRutei.get(a.factory_route_id) ?? a.direction) === s.uzina_id)
-        .map((a) => taiePeSat(s, r.pts, r.calc, satulRutei(a.factory_route_id, s)))
+        .map((a) => taiePeSat(s, r.pts, r.calc, satulRutei(a.factory_route_id, s, s.shift_number)))
         .filter(Boolean).sort((x, y) => x.livrare - y.livrare)[0];
       const t = peSat ?? taieLivrarea(s, capeteReale(r.stops ?? [], r.pts, s.from, s.to, scurteInSat), r.calc);
       if (t) { contrib.km_plin += t.plin; contrib.km_gol += t.livrare; contrib.km_livrare += t.livrare; }
@@ -644,7 +645,7 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
       // Tăietura livrării, pe ruta DECISĂ: întâi la satul care-i dă numele, altfel la oprire.
       // Satele, capetele și geometria cursei se iau din bucata rămasă — altfel etalonul
       // ar începe acasă la șofer (Popescu: «Începe: Chiperceni», care e casa lui).
-      const satA = satulRutei(a.factory_route_id, plin);
+      const satA = satulRutei(a.factory_route_id, plin, sh);
       let taiat = taiePeSat(plin, r.pts, r.calc, satA);
       // Satul-nume e cunoscut, dar drumul „plin" nu intră deloc în el: n-a fost cursa rutei.
       // Vartic, 15.09: după tura de noapte pleacă de la poartă la ora „ridicării" și face 46
@@ -661,7 +662,7 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
       // Chișinău trece pe lângă casa lui din Orhei, iar naveta lui Popescu trece prin
       // Orhei, departe și de casă, și de rută: geometria le-ar încurca). Brambura o pune
       // agregatorul, ca EXCES față de zilele obișnuite ale aceleiași mașini.
-      const golImpartit = gol ? imparteLaSat(gol, r.pts, r.calc, satulRutei(a.factory_route_id, gol)) : null;
+      const golImpartit = gol ? imparteLaSat(gol, r.pts, r.calc, satulRutei(a.factory_route_id, gol, sh)) : null;
       const kmGolRuta = golImpartit?.inauntru ?? 0;
       const kmLivrare = (taiat ? taiat.livrare : 0) + (gol ? Math.max(0, gol.km - kmGolRuta) : 0);
       const capete = capeteReale(r.stops ?? [], r.pts, cut.from, cut.to, scurteInSat);

@@ -16,6 +16,7 @@ import { createClient } from '@supabase/supabase-js';
 import { WebSocket as WS } from 'ws';
 import { hav } from './km-core.mjs';
 import { invataGranite, minuteZiLocal } from './etalon-labels.mjs';
+import { loadPlaces } from './places-index.mjs';
 globalThis.WebSocket = globalThis.WebSocket || WS;
 
 const WRITE = process.argv.includes('--write');
@@ -310,33 +311,50 @@ await recalculeazaEtalon();
  * e oprire zilnică fără să fie stație. Worker-ul taie livrarea acolo la rularea următoare.
  */
 const COTA_START_REAL = 0.6;
+const RAZA_LANGA_POARTA_KM = 5;   // satele de lângă poartă (Pelivan la Orhei) nu pot fi start: prin ele trece orice drum
 async function recalculeazaStartReal() {
-  const tururi = await fetchAll('lde_route_run', 'factory_route_id,vehicle_id,sate_oprire',
+  // PE (RUTĂ, SCHIMB): la ruta 22 schimbul 1 pleacă din Ciocîlteni, schimbul 3 din Fedoreuca,
+  // iar schimbul 2 n-are nicio oprire sistematică — sunt trei rute în una. Satul de casă al
+  // șoferului NU se mai scoate după nume: opririle de acasă sunt deja excluse (0,5 km de
+  // bază), iar Covalschi chiar ia oameni din Lalova, satul lui — scoțându-l, startul sărea
+  // la Slobozia-Horodiște și Lalova → Slobozia-Horodiște devenea „navetă".
+  const tururi = await fetchAll('lde_route_run', 'factory_route_id,shift_number,sate_oprire',
     (q) => q.gte('run_date', deLa).eq('sens', 'tur').gt('km_real', 0).not('sate_oprire', 'is', null));
-  const nopti = await fetchAll('lde_gps_stops', 'vehicle_id,locality',
-    (q) => q.gte('date', deLa).eq('is_base', true).not('locality', 'is', null));
-  const casaMasinii = new Map();
-  { const n = new Map();
-    for (const s of nopti) { const k = `${s.vehicle_id}|${norm(s.locality)}`; n.set(k, (n.get(k) ?? 0) + 1); }
-    for (const [k, c] of n) { const [v, loc] = k.split('|'); if (!casaMasinii.has(v) || casaMasinii.get(v).c < c) casaMasinii.set(v, { loc, c }); } }
-  const peRuta = new Map();
+  const gates = await fetchAll('lde_uzine_gates', 'uzina_id,lat,lon', (q) => q.eq('active', true));
+  const rute = await fetchAll('lde_factory_routes', 'id,uzina_id', (q) => q.eq('active', true));
+  const uzinaRutei = new Map(rute.map((r) => [r.id, r.uzina_id]));
+  const coordNume = new Map();
+  for (const p of loadPlaces(process.env.PLACES_FILE)) {
+    const k = norm(p.name);
+    if (!coordNume.has(k)) coordNume.set(k, []);
+    coordNume.get(k).push(p);
+  }
+  const langaPoarta = (k, uzina) => {
+    const gs = gates.filter((g) => g.uzina_id === uzina), ps = coordNume.get(k) ?? [];
+    return ps.length > 0 && gs.length > 0 && ps.every((p) => gs.some((g) => hav(p, { lat: +g.lat, lon: +g.lon }) <= RAZA_LANGA_POARTA_KM));
+  };
+  const peCheie = new Map();
   for (const t of tururi) {
-    if (!peRuta.has(t.factory_route_id)) peRuta.set(t.factory_route_id, { n: 0, pozitii: new Map(), nume: new Map() });
-    const r = peRuta.get(t.factory_route_id); r.n++;
-    const casa = casaMasinii.get(t.vehicle_id)?.loc;
+    const key = `${t.factory_route_id}|${t.shift_number}`;
+    if (!peCheie.has(key)) peCheie.set(key, { n: 0, pozitii: new Map(), nume: new Map() });
+    const r = peCheie.get(key); r.n++;
     const vazute = new Set();
     (t.sate_oprire ?? []).forEach((s, i) => {
       const k = norm(s);
-      if (!k || k === casa || vazute.has(k)) return;
+      if (!k || vazute.has(k) || langaPoarta(k, uzinaRutei.get(t.factory_route_id))) return;
       vazute.add(k);
       if (!r.pozitii.has(k)) { r.pozitii.set(k, []); r.nume.set(k, s); }
       r.pozitii.get(k).push(i);
     });
   }
   let scrise = 0;
-  const rute = await fetchAll('lde_factory_routes', 'id', (q) => q.eq('active', true));
-  for (const { id } of rute) {
-    const r = peRuta.get(id);
+  const combinatii = await fetchAll('lde_route_etalon', 'factory_route_id,shift_number');
+  const vazute = new Set();
+  for (const c of combinatii) {
+    const key = `${c.factory_route_id}|${c.shift_number}`;
+    if (vazute.has(key)) continue;
+    vazute.add(key);
+    const r = peCheie.get(key);
     let ales = null;
     if (r && r.n >= MIN_OBSERVATII) {
       let bestPoz = Infinity;
@@ -346,10 +364,10 @@ async function recalculeazaStartReal() {
         if (m < bestPoz) { bestPoz = m; ales = r.nume.get(k); }
       }
     }
-    if (WRITE) await supa.from('lde_route_etalon').update({ sat_start_real: ales }).eq('factory_route_id', id);
+    if (WRITE) await supa.from('lde_route_etalon').update({ sat_start_real: ales }).eq('factory_route_id', c.factory_route_id).eq('shift_number', c.shift_number);
     if (ales) scrise++;
   }
-  console.log(`start real: ${scrise} rute cu sat de start dedus din opriri (≥${COTA_START_REAL * 100}% din tururi)`);
+  console.log(`start real: ${scrise} combinații rută×schimb cu sat de start dedus din opriri (≥${COTA_START_REAL * 100}% din tururi)`);
 }
 
 // ordinea contează: startul real se deduce din cursele scrise azi și îl folosește worker-ul

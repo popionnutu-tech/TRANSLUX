@@ -60,9 +60,9 @@ const SUB_H = 18 * S;
 const FOOT_H = 40 * S;
 
 const COLS = [
-  { key: 'masina', title: 'Mașina', w: 118, align: 'start' as const },
+  { key: 'masina', title: 'Mașina', w: 150, align: 'start' as const },
   { key: 'ruta', title: 'Ruta (nume – start real)', w: 186, align: 'start' as const },
-  { key: 'sofer', title: 'Cine (locuiește)', w: 160, align: 'start' as const },
+  { key: 'sofer', title: 'Cine (locuiește)', w: 150, align: 'start' as const },
   { key: 'total', title: 'Total km/zi', w: 64, align: 'end' as const },
   { key: 'km_tur', title: 'Rută, km', w: 54, align: 'end' as const },
   { key: 'plin', title: 'Plin/zi', w: 56, align: 'end' as const },

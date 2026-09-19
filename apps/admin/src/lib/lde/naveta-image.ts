@@ -16,7 +16,7 @@ import { fonts, logoBase64, textPath, truncText } from '../schedule-image';
  */
 export const LEI_PE_KM = 6.11;   // costul pe km folosit în toată analiza (docs/logica-business-trasee.md)
 
-export interface NavetaRow {
+export interface LivrareRow {
   uzina: string;
   ruta: number;
   start: string;
@@ -31,6 +31,10 @@ export interface NavetaRow {
   naveta_total: number;   // pe toată perioada
 }
 
+const UZINA_SCURT: Record<string, string> = {
+  SEBN_ORHEI: 'Orhei', SEBN_STRASENI: 'Strășeni', DRAXELMAIER_BALTI: 'Draxelmaier',
+  LEAR_UNGHENI: 'Ungheni', LEAR_FLORESTI: 'Florești', TROX_BRICENI: 'Trox',
+};
 const S = 2;
 const PAD = 16 * S;
 const MAROON = '#9B1B30';
@@ -53,8 +57,8 @@ const COLS = [
   { key: 'km_tur', title: 'Rută, km', w: 54, align: 'end' as const },
   { key: 'plin', title: 'Plin/zi', w: 56, align: 'end' as const },
   { key: 'gol', title: 'Goi pe rută', w: 64, align: 'end' as const },
-  { key: 'naveta', title: 'Navetă/zi', w: 64, align: 'end' as const },
-  { key: 'naveta_total', title: 'Navetă, km', w: 78, align: 'end' as const },
+  { key: 'naveta', title: 'Livrare/zi', w: 64, align: 'end' as const },
+  { key: 'naveta_total', title: 'Livrare, km', w: 78, align: 'end' as const },
   { key: 'lei', title: 'Economie, lei', w: 92, align: 'end' as const },
 ];
 const TABLE_W = COLS.reduce((s, c) => s + c.w, 0) * S;
@@ -65,7 +69,7 @@ function esc(s: string): string {
 }
 const nr = (v: number) => Math.round(v).toLocaleString('ro-RO').replace(/ /g, ' ');
 
-export async function generateNavetaImage(rows: NavetaRow[], opts: { titlu: string; perioada: string; zileLucratoare: number }): Promise<Buffer> {
+export async function generateLivrareImage(rows: LivrareRow[], opts: { titlu: string; perioada: string; zileLucratoare: number }): Promise<Buffer> {
   const { r: fR, b: fB } = fonts();
   const headerH = LOGO_AREA + TITLE_H + SUB_H + 10 * S;
   const H = headerH + TH_H + rows.length * ROW_H + FOOT_H + PAD;
@@ -76,7 +80,7 @@ export async function generateNavetaImage(rows: NavetaRow[], opts: { titlu: stri
   const logoW = logoH * (1318 / 192);
   svg.push(`<image href="data:image/png;base64,${logoBase64()}" x="${(CANVAS_W - logoW) / 2}" y="${PAD}" width="${logoW}" height="${logoH}"/>`);
   svg.push(textPath(fB, `${opts.titlu} · ${opts.perioada}`, CANVAS_W / 2, LOGO_AREA + 16 * S, 17 * S, MAROON_DK, 'middle'));
-  svg.push(textPath(fR, `Navetă = km-ii șoferului în afara rutei (casă – satul de start), fără service și fără drumuri neobișnuite · Economie = navetă × ${LEI_PE_KM.toFixed(2).replace('.', ',')} lei/km · ${opts.zileLucratoare} zile lucrătoare`, CANVAS_W / 2, LOGO_AREA + TITLE_H + 10 * S, 10.5 * S, GREY, 'middle'));
+  svg.push(textPath(fR, `Livrare (подача) = km-ii șoferului în afara rutei (casă – satul de start), fără service și fără drumuri neobișnuite · Economie = livrare × ${LEI_PE_KM.toFixed(2).replace('.', ',')} lei/km · ${opts.zileLucratoare} zile lucrătoare`, CANVAS_W / 2, LOGO_AREA + TITLE_H + 10 * S, 10.5 * S, GREY, 'middle'));
   svg.push(textPath(fR, 'Rută = de la satul de start până la uzină · Goi pe rută = întoarcerile goale între sat și poartă, impuse de turele uzinei — nu se optimizează', CANVAS_W / 2, LOGO_AREA + TITLE_H + SUB_H + 6 * S, 9.5 * S, GREY, 'middle'));
 
   const top = headerH;
@@ -97,7 +101,7 @@ export async function generateNavetaImage(rows: NavetaRow[], opts: { titlu: stri
     const fsz = 11.5 * S;
     const lei = row.naveta_total * LEI_PE_KM;
     sumNaveta += row.naveta_total; sumPlin += row.plin_zi; sumTotal += row.total_zi;
-    const uz = row.uzina === 'SEBN_STRASENI' ? 'Strășeni ' : '';
+    const uz = (UZINA_SCURT[row.uzina] ?? row.uzina) + ' ';
     const numeRuta = `${uz}${row.ruta} ${row.start}` + (row.start_real && row.start_real.toLowerCase() !== row.start.toLowerCase() ? ` – ${row.start_real}` : '');
     const mare = row.naveta_zi >= 50;
     const cells: Record<string, { text: string; fill: string; bold?: boolean }> = {
@@ -123,9 +127,9 @@ export async function generateNavetaImage(rows: NavetaRow[], opts: { titlu: stri
   svg.push(`<rect x="${x0}" y="${top}" width="${TABLE_W}" height="${TH_H + rows.length * ROW_H}" fill="none" stroke="${MAROON}" stroke-opacity="0.35" stroke-width="${S}"/>`);
 
   const fy = top + TH_H + rows.length * ROW_H + 14 * S;
-  svg.push(textPath(fB, `Total navetă: ${nr(sumNaveta)} km în ${opts.zileLucratoare} zile = ${nr(sumNaveta * LEI_PE_KM)} lei`, PAD, fy + 4 * S, 12 * S, MAROON_DK, 'start'));
+  svg.push(textPath(fB, `Total livrare: ${nr(sumNaveta)} km în ${opts.zileLucratoare} zile = ${nr(sumNaveta * LEI_PE_KM)} lei`, PAD, fy + 4 * S, 12 * S, MAROON_DK, 'start'));
   svg.push(textPath(fR, `Plin ${nr(sumPlin)} km/zi din ${nr(sumTotal)} km/zi pe zonă`, CANVAS_W - PAD, fy + 4 * S, 12 * S, GREY, 'end'));
-  svg.push(textPath(fR, 'Cifrele vin din urma GPS a fiecărei mașini, pe fiecare cursă; roșu = peste 50 km navetă pe zi — aici un șofer din satul de start schimbă cel mai mult', PAD, fy + 20 * S, 9.5 * S, GREY, 'start'));
+  svg.push(textPath(fR, 'Cifrele vin din urma GPS a fiecărei mașini, pe fiecare cursă; roșu = peste 50 km livrare pe zi — aici un șofer din satul de start schimbă cel mai mult', PAD, fy + 20 * S, 9.5 * S, GREY, 'start'));
 
   const svgStr = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${CANVAS_W}" height="${H}">

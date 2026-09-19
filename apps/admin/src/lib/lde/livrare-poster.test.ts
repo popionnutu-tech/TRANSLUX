@@ -1,0 +1,56 @@
+import { describe, it, expect } from 'vitest';
+import { agregaLivrare, perioadaCadentei, type CursaLivrare } from './livrare-poster';
+
+const rute = [
+  { id: 'r1', uzina_id: 'SEBN_STRASENI', route_number: 1, stops_in_order: 'Vatici → SEBN MD2 Strășeni' },
+  { id: 'r2', uzina_id: 'SEBN_ORHEI', route_number: 7, stops_in_order: 'Lalova → SEBN MD' },
+];
+const cursa = (o: Partial<CursaLivrare>): CursaLivrare => ({
+  run_date: '2026-09-07', factory_route_id: 'r1', vehicle_id: 'v1', sens: 'tur',
+  km_real: 30, km_livrare: 0, km_brambura: 0, km_service: 0, km_gol_ruta: 0, ...o,
+});
+
+describe('agregaLivrare', () => {
+  it('ține doar rutele cu livrare peste prag și scade brambura din livrare', () => {
+    const curse = [
+      cursa({ km_livrare: 70, km_brambura: 10 }),                  // luni: 60 net
+      cursa({ sens: 'retur', km_livrare: 50, km_gol_ruta: 30 }),   // luni
+      cursa({ run_date: '2026-09-08', km_livrare: 60 }),           // marți
+      cursa({ factory_route_id: 'r2', vehicle_id: 'v2', km_livrare: 5 }),   // Covalschi: sub prag
+      cursa({ run_date: '2026-09-06', km_livrare: 900 }),          // duminică: nu intră
+    ];
+    const rows = agregaLivrare({
+      curse, rute, startReal: new Map(), prag: 50, minZile: 1,
+      soferi: new Map([['v1|r1', 'Popescu'], ['v2|r2', 'Covalschi']]),
+      case: new Map([['v1', 'Chiperceni'], ['v2', 'Lalova']]),
+    });
+    expect(rows).toHaveLength(1);
+    const r = rows[0];
+    expect(r.ruta).toBe(1);
+    expect(r.start).toBe('Vatici');
+    expect(r.sofer).toBe('Popescu (Chiperceni)');
+    expect(r.zile).toBe(2);
+    expect(r.naveta_total).toBe(170);        // 60 + 50 + 60
+    expect(r.naveta_zi).toBe(85);
+    expect(r.gol_ruta_zi).toBe(15);
+    expect(r.km_tur).toBe(30);
+  });
+
+  it('fără curse peste prag → poster gol; la fel fără drum plin sau sub 3 zile', () => {
+    const gol = (curse: CursaLivrare[], minZile?: number) =>
+      agregaLivrare({ curse, rute, startReal: new Map(), soferi: new Map(), case: new Map(), minZile });
+    expect(gol([cursa({ km_livrare: 10 })], 1)).toEqual([]);
+    expect(gol([cursa({ km_real: 0, km_livrare: 120 })], 1)).toEqual([]);                    // mașină fără curse
+    expect(gol([cursa({ km_livrare: 120 }), cursa({ run_date: '2026-09-08', km_livrare: 120 })])).toEqual([]);  // 2 zile < 3
+  });
+});
+
+describe('perioadaCadentei', () => {
+  it('trimite doar lunea, din 14 în 14 zile, pe cele 14 zile dinainte', () => {
+    expect(perioadaCadentei('2026-10-05')).toEqual({ from: '2026-09-21', to: '2026-10-04' });
+    expect(perioadaCadentei('2026-10-19')).toEqual({ from: '2026-10-05', to: '2026-10-18' });
+    expect(perioadaCadentei('2026-10-12')).toBeNull();   // lunea dintre
+    expect(perioadaCadentei('2026-10-06')).toBeNull();   // marți
+    expect(perioadaCadentei('2026-09-21')).toBeNull();   // înainte de prima
+  });
+});

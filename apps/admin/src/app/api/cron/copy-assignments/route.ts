@@ -3,6 +3,8 @@ import { getSupabase } from '@/lib/supabase';
 import { verifyCronSecret } from '@/lib/cron-auth';
 import { syncWeatherPoints } from '@/lib/weather';
 import { sendWeeklyDriverPenalties } from '@/lib/driver-penalties-sync';
+import { perioadaCadentei, trimitePosterLivrare } from '@/lib/lde/livrare-poster';
+import { chisinauTodayIso } from '@/lib/chisinau-time';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -35,6 +37,18 @@ export async function GET(req: NextRequest) {
     penalties = 'error';
   }
   if (penalties) console.log('driver-penalties (luni):', penalties);
+
+  // La două săptămâni, luni: posterul de livrare (подача) pe rutele de uzină, în grupa
+  // lui (Ion, 19.09) — același piggyback. Idempotent pe perioadă; fără grupă setată sare.
+  try {
+    const p = perioadaCadentei(chisinauTodayIso());
+    if (p) {
+      const r = await trimitePosterLivrare({ from: p.from, to: p.to });
+      console.log('livrare-poster:', `${r.status}${r.reason ? `: ${r.reason}` : ''} (${r.from}–${r.to}, ${r.rows} rute)`);
+    }
+  } catch (e) {
+    console.error('trimitePosterLivrare error:', e);
+  }
 
   try {
     const db = getSupabase();

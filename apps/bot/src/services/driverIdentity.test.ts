@@ -8,7 +8,7 @@ import {
   parseIdentityAnswer,
   shouldBlockIdentity,
 } from './driverIdentity.js';
-import { pickBootstrapCandidates, referenceNeedsRefresh, MAX_REFERENCES, REFERENCE_REFRESH_DAYS } from './driverReferences.js';
+import { pickBootstrapCandidates, referenceNeedsRefresh, shrinkReference, MAX_REFERENCES, REFERENCE_MAX_WIDTH, REFERENCE_REFRESH_DAYS } from './driverReferences.js';
 
 const ok = (same: 'da' | 'nesigur' | 'nu', confidence: number) => ({ verdict: 'OK' as const, same, confidence, reason: 'x' });
 
@@ -103,5 +103,24 @@ describe('referenceNeedsRefresh', () => {
     expect(referenceNeedsRefresh(full, '2026-09-14')).toBe(false);
     const old = new Date(Date.parse('2026-09-13') + REFERENCE_REFRESH_DAYS * 86_400_000).toISOString().slice(0, 10);
     expect(referenceNeedsRefresh(full, old)).toBe(true);
+  });
+});
+
+describe('shrinkReference', () => {
+  it('micșorează un JPEG mare la lățimea de referință', async () => {
+    const sharp = (await import('sharp')).default;
+    const big = await sharp({ create: { width: 1280, height: 1700, channels: 3, background: '#888888' } }).jpeg().toBuffer();
+    const small = await shrinkReference(big);
+    const meta = await sharp(small).metadata();
+    expect(meta.width).toBe(REFERENCE_MAX_WIDTH);
+    expect(small.length).toBeLessThan(big.length);
+  });
+
+  it('nu mărește o poză deja mică și întoarce originalul când nu e imagine', async () => {
+    const sharp = (await import('sharp')).default;
+    const tiny = await sharp({ create: { width: 300, height: 400, channels: 3, background: '#888888' } }).jpeg().toBuffer();
+    expect((await sharp(await shrinkReference(tiny)).metadata()).width).toBe(300);
+    const garbage = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
+    expect(await shrinkReference(garbage)).toBe(garbage);
   });
 });

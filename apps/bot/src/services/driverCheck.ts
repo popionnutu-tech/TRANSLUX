@@ -15,7 +15,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { config } from '../config.js';
 
-export const DRIVER_CHECK_MODEL = 'claude-opus-5';
+export const DRIVER_CHECK_MODEL = 'claude-sonnet-5';
 
 /** Ce trebuie să se vadă în poză; e și hint-ul din aplicație, și mesajul la REFA_POZA. */
 export const DRIVER_FRAME_HINT = 'Șoferul din față, întreg: să se vadă încălțămintea și capul';

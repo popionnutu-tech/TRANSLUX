@@ -28,7 +28,8 @@ import {
   type UsableDriverPhoto,
 } from './db.js';
 import { compareDriverIdentity, isReferenceWorthy } from './driverIdentity.js';
-import { copyReportPhoto, downloadReportPhoto, removeReportPhotos } from './photoStorage.js';
+import sharp from 'sharp';
+import { downloadReportPhoto, removeReportPhotos, uploadReportPhoto } from './photoStorage.js';
 
 export const MAX_REFERENCES = 4;
 export const REFERENCE_REFRESH_DAYS = 7;
@@ -36,6 +37,23 @@ export const REFERENCE_REFRESH_DAYS = 7;
 export const BOOTSTRAP_CANDIDATES = 5;
 
 export const REFERENCE_PREFIX = 'soferi-referinta';
+
+/**
+ * Referințele se păstrează micșorate la această lățime (Ion, 19.09: cost). Poza de
+ * azi merge întreagă (1280 px), doar etaloanele se micșorează: ~2,5× mai puțini
+ * tokeni pe referință. Fața rămâne de ~60–80 px, destul pentru comparație.
+ */
+export const REFERENCE_MAX_WIDTH = 800;
+
+/** Micșorează un JPEG pentru referință; la orice eroare întoarce originalul (mai bine mare decât lipsă). */
+export async function shrinkReference(jpeg: Buffer, width = REFERENCE_MAX_WIDTH): Promise<Buffer> {
+  try {
+    return await sharp(jpeg).rotate().resize({ width, withoutEnlargement: true }).jpeg({ quality: 80 }).toBuffer();
+  } catch (err) {
+    console.warn('[driver-ref] micșorarea a picat, rămâne originalul:', err instanceof Error ? err.message : err);
+    return jpeg;
+  }
+}
 
 export function referenceStorageKey(driverId: string, checkId: string): string {
   return `${REFERENCE_PREFIX}/${driverId}/${checkId}.jpg`;
@@ -67,8 +85,8 @@ export interface ReferenceSource {
 }
 
 /**
- * Copiază poza la referințe și scrie rândul; peste MAX_REFERENCES, cele mai vechi
- * ies. Nu aruncă: o referință nepusă nu strică poza de la peron.
+ * Micșorează poza, o urcă la referințe și scrie rândul; peste MAX_REFERENCES, cele
+ * mai vechi ies. Nu aruncă: o referință nepusă nu strică poza de la peron.
  */
 export async function addDriverReference(
   driverId: string,
@@ -77,8 +95,10 @@ export async function addDriverReference(
 ): Promise<boolean> {
   const key = referenceStorageKey(driverId, check.id);
   try {
-    const copied = await copyReportPhoto(check.storage_key, key);
-    if (!copied) return false;
+    const original = await downloadReportPhoto(check.storage_key);
+    if (!original) return false;
+    const uploaded = await uploadReportPhoto(key, await shrinkReference(original), { upsert: true });
+    if (!uploaded) return false;
     await insertDriverReference({ driver_id: driverId, storage_key: key, source_check_id: check.id, check_date: check.check_date, source });
     await pruneReferences(driverId);
     return true;

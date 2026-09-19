@@ -18,7 +18,7 @@ import type { ReportSource } from '@translux/db';
 import { createCleaningCheck, type CleaningSlot, type CleaningZone, type CleaningVerdict } from './db.js';
 import { uploadReportPhoto } from './photoStorage.js';
 
-const MODEL = 'claude-opus-5';
+const MODEL = 'claude-sonnet-5';
 
 export const CLEANING_ZONES: CleaningZone[] = ['PERON', 'PIETONI', 'VECEU'];
 

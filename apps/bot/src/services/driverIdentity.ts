@@ -12,13 +12,15 @@
 //      același verdict trece, rămâne marcată și adminul primește poza (driverPhoto.ts);
 //   3. modelul căzut sau răspuns stricat → EROARE → poza trece fără verdict.
 //
-// Probă pe viu (19.09, 4 șoferi, 9 perechi, Opus 5): 4× «da», 1× «nesigur» pe
-// același om; 4× «nu» (0,72–0,82) pe alt om; zero refuzuri. Sonnet 5 a dat «da» pe
-// alt om o dată și «nesigur» de trei ori — de aceea Opus.
+// Probă pe viu (19.09, 4 șoferi, 9 perechi, referințe întregi): Opus 5 — 4× «da»,
+// 1× «nesigur» pe același om, 4× «nu» pe alt om; Sonnet 5 — un «da» pe alt om și
+// trei «nesigur». Ion (19.09, seara) a ales totuși Sonnet 5 + referințe micșorate
+// la 800 px (driverReferences.ts) pentru cost: ~5× mai ieftin. Vezi memoria
+// proiectului pentru rezultatele testului cu referințe mici.
 import Anthropic from '@anthropic-ai/sdk';
 import { config } from '../config.js';
 
-export const DRIVER_IDENTITY_MODEL = 'claude-opus-5';
+export const DRIVER_IDENTITY_MODEL = 'claude-sonnet-5';
 
 /** «nu» sub această încredere nu refuză poza (trece ca «nesigur»). */
 export const IDENTITY_BLOCK_CONFIDENCE = 0.6;

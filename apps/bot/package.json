@@ -15,7 +15,8 @@
     "@supabase/supabase-js": "^2.45.0",
     "@translux/db": "*",
     "dotenv": "^16.4.0",
-    "grammy": "^1.30.0"
+    "grammy": "^1.30.0",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

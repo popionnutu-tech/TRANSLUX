@@ -458,7 +458,7 @@ describe('4. Curățenie de dimineață', () => {
     const res = await cleaningPhoto('DIMINEATA', 'PERON', CLEAN_OK);
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ ok: true, verdict: 'CURAT', problems: [], description: 'Pavaj măturat, coșuri goale.', zonesDone: ['PERON'] });
-    expect(modelCalls.at(-1)).toMatchObject({ model: 'claude-opus-5', hasImage: true });
+    expect(modelCalls.at(-1)).toMatchObject({ model: 'claude-sonnet-5', hasImage: true });
     expect(modelCalls.at(-1)!.userText).toContain('PERON');
   });
 
@@ -492,7 +492,7 @@ describe('4. Curățenie de dimineață', () => {
     expect(rows).toHaveLength(4);
     expect(rows.map((r) => [r.zone, r.verdict])).toEqual([['PERON', 'CURAT'], ['PIETONI', 'ALT_LOC'], ['PIETONI', 'MURDAR'], ['VECEU', 'EROARE']]);
     for (const r of rows) {
-      expect(r).toMatchObject({ check_date: DATE, slot: 'DIMINEATA', source: 'app', created_by_user: IDS.users.vitalie, telegram_file_id: '', model: 'claude-opus-5', location_lat: IN_ZONE.lat, location_lon: IN_ZONE.lon, photo_deleted_at: null });
+      expect(r).toMatchObject({ check_date: DATE, slot: 'DIMINEATA', source: 'app', created_by_user: IDS.users.vitalie, telegram_file_id: '', model: 'claude-sonnet-5', location_lat: IN_ZONE.lat, location_lon: IN_ZONE.lon, photo_deleted_at: null });
       expect(r.storage_key).toMatch(new RegExp(`^curatenie/${DATE}/DIMINEATA/${r.zone}-\\d+\\.jpg$`));
       expect(fake._storage['report-photos'][r.storage_key]).toEqual(JPEG);
     }
@@ -549,7 +549,7 @@ describe('4b. Poza operatorului la deschiderea turei (Ion, 14.09)', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
       id: res.body.operatorCheckId, check_date: DATE, user_id: IDS.users.vitalie, person_visible: true,
-      uniform_ok: true, shaved_ok: true, groomed_ok: false, model: 'claude-opus-5',
+      uniform_ok: true, shaved_ok: true, groomed_ok: false, model: 'claude-sonnet-5',
       location_lat: IN_ZONE.lat, location_lon: IN_ZONE.lon, photo_deleted_at: null,
     });
     expect(rows[0].storage_key).toMatch(new RegExp(`^operator/${DATE}/${IDS.users.vitalie}-\\d+\\.jpg$`));
@@ -616,7 +616,7 @@ describe('5. Poza șoferului', () => {
     expect(removed[1]).toMatch(new RegExp(`^soferi/${DATE}/${T('06:55')}-\\d+\\.jpg$`));
     expect(Object.keys(fake._storage['report-photos']).filter((k) => k.startsWith('soferi/'))).toEqual(before);
     // modelul a fost chemat cu poza și cu cerința de cadru
-    expect(modelCalls.at(-1)).toMatchObject({ model: 'claude-opus-5', hasImage: true });
+    expect(modelCalls.at(-1)).toMatchObject({ model: 'claude-sonnet-5', hasImage: true });
     expect(modelCalls.at(-1)!.userText).toContain('încălțăminte');
   });
 
@@ -643,7 +643,7 @@ describe('5. Poza șoferului', () => {
       uniform_ok: true,
       groomed_ok: false,
       description: 'uniformă: da · bărbierit: nu · aspect: da · Cămașă TRANSLUX, nebărbierit.',
-      model: 'claude-opus-5',
+      model: 'claude-sonnet-5',
       location_lat: IN_ZONE.lat,
       location_lon: IN_ZONE.lon,
       created_by_user: IDS.users.vitalie,

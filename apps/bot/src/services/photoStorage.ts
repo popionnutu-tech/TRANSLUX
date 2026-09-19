@@ -6,10 +6,10 @@ import { getSupabase } from '../supabase.js';
 export const REPORT_PHOTOS_BUCKET = 'report-photos';
 
 /** Urcă un JPEG; nu aruncă (linia din tabel e mai importantă decât fișierul). */
-export async function uploadReportPhoto(storageKey: string, jpeg: Buffer): Promise<boolean> {
+export async function uploadReportPhoto(storageKey: string, jpeg: Buffer, opts: { upsert?: boolean } = {}): Promise<boolean> {
   const { error } = await getSupabase()
     .storage.from(REPORT_PHOTOS_BUCKET)
-    .upload(storageKey, jpeg, { contentType: 'image/jpeg' });
+    .upload(storageKey, jpeg, { contentType: 'image/jpeg', upsert: opts.upsert === true });
   if (error) {
     console.error(`[photos] upload ${storageKey}:`, error.message);
     return false;

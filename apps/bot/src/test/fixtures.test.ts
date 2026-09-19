@@ -225,7 +225,7 @@ describe('modelul fals', () => {
     const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0x00]).toString('base64');
     nextModelAnswer({ json: { loc_corect: true, verdict: 'CURAT', probleme: [], descriere: 'Pavaj măturat.' } });
     expect(await analyzeCleaningPhoto('PERON', jpeg)).toEqual({ verdict: 'CURAT', problems: [], description: 'Pavaj măturat.' });
-    expect(modelCalls.at(-1)).toMatchObject({ model: 'claude-opus-5', hasImage: true });
+    expect(modelCalls.at(-1)).toMatchObject({ model: 'claude-sonnet-5', hasImage: true });
     expect(modelCalls.at(-1)?.userText).toContain('PERON');
 
     nextModelAnswer({ json: { loc_corect: true, verdict: 'MURDAR', probleme: ['praf pe pavaj', 'mucuri la stâlp'], descriere: 'Nemăturat.' } });

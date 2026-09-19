@@ -1,6 +1,6 @@
 import { getSupabase } from '../supabase';
 import { sendTelegram, sendTelegramPhoto } from '../telegram-notify';
-import { generateLivrareImage, LEI_PE_KM, UZINA_SCURT, type LivrareRow, type BramburaRow } from './naveta-image';
+import { generateLivrareImage, LEI_PE_KM, leiPeKm, UZINA_SCURT, type LivrareRow, type BramburaRow } from './naveta-image';
 
 /**
  * Posterul de LIVRARE (подача) pe rutele de uzină, la două săptămâni, în grupa Telegram.
@@ -53,6 +53,7 @@ export function agregaLivrare(input: {
   soferi: Map<string, string>;                     // `${vehicle_id}|${factory_route_id}` → «Popescu»
   case: Map<string, string>;                       // vehicle_id → sat
   masini?: Map<string, string>;                    // vehicle_id → «552BRAO · Sprinter 312»
+  leiKm?: Map<string, number>;                     // vehicle_id → lei/km după tipul mașinii
   prag?: number;
   minZile?: number;
 }): LivrareRow[] {
@@ -93,6 +94,7 @@ export function agregaLivrare(input: {
     }).filter((x, i, a) => a.indexOf(x) === i).slice(0, 2).join(', ');
     out.push({
       masina: input.masini?.get(masini[0]) ?? '—',
+      lei_km: input.leiKm?.get(masini[0]) ?? LEI_PE_KM,
       uzina: r.uzina_id, ruta: r.route_number, start: primulSat(r.stops_in_order),
       start_real: input.startReal.get(rid) ?? null, sofer, zile: n,
       km_tur: tururi ? Math.round(plinTur / tururi) : null,
@@ -229,13 +231,16 @@ export async function incarcaLivrare(from: string, to: string, prag = PRAG_LIVRA
     citesteTot<{ id: string; full_name: string }>(() => sb.from('drivers').select('id,full_name')),
     citesteTot<{ id: string; plate_number: string }>(() => sb.from('vehicles').select('id,plate_number')),
     citesteTot<{ vehicle_id: string; vehicle_type_id: string | null }>(() => sb.from('lde_vehicle_norms').select('vehicle_id,vehicle_type_id')),
-    citesteTot<{ id: string; display_name: string }>(() => sb.from('lde_vehicle_types').select('id,display_name')),
+    citesteTot<{ id: string; display_name: string; category: string | null }>(() => sb.from('lde_vehicle_types').select('id,display_name,category')),
   ]);
   const numeSofer = new Map(soferiRows.map((d) => [d.id, d.full_name.split(' ')[0]]));
   // «552BRAO · Sprinter 312» — tipul din normele de consum (lde_vehicle_types), unde există
   const numeTip = new Map(tipuri.map((t) => [t.id, t.display_name]));
   const tipMasinii = new Map(norme.filter((n) => n.vehicle_type_id).map((n) => [n.vehicle_id, numeTip.get(n.vehicle_type_id!)]));
   const masiniMap = new Map(vehicule.map((v) => [v.id, tipMasinii.get(v.id) ? `${v.plate_number} · ${tipMasinii.get(v.id)}` : v.plate_number]));
+  // lei/km după categoria tipului (autobuz_mare / autobuz_mic → autobuz; microbuz)
+  const categorieTip = new Map(tipuri.map((t) => [t.id, t.category]));
+  const leiKmMap = new Map(norme.filter((n) => n.vehicle_type_id).map((n) => [n.vehicle_id, leiPeKm(categorieTip.get(n.vehicle_type_id!))]));
   const soferZi = new Map<string, string>();
   for (const a of atribuiri) if (a.driver_id && numeSofer.has(a.driver_id)) soferZi.set(`${a.vehicle_id}|${a.date}`, numeSofer.get(a.driver_id)!);
   const startReal = new Map<string, string>();
@@ -255,7 +260,7 @@ export async function incarcaLivrare(from: string, to: string, prag = PRAG_LIVRA
   for (const [k, v] of caseMap) if (/slobozia doamnei|nordic|bucuria|centru|mitoc/i.test(v)) caseMap.set(k, 'Orhei');
   const ruteAlese = uzine === 'all' ? rute : rute.filter((r) => uzine.includes(r.uzina_id));
   return {
-    rows: agregaLivrare({ curse, rute: ruteAlese, startReal, soferi: soferiMap, case: caseMap, masini: masiniMap, prag }),
+    rows: agregaLivrare({ curse, rute: ruteAlese, startReal, soferi: soferiMap, case: caseMap, masini: masiniMap, leiKm: leiKmMap, prag }),
     brambura: await cuDescriere(agregaBrambura({ curse, rute: ruteAlese, masini: masiniMap, soferZi }), ruteAlese, atribuiri, caseMap, curse),
   };
 }
@@ -315,13 +320,13 @@ export async function generarePoster(from: string, to: string, prag = PRAG_LIVRA
 export function textulEconomiei(rows: LivrareRow[], from: string, to: string): string {
   const nr = (v: number) => Math.round(v).toLocaleString('ro-RO');
   const km = rows.reduce((s, r) => s + r.naveta_total, 0);
-  const lei = km * LEI_PE_KM;
+  const lei = rows.reduce((s, r) => s + r.naveta_total * (r.lei_km ?? LEI_PE_KM), 0);
   const zile = Math.max(1, ...rows.map((r) => r.zile));
   const peLuna = (lei / zile) * 22;
   const uzine = [...new Set(rows.map((r) => UZINA_SCURT[r.uzina] ?? r.uzina))].join(' + ');
   const linii = rows.slice(0, 5).map((r) => {
     const start = r.start_real && r.start_real.toLowerCase() !== r.start.toLowerCase() ? r.start_real : r.start;
-    return `• <b>${r.sofer.split(',')[0]}</b>, ruta ${UZINA_SCURT[r.uzina] ?? r.uzina} ${r.ruta} ${r.start}: ${nr(r.naveta_zi)} km/zi în afara rutei — ${nr(r.naveta_total)} km, ${nr(r.naveta_total * LEI_PE_KM)} lei; un șofer din ${start} i-ar face 0`;
+    return `• <b>${r.sofer.split(',')[0]}</b>, ruta ${UZINA_SCURT[r.uzina] ?? r.uzina} ${r.ruta} ${r.start}: ${nr(r.naveta_zi)} km/zi în afara rutei — ${nr(r.naveta_total)} km, ${nr(r.naveta_total * (r.lei_km ?? LEI_PE_KM))} lei; un șofer din ${start} i-ar face 0`;
   });
   return [
     `<b>Livrare (подача) ${ddmm(from)} – ${ddmm(to)} · ${uzine}</b>`,

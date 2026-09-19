@@ -14,7 +14,13 @@ import { fonts, logoBase64, textPath, truncText } from '../schedule-image';
  * fără brambura și fără drumurile la service. Economia = naveta × LEI_PE_KM: cu un
  * șofer din satul de start, drumul ăsta nu mai există.
  */
-export const LEI_PE_KM = 6.11;   // costul pe km folosit în toată analiza (docs/logica-business-trasee.md)
+// Costul pe km, pe tipul mașinii — Ion, 19.09: «la autobuze economia e cam 5,10 lei/km,
+// la busuri (cele de 20 de locuri) cam 5 lei/km». Categoria vine din lde_vehicle_types.
+export const LEI_PE_KM_AUTOBUZ = 5.10;
+export const LEI_PE_KM_MICROBUZ = 5.00;
+export const LEI_PE_KM = LEI_PE_KM_MICROBUZ;   // implicit, când tipul mașinii nu e cunoscut
+export const leiPeKm = (categorie: string | null | undefined): number =>
+  categorie && /autobuz/i.test(categorie) ? LEI_PE_KM_AUTOBUZ : LEI_PE_KM_MICROBUZ;
 
 export interface BramburaRow {
   vehicle_id?: string;
@@ -40,6 +46,7 @@ export interface LivrareRow {
   gol_ruta_zi: number;
   naveta_zi: number;
   naveta_total: number;   // pe toată perioada
+  lei_km?: number;        // costul pe km al mașinii principale (autobuz 5,10 / microbuz 5,00)
 }
 
 export const UZINA_SCURT: Record<string, string> = {
@@ -105,7 +112,7 @@ export async function generateLivrareImage(rows: LivrareRow[], opts: { titlu: st
   const logoW = logoH * (1318 / 192);
   svg.push(`<image href="data:image/png;base64,${logoBase64()}" x="${(CANVAS_W - logoW) / 2}" y="${PAD}" width="${logoW}" height="${logoH}"/>`);
   svg.push(textPath(fB, `${opts.titlu} · ${opts.perioada}`, CANVAS_W / 2, LOGO_AREA + 16 * S, 17 * S, MAROON_DK, 'middle'));
-  svg.push(textPath(fR, `Livrare (подача) = km-ii șoferului în afara rutei (casă – satul de start), fără service și fără drumuri neobișnuite · Economie = livrare × ${LEI_PE_KM.toFixed(2).replace('.', ',')} lei/km · ${opts.zileLucratoare} zile lucrătoare`, CANVAS_W / 2, LOGO_AREA + TITLE_H + 10 * S, 10.5 * S, GREY, 'middle'));
+  svg.push(textPath(fR, `Livrare (подача) = km-ii șoferului în afara rutei (casă – satul de start), fără service și fără drumuri neobișnuite · Economie = livrare × ${LEI_PE_KM_AUTOBUZ.toFixed(2).replace('.', ',')} lei/km la autobuz, ${LEI_PE_KM_MICROBUZ.toFixed(2).replace('.', ',')} la microbuz · ${opts.zileLucratoare} zile lucrătoare`, CANVAS_W / 2, LOGO_AREA + TITLE_H + 10 * S, 10.5 * S, GREY, 'middle'));
   svg.push(textPath(fR, 'Rută = de la satul de start până la uzină · Goi pe rută = întoarcerile goale între sat și poartă, impuse de turele uzinei — nu se optimizează', CANVAS_W / 2, LOGO_AREA + TITLE_H + SUB_H + 6 * S, 9.5 * S, GREY, 'middle'));
 
   const top = headerH;
@@ -118,14 +125,14 @@ export async function generateLivrareImage(rows: LivrareRow[], opts: { titlu: st
     svg.push(textPath(fB, c.title, tx, top + TH_H / 2 + 4 * S, 10.5 * S, '#fff', c.align));
     cx += w;
   }
-  let sumNaveta = 0, sumPlin = 0, sumTotal = 0;
+  let sumNaveta = 0, sumLei = 0, sumPlin = 0, sumTotal = 0;
   rows.forEach((row, i) => {
     const y = top + TH_H + i * ROW_H;
     svg.push(`<rect x="${x0}" y="${y}" width="${TABLE_W}" height="${ROW_H}" fill="${ROW_BG[i % 2]}"/>`);
     const textY = y + ROW_H / 2 + 4.2 * S;
     const fsz = 11.5 * S;
-    const lei = row.naveta_total * LEI_PE_KM;
-    sumNaveta += row.naveta_total; sumPlin += row.plin_zi; sumTotal += row.total_zi;
+    const lei = row.naveta_total * (row.lei_km ?? LEI_PE_KM);
+    sumNaveta += row.naveta_total; sumLei += lei; sumPlin += row.plin_zi; sumTotal += row.total_zi;
     const uz = (UZINA_SCURT[row.uzina] ?? row.uzina) + ' ';
     const numeRuta = `${uz}${row.ruta} ${row.start}` + (row.start_real && row.start_real.toLowerCase() !== row.start.toLowerCase() ? ` – ${row.start_real}` : '');
     const mare = row.naveta_zi >= 50;
@@ -153,7 +160,7 @@ export async function generateLivrareImage(rows: LivrareRow[], opts: { titlu: st
   svg.push(`<rect x="${x0}" y="${top}" width="${TABLE_W}" height="${TH_H + rows.length * ROW_H}" fill="none" stroke="${MAROON}" stroke-opacity="0.35" stroke-width="${S}"/>`);
 
   const fy = top + TH_H + rows.length * ROW_H + 14 * S;
-  svg.push(textPath(fB, `Total livrare: ${nr(sumNaveta)} km în ${opts.zileLucratoare} zile = ${nr(sumNaveta * LEI_PE_KM)} lei`, PAD, fy + 4 * S, 12 * S, MAROON_DK, 'start'));
+  svg.push(textPath(fB, `Total livrare: ${nr(sumNaveta)} km în ${opts.zileLucratoare} zile = ${nr(sumLei)} lei`, PAD, fy + 4 * S, 12 * S, MAROON_DK, 'start'));
   svg.push(textPath(fR, `Plin ${nr(sumPlin)} km/zi din ${nr(sumTotal)} km/zi pe zonă`, CANVAS_W - PAD, fy + 4 * S, 12 * S, GREY, 'end'));
   svg.push(textPath(fR, 'Cifrele vin din urma GPS a fiecărei mașini, pe fiecare cursă; roșu = peste 50 km livrare pe zi — aici un șofer din satul de start schimbă cel mai mult', PAD, fy + 20 * S, 9.5 * S, GREY, 'start'));
 

@@ -359,11 +359,15 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
     // primul sat de unde urcă». Satul de start REAL (dedus din opririle care se repetă, pe
     // schimb) bate satul din denumire: ruta 2 «Cișmea» pleacă în schimbul 1 din Crihana.
     const real = loculNumit(ctx.satStartReal?.get(`${rid}|${sh}`), seg);
-    if (real && seg && imparteLaSat(seg, r.pts, r.calc, real)) return real;
     const numit = loculNumit((ctx.sateRuta.get(rid) ?? [])[0], seg);
     if (!seg) return real ?? numit;
-    if (numit && imparteLaSat(seg, r.pts, r.calc, numit)) return numit;
     const poarta = (ctx.porti.get(ctx.uzinaRutei.get(rid)) ?? [])[0];
+    // Când drumul intră și în satul din nume, și în cel dedus, câștigă cel MAI DEPĂRTAT de
+    // poartă: startul real poate doar să lungească ruta (Cișmea → Crihana), nu s-o scurteze.
+    // Altfel la ruta 9 «Mihailovca» startul dedus ieșea Prepelița — opririle lui Maliovanii
+    // în satul lui sunt lângă casă și se exclud — și Mihailovca → Prepelița devenea „navetă".
+    const intra = [real, numit].filter((loc) => loc && imparteLaSat(seg, r.pts, r.calc, loc));
+    if (intra.length) return intra.reduce((b, p) => (poarta && hav(p, poarta) > hav(b, poarta) ? p : b));
     for (const nume of ctx.sateEtalonTur?.get(rid) ?? []) {
       const loc = loculNumit(nume, seg);
       if (!loc || (poarta && hav(loc, poarta) <= RAZA_LANGA_POARTA_KM)) continue;

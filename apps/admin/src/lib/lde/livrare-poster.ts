@@ -27,6 +27,7 @@ export interface CursaLivrare {
   factory_route_id: string;
   vehicle_id: string;
   sens: 'tur' | 'retur';
+  shift_number?: number;
   km_real: number | null;
   km_livrare: number | null;
   km_brambura: number | null;
@@ -149,7 +150,8 @@ const normSat = (s: string) => s.toLowerCase().replace(/ă|â/g, 'a').replace(/�
  * localitate: prima sosire – ultima plecare. Casa apare marcată «(acasă)»: pauza lungă
  * acasă e de multe ori tot excesul zilei.
  */
-export function descrieZiua(opriri: OprireZi[], sateRute: Set<string>, hh: (iso: string) => string, casa?: string | null): string {
+export function descrieZiua(opriri: OprireZi[], sateRute: Set<string>, hh: (iso: string) => string, casa?: string | null,
+  drumuri?: CursaLivrare[]): string {
   const kCasa = casa ? normSat(casa) : null;
   const la = (s: OprireZi) => s.departure_at ?? s.arrival_at;
   const minute = (s: OprireZi) => Math.max(0, (Date.parse(la(s)) - Date.parse(s.arrival_at)) / 60000);
@@ -175,8 +177,16 @@ export function descrieZiua(opriri: OprireZi[], sateRute: Set<string>, hh: (iso:
   const alese = episoade.filter((e) => e.min >= 3).sort((a, b) => b.min - a.min).slice(0, 3)
     .sort((a, b) => a.de.localeCompare(b.de));
   if (alese.length) return alese.map((e) => `${e.nume} ${hh(e.de)}–${hh(e.la)}`).join(' · ');
-  if (pauzaAcasa) return `acasă${casa ? ` (${casa})` : ''} ${hh(pauzaAcasa.de)}–${hh(pauzaAcasa.la)}, nimic în afara rutei`;
-  return '';
+  // Nimic străin pe urmă: km-ii nu s-au făcut ACASĂ, ci pe drumul în plus până acasă și
+  // înapoi între ture (Ion, 19.09: «cum pot face km acasă? scrie pe unde au mers»). Se
+  // spun drumurile zilei cu km în afara rutei și pauza de acasă dintre ele.
+  const drumuriInPlus = (drumuri ?? [])
+    .filter((c) => (Number(c.km_livrare) || 0) >= 10)
+    .sort((a, b) => (a.shift_number ?? 0) - (b.shift_number ?? 0) || a.sens.localeCompare(b.sens))
+    .map((c) => `${c.sens}${c.shift_number ? ` s${c.shift_number}` : ''} +${Math.round(Number(c.km_livrare))} km`);
+  const acasa = pauzaAcasa ? `acasă${casa ? ` (${casa})` : ''} ${hh(pauzaAcasa.de)}–${hh(pauzaAcasa.la)}` : '';
+  if (drumuriInPlus.length) return `drum în plus ${casa ? `${casa} ↔ rută` : 'până acasă și înapoi'}: ${drumuriInPlus.join(', ')}${acasa ? `; ${acasa}` : ''}`;
+  return acasa ? `${acasa}, nimic în afara rutei` : '';
 }
 
 /** Cadența: din 14 în 14 zile, luni, începând cu PRIMA_LUNI_CADENTA; acoperă cele 14 zile dinainte. */
@@ -204,7 +214,7 @@ export async function incarcaLivrare(from: string, to: string, prag = PRAG_LIVRA
   const sb = getSupabase();
   const [curse, rute, etaloane, atribuiri, nopti, soferiRows, vehicule, norme, tipuri] = await Promise.all([
     citesteTot<CursaLivrare>(() => sb.from('lde_route_run')
-      .select('run_date,factory_route_id,vehicle_id,sens,km_real,km_livrare,km_brambura,km_service,km_gol_ruta')
+      .select('run_date,factory_route_id,vehicle_id,sens,shift_number,km_real,km_livrare,km_brambura,km_service,km_gol_ruta')
       .gte('run_date', from).lte('run_date', to).not('km_real', 'is', null)),
     citesteTot<RutaRef>(() => sb.from('lde_factory_routes').select('id,uzina_id,route_number,stops_in_order').eq('active', true)),
     citesteTot<{ factory_route_id: string; sat_start_real: string | null }>(() => sb.from('lde_route_etalon')
@@ -243,7 +253,7 @@ export async function incarcaLivrare(from: string, to: string, prag = PRAG_LIVRA
   const ruteAlese = uzine === 'all' ? rute : rute.filter((r) => uzine.includes(r.uzina_id));
   return {
     rows: agregaLivrare({ curse, rute: ruteAlese, startReal, soferi: soferiMap, case: caseMap, masini: masiniMap, prag }),
-    brambura: await cuDescriere(agregaBrambura({ curse, rute: ruteAlese, masini: masiniMap, soferZi }), ruteAlese, atribuiri, caseMap),
+    brambura: await cuDescriere(agregaBrambura({ curse, rute: ruteAlese, masini: masiniMap, soferZi }), ruteAlese, atribuiri, caseMap, curse),
   };
 }
 
@@ -253,6 +263,7 @@ async function cuDescriere(
   rute: RutaRef[],
   atribuiri: { date: string; vehicle_id: string; factory_route_id: string }[],
   casa: Map<string, string>,
+  curse: CursaLivrare[] = [],
 ): Promise<BramburaRow[]> {
   if (!brambura.length) return brambura;
   const sb = getSupabase();
@@ -273,7 +284,8 @@ async function cuDescriere(
       .eq('vehicle_id', vid).eq('date', b.data).not('locality', 'is', null).order('arrival_at');
     const sate = new Set<string>();
     for (const a of atribuiri) if (a.vehicle_id === vid && a.date === b.data) for (const s of sateRutei.get(a.factory_route_id) ?? []) sate.add(s);
-    out.push({ ...b, unde: descrieZiua((opriri ?? []) as OprireZi[], sate, hh, casa.get(vid) ?? null) });
+    const drumuri = curse.filter((c) => c.vehicle_id === vid && c.run_date === b.data);
+    out.push({ ...b, unde: descrieZiua((opriri ?? []) as OprireZi[], sate, hh, casa.get(vid) ?? null, drumuri) });
   }
   return out;
 }

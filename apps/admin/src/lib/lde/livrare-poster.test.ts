@@ -86,6 +86,14 @@ describe('descrieZiua', () => {
       { locality: 'Bucuria', arrival_at: '2026-09-03T15:35:00Z', departure_at: '2026-09-03T15:47:00Z', is_base: false },
     ];
     expect(descrieZiua(opriri, new Set(), hh, 'Ghindești')).toBe('acasă (Ghindești) 07:12–12:03, nimic în afara rutei');
+    // cu drumurile zilei: km-ii sunt pe drumul în plus până acasă și înapoi, nu «acasă»
+    const drumuri = [
+      cursa({ sens: 'retur', shift_number: 1, km_livrare: 47 }),
+      cursa({ sens: 'tur', shift_number: 3, km_livrare: 46 }),
+      cursa({ sens: 'tur', shift_number: 1, km_livrare: 2 }),
+    ];
+    expect(descrieZiua(opriri, new Set(), hh, 'Ghindești', drumuri))
+      .toBe('drum în plus Ghindești ↔ rută: retur s1 +47 km, tur s3 +46 km; acasă (Ghindești) 07:12–12:03');
   });
 });
 

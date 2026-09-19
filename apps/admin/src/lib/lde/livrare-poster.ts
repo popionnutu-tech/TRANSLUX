@@ -149,20 +149,34 @@ const normSat = (s: string) => s.toLowerCase().replace(/ă|â/g, 'a').replace(/�
  * localitate: prima sosire – ultima plecare. Casa apare marcată «(acasă)»: pauza lungă
  * acasă e de multe ori tot excesul zilei.
  */
-export function descrieZiua(opriri: OprireZi[], sateRute: Set<string>, hh: (iso: string) => string): string {
-  const pe = new Map<string, { de: string; la: string; min: number }>();
-  for (const s of opriri) {
+export function descrieZiua(opriri: OprireZi[], sateRute: Set<string>, hh: (iso: string) => string, casa?: string | null): string {
+  const kCasa = casa ? normSat(casa) : null;
+  const la = (s: OprireZi) => s.departure_at ?? s.arrival_at;
+  const minute = (s: OprireZi) => Math.max(0, (Date.parse(la(s)) - Date.parse(s.arrival_at)) / 60000);
+  // EPISOADE: opriri consecutive în aceeași localitate, în afara rutei și în afara satului
+  // de casă — nu «toate opririle din Bălți din zi», ci «Bălți 08:43–10:36». Casa nu se
+  // unește peste zi: oprirea de noapte începe la 03:00 și se termină la 02:59, adică nimic.
+  const episoade: { nume: string; de: string; la: string; min: number }[] = [];
+  let pauzaAcasa: { de: string; la: string; min: number } | null = null;
+  for (const s of [...opriri].sort((a, b) => a.arrival_at.localeCompare(b.arrival_at))) {
     const k = normSat(s.locality);
-    if (CARTIERE_ORHEI.has(k) || (!s.is_base && sateRute.has(k))) continue;
-    const nume = s.is_base ? `${s.locality} (acasă)` : s.locality;
-    const la = s.departure_at ?? s.arrival_at;
-    const min = Math.max(0, (Date.parse(la) - Date.parse(s.arrival_at)) / 60000);
-    const cur = pe.get(nume);
-    if (!cur) pe.set(nume, { de: s.arrival_at, la, min });
-    else { if (s.arrival_at < cur.de) cur.de = s.arrival_at; if (la > cur.la) cur.la = la; cur.min += min; }
+    const eAcasa = s.is_base || (kCasa != null && k === kCasa);
+    if (eAcasa) {
+      const m = minute(s);
+      if (m >= 30 && (!pauzaAcasa || m > pauzaAcasa.min)) pauzaAcasa = { de: s.arrival_at, la: la(s), min: m };
+      continue;
+    }
+    if (CARTIERE_ORHEI.has(k) || sateRute.has(k)) continue;
+    const ultim = episoade[episoade.length - 1];
+    if (ultim && ultim.nume === s.locality && Date.parse(s.arrival_at) - Date.parse(ultim.la) < 60 * 60000) {
+      ultim.la = la(s); ultim.min += minute(s);
+    } else episoade.push({ nume: s.locality, de: s.arrival_at, la: la(s), min: minute(s) });
   }
-  return [...pe.entries()].sort((a, b) => b[1].min - a[1].min).slice(0, 3)
-    .map(([nume, v]) => `${nume} ${hh(v.de)}–${hh(v.la)}`).join(' · ');
+  const alese = episoade.filter((e) => e.min >= 3).sort((a, b) => b.min - a.min).slice(0, 3)
+    .sort((a, b) => a.de.localeCompare(b.de));
+  if (alese.length) return alese.map((e) => `${e.nume} ${hh(e.de)}–${hh(e.la)}`).join(' · ');
+  if (pauzaAcasa) return `acasă${casa ? ` (${casa})` : ''} ${hh(pauzaAcasa.de)}–${hh(pauzaAcasa.la)}, nimic în afara rutei`;
+  return '';
 }
 
 /** Cadența: din 14 în 14 zile, luni, începând cu PRIMA_LUNI_CADENTA; acoperă cele 14 zile dinainte. */
@@ -229,16 +243,16 @@ export async function incarcaLivrare(from: string, to: string, prag = PRAG_LIVRA
   const ruteAlese = uzine === 'all' ? rute : rute.filter((r) => uzine.includes(r.uzina_id));
   return {
     rows: agregaLivrare({ curse, rute: ruteAlese, startReal, soferi: soferiMap, case: caseMap, masini: masiniMap, prag }),
-    brambura: await cuDescriere(agregaBrambura({ curse, rute: ruteAlese, masini: masiniMap, soferZi }), curse, ruteAlese, atribuiri),
+    brambura: await cuDescriere(agregaBrambura({ curse, rute: ruteAlese, masini: masiniMap, soferZi }), ruteAlese, atribuiri, caseMap),
   };
 }
 
 /** Umple `unde` pentru fiecare (mașină, zi) din listă, cu opririle zilei din lde_gps_stops. */
 async function cuDescriere(
   brambura: BramburaRow[],
-  curse: CursaLivrare[],
   rute: RutaRef[],
   atribuiri: { date: string; vehicle_id: string; factory_route_id: string }[],
+  casa: Map<string, string>,
 ): Promise<BramburaRow[]> {
   if (!brambura.length) return brambura;
   const sb = getSupabase();
@@ -259,7 +273,7 @@ async function cuDescriere(
       .eq('vehicle_id', vid).eq('date', b.data).not('locality', 'is', null).order('arrival_at');
     const sate = new Set<string>();
     for (const a of atribuiri) if (a.vehicle_id === vid && a.date === b.data) for (const s of sateRutei.get(a.factory_route_id) ?? []) sate.add(s);
-    out.push({ ...b, unde: descrieZiua((opriri ?? []) as OprireZi[], sate, hh) });
+    out.push({ ...b, unde: descrieZiua((opriri ?? []) as OprireZi[], sate, hh, casa.get(vid) ?? null) });
   }
   return out;
 }

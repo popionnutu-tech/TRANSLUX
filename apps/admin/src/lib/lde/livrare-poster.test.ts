@@ -76,8 +76,16 @@ describe('descrieZiua', () => {
       { locality: 'Vatici', arrival_at: '2026-09-15T05:10:00Z', departure_at: '2026-09-15T05:12:00Z', is_base: false },   // sat al rutei
       { locality: 'Bucuria', arrival_at: '2026-09-15T15:35:00Z', departure_at: '2026-09-15T15:47:00Z', is_base: false },  // cartier Orhei
     ];
-    expect(descrieZiua(opriri, new Set(['vatici', 'curchi']), hh))
-      .toBe('Chiperceni (acasă) 16:06–21:14 · Bălți 08:43–10:36 · Fedoreuca 11:48–12:03');
+    expect(descrieZiua(opriri, new Set(['vatici', 'curchi']), hh, 'Chiperceni'))
+      .toBe('Bălți 08:43–10:36 · Fedoreuca 11:48–12:03');
+  });
+  it('fără nimic în afară: pauza cea mai lungă acasă, cu orele ei', () => {
+    const opriri = [
+      { locality: 'Ghindești', arrival_at: '2026-09-03T00:00:00Z', departure_at: '2026-09-03T04:10:00Z', is_base: true },
+      { locality: 'Ghindești', arrival_at: '2026-09-03T07:12:00Z', departure_at: '2026-09-03T12:03:00Z', is_base: false },
+      { locality: 'Bucuria', arrival_at: '2026-09-03T15:35:00Z', departure_at: '2026-09-03T15:47:00Z', is_base: false },
+    ];
+    expect(descrieZiua(opriri, new Set(), hh, 'Ghindești')).toBe('acasă (Ghindești) 07:12–12:03, nimic în afara rutei');
   });
 });
 

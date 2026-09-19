@@ -255,6 +255,50 @@ async function recalculeazaEtalon() {
   console.log(`curse citite: ${curse.length} (fereastră ${FEREASTRA_ZILE} zile, de la ${deLa})`);
 }
 
+/**
+ * BRAMBURA — Ion, 19.09: «ceva ieșit din comun, unic». Nu se desparte geometric de navetă
+ * (drumul lui Vartic la Chișinău trece pe lângă casa lui din Orhei; naveta lui Popescu
+ * trece prin Orhei, departe și de casă, și de rută), ci se citește ca EXCES: km-ii din
+ * afara rutei ai unei zile, peste ce face aceeași mașină într-o zi obișnuită (mediana
+ * zilelor ei din fereastră), cu o marjă. Excesul se pune pe cursa cu cei mai mulți km în
+ * afara rutei din ziua aia; restul curselor zilei primesc 0. `km_brambura` e subset al
+ * `km_livrare`: naveta = livrare − brambura.
+ */
+const MARJA_BRAMBURA_KM = 15;
+const MIN_ZILE_BRAMBURA = 5;    // sub atâtea zile nu există „obișnuit"
+async function recalculeazaBrambura() {
+  const curse = await fetchAll('lde_route_run', 'id,run_date,vehicle_id,km_livrare,km_brambura',
+    (q) => q.gte('run_date', deLa).not('km_real', 'is', null));
+  const peZi = new Map();
+  for (const c of curse) {
+    const k = `${c.vehicle_id}|${c.run_date}`;
+    if (!peZi.has(k)) peZi.set(k, { vehicle_id: c.vehicle_id, suma: 0, curse: [] });
+    const z = peZi.get(k); z.suma += Number(c.km_livrare) || 0; z.curse.push(c);
+  }
+  const peMasina = new Map();
+  for (const z of peZi.values()) {
+    if (!peMasina.has(z.vehicle_id)) peMasina.set(z.vehicle_id, []);
+    peMasina.get(z.vehicle_id).push(z);
+  }
+  let zileCuExces = 0, scrise = 0;
+  for (const zile of peMasina.values()) {
+    const med = zile.length >= MIN_ZILE_BRAMBURA ? median(zile.map((z) => z.suma)) : null;
+    for (const z of zile) {
+      const exces = med == null ? 0 : Math.max(0, z.suma - med - MARJA_BRAMBURA_KM);
+      const varf = z.curse.reduce((b, c) => (Number(c.km_livrare) > Number(b.km_livrare) ? c : b));
+      if (exces > 0) zileCuExces++;
+      for (const c of z.curse) {
+        const val = c === varf ? +Math.min(exces, Number(c.km_livrare) || 0).toFixed(2) : 0;
+        if (Math.abs(val - (Number(c.km_brambura) || 0)) < 0.01) continue;
+        if (WRITE) await supa.from('lde_route_run').update({ km_brambura: val }).eq('id', c.id);
+        scrise++;
+      }
+    }
+  }
+  console.log(`brambura: ${zileCuExces} zile-mașină cu exces peste mediană + ${MARJA_BRAMBURA_KM} km; ${scrise} curse actualizate`);
+}
+
 console.log(`\n===== etalon-aggregate ${WRITE ? '(SCRIE)' : '(probă)'} · fereastră ${FEREASTRA_ZILE} zile =====\n`);
 await recalculeazaGranite();
 await recalculeazaEtalon();
+await recalculeazaBrambura();

@@ -301,4 +301,58 @@ async function recalculeazaBrambura() {
 console.log(`\n===== etalon-aggregate ${WRITE ? '(SCRIE)' : '(probă)'} · fereastră ${FEREASTRA_ZILE} zile =====\n`);
 await recalculeazaGranite();
 await recalculeazaEtalon();
+/**
+ * SATUL DE START REAL al rutei — Ion, 19.09: «dacă se întâmplă sistematic, zilnic, e rută;
+ * scrii sub denumirea rutei primul sat de unde urcă». Nomenclatorul numește ruta după un
+ * sat care nu e mereu capătul (2 «Cișmea» pleacă zilnic din Ocnița-Răzeși, 18 «Telenești»
+ * din Mîndrești). Se ia, pe fiecare rută, satul cel mai depărtat pe traseu în care
+ * autobuzul OPREȘTE în cel puțin 60% din tururi — fără satul de casă al șoferului, care
+ * e oprire zilnică fără să fie stație. Worker-ul taie livrarea acolo la rularea următoare.
+ */
+const COTA_START_REAL = 0.6;
+async function recalculeazaStartReal() {
+  const tururi = await fetchAll('lde_route_run', 'factory_route_id,vehicle_id,sate_oprire',
+    (q) => q.gte('run_date', deLa).eq('sens', 'tur').gt('km_real', 0).not('sate_oprire', 'is', null));
+  const nopti = await fetchAll('lde_gps_stops', 'vehicle_id,locality',
+    (q) => q.gte('date', deLa).eq('is_base', true).not('locality', 'is', null));
+  const casaMasinii = new Map();
+  { const n = new Map();
+    for (const s of nopti) { const k = `${s.vehicle_id}|${norm(s.locality)}`; n.set(k, (n.get(k) ?? 0) + 1); }
+    for (const [k, c] of n) { const [v, loc] = k.split('|'); if (!casaMasinii.has(v) || casaMasinii.get(v).c < c) casaMasinii.set(v, { loc, c }); } }
+  const peRuta = new Map();
+  for (const t of tururi) {
+    if (!peRuta.has(t.factory_route_id)) peRuta.set(t.factory_route_id, { n: 0, pozitii: new Map(), nume: new Map() });
+    const r = peRuta.get(t.factory_route_id); r.n++;
+    const casa = casaMasinii.get(t.vehicle_id)?.loc;
+    const vazute = new Set();
+    (t.sate_oprire ?? []).forEach((s, i) => {
+      const k = norm(s);
+      if (!k || k === casa || vazute.has(k)) return;
+      vazute.add(k);
+      if (!r.pozitii.has(k)) { r.pozitii.set(k, []); r.nume.set(k, s); }
+      r.pozitii.get(k).push(i);
+    });
+  }
+  let scrise = 0;
+  const rute = await fetchAll('lde_factory_routes', 'id', (q) => q.eq('active', true));
+  for (const { id } of rute) {
+    const r = peRuta.get(id);
+    let ales = null;
+    if (r && r.n >= MIN_OBSERVATII) {
+      let bestPoz = Infinity;
+      for (const [k, poz] of r.pozitii) {
+        if (poz.length / r.n < COTA_START_REAL) continue;
+        const m = median(poz);
+        if (m < bestPoz) { bestPoz = m; ales = r.nume.get(k); }
+      }
+    }
+    if (WRITE) await supa.from('lde_route_etalon').update({ sat_start_real: ales }).eq('factory_route_id', id);
+    if (ales) scrise++;
+  }
+  console.log(`start real: ${scrise} rute cu sat de start dedus din opriri (≥${COTA_START_REAL * 100}% din tururi)`);
+}
+
+// ordinea contează: startul real se deduce din cursele scrise azi și îl folosește worker-ul
+// de mâine; brambura se judecă pe naveta deja scrisă
+await recalculeazaStartReal();
 await recalculeazaBrambura();

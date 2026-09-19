@@ -147,7 +147,7 @@ export async function incarcaContext(supa, day) {
     // trece prin 18,8 sate); etalonul dă treisprezece-nouăsprezece. Se ia doar etalonul
     // cu ≥5 observații, construit DOAR din curse neambigue — deci nu se hrănește din
     // propriile lui ghiciri.
-    supa.from('lde_route_etalon').select('factory_route_id,sate,observations,km_median,shift_number,sens').gte('observations', 5),
+    supa.from('lde_route_etalon').select('factory_route_id,sate,observations,km_median,shift_number,sens,sat_start_real').gte('observations', 5),
   ]);
   const porti = new Map(), granitePeUz = new Map(), sateRuta = new Map(), uzinaRutei = new Map();
   for (const g of gates ?? []) {
@@ -185,6 +185,9 @@ export async function incarcaContext(supa, day) {
   }
   // satele etalonului de tur ÎN ORDINEA traseului (etalonul cu cele mai multe observații)
   // — rezerva satului-nume, când drumul nu intră în el
+  // satul de start REAL al rutei, dedus de agregator din opririle care se repetă (migr. 380)
+  const satStartReal = new Map();
+  for (const e of etaloane ?? []) if (e.sat_start_real) satStartReal.set(e.factory_route_id, norm(e.sat_start_real));
   const sateEtalonTur = new Map(), obsTur = new Map();
   for (const e of etaloane ?? []) {
     if (e.sens !== 'tur' || !e.sate?.length) continue;
@@ -201,7 +204,7 @@ export async function incarcaContext(supa, day) {
       peMasina.get(vid).push({ ...a, eRetur: vid === a.vehicle_id_retur && vid !== a.vehicle_id });
     }
   }
-  return { porti, peMasina, granitePeUz, sateRuta, sateEtalon, kmEtalon, sateEtalonTur, uzinaRutei, ruteUzinei };
+  return { porti, peMasina, granitePeUz, sateRuta, sateEtalon, kmEtalon, sateEtalonTur, satStartReal, uzinaRutei, ruteUzinei };
 }
 
 /**
@@ -334,8 +337,13 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
   // Orheiului de lângă poartă, prin care trece ORICE drum — inclusiv cel la Chișinău.
   const RAZA_LANGA_POARTA_KM = 5;
   const satulRutei = (rid, seg) => {
+    // Ion, 19.09: «dacă se întâmplă sistematic, zilnic — e rută; scrii sub denumirea rutei
+    // primul sat de unde urcă». Satul de start REAL (dedus din opririle care se repetă)
+    // bate satul din denumire: ruta 2 «Cișmea» pleacă zilnic din Ocnița-Răzeși.
+    const real = loculNumit(ctx.satStartReal?.get(rid), seg);
+    if (real && seg && imparteLaSat(seg, r.pts, r.calc, real)) return real;
     const numit = loculNumit((ctx.sateRuta.get(rid) ?? [])[0], seg);
-    if (!seg) return numit;
+    if (!seg) return real ?? numit;
     if (numit && imparteLaSat(seg, r.pts, r.calc, numit)) return numit;
     const poarta = (ctx.porti.get(ctx.uzinaRutei.get(rid)) ?? [])[0];
     for (const nume of ctx.sateEtalonTur?.get(rid) ?? []) {
@@ -648,6 +656,16 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
         // aproape tot ieșea „în plus". Le umple agregatorul, față de ETALON, după ce
         // etalonul există.
         sate_atinse: sateCursa, sate_lipsa: [], sate_extra: [],
+        // satele în care a OPRIT pe drumul plin ÎNTREG (nu doar pe bucata tăiată), în ordine
+        // — din ele agregatorul deduce satul de start real (migr. 380)
+        sate_oprire: (() => {
+          const out = [];
+          for (const p of scurteInSat) {
+            if (p.i < plin.from || p.i > plin.to || !p.locality) continue;
+            if (out[out.length - 1] !== p.locality) out.push(p.locality);
+          }
+          return out;
+        })(),
         km_real: taiat ? taiat.plin : plin.km,
         km_goi: gol ? gol.km : 0,
         km_livrare: +kmLivrare.toFixed(2),

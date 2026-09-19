@@ -167,6 +167,9 @@ export async function incarcaContext(supa, day) {
     ruteUzinei.get(r.uzina_id).push(r.id);
   }
   for (const r of rute ?? []) sateRuta.set(r.id, (r.stops_in_order || '').replace(/->/g, '→').split('→').map((s) => norm(s)).filter(Boolean));
+  // rutele ADM («Chișinău → SEBN MD (ADM)», «Bălți → SEBN MD (ADM)»): orar de birou, nu de
+  // schimb — se recunosc după oraș, nu după ceas (vezi `scrieCurse`)
+  const ruteAdm = new Set((rute ?? []).filter((x) => /\badm\b/i.test(x.stops_in_order || '')).map((x) => x.id));
   const sateEtalon = new Map();
   for (const e of etaloane ?? []) {
     const nume = (e.sate ?? []).map((x) => norm(x.nume)).filter(Boolean);
@@ -204,7 +207,7 @@ export async function incarcaContext(supa, day) {
       peMasina.get(vid).push({ ...a, eRetur: vid === a.vehicle_id_retur && vid !== a.vehicle_id });
     }
   }
-  return { porti, peMasina, granitePeUz, sateRuta, sateEtalon, kmEtalon, sateEtalonTur, satStartReal, uzinaRutei, ruteUzinei };
+  return { porti, peMasina, granitePeUz, sateRuta, sateEtalon, kmEtalon, sateEtalonTur, satStartReal, uzinaRutei, ruteUzinei, ruteAdm };
 }
 
 /**
@@ -214,15 +217,20 @@ export async function incarcaContext(supa, day) {
  * rularea de ieri, ale cărei puncte nu mai sunt în memorie.
  */
 export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
-  const lista = ctx.peMasina.get(vehicle_id) ?? [];
-  if (!lista.length || !r.pts || r.pts.length < 2) return { curse: 0 };
+  const listaToata = ctx.peMasina.get(vehicle_id) ?? [];
+  // Rutele ADM nu intră în împerecherea pe ceas: merg pe orar de birou. Vartic duce în
+  // fiecare seară oameni la Chișinău (ruta 24), Scurtu la Orhei de la Bălți (ruta 23) —
+  // ceasul schimburilor le punea pe ruta 20, respectiv „necunoscut". Se scriu separat, jos.
+  const listaAdm = listaToata.filter((a) => ctx.ruteAdm?.has(a.factory_route_id));
+  const lista = listaToata.filter((a) => !ctx.ruteAdm?.has(a.factory_route_id));
+  if (!listaToata.length || !r.pts || r.pts.length < 2) return { curse: 0 };
   // UZINELE mașinii, nu prima dintre ele. Ion, 17.09: «schimburile nu pot fi interzise,
   // ele sunt planificate de client; dacă vorbim de Draxelmaier, el are 2 uzine». Măsurat:
   // 29 de mașini-zile din 16 au atribuiri la DOUĂ uzine, iar codul lua porțile doar de la
   // prima — deci la cealaltă nu vedea nicio trecere și toată ziua ieșea „necunoscut".
   // 9.651 km din 13.089 se pierdeau exact așa (74%). Cazul găsit: 283BRAT pe 16.09, cu
   // Ungheni #3 prima în listă și Orhei #15 lucrată efectiv — 586 km, toți necunoscuți.
-  const uzineGrafic = [...new Set(lista.map((a) => ctx.uzinaRutei.get(a.factory_route_id) ?? a.direction).filter(Boolean))];
+  const uzineGrafic = [...new Set(listaToata.map((a) => ctx.uzinaRutei.get(a.factory_route_id) ?? a.direction).filter(Boolean))];
   // Porțile TUTUROR uzinelor, nu doar ale celor din grafic. Ion, 18.09: «GPS-ul e faptic,
   // cum a mers; graficul de mână nu» — și se înșală și despre UZINĂ, nu doar despre rută
   // sau schimb. 073BRAO e trecută 13 zile la rând pe Trox #1, dar la orele schimbului
@@ -431,6 +439,8 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
   // care mergea goală spre uzină, era drumul plin suprascris de repoziționare. Se vedea
   // și în numere: 366 de segmente scrise, 264 de rânduri rămase.
   let scrise = 0;
+  // rândurile se strâng și se scriu la sfârșit: cursele ADM se scot din naveta celorlalte
+  const randuri = [];
   // ce rute au primit deja cursă în ziua asta, ca o rută să nu fie scrisă de două ori
   // când se recuperează segmentele unui schimb care nu e în grafic
   const scriseRute = new Set();
@@ -648,7 +658,13 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
       const capete = capeteReale(r.stops ?? [], r.pts, cut.from, cut.to, scurteInSat);
       const sateCursa = ocolita ? [] : sateDeservite(r.pts, ctx.placesIdx, cut.from, cut.to, PRAG_SAT_KM);
       const ale = ctx.sateRuta.get(a.factory_route_id) ?? [];
-      await supa.from('lde_route_run').upsert({
+      // bucățile din AFARA rutei (naveta), ca intervale de puncte — cursele ADM se scad din ele
+      const afara = [];
+      if (ocolita) afara.push([plin.from, plin.to]);
+      else if (taiat) afara.push(plin.tip === 'apropiere' ? [plin.from, cut.from] : [cut.to, plin.to]);
+      if (gol) afara.push(golImpartit ? (gol.tip === 'apropiere' ? [gol.from, golImpartit.from] : [golImpartit.to, gol.to]) : [gol.from, gol.to]);
+      randuri.push({
+        _afara: afara, _cut: ocolita ? null : cut,
         run_date: day, factory_route_id: a.factory_route_id, shift_number: sh,
         slot: a.slot ?? 1, sens, vehicle_id,
         // Satele lipsă/în plus NU se scriu aici: worker-ul n-are cu ce compara. Numele
@@ -694,11 +710,78 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
           ?? (ambiguu ? (nepotrivit ? 'sate_nepotrivite' : 'doua_rute_la_fel')
             : (nepotrivit ? 'sate_nepotrivite' : null)),
         geom: ocolita ? null : simplifica(r.pts, r.calc, cut.from, cut.to),
-      }, { onConflict: 'run_date,factory_route_id,shift_number,slot,sens' });
+      });
       luate.add(`${sens}|${a.factory_route_id}`);
       scriseRute.add(`${sens}|${a.factory_route_id}`);
       scrise++;
     }
+  }
+
+  // ── RUTELE ADM: pe orar de birou, nu pe schimburi ──────────────────────────
+  // Ion, 19.09: «dacă se întâmplă sistematic, zilnic — e rută». Vartic are ruta 24
+  // «Chișinău (ADM)» în grafic aproape zilnic și oprește în Chișinău la 18:30 în 10 zile
+  // din 13; Scurtu are 23 «Bălți (ADM)». O vizită = intrare în raza orașului din nume cu o
+  // staționare de ≥2 minute înăuntru. Cursa = drumul dintre vizită și cea mai apropiată
+  // ANCORĂ: o atingere de poartă, capătul bucății de rută a unei curse deja scrise, sau o
+  // staționare de ≥30 min (casa). Dus spre oraș = retur, întors = tur. Km-ii ăștia ies
+  // din naveta curselor peste care se suprapun — nu se numără de două ori.
+  const R_ADM_KM = 8, POPAS_ADM_S = 120, ANCORA_PAUZA_S = 1800;
+  if (listaAdm.length) {
+    const ancore = new Set([...tr.map((t) => t.iIn), ...tr.map((t) => t.iOut)]);
+    for (const x of randuri) if (x._cut) { ancore.add(x._cut.from); ancore.add(x._cut.to); }
+    for (const p of popasuri(r.pts, 0, r.pts.length - 1, { pragS: ANCORA_PAUZA_S })) { ancore.add(p.from); ancore.add(p.to); }
+    const ordonate = [...ancore].sort((p, q) => p - q);
+    for (const a of listaAdm) {
+      const oras = loculNumit((ctx.sateRuta.get(a.factory_route_id) ?? [])[0], null);
+      if (!oras) continue;
+      const vizite = [];
+      let cur = null;
+      for (let i = 0; i < r.pts.length; i++) {
+        if (hav(r.pts[i], oras) <= R_ADM_KM) { if (!cur) cur = { de: i, la: i }; else cur.la = i; }
+        else if (cur) { vizite.push(cur); cur = null; }
+      }
+      if (cur) vizite.push(cur);
+      const unite = [];
+      for (const v of vizite) {
+        const u = unite[unite.length - 1];
+        if (u && (r.pts[v.de].t - r.pts[u.la].t) < 30 * 60000) u.la = v.la; else unite.push({ ...v });
+      }
+      for (const v of unite) {
+        if (!popasuri(r.pts, v.de, v.la, { pragS: POPAS_ADM_S }).length) continue;   // trecere, nu vizită
+        const inainte = ordonate.filter((k) => k < v.de).pop();
+        const dupa = ordonate.find((k) => k > v.la);
+        for (const [sens, de, la] of [['retur', inainte, v.de], ['tur', v.la, dupa]]) {
+          if (de == null || la == null || la <= de) continue;
+          const km = kmInterval(r.calc.stepKm, de, la);
+          if (km < 3) continue;
+          if (randuri.some((x) => x.factory_route_id === a.factory_route_id && x.sens === sens)) continue;
+          randuri.push({
+            _afara: [], _cut: null, _adm: [de, la],
+            run_date: day, factory_route_id: a.factory_route_id, shift_number: a.shift_number ?? 1,
+            slot: a.slot ?? 1, sens, vehicle_id,
+            sate_atinse: sateDeservite(r.pts, ctx.placesIdx, de, la, PRAG_SAT_KM), sate_lipsa: [], sate_extra: [], sate_oprire: [],
+            km_real: +km.toFixed(2), km_goi: 0, km_livrare: 0, km_brambura: 0, km_gol_acasa: 0, km_gol_pauza: 0, km_gol_ruta: 0,
+            sate_gol_pe_traseu: null, opriri_gol_pe_traseu: null,
+            opriri_plin: opririScurte(r.pts, de, la, { exclude: baze, inSat }), opriri_pe_traseu: null, opriri_gol: null,
+            prima_statie: null, ultima_statie: null, stare: 'plin', ambiguu: false, motiv: 'adm',
+            geom: simplifica(r.pts, r.calc, de, la),
+          });
+          scrise++;
+        }
+      }
+    }
+    const legAdm = randuri.filter((x) => x._adm).map((x) => x._adm);
+    for (const x of randuri) {
+      if (!x._afara?.length || !legAdm.length) continue;
+      let scad = 0;
+      for (const [a1, b1] of x._afara)
+        for (const [a2, b2] of legAdm) { const de = Math.max(a1, a2), la = Math.min(b1, b2); if (la > de) scad += kmInterval(r.calc.stepKm, de, la); }
+      if (scad > 0) x.km_livrare = +Math.max(0, x.km_livrare - scad).toFixed(2);
+    }
+  }
+  for (const x of randuri) {
+    const { _afara, _cut, _adm, ...row } = x;
+    await supa.from('lde_route_run').upsert(row, { onConflict: 'run_date,factory_route_id,shift_number,slot,sens' });
   }
   return { curse: scrise, treceri: tr.length };
 }

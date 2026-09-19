@@ -238,9 +238,12 @@ async function buildCleaningLines(date: string): Promise<string[]> {
   return lines;
 }
 
-/** @username, altfel #telegram_id, altfel id-ul — la fel ca `operator` din încălcări. */
-function presenceOperatorLabel(u: { id: string; username: string | null; telegram_id: number | null }): string {
-  return u.username ? `@${u.username}` : u.telegram_id ? `#${u.telegram_id}` : u.id;
+/**
+ * @username, altfel numele din users (operatorii creați din admin n-au username — Ion
+ * vedea un UUID în digest, 19.09), altfel #telegram_id, altfel id-ul.
+ */
+function presenceOperatorLabel(u: { id: string; username: string | null; name?: string | null; telegram_id: number | null }): string {
+  return u.username ? `@${u.username}` : u.name ? u.name : u.telegram_id ? `#${u.telegram_id}` : u.id;
 }
 
 // ── Poza operatorului la deschiderea turei (peron_operator_checks, migrația 351) ──

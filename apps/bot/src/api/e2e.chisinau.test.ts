@@ -504,16 +504,18 @@ describe('4. Curățenie de dimineață', () => {
 });
 
 describe('4b. Poza operatorului la deschiderea turei (Ion, 14.09)', () => {
-  it('setul de dimineață e complet, dar raportul aplicației noi pe 06:55 → 409 OPERATOR_PHOTO_REQUIRED; aplicația veche trece de poartă', async () => {
+  it('setul de dimineață e complet, dar raportul pe 06:55 → 409 OPERATOR_PHOTO_REQUIRED; aplicația veche la fel, cu «instalează versiunea nouă» (Ion, 19.09)', async () => {
     clock('06:43');
     const res = await report(okBody('06:55', '00000000-0000-4000-8000-00000000dead', { coords: null }));
     expect(res.status).toBe(409);
     expect(res.body).toMatchObject({ ok: false, code: 'OPERATOR_PHOTO_REQUIRED' });
     expect(res.body.message).toContain('06:55');
-    // fără antet: poarta nu se aplică — cererea ajunge la pasul următor (poza șoferului)
+    // fără antet: aceeași poartă, dar mesajul spune că aplicația e veche și trebuie instalată cea nouă
     const old = await reportOldApp(okBody('06:55', '00000000-0000-4000-8000-00000000dead', { coords: null }));
-    expect(old.status).toBe(400);
-    expect(old.body.code).toBe('DRIVER_PHOTO_REQUIRED');
+    expect(old.status).toBe(409);
+    expect(old.body.code).toBe('OPERATOR_PHOTO_REQUIRED');
+    expect(old.body.message).toContain('instalează versiunea nouă');
+    expect(res.body.message).not.toContain('instalează');
     expect(reports()).toHaveLength(0);
     const { body } = await day();
     expect(body.operatorCheck).toBeNull();

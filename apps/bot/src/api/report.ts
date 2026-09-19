@@ -62,7 +62,7 @@ export function operatorLabel(user: Pick<AppUser, 'name' | 'telegram_id' | 'id'>
 }
 
 export interface ReportOptions {
-  /** Aplicația cunoaște poza operatorului (X-Peron-App ≥ 2): prima cursă a zilei o cere. */
+  /** Aplicația cunoaște pasul pozei operatorului (X-Peron-App ≥ 2); cea veche primește la 409 mesajul «instalează versiunea nouă». */
   operatorPhotoGate: boolean;
 }
 
@@ -106,9 +106,10 @@ export async function postReport(user: AppUser, rawBody: unknown, opts: ReportOp
     if (missing.length > 0) throw new CleaningRequiredError(slot, missing, trip.departure_time);
   }
   // Poza operatorului (Ion, 14.09): la deschiderea turei, adică la aceeași primă cursă raportată
-  // efectiv azi ca setul DIMINEATA. Doar pentru aplicațiile care au pasul; cea veche trece.
-  if (slot === 'DIMINEATA' && opts.operatorPhotoGate && !(await getTodayOperatorCheck(date, user.id))) {
-    throw new OperatorPhotoRequiredError(trip.departure_time);
+  // efectiv azi ca setul DIMINEATA. Din 19.09 obligatorie pentru toate aplicațiile (Ion:
+  // «poza obligatoriu la operator gara»); aplicația veche primește mesajul cu «instalează».
+  if (slot === 'DIMINEATA' && !(await getTodayOperatorCheck(date, user.id))) {
+    throw new OperatorPhotoRequiredError(trip.departure_time, !opts.operatorPhotoGate);
   }
 
   // Poza șoferului trebuie să existe și să fie de azi. Verdictele (uniformă, aspect) sunt

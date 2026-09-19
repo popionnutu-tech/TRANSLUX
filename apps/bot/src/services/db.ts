@@ -1562,7 +1562,7 @@ export async function getPresencePings(userId: string, fromIso: string, toIso: s
   return (data as PeronPresencePing[] | null) ?? [];
 }
 
-export type AppOperator = Pick<User, 'id' | 'username' | 'telegram_id'> & { point: PointEnum };
+export type AppOperator = Pick<User, 'id' | 'username' | 'telegram_id'> & { name: string | null; point: PointEnum };
 
 /**
  * Operatorii de peron care au folosit aplicația azi: au ping-uri în [fromIso, toIso]
@@ -1572,7 +1572,7 @@ export type AppOperator = Pick<User, 'id' | 'username' | 'telegram_id'> & { poin
 export async function getActiveAppOperators(date: string, fromIso: string, toIso: string): Promise<AppOperator[]> {
   const { data: users, error } = await db()
     .from('users')
-    .select('id, username, telegram_id, point')
+    .select('id, username, name, telegram_id, point')
     .eq('role', 'CONTROLLER')
     .eq('active', true)
     .not('point', 'is', null);

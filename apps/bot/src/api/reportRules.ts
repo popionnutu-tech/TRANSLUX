@@ -265,12 +265,19 @@ export class CleaningRequiredError extends ApiError {
 
 /**
  * 409 OPERATOR_PHOTO_REQUIRED — prima cursă raportată azi cere și poza operatorului
- * (Ion, 14.09), făcută de un șofer. Se aruncă doar către aplicațiile care cunosc pasul
- * (X-Peron-App ≥ 2); aplicația arată ecranul de deschidere a turei.
+ * (Ion, 14.09), făcută de un șofer. Din 19.09 (Ion: «poza obligatoriu la operator
+ * gara») se aruncă către TOATE aplicațiile: cea nouă (X-Peron-App ≥ 2) arată ecranul
+ * de deschidere a turei; cea veche n-are pasul, așa că mesajul îi spune operatorului
+ * să instaleze versiunea nouă — altfel ar sta blocat fără să știe de ce.
  */
 export class OperatorPhotoRequiredError extends ApiError {
-  constructor(departureTime: string) {
-    super(409, 'OPERATOR_PHOTO_REQUIRED', `Înainte de cursa ${formatTime(departureTime)} trebuie poza ta de deschidere a turei (făcută de un șofer)`);
+  constructor(departureTime: string, oldApp = false) {
+    const lead = `Înainte de cursa ${formatTime(departureTime)} trebuie poza ta de deschidere a turei (făcută de un șofer)`;
+    super(
+      409,
+      'OPERATOR_PHOTO_REQUIRED',
+      oldApp ? `${lead}. Aplicația ta e veche și nu are pasul acesta: instalează versiunea nouă TRANSLUX Peron.` : lead,
+    );
   }
 }
 

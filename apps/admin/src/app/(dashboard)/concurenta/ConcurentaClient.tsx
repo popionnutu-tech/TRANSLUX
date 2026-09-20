@@ -198,7 +198,7 @@ export default function ConcurentaClient({ init }: { init: ConcurentaInit }) {
           {from && !pending && !rows.length && !error && <p className={s.empty}>Nicio cursă între aceste puncte{chosenFirms.length ? ' pentru firmele alese' : ''}.</p>}
           {rows.length > 0 && (
             <table className={s.tt}>
-              <thead><tr><th>Plecare</th><th>Pornire înapoi</th><th>Bilet</th><th>Ruta</th><th className={s.hideM}>Firma</th><th className={s.hideM}>Cod</th></tr></thead>
+              <thead><tr><th className={s.num}>#</th><th>Plecare</th><th>Pornire înapoi</th><th>Bilet</th><th>Ruta</th><th className={s.hideM}>Firma</th><th className={s.hideM}>Cod</th></tr></thead>
               <tbody>
                 {rows.map((r, i) => {
                   const mine = r.course.operator === init.ourOperator;
@@ -206,6 +206,7 @@ export default function ConcurentaClient({ init }: { init: ConcurentaInit }) {
                   return (
                     <tr key={`${r.course.id}-${r.dir}-${i}`} className={`${s.row} ${mine ? s.ours : ''} ${isSel ? s.sel : ''}`} tabIndex={0}
                       onClick={() => openRow(r)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openRow(r); } }}>
+                      <td className={s.num}>{i + 1}</td>
                       <td><div className={s.t1}>{pad(r.dep)}</div><div className={s.t2}>{r.from.name}{r.from.note ? ` · ${r.from.note}` : ''}</div></td>
                       <td><div className={s.t1}>{pad(r.dir === 'tur' ? r.course.dep_retur : r.course.dep_tur)}</div><div className={s.t2}>din {r.terminus}</div></td>
                       <td><div className={s.price}>{r.lei ? `${r.lei} lei` : '—'}</div><div className={s.t2}>{r.km} km</div></td>

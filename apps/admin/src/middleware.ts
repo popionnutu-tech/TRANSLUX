@@ -1,34 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
-
-// Маршруты которые middleware пропускает без JWT-проверки.
-// Они защищаются собственными механизмами (CRON_SECRET, VOICE_API_KEY,
-// подпись Facebook/TikTok webhook'ов, и т.д.).
-const PUBLIC_PREFIXES = [
-  '/login',
-  '/access-denied',
-  '/api/auth/',
-  '/api/cron/',
-  '/api/voice-tools/',
-  '/api/voice-webhook',
-  // Custom LLM proxy pentru agentul vocal — se protejează singur prin Bearer (VOICE_LLM_SECRET).
-  '/api/voice/custom-llm/',
-  // Init-webhook ElevenLabs (salut după ora zilei) — se protejează singur prin VOICE_API_KEY.
-  '/api/voice/webhooks/',
-  '/api/fb-bot/',
-  '/api/facebook/',
-  '/api/tiktok/',
-  '/api/schedule-image',
-  // Mini App задачника: открывается в Telegram, защищается сам через initData (без cookie-сессии).
-  '/mini-app/',
-  '/api/zadachnik/',
-  // Mini App atribuiri — se protejează singur prin initData, ca zadachnik.
-  '/api/atribuiri/',
-  // API între proiecte (mini app-ul TLX cere banda camioanelor) — se protejează
-  // singur prin CAMIOANE_API_KEY. Fără prefixul ăsta, cererea fără cookie era
-  // redirectată la /login și celălalt serviciu primea HTML în loc de JSON.
-  '/api/extern/',
-];
+// Căile publice (fără JWT) stau în lib/public-paths.ts — funcție pură, cu test.
+import { isPublicPath } from '@/lib/public-paths';
 
 const DISPATCHER_ALLOWED = ['/grafic', '/drivers', '/vehicles'];
 const GRAFIC_ALLOWED = ['/grafic'];
@@ -47,7 +20,7 @@ const NUMARARE_ONLY_ROLES = ['OPERATOR_CAMERE', 'ADMIN_CAMERE', 'EVALUATOR_INCAS
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (PUBLIC_PREFIXES.some(p => pathname.startsWith(p))) {
+  if (isPublicPath(pathname)) {
     return NextResponse.next();
   }
 

@@ -3660,7 +3660,7 @@
   "administrator": "ALEXA OLEG",
   "founders": [],
   "source": "https://informer.md/ro/pf/profil/compania/baza-de-transport-auto-28",
-  "note": "S.A.: acționarii nu sunt publici",
+  "note": "Călărași, Alexandru cel Bun 238; Alexa Oleg administrează și MAȘRUT S.A. Strășeni; acționarii S.A. nu sunt publici",
   "fetched_at": "2026-09-20"
  },
  {
@@ -3994,12 +3994,12 @@
  },
  {
   "company": "MAŞRUT S.A.",
-  "idno": null,
-  "official_name": "\"MAȘRUT\" S.A.",
-  "administrator": null,
+  "idno": "1003600079257",
+  "official_name": "Societatea pe Acțiuni \"MAȘRUT\" (Strășeni)",
+  "administrator": "ALEXA OLEG",
   "founders": [],
-  "source": "https://overit.md/companie/1004600054888/",
-  "note": "IDNO negăsit; deține 100% din S.R.L. SERVICII TRANSPORT AUTO (1004600054888, adm. JOSAN MIHAI), cotă preluată de la Ministerul Transporturilor; acționarii S.A. nu sunt publici",
+  "source": "https://overit.md/companie/1003600079257/",
+  "note": "deține 100% din SERVICII TRANSPORT AUTO S.R.L. (1004600054888); Alexa Oleg administrează și BTA 28 Călărași, ALEXOL-AQUA, ENERG PRO, RODADEM, DJELIX-A, DREIGO S.A. (nu-s în ANTA); acționarii S.A. nu sunt publici",
   "fetched_at": "2026-09-20"
  },
  {

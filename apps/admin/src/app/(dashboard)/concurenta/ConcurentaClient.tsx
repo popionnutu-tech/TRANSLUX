@@ -26,7 +26,25 @@ const matchStop = (st: AntaStop, p: PlaceOpt) => st.name === p.name && (!p.distr
 const isFirm = (n: string) => /S\.?R\.?L|S\.?A\.?$|S\.A\.D|Î\.I|I\.I|SRL|\bSA\b/.test(n);
 const adminNames = (c: Company) => (c.administrator ? c.administrator.split(/;\s*/) : []);
 /** Toate numele (persoane și firme-fondator) legate de o firmă. */
-const namesOf = (c: Company) => Array.from(new Set([...c.founders.map((f) => f.name), ...adminNames(c)])).filter(Boolean);
+/** Toate numele (persoane și firme-fondator) legate de o firmă. Când un fondator e el însuși o firmă din registru
+ *  (MAȘRUT S.A. deține 100 % din SERVICII TRANSPORT AUTO), se iau și oamenii acelei firme, ca filtrul pe proprietar
+ *  și «firmele afiliate» să prindă tot grupul (Ion, 20.09: «nu are Alexa Oleg mult mai multe rute și companii afiliate?»). */
+const namesOf = (c: Company, all?: Company[]): string[] => {
+  const out = new Set<string>();
+  const seen = new Set<string>();
+  const walk = (x: Company) => {
+    if (seen.has(x.company)) return;
+    seen.add(x.company);
+    for (const n of [...x.founders.map((f) => f.name), ...adminNames(x)]) {
+      if (!n) continue;
+      out.add(n);
+      const firm = all?.find((o) => foldName(o.company) === foldName(n));
+      if (firm) walk(firm);
+    }
+  };
+  walk(c);
+  return Array.from(out);
+};
 function ownersText(cs: (Company | undefined)[]): { text: string; known: boolean } {
   const parts: string[] = [];
   for (const c of cs) {
@@ -173,10 +191,10 @@ export default function ConcurentaClient({ init }: { init: ConcurentaInit }) {
   const companyMap = useMemo(() => new Map(init.companies.map((c) => [c.company, c])), [init.companies]);
   const companiesOf = (operator: string) => splitOperator(operator).map((n) => companyMap.get(n));
   /** persoanele/firmele-fondator din spatele unui operator ANTA */
-  const personsOf = (operator: string) => Array.from(new Set(companiesOf(operator).flatMap((c) => (c ? namesOf(c) : []))));
+  const personsOf = (operator: string) => Array.from(new Set(companiesOf(operator).flatMap((c) => (c ? namesOf(c, init.companies) : []))));
   const ownerOptions = useMemo(() => {
     const cnt = new Map<string, number>();
-    for (const c of init.companies) for (const n of namesOf(c)) cnt.set(n, (cnt.get(n) ?? 0) + 1);
+    for (const c of init.companies) for (const n of namesOf(c, init.companies)) cnt.set(n, (cnt.get(n) ?? 0) + 1);
     return [...cnt.entries()].map(([name, n]) => ({ name, n })).sort((a, b) => a.name.localeCompare(b.name, 'ro'));
   }, [init.companies]);
   const [chosenOwners, setChosenOwners] = useState<string[]>([]);
@@ -316,8 +334,8 @@ function Detail({ row, dir, setDir, rate, ours, onClose, companies, allCompanies
       {splitOperator(c.operator).map((name, i) => {
         const co = companies[i];
         if (!co) return <div key={name} className={s.co}><h4>{name}</h4><div className={s.own}><i>proprietar: necunoscut (nu e în registrul strâns)</i></div></div>;
-        const persons = namesOf(co);
-        const aff = allCompanies.filter((o) => o.company !== co.company && namesOf(o).some((n) => persons.includes(n)));
+        const persons = namesOf(co, allCompanies);
+        const aff = allCompanies.filter((o) => o.company !== co.company && namesOf(o, allCompanies).some((n) => persons.includes(n)));
         return (
           <div key={name} className={s.co}>
             <h4>{co.official_name ?? name}</h4>

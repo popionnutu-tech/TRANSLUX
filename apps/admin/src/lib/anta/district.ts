@@ -22,6 +22,10 @@ export interface LocalityRow {
 
 type Coords = [number, number];
 
+/** Sufixul pus la import pe opririle cu mențiunea «Intersectie» (ex. «or. Soroca (intersecție)» = ramificația de pe M2, la 76 km de Chișinău, nu orașul Soroca). */
+export const INTERSECTION_SUFFIX = ' (intersecție)';
+export const isIntersection = (point: string) => point.endsWith(INTERSECTION_SUFFIX) || /^(?:(?:or|s)\.\s*)?intersec/i.test(point);
+
 export class LocalityIndex {
   private byName = new Map<string, Map<string, Coords | null>>();
   private districtByFold = new Map<string, string>();
@@ -38,8 +42,9 @@ export class LocalityIndex {
     }
   }
 
-  /** Raioanele posibile pentru un punct ANTA, cu coordonate unde le avem. */
+  /** Raioanele posibile pentru un punct ANTA, cu coordonate unde le avem. O intersecție nu e localitatea. */
   candidates(point: string): Map<string, Coords | null> {
+    if (isIntersection(point)) return new Map();
     const { ty, name } = splitPrefix(point);
     const key = foldName(name);
     const all = this.byName.get(key) ?? new Map<string, Coords | null>();
@@ -95,6 +100,13 @@ export function resolveDistricts(stops: string[], idx: LocalityIndex): (string |
         const hit = near.find((j) => fixed[j] && cs.has(fixed[j]!));
         if (hit !== undefined) { fixed[i] = fixed[hit]; break; }
       }
+    }
+  }
+  // o intersecție ia raionul celui mai apropiat vecin rezolvat (e pe drum, între ei)
+  for (let i = 0; i < stops.length; i++) {
+    if (fixed[i] || !isIntersection(stops[i])) continue;
+    for (let k = 1; k < stops.length && !fixed[i]; k++) {
+      for (const j of [i - k, i + k]) if (j >= 0 && j < stops.length && fixed[j]) { fixed[i] = fixed[j]; break; }
     }
   }
   return fixed;

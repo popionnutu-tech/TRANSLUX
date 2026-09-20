@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { searchCourses, type AntaCourse, type AntaStop, type ConcurentaInit, type Place } from './actions';
 import { foldName, splitPrefix } from '@/lib/anta/names';
+import { isIntersection } from '@/lib/anta/district';
 import s from './concurenta.module.css';
 
 // Concurența pe direcție (ION-12). Ion, 20.09.2026: «выбрал направление откуда-куда, фирму — и вышли все
@@ -22,7 +23,7 @@ const price = (km: number, rate: number | null) => (rate && km > 0 && km < 1000 
 const matchStop = (st: AntaStop, p: PlaceOpt) => st.name === p.name && (!p.district || !st.district || st.district === p.district);
 
 function toOpts(places: Place[]): PlaceOpt[] {
-  const opts = places.map((p) => { const b = splitPrefix(p.name); return { name: p.name, district: p.district, base: b.name, ty: TY[b.ty] ?? '', key: foldName(b.name) }; });
+  const opts = places.map((p) => { const b = splitPrefix(p.name); const x = isIntersection(p.name); return { name: p.name, district: p.district, base: b.name, ty: x ? '' : TY[b.ty] ?? '', key: foldName(b.name) + (x ? ' intersectie' : '') }; });
   return opts.sort((a, b) => a.base.localeCompare(b.base, 'ro') || (a.district ?? '').localeCompare(b.district ?? '', 'ro'));
 }
 

@@ -65,10 +65,13 @@ for (const r of rows.slice(1)) {
   const key = [r[C.code], route_name, operator, dep_tur, dep_retur].join('|');
   let c = byKey.get(key);
   if (!c) { c = { source: 'anta', code: r[C.code].trim(), route_name, operator, dep_tur, dep_retur, stops: [] }; byKey.set(key, c); }
-  const name = r[C.pt].replace(/\s+/g, ' ').trim();
+  const note = r[C.note].replace(/\s+/g, ' ').trim();
+  let name = r[C.pt].replace(/\s+/g, ' ').trim();
   if (!name) continue;
+  // «or. Soroca» cu mențiunea «PC Intersectie» e ramificația de pe șosea, nu orașul: punct separat.
+  if (/intersec/i.test(note) && !D.isIntersection(name)) name += D.INTERSECTION_SUFFIX;
   c.stops.push({
-    seq: 0, name, note: r[C.note].replace(/\s+/g, ' ').trim(),
+    seq: 0, name, note,
     km_tur: Math.round(Number(r[C.km]) || 0), time_tur: N.cleanTime(r[C.tT]),
     time_retur: N.cleanTime(r[C.tR]), km_retur: Math.round(Number(r[C.kmR]) || 0), district: null,
   });

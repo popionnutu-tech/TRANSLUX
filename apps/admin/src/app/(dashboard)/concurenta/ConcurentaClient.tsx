@@ -8,6 +8,8 @@ import s from './concurenta.module.css';
 // Concurența pe direcție (ION-12). Ion, 20.09.2026: «выбрал направление откуда-куда, фирму — и вышли все
 // машины в ту сторону; нажимаю на маршрут — детально с Кишинёва в сторону конечной точки и наоборот».
 // Fără dată (graficul ANTA n-are zile de circulație) și fără durată (Ion: «время поездки не надо»).
+// Coloana a doua nu e sosirea, ci ora la care mașina pornește ÎNAPOI din capătul rutei (Ion, 20.09: «in loc de
+// sosire am nevoie ora de pornire din punctul final inapoi») — sosirea la destinație rămâne în detaliu.
 
 type Dir = 'tur' | 'retur';
 interface Row { course: AntaCourse; dir: Dir; dep: string; arr: string | null; from: AntaStop; to: AntaStop; km: number; lei: number; terminus: string }
@@ -196,7 +198,7 @@ export default function ConcurentaClient({ init }: { init: ConcurentaInit }) {
           {from && !pending && !rows.length && !error && <p className={s.empty}>Nicio cursă între aceste puncte{chosenFirms.length ? ' pentru firmele alese' : ''}.</p>}
           {rows.length > 0 && (
             <table className={s.tt}>
-              <thead><tr><th>Plecare</th><th>Sosire</th><th>Bilet</th><th>Ruta</th><th className={s.hideM}>Firma</th><th className={s.hideM}>Cod</th></tr></thead>
+              <thead><tr><th>Plecare</th><th>Pornire înapoi</th><th>Bilet</th><th>Ruta</th><th className={s.hideM}>Firma</th><th className={s.hideM}>Cod</th></tr></thead>
               <tbody>
                 {rows.map((r, i) => {
                   const mine = r.course.operator === init.ourOperator;
@@ -205,7 +207,7 @@ export default function ConcurentaClient({ init }: { init: ConcurentaInit }) {
                     <tr key={`${r.course.id}-${r.dir}-${i}`} className={`${s.row} ${mine ? s.ours : ''} ${isSel ? s.sel : ''}`} tabIndex={0}
                       onClick={() => openRow(r)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openRow(r); } }}>
                       <td><div className={s.t1}>{pad(r.dep)}</div><div className={s.t2}>{r.from.name}{r.from.note ? ` · ${r.from.note}` : ''}</div></td>
-                      <td><div className={s.t1}>{pad(r.arr)}</div><div className={s.t2}>{r.to.name}{r.to.note ? ` · ${r.to.note}` : ''}</div></td>
+                      <td><div className={s.t1}>{pad(r.dir === 'tur' ? r.course.dep_retur : r.course.dep_tur)}</div><div className={s.t2}>din {r.terminus}</div></td>
                       <td><div className={s.price}>{r.lei ? `${r.lei} lei` : '—'}</div><div className={s.t2}>{r.km} km</div></td>
                       <td><div className={s.route}>{r.course.route_name}</div><div className={s.dir}>{r.dir} · spre {r.terminus} · {r.course.stops.length} opriri</div></td>
                       <td className={`${s.hideM} ${s.op}`}>{r.course.operator}{mine && <span className={s.pill}>NOI</span>}</td>

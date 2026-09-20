@@ -97,3 +97,18 @@
   .swap { display: none; }
   .t1 { font-size: 18px; }
 }
+
+/* proprietari (ION-13) */
+.own { font-size: 12px; color: var(--ink2); margin-top: 2px; line-height: 1.35; }
+.own b { font-weight: 600; color: #2b2224; }
+.own i { font-style: normal; color: var(--ink3); }
+.pk li .own { display: block; margin: 0; }
+.co { margin: 10px 0; padding: 10px 12px; border: 1px solid var(--line-soft); border-radius: 6px; background: #fff; font-size: 13px; }
+.co h4 { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
+.co .idno { font-size: 12px; color: var(--ink3); letter-spacing: .04em; }
+.co dl { margin: 6px 0 0; display: grid; grid-template-columns: 90px 1fr; gap: 2px 8px; }
+.co dt { color: var(--ink3); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+.co dd { margin: 0; }
+.co a { color: var(--brand); }
+.aff { margin-top: 6px; font-size: 12px; color: var(--ink2); }
+.aff b { color: var(--deep); }

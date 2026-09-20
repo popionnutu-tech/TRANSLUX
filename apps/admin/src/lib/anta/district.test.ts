@@ -81,3 +81,14 @@ describe('resolveDistricts — raionul opririlor pe cursă', () => {
     expect(resolveDistricts(['or. Chisinau', 's. Inexistent'], idx)).toEqual(['mun. Chișinău', null]);
   });
 });
+
+import { splitOperator } from './names';
+describe('splitOperator — o linie ANTA poate ține două firme', () => {
+  it('desparte la virgulă + spațiu și taie IDNO-ul din coadă', () => {
+    expect(splitOperator('IURTOL-TRANS S.R.L., S.C. ODOGRAF S.R.L.')).toEqual(['IURTOL-TRANS S.R.L.', 'S.C. ODOGRAF S.R.L.']);
+    expect(splitOperator('BAZA DE TRANSPORT AUTO NR,25 LEOVA')).toEqual(['BAZA DE TRANSPORT AUTO NR,25 LEOVA']);
+    expect(splitOperator('CALMATRANS S.R.L. 1005609004171')).toEqual(['CALMATRANS S.R.L.']);
+    expect(splitOperator('EUROVASGRUP TRANS S.R.L., TĂBUREANU VALENTINA Î.I. 1005603006139')).toEqual(['EUROVASGRUP TRANS S.R.L.', 'TĂBUREANU VALENTINA Î.I.']);
+    expect(splitOperator('')).toEqual([]);
+  });
+});

@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
-import { searchCourses, type AntaCourse, type AntaStop, type ConcurentaInit, type Place } from './actions';
-import { foldName, splitPrefix } from '@/lib/anta/names';
+import { searchCourses, type AntaCourse, type AntaStop, type Company, type ConcurentaInit, type Place } from './actions';
+import { foldName, splitPrefix, splitOperator } from '@/lib/anta/names';
 import { isIntersection } from '@/lib/anta/district';
 import s from './concurenta.module.css';
 
@@ -21,6 +21,23 @@ const pad = (t: string | null) => (t ? t.replace(/^(\d):/, '0$1:') : '—');
 const mins = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
 const price = (km: number, rate: number | null) => (rate && km > 0 && km < 1000 ? Math.round(km * rate) : 0);
 const matchStop = (st: AntaStop, p: PlaceOpt) => st.name === p.name && (!p.district || !st.district || st.district === p.district);
+
+/* ---------- proprietari (ION-13): fondatori + administrator din registrele publice ---------- */
+const isFirm = (n: string) => /S\.?R\.?L|S\.?A\.?$|S\.A\.D|Î\.I|I\.I|SRL|\bSA\b/.test(n);
+const adminNames = (c: Company) => (c.administrator ? c.administrator.split(/;\s*/) : []);
+/** Toate numele (persoane și firme-fondator) legate de o firmă. */
+const namesOf = (c: Company) => Array.from(new Set([...c.founders.map((f) => f.name), ...adminNames(c)])).filter(Boolean);
+function ownersText(cs: (Company | undefined)[]): { text: string; known: boolean } {
+  const parts: string[] = [];
+  for (const c of cs) {
+    if (!c) continue;
+    const f = c.founders.map((x) => x.name + (x.share ? ` ${x.share}` : '')).join(', ');
+    const adm = adminNames(c).filter((n) => !c.founders.some((x) => x.name === n));
+    const s = [f, adm.length ? `adm. ${adm.join(', ')}` : ''].filter(Boolean).join(' · ');
+    if (s) parts.push(s);
+  }
+  return parts.length ? { text: parts.join(' | '), known: true } : { text: 'proprietar: necunoscut', known: false };
+}
 
 function toOpts(places: Place[]): PlaceOpt[] {
   const opts = places.map((p) => { const b = splitPrefix(p.name); const x = isIntersection(p.name); return { name: p.name, district: p.district, base: b.name, ty: x ? '' : TY[b.ty] ?? '', key: foldName(b.name) + (x ? ' intersectie' : '') }; });
@@ -73,7 +90,7 @@ function PlacePicker({ id, label, placeholder, opts, value, onChange }: {
 }
 
 /* ---------- firme: listă alfabetică, mai multe deodată ---------- */
-function FirmPicker({ all, chosen, ours, onChange }: { all: string[]; chosen: string[]; ours: string; onChange: (v: string[]) => void }) {
+function FirmPicker({ all, chosen, ours, onChange, ownersOf }: { all: string[]; chosen: string[]; ours: string; onChange: (v: string[]) => void; ownersOf: (f: string) => string }) {
   const [text, setText] = useState('');
   const [open, setOpen] = useState(false);
   const clean = (x: string) => foldName(x).replace(/[".]/g, '');
@@ -96,13 +113,49 @@ function FirmPicker({ all, chosen, ours, onChange }: { all: string[]; chosen: st
           }} />
         {list.length > 0 && (
           <ul role="listbox">
-            {list.map((f) => <li key={f} role="option" onMouseDown={(e) => { e.preventDefault(); add(f); }}><span>{f === ours ? '★ ' : ''}{f}</span></li>)}
+            {list.map((f) => <li key={f} role="option" onMouseDown={(e) => { e.preventDefault(); add(f); }}><span>{f === ours ? '★ ' : ''}{f}<span className={s.own}>{ownersOf(f)}</span></span></li>)}
           </ul>
         )}
       </div>
       <div className={s.chips}>
         {chosen.map((f) => (
           <span key={f} className={`${s.chip} ${f === ours ? s.ours : ''}`}>{f}<button type="button" aria-label="Scoate" onClick={() => onChange(chosen.filter((x) => x !== f))}>✕</button></span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- proprietar: nume de fondator sau administrator, mai multe deodată ---------- */
+function OwnerPicker({ all, chosen, onChange }: { all: Array<{ name: string; n: number }>; chosen: string[]; onChange: (v: string[]) => void }) {
+  const [text, setText] = useState('');
+  const [open, setOpen] = useState(false);
+  const list = useMemo(() => {
+    if (!open) return [];
+    const q = foldName(text);
+    return all.filter((o) => !chosen.includes(o.name) && (!q || foldName(o.name).includes(q))).slice(0, 60);
+  }, [text, open, all, chosen]);
+  const add = (n: string) => { onChange([...chosen, n]); setText(''); setOpen(false); };
+  return (
+    <div className={`${s.f} ${s.firm}`}>
+      <label htmlFor="owner">Proprietar (fondator sau administrator)</label>
+      <div className={s.pk}>
+        <input id="owner" value={text} placeholder="nume de familie…" autoComplete="off"
+          onChange={(e) => { setText(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 120)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && list.length) { e.preventDefault(); add(list[0].name); }
+            if (e.key === 'Backspace' && !text && chosen.length) onChange(chosen.slice(0, -1));
+          }} />
+        {list.length > 0 && (
+          <ul role="listbox">
+            {list.map((o) => <li key={o.name} role="option" onMouseDown={(e) => { e.preventDefault(); add(o.name); }}><span><b>{o.name}</b></span><span className={s.r}>{o.n} {o.n === 1 ? 'firmă' : 'firme'}</span></li>)}
+          </ul>
+        )}
+      </div>
+      <div className={s.chips}>
+        {chosen.map((n) => (
+          <span key={n} className={s.chip}>{n}<button type="button" aria-label="Scoate" onClick={() => onChange(chosen.filter((x) => x !== n))}>✕</button></span>
         ))}
       </div>
     </div>
@@ -117,6 +170,16 @@ export default function ConcurentaClient({ init }: { init: ConcurentaInit }) {
     return all.includes(init.ourOperator) ? [init.ourOperator, ...all.filter((f) => f !== init.ourOperator)] : all;
   }, [init.operators, init.ourOperator]);
   const rate = init.rate?.value ?? null;
+  const companyMap = useMemo(() => new Map(init.companies.map((c) => [c.company, c])), [init.companies]);
+  const companiesOf = (operator: string) => splitOperator(operator).map((n) => companyMap.get(n));
+  /** persoanele/firmele-fondator din spatele unui operator ANTA */
+  const personsOf = (operator: string) => Array.from(new Set(companiesOf(operator).flatMap((c) => (c ? namesOf(c) : []))));
+  const ownerOptions = useMemo(() => {
+    const cnt = new Map<string, number>();
+    for (const c of init.companies) for (const n of namesOf(c)) cnt.set(n, (cnt.get(n) ?? 0) + 1);
+    return [...cnt.entries()].map(([name, n]) => ({ name, n })).sort((a, b) => a.name.localeCompare(b.name, 'ro'));
+  }, [init.companies]);
+  const [chosenOwners, setChosenOwners] = useState<string[]>([]);
 
   const [from, setFrom] = useState<PlaceOpt | null>(() => opts.find((o) => o.name === 'or. Chisinau') ?? null);
   const [to, setTo] = useState<PlaceOpt | null>(() => opts.find((o) => o.name === 'or. Briceni' && o.district === 'Briceni') ?? opts.find((o) => o.name === 'or. Briceni') ?? null);
@@ -145,6 +208,7 @@ export default function ConcurentaClient({ init }: { init: ConcurentaInit }) {
     const out: Row[] = [];
     for (const c of courses) {
       if (chosenFirms.length && !chosenFirms.includes(c.operator)) continue;
+      if (chosenOwners.length && !personsOf(c.operator).some((n) => chosenOwners.includes(n))) continue;
       const si = c.stops.findIndex((st) => matchStop(st, from)); if (si < 0) continue;
       const ti = to ? c.stops.findIndex((st) => matchStop(st, to)) : -1; if (to && ti < 0) continue;
       const dirs: Dir[] = to ? [ti > si ? 'tur' : 'retur'] : ['tur', 'retur'];
@@ -157,7 +221,7 @@ export default function ConcurentaClient({ init }: { init: ConcurentaInit }) {
       }
     }
     return out.sort((a, b) => mins(a.dep) - mins(b.dep));
-  }, [courses, from, to, chosenFirms, rate]);
+  }, [courses, from, to, chosenFirms, chosenOwners, rate]);
 
   const ours = rows.filter((r) => r.course.operator === init.ourOperator).length;
   const openRow = (r: Row) => { setSel(r); setDir(r.dir); };
@@ -175,7 +239,8 @@ export default function ConcurentaClient({ init }: { init: ConcurentaInit }) {
         <PlacePicker id="from" label="De unde" placeholder="localitate…" opts={opts} value={from} onChange={setFrom} />
         <button type="button" className={s.swap} title="Schimbă direcția" aria-label="Schimbă direcția" onClick={() => { const a = from; setFrom(to); setTo(a); }}>⇄</button>
         <PlacePicker id="to" label="Încotro" placeholder="orice punct" opts={opts} value={to} onChange={setTo} />
-        <FirmPicker all={firms} chosen={chosenFirms} ours={init.ourOperator} onChange={setChosenFirms} />
+        <FirmPicker all={firms} chosen={chosenFirms} ours={init.ourOperator} onChange={setChosenFirms} ownersOf={(f) => ownersText(companiesOf(f)).text} />
+        <OwnerPicker all={ownerOptions} chosen={chosenOwners} onChange={setChosenOwners} />
       </form>
       <p className={s.hint}>
         Toate cursele care trec prin ambele puncte în sensul ales, oricare le-ar fi capătul. Bilet = km × {init.rate ? `${init.rate.value.toFixed(2)} lei/km (tarif ANTA din ${init.rate.from})` : 'tarif (lipsește din tariff_periods)'}, rotunjit la leu.
@@ -190,7 +255,7 @@ export default function ConcurentaClient({ init }: { init: ConcurentaInit }) {
               {from && <> → {to ? <><em>{to.base}</em>{to.district && <span className={s.raion}> r. {to.district}</span>}</> : 'toate direcțiile'}</>}
             </h2>
             <span className={s.n}>
-              {pending ? 'se caută…' : `${rows.length} curse`}{chosenFirms.length ? ` · ${chosenFirms.length} firme alese` : ''}
+              {pending ? 'se caută…' : `${rows.length} curse`}{chosenFirms.length ? ` · ${chosenFirms.length} firme alese` : ''}{chosenOwners.length ? ` · proprietar: ${chosenOwners.join(', ')}` : ''}
               {ours > 0 && <> · <span className={s.legend}><i />{ours} ale noastre</span></>}
             </span>
           </div>
@@ -212,7 +277,8 @@ export default function ConcurentaClient({ init }: { init: ConcurentaInit }) {
                       <td><div className={s.t1}>{pad(r.dir === 'tur' ? r.course.dep_retur : r.course.dep_tur)}</div><div className={s.t2}>din {r.terminus}</div></td>
                       <td><div className={s.price}>{r.lei ? `${r.lei} lei` : '—'}</div><div className={s.t2}>{r.km} km</div></td>
                       <td><div className={s.route}>{r.course.route_name}</div><div className={s.dir}>{r.dir} · spre {r.terminus} · {r.course.stops.length} opriri</div></td>
-                      <td className={`${s.hideM} ${s.op}`}>{r.course.operator}{mine && <span className={s.pill}>NOI</span>}</td>
+                      <td className={`${s.hideM} ${s.op}`}>{r.course.operator}{mine && <span className={s.pill}>NOI</span>}
+                        {(() => { const o = ownersText(companiesOf(r.course.operator)); return <div className={s.own}>{o.known ? o.text : <i>{o.text}</i>}</div>; })()}</td>
                       <td className={`${s.hideM} ${s.code}`}>{r.course.source === 'tlx' ? 'translux.md' : r.course.code}</td>
                     </tr>
                   );
@@ -222,15 +288,17 @@ export default function ConcurentaClient({ init }: { init: ConcurentaInit }) {
           )}
         </section>
 
-        {sel && <Detail row={sel} dir={dir} setDir={setDir} rate={init.rate} ours={init.ourOperator} onClose={() => setSel(null)} />}
+        {sel && <Detail row={sel} dir={dir} setDir={setDir} rate={init.rate} ours={init.ourOperator} onClose={() => setSel(null)}
+          companies={companiesOf(sel.course.operator)} allCompanies={init.companies} />}
       </div>
     </div>
   );
 }
 
 /* ---------- detaliul cursei: opririle tur și retur, km și bilet de la urcare ---------- */
-function Detail({ row, dir, setDir, rate, ours, onClose }: {
+function Detail({ row, dir, setDir, rate, ours, onClose, companies, allCompanies }: {
   row: Row; dir: Dir; setDir: (d: Dir) => void; rate: ConcurentaInit['rate']; ours: string; onClose: () => void;
+  companies: (Company | undefined)[]; allCompanies: Company[];
 }) {
   const c = row.course;
   const fwd = dir === 'tur';
@@ -245,6 +313,24 @@ function Detail({ row, dir, setDir, rate, ours, onClose }: {
       <div className={s.k}>{c.source === 'tlx' ? 'translux.md' : c.code}</div>
       <h3>{c.route_name}</h3>
       <div className={s.meta}><span>{c.operator}{c.operator === ours && <span className={s.pill}>NOI</span>}</span><span>{last.km_tur} km toată ruta</span><span>{c.stops.length} opriri</span></div>
+      {splitOperator(c.operator).map((name, i) => {
+        const co = companies[i];
+        if (!co) return <div key={name} className={s.co}><h4>{name}</h4><div className={s.own}><i>proprietar: necunoscut (nu e în registrul strâns)</i></div></div>;
+        const persons = namesOf(co);
+        const aff = allCompanies.filter((o) => o.company !== co.company && namesOf(o).some((n) => persons.includes(n)));
+        return (
+          <div key={name} className={s.co}>
+            <h4>{co.official_name ?? name}</h4>
+            <div className={s.idno}>{co.idno ? `IDNO ${co.idno}` : 'IDNO necunoscut'}{co.note ? ` · ${co.note}` : ''}</div>
+            <dl>
+              <dt>Fondatori</dt><dd>{co.founders.length ? co.founders.map((f) => <div key={f.name}><b>{f.name}</b>{f.share ? ` — ${f.share}` : ''}</div>) : <i className={s.own}>nepublicați</i>}</dd>
+              <dt>Administrator</dt><dd>{co.administrator ? <b>{co.administrator}</b> : <i className={s.own}>necunoscut</i>}</dd>
+              {co.source && <><dt>Sursa</dt><dd><a href={co.source} target="_blank" rel="noreferrer">{co.source.replace(/^https?:\/\//, '').split('/')[0]}</a></dd></>}
+            </dl>
+            {aff.length > 0 && <div className={s.aff}>Firme afiliate (același fondator sau administrator): {aff.map((o, k) => <span key={o.company}>{k ? ', ' : ''}<b>{o.company}</b></span>)}</div>}
+          </div>
+        );
+      })}
       <div className={s.tabs}>
         <button type="button" className={fwd ? s.on : ''} onClick={() => setDir('tur')}>{first.name} → {last.name}<small>pleacă {pad(c.dep_tur)}, sosește {pad(last.time_tur)}</small></button>
         <button type="button" className={!fwd ? s.on : ''} onClick={() => setDir('retur')}>{last.name} → {first.name}<small>pleacă {pad(c.dep_retur)}, sosește {pad(first.time_retur)}</small></button>

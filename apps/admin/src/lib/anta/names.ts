@@ -48,3 +48,15 @@ export function antaTime(hhmm: string | null | undefined): string | null {
 
 /** Firma noastră, așa cum apare în graficul ANTA. */
 export const OUR_OPERATOR = 'S.R.L. PARCUL DE AUTOBUZE ŞI TAXIMETRE NR.9 DIN BRICENI';
+
+/**
+ * O linie «Deservit de» din graficul ANTA poate ține două firme: «IURTOL-TRANS S.R.L., S.C. ODOGRAF S.R.L.».
+ * Despărțim la virgulă urmată de spațiu (virgula fără spațiu e din nume: «BAZA DE TRANSPORT AUTO NR,25 LEOVA»)
+ * și tăiem IDNO-ul lipit la coadă («CALMATRANS S.R.L. 1005609004171»).
+ */
+export function splitOperator(operator: string): string[] {
+  return operator
+    .split(/,\s+/)
+    .map((s) => s.replace(/\s+\d{13}$/, '').trim())
+    .filter(Boolean);
+}

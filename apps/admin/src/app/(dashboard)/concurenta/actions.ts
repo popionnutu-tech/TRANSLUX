@@ -30,12 +30,24 @@ export interface AntaCourse {
 }
 
 export interface Place { name: string; district: string | null; n: number }
+export interface Founder { name: string; share: string | null }
+/** O firmă din graficul ANTA cu ce e public despre ea (ION-13): fondatori + administrator, nu beneficiari efectivi. */
+export interface Company {
+  company: string;
+  idno: string | null;
+  official_name: string | null;
+  administrator: string | null;
+  founders: Founder[];
+  source: string | null;
+  note: string | null;
+}
 export interface Operator { operator: string; n: number }
 export interface TariffRate { value: number; from: string }
 
 export interface ConcurentaInit {
   places: Place[];
   operators: Operator[];
+  companies: Company[];
   rate: TariffRate | null;
   ourOperator: string;
   counts: { courses: number; ours: number };
@@ -63,18 +75,21 @@ export async function getConcurentaInit(): Promise<ConcurentaInit> {
   requireRole(await verifySession(), 'ADMIN');
   const db = getSupabase();
   // anta_places / anta_operators întorc jsonb într-un singur rând (PostgREST ar tăia un set la 1000).
-  const [placesR, opsR, rate, total, ours] = await Promise.all([
+  const [placesR, opsR, compR, rate, total, ours] = await Promise.all([
     db.rpc('anta_places'),
     db.rpc('anta_operators'),
+    db.rpc('anta_companies_json'),
     currentRate(),
     db.from('anta_courses').select('id', { count: 'exact', head: true }),
     db.from('anta_courses').select('id', { count: 'exact', head: true }).eq('source', 'tlx'),
   ]);
   if (placesR.error) throw new Error(placesR.error.message);
   if (opsR.error) throw new Error(opsR.error.message);
+  if (compR.error) throw new Error(compR.error.message);
   return {
     places: (placesR.data ?? []) as Place[],
     operators: (opsR.data ?? []) as Operator[],
+    companies: (compR.data ?? []) as Company[],
     rate,
     ourOperator: OUR_OPERATOR,
     counts: { courses: total.count ?? 0, ours: ours.count ?? 0 },

@@ -4203,30 +4203,9 @@
   "idno": "1003604001469",
   "official_name": "Societatea cu Răspundere Limitată \"PARCUL DE AUTOBUZE ȘI TAXIMETRE NR.9 DIN BRICENI\"",
   "administrator": "POP NUTU",
-  "founders": [
-   {
-    "name": "POP MARIANNA",
-    "share": "30.22%"
-   },
-   {
-    "name": "POP MIHAIL",
-    "share": "30.22%"
-   },
-   {
-    "name": "POP ION",
-    "share": "30.22%"
-   },
-   {
-    "name": "POP ALA",
-    "share": "4.71%"
-   },
-   {
-    "name": "POP ALINA",
-    "share": "4.63%"
-   }
-  ],
+  "founders": [],
   "source": "https://overit.md/companie/1003604001469/",
-  "note": null,
+  "note": "fondatorii nu se afișează (Ion, 20.09: «la noi scoate numele la fondatori»)",
   "fetched_at": "2026-09-20"
  },
  {

@@ -8,7 +8,7 @@
 //   3. geometrie: dintre candidați îl luăm pe cel cu suma distanțelor cea mai mică până la cei mai
 //      apropiați vecini deja rezolvați de pe cursă (înainte și după, după coordonate);
 //   4. fără coordonate: raionul celui mai apropiat vecin (pe listă) care e printre candidați;
-//   5. altfel null.
+//   5. altfel null. Intersecțiile («X (intersecție)», «Intersectia X») rămân mereu null.
 // Se repetă de câteva ori, ca o oprire rezolvată să-i ajute pe vecinii ei.
 
 import { foldName, splitPrefix } from './names';
@@ -102,13 +102,7 @@ export function resolveDistricts(stops: string[], idx: LocalityIndex): (string |
       }
     }
   }
-  // o intersecție ia raionul celui mai apropiat vecin rezolvat (e pe drum, între ei)
-  for (let i = 0; i < stops.length; i++) {
-    if (fixed[i] || !isIntersection(stops[i])) continue;
-    for (let k = 1; k < stops.length && !fixed[i]; k++) {
-      for (const j of [i - k, i + k]) if (j >= 0 && j < stops.length && fixed[j]) { fixed[i] = fixed[j]; break; }
-    }
-  }
+  // o intersecție rămâne fără raion: e un singur loc pe drum, nu o localitate (altfel ar apărea în listă o dată pe fiecare raion al vecinilor)
   return fixed;
 }
 

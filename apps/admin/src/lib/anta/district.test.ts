@@ -70,10 +70,10 @@ describe('resolveDistricts — raionul opririlor pe cursă', () => {
     expect(resolveDistricts(['or. Balti', 's. Sofia', 'or. Drochia'], idx)[1]).toBe('Drochia');
   });
 
-  it('«or. Soroca (intersecție)» nu e orașul Soroca: ia raionul vecinului de pe drum', () => {
+  it('«or. Soroca (intersecție)» nu e orașul Soroca: rămâne fără raion, un singur punct', () => {
     expect(resolveDistricts(['or. Chisinau', 'or. Orhei', 'or. Soroca (intersecție)', 'or. Balti'], idx))
-      .toEqual(['mun. Chișinău', 'Orhei', 'Orhei', 'mun. Bălți']);
-    expect(resolveDistricts(['or. Balti', 's. Intersectia Riscani', 'or. Edinet'], idx)).toEqual(['mun. Bălți', 'mun. Bălți', 'Edineț']);
+      .toEqual(['mun. Chișinău', 'Orhei', null, 'mun. Bălți']);
+    expect(resolveDistricts(['or. Balti', 's. Intersectia Riscani', 'or. Edinet'], idx)).toEqual(['mun. Bălți', null, 'Edineț']);
   });
 
   it('fără coordonate ia raionul vecinului; necunoscut rămâne null', () => {

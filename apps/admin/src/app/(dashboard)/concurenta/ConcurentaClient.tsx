@@ -61,13 +61,13 @@ function PlacePicker({ id, label, placeholder, opts, value, onChange }: {
               <li key={o.name + (o.district ?? '')} role="option" aria-selected={i === act} className={i === act ? s.act : undefined}
                 onMouseDown={(e) => { e.preventDefault(); choose(o); }}>
                 <span><b>{o.base}</b> <span className={s.ty}>{o.ty}</span></span>
-                <span className={s.r}>{o.district ? `r. ${o.district}` : 'raion ?'}</span>
+                <span className={s.r}>{o.district ? `r. ${o.district}` : isIntersection(o.name) ? 'intersecție pe drum' : 'raion ?'}</span>
               </li>
             ))}
           </ul>
         )}
       </div>
-      <small>{value ? `${value.ty || 'punct'}${value.district ? `, raionul ${value.district}` : ', raion nedeterminat'}` : ''}</small>
+      <small>{value ? (isIntersection(value.name) ? 'intersecție pe drum, nu localitate' : `${value.ty || 'punct'}${value.district ? `, raionul ${value.district}` : ', raion nedeterminat'}`) : ''}</small>
     </div>
   );
 }

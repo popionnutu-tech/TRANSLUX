@@ -1,0 +1,1668 @@
+# Localitățile Republicii Moldova cu raionul și coordonatele (Wikidata, 20.09.2026). name|district|lat|lon
+Balasinești|Briceni|48.24389|26.96056
+Beleavinți|Briceni|48.29222|26.93889
+Berlinți|Briceni|48.31194|26.93583
+Bezeda|Briceni|48.16083|27.00111
+Bocicăuți|Briceni|48.29222|27.17472
+Bogdănești|Briceni|48.14028|27.00194
+Briceni|Briceni|48.36278|27.08500
+Bulboaca|Briceni|48.37167|27.19833
+Bălcăuți|Briceni|48.28333|27.20222
+Caracușenii Noi|Briceni|48.32528|27.02417
+Caracușenii Vechi|Briceni|48.27000|27.07583
+Chirilovca|Briceni|48.25861|27.15556
+Colicăuți|Briceni|48.30889|27.15389
+Corjeuți|Briceni|48.21667|27.05000
+Coteala|Briceni|48.33083|26.86194
+Cotiujeni|Briceni|48.34444|26.93806
+Criva|Briceni|48.27111|26.67222
+Drepcăuți|Briceni|48.27167|26.72417
+Grimești|Briceni|48.13306|26.97444
+Grimăncăuți|Briceni|48.38944|27.08972
+Groznița|Briceni|48.26000|27.23722
+Halahora de Jos|Briceni|48.23139|27.16972
+Halahora de Sus|Briceni|48.25861|27.17833
+Hlina|Briceni|48.29111|26.87806
+Larga|Briceni|48.37222|26.84333
+Lipcani|Briceni|48.26528|26.80389
+Medveja|Briceni|48.36194|26.78639
+Mihăileni|Briceni|48.24722|27.25083
+Mărcăuți|Briceni|48.31389|27.22611
+Mărcăuții Noi|Briceni|48.29750|27.22806
+Pavlovca|Briceni|48.37972|26.87639
+Pererîta|Briceni|48.20722|26.91583
+Slobozia-Medveja|Briceni|48.38056|26.75250
+Slobozia-Șirăuți|Briceni|48.24250|26.87250
+Tabani|Briceni|48.31222|27.09750
+Tețcani|Briceni|48.18167|26.97556
+Trebisăuți|Briceni|48.35583|27.19083
+Trestieni|Briceni|48.26972|27.13222
+Șirăuți|Briceni|48.23722|26.84250
+Arionești|Dondușeni|48.37528|27.84306
+Baraboi|Dondușeni|48.08583|27.61750
+Boroseni|Dondușeni||
+Braicău|Dondușeni|48.30389|27.73167
+Briceni|Dondușeni|48.35722|27.70361
+Briceva|Dondușeni|48.11472|27.64861
+Caraiman|Dondușeni|48.10667|27.56139
+Cernoleuca|Dondușeni|48.31333|27.55444
+Climăuți|Dondușeni|48.31083|27.60750
+Codrenii Noi|Dondușeni|48.14333|27.57278
+Corbu|Dondușeni|48.26722|27.57250
+Crișcăuți|Dondușeni|48.26639|27.85417
+Dondușeni|Dondușeni|48.22444|27.58528
+Elenovca|Dondușeni|48.12472|27.62611
+Elizavetovca|Dondușeni|48.28083|27.70861
+Frasin|Dondușeni|48.13833|27.54444
+Horodiște|Dondușeni|48.26500|27.78917
+Moșana|Dondușeni|48.32333|27.68917
+Octeabriscoe|Dondușeni|48.33972|27.66833
+Pivniceni|Dondușeni|48.28056|27.52611
+Plop|Dondușeni|48.25528|27.70028
+Pocrovca|Dondușeni|48.33139|27.85694
+Rediul Mare|Dondușeni|48.22861|27.51528
+Scăieni|Dondușeni|48.17639|27.57667
+Sudarca|Dondușeni|48.30528|27.78694
+Teleșeuca|Dondușeni|48.27889|27.89917
+Teleșeuca Nouă|Dondușeni|48.28139|27.88861
+Tîrnova|Dondușeni|48.16778|27.65556
+Țaul|Dondușeni|48.21583|27.67278
+Alexeevca|Edineț|48.09361|27.26083
+Alexăndreni|Edineț|48.14722|27.25833
+Bleșteni|Edineț|48.12250|27.21944
+Brînzeni|Edineț|48.08417|27.17556
+Brătușeni|Edineț|48.07722|27.39583
+Brătușenii Noi|Edineț|48.06111|27.48389
+Burlănești|Edineț|48.12611|27.13028
+Buzdugeni|Edineț|48.10778|27.15583
+Bădragii Noi|Edineț|48.06667|27.06667
+Bădragii Vechi|Edineț|48.03778|27.10639
+Cepeleuți|Edineț|48.30250|27.30722
+Chetroșica Nouă|Edineț|48.11667|27.46667
+Chetroșica Veche|Edineț|48.12028|27.40306
+Chiurt|Edineț|48.05944|27.34111
+Clișcăuți|Edineț|48.28444|27.32861
+Constantinovca|Edineț|48.24917|27.11000
+Corpaci|Edineț|48.00694|27.13833
+Cuconeștii Noi|Edineț|47.98889|27.20750
+Cuconeștii Vechi|Edineț|47.96556|27.15667
+Cupcini|Edineț|48.11083|27.38528
+Edineț|Edineț|48.16806|27.30500
+Fetești|Edineț|48.16667|27.09667
+Fîntîna Albă|Edineț|48.16306|27.42833
+Gașpar|Edineț|48.15694|27.49750
+Goleni|Edineț|48.21056|27.43278
+Gordinești|Edineț|48.16444|27.16500
+Gordineștii Noi|Edineț|48.17056|27.22861
+Hancăuți|Edineț|48.04861|27.18889
+Hincăuți|Edineț|48.27389|27.31056
+Hlinaia|Edineț|48.22333|27.25333
+Hlinaia Mică|Edineț|48.25361|27.26944
+Iachimeni|Edineț|48.24500|27.12861
+Lopatnic|Edineț|48.13639|27.05222
+Onești|Edineț|48.06417|27.27222
+Parcova|Edineț|48.15306|27.40389
+Poiana|Edineț|48.25222|27.35194
+Rotunda|Edineț|48.24417|27.30639
+Ruseni|Edineț|48.20167|27.41583
+Rîngaci|Edineț|48.31222|27.33611
+Slobodca|Edineț|48.20750|27.36861
+Stolniceni|Edineț|48.03806|27.34806
+Terebna|Edineț|48.05000|27.25139
+Trinca|Edineț|48.20833|27.11222
+Tîrnova|Edineț|48.20667|27.17972
+Vancicăuți|Edineț|48.31056|27.28333
+Viișoara|Edineț|48.09472|27.04472
+Volodeni|Edineț|48.11417|27.20139
+Zăbriceni|Edineț|48.07278|27.25333
+Șofrîncani|Edineț|48.04889|27.41389
+Berezovca|Ocnița|48.38139|27.77694
+Bîrlădeni|Ocnița|48.26444|27.41667
+Bîrnova|Ocnița|48.42389|27.52667
+Calarașovca|Ocnița|48.41667|27.81667
+Clocușna|Ocnița|48.43333|27.33333
+Codreni|Ocnița|48.43333|27.71667
+Corestăuți|Ocnița|48.35278|27.25778
+Dîngeni|Ocnița|48.34806|27.48139
+Frunză|Ocnița|48.40750|27.59861
+Grinăuți|Ocnița|48.31306|27.46889
+Grinăuți-Moldova|Ocnița|48.28306|27.44889
+Grinăuți-Raia|Ocnița|48.28528|27.42389
+Gîrbova|Ocnița|48.37750|27.62194
+Hădărăuți|Ocnița|48.37167|27.33583
+Lencăuți|Ocnița|48.43528|27.65056
+Lipnic|Ocnița|48.39361|27.51250
+Maiovca|Ocnița|48.37194|27.39361
+Mereșeuca|Ocnița|48.43417|27.68417
+Mihălășeni|Ocnița|48.32583|27.42333
+Naslavcea|Ocnița|48.46667|27.58333
+Ocnița|Ocnița|48.38528|27.43917
+Otaci|Ocnița|48.43000|27.79389
+Paladea|Ocnița|48.24639|27.41833
+Paustova|Ocnița|48.40694|27.50667
+Rediul Mare|Ocnița|48.22861|27.51528
+Rujnița|Ocnița|48.25639|27.43250
+Sauca|Ocnița|48.37750|27.72556
+Stălinești|Ocnița|48.33861|27.26389
+Unguri|Ocnița|48.40111|27.86750
+Verejeni|Ocnița|48.44000|27.61694
+Vălcineț|Ocnița|48.44556|27.73389
+Alexăndrești|Rîșcani|47.90000|27.43333
+Aluniș|Rîșcani|47.85000|27.65000
+Armanca|Rîșcani|47.98583|27.52361
+Avrămeni|Rîșcani|47.78389|27.26500
+Balanul Nou|Rîșcani|47.96056|27.50250
+Borosenii Noi|Rîșcani|47.98611|27.47222
+Braniște|Rîșcani|47.80000|27.25000
+Bulhac|Rîșcani|47.92222|27.67139
+Cepăria|Rîșcani|47.93222|27.71556
+Ciobanovca|Rîșcani|47.89111|27.75778
+Ciubara|Rîșcani|48.07694|27.53861
+Corlăteni|Rîșcani|47.82222|27.83139
+Costești|Rîșcani|47.85833|27.25861
+Cucuieții Noi|Rîșcani|47.89806|27.42528
+Cucuieții Vechi|Rîșcani|47.90861|27.43694
+Druța|Rîșcani|47.96306|27.29944
+Dumeni|Rîșcani|47.91083|27.20222
+Duruitoarea|Rîșcani|47.86944|27.26000
+Duruitoarea Nouă|Rîșcani|47.90000|27.25000
+Dămășcani|Rîșcani|47.86694|27.30556
+Grinăuți|Rîșcani|47.86667|27.76667
+Gălășeni|Rîșcani|47.86667|27.35000
+Hiliuți|Rîșcani|47.91667|27.38333
+Horodiște|Rîșcani|47.95389|27.26389
+Ivănești|Rîșcani|47.88833|27.41833
+Lupăria|Rîșcani|47.87833|27.55528
+Malinovscoe|Rîșcani|47.88333|27.50000
+Mihăileni|Rîșcani|48.04056|27.61389
+Mihăilenii Noi|Rîșcani|48.03333|27.53417
+Moșeni|Rîșcani|48.02861|27.45444
+Mălăiești|Rîșcani|47.88083|27.34917
+Nihoreni|Rîșcani|47.93333|27.56667
+Petrușeni|Rîșcani|47.85000|27.31667
+Pociumbeni|Rîșcani|47.98333|27.30000
+Pociumbăuți|Rîșcani|48.00000|27.31667
+Proscureni|Rîșcani|47.86722|27.28500
+Pîrjota|Rîșcani|47.95000|27.43333
+Păscăuți|Rîșcani|47.83528|27.28083
+Recea|Rîșcani|47.89639|27.67194
+Reteni|Rîșcani|47.80944|27.25333
+Reteni-Vasileuți|Rîșcani|47.80528|27.26083
+Rîșcani|Rîșcani|47.95609|27.55364
+Răcăria|Rîșcani|47.91667|27.61667
+Rămăzan|Rîșcani|47.98472|27.61528
+Singureni|Rîșcani|47.81667|27.85000
+Slobozia-Recea|Rîșcani|47.85528|27.69750
+Sturzeni|Rîșcani|47.90139|27.46056
+Sverdiac|Rîșcani|47.89667|27.72750
+Ușurei|Rîșcani|47.89278|27.59417
+Vasileuți|Rîșcani|48.00965|27.50882
+Văratic|Rîșcani|47.91667|27.25000
+Zăicani|Rîșcani|47.96667|27.36667
+Șaptebani|Rîșcani|47.90000|27.35000
+Știubeieni|Rîșcani|48.03167|27.51528
+Șumna|Rîșcani|47.91667|27.70000
+Albinețul Nou|Fălești|47.58000|27.62139
+Albinețul Vechi|Fălești|47.55417|27.63639
+Beleuți|Fălești|47.66417|27.90667
+Bocani|Fălești|47.52444|27.60861
+Bocșa|Fălești|47.47028|27.58222
+Burghelea|Fălești|47.53833|27.86528
+Catranîc|Fălești|47.52444|27.60861
+Chetriș|Fălești|47.59472|27.44556
+Chetrișul Nou|Fălești|47.62778|27.51194
+Ciolacu Nou|Fălești|47.48667|27.82556
+Ciolacu Vechi|Fălești|47.47278|27.86583
+Ciuluc|Fălești|47.61611|27.76250
+Comarovca|Fălești|47.66417|27.90667
+Cuzmenii Vechi|Fălești|47.63917|27.89167
+Călinești|Fălești|47.56333|27.48694
+Călugăr|Fălești|47.54056|27.69028
+Doltu|Fălești|47.53750|27.82361
+Drujineni|Fălești|47.52444|27.53111
+Egorovca|Fălești|47.61852|27.75364
+Fabrica de Zahăr|Fălești|47.53194|27.74472
+Frumușica|Fălești|47.51417|27.68778
+Făgădău|Fălești|47.47278|27.86583
+Fălești|Fălești|47.57361|27.70917
+Făleștii Noi|Fălești|47.55722|27.74278
+Glinjeni|Fălești|47.59861|27.89000
+Hiliuți|Fălești|47.59833|27.88833
+Hitrești|Fălești|47.54944|27.77694
+Horești|Fălești|47.43056|27.57861
+Hrubna Nouă|Fălești|47.40556|27.61444
+Hîncești|Fălești|47.59833|27.88833
+Hîrtop|Fălești|47.47944|27.70444
+Ilenuța|Fălești|47.63333|27.71222
+Ivanovca|Fălești|47.65890|27.88137
+Izvoare|Fălești|47.53750|27.82361
+Ișcălău|Fălești|47.41472|27.58028
+Logofteni|Fălești|47.62583|27.56972
+Lucăceni|Fălești|47.45750|27.59917
+Moldoveanca|Fălești|47.62500|27.61222
+Musteața|Fălești|47.66417|27.83083
+Măgura|Fălești|47.50694|27.95333
+Măgura Nouă|Fălești|47.50694|27.95333
+Măgureanca|Fălești|47.50528|27.69333
+Mărăndeni|Fălești|47.66417|27.83083
+Natalievca|Fălești|47.69694|27.88889
+Nicolaevca|Fălești|47.49944|27.70389
+Năvîrneț|Fălești|47.58778|27.56056
+Obreja Nouă|Fălești|47.67361|27.69333
+Obreja Veche|Fălești|47.67611|27.65611
+Pervomaisc|Fălești|47.62778|27.97889
+Pietrosu|Fălești|47.50083|27.92056
+Pietrosul Nou|Fălești|47.55722|27.74278
+Pocrovca|Fălești|47.46444|27.87528
+Pompa|Fălești|47.65389|27.94250
+Popovca|Fălești|47.66417|27.90667
+Pruteni|Fălești|47.63917|27.89167
+Pînzăreni|Fălești|47.61611|27.67528
+Pînzărenii Noi|Fălești|47.61611|27.67528
+Pîrlița|Fălești|47.73927|27.80202
+Rediul de Jos|Fălești|47.50833|27.60306
+Rediul de Sus|Fălești|47.52444|27.60861
+Risipeni|Fălești|47.47028|27.58222
+Răuțel|Fălești|47.76139|27.91222
+Răuțelul Nou|Fălești|47.59833|27.88833
+Scumpia|Fălești|47.46333|27.74167
+Socii Noi|Fălești|47.53889|27.64139
+Socii Vechi|Fălești|47.53000|27.67000
+Suvorovca|Fălești|47.63917|27.89167
+Sărata Nouă|Fălești|47.54944|27.77694
+Sărata Veche|Fălești|47.51000|27.73833
+Taxobeni|Fălești|47.38750|27.59056
+Unteni|Fălești|47.41472|27.58028
+Valea Rusului|Fălești|47.47028|27.58222
+Vrănești|Fălești|47.40833|27.59889
+Șoltoaia|Fălești|47.46306|27.81556
+Țapoc|Fălești|47.70750|27.89611
+Alexeuca|Sîngerei|47.68806|28.29083
+Alexăndreni|Sîngerei|47.80000|28.08333
+Antonovca|Sîngerei|47.67472|28.23694
+Bilicenii Noi|Sîngerei|47.65444|28.37972
+Bilicenii Vechi|Sîngerei|47.65500|28.04583
+Biruința|Sîngerei|47.81611|28.06861
+Bobletici|Sîngerei|47.48639|28.05528
+Bocancea-Schit|Sîngerei|47.50694|28.13806
+Brejeni|Sîngerei|47.56667|28.13333
+Bursuceni|Sîngerei|47.48972|28.01444
+Bălășești|Sîngerei|47.66000|28.35472
+Chirileni|Sîngerei|47.69056|28.19722
+Chișcăreni|Sîngerei|47.55667|28.00750
+Ciuciuieni|Sîngerei|47.55583|28.13167
+Clișcăuți|Sîngerei|47.60833|28.29194
+Coada Iazului|Sîngerei|47.65686|27.99528
+Copăceni|Sîngerei|47.61444|28.23778
+Cotiujenii Mici|Sîngerei|47.70250|28.30806
+Cotovca|Sîngerei|47.85000|27.97583
+Cozești|Sîngerei|47.56833|28.18389
+Coșcodeni|Sîngerei||
+Cubolta|Sîngerei|47.87389|28.03750
+Dobrogea Nouă|Sîngerei|47.82694|27.95000
+Dobrogea Veche|Sîngerei|47.83361|27.93667
+Drăgănești|Sîngerei|47.71667|28.25000
+Dumbrăvița|Sîngerei|47.48028|28.11444
+Evghenievca|Sîngerei|47.66611|28.22250
+Flămînzeni|Sîngerei|47.49861|28.09000
+Gavrilovca|Sîngerei|47.66056|28.23806
+Grigorești|Sîngerei|47.80111|28.05833
+Grigorăuca|Sîngerei|47.61889|28.19583
+Gura-Oituz|Sîngerei|47.70194|28.34722
+Heciul Nou|Sîngerei|47.77250|28.06278
+Heciul Vechi|Sîngerei|47.80111|28.05833
+Iezărenii Noi|Sîngerei|47.58917|28.09583
+Iezărenii Vechi|Sîngerei|47.56639|28.08861
+Izvoare|Sîngerei|47.71639|28.19611
+Lipovanca|Sîngerei|47.67750|27.98556
+Mihailovca|Sîngerei|47.59083|28.26083
+Mîndreștii Noi|Sîngerei|47.71806|28.02833
+Mărinești|Sîngerei|47.72750|28.05889
+Mărășești|Sîngerei|47.86222|28.07250
+Nicolaevca|Sîngerei|47.55667|28.00750
+Octeabriscoe|Sîngerei|47.71333|27.94889
+Pepeni|Sîngerei|47.64222|28.34917
+Pepenii Noi|Sîngerei|47.65111|28.33750
+Petropavlovca|Sîngerei|47.59306|28.21111
+Petrovca|Sîngerei|47.65972|28.23389
+Prepelița|Sîngerei|47.58694|28.33944
+Pălăria|Sîngerei|47.68556|27.93889
+Romanovca|Sîngerei|47.65556|28.29500
+Rădoaia|Sîngerei|47.72611|28.16139
+Răzălăi|Sîngerei|47.64361|28.36222
+Sacarovca|Sîngerei|47.70583|28.20917
+Slobozia-Chișcăreni|Sîngerei|47.57083|28.00917
+Slobozia-Măgura|Sîngerei|47.48389|27.96583
+Sloveanca|Sîngerei|47.65444|28.37972
+Sîngerei|Sîngerei|47.64056|28.14194
+Sîngereii Noi|Sîngerei|47.72528|28.07556
+Trifănești|Sîngerei|47.74250|28.09528
+Tăura Nouă|Sîngerei|47.54750|27.91222
+Tăura Veche|Sîngerei|47.53639|27.95167
+Valea Norocului|Sîngerei|47.76556|28.20306
+Valea lui Vlad|Sîngerei|47.48139|28.13139
+Vladimireuca|Sîngerei|47.65694|28.23250
+Vrănești|Sîngerei|47.62306|28.10083
+Șestaci|Sîngerei|47.62194|28.29028
+Țambula|Sîngerei|47.69778|27.91972
+Țipletești|Sîngerei|47.81833|28.12556
+Țiplești|Sîngerei|47.82389|28.14694
+Bogzești|Telenești|47.42250|28.43361
+Bondareuca|Telenești|47.54694|28.17722
+Brînzenii Noi|Telenești|47.65944|28.48611
+Brînzenii Vechi|Telenești|47.65639|28.47278
+Budăi|Telenești|47.45694|28.34972
+Bănești|Telenești|47.56889|28.38083
+Băneștii Noi|Telenești|47.58028|28.39889
+Chersac|Telenești|47.63667|28.58417
+Chiștelnița|Telenești|47.57028|28.66333
+Chițcanii Noi|Telenești|47.56361|28.48639
+Chițcanii Vechi|Telenești|47.59250|28.50250
+Ciofu|Telenești|47.56417|28.22083
+Ciulucani|Telenești|47.50194|28.30056
+Codru|Telenești|47.46389|28.26972
+Codrul Nou|Telenești|47.54722|28.57778
+Coropceni|Telenești|47.47583|28.51972
+Crăsnășeni|Telenești|47.43250|28.39833
+Cucioaia|Telenești|47.45833|28.18694
+Cucioaia Nouă|Telenești|47.48500|28.16528
+Cîșla|Telenești|47.49417|28.22472
+Căzănești|Telenești|47.61472|28.47417
+Dobrușa|Telenești|47.61306|28.55278
+Flutura|Telenești|47.68861|28.54861
+Ghermănești|Telenești|47.44139|28.51417
+Ghiliceni|Telenești|47.48556|28.20250
+Hirișeni|Telenești|47.43583|28.29083
+Hîrtop|Telenești|47.70472|28.48278
+Inești|Telenești|47.50444|28.39778
+Leușeni|Telenești|47.48167|28.43222
+Mihălașa|Telenești|47.49556|28.33972
+Mihălașa Nouă|Telenești|47.51389|28.36722
+Mîndra|Telenești|47.53583|28.52583
+Mîndrești|Telenești|47.50222|28.27806
+Negureni|Telenești|47.60111|28.51000
+Nucăreni|Telenești|47.59694|28.58361
+Ordășei|Telenești|47.68306|28.49583
+Pistruieni|Telenești|47.69194|28.48806
+Pistruienii Noi|Telenești|47.69944|28.41750
+Ratuș|Telenești|47.53861|28.50389
+Scorțeni|Telenești|47.63889|28.64806
+Suhuluceni|Telenești|47.46306|28.52333
+Sărătenii Noi|Telenești|47.50111|28.48778
+Sărătenii Vechi|Telenești|47.52556|28.55139
+Telenești|Telenești|47.49972|28.36556
+Tîrșiței|Telenești|47.69250|28.57778
+Vadul-Leca|Telenești|47.62444|28.46389
+Vadul-Leca Nou|Telenești|47.61556|28.43472
+Verejeni|Telenești|47.53056|28.47000
+Văsieni|Telenești|47.45944|28.44111
+Zahareuca|Telenești|47.53111|28.59944
+Zgărdești|Telenești|47.52972|28.19667
+Zăicani|Telenești|47.52167|28.50639
+Zăicanii Noi|Telenești|47.50861|28.49833
+Țînțăreni|Telenești|47.57028|28.56611
+Agronomovca|Ungheni|47.34806|27.89222
+Alexeevca|Ungheni|47.26667|27.93611
+Blindești|Ungheni|47.31167|27.67278
+Boghenii Noi|Ungheni|47.42694|28.01250
+Boghenii Vechi|Ungheni|47.39944|28.03028
+Buciumeni|Ungheni|47.36972|27.71333
+Bulhac|Ungheni|47.42722|27.73972
+Bumbăta|Ungheni|47.34083|27.96861
+Buzduganii de Jos|Ungheni|47.14306|27.82583
+Buzduganii de Sus|Ungheni|47.15917|27.86278
+Bușila|Ungheni|47.38972|27.81194
+Cetireni|Ungheni|47.21556|27.91444
+Chirileni|Ungheni|47.38000|27.77611
+Cioropcani|Ungheni|47.39500|27.69694
+Condrătești|Ungheni|47.41583|28.11028
+Cornești|Ungheni|47.35778|28.00556
+Cornova|Ungheni|47.39361|28.17361
+Costuleni|Ungheni|47.07722|27.92000
+Coșeni|Ungheni|47.44000|27.92306
+Curtoaia|Ungheni|47.39280|28.10250
+Drujba|Ungheni|47.43083|28.07778
+Elizavetovca|Ungheni|47.23944|27.82389
+Floreni|Ungheni|47.34639|27.66361
+Florești|Ungheni|47.38333|27.71389
+Florițoaia Nouă|Ungheni|47.17417|27.92361
+Florițoaia Veche|Ungheni|47.20194|27.90167
+Frăsinești|Ungheni|47.03851|28.00495
+Gherman|Ungheni|47.35917|27.60694
+Grozasca|Ungheni|47.17722|27.89861
+Grăseni|Ungheni|47.35083|27.83611
+Hristoforovca|Ungheni|47.35611|27.91806
+Hîrcești|Ungheni|47.39640|28.08360
+Izvoreni|Ungheni|47.42972|27.97278
+Leordoaia|Ungheni|47.33722|28.13861
+Lidovca|Ungheni|47.27611|27.89444
+Medeleni|Ungheni|47.29667|27.69222
+Mircești|Ungheni|47.40361|27.99472
+Morenii Noi|Ungheni|47.12472|27.92333
+Morenii Vechi|Ungheni|47.12500|27.88444
+Mînzătești|Ungheni|47.39440|28.06720
+Măcărești|Ungheni|47.04972|27.97472
+Măgurele|Ungheni|47.46139|27.96694
+Mănoilești|Ungheni|47.23528|27.87861
+Negurenii Noi|Ungheni|47.40028|27.88861
+Negurenii Vechi|Ungheni|47.41222|27.88167
+Novaia Nicolaevca|Ungheni|47.26944|27.84444
+Năpădeni|Ungheni|47.40472|28.15500
+Petrești|Ungheni|47.30861|27.74500
+Poiana|Ungheni|47.38917|27.99972
+Pojarna|Ungheni|47.33500|28.08750
+Pîrlița|Ungheni|47.32639|27.88417
+Rezina|Ungheni|47.21444|27.87528
+Romanovca|Ungheni|47.37528|27.97056
+Rădenii Vechi|Ungheni|47.29417|27.99472
+Sculeni|Ungheni|47.31667|27.63333
+Semeni|Ungheni|47.26806|27.75500
+Sinești|Ungheni|47.39694|28.04917
+Stolniceni|Ungheni|47.40944|27.71056
+Săghieni|Ungheni|47.24667|27.97000
+Teșcureni|Ungheni|47.40861|27.94306
+Todirești|Ungheni|47.31889|27.82000
+Ungheni|Ungheni|47.20417|27.79583
+Unțești|Ungheni|47.22778|27.90750
+Valea Mare|Ungheni|47.22778|27.90750
+Veverița|Ungheni|47.34780|28.10280
+Vulpești|Ungheni|47.24111|27.87056
+Zagarancea|Ungheni|47.24528|27.76556
+Zăzulenii Noi|Ungheni|47.38222|27.87417
+Zăzulenii Vechi|Ungheni|47.41139|27.85583
+Șicovăț|Ungheni|47.10611|27.90778
+Țîghira|Ungheni|47.44500|27.89944
+Boșcana|Criuleni|47.12417|29.00722
+Bălăbănești|Criuleni|47.06667|29.13333
+Bălășești|Criuleni|47.26556|29.04250
+Bălțata|Criuleni|47.05000|29.05000
+Bălțata de Sus|Criuleni|47.06639|29.03556
+Chetroasa|Criuleni|47.12222|28.97833
+Cimișeni|Criuleni|47.01250|29.12972
+Ciopleni|Criuleni|47.13028|28.94944
+Corjova|Criuleni|47.09639|29.17139
+Coșernița|Criuleni|47.11889|29.04722
+Criuleni|Criuleni|47.21667|29.16139
+Cruglic|Criuleni|47.22083|29.02750
+Dolinnoe|Criuleni|47.01667|29.00000
+Drăsliceni|Criuleni|47.15833|28.78167
+Dubăsarii Vechi|Criuleni|47.13556|29.20083
+Hrușova|Criuleni|47.13639|28.95194
+Hîrtopul Mare|Criuleni|47.22889|28.94417
+Hîrtopul Mic|Criuleni|47.24778|28.92778
+Izbiște|Criuleni|47.22333|29.00083
+Ișnovăț|Criuleni|47.23222|28.86556
+Jevreni|Criuleni|47.25806|29.06389
+Logănești|Criuleni|47.17222|28.78417
+Mașcăuți|Criuleni|47.29111|28.99639
+Miclești|Criuleni|47.24000|28.80528
+Măgdăcești|Criuleni|47.13389|28.82556
+Mălăiești|Criuleni|47.08722|29.13583
+Mălăieștii Noi|Criuleni|47.07861|29.14306
+Mărdăreuca|Criuleni|47.11750|29.00222
+Ohrincea|Criuleni|47.22000|29.06306
+Onițcani|Criuleni|47.14417|29.06944
+Pașcani|Criuleni|47.16722|28.83194
+Porumbeni|Criuleni|47.14694|28.84028
+Ratuș|Criuleni|47.16472|28.80667
+Rîșcova|Criuleni|47.25194|28.84861
+Răculești|Criuleni|47.27056|29.06778
+Sagaidac|Criuleni|47.02694|29.02389
+Sagaidacul de Sus|Criuleni|47.04944|29.02528
+Slobozia-Dușca|Criuleni|47.16667|29.12139
+Stețcani|Criuleni|47.23583|28.81944
+Valea Coloniței|Criuleni|47.00972|28.98667
+Valea Satului|Criuleni|47.03528|29.00556
+Zolonceni|Criuleni|47.24583|29.13944
+Zăicana|Criuleni|47.16861|28.95194
+Cocieri|Dubăsari|47.30000|29.11667
+Corjova|Dubăsari|47.30000|29.13333
+Coșnița|Dubăsari|47.18333|29.16667
+Doroțcaia|Dubăsari|47.17194|29.20639
+Holercani|Dubăsari|47.31500|29.06694
+Mahala|Dubăsari|47.28889|29.12222
+Molovata|Dubăsari|47.34889|29.11444
+Molovata Nouă|Dubăsari|47.33861|29.09056
+Mărcăuți|Dubăsari|47.35528|29.05833
+Oxentea|Dubăsari|47.38306|29.11944
+Pohrebea|Dubăsari|47.17611|29.16778
+Pîrîta|Dubăsari|47.10222|29.12139
+Ustia|Dubăsari|47.25500|29.12833
+Vasilievca|Dubăsari|47.36833|29.30611
+Andreevca|Orhei|47.53889|28.87750
+Berezlogi|Orhei|47.43333|28.93333
+Biești|Orhei|47.51556|28.86139
+Bolohan|Orhei|47.43194|28.87306
+Breanova|Orhei|47.41583|28.64972
+Brănești|Orhei|47.30528|28.92667
+Brăviceni|Orhei|47.43361|28.65778
+Budăi|Orhei|47.43444|28.82111
+Bulăiești|Orhei|47.47694|28.97861
+Butuceni|Orhei|47.30139|28.97250
+Camencea|Orhei|47.28083|28.68750
+Chiperceni|Orhei|47.52500|28.83861
+Cihoreni|Orhei|47.50611|28.86222
+Ciocîlteni|Orhei|47.49389|28.60889
+Cișmea|Orhei|47.41639|28.75333
+Clișova|Orhei|47.46667|28.56667
+Clișova Nouă|Orhei|47.49917|28.60750
+Crihana|Orhei|47.52278|28.72111
+Cucuruzeni|Orhei|47.48833|28.72583
+Cucuruzenii de Sus|Orhei|47.54556|28.69889
+Curchi|Orhei|47.33583|28.65389
+Dișcova|Orhei|47.37556|28.59750
+Donici|Orhei|47.28278|28.66667
+Fedoreuca|Orhei|47.48806|28.64028
+Furceni|Orhei|47.33639|28.92556
+Ghetlova|Orhei|47.37194|28.53222
+Hulboaca|Orhei|47.37861|28.55500
+Hîjdieni|Orhei|47.45944|28.91472
+Inculeț|Orhei|47.44889|28.72194
+Isacova|Orhei|47.37028|28.71806
+Ivancea|Orhei|47.28472|28.85694
+Izvoare|Orhei|47.55167|28.95722
+Jeloboc|Orhei|47.35694|28.90472
+Jora de Jos|Orhei|47.46500|29.10833
+Jora de Mijloc|Orhei|47.47556|29.09611
+Jora de Sus|Orhei|47.48667|29.07611
+Lopatna|Orhei|47.49500|29.05222
+Lucășeuca|Orhei|47.33500|28.75583
+Mana|Orhei|47.33889|28.68444
+Mitoc|Orhei|47.38667|28.78500
+Morovaia|Orhei|47.29917|28.99528
+Morozeni|Orhei|47.37806|28.63417
+Mîrzaci|Orhei|47.48944|28.99472
+Mîrzești|Orhei|47.49861|28.99500
+Mălăiești|Orhei|47.46306|28.66361
+Neculăieuca|Orhei|47.36028|28.69222
+Noroceni|Orhei|47.37694|28.51806
+Ocnița-Răzeși|Orhei|47.46944|28.72028
+Ocnița-Țărani|Orhei|47.45722|28.72278
+Orhei|Orhei|47.38306|28.82306
+Pelivan|Orhei|47.40333|28.77417
+Peresecina|Orhei|47.25222|28.76889
+Piatra|Orhei|47.36667|28.90000
+Pocșești|Orhei|47.24917|28.68333
+Podgoreni|Orhei|47.55944|28.78250
+Pohorniceni|Orhei|47.37361|28.88444
+Pohrebeni|Orhei|47.55639|28.90917
+Puțintei|Orhei|47.37389|28.57611
+Seliște|Orhei|47.33333|28.78444
+Sirota|Orhei|47.52778|28.77694
+Slobozia-Hodorogea|Orhei|47.50833|28.88861
+Step-Soci|Orhei|47.45528|28.78972
+Susleni|Orhei|47.41111|28.98639
+Sămănanca|Orhei|47.26500|28.73083
+Tabăra|Orhei|47.33000|28.56472
+Teleșeu|Orhei|47.26611|28.70806
+Trebujeni|Orhei|47.31389|28.97361
+Tîrzieni|Orhei|47.44500|28.62361
+Vatici|Orhei|47.33333|28.61667
+Voroteț|Orhei|47.55917|28.85472
+Vîprova|Orhei|47.38333|28.57056
+Vîșcăuți|Orhei|47.43250|29.07556
+Zahoreni|Orhei|47.57583|28.72750
+Zorile|Orhei|47.45667|28.73806
+Șercani|Orhei|47.51194|28.93222
+Boșernița|Rezina|47.78417|28.98028
+Buciușca|Rezina|47.63889|28.98694
+Bușăuca|Rezina|47.59361|28.78861
+Cinișeuți|Rezina|47.69556|28.85500
+Ciorna|Rezina|47.76861|28.97611
+Cogîlniceni|Rezina|47.63472|28.82250
+Cuizăuca|Rezina|47.61444|28.81278
+Echimăuți|Rezina|47.69417|28.90028
+Ghiduleni|Rezina|47.61083|28.74472
+Gordinești|Rezina|47.69667|28.80111
+Horodiște|Rezina|47.61472|28.94306
+Ignăței|Rezina|47.68250|28.66167
+Lalova|Rezina|47.56389|29.01917
+Lipceni|Rezina|47.80639|28.87028
+Mateuți|Rezina|47.80917|28.93278
+Meșeni|Rezina|47.66472|28.63806
+Mincenii de Jos|Rezina|47.63333|28.88333
+Mincenii de Sus|Rezina|47.64944|28.89389
+Nistreni|Rezina|47.54111|29.01000
+Otac|Rezina|47.58944|28.82972
+Peciște|Rezina|47.71556|28.71083
+Pereni|Rezina|47.65556|28.77667
+Piscărești|Rezina|47.75917|28.81028
+Pripiceni-Curchi|Rezina|47.68278|28.78361
+Pripiceni-Răzeși|Rezina|47.68583|28.76306
+Păpăuți|Rezina|47.79778|28.92333
+Rezina|Rezina|47.74917|28.96222
+Roșcani|Rezina|47.65389|28.74083
+Roșcanii de Jos|Rezina|47.64667|28.73750
+Roșcanii de Sus|Rezina|47.62889|28.76889
+Răspopeni|Rezina|47.75000|28.61667
+Saharna|Rezina|47.69361|28.97028
+Saharna Nouă|Rezina|47.67583|28.95611
+Slobozia-Horodiște|Rezina|47.59833|28.93556
+Solonceni|Rezina|47.82833|29.00389
+Stohnaia|Rezina|47.72778|28.96194
+Sîrcova|Rezina|47.74139|28.78361
+Tarasova|Rezina|47.87722|28.96361
+Trifești|Rezina|47.67639|28.80278
+Țahnăuți|Rezina|47.74111|28.86194
+Țareuca|Rezina|47.75139|28.87833
+Țipova|Rezina|47.60500|28.97944
+Alcedar|Șoldănești|47.86806|28.87472
+Chipeșca|Șoldănești|47.76222|28.60861
+Climăuții de Jos|Șoldănești|47.95000|28.80000
+Cobîlea|Șoldănești|47.86583|28.67139
+Cot|Șoldănești|47.97889|28.77778
+Cotiujenii Mari|Șoldănești|47.84361|28.55444
+Curătura|Șoldănești|47.87833|28.91222
+Cușelăuca|Șoldănești|47.87694|28.56083
+Cușmirca|Șoldănești|47.90639|28.70528
+Dobrușa|Șoldănești|47.78528|28.59389
+Fuzăuca|Șoldănești|47.73333|28.75000
+Glinjeni|Șoldănești|47.82194|28.87556
+Găuzeni|Șoldănești|47.75444|28.56556
+Lelina|Șoldănești|47.92500|28.74722
+Mihuleni|Șoldănești|47.83056|28.83694
+Odaia|Șoldănești|47.85667|28.84694
+Olișcani|Șoldănești|47.79806|28.71500
+Parcani|Șoldănești|47.81750|28.83694
+Pohoarna|Șoldănești|47.83333|28.50000
+Poiana|Șoldănești|47.88390|28.85640
+Recești|Șoldănești|47.78639|28.56222
+Rogojeni|Șoldănești|47.82528|28.41167
+Răspopeni|Șoldănești|47.74556|28.62111
+Salcia|Șoldănești|47.95056|28.73417
+Socola|Șoldănești|47.90806|28.81333
+Sămășcani|Șoldănești|47.75500|28.69667
+Vadul-Rașcov|Șoldănești|47.93861|28.82694
+Zahorna|Șoldănești|47.79667|28.55278
+Șestaci|Șoldănești|47.86139|28.75417
+Șipca|Șoldănești|47.84806|28.80611
+Șoldănești|Șoldănești|47.81528|28.79667
+Brăila|mun. Chișinău|46.91583|28.84306
+Bubuieci|mun. Chișinău|46.98500|28.94222
+Budești|mun. Chișinău|47.06528|29.00667
+Buneți|mun. Chișinău|47.08028|28.91528
+Bîc|mun. Chișinău|46.95889|28.93472
+Băcioi|mun. Chișinău|46.91222|28.88389
+Ceroborta|mun. Chișinău|47.10000|28.95000
+Cheltuitori|mun. Chișinău|47.06556|28.92444
+Chișinău|mun. Chișinău|47.02278|28.83528
+Ciorescu|mun. Chișinău|47.13778|28.88556
+Codru|mun. Chișinău|46.97528|28.81944
+Colonița|mun. Chișinău|47.03778|28.95833
+Condrița|mun. Chișinău|47.05667|28.56861
+Cricova|mun. Chișinău|47.13889|28.86139
+Cruzești|mun. Chișinău|47.08472|28.97361
+Dobrogea|mun. Chișinău|46.88028|28.98917
+Dumbrava|mun. Chișinău|47.04639|28.73694
+Durlești|mun. Chișinău|47.01778|28.76250
+Frumușica|mun. Chișinău|46.90111|28.89222
+Făurești|mun. Chișinău|47.14722|28.89500
+Ghidighici|mun. Chișinău|47.09306|28.76861
+Goian|mun. Chișinău|47.13278|28.90778
+Goianul Nou|mun. Chișinău|47.11750|28.90083
+Grătiești|mun. Chișinău|47.09917|28.81667
+Hulboaca|mun. Chișinău|47.11861|28.80111
+Humulești|mun. Chișinău|46.99667|28.97556
+Revaca|mun. Chișinău|46.90861|28.94472
+Străisteni|mun. Chișinău|46.90722|28.86222
+Stăuceni|mun. Chișinău|47.08750|28.87028
+Sîngera|mun. Chișinău|46.91306|28.97750
+Tohatin|mun. Chișinău|47.06250|28.94528
+Trușeni|mun. Chișinău|47.06889|28.67972
+Vadul lui Vodă|mun. Chișinău|47.09167|29.07556
+Vatra|mun. Chișinău|47.07389|28.73500
+Văduleni|mun. Chișinău|47.07000|29.08167
+Bahmut|Călărași|47.32278|28.11417
+Bahu|Călărași|47.42028|28.46500
+Bravicea|Călărași|47.36694|28.43944
+Buda|Călărași|47.20778|28.22167
+Bularda|Călărași|47.35611|28.22111
+Căbăiești|Călărași|47.21806|28.14722
+Călărași|Călărași|47.25444|28.30806
+Dereneu|Călărași|47.37944|28.24444
+Duma|Călărași|47.39028|28.24222
+Frumoasa|Călărași|47.32944|28.40194
+Hirova|Călărași|47.41222|28.28417
+Hoginești|Călărași|47.37444|28.32111
+Horodiște|Călărași|47.20667|28.25583
+Hîrbovăț|Călărași|47.33667|28.31222
+Hîrjauca|Călărași|47.32694|28.22167
+Leordoaia|Călărași|47.34417|28.14889
+Meleșeni|Călărași|47.37556|28.38889
+Mîndra|Călărași|47.31889|28.25861
+Nișcani|Călărași|47.26806|28.34583
+Novaci|Călărași|47.23611|28.26472
+Onișcani|Călărași|47.37167|28.28111
+Oricova|Călărași|47.29917|28.23361
+Palanca|Călărași|47.33278|28.20250
+Parcani|Călărași|47.29583|28.37306
+Peticeni|Călărași|47.23611|28.20861
+Pitușca|Călărași|47.23972|28.41972
+Podul Lung|Călărași|47.26028|28.23889
+Pîrjolteni|Călărași|47.20028|28.24306
+Păulești|Călărași|47.26778|28.37222
+Răciula|Călărași|47.30583|28.35389
+Rădeni|Călărași|47.39611|28.21056
+Sadova|Călărași|47.18917|28.35000
+Schinoasa|Călărași|47.35750|28.34861
+Seliștea Nouă|Călărași|47.23611|28.31222
+Sipoteni|Călărași|47.27639|28.19833
+Sverida|Călărași|47.35250|28.29139
+Săseni|Călărași|47.36889|28.50056
+Temeleuți|Călărași|47.24833|28.07833
+Tuzara|Călărași|47.24167|28.30417
+Ursari|Călărași|47.21528|28.19611
+Vălcineț|Călărași|47.26306|28.13083
+Vărzăreștii Noi|Călărași|47.23056|28.44417
+Țibirica|Călărași|47.37306|28.37167
+Anini|Hîncești|46.88917|28.46639
+Bobeica|Hîncești|46.98500|28.46222
+Boghiceni|Hîncești|46.94889|28.32528
+Bozieni|Hîncești|46.75000|28.65000
+Brătianovca|Hîncești|46.74056|28.46472
+Bujor|Hîncești|46.92250|28.26833
+Buțeni|Hîncești|46.82417|28.67500
+Bălceana|Hîncești|46.84444|28.40472
+Caracui|Hîncești|46.69861|28.54194
+Chetroșeni|Hîncești|46.96306|28.27278
+Cioara|Hîncești|46.73250|28.22472
+Ciuciuleni|Hîncești|47.02167|28.41333
+Cornești|Hîncești|46.99806|28.32944
+Coroliovca|Hîncești|46.71083|28.47250
+Costești|Hîncești|46.87333|28.20667
+Cotul Morii|Hîncești|46.86972|28.11889
+Crasnoarmeiscoe|Hîncești|46.82944|28.28222
+Călmățui|Hîncești|46.78333|28.21528
+Cărpineanca|Hîncești|46.69611|28.47250
+Cărpineni|Hîncești|46.75972|28.35306
+Cățeleni|Hîncești|46.91778|28.18944
+Dahnovici|Hîncești|46.97639|28.48222
+Dancu|Hîncești|46.76278|28.21000
+Drăgușeni|Hîncești|46.98389|28.45028
+Drăgușenii Noi|Hîncești|47.04444|28.42417
+Dubovca|Hîncești|46.74861|28.60833
+Feteasca|Hîncești|46.78778|28.19222
+Frasin|Hîncești|46.89000|28.19500
+Fundul Galbenei|Hîncești|46.88250|28.62306
+Fîrlădeni|Hîncești|46.78750|28.68750
+Horjești|Hîncești|46.71278|28.34944
+Horodca|Hîncești|47.05611|28.46167
+Hîncești|Hîncești|46.82583|28.59361
+Ivanovca|Hîncești|46.87694|28.19639
+Leușeni|Hîncești|46.80917|28.19944
+Logănești|Hîncești|46.90389|28.54528
+Lăpușna|Hîncești|46.88417|28.41194
+Marchet|Hîncești|46.70806|28.23417
+Mereșeni|Hîncești|46.79667|28.54167
+Mingir|Hîncești|46.66667|28.32722
+Mirești|Hîncești|46.96667|28.25000
+Negrea|Hîncești|46.81139|28.39806
+Nemțeni|Hîncești|46.90861|28.11806
+Obileni|Hîncești|46.87861|28.16056
+Onești|Hîncești|46.86028|28.25250
+Pașcani|Hîncești|46.97694|28.36778
+Pereni|Hîncești|47.00278|28.37361
+Pervomaiscoe|Hîncești|46.88389|28.32306
+Pogănești|Hîncești|46.69292|28.23109
+Rusca|Hîncești|46.87611|28.47639
+Secăreni|Hîncești|47.02528|28.33250
+Secărenii Noi|Hîncești|47.01806|28.32944
+Semionovca|Hîncești|46.69750|28.30444
+Sofia|Hîncești|46.84111|28.38028
+Stolniceni|Hîncești|46.96028|28.50000
+Strîmbeni|Hîncești|46.86722|28.26500
+Sărata-Galbenă|Hîncești|46.72750|28.51500
+Sărata-Mereșeni|Hîncești|46.79889|28.50306
+Sărăteni|Hîncești|46.85667|28.16861
+Tălăiești|Hîncești|46.80028|28.26639
+Valea Florii|Hîncești|46.71278|28.43861
+Voinescu|Hîncești|46.64944|28.30167
+Șipoteni|Hîncești|46.94250|28.45639
+Alexandrovca|Ialoveni|46.72111|29.02611
+Bardar|Ialoveni|46.90167|28.66806
+Budăi|Ialoveni|46.81333|28.97417
+Bălțați|Ialoveni|46.84167|28.95278
+Cigîrleni|Ialoveni|46.86778|28.80222
+Costești|Ialoveni|46.86778|28.80222
+Cărbuna|Ialoveni|46.71222|28.95167
+Dănceni|Ialoveni|46.77250|29.00611
+Gangura|Ialoveni|46.73000|29.01306
+Găureni|Ialoveni|46.82694|28.84361
+Hansca|Ialoveni|46.77250|29.00611
+Homuteanovca|Ialoveni|46.72500|29.05667
+Horești|Ialoveni|46.82667|28.87194
+Horodca|Ialoveni|47.04556|28.48944
+Ialoveni|Ialoveni|46.94306|28.77778
+Malcoci|Ialoveni|47.04556|28.48944
+Mileștii Mici|Ialoveni|46.90084|28.79586
+Mileștii Noi|Ialoveni|46.74556|28.96111
+Misovca|Ialoveni|46.77250|29.00611
+Molești|Ialoveni|46.78583|28.77806
+Nimoreni|Ialoveni|47.01000|28.67000
+Piatra Albă|Ialoveni|46.93194|28.81806
+Pojăreni|Ialoveni|46.78583|28.77806
+Puhoi|Ialoveni|46.78583|28.77806
+Ruseștii Noi|Ialoveni|46.74556|28.96111
+Ruseștii Vechi|Ialoveni|46.92056|28.62444
+Răzeni|Ialoveni|46.76667|28.90000
+Sociteni|Ialoveni|46.92056|28.62444
+Suruceni|Ialoveni|46.98250|28.66861
+Ulmu|Ialoveni|47.02611|28.59667
+Văratic|Ialoveni|46.80944|29.06333
+Văsieni|Ialoveni|46.96667|28.59139
+Zîmbreni|Ialoveni|46.83572|28.84944
+Țipala|Ialoveni|46.82778|28.97528
+Boldurești|Nisporeni|47.02083|28.06361
+Bolțun|Nisporeni|47.02583|28.28833
+Brătuleni|Nisporeni|47.14250|27.97806
+Bursuc|Nisporeni|47.09528|28.30306
+Băcșeni|Nisporeni|47.08722|28.01583
+Bălănești|Nisporeni|47.20361|28.06361
+Bălăurești|Nisporeni|46.94250|28.13722
+Bărboieni|Nisporeni|47.02083|28.06361
+Chilișoaia|Nisporeni|47.11083|28.03083
+Ciorești|Nisporeni|47.16528|28.22222
+Ciutești|Nisporeni|47.17556|28.12333
+Cristești|Nisporeni|47.05694|28.28611
+Cîrnești|Nisporeni|47.14250|27.97806
+Călimănești|Nisporeni|46.94333|28.19361
+Drojdieni|Nisporeni|46.93778|28.22361
+Grozești|Nisporeni|46.99861|28.07833
+Găureni|Nisporeni|47.19722|28.08861
+Heleșteni|Nisporeni|46.96139|28.18389
+Isăicani|Nisporeni|47.07028|28.07250
+Iurceni|Nisporeni|47.07917|28.26028
+Luminița|Nisporeni|47.08083|28.07667
+Marinici|Nisporeni|46.96889|28.17944
+Milești|Nisporeni|47.21972|28.04028
+Mîrzoaia|Nisporeni|47.03306|28.26389
+Nisporeni|Nisporeni|47.08139|28.17833
+Odaia|Nisporeni|47.00861|28.20028
+Odobești|Nisporeni|47.05611|28.07000
+Păruceni|Nisporeni|47.15972|28.13000
+Seliște|Nisporeni|47.15972|28.13000
+Selișteni|Nisporeni|47.06167|28.06944
+Soltănești|Nisporeni|47.05944|28.11111
+Valea Nîrnovei|Nisporeni|47.16389|28.09556
+Valea-Trestieni|Nisporeni|47.07028|28.07250
+Vulcănești|Nisporeni|47.15278|28.18972
+Vînători|Nisporeni|47.18694|28.10361
+Vărzărești|Nisporeni|47.10806|28.19833
+Zberoaia|Nisporeni|46.96806|28.10611
+Șendreni|Nisporeni|47.12528|28.18722
+Șișcani|Nisporeni|46.96917|28.21361
+Bucovăț|Strășeni|47.18861|28.45694
+Chirianca|Strășeni|47.25556|28.53083
+Ciobanca|Strășeni|47.14333|28.50083
+Codreanca|Strășeni|47.28111|28.58528
+Cojușna|Strășeni|47.09306|28.65833
+Căpriana|Strășeni|47.11722|28.50417
+Dolna|Strășeni|47.12028|28.27000
+Drăgușeni|Strășeni|47.21361|28.67028
+Făgureni|Strășeni|47.14889|28.56778
+Ghelăuza|Strășeni|47.18944|28.59444
+Gornoe|Strășeni|47.18917|28.77778
+Greblești|Strășeni|47.24333|28.61194
+Gălești|Strășeni|47.22528|28.49111
+Găleștii Noi|Strășeni|47.20694|28.49389
+Huzun|Strășeni|47.12028|28.31694
+Lozova|Strășeni|47.13278|28.38556
+Lupa-Recea|Strășeni|47.31250|28.59194
+Micleușeni|Strășeni|47.12278|28.30805
+Micăuți|Strășeni|47.17222|28.74889
+Mărtinești|Strășeni|47.23306|28.60778
+Negrești|Strășeni|47.17972|28.62278
+Onești|Strășeni|47.27722|28.55417
+Pănășești|Strășeni|47.15556|28.51889
+Rassvet|Strășeni|47.20472|28.42944
+Recea|Strășeni|47.22583|28.58056
+Romănești|Strășeni|47.22361|28.71361
+Roșcani|Strășeni|47.14722|28.67750
+Rădeni|Strășeni|47.20583|28.70056
+Saca|Strășeni|47.19389|28.61139
+Scoreni|Strășeni|47.06667|28.60722
+Sireți|Strășeni|47.14722|28.67750
+Stejăreni|Strășeni|47.10806|28.41500
+Strășeni|Strășeni|47.14139|28.61028
+Tătărești|Strășeni|47.20528|28.53806
+Voinova|Strășeni|47.27056|28.48889
+Vorniceni|Strășeni|47.15500|28.42417
+Zamcioji|Strășeni|47.20361|28.72611
+Zubrești|Strășeni|47.24056|28.53417
+Țigănești|Strășeni|47.29694|28.55389
+Albinița|Anenii Noi|46.89056|29.17389
+Anenii Noi|Anenii Noi|46.88167|29.23083
+Balmaz|Anenii Noi|46.79833|29.28333
+Batîc|Anenii Noi|46.79583|29.19000
+Beriozchi|Anenii Noi|46.87333|29.26250
+Botnărești|Anenii Noi|46.93472|29.16222
+Botnăreștii Noi|Anenii Noi|46.91333|29.14944
+Bulboaca|Anenii Noi|46.88472|29.30861
+Calfa|Anenii Noi|46.90389|29.37306
+Calfa Nouă|Anenii Noi|46.91472|29.35778
+Chetrosu|Anenii Noi|46.91500|29.05194
+Chirca|Anenii Noi|46.92250|29.11333
+Ciobanovca|Anenii Noi|46.81472|29.20361
+Cobusca Nouă|Anenii Noi|46.93667|29.20250
+Cobusca Veche|Anenii Noi|46.96972|29.18111
+Crețoaia|Anenii Noi|46.86750|29.13556
+Delacău|Anenii Noi|47.09972|29.30056
+Floreni|Anenii Noi|46.93778|28.98861
+Florești|Anenii Noi|46.99722|29.17917
+Geamăna|Anenii Noi|46.82167|29.13778
+Gura Bîcului|Anenii Noi|46.92833|29.45889
+Hîrbovăț|Anenii Noi|46.84417|29.35917
+Hîrbovățul Nou|Anenii Noi|46.83194|29.27750
+Larga|Anenii Noi|46.75917|29.16278
+Maximovca|Anenii Noi|47.01306|29.01361
+Mereni|Anenii Noi|46.96333|29.05500
+Merenii Noi|Anenii Noi|46.92444|29.05694
+Mirnoe|Anenii Noi|46.80417|29.22778
+Nicolaevca|Anenii Noi|46.77611|29.20778
+Ochiul Roș|Anenii Noi|46.76778|29.11194
+Picus|Anenii Noi|46.75139|29.09361
+Puhăceni|Anenii Noi|47.08944|29.34000
+Roșcani|Anenii Noi|46.90250|29.31889
+Ruseni|Anenii Noi|46.88528|29.20000
+Salcia|Anenii Noi|46.94250|29.16944
+Socoleni|Anenii Noi|46.91000|29.19000
+Speia|Anenii Noi|47.00889|29.29306
+Telița|Anenii Noi|46.95750|29.30194
+Telița Nouă|Anenii Noi|46.98056|29.28583
+Todirești|Anenii Noi|46.90778|29.09000
+Troița Nouă|Anenii Noi|46.78861|29.26250
+Varnița|Anenii Noi|46.86139|29.46917
+Zolotievca|Anenii Noi|46.73861|29.19000
+Șerpeni|Anenii Noi|47.02083|29.34500
+Țînțăreni|Anenii Noi|46.90028|29.13944
+Abaclia|Basarabeasca|46.36194|28.94194
+Basarabeasca|Basarabeasca|46.33361|28.96139
+Bașcalia|Basarabeasca|46.30833|28.78444
+Bogdanovca|Basarabeasca|46.41389|28.91278
+Carabetovca|Basarabeasca|46.51222|28.93417
+Carabiber|Basarabeasca|46.47222|28.99556
+Iordanovca|Basarabeasca|46.39389|28.90917
+Iserlia|Basarabeasca|46.48639|28.95389
+Ivanovca|Basarabeasca|46.50639|28.94917
+Sadaclia|Basarabeasca|46.44917|28.87861
+Albina|Cimișlia|46.70444|28.64194
+Artimonovca|Cimișlia|46.59833|28.58917
+Batîr|Cimișlia|46.57750|29.00417
+Bogdanovca Nouă|Cimișlia|46.49472|28.84167
+Bogdanovca Veche|Cimișlia|46.47528|28.82472
+Cenac|Cimișlia|46.48333|28.65000
+Cimișlia|Cimișlia|46.52000|28.78417
+Ciucur-Mingir|Cimișlia|46.44083|28.75583
+Codreni|Cimișlia|46.67556|28.88361
+Coștangalia|Cimișlia|46.61667|28.80306
+Dimitrovca|Cimișlia|46.48472|28.71639
+Ecaterinovca|Cimișlia|46.58333|28.75000
+Fetița|Cimișlia|46.69333|28.67306
+Gradiște|Cimișlia|46.60778|28.75889
+Gura Galbenei|Cimișlia|46.69806|28.70583
+Hîrtop|Cimișlia|46.65167|28.68833
+Ialpug|Cimișlia|46.65056|28.58694
+Ialpujeni|Cimișlia|46.70444|28.64194
+Iurievca|Cimișlia|46.66833|28.76639
+Ivanovca Nouă|Cimișlia|46.74444|28.69361
+Javgur|Cimișlia|46.53917|28.61389
+Lipoveni|Cimișlia|46.73361|28.75444
+Marienfeld|Cimișlia|46.59917|28.61806
+Maximeni|Cimișlia|46.57056|28.89528
+Mereni|Cimișlia|46.67444|28.64917
+Mihailovca|Cimișlia|46.53972|28.92917
+Munteni|Cimișlia|46.70056|28.75944
+Porumbrei|Cimișlia|46.69194|28.81167
+Prisaca|Cimișlia|46.65500|28.60083
+Sagaidac|Cimișlia|46.69389|28.84972
+Sagaidacul Nou|Cimișlia|46.66111|28.84389
+Satul Nou|Cimișlia|46.61556|28.90861
+Schinoșica|Cimișlia|46.72750|28.78722
+Selemet|Cimișlia|46.58333|28.93333
+Suric|Cimișlia|46.62917|28.87361
+Topala|Cimișlia|46.46083|28.67500
+Troițcoe|Cimișlia|46.51444|29.02833
+Valea Perjei|Cimișlia|46.62111|28.72250
+Zloți|Cimișlia|46.69500|28.89667
+Baccealia|Căușeni|46.68333|29.28333
+Baimaclia|Căușeni|46.59083|29.09278
+Baurci|Căușeni|46.65806|28.95222
+Chircăiești|Căușeni|46.71667|29.51667
+Chircăieștii Noi|Căușeni|46.66667|28.96667
+Chițcani|Căușeni|46.78556|29.60861
+Ciuflești|Căușeni|46.62417|29.00194
+Constantinovca|Căușeni|46.72111|29.10944
+Copanca|Căușeni|46.71694|29.62056
+Coșcalia|Căușeni|46.68556|29.15694
+Cremenciug|Căușeni|46.70861|29.67389
+Cîrnățeni|Căușeni|46.65444|29.49194
+Cîrnățenii Noi|Căușeni|46.64944|29.13500
+Căinari|Căușeni|46.67889|29.04611
+Căușeni|Căușeni|46.64417|29.41389
+Florica|Căușeni|46.69000|29.22222
+Fîrlădeni|Căușeni|46.78833|29.36694
+Fîrlădenii Noi|Căușeni|46.75250|29.30111
+Grigorievca|Căușeni|46.68972|29.32944
+Grădinița|Căușeni|46.65306|29.58417
+Gîsca|Căușeni|46.78472|29.44639
+Hagimus|Căușeni|46.75639|29.47972
+Leuntea|Căușeni|46.66278|29.58778
+Marianca de Sus|Căușeni|46.64833|29.31194
+Merenești|Căușeni|46.77667|29.53778
+Opaci|Căușeni|46.57972|29.35000
+Pervomaisc|Căușeni|46.70111|29.08917
+Plop|Căușeni|46.71083|29.21972
+Plop-Știubei|Căușeni|46.67500|29.51444
+Surchiceni|Căușeni|46.72222|29.41556
+Săiți|Căușeni|46.49667|29.40750
+Sălcuța|Căușeni|46.59500|29.24444
+Sălcuța Nouă|Căușeni|46.63222|29.19056
+Taraclia|Căușeni|46.57028|29.11556
+Tocuz|Căușeni|46.52389|29.29611
+Tricolici|Căușeni|46.73722|29.23972
+Tănătari|Căușeni|46.73667|29.32083
+Tănătarii Noi|Căușeni|46.70667|29.37083
+Ucrainca|Căușeni|46.43111|29.27278
+Ursoaia|Căușeni|46.70583|29.44556
+Ursoaia Nouă|Căușeni|46.72694|29.33889
+Valea Verde|Căușeni|46.69333|29.58833
+Zahorna|Căușeni|46.74306|29.59472
+Zaim|Căușeni|46.61944|29.34639
+Zviozdocica|Căușeni|46.47972|29.32417
+Ștefănești|Căușeni|46.62278|29.05361
+Alava|Ștefan Vodă|46.50917|29.56778
+Antonești|Ștefan Vodă|46.49611|29.84861
+Brezoaia|Ștefan Vodă|46.52083|29.45389
+Carahasani|Ștefan Vodă|46.46750|29.81222
+Cioburciu|Ștefan Vodă|46.60028|29.70833
+Copceac|Ștefan Vodă|46.45028|29.52083
+Crocmaz|Ștefan Vodă|46.45194|29.98250
+Căplani|Ștefan Vodă|46.38722|29.87139
+Ermoclia|Ștefan Vodă|46.58083|29.50972
+Feștelița|Ștefan Vodă|46.54444|29.56556
+Lazo|Ștefan Vodă|46.48778|29.57639
+Marianca de Jos|Ștefan Vodă|46.52056|29.60139
+Olănești|Ștefan Vodă|46.49556|29.91806
+Palanca|Ștefan Vodă|46.40861|30.09611
+Popeasca|Ștefan Vodă|46.60250|29.53694
+Purcari|Ștefan Vodă|46.53694|29.86028
+Răscăieți|Ștefan Vodă|46.57444|29.77611
+Răscăieții Noi|Ștefan Vodă|46.53250|29.77333
+Semionovca|Ștefan Vodă|46.51667|29.51222
+Slobozia|Ștefan Vodă|46.50806|29.74028
+Talmaza|Ștefan Vodă|46.63583|29.66472
+Tudora|Ștefan Vodă|46.43500|30.04250
+Viișoara|Ștefan Vodă|46.54694|29.82556
+Volintiri|Ștefan Vodă|46.42667|29.60583
+Ștefan Vodă|Ștefan Vodă|46.51528|29.66306
+Ștefănești|Ștefan Vodă|46.44583|29.68778
+Avdarma|Găgăuzia|46.25417|28.83944
+Baurci|Găgăuzia|46.09389|28.67583
+Beșalma|Găgăuzia|46.17278|28.64833
+Beșghioz|Găgăuzia|46.12167|28.87222
+Bugeac|Găgăuzia|46.36583|28.66333
+Carbalia|Găgăuzia|45.87333|28.44583
+Cazaclia|Găgăuzia|46.01028|28.66278
+Ceadîr-Lunga|Găgăuzia|46.05500|28.83028
+Chioselia Rusă|Găgăuzia|46.08333|28.51667
+Chiriet-Lunga|Găgăuzia|46.20917|28.94417
+Chirsova|Găgăuzia|46.23389|28.64806
+Cioc-Maidan|Găgăuzia|46.35806|28.82194
+Cișmichioi|Găgăuzia|45.54444|28.38278
+Comrat|Găgăuzia|46.30028|28.65722
+Congaz|Găgăuzia|46.10917|28.60444
+Congazcicul de Jos|Găgăuzia|46.31139|28.57139
+Congazcicul de Sus|Găgăuzia|46.33333|28.56639
+Copceac|Găgăuzia|45.85000|28.69472
+Cotovscoe|Găgăuzia|46.16056|28.51361
+Dezghingea|Găgăuzia|46.42444|28.61667
+Dudulești|Găgăuzia|46.32750|28.51389
+Etulia|Găgăuzia|45.53917|28.44278
+Etulia Nouă|Găgăuzia|45.51611|28.43917
+Ferapontievca|Găgăuzia|46.24000|28.77444
+Gaidar|Găgăuzia|46.10278|28.76500
+Joltai|Găgăuzia|46.18250|28.87611
+Svetlîi|Găgăuzia|46.01639|28.56611
+Tomai|Găgăuzia|46.18167|28.76750
+Vulcănești|Găgăuzia|45.68417|28.40278
+Alexanderfeld|Cahul|45.80000|28.43333
+Alexandru Ioan Cuza|Cahul|45.60000|28.45000
+Andrușul de Jos|Cahul|45.98333|28.21667
+Andrușul de Sus|Cahul|46.00000|28.25000
+Badicul Moldovenesc|Cahul|46.10000|28.25000
+Baurci-Moldoveni|Cahul|46.03333|28.23333
+Borceag|Cahul|46.05000|28.51667
+Brînza|Cahul|45.66667|28.16667
+Bucuria|Cahul|45.96667|28.33333
+Burlacu|Cahul|46.05000|28.41667
+Burlăceni|Cahul|45.75000|28.50000
+Cahul|Cahul|45.90750|28.19444
+Chioselia Mare|Cahul|46.05000|28.51667
+Chircani|Cahul|46.05000|28.18333
+Colibași|Cahul|45.73333|28.16667
+Cotihana|Cahul|45.93694|28.24222
+Crihana Veche|Cahul|45.83333|28.18333
+Cucoara|Cahul|46.05000|28.18333
+Cîșlița-Prut|Cahul|45.53333|28.16667
+Doina|Cahul|46.10000|28.31667
+Frumușica|Cahul|46.08333|28.46667
+Giurgiulești|Cahul|45.48333|28.20000
+Greceni|Cahul|45.75000|28.53333
+Găvănoasa|Cahul|45.81667|28.35000
+Huluboaia|Cahul|46.05000|28.35000
+Hutulu|Cahul|45.85000|28.30000
+Iasnaia Poleana|Cahul|46.13333|28.30000
+Iujnoe|Cahul|45.75000|28.46667
+Larga Nouă|Cahul|46.08333|28.21667
+Larga Veche|Cahul|46.06667|28.23333
+Lebedenco|Cahul|45.85000|28.28000
+Lopățica|Cahul|45.93333|28.40000
+Lucești|Cahul|45.98333|28.33333
+Manta|Cahul|45.80000|28.16667
+Moscovei|Cahul|45.93333|28.35000
+Nicolaevca|Cahul|45.75000|28.36667
+Paicu|Cahul|46.03333|28.15000
+Pașcani|Cahul|45.81667|28.16667
+Pelinei|Cahul|45.81667|28.31667
+Roșu|Cahul|45.95000|28.20000
+Rumeanțev|Cahul|46.11667|28.28333
+Slobozia Mare|Cahul|45.56667|28.16667
+Spicoasa|Cahul|46.03333|28.36667
+Sătuc|Cahul|45.81667|28.35000
+Taraclia de Salcie|Cahul|46.00000|28.41667
+Tartaul de Salcie|Cahul||
+Tretești|Cahul|45.98333|28.16667
+Trifeștii Noi|Cahul|45.95000|28.35000
+Tudorești|Cahul|45.96667|28.40000
+Tătărești|Cahul|46.01667|28.35000
+Ursoaia|Cahul|45.85000|28.31667
+Vadul lui Isac|Cahul|45.75000|28.16667
+Vladimirovca|Cahul|45.78333|28.35000
+Văleni|Cahul|45.63333|28.16667
+Zîrnești|Cahul|46.00000|28.18333
+Acui|Cantemir|46.18667|28.42472
+Alexandrovca|Cantemir|46.23000|28.26639
+Antonești|Cantemir|46.33778|28.21722
+Baimaclia|Cantemir|46.18722|28.38694
+Bobocica|Cantemir|46.22472|28.45944
+Cania|Cantemir|46.28139|28.22861
+Cantemir|Cantemir|46.27806|28.20083
+Capaclia|Cantemir|46.33333|28.40000
+Chioselia|Cantemir|46.14111|28.40389
+Ciobalaccia|Cantemir|46.17444|28.28722
+Cociulia|Cantemir|46.35000|28.41667
+Constantinești|Cantemir|46.11139|28.21500
+Coștangalia|Cantemir|46.11000|28.38722
+Crăciun|Cantemir|46.23278|28.35167
+Cîietu|Cantemir|46.13528|28.48167
+Cîrpești|Cantemir|46.26361|28.33667
+Cîșla|Cantemir|46.14194|28.33333
+Enichioi|Cantemir|46.22167|28.42000
+Flocoasa|Cantemir|46.15278|28.25139
+Floricica|Cantemir|46.23444|28.41194
+Ghioltosu|Cantemir|46.19167|28.16028
+Gotești|Cantemir|46.14778|28.16722
+Haragîș|Cantemir|46.28944|28.37833
+Hîrtop|Cantemir|46.23389|28.25111
+Hănăseni|Cantemir|46.34806|28.33028
+Iepureni|Cantemir|46.26333|28.22139
+Leca|Cantemir|46.30972|28.20500
+Lingura|Cantemir|46.23306|28.32250
+Lărguța|Cantemir|46.30500|28.31917
+Pleșeni|Cantemir|46.35667|28.34250
+Plopi|Cantemir|46.20778|28.21417
+Popovca|Cantemir|46.24806|28.30944
+Porumbești|Cantemir|46.31389|28.27750
+Sadîc|Cantemir|46.26667|28.51667
+Stoianovca|Cantemir|46.25917|28.16444
+Suhat|Cantemir|46.16250|28.34417
+Taraclia|Cantemir|46.21556|28.51806
+Tartaul|Cantemir|46.20694|28.32139
+Toceni|Cantemir|46.36694|28.21889
+Tătărășeni|Cantemir|46.34028|28.30194
+Victorovca|Cantemir|46.17833|28.25139
+Vișniovca|Cantemir|46.33333|28.44944
+Vîlcele|Cantemir|46.38139|28.25583
+Șamalia|Cantemir|46.27333|28.43583
+Șofranovca|Cantemir|46.12389|28.35944
+Țiganca|Cantemir|46.23333|28.15583
+Țiganca Nouă|Cantemir|46.20472|28.17361
+Țolica|Cantemir|46.22444|28.45944
+Țărăncuța|Cantemir|46.10806|28.40944
+Beștemac|Leova|46.52806|28.52972
+Borogani|Leova|46.50278|28.54417
+Bulgărica|Leova|46.48889|28.39250
+Băiuș|Leova|46.45139|28.48278
+Cazangic|Leova|46.51000|28.43306
+Ceadîr|Leova|46.66972|28.40750
+Cneazevca|Leova|46.63139|28.49222
+Cociulia Nouă|Leova|46.44000|28.47694
+Colibabovca|Leova|46.64750|28.42861
+Covurlui|Leova|46.59389|28.40139
+Cupcui|Leova|46.51778|28.35583
+Cuporani|Leova|46.37389|28.35722
+Cîmpul Drept|Leova|46.56500|28.51361
+Cîzlar|Leova|46.65028|28.52083
+Filipeni|Leova|46.43639|28.32583
+Frumușica|Leova|46.55556|28.42861
+Hîrtop|Leova|46.49389|28.50417
+Hănăsenii Noi|Leova|46.41694|28.25472
+Iargara|Leova|46.42750|28.43667
+Leova|Leova|46.47861|28.25528
+Meșeni|Leova|46.41861|28.46528
+Nicolaevca|Leova|46.39028|28.25361
+Orac|Leova|46.66389|28.46083
+Pitești|Leova|46.50278|28.54417
+Romanovca|Leova|46.45944|28.35306
+Seliște|Leova|46.52806|28.42972
+Sîrma|Leova|46.52611|28.24778
+Sărata Nouă|Leova|46.48889|28.39250
+Sărata-Răzeși|Leova|46.61500|28.26472
+Sărăteni|Leova|46.61028|28.46639
+Sărățica Nouă|Leova|46.57167|28.54694
+Sărățica Veche|Leova|46.60167|28.52806
+Tigheci|Leova|46.39083|28.37639
+Tochile-Răducani|Leova|46.57250|28.24778
+Tomai|Leova|46.57250|28.32444
+Tomaiul Nou|Leova|46.62444|28.54861
+Troian|Leova|46.54056|28.46972
+Troița|Leova|46.56417|28.46556
+Victoria|Leova|46.61611|28.41444
+Vozneseni|Leova|46.58500|28.46944
+Albota de Jos|Taraclia|45.95000|28.48333
+Albota de Sus|Taraclia|45.96667|28.46667
+Alexeevca|Taraclia|46.02639|28.56750
+Aluatu|Taraclia|45.86667|28.60000
+Balabanu|Taraclia|45.93333|28.56667
+Budăi|Taraclia|45.85000|28.46667
+Cairaclia|Taraclia|45.76667|28.61667
+Cealîc|Taraclia|46.00000|28.55000
+Chirilovca|Taraclia|45.81667|28.56667
+Ciumai|Taraclia|45.78333|28.56667
+Corten|Taraclia|46.01667|28.73333
+Cortenul Nou|Taraclia|46.00000|28.56667
+Dermengi|Taraclia|45.86667|28.41667
+Hagichioi|Taraclia|45.91667|28.45000
+Hîrtop|Taraclia|45.91667|28.48333
+Mirnoe|Taraclia|45.73333|28.56667
+Musaitu|Taraclia|45.81667|28.50000
+Novosiolovca|Taraclia|45.90000|28.60000
+Orehovca|Taraclia|45.90000|28.51667
+Roșița|Taraclia|46.03333|28.46667
+Salcia|Taraclia|45.86667|28.51667
+Samurza|Taraclia|45.96667|28.55000
+Sofievca|Taraclia|46.00000|28.46667
+Taraclia|Taraclia|45.90000|28.66889
+Tvardița|Taraclia|46.15472|28.96556
+Valea Perjei|Taraclia|46.03944|28.92500
+Vinogradovca|Taraclia|45.80000|28.53333
+Antoneuca|Drochia|48.07500|27.69389
+Baroncea|Drochia|48.02667|27.91833
+Baroncea Nouă|Drochia|47.99667|27.85806
+Ceapaevca|Drochia|48.20444|27.87194
+Chetrosu|Drochia|48.06972|27.90167
+Cotova|Drochia|48.15917|27.95750
+Dominteni|Drochia|47.95472|27.95167
+Drochia|Drochia|48.11389|27.80806
+Fîntînița|Drochia|48.10389|27.69583
+Gribova|Drochia|48.01417|27.92833
+Holoșnița Nouă|Drochia|48.11583|27.93556
+Hăsnășenii Mari|Drochia|47.91361|27.99083
+Hăsnășenii Noi|Drochia|47.85556|27.90667
+Iliciovca|Drochia|48.15417|27.88194
+Lazo|Drochia|47.89139|27.92889
+Maramonovca|Drochia|48.20250|27.80083
+Miciurin|Drochia|47.98667|27.79250
+Moara de Piatră|Drochia|47.89333|28.00528
+Mîndîc|Drochia|48.15333|27.79306
+Măcăreuca|Drochia|48.14194|27.97639
+Nicoreni|Drochia|47.96611|27.70306
+Ochiul Alb|Drochia|48.01833|27.67500
+Palanca|Drochia|48.12444|27.92028
+Pelinia|Drochia|47.87583|27.83139
+Pervomaiscoe|Drochia|48.08694|27.72389
+Petreni|Drochia|47.93889|27.95306
+Popeștii Noi|Drochia|47.97556|27.98750
+Popeștii de Jos|Drochia|48.07861|28.02611
+Popeștii de Sus|Drochia|48.08972|28.02250
+Sergheuca|Drochia|48.06278|27.72889
+Sofia|Drochia|47.94500|27.86306
+Zgurița|Drochia|48.12694|28.00972
+Șalvirii Noi|Drochia|48.14083|27.91611
+Șalvirii Vechi|Drochia|48.19583|27.84861
+Șuri|Drochia|48.09472|27.85417
+Șurii Noi|Drochia|48.06306|27.79917
+Țarigrad|Drochia|48.04139|27.76500
+Alexandru cel Bun|Soroca|48.09694|28.34056
+Balinți|Soroca|48.32056|28.02361
+Balinții Noi|Soroca|48.30528|27.99833
+Bulboci|Soroca|48.03972|28.08389
+Bulbocii Noi|Soroca|48.06028|28.11861
+Bădiceni|Soroca|48.20333|28.05444
+Băxani|Soroca|48.12389|28.09472
+Cerlina|Soroca|48.08139|28.60750
+Cosăuți|Soroca|48.22889|28.29111
+Cremenciug|Soroca|48.27694|28.08528
+Cureșnița|Soroca|48.22778|28.17639
+Cureșnița Nouă|Soroca|48.18139|28.12250
+Căinarii Vechi|Soroca|48.00806|28.12500
+Decebal|Soroca|48.28389|27.99111
+Dubna|Soroca|48.01667|28.31667
+Dumbrăveni|Soroca|48.05056|28.22806
+Dărcăuți|Soroca|48.22778|27.98083
+Dărcăuții Noi|Soroca|48.20972|28.00194
+Egoreni|Soroca|48.20167|28.35944
+Floriceni|Soroca|48.02083|28.01639
+Grigorăuca|Soroca|48.20778|28.09972
+Holoșnița|Soroca|48.24750|28.17694
+Hristici|Soroca|48.12083|28.18389
+Iarova|Soroca|48.31972|28.04944
+Inundeni|Soroca|48.12472|28.35833
+Iorjnița|Soroca|48.19333|28.21778
+Livezi|Soroca|48.23583|28.04944
+Lugovoe|Soroca|48.06832|28.17742
+Mălcăuți|Soroca|48.21389|27.94083
+Nimereuca|Soroca|48.11389|28.53556
+Niorcani|Soroca|48.29806|27.93639
+Oclanda|Soroca|48.28917|28.06028
+Ocolina|Soroca|48.12556|28.26306
+Parcani|Soroca|48.06194|28.29028
+Pîrlița|Soroca|48.07583|28.21000
+Racovăț|Soroca|48.08333|28.40000
+Redi-Cereșnovăț|Soroca|48.06333|28.31750
+Regina Maria|Soroca|48.05861|28.14083
+Rublenița|Soroca|48.16833|28.21444
+Rublenița Nouă|Soroca|48.15361|28.13472
+Rudi|Soroca|48.33444|27.89528
+Ruslanovca|Soroca|48.11722|28.37250
+Schineni|Soroca|48.10000|28.10000
+Schinenii Noi|Soroca|48.07167|28.10500
+Slobozia Nouă|Soroca|48.25889|27.98000
+Slobozia-Cremene|Soroca|48.04056|28.42306
+Slobozia-Vărăncău|Soroca|48.06639|28.46583
+Sobari|Soroca|48.23194|28.06694
+Soloneț|Soroca|48.00000|28.40278
+Soroca|Soroca|48.15583|28.29750
+Stoicani|Soroca|48.03330|28.36670
+Tolocănești|Soroca|48.30722|27.90833
+Trifăuți|Soroca|48.16167|28.38417
+Tătărăuca Nouă|Soroca|48.31639|27.97389
+Tătărăuca Veche|Soroca|48.29694|27.97611
+Valea|Soroca|48.24333|28.06528
+Vanțina|Soroca|48.09667|28.19139
+Vanțina Mică|Soroca|48.10056|28.17361
+Vasilcău|Soroca|48.13833|28.42139
+Visoca|Soroca|48.24694|27.92250
+Voloave|Soroca|48.09361|28.29250
+Volovița|Soroca|48.10306|28.32278
+Vădeni|Soroca|48.01083|28.22722
+Vărăncău|Soroca|48.06528|28.51500
+Zastînca|Soroca|48.12722|28.30611
+Șeptelici|Soroca|48.19972|28.15806
+Șolcani|Soroca|48.17333|28.11056
+Țepilova|Soroca|48.12528|28.23278
+Alexandrovca|Florești|47.95528|28.12889
+Alexeevca|Florești|47.94389|28.28583
+Antonovca|Florești|47.78694|28.21417
+Bezeni|Florești|47.98222|28.12056
+Bobulești|Florești|47.87944|28.35250
+Bursuc|Florești|47.97333|28.73556
+Băhrinești|Florești|47.85639|28.24222
+Cașunca|Florești|47.78500|28.39417
+Cenușa|Florești|47.84750|28.38639
+Cernița|Florești|47.96583|28.46694
+Chirilovca|Florești|47.96056|28.32917
+Ciripcău|Florești|47.98389|28.38222
+Ciutulești|Florești|47.76139|28.39556
+Coșernița|Florești|47.93806|28.46444
+Cuhureștii de Jos|Florești|47.92944|28.59194
+Cuhureștii de Sus|Florești|47.92111|28.55361
+Cunicea|Florești|47.91667|28.65000
+Căprești|Florești|47.75417|28.46333
+Domulgeni|Florești|47.79361|28.43389
+Dumitreni|Florești|47.97139|28.31889
+Florești|Florești|47.89333|28.30139
+Frumușica|Florești|47.96167|28.11806
+Frumușica Nouă|Florești|47.87722|28.06194
+Frunzești|Florești|47.78472|28.18639
+Făgădău|Florești|47.93694|28.52528
+Ghindești|Florești|47.85778|28.38278
+Gura Camencii|Florești|47.89056|28.35694
+Gura Căinarului|Florești|47.86694|28.18389
+Gvozdova|Florești|47.90389|28.35361
+Hîrtop|Florești|47.88278|28.46000
+Iliciovca|Florești|47.93667|28.06778
+Ion Vodă|Florești|47.72583|28.32833
+Ivanovca|Florești|47.91083|28.15694
+Izvoare|Florești|47.97722|28.13278
+Japca|Florești|47.98194|28.70361
+Lunga|Florești|47.85833|28.21972
+Maiscoe|Florești|47.91111|28.04917
+Mihailovca|Florești|47.80167|28.26250
+Mărculești|Florești|47.88528|28.24917
+Mărinești|Florești|47.73139|28.38389
+Mărășești|Florești|47.86222|28.07250
+Napadova|Florești|48.01944|28.59833
+Nicolaevca|Florești|47.75389|28.29694
+Octeabriscoe|Florești|47.95500|28.53528
+Prajila|Florești|47.84139|28.20389
+Prodănești|Florești|47.74306|28.48222
+Prodăneștii Vechi|Florești|47.71639|28.44333
+Putinești|Florești|47.83500|28.12417
+Roșietici|Florești|47.83111|28.40306
+Roșieticii Vechi|Florești|47.81306|28.40000
+Rădulenii Noi|Florești|47.95667|28.24639
+Rădulenii Vechi|Florești|47.98333|28.26667
+Scăieni|Florești|47.97056|28.12583
+Sevirova|Florești|47.92667|28.15194
+Stîrceni|Florești|47.87556|28.36417
+Sîrbești|Florești|47.80222|28.32472
+Sănătăuca|Florești|48.01333|28.67306
+Temeleuți|Florești|47.98000|28.49722
+Trifănești|Florești|47.94306|28.12861
+Tîrgul Vertiujeni|Florești|48.03083|28.53167
+Unchitești|Florești|47.92917|28.52583
+Valea Rădoaiei|Florești|47.75556|28.26389
+Vertiujeni|Florești|47.99333|28.54000
+Vărvăreuca|Florești|47.87889|28.31028
+Văscăuți|Florești|47.95389|28.51167
+Zarojeni|Florești|47.86694|28.16111
+Zăluceni|Florești|48.04944|28.55639
+Ștefănești|Florești|47.73278|28.43944
+Țipordei|Florești|47.93528|28.61417
+Țîra|Florești|47.84361|28.40528
+Bălți|mun. Bălți|47.76111|27.91667
+Elizaveta|mun. Bălți|47.78333|27.98333
+Sadovoe|mun. Bălți|47.71667|27.98333
+Tiraspol|Transnistria|46.84028|29.64333
+Bender|Transnistria|46.82750|29.48750
+Afanasievca|Transnistria|47.32278|29.25333
+Alexandrovca|Transnistria|48.03014|28.55353
+Andreevca|Transnistria|47.76111|29.16333
+Beloci|Transnistria|47.88667|28.98389
+Bodeni|Transnistria|48.08072|28.78017
+Broșteni|Transnistria|47.88194|29.26667
+Butor|Transnistria|47.04278|29.40583
+Camenca|Transnistria|48.03333|28.70000
+Caragaș|Transnistria|46.78333|29.68333
+Carmanova|Transnistria|47.26667|29.50000
+Caterinovca|Transnistria|47.93333|28.86667
+Chirov|Transnistria|47.65056|29.09778
+Cioburciu|Transnistria|46.68333|29.73889
+Colosova|Transnistria|47.33056|29.56750
+Constantinovca|Transnistria|47.98806|28.85750
+Cotovca|Transnistria|47.28394|29.47817
+Crasnoe|Transnistria|47.18156|29.36117
+Cuzmin|Transnistria|48.10000|28.63333
+Delacău|Transnistria|47.12889|29.29889
+Dnestrovsc|Transnistria|46.62222|29.91333
+Dubăsari|Transnistria|47.26667|29.16667
+Frunză|Transnistria|46.82833|29.88028
+Ghidirim|Transnistria|47.71667|28.96667
+Goian|Transnistria|47.37780|29.16310
+Haraba|Transnistria|47.90000|29.08333
+Harmațca|Transnistria|47.41667|29.10000
+Hlinaia|Transnistria|46.64167|29.80556
+Hrușca|Transnistria|48.12222|28.55111
+Hîrjău|Transnistria|47.80000|29.00000
+Hîrtop|Transnistria|47.23972|29.36139
+Iagorlîc|Transnistria|47.39220|29.16080
+Ivanovca|Transnistria|47.87806|29.17389
+Jura|Transnistria|47.51667|29.05000
+Lunga|Transnistria|47.24890|29.17310
+Maiac|Transnistria|47.23750|29.38583
+Mihailovca|Transnistria|47.48778|29.11583
+Mocra|Transnistria|47.63333|29.15000
+Molochișul Mare|Transnistria|47.85000|29.05000
+Mălăiești|Transnistria|46.98250|29.55222
+Nezavertailovca|Transnistria|46.60000|29.93333
+Ocnița|Transnistria|48.13306|28.63611
+Ofatinți|Transnistria|47.66667|29.00000
+Parcani|Transnistria|46.84000|29.51639
+Pervomaisc|Transnistria|46.73333|29.95833
+Plopi|Transnistria|47.95389|29.16528
+Podoima|Transnistria|48.00000|28.78333
+Rașcov|Transnistria|47.95000|28.83333
+Rîbnița|Transnistria|47.76639|29.00056
+Slobozia-Rașcov|Transnistria|47.95000|28.95000
+Speia|Transnistria|46.98167|29.32333
+Stroiești|Transnistria|47.90000|28.93330
+Sucleia|Transnistria|46.81670|29.66670
+Teiu|Transnistria|46.95000|29.40000
+Tîrnauca|Transnistria|46.81670|29.55000
+Ulmu|Transnistria|47.74810|29.10530
+Vadul Turcului|Transnistria|47.93330|28.98330
+Vărăncău|Transnistria|47.68330|29.10000
+Zăzuleni|Transnistria|47.61778|28.99611
+Slobozia|Transnistria|46.73500|29.70306
+Grigoriopol|Transnistria|47.15389|29.30000
+Crasnîi Octeabri|Transnistria|48.01667|28.55000
+Balatina|Glodeni|47.69333|27.34722
+Bisericani|Glodeni|47.64139|27.32889
+Brînzeni|Glodeni|47.81417|27.36389
+Butești|Glodeni|47.79528|27.33333
+Cajba|Glodeni|47.73333|27.43333
+Camenca|Glodeni|47.82778|27.36417
+Camencuța|Glodeni|47.78000|27.34861
+Ciuciulea|Glodeni|47.65778|27.48389
+Clococenii Vechi|Glodeni|47.71639|27.41583
+Cobani|Glodeni|47.76611|27.32083
+Cot|Glodeni|47.65361|27.34000
+Cuhnești|Glodeni|47.65583|27.37444
+Danu|Glodeni|47.83056|27.49611
+Dușmani|Glodeni|47.71694|27.48139
+Fundurii Noi|Glodeni|47.75361|27.65694
+Fundurii Vechi|Glodeni|47.74111|27.71444
+Glodeni|Glodeni|47.77083|27.51444
+Hîjdieni|Glodeni|47.76972|27.46028
+Iabloana|Glodeni|47.80611|27.62389
+Limbenii Noi|Glodeni|47.72389|27.62889
+Limbenii Vechi|Glodeni|47.68917|27.61028
+Lipovăț|Glodeni|47.72750|27.37194
+Moara Domnească|Glodeni|47.62278|27.41667
+Molești|Glodeni|47.80083|27.34861
+Movileni|Glodeni|47.64194|27.40028
+Nicolaevca|Glodeni|47.82306|27.55361
+Petrunea|Glodeni|47.74750|27.57972
+Serghieni|Glodeni|47.64667|27.35222
+Soroca|Glodeni|47.80500|27.56250
+Sturzovca|Glodeni|47.80167|27.71889
+Stîrcea|Glodeni|47.79222|27.52750
+Tomeștii Noi|Glodeni|47.66667|27.35000
+Tomeștii Vechi|Glodeni|47.65667|27.34222
+Ustia|Glodeni|47.66194|27.59500
+Viișoara|Glodeni|47.61583|27.44778
+Cioc-Maidan|Basarabeasca|46.35806|28.82194
+Chiriet-Lunga|Basarabeasca|46.20917|28.94417
+Avdarma|Basarabeasca|46.25417|28.83944
+Chioselia Rusă|Cahul|46.08333|28.51667
+Congaz|Cantemir|46.10917|28.60444
+Dimitrova|Cantemir|46.15889|28.46806
+Carbalia|Taraclia|45.87333|28.44583
+Dimitrova|Găgăuzia|46.15889|28.46806
+Valea Perjei|Găgăuzia|46.03944|28.92500
+Cîietu|Găgăuzia|46.13333|28.48333
+Borogani|Găgăuzia|46.50278|28.54417
+Frumușica|Găgăuzia|46.08333|28.46667
+Alexeevca|Găgăuzia|46.02639|28.56750
+Copceac|Taraclia|45.85000|28.69472
+Borceag|Taraclia|46.05000|28.51667
+Corten|Găgăuzia|46.01667|28.73333
+Sadîc|Găgăuzia|46.26667|28.51667
+Tvardița|Găgăuzia|46.15472|28.96556
+Svetlîi|Taraclia|46.01639|28.56611
+Taraclia|Găgăuzia|46.21556|28.51806
+Cortenul Nou|Găgăuzia|46.00000|28.56667
+Goianul Nou|Transnistria|47.38589|29.32092
+Doibani I|Transnistria|47.38389|29.20639
+Severinovca|Transnistria|48.06667|28.71667
+Lîsaia Gora|Transnistria|47.74250|29.07611
+Molochișul Mic|Transnistria|47.93500|29.03444
+Crasnîi Vinogradari|Transnistria|47.30000|29.28333
+Voitovca|Transnistria|48.10528|28.60736
+Hristovaia|Transnistria|48.10000|28.73333
+Frunzăuca|Transnistria|48.15603|28.58442
+Țîbuleuca|Transnistria|47.40000|29.10000
+Sovietscoe|Transnistria|47.95417|29.13444
+Coșnița Nouă|Transnistria|47.31306|29.33000
+Crasnogorca|Transnistria|46.96667|29.46667
+Tocmagiu|Transnistria|46.94667|29.37694
+Lunga Nouă|Transnistria|47.28528|29.27361
+Bîcioc|Transnistria|46.91667|29.48333
+Mocearovca|Transnistria|47.23961|29.55092
+Marian|Transnistria|47.23861|29.34722
+Dzerjinscoe|Transnistria|47.21667|29.18333
+Blijnii Hutor|Transnistria|46.88333|29.65000
+Valea Adîncă|Transnistria|48.00000|28.83330
+Coicova|Transnistria|47.40906|29.24397
+Crasnencoe|Transnistria|47.85000|29.13333
+Vladimirovca|Transnistria|46.84440|29.82500
+Bosca|Transnistria|47.30528|29.36444
+Lenin|Transnistria|47.66667|29.18333
+Butuceni|Transnistria|47.53340|29.02570
+Calinovca|Transnistria|47.29833|29.27806
+Dubău|Transnistria|47.43333|29.28333
+Bruslachi|Transnistria|47.28083|29.38083
+Mocreachi|Transnistria|47.27319|29.38358
+Doibani II|Transnistria|47.40455|29.21221
+Alexandrovca Nouă|Transnistria|47.29944|29.30222
+Dimitrova|Transnistria|47.87806|29.14528
+Andriașevca Nouă|Transnistria|46.83361|29.95583
+Corotna|Transnistria|46.63333|29.86667
+Vinogradnoe|Transnistria|47.08330|29.50000
+Rotari|Transnistria|48.10000|28.81667
+Crasnaia Besarabia|Transnistria|47.28944|29.58528
+India|Transnistria|47.04639|29.38750
+Vesioloe|Transnistria|47.20278|29.55222
+Comisarovca Nouă|Transnistria|47.33333|29.35000
+Vasilievca|Transnistria|47.94000|29.10944
+Podoimița|Transnistria|48.00333|28.75028
+Novovladimirovca|Transnistria|46.93767|29.51942
+Șmalena|Transnistria|47.75833|29.07667
+Cernița|Transnistria|47.03150|29.51853
+Stanislavca|Transnistria|47.69861|29.21028
+Pobeda|Transnistria|47.35167|29.49722
+Novaia Jizni|Transnistria|47.65528|29.08139
+Nicolscoe|Transnistria|46.87806|29.85667
+Iantarnoe|Transnistria|47.90222|28.83778
+Prioziornoe|Transnistria|46.79500|29.93028
+Solnecinoe|Transnistria|48.03944|28.63611
+Andriașevca Veche|Transnistria|46.82028|29.97000
+Crasnaia Gorca|Transnistria|47.13075|29.31937
+Uiutnoe|Transnistria|46.84139|29.86694
+Basarabca|Transnistria|47.57778|29.16111
+Pohrebea Nouă|Transnistria|47.30972|29.37833
+Sadchi|Transnistria|47.90000|28.85000
+Tiraspolul Nou|Transnistria|46.83190|29.57670
+Șevcenco|Transnistria|47.58472|29.18361
+Socolovca|Transnistria|48.06250|28.83578
+Gherșunovca|Transnistria|47.71972|29.16278
+Novocotovsc|Transnistria|46.76556|29.95500
+Buschi|Transnistria|47.72306|29.07083
+Ulmul Mic|Transnistria|47.75333|29.12333
+Pîcalova|Transnistria|47.76222|29.10917
+Fedoseevca|Transnistria|47.23344|29.53897
+Suhaia Rîbnița|Transnistria|47.80083|29.18250
+Mihailovca Nouă|Transnistria|47.79500|29.12139
+Zaporojeț|Transnistria|47.58833|29.13806
+Sărăței|Transnistria|47.83056|29.02361

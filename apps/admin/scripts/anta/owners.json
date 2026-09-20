@@ -15,7 +15,7 @@
    }
   ],
   "source": "https://overit.md/companie/1009600039451/",
-  "note": null,
+  "note": "BĂDĂRĂU ANATOLII administrează și S.C. ROA-CONSULTING AUTO (1006600052280) — același grup pe cursele de nord",
   "fetched_at": "2026-09-20"
  },
  {
@@ -1545,7 +1545,7 @@
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-aneti-trans",
-  "note": null,
+  "note": "CIOCAN VIOREL mai administrează Fascomtrans Co (1012600002473) și Dever Trans (1020600032211), fără curse în ANTA",
   "fetched_at": "2026-09-20"
  },
  {
@@ -2624,7 +2624,7 @@
    }
   ],
   "source": "https://overit.md/companie/1004600060331/",
-  "note": null,
+  "note": "PRODAN IURIE mai administrează Prodintertex; cu CALANTUS (a soției, PRODAN OXANA) fac un singur grup",
   "fetched_at": "2026-09-20"
  },
  {
@@ -3468,7 +3468,7 @@
    }
   ],
   "source": "https://overit.md/companie/1002604000801/",
-  "note": null,
+  "note": "IACHIM VASILE e administrator din 07.2025; înainte figura SÎRBU OLEG, care deține 34,61 %",
   "fetched_at": "2026-09-20"
  },
  {
@@ -3576,7 +3576,7 @@
    }
   ],
   "source": "https://overit.md/companie/1003600155043/",
-  "note": null,
+  "note": "ICHIM ANDREI mai administrează Lecris-Tur, Autoactiv (aceeași adresă, Trușeni) și Camagentur (Florești)",
   "fetched_at": "2026-09-20"
  },
  {
@@ -3700,12 +3700,17 @@
  },
  {
   "company": "S.C. ROA-CONSULTING AUTO S.R.L.",
-  "idno": null,
-  "official_name": null,
-  "administrator": null,
-  "founders": [],
-  "source": null,
-  "note": "operator confirmat în procesul-verbal ANTA Direcția Nord 2021; fără date în registre (srl.md 404, căutări fără rezultat)",
+  "idno": "1006600052280",
+  "official_name": "Societatea Comercială \"ROA-CONSULTING AUTO\" S.R.L.",
+  "administrator": "BĂDĂRĂU ANATOLII",
+  "founders": [
+   {
+    "name": "BĂDĂRĂU AURELIA",
+    "share": "100%"
+   }
+  ],
+  "source": "https://overit.md/companie/1006600052280/",
+  "note": "Chișinău, Durlești; același BĂDĂRĂU ANATOLII e cofondator și la IURTOL-TRANS — cele două firme fac un singur grup",
   "fetched_at": "2026-09-20"
  },
  {

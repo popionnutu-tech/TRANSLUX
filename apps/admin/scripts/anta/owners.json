@@ -110,7 +110,7 @@
   "founders": [
    {
     "name": "CASTRAVEȚ EVGHENI",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-gancra-v-p",
@@ -145,7 +145,7 @@
   "founders": [
    {
     "name": "MANOLACHE VITALIE",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-dani-tur",
@@ -160,7 +160,7 @@
   "founders": [
    {
     "name": "BUDESCU SERGIU",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-bias-trans",
@@ -175,7 +175,7 @@
   "founders": [
    {
     "name": "ARZUMANEAN SERGHEI",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-coloana-auto-plus",
@@ -190,7 +190,7 @@
   "founders": [
    {
     "name": "MIHALACHI EMILIA",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-pro-et-contra",
@@ -205,14 +205,14 @@
   "founders": [
    {
     "name": "CEH ANDREI",
-    "share": null
+    "share": "51%"
    },
    {
     "name": "ROMANESCU GRIGORE",
-    "share": null
+    "share": "49%"
    }
   ],
-  "source": "https://srl.md/societatea-cu-raspundere-limitata-galprim",
+  "source": "https://overit.md/companie/1003600049450/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -258,7 +258,7 @@
   "founders": [
    {
     "name": "BUTU NATALIA",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-comerciala-madanben-srl",
@@ -273,14 +273,14 @@
   "founders": [
    {
     "name": "COCIUG GALINA",
-    "share": null
+    "share": "50%"
    },
    {
     "name": "COCIUG ANATOLIE",
-    "share": null
+    "share": "50%"
    }
   ],
-  "source": "https://srl.md/societatea-comerciala-cociug-trans-srl",
+  "source": "https://overit.md/companie/1005600023830/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -292,7 +292,7 @@
   "founders": [
    {
     "name": "VÎNAGĂ CONSTANTIN",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-dovax-trans",
@@ -307,7 +307,7 @@
   "founders": [
    {
     "name": "BUTU NATALIA",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-comerciala-crevtrans-srl",
@@ -322,18 +322,18 @@
   "founders": [
    {
     "name": "GRICIUC PETRU",
-    "share": null
+    "share": "50%"
    },
    {
     "name": "MUNTEANU EUGENIA",
-    "share": null
+    "share": "49.95%"
    },
    {
     "name": "STAVER VALERIU",
-    "share": null
+    "share": "0.06%"
    }
   ],
-  "source": "https://srl.md/societatea-comerciala-pastrans-m-t-srl",
+  "source": "https://overit.md/companie/1004600022906/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -345,7 +345,7 @@
   "founders": [
    {
     "name": "IONAȘ DIANA",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-automil-star",
@@ -360,7 +360,7 @@
   "founders": [
    {
     "name": "DANILESCU ANDREI",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-riacomtrans",
@@ -385,7 +385,7 @@
   "founders": [
    {
     "name": "BUTU NATALIA",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-mono-s-surugiu",
@@ -400,7 +400,7 @@
   "founders": [
    {
     "name": "VERDIANU VASILE",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-viaextrans",
@@ -411,18 +411,18 @@
   "company": "EUROTRANS TUR S.R.L.",
   "idno": "1013600032130",
   "official_name": "Societatea Cu Răspundere Limitată \"Eurotrans Tur\"",
-  "administrator": "CASTRAVEȚ EVGHENI; MOLCEAN IULIA",
+  "administrator": "MOLCEAN IULIA; CASTRAVEȚ EVGHENI",
   "founders": [
    {
     "name": "BUTU NATALIA",
-    "share": null
+    "share": "50%"
    },
    {
     "name": "MOLCEAN IULIA",
-    "share": null
+    "share": "50%"
    }
   ],
-  "source": "https://srl.md/societatea-cu-raspundere-limitata-eurotrans-tur",
+  "source": "https://overit.md/companie/1013600032130/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -434,7 +434,7 @@
   "founders": [
    {
     "name": "BURLACU IURIE",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-evani-o",
@@ -449,7 +449,7 @@
   "founders": [
    {
     "name": "CIOCAN VIOREL",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-mobila-din-codru",
@@ -464,18 +464,18 @@
   "founders": [
    {
     "name": "VIERU VALERIU",
-    "share": null
+    "share": "34%"
    },
    {
     "name": "CIORCHINA MIHAIL",
-    "share": null
+    "share": "34%"
    },
    {
     "name": "ERMURACHI DANIEL",
-    "share": null
+    "share": "32%"
    }
   ],
-  "source": "https://srl.md/societatea-cu-raspundere-limitata-marion-transport",
+  "source": "https://overit.md/companie/1014600039723/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -486,15 +486,15 @@
   "administrator": "GHEORGHIEȘ ANDREI",
   "founders": [
    {
-    "name": "GHEORGHIEȘ ANDREI",
-    "share": null
+    "name": "VRABIE NADEJDA",
+    "share": "99.7%"
    },
    {
-    "name": "VRABIE NADEJDA",
-    "share": null
+    "name": "GHEORGHIEȘ ANDREI",
+    "share": "0.3%"
    }
   ],
-  "source": "https://srl.md/societatea-cu-raspundere-limitata-nimelim-tur",
+  "source": "https://overit.md/companie/1008600013405/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -506,7 +506,7 @@
   "founders": [
    {
     "name": "BUDESCU SERGIU",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-octaspex-trans",
@@ -521,7 +521,7 @@
   "founders": [
    {
     "name": "CHICU VERA",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-comerciala-chicu-trans-srl",
@@ -547,22 +547,22 @@
   "company": "F.P.C. REMTA-TRANSPORT-PRIVAT S.R.L.",
   "idno": "1003600116611",
   "official_name": "REMTA-TRANSPORT-PRIVAT S.R.L.",
-  "administrator": "REUS MIHAIL",
+  "administrator": "REUS-LEVCIȘINA TATIANA",
   "founders": [
    {
     "name": "REUS MIHAIL",
-    "share": null
-   },
-   {
-    "name": "REUS TAMARA",
-    "share": null
+    "share": "34%"
    },
    {
     "name": "REUS-LEVCIȘINA TATIANA",
-    "share": null
+    "share": "33%"
+   },
+   {
+    "name": "REUS TAMARA",
+    "share": "33%"
    }
   ],
-  "source": "https://informer.md/ro/pf/profil/compania/remta-transport-privat",
+  "source": "https://overit.md/companie/1003600116611/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -574,7 +574,7 @@
   "founders": [
    {
     "name": "GUMENIUC NATALIA",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-servicii-transport-auto-de-marfuri-si-pasageri",
@@ -589,7 +589,7 @@
   "founders": [
    {
     "name": "CUCU FIODOR",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-cufigor",
@@ -604,7 +604,7 @@
   "founders": [
    {
     "name": "NIZOR-LUX S.R.L.",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-trasis-lux",
@@ -618,27 +618,27 @@
   "administrator": "TOPALA DANIEL",
   "founders": [
    {
-    "name": "BOȚAN NICOLAE",
-    "share": null
-   },
-   {
-    "name": "TOPALA DOINIȚA",
-    "share": null
+    "name": "S.C. RUTA-PRIM SERVICE S.R.L.",
+    "share": "55%"
    },
    {
     "name": "TOPALA DANIEL",
-    "share": null
+    "share": "15%*"
+   },
+   {
+    "name": "TOPALA DOINIȚA",
+    "share": "15%*"
    },
    {
     "name": "BOȚAN NATALIA",
-    "share": null
+    "share": "11.25%"
    },
    {
-    "name": "S.C. RUTA-PRIM SERVICE S.R.L.",
-    "share": null
+    "name": "BOȚAN NICOLAE",
+    "share": "3.75%"
    }
   ],
-  "source": "https://srl.md/societatea-cu-raspundere-limitata-ruta-prim",
+  "source": "https://overit.md/companie/1002600025305/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -650,7 +650,7 @@
   "founders": [
    {
     "name": "BURLACU LUDMILA",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-valburg",
@@ -665,7 +665,7 @@
   "founders": [
    {
     "name": "POPUȘOI ION",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-comerciala-plai-srl",
@@ -680,14 +680,14 @@
   "founders": [
    {
     "name": "MOVILEANU ALEXANDR",
-    "share": null
+    "share": "90%"
    },
    {
     "name": "PRISACAR OLGA",
-    "share": null
+    "share": "10%"
    }
   ],
-  "source": "https://srl.md/societatea-comerciala-expresdorauto-srl",
+  "source": "https://overit.md/companie/1006606003170/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -698,15 +698,15 @@
   "administrator": "VERDIANU ELENA",
   "founders": [
    {
-    "name": "VERDIANU VASILE",
-    "share": null
+    "name": "VERDIANU ELENA",
+    "share": "60%"
    },
    {
-    "name": "VERDIANU ELENA",
-    "share": null
+    "name": "VERDIANU VASILE",
+    "share": "40%"
    }
   ],
-  "source": "https://srl.md/societatea-cu-raspundere-limitata-nizor-lux",
+  "source": "https://overit.md/companie/1003609002977/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -718,7 +718,7 @@
   "founders": [
    {
     "name": "GUȘANU DIANA",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-comerciala-pascari-pavel-trans-srl",
@@ -733,7 +733,7 @@
   "founders": [
    {
     "name": "POP ION",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-comerciala-pond-trans-srl",
@@ -742,12 +742,17 @@
  },
  {
   "company": "S.C. ILIA-TRANS S.R.L.",
-  "idno": null,
-  "official_name": null,
-  "administrator": null,
-  "founders": [],
-  "source": "https://srl.md/societatea-comerciala-ilia-trans-srl",
-  "note": "srl.md: informația ascunsă la cerere sau firma lichidată",
+  "idno": "1007600028851",
+  "official_name": "Societatea Comercială \"ILIA-TRANS\" S.R.L.",
+  "administrator": "ȘCOLNIC IURIE",
+  "founders": [
+   {
+    "name": "ȘCOLNIC ANTON",
+    "share": "100%"
+   }
+  ],
+  "source": "https://overit.md/companie/1007600028851/",
+  "note": "lichidată la 23.04.2025 (registru)",
   "fetched_at": "2026-09-20"
  },
  {
@@ -758,7 +763,7 @@
   "founders": [
    {
     "name": "BALTAG ION",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-comerciala-transbal-nord-srl",
@@ -773,7 +778,7 @@
   "founders": [
    {
     "name": "CARCEA NINA",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-telautogar",
@@ -788,7 +793,7 @@
   "founders": [
    {
     "name": "PRODAN IURIE",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-calantus",
@@ -803,7 +808,7 @@
   "founders": [
    {
     "name": "VERIUS PRIM S.R.L.",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-pavli-tur",
@@ -818,7 +823,7 @@
   "founders": [
    {
     "name": "POSTICA ECATERINA",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-prohugo-trans",
@@ -833,7 +838,7 @@
   "founders": [
    {
     "name": "PUIU OLEG",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-marcgrup-trans",
@@ -848,7 +853,7 @@
   "founders": [
    {
     "name": "BUDESCU SERGIU",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-bias-trans-vb",
@@ -863,7 +868,7 @@
   "founders": [
    {
     "name": "S.C. PASTRANS M.T. S.R.L.",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-citius-grup",
@@ -893,7 +898,7 @@
   "founders": [
    {
     "name": "GOGU ION",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-apox-prim",
@@ -953,7 +958,7 @@
   "founders": [
    {
     "name": "RIACOMTRANS S.R.L.",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-bvf-trans",
@@ -1038,7 +1043,7 @@
   "founders": [
    {
     "name": "BOLOGAN PAVEL",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-diapavserv",
@@ -1053,7 +1058,7 @@
   "founders": [
    {
     "name": "JOSAN PETRU",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-dongtur",
@@ -1068,14 +1073,14 @@
   "founders": [
    {
     "name": "ROTARU MIHAIL",
-    "share": null
+    "share": "59.09%"
    },
    {
     "name": "BASARAB ELENA",
-    "share": null
+    "share": "40.91%"
    }
   ],
-  "source": "https://srl.md/societatea-cu-raspundere-limitata-exclusiv-auto",
+  "source": "https://overit.md/companie/1004603000495/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -1102,14 +1107,14 @@
   "founders": [
    {
     "name": "URSU NATALIA",
-    "share": null
+    "share": "75%"
    },
    {
     "name": "URSU RADU",
-    "share": null
+    "share": "25%"
    }
   ],
-  "source": "https://srl.md/societatea-cu-raspundere-limitata-galamed-auto",
+  "source": "https://overit.md/companie/1004600037843/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -1117,18 +1122,18 @@
   "company": "\"GIRLE-AGRO\" S.R.L.",
   "idno": "1004600074673",
   "official_name": "Societatea Cu Răspundere Limitată \"Girle-Agro\"",
-  "administrator": "COZMA GHEORGHE; DANILESCU ANDREI",
+  "administrator": "DANILESCU ANDREI; COZMA GHEORGHE",
   "founders": [
    {
-    "name": "COZMA GHEORGHE",
-    "share": null
+    "name": "DANILESCU ANDREI",
+    "share": "50%"
    },
    {
-    "name": "DANILESCU ANDREI",
-    "share": null
+    "name": "COZMA GHEORGHE",
+    "share": "50%"
    }
   ],
-  "source": "https://srl.md/societatea-cu-raspundere-limitata-girle-agro",
+  "source": "https://overit.md/companie/1004600074673/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -1185,7 +1190,7 @@
   "founders": [
    {
     "name": "VIȘNEVSCHI VADIM",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-mihaela-andrei",
@@ -1230,7 +1235,7 @@
   "founders": [
    {
     "name": "LUNGU IGOR",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-monvica",
@@ -1260,14 +1265,14 @@
   "founders": [
    {
     "name": "POPAZOGLO MIHAIL",
-    "share": null
+    "share": "50%"
    },
    {
     "name": "POPAZOGLO ION",
-    "share": null
+    "share": "50%"
    }
   ],
-  "source": "https://srl.md/societatea-in-nume-colectiv-popazoglo",
+  "source": "https://overit.md/companie/1003603009398/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -1319,7 +1324,7 @@
   "founders": [
    {
     "name": "SOLTANICI LARISA",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-usnic-a-p",
@@ -1379,7 +1384,7 @@
   "founders": [
    {
     "name": "UZUN VICTOR",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-vlv-uzun-trans",
@@ -1453,7 +1458,7 @@
   "founders": [
    {
     "name": "COTOROBAI ION",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-agro-riesling",
@@ -1467,15 +1472,15 @@
   "administrator": "COSTANDOI ALLA",
   "founders": [
    {
-    "name": "COSTANDOI NICOLAE",
-    "share": null
+    "name": "COSTANDOI ALLA",
+    "share": "50%"
    },
    {
-    "name": "COSTANDOI ALLA",
-    "share": null
+    "name": "COSTANDOI NICOLAE",
+    "share": "50%"
    }
   ],
-  "source": "https://srl.md/societatea-cu-raspundere-limitata-ala-costandoi",
+  "source": "https://overit.md/companie/1003606001603/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -1502,7 +1507,7 @@
   "founders": [
    {
     "name": "PLUCCI SVETLANA",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-altur-impex",
@@ -1516,15 +1521,15 @@
   "administrator": "GROZAV ANATOLIE",
   "founders": [
    {
-    "name": "ȚURCANU EMILIAN",
-    "share": null
+    "name": "GROZAV ANATOLIE",
+    "share": "50%"
    },
    {
-    "name": "GROZAV ANATOLIE",
-    "share": null
+    "name": "ȚURCANU EMILIAN",
+    "share": "50%"
    }
   ],
-  "source": "https://srl.md/societatea-cu-raspundere-limitata-androstrans",
+  "source": "https://overit.md/companie/1007600064204/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -1536,7 +1541,7 @@
   "founders": [
    {
     "name": "CIOCAN VIOREL",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-aneti-trans",
@@ -1551,18 +1556,18 @@
   "founders": [
    {
     "name": "ARICOV FIODOR",
-    "share": null
+    "share": "54.39%"
    },
    {
     "name": "ARICOV SERGHEI",
-    "share": null
+    "share": "22.81%"
    },
    {
     "name": "ARICOV SAVELI",
-    "share": null
+    "share": "22.81%"
    }
   ],
-  "source": "https://srl.md/societatea-cu-raspundere-limitata-aric-afs",
+  "source": "https://overit.md/companie/1004600045345/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -1574,7 +1579,7 @@
   "founders": [
    {
     "name": "POPA STELA",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-aripartex",
@@ -1649,7 +1654,7 @@
   "founders": [
    {
     "name": "CALMÎC IURII",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-calm-clasic",
@@ -1664,7 +1669,7 @@
   "founders": [
    {
     "name": "TARÎȚA IGOR",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-camautotest",
@@ -1679,7 +1684,7 @@
   "founders": [
    {
     "name": "GONȚA IURIE",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-dandetur",
@@ -1693,19 +1698,19 @@
   "administrator": "CRĂCIUN DOREL",
   "founders": [
    {
-    "name": "GRIU ION",
-    "share": null
-   },
-   {
     "name": "CRĂCIUN DOREL",
-    "share": null
+    "share": "50%"
    },
    {
     "name": "CRĂCIUN AURELIA",
-    "share": null
+    "share": "40%"
+   },
+   {
+    "name": "GRÎU ION",
+    "share": "10%"
    }
   ],
-  "source": "https://srl.md/societatea-cu-raspundere-limitata-diony-travel",
+  "source": "https://overit.md/companie/1015600033728/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -1717,7 +1722,7 @@
   "founders": [
    {
     "name": "DUMBRAVĂ MARIA",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-dvd-trans",
@@ -1732,7 +1737,7 @@
   "founders": [
    {
     "name": "ȚEPORDEI VEACESLAV",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-ecatirin-tur",
@@ -1746,15 +1751,15 @@
   "administrator": "PETCO VADIM",
   "founders": [
    {
-    "name": "PURICI NICOLAE",
-    "share": null
+    "name": "SORISEBI-TRANS-TUR S.R.L.",
+    "share": "67%"
    },
    {
-    "name": "SORISEBI-TRANS-TUR S.R.L.",
-    "share": null
+    "name": "PURICI NICOLAE",
+    "share": "33%"
    }
   ],
-  "source": "https://srl.md/societatea-cu-raspundere-limitata-est-neo-tur",
+  "source": "https://overit.md/companie/1010600032357/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -1766,7 +1771,7 @@
   "founders": [
    {
     "name": "RENIȚA VITALIE",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-eurovasgrup-trans",
@@ -1811,7 +1816,7 @@
   "founders": [
    {
     "name": "VIZIRU ION",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-ferice-maria",
@@ -1825,15 +1830,15 @@
   "administrator": "RUȘESCU VASILE",
   "founders": [
    {
-    "name": "RUȘESCU VASILE",
-    "share": null
+    "name": "BUTUC GALINA",
+    "share": "66.7%"
    },
    {
-    "name": "BUTUC GALINA",
-    "share": null
+    "name": "RUȘESCU VASILE",
+    "share": "33.3%"
    }
   ],
-  "source": "https://srl.md/firma-dever-srl",
+  "source": "https://overit.md/companie/1003600076337/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -1845,14 +1850,14 @@
   "founders": [
    {
     "name": "BEȚIVU ION",
-    "share": null
+    "share": "50%"
    },
    {
     "name": "BEȚIVU BORIS",
-    "share": null
+    "share": "50%"
    }
   ],
-  "source": "https://srl.md/firma-telemenix-srl",
+  "source": "https://overit.md/companie/1002600031618/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -1864,7 +1869,7 @@
   "founders": [
    {
     "name": "NEBUNELEA MIHAIL",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-flexbustrans",
@@ -1898,14 +1903,14 @@
   "founders": [
    {
     "name": "NEGUȚA VASILE",
-    "share": null
+    "share": "50%"
    },
    {
     "name": "NEGUȚA VERA",
-    "share": null
+    "share": "50%"
    }
   ],
-  "source": "https://srl.md/societatea-cu-raspundere-limitata-global-credit",
+  "source": "https://overit.md/companie/1008600044368/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -2082,7 +2087,7 @@
   "founders": [
    {
     "name": "JITARI PAVEL",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-jitari-p-trans",
@@ -2142,7 +2147,7 @@
   "founders": [
    {
     "name": "COȘNEANU VEACESLAV",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-lorcomtrans",
@@ -2172,7 +2177,7 @@
   "founders": [
    {
     "name": "SÎRBU VEACESLAV",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-mariro-trans",
@@ -2216,15 +2221,15 @@
   "administrator": "SPINU GHEORGHE",
   "founders": [
    {
-    "name": "SPINU GHEORGHE",
-    "share": null
+    "name": "SPÎNU ELENA",
+    "share": "50%"
    },
    {
-    "name": "SPÎNU ELENA",
-    "share": null
+    "name": "SPÎNU GHEORGHE",
+    "share": "50%"
    }
   ],
-  "source": "https://srl.md/societatea-cu-raspundere-limitata-nistrafic",
+  "source": "https://overit.md/companie/1003609001800/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -2251,7 +2256,7 @@
   "founders": [
    {
     "name": "MOROZAN ȘTEFAN",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-ostrov-rapid",
@@ -2266,7 +2271,7 @@
   "founders": [
    {
     "name": "S.C. PASTRANS M.T. S.R.L.",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-paolcaz",
@@ -2341,14 +2346,14 @@
   "founders": [
    {
     "name": "PELIN ALEXANDRU",
-    "share": null
+    "share": "50%"
    },
    {
     "name": "PELIN SVETLANA",
-    "share": null
+    "share": "50%"
    }
   ],
-  "source": "https://srl.md/societatea-comerciala-pelin-as-srl",
+  "source": "https://overit.md/companie/1004600030132/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -2360,7 +2365,7 @@
   "founders": [
    {
     "name": "ENACHI VLAD",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-comerciala-renavadauto-srl",
@@ -2375,7 +2380,7 @@
   "founders": [
    {
     "name": "LESNIC PETRU",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-comerciala-tur-crialnord-srl",
@@ -2390,7 +2395,7 @@
   "founders": [
    {
     "name": "STÎNCARU LUDMILA",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-comerciala-albair-trans-srl",
@@ -2405,7 +2410,7 @@
   "founders": [
    {
     "name": "DANILESCU ANDREI",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-comerciala-alvicomp-grup-srl",
@@ -2449,7 +2454,7 @@
   "administrator": null,
   "founders": [],
   "source": null,
-  "note": "în fișierul ANTA firma e scrisă doar «MOLDOVA»; S.R.L. «MOLDOVA» din Drochia (1016607002997, DARII ION 57,4 %, CHIRILOV EUGENIU 42,6 %) e lichidată din 2017 — neconfirmat că e aceeași",
+  "note": "în fișierul ANTA firma e scrisă doar «MOLDOVA»; singurele S.R.L. «MOLDOVA» din registru (Drochia 1016607002997, Cimișlia 1017605002842) sunt lichidate în 2017 și fără activitate de transport — operatorul real nu poate fi stabilit",
   "fetched_at": "2026-09-20"
  },
  {
@@ -2460,14 +2465,14 @@
   "founders": [
    {
     "name": "CIOCLU ION",
-    "share": null
+    "share": "50%"
    },
    {
     "name": "SCHIDU NINEL",
-    "share": null
+    "share": "50%"
    }
   ],
-  "source": "https://srl.md/societatea-comerciala-doxedim-trans-srl",
+  "source": "https://overit.md/companie/1003600155962/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -2479,7 +2484,7 @@
   "founders": [
    {
     "name": "ARZUMANEAN IRINA",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-comerciala-dvardum-srl",
@@ -2494,7 +2499,7 @@
   "founders": [
    {
     "name": "X11 INVEST S.R.L.",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-comerciala-eurotrans-sud-srl",
@@ -2508,15 +2513,15 @@
   "administrator": "CURU VITALI",
   "founders": [
    {
-    "name": "CURU VITALI",
-    "share": null
+    "name": "JELEV VLADISLAV",
+    "share": "50%"
    },
    {
-    "name": "JELEV VLADISLAV",
-    "share": null
+    "name": "CURU VITALI",
+    "share": "50%"
    }
   ],
-  "source": "https://srl.md/societatea-comerciala-gacintrans-srl",
+  "source": "https://overit.md/companie/1003610001048/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -2528,7 +2533,7 @@
   "founders": [
    {
     "name": "ZANEVICI LARISA",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-comerciala-lamizana-tur-srl",
@@ -2542,15 +2547,15 @@
   "administrator": "BARBACARI SERGHEI",
   "founders": [
    {
-    "name": "BOGDAN VALERIU",
-    "share": null
+    "name": "BARBACARI SERGHEI",
+    "share": "50%"
    },
    {
-    "name": "BARBACARI SERGHEI",
-    "share": null
+    "name": "BOGDAN VALERIU",
+    "share": "50%"
    }
   ],
-  "source": "https://srl.md/societatea-comerciala-meridian-trans-service-srl",
+  "source": "https://overit.md/companie/1003600091703/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -2562,7 +2567,7 @@
   "founders": [
    {
     "name": "ȚARĂLUNGĂ VALERIU",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-comerciala-misac-grup-srl",
@@ -2577,14 +2582,14 @@
   "founders": [
    {
     "name": "GHEORGHIU SERGIU",
-    "share": null
+    "share": "55%"
    },
    {
     "name": "TESLARI EMILIAN",
-    "share": null
+    "share": "45%"
    }
   ],
-  "source": "https://srl.md/societatea-comerciala-orhservtrans-srl",
+  "source": "https://overit.md/companie/1003606013963/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -2596,7 +2601,7 @@
   "founders": [
    {
     "name": "GÎNDEA MARIA",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-comerciala-parcul-auto-rural-srl",
@@ -2611,14 +2616,14 @@
   "founders": [
    {
     "name": "PRODAN IURIE",
-    "share": null
+    "share": "50%"
    },
    {
     "name": "PRODAN OXANA",
-    "share": null
+    "share": "50%"
    }
   ],
-  "source": "https://srl.md/societatea-comerciala-prodtrans-t-srl",
+  "source": "https://overit.md/companie/1004600060331/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -2630,7 +2635,7 @@
   "founders": [
    {
     "name": "BANTEA ANATOLIE",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-comerciala-protrans-lux-srl",
@@ -2645,7 +2650,7 @@
   "founders": [
    {
     "name": "ȚĂRUȘ DUMITRU",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-comerciala-rodan-plus-srl",
@@ -2660,14 +2665,14 @@
   "founders": [
    {
     "name": "SARIOGLO VALERI",
-    "share": null
+    "share": "99.38%"
    },
    {
     "name": "SARIOGLO STEPAN",
-    "share": null
+    "share": "0.62%"
    }
   ],
-  "source": "https://informer.md/ro/pf/profil/compania/sarvalteh-auto",
+  "source": "https://overit.md/companie/1005611002758/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -2679,7 +2684,7 @@
   "founders": [
    {
     "name": "VIERU VADIM",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-comerciala-sinex-trans-srl",
@@ -2694,7 +2699,7 @@
   "founders": [
    {
     "name": "ȚARANU NATALIA",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-comerciala-trans-minar-srl",
@@ -2709,7 +2714,7 @@
   "founders": [
    {
     "name": "STRATAN ION",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-comerciala-trans-next-srl",
@@ -2724,7 +2729,7 @@
   "founders": [
    {
     "name": "UNTILOV SVETLANA",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-comerciala-transnadand-auto-srl",
@@ -2739,7 +2744,7 @@
   "founders": [
    {
     "name": "MARDARI SERGIU",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-comerciala-tudor-intras-srl",
@@ -2754,7 +2759,7 @@
   "founders": [
    {
     "name": "LISNIC GHENADIE",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-comerciala-vassmertur-srl",
@@ -2769,7 +2774,7 @@
   "founders": [
    {
     "name": "ARNAUT TATIANA",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-comerciala-vetanisio-srl",
@@ -2783,15 +2788,15 @@
   "administrator": "TUDORACHE VERGILIU",
   "founders": [
    {
-    "name": "TUDORACHE VERGILIU",
-    "share": null
+    "name": "MOLCEAN IULIA",
+    "share": "50%"
    },
    {
-    "name": "MOLCEAN IULIA",
-    "share": null
+    "name": "TUDORACHE VERGILIU",
+    "share": "50%"
    }
   ],
-  "source": "https://srl.md/societatea-comerciala-vevion-grup-srl",
+  "source": "https://overit.md/companie/1003600076681/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -2803,7 +2808,7 @@
   "founders": [
    {
     "name": "ZÎMBREANU EDUARD",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-andyvenea-trans",
@@ -2818,7 +2823,7 @@
   "founders": [
    {
     "name": "COROI SERGIU",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-auto-grup-trans",
@@ -2833,7 +2838,7 @@
   "founders": [
    {
     "name": "BĂDĂRĂU VITALI",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-auto-danu",
@@ -2848,7 +2853,7 @@
   "founders": [
    {
     "name": "IOVU CORNELIU",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-b-m-n-trans",
@@ -2863,7 +2868,7 @@
   "founders": [
    {
     "name": "POPOVICI ION",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-bivivas-lux",
@@ -2878,7 +2883,7 @@
   "founders": [
    {
     "name": "BULGARU DUMITRU",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-bug-trans",
@@ -2889,18 +2894,18 @@
   "company": "S.R.L. CĂLĂTORUL-TRANSTALMAZAN",
   "idno": "1018608000042",
   "official_name": "Societatea Cu Răspundere Limitată Călătorul-Transtalmazan",
-  "administrator": "TALMAZAN IACOB; TALMAZAN PAVEL",
+  "administrator": "TALMAZAN PAVEL; TALMAZAN IACOB",
   "founders": [
    {
-    "name": "TALMAZAN IACOB",
-    "share": null
+    "name": "TALMAZAN PAVEL",
+    "share": "67,66%"
    },
    {
-    "name": "TALMAZAN PAVEL",
-    "share": null
+    "name": "TALMAZAN IACOB",
+    "share": "32,34%"
    }
   ],
-  "source": "https://srl.md/societatea-cu-raspundere-limitata-calatorul-transtalmazan",
+  "source": "https://overit.md/companie/1018608000042/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -2912,7 +2917,7 @@
   "founders": [
    {
     "name": "MOMCEA NADEJDA",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-directtur",
@@ -2927,7 +2932,7 @@
   "founders": [
    {
     "name": "LEAHU PAVEL",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-gold-as-plus",
@@ -2942,7 +2947,7 @@
   "founders": [
    {
     "name": "TARÎȚA IGOR",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-inedit-trans-auto",
@@ -2957,14 +2962,14 @@
   "founders": [
    {
     "name": "GHIBULEȚ OLEG",
-    "share": null
+    "share": "50%"
    },
    {
     "name": "SCRELEA LILIAN",
-    "share": null
+    "share": "50%"
    }
   ],
-  "source": "https://srl.md/societatea-cu-raspundere-limitata-mahu-autoservice",
+  "source": "https://overit.md/companie/1004603006084/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -2976,7 +2981,7 @@
   "founders": [
    {
     "name": "CASIAN ION",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-osoianu-transport",
@@ -2990,15 +2995,15 @@
   "administrator": "ȚURCAN RUSLAN",
   "founders": [
    {
-    "name": "ȚURCAN ION",
-    "share": null
+    "name": "ȚURCAN SERGIU",
+    "share": "66%"
    },
    {
-    "name": "ȚURCAN SERGIU",
-    "share": null
+    "name": "ȚURCAN ION",
+    "share": "34%"
    }
   ],
-  "source": "https://srl.md/societatea-cu-raspundere-limitata-rivan-tur-can",
+  "source": "https://overit.md/companie/1012608001081/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -3010,7 +3015,7 @@
   "founders": [
    {
     "name": "VACARI ELENA",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-serviciul-tehnic",
@@ -3025,7 +3030,7 @@
   "founders": [
    {
     "name": "NEGRESCU VALENTINA",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-sniv-comtrans",
@@ -3040,7 +3045,7 @@
   "founders": [
    {
     "name": "BAIBARAC MARGARETA",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-superautotrans",
@@ -3055,7 +3060,7 @@
   "founders": [
    {
     "name": "MUNTEANU ANATOLIE",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-teleghest",
@@ -3070,14 +3075,14 @@
   "founders": [
    {
     "name": "MONO-S-SURUGIU S.R.L.",
-    "share": null
+    "share": "50%"
    },
    {
     "name": "S.C. MADANBEN S.R.L.",
-    "share": null
+    "share": "50%"
    }
   ],
-  "source": "https://srl.md/societatea-cu-raspundere-limitata-transbogdan-co",
+  "source": "https://overit.md/companie/1011605001625/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -3088,15 +3093,15 @@
   "administrator": "CUCUȘCIUC MIHAI",
   "founders": [
    {
-    "name": "PLUTA IVAN",
-    "share": null
+    "name": "CUCUȘCIUC VLADIMIR",
+    "share": "50%"
    },
    {
-    "name": "CUCUȘCIUC VLADIMIR",
-    "share": null
+    "name": "PLUTA IVAN",
+    "share": "50%"
    }
   ],
-  "source": "https://srl.md/societatea-cu-raspundere-limitata-transervalion",
+  "source": "https://overit.md/companie/1010602003609/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -3108,7 +3113,7 @@
   "founders": [
    {
     "name": "GRIGORAȘ ANA",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-valer-grig",
@@ -3123,7 +3128,7 @@
   "founders": [
    {
     "name": "POMETCO SERGHEI",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-versand-prim",
@@ -3138,7 +3143,7 @@
   "founders": [
    {
     "name": "PRUTEAN VADIM",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-savadex-trans",
@@ -3153,7 +3158,7 @@
   "founders": [
    {
     "name": "MAŞRUT S.A.",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-servicii-transport-auto",
@@ -3168,7 +3173,7 @@
   "founders": [
    {
     "name": "ESANU VLADIMIR",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-sideral-tur",
@@ -3183,7 +3188,7 @@
   "founders": [
    {
     "name": "PETCO VADIM",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-sorisebi-trans-tur",
@@ -3198,7 +3203,7 @@
   "founders": [
    {
     "name": "GLAVAN BORIS",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-incotrans",
@@ -3213,7 +3218,7 @@
   "founders": [
    {
     "name": "NENOVA OLGA",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-stanmaz",
@@ -3228,7 +3233,7 @@
   "founders": [
    {
     "name": "MITRIUC GHENADI",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-tehluxauto",
@@ -3243,7 +3248,7 @@
   "founders": [
    {
     "name": "DOGOT ION",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-terra-auto",
@@ -3258,7 +3263,7 @@
   "founders": [
    {
     "name": "SCHIDU NICOLAE",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-transbus-nic",
@@ -3273,7 +3278,7 @@
   "founders": [
    {
     "name": "BEIU VADIM",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-transconfort",
@@ -3288,14 +3293,14 @@
   "founders": [
    {
     "name": "SOROCIAN NICOLAE",
-    "share": null
+    "share": "63.5%"
    },
    {
     "name": "SAJIN GHENADIE",
-    "share": null
+    "share": "36.5%"
    }
   ],
-  "source": "https://srl.md/societatea-cu-raspundere-limitata-transrelief",
+  "source": "https://overit.md/companie/1009600010434/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -3307,7 +3312,7 @@
   "founders": [
    {
     "name": "ANDRUȘCEAC GEORGETA",
-    "share": null
+    "share": "100%"
    }
   ],
   "source": "https://srl.md/societatea-cu-raspundere-limitata-tuvitur",
@@ -3318,18 +3323,18 @@
   "company": "VELROS-TRANS S.R.L.",
   "idno": "1003600135340",
   "official_name": "Societatea Cu Răspundere Limitată \"Velros-Trans\"",
-  "administrator": "COZMA GHEORGHE; DANILESCU ANDREI",
+  "administrator": "DANILESCU ANDREI; COZMA GHEORGHE",
   "founders": [
    {
-    "name": "COZMA GHEORGHE",
-    "share": null
+    "name": "DANILESCU ANDREI",
+    "share": "50%"
    },
    {
-    "name": "DANILESCU ANDREI",
-    "share": null
+    "name": "COZMA GHEORGHE",
+    "share": "50%"
    }
   ],
-  "source": "https://srl.md/societatea-cu-raspundere-limitata-velros-trans",
+  "source": "https://overit.md/companie/1003600135340/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -3340,15 +3345,15 @@
   "administrator": "DUBCEAC GHEORGHE",
   "founders": [
    {
-    "name": "BANTEA ANATOLIE",
-    "share": null
+    "name": "DUBCEAC GHEORGHE",
+    "share": "50%"
    },
    {
-    "name": "DUBCEAC GHEORGHE",
-    "share": null
+    "name": "BANTEA ANATOLIE",
+    "share": "50%"
    }
   ],
-  "source": "https://srl.md/societatea-cu-raspundere-limitata-vivodorix-grup",
+  "source": "https://overit.md/companie/1003600005816/",
   "note": null,
   "fetched_at": "2026-09-20"
  },
@@ -3686,11 +3691,11 @@
  {
   "company": "\"SPROS\" SRL",
   "idno": "1007615000181",
-  "official_name": "SPROS SRL (Dubăsari)",
+  "official_name": "ООО «Спрос», Dubăsari, str. Frunze 44A",
   "administrator": "DOROFEEV VLADIMIR",
   "founders": [],
   "source": "https://md.kompass.com/en/c/spros-srl/md022876/",
-  "note": "înregistrată în regiunea transnistreană; fondatorii nu sunt publici",
+  "note": "Transnistria; kompass: Vladimir Dorofeev conducător/proprietar (cota nu e publicată); fondatorii nu-s în registrul MD",
   "fetched_at": "2026-09-20"
  },
  {
@@ -3700,7 +3705,7 @@
   "administrator": null,
   "founders": [],
   "source": null,
-  "note": "negăsită în registrele publice consultate (srl.md, informer.md, overit.md, căutare web)",
+  "note": "operator confirmat în procesul-verbal ANTA Direcția Nord 2021; fără date în registre (srl.md 404, căutări fără rezultat)",
   "fetched_at": "2026-09-20"
  },
  {
@@ -3720,7 +3725,7 @@
   "administrator": null,
   "founders": [],
   "source": null,
-  "note": "negăsită în registrele publice consultate (srl.md, informer.md, overit.md, căutare web)",
+  "note": "apare doar ca fondator al DIRECT-AUTO S.R.L. (1010600034546: POALELUNGI SERGIU 70 %, POPESCU ALEXANDRU 30 %); propriul registru negăsit",
   "fetched_at": "2026-09-20"
  },
  {
@@ -3740,7 +3745,7 @@
   "administrator": null,
   "founders": [],
   "source": null,
-  "note": "negăsită în registrele publice consultate (srl.md, informer.md, overit.md, căutare web)",
+  "note": "operator confirmat în procesul-verbal ANTA Direcția Nord 2021 (rute Rîșcani/Bălți/Dumeni/Costești); fără date în registre",
   "fetched_at": "2026-09-20"
  },
  {
@@ -3766,11 +3771,16 @@
  {
   "company": "\"RINCOR-PRIM\" S.R.L.",
   "idno": null,
-  "official_name": null,
-  "administrator": null,
-  "founders": [],
-  "source": null,
-  "note": "negăsită în registrele publice consultate (srl.md, informer.md, overit.md, căutare web)",
+  "official_name": "Rincor-Prim SRL (Ungheni)",
+  "administrator": "MITRIUC GHENADI",
+  "founders": [
+   {
+    "name": "MITRIUC GHENADI",
+    "share": "100%"
+   }
+  ],
+  "source": "https://www.opensanctions.org/entities/mdrisepep-82fa7ab99e77106df6a851df314a6448154d198d/",
+  "note": "după RISE Moldova/OpenSanctions (persoană expusă politic); IDNO negăsit, registrul ascuns",
   "fetched_at": "2026-09-20"
  },
  {
@@ -3835,7 +3845,7 @@
   "administrator": null,
   "founders": [],
   "source": null,
-  "note": "negăsită în registrele publice consultate (srl.md, informer.md, overit.md, căutare web)",
+  "note": "negăsită în registre (srl.md, infobiz, data2b); o mențiune o leagă de ROYAL HOUSE S.R.L. (1016606003791, Ciulucani, adm. DINA GHEORGHIȚA), neconfirmat",
   "fetched_at": "2026-09-20"
  },
  {
@@ -3865,22 +3875,32 @@
  },
  {
   "company": "S.R.L. CIŞMITRANS",
-  "idno": null,
-  "official_name": null,
-  "administrator": null,
-  "founders": [],
-  "source": null,
-  "note": "negăsită în registrele publice consultate (srl.md, informer.md, overit.md, căutare web)",
+  "idno": "1012611000330",
+  "official_name": "Societatea cu Răspundere Limitată \"CIȘMITRANS\"",
+  "administrator": "POMETCO SERGHEI",
+  "founders": [
+   {
+    "name": "POMETCO SERGHEI",
+    "share": "100%"
+   }
+  ],
+  "source": "https://overit.md/companie/1012611000330/",
+  "note": null,
   "fetched_at": "2026-09-20"
  },
  {
   "company": "S.R.L. DARANUŢA - AUTO",
-  "idno": null,
-  "official_name": null,
-  "administrator": null,
-  "founders": [],
-  "source": null,
-  "note": "negăsită în registrele publice consultate (srl.md, informer.md, overit.md, căutare web)",
+  "idno": "1008608001462",
+  "official_name": "Societatea cu Răspundere Limitată \"DARANUȚA - AUTO\"",
+  "administrator": "NASTAS ANDRIAN",
+  "founders": [
+   {
+    "name": "NASTAS DIANA",
+    "share": "100%"
+   }
+  ],
+  "source": "https://overit.md/companie/1008608001462/",
+  "note": null,
   "fetched_at": "2026-09-20"
  },
  {
@@ -3915,32 +3935,51 @@
  },
  {
   "company": "VERHOVŢEVO TRANS S.R.L.",
-  "idno": null,
-  "official_name": null,
-  "administrator": null,
-  "founders": [],
-  "source": null,
-  "note": "negăsită în registrele publice consultate (srl.md, informer.md, overit.md, căutare web)",
+  "idno": "1015600040452",
+  "official_name": "Societatea cu Răspundere Limitată \"VERHOVȚEVO TRANS\"",
+  "administrator": "JOLNACI ALEXANDRU",
+  "founders": [
+   {
+    "name": "JOLNACI ALEXANDRU",
+    "share": "100%"
+   }
+  ],
+  "source": "https://overit.md/companie/1015600040452/",
+  "note": null,
   "fetched_at": "2026-09-20"
  },
  {
   "company": "F.C.P. FRODO S.R.L.",
-  "idno": null,
-  "official_name": null,
-  "administrator": null,
-  "founders": [],
-  "source": null,
-  "note": "negăsită în registrele publice consultate (srl.md, informer.md, overit.md, căutare web)",
+  "idno": "1003600159281",
+  "official_name": "Firma Comercială de Producție \"FRODO\" S.R.L.",
+  "administrator": "TOMA VALERIU",
+  "founders": [
+   {
+    "name": "TOMA VALERIU",
+    "share": "50%"
+   },
+   {
+    "name": "TOMA ADELA",
+    "share": "50%"
+   }
+  ],
+  "source": "https://overit.md/companie/1003600159281/",
+  "note": null,
   "fetched_at": "2026-09-20"
  },
  {
   "company": "F.C.P. ORIZONTUL S.R.L.",
-  "idno": null,
-  "official_name": null,
-  "administrator": null,
-  "founders": [],
-  "source": null,
-  "note": "negăsită în registrele publice consultate (srl.md, informer.md, overit.md, căutare web)",
+  "idno": "1002600043473",
+  "official_name": "FIRMA COMERCIALĂ DE PRODUCȚIE \"ORIZONTUL\" S.R.L.",
+  "administrator": "ZAHARCIUC ALEXANDR",
+  "founders": [
+   {
+    "name": "ZAHARCIUC ALEXANDR",
+    "share": "100%"
+   }
+  ],
+  "source": "https://overit.md/companie/1002600043473/",
+  "note": null,
   "fetched_at": "2026-09-20"
  },
  {
@@ -3956,41 +3995,41 @@
  {
   "company": "MAŞRUT S.A.",
   "idno": null,
-  "official_name": null,
+  "official_name": "\"MAȘRUT\" S.A.",
   "administrator": null,
   "founders": [],
-  "source": null,
-  "note": "negăsită în registrele publice consultate (srl.md, informer.md, overit.md, căutare web)",
+  "source": "https://overit.md/companie/1004600054888/",
+  "note": "IDNO negăsit; deține 100% din S.R.L. SERVICII TRANSPORT AUTO (1004600054888, adm. JOSAN MIHAI), cotă preluată de la Ministerul Transporturilor; acționarii S.A. nu sunt publici",
   "fetched_at": "2026-09-20"
  },
  {
   "company": "S.A. BAZA DE TRANSPORT AUTO-24",
   "idno": null,
-  "official_name": null,
+  "official_name": "BAZA DE TRANSPORT AUTO nr.24 CEADÎR-LUNGA S.A.",
   "administrator": null,
   "founders": [],
-  "source": null,
-  "note": "negăsită în registrele publice consultate (srl.md, informer.md, overit.md, căutare web)",
+  "source": "https://firme.md/transporturi/5527-BAZA%20DE%20TRANSPORT%20AUTO%20nr.24%20CEADIR-LUNGA%20S.A.",
+  "note": "Ceadîr-Lunga, str. Avtomobilistov 8; IDNO și acționarii nu apar în nicio sursă publică",
   "fetched_at": "2026-09-20"
  },
  {
   "company": "S.A. BAZA DE TRANSPORT AUTO-37",
   "idno": null,
-  "official_name": null,
+  "official_name": "BAZA DE TRANSPORT AUTO nr.37 HÎNCEȘTI S.A.",
   "administrator": null,
   "founders": [],
-  "source": null,
-  "note": "negăsită în registrele publice consultate (srl.md, informer.md, overit.md, căutare web)",
+  "source": "https://firme.md/transporturi/5534-BAZA%20DE%20TRANSPORT%20AUTO%20nr.37%20HINCESTI%20S.A.",
+  "note": "Hîncești, str. Industrială 1; IDNO și acționarii nu apar în nicio sursă publică",
   "fetched_at": "2026-09-20"
  },
  {
   "company": "S.A. BAZA DE TRANSPORT AUTO N.26",
   "idno": null,
-  "official_name": null,
+  "official_name": "BAZA DE TRANSPORT AUTO nr.26 CANTEMIR S.A.",
   "administrator": null,
   "founders": [],
-  "source": null,
-  "note": "negăsită în registrele publice consultate (srl.md, informer.md, overit.md, căutare web)",
+  "source": "https://firme.md/transporturi/5528-BAZA%20DE%20TRANSPORT%20AUTO%20nr.26%20CANTEMIR%20S.A.",
+  "note": "Cantemir, str. B. Glavan 16; CNPF a înregistrat emisiune suplimentară de 5.909 acțiuni (9.12.2025), subscriitorii nepublicați",
   "fetched_at": "2026-09-20"
  },
  {
@@ -4000,37 +4039,37 @@
   "administrator": null,
   "founders": [],
   "source": null,
-  "note": "negăsită în registrele publice consultate (srl.md, informer.md, overit.md, căutare web)",
+  "note": "negăsită în registre; gara Fălești e a Î.S. Direcția pentru Exploatarea Imobilului, nu a acestei S.A.",
   "fetched_at": "2026-09-20"
  },
  {
   "company": "PARCUL DE AUTOBUSE ŞI TAXIMETRE NR. 8 S.A.",
-  "idno": null,
-  "official_name": null,
-  "administrator": null,
+  "idno": "1003603151585",
+  "official_name": "Societatea pe Acțiuni \"PARCUL DE AUTOBUSE ȘI TAXIMETRE NR. 8\"",
+  "administrator": "FURMAN GHEORGHE",
   "founders": [],
-  "source": null,
-  "note": "negăsită în registrele publice consultate (srl.md, informer.md, overit.md, căutare web)",
+  "source": "https://overit.md/companie/1003603151585/",
+  "note": "Cahul; acționarii S.A. nu sunt publici (administrator anterior Corneliu Susanu, 2022)",
   "fetched_at": "2026-09-20"
  },
  {
   "company": "\"INTREPRINDEREA DE TRANSPORT AUTO NR. 3 DIN DUBASARI\" S.A.",
   "idno": null,
-  "official_name": null,
+  "official_name": "ÎNTREPRINDEREA DE TRANSPORT AUTO NR.3 DIN BENDER S.A.T.I.",
   "administrator": null,
   "founders": [],
-  "source": null,
-  "note": "negăsită în registrele publice consultate (srl.md, informer.md, overit.md, căutare web)",
+  "source": "https://firme.md/transporturi/6400-INTREPRINDEREA%20DE%20TRANSPORT%20AUTO%20NR.3%20DIN%20BENDER%20S.A.T.I.",
+  "note": "singura potrivire: ITA nr. 3 din Bender (str. Industrialnaia 45), entitate din stânga Nistrului, fără IDNO MD",
   "fetched_at": "2026-09-20"
  },
  {
   "company": "\"BAZA AUTOFAR\" S.A.",
-  "idno": null,
-  "official_name": null,
-  "administrator": null,
+  "idno": "1004608000227",
+  "official_name": "SOCIETATEA PE ACȚIUNI BAZA \"AUTOFAR\"",
+  "administrator": "MOVILEANU ALEXANDR",
   "founders": [],
-  "source": null,
-  "note": "negăsită în registrele publice consultate (srl.md, informer.md, overit.md, căutare web)",
+  "source": "https://overit.md/companie/1004608000227/",
+  "note": "Căinari (Căușeni); acționarii S.A. nu sunt publici",
   "fetched_at": "2026-09-20"
  },
  {
@@ -4039,18 +4078,18 @@
   "official_name": null,
   "administrator": null,
   "founders": [],
-  "source": null,
-  "note": "negăsită în registrele publice consultate (srl.md, informer.md, overit.md, căutare web)",
+  "source": "https://www.eway.md/ru/cities/tiraspol/agencies/10",
+  "note": "probabil transnistreană (ООО «Ви-Авто», Bender/Tiraspol); nu e în registrul MD",
   "fetched_at": "2026-09-20"
  },
  {
   "company": "\"IUMO-ORION\" C.P.",
-  "idno": null,
-  "official_name": null,
-  "administrator": null,
+  "idno": "1003604001160",
+  "official_name": "COOPERATIVA DE PRODUCȚIE \"IUMO-ORION\" (Otaci)",
+  "administrator": "ARION MIHAIL",
   "founders": [],
-  "source": null,
-  "note": "negăsită în registrele publice consultate (srl.md, informer.md, overit.md, căutare web)",
+  "source": "https://overit.md/companie/1003604001160/",
+  "note": "cooperativă: membrii nu sunt publicați",
   "fetched_at": "2026-09-20"
  },
  {
@@ -4071,31 +4110,31 @@
  {
   "company": "\"COLOANA AUTO №2831 DIN RIBNITA\" S.A.T.D.",
   "idno": null,
-  "official_name": null,
+  "official_name": "ОАО «Рыбницкая автоколонна № 2831», Rîbnița, ул. Мичурина 140",
   "administrator": null,
   "founders": [],
-  "source": null,
-  "note": "înregistrată în regiunea transnistreană; registrul nu e public în Republica Moldova",
+  "source": "https://liktv.org/raspisanie-mezhdunarodnyh-perevozok-iz-rybnicy-osushhestvljaemyh-rybnickoj-ak-2831/",
+  "note": "Transnistria; societate pe acțiuni (ОАО), rute subvenționate de administrația Rîbnița; directorul și acționarii nu apar în nicio sursă accesibilă",
   "fetched_at": "2026-09-20"
  },
  {
   "company": "\"АВТОКАР\" SRL",
   "idno": null,
-  "official_name": null,
-  "administrator": null,
+  "official_name": "ООО «Автокар», s. Caragaș, ул. Ленина 90/1",
+  "administrator": "ШИНКАРЮК НИКОЛАЙ",
   "founders": [],
-  "source": null,
-  "note": "înregistrată în regiunea transnistreană; registrul nu e public în Republica Moldova",
+  "source": "https://mer.gospmr.org/informatsiya/perechen-perevozchikov-pridnestrovskoj-moldavskoj-respubliki-osushhestvlyayushhih-regulyarnye-prigorodnye-mezhdugorodnie-i-mezhdunarodnye-perevozki-passazhirov-i-bagazha-avtomobilnym-transportom-obs",
+  "note": "Transnistria; director din lista transportatorilor MER PMR (2021); fondatorii nu-s publici",
   "fetched_at": "2026-09-20"
  },
  {
   "company": "\"АВТОКОНТАКТ ПЛЮС\" SRL",
   "idno": null,
-  "official_name": null,
+  "official_name": "ООО «Автоконтакт плюс»",
   "administrator": null,
   "founders": [],
-  "source": null,
-  "note": "înregistrată în regiunea transnistreană; registrul nu e public în Republica Moldova",
+  "source": "https://mer.gospmr.org/wp-content/uploads/2026/01/ooo-avtokontakt-plyus.pdf",
+  "note": "Transnistria; transportator licențiat în lista MER PMR (2026); directorul și fondatorii nu-s accesibili (site-ul MER nu răspunde)",
   "fetched_at": "2026-09-20"
  },
  {
@@ -4105,7 +4144,7 @@
   "administrator": null,
   "founders": [],
   "source": null,
-  "note": "înregistrată în regiunea transnistreană; registrul nu e public în Republica Moldova",
+  "note": "Transnistria; negăsită în nicio sursă (căutări ru/ro, lista MER PMR inaccesibilă)",
   "fetched_at": "2026-09-20"
  },
  {
@@ -4115,77 +4154,77 @@
   "administrator": null,
   "founders": [],
   "source": null,
-  "note": "înregistrată în regiunea transnistreană; registrul nu e public în Republica Moldova",
+  "note": "Transnistria; negăsită în nicio sursă (căutări ru/ro, lista MER PMR inaccesibilă)",
   "fetched_at": "2026-09-20"
  },
  {
   "company": "\"БЕНДЕРСКАЯ АВТОКОЛОННА №2836\" S.A.T.D.",
   "idno": null,
-  "official_name": null,
+  "official_name": "ОАО «Бендерская автоколонна № 2836», Bender",
   "administrator": null,
   "founders": [],
-  "source": null,
-  "note": "înregistrată în regiunea transnistreană; registrul nu e public în Republica Moldova",
+  "source": "https://www.048.ua/news/577957/benderovcy-massovo-otkazyvautsa-ehat-v-odessu",
+  "note": "Transnistria; societate pe acțiuni (ОАО); directorul și acționarii nu apar în nicio sursă accesibilă",
   "fetched_at": "2026-09-20"
  },
  {
   "company": "\"ВИ-АВТО\" SRL",
   "idno": null,
-  "official_name": null,
+  "official_name": "ООО «Ви-Авто», Bender",
   "administrator": null,
   "founders": [],
-  "source": null,
-  "note": "înregistrată în regiunea transnistreană; registrul nu e public în Republica Moldova",
+  "source": "https://mer.gospmr.org/podvedeny-itogi-konkursa-na-obsluzhivanie-prigorodnogo-marshruta-tiraspol-sukleya.html",
+  "note": "Transnistria; câștigător MER pe ruta Tiraspol–Suclea; director/fondatori negăsiți",
   "fetched_at": "2026-09-20"
  },
  {
   "company": "\"ВИОЛАН\" SRL",
-  "idno": null,
-  "official_name": null,
+  "idno": "1007615000158",
+  "official_name": "ООО «Виолан», Bender, str. Sovietica 1",
   "administrator": null,
   "founders": [],
-  "source": null,
-  "note": "înregistrată în regiunea transnistreană; registrul nu e public în Republica Moldova",
+  "source": "https://am.kompass.com/c/%D0%B2%D0%B8%D0%BE%D0%BB%D0%B0%D0%BD-%D0%BE%D0%BE%D0%BE/md022134/",
+  "note": "Transnistria; are IDNO MD (kompass); director/fondatori negăsiți",
   "fetched_at": "2026-09-20"
  },
  {
   "company": "\"КАМЕНСКАЯ АТБ-39\" S.A.T.D.",
   "idno": null,
-  "official_name": null,
+  "official_name": "ОАО «Каменская автотранспортная база № 39», Camenca",
   "administrator": null,
   "founders": [],
-  "source": null,
-  "note": "înregistrată în regiunea transnistreană; registrul nu e public în Republica Moldova",
+  "source": "https://pmr.su/katalog/avto/2309-passazhirskie-perevozki/861-kamenskaya-avtotransportnaya-baza-39-oao",
+  "note": "Transnistria; societate pe acțiuni (ОАО); director/acționari negăsiți",
   "fetched_at": "2026-09-20"
  },
  {
   "company": "\"ТИРАСПОЛЬСКАЯ АВТОКОЛОННА-2809\" SA",
   "idno": null,
-  "official_name": null,
+  "official_name": "Автоколонна № 2809, Tiraspol",
   "administrator": null,
   "founders": [],
   "source": null,
-  "note": "înregistrată în regiunea transnistreană; registrul nu e public în Republica Moldova",
+  "note": "Transnistria; doar existența confirmată; director/acționari negăsiți",
   "fetched_at": "2026-09-20"
  },
  {
   "company": "\"ЭКСПРЕССТРАНС\" S.R.L.",
   "idno": null,
-  "official_name": null,
+  "official_name": "ООО «Экспресстранс»",
   "administrator": null,
   "founders": [],
-  "source": null,
-  "note": "înregistrată în regiunea transnistreană; registrul nu e public în Republica Moldova",
+  "source": "http://mer.gospmr.org/deyatelnost/gosudarstvennaya-sluzhba-czen-i-antimonopolnoj-deyatelnosti/normativno-pravovye-akty/gosudarstvennoe-regulirovanie-czen-tarifov-v-sfere-soczialno-znachimyh-tovarov-rabot-uslug/2016-god/tarify-na-uslugi-po-perevozke-passazhirov-i-bagazha-avtomobilnym-transportom-obshhego-polzovaniya-na-regulyarnyh-marshrutah-i-uslugi-po-prodazhe-proezdnyh-dokumentov/prikazy-subektov-czenoobrazovaniya-na-uslugi-po-perevozke-passazhirov-i-bagazha-avtomobilnym-transportom-obshhego-polzovaniya-na-regulyarnyh-marshrutah-na-2016-god/prikaz-ooo-ekspresstrans.html",
+  "note": "Transnistria; ordin de tarife 2016 publicat de MER PMR; director/fondatori negăsiți",
   "fetched_at": "2026-09-20"
  },
  {
   "company": "ГРИГОРИОПОЛЬСКАЯ АТБ-38",
   "idno": null,
-  "official_name": null,
-  "administrator": null,
+  "official_name": "ОАО «Григориопольская АТБ-38», Grigoriopol, ул. Урицкого 1",
+  "administrator": "ТКАЧУК ТИМОФЕЙ",
   "founders": [],
-  "source": null,
-  "note": "înregistrată în regiunea transnistreană; registrul nu e public în Republica Moldova",
+  "source": "https://grig-admin.idknet.com/?s=%D0%A2%D0%BA%D0%B0%D1%87%D1%83%D0%BA",
+  "note": "Transnistria; director confirmat de administrația Grigoriopol în 2015–2017 (posibil învechit); acționarii nu-s publici",
   "fetched_at": "2026-09-20"
  },
  {
@@ -4195,7 +4234,7 @@
   "administrator": null,
   "founders": [],
   "source": null,
-  "note": "înregistrată în regiunea transnistreană; registrul nu e public în Republica Moldova",
+  "note": "Transnistria; singura urmă e ООО «Совмтранс-сервис» (service auto, Bender), legătură neconfirmată; director/fondatori negăsiți",
   "fetched_at": "2026-09-20"
  },
  {
@@ -4210,17 +4249,17 @@
  },
  {
   "company": "CUŞNIR Î.I.",
-  "idno": null,
-  "official_name": null,
-  "administrator": null,
+  "idno": "1003604151836",
+  "official_name": "Întreprinderea Individuală \"CUȘNIR\" (Ocnița)",
+  "administrator": "CUȘNIR ANATOLIE",
   "founders": [
    {
-    "name": "CUȘNIR (din denumire)",
+    "name": "CUȘNIR ANATOLIE",
     "share": null
    }
   ],
-  "source": null,
-  "note": "Î.I.: negăsită pe srl.md",
+  "source": "https://overit.md/companie/1003604151836/",
+  "note": "singura Î.I. «CUȘNIR» activă din registru; potrivire după nume, neconfirmată cu licența",
   "fetched_at": "2026-09-20"
  }
 ]

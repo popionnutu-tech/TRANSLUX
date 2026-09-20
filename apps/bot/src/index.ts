@@ -65,6 +65,19 @@ async function main() {
   const server = createServer(async (req, res) => {
     // API-ul aplicației de peron (/app/v1/*), orice metodă — înaintea webhook-ului.
     if (await handleAppApi(req, res)) return;
+    // Versiunea desfășurată: sha-ul commit-ului pe care rulează botul. O citește
+    // conveierul de sarcini (`tp verify`) ca să închidă tichetul doar după faptul din
+    // prod. Railway pune RAILWAY_GIT_COMMIT_SHA doar la deploy-urile pornite din GitHub
+    // (push în deploy-bot); după `railway up` câmpul e null. Trebuie să stea ÎNAINTEA
+    // catch-all-ului pentru non-POST de mai jos.
+    if (req.method === 'GET' && (req.url === '/version' || req.url?.startsWith('/version?'))) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        sha: process.env.RAILWAY_GIT_COMMIT_SHA ?? null,
+        branch: process.env.RAILWAY_GIT_BRANCH ?? null,
+      }));
+      return;
+    }
     if (req.method !== 'POST') {
       res.writeHead(200, { 'Content-Type': 'text/plain' });
       res.end(`TRANSLUX bot ok (${mode})`);

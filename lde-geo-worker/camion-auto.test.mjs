@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  actualizeazaStationarea, deciziaCamion, alerteCamion, punctulUndeSta, minuteLaPunct,
+  actualizeazaStationarea, deciziaCamion, punctulUndeSta, minuteLaPunct,
   descarcaAici, incarcaAici, PRAG_MIN, PLECAT_KM, PLECAT_MIN, LOC_DESCARCARE_NECUNOSCUT,
   cursaExpirata, cisterneDinOpriri, recupereazaDinIstoric, zileDeStat, zileCuCursa,
 } from './camion-auto.mjs';
@@ -179,22 +179,6 @@ test('poziție veche: nicio decizie, nici creare', () => {
   const s = stand(BERDICHEV, 300);
   s.pozitie = la(BERDICHEV, min(0));
   assert.deepEqual(deciziaCamion({ camion: CISTERNA, cursa: null, ultimaCursa: null, puncteDupaId: dupaId, ...s }), { creeaza: null, schimba: null, motiv: null });
-});
-
-test('alerte: la descărcare peste 24 h fără bon; GPS mut peste 12 h cu marfa în camion; cheia e stabilă', () => {
-  const acumMs = T0;
-  const ungheniMd = { ...UNGHENI, country: 'Moldova' };
-  const cursa = { id: 'c1', status: 'la_descarcare', cargo: 'diesel', status_changed_at: new Date(acumMs - 25 * 3600e3).toISOString(), unloadPoint: ungheniMd };
-  const a = alerteCamion({ camion: CISTERNA, cursa, stationare: null, punct: ungheniMd, pozitie: la(UNGHENI, new Date(acumMs - 60e3).toISOString()), acumMs });
-  assert.equal(a.length, 1); assert.equal(a[0].fel, 'descarcare_fara_bon'); assert.equal(a[0].cheie, 'descarcare_fara_bon|c1');
-  // 7 h nu mai sunt o alertă din 21.09: automatul închide singur cursa, iar bonul
-  // de recepție se scrie uneori a doua zi (văzut: descărcare 04.09, bon pe 08.09).
-  const recenta = { ...cursa, status_changed_at: new Date(acumMs - 7 * 3600e3).toISOString() };
-  assert.equal(alerteCamion({ camion: CISTERNA, cursa: recenta, stationare: null, punct: ungheniMd, pozitie: null, acumMs }).length, 0);
-  const plin = { id: 'c2', status: 'spre_descarcare', cargo: 'biodiesel', status_changed_at: min(0) };
-  const mut = alerteCamion({ camion: CISTERNA, cursa: plin, stationare: null, punct: null, pozitie: { lat: 47, lon: 28, speed: 0, at: new Date(acumMs - 13 * 3600e3).toISOString() }, acumMs });
-  assert.equal(mut.length, 1); assert.equal(mut[0].fel, 'gps_mut');
-  assert.equal(alerteCamion({ camion: { ...CISTERNA, fleetType: 'zernovoz' }, cursa, stationare: null, punct: null, pozitie: null, acumMs }).length, 0);
 });
 
 test('pragurile din spec', () => {
@@ -436,20 +420,6 @@ test('cisterneDinOpriri: două opriri lungi la un punct de încărcare fac o cis
   // Opriri departe de orice punct de încărcare.
   const laBriceni = { vehicle_id: 'v-rwn', lat: BRICENI.lat, lon: BRICENI.lon, dwell_min: 900 };
   assert.equal(cisterneDinOpriri([laBriceni, laBriceni], PUNCTE_INC, [v], []).cisterneNoi.length, 0);
-});
-
-test('alerta «fără bon TLX»: doar pentru carburant descărcat în Moldova, și abia după 24 h', () => {
-  const acumMs = T0 + 30 * 3600e3;
-  const md = { ...UNGHENI, country: 'Moldova' };
-  const diesel = { id: 'c1', status: 'la_descarcare', cargo: 'diesel', status_changed_at: min(0), unloadPoint: md };
-  const feluri = (cursa, la = acumMs) => alerteCamion({ camion: CISTERNA, cursa, stationare: null, punct: null, pozitie: null, acumMs: la }).map((a) => a.fel);
-  assert.deepEqual(feluri(diesel), ['descarcare_fara_bon']);
-  // La 6 h nu mai e alertă: descărcarea la bază ține ore, iar bonul se scrie și a doua zi.
-  assert.deepEqual(feluri(diesel, T0 + 6 * 3600e3), []);
-  // Biodiesel la Ruse: bon TLX nu există și n-a existat niciodată.
-  assert.deepEqual(feluri({ ...diesel, cargo: 'biodiesel', unloadPoint: { ...RUSE, country: 'Bulgaria' } }), []);
-  // Diesel, dar descărcat în afara Moldovei.
-  assert.deepEqual(feluri({ ...diesel, unloadPoint: { ...md, country: 'România' } }), []);
 });
 
 // ── Recuperarea cursei nevăzute din urma GPS (Ion, 21.09) ────────────────────

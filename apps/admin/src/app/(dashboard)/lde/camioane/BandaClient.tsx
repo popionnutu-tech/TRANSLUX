@@ -13,9 +13,9 @@ import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState, useT
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import {
-  anuleazaCursa, corecteazaStarea, mutaCursa, rezolvaAlerta, salveazaCursa, schimbaStareaCursei, seteazaStarePerioada,
+  anuleazaCursa, corecteazaStarea, mutaCursa, salveazaCursa, schimbaStareaCursei, seteazaStarePerioada,
   seteazaTipCamion, stergeStarePerioada, stergeStareZi,
-  type AlertaAuto, type Camion, type Cursa, type PunctScurt, type Rezultat, type SoferScurt, type StareZi,
+  type Camion, type Cursa, type PunctScurt, type Rezultat, type SoferScurt, type StareZi,
 } from './planificare/actions';
 import {
   aIntarziat, asteaptaDescarcarea, camioaneInBanda, esteInCursa, grupeazaPeTip, mutaPastrandDurata,
@@ -40,8 +40,6 @@ type Props = {
   puncte: PunctScurt[];
   soferi: SoferScurt[];
   taiat: boolean;
-  /** Ce n-a putut decide automatul de stări — dispecerul le vede deasupra benzii. */
-  alerte: AlertaAuto[];
   /** false = OBSERVATOR: vede banda și harta, fără nicio unealtă de scriere. */
   poateEdita: boolean;
 };
@@ -89,7 +87,7 @@ const ALT_LOC = '__alt__';
 /** Aceeași normalizare ca pe server, ca joinul pe plăcuță să țină. */
 const placaCurata = (p: string) => p.toUpperCase().replace(/[^A-Z0-9]/g, '');
 
-export default function BandaClient({ zile, camioane, curse, stari, puncte, soferi, taiat, alerte, poateEdita }: Props) {
+export default function BandaClient({ zile, camioane, curse, stari, puncte, soferi, taiat, poateEdita }: Props) {
   const router = useRouter();
   const [inLucru, pornesteTranzitia] = useTransition();
   // Un singur comutator pentru toate uneltele: ori se salvează ceva, ori rolul
@@ -434,34 +432,10 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
 
       {/* Cu formularul deschis, mesajul se arată în formular — acolo se uită omul. */}
       {!form && mesaje}
-      {/* Automatul de stări pune singur încărcarea, drumul, descărcarea (Ion, 10.09);
-          ce n-a putut decide stă aici până îl închide dispecerul. */}
-      {alerte.length > 0 && (
-        <div className="card" style={{ borderLeft: '3px solid var(--warning)' }}>
-          <strong>Automatul n-a putut decide</strong>
-          <span className="text-muted" style={{ fontSize: 12 }}> · corectezi cursa în bandă, apoi închizi alerta</span>
-          <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
-            {alerte.map((a) => (
-              <li key={a.id} style={{ marginBottom: 4 }}>
-                <span className="text-muted" style={{ fontSize: 11 }}>
-                  {new Date(a.createdAt).toLocaleString('ro-MD', { timeZone: 'Europe/Chisinau', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                </span>{' '}
-                {a.mesaj}
-                {poateEdita && (
-                  <button
-                    className="btn-outline"
-                    style={{ marginLeft: 8, fontSize: 11, padding: '1px 8px' }}
-                    disabled={inCurs}
-                    onClick={() => ruleaza(() => rezolvaAlerta(a.id))}
-                  >
-                    Închide
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {/* Panoul «Automatul n-a putut decide» a fost scos pe 21.09 (Ion: «nu trebuie
+          alerte»; «trebuie programul să ruleze și să înțeleagă starea automat, asta
+          tot»). Automatul nu mai cere nimănui nimic; ce hotărăște singur scrie în
+          nota cursei, acolo se citește. */}
       {taiat && (
         <div className="card" style={{ borderLeft: '3px solid var(--danger)' }}>
           Fereastra e prea largă: s-a atins plafonul de 1000 de curse și ultimele zile lipsesc din

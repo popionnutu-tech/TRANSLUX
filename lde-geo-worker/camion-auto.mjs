@@ -55,7 +55,7 @@
 // nu merge niciodată înapoi și nu sare peste etape.
 // ============================================================================
 import { hav } from './km-core.mjs';
-import { inMoldova } from './trip-auto.mjs';
+
 
 export const VITEZA_STA_KMH = 5.6;
 export const POZITIE_VECHE_MIN = 30;
@@ -79,8 +79,6 @@ export const PLECAT_MIN = 60;
 export const ORE_BON_LA_BAZA = 6;
 /** Cursa pe care nimic n-a mai mișcat-o atâtea zile după ora descărcării e moartă, nu în drum. */
 export const EXPIRA_ZILE = 10;
-/** Bonul TLX lipsă devine alertă abia după atâtea ore de la începutul descărcării. */
-export const ORE_FARA_BON = 24;
 /** Două încărcări ale aceluiași camion nu se pot atinge mai des de atât: întoarcerea
  *  la punct în mijlocul cursei e tranzit sau acte, nu marfă nouă. */
 export const ORE_INTRE_INCARCARI = 24;
@@ -728,38 +726,3 @@ export function deciziaCamion(input) {
   return nimic;
 }
 
-/**
- * Alertele pentru dispecer (D7), din ce se vede acum. Cheia oprește repetarea:
- * aceeași alertă pentru aceeași cursă/zi se scrie o singură dată.
- * @returns [{ fel, cheie, mesaj, trip_id }]
- */
-export function alerteCamion({ camion, cursa, stationare, punct, pozitie, acumMs = Date.now() }) {
-  const out = [];
-  if (camion.fleetType !== 'cisterna') return out;
-  const zi = iso(acumMs).slice(0, 10);
-  // Bonul TLX lipsă e o alertă doar acolo unde bonul chiar trebuie să existe:
-  // carburant descărcat în Moldova. Pentru biodieselul din Bulgaria nu există bon
-  // și nici n-a existat vreodată — alerta aceea a repetat zile la rând pe ANT344
-  // și KWX620 fără ca cineva să poată face ceva. Și pragul crește de la 6 h la
-  // ORE_FARA_BON: descărcarea de diesel la bază ține ore, iar recepția se scrie
-  // uneori a doua zi; acum că automatul închide singur cursa din GPS, alerta e
-  // despre bonul care lipsește din contabilitate, nu despre cursa agățată.
-  if (cursa?.status === 'la_descarcare' && cursa.status_changed_at
-      && plinLaBaza(cursa.cargo) && inMoldova(cursa.unloadPoint)) {
-    const ore = (acumMs - Date.parse(cursa.status_changed_at)) / 3600e3;
-    if (ore >= ORE_FARA_BON) {
-      out.push({ fel: 'descarcare_fara_bon', cheie: `descarcare_fara_bon|${cursa.id}`, trip_id: cursa.id,
-        mesaj: `${camion.plate}: la descărcare de ${Math.round(ore)} h fără bon TLX (${cursa.cargo ?? 'marfă'}${cursa.unloadPoint?.name ? `, ${cursa.unloadPoint.name}` : ''}). Închide cursa sau verifică bonul.` });
-    }
-  }
-  // Poziția GPS a amuțit de peste 12 h cu marfa în camion: nu știm unde e.
-  if (cursa && ['la_incarcare', 'spre_descarcare', 'asteapta_descarcare'].includes(cursa.status) && pozitie) {
-    const t = Date.parse(pozitie.at);
-    if (Number.isFinite(t) && acumMs - t >= 12 * 3600e3) {
-      out.push({ fel: 'gps_mut', cheie: `gps_mut|${cursa.id}|${zi}`, trip_id: cursa.id,
-        mesaj: `${camion.plate}: plin cu ${cursa.cargo ?? 'marfă'}, iar GPS-ul tace de ${Math.round((acumMs - t) / 3600e3)} h (ultima poziție ${pozitie.at.slice(0, 16).replace('T', ' ')}).` });
-    }
-  }
-  void stationare; void punct;
-  return out;
-}

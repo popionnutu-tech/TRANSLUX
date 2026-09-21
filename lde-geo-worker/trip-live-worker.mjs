@@ -9,10 +9,13 @@
 //    cursă nouă la încărcare, la încărcare, spre descărcare, la descărcare;
 //  · TLX fuel_receipts (bonul de recepție, pe DATA descărcării) → «încheiată»
 //    (trip-auto.mjs, deciziaTlx);
-//  · ce nu poate decide → lde_truck_auto_alerte, pentru dispecerul de camioane.
-// Pe lângă ele, urma GPS a ultimelor zile (lde_gps_stops) recuperează cursa pe care
-// automatul n-a văzut-o: camionul care a încărcat în timp ce cursa veche îl ținea
-// agățat n-ar căpăta niciodată una (recupereazaDinIstoric).
+//  · urma GPS a ultimelor zile (lde_gps_stops) → cursa pe care automatul n-a
+//    văzut-o, recuperată (recupereazaDinIstoric), și zilele în care camionul a
+//    stat, puse ca «odihnă» (zileDeStat).
+//
+// Nu trimite nimic și nu cere nimănui nimic (Ion, 21.09: «nu trebuie alerte»;
+// «trebuie programul să ruleze și să înțeleagă starea automat, asta tot»). Tot ce
+// hotărăște singur se explică în nota cursei — acolo se citește, când se citește.
 // Scrierea stării e OPTIMISTĂ: PATCH cu `status=eq.<starea citită>` — dacă
 // dispecerul a apăsat el între timp, automatul nu suprascrie nimic.
 //
@@ -24,7 +27,7 @@
 import { login, listUnitsPozitii } from './wialon-api.mjs';
 import { deciziaTlx, normPlaca } from './trip-auto.mjs';
 import {
-  actualizeazaStationarea, alerteCamion, cursaExpirata, deciziaCamion, punctulUndeSta,
+  actualizeazaStationarea, cursaExpirata, deciziaCamion, punctulUndeSta,
   recupereazaDinIstoric, zileCuCursa, zileDeStat, ORE_STAT_PE_ZI, STARI_DESCHISE, ZILE_RECUPERARE,
 } from './camion-auto.mjs';
 
@@ -36,9 +39,6 @@ const WIALON_TOKEN = process.env.WIALON_TOKEN;
 const TLX_URL = process.env.TLX_SUPABASE_URL;
 const TLX_KEY = process.env.TLX_SERVICE_KEY;
 const WRITE = process.argv.includes('--write');
-/** Central-hub trimite alertele pe Telegram (el știe cine e dispecerul); cheia e aceeași ca la cron-urile din crontab. */
-const HUB_URL = (process.env.CAMIOANE_HUB_URL || 'https://central-hub-md.vercel.app').replace(/\/$/, '');
-const CRON_SECRET = (process.env.CRON_SECRET || '').trim();
 
 if (!SB_URL || !SB_KEY) { console.error('Lipsesc SUPABASE_URL / SUPABASE_SERVICE_KEY'); process.exit(1); }
 if (!WIALON_TOKEN) { console.error('Lipsește WIALON_TOKEN'); process.exit(1); }
@@ -189,7 +189,6 @@ async function main() {
   } : null);
 
   const stationariDeScris = [];
-  const alerteDeScris = [];
   let scrise = 0;
   let esuate = 0;
 
@@ -265,9 +264,6 @@ async function main() {
         cuCursaAcum.add(v.id);
       }
       if (t) cuCursaAcum.add(v.id);
-      for (const a of alerteCamion({ camion, cursa, stationare, punct, pozitie, acumMs })) {
-        alerteDeScris.push({ vehicle_id: v.id, trip_id: a.trip_id ?? null, fel: a.fel, mesaj: a.mesaj, cheie: a.cheie });
-      }
     } catch (e) {
       esuate++;
       console.error(`  ${placa}: ${e instanceof Error ? e.message : e}`);
@@ -285,11 +281,9 @@ async function main() {
     if (!e) continue;
     const placa = normPlaca(t.vehicles?.plate_number);
     try {
-      if (!await scrieStare(t, e.patch, e.motiv)) continue;
-      alerteDeScris.push({
-        vehicle_id: t.vehicle_id, trip_id: t.id, fel: 'cursa_expirata', cheie: `cursa_expirata|${t.id}`,
-        mesaj: `${placa}: cursa de ${t.cargo ?? 'marfă'} din ${String(t.load_planned_at).slice(0, 10)} a fost închisă automat — ${e.motiv}. Dacă mai e în drum, deschide-i o cursă nouă în admin.`,
-      });
+      // Motivul rămâne scris în nota cursei (cursaExpirata îl pune acolo): cine se
+      // uită la cursă îl vede, fără ca cineva să fie chemat.
+      await scrieStare(t, e.patch, e.motiv);
     } catch (err) {
       esuate++;
       console.error(`  cursa ${t.id} (${placa}): ${err instanceof Error ? err.message : err}`);
@@ -401,32 +395,7 @@ async function main() {
     }
   }
 
-  // ── 2d. Alerta a cărei cursă s-a închis se stinge singură (Ion, 21.09) ──
-  // Alertele aveau un buton «rezolvă», apăsat de dispecer. Fără operator ar crește
-  // la nesfârșit deasupra benzii, cerând ceva ce nu mai are cine face — și oricum
-  // cele mai multe se rezolvă de la sine, fiindcă automatul închide acum cursa
-  // despre care se plângeau («la descărcare fără bon» pe o cursă deja încheiată).
-  let stinse = 0;
-  if (WRITE) {
-    try {
-      const deschise = await sb('lde_truck_auto_alerte?select=id,trip_id,trip:trip_id(status)&resolved_at=is.null&limit=1000') || [];
-      const gata = deschise
-        .filter((a) => { const st = unu(a.trip)?.status; return st === 'incheiata' || st === 'anulata'; })
-        .map((a) => a.id);
-      if (gata.length > 0) {
-        await sb(`lde_truck_auto_alerte?id=in.(${gata.join(',')})`, {
-          method: 'PATCH', headers: { Prefer: 'return=minimal' },
-          body: JSON.stringify({ resolved_at: acumIso }),
-        });
-        stinse = gata.length;
-      }
-    } catch (e) {
-      esuate++;
-      console.error(`  stingerea alertelor: ${e instanceof Error ? e.message : e}`);
-    }
-  }
-
-  // ── 3. Memoria staționărilor și alertele ──
+  // ── 3. Memoria staționărilor ──
   if (WRITE && stationariDeScris.length > 0) {
     try {
       await sb('lde_truck_gps_stationari?on_conflict=vehicle_id', {
@@ -434,29 +403,9 @@ async function main() {
       });
     } catch (e) { esuate++; console.error(`  staționări: ${e instanceof Error ? e.message : e}`); }
   }
-  if (alerteDeScris.length > 0) {
-    for (const a of alerteDeScris) console.log(`  alertă ${a.fel}: ${a.mesaj}`);
-    if (WRITE) {
-      try {
-        // Cheia unică oprește repetarea: aceeași alertă se scrie o singură dată.
-        await sb('lde_truck_auto_alerte?on_conflict=cheie', {
-          method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' }, body: JSON.stringify(alerteDeScris),
-        });
-      } catch (e) { esuate++; console.error(`  alerte: ${e instanceof Error ? e.message : e}`); }
-      // Trimiterea pe Telegram o face central-hub (știe cine e dispecerul); aici doar o pornim.
-      if (CRON_SECRET) {
-        try {
-          const r = await fetch(`${HUB_URL}/api/cron/lde-camioane-alerte`, {
-            headers: { Authorization: `Bearer ${CRON_SECRET}` }, signal: AbortSignal.timeout(25000),
-          });
-          console.log(`  alerte trimise: ${r.status} ${(await r.text()).slice(0, 120)}`);
-        } catch (e) { console.error(`  alerte Telegram: ${e instanceof Error ? e.message : e}`); }
-      }
-    }
-  }
 
   console.log(`  camioane: ${(vehicule || []).length} (cisterne ${cisterne}), curse deschise: ${(curseDeschise || []).length}, poziții: ${pozitieDupaPlaca.size}, ` +
-    `recepții: ${receptii.length}, staționări scrise: ${stationariDeScris.length}, stări scrise: ${scrise}, recuperate: ${recuperate}, alerte: ${alerteDeScris.length}, stinse: ${stinse}, zile stat: ${zileStat}, eșuate: ${esuate}`);
+    `recepții: ${receptii.length}, staționări scrise: ${stationariDeScris.length}, stări scrise: ${scrise}, recuperate: ${recuperate}, zile stat: ${zileStat}, eșuate: ${esuate}`);
   if (esuate > 0) process.exitCode = 1;
 }
 

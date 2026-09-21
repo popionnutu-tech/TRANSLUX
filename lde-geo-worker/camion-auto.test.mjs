@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {
   actualizeazaStationarea, deciziaCamion, alerteCamion, punctulUndeSta, minuteLaPunct,
   descarcaAici, incarcaAici, PRAG_MIN, PLECAT_KM, PLECAT_MIN, LOC_DESCARCARE_NECUNOSCUT,
-  cursaExpirata, cisterneDinOpriri,
+  cursaExpirata, cisterneDinOpriri, recupereazaDinIstoric,
 } from './camion-auto.mjs';
 
 const T0 = Date.parse('2026-09-05T16:50:00Z');
@@ -450,4 +450,114 @@ test('alerta «fără bon TLX»: doar pentru carburant descărcat în Moldova, �
   assert.deepEqual(feluri({ ...diesel, cargo: 'biodiesel', unloadPoint: { ...RUSE, country: 'Bulgaria' } }), []);
   // Diesel, dar descărcat în afara Moldovei.
   assert.deepEqual(feluri({ ...diesel, unloadPoint: { ...md, country: 'România' } }), []);
+});
+
+// ── Recuperarea cursei nevăzute din urma GPS (Ion, 21.09) ────────────────────
+
+/** Oprire în urma GPS, la un punct, cu durata în minute. */
+const oprire = (p, arrival, dwell) => ({
+  lat: p.lat + 0.0004, lon: p.lon, dwell_min: dwell,
+  arrival_at: arrival, departure_at: new Date(Date.parse(arrival) + dwell * 60e3).toISOString(),
+});
+const AZI = Date.parse('2026-09-21T11:00:00Z');
+
+test('ANT344: a încărcat bio la Berdichev pe 17–18.09 și nimeni n-a văzut → cursa se recuperează', () => {
+  // Urma reală: 282 min + 489 min la Berdichev, apoi drumul spre casă.
+  const opriri = [
+    oprire(BERDICHEV, '2026-09-17T16:18:00Z', 282),
+    oprire(BERDICHEV, '2026-09-17T21:03:00Z', 489),
+    oprire(NORD, '2026-09-18T12:00:00Z', 229),
+  ];
+  const r = recupereazaDinIstoric({ camion: { ...CISTERNA, plate: 'ANT344' }, opriri, puncte: PUNCTE, ultimaCursa: null, acumMs: AZI });
+  assert.equal(r.creeaza.cargo, 'biodiesel');
+  assert.equal(r.creeaza.load_point_id, 'p-berd');
+  // Ședințele lipite la același punct sunt o singură încărcare: ora e a primei.
+  assert.equal(r.creeaza.load_planned_at, '2026-09-17T16:18:00.000Z');
+  assert.equal(r.creeaza.status, 'spre_descarcare');     // s-a oprit la vamă după încărcare
+  assert.equal(r.creeaza.created_by, 'auto:istoric');
+  assert.equal(r.creeaza.unload_point_id, null);
+  assert.equal(r.creeaza.unload_place, LOC_DESCARCARE_NECUNOSCUT);
+  assert.match(r.creeaza.notes, /recuperată din urma GPS/);
+});
+
+test('drumul dus până la capăt nu se recuperează: e istorie, nu cursă', () => {
+  const opriri = [
+    oprire(BERDICHEV, '2026-09-12T08:00:00Z', 300),
+    oprire(RUSE, '2026-09-14T09:00:00Z', 120),          // a descărcat
+    oprire(BRICENI, '2026-09-16T09:00:00Z', 600),       // s-a oprit în altă parte după
+  ];
+  assert.equal(recupereazaDinIstoric({ camion: CISTERNA, opriri, puncte: PUNCTE, ultimaCursa: null, acumMs: AZI }), null);
+});
+
+test('oprit chiar la descărcare la capătul urmei → cursă recuperată «la descărcare», cu punctul pus', () => {
+  const opriri = [
+    oprire(BERDICHEV, '2026-09-18T08:00:00Z', 300),
+    oprire(RUSE, '2026-09-20T09:00:00Z', 120),
+  ];
+  const r = recupereazaDinIstoric({ camion: CISTERNA, opriri, puncte: PUNCTE, ultimaCursa: null, acumMs: AZI });
+  assert.equal(r.creeaza.status, 'la_descarcare');
+  assert.equal(r.creeaza.unload_point_id, 'p-ruse');
+  assert.equal(r.creeaza.unload_place, null);
+});
+
+test('diesel oprit la bază → «plin, așteaptă descărcarea», că bonul TLX n-a venit (D4)', () => {
+  const opriri = [
+    oprire(PETROMIDIA, '2026-09-18T08:00:00Z', 200),
+    oprire(BRICENI, '2026-09-19T20:00:00Z', 900),
+  ];
+  const r = recupereazaDinIstoric({ camion: CISTERNA, opriri, puncte: PUNCTE, ultimaCursa: null, acumMs: AZI });
+  assert.equal(r.creeaza.cargo, 'diesel');
+  assert.equal(r.creeaza.status, 'asteapta_descarcare');
+  assert.equal(r.creeaza.unload_point_id, 'p-bri');
+  // Biodieselul la aceeași bază e doar tranzit — rămâne spre descărcare.
+  const bio = [oprire(BERDICHEV, '2026-09-18T08:00:00Z', 300), oprire(BRICENI, '2026-09-19T20:00:00Z', 900)];
+  assert.equal(recupereazaDinIstoric({ camion: CISTERNA, opriri: bio, puncte: PUNCTE, ultimaCursa: null, acumMs: AZI }).creeaza.status, 'spre_descarcare');
+});
+
+test('ce sistemul știe deja nu se reface', () => {
+  const opriri = [oprire(BERDICHEV, '2026-09-17T16:18:00Z', 282)];
+  // Cursa închisă DUPĂ plecarea de la încărcare: drumul e deja scris.
+  assert.equal(recupereazaDinIstoric({ camion: CISTERNA, opriri, puncte: PUNCTE, acumMs: AZI,
+    ultimaCursa: { load_planned_at: '2026-09-17T16:00:00Z', status_changed_at: '2026-09-19T10:00:00Z', status: 'incheiata' } }), null);
+  // Cursa veche, terminată înainte de încărcarea asta: recuperarea merge.
+  assert.ok(recupereazaDinIstoric({ camion: CISTERNA, opriri, puncte: PUNCTE, acumMs: AZI,
+    ultimaCursa: { load_planned_at: '2026-09-05T04:00:00Z', status_changed_at: '2026-09-10T11:34:00Z', status: 'incheiata' } }));
+});
+
+test('recuperarea nu atinge ce nu e cisternă, opririle scurte sau urma veche', () => {
+  const opriri = [oprire(BERDICHEV, '2026-09-17T16:18:00Z', 282)];
+  assert.equal(recupereazaDinIstoric({ camion: { ...CISTERNA, fleetType: 'zernovoz' }, opriri, puncte: PUNCTE, ultimaCursa: null, acumMs: AZI }), null);
+  // 60 min la Berdichev: sub pragul de 120, nu e încărcare.
+  assert.equal(recupereazaDinIstoric({ camion: CISTERNA, opriri: [oprire(BERDICHEV, '2026-09-17T16:18:00Z', 60)], puncte: PUNCTE, ultimaCursa: null, acumMs: AZI }), null);
+  // Încărcare de acum o lună: în afara ferestrei de recuperare.
+  assert.equal(recupereazaDinIstoric({ camion: CISTERNA, opriri: [oprire(BERDICHEV, '2026-08-17T16:18:00Z', 282)], puncte: PUNCTE, ultimaCursa: null, acumMs: AZI }), null);
+  assert.equal(recupereazaDinIstoric({ camion: CISTERNA, opriri: [], puncte: PUNCTE, ultimaCursa: null, acumMs: AZI }), null);
+});
+
+test('încărcarea nouă șterge drumul neterminat dinainte: camionul nu încarcă peste marfă', () => {
+  const opriri = [
+    oprire(PETROMIDIA, '2026-09-13T08:00:00Z', 200),     // diesel, drum neterminat
+    oprire(BERDICHEV, '2026-09-18T08:00:00Z', 300),      // a încărcat bio: drumul vechi s-a terminat cândva
+    oprire(NORD, '2026-09-19T08:00:00Z', 200),
+  ];
+  const r = recupereazaDinIstoric({ camion: CISTERNA, opriri, puncte: PUNCTE, ultimaCursa: null, acumMs: AZI });
+  assert.equal(r.creeaza.cargo, 'biodiesel');
+  assert.equal(r.creeaza.load_planned_at, '2026-09-18T08:00:00.000Z');
+});
+
+test('ANT344: bucata scurtă la același punct nu e plecare și nu rescrie ora încărcării', () => {
+  // Urma reală, așa cum o taie detectorul de opriri: 282, 489, 89 (sub pragul de
+  // 120), 130 — toate la Berdichev, o singură încărcare.
+  const opriri = [
+    oprire(BERDICHEV, '2026-09-17T16:18:00Z', 282),
+    oprire(BERDICHEV, '2026-09-17T21:03:00Z', 489),
+    oprire(BERDICHEV, '2026-09-18T05:50:00Z', 89),
+    oprire(BERDICHEV, '2026-09-18T07:54:00Z', 130),
+    oprire(UNGHENI, '2026-09-19T06:52:00Z', 848),      // biodiesel la o stație de diesel: nu descarcă (D4)
+  ];
+  const r = recupereazaDinIstoric({ camion: { ...CISTERNA, plate: 'ANT344' }, opriri, puncte: PUNCTE, ultimaCursa: null, acumMs: AZI });
+  assert.equal(r.creeaza.load_planned_at, '2026-09-17T16:18:00.000Z');
+  assert.equal(r.creeaza.cargo, 'biodiesel');
+  assert.equal(r.creeaza.status, 'spre_descarcare');
+  assert.equal(r.creeaza.unload_point_id, null);
 });

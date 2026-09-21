@@ -10,6 +10,9 @@
 //  · TLX fuel_receipts (bonul de recepție, pe DATA descărcării) → «încheiată»
 //    (trip-auto.mjs, deciziaTlx);
 //  · ce nu poate decide → lde_truck_auto_alerte, pentru dispecerul de camioane.
+// Pe lângă ele, urma GPS a ultimelor zile (lde_gps_stops) recuperează cursa pe care
+// automatul n-a văzut-o: camionul care a încărcat în timp ce cursa veche îl ținea
+// agățat n-ar căpăta niciodată una (recupereazaDinIstoric).
 // Scrierea stării e OPTIMISTĂ: PATCH cu `status=eq.<starea citită>` — dacă
 // dispecerul a apăsat el între timp, automatul nu suprascrie nimic.
 //
@@ -20,7 +23,7 @@
 // ============================================================================
 import { login, listUnitsPozitii } from './wialon-api.mjs';
 import { deciziaTlx, normPlaca } from './trip-auto.mjs';
-import { actualizeazaStationarea, alerteCamion, cursaExpirata, deciziaCamion, punctulUndeSta, STARI_DESCHISE } from './camion-auto.mjs';
+import { actualizeazaStationarea, alerteCamion, cursaExpirata, deciziaCamion, punctulUndeSta, recupereazaDinIstoric, STARI_DESCHISE, ZILE_RECUPERARE } from './camion-auto.mjs';
 
 const SB_URL = process.env.SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -93,7 +96,7 @@ async function main() {
     sb(`lde_truck_trips?select=id,vehicle_id,status,cargo,load_point_id,unload_point_id,load_planned_at,unload_planned_at,status_changed_at,notes,` +
        `load_point:load_point_id(id,name,country,lat,lng,radius_m,kind),unload_point:unload_point_id(id,name,country,lat,lng,radius_m,kind),vehicles:vehicle_id(plate_number)` +
        `&status=in.(${STARI_DESCHISE.join(',')})&order=load_planned_at.asc&limit=1000`),
-    sb(`lde_truck_trips?select=vehicle_id,load_point_id,load_planned_at,status` +
+    sb(`lde_truck_trips?select=vehicle_id,load_point_id,load_planned_at,status,status_changed_at` +
        `&load_planned_at=gte.${enc(new Date(acumMs - ZILE_ULTIMA_CURSA * 86400e3).toISOString())}&order=load_planned_at.desc&limit=1000`),
   ]);
   const tipDupaVehicul = new Map((profiluri || []).map((p) => [p.vehicle_id, p.fleet_type]));
@@ -223,6 +226,9 @@ async function main() {
 
   // ── 2. GPS: staționarea, apoi decizia, pentru fiecare cisternă ──
   let cisterne = 0;
+  /** Cisternele care au avut o cursă la începutul rulării sau au primit una acum:
+   *  recuperarea din istoric nu le atinge, ca să nu reînvie drumul tocmai închis. */
+  const cuCursaAcum = new Set();
   for (const v of vehicule || []) {
     const placa = normPlaca(v.plate_number);
     const camion = { id: v.id, plate: placa, fleetType: tipDupaVehicul.get(v.id) ?? null, driverId: soferDupaVehicul.get(v.id) ?? null };
@@ -251,7 +257,9 @@ async function main() {
           await sb('lde_truck_trips', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(d.creeaza) });
           scrise++;
         }
+        cuCursaAcum.add(v.id);
       }
+      if (t) cuCursaAcum.add(v.id);
       for (const a of alerteCamion({ camion, cursa, stationare, punct, pozitie, acumMs })) {
         alerteDeScris.push({ vehicle_id: v.id, trip_id: a.trip_id ?? null, fel: a.fel, mesaj: a.mesaj, cheie: a.cheie });
       }
@@ -280,6 +288,51 @@ async function main() {
     } catch (err) {
       esuate++;
       console.error(`  cursa ${t.id} (${placa}): ${err instanceof Error ? err.message : err}`);
+    }
+  }
+
+  // ── 2c. Cursa pe care automatul n-a văzut-o, recuperată din urma GPS (Ion, 21.09) ──
+  // Automatul vede doar ce se întâmplă cât timp rulează și doar pentru camionul
+  // liber. Cine a încărcat în timp ce cursa veche îl ținea agățat n-are cursă și
+  // n-ar căpăta una niciodată: ANT344 a luat biodiesel la Berdichev pe 17–18.09,
+  // RWN193 pe 18–20.09, iar banda nu arăta nimic. Se rejoacă opririle cu aceleași
+  // reguli ca deciziile vii; se scrie doar drumul care încă nu s-a terminat.
+  let recuperate = 0;
+  const deRecuperat = (vehicule || []).filter((v) => tipDupaVehicul.get(v.id) === 'cisterna' && !cuCursaAcum.has(v.id));
+  if (deRecuperat.length > 0) {
+    try {
+      const deLa = new Date(acumMs - ZILE_RECUPERARE * 86400e3).toISOString().slice(0, 10);
+      const istoric = await sb(`lde_gps_stops?select=vehicle_id,lat,lon,dwell_min,arrival_at,departure_at` +
+        `&vehicle_id=in.(${deRecuperat.map((v) => v.id).join(',')})&date=gte.${deLa}&dwell_min=gte.45` +
+        `&order=arrival_at.asc&limit=1000`) || [];
+      if (istoric.length >= 1000) console.error('  recuperare: răspunsul a atins plafonul de 1000 de rânduri — istoricul vechi lipsește');
+      const istoricDupaVehicul = new Map();
+      for (const o of istoric) {
+        const l = istoricDupaVehicul.get(o.vehicle_id) ?? [];
+        l.push(o); istoricDupaVehicul.set(o.vehicle_id, l);
+      }
+      for (const v of deRecuperat) {
+        const opriri = istoricDupaVehicul.get(v.id);
+        if (!opriri?.length) continue;
+        const placa = normPlaca(v.plate_number);
+        const camion = { id: v.id, plate: placa, fleetType: 'cisterna', driverId: soferDupaVehicul.get(v.id) ?? null };
+        try {
+          const r = recupereazaDinIstoric({ camion, opriri, puncte, ultimaCursa: ultimaDupaVehicul.get(v.id) ?? null, acumMs });
+          if (!r) continue;
+          console.log(`  ${placa}: ${r.motiv}`);
+          if (WRITE) {
+            await sb('lde_truck_trips', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(r.creeaza) });
+            scrise++;
+          }
+          recuperate++;
+        } catch (e) {
+          esuate++;
+          console.error(`  ${placa} (recuperare): ${e instanceof Error ? e.message : e}`);
+        }
+      }
+    } catch (e) {
+      esuate++;
+      console.error(`  recuperare: ${e instanceof Error ? e.message : e}`);
     }
   }
 
@@ -313,7 +366,7 @@ async function main() {
   }
 
   console.log(`  camioane: ${(vehicule || []).length} (cisterne ${cisterne}), curse deschise: ${(curseDeschise || []).length}, poziții: ${pozitieDupaPlaca.size}, ` +
-    `recepții: ${receptii.length}, staționări scrise: ${stationariDeScris.length}, stări scrise: ${scrise}, alerte: ${alerteDeScris.length}, eșuate: ${esuate}`);
+    `recepții: ${receptii.length}, staționări scrise: ${stationariDeScris.length}, stări scrise: ${scrise}, recuperate: ${recuperate}, alerte: ${alerteDeScris.length}, eșuate: ${esuate}`);
   if (esuate > 0) process.exitCode = 1;
 }
 

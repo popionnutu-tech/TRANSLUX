@@ -45,6 +45,9 @@
 //    spunând «la descărcare la Bacioi» din 16.09. Poarta e ORE_INTRE_INCARCARI:
 //    întoarcerea la punct în aceeași zi e tranzit sau acte, nu marfă nouă
 //    (LJN076 s-a întors la Berdichev după 21 h, în mijlocul cursei lui).
+// Cursa pe care automatul n-a văzut-o se recuperează din urma GPS (recupereazaDinIstoric,
+// Ion, 21.09: «recuperează și cursele din istoricul GPS»): aceleași reguli, dar rejucate
+// pe opriri în loc de poziția de acum, și se scrie doar drumul care încă nu s-a terminat.
 // Cursa pe care nimic n-a mai mișcat-o (cursaExpirata) se stinge după EXPIRA_ZILE
 // — plasa de sub toate celelalte, și singura care se uită și la camioanele care
 // nu-s cisterne (zernovozul RWN169 cu «el amu la Romanie» din 10.09).
@@ -255,6 +258,122 @@ export function cursaExpirata(cursa, acumMs = Date.now()) {
       notes: cursa.notes ? `${cursa.notes}\n${nota}` : nota,
     },
     motiv: `nemișcată de ${Math.floor(zile)} zile după ora descărcării → încheiată`,
+  };
+}
+
+/** Cât înapoi se caută în urma GPS cursa pe care sistemul n-a văzut-o. */
+export const ZILE_RECUPERARE = 12;
+
+/**
+ * Cursa nevăzută, reconstruită din urma GPS (Ion, 21.09: «recuperează și cursele
+ * din istoricul GPS»; «poate un auto s-a încărcat cu bio»).
+ *
+ * Automatul vede doar ce se întâmplă cât timp el rulează: camionul care a încărcat
+ * înainte ca el să existe, sau în timp ce cursa veche îl ținea agățat, n-are cursă
+ * și n-o va avea niciodată — ANT344 a încărcat biodiesel la Berdichev pe 17–18.09
+ * și RWN193 pe 18–20.09, iar în bandă nu se vede nimic.
+ *
+ * Se rejoacă opririle cu ACELEAȘI praguri ca regulile vii, în ordinea drumului, și
+ * se întoarce DOAR cursa care la capătul urmei încă nu s-a terminat. Drumul dus
+ * până la capăt (a încărcat, a descărcat, a plecat) e istorie: cursele acelea au
+ * fost deja închise, iar a le reface ar umple banda cu ce nu mai e.
+ *
+ * Starea recuperată e cea pe care o DOVEDEȘTE urma; de acolo o duce mai departe
+ * automatul viu, cu poziția de acum.
+ *
+ * @param opriri [{ lat, lon, dwell_min, arrival_at, departure_at }] — orice ordine
+ * @param puncte [{ id, name, lat, lon, radius_m, kind }]
+ * @param ultimaCursa cea mai recentă cursă a camionului, orice stare, sau null
+ * @returns { creeaza, motiv } | null
+ */
+export function recupereazaDinIstoric({ camion, opriri, puncte, ultimaCursa, acumMs = Date.now() }) {
+  if (camion?.fleetType !== 'cisterna') return null;
+  const deLa = acumMs - ZILE_RECUPERARE * 86400e3;
+  const sortate = (opriri || [])
+    .filter((o) => areCoordonate(o) && Number.isFinite(Date.parse(o.arrival_at)) && Date.parse(o.arrival_at) >= deLa)
+    .sort((a, b) => Date.parse(a.arrival_at) - Date.parse(b.arrival_at));
+
+  let faza = null;
+  for (const o of sortate) {
+    const p = punctulUndeSta(o, puncte);
+    if (!p) continue;                                   // oprire departe de orice punct: nu spune nimic
+    const dwell = Number(o.dwell_min) || 0;
+    const prag = PRAG_MIN[p.kind] ?? 15;
+
+    // Încărcarea începe un drum nou și îl șterge pe cel dinainte: dacă vechiul
+    // n-a fost închis, măcar s-a terminat aici — camionul nu încarcă peste marfă.
+    if (incarcaAici(null, p.kind) && dwell >= prag) {
+      if (faza?.status === 'la_incarcare' && faza.loadPointId === p.id) {
+        faza.plecatDeLaIncarcare = o.departure_at ?? faza.plecatDeLaIncarcare;   // aceeași ședere, tăiată în bucăți
+      } else {
+        faza = {
+          cargo: MARFA_DIN_KIND[p.kind], loadPointId: p.id, loadPointName: p.name,
+          incarcatLa: o.arrival_at, plecatDeLaIncarcare: o.departure_at ?? null,
+          status: 'la_incarcare', unloadPointId: null, unloadPointName: null,
+        };
+      }
+      continue;
+    }
+    if (!faza) continue;
+
+    // Oprire scurtă la ACELAȘI punct de încărcare: urma taie o ședere lungă în
+    // bucăți (ANT344 la Berdichev: 282 min, 489 min, apoi 89 min sub prag, apoi
+    // 130 min). Fără verificarea asta, bucata scurtă trecea drept plecare, iar cea
+    // de după rescria ora încărcării — 18.09 07:54 în loc de 17.09 16:18.
+    if (faza.status === 'la_incarcare' && p.id === faza.loadPointId) {
+      faza.plecatDeLaIncarcare = o.departure_at ?? faza.plecatDeLaIncarcare;
+      continue;
+    }
+    // Orice oprire la ALT punct după încărcare dovedește plecarea.
+    if (faza.status === 'la_incarcare') faza.status = 'spre_descarcare';
+
+    if (faza.status === 'spre_descarcare' || faza.status === 'asteapta_descarcare') {
+      if (descarcaAici(faza.cargo, p.kind) && dwell >= prag) {
+        faza.unloadPointId = p.id;
+        faza.unloadPointName = p.name;
+        // La bază, carburantul TLX e tot în cisternă până apare bonul (D4).
+        faza.status = p.kind === 'baza' && plinLaBaza(faza.cargo) ? 'asteapta_descarcare' : 'la_descarcare';
+      }
+      continue;
+    }
+    // A descărcat și s-a oprit în altă parte: drumul s-a încheiat, nu mai e de recuperat.
+    if (faza.status === 'la_descarcare' && p.id !== faza.unloadPointId) faza = null;
+  }
+
+  if (!faza) return null;
+
+  // Ce sistemul știe deja nu se reface. Cursa recuperată trebuie să fie mai nouă
+  // decât tot ce s-a scris vreodată pentru camionul ăsta: altfel am reînvia drumul
+  // pe care tocmai l-a închis bonul TLX, automatul sau omul.
+  const stieDeja = Math.max(
+    Date.parse(ultimaCursa?.load_planned_at ?? '') || -Infinity,
+    Date.parse(ultimaCursa?.status_changed_at ?? '') || -Infinity,
+  );
+  const plecat = Date.parse(faza.plecatDeLaIncarcare ?? '') || Date.parse(faza.incarcatLa);
+  if (Number.isFinite(stieDeja) && plecat <= stieDeja) return null;
+
+  const inceput = Date.parse(faza.incarcatLa);
+  const acum = iso(acumMs);
+  const unde = faza.unloadPointName ? `, descărcare la «${faza.unloadPointName}»` : '';
+  return {
+    creeaza: {
+      vehicle_id: camion.id,
+      driver_id: camion.driverId ?? null,
+      cargo: faza.cargo,
+      client: CLIENT_IMPLICIT,
+      load_point_id: faza.loadPointId,
+      load_planned_at: iso(inceput),
+      unload_point_id: faza.unloadPointId,
+      unload_place: faza.unloadPointId ? null : LOC_DESCARCARE_NECUNOSCUT,
+      unload_planned_at: iso(inceput + DURATA_CURSA_ZILE[faza.cargo] * 86400e3),
+      status: faza.status,
+      status_source: 'gps',
+      status_changed_at: iso(plecat),
+      created_by: 'auto:istoric',
+      updated_by: 'auto:istoric',
+      notes: `Cursă recuperată din urma GPS: camionul a încărcat la «${faza.loadPointName}» pe ${candva(inceput)}${unde}, iar sistemul n-a văzut-o la timp. Starea vine din opriri; de aici o duce mai departe poziția live.`,
+    },
+    motiv: `urma GPS: încărcat la «${faza.loadPointName}» pe ${candva(inceput)} → cursă recuperată ${faza.cargo}, ${faza.status}`,
   };
 }
 

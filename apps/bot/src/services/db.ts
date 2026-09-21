@@ -1159,59 +1159,6 @@ export async function getDriverViolations(
   }));
 }
 
-/** Operators absent from work: controllers who didn't submit reports on workdays */
-export async function getOperatorAbsences(
-  dateFrom: string,
-  dateTo: string
-): Promise<Array<{ username: string; point: string; absence_count: number }>> {
-  const { data: users } = await db()
-    .from('users')
-    .select('id, username, telegram_id, point')
-    .eq('role', 'CONTROLLER')
-    .eq('active', true);
-
-  if (!users || users.length === 0) return [];
-
-  const { data: reports } = await db()
-    .from('reports')
-    .select('created_by_user, report_date')
-    .is('cancelled_at', null)
-    .gte('report_date', dateFrom)
-    .lte('report_date', dateTo);
-
-  const userDates = new Map<string, Set<string>>();
-  for (const r of (reports || []) as any[]) {
-    if (!userDates.has(r.created_by_user)) userDates.set(r.created_by_user, new Set());
-    userDates.get(r.created_by_user)!.add(r.report_date);
-  }
-
-  // Workdays in period (Mon-Fri)
-  const workdays: string[] = [];
-  const start = new Date(dateFrom + 'T12:00:00');
-  const end = new Date(dateTo + 'T12:00:00');
-  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    const dow = d.getDay();
-    if (dow >= 1 && dow <= 5) {
-      workdays.push(d.toISOString().slice(0, 10));
-    }
-  }
-
-  const result: Array<{ username: string; point: string; absence_count: number }> = [];
-  for (const u of users as any[]) {
-    const reported = userDates.get(u.id) || new Set();
-    const absent = workdays.filter((wd) => !reported.has(wd)).length;
-    if (absent > 0) {
-      result.push({
-        username: u.username || `User #${u.telegram_id}`,
-        point: u.point || '—',
-        absence_count: absent,
-      });
-    }
-  }
-
-  return result.sort((a, b) => b.absence_count - a.absence_count);
-}
-
 // ── Reclama report data (din sarcinile auto către Vlad / Digital) ──────────────
 
 /** Sarcini reclamă deschise (din obligations source='reclama'): mașina + data estimativă a lui Vlad. */

@@ -1,6 +1,5 @@
 import { config } from './config.js';
 import { generateRecurringTasks, expireStaleRecurringTasks, autoVerifyTiktokTasks } from './services/db.js';
-import { sendWeeklyReport } from './services/weeklyReport.js';
 import { sendSmmWeeklyReport } from './services/smmWeeklyReport.js';
 import { collectSmmData, aggregateDailyStats, aggregateRangeStats } from './services/smm.js';
 import { sendCompactDigest } from './services/dailyDigest.js';
@@ -37,8 +36,13 @@ function isTimeToSend(): boolean {
   return now.getDay() === SEND_DAY && now.getHours() === SEND_HOUR && now.getMinutes() === SEND_MINUTE;
 }
 
-export function scheduleWeeklyReport(): void {
-  console.log('Weekly report scheduler started (Monday 08:00 Europe/Chisinau)');
+// Luni 08:00 rămâne doar raportul ANTA. Raportul de absențe ale operatorilor
+// a fost scos pe 21.09 (Ion: «in acest raport nu trebuie zilele la operatori
+// care nu lucreaza»): numărătoarea pornea de la ideea că fiecare operator
+// lucrează toate zilele, pe când la fiecare peron e un operator pe zi, iar
+// vinerea la Chișinău nu e nimeni — restul zilelor omul e liber, nu absent.
+export function scheduleMondayReports(): void {
+  console.log('Monday reports scheduler started — ANTA (Monday 08:00 Europe/Chisinau)');
 
   setInterval(async () => {
     if (!isTimeToSend()) return;
@@ -47,12 +51,6 @@ export function scheduleWeeklyReport(): void {
     if (lastSentWeek === weekId) return; // already sent this week
 
     lastSentWeek = weekId;
-
-    try {
-      await sendWeeklyReport();
-    } catch (err) {
-      console.error('Weekly report error:', err);
-    }
 
     try {
       await sendAntaWeeklyReport();

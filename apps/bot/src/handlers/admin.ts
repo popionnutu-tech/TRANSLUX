@@ -1,5 +1,4 @@
 import type { BotContext } from '../types.js';
-import { sendWeeklyReport } from '../services/weeklyReport.js';
 import { getViolationsCount, sendCompactDigest } from '../services/dailyDigest.js';
 
 /** Manual trigger for daily digest */
@@ -22,18 +21,3 @@ export async function handleDigest(ctx: BotContext) {
   }
 }
 
-/** Manual trigger for weekly report (admin only) */
-export async function handleWeeklyReport(ctx: BotContext) {
-  if (!ctx.dbUser || ctx.dbUser.role !== 'ADMIN') {
-    await ctx.reply('⛔ Acces restricționat. Doar administratorii pot folosi această comandă.');
-    return;
-  }
-  await ctx.reply('⏳ Se generează raportul săptămânal...');
-  try {
-    await sendWeeklyReport();
-    await ctx.reply('✅ Raportul a fost trimis.');
-  } catch (err) {
-    console.error('Manual weekly report error:', err);
-    await ctx.reply('❌ Eroare la generarea raportului.');
-  }
-}

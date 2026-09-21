@@ -8,7 +8,7 @@ import { rateLimitMiddleware } from './middleware/rateLimit.js';
 import { handleStart, showMainMenu } from './handlers/start.js';
 import { handleCancelLastReport } from './handlers/cancel.js';
 
-import { handleWeeklyReport, handleDigest } from './handlers/admin.js';
+import { handleDigest } from './handlers/admin.js';
 import { reportConversation } from './conversations/report.js';
 import { addDriverConversation } from './conversations/addDriver.js';
 import { cleaningPhotosConversation } from './conversations/cleaningPhotos.js';
@@ -80,7 +80,6 @@ export function createBot(): Bot<BotContext> {
   bot.command('start', handleStart);
 
   // Admin report commands (admin users managed via web interface)
-  bot.command('weeklyreport', handleWeeklyReport as any);
   bot.command('digest', handleDigest as any);
   bot.command('daily', handleDaily as any);
   bot.command('smmweekly', handleSmmWeekly as any);

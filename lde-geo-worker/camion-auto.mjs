@@ -22,12 +22,37 @@
 //    (D4: biodieselul parcat la Briceni e tranzit, nu descărcare); dacă punctul e
 //    o BAZĂ → «plin, așteaptă descărcarea»: la bază cisterna e tot plină până
 //    apare bonul TLX (Ion, 10.09, ANT344 la Bacioi);
-//  · «la descărcare» → «încheiată» vine din bonul TLX (trip-auto.mjs, D9).
+//  · «la descărcare» → «încheiată» vine din bonul TLX (trip-auto.mjs, D9) SAU,
+//    când bon nu există, din plecarea de la punctul de descărcare (vezi mai jos).
 // Punctele «tranzit acte», «vamă», «parcare» nu schimbă nimic.
+//
+// Închiderea fără dispecer (Ion, 21.09.2026: «hai să facem sistema fără el să
+// lucreze»). Până aici cursa se termina doar cu bonul TLX sau cu mâna omului, iar
+// omul s-a oprit pe 11.09: 13 camioane au rămas agățate de cursa lor, automatul
+// n-a mai putut deschide alta și banda a înghețat pe 9–11 septembrie. Trei ieșiri
+// noi, toate pe aceeași dovadă — camionul a PLECAT și nu s-a întors:
+//  · «la descărcare» + la ≥ PLECAT_KM de punctul de descărcare, de ≥ PLECAT_MIN
+//    → «încheiată», cu ora plecării reale. Bonul TLX rămâne calea dintâi (el dă
+//    și litrii); GPS-ul prinde ce n-are bon: biodieselul din Bulgaria, descărcarea
+//    la bază, bonul care nu mai vine.
+//  · «plin, așteaptă descărcarea» + a plecat de la bază după ce a trecut fereastra
+//    bonului (ORE_BON_LA_BAZA) → «încheiată». Cisterna plină nu pleacă de la bază
+//    decât goală; dar pleacă după ore, nu după minute, iar bonul poate întârzia.
+//  · ORICE stare de după încărcare + stă ≥ prag la un punct de ÎNCĂRCARE care nu e
+//    cel al etapei curente → cursa veche se încheie la ora la care a început
+//    staționarea, iar cursa nouă se naște pe loc. Asta e ieșirea care nu cere
+//    nimănui nimic: ANT344 a stat 12 h la Berdichev pe 17–18.09 cu cursa lui
+//    spunând «la descărcare la Bacioi» din 16.09. Poarta e ORE_INTRE_INCARCARI:
+//    întoarcerea la punct în aceeași zi e tranzit sau acte, nu marfă nouă
+//    (LJN076 s-a întors la Berdichev după 21 h, în mijlocul cursei lui).
+// Cursa pe care nimic n-a mai mișcat-o (cursaExpirata) se stinge după EXPIRA_ZILE
+// — plasa de sub toate celelalte, și singura care se uită și la camioanele care
+// nu-s cisterne (zernovozul RWN169 cu «el amu la Romanie» din 10.09).
 // Manualul bate automatul: scrierea e optimistă pe starea citită, iar automatul
 // nu merge niciodată înapoi și nu sare peste etape.
 // ============================================================================
 import { hav } from './km-core.mjs';
+import { inMoldova } from './trip-auto.mjs';
 
 export const VITEZA_STA_KMH = 5.6;
 export const POZITIE_VECHE_MIN = 30;
@@ -46,6 +71,18 @@ export const PRAG_MIN = {
 export const PLECAT_KM = 15;
 /** …și fără să se fi întors atâtea minute. */
 export const PLECAT_MIN = 60;
+/** Cât ține fereastra bonului TLX la bază: sub atât, cisterna care pleacă poate fi
+ *  tot plină (a mutat-o cineva în curte, s-a dus la cântar). Peste — a descărcat. */
+export const ORE_BON_LA_BAZA = 6;
+/** Cursa pe care nimic n-a mai mișcat-o atâtea zile după ora descărcării e moartă, nu în drum. */
+export const EXPIRA_ZILE = 10;
+/** Bonul TLX lipsă devine alertă abia după atâtea ore de la începutul descărcării. */
+export const ORE_FARA_BON = 24;
+/** Două încărcări ale aceluiași camion nu se pot atinge mai des de atât: întoarcerea
+ *  la punct în mijlocul cursei e tranzit sau acte, nu marfă nouă. */
+export const ORE_INTRE_INCARCARI = 24;
+/** Stările în care marfa e deja în camion: de aici o încărcare nouă înseamnă o cursă nouă. */
+export const STARI_DUPA_INCARCARE = ['la_incarcare', 'spre_descarcare', 'asteapta_descarcare', 'la_descarcare'];
 /** Cât ține, orientativ, o cursă pornită de automat (unload_planned_at e NOT NULL). */
 export const DURATA_CURSA_ZILE = { biodiesel: 4, diesel: 2 };
 export const CLIENT_IMPLICIT = 'Statii TLX';
@@ -64,6 +101,11 @@ const areCoordonate = (p) => p && Number.isFinite(Number(p.lat)) && Number.isFin
 export const distM = (a, b) => hav({ lat: Number(a.lat), lon: Number(a.lon) }, { lat: Number(b.lat), lon: Number(b.lon) }) * 1000;
 const inRaza = (poz, p) => areCoordonate(p) && distM(poz, p) <= razaEfectiva(p.radius_m);
 const norm = (s) => String(s ?? '').trim().toLowerCase();
+const iso = (ms) => new Date(ms).toISOString();
+/** Nota nouă se adaugă la ce scria pe cursă, nu o înlocuiește: ce a scris dispecerul rămâne. */
+const adaugaNota = (cursa, text) => (cursa?.notes ? `${cursa.notes}
+${text}` : text);
+const candva = (ms) => iso(ms).slice(0, 16).replace('T', ' ');
 
 /** Marfa se descarcă la un punct de tipul ăsta? (D4) */
 export function descarcaAici(cargo, kind) {
@@ -157,7 +199,113 @@ export function minuteLaPunct(stationare) {
   return Math.max(0, (Date.parse(stationare.last_seen_at) - Date.parse(stationare.since)) / 60e3);
 }
 
-const iso = (ms) => new Date(ms).toISOString();
+/**
+ * Camionul a plecat de la `reper` și nu s-a întors? Dovada e aceeași oriunde se
+ * judecă o plecare (de la încărcare, de la descărcare, de la bază): nu mai stă
+ * acolo, e la ≥ PLECAT_KM ACUM și au trecut ≥ PLECAT_MIN de când a fost văzut
+ * ultima dată la punct. Ora plecării vine din memoria staționării (prev_until)
+ * dacă ea și-o amintește, altfel din `deCand` — de obicei ora intrării în stare.
+ * Manevrele de 9,6 km ale lui MOW214 nu sunt plecare.
+ * @returns { plecat: boolean, km: number, cand: number | null }
+ */
+export function aPlecatDeLa({ pozitie, punct, reper, stationare, deCand, acumMs }) {
+  const nu = { plecat: false, km: 0, cand: null };
+  if (!areCoordonate(reper) || !areCoordonate(pozitie)) return nu;
+  if (punct && punct.id === reper.id) return nu;
+  const km = distM(pozitie, reper) / 1000;
+  if (km < PLECAT_KM) return nu;
+  const dinStationare = stationare?.prev_point_id === reper.id && stationare.prev_until
+    ? Date.parse(stationare.prev_until)
+    : NaN;
+  const cand = Number.isFinite(dinStationare) ? dinStationare : Date.parse(deCand ?? '');
+  if (Number.isFinite(cand) && acumMs - cand < PLECAT_MIN * 60e3) return nu;
+  return { plecat: true, km, cand: Number.isFinite(cand) ? cand : null };
+}
+
+/**
+ * Cursa pe care nimic n-a mai mișcat-o e moartă, nu în drum (Ion, 21.09). Se uită
+ * la ORICE cursă deschisă, și la camioanele care nu-s cisterne — acolo automatul
+ * n-are nicio altă regulă, deci nimeni n-ar închide-o niciodată (RWN169, zernovoz,
+ * «planificată» din 10.09 cu «el amu la Romanie»).
+ * Moartă = a trecut ora descărcării cu ≥ EXPIRA_ZILE ȘI nimeni (om sau automat)
+ * nu i-a atins starea tot atâtea zile. Ora încheierii e ultima mișcare știută, ca
+ * să nu apară în istoric o cursă terminată azi.
+ * @param cursa { id, status, status_changed_at, unload_planned_at, notes }
+ * @returns { patch, motiv } | null
+ */
+export function cursaExpirata(cursa, acumMs = Date.now()) {
+  if (!cursa || !STARI_DESCHISE.includes(cursa.status)) return null;
+  const desc = Date.parse(cursa.unload_planned_at ?? '');
+  if (!Number.isFinite(desc)) return null;
+  const atinsa = Date.parse(cursa.status_changed_at ?? '');
+  const ultima = Number.isFinite(atinsa) ? Math.max(desc, atinsa) : desc;
+  const zile = (acumMs - ultima) / 86400e3;
+  if (zile < EXPIRA_ZILE) return null;
+  const acum = iso(acumMs);
+  const nota = `Încheiată automat pe ${acum.slice(0, 10)}: ora descărcării a trecut de ${Math.floor(zile)} zile și nimic n-a mai mișcat cursa.`;
+  return {
+    patch: {
+      status: 'incheiata',
+      status_source: 'gps',
+      status_changed_at: iso(ultima),
+      updated_at: acum,
+      updated_by: 'auto:expirat',
+      status_confirmed_at: null,
+      status_confirmed_by: null,
+      notes: cursa.notes ? `${cursa.notes}\n${nota}` : nota,
+    },
+    motiv: `nemișcată de ${Math.floor(zile)} zile după ora descărcării → încheiată`,
+  };
+}
+
+/** Câte opriri lungi la puncte de încărcare fac dintr-un camion o cisternă. */
+export const OPRIRI_PENTRU_CISTERNA = 2;
+
+/**
+ * Cisternele văzute de GPS, pentru camioanele fără tip (Ion, 21.09).
+ *
+ * Până acum tipul venea DOAR din recepțiile TLX (truck-profile-sync), iar o
+ * cisternă care duce numai biodiesel în Bulgaria nu apare niciodată într-o
+ * recepție TLX — deci rămânea fără tip pentru totdeauna, iar `deciziaCamion` o
+ * lasă din prima linie (D6: doar cisterne). Așa a stat RWN193 nevăzut de
+ * automat: în mini app scria «tip?», iar pe 18–20.09 a stat 19 h la Berdichev
+ * și a făcut cursa dus-întors fără ca sistemul să clipească.
+ *
+ * Dovada e aceeași ca la cursă: camionul a stat ≥ pragul punctului la un punct
+ * de ÎNCĂRCARE, de cel puțin OPRIRI_PENTRU_CISTERNA ori. O singură oprire poate
+ * fi o parcare lângă rafinărie; două sunt o rutină. Tipul pus de om nu se
+ * răstoarnă — iese ca «conflict», ca la regula din TLX.
+ *
+ * @param opriri  [{ vehicle_id, lat, lon, dwell_min }] din lde_gps_stops
+ * @param puncte  [{ id, lat, lon, radius_m, kind }]
+ * @param vehicule [{ id, plate_number }]
+ * @param profiluri [{ vehicle_id, fleet_type }]
+ * @returns { cisterneNoi: [{ vehicleId, plate, opriri }], conflicte: [{ plate, fleetType, opriri }] }
+ */
+export function cisterneDinOpriri(opriri, puncte, vehicule, profiluri) {
+  const incarcari = (puncte || []).filter((p) => KIND_INCARCARE.has(p.kind) && areCoordonate(p));
+  const numar = new Map();
+  for (const o of opriri || []) {
+    if (!areCoordonate(o)) continue;
+    const dwell = Number(o.dwell_min);
+    if (!Number.isFinite(dwell)) continue;
+    const potrivit = incarcari.some((p) => dwell >= PRAG_MIN[p.kind]
+      && distM(o, p) <= Math.max(1000, razaEfectiva(p.radius_m)));
+    if (potrivit) numar.set(o.vehicle_id, (numar.get(o.vehicle_id) ?? 0) + 1);
+  }
+  const tipDupaVehicul = new Map((profiluri || []).map((p) => [p.vehicle_id, p.fleet_type]));
+  const cisterneNoi = [];
+  const conflicte = [];
+  for (const v of vehicule || []) {
+    const n = numar.get(v.id) ?? 0;
+    if (n < OPRIRI_PENTRU_CISTERNA) continue;
+    const tip = tipDupaVehicul.get(v.id) ?? null;
+    if (tip === null) cisterneNoi.push({ vehicleId: v.id, plate: v.plate_number, opriri: n });
+    else if (tip !== 'cisterna') conflicte.push({ plate: v.plate_number, fleetType: tip, opriri: n });
+  }
+  return { cisterneNoi, conflicte };
+}
+
 
 /**
  * Decizia pentru un camion, într-o rulare.
@@ -185,35 +333,75 @@ export function deciziaCamion(input) {
   const marca = { status_source: 'gps', status_changed_at: acum, updated_at: acum, updated_by: 'auto:gps', status_confirmed_at: null, status_confirmed_by: null };
   const numePunct = (p) => p?.name ?? 'punct';
 
-  // ── Fără cursă deschisă: stă la încărcare destul → cursa se naște (D1) ──
-  if (!cursa) {
-    if (!proaspata || !punct || !incarcaAici(null, punct.kind)) return nimic;
-    if (minute < PRAG_MIN[punct.kind]) return nimic;
-    // Cursa care tocmai s-a închis la același punct, în aceeași staționare, nu se reface.
-    if (ultimaCursa && ultimaCursa.load_point_id === punct.id
-        && Date.parse(ultimaCursa.load_planned_at) >= Date.parse(stationare.since) - 3600e3) return nimic;
+  // Camionul stă ACUM, destul, la un punct de încărcare potrivit? Aceeași dovadă
+  // naște cursa în două locuri: la camionul liber (D1) și la cel care a venit să
+  // reîncarce cu o cursă veche neînchisă pe el.
+  const incarcaAcum = proaspata && punct && incarcaAici(null, punct.kind) && minute >= PRAG_MIN[punct.kind];
+  // Cursa care tocmai s-a închis la același punct, în aceeași staționare, nu se reface.
+  const dejaFacuta = () => ultimaCursa && ultimaCursa.load_point_id === punct.id
+    && Date.parse(ultimaCursa.load_planned_at) >= Date.parse(stationare.since) - 3600e3;
+  const cursaNoua = () => {
     const marfa = MARFA_DIN_KIND[punct.kind];
     const inceput = Date.parse(stationare.since);
     return {
-      creeaza: {
-        vehicle_id: camion.id,
-        driver_id: camion.driverId ?? null,
-        cargo: marfa,
-        client: CLIENT_IMPLICIT,
-        load_point_id: punct.id,
-        load_planned_at: iso(inceput),
-        unload_point_id: null,
-        unload_place: LOC_DESCARCARE_NECUNOSCUT,
-        unload_planned_at: iso(inceput + DURATA_CURSA_ZILE[marfa] * 86400e3),
-        status: 'la_incarcare',
-        status_source: 'gps',
-        status_changed_at: acum,
-        created_by: 'auto:gps',
-        updated_by: 'auto:gps',
-        notes: `Cursă pornită automat: camionul stă de ${Math.round(minute)} min la «${numePunct(punct)}». Descărcarea se completează din GPS sau din bonul TLX.`,
-      },
+      vehicle_id: camion.id,
+      driver_id: camion.driverId ?? null,
+      cargo: marfa,
+      client: CLIENT_IMPLICIT,
+      load_point_id: punct.id,
+      load_planned_at: iso(inceput),
+      unload_point_id: null,
+      unload_place: LOC_DESCARCARE_NECUNOSCUT,
+      unload_planned_at: iso(inceput + DURATA_CURSA_ZILE[marfa] * 86400e3),
+      status: 'la_incarcare',
+      status_source: 'gps',
+      status_changed_at: acum,
+      created_by: 'auto:gps',
+      updated_by: 'auto:gps',
+      notes: `Cursă pornită automat: camionul stă de ${Math.round(minute)} min la «${numePunct(punct)}». Descărcarea se completează din GPS sau din bonul TLX.`,
+    };
+  };
+
+  // ── Fără cursă deschisă: stă la încărcare destul → cursa se naște (D1) ──
+  if (!cursa) {
+    if (!incarcaAcum || dejaFacuta()) return nimic;
+    return {
+      creeaza: cursaNoua(),
       schimba: null,
-      motiv: `fără cursă, ${Math.round(minute)} min la «${numePunct(punct)}» → cursă nouă ${marfa}, la încărcare`,
+      motiv: `fără cursă, ${Math.round(minute)} min la «${numePunct(punct)}» → cursă nouă ${MARFA_DIN_KIND[punct.kind]}, la încărcare`,
+    };
+  }
+
+  // ── Reîncărcarea încheie cursa veche și o deschide pe cea nouă (Ion, 21.09) ──
+  // Camionul cu marfa deja luată, care stă iar la un punct de încărcare, spune
+  // singurul lucru care contează: cursa dinainte s-a terminat. Fără regula asta,
+  // o cursă rămasă deschisă ține camionul agățat la nesfârșit — ANT344 a stat 12 h
+  // la Berdichev pe 17–18.09, iar banda îl arăta «la descărcare la Bacioi» din 16.09.
+  // «La încărcare» chiar la punctul ei nu e reîncărcare, e cursa care abia începe.
+  // Întoarcerea la același punct în mijlocul cursei NU e reîncărcare: LJN076 a
+  // încărcat la Berdichev pe 16.09 la 09:04 și s-a întors acolo a doua zi la
+  // 06:11, pentru încă 4 h — cu regula fără poartă i-ar fi ieșit a doua cursă
+  // peste prima. Nicio cisternă nu încarcă de două ori într-o zi: numai Berdichevul
+  // ține 5,2 h la mediană, iar cel mai apropiat client e la o zi de drum.
+  const inceputStationare = Date.parse(stationare?.since ?? '');
+  const incarcareaCursei = Date.parse(cursa.load_planned_at ?? '');
+  const altaIncarcare = !Number.isFinite(incarcareaCursei) || !Number.isFinite(inceputStationare)
+    || inceputStationare - incarcareaCursei >= ORE_INTRE_INCARCARI * 3600e3;
+  if (incarcaAcum && altaIncarcare && STARI_DUPA_INCARCARE.includes(cursa.status)
+      && !(cursa.status === 'la_incarcare' && cursa.load_point_id === punct.id)
+      && !dejaFacuta()) {
+    const inceput = Date.parse(stationare.since);
+    return {
+      creeaza: cursaNoua(),
+      schimba: {
+        cursaId: cursa.id,
+        deLa: cursa.status,
+        patch: {
+          status: 'incheiata', ...marca, status_changed_at: iso(inceput),
+          notes: adaugaNota(cursa, `Încheiată automat: camionul a început o cursă nouă la «${numePunct(punct)}» pe ${candva(inceput)}.`),
+        },
+      },
+      motiv: `${Math.round(minute)} min la «${numePunct(punct)}» cu cursa în «${cursa.status}» → cursa veche încheiată, cursă nouă ${MARFA_DIN_KIND[punct.kind]}`,
     };
   }
 
@@ -253,25 +441,46 @@ export function deciziaCamion(input) {
   if (cursa.status === 'la_incarcare') {
     if (!proaspata) return nimic;
     const loadPoint = cursa.loadPoint ?? (cursa.load_point_id ? puncteDupaId?.get(cursa.load_point_id) : null);
-    if (!areCoordonate(loadPoint)) return nimic;
-    if (punct && punct.id === loadPoint.id) return nimic;
-    const km = distM(pozitie, loadPoint) / 1000;
-    if (km < PLECAT_KM) return nimic;
     // Ultima dată văzut la încărcare: din staționare dacă a plecat de acolo, altfel de când e «la încărcare».
-    const vazut = stationare?.prev_point_id === loadPoint.id && stationare.prev_until
-      ? Date.parse(stationare.prev_until)
-      : Date.parse(cursa.status_changed_at ?? '');
-    if (Number.isFinite(vazut) && acumMs - vazut < PLECAT_MIN * 60e3) return nimic;
+    const p = aPlecatDeLa({ pozitie, punct, reper: loadPoint, stationare, deCand: cursa.status_changed_at, acumMs });
+    if (!p.plecat) return nimic;
     return {
       creeaza: null,
       schimba: { cursaId: cursa.id, deLa: cursa.status, patch: { status: 'spre_descarcare', ...marca } },
-      motiv: `la ${Math.round(km)} km de «${numePunct(loadPoint)}», plecat de ≥ ${PLECAT_MIN} min → spre descărcare`,
+      motiv: `la ${Math.round(p.km)} km de «${numePunct(loadPoint)}», plecat de ≥ ${PLECAT_MIN} min → spre descărcare`,
     };
   }
 
   // ── Spre descărcare / plin: stă la un punct potrivit mărfii → la descărcare (D4) ──
   if (cursa.status === 'spre_descarcare' || cursa.status === 'asteapta_descarcare') {
-    if (!proaspata || !punct) return nimic;
+    if (!proaspata) return nimic;
+    // Plină la bază și plecată de acolo, după ce a trecut fereastra bonului: cisterna
+    // nu iese de la bază cu marfa în ea. Bonul TLX poate întârzia ore (văzut: recepție
+    // pe 04.09 scrisă pe 08.09), de aceea ORE_BON_LA_BAZA — sub atât, plecarea poate
+    // fi o mutare prin curte, nu sfârșitul cursei.
+    if (cursa.status === 'asteapta_descarcare') {
+      const baza = cursa.unloadPoint ?? (cursa.unload_point_id ? puncteDupaId?.get(cursa.unload_point_id) : null);
+      const intrat = Date.parse(cursa.status_changed_at ?? '');
+      const trecutFereastra = Number.isFinite(intrat) && acumMs - intrat >= ORE_BON_LA_BAZA * 3600e3;
+      const p = trecutFereastra
+        ? aPlecatDeLa({ pozitie, punct, reper: baza, stationare, deCand: cursa.status_changed_at, acumMs })
+        : { plecat: false };
+      if (p.plecat) {
+        return {
+          creeaza: null,
+          schimba: {
+            cursaId: cursa.id,
+            deLa: cursa.status,
+            patch: {
+              status: 'incheiata', ...marca, status_changed_at: iso(p.cand ?? acumMs),
+              notes: adaugaNota(cursa, `Încheiată automat: a stat plin la «${numePunct(baza)}» și a plecat de acolo pe ${candva(p.cand ?? acumMs)}, fără bon TLX.`),
+            },
+          },
+          motiv: `plin la «${numePunct(baza)}», plecat la ${Math.round(p.km)} km după ${Math.round((acumMs - intrat) / 3600e3)} h → încheiată`,
+        };
+      }
+    }
+    if (!punct) return nimic;
     const alCursei = cursa.unload_point_id && cursa.unload_point_id === punct.id;
     if (!alCursei && !descarcaAici(cursa.cargo, punct.kind)) return nimic;
     // Punctul explicit al cursei se confirmă în 15 min chiar dacă e «bază»; Briceni fără cursă explicită cere 2 h.
@@ -293,6 +502,30 @@ export function deciziaCamion(input) {
     return { creeaza: null, schimba: { cursaId: cursa.id, deLa: cursa.status, patch }, motiv: `${Math.round(minute)} min la «${numePunct(punct)}» → la descărcare` };
   }
 
+  // ── La descărcare: a plecat de la punctul de descărcare → încheiată ──
+  // Bonul TLX rămâne calea dintâi (deciziaTlx, D9) — el aduce și litrii, și se
+  // încearcă înaintea acestei reguli, la fiecare rulare. Aici se închid cursele
+  // care n-au bon de unde: biodieselul descărcat la Sofia sau Ruse, marfa lăsată
+  // la o bază fără stație TLX, bonul care n-a mai fost scris niciodată.
+  if (cursa.status === 'la_descarcare') {
+    if (!proaspata) return nimic;
+    const unloadPoint = cursa.unloadPoint ?? (cursa.unload_point_id ? puncteDupaId?.get(cursa.unload_point_id) : null);
+    const p = aPlecatDeLa({ pozitie, punct, reper: unloadPoint, stationare, deCand: cursa.status_changed_at, acumMs });
+    if (!p.plecat) return nimic;
+    return {
+      creeaza: null,
+      schimba: {
+        cursaId: cursa.id,
+        deLa: cursa.status,
+        patch: {
+          status: 'incheiata', ...marca, status_changed_at: iso(p.cand ?? acumMs),
+          notes: adaugaNota(cursa, `Încheiată automat: a plecat de la «${numePunct(unloadPoint)}» pe ${candva(p.cand ?? acumMs)}, fără bon TLX.`),
+        },
+      },
+      motiv: `la ${Math.round(p.km)} km de «${numePunct(unloadPoint)}», plecat de ≥ ${PLECAT_MIN} min → încheiată`,
+    };
+  }
+
   return nimic;
 }
 
@@ -305,10 +538,17 @@ export function alerteCamion({ camion, cursa, stationare, punct, pozitie, acumMs
   const out = [];
   if (camion.fleetType !== 'cisterna') return out;
   const zi = iso(acumMs).slice(0, 10);
-  // La descărcare de peste 6 h fără bon TLX: ori bonul întârzie, ori descarcă în altă parte.
-  if (cursa?.status === 'la_descarcare' && cursa.status_changed_at) {
+  // Bonul TLX lipsă e o alertă doar acolo unde bonul chiar trebuie să existe:
+  // carburant descărcat în Moldova. Pentru biodieselul din Bulgaria nu există bon
+  // și nici n-a existat vreodată — alerta aceea a repetat zile la rând pe ANT344
+  // și KWX620 fără ca cineva să poată face ceva. Și pragul crește de la 6 h la
+  // ORE_FARA_BON: descărcarea de diesel la bază ține ore, iar recepția se scrie
+  // uneori a doua zi; acum că automatul închide singur cursa din GPS, alerta e
+  // despre bonul care lipsește din contabilitate, nu despre cursa agățată.
+  if (cursa?.status === 'la_descarcare' && cursa.status_changed_at
+      && plinLaBaza(cursa.cargo) && inMoldova(cursa.unloadPoint)) {
     const ore = (acumMs - Date.parse(cursa.status_changed_at)) / 3600e3;
-    if (ore >= 6) {
+    if (ore >= ORE_FARA_BON) {
       out.push({ fel: 'descarcare_fara_bon', cheie: `descarcare_fara_bon|${cursa.id}`, trip_id: cursa.id,
         mesaj: `${camion.plate}: la descărcare de ${Math.round(ore)} h fără bon TLX (${cursa.cargo ?? 'marfă'}${cursa.unloadPoint?.name ? `, ${cursa.unloadPoint.name}` : ''}). Închide cursa sau verifică bonul.` });
     }

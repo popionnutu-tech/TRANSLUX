@@ -218,6 +218,11 @@ export function descriereSursaStare(sursa: string | null | undefined, extra?: { 
       case 'spre_descarcare': return 'pusă automat: camionul a plecat de la încărcare';
       case 'la_descarcare': return 'pusă automat: camionul stă în raza punctului de descărcare';
       case STARE_ASTEAPTA_DESCARCARE: return 'pusă automat: camionul stă la bază cu marfa, fără bon TLX';
+      // Din 21.09 automatul închide cursa și fără bon TLX (Ion: «hai să facem
+      // sistema fără el să lucreze»): camionul a plecat de la descărcare, a plecat
+      // plin de la bază, a început o cursă nouă, sau cursa a rămas nemișcată zile
+      // întregi. Care din ele — scrie pe cursă, în notă, la fiecare închidere.
+      case 'incheiata': return 'închisă automat, după GPS — motivul e în nota cursei';
       default: return 'pusă automat, după GPS';
     }
   }

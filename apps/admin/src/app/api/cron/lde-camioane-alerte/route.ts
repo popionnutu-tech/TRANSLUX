@@ -21,6 +21,7 @@ const ETICHETA: Record<string, string> = {
   gps_mut: 'GPS mut cu marfa în camion',
   directie_gresita: 'Plin, plecat în altă direcție',
   bon_fara_gps: 'Bon TLX fără urmă GPS',
+  cursa_expirata: 'Cursă închisă automat, nimic n-a mai mișcat-o',
 };
 
 export async function GET(req: NextRequest) {

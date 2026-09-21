@@ -20,7 +20,7 @@
 // ============================================================================
 import { login, listUnitsPozitii } from './wialon-api.mjs';
 import { deciziaTlx, normPlaca } from './trip-auto.mjs';
-import { actualizeazaStationarea, alerteCamion, deciziaCamion, punctulUndeSta, STARI_DESCHISE } from './camion-auto.mjs';
+import { actualizeazaStationarea, alerteCamion, cursaExpirata, deciziaCamion, punctulUndeSta, STARI_DESCHISE } from './camion-auto.mjs';
 
 const SB_URL = process.env.SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -90,7 +90,7 @@ async function main() {
     sb(`lde_active_assignments?select=vehicle_id,driver_id&valid_to=is.null&limit=1000`),
     sb(`lde_dispatch_points?select=id,name,country,lat,lng,radius_m,kind&active=is.true&limit=1000`),
     sb(`lde_truck_gps_stationari?select=*&limit=1000`),
-    sb(`lde_truck_trips?select=id,vehicle_id,status,cargo,load_point_id,unload_point_id,load_planned_at,unload_planned_at,status_changed_at,` +
+    sb(`lde_truck_trips?select=id,vehicle_id,status,cargo,load_point_id,unload_point_id,load_planned_at,unload_planned_at,status_changed_at,notes,` +
        `load_point:load_point_id(id,name,country,lat,lng,radius_m,kind),unload_point:unload_point_id(id,name,country,lat,lng,radius_m,kind),vehicles:vehicle_id(plate_number)` +
        `&status=in.(${STARI_DESCHISE.join(',')})&order=load_planned_at.asc&limit=1000`),
     sb(`lde_truck_trips?select=vehicle_id,load_point_id,load_planned_at,status` +
@@ -176,7 +176,7 @@ async function main() {
   const cursaIO = (t) => (t ? {
     id: t.id, status: t.status, cargo: t.cargo, plate: normPlaca(t.vehicles?.plate_number),
     load_point_id: t.load_point_id, unload_point_id: t.unload_point_id,
-    load_planned_at: t.load_planned_at, unload_planned_at: t.unload_planned_at, status_changed_at: t.status_changed_at,
+    load_planned_at: t.load_planned_at, unload_planned_at: t.unload_planned_at, status_changed_at: t.status_changed_at, notes: t.notes ?? null,
     loadPoint: punctIO(unu(t.load_point)), unloadPoint: punctIO(unu(t.unload_point)),
   } : null);
 
@@ -185,25 +185,34 @@ async function main() {
   let scrise = 0;
   let esuate = 0;
 
+  /** @returns true dacă rândul chiar a fost mutat (sau am fi mutat-o, în probă). */
   const scrieStare = async (t, patch, motiv) => {
     console.log(`  ${normPlaca(t.vehicles?.plate_number)}: ${t.status} → ${patch.status} — ${motiv}`);
-    if (!WRITE) return;
+    if (!WRITE) return true;
     // Optimist: doar dacă starea e cea citită. Dispecerul care a apăsat între
-    // timp câștigă — automatul nu se ceartă cu omul.
-    await sb(`lde_truck_trips?id=eq.${t.id}&status=eq.${t.status}`, {
-      method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(patch),
+    // timp câștigă — automatul nu se ceartă cu omul. Răspunsul cu rândul mutat
+    // (nu `return=minimal`) e singurul fel de a ști DACĂ s-a mutat: când decizia
+    // e «închide cursa veche ȘI deschide una nouă», cursa nouă n-are voie să se
+    // nască peste o închidere care n-a prins.
+    const mutate = await sb(`lde_truck_trips?id=eq.${t.id}&status=eq.${t.status}`, {
+      method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(patch),
     });
-    scrise++;
+    const ok = Array.isArray(mutate) ? mutate.length > 0 : true;
+    if (ok) scrise++;
+    else console.log(`  ${normPlaca(t.vehicles?.plate_number)}: starea s-a schimbat între timp — automatul se dă la o parte`);
+    return ok;
   };
 
   // ── 1. Bonul TLX închide cursele cu marfă, indiferent de tipul camionului ──
   const inchiseAcum = new Set();
+  /** Cursele pe care rularea asta le-a mutat deja: expirarea nu le mai judecă. */
+  const atinseAcum = new Set();
   for (const t of curseDeschise || []) {
     const cursa = cursaIO(t);
     try {
       const d = deciziaTlx(cursa, receptii, statii, folosite, acumMs, puncte, opririDupaVehicul.get(t.vehicle_id) ?? []);
       if (!d) continue;
-      await scrieStare(t, d, `bon TLX ${d.tlx_receipt_id.slice(0, 8)} din ${d.tlx_receipt_at.slice(0, 10)}${d.unload_point_id ? ', punctul completat' : ''}`);
+      if (!await scrieStare(t, d, `bon TLX ${d.tlx_receipt_id.slice(0, 8)} din ${d.tlx_receipt_at.slice(0, 10)}${d.unload_point_id ? ', punctul completat' : ''}`)) continue;
       folosite.add(d.tlx_receipt_id);
       inchiseAcum.add(t.id);
     } catch (e) {
@@ -231,14 +240,17 @@ async function main() {
     const ultima = ultimaDupaVehicul.get(v.id) ?? null;
     try {
       const d = deciziaCamion({ camion, cursa, ultimaCursa: ultima, stationare, punct, pozitie, puncteDupaId, opriri: opririDupaVehicul.get(v.id) ?? [], acumMs });
-      if (d.creeaza) {
-        console.log(`  ${placa}: ${d.motiv}`);
+      // Reîncărcarea întoarce amândouă: cursa veche se închide, cursa nouă se naște.
+      // Închiderea merge prima — dacă ea nu prinde (a apăsat omul între timp), cursa
+      // nouă nu se mai face, altfel camionul ar rămâne cu două curse deschise.
+      const mutata = d.schimba && t ? await scrieStare(t, d.schimba.patch, d.motiv) : true;
+      if (d.schimba && t && mutata) atinseAcum.add(t.id);
+      if (d.creeaza && mutata) {
+        console.log(`  ${placa}: cursă nouă ${d.creeaza.cargo}, la încărcare — ${d.motiv}`);
         if (WRITE) {
           await sb('lde_truck_trips', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(d.creeaza) });
           scrise++;
         }
-      } else if (d.schimba && t) {
-        await scrieStare(t, d.schimba.patch, d.motiv);
       }
       for (const a of alerteCamion({ camion, cursa, stationare, punct, pozitie, acumMs })) {
         alerteDeScris.push({ vehicle_id: v.id, trip_id: a.trip_id ?? null, fel: a.fel, mesaj: a.mesaj, cheie: a.cheie });
@@ -246,6 +258,28 @@ async function main() {
     } catch (e) {
       esuate++;
       console.error(`  ${placa}: ${e instanceof Error ? e.message : e}`);
+    }
+  }
+
+  // ── 2b. Cursa pe care nimic n-a mai mișcat-o se stinge (Ion, 21.09) ──
+  // Plasa de sub toate celelalte reguli, și singurul loc care se uită și la
+  // camioanele care nu-s cisterne: pentru zernovoz sau pentru marfa «alta»
+  // automatul n-are nicio regulă, deci nimeni n-ar închide cursa niciodată —
+  // RWN169 stă «planificată» din 10.09 cu «el amu la Romanie» scris de mână.
+  for (const t of curseDeschise || []) {
+    if (inchiseAcum.has(t.id) || atinseAcum.has(t.id)) continue;
+    const e = cursaExpirata(t, acumMs);
+    if (!e) continue;
+    const placa = normPlaca(t.vehicles?.plate_number);
+    try {
+      if (!await scrieStare(t, e.patch, e.motiv)) continue;
+      alerteDeScris.push({
+        vehicle_id: t.vehicle_id, trip_id: t.id, fel: 'cursa_expirata', cheie: `cursa_expirata|${t.id}`,
+        mesaj: `${placa}: cursa de ${t.cargo ?? 'marfă'} din ${String(t.load_planned_at).slice(0, 10)} a fost închisă automat — ${e.motiv}. Dacă mai e în drum, deschide-i o cursă nouă în admin.`,
+      });
+    } catch (err) {
+      esuate++;
+      console.error(`  cursa ${t.id} (${placa}): ${err instanceof Error ? err.message : err}`);
     }
   }
 

@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   actualizeazaStationarea, deciziaCamion, alerteCamion, punctulUndeSta, minuteLaPunct,
   descarcaAici, incarcaAici, PRAG_MIN, PLECAT_KM, PLECAT_MIN, LOC_DESCARCARE_NECUNOSCUT,
+  cursaExpirata, cisterneDinOpriri,
 } from './camion-auto.mjs';
 
 const T0 = Date.parse('2026-09-05T16:50:00Z');
@@ -180,13 +181,16 @@ test('poziție veche: nicio decizie, nici creare', () => {
   assert.deepEqual(deciziaCamion({ camion: CISTERNA, cursa: null, ultimaCursa: null, puncteDupaId: dupaId, ...s }), { creeaza: null, schimba: null, motiv: null });
 });
 
-test('alerte: la descărcare peste 6 h fără bon; GPS mut peste 12 h cu marfa în camion; cheia e stabilă', () => {
+test('alerte: la descărcare peste 24 h fără bon; GPS mut peste 12 h cu marfa în camion; cheia e stabilă', () => {
   const acumMs = T0;
-  const cursa = { id: 'c1', status: 'la_descarcare', cargo: 'diesel', status_changed_at: new Date(acumMs - 7 * 3600e3).toISOString(), unloadPoint: UNGHENI };
-  const a = alerteCamion({ camion: CISTERNA, cursa, stationare: null, punct: UNGHENI, pozitie: la(UNGHENI, new Date(acumMs - 60e3).toISOString()), acumMs });
+  const ungheniMd = { ...UNGHENI, country: 'Moldova' };
+  const cursa = { id: 'c1', status: 'la_descarcare', cargo: 'diesel', status_changed_at: new Date(acumMs - 25 * 3600e3).toISOString(), unloadPoint: ungheniMd };
+  const a = alerteCamion({ camion: CISTERNA, cursa, stationare: null, punct: ungheniMd, pozitie: la(UNGHENI, new Date(acumMs - 60e3).toISOString()), acumMs });
   assert.equal(a.length, 1); assert.equal(a[0].fel, 'descarcare_fara_bon'); assert.equal(a[0].cheie, 'descarcare_fara_bon|c1');
-  const recenta = { ...cursa, status_changed_at: new Date(acumMs - 2 * 3600e3).toISOString() };
-  assert.equal(alerteCamion({ camion: CISTERNA, cursa: recenta, stationare: null, punct: UNGHENI, pozitie: null, acumMs }).length, 0);
+  // 7 h nu mai sunt o alertă din 21.09: automatul închide singur cursa, iar bonul
+  // de recepție se scrie uneori a doua zi (văzut: descărcare 04.09, bon pe 08.09).
+  const recenta = { ...cursa, status_changed_at: new Date(acumMs - 7 * 3600e3).toISOString() };
+  assert.equal(alerteCamion({ camion: CISTERNA, cursa: recenta, stationare: null, punct: ungheniMd, pozitie: null, acumMs }).length, 0);
   const plin = { id: 'c2', status: 'spre_descarcare', cargo: 'biodiesel', status_changed_at: min(0) };
   const mut = alerteCamion({ camion: CISTERNA, cursa: plin, stationare: null, punct: null, pozitie: { lat: 47, lon: 28, speed: 0, at: new Date(acumMs - 13 * 3600e3).toISOString() }, acumMs });
   assert.equal(mut.length, 1); assert.equal(mut[0].fel, 'gps_mut');
@@ -285,4 +289,165 @@ test('la bază cisterna e PLINĂ până apare bonul TLX: spre descărcare + 15 m
   // Stația TLX rămâne «la descărcare».
   const d4 = deciziaCamion({ camion: CISTERNA, cursa: laBriceni, ultimaCursa: null, ...stand(UNGHENI, 16), puncteDupaId: dupaId });
   assert.equal(d4.schimba?.patch.status, 'la_descarcare');
+});
+
+// ── Închiderea fără dispecer (Ion, 21.09) ────────────────────────────────────
+// Cifrele din testele de mai jos sunt urma GPS reală din lde_gps_stops, 16–20.09.
+
+/** Camionul e la `km` nord de `punct`, plecat de acolo de `deMinute`. */
+function plecatDe(punct, km, deMinute, acumMs) {
+  const at = new Date(acumMs - 60e3).toISOString();
+  return {
+    punct: null,
+    pozitie: { lat: punct.lat + km / 111, lon: punct.lon, speed: 70, at },
+    stationare: { point_id: null, since: null, last_seen_at: null, prev_point_id: punct.id, prev_since: null, prev_until: new Date(acumMs - deMinute * 60e3).toISOString() },
+    acumMs,
+  };
+}
+
+test('la descărcare + a plecat de la punctul de descărcare → încheiată, cu ora plecării', () => {
+  const acumMs = T0 + 10 * 3600e3;
+  const cursa = { id: 'c1', status: 'la_descarcare', cargo: 'biodiesel', load_point_id: 'p-berd', unload_point_id: 'p-ruse', load_planned_at: min(-4000), status_changed_at: min(-300), unloadPoint: RUSE, notes: 'ждет разгрузку' };
+  // Încă în rază: nimic (nu se închide cursa cât camionul stă la descărcare).
+  assert.equal(deciziaCamion({ camion: CISTERNA, cursa, ultimaCursa: cursa, puncteDupaId: dupaId, ...stand(RUSE, 600) }).schimba, null);
+  // La 30 km, dar plecat de doar 40 min: încă nu.
+  assert.equal(deciziaCamion({ camion: CISTERNA, cursa, ultimaCursa: cursa, puncteDupaId: dupaId, ...plecatDe(RUSE, 30, 40, acumMs) }).schimba, null);
+  // La 30 km, plecat de 90 min: cursa s-a terminat la ora plecării, nu acum.
+  const p = plecatDe(RUSE, 30, 90, acumMs);
+  const d = deciziaCamion({ camion: CISTERNA, cursa, ultimaCursa: cursa, puncteDupaId: dupaId, ...p });
+  assert.equal(d.schimba?.patch.status, 'incheiata');
+  assert.equal(d.schimba?.patch.status_source, 'gps');
+  assert.equal(d.schimba?.patch.status_changed_at, p.stationare.prev_until);
+  assert.match(d.schimba?.patch.notes, /^ждет разгрузку\n/);      // ce scria dispecerul rămâne
+  assert.match(d.schimba?.patch.notes, /fără bon TLX/);
+  assert.equal(d.creeaza, null);
+});
+
+test('la descărcare fără punct de descărcare știut: GPS-ul nu poate închide nimic', () => {
+  const acumMs = T0 + 10 * 3600e3;
+  const cursa = { id: 'c1', status: 'la_descarcare', cargo: 'biodiesel', load_point_id: 'p-berd', unload_point_id: null, load_planned_at: min(-4000), status_changed_at: min(-300) };
+  assert.equal(deciziaCamion({ camion: CISTERNA, cursa, ultimaCursa: cursa, puncteDupaId: dupaId, ...plecatDe(RUSE, 300, 600, acumMs) }).schimba, null);
+});
+
+test('plin la bază + a plecat: sub fereastra bonului nu se închide, peste ea da (ANT344 la Bacioi)', () => {
+  const cursa = { id: 'c1', status: 'asteapta_descarcare', cargo: 'diesel', load_point_id: 'p-petro', unload_point_id: 'p-bri', load_planned_at: min(-4000), status_changed_at: min(0), unloadPoint: BRICENI };
+  // A plecat după 3 h: poate fi o mutare prin curte.
+  assert.equal(deciziaCamion({ camion: CISTERNA, cursa, ultimaCursa: cursa, puncteDupaId: dupaId, ...plecatDe(BRICENI, 40, 90, T0 + 3 * 3600e3) }).schimba, null);
+  // A plecat după 9 h, de 90 min: s-a golit.
+  const d = deciziaCamion({ camion: CISTERNA, cursa, ultimaCursa: cursa, puncteDupaId: dupaId, ...plecatDe(BRICENI, 40, 90, T0 + 9 * 3600e3) });
+  assert.equal(d.schimba?.patch.status, 'incheiata');
+  assert.match(d.schimba?.patch.notes, /plin la «Bază Briceni»|a stat plin/);
+  // Tot la bază, oricât ar sta: rămâne plin până pleacă sau până vine bonul.
+  assert.equal(deciziaCamion({ camion: CISTERNA, cursa, ultimaCursa: cursa, puncteDupaId: dupaId, ...stand(BRICENI, 3 * 24 * 60) }).schimba, null);
+});
+
+test('ANT344: 282 min la Berdichev cu cursa «la descărcare» din altă lună → cursa veche se încheie, se naște una nouă', () => {
+  // Urma reală: cursa diesel Constanța → Bacioi, «la descărcare» de pe 16.09;
+  // camionul a stat la Berdichev 17.09 16:18–21:00 și încă 8 h peste noapte.
+  const cursa = { id: 'c1', status: 'la_descarcare', cargo: 'diesel', load_point_id: 'p-petro', unload_point_id: 'p-bri', load_planned_at: '2026-09-03T04:00:00Z', status_changed_at: '2026-09-16T06:50:00Z', unloadPoint: BRICENI, notes: 'ЖДЕТ РАЗГРУЗКУ' };
+  const acumMs = Date.parse('2026-09-17T21:00:00Z');
+  const s = {
+    point_id: 'p-berd', since: '2026-09-17T16:18:00Z', last_seen_at: '2026-09-17T21:00:00Z',
+    prev_point_id: 'p-bri', prev_since: null, prev_until: '2026-09-17T05:20:00Z',
+  };
+  const d = deciziaCamion({
+    camion: CISTERNA, cursa, ultimaCursa: cursa, stationare: s, punct: BERDICHEV,
+    pozitie: la(BERDICHEV, new Date(acumMs - 60e3).toISOString()), puncteDupaId: dupaId, acumMs,
+  });
+  assert.equal(d.schimba?.patch.status, 'incheiata');
+  assert.equal(d.schimba?.deLa, 'la_descarcare');
+  assert.equal(d.schimba?.patch.status_changed_at, '2026-09-17T16:18:00.000Z');
+  assert.match(d.schimba?.patch.notes, /^ЖДЕТ РАЗГРУЗКУ\n/);
+  assert.equal(d.creeaza?.cargo, 'biodiesel');
+  assert.equal(d.creeaza?.status, 'la_incarcare');
+  assert.equal(d.creeaza?.load_point_id, 'p-berd');
+  assert.equal(d.creeaza?.load_planned_at, '2026-09-17T16:18:00.000Z');
+});
+
+test('LJN076: întoarcerea la Berdichev a doua zi, în mijlocul cursei, NU e cursă nouă', () => {
+  // Urma reală: a încărcat 16.09 09:04, a plecat, s-a întors 17.09 06:11 pentru 4 h.
+  const cursa = { id: 'c1', status: 'la_incarcare', cargo: 'biodiesel', load_point_id: 'p-berd', unload_point_id: null, load_planned_at: '2026-09-16T09:04:00Z', status_changed_at: '2026-09-16T11:00:00Z', loadPoint: BERDICHEV };
+  const acumMs = Date.parse('2026-09-17T10:17:00Z');
+  const s = { point_id: 'p-berd', since: '2026-09-17T06:11:00Z', last_seen_at: '2026-09-17T10:17:00Z', prev_point_id: null, prev_since: null, prev_until: null };
+  const d = deciziaCamion({
+    camion: CISTERNA, cursa, ultimaCursa: cursa, stationare: s, punct: BERDICHEV,
+    pozitie: la(BERDICHEV, new Date(acumMs - 60e3).toISOString()), puncteDupaId: dupaId, acumMs,
+  });
+  assert.equal(d.creeaza, null);
+  assert.equal(d.schimba, null);
+  // Chiar și cu cursa deja «spre descărcare», sub 24 h de la încărcare nu e marfă nouă.
+  const plecata = { ...cursa, status: 'spre_descarcare' };
+  assert.equal(deciziaCamion({
+    camion: CISTERNA, cursa: plecata, ultimaCursa: plecata, stationare: s, punct: BERDICHEV,
+    pozitie: la(BERDICHEV, new Date(acumMs - 60e3).toISOString()), puncteDupaId: dupaId, acumMs,
+  }).creeaza, null);
+});
+
+test('RWN193: «spre încărcare» + 19 h la Berdichev → la încărcare pe cursa lui, nu cursă nouă', () => {
+  // Urma reală 18–20.09, camionul pe care automatul nu-l vedea deloc (fără tip).
+  const cursa = { id: 'c1', status: 'spre_incarcare', cargo: 'biodiesel', load_point_id: 'p-berd', unload_point_id: null, load_planned_at: '2026-09-05T04:00:00Z', status_changed_at: null, loadPoint: BERDICHEV };
+  const acumMs = Date.parse('2026-09-19T17:00:00Z');
+  const s = { point_id: 'p-berd', since: '2026-09-18T22:00:00Z', last_seen_at: '2026-09-19T17:00:00Z', prev_point_id: null, prev_since: null, prev_until: null };
+  const d = deciziaCamion({
+    camion: { ...CISTERNA, plate: 'RWN193' }, cursa, ultimaCursa: cursa, stationare: s, punct: BERDICHEV,
+    pozitie: la(BERDICHEV, new Date(acumMs - 60e3).toISOString()), puncteDupaId: dupaId, acumMs,
+  });
+  assert.equal(d.schimba?.patch.status, 'la_incarcare');
+  assert.equal(d.creeaza, null);
+});
+
+test('cursaExpirata: cursa nemișcată se stinge după 10 zile; cea proaspătă și cea închisă, nu', () => {
+  const acumMs = Date.parse('2026-09-21T12:00:00Z');
+  const veche = { id: 'c1', status: 'planificata', unload_planned_at: '2026-09-11T11:00:00Z', status_changed_at: '2026-09-10T07:02:00Z', notes: 'el amu la Romanie' };
+  const e = cursaExpirata(veche, acumMs);
+  assert.equal(e?.patch.status, 'incheiata');
+  assert.equal(e?.patch.updated_by, 'auto:expirat');
+  assert.equal(e?.patch.status_changed_at, '2026-09-11T11:00:00.000Z');   // ultima mișcare știută, nu azi
+  assert.match(e?.patch.notes, /^el amu la Romanie\n/);
+  // Atinsă acum 2 zile: încă în lucru.
+  assert.equal(cursaExpirata({ ...veche, status_changed_at: '2026-09-19T08:00:00Z' }, acumMs), null);
+  // Descărcarea planificată peste 3 zile.
+  assert.equal(cursaExpirata({ ...veche, unload_planned_at: '2026-09-24T11:00:00Z', status_changed_at: null }, acumMs), null);
+  // Deja închisă sau anulată: nu se atinge.
+  assert.equal(cursaExpirata({ ...veche, status: 'incheiata' }, acumMs), null);
+  assert.equal(cursaExpirata({ ...veche, status: 'anulata' }, acumMs), null);
+  assert.equal(cursaExpirata({ ...veche, unload_planned_at: null }, acumMs), null);
+});
+
+test('cisterneDinOpriri: două opriri lungi la un punct de încărcare fac o cisternă (RWN193)', () => {
+  const PUNCTE_INC = [BERDICHEV, PETROMIDIA];
+  const v = { id: 'v-rwn', plate_number: 'RWN193' };
+  const laBerdichev = (dwell) => ({ vehicle_id: 'v-rwn', lat: BERDICHEV.lat + 0.0004, lon: BERDICHEV.lon, dwell_min: dwell });
+  // 189 și 312 min, ca în urma reală din 19–20.09.
+  const r = cisterneDinOpriri([laBerdichev(189), laBerdichev(312)], PUNCTE_INC, [v], []);
+  assert.deepEqual(r.cisterneNoi.map((c) => c.plate), ['RWN193']);
+  assert.equal(r.cisterneNoi[0].opriri, 2);
+  // O singură oprire lungă: poate fi o parcare lângă bază.
+  assert.equal(cisterneDinOpriri([laBerdichev(312)], PUNCTE_INC, [v], []).cisterneNoi.length, 0);
+  // Opriri scurte: trecere, nu încărcare.
+  assert.equal(cisterneDinOpriri([laBerdichev(30), laBerdichev(40)], PUNCTE_INC, [v], []).cisterneNoi.length, 0);
+  // Tipul pus de om nu se răstoarnă — iese conflict.
+  const cuTip = cisterneDinOpriri([laBerdichev(189), laBerdichev(312)], PUNCTE_INC, [v], [{ vehicle_id: 'v-rwn', fleet_type: 'zernovoz' }]);
+  assert.equal(cuTip.cisterneNoi.length, 0);
+  assert.equal(cuTip.conflicte[0].fleetType, 'zernovoz');
+  // Deja cisternă: nici conflict, nici scriere.
+  const dejaCisterna = cisterneDinOpriri([laBerdichev(189), laBerdichev(312)], PUNCTE_INC, [v], [{ vehicle_id: 'v-rwn', fleet_type: 'cisterna' }]);
+  assert.deepEqual([dejaCisterna.cisterneNoi.length, dejaCisterna.conflicte.length], [0, 0]);
+  // Opriri departe de orice punct de încărcare.
+  const laBriceni = { vehicle_id: 'v-rwn', lat: BRICENI.lat, lon: BRICENI.lon, dwell_min: 900 };
+  assert.equal(cisterneDinOpriri([laBriceni, laBriceni], PUNCTE_INC, [v], []).cisterneNoi.length, 0);
+});
+
+test('alerta «fără bon TLX»: doar pentru carburant descărcat în Moldova, și abia după 24 h', () => {
+  const acumMs = T0 + 30 * 3600e3;
+  const md = { ...UNGHENI, country: 'Moldova' };
+  const diesel = { id: 'c1', status: 'la_descarcare', cargo: 'diesel', status_changed_at: min(0), unloadPoint: md };
+  const feluri = (cursa, la = acumMs) => alerteCamion({ camion: CISTERNA, cursa, stationare: null, punct: null, pozitie: null, acumMs: la }).map((a) => a.fel);
+  assert.deepEqual(feluri(diesel), ['descarcare_fara_bon']);
+  // La 6 h nu mai e alertă: descărcarea la bază ține ore, iar bonul se scrie și a doua zi.
+  assert.deepEqual(feluri(diesel, T0 + 6 * 3600e3), []);
+  // Biodiesel la Ruse: bon TLX nu există și n-a existat niciodată.
+  assert.deepEqual(feluri({ ...diesel, cargo: 'biodiesel', unloadPoint: { ...RUSE, country: 'Bulgaria' } }), []);
+  // Diesel, dar descărcat în afara Moldovei.
+  assert.deepEqual(feluri({ ...diesel, unloadPoint: { ...md, country: 'România' } }), []);
 });

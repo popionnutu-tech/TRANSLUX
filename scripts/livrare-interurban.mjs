@@ -36,6 +36,7 @@ const CSV = arg('--csv', null);
 const DOAR_ZI = arg('--zi', null);
 const DOAR_RUTA = arg('--ruta', null);
 const DETALIU = process.argv.includes('--detaliu');
+const MD = arg('--md', null);
 
 const supa = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY, { auth: { persistSession: false } });
 
@@ -192,6 +193,7 @@ async function main() {
     const stops = peVehiculZi.get(`${a.vehicle_id}|${a.assignment_date}`) ?? [];
     const rand = {
       zi: a.assignment_date, ruta: a.crm_route_id, capat: L.capat, capatKm: L.capatKm, totalKm: L.totalKm,
+      denumire: L.ruta.dest_from_ro, orarNord: L.ruta.time_nord, orarChisinau: L.ruta.time_chisinau,
       tarif: `${L.tarif.name}/${L.ramura.split('|')[1]}`,
       masina: masini.get(a.vehicle_id) ?? '?', sofer: soferi.get(a.driver_id) ?? '—', vehicle_id: a.vehicle_id,
       kmGps: (kmZi.get(`${a.vehicle_id}|${a.assignment_date}`) ?? {}).km ?? null,
@@ -320,6 +322,12 @@ async function main() {
       console.log(`   ${bazaInCapitala ? 'baza în capitală (zi întoarsă)' : 'baza în nord'} · T=${pozT == null ? '—' : r1(pozT)} E=${pozE == null ? '—' : r1(pozE)} · livrare dim ${r1(livrareDim)}${ascunsa ? ' (coborâre dedusă din km)' : ''} + seara ${r1(livrareSeara)} · rută ${r1(kmRuta)} · rest ${r1(rest)}`);
     }
     Object.assign(rand, {
+      // lanțul zilei, păstrat pentru raportul detaliat pe rute (`--md=`)
+      lant: noduri.map((n, i) => ({
+        loc: n.o.locality ?? '—', km: r1(n.km), poz: n.p ? n.p.km : null, statie: n.p ? n.p.nume : null,
+        a: n.o.arrival_at, d: n.o.departure_at, baza: n.baza,
+        gol: i >= 1 && i <= m ? 'dim' : (i > jAbs ? 'seara' : ''),
+      })),
       baza: baza ? (baza.locality ?? '—') : '—', bazaKm: B == null ? null : r1(s * B), intoarsa: bazaInCapitala,
       T: pozT == null ? null : r1(pozT), E: pozE == null ? null : r1(pozE),
       ascunsa, livrareDim: r1(livrareDim), livrareSeara: r1(livrareSeara),
@@ -380,6 +388,52 @@ async function main() {
   const mari = bune.filter((r) => r.rest > 60).sort((a, b) => b.rest - a.rest);
   console.log(`\nzile cu rest mare (>60 km, ieșiri în afara rutei): ${mari.length}`);
   for (const r of mari.slice(0, 12)) console.log(`   ${r.zi} ruta ${r.ruta} ${r.masina} ${r.sofer} — rest ${r.rest} km (GPS ${r.kmGps}, rută ${r.kmRuta})`);
+
+  // ── 9. raportul detaliat, o secțiune pe fiecare cursă ─────────────────────
+  // Ion, 21.09: «da pe fiecare cursa detailat». O rută = o secțiune: orarul, mașina, unde
+  // doarme, tabelul zilelor și lanțul unei zile tipice, cu km-ii goi marcați.
+  if (MD) {
+    const { writeFileSync } = await import('node:fs');
+    const ora = (t) => (t ? new Date(t).toLocaleTimeString('ro-MD', { timeZone: 'Europe/Chisinau', hour: '2-digit', minute: '2-digit' }) : '—');
+    const zi2 = (z) => `${z.slice(8, 10)}.${z.slice(5, 7)}`;
+    const km = (v) => (v == null ? '—' : String(r1(v)).replace('.', ','));
+    const celeMaiDese = (arr) => [...arr.reduce((m2, x) => m2.set(x, (m2.get(x) ?? 0) + 1), new Map()).entries()]
+      .sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} (${n})`).join(' · ');
+    const out = [];
+    out.push(`# Livrarea pe cursele interurbane — detaliat, cursă cu cursă (${DE} … ${PANA})`, '',
+      'Ion, 21.09.2026: «da pe fiecare cursa detailat». Generat de `scripts/livrare-interurban.mjs --md=…`;',
+      'metoda și cifrele de ansamblu sunt în `livrare-interurban.md`.', '',
+      '`km pornire` = locul de pe linia rutei de unde începe efectiv cursa de dimineață (0 = capătul',
+      'de nord, 242–302 = Chișinău); `km final` = ultimul punct servit seara. `dim`/`seara` = km goi.', '');
+    const ordine = [...perRuta.values()].sort((a, b) => b.bruta / b.zile - a.bruta / a.zile).map((x) => x.ruta);
+    for (const rid of ordine) {
+      const zileR = bune.filter((r) => r.ruta === rid).sort((a, b) => a.zi.localeCompare(b.zi));
+      const p = zileR[0]; const agg = perRuta.get(rid);
+      out.push(`## Ruta ${rid} — «${p.denumire}»`, '');
+      out.push(`* capăt de rută: **${p.capat}**, km ${km(p.capatKm)} pe linie · Chișinău la km ${km(p.totalKm)} · tarif ${p.tarif}`);
+      if (p.orarNord || p.orarChisinau) out.push(`* orar: nord ${p.orarNord ?? '—'} · Chișinău ${p.orarChisinau ?? '—'}`);
+      out.push(`* mașini: ${celeMaiDese(zileR.map((r) => r.masina))}`);
+      out.push(`* șoferi: ${celeMaiDese(zileR.map((r) => r.sofer))}`);
+      out.push(`* doarme la: ${celeMaiDese(zileR.map((r) => r.baza))}`);
+      out.push(`* **${km(agg.bruta / agg.zile)} km goi pe zi** (${Math.round(agg.leiBrut / agg.zile)} lei) · cu regula lui Ion ${km(agg.reg / agg.zile)} km (${Math.round(agg.lei / agg.zile)} lei) · la capăt: dimineața ${agg.dimLaCapat} zile, seara ${agg.seaLaCapat} din ${agg.zile}`, '');
+      out.push('| zi | mașină | șofer | doarme la | km pornire | km final | dim | seara | total | lei | la capăt d/s | cu regula | rest |');
+      out.push('|---|---|---|---|---|---|---|---|---|---|---|---|---|');
+      for (const r of zileR) out.push(`| ${zi2(r.zi)} | ${r.masina} | ${r.sofer} | ${r.baza} | ${km(r.T)} | ${km(r.E)} | ${km(r.livrareDim)} | ${km(r.livrareSeara)} | **${km(r.livrareBruta)}** | ${Math.round(r.livrareBruta * r.leiKm)} | ${r.laCapatDim ? 'da' : 'nu'}/${r.laCapatSeara ? 'da' : 'nu'} | ${km(r.livrareRegula)} | ${km(r.rest)} |`);
+      out.push('');
+      // ziua tipică = cea cu livrarea cea mai apropiată de mediana rutei
+      const sortate = [...zileR].sort((a, b) => a.livrareBruta - b.livrareBruta);
+      const mediana = sortate[Math.floor(sortate.length / 2)].livrareBruta;
+      const tipica = zileR.reduce((best, r) => (Math.abs(r.livrareBruta - mediana) < Math.abs(best.livrareBruta - mediana) ? r : best), zileR[0]);
+      out.push(`Ziua de ${zi2(tipica.zi)}, oprire cu oprire (${tipica.masina}, ${tipica.kmGps} km GPS) — **gol** = km fără pasageri:`, '', '```');
+      for (const n of tipica.lant) {
+        out.push(`${(ora(n.a) + '→' + ora(n.d)).padEnd(13)} ${n.loc.slice(0, 20).padEnd(20)} ${n.poz == null ? '   în afara liniei' : ('km ' + String(n.poz).replace('.', ',')).padStart(9) + ' ' + (n.statie ?? '')}`
+          .padEnd(62) + `${n.baza ? ' DOARME' : ''}${n.km ? ` +${km(n.km)} km` : ''}${n.gol ? `  ← gol (${n.gol})` : ''}`);
+      }
+      out.push('```', '');
+    }
+    writeFileSync(MD, out.join('\n'));
+    console.log(`\nRaport detaliat: ${MD} (${ordine.length} rute)`);
+  }
 
   if (CSV) {
     const { writeFileSync } = await import('node:fs');

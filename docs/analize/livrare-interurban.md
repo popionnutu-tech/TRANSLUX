@@ -9,6 +9,10 @@ Se rulează din nou oricând:
 — cu `--ruta=N --zi=… --detaliu` scoate lanțul de opriri al unei zile, cu poziția fiecărei
 opriri pe kilometrajul rutei (așa s-au verificat cazurile de mai jos).
 
+**Cursă cu cursă**, cu tabelul zilelor și lanțul opririlor pentru fiecare rută:
+[`livrare-interurban-pe-rute.md`](livrare-interurban-pe-rute.md) (Ion, 21.09: «da pe fiecare
+cursa detailat»). Se regenerează cu `--md=docs/analize/livrare-interurban-pe-rute.md`.
+
 ---
 
 ## Cifra cerută

@@ -17,6 +17,7 @@ import { WebSocket as WS } from 'ws';
 import { hav } from './km-core.mjs';
 import { invataGranite, minuteZiLocal } from './etalon-labels.mjs';
 import { loadPlaces } from './places-index.mjs';
+import { detecteazaNaveta, MIN_ZILE_NAVETA } from './naveta-sofer.mjs';
 globalThis.WebSocket = globalThis.WebSocket || WS;
 
 const WRITE = process.argv.includes('--write');
@@ -370,7 +371,46 @@ async function recalculeazaStartReal() {
   console.log(`start real: ${scrise} combinații rută×schimb cu sat de start dedus din opriri (≥${COTA_START_REAL * 100}% din tururi)`);
 }
 
+/**
+ * NAVETA CU ALTĂ MAȘINĂ — Ion, 21.09: «include in analitica si asta livrare».
+ *
+ * Livrarea se numără pe autobuzul rutei. Când omul e dus la autobuz cu altă mașină, km-ii
+ * ăia nu apar nicăieri: ruta 25 «Vatici» are livrare 0 în fiecare zi (autobuzul 820GXP
+ * doarme la Vatici), dar 073BRAO face Ocnița-Răzeși ↔ Vatici de trei ori pe zi, ~210 km.
+ * Regula, cu pragurile ei, stă în `naveta-sofer.mjs`; aici e doar citirea și scrierea.
+ *
+ * Tabelul se reface pe toată fereastra, nu se completează: o zi poate ieși din tipar când
+ * apar zile noi (pragul de 3 zile), iar un rând rămas ar fi o navetă care nu mai există.
+ */
+async function recalculeazaNaveta() {
+  const opriri = await fetchAll('lde_gps_stops', 'vehicle_id,date,seq,lat,lon,dwell_min,km_from_prev,locality',
+    (q) => q.gte('date', deLa));
+  const curse = await fetchAll('lde_route_run', 'vehicle_id,run_date,factory_route_id,km_real',
+    (q) => q.gte('run_date', deLa).gt('km_real', 0));
+  const porti = await fetchAll('lde_uzine_gates', 'lat,lon', (q) => q.eq('active', true));
+
+  const randuri = detecteazaNaveta({ opriri, curse, porti });
+  const km = randuri.reduce((s, r) => s + r.km, 0);
+  const perechi = new Set(randuri.map((r) => `${r.vehicle_id}|${r.factory_route_id}`));
+  if (WRITE) {
+    const { error: eDel } = await supa.from('lde_naveta_sofer').delete().gte('run_date', deLa);
+    if (eDel) throw new Error(`naveta (ștergere): ${eDel.message}`);
+    for (let i = 0; i < randuri.length; i += 500) {
+      const { error } = await supa.from('lde_naveta_sofer').insert(randuri.slice(i, i + 500));
+      if (error) throw new Error(`naveta (scriere): ${error.message}`);
+    }
+  }
+  console.log(`navetă cu altă mașină: ${randuri.length} zile-mașină, ${Math.round(km)} km, `
+    + `${perechi.size} perechi mașină×rută (prag ${MIN_ZILE_NAVETA} zile)`);
+  for (const p of perechi) {
+    const ale = randuri.filter((r) => `${r.vehicle_id}|${r.factory_route_id}` === p);
+    console.log(`  ${ale[0].locul ?? '—'}: ${ale.length} zile, ${Math.round(ale.reduce((s, r) => s + r.km, 0))} km`);
+  }
+}
+
 // ordinea contează: startul real se deduce din cursele scrise azi și îl folosește worker-ul
-// de mâine; brambura se judecă pe naveta deja scrisă
+// de mâine; brambura se judecă pe naveta deja scrisă; naveta cu altă mașină are nevoie de
+// cursele zilei ca să știe care mașină a făcut rută și care doar a dus omul
 await recalculeazaStartReal();
 await recalculeazaBrambura();
+await recalculeazaNaveta();

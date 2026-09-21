@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { agregaLivrare, agregaBrambura, descrieZiua, perioadaCadentei, textulEconomiei, type CursaLivrare } from './livrare-poster';
+import { agregaLivrare, agregaBrambura, descrieZiua, perioadaCadentei, textulEconomiei, type CursaLivrare, type NavetaRand } from './livrare-poster';
 
 const rute = [
   { id: 'r1', uzina_id: 'SEBN_STRASENI', route_number: 1, stops_in_order: 'Vatici → SEBN MD2 Strășeni' },
@@ -35,6 +35,50 @@ describe('agregaLivrare', () => {
     expect(r.naveta_zi).toBe(85);
     expect(r.gol_ruta_zi).toBe(15);
     expect(r.km_tur).toBe(30);
+  });
+
+  it('naveta făcută cu altă mașină intră în poster, deși autobuzul rutei are livrare 0', () => {
+    // Cazul real: ruta 25 «Vatici» e făcută de 820GXP, care DOARME la Vatici — livrare 0.
+    // Omul e dus acolo cu 073BRAO, ~200 km/zi. Fără linia navetei, ruta pare curată.
+    const zile = ['2026-09-15', '2026-09-16', '2026-09-17', '2026-09-18'];
+    const curse = zile.map((d) => cursa({ run_date: d, factory_route_id: 'r1', vehicle_id: 'vBus', km_real: 19.5, km_livrare: 0 }));
+    const navete: NavetaRand[] = zile.map((d) => ({
+      run_date: d, vehicle_id: 'vNav', factory_route_id: 'r1', km: 196.8, autobuz_id: 'vBus', casa: 'Ocnița-Răzeși',
+    }));
+    const rows = agregaLivrare({
+      curse, navete, rute, startReal: new Map(), prag: 50, minZile: 3,
+      soferi: new Map([['vBus|r1', 'Magalu']]),
+      case: new Map([['vBus', 'Vatici']]),
+      masini: new Map([['vBus', '820GXP · DAF'], ['vNav', '073BRAO · Sprinter 312']]),
+      leiKm: new Map([['vBus', 10], ['vNav', 5]]),
+    });
+    expect(rows).toHaveLength(1);                       // autobuzul are livrare 0, deci nu intră
+    const r = rows[0];
+    expect(r.masina).toBe('073BRAO · Sprinter 312');
+    expect(r.ruta).toBe('1 Vatici · navetă');
+    expect(r.sofer).toBe('Magalu (Ocnița-Răzeși)');     // omul dus, satul de unde pleacă naveta
+    expect(r.zile).toBe(4);
+    expect(r.naveta_zi).toBe(197);
+    expect(r.naveta_total).toBe(787);
+    expect(r.plin_zi).toBe(0);                          // nu face rută
+    expect(r.km_tur).toBeNull();
+    expect(r.lei_km).toBe(5);                           // tipul MAȘINII DE NAVETĂ, nu al autobuzului
+  });
+
+  it('naveta sub prag sau sub trei zile nu intră', () => {
+    const navete: NavetaRand[] = [
+      { run_date: '2026-09-15', vehicle_id: 'vNav', factory_route_id: 'r1', km: 200, autobuz_id: 'vBus', casa: 'Zorile' },
+      { run_date: '2026-09-16', vehicle_id: 'vNav', factory_route_id: 'r1', km: 200, autobuz_id: 'vBus', casa: 'Zorile' },
+      // a treia zi e sâmbătă: nu se numără
+      { run_date: '2026-09-19', vehicle_id: 'vNav2', factory_route_id: 'r1', km: 40, autobuz_id: 'vBus', casa: 'Zorile' },
+      { run_date: '2026-09-17', vehicle_id: 'vNav2', factory_route_id: 'r1', km: 40, autobuz_id: 'vBus', casa: 'Zorile' },
+      { run_date: '2026-09-18', vehicle_id: 'vNav2', factory_route_id: 'r1', km: 40, autobuz_id: 'vBus', casa: 'Zorile' },
+    ];
+    const rows = agregaLivrare({
+      curse: [], navete, rute, startReal: new Map(), prag: 50, minZile: 3,
+      soferi: new Map(), case: new Map(), masini: new Map(),
+    });
+    expect(rows).toEqual([]);                           // vNav: 2 zile lucrătoare; vNav2: 40 km/zi
   });
 
   it('la Ungheni livrarea mașinii se adună peste cele două rute ale ei, nu se rupe pe rute', () => {

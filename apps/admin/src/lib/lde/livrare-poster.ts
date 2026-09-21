@@ -36,6 +36,20 @@ export interface CursaLivrare {
 }
 export interface RutaRef { id: string; uzina_id: string; route_number: number; stops_in_order: string | null }
 
+/**
+ * O zi de navetă făcută cu ALTĂ mașină decât autobuzul rutei (`lde_naveta_sofer`, migr. 384).
+ * Ion, 21.09: «include in analitica si asta livrare». Ruta 25 «Vatici» are livrare 0 pe
+ * autobuz — el doarme la Vatici — dar omul e dus acolo cu 073BRAO, ~210 km/zi.
+ */
+export interface NavetaRand {
+  run_date: string;
+  vehicle_id: string;              // mașina care FACE naveta
+  factory_route_id: string;        // ruta servită
+  km: number;
+  autobuz_id: string | null;       // mașina rutei, lângă care a așteptat
+  casa: string | null;             // satul de unde pleacă naveta
+}
+
 /** Uzinele validate cu Ion rută cu rută (18–19.09); celelalte intră doar la cerere (`?uzine=all`). */
 export const UZINE_IMPLICITE = ['SEBN_ORHEI', 'SEBN_STRASENI'];
 export const MIN_ZILE_RUTA = 3;   // sub atâtea zile cu curse media nu spune nimic
@@ -62,6 +76,7 @@ export function agregaLivrare(input: {
   case: Map<string, string>;                       // vehicle_id → sat
   masini?: Map<string, string>;                    // vehicle_id → «552BRAO · Sprinter 312»
   leiKm?: Map<string, number>;                     // vehicle_id → lei/km după tipul mașinii
+  navete?: NavetaRand[];                           // naveta făcută cu altă mașină (migr. 384)
   prag?: number;
   minZile?: number;
 }): LivrareRow[] {
@@ -85,6 +100,15 @@ export function agregaLivrare(input: {
     m.set(c.factory_route_id, (m.get(c.factory_route_id) ?? 0) + 1);
     ruteleMasinii.set(c.vehicle_id, m);
   }
+  // «9 Mănoilești – Hîrcești + 17 Sineștii Vechi»: numărul rutei, satul din denumire și,
+  // unde diferă, satul de start dedus din GPS (migr. 380)
+  const etichetaRutelor = (rids: string[]) => rids.slice(0, 2).map((rid) => {
+    const r = ruta.get(rid)!;
+    const sat = primulSat(r.stops_in_order);
+    const real = input.startReal.get(rid);
+    return `${r.route_number} ${sat}` + (real && real.toLowerCase() !== sat.toLowerCase() ? ` – ${real}` : '');
+  }).join(' + ') + (rids.length > 2 ? ` +${rids.length - 2}` : '');
+
   const out: LivrareRow[] = [];
   for (const [vid, zile] of peMasinaZi) {
     const n = zile.size;
@@ -97,14 +121,7 @@ export function agregaLivrare(input: {
     const rids = [...(ruteleMasinii.get(vid) ?? new Map()).entries()]
       .sort((a, b) => b[1] - a[1]).map(([rid]) => rid);
     const principala = ruta.get(rids[0])!;
-    // «9 Mănoilești – Hîrcești + 17 Sineștii Vechi»: numărul rutei, satul din denumire și,
-    // unde diferă, satul de start dedus din GPS (migr. 380)
-    const eticheta = rids.slice(0, 2).map((rid) => {
-      const r = ruta.get(rid)!;
-      const sat = primulSat(r.stops_in_order);
-      const real = input.startReal.get(rid);
-      return `${r.route_number} ${sat}` + (real && real.toLowerCase() !== sat.toLowerCase() ? ` – ${real}` : '');
-    }).join(' + ') + (rids.length > 2 ? ` +${rids.length - 2}` : '');
+    const eticheta = etichetaRutelor(rids);
     const nume = rids.map((rid) => input.soferi.get(`${vid}|${rid}`)).find((x) => x) ?? '—';
     const casa = input.case.get(vid);
     out.push({
@@ -116,6 +133,43 @@ export function agregaLivrare(input: {
       total_zi: Math.round((plin + liv + gol + serv) / n),
       plin_zi: Math.round(plin / n), gol_ruta_zi: Math.round(gol / n),
       naveta_zi: Math.round(navetaZi), naveta_total: Math.round(liv),
+    });
+  }
+
+  // ── naveta făcută cu ALTĂ mașină (migr. 384) ──
+  // Mașina asta nu face rută: plin 0, «Rută, km» gol, tot kilometrajul e livrare. Linia ei
+  // poartă eticheta rutei pe care o servește, cu «· navetă», și numele șoferului
+  // autobuzului — omul pe care îl duce. Lei/km se iau după TIPUL ei (Sprinter = microbuz),
+  // nu după al autobuzului: km-ii i-a făcut ea.
+  const peNaveta = new Map<string, { zile: Map<string, number>; rute: Map<string, number>; autobuze: Map<string, number>; casa: string | null }>();
+  for (const n of input.navete ?? []) {
+    if (!eZiLucratoare(n.run_date) || !ruta.has(n.factory_route_id)) continue;
+    const km = Number(n.km) || 0;
+    if (km <= 0) continue;
+    const v = peNaveta.get(n.vehicle_id) ?? { zile: new Map(), rute: new Map(), autobuze: new Map(), casa: null };
+    v.zile.set(n.run_date, (v.zile.get(n.run_date) ?? 0) + km);
+    v.rute.set(n.factory_route_id, (v.rute.get(n.factory_route_id) ?? 0) + km);
+    if (n.autobuz_id) v.autobuze.set(n.autobuz_id, (v.autobuze.get(n.autobuz_id) ?? 0) + 1);
+    v.casa = v.casa ?? n.casa;
+    peNaveta.set(n.vehicle_id, v);
+  }
+  for (const [vid, v] of peNaveta) {
+    const zile = v.zile.size;
+    const km = [...v.zile.values()].reduce((s, x) => s + x, 0);
+    if (km / zile < prag || zile < (input.minZile ?? MIN_ZILE_RUTA)) continue;
+    const rids = [...v.rute.entries()].sort((a, b) => b[1] - a[1]).map(([rid]) => rid);
+    const autobuz = [...v.autobuze.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+    const nume = (autobuz ? rids.map((rid) => input.soferi.get(`${autobuz}|${rid}`)).find((x) => x) : null) ?? '—';
+    const casa = v.casa ?? input.case.get(vid);
+    out.push({
+      masina: input.masini?.get(vid) ?? '—',
+      lei_km: input.leiKm?.get(vid) ?? LEI_PE_KM,
+      uzina: ruta.get(rids[0])!.uzina_id,
+      ruta: `${etichetaRutelor(rids)} · navetă`,
+      sofer: casa ? `${nume} (${casa})` : nume,
+      zile, km_tur: null,
+      total_zi: Math.round(km / zile), plin_zi: 0, gol_ruta_zi: 0,
+      naveta_zi: Math.round(km / zile), naveta_total: Math.round(km),
     });
   }
   return out.sort((a, b) => b.naveta_total - a.naveta_total);
@@ -232,7 +286,7 @@ async function citesteTot<T>(q: () => { range: (de: number, la: number) => Promi
 
 export async function incarcaLivrare(from: string, to: string, prag = PRAG_LIVRARE_KM_ZI, uzine: string[] | 'all' = UZINE_IMPLICITE): Promise<{ rows: LivrareRow[]; brambura: BramburaRow[] }> {
   const sb = getSupabase();
-  const [curse, rute, etaloane, atribuiri, nopti, soferiRows, vehicule, norme, tipuri] = await Promise.all([
+  const [curse, rute, etaloane, atribuiri, nopti, soferiRows, vehicule, norme, tipuri, navete] = await Promise.all([
     citesteTot<CursaLivrare>(() => sb.from('lde_route_run')
       .select('run_date,factory_route_id,vehicle_id,sens,shift_number,km_real,km_livrare,km_brambura,km_service,km_gol_ruta')
       .gte('run_date', from).lte('run_date', to).not('km_real', 'is', null)),
@@ -247,6 +301,9 @@ export async function incarcaLivrare(from: string, to: string, prag = PRAG_LIVRA
     citesteTot<{ id: string; plate_number: string }>(() => sb.from('vehicles').select('id,plate_number')),
     citesteTot<{ vehicle_id: string; vehicle_type_id: string | null }>(() => sb.from('lde_vehicle_norms').select('vehicle_id,vehicle_type_id')),
     citesteTot<{ id: string; display_name: string; category: string | null }>(() => sb.from('lde_vehicle_types').select('id,display_name,category')),
+    // naveta făcută cu altă mașină (migr. 384) — mașini care nu fac rută, deci n-au curse
+    citesteTot<NavetaRand>(() => sb.from('lde_naveta_sofer')
+      .select('run_date,vehicle_id,factory_route_id,km,autobuz_id,casa').gte('run_date', from).lte('run_date', to)),
   ]);
   const numeSofer = new Map(soferiRows.map((d) => [d.id, d.full_name.split(' ')[0]]));
   // «552BRAO · Sprinter 312» — tipul din normele de consum (lde_vehicle_types), unde există
@@ -275,7 +332,7 @@ export async function incarcaLivrare(from: string, to: string, prag = PRAG_LIVRA
   for (const [k, v] of caseMap) if (/slobozia doamnei|nordic|bucuria|centru|mitoc/i.test(v)) caseMap.set(k, 'Orhei');
   const ruteAlese = uzine === 'all' ? rute : rute.filter((r) => uzine.includes(r.uzina_id));
   return {
-    rows: agregaLivrare({ curse, rute: ruteAlese, startReal, soferi: soferiMap, case: caseMap, masini: masiniMap, leiKm: leiKmMap, prag }),
+    rows: agregaLivrare({ curse, rute: ruteAlese, startReal, soferi: soferiMap, case: caseMap, masini: masiniMap, leiKm: leiKmMap, navete, prag }),
     brambura: await cuDescriere(agregaBrambura({ curse, rute: ruteAlese, masini: masiniMap, soferZi }), ruteAlese, atribuiri, caseMap, curse),
   };
 }

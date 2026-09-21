@@ -113,7 +113,10 @@ export async function generateLivrareImage(rows: LivrareRow[], opts: { titlu: st
   svg.push(`<image href="data:image/png;base64,${logoBase64()}" x="${(CANVAS_W - logoW) / 2}" y="${PAD}" width="${logoW}" height="${logoH}"/>`);
   svg.push(textPath(fB, `${opts.titlu} · ${opts.perioada}`, CANVAS_W / 2, LOGO_AREA + 16 * S, 17 * S, MAROON_DK, 'middle'));
   svg.push(textPath(fR, `Livrare (подача) = km-ii șoferului în afara rutei (casă – satul de start), fără service și fără drumuri neobișnuite · Economie = livrare × ${LEI_PE_KM_AUTOBUZ.toFixed(2).replace('.', ',')} lei/km la autobuz, ${LEI_PE_KM_MICROBUZ.toFixed(2).replace('.', ',')} la microbuz · ${opts.zileLucratoare} zile lucrătoare`, CANVAS_W / 2, LOGO_AREA + TITLE_H + 10 * S, 10.5 * S, GREY, 'middle'));
-  svg.push(textPath(fR, 'Rută = de la satul de start până la uzină · Goi pe rută = întoarcerile goale între sat și poartă, impuse de turele uzinei — nu se optimizează', CANVAS_W / 2, LOGO_AREA + TITLE_H + SUB_H + 6 * S, 9.5 * S, GREY, 'middle'));
+  // subtitlul nu se poate lăți: canvasul e cât tabelul. Se taie la lățimea lui, nu se revarsă.
+  const sub2 = 'Rută = de la satul de start până la uzină · Goi pe rută = întoarcerile goale între sat și poartă, impuse de turele uzinei — nu se optimizează'
+    + ' · «navetă» = mașina care duce omul la autobuz, nu face rută';
+  svg.push(textPath(fR, truncText(fR, sub2, 9.5 * S, CANVAS_W - 2 * PAD), CANVAS_W / 2, LOGO_AREA + TITLE_H + SUB_H + 6 * S, 9.5 * S, GREY, 'middle'));
 
   const top = headerH;
   const x0 = PAD;

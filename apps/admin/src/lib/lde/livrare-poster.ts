@@ -43,8 +43,16 @@ const primulSat = (s: string | null) => (s || '').replace(/->/g, '→').split('�
 const eZiLucratoare = (iso: string) => { const d = new Date(`${iso}T12:00:00Z`).getUTCDay(); return d >= 1 && d <= 5; };
 
 /**
- * Agregarea pură: o linie pe (uzină, rută), media pe zilele lucrătoare cu curse.
- * `sofer` = numele cel mai des atribuit mașinii pe ruta aia + satul unde doarme mașina.
+ * Agregarea pură: o linie pe MAȘINĂ, media pe zilele lucrătoare cu curse.
+ *
+ * Ion, 19.09: «pune acolo doar mașinile cu peste 50 km pe zi livrare» — mașinile, nu
+ * rutele. La Orhei era totuna: o mașină are aceeași rută în toate cele trei ture, deci
+ * linia rutei ERA linia mașinii. La Ungheni nu: acolo mașina are o rută în schimbul 1 și
+ * alta în schimbul 2 (032BRAT: r9 dimineața, r17 după-amiaza), iar livrarea ei se rupea în
+ * două rânduri, fiecare sub prag. 732SHS face 118 km/zi și nu apărea deloc, fiindcă pe
+ * rute e 66 + 52. Omul face naveta o dată pe zi, nu o dată pe rută — se numără pe mașină.
+ *
+ * `sofer` = numele cel mai des atribuit mașinii + satul unde doarme mașina.
  */
 export function agregaLivrare(input: {
   curse: CursaLivrare[];
@@ -60,12 +68,12 @@ export function agregaLivrare(input: {
   const prag = input.prag ?? PRAG_LIVRARE_KM_ZI;
   const ruta = new Map(input.rute.map((r) => [r.id, r]));
   type Zi = { plin: number; liv: number; gol: number; serv: number; plinTur: number; tururi: number };
-  const peRutaZi = new Map<string, Map<string, Zi>>();   // rid → date → sume
-  const masiniRutei = new Map<string, Map<string, number>>();
+  const peMasinaZi = new Map<string, Map<string, Zi>>();          // vehicle_id → date → sume
+  const ruteleMasinii = new Map<string, Map<string, number>>();   // vehicle_id → rid → câte curse
   for (const c of input.curse) {
     if (c.km_real == null || !eZiLucratoare(c.run_date) || !ruta.has(c.factory_route_id)) continue;
-    if (!peRutaZi.has(c.factory_route_id)) peRutaZi.set(c.factory_route_id, new Map());
-    const zile = peRutaZi.get(c.factory_route_id)!;
+    if (!peMasinaZi.has(c.vehicle_id)) peMasinaZi.set(c.vehicle_id, new Map());
+    const zile = peMasinaZi.get(c.vehicle_id)!;
     const z = zile.get(c.run_date) ?? { plin: 0, liv: 0, gol: 0, serv: 0, plinTur: 0, tururi: 0 };
     z.plin += Number(c.km_real) || 0;
     z.liv += Math.max(0, (Number(c.km_livrare) || 0) - (Number(c.km_brambura) || 0));
@@ -73,30 +81,37 @@ export function agregaLivrare(input: {
     z.serv += Number(c.km_service) || 0;
     if (c.sens === 'tur' && Number(c.km_real) > 0) { z.plinTur += Number(c.km_real); z.tururi++; }
     zile.set(c.run_date, z);
-    const m = masiniRutei.get(c.factory_route_id) ?? new Map<string, number>();
-    m.set(c.vehicle_id, (m.get(c.vehicle_id) ?? 0) + 1);
-    masiniRutei.set(c.factory_route_id, m);
+    const m = ruteleMasinii.get(c.vehicle_id) ?? new Map<string, number>();
+    m.set(c.factory_route_id, (m.get(c.factory_route_id) ?? 0) + 1);
+    ruteleMasinii.set(c.vehicle_id, m);
   }
   const out: LivrareRow[] = [];
-  for (const [rid, zile] of peRutaZi) {
-    const r = ruta.get(rid)!;
+  for (const [vid, zile] of peMasinaZi) {
     const n = zile.size;
     let plin = 0, liv = 0, gol = 0, serv = 0, plinTur = 0, tururi = 0;
     for (const z of zile.values()) { plin += z.plin; liv += z.liv; gol += z.gol; serv += z.serv; plinTur += z.plinTur; tururi += z.tururi; }
     const navetaZi = liv / n;
-    // fără drum plin nu e rută (mașină fără curse, doar drumuri în afară); sub 3 zile nu e medie
+    // fără drum plin nu e mașină pe rută (doar drumuri în afară); sub 3 zile nu e medie
     if (navetaZi < prag || plin <= 0 || n < (input.minZile ?? MIN_ZILE_RUTA)) continue;
-    const masini = [...(masiniRutei.get(rid) ?? new Map()).entries()].sort((a, b) => b[1] - a[1]).map(([v]) => v);
-    const sofer = masini.map((v) => {
-      const nume = input.soferi.get(`${v}|${rid}`) ?? '—';
-      const casa = input.case.get(v);
-      return casa ? `${nume} (${casa})` : nume;
-    }).filter((x, i, a) => a.indexOf(x) === i).slice(0, 2).join(', ');
+    // rutele mașinii, cea mai des făcută prima; uzina = a rutei principale
+    const rids = [...(ruteleMasinii.get(vid) ?? new Map()).entries()]
+      .sort((a, b) => b[1] - a[1]).map(([rid]) => rid);
+    const principala = ruta.get(rids[0])!;
+    // «9 Mănoilești – Hîrcești + 17 Sineștii Vechi»: numărul rutei, satul din denumire și,
+    // unde diferă, satul de start dedus din GPS (migr. 380)
+    const eticheta = rids.slice(0, 2).map((rid) => {
+      const r = ruta.get(rid)!;
+      const sat = primulSat(r.stops_in_order);
+      const real = input.startReal.get(rid);
+      return `${r.route_number} ${sat}` + (real && real.toLowerCase() !== sat.toLowerCase() ? ` – ${real}` : '');
+    }).join(' + ') + (rids.length > 2 ? ` +${rids.length - 2}` : '');
+    const nume = rids.map((rid) => input.soferi.get(`${vid}|${rid}`)).find((x) => x) ?? '—';
+    const casa = input.case.get(vid);
     out.push({
-      masina: input.masini?.get(masini[0]) ?? '—',
-      lei_km: input.leiKm?.get(masini[0]) ?? LEI_PE_KM,
-      uzina: r.uzina_id, ruta: r.route_number, start: primulSat(r.stops_in_order),
-      start_real: input.startReal.get(rid) ?? null, sofer, zile: n,
+      masina: input.masini?.get(vid) ?? '—',
+      lei_km: input.leiKm?.get(vid) ?? LEI_PE_KM,
+      uzina: principala.uzina_id, ruta: eticheta,
+      sofer: casa ? `${nume} (${casa})` : nume, zile: n,
       km_tur: tururi ? Math.round(plinTur / tururi) : null,
       total_zi: Math.round((plin + liv + gol + serv) / n),
       plin_zi: Math.round(plin / n), gol_ruta_zi: Math.round(gol / n),

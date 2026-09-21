@@ -661,7 +661,12 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
       // Doar când satul-nume nu e pe hartă se mai cade pe tăietura la oprire.
       const ocolita = !taiat && satA != null;
       if (!taiat && !satA) taiat = taieLivrarea(plin, capeteReale(r.stops ?? [], r.pts, plin.from, plin.to, scurteInSat), r.calc);
-      if (ocolita) taiat = { livrare: plin.km, plin: 0, from: plin.from, to: plin.from, sursa: 'ocolit' };
+      // Drumul nu e al rutei scrise — dar NU e nici naveta șoferului. Până la 19.09 cursa
+      // ocolită scria `livrare: plin.km`: tot drumul, pe seama omului. La Ungheni asta
+      // însemna 7.367 km „livrare" cu 0 km plini în 19 zile — 42% din toată livrarea
+      // declarată acolo. O cursă despre care sistemul spune «nu știu a cui e» nu poate
+      // acuza pe nimeni de km goi: km-ii rămân în `necunoscut`, unde le e locul.
+      if (ocolita) taiat = { livrare: 0, plin: 0, from: plin.from, to: plin.from, sursa: 'ocolit' };
       const cut = taiat ? { from: taiat.from, to: taiat.to } : { from: plin.from, to: plin.to };
       // Km-ii ȘOFERULUI = tot ce e în afara rutei, și pe drumul plin, și pe cel gol
       // (dincolo de satul de start). Ion, 19.09: naveta e livrare; brambura e «ceva ieșit
@@ -671,7 +676,9 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
       // agregatorul, ca EXCES față de zilele obișnuite ale aceleiași mașini.
       const golImpartit = gol ? imparteLaSat(gol, r.pts, r.calc, satulRutei(a.factory_route_id, gol, sh)) : null;
       const kmGolRuta = golImpartit?.inauntru ?? 0;
-      const kmLivrare = (taiat ? taiat.livrare : 0) + (gol ? Math.max(0, gol.km - kmGolRuta) : 0);
+      // pe o cursă ocolită nici drumul gol nu se poate pune pe seama omului: nu știm față
+      // de CE rută ar fi gol, deci nici cât din el era firesc
+      const kmLivrare = ocolita ? 0 : (taiat ? taiat.livrare : 0) + (gol ? Math.max(0, gol.km - kmGolRuta) : 0);
       const capete = capeteReale(r.stops ?? [], r.pts, cut.from, cut.to, scurteInSat);
       const sateCursa = ocolita ? [] : sateDeservite(r.pts, ctx.placesIdx, cut.from, cut.to, PRAG_SAT_KM);
       const ale = ctx.sateRuta.get(a.factory_route_id) ?? [];
@@ -722,7 +729,13 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
         })(),
         opriri_gol: gol ? opririScurte(r.pts, gol.from, gol.to, { exclude: deSarit(gol), inSat }) : null,
         prima_statie: capete.prima, ultima_statie: capete.ultima,
-        stare: 'plin', ambiguu,
+        // Cursa ocolită nu e „plină": ceasul spune că erau oameni în mașină, dar nu se
+        // știe A CUI e drumul. Scrisă `plin`, ea intra în etalon cu `sate_atinse = []` și
+        // UMFLA NUMITORUL: la pragul de 60% fiecare sat adevărat cădea sub el, iar ruta
+        // rămânea fără etalon — cu etalonul gol nu se mai putea recunoaște, deci a doua zi
+        // ieșea iar ocolită. Cercul care ținea Ungheniul blocat (r9: 27 de observații,
+        // zero sate). Agregatorul sare peste `necunoscut`, deci aici se rupe.
+        stare: ocolita ? 'necunoscut' : 'plin', ambiguu: ocolita ? true : ambiguu,
         motiv: (ocolita ? 'ruta_neatinsa' : null) ?? motivGrafic
           ?? (ambiguu ? (nepotrivit ? 'sate_nepotrivite' : 'doua_rute_la_fel')
             : (nepotrivit ? 'sate_nepotrivite' : null)),

@@ -33,11 +33,11 @@ export interface BramburaRow {
 }
 
 export interface LivrareRow {
-  masina: string;         // «552BRAO · Sprinter 312» — mașina principală a rutei
+  masina: string;         // «552BRAO · Sprinter 312»
   uzina: string;
-  ruta: number;
-  start: string;
-  start_real: string | null;
+  // Eticheta rutelor MAȘINII, gata făcută: «9 Mănoilești – Hîrcești» sau, la uzinele unde
+  // o mașină are altă rută în fiecare tură (Ungheni), «9 Mănoilești + 17 Sineștii Vechi».
+  ruta: string;
   sofer: string;          // «Popescu (Chiperceni)»
   zile: number;
   km_tur: number | null;
@@ -134,7 +134,7 @@ export async function generateLivrareImage(rows: LivrareRow[], opts: { titlu: st
     const lei = row.naveta_total * (row.lei_km ?? LEI_PE_KM);
     sumNaveta += row.naveta_total; sumLei += lei; sumPlin += row.plin_zi; sumTotal += row.total_zi;
     const uz = (UZINA_SCURT[row.uzina] ?? row.uzina) + ' ';
-    const numeRuta = `${uz}${row.ruta} ${row.start}` + (row.start_real && row.start_real.toLowerCase() !== row.start.toLowerCase() ? ` – ${row.start_real}` : '');
+    const numeRuta = `${uz}${row.ruta}`;
     const mare = row.naveta_zi >= 50;
     const cells: Record<string, { text: string; fill: string; bold?: boolean }> = {
       masina: { text: truncText(fR, row.masina, fsz, COLS[0].w * S - 10 * S), fill: '#444' },

@@ -28,14 +28,37 @@ describe('agregaLivrare', () => {
     expect(rows).toHaveLength(1);
     const r = rows[0];
     expect(r.masina).toBe('552BRAO · Sprinter 312');
-    expect(r.ruta).toBe(1);
-    expect(r.start).toBe('Vatici');
+    expect(r.ruta).toBe('1 Vatici');
     expect(r.sofer).toBe('Popescu (Chiperceni)');
     expect(r.zile).toBe(2);
     expect(r.naveta_total).toBe(170);        // 60 + 50 + 60
     expect(r.naveta_zi).toBe(85);
     expect(r.gol_ruta_zi).toBe(15);
     expect(r.km_tur).toBe(30);
+  });
+
+  it('la Ungheni livrarea mașinii se adună peste cele două rute ale ei, nu se rupe pe rute', () => {
+    // 032BRAT: r9 în schimbul 1, r17 în schimbul 2 — 30 km/zi pe fiecare, 60 pe mașină.
+    // Pe rute ambele erau sub pragul de 50 și mașina lipsea cu totul de pe poster.
+    const ung = [
+      { id: 'u9', uzina_id: 'LEAR_UNGHENI', route_number: 9, stops_in_order: 'Mănoilești → Vulpești → Rezina' },
+      { id: 'u17', uzina_id: 'LEAR_UNGHENI', route_number: 17, stops_in_order: 'Sineștii Vechi → Bumbăta → LEAR' },
+    ];
+    const zi = (d: string) => [
+      cursa({ run_date: d, factory_route_id: 'u9', vehicle_id: 'vU', shift_number: 1, km_real: 40, km_livrare: 30 }),
+      cursa({ run_date: d, factory_route_id: 'u17', vehicle_id: 'vU', shift_number: 2, km_real: 40, km_livrare: 30 }),
+    ];
+    const rows = agregaLivrare({
+      curse: [...zi('2026-09-07'), ...zi('2026-09-08'), ...zi('2026-09-09')],
+      rute: ung, startReal: new Map([['u9', 'Hîrcești']]), prag: 50,
+      soferi: new Map([['vU|u9', 'Guzun']]), case: new Map([['vU', 'Mircești']]),
+      masini: new Map([['vU', '032BRAT · Sprinter']]),
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].naveta_zi).toBe(60);                 // 30 + 30, nu două rânduri de 30
+    expect(rows[0].naveta_total).toBe(180);
+    expect(rows[0].ruta).toBe('9 Mănoilești – Hîrcești + 17 Sineștii Vechi');
+    expect(rows[0].sofer).toBe('Guzun (Mircești)');
   });
 
   it('fără curse peste prag → poster gol; la fel fără drum plin sau sub 3 zile', () => {
@@ -100,7 +123,7 @@ describe('descrieZiua', () => {
 describe('textulEconomiei', () => {
   it('spune km-ii, leii, luna și cine face cei mai mulți, în română', () => {
     const t = textulEconomiei([{
-      masina: '552BRAO · Sprinter 312', uzina: 'SEBN_STRASENI', ruta: 1, start: 'Vatici', start_real: null,
+      masina: '552BRAO · Sprinter 312', uzina: 'SEBN_STRASENI', ruta: '1 Vatici',
       sofer: 'Popescu (Chiperceni)', zile: 10, km_tur: 31, total_zi: 390, plin_zi: 122, gol_ruta_zi: 57, naveta_zi: 191, naveta_total: 1906, lei_km: 5,
     }], '2026-09-07', '2026-09-18');
     expect(t).toContain('SEBN Strășeni · 07.09–18.09');

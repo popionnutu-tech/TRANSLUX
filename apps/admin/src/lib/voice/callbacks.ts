@@ -1,5 +1,4 @@
 import { getSupabase } from '../supabase';
-import { escapeHtml } from '../telegram-notify';
 
 export interface CallbackInput {
   conversation_id: string | null;
@@ -35,17 +34,4 @@ export async function createCallbackRequest(input: CallbackInput): Promise<void>
   // Cursa rară select→insert concurent: unique-ul respinge dublul (23505) —
   // rândul există deja, obiectivul e atins, nu aruncăm eroare spre agent.
   if (error && error.code !== '23505') throw new Error(`voice_callback_requests insert failed: ${error.message}`);
-}
-
-export function formatCallbackAlert(input: CallbackInput, name: string | null): string {
-  // Динамические значения приходят из LLM/абонента → экранируем для parse_mode HTML.
-  // Titlul spunea «Cerere de apel înapoi» și suna, și pentru Ion, ca o sarcină de
-  // sunat pe cineva. Nu e: nimeni nu contactează pe nimeni (Ion, 16.09). E o
-  // evidență a ce a cerut omul și n-are alt tool — angajare, propunere, salariu.
-  return [
-    '📋 <b>Solicitare notată (agent vocal)</b>',
-    `Telefon: ${input.caller_phone ? escapeHtml(input.caller_phone) : 'necunoscut'}`,
-    name ? `Nume: ${escapeHtml(name)}` : null,
-    `Motiv: ${input.reason ? escapeHtml(input.reason) : '—'}`,
-  ].filter(Boolean).join('\n');
 }

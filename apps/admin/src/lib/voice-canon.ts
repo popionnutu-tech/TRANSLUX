@@ -15,7 +15,6 @@
 // активный алиас вернёт его следующим прогоном.
 import { getSupabase } from '@/lib/supabase';
 import { key } from '@/lib/voice-locality';
-import { alertAdmins, escapeHtml } from '@/lib/telegram-notify';
 
 const LIMIT = 50;
 
@@ -97,11 +96,9 @@ export async function syncCanonKeywords(): Promise<void> {
       await supabase.from('voice_controller_incidents').insert({
         kind: 'canon_keywords', details: { added, evicted }, healed: true,
       });
-      // Журнал без читателя = молчание (ревью 26.08): изменение словаря — Иону.
-      await alertAdmins(
-        `🎓 <b>ASR-словарь</b>: добавлено ${added.map((w) => escapeHtml(w)).join(', ')}` +
-        (evicted.length ? `; вытеснено ${evicted.map((w) => escapeHtml(w)).join(', ')}` : ''),
-      );
+      // Telegram Иону снят 21.09 («nu am nevoie toate aceste sa vina la mine»):
+      // словарь правит машина, водителям это не нужно, и что добавлено/вытеснено
+      // читается из инцидента canon_keywords — как уже сделано для canon_full.
     }
     if (blocked.length > 0) {
       // Только журнал, раз в сутки. Telegram-алерт «ASR-словарь полон» снят
@@ -125,7 +122,8 @@ export async function syncCanonKeywords(): Promise<void> {
  * совпадает с ключом имени ЧУЖОГО села, перенаправлял бы всех будущих звонящих —
  * алиасы в резолвере стоят ДО точного совпадения (voice-locality.ts:146-148).
  * Learner такое не создаёт (probe), человек может промахнуться пальцем.
- * Деактивация + инцидент; цикл controller-а закрывает окно за ≤30 минут.
+ * Деактивация + инцидент (alias_shadow); цикл controller-а закрывает окно за
+ * ≤30 минут. Чинит код, не человек, поэтому Telegram отсюда снят 21.09.
  */
 export async function auditAliasShadow(): Promise<void> {
   try {
@@ -150,16 +148,14 @@ export async function auditAliasShadow(): Promise<void> {
           details: { heard: a.heard, canonical_ro: a.canonical_ro, collides_with: hit },
           healed: true,
         });
-        await alertAdmins(
-          `⚠️ <b>Алиас погашен</b>: «${escapeHtml(a.heard)}» → ${escapeHtml(a.canonical_ro)} накрывал село ${escapeHtml(hit)} — все звонящие туда уезжали бы в ${escapeHtml(a.canonical_ro)}.`,
-        );
       }
     }
 
     // Коллизия алиас↔алиас: два активных heard с одним key() — карта резолвера
     // недетерминированно перетирает одну запись другой (реальный случай: «Хлина» и
     // «Хлиная» → ключ «хлин»). НЕ гасим сами — оба могут быть человеческими, выбор
-    // за Ионом. Сообщаем раз в сутки.
+    // за Ионом. Строка раз в сутки в voice_controller_incidents (kind=
+    // alias_key_collision, healed=false): Telegram снят 21.09, факт остаётся.
     const byAliasKey = new Map<string, typeof aliases>();
     for (const a of aliases) {
       const k = key(a.heard);
@@ -175,7 +171,6 @@ export async function auditAliasShadow(): Promise<void> {
         await supabase.from('voice_controller_incidents').insert({
           kind: 'alias_key_collision', details: { collisions: detail }, healed: false,
         });
-        await alertAdmins(`⚠️ <b>Коллизия алиасов</b> (один ключ, разные сёла): ${escapeHtml(detail.join('; '))}. Резолвер берёт случайный — почини в voice_asr_aliases.`);
       }
     }
   } catch { /* аудит не имеет права ломать вызывающего */ }

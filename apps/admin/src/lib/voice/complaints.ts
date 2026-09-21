@@ -1,6 +1,5 @@
 import { getSupabase } from '../supabase';
-import { escapeHtml } from '../telegram-notify';
-import { FALLBACK_CODE, CULPRIT_RO, complaintTypeLabel, type Culprit } from './complaint-types';
+import { FALLBACK_CODE, complaintTypeLabel, type Culprit } from './complaint-types';
 
 // Reclamațiile agentului vocal. Ion, 01.09: «în cazul reclamațiilor noi trebuie
 // clar să identificăm cine este vinovatul, dacă nu identificăm șoferul — nu e
@@ -202,83 +201,6 @@ export async function saveComplaint(input: ComplaintInput): Promise<SaveResult> 
   return { shouldAlert: final, alreadyIdentified: false, corrected: false, typeCorrected: false, previous_type: null, wasAlerted: false, wasGroupNotified: false, previous_driver: null, complaint: input.complaint, complaint_type: input.complaint_type, row: dosarDinInput(input) };
 }
 
-/** Tipul, pentru alertă: numele lui și cine răspunde de lucrul reclamat. */
-export interface TypeLabel {
-  name_ro: string;
-  culprit: Culprit;
-}
-
-/**
- * Cum se numește rândul cu omul de la volan.
- *
- * «Vinovat» e un verdict. La «starea mașinii», «info de pe site» și «rezervare
- * nerespectată» răspunde compania, parcul sau site-ul — șoferul e martor, nu
- * răspunzător (Ion, 02.09: «10 nu e vina soferilor», «11 deja tot nu-i vina
- * lor»). Fără schimbarea asta, alerta ar spune pe primul rând că răspunde
- * parcul auto și pe al doilea ar numi un om drept vinovat.
- * Tip necunoscut → rămâne «Vinovat», ca până acum.
- */
-export function etichetaOmului(culprit: Culprit | null | undefined): string {
-  return !culprit || culprit === 'SOFER' ? 'Vinovat' : 'La volan era';
-}
-
-export function formatComplaintAlert(
-  input: ComplaintInput,
-  corrected = false,
-  tip: TypeLabel | null = null,
-  typeCorrected = false,
-): string {
-  // Linia «Vinovat» e motivul întregii funcții: cine citește alerta trebuie să
-  // vadă din prima dacă are pe cine cerceta sau nu.
-  const cursa = [
-    input.route ? escapeHtml(input.route) : null,
-    input.departure ? escapeHtml(input.departure) : null,
-    input.trip_date ? escapeHtml(input.trip_date) : null,
-  ].filter(Boolean).join(' · ');
-  const TEMEI: Record<Evidence, string> = {
-    plate: 'numărul mașinii, dat de client',
-    name: 'numele șoferului, dat de client',
-    trip_only: 'DOAR cursa (rută + zi) — clientul nu a dat nici mașina, nici numele',
-  };
-  const vinovat = input.identified
-    ? [input.driver_name ? escapeHtml(input.driver_name) : 'șofer fără nume', input.plate ? escapeHtml(input.plate) : null]
-      .filter(Boolean).join(' · ')
-    : 'NEIDENTIFICAT — clientul nu a putut da mașina sau șoferul';
-  return [
-    corrected
-      // Al doilea mesaj pe aceeași reclamație trebuie să se distingă de primul,
-      // altfel cititorul nu știe care vinovat e cel valabil.
-      ? '⚠️ <b>Reclamație (agent vocal) — VINOVAT CORECTAT</b>'
-      // Tipul schimbat mută răspunderea de la un om la parc, la site sau la
-      // companie. Fără titlu propriu, al doilea mesaj ar arăta ca o repetare.
-      : typeCorrected
-        ? '⚠️ <b>Reclamație (agent vocal) — TIP CORECTAT</b>'
-        : '⚠️ <b>Reclamație (agent vocal)</b>',
-    // Numele e obligatoriu din 07.09 (migr. 324); lipsa lui e o abatere a
-    // agentului și trebuie să se vadă la birou.
-    `De la: ${numeCurat(input.caller_name) ? escapeHtml(numeCurat(input.caller_name)!) : '⚠️ nume necules'} · ${input.caller_phone ? escapeHtml(input.caller_phone) : 'necunoscut'}`,
-    // Tipul spune CE s-a reclamat, linia de mai jos CINE era la volan. Sunt două
-    // lucruri diferite: la «starea mașinii» sau «info de pe site» șoferul e doar
-    // omul care conducea, nu cel care răspunde (Ion, 02.09).
-    tip ? `Tip: ${escapeHtml(tip.name_ro)} — răspunde ${CULPRIT_RO[tip.culprit]}` : null,
-    `${etichetaOmului(tip?.culprit)}: ${vinovat}`,
-    cursa ? `Cursa: ${cursa}` : 'Cursa: —',
-    // Cine cercetează trebuie să vadă cât cântărește acuzația, nu doar pe cine cade.
-    input.identified ? `Temei: ${TEMEI[input.evidence]}` : null,
-    // Plafon: textul se ADAUGĂ la fiecare apel al tool-ului (2000 de caractere
-    // fiecare). Peste 4096, Telegram respinge TOT mesajul — adminii n-ar afla
-    // nimic, deși grupa a primit acuzația (security 02.09).
-    `Reclamație: ${input.complaint ? escapeHtml(input.complaint.slice(0, 3000)) : '—'}`,
-  ].filter(Boolean).join('\n');
-}
-
-/**
- * Reclamația acestui apel, pentru raportul de apel din Telegram.
- *
- * Duce mai departe și tipul: raportul de apel numea un om drept «vinovat» fără
- * să știe măcar ce s-a reclamat — la starea mașinii sau la textul de pe site,
- * acuzația cădea pe cine nu răspunde de ele (audit 02.09).
- */
 /** Grupa a primit mesajul: din clipa asta, corectarea are voie să numească omul. */
 export async function markComplaintGroupNotified(conversationId: string): Promise<void> {
   const { error } = await getSupabase()

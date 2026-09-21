@@ -3,8 +3,7 @@ import { validateVoiceApiKey } from '../auth';
 import { unknownLocalityResponse } from '@/lib/voice-locality';
 import { logUnknownLocalities } from '@/lib/voice-unknown';
 import { chisinauTodayIso } from '@/lib/chisinau-time';
-import { alertAdmins } from '@/lib/telegram-notify';
-import { saveComplaint, formatComplaintAlert, markComplaintGroupNotified, type ComplaintInput, type Evidence } from '@/lib/voice/complaints';
+import { saveComplaint, markComplaintGroupNotified, type ComplaintInput, type Evidence } from '@/lib/voice/complaints';
 import { resolveComplaintType, complaintTypeLabel } from '@/lib/voice/complaint-types';
 import { notifyDriversGroup, formatComplaintForGroup } from '@/lib/voice/drivers-group';
 import { normalizePhone } from '@/lib/voice/phone';
@@ -30,8 +29,8 @@ import {
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-// Coada `after()` face până la două apeluri Telegram, iar calea de răspuns are
-// deja identifyTrip. Limita explicită, ca la celelalte rute grele.
+// Coada `after()` face un apel Telegram (grupa șoferilor), iar calea de răspuns
+// are deja identifyTrip. Limita explicită, ca la celelalte rute grele.
 export const maxDuration = 30;
 
 // Aceeași căutare scumpă ca find-past-trip, dar chemată mult mai rar: o
@@ -85,7 +84,7 @@ export async function POST(req: NextRequest) {
   const driverNameRaw = str(body.driver_name, 120);
   const driverName = normName(driverNameRaw);
   // Numele RECLAMANTULUI, cum l-a spus (migr. 324). Nu e cheie de căutare, deci
-  // fără normName; plafon scurt, ajunge în alerta adminilor.
+  // fără normName; plafon scurt, rămâne în dosar.
   const callerName = str(body.caller_name, 80).replace(/\s+/g, ' ').trim();
 
   // Cât cântărește identificarea: un semn adus de client (plăcuța, numele) sau
@@ -138,16 +137,16 @@ export async function POST(req: NextRequest) {
     try {
       const res = await saveComplaint(input);
       alreadyIdentified = alreadyIdentified || res.alreadyIdentified || input.identified;
-      // Alerta poartă textul ÎNTREG al reclamației, nu doar ultima bucată trimisă
-      // de model: mesajul din Telegram e singurul lucru pe care îl citește omul.
-      // Mesajele se compun din DOSAR, nu din apelul curent al tool-ului: un apel
-      // ulterior mai sărac trimitea în grupă «Șofer neidentificat» peste un dosar
-      // care ține în continuare omul (audit 02.09).
+      // Mesajul poartă textul ÎNTREG al reclamației, nu doar ultima bucată trimisă
+      // de model: ce ajunge în grupă e singurul lucru pe care îl citește omul.
+      // Se compune din DOSAR, nu din apelul curent al tool-ului: un apel ulterior
+      // mai sărac trimitea în grupă «Șofer neidentificat» peste un dosar care ține
+      // în continuare omul (audit 02.09).
       const full = { ...input, ...res.row, complaint: res.complaint ?? input.complaint };
       // Telegram DUPĂ răspunsul către agent — nu ține vocea în loc.
       // Eticheta o luăm după tipul RĂMAS în dosar, nu după cel trimis acum: un
       // ALTUL de la al doilea apel nu suprascrie un tip concret, deci altfel
-      // alerta ar spune «Altceva» peste un dosar care zice «Starea mașinii».
+      // mesajul ar spune «Altceva» peste un dosar care zice «Starea mașinii».
       if (res.shouldAlert) after(async () => {
         const eticheta = await complaintTypeLabel(res.complaint_type);
         // Grupa șoferilor primește TOATE reclamațiile (Ion, 11.09: «pune toate
@@ -174,12 +173,12 @@ export async function POST(req: NextRequest) {
         res.corrected && res.wasGroupNotified,
         res.wasGroupNotified ? res.previous_driver : null,
         res.typeCorrected && res.wasGroupNotified);
-        // Aceeași clipă, două audiențe — și în paralel: două taimauturi Telegram
-        // puse în serie s-ar aduna în bugetul invocării.
-        const [, grupOk] = await Promise.all([
-          alertAdmins(formatComplaintAlert(full, res.corrected, eticheta, res.typeCorrected)),
-          notifyDriversGroup(pentruGrupa),
-        ]);
+        // O singură audiență din 21.09: grupa șoferilor. Copia în privatul
+        // adminilor a ieșit (Ion: «nu am nevoie toate aceste să vină la mine»;
+        // regula: «ce trebuie să plece în Mejgorod — pleacă, ce nu — rămâne în
+        // bază»). Dosarul întreg, cu numele și numărul clientului, stă mai
+        // departe în voice_complaints.
+        const grupOk = await notifyDriversGroup(pentruGrupa);
         if (grupOk && conversationId) await markComplaintGroupNotified(conversationId);
       });
       return true;

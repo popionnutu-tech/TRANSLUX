@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyCronSecret } from '@/lib/cron-auth';
 import { getSupabase } from '@/lib/supabase';
-import { alertAdmins } from '@/lib/telegram-notify';
 import {
   decideAlerts,
   marcheazaNetrimis,
-  formatSkipAlert,
+  adaugaInJurnal,
   SKIP_CODES,
   type SkipCode,
   type SkipItem,
+  type SkipLog,
   type SkipState,
   type ZiSkips,
 } from '@/lib/tomberon-skip-alert';
@@ -17,6 +17,12 @@ import {
 // Până acum astea trăiau doar în tomberon-sync.log pe VPS — pe 13.08.2026 patru
 // curse (Trebisăuți/Tabani/Lipcani/Mărcăuți) au stat 9 zile fără f/parcurs
 // fiindcă nimeni nu citea logul.
+//
+// Din 21.09 nu mai pleacă alertă în privatul adminilor (Ion: «nu am nevoie toate
+// aceste să vină la mine»; regula: ce trebuie în Mejgorod — pleacă, ce nu —
+// rămâne în bază). Foile netrimise nu-s treaba șoferilor, deci se scriu în
+// `tomberon:skip_log` și se citesc la cerere — dar se SCRIU, altfel ne-am întors
+// la logul de pe VPS pe care nu-l citea nimeni.
 //
 // NU e un cron Vercel (nu apare în vercel.json): e un webhook apelat de pe VPS
 // la finalul fiecărei rulări a sync-ului, cu același CRON_SECRET ca restul.
@@ -27,6 +33,7 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 
 const STATE_KEY = 'tomberon:skip_state';
+const LOG_KEY = 'tomberon:skip_log';
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_ZILE = 3; // sync-ul trimite azi + mâine
 const MAX_SKIPS = 200; // o zi are ~45 de foi; mai mult înseamnă payload stricat
@@ -69,32 +76,48 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = getSupabase();
+  const acum = new Date();
   const { data: row } = await supabase.from('bot_storage').select('value').eq('key', STATE_KEY).maybeSingle();
   const prev = ((row as { value: SkipState | null } | null)?.value ?? null) as SkipState | null;
 
-  const { alerts, state } = decideAlerts(prev, zile, Date.now());
+  const { alerts, state } = decideAlerts(prev, zile, acum.getTime());
 
-  // Marcajul «alertat» se confirmă doar după ce Telegram a acceptat mesajul;
-  // altfel o livrare eșuată ar face problema să tacă până a doua zi.
-  let trimise = 0;
+  // Jurnalul ÎNAINTE de stare, și marcajul «consemnat» se păstrează doar dacă
+  // scrierea a reușit: altfel o scriere căzută o dată ar marca problema drept
+  // consemnată și faptul s-ar pierde definitiv — exact eșecul din 13.08.
+  let consemnate = 0;
   let stareFinala: SkipState = state;
-  for (const alerta of alerts) {
-    const ok = await alertAdmins(formatSkipAlert(alerta.ziua, alerta.items));
-    if (ok) trimise += alerta.items.length;
-    else stareFinala = marcheazaNetrimis(stareFinala, alerta);
+  if (alerts.length > 0) {
+    const { data: logRow } = await supabase.from('bot_storage').select('value').eq('key', LOG_KEY).maybeSingle();
+    const jurnal = adaugaInJurnal(
+      ((logRow as { value: SkipLog | null } | null)?.value ?? null) as SkipLog | null,
+      alerts,
+      acum,
+    );
+    const { error: logErr } = await supabase.from('bot_storage').upsert(
+      { key: LOG_KEY, value: jurnal, updated_at: acum.toISOString() },
+      { onConflict: 'key' },
+    );
+    if (logErr) {
+      console.error('tomberon-skips: jurnalul nu s-a salvat:', logErr.message);
+      for (const alerta of alerts) stareFinala = marcheazaNetrimis(stareFinala, alerta);
+    } else {
+      consemnate = alerts.reduce((n, a) => n + a.items.length, 0);
+    }
   }
 
   const { error: saveErr } = await supabase.from('bot_storage').upsert(
-    { key: STATE_KEY, value: stareFinala, updated_at: new Date().toISOString() },
+    { key: STATE_KEY, value: stareFinala, updated_at: acum.toISOString() },
     { onConflict: 'key' },
   );
-  // Alerta a plecat deja; dacă starea nu s-a salvat, se repetă peste 10 min — spunem asta pe față.
+  // Jurnalul e deja scris; dacă starea nu s-a salvat, rândul se rescrie peste
+  // 10 min (același (zi, foaie, cod) → o intrare în plus) — spunem asta pe față.
   if (saveErr) console.error('tomberon-skips: salvarea stării a eșuat:', saveErr.message);
 
   return NextResponse.json({
     status: 'ok',
     primite: zile.reduce((n, z) => n + z.skips.length, 0),
-    alertate: trimise,
+    consemnate,
     stare_salvata: !saveErr,
   });
 }

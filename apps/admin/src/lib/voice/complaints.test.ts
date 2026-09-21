@@ -18,7 +18,7 @@ vi.mock('../supabase', () => ({
   }),
 }));
 
-import { saveComplaint, formatComplaintAlert, type ComplaintInput } from './complaints';
+import { saveComplaint, type ComplaintInput } from './complaints';
 
 const base: ComplaintInput = {
   conversation_id: 'conv_1', caller_phone: '+37360000001', complaint: 'a luat 250 lei în loc de 68',
@@ -169,60 +169,5 @@ describe('numele reclamantului (Ion 07.09: obligatoriu la reclamații)', () => {
     await saveComplaint({ ...base, identified: false, final: false, caller_name: null });
     expect(lastPatch).toMatchObject({ caller_name: 'Vasile' });
   });
-
-  it('alerta poartă numele lângă număr', () => {
-    expect(formatComplaintAlert({ ...base, caller_name: 'Vasile Lungu' })).toContain('De la: Vasile Lungu · +37360000001');
-  });
-
-  it('fără nume, alerta spune pe față că nu a fost cules — nu lasă gol', () => {
-    expect(formatComplaintAlert(base)).toContain('De la: ⚠️ nume necules · +37360000001');
-  });
-
-  it('numele trece prin escapeHtml', () => {
-    expect(formatComplaintAlert({ ...base, caller_name: 'Ion & Maria' })).toContain('Ion &amp; Maria');
-  });
 });
 
-describe('formatComplaintAlert', () => {
-  it('arată vinovatul când e identificat', () => {
-    const text = formatComplaintAlert(base);
-    expect(text).toContain('Vinovat: Mihai Popescu · ABC 123');
-    expect(text).toContain('Cursa: Bălți – Criva · 01:30 · 2026-09-01');
-  });
-
-  it('spune deschis când nu există vinovat', () => {
-    const text = formatComplaintAlert({ ...base, identified: false, driver_name: null, plate: null });
-    expect(text).toContain('Vinovat: NEIDENTIFICAT');
-  });
-
-  it('escapează textul venit de la model', () => {
-    const text = formatComplaintAlert({ ...base, complaint: '<b>hack</b>' });
-    expect(text).toContain('&lt;b&gt;hack&lt;/b&gt;');
-    expect(text).not.toContain('<b>hack');
-  });
-  it('tipul și cine răspunde de el apar în alertă', () => {
-    const text = formatComplaintAlert(base, false, { name_ro: 'Starea mașinii (scaune, curățenie)', culprit: 'PARC' });
-    expect(text).toContain('Tip: Starea mașinii (scaune, curățenie) — răspunde parcul auto');
-    // Tipul nu cade pe om: rândul cu șoferul NU-l numește vinovat.
-    expect(text).toContain('La volan era: Mihai Popescu');
-    expect(text).not.toContain('Vinovat: Mihai');
-    // Fără tip rezolvat, alerta rămâne cea de până acum: nicio linie goală în plus.
-    expect(formatComplaintAlert(base)).not.toContain('Tip:');
-    expect(formatComplaintAlert(base)).toContain('Vinovat: Mihai Popescu');
-    // Tip al cărui vinovat E șoferul: cuvântul rămâne «Vinovat».
-    expect(formatComplaintAlert(base, false, { name_ro: 'Fumat la volan', culprit: 'SOFER' }))
-      .toContain('Vinovat: Mihai Popescu');
-  });
-
-  it('titlul alertei corectate se distinge de prima', () => {
-    expect(formatComplaintAlert(base, true)).toContain('VINOVAT CORECTAT');
-    expect(formatComplaintAlert(base)).not.toContain('VINOVAT CORECTAT');
-  });
-  it('temeiul identificării apare în alertă', () => {
-    expect(formatComplaintAlert(base)).toContain('Temei: numărul mașinii');
-    expect(formatComplaintAlert({ ...base, evidence: 'trip_only' }))
-      .toContain('Temei: DOAR cursa');
-    // Fără vinovat nu există temei de arătat.
-    expect(formatComplaintAlert({ ...base, identified: false })).not.toContain('Temei:');
-  });
-});

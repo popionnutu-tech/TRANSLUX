@@ -14,8 +14,7 @@ import { searchTrips } from '@/lib/trips-search';
 import { resolveVoiceDate } from '@/lib/date-spoken';
 import { chisinauTodayIso, chisinauDayOf } from '@/lib/chisinau-time';
 import { insertLesson } from '@/lib/voice-lessons';
-import { alertAdmins, escapeHtml } from '@/lib/telegram-notify';
-import { generateLessonTests, startExams, pollExams, reportExamOutcome, normText, tgCut } from '@/lib/voice-exams';
+import { generateLessonTests, startExams, pollExams, reportExamOutcome, normText } from '@/lib/voice-exams';
 import { parseSpokenPhones } from '@/lib/voice-controller';
 import { COMPANY_PHONE_LOCAL } from '@/lib/company-phone';
 
@@ -338,7 +337,10 @@ async function judgeCall(anthropic: Anthropic, f: JudgeFacts, negatives: string[
   }
 }
 
-/** Недельная сводка: пн–ср по Кишинёву, если за 6 дней не отправлялась (пон. мог упасть). */
+/** Недельная сводка судьи: пн–ср по Кишинёву, если за 6 дней не писалась
+ *  (пон. мог упасть). С 21.09 только строка в voice_controller_incidents —
+ *  Telegram Иону снят (правило: в «Межгород» — что должно туда уйти, остальное
+ *  в базу), а сама строка ещё и дедупом недели служит. */
 async function maybeWeeklySummary(supabase: ReturnType<typeof getSupabase>): Promise<void> {
   try {
     const weekday = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Chisinau', weekday: 'short' }).format(new Date());
@@ -362,13 +364,9 @@ async function maybeWeeklySummary(supabase: ReturnType<typeof getSupabase>): Pro
       else c.p++;
       byRule.set(rule, c);
     }
-    const lines = [...byRule.entries()].map(([rule, c]) => `${rule}: ✓${c.a} ✗${c.r} ⏳${c.p}`);
     await supabase.from('voice_controller_incidents').insert({
       kind: 'judge_weekly', details: { rules: Object.fromEntries(byRule), exam_failed: exams?.length ?? 0 }, healed: true,
     });
-    await alertAdmins(
-      `📊 <b>Судья, неделя</b>\n${lines.length ? escapeHtml(lines.join('\n')) : 'нарушений не подтверждено'}\nПровалы экзаменов: ${exams?.length ?? 0}`,
-    );
   } catch { /* сводка не имеет права ломать прогон */ }
 }
 
@@ -510,64 +508,23 @@ export async function runVoiceJudge(): Promise<{
     examsDone = out.done;
     if (out.done) {
       examFailures = out.failed.length;
-      await reportExamOutcome(out, { alert: true });
+      await reportExamOutcome(out);
     }
   } catch (err) {
     console.error('[voice-judge] exams poll:', err);
   }
 
-  // Хрупкое — первым (insert-then-notify внутри), sweeper и генерация — после.
+  // Недельная сводка — перед генерацией тестов: она дешёвая и не имеет права
+  // проиграть бюджет длинному хвосту ночи.
   await maybeWeeklySummary(supabase);
 
-  // Sweeper: провалы и снятия с ротации, дочитанные МОЛЧАЛИВЫМ контролёром
-  // (drainPendingExams, alert:false — распоряжение Иона 23.08 о тишине
-  // контролёра), иначе не доходят до Иона никогда: claim прогона почти всегда
-  // выигрывает контролёр (каждые 30 мин против одного судейского хвоста).
-  // healed на exam_failed/exam_retired = «алерт отправлен» — ставится ПОСЛЕ
-  // подтверждённой отправки (alertAdmins → bool): потерянный Telegram ретраится
-  // следующей ночью, дубль возможен только при убийстве между отправкой и update.
-  // Сторож 54с: без него пн-ср (weekly + sweeper с Telegram-таймаутами 5с)
-  // выходили за 60с Hobby, и убийство между отправкой и claim-ом давало
-  // ПОВТОРЯЮЩИЙСЯ дубль алерта (arch-ревью раунд 4). Пропущенный sweeper
-  // безвреден — дочитает следующая ночь.
-  try {
-    // 52с, не 54: собственная стоимость sweeper-а (~5.9с worst с Telegram 5с)
-    // должна помещаться до стены 60с вместе с cold-start (perf/arch раунд 5).
-    // limit 12/10 держат сообщение под tgCut — claim гасит только показанное.
-    if (Date.now() < t0 + 52_000) {
-      const sevenDaysAgo = new Date(t0 - 7 * 24 * 3600 * 1000).toISOString();
-      const { data: silentFails } = await supabase.from('voice_controller_incidents')
-        .select('id, details').eq('kind', 'exam_failed').eq('healed', false)
-        .gte('details->streak', 2).gte('created_at', sevenDaysAgo)
-        .order('created_at', { ascending: true }).limit(12);
-      const { data: silentOther } = await supabase.from('voice_controller_incidents')
-        .select('id, kind, details').in('kind', ['exam_retired', 'exam_recovered', 'exam_stuck', 'exam_capacity'])
-        .eq('healed', false).gte('created_at', sevenDaysAgo)
-        .order('created_at', { ascending: true }).limit(10);
-      type Inc = { id: number; kind?: string; details: { name?: string; rationale?: string; invocation_id?: string } };
-      const fails = (silentFails ?? []) as Inc[];
-      const other = (silentOther ?? []) as Inc[];
-      if (fails.length || other.length) {
-        const names = (k: string) => other.filter((r) => r.kind === k)
-          .map((r) => String(r.details?.name ?? r.details?.invocation_id ?? '')).join(', ');
-        const lines = fails.map((r) => `• ${escapeHtml(String(r.details?.name ?? ''))}: ${escapeHtml(String(r.details?.rationale ?? '').slice(0, 120))}`);
-        const tails = [
-          names('exam_retired') && `Сняты с ротации (5 провалов подряд): ${escapeHtml(names('exam_retired'))}`,
-          names('exam_recovered') && `Самоизлечились после ≥2 провалов: ${escapeHtml(names('exam_recovered'))}`,
-          names('exam_stuck') && `Прогон завис >24ч: ${escapeHtml(names('exam_stuck'))}`,
-          names('exam_capacity') && `Кап ротации: ${escapeHtml(names('exam_capacity'))}`,
-        ].filter(Boolean).map((s) => `\n${s}`).join('');
-        // Заголовок нейтральный: сюда попадают и события ЭТОЙ же инвокации
-        // (exam_recovered при упавшем Telegram), не только дренаж контролёра.
-        const sent = await alertAdmins(tgCut(`🎓 <b>Экзамены агента: невручённые события</b>\n${lines.join('\n')}${tails}`));
-        if (sent) {
-          const { error } = await supabase.from('voice_controller_incidents')
-            .update({ healed: true }).in('id', [...fails, ...other].map((r) => r.id));
-          if (error) console.error('[voice-judge] sweeper claim:', error.message);
-        }
-      }
-    }
-  } catch { /* sweeper не имеет права ломать прогон */ }
+  // Здесь стоял sweeper: он доносил Иону exam_failed/exam_retired/exam_recovered/
+  // exam_stuck/exam_capacity, дочитанные МОЛЧАЛИВЫМ контролёром (drainPendingExams),
+  // потому что claim прогона почти всегда выигрывал контролёр (каждые 30 мин
+  // против одного судейского хвоста). С 21.09 доносить некуда: Ион снял экзамены
+  // из лички («nu am nevoie toate aceste sa vina la mine»), а водителям они не
+  // нужны. Все эти строки по-прежнему пишутся в voice_controller_incidents и
+  // читаются запросом; healed у них больше не значит «доставлено».
 
   // Создание тестов из уроков — самый низкий приоритет ночи: вход согласован с
   // внутренним резервом 9.5с (дедлайн 58с → входить позже 48.5с бессмысленно —

@@ -2,8 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
   decideAlerts,
   marcheazaNetrimis,
-  formatSkipAlert,
+  adaugaInJurnal,
   GRACE_MS,
+  JURNAL_ZILE,
   type SkipItem,
   type SkipState,
 } from './tomberon-skip-alert';
@@ -69,7 +70,7 @@ describe('decideAlerts', () => {
 });
 
 describe('marcheazaNetrimis', () => {
-  it('livrarea eșuată se reîncearcă la rularea următoare', () => {
+  it('scrierea eșuată se reîncearcă la rularea următoare', () => {
     const first = decideAlerts(null, zi([s('949141')]), T0);
     const due = decideAlerts(first.state, zi([s('949141')]), T0 + GRACE_MS);
     const state: SkipState = marcheazaNetrimis(due.state, due.alerts[0]);
@@ -80,20 +81,47 @@ describe('marcheazaNetrimis', () => {
   });
 });
 
-describe('formatSkipAlert', () => {
-  it('scapă HTML-ul și listează foile', () => {
-    const text = formatSkipAlert(AZI, [{ foaie: '949141', sofer: 'A <b>B</b>', cod: 'nemapat', motiv: 'x & y' }]);
-    expect(text).toContain('13.08.2026');
-    expect(text).toContain('949141');
-    expect(text).toContain('A &lt;b&gt;B&lt;/b&gt;');
-    expect(text).toContain('x &amp; y');
+describe('adaugaInJurnal (din 21.09: faptul rămâne în bază, nu în Telegram)', () => {
+  const acum = new Date('2026-08-13T09:00:00.000Z');
+
+  it('scrie ce a trecut de răgaz, cu ziua foii și clipa', () => {
+    const { alerts } = decideAlerts(
+      decideAlerts(null, zi([s('949141')]), T0).state, zi([s('949141')]), T0 + GRACE_MS,
+    );
+    const jurnal = adaugaInJurnal(null, alerts, acum);
+    expect(jurnal.intrari).toEqual([{
+      ziua: AZI, foaie: '949141', sofer: 'Struna Valerii',
+      cod: 'auto_lipsa', motiv: 'mașina «029» lipsește',
+      vazut_la: '2026-08-13T09:00:00.000Z',
+    }]);
   });
 
-  it('taie lista lungă ca să nu depășească limita Telegram de 4096', () => {
-    const multe = Array.from({ length: 200 }, (_, i) => s(String(900000 + i), 'insert_esuat', 'x'.repeat(160)));
-    const text = formatSkipAlert(AZI, multe);
-    expect(text.length).toBeLessThan(4096);
-    expect(text).toMatch(/…și încă \d+ foi/);
+  it('aceeași (zi, foaie, cod) nu se scrie de două ori — starea nesalvată aduce rândul înapoi', () => {
+    const alerte = [{ ziua: AZI, items: [s('949141')] }];
+    const unu = adaugaInJurnal(null, alerte, acum);
+    const doi = adaugaInJurnal(unu, alerte, new Date('2026-08-13T09:10:00.000Z'));
+    expect(doi.intrari).toHaveLength(1);
+    // Prima consemnare e cea care contează: de atunci foaia nu ajunge la terminal.
+    expect(doi.intrari[0].vazut_la).toBe('2026-08-13T09:00:00.000Z');
+  });
+
+  it('coduri diferite pe aceeași foaie sunt fapte diferite', () => {
+    const jurnal = adaugaInJurnal(null, [{ ziua: AZI, items: [s('949141', 'diferit'), s('949141', 'orfana')] }], acum);
+    expect(jurnal.intrari.map((x) => x.cod)).toEqual(['diferit', 'orfana']);
+  });
+
+  it('taie ce e mai vechi de două săptămâni, după ziua foii', () => {
+    const vechi = { ziua: '2026-07-01', items: [s('900001')] };
+    const jurnal = adaugaInJurnal(
+      adaugaInJurnal(null, [vechi], new Date('2026-07-01T09:00:00.000Z')),
+      [{ ziua: AZI, items: [s('949141')] }],
+      acum,
+    );
+    expect(jurnal.intrari.map((x) => x.ziua)).toEqual([AZI]);
+    // Ziua de la limită rămâne: o foaie de acum JURNAL_ZILE zile încă se vede.
+    const laLimita = new Date(acum.getTime() - JURNAL_ZILE * 24 * 3600 * 1000).toISOString().slice(0, 10);
+    const pastrat = adaugaInJurnal(null, [{ ziua: laLimita, items: [s('900002')] }], acum);
+    expect(pastrat.intrari).toHaveLength(1);
   });
 });
 

@@ -1,7 +1,6 @@
-import { NextRequest, NextResponse, after } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { validateVoiceApiKey } from '../auth';
-import { createCallbackRequest, formatCallbackAlert } from '@/lib/voice/callbacks';
-import { alertAdmins } from '@/lib/telegram-notify';
+import { createCallbackRequest } from '@/lib/voice/callbacks';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -33,10 +32,11 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Telegram — ПОСЛЕ ответа агенту (не блокирует речь); ошибки не влияют на ответ.
-  after(async () => {
-    await alertAdmins(formatCallbackAlert(input, body.name ?? null));
-  });
+  // Telegram-алерта больше нет (Ион, 21.09: «nu am nevoie toate aceste sa vina
+  // la mine»; правило: в группу «Межгород» — что должно туда уйти, остальное —
+  // в базу). Обратный звонок в группу водителей не идёт и никого не обязывает
+  // (16.09: «Niciodată nimeni nu va fi contactat de cineva din companie»), так
+  // что запись живёт только в voice_callback_requests.
 
   return NextResponse.json({
     // Ion, 16.09: «Niciodată nimeni nu va fi contactat de cineva din companie».

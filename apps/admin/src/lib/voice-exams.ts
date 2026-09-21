@@ -13,7 +13,6 @@
 // дочитывание — атомарный claim по healed (судья и controller не столкнутся).
 import { getSupabase } from '@/lib/supabase';
 import { AGENT_ID, elGet, elPost } from '@/lib/voice/el';
-import { alertAdmins, escapeHtml } from '@/lib/telegram-notify';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -347,21 +346,25 @@ export async function pollExams(deadlineTs: number): Promise<ExamOutcome> {
   return none;
 }
 
-/** Итог прогона: fail_streak, инциденты; алерт — только после 2 провалов подряд
- *  (LLM-грейдеры флапают; одиночный провал — лишь в журнал). 5 провалов подряд
- *  выводят тест из ротации (active=false) — кривой тест не звонит вечно.
- *  opts.alert=false — контекст контролёра: он лечит МОЛЧА (распоряжение Иона
- *  23.08), поэтому шлёт только журнал; алерты уходят из судьи. */
-export async function reportExamOutcome(out: ExamOutcome, opts?: { alert?: boolean }): Promise<void> {
+/** Итог прогона: fail_streak и инциденты. 5 провалов подряд выводят тест из
+ *  ротации (active=false) — кривой тест не звонит вечно.
+ *
+ *  Telegram отсюда НЕ уходит с 21.09 (Ион: «nu am nevoie toate aceste sa vina la
+ *  mine»; правило: в «Межгород» — что должно туда уйти, остальное — в базу).
+ *  Экзамены водителям не нужны, поэтому итог живёт строкой в
+ *  voice_controller_incidents и читается запросом. Поле healed у exam_* значило
+ *  «алерт доставлен»; доставки больше нет, поэтому строки остаются с healed=false
+ *  как факт, и судья их больше не дренирует. */
+export async function reportExamOutcome(out: ExamOutcome): Promise<void> {
   if (!out.done) return;
   const supabase = getSupabase();
   if (out.passed.length > 0) {
     await supabase.from('voice_agent_tests')
       .update({ fail_streak: 0 }).in('test_id', out.passed).gt('fail_streak', 0);
-    // Позеленевший тест гасит свои открытые инциденты — иначе sweeper судьи
-    // алертил бы «провалы ≥2 ночей» о тесте, который уже прошёл (arch-ревью).
+    // Позеленевший тест гасит свои открытые инциденты: строка «провал ≥2 ночей»
+    // не имеет права висеть открытой о тесте, который уже прошёл (arch-ревью).
     // Провал, перешедший порог 2 ночей и лишь потом излечившийся, — информация,
-    // не шум: журналим exam_recovered, sweeper доносит строкой (business-ревью).
+    // не шум: журналим exam_recovered отдельной строкой (business-ревью).
     const { data: recovered } = await supabase.from('voice_controller_incidents')
       .select('id, details').eq('kind', 'exam_failed').eq('healed', false)
       .gte('details->streak', 2).in('details->>test_id', out.passed);
@@ -369,9 +372,6 @@ export async function reportExamOutcome(out: ExamOutcome, opts?: { alert?: boole
       .update({ healed: true }).eq('kind', 'exam_failed').eq('healed', false)
       .in('details->>test_id', out.passed);
     if (extErr) console.error('[voice-exams] extinguish passed:', extErr.message);
-    // Без условия на opts.alert: на пути судьи recovered пуст по построению
-    // (алертнутые строки уже healed) — КРОМЕ ночи, когда Telegram упал; тогда
-    // трек «провал ≥2 ночей самоизлечился» иначе исчезал без следа (business).
     if (recovered?.length) {
       for (const r of recovered as { details: { name?: string } }[]) {
         await supabase.from('voice_controller_incidents').insert({
@@ -386,7 +386,6 @@ export async function reportExamOutcome(out: ExamOutcome, opts?: { alert?: boole
     .select('test_id, fail_streak').in('test_id', ids);
   const streaks = new Map(((rows || []) as { test_id: string; fail_streak: number }[])
     .map((r) => [r.test_id, r.fail_streak]));
-  const alertable: typeof out.failed = [];
   const retired: string[] = [];
   for (const f of out.failed) {
     const next = (streaks.get(f.test_id) ?? 0) + 1;
@@ -394,11 +393,11 @@ export async function reportExamOutcome(out: ExamOutcome, opts?: { alert?: boole
     if (next >= 5) { patch.active = false; retired.push(f.name); }
     await supabase.from('voice_agent_tests').update(patch).eq('test_id', f.test_id);
     // Дедуп по паре (test_id, streak), НЕ по окну 24ч: джиттер крона давал
-    // дельту <24ч, вторая ночь не писала строку, streak застревал на 1 и
-    // sweeper (фильтр streak>=2) не видел провал (arch/business-ревью раунд 3).
+    // дельту <24ч, вторая ночь не писала строку и streak застревал на 1, то есть
+    // «провал двух ночей подряд» не появлялся вовсе (arch/business-ревью раунд 3).
     // .eq(healed,false) обязателен: без него строка ПРОШЛОГО цикла (healed=true,
-    // не удалена) блокировала бы insert навсегда — повторная регрессия того же
-    // теста через месяц молчала бы (arch Critical / business HIGH, раунд 4).
+    // погашена позеленевшим тестом) блокировала бы insert навсегда — повторная
+    // регрессия того же теста через месяц не записалась бы (arch Critical, раунд 4).
     const { data: recent } = await supabase.from('voice_controller_incidents')
       .select('id').eq('kind', 'exam_failed').eq('details->>test_id', f.test_id)
       .eq('details->streak', next).eq('healed', false).limit(1);
@@ -408,12 +407,9 @@ export async function reportExamOutcome(out: ExamOutcome, opts?: { alert?: boole
         details: { test_id: f.test_id, name: f.name, rationale: f.rationale, streak: next },
       });
     }
-    if (next >= 2) alertable.push(f);
   }
-  // Снятие с ротации журналится ВСЕГДА (не только в немом дренаже): на пути
-  // судьи упавший Telegram терял факт целиком — sweeper переносил только провал,
-  // без «снят с ротации» (business-ревью раунд 5). При доставленном алерте
-  // строка гасится ниже, вместе с exam_failed.
+  // Снятие с ротации журналится ВСЕГДА: это самое дорогое событие ночи —
+  // тест перестал звонить (business-ревью раунд 5).
   if (retired.length > 0) {
     for (const name of retired) {
       await supabase.from('voice_controller_incidents').insert({
@@ -421,38 +417,12 @@ export async function reportExamOutcome(out: ExamOutcome, opts?: { alert?: boole
       });
     }
   }
-  if (opts?.alert && alertable.length > 0) {
-    // Telegram режет sendMessage на 4096: ≥13 провалов по 300 симв. rationale
-    // молча теряли алерт целиком (аудит 30.08). Много провалов → короче строки;
-    // финальный slice — страховка от длинного хвоста retired.
-    const cut = alertable.length > 6 ? 120 : 300;
-    const lines = alertable.map((f) => `• ${escapeHtml(f.name)}: ${escapeHtml(f.rationale.slice(0, cut))}`);
-    const tail = retired.length ? `\nСняты с ротации (5 провалов подряд): ${escapeHtml(retired.join(', '))}` : '';
-    const sent = await alertAdmins(tgCut(`🎓 <b>Экзамены агента: провалы 2 ночи подряд</b>\n${lines.join('\n')}${tail}`));
-    // healed = «алерт отправлен» — ТОЛЬКО после подтверждённой отправки: иначе
-    // упавший Telegram терял алерт навсегда (arch-ревью). Без claim-а sweeper
-    // судьи ретраит следующей ночью.
-    if (sent) {
-      const { error } = await supabase.from('voice_controller_incidents')
-        .update({ healed: true }).eq('kind', 'exam_failed').eq('healed', false)
-        .in('details->>test_id', alertable.map((f) => f.test_id));
-      if (error) console.error('[voice-exams] alert claim:', error.message);
-      if (retired.length > 0) {
-        // Снятия уже названы в этом сообщении — гасим, чтобы sweeper не повторил.
-        const { error: retErr } = await supabase.from('voice_controller_incidents')
-          .update({ healed: true }).eq('kind', 'exam_retired').eq('healed', false)
-          .in('details->>name', retired);
-        if (retErr) console.error('[voice-exams] retired claim:', retErr.message);
-      }
-    }
-  }
 }
 
-/** Для runVoiceController (каждые 30 мин): дочитать висящий прогон. Не бросает,
- *  не алертит (контролёр молчалив) — алерты придут из судьи следующей ночью. */
+/** Для runVoiceController (каждые 30 мин): дочитать висящий прогон. Не бросает. */
 export async function drainPendingExams(): Promise<void> {
   try {
     const out = await pollExams(Date.now() + 8000);
-    if (out.done) await reportExamOutcome(out, { alert: false });
+    if (out.done) await reportExamOutcome(out);
   } catch { /* дочитывание не имеет права ломать контроллер */ }
 }

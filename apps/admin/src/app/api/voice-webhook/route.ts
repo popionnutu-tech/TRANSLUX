@@ -2,16 +2,15 @@ import { NextRequest, NextResponse, after } from 'next/server';
 import { verifyElevenLabsSignature } from '@/lib/voice/webhook-verify';
 import { extractCall, saveVoiceCall, hasCallbackRequest, type VoiceCallRow } from '@/lib/voice/calls';
 import {
-  claimLostItemForGroup, releaseLostItemClaim, getLostItemSummary, formatLostItemForAdmins,
+  claimLostItemForGroup, releaseLostItemClaim, getLostItemSummary,
 } from '@/lib/voice/lost-items';
 import { notifyDriversGroup, formatLostItemForGroup, driversGroupChatId } from '@/lib/voice/drivers-group';
 import { getComplaintSummary } from '@/lib/voice/complaints';
-import { alertAdmins } from '@/lib/telegram-notify';
 import { getSupabase } from '@/lib/supabase';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-// Coada `after()` face acum două apeluri Telegram (admini + grupa șoferilor).
+// Coada `after()` face un singur apel Telegram (grupa șoferilor) din 21.09.
 // Limita explicită, ca la celelalte rute grele: nu depindem de valoarea implicită
 // a platformei, care s-ar putea schimba sub noi (performance review 02.09).
 export const maxDuration = 30;
@@ -73,58 +72,49 @@ export async function POST(req: NextRequest) {
  * Raportul pe fiecare apel («📞 Apel TRANSLUX») a ieșit pe 15.09 — Ion: «am nevoie
  * doar statistica săptămânală de sunete, câte sunete agentul a dat în bară și nu a
  * putut rezolva». Numărătoarea aceea se face acum o dată pe săptămână, în
- * lib/voice-weekly.ts. Reclamațiile și cererile de operator își au de mult alertele
- * lor, din tool-uri (register-complaint, request-callback) — nu s-a pierdut nimic.
+ * lib/voice-weekly.ts. Reclamațiile pleacă în grupa șoferilor din tool-ul lor
+ * (register-complaint); cererile de operator rămân doar evidență în bază.
  *
  * Lucrul uitat pleacă în grupă ACUM, la închiderea apelului (Ion, 02.09). De ce
  * aici și nu din tool: find_past_trip e chemat de 1-3 ori pe convorbire și nu
  * știe când s-a terminat — din el ar pleca trei mesaje pentru același obiect.
  * Rândul se ia cu UPDATE condiționat, deci un webhook repetat nu dublează.
  *
- * Cele două mesaje au try/catch PROPRIU: puse unul după altul într-un singur
- * bloc, o cădere la primul stingea tăcut al doilea, iar repetarea webhook-ului
- * n-ar mai ajunge aici (apelul e deja salvat, deci `duplicate`).
+ * Copia pentru ADMINI a ieșit pe 21.09 (Ion: «nu am nevoie toate aceste să vină
+ * la mine»; regula: «ce trebuie să plece în Mejgorod — pleacă, ce nu — rămâne în
+ * bază»). Grupa șoferilor e legată și primește același obiect, deci mesajul din
+ * privat era o dublură, nu singurul destinatar.
  */
 async function raporteaza(row: VoiceCallRow): Promise<void> {
-  // Linia lucrului uitat pentru ADMINI, mereu — nu doar când grupa lipsește.
-  // «Vi-l predăm la birou» e singura promisiune din tot fluxul care cere o
-  // acțiune a companiei, iar fără mesajul ăsta n-o citea nimeni de la birou.
   const obiect = await getLostItemSummary(row.conversation_id);
   if (!obiect) return;
 
-  // Grupa nelegată: rândul NU se revendică. Altfel prima zi de după deploy —
-  // fereastra în care Ion încă n-a scris /lega_reclamatii — ar arde tăcut exact
-  // obiectele pentru care s-a făcut totul. Adminii află din mesajul de mai jos.
+  // Grupa nelegată: rândul NU se revendică, ca să plece la prima rulare de după
+  // legare. Din 21.09 nu mai există nici mesajul către admini care acoperea
+  // fereastra asta — obiectul rămâne doar în voice_lost_items până atunci.
   const grupaLegata = (await driversGroupChatId()) !== null;
+  if (!grupaLegata) return;
   let lostItem: Awaited<ReturnType<typeof claimLostItemForGroup>> = null;
-  if (grupaLegata) {
-    try {
-      lostItem = await claimLostItemForGroup(row.conversation_id);
-    } catch (err) {
-      console.error('voice-webhook: claim lost item', err);
-    }
+  try {
+    lostItem = await claimLostItemForGroup(row.conversation_id);
+  } catch (err) {
+    console.error('voice-webhook: claim lost item', err);
   }
+  if (!lostItem) return;
 
   // Reclamația aceluiași apel: în grupă, numărul clientului se dă altfel când
   // omul a și reclamat (vezi formatLostItemForGroup).
   const complaint = await getComplaintSummary(row.conversation_id);
 
-  // Independente: în serie, două taimauturi Telegram de câte 5 secunde s-ar
-  // aduna în bugetul invocării.
-  const [, grupOk] = await Promise.all([
-    alertAdmins(formatLostItemForAdmins(obiect, row.caller_phone, grupaLegata))
-      .catch((err) => { console.error('voice-webhook: alertAdmins', err); return false; }),
-    lostItem
-      // `complaint !== null` = același apel are și o reclamație. Poarta din
-      // find-past-trip acoperă doar ordinea «reclamație → obiect»; în ordinea
-      // inversă numărul a plecat deja, iar mesajul măcar îl spune cinstit.
-      // Numărul vine din apelul însuși, nu din ce a scris modelul — aceeași
-      // sursă ca la callback (măsurat 24.08: ce scrie modelul e adesea null).
-      ? notifyDriversGroup(formatLostItemForGroup({ ...lostItem, caller_phone: row.caller_phone }, complaint !== null))
-        .catch((err) => { console.error('voice-webhook: grup', err); return false; })
-      : Promise.resolve(true),
-  ]);
+  // `complaint !== null` = același apel are și o reclamație. Poarta din
+  // find-past-trip acoperă doar ordinea «reclamație → obiect»; în ordinea
+  // inversă numărul a plecat deja, iar mesajul măcar îl spune cinstit.
+  // Numărul vine din apelul însuși, nu din ce a scris modelul — aceeași
+  // sursă ca la callback (măsurat 24.08: ce scrie modelul e adesea null).
+  const grupOk = await notifyDriversGroup(
+    formatLostItemForGroup({ ...lostItem, caller_phone: row.caller_phone }, complaint !== null),
+  ).catch((err) => { console.error('voice-webhook: grup', err); return false; });
   // Trimiterea a picat: rândul se dă înapoi, altfel paza contra dublurii ar
   // transforma o cădere de moment în pierdere definitivă.
-  if (lostItem && !grupOk) await releaseLostItemClaim(row.conversation_id);
+  if (!grupOk) await releaseLostItemClaim(row.conversation_id);
 }

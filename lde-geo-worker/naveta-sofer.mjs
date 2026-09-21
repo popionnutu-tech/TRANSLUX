@@ -18,7 +18,8 @@
 //   mașina navetei N-ARE nicio cursă în ziua aia (dacă are, km-ii ei sunt deja numărați)
 //   ȘI stă de cel puțin două ori lângă locul unde stă un autobuz CU cursă
 //   ȘI locul ăla e departe de poartă (altfel prindem așteptarea la uzină)
-//   ȘI ea însăși doarme la peste 5 km de locul ăla (altfel prindem curtea comună).
+//   ȘI baza ei — locul unde stă cele mai multe minute din zi — e la peste 5 km de el
+//   (altfel prindem curtea comună, sau mașina care chiar doarme la capătul rutei).
 //
 // ⚠️ Ultima condiție e cea care taie curtea de la Fălești, unde stau împreună 827MUM,
 // 807MUM, 783MUM, 537BRAT: acolo „potrivirea" e doar parcare comună, nu navetă.
@@ -95,20 +96,36 @@ export function detecteazaNaveta({ opriri, curse, porti = [], minZile = MIN_ZILE
     const puncte = (punctePeZi.get(date) ?? []).filter((x) => x.vehicle_id !== vehicle_id);
     if (!puncte.length) continue;
 
-    // fiecare oprire: ancoră (așteaptă lângă un autobuz), acasă (stă mult, dar nu lângă el), sau nimic
+    // BAZA mașinii în ziua aia = locul unde stă CEL MAI MULT (minutele adunate pe loc),
+    // nu «orice staționare lungă». Deosebirea a contat: 145BRAZ doarme chiar la Todirești,
+    // acolo unde stă și autobuzul 456BRAX, și mai stă 40 de minute la Ungheni — cu regula
+    // slabă, Ungheni trecea drept «casă» și drumurile ei ieșeau navetă. Baza e locul cu
+    // cele mai multe minute; dacă ea coincide cu punctul rutei, mașina parchează, nu face
+    // navetă. Asta taie și curtea comună de la Fălești.
+    const locuri = [];
+    for (const s of list) {
+      const p = punct(s);
+      const l = locuri.find((x) => hav(p, x.p) <= RAZA_ACELASI_LOC_KM);
+      if (l) l.minute += nr(s.dwell_min);
+      else locuri.push({ p, minute: nr(s.dwell_min), locality: s.locality ?? null });
+    }
+    const baza = locuri.reduce((b, x) => (x.minute > (b?.minute ?? -1) ? x : b), null);
+    if (!baza) continue;
+
+    // fiecare oprire: ancoră (așteaptă lângă un autobuz, departe de baza ei), acasă (la bază), sau nimic
     const marcaje = list.map((s) => {
       const p = punct(s);
+      const acasa = hav(p, baza.p) <= RAZA_ACELASI_LOC_KM;
       const langa = puncte.find((x) => hav(p, x.p) <= RAZA_ACELASI_LOC_KM);
-      if (langa && nr(s.dwell_min) >= PRAG_ASTEPTARE_MIN) return { fel: 'ancora', punct: langa, p };
-      if (nr(s.dwell_min) >= PRAG_BAZA_MIN) return { fel: 'acasa', p, dwell: nr(s.dwell_min), locality: s.locality ?? null };
+      if (!acasa && langa && nr(s.dwell_min) >= PRAG_ASTEPTARE_MIN) return { fel: 'ancora', punct: langa, p };
+      if (acasa && nr(s.dwell_min) >= PRAG_BAZA_MIN) return { fel: 'acasa', p, dwell: nr(s.dwell_min), locality: s.locality ?? null };
       return null;
     });
     const ancore = marcaje.filter((m) => m?.fel === 'ancora');
     const case_ = marcaje.filter((m) => m?.fel === 'acasa');
     if (ancore.length < 2 || !case_.length) continue;
-    // curtea comună: dacă mașina doarme chiar acolo, nu face navetă — parchează
-    const deDeparte = case_.some((c) => ancore.every((a) => hav(c.p, a.p) >= DIST_MIN_BAZA_PUNCT_KM));
-    if (!deDeparte) continue;
+    // naveta vine de departe; altfel e mutare prin curte
+    if (!ancore.every((a) => hav(baza.p, a.p) >= DIST_MIN_BAZA_PUNCT_KM)) continue;
 
     // km-ii drumurilor care CHIAR leagă casa de punctul rutei; un ocol care nu se termină
     // la punctul rutei nu intră (17.09 la 073BRAO: drumul la Bălți)
@@ -127,9 +144,9 @@ export function detecteazaNaveta({ opriri, curse, porti = [], minZile = MIN_ZILE
       cur.km += km; cur.drumuri++;
       peRuta.set(anc.punct.factory_route_id, cur);
     }
-    // casa mașinii navetei = cea mai lungă staționare care nu e lângă autobuz. Nu se poate
-    // lua din `is_base`: 073BRAO n-are nicio oprire cu steagul ăla în septembrie.
-    const casa = case_.reduce((b, c) => (c.dwell > (b?.dwell ?? -1) ? c : b), null)?.locality ?? null;
+    // casa mașinii navetei = localitatea bazei ei. Nu se poate lua din `is_base`:
+    // 073BRAO n-are nicio oprire cu steagul ăla în septembrie.
+    const casa = baza.locality;
     for (const [factory_route_id, v] of peRuta) {
       if (v.km <= 0) continue;
       brute.push({ run_date: date, vehicle_id, factory_route_id, km: +v.km.toFixed(2), drumuri: v.drumuri, autobuz_id: v.autobuz_id, locul: v.locul, casa });

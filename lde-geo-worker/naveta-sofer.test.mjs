@@ -86,6 +86,22 @@ test('curtea comună (Fălești) NU e navetă: mașina doarme chiar lângă auto
   assert.deepEqual(detecteazaNaveta({ opriri, curse, porti: [POARTA] }), []);
 });
 
+test('mașina care DOARME la capătul rutei nu face navetă, oricâte opriri lungi ar avea aiurea', () => {
+  // 145BRAZ (Todirești) stă noaptea exact unde stă autobuzul 456BRAX și mai stă 40 de
+  // minute la Ungheni. Baza ei = Todirești, adică chiar punctul rutei → nu e navetă.
+  const TODIRESTI = { lat: 47.30000, lon: 27.90000 };
+  const UNGHENI = { lat: 47.20000, lon: 27.80000 };
+  const A = 'v-456BRAX', B = 'v-145BRAZ';
+  const opriri = [], curse = [];
+  for (const d of ZILE) {
+    opriri.push(op(A, d, 1, TODIRESTI, 300, null, 'Todirești'), op(A, d, 2, POARTA, 35, 57, 'Bucuria'), op(A, d, 3, TODIRESTI, 300, 57, 'Todirești'));
+    opriri.push(op(B, d, 1, TODIRESTI, 83, null, 'Todirești'), op(B, d, 2, UNGHENI, 40, 57, 'Ungheni'),
+      op(B, d, 3, TODIRESTI, 375, 21, 'Todirești'), op(B, d, 4, UNGHENI, 37, 38, 'Ungheni'), op(B, d, 5, TODIRESTI, 378, 53, 'Todirești'));
+    curse.push({ vehicle_id: A, run_date: d, factory_route_id: 'r-14', km_real: 57 });
+  }
+  assert.deepEqual(detecteazaNaveta({ opriri, curse, porti: [POARTA] }), []);
+});
+
 test('o singură zi de potrivire e coincidență, nu tipar', () => {
   const out = detecteazaNaveta(intrare(['2026-09-18']));
   assert.deepEqual(out, []);

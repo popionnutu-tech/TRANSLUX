@@ -21,6 +21,11 @@ import { detecteazaNaveta, MIN_ZILE_NAVETA } from './naveta-sofer.mjs';
 globalThis.WebSocket = globalThis.WebSocket || WS;
 
 const WRITE = process.argv.includes('--write');
+// `--doar=naveta` (sau granite/etalon/start/brambura): rulează UN pas, nu tot lanțul.
+// Nightly-ul le cheamă pe toate; asta e pentru repornit un pas fără să recalculezi
+// etalonul întregii flote în mijlocul zilei.
+const DOAR = (process.argv.find((a) => a.startsWith('--doar=')) ?? '').slice('--doar='.length) || null;
+const rulez = (pas) => !DOAR || DOAR === pas;
 export const FEREASTRA_ZILE = 60;      // = plafonul de agregare din plan
 export const PRAG_SAT = 0.60;          // un sat intră în etalon dacă apare în ≥60% din curse
 export const MIN_OBSERVATII = 5;       // sub el: „etalon insuficient", km NULL
@@ -300,9 +305,9 @@ async function recalculeazaBrambura() {
   console.log(`brambura: ${zileCuExces} zile-mașină cu exces peste mediană + ${MARJA_BRAMBURA_KM} km; ${scrise} curse actualizate`);
 }
 
-console.log(`\n===== etalon-aggregate ${WRITE ? '(SCRIE)' : '(probă)'} · fereastră ${FEREASTRA_ZILE} zile =====\n`);
-await recalculeazaGranite();
-await recalculeazaEtalon();
+console.log(`\n===== etalon-aggregate ${WRITE ? '(SCRIE)' : '(probă)'} · fereastră ${FEREASTRA_ZILE} zile${DOAR ? ` · doar «${DOAR}»` : ''} =====\n`);
+if (rulez('granite')) await recalculeazaGranite();
+if (rulez('etalon')) await recalculeazaEtalon();
 /**
  * SATUL DE START REAL al rutei — Ion, 19.09: «dacă se întâmplă sistematic, zilnic, e rută;
  * scrii sub denumirea rutei primul sat de unde urcă». Nomenclatorul numește ruta după un
@@ -411,6 +416,6 @@ async function recalculeazaNaveta() {
 // ordinea contează: startul real se deduce din cursele scrise azi și îl folosește worker-ul
 // de mâine; brambura se judecă pe naveta deja scrisă; naveta cu altă mașină are nevoie de
 // cursele zilei ca să știe care mașină a făcut rută și care doar a dus omul
-await recalculeazaStartReal();
-await recalculeazaBrambura();
-await recalculeazaNaveta();
+if (rulez('start')) await recalculeazaStartReal();
+if (rulez('brambura')) await recalculeazaBrambura();
+if (rulez('naveta')) await recalculeazaNaveta();

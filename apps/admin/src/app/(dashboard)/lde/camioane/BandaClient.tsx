@@ -13,7 +13,7 @@ import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState, useT
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import {
-  anuleazaCursa, confirmaStarea, corecteazaStarea, mutaCursa, rezolvaAlerta, salveazaCursa, schimbaStareaCursei, seteazaStarePerioada,
+  anuleazaCursa, corecteazaStarea, mutaCursa, rezolvaAlerta, salveazaCursa, schimbaStareaCursei, seteazaStarePerioada,
   seteazaTipCamion, stergeStarePerioada, stergeStareZi,
   type AlertaAuto, type Camion, type Cursa, type PunctScurt, type Rezultat, type SoferScurt, type StareZi,
 } from './planificare/actions';
@@ -157,13 +157,12 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
 
   const curseVii = useMemo(() => curse.filter((c) => c.status !== 'anulata'), [curse]);
   const placaDupaVehicul = useMemo(() => new Map(camioane.map((c) => [c.id, c.plate])), [camioane]);
-  // Stările puse de automat (GPS / bon TLX) pe care omul nu le-a văzut încă, cele mai noi sus.
-  const deConfirmat = useMemo(
-    () => curseVii
-      .filter((c) => c.statusSource !== 'manual' && !c.statusConfirmedAt)
-      .sort((a, b) => Date.parse(b.statusChangedAt ?? '') - Date.parse(a.statusChangedAt ?? '')),
-    [curseVii],
-  );
+  // Coada «De confirmat» a fost scoasă pe 21.09 (Ion: «facem automat dispeceratul,
+  // nu mai trebuie operator»). Din 10.09 fiecare stare pusă de automat aștepta un
+  // «corect» de la dispecer; dispecerul a plecat pe 11.09 și lista a rămas o
+  // sarcină pe care n-o mai face nimeni — 17 stări, niciuna confirmată. Starea
+  // automatului e starea. Corectura rămâne, în detaliul cursei: omul bate automatul
+  // oricând se uită, doar că nu mai e ținut să se uite.
 
   // Camionul fără șofer iese din bandă, DAR cursa lui nu dispare niciodată:
   // constrângerea din bază o vede în continuare, iar dispecerul ar primi
@@ -463,46 +462,6 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
           </ul>
         </div>
       )}
-      {/* Dispecerul nu mai pune stări, le confirmă (Ion, 10.09): tot ce a pus
-          automatul și n-a fost încă văzut de om stă aici, cu «corect» / «greșit». */}
-      {deConfirmat.length > 0 && (
-        <div className="card" style={{ borderLeft: '3px solid var(--primary)' }}>
-          <strong>De confirmat</strong>
-          <span className="text-muted" style={{ fontSize: 12 }}> · {deConfirmat.length} {deConfirmat.length === 1 ? 'stare pusă' : 'stări puse'} de automat</span>
-          <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
-            {deConfirmat.map((c) => (
-              <li key={c.id} style={{ marginBottom: 5 }}>
-                <strong>{placaDupaVehicul.get(c.vehicleId) ?? '?'}</strong>{' '}
-                <span>{etichetaStareCursa(c.status)}</span>
-                <span className="text-muted" style={{ fontSize: 12 }}>
-                  {' '}· {c.cargo ?? 'fără marfă'} · {c.loadPointName ?? '—'} → {c.unloadPointName ?? '—'}
-                  {c.statusChangedAt && ` · ${new Date(c.statusChangedAt).toLocaleString('ro-MD', { timeZone: 'Europe/Chisinau', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`}
-                </span>
-                {poateEdita && (
-                  <>
-                    <button
-                      className="btn-primary"
-                      style={{ marginLeft: 8, fontSize: 11, padding: '1px 8px' }}
-                      disabled={inCurs}
-                      onClick={() => ruleaza(() => confirmaStarea(c.id))}
-                    >
-                      ✓ Corect
-                    </button>
-                    <button
-                      className="btn-outline"
-                      style={{ marginLeft: 4, fontSize: 11, padding: '1px 8px' }}
-                      disabled={inCurs}
-                      onClick={() => { setCorectare(''); setDetaliu(c); }}
-                    >
-                      ✗ Greșit
-                    </button>
-                  </>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
       {taiat && (
         <div className="card" style={{ borderLeft: '3px solid var(--danger)' }}>
           Fereastra e prea largă: s-a atins plafonul de 1000 de curse și ultimele zile lipsesc din
@@ -623,15 +582,14 @@ export default function BandaClient({ zile, camioane, curse, stari, puncte, sofe
             </div>
             {poateEdita && detaliu.statusSource !== 'manual' && detaliu.status !== 'anulata' && (
               <div className="card" style={{ marginTop: 6, padding: 8, borderLeft: '3px solid var(--primary)' }}>
+                {/* Automatul nu mai cere un «corect» de la nimeni (Ion, 21.09:
+                    «facem automat dispeceratul, nu mai trebuie operator»). Starea
+                    lui e starea; aici rămâne doar portița de corectură, pentru
+                    când omul chiar vede că s-a greșit. */}
                 {detaliu.statusConfirmedAt
-                  ? <span className="text-muted" style={{ fontSize: 12 }}>Confirmată de dispecer pe {new Date(detaliu.statusConfirmedAt).toLocaleString('ro-MD', { timeZone: 'Europe/Chisinau' })}</span>
-                  : <span>Automatul a pus «{etichetaStareCursa(detaliu.status)}». E corect?</span>}
+                  ? <span className="text-muted" style={{ fontSize: 12 }}>Corectată de om pe {new Date(detaliu.statusConfirmedAt).toLocaleString('ro-MD', { timeZone: 'Europe/Chisinau' })}</span>
+                  : <span className="text-muted" style={{ fontSize: 12 }}>Automatul a pus «{etichetaStareCursa(detaliu.status)}». Dacă e greșit, spune starea adevărată:</span>}
                 <div className="flex gap-2" style={{ marginTop: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                  {!detaliu.statusConfirmedAt && (
-                    <button className="btn-primary" disabled={inCurs} onClick={() => ruleaza(() => confirmaStarea(detaliu.id), () => setDetaliu(null))}>
-                      ✓ Corect
-                    </button>
-                  )}
                   <select value={corectare} onChange={(e) => setCorectare(e.target.value)} disabled={inCurs}>
                     <option value="">✗ Greșit — starea adevărată…</option>
                     {TRIP_STATES.filter((st) => st !== 'anulata' && st !== detaliu.status).map((st) => (

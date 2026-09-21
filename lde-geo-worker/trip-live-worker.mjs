@@ -336,6 +336,31 @@ async function main() {
     }
   }
 
+  // ── 2d. Alerta a cărei cursă s-a închis se stinge singură (Ion, 21.09) ──
+  // Alertele aveau un buton «rezolvă», apăsat de dispecer. Fără operator ar crește
+  // la nesfârșit deasupra benzii, cerând ceva ce nu mai are cine face — și oricum
+  // cele mai multe se rezolvă de la sine, fiindcă automatul închide acum cursa
+  // despre care se plângeau («la descărcare fără bon» pe o cursă deja încheiată).
+  let stinse = 0;
+  if (WRITE) {
+    try {
+      const deschise = await sb('lde_truck_auto_alerte?select=id,trip_id,trip:trip_id(status)&resolved_at=is.null&limit=1000') || [];
+      const gata = deschise
+        .filter((a) => { const st = unu(a.trip)?.status; return st === 'incheiata' || st === 'anulata'; })
+        .map((a) => a.id);
+      if (gata.length > 0) {
+        await sb(`lde_truck_auto_alerte?id=in.(${gata.join(',')})`, {
+          method: 'PATCH', headers: { Prefer: 'return=minimal' },
+          body: JSON.stringify({ resolved_at: acumIso }),
+        });
+        stinse = gata.length;
+      }
+    } catch (e) {
+      esuate++;
+      console.error(`  stingerea alertelor: ${e instanceof Error ? e.message : e}`);
+    }
+  }
+
   // ── 3. Memoria staționărilor și alertele ──
   if (WRITE && stationariDeScris.length > 0) {
     try {
@@ -366,7 +391,7 @@ async function main() {
   }
 
   console.log(`  camioane: ${(vehicule || []).length} (cisterne ${cisterne}), curse deschise: ${(curseDeschise || []).length}, poziții: ${pozitieDupaPlaca.size}, ` +
-    `recepții: ${receptii.length}, staționări scrise: ${stationariDeScris.length}, stări scrise: ${scrise}, recuperate: ${recuperate}, alerte: ${alerteDeScris.length}, eșuate: ${esuate}`);
+    `recepții: ${receptii.length}, staționări scrise: ${stationariDeScris.length}, stări scrise: ${scrise}, recuperate: ${recuperate}, alerte: ${alerteDeScris.length}, stinse: ${stinse}, eșuate: ${esuate}`);
   if (esuate > 0) process.exitCode = 1;
 }
 

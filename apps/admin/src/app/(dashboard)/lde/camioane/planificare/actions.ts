@@ -561,26 +561,12 @@ export async function schimbaStareaCursei(id: string, status: string): Promise<R
   return { ok: true, mesaj: `Cursa a trecut în «${etichetaStareCursa(status)}»` };
 }
 
-/**
- * Dispecerul confirmă starea pusă de automat — «corect» (Ion, 10.09: «acum tot ce
- * face dispecerul — confirmă starea, dacă e corect sau nu corect identificat de AI»).
- * Starea rămâne a automatului; se scrie doar cine și când a văzut-o.
- */
-export async function confirmaStarea(id: string): Promise<Rezultat> {
-  let s: Session;
-  try { s = await cerereScriere(); } catch { return { error: 'Neautorizat' }; }
-  if (!UUID_RE.test(id)) return { error: 'Identificator invalid' };
-  const { data: cursa, error: eCitire } = await getSupabase()
-    .from('lde_truck_trips').select('status, status_source, status_confirmed_at').eq('id', id).maybeSingle();
-  if (eCitire) return { error: eroareCurata(eCitire, 'Cursa nu a putut fi citită') };
-  if (!cursa) return { error: 'Cursa nu există' };
-  if (cursa.status_confirmed_at) return { ok: true, mesaj: 'Starea era deja confirmată' };
-  const { error } = await getSupabase().from('lde_truck_trips')
-    .update({ status_confirmed_at: new Date().toISOString(), status_confirmed_by: s.email })
-    .eq('id', id).eq('status', cursa.status as string);
-  if (error) return { error: eroareCurata(error, 'Confirmarea nu a putut fi salvată') };
-  return { ok: true, mesaj: `Confirmat: «${etichetaStareCursa(cursa.status as string)}»` };
-}
+// `confirmaStarea` a fost scoasă pe 21.09 (Ion: «facem automat dispeceratul, nu mai
+// trebuie operator»). Din 10.09 fiecare stare pusă de automat aștepta un «corect»
+// de la dispecer; omul a plecat pe 11.09 și au rămas 17 stări neconfirmate, adică o
+// coadă de sarcini fără nimeni care s-o facă. Starea automatului e starea.
+// Coloanele status_confirmed_at / _by rămân: le scrie acum DOAR corectura de mai
+// jos, ca urmă a faptului că un om a trecut peste automat.
 
 /**
  * «Greșit»: dispecerul spune care e starea adevărată. Spre deosebire de butoanele

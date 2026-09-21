@@ -11,16 +11,40 @@ import { fonts, logoBase64, textPath, truncText } from '../schedule-image';
  * «mesaj de la parc». Un singur tabel: ~25 de rute încap lizibil pe o coloană.
  *
  * Navetă = km-ii șoferului în afara rutei (de acasă până la satul de start și înapoi),
- * fără brambura și fără drumurile la service. Economia = naveta × LEI_PE_KM: cu un
+ * fără brambura și fără drumurile la service. Economia = naveta × costul unui km: cu un
  * șofer din satul de start, drumul ăsta nu mai există.
  */
-// Costul pe km, pe tipul mașinii — Ion, 19.09: «la autobuze economia e cam 10 lei/km,
-// la busuri (cele de 20 de locuri) cam 5 lei/km». Categoria vine din lde_vehicle_types.
-export const LEI_PE_KM_AUTOBUZ = 10.00;
-export const LEI_PE_KM_MICROBUZ = 5.00;
-export const LEI_PE_KM = LEI_PE_KM_MICROBUZ;   // implicit, când tipul mașinii nu e cunoscut
-export const leiPeKm = (categorie: string | null | undefined): number =>
-  categorie && /autobuz/i.test(categorie) ? LEI_PE_KM_AUTOBUZ : LEI_PE_KM_MICROBUZ;
+/**
+ * Costul unui km — Ion, 21.09.2026: «livrarea o socotim asa norma litri * pret anre +
+ * 1 leu/km reparatia la 20 locuri si 1.5 lei la daf + 1 leu salariu la sofer».
+ *
+ * Până acum erau două cifre rotunde puse cu mâna (10 lei/km la autobuz, 5 la microbuz,
+ * Ion 19.09). Acum cifra se face din norma MAȘINII și din prețul motorinei al ZILEI —
+ * amândouă sunt deja în bază și se actualizează singure (`lde_vehicle_types.norm_l_per_100km`,
+ * `lde_diesel_price`, oglindit de price-worker din prețurile ANRE).
+ *
+ * Reparația: 1,50 lei/km DOAR la DAF («autobuz_mare»). «20 de locuri» din vorba lui Ion
+ * sunt și microbuzele, și Sprinterele mari («autobuz_mic», 515/516/518) — toate iau 1,00.
+ * Vechiul `leiPeKm` dădea 10 lei/km oricărei categorii cu «autobuz» în nume, deci și lui
+ * Sprinter 518; acum el iese 7,20.
+ */
+export const REPARATIE_LEI_KM_DAF = 1.50;
+export const REPARATIE_LEI_KM = 1.00;
+export const SALARIU_LEI_KM = 1.00;
+export const NORMA_IMPLICITA_L = 12.50;        // mașina fără tip știut: norma cea mai frecventă
+export const PRET_IMPLICIT_LEI_L = 35.89;      // doar ca ultimă plasă, dacă lipsește tot tabelul de prețuri
+
+export const reparatiaLeiKm = (categorie: string | null | undefined): number =>
+  categorie === 'autobuz_mare' ? REPARATIE_LEI_KM_DAF : REPARATIE_LEI_KM;
+
+/** normă litri/100 km × preț motorină + reparație + salariu */
+export const leiPeKm = (
+  { litri, categorie, pret }: { litri?: number | null; categorie?: string | null; pret?: number | null },
+): number => ((Number(litri) || NORMA_IMPLICITA_L) / 100) * (Number(pret) || PRET_IMPLICIT_LEI_L)
+  + reparatiaLeiKm(categorie) + SALARIU_LEI_KM;
+
+/** Costul unui km când nu știm nici mașina, nici ziua — folosit doar ca ultim resort. */
+export const LEI_PE_KM = leiPeKm({});
 
 export interface BramburaRow {
   vehicle_id?: string;
@@ -97,9 +121,12 @@ const BRAMBURA_COLS = [
 ];
 const BRAMBURA_W = BRAMBURA_COLS.reduce((s, c) => s + c.w, 0) * S;
 
-export async function generateLivrareImage(rows: LivrareRow[], opts: { titlu: string; perioada: string; zileLucratoare: number; brambura?: BramburaRow[] }): Promise<Buffer> {
+export async function generateLivrareImage(rows: LivrareRow[], opts: { titlu: string; perioada: string; zileLucratoare: number; brambura?: BramburaRow[]; pretMotorina?: number }): Promise<Buffer> {
   const { r: fR, b: fB } = fonts();
-  const headerH = LOGO_AREA + TITLE_H + SUB_H + 10 * S;
+  // trei rânduri de subtitlu: ce e livrarea · cum se face leul · cum se citesc coloanele.
+  // Formula lui Ion (normă × preț + reparație + salariu) nu încape lângă definiție.
+  const SUB_DY = 14 * S;
+  const headerH = LOGO_AREA + TITLE_H + SUB_H + 10 * S + SUB_DY;
   const brambura = opts.brambura ?? [];
   // secțiunea de brambura: titlu + antet + rânduri (sau un rând «fără»)
   const BR_TITLE_H = 30 * S;
@@ -112,11 +139,16 @@ export async function generateLivrareImage(rows: LivrareRow[], opts: { titlu: st
   const logoW = logoH * (1318 / 192);
   svg.push(`<image href="data:image/png;base64,${logoBase64()}" x="${(CANVAS_W - logoW) / 2}" y="${PAD}" width="${logoW}" height="${logoH}"/>`);
   svg.push(textPath(fB, `${opts.titlu} · ${opts.perioada}`, CANVAS_W / 2, LOGO_AREA + 16 * S, 17 * S, MAROON_DK, 'middle'));
-  svg.push(textPath(fR, `Livrare (подача) = km-ii șoferului în afara rutei (casă – satul de start), fără service și fără drumuri neobișnuite · Economie = livrare × ${LEI_PE_KM_AUTOBUZ.toFixed(2).replace('.', ',')} lei/km la autobuz, ${LEI_PE_KM_MICROBUZ.toFixed(2).replace('.', ',')} la microbuz · ${opts.zileLucratoare} zile lucrătoare`, CANVAS_W / 2, LOGO_AREA + TITLE_H + 10 * S, 10.5 * S, GREY, 'middle'));
-  // subtitlul nu se poate lăți: canvasul e cât tabelul. Se taie la lățimea lui, nu se revarsă.
-  const sub2 = 'Rută = de la satul de start până la uzină · Goi pe rută = întoarcerile goale între sat și poartă, impuse de turele uzinei — nu se optimizează'
-    + ' · «navetă» = mașina care duce omul la autobuz, nu face rută';
-  svg.push(textPath(fR, truncText(fR, sub2, 9.5 * S, CANVAS_W - 2 * PAD), CANVAS_W / 2, LOGO_AREA + TITLE_H + SUB_H + 6 * S, 9.5 * S, GREY, 'middle'));
+  // subtitlurile nu se pot lăți: canvasul e cât tabelul. Se taie la lățimea lui, nu se revarsă.
+  const lei2 = (v: number) => v.toFixed(2).replace('.', ',');
+  const sub = (text: string, y: number, size: number) =>
+    svg.push(textPath(fR, truncText(fR, text, size, CANVAS_W - 2 * PAD), CANVAS_W / 2, y, size, GREY, 'middle'));
+  const y1 = LOGO_AREA + TITLE_H + 10 * S;
+  sub(`Livrare (подача) = km-ii șoferului în afara rutei (casă – satul de start), fără service și fără drumuri neobișnuite · ${opts.zileLucratoare} zile lucrătoare`, y1, 10.5 * S);
+  sub(`Economie = livrare × costul km-ului mașinii: norma ei de motorină × ${lei2(opts.pretMotorina ?? PRET_IMPLICIT_LEI_L)} lei/l (prețul ANRE al zilei)`
+    + ` + ${lei2(REPARATIE_LEI_KM)} lei reparație (${lei2(REPARATIE_LEI_KM_DAF)} la DAF) + ${lei2(SALARIU_LEI_KM)} lei salariu`, y1 + SUB_DY, 9.5 * S);
+  sub('Rută = de la satul de start până la uzină · Goi pe rută = întoarcerile goale între sat și poartă, impuse de turele uzinei — nu se optimizează'
+    + ' · «navetă» = mașina care duce omul la autobuz, nu face rută', LOGO_AREA + TITLE_H + SUB_H + 6 * S + SUB_DY, 9.5 * S);
 
   const top = headerH;
   const x0 = PAD;

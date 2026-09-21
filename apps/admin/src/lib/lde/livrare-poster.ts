@@ -2,6 +2,9 @@ import { getSupabase } from '../supabase';
 import { sendTelegramPhoto } from '../telegram-notify';
 import { generateLivrareImage, LEI_PE_KM, leiPeKm, UZINA_SCURT, type LivrareRow, type BramburaRow } from './naveta-image';
 
+/** Norma și categoria unei mașini — din ele și din prețul zilei iese costul unui km. */
+export interface NormaMasinii { litri: number | null; categorie: string | null }
+
 /**
  * Posterul de LIVRARE (подача) pe rutele de uzină, la două săptămâni, în grupa Telegram.
  *
@@ -75,7 +78,12 @@ export function agregaLivrare(input: {
   soferi: Map<string, string>;                     // `${vehicle_id}|${factory_route_id}` → «Popescu»
   case: Map<string, string>;                       // vehicle_id → sat
   masini?: Map<string, string>;                    // vehicle_id → «552BRAO · Sprinter 312»
-  leiKm?: Map<string, number>;                     // vehicle_id → lei/km după tipul mașinii
+  // Ion, 21.09: costul unui km = norma mașinii × prețul ANRE al zilei + reparație + salariu.
+  // De aceea NU mai primim un lei/km gata făcut, ci norma mașinii și prețul fiecărei zile:
+  // prețul se schimbă în timpul perioadei (35,21 → 35,89 în 17–19.09), iar media se ia
+  // PONDERATĂ cu livrarea zilei, nu pe zile goale.
+  norme?: Map<string, NormaMasinii>;               // vehicle_id → { litri/100 km, categorie }
+  pretZi?: Map<string, number>;                    // YYYY-MM-DD → lei/litru
   navete?: NavetaRand[];                           // naveta făcută cu altă mașină (migr. 384)
   prag?: number;
   minZile?: number;
@@ -109,6 +117,19 @@ export function agregaLivrare(input: {
     return `${r.route_number} ${sat}` + (real && real.toLowerCase() !== sat.toLowerCase() ? ` – ${real}` : '');
   }).join(' + ') + (rids.length > 2 ? ` +${rids.length - 2}` : '');
 
+  // media prețului, ponderată cu km-ii de livrare ai fiecărei zile
+  const costulKm = (vid: string, kmPeZi: Map<string, number>): number => {
+    let km = 0, lei = 0;
+    for (const [zi, k] of kmPeZi) {
+      const p = input.pretZi?.get(zi);
+      if (k <= 0) continue;
+      km += k; lei += k * (p ?? 0);
+    }
+    const pret = km > 0 && lei > 0 ? lei / km : undefined;
+    const n = input.norme?.get(vid);
+    return leiPeKm({ litri: n?.litri, categorie: n?.categorie, pret });
+  };
+
   const out: LivrareRow[] = [];
   for (const [vid, zile] of peMasinaZi) {
     const n = zile.size;
@@ -126,7 +147,7 @@ export function agregaLivrare(input: {
     const casa = input.case.get(vid);
     out.push({
       masina: input.masini?.get(vid) ?? '—',
-      lei_km: input.leiKm?.get(vid) ?? LEI_PE_KM,
+      lei_km: costulKm(vid, new Map([...zile].map(([d, z]) => [d, z.liv]))),
       uzina: principala.uzina_id, ruta: eticheta,
       sofer: casa ? `${nume} (${casa})` : nume, zile: n,
       km_tur: tururi ? Math.round(plinTur / tururi) : null,
@@ -163,7 +184,8 @@ export function agregaLivrare(input: {
     const casa = v.casa ?? input.case.get(vid);
     out.push({
       masina: input.masini?.get(vid) ?? '—',
-      lei_km: input.leiKm?.get(vid) ?? LEI_PE_KM,
+      // norma MAȘINII DE NAVETĂ, nu a autobuzului: km-ii i-a făcut ea
+      lei_km: costulKm(vid, v.zile),
       uzina: ruta.get(rids[0])!.uzina_id,
       ruta: `${etichetaRutelor(rids)} · navetă`,
       sofer: casa ? `${nume} (${casa})` : nume,
@@ -284,9 +306,9 @@ async function citesteTot<T>(q: () => { range: (de: number, la: number) => Promi
   return out;
 }
 
-export async function incarcaLivrare(from: string, to: string, prag = PRAG_LIVRARE_KM_ZI, uzine: string[] | 'all' = UZINE_IMPLICITE): Promise<{ rows: LivrareRow[]; brambura: BramburaRow[] }> {
+export async function incarcaLivrare(from: string, to: string, prag = PRAG_LIVRARE_KM_ZI, uzine: string[] | 'all' = UZINE_IMPLICITE): Promise<{ rows: LivrareRow[]; brambura: BramburaRow[]; pretMotorina: number }> {
   const sb = getSupabase();
-  const [curse, rute, etaloane, atribuiri, nopti, soferiRows, vehicule, norme, tipuri, navete] = await Promise.all([
+  const [curse, rute, etaloane, atribuiri, nopti, soferiRows, vehicule, norme, tipuri, navete, preturi] = await Promise.all([
     citesteTot<CursaLivrare>(() => sb.from('lde_route_run')
       .select('run_date,factory_route_id,vehicle_id,sens,shift_number,km_real,km_livrare,km_brambura,km_service,km_gol_ruta')
       .gte('run_date', from).lte('run_date', to).not('km_real', 'is', null)),
@@ -300,19 +322,42 @@ export async function incarcaLivrare(from: string, to: string, prag = PRAG_LIVRA
     citesteTot<{ id: string; full_name: string }>(() => sb.from('drivers').select('id,full_name')),
     citesteTot<{ id: string; plate_number: string }>(() => sb.from('vehicles').select('id,plate_number')),
     citesteTot<{ vehicle_id: string; vehicle_type_id: string | null }>(() => sb.from('lde_vehicle_norms').select('vehicle_id,vehicle_type_id')),
-    citesteTot<{ id: string; display_name: string; category: string | null }>(() => sb.from('lde_vehicle_types').select('id,display_name,category')),
+    citesteTot<{ id: string; display_name: string; category: string | null; norm_l_per_100km: number | null }>(() =>
+      sb.from('lde_vehicle_types').select('id,display_name,category,norm_l_per_100km')),
     // naveta făcută cu altă mașină (migr. 384) — mașini care nu fac rută, deci n-au curse
     citesteTot<NavetaRand>(() => sb.from('lde_naveta_sofer')
       .select('run_date,vehicle_id,factory_route_id,km,autobuz_id,casa').gte('run_date', from).lte('run_date', to)),
+    // prețul ANRE al motorinei (oglindit din TLX de price-worker). Se ia și o lună dinainte:
+    // prima zi a perioadei poate cădea într-o zi fără rând nou, și atunci moștenește prețul
+    // anterior — altfel ziua aia ar fi socotită la prețul implicit și cifra ar minți tăcut.
+    citesteTot<{ valid_from: string; price_lei: number }>(() => sb.from('lde_diesel_price')
+      .select('valid_from,price_lei').lte('valid_from', to)
+      .gte('valid_from', new Date(Date.parse(`${from}T00:00:00Z`) - 30 * 86400000).toISOString().slice(0, 10))),
   ]);
   const numeSofer = new Map(soferiRows.map((d) => [d.id, d.full_name.split(' ')[0]]));
   // «552BRAO · Sprinter 312» — tipul din normele de consum (lde_vehicle_types), unde există
   const numeTip = new Map(tipuri.map((t) => [t.id, t.display_name]));
   const tipMasinii = new Map(norme.filter((n) => n.vehicle_type_id).map((n) => [n.vehicle_id, numeTip.get(n.vehicle_type_id!)]));
   const masiniMap = new Map(vehicule.map((v) => [v.id, tipMasinii.get(v.id) ? `${v.plate_number} · ${tipMasinii.get(v.id)}` : v.plate_number]));
-  // lei/km după categoria tipului (autobuz_mare / autobuz_mic → autobuz; microbuz)
+  // norma și categoria fiecărei mașini — din ele iese costul unui km (Ion, 21.09)
   const categorieTip = new Map(tipuri.map((t) => [t.id, t.category]));
-  const leiKmMap = new Map(norme.filter((n) => n.vehicle_type_id).map((n) => [n.vehicle_id, leiPeKm(categorieTip.get(n.vehicle_type_id!))]));
+  const litriTip = new Map(tipuri.map((t) => [t.id, t.norm_l_per_100km == null ? null : Number(t.norm_l_per_100km)]));
+  const normeMap = new Map<string, NormaMasinii>(norme.filter((n) => n.vehicle_type_id).map((n) =>
+    [n.vehicle_id, { litri: litriTip.get(n.vehicle_type_id!) ?? null, categorie: categorieTip.get(n.vehicle_type_id!) ?? null }]));
+  // prețul fiecărei zile din perioadă: rândul zilei, altfel ultimul de dinaintea ei
+  const pretZi = new Map<string, number>();
+  const scara = [...preturi].map((p) => ({ zi: p.valid_from, lei: Number(p.price_lei) }))
+    .filter((p) => Number.isFinite(p.lei) && p.lei > 0).sort((a, b) => a.zi.localeCompare(b.zi));
+  let ultim: number | null = null, i = 0;
+  for (let t = Date.parse(`${from}T00:00:00Z`); t <= Date.parse(`${to}T00:00:00Z`); t += 86400000) {
+    const zi = new Date(t).toISOString().slice(0, 10);
+    while (i < scara.length && scara[i].zi <= zi) ultim = scara[i++].lei;
+    if (ultim != null) pretZi.set(zi, ultim);
+  }
+  const preturiFolosite = [...pretZi.values()];
+  const pretMotorina = preturiFolosite.length
+    ? preturiFolosite.reduce((s, x) => s + x, 0) / preturiFolosite.length
+    : (scara.at(-1)?.lei ?? 0);
   const soferZi = new Map<string, string>();
   for (const a of atribuiri) if (a.driver_id && numeSofer.has(a.driver_id)) soferZi.set(`${a.vehicle_id}|${a.date}`, numeSofer.get(a.driver_id)!);
   const startReal = new Map<string, string>();
@@ -332,8 +377,9 @@ export async function incarcaLivrare(from: string, to: string, prag = PRAG_LIVRA
   for (const [k, v] of caseMap) if (/slobozia doamnei|nordic|bucuria|centru|mitoc/i.test(v)) caseMap.set(k, 'Orhei');
   const ruteAlese = uzine === 'all' ? rute : rute.filter((r) => uzine.includes(r.uzina_id));
   return {
-    rows: agregaLivrare({ curse, rute: ruteAlese, startReal, soferi: soferiMap, case: caseMap, masini: masiniMap, leiKm: leiKmMap, navete, prag }),
+    rows: agregaLivrare({ curse, rute: ruteAlese, startReal, soferi: soferiMap, case: caseMap, masini: masiniMap, norme: normeMap, pretZi, navete, prag }),
     brambura: await cuDescriere(agregaBrambura({ curse, rute: ruteAlese, masini: masiniMap, soferZi }), ruteAlese, atribuiri, caseMap, curse),
+    pretMotorina,
   };
 }
 
@@ -378,13 +424,13 @@ const zileLucratoare = (from: string, to: string) => {
 };
 
 export async function generarePoster(from: string, to: string, prag = PRAG_LIVRARE_KM_ZI, uzine: string[] | 'all' = UZINE_IMPLICITE): Promise<{ png: Buffer; rows: LivrareRow[] }> {
-  const { rows, brambura } = await incarcaLivrare(from, to, prag, uzine);
+  const { rows, brambura, pretMotorina } = await incarcaLivrare(from, to, prag, uzine);
   const png = await generateLivrareImage(rows, {
     // Ion, 19.09: «sus să scrie că e pentru SEBN»
     titlu: `LIVRARE (ПОДАЧА) · ${numeleUzinelor(uzine === 'all' ? rows.map((r) => r.uzina) : uzine).toUpperCase()} · peste ${prag} km/zi`,
     perioada: `${ddmm(from)} – ${ddmm(to)}.${to.slice(0, 4)}`,
     zileLucratoare: zileLucratoare(from, to),
-    brambura,
+    brambura, pretMotorina,
   });
   return { png, rows };
 }

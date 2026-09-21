@@ -50,7 +50,8 @@ describe('agregaLivrare', () => {
       soferi: new Map([['vBus|r1', 'Magalu']]),
       case: new Map([['vBus', 'Vatici']]),
       masini: new Map([['vBus', '820GXP · DAF'], ['vNav', '073BRAO · Sprinter 312']]),
-      leiKm: new Map([['vBus', 10], ['vNav', 5]]),
+      norme: new Map([['vBus', { litri: 28.5, categorie: 'autobuz_mare' }], ['vNav', { litri: 10.5, categorie: 'microbuz' }]]),
+      pretZi: new Map(zile.map((d) => [d, 35.89])),
     });
     expect(rows).toHaveLength(1);                       // autobuzul are livrare 0, deci nu intră
     const r = rows[0];
@@ -62,7 +63,8 @@ describe('agregaLivrare', () => {
     expect(r.naveta_total).toBe(787);
     expect(r.plin_zi).toBe(0);                          // nu face rută
     expect(r.km_tur).toBeNull();
-    expect(r.lei_km).toBe(5);                           // tipul MAȘINII DE NAVETĂ, nu al autobuzului
+    // costul km-ului MAȘINII DE NAVETĂ, nu al autobuzului: 10,5 l × 35,89 + 1 + 1
+    expect(r.lei_km).toBeCloseTo(5.77, 2);
   });
 
   it('naveta sub prag sau sub trei zile nu intră', () => {
@@ -79,6 +81,46 @@ describe('agregaLivrare', () => {
       soferi: new Map(), case: new Map(), masini: new Map(),
     });
     expect(rows).toEqual([]);                           // vNav: 2 zile lucrătoare; vNav2: 40 km/zi
+  });
+
+  it('costul unui km: normă × preț ANRE + reparație + salariu (Ion, 21.09)', () => {
+    // 1,50 reparație DOAR la DAF; Sprinterul mare («autobuz_mic») ia 1,00, ca microbuzul —
+    // vechiul leiPeKm îi dădea 10 lei/km doar fiindcă avea «autobuz» în numele categoriei.
+    const zi = (d: string, vid: string) => cursa({ run_date: d, vehicle_id: vid, km_livrare: 100 });
+    const zile = ['2026-09-15', '2026-09-16', '2026-09-17'];
+    const rows = agregaLivrare({
+      curse: zile.flatMap((d) => [zi(d, 'vDAF'), zi(d, 'vSprinter'), zi(d, 'v518'), zi(d, 'vFaraTip')]),
+      rute, startReal: new Map(), prag: 50, minZile: 3,
+      soferi: new Map(), case: new Map(),
+      norme: new Map([
+        ['vDAF', { litri: 28.5, categorie: 'autobuz_mare' }],
+        ['vSprinter', { litri: 10.5, categorie: 'microbuz' }],
+        ['v518', { litri: 14.5, categorie: 'autobuz_mic' }],
+      ]),
+      pretZi: new Map(zile.map((d) => [d, 35.89])),
+      masini: new Map([['vDAF', 'DAF'], ['vSprinter', 'Sprinter 312'], ['v518', 'Sprinter 518'], ['vFaraTip', 'fără tip']]),
+    });
+    const leiKm = new Map(rows.map((r) => [r.masina, r.lei_km!]));
+    expect(leiKm.get('DAF')).toBeCloseTo(12.73, 2);         // 28,5 l → 10,23 + 1,50 reparație + 1 salariu
+    expect(leiKm.get('Sprinter 312')).toBeCloseTo(5.77, 2); // 10,5 l → 3,77 + 1 + 1
+    expect(leiKm.get('Sprinter 518')).toBeCloseTo(7.20, 2); // 14,5 l, reparație 1,00 — nu 1,50
+    expect(leiKm.get('fără tip')).toBeCloseTo(6.49, 2);     // norma implicită 12,5 l
+  });
+
+  it('prețul se ia pe ziua km-ilor, ponderat cu livrarea zilei', () => {
+    // o zi ieftină cu puțini km și una scumpă cu mulți: media NU e media aritmetică a prețurilor
+    const rows = agregaLivrare({
+      curse: [
+        cursa({ run_date: '2026-09-15', vehicle_id: 'v1', km_livrare: 20 }),
+        cursa({ run_date: '2026-09-16', vehicle_id: 'v1', km_livrare: 180 }),
+        cursa({ run_date: '2026-09-17', vehicle_id: 'v1', km_livrare: 100 }),
+      ],
+      rute, startReal: new Map(), prag: 50, minZile: 3, soferi: new Map(), case: new Map(),
+      norme: new Map([['v1', { litri: 28.5, categorie: 'autobuz_mare' }]]),
+      pretZi: new Map([['2026-09-15', 20], ['2026-09-16', 40], ['2026-09-17', 40]]),
+    });
+    // preț ponderat = (20×20 + 180×40 + 100×40) / 300 = 38,67 lei/l
+    expect(rows[0].lei_km).toBeCloseTo((28.5 / 100) * 38.6667 + 1.5 + 1, 2);
   });
 
   it('la Ungheni livrarea mașinii se adună peste cele două rute ale ei, nu se rupe pe rute', () => {

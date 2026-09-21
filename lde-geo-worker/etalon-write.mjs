@@ -321,9 +321,13 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
   // rămâne ascunsă în cursa cu pasageri, iar cifra care trebuie micșorată nu se vede.
   const contrib = { km_plin: 0, km_gol: 0, km_necunoscut: 0, km_livrare: 0, km_gol_acasa: 0 };
   const bazeP = (r.stops ?? []).filter((st) => st.isBase).map((st) => ({ lat: st.lat, lon: st.lon }));
-  // «în sat» = la cel mult 500 m de o localitate cunoscută. Nu 2 km (pragul de etichetare):
-  // aproape orice punct din Moldova e la 2 km de ceva, deci n-ar despărți nimic.
-  const RAZA_OPRIRE_SAT_KM = 0.5;
+  // «în sat» = la cel mult 800 m de o localitate cunoscută. Nu 2 km (pragul de etichetare):
+  // aproape orice punct din Moldova e la 2 km de ceva, deci n-ar despărți nimic. Dar nici
+  // 500 m, cum era până pe 21.09: centrul OSM al satului e lângă biserică, iar stația stă
+  // la marginea șoselei. Cucuruzenii de Sus ieșea la 546–606 m, deci cele 20 de opriri de
+  // urcare de acolo rămâneau FĂRĂ NUME și nu intrau în `sate_oprire` — agregatorul le
+  // vedea în 2% din tururi în loc de 100%, iar ruta 2 «Cișmea» rămânea tăiată la Cișmea.
+  const RAZA_OPRIRE_SAT_KM = 0.8;
   const locul = (p) => ctx.placesIdx?.nearestWithin(p, RAZA_OPRIRE_SAT_KM)?.name ?? null;
   const inSat = (p) => locul(p) != null;
   // opririle scurte ale zilei care pot fi capete de cursă (vezi `capeteReale`): din sat
@@ -379,10 +383,15 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
     return numit;
   };
   const OPRIRE_ORIUNDE_S = 120;
+  const RAZA_PARCARE_KM = 0.25;
   const scurteInSat = popasuri(r.pts, 0, r.pts.length - 1)
     .map((p) => ({ i: p.from, secunde: p.secunde, locality: locul(r.pts[p.from]) }))
     .filter((p) => (p.locality != null || p.secunde >= OPRIRE_ORIUNDE_S)
-      && !bazeP.some((b) => hav(r.pts[p.i], b) <= 0.5)
+      // Nu acasă — dar «acasă» e PARCAREA, nu satul întreg. La 0,5 km (până pe 21.09)
+      // se aruncau chiar urcările șoferului din satul lui: Cociorvă oprește la 0,2–0,4 km
+      // de unde parchează, în mijlocul cursei, și ia oameni. Gruparea opririlor se face la
+      // 150 m, deci o oprire la peste 250 m de parcare e alt loc, nu manevră prin curte.
+      && !bazeP.some((b) => hav(r.pts[p.i], b) <= RAZA_PARCARE_KM)
       && !gts.some((g) => hav(r.pts[p.i], g) <= 1.0));
   for (const s of segs) {
     if (s.stare === 'plin') {

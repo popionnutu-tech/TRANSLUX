@@ -22,6 +22,11 @@ const cursa = {
   vehicle_plate_retur: null, cancelled: false,
 };
 vi.mock('./grafic-data', () => ({ loadGraficPages: async () => ({ pages: [[cursa]] }) }));
+
+// «Azi» fix: altfel testele ar trece azi și ar pica mâine, de când 12.09 devine
+// zi trecută și trimiterea se oprește singură.
+let azi = '2026-09-12';
+vi.mock('./chisinau-time', () => ({ chisinauTodayIso: () => azi }));
 vi.mock('./schedule-image', () => ({ generateScheduleImage: async () => Buffer.from('png') }));
 
 const sendTelegramPhoto = vi.fn<(...a: unknown[]) => Promise<{ ok: boolean; messageId: number | null }>>();
@@ -42,6 +47,7 @@ describe('sendGraficImageToGroup: o zi = o imagine în grupă', () => {
     deleteTelegramMessage.mockClear();
     upsert.mockClear();
     existingRow = null;
+    azi = '2026-09-12';
   });
 
   it('prima trimitere: nu are ce șterge', async () => {
@@ -80,5 +86,46 @@ describe('sendGraficImageToGroup: o zi = o imagine în grupă', () => {
     const res = await sendGraficImageToGroup('2026-09-12', { chatId: CHAT, manual: true });
     expect(res.error).toBeUndefined();
     expect(upsert).toHaveBeenCalledTimes(1);
+  });
+});
+
+// Ion, 21.09: «retrospectiv sa nu se trimita in grupa» — pe 21.09 grupa a
+// primit graficul de duminică 20.09, refăcut după ce ziua trecuse.
+describe('sendGraficImageToGroup: ziua trecută nu ajunge în grupă', () => {
+  beforeEach(() => {
+    sendTelegramPhoto.mockReset();
+    sendTelegramPhoto.mockResolvedValue({ ok: true, messageId: 20 });
+    deleteTelegramMessage.mockClear();
+    upsert.mockClear();
+    existingRow = null;
+    azi = '2026-09-21';
+  });
+
+  it('corectarea zilei de ieri: automat, nu pleacă nimic și nu e eroare', async () => {
+    existingRow = { send_count: 1, snapshot: {}, sent_by: 'u1', telegram_message_id: 10 };
+    const res = await sendGraficImageToGroup('2026-09-20', { chatId: CHAT, manual: false });
+    expect(res.error).toBeUndefined();
+    expect(sendTelegramPhoto).not.toHaveBeenCalled();
+    expect(deleteTelegramMessage).not.toHaveBeenCalled();
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it('bifa dispecerului pe o zi trecută: refuz explicat, fără imagine', async () => {
+    const res = await sendGraficImageToGroup('2026-09-20', { chatId: CHAT, manual: true });
+    expect(res.error).toContain('trecut');
+    expect(sendTelegramPhoto).not.toHaveBeenCalled();
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it('ziua de azi pleacă mai departe', async () => {
+    const res = await sendGraficImageToGroup('2026-09-21', { chatId: CHAT, manual: true });
+    expect(res.error).toBeUndefined();
+    expect(sendTelegramPhoto).toHaveBeenCalledTimes(1);
+  });
+
+  it('ziua de mâine pleacă mai departe', async () => {
+    const res = await sendGraficImageToGroup('2026-09-22', { chatId: CHAT, manual: true });
+    expect(res.error).toBeUndefined();
+    expect(sendTelegramPhoto).toHaveBeenCalledTimes(1);
   });
 });

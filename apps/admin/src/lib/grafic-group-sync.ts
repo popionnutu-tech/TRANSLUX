@@ -1,4 +1,5 @@
 import { getSupabase } from './supabase';
+import { chisinauTodayIso } from './chisinau-time';
 import { loadGraficPages } from './grafic-data';
 import { generateScheduleImage } from './schedule-image';
 import { sendTelegramPhoto, deleteTelegramMessage } from './telegram-notify';
@@ -16,6 +17,13 @@ import {
 //    scrisă sub ea. Dacă nu s-a schimbat nimic vizibil (ex. doar foaia de
 //    parcurs), nu pleacă nimic — grupa nu e un jurnal de click-uri.
 //
+// Numai ziua de azi și zilele care vin (Ion, 21.09: «retrospectiv sa nu se
+// trimita in grupa»). Pe 21.09 dispecerul a corectat mașina pe o cursă de
+// duminică 20.09, iar grupa a primit graficul de ieri cu «ce s-a schimbat»:
+// șoferul tura aceea o făcuse deja, iar imaginea rămâne lângă graficul de azi
+// și poate fi luată drept cel de azi. O zi trecută nu se mai trimite, nici
+// automat, nici la bifa dispecerului.
+//
 // O zi = o imagine în grupă (Ion, 11.09: «cum apare ultimul grafic pe ziua
 // următoare, precedentul pe aceeași zi se șterge»): după ce a plecat imaginea
 // nouă, cea veche pe aceeași zi se șterge din grupă, ca șoferul să nu aibă
@@ -32,6 +40,15 @@ export async function sendGraficImageToGroup(
   date: string,
   opts: SendGraficOptions,
 ): Promise<{ error?: string; changes?: string[] }> {
+  // Înaintea oricărei citiri: ziua trecută nu mai are ce căuta în grupă.
+  // Automat tăcem — corectarea zilei de ieri e munca normală a dispecerului,
+  // nu o eroare de pus în log.
+  if (date < chisinauTodayIso()) {
+    return opts.manual
+      ? { error: 'Ziua a trecut — graficul nu se mai trimite în grupă.' }
+      : {};
+  }
+
   const chatId = opts.chatId ?? (await graficGroupChatId());
   if (!chatId) return { error: 'Grupa Mejgorod nu e legată.' };
 

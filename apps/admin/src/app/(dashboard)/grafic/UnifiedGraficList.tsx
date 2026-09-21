@@ -22,6 +22,10 @@ import {
 import type { AdminRole } from '@translux/db';
 import { validateRow, errorMessageRo } from './validation';
 
+function todayChisinau(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
+}
+
 /**
  * Lista unificată interurban + suburban pentru dispecer / admin.
  * Formatul vechi (cu logo + PNG export) ramane doar pentru rolul GRAFIC.
@@ -439,6 +443,7 @@ export default function UnifiedGraficList({
                       sending={sendingGroup}
                       error={groupError}
                       readOnly={readOnly}
+                      trecut={date < todayChisinau()}
                       interFaraSofer={rows.filter(r => r.kind === 'inter' && !r.driver_id && !r.cancelled).length}
                       onSend={handleSendToGroup}
                     />
@@ -534,6 +539,11 @@ export default function UnifiedGraficList({
  * Bifarea trimite imaginea; bifa bifată = graficul a plecat pe ziua asta (cu
  * ora și cine). După o corectare se poate retrimite — imaginea nouă vine cu
  * mențiunea «grafic corectat», ca șoferii să știe care e cea bună.
+ *
+ * Pe o zi trecută bifa și «Retrimite» sunt stinse (Ion, 21.09: «retrospectiv
+ * sa nu se trimita in grupa»): corectarea de ieri se face mai departe, doar
+ * grupa nu mai primește nimic. Serverul refuză oricum — aici o spunem înainte
+ * de click, nu ca eroare după.
  */
 function GraficGroupRow({
   colSpan,
@@ -541,6 +551,7 @@ function GraficGroupRow({
   sending,
   error,
   readOnly,
+  trecut,
   interFaraSofer,
   onSend,
 }: {
@@ -549,6 +560,7 @@ function GraficGroupRow({
   sending: boolean;
   error: string;
   readOnly: boolean;
+  trecut: boolean;
   interFaraSofer: number;
   onSend: () => void;
 }) {
@@ -562,20 +574,22 @@ function GraficGroupRow({
     <tr style={{ background: sent ? 'var(--success-dim)' : 'rgba(155,27,48,0.04)', borderTop: '1px solid rgba(0,0,0,0.05)' }}>
       <td colSpan={colSpan} style={{ padding: '10px 12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: readOnly || sending || sent ? 'default' : 'pointer', fontWeight: 600, fontSize: 13 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: readOnly || trecut || sending || sent ? 'default' : 'pointer', fontWeight: 600, fontSize: 13 }}>
             <input
               type="checkbox"
               checked={sent}
-              disabled={readOnly || sending || sent}
+              disabled={readOnly || trecut || sending || sent}
               onChange={e => { if (e.target.checked) onSend(); }}
               style={{ width: 18, height: 18 }}
-              title={sent ? 'Graficul a fost trimis în grupă' : 'Bifează când graficul interurban e complet — imaginea pleacă în grupa Mejgorod'}
+              title={sent ? 'Graficul a fost trimis în grupă' : trecut ? 'Ziua a trecut — graficul nu se mai trimite în grupă' : 'Bifează când graficul interurban e complet — imaginea pleacă în grupa Mejgorod'}
             />
             {sending
               ? 'Se trimite imaginea în grupa Mejgorod…'
               : sent
                 ? `Graficul a plecat în grupa Mejgorod la ${oraTrimiterii}`
-                : 'Graficul interurban e complet — trimite imaginea în grupa Mejgorod (Telegram)'}
+                : trecut
+                  ? 'Ziua a trecut — graficul nu se mai trimite în grupă'
+                  : 'Graficul interurban e complet — trimite imaginea în grupa Mejgorod (Telegram)'}
           </label>
           {sent && status?.post && (
             <span className="text-muted" style={{ fontSize: 12 }}>
@@ -584,17 +598,17 @@ function GraficGroupRow({
               {status.post.send_count > 1 ? ` · trimis de ${status.post.send_count} ori` : ''}
             </span>
           )}
-          {sent && !readOnly && (
+          {sent && !readOnly && !trecut && (
             <button className="btn btn-outline" onClick={onSend} disabled={sending} style={{ fontSize: 12, padding: '4px 10px' }}>
               {sending ? 'Se retrimite…' : 'Retrimite (după corectări)'}
             </button>
           )}
-          {!sent && interFaraSofer > 0 && !sending && (
+          {!sent && !trecut && interFaraSofer > 0 && !sending && (
             <span style={{ fontSize: 12, color: 'var(--danger)' }}>
               ⚠ {interFaraSofer} {interFaraSofer === 1 ? 'cursă interurbană fără șofer nu va apărea' : 'curse interurbane fără șofer nu vor apărea'} pe imagine.
             </span>
           )}
-          {status && !status.bound && !sent && (
+          {status && !status.bound && !sent && !trecut && (
             <span style={{ fontSize: 12, color: 'var(--danger)' }}>
               Grupa nu e legată încă: un administrator scrie <code>/lega_grafic</code> în grupa Telegram Mejgorod.
             </span>

@@ -23,7 +23,10 @@
 // ============================================================================
 import { login, listUnitsPozitii } from './wialon-api.mjs';
 import { deciziaTlx, normPlaca } from './trip-auto.mjs';
-import { actualizeazaStationarea, alerteCamion, cursaExpirata, deciziaCamion, punctulUndeSta, recupereazaDinIstoric, STARI_DESCHISE, ZILE_RECUPERARE } from './camion-auto.mjs';
+import {
+  actualizeazaStationarea, alerteCamion, cursaExpirata, deciziaCamion, punctulUndeSta,
+  recupereazaDinIstoric, zileCuCursa, zileDeStat, ORE_STAT_PE_ZI, STARI_DESCHISE, ZILE_RECUPERARE,
+} from './camion-auto.mjs';
 
 const SB_URL = process.env.SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -50,6 +53,8 @@ const ZILE_ULTIMA_CURSA = 30;
  *  cisterna plină poate sta la bază și două-trei săptămâni până descarcă — plecarea de la
  *  încărcare trebuie să fie încă în fereastră când vine bonul, altfel bonul vechi ar închide iar. */
 const ZILE_OPRIRI = 30;
+/** Cât înapoi se caută zilele în care camionul a stat, pentru starea «odihnă» automată. */
+const ZILE_STAT_FEREASTRA = 14;
 
 function rest(baseUrl, key) {
   return async (path, init = {}) => {
@@ -336,6 +341,66 @@ async function main() {
     }
   }
 
+  // ── 2e. Camionul care stă zile întregi primește «odihnă» automat (Ion, 21.09) ──
+  // Fără operator, lde_truck_day_states rămânea gol (ultima intrare pusă de om e
+  // din 11.09) și mașina din curte arăta în bandă la fel ca una gata de drum.
+  // GPS-ul dovedește că nu se mișcă, nu și DE CE — de aceea starea scrisă e
+  // «odihnă», niciodată «reparație». Rândul pus de om nu se atinge: se scriu doar
+  // zilele care n-au deja o stare.
+  let zileStat = 0;
+  const faraCursa = (vehicule || []).filter((v) => !deschiseDupaVehicul.has(v.id) && !cuCursaAcum.has(v.id));
+  if (faraCursa.length > 0) {
+    try {
+      const deLa = new Date(acumMs - ZILE_STAT_FEREASTRA * 86400e3).toISOString().slice(0, 10);
+      const azi = new Date(acumMs).toISOString().slice(0, 10);
+      const ids = faraCursa.map((v) => v.id);
+      const [opriri, stariExistente, curseDinFereastra] = await Promise.all([
+        sb(`lde_gps_stops?select=vehicle_id,date,dwell_min&vehicle_id=in.(${ids.join(',')})` +
+           `&date=gte.${deLa}&dwell_min=gte.${ORE_STAT_PE_ZI * 60}&limit=1000`),
+        sb(`lde_truck_day_states?select=vehicle_id,date&vehicle_id=in.(${ids.join(',')})&date=gte.${deLa}&limit=1000`),
+        // Cursele care ating fereastra, orice stare: ziua cu cursă nu e odihnă nici
+        // după ce cursa s-a închis. Se caută de mai devreme decât fereastra, fiindcă
+        // o cursă începută acum trei săptămâni poate ajunge cu coada în ea.
+        sb(`lde_truck_trips?select=vehicle_id,load_planned_at,unload_planned_at,status_changed_at,status` +
+           `&vehicle_id=in.(${ids.join(',')})&status=neq.anulata` +
+           `&load_planned_at=gte.${enc(new Date(acumMs - (ZILE_STAT_FEREASTRA + 45) * 86400e3).toISOString())}&limit=1000`),
+      ]);
+      const opririDupaV = new Map();
+      for (const o of opriri || []) {
+        const l = opririDupaV.get(o.vehicle_id) ?? [];
+        l.push(o); opririDupaV.set(o.vehicle_id, l);
+      }
+      const curseDupaV = new Map();
+      for (const c of curseDinFereastra || []) {
+        const l = curseDupaV.get(c.vehicle_id) ?? [];
+        l.push(c); curseDupaV.set(c.vehicle_id, l);
+      }
+      const dejaScrise = new Set((stariExistente || []).map((s) => `${s.vehicle_id}|${String(s.date).slice(0, 10)}`));
+      const deScris = [];
+      for (const v of faraCursa) {
+        const cuCursa = zileCuCursa(curseDupaV.get(v.id) ?? []);
+        for (const zi of zileDeStat(opririDupaV.get(v.id) ?? [], azi, cuCursa)) {
+          if (dejaScrise.has(`${v.id}|${zi}`)) continue;
+          deScris.push({
+            vehicle_id: v.id, date: zi, state: 'odihna',
+            reason: 'Automat: mașina n-a avut cursă și n-a lucrat toată ziua (GPS)',
+            created_by: 'auto:gps',
+          });
+        }
+      }
+      if (deScris.length > 0) {
+        for (const d of deScris) console.log(`  ${normPlaca((vehicule || []).find((v) => v.id === d.vehicle_id)?.plate_number)}: ${d.date} → odihnă (stat toată ziua, fără cursă)`);
+        if (WRITE) {
+          await sb('lde_truck_day_states', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(deScris) });
+        }
+        zileStat = deScris.length;
+      }
+    } catch (e) {
+      esuate++;
+      console.error(`  zile de stat: ${e instanceof Error ? e.message : e}`);
+    }
+  }
+
   // ── 2d. Alerta a cărei cursă s-a închis se stinge singură (Ion, 21.09) ──
   // Alertele aveau un buton «rezolvă», apăsat de dispecer. Fără operator ar crește
   // la nesfârșit deasupra benzii, cerând ceva ce nu mai are cine face — și oricum
@@ -391,7 +456,7 @@ async function main() {
   }
 
   console.log(`  camioane: ${(vehicule || []).length} (cisterne ${cisterne}), curse deschise: ${(curseDeschise || []).length}, poziții: ${pozitieDupaPlaca.size}, ` +
-    `recepții: ${receptii.length}, staționări scrise: ${stationariDeScris.length}, stări scrise: ${scrise}, recuperate: ${recuperate}, alerte: ${alerteDeScris.length}, stinse: ${stinse}, eșuate: ${esuate}`);
+    `recepții: ${receptii.length}, staționări scrise: ${stationariDeScris.length}, stări scrise: ${scrise}, recuperate: ${recuperate}, alerte: ${alerteDeScris.length}, stinse: ${stinse}, zile stat: ${zileStat}, eșuate: ${esuate}`);
   if (esuate > 0) process.exitCode = 1;
 }
 

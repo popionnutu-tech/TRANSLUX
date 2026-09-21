@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {
   actualizeazaStationarea, deciziaCamion, alerteCamion, punctulUndeSta, minuteLaPunct,
   descarcaAici, incarcaAici, PRAG_MIN, PLECAT_KM, PLECAT_MIN, LOC_DESCARCARE_NECUNOSCUT,
-  cursaExpirata, cisterneDinOpriri, recupereazaDinIstoric,
+  cursaExpirata, cisterneDinOpriri, recupereazaDinIstoric, zileDeStat, zileCuCursa,
 } from './camion-auto.mjs';
 
 const T0 = Date.parse('2026-09-05T16:50:00Z');
@@ -560,4 +560,43 @@ test('ANT344: bucata scurtă la același punct nu e plecare și nu rescrie ora �
   assert.equal(r.creeaza.cargo, 'biodiesel');
   assert.equal(r.creeaza.status, 'spre_descarcare');
   assert.equal(r.creeaza.unload_point_id, null);
+});
+
+// ── Zilele în care camionul a stat (Ion, 21.09) ──────────────────────────────
+
+test('zileDeStat: trei zile la rând de stat fac o stare; două nu, iar ziua de azi nu se judecă', () => {
+  const zi = (d, dwell) => ({ date: d, dwell_min: dwell });
+  // Trei zile lipite, stat toată ziua.
+  assert.deepEqual(
+    zileDeStat([zi('2026-09-17', 1436), zi('2026-09-18', 1430), zi('2026-09-19', 1436)], '2026-09-21'),
+    ['2026-09-17', '2026-09-18', '2026-09-19'],
+  );
+  // Două zile: o pauză, nu o stare.
+  assert.deepEqual(zileDeStat([zi('2026-09-18', 1436), zi('2026-09-19', 1436)], '2026-09-21'), []);
+  // Șir rupt de o zi de lucru: niciun capăt nu ajunge la trei.
+  assert.deepEqual(
+    zileDeStat([zi('2026-09-15', 1436), zi('2026-09-16', 1436), zi('2026-09-18', 1436), zi('2026-09-19', 1436)], '2026-09-21'),
+    [],
+  );
+  // 12 h pe zi nu e stat: mașina a lucrat jumătate de zi.
+  assert.deepEqual(zileDeStat([zi('2026-09-17', 720), zi('2026-09-18', 720), zi('2026-09-19', 720)], '2026-09-21'), []);
+  // Ziua de azi nu se judecă — n-a trecut încă; rămân doar cele trei dinainte.
+  assert.deepEqual(
+    zileDeStat([zi('2026-09-18', 1436), zi('2026-09-19', 1436), zi('2026-09-20', 1436), zi('2026-09-21', 1436)], '2026-09-21'),
+    ['2026-09-18', '2026-09-19', '2026-09-20'],
+  );
+  assert.deepEqual(zileDeStat([], '2026-09-21'), []);
+});
+
+test('ziua cu cursă nu e odihnă, oricât ar fi stat pe loc (KYK742, plin la Bacioi)', () => {
+  const zi = (d, dwell) => ({ date: d, dwell_min: dwell });
+  const opriri = [zi('2026-09-14', 1436), zi('2026-09-15', 1436), zi('2026-09-16', 1436), zi('2026-09-17', 1436)];
+  // Cisterna plină a stat la bază 14–16.09 cu cursa deschisă: doar 17.09 rămâne,
+  // iar o zi singură nu e o stare.
+  const cuCursa = zileCuCursa([{ load_planned_at: '2026-09-10T04:00:00Z', unload_planned_at: '2026-09-16T11:00:00Z', status_changed_at: '2026-09-16T11:00:00Z', status: 'incheiata' }]);
+  assert.ok(cuCursa.has('2026-09-14') && cuCursa.has('2026-09-16'));
+  assert.deepEqual(zileDeStat(opriri, '2026-09-21', cuCursa), []);
+  // Cursa anulată nu acoperă nimic: zilele rămân odihnă.
+  const anulata = zileCuCursa([{ load_planned_at: '2026-09-10T04:00:00Z', unload_planned_at: '2026-09-16T11:00:00Z', status: 'anulata' }]);
+  assert.deepEqual(zileDeStat(opriri, '2026-09-21', anulata), ['2026-09-14', '2026-09-15', '2026-09-16', '2026-09-17']);
 });

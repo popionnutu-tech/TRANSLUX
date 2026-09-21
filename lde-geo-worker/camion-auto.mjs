@@ -377,6 +377,86 @@ export function recupereazaDinIstoric({ camion, opriri, puncte, ultimaCursa, acu
   };
 }
 
+/** Cât trebuie să stea pe loc într-o zi ca ziua aceea să fie stat, nu lucrat. */
+export const ORE_STAT_PE_ZI = 20;
+/** Câte zile la rând fac din stat o stare, nu o pauză. */
+export const ZILE_STAT = 3;
+
+/**
+ * Zilele în care camionul a stat, din urma GPS (Ion, 21.09: camionul care stă zile
+ * întregi fără cursă să nu mai apară «liber» în bandă).
+ *
+ * GPS-ul dovedește că mașina nu s-a mișcat — NU și de ce. De aceea rezultatul se
+ * scrie ca «odihnă», starea neutră, niciodată ca «reparație»: aia ar fi o
+ * presupunere despre ce se întâmplă în curte. Dacă mașina chiar e în service,
+ * omul schimbă starea și automatul nu se mai atinge de ziua aceea.
+ *
+ * O zi e stată dacă are o oprire de cel puțin ORE_STAT_PE_ZI; se întorc doar
+ * zilele care fac parte dintr-un șir de cel puțin ZILE_STAT la rând, ca sâmbăta
+ * la bază să nu devină stare. Ziua de azi nu se judecă — n-a trecut încă.
+ *
+ * Ziua în care camionul AVEA o cursă nu e niciodată odihnă, oricât ar fi stat pe
+ * loc: cisterna plină care așteaptă descărcarea la bază stă zile în șir și tot în
+ * cursă e (KYK742, plin cu diesel la Bacioi din 10.09). Zilele acelea se scot
+ * înainte de a căuta șiruri, altfel o zi de odihnă lipită de două de așteptare ar
+ * trece drept șir.
+ *
+ * @param opriri [{ date: 'YYYY-MM-DD', dwell_min }]
+ * @param azi 'YYYY-MM-DD' (ora Chișinăului, ca în lde_gps_stops)
+ * @param zileCuCursa Set cu datele în care camionul avea o cursă
+ * @returns string[] datele, crescător
+ */
+export function zileDeStat(opriri, azi, zileCuCursa = new Set()) {
+  const cellMaiLung = new Map();
+  for (const o of opriri || []) {
+    const zi = String(o.date ?? '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(zi) || zi >= azi || zileCuCursa.has(zi)) continue;
+    const dwell = Number(o.dwell_min) || 0;
+    if (dwell > (cellMaiLung.get(zi) ?? 0)) cellMaiLung.set(zi, dwell);
+  }
+  const state = [...cellMaiLung.entries()]
+    .filter(([, dwell]) => dwell >= ORE_STAT_PE_ZI * 60)
+    .map(([zi]) => zi)
+    .sort();
+
+  // Doar șirurile de zile lipite: o zi ruptă în mijlocul lucrului nu e o stare.
+  const out = [];
+  let sir = [];
+  const ziuaUrmatoare = (zi) => {
+    const d = new Date(`${zi}T12:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + 1);
+    return d.toISOString().slice(0, 10);
+  };
+  for (const zi of state) {
+    if (sir.length === 0 || ziuaUrmatoare(sir[sir.length - 1]) === zi) sir.push(zi);
+    else { if (sir.length >= ZILE_STAT) out.push(...sir); sir = [zi]; }
+  }
+  if (sir.length >= ZILE_STAT) out.push(...sir);
+  return out;
+}
+
+/**
+ * Zilele acoperite de o cursă, de la încărcare până la ultima urmă a ei. Cursa
+ * anulată nu acoperă nimic — n-a existat.
+ * @param curse [{ load_planned_at, unload_planned_at, status_changed_at, status }]
+ * @returns Set cu date 'YYYY-MM-DD'
+ */
+export function zileCuCursa(curse) {
+  const out = new Set();
+  for (const c of curse || []) {
+    if (c?.status === 'anulata') continue;
+    const de = Date.parse(c?.load_planned_at ?? '');
+    if (!Number.isFinite(de)) continue;
+    const pana = Math.max(de,
+      Date.parse(c?.unload_planned_at ?? '') || de,
+      Date.parse(c?.status_changed_at ?? '') || de);
+    // Cursele lungi nu sunt nelimitate; plafonul oprește un rând stricat să umple memoria.
+    for (let t = de, n = 0; t <= pana && n < 120; t += 86400e3, n++) out.add(iso(t).slice(0, 10));
+    out.add(iso(pana).slice(0, 10));
+  }
+  return out;
+}
+
 /** Câte opriri lungi la puncte de încărcare fac dintr-un camion o cisternă. */
 export const OPRIRI_PENTRU_CISTERNA = 2;
 

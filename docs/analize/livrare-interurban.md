@@ -17,16 +17,16 @@ cursa detailat»). Se regenerează cu `--md=docs/analize/livrare-interurban-pe-r
 
 ## Cifra cerută
 
-19 zile, 29 de rute interurbane, 506 zile-rută cu date curate:
+19 zile, 29 de rute interurbane, 507 zile-rută cu date curate:
 
 | | km/zi (toată flota interurbană) | lei/zi | pe lună (×30) |
 |---|---|---|---|
-| **Livrare brută** (tot golul de la capete) | **688** | **4.295** | ~129.000 lei |
-| **Livrare după regula lui Ion** | **372** | **2.321** | ~70.000 lei |
-| Km GPS, total | 14.539 | | |
+| **Livrare brută** (tot golul de la capete) | **688** | **4.300** | ~129.000 lei |
+| **Livrare după regula lui Ion** | **372** | **2.326** | ~70.000 lei |
+| Km GPS, total | 14.540 | | |
 
 Livrarea brută e 4,7 % din km-ii interurbani. Regula lui Ion taie 46 % din ea: în 171 din
-506 zile-rută (34 %) mașina merge dimineața la capăt, dar seara nu mai ajunge acolo.
+507 zile-rută (34 %) mașina merge dimineața la capăt, dar seara nu mai ajunge acolo.
 
 Costul unui km e cel din ION-19: normă × prețul ANRE al zilei + 1,00 lei/km reparație +
 1,00 lei/km salariu. Autobuzele interurbane sunt Sprintere 515/516 (12,5–13,3 l/100 km),
@@ -52,7 +52,7 @@ coborâre spre capăt, un urcuș până la Chișinău și o coborâre înapoi:
 Km-ii sunt cei **măsurați pe drum** (`km_from_prev` din `lde_gps_stops`, scris de
 gps-worker din urma GPS), nu în linie dreaptă.
 
-Două lucruri au trebuit lămurite ca să iasă cifre adevărate:
+Trei lucruri au trebuit lămurite ca să iasă cifre adevărate:
 
 1. **Drumul de dimineață nu are tronson propriu.** Prima oprire a zilei n-are „precedentă",
    deci km-ii de la locul de dormit până la ea se iau ca rest: `km_total − Σ km_from_prev`.
@@ -64,11 +64,14 @@ Două lucruri au trebuit lămurite ca să iasă cifre adevărate:
    M = (B − T) + (F − T) ⇒ **T = (B + F − M) / 2**. La 652AKD, 17.09: B = Colicăuți 47,6 ·
    F = Briceni 44,5 · M = 13,4 ⇒ **T = 39,5** — adică Grimăncăuți (40,0), chiar capătul
    declarat al rutei. Formula se verifică singură: nimeni n-a spus scriptului unde e capătul.
-   Deducerea se face doar când opririle înregistrate n-au ajuns deja la capăt, iar satul de
-   lângă linie (Clocușna, la 8,9 km de Ocnița) se scade întâi — altfel ocolul lui ar semăna
-   cu o coborâre.
+   La fel seara: 692 TWK, 03.09, pleacă din Briceni la 20:40 și se întoarce la 21:31 cu
+   50,7 km la bord — dusul la Lipcani, nescris ca oprire; jumătate cu oameni, jumătate gol.
+3. **Nu orice kilometru în plus e o ieșire.** Se ia ca ieșire doar excedentul de peste 8 km
+   față de kilometrajul tarifului; sub atât e diferența dintre tarif și drumul real
+   (Briceni → Colicăuți: 7,5 km de drum pe 3,1 km de tarif). Satul de lângă linie
+   (Clocușna, la 8,9 km de Ocnița) se scade întâi, altfel ocolul lui ar semăna cu o coborâre.
 
-Nu intră în cifră: 35 de zile-rută în care aceeași mașină avea în ziua aia ȘI o a doua rută
+Nu intră în cifră: 34 de zile-rută în care aceeași mașină avea în ziua aia ȘI o a doua rută
 (263NSX face ruta 29 Ocnița și suburbana 51 Trebisăuți–Briceni în fiecare zi; 5 zile ruta 28
 cu suburbana 45 ș.a.) — acolo „golul" de dimineață e de fapt cursa cealaltă. Alte 8 zile
 n-au GPS.
@@ -79,70 +82,71 @@ n-au GPS.
 
 `dim` / `seara` = livrarea de dimineață și de seară. `la capăt` = în câte zile mașina a
 ajuns la capătul declarat al rutei dimineața / seara. `cu regula` = ce rămâne după regula
-lui Ion. `cap. neservit` = cât din capul rutei nu se face deloc.
+lui Ion. `cap. neservit` = media km-ilor din capul rutei care nu se fac (o singură zi ieșită
+din tipar o umflă — se citește împreună cu coloana «la capăt»).
 
 | rută | capăt | zile | doarme la | km/zi GPS | dim | seara | livrare/zi | lei/zi | la capăt dim/seara | cu regula | lei/zi | cap. neservit |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 27 | Lipcani | 18 | Bulboaca | 585 | 54,8 | 15,5 | **70,2** | 435 | 18/1 | 18,0 | 113 | 0 |
-| 28 | Criva | 13 | Briceni | 586 | 42,8 | 24,7 | **67,5** | 418 | 12/0 | 28,2 | 174 | 0,8 |
-| 22 | Lipcani | 18 | Briceni | 593 | 42,8 | 24,2 | **67,0** | 416 | 18/8 | 42,6 | 265 | 0 |
-| 26 | Corjeuți | 19 | Halahora de Sus | 571 | 40,8 | 13,7 | **54,4** | 338 | 19/0 | 13,7 | 85 | 0 |
-| 21 | Otaci | 19 | Clocușna | 556 | 46,4 | 2,5 | **48,9** | 316 | 16/0 | 5,4 | 35 | 4,0 |
-| 9 | Criva | 19 | Briceni | 564 | 43,0 | 4,1 | **47,2** | 293 | 19/0 | 4,1 | 26 | 0 |
-| 1 | Grimăncăuți | 14 | Colicăuți | 593 | 5,7 | 27,9 | **33,6** | 209 | 13/11 | 33,2 | 207 | 0,2 |
-| 23 | Criva | 18 | Lipcani | 569 | 22,9 | 9,7 | **32,6** | 203 | 18/0 | 9,7 | 60 | 0 |
+| 27 | Lipcani | 18 | Bulboaca | 585 | 54,8 | 15,5 | **70,3** | 436 | 18/1 | 18,1 | 113 | 0 |
+| 22 | Lipcani | 18 | Briceni | 593 | 42,8 | 23,5 | **66,3** | 412 | 18/8 | 41,9 | 260 | 0 |
+| 28 | Criva | 13 | Briceni | 586 | 42,8 | 18,8 | **61,6** | 382 | 12/0 | 22,2 | 138 | 0,8 |
+| 26 | Corjeuți | 19 | Halahora de Sus | 571 | 40,8 | 13,3 | **54,1** | 336 | 19/0 | 13,3 | 83 | 0 |
+| 21 | Otaci | 19 | Clocușna | 556 | 46,5 | 2,8 | **49,2** | 318 | 16/0 | 5,7 | 37 | 4,1 |
+| 9 | Criva | 19 | Briceni | 564 | 43,0 | 4,3 | **47,4** | 294 | 19/0 | 4,3 | 27 | 0 |
+| 1 | Grimăncăuți | 14 | Colicăuți | 593 | 5,8 | 27,9 | **33,7** | 210 | 13/11 | 33,3 | 207 | 0,3 |
+| 23 | Criva | 18 | Lipcani | 569 | 22,9 | 9,9 | **32,8** | 204 | 18/0 | 9,9 | 62 | 0 |
 | 6 | Corjeuți | 18 | Fetești | 517 | 19,4 | 13,0 | **32,4** | 201 | 17/17 | 30,8 | 191 | 0,3 |
-| 24 | Criva | 19 | Beleavinți | 562 | 26,0 | 2,7 | **28,7** | 178 | 17/0 | 3,7 | 23 | 1,1 |
-| 16 | Lipcani | 18 | Beleavinți | 565 | 18,3 | 9,4 | **27,7** | 171 | 17/12 | 23,5 | 146 | 0,7 |
-| 20 | Criva | 18 | Cotiujeni | 511 | 18,4 | 8,5 | **26,9** | 168 | 0/0 | 26,9 | 168 | 17,0 |
-| 18 | Lipcani | 16 | Viișoara | 545 | 11,4 | 11,5 | **22,9** | 143 | 9/9 | 19,2 | 120 | 4,3 |
-| 5 | Șirăuți | 19 | Corpaci | 515 | 19,3 | 2,5 | **21,8** | 134 | 6/6 | 21,8 | 134 | 37,7 |
+| 24 | Criva | 19 | Beleavinți | 562 | 26,0 | 2,7 | **28,7** | 178 | 17/0 | 3,8 | 23 | 1,1 |
+| 16 | Lipcani | 18 | Beleavinți | 565 | 18,3 | 9,2 | **27,4** | 170 | 17/12 | 23,2 | 144 | 0,7 |
+| 20 | Criva | 18 | Cotiujeni | 511 | 18,4 | 8,6 | **27,0** | 169 | 0/0 | 27,0 | 169 | 17,0 |
+| 18 | Lipcani | 16 | Viișoara | 545 | 11,9 | 11,6 | **23,5** | 146 | 9/9 | 19,8 | 123 | 4,8 |
+| 5 | Șirăuți | 19 | Corpaci | 515 | 19,8 | 2,5 | **22,3** | 137 | 6/6 | 22,3 | 137 | 38,2 |
 | 8 | Criva | 19 | Drepcăuți | 544 | 16,1 | 4,4 | **20,5** | 134 | 19/2 | 6,9 | 45 | 0 |
 | 59 | Ocnița | 17 | Rujnița | 506 | 17,0 | 2,6 | **19,5** | 121 | 16/7 | 5,9 | 37 | 8,1 |
 | 2 | Briceni | 19 | Cotiujeni | 572 | 6,8 | 12,3 | **19,1** | 124 | 19/19 | 19,1 | 124 | 0 |
 | 3 | Ocnița | 19 | Ocnița (Iubileinîi) | 508 | 10,3 | 4,3 | **14,7** | 94 | 19/19 | 14,7 | 94 | 0 |
-| 19 | Lipcani | 19 | Drepcăuți | 570 | 7,7 | 6,6 | **14,4** | 89 | 19/18 | 14,4 | 89 | 0 |
-| 58 | Otaci | 19 | Chișinău (Ciocana) | 508 | 9,5 | 1,4 | **10,9** | 68 | 0/0 | 10,9 | 68 | 26,0 |
+| 19 | Lipcani | 19 | Drepcăuți | 570 | 7,7 | 6,8 | **14,5** | 90 | 19/18 | 14,5 | 90 | 0 |
+| 58 | Otaci | 19 | Chișinău (Ciocana) | 508 | 10,1 | 1,8 | **11,8** | 74 | 0/0 | 11,8 | 74 | 26,0 |
 | 25 | Caracușenii Vechi | 19 | Trestieni | 502 | 7,0 | 2,7 | **9,7** | 60 | 18/18 | 9,7 | 60 | 0,4 |
-| 7 | Criva | 19 | Criva | 556 | 8,9 | 0,3 | **9,2** | 57 | 19/16 | 4,1 | 25 | 0 |
-| 17 | Criva (Tețcani) | 19 | Berlinți | 515 | 1,8 | 6,9 | **8,7** | 54 | 0/0 | 8,7 | 54 | 24,0 |
-| 11 | Criva | 19 | Chișinău (Ciocana) | 559 | 4,0 | 4,7 | **8,6** | 53 | 19/19 | 8,6 | 53 | 0 |
-| 14 | Criva | 15 | Chișinău (Ciocana) | 554 | 2,4 | 3,8 | **6,3** | 39 | 15/15 | 6,3 | 39 | 0 |
-| 10 | Lipcani | 19 | Chișinău (Ciocana) | 520 | 3,6 | 2,1 | **5,7** | 35 | 17/16 | 3,1 | 19 | 2,8 |
-| 12 | Lipcani | 19 | Chișinău (Ciocana) | 533 | 2,5 | 3,1 | **5,6** | 36 | 18/18 | 5,6 | 36 | 1,4 |
-| 15 | Criva | 19 | Chișinău (Ciocana) | 535 | 1,8 | 1,9 | **3,8** | 23 | 19/19 | 3,8 | 23 | 0 |
+| 11 | Criva | 19 | Chișinău (Ciocana) | 559 | 4,7 | 4,8 | **9,5** | 59 | 19/19 | 9,5 | 59 | 0 |
+| 7 | Criva | 19 | Criva | 556 | 8,9 | 0,4 | **9,3** | 57 | 19/16 | 4,1 | 25 | 0 |
+| 17 | Criva (Tețcani) | 19 | Berlinți | 515 | 1,9 | 6,9 | **8,8** | 55 | 0/0 | 8,8 | 55 | 24,2 |
+| 14 | Criva | 16 | Chișinău (Ciocana) | 520 | 2,8 | 4,1 | **6,9** | 42 | 15/15 | 6,9 | 42 | 16,5 |
+| 12 | Lipcani | 19 | Chișinău (Ciocana) | 533 | 2,6 | 3,5 | **6,0** | 39 | 18/18 | 6,0 | 39 | 1,4 |
+| 10 | Lipcani | 19 | Chișinău (Ciocana) | 520 | 3,6 | 2,2 | **5,9** | 36 | 17/16 | 3,2 | 20 | 2,8 |
+| 15 | Criva | 19 | Chișinău (Ciocana) | 535 | 1,9 | 2,1 | **4,0** | 25 | 19/19 | 4,0 | 25 | 0 |
 
 Ruta 29 (Ocnița, 263NSX) nu e în tabel: mașina ei face în fiecare zi și suburbana 51
 Trebisăuți–Briceni, deci golul ei de dimineață nu se poate separa de cursa cealaltă.
 
 **Cele șase rute care dorm în Chișinău (10, 11, 12, 14, 15, 58) au livrare aproape zero** —
-3,8–10,9 km/zi, doar plimbarea prin oraș între locul de parcare și autogară. Toată livrarea
+4–11,8 km/zi, doar plimbarea prin oraș între locul de parcare și autogară. Toată livrarea
 interurbană vine de la mașinile care dorm în nord, acasă la șofer. **Primele șase rute
-(27, 28, 22, 26, 21, 9) fac 355 km/zi — mai mult de jumătate din toată livrarea.**
+(27, 22, 28, 26, 21, 9) fac 349 km/zi — mai mult de jumătate din toată livrarea.**
 
 ## Pe zile (toată flota interurbană)
 
 | zi | curse | km GPS | km rută | livrare | cu regula | lei (cu regula) | zile cu excepție |
 |---|---|---|---|---|---|---|---|
-| 01.09 | 28 | 15.513 | 14.616 | 860 | 367 | 2.253 | 10 |
-| 02.09 | 28 | 14.586 | 13.949 | 799 | 506 | 3.089 | 9 |
-| 03.09 | 25 | 13.893 | 13.349 | 707 | 413 | 2.526 | 8 |
-| 04.09 | 25 | 13.295 | 12.619 | 571 | 287 | 1.755 | 9 |
-| 05.09 | 28 | 15.058 | 14.621 | 479 | 183 | 1.119 | 11 |
-| 06.09 | 27 | 14.273 | 13.798 | 580 | 250 | 1.536 | 11 |
-| 07.09 | 27 | 14.563 | 13.858 | 737 | 479 | 2.969 | 9 |
-| 08.09 | 28 | 15.639 | 14.542 | 1.126 | 565 | 3.458 | 11 |
-| 09.09 | 25 | 13.689 | 13.079 | 552 | 305 | 1.876 | 8 |
-| 10.09 | 25 | 13.464 | 12.808 | 656 | 328 | 2.022 | 8 |
-| 11.09 | 27 | 15.037 | 14.301 | 752 | 461 | 2.860 | 9 |
-| 12.09 | 28 | 15.049 | 14.698 | 599 | 298 | 1.876 | 10 |
-| 13.09 | 27 | 14.719 | 14.164 | 601 | 258 | 1.625 | 11 |
-| 14.09 | 26 | 14.441 | 13.649 | 672 | 450 | 2.853 | 6 |
-| 15.09 | 28 | 15.554 | 14.706 | 873 | 481 | 3.042 | 10 |
-| 16.09 | 25 | 13.999 | 13.313 | 660 | 402 | 2.567 | 8 |
-| 17.09 | 27 | 14.982 | 14.289 | 670 | 376 | 2.415 | 8 |
-| 18.09 | 26 | 14.323 | 13.722 | 606 | 336 | 2.186 | 8 |
-| 19.09 | 26 | 14.163 | 13.645 | 568 | 318 | 2.071 | 7 |
+| 01.09 | 28 | 15.513 | 14.610 | 866 | 374 | 2.293 | 10 |
+| 02.09 | 28 | 14.586 | 13.969 | 779 | 485 | 2.965 | 9 |
+| 03.09 | 25 | 13.893 | 13.376 | 680 | 386 | 2.362 | 8 |
+| 04.09 | 25 | 13.295 | 12.610 | 580 | 296 | 1.808 | 9 |
+| 05.09 | 28 | 15.058 | 14.616 | 484 | 187 | 1.145 | 11 |
+| 06.09 | 27 | 14.273 | 13.791 | 586 | 257 | 1.575 | 11 |
+| 07.09 | 27 | 14.563 | 13.849 | 746 | 488 | 3.024 | 9 |
+| 08.09 | 28 | 15.639 | 14.565 | 1.103 | 543 | 3.320 | 11 |
+| 09.09 | 25 | 13.689 | 13.073 | 557 | 311 | 1.910 | 8 |
+| 10.09 | 25 | 13.464 | 12.808 | 656 | 328 | 2.025 | 8 |
+| 11.09 | 27 | 15.037 | 14.294 | 758 | 467 | 2.902 | 9 |
+| 12.09 | 28 | 15.049 | 14.690 | 607 | 306 | 1.928 | 10 |
+| 13.09 | 27 | 14.719 | 14.157 | 607 | 265 | 1.666 | 11 |
+| 14.09 | 26 | 14.441 | 13.644 | 677 | 455 | 2.886 | 6 |
+| 15.09 | 28 | 15.554 | 14.701 | 878 | 486 | 3.077 | 10 |
+| 16.09 | 26 | 14.017 | 13.324 | 666 | 408 | 2.605 | 8 |
+| 17.09 | 27 | 14.982 | 14.299 | 661 | 366 | 2.354 | 8 |
+| 18.09 | 26 | 14.323 | 13.712 | 617 | 346 | 2.253 | 8 |
+| 19.09 | 26 | 14.163 | 13.642 | 571 | 321 | 2.090 | 7 |
 
 Ziua nu începe la miezul nopții: fereastra GPS e 03:00 → 03:00 (workerul taie pe UTC), ceea
 ce e chiar bine — cursele care intră în Chișinău la 00:05 rămân în ziua lor.
@@ -180,18 +184,19 @@ pleacă la 07:45 spre Orhei (46 km), se întoarce la 09:46 și abia la 11:31 ple
 92,9 km în fiecare zi, ~1.600 km pe perioadă, care nu-s nici rută, nici livrare. Dacă e
 cursă separată, trebuie numărată ca atare; dacă nu, e cea mai mare gaură din tabel.
 
-**Patru rute nu ajung niciodată la capătul lor declarat:**
+**Patru rute nu ajung niciodată la capătul lor declarat** (coloana «la capăt» 0/0 sau 6/6):
 
 | rută | capăt scris | unde se termină de fapt | km neserviți |
 |---|---|---|---|
-| 5 | Șirăuți (km 6) | între Bădragii Vechi și Corpaci (km 44–64) | 37,7 |
+| 5 | Șirăuți (km 6) | între Bădragii Vechi și Corpaci (km 44–64) | 38,2 |
 | 58 | Otaci (km 0) | Ocnița (km 26) | 26,0 |
-| 17 | Criva (km 3,5) | pe la Slobozia Șirăuți (km 23,3) | 24,0 |
+| 17 | Criva (km 3,5) | pe la Slobozia Șirăuți (km 23,3) | 24,2 |
 | 20 | Criva (km 3,5) | pe la Lipcani (km 17,5) | 17,0 |
 
 Ruta 5 e scrisă «Șirăuți – Chișinău», dar mașina doarme la Corpaci și pornește de acolo;
-ruta 17 e «Criva (Tețcani)» și pornește de pe la Slobozia Șirăuți. Două citiri: ori denumirea rutei e
-veche, ori capul rutei chiar nu se face. Se vede doar întrebându-i pe oameni.
+ruta 17 e «Criva (Tețcani)» și pornește de pe la Slobozia Șirăuți. Două citiri: ori
+denumirea rutei e veche, ori capul rutei chiar nu se face. Se vede doar întrebându-i pe
+oameni.
 
 **Km-ii tarifului sunt cu ~4 % peste GPS.** Pe rutele care dorm în Chișinău, unde livrarea e
 aproape zero, GPS-ul arată 520–560 km/zi față de 545–585 km de tarif. Nu schimbă analiza
@@ -204,10 +209,10 @@ livrării, dar contează dacă cifrele astea se folosesc la decont.
 1. **Regula «dacă seara nu merge la capăt, dimineața nu e livrare»** e aplicată exact cum a
    fost scrisă și taie jumătate din cifră (688 → 372 km/zi). Cel mai clar caz e ruta 28:
    mașina doarme la Briceni, face ~43 km goi până la Criva în fiecare dimineață ca să
-   pornească cursa, iar seara se oprește la Lipcani și urcă ~25 km goi acasă. Cu regula, se
+   pornească cursa, iar seara se oprește la Lipcani și urcă ~19 km goi acasă. Cu regula, se
    numără doar cei de seară. E ce s-a vrut?
 2. **Ruta 1: cei 92,9 km Chișinău → Orhei → Chișinău** de fiecare dimineață — cursă separată
    sau gol?
 3. **Rutele care nu-și fac capul** (5, 17, 20, 58) — denumire veche sau km nefăcuți?
-4. **Ruta 29 și celelalte 35 de zile cu două rute pe aceeași mașină** — livrarea se numără
+4. **Ruta 29 și celelalte 34 de zile cu două rute pe aceeași mașină** — livrarea se numără
    pe mașină (ca la uzine, ION-19) sau pe rută?

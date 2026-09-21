@@ -63,6 +63,9 @@ const RAZA_STATIE_KM = 5;          // cât de aproape trebuie să fie o oprire d
 const RAZA_BAZA_KM = 12;           // la capetele zilei (unde doarme mașina) raza e mai largă
 const TOL_CAPAT_KM = 2;            // cât se iartă la «a fost la capătul rutei»
 const TOL_INTOARCERE_KM = 2;       // sub atât, drumul de dimineață e drept, fără coborâre ascunsă
+// Cât trebuie să fie excedentul unui tronson ca să fie o IEȘIRE dus-întors, nu diferența
+// dintre km-ii de tarif și drumul real (Briceni → Colicăuți: 7,5 km de drum pe 3,1 de tarif).
+const PRAG_IESIRE_KM = 8;
 const REPARATIE_DAF = 1.5, REPARATIE = 1.0, SALARIU = 1.0, NORMA_IMPLICITA = 12.5;  // ION-19
 
 const zileIntre = (a, b) => { const o = []; for (let d = new Date(`${a}T00:00:00Z`); d <= new Date(`${b}T00:00:00Z`); d = new Date(+d + 86400000)) o.push(d.toISOString().slice(0, 10)); return o; };
@@ -277,7 +280,8 @@ async function main() {
     // …și se caută DOAR dacă opririle înregistrate n-au ajuns deja la capăt: dacă mașina a
     // oprit la Otaci, n-are rost să-i mai deducem o coborâre sub Otaci.
     const subCapat = L.capatKm != null && uMin !== Infinity && (s * uMin) <= L.capatKm + TOL_CAPAT_KM;
-    const exDim = m > 0 && !subCapat ? Math.max(...Array.from({ length: m }, (_, k) => excedent(k + 1))) : 0;
+    const exDimBrut = m > 0 && !subCapat ? Math.max(...Array.from({ length: m }, (_, k) => excedent(k + 1))) : 0;
+    const exDim = exDimBrut >= PRAG_IESIRE_KM ? exDimBrut : 0;
     let livrareDim = m > 0
       ? noduri.slice(1, m + 1).reduce((x, n) => x + n.km, 0) - exDim / 2
       : 0;
@@ -291,11 +295,12 @@ async function main() {
     const jAbs = iAncLast + j;
     let livrareSeara = 0, E = uMinS === Infinity ? null : uMinS;
     if (jAbs < noduri.length - 1) {
-      // Seara se corectează DOAR tronsonul care pleacă din ultimul punct servit: acolo poate
-      // fi o coborâre mai adâncă, fără oprire. Pe restul drumului spre casă, diferența
-      // dintre km-ii măsurați și cei de tarif e a tarifului, nu o ieșire (Briceni → Colicăuți:
-      // 7,5 km de drum pe 3,1 km de tarif).
-      const ex = excedent(jAbs + 1);
+      // Seara, coborârea fără oprire poate fi oriunde după ultimul punct servit: 692 TWK,
+      // 03.09, pleacă din Briceni la 20:40 și se întoarce la 21:31 cu 50,7 km la bord —
+      // dusul la Lipcani, nescris ca oprire. Jumătate din el e cu oameni, jumătate gol.
+      // Se ia doar excedentul de peste 8 km: sub atât e diferența tarif/drum, nu o ieșire.
+      const exBrut = Math.max(...Array.from({ length: noduri.length - 1 - jAbs }, (_, k) => excedent(jAbs + 1 + k)));
+      const ex = exBrut >= PRAG_IESIRE_KM ? exBrut : 0;
       livrareSeara = noduri.slice(jAbs + 1).reduce((x, n) => x + n.km, 0) - ex / 2;
       E = uMinS - ex / 2;
     }
@@ -437,7 +442,7 @@ async function main() {
 
   if (CSV) {
     const { writeFileSync } = await import('node:fs');
-    const cap = ['zi', 'ruta', 'capat', 'capatKm', 'tarif', 'masina', 'sofer', 'baza', 'bazaKm', 'T', 'E', 'ascunsa', 'kmGps', 'kmRuta', 'livrareDim', 'livrareSeara', 'livrareBruta', 'livrareRegula', 'exceptie', 'laCapatDim', 'laCapatSeara', 'capatNeservitDim', 'capatNeservitSeara', 'rest', 'leiKm', 'opriri', 'motiv'];
+    const cap = ['zi', 'ruta', 'capat', 'capatKm', 'tarif', 'masina', 'sofer', 'baza', 'bazaKm', 'T', 'E', 'ascunsa', 'kmGps', 'kmRuta', 'livrareDim', 'livrareSeara', 'livrareBruta', 'livrareRegula', 'exceptie', 'laCapatDim', 'laCapatSeara', 'capatNeservitDim', 'capatNeservitSeara', 'rest', 'leiKm', 'opriri', 'alteRute', 'motiv'];
     writeFileSync(CSV, [cap.join(','), ...randuri.map((r) => cap.map((c) => (r[c] ?? '')).join(','))].join('\n'));
     console.log(`\nCSV: ${CSV} (${randuri.length} rânduri)`);
   }

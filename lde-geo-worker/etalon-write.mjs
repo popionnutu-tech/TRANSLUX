@@ -116,6 +116,19 @@ function imparteLaSat(seg, pts, calc, sat, razaKm = PRAG_SAT_KM) {
     : { afara: kmInterval(calc.stepKm, i, seg.to), inauntru: kmInterval(calc.stepKm, seg.from, i), from: seg.from, to: i };
 }
 
+/**
+ * Tăietura unei curse, când ruta oprește SISTEMATIC dincolo de satul de start (migr. 385).
+ * Ion, 21.09: «nu are cum la 812MUM așa să fie, de la Cucuruzeni la Crihana e 4 km».
+ * Nu poți fi «gol» după ce ai luat primul om: dintre tăietura la sat și cea la oprirea
+ * reală se ia cea care lasă mai puțină livrare. Fără steag rămâne regula veche (satul
+ * întâi), fiindcă la Popescu opririle dau 77 km de navetă în loc de 240.
+ */
+function taieturaCursei(peSat, peOprire, taiePeOprireAici) {
+  const alese = [peSat, taiePeOprireAici ? peOprire : null].filter(Boolean);
+  if (!alese.length) return peSat ?? null;
+  return alese.sort((x, y) => x.livrare - y.livrare)[0];
+}
+
 function taiePeSat(seg, pts, calc, sat, razaKm = PRAG_SAT_KM) {
   if (seg.stare !== 'plin') return null;
   const t = imparteLaSat(seg, pts, calc, sat, razaKm);
@@ -147,7 +160,7 @@ export async function incarcaContext(supa, day) {
     // trece prin 18,8 sate); etalonul dă treisprezece-nouăsprezece. Se ia doar etalonul
     // cu ≥5 observații, construit DOAR din curse neambigue — deci nu se hrănește din
     // propriile lui ghiciri.
-    supa.from('lde_route_etalon').select('factory_route_id,sate,observations,km_median,shift_number,sens,sat_start_real').gte('observations', 5),
+    supa.from('lde_route_etalon').select('factory_route_id,sate,observations,km_median,shift_number,sens,sat_start_real,taie_pe_oprire').gte('observations', 5),
     // locurile de service (migr. 381): drumul la parc e al mașinii, nu al șoferului
     supa.from('lde_locuri_cunoscute').select('nume,tip,lat,lon,raza_km').eq('active', true),
   ]);
@@ -195,6 +208,10 @@ export async function incarcaContext(supa, day) {
   // …pe (rută, schimb): la ruta 22 schimbul 1 pleacă din Ciocîlteni, schimbul 3 din Fedoreuca
   const satStartReal = new Map();
   for (const e of etaloane ?? []) if (e.sat_start_real) satStartReal.set(`${e.factory_route_id}|${e.shift_number}`, norm(e.sat_start_real));
+  // rutele care opresc sistematic dincolo de satul de start (migr. 385): la ele livrarea
+  // se taie pe oprirea reală a cursei, nu la sat — vezi `taieturaCursei`
+  const taiePeOprire = new Set();
+  for (const e of etaloane ?? []) if (e.taie_pe_oprire) taiePeOprire.add(`${e.factory_route_id}|${e.shift_number}`);
   const sateEtalonTur = new Map(), obsTur = new Map();
   for (const e of etaloane ?? []) {
     if (e.sens !== 'tur' || !e.sate?.length) continue;
@@ -211,7 +228,7 @@ export async function incarcaContext(supa, day) {
       peMasina.get(vid).push({ ...a, eRetur: vid === a.vehicle_id_retur && vid !== a.vehicle_id });
     }
   }
-  return { porti, peMasina, granitePeUz, sateRuta, sateEtalon, kmEtalon, sateEtalonTur, satStartReal, uzinaRutei, ruteUzinei, ruteAdm, locuriService };
+  return { porti, peMasina, granitePeUz, sateRuta, sateEtalon, kmEtalon, sateEtalonTur, satStartReal, taiePeOprire, uzinaRutei, ruteUzinei, ruteAdm, locuriService };
 }
 
 /**
@@ -401,7 +418,12 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
         .filter((a) => (ctx.uzinaRutei.get(a.factory_route_id) ?? a.direction) === s.uzina_id)
         .map((a) => taiePeSat(s, r.pts, r.calc, satulRutei(a.factory_route_id, s, s.shift_number)))
         .filter(Boolean).sort((x, y) => x.livrare - y.livrare)[0];
-      const t = peSat ?? taieLivrarea(s, capeteReale(r.stops ?? [], r.pts, s.from, s.to, scurteInSat), r.calc);
+      const peOprire = taieLivrarea(s, capeteReale(r.stops ?? [], r.pts, s.from, s.to, scurteInSat), r.calc);
+      // steagul e pe rută×schimb; pe contribuția zilei se ia dacă ORICARE dintre rutele
+      // mașinii de la uzina asta îl are — altfel aceeași cursă ar ieși cu două cifre
+      const cuOprire = lista.some((a) => (ctx.uzinaRutei.get(a.factory_route_id) ?? a.direction) === s.uzina_id
+        && ctx.taiePeOprire?.has(`${a.factory_route_id}|${s.shift_number}`));
+      const t = taieturaCursei(peSat, peOprire, cuOprire) ?? peOprire;
       if (t) { contrib.km_plin += t.plin; contrib.km_gol += t.livrare; contrib.km_livrare += t.livrare; }
       else contrib.km_plin += s.km;
     } else if (s.stare === 'gol') {
@@ -663,6 +685,11 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
       // ar începe acasă la șofer (Popescu: «Începe: Chiperceni», care e casa lui).
       const satA = satulRutei(a.factory_route_id, plin, sh);
       let taiat = taiePeSat(plin, r.pts, r.calc, satA);
+      // ruta care oprește sistematic dincolo de start: se taie la prima urcare reală, dacă
+      // rămâne mai puțină livrare decât la sat (migr. 385)
+      if (ctx.taiePeOprire?.has(`${a.factory_route_id}|${sh}`)) {
+        taiat = taieturaCursei(taiat, taieLivrarea(plin, capeteReale(r.stops ?? [], r.pts, plin.from, plin.to, scurteInSat), r.calc), true);
+      }
       // Satul-nume e cunoscut, dar drumul „plin" nu intră deloc în el: n-a fost cursa rutei.
       // Vartic, 15.09: după tura de noapte pleacă de la poartă la ora „ridicării" și face 46
       // km la Chișinău — ceasul zicea plin, iar fără tăietură tot drumul se scria ca retur

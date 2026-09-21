@@ -318,6 +318,7 @@ if (rulez('etalon')) await recalculeazaEtalon();
  */
 const COTA_START_REAL = 0.6;
 const RAZA_LANGA_POARTA_KM = 5;   // satele de lângă poartă (Pelivan la Orhei) nu pot fi start: prin ele trece orice drum
+const MARJA_DINCOLO_KM = 1;       // «mai departe de poartă decât startul» — sub un km e același loc
 async function recalculeazaStartReal() {
   // PE (RUTĂ, SCHIMB): la ruta 22 schimbul 1 pleacă din Ciocîlteni, schimbul 3 din Fedoreuca,
   // iar schimbul 2 n-are nicio oprire sistematică — sunt trei rute în una. Satul de casă al
@@ -327,8 +328,9 @@ async function recalculeazaStartReal() {
   const tururi = await fetchAll('lde_route_run', 'factory_route_id,shift_number,sate_oprire',
     (q) => q.gte('run_date', deLa).eq('sens', 'tur').gt('km_real', 0).not('sate_oprire', 'is', null));
   const gates = await fetchAll('lde_uzine_gates', 'uzina_id,lat,lon', (q) => q.eq('active', true));
-  const rute = await fetchAll('lde_factory_routes', 'id,uzina_id', (q) => q.eq('active', true));
+  const rute = await fetchAll('lde_factory_routes', 'id,uzina_id,stops_in_order', (q) => q.eq('active', true));
   const uzinaRutei = new Map(rute.map((r) => [r.id, r.uzina_id]));
+  const satNumeRutei = new Map(rute.map((r) => [r.id, (r.stops_in_order || '').replace(/->/g, '→').split('→')[0]?.trim() || null]));
   const coordNume = new Map();
   for (const p of loadPlaces(process.env.PLACES_FILE)) {
     const k = norm(p.name);
@@ -342,8 +344,9 @@ async function recalculeazaStartReal() {
   const peCheie = new Map();
   for (const t of tururi) {
     const key = `${t.factory_route_id}|${t.shift_number}`;
-    if (!peCheie.has(key)) peCheie.set(key, { n: 0, pozitii: new Map(), nume: new Map() });
+    if (!peCheie.has(key)) peCheie.set(key, { n: 0, pozitii: new Map(), nume: new Map(), tururi: [] });
     const r = peCheie.get(key); r.n++;
+    r.tururi.push(t.sate_oprire ?? []);
     const vazute = new Set();
     (t.sate_oprire ?? []).forEach((s, i) => {
       const k = norm(s);
@@ -353,7 +356,7 @@ async function recalculeazaStartReal() {
       r.pozitii.get(k).push(i);
     });
   }
-  let scrise = 0;
+  let scrise = 0, peOprire = 0;
   const combinatii = await fetchAll('lde_route_etalon', 'factory_route_id,shift_number');
   const vazute = new Set();
   for (const c of combinatii) {
@@ -370,10 +373,36 @@ async function recalculeazaStartReal() {
         if (m < bestPoz) { bestPoz = m; ales = r.nume.get(k); }
       }
     }
-    if (WRITE) await supa.from('lde_route_etalon').update({ sat_start_real: ales }).eq('factory_route_id', c.factory_route_id).eq('shift_number', c.shift_number);
+    // TĂIEREA PE OPRIRE (migr. 385) — Ion, 21.09: «nu are cum la 812MUM așa să fie, de la
+    // Cucuruzeni la Crihana e 4 km». Când bucla de strâns oameni se împarte între sate
+    // vecine, niciunul nu adună singur 60%, deci startul nu se mută și toată bucla rămâne
+    // «navetă». Aici se pune întrebarea altfel: oprește ruta SISTEMATIC dincolo de satul
+    // de start? Dacă da, worker-ul taie fiecare cursă la prima urcare reală.
+    // Pragul desparte curat cazurile măsurate: Cociorvă ~100%, Popescu ~28% (la el
+    // drumurile Chiperceni ↔ Vatici chiar sunt ale șoferului).
+    const uzina = uzinaRutei.get(c.factory_route_id);
+    const gs = gates.filter((g) => g.uzina_id === uzina).map((g) => ({ lat: +g.lat, lon: +g.lon }));
+    const panaLaPoarta = (nume) => {
+      const ps = coordNume.get(norm(nume ?? '')) ?? [];
+      if (!ps.length || !gs.length) return null;
+      return Math.min(...ps.map((p) => Math.min(...gs.map((g) => hav(p, g)))));
+    };
+    const dStart = panaLaPoarta(ales ?? satNumeRutei.get(c.factory_route_id));
+    let dincolo = null;
+    if (r && r.n >= MIN_OBSERVATII && dStart != null) {
+      const cu = r.tururi.filter((sate) => sate.some((x) => {
+        const d = panaLaPoarta(x);
+        return d != null && d > dStart + MARJA_DINCOLO_KM;
+      })).length;
+      dincolo = cu / r.n >= COTA_START_REAL;
+    }
+    if (WRITE) await supa.from('lde_route_etalon').update({ sat_start_real: ales, taie_pe_oprire: dincolo })
+      .eq('factory_route_id', c.factory_route_id).eq('shift_number', c.shift_number);
     if (ales) scrise++;
+    if (dincolo) peOprire++;
   }
   console.log(`start real: ${scrise} combinații rută×schimb cu sat de start dedus din opriri (≥${COTA_START_REAL * 100}% din tururi)`);
+  console.log(`taie pe oprire: ${peOprire} combinații care opresc sistematic dincolo de satul de start`);
 }
 
 /**

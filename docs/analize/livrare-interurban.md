@@ -184,13 +184,13 @@ cursă separată, trebuie numărată ca atare; dacă nu, e cea mai mare gaură d
 
 | rută | capăt scris | unde se termină de fapt | km neserviți |
 |---|---|---|---|
-| 5 | Șirăuți (km 6) | pe la Bădragii Vechi (km 44) | 37,7 |
+| 5 | Șirăuți (km 6) | între Bădragii Vechi și Corpaci (km 44–64) | 37,7 |
 | 58 | Otaci (km 0) | Ocnița (km 26) | 26,0 |
-| 17 | Criva (km 3,5) | pe la Tețcani (km 34,5) | 24,0 |
+| 17 | Criva (km 3,5) | pe la Slobozia Șirăuți (km 23,3) | 24,0 |
 | 20 | Criva (km 3,5) | pe la Lipcani (km 17,5) | 17,0 |
 
 Ruta 5 e scrisă «Șirăuți – Chișinău», dar mașina doarme la Corpaci și pornește de acolo;
-ruta 17 e «Criva (Tețcani)» și pleacă chiar din Tețcani. Două citiri: ori denumirea rutei e
+ruta 17 e «Criva (Tețcani)» și pornește de pe la Slobozia Șirăuți. Două citiri: ori denumirea rutei e
 veche, ori capul rutei chiar nu se face. Se vede doar întrebându-i pe oameni.
 
 **Km-ii tarifului sunt cu ~4 % peste GPS.** Pe rutele care dorm în Chișinău, unde livrarea e

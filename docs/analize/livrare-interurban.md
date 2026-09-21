@@ -85,36 +85,39 @@ ajuns la capătul declarat al rutei dimineața / seara. `cu regula` = ce rămân
 lui Ion. `cap. neservit` = media km-ilor din capul rutei care nu se fac (o singură zi ieșită
 din tipar o umflă — se citește împreună cu coloana «la capăt»).
 
-| rută | capăt | zile | doarme la | km/zi GPS | dim | seara | livrare/zi | lei/zi | la capăt dim/seara | cu regula | lei/zi | cap. neservit |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 27 | Lipcani | 18 | Bulboaca | 585 | 54,8 | 15,5 | **70,3** | 436 | 18/1 | 18,1 | 113 | 0 |
-| 22 | Lipcani | 18 | Briceni | 593 | 42,8 | 23,5 | **66,3** | 412 | 18/8 | 41,9 | 260 | 0 |
-| 28 | Criva | 13 | Briceni | 586 | 42,8 | 18,8 | **61,6** | 382 | 12/0 | 22,2 | 138 | 0,8 |
-| 26 | Corjeuți | 19 | Halahora de Sus | 571 | 40,8 | 13,3 | **54,1** | 336 | 19/0 | 13,3 | 83 | 0 |
-| 21 | Otaci | 19 | Clocușna | 556 | 46,5 | 2,8 | **49,2** | 318 | 16/0 | 5,7 | 37 | 4,1 |
-| 9 | Criva | 19 | Briceni | 564 | 43,0 | 4,3 | **47,4** | 294 | 19/0 | 4,3 | 27 | 0 |
-| 1 | Grimăncăuți | 14 | Colicăuți | 593 | 5,8 | 27,9 | **33,7** | 210 | 13/11 | 33,3 | 207 | 0,3 |
-| 23 | Criva | 18 | Lipcani | 569 | 22,9 | 9,9 | **32,8** | 204 | 18/0 | 9,9 | 62 | 0 |
-| 6 | Corjeuți | 18 | Fetești | 517 | 19,4 | 13,0 | **32,4** | 201 | 17/17 | 30,8 | 191 | 0,3 |
-| 24 | Criva | 19 | Beleavinți | 562 | 26,0 | 2,7 | **28,7** | 178 | 17/0 | 3,8 | 23 | 1,1 |
-| 16 | Lipcani | 18 | Beleavinți | 565 | 18,3 | 9,2 | **27,4** | 170 | 17/12 | 23,2 | 144 | 0,7 |
-| 20 | Criva | 18 | Cotiujeni | 511 | 18,4 | 8,6 | **27,0** | 169 | 0/0 | 27,0 | 169 | 17,0 |
-| 18 | Lipcani | 16 | Viișoara | 545 | 11,9 | 11,6 | **23,5** | 146 | 9/9 | 19,8 | 123 | 4,8 |
-| 5 | Șirăuți | 19 | Corpaci | 515 | 19,8 | 2,5 | **22,3** | 137 | 6/6 | 22,3 | 137 | 38,2 |
-| 8 | Criva | 19 | Drepcăuți | 544 | 16,1 | 4,4 | **20,5** | 134 | 19/2 | 6,9 | 45 | 0 |
-| 59 | Ocnița | 17 | Rujnița | 506 | 17,0 | 2,6 | **19,5** | 121 | 16/7 | 5,9 | 37 | 8,1 |
-| 2 | Briceni | 19 | Cotiujeni | 572 | 6,8 | 12,3 | **19,1** | 124 | 19/19 | 19,1 | 124 | 0 |
-| 3 | Ocnița | 19 | Ocnița (Iubileinîi) | 508 | 10,3 | 4,3 | **14,7** | 94 | 19/19 | 14,7 | 94 | 0 |
-| 19 | Lipcani | 19 | Drepcăuți | 570 | 7,7 | 6,8 | **14,5** | 90 | 19/18 | 14,5 | 90 | 0 |
-| 58 | Otaci | 19 | Chișinău (Ciocana) | 508 | 10,1 | 1,8 | **11,8** | 74 | 0/0 | 11,8 | 74 | 26,0 |
-| 25 | Caracușenii Vechi | 19 | Trestieni | 502 | 7,0 | 2,7 | **9,7** | 60 | 18/18 | 9,7 | 60 | 0,4 |
-| 11 | Criva | 19 | Chișinău (Ciocana) | 559 | 4,7 | 4,8 | **9,5** | 59 | 19/19 | 9,5 | 59 | 0 |
-| 7 | Criva | 19 | Criva | 556 | 8,9 | 0,4 | **9,3** | 57 | 19/16 | 4,1 | 25 | 0 |
-| 17 | Criva (Tețcani) | 19 | Berlinți | 515 | 1,9 | 6,9 | **8,8** | 55 | 0/0 | 8,8 | 55 | 24,2 |
-| 14 | Criva | 16 | Chișinău (Ciocana) | 520 | 2,8 | 4,1 | **6,9** | 42 | 15/15 | 6,9 | 42 | 16,5 |
-| 12 | Lipcani | 19 | Chișinău (Ciocana) | 533 | 2,6 | 3,5 | **6,0** | 39 | 18/18 | 6,0 | 39 | 1,4 |
-| 10 | Lipcani | 19 | Chișinău (Ciocana) | 520 | 3,6 | 2,2 | **5,9** | 36 | 17/16 | 3,2 | 20 | 2,8 |
-| 15 | Criva | 19 | Chișinău (Ciocana) | 535 | 1,9 | 2,1 | **4,0** | 25 | 19/19 | 4,0 | 25 | 0 |
+| rută | capăt | zile | șofer (zile) | mașină | doarme la | km/zi GPS | dim | seara | livrare/zi | lei/zi | la capăt dim/seara | cu regula | lei/zi | cap. neservit |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 27 | Lipcani | 18 | Frasiniuc Victor (12) · Golisco Andrei (3) | 703TWK | Bulboaca | 585 | 54,8 | 15,5 | **70,3** | 436 | 18/1 | 18,1 | 113 | 0 |
+| 22 | Lipcani | 18 | Mariciuc Pavel (13) | 795 MJW | Briceni | 593 | 42,8 | 23,5 | **66,3** | 412 | 18/8 | 41,9 | 260 | 0 |
+| 28 | Criva | 13 | Orbanovschii Alexandr (6) · Cojuhari Oleg (5) | 692 TWK | Briceni | 586 | 42,8 | 18,8 | **61,6** | 382 | 12/0 | 22,2 | 138 | 0,8 |
+| 26 | Corjeuți | 19 | Podlesnii Victor (12) · Gincu Leonid (4) | 688AKD | Halahora de Sus | 571 | 40,8 | 13,3 | **54,1** | 336 | 19/0 | 13,3 | 83 | 0 |
+| 21 | Otaci | 19 | Goreaci Veceslav (11) · Morosan Ion (8) | 805BXI | Clocușna | 556 | 46,5 | 2,8 | **49,2** | 318 | 16/0 | 5,7 | 37 | 4,1 |
+| 9 | Criva | 19 | Panteleiciuc Vasilii (13) | 648CWN | Briceni | 564 | 43,0 | 4,3 | **47,4** | 294 | 19/0 | 4,3 | 27 | 0 |
+| 1 | Grimăncăuți | 14 | Ladaniuc Mihail (9) | 652AKD | Colicăuți | 593 | 5,8 | 27,9 | **33,7** | 210 | 13/11 | 33,3 | 207 | 0,3 |
+| 23 | Criva | 18 | Grozinschii Victor (11) · Danilov Ivan (7) | 789MJW | Lipcani | 569 | 22,9 | 9,9 | **32,8** | 204 | 18/0 | 9,9 | 62 | 0 |
+| 6 | Corjeuți | 18 | Hujuc Igor (14) | 735LYY | Fetești | 517 | 19,4 | 13,0 | **32,4** | 201 | 17/17 | 30,8 | 191 | 0,3 |
+| 24 | Criva | 19 | Cobiroi Oleg (13) | 686AKD | Beleavinți | 562 | 26,0 | 2,7 | **28,7** | 178 | 17/0 | 3,8 | 23 | 1,1 |
+| 16 | Lipcani | 18 | Strasnii Alexandru (13) | 784MJW | Beleavinți | 565 | 18,3 | 9,2 | **27,4** | 170 | 17/12 | 23,2 | 144 | 0,7 |
+| 20 | Criva | 18 | Vieru Victor (13) | 396SWL | Cotiujeni | 511 | 18,4 | 8,6 | **27,0** | 169 | 0/0 | 27,0 | 169 | 17,0 |
+| 18 | Lipcani | 16 | Bogatiuc Ghenadie (9) · Oleinic Vasile (7) | 652TWK | Viișoara | 545 | 11,9 | 11,6 | **23,5** | 146 | 9/9 | 19,8 | 123 | 4,8 |
+| 5 | Șirăuți | 19 | Besliu Gheorghe (12) · Oleinic Vasile (6) | 697TWK | Corpaci | 515 | 19,8 | 2,5 | **22,3** | 137 | 6/6 | 22,3 | 137 | 38,2 |
+| 8 | Criva | 19 | Pasecinic Arcadie (11) · Golisco Andrei (4) | 819BXI | Drepcăuți | 544 | 16,1 | 4,4 | **20,5** | 134 | 19/2 | 6,9 | 45 | 0 |
+| 59 | Ocnița | 17 | Sumschii Anatolii (12) · Socican Veaceslav (5) | 330RQR | Rujnița | 506 | 17,0 | 2,6 | **19,5** | 121 | 16/7 | 5,9 | 37 | 8,1 |
+| 2 | Briceni | 19 | Rudenco Vladimer (11) · Zait Serghei (8) | 828MLN | Cotiujeni | 572 | 6,8 | 12,3 | **19,1** | 124 | 19/19 | 19,1 | 124 | 0 |
+| 3 | Ocnița | 19 | Conarciuc Igor (12) · Morosan Ion (4) | 069MLD | Ocnița (Iubileinîi) | 508 | 10,3 | 4,3 | **14,7** | 94 | 19/19 | 14,7 | 94 | 0 |
+| 19 | Lipcani | 19 | Cucolscicov Sergiu (15) | 662AKD | Drepcăuți | 570 | 7,7 | 6,8 | **14,5** | 90 | 19/18 | 14,5 | 90 | 0 |
+| 58 | Otaci | 19 | Oglasevici Alexandru (11) · Barbacari Serghei (6) | 298RQR | Chișinău (Ciocana) | 508 | 10,1 | 1,8 | **11,8** | 74 | 0/0 | 11,8 | 74 | 26,0 |
+| 25 | Caracușenii Vechi | 19 | Melnic Iurii (11) · Podlesnii Vladimir (5) | 240RQR | Trestieni | 502 | 7,0 | 2,7 | **9,7** | 60 | 18/18 | 9,7 | 60 | 0,4 |
+| 11 | Criva | 19 | Balan Sergiu (13) | 776MJW | Chișinău (Ciocana) | 559 | 4,7 | 4,8 | **9,5** | 59 | 19/19 | 9,5 | 59 | 0 |
+| 7 | Criva | 19 | Pogor Eduard (8) · Vacari Oleg (8) | 651AKD | Criva | 556 | 8,9 | 0,4 | **9,3** | 57 | 19/16 | 4,1 | 25 | 0 |
+| 17 | Criva (Tețcani) | 19 | Cramari Igor (9) · Gafton Serghei (5) · Zait Serghei (4) | 526WDW | Berlinți | 515 | 1,9 | 6,9 | **8,8** | 55 | 0/0 | 8,8 | 55 | 24,2 |
+| 14 | Criva | 16 | Topa Marcel (12) | 654TWK | Chișinău (Ciocana) | 520 | 2,8 | 4,1 | **6,9** | 42 | 15/15 | 6,9 | 42 | 16,5 |
+| 12 | Lipcani | 19 | Roman Vladimir (13) · Baesu Anatolii (4) | 998TCP | Chișinău (Ciocana) | 533 | 2,6 | 3,5 | **6,0** | 39 | 18/18 | 6,0 | 39 | 1,4 |
+| 10 | Lipcani | 19 | Boaghie Viorel (13) | 827WJQ | Chișinău (Ciocana) | 520 | 3,6 | 2,2 | **5,9** | 36 | 17/16 | 3,2 | 20 | 2,8 |
+| 15 | Criva | 19 | Chitic Ion (13) · Ostafii Valeriu (4) | 759LYY | Chișinău (Ciocana) | 535 | 1,9 | 2,1 | **4,0** | 25 | 19/19 | 4,0 | 25 | 0 |
+
+Șoferii se schimbă pe rută: în tabel e cel care a făcut cele mai multe zile, cu al doilea
+alături unde a făcut cel puțin patru. Lista întreagă, zi cu zi, e în raportul pe rute.
 
 Ruta 29 (Ocnița, 263NSX) nu e în tabel: mașina ei face în fiecare zi și suburbana 51
 Trebisăuți–Briceni, deci golul ei de dimineață nu se poate separa de cursa cealaltă.

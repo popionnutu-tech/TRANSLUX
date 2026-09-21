@@ -38,8 +38,9 @@ export async function GET(req: NextRequest) {
   }
   if (penalties) console.log('driver-penalties (luni):', penalties);
 
-  // La două săptămâni, luni: posterul de livrare (подача) pe rutele de uzină, în grupa
-  // lui (Ion, 19.09) — același piggyback. Idempotent pe perioadă; fără grupă setată sare.
+  // În fiecare luni: posterul de livrare (подача) pe rutele de uzină, în grupa lui
+  // (Ion, 19.09; săptămânal din 22.09) — același piggyback. Idempotent pe perioadă;
+  // fără grupă setată sare.
   try {
     const p = perioadaCadentei(chisinauTodayIso());
     if (p) {

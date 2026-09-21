@@ -6,10 +6,12 @@ import { generateLivrareImage, LEI_PE_KM, leiPeKm, UZINA_SCURT, type LivrareRow,
 export interface NormaMasinii { litri: number | null; categorie: string | null }
 
 /**
- * Posterul de LIVRARE (подача) pe rutele de uzină, la două săptămâni, în grupa Telegram.
+ * Posterul de LIVRARE (подача) pe rutele de uzină, săptămânal, în grupa Telegram.
  *
  * Ion, 19.09.2026: «Scrie livrare (подача). Fă-l de la 1.09. Să se trimită la fiecare
  * 2 săptămâni în grupă. Și pune acolo doar mașinile cu peste 50 km pe zi livrare.»
+ * Ion, 22.09.2026: «Fă postarea saptaminal pe Sebn + sebn Strășeni» — cadența a trecut
+ * la o săptămână; uzinele erau deja cele cerute (UZINE_IMPLICITE).
  *
  * Livrare = km-ii șoferului în afara rutei (de acasă până la satul de start și înapoi),
  * fără brambura (excesul zilelor neobișnuite) și fără drumurile la service — exact
@@ -22,8 +24,14 @@ export interface NormaMasinii { litri: number | null; categorie: string | null }
 export const LIVRARE_POSTER_CHAT_KEY = 'livrare_poster_chat_id';
 export const LIVRARE_POSTER_LAST_KEY = 'livrare_poster_last';
 export const PRAG_LIVRARE_KM_ZI = 50;
-/** Prima luni de trimitere automată; apoi din 14 în 14 zile, pe cele 14 zile dinainte. */
-export const PRIMA_LUNI_CADENTA = '2026-10-05';
+/**
+ * Prima luni de trimitere automată; apoi în fiecare luni, pe cele 7 zile dinainte.
+ * Ion, 22.09.2026: «Fă postarea saptaminal». Ancora s-a mutat de pe 05.10 pe 28.09 —
+ * cu pas de 7 zile ancorat pe 05.10, luni 28.09 ar fi căzut «înainte de prima» și
+ * n-ar fi plecat nimic.
+ */
+export const PRIMA_LUNI_CADENTA = '2026-09-28';
+export const ZILE_CADENTA = 7;
 
 export interface CursaLivrare {
   run_date: string;
@@ -285,14 +293,14 @@ export function descrieZiua(opriri: OprireZi[], sateRute: Set<string>, hh: (iso:
   return acasa ? `${acasa}${casa ? ` (${casa})` : ''}, nimic în afara rutei` : '';
 }
 
-/** Cadența: din 14 în 14 zile, luni, începând cu PRIMA_LUNI_CADENTA; acoperă cele 14 zile dinainte. */
+/** Cadența: în fiecare luni, începând cu PRIMA_LUNI_CADENTA; acoperă cele 7 zile dinainte. */
 export function perioadaCadentei(azi: string, primaLuni = PRIMA_LUNI_CADENTA): { from: string; to: string } | null {
   const t = Date.UTC(+azi.slice(0, 4), +azi.slice(5, 7) - 1, +azi.slice(8, 10));
   const p = Date.UTC(+primaLuni.slice(0, 4), +primaLuni.slice(5, 7) - 1, +primaLuni.slice(8, 10));
   const zile = Math.round((t - p) / 86400000);
-  if (zile < 0 || zile % 14 !== 0) return null;
+  if (zile < 0 || zile % ZILE_CADENTA !== 0) return null;
   const iso = (ms: number) => new Date(ms).toISOString().slice(0, 10);
-  return { from: iso(t - 14 * 86400000), to: iso(t - 86400000) };
+  return { from: iso(t - ZILE_CADENTA * 86400000), to: iso(t - 86400000) };
 }
 
 async function citesteTot<T>(q: () => { range: (de: number, la: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }> }): Promise<T[]> {

@@ -221,11 +221,11 @@ describe('textulEconomiei', () => {
 });
 
 describe('perioadaCadentei', () => {
-  it('trimite doar lunea, din 14 în 14 zile, pe cele 14 zile dinainte', () => {
-    expect(perioadaCadentei('2026-10-05')).toEqual({ from: '2026-09-21', to: '2026-10-04' });
-    expect(perioadaCadentei('2026-10-19')).toEqual({ from: '2026-10-05', to: '2026-10-18' });
-    expect(perioadaCadentei('2026-10-12')).toBeNull();   // lunea dintre
+  it('trimite în fiecare luni, pe cele 7 zile dinainte (Ion, 22.09: săptămânal)', () => {
+    expect(perioadaCadentei('2026-09-28')).toEqual({ from: '2026-09-21', to: '2026-09-27' });
+    expect(perioadaCadentei('2026-10-05')).toEqual({ from: '2026-09-28', to: '2026-10-04' });
+    expect(perioadaCadentei('2026-10-12')).toEqual({ from: '2026-10-05', to: '2026-10-11' });
     expect(perioadaCadentei('2026-10-06')).toBeNull();   // marți
-    expect(perioadaCadentei('2026-09-21')).toBeNull();   // înainte de prima
+    expect(perioadaCadentei('2026-09-21')).toBeNull();   // înainte de prima luni
   });
 });

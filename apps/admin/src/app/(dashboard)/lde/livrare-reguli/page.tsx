@@ -9,6 +9,11 @@
 // sunt probele. O regulă nouă trebuie să le dea aceleași verdicte, altfel repară un caz
 // și strică altul — așa s-a întâmplat de două ori în 19–22.09.
 
+export const dynamic = 'force-dynamic';
+
+import { getReguliUzine } from './actions';
+import ReguliUzineClient from './ReguliUzineClient';
+
 const CARD = 'card p-4 space-y-3';
 const H2 = 'text-lg font-semibold';
 const MIC = 'text-gray-500 text-sm';
@@ -17,7 +22,8 @@ function Unde({ children }: { children: React.ReactNode }) {
   return <span className="text-gray-400 text-xs font-mono ml-2">{children}</span>;
 }
 
-export default function LivrareReguliPage() {
+export default async function LivrareReguliPage() {
+  const uzine = await getReguliUzine();
   return (
     <div className="p-6 space-y-6 max-w-5xl">
       <div className="space-y-1">
@@ -28,6 +34,16 @@ export default function LivrareReguliPage() {
           01–20.09.2026.
         </p>
       </div>
+
+      <section className={CARD}>
+        <h2 className={H2}>Regulile pe uzină</h2>
+        <p className={MIC}>
+          Ion, 22.09: «fiecare livrare uzina are ai reguli, trebuie sa marcam». Regula de mai jos e cea
+          generală, așa cum s-a așezat pe SEBN. Ce e altfel la o uzină se marchează aici — iar cifrele
+          din tabel se numără din bază la fiecare deschidere, nu se scriu de mână.
+        </p>
+        <ReguliUzineClient uzine={uzine} />
+      </section>
 
       <section className={CARD}>
         <h2 className={H2}>1. Ce este livrarea</h2>

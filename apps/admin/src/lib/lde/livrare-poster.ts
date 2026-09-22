@@ -61,8 +61,24 @@ export interface NavetaRand {
   casa: string | null;             // satul de unde pleacă naveta
 }
 
-/** Uzinele validate cu Ion rută cu rută (18–19.09); celelalte intră doar la cerere (`?uzine=all`). */
+/**
+ * Uzinele validate cu Ion rută cu rută (18–19.09); celelalte intră doar la cerere (`?uzine=all`).
+ * REZERVĂ: adevărul stă din 22.09 în `lde_uzine.livrare_validata` (migr. 386), ca să poată fi
+ * marcat din pagină, nu dintr-o constantă. Constanta rămâne pentru cazul în care interogarea
+ * nu întoarce nimic — posterul nu se oprește din cauza asta.
+ */
 export const UZINE_IMPLICITE = ['SEBN_ORHEI', 'SEBN_STRASENI'];
+
+/** Uzinele cu regulile livrării verificate (migr. 386); pe ele pleacă posterul implicit. */
+export async function uzineValidate(): Promise<string[]> {
+  try {
+    const { data, error } = await getSupabase().from('lde_uzine').select('id').eq('active', true).eq('livrare_validata', true);
+    if (error || !data?.length) return UZINE_IMPLICITE;
+    return data.map((u) => u.id as string);
+  } catch {
+    return UZINE_IMPLICITE;
+  }
+}
 export const MIN_ZILE_RUTA = 3;   // sub atâtea zile cu curse media nu spune nimic
 const primulSat = (s: string | null) => (s || '').replace(/->/g, '→').split('→')[0]?.trim() || '';
 const eZiLucratoare = (iso: string) => { const d = new Date(`${iso}T12:00:00Z`).getUTCDay(); return d >= 1 && d <= 5; };
@@ -483,6 +499,8 @@ export interface TrimitereLivrare {
 /** Trimite posterul în grupa din app_config; idempotent pe perioadă (LIVRARE_POSTER_LAST_KEY). */
 export async function trimitePosterLivrare(opts: { from: string; to: string; force?: boolean; chatId?: string | null; uzine?: string[] | 'all' }): Promise<TrimitereLivrare> {
   const sb = getSupabase();
+  // fără listă cerută: uzinele marcate ca validate în bază (migr. 386), nu constanta
+  const uzine = opts.uzine ?? (await uzineValidate());
   const cfg = async (key: string) => {
     const { data } = await sb.from('app_config').select('value').eq('key', key).maybeSingle();
     return ((data as { value?: string } | null)?.value ?? '').trim() || null;
@@ -493,7 +511,7 @@ export async function trimitePosterLivrare(opts: { from: string; to: string; for
   if (!opts.force && (await cfg(LIVRARE_POSTER_LAST_KEY)) === marca) {
     return { status: 'skipped', from: opts.from, to: opts.to, rows: 0, reason: 'perioada a plecat deja' };
   }
-  const { png, rows } = await generarePoster(opts.from, opts.to, PRAG_LIVRARE_KM_ZI, opts.uzine ?? UZINE_IMPLICITE);
+  const { png, rows } = await generarePoster(opts.from, opts.to, PRAG_LIVRARE_KM_ZI, uzine);
   if (!rows.length) return { status: 'skipped', from: opts.from, to: opts.to, rows: 0, reason: 'nicio rută peste prag' };
   // Ion, 19.09: «pe lângă poză, un text în română — foarte scurt». Un singur mesaj: textul e
   // caption-ul pozei, nu al doilea mesaj.

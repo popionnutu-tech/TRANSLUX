@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyCronSecret } from '@/lib/cron-auth';
-import { generarePoster, perioadaCadentei, trimitePosterLivrare, PRAG_LIVRARE_KM_ZI, UZINE_IMPLICITE } from '@/lib/lde/livrare-poster';
+import { generarePoster, perioadaCadentei, trimitePosterLivrare, PRAG_LIVRARE_KM_ZI, uzineValidate } from '@/lib/lde/livrare-poster';
 import { chisinauTodayIso } from '@/lib/chisinau-time';
 
 export const dynamic = 'force-dynamic';
@@ -25,9 +25,10 @@ export async function GET(req: NextRequest) {
     if (!p) return NextResponse.json({ status: 'skipped', reason: 'nu e zi de cadență; dă ?from=&to=' });
     from = p.from; to = p.to;
   }
-  // `?uzine=all` sau listă «SEBN_ORHEI,LEAR_UNGHENI»; implicit doar uzinele validate cu Ion
+  // `?uzine=all` sau listă «SEBN_ORHEI,LEAR_UNGHENI»; fără parametru — uzinele marcate ca
+  // validate în bază (migr. 386), nu o constantă din cod
   const uz = q.get('uzine');
-  const uzine: string[] | 'all' = uz === 'all' ? 'all' : uz ? uz.split(',').map((s) => s.trim()).filter(Boolean) : UZINE_IMPLICITE;
+  const uzine: string[] | 'all' = uz === 'all' ? 'all' : uz ? uz.split(',').map((s) => s.trim()).filter(Boolean) : await uzineValidate();
   try {
     if (q.get('preview') === '1') {
       const { png, rows } = await generarePoster(from, to, PRAG_LIVRARE_KM_ZI, uzine);

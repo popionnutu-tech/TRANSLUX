@@ -23,16 +23,43 @@ import {
  * șofer». Măsurat atunci: în 730 din 1.099 de cazuri capătul geometriei era la sub 1 km
  * de locul unde doarme mașina.
  */
-function capeteReale(stops, pts, from, to, scurte = []) {
+/**
+ * Capătul cursei se caută DOAR în satele rutei — altfel returul se termină în parcare.
+ *
+ * Ion, 22.09: «сделать там, чтобы была симметрия». Măsurat atunci: la 827MUM, ruta 11
+ * Ungheni, turul iese 25 km și returul 59. Cauza: ruta oprește sistematic dincolo de satul
+ * de start (Pîrlița e la 12,9 km de poartă, Todirești la 10,8), deci steagul `taie_pe_oprire`
+ * e pornit și `taieturaCursei` alege tăietura cu mai puțină livrare. Pe retur, ultima oprire
+ * a zilei e în Fălești — la 39,6 km de poartă, unde mașina doarme — și acolo livrarea iese
+ * zero, deci tăietura aia câștigă și cei 34 km până în parcare rămân scriși ca drum plin.
+ * Dimineața aceiași km se numără corect ca livrare: aceeași bucată de drum, două socoteli.
+ *
+ * Fălești nu e în etalonul rutei (Ungheni, Elizavetovca, Novaia Nicolaevca, Pîrlița,
+ * Todirești), Pîrlița e. Deci nu trebuie nici prag de kilometri, nici margine ghicită: o
+ * oprire într-o localitate care nu e a rutei nu poate fi capăt de cursă. Regula lucrează
+ * la fel în ambele sensuri, deci simetria iese din construcție, nu dintr-o corecție.
+ *
+ * Opririle fără localitate rămân candidate: despre ele nu putem spune nimic, iar a le
+ * arunca ar muta tăietura în celălalt sens. Filtrul se aplică doar când ruta chiar are
+ * etalon (≥2 sate); pe rutele fără etalon comportamentul rămâne cel dinainte.
+ */
+export function capatPermis(satePermise) {
+  if (!satePermise || satePermise.size < 2) return () => true;
+  return (locality) => locality == null || satePermise.has(norm(locality));
+}
+
+function capeteReale(stops, pts, from, to, scurte = [], satePermise = null) {
   const t0 = pts[from].t, t1 = pts[to].t;
-  const inSegment = stops.filter((st) => !st.isBase && st.arrival >= t0 && st.arrival <= t1)
+  const permis = capatPermis(satePermise);
+  const inSegment = stops.filter((st) => !st.isBase && st.arrival >= t0 && st.arrival <= t1
+      && permis(st.locality ?? null))
     .map((st) => ({ lat: st.lat, lon: st.lon, locality: st.locality ?? null, arrival: st.arrival }));
   // Plus opririle SCURTE din sat (≥40 s) — același martor pe care îl folosim la «a oprit
   // în satele rutei». Cu doar opririle stabile de 90 s, un tur cu șase opriri de un minut
   // prin sate ieșea „livrare" pe toată lungimea: Lopatenco, 09.09, 29,6 km livrare dintr-un
   // tur de 29,7. Oamenii urcă într-un minut; 90 de secunde e pragul opririi, nu al stației.
   for (const p of scurte)
-    if (p.i >= from && p.i <= to)
+    if (p.i >= from && p.i <= to && permis(p.locality ?? null))
       inSegment.push({ lat: pts[p.i].lat, lon: pts[p.i].lon, locality: p.locality ?? null, arrival: pts[p.i].t });
   inSegment.sort((a, b) => a.arrival - b.arrival);
   if (!inSegment.length) return { prima: null, ultima: null, iPrima: null, iUltima: null };
@@ -418,7 +445,13 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
         .filter((a) => (ctx.uzinaRutei.get(a.factory_route_id) ?? a.direction) === s.uzina_id)
         .map((a) => taiePeSat(s, r.pts, r.calc, satulRutei(a.factory_route_id, s, s.shift_number)))
         .filter(Boolean).sort((x, y) => x.livrare - y.livrare)[0];
-      const peOprire = taieLivrarea(s, capeteReale(r.stops ?? [], r.pts, s.from, s.to, scurteInSat), r.calc);
+      // ruta nu e decisă aici, deci capătul se caută în reuniunea satelor rutelor mașinii
+      // de la uzina asta — mai larg decât pe cursa decisă, dar tot fără parcări străine
+      const permiseS = new Set();
+      for (const a of lista)
+        if ((ctx.uzinaRutei.get(a.factory_route_id) ?? a.direction) === s.uzina_id)
+          for (const x of ctx.sateEtalon?.get(a.factory_route_id) ?? []) permiseS.add(x);
+      const peOprire = taieLivrarea(s, capeteReale(r.stops ?? [], r.pts, s.from, s.to, scurteInSat, permiseS), r.calc);
       // steagul e pe rută×schimb; pe contribuția zilei se ia dacă ORICARE dintre rutele
       // mașinii de la uzina asta îl are — altfel aceeași cursă ar ieși cu două cifre
       const cuOprire = lista.some((a) => (ctx.uzinaRutei.get(a.factory_route_id) ?? a.direction) === s.uzina_id
@@ -685,10 +718,12 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
       // ar începe acasă la șofer (Popescu: «Începe: Chiperceni», care e casa lui).
       const satA = satulRutei(a.factory_route_id, plin, sh);
       let taiat = taiePeSat(plin, r.pts, r.calc, satA);
+      // capătul se caută doar în satele rutei decise (vezi `capatPermis`)
+      const permiseA = new Set(ctx.sateEtalon?.get(a.factory_route_id) ?? []);
       // ruta care oprește sistematic dincolo de start: se taie la prima urcare reală, dacă
       // rămâne mai puțină livrare decât la sat (migr. 385)
       if (ctx.taiePeOprire?.has(`${a.factory_route_id}|${sh}`)) {
-        taiat = taieturaCursei(taiat, taieLivrarea(plin, capeteReale(r.stops ?? [], r.pts, plin.from, plin.to, scurteInSat), r.calc), true);
+        taiat = taieturaCursei(taiat, taieLivrarea(plin, capeteReale(r.stops ?? [], r.pts, plin.from, plin.to, scurteInSat, permiseA), r.calc), true);
       }
       // Satul-nume e cunoscut, dar drumul „plin" nu intră deloc în el: n-a fost cursa rutei.
       // Vartic, 15.09: după tura de noapte pleacă de la poartă la ora „ridicării" și face 46
@@ -696,7 +731,7 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
       // pe ruta 20. Acum: 0 km pe rută, iar drumul întreg e al șoferului (navetă/brambura).
       // Doar când satul-nume nu e pe hartă se mai cade pe tăietura la oprire.
       const ocolita = !taiat && satA != null;
-      if (!taiat && !satA) taiat = taieLivrarea(plin, capeteReale(r.stops ?? [], r.pts, plin.from, plin.to, scurteInSat), r.calc);
+      if (!taiat && !satA) taiat = taieLivrarea(plin, capeteReale(r.stops ?? [], r.pts, plin.from, plin.to, scurteInSat, permiseA), r.calc);
       // Drumul nu e al rutei scrise — dar NU e nici naveta șoferului. Până la 19.09 cursa
       // ocolită scria `livrare: plin.km`: tot drumul, pe seama omului. La Ungheni asta
       // însemna 7.367 km „livrare" cu 0 km plini în 19 zile — 42% din toată livrarea
@@ -715,7 +750,7 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
       // pe o cursă ocolită nici drumul gol nu se poate pune pe seama omului: nu știm față
       // de CE rută ar fi gol, deci nici cât din el era firesc
       const kmLivrare = ocolita ? 0 : (taiat ? taiat.livrare : 0) + (gol ? Math.max(0, gol.km - kmGolRuta) : 0);
-      const capete = capeteReale(r.stops ?? [], r.pts, cut.from, cut.to, scurteInSat);
+      const capete = capeteReale(r.stops ?? [], r.pts, cut.from, cut.to, scurteInSat, permiseA);
       const sateCursa = ocolita ? [] : sateDeservite(r.pts, ctx.placesIdx, cut.from, cut.to, PRAG_SAT_KM);
       const ale = ctx.sateRuta.get(a.factory_route_id) ?? [];
       // bucățile din AFARA rutei (naveta), ca intervale de puncte — cursele ADM se scad din ele

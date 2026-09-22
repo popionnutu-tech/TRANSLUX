@@ -24,8 +24,15 @@ import {
 } from '../../lib/openai-compat';
 import { pendingLanguageTransfer } from '../../lib/language';
 import { allowedTimes, TimeGuard } from '../../lib/spoken-times';
+import { geminiBody, geminiEvents } from '../../lib/gemini';
 
 const MODEL = 'claude-haiku-4-5';
+// ION-32: VOICE_LLM_PROVIDER=gemini trece turele pe Gemini Flash; orice altă valoare
+// (sau cheia lipsă) = Haiku, ca înainte. Comutarea și întoarcerea se fac din env-ul
+// Vercel, fără cod. Dacă Gemini cade ÎNAINTE de primul eveniment, tura se reia pe
+// Haiku — o cheie greșită nu lasă linia să răspundă doar cu scuza de avarie.
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.7-flash';
+const useGemini = () => process.env.VOICE_LLM_PROVIDER === 'gemini' && Boolean(process.env.GEMINI_API_KEY);
 const MAX_TOKENS = 350;
 const TEMPERATURE = 0.5;
 // 6500 (era 5000): cascade_timeout al agentului e ridicat la 12s — scuza de avarie
@@ -165,6 +172,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ...(tools.length ? { tools } : {}),
   };
 
+  // Fără stream rămâne pe Haiku: ElevenLabs cere mereu stream, calea asta e pentru teste.
   if (body.stream === false) {
     try {
       const msg = await anthropic.messages.create({ ...params, stream: false }, { signal: abort.signal });
@@ -307,31 +315,69 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     finish = 'tool_calls';
   };
 
-  try {
-    const s = anthropic.messages.stream(params, { signal: abort.signal });
-    for await (const event of s) {
+  // Gemini: aceleași porți, alt izvor. Un tool call vine întreg (parserul îl strânge
+  // pe index), deci «start» și «stop» ale lui cad în același loc.
+  let geminiSawEvent = false;
+  const runGemini = async () => {
+    const gb = geminiBody({
+      model: GEMINI_MODEL, system: systemText, messages, tools: body.tools,
+      maxTokens: MAX_TOKENS, temperature: TEMPERATURE,
+    });
+    for await (const ev of geminiEvents(gb, abort.signal)) {
+      geminiSawEvent = true;
       gotFirst = true;
       clearTimeout(firstChunkTimer);
-
-      if (event.type === 'content_block_start' && event.content_block.type === 'tool_use') {
-        // pendingTool ДО handleGate: его сторож извинения читает — иначе ложная
-        // «tehnică problemă» на ходу, где следом идёт настоящий tool_use (M3).
-        pendingTool = { id: event.content_block.id, name: event.content_block.name, args: '' };
+      if (ev.kind === 'text') {
+        handleGate(gate.push(ev.text));
+      } else if (ev.kind === 'tool') {
+        pendingTool = { id: ev.id, name: ev.name, args: ev.args };
         handleGate(gate.push('', true));
-      } else if (event.type === 'content_block_delta') {
-        if (event.delta.type === 'text_delta') {
-          handleGate(gate.push(event.delta.text));
-        } else if (event.delta.type === 'input_json_delta' && pendingTool) {
-          pendingTool.args += event.delta.partial_json;
-        }
-      } else if (event.type === 'content_block_stop') {
         emitPendingTool();
-      } else if (event.type === 'message_start') {
-        const u = event.message.usage;
-        console.log(`[voice-llm] input_tokens=${u.input_tokens} cache_read=${u.cache_read_input_tokens ?? 0} cache_write=${u.cache_creation_input_tokens ?? 0}`);
-      } else if (event.type === 'message_delta') {
-        finish = event.delta.stop_reason === 'tool_use' ? 'tool_calls' : 'stop';
-        if (event.usage) console.log(`[voice-llm] usage output_tokens=${event.usage.output_tokens}`);
+      } else if (ev.kind === 'finish') {
+        finish = ev.reason;
+      } else if (ev.kind === 'usage') {
+        console.log(`[voice-llm] gemini input_tokens=${ev.input} cached=${ev.cached} output_tokens=${ev.output}`);
+      }
+    }
+  };
+
+  try {
+    let viaAnthropic = !useGemini();
+    if (!viaAnthropic) {
+      try {
+        await runGemini();
+      } catch (e) {
+        if (geminiSawEvent || abort.signal.aborted) throw e;
+        console.error('[voice-llm] gemini a căzut înainte de primul eveniment — tura trece pe Haiku:', String(e).slice(0, 300));
+        viaAnthropic = true;
+      }
+    }
+    if (viaAnthropic) {
+      const s = anthropic.messages.stream(params, { signal: abort.signal });
+      for await (const event of s) {
+        gotFirst = true;
+        clearTimeout(firstChunkTimer);
+
+        if (event.type === 'content_block_start' && event.content_block.type === 'tool_use') {
+          // pendingTool ДО handleGate: его сторож извинения читает — иначе ложная
+          // «tehnică problemă» на ходу, где следом идёт настоящий tool_use (M3).
+          pendingTool = { id: event.content_block.id, name: event.content_block.name, args: '' };
+          handleGate(gate.push('', true));
+        } else if (event.type === 'content_block_delta') {
+          if (event.delta.type === 'text_delta') {
+            handleGate(gate.push(event.delta.text));
+          } else if (event.delta.type === 'input_json_delta' && pendingTool) {
+            pendingTool.args += event.delta.partial_json;
+          }
+        } else if (event.type === 'content_block_stop') {
+          emitPendingTool();
+        } else if (event.type === 'message_start') {
+          const u = event.message.usage;
+          console.log(`[voice-llm] input_tokens=${u.input_tokens} cache_read=${u.cache_read_input_tokens ?? 0} cache_write=${u.cache_creation_input_tokens ?? 0}`);
+        } else if (event.type === 'message_delta') {
+          finish = event.delta.stop_reason === 'tool_use' ? 'tool_calls' : 'stop';
+          if (event.usage) console.log(`[voice-llm] usage output_tokens=${event.usage.output_tokens}`);
+        }
       }
     }
     handleGate(gate.finish());

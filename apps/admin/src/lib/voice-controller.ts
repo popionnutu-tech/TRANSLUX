@@ -19,16 +19,14 @@ import {
   spliceTypesBlock, TYPES_MARKER_RO, TYPES_MARKER_RU,
 } from '@/lib/voice/complaint-types';
 import { PROMPT_MARKERS_RO } from '@/lib/voice/prompt-markers';
+import { FILLERS, turnPatch } from '@/lib/voice/turn-canon';
 
 const INIT_WEBHOOK_URL = 'https://central-hub-md.vercel.app/api/voice/webhooks/init';
 const CUSTOM_LLM_URL = 'https://translux-voice-llm.vercel.app/api';
 const MAX_CALLS_PER_RUN = 8;
 
-// «Alo alo alo» peste salut (Ion, 31.08): strigătele de contact și confirmările
-// scurte nu sunt întreruperi — agentul își termină replica. DOAR cuvinte fără
-// conținut propriu: orice cuvânt nou adăugat aici = risc să ignorăm un răspuns
-// real rostit peste coada întrebării.
-const IGNORE_TERMS = ['alo', 'алло', 'da', 'да', 'aha'];
+// Lista care nu întrerupe, viteza preluării rândului și umpluturile de pauză
+// trăiesc din 22.09 în voice/turn-canon.ts (ION-32) — comune agenților RO și RU.
 
 // Фолбэк эталона словаря (решение Иона 23.08); боевой эталон — в voice_agent_canon.
 // С 26.08 канон в БД ЖИВОЙ: его дописывает syncCanonKeywords (voice-canon.ts) из
@@ -584,6 +582,29 @@ const OPERATOR_BLOCK_RU = `
 - НЕ спрашивай имя и НЕ собирай детали «для оператора»: им некуда попасть. Вызови request_callback один раз с reason «Client solicită operator uman» и сразу переходи к тому, что можешь решить сама.
 - Настаивает второй раз? Спокойно повторяешь ту же правду другими словами и снова спрашиваешь, чем можешь помочь ты. Не выдумывай график, офис или момент, «когда кто-то будет».`;
 
+// ION-32 (22.09), din agentul restaurantului ascultat de Ion: într-o săptămână
+// agentul lor a făcut dintr-o frază neclară «fără arahide» și din «10–12 oameni»
+// «la ora 12». La noi aceeași greșeală ar intra în reclamație sau în lucrul uitat
+// — date pe care șoferii și biroul le citesc drept spuse de client. Partea cu
+// numărul de telefon o acoperă deja ALT_NUMAR_BLOCK.
+const NU_GHICI_MARKER = 'NU GHICI — CE N-A SPUS CLIENTUL NU EXISTĂ';
+const NU_GHICI_BLOCK = `
+
+NU GHICI — CE N-A SPUS CLIENTUL NU EXISTĂ:
+- Replica clientului n-are sens în conversație (cuvinte fără legătură, bucăți de frază, o localitate care nu seamănă cu nimic)? Îl rogi politicos să repete. NU o înlocuiești cu un sens care ți se pare probabil.
+- În tool-uri (reclamație, lucru uitat, request_callback) trimiți DOAR ce a spus clientul explicit. Nimic dedus: nici ora din alte cifre, nici numărul mașinii din ce «ar putea fi», nici numele șoferului, nici ziua pe care n-a spus-o.
+- Cifrele se iau cum au fost spuse: «zece-doisprezece oameni» e un număr de oameni, nu o oră; «pe la opt» nu e «opt fix».
+- Nu ești sigur ce a spus? Întrebi o dată, scurt, exact partea neclară — nu reiei toată discuția.`;
+
+const NU_GHICI_MARKER_RU = 'НЕ ДОМЫСЛИВАЙ — ЧЕГО КЛИЕНТ НЕ СКАЗАЛ, ТОГО НЕТ';
+const NU_GHICI_BLOCK_RU = `
+
+НЕ ДОМЫСЛИВАЙ — ЧЕГО КЛИЕНТ НЕ СКАЗАЛ, ТОГО НЕТ:
+- Реплика клиента не имеет смысла в разговоре (слова без связи, обрывки, непохожее ни на что название)? Вежливо попроси повторить. НЕ подменяй её правдоподобным смыслом.
+- В инструменты (жалоба, забытая вещь, request_callback) передаёшь ТОЛЬКО то, что клиент сказал явно. Ничего выведенного: ни время из других цифр, ни номер машины «наверное такой», ни имя водителя, ни день, которого он не называл.
+- Цифры берутся так, как сказаны: «десять-двенадцать человек» — это число людей, а не время; «около восьми» — не «ровно восемь».
+- Не уверен, что он сказал? Переспроси один раз, коротко, именно неясную часть — не повторяй весь разговор.`;
+
 // Rândurile originale din secțiunile OPERATOR UMAN / ЖИВОЙ ОПЕРАТОР, anulate 09.09.
 const OPERATOR_OBSOLETE = '\nDacă clientul insistă să vorbească cu un om: folosește request_callback și spune că ai NOTAT solicitarea și datele lui. NU promite că cineva îl va suna înapoi.';
 const OPERATOR_OBSOLETE_RU = '\nКлиент настаивает на разговоре с человеком: вызови request_callback и скажи, что ЗАПИСАЛА обращение и его данные. НЕ обещай, что кто-то перезвонит.';
@@ -962,6 +983,7 @@ async function checkAndHealConfig(cfg: any, drifts: Drift[], complaintToolExists
     { marker: 'ALT NUMĂR NU EXISTĂ', block: ALT_NUMAR_BLOCK, field: 'prompt.ALT_NUMAR' },
     { marker: 'ZI FĂRĂ CURSE — URMĂTOAREA VINE DIN TOOL', block: ZI_FARA_CURSE_BLOCK, field: 'prompt.ZI_FARA_CURSE' },
     { marker: 'OPERATOR — NU AM CUI TRANSMITE', block: OPERATOR_BLOCK, field: 'prompt.OPERATOR' },
+    { marker: NU_GHICI_MARKER, block: NU_GHICI_BLOCK, field: 'prompt.NU_GHICI' },
   ];
   let healedPrompt = prompt;
   for (const ob of OBSOLETE_BLOCKS) {
@@ -1031,31 +1053,46 @@ async function checkAndHealConfig(cfg: any, drifts: Drift[], complaintToolExists
     ccPatch.agent = agentPatch;
     ccHealed.push({ field: 'disable_first_message_interruptions', healed: true });
   }
-  // «alo»/«da» nu mai opresc agentul din vorbit (aceeași decizie Ion 31.08).
+  // «alo»/«da» nu mai opresc agentul din vorbit (decizia Ion 31.08), plus
+  // setările de la restaurant (ION-32): preluare «eager», umpluturi fixe.
   // transcribe_on_disabled_interruptions=true e OBLIGATORIU lângă listă: un «da»
   // rostit peste coada întrebării nu întrerupe, dar TREBUIE să rămână în
   // transcriere — altfel răspunsul clientului dispare tăcut și agentul așteaptă.
-  // merge_with_default=false + languages=[] intră și ele în canon: pornite din
-  // dashboard, ar amesteca lista EL implicită / ar limita cuvintele pe limbi,
-  // iar spread-ul {...turn} le-ar perpetua tăcut la fiecare heal.
-  const turn = cc.turn ?? {};
-  // Eticheta numește câmpul care chiar a deviat: cu una singură pentru toate patru,
-  // un drift la merge_with_default ar fi citit în jurnal drept «lista de cuvinte».
-  const turnDrifts = [
-    (turn.interruption_ignore_terms ?? []).join('|') !== IGNORE_TERMS.join('|') && 'turn.interruption_ignore_terms',
-    turn.transcribe_on_disabled_interruptions !== true && 'turn.transcribe_on_disabled_interruptions',
-    turn.merge_with_default_ignore_terms !== false && 'turn.merge_with_default_ignore_terms',
-    (turn.interruption_ignore_term_languages ?? []).length !== 0 && 'turn.interruption_ignore_term_languages',
-  ].filter((f): f is string => typeof f === 'string');
-  if (turnDrifts.length) {
-    ccPatch.turn = {
-      ...turn,
-      interruption_ignore_terms: [...IGNORE_TERMS],
-      interruption_ignore_term_languages: [],
-      merge_with_default_ignore_terms: false,
-      transcribe_on_disabled_interruptions: true,
+  const tp = turnPatch(cc.turn, 'ro');
+  if (tp.patch) {
+    ccPatch.turn = tp.patch;
+    for (const field of tp.fields) ccHealed.push({ field, healed: true });
+  }
+  // Agentul RO vorbește rusește până predă apelul agentului RU; tura de predare
+  // e tăcută, deci exact atunci poate cădea o umplutură — în rusă, nu «Păi...».
+  // Presetul suprascrie DOAR textele (restul vine din rădăcina turn).
+  // ATENȚIE: PATCH-ul pe un preset îl ÎNLOCUIEȘTE întreg, nu îl îmbină — probat
+  // 22.09 pe un agent temporar: trimis doar cu turn, presetul și-a pierdut
+  // tts.voice_id, adică vocea rusească a agentului RO. De aceea se trimite
+  // presetul viu întreg, cu turn schimbat.
+  const ruPreset = cc.language_presets?.ru;
+  const ruSt = ruPreset?.overrides?.turn?.soft_timeout_config ?? {};
+  if (ruPreset
+    && (ruSt.message !== FILLERS.ru.first
+      || (ruSt.additional_soft_timeout_messages ?? []).join('|') !== FILLERS.ru.more.join('|'))) {
+    ccPatch.language_presets = {
+      ...cc.language_presets,
+      ru: {
+        ...ruPreset,
+        overrides: {
+          ...ruPreset.overrides,
+          turn: {
+            ...(ruPreset.overrides?.turn ?? {}),
+            soft_timeout_config: {
+              ...ruSt,
+              message: FILLERS.ru.first,
+              additional_soft_timeout_messages: [...FILLERS.ru.more],
+            },
+          },
+        },
+      },
     };
-    for (const field of turnDrifts) ccHealed.push({ field, healed: true });
+    ccHealed.push({ field: 'language_presets.ru.fillers', healed: true });
   }
   // PATCH-urile stau AICI, după TOATĂ detectarea: cât timp lecuirea secțiunii ps era
   // trimisă la mijloc, un PATCH respins de EL arunca din funcție și orbea definitiv
@@ -1086,6 +1123,20 @@ async function healRuStation(lostToolId: string | null, complaintToolId: string 
     { id: lostToolId, field: 'ru.tools.find_past_trip' },
     { id: complaintToolId, field: 'ru.tools.register_complaint' },
   ], RU_AGENT_ID);
+  // Același canon al rândului ca la RO, cu umpluturile rusești (ION-32). PATCH
+  // separat de prompt și înaintea lui: ieșirile timpurii de mai jos (prompt gol,
+  // stația contrazisă) nu trebuie să lase agentul RU pe setările vechi.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tpRu = turnPatch((cfg as any).conversation_config?.turn, 'ru');
+  if (tpRu.patch) {
+    try {
+      await elPatchAgent({ conversation_config: { turn: tpRu.patch } }, RU_AGENT_ID);
+      bindDrifts.push(...tpRu.fields.map((f) => ({ field: `ru.${f}`, healed: true })));
+    } catch (e) {
+      console.error('[voice-controller] ru-turn:', redactSecrets(String(e)));
+      bindDrifts.push({ field: 'ru.turn.heal_error', healed: false });
+    }
+  }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const prompt: string = (cfg as any).conversation_config?.agent?.prompt?.prompt ?? '';
   if (!prompt) return [...bindDrifts, { field: 'ru.prompt.empty', healed: false }];
@@ -1124,6 +1175,7 @@ async function healRuStation(lostToolId: string | null, complaintToolId: string 
   if (!healed.includes(OPERATOR_MARKER_RU)) { healed += OPERATOR_BLOCK_RU; vindecate.push('ru.prompt.OPERATOR'); }
   // Ion 16.09: nimeni nu e contactat de companie — și pe agentul rusesc.
   if (!healed.includes(NIMENI_MARKER_RU)) { healed += NIMENI_BLOCK_RU; vindecate.push('ru.prompt.NIMENI_CONTACTAT'); }
+  if (!healed.includes(NU_GHICI_MARKER_RU)) { healed += NU_GHICI_BLOCK_RU; vindecate.push('ru.prompt.NU_GHICI'); }
   // Lista tipurilor, în rusă. Sincronizată pe conținut, ca la RO — vezi syncTypesBlock.
   const nevindecate: Drift[] = [];
   if (tipuriInTool) {

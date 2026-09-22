@@ -32,6 +32,7 @@ export const PROMPT_MARKERS_RO = [
   'ALT NUMĂR NU EXISTĂ',
   'ZI FĂRĂ CURSE — URMĂTOAREA VINE DIN TOOL',
   'OPERATOR — NU AM CUI TRANSMITE',
+  'NU GHICI — CE N-A SPUS CLIENTUL NU EXISTĂ',
 ];
 
 /** Aceleași repere, în promptul agentului rusesc. */
@@ -47,6 +48,7 @@ export const PROMPT_MARKERS_RU = [
   'ДЕНЬ БЕЗ РЕЙСОВ — СЛЕДУЮЩИЙ ПРИХОДИТ ИЗ ТУЛА',
   'ОПЕРАТОР — ПЕРЕДАТЬ НЕКОМУ',
   'НИКТО НЕ ПЕРЕЗВАНИВАЕТ — НИКОГДА, А «ЗАПИСАЛА» — НЕ ОБЕЩАНИЕ',
+  'НЕ ДОМЫСЛИВАЙ — ЧЕГО КЛИЕНТ НЕ СКАЗАЛ, ТОГО НЕТ',
 ];
 
 export const TOATE_MARKERELE = [...PROMPT_MARKERS_RO, ...PROMPT_MARKERS_RU];

@@ -77,10 +77,16 @@ const { rows: devs } = await tracker.query(`SELECT id, "CarName", "RegNo" FROM d
 // arată spre mașini diferite (4 în tracker: CarName=320BRAT / RegNo=041BRAU etc.) ar dubla
 // același traseu pe două mașini — adică și km-ul, și salariul.
 const byPlate = new Map();
+// Dispozitivele care nu duc la nicio mașină NU se prelucrează — dar nici nu se pierd în
+// tăcere. Pe 22.09: 163 active, 158 potrivite, 5 orfane; două dintre ele chiar circulă
+// (2524 și 2478, ambele cu RegNo «нет номера»), 1.038 km în 14 zile, adică ~74 km/zi pe
+// care sistemul nu-i vede deloc. Dacă mâine unui autobuz i se strică plăcuța în tracker,
+// km-ii lui dispar la fel de tăcut. De-aia se numără și se scriu în log.
+const orfane = [];
 for (const d of devs) {
   const dupaNume = normPlate(d.CarName);
   const p = plate2veh.has(dupaNume) ? dupaNume : normPlate(d.RegNo);
-  if (!plate2veh.has(p)) continue;
+  if (!plate2veh.has(p)) { orfane.push(d); continue; }
   if (!byPlate.has(p)) byPlate.set(p, []);
   byPlate.get(p).push(d.id);
 }
@@ -88,6 +94,11 @@ let fleet = [...byPlate.entries()].map(([p, devices]) => { const vv = plate2veh.
 if (PLATES.length) fleet = fleet.filter(f => PLATES.includes(f.plate));
 if (LIMIT) fleet = fleet.slice(0, LIMIT);
 console.log(`Flotă: ${fleet.length} mașini | zile: ${DAYS.join(',')} | mod: ${WRITE ? 'SCRIE' : 'DRY (doar calcul)'}`);
+if (orfane.length) {
+  const arata = orfane.slice(0, 10)
+    .map(d => `${d.id}${d.CarName ? ` «${d.CarName}»` : ''}${d.RegNo ? ` / «${d.RegNo}»` : ''}`).join(' · ');
+  console.log(`Dispozitive fără mașină: ${orfane.length} — ${arata}${orfane.length > 10 ? ` · și încă ${orfane.length - 10}` : ''}`);
+}
 
 // PostgREST taie tăcut la «Max Rows» (default 1000) — tabelele de tronsoane au depășit pragul
 async function fetchAll(table, cols) {

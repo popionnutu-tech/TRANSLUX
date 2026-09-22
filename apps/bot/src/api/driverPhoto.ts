@@ -23,10 +23,17 @@
  * bucket (proba), adminul primește poza. A doua oară trece, marcată, tot cu poză la
  * admin. «nesigur», fără referințe sau model căzut → trece. «da» sigur → poate
  * intra la referințe.
+ *
+ * Șoferul FĂRĂ etaloane (Ion, 22.09): poza trece ca până acum, dar pleacă la admin
+ * o dată pe zi, cu «verificați că e chiar el». Fără referințe nu există comparație,
+ * deci un nume ales greșit din listă trecea în tăcere — așa au stat pozele lui
+ * Marian Ion pe Popovici Anatol și pe Bzovii Alexandr, cu penalități de aspect pe
+ * oameni care nici n-au fost la cursă.
  */
 import type { DriverReferencePhoto } from '@translux/db';
 import { escapeHtml, sendAdminPhoto } from '../services/adminAlert.js';
 import {
+  countDriverChecksToday,
   countIdentityBlocksToday,
   createDriverAppearanceCheck,
   getAllTripsForDirection,
@@ -83,20 +90,22 @@ interface IdentityOutcome {
   refs: DriverReferencePhoto[];
   refsUsed: number;
   block: boolean;
+  /** Șoferul chiar n-are niciun etalon (nu o eroare de citire) — n-avem cu ce compara. */
+  noReferences: boolean;
 }
 
 /** Comparația cu referințele; fără referințe sau fără șofer → nimic. Nu aruncă. */
 async function checkIdentity(driverId: string | null, jpeg: Buffer, checkDate: string): Promise<IdentityOutcome> {
-  const none: IdentityOutcome = { result: null, refs: [], refsUsed: 0, block: false };
+  const none: IdentityOutcome = { result: null, refs: [], refsUsed: 0, block: false, noReferences: false };
   if (!driverId) return none;
   try {
     const refs = await listDriverReferences(driverId);
-    if (refs.length === 0) return none;
+    if (refs.length === 0) return { ...none, noReferences: true };
     const images = await loadReferenceImages(refs);
     if (images.length === 0) return { ...none, refs };
     const result = await compareDriverIdentity(images.map((i) => i.base64), jpeg.toString('base64'));
     const blocksToday = result.verdict === 'OK' && result.same === 'nu' ? await countIdentityBlocksToday(driverId, checkDate) : 0;
-    return { result, refs, refsUsed: images.length, block: shouldBlockIdentity(result, blocksToday) };
+    return { result, refs, refsUsed: images.length, block: shouldBlockIdentity(result, blocksToday), noReferences: false };
   } catch (err) {
     console.error('[driver-photo] verificarea identității a picat:', err);
     return none;
@@ -163,7 +172,10 @@ export async function postDriverPhoto(user: AppUser, rawBody: unknown): Promise<
   }
 
   // Identitatea se judecă doar pe cadru bun (la EROARE de aspect nu știm ce e în poză).
-  const identity = result.verdict === 'OK' ? await checkIdentity(body.driverId, body.jpeg, checkDate) : { result: null, refs: [], refsUsed: 0, block: false };
+  const identity: IdentityOutcome =
+    result.verdict === 'OK'
+      ? await checkIdentity(body.driverId, body.jpeg, checkDate)
+      : { result: null, refs: [], refsUsed: 0, block: false, noReferences: false };
   if (identity.result?.verdict === 'OK') {
     console.log(`[driver-photo] ${who} identitate → ${identity.result.same} (${identity.result.confidence.toFixed(2)}, ${identity.refsUsed} ref.)${identity.block ? ' → ALT_OM' : ''}: ${identity.result.reason}`);
   } else if (identity.result) {
@@ -210,6 +222,26 @@ export async function postDriverPhoto(user: AppUser, rawBody: unknown): Promise<
       `${head}\nȘofer: <b>${escapeHtml(driverName ?? '?')}</b> · operator: ${escapeHtml(user.name ?? user.id)} · ${checkDate}\n` +
         `Modelul: ${escapeHtml(identity.result.reason)} (${Math.round(identity.result.confidence * 100)}%)`,
     );
+  }
+
+  // Șoferul fără etaloane: n-avem cu ce compara, deci un nume ales greșit din listă
+  // trece în tăcere. Ion, 22.09: poza lui Marian Ion a stat o săptămână pe Popovici
+  // Anatol, cu 30 de lei pe el, fiindcă Popovici n-avea nicio referință. Poza nu se
+  // refuză (Ion, 19.09: «nu tare rigid») — pleacă la admin, o dată pe zi per șofer,
+  // ca cineva să vadă cine a fost pus acolo.
+  if (body.driverId && identity.noReferences) {
+    const driverName = await getDriverName(body.driverId);
+    const trip = trips.find((t) => t.id === body.tripId);
+    const cursa = trip ? [trip.departure_time.slice(0, 5), trip.route_name].filter(Boolean).join(' ') : body.tripId.slice(-4);
+    const first = (await countDriverChecksToday(body.driverId, checkDate).catch(() => 1)) <= 1;
+    if (first) {
+      await sendAdminPhoto(
+        body.jpeg,
+        `👤 Șofer fără etaloane — verificați că e chiar el\n` +
+          `Șofer: <b>${escapeHtml(driverName ?? '?')}</b> · operator: ${escapeHtml(user.name ?? user.id)} · ${checkDate} · cursa ${escapeHtml(cursa)}\n` +
+          `Poza n-a avut cu ce fi comparată; dacă e altcineva, mutați verificarea pe omul potrivit.`,
+      );
+    }
   }
 
   if (identity.block) {

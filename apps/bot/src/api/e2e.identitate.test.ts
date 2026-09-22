@@ -148,12 +148,26 @@ describe('2. Cazurile care trec fără gălăgie', () => {
     expect(adminPhotos).toHaveLength(3);
   });
 
-  it('șofer fără referințe → nicio comparație, verdict null, refs 0', async () => {
+  it('șofer fără referințe → nicio comparație, verdict null, refs 0, dar adminul primește poza', async () => {
     const res = await driverPhoto('07:35', IDS.drivers.vasileRusu, DRIVER_OK);
     expect(res.status).toBe(200);
     expect(res.body.verdict).toBe('OK');
     expect(modelCalls).toHaveLength(1); // doar aspectul
     expect(checks().at(-1)).toMatchObject({ driver_id: IDS.drivers.vasileRusu, identity_verdict: null, identity_refs: 0, rejected_code: null });
+
+    // Ion, 22.09: fără etaloane nu există comparație, deci numele greșit din listă
+    // trebuie măcar văzut de cineva.
+    expect(adminPhotos).toHaveLength(4);
+    expect(adminPhotos[3]).toContain('👤 Șofer fără etaloane');
+    expect(adminPhotos[3]).toContain('Vasile Rusu');
+    expect(adminPhotos[3]).toContain('07:35');
+  });
+
+  it('a doua poză a aceluiași șofer fără etaloane nu mai sună la admin', async () => {
+    const res = await driverPhoto('07:35', IDS.drivers.vasileRusu, DRIVER_OK);
+    expect(res.status).toBe(200);
+    expect(res.body.verdict).toBe('OK');
+    expect(adminPhotos).toHaveLength(4);
   });
 
   it('modelul de identitate cade → poza trece, motivul erorii rămâne pe rând', async () => {

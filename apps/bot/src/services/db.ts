@@ -1671,6 +1671,17 @@ export async function getUsableDriverPhotos(driverId: string, limit = 40): Promi
   return (data as UsableDriverPhoto[] | null) ?? [];
 }
 
+/** Câte poze are azi acest șofer (cu tot cu cele refuzate) — pentru anunțuri o dată pe zi. */
+export async function countDriverChecksToday(driverId: string, checkDate: string): Promise<number> {
+  const { count, error } = await db()
+    .from('driver_appearance_checks')
+    .select('id', { count: 'exact', head: true })
+    .eq('driver_id', driverId)
+    .eq('check_date', checkDate);
+  if (error) throw error;
+  return count ?? 0;
+}
+
 /** Câte poze i-au fost refuzate azi operatorului pentru acest șofer ca «alt om». */
 export async function countIdentityBlocksToday(driverId: string, checkDate: string): Promise<number> {
   const { count, error } = await db()

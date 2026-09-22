@@ -152,12 +152,14 @@ export interface BootstrapOutcome {
   added: number;
   /** Nicio poză nu s-a potrivit cu celelalte (posibil oameni diferiți). */
   conflict: boolean;
+  /** Etalonul vine dintr-o singură poză: n-a avut cu ce fi confruntat. */
+  single: boolean;
 }
 
 /** Referințele unui șofer din pozele lui vechi, comparate între ele. */
 export async function bootstrapDriverReferences(driverId: string): Promise<BootstrapOutcome> {
   const candidates = pickBootstrapCandidates(await getUsableDriverPhotos(driverId, 40));
-  const outcome: BootstrapOutcome = { driverId, candidates: candidates.length, added: 0, conflict: false };
+  const outcome: BootstrapOutcome = { driverId, candidates: candidates.length, added: 0, conflict: false, single: false };
   if (candidates.length === 0) return outcome;
 
   const images: Array<{ photo: UsableDriverPhoto; base64: string }> = [];
@@ -168,7 +170,10 @@ export async function bootstrapDriverReferences(driverId: string): Promise<Boots
   if (images.length === 0) return outcome;
 
   if (images.length === 1) {
-    if (await addDriverReference(driverId, images[0].photo, 'single')) outcome.added = 1;
+    if (await addDriverReference(driverId, images[0].photo, 'single')) {
+      outcome.added = 1;
+      outcome.single = true;
+    }
     return outcome;
   }
 
@@ -215,6 +220,7 @@ export async function refreshDriverReferences(): Promise<RefreshStats> {
   const referenced = await listReferencedDriverIds();
 
   const conflicts: string[] = [];
+  const singles: string[] = [];
   for (const d of drivers) {
     if (referenced.has(d.id)) continue;
     try {
@@ -223,7 +229,10 @@ export async function refreshDriverReferences(): Promise<RefreshStats> {
       else if (o.conflict) {
         stats.conflicts++;
         conflicts.push(`${d.full_name} (${o.candidates} poze)`);
-      } else if (o.added > 0) stats.bootstrapped++;
+      } else if (o.added > 0) {
+        stats.bootstrapped++;
+        if (o.single) singles.push(d.full_name);
+      }
     } catch (err) {
       console.error(`[driver-ref] bootstrap ${d.full_name} a picat:`, err);
     }
@@ -241,11 +250,23 @@ export async function refreshDriverReferences(): Promise<RefreshStats> {
     }
   }
 
-  if (conflicts.length > 0) {
-    await sendAdminAlert(
-      `👤 <b>Referințe șoferi</b>\nPozele de la peron nu se potrivesc între ele (posibil oameni diferiți în poze) — fără referință până nu se verifică:\n` +
-        conflicts.map((c) => `• ${escapeHtml(c)}`).join('\n'),
-    );
+  if (conflicts.length > 0 || singles.length > 0) {
+    const parts = ['👤 <b>Referințe șoferi</b>'];
+    if (conflicts.length > 0) {
+      parts.push(
+        'Pozele de la peron nu se potrivesc între ele (posibil oameni diferiți în poze) — fără referință până nu se verifică:',
+        ...conflicts.map((c) => `• ${escapeHtml(c)}`),
+      );
+    }
+    // O singură poză nu se poate confrunta cu nimic: dacă operatorul a pus acolo alt
+    // om, etalonul îl fixează pe el (Ion, 22.09 — cazul Popovici/Bzovii).
+    if (singles.length > 0) {
+      parts.push(
+        'Etalon dintr-o singură poză, neconfruntat cu nimic — confirmați că e chiar el:',
+        ...singles.map((s) => `• ${escapeHtml(s)}`),
+      );
+    }
+    await sendAdminAlert(parts.join('\n'));
   }
   return stats;
 }

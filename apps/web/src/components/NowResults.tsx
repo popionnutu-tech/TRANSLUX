@@ -68,10 +68,9 @@ function NowMap({ trips, selected, onPick }: { trips: NowTrip[]; selected: numbe
       if (dead || !box.current || map.current) return;
       const m = L.map(box.current, { zoomControl: false, attributionControl: true, scrollWheelZoom: false })
         .setView([47.3, 28.4], 8);
-      // Harta deschisă, fără culorile raioanelor și pădurilor: autobuzele roșii ies în față.
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        maxZoom: 18, subdomains: 'abcd', attribution: '© OpenStreetMap © CARTO',
-      }).addTo(m);
+      // Plăcile OSM, ca în chat; decolorate din CSS (.leaflet-tile-pane), ca autobuzele roșii
+      // să iasă în față. Carto light cere de acum cheie API (23.09: «API KEY REQUIRED» pe hartă).
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap' }).addTo(m);
       L.control.zoom({ position: 'topright' }).addTo(m);
       layer.current = L.layerGroup().addTo(m);
       map.current = m;
@@ -214,6 +213,7 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
 .now-box.no-map{height:auto;max-width:460px;background:#fff;padding-top:84px}
 .now-map{position:absolute;inset:0;isolation:isolate;z-index:0;background:#F3F1EF}
 .now-map .leaflet-top.leaflet-right{top:76px}
+.now-map .leaflet-tile-pane{filter:grayscale(1) brightness(1.06) contrast(.92)}
 .now-top{position:absolute;left:20px;right:20px;top:20px;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:12px;pointer-events:none}
 .now-title,.now-close{pointer-events:auto;background:#fff;box-shadow:0 6px 18px rgba(40,10,18,.12)}
 .now-title{height:48px;padding:0 20px;border-radius:24px;display:flex;align-items:center;gap:12px;font-size:17px;font-weight:700;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

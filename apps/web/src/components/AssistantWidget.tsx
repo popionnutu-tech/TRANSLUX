@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, ChevronRight, Clock, MapPin, MessageCircle, MessageSquareWarning, Navigation, Phone, ShoppingBag, X, ArrowUp, Bus } from 'lucide-react';
 import type { Locale } from '@/lib/i18n';
 import { parseAssistantText, type Inline } from '@/lib/assistant-text';
-import { busTiles, type Card } from '@/lib/assistant-cards';
+import { busTiles, type Card, type Crew } from '@/lib/assistant-cards';
 
 const ENDPOINT = process.env.NEXT_PUBLIC_ASSISTANT_URL || 'https://central-hub-md.vercel.app/api/asistent-site';
 const RED = '#9B1B30';
@@ -54,7 +54,9 @@ const TEXT = {
     maps: 'Google Maps', waze: 'Waze', mapsPoint: 'Punctul pe Google Maps',
     reserve: 'Rezervă', noDriver: 'șofer nerepartizat', lei: 'lei',
     allTrips: (n: number) => `Toate cele ${n} de curse`,
-    reserveHint: '«Rezervă» sună șoferul cursei',
+    reserveHint: 'Sună șoferul ca să-ți rezervi locul',
+    crewLabel: 'Șoferul cursei',
+    callDriver: (n: string | null, p: string) => `Sună șoferul${n ? ` ${n}` : ''}, ${p}`,
     onRoad: 'Pe drum', pickTitle: 'Alege cursa ta', showWhere: 'Arată unde e',
     departedAgo: (m: number, t: string, from: string) => (m < 0 ? `ajunge la ${from} la ${t}` : m >= 60 ? `plecată de ${Math.floor(m / 60)} h ${m % 60} min` : `plecată de ${m} min`),
     pickAsk: (t: string, from: string, to: string) => `Unde e autobuzul de ${t}, ${from} → ${to}?`,
@@ -100,7 +102,9 @@ const TEXT = {
     maps: 'Google Maps', waze: 'Waze', mapsPoint: 'Точка на Google Maps',
     reserve: 'Бронь', noDriver: 'водитель не назначен', lei: 'лей',
     allTrips: (n: number) => `Все ${n} рейсов`,
-    reserveHint: '«Бронь» — звонок водителю рейса',
+    reserveHint: 'Позвоните водителю, чтобы забронировать место',
+    crewLabel: 'Водитель рейса',
+    callDriver: (n: string | null, p: string) => `Позвонить водителю${n ? ` ${n}` : ''}, ${p}`,
     onRoad: 'В пути', pickTitle: 'Выберите свой рейс', showWhere: 'Показать, где он',
     departedAgo: (m: number, t: string, from: string) => (m < 0 ? `будет в ${from} в ${t}` : m >= 60 ? `в пути ${Math.floor(m / 60)} ч ${m % 60} мин` : `в пути ${m} мин`),
     pickAsk: (t: string, from: string, to: string) => `Где автобус рейса ${t}, ${from} → ${to}?`,
@@ -165,6 +169,36 @@ function BotText({ text, i }: { text: string; i: T }) {
   );
 }
 
+/** +37369123456 → «069 123 456». */
+function fmtPhone(phone: string): string {
+  const d = phone.replace(/\D/g, '');
+  const local = d.startsWith('373') ? '0' + d.slice(3) : d;
+  return local.length === 9 ? `${local.slice(0, 3)} ${local.slice(3, 6)} ${local.slice(6)}` : phone;
+}
+
+// Cine duce cursa, minimalist: «Ion · 651 AKD» lângă oră (Ion, 23.09).
+function CrewName({ crew, i }: { crew: Crew; i: T }) {
+  if (!crew.driver && !crew.plate) return <span className="asst-crew-name muted">{i.noDriver}</span>;
+  return (
+    <span className="asst-crew-name">
+      {crew.driver}
+      {crew.driver && crew.plate && <span className="asst-dot-sep">·</span>}
+      {crew.plate && <span className="asst-plate">{crew.plate}</span>}
+    </span>
+  );
+}
+
+function CallButton({ crew, i, compact, strong }: { crew: Crew; i: T; compact?: boolean; strong?: boolean }) {
+  if (!crew.phone) return null;
+  const label = i.callDriver(crew.driver, fmtPhone(crew.phone));
+  return (
+    <a className={`asst-call ${strong ? 'strong' : ''} ${compact ? 'compact' : ''}`} href={telHref(crew.phone)}
+      aria-label={label} title={label} onClick={(e) => e.stopPropagation()}>
+      <Phone size={14} aria-hidden />{!compact && <span>{fmtPhone(crew.phone)}</span>}
+    </a>
+  );
+}
+
 function fmtDate(iso: string, locale: Locale): string {
   const d = new Date(`${iso}T12:00:00Z`);
   if (Number.isNaN(d.getTime())) return '';
@@ -181,10 +215,11 @@ function CardView({ card, i, locale, ask, busy }: { card: Card; i: T; locale: Lo
         {card.trips.map((t) => (
           <div key={t.time} className="asst-trip">
             <span className="asst-trip-time">{t.time}</span>
-            <span className="asst-trip-meta">{t.price ? `${t.price} ${i.lei}` : ''}</span>
-            {t.phone
-              ? <a className="asst-btn-pill" href={telHref(t.phone)}>{i.reserve}</a>
-              : <span className="asst-trip-meta" style={{ fontSize: 12 }}>{i.noDriver}</span>}
+            <span className="asst-crew">
+              <CrewName crew={t} i={i} />
+              <span className="asst-crew-sub">{t.price ? `${t.price} ${i.lei}` : ''}</span>
+            </span>
+            <CallButton crew={t} i={i} />
           </div>
         ))}
         {card.total > card.trips.length && (
@@ -224,7 +259,11 @@ function CardView({ card, i, locale, ask, busy }: { card: Card; i: T; locale: Lo
           <label key={t.departure} className={`asst-pick ${choice === t.departure ? 'on' : ''}`}>
             <input type="radio" name={`pick-${card.from}-${card.to}`} checked={choice === t.departure} onChange={() => setPicked(t.departure)} />
             <span className="asst-trip-time">{t.departure}</span>
-            <span className="asst-trip-meta">{i.departedAgo(t.minutes_ago, t.departure, card.from)}</span>
+            <span className="asst-crew">
+              <CrewName crew={t} i={i} />
+              <span className="asst-crew-sub">{i.departedAgo(t.minutes_ago, t.departure, card.from)}</span>
+            </span>
+            <CallButton crew={t} i={i} compact />
           </label>
         ))}
         <div style={{ padding: '10px 14px 14px' }}>
@@ -251,10 +290,19 @@ function CardView({ card, i, locale, ask, busy }: { card: Card; i: T; locale: Lo
         <span className="asst-map-pin"><Bus size={16} /></span>
         <span className="asst-map-attr">{attribution}</span>
       </div>
-      <div style={{ padding: '12px 14px 4px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <div style={{ padding: '12px 14px 10px', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
         <div style={{ fontWeight: 700, fontSize: 15 }}>{card.near ? i.busNear(card.near) : i.busNow}</div>
-        <div style={{ fontSize: 13, color: '#5E5255' }}>{i.busAt(card.at)}</div>
+        <div style={{ fontSize: 12, color: '#6B5E61', whiteSpace: 'nowrap' }}>{i.busAt(card.at)}</div>
       </div>
+      {(card.driver || card.plate || card.phone) && (
+        <div className="asst-crew-box">
+          <span className="asst-crew">
+            <CrewName crew={card} i={i} />
+            <span className="asst-crew-sub">{i.crewLabel}</span>
+          </span>
+          <CallButton crew={card} i={i} strong />
+        </div>
+      )}
       <div style={{ padding: '8px 14px 14px' }}>
         <a className="asst-btn-soft" style={{ width: '100%' }} href={card.maps} target="_blank" rel="noopener noreferrer"><MapPin size={17} /> {i.mapsPoint}</a>
       </div>
@@ -525,6 +573,17 @@ const CSS = `
 .asst-live{display:flex;align-items:center;gap:6px;color:#1F7A4D}
 .asst-live-dot{width:8px;height:8px;border-radius:50%;background:#2E9E62;display:inline-block}
 .asst-live-dot.light{background:#7CE3A2;width:7px;height:7px}
+.asst-crew{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.asst-crew-name{font-size:13px;font-weight:600;color:#231A1C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.asst-crew-name.muted{font-weight:400;color:#8A7D80;font-size:12px}
+.asst-dot-sep{margin:0 5px;font-weight:400;color:#8A7D80}
+.asst-plate{font-family:var(--font-mono),ui-monospace,monospace;font-size:12px;font-weight:500;color:#5E5255}
+.asst-crew-sub{font-size:12px;color:#6B5E61}
+.asst-crew-box{display:flex;align-items:center;gap:10px;margin:0 14px 10px;padding:10px 10px 10px 12px;border:1px solid #EFE6E8;border-radius:12px}
+.asst-call{display:flex;align-items:center;gap:6px;flex-shrink:0;padding:8px 10px;border-radius:10px;background:#F4E8EA;color:#7A1526;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap}
+.asst-call:hover{background:#EBD6DA}
+.asst-call.strong{background:;color:#fff}
+.asst-call.compact{width:36px;height:36px;padding:0;justify-content:center}
 .asst-pick{display:flex;align-items:center;gap:12px;padding:12px 14px;border-top:1px solid #F2EAEC;cursor:pointer}
 .asst-pick.on{background:#F7EFF1}
 .asst-pick input{width:18px;height:18px;margin:0;accent-color:${RED}}

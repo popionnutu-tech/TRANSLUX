@@ -13,6 +13,7 @@ import { getSupabase } from '@/lib/supabase';
 import { searchTrips, type TripResult } from '@/lib/trips-search';
 import { localitiesToRo, unknownLocalityResponse } from '@/lib/voice-locality';
 import { chisinauTodayIso } from '@/lib/chisinau-time';
+import { crewOf, type Crew } from './cards';
 
 /** După sfârșitul din grafic cursa mai e «pe drum» atât: autobuzele întârzie. */
 export const END_SLACK_MIN = 20;
@@ -96,7 +97,7 @@ async function resolve(from: string, to: string): Promise<Resolved> {
   return { ok: true, fromRo: fromRo as string, toRo: toRo as string };
 }
 
-export interface OnRoadTrip { departure: string; minutes_ago: number }
+export interface OnRoadTrip extends Crew { departure: string; minutes_ago: number }
 
 /** Cursele de AZI de pe direcția asta care sunt acum pe drum, după grafic. */
 export async function tripsOnRoad(from: string, to: string): Promise<{ result: Record<string, unknown>; trips: OnRoadTrip[]; fromRo?: string; toRo?: string }> {
@@ -113,7 +114,7 @@ export async function tripsOnRoad(from: string, to: string): Promise<{ result: R
       let ago = now - dep;
       if (ago > 720) ago -= 1440;
       if (ago < -720) ago += 1440;
-      return { departure: t.time.padStart(5, '0'), minutes_ago: ago };
+      return { departure: t.time.padStart(5, '0'), minutes_ago: ago, ...crewOf(t) };
     })
     .sort((a, b) => a.departure.localeCompare(b.departure));
   if (on.length === 0) {
@@ -141,7 +142,7 @@ export async function tripsOnRoad(from: string, to: string): Promise<{ result: R
   };
 }
 
-export interface BusPoint { lat: number; lon: number; near: string | null; at: string; departure: string; from: string; to: string }
+export interface BusPoint extends Crew { lat: number; lon: number; near: string | null; at: string; departure: string; from: string; to: string }
 
 /** Punctul mașinii UNEI curse, numai dacă e pe drum acum după grafic. */
 export async function busLocation(from: string, to: string, departure: string): Promise<{ result: Record<string, unknown>; point: BusPoint | null }> {
@@ -185,7 +186,7 @@ export async function busLocation(from: string, to: string, departure: string): 
     };
   }
   const at = new Date(data.at as string).toLocaleTimeString('en-GB', { timeZone: 'Europe/Chisinau', hour: '2-digit', minute: '2-digit', hour12: false });
-  const point: BusPoint = { lat: data.lat as number, lon: data.lon as number, near: (data.near as string | null) ?? null, at, departure: hhmm, from: r.fromRo, to: r.toRo };
+  const point: BusPoint = { ...crewOf(trip), lat: data.lat as number, lon: data.lon as number, near: (data.near as string | null) ?? null, at, departure: hhmm, from: r.fromRo, to: r.toRo };
   return {
     point,
     result: {

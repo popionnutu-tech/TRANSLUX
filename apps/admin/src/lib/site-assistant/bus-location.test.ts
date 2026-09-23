@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { END_SLACK_MIN, hhmmToMin, isOnRoad, minToHhmm, tripWindow } from './bus-location';
-import { tripsCard } from './cards';
+import { crewOf, fmtPlate } from './cards';
 
 describe('bus-location — poarta «doar în orele cursei»', () => {
   it('ora din crm_stop_fares; 0:00 = oprire fără oră', () => {
@@ -46,19 +46,19 @@ describe('bus-location — poarta «doar în orele cursei»', () => {
   });
 });
 
-describe('cards — lista curselor', () => {
-  it('ia orele, prețul și numărul din rezultat; cursa fără șofer n-are număr', () => {
-    const c = tripsCard({ from: 'Chișinău', to: 'Bălți' }, {
-      date: '2026-09-24',
-      trips: [
-        { departure: '06:55', price: 155, phone: '+37369000001' },
-        { departure: '07:30', price: 155, phone: null, awaiting_driver: true },
-      ],
-    });
-    expect(c).toEqual({
-      type: 'trips', from: 'Chișinău', to: 'Bălți', date: '2026-09-24', total: 2,
-      trips: [{ time: '06:55', price: 155, phone: '+37369000001' }, { time: '07:30', price: 155, phone: null }],
-    });
-    expect(tripsCard({}, { trips: [] })).toBeNull();
+describe('cards — cine duce cursa', () => {
+  it('prenumele șoferului, mașina formatată, numărul', () => {
+    expect(crewOf({ driver: 'Popescu Ion', vehicle_plate: '651AKD', phone: '+37369000001' }))
+      .toEqual({ driver: 'Ion', plate: '651 AKD', phone: '+37369000001' });
+  });
+  it('cursa fără șofer repartizat n-are nici om, nici număr', () => {
+    expect(crewOf({ driver: 'Popescu Ion', vehicle_plate: '651AKD', phone: '+37369000001', isAwaitingDriver: true }))
+      .toEqual({ driver: null, plate: null, phone: null });
+  });
+  it('plăcuțele: 651AKD, ABC123, altfel neatinse', () => {
+    expect(fmtPlate('651 akd')).toBe('651 AKD');
+    expect(fmtPlate('ABC123')).toBe('ABC 123');
+    expect(fmtPlate('C 123 AB')).toBe('C123AB');
+    expect(fmtPlate(null)).toBeNull();
   });
 });

@@ -1,14 +1,17 @@
 // Cardurile trimise de central-hub sub mesajul asistentului (ION-39). Forma e cea din
 // apps/admin/src/lib/site-assistant/cards.ts — cele două aplicații nu-și împart codul.
 
+/** Prenumele șoferului, mașina și numărul lui (ION-39). */
+export interface Crew { driver: string | null; plate: string | null; phone: string | null }
+
 export type Card =
   | { type: 'trips'; from: string; to: string; date: string; total: number;
-      trips: { time: string; price: number | null; phone: string | null }[] }
+      trips: (Crew & { time: string; price: number | null })[] }
   | { type: 'station'; key: 'chisinau' | 'balti'; name_ro: string; name_ru: string;
       address_ro: string; address_ru: string; maps: string; waze: string }
-  | { type: 'pick'; from: string; to: string; trips: { departure: string; minutes_ago: number }[] }
-  | { type: 'bus'; from: string; to: string; departure: string; lat: number; lon: number;
-      near: string | null; at: string; maps: string };
+  | { type: 'pick'; from: string; to: string; trips: (Crew & { departure: string; minutes_ago: number })[] }
+  | ({ type: 'bus'; from: string; to: string; departure: string; lat: number; lon: number;
+      near: string | null; at: string; maps: string } & Crew);
 
 export const MAP_ZOOM = 13;
 

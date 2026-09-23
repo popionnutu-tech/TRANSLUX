@@ -246,7 +246,7 @@ export async function executeSiteTool(ctx: ToolContext, name: string, input: Rec
     }
     if (!ENDPOINT[name]) return { result: { error: `tool necunoscut: ${name}` } };
     const result = await callVoiceTool(ctx, name, input);
-    return { result, card: name === 'search_trips' ? tripsCard(input, result) : null };
+    return { result, card: name === 'search_trips' ? await tripsCard(input, result).catch(() => null) : null };
   } catch (err) {
     console.error(`site-assistant tool ${name}:`, (err as Error).message);
     return { result: { error: `tool ${name} indisponibil acum` } };

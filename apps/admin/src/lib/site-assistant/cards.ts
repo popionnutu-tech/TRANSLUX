@@ -2,7 +2,7 @@
 // Le construiește SERVERUL din bază, nu modelul: orele, prețurile, numerele și
 // punctul de pe hartă ajung la client exact cum sunt în bază.
 
-import { STATIONS, mapsUrl, wazeUrl, type Station } from './knowledge';
+import { STATIONS, stationMaps, stationWaze, type Station } from './knowledge';
 import type { BusPoint, OnRoadTrip } from './bus-location';
 import { driverFirstName } from '@/lib/driver-name';
 import { searchTrips } from '@/lib/trips-search';
@@ -70,7 +70,7 @@ export function stationCard(key: string): Card | null {
   if (!s) return null;
   return {
     type: 'station', key: s.key, name_ro: s.name_ro, name_ru: s.name_ru,
-    address_ro: s.address_ro, address_ru: s.address_ru, maps: mapsUrl(s.query), waze: wazeUrl(s.query),
+    address_ro: s.address_ro, address_ru: s.address_ru, maps: stationMaps(s), waze: stationWaze(s),
   };
 }
 

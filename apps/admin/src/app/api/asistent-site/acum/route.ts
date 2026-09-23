@@ -84,13 +84,9 @@ export async function POST(req: NextRequest) {
         geo[s.crm_route_id as number] = { shape: s.shape as [number, number][], stops: (s.stops ?? []) as GeoStop[] };
       }
     }
-    return NextResponse.json({
-      from: r.fromRo ?? null,
-      to: r.toRo ?? null,
-      routes,
-      // Autobuzul care a trecut deja de oprirea omului nu mai e al lui — iese din listă,
-      // chiar dacă după grafic ar mai fi pe drum (nextTrips ține și cursele întârziate).
-      trips: (await Promise.all(r.trips.map(async (t) => {
+    // Autobuzul care a trecut deja de oprirea omului nu mai e al lui — iese din listă,
+    // chiar dacă după grafic ar mai fi pe drum (nextTrips ține și cursele întârziate).
+    const trips = (await Promise.all(r.trips.map(async (t) => {
         const p = t.on_road ? pos.get(normPlate(t.plate)) : undefined;
         // Ora reală: pe drum din GPS, altfel din trecerile reale ale zilelor trecute.
         const g = t.route_id != null ? geo[t.route_id] : undefined;
@@ -104,9 +100,16 @@ export async function POST(req: NextRequest) {
         // a trecut aproape sigur prin localitatea omului — nu-l facem s-o aștepte.
         const known = 'eta' in t || 'lat' in t;
         return known || t.minutes_until >= -STALE_MIN;
-      }),
-      line_ro: r.trips.length ? null : ((r.result.line_ro ?? r.result.result_ro) as string | undefined) ?? null,
-      line_ru: r.trips.length ? null : ((r.result.line_ru ?? r.result.result_ru) as string | undefined) ?? null,
+      });
+    // Lista golită de filtru are nevoie de aceeași frază ca lista goală din start.
+    const none = trips.length === 0;
+    return NextResponse.json({
+      from: r.fromRo ?? null,
+      to: r.toRo ?? null,
+      routes,
+      trips,
+      line_ro: none ? ((r.result.line_ro ?? r.result.result_ro) as string | undefined) ?? `Acum nu mai vine nicio cursă ${r.fromRo} → ${r.toRo}. Apăsați «Mai târziu» și alegeți altă zi.` : null,
+      line_ru: none ? ((r.result.line_ru ?? r.result.result_ru) as string | undefined) ?? `Сейчас больше нет рейсов ${r.fromRo} → ${r.toRo}. Нажмите «Позже» и выберите другой день.` : null,
     }, { headers });
   } catch (err) {
     console.error('asistent-site/acum:', err);

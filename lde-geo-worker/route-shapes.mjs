@@ -5,6 +5,7 @@
 // apoi Valhalla (costing bus) prin toate opririle găsite, în ordinea stop_order.
 // Se rulează la mână (o dată, și când se schimbă opririle):
 //   cd /root/lde-worker && node --env-file=.env route-shapes.mjs [--dry] [--jumps]
+import pg from 'pg';
 import { loadPlaces } from './places-index.mjs';
 import { hav } from './km-core.mjs';
 import { dp } from './geom-simplify.mjs';
@@ -110,6 +111,28 @@ export function taieCarlige(pts, razaM = 60, inapoiKm = 8) {
   return out;
 }
 
+/**
+ * Localitățile în care rutiera intră de pe traseu, cu punctul exact unde oprește (Ion,
+ * 23.09: «nu intrăm direct în fiecare sat… doar în Briceni, Bălți, Chișinău», «ți-am dat
+ * punctele exacte unde intră în Briceni, Lipcani, Edineț și Chișinău; autogara din Ocnița
+ * și din Rîșcani o găsești»). Chișinău, Bălți, Edineț, Briceni — punctele lui Ion din
+ * apps/admin/src/lib/site-assistant/knowledge.ts. Lipcani, Ocnița, Rîșcani — celula de
+ * ~100 m în care rutierele noastre au stat cel mai des ≥3 min în 7 zile (23.09; aceeași
+ * metodă dă la Edineț și Briceni exact punctele lui Ion).
+ */
+const STATII = new Map([
+  ['chisinau', { lat: 47.0237536, lon: 28.8627521 }],
+  ['balti', { lat: 47.7697219, lon: 27.9417474 }],
+  ['edinet', { lat: 48.1665595, lon: 27.3096485 }],
+  ['briceni', { lat: 48.357826, lon: 27.092106 }],
+  ['lipcani', { lat: 48.26297, lon: 26.805993 }],
+  ['ocnita', { lat: 48.40768, lon: 27.487994 }],
+  ['riscani', { lat: 47.949305, lon: 27.568182 }],
+]);
+/** Un sat la atât de linie e «pe traseu»: autobuzul trece pe lângă el. */
+const PE_LANGA_KM = 3;
+const departeDe = (p, line) => line.reduce((m, q) => Math.min(m, hav(p, q)), Infinity);
+
 async function route(pts) {
   const body = {
     locations: pts.map((p, i) => ({ lat: p.lat, lon: p.lon, type: i === 0 || i === pts.length - 1 ? 'break' : 'through' })),
@@ -123,10 +146,132 @@ async function route(pts) {
   return { pts: pts2, km, kmValhalla: j.trip.summary.length };
 }
 
+// ── Urma GPS a unei curse reale ─────────────────────────────────────────────
+// Trackerul (TRACKER_HOST) răspunde doar VPS-ului; track.w_date e UTC fără fus, x/y NMEA
+// (vezi bus-live.mjs). Pentru ruta R: zilele recente în care daily_assignments a pus o
+// mașină pe R — `vehicle_id` pe tur (orele hour_from_nord, spre Chișinău), `vehicle_id_retur`
+// pe retur (hour_from_chisinau, dinspre Chișinău) —, punctele mașinii în fereastra cursei,
+// tăiate între primul și ultimul capăt al rutei. Se ia prima zi a cărei urmă trece pe lângă
+// cel puțin 85% din opririle găsite.
+pg.types.setTypeParser(1114, (v) => new Date(v.replace(' ', 'T') + 'Z'));
+const nmea = (v) => { const d = Math.floor(v / 100); return d + (v - d * 100) / 60; };
+const normPlate = (s) => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+const ZILE_INAPOI = 14;
+const ACOPERIRE_MIN = 0.85;
+let tracker = null, devsByPlate = null;
+
+async function trackerReady() {
+  if (tracker) return;
+  tracker = new pg.Client({
+    host: process.env.TRACKER_HOST, port: +(process.env.TRACKER_PORT || 5432),
+    user: process.env.TRACKER_USER, password: process.env.TRACKER_PASS, database: process.env.TRACKER_DB,
+  });
+  await tracker.connect();
+  const { rows: devs } = await tracker.query(`SELECT id, "CarName", "RegNo" FROM devices`);
+  devsByPlate = new Map();
+  for (const d of devs) for (const p of new Set([normPlate(d.CarName), normPlate(d.RegNo)])) {
+    if (!p) continue;
+    if (!devsByPlate.has(p)) devsByPlate.set(p, []);
+    devsByPlate.get(p).push(d.id);
+  }
+}
+
+/** «2026-09-22» + «6:55» (ora Chișinăului) → Date UTC. */
+function localToUtc(date, hhmm) {
+  const [h, m] = hhmm.split(':').map(Number);
+  const guess = new Date(`${date}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00Z`);
+  const shown = new Date(guess.toLocaleString('en-US', { timeZone: 'Europe/Chisinau' }));
+  const asUtc = new Date(guess.toLocaleString('en-US', { timeZone: 'UTC' }));
+  return new Date(guess.getTime() - (shown - asUtc));
+}
+const toMin = (s) => { const m = String(s || '').match(/^(\d{1,2}):(\d{2})$/); const v = m ? +m[1] * 60 + +m[2] : 0; return v || null; };
+
+async function gpsShape(rid, stops, found) {
+  await trackerReady();
+  const since = new Date(Date.now() - ZILE_INAPOI * 864e5).toISOString().slice(0, 10);
+  const asg = await rest(`daily_assignments?or=(crm_route_id.eq.${rid},retur_route_id.eq.${rid})&assignment_date=gte.${since}&select=assignment_date,crm_route_id,vehicle_id,retur_route_id,vehicle_id_retur&order=assignment_date.desc`);
+  const vIds = [...new Set(asg.flatMap((a) => [a.vehicle_id, a.vehicle_id_retur]).filter(Boolean))];
+  if (!vIds.length) return null;
+  const vehs = await rest(`vehicles?id=in.(${vIds.join(',')})&select=id,plate_number`);
+  const plateOf = new Map(vehs.map((v) => [v.id, normPlate(v.plate_number)]));
+
+
+  const tries = [];
+  for (const a of asg) {
+    if (a.crm_route_id === rid && a.vehicle_id) tries.push({ date: a.assignment_date, vid: a.vehicle_id, dir: 'tur', hourKey: 'hour_from_nord' });
+    if (a.retur_route_id === rid && a.vehicle_id_retur) tries.push({ date: a.assignment_date, vid: a.vehicle_id_retur, dir: 'retur', hourKey: 'hour_from_chisinau' });
+  }
+  let best = null;
+  for (const t of tries) {
+    const plate = plateOf.get(t.vid);
+    const devs = devsByPlate.get(plate);
+    // RS_DEBUG=<ruta>: de ce e respinsă fiecare zi.
+    const D = (m) => { if (process.env.RS_DEBUG === String(rid)) console.log(`    ${t.date} ${t.dir} ${plate}: ${m}`); };
+    if (!devs?.length) { D("fără tracker"); continue; }
+    // Orele în ordinea de mers; după miezul nopții continuă ziua cursei (ruta 8, returul:
+    // Chișinău 20:00 → Criva 00:25).
+    const inOrder = (t.dir === 'tur' ? stops : [...stops].reverse()).map((s) => toMin(s[t.hourKey])).filter((x) => x != null);
+    if (inOrder.length < 2) continue;
+    for (let i = 1; i < inOrder.length; i++) while (inOrder[i] < inOrder[i - 1] - 12 * 60) inOrder[i] += 1440;
+    const a = inOrder[0], b = inOrder[inOrder.length - 1];
+    if (b <= a) continue;
+    const from = localToUtc(t.date, `${Math.floor(a / 60)}:${a % 60}`), to = new Date(from.getTime() + (b - a) * 6e4);
+    const { rows } = await tracker.query(
+      `SELECT w_date, x, y FROM track WHERE id = ANY($1) AND w_date BETWEEN $2 AND $3 ORDER BY w_date`,
+      [devs, new Date(from.getTime() - 30 * 6e4), new Date(to.getTime() + 60 * 6e4)],
+    );
+    // Punctele, fără salturi imposibile (>150 km/h) și fără stat pe loc.
+    const pts = [];
+    for (const r of rows) {
+      const p = { lat: nmea(+r.x), lon: nmea(+r.y), at: r.w_date };
+      if (!inMd(p)) continue;
+      const q = pts[pts.length - 1];
+      if (q) {
+        const d = hav(p, q), h = (p.at - q.at) / 36e5;
+        if (d < 0.015) continue;
+        if (h > 0 && d / h > 150) continue;
+      }
+      pts.push(p);
+    }
+    if (pts.length < 50) { D(`${pts.length} puncte`); continue; }
+    // Tăiat pe cursă: sensul urmei e al cursei (tur: stop_order crescător). Mașina nu pornește
+    // mereu din prima oprire cu oră (23.09, ruta 8: turul începe la 75 km de Criva), deci nu
+    // se cer capetele: urma se ia de la ultima trecere pe lângă capătul de plecare (sau de la
+    // primul punct lângă o oprire) până la prima sosire lângă capătul de destinație (sau
+    // ultimul punct lângă o oprire) — fără drumul spre depou sau începutul cursei de întoarcere.
+    const onTrip = found.filter((s) => toMin(s[t.hourKey]) != null);
+    if (onTrip.length < 2) { D("sub 2 opriri cu oră"); continue; }
+    const ordered = t.dir === 'tur' ? onTrip : [...onTrip].reverse();
+    const A = ordered[0].pt, B = ordered[ordered.length - 1].pt;
+    const nearStop = pts.map((p) => ordered.some((s) => hav(p, s.pt) <= PE_LANGA_KM));
+    const firstNear = nearStop.indexOf(true), lastNear = nearStop.lastIndexOf(true);
+    if (firstNear < 0) { D('urma nu trece pe lângă nicio oprire'); continue; }
+    let iB = pts.findIndex((p, i) => i > firstNear && hav(p, B) <= PE_LANGA_KM);
+    if (iB < 0) iB = lastNear;
+    let iA = -1;
+    for (let i = iB - 1; i >= 0; i--) if (hav(pts[i], A) <= PE_LANGA_KM) { iA = i; break; }
+    if (iA < 0) iA = firstNear;
+    if (iB - iA < 30) { D(`prea scurt: puncte ${iA}..${iB}`); continue; }
+    let seg = pts.slice(iA, iB + 1);
+    if (t.dir === 'retur') seg = seg.reverse(); // linia se ține în ordinea stop_order
+    const near = onTrip.filter((s) => departeDe(s.pt, seg) <= PE_LANGA_KM).length;
+    const cover = near / onTrip.length;
+    D(`acoperă ${Math.round(cover * 100)}% din ${onTrip.length} opriri; ocolite: ${onTrip.filter((s) => departeDe(s.pt, seg) > PE_LANGA_KM).map((s) => s.name_ro).join(', ') || '—'}`);
+    // Aceeași rută poate avea în grafic mașini care fac doar o bucată (23.09, ruta 8: turul
+    // 819BXI doar Bălți → Chișinău); se ține urma care acoperă cele mai multe opriri.
+    if (!best || cover > best.cover || (cover === best.cover && found.length > 0 && seg.length > best.pts.length)) {
+      let km = 0; for (let i = 1; i < seg.length; i++) km += hav(seg[i - 1], seg[i]);
+      best = { pts: seg, km, plate, date: t.date, dir: t.dir, cover };
+    }
+  }
+  if (!best || best.cover < ACOPERIRE_MIN) return null;
+  return { ...best, cover: Math.round(best.cover * 100) };
+}
+
 // PostgREST dă cel mult 1000 de rânduri pe cerere; opririle sunt peste 1200 — pe pagini.
 const rows = [];
 for (let off = 0; ; off += 1000) {
-  const page = await rest(`crm_stop_fares?select=crm_route_id,stop_order,name_ro&order=crm_route_id,stop_order&limit=1000&offset=${off}`);
+  const page = await rest(`crm_stop_fares?select=crm_route_id,stop_order,name_ro,hour_from_nord,hour_from_chisinau&order=crm_route_id,stop_order&limit=1000&offset=${off}`);
   rows.push(...page);
   if (page.length < 1000) break;
 }
@@ -149,14 +294,48 @@ for (const [rid, stops] of byRoute) {
       if (d > 25) console.log(`  salt ${rid}: ${found[i - 1].name_ro} → ${found[i].name_ro} ${d.toFixed(0)} km`);
     }
   }
-  const via = found.filter((s, i) => i === 0 || hav(s.pt, found[i - 1].pt) > 0.3).map((s) => s.pt);
-  if (via.length < 2) { console.log(`ruta ${rid}: prea puține opriri găsite (${found.length}/${stops.length}); lipsă: ${missing.join(', ')}`); continue; }
-  let r;
-  try { r = await route(via); } catch (e) { console.log(`ruta ${rid}: ${e.message}`); continue; }
+  if (found.length < 2) { console.log(`ruta ${rid}: prea puține opriri găsite (${found.length}/${stops.length}); lipsă: ${missing.join(', ')}`); continue; }
+  // Rutiera intră doar în Briceni, Bălți și Chișinău; pe lângă celelalte sate trece pe
+  // drumul mare (Ion, 23.09: «nu intrăm direct în fiecare sat… doar în Briceni, Bălți și
+  // Chișinău»). Deci linia se face întâi prin capete și orașele-intrare; un sat la sub
+  // 3 km de ea nu mai e punct de trecere. Satele mai departe (alt coridor, ex. prin
+  // Sîngerei) rămân puncte de trecere, iar dus-întorsul spre ele îl taie taieCarlige.
+  // Întâi urma GPS a unei curse reale de pe ruta asta (Ion, 23.09: «copiază traseul
+  // exact cum merg mașinile noastre, unu la unu»). Valhalla rămâne doar rezerva.
+  let r = null, source = 'gps';
+  try { r = await gpsShape(rid, stops, found); } catch (e) { console.log(`  gps ${rid}: ${e.message}`); }
+  if (r) {
+    const keep = dp(r.pts, 0, r.pts.length - 1, 30);
+    const shape = keep.map((i) => [+r.pts[i].lat.toFixed(5), +r.pts[i].lon.toFixed(5)]);
+    const stopsOut = found.map((s) => ({ stop_order: s.stop_order, name: s.name_ro, lat: +s.pt.lat.toFixed(5), lon: +s.pt.lon.toFixed(5) }));
+    console.log(`ruta ${rid}: GPS ${r.plate} ${r.date} ${r.dir}, ${r.km.toFixed(0)} km, acoperă ${r.cover}% din opriri, ${shape.length} puncte`);
+    if (!DRY) {
+      await rest('route_shapes?on_conflict=crm_route_id', {
+        method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify({ crm_route_id: rid, stops: stopsOut, shape, missing, updated_at: new Date().toISOString() }),
+      });
+    }
+    ok++;
+    continue;
+  }
+  source = 'valhalla';
+  // Orașele-intrare trec prin autogară, nu prin centrul lor.
+  for (const s of found) { const st = STATII.get(norm(s.name_ro)); if (st) s.pt = st; }
+  const isAnchor = (s, i) => i === 0 || i === found.length - 1 || STATII.has(norm(s.name_ro));
+  let vias = found.filter(isAnchor);
+  try {
+    for (let pass = 0; pass < 4; pass++) {
+      const pts = vias.filter((s, i) => i === 0 || hav(s.pt, vias[i - 1].pt) > 0.3).map((s) => s.pt);
+      r = await route(pts);
+      const far = found.filter((s) => !vias.includes(s) && departeDe(s.pt, r.pts) > PE_LANGA_KM);
+      if (far.length === 0) break;
+      vias = found.filter((s) => vias.includes(s) || far.includes(s));
+    }
+  } catch (e) { console.log(`ruta ${rid}: ${e.message}`); continue; }
   const keep = dp(r.pts, 0, r.pts.length - 1, 30);
   const shape = keep.map((i) => [+r.pts[i].lat.toFixed(5), +r.pts[i].lon.toFixed(5)]);
   const stopsOut = found.map((s) => ({ stop_order: s.stop_order, name: s.name_ro, lat: +s.pt.lat.toFixed(5), lon: +s.pt.lon.toFixed(5) }));
-  console.log(`ruta ${rid}: ${found.length}/${stops.length} opriri, ${r.km.toFixed(0)} km (Valhalla ${r.kmValhalla.toFixed(0)}), ${shape.length} puncte${missing.length ? `; lipsă: ${missing.join(', ')}` : ''}`);
+  console.log(`ruta ${rid}: [${source}] ${found.length}/${stops.length} opriri, ${r.km.toFixed(0)} km (Valhalla ${r.kmValhalla.toFixed(0)}), prin ${vias.map((s) => s.name_ro).join(', ')}, ${shape.length} puncte${missing.length ? `; lipsă: ${missing.join(', ')}` : ''}`);
   if (!DRY) {
     await rest('route_shapes?on_conflict=crm_route_id', {
       method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
@@ -165,4 +344,5 @@ for (const [rid, stops] of byRoute) {
   }
   ok++;
 }
+await tracker?.end();
 console.log(`${ok}/${byRoute.size} rute ${DRY ? '(dry, nimic scris)' : 'scrise în route_shapes'}`);

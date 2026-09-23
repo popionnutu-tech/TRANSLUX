@@ -217,29 +217,36 @@ export async function busLocation(from: string, to: string, departure: string): 
 /** Câte plecări arată butonul «Acum» de pe prima pagină. */
 export const NOW_SHOWN = 4;
 
-export interface NextTrip extends Crew { departure: string; minutes_until: number; on_road: boolean; route_id: number | null }
+export interface NextTrip extends Crew {
+  departure: string; minutes_until: number; on_road: boolean; route_id: number | null;
+  /** Sensul cursei pe linia din route_shapes (tur = stop_order crescător, spre Chișinău = !going_north). */
+  going_north: boolean;
+}
 
 /**
  * Butonul «Acum» de pe prima pagină (ION-43): următoarele plecări de AZI din localitatea
  * omului spre destinația lui. `on_road` = autobuzul cursei e deja pe drum după grafic
  * (aceeași poartă ca punctul din chat), deci punctul lui poate fi arătat. O cursă deja
- * plecată din localitatea omului nu mai e a lui — nu intră.
+ * plecată după grafic din localitatea omului rămâne DOAR cât e pe drum (on_road): autobuzul
+ * poate întârzia și să nu fi ajuns încă la om; cel care a trecut deja îl scoate /acum (`passed`).
  */
 export async function nextTrips(from: string, to: string): Promise<{ result: Record<string, unknown>; trips: NextTrip[]; fromRo?: string; toRo?: string }> {
   const r = await resolve(from, to);
   if (!r.ok) return { result: r.result, trips: [] };
-  const next = (await searchTrips(r.fromRo, r.toRo, chisinauTodayIso(), { skipLog: true })).slice(0, NOW_SHOWN);
-  const wins = await windowsFor(next);
+  const all = await searchTrips(r.fromRo, r.toRo, chisinauTodayIso(), { keepDeparted: true, skipLog: true });
+  const wins = await windowsFor(all);
   const now = nowMinChisinau();
+  const onRoad = (t: TripResult) => { const w = wins.get(winKey(t)); return !!(t.vehicle_plate && w && isOnRoad(w, now)); };
+  const next = all.filter((t) => !t.isDeparted || onRoad(t)).slice(0, NOW_SHOWN);
   const trips = next.map((t) => {
     const dep = hhmmToMin(t.time) ?? now;
     let until = dep - now;
     if (until < -720) until += 1440;
-    const w = wins.get(winKey(t));
     return {
       departure: t.time.padStart(5, '0'),
       minutes_until: until,
-      on_road: !!(t.vehicle_plate && w && isOnRoad(w, now)),
+      on_road: onRoad(t),
+      going_north: !!t.going_north,
       // Legătura cu linia rutei din route_shapes (migr. 392) — harta «Acum» o desenează.
       route_id: t.route_id != null ? Number(t.route_id) : null,
       ...crewOf(t),

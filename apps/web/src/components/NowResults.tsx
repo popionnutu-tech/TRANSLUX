@@ -24,6 +24,7 @@ interface NowTrip {
   minutes_until: number;
   on_road: boolean;
   route_id: number | null;
+  going_north: boolean;
   driver: string | null;
   plate: string | null;
   phone: string | null;
@@ -37,9 +38,9 @@ interface RouteLine { shape: LatLon[]; from: LatLon | null; to: LatLon | null }
 interface NowData { trips: NowTrip[]; routes?: Record<number, RouteLine>; line_ro: string | null; line_ru: string | null }
 
 /** Cel mai apropiat punct al liniei (proiecție pe segmente); departe de linie — punctul GPS. */
-function snap(p: LatLon, line: LatLon[]): LatLon {
+function snapOn(p: LatLon, line: LatLon[]): { at: LatLon; seg: number } {
   const k = Math.cos((p[0] * Math.PI) / 180);
-  let best: LatLon = p, bestD = Infinity;
+  let best: LatLon = p, bestD = Infinity, seg = -1;
   for (let i = 1; i < line.length; i++) {
     const [ay, ax] = line[i - 1], [by, bx] = line[i];
     const dx = (bx - ax) * k, dy = by - ay;
@@ -47,10 +48,23 @@ function snap(p: LatLon, line: LatLon[]): LatLon {
     const t = len ? Math.max(0, Math.min(1, (((p[1] - ax) * k) * dx + (p[0] - ay) * dy) / len)) : 0;
     const q: LatLon = [ay + t * (by - ay), ax + t * (bx - ax)];
     const d = ((q[1] - p[1]) * k) ** 2 + (q[0] - p[0]) ** 2;
-    if (d < bestD) { bestD = d; best = q; }
+    if (d < bestD) { bestD = d; best = q; seg = i; }
   }
   // ~0,02° ≈ 2 km: mai departe, autobuzul chiar nu e pe linia asta (ocol, depou).
-  return bestD < 0.02 ** 2 ? best : p;
+  return bestD < 0.02 ** 2 ? { at: best, seg } : { at: p, seg: -1 };
+}
+const snap = (p: LatLon, line: LatLon[]): LatLon => snapOn(p, line).at;
+
+/**
+ * Încotro merge rutiera pe ecran: linia e în ordinea opririlor spre Chișinău, deci spre nord
+ * se merge înapoi pe ea. Pe segmentul pe care stă mașina, estul = parbrizul în dreapta.
+ */
+function facesLeft(line: LatLon[], seg: number, goingNorth: boolean): boolean {
+  if (seg < 1) return false;
+  // Câteva segmente înainte și înapoi: o curbă mică nu întoarce mașina.
+  const a = line[Math.max(0, seg - 4)], b = line[Math.min(line.length - 1, seg + 3)];
+  const east = b[1] - a[1];
+  return goingNorth ? east > 0 : east < 0;
 }
 
 /** «37369384765» → «+373 69 384 765» (Ion, 23.09: mereu +373, ca să sune și de peste hotare). */
@@ -137,10 +151,14 @@ function NowMap({ trips, routes, selected, onPick }: { trips: NowTrip[]; routes:
         const on = i === selected;
         // Autobuzul stă pe linia rutei lui: GPS-ul e la câțiva metri de drum.
         const own = t.route_id != null ? routes[t.route_id]?.shape : undefined;
-        const at = own ? snap([t.lat, t.lon], own) : [t.lat, t.lon] as [number, number];
+        const s = own ? snapOn([t.lat, t.lon], own) : { at: [t.lat, t.lon] as LatLon, seg: -1 };
+        const at = s.at;
+        // Fața rutierei spre direcția de mers (Ion, 23.09: «маршрутка должна быть в сторону
+        // направления, куда едет морда»). Doar oglindit stânga/dreapta: ora rămâne de citit.
+        const left = own ? facesLeft(own, s.seg, t.going_north) : false;
         const icon = L.divIcon({
           // Rutiera desenată minimalist, cu ora pe ea (Ion, 23.09).
-          html: `<span class="now-bus${on ? ' on' : ''}"><b>${t.departure}</b><i></i><i></i></span>`,
+          html: `<span class="now-bus${on ? ' on' : ''}${left ? ' left' : ''}"><b>${t.departure}</b><i></i><i></i></span>`,
           className: 'now-pin-icon', iconSize: [68, 36], iconAnchor: [34, 18],
         });
         L.marker(at, { icon, keyboard: false, title: t.departure, zIndexOffset: on ? 1000 : 0 })
@@ -293,6 +311,10 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
 .now-bus i:last-of-type{right:14px}
 .now-bus.on b{background:${RED};color:#fff;border-color:${RED};box-shadow:0 0 0 7px rgba(155,27,48,.16),0 3px 8px rgba(0,0,0,.25)}
 .now-bus.on b::after{background:#fff;opacity:.55}
+.now-bus.left b{padding-right:0;padding-left:6px;border-radius:14px 8px 6px 6px}
+.now-bus.left b::after{right:auto;left:4px;border-radius:5px 2px 2px 2px}
+.now-bus.left i:first-of-type{left:14px}
+.now-bus.left i:last-of-type{right:12px}
 .now-end{display:block;width:16px;height:16px;border-radius:50%;box-sizing:border-box;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)}
 .now-end.from{background:#231A1C}
 .now-end.to{background:#fff;border:4px solid ${RED}}

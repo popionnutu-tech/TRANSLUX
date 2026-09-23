@@ -2,10 +2,12 @@
 
 // «Acum» de pe prima pagină (ION-43). Ion, 23.09: omul alege «de unde → încotro» și
 // apasă «Acum» sau «Mai târziu»; fără geolocația lui, «minimalist și laconic».
-// Aici: următoarele plecări de azi din localitatea omului — lista cu ora, în câte minute,
-// șoferul, mașina și numărul lui; pe hartă punctul autobuzelor care sunt deja pe drum
-// după grafic, cu ora cursei. Fără traseu și fără viteză, ca în chat (ION-39).
-// Se actualizează o dată pe minut, cât fereastra e deschisă.
+// Aici: următoarele plecări de azi din localitatea omului — ora, în câte minute,
+// șoferul, mașina, numărul lui și, lângă număr, butonul de apel («lângă număr șofer să
+// fie buton apăsare să sune»). Pe harta deschisă, pe tot ecranul, punctul autobuzelor
+// care sunt deja pe drum după grafic, cu ora cursei. Cursa aleasă din listă e roșie,
+// pe hartă și în listă; harta se duce la autobuzul ei. Fără traseu și fără viteză, ca
+// în chat (ION-39). Se actualizează o dată pe minut, cât fereastra e deschisă.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Map as LMap, LayerGroup } from 'leaflet';
@@ -38,20 +40,22 @@ function phoneView(raw: string): { text: string; tel: string } {
   return { text: `${local.slice(0, 3)} ${local.slice(3, 6)} ${local.slice(6)}`, tel: `+373${local.slice(1)}` };
 }
 
-const BUS_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h19.6"/><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/><circle cx="7" cy="18" r="2"/><path d="M9 18h5"/><circle cx="16" cy="18" r="2"/></svg>';
-
 const TXT = {
   ro: {
-    now: 'Acum', close: 'Închide', loading: 'Caut autobuzele…', error: 'Nu am putut afla acum. Încercați peste un minut.',
-    at: (place: string, m: number) => (m <= 0 ? `la ${place} acum` : `la ${place} în ${m} min`),
+    close: 'Închide', call: 'Sună șoferul', loading: 'Caut autobuzele…', error: 'Nu am putut afla acum. Încercați peste un minut.',
+    when: (m: number) => (m <= 0 ? 'acum' : m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ''}`),
   },
   ru: {
-    now: 'Сейчас', close: 'Закрыть', loading: 'Ищу автобусы…', error: 'Не удалось узнать сейчас. Попробуйте через минуту.',
-    at: (place: string, m: number) => (m <= 0 ? `в ${place} сейчас` : `в ${place} через ${m} мин`),
+    close: 'Закрыть', call: 'Позвонить водителю', loading: 'Ищу автобусы…', error: 'Не удалось узнать сейчас. Попробуйте через минуту.',
+    when: (m: number) => (m <= 0 ? 'сейчас' : m < 60 ? `${m} мин` : `${Math.floor(m / 60)} ч${m % 60 ? ` ${m % 60} мин` : ''}`),
   },
 } as const;
 
-function NowMap({ trips }: { trips: NowTrip[] }) {
+const PHONE_SVG = (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z" /></svg>
+);
+
+function NowMap({ trips, selected, onPick }: { trips: NowTrip[]; selected: number; onPick: (i: number) => void }) {
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<LMap | null>(null);
   const layer = useRef<LayerGroup | null>(null);
@@ -62,9 +66,13 @@ function NowMap({ trips }: { trips: NowTrip[] }) {
     (async () => {
       const L = (await import('leaflet')).default;
       if (dead || !box.current || map.current) return;
-      const m = L.map(box.current, { zoomControl: true, attributionControl: true, scrollWheelZoom: false })
+      const m = L.map(box.current, { zoomControl: false, attributionControl: true, scrollWheelZoom: false })
         .setView([47.3, 28.4], 8);
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap' }).addTo(m);
+      // Harta deschisă, fără culorile raioanelor și pădurilor: autobuzele roșii ies în față.
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 18, subdomains: 'abcd', attribution: '© OpenStreetMap © CARTO',
+      }).addTo(m);
+      L.control.zoom({ position: 'topright' }).addTo(m);
       layer.current = L.layerGroup().addTo(m);
       map.current = m;
       m.on('click', () => m.scrollWheelZoom.enable());
@@ -89,22 +97,34 @@ function NowMap({ trips }: { trips: NowTrip[] }) {
       const g = layer.current!;
       g.clearLayers();
       const pts: [number, number][] = [];
-      for (const t of trips) {
-        if (t.lat == null || t.lon == null) continue;
+      trips.forEach((t, i) => {
+        if (t.lat == null || t.lon == null) return;
+        const on = i === selected;
         const icon = L.divIcon({
-          html: `<span class="now-pin">${BUS_SVG}<b>${t.departure}</b></span>`,
-          className: 'now-pin-icon', iconSize: [78, 30], iconAnchor: [15, 15],
+          html: `<span class="now-pin${on ? ' on' : ''}">${t.departure}</span>`,
+          className: 'now-pin-icon', iconSize: [64, 30], iconAnchor: [32, 15],
         });
-        L.marker([t.lat, t.lon], { icon, keyboard: false, title: t.departure }).addTo(g);
+        L.marker([t.lat, t.lon], { icon, keyboard: false, title: t.departure, zIndexOffset: on ? 1000 : 0 })
+          .on('click', () => onPick(i))
+          .addTo(g);
         pts.push([t.lat, t.lon]);
-      }
+      });
       if (!fitted.current && pts.length) {
         fitted.current = true;
         if (pts.length === 1) map.current!.setView(pts[0], 11);
-        else map.current!.fitBounds(pts, { padding: [50, 50], maxZoom: 11 });
+        else map.current!.fitBounds(pts, { padding: [80, 80], maxZoom: 11 });
       }
     })();
-  }, [trips, ready]);
+  }, [trips, ready, selected, onPick]);
+
+  // Cursa aleasă din listă: harta se duce la autobuzul ei.
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) { first.current = false; return; }
+    const t = trips[selected];
+    if (map.current && t?.lat != null && t.lon != null) map.current.panTo([t.lat, t.lon]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected]);
 
   return <div ref={box} className="now-map" role="application" aria-label="Harta" />;
 }
@@ -115,6 +135,7 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
   const tx = TXT[locale];
   const [data, setData] = useState<NowData | null>(null);
   const [failed, setFailed] = useState(false);
+  const [selected, setSelected] = useState(0);
 
   const load = useCallback(async () => {
     try {
@@ -143,73 +164,94 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
   }, [onClose]);
 
   const trips = data?.trips ?? [];
+  const sel = selected < trips.length ? selected : 0;
   const withPoint = trips.some((t) => t.lat != null);
   const empty = data && trips.length === 0;
 
   return (
     <div className="now-overlay" onClick={onClose}>
-      <div className="now-box" role="dialog" aria-modal="true" aria-label={`${from} → ${to}`} onClick={(e) => e.stopPropagation()}>
-        <div className="now-head">
+      <div className={`now-box${withPoint ? '' : ' no-map'}`} role="dialog" aria-modal="true" aria-label={`${from} → ${to}`} onClick={(e) => e.stopPropagation()}>
+        {withPoint && <NowMap trips={trips} selected={sel} onPick={setSelected} />}
+
+        <div className="now-top">
+          <span className="now-title"><span className="now-dot" />{from} → {to}</span>
           <button type="button" className="now-close" aria-label={tx.close} onClick={onClose}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7" /></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
-          <span className="now-title">{from} → {to}</span>
-          <span className="now-badge"><span className="now-dot" />{tx.now}</span>
         </div>
 
-        <div className={`now-body${withPoint ? '' : ' no-map'}`}>
-          <div className="now-list">
-            {!data && !failed && <p className="now-note">{tx.loading}</p>}
-            {failed && !data && <p className="now-note">{tx.error}</p>}
-            {empty && <p className="now-note">{locale === 'ru' ? data!.line_ru : data!.line_ro}</p>}
-            {trips.map((t, i) => (
-              <div key={t.departure + i} className={`now-row${i === 0 ? ' first' : ''}`}>
-                <div className="now-row-top">
-                  <span className="now-time">{t.departure}</span>
-                  <span className="now-when">{tx.at(from, t.minutes_until)}</span>
+        <div className="now-panel">
+          {!data && !failed && <p className="now-note">{tx.loading}</p>}
+          {failed && !data && <p className="now-note">{tx.error}</p>}
+          {empty && <p className="now-note">{locale === 'ru' ? data!.line_ru : data!.line_ro}</p>}
+          {trips.map((t, i) => {
+            const phone = t.phone ? phoneView(t.phone) : null;
+            const crew = [t.driver, t.plate].filter(Boolean).join(' · ');
+            return (
+              <div key={t.departure + i} className={`now-row${i === sel ? ' on' : ''}`} onClick={() => setSelected(i)}>
+                <div className="now-info">
+                  <div className="now-line">
+                    <span className="now-time">{t.departure}</span>
+                    <span className="now-when">{tx.when(t.minutes_until)}</span>
+                  </div>
+                  {crew && <span className="now-crew">{crew}</span>}
+                  {phone && <span className="now-num">{phone.text}</span>}
                 </div>
-                {(t.driver || t.plate) && <span className="now-crew">{[t.driver, t.plate].filter(Boolean).join(' · ')}</span>}
-                {t.phone && <a className="now-phone" href={`tel:${phoneView(t.phone).tel}`}>{phoneView(t.phone).text}</a>}
+                {phone && (
+                  <a className="now-call" href={`tel:${phone.tel}`} aria-label={`${tx.call} ${phone.text}`} onClick={(e) => e.stopPropagation()}>
+                    {PHONE_SVG}
+                  </a>
+                )}
               </div>
-            ))}
-          </div>
-          {withPoint && <NowMap trips={trips} />}
+            );
+          })}
         </div>
       </div>
 
       <style>{`
-.now-overlay{position:fixed;inset:0;z-index:60;background:rgba(40,12,18,.35);display:flex;align-items:center;justify-content:center;padding:24px;font-family:var(--font-opensans),Open Sans,sans-serif}
-.now-box{width:100%;max-width:960px;height:min(640px,calc(100vh - 48px));background:#fff;border-radius:24px;box-shadow:0 24px 60px rgba(60,20,30,.25);display:flex;flex-direction:column;overflow:hidden}
-.now-head{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid #F2E8E6}
-.now-close{width:44px;height:44px;border-radius:12px;border:none;background:#F5ECEA;color:${RED};display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
-.now-title{flex:1;font-size:19px;font-weight:700;color:#2A1418;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.now-badge{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:${RED}}
-.now-dot{width:8px;height:8px;border-radius:50%;background:${RED};animation:now-pulse 2s infinite}
+.now-overlay{position:fixed;inset:0;z-index:60;background:rgba(40,12,18,.35);display:flex;align-items:center;justify-content:center;padding:24px;font-family:var(--font-opensans),Open Sans,sans-serif;color:#231A1C}
+.now-box{position:relative;width:100%;max-width:1000px;height:min(700px,calc(100vh - 48px));background:#F3F1EF;border-radius:28px;box-shadow:0 30px 80px rgba(40,10,18,.35);overflow:hidden}
+.now-box.no-map{height:auto;max-width:460px;background:#fff;padding-top:84px}
+.now-map{position:absolute;inset:0;isolation:isolate;z-index:0;background:#F3F1EF}
+.now-map .leaflet-top.leaflet-right{top:76px}
+.now-top{position:absolute;left:20px;right:20px;top:20px;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:12px;pointer-events:none}
+.now-title,.now-close{pointer-events:auto;background:#fff;box-shadow:0 6px 18px rgba(40,10,18,.12)}
+.now-title{height:48px;padding:0 20px;border-radius:24px;display:flex;align-items:center;gap:12px;font-size:17px;font-weight:700;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.now-dot{flex-shrink:0;width:8px;height:8px;border-radius:50%;background:${RED};animation:now-pulse 2s infinite}
 @keyframes now-pulse{0%{box-shadow:0 0 0 0 rgba(155,27,48,.45)}70%{box-shadow:0 0 0 7px rgba(155,27,48,0)}100%{box-shadow:0 0 0 0 rgba(155,27,48,0)}}
-.now-body{flex:1;display:grid;grid-template-columns:320px 1fr;min-height:0}
-.now-body.no-map{grid-template-columns:1fr}
-.now-list{overflow-y:auto;border-right:1px solid #F2E8E6}
-.now-body.no-map .now-list{border-right:none;max-width:480px;width:100%;margin:0 auto}
-.now-note{margin:0;padding:24px 20px;font-size:15px;line-height:1.5;color:#6E5A5E}
-.now-row{padding:16px 20px;display:flex;flex-direction:column;gap:3px;border-bottom:1px solid #F2E8E6}
-.now-row.first{background:#FBF6F5}
-.now-row-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
-.now-time{font-size:20px;font-weight:700;color:#2A1418}
-.now-row.first .now-time{font-size:24px}
-.now-when{font-size:14px;font-weight:600;color:${RED};text-align:right}
-.now-crew{font-size:15px;color:#5A3A40}
-.now-phone{font-size:17px;font-weight:700;color:${RED};text-decoration:none}
-.now-phone:hover{text-decoration:underline}
-.now-map{position:relative;min-height:0;isolation:isolate;background:#EFE7E4}
+.now-close{flex-shrink:0;width:48px;height:48px;border-radius:50%;border:none;color:#231A1C;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.no-map .now-title,.no-map .now-close{box-shadow:none;background:#F6ECEE}
+.now-panel{position:absolute;left:20px;bottom:20px;z-index:2;width:320px;max-height:calc(100% - 108px);overflow-y:auto;background:#fff;border-radius:22px;box-shadow:0 12px 32px rgba(40,10,18,.16)}
+.no-map .now-panel{position:static;width:auto;max-height:none;margin:0 16px 16px;box-shadow:none;border:1px solid #F1E8EA}
+.now-note{margin:0;padding:22px 20px;font-size:15px;line-height:1.5;color:#6E5A5E}
+.now-row{display:flex;align-items:center;gap:12px;padding:14px 14px 14px 20px;border-bottom:1px solid #F1E8EA;cursor:pointer}
+.now-row:last-child{border-bottom:none}
+.now-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.now-line{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.now-time{font-size:19px;font-weight:700}
+.now-when{font-size:14px;font-weight:600;color:${RED};white-space:nowrap}
+.now-crew{font-size:13px;color:#8A7B7F}
+.now-num{font-size:14px;font-weight:600;letter-spacing:.02em}
+.now-call{flex-shrink:0;width:44px;height:44px;border-radius:50%;background:#F6ECEE;color:${RED};display:flex;align-items:center;justify-content:center;text-decoration:none;transition:transform .15s ease}
+.now-call:hover{transform:scale(1.06)}
+.now-row.on{background:${RED};color:#fff;padding:18px 16px 18px 20px;cursor:default}
+.now-row.on .now-time{font-size:28px;font-weight:800}
+.now-row.on .now-when{color:#fff;opacity:.9;font-size:16px;font-weight:700}
+.now-row.on .now-crew{color:#fff;opacity:.85;font-size:14px}
+.now-row.on .now-num{font-size:18px;font-weight:700;margin-top:6px}
+.now-row.on .now-call{width:52px;height:52px;background:#fff;color:${RED};box-shadow:0 4px 12px rgba(0,0,0,.18);align-self:flex-end}
 .now-pin-icon{background:none!important;border:none!important}
-.now-pin{display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 10px 0 8px;border-radius:15px;background:${RED};color:#fff;border:2px solid #fff;box-shadow:0 3px 8px rgba(0,0,0,.25);font:700 13px var(--font-opensans),Open Sans,sans-serif;white-space:nowrap;box-sizing:border-box}
+.now-pin{display:inline-flex;align-items:center;justify-content:center;height:30px;width:64px;border-radius:15px;background:#fff;color:${RED};border:2px solid ${RED};box-sizing:border-box;font:700 13px var(--font-opensans),Open Sans,sans-serif;box-shadow:0 3px 8px rgba(0,0,0,.15);cursor:pointer}
+.now-pin.on{background:${RED};color:#fff;border-color:#fff;box-shadow:0 0 0 8px rgba(155,27,48,.16),0 3px 8px rgba(0,0,0,.25)}
 @media (max-width:720px){
   .now-overlay{padding:0}
   .now-box{max-width:none;height:100%;border-radius:0}
-  .now-body{grid-template-columns:1fr;grid-template-rows:minmax(0,45vh) auto;overflow-y:auto}
-  .now-body.no-map{grid-template-rows:auto}
-  .now-list{order:2;border-right:none;overflow:visible}
-  .now-map{order:1;height:45vh}
+  .now-box.no-map{height:100%;max-width:none}
+  .now-top{left:12px;right:12px;top:12px}
+  .now-title{height:46px;font-size:16px}
+  .now-close{width:46px;height:46px}
+  .now-map .leaflet-top.leaflet-right{top:66px}
+  .now-panel{left:12px;right:12px;bottom:12px;width:auto;max-height:55%}
 }
 `}</style>
     </div>

@@ -20,6 +20,14 @@ const POARTA: Punct = [47.223, 27.8016];
 function Incadreaza({ urme, ales }: { urme: UrmaRuta[]; ales: string | null }) {
   const map = useMap();
   useEffect(() => {
+    // Coloana din dreapta apare și dispare odată cu alegerea rutei, deci lățimea hărții se
+    // schimbă. Leaflet nu observă singur redimensionarea containerului: fără invalidateSize
+    // rămâne cu plăcile vechi și jumătate de hartă iese gri. 220 ms = după tranziția grilei.
+    const t = setTimeout(() => map.invalidateSize(), 220);
+    return () => clearTimeout(t);
+  }, [ales, map]);
+
+  useEffect(() => {
     const puncte: Punct[] = [];
     for (const u of urme) {
       if (ales && u.id !== ales) continue;

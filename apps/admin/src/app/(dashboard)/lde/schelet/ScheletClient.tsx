@@ -166,7 +166,11 @@ export default function ScheletClient({ schelet }: { schelet: Schelet }) {
       </div>
 
       <div style={{
-        display: 'grid', gridTemplateColumns: 'minmax(280px, 320px) 1fr minmax(280px, 320px)',
+        // Ion, 23.09: «asta apare doar când o rută o apăs». Până la apăsare panoul din dreapta
+        // stătea gol și lua 320 de pixeli din hartă; acum coloana nici nu există.
+        display: 'grid',
+        gridTemplateColumns: ruta ? 'minmax(280px, 320px) 1fr minmax(280px, 320px)' : 'minmax(280px, 320px) 1fr',
+        transition: 'grid-template-columns 0.18s ease',
         border: '1px solid var(--border-accent)', borderRadius: 12, overflow: 'hidden',
         background: '#fff', height: 'calc(100vh - 128px)', minHeight: 440,
       }}>
@@ -190,12 +194,9 @@ export default function ScheletClient({ schelet }: { schelet: Schelet }) {
           </div>
         </div>
 
+        {ruta && (
         <div style={{ borderLeft: '1px solid var(--border-accent)', overflowY: 'auto', padding: '12px 14px' }}>
-          {!ruta ? (
-            <p style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
-              Alege o rută din stânga ca să-i vezi scheletul: satele în ordine, capătul și kilometrii-etalon.
-            </p>
-          ) : (
+          {(
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 7 }}>
                 {insigna(ruta, true)}
@@ -253,6 +254,7 @@ export default function ScheletClient({ schelet }: { schelet: Schelet }) {
             </>
           )}
         </div>
+        )}
       </div>
 
       <p style={{ fontSize: 10.5, color: 'var(--text-secondary)', marginTop: 8, maxWidth: '150ch', lineHeight: 1.5 }}>

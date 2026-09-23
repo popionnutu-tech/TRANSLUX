@@ -7,7 +7,8 @@
 
 import { NextResponse, after } from 'next/server';
 import { timingSafeEqual } from 'crypto';
-import { greetingRo } from '@/lib/voice-greeting';
+import { greetingRo, greetingRu } from '@/lib/voice-greeting';
+import { RU_AGENT_ID } from '@/lib/voice/el';
 
 // Rulează în dub1 (regiunea proiectului din vercel.json — lângă Supabase; per-route
 // preferredRegion e IGNORAT când proiectul are «regions»). Hop-ul spre ElevenLabs (US)
@@ -62,11 +63,19 @@ export async function POST(req: Request) {
     // Rămâne DOAR salutul, în limba agentului care chiar preia apelul, ales
     // după ora Chișinăului. first_message nu atinge ASR-ul, deci nu poate
     // reproduce incidentul de mai sus.
+    //
+    // Webhook-ul e al WORKSPACE-ului, deci îl cheamă și agentul RU. Din ION-40
+    // (23.09) apelul îl primește direct: omul apasă «2» în meniul Asterisk și
+    // Asterisk sună numărul intern al agentului RU. Fără ramura asta rusul ar
+    // fi salutat în română. `agent_id` vine în corpul cererii EL; lipsă sau
+    // corp stricat = agentul RO, ca înainte.
+    const body = (await req.json().catch(() => null)) as { agent_id?: unknown } | null;
+    const first_message = body?.agent_id === RU_AGENT_ID ? greetingRu() : greetingRo();
     return NextResponse.json({
       type: 'conversation_initiation_client_data',
       conversation_config_override: {
         agent: {
-          first_message: greetingRo(),
+          first_message,
         },
       },
     });

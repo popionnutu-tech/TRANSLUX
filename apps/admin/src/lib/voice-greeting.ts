@@ -26,9 +26,8 @@ export function greetingRo(): string {
   return `${salut}! Ați sunat la TRANSLUX. ${RECORDING_NOTICE_RO}. Cu ce vă pot ajuta?`;
 }
 
-// Păstrat pentru agentul RUSESC: dacă i se va cere vreodată salut după oră,
-// textul e deja aici, cu brandul fonetic corect. Nu se folosește pe ruta init —
-// acolo preia apelul agentul românesc.
+// Salutul agentului RUSESC. Din ION-40 (23.09) îl folosește ruta init, când
+// apelul vine direct la agentul RU prin tasta «2» din meniul liniei.
 export function greetingRu(): string {
   const hour = hourInChisinau();
   const salut = hour >= 5 && hour < 11 ? 'Доброе утро' : hour >= 11 && hour < 18 ? 'Добрый день' : 'Добрый вечер';

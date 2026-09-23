@@ -34,14 +34,9 @@ export const SITE_TOOLS: Anthropic.Tool[] = [
       required: ['from', 'to'],
     },
   },
-  {
-    name: 'get_schedule',
-    description: 'Orarul general (orele de plecare) pe o direcție, fără o zi anume.',
-    input_schema: {
-      type: 'object',
-      properties: { from: { type: 'string', description: LOC }, to: { type: 'string', description: LOC } },
-    },
-  },
+  // Fără get_schedule: pe 23.09 a dat «din Briceni prima la 11:15» (orele cursei
+  // DINSPRE Chișinău prin Briceni), iar căutarea site-ului dă 03:20. Orarul vine
+  // doar din search_trips — același motor ca pe translux.md.
   {
     name: 'get_price',
     description: 'Prețul biletului între două localități, în MDL, și oferta activă dacă există.',
@@ -142,7 +137,6 @@ export const SITE_TOOLS: Anthropic.Tool[] = [
 
 const ENDPOINT: Record<string, string> = {
   search_trips: 'search-trips',
-  get_schedule: 'get-schedule',
   get_price: 'get-price',
   get_offers: 'get-offers',
   get_company_info: 'get-company-info',

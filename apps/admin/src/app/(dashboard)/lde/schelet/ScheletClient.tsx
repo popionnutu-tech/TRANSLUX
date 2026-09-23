@@ -30,7 +30,7 @@ const nr1 = (x: number) => (Math.round(x * 10) / 10).toFixed(1).replace('.', ','
 
 const MONO = "var(--font-mono, 'JetBrains Mono', ui-monospace, monospace)";
 const ETICHETA: React.CSSProperties = {
-  fontSize: 10, fontWeight: 700, letterSpacing: '0.09em',
+  fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
   textTransform: 'uppercase', color: 'var(--text-muted)',
 };
 
@@ -57,9 +57,9 @@ export default function ScheletClient({ schelet }: { schelet: Schelet }) {
 
   const insigna = (r: Ruta, mare = false) => (
     <span style={{
-      fontFamily: MONO, fontSize: mare ? 12 : 11, fontWeight: 700, color: '#fff',
+      fontFamily: MONO, fontSize: mare ? 11 : 10, fontWeight: 700, color: '#fff',
       background: r.etalon == null ? '#c5b9bc' : culoarea(r.loc),
-      borderRadius: 5, padding: mare ? '4px 7px' : '3px 5px', minWidth: mare ? 30 : 26,
+      borderRadius: 4, padding: mare ? '3px 6px' : '2px 4px', minWidth: mare ? 27 : 23,
       textAlign: 'center', flexShrink: 0,
     }}>{r.id}</span>
   );
@@ -76,24 +76,24 @@ export default function ScheletClient({ schelet }: { schelet: Schelet }) {
           background: activ ? 'var(--primary-dim)' : 'transparent',
           border: 0, borderBottom: '1px solid var(--border-accent)',
           borderLeft: `3px solid ${activ ? 'var(--primary)' : 'transparent'}`,
-          padding: '10px 14px', cursor: 'pointer',
+          padding: '6px 11px', cursor: 'pointer',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
           {insigna(r)}
           <span style={{
-            flex: 1, fontSize: 14.5, fontWeight: 600,
+            flex: 1, fontSize: 13, fontWeight: 600,
             color: r.etalon == null ? 'var(--text-secondary)' : 'var(--text)',
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>{r.capat ?? r.sate[0]}</span>
-          <span style={{ fontFamily: MONO, fontSize: 15, fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
+          <span style={{ fontFamily: MONO, fontSize: 13.5, fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
             {r.etalon != null ? nr1(r.etalon * 2) : '—'}
           </span>
-          <span style={{ fontSize: 10.5, color: 'var(--text-muted)', width: 14 }}>
+          <span style={{ fontSize: 9.5, color: 'var(--text-muted)', width: 13 }}>
             {r.etalon != null ? 'km' : ''}
           </span>
         </div>
-        <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 3, paddingLeft: 35 }}>
+        <div style={{ fontSize: 10.5, color: 'var(--text-secondary)', marginTop: 1, paddingLeft: 30 }}>
           {r.loc} locuri · {r.sate.length} sate · {r.etalon != null ? `abatere ${r.dif}%` : 'fără măsurare'}
         </div>
       </button>
@@ -105,7 +105,7 @@ export default function ScheletClient({ schelet }: { schelet: Schelet }) {
     return (
       <div key={t}>
         <div style={{
-          ...ETICHETA, padding: '9px 14px', background: 'var(--bg-elevated)',
+          ...ETICHETA, padding: '6px 11px', background: 'var(--bg-elevated)',
           borderBottom: '1px solid var(--border-accent)', position: 'sticky', top: 0, zIndex: 1,
         }}>
           Tura {t} · {rute.length} rute · {rute.reduce((s, r) => s + r.loc, 0)} locuri
@@ -117,29 +117,29 @@ export default function ScheletClient({ schelet }: { schelet: Schelet }) {
 
   const cifra = (et: string, val: string, sub: string, culoare?: string) => (
     <div key={et} style={{
-      display: 'flex', alignItems: 'baseline', gap: 10, padding: '9px 0',
+      display: 'flex', alignItems: 'baseline', gap: 8, padding: '6px 0',
       borderBottom: '1px solid var(--border-accent)',
     }}>
-      <span style={{ ...ETICHETA, width: 78, lineHeight: 1.3 }}>{et}</span>
+      <span style={{ ...ETICHETA, width: 66, lineHeight: 1.3 }}>{et}</span>
       <span style={{
-        fontFamily: MONO, fontSize: 19, fontWeight: 500, fontVariantNumeric: 'tabular-nums',
+        fontFamily: MONO, fontSize: 16, fontWeight: 500, fontVariantNumeric: 'tabular-nums',
         color: culoare ?? 'var(--text)',
       }}>{val}</span>
-      <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{sub}</span>
+      <span style={{ fontSize: 10.5, color: 'var(--text-secondary)' }}>{sub}</span>
     </div>
   );
 
   return (
-    <div style={{ padding: '20px 22px 24px' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 22, flexWrap: 'wrap', marginBottom: 16 }}>
+    <div style={{ padding: '12px 16px 14px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 18, flexWrap: 'wrap', marginBottom: 10 }}>
         <div>
-          <h1 style={{ fontSize: 24, margin: 0 }}>Scheletul rutelor — LEAR Ungheni</h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: 13.5, margin: '5px 0 0', maxWidth: '74ch' }}>
+          <h1 style={{ fontSize: 18, margin: 0 }}>Scheletul rutelor — LEAR Ungheni</h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 11.5, margin: '3px 0 0', maxWidth: '92ch', lineHeight: 1.45 }}>
             Traseul fix al fiecărei rute: de unde începe strânsul, pe unde merge, câți kilometri are.
             Kilometrii sunt mediana pe trei luni de urmă GPS, nu cifra unei zile — cu ei se compară ziua de mâine.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 26, marginLeft: 'auto' }}>
+        <div style={{ display: 'flex', gap: 18, marginLeft: 'auto' }}>
           {[
             ['rute măsurate', `${masurate.length}/${schelet.rute.length}`],
             ['km cu oameni', `${Math.round(kmZi).toLocaleString('ro-RO')}/zi`],
@@ -148,7 +148,7 @@ export default function ScheletClient({ schelet }: { schelet: Schelet }) {
           ].map(([e, v]) => (
             <div key={e}>
               <div style={ETICHETA}>{e}</div>
-              <div style={{ fontFamily: MONO, fontSize: 18, fontWeight: 500, color: 'var(--primary)', marginTop: 3 }}>{v}</div>
+              <div style={{ fontFamily: MONO, fontSize: 14.5, fontWeight: 500, color: 'var(--primary)', marginTop: 1 }}>{v}</div>
             </div>
           ))}
         </div>
@@ -157,7 +157,7 @@ export default function ScheletClient({ schelet }: { schelet: Schelet }) {
       <div style={{
         display: 'grid', gridTemplateColumns: 'minmax(280px, 320px) 1fr minmax(280px, 320px)',
         border: '1px solid var(--border-accent)', borderRadius: 12, overflow: 'hidden',
-        background: '#fff', height: 'calc(100vh - 190px)', minHeight: 520,
+        background: '#fff', height: 'calc(100vh - 128px)', minHeight: 440,
       }}>
         <div style={{ borderRight: '1px solid var(--border-accent)', overflowY: 'auto' }}>
           {grup('A')}{grup('B')}
@@ -166,54 +166,54 @@ export default function ScheletClient({ schelet }: { schelet: Schelet }) {
         <div style={{ position: 'relative' }}>
           <ScheletMap urme={urme} ales={ales} />
           <div style={{
-            position: 'absolute', left: 14, bottom: 26, zIndex: 500, background: '#fff',
-            border: '1px solid var(--border-accent)', borderRadius: 8, padding: '9px 12px',
-            fontSize: 12, color: 'var(--text-secondary)',
+            position: 'absolute', left: 10, bottom: 22, zIndex: 500, background: '#fff',
+            border: '1px solid var(--border-accent)', borderRadius: 6, padding: '6px 9px',
+            fontSize: 10.5, color: 'var(--text-secondary)',
           }}>
             {CLASE.map((c) => (
               <div key={c.eticheta} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '2px 0' }}>
-                <span style={{ display: 'block', width: 22, borderTop: `4px solid ${c.culoare}` }} />
+                <span style={{ display: 'block', width: 18, borderTop: `3px solid ${c.culoare}` }} />
                 {c.eticheta}
               </div>
             ))}
           </div>
         </div>
 
-        <div style={{ borderLeft: '1px solid var(--border-accent)', overflowY: 'auto', padding: '16px 18px' }}>
+        <div style={{ borderLeft: '1px solid var(--border-accent)', overflowY: 'auto', padding: '12px 14px' }}>
           {!ruta ? (
-            <p style={{ color: 'var(--text-secondary)', fontSize: 13.5 }}>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
               Alege o rută din stânga ca să-i vezi scheletul: satele în ordine, capătul și kilometrii-etalon.
             </p>
           ) : (
             <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 7 }}>
                 {insigna(ruta, true)}
-                <span style={{ fontSize: 16, fontWeight: 600 }}>{ruta.loc} locuri</span>
+                <span style={{ fontSize: 13.5, fontWeight: 600 }}>{ruta.loc} locuri</span>
               </div>
 
               {ruta.capat && (
-                <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 14px', lineHeight: 1.55 }}>
+                <p style={{ fontSize: 11.5, color: 'var(--text-secondary)', margin: '0 0 10px', lineHeight: 1.45 }}>
                   Capătul: <b style={{ color: 'var(--text)' }}>{ruta.capat}</b> — de acolo începe strânsul,
                   acolo se termină lăsatul.
                 </p>
               )}
 
-              <ol style={{ listStyle: 'none', margin: '0 0 18px', padding: 0 }}>
+              <ol style={{ listStyle: 'none', margin: '0 0 12px', padding: 0 }}>
                 {[...ruta.sate, 'LEAR'].map((s) => {
                   const uzina = s === 'LEAR';
                   const capat = s === ruta.capat;
                   const oarb = orbe.has(s);
                   return (
                     <li key={s} style={{
-                      display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0',
-                      fontSize: 14,
+                      display: 'flex', alignItems: 'center', gap: 8, padding: '2px 0',
+                      fontSize: 12.5,
                       fontWeight: uzina || capat ? 600 : 400,
                       color: uzina || capat ? 'var(--text)' : 'var(--text-secondary)',
                       textDecoration: oarb ? 'line-through' : undefined,
                       opacity: oarb ? 0.55 : 1,
                     }}>
                       <span style={{
-                        width: capat || uzina ? 10 : 7, height: capat || uzina ? 10 : 7,
+                        width: capat || uzina ? 9 : 6, height: capat || uzina ? 9 : 6,
                         borderRadius: '50%', flexShrink: 0,
                         background: uzina ? '#23191B' : capat ? culoarea(ruta.loc) : 'var(--border-accent)',
                         border: uzina || capat ? 'none' : '1px solid var(--border-accent)',
@@ -225,7 +225,7 @@ export default function ScheletClient({ schelet }: { schelet: Schelet }) {
               </ol>
 
               {ruta.etalon == null ? (
-                <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                <p style={{ fontSize: 11.5, color: 'var(--text-secondary)', lineHeight: 1.45 }}>
                   {ruta.sate.some((s) => orbe.has(s))
                     ? `Nu se poate măsura: ${ruta.sate.filter((s) => orbe.has(s)).join(', ')} — sate fără coordonate în indexul de localități.`
                     : 'Nu se poate măsura: nicio cursă din flotă nu s-a potrivit pe ruta asta.'}
@@ -244,7 +244,7 @@ export default function ScheletClient({ schelet }: { schelet: Schelet }) {
         </div>
       </div>
 
-      <p style={{ fontSize: 12.5, color: 'var(--text-secondary)', marginTop: 12, maxWidth: '110ch', lineHeight: 1.6 }}>
+      <p style={{ fontSize: 10.5, color: 'var(--text-secondary)', marginTop: 8, maxWidth: '150ch', lineHeight: 1.5 }}>
         O zi intră în etalon doar dacă are și tur, și retur, și amândouă ajung până la capăt — altfel s-ar măsura o zi
         ciuntită, nu ruta; din zilele rămase se ia mediana, nu media. Satele prin care autobuzul doar trece, fără să
         oprească, se numără la fel ca opririle: fără asta capătul cădea cu zeci de kilometri mai aproape.

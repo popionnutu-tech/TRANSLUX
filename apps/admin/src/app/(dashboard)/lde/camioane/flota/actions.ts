@@ -16,6 +16,8 @@ import { poateAccesa, poateScrie } from '@/lib/lde/camioane-nav';
 import { chisinauTodayIso } from '@/lib/chisinau-time';
 import { normalizeazaPlaca } from '@/lib/lde/parc';
 import { normalizeDriverPhone, PhoneError } from '@translux/db';
+import { unitatiWialon, type UnitateWialon } from '@/lib/wialon';
+import { stareGps, type StareGps } from '@/lib/lde/camioane';
 
 export type Rezultat = { ok: true; mesaj: string } | { error: string };
 
@@ -25,6 +27,8 @@ export type CamionFlota = {
   fleetType: 'cisterna' | 'zernovoz' | null;
   driverId: string | null;
   driverName: string | null;
+  /** null = Wialon n-a răspuns acum; pagina merge și fără el. */
+  gps: StareGps | null;
 };
 
 /** Șofer din nomenclatorul de camioane. `peCamion` = plăcuța pe care e acum. */
@@ -87,6 +91,9 @@ export async function getFlota(): Promise<{
   await cerereRol();
   const sb = getSupabase();
 
+  // Starea GPS a fiecărui camion (ION-35), în paralel cu baza. Wialon căzut nu rupe pagina.
+  const unitatiP: Promise<UnitateWialon[] | null> = unitatiWialon()
+    .catch((e) => { console.error('[camioane/flota] Wialon', e); return null; });
   const [vehRes, drvRes, nomRes, legRes, salRes] = await Promise.all([
     sb.from('vehicles')
       .select('id, plate_number, lde_truck_profile ( fleet_type )')
@@ -103,6 +110,10 @@ export async function getFlota(): Promise<{
     sb.from('lde_driver_extras').select('driver_id, lde_salary_category, uzina_id')
       .not('lde_salary_category', 'is', null).not('uzina_id', 'is', null),
   ]);
+  const unitati = await unitatiP;
+  const unitateDupaPlaca = new Map((unitati ?? []).map((u) => [u.plate, u]));
+  const acum = Date.now();
+
   for (const r of [vehRes, drvRes, nomRes, legRes, salRes]) {
     if (r.error) { console.error('[camioane/flota]', r.error.message); throw new Error('Nu am putut citi flota'); }
   }
@@ -133,6 +144,7 @@ export async function getFlota(): Promise<{
       fleetType: (p?.fleet_type as 'cisterna' | 'zernovoz' | undefined) ?? null,
       driverId: s?.id ?? null,
       driverName: s?.name ?? null,
+      gps: unitati ? stareGps(unitateDupaPlaca.get(normalizeazaPlaca(v.plate_number) ?? '') ?? null, acum) : null,
     };
   });
 

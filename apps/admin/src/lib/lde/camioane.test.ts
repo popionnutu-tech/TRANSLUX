@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   seSuprapune, haversineKm, camioaneMaiAproape, coloanaKanban, urmatoareaStare, zileleCursei, areSofer,
   pozitieRecenta, stariUrmatoare, etichetaStareCursa, STARE_ASTEAPTA_DESCARCARE, TRIP_STATES,
-  STARI_AUTO_GPS_LA_DESCARCARE, STARI_AUTO_TLX_INCHEIATA, descriereSursaStare,
+  STARI_AUTO_GPS_LA_DESCARCARE, STARI_AUTO_TLX_INCHEIATA, descriereSursaStare, stareGps,
 } from './camioane';
 
 const cursa = (id: string, loadAt: string, unloadAt: string, vehicleId = 'v1') =>
@@ -215,5 +215,35 @@ describe('stările automate (Ion, 08.09)', () => {
     expect(descriereSursaStare('gps', { status: 'la_descarcare' })).toContain('descărcare');
     expect(descriereSursaStare('tlx', { litri: 23995 })).toContain('23.995 l');
     expect(descriereSursaStare('tlx', { litri: null })).toBe('închisă automat: recepție de carburant în TLX');
+  });
+});
+
+describe('stareGps (ION-35)', () => {
+  const ACUM = Date.parse('2026-09-23T09:00:00Z');
+  const u = (x: Partial<{ activa: boolean; dezactivataLa: string | null; areIstoric: boolean; at: string | null }>) =>
+    ({ activa: true, dezactivataLa: null, areIstoric: true, at: '2026-09-23T08:55:00Z', ...x });
+
+  it('camionul care nu e în Wialon e numit, nu pierdut (GHT553, LJN075)', () => {
+    expect(stareGps(null, ACUM)).toMatchObject({ cod: 'fara_unitate', problema: true });
+  });
+
+  it('unitatea dezactivată bate orice altceva și spune de când', () => {
+    const s = stareGps(u({ activa: false, areIstoric: false, dezactivataLa: '2026-06-30T12:17:35Z', at: '2025-12-26T00:00:00Z' }), ACUM);
+    expect(s).toMatchObject({ cod: 'dezactivat', problema: true });
+    expect(s.text).toContain('30.06.2026');
+  });
+
+  it('poziție live fără drept de istoric e tot problemă (BNQ076)', () => {
+    expect(stareGps(u({ areIstoric: false }), ACUM)).toMatchObject({ cod: 'fara_istoric', problema: true });
+  });
+
+  it('poziția veche spune câte zile; nu e defect al sistemului', () => {
+    const s = stareGps(u({ at: '2026-09-18T09:00:00Z' }), ACUM);
+    expect(s).toMatchObject({ cod: 'veche', problema: false });
+    expect(s.text).toBe('ultima poziție acum 5 zile');
+  });
+
+  it('live', () => {
+    expect(stareGps(u({}), ACUM)).toMatchObject({ cod: 'live', problema: false });
   });
 });

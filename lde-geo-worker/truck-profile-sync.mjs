@@ -22,6 +22,7 @@
 // ============================================================================
 import { planCisterneDinTlx, ZILE_CISTERNA_DIN_TLX } from './trip-auto.mjs';
 import { cisterneDinOpriri } from './camion-auto.mjs';
+import { zernovozeDinOpriri, KIND_DESCARCARE_CEREALE } from './zernovoz-auto.mjs';
 
 const SB_URL = process.env.SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -66,12 +67,12 @@ async function cisterneleDinGps(vehicule, profiluri, acumMs) {
   // regula asta n-are ce căuta la ele — nici ca citire pe mașină, nici ca verdict.
   const faraTip = (vehicule || []).filter((v) => !cuTip.has(v.id)
     && Array.isArray(v.directions) && v.directions.includes('camioane'));
-  if (faraTip.length === 0) return { cisterneNoi: [], conflicte: [] };
-  const puncte = await sb('lde_dispatch_points?select=id,name,lat,lng,radius_m,kind&active=is.true&limit=1000');
-  const incarcari = (puncte || [])
-    .filter((p) => p.kind === 'incarcare_diesel' || p.kind === 'incarcare_biodiesel')
+  if (faraTip.length === 0) return { cisterneNoi: [], conflicte: [], zernovozeNoi: [] };
+  const puncte = (await sb('lde_dispatch_points?select=id,name,lat,lng,radius_m,kind&active=is.true&limit=1000') || [])
     .map((p) => ({ id: p.id, lat: p.lat, lon: p.lng, radius_m: p.radius_m, kind: p.kind }));
-  if (incarcari.length === 0) return { cisterneNoi: [], conflicte: [] };
+  const incarcari = puncte.filter((p) => p.kind === 'incarcare_diesel' || p.kind === 'incarcare_biodiesel');
+  const porturi = puncte.filter((p) => p.kind === KIND_DESCARCARE_CEREALE);
+  if (incarcari.length === 0 && porturi.length === 0) return { cisterneNoi: [], conflicte: [], zernovozeNoi: [] };
 
   const deLa = new Date(acumMs - ZILE_CISTERNA_DIN_GPS * 86400e3).toISOString().slice(0, 10);
   const opriri = [];
@@ -80,7 +81,12 @@ async function cisterneleDinGps(vehicule, profiluri, acumMs) {
       `&vehicle_id=eq.${v.id}&date=gte.${deLa}&dwell_min=gte.${OPRIRE_MIN_MINUTE}&limit=1000`);
     for (const r of rows || []) opriri.push(r);
   }
-  return cisterneDinOpriri(opriri, incarcari, faraTip, profiluri);
+  const { cisterneNoi, conflicte } = cisterneDinOpriri(opriri, incarcari, faraTip, profiluri);
+  // Zernovozul din GPS (ION-35): convoiul care stă în portul de cereale. Camionul
+  // găsit și cisternă nu devine zernovoz — dovada încărcării de carburant e mai tare.
+  const cisternaAcum = new Set(cisterneNoi.map((c) => c.vehicleId));
+  const { zernovozeNoi } = zernovozeDinOpriri(opriri, puncte, faraTip.filter((v) => !cisternaAcum.has(v.id)), profiluri);
+  return { cisterneNoi, conflicte, zernovozeNoi };
 }
 
 async function main() {
@@ -109,7 +115,10 @@ async function main() {
     console.error(`  CONFLICT ${c.plate}: e «${c.fleetType}» în TRANSLUX, dar a stat de ${c.opriri} ori la un punct de încărcare — de lămurit de om`);
   }
 
+  // Cisterna găsită în TLX câștigă și ea în fața zernovozului din GPS.
+  const zernovozeNoi = planGps.zernovozeNoi.filter((z) => !dejaCisterna.has(z.vehicleId));
   for (const c of plan.cisterneNoi) console.log(`  ${c.plate}: devine cisternă${c.dinGps ? ` (${c.dinGps} opriri lungi la puncte de încărcare)` : ''}`);
+  for (const z of zernovozeNoi) console.log(`  ${z.plate}: devine zernovoz (${z.opriri} opriri lungi în porturi de cereale)`);
   for (const d of plan.directiiDeAdaugat) console.log(`  ${d.plate}: intră în flota de camioane`);
   for (const c of plan.conflicte) console.error(`  CONFLICT ${c.plate}: e «${c.fleetType}» în TRANSLUX, dar a descărcat carburant la TLX — de lămurit de om`);
   if (plan.necunoscute.length) console.log(`  în TLX, fără mașină în TRANSLUX: ${plan.necunoscute.join(', ')}`);
@@ -125,13 +134,22 @@ async function main() {
       }))),
     });
   }
+  if (zernovozeNoi.length) {
+    await sb('lde_truck_profile?on_conflict=vehicle_id', {
+      method: 'POST',
+      headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' },
+      body: JSON.stringify(zernovozeNoi.map((z) => ({
+        vehicle_id: z.vehicleId, fleet_type: 'zernovoz', updated_by: 'auto:gps', updated_at: new Date().toISOString(),
+      }))),
+    });
+  }
   for (const d of plan.directiiDeAdaugat) {
     await sb(`vehicles?id=eq.${d.vehicleId}`, {
       method: 'PATCH', headers: { Prefer: 'return=minimal' },
       body: JSON.stringify({ directions: d.directions }),
     });
   }
-  console.log(`  scrise: ${plan.cisterneNoi.length} cisterne, ${plan.directiiDeAdaugat.length} direcții`);
+  console.log(`  scrise: ${plan.cisterneNoi.length} cisterne, ${zernovozeNoi.length} zernovoze, ${plan.directiiDeAdaugat.length} direcții`);
 }
 
 main().catch((e) => { console.error('[profile-sync]', e); process.exit(1); });

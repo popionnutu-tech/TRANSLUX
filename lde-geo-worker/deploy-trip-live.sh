@@ -11,7 +11,10 @@ DIR=/root/lde-worker/live
 AICI="$(cd "$(dirname "$0")" && pwd)"
 
 ssh -i "$KEY" -o ConnectTimeout=15 "$VPS" "mkdir -p $DIR"
-scp -q -i "$KEY" "$AICI"/km-core.mjs "$AICI"/wialon-api.mjs "$AICI"/trip-auto.mjs "$AICI"/camion-auto.mjs "$AICI"/trip-live-worker.mjs "$VPS:$DIR/"
+scp -q -i "$KEY" "$AICI"/km-core.mjs "$AICI"/wialon-api.mjs "$AICI"/trip-auto.mjs "$AICI"/camion-auto.mjs "$AICI"/zernovoz-auto.mjs "$AICI"/trip-live-worker.mjs "$AICI"/truck-profile-sync.mjs "$VPS:$DIR/"
+# run-nightly.sh e și el al VPS-ului: fără el, schimbarea căii lui truck-profile-sync
+# rămânea doar în repo (ION-35).
+scp -q -i "$KEY" "$AICI"/run-nightly.sh "$VPS:/root/lde-worker/run-nightly.sh"
 echo "copiat în $VPS:$DIR"
 
 echo "== probă (fără scriere) =="

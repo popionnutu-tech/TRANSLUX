@@ -98,3 +98,36 @@ export async function pozitiiLive(): Promise<PozitieLive[]> {
   }
   return out;
 }
+
+/** Starea unei unități în Wialon, pentru pagina Flotă (ION-35): există, e activă,
+ *  ne lasă contul să-i citim istoricul, când a raportat ultima dată. */
+export type UnitateWialon = { plate: string; activa: boolean; dezactivataLa: string | null; areIstoric: boolean; at: string | null };
+
+/** Dreptul «query messages or reports» din uacl: fără el `messages/load_interval`
+ *  întoarce error 7 și noaptea nu se scrie nici km, nici opriri (BNQ076 din 09.07). */
+export const DREPT_ISTORIC = 0x200;
+
+export async function unitatiWialon(): Promise<UnitateWialon[]> {
+  const s = await sid();
+  // 1 = de bază (cu uacl), 256 = facturare (act, dactt), 1024 = ultima poziție.
+  const j = await call('core/search_items', {
+    spec: { itemsType: 'avl_unit', propName: 'sys_name', propValueMask: '*', sortType: 'sys_name' },
+    force: 1, flags: 1 | 256 | 1024, from: 0, to: 0,
+  }, s);
+  const out: UnitateWialon[] = [];
+  for (const u of (j.items ?? []) as (WialonUnit & { act?: number; dactt?: number; uacl?: number })[]) {
+    const plate = placaDinNume(u.nm ?? '');
+    if (!plate) continue;
+    const t = u.pos?.t;
+    const tOk = Number.isFinite(t) && (t as number) >= 946684800 && (t as number) <= 4102444800;
+    const d = u.dactt;
+    out.push({
+      plate,
+      activa: u.act !== 0,
+      dezactivataLa: Number.isFinite(d) && (d as number) > 946684800 && (d as number) < 4102444800 ? new Date((d as number) * 1000).toISOString() : null,
+      areIstoric: ((u.uacl ?? 0) & DREPT_ISTORIC) !== 0,
+      at: tOk ? new Date((t as number) * 1000).toISOString() : null,
+    });
+  }
+  return out;
+}

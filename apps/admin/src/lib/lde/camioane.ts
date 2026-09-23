@@ -89,7 +89,31 @@ export function pozitieRecenta(atIso: string, acumMs = Date.now(), ore = PROSPET
   return varsta >= 0 && varsta <= ore * 3600 * 1000;
 }
 
-export type KanbanColumn = 'liber' | 'in_cursa' | 'reparatie' | 'odihna' | 'fara_sofer';
+/** Starea GPS a unui camion din flotă (ION-35). Până la 23.09 camionul fără GPS
+ *  utilizabil pur și simplu lipsea — de pe hartă, din km, din curse — fără ca
+ *  ecranul să spună de ce. `problema` = automatul nu-l poate urmări. */
+export type StareGps = { cod: 'live' | 'veche' | 'fara_istoric' | 'dezactivat' | 'fara_unitate'; text: string; problema: boolean };
+
+export function stareGps(
+  unitate: { activa: boolean; dezactivataLa: string | null; areIstoric: boolean; at: string | null } | null,
+  acumMs = Date.now(),
+): StareGps {
+  const data = (iso: string) => iso.slice(8, 10) + '.' + iso.slice(5, 7) + '.' + iso.slice(0, 4);
+  if (!unitate) return { cod: 'fara_unitate', text: 'nu există în Wialon — fără GPS', problema: true };
+  if (!unitate.activa) {
+    return { cod: 'dezactivat', text: `dezactivat în Wialon${unitate.dezactivataLa ? ` din ${data(unitate.dezactivataLa)}` : ''}`, problema: true };
+  }
+  // Poziția live vine și fără drept de istoric, dar noaptea nu se scriu nici km, nici
+  // opriri, deci automatul nu-i vede cursele (BNQ076: live la Ruse, zero km din 09.07).
+  if (!unitate.areIstoric) return { cod: 'fara_istoric', text: 'Wialon nu dă istoricul (drept lipsă la furnizor) — fără km și curse', problema: true };
+  if (!unitate.at || !pozitieRecenta(unitate.at, acumMs)) {
+    const zile = unitate.at ? Math.floor((acumMs - Date.parse(unitate.at)) / 86400e3) : null;
+    return { cod: 'veche', text: zile !== null && zile >= 0 ? `ultima poziție acum ${zile} ${zile === 1 ? 'zi' : 'zile'}` : 'fără poziție', problema: false };
+  }
+  return { cod: 'live', text: 'live', problema: false };
+}
+
+export type KanbanColumn ='liber' | 'in_cursa' | 'reparatie' | 'odihna' | 'fara_sofer';
 
 /**
  * Coloana din kanban. null = camionul NU apare deloc: fără șofer nu lucrează și

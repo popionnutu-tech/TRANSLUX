@@ -7,6 +7,7 @@
 //  · Wialon (poziția live) + punctele cu tip (lde_dispatch_points.kind) +
 //    memoria staționărilor (lde_truck_gps_stationari) → camion-auto.mjs decide:
 //    cursă nouă la încărcare, la încărcare, spre descărcare, la descărcare;
+//    pentru zernovoze decide zernovoz-auto.mjs (plecare de la bază → port, ION-35);
 //  · TLX fuel_receipts (bonul de recepție, pe DATA descărcării) → «încheiată»
 //    (trip-auto.mjs, deciziaTlx);
 //  · urma GPS a ultimelor zile (lde_gps_stops) → cursa pe care automatul n-a
@@ -30,6 +31,7 @@ import {
   actualizeazaStationarea, cursaExpirata, deciziaCamion, punctulUndeSta,
   recupereazaDinIstoric, zileCuCursa, zileDeStat, ORE_STAT_PE_ZI, STARI_DESCHISE, ZILE_RECUPERARE,
 } from './camion-auto.mjs';
+import { deciziaZernovoz, recupereazaZernovozDinIstoric } from './zernovoz-auto.mjs';
 
 const SB_URL = process.env.SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -123,7 +125,10 @@ async function main() {
   // Doar opririle lungi, doar aceste camioane: Supabase taie răspunsul la 1000 de
   // rânduri (11 camioane × 30 de zile ≈ 620 de rânduri pe 11.09).
   const opririDupaVehicul = new Map();
-  const cuCursaDeschisa = [...new Set((curseDeschise || []).map((t) => t.vehicle_id))];
+  // Fără zernovoze: regulile lor nu citesc opririle și n-au bon TLX, iar fiecare
+  // camion în plus apropie răspunsul de plafonul de 1000 de rânduri.
+  const cuCursaDeschisa = [...new Set((curseDeschise || []).map((t) => t.vehicle_id))]
+    .filter((id) => tipDupaVehicul.get(id) !== 'zernovoz');
   if (cuCursaDeschisa.length > 0) {
     try {
       const deLa = new Date(acumMs - ZILE_OPRIRI * 86400e3).toISOString().slice(0, 10);
@@ -228,8 +233,11 @@ async function main() {
     }
   }
 
-  // ── 2. GPS: staționarea, apoi decizia, pentru fiecare cisternă ──
+  // ── 2. GPS: staționarea, apoi decizia, pentru fiecare cisternă și zernovoz ──
+  // Zernovozul are regulile lui (zernovoz-auto.mjs, ION-35): până la 23.09 automatul
+  // vedea doar cisternele, iar 7 zernovoze cu mii de km pe săptămână n-aveau nicio cursă.
   let cisterne = 0;
+  let zernovoze = 0;
   /** Cisternele care au avut o cursă la începutul rulării sau au primit una acum:
    *  recuperarea din istoric nu le atinge, ca să nu reînvie drumul tocmai închis. */
   const cuCursaAcum = new Set();
@@ -242,21 +250,25 @@ async function main() {
     const veche = stationareDupaVehicul.get(v.id) ?? null;
     const { stationare, schimbata } = actualizeazaStationarea(veche, punct, pozitie, acumMs);
     if (schimbata) stationariDeScris.push({ vehicle_id: v.id, ...stationare, updated_at: acumIso });
-    if (camion.fleetType !== 'cisterna') continue;
-    cisterne++;
+    const decizia = camion.fleetType === 'cisterna' ? deciziaCamion
+      : camion.fleetType === 'zernovoz' ? deciziaZernovoz
+        : null;
+    if (!decizia) continue;
+    if (camion.fleetType === 'cisterna') cisterne++;
+    else zernovoze++;
 
     const t = cursaDeAcum(v.id);
     const cursa = t && !inchiseAcum.has(t.id) ? cursaIO(t) : null;
     const ultima = ultimaDupaVehicul.get(v.id) ?? null;
     try {
-      const d = deciziaCamion({ camion, cursa, ultimaCursa: ultima, stationare, punct, pozitie, puncteDupaId, opriri: opririDupaVehicul.get(v.id) ?? [], acumMs });
+      const d = decizia({ camion, cursa, ultimaCursa: ultima, stationare, punct, pozitie, puncteDupaId, opriri: opririDupaVehicul.get(v.id) ?? [], acumMs });
       // Reîncărcarea întoarce amândouă: cursa veche se închide, cursa nouă se naște.
       // Închiderea merge prima — dacă ea nu prinde (a apăsat omul între timp), cursa
       // nouă nu se mai face, altfel camionul ar rămâne cu două curse deschise.
       const mutata = d.schimba && t ? await scrieStare(t, d.schimba.patch, d.motiv) : true;
       if (d.schimba && t && mutata) atinseAcum.add(t.id);
       if (d.creeaza && mutata) {
-        console.log(`  ${placa}: cursă nouă ${d.creeaza.cargo}, la încărcare — ${d.motiv}`);
+        console.log(`  ${placa}: cursă nouă ${d.creeaza.cargo}, ${d.creeaza.status} — ${d.motiv}`);
         if (WRITE) {
           await sb('lde_truck_trips', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(d.creeaza) });
           scrise++;
@@ -297,41 +309,49 @@ async function main() {
   // RWN193 pe 18–20.09, iar banda nu arăta nimic. Se rejoacă opririle cu aceleași
   // reguli ca deciziile vii; se scrie doar drumul care încă nu s-a terminat.
   let recuperate = 0;
-  const deRecuperat = (vehicule || []).filter((v) => tipDupaVehicul.get(v.id) === 'cisterna' && !cuCursaAcum.has(v.id));
-  if (deRecuperat.length > 0) {
-    try {
-      const deLa = new Date(acumMs - ZILE_RECUPERARE * 86400e3).toISOString().slice(0, 10);
-      const istoric = await sb(`lde_gps_stops?select=vehicle_id,lat,lon,dwell_min,arrival_at,departure_at` +
-        `&vehicle_id=in.(${deRecuperat.map((v) => v.id).join(',')})&date=gte.${deLa}&dwell_min=gte.45` +
-        `&order=arrival_at.asc&limit=1000`) || [];
-      if (istoric.length >= 1000) console.error('  recuperare: răspunsul a atins plafonul de 1000 de rânduri — istoricul vechi lipsește');
-      const istoricDupaVehicul = new Map();
-      for (const o of istoric) {
-        const l = istoricDupaVehicul.get(o.vehicle_id) ?? [];
-        l.push(o); istoricDupaVehicul.set(o.vehicle_id, l);
-      }
-      for (const v of deRecuperat) {
-        const opriri = istoricDupaVehicul.get(v.id);
-        if (!opriri?.length) continue;
-        const placa = normPlaca(v.plate_number);
-        const camion = { id: v.id, plate: placa, fleetType: 'cisterna', driverId: soferDupaVehicul.get(v.id) ?? null };
-        try {
-          const r = recupereazaDinIstoric({ camion, opriri, puncte, ultimaCursa: ultimaDupaVehicul.get(v.id) ?? null, acumMs });
-          if (!r) continue;
-          console.log(`  ${placa}: ${r.motiv}`);
-          if (WRITE) {
-            await sb('lde_truck_trips', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(r.creeaza) });
-            scrise++;
-          }
-          recuperate++;
-        } catch (e) {
-          esuate++;
-          console.error(`  ${placa} (recuperare): ${e instanceof Error ? e.message : e}`);
+  // Pe tip, câte o citire: cisternele și zernovozurile împreună trec de plafonul de
+  // 1000 de rânduri, iar tăierea ar pierde tăcut exact cursa de recuperat.
+  const RECUPERARE = [
+    { tip: 'cisterna', fn: recupereazaDinIstoric },
+    { tip: 'zernovoz', fn: recupereazaZernovozDinIstoric },
+  ];
+  for (const { tip, fn } of RECUPERARE) {
+    const deRecuperat = (vehicule || []).filter((v) => tipDupaVehicul.get(v.id) === tip && !cuCursaAcum.has(v.id));
+    if (deRecuperat.length > 0) {
+      try {
+        const deLa = new Date(acumMs - ZILE_RECUPERARE * 86400e3).toISOString().slice(0, 10);
+        const istoric = await sb(`lde_gps_stops?select=vehicle_id,lat,lon,dwell_min,arrival_at,departure_at` +
+          `&vehicle_id=in.(${deRecuperat.map((v) => v.id).join(',')})&date=gte.${deLa}&dwell_min=gte.45` +
+          `&order=arrival_at.asc&limit=1000`) || [];
+        if (istoric.length >= 1000) console.error('  recuperare: răspunsul a atins plafonul de 1000 de rânduri — istoricul vechi lipsește');
+        const istoricDupaVehicul = new Map();
+        for (const o of istoric) {
+          const l = istoricDupaVehicul.get(o.vehicle_id) ?? [];
+          l.push(o); istoricDupaVehicul.set(o.vehicle_id, l);
         }
+        for (const v of deRecuperat) {
+          const opriri = istoricDupaVehicul.get(v.id);
+          if (!opriri?.length) continue;
+          const placa = normPlaca(v.plate_number);
+          const camion = { id: v.id, plate: placa, fleetType: tip, driverId: soferDupaVehicul.get(v.id) ?? null };
+          try {
+            const r = fn({ camion, opriri, puncte, ultimaCursa: ultimaDupaVehicul.get(v.id) ?? null, acumMs });
+            if (!r) continue;
+            console.log(`  ${placa}: ${r.motiv}`);
+            if (WRITE) {
+              await sb('lde_truck_trips', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(r.creeaza) });
+              scrise++;
+            }
+            recuperate++;
+          } catch (e) {
+            esuate++;
+            console.error(`  ${placa} (recuperare): ${e instanceof Error ? e.message : e}`);
+          }
+        }
+      } catch (e) {
+        esuate++;
+        console.error(`  recuperare ${tip}: ${e instanceof Error ? e.message : e}`);
       }
-    } catch (e) {
-      esuate++;
-      console.error(`  recuperare: ${e instanceof Error ? e.message : e}`);
     }
   }
 
@@ -404,7 +424,7 @@ async function main() {
     } catch (e) { esuate++; console.error(`  staționări: ${e instanceof Error ? e.message : e}`); }
   }
 
-  console.log(`  camioane: ${(vehicule || []).length} (cisterne ${cisterne}), curse deschise: ${(curseDeschise || []).length}, poziții: ${pozitieDupaPlaca.size}, ` +
+  console.log(`  camioane: ${(vehicule || []).length} (cisterne ${cisterne}, zernovoze ${zernovoze}), curse deschise: ${(curseDeschise || []).length}, poziții: ${pozitieDupaPlaca.size}, ` +
     `recepții: ${receptii.length}, staționări scrise: ${stationariDeScris.length}, stări scrise: ${scrise}, recuperate: ${recuperate}, zile stat: ${zileStat}, eșuate: ${esuate}`);
   if (esuate > 0) process.exitCode = 1;
 }

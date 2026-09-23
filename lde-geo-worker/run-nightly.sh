@@ -18,8 +18,10 @@ node --env-file=.env fuel-worker.mjs --write >> nightly.log 2>&1
 node --env-file=.env price-worker.mjs 7 >> nightly.log 2>&1
 # Tipul camionului din recepțiile TLX: cine a descărcat carburant în ultimele
 # 60 de zile e cisternă (Ion, 08.09). Înainte de trip-live/trip-worker, ca
-# potrivirea cu recepțiile să vadă flota completă.
-node --env-file=.env truck-profile-sync.mjs --write >> nightly.log 2>&1
+# potrivirea cu recepțiile să vadă flota completă. Rulează din live/, lângă
+# camion-auto.mjs și trip-auto.mjs pe care le importă — în /root/lde-worker nu
+# există, iar pasul a picat MODULE_NOT_FOUND în fiecare noapte 18–23.09 (ION-35).
+(cd live && node --env-file=/root/lde-worker/.env truck-profile-sync.mjs --write) >> nightly.log 2>&1
 node --env-file=.env wialon-worker.mjs "$Y" --write >> nightly.log 2>&1
 # Metricile curselor de camioane — DUPĂ wialon-worker: are nevoie de aceleași
 # track-uri, iar km-ii se calculează cu același nucleu (km-core), nu cu altul.

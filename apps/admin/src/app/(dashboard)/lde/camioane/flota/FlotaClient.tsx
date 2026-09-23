@@ -50,12 +50,21 @@ export default function FlotaClient({ camioane, soferi, candidati }: Props) {
   const inactive = camioane.filter((c) => !c.driverId);
   const liberi = soferi.filter((s) => !s.peCamion).length;
 
+  // ION-35: camionul fără GPS utilizabil lipsea de pe hartă și din curse fără nicio
+  // explicație. Acum fiecare rând spune ce vede Wialon despre el.
+  function celulaGps(c: CamionFlota) {
+    if (!c.gps) return <span className="text-muted">Wialon indisponibil</span>;
+    const culoare = c.gps.problema ? 'var(--danger)' : c.gps.cod === 'live' ? 'var(--success)' : undefined;
+    return <span style={{ color: culoare }} className={culoare ? undefined : 'text-muted'}>{c.gps.text}</span>;
+  }
+  const faraGps = camioane.filter((c) => c.gps?.problema);
+
   function tabelCamioane(lista: CamionFlota[], gol: string) {
     return (
       <div className="pivot-wrap">
         <table className="pivot-table">
           <thead>
-            <tr><th>Plăcuță</th><th>Tip</th><th>Șofer</th></tr>
+            <tr><th>Plăcuță</th><th>Tip</th><th>Șofer</th><th>GPS</th></tr>
           </thead>
           <tbody>
             {lista.map((c) => (
@@ -90,10 +99,11 @@ export default function FlotaClient({ camioane, soferi, candidati }: Props) {
                     ))}
                   </select>
                 </td>
+                <td>{celulaGps(c)}</td>
               </tr>
             ))}
             {lista.length === 0 && (
-              <tr><td colSpan={3} className="pivot-empty">{gol}</td></tr>
+              <tr><td colSpan={4} className="pivot-empty">{gol}</td></tr>
             )}
           </tbody>
         </table>
@@ -110,6 +120,17 @@ export default function FlotaClient({ camioane, soferi, candidati }: Props) {
           Camionul fără șofer nu apare în dispecerat — el nu lucrează.
         </p>
       </div>
+
+      {faraGps.length > 0 && (
+        <div className="card" style={{ borderLeft: '3px solid var(--danger)' }}>
+          <strong>{faraGps.length} {faraGps.length === 1 ? 'camion nu poate fi urmărit' : 'camioane nu pot fi urmărite'} din GPS:</strong>{' '}
+          {faraGps.map((c) => `${c.plate} (${c.gps?.text})`).join(' · ')}.
+          <p className="text-muted" style={{ margin: '6px 0 0' }}>
+            Automatul nu le poate pune curse, iar harta și km-ii lipsesc. Se rezolvă la furnizorul GPS (GPSauto):
+            reactivarea unității sau dreptul de istoric pentru contul API.
+          </p>
+        </div>
+      )}
 
       {mesaj && <div className="card" style={{ borderLeft: '3px solid var(--success)' }}>{mesaj}</div>}
       {eroare && <div className="card" style={{ borderLeft: '3px solid var(--danger)' }}>{eroare}</div>}

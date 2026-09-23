@@ -3,8 +3,8 @@ import { validateVoiceApiKey } from '../auth';
 import { COMPANY_PHONE } from '@/lib/company-phone';
 const COMPANY_INFO = {
   name: 'TRANSLUX',
-  description_ro: 'Companie de transport pasageri pe ruta Chișinău–Bălți și localitățile intermediare',
-  description_ru: 'Компания пассажирских перевозок по маршруту Кишинёв–Бельцы и промежуточные населённые пункты',
+  description_ro: 'Companie de transport pasageri între Chișinău, Bălți și nordul Moldovei (Edineț, Briceni, Lipcani, Ocnița și localitățile de pe traseu)',
+  description_ru: 'Компания пассажирских перевозок между Кишинёвом, Бельцами и севером Молдовы (Единец, Бричаны, Липканы, Окница и населённые пункты по пути)',
   // `phone` rămâne pentru botul de Facebook: acolo omul NU e pe linie, iar
   // numărul e un răspuns util. `phone_spoken_*` existau DOAR ca vocea să-l
   // rostească — și tocmai asta nu mai are voie (Ion, 07.09): numărul e chiar

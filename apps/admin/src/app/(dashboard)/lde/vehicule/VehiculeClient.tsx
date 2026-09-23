@@ -12,6 +12,7 @@ import {
   setMeasuredOverride,
   clearMeasured,
   toggleInRepair,
+  setVehicleHome,
   type LdeVehicleNormRow,
 } from './actions';
 
@@ -89,6 +90,7 @@ export default function VehiculeClient({
               <th>Normă tip</th>
               <th>Consum măsurat</th>
               <th>Normă efectivă</th>
+              <th>Locul de trai</th>
               <th>În reparație</th>
               <th>Acțiuni</th>
             </tr>
@@ -99,7 +101,7 @@ export default function VehiculeClient({
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="text-center text-muted">
+                <td colSpan={8} className="text-center text-muted">
                   Nu există mașini pentru acest filtru.
                 </td>
               </tr>
@@ -122,7 +124,10 @@ function VehiculRow({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [editField, setEditField] = useState<null | 'type' | 'measured'>(null);
+  const [editField, setEditField] = useState<null | 'type' | 'measured' | 'home'>(null);
+  const [draftLoc, setDraftLoc] = useState<string>(row.home_locality ?? '');
+  const [draftSofer, setDraftSofer] = useState<string>(row.home_driver ?? '');
+  const [draftDin, setDraftDin] = useState<string>(row.home_since ?? '');
   const [draftType, setDraftType] = useState<string>(row.vehicle_type_id ?? '');
   const [draftMeasured, setDraftMeasured] = useState<string>(row.measured?.toString() ?? '');
   const [draftLoaded, setDraftLoaded] = useState<string>(row.measured_loaded?.toString() ?? '');
@@ -304,6 +309,49 @@ function VehiculRow({
             style={{ marginLeft: 6, fontSize: 10, background: '#eef2ff', color: '#3730a3' }}
           >
             override
+          </span>
+        )}
+      </td>
+
+      {/* Locul de trai — Ion, 23.09: «bagă în nomenclator la mașină locul de trai» și
+          «dacă el se schimbă — apare alt șofer — schimb locul de trai». Valoarea declarată
+          stă deasupra, observația din GPS dedesubt; când se despart, s-a schimbat omul. */}
+      <td style={{ minWidth: 190 }}>
+        {editField === 'home' ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <input autoFocus value={draftLoc} onChange={e => setDraftLoc(e.target.value)}
+              placeholder="Satul" style={{ fontSize: 13, padding: '2px 6px' }} />
+            <input value={draftSofer} onChange={e => setDraftSofer(e.target.value)}
+              placeholder="Șoferul" style={{ fontSize: 13, padding: '2px 6px' }} />
+            <input type="date" value={draftDin} onChange={e => setDraftDin(e.target.value)}
+              title="De când" style={{ fontSize: 13, padding: '2px 6px' }} />
+            <span style={{ display: 'flex', gap: 4 }}>
+              <button className="btn btn-primary" disabled={isPending} style={{ fontSize: 12, padding: '3px 8px' }}
+                onClick={() => run(() => setVehicleHome(row.vehicle_id, {
+                  locality: draftLoc, driver: draftSofer, since: draftDin || null, note: row.home_note,
+                }))}>Salvează</button>
+              <button className="btn btn-outline" disabled={isPending} style={{ fontSize: 12, padding: '3px 8px' }}
+                onClick={() => setEditField(null)}>Anulează</button>
+            </span>
+          </div>
+        ) : (
+          <span
+            onClick={() => { setDraftLoc(row.home_locality ?? row.gps_home ?? ''); setEditField('home'); }}
+            title="Apasă ca să schimbi locul de trai"
+            style={{ cursor: 'pointer', display: 'block' }}
+          >
+            <span style={{ fontWeight: 600 }}>{row.home_locality ?? <span className="text-muted">— nescris</span>}</span>
+            {row.home_driver && <span className="text-muted" style={{ fontSize: 12 }}> · {row.home_driver}</span>}
+            <div className="text-muted" style={{ fontSize: 11.5, marginTop: 2 }}>
+              {row.gps_home
+                ? <>GPS: {row.gps_home} · {row.gps_nopti} nopți</>
+                : <>GPS: n-a dormit nicăieri constant</>}
+            </div>
+            {row.home_locality && row.gps_home && row.home_locality !== row.gps_home && (
+              <div className="badge badge-absent" style={{ marginTop: 3, fontSize: 10.5 }}>
+                Nu coincide — verifică șoferul
+              </div>
+            )}
           </span>
         )}
       </td>

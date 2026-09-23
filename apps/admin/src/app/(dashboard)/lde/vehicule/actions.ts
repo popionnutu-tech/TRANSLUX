@@ -18,6 +18,15 @@ export interface LdeVehicleNormRow {
   override_reason: LdeOverrideReason | null;
   override_notes: string | null;
   has_type: boolean;                         // false → DT inactiv pentru mașină
+  // Ion, 23.09.2026: «bagă în nomenclator la mașină locul de trai» — declarat, nu dedus.
+  home_locality: string | null;
+  home_driver: string | null;
+  home_since: string | null;
+  home_note: string | null;
+  // Ce vede GPS-ul în ultimele 30 de zile. Nu suprascrie nimic: stă alături, iar când se
+  // desparte de valoarea declarată, ăsta e semnul că s-a schimbat șoferul.
+  gps_home: string | null;
+  gps_nopti: number;
 }
 
 /** Tipurile de mașini pentru dropdown. */
@@ -45,12 +54,34 @@ export async function getVehicleNorms(): Promise<LdeVehicleNormRow[]> {
   const { data, error } = await sb
     .from('vehicles')
     .select(
-      'id, plate_number, lde_vehicle_norms ( vehicle_type_id, measured_consumption_l_per_100km, measured_consumption_l_per_100km_loaded, in_repair, override_reason, override_notes, lde_vehicle_types ( display_name, norm_l_per_100km ) )'
+      'id, plate_number, lde_vehicle_norms ( vehicle_type_id, measured_consumption_l_per_100km, measured_consumption_l_per_100km_loaded, in_repair, override_reason, override_notes, home_locality, home_driver, home_since, home_note, lde_vehicle_types ( display_name, norm_l_per_100km ) )'
     )
     .eq('active', true)
     .order('plate_number');
 
   if (error) throw new Error(error.message);
+
+  // Unde a dormit fiecare mașină în ultimele 30 de zile, după opririle de bază. PostgREST
+  // taie la 1000 de rânduri indiferent de limit, deci se citește pe pagini (vezi nota din
+  // memoria proiectului despre plafonul de 1000).
+  const de = new Date(Date.now() - 30 * 86400_000).toISOString().slice(0, 10);
+  const nopti = new Map<string, Map<string, number>>();
+  for (let d = 0; d < 20000; d += 1000) {
+    const { data: st } = await sb
+      .from('lde_gps_stops')
+      .select('vehicle_id, locality')
+      .eq('is_base', true)
+      .gte('date', de)
+      .not('locality', 'is', null)
+      .range(d, d + 999);
+    if (!st || st.length === 0) break;
+    for (const r of st as any[]) {
+      if (!nopti.has(r.vehicle_id)) nopti.set(r.vehicle_id, new Map());
+      const m = nopti.get(r.vehicle_id)!;
+      m.set(r.locality, (m.get(r.locality) || 0) + 1);
+    }
+    if (st.length < 1000) break;
+  }
 
   return (data || []).map((v: any): LdeVehicleNormRow => {
     const norm = Array.isArray(v.lde_vehicle_norms) ? v.lde_vehicle_norms[0] : v.lde_vehicle_norms;
@@ -78,6 +109,16 @@ export async function getVehicleNorms(): Promise<LdeVehicleNormRow[]> {
       override_reason: (norm?.override_reason ?? null) as LdeOverrideReason | null,
       override_notes: norm?.override_notes ?? null,
       has_type: !!vehicle_type_id,
+      home_locality: norm?.home_locality ?? null,
+      home_driver: norm?.home_driver ?? null,
+      home_since: norm?.home_since ?? null,
+      home_note: norm?.home_note ?? null,
+      ...(() => {
+        const m = nopti.get(v.id as string);
+        if (!m || m.size === 0) return { gps_home: null, gps_nopti: 0 };
+        const [loc, n] = [...m.entries()].sort((a, b) => b[1] - a[1])[0];
+        return { gps_home: loc, gps_nopti: n };
+      })(),
     };
   });
 }
@@ -184,6 +225,39 @@ export async function toggleInRepair(vehicle_id: string, in_repair: boolean) {
     .from('lde_vehicle_norms')
     .update({ in_repair, updated_at: new Date().toISOString() })
     .eq('vehicle_id', vehicle_id);
+  if (error) throw new Error(error.message);
+  revalidatePath('/lde/vehicule');
+}
+
+/**
+ * Locul de trai al șoferului mașinii.
+ *
+ * Ion, 23.09.2026: «dacă el se schimbă — apare alt șofer — schimb locul de trai». Deci se
+ * scrie cu mâna, nu se deduce: GPS-ul spune unde a dormit mașina, dar nu știe dacă e vorba
+ * de un șofer nou sau de o săptămână la reparație. `home_since` ține de când e valabil, ca
+ * kilometrii de dinainte și de după schimbare să se poată socoti din case diferite.
+ */
+export async function setVehicleHome(
+  vehicle_id: string,
+  home: { locality: string | null; driver: string | null; since: string | null; note: string | null },
+) {
+  requireRole(await verifySession(), 'ADMIN');
+  if (!vehicle_id) throw new Error('vehicle_id este obligatoriu');
+
+  const gol = (x: string | null) => (x && x.trim() ? x.trim() : null);
+  const { error } = await getSupabase()
+    .from('lde_vehicle_norms')
+    .upsert(
+      {
+        vehicle_id,
+        home_locality: gol(home.locality),
+        home_driver: gol(home.driver),
+        home_since: gol(home.since),
+        home_note: gol(home.note),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'vehicle_id' },
+    );
   if (error) throw new Error(error.message);
   revalidatePath('/lde/vehicule');
 }

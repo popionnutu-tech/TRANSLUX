@@ -6,8 +6,8 @@
 // șoferul, mașina, numărul lui și, lângă număr, butonul de apel («lângă număr șofer să
 // fie buton apăsare să sune»). Pe harta deschisă, pe tot ecranul, punctul autobuzelor
 // care sunt deja pe drum după grafic, cu ora cursei. Cursa aleasă din listă e roșie,
-// pe hartă și în listă; harta se duce la autobuzul ei. Fără traseu și fără viteză, ca
-// în chat (ION-39). Se actualizează o dată pe minut, cât fereastra e deschisă.
+// pe hartă și în listă; harta se duce la autobuzul ei. Linia fină a rutei (route_shapes,
+// migr. 392) și autobuzul pus pe ea; fără viteză, ca în chat (ION-39). Se actualizează o dată pe minut, cât fereastra e deschisă.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Map as LMap, LayerGroup } from 'leaflet';
@@ -23,6 +23,7 @@ interface NowTrip {
   departure: string;
   minutes_until: number;
   on_road: boolean;
+  route_id: number | null;
   driver: string | null;
   plate: string | null;
   phone: string | null;
@@ -31,7 +32,26 @@ interface NowTrip {
   near?: string | null;
 }
 
-interface NowData { trips: NowTrip[]; line_ro: string | null; line_ru: string | null }
+type LatLon = [number, number];
+interface RouteLine { shape: LatLon[]; from: LatLon | null; to: LatLon | null }
+interface NowData { trips: NowTrip[]; routes?: Record<number, RouteLine>; line_ro: string | null; line_ru: string | null }
+
+/** Cel mai apropiat punct al liniei (proiecție pe segmente); departe de linie — punctul GPS. */
+function snap(p: LatLon, line: LatLon[]): LatLon {
+  const k = Math.cos((p[0] * Math.PI) / 180);
+  let best: LatLon = p, bestD = Infinity;
+  for (let i = 1; i < line.length; i++) {
+    const [ay, ax] = line[i - 1], [by, bx] = line[i];
+    const dx = (bx - ax) * k, dy = by - ay;
+    const len = dx * dx + dy * dy;
+    const t = len ? Math.max(0, Math.min(1, (((p[1] - ax) * k) * dx + (p[0] - ay) * dy) / len)) : 0;
+    const q: LatLon = [ay + t * (by - ay), ax + t * (bx - ax)];
+    const d = ((q[1] - p[1]) * k) ** 2 + (q[0] - p[0]) ** 2;
+    if (d < bestD) { bestD = d; best = q; }
+  }
+  // ~0,02° ≈ 2 km: mai departe, autobuzul chiar nu e pe linia asta (ocol, depou).
+  return bestD < 0.02 ** 2 ? best : p;
+}
 
 /** «37369384765» → «+373 69 384 765» (Ion, 23.09: mereu +373, ca să sune și de peste hotare). */
 function phoneView(raw: string): { text: string; tel: string } {
@@ -49,11 +69,13 @@ const TXT = {
   },
 } as const;
 
+const NO_ROUTES: Record<number, RouteLine> = {};
+
 const PHONE_SVG = (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z" /></svg>
 );
 
-function NowMap({ trips, selected, onPick }: { trips: NowTrip[]; selected: number; onPick: (i: number) => void }) {
+function NowMap({ trips, routes, selected, onPick }: { trips: NowTrip[]; routes: Record<number, RouteLine>; selected: number; onPick: (i: number) => void }) {
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<LMap | null>(null);
   const layer = useRef<LayerGroup | null>(null);
@@ -93,26 +115,46 @@ function NowMap({ trips, selected, onPick }: { trips: NowTrip[]; selected: numbe
       const L = (await import('leaflet')).default;
       const g = layer.current!;
       g.clearLayers();
+
+      // Linia fină a rutei alese și, pe ea, localitatea omului și destinația.
+      const route = trips[selected]?.route_id != null ? routes[trips[selected].route_id!] : undefined;
+      if (route?.shape.length) {
+        L.polyline(route.shape, { color: RED, weight: 3, opacity: 0.85, interactive: false }).addTo(g);
+        for (const [pt, cls] of [[route.from, 'from'], [route.to, 'to']] as const) {
+          if (!pt) continue;
+          L.marker(pt, {
+            icon: L.divIcon({ html: `<span class="now-end ${cls}"></span>`, className: 'now-pin-icon', iconSize: [16, 16], iconAnchor: [8, 8] }),
+            keyboard: false, interactive: false,
+          }).addTo(g);
+        }
+      }
+
       const pts: [number, number][] = [];
       trips.forEach((t, i) => {
         if (t.lat == null || t.lon == null) return;
         const on = i === selected;
+        // Autobuzul stă pe linia rutei lui: GPS-ul e la câțiva metri de drum.
+        const own = t.route_id != null ? routes[t.route_id]?.shape : undefined;
+        const at = own ? snap([t.lat, t.lon], own) : [t.lat, t.lon] as [number, number];
         const icon = L.divIcon({
           html: `<span class="now-pin${on ? ' on' : ''}">${t.departure}</span>`,
           className: 'now-pin-icon', iconSize: [64, 30], iconAnchor: [32, 15],
         });
-        L.marker([t.lat, t.lon], { icon, keyboard: false, title: t.departure, zIndexOffset: on ? 1000 : 0 })
+        L.marker(at, { icon, keyboard: false, title: t.departure, zIndexOffset: on ? 1000 : 0 })
           .on('click', () => onPick(i))
           .addTo(g);
-        pts.push([t.lat, t.lon]);
+        pts.push(at);
+        if (on && route?.from) pts.push(route.from);
       });
+      if (pts.length === 0 && route) pts.push(...[route.from, route.to].filter((x): x is LatLon => !!x));
+      if (pts.length === 0 && route?.shape.length) pts.push(route.shape[0], route.shape[route.shape.length - 1]);
       if (!fitted.current && pts.length) {
         fitted.current = true;
         if (pts.length === 1) map.current!.setView(pts[0], 11);
         else map.current!.fitBounds(pts, { padding: [80, 80], maxZoom: 11 });
       }
     })();
-  }, [trips, ready, selected, onPick]);
+  }, [trips, routes, ready, selected, onPick]);
 
   // Cursa aleasă din listă: harta se duce la autobuzul ei.
   const first = useRef(true);
@@ -162,13 +204,14 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
 
   const trips = data?.trips ?? [];
   const sel = selected < trips.length ? selected : 0;
-  const withPoint = trips.some((t) => t.lat != null);
+  // Harta apare și fără autobuz pe drum, dacă avem linia rutei: omul vede pe unde va veni.
+  const withPoint = trips.some((t) => t.lat != null || (t.route_id != null && !!data?.routes?.[t.route_id]));
   const empty = data && trips.length === 0;
 
   return (
     <div className="now-overlay" onClick={onClose}>
       <div className={`now-box${withPoint ? '' : ' no-map'}`} role="dialog" aria-modal="true" aria-label={`${from} → ${to}`} onClick={(e) => e.stopPropagation()}>
-        {withPoint && <NowMap trips={trips} selected={sel} onPick={setSelected} />}
+        {withPoint && <NowMap trips={trips} routes={data?.routes ?? NO_ROUTES} selected={sel} onPick={setSelected} />}
 
         <div className="now-top">
           <span className="now-title"><span className="now-dot" />{from} → {to}</span>
@@ -241,6 +284,9 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
 .now-pin-icon{background:none!important;border:none!important}
 .now-pin{display:inline-flex;align-items:center;justify-content:center;height:30px;width:64px;border-radius:15px;background:#fff;color:${RED};border:2px solid ${RED};box-sizing:border-box;font:700 13px var(--font-opensans),Open Sans,sans-serif;box-shadow:0 3px 8px rgba(0,0,0,.15);cursor:pointer}
 .now-pin.on{background:${RED};color:#fff;border-color:#fff;box-shadow:0 0 0 8px rgba(155,27,48,.16),0 3px 8px rgba(0,0,0,.25)}
+.now-end{display:block;width:16px;height:16px;border-radius:50%;box-sizing:border-box;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.now-end.from{background:#231A1C}
+.now-end.to{background:#fff;border:4px solid ${RED}}
 @media (max-width:720px){
   .now-overlay{padding:0}
   .now-box{max-width:none;height:100%;border-radius:0}

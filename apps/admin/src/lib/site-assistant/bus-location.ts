@@ -217,7 +217,7 @@ export async function busLocation(from: string, to: string, departure: string): 
 /** Câte plecări arată butonul «Acum» de pe prima pagină. */
 export const NOW_SHOWN = 4;
 
-export interface NextTrip extends Crew { departure: string; minutes_until: number; on_road: boolean }
+export interface NextTrip extends Crew { departure: string; minutes_until: number; on_road: boolean; route_id: number | null }
 
 /**
  * Butonul «Acum» de pe prima pagină (ION-43): următoarele plecări de AZI din localitatea
@@ -240,6 +240,8 @@ export async function nextTrips(from: string, to: string): Promise<{ result: Rec
       departure: t.time.padStart(5, '0'),
       minutes_until: until,
       on_road: !!(t.vehicle_plate && w && isOnRoad(w, now)),
+      // Legătura cu linia rutei din route_shapes (migr. 392) — harta «Acum» o desenează.
+      route_id: t.route_id != null ? Number(t.route_id) : null,
       ...crewOf(t),
     };
   });

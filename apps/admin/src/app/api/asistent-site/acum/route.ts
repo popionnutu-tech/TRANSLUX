@@ -25,6 +25,8 @@ function limited(): boolean {
 }
 
 const normPlate = (s: string | null | undefined) => (s ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+/** «Chișinău» și «Chisinau» sunt aceeași oprire. */
+const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[şș]/g, 's').replace(/[ţț]/g, 't').trim();
 
 export async function OPTIONS(req: NextRequest) {
   return new NextResponse(null, { status: 204, headers: cors(req) });
@@ -57,9 +59,27 @@ export async function POST(req: NextRequest) {
         });
       }
     }
+    // Linia pe drum a fiecărei rute din listă (route_shapes, migr. 392) și, pe ea, unde
+    // sunt localitatea omului și destinația lui. Ion, 23.09: «pune totuși linia de traseu
+    // pe care merge mașina, fină să fie».
+    const rids = [...new Set(r.trips.map((t) => t.route_id).filter((x): x is number => x != null))];
+    const routes: Record<number, { shape: [number, number][]; from: [number, number] | null; to: [number, number] | null }> = {};
+    if (rids.length) {
+      const { data } = await getSupabase().from('route_shapes').select('crm_route_id, shape, stops').in('crm_route_id', rids);
+      const same = (a: string, b: string | undefined) => !!b && fold(a) === fold(b);
+      for (const s of data ?? []) {
+        const stops = (s.stops ?? []) as { name: string; lat: number; lon: number }[];
+        const at = (name: string | undefined) => {
+          const st = stops.find((x) => same(x.name, name));
+          return st ? [st.lat, st.lon] as [number, number] : null;
+        };
+        routes[s.crm_route_id as number] = { shape: s.shape as [number, number][], from: at(r.fromRo), to: at(r.toRo) };
+      }
+    }
     return NextResponse.json({
       from: r.fromRo ?? null,
       to: r.toRo ?? null,
+      routes,
       trips: r.trips.map((t) => ({ ...t, ...(t.on_road ? pos.get(normPlate(t.plate)) ?? {} : {}) })),
       line_ro: r.trips.length ? null : ((r.result.line_ro ?? r.result.result_ro) as string | undefined) ?? null,
       line_ru: r.trips.length ? null : ((r.result.line_ru ?? r.result.result_ru) as string | undefined) ?? null,

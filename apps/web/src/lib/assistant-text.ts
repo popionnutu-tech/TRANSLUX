@@ -70,6 +70,9 @@ export function parseAssistantText(text: string): Block[] {
   for (const raw of text.split('\n')) {
     const line = raw.trim();
     if (!line) continue;
+    // Eticheta singură pe rând («Google Maps:» și linkul dedesubt, cum scrie modelul):
+    // butonul de sub ea o spune deja.
+    if (/^[-•*]?\s*(google\s*maps|waze)\s*:?\s*$/i.test(line)) continue;
     // Un rând care e doar un link de hartă (cu sau fără «Google Maps:» în față)
     // devine buton — așa l-a cerut clientul: «link Google Maps sau Waze pentru comoditate».
     const urls = line.match(URL_RE) ?? [];

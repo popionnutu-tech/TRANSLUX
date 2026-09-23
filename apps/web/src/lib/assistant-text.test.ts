@@ -27,6 +27,11 @@ describe('assistant-text', () => {
     expect(parts.every((p) => p.kind === 'text')).toBe(true);
   });
 
+  it('eticheta «Google Maps:» pe rând separat dispare, rămâne butonul', () => {
+    const g = 'https://www.google.com/maps/search/?api=1&query=x';
+    expect(parseAssistantText(`Google Maps:\n${g}`)).toEqual([{ kind: 'map', provider: 'google', href: g }]);
+  });
+
   it('liste cu «- »', () => {
     expect(parseAssistantText('- **06:00**\n- **07:30**').map((b) => b.kind)).toEqual(['bullet', 'bullet']);
   });

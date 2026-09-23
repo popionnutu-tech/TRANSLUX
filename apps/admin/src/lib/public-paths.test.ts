@@ -9,6 +9,11 @@ describe('isPublicPath — căile lăsate de middleware fără sesiune', () => {
     expect(isPublicPath('/api/version/')).toBe(false);
   });
 
+  it('asistentul site-ului e public exact', () => {
+    expect(isPublicPath('/api/asistent-site')).toBe(true);
+    expect(isPublicPath('/api/asistent-site/x')).toBe(false);
+  });
+
   it('prefixele existente rămân publice', () => {
     expect(isPublicPath('/login')).toBe(true);
     expect(isPublicPath('/api/cron/driver-penalties')).toBe(true);

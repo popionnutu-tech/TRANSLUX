@@ -35,7 +35,12 @@ export const PUBLIC_PREFIXES = [
  * desfășurat pentru conveierul de sarcini (task-pipeline, `tp verify`). Un prefix ar fi
  * deschis tacit și orice `/api/version-…` viitor.
  */
-export const PUBLIC_EXACT = ['/api/version'] as const;
+export const PUBLIC_EXACT = [
+  '/api/version',
+  // Asistentul de pe translux.md (ION-37): se apără singur — CORS doar spre site,
+  // plafoane pe conversație și pe sursă (app/api/asistent-site/route.ts).
+  '/api/asistent-site',
+] as const;
 
 export function isPublicPath(pathname: string): boolean {
   if ((PUBLIC_EXACT as readonly string[]).includes(pathname)) return true;

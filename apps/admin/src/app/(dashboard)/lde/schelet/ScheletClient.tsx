@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import type { Punct, UrmaRuta } from '@/components/ScheletMap';
 
@@ -36,6 +36,17 @@ const ETICHETA: React.CSSProperties = {
 
 export default function ScheletClient({ schelet }: { schelet: Schelet }) {
   const [ales, setAles] = useState<string | null>(null);
+
+  // Harta și cele două panouri au nevoie de toată lățimea, deci pagina cere barei laterale să
+  // se strângă cât stă deschisă. Preferința omului nu se atinge — la ieșire se pune la loc,
+  // iar dacă o deschide el cu butonul, rămâne deschisă.
+  useEffect(() => {
+    const cere = (strange: boolean) => {
+      window.dispatchEvent(new CustomEvent('tlx:bara', { detail: { strange } }));
+    };
+    cere(true);
+    return () => cere(false);
+  }, []);
   const orbe = useMemo(() => new Set(schelet.orbe), [schelet.orbe]);
 
   const masurate = schelet.rute.filter((r) => r.etalon != null);

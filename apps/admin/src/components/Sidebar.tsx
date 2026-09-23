@@ -352,6 +352,19 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
   const toggleCollapsed = () => setCollapsed(prev => { scriePref(!prev); return !prev; });
   const expand = () => setCollapsed(() => { scriePref(false); return false; });
 
+  // Ion, 23.09.2026: «cum se deschide scheletul, automat se închide meniul din stânga, dar pot
+  // să îl deschid». Unele pagini — harta scheletului, tablourile late — au nevoie de toată
+  // lățimea. Pagina cere strângerea printr-un eveniment, fără să atingă preferința salvată:
+  // altfel o vizită la o hartă i-ar schimba omului setarea pe toate celelalte pagini.
+  useEffect(() => {
+    const la = (e: Event) => {
+      const ce = e as CustomEvent<{ strange?: boolean }>;
+      setCollapsed(ce.detail?.strange === false ? citestePref() : true);
+    };
+    window.addEventListener('tlx:bara', la);
+    return () => window.removeEventListener('tlx:bara', la);
+  }, []);
+
   const deschis = !collapsed || pePeste;
   const nomenclatorActive = nomenclatorHrefs.some(h => pathname === h || pathname.startsWith(h + '/'));
 

@@ -1,0 +1,8 @@
+# Fără acest fișier, Vercel CLI aplică doar lista lui implicită (nu citește .gitignore),
+# care nu știe de .claude/ — deploy-vercel.sh încarcă tot monorepo-ul (rootDirectory: null),
+# iar .claude/worktrees/ ține câte un clon complet per task, cu node_modules instalat în
+# fiecare. 23.09: 34956 fișiere găsite, API-ul Vercel refuză peste 15000
+# ("Invalid request: `files` should NOT have more than 15000 items").
+.claude/
+.orca/
+node_modules

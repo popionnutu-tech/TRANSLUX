@@ -182,8 +182,9 @@ export function lockedLanguage(messages: OpenAIMessage[], body: LockTools): Voic
 
 /**
  * Replica agentului e în CEALALTĂ limbă decât cea blocată?
- * RO: orice cuvânt chirilic (≥4 litere) — vocea românească îl citește stricat, iar
- * o replică românească corectă n-are nicio literă chirilică.
+ * RO: ORICE literă chirilică — vocea românească o citește stricat, iar o replică
+ * românească corectă n-are niciuna. Pragul a fost 4 și a lăsat să treacă «На» din
+ * «На этой линии…» (simulare 23.09): cuvântul scurt pleca la TTS înaintea celui lung.
  * RU: majoritate latină și ≥12 litere latine — câte un nume latin rătăcit într-o
  * replică rusească nu e o replică românească.
  */
@@ -191,7 +192,7 @@ export function wrongLockedLanguage(text: string, lock: VoiceLang | null): boole
   if (!lock) return false;
   const cyr = (text.match(/[а-яёіїєґ]/gi) ?? []).length;
   const lat = (text.match(/[a-zăâîșțşţ]/gi) ?? []).length;
-  return lock === "ro" ? cyr >= 4 : lat >= 12 && lat > cyr;
+  return lock === "ro" ? cyr >= 1 : lat >= 12 && lat > cyr;
 }
 
 // Ce aude omul în locul replicii tăiate. În limba LINIEI (agentului), cu calea spre

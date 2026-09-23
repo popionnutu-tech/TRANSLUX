@@ -33,6 +33,9 @@ describe("wrongLockedLanguage", () => {
   it("apelul lui Ion 23.09: RO blocat, răspuns rusesc = tăiat", () => {
     expect(wrongLockedLanguage("Я вас не совсем поняла — машину забронировать нельзя.", "ro")).toBe(true);
   });
+  it("RO blocat: un singur cuvânt scurt chirilic după anunț e tăiat (simulare 23.09)", () => {
+    expect(wrongLockedLanguage("Pentru limba rusă, sunați din nou și apăsați tasta doi. На ", "ro")).toBe(true);
+  });
   it("RO blocat: replică românească cu nume latine trece", () => {
     expect(wrongLockedLanguage("Cursa din Chișinău spre Briceni pleacă la ora opt.", "ro")).toBe(false);
   });

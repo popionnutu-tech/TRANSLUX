@@ -5,8 +5,8 @@ import { phoneSpoken } from '@/lib/phone-spoken';
 
 describe('voice-to-text', () => {
   it('formatează numerele moldovenești, refuză restul', () => {
-    expect(formatPhone('+37369123456')).toBe('069 123 456');
-    expect(formatPhone('069123456')).toBe('069 123 456');
+    expect(formatPhone('+37369123456')).toBe('+373 69 123 456');
+    expect(formatPhone('069123456')).toBe('+373 69 123 456');
     expect(formatPhone('12345')).toBeNull();
   });
 
@@ -34,8 +34,8 @@ describe('voice-to-text', () => {
       driver_line_ro: `Șoferul cursei de ${timeSpoken('07:30')!.ro} este Ion. Numărul lui: ${phoneSpoken(phone)!.ro}.`,
       trips: [{ departure: '07:30', departure_spoken_ro: 'x', phone, phone_spoken_ro: 'y' }],
     }) as Record<string, unknown>;
-    expect(out.driver_line_ro).toBe('Șoferul cursei de 07:30 este Ion. Numărul lui: 069 123 456.');
-    expect(out.trips).toEqual([{ departure: '07:30', phone }]);
+    expect(out.driver_line_ro).toBe('Șoferul cursei de 07:30 este Ion. Numărul lui: +373 69 123 456.');
+    expect(out.trips).toEqual([{ departure: '07:30', phone: '+373 69 123 456' }]);
   });
 
   it('un număr care nu e în rezultat rămâne în cuvinte (nu se ghicește nimic)', () => {

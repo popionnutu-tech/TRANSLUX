@@ -4,6 +4,7 @@
 // Tot ce nu e aici și nu vine dintr-un tool, asistentul NU știe — și spune asta.
 
 import { COMPANY_PHONE_LOCAL } from '@/lib/company-phone';
+import { formatPhone } from './voice-to-text';
 
 export interface Station {
   key: 'chisinau' | 'balti' | 'edinet' | 'briceni';
@@ -87,8 +88,8 @@ export const stationMaps = (s: Station): string =>
 export const stationWaze = (s: Station): string =>
   (s.point ? `https://waze.com/ul?ll=${s.point.lat},${s.point.lon}&navigate=yes` : wazeUrl(s.query));
 
-/** Numărul liniei, în forma pe care o scrie omul: 060 401 010. */
-export const LINE_PHONE = `${COMPANY_PHONE_LOCAL.slice(0, 3)} ${COMPANY_PHONE_LOCAL.slice(3, 6)} ${COMPANY_PHONE_LOCAL.slice(6)}`;
+/** Numărul liniei, în forma pe care o scrie omul: +373 60 401 010. */
+export const LINE_PHONE = formatPhone(COMPANY_PHONE_LOCAL) ?? COMPANY_PHONE_LOCAL;
 
 /**
  * Plata online și biletul online. Pe 23.09.2026 site-ul NU vinde bilete: căutarea

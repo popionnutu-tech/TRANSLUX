@@ -66,8 +66,8 @@ describe('cards — cine duce cursa', () => {
 describe('driverLines — numărul șoferului lângă hartă', () => {
   it('prenume, mașină și număr formatat', () => {
     expect(driverLines({ driver: 'Ion', plate: '651 AKD', phone: '37369000001' }, '20:30')).toEqual({
-      driver_line_ro: 'Șoferul cursei de 20:30 (Ion, 651 AKD): 069 000 001.',
-      driver_line_ru: 'Водитель рейса 20:30 (Ion, 651 AKD): 069 000 001.',
+      driver_line_ro: 'Șoferul cursei de 20:30 (Ion, 651 AKD): +373 69 000 001.',
+      driver_line_ru: 'Водитель рейса 20:30 (Ion, 651 AKD): +373 69 000 001.',
     });
   });
   it('fără număr în grafic spune asta, nu trimite la linie', () => {

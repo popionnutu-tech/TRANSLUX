@@ -41,16 +41,16 @@ function ipHash(req: NextRequest): string | null {
 
 const TEXT = {
   busy: {
-    ro: 'Ați scris multe mesaje într-un timp scurt. Reveniți puțin mai târziu sau sunați la 060 401 010.',
-    ru: 'Слишком много сообщений за короткое время. Вернитесь чуть позже или позвоните на 060 401 010.',
+    ro: 'Ați scris multe mesaje într-un timp scurt. Reveniți puțin mai târziu sau sunați la +373 60 401 010.',
+    ru: 'Слишком много сообщений за короткое время. Вернитесь чуть позже или позвоните на +373 60 401 010.',
   },
   long: {
-    ro: 'Conversația a devenit prea lungă. Începeți una nouă sau sunați la 060 401 010.',
-    ru: 'Разговор стал слишком длинным. Начните новый или позвоните на 060 401 010.',
+    ro: 'Conversația a devenit prea lungă. Începeți una nouă sau sunați la +373 60 401 010.',
+    ru: 'Разговор стал слишком длинным. Начните новый или позвоните на +373 60 401 010.',
   },
   down: {
-    ro: 'Momentan nu pot răspunde. Încercați peste un minut sau sunați la 060 401 010.',
-    ru: 'Сейчас не могу ответить. Попробуйте через минуту или позвоните на 060 401 010.',
+    ro: 'Momentan nu pot răspunde. Încercați peste un minut sau sunați la +373 60 401 010.',
+    ru: 'Сейчас не могу ответить. Попробуйте через минуту или позвоните на +373 60 401 010.',
   },
 };
 

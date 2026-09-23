@@ -41,8 +41,8 @@ export interface TurnResult {
 }
 
 const FALLBACK = {
-  ro: 'Momentan nu pot răspunde. Încercați peste un minut sau sunați la 060 401 010.',
-  ru: 'Сейчас не могу ответить. Попробуйте через минуту или позвоните на 060 401 010.',
+  ro: 'Momentan nu pot răspunde. Încercați peste un minut sau sunați la +373 60 401 010.',
+  ru: 'Сейчас не могу ответить. Попробуйте через минуту или позвоните на +373 60 401 010.',
 };
 
 export async function runTurn(

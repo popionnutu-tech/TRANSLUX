@@ -208,7 +208,7 @@ export async function busLocation(from: string, to: string, departure: string): 
       line_ru: point.near ? `Автобус рейса ${hhmm} сейчас возле ${point.near} (позиция на ${at}). Карта под сообщением.` : `Позиция автобуса рейса ${hhmm} на ${at} — на карте под сообщением.`,
       // Pentru întrebarea care vine aproape mereu după hartă: «numărul șoferului».
       // Captura lui Ion, 23.09: fără el în rezultat, modelul l-a trimis pe om la linia
-      // 060 401 010 «ca să i se dea contactul» — deși numărul era chiar pe card.
+      // +373 60 401 010 «ca să i se dea contactul» — deși numărul era chiar pe card.
       ...driverLines(point, hhmm),
     },
   };

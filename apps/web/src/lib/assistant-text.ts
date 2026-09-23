@@ -1,3 +1,5 @@
+import { phoneTel } from './phone';
+
 // Textul asistentului, desfăcut în bucăți pe care le desenează widget-ul.
 // Fără HTML din model: tot ce vine de la server devine text React sau un link
 // verificat aici (doar https), deci un răspuns ciudat nu poate injecta nimic.
@@ -26,10 +28,8 @@ function mapProvider(href: string): 'google' | 'waze' | null {
   return null;
 }
 
-function telHref(label: string): string {
-  const d = label.replace(/\D/g, '');
-  return `tel:+373${d.startsWith('373') ? d.slice(3) : d.slice(1)}`;
-}
+// Linkul cu «+373», ca să sune și de peste hotare (lib/phone).
+const telHref = phoneTel;
 
 function splitPlain(text: string): Inline[] {
   const out: Inline[] = [];

@@ -13,6 +13,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Map as LMap, LayerGroup } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Locale } from '@/lib/i18n';
+import { phoneTel, phoneText } from '@/lib/phone';
 
 const ENDPOINT = process.env.NEXT_PUBLIC_ASSISTANT_URL || 'https://central-hub-md.vercel.app/api/asistent-site';
 const REFRESH_MS = 60_000;
@@ -32,12 +33,9 @@ interface NowTrip {
 
 interface NowData { trips: NowTrip[]; line_ro: string | null; line_ru: string | null }
 
-/** «37369384765» → «069 384 765» pentru ochi; linkul sună pe «+37369384765». */
+/** «37369384765» → «+373 69 384 765» (Ion, 23.09: mereu +373, ca să sune și de peste hotare). */
 function phoneView(raw: string): { text: string; tel: string } {
-  const d = raw.replace(/\D/g, '');
-  const local = d.length === 11 && d.startsWith('373') ? `0${d.slice(3)}` : d.length === 9 && d.startsWith('0') ? d : null;
-  if (!local) return { text: raw, tel: raw.replace(/[^\d+]/g, '') };
-  return { text: `${local.slice(0, 3)} ${local.slice(3, 6)} ${local.slice(6)}`, tel: `+373${local.slice(1)}` };
+  return { text: phoneText(raw), tel: phoneTel(raw).replace(/^tel:/, '') };
 }
 
 const TXT = {

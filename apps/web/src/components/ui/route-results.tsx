@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import type { TripResult } from "@/app/(public)/actions";
+import { phoneTel, phoneText } from "@/lib/phone";
 
 interface RouteResultsProps {
   from: string;
@@ -140,7 +141,8 @@ export function RouteResults({ from, to, trips, selectedTime, locale = "ro", onC
           {trips.map((trip, i) => {
             const isSelected = i === selectedIdx;
             const near = isNearby(i);
-            const displayPhone = trip.phone ? '0' + trip.phone.replace(/^\+?373/, '') : null;
+            // Mereu +373 (Ion, 23.09): din străinătate «069…» nu sună, iar linkul fără «+» nici el.
+            const displayPhone = trip.phone ? phoneText(trip.phone) : null;
             return (
               <div
                 key={`${trip.time}-${i}`}
@@ -248,7 +250,7 @@ export function RouteResults({ from, to, trips, selectedTime, locale = "ro", onC
                 {/* Phone */}
                 {displayPhone && (
                   <a
-                    href={`tel:${trip.phone}`}
+                    href={phoneTel(trip.phone!)}
                     onClick={(e) => {
                       e.stopPropagation();
                       fetch('/api/analytics/track', {

@@ -190,7 +190,7 @@ async function sendLostItem(ctx: ToolContext, input: Record<string, unknown>): P
     return { need_more: true, result_ro: 'Numărul nu arată ca un număr din Moldova. Cere clientului numărul corect (ex. 069 123 456).', result_ru: 'Номер не похож на молдавский. Попроси клиента правильный номер (например 069 123 456).' };
   }
   if ((await driversGroupChatId()) === null) {
-    return { sent: false, result_ro: 'Transmiterea către șoferi nu merge acum. Spune-i clientului să sune la 060 401 010.', result_ru: 'Передача водителям сейчас не работает. Скажи клиенту позвонить на 060 401 010.' };
+    return { sent: false, result_ro: 'Transmiterea către șoferi nu merge acum. Spune-i clientului să sune la +373 60 401 010.', result_ru: 'Передача водителям сейчас не работает. Скажи клиенту позвонить на +373 60 401 010.' };
   }
   const item = await claimLostItemForGroup(ctx.conversationId);
   if (!item) {
@@ -202,7 +202,7 @@ async function sendLostItem(ctx: ToolContext, input: Record<string, unknown>): P
   ).catch(() => false);
   if (!ok) {
     await releaseLostItemClaim(ctx.conversationId);
-    return { sent: false, result_ro: 'Nu am putut trimite acum. Spune-i clientului să sune la 060 401 010.', result_ru: 'Сейчас не получилось отправить. Скажи клиенту позвонить на 060 401 010.' };
+    return { sent: false, result_ro: 'Nu am putut trimite acum. Spune-i clientului să sune la +373 60 401 010.', result_ru: 'Сейчас не получилось отправить. Скажи клиенту позвонить на +373 60 401 010.' };
   }
   return {
     sent: true,

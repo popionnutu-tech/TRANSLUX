@@ -14,10 +14,11 @@ import type { Locale } from '@/lib/i18n';
 import { parseAssistantText, type Inline } from '@/lib/assistant-text';
 import type { Card, Crew } from '@/lib/assistant-cards';
 import BusMap from './BusMap';
+import { LINE_TEL, LINE_TEXT, phoneTel, phoneText } from '@/lib/phone';
 
 const ENDPOINT = process.env.NEXT_PUBLIC_ASSISTANT_URL || 'https://central-hub-md.vercel.app/api/asistent-site';
 const RED = '#9B1B30';
-const LINE_TEL = 'tel:+37360401010';
+// Linia companiei, în forma internațională (lib/phone).
 const STORE_KEY = 'translux_asistent_v2';
 const TEASER_KEY = 'translux_asistent_teaser_closed';
 
@@ -47,9 +48,9 @@ const TEXT = {
     open: 'Deschide asistentul',
     minimize: 'Minimizează',
     hideTeaser: 'Ascunde invitația',
-    call: 'Sună la 060 401 010',
+    call: 'Sună la +373 60 401 010',
     typing: 'Asistentul scrie',
-    error: 'Nu am putut trimite mesajul. Verifică internetul sau sună la 060 401 010.',
+    error: 'Nu am putut trimite mesajul. Verifică internetul sau sună la +373 60 401 010.',
     restart: 'Conversație nouă',
     note: 'Asistent AI · Pentru urgențe:',
     maps: 'Google Maps', waze: 'Waze', mapsPoint: 'Punctul pe Google Maps',
@@ -97,9 +98,9 @@ const TEXT = {
     open: 'Открыть ассистента',
     minimize: 'Свернуть',
     hideTeaser: 'Скрыть приглашение',
-    call: 'Позвонить 060 401 010',
+    call: 'Позвонить +373 60 401 010',
     typing: 'Ассистент пишет',
-    error: 'Не удалось отправить сообщение. Проверьте интернет или позвоните 060 401 010.',
+    error: 'Не удалось отправить сообщение. Проверьте интернет или позвоните +373 60 401 010.',
     restart: 'Новый разговор',
     note: 'AI-ассистент · Срочно:',
     maps: 'Google Maps', waze: 'Waze', mapsPoint: 'Точка на Google Maps',
@@ -138,10 +139,7 @@ function save(s: Saved) {
   try { sessionStorage.setItem(STORE_KEY, JSON.stringify(s)); } catch { /* merge și fără stocare */ }
 }
 
-function telHref(phone: string): string {
-  const d = phone.replace(/\D/g, '');
-  return `tel:+373${d.startsWith('373') ? d.slice(3) : d.replace(/^0/, '')}`;
-}
+const telHref = phoneTel;
 
 function InlineParts({ parts }: { parts: Inline[] }) {
   return (
@@ -174,12 +172,8 @@ function BotText({ text, i }: { text: string; i: T }) {
   );
 }
 
-/** +37369123456 → «069 123 456». */
-function fmtPhone(phone: string): string {
-  const d = phone.replace(/\D/g, '');
-  const local = d.startsWith('373') ? '0' + d.slice(3) : d;
-  return local.length === 9 ? `${local.slice(0, 3)} ${local.slice(3, 6)} ${local.slice(6)}` : phone;
-}
+/** Mereu «+373 69 123 456» (Ion, 23.09). */
+const fmtPhone = phoneText;
 
 // Cine duce cursa, minimalist: «Ion · 651 AKD» lângă oră (Ion, 23.09).
 function CrewName({ crew, i }: { crew: Crew; i: T }) {
@@ -555,7 +549,7 @@ export default function AssistantWidget({ locale }: { locale: Locale }) {
               <button type="submit" disabled={busy || !input.trim()} aria-label={i.send}><ArrowUp size={18} /></button>
             </form>
             <div className="asst-foot">
-              <span>{i.note} <a href={LINE_TEL}>060 401 010</a></span>
+              <span>{i.note} <a href={LINE_TEL}>{LINE_TEXT}</a></span>
               {messages.length > 0 && <button type="button" onClick={() => { setMessages([]); setConversationId(null); }}>{i.restart}</button>}
             </div>
           </div>

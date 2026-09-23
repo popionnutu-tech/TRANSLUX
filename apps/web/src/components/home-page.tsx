@@ -338,7 +338,7 @@ export function HomePage({ locale, localities = [], popularPrices = [] }: HomePa
                 opacity: 0.6,
               }} />
               <p style={{ fontSize: 13, color: '#555', margin: '6px 0 2px' }}>
-                <a href="tel:+37360401010" style={{ color: '#555', textDecoration: 'none' }}>+373 60 40 10 10</a>
+                <a href="tel:+37360401010" style={{ color: '#555', textDecoration: 'none' }}>+373 60 401 010</a>
               </p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

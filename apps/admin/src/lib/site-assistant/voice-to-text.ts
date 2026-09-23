@@ -35,12 +35,14 @@ const TIME_RE = new RegExp(
   `(?<!\\p{L})(?:${TIME_PAIRS.map((p) => escape(p.spoken)).join('|')})(?!\\p{L})`, 'gu',
 );
 
-/** 069123456 → «069 123 456»: așa se citește și se tastează un număr moldovenesc. */
+/** 069123456 → «+373 69 123 456»: forma care sună de oriunde. */
 export function formatPhone(raw: string): string | null {
   const digits = raw.replace(/\D/g, '');
-  const local = /^373\d{8}$/.test(digits) ? '0' + digits.slice(3) : /^0\d{8}$/.test(digits) ? digits : null;
-  if (!local) return null;
-  return `${local.slice(0, 3)} ${local.slice(3, 6)} ${local.slice(6)}`;
+  // Mereu în forma internațională (Ion, 23.09: «întotdeauna +373 și mai departe numărul
+  // fără 0, ca dacă sună peste hotare să poată automat suna»).
+  const national = /^373\d{8}$/.test(digits) ? digits.slice(3) : /^0\d{8}$/.test(digits) ? digits.slice(1) : null;
+  if (!national) return null;
+  return `+373 ${national.slice(0, 2)} ${national.slice(2, 5)} ${national.slice(5)}`;
 }
 
 /** Înlocuiește în text orele și numerele (din `phones`) scrise în cuvinte. */
@@ -83,6 +85,8 @@ export function voiceResultToText(result: unknown, extraPhones: string[] = []): 
       const out: Record<string, unknown> = {};
       for (const [k, val] of Object.entries(v)) {
         if (k.includes('_spoken')) continue;
+        // Și numerele brute («37369…») pleacă spre model deja în forma +373.
+        if ((k === 'phone' || k.endsWith('_phone')) && typeof val === 'string') { out[k] = formatPhone(val) ?? val; continue; }
         out[k] = walk(val);
       }
       return out;

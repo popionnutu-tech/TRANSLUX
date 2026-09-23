@@ -7,7 +7,7 @@ export interface Crew { driver: string | null; plate: string | null; phone: stri
 export type Card =
   | { type: 'trips'; from: string; to: string; date: string; total: number;
       trips: (Crew & { time: string; price: number | null })[] }
-  | { type: 'station'; key: 'chisinau' | 'balti'; name_ro: string; name_ru: string;
+  | { type: 'station'; key: 'chisinau' | 'balti' | 'edinet' | 'briceni'; name_ro: string; name_ru: string;
       address_ro: string; address_ru: string; maps: string; waze: string }
   | { type: 'pick'; from: string; to: string; trips: (Crew & { departure: string; minutes_ago: number })[] }
   | ({ type: 'bus'; from: string; to: string; departure: string; lat: number; lon: number;

@@ -134,7 +134,7 @@ export const SITE_TOOLS: Anthropic.Tool[] = [
     description: 'Arată sub mesaj cardul stației cu adresa și butoanele Google Maps și Waze.',
     input_schema: {
       type: 'object',
-      properties: { statie: { type: 'string', enum: ['chisinau', 'balti'], description: 'Care stație.' } },
+      properties: { statie: { type: 'string', enum: ['chisinau', 'balti', 'edinet', 'briceni'], description: 'Care stație.' } },
       required: ['statie'],
     },
   },

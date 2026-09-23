@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cors } from '@/lib/site-assistant/cors';
 import { nextTrips, MAX_AGE_MIN } from '@/lib/site-assistant/bus-location';
 import { getSupabase } from '@/lib/supabase';
+import { etaFrom, remainingKm, routePace } from '@/lib/site-assistant/bus-eta';
 
 // Butonul «Acum» de pe prima pagină a translux.md (ION-43). Ion, 23.09: omul alege
 // «de unde → încotro» și apasă «Acum» sau «Mai târziu»; fără geolocația lui.
@@ -28,6 +29,27 @@ const normPlate = (s: string | null | undefined) => (s ?? '').toUpperCase().repl
 /** «Chișinău» și «Chisinau» sunt aceeași oprire. */
 const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[şș]/g, 's').replace(/[ţț]/g, 't').trim();
 
+/**
+ * Ora orientativă la care autobuzul ajunge în localitatea omului (Ion, 23.09: «ora
+ * exactă orientativ când ajunge rutiera, nu cea din engine, în baza la GPS din trecut»).
+ * Doar pentru autobuzul care e pe drum și are punct: km rămași pe linia rutei × minutele
+ * pe km ale rutei din istoric (lib/site-assistant/bus-eta.ts). `passed` = a trecut deja.
+ */
+async function etaFor(
+  routeId: number | null,
+  p: { lat: number; lon: number; atIso: string },
+  routes: Record<number, { shape: [number, number][]; from: [number, number] | null; to: [number, number] | null }>,
+): Promise<{ eta?: string; eta_min?: number; passed?: boolean }> {
+  const rt = routeId != null ? routes[routeId] : undefined;
+  if (!rt?.from || !rt.to) return {};
+  const rem = remainingKm(rt.shape, [p.lat, p.lon], rt.from, rt.to);
+  if (!rem) return {};
+  if (rem.passed) return { passed: true };
+  const pace = await routePace(routeId!);
+  if (!pace) return {};
+  return etaFrom(rem.km, pace, p.atIso);
+}
+
 export async function OPTIONS(req: NextRequest) {
   return new NextResponse(null, { status: 204, headers: cors(req) });
 }
@@ -47,14 +69,14 @@ export async function POST(req: NextRequest) {
     const r = await nextTrips(from, to);
     // Punctul doar pentru autobuzul care e deja pe drum după grafic (poarta ION-39).
     const plates = [...new Set(r.trips.filter((t) => t.on_road).map((t) => normPlate(t.plate)).filter(Boolean))];
-    const pos = new Map<string, { lat: number; lon: number; near: string | null; at: string }>();
+    const pos = new Map<string, { lat: number; lon: number; near: string | null; at: string; atIso: string }>();
     if (plates.length) {
       const { data } = await getSupabase().from('bus_live_positions').select('plate, lat, lon, at, near').in('plate', plates);
       for (const p of data ?? []) {
         // Un punct mai vechi nu mai e «acum»: cursa rămâne în listă, fără punct.
         if ((Date.now() - Date.parse(p.at as string)) / 60_000 > MAX_AGE_MIN) continue;
         pos.set(p.plate as string, {
-          lat: p.lat as number, lon: p.lon as number, near: (p.near as string | null) ?? null,
+          lat: p.lat as number, lon: p.lon as number, near: (p.near as string | null) ?? null, atIso: p.at as string,
           at: new Date(p.at as string).toLocaleTimeString('en-GB', { timeZone: 'Europe/Chisinau', hour: '2-digit', minute: '2-digit', hour12: false }),
         });
       }
@@ -80,7 +102,10 @@ export async function POST(req: NextRequest) {
       from: r.fromRo ?? null,
       to: r.toRo ?? null,
       routes,
-      trips: r.trips.map((t) => ({ ...t, ...(t.on_road ? pos.get(normPlate(t.plate)) ?? {} : {}) })),
+      trips: await Promise.all(r.trips.map(async (t) => {
+        const p = t.on_road ? pos.get(normPlate(t.plate)) : undefined;
+        return { ...t, ...(p ?? {}), ...(p ? await etaFor(t.route_id, p, routes) : {}) };
+      })),
       line_ro: r.trips.length ? null : ((r.result.line_ro ?? r.result.result_ro) as string | undefined) ?? null,
       line_ru: r.trips.length ? null : ((r.result.line_ru ?? r.result.result_ru) as string | undefined) ?? null,
     }, { headers });

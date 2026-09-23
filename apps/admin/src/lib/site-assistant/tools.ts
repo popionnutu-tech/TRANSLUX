@@ -13,6 +13,8 @@ import { claimLostItemForGroup, releaseLostItemClaim } from '@/lib/voice/lost-it
 import { getComplaintSummary } from '@/lib/voice/complaints';
 import { driversGroupChatId, formatLostItemForGroup, notifyDriversGroup } from '@/lib/voice/drivers-group';
 import { normalizePhone } from '@/lib/voice/phone';
+import { tripsOnRoad, busLocation } from './bus-location';
+import { busCard, pickCard, stationCard, tripsCard, type Card } from './cards';
 
 const LOC = 'Numele localității în română (ex. «Chișinău», «Bălți»).';
 const DAY = 'Ziua, cum a spus-o clientul: «azi», «mâine», «ieri», «sâmbătă» sau data (ex. «25.09»). Serverul o rezolvă.';
@@ -105,6 +107,37 @@ export const SITE_TOOLS: Anthropic.Tool[] = [
       required: ['complaint'],
     },
   },
+  {
+    name: 'curse_pe_drum',
+    description: 'UNDE E AUTOBUZUL, pasul 1: cursele interurbane de AZI de pe o direcție care sunt ACUM pe drum, după grafic. Clientul își alege cursa din lista afișată sub mesaj.',
+    input_schema: {
+      type: 'object',
+      properties: { from: { type: 'string', description: LOC }, to: { type: 'string', description: LOC } },
+      required: ['from', 'to'],
+    },
+  },
+  {
+    name: 'unde_e_autobuzul',
+    description: 'UNDE E AUTOBUZUL, pasul 2: punctul de acum al autobuzului UNEI curse de azi (ora plecării clientului din localitatea lui). Doar cât cursa e pe drum după grafic. Harta apare sub mesaj.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        from: { type: 'string', description: LOC },
+        to: { type: 'string', description: LOC },
+        departure: { type: 'string', description: 'Ora cursei, HH:MM.' },
+      },
+      required: ['from', 'to', 'departure'],
+    },
+  },
+  {
+    name: 'arata_statia',
+    description: 'Arată sub mesaj cardul stației cu adresa și butoanele Google Maps și Waze.',
+    input_schema: {
+      type: 'object',
+      properties: { statie: { type: 'string', enum: ['chisinau', 'balti'], description: 'Care stație.' } },
+      required: ['statie'],
+    },
+  },
 ];
 
 const ENDPOINT: Record<string, string> = {
@@ -184,8 +217,38 @@ async function sendLostItem(ctx: ToolContext, input: Record<string, unknown>): P
   };
 }
 
-export async function executeSiteTool(ctx: ToolContext, name: string, input: Record<string, unknown>): Promise<unknown> {
-  if (name === 'trimite_lucrul_uitat_soferilor') return sendLostItem(ctx, input);
-  if (!ENDPOINT[name]) return { error: `tool necunoscut: ${name}` };
-  return callVoiceTool(ctx, name, input);
+export interface ToolOutcome {
+  /** Ce citește modelul. */
+  result: unknown;
+  /** Ce desenează widget-ul sub mesaj — construit din date, nu de model. */
+  card?: Card | null;
+}
+
+const str = (v: unknown) => (typeof v === 'string' ? v.slice(0, 80) : '');
+
+export async function executeSiteTool(ctx: ToolContext, name: string, input: Record<string, unknown>): Promise<ToolOutcome> {
+  try {
+    switch (name) {
+      case 'trimite_lucrul_uitat_soferilor':
+        return { result: await sendLostItem(ctx, input) };
+      case 'curse_pe_drum': {
+        const r = await tripsOnRoad(str(input.from), str(input.to));
+        return { result: r.result, card: r.fromRo && r.toRo ? pickCard(r.fromRo, r.toRo, r.trips) : null };
+      }
+      case 'unde_e_autobuzul': {
+        const r = await busLocation(str(input.from), str(input.to), str(input.departure));
+        return { result: r.result, card: r.point ? busCard(r.point) : null };
+      }
+      case 'arata_statia': {
+        const card = stationCard(str(input.statie));
+        return { result: card ? { shown: true } : { error: 'stație necunoscută' }, card };
+      }
+    }
+    if (!ENDPOINT[name]) return { result: { error: `tool necunoscut: ${name}` } };
+    const result = await callVoiceTool(ctx, name, input);
+    return { result, card: name === 'search_trips' ? tripsCard(input, result) : null };
+  } catch (err) {
+    console.error(`site-assistant tool ${name}:`, (err as Error).message);
+    return { result: { error: `tool ${name} indisponibil acum` } };
+  }
 }

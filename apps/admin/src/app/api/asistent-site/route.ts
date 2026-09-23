@@ -135,9 +135,9 @@ export async function POST(req: NextRequest) {
       // Răspunsul l-am avut; o istorie nescrisă înseamnă doar că tura următoare
       // începe fără ea — nu merită să-l lăsăm pe om fără răspuns.
       console.error('asistent-site save:', err);
-      return reply(200, { reply: turn.reply, conversation_id: isNew ? null : current.id });
+      return reply(200, { reply: turn.reply, cards: turn.cards, conversation_id: isNew ? null : current.id });
     }
-    return reply(200, { reply: turn.reply, conversation_id: current.id });
+    return reply(200, { reply: turn.reply, cards: turn.cards, conversation_id: current.id });
   } catch (err) {
     console.error('asistent-site turn:', err);
     return reply(503, { reply: TEXT.down[locale], conversation_id: isNew ? null : current.id });

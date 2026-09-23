@@ -6,6 +6,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { activeComplaintTypes } from '@/lib/voice/complaint-types';
 import { buildSystemPrompt } from './prompt';
 import { SITE_TOOLS, executeSiteTool, type ToolContext } from './tools';
+import type { Card } from './cards';
 
 const MODEL = 'claude-haiku-4-5';
 const MAX_TOKENS = 700;
@@ -35,6 +36,8 @@ export interface TurnResult {
   reply: string;
   messages: Anthropic.MessageParam[];
   toolsUsed: string[];
+  /** Cardurile de sub mesaj; de fiecare fel rămâne ultimul (modelul poate repeta un tool). */
+  cards: Card[];
 }
 
 const FALLBACK = {
@@ -52,6 +55,8 @@ export async function runTurn(
   ];
   const messages: Anthropic.MessageParam[] = [...history, { role: 'user', content: userText }];
   const toolsUsed: string[] = [];
+  const cards = new Map<Card['type'], Card>();
+  const cardList = () => [...cards.values()];
 
   for (let i = 0; i < MAX_ITERATIONS; i++) {
     const res = await getClient().messages.create({
@@ -64,7 +69,7 @@ export async function runTurn(
       const reply = res.content
         .filter((b): b is Anthropic.TextBlock => b.type === 'text')
         .map((b) => b.text).join('\n').trim();
-      return { reply: reply || FALLBACK[locale], messages, toolsUsed };
+      return { reply: reply || FALLBACK[locale], messages, toolsUsed, cards: cardList() };
     }
 
     const results: Anthropic.ToolResultBlockParam[] = [];
@@ -72,7 +77,8 @@ export async function runTurn(
       if (block.type !== 'tool_use') continue;
       toolsUsed.push(block.name);
       const out = await executeSiteTool(ctx, block.name, (block.input ?? {}) as Record<string, unknown>);
-      results.push({ type: 'tool_result', tool_use_id: block.id, content: JSON.stringify(out) });
+      if (out.card) { cards.delete(out.card.type); cards.set(out.card.type, out.card); }
+      results.push({ type: 'tool_result', tool_use_id: block.id, content: JSON.stringify(out.result) });
     }
     messages.push({ role: 'user', content: results });
   }
@@ -80,5 +86,5 @@ export async function runTurn(
   // Bucla n-a ajuns la un text: istoria se închide cu un răspuns, ca tura
   // următoare să nu înceapă după un tool_result fără replică.
   messages.push({ role: 'assistant', content: FALLBACK[locale] });
-  return { reply: FALLBACK[locale], messages, toolsUsed };
+  return { reply: FALLBACK[locale], messages, toolsUsed, cards: cardList() };
 }

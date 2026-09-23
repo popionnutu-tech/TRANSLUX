@@ -89,6 +89,29 @@ export function HomePage({ locale, localities = [], popularPrices = [] }: HomePa
               maskSize: 'contain', maskRepeat: 'no-repeat',
             }} />
           </a>
+
+          {/* Limba: sus, în antet (ION-39) — colțul de jos e al asistentului */}
+          <div className="lang-toggle-3d" style={{
+            display: 'flex', gap: 2,
+            borderRadius: 10, padding: 3,
+          }}>
+            <a href="/ro" className="lang-btn" style={{
+              color: locale === 'ro' ? '#9B1B30' : 'rgba(155,27,48,0.35)',
+              fontWeight: 700, fontSize: 11, letterSpacing: 1.2,
+              textDecoration: 'none', padding: '5px 10px', borderRadius: 8,
+              background: locale === 'ro' ? 'rgba(155,27,48,0.08)' : 'transparent',
+              fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
+              transition: 'all 0.15s ease',
+            }}>RO</a>
+            <a href="/ru" className="lang-btn" style={{
+              color: locale === 'ru' ? '#9B1B30' : 'rgba(155,27,48,0.35)',
+              fontWeight: 700, fontSize: 11, letterSpacing: 1.2,
+              textDecoration: 'none', padding: '5px 10px', borderRadius: 8,
+              background: locale === 'ru' ? 'rgba(155,27,48,0.08)' : 'transparent',
+              fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
+              transition: 'all 0.15s ease',
+            }}>RU</a>
+          </div>
         </header>
 
         <section style={{
@@ -324,29 +347,6 @@ export function HomePage({ locale, localities = [], popularPrices = [] }: HomePa
       {/* Asistentul AI (ION-37): colțul dreapta-jos, deasupra comutatorului de limbă */}
       <AssistantWidget locale={locale} />
 
-      {/* Lang toggle */}
-      <div className="lang-toggle-3d" style={{
-        position: 'fixed', right: 16, bottom: 16, zIndex: 3,
-        display: 'flex', gap: 2,
-        borderRadius: 10, padding: 3,
-      }}>
-        <a href="/ro" className="lang-btn" style={{
-          color: locale === 'ro' ? '#9B1B30' : 'rgba(155,27,48,0.35)',
-          fontWeight: 700, fontSize: 11, letterSpacing: 1.2,
-          textDecoration: 'none', padding: '5px 10px', borderRadius: 8,
-          background: locale === 'ro' ? 'rgba(155,27,48,0.08)' : 'transparent',
-          fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
-          transition: 'all 0.15s ease',
-        }}>RO</a>
-        <a href="/ru" className="lang-btn" style={{
-          color: locale === 'ru' ? '#9B1B30' : 'rgba(155,27,48,0.35)',
-          fontWeight: 700, fontSize: 11, letterSpacing: 1.2,
-          textDecoration: 'none', padding: '5px 10px', borderRadius: 8,
-          background: locale === 'ru' ? 'rgba(155,27,48,0.08)' : 'transparent',
-          fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
-          transition: 'all 0.15s ease',
-        }}>RU</a>
-      </div>
 
       {showResults && (
         <RouteResults

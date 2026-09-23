@@ -29,6 +29,10 @@ export interface TripResult {
   originalPrice: number | null; // non-null when an offer applies (show crossed out)
   isAwaitingDriver?: boolean; // true when departure is >7 days out and no driver assigned yet
   isDeparted?: boolean; // true doar la căutarea pe AZI: cursa a plecat deja (ora Chișinăului)
+  // Legătura internă cu ruta din grafic (ION-39): asistentul site-ului află din ea
+  // orele cursei întregi și mașina ei. Nu se rostește și nu iese spre client.
+  route_id?: number | string;
+  going_north?: boolean;
 }
 
 export interface ActiveOffer {
@@ -468,6 +472,8 @@ export async function searchTrips(
           if (daysUntilDeparture >= 1) {
             results.push({
               time,
+              route_id: route.id,
+              going_north: goingNorth,
               arrivalTime: arrival,
               destination_ro: route.dest_to_ro,
               destination_ru: route.dest_to_ru,
@@ -486,6 +492,8 @@ export async function searchTrips(
         }
         results.push({
           time,
+          route_id: route.id,
+          going_north: goingNorth,
           arrivalTime: arrival,
           destination_ro: route.dest_to_ro,
           destination_ru: route.dest_to_ru,
@@ -513,6 +521,8 @@ export async function searchTrips(
           if (daysUntilDeparture >= 1) {
             results.push({
               time,
+              route_id: route.id,
+              going_north: goingNorth,
               arrivalTime: arrival,
               destination_ro: route.dest_from_ro,
               destination_ru: route.dest_from_ru,
@@ -531,6 +541,8 @@ export async function searchTrips(
         }
         results.push({
           time,
+          route_id: route.id,
+          going_north: goingNorth,
           arrivalTime: arrival,
           destination_ro: route.dest_from_ro,
           destination_ru: route.dest_from_ru,

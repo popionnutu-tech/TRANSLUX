@@ -53,16 +53,31 @@ export default function ScheletClient({ schelet }: { schelet: Schelet }) {
   const kmZi = masurate.reduce((s, r) => s + (r.etalon ?? 0) * 2, 0);
   const locuri = schelet.rute.reduce((s, r) => s + r.loc, 0);
 
-  const urme: UrmaRuta[] = useMemo(
-    () => schelet.rute.filter((r) => r.g).map((r) => ({
-      id: r.id,
-      culoare: culoarea(r.loc),
-      capat: r.capat,
-      plin: [r.g?.tur?.plin, r.g?.retur?.plin].filter((x): x is Punct[] => !!x && x.length > 1),
-      sate: [...(r.g?.tur?.sate ?? []), ...(r.g?.retur?.sate ?? [])],
-    })),
-    [schelet.rute],
-  );
+  // Ion, 23.09.2026: «locul de trai [al] șoferilor apare pe harta rutei». Satele se strâng
+  // de pe TOATĂ urma zilei, inclusiv de pe drumul gol de acasă până la capăt — deci pe hartă
+  // ieșea și satul unde doarme mașina, care n-are nicio treabă cu ruta. Pe hartă rămân doar
+  // satele care cad pe drumul CU OAMENI; unde doarme șoferul e treaba nomenclatorului.
+  const urme: UrmaRuta[] = useMemo(() => {
+    const aproape = (c: Punct, linii: Punct[][], prag = 0.8) => {
+      for (const l of linii) for (const p of l) {
+        const dla = (p[0] - c[0]) * 111.32;
+        const dlo = (p[1] - c[1]) * 111.32 * Math.cos(((p[0] + c[0]) / 2) * Math.PI / 180);
+        if (dla * dla + dlo * dlo <= prag * prag) return true;
+      }
+      return false;
+    };
+    return schelet.rute.filter((r) => r.g).map((r) => {
+      const plin = [r.g?.tur?.plin, r.g?.retur?.plin].filter((x): x is Punct[] => !!x && x.length > 1);
+      const toate = [...(r.g?.tur?.sate ?? []), ...(r.g?.retur?.sate ?? [])];
+      const vazut = new Set<string>();
+      const sate = toate.filter((x) => {
+        if (vazut.has(x.n)) return false;
+        vazut.add(x.n);
+        return x.n === r.capat || aproape(x.c, plin);
+      });
+      return { id: r.id, culoare: culoarea(r.loc), capat: r.capat, plin, sate };
+    });
+  }, [schelet.rute]);
 
   const ruta = ales ? schelet.rute.find((r) => r.id === ales) ?? null : null;
 

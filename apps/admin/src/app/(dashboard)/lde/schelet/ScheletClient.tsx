@@ -6,7 +6,7 @@ import type { Punct, UrmaRuta } from '@/components/ScheletMap';
 
 const ScheletMap = dynamic(() => import('@/components/ScheletMap'), {
   ssr: false,
-  loading: () => <div className="text-muted" style={{ padding: 16 }}>Se încarcă harta…</div>,
+  loading: () => <div style={{ padding: 16, color: 'var(--text-secondary)' }}>Se încarcă harta…</div>,
 });
 
 export type Bucata = { gol: Punct[]; plin: Punct[]; sate: { n: string; c: Punct }[] };
@@ -18,21 +18,29 @@ export type Ruta = {
 export type Schelet = { fixat: string; orbe: string[]; rute: Ruta[] };
 
 // Ion, 23.09.2026: «culorile rutei reieșind din tip auto folosit, 20-23 locuri un tip, 27 alt,
-// 60 alt». Capacitatea spune ce fel de mașină îi trebuie rutei, deci ea dă culoarea — nu tura.
+// 60 alt». Capacitatea spune ce fel de mașină îi trebuie rutei, deci ea dă culoarea rutei.
+// Restul paginii rămâne în paleta casei — alb și burgundiu.
 const CLASE = [
-  { test: (l: number) => l <= 23, eticheta: '20–23 locuri', culoare: '#2f6f68' },
-  { test: (l: number) => l === 27, eticheta: '27 locuri', culoare: '#b06a1f' },
-  { test: (l: number) => l >= 60, eticheta: '60 locuri', culoare: '#3c5795' },
+  { test: (l: number) => l <= 23, eticheta: '20–23 locuri', culoare: '#2F6F68' },
+  { test: (l: number) => l === 27, eticheta: '27 locuri', culoare: '#B06A1F' },
+  { test: (l: number) => l >= 60, eticheta: '60 locuri', culoare: '#3C5795' },
 ];
 const culoarea = (loc: number) => (CLASE.find((c) => c.test(loc)) ?? CLASE[0]).culoare;
-const km = (x: number) => `${(Math.round(x * 10) / 10).toFixed(1).replace('.', ',')} km`;
+const nr1 = (x: number) => (Math.round(x * 10) / 10).toFixed(1).replace('.', ',');
+
+const MONO = "var(--font-mono, 'JetBrains Mono', ui-monospace, monospace)";
+const ETICHETA: React.CSSProperties = {
+  fontSize: 10, fontWeight: 700, letterSpacing: '0.09em',
+  textTransform: 'uppercase', color: 'var(--text-muted)',
+};
 
 export default function ScheletClient({ schelet }: { schelet: Schelet }) {
   const [ales, setAles] = useState<string | null>(null);
   const orbe = useMemo(() => new Set(schelet.orbe), [schelet.orbe]);
 
   const masurate = schelet.rute.filter((r) => r.etalon != null);
-  const kmPlin = masurate.reduce((s, r) => s + (r.etalon ?? 0) * 2, 0);
+  const kmZi = masurate.reduce((s, r) => s + (r.etalon ?? 0) * 2, 0);
+  const locuri = schelet.rute.reduce((s, r) => s + r.loc, 0);
 
   const urme: UrmaRuta[] = useMemo(
     () => schelet.rute.filter((r) => r.g).map((r) => ({
@@ -45,171 +53,202 @@ export default function ScheletClient({ schelet }: { schelet: Schelet }) {
     [schelet.rute],
   );
 
+  const ruta = ales ? schelet.rute.find((r) => r.id === ales) ?? null : null;
+
+  const insigna = (r: Ruta, mare = false) => (
+    <span style={{
+      fontFamily: MONO, fontSize: mare ? 12 : 11, fontWeight: 700, color: '#fff',
+      background: r.etalon == null ? '#c5b9bc' : culoarea(r.loc),
+      borderRadius: 5, padding: mare ? '4px 7px' : '3px 5px', minWidth: mare ? 30 : 26,
+      textAlign: 'center', flexShrink: 0,
+    }}>{r.id}</span>
+  );
+
   const rand = (r: Ruta) => {
-    const deschis = r.id === ales;
-    const c = culoarea(r.loc);
+    const activ = r.id === ales;
     return (
-      <div key={r.id} style={{ borderBottom: '1px solid var(--border, #e5e5e5)' }}>
-        <button
-          onClick={() => setAles(deschis ? null : r.id)}
-          style={{
-            display: 'block', width: '100%', textAlign: 'left', background: deschis ? 'var(--bg-elevated, #f8f8f8)' : 'none',
-            border: 0, borderLeft: `4px solid ${r.etalon == null ? 'transparent' : c}`,
-            padding: '9px 12px', cursor: 'pointer', font: 'inherit', color: 'inherit',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-            <span style={{
-              fontFamily: 'var(--font-mono, monospace)', fontSize: 12, fontWeight: 700,
-              color: r.etalon == null ? 'var(--text-muted, #888)' : c, minWidth: 26,
-            }}>{r.id}</span>
-            <span style={{ fontWeight: 600, fontSize: 14 }}>
-              {r.capat ?? r.sate[0]} <span style={{ color: 'var(--text-muted, #888)', fontWeight: 400 }}>→ LEAR</span>
-            </span>
-          </div>
-          <div style={{ fontSize: 12.5, color: 'var(--text-muted, #888)', marginTop: 3, fontFamily: 'var(--font-mono, monospace)' }}>
-            {r.loc} locuri
-            {r.etalon != null
-              ? ` · ${km(r.etalon)} pe sens`
-              : ' · fără măsurare'}
-          </div>
-        </button>
-
-        {deschis && (
-          <div style={{ padding: '4px 12px 14px 16px', fontSize: 13 }}>
-            {r.capat && (
-              <p style={{ color: 'var(--text-muted, #888)', margin: '0 0 8px' }}>
-                Strânsul începe la <b style={{ color: 'var(--text, #222)' }}>{r.capat}</b>; de acolo mai departe, până la uzină, e ruta.
-              </p>
-            )}
-            <ol style={{ listStyle: 'none', margin: '0 0 12px', padding: '0 0 0 12px', borderLeft: '2px solid var(--border, #e5e5e5)' }}>
-              {[...r.sate, 'LEAR'].map((s) => {
-                const uzina = s === 'LEAR';
-                const capat = s === r.capat;
-                const oarb = orbe.has(s);
-                return (
-                  <li key={s} style={{
-                    padding: '2px 0', position: 'relative',
-                    color: uzina || capat ? 'var(--text, #222)' : 'var(--text-muted, #888)',
-                    fontWeight: uzina || capat ? 600 : 400,
-                    textDecoration: oarb ? 'line-through' : undefined,
-                    opacity: oarb ? 0.5 : 1,
-                  }}>
-                    <span style={{
-                      position: 'absolute', left: -17, top: 8, width: capat || uzina ? 9 : 6,
-                      height: capat || uzina ? 9 : 6, borderRadius: '50%',
-                      background: uzina ? '#111' : capat ? c : 'var(--border, #ddd)',
-                    }} />
-                    {s}
-                  </li>
-                );
-              })}
-            </ol>
-
-            {r.etalon == null ? (
-              <p style={{ color: 'var(--text-muted, #888)', margin: 0 }}>
-                {r.sate.some((s) => orbe.has(s))
-                  ? `Nu se poate măsura: ${r.sate.filter((s) => orbe.has(s)).join(', ')} — sate fără coordonate în indexul de localități.`
-                  : 'Nu se poate măsura: nicio cursă din flotă nu s-a potrivit pe ruta asta.'}
-              </p>
-            ) : (
-              <table style={{ width: '100%', fontFamily: 'var(--font-mono, monospace)', fontSize: 13 }}>
-                <tbody>
-                  {[
-                    ['Tur', km(r.tur!), 'cu oameni'],
-                    ['Retur', km(r.retur!), 'cu oameni'],
-                    ['Etalon', km(r.etalon), 'pe sens'],
-                    ['Abatere', `${r.dif}%`, `tur față de retur, pe ${r.zile} zile`],
-                  ].map(([et, val, sub], i) => (
-                    <tr key={et} style={{ borderTop: i ? '1px solid var(--border, #eee)' : undefined }}>
-                      <td style={{ padding: '4px 0', color: 'var(--text-muted, #888)', width: 66 }}>{et}</td>
-                      <td style={{
-                        padding: '4px 8px 4px 0', fontWeight: 600, whiteSpace: 'nowrap',
-                        color: et === 'Etalon' ? c
-                          : et === 'Abatere' ? ((r.dif ?? 0) <= 5 ? 'var(--success, #16a34a)' : (r.dif ?? 0) <= 10 ? 'inherit' : 'var(--danger, #ef4444)')
-                          : 'inherit',
-                      }}>{val}</td>
-                      <td style={{ padding: '4px 0', color: 'var(--text-muted, #888)' }}>{sub}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        )}
-      </div>
+      <button
+        key={r.id}
+        onClick={() => setAles(activ ? null : r.id)}
+        aria-current={activ}
+        style={{
+          display: 'block', width: '100%', textAlign: 'left', font: 'inherit', color: 'inherit',
+          background: activ ? 'var(--primary-dim)' : 'transparent',
+          border: 0, borderBottom: '1px solid var(--border-accent)',
+          borderLeft: `3px solid ${activ ? 'var(--primary)' : 'transparent'}`,
+          padding: '10px 14px', cursor: 'pointer',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+          {insigna(r)}
+          <span style={{
+            flex: 1, fontSize: 14.5, fontWeight: 600,
+            color: r.etalon == null ? 'var(--text-secondary)' : 'var(--text)',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>{r.capat ?? r.sate[0]}</span>
+          <span style={{ fontFamily: MONO, fontSize: 15, fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
+            {r.etalon != null ? nr1(r.etalon * 2) : '—'}
+          </span>
+          <span style={{ fontSize: 10.5, color: 'var(--text-muted)', width: 14 }}>
+            {r.etalon != null ? 'km' : ''}
+          </span>
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 3, paddingLeft: 35 }}>
+          {r.loc} locuri · {r.sate.length} sate · {r.etalon != null ? `abatere ${r.dif}%` : 'fără măsurare'}
+        </div>
+      </button>
     );
   };
 
   const grup = (t: 'A' | 'B') => {
     const rute = schelet.rute.filter((r) => r.tura === t);
-    const locuri = rute.reduce((s, r) => s + r.loc, 0);
     return (
       <div key={t}>
         <div style={{
-          padding: '8px 12px', fontSize: 11, fontWeight: 700, letterSpacing: 1,
-          textTransform: 'uppercase', color: 'var(--text-muted, #888)',
-          background: 'var(--bg-elevated, #f8f8f8)', borderBottom: '1px solid var(--border, #e5e5e5)',
-          position: 'sticky', top: 0, zIndex: 1,
+          ...ETICHETA, padding: '9px 14px', background: 'var(--bg-elevated)',
+          borderBottom: '1px solid var(--border-accent)', position: 'sticky', top: 0, zIndex: 1,
         }}>
-          Tura {t} · {rute.length} rute · {locuri} locuri
+          Tura {t} · {rute.length} rute · {rute.reduce((s, r) => s + r.loc, 0)} locuri
         </div>
         {rute.map(rand)}
       </div>
     );
   };
 
+  const cifra = (et: string, val: string, sub: string, culoare?: string) => (
+    <div key={et} style={{
+      display: 'flex', alignItems: 'baseline', gap: 10, padding: '9px 0',
+      borderBottom: '1px solid var(--border-accent)',
+    }}>
+      <span style={{ ...ETICHETA, width: 78, lineHeight: 1.3 }}>{et}</span>
+      <span style={{
+        fontFamily: MONO, fontSize: 19, fontWeight: 500, fontVariantNumeric: 'tabular-nums',
+        color: culoare ?? 'var(--text)',
+      }}>{val}</span>
+      <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{sub}</span>
+    </div>
+  );
+
   return (
-    <div className="page-wide">
-      <div className="page-header">
-        <h1>Scheletul rutelor — LEAR Ungheni</h1>
-        <p className="text-muted" style={{ maxWidth: '78ch', marginTop: 4 }}>
-          Traseul fix al fiecărei rute: de unde începe strânsul, pe unde merge, câți kilometri are.
-          Kilometrii sunt mediana pe trei luni de urmă GPS, nu cifra unei zile — cu ei se compară ziua de mâine.
-        </p>
-      </div>
-
-      <div className="grid-2" style={{ marginBottom: 14 }}>
-        <div className="summary-card card">
-          <div className="value">{masurate.length}<span style={{ fontSize: 18, opacity: 0.5 }}>/{schelet.rute.length}</span></div>
-          <div className="label">rute măsurate</div>
+    <div style={{ padding: '20px 22px 24px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 22, flexWrap: 'wrap', marginBottom: 16 }}>
+        <div>
+          <h1 style={{ fontSize: 24, margin: 0 }}>Scheletul rutelor — LEAR Ungheni</h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 13.5, margin: '5px 0 0', maxWidth: '74ch' }}>
+            Traseul fix al fiecărei rute: de unde începe strânsul, pe unde merge, câți kilometri are.
+            Kilometrii sunt mediana pe trei luni de urmă GPS, nu cifra unei zile — cu ei se compară ziua de mâine.
+          </p>
         </div>
-        <div className="summary-card card">
-          <div className="value">{Math.round(kmPlin).toLocaleString('ro-RO')}</div>
-          <div className="label">km cu oameni pe zi</div>
-        </div>
-      </div>
-
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 340px) 1fr', minHeight: 560 }}>
-          <div style={{ borderRight: '1px solid var(--border, #e5e5e5)', maxHeight: '74vh', overflowY: 'auto' }}>
-            {grup('A')}
-            {grup('B')}
-          </div>
-          <div style={{ position: 'relative', minHeight: 560 }}>
-            <ScheletMap urme={urme} ales={ales} />
-            <div style={{
-              position: 'absolute', left: 12, bottom: 24, zIndex: 500,
-              background: '#fff', border: '1px solid var(--border, #e5e5e5)',
-              borderRadius: 6, padding: '8px 10px', fontSize: 12, lineHeight: 1.7,
-            }}>
-              {CLASE.map((c) => (
-                <div key={c.eticheta} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                  <span style={{ display: 'block', width: 20, borderTop: `4px solid ${c.culoare}` }} />
-                  {c.eticheta}
-                </div>
-              ))}
+        <div style={{ display: 'flex', gap: 26, marginLeft: 'auto' }}>
+          {[
+            ['rute măsurate', `${masurate.length}/${schelet.rute.length}`],
+            ['km cu oameni', `${Math.round(kmZi).toLocaleString('ro-RO')}/zi`],
+            ['locuri', String(locuri)],
+            ['fixat', schelet.fixat],
+          ].map(([e, v]) => (
+            <div key={e}>
+              <div style={ETICHETA}>{e}</div>
+              <div style={{ fontFamily: MONO, fontSize: 18, fontWeight: 500, color: 'var(--primary)', marginTop: 3 }}>{v}</div>
             </div>
-          </div>
+          ))}
         </div>
       </div>
 
-      <p className="text-muted" style={{ fontSize: 12.5, marginTop: 12, maxWidth: '100ch' }}>
-        Scheletul e fixat la {schelet.fixat}. O zi intră în etalon doar dacă are și tur, și retur, și amândouă ajung
-        până la capăt — altfel s-ar măsura o zi ciuntită, nu ruta; din zilele rămase se ia mediana, nu media.
-        Satele prin care autobuzul doar trece, fără să oprească, se numără la fel ca opririle: fără asta capătul
-        cădea cu zeci de kilometri mai aproape. Satele tăiate n-au coordonate în indexul de localități:{' '}
-        {schelet.orbe.join(', ')}.
+      <div style={{
+        display: 'grid', gridTemplateColumns: 'minmax(280px, 320px) 1fr minmax(280px, 320px)',
+        border: '1px solid var(--border-accent)', borderRadius: 12, overflow: 'hidden',
+        background: '#fff', height: 'calc(100vh - 190px)', minHeight: 520,
+      }}>
+        <div style={{ borderRight: '1px solid var(--border-accent)', overflowY: 'auto' }}>
+          {grup('A')}{grup('B')}
+        </div>
+
+        <div style={{ position: 'relative' }}>
+          <ScheletMap urme={urme} ales={ales} />
+          <div style={{
+            position: 'absolute', left: 14, bottom: 26, zIndex: 500, background: '#fff',
+            border: '1px solid var(--border-accent)', borderRadius: 8, padding: '9px 12px',
+            fontSize: 12, color: 'var(--text-secondary)',
+          }}>
+            {CLASE.map((c) => (
+              <div key={c.eticheta} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '2px 0' }}>
+                <span style={{ display: 'block', width: 22, borderTop: `4px solid ${c.culoare}` }} />
+                {c.eticheta}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ borderLeft: '1px solid var(--border-accent)', overflowY: 'auto', padding: '16px 18px' }}>
+          {!ruta ? (
+            <p style={{ color: 'var(--text-secondary)', fontSize: 13.5 }}>
+              Alege o rută din stânga ca să-i vezi scheletul: satele în ordine, capătul și kilometrii-etalon.
+            </p>
+          ) : (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 10 }}>
+                {insigna(ruta, true)}
+                <span style={{ fontSize: 16, fontWeight: 600 }}>{ruta.loc} locuri</span>
+              </div>
+
+              {ruta.capat && (
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 14px', lineHeight: 1.55 }}>
+                  Capătul: <b style={{ color: 'var(--text)' }}>{ruta.capat}</b> — de acolo începe strânsul,
+                  acolo se termină lăsatul.
+                </p>
+              )}
+
+              <ol style={{ listStyle: 'none', margin: '0 0 18px', padding: 0 }}>
+                {[...ruta.sate, 'LEAR'].map((s) => {
+                  const uzina = s === 'LEAR';
+                  const capat = s === ruta.capat;
+                  const oarb = orbe.has(s);
+                  return (
+                    <li key={s} style={{
+                      display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0',
+                      fontSize: 14,
+                      fontWeight: uzina || capat ? 600 : 400,
+                      color: uzina || capat ? 'var(--text)' : 'var(--text-secondary)',
+                      textDecoration: oarb ? 'line-through' : undefined,
+                      opacity: oarb ? 0.55 : 1,
+                    }}>
+                      <span style={{
+                        width: capat || uzina ? 10 : 7, height: capat || uzina ? 10 : 7,
+                        borderRadius: '50%', flexShrink: 0,
+                        background: uzina ? '#23191B' : capat ? culoarea(ruta.loc) : 'var(--border-accent)',
+                        border: uzina || capat ? 'none' : '1px solid var(--border-accent)',
+                      }} />
+                      {s}
+                    </li>
+                  );
+                })}
+              </ol>
+
+              {ruta.etalon == null ? (
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                  {ruta.sate.some((s) => orbe.has(s))
+                    ? `Nu se poate măsura: ${ruta.sate.filter((s) => orbe.has(s)).join(', ')} — sate fără coordonate în indexul de localități.`
+                    : 'Nu se poate măsura: nicio cursă din flotă nu s-a potrivit pe ruta asta.'}
+                </p>
+              ) : (
+                <div style={{ borderTop: '1px solid var(--border-accent)' }}>
+                  {cifra('tur', nr1(ruta.tur!), 'km cu oameni')}
+                  {cifra('retur', nr1(ruta.retur!), 'km cu oameni')}
+                  {cifra('etalon', nr1(ruta.etalon), 'km pe sens', culoarea(ruta.loc))}
+                  {cifra('abatere tur/retur', `${ruta.dif}%`, `pe ${ruta.zile} zile măsurate`,
+                    (ruta.dif ?? 0) <= 5 ? 'var(--success)' : (ruta.dif ?? 0) <= 10 ? undefined : 'var(--danger)')}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      <p style={{ fontSize: 12.5, color: 'var(--text-secondary)', marginTop: 12, maxWidth: '110ch', lineHeight: 1.6 }}>
+        O zi intră în etalon doar dacă are și tur, și retur, și amândouă ajung până la capăt — altfel s-ar măsura o zi
+        ciuntită, nu ruta; din zilele rămase se ia mediana, nu media. Satele prin care autobuzul doar trece, fără să
+        oprească, se numără la fel ca opririle: fără asta capătul cădea cu zeci de kilometri mai aproape.
+        Satele tăiate n-au coordonate în indexul de localități: {schelet.orbe.join(', ')}.
       </p>
     </div>
   );

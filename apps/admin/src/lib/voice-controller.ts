@@ -1137,6 +1137,31 @@ async function healRuStation(lostToolId: string | null, complaintToolId: string 
       bindDrifts.push({ field: 'ru.turn.heal_error', healed: false });
     }
   }
+  // Din ION-40 (23.09) agentul RU primește apeluri DIRECT (tasta «2» din meniul
+  // Asterisk), deci salutul lui vine de la init-webhook. Cheia din antet se ține la
+  // zi ca la RO: pe 23.09 RU purta încă cheia de dinainte de rotație, webhook-ul
+  // răspundea gol și rusul auzea salutul static, fără oră.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const whRu = (cfg as any).platform_settings?.workspace_overrides?.conversation_initiation_client_data_webhook;
+  const cheiaRu = (process.env.VOICE_API_KEY ?? '').trim();
+  if (whRu?.url !== INIT_WEBHOOK_URL || (cheiaRu && whRu?.request_headers?.['x-voice-api-key'] !== cheiaRu)) {
+    try {
+      await elPatchAgent({
+        platform_settings: {
+          workspace_overrides: {
+            conversation_initiation_client_data_webhook: {
+              url: INIT_WEBHOOK_URL,
+              request_headers: { 'x-voice-api-key': cheiaRu },
+            },
+          },
+        },
+      }, RU_AGENT_ID);
+      bindDrifts.push({ field: 'ru.init_webhook_url', healed: true });
+    } catch (e) {
+      console.error('[voice-controller] ru-webhook:', redactSecrets(String(e)));
+      bindDrifts.push({ field: 'ru.init_webhook.heal_error', healed: false });
+    }
+  }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const prompt: string = (cfg as any).conversation_config?.agent?.prompt?.prompt ?? '';
   if (!prompt) return [...bindDrifts, { field: 'ru.prompt.empty', healed: false }];

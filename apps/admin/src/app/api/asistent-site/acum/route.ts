@@ -26,6 +26,9 @@ function limited(): boolean {
   return count > MAX;
 }
 
+/** Cursa plecată după grafic de peste atâtea minute, fără punct și fără istoric, iese din listă. */
+const STALE_MIN = 30;
+
 const normPlate = (s: string | null | undefined) => (s ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 /** «Chișinău» și «Chisinau» sunt aceeași oprire. */
 const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[şș]/g, 's').replace(/[ţț]/g, 't').trim();
@@ -95,7 +98,13 @@ export async function POST(req: NextRequest) {
           ? await realEta({ routeId: t.route_id!, shape: g.shape, stops: g.stops, fromName: r.fromRo, toName: r.toRo, scheduled: t.departure, pos: p ?? null, today: chisinauTodayIso() }).catch(() => null)
           : null;
         return { ...t, ...(p ?? {}), ...(e ?? {}) };
-      }))).filter((t) => !('passed' in t && t.passed)),
+      }))).filter((t) => {
+        if ('passed' in t && t.passed) return false;
+        // Fără punct și fără istoric, o cursă plecată după grafic de peste jumătate de oră
+        // a trecut aproape sigur prin localitatea omului — nu-l facem s-o aștepte.
+        const known = 'eta' in t || 'lat' in t;
+        return known || t.minutes_until >= -STALE_MIN;
+      }),
       line_ro: r.trips.length ? null : ((r.result.line_ro ?? r.result.result_ro) as string | undefined) ?? null,
       line_ru: r.trips.length ? null : ((r.result.line_ru ?? r.result.result_ru) as string | undefined) ?? null,
     }, { headers });

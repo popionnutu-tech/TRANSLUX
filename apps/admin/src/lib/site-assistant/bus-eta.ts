@@ -172,6 +172,8 @@ export interface PassRow { date: string; stop_order: number; passed_at: string; 
 const RECENT_DAYS = 7;
 const MIN_RECENT = 4;
 const MIN_ALL = 5;
+/** Ora reală trecută cu mai mult de atât, fără punct GPS = autobuzul a trecut deja. */
+export const PASSED_GRACE_MIN = 5;
 
 const median = (xs: number[]) => {
   const s = [...xs].sort((a, b) => a - b);
@@ -286,5 +288,9 @@ export async function realEta(args: {
   const off = typicalOffset(rows, from.stop_order, args.today);
   if (off == null) return null;
   const t = todayAt(args.scheduled, off, now);
+  // Ora reală a trecut de mult și n-avem punct care să spună că întârzie: autobuzul a
+  // trecut deja prin localitatea omului (prod 23.09: cursele de 18:10 și 19:20 din
+  // Chișinău, încă pe drum spre nord, apăreau la 23:14 cu «~18:18 · acum»).
+  if (t < now - PASSED_GRACE_MIN * 60_000) return { passed: true };
   return { eta: clock(t), eta_min: Math.max(0, Math.round((t - now) / 60_000)), eta_source: 'istoric' };
 }

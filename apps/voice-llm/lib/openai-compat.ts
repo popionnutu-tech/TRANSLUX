@@ -3,7 +3,7 @@
 // Funcții pure, fără I/O — testabile izolat.
 
 import type Anthropic from "@anthropic-ai/sdk";
-import { langOfUtterance, vetoedRussian, UA_LETTER_RE, UA_WORDS } from "./language";
+import { langOfUtterance, vetoedRussian, UA_LETTER_RE, UA_WORDS, wrongLockedLanguage, type VoiceLang } from "./language";
 
 // ---- Formatul OpenAI primit de la ElevenLabs ----
 
@@ -462,7 +462,20 @@ export class TtsGate {
   // Недописанное последнее слово (см. splitTrailingWord). Отдаётся на границе или в finish().
   private hold = "";
 
-  constructor(private toolNames: ReadonlySet<string>) {}
+  // Replica a fost tăiată pentru că era în cealaltă limbă decât cea blocată (ION-40).
+  // Chemătorul spune atunci LOCK_NOTICE în loc de scuza tehnică.
+  private lockHitAny = false;
+
+  constructor(private toolNames: ReadonlySet<string>, private lock: VoiceLang | null = null) {}
+
+  /** Tăiat din cauza limbii blocate (nu din alt motiv)? */
+  get lockHit(): boolean { return this.lockHitAny; }
+
+  private violates(text: string): boolean {
+    if (violatesLanguagePolicy(text)) return true;
+    if (wrongLockedLanguage(text, this.lock)) { this.lockHitAny = true; return true; }
+    return false;
+  }
 
   /** Уже глушим? (для раннего выхода вызывающего кода) */
   get blockedNow(): boolean { return this.blocked; }
@@ -521,7 +534,7 @@ export class TtsGate {
         this.lead = "";
         const { emit, keep } = force ? { emit: cleaned, keep: "" } : splitTrailingWord(cleaned);
         this.hold = keep;
-        if (emit && violatesLanguagePolicy(emit)) {
+        if (emit && this.violates(emit)) {
           this.blocked = true;
           this.suppressedAny = true;
           return out;
@@ -544,7 +557,7 @@ export class TtsGate {
       : splitTrailingWord(this.hold + sayable);
     this.hold = keep;
     const candidate = this.spoken + emit;
-    if (violatesLanguagePolicy(candidate)) {
+    if (this.violates(candidate)) {
       this.blocked = true;
       this.suppressedAny = true;
       if (lt >= 0) this.tail = delta.slice(lt, lt + 4000);
@@ -585,6 +598,11 @@ const APOLOGY_RO = "Îmi cer scuze, am o mică problemă tehnică. Puteți repet
 
 export function apologyFor(messages: OpenAIMessage[]): string {
   return voiceLanguage(messages) === "ru" ? APOLOGY_RU : APOLOGY_RO;
+}
+
+/** Scuza într-o limbă dată — pe linia blocată (ION-40) limba e a liniei, nu dedusă. */
+export function apologyIn(lang: "ro" | "ru"): string {
+  return lang === "ru" ? APOLOGY_RU : APOLOGY_RO;
 }
 
 /** Limba VOCII curente, dedusă deterministic din istoric. Semnalul de agent cel mai
@@ -693,8 +711,10 @@ function dropRuKeys(v: unknown): unknown {
   return v;
 }
 
-export function stripRuToolFields(messages: OpenAIMessage[]): OpenAIMessage[] {
-  if (!shouldStripRu(messages)) return messages;
+// `lock === "ro"` (ION-40): pe linia românească blocată rusa nu se rostește niciodată,
+// deci câmpurile _ru nu au ce căuta la model, oricum ar vorbi clientul.
+export function stripRuToolFields(messages: OpenAIMessage[], lock: VoiceLang | null = null): OpenAIMessage[] {
+  if (lock !== "ro" && !shouldStripRu(messages)) return messages;
   return messages.map((m) => {
     if (m.role !== "tool") return m;
     try {

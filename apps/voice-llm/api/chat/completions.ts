@@ -8,6 +8,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Anthropic from '@anthropic-ai/sdk';
 import {
   apologyFor,
+  apologyIn,
   OpenAIMessage,
   OpenAITool,
   parseInvokeToolCall,
@@ -22,7 +23,7 @@ import {
   violatesLanguagePolicy,
   voiceLanguage,
 } from '../../lib/openai-compat';
-import { pendingLanguageTransfer } from '../../lib/language';
+import { LOCK_NOTICE, lockedLanguage, pendingLanguageTransfer, wrongLockedLanguage } from '../../lib/language';
 import { allowedTimes, TimeGuard } from '../../lib/spoken-times';
 import { geminiBody, geminiEvents } from '../../lib/gemini';
 
@@ -99,12 +100,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: { message: 'messages required' } });
   }
 
+  // Limba blocată a liniei (ION-40): agent fără language_detection/transfer_to_agent
+  // vorbește doar limba salutului. null = configurația veche, nimic nu se schimbă.
+  const lock = lockedLanguage(body.messages, body);
   // Limba scuzei de avarie — calculată AICI, înainte de try: un throw în catch = agent mut.
-  const apology = apologyFor(body.messages);
+  // Pe linie blocată scuza e în limba liniei, nu dedusă din ce vorbește clientul.
+  const apology = lock ? apologyIn(lock) : apologyFor(body.messages);
   // Cât clientul vorbește dovedit română, câmpurile _ru nu ajung la model: apel real
   // 30.08 — un «Да.» chirilizat l-a făcut să citească driver_line_ru unui client român.
   // DUPĂ apology: scuza se calculează pe istoricul original, nefiltrat.
-  const { system, messages } = toAnthropic(stripRuToolFields(body.messages));
+  const { system, messages } = toAnthropic(stripRuToolFields(body.messages, lock));
   const tools = toAnthropicTools(body.tools);
   const completionId = `chatcmpl-${crypto.randomUUID()}`;
   // Diagnostic (întrebarea TLX 24.08): ecou-iește EL tool-callurile de SISTEM în istorie?
@@ -202,7 +207,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!call && !toolCalls.length) text = apology;
       }
       // «<» в речи не живёт (разметка без <invoke> внутри — тоже не для TTS).
-      if (text && (text.includes('<') || violatesLanguagePolicy(text))) text = toolCalls.length ? '' : apology;
+      if (text && wrongLockedLanguage(text, lock)) text = toolCalls.length ? '' : LOCK_NOTICE[lock!];
+      else if (text && (text.includes('<') || violatesLanguagePolicy(text))) text = toolCalls.length ? '' : apology;
       // Aceeași gardă a orelor ca pe stream.
       if (text) {
         const tg = new TimeGuard(allowedTimes(body.messages));
@@ -246,7 +252,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // не на румынском/русском (решение Иона 28.08). Логика — в lib, под тестами.
   const gate = new TtsGate(new Set(
     (body.tools ?? []).map((t) => t.function?.name).filter((n): n is string => Boolean(n)),
-  ));
+  ), lock);
+  // Replica tăiată pentru limba greșită: omul aude pe ce linie e și cum ajunge la
+  // cealaltă, nu «o mică problemă tehnică» (ION-40).
+  const suppressedText = () => (gate.lockHit && lock ? LOCK_NOTICE[lock] : apology);
   // A doua poartă, DUPĂ TtsGate: orele. Primește text curat, la limită de cuvânt,
   // și ține fiecare propoziție cu număr până e întreagă (lib/spoken-times.ts).
   const timeGuard = new TimeGuard(allowedTimes(body.messages));
@@ -291,7 +300,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (gate.blockedNow && !gate.hasTail && gate.spokenChars < 40 && !pendingTool && finish !== 'tool_calls' && !apologySent) {
       console.log('[voice-llm] replică suprimată — trimit scuza imediat');
       // role один раз на choice (контракт OpenAI): после зачина — только content.
-      send(sseChunk(completionId, MODEL, speechStarted ? { content: ` ${apology}` } : { role: 'assistant', content: apology }));
+      const t = suppressedText();
+      if (gate.lockHit) console.log(`[voice-llm] replică în altă limbă decât linia (${lock}) — anunț de linie`);
+      send(sseChunk(completionId, MODEL, speechStarted ? { content: ` ${t}` } : { role: 'assistant', content: t }));
       speechStarted = true;
       apologySent = true;
       sentAnything = true;
@@ -387,7 +398,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // не ушло — молчание хуже извинения.
     if (gate.suppressed && gate.spokenChars < 40 && finish !== 'tool_calls' && !apologySent) {
       console.log('[voice-llm] replică suprimată integral — trimit scuza');
-      send(sseChunk(completionId, MODEL, speechStarted ? { content: ` ${apology}` } : { role: 'assistant', content: apology }));
+      const t = suppressedText();
+      send(sseChunk(completionId, MODEL, speechStarted ? { content: ` ${t}` } : { role: 'assistant', content: t }));
       sentAnything = true;
     } else if (timeGuard.violated) {
       // O oră inventată a tăiat coada replicii. Fără tool call în tura asta, clientul

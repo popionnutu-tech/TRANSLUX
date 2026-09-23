@@ -521,13 +521,39 @@ LIMBA VOCII — DOAR ROMÂNĂ SAU RUSĂ:
 - Un singur cuvânt al clientului în altă limbă sau scris cu chirilice («Палата?», «Алло», un nume) NU schimbă limba conversației. Rămâi pe limba curentă (română sau rusă) și întrebi scurt, în ea, ce dorește.
 - Nu ai înțeles ce a spus? O spui în limba curentă: «Nu v-am înțeles, repetați, vă rog» / «Я вас не поняла, повторите, пожалуйста» — niciodată în altă limbă.`;
 
-const LIMBA_VOCII_MARKER_RU = 'ЯЗЫК ГОЛОСА — ТОЛЬКО РУССКИЙ ИЛИ РУМЫНСКИЙ';
 const LIMBA_VOCII_BLOCK_RU = `
 
 ЯЗЫК ГОЛОСА — ТОЛЬКО РУССКИЙ ИЛИ РУМЫНСКИЙ:
 - Ты говоришь ТОЛЬКО по-русски или по-румынски. Никакого другого языка, никогда: ни украинского, ни английского, ни смеси. Ответ на другом языке система обрезает до клиента — он слышит техническое извинение, а твоя реплика потеряна.
 - Одно непонятное или украинское слово клиента («Палата?») НЕ повод отвечать по-украински. Остаёшься на русском и коротко переспрашиваешь по-русски.
 - Не поняла, что сказал клиент? Говоришь по-РУССКИ: «Я вас не поняла, повторите, пожалуйста» — никогда на другом языке.`;
+
+// ION-40 (23.09, Ion): omul alege limba la meniul liniei — «1» română, «2» rusă — și
+// fiecare agent vorbește DOAR limba lui. Proba lui Ion din aceeași zi: a apăsat «1», a
+// vorbit rusește dinadins, iar agentul RO a răspuns în rusă. Blocurile de mai jos
+// ÎNLOCUIESC LIMBA_BLOCK + LIMBA_VOCII_BLOCK (RO) și LIMBA_VOCII_BLOCK_RU (RU), care
+// permiteau cealaltă limbă; vechile texte au trecut la pietre de mormânt. Promptul
+// singur nu ajunge — proxy-ul voice-llm taie oricum replica în cealaltă limbă
+// (lib/language.ts, lockedLanguage) și spune în locul ei fraza din LOCK_NOTICE,
+// aceeași ca aici. De la RO s-a scos și language_detection (altfel blocarea nu pornește).
+const LINIA_RO_MARKER = 'LINIA ROMÂNEASCĂ — DOAR ROMÂNA, ORICUM AR VORBI CLIENTUL';
+const LINIA_RO_BLOCK = `
+
+LINIA ROMÂNEASCĂ — DOAR ROMÂNA, ORICUM AR VORBI CLIENTUL:
+- Clientul a ales limba română la meniul liniei (tasta unu). Pe această linie vorbești NUMAI românește, de la primul până la ultimul cuvânt.
+- Clientul vorbește rusește sau altă limbă? Răspunzi TOT în română și îi spui o singură dată: «Pe această linie vorbesc doar în limba română. Pentru limba rusă, vă rog să sunați din nou și să apăsați tasta doi.» Dacă rămâne, îl ajuți mai departe în română, cu fraze scurte și simple.
+- NICIODATĂ un cuvânt rusesc în replica ta: nici «да», nici o localitate în forma rusească. Câmpurile _ru din tool-uri nu sunt pentru tine — citești doar _ro.
+- O replică cu litere chirilice e tăiată de sistem înainte de client: el aude doar anunțul de mai sus, iar răspunsul tău se pierde.
+- Nicio altă limbă, niciodată (engleză, ucraineană, amestec). N-ai înțeles? «Nu v-am înțeles, repetați, vă rog.»`;
+
+const LINIA_RU_MARKER = 'РУССКАЯ ЛИНИЯ — ТОЛЬКО РУССКИЙ, КАК БЫ НИ ГОВОРИЛ КЛИЕНТ';
+const LINIA_RU_BLOCK = `
+
+РУССКАЯ ЛИНИЯ — ТОЛЬКО РУССКИЙ, КАК БЫ НИ ГОВОРИЛ КЛИЕНТ:
+- Клиент выбрал русский язык в меню линии (клавиша два). На этой линии ты говоришь ТОЛЬКО по-русски, от первого до последнего слова, естественно, как носитель.
+- Клиент говорит по-румынски или на другом языке? Отвечаешь ВСЁ РАВНО по-русски и один раз говоришь: «На этой линии я говорю только по-русски. Для румынского языка перезвоните, пожалуйста, и нажмите один.» Если он остаётся — помогаешь дальше по-русски, короткими простыми фразами.
+- НИКОГДА ни одной румынской фразы. Реплику по-румынски система обрезает до клиента: он слышит только объявление выше, твой ответ потерян.
+- Никакого другого языка (украинский, английский, смесь). Непонятное слово или бессмысленная транскрипция — по-русски: «Я вас не поняла, повторите, пожалуйста».`;
 
 // Ion, 07.09: «alt număr în afară de acel pe care sună oameni la agent sau la
 // șofer nu este». Verificat în ElevenLabs: în workspace există DOUĂ numere, ambele
@@ -676,6 +702,11 @@ async function canonKeywords(): Promise<string[]> {
 // Первый случай: блок e2c6263 разрешал обещать перезвон ПОСЛЕ request_callback —
 // отменён решением Иона 24.08 «операторов, которые перезванивают, нет».
 const OBSOLETE_BLOCKS = [
+  // ION-40 (23.09): meniul liniei alege limba; RO nu mai trece pe rusă. Înlocuite de
+  // LINIA_RO_BLOCK. (Secțiunea LIMBA de la începutul promptului viu, scrisă din
+  // dashboard, a fost scoasă o dată de mână, cu copia în docs/voice-prompts.)
+  LIMBA_BLOCK,
+  LIMBA_VOCII_BLOCK,
   // Ion 16.09: «Niciodată nimeni nu va fi contactat de cineva din companie».
   // Cele cinci locuri care ofereau apelul înapoi. Înlocuite de NIMENI_BLOCK.
   CALLBACK_ORDER_OBSOLETE,
@@ -964,8 +995,7 @@ async function checkAndHealConfig(cfg: any, drifts: Drift[], complaintToolExists
     { marker: 'ORELE — DOSLOVEN', block: ORELE_BLOCK, field: 'prompt.ORELE' },
     { marker: 'ZIUA — DOSLOVEN', block: DATA_BLOCK, field: 'prompt.ZIUA' },
     { marker: 'e un CORIDOR', block: CORIDOR_BLOCK, field: 'prompt.CORIDOR' },
-    { marker: 'A DOUA OARĂ LA RÂND', block: LIMBA_BLOCK, field: 'prompt.LIMBA' },
-    { marker: 'LIMBA VOCII — DOAR ROMÂNĂ SAU RUSĂ', block: LIMBA_VOCII_BLOCK, field: 'prompt.LIMBA_VOCII' },
+    { marker: LINIA_RO_MARKER, block: LINIA_RO_BLOCK, field: 'prompt.LINIA_RO' },
     { marker: NIMENI_MARKER, block: NIMENI_BLOCK, field: 'prompt.NIMENI_CONTACTAT' },
     { marker: 'STAȚIA CHIȘINĂU — AUTOGARA TRANSLUX', block: STATIA_BLOCK, field: 'prompt.STATIA' },
     { marker: 'STAȚIA BĂLȚI — PEROANELE', block: BALTI_BLOCK, field: 'prompt.BALTI' },
@@ -1194,7 +1224,8 @@ async function healRuStation(lostToolId: string | null, complaintToolId: string 
   // spre o cale moartă și i-ar tăia singura cale rămasă (request_callback).
   if (complaintToolId && !healed.includes(RECLAMATII_MARKER_RU)) { healed += RECLAMATII_BLOCK_RU; vindecate.push('ru.prompt.RECLAMATII'); }
   if (!healed.includes(ZIUA_LOCALITATE_MARKER_RU)) { healed += ZIUA_LOCALITATE_BLOCK_RU; vindecate.push('ru.prompt.ZIUA_LOCALITATE'); }
-  if (!healed.includes(LIMBA_VOCII_MARKER_RU)) { healed += LIMBA_VOCII_BLOCK_RU; vindecate.push('ru.prompt.LIMBA_VOCII'); }
+  if (healed.includes(LIMBA_VOCII_BLOCK_RU)) healed = healed.replace(LIMBA_VOCII_BLOCK_RU, '');
+  if (!healed.includes(LINIA_RU_MARKER)) { healed += LINIA_RU_BLOCK; vindecate.push('ru.prompt.LINIA_RU'); }
   if (!healed.includes(ALT_NUMAR_MARKER_RU)) { healed += ALT_NUMAR_BLOCK_RU; vindecate.push('ru.prompt.ALT_NUMAR'); }
   if (!healed.includes(ZI_FARA_CURSE_MARKER_RU)) { healed += ZI_FARA_CURSE_BLOCK_RU; vindecate.push('ru.prompt.ZI_FARA_CURSE'); }
   if (!healed.includes(OPERATOR_MARKER_RU)) { healed += OPERATOR_BLOCK_RU; vindecate.push('ru.prompt.OPERATOR'); }

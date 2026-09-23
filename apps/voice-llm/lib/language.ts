@@ -158,3 +158,45 @@ export function pendingLanguageTransfer(msgs: OpenAIMessage[]): VoiceLang | null
 
   return langs[0] === voice ? null : langs[0];
 }
+
+// ── LIMBA BLOCATĂ (ION-40, 23.09) ──────────────────────────────────────────────
+// Din 23.09 omul își alege limba la meniul Asterisk (1 română / 2 rusă), iar
+// fiecare agent vorbește DOAR limba lui. Proba lui Ion din aceeași zi: a apăsat «1»,
+// a vorbit rusește dinadins, iar modelul a răspuns în rusă din prima replică — fără
+// language_detection, încălcând promptul. Promptul singur nu ține, deci proxy-ul taie.
+//
+// Blocarea se deduce din cerere, fără configurare: un agent care NU are nici
+// language_detection, nici transfer_to_agent nu mai are niciun drum legitim spre
+// cealaltă limbă. Limba lui = limba salutului (prima replică assistant), care vine
+// din webhook-ul init în limba agentului. Cât timp unul din cele două tool-uri e
+// prezent (configurația veche) sau salutul nu e concludent — null, adică nimic nou.
+
+export interface LockTools { tools?: { function?: { name?: string } }[] }
+
+export function lockedLanguage(messages: OpenAIMessage[], body: LockTools): VoiceLang | null {
+  const names = (body.tools ?? []).map((t) => t.function?.name);
+  if (names.includes("language_detection") || names.includes("transfer_to_agent")) return null;
+  const first = messages.find((m) => m.role === "assistant" && textOf(m).trim());
+  return first ? langOfText(textOf(first)) : null;
+}
+
+/**
+ * Replica agentului e în CEALALTĂ limbă decât cea blocată?
+ * RO: orice cuvânt chirilic (≥4 litere) — vocea românească îl citește stricat, iar
+ * o replică românească corectă n-are nicio literă chirilică.
+ * RU: majoritate latină și ≥12 litere latine — câte un nume latin rătăcit într-o
+ * replică rusească nu e o replică românească.
+ */
+export function wrongLockedLanguage(text: string, lock: VoiceLang | null): boolean {
+  if (!lock) return false;
+  const cyr = (text.match(/[а-яёіїєґ]/gi) ?? []).length;
+  const lat = (text.match(/[a-zăâîșțşţ]/gi) ?? []).length;
+  return lock === "ro" ? cyr >= 4 : lat >= 12 && lat > cyr;
+}
+
+// Ce aude omul în locul replicii tăiate. În limba LINIEI (agentului), cu calea spre
+// cealaltă: meniul se alege doar la începutul apelului, deci «sunați din nou».
+export const LOCK_NOTICE: Record<VoiceLang, string> = {
+  ro: "Îmi pare rău, pe această linie vorbesc doar în limba română. Pentru limba rusă, vă rog să sunați din nou și să apăsați tasta doi.",
+  ru: "Извините, на этой линии я говорю только по-русски. Для румынского языка перезвоните, пожалуйста, и нажмите один.",
+};

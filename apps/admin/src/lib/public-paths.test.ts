@@ -11,6 +11,7 @@ describe('isPublicPath — căile lăsate de middleware fără sesiune', () => {
 
   it('asistentul site-ului e public exact', () => {
     expect(isPublicPath('/api/asistent-site')).toBe(true);
+    expect(isPublicPath('/api/asistent-site/pozitie')).toBe(true);
     expect(isPublicPath('/api/asistent-site/x')).toBe(false);
   });
 

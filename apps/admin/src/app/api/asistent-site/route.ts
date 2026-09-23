@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createHash, randomUUID } from 'crypto';
 import { runTurn } from '@/lib/site-assistant/engine';
+import { cors } from '@/lib/site-assistant/cors';
 import { CONV_ID_RE, loadConversation, saveConversation, usageLastHour, type SiteConversation } from '@/lib/site-assistant/store';
 
 // Asistentul din colțul site-ului translux.md (ION-37). Public — pagina e publică —
@@ -11,13 +12,6 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 // O reclamație poate cere 3-4 tool-uri, fiecare cu identificarea cursei.
 export const maxDuration = 60;
-
-const ORIGINS = new Set([
-  'https://translux.md',
-  'https://www.translux.md',
-  'https://translux-web.vercel.app',
-  ...(process.env.NODE_ENV === 'development' ? ['http://localhost:3000', 'http://localhost:3001'] : []),
-]);
 
 const MAX_MESSAGE = 1000;
 const MAX_TURNS_PER_CONVERSATION = 30;
@@ -35,18 +29,6 @@ function burst(): boolean {
   if (now - burstStart > BURST_WINDOW_MS) { burstStart = now; burstCount = 0; }
   burstCount += 1;
   return burstCount > BURST_MAX;
-}
-
-function cors(req: NextRequest): Record<string, string> {
-  const origin = req.headers.get('origin') ?? '';
-  if (!ORIGINS.has(origin)) return {};
-  return {
-    'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Max-Age': '86400',
-    Vary: 'Origin',
-  };
 }
 
 // Aceeași formă ca ip_hash din search_log (apps/web, migr. 282).

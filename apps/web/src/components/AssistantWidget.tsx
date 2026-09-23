@@ -9,10 +9,11 @@
 // bază, nu de model.
 
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronRight, Clock, MapPin, MessageCircle, MessageSquareWarning, Navigation, Phone, ShoppingBag, X, ArrowUp, Bus } from 'lucide-react';
+import { ChevronDown, ChevronRight, Clock, MapPin, Maximize2, MessageCircle, MessageSquareWarning, Minimize2, Navigation, Phone, ShoppingBag, X, ArrowUp, Bus } from 'lucide-react';
 import type { Locale } from '@/lib/i18n';
 import { parseAssistantText, type Inline } from '@/lib/assistant-text';
-import { busTiles, type Card, type Crew } from '@/lib/assistant-cards';
+import type { Card, Crew } from '@/lib/assistant-cards';
+import BusMap from './BusMap';
 
 const ENDPOINT = process.env.NEXT_PUBLIC_ASSISTANT_URL || 'https://central-hub-md.vercel.app/api/asistent-site';
 const RED = '#9B1B30';
@@ -62,12 +63,14 @@ const TEXT = {
     pickAsk: (t: string, from: string, to: string) => `Unde e autobuzul de ${t}, ${from} → ${to}?`,
     busNear: (n: string) => `Acum lângă ${n}`, busNow: 'Poziția de acum', busAt: (t: string) => `Poziția de la ${t}`,
     busHint: 'Doar în orele cursei, după grafic',
+    busLive: 'Live', busStopped: 'Oprit', busEnded: 'Cursa nu mai e pe drum.',
+    mapOpen: 'Harta pe tot ecranul', mapClose: 'Închide harta mare',
     follow: {
       trips: ['După-amiază', 'Retur', 'Unde e stația?'],
       station: ['Stația din Bălți', 'Cursele de azi'],
-      bus: ['Poziția nouă', 'Numărul șoferului'],
+      bus: ['Altă cursă', 'Unde e stația?'],
     },
-    followAsk: { 'Poziția nouă': 'Arată din nou unde e autobuzul' } as Record<string, string>,
+    followAsk: { 'Altă cursă': 'Unde e autobuzul meu?' } as Record<string, string>,
   },
   ru: {
     launcher: 'Спросить ассистента',
@@ -110,12 +113,14 @@ const TEXT = {
     pickAsk: (t: string, from: string, to: string) => `Где автобус рейса ${t}, ${from} → ${to}?`,
     busNear: (n: string) => `Сейчас возле ${n}`, busNow: 'Позиция сейчас', busAt: (t: string) => `Позиция на ${t}`,
     busHint: 'Только в часы рейса, по графику',
+    busLive: 'Live', busStopped: 'Остановлено', busEnded: 'Рейс больше не в пути.',
+    mapOpen: 'Карта на весь экран', mapClose: 'Закрыть большую карту',
     follow: {
       trips: ['После обеда', 'Обратно', 'Где станция?'],
       station: ['Станция в Бельцах', 'Рейсы на сегодня'],
-      bus: ['Обновить позицию', 'Номер водителя'],
+      bus: ['Другой рейс', 'Где станция?'],
     },
-    followAsk: { 'Обновить позицию': 'Покажи ещё раз, где автобус' } as Record<string, string>,
+    followAsk: { 'Другой рейс': 'Где мой автобус?' } as Record<string, string>,
   },
 } as const;
 
@@ -205,7 +210,7 @@ function fmtDate(iso: string, locale: Locale): string {
   return d.toLocaleDateString(locale === 'ru' ? 'ru-RU' : 'ro-RO', { weekday: 'short', day: '2-digit', month: '2-digit', timeZone: 'UTC' });
 }
 
-function CardView({ card, i, locale, ask, busy }: { card: Card; i: T; locale: Locale; ask: (s: string) => void; busy: boolean }) {
+function CardView({ card, i, locale, ask, busy, live = false }: { card: Card; i: T; locale: Locale; ask: (s: string) => void; busy: boolean; live?: boolean }) {
   const [picked, setPicked] = useState<string | null>(null);
 
   if (card.type === 'trips') {
@@ -274,26 +279,79 @@ function CardView({ card, i, locale, ask, busy }: { card: Card; i: T; locale: Lo
     );
   }
 
-  // Autobuzul: doar punctul de acum — fără viteză, direcție sau traseu (Ion, 23.09).
-  const { tiles, attribution } = busTiles(card.lat, card.lon);
+  return <BusCardView card={card} i={i} locale={locale} live={live} />;
+}
+
+type BusCard = Extract<Card, { type: 'bus' }>;
+const REFRESH_MS = 60_000;
+
+// Autobuzul: doar punctul de acum — fără viteză, direcție sau traseu (Ion, 23.09).
+// Cât cardul e ultimul din chat, punctul se cere din nou o dată pe minut (cronul de
+// pe VPS scrie tot o dată pe minut). Când cursa iese din orele ei, actualizarea se
+// oprește și cardul spune de ce.
+function BusCardView({ card: first, i, locale, live }: { card: BusCard; i: T; locale: Locale; live: boolean }) {
+  const [card, setCard] = useState<BusCard>(first);
+  const [ended, setEnded] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    if (!live || ended) return;
+    let stop = false;
+    const tick = async () => {
+      if (document.hidden) return;
+      try {
+        const res = await fetch(`${ENDPOINT}/pozitie`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from: card.from, to: card.to, departure: card.departure }),
+        });
+        if (!res.ok || stop) return;
+        const d = await res.json() as { live?: boolean; card?: BusCard; line_ro?: string | null; line_ru?: string | null };
+        if (d.live && d.card) setCard(d.card);
+        else if (d.live === false) setEnded((locale === 'ru' ? d.line_ru : d.line_ro) ?? i.busEnded);
+      } catch { /* următorul minut */ }
+    };
+    const t = setInterval(tick, REFRESH_MS);
+    return () => { stop = true; clearInterval(t); };
+  }, [live, ended, card.from, card.to, card.departure, locale, i.busEnded]);
+
+  useEffect(() => {
+    if (!expanded) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopImmediatePropagation(); setExpanded(false); } };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [expanded]);
+
+  const where = card.near ? i.busNear(card.near) : i.busNow;
   return (
     <div className="asst-card">
       <div className="asst-card-head">
         <span>{card.departure} · {card.from} → {card.to}</span>
-        <span className="asst-live"><span className="asst-live-dot" />{i.onRoad}</span>
+        {ended
+          ? <span style={{ color: '#6B5E61' }}>{i.busStopped}</span>
+          : <span className="asst-live"><span className="asst-live-dot pulse" />{live ? i.busLive : i.onRoad}</span>}
       </div>
-      <div className="asst-map" role="img" aria-label={card.near ? i.busNear(card.near) : i.busNow}>
-        {tiles.map((t) => (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img key={t.src} src={t.src} alt="" width={256} height={256} style={{ left: `calc(50% + ${t.dx}px)`, top: `calc(50% + ${t.dy}px)` }} />
-        ))}
-        <span className="asst-map-pin"><Bus size={16} /></span>
-        <span className="asst-map-attr">{attribution}</span>
+      <div className={`asst-map-wrap ${expanded ? 'full' : ''}`}>
+        {expanded && (
+          <div className="asst-map-top">
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontWeight: 700 }}>{where}</div>
+              <div style={{ fontSize: 12, color: '#6B5E61' }}>{i.busAt(card.at)} · {card.departure} {card.from} → {card.to}</div>
+            </div>
+            <CallButton crew={card} i={i} strong />
+          </div>
+        )}
+        <BusMap lat={card.lat} lon={card.lon} label={where} expanded={expanded} />
+        <button type="button" className="asst-map-expand" onClick={() => setExpanded((v) => !v)}
+          aria-label={expanded ? i.mapClose : i.mapOpen} title={expanded ? i.mapClose : i.mapOpen}>
+          {expanded ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
+        </button>
       </div>
       <div style={{ padding: '12px 14px 10px', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
-        <div style={{ fontWeight: 700, fontSize: 15 }}>{card.near ? i.busNear(card.near) : i.busNow}</div>
+        <div style={{ fontWeight: 700, fontSize: 15 }}>{where}</div>
         <div style={{ fontSize: 12, color: '#6B5E61', whiteSpace: 'nowrap' }}>{i.busAt(card.at)}</div>
       </div>
+      {ended && <div className="asst-card-hint" style={{ paddingBottom: 10 }}>{ended}</div>}
       {(card.driver || card.plate || card.phone) && (
         <div className="asst-crew-box">
           <span className="asst-crew">
@@ -303,7 +361,7 @@ function CardView({ card, i, locale, ask, busy }: { card: Card; i: T; locale: Lo
           <CallButton crew={card} i={i} strong />
         </div>
       )}
-      <div style={{ padding: '8px 14px 14px' }}>
+      <div style={{ padding: '0 14px 14px' }}>
         <a className="asst-btn-soft" style={{ width: '100%' }} href={card.maps} target="_blank" rel="noopener noreferrer"><MapPin size={17} /> {i.mapsPoint}</a>
       </div>
     </div>
@@ -387,6 +445,8 @@ export default function AssistantWidget({ locale }: { locale: Locale }) {
     return [];
   };
   const lastIdx = messages.length - 1;
+  // Doar ultimul card cu autobuzul se actualizează singur; cele vechi rămân cum au fost.
+  const lastBusIdx = messages.reduce((acc, m, k) => (m.cards?.some((c) => c.type === 'bus') ? k : acc), -1);
 
   return (
     <>
@@ -473,7 +533,7 @@ export default function AssistantWidget({ locale }: { locale: Locale }) {
                   <div className={`asst-msg ${m.role === 'user' ? 'asst-me' : 'asst-bot'}`}>
                     {m.role === 'user' ? m.text : <BotText text={m.text} i={i} />}
                   </div>
-                  {m.cards?.map((c, ci) => <CardView key={ci} card={c} i={i} locale={locale} ask={send} busy={busy} />)}
+                  {m.cards?.map((c, ci) => <CardView key={ci} card={c} i={i} locale={locale} ask={send} busy={busy} live={k === lastBusIdx} />)}
                   {k === lastIdx && m.role === 'assistant' && !busy && followFor(m).length > 0 && (
                     <div className="asst-chips">
                       {followFor(m).map((c) => (
@@ -592,6 +652,20 @@ const CSS = `
 .asst-map-pin{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:32px;height:32px;border-radius:50%;background:${RED};border:3px solid #fff;
   box-shadow:0 0 0 8px rgba(155,27,48,.18);color:#fff;display:flex;align-items:center;justify-content:center}
 .asst-map-attr{position:absolute;right:4px;bottom:3px;padding:1px 5px;border-radius:4px;background:rgba(255,255,255,.85);font-size:10px;color:#5E5255}
+.asst-map-wrap{position:relative;height:200px;background:#EFEAE3}
+.asst-map-wrap .asst-lf{position:absolute;inset:0;isolation:isolate;font-family:var(--font-opensans),Open Sans,sans-serif}
+.asst-map-wrap.full{position:fixed;inset:0;z-index:90;height:auto;display:flex;flex-direction:column;background:#fff}
+.asst-map-wrap.full .asst-lf{position:relative;inset:auto;flex:1}
+.asst-map-top{display:flex;align-items:center;justify-content:space-between;gap:12px;height:64px;box-sizing:border-box;padding:10px 64px 10px 16px;border-bottom:1px solid #EFE6E8;font-size:15px}
+.asst-map-expand{position:absolute;right:10px;top:10px;z-index:1000;width:38px;height:38px;border-radius:10px;border:none;background:#fff;color:#231A1C;
+  box-shadow:0 2px 8px rgba(0,0,0,.2);cursor:pointer;display:flex;align-items:center;justify-content:center}
+.asst-map-wrap.full .asst-map-expand{top:13px;right:14px;box-shadow:none;background:#F4E8EA;color:#7A1526}
+.asst-lf-icon{background:none!important;border:none!important}
+.asst-lf-pin{width:32px;height:32px;border-radius:50%;background:#9B1B30;border:3px solid #fff;color:#fff;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 0 8px rgba(155,27,48,.18),0 3px 8px rgba(0,0,0,.25);animation:asst-pin 2.4s ease-out infinite}
+@keyframes asst-pin{0%{box-shadow:0 0 0 0 rgba(155,27,48,.35),0 3px 8px rgba(0,0,0,.25)}70%{box-shadow:0 0 0 16px rgba(155,27,48,0),0 3px 8px rgba(0,0,0,.25)}100%{box-shadow:0 0 0 0 rgba(155,27,48,0),0 3px 8px rgba(0,0,0,.25)}}
+.asst-live-dot.pulse{animation:asst-dot 2s infinite}
+@keyframes asst-dot{0%{box-shadow:0 0 0 0 rgba(46,158,98,.6)}70%{box-shadow:0 0 0 6px rgba(46,158,98,0)}100%{box-shadow:0 0 0 0 rgba(46,158,98,0)}}
 .asst-chips{display:flex;flex-wrap:wrap;gap:6px}
 .asst-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid #E3D6D9;background:#fff;color:#7A1526;border-radius:999px;padding:8px 12px;
   font:600 13px var(--font-opensans),Open Sans,sans-serif;cursor:pointer}
@@ -618,5 +692,5 @@ const CSS = `
   .asst-compose{padding-bottom:max(10px,env(safe-area-inset-bottom))}
 }
 @media (max-width:380px){.asst-launcher-label{display:none}.asst-launcher{padding:0 17px}}
-@media (prefers-reduced-motion:reduce){.asst-teaser,.asst-panel{animation:none}}
+@media (prefers-reduced-motion:reduce){.asst-teaser,.asst-panel,.asst-lf-pin,.asst-live-dot.pulse{animation:none}}
 `;

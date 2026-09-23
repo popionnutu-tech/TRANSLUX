@@ -40,6 +40,8 @@ export const PUBLIC_EXACT = [
   // Asistentul de pe translux.md (ION-37): se apără singur — CORS doar spre site,
   // plafoane pe conversație și pe sursă (app/api/asistent-site/route.ts).
   '/api/asistent-site',
+  // Actualizarea punctului autobuzului pe harta din chat (ION-39) — aceeași apărare.
+  '/api/asistent-site/pozitie',
 ] as const;
 
 export function isPublicPath(pathname: string): boolean {

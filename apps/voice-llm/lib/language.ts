@@ -185,14 +185,20 @@ export function lockedLanguage(messages: OpenAIMessage[], body: LockTools): Voic
  * RO: ORICE literă chirilică — vocea românească o citește stricat, iar o replică
  * românească corectă n-are niciuna. Pragul a fost 4 și a lăsat să treacă «На» din
  * «На этой линии…» (simulare 23.09): cuvântul scurt pleca la TTS înaintea celui lung.
- * RU: majoritate latină și ≥12 litere latine — câte un nume latin rătăcit într-o
- * replică rusească nu e o replică românească.
+ * RU: coada de după ultima literă chirilică are un cuvânt de serviciu românesc sau o
+ * diacritică românească — asta e o frază românească începută. Simularea din 23.09:
+ * «…нажмите один.Pe această» — majoritatea din toată replica rămânea chirilică, iar
+ * «Pe această» trecea. Un nume latin rătăcit («Google Maps», «Viber») nu are nici
+ * cuvinte de serviciu, nici diacritice. Plasa veche (majoritate latină) rămâne.
  */
 export function wrongLockedLanguage(text: string, lock: VoiceLang | null): boolean {
   if (!lock) return false;
   const cyr = (text.match(/[а-яёіїєґ]/gi) ?? []).length;
   const lat = (text.match(/[a-zăâîșțşţ]/gi) ?? []).length;
-  return lock === "ro" ? cyr >= 1 : lat >= 12 && lat > cyr;
+  if (lock === "ro") return cyr >= 1;
+  if (lat >= 12 && lat > cyr) return true;
+  const tail = text.replace(/^[\s\S]*[а-яёіїєґ]/i, "");
+  return /[ăâîșțşţ]/i.test(tail) || RO_MARKERS.test(tail);
 }
 
 // Ce aude omul în locul replicii tăiate. În limba LINIEI (agentului), cu calea spre

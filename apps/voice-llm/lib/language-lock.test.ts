@@ -43,6 +43,14 @@ describe("wrongLockedLanguage", () => {
     expect(wrongLockedLanguage("Cursa din Chișinău spre Briceni pleacă la ora opt.", "ru")).toBe(true);
     expect(wrongLockedLanguage("Рейс из Кишинёва в Бричаны отправляется в восемь, Google.", "ru")).toBe(false);
   });
+  it("RU blocat: frază românească începută după anunțul rusesc (simulare 23.09)", () => {
+    expect(wrongLockedLanguage("Для румынского языка перезвоните и нажмите один.Pe această ", "ru")).toBe(true);
+    expect(wrongLockedLanguage("Для румынского языка перезвоните и нажмите один. Pe ", "ru")).toBe(true);
+  });
+  it("RU blocat: nume latine fără cuvinte românești trec", () => {
+    expect(wrongLockedLanguage("Откройте Google Maps или Waze, там всё видно.", "ru")).toBe(false);
+    expect(wrongLockedLanguage("Напишите нам в Viber", "ru")).toBe(false);
+  });
   it("fără blocare nu taie nimic", () => {
     expect(wrongLockedLanguage("Я вас не поняла", null)).toBe(false);
   });

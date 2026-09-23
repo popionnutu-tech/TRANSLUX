@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
+import CommandPalette from '@/components/CommandPalette';
 import { ToastProvider } from '@/components/Toast';
 import { verifySession } from '@/lib/auth';
 import { checkRoleIpAccess } from '@/lib/ip-access';
@@ -24,6 +25,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
       }}>
         <ToastProvider>{children}</ToastProvider>
       </main>
+      {/* ⌘K din orice pagină: 72 de pagini nu se găsesc derulând un meniu de 65 de rânduri. */}
+      <CommandPalette role={session.role} />
     </div>
   );
 }

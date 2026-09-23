@@ -348,29 +348,7 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
 
   const nomenclatorActive = nomenclatorHrefs.some(h => pathname === h || pathname.startsWith(h + '/'));
 
-  const filteredNav = role === 'ADMIN' ? nav
-    : role === 'GRAFIC' || role === 'DISPATCHER' ? nav.filter(n => n.href === '/grafic' && n.label === 'Grafic')
-    : role === 'UZINE' || role === 'DISPECER' || role === 'OBSERVATOR' ? []
-    : role === 'OPERATOR_CAMERE' || role === 'ADMIN_CAMERE' || role === 'EVALUATOR_INCASARI' || role === 'CONTABIL' || role === 'DEPOZITAR' || role === 'MANAGER' || role === 'GESTIONAR' ? []
-    : nav;
-
-  // doar ADMIN primește dropdown-urile pe module; rolurile de cameră văd Numărare ca link direct (tab-urile lor sunt în pagină)
-  // CONTABIL vede doar modulul Piese, cu sub-paginile de citire + fiscal/1C.
-  const pieseHrefs = pieseHrefsForRole(role); // null = ADMIN
-  const filteredModules = role === 'ADMIN' ? moduleItems
-    : (role === 'CONTABIL' || role === 'DEPOZITAR' || role === 'VINZATOR' || role === 'MANAGER' || role === 'GESTIONAR')
-      ? moduleItems.filter(m => m.href === '/piese').map(m => ({ ...m, children: m.children?.filter(c => pieseHrefs?.has(c.href) ?? false) }))
-    : (role === 'OPERATOR_CAMERE' || role === 'ADMIN_CAMERE' || role === 'EVALUATOR_INCASARI') ? moduleItems.filter(m => m.href === '/numarare').map(m => ({ ...m, children: undefined }))
-    : role === 'UZINE'
-      ? moduleItems.filter(m => m.href === '/lde').map(m => ({ ...m, children: m.children?.filter(c => c.href === '/lde/grafic-uzine' || c.href === '/lde/parc'), subGroup: undefined }))
-    : role === 'DISPECER' || role === 'OBSERVATOR'
-      ? moduleItems.filter(m => m.href === '/lde').map(m => ({ ...m, children: m.children?.filter(c => c.href === '/lde/camioane'), subGroup: undefined }))
-    : [];
-
-  const showNomenclator = role === 'ADMIN' || role === 'DISPATCHER';
-  const filteredNomenclator = role === 'ADMIN'
-    ? nomenclatorItems
-    : nomenclatorItems.filter(i => i.href === '/drivers' || i.href === '/vehicles');
+  const { nav: filteredNav, module: filteredModules, nomenclator: filteredNomenclator, showNomenclator } = meniuPentruRol(role);
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -459,4 +437,53 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
       </div>
     </aside>
   );
+}
+
+// Ce vede fiecare rol — o singură sursă, folosită și de bara laterală, și de paleta de comenzi
+// (⌘K). Dacă filtrarea ar sta doar în componentă, paleta ar oferi pagini pe care rolul nu le
+// poate deschide, iar omul ar da peste un refuz în loc de o destinație.
+export function meniuPentruRol(role: AdminRole) {
+  const filteredNav = role === 'ADMIN' ? nav
+    : role === 'GRAFIC' || role === 'DISPATCHER' ? nav.filter(n => n.href === '/grafic' && n.label === 'Grafic')
+    : role === 'UZINE' || role === 'DISPECER' || role === 'OBSERVATOR' ? []
+    : role === 'OPERATOR_CAMERE' || role === 'ADMIN_CAMERE' || role === 'EVALUATOR_INCASARI' || role === 'CONTABIL' || role === 'DEPOZITAR' || role === 'MANAGER' || role === 'GESTIONAR' ? []
+    : nav;
+
+  // doar ADMIN primește dropdown-urile pe module; rolurile de cameră văd Numărare ca link direct (tab-urile lor sunt în pagină)
+  // CONTABIL vede doar modulul Piese, cu sub-paginile de citire + fiscal/1C.
+  const pieseHrefs = pieseHrefsForRole(role); // null = ADMIN
+  const filteredModules = role === 'ADMIN' ? moduleItems
+    : (role === 'CONTABIL' || role === 'DEPOZITAR' || role === 'VINZATOR' || role === 'MANAGER' || role === 'GESTIONAR')
+      ? moduleItems.filter(m => m.href === '/piese').map(m => ({ ...m, children: m.children?.filter(c => pieseHrefs?.has(c.href) ?? false) }))
+    : (role === 'OPERATOR_CAMERE' || role === 'ADMIN_CAMERE' || role === 'EVALUATOR_INCASARI') ? moduleItems.filter(m => m.href === '/numarare').map(m => ({ ...m, children: undefined }))
+    : role === 'UZINE'
+      ? moduleItems.filter(m => m.href === '/lde').map(m => ({ ...m, children: m.children?.filter(c => c.href === '/lde/grafic-uzine' || c.href === '/lde/parc'), subGroup: undefined }))
+    : role === 'DISPECER' || role === 'OBSERVATOR'
+      ? moduleItems.filter(m => m.href === '/lde').map(m => ({ ...m, children: m.children?.filter(c => c.href === '/lde/camioane'), subGroup: undefined }))
+    : [];
+
+  const showNomenclator = role === 'ADMIN' || role === 'DISPATCHER';
+  const filteredNomenclator = role === 'ADMIN'
+    ? nomenclatorItems
+    : nomenclatorItems.filter(i => i.href === '/drivers' || i.href === '/vehicles');
+  return { nav: filteredNav, module: filteredModules, nomenclator: filteredNomenclator, showNomenclator };
+}
+
+// Lista plată pentru paleta de comenzi: fiecare destinație o dată, cu modulul din care face parte.
+export type Destinatie = { href: string; label: string; grup: string; icon: string };
+export function destinatii(role: AdminRole): Destinatie[] {
+  const m = meniuPentruRol(role);
+  const out: Destinatie[] = [];
+  const pune = (i: { href: string; label: string; icon: string }, grup: string) => {
+    if (out.some(o => o.href === i.href)) return;
+    out.push({ href: i.href, label: i.label, grup, icon: i.icon });
+  };
+  for (const mod of m.module) {
+    pune(mod, 'Module');
+    for (const c of mod.children ?? []) pune(c, mod.label);
+    for (const c of mod.subGroup?.items ?? []) pune(c, mod.subGroup!.label);
+  }
+  for (const i of m.nav) pune(i, 'Pagini');
+  if (m.showNomenclator) for (const i of m.nomenclator) pune(i, 'Nomenclator');
+  return out;
 }

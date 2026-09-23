@@ -14,6 +14,7 @@ import { searchTrips, type TripResult } from '@/lib/trips-search';
 import { localitiesToRo, unknownLocalityResponse } from '@/lib/voice-locality';
 import { chisinauTodayIso } from '@/lib/chisinau-time';
 import { crewOf, type Crew } from './cards';
+import { formatPhone } from './voice-to-text';
 
 /** După sfârșitul din grafic cursa mai e «pe drum» atât: autobuzele întârzie. */
 export const END_SLACK_MIN = 20;
@@ -142,6 +143,17 @@ export async function tripsOnRoad(from: string, to: string): Promise<{ result: R
   };
 }
 
+/** Frazele cu șoferul cursei, gata de redat — doar când graficul are om și număr. */
+export function driverLines(c: Crew, hhmm: string): Record<string, string> {
+  const phone = c.phone ? formatPhone(c.phone) : null;
+  if (!phone) return { driver_line_ro: `Numărul șoferului cursei de ${hhmm} nu e în grafic.`, driver_line_ru: `Номера водителя рейса ${hhmm} нет в графике.` };
+  const who = [c.driver, c.plate].filter(Boolean).join(', ');
+  return {
+    driver_line_ro: `Șoferul cursei de ${hhmm}${who ? ` (${who})` : ''}: ${phone}.`,
+    driver_line_ru: `Водитель рейса ${hhmm}${who ? ` (${who})` : ''}: ${phone}.`,
+  };
+}
+
 export interface BusPoint extends Crew { lat: number; lon: number; near: string | null; at: string; departure: string; from: string; to: string }
 
 /** Punctul mașinii UNEI curse, numai dacă e pe drum acum după grafic. */
@@ -194,6 +206,10 @@ export async function busLocation(from: string, to: string, departure: string): 
       // Nimic despre viteză, direcție sau mașină: doar unde e, și de când e punctul.
       line_ro: point.near ? `Autobuzul cursei de ${hhmm} e acum lângă ${point.near} (poziția de la ${at}). Harta e sub mesaj.` : `Poziția autobuzului cursei de ${hhmm}, de la ${at}, e pe harta de sub mesaj.`,
       line_ru: point.near ? `Автобус рейса ${hhmm} сейчас возле ${point.near} (позиция на ${at}). Карта под сообщением.` : `Позиция автобуса рейса ${hhmm} на ${at} — на карте под сообщением.`,
+      // Pentru întrebarea care vine aproape mereu după hartă: «numărul șoferului».
+      // Captura lui Ion, 23.09: fără el în rezultat, modelul l-a trimis pe om la linia
+      // 060 401 010 «ca să i se dea contactul» — deși numărul era chiar pe card.
+      ...driverLines(point, hhmm),
     },
   };
 }

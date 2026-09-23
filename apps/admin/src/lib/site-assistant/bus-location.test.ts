@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { END_SLACK_MIN, hhmmToMin, isOnRoad, minToHhmm, tripWindow } from './bus-location';
+import { END_SLACK_MIN, driverLines, hhmmToMin, isOnRoad, minToHhmm, tripWindow } from './bus-location';
 import { crewOf, fmtPlate } from './cards';
 
 describe('bus-location — poarta «doar în orele cursei»', () => {
@@ -60,5 +60,17 @@ describe('cards — cine duce cursa', () => {
     expect(fmtPlate('ABC123')).toBe('ABC 123');
     expect(fmtPlate('C 123 AB')).toBe('C123AB');
     expect(fmtPlate(null)).toBeNull();
+  });
+});
+
+describe('driverLines — numărul șoferului lângă hartă', () => {
+  it('prenume, mașină și număr formatat', () => {
+    expect(driverLines({ driver: 'Ion', plate: '651 AKD', phone: '37369000001' }, '20:30')).toEqual({
+      driver_line_ro: 'Șoferul cursei de 20:30 (Ion, 651 AKD): 069 000 001.',
+      driver_line_ru: 'Водитель рейса 20:30 (Ion, 651 AKD): 069 000 001.',
+    });
+  });
+  it('fără număr în grafic spune asta, nu trimite la linie', () => {
+    expect(driverLines({ driver: null, plate: null, phone: null }, '20:30').driver_line_ro).toBe('Numărul șoferului cursei de 20:30 nu e în grafic.');
   });
 });

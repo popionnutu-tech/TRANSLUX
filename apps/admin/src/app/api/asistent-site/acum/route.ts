@@ -102,10 +102,12 @@ export async function POST(req: NextRequest) {
       from: r.fromRo ?? null,
       to: r.toRo ?? null,
       routes,
-      trips: await Promise.all(r.trips.map(async (t) => {
+      // Autobuzul care a trecut deja de oprirea omului nu mai e al lui — iese din listă,
+      // chiar dacă după grafic ar mai fi pe drum (nextTrips ține și cursele întârziate).
+      trips: (await Promise.all(r.trips.map(async (t) => {
         const p = t.on_road ? pos.get(normPlate(t.plate)) : undefined;
         return { ...t, ...(p ?? {}), ...(p ? await etaFor(t.route_id, p, routes) : {}) };
-      })),
+      }))).filter((t) => !('passed' in t && t.passed)),
       line_ro: r.trips.length ? null : ((r.result.line_ro ?? r.result.result_ro) as string | undefined) ?? null,
       line_ru: r.trips.length ? null : ((r.result.line_ru ?? r.result.result_ru) as string | undefined) ?? null,
     }, { headers });

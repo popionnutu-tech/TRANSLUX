@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { etaFrom, haversineKm, paceFromStops, remainingKm, type LatLon, type StopRow } from './bus-eta';
+import { etaFrom, haversineKm, paceFromStops, remainingKm, typicalLeg, typicalOffset, type LatLon, type StopRow } from './bus-eta';
 
 // O linie dreaptă nord-sud, un vârf la ~1,11 km (0,01° latitudine).
 const shape: LatLon[] = Array.from({ length: 11 }, (_, i) => [47 + i * 0.01, 28]);
@@ -49,5 +49,24 @@ describe('etaFrom', () => {
     const at = '2026-09-23T17:00:00Z'; // 20:00 la Chișinău
     const r = etaFrom(30, 1.2, at, Date.parse(at));
     expect(r).toEqual({ eta: '20:36', eta_min: 36 });
+  });
+});
+
+describe('typicalOffset / typicalLeg — ora reală din treceri', () => {
+  const pass = (date: string, stop: number, hhmm: string, off: number) =>
+    ({ date, stop_order: stop, passed_at: `${date}T${hhmm}:00Z`, offset_min: off });
+  const days = ['2026-09-16', '2026-09-17', '2026-09-18', '2026-09-19', '2026-09-20', '2026-09-21', '2026-09-22'];
+
+  it('ultimele 7 zile cântăresc: obiceiul nou bate media veche', () => {
+    const old = ['2026-09-09', '2026-09-10', '2026-09-11', '2026-09-12', '2026-09-13'].map((d) => pass(d, 80, '20:10', 10));
+    const recent = days.map((d) => pass(d, 80, '19:50', -8));
+    expect(typicalOffset([...old, ...recent], 80, '2026-09-23')).toBe(-8);
+  });
+  it('prea puține treceri = fără oră reală', () => {
+    expect(typicalOffset([pass('2026-09-22', 80, '20:00', -5)], 80, '2026-09-23')).toBeNull();
+  });
+  it('durata reală a tronsonului A → B, mediana pe zile', () => {
+    const rows = days.flatMap((d, i) => [pass(d, 10, '20:00', 0), pass(d, 20, `20:${String(30 + i).padStart(2, '0')}`, 0)]);
+    expect(typicalLeg(rows, 10, 20)).toBe(33);
   });
 });

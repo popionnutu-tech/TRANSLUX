@@ -29,4 +29,7 @@ node --env-file=.env trip-worker.mjs "$Y" --write >> nightly.log 2>&1
 # Etalonul traseelor: DUPĂ gps-worker, fiindcă citește cursele scrise de el. Nu atinge
 # trackerul furnizorului — citește doar Supabase, deci poate fi pas separat.
 node --env-file=.env etalon-aggregate.mjs --write >> nightly.log 2>&1
+# Ora reală la care autobuzele de pasageri au trecut ieri prin fiecare oprire (ION-39,
+# route_stop_passes): citește trackerul, deci are nevoie doar de urma de ieri.
+node --env-file=.env stop-times.mjs --from "$Y" --to "$Y" --write >> nightly.log 2>&1
 echo "----- gata -----" >> nightly.log

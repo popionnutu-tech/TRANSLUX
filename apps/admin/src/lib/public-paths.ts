@@ -42,6 +42,8 @@ export const PUBLIC_EXACT = [
   '/api/asistent-site',
   // Actualizarea punctului autobuzului pe harta din chat (ION-39) — aceeași apărare.
   '/api/asistent-site/pozitie',
+  // Butonul «Acum» de pe prima pagină (ION-43): autobuzele de pe drum ale direcției.
+  '/api/asistent-site/acum',
 ] as const;
 
 export function isPublicPath(pathname: string): boolean {

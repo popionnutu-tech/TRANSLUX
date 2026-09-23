@@ -648,6 +648,11 @@ body {
   .hero-form > .hero-swap { flex: 0 0 auto !important; width: auto !important; }
   .hero-form > .hero-date-wrap > button { width: 100% !important; justify-content: center !important; }
 }
+/* Acum / Mai târziu (ION-43) */
+.hero-now-dot { width: 7px; height: 7px; border-radius: 50%; background: #FFD5DB; animation: heroNowPulse 2s infinite; }
+@keyframes heroNowPulse { 0% { box-shadow: 0 0 0 0 rgba(255,213,219,.7); } 70% { box-shadow: 0 0 0 6px rgba(255,213,219,0); } 100% { box-shadow: 0 0 0 0 rgba(255,213,219,0); } }
+.hero-later { transition: background 0.15s ease; }
+.hero-later:hover { background: rgba(155,27,48,0.06) !important; }
 .route-row:hover { background: rgba(155,27,48,0.04); }
 .social-icon:hover { background: #9B1B30 !important; color: white !important; border-color: #9B1B30 !important; }
 .social-icon { transition: all 0.2s ease; }

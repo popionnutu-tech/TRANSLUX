@@ -197,3 +197,44 @@ export async function busLocation(from: string, to: string, departure: string): 
     },
   };
 }
+
+/** Câte plecări arată butonul «Acum» de pe prima pagină. */
+export const NOW_SHOWN = 4;
+
+export interface NextTrip extends Crew { departure: string; minutes_until: number; on_road: boolean }
+
+/**
+ * Butonul «Acum» de pe prima pagină (ION-43): următoarele plecări de AZI din localitatea
+ * omului spre destinația lui. `on_road` = autobuzul cursei e deja pe drum după grafic
+ * (aceeași poartă ca punctul din chat), deci punctul lui poate fi arătat. O cursă deja
+ * plecată din localitatea omului nu mai e a lui — nu intră.
+ */
+export async function nextTrips(from: string, to: string): Promise<{ result: Record<string, unknown>; trips: NextTrip[]; fromRo?: string; toRo?: string }> {
+  const r = await resolve(from, to);
+  if (!r.ok) return { result: r.result, trips: [] };
+  const next = (await searchTrips(r.fromRo, r.toRo, chisinauTodayIso(), { skipLog: true })).slice(0, NOW_SHOWN);
+  const wins = await windowsFor(next);
+  const now = nowMinChisinau();
+  const trips = next.map((t) => {
+    const dep = hhmmToMin(t.time) ?? now;
+    let until = dep - now;
+    if (until < -720) until += 1440;
+    const w = wins.get(winKey(t));
+    return {
+      departure: t.time.padStart(5, '0'),
+      minutes_until: until,
+      on_road: !!(t.vehicle_plate && w && isOnRoad(w, now)),
+      ...crewOf(t),
+    };
+  });
+  if (trips.length === 0) {
+    return {
+      trips, fromRo: r.fromRo, toRo: r.toRo,
+      result: {
+        line_ro: `Azi nu mai sunt curse ${r.fromRo} → ${r.toRo}. Apăsați «Mai târziu» și alegeți altă zi.`,
+        line_ru: `Сегодня больше нет рейсов ${r.fromRo} → ${r.toRo}. Нажмите «Позже» и выберите другой день.`,
+      },
+    };
+  }
+  return { trips, fromRo: r.fromRo, toRo: r.toRo, result: {} };
+}

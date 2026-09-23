@@ -3,8 +3,6 @@
 import { useState, useRef, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { format } from 'date-fns';
-import { ro as roLocale, ru as ruLocale } from 'date-fns/locale';
-import { RainbowButton } from '@/components/ui/rainbow-borders-button';
 
 const ShaderBackground = dynamic(
   () => import('@/components/ui/shader-background'),
@@ -21,6 +19,7 @@ const ShaderBackground = dynamic(
 );
 import { MiniCalendar } from '@/components/ui/mini-calendar';
 import { RouteResults } from '@/components/ui/route-results';
+import { NowResults } from '@/components/NowResults';
 import CookieConsent from '@/components/CookieConsent';
 import AssistantWidget from '@/components/AssistantWidget';
 import { openConsentSettings } from '@/lib/consent';
@@ -39,6 +38,7 @@ export function HomePage({ locale, localities = [], popularPrices = [] }: HomePa
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [trips, setTrips] = useState<TripResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [now, setNow] = useState<{ from: string; to: string; fromLabel: string; toLabel: string } | null>(null);
   const fromRef = useRef<HTMLSelectElement>(null);
   const toRef = useRef<HTMLSelectElement>(null);
   const calRef = useRef<HTMLDivElement>(null);
@@ -52,15 +52,45 @@ export function HomePage({ locale, localities = [], popularPrices = [] }: HomePa
     return { major, minor };
   }, [localities, locale]);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
+  /** Direcția aleasă, sau null — atunci browserul arată ce câmp lipsește. */
+  const direction = () => {
     const from = fromRef.current?.value;
     const to = toRef.current?.value;
-    if (!from || !to || from === to) return;
+    if (!from || !to || from === to) {
+      if (!from) fromRef.current?.reportValidity();
+      else if (!to) toRef.current?.reportValidity();
+      return null;
+    }
+    return { from, to };
+  };
+
+  const openNow = () => {
+    const d = direction();
+    if (!d) return;
+    setNow({
+      ...d,
+      fromLabel: fromRef.current?.selectedOptions[0]?.text || d.from,
+      toLabel: toRef.current?.selectedOptions[0]?.text || d.to,
+    });
+  };
+
+  const openLater = () => {
+    if (direction()) setCalendarOpen(!calendarOpen);
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    openLater();
+  };
+
+  const runSearch = async (date: Date) => {
+    const d = direction();
+    if (!d) return;
+    const { from, to } = d;
 
     setSearching(true);
     try {
-      const results = await searchTrips(from, to, format(selectedDate, 'yyyy-MM-dd'));
+      const results = await searchTrips(from, to, format(date, 'yyyy-MM-dd'));
       setTrips(results);
       setShowResults(true);
     } catch (err) {
@@ -213,35 +243,43 @@ export function HomePage({ locale, localities = [], popularPrices = [] }: HomePa
                 </select>
               </div>
 
-              {/* Date picker */}
-              <div ref={calRef} className="hero-date-wrap" style={{ position: 'relative', flexShrink: 0 }}>
-                <button type="button" onClick={() => setCalendarOpen(!calendarOpen)} className="hero-select" style={{
-                  height: 48, border: '1px solid rgba(155,27,48,0.1)', borderRadius: 12,
-                  padding: '0 14px', fontSize: 14, background: 'rgba(255,255,255,0.85)',
-                  outline: 'none', fontStyle: 'italic',
-                  color: '#6E0E14', fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
-                  cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6,
+              {/* Acum / Mai târziu (ION-43): omul alege direcția, apoi când pleacă.
+                  «Mai târziu» deschide calendarul; ziua aleasă rulează căutarea de până acum. */}
+              <div ref={calRef} className="hero-actions" style={{ position: 'relative', flexShrink: 0, display: 'flex', gap: 8 }}>
+                <button type="button" onClick={openNow} className="hero-now search-btn-3d" style={{
+                  flex: '1 1 0', height: 48, borderRadius: 12, padding: '0 20px', cursor: 'pointer',
+                  fontWeight: 700, fontSize: 14, fontStyle: 'italic', whiteSpace: 'nowrap',
+                  fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                 }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                  {format(selectedDate, 'dd.MM.yyyy', { locale: locale === 'ru' ? ruLocale : roLocale })}
+                  <span className="hero-now-dot" />
+                  {i.now}
+                </button>
+                <button type="button" onClick={openLater} className="hero-later" style={{
+                  flex: '1 1 0', height: 48, borderRadius: 12, padding: '0 18px', cursor: 'pointer',
+                  border: '1.5px solid #9B1B30', background: 'rgba(255,255,255,0.85)', color: '#9B1B30',
+                  fontWeight: 700, fontSize: 14, fontStyle: 'italic', whiteSpace: 'nowrap',
+                  fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  {searching ? '...' : i.later}
                 </button>
                 {calendarOpen && (
                   <>
                     <div style={{ position: 'fixed', inset: 0, zIndex: 10 }} onClick={() => setCalendarOpen(false)} />
                     <div style={{
-                      position: 'absolute', bottom: '100%', right: 0, marginBottom: 4, zIndex: 11, width: 280,
+                      position: 'absolute', top: '100%', right: 0, marginTop: 6, zIndex: 11, width: 280,
                     }}>
                       <MiniCalendar
                         value={selectedDate}
                         locale={locale}
-                        onChange={(d) => { setSelectedDate(d); setCalendarOpen(false); }}
+                        onChange={(d) => { setSelectedDate(d); setCalendarOpen(false); runSearch(d); }}
                       />
                     </div>
                   </>
                 )}
               </div>
-
-              <RainbowButton label={searching ? '...' : i.search} />
             </form>
           </div>
 
@@ -356,6 +394,17 @@ export function HomePage({ locale, localities = [], popularPrices = [] }: HomePa
           selectedTime={null}
           locale={locale}
           onClose={() => setShowResults(false)}
+        />
+      )}
+
+      {now && (
+        <NowResults
+          from={now.fromLabel}
+          to={now.toLabel}
+          fromValue={now.from}
+          toValue={now.to}
+          locale={locale}
+          onClose={() => setNow(null)}
         />
       )}
 

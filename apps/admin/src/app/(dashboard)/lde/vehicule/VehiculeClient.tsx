@@ -335,32 +335,28 @@ function VehiculRow({
             </span>
           </div>
         ) : (
-          <span
-            onClick={() => { setDraftLoc(row.home_locality ?? row.gps_recent ?? row.gps_home ?? ''); setEditField('home'); }}
-            title="Apasă ca să scrii locul de trai cu mâna"
-            style={{ cursor: 'pointer', display: 'block' }}
-          >
-            {/* Ion, 23.09: «locul de trai se mișcă odată cu mișcarea în perioada de odihnă a
-                mașinii». Deci implicit locul URMEAZĂ odihna din GPS și se mută singur; ce e
-                scris cu mâna bate GPS-ul, fiindcă doar omul știe de o reparație sau o
-                înlocuire temporară. */}
+          <div>
+            {/* Ion, 23.09: «de mine nimeni niciodată nu va introduce». Deci coloana nu cere
+                nimic de la nimeni: locul de trai ESTE odihna din GPS și se mută singur.
+                Scrisul cu mâna rămâne doar ca portiță, pentru cazuri pe care GPS-ul nu le
+                poate ști — o reparație lungă, o înlocuire de câteva zile — și nu se vede
+                până nu e nevoie de el. Nimic din sistem nu așteaptă să fie completat. */}
             <span style={{ fontWeight: 600 }}>
-              {row.home_locality ?? row.gps_recent ?? row.gps_home ?? <span className="text-muted">— nu doarme nicăieri constant</span>}
+              {row.home_locality ?? row.gps_recent ?? row.gps_home
+                ?? <span className="text-muted" style={{ fontWeight: 400 }}>n-a dormit nicăieri constant</span>}
             </span>
-            {row.home_driver && <span className="text-muted" style={{ fontSize: 12 }}> · {row.home_driver}</span>}
 
             <div className="text-muted" style={{ fontSize: 11.5, marginTop: 2 }}>
               {row.home_locality
-                ? <>scris cu mâna{row.home_since ? ` · din ${row.home_since}` : ''}</>
+                ? <>pus cu mâna{row.home_since ? ` · din ${row.home_since}` : ''}{row.home_driver ? ` · ${row.home_driver}` : ''}</>
                 : row.gps_recent
-                  ? <>urmează odihna · {row.gps_nopti_recent} nopți în ultimele 7 zile</>
-                  : <>fără odihnă constantă în ultimele 30 de zile</>}
+                  ? <>din odihnă · {row.gps_nopti_recent} nopți din ultimele 7</>
+                  : <>fără odihnă constantă în 30 de zile</>}
             </div>
 
             {row.gps_ultima && (
               <div className="text-muted" style={{ fontSize: 11 }}>
-                azi-noapte: {row.gps_ultima}
-                {row.gps_ultima_zi ? ` (${row.gps_ultima_zi})` : ''}
+                azi-noapte: {row.gps_ultima}{row.gps_ultima_zi ? ` (${row.gps_ultima_zi})` : ''}
               </div>
             )}
 
@@ -373,10 +369,21 @@ function VehiculRow({
             )}
             {row.home_locality && row.gps_recent && row.home_locality !== row.gps_recent && (
               <div className="badge badge-cancelled" style={{ marginTop: 3, fontSize: 10.5 }}>
-                Scris {row.home_locality}, doarme la {row.gps_recent}
+                Pus {row.home_locality}, doarme la {row.gps_recent}
               </div>
             )}
-          </span>
+
+            <button
+              onClick={() => { setDraftLoc(row.home_locality ?? ''); setEditField('home'); }}
+              title="Doar dacă GPS-ul greșește: reparație lungă, înlocuire de câteva zile"
+              style={{
+                background: 'none', border: 0, padding: 0, marginTop: 3, cursor: 'pointer',
+                font: 'inherit', fontSize: 10.5, color: 'var(--text-muted)', textDecoration: 'underline',
+              }}
+            >
+              {row.home_locality ? 'schimbă' : 'corectează'}
+            </button>
+          </div>
         )}
       </td>
 

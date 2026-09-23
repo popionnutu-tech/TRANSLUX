@@ -9,7 +9,6 @@ export type UrmaRuta = {
   id: string;
   culoare: string;
   capat?: string;
-  gol: Punct[][];
   plin: Punct[][];
   sate: { n: string; c: Punct }[];
 };
@@ -24,7 +23,7 @@ function Incadreaza({ urme, ales }: { urme: UrmaRuta[]; ales: string | null }) {
     const puncte: Punct[] = [];
     for (const u of urme) {
       if (ales && u.id !== ales) continue;
-      for (const seg of [...u.gol, ...u.plin]) puncte.push(...seg);
+      for (const seg of u.plin) puncte.push(...seg);
     }
     if (puncte.length < 2) return;
     const la = puncte.map((p) => p[0]);
@@ -70,11 +69,6 @@ export default function ScheletMap({ urme, ales }: { urme: UrmaRuta[]; ales: str
         if (estompat) return null;
         return (
           <div key={u.id}>
-            {u.gol.map((seg, i) => (
-              <Polyline key={`g${i}`} positions={seg} pathOptions={{
-                color: '#8e867a', weight: activ ? 3 : 2, opacity: 0.75, dashArray: '6 6',
-              }} />
-            ))}
             {u.plin.map((seg, i) => (
               <Polyline key={`p${i}`} positions={seg} pathOptions={{
                 color: u.culoare, weight: activ ? 5 : 3, opacity: 0.95,

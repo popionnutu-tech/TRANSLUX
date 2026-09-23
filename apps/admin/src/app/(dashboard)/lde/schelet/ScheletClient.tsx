@@ -33,14 +33,12 @@ export default function ScheletClient({ schelet }: { schelet: Schelet }) {
 
   const masurate = schelet.rute.filter((r) => r.etalon != null);
   const kmPlin = masurate.reduce((s, r) => s + (r.etalon ?? 0) * 2, 0);
-  const kmGol = masurate.reduce((s, r) => s + (r.gol ?? 0), 0);
 
   const urme: UrmaRuta[] = useMemo(
     () => schelet.rute.filter((r) => r.g).map((r) => ({
       id: r.id,
       culoare: culoarea(r.loc),
       capat: r.capat,
-      gol: [r.g?.tur?.gol, r.g?.retur?.gol].filter((x): x is Punct[] => !!x && x.length > 1),
       plin: [r.g?.tur?.plin, r.g?.retur?.plin].filter((x): x is Punct[] => !!x && x.length > 1),
       sate: [...(r.g?.tur?.sate ?? []), ...(r.g?.retur?.sate ?? [])],
     })),
@@ -72,7 +70,7 @@ export default function ScheletClient({ schelet }: { schelet: Schelet }) {
           <div style={{ fontSize: 12.5, color: 'var(--text-muted, #888)', marginTop: 3, fontFamily: 'var(--font-mono, monospace)' }}>
             {r.loc} locuri
             {r.etalon != null
-              ? ` · ${km(r.etalon)}/sens · ${km(r.gol ?? 0)} gol`
+              ? ` · ${km(r.etalon)} pe sens`
               : ' · fără măsurare'}
           </div>
         </button>
@@ -81,7 +79,7 @@ export default function ScheletClient({ schelet }: { schelet: Schelet }) {
           <div style={{ padding: '4px 12px 14px 16px', fontSize: 13 }}>
             {r.capat && (
               <p style={{ color: 'var(--text-muted, #888)', margin: '0 0 8px' }}>
-                Strânsul începe la <b style={{ color: 'var(--text, #222)' }}>{r.capat}</b>; drumul de acasă până acolo e gol.
+                Strânsul începe la <b style={{ color: 'var(--text, #222)' }}>{r.capat}</b>; de acolo mai departe, până la uzină, e ruta.
               </p>
             )}
             <ol style={{ listStyle: 'none', margin: '0 0 12px', padding: '0 0 0 12px', borderLeft: '2px solid var(--border, #e5e5e5)' }}>
@@ -121,7 +119,6 @@ export default function ScheletClient({ schelet }: { schelet: Schelet }) {
                     ['Tur', km(r.tur!), 'cu oameni'],
                     ['Retur', km(r.retur!), 'cu oameni'],
                     ['Etalon', km(r.etalon), 'pe sens'],
-                    ['Gol', km(r.gol ?? 0), 'de acasă până la capăt, dus-întors'],
                     ['Abatere', `${r.dif}%`, `tur față de retur, pe ${r.zile} zile`],
                   ].map(([et, val, sub], i) => (
                     <tr key={et} style={{ borderTop: i ? '1px solid var(--border, #eee)' : undefined }}>
@@ -172,7 +169,7 @@ export default function ScheletClient({ schelet }: { schelet: Schelet }) {
         </p>
       </div>
 
-      <div className="grid-3" style={{ marginBottom: 14 }}>
+      <div className="grid-2" style={{ marginBottom: 14 }}>
         <div className="summary-card card">
           <div className="value">{masurate.length}<span style={{ fontSize: 18, opacity: 0.5 }}>/{schelet.rute.length}</span></div>
           <div className="label">rute măsurate</div>
@@ -180,10 +177,6 @@ export default function ScheletClient({ schelet }: { schelet: Schelet }) {
         <div className="summary-card card">
           <div className="value">{Math.round(kmPlin).toLocaleString('ro-RO')}</div>
           <div className="label">km cu oameni pe zi</div>
-        </div>
-        <div className="summary-card card">
-          <div className="value">{Math.round(kmGol).toLocaleString('ro-RO')}</div>
-          <div className="label">km goi pe zi</div>
         </div>
       </div>
 
@@ -206,10 +199,6 @@ export default function ScheletClient({ schelet }: { schelet: Schelet }) {
                   {c.eticheta}
                 </div>
               ))}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                <span style={{ display: 'block', width: 20, borderTop: '3px dashed #8e867a' }} />
-                gol, până la capăt
-              </div>
             </div>
           </div>
         </div>

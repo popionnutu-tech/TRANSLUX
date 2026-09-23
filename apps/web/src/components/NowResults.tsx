@@ -119,10 +119,12 @@ function NowMap({ trips, routes, selected, onPick }: { trips: NowTrip[]; routes:
       // Linia fină a rutei alese și, pe ea, localitatea omului și destinația.
       const route = trips[selected]?.route_id != null ? routes[trips[selected].route_id!] : undefined;
       if (route?.shape.length) {
-        L.polyline(route.shape, { color: RED, weight: 3, opacity: 0.85, interactive: false }).addTo(g);
+        // Întreruptă (Ion, 23.09: «linia să fie întreruptă»): e drumul rutei, nu urma GPS.
+        L.polyline(route.shape, { color: RED, weight: 3, opacity: 0.8, dashArray: '6 7', lineCap: 'round', interactive: false }).addTo(g);
         for (const [pt, cls] of [[route.from, 'from'], [route.to, 'to']] as const) {
           if (!pt) continue;
-          L.marker(pt, {
+          // Centrul satului poate sta în afara traseului: capătul se pune pe linie.
+          L.marker(snap(pt, route.shape), {
             icon: L.divIcon({ html: `<span class="now-end ${cls}"></span>`, className: 'now-pin-icon', iconSize: [16, 16], iconAnchor: [8, 8] }),
             keyboard: false, interactive: false,
           }).addTo(g);
@@ -137,8 +139,9 @@ function NowMap({ trips, routes, selected, onPick }: { trips: NowTrip[]; routes:
         const own = t.route_id != null ? routes[t.route_id]?.shape : undefined;
         const at = own ? snap([t.lat, t.lon], own) : [t.lat, t.lon] as [number, number];
         const icon = L.divIcon({
-          html: `<span class="now-pin${on ? ' on' : ''}">${t.departure}</span>`,
-          className: 'now-pin-icon', iconSize: [64, 30], iconAnchor: [32, 15],
+          // Rutiera desenată minimalist, cu ora pe ea (Ion, 23.09).
+          html: `<span class="now-bus${on ? ' on' : ''}"><b>${t.departure}</b><i></i><i></i></span>`,
+          className: 'now-pin-icon', iconSize: [68, 36], iconAnchor: [34, 18],
         });
         L.marker(at, { icon, keyboard: false, title: t.departure, zIndexOffset: on ? 1000 : 0 })
           .on('click', () => onPick(i))
@@ -282,8 +285,14 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
 .now-row.on .now-num{font-size:18px;font-weight:700;margin-top:6px}
 .now-row.on .now-call{width:52px;height:52px;background:#fff;color:${RED};box-shadow:0 4px 12px rgba(0,0,0,.18);align-self:flex-end}
 .now-pin-icon{background:none!important;border:none!important}
-.now-pin{display:inline-flex;align-items:center;justify-content:center;height:30px;width:64px;border-radius:15px;background:#fff;color:${RED};border:2px solid ${RED};box-sizing:border-box;font:700 13px var(--font-opensans),Open Sans,sans-serif;box-shadow:0 3px 8px rgba(0,0,0,.15);cursor:pointer}
-.now-pin.on{background:${RED};color:#fff;border-color:#fff;box-shadow:0 0 0 8px rgba(155,27,48,.16),0 3px 8px rgba(0,0,0,.25)}
+.now-bus{position:relative;display:block;width:68px;height:36px;cursor:pointer}
+.now-bus b{position:absolute;left:0;top:0;width:68px;height:28px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;padding-right:6px;border-radius:8px 14px 6px 6px;background:#fff;border:2px solid ${RED};color:${RED};font:800 13px var(--font-opensans),Open Sans,sans-serif;box-shadow:0 3px 8px rgba(0,0,0,.18)}
+.now-bus b::after{content:"";position:absolute;right:4px;top:5px;width:7px;height:10px;border-radius:2px 5px 2px 2px;background:currentColor;opacity:.25}
+.now-bus i{position:absolute;bottom:2px;width:10px;height:10px;border-radius:50%;background:#231A1C;border:2px solid #fff;box-sizing:border-box}
+.now-bus i:first-of-type{left:12px}
+.now-bus i:last-of-type{right:14px}
+.now-bus.on b{background:${RED};color:#fff;border-color:${RED};box-shadow:0 0 0 7px rgba(155,27,48,.16),0 3px 8px rgba(0,0,0,.25)}
+.now-bus.on b::after{background:#fff;opacity:.55}
 .now-end{display:block;width:16px;height:16px;border-radius:50%;box-sizing:border-box;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)}
 .now-end.from{background:#231A1C}
 .now-end.to{background:#fff;border:4px solid ${RED}}

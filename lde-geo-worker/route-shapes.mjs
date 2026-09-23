@@ -89,6 +89,27 @@ function decode(str) {
   return pts;
 }
 
+/**
+ * Taie «cârligele»: Valhalla intră până în centrul fiecărui sat-oprire și iese pe același
+ * drum, dar autobuzul merge pe traseu (Ion, 23.09: «noi nu intrăm direct în fiecare sat
+ * sau oraș, noi mergem pe traseu»). Când linia revine la sub 60 m de un punct prin care a
+ * trecut în ultimii 8 km, tot ce e între ele e un dus-întors și iese.
+ */
+export function taieCarlige(pts, razaM = 60, inapoiKm = 8) {
+  const out = [];
+  for (const p of pts) {
+    let cut = -1, back = 0;
+    for (let j = out.length - 2; j >= 0; j--) {
+      back += hav(out[j], out[j + 1]);
+      if (back > inapoiKm) break;
+      if (back > 0.15 && hav(out[j], p) * 1000 < razaM) cut = j;
+    }
+    if (cut >= 0) out.length = cut + 1;
+    out.push(p);
+  }
+  return out;
+}
+
 async function route(pts) {
   const body = {
     locations: pts.map((p, i) => ({ lat: p.lat, lon: p.lon, type: i === 0 || i === pts.length - 1 ? 'break' : 'through' })),
@@ -97,7 +118,9 @@ async function route(pts) {
   const r = await fetch(`${VALHALLA}/route`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!r.ok) throw new Error(`valhalla ${r.status} ${(await r.text()).slice(0, 200)}`);
   const j = await r.json();
-  return { pts: j.trip.legs.flatMap((l) => decode(l.shape)), km: j.trip.summary.length };
+  const pts2 = taieCarlige(j.trip.legs.flatMap((l) => decode(l.shape)));
+  let km = 0; for (let i = 1; i < pts2.length; i++) km += hav(pts2[i - 1], pts2[i]);
+  return { pts: pts2, km, kmValhalla: j.trip.summary.length };
 }
 
 // PostgREST dă cel mult 1000 de rânduri pe cerere; opririle sunt peste 1200 — pe pagini.
@@ -133,7 +156,7 @@ for (const [rid, stops] of byRoute) {
   const keep = dp(r.pts, 0, r.pts.length - 1, 30);
   const shape = keep.map((i) => [+r.pts[i].lat.toFixed(5), +r.pts[i].lon.toFixed(5)]);
   const stopsOut = found.map((s) => ({ stop_order: s.stop_order, name: s.name_ro, lat: +s.pt.lat.toFixed(5), lon: +s.pt.lon.toFixed(5) }));
-  console.log(`ruta ${rid}: ${found.length}/${stops.length} opriri, ${r.km.toFixed(0)} km, ${shape.length} puncte${missing.length ? `; lipsă: ${missing.join(', ')}` : ''}`);
+  console.log(`ruta ${rid}: ${found.length}/${stops.length} opriri, ${r.km.toFixed(0)} km (Valhalla ${r.kmValhalla.toFixed(0)}), ${shape.length} puncte${missing.length ? `; lipsă: ${missing.join(', ')}` : ''}`);
   if (!DRY) {
     await rest('route_shapes?on_conflict=crm_route_id', {
       method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },

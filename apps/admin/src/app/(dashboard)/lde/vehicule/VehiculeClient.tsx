@@ -336,20 +336,37 @@ function VehiculRow({
           </div>
         ) : (
           <span
-            onClick={() => { setDraftLoc(row.home_locality ?? row.gps_home ?? ''); setEditField('home'); }}
-            title="Apasă ca să schimbi locul de trai"
+            onClick={() => { setDraftLoc(row.home_locality ?? row.gps_recent ?? row.gps_home ?? ''); setEditField('home'); }}
+            title="Apasă ca să scrii locul de trai cu mâna"
             style={{ cursor: 'pointer', display: 'block' }}
           >
-            <span style={{ fontWeight: 600 }}>{row.home_locality ?? <span className="text-muted">— nescris</span>}</span>
+            {/* Ion, 23.09: «locul de trai se mișcă odată cu mișcarea în perioada de odihnă a
+                mașinii». Deci implicit locul URMEAZĂ odihna din GPS și se mută singur; ce e
+                scris cu mâna bate GPS-ul, fiindcă doar omul știe de o reparație sau o
+                înlocuire temporară. */}
+            <span style={{ fontWeight: 600 }}>
+              {row.home_locality ?? row.gps_recent ?? row.gps_home ?? <span className="text-muted">— nu doarme nicăieri constant</span>}
+            </span>
             {row.home_driver && <span className="text-muted" style={{ fontSize: 12 }}> · {row.home_driver}</span>}
+
             <div className="text-muted" style={{ fontSize: 11.5, marginTop: 2 }}>
-              {row.gps_home
-                ? <>GPS: {row.gps_home} · {row.gps_nopti} nopți</>
-                : <>GPS: n-a dormit nicăieri constant</>}
+              {row.home_locality
+                ? <>scris cu mâna{row.home_since ? ` · din ${row.home_since}` : ''}</>
+                : row.gps_recent
+                  ? <>urmează odihna · {row.gps_nopti_recent} nopți în ultimele 7 zile</>
+                  : <>fără odihnă constantă în ultimele 30 de zile</>}
             </div>
-            {row.home_locality && row.gps_home && row.home_locality !== row.gps_home && (
+
+            {/* Mutarea se vede din fereastra de 7 zile față de cea de 30: media pe o lună
+                s-ar muta abia peste săptămâni, iar schimbarea de șofer trebuie văzută azi. */}
+            {row.gps_recent && row.gps_home && row.gps_recent !== row.gps_home && (
               <div className="badge badge-absent" style={{ marginTop: 3, fontSize: 10.5 }}>
-                Nu coincide — verifică șoferul
+                S-a mutat: {row.gps_home} → {row.gps_recent}
+              </div>
+            )}
+            {row.home_locality && row.gps_recent && row.home_locality !== row.gps_recent && (
+              <div className="badge badge-cancelled" style={{ marginTop: 3, fontSize: 10.5 }}>
+                Scris {row.home_locality}, doarme la {row.gps_recent}
               </div>
             )}
           </span>

@@ -25,8 +25,10 @@ export interface LdeVehicleNormRow {
   home_note: string | null;
   // Ce vede GPS-ul în ultimele 30 de zile. Nu suprascrie nimic: stă alături, iar când se
   // desparte de valoarea declarată, ăsta e semnul că s-a schimbat șoferul.
-  gps_home: string | null;
+  gps_home: string | null;       // unde a dormit cel mai des în ultimele 30 de zile
   gps_nopti: number;
+  gps_recent: string | null;     // unde doarme în ultimele 7 zile — ăsta se mișcă primul
+  gps_nopti_recent: number;
 }
 
 /** Tipurile de mașini pentru dropdown. */
@@ -65,20 +67,29 @@ export async function getVehicleNorms(): Promise<LdeVehicleNormRow[]> {
   // taie la 1000 de rânduri indiferent de limit, deci se citește pe pagini (vezi nota din
   // memoria proiectului despre plafonul de 1000).
   const de = new Date(Date.now() - 30 * 86400_000).toISOString().slice(0, 10);
+  // Ion, 23.09.2026: «locul de trai se mișcă odată cu mișcarea în perioada de odihnă a
+  // mașinii». Deci nu e destulă o singură medie pe 30 de zile: aia se mișcă abia după
+  // săptămâni. Se ține și fereastra de 7 zile — când ele se despart, mutarea tocmai s-a
+  // întâmplat și se vede în aceeași zi, nu peste o lună.
+  const deRecent = new Date(Date.now() - 7 * 86400_000).toISOString().slice(0, 10);
   const nopti = new Map<string, Map<string, number>>();
+  const noptiRecent = new Map<string, Map<string, number>>();
   for (let d = 0; d < 20000; d += 1000) {
     const { data: st } = await sb
       .from('lde_gps_stops')
-      .select('vehicle_id, locality')
+      .select('vehicle_id, locality, date')
       .eq('is_base', true)
       .gte('date', de)
       .not('locality', 'is', null)
       .range(d, d + 999);
     if (!st || st.length === 0) break;
     for (const r of st as any[]) {
-      if (!nopti.has(r.vehicle_id)) nopti.set(r.vehicle_id, new Map());
-      const m = nopti.get(r.vehicle_id)!;
-      m.set(r.locality, (m.get(r.locality) || 0) + 1);
+      for (const [harta, activ] of [[nopti, true], [noptiRecent, r.date >= deRecent]] as const) {
+        if (!activ) continue;
+        if (!harta.has(r.vehicle_id)) harta.set(r.vehicle_id, new Map());
+        const m = harta.get(r.vehicle_id)!;
+        m.set(r.locality, (m.get(r.locality) || 0) + 1);
+      }
     }
     if (st.length < 1000) break;
   }
@@ -114,10 +125,14 @@ export async function getVehicleNorms(): Promise<LdeVehicleNormRow[]> {
       home_since: norm?.home_since ?? null,
       home_note: norm?.home_note ?? null,
       ...(() => {
-        const m = nopti.get(v.id as string);
-        if (!m || m.size === 0) return { gps_home: null, gps_nopti: 0 };
-        const [loc, n] = [...m.entries()].sort((a, b) => b[1] - a[1])[0];
-        return { gps_home: loc, gps_nopti: n };
+        const varf = (h: Map<string, Map<string, number>>) => {
+          const m = h.get(v.id as string);
+          if (!m || m.size === 0) return [null, 0] as const;
+          return [...m.entries()].sort((a, b) => b[1] - a[1])[0] as readonly [string, number];
+        };
+        const [l30, n30] = varf(nopti);
+        const [l7, n7] = varf(noptiRecent);
+        return { gps_home: l30, gps_nopti: n30, gps_recent: l7, gps_nopti_recent: n7 };
       })(),
     };
   });

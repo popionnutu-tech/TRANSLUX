@@ -12,7 +12,6 @@ import {
   setMeasuredOverride,
   clearMeasured,
   toggleInRepair,
-  setVehicleHome,
   type LdeVehicleNormRow,
 } from './actions';
 
@@ -124,10 +123,7 @@ function VehiculRow({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [editField, setEditField] = useState<null | 'type' | 'measured' | 'home'>(null);
-  const [draftLoc, setDraftLoc] = useState<string>(row.home_locality ?? '');
-  const [draftSofer, setDraftSofer] = useState<string>(row.home_driver ?? '');
-  const [draftDin, setDraftDin] = useState<string>(row.home_since ?? '');
+  const [editField, setEditField] = useState<null | 'type' | 'measured'>(null);
   const [draftType, setDraftType] = useState<string>(row.vehicle_type_id ?? '');
   const [draftMeasured, setDraftMeasured] = useState<string>(row.measured?.toString() ?? '');
   const [draftLoaded, setDraftLoaded] = useState<string>(row.measured_loaded?.toString() ?? '');
@@ -316,73 +312,33 @@ function VehiculRow({
       {/* Locul de trai — Ion, 23.09: «bagă în nomenclator la mașină locul de trai» și
           «dacă el se schimbă — apare alt șofer — schimb locul de trai». Valoarea declarată
           stă deasupra, observația din GPS dedesubt; când se despart, s-a schimbat omul. */}
-      <td style={{ minWidth: 190 }}>
-        {editField === 'home' ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <input autoFocus value={draftLoc} onChange={e => setDraftLoc(e.target.value)}
-              placeholder="Satul" style={{ fontSize: 13, padding: '2px 6px' }} />
-            <input value={draftSofer} onChange={e => setDraftSofer(e.target.value)}
-              placeholder="Șoferul" style={{ fontSize: 13, padding: '2px 6px' }} />
-            <input type="date" value={draftDin} onChange={e => setDraftDin(e.target.value)}
-              title="De când" style={{ fontSize: 13, padding: '2px 6px' }} />
-            <span style={{ display: 'flex', gap: 4 }}>
-              <button className="btn btn-primary" disabled={isPending} style={{ fontSize: 12, padding: '3px 8px' }}
-                onClick={() => run(() => setVehicleHome(row.vehicle_id, {
-                  locality: draftLoc, driver: draftSofer, since: draftDin || null, note: row.home_note,
-                }))}>Salvează</button>
-              <button className="btn btn-outline" disabled={isPending} style={{ fontSize: 12, padding: '3px 8px' }}
-                onClick={() => setEditField(null)}>Anulează</button>
-            </span>
+      <td style={{ minWidth: 170 }}>
+        {/* Ion, 23.09: «scoate scrisul cu mâna în general». Locul de trai nu e un câmp, e o
+            măsurătoare: unde doarme mașina, din opririle de bază scrise în fiecare noapte de
+            gps-worker. Nu se completează și nu se corectează de nimeni — dacă arată altceva
+            decât realitatea, se repară măsurătoarea, nu se scrie peste ea. */}
+        <span style={{ fontWeight: 600 }}>
+          {row.gps_recent ?? row.gps_home
+            ?? <span className="text-muted" style={{ fontWeight: 400 }}>n-a dormit nicăieri constant</span>}
+        </span>
+
+        {row.gps_recent && (
+          <div className="text-muted" style={{ fontSize: 11.5, marginTop: 2 }}>
+            {row.gps_nopti_recent} nopți din ultimele 7
           </div>
-        ) : (
-          <div>
-            {/* Ion, 23.09: «de mine nimeni niciodată nu va introduce». Deci coloana nu cere
-                nimic de la nimeni: locul de trai ESTE odihna din GPS și se mută singur.
-                Scrisul cu mâna rămâne doar ca portiță, pentru cazuri pe care GPS-ul nu le
-                poate ști — o reparație lungă, o înlocuire de câteva zile — și nu se vede
-                până nu e nevoie de el. Nimic din sistem nu așteaptă să fie completat. */}
-            <span style={{ fontWeight: 600 }}>
-              {row.home_locality ?? row.gps_recent ?? row.gps_home
-                ?? <span className="text-muted" style={{ fontWeight: 400 }}>n-a dormit nicăieri constant</span>}
-            </span>
+        )}
 
-            <div className="text-muted" style={{ fontSize: 11.5, marginTop: 2 }}>
-              {row.home_locality
-                ? <>pus cu mâna{row.home_since ? ` · din ${row.home_since}` : ''}{row.home_driver ? ` · ${row.home_driver}` : ''}</>
-                : row.gps_recent
-                  ? <>din odihnă · {row.gps_nopti_recent} nopți din ultimele 7</>
-                  : <>fără odihnă constantă în 30 de zile</>}
-            </div>
+        {row.gps_ultima && (
+          <div className="text-muted" style={{ fontSize: 11 }}>
+            azi-noapte: {row.gps_ultima}{row.gps_ultima_zi ? ` (${row.gps_ultima_zi})` : ''}
+          </div>
+        )}
 
-            {row.gps_ultima && (
-              <div className="text-muted" style={{ fontSize: 11 }}>
-                azi-noapte: {row.gps_ultima}{row.gps_ultima_zi ? ` (${row.gps_ultima_zi})` : ''}
-              </div>
-            )}
-
-            {/* Mutarea se vede din fereastra de 7 zile față de cea de 30: media pe o lună
-                s-ar muta abia peste săptămâni, iar schimbarea de șofer trebuie văzută azi. */}
-            {row.gps_recent && row.gps_home && row.gps_recent !== row.gps_home && (
-              <div className="badge badge-absent" style={{ marginTop: 3, fontSize: 10.5 }}>
-                S-a mutat: {row.gps_home} → {row.gps_recent}
-              </div>
-            )}
-            {row.home_locality && row.gps_recent && row.home_locality !== row.gps_recent && (
-              <div className="badge badge-cancelled" style={{ marginTop: 3, fontSize: 10.5 }}>
-                Pus {row.home_locality}, doarme la {row.gps_recent}
-              </div>
-            )}
-
-            <button
-              onClick={() => { setDraftLoc(row.home_locality ?? ''); setEditField('home'); }}
-              title="Doar dacă GPS-ul greșește: reparație lungă, înlocuire de câteva zile"
-              style={{
-                background: 'none', border: 0, padding: 0, marginTop: 3, cursor: 'pointer',
-                font: 'inherit', fontSize: 10.5, color: 'var(--text-muted)', textDecoration: 'underline',
-              }}
-            >
-              {row.home_locality ? 'schimbă' : 'corectează'}
-            </button>
+        {/* Mutarea se vede din fereastra de 7 zile față de cea de 30: media pe o lună s-ar
+            muta abia peste săptămâni, iar schimbarea de șofer trebuie văzută azi. */}
+        {row.gps_recent && row.gps_home && row.gps_recent !== row.gps_home && (
+          <div className="badge badge-absent" style={{ marginTop: 3, fontSize: 10.5 }}>
+            S-a mutat: {row.gps_home} → {row.gps_recent}
           </div>
         )}
       </td>

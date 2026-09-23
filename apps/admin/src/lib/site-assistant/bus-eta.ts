@@ -159,3 +159,132 @@ export function etaFrom(km: number, minPerKm: number, atIso: string, now = Date.
   const eta = new Date(arrive).toLocaleTimeString('en-GB', { timeZone: 'Europe/Chisinau', hour: '2-digit', minute: '2-digit', hour12: false });
   return { eta, eta_min: Math.max(0, Math.round((arrive - now) / 60_000)) };
 }
+
+// ---------------------------------------------------------------------------
+// Ora REALĂ pe fiecare oprire, din trecerile GPS (route_stop_passes, migr. 393).
+// Ion, 23.09: «după engine ruta de seară era 23:00 din Edineț la Briceni, după real el
+// a trecut Edinețul mai devreme». Graficul e o promisiune veche; trecerile sunt faptul.
+// ---------------------------------------------------------------------------
+
+export interface PassRow { date: string; stop_order: number; passed_at: string; offset_min: number }
+
+/** Ultimele zile cântăresc mai mult: dacă au destule treceri, doar ele (obiceiul s-a schimbat). */
+const RECENT_DAYS = 7;
+const MIN_RECENT = 4;
+const MIN_ALL = 5;
+
+const median = (xs: number[]) => {
+  const s = [...xs].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+};
+
+/** Abaterea tipică (minute) a opririi față de grafic; null = prea puține treceri. */
+export function typicalOffset(rows: PassRow[], stopOrder: number, today: string): number | null {
+  const mine = rows.filter((r) => r.stop_order === stopOrder);
+  const since = new Date(Date.parse(`${today}T12:00:00Z`) - RECENT_DAYS * 86_400_000).toISOString().slice(0, 10);
+  const recent = mine.filter((r) => r.date >= since);
+  if (recent.length >= MIN_RECENT) return Math.round(median(recent.map((r) => r.offset_min)));
+  if (mine.length >= MIN_ALL) return Math.round(median(mine.map((r) => r.offset_min)));
+  return null;
+}
+
+/** Durata tipică (minute) de la oprirea A la oprirea B, din zilele în care s-au prins amândouă. */
+export function typicalLeg(rows: PassRow[], a: number, b: number): number | null {
+  const byDay = new Map<string, Map<number, number>>();
+  for (const r of rows) {
+    if (r.stop_order !== a && r.stop_order !== b) continue;
+    const m = byDay.get(r.date) ?? new Map<number, number>();
+    m.set(r.stop_order, Date.parse(r.passed_at));
+    byDay.set(r.date, m);
+  }
+  const mins: number[] = [];
+  for (const m of byDay.values()) {
+    const ta = m.get(a), tb = m.get(b);
+    if (ta != null && tb != null && tb > ta) mins.push((tb - ta) / 60_000);
+  }
+  return mins.length >= MIN_ALL ? median(mins) : null;
+}
+
+const passCache = new Map<string, { at: number; rows: PassRow[] }>();
+export async function routePasses(routeId: number, goingNorth: boolean): Promise<PassRow[]> {
+  const key = `${routeId}:${goingNorth}`;
+  const hit = passCache.get(key);
+  if (hit && Date.now() - hit.at < TTL_MS) return hit.rows;
+  const since = new Date(Date.now() - HISTORY_DAYS * 86_400_000).toISOString().slice(0, 10);
+  const { data } = await getSupabase()
+    .from('route_stop_passes')
+    .select('date, stop_order, passed_at, offset_min')
+    .eq('crm_route_id', routeId).eq('going_north', goingNorth).gte('date', since)
+    .limit(1000);
+  const rows = (data ?? []) as PassRow[];
+  passCache.set(key, { at: Date.now(), rows });
+  return rows;
+}
+
+export interface GeoStop { name: string; lat: number; lon: number; stop_order: number }
+export interface RealEta { eta: string; eta_min: number; eta_source: 'gps' | 'istoric' }
+
+/** «HH:MM» de azi (ora Chișinăului) + minute → instant. */
+function todayAt(hhmm: string, plusMin: number, now: number): number {
+  const [h, m] = hhmm.split(':').map(Number);
+  const local = new Date(now).toLocaleString('sv-SE', { timeZone: 'Europe/Chisinau' });
+  const nowLocalMin = Number(local.slice(11, 13)) * 60 + Number(local.slice(14, 16));
+  let delta = h * 60 + m - nowLocalMin;
+  if (delta < -720) delta += 1440;
+  if (delta > 720) delta -= 1440;
+  return now + (delta + plusMin) * 60_000 - (now % 60_000);
+}
+
+const clock = (t: number) => new Date(t).toLocaleTimeString('en-GB', { timeZone: 'Europe/Chisinau', hour: '2-digit', minute: '2-digit', hour12: false });
+
+/**
+ * Ora orientativă la care cursa ajunge în localitatea omului:
+ *   - autobuzul e pe drum (are punct): km rămași × ritmul REAL al tronsonului dintre
+ *     ultima oprire trecută și oprirea omului (din treceri); fără istoric — ritmul rutei;
+ *   - n-a pornit: ora din grafic + abaterea tipică a opririi omului.
+ * null = nu avem din ce spune altceva decât graficul.
+ */
+export async function realEta(args: {
+  routeId: number; shape: LatLon[]; stops: GeoStop[]; fromName: string; toName: string;
+  scheduled: string; pos?: { lat: number; lon: number; atIso: string } | null; today: string; now?: number;
+}): Promise<(RealEta & { passed?: false }) | { passed: true } | null> {
+  const now = args.now ?? Date.now();
+  const same = (a: string, b: string) => a.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase() === b.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const from = args.stops.find((s) => same(s.name, args.fromName));
+  const to = args.stops.find((s) => same(s.name, args.toName));
+  if (!from || !to || from.stop_order === to.stop_order) return null;
+  const goingNorth = from.stop_order > to.stop_order; // ca în searchTrips
+  const rows = await routePasses(args.routeId, goingNorth).catch(() => [] as PassRow[]);
+
+  if (args.pos) {
+    const rem = remainingKm(args.shape, [args.pos.lat, args.pos.lon], [from.lat, from.lon], [to.lat, to.lon]);
+    if (!rem) return null;
+    if (rem.passed) return { passed: true };
+    // Ultima oprire trecută: cea mai apropiată de autobuz, în urma lui, pe sensul cursei.
+    const bi = nearestIndex(args.shape, [args.pos.lat, args.pos.lon]).i;
+    const fi = nearestIndex(args.shape, [from.lat, from.lon]).i;
+    const dir = Math.sign(nearestIndex(args.shape, [to.lat, to.lon]).i - fi) || 1;
+    let prev: { s: GeoStop; i: number } | null = null;
+    for (const s of args.stops) {
+      const i = nearestIndex(args.shape, [s.lat, s.lon]).i;
+      if ((bi - i) * dir >= 0 && (!prev || (i - prev.i) * dir > 0)) prev = { s, i };
+    }
+    let pace: number | null = null;
+    if (prev && prev.i !== fi) {
+      const leg = typicalLeg(rows, prev.s.stop_order, from.stop_order);
+      let legKm = 0;
+      for (let i = prev.i; i !== fi; i += dir) legKm += haversineKm(args.shape[i], args.shape[i + dir]);
+      if (leg && legKm > 0.5) pace = leg / legKm;
+    }
+    pace ??= await routePace(args.routeId);
+    if (!pace) return null;
+    const t = Date.parse(args.pos.atIso) + rem.km * pace * 60_000;
+    return { eta: clock(t), eta_min: Math.max(0, Math.round((t - now) / 60_000)), eta_source: 'gps' };
+  }
+
+  const off = typicalOffset(rows, from.stop_order, args.today);
+  if (off == null) return null;
+  const t = todayAt(args.scheduled, off, now);
+  return { eta: clock(t), eta_min: Math.max(0, Math.round((t - now) / 60_000)), eta_source: 'istoric' };
+}

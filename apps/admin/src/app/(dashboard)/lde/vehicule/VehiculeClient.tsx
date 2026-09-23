@@ -357,6 +357,13 @@ function VehiculRow({
                   : <>fără odihnă constantă în ultimele 30 de zile</>}
             </div>
 
+            {row.gps_ultima && (
+              <div className="text-muted" style={{ fontSize: 11 }}>
+                azi-noapte: {row.gps_ultima}
+                {row.gps_ultima_zi ? ` (${row.gps_ultima_zi})` : ''}
+              </div>
+            )}
+
             {/* Mutarea se vede din fereastra de 7 zile față de cea de 30: media pe o lună
                 s-ar muta abia peste săptămâni, iar schimbarea de șofer trebuie văzută azi. */}
             {row.gps_recent && row.gps_home && row.gps_recent !== row.gps_home && (

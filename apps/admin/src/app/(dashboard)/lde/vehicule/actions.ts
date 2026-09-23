@@ -29,6 +29,8 @@ export interface LdeVehicleNormRow {
   gps_nopti: number;
   gps_recent: string | null;     // unde doarme în ultimele 7 zile — ăsta se mișcă primul
   gps_nopti_recent: number;
+  gps_ultima: string | null;     // unde a stat noaptea trecută, fără mediere
+  gps_ultima_zi: string | null;
 }
 
 /** Tipurile de mașini pentru dropdown. */
@@ -74,6 +76,9 @@ export async function getVehicleNorms(): Promise<LdeVehicleNormRow[]> {
   const deRecent = new Date(Date.now() - 7 * 86400_000).toISOString().slice(0, 10);
   const nopti = new Map<string, Map<string, number>>();
   const noptiRecent = new Map<string, Map<string, number>>();
+  // Ion, 23.09.2026: «poate punem unde se află mașina în perioada de odihnă». Media spune
+  // unde doarme de obicei; asta spune unde a stat noaptea trecută, fără nicio mediere.
+  const ultima = new Map<string, { loc: string; zi: string }>();
   for (let d = 0; d < 20000; d += 1000) {
     const { data: st } = await sb
       .from('lde_gps_stops')
@@ -90,6 +95,8 @@ export async function getVehicleNorms(): Promise<LdeVehicleNormRow[]> {
         const m = harta.get(r.vehicle_id)!;
         m.set(r.locality, (m.get(r.locality) || 0) + 1);
       }
+      const u = ultima.get(r.vehicle_id);
+      if (!u || r.date > u.zi) ultima.set(r.vehicle_id, { loc: r.locality, zi: r.date });
     }
     if (st.length < 1000) break;
   }
@@ -132,7 +139,11 @@ export async function getVehicleNorms(): Promise<LdeVehicleNormRow[]> {
         };
         const [l30, n30] = varf(nopti);
         const [l7, n7] = varf(noptiRecent);
-        return { gps_home: l30, gps_nopti: n30, gps_recent: l7, gps_nopti_recent: n7 };
+        const u = ultima.get(v.id as string) ?? null;
+        return {
+          gps_home: l30, gps_nopti: n30, gps_recent: l7, gps_nopti_recent: n7,
+          gps_ultima: u?.loc ?? null, gps_ultima_zi: u?.zi ?? null,
+        };
       })(),
     };
   });

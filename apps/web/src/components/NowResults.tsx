@@ -85,6 +85,20 @@ const TXT = {
 
 const NO_ROUTES: Record<number, RouteLine> = {};
 
+/**
+ * Microbuz tip Sprinter, din lateral, botul la dreapta: caroserie înaltă, bot înclinat,
+ * geamuri cu stâlpi, far, roți. Culorile vin din CSS (.now-bus / .now-bus.on), ca aceeași
+ * formă să fie albă cu contur pentru celelalte curse și roșie pentru cea aleasă.
+ */
+const MINIBUS_SVG = `<svg viewBox="0 0 84 42" width="84" height="42" aria-hidden="true">
+<path class="mb-body" d="M6 9.5Q6 5 10.5 5H58q4 0 6.6 3L75 20.5q3 3.2 3 7.5V32q0 2.5-2.5 2.5H8.5Q6 34.5 6 32Z"/>
+<path class="mb-glass" d="M10.5 9.5Q10.5 8.5 11.5 8.5H57.5q2 0 3.3 1.6L69 19.5H10.5Z"/>
+<path class="mb-post" d="M24 8.5V19.5M37.5 8.5V19.5M51 8.5V19.5"/>
+<rect class="mb-light" x="73" y="23" width="4" height="3" rx="1"/>
+<circle class="mb-wheel" cx="21" cy="34.5" r="5.2"/><circle class="mb-wheel" cx="63" cy="34.5" r="5.2"/>
+<circle class="mb-hub" cx="21" cy="34.5" r="1.8"/><circle class="mb-hub" cx="63" cy="34.5" r="1.8"/>
+</svg>`;
+
 const PHONE_SVG = (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z" /></svg>
 );
@@ -157,9 +171,10 @@ function NowMap({ trips, routes, selected, onPick }: { trips: NowTrip[]; routes:
         // направления, куда едет морда»). Doar oglindit stânga/dreapta: ora rămâne de citit.
         const left = own ? facesLeft(own, s.seg, t.going_north) : false;
         const icon = L.divIcon({
-          // Rutiera desenată minimalist, cu ora pe ea (Ion, 23.09).
-          html: `<span class="now-bus${on ? ' on' : ''}${left ? ' left' : ''}"><b>${t.departure}</b><i></i><i></i></span>`,
-          className: 'now-pin-icon', iconSize: [68, 36], iconAnchor: [34, 18],
+          // Microbuzul văzut din lateral, cu ora pe caroserie (Ion, 23.09: «fă un microbuz mai
+          // stilat, acesta nu se înțelege»). Se oglindește doar desenul, nu și ora.
+          html: `<span class="now-bus${on ? ' on' : ''}${left ? ' left' : ''}">${MINIBUS_SVG}<b>${t.departure}</b></span>`,
+          className: 'now-pin-icon', iconSize: [84, 42], iconAnchor: [42, 34],
         });
         L.marker(at, { icon, keyboard: false, title: t.departure, zIndexOffset: on ? 1000 : 0 })
           .on('click', () => onPick(i))
@@ -303,18 +318,20 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
 .now-row.on .now-num{font-size:18px;font-weight:700;margin-top:6px}
 .now-row.on .now-call{width:52px;height:52px;background:#fff;color:${RED};box-shadow:0 4px 12px rgba(0,0,0,.18);align-self:flex-end}
 .now-pin-icon{background:none!important;border:none!important}
-.now-bus{position:relative;display:block;width:68px;height:36px;cursor:pointer}
-.now-bus b{position:absolute;left:0;top:0;width:68px;height:28px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;padding-right:6px;border-radius:8px 14px 6px 6px;background:#fff;border:2px solid ${RED};color:${RED};font:800 13px var(--font-opensans),Open Sans,sans-serif;box-shadow:0 3px 8px rgba(0,0,0,.18)}
-.now-bus b::after{content:"";position:absolute;right:4px;top:5px;width:7px;height:10px;border-radius:2px 5px 2px 2px;background:currentColor;opacity:.25}
-.now-bus i{position:absolute;bottom:2px;width:10px;height:10px;border-radius:50%;background:#231A1C;border:2px solid #fff;box-sizing:border-box}
-.now-bus i:first-of-type{left:12px}
-.now-bus i:last-of-type{right:14px}
-.now-bus.on b{background:${RED};color:#fff;border-color:${RED};box-shadow:0 0 0 7px rgba(155,27,48,.16),0 3px 8px rgba(0,0,0,.25)}
-.now-bus.on b::after{background:#fff;opacity:.55}
-.now-bus.left b{padding-right:0;padding-left:6px;border-radius:14px 8px 6px 6px}
-.now-bus.left b::after{right:auto;left:4px;border-radius:5px 2px 2px 2px}
-.now-bus.left i:first-of-type{left:14px}
-.now-bus.left i:last-of-type{right:12px}
+.now-bus{position:relative;display:block;width:84px;height:42px;cursor:pointer;filter:drop-shadow(0 2px 3px rgba(0,0,0,.22))}
+.now-bus svg{position:absolute;inset:0;overflow:visible}
+.now-bus.left svg{transform:scaleX(-1)}
+.now-bus .mb-body{fill:#fff;stroke:${RED};stroke-width:2}
+.now-bus .mb-glass{fill:#2E2A33}
+.now-bus .mb-post{stroke:#fff;stroke-width:1.6}
+.now-bus .mb-light{fill:#F2B84B}
+.now-bus .mb-wheel{fill:#231A1C;stroke:#fff;stroke-width:1.6}
+.now-bus .mb-hub{fill:#C9C2C4}
+.now-bus b{position:absolute;left:10px;right:10px;top:20px;height:13px;display:flex;align-items:center;justify-content:center;font:800 11.5px/1 var(--font-opensans),Open Sans,sans-serif;letter-spacing:.02em;color:${RED}}
+.now-bus.on .mb-body{fill:${RED};stroke:#fff}
+.now-bus.on .mb-glass{fill:#3A0D16}
+.now-bus.on b{color:#fff}
+.now-bus.on{filter:drop-shadow(0 0 6px rgba(155,27,48,.45)) drop-shadow(0 2px 3px rgba(0,0,0,.25))}
 .now-end{display:block;width:16px;height:16px;border-radius:50%;box-sizing:border-box;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)}
 .now-end.from{background:#231A1C}
 .now-end.to{background:#fff;border:4px solid ${RED}}

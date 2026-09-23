@@ -322,8 +322,14 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
   // pagina s-ar reașeza după hidratare, cu blur redesenat pe fiecare cadru al tranziției. Starea de aici
   // decide doar CE se afișează (iconițe sau iconițe + text).
   const NARROW = '(max-width: 768px)';
-  const citestePref = () => { try { return localStorage.getItem('sidebar-collapsed') === '1'; } catch { return false; } };
-  const [collapsed, setCollapsed] = useState(false);
+  // Ion, 23.09.2026: «menu TRANSLUX ascunde când stau undeva». Bara ținea 240 px din lățime
+  // pe fiecare pagină, deși meniul se folosește câteva secunde și pagina ore. Acum implicit
+  // stă strânsă la iconițe; cine o vrea deschisă o prinde din buton și rămâne prinsă.
+  const citestePref = () => { try { return localStorage.getItem('sidebar-collapsed') !== '0'; } catch { return true; } };
+  const [collapsed, setCollapsed] = useState(true);
+  // Trecerea cu mouse-ul o deschide PESTE pagină, nu lângă ea: dacă ar împinge conținutul,
+  // harta și tabelele s-ar reașeza la fiecare atingere a marginii.
+  const [pePeste, setPePeste] = useState(false);
   const [narrow, setNarrow] = useState(false);
   useEffect(() => {
     const mq = window.matchMedia(NARROW);
@@ -346,6 +352,7 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
   const toggleCollapsed = () => setCollapsed(prev => { scriePref(!prev); return !prev; });
   const expand = () => setCollapsed(() => { scriePref(false); return false; });
 
+  const deschis = !collapsed || pePeste;
   const nomenclatorActive = nomenclatorHrefs.some(h => pathname === h || pathname.startsWith(h + '/'));
 
   const { nav: filteredNav, module: filteredModules, nomenclator: filteredNomenclator, showNomenclator } = meniuPentruRol(role);
@@ -357,18 +364,29 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
   }
 
   return (
-    <aside className="app-sidebar" style={{ ...sidebarStyle, width: collapsed ? 64 : 240, transition: 'width 0.2s ease' }}>
-      <div style={{ ...brandStyle, padding: collapsed ? '18px 8px 14px' : '24px 20px 20px', position: 'relative' }}>
-        {!collapsed && <span style={logoStyle} />}
-        {!collapsed && <div style={subtitleStyle}>Panou Administrativ</div>}
+    <div
+      className="app-sidebar"
+      style={{ width: collapsed ? 64 : 240, flexShrink: 0, position: 'relative', height: '100%', transition: 'width 0.18s ease' }}
+      onMouseEnter={() => setPePeste(true)}
+      onMouseLeave={() => setPePeste(false)}
+    >
+    <aside style={{
+      ...sidebarStyle, position: 'absolute', top: 0, bottom: 0, left: 0,
+      width: deschis ? 240 : 64, transition: 'width 0.18s ease',
+      boxShadow: collapsed && pePeste ? '4px 0 22px rgba(155,27,48,0.12)' : 'none',
+      overflowX: 'hidden',
+    }}>
+      <div style={{ ...brandStyle, padding: deschis ? '24px 20px 20px' : '18px 8px 14px', position: 'relative' }}>
+        {deschis && <span style={logoStyle} />}
+        {deschis && <div style={subtitleStyle}>Panou Administrativ</div>}
         <button
           onClick={toggleCollapsed}
-          title={collapsed ? 'Extinde meniul' : 'Strânge meniul'}
-          aria-label={collapsed ? 'Extinde meniul' : 'Strânge meniul'}
+          title={collapsed ? 'Prinde meniul deschis' : 'Lasă meniul să se strângă'}
+          aria-label={collapsed ? 'Prinde meniul deschis' : 'Lasă meniul să se strângă'}
           style={{
-            position: collapsed ? 'static' : 'absolute',
+            position: deschis ? 'absolute' : 'static',
             top: 8, right: 8,
-            margin: collapsed ? '0 auto' : 0,
+            margin: deschis ? 0 : '0 auto',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             width: 28, height: 28, borderRadius: 8,
             border: '1px solid rgba(155,27,48,0.1)', background: 'transparent',
@@ -382,7 +400,7 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
       </div>
 
       <nav style={navStyle}>
-        {!collapsed && filteredModules.length > 0 && <div style={sectionLabelStyle}>Module</div>}
+        {deschis && filteredModules.length > 0 && <div style={sectionLabelStyle}>Module</div>}
         {filteredModules.map((item) => (
           item.children
             ? <Collapsible
@@ -392,7 +410,7 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
                 items={item.children}
                 pathname={pathname}
                 currentTab={currentTab}
-                collapsed={collapsed}
+                collapsed={!deschis}
                 onExpand={expand}
                 maxH={item.subGroup ? 1300 : 720}
                 extraActive={item.subGroup ? item.subGroup.items.some((i) => isItemActive(i, pathname, currentTab)) : false}
@@ -400,7 +418,7 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
                   <Collapsible label={item.subGroup.label} icon={item.subGroup.icon} items={item.subGroup.items} pathname={pathname} currentTab={currentTab} />
                 ) : null}
               />
-            : <NavLink key={item.href + item.label} item={item} pathname={pathname} currentTab={currentTab} collapsed={collapsed} />
+            : <NavLink key={item.href + item.label} item={item} pathname={pathname} currentTab={currentTab} collapsed={!deschis} />
         ))}
 
         {filteredNav.length > 0 && (
@@ -410,7 +428,7 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
             items={filteredNav}
             pathname={pathname}
             currentTab={currentTab}
-            collapsed={collapsed}
+            collapsed={!deschis}
             onExpand={expand}
             maxH={1300}
             extraActive={showNomenclator && nomenclatorActive}
@@ -426,8 +444,8 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
         )}
       </nav>
 
-      <div style={{ ...footerStyle, padding: collapsed ? '12px 8px' : '16px 10px' }}>
-        <button onClick={handleLogout} style={{ ...logoutStyle, ...(collapsed ? { justifyContent: 'center', padding: '10px 0', gap: 0 } : null) }}
+      <div style={{ ...footerStyle, padding: deschis ? '16px 10px' : '12px 8px' }}>
+        <button onClick={handleLogout} style={{ ...logoutStyle, ...(deschis ? null : { justifyContent: 'center', padding: '10px 0', gap: 0 }) }}
           title={collapsed ? 'Deconectare' : undefined}>
           <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: 20, height: 20, flexShrink: 0, opacity: 0.4 }}>
             <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
@@ -436,6 +454,7 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
         </button>
       </div>
     </aside>
+    </div>
   );
 }
 

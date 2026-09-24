@@ -413,13 +413,39 @@ function celMaiApropiatSat(S, p) {
 // NU localitatea cea mai frecventă: `is_base` marchează orice staționare lungă, iar frecvența
 // nimerea așteptarea de seară la uzină. Se ia noaptea adevărată: peste 4 ore, sosire între
 // 17:00 și 05:00, fără Bălți și Briceni (acolo e parcul, nu casa).
-async function undeDorm(supa, de_la, pana_la, numere) {
+async function numereSiId(supa, numere) {
+  const { data, error } = await supa
+    .from('vehicles').select('id, plate_number').in('plate_number', [...numere]);
+  if (error) { console.error('vehicles:', error.message); return new Map(); }
+  return new Map((data || []).map(x => [x.id, x.plate_number]));
+}
+
+// ─── km-ii raportului față de km-ii workerului de noapte ────────────────────
+// Ion, 24.09: «verific că în acest raport toți km sunt reali, nu sunt fantezie». Aceeași
+// săptămână e socotită de două coduri diferite: aici, suma distanțelor între punctele brute;
+// în `lde_vehicle_gps_daily`, de gps-worker, care pe deasupra și cârpește golurile de semnal.
+// La proba din 24.09 diferența pe toată săptămâna a fost 0,8%. Dacă se depărtează, iese steag.
+async function kmDinBaza(supa, nrDupaId, de_la, pana_la) {
+  const { data, error } = await supa
+    .from('lde_vehicle_gps_daily')
+    .select('vehicle_id, date, km_total')
+    .in('vehicle_id', [...nrDupaId.keys()])
+    .gte('date', de_la).lte('date', pana_la)
+    .gt('km_total', 20);
+  if (error) { console.error('lde_vehicle_gps_daily:', error.message); return new Map(); }
+  const pe = new Map();
+  for (const r of data || []) {
+    const nr = nrDupaId.get(r.vehicle_id); if (!nr) continue;
+    const x = pe.get(nr) || { km: 0, zile: 0 };
+    x.km += Number(r.km_total); x.zile++;
+    pe.set(nr, x);
+  }
+  return pe;
+}
+
+async function undeDorm(supa, nrDupaId, de_la, pana_la) {
   // PostgREST taie orice răspuns la 1000 de rânduri, oricât ai cere — deci se îngustează de la
   // început la mașinile noastre, nu se filtrează după ce vin toate opririle flotei.
-  const { data: vh, error: e1 } = await supa
-    .from('vehicles').select('id, plate_number').in('plate_number', [...numere]);
-  if (e1) { console.error('vehicles:', e1.message); return {}; }
-  const nrDupaId = new Map((vh || []).map(x => [x.id, x.plate_number]));
   if (!nrDupaId.size) return {};
   const { data, error } = await supa
     .from('lde_gps_stops')
@@ -491,7 +517,9 @@ await t.end();
 const inSapt = z => z >= sapt.luni && z <= sapt.duminica;
 const supa = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY,
   { auth: { persistSession: false }, realtime: { transport: ws } });
-const case_ = await undeDorm(supa, de_la, pana_la, new Set(flota.map(v => v.masina)));
+const nrDupaId = await numereSiId(supa, new Set(flota.map(v => v.masina)));
+const case_ = await undeDorm(supa, nrDupaId, de_la, pana_la);
+const kmBaza = await kmDinBaza(supa, nrDupaId, sapt.luni, sapt.duminica);
 
 const masini = [], steaguri = [], toateDeplasarile = [], steagCasaFaraPunct = [];
 const ruteFolosite = new Set();
@@ -624,6 +652,16 @@ for (const v of auLucrat) {
       unde: sat ? `${sat.n} + ${n1(sat.d)} km` : '—' });
   }
 
+  const b = kmBaza.get(v.masina);
+  if (b && b.km > 0) {
+    const mieKm = azi * kmZile.length;
+    const dif = (mieKm / b.km - 1) * 100;
+    rec.km_baza = { km: +b.km.toFixed(1), zile: b.zile, km_aici: +mieKm.toFixed(1), dif: +dif.toFixed(1) };
+    if (Math.abs(dif) > 10) rec.steaguri.push(
+      `km-ii nu se potrivesc cu baza: aici ${n1(mieKm)} km pe ${kmZile.length} zile, ` +
+      `în lde_vehicle_gps_daily ${n1(b.km)} pe ${b.zile} — ${(dif > 0 ? '+' : '') + dif.toFixed(1)}%`);
+  } else rec.steaguri.push('n-are km scriși în lde_vehicle_gps_daily — km-ii de aici n-au cu ce fi verificați');
+
   masini.push(rec);
 }
 
@@ -662,6 +700,15 @@ console.log(`REGULA 1 — la uzină:            ${total.masini_r1} mașini · ${
 console.log(`REGULA 3 — fără drumul de prânz: ${total.masini_r3} mașini · ${n0(total.r3)} lei/lună`);
 console.log('(regulile 1 și 3 nu se adună — se compară, mașină cu mașină)');
 
+{
+  const a = masini.reduce((s, m) => s + (m.km_baza?.km_aici || 0), 0);
+  const b = masini.reduce((s, m) => s + (m.km_baza?.km || 0), 0);
+  const dif = b ? (a / b - 1) * 100 : 0;
+  total.control = { km_aici: +a.toFixed(1), km_baza: +b.toFixed(1), dif: +dif.toFixed(1) };
+  console.log(`\nCONTROLUL KM: raportul ${n1(a)} km · lde_vehicle_gps_daily ${n1(b)} km · ` +
+    `${(dif > 0 ? '+' : '') + dif.toFixed(1)}%` + (Math.abs(dif) > 5 ? '  ⚠ prea departe' : '  — se potrivesc'));
+}
+
 if (steaguri.length) {
   console.log('\n─── de verificat ───');
   for (const s of steaguri) console.log(`  ${s.masina ? s.masina + ': ' : ''}${s.text}`);
@@ -682,6 +729,9 @@ if (cacheNou) writeFileSync(CALE_CACHE, JSON.stringify(cache, null, 1));
 const rezultat = { uzina: UZINA_NUME, saptamina: sapt.luni, pana_la: sapt.duminica,
   schelet_fixat: S.fixat, zile_luna: ZILE_LUNA, masini, steaguri,
   deplasari: toateDeplasarile, total };
+
+const CALE_JSON = arg('--json');
+if (CALE_JSON) { writeFileSync(CALE_JSON, JSON.stringify(rezultat)); console.log(`\nscris ${CALE_JSON}`); }
 
 if (WRITE) {
   const { error } = await supa.from('lde_analiza_reguli').upsert({

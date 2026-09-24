@@ -4,7 +4,8 @@
 //
 // De ce aici și nu în central-hub: trackerul (TRACKER_HOST) răspunde doar VPS-ului.
 // Ce se scrie: DOAR mașinile din daily_assignments de azi (vehicle_id + vehicle_id_retur),
-// DOAR ultimul punct din ultimele 15 minute, fără viteză. Cine vede punctul și când
+// DOAR ultimul punct valid din ultima oră, fără viteză (cât de vechi poate fi ca să conteze
+// hotărăsc rutele: ora estimată îl vrea sub 5 min, harta «Acum» îl arată până la 30). Cine vede punctul și când
 // hotărăște asistentul (central-hub), nu scriptul ăsta.
 //
 // Supabase prin REST simplu: supabase-js pe Node 20 cere `ws` doar ca să construiască
@@ -50,8 +51,14 @@ try {
   }
   if (plateByDev.size === 0) { console.log(`${new Date().toISOString()}: niciun tracker`); process.exit(0); }
   const { rows } = await tracker.query(
+    // Ultimul punct VALID: trackerul fără semnal GPS trimite x = y = 9999.9999 (24.09: 330RQR
+    // așa de ieri 18:48, iar 662AKD, 703TWK și alții presară câte un punct gol printre cele
+    // bune). Cu «ultimul punct» mașina ieșea din tabel la fiecare punct gol, deși avea unul
+    // bun de acum un minut. Trackerele fără nicio poziție (805BXI, 145BZP, 725YOZ — 0 sateliți,
+    // ceasul în 2028) rămân afară: n-au de unde.
     `SELECT DISTINCT ON (id) id, w_date, x, y FROM track
-      WHERE id = ANY($1) AND w_date > now() - interval '15 minutes' AND w_date <= now()
+      WHERE id = ANY($1) AND w_date > now() - interval '60 minutes' AND w_date <= now()
+        AND x < 9000 AND y < 9000
       ORDER BY id, w_date DESC`,
     [[...plateByDev.keys()]],
   );

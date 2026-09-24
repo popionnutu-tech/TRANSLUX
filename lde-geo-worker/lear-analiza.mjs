@@ -351,11 +351,17 @@ function curse(pts) {
 //
 // Se taie în bucăți: kilometrii «străini» care se leagă unul de altul formează o ieșire, iar
 // ieșirea se pune într-un coș sau altul după cum a atins sau nu poarta.
+// Întoarce și UNDE se întâmplă kilometrii «aiurea», pe localități. Ion, 24.09: «de ce aceste nu
+// sunt introduse aici?» — steagul spunea 97,5 km/zi în afara uzinei la 043BRAU, iar lista de
+// deplasări de jos n-avea niciun rând al ei. Nu era o nepotrivire: lista de jos arată numai
+// ieșirile de peste 15 km, iar kilometrii ăia se întâmplă APROAPE, pe drumuri care nu-s ale
+// rutelor ei. Fără locurile lor, steagul rămânea o cifră fără dovadă.
 function alteCurse(pts, ruteObj, culoare, zileLucrate) {
   const peRuta = grila([].concat(...ruteObj.map(r =>
     (r._puncte || []).map(c => ({ lat: c[0], lon: c[1] })))));
   const peCasa = grila([].concat(...culoare.map(f => f.map(c => ({ lat: c[0], lon: c[1] })))));
   let laUzina = 0, aiurea = 0, laParc = 0;
+  const peLoc = new Map();   // localitate → km «aiurea», minute, zile
   let bucata = 0, atinsPoarta = false, atinsParc = false, celMaiDeparte = 0, prev = null;
   const inchide = () => {
     if (bucata > 0.2) {
@@ -376,6 +382,12 @@ function alteCurse(pts, ruteObj, culoare, zileLucrate) {
         const eCasa = peCasa.size && aproape(peCasa, [mij.lat, mij.lon], R_CULOAR);
         if (!eRuta && !eCasa) {
           bucata += dk;
+          // se ține minte și locul, ca steagul să poată fi verificat, nu doar crezut
+          const l = celMaiApropiatLoc(p);
+          if (l) { const x = peLoc.get(l.n) || { km: 0, min: 0, zile: new Set(), dep: 0 };
+            x.km += dk; const dm = (p.t - prev.t) / 60000; if (dm > 0 && dm < 15) x.min += dm;
+            x.zile.add(ziLucru(p.t)); const dd = hav(p, POARTA); if (dd > x.dep) x.dep = dd;
+            peLoc.set(l.n, x); }
           const dp = hav(p, POARTA);
           if (dp > celMaiDeparte) celMaiDeparte = dp;
           // Ajungerea la poartă sau la parc ÎNCHEIE bucata: acolo se termină un drum și începe
@@ -390,7 +402,10 @@ function alteCurse(pts, ruteObj, culoare, zileLucrate) {
   }
   inchide();
   const z = zileLucrate || 1;
-  return { la_uzina: laUzina / z, aiurea: aiurea / z, la_parc: laParc / z };
+  const locuriAiurea = [...peLoc].map(([n, v]) => ({ loc: n, km_zi: +(v.km / z).toFixed(1),
+    ore: +(v.min / 60).toFixed(1), zile: v.zile.size, de_la_uzina: +v.dep.toFixed(1) }))
+    .filter(x => x.km_zi >= 1).sort((a, b) => b.km_zi - a.km_zi).slice(0, 8);
+  return { la_uzina: laUzina / z, aiurea: aiurea / z, la_parc: laParc / z, locuri: locuriAiurea };
 }
 
 // ─── deplasări în afara destinației de lucru ─────────────────────────────────
@@ -423,6 +438,14 @@ function deplasari(pts, rute, casaC) {
   }
   inchide();
   return out;
+}
+
+// Localitatea cea mai apropiată de un punct, din indexul OSM. Peste 8 km n-are rost s-o numim:
+// mașina e între sate, iar un nume de la 20 km ar minți mai mult decât ar lămuri.
+function celMaiApropiatLoc(p) {
+  let best = null;
+  for (const l of locuri) { const d = hav(l, p); if (!best || d < best.d) best = { n: l.name, d }; }
+  return best && best.d <= 8 ? best : null;
 }
 
 // ─── coordonata unui sat după nume ──────────────────────────────────────────
@@ -680,6 +703,7 @@ for (const v of auLucrat) {
     rec.alte_la_uzina = +A.la_uzina.toFixed(1);
     rec.alte_aiurea = +A.aiurea.toFixed(1);
     rec.alte_la_parc = +A.la_parc.toFixed(1);
+    rec.locuri_aiurea = A.locuri;
 
     // regula 1: ziua = 4 × latura fiecărui schimb + alte curse
     const z1 = patru + alte;
@@ -700,7 +724,9 @@ for (const v of auLucrat) {
       'patru drumuri complete, regula 1 nu se poate judeca la ea');
     if (A.aiurea > 40) rec.steaguri.push(
       `${n1(A.aiurea)} km/zi în afara uzinei — nu-s nici rută, nici drum spre casă, și nici măcar ` +
-      'nu trec pe la poartă; mașina asta face și altă treabă');
+      'nu trec pe la poartă' + (A.locuri.length
+        ? `; cei mai mulți pe la ${A.locuri.slice(0, 3).map(x => `${x.loc} ${n1(x.km_zi)}`).join(', ')} km/zi`
+        : ''));
     else if (alte > 40) rec.steaguri.push(
       `alte curse ${n1(alte)} km/zi, dar trec pe la poartă — muncă în plus pentru uzină`);
   }

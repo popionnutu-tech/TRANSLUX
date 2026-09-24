@@ -180,9 +180,14 @@ function NowMap({ trips, routes, selected, onPick, locale }: { trips: NowTrip[];
       const g = layer.current!;
       g.clearLayers();
 
-      // Doar linia cursei alese (Ion, 24.09, 08:03: «drumul după a 2-a rutieră să nu arate»);
-      // celelalte autobuze stau pe hartă fără linie, iar la alegere li se arată linia lor.
+      // Celelalte mașini de pe hartă: doar drumul lor care urmează, altfel desenat — punctat,
+      // gri-bordo, subțire (Ion, 24.09, 08:28: «la track-ul altei mașini propun linia un pic
+      // diferită»; la 08:03 nu voia linia întreagă a celei de-a doua). Cea aleasă, deasupra.
       const selRoute = trips[selected]?.route_id ?? null;
+      trips.forEach((t, i) => {
+        if (i === selected || t.lat == null || t.route_id == null || !routes[t.route_id]) return;
+        L.polyline(ahead(routes[t.route_id], t), { color: '#7A5A60', weight: 2.5, opacity: 0.75, dashArray: '1 7', lineCap: 'round', interactive: false }).addTo(g);
+      });
 
       // Linia fină a rutei alese și, pe ea, localitatea omului și destinația.
       const route = selRoute != null ? routes[selRoute] : undefined;

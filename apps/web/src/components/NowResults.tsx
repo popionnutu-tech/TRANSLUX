@@ -186,7 +186,11 @@ function NowMap({ trips, routes, selected, onPick, locale }: { trips: NowTrip[];
       const selRoute = trips[selected]?.route_id ?? null;
       trips.forEach((t, i) => {
         if (i === selected || t.lat == null || t.route_id == null || !routes[t.route_id]) return;
-        L.polyline(ahead(routes[t.route_id], t), { color: '#7A5A60', weight: 2.5, opacity: 0.75, dashArray: '1 7', lineCap: 'round', interactive: false }).addTo(g);
+        // Punctata subțire nu se vedea pe harta gri (Ion, 08:40: «nu se vede normal»): întreruptă,
+        // gri-albastru închis, cu contur alb dedesubt.
+        const rest = ahead(routes[t.route_id], t);
+        L.polyline(rest, { color: '#FFFFFF', weight: 6, opacity: 0.9, lineCap: 'round', interactive: false }).addTo(g);
+        L.polyline(rest, { color: '#3F4A63', weight: 3, opacity: 0.9, dashArray: '6 6', lineCap: 'round', interactive: false }).addTo(g);
       });
 
       // Linia fină a rutei alese și, pe ea, localitatea omului și destinația.

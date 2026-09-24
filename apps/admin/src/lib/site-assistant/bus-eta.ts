@@ -117,9 +117,16 @@ async function pagedStops(vehicleIds: string[], since: string): Promise<StopRow[
 
 async function computePace(routeId: number | null): Promise<number | null> {
   const since = new Date(Date.now() - HISTORY_DAYS * 86_400_000).toISOString().slice(0, 10);
-  let q = getSupabase().from('daily_assignments').select('assignment_date, vehicle_id, vehicle_id_retur').gte('assignment_date', since);
-  if (routeId != null) q = q.eq('crm_route_id', routeId);
-  const { data } = await q.limit(1000);
+  // Pe pagini, ca routePasses: flota întreagă pe 14 zile e azi ~510 rânduri, aproape de plafon.
+  const data: { assignment_date: string; vehicle_id: string | null; vehicle_id_retur: string | null }[] = [];
+  for (let from = 0; ; from += 1000) {
+    let q = getSupabase().from('daily_assignments').select('assignment_date, vehicle_id, vehicle_id_retur').gte('assignment_date', since);
+    if (routeId != null) q = q.eq('crm_route_id', routeId);
+    const { data: page, error } = await q.order('assignment_date').order('crm_route_id').range(from, from + 999);
+    if (error || !page) break;
+    data.push(...page);
+    if (page.length < 1000) break;
+  }
   const pairs = new Set<string>();
   const vehicles = new Set<string>();
   for (const a of data ?? []) {
@@ -219,12 +226,21 @@ export async function routePasses(routeId: number, goingNorth: boolean): Promise
   const hit = passCache.get(key);
   if (hit && Date.now() - hit.at < TTL_MS) return hit.rows;
   const since = new Date(Date.now() - HISTORY_DAYS * 86_400_000).toISOString().slice(0, 10);
-  const { data } = await getSupabase()
-    .from('route_stop_passes')
-    .select('date, stop_order, passed_at, offset_min')
-    .eq('crm_route_id', routeId).eq('going_north', goingNorth).gte('date', since)
-    .limit(1000);
-  const rows = (data ?? []) as PassRow[];
+  // Pe pagini: PostgREST taie tăcut la 1000 de rânduri (24.09, crm_stop_fares în
+  // windowsFor — ruta 28 rămânea fără fereastră). Azi sunt ~40 de opriri × 15 zile, dar
+  // o rută mai lungă sau o istorie mai lungă ar trece pragul fără niciun semn.
+  const rows: PassRow[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await getSupabase()
+      .from('route_stop_passes')
+      .select('date, stop_order, passed_at, offset_min')
+      .eq('crm_route_id', routeId).eq('going_north', goingNorth).gte('date', since)
+      .order('date').order('stop_order')
+      .range(from, from + 999);
+    if (error || !data) break;
+    rows.push(...(data as PassRow[]));
+    if (data.length < 1000) break;
+  }
   passCache.set(key, { at: Date.now(), rows });
   return rows;
 }

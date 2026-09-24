@@ -33,7 +33,11 @@ export type MasinaRand = {
   alte_la_parc?: number;
   alte_aiurea?: number;
   // unde se întâmplă km-ii «aiurea» — dovada steagului, ca să nu fie doar o cifră
-  locuri_aiurea?: { loc: string; km_zi: number; ore: number; zile: number; de_la_uzina: number }[];
+  locuri_aiurea?: {
+    loc: string; km_zi: number; ore: number; zile: number; de_la_uzina: number;
+    // orele locale în care se strâng kilometrii — ele spun dacă e muncă de uzină sau nu
+    cand?: { ora: number; km_zi: number }[];
+  }[];
   d_casa?: number;
   d_uzina?: number;
   d_casa_pe_capat?: { id: string; capat: string; km: number }[];
@@ -66,16 +70,18 @@ export type Raport = {
   };
 };
 
-export async function getRaport(uzina = 'LEAR Ungheni'): Promise<Raport | null> {
+export async function getRaport(uzina = 'LEAR Ungheni', saptamina?: string): Promise<Raport | null> {
   const session = await verifySession();
   requireRole(session, 'ADMIN');
   const supabase = getSupabase();
-  // Un singur rând, cel mai recent. NICIODATĂ SELECT * în liste (regula din migr. 206), dar aici
-  // `date` ESTE raportul întreg — nu se poate îngusta fără să rupem pagina.
-  const { data, error } = await supabase
+  // Un singur rând: cel cerut, altfel cel mai recent. NICIODATĂ SELECT * în liste (regula din
+  // migr. 206), dar aici `date` ESTE raportul întreg — nu se poate îngusta fără să rupem pagina.
+  let q = supabase
     .from('lde_analiza_reguli')
     .select('uzina, saptamina, rulat_la, date')
-    .eq('uzina', uzina)
+    .eq('uzina', uzina);
+  if (saptamina) q = q.eq('saptamina', saptamina);
+  const { data, error } = await q
     .order('saptamina', { ascending: false })
     .limit(1)
     .maybeSingle();

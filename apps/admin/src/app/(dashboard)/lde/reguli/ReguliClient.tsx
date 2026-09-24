@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import type { Raport, MasinaRand } from './actions';
 
 // Raportul săptămânal al celor trei reguli (ION-48). Regulile sunt ale lui Ion:
@@ -126,7 +127,10 @@ function Panou({ m, zileLuna }: { m: MasinaRand; zileLuna: number }) {
                     <td className="border-b border-neutral-200 p-1.5 pr-4 text-right font-mono tabular-nums dark:border-neutral-700">{n1(x.km_zi)} km/zi</td>
                     <td className="border-b border-neutral-200 p-1.5 pr-4 text-right font-mono tabular-nums text-neutral-500 dark:border-neutral-700">{n1(x.ore)} h</td>
                     <td className="border-b border-neutral-200 p-1.5 pr-4 text-right font-mono tabular-nums text-neutral-500 dark:border-neutral-700">{x.zile} zile</td>
-                    <td className="border-b border-neutral-200 p-1.5 text-right font-mono tabular-nums text-neutral-500 dark:border-neutral-700">{n1(x.de_la_uzina)} km de uzină</td>
+                    <td className="border-b border-neutral-200 p-1.5 pr-4 text-right font-mono tabular-nums text-neutral-500 dark:border-neutral-700">{n1(x.de_la_uzina)} km de uzină</td>
+                    <td className="border-b border-neutral-200 p-1.5 font-mono text-[11.5px] text-neutral-500 dark:border-neutral-700">
+                      {(x.cand ?? []).map((c) => `${String(c.ora).padStart(2, '0')}:00`).join(' · ')}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -145,8 +149,32 @@ function Panou({ m, zileLuna }: { m: MasinaRand; zileLuna: number }) {
   );
 }
 
-export default function ReguliClient({ raport }: { raport: Raport | null }) {
+export default function ReguliClient({ raport, saptamani = [] }: {
+  raport: Raport | null; saptamani?: string[];
+}) {
   const [deschis, setDeschis] = useState<string | null>(null);
+
+  // Alegerea săptămânii stă sus, ca prim lucru după titlu. Ion, 24.09: «ar fi bine să fie alegere
+  // analitică pe săptămâni sus». Merge prin URL (?saptamina=), nu prin stare locală: linkul către
+  // o săptămână anume trebuie să se poată trimite mai departe.
+  const Saptamani = () => saptamani.length === 0 ? null : (
+    <div className="mb-5 flex flex-wrap items-center gap-1.5">
+      <span className="mr-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-500">Săptămâna</span>
+      {saptamani.map((s) => {
+        const activ = raport?.saptamina === s;
+        return (
+          <Link key={s} href={`/lde/reguli?saptamina=${s}`} scroll={false}
+            className={`border px-2.5 py-1 font-mono text-[12px] tabular-nums transition-colors ${
+              activ
+                ? 'border-[#9B1B30] bg-[#9B1B30] text-white'
+                : 'border-neutral-200 text-neutral-600 hover:border-[#9B1B30] hover:text-[#9B1B30] dark:border-neutral-700 dark:text-neutral-400'
+            }`}>
+            {ZI(s)}
+          </Link>
+        );
+      })}
+    </div>
+  );
 
   if (!raport) {
     return (
@@ -167,11 +195,12 @@ export default function ReguliClient({ raport }: { raport: Raport | null }) {
   return (
     <div className="mx-auto max-w-[1160px] p-4 sm:p-6">
       <h1 className="text-[28px] font-bold leading-tight tracking-tight">Regulile de economie · {R.uzina}</h1>
-      <p className="mb-5 text-neutral-500">
-        Apasă o mașină ca să-i vezi ziua desfăcută. Săptămâna {ZI(R.saptamina)} – {ZI(R.pana_la)} ·
-        comparat cu scheletul fixat pe {R.schelet_fixat} · rulat{' '}
-        {new Date(R.rulat_la).toLocaleString('ro-RO', { dateStyle: 'short', timeStyle: 'short' })}
+      <p className="mb-4 text-[13.5px] text-neutral-500">
+        {ZI(R.saptamina)} – {ZI(R.pana_la)} · comparat cu scheletul fixat pe {R.schelet_fixat} · rulat{' '}
+        {new Date(R.rulat_la).toLocaleString('ro-RO', { dateStyle: 'short', timeStyle: 'short' })} ·
+        apasă o mașină ca să-i vezi ziua desfăcută
       </p>
+      <Saptamani />
 
       <div className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-px border border-neutral-200 bg-neutral-200 dark:border-neutral-700 dark:bg-neutral-700">
         {[
@@ -201,8 +230,8 @@ export default function ReguliClient({ raport }: { raport: Raport | null }) {
         <table className="w-full border-collapse border border-neutral-200 bg-white text-[13px] dark:border-neutral-700 dark:bg-neutral-900">
           <thead>
             <tr className="bg-[#9B1B30]/[0.04]">
-              {['Mașina', 'Doarme la', 'Rutele ei', 'Zile la poartă', 'km/zi', 'Rutele × 4',
-                'Alte, pe la uzină', 'La parc reparație', 'Alte, în afara lor',
+              {['Mașina', 'Doarme la', 'Rutele ei', 'Zile', 'km/zi', 'Rutele × 4',
+                'Alte · uzină', 'Alte · parc', 'Alte · neatribuiți',
                 'Regula 1 lei/lună', 'Regula 3 lei/lună', 'Alege'].map((h, i) => (
                 <th key={h} className={`border-b border-neutral-200 p-2 align-bottom text-[10px] font-semibold uppercase leading-tight tracking-wider text-neutral-500 dark:border-neutral-700 ${i >= 3 && i <= 10 ? 'text-right' : 'text-left'}`}>{h}</th>
               ))}
@@ -220,18 +249,19 @@ export default function ReguliClient({ raport }: { raport: Raport | null }) {
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDeschis(desc ? null : m.masina); } }}
                     tabIndex={0} role="button" aria-expanded={desc}
                     className={`cursor-pointer ${best > 0 ? '' : 'opacity-60'} ${desc ? 'bg-[#9B1B30]/[0.07]' : 'hover:bg-[#9B1B30]/[0.04]'}`}>
-                    <th scope="row" className="border-b border-neutral-200 p-2 text-left dark:border-neutral-700">
+                    <th scope="row" className="whitespace-nowrap border-b border-neutral-200 p-2 text-left dark:border-neutral-700">
                       <span className="block font-semibold">{m.masina}</span>
-                      <span className="mt-0.5 block text-[11px] text-neutral-500">{m.tip ?? '—'}</span>
+                      <span className="mt-0.5 block text-[11px] font-normal text-neutral-500">{m.tip ?? '—'}</span>
                     </th>
-                    <td className="border-b border-neutral-200 p-2 text-[12.5px] dark:border-neutral-700">
+                    <td className="whitespace-nowrap border-b border-neutral-200 p-2 text-[12.5px] dark:border-neutral-700">
                       {m.casa ?? '—'}
                       {m.casa_dedusa && <i className="block text-[11px] not-italic text-neutral-500">din urmă</i>}
                     </td>
-                    <td className="border-b border-neutral-200 p-2 text-[12px] leading-relaxed dark:border-neutral-700">
+                    <td className="whitespace-nowrap border-b border-neutral-200 p-2 text-[12px] leading-snug dark:border-neutral-700">
                       {m.rute.map((r) => (
                         <span key={r.id} className="block">
-                          <b>{r.id}</b> {r.capat} <u className="font-mono text-neutral-500 no-underline">{n1(r.etalon)}</u>
+                          <b>{r.id}</b> {r.capat}{' '}
+                          <u className="font-mono text-[11px] text-neutral-500 no-underline">{n1(r.etalon)}</u>
                         </span>
                       ))}
                     </td>

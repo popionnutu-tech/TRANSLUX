@@ -147,9 +147,16 @@ function citesteSchelet() {
   }
   const S = JSON.parse(readFileSync(CALE_SCHELET, 'utf8'));
   for (const r of S.rute) {
-    // punctele pe care le verificăm: forma plină a turului, rărită, plus capătul
+    // Pentru a RECUNOAȘTE ruta se ia partea plină: ea e cea care o deosebește de altele.
     const f = [...(r.g?.tur?.plin || []), ...(r.g?.retur?.plin || [])];
     r._puncte = f.filter((_, i) => i % 3 === 0);
+    // Pentru a socoti ce km sunt AI RUTEI se ia toată forma, cu tot cu piciorul gol. Ion, 24.09:
+    // «ruta A8 Horești ea trece prin Gherman și Sculeni, poate e parte a rutei 043». Verificat:
+    // A8 nu trece pe acolo, dar B6 — cealaltă rută a lui 043BRAU — trece prin toate patru, la
+    // 0,0–0,6 km. Numai că ele stau pe piciorul GOL al rutei, iar eu comparam doar cu cel plin.
+    // De aceea 97,5 km/zi ai lui 043BRAU ieșeau «neatribuibili»: erau chiar drumul ei spre rută.
+    const t = [...f, ...(r.g?.tur?.gol || []), ...(r.g?.retur?.gol || [])];
+    r._toateP = t.filter((_, i) => i % 3 === 0);
     r._capatC = (r.g?.tur?.sate || []).find(s => s.n === r.capat)?.c
              ?? (r.g?.retur?.sate || []).find(s => s.n === r.capat)?.c ?? null;
     r._sateC = [...(r.g?.tur?.sate || []), ...(r.g?.retur?.sate || [])];
@@ -358,7 +365,7 @@ function curse(pts) {
 // rutelor ei. Fără locurile lor, steagul rămânea o cifră fără dovadă.
 function alteCurse(pts, ruteObj, culoare, zileLucrate) {
   const peRuta = grila([].concat(...ruteObj.map(r =>
-    (r._puncte || []).map(c => ({ lat: c[0], lon: c[1] })))));
+    (r._toateP || r._puncte || []).map(c => ({ lat: c[0], lon: c[1] })))));
   const peCasa = grila([].concat(...culoare.map(f => f.map(c => ({ lat: c[0], lon: c[1] })))));
   let laUzina = 0, aiurea = 0, laParc = 0;
   const peLoc = new Map();   // localitate → km «aiurea», minute, zile
@@ -384,9 +391,13 @@ function alteCurse(pts, ruteObj, culoare, zileLucrate) {
           bucata += dk;
           // se ține minte și locul, ca steagul să poată fi verificat, nu doar crezut
           const l = celMaiApropiatLoc(p);
-          if (l) { const x = peLoc.get(l.n) || { km: 0, min: 0, zile: new Set(), dep: 0 };
+          if (l) { const x = peLoc.get(l.n) || { km: 0, min: 0, zile: new Set(), dep: 0, ore: new Map() };
             x.km += dk; const dm = (p.t - prev.t) / 60000; if (dm > 0 && dm < 15) x.min += dm;
             x.zile.add(ziLucru(p.t)); const dd = hav(p, POARTA); if (dd > x.dep) x.dep = dd;
+            // ora locală la care se fac kilometrii ăștia. Ion, 24.09: «el a făcut asta în orele
+            // LEAR?» — fără ora, cifra nu spune dacă e muncă de uzină sau treabă străină.
+            const h = local(p.t).getUTCHours();
+            x.ore.set(h, (x.ore.get(h) || 0) + dk);
             peLoc.set(l.n, x); }
           const dp = hav(p, POARTA);
           if (dp > celMaiDeparte) celMaiDeparte = dp;
@@ -403,7 +414,11 @@ function alteCurse(pts, ruteObj, culoare, zileLucrate) {
   inchide();
   const z = zileLucrate || 1;
   const locuriAiurea = [...peLoc].map(([n, v]) => ({ loc: n, km_zi: +(v.km / z).toFixed(1),
-    ore: +(v.min / 60).toFixed(1), zile: v.zile.size, de_la_uzina: +v.dep.toFixed(1) }))
+    ore: +(v.min / 60).toFixed(1), zile: v.zile.size, de_la_uzina: +v.dep.toFixed(1),
+    // orele în care se strâng cei mai mulți kilometri, cu cât la fiecare
+    cand: [...v.ore].sort((a, b) => b[1] - a[1]).slice(0, 4)
+      .map(([h, km]) => ({ ora: h, km_zi: +(km / z).toFixed(1) }))
+      .sort((a, b) => a.ora - b.ora) }))
     .filter(x => x.km_zi >= 1).sort((a, b) => b.km_zi - a.km_zi).slice(0, 8);
   return { la_uzina: laUzina / z, aiurea: aiurea / z, la_parc: laParc / z, locuri: locuriAiurea };
 }
@@ -722,11 +737,23 @@ for (const v of auLucrat) {
     if (patru > azi) rec.steaguri.push(
       `cele patru drumuri pe rută fac ${n1(patru)} km, iar ea a condus ${n1(azi)} — n-a făcut ` +
       'patru drumuri complete, regula 1 nu se poate judeca la ea');
-    if (A.aiurea > 40) rec.steaguri.push(
-      `${n1(A.aiurea)} km/zi în afara uzinei — nu-s nici rută, nici drum spre casă, și nici măcar ` +
-      'nu trec pe la poartă' + (A.locuri.length
-        ? `; cei mai mulți pe la ${A.locuri.slice(0, 3).map(x => `${x.loc} ${n1(x.km_zi)}`).join(', ')} km/zi`
-        : ''));
+    // Steagul spunea «mașina asta face și altă treabă». Ion, 24.09: «el a făcut asta în orele
+    // LEAR?» — și da, le face. La 043BRAU, 032BRAT și 320BRAT kilometrii ăștia se fac la orele
+    // schimburilor, în aceleași curse care ajung la poartă. Nu-s treburi străine: e muncă pe care
+    // modelul n-o poate atribui, fiindcă ruta nu-i în schelet sau se face pe alt drum.
+    // Steagul trebuie să spună ce e, nu să acuze.
+    if (A.aiurea > 40) {
+      const oreLucru = A.locuri.some(l => (l.cand || []).some(c =>
+        (c.ora >= 3 && c.ora <= 7) || (c.ora >= 13 && c.ora <= 17) || c.ora >= 21 || c.ora <= 1));
+      rec.steaguri.push(
+        `${n1(A.aiurea)} km/zi pe care modelul nu-i poate atribui — nu-s pe formele rutelor ei din ` +
+        'schelet, nu-s pe drumul spre casă și nu trec pe la poartă' +
+        (A.locuri.length ? `; cei mai mulți pe la ${A.locuri.slice(0, 3).map(x => `${x.loc} ${n1(x.km_zi)}`).join(', ')} km/zi` : '') +
+        (oreLucru
+          ? '. Se fac la orele schimburilor, deci cel mai probabil e tot muncă de uzină: ori o rută ' +
+            'care nu-i în schelet, ori aceeași rută pe alt drum.'
+          : '. NU se fac la orele schimburilor.'));
+    }
     else if (alte > 40) rec.steaguri.push(
       `alte curse ${n1(alte)} km/zi, dar trec pe la poartă — muncă în plus pentru uzină`);
   }

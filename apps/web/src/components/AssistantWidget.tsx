@@ -9,7 +9,7 @@
 // bază, nu de model.
 
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronRight, Clock, MapPin, Maximize2, MessageCircle, MessageSquareWarning, Minimize2, Navigation, Phone, ShoppingBag, X, ArrowUp, Bus } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Clock, MapPin, Maximize2, MessageCircle, MessageSquareWarning, Minimize2, Navigation, Phone, ShoppingBag, X, ArrowUp, Bus } from 'lucide-react';
 import type { Locale } from '@/lib/i18n';
 import { parseAssistantText, type Inline } from '@/lib/assistant-text';
 import type { Card, Crew } from '@/lib/assistant-cards';
@@ -52,6 +52,8 @@ const TEXT = {
     typing: 'Asistentul scrie',
     error: 'Nu am putut trimite mesajul. Verifică internetul sau sună la +373 60 401 010.',
     restart: 'Conversație nouă',
+    back: 'Înapoi la început',
+    resume: 'Continuă conversația',
     note: 'Asistent AI · Pentru urgențe:',
     maps: 'Google Maps', waze: 'Waze', mapsPoint: 'Punctul pe Google Maps',
     reserve: 'Rezervă', noDriver: 'șofer nerepartizat', lei: 'lei',
@@ -102,6 +104,8 @@ const TEXT = {
     typing: 'Ассистент пишет',
     error: 'Не удалось отправить сообщение. Проверьте интернет или позвоните +373 60 401 010.',
     restart: 'Новый разговор',
+    back: 'Назад к началу',
+    resume: 'Продолжить разговор',
     note: 'AI-ассистент · Срочно:',
     maps: 'Google Maps', waze: 'Waze', mapsPoint: 'Точка на Google Maps',
     reserve: 'Бронь', noDriver: 'водитель не назначен', lei: 'лей',
@@ -372,6 +376,9 @@ export default function AssistantWidget({ locale }: { locale: Locale }) {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
+  // «← Înapoi» (Ion, 24.09: «la asistent să poți apăsa retur»): ecranul de start cu butoanele
+  // rapide, fără să se șteargă conversația — la primul mesaj nou se revine la ea.
+  const [home, setHome] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const loaded = useRef(false);
@@ -412,6 +419,7 @@ export default function AssistantWidget({ locale }: { locale: Locale }) {
     setOpen(true);
     closeTeaser();
     setInput('');
+    setHome(false);
     setMessages((m) => [...m, { role: 'user', text: message }]);
     setBusy(true);
     try {
@@ -476,6 +484,9 @@ export default function AssistantWidget({ locale }: { locale: Locale }) {
       {open && (
         <section className="asst-panel" role="dialog" aria-label={i.title}>
           <header className="asst-head">
+            {messages.length > 0 && !home && (
+              <button type="button" className="asst-icon asst-back" onClick={() => setHome(true)} aria-label={i.back} title={i.back}><ChevronLeft size={22} /></button>
+            )}
             <span className="asst-avatar" aria-hidden>T<span className="asst-avatar-dot" /></span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="asst-title">{i.title}</div>
@@ -486,8 +497,11 @@ export default function AssistantWidget({ locale }: { locale: Locale }) {
           </header>
 
           <div className="asst-list" ref={listRef} aria-live="polite">
-            {messages.length === 0 ? (
+            {messages.length === 0 || home ? (
               <div className="asst-home">
+                {messages.length > 0 && (
+                  <button type="button" className="asst-resume" onClick={() => setHome(false)}>{i.resume}<ChevronRight size={16} /></button>
+                )}
                 <div>
                   <div className="asst-hello">{i.hello}</div>
                   <div className="asst-hello-sub">{i.helloSub}</div>
@@ -550,7 +564,7 @@ export default function AssistantWidget({ locale }: { locale: Locale }) {
             </form>
             <div className="asst-foot">
               <span>{i.note} <a href={LINE_TEL}>{LINE_TEXT}</a></span>
-              {messages.length > 0 && <button type="button" onClick={() => { setMessages([]); setConversationId(null); }}>{i.restart}</button>}
+              {messages.length > 0 && <button type="button" onClick={() => { setMessages([]); setConversationId(null); setHome(false); }}>{i.restart}</button>}
             </div>
           </div>
         </section>
@@ -586,6 +600,8 @@ const CSS = `
 .asst-icon:hover{background:#F4E8EA;color:${RED}}
 .asst-list{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
 .asst-home{display:flex;flex-direction:column;gap:14px}
+.asst-back{margin-right:-6px}
+.asst-resume{align-self:flex-start;display:inline-flex;align-items:center;gap:4px;border:none;background:#F4E8EA;color:${RED};border-radius:999px;padding:8px 12px;font:600 13px var(--font-opensans),Open Sans,sans-serif;cursor:pointer}
 .asst-hello{font-size:20px;font-weight:700;line-height:1.3}
 .asst-hello-sub{font-size:14px;color:#5E5255;margin-top:4px}
 .asst-hero{display:flex;align-items:center;gap:14px;padding:16px;background:${RED};border:none;border-radius:16px;text-align:left;cursor:pointer;

@@ -14,6 +14,9 @@ export type UrmaRuta = {
 };
 
 const POARTA: Punct = [47.223, 27.8016];
+// Poarta implicită e LEAR Ungheni; scheletul SEBN (ION-38) își dă porțile lui — Orhei și Strășeni.
+export type Poarta = { c: Punct; n: string };
+const PORTI_LEAR: Poarta[] = [{ c: POARTA, n: 'LEAR' }];
 
 // Harta se mută pe ruta aleasă. Fără asta, la 31 de trasee peste raionul Ungheni, cea aleasă
 // rămâne un fir subțire într-un colț și nu se vede ce s-a selectat.
@@ -44,7 +47,9 @@ function Incadreaza({ urme, ales }: { urme: UrmaRuta[]; ales: string | null }) {
   return null;
 }
 
-export default function ScheletMap({ urme, ales }: { urme: UrmaRuta[]; ales: string | null }) {
+export default function ScheletMap({ urme, ales, porti = PORTI_LEAR }: {
+  urme: UrmaRuta[]; ales: string | null; porti?: Poarta[];
+}) {
   const sate = useMemo(() => {
     const m = new Map<string, { c: Punct; rute: Set<string>; capat: boolean }>();
     for (const u of urme) for (const s of u.sate) {
@@ -57,7 +62,7 @@ export default function ScheletMap({ urme, ales }: { urme: UrmaRuta[]; ales: str
   }, [urme]);
 
   return (
-    <MapContainer center={POARTA} zoom={10} scrollWheelZoom style={{ height: '100%', width: '100%' }}>
+    <MapContainer center={porti[0].c} zoom={10} scrollWheelZoom style={{ height: '100%', width: '100%' }}>
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -101,9 +106,11 @@ export default function ScheletMap({ urme, ales }: { urme: UrmaRuta[]; ales: str
         );
       })}
 
-      <CircleMarker center={POARTA} radius={8} pathOptions={{ color: '#23191B', weight: 2, fillColor: '#23191B', fillOpacity: 1 }}>
-        <Tooltip direction="right" offset={[8, 0]} permanent opacity={1}><b>LEAR</b></Tooltip>
-      </CircleMarker>
+      {porti.map((p) => (
+        <CircleMarker key={p.n} center={p.c} radius={8} pathOptions={{ color: '#23191B', weight: 2, fillColor: '#23191B', fillOpacity: 1 }}>
+          <Tooltip direction="right" offset={[8, 0]} permanent opacity={1}><b>{p.n}</b></Tooltip>
+        </CircleMarker>
+      ))}
     </MapContainer>
   );
 }

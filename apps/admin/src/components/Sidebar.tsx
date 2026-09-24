@@ -395,23 +395,37 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
       <div style={{ ...brandStyle, padding: deschis ? '24px 20px 20px' : '18px 8px 14px', position: 'relative' }}>
         {deschis && <span style={logoStyle} />}
         {deschis && <div style={subtitleStyle}>Panou Administrativ</div>}
+        {/* Ion, 24.09 (ION-52): «butonul fixare să fie mai vizibil». `.dashboard button` din globals.css
+            pune padding 7px 18px pe orice buton — la 28px lățime săgeata nu mai avea loc și butonul
+            părea un pătrat gol. Padding-ul e deci scris aici explicit. Meniul deschis doar de mouse
+            arată «Fixează» plin; cel fixat, un buton discret care îl eliberează. */}
         <button
           onClick={toggleCollapsed}
-          title={collapsed ? 'Prinde meniul deschis' : 'Lasă meniul să se strângă'}
-          aria-label={collapsed ? 'Prinde meniul deschis' : 'Lasă meniul să se strângă'}
+          title={collapsed ? 'Fixează meniul deschis' : 'Lasă meniul să se strângă'}
+          aria-label={collapsed ? 'Fixează meniul deschis' : 'Lasă meniul să se strângă'}
+          aria-pressed={!collapsed}
           style={{
             position: deschis ? 'absolute' : 'static',
-            top: 8, right: 8,
+            top: 10, right: 10,
             margin: deschis ? 0 : '0 auto',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: 28, height: 28, borderRadius: 8,
-            border: '1px solid rgba(155,27,48,0.1)', background: 'transparent',
-            color: 'rgba(155,27,48,0.5)', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+            height: 30, minWidth: 30,
+            padding: collapsed && deschis ? '0 10px' : 0,
+            borderRadius: 8,
+            border: '1px solid #9B1B30',
+            background: collapsed ? '#9B1B30' : 'rgba(155,27,48,0.08)',
+            color: collapsed ? '#fff' : '#9B1B30',
+            fontSize: 12, fontWeight: 600, fontStyle: 'normal', lineHeight: 1,
+            boxShadow: collapsed ? '0 2px 8px rgba(155,27,48,0.25)' : 'none',
+            cursor: 'pointer',
           }}
         >
-          <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: 18, height: 18, transform: collapsed ? 'rotate(180deg)' : 'none' }}>
-            <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden style={{ width: 16, height: 16, flexShrink: 0, display: 'block' }}>
+            {collapsed
+              ? <path d="M16 9V4h1c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1h1v5c0 1.66-1.34 3-3 3v2h5.97v7l1 1 1-1v-7H19v-2c-1.66 0-3-1.34-3-3z" />
+              : <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" />}
           </svg>
+          {collapsed && deschis && <span>Fixează</span>}
         </button>
       </div>
 

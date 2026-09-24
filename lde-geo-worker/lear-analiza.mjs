@@ -42,6 +42,10 @@ const CALE_CACHE = process.env.LEAR_DRUMURI || path.join(AICI, 'lear-drumuri.jso
 // cădea pe satul unde doarme mașina sau pe un sat de trecere: A5 Gherman e scurtă, trece pe
 // lângă uzină, și o «duceau» șase mașini în aceeași săptămână.
 const CALE_RUTE = process.env.LEAR_RUTE_MASINI || path.join(AICI, 'lear-rute-masini.json');
+// Satele din nomenclator care nu-s pe hartă sub numele ăla: opriri scrise ca sate («Pîrlița
+// școală»), scrieri diferite («Manoilești»), sau locuri care chiar lipsesc din OSM (Dănuțeni,
+// cartier al Ungheniului). lear-sate.mjs le rezolvă o dată și scrie fișierul ăsta.
+const CALE_SATE = process.env.LEAR_SATE || path.join(AICI, 'lear-sate.json');
 const VALHALLA = process.env.VALHALLA_URL || 'http://localhost:8002';
 
 const POARTA = { lat: 47.2230, lon: 27.8016 };
@@ -507,9 +511,14 @@ for (const l of locuri) {
   if (!vechi || hav(l, POARTA) < hav(vechi, POARTA)) dupaNume.set(l.name, l);
 }
 const MAX_DE_LA_UZINA = 200;   // km — mai departe de atât nu poate fi casa unei mașini de la LEAR
+const sateRezolvate = (() => {
+  try { return JSON.parse(readFileSync(CALE_SATE, 'utf8')); } catch { return {}; }
+})();
 
 function coordSat(S, nume) {
   for (const r of S.rute) for (const s of (r._sateC || [])) if (s.n === nume) return s.c;
+  const rez = sateRezolvate[nume];
+  if (rez) return [rez.lat, rez.lon];
   const l = dupaNume.get(nume);
   if (l && hav(l, POARTA) <= MAX_DE_LA_UZINA) return [l.lat, l.lon];
   return null;

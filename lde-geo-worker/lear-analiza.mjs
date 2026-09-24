@@ -62,6 +62,13 @@ const R_CULOAR = 1.2;          // km — lățimea culoarului dintre casă și c
 // la poartă dar se duce mai departe de atât nu mai e navetă de uzină, oricât ar atinge poarta:
 // 320BRAT pleacă de la poartă și se duce la Bălți, 96 km — ar fi fost numărată drept muncă LEAR.
 const R_LEAR_MAX = 75;
+// Parcul de la Bălți — service și reparații. Ion, 24.09: «dacă mașina pleacă la Bălți în zona de
+// reparație, nu trebuie de introdus, automat fixează reparație». Punctul nu-i scris nicăieri în
+// bază (lde_uzine_gates are doar porți de uzine), deci l-am scos din opririle pe care le scrie
+// workerul de noapte: 47.770, 27.923 adună 883 de opriri de peste două ore, 94 de mașini,
+// 11.312 ore în iulie–septembrie. Nu e o presupunere, e cel mai aglomerat loc de stat al flotei.
+const PARC = { lat: 47.7700, lon: 27.9235 };
+const R_PARC = 0.8;
 const ZILE_LUNA = 21.7;        // zile lucrătoare pe lună, pentru lei
 // Ion, 24.09: «mașinile trebuie verificate doar cele care lucrează la LEAR, cel mai probabil
 // 043 a venit pe timp scurt». O mașină care a trecut pe la poartă o zi–două nu e a uzinei;
@@ -338,14 +345,17 @@ function alteCurse(pts, ruteObj, culoare, zileLucrate) {
   const peRuta = grila([].concat(...ruteObj.map(r =>
     (r._puncte || []).map(c => ({ lat: c[0], lon: c[1] })))));
   const peCasa = grila([].concat(...culoare.map(f => f.map(c => ({ lat: c[0], lon: c[1] })))));
-  let laUzina = 0, aiurea = 0;
-  let bucata = 0, atinsPoarta = false, celMaiDeparte = 0, prev = null;
+  let laUzina = 0, aiurea = 0, laParc = 0;
+  let bucata = 0, atinsPoarta = false, atinsParc = false, celMaiDeparte = 0, prev = null;
   const inchide = () => {
     if (bucata > 0.2) {
+      // drumul la parcul de la Bălți e reparație, nu risipă — se pune deoparte, nu la «aiurea»
+      if (atinsParc) laParc += bucata;
       // «pe la uzină» cere ȘI atingerea porții, ȘI să nu iasă din raza uzinei
-      if (atinsPoarta && celMaiDeparte <= R_LEAR_MAX) laUzina += bucata; else aiurea += bucata;
+      else if (atinsPoarta && celMaiDeparte <= R_LEAR_MAX) laUzina += bucata;
+      else aiurea += bucata;
     }
-    bucata = 0; atinsPoarta = false; celMaiDeparte = 0;
+    bucata = 0; atinsPoarta = false; atinsParc = false; celMaiDeparte = 0;
   };
   for (const p of pts) {
     if (prev) {
@@ -357,8 +367,12 @@ function alteCurse(pts, ruteObj, culoare, zileLucrate) {
         if (!eRuta && !eCasa) {
           bucata += dk;
           const dp = hav(p, POARTA);
-          if (dp <= R_POARTA) atinsPoarta = true;
           if (dp > celMaiDeparte) celMaiDeparte = dp;
+          // Ajungerea la poartă sau la parc ÎNCHEIE bucata: acolo se termină un drum și începe
+          // altul. Fără asta, un singur punct lângă parc muta toată ziua la «reparație» —
+          // la 283BRAT, care lucrează la Orhei, ieșeau 493 km/zi de reparație.
+          if (dp <= R_POARTA) { atinsPoarta = true; inchide(); }
+          else if (hav(p, PARC) <= R_PARC) { atinsParc = true; inchide(); }
         } else inchide();
       }
     }
@@ -366,7 +380,7 @@ function alteCurse(pts, ruteObj, culoare, zileLucrate) {
   }
   inchide();
   const z = zileLucrate || 1;
-  return { la_uzina: laUzina / z, aiurea: aiurea / z };
+  return { la_uzina: laUzina / z, aiurea: aiurea / z, la_parc: laParc / z };
 }
 
 // ─── deplasări în afara destinației de lucru ─────────────────────────────────
@@ -390,9 +404,10 @@ function deplasari(pts, rute, casaC) {
     if (prev && (p.t - prev.t) / 60000 > 30) inchide();
     const d = departe(p);
     if (d > R_DEPLASARE) {
-      if (!cur) cur = { de_la: p.t, pana_la: p.t, km: 0, max: d, varf: p };
+      if (!cur) cur = { de_la: p.t, pana_la: p.t, km: 0, max: d, varf: p, parc: false };
       else { cur.pana_la = p.t; if (prev) { const dk = hav(prev, p); if (dk < SALT_KM) cur.km += dk; }
              if (d > cur.max) { cur.max = d; cur.varf = p; } }
+      if (hav(p, PARC) <= R_PARC) cur.parc = true;
     } else inchide();
     prev = p;
   }
@@ -425,9 +440,14 @@ function coordSat(S, nume) {
   return null;
 }
 
-// ─── numele localității celei mai apropiate, din satele scheletului ──────────
+// ─── numele localității celei mai apropiate ─────────────────────────────────
+// Se caută în TOT indexul de localități, nu doar în satele scheletului. Altfel, o mașină care
+// lucrează departe primea cel mai apropiat sat LEAR, oricât de departe: 283BRAT, care face
+// naveta la Orhei, apărea ca «Cornova + 66,4 km» — un nume care nu spune nimic despre unde e.
 function celMaiApropiatSat(S, p) {
   let best = null;
+  for (const l of locuri) { const d = hav(l, p); if (!best || d < best.d) best = { n: l.name, d }; }
+  if (best && best.d <= 12) return best;
   for (const r of S.rute) for (const s of (r._sateC || [])) {
     const d = hav(p, { lat: s.c[0], lon: s.c[1] });
     if (!best || d < best.d) best = { n: s.n, d };
@@ -645,12 +665,13 @@ for (const v of auLucrat) {
     // «alte curse»: munca în plus, măsurată — nici rută, nici culoar de acasă. Nu dispare sub
     // nicio regulă, deci se adună la ziua nouă la amândouă.
     const A = alteCurse(ptsSapt, ruteSchelet, culoare, kmZile.length);
-    const alte = A.la_uzina + A.aiurea;
+    const alte = A.la_uzina + A.aiurea + A.la_parc;
     rec.etalon_s1 = alese[0].etalon; rec.etalon_s2 = alese[1].etalon;
     rec.rutele_de_4 = +patru.toFixed(1);
     rec.alte = +alte.toFixed(1);
     rec.alte_la_uzina = +A.la_uzina.toFixed(1);
     rec.alte_aiurea = +A.aiurea.toFixed(1);
+    rec.alte_la_parc = +A.la_parc.toFixed(1);
 
     // regula 1: ziua = 4 × latura fiecărui schimb + alte curse
     const z1 = patru + alte;
@@ -684,7 +705,8 @@ for (const v of auLucrat) {
       pana_la: local(d.pana_la).toISOString().slice(11, 16),
       ore: +((new Date(d.pana_la) - new Date(d.de_la)) / 3600000).toFixed(1),
       km: +d.km.toFixed(1), departare: +d.max.toFixed(1),
-      unde: sat ? `${sat.n} + ${n1(sat.d)} km` : '—' });
+      fel: d.parc ? 'reparație' : 'de lămurit',
+      unde: d.parc ? 'parcul de la Bălți' : (sat ? `${sat.n} + ${n1(sat.d)} km` : '—') });
   }
 
   const b = kmBaza.get(v.masina);
@@ -718,7 +740,7 @@ const total = { r1: S_(m => m.r1?.lei), r3: S_(m => m.r3?.lei),
   masini_r3: aleUzinei.filter(m => (m.r3?.lei || 0) > 0).length };
 
 // ─── tipărit ─────────────────────────────────────────────────────────────────
-console.log('mașină          tip            zile  ore   km/zi   rute            4×rute   la uz.  aiurea   R1 lei   R3 lei');
+console.log('mașină          tip            zile  ore   km/zi   rute            4×rute   la uz.  parc  aiurea   R1 lei   R3 lei');
 for (const m of masini.sort((a, b) => (b.r1?.lei || 0) - (a.r1?.lei || 0))) {
   console.log(
     `${m.masina.padEnd(15)} ${(m.tip || '—').padEnd(13)} ${String(m.zile_lucrate).padStart(4)} ` +
@@ -726,6 +748,7 @@ for (const m of masini.sort((a, b) => (b.r1?.lei || 0) - (a.r1?.lei || 0))) {
     `${n1(m.azi).padStart(6)}  ${m.rute.map(r => r.id).join('+').padEnd(14)} ` +
     `${(m.rutele_de_4 != null ? n1(m.rutele_de_4) : '—').padStart(7)} ` +
     `${(m.alte_la_uzina != null ? n1(m.alte_la_uzina) : '—').padStart(6)} ` +
+    `${(m.alte_la_parc != null ? n1(m.alte_la_parc) : '—').padStart(6)} ` +
     `${(m.alte_aiurea != null ? n1(m.alte_aiurea) : '—').padStart(7)} ` +
     `${(m.r1 ? n0(m.r1.lei) : '—').padStart(8)} ${(m.r3 ? n0(m.r3.lei) : '—').padStart(8)}`);
   for (const s of m.steaguri) console.log(`                 ⚠ ${s}`);
@@ -756,7 +779,10 @@ else {
   console.log('  ziua         mașina      ora        ore     km   cât de departe · unde');
   for (const d of toateDeplasarile.sort((a, b) => a.zi.localeCompare(b.zi)))
     console.log(`  ${d.zi}   ${d.masina.padEnd(11)} ${d.de_la}–${d.pana_la}  ${String(d.ore).padStart(4)}  ` +
-      `${n1(d.km).padStart(6)}   ${n1(d.departare).padStart(5)} km · ${d.unde}`);
+      `${n1(d.km).padStart(6)}   ${n1(d.departare).padStart(5)} km · ${d.unde}` +
+      (d.fel === 'reparație' ? '   [reparație]' : ''));
+  const rep = toateDeplasarile.filter(d => d.fel === 'reparație').length;
+  if (rep) console.log(`\n  ${rep} din ele sunt drumuri la parcul de la Bălți — reparație, nu risipă.`);
 }
 
 // ─── scris ───────────────────────────────────────────────────────────────────

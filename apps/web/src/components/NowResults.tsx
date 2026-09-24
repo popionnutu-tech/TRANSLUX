@@ -31,6 +31,8 @@ interface NowTrip {
   lat?: number;
   lon?: number;
   near?: string | null;
+  /** Mașina fără GPS: poziție orientativă pe linie, din orele tipice pe opriri (ION-43). */
+  estimated?: boolean;
   /** Ora orientativă reală la oprirea omului («HH:MM») și minutele până la ea (ION-39). */
   eta?: string;
   eta_min?: number;
@@ -137,7 +139,7 @@ function panelPadding(m: LMap): { paddingTopLeft: [number, number]; paddingBotto
     : { paddingTopLeft: [370, 90], paddingBottomRight: [70, 40] };
 }
 
-function NowMap({ trips, routes, selected, onPick }: { trips: NowTrip[]; routes: Record<number, RouteLine>; selected: number; onPick: (i: number) => void }) {
+function NowMap({ trips, routes, selected, onPick, locale }: { trips: NowTrip[]; routes: Record<number, RouteLine>; selected: number; onPick: (i: number) => void; locale: Locale }) {
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<LMap | null>(null);
   const layer = useRef<LayerGroup | null>(null);
@@ -211,10 +213,10 @@ function NowMap({ trips, routes, selected, onPick }: { trips: NowTrip[]; routes:
         const deg = own ? heading(own, s.seg, t.going_north) : null;
         const arrow = deg == null ? '' : `<span class="nb-arrow" style="transform:rotate(${deg.toFixed(0)}deg)">${ARROW_SVG}</span>`;
         const icon = L.divIcon({
-          html: `<span class="now-bus${on ? ' on' : ''}">${arrow}<span class="nb-dot">${BUS_FRONT_SVG}</span><b>${t.eta ? `~${t.eta}` : t.departure}</b></span>`,
+          html: `<span class="now-bus${on ? ' on' : ''}${t.estimated ? ' est' : ''}">${arrow}<span class="nb-dot">${BUS_FRONT_SVG}</span><b>${t.eta ? `~${t.eta}` : t.departure}</b></span>`,
           className: 'now-pin-icon', iconSize: [44, 44], iconAnchor: [22, 22],
         });
-        L.marker(at, { icon, keyboard: false, title: t.departure, zIndexOffset: on ? 1000 : 0 })
+        L.marker(at, { icon, keyboard: false, title: t.estimated ? `${t.departure} · ${locale === 'ru' ? 'примерное место, без GPS' : 'poziție orientativă, fără GPS'}` : t.departure, zIndexOffset: on ? 1000 : 0 })
           .on('click', () => onPick(i))
           .addTo(g);
         pts.push(at);
@@ -228,7 +230,7 @@ function NowMap({ trips, routes, selected, onPick }: { trips: NowTrip[]; routes:
         map.current!.fitBounds(pts.length === 1 ? [pts[0], pts[0]] : pts, { ...panelPadding(map.current!), maxZoom: 11 });
       }
     })();
-  }, [trips, routes, ready, selected, onPick]);
+  }, [trips, routes, ready, selected, onPick, locale]);
 
   // Cursa aleasă din listă: harta se duce la autobuzul ei.
   const first = useRef(true);
@@ -285,7 +287,7 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
   return (
     <div className="now-overlay" onClick={onClose}>
       <div className={`now-box${withPoint ? '' : ' no-map'}`} role="dialog" aria-modal="true" aria-label={`${from} → ${to}`} onClick={(e) => e.stopPropagation()}>
-        {withPoint && <NowMap trips={trips} routes={data?.routes ?? NO_ROUTES} selected={sel} onPick={setSelected} />}
+        {withPoint && <NowMap trips={trips} routes={data?.routes ?? NO_ROUTES} selected={sel} onPick={setSelected} locale={locale} />}
 
         <div className="now-top">
           <span className="now-title"><span className="now-dot" />{from} → {to}</span>
@@ -371,6 +373,9 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
 .now-bus.on .nb-dot{left:3px;top:3px;width:38px;height:38px;border:3px solid #fff;background:${RED};color:#fff}
 .now-bus.on .nb-dot svg{width:19px;height:19px}
 .now-bus.on b{height:26px;border:2px solid ${RED};color:${RED};font-weight:800;font-size:13px}
+.now-bus.est .nb-dot{border-style:dashed;opacity:.85}
+.now-bus.est.on .nb-dot{background:rgba(155,27,48,.78);border:3px dashed #fff}
+.now-bus.est .nb-arrow{opacity:.7}
 .now-end{display:block;width:16px;height:16px;border-radius:50%;box-sizing:border-box;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)}
 .now-end.from{background:#231A1C}
 .now-end.to{background:#fff;border:4px solid ${RED}}

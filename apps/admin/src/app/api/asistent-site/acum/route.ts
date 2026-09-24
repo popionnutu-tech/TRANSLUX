@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cors } from '@/lib/site-assistant/cors';
-import { nextTrips, MAX_AGE_MIN, NOW_SHOWN } from '@/lib/site-assistant/bus-location';
+import { nextTrips, MAX_AGE_MIN, NOW_SHOWN, hhmmToMin, nowMinChisinau } from '@/lib/site-assistant/bus-location';
+import { estimateOnLine, type TimedStop } from '@/lib/site-assistant/bus-estimate';
 import { getSupabase } from '@/lib/supabase';
-import { realEta, type GeoStop } from '@/lib/site-assistant/bus-eta';
+import { realEta, routePasses, typicalOffset, type GeoStop } from '@/lib/site-assistant/bus-eta';
 import { chisinauTodayIso } from '@/lib/chisinau-time';
 
 // Butonul «Acum» de pe prima pagină a translux.md (ION-43). Ion, 23.09: omul alege
@@ -90,6 +91,12 @@ export async function POST(req: NextRequest) {
         geo[s.crm_route_id as number] = { shape: s.shape as [number, number][], stops: (s.stops ?? []) as GeoStop[] };
       }
     }
+    // Orele opririlor din grafic, pentru poziția orientativă a mașinilor fără GPS.
+    const hours = new Map<string, { nord: number | null; chis: number | null }>();
+    if (rids.length) {
+      const { data } = await getSupabase().from('crm_stop_fares').select('crm_route_id, stop_order, hour_from_nord, hour_from_chisinau').in('crm_route_id', rids);
+      for (const h of data ?? []) hours.set(`${h.crm_route_id}:${h.stop_order}`, { nord: hhmmToMin(h.hour_from_nord as string), chis: hhmmToMin(h.hour_from_chisinau as string) });
+    }
     // Autobuzul care a trecut deja de oprirea omului nu mai e al lui — iese din listă,
     // chiar dacă după grafic ar mai fi pe drum (nextTrips ține și cursele întârziate).
     const trips = (await Promise.all(r.trips.map(async (t) => {
@@ -103,6 +110,22 @@ export async function POST(req: NextRequest) {
         const e = g && r.fromRo && r.toRo
           ? await realEta({ routeId: t.route_id!, shape: g.shape, stops: g.stops, fromName: r.fromRo, toName: r.toRo, scheduled: t.departure, pos: p ?? null, today: chisinauTodayIso() }).catch(() => null)
           : null;
+        // Fără GPS (Ion, 24.09: «pune la el orientativ pe traseu mașina, și la toate care lipsesc»):
+        // pe linie, după ora tipică REALĂ pe opriri (grafic + abaterea mediană din route_stop_passes;
+        // graficul gol unde istoria e prea puțină). Nu intră în eta și nici în «passed».
+        if (!seen && t.on_road && g && t.route_id != null) {
+          const passes = await routePasses(t.route_id, t.going_north).catch(() => []);
+          const today = chisinauTodayIso();
+          const timed: TimedStop[] = [];
+          for (const s of g.stops) {
+            const h = hours.get(`${t.route_id}:${s.stop_order}`);
+            const sched = h ? (t.going_north ? h.chis : h.nord) : null;
+            if (sched == null) continue;
+            timed.push({ stop_order: s.stop_order, lat: s.lat, lon: s.lon, minute: sched + (typicalOffset(passes, s.stop_order, today) ?? 0) });
+          }
+          const est = estimateOnLine(g.shape, timed, t.going_north, nowMinChisinau());
+          if (est) return { ...t, lat: est[0], lon: est[1], estimated: true, ...(e ?? {}) };
+        }
         return { ...t, ...(seen ?? {}), ...(e ?? {}) };
       }))).filter((t) => {
         if ('passed' in t && t.passed) return false;

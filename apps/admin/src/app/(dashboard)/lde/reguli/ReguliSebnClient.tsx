@@ -23,7 +23,7 @@ export default function ReguliSebnClient({ date }: { date: ReguliSebn }) {
   const max = Math.max(...date.naveta.map((r) => r.gol_zi), 1);
   return (
     <div className="px-4! py-3!">
-      <h1 className="text-[18px] font-semibold">Regulile de optimizare — SEBN Orhei și Strășeni</h1>
+      <h2 className="text-[16px] font-semibold">Regulile de optimizare — SEBN Orhei și Strășeni</h2>
       <p className="mt-1! max-w-[92ch] text-[12.5px] text-neutral-500">
         Regulile după care se taie kilometrii goi la SEBN, și cifrele lor din scheletul fixat pe {date.schelet_fixat}.
         La SEBN schimburile sunt trei, la fel, cu predare pe loc — de aceea singura pârghie e naveta.
@@ -56,10 +56,10 @@ export default function ReguliSebnClient({ date }: { date: ReguliSebn }) {
         ))}
       </div>
 
-      <h2 className="mt-6! text-[15px] font-semibold">Naveta pe rute · regula 3</h2>
+      <h2 className="mt-6! text-[15px] font-semibold">Naveta pe rute după schelet · regula 3</h2>
       <p className="mt-1! max-w-[92ch] text-[12.5px] text-neutral-500">
         Km goi pe zi = drumul dintre locul unde stă mașina și capătul rutei, pe toate schimburile zilei. Doar mașinile care fac ruta acum.
-        Lei nu se socotesc: tipul mașinilor SEBN lipsește din tabelul de costuri.
+        E etalonul din schelet; ce s-a întâmplat în săptămâna aleasă, cu lei, e în raportul de sus.
       </p>
       <div className="mt-2! overflow-x-auto">
         <table className="w-full min-w-[640px] border-collapse text-[13px]">

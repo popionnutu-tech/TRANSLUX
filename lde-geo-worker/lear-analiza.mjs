@@ -28,6 +28,7 @@ import { createClient } from '@supabase/supabase-js';
 import ws from 'ws';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
+import { loadPlaces } from './places-index.mjs';
 
 // ─── parametri ───────────────────────────────────────────────────────────────
 const arg = (n, d = null) => { const i = process.argv.indexOf(n); return i > 0 ? process.argv[i + 1] : d; };
@@ -332,11 +333,28 @@ function deplasari(pts, rute, casaC) {
   return out;
 }
 
-// ─── coordonata unui sat după nume, din satele scheletului ──────────────────
-// Scheletul are punctele satelor în `g.*.sate`. Altă sursă de coordonate nu ne trebuie:
-// dacă satul nu-i pe nicio rută, nu-l putem folosi oricum.
+// ─── coordonata unui sat după nume ──────────────────────────────────────────
+// Întâi din schelet, unde satele rutelor au deja punctele lor. Satul unde doarme mașina însă
+// nu e mereu pe o rută — Fălești, Drăgănești, Sărata Veche nu-s pe niciuna — și fără coordonata
+// lui regulile nu se pot socoti deloc. Atunci se cade pe indexul de localități OSM de pe VPS,
+// același pe care-l folosește workerul de noapte ca să numească opririle.
+//
+// Numele se repetă în țară (două Todirești, două Horești, două Sărata Nouă), deci dintre
+// candidați se ia cel mai apropiat de uzină — nu primul din fișier.
+const locuri = (() => {
+  try { return loadPlaces(process.env.PLACES_FILE); } catch { return []; }
+})();
+const dupaNume = new Map();
+for (const l of locuri) {
+  const vechi = dupaNume.get(l.name);
+  if (!vechi || hav(l, POARTA) < hav(vechi, POARTA)) dupaNume.set(l.name, l);
+}
+const MAX_DE_LA_UZINA = 200;   // km — mai departe de atât nu poate fi casa unei mașini de la LEAR
+
 function coordSat(S, nume) {
   for (const r of S.rute) for (const s of (r._sateC || [])) if (s.n === nume) return s.c;
+  const l = dupaNume.get(nume);
+  if (l && hav(l, POARTA) <= MAX_DE_LA_UZINA) return [l.lat, l.lon];
   return null;
 }
 
@@ -385,6 +403,30 @@ async function undeDorm(supa, de_la, pana_la, numere) {
   const out = {};
   for (const [nr, m] of pe) out[nr] = [...m].sort((a, b) => b[1] - a[1])[0][0];
   return out;
+}
+
+// ─── casa scoasă din urmă, când baza n-are nicio noapte ─────────────────────
+// 183BZP și 217RST n-au niciun rând `is_base` în săptămâna asta, deci rămâneau fără cifre.
+// Dar noaptea se vede în urmă: cea mai lungă stat-pe-loc între 17:00 și 05:00. Numele îl dă
+// indexul de localități, același pe care-l folosește workerul de noapte.
+function casaDinUrma(pts) {
+  let best = null, ancora = null, deCand = null, ultim = null;
+  const inchide = () => {
+    if (!ancora || !deCand || !ultim) return;
+    const min = (ultim - deCand) / 60000;
+    const h = (local(deCand).getUTCHours());
+    if (min >= 240 && (h >= 17 || h < 5) && (!best || min > best.min)) best = { p: ancora, min };
+  };
+  for (const p of pts) {
+    if (ancora && hav(ancora, p) <= R_STAT) { ultim = p.t; continue; }
+    inchide(); ancora = p; deCand = p.t; ultim = p.t;
+  }
+  inchide();
+  if (!best) return null;
+  let sat = null;
+  for (const l of locuri) { const d = hav(l, best.p);
+    if (d <= 4 && (!sat || d < sat.d)) sat = { n: l.name, d, c: [l.lat, l.lon] }; }
+  return sat ? { nume: sat.n, c: sat.c, ore: +(best.min / 60).toFixed(1) } : null;
 }
 
 // ─── programul ───────────────────────────────────────────────────────────────
@@ -443,12 +485,19 @@ for (const v of auLucrat) {
   // ca fereastra de 03:00 să fie întreagă, dar ele nu intră în socoteală
   const ptsSapt = v.pts.filter(p => inSapt(ziLucru(p.t)));
   const ruteSchelet = S.rute.filter(r => alese.some(a => a.id === r.id));
-  const casa = case_[v.masina] || null;
-  const casaC = casa ? coordSat(S, casa) : null;
-  if (casa && !casaC) steagCasaFaraPunct.push(`${v.masina}: satul ${casa} nu e pe nicio rută din schelet, n-avem coordonata lui`);
+  let casa = case_[v.masina] || null;
+  let casaC = casa ? coordSat(S, casa) : null;
+  let casaDedusa = false;
+  if (!casaC) {
+    const d = casaDinUrma(v.pts);
+    if (d) { casa = d.nume; casaC = d.c; casaDedusa = true; }
+  }
+  if (casa && !casaC) steagCasaFaraPunct.push(
+    `${v.masina}: satul ${casa} nu e nici pe rute, nici în indexul de localități — n-avem coordonata lui`);
 
   const azi = kmZile.length ? kmZile.reduce((s, x) => s + x, 0) / kmZile.length : 0;
   const rec = { masina: v.masina, tip, lei_km: lk, casa,
+    casa_dedusa: casaDedusa || undefined,
     zile_lucrate: zilePoarta.length, zile_masurate: kmZile.length, azi: +azi.toFixed(1),
     rute: alese.map(r => ({ id: r.id, tura: r.tura, capat: r.capat, loc: r.loc,
       etalon: r.etalon, acoperire: r.acoperire })),
@@ -469,7 +518,9 @@ for (const v of auLucrat) {
   if (!tip) rec.steaguri.push('la poartă, dar n-are tip cunoscut — lipsește din tabelul de costuri');
   if (alese.length < 2) rec.steaguri.push(
     `a dus ${alese.length} rută din schelet în săptămâna asta, nu două — nu se poate socoti ziua`);
-  if (!casa) rec.steaguri.push('n-are noapte lungă scrisă în GPS — nu știm unde doarme');
+  if (casaDedusa) rec.steaguri.push(
+    `n-are noapte scrisă în bază; am luat-o din urmă — cea mai lungă staționare de noapte e la ${casa}`);
+  else if (!casa) rec.steaguri.push('n-are noapte lungă scrisă în GPS — nu știm unde doarme');
 
   // Fără satul unde doarme nu putem despărți drumurile spre casă (care dispar la regula 1) de
   // munca în plus (care rămâne), deci «alte curse» ar înghiți toată ziua: la 043BRAU ieșeau

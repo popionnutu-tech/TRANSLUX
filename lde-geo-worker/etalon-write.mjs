@@ -43,6 +43,9 @@ import {
  * arunca ar muta tăietura în celălalt sens. Filtrul se aplică doar când ruta chiar are
  * etalon (≥2 sate); pe rutele fără etalon comportamentul rămâne cel dinainte.
  */
+// Uzinele unde toate schimburile sunt aceeași rută, cu același sat de start (ION-56).
+export const UZINE_SCHIMBURI_LA_FEL = new Set(['SEBN_ORHEI', 'SEBN_STRASENI']);
+
 export function capatPermis(satePermise) {
   if (!satePermise || satePermise.size < 2) return () => true;
   return (locality) => locality == null || satePermise.has(norm(locality));
@@ -235,6 +238,19 @@ export async function incarcaContext(supa, day) {
   // …pe (rută, schimb): la ruta 22 schimbul 1 pleacă din Ciocîlteni, schimbul 3 din Fedoreuca
   const satStartReal = new Map();
   for (const e of etaloane ?? []) if (e.sat_start_real) satStartReal.set(`${e.factory_route_id}|${e.shift_number}`, norm(e.sat_start_real));
+  // …și startul fiecărui schimb, adunat pe rută. Ion, 24.09, la 812MUM: «șoferul locuiește câțiva
+  // km de la Cucuruzeni» — dar livrarea ieșea 77 km/zi. Schimbul 2 are startul Cucuruzenii de Sus,
+  // schimburile 1 și 3 nu: noaptea urcările din Cucuruzeni și Crihana sunt scurte, sub pragul
+  // opririi, iar etalonul lor a învățat startul la Cișmea — și de acolo tăia fiecare cursă, un
+  // cerc. Startul altui schimb al ACELEIAȘI rute devine candidat, dar câștigă doar dacă drumul
+  // cursei chiar intră în el (vezi satulRutei) — ruta 22, cu alt sat pe fiecare schimb, rămâne.
+  // Doar la uzinele unde schimburile sunt aceeași rută — Ion, 23.09: «la SEBN 3 schimburi, toate
+  // similare». La LEAR, Draxelmaier, Trox schimburile pot fi rute diferite; acolo nu se schimbă nimic.
+  const satStartRuta = new Map();
+  for (const e of etaloane ?? []) if (e.sat_start_real) {
+    if (!satStartRuta.has(e.factory_route_id)) satStartRuta.set(e.factory_route_id, new Set());
+    satStartRuta.get(e.factory_route_id).add(norm(e.sat_start_real));
+  }
   // rutele care opresc sistematic dincolo de satul de start (migr. 385): la ele livrarea
   // se taie pe oprirea reală a cursei, nu la sat — vezi `taieturaCursei`
   const taiePeOprire = new Set();
@@ -255,7 +271,7 @@ export async function incarcaContext(supa, day) {
       peMasina.get(vid).push({ ...a, eRetur: vid === a.vehicle_id_retur && vid !== a.vehicle_id });
     }
   }
-  return { porti, peMasina, granitePeUz, sateRuta, sateEtalon, kmEtalon, sateEtalonTur, satStartReal, taiePeOprire, uzinaRutei, ruteUzinei, ruteAdm, locuriService };
+  return { porti, peMasina, granitePeUz, sateRuta, sateEtalon, kmEtalon, sateEtalonTur, satStartReal, satStartRuta, taiePeOprire, uzinaRutei, ruteUzinei, ruteAdm, locuriService };
 }
 
 /**
@@ -417,7 +433,13 @@ export async function scrieCurse(supa, { vehicle_id, plate }, day, r, ctx) {
     // poartă: startul real poate doar să lungească ruta (Cișmea → Crihana), nu s-o scurteze.
     // Altfel la ruta 9 «Mihailovca» startul dedus ieșea Prepelița — opririle lui Maliovanii
     // în satul lui sunt lângă casă și se exclud — și Mihailovca → Prepelița devenea „navetă".
-    const intra = [real, numit].filter((loc) => loc && imparteLaSat(seg, r.pts, r.calc, loc));
+    // Startul altor schimburi intră doar când schimbul ăsta n-are unul propriu prin care să treacă
+    // drumul: la ruta 16 Rezina fiecare schimb are satul lui (Boșernița, Rezina, Ciorna), iar
+    // amestecarea lor muta tăietura fără motiv (+52 km livrare pe săptămână la 389VKV).
+    const propriuAtins = real && imparteLaSat(seg, r.pts, r.calc, real);
+    const surori = !propriuAtins && UZINE_SCHIMBURI_LA_FEL.has(ctx.uzinaRutei.get(rid))
+      ? [...(ctx.satStartRuta?.get(rid) ?? [])].map((n) => loculNumit(n, seg)) : [];
+    const intra = [real, numit, ...surori].filter((loc) => loc && imparteLaSat(seg, r.pts, r.calc, loc));
     if (intra.length) return intra.reduce((b, p) => (poarta && hav(p, poarta) > hav(b, poarta) ? p : b));
     for (const nume of ctx.sateEtalonTur?.get(rid) ?? []) {
       const loc = loculNumit(nume, seg);

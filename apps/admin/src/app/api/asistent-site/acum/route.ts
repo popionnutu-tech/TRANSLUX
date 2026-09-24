@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cors } from '@/lib/site-assistant/cors';
-import { nextTrips, MAX_AGE_MIN } from '@/lib/site-assistant/bus-location';
+import { nextTrips, MAX_AGE_MIN, NOW_SHOWN } from '@/lib/site-assistant/bus-location';
 import { getSupabase } from '@/lib/supabase';
 import { realEta, type GeoStop } from '@/lib/site-assistant/bus-eta';
 import { chisinauTodayIso } from '@/lib/chisinau-time';
@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
         // a trecut aproape sigur prin localitatea omului — nu-l facem s-o aștepte.
         const known = 'eta' in t || 'lat' in t;
         return known || t.minutes_until >= -STALE_MIN;
-      });
+      }).slice(0, NOW_SHOWN); // plafonul abia după ce ies cursele trecute
     // Lista golită de filtru are nevoie de aceeași frază ca lista goală din start.
     const none = trips.length === 0;
     return NextResponse.json({

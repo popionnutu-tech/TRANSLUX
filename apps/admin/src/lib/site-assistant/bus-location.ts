@@ -237,7 +237,15 @@ export async function nextTrips(from: string, to: string): Promise<{ result: Rec
   const wins = await windowsFor(all);
   const now = nowMinChisinau();
   const onRoad = (t: TripResult) => { const w = wins.get(winKey(t)); return !!(t.vehicle_plate && w && isOnRoad(w, now)); };
-  const next = all.filter((t) => !t.isDeparted || onRoad(t)).slice(0, NOW_SHOWN);
+  // Cursele plecate după grafic, dar încă pe drum, intră TOATE (poate întârzie și n-au
+  // ajuns la om); plafonul NOW_SHOWN se pune doar pe cele care vin. Altfel, dimineața,
+  // cele 4 locuri le luau cursele de 05:10–06:50 deja trecute prin Bălți, /acum le scotea
+  // ca trecute, iar omul vedea «nu mai vine nicio cursă» (Ion, 24.09, 06:45). Lista finală
+  // o taie /acum, după ce scoate cursele trecute.
+  const next = [
+    ...all.filter((t) => t.isDeparted && onRoad(t)),
+    ...all.filter((t) => !t.isDeparted).slice(0, NOW_SHOWN),
+  ];
   const trips = next.map((t) => {
     const dep = hhmmToMin(t.time) ?? now;
     let until = dep - now;

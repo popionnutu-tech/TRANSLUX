@@ -19,6 +19,7 @@ const arg = (k) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : nu
 const WRITE = args.includes('--write');
 const PASS_M = 1000;         // față de punctul opririi pe linia rutei; linia (route_shapes) nu calcă exact pe drumul real
 const WINDOW_MIN = 120;      // căutăm trecerea în ±2 h față de grafic
+const LEAVE_M = 150;        // «încă la oprire»: rutiera care stă în gară e la sub atât de peron
 const BACK_MIN = 5;          // o trecere mai devreme decât precedenta cu atât = altă cursă, se aruncă
 const DIAG = args.includes('--diag');
 const diag = [];
@@ -197,6 +198,24 @@ for (let day = FROM; day <= TO; day = addDays(day, 1)) {
         }
         if (DIAG) diag.push(best ? best.d : -1);
         if (!best || best.d > PASS_M) continue;
+        // Plecarea, nu sosirea: în gări rutiera stă la peron (Bălți, ruta 59: ajunge ~07:40,
+        // pleacă ~08:10 după graficul de 08:15). Omul urcă la plecare, deci ora opririi e
+        // ultimul moment în care autobuzul mai e la cel mult LEAVE_M de punctul cel mai apropiat.
+        {
+          const anchor = pts.find((p) => p.t.getTime() >= best.t) ?? null;
+          if (anchor) {
+            const ref = best.d <= LEAVE_M ? st : anchor;
+            let leave = best.t;
+            for (const p of pts) {
+              const t = p.t.getTime();
+              if (t < best.t) continue;
+              if (t > hi) break;
+              if (hav(p, ref) > LEAVE_M) break;
+              leave = t;
+            }
+            best.t = leave;
+          }
+        }
         // Ordinea de mers: o trecere mult înaintea celei precedente e a altei curse.
         if (lastPass && best.t < lastPass - BACK_MIN * 60000) continue;
         lastPass = best.t;

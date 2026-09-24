@@ -90,6 +90,16 @@ describe('promptul șoferului — criteriile lui Ion (interviu 09.09, spec peron
     expect(DRIVER_SYSTEM_PROMPT).toContain('carouri');
   });
 
+  it('vesta peste cămașă e în regulă; cămașa albă sau bleu, nuanțele pale trec (Ion 24.09, ION-46)', () => {
+    expect(config.DRIVER_UNIFORM_DESCRIPTION).toContain('vestă');
+    expect(config.DRIVER_UNIFORM_DESCRIPTION).toContain('vesta nu strică uniforma');
+    expect(DRIVER_SYSTEM_PROMPT).toContain('purtată peste cămașă este în regulă');
+    expect(DRIVER_SYSTEM_PROMPT).toContain('bleu-liliachiu');
+    expect(DRIVER_SYSTEM_PROMPT).toContain('Sub vestă nu se vede dacă e băgată în pantaloni');
+    // haina cu mâneci care acoperă complet rămâne fără uniformă
+    expect(DRIVER_SYSTEM_PROMPT).toContain('haină groasă cu mâneci (geacă, hanorac, pulover) care acoperă complet');
+  });
+
   it('încălțăminte: fără șlapi, restul acceptat dacă e curat', () => {
     expect(DRIVER_SYSTEM_PROMPT).toContain('șlapi');
     expect(DRIVER_SYSTEM_PROMPT).toContain('flip-flops → uniforma=false');

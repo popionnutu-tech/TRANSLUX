@@ -32,6 +32,12 @@ fără toleranță la vreme) și cere poză la fiecare cursă.
   vișiniu (bordo) cu emblema TRANSLUX **sau** o cămașă albă / bleu, uni (fără model,
   fără carouri), băgată în pantaloni. Cămașă în carouri, tricou de altă culoare, cămașă
   scoasă din pantaloni = `false`.
+  - Ion 24.09 (ION-46, poza lui Vitalic de la Gara Chișinău, respinsă de aplicație):
+    «E ok, doar cămașa să fie albastră deschisă sau albă». Vesta (pulover fără mâneci,
+    neagră/închisă) peste cămașă nu strică uniforma; se judecă gulerul și mânecile —
+    albă sau bleu, uni, nuanțele pale (bleu-liliachiu) trec. Sub vestă nu se vede dacă
+    e băgată în pantaloni — nu se ține împotriva șoferului. Haina cu mâneci care acoperă
+    complet cămașa rămâne `false`.
 - Încălțăminte: «fără șlapi, restul se poate, să fie curat». Șlapi (papuci de plajă,
   flip-flops) = `uniforma false`. Sandale, pantofi, adidași, ghete = OK dacă sunt curate;
   încălțăminte vizibil murdară (noroi, praf gros) = `uniforma false`.

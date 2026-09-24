@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
   try {
     const r = await nextTrips(from, to);
     // Punctul doar pentru autobuzul care e deja pe drum după grafic (poarta ION-39).
-    const plates = [...new Set(r.trips.filter((t) => t.on_road).map((t) => normPlate(t.plate)).filter(Boolean))];
+    const plates = [...new Set(r.trips.filter((t) => t.on_road || t.coming).map((t) => normPlate(t.plate)).filter(Boolean))];
     const pos = new Map<string, { lat: number; lon: number; near: string | null; at: string; atIso: string }>();
     if (plates.length) {
       const { data } = await getSupabase().from('bus_live_positions').select('plate, lat, lon, at, near').in('plate', plates);
@@ -88,12 +88,15 @@ export async function POST(req: NextRequest) {
     // chiar dacă după grafic ar mai fi pe drum (nextTrips ține și cursele întârziate).
     const trips = (await Promise.all(r.trips.map(async (t) => {
         const p = t.on_road ? pos.get(normPlate(t.plate)) : undefined;
+        // Mașina cursei care încă n-a început: doar punctul pe hartă, fără ora estimată și fără
+        // «passed» — poate fi pe cursa de dinainte, pe sens invers (ION-43, 24.09).
+        const seen = p ?? (t.coming ? pos.get(normPlate(t.plate)) : undefined);
         // Ora reală: pe drum din GPS, altfel din trecerile reale ale zilelor trecute.
         const g = t.route_id != null ? geo[t.route_id] : undefined;
         const e = g && r.fromRo && r.toRo
           ? await realEta({ routeId: t.route_id!, shape: g.shape, stops: g.stops, fromName: r.fromRo, toName: r.toRo, scheduled: t.departure, pos: p ?? null, today: chisinauTodayIso() }).catch(() => null)
           : null;
-        return { ...t, ...(p ?? {}), ...(e ?? {}) };
+        return { ...t, ...(seen ?? {}), ...(e ?? {}) };
       }))).filter((t) => {
         if ('passed' in t && t.passed) return false;
         // Fără punct și fără istoric, o cursă plecată după grafic de peste jumătate de oră

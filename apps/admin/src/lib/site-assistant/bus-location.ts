@@ -214,11 +214,16 @@ export async function busLocation(from: string, to: string, departure: string): 
   };
 }
 
-/** Câte plecări arată butonul «Acum» de pe prima pagină. */
-export const NOW_SHOWN = 4;
+/** Câte plecări arată butonul «Acum» (Ion, 24.09: «doar următoarele 2 rutiere care trec prin punctul tău»). */
+export const NOW_SHOWN = 2;
+/** Cu atât înainte de începutul cursei se arată deja mașina ei (la autogară sau venind spre ea). */
+export const COMING_MIN = 60;
 
 export interface NextTrip extends Crew {
   departure: string; minutes_until: number; on_road: boolean; route_id: number | null;
+  /** Cursa începe în cel mult COMING_MIN: mașina se arată pe hartă, dar punctul ei NU intră în ora
+   *  estimată și nici în «a trecut deja» — poate fi încă pe cursa de dinainte, pe sens invers. */
+  coming: boolean;
   /** Sensul cursei pe linia din route_shapes (tur = stop_order crescător, spre Chișinău = !going_north). */
   going_north: boolean;
 }
@@ -237,6 +242,12 @@ export async function nextTrips(from: string, to: string): Promise<{ result: Rec
   const wins = await windowsFor(all);
   const now = nowMinChisinau();
   const onRoad = (t: TripResult) => { const w = wins.get(winKey(t)); return !!(t.vehicle_plate && w && isOnRoad(w, now)); };
+  // Ion, 24.09, 07:08: «nu apar rutierele» — la 07:10 cursa de 07:30 din Chișinău nu era încă
+  // «pe drum», iar mașina stătea la autogară, nevăzută.
+  const coming = (t: TripResult) => {
+    const w = wins.get(winKey(t));
+    return !!(t.vehicle_plate && w && !isOnRoad(w, now) && (w.start - now + 1440) % 1440 <= COMING_MIN);
+  };
   // Cursele plecate după grafic, dar încă pe drum, intră TOATE (poate întârzie și n-au
   // ajuns la om); plafonul NOW_SHOWN se pune doar pe cele care vin. Altfel, dimineața,
   // cele 4 locuri le luau cursele de 05:10–06:50 deja trecute prin Bălți, /acum le scotea
@@ -254,6 +265,7 @@ export async function nextTrips(from: string, to: string): Promise<{ result: Rec
       departure: t.time.padStart(5, '0'),
       minutes_until: until,
       on_road: onRoad(t),
+      coming: coming(t),
       going_north: !!t.going_north,
       // Legătura cu linia rutei din route_shapes (migr. 392) — harta «Acum» o desenează.
       route_id: t.route_id != null ? Number(t.route_id) : null,

@@ -67,11 +67,23 @@ async function windowsFor(trips: TripResult[]): Promise<Map<string, { start: num
   const ids = [...new Set(trips.map((t) => t.route_id).filter((x) => x != null))];
   const out = new Map<string, { start: number; end: number }>();
   if (ids.length === 0) return out;
-  const { data, error } = await getSupabase()
-    .from('crm_stop_fares')
-    .select('crm_route_id, stop_order, hour_from_chisinau, hour_from_nord')
-    .in('crm_route_id', ids);
-  if (error || !data) return out;
+  // PostgREST dă cel mult 1000 de rânduri pe cerere; cursele unei zile pe o direcție trec
+  // prin zeci de rute × ~41 de opriri. Fără pagini, rutele de la coadă rămâneau fără
+  // fereastră — deci nici «pe drum», nici punct (24.09, 12:46, Bălți → Sîngerei: ruta 28,
+  // 692 TWK la Autogara cu GPS proaspăt, nevăzută pe hartă).
+  const data: { crm_route_id: number; stop_order: number; hour_from_chisinau: string | null; hour_from_nord: string | null }[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data: page, error } = await getSupabase()
+      .from('crm_stop_fares')
+      .select('crm_route_id, stop_order, hour_from_chisinau, hour_from_nord')
+      .in('crm_route_id', ids)
+      .order('crm_route_id').order('stop_order')
+      .range(from, from + 999);
+    if (error || !page) break;
+    data.push(...(page as typeof data));
+    if (page.length < 1000) break;
+  }
+  if (data.length === 0) return out;
   for (const t of trips) {
     if (t.route_id == null) continue;
     const key = `${t.route_id}:${t.going_north ? 'n' : 's'}`;

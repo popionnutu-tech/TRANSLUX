@@ -1,0 +1,356 @@
+{
+ "_": "Regulile de optimizare la SEBN (Ion, 18–19.09 și 22.09.2026; ION-38, 24.09) și naveta pe rute din scheletul fixat. Generat din public/lde/schelet-sebn.json.",
+ "fixat": "2026-09-24",
+ "schelet_fixat": "2026-09-24",
+ "reguli": [
+  {
+   "nr": 1,
+   "titlu": "Ruta ține de la capăt la uzină",
+   "text": "Capătul e primul sat al rutei; acolo începe strânsul la tur și acolo se termină lăsatul la retur. Tot ce e în afara rutei ține de șofer, nu de rută.",
+   "sursa": "Ion, 18.09"
+  },
+  {
+   "nr": 2,
+   "titlu": "Golul pe rută îl plătește uzina",
+   "text": "Drumul gol dintre sat și poartă e al uzinei și nu se optimizează. La SEBN aproape nu există: la fiecare schimbare de tură (06:00, 14:30, 23:00) autobuzul aduce tura care intră și duce acasă tura care iese — merge cu oameni în ambele sensuri.",
+   "sursa": "Ion, 18.09"
+  },
+  {
+   "nr": 3,
+   "titlu": "Economia e naveta",
+   "text": "Naveta = km dintre locul unde stă mașina și capătul rutei. Se taie cu un șofer din satul de start sau cu mașina care așteaptă între ture la capăt, nu acasă. Asta e singura pârghie reală la SEBN.",
+   "sursa": "Ion, 19.09"
+  },
+  {
+   "nr": 4,
+   "titlu": "Brambura e doar excesul",
+   "text": "Brambura = doar ce trece peste ziua obișnuită a mașinii (mediana + 15 km), ceva ieșit din comun — nu se desparte geometric și se dă ca listă de zile, nu ca medie. La SEBN, pe 01–17.09, n-a fost brambura reală.",
+   "sursa": "Ion, 19.09"
+  },
+  {
+   "nr": 5,
+   "titlu": "Parcul Bălți e reparație",
+   "text": "Drumul la Parcul Bălți e al mașinii (service): nu intră la km evitabili și nu se raportează ca anomalie.",
+   "sursa": "Ion, 22.09"
+  },
+  {
+   "nr": 6,
+   "titlu": "ADM merge pe orar de birou",
+   "text": "Cursele ADM (Bălți, Chișinău, Lupoaica, Vatici) se socotesc pe orarul 08:00–17:00, nu pe ceasul schimburilor. Chișinău adm nu are autobuz LDE separat: oamenii circulă cu cursele interurbane Chișinău → nord care trec pe la poartă.",
+   "sursa": "Ion, 19.09 · GPS 24.09"
+  },
+  {
+   "nr": 7,
+   "titlu": "Regulile LEAR nu se aplică",
+   "text": "«Doarme la uzină» și «nu pleacă acasă la prânz» sunt ale LEAR. La SEBN mașina trebuie să fie în sat la fiecare schimbare de tură și nu are pauză de prânz; dormitul la uzină ar adăuga un drum gol.",
+   "sursa": "din schelet, 24.09"
+  }
+ ],
+ "naveta": [
+  {
+   "id": "R20",
+   "nume": "Voroteț",
+   "capat": "Voroteț",
+   "uz": "orhei",
+   "masini": [
+    "893BRAX"
+   ],
+   "schimburi": 3,
+   "gol_zi": 113.8,
+   "plin_zi": 193.8
+  },
+  {
+   "id": "R13",
+   "nume": "Peresecina",
+   "capat": "Peresecina",
+   "uz": "orhei",
+   "masini": [
+    "314BRAT"
+   ],
+   "schimburi": 3,
+   "gol_zi": 99.7,
+   "plin_zi": 125.1
+  },
+  {
+   "id": "R14",
+   "nume": "Pohoarna",
+   "capat": "Pohoarna",
+   "uz": "orhei",
+   "masini": [
+    "584BRAX",
+    "894BRAX"
+   ],
+   "schimburi": 6,
+   "gol_zi": 82.7,
+   "plin_zi": 924.4
+  },
+  {
+   "id": "R27",
+   "nume": "Cășunca",
+   "capat": "Cașunca",
+   "uz": "orhei",
+   "masini": [
+    "861BRAS"
+   ],
+   "schimburi": 3,
+   "gol_zi": 73.7,
+   "plin_zi": 377.5
+  },
+  {
+   "id": "R18",
+   "nume": "Telenești",
+   "capat": "Telenești",
+   "uz": "orhei",
+   "masini": [
+    "541NPL"
+   ],
+   "schimburi": 3,
+   "gol_zi": 58.5,
+   "plin_zi": 327.3
+  },
+  {
+   "id": "R22",
+   "nume": "Clișova – Coropceni – Suhuluceni #2",
+   "capat": "Clișova",
+   "uz": "orhei",
+   "masini": [
+    "739BRAZ"
+   ],
+   "schimburi": 3,
+   "gol_zi": 40.7,
+   "plin_zi": 176.7
+  },
+  {
+   "id": "R5",
+   "nume": "Izvoare",
+   "capat": "Izvoare",
+   "uz": "orhei",
+   "masini": [
+    "042BRAU"
+   ],
+   "schimburi": 3,
+   "gol_zi": 30.2,
+   "plin_zi": 260.9
+  },
+  {
+   "id": "R6",
+   "nume": "Lopatna",
+   "capat": "Lopatna",
+   "uz": "orhei",
+   "masini": [
+    "522BRAT"
+   ],
+   "schimburi": 3,
+   "gol_zi": 29.2,
+   "plin_zi": 240.0
+  },
+  {
+   "id": "R1",
+   "nume": "Bălășești",
+   "capat": "Bălășești",
+   "uz": "orhei",
+   "masini": [
+    "142BRAZ"
+   ],
+   "schimburi": 3,
+   "gol_zi": 29.1,
+   "plin_zi": 336.5
+  },
+  {
+   "id": "R2",
+   "nume": "Cișmea – Crihana",
+   "capat": "Crihana",
+   "uz": "orhei",
+   "masini": [
+    "812MUM"
+   ],
+   "schimburi": 3,
+   "gol_zi": 27.3,
+   "plin_zi": 135.5
+  },
+  {
+   "id": "R23",
+   "nume": "Bălți (ADM)",
+   "capat": "Bălți",
+   "uz": "orhei",
+   "masini": [
+    "152BRAZ"
+   ],
+   "schimburi": 1,
+   "gol_zi": 26.3,
+   "plin_zi": 170.5
+  },
+  {
+   "id": "R21",
+   "nume": "Clișova – Coropceni – Suhuluceni #1",
+   "capat": "Clișova",
+   "uz": "orhei",
+   "masini": [
+    "863MXL"
+   ],
+   "schimburi": 3,
+   "gol_zi": 23.1,
+   "plin_zi": 257.6
+  },
+  {
+   "id": "R19",
+   "nume": "Vadul-Leca",
+   "capat": "Vadul-Leca",
+   "uz": "orhei",
+   "masini": [
+    "808MUM"
+   ],
+   "schimburi": 3,
+   "gol_zi": 11.8,
+   "plin_zi": 294.4
+  },
+  {
+   "id": "R12",
+   "nume": "Olișcani",
+   "capat": "Olișcani",
+   "uz": "orhei",
+   "masini": [
+    "284BRAT"
+   ],
+   "schimburi": 3,
+   "gol_zi": 9.3,
+   "plin_zi": 396.8
+  },
+  {
+   "id": "R4",
+   "nume": "Florești – Cenușa",
+   "capat": "Florești",
+   "uz": "orhei",
+   "masini": [
+    "372BRAY"
+   ],
+   "schimburi": 3,
+   "gol_zi": 7.8,
+   "plin_zi": 535.3
+  },
+  {
+   "id": "R16",
+   "nume": "Rezina",
+   "capat": "Rezina",
+   "uz": "orhei",
+   "masini": [
+    "795MUM"
+   ],
+   "schimburi": 3,
+   "gol_zi": 7.6,
+   "plin_zi": 395.7
+  },
+  {
+   "id": "R7",
+   "nume": "Lalova",
+   "capat": "Lalova",
+   "uz": "orhei",
+   "masini": [
+    "503BRAR"
+   ],
+   "schimburi": 3,
+   "gol_zi": 6.7,
+   "plin_zi": 328.0
+  },
+  {
+   "id": "R25",
+   "nume": "Vatici",
+   "capat": "Vatici",
+   "uz": "orhei",
+   "masini": [
+    "820GXP"
+   ],
+   "schimburi": 3,
+   "gol_zi": 4.9,
+   "plin_zi": 104.4
+  },
+  {
+   "id": "R8",
+   "nume": "Lupoaica (adm)",
+   "capat": "Lupoaica",
+   "uz": "orhei",
+   "masini": [
+    "823MUM"
+   ],
+   "schimburi": 1,
+   "gol_zi": 4.8,
+   "plin_zi": 20.9
+  },
+  {
+   "id": "R15",
+   "nume": "Cobîlea",
+   "capat": "Cobîlea",
+   "uz": "orhei",
+   "masini": [
+    "430CMX"
+   ],
+   "schimburi": 3,
+   "gol_zi": 4.2,
+   "plin_zi": 523.7
+  },
+  {
+   "id": "R10",
+   "nume": "Mîrzești",
+   "capat": "Mîrzești",
+   "uz": "orhei",
+   "masini": [
+    "942BRAZ"
+   ],
+   "schimburi": 3,
+   "gol_zi": 4.0,
+   "plin_zi": 174.3
+  },
+  {
+   "id": "S1",
+   "nume": "Chiperceni – Vatici → Strășeni",
+   "capat": "Chiperceni",
+   "uz": "straseni",
+   "masini": [
+    "552BRAO"
+   ],
+   "schimburi": 3,
+   "gol_zi": 3.2,
+   "plin_zi": 420.4
+  },
+  {
+   "id": "R11",
+   "nume": "Nordic – Nistreana",
+   "capat": "Nistreană",
+   "uz": "orhei",
+   "masini": [
+    "823MUM"
+   ],
+   "schimburi": 3,
+   "gol_zi": 2.0,
+   "plin_zi": 115.5
+  },
+  {
+   "id": "R9",
+   "nume": "Mihailovca",
+   "capat": "Mihailovca",
+   "uz": "orhei",
+   "masini": [
+    "602BRAS"
+   ],
+   "schimburi": 3,
+   "gol_zi": 0,
+   "plin_zi": 433.2
+  },
+  {
+   "id": "R17",
+   "nume": "Șușleni",
+   "capat": "Susleni",
+   "uz": "orhei",
+   "masini": [
+    "514BRAZ"
+   ],
+   "schimburi": 3,
+   "gol_zi": 0,
+   "plin_zi": 257.2
+  }
+ ],
+ "total": {
+  "gol_zi": 701,
+  "plin_zi": 7526
+ }
+}

@@ -56,6 +56,10 @@ const ldeChildren: NavItem[] = [
   { href: '/lde/livrare-reguli', label: 'Livrare — regula', adminOnly: true, icon: 'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3h2v2h-2V6zm0 4h2v8h-2v-8z' },
   // Ion, 24.09 (ION-50): cifrele economiei LEAR sunt raport, nu nomenclator; regula stă în «Nomenclator LDE».
   { href: '/lde/reguli',         label: 'Raport livrări LEAR', adminOnly: true, icon: 'M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z' },
+  // Ion, 24.09 (ION-54): rapoartele automate stau în meniul LDE, nu în nomenclator.
+  { href: '/lde/trasee',         label: 'Trasee & km goi', adminOnly: true, icon: 'M20 4H4v2h16V4zM4 20h16v-2H4v2zm0-7h16v-2H4v2zm6-5l4 3-4 3V8z' },
+  { href: '/lde/schelet',        label: 'Schelet rute',   adminOnly: true, icon: 'M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z' },
+  { href: '/lde/atribuiri-zilnice', label: 'Ghid zilnic', adminOnly: true, icon: 'M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z' },
 ];
 
 // Sub-grupa «Nomenclator LDE» — datele de bază (catalog) ale modulului LDE, nestate sub LDE.
@@ -63,12 +67,6 @@ const ldeNomenclator: NavItem[] = [
   { href: '/lde/vehicule',       label: 'Mașini & tipuri', adminOnly: true, icon: 'M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z' },
   { href: '/lde/parc',           label: 'Parc uzine',     adminOnly: true, icon: 'M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z' },
   { href: '/lde/uzine',          label: 'Uzine',          adminOnly: true, icon: 'M22 11V3h-7v3H9V3H2v8h7V8h2v13h4V8h2v3h5zM7 9H4V5h3v4zm6 0h-2V5h2v4zm7 0h-3V5h3v4z' },
-  { href: '/lde/curse',          label: 'Curse uzine',    adminOnly: true, icon: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z' },
-  { href: '/lde/trasee',         label: 'Trasee & km goi', adminOnly: true, icon: 'M20 4H4v2h16V4zM4 20h16v-2H4v2zm0-7h16v-2H4v2zm6-5l4 3-4 3V8z' },
-  { href: '/lde/reguli-livrari-lear', label: 'Reguli livrări LEAR', adminOnly: true, icon: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5' },
-  { href: '/lde/schelet',        label: 'Schelet rute',   adminOnly: true, icon: 'M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z' },
-  { href: '/lde/atribuiri-zilnice', label: 'Atribuiri zilnice', adminOnly: true, icon: 'M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z' },
-  { href: '/lde/soferi',         label: 'Șoferi LDE',     adminOnly: true, icon: 'M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z' },
 ];
 
 // Module — fiecare e auto-conținut (rute + navigație proprie). Se adaugă un modul nou = o linie aici + folderul lui.

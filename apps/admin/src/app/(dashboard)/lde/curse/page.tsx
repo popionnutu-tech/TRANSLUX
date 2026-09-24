@@ -1,9 +1,6 @@
-export const dynamic = 'force-dynamic';
+import { redirect } from 'next/navigation';
 
-import { getCurse, getUzinas } from './actions';
-import CurseClient from './CurseClient';
-
-export default async function CursePage() {
-  const [curse, uzinas] = await Promise.all([getCurse(), getUzinas()]);
-  return <CurseClient initialCurse={curse} uzinas={uzinas} />;
+// Comasată în /lde/uzine (Ion, 24.09, ION-54: nomenclatorul LDE de la 9 pagini la 3). Adresa veche trimite mai departe.
+export default function Redirect() {
+  redirect('/lde/uzine');
 }

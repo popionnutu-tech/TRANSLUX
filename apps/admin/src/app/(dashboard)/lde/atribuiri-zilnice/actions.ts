@@ -89,49 +89,6 @@ export async function getAtribuiriAdmin(date?: string): Promise<AtribuiriAdminDa
   return { date: day, manageri, candidati, optiuni, matrix: [...byDir.values()].sort((a, b) => a.label.localeCompare(b.label)) };
 }
 
-/** Promovează un user Telegram (CONTROLLER/DIGITAL) la MANAGER_LDE — setare din nomenclator, fără Mostic. */
-export async function addManager(userId: string): Promise<void> {
-  requireRole(await verifySession(), 'ADMIN');
-  const db = getSupabase();
-  const { data: u } = await db.from('users').select('role').eq('id', userId).maybeSingle();
-  if (!u || !['CONTROLLER', 'DIGITAL'].includes(u.role as string)) throw new Error('User invalid');
-  // point=null — ca la DIGITAL: botul nu-i mai oferă raportarea de curse
-  const { error } = await db.from('users').update({ role: 'MANAGER_LDE', point: null }).eq('id', userId);
-  if (error) throw new Error(error.message);
-}
-
-/** Scoate rolul de manager (revine la DIGITAL — doar Mini App) și curăță direcțiile. */
-export async function removeManager(userId: string): Promise<void> {
-  requireRole(await verifySession(), 'ADMIN');
-  const db = getSupabase();
-  const { data: u } = await db.from('users').select('role').eq('id', userId).maybeSingle();
-  if (u?.role !== 'MANAGER_LDE') throw new Error('Userul nu e MANAGER_LDE');
-  const { error } = await db.from('users').update({ role: 'DIGITAL' }).eq('id', userId);
-  if (error) throw new Error(error.message);
-  await db.from('lde_manager_directions').delete().eq('user_id', userId);
-}
-
-export async function saveManagerDirections(userId: string, directions: string[]): Promise<void> {
-  requireRole(await verifySession(), 'ADMIN');
-  const db = getSupabase();
-
-  // doar userii cu rol MANAGER_LDE pot primi direcții
-  const { data: target } = await db.from('users').select('role').eq('id', userId).maybeSingle();
-  if (target?.role !== 'MANAGER_LDE') throw new Error('Utilizatorul nu are rolul MANAGER_LDE');
-
-  // validare pe vocabularul real (uzine active + interurban/suburban)
-  const valid = new Set((await allDirections()).map((d) => d.id));
-  const clean = [...new Set(directions)].filter((d) => valid.has(d));
-
-  const { error: delErr } = await db.from('lde_manager_directions').delete().eq('user_id', userId);
-  if (delErr) throw new Error(delErr.message);
-  if (clean.length) {
-    const { error } = await db.from('lde_manager_directions')
-      .insert(clean.map((direction) => ({ user_id: userId, direction })));
-    if (error) throw new Error(error.message);
-  }
-}
-
 
 // ── ghidul zilnic: unde, IERI, mașina a făcut km goi degeaba ────────────────
 // Ion, 18.09: «am nevoie de ghid care să aducă zilnic aminte la operator zona unde

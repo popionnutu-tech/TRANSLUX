@@ -1,9 +1,6 @@
-export const dynamic = 'force-dynamic';
+import { redirect } from 'next/navigation';
 
-import { getLdeSoferi, getLdeUzine } from './actions';
-import LdeSoferiClient from './LdeSoferiClient';
-
-export default async function LdeSoferiPage() {
-  const [soferi, uzine] = await Promise.all([getLdeSoferi(), getLdeUzine()]);
-  return <LdeSoferiClient initialSoferi={soferi} uzine={uzine} />;
+// Comasată în /lde/parc (Ion, 24.09, ION-54: nomenclatorul LDE de la 9 pagini la 3). Adresa veche trimite mai departe.
+export default function Redirect() {
+  redirect('/lde/parc');
 }

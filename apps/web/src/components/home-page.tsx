@@ -36,6 +36,8 @@ export function HomePage({ locale, localities = [], popularPrices = [] }: HomePa
   const [showResults, setShowResults] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [calendarOpen, setCalendarOpen] = useState(false);
+  // Câte ture a făcut săgeata de inversare — se rotește la fiecare apăsare, ca omul să vadă că s-a schimbat.
+  const [swapTurns, setSwapTurns] = useState(0);
   const [trips, setTrips] = useState<TripResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [now, setNow] = useState<{ from: string; to: string; fromLabel: string; toLabel: string } | null>(null);
@@ -205,13 +207,23 @@ export function HomePage({ locale, localities = [], popularPrices = [] }: HomePa
                 flexShrink: 0, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center',
                 background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: '#9B1B30', fontSize: 18,
                 transition: 'transform 0.15s ease',
-              }} aria-label={i.swap} onClick={() => {
+              }} aria-label={i.swap} title={i.swap} onClick={() => {
                 if (fromRef.current && toRef.current) {
                   const tmp = fromRef.current.value;
                   fromRef.current.value = toRef.current.value;
                   toRef.current.value = tmp;
                 }
-              }}>⇄</button>
+                setSwapTurns((n) => n + 1);
+              }}>
+                {/* Pe telefon .hero-swap-ico e rotit 90° (câmpurile stau unul sub altul). */}
+                <span className="hero-swap-ico" style={{ display: 'flex' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
+                    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
+                    style={{ transform: `rotate(${swapTurns * 180}deg)`, transition: 'transform 0.3s ease' }}>
+                    <path d="M7 4 3 8l4 4" /><path d="M3 8h14" /><path d="m17 20 4-4-4-4" /><path d="M21 16H7" />
+                  </svg>
+                </span>
+              </button>
 
               {/* TO */}
               <div style={{ position: 'relative', flex: '1 1 0', width: 0 }}>

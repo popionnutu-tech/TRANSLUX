@@ -59,9 +59,21 @@ body {
   .hero-form > button[type="submit"] {
     width: 100% !important;
   }
+  /* Inversarea direcției, ca la căutarea de bilete de avion (Ion, 24.09): cerc pe marginea
+     dreaptă, între «De la» și «Spre»; săgețile stau vertical, fiindcă și câmpurile stau așa. */
   .hero-swap {
-    display: none !important;
+    align-self: flex-end !important;
+    width: 40px !important;
+    height: 40px !important;
+    margin: -24px 14px -24px 0 !important;
+    position: relative;
+    z-index: 2;
+    background: #fff !important;
+    border: 1px solid rgba(155,27,48,0.18) !important;
+    border-radius: 50% !important;
+    box-shadow: 0 2px 8px rgba(155,27,48,0.15);
   }
+  .hero-swap-ico { transform: rotate(90deg); }
 }
 
 .hero-input::placeholder {

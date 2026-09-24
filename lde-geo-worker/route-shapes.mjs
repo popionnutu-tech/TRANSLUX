@@ -118,6 +118,57 @@ export function taieCarlige(pts, razaM = 60, inapoiKm = 8, pastreaza = []) {
 const GARA_M = 150;
 
 /**
+ * În jurul gării urma GPS e manevra rutierei: intră, se întoarce, trage la peron, iese —
+ * pe hartă, zigzaguri (Ion, 24.09, Edineț). Pe raza GARA_NET_M, bucata se înlocuiește cu
+ * intrare → peron → ieșire: linia trece curat prin gară, iar peronul rămâne pe ea.
+ */
+const GARA_NET_M = 400;
+export function netezesteGari(pts, gari) {
+  let out = pts;
+  for (const g of gari) {
+    const res = [];
+    for (let i = 0; i < out.length; i++) {
+      if (hav(out[i], g) * 1000 > GARA_NET_M) { res.push(out[i]); continue; }
+      let j = i;
+      while (j + 1 < out.length && hav(out[j + 1], g) * 1000 <= GARA_NET_M) j++;
+      res.push(out[i]);
+      // Peronul intră doar dacă urma chiar a ajuns la el (altfel rutiera doar a trecut pe lângă).
+      if (out.slice(i, j + 1).some((q) => hav(q, g) * 1000 <= GARA_M)) res.push({ lat: g.lat, lon: g.lon });
+      if (j > i) res.push(out[j]);
+      i = j;
+    }
+    out = res;
+  }
+  return out;
+}
+
+/**
+ * Vârfurile ascuțite scurte rămase (tremurul trackerului la viteză mică, un punct aruncat
+ * într-o parte): punctul în care linia se întoarce la peste 135° între două bucăți scurte iese.
+ */
+export function taieVarfuri(pts, maxKm = 0.3, gari = [...STATII.values()]) {
+  let out = pts, changed = true;
+  while (changed) {
+    changed = false;
+    const res = [out[0]];
+    for (let i = 1; i < out.length - 1; i++) {
+      const a = res[res.length - 1], b = out[i], c = out[i + 1];
+      const k = Math.cos((b.lat * Math.PI) / 180);
+      const v1 = [(b.lon - a.lon) * k, b.lat - a.lat], v2 = [(c.lon - b.lon) * k, c.lat - b.lat];
+      const n1 = Math.hypot(v1[0], v1[1]), n2 = Math.hypot(v2[0], v2[1]);
+      const cos = n1 && n2 ? (v1[0] * v2[0] + v1[1] * v2[1]) / (n1 * n2) : 1;
+      // Peronul nu e vârf de tăiat: rutiera intră în gară și iese pe același drum.
+      const gara = gari.some((g) => hav(b, g) * 1000 <= GARA_M);
+      if (!gara && cos < -0.7 && (hav(a, b) < maxKm || hav(b, c) < maxKm)) { changed = true; continue; }
+      res.push(b);
+    }
+    res.push(out[out.length - 1]);
+    out = res;
+  }
+  return out;
+}
+
+/**
  * Localitățile în care rutiera intră de pe traseu, cu punctul exact unde oprește (Ion,
  * 23.09: «nu intrăm direct în fiecare sat… doar în Briceni, Bălți, Chișinău», «ți-am dat
  * punctele exacte unde intră în Briceni, Lipcani, Edineț și Chișinău; autogara din Ocnița
@@ -235,7 +286,7 @@ async function gpsShape(rid, stops, found) {
     // «a» poate trece de 24:00 (cursa pornește după miezul nopții): ziua în plus se adaugă separat.
     const from = new Date(localToUtc(t.date, `${Math.floor((a % 1440) / 60)}:${a % 60}`).getTime() + Math.floor(a / 1440) * 864e5), to = new Date(from.getTime() + (b - a) * 6e4);
     const { rows } = await tracker.query(
-      `SELECT w_date, x, y FROM track WHERE id = ANY($1) AND w_date BETWEEN $2 AND $3 ORDER BY w_date`,
+      `SELECT w_date, x, y, speed FROM track WHERE id = ANY($1) AND w_date BETWEEN $2 AND $3 AND x < 9000 AND y < 9000 ORDER BY w_date`,
       // În UTC, fără fus: w_date e «timestamp» fără fus cu ora UTC; un Date ar pleca cu +03:00.
       [devs, utcText(from.getTime() - 30 * 6e4), utcText(to.getTime() + 60 * 6e4)],
     );
@@ -244,6 +295,9 @@ async function gpsShape(rid, stops, found) {
     for (const r of rows) {
       const p = { lat: nmea(+r.x), lon: nmea(+r.y), at: r.w_date };
       if (!inMd(p)) continue;
+      // Pe loc (stație, gară, semafor) trackerul «tremură» zeci de metri în toate părțile —
+      // zigzagurile din Edineț de pe hartă (Ion, 24.09). Sub 5 km/h punctul nu e drum.
+      if (r.speed != null && +r.speed < 5 && pts.length) continue;
       const q = pts[pts.length - 1];
       if (q) {
         const d = hav(p, q), h = (p.at - q.at) / 36e5;
@@ -341,6 +395,11 @@ for (const [rid, stops] of byRoute) {
   let r = null, source = 'gps';
   try { r = await gpsShape(rid, stops, found); } catch (e) { console.log(`  gps ${rid}: ${e.message}`); }
   if (r) {
+    // Dus-întorsurile mici ale urmei (manevră, întoarcere, ocol de o stradă) ies ca la
+    // Valhalla, pe o rază mai strânsă — intrarea în gară rămâne (pastreaza = gările).
+    r.pts = taieCarlige(r.pts, 40, 3, [...STATII.values()]);
+    r.pts = netezesteGari(r.pts, [...STATII.values()]);
+    r.pts = taieVarfuri(r.pts);
     const keep = dp(r.pts, 0, r.pts.length - 1, 30);
     const shape = keep.map((i) => [+r.pts[i].lat.toFixed(5), +r.pts[i].lon.toFixed(5)]);
     const stopsOut = found.map((s) => ({ stop_order: s.stop_order, name: s.name_ro, lat: +s.pt.lat.toFixed(5), lon: +s.pt.lon.toFixed(5) }));
@@ -368,6 +427,7 @@ for (const [rid, stops] of byRoute) {
       vias = found.filter((s) => vias.includes(s) || far.includes(s));
     }
   } catch (e) { console.log(`ruta ${rid}: ${e.message}`); continue; }
+  r.pts = taieVarfuri(netezesteGari(r.pts, [...STATII.values()])); // ca la urma GPS
   const keep = dp(r.pts, 0, r.pts.length - 1, 30);
   const shape = keep.map((i) => [+r.pts[i].lat.toFixed(5), +r.pts[i].lon.toFixed(5)]);
   const stopsOut = found.map((s) => ({ stop_order: s.stop_order, name: s.name_ro, lat: +s.pt.lat.toFixed(5), lon: +s.pt.lon.toFixed(5) }));

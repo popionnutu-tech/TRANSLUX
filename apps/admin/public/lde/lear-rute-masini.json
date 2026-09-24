@@ -1,0 +1,131 @@
+{
+ "_": "Ce rută face fiecare mașină, pe tura A și pe tura B. Toate confirmate de Ion pe 23.09.2026: opt le-a dat el, unsprezece le-am propus din GPS și le-a confirmat. Ruta fixată aici bate potrivirea automată: tăietura dintre gol și plin se face la capătul rutei din listă.",
+ "043BRAU": {
+  "A": "A8",
+  "B": "B6",
+  "sursa": "ion"
+ },
+ "320BRAT": {
+  "A": "A3",
+  "B": "B15",
+  "sursa": "ion"
+ },
+ "217RST": {
+  "A": "A2",
+  "B": "B2",
+  "sursa": "ion",
+  "capat": {
+   "B": "Ciolacu Vechi"
+  }
+ },
+ "537BRAT": {
+  "A": "A4",
+  "B": "B4",
+  "sursa": "ion",
+  "nota": "schimbul cu A3 se face comasat cu A4 (Bocșa + Scumpia)",
+  "extra": [
+   "A3"
+  ],
+  "capat": {
+   "A": "Scumpia"
+  }
+ },
+ "145BRAZ": {
+  "A": "A14",
+  "B": "B9",
+  "sursa": "ion"
+ },
+ "807MUM": {
+  "A": "A9",
+  "B": "B3",
+  "sursa": "ion",
+  "capat": {
+   "B": "Chirileni"
+  }
+ },
+ "189OMM": {
+  "A": "A5",
+  "B": "B8",
+  "sursa": "ion"
+ },
+ "032BRAT": {
+  "A": "A10",
+  "B": "B15",
+  "sursa": "ion",
+  "extra": [
+   "B13"
+  ]
+ },
+ "061COY": {
+  "A": "A3",
+  "B": "B14",
+  "sursa": "ion"
+ },
+ "183BZP": {
+  "A": "A1",
+  "B": "B1",
+  "sursa": "ion"
+ },
+ "283BRAT": {
+  "A": "A3",
+  "B": "B4",
+  "sursa": "ion"
+ },
+ "456BRAX": {
+  "A": "A15",
+  "B": "B7",
+  "sursa": "ion"
+ },
+ "458BRAX": {
+  "A": "A8",
+  "B": "B4",
+  "sursa": "ion"
+ },
+ "504BRAR": {
+  "A": "A13",
+  "B": "B12",
+  "sursa": "ion",
+  "extra": [
+   "A12"
+  ],
+  "capat": {
+   "A": "Măcărești"
+  }
+ },
+ "614WYW": {
+  "A": "A9",
+  "B": "B3",
+  "sursa": "ion"
+ },
+ "725YOZ": {
+  "A": "A14",
+  "B": "B5",
+  "sursa": "ion"
+ },
+ "732SHS": {
+  "A": "A11",
+  "B": "B11",
+  "sursa": "ion"
+ },
+ "783MUM-DEFECTAT": {
+  "A": "A6",
+  "B": "B10",
+  "sursa": "ion"
+ },
+ "809MUM": {
+  "A": "A12",
+  "B": "B10",
+  "sursa": "ion",
+  "capat": {
+   "B": "Unțești"
+  }
+ },
+ "827MUM": {
+  "A": "A6",
+  "B": "B5",
+  "sursa": "ion",
+  "capat": {
+   "B": "Todirești"
+  }
+ }
+}

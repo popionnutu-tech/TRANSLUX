@@ -51,8 +51,9 @@ const PERIOADA_MAX_ZILE = 92;  // plafon interval — un an de rânduri ar înse
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-// ambele tabele de alimentări — card (Benzol) + numerar; aceeași sumă ca tablou-zilnic și engine-ul DT (§3.6)
-const FUEL_TABLES = ['lde_fuel_alimentari', 'lde_fuel_alimentari_cash'] as const;
+// alimentările cu card (Benzol). Tabela de numerar a fost ștearsă (ION-53, migr. 395): n-a avut
+// niciun rând din totdeauna, iar pagina care o scria a fost scoasă.
+const FUEL_TABLES = ['lde_fuel_alimentari'] as const;
 
 /**
  * Km + motorină per direcție/mașină pe perioadă (default = luna curentă).

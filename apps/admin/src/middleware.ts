@@ -5,7 +5,8 @@ import { isPublicPath } from '@/lib/public-paths';
 
 const DISPATCHER_ALLOWED = ['/grafic', '/drivers', '/vehicles'];
 const GRAFIC_ALLOWED = ['/grafic'];
-const UZINE_ALLOWED = ['/lde/grafic-uzine', '/lde/parc'];
+// Grafic uzine a fost șters (ION-53, 24.09); rolului UZINE îi rămâne Parcul.
+const UZINE_ALLOWED = ['/lde/parc'];
 // DISPECER: doar modulul camioanelor. Fila Analitică e tăiată separat, în layout-ul
 // modulului (middleware-ul nu poate deosebi filele fără să dubleze regula).
 // Include ȘI calea API a modulului: fără ea harta dispeceratului primea 307 exact
@@ -53,7 +54,7 @@ export async function middleware(request: NextRequest) {
 
     if (role === 'UZINE') {
       const allowed = UZINE_ALLOWED.some(r => pathname === r || pathname.startsWith(r + '/'));
-      if (!allowed) return NextResponse.redirect(new URL('/lde/grafic-uzine', request.url));
+      if (!allowed) return NextResponse.redirect(new URL('/lde/parc', request.url));
     }
 
     if (role === 'DISPECER') {

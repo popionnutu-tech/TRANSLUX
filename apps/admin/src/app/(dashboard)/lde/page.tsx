@@ -1,9 +1,8 @@
-export const dynamic = 'force-dynamic';
+import { redirect } from 'next/navigation';
 
-import { getLdeOverview } from './actions';
-import LdeOverviewClient from './LdeOverviewClient';
-
-export default async function LdePage() {
-  const data = await getLdeOverview();
-  return <LdeOverviewClient data={data} />;
+// Tabloul LDE a fost scos (Ion, 24.09, ION-53: «Tablou zilnic, tablou scoate») — citea aceleași
+// date de GPS și motorină ca «Km & motorină», iar blocurile de numerar și alerte arătau mereu zero.
+// Linkul modulului din meniu duce tot la /lde, deci pagina trimite mai departe.
+export default function LdePage() {
+  redirect('/lde/km-zilnic');
 }

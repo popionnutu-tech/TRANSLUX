@@ -96,8 +96,12 @@ function decode(str) {
  * sau oraș, noi mergem pe traseu»). Când linia revine la sub 60 m de un punct prin care a
  * trecut în ultimii 8 km, tot ce e între ele e un dus-întors și iese.
  */
-export function taieCarlige(pts, razaM = 60, inapoiKm = 8) {
+export function taieCarlige(pts, razaM = 60, inapoiKm = 8, pastreaza = []) {
+  // Dus-întorsul care trece printr-o autogară NU e cârlig: acolo rutiera chiar intră și
+  // iese pe același drum (Ion, 24.09: «punctul Bălți gară nu e pus pe linia itinerar» —
+  // intrarea în autogara din Bălți era tăiată ca un sat, iar linia trecea la 777 m de peron).
   const out = [];
+  const atingeGara = (from) => out.slice(from).some((q) => pastreaza.some((g) => hav(q, g) * 1000 <= GARA_M));
   for (const p of pts) {
     let cut = -1, back = 0;
     for (let j = out.length - 2; j >= 0; j--) {
@@ -105,11 +109,13 @@ export function taieCarlige(pts, razaM = 60, inapoiKm = 8) {
       if (back > inapoiKm) break;
       if (back > 0.15 && hav(out[j], p) * 1000 < razaM) cut = j;
     }
-    if (cut >= 0) out.length = cut + 1;
+    if (cut >= 0 && !atingeGara(cut + 1)) out.length = cut + 1;
     out.push(p);
   }
   return out;
 }
+/** Linia trece «prin» autogară dacă un punct al ei e la atât de peron. */
+const GARA_M = 150;
 
 /**
  * Localitățile în care rutiera intră de pe traseu, cu punctul exact unde oprește (Ion,
@@ -141,7 +147,7 @@ async function route(pts) {
   const r = await fetch(`${VALHALLA}/route`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!r.ok) throw new Error(`valhalla ${r.status} ${(await r.text()).slice(0, 200)}`);
   const j = await r.json();
-  const pts2 = taieCarlige(j.trip.legs.flatMap((l) => decode(l.shape)));
+  const pts2 = taieCarlige(j.trip.legs.flatMap((l) => decode(l.shape)), 60, 8, [...STATII.values()]);
   let km = 0; for (let i = 1; i < pts2.length; i++) km += hav(pts2[i - 1], pts2[i]);
   return { pts: pts2, km, kmValhalla: j.trip.summary.length };
 }

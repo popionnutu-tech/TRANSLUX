@@ -57,6 +57,7 @@ const SALT_KM = 5;             // peste atât între două puncte = glitch GPS, 
 const R_RUTA = 0.45;           // km — cât de aproape trebuie să treacă urma de un punct al rutei
 const ACOPERIRE = 0.65;        // cât din forma rutei trebuie atinsă ca s-o socotim dusă
 const R_DEPLASARE = 15;        // km — peste atât de tot ce e lucrul ei = deplasare în afară
+const KM_BRAMBURA_MIN = 5;     // km — o ieșire «brambura» mai scurtă nu se scrie în listă
 // Punct în afara țării = punct stricat. Fără filtrul ăsta, un singur rând aiurea dădea o
 // «deplasare» de 5160 km de Chetriș, fiindcă distanța se socotește pe punctul brut.
 const TARA = { latMin: 45.3, latMax: 48.7, lonMin: 26.4, lonMax: 30.3 };
@@ -76,6 +77,8 @@ const R_LEAR_MAX = 75;
 // 11.312 ore în iulie–septembrie. Nu e o presupunere, e cel mai aglomerat loc de stat al flotei.
 const PARC = { lat: 47.7700, lon: 27.9235 };
 const R_PARC = 0.8;
+const R_PARC_ZONA = 3;         // km — «zona de reparație» (Ion, 24.09): și drumul înapoi de la parc
+                               // pleacă de acolo, deci o ieșire care începe sau trece pe aici e reparație
 const ZILE_LUNA = 21.7;        // zile lucrătoare pe lună, pentru lei
 // Ion, 24.09: «mașinile trebuie verificate doar cele care lucrează la LEAR, cel mai probabil
 // 043 a venit pe timp scurt». O mașină care a trecut pe la poartă o zi–două nu e a uzinei;
@@ -553,6 +556,9 @@ function alteCurse(pts, ruteObj, culoare, culoareUzina, zileLucrate) {
   const peCasa = grila([].concat(...culoare.map(f => f.map(c => ({ lat: c[0], lon: c[1] })))));
   let laUzina = 0, aiurea = 0, laParc = 0;
   const peLoc = new Map();   // localitate → km «aiurea», minute, zile
+  // fiecare ieșire «brambura» și separat, cu ora ei — Ion, 24.09: «km brambura au fost? și dacă
+  // da include aici», în lista deplasărilor, nu doar ca cifră pe zi
+  const iesiri = []; let deCand = null, panaCand = null; let locB = new Map();
   let bucata = 0, atinsPoarta = false, atinsParc = false, celMaiDeparte = 0, prev = null;
   const inchide = () => {
     if (bucata > 0.2) {
@@ -560,21 +566,32 @@ function alteCurse(pts, ruteObj, culoare, culoareUzina, zileLucrate) {
       if (atinsParc) laParc += bucata;
       // «pe la uzină» cere ȘI atingerea porții, ȘI să nu iasă din raza uzinei
       else if (atinsPoarta && celMaiDeparte <= R_LEAR_MAX) laUzina += bucata;
-      else aiurea += bucata;
+      else {
+        aiurea += bucata;
+        const loc = [...locB].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+        iesiri.push({ de_la: deCand, pana_la: panaCand, km: bucata, max: celMaiDeparte, loc });
+      }
     }
-    bucata = 0; atinsPoarta = false; atinsParc = false; celMaiDeparte = 0;
+    bucata = 0; atinsPoarta = false; atinsParc = false; celMaiDeparte = 0; deCand = null; locB = new Map();
   };
   for (const p of pts) {
     if (prev) {
+      // gol de semnal peste o jumătate de oră = altă ieșire; iar mașina oprită (sub 1 nod la
+      // ambele capete) nu «merge» — deriva GPS de peste noapte dădea 11 km în «50 de ore»
+      if ((p.t - prev.t) / 60000 > 30) inchide();
       const dk = hav(prev, p);
-      if (dk < SALT_KM) {
+      if (dk < SALT_KM && !(p.v <= 1 && prev.v <= 1)) {
         const mij = { lat: (prev.lat + p.lat) / 2, lon: (prev.lon + p.lon) / 2 };
         const eRuta = aproape(peRuta, [mij.lat, mij.lon], R_RUTA);
         const eCasa = peCasa.size && aproape(peCasa, [mij.lat, mij.lon], R_CULOAR);
         if (!eRuta && !eCasa) {
+          if (!deCand) { deCand = prev.t; if (hav(prev, PARC) <= R_PARC_ZONA) atinsParc = true; }
+          panaCand = p.t;
           bucata += dk;
+          if (hav(p, PARC) <= R_PARC_ZONA) atinsParc = true;
           // se ține minte și locul, ca steagul să poată fi verificat, nu doar crezut
           const l = celMaiApropiatLoc(p);
+          if (l) locB.set(l.n, (locB.get(l.n) || 0) + dk);
           if (l) { const x = peLoc.get(l.n) || { km: 0, min: 0, zile: new Set(), dep: 0, ore: new Map() };
             x.km += dk; const dm = (p.t - prev.t) / 60000; if (dm > 0 && dm < 15) x.min += dm;
             x.zile.add(ziLucru(p.t)); const dd = hav(p, POARTA); if (dd > x.dep) x.dep = dd;
@@ -604,7 +621,7 @@ function alteCurse(pts, ruteObj, culoare, culoareUzina, zileLucrate) {
       .map(([h, km]) => ({ ora: h, km_zi: +(km / z).toFixed(1) }))
       .sort((a, b) => a.ora - b.ora) }))
     .filter(x => x.km_zi >= 1).sort((a, b) => b.km_zi - a.km_zi).slice(0, 8);
-  return { la_uzina: laUzina / z, aiurea: aiurea / z, la_parc: laParc / z, locuri: locuriAiurea };
+  return { la_uzina: laUzina / z, aiurea: aiurea / z, la_parc: laParc / z, locuri: locuriAiurea, iesiri };
 }
 
 // ─── deplasări în afara destinației de lucru ─────────────────────────────────
@@ -631,7 +648,7 @@ function deplasari(pts, rute, casaC) {
       if (!cur) cur = { de_la: p.t, pana_la: p.t, km: 0, max: d, varf: p, parc: false };
       else { cur.pana_la = p.t; if (prev) { const dk = hav(prev, p); if (dk < SALT_KM) cur.km += dk; }
              if (d > cur.max) { cur.max = d; cur.varf = p; } }
-      if (hav(p, PARC) <= R_PARC) cur.parc = true;
+      if (hav(p, PARC) <= R_PARC_ZONA) cur.parc = true;
     } else inchide();
     prev = p;
   }
@@ -1005,7 +1022,17 @@ for (const v of auLucrat) {
     // «alte curse»: munca în plus, măsurată — nici rută, nici culoar de acasă. Nu dispare sub
     // nicio regulă, deci se adună la ziua nouă la amândouă.
     const A = alteCurse(ptsSapt, ruteSchelet, culoare, culoareUzina, kmZile.length);
-    const alte = A.la_uzina + A.aiurea + A.la_parc;
+    // Ion, 24.09: «auto care pleacă la Bălți reparație nu trebuie nicăieri introdusă». Drumul la
+    // parc nu e nici muncă în plus, nici zi de lucru: iese din «alte» și din ziua cu care se
+    // compară regulile. Rămâne scris (alte_la_parc), ca cifra să se poată verifica.
+    const alte = A.la_uzina + A.aiurea;
+    const aziL = azi - A.la_parc;
+    rec.azi_fara_parc = +aziL.toFixed(1);
+    for (const e of A.iesiri) if (e.km >= KM_BRAMBURA_MIN) toateDeplasarile.push({
+      masina: v.masina, zi: ziLucru(e.de_la),
+      de_la: local(e.de_la).toISOString().slice(11, 16), pana_la: local(e.pana_la).toISOString().slice(11, 16),
+      ore: +((e.pana_la - e.de_la) / 3600000).toFixed(1), km: +e.km.toFixed(1), departare: +e.max.toFixed(1),
+      fel: 'brambura', unde: e.loc ? `pe la ${e.loc}` : '—' });
     rec.etalon_s1 = alese[0].etalon; rec.etalon_s2 = alese[1].etalon;
     rec.rutele_de_4 = +patru.toFixed(1);
     rec.alte = +alte.toFixed(1);
@@ -1016,20 +1043,20 @@ for (const v of auLucrat) {
 
     // regula 1: ziua = 4 × latura fiecărui schimb + alte curse
     const z1 = patru + alte;
-    rec.r1 = { zi: +z1.toFixed(1), km: +(azi - z1).toFixed(1),
-      lei: Math.round((azi - z1) * lk * ZILE_LUNA) };
+    rec.r1 = { zi: +z1.toFixed(1), km: +(aziL - z1).toFixed(1),
+      lei: Math.round((aziL - z1) * lk * ZILE_LUNA) };
 
     // regula 3: plin (2 × fiecare rută) + de acasă la capete + de la uzină la capete + alte
     if (!lipsaDrum) {
       const z3 = 2 * sumaEtalon + dCasa + sumaEtalon + alte;
       rec.d_casa = +dCasa.toFixed(1); rec.d_uzina = +sumaEtalon.toFixed(1);
       rec.d_casa_pe_capat = peCapat;
-      rec.r3 = { zi: +z3.toFixed(1), km: +(azi - z3).toFixed(1),
-        lei: Math.round((azi - z3) * lk * ZILE_LUNA) };
+      rec.r3 = { zi: +z3.toFixed(1), km: +(aziL - z3).toFixed(1),
+        lei: Math.round((aziL - z3) * lk * ZILE_LUNA) };
     } else rec.steaguri.push('Valhalla n-a dat drumul de acasă la capăt — regula 3 nu se poate socoti');
 
-    if (patru > azi) rec.note.push(
-      `rute lungi: 4 × (${alese.map(r => n1(r.etalon)).join(' + ')}) = ${n1(patru)} km, peste cei ${n1(azi)} ` +
+    if (patru > aziL) rec.note.push(
+      `rute lungi: 4 × (${alese.map(r => n1(r.etalon)).join(' + ')}) = ${n1(patru)} km, peste cei ${n1(aziL)} ` +
       'conduși azi — nu se întoarce goală la uzină între ture, deci regula 1 i-ar ADĂUGA kilometri');
     // Steagul spunea «mașina asta face și altă treabă». Ion, 24.09: «el a făcut asta în orele
     // LEAR?» — și da, le face. La 043BRAU, 032BRAT și 320BRAT kilometrii ăștia se fac la orele
@@ -1054,6 +1081,7 @@ for (const v of auLucrat) {
 
   // deplasările în afara destinației de lucru — numai ale mașinilor care chiar lucrează aici
   for (const d of deplasari(ptsSapt, ruteSchelet, casaC)) {
+    if (d.parc) continue;             // reparație la Bălți — nu intră nicăieri (Ion, 24.09)
     const sat = celMaiApropiatSat(S, d.varf);
     toateDeplasarile.push({ masina: v.masina, zi: ziLucru(d.de_la),
       de_la: local(d.de_la).toISOString().slice(11, 16),
@@ -1143,16 +1171,16 @@ if (steaguri.length) {
   for (const s of steaguri) console.log(`  ${s.masina ? s.masina + ': ' : ''}${s.text}`);
 }
 
-console.log(`\n─── deplasări în afara destinației de lucru, peste ${R_DEPLASARE} km ───`);
+console.log(`\n─── deplasări în afara destinației de lucru (peste ${R_DEPLASARE} km) și km brambura (ieșiri de peste ${KM_BRAMBURA_MIN} km) ───`);
 if (!toateDeplasarile.length) console.log('  niciuna');
 else {
   console.log('  ziua         mașina      ora        ore     km   cât de departe · unde');
   for (const d of toateDeplasarile.sort((a, b) => a.zi.localeCompare(b.zi)))
     console.log(`  ${d.zi}   ${d.masina.padEnd(11)} ${d.de_la}–${d.pana_la}  ${String(d.ore).padStart(4)}  ` +
       `${n1(d.km).padStart(6)}   ${n1(d.departare).padStart(5)} km · ${d.unde}` +
-      (d.fel === 'reparație' ? '   [reparație]' : ''));
-  const rep = toateDeplasarile.filter(d => d.fel === 'reparație').length;
-  if (rep) console.log(`\n  ${rep} din ele sunt drumuri la parcul de la Bălți — reparație, nu risipă.`);
+      (d.fel === 'brambura' ? '   [brambura]' : ''));
+  const br = toateDeplasarile.filter(d => d.fel === 'brambura');
+  if (br.length) console.log(`\n  ${br.length} ieșiri brambura, ${n1(br.reduce((s, d) => s + d.km, 0))} km în săptămână.`);
 }
 
 // ─── scris ───────────────────────────────────────────────────────────────────

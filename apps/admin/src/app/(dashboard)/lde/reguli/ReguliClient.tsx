@@ -75,25 +75,28 @@ function Panou({ m, zileLuna }: { m: MasinaRand; zileLuna: number }) {
         <Pas et="Rutele" calc={m.rute.map((r) => `${r.id} ${n1(r.etalon)}`).join(' + ')} rez={`${n1(m.d_uzina)} km`} />
         <Pas et="Cu oameni" calc={`2 × (${et})`} rez={`${n1(plin)} km`} />
         <Pas et="Rutele de 4 ori" calc={`4 × (${et})`} rez={`${n1(m.rutele_de_4)} km`} />
-        <Pas et="Alte curse" calc={`${n1(lu)} pe la uzină + ${n1(pc)} la parc + ${n1(ai)} în afara lor`} rez={`${n1(m.alte)} km`} />
+        <Pas et="Alte curse" calc={`${n1(lu)} pe la uzină + ${n1(ai)} brambura`} rez={`${n1(m.alte)} km`} />
         {m.d_casa_pe_capat && (
           <Pas et="De acasă la capăt" calc={m.d_casa_pe_capat.map((x) => `${x.capat} ${n1(x.km)}`).join(' + ')} rez={`${n1(m.d_casa)} km`} />
         )}
         <Pas et="Azi a mers" calc="din urma GPS, media zilelor lucrate" rez={`${n1(m.azi)} km`} />
+        {pc > 0 && (
+          <Pas et="Fără reparații" calc={`${n1(m.azi)} − ${n1(pc)} la parcul de la Bălți`} rez={`${n1(m.azi_fara_parc ?? m.azi - pc)} km`} />
+        )}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         {m.r1 && (
           <Regula titlu="Regula 1 · doarme la uzină" ales={ales && care === 1}>
             <Pas et="Ziua nouă" calc={`${n1(m.rutele_de_4)} + ${n1(m.alte)}`} rez={`${n1(m.r1.zi)} km`} />
-            <Pas et="Se câștigă" calc={`${n1(m.azi)} − ${n1(m.r1.zi)}`} rez={`${n1(m.r1.km)} km/zi`} />
+            <Pas et="Se câștigă" calc={`${n1(m.azi_fara_parc ?? m.azi)} − ${n1(m.r1.zi)}`} rez={`${n1(m.r1.km)} km/zi`} />
             <Pas et="Pe lună" calc={`× ${n2(m.lei_km)} lei/km × ${zileLuna} zile`} rez={`${n0(m.r1.lei)} lei`} tare />
           </Regula>
         )}
         {m.r3 && (
           <Regula titlu="Regula 3 · nu pleacă acasă la prânz" ales={ales && care === 3}>
             <Pas et="Ziua nouă" calc={`${n1(plin)} + ${n1(m.d_casa)} + ${n1(m.d_uzina)} + ${n1(m.alte)}`} rez={`${n1(m.r3.zi)} km`} />
-            <Pas et="Se câștigă" calc={`${n1(m.azi)} − ${n1(m.r3.zi)}`} rez={`${n1(m.r3.km)} km/zi`} />
+            <Pas et="Se câștigă" calc={`${n1(m.azi_fara_parc ?? m.azi)} − ${n1(m.r3.zi)}`} rez={`${n1(m.r3.km)} km/zi`} />
             <Pas et="Pe lună" calc={`× ${n2(m.lei_km)} lei/km × ${zileLuna} zile`} rez={`${n0(m.r3.lei)} lei`} tare />
           </Regula>
         )}
@@ -234,7 +237,7 @@ export default function ReguliClient({ raport, saptamani = [] }: {
       <div className="mt-4! grid gap-3 sm:grid-cols-3">
         {[
           ['Au lucrat la uzină', `${R.total.masini_uzina} mașini`, 'cel puțin 4 zile la poartă'],
-          ['Deplasări peste 15 km', String(R.deplasari.length), 'în afara destinației de lucru'],
+          ['Deplasări și km brambura', String(R.deplasari.length), 'în afara destinației de lucru'],
           ['Controlul km', ctrl ? `${ctrl.dif > 0 ? '+' : ''}${n1(ctrl.dif)}%` : '—', 'urma GPS față de workerul de noapte; peste 10% = steag'],
         ].map(([et, val, sub]) => (
           <div key={et} className="rounded-[8px] border border-neutral-200 bg-white px-4! py-3! dark:border-neutral-700 dark:bg-neutral-900">
@@ -351,7 +354,7 @@ export default function ReguliClient({ raport, saptamani = [] }: {
       )}
 
       <h2 className="mb-3! mt-9! text-xs font-bold uppercase tracking-widest text-neutral-500">
-        Deplasări în afara destinației de lucru, peste 15 km
+        Deplasări în afara destinației de lucru (peste 15 km) și kilometrii brambura
       </h2>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse border border-neutral-200 bg-white text-[13px] dark:border-neutral-700 dark:bg-neutral-900">
@@ -378,7 +381,7 @@ export default function ReguliClient({ raport, saptamani = [] }: {
                   <td className={nr}>{n1(d.departare)} km</td>
                   <td className="border-b border-neutral-200 p-2! text-[12.5px] dark:border-neutral-700">
                     {d.unde}
-                    {d.fel === 'reparație' && <i className="block text-[11px] not-italic text-neutral-500">reparație</i>}
+                    {d.fel === 'brambura' && <i className="block text-[11px] not-italic text-neutral-500">brambura</i>}
                   </td>
                 </tr>
               );
@@ -388,8 +391,9 @@ export default function ReguliClient({ raport, saptamani = [] }: {
       </div>
       <p className="mt-3! border-l-[3px] border-neutral-200 pl-4! text-[13.5px] text-neutral-500 dark:border-neutral-700">
         O deplasare intră aici dacă mașina a fost la peste 15 km de tot ce înseamnă lucrul ei: uzina,
-        satele rutelor ei din schelet, și satul unde doarme. Se numără o dată pe deplasare, nu pe punct GPS.
-        Drumul la parcul de la Bălți se recunoaște singur ca reparație.
+        satele rutelor ei din schelet, și satul unde doarme. «Brambura» e o ieșire de peste 5 km care nu e
+        nici pe rutele ei, nici pe drumul de acasă, nici pe la poartă. Se numără o dată pe ieșire, nu pe punct GPS.
+        Drumul la parcul de la Bălți e reparație și nu se scrie nicăieri — nici aici, nici în ziua mașinii.
       </p>
     </div>
   );

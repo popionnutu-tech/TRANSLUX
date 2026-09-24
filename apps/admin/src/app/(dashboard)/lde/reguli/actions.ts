@@ -28,6 +28,8 @@ export type MasinaRand = {
   zile_masurate: number;
   ore_poarta: number;
   azi: number;
+  // ziua fără drumurile la parc (reparație) — cu ea se compară regulile
+  azi_fara_parc?: number;
   rute: RutaMasina[];
   rutele_de_4?: number;
   alte?: number;
@@ -55,7 +57,9 @@ export type MasinaRand = {
 export type Deplasare = {
   masina: string; zi: string; de_la: string; pana_la: string;
   ore: number; km: number; departare: number; unde: string;
-  fel?: 'reparație' | 'de lămurit';
+  // «brambura» = ieșire de peste 5 km care nu e nici rută, nici drum de acasă, nici pe la poartă;
+  // drumurile la parcul de la Bălți (reparație) nu se scriu deloc (Ion, 24.09)
+  fel?: 'reparație' | 'de lămurit' | 'brambura';
 };
 
 export type Raport = {

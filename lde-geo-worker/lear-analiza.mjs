@@ -58,6 +58,10 @@ const PAUZA_MIN = 20;          // min — stat pe loc peste atât = sfârșit de
 const R_STAT = 0.3;            // km — cât de strâns trebuie să stea ca să numărăm pauză
 const R_ACASA = 2;             // km — cât de aproape de sat înseamnă «a ajuns acasă»
 const R_CULOAR = 1.2;          // km — lățimea culoarului dintre casă și capătul rutei
+// Cea mai lungă rută din schelet ajunge la 69 km de poartă (A2 Chetriș). O ieșire care pleacă de
+// la poartă dar se duce mai departe de atât nu mai e navetă de uzină, oricât ar atinge poarta:
+// 320BRAT pleacă de la poartă și se duce la Bălți, 96 km — ar fi fost numărată drept muncă LEAR.
+const R_LEAR_MAX = 75;
 const ZILE_LUNA = 21.7;        // zile lucrătoare pe lună, pentru lei
 // Ion, 24.09: «mașinile trebuie verificate doar cele care lucrează la LEAR, cel mai probabil
 // 043 a venit pe timp scurt». O mașină care a trecut pe la poartă o zi–două nu e a uzinei;
@@ -335,10 +339,13 @@ function alteCurse(pts, ruteObj, culoare, zileLucrate) {
     (r._puncte || []).map(c => ({ lat: c[0], lon: c[1] })))));
   const peCasa = grila([].concat(...culoare.map(f => f.map(c => ({ lat: c[0], lon: c[1] })))));
   let laUzina = 0, aiurea = 0;
-  let bucata = 0, atinsPoarta = false, prev = null;
+  let bucata = 0, atinsPoarta = false, celMaiDeparte = 0, prev = null;
   const inchide = () => {
-    if (bucata > 0.2) { if (atinsPoarta) laUzina += bucata; else aiurea += bucata; }
-    bucata = 0; atinsPoarta = false;
+    if (bucata > 0.2) {
+      // «pe la uzină» cere ȘI atingerea porții, ȘI să nu iasă din raza uzinei
+      if (atinsPoarta && celMaiDeparte <= R_LEAR_MAX) laUzina += bucata; else aiurea += bucata;
+    }
+    bucata = 0; atinsPoarta = false; celMaiDeparte = 0;
   };
   for (const p of pts) {
     if (prev) {
@@ -349,7 +356,9 @@ function alteCurse(pts, ruteObj, culoare, zileLucrate) {
         const eCasa = peCasa.size && aproape(peCasa, [mij.lat, mij.lon], R_CULOAR);
         if (!eRuta && !eCasa) {
           bucata += dk;
-          if (hav(p, POARTA) <= R_POARTA) atinsPoarta = true;
+          const dp = hav(p, POARTA);
+          if (dp <= R_POARTA) atinsPoarta = true;
+          if (dp > celMaiDeparte) celMaiDeparte = dp;
         } else inchide();
       }
     }

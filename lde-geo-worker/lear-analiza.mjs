@@ -74,9 +74,14 @@ const ZILE_LUNA = 21.7;        // zile lucrătoare pe lună, pentru lei
 // 043 a venit pe timp scurt». O mașină care a trecut pe la poartă o zi–două nu e a uzinei;
 // cifrele ei n-au ce căuta în totaluri, dar se arată, ca să se vadă că a fost pe acolo.
 const ZILE_MIN_LEAR = 4;       // zile la poartă din săptămână, ca s-o socotim a uzinei
+// Sub pragul ăsta mașina nici nu intră în tabel. Ion, 24.09: «păi de ce el apare aici la LEAR?»
+// — 283BRAT trecuse pe la poartă o zi, trei ore, și stătea printre mașinile uzinei ca și cum ar
+// fi lucrat. O trecere nu e muncă. Rămâne o singură linie, ca să nu dispară în tăcere.
 
 // Lei pe km, pe tip. Nu există tabel în bază (doar consum l/100km în lde_vehicle_norms), deci
 // stau aici, ca în analiza de până acum: combustibil + cauciucuri + întreținere.
+// Lista asta NU decide cine e al uzinei — asta se vede din urmă. Ea spune doar cât costă
+// kilometrul, iar mașina care lipsește din ea iese cu steag, fără cifre în lei.
 const LEI_TIP = { 'DAF': 12.73, 'Sprinter 518': 7.20, 'Sprinter 413': 6.59, 'Sprinter 412': 6.59,
   'Sprinter 315': 6.49, 'Sprinter 313': 6.49, 'Sprinter 312': 5.77 };
 const TIP_MASINA = { '809MUM': 'DAF', '827MUM': 'DAF', '807MUM': 'DAF', '189OMM': 'DAF',
@@ -213,8 +218,13 @@ async function citesteSaptamina(t, de_la, pana_la) {
     `SELECT DISTINCT id FROM track WHERE w_date>=$1 AND w_date<$2
        AND x BETWEEN $3 AND $4 AND y BETWEEN $5 AND $6`,
     [de_la, pana_la, xC - 0.9, xC + 0.9, yC - 0.9, yC + 0.9]);
+  // Ion, 24.09: «nu ne uităm la nomenclatoare când facem analiza la LEAR sau altă uzină, ne
+  // uităm dacă auto a lucrat sau nu». Deci flota se ia din URMĂ, nu din liste: cine a fost la
+  // poarta uzinei în săptămâna asta. Nicio mașină nu intră fiindcă scrie undeva că ar fi a
+  // uzinei, și niciuna nu se scoate fiindcă scrie că ar fi a alteia — 283BRAT iese pentru că a
+  // fost o zi la poartă, nu fiindcă apare în nomenclatorul de la Orhei.
   const laPoarta = new Set(near.map(n => String(n.id)));
-  const flota = devs.filter(d => laPoarta.has(String(d.id)) || TIP_MASINA[d.CarName]);
+  const flota = devs.filter(d => laPoarta.has(String(d.id)));
 
   const out = [];
   for (const d of flota) {
@@ -567,7 +577,7 @@ const nrDupaId = await numereSiId(supa, new Set(flota.map(v => v.masina)));
 const case_ = await undeDorm(supa, nrDupaId, de_la, pana_la);
 const kmBaza = await kmDinBaza(supa, nrDupaId, sapt.luni, sapt.duminica);
 
-const masini = [], steaguri = [], toateDeplasarile = [], steagCasaFaraPunct = [];
+const masini = [], steaguri = [], toateDeplasarile = [], steagCasaFaraPunct = [], doarTrecute = [];
 const ruteFolosite = new Set();
 
 // trecerea întâi: ce rute ar putea fi ale fiecărei mașini
@@ -575,11 +585,7 @@ const candidati = new Map();
 const auLucrat = [];
 for (const v of flota) {
   const zilePoarta = [...v.zilePoarta].filter(inSapt);
-  if (!zilePoarta.length) {
-    if (TIP_MASINA[v.masina]) steaguri.push({ masina: v.masina, fel: 'n-a lucrat',
-      text: 'n-a fost la poarta uzinei în săptămâna asta' });
-    continue;
-  }
+  if (!zilePoarta.length) continue;
   auLucrat.push(v);
   candidati.set(v.masina, rutePotrivite(v, S));
 }
@@ -619,9 +625,11 @@ for (const v of auLucrat) {
     rute: alese.map(r => ({ id: r.id, tura: r.tura, capat: r.capat, loc: r.loc,
       etalon: r.etalon, acoperire: r.acoperire })),
     rute_toate: toate.map(r => r.id), steaguri: [] };
-  if (!rec.a_uzinei) rec.steaguri.push(
-    `a fost la poartă doar ${zilePoarta.length} ${zilePoarta.length === 1 ? 'zi' : 'zile'} din săptămână ` +
-    `(${n1(v.minPoarta / 60)} ore) — n-o socotim a uzinei, cifrele ei nu intră în totaluri`);
+  if (!rec.a_uzinei) {
+    doarTrecute.push({ masina: v.masina, zile: zilePoarta.length, ore: +(v.minPoarta / 60).toFixed(1),
+      km_zi: +azi.toFixed(1) });
+    continue;                       // n-a lucrat aici — nu-i mașină de-a uzinei, nu intră în raport
+  }
   if (!dupaLista) rec.steaguri.push('nu e în lista de rute pe mașini — nu știm ce rute ar trebui să facă');
   for (const r of alese) if (!r.confirmat) rec.steaguri.push(
     `ruta ei ${r.id} ${r.capat} nu se vede în urma săptămânii — ori n-a făcut-o, ori a mers altfel`);
@@ -697,7 +705,7 @@ for (const v of auLucrat) {
       `alte curse ${n1(alte)} km/zi, dar trec pe la poartă — muncă în plus pentru uzină`);
   }
 
-  // deplasările în afara destinației de lucru
+  // deplasările în afara destinației de lucru — numai ale mașinilor care chiar lucrează aici
   for (const d of deplasari(ptsSapt, ruteSchelet, casaC)) {
     const sat = celMaiApropiatSat(S, d.varf);
     toateDeplasarile.push({ masina: v.masina, zi: ziLucru(d.de_la),
@@ -723,6 +731,9 @@ for (const v of auLucrat) {
 }
 
 for (const t of steagCasaFaraPunct) steaguri.push({ fel: 'casă fără coordonată', text: t });
+for (const x of doarTrecute) steaguri.push({ masina: x.masina, fel: 'doar în trecere',
+  text: `a trecut pe la poartă ${x.zile} ${x.zile === 1 ? 'zi' : 'zile'} (${n1(x.ore)} ore) — ` +
+    'n-a lucrat aici, deci nu intră în raport' });
 
 // rutele din schelet pe care nu le-a dus nimeni
 for (const r of S.rute) {
@@ -732,7 +743,7 @@ for (const r of S.rute) {
 }
 
 // ─── totaluri ────────────────────────────────────────────────────────────────
-const aleUzinei = masini.filter(m => m.a_uzinei);
+const aleUzinei = masini;   // în `masini` intră de acum numai cele care au lucrat la uzină
 const S_ = f => aleUzinei.reduce((s, m) => s + Math.max(0, f(m) || 0), 0);
 const total = { r1: S_(m => m.r1?.lei), r3: S_(m => m.r3?.lei),
   masini_uzina: aleUzinei.length,
@@ -753,8 +764,9 @@ for (const m of masini.sort((a, b) => (b.r1?.lei || 0) - (a.r1?.lei || 0))) {
     `${(m.r1 ? n0(m.r1.lei) : '—').padStart(8)} ${(m.r3 ? n0(m.r3.lei) : '—').padStart(8)}`);
   for (const s of m.steaguri) console.log(`                 ⚠ ${s}`);
 }
-console.log(`\n${total.masini_uzina} mașini ale uzinei (cel puțin ${ZILE_MIN_LEAR} zile la poartă), ` +
-  `${masini.length - total.masini_uzina} doar în trecere`);
+console.log(`\n${total.masini_uzina} mașini au lucrat la uzină (cel puțin ${ZILE_MIN_LEAR} zile la poartă)` +
+  (doarTrecute.length ? ` · ${doarTrecute.length} doar în trecere, scoase din raport: ` +
+    doarTrecute.map(x => `${x.masina} (${x.zile} ${x.zile === 1 ? 'zi' : 'zile'})`).join(', ') : ''));
 console.log(`REGULA 1 — la uzină:            ${total.masini_r1} mașini · ${n0(total.r1)} lei/lună`);
 console.log(`REGULA 3 — fără drumul de prânz: ${total.masini_r3} mașini · ${n0(total.r3)} lei/lună`);
 console.log('(regulile 1 și 3 nu se adună — se compară, mașină cu mașină)');
@@ -789,7 +801,7 @@ else {
 if (cacheNou) writeFileSync(CALE_CACHE, JSON.stringify(cache, null, 1));
 
 const rezultat = { uzina: UZINA_NUME, saptamina: sapt.luni, pana_la: sapt.duminica,
-  schelet_fixat: S.fixat, zile_luna: ZILE_LUNA, masini, steaguri,
+  schelet_fixat: S.fixat, zile_luna: ZILE_LUNA, masini, steaguri, doar_trecute: doarTrecute,
   deplasari: toateDeplasarile, total };
 
 const CALE_JSON = arg('--json');

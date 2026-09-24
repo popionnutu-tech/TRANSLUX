@@ -102,6 +102,18 @@ const PHONE_SVG = (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z" /></svg>
 );
 
+/**
+ * Marginile hărții acoperite de fereastră: antetul sus; pe telefon lista jos (≈55% din
+ * înălțime), pe calculator lista în stânga (320 px). Autobuzul și capetele stau în rest.
+ */
+function panelPadding(m: LMap): { paddingTopLeft: [number, number]; paddingBottomRight: [number, number] } {
+  const { x, y } = m.getSize();
+  const phone = x <= 720;
+  return phone
+    ? { paddingTopLeft: [30, 80], paddingBottomRight: [30, Math.round(y * 0.55)] }
+    : { paddingTopLeft: [370, 90], paddingBottomRight: [70, 40] };
+}
+
 function NowMap({ trips, routes, selected, onPick }: { trips: NowTrip[]; routes: Record<number, RouteLine>; selected: number; onPick: (i: number) => void }) {
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<LMap | null>(null);
@@ -143,16 +155,9 @@ function NowMap({ trips, routes, selected, onPick }: { trips: NowTrip[]; routes:
       const g = layer.current!;
       g.clearLayers();
 
-      // Fiecare autobuz de pe hartă stă pe linia rutei lui (Ion, 24.09: «nu se văd liniuțele
-      // la unele rutiere» — se desena doar ruta cursei alese, iar pe o direcție curse diferite
-      // merg pe rute diferite, ex. Bălți → Chișinău: 2, 59, 6, 20). Liniile celorlalte, mai
-      // subțiri și mai pale, dedesubt; cea aleasă deasupra, cu capetele.
+      // Doar linia cursei alese (Ion, 24.09, 08:03: «drumul după a 2-a rutieră să nu arate»);
+      // celelalte autobuze stau pe hartă fără linie, iar la alegere li se arată linia lor.
       const selRoute = trips[selected]?.route_id ?? null;
-      const others = new Set(trips.filter((t) => t.lat != null && t.route_id != null && t.route_id !== selRoute).map((t) => t.route_id!));
-      for (const rid of others) {
-        const sh = routes[rid]?.shape;
-        if (sh?.length) L.polyline(sh, { color: RED, weight: 2, opacity: 0.4, dashArray: '4 7', lineCap: 'round', interactive: false }).addTo(g);
-      }
 
       // Linia fină a rutei alese și, pe ea, localitatea omului și destinația.
       const route = selRoute != null ? routes[selRoute] : undefined;
@@ -196,8 +201,8 @@ function NowMap({ trips, routes, selected, onPick }: { trips: NowTrip[]; routes:
       if (pts.length === 0 && route?.shape.length) pts.push(route.shape[0], route.shape[route.shape.length - 1]);
       if (!fitted.current && pts.length) {
         fitted.current = true;
-        if (pts.length === 1) map.current!.setView(pts[0], 11);
-        else map.current!.fitBounds(pts, { padding: [80, 80], maxZoom: 11 });
+        // Ce acoperă lista și antetul nu e hartă: autobuzul ales stătea sub cardul de jos (08:03).
+        map.current!.fitBounds(pts.length === 1 ? [pts[0], pts[0]] : pts, { ...panelPadding(map.current!), maxZoom: 11 });
       }
     })();
   }, [trips, routes, ready, selected, onPick]);
@@ -207,7 +212,7 @@ function NowMap({ trips, routes, selected, onPick }: { trips: NowTrip[]; routes:
   useEffect(() => {
     if (first.current) { first.current = false; return; }
     const t = trips[selected];
-    if (map.current && t?.lat != null && t.lon != null) map.current.panTo([t.lat, t.lon]);
+    if (map.current && t?.lat != null && t.lon != null) map.current.panInside([t.lat, t.lon], panelPadding(map.current));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected]);
 

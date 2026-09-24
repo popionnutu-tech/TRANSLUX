@@ -28,6 +28,8 @@ function limited(): boolean {
 
 /** Cursa plecată după grafic de peste atâtea minute, fără punct și fără istoric, iese din listă. */
 const STALE_MIN = 30;
+/** Cât de vechi poate fi punctul ca mașina să apară totuși pe hartă (oprită, trimite rar). */
+const SHOW_MAX_AGE_MIN = 30;
 
 const normPlate = (s: string | null | undefined) => (s ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 /** «Chișinău» și «Chisinau» sunt aceeași oprire. */
@@ -52,13 +54,17 @@ export async function POST(req: NextRequest) {
     const r = await nextTrips(from, to);
     // Punctul doar pentru autobuzul care e deja pe drum după grafic (poarta ION-39).
     const plates = [...new Set(r.trips.filter((t) => t.on_road || t.coming).map((t) => normPlate(t.plate)).filter(Boolean))];
-    const pos = new Map<string, { lat: number; lon: number; near: string | null; at: string; atIso: string }>();
+    const pos = new Map<string, { lat: number; lon: number; near: string | null; at: string; atIso: string; fresh: boolean }>();
     if (plates.length) {
       const { data } = await getSupabase().from('bus_live_positions').select('plate, lat, lon, at, near').in('plate', plates);
       for (const p of data ?? []) {
-        // Un punct mai vechi nu mai e «acum»: cursa rămâne în listă, fără punct.
-        if ((Date.now() - Date.parse(p.at as string)) / 60_000 > MAX_AGE_MIN) continue;
+        // Mașina oprită la gară, cu motorul stins, trimite rar (24.09, 07:35: 18 din 42 cu punctul
+        // mai vechi de 5 min; 828 MLN la Autogara Bălți, ultimul la 07:28) — pe hartă se vede
+        // punctul până la SHOW_MAX_AGE_MIN; ora estimată și «passed» primesc doar punctul proaspăt.
+        const age = (Date.now() - Date.parse(p.at as string)) / 60_000;
+        if (age > SHOW_MAX_AGE_MIN) continue;
         pos.set(p.plate as string, {
+          fresh: age <= MAX_AGE_MIN,
           lat: p.lat as number, lon: p.lon as number, near: (p.near as string | null) ?? null, atIso: p.at as string,
           at: new Date(p.at as string).toLocaleTimeString('en-GB', { timeZone: 'Europe/Chisinau', hour: '2-digit', minute: '2-digit', hour12: false }),
         });
@@ -87,10 +93,11 @@ export async function POST(req: NextRequest) {
     // Autobuzul care a trecut deja de oprirea omului nu mai e al lui — iese din listă,
     // chiar dacă după grafic ar mai fi pe drum (nextTrips ține și cursele întârziate).
     const trips = (await Promise.all(r.trips.map(async (t) => {
-        const p = t.on_road ? pos.get(normPlate(t.plate)) : undefined;
+        const any = pos.get(normPlate(t.plate));
+        const p = t.on_road && any?.fresh ? any : undefined;
         // Mașina cursei care încă n-a început: doar punctul pe hartă, fără ora estimată și fără
         // «passed» — poate fi pe cursa de dinainte, pe sens invers (ION-43, 24.09).
-        const seen = p ?? (t.coming ? pos.get(normPlate(t.plate)) : undefined);
+        const seen = t.on_road || t.coming ? any : undefined;
         // Ora reală: pe drum din GPS, altfel din trecerile reale ale zilelor trecute.
         const g = t.route_id != null ? geo[t.route_id] : undefined;
         const e = g && r.fromRo && r.toRo

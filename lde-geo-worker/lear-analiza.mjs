@@ -150,13 +150,14 @@ function citesteSchelet() {
     // Pentru a RECUNOAȘTE ruta se ia partea plină: ea e cea care o deosebește de altele.
     const f = [...(r.g?.tur?.plin || []), ...(r.g?.retur?.plin || [])];
     r._puncte = f.filter((_, i) => i % 3 === 0);
-    // Pentru a socoti ce km sunt AI RUTEI se ia toată forma, cu tot cu piciorul gol. Ion, 24.09:
-    // «ruta A8 Horești ea trece prin Gherman și Sculeni, poate e parte a rutei 043». Verificat:
-    // A8 nu trece pe acolo, dar B6 — cealaltă rută a lui 043BRAU — trece prin toate patru, la
-    // 0,0–0,6 km. Numai că ele stau pe piciorul GOL al rutei, iar eu comparam doar cu cel plin.
-    // De aceea 97,5 km/zi ai lui 043BRAU ieșeau «neatribuibili»: erau chiar drumul ei spre rută.
-    const t = [...f, ...(r.g?.tur?.gol || []), ...(r.g?.retur?.gol || [])];
-    r._toateP = t.filter((_, i) => i % 3 === 0);
+    // Linia «gol» din schelet NU se folosește. Ion, 24.09: «Zăzulenii Noi e cu totul în altă
+    // parte» — și avea dreptate. Golul din schelet e drumul pe care a nimerit mașina în ziua
+    // aleasă când s-a fixat scheletul, nu drumul rutei: la B6 are 66,7 km față de 21,5 ai rutei
+    // și o duce la Sculeni, în partea opusă capătului. Șase rute au golul mai lung decât ruta.
+    // Folosindu-l ca «km de rută», orice hoinăreală ar fi fost absorbită.
+    //
+    // Piciorul gol legitim e uzină → capăt, măsurat pe șosea cu Valhalla. Se cere mai jos, o
+    // dată pe capăt, și intră în culoarul după care se recunosc km-ii rutei.
     r._capatC = (r.g?.tur?.sate || []).find(s => s.n === r.capat)?.c
              ?? (r.g?.retur?.sate || []).find(s => s.n === r.capat)?.c ?? null;
     r._sateC = [...(r.g?.tur?.sate || []), ...(r.g?.retur?.sate || [])];
@@ -363,9 +364,10 @@ function curse(pts) {
 // deplasări de jos n-avea niciun rând al ei. Nu era o nepotrivire: lista de jos arată numai
 // ieșirile de peste 15 km, iar kilometrii ăia se întâmplă APROAPE, pe drumuri care nu-s ale
 // rutelor ei. Fără locurile lor, steagul rămânea o cifră fără dovadă.
-function alteCurse(pts, ruteObj, culoare, zileLucrate) {
-  const peRuta = grila([].concat(...ruteObj.map(r =>
-    (r._toateP || r._puncte || []).map(c => ({ lat: c[0], lon: c[1] })))));
+function alteCurse(pts, ruteObj, culoare, culoareUzina, zileLucrate) {
+  const peRuta = grila([].concat(
+    ...ruteObj.map(r => (r._puncte || []).map(c => ({ lat: c[0], lon: c[1] }))),
+    ...culoareUzina.map(f => f.map(c => ({ lat: c[0], lon: c[1] })))));
   const peCasa = grila([].concat(...culoare.map(f => f.map(c => ({ lat: c[0], lon: c[1] })))));
   let laUzina = 0, aiurea = 0, laParc = 0;
   const peLoc = new Map();   // localitate → km «aiurea», minute, zile
@@ -699,7 +701,7 @@ for (const v of auLucrat) {
     const patru = 4 * sumaEtalon;
     // drumurile de acasă la fiecare capăt: lungimea intră în regula 3, forma devine culoarul
     // după care se recunosc kilometrii de navetă
-    let dCasa = 0, culoare = [], lipsaDrum = false;
+    let dCasa = 0, culoare = [], culoareUzina = [], lipsaDrum = false;
     const peCapat = [];
     for (const r of alese) {
       if (!r.capatC) { lipsaDrum = true; break; }
@@ -707,10 +709,13 @@ for (const v of auLucrat) {
       if (!d) { lipsaDrum = true; break; }
       dCasa += d.km; culoare.push(d.forma || []);
       peCapat.push({ id: r.id, capat: r.capat, km: +d.km.toFixed(1) });
+      // piciorul gol al rutei: de la poartă până la capătul ei, pe șosea
+      const u = await drum([POARTA.lat, POARTA.lon], r.capatC, `UZINA|${r.capat}`);
+      if (u?.forma) culoareUzina.push(u.forma);
     }
     // «alte curse»: munca în plus, măsurată — nici rută, nici culoar de acasă. Nu dispare sub
     // nicio regulă, deci se adună la ziua nouă la amândouă.
-    const A = alteCurse(ptsSapt, ruteSchelet, culoare, kmZile.length);
+    const A = alteCurse(ptsSapt, ruteSchelet, culoare, culoareUzina, kmZile.length);
     const alte = A.la_uzina + A.aiurea + A.la_parc;
     rec.etalon_s1 = alese[0].etalon; rec.etalon_s2 = alese[1].etalon;
     rec.rutele_de_4 = +patru.toFixed(1);

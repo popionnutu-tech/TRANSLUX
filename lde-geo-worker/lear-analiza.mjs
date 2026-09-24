@@ -161,6 +161,16 @@ function citesteSchelet() {
     r._capatC = (r.g?.tur?.sate || []).find(s => s.n === r.capat)?.c
              ?? (r.g?.retur?.sate || []).find(s => s.n === r.capat)?.c ?? null;
     r._sateC = [...(r.g?.tur?.sate || []), ...(r.g?.retur?.sate || [])];
+    // Cât de completă e forma plină față de etalon. Ion, 24.09: «Zăzulenii Noi sunt parte a rutei
+    // Zăzuleni inclusiv și Grăseni, iar Vrănești parte rută Horești, nu la 043?» — avea dreptate,
+    // iar cauza e aici: A8 Horești are 0,3 km de formă pe tur, la un etalon de 41,2. Turul ei nu
+    // s-a înregistrat când s-a fixat scheletul. Restul de 27 de rute stau între 0,99 și 1,02.
+    // O rută cu forma ruptă nu poate atribui kilometri, deci mașina ei iese cu steag, nu cu vină.
+    const lung = (g) => { let s = 0; for (let i = 1; i < g.length; i++)
+      s += hav({ lat: g[i - 1][0], lon: g[i - 1][1] }, { lat: g[i][0], lon: g[i][1] }); return s; };
+    r._forma = r.etalon
+      ? +(Math.max(lung(r.g?.tur?.plin || []), lung(r.g?.retur?.plin || [])) / r.etalon).toFixed(2)
+      : null;
   }
   return S;
 }
@@ -285,22 +295,37 @@ function rutePotrivite(v, S) {
 //
 // Ordinea e după acoperire × lungimea rutei: o rută lungă acoperită bine e o potrivire mai
 // solidă decât una scurtă care poate fi doar o bucată din drumul altcuiva.
-// Ruta fixată din listă, verificată pe urma săptămânii. Potrivirea geometrică rămâne, dar
-// numai ca VERIFICARE: spune dacă mașina chiar a mers pe ruta ei sau a făcut altceva.
-function repartizeazaDinLista(masina, candidati, S, RM) {
-  const fix = RM.get(masina);
-  if (!fix) return { alese: [], dupaLista: false };
-  const alese = [];
-  for (const tura of ['A', 'B']) {
-    const id = fix[tura]; if (!id) continue;
-    const r = S.rute.find(x => x.id === id);
-    if (!r || !r.etalon) continue;
-    const vazut = candidati.find(c => c.id === id);
-    alese.push({ id: r.id, tura, capat: fix.capat?.[tura] || r.capat, loc: r.loc,
-      etalon: r.etalon, capatC: r._capatC, confirmat: !!vazut,
-      acoperire: vazut ? vazut.acoperire : 0 });
+// Ce rută a dus fiecare mașină în săptămâna asta — decis de URMĂ, nu de listă.
+//
+// Ion, 24.09: «ruta nu este legată mort de mașină, Risipeni putea altă mașină să facă ruta».
+// Lista confirmată pe 23.09 rămâne, dar ca AȘTEPTARE, nu ca adevăr: ea înclină balanța când
+// urma e la fel de bună pentru două rute, și atât. Dacă mașina a dus în săptămâna aia altceva,
+// raportul spune altceva, iar nepotrivirea cu lista e informație, nu greșeală.
+//
+// Repartiția e globală, fiindcă o rută o duce o singură mașină pe schimb: altfel A5 Gherman,
+// scurtă și pe șoseaua comună, ieșea «dusă» de șase mașini deodată.
+const BONUS_LISTA = 1.25;   // cât cântărește mai mult ruta așteptată, la acoperire egală
+
+function repartizeazaPeUrma(candidati, RM) {
+  const toti = [];
+  for (const [masina, lista] of candidati) {
+    const fix = RM.get(masina);
+    for (const r of lista) {
+      const asteptat = !!fix && fix[r.tura] === r.id;
+      toti.push({ masina, ...r, asteptat, scor: r.acoperire * r.etalon * (asteptat ? BONUS_LISTA : 1) });
+    }
   }
-  return { alese, dupaLista: true };
+  toti.sort((a, b) => b.scor - a.scor);
+  const luate = new Set(), ocupat = new Set(), out = new Map();
+  for (const c of toti) {
+    if (luate.has(c.id)) continue;                       // ruta e deja a altei mașini
+    if (ocupat.has(`${c.masina}|${c.tura}`)) continue;    // mașina are deja rută pe tura asta
+    luate.add(c.id); ocupat.add(`${c.masina}|${c.tura}`);
+    if (!out.has(c.masina)) out.set(c.masina, []);
+    out.get(c.masina).push(c);
+  }
+  for (const [, lista] of out) lista.sort((a, b) => a.tura.localeCompare(b.tura));
+  return out;
 }
 
 function repartizeaza(candidati) {
@@ -630,6 +655,7 @@ for (const v of flota) {
   candidati.set(v.masina, rutePotrivite(v, S));
 }
 const RM = citesteRuteMasini();
+const repartitie = repartizeazaPeUrma(candidati, RM);
 
 for (const v of auLucrat) {
   const zile = [...v.kmZi.keys()].filter(inSapt);
@@ -639,8 +665,9 @@ for (const v of auLucrat) {
   const lk = tip ? LEI_TIP[tip] : null;
 
   const cand = candidati.get(v.masina) || [];
-  const { alese, dupaLista } = repartizeazaDinLista(v.masina, cand, S, RM);
+  const alese = repartitie.get(v.masina) || [];
   const toate = cand;
+  const fix = RM.get(v.masina);
   for (const r of alese) ruteFolosite.add(r.id);
   // se lucrează numai pe punctele săptămânii: citirea aduce o zi în plus de fiecare parte,
   // ca fereastra de 03:00 să fie întreagă, dar ele nu intră în socoteală
@@ -670,14 +697,24 @@ for (const v of auLucrat) {
       km_zi: +azi.toFixed(1) });
     continue;                       // n-a lucrat aici — nu-i mașină de-a uzinei, nu intră în raport
   }
-  if (!dupaLista) rec.steaguri.push('nu e în lista de rute pe mașini — nu știm ce rute ar trebui să facă');
-  for (const r of alese) if (!r.confirmat) rec.steaguri.push(
-    `ruta ei ${r.id} ${r.capat} nu se vede în urma săptămânii — ori n-a făcut-o, ori a mers altfel`);
+  // nepotrivirea cu lista e informație, nu greșeală: rutele se mută între mașini
+  for (const r of alese) if (fix && fix[r.tura] && fix[r.tura] !== r.id) rec.steaguri.push(
+    `pe tura ${r.tura} a dus ${r.id} ${r.capat}, nu ${fix[r.tura]} cum era în listă ` +
+    `(urma o acoperă ${Math.round(r.acoperire * 100)}%) — rutele se mută între mașini, ` +
+    'lista e doar așteptarea');
+  for (const tura of ['A', 'B']) if (fix?.[tura] && !alese.some(r => r.tura === tura))
+    rec.steaguri.push(`pe tura ${tura} n-am găsit nicio rută din schelet în urma ei` +
+      ` (era așteptată ${fix[tura]})`);
   // pragul e mult mai sus decât la potrivirea obișnuită: o rută scurtă de lângă uzină e atinsă
   // de aproape toată lumea, iar steagul ăsta trebuie să însemne «chiar a dus altă rută»
   // A5 Gherman (25 km) ieșea 100% la toată lumea: forma ei stă în întregime pe șoseaua spre
   // Ungheni, pe care merge oricine. Rutele scurte nu pot fi deosebite de drumul comun, deci
   // steagul se dă numai pe rute lungi, care chiar ies din corider.
+  for (const r of alese) { const sch = S.rute.find(x => x.id === r.id);
+    if (sch?._forma != null && sch._forma < 0.8) rec.steaguri.push(
+      `forma rutei ${r.id} ${r.capat} e ruptă în schelet: are ${n1(sch._forma * r.etalon)} km ` +
+      `desenați la un etalon de ${n1(r.etalon)} — kilometrii de pe ea nu se pot atribui, ` +
+      'de aici cei «neatribuiți» de mai sus. Se repară scheletul, nu mașina.'); }
   const straine = toate.filter(t => !alese.some(a => a.id === t.id) && t.acoperire >= 0.9 && t.etalon >= 35)
     .map(t => `${t.id} (${Math.round(t.acoperire * 100)}%)`);
   if (straine.length) rec.steaguri.push(

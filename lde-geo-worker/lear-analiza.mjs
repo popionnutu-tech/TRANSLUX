@@ -139,6 +139,15 @@ function grila(pts) {
   for (const p of pts) { const k = cheie(p.lat, p.lon); if (!g.has(k)) g.set(k, []); g.get(k).push(p); }
   return g;
 }
+// punctele din grilă aflate în rază — ca să putem număra, nu doar întreba dacă există unul
+function inRaza(g, pct, raza) {
+  const out = []; const ci = Math.floor(pct[0] / PAS), cj = Math.floor(pct[1] / PAS);
+  for (let i = ci - 1; i <= ci + 1; i++) for (let j = cj - 1; j <= cj + 1; j++) {
+    const cel = g.get(`${i}|${j}`); if (!cel) continue;
+    for (const p of cel) if (hav(p, { lat: pct[0], lon: pct[1] }) <= raza) out.push(p);
+  }
+  return out;
+}
 function aproape(g, pct, raza) {
   const ci = Math.floor(pct[0] / PAS), cj = Math.floor(pct[1] / PAS);
   for (let i = ci - 1; i <= ci + 1; i++) for (let j = cj - 1; j <= cj + 1; j++) {
@@ -310,8 +319,22 @@ const R_TRUNCHI = 8;       // km de poartă — mai aproape, satele sunt ale tut
 const R_CASA_EXCL = 3;     // km — satul de acasă nu dovedește nimic (3, nu 2: 189OMM doarme la
                            // Sărata Nouă, 2,1 km de Călugăr, și «oprea» acolo în fiecare zi)
 const R_DE_FORMA = 2.5;    // km — mai departe de forma rutei, satul nu-i pe drumul ei
+// O oprire adevărată ține, o clipă la intersecție nu. 189OMM la Călugăr: un singur punct sub 4
+// noduri, cu următorul punct la 7 s — a trecut; la Gherman și Sculeni, unde chiar ia oameni,
+// 5–8 puncte lente pe 150–340 s. Ion, 24.09: «el nu putea face Călugăr, altă mașină a făcut».
+// Nu se numără punctele (189OMM scrie la 7 s, 320BRAT la 20 s), ci TIMPUL stat încet: fiecare
+// punct lent acoperă intervalul până la punctul următor al urmei, plafonat la un minut.
+const OPRIRE_SEC = 20;
+function eOprire(gLent, cc) {
+  const vaz = new Set();
+  for (const c of cc) for (const p of inRaza(gLent, c, 0.8)) vaz.add(p);
+  let sec = 0; for (const p of vaz) sec += Math.min(p.dt ?? 0, 60);
+  return sec >= OPRIRE_SEC;
+}
 function rutePotrivite(v, S, casaC, fix) {
   const g = grila(v.pts);
+  // cât acoperă fiecare punct: până la următorul (pentru timpul stat încet în sat)
+  for (let i = 0; i + 1 < v.pts.length; i++) v.pts[i].dt = (v.pts[i + 1].t - v.pts[i].t) / 1000;
   const trips = curse(v.pts).map(c => ({ ...c, g: grila(c.pts),
     gLent: grila(c.pts.filter(p => p.v <= V_LENT)),
     laPoarta: c.pts.some(p => hav(p, POARTA) <= R_POARTA),
@@ -376,9 +399,14 @@ function rutePotrivite(v, S, casaC, fix) {
     // Nomenclatoarele nu se suprapun: A4 are Călugăr, A5 are Gherman, Sculeni, Blindești.
     // Un sat = mai multe puncte: locurile știute pentru nume PLUS proiecția fiecăruia pe drum.
     // Autobuzul oprește ori în sat (Doltu), ori la șosea (Fălești) — o oprire la oricare ajunge.
-    let sateProba = r.sate.map(n => ({ n, cc: coordSatToate(S, n).filter(c =>
-      hav({ lat: c[0], lon: c[1] }, POARTA) > trunchi &&
-      (!casaC || hav({ lat: c[0], lon: c[1] }, { lat: casaC[0], lon: casaC[1] }) > R_CASA_EXCL)) }))
+    // Satul de acasă iese CU TOTUL, nu punct cu punct: Călugăr are un punct în schelet și altul pe
+    // hartă, iar cel de pe hartă stătea la 3,2 km de Sărata Nouă, unde doarme 189OMM — și
+    // «oprirea la Călugăr» era plecarea ei de acasă. Ion, 24.09: «el nu putea face Călugăr, altă
+    // mașină a făcut». Dacă oricare punct al satului e lângă casă, satul e al casei.
+    const eAcasa = (cc) => !!casaC && cc.some(c => hav({ lat: c[0], lon: c[1] }, { lat: casaC[0], lon: casaC[1] }) <= R_CASA_EXCL);
+    let sateProba = r.sate.map(n => ({ n, cc: coordSatToate(S, n) }))
+      .filter(x => !eAcasa(x.cc))
+      .map(x => ({ n: x.n, cc: x.cc.filter(c => hav({ lat: c[0], lon: c[1] }, POARTA) > trunchi) }))
       .map(x => { const pf = x.cc.map(peForma).filter(Boolean); return { n: x.n, cc: [...x.cc, ...pf] }; })
       .filter(x => x.cc.length);
     // rută scurtă, cu toate satele în trunchi (B9 Cetireni): capătul ei e singura probă
@@ -405,11 +433,13 @@ function rutePotrivite(v, S, casaC, fix) {
       // Se cer opriri în două din satele prin care cursa CHIAR trece; dacă trece doar printr-unul
       // (B11: Grozasca și Grozasca Veche stau lângă drum, nu pe el), într-acela. Prin niciunul —
       // a ajuns la capăt pe alt drum, nu-i cursa asta.
-      let lente = 0, trecute = 0; const vaz = new Set();
+      let lente = 0, trecute = 0; const vaz = new Set(); const sec = [];
       for (const x of sateProba) { if (vaz.has(x.n)) continue;
         if (!x.cc.some(q => aproape(c.g, q, 0.8))) continue;
         trecute++;
-        if (x.cc.some(q => aproape(c.gLent, q, 0.8))) { lente++; vaz.add(x.n); } }
+        if (spune) { const w = new Set(); for (const q of x.cc) for (const p of inRaza(c.gLent, q, 0.8)) w.add(p);
+          let sx = 0; for (const p of w) sx += Math.min(p.dt ?? 0, 60); sec.push(`${x.n} ${sx.toFixed(0)}s`); }
+        if (eOprire(c.gLent, x.cc)) { lente++; vaz.add(x.n); } }
       // Câte opriri dovedesc cursa:
       //  · capătul e locul unde a ÎNTORS (nu s-a dus mai departe) → una ajunge: acolo s-a dus
       //    pentru rută. 320BRAT ia de pe B15 doar la Bumbăta, restul îi ia 032BRAT din drum.
@@ -420,7 +450,7 @@ function rutePotrivite(v, S, casaC, fix) {
       //  · doarme chiar la capăt → două, oricum (vezi mai sus).
       const dincolo = c.depMax > dCap + 3;
       const cerute = casaLaCapat ? 2 : (!dincolo || asteptat) ? 1 : 2;
-      if (spune) spune(`    cursă ${local(c.pts[0].t).toISOString().slice(5, 16).replace('T', ' ')}: trece prin ${trecute}, oprește în ${[...vaz].join(', ') || 'niciun sat'}${dincolo ? ', merge dincolo de capăt' : ''} → ${lente >= cerute ? 'DESERVITĂ' : 'nu'}`);
+      if (spune) spune(`    cursă ${local(c.pts[0].t).toISOString().slice(5, 16).replace('T', ' ')}: trece prin ${trecute} (${sec.join(', ')}), oprește în ${[...vaz].join(', ') || 'niciun sat'}${dincolo ? ', merge dincolo de capăt' : ''} → ${lente >= cerute ? 'DESERVITĂ' : 'nu'}`);
       if (lente >= cerute) { deservite++; lenteTotal += lente; curseIdx.push(ci); }
     }
     if (spune) spune(`  → ${deservite} curse deservite`);
@@ -894,7 +924,10 @@ for (const v of auLucrat) {
       if (t.tura !== a.tura || t.id === a.id || alese.some(x => x.id === t.id) || t.curse < CURSE_MIN_IMPARTIT) continue;
       if (capatPeDrum(a, t)) continue;
       const comune = (t.curseIdx || []).filter(i => (a.curseIdx || []).includes(i));
-      if (comune.length < 0.5 * t.curse) continue;
+      // Comasarea schimbă etalonul, deci banii: se cere MAJORITATEA curselor rutei alese, nu trei
+      // la întâmplare. 189OMM stătea 30–50 s la Călugăr pe 3 curse din 9 (un stop la intersecție)
+      // și ieșea «A5 comasată cu A4», cu etalonul 64 km — Ion: «el nu putea face Călugăr».
+      if (comune.length < CURSE_MIN_IMPARTIT || comune.length < 0.5 * t.curse || comune.length < 0.5 * a.curse) continue;
       (a.comasat ??= []).push(t.id);
       // Etalonul turei: drumul comasat e cel puțin cât ruta mai lungă din schelet — dar nu mai
       // mult decât face mașina de fapt. A4 Călugăr are în schelet 68,2 km (buclă prin patru

@@ -60,15 +60,16 @@ function snapOn(p: LatLon, line: LatLon[]): { at: LatLon; seg: number } {
 const snap = (p: LatLon, line: LatLon[]): LatLon => snapOn(p, line).at;
 
 /**
- * Încotro merge rutiera pe ecran: linia e în ordinea opririlor spre Chișinău, deci spre nord
- * se merge înapoi pe ea. Pe segmentul pe care stă mașina, estul = parbrizul în dreapta.
+ * Încotro merge rutiera, în grade pe ecran (0 = spre dreapta, 90 = în jos): linia e în
+ * ordinea opririlor spre Chișinău, deci spre nord se merge înapoi pe ea. Câteva segmente
+ * înainte și înapoi, ca o curbă mică să nu întoarcă săgeata. null = mașina nu e pe linie.
  */
-function facesLeft(line: LatLon[], seg: number, goingNorth: boolean): boolean {
-  if (seg < 1) return false;
-  // Câteva segmente înainte și înapoi: o curbă mică nu întoarce mașina.
-  const a = line[Math.max(0, seg - 4)], b = line[Math.min(line.length - 1, seg + 3)];
-  const east = b[1] - a[1];
-  return goingNorth ? east > 0 : east < 0;
+function heading(line: LatLon[], seg: number, goingNorth: boolean): number | null {
+  if (seg < 1) return null;
+  let a = line[Math.max(0, seg - 4)], b = line[Math.min(line.length - 1, seg + 3)];
+  if (goingNorth) [a, b] = [b, a];
+  const k = Math.cos((a[0] * Math.PI) / 180);
+  return (Math.atan2(-(b[0] - a[0]), (b[1] - a[1]) * k) * 180) / Math.PI;
 }
 
 /** «37369384765» → «+373 69 384 765» (Ion, 23.09: mereu +373, ca să sune și de peste hotare). */
@@ -91,19 +92,11 @@ const TXT = {
 
 const NO_ROUTES: Record<number, RouteLine> = {};
 
-/**
- * Microbuz tip Sprinter, din lateral, botul la dreapta: caroserie înaltă, bot înclinat,
- * geamuri cu stâlpi, far, roți. Culorile vin din CSS (.now-bus / .now-bus.on), ca aceeași
- * formă să fie albă cu contur pentru celelalte curse și roșie pentru cea aleasă.
- */
-const MINIBUS_SVG = `<svg viewBox="0 0 84 42" width="84" height="42" aria-hidden="true">
-<path class="mb-body" d="M6 9.5Q6 5 10.5 5H58q4 0 6.6 3L75 20.5q3 3.2 3 7.5V32q0 2.5-2.5 2.5H8.5Q6 34.5 6 32Z"/>
-<path class="mb-glass" d="M10.5 9.5Q10.5 8.5 11.5 8.5H57.5q2 0 3.3 1.6L69 19.5H10.5Z"/>
-<path class="mb-post" d="M24 8.5V19.5M37.5 8.5V19.5M51 8.5V19.5"/>
-<rect class="mb-light" x="73" y="23" width="4" height="3" rx="1"/>
-<circle class="mb-wheel" cx="21" cy="34.5" r="5.2"/><circle class="mb-wheel" cx="63" cy="34.5" r="5.2"/>
-<circle class="mb-hub" cx="21" cy="34.5" r="1.8"/><circle class="mb-hub" cx="63" cy="34.5" r="1.8"/>
-</svg>`;
+/** Microbuzul văzut din față, în cercul insignei (varianta C, aleasă de Ion pe 24.09). */
+const BUS_FRONT_SVG = `<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1" y="1" width="18" height="15" rx="3"/><path d="M1 9h18M5 16v3M15 16v3"/><circle cx="5.5" cy="12.5" r=".8" fill="currentColor"/><circle cx="14.5" cy="12.5" r=".8" fill="currentColor"/></svg>`;
+
+/** Săgeata de pe marginea insignei, desenată spre dreapta; o rotește unghiul de mers. */
+const ARROW_SVG = `<svg viewBox="-22 -22 44 44" width="44" height="44" aria-hidden="true"><path d="M25 0 L15 -8.5 L15 8.5 Z"/></svg>`;
 
 const PHONE_SVG = (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z" /></svg>
@@ -173,14 +166,14 @@ function NowMap({ trips, routes, selected, onPick }: { trips: NowTrip[]; routes:
         const own = t.route_id != null ? routes[t.route_id]?.shape : undefined;
         const s = own ? snapOn([t.lat, t.lon], own) : { at: [t.lat, t.lon] as LatLon, seg: -1 };
         const at = s.at;
-        // Fața rutierei spre direcția de mers (Ion, 23.09: «маршрутка должна быть в сторону
-        // направления, куда едет морда»). Doar oglindit stânga/dreapta: ora rămâne de citit.
-        const left = own ? facesLeft(own, s.seg, t.going_north) : false;
+        // Insigna rotundă cu microbuzul și săgeata spre direcția de mers, ora alături (varianta C
+        // aleasă de Ion pe 24.09; 23.09: «маршрутка должна быть в сторону направления, куда едет
+        // морда»). Săgeata se rotește pe orice unghi; ora rămâne dreaptă, de citit.
+        const deg = own ? heading(own, s.seg, t.going_north) : null;
+        const arrow = deg == null ? '' : `<span class="nb-arrow" style="transform:rotate(${deg.toFixed(0)}deg)">${ARROW_SVG}</span>`;
         const icon = L.divIcon({
-          // Microbuzul văzut din lateral, cu ora pe caroserie (Ion, 23.09: «fă un microbuz mai
-          // stilat, acesta nu se înțelege»). Se oglindește doar desenul, nu și ora.
-          html: `<span class="now-bus${on ? ' on' : ''}${left ? ' left' : ''}">${MINIBUS_SVG}<b>${t.eta ? `~${t.eta}` : t.departure}</b></span>`,
-          className: 'now-pin-icon', iconSize: [84, 42], iconAnchor: [42, 34],
+          html: `<span class="now-bus${on ? ' on' : ''}">${arrow}<span class="nb-dot">${BUS_FRONT_SVG}</span><b>${t.eta ? `~${t.eta}` : t.departure}</b></span>`,
+          className: 'now-pin-icon', iconSize: [44, 44], iconAnchor: [22, 22],
         });
         L.marker(at, { icon, keyboard: false, title: t.departure, zIndexOffset: on ? 1000 : 0 })
           .on('click', () => onPick(i))
@@ -329,20 +322,16 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
 .now-row.on .now-num{font-size:18px;font-weight:700;margin-top:6px}
 .now-row.on .now-call{width:52px;height:52px;background:#fff;color:${RED};box-shadow:0 4px 12px rgba(0,0,0,.18);align-self:flex-end}
 .now-pin-icon{background:none!important;border:none!important}
-.now-bus{position:relative;display:block;width:84px;height:42px;cursor:pointer;filter:drop-shadow(0 2px 3px rgba(0,0,0,.22))}
-.now-bus svg{position:absolute;inset:0;overflow:visible}
-.now-bus.left svg{transform:scaleX(-1)}
-.now-bus .mb-body{fill:#fff;stroke:${RED};stroke-width:2}
-.now-bus .mb-glass{fill:#2E2A33}
-.now-bus .mb-post{stroke:#fff;stroke-width:1.6}
-.now-bus .mb-light{fill:#F2B84B}
-.now-bus .mb-wheel{fill:#231A1C;stroke:#fff;stroke-width:1.6}
-.now-bus .mb-hub{fill:#C9C2C4}
-.now-bus b{position:absolute;left:10px;right:10px;top:20px;height:13px;display:flex;align-items:center;justify-content:center;font:800 11.5px/1 var(--font-opensans),Open Sans,sans-serif;letter-spacing:.02em;color:${RED}}
-.now-bus.on .mb-body{fill:${RED};stroke:#fff}
-.now-bus.on .mb-glass{fill:#3A0D16}
-.now-bus.on b{color:#fff}
-.now-bus.on{filter:drop-shadow(0 0 6px rgba(155,27,48,.45)) drop-shadow(0 2px 3px rgba(0,0,0,.25))}
+.now-bus{position:relative;display:block;width:44px;height:44px;cursor:pointer}
+.now-bus .nb-arrow{position:absolute;inset:0;transform-origin:50% 50%}
+.now-bus .nb-arrow svg{display:block;overflow:visible;fill:${RED};stroke:#fff;stroke-width:2;stroke-linejoin:round;filter:drop-shadow(0 1px 2px rgba(0,0,0,.25))}
+.now-bus .nb-dot{position:absolute;left:7px;top:7px;width:30px;height:30px;box-sizing:border-box;border-radius:50%;background:#fff;border:2.5px solid ${RED};color:${RED};display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.2)}
+.now-bus .nb-dot svg{width:15px;height:15px}
+.now-bus b{position:absolute;left:52px;top:50%;transform:translateY(-50%);height:24px;padding:0 10px;display:flex;align-items:center;border-radius:12px;background:#fff;border:1.5px solid #E3D4D7;color:#5A3A40;font:700 12px/1 var(--font-opensans),Open Sans,sans-serif;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.12)}
+.now-bus.on::before{content:"";position:absolute;inset:-9px;border-radius:50%;background:rgba(155,27,48,.16)}
+.now-bus.on .nb-dot{left:3px;top:3px;width:38px;height:38px;border:3px solid #fff;background:${RED};color:#fff}
+.now-bus.on .nb-dot svg{width:19px;height:19px}
+.now-bus.on b{height:26px;border:2px solid ${RED};color:${RED};font-weight:800;font-size:13px}
 .now-end{display:block;width:16px;height:16px;border-radius:50%;box-sizing:border-box;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)}
 .now-end.from{background:#231A1C}
 .now-end.to{background:#fff;border:4px solid ${RED}}

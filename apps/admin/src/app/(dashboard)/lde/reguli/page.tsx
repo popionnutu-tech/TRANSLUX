@@ -48,10 +48,12 @@ export default async function LdeReguliPage({
           key={u.id}
           href={u.href}
           aria-current={u.id === alese ? 'page' : undefined}
+          // culoarea inline: `.dashboard a` din globals.css bate clasele de text
+          style={{ color: u.id === alese ? '#fff' : 'var(--text-secondary)' }}
           className={`rounded-md border px-3! py-1! text-[12px] font-semibold no-underline ${
             u.id === alese
-              ? 'border-transparent bg-[var(--primary)] text-white'
-              : 'border-neutral-200 text-neutral-500 dark:border-neutral-700'
+              ? 'border-transparent bg-[var(--primary)]'
+              : 'border-neutral-200 dark:border-neutral-700'
           }`}
         >{u.nume}</Link>
       ))}
@@ -70,11 +72,11 @@ export default async function LdeReguliPage({
       return { luni: w.luni, eticheta: eticheta(w.luni, w.duminica) };
     });
     return (
-      <>
+      <div style={{ contain: 'inline-size' }}>
         {nav}
         <RaportSebn s={{ luni, duminica, rows, brambura, pretMotorina, leiImplicit: LEI_PE_KM, alegeri }} />
         <ReguliSebnClient date={date} />
-      </>
+      </div>
     );
   }
 

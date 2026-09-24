@@ -46,9 +46,10 @@ export default function RaportSebn({ s }: { s: SaptSebn }) {
         {s.alegeri.map((a) => (
           <Link key={a.luni} href={`/lde/reguli?uz=sebn&saptamina=${a.luni}`}
             aria-current={a.luni === s.luni ? 'page' : undefined}
+            style={{ color: a.luni === s.luni ? '#fff' : 'var(--text-secondary)' }}
             className={`rounded-md border px-2.5! py-0.5! text-[11.5px] no-underline ${a.luni === s.luni
-              ? 'border-transparent bg-neutral-800 text-white dark:bg-neutral-200 dark:text-neutral-900'
-              : 'border-neutral-200 text-neutral-500 dark:border-neutral-700'}`}>{a.eticheta}</Link>
+              ? 'border-transparent bg-[var(--primary)]'
+              : 'border-neutral-200 dark:border-neutral-700'}`}>{a.eticheta}</Link>
         ))}
       </nav>
 

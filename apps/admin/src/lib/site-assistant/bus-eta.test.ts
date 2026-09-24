@@ -70,3 +70,11 @@ describe('typicalOffset / typicalLeg — ora reală din treceri', () => {
     expect(typicalLeg(rows, 10, 20)).toBe(33);
   });
 });
+
+describe('typicalOffset — abaterea uriașă nu se crede', () => {
+  it('peste 45 min rămâne graficul', () => {
+    const rows = ['2026-09-18', '2026-09-19', '2026-09-20', '2026-09-21', '2026-09-22']
+      .map((date) => ({ date, stop_order: 5, passed_at: `${date}T10:00:00Z`, offset_min: -60 }));
+    expect(typicalOffset(rows, 5, '2026-09-23')).toBeNull();
+  });
+});

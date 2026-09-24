@@ -186,10 +186,15 @@ export function typicalOffset(rows: PassRow[], stopOrder: number, today: string)
   const mine = rows.filter((r) => r.stop_order === stopOrder);
   const since = new Date(Date.parse(`${today}T12:00:00Z`) - RECENT_DAYS * 86_400_000).toISOString().slice(0, 10);
   const recent = mine.filter((r) => r.date >= since);
-  if (recent.length >= MIN_RECENT) return Math.round(median(recent.map((r) => r.offset_min)));
-  if (mine.length >= MIN_ALL) return Math.round(median(mine.map((r) => r.offset_min)));
-  return null;
+  const off = recent.length >= MIN_RECENT ? median(recent.map((r) => r.offset_min))
+    : mine.length >= MIN_ALL ? median(mine.map((r) => r.offset_min)) : null;
+  // Abaterea uriașă spune mai degrabă că mașina a mers pe altă cursă decât că rutiera
+  // vine cu o oră mai devreme: nu riscăm să trimitem omul în stație degeaba — rămâne graficul.
+  if (off == null || Math.abs(off) > MAX_OFFSET_MIN) return null;
+  return Math.round(off);
 }
+/** Peste atât, abaterea tipică nu se crede (24.09: 11 opriri din 1778, toate curse încurcate). */
+export const MAX_OFFSET_MIN = 45;
 
 /** Durata tipică (minute) de la oprirea A la oprirea B, din zilele în care s-au prins amândouă. */
 export function typicalLeg(rows: PassRow[], a: number, b: number): number | null {

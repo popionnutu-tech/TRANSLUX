@@ -20,7 +20,11 @@ const WRITE = args.includes('--write');
 const PASS_M = 1000;         // față de punctul opririi pe linia rutei; linia (route_shapes) nu calcă exact pe drumul real
 const WINDOW_MIN = 120;      // căutăm trecerea în ±2 h față de grafic
 const LEAVE_M = 150;        // «încă la oprire»: rutiera care stă în gară e la sub atât de peron
-const BACK_MIN = 5;          // o trecere mai devreme decât precedenta cu atât = altă cursă, se aruncă
+const ORIGIN_MAX_MIN = 25;  // plecarea din capăt mai departe de grafic decât atât = altă cursă, ziua nu intră
+// Gările, unde rutiera stă la peron și contează plecarea (aceleași ca STATII din route-shapes.mjs).
+const normName = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[şș]/g, 's').replace(/[ţț]/g, 't').trim();
+const GARI = new Set(['chisinau', 'balti', 'edinet', 'briceni', 'lipcani', 'ocnita', 'riscani']);
+const BACK_MIN = 5;         // o trecere mai devreme decât precedenta cu atât = altă cursă, se aruncă
 const DIAG = args.includes('--diag');
 const diag = [];
 
@@ -142,7 +146,7 @@ for (let day = FROM; day <= TO; day = addDays(day, 1)) {
   const dayFrom = chisinauInstant(day, '03:00');
   const dayTo = new Date(chisinauInstant(addDays(day, 1), '06:00'));
   const rows = [];
-  let tries = 0, found = 0;
+  let tries = 0, found = 0, mismatched = 0;
 
   for (const s of shapes) {
     const route = routeById.get(s.crm_route_id);
@@ -167,41 +171,57 @@ for (let day = FROM; day <= TO; day = addDays(day, 1)) {
       if (!pts.length) continue;
       const first = hhmmMin(ordered[0].hour);
       let lastPass = null;
+      const tripRows = [];
       for (const st of ordered) {
         tries++;
         const nextDay = hhmmMin(st.hour) < first - 60;
         const sched = chisinauInstant(nextDay ? addDays(day, 1) : day, st.hour.padStart(5, '0'));
         const lo = sched.getTime() - WINDOW_MIN * 60000, hi = sched.getTime() + WINDOW_MIN * 60000;
-        let best = null;
+        // PRIMA trecere pe lângă oprire după oprirea precedentă, nu cea mai apropiată din toată
+        // fereastra: la capăt rutiera stă ore și trage la peron abia pentru cursa următoare
+        // (Chișinău ieșea +80…+113 min), iar satele de lângă capăt le mai trece o dată, la
+        // întoarcere (Peresecina +110). În trecerea găsită: punctul cel mai apropiat.
+        const isLast = st === ordered[ordered.length - 1];
+        const start = Math.max(lo, lastPass != null ? lastPass - BACK_MIN * 60000 : lo);
+        let best = null, firstNear = null, inRun = false, done = false;
+        const see = (d, t) => {
+          if (t < start || t > hi) return;
+          if (d <= PASS_M) {
+            inRun = true;
+            if (!best || d < best.d) best = { d, t };
+            if (d <= LEAVE_M && !firstNear) firstNear = { d, t };
+          } else if (inRun) done = true;
+        };
         // Pe segmentul dintre două poziții consecutive, nu doar pe poziții: trackerul
         // transmite rar, iar la 90 km/h două poziții pot fi la sute de metri distanță —
         // trecerea e pe segment, cu ora interpolată.
-        for (let k = 1; k < pts.length; k++) {
+        for (let k = 1; k < pts.length && !done; k++) {
           const p0 = pts[k - 1], p1 = pts[k];
           const t0 = p0.t.getTime(), t1 = p1.t.getTime();
-          if (t1 < lo) continue;
+          if (t1 < start) continue;
           if (t0 > hi) break;
           if (t1 - t0 > 5 * 60000) { // gaură în urmă: doar capetele, fără interpolare
-            for (const [p, t] of [[p0, t0], [p1, t1]]) {
-              const d = hav(p, st);
-              if (t >= lo && t <= hi && (!best || d < best.d)) best = { d, t };
-            }
+            see(hav(p0, st), t0);
+            if (!done) see(hav(p1, st), t1);
             continue;
           }
           const kx = Math.cos((st.lat * Math.PI) / 180);
           const dx = (p1.lon - p0.lon) * kx, dy = p1.lat - p0.lat, len2 = dx * dx + dy * dy;
           const u = len2 ? Math.max(0, Math.min(1, (((st.lon - p0.lon) * kx) * dx + (st.lat - p0.lat) * dy) / len2)) : 0;
           const q = { lat: p0.lat + u * dy, lon: p0.lon + (u * dx) / kx };
-          const t = t0 + u * (t1 - t0);
-          const d = hav(q, st);
-          if (t >= lo && t <= hi && (!best || d < best.d)) best = { d, t };
+          see(hav(q, st), t0 + u * (t1 - t0));
         }
         if (DIAG) diag.push(best ? best.d : -1);
-        if (!best || best.d > PASS_M) continue;
+        if (!best) continue;
+        // La capătul cursei contează SOSIREA: primul moment la peron.
+        if (isLast && firstNear) best = { d: best.d, t: firstNear.t };
         // Plecarea, nu sosirea: în gări rutiera stă la peron (Bălți, ruta 59: ajunge ~07:40,
         // pleacă ~08:10 după graficul de 08:15). Omul urcă la plecare, deci ora opririi e
         // ultimul moment în care autobuzul mai e la cel mult LEAVE_M de punctul cel mai apropiat.
-        {
+        // DOAR în gări și NICIODATĂ la ultima oprire a cursei: la capăt contează sosirea, iar
+        // rutiera stă acolo ore până la cursa următoare (Chișinău ieșea +70…+120 min); în sate
+        // «ultimul moment în apropiere» prindea o parcare, nu o plecare (Peresecina +110).
+        if (GARI.has(normName(st.name)) && !isLast) {
           const anchor = pts.find((p) => p.t.getTime() >= best.t) ?? null;
           if (anchor) {
             const ref = best.d <= LEAVE_M ? st : anchor;
@@ -220,18 +240,28 @@ for (let day = FROM; day <= TO; day = addDays(day, 1)) {
         if (lastPass && best.t < lastPass - BACK_MIN * 60000) continue;
         lastPass = best.t;
         found++;
-        rows.push({
+        tripRows.push({
           date: day, crm_route_id: s.crm_route_id, going_north: goingNorth, stop_order: st.stop_order,
           stop_name: st.name, scheduled: st.hour.padStart(5, '0'), passed_at: new Date(best.t).toISOString(),
           offset_min: Math.round((best.t - sched.getTime()) / 60000), distance_m: Math.round(best.d), vehicle_id: vid,
         });
       }
+      // Mașina din grafic a mers, de fapt, pe altă cursă: pleacă din capăt cu mult față de
+      // ora rutei (ruta 10, 23.09: din Chișinău la 08:15, graficul zice 08:50 — și așa toată
+      // cursa, 35–65 min). O rutieră nu pleacă din capăt cu jumătate de oră mai devreme;
+      // ziua asta nu spune nimic despre ruta asta și nu intră.
+      const head = tripRows.slice(0, 3).map((r) => r.offset_min).sort((a, b) => a - b);
+      if (head.length && Math.abs(head[Math.floor(head.length / 2)]) > ORIGIN_MAX_MIN) { mismatched++; continue; }
+      rows.push(...tripRows);
     }
   }
   totalRows += rows.length;
   const offs = rows.map((r) => r.offset_min).sort((a, b) => a - b);
   const med = offs.length ? offs[Math.floor(offs.length / 2)] : null;
-  console.log(`${day}: ${found}/${tries} opriri găsite, abatere mediană ${med} min`);
+  console.log(`${day}: ${found}/${tries} opriri găsite, ${mismatched} curse pe altă oră (scoase), abatere mediană ${med} min`);
+  // Ziua se rescrie întreagă: o cursă scoasă acum (altă oră, altă mașină) nu rămâne din
+  // rularea de ieri cu rândurile ei vechi.
+  if (WRITE) await rest(`route_stop_passes?date=eq.${day}`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
   if (WRITE && rows.length) {
     for (let i = 0; i < rows.length; i += 500) {
       await rest('route_stop_passes?on_conflict=date,crm_route_id,going_north,stop_order', {

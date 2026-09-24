@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { Raport, MasinaRand } from './actions';
 
 // Raportul săptămânal al celor trei reguli (ION-48). Regulile sunt ale lui Ion:
@@ -9,9 +10,10 @@ import type { Raport, MasinaRand } from './actions';
 //   3. nu pleacă acasă între schimburi — așteaptă la uzină
 // Ele se bat pe aceeași mașină și NU se adună: mașina ori doarme la uzină, ori acasă.
 //
-// Ion, 24.09: «când apăs pe mașină să se deschidă analitica». Deci rândul se deschide și arată
-// ziua în bare plus aritmetica, fiecare cifră scrisă ca adunare înainte de a fi folosită — a doua
-// lui observație din aceeași zi: «aici nu corect formula regula 1», unde lipsea pasul din mijloc.
+// Ion, 24.09: «când apăs pe mașină să se deschidă analitica». Rândul se deschide și arată
+// aritmetica, fiecare cifră scrisă ca adunare înainte de a fi folosită — «aici nu corect formula
+// regula 1», unde lipsea pasul din mijloc. Tot Ion, 24.09 (ION-51): barele zilei scoase («asta din
+// raport scoate»), aritmetica pusă pe coloane («aranjare easy going»), antetul refăcut («UX bun»).
 
 const n1 = (x: number | null | undefined) =>
   x == null ? '—' : (Math.round(x * 10) / 10).toFixed(1).replace('.', ',');
@@ -20,46 +22,42 @@ const n0 = (x: number | null | undefined) => (x == null ? '—' : Math.round(x).
 const ZI = (d: string) =>
   new Date(`${d}T00:00:00Z`).toLocaleDateString('ro-RO', { day: 'numeric', month: 'long' });
 
+// «14–20 septembrie», sau «31 august – 6 septembrie» când săptămâna trece de lună.
+function interval(de: string, pana?: string) {
+  const a = new Date(`${de}T00:00:00Z`);
+  const b = pana ? new Date(`${pana}T00:00:00Z`) : new Date(a.getTime() + 6 * 86400000);
+  const luna = (d: Date) => d.toLocaleDateString('ro-RO', { month: 'long', timeZone: 'UTC' });
+  return luna(a) === luna(b)
+    ? `${a.getUTCDate()}–${b.getUTCDate()} ${luna(b)}`
+    : `${a.getUTCDate()} ${luna(a)} – ${b.getUTCDate()} ${luna(b)}`;
+}
+
 const cel = (m: MasinaRand) => Math.max(m.r1?.lei ?? -1e9, m.r3?.lei ?? -1e9);
 
-function Bara({ titlu, total, parti, max }: {
-  titlu: string; total: number; max: number;
-  parti: [number, string, string][];
-}) {
-  const vizibile = parti.filter(([km]) => km > 0.05);
+const ROSU = 'text-[#9B1B30] dark:text-[#e0788c]';
+
+// Un pas de calcul pe trei coloane: ce e · cum se socoate · cât iese.
+function Pas({ et, calc, rez, tare }: { et: string; calc: React.ReactNode; rez: string; tare?: boolean }) {
   return (
-    <div className="mb-3">
-      <div className="mb-1 flex items-baseline justify-between gap-3">
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">{titlu}</span>
-        <b className="font-mono text-sm tabular-nums">{n1(total)} km</b>
-      </div>
-      <div className="flex h-4 overflow-hidden bg-neutral-200 dark:bg-neutral-700">
-        {vizibile.map(([km, cls], i) => (
-          <i key={i} className={cls} style={{ width: `${((km / max) * 100).toFixed(2)}%` }} />
-        ))}
-      </div>
-      <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[11.5px] text-neutral-500">
-        {vizibile.map(([km, cls, eticheta], i) => (
-          <span key={i}>
-            <em className={`mr-1.5 inline-block h-2.5 w-2.5 not-italic ${cls}`} />
-            {eticheta} <b className="font-mono text-neutral-900 dark:text-neutral-100">{n1(km)}</b>
-          </span>
-        ))}
-      </div>
+    <div className="grid grid-cols-[minmax(110px,150px)_1fr_auto] items-baseline gap-x-4 border-b border-dashed border-neutral-200 py-2 last:border-b-0 dark:border-neutral-700">
+      <span className="text-[12.5px] text-neutral-500">{et}</span>
+      <span className="font-mono text-[12.5px] tabular-nums text-neutral-600 dark:text-neutral-400">{calc}</span>
+      <b className={`whitespace-nowrap text-right font-mono tabular-nums ${tare ? `text-[17px] ${ROSU}` : 'text-[13px] font-semibold text-neutral-900 dark:text-neutral-100'}`}>{rez}</b>
     </div>
   );
 }
 
-function Mat({ children }: { children: React.ReactNode }) {
-  return <div className="mt-2 font-mono text-[12.5px] leading-7 tabular-nums text-neutral-500">{children}</div>;
+function Regula({ titlu, ales, children }: { titlu: string; ales: boolean; children: React.ReactNode }) {
+  return (
+    <div className={`rounded-lg border bg-white p-4 dark:bg-neutral-900 ${ales ? 'border-[#9B1B30] shadow-[0_0_0_1px_#9B1B30]' : 'border-neutral-200 dark:border-neutral-700'}`}>
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">{titlu}</span>
+        {ales && <span className="rounded bg-[#9B1B30] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide" style={{ color: '#fff' }}>aleasă</span>}
+      </div>
+      {children}
+    </div>
+  );
 }
-const Et = ({ children }: { children: React.ReactNode }) => (
-  <span className="mr-2 text-[9.5px] font-semibold uppercase tracking-wider opacity-70">{children}</span>
-);
-const Rez = ({ children }: { children: React.ReactNode }) => (
-  <b className="font-medium text-[#9B1B30] dark:text-[#e0788c]">{children}</b>
-);
-const Sep = () => <span className="mx-2 opacity-40">·</span>;
 
 function Panou({ m, zileLuna }: { m: MasinaRand; zileLuna: number }) {
   if (m.rutele_de_4 == null) {
@@ -67,68 +65,64 @@ function Panou({ m, zileLuna }: { m: MasinaRand; zileLuna: number }) {
   }
   const plin = m.rutele_de_4 / 2;
   const lu = m.alte_la_uzina ?? 0, pc = m.alte_la_parc ?? 0, ai = m.alte_aiurea ?? 0;
-  const golAzi = Math.max(0, m.azi - plin - (m.alte ?? 0));
-  const max = Math.max(m.azi, m.r1?.zi ?? 0, m.r3?.zi ?? 0);
-  const alteP: [number, string, string][] = [
-    [lu, 'bg-[#6e8fa8]', 'alte curse, pe la uzină'],
-    [pc, 'bg-[#9a8bb0]', 'drum la parcul de la Bălți — reparație'],
-    [ai, 'bg-[#8d8378]', 'alte curse, în afara lor'],
-  ];
   const et = m.rute.map((r) => n1(r.etalon)).join(' + ');
+  const care = (m.r1?.lei ?? -1e9) >= (m.r3?.lei ?? -1e9) ? 1 : 3;
+  const ales = cel(m) > 0;
   return (
-    <div className="p-4">
-      <Bara titlu="Cum a mers săptămâna trecută" total={m.azi} max={max}
-        parti={[[plin, 'bg-[#9B1B30]', 'cu oameni'], [golAzi, 'bg-[#c9a227]', 'gol — spre rute și spre casă'], ...alteP]} />
-      {m.r1 && <Bara titlu="Regula 1 — doarme la uzină" total={m.r1.zi} max={max}
-        parti={[[plin, 'bg-[#9B1B30]', 'cu oameni'], [plin, 'bg-[#c9a227]', 'gol pe rută, de la uzină'], ...alteP]} />}
-      {m.r3 && <Bara titlu="Regula 3 — nu pleacă acasă la prânz" total={m.r3.zi} max={max}
-        parti={[[plin, 'bg-[#9B1B30]', 'cu oameni'], [m.d_casa ?? 0, 'bg-[#2f6f68]', 'dimineața de acasă, seara spre casă'],
-          [m.d_uzina ?? 0, 'bg-[#c9a227]', 'la prânz, de la uzină'], ...alteP]} />}
+    <div className="space-y-4 p-4 sm:p-5">
+      <div className="rounded-lg border border-neutral-200 bg-white px-4 py-2 dark:border-neutral-700 dark:bg-neutral-900">
+        <div className="pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-neutral-500">Ziua ei, pe o zi de lucru</div>
+        <Pas et="Rutele" calc={m.rute.map((r) => `${r.id} ${n1(r.etalon)}`).join(' + ')} rez={`${n1(m.d_uzina)} km`} />
+        <Pas et="Cu oameni" calc={`2 × (${et})`} rez={`${n1(plin)} km`} />
+        <Pas et="Rutele de 4 ori" calc={`4 × (${et})`} rez={`${n1(m.rutele_de_4)} km`} />
+        <Pas et="Alte curse" calc={`${n1(lu)} pe la uzină + ${n1(pc)} la parc + ${n1(ai)} în afara lor`} rez={`${n1(m.alte)} km`} />
+        {m.d_casa_pe_capat && (
+          <Pas et="De acasă la capăt" calc={m.d_casa_pe_capat.map((x) => `${x.capat} ${n1(x.km)}`).join(' + ')} rez={`${n1(m.d_casa)} km`} />
+        )}
+        <Pas et="Azi a mers" calc="din urma GPS, media zilelor lucrate" rez={`${n1(m.azi)} km`} />
+      </div>
 
-      <Mat>
-        <Et>rutele</Et>{m.rute.map((r) => `${r.id} ${n1(r.etalon)}`).join(' + ')} = <Rez>{n1(m.d_uzina)} km</Rez>
-        <Sep /><Et>cu oameni</Et>2 × ({et}) = <Rez>{n1(plin)}</Rez>
-        <Sep /><Et>de 4 ori</Et>4 × ({et}) = <Rez>{n1(m.rutele_de_4)}</Rez>
-      </Mat>
-      <Mat>
-        <Et>alte curse</Et>{n1(lu)} pe la uzină + {n1(pc)} la parc + {n1(ai)} în afara lor = <Rez>{n1(m.alte)}</Rez>
-      </Mat>
-      {m.d_casa_pe_capat && (
-        <Mat>
-          <Et>de acasă</Et>{m.d_casa_pe_capat.map((x) => `${x.capat} ${n1(x.km)}`).join(' + ')} = <Rez>{n1(m.d_casa)} km</Rez>
-        </Mat>
-      )}
-      {m.r1 && (
-        <Mat>
-          <Et>regula 1</Et>ziua {n1(m.rutele_de_4)} + {n1(m.alte)} = <Rez>{n1(m.r1.zi)}</Rez>
-          <Sep />{n1(m.azi)} − {n1(m.r1.zi)} = <Rez>{n1(m.r1.km)} km/zi</Rez>
-          <Sep />× {n2(m.lei_km)} lei/km × {zileLuna} zile = <Rez>{n0(m.r1.lei)} lei/lună</Rez>
-        </Mat>
-      )}
-      {m.r3 && (
-        <Mat>
-          <Et>regula 3</Et>ziua {n1(plin)} + {n1(m.d_casa)} + {n1(m.d_uzina)} + {n1(m.alte)} = <Rez>{n1(m.r3.zi)}</Rez>
-          <Sep />{n1(m.azi)} − {n1(m.r3.zi)} = <Rez>{n1(m.r3.km)} km/zi</Rez>
-          <Sep />× {n2(m.lei_km)} lei/km × {zileLuna} zile = <Rez>{n0(m.r3.lei)} lei/lună</Rez>
-        </Mat>
-      )}
+      <div className="grid gap-4 md:grid-cols-2">
+        {m.r1 && (
+          <Regula titlu="Regula 1 · doarme la uzină" ales={ales && care === 1}>
+            <Pas et="Ziua nouă" calc={`${n1(m.rutele_de_4)} + ${n1(m.alte)}`} rez={`${n1(m.r1.zi)} km`} />
+            <Pas et="Se câștigă" calc={`${n1(m.azi)} − ${n1(m.r1.zi)}`} rez={`${n1(m.r1.km)} km/zi`} />
+            <Pas et="Pe lună" calc={`× ${n2(m.lei_km)} lei/km × ${zileLuna} zile`} rez={`${n0(m.r1.lei)} lei`} tare />
+          </Regula>
+        )}
+        {m.r3 && (
+          <Regula titlu="Regula 3 · nu pleacă acasă la prânz" ales={ales && care === 3}>
+            <Pas et="Ziua nouă" calc={`${n1(plin)} + ${n1(m.d_casa)} + ${n1(m.d_uzina)} + ${n1(m.alte)}`} rez={`${n1(m.r3.zi)} km`} />
+            <Pas et="Se câștigă" calc={`${n1(m.azi)} − ${n1(m.r3.zi)}`} rez={`${n1(m.r3.km)} km/zi`} />
+            <Pas et="Pe lună" calc={`× ${n2(m.lei_km)} lei/km × ${zileLuna} zile`} rez={`${n0(m.r3.lei)} lei`} tare />
+          </Regula>
+        )}
+      </div>
+
       {(m.locuri_aiurea ?? []).length > 0 && (
-        <>
-          <p className="mt-4 text-[13.5px]">
-            <b>Unde sunt kilometrii din afara uzinei.</b> Nu apar în lista de deplasări de jos fiindcă
-            aceea arată numai ieșirile de peste 15 km, iar aceștia se întâmplă aproape.
-          </p>
-          <div className="mt-1.5 overflow-x-auto">
-            <table className="text-[12px]">
+        <div className="rounded-lg border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900">
+          <div className="px-4 pb-1 pt-3">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">Unde sunt kilometrii din afara uzinei</div>
+            <p className="mt-0.5 text-[12px] text-neutral-500">Ieșiri scurte, sub 15 km — de aceea nu apar în lista de deplasări de jos.</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-[12.5px]">
+              <thead>
+                <tr className="text-[10px] uppercase tracking-wider text-neutral-500">
+                  {['Locul', 'km/zi', 'Ore', 'Zile', 'De la uzină', 'Când'].map((h, i) => (
+                    <th key={h} className={`px-4 py-1.5 font-semibold ${i > 0 && i < 5 ? 'text-right' : 'text-left'}`}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
               <tbody>
                 {(m.locuri_aiurea ?? []).map((x) => (
-                  <tr key={x.loc}>
-                    <td className="border-b border-neutral-200 p-1.5 pr-4 dark:border-neutral-700">{x.loc}</td>
-                    <td className="border-b border-neutral-200 p-1.5 pr-4 text-right font-mono tabular-nums dark:border-neutral-700">{n1(x.km_zi)} km/zi</td>
-                    <td className="border-b border-neutral-200 p-1.5 pr-4 text-right font-mono tabular-nums text-neutral-500 dark:border-neutral-700">{n1(x.ore)} h</td>
-                    <td className="border-b border-neutral-200 p-1.5 pr-4 text-right font-mono tabular-nums text-neutral-500 dark:border-neutral-700">{x.zile} zile</td>
-                    <td className="border-b border-neutral-200 p-1.5 pr-4 text-right font-mono tabular-nums text-neutral-500 dark:border-neutral-700">{n1(x.de_la_uzina)} km de uzină</td>
-                    <td className="border-b border-neutral-200 p-1.5 font-mono text-[11.5px] text-neutral-500 dark:border-neutral-700">
+                  <tr key={x.loc} className="border-t border-neutral-100 dark:border-neutral-800">
+                    <td className="px-4 py-1.5">{x.loc}</td>
+                    <td className="px-4 py-1.5 text-right font-mono tabular-nums">{n1(x.km_zi)}</td>
+                    <td className="px-4 py-1.5 text-right font-mono tabular-nums text-neutral-500">{n1(x.ore)} h</td>
+                    <td className="px-4 py-1.5 text-right font-mono tabular-nums text-neutral-500">{x.zile}</td>
+                    <td className="px-4 py-1.5 text-right font-mono tabular-nums text-neutral-500">{n1(x.de_la_uzina)} km</td>
+                    <td className="px-4 py-1.5 font-mono text-[11.5px] text-neutral-500">
                       {(x.cand ?? []).map((c) => `${String(c.ora).padStart(2, '0')}:00`).join(' · ')}
                     </td>
                   </tr>
@@ -136,14 +130,45 @@ function Panou({ m, zileLuna }: { m: MasinaRand; zileLuna: number }) {
               </tbody>
             </table>
           </div>
-        </>
+        </div>
       )}
       {m.km_baza && (
-        <p className="mt-3 text-[12.5px] text-neutral-500">
+        <p className="text-[12px] text-neutral-500">
           Controlul km: {n1(m.km_baza.km_aici)} km pe {m.zile_masurate} zile aici, {n1(m.km_baza.km)} pe{' '}
           {m.km_baza.zile} în <code className="bg-neutral-200 px-1 dark:bg-neutral-700">lde_vehicle_gps_daily</code> —{' '}
           {m.km_baza.dif > 0 ? '+' : ''}{n1(m.km_baza.dif)}%.
         </p>
+      )}
+    </div>
+  );
+}
+
+// Săptămâna se alege prin URL (?saptamina=), ca linkul către o săptămână să se poată trimite.
+// Lista vine de la cea mai nouă la cea mai veche: ‹ duce înapoi în timp, › înainte.
+function Saptamana({ activa, pana, saptamani }: { activa: string; pana: string; saptamani: string[] }) {
+  const router = useRouter();
+  const i = saptamani.indexOf(activa);
+  const mai_veche = i >= 0 ? saptamani[i + 1] : undefined;
+  const mai_noua = i > 0 ? saptamani[i - 1] : undefined;
+  const sageata = (s: string | undefined, semn: string, eticheta: string) => s
+    ? <Link href={`/lde/reguli?saptamina=${s}`} scroll={false} aria-label={eticheta}
+        className="flex h-9 w-9 items-center justify-center text-lg text-neutral-600 hover:bg-[#9B1B30]/[0.06] hover:text-[#9B1B30] dark:text-neutral-300">{semn}</Link>
+    : <span className="flex h-9 w-9 items-center justify-center text-lg text-neutral-300 dark:text-neutral-600" aria-hidden>{semn}</span>;
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex items-center overflow-hidden rounded-lg border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900">
+        {sageata(mai_veche, '‹', 'săptămâna dinainte')}
+        <span className="min-w-[170px] border-x border-neutral-200 px-3 text-center text-[13.5px] font-semibold leading-9 dark:border-neutral-700">
+          {interval(activa, pana)}
+        </span>
+        {sageata(mai_noua, '›', 'săptămâna următoare')}
+      </div>
+      {saptamani.length > 1 && (
+        <select value={activa} onChange={(e) => router.push(`/lde/reguli?saptamina=${e.target.value}`, { scroll: false })}
+          aria-label="Alege săptămâna"
+          className="h-9 rounded-lg border border-neutral-200 bg-white px-2 text-[12.5px] text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+          {saptamani.map((s) => <option key={s} value={s}>{interval(s)}</option>)}
+        </select>
       )}
     </div>
   );
@@ -154,32 +179,10 @@ export default function ReguliClient({ raport, saptamani = [] }: {
 }) {
   const [deschis, setDeschis] = useState<string | null>(null);
 
-  // Alegerea săptămânii stă sus, ca prim lucru după titlu. Ion, 24.09: «ar fi bine să fie alegere
-  // analitică pe săptămâni sus». Merge prin URL (?saptamina=), nu prin stare locală: linkul către
-  // o săptămână anume trebuie să se poată trimite mai departe.
-  const Saptamani = () => saptamani.length === 0 ? null : (
-    <div className="mb-5 flex flex-wrap items-center gap-1.5">
-      <span className="mr-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-500">Săptămâna</span>
-      {saptamani.map((s) => {
-        const activ = raport?.saptamina === s;
-        return (
-          <Link key={s} href={`/lde/reguli?saptamina=${s}`} scroll={false}
-            className={`border px-2.5 py-1 font-mono text-[12px] tabular-nums transition-colors ${
-              activ
-                ? 'border-[#9B1B30] bg-[#9B1B30] text-white'
-                : 'border-neutral-200 text-neutral-600 hover:border-[#9B1B30] hover:text-[#9B1B30] dark:border-neutral-700 dark:text-neutral-400'
-            }`}>
-            {ZI(s)}
-          </Link>
-        );
-      })}
-    </div>
-  );
-
   if (!raport) {
     return (
       <div className="p-8">
-        <h1 className="mb-2 text-2xl font-bold">Regulile de economie</h1>
+        <h1 className="mb-2 text-2xl font-bold">Raport livrări</h1>
         <p className="text-neutral-500">
           Nu există încă niciun raport în <code>lde_analiza_reguli</code>. Îl scrie duminică seara
           workerul <code>lear-analiza.mjs</code> de pe VPS.
@@ -191,41 +194,62 @@ export default function ReguliClient({ raport, saptamani = [] }: {
   const R = raport;
   const masini = [...R.masini].sort((a, b) => cel(b) - cel(a));
   const ctrl = R.total.control;
+  const r1Mai = (R.total.r1 ?? 0) >= (R.total.r3 ?? 0);
 
   return (
     <div className="mx-auto max-w-[1160px] p-4 sm:p-6">
-      <h1 className="text-[28px] font-bold leading-tight tracking-tight">Regulile de economie · {R.uzina}</h1>
-      <p className="mb-4 text-[13.5px] text-neutral-500">
-        {ZI(R.saptamina)} – {ZI(R.pana_la)} · comparat cu scheletul fixat pe {R.schelet_fixat} · rulat{' '}
-        {new Date(R.rulat_la).toLocaleString('ro-RO', { dateStyle: 'short', timeStyle: 'short' })} ·
-        apasă o mașină ca să-i vezi ziua desfăcută
-      </p>
-      <Saptamani />
+      <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-neutral-500">Raport livrări</p>
+          <h1 className="text-[28px] font-bold leading-tight tracking-tight">{R.uzina}</h1>
+          <p className="mt-1 text-[12.5px] text-neutral-500">
+            Comparat cu scheletul fixat pe {R.schelet_fixat} · rulat{' '}
+            {new Date(R.rulat_la).toLocaleString('ro-RO', { dateStyle: 'short', timeStyle: 'short' })}
+          </p>
+        </div>
+        <Saptamana activa={R.saptamina} pana={R.pana_la} saptamani={saptamani.length ? saptamani : [R.saptamina]} />
+      </header>
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-px border border-neutral-200 bg-neutral-200 dark:border-neutral-700 dark:bg-neutral-700">
+      <div className="grid gap-4 md:grid-cols-2">
         {[
-          ['regula 1 · la uzină', n0(R.total.r1), `lei pe lună · ${R.total.masini_r1} mașini`, true],
-          ['regula 3 · fără drumul de prânz', n0(R.total.r3), `lei pe lună · ${R.total.masini_r3} mașini`, false],
-          ['au lucrat la uzină', String(R.total.masini_uzina), 'cel puțin 4 zile la poartă', false],
-          ['deplasări peste 15 km', String(R.deplasari.length), 'în afara destinației de lucru', false],
-          ['controlul km', ctrl ? `${ctrl.dif > 0 ? '+' : ''}${n1(ctrl.dif)}%` : '—', 'față de workerul de noapte', false],
-        ].map(([et, val, sub, mare]) => (
-          <div key={et as string} className="bg-white p-3.5 dark:bg-neutral-900">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">{et}</span>
-            <b className={`block font-mono tabular-nums ${mare ? 'text-[30px] text-[#9B1B30] dark:text-[#e0788c]' : 'text-2xl'}`}>{val}</b>
-            <i className="mt-0.5 block text-[12.5px] not-italic text-neutral-500">{sub}</i>
+          { titlu: 'Regula 1 · mașina doarme la uzină', lei: R.total.r1, masini: R.total.masini_r1, mare: r1Mai },
+          { titlu: 'Regula 3 · nu pleacă acasă la prânz', lei: R.total.r3, masini: R.total.masini_r3, mare: !r1Mai },
+        ].map((k) => (
+          <div key={k.titlu} className={`rounded-xl border bg-white p-5 dark:bg-neutral-900 ${k.mare ? 'border-[#9B1B30]/40' : 'border-neutral-200 dark:border-neutral-700'}`}>
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">{k.titlu}</div>
+            <div className="mt-2 flex items-baseline gap-2">
+              <b className={`font-mono text-[34px] leading-none tabular-nums ${k.mare ? ROSU : 'text-neutral-900 dark:text-neutral-100'}`}>{n0(k.lei)}</b>
+              <span className="text-[13px] text-neutral-500">lei pe lună</span>
+            </div>
+            <div className="mt-2 text-[12.5px] text-neutral-500">{k.masini} mașini câștigă din ea</div>
+          </div>
+        ))}
+      </div>
+      <p className="mt-2 text-[12.5px] text-neutral-500">
+        Cele două reguli <b className="text-neutral-900 dark:text-neutral-100">nu se adună</b>: mașina ori doarme la uzină,
+        ori acasă. Pentru fiecare mașină, coloana «Alege» spune care îi convine.
+      </p>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        {[
+          ['Au lucrat la uzină', `${R.total.masini_uzina} mașini`, 'cel puțin 4 zile la poartă'],
+          ['Deplasări peste 15 km', String(R.deplasari.length), 'în afara destinației de lucru'],
+          ['Controlul km', ctrl ? `${ctrl.dif > 0 ? '+' : ''}${n1(ctrl.dif)}%` : '—', 'urma GPS față de workerul de noapte; peste 10% = steag'],
+        ].map(([et, val, sub]) => (
+          <div key={et} className="rounded-lg border border-neutral-200 bg-white px-4 py-3 dark:border-neutral-700 dark:bg-neutral-900">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-[12px] text-neutral-500">{et}</span>
+              <b className="font-mono text-[18px] tabular-nums">{val}</b>
+            </div>
+            <div className="mt-0.5 text-[11.5px] text-neutral-500">{sub}</div>
           </div>
         ))}
       </div>
 
-      <p className="mt-3 border-l-[3px] border-neutral-200 pl-4 text-[13.5px] text-neutral-500 dark:border-neutral-700">
-        Regulile 1 și 3 se bat pe aceeași mașină și <b className="text-neutral-900 dark:text-neutral-100">nu se adună</b> —
-        mașina ori doarme la uzină, ori acasă. Coloana din dreapta spune care îi convine fiecăreia.
-        Km-ii sunt socotiți de două coduri care nu se cunosc: aici, din urma GPS brută; în{' '}
-        <code>lde_vehicle_gps_daily</code>, de workerul de noapte. Mașina care se abate peste 10% primește steag.
-      </p>
-
-      <h2 className="mb-3 mt-9 text-xs font-bold uppercase tracking-widest text-neutral-500">Mașină cu mașină</h2>
+      <div className="mb-3 mt-9 flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-xs font-bold uppercase tracking-widest text-neutral-500">Mașină cu mașină</h2>
+        <span className="text-[12px] text-neutral-500">apasă un rând ca să vezi calculul</span>
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse border border-neutral-200 bg-white text-[13px] dark:border-neutral-700 dark:bg-neutral-900">
           <thead>
@@ -243,8 +267,8 @@ export default function ReguliClient({ raport, saptamani = [] }: {
               const desc = deschis === m.masina;
               const nr = 'border-b border-neutral-200 p-2 text-right font-mono tabular-nums dark:border-neutral-700';
               return (
-                <>
-                  <tr key={m.masina}
+                <Fragment key={m.masina}>
+                  <tr
                     onClick={() => setDeschis(desc ? null : m.masina)}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDeschis(desc ? null : m.masina); } }}
                     tabIndex={0} role="button" aria-expanded={desc}
@@ -295,7 +319,7 @@ export default function ReguliClient({ raport, saptamani = [] }: {
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               );
             })}
           </tbody>

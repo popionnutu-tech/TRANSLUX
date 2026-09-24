@@ -143,8 +143,19 @@ function NowMap({ trips, routes, selected, onPick }: { trips: NowTrip[]; routes:
       const g = layer.current!;
       g.clearLayers();
 
+      // Fiecare autobuz de pe hartă stă pe linia rutei lui (Ion, 24.09: «nu se văd liniuțele
+      // la unele rutiere» — se desena doar ruta cursei alese, iar pe o direcție curse diferite
+      // merg pe rute diferite, ex. Bălți → Chișinău: 2, 59, 6, 20). Liniile celorlalte, mai
+      // subțiri și mai pale, dedesubt; cea aleasă deasupra, cu capetele.
+      const selRoute = trips[selected]?.route_id ?? null;
+      const others = new Set(trips.filter((t) => t.lat != null && t.route_id != null && t.route_id !== selRoute).map((t) => t.route_id!));
+      for (const rid of others) {
+        const sh = routes[rid]?.shape;
+        if (sh?.length) L.polyline(sh, { color: RED, weight: 2, opacity: 0.4, dashArray: '4 7', lineCap: 'round', interactive: false }).addTo(g);
+      }
+
       // Linia fină a rutei alese și, pe ea, localitatea omului și destinația.
-      const route = trips[selected]?.route_id != null ? routes[trips[selected].route_id!] : undefined;
+      const route = selRoute != null ? routes[selRoute] : undefined;
       if (route?.shape.length) {
         // Întreruptă (Ion, 23.09: «linia să fie întreruptă»): e drumul rutei, nu urma GPS.
         L.polyline(route.shape, { color: RED, weight: 3, opacity: 0.8, dashArray: '6 7', lineCap: 'round', interactive: false }).addTo(g);

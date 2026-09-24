@@ -962,7 +962,7 @@ for (const v of auLucrat) {
   const casa = v._casa, casaC = v._casaC, casaDedusa = !!v._casaDedusa;
   // controlul casei se face la TOATE mașinile uzinei, în fiecare săptămână — ca greșeala lui
   // 043BRAU să nu se repete tăcut la alta; ce nu se potrivește ajunge jos, la «de verificat»
-  if (rec.a_uzinei && v._casaBaza) steagCasaFaraPunct.push(
+  if (zilePoarta.length >= ZILE_MIN_LEAR && v._casaBaza) steagCasaFaraPunct.push(
     `${v.masina}: baza spune că doarme la ${v._casaBaza}, dar în zilele de lucru stă la ${casa} (${v._casaOre} h) — de corectat în bază`);
   if (casa && !casaC) steagCasaFaraPunct.push(
     `${v.masina}: satul ${casa} nu e nici pe rute, nici în indexul de localități — n-avem coordonata lui`);

@@ -405,9 +405,12 @@ export default function Sidebar({ role = 'ADMIN' }: { role?: AdminRole }) {
           aria-label={collapsed ? 'Fixează meniul deschis' : 'Lasă meniul să se strângă'}
           aria-pressed={!collapsed}
           style={{
-            position: deschis ? 'absolute' : 'static',
+            // Fixat: pătrățel în colț, lângă logo. Deschis de mouse: «Fixează» are text, deci nu mai
+            // încape în colț fără să acopere logo-ul (Ion, 24.09: «să nu se suprapună») — stă sub
+            // «Panou administrativ», în fluxul paginii.
+            position: deschis && !collapsed ? 'absolute' : 'static',
             top: 10, right: 10,
-            margin: deschis ? 0 : '0 auto',
+            margin: deschis && !collapsed ? 0 : collapsed && deschis ? '12px auto 0' : '0 auto',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
             height: 30, minWidth: 30,
             padding: collapsed && deschis ? '0 10px' : 0,

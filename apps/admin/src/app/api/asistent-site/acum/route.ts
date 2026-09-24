@@ -99,10 +99,11 @@ export async function POST(req: NextRequest) {
         return { ...t, ...(seen ?? {}), ...(e ?? {}) };
       }))).filter((t) => {
         if ('passed' in t && t.passed) return false;
-        // Fără punct și fără istoric, o cursă plecată după grafic de peste jumătate de oră
-        // a trecut aproape sigur prin localitatea omului — nu-l facem s-o aștepte.
-        const known = 'eta' in t || 'lat' in t;
-        return known || t.minutes_until >= -STALE_MIN;
+        // O cursă plecată după grafic de peste jumătate de oră rămâne doar cu o oră estimată
+        // spre localitatea omului. Punctul singur nu ajunge: 24.09, 07:25, Bălți → Chișinău,
+        // cursa de 05:10 stătea deja la Chișinău (Ciocana), fără eta și fără «passed», și ieșea
+        // prima în listă cu «acum» (Ion: «arată greșit chiar acum»).
+        return 'eta' in t || t.minutes_until >= -STALE_MIN;
       }).slice(0, NOW_SHOWN); // plafonul abia după ce ies cursele trecute
     // Lista golită de filtru are nevoie de aceeași frază ca lista goală din start.
     const none = trips.length === 0;

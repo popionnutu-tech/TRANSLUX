@@ -22,13 +22,18 @@
 //
 // Rulare:  node --env-file=.env lear-analiza.mjs [--saptamina 2026-09-15] [--write]
 import pg from 'pg';
+// `track.w_date` e timestamp FĂRĂ fus și conține UTC: fără parserul ăsta node-postgres îl citea ca
+// oră a serverului (Chișinău), iar `local()` compensa cu +6 h — corect doar vara. Ca în gps-worker.mjs:61.
+pg.types.setTypeParser(1114, v => new Date(v.replace(' ', 'T') + 'Z'));
 import { createClient } from '@supabase/supabase-js';
 // Node 20 de pe VPS n-are WebSocket nativ, iar clientul Supabase pornește realtime-ul chiar dacă
 // nu-l folosim — fără transportul ăsta, `createClient` aruncă înainte de prima cerere.
 import ws from 'ws';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
-import { loadPlaces } from './places-index.mjs';
+import { loadPlaces, buildPlacesIndex } from './places-index.mjs';
+import { curseCuOpriri, eticheteaza, rezumaSaptamina, explica, PRAGURI as PRAG_LIBER } from './lear-timp-liber.mjs';
+import { local, ziLucru } from './ora-locala.mjs';
 
 // ─── parametri ───────────────────────────────────────────────────────────────
 const arg = (n, d = null) => { const i = process.argv.indexOf(n); return i > 0 ? process.argv[i + 1] : d; };
@@ -37,6 +42,7 @@ const WRITE = process.argv.includes('--write');
 // Diagnostic pentru duminicile în care raportul spune «n-am găsit nicio rută» și nu se vede de ce.
 const DE_CE = new Set((arg('--de-ce', '') || '').split(',').filter(Boolean));
 const UZINA_NUME = 'LEAR Ungheni';
+const UZINA_ID = 'LEAR_UNGHENI';   // lde_uzine.id — în lde_analiza_reguli.uzina stă numele afișat
 const AICI = path.dirname(new URL(import.meta.url).pathname);
 const CALE_SCHELET = process.env.LEAR_SCHELET || path.join(AICI, 'lear-schelet.json');
 const CALE_CACHE = process.env.LEAR_DRUMURI || path.join(AICI, 'lear-drumuri-v2.json');
@@ -109,19 +115,21 @@ const hav = (a, b) => { const R = 6371, r = Math.PI / 180;
   const dLat = (b.lat - a.lat) * r, dLon = (b.lon - a.lon) * r;
   const s = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLon / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(s)); };
-// `track.w_date` e timestamp fără fus și conține UTC (verificat 17.09.2026). Ziua de lucru se
-// taie la 03:00 locale, ca la restul workerilor: +6h aduce la ora locală a trackerului, −3h
-// mută hotarul zilei. Aceeași convenție ca în analiza de până acum — n-o schimba fără motiv.
-const local = d => new Date(new Date(d).getTime() + 6 * 3600 * 1000);
-const ziLucru = d => new Date(local(d).getTime() - 3 * 3600 * 1000).toISOString().slice(0, 10);
+// Ora locală vine din ora-locala.mjs (Intl Europe/Chisinau, cache pe ora UTC): până pe 24.09.2026
+// era `+6 h`, corect doar vara — din 25.10 toate orele ar fi ieșit cu +2 h (ION-57). `local()` întoarce
+// o Date «de perete» (getUTC* = ora locală), deci apelanții n-au nimic de schimbat. Ziua de lucru se
+// taie la 03:00 locale, ca la restul workerilor — n-o schimba fără motiv.
 const n1 = x => (Math.round(x * 10) / 10).toFixed(1).replace('.', ',');
 const n0 = x => Math.round(x).toLocaleString('ro-RO');
 const mediana = a => { const q = [...a].sort((x, y) => x - y); const n = q.length;
   return n ? (n % 2 ? q[(n - 1) / 2] : (q[n / 2 - 1] + q[n / 2]) / 2) : 0; };
 
-// Săptămâna: luni → duminică. Fără argument, cea încheiată.
+// Săptămâna: luni → duminică. Fără argument, cea încheiată: săptămâna lui «ieri». Rularea e luni
+// 08:00 (lear-saptamanal.sh), deci ieri = duminica săptămânii care tocmai s-a terminat. Până pe
+// 24.09.2026 era «acum − 7 zile», cu care rularea de duminică seara rescria săptămâna DE DINAINTE
+// (27.09 → 14–20.09), nu pe cea încheiată — găsit la review-ul ION-57.
 function saptamina(zi) {
-  const d = zi ? new Date(zi + 'T12:00:00Z') : new Date(Date.now() - 7 * 86400000);
+  const d = zi ? new Date(zi + 'T12:00:00Z') : new Date(Date.now() - 86400000);
   const dow = (d.getUTCDay() + 6) % 7;                       // 0 = luni
   const luni = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - dow));
   const dum = new Date(luni.getTime() + 6 * 86400000);
@@ -579,11 +587,19 @@ function curse(pts) {
 // deplasări de jos n-avea niciun rând al ei. Nu era o nepotrivire: lista de jos arată numai
 // ieșirile de peste 15 km, iar kilometrii ăia se întâmplă APROAPE, pe drumuri care nu-s ale
 // rutelor ei. Fără locurile lor, steagul rămânea o cifră fără dovadă.
-function alteCurse(pts, ruteObj, culoare, culoareUzina, zileLucrate) {
+// Grilele culoarelor — o singură definiție a «culoarului», folosită și de alteCurse (brambura) și
+// de detectorul de timp liber (ocolul în lanț), ca cele două să nu se despartă în timp (ION-57).
+function grileCuloar(ruteObj, culoare, culoareUzina) {
   const peRuta = grila([].concat(
     ...ruteObj.map(r => (r._puncte || []).map(c => ({ lat: c[0], lon: c[1] }))),
     ...culoareUzina.map(f => f.map(c => ({ lat: c[0], lon: c[1] })))));
   const peCasa = grila([].concat(...culoare.map(f => f.map(c => ({ lat: c[0], lon: c[1] })))));
+  return { peRuta, peCasa };
+}
+const inCuloarDin = g => p => aproape(g.peRuta, [p.lat, p.lon], R_RUTA) || (g.peCasa.size > 0 && aproape(g.peCasa, [p.lat, p.lon], R_CULOAR));
+
+function alteCurse(pts, ruteObj, culoare, culoareUzina, zileLucrate) {
+  const { peRuta, peCasa } = grileCuloar(ruteObj, culoare, culoareUzina);
   let laUzina = 0, aiurea = 0, laParc = 0;
   const peLoc = new Map();   // localitate → km «aiurea», minute, zile
   // fiecare ieșire «brambura» și separat, cu ora ei — Ion, 24.09: «km brambura au fost? și dacă
@@ -792,6 +808,33 @@ async function kmDinBaza(supa, nrDupaId, de_la, pana_la) {
   return pe;
 }
 
+// ─── ferestrele de ceas, zilele de lucru, alimentările (ION-57) ──────────────
+// Ferestrele vin din bază (copia mașinală a §3.3 din reguli_livrare), niciodată din cod: fără
+// rânduri, detectorul de timp liber se sare cu steag.
+async function citesteFerestre(supa) {
+  const { data, error } = await supa.from('lde_uzina_ferestre_ceas')
+    .select('sens, shift_number, de_la_min, pana_la_min').eq('uzina_id', UZINA_ID);
+  if (error) { console.error('lde_uzina_ferestre_ceas:', error.message); return []; }
+  return data || [];
+}
+async function citesteZileLucru(supa) {
+  const { data, error } = await supa.from('lde_uzine').select('works_saturday, works_sunday').eq('id', UZINA_ID).maybeSingle();
+  if (error || !data) { if (error) console.error('lde_uzine:', error.message); return { sambata: true, duminica: false }; }
+  return { sambata: !!data.works_saturday, duminica: !!data.works_sunday };
+}
+// Tabelul n-are coordonate: coordonata alimentării e a opririi GPS celei mai apropiate în timp
+// (se alege în modul); de aici vin doar momentele, pe mașină.
+async function citesteAlimentari(supa, nrDupaId, de_la, pana_la) {
+  const out = new Map();
+  if (!nrDupaId.size) return out;
+  const { data, error } = await supa.from('lde_fuel_alimentari').select('vehicle_id, alimentat_at')
+    .in('vehicle_id', [...nrDupaId.keys()]).gte('alimentat_at', de_la + 'T00:00:00Z').lte('alimentat_at', pana_la + 'T23:59:59Z');
+  if (error) { console.error('lde_fuel_alimentari:', error.message); return out; }
+  for (const r of data || []) { const nr = nrDupaId.get(r.vehicle_id); if (!nr) continue;
+    if (!out.has(nr)) out.set(nr, []); out.get(nr).push({ t: new Date(r.alimentat_at) }); }
+  return out;
+}
+
 async function undeDorm(supa, nrDupaId, de_la, pana_la) {
   // PostgREST taie orice răspuns la 1000 de rânduri, oricât ai cere — deci se îngustează de la
   // început la mașinile noastre, nu se filtrează după ce vin toate opririle flotei.
@@ -809,8 +852,7 @@ async function undeDorm(supa, nrDupaId, de_la, pana_la) {
   for (const r of data || []) {
     const nr = nrDupaId.get(r.vehicle_id); if (!nr) continue;
     if (r.locality === 'Bălți' || r.locality === 'Briceni') continue;
-    const ora = new Date(r.arrival_at).getUTCHours() + 3;
-    const h = ((ora % 24) + 24) % 24;
+    const h = local(r.arrival_at).getUTCHours();
     if (!(h >= 17 || h < 5)) continue;
     if (!pe.has(nr)) pe.set(nr, new Map());
     const m = pe.get(nr);
@@ -880,6 +922,19 @@ const case_ = await undeDorm(supa, nrDupaId, de_la, pana_la);
 const kmBaza = await kmDinBaza(supa, nrDupaId, sapt.luni, sapt.duminica);
 
 const masini = [], steaguri = [], toateDeplasarile = [], steagCasaFaraPunct = [], doarTrecute = [];
+const ferestre = await citesteFerestre(supa);
+const zileLucru = await citesteZileLucru(supa);
+const alimentari = await citesteAlimentari(supa, nrDupaId, de_la, pana_la);
+const placesIdx = buildPlacesIndex(locuri);
+if (!ferestre.length) steaguri.push({ fel: 'fără ferestre', text: `fără ferestre de ceas în bază pentru ${UZINA_ID} (lde_uzina_ferestre_ceas) — timpul liber nu s-a socotit` });
+// ora unui km e «de schimb» dacă intră într-o fereastră de tur/retur (±1 h); fără ferestre,
+// vechile ore scrise în cod
+const oraDeSchimb = h => ferestre.length
+  ? ferestre.some(f => { const a = Math.floor(f.de_la_min / 60) - 1, b = Math.ceil(f.pana_la_min / 60) + 1;
+      return f.de_la_min <= f.pana_la_min ? (h >= a && h <= b) : (h >= a || h <= b); })
+  : ((h >= 3 && h <= 7) || (h >= 13 && h <= 17) || h >= 21 || h <= 1);
+// capătul datelor pentru detector: acum sau capătul ferestrei citite, care e mai devreme
+const sfarsitDate = Math.min(Date.now(), +new Date(pana_la + 'T00:00:00Z'));
 const ruteFolosite = new Set();
 
 // trecerea întâi: ce rute ar putea fi ale fiecărei mașini
@@ -1045,6 +1100,7 @@ for (const v of auLucrat) {
   if (!casaC && alese.length === 2) rec.steaguri.push(
     'nu știm unde doarme, deci drumurile spre casă nu se pot despărți de restul — regulile nu se pot socoti');
   const gata = alese.length === 2 && lk && azi > 0 && !!casaC;
+  let grile = null;   // culoarele, pentru ocolul din lanț (doar când sunt două rute și casă)
   if (gata) {
     const sumaEtalon = alese.reduce((s, r) => s + r.etalon, 0);
     const patru = 4 * sumaEtalon;
@@ -1069,6 +1125,7 @@ for (const v of auLucrat) {
     if (hc?.forma) culoare.push(hc.forma);
     // «alte curse»: munca în plus, măsurată — nici rută, nici culoar de acasă. Nu dispare sub
     // nicio regulă, deci se adună la ziua nouă la amândouă.
+    grile = grileCuloar(ruteSchelet, culoare, culoareUzina);
     const A = alteCurse(ptsSapt, ruteSchelet, culoare, culoareUzina, kmZile.length);
     // Ion, 24.09: «auto care pleacă la Bălți reparație nu trebuie nicăieri introdusă». Drumul la
     // parc nu e nici muncă în plus, nici zi de lucru: iese din «alte» și din ziua cu care se
@@ -1112,8 +1169,7 @@ for (const v of auLucrat) {
     // modelul n-o poate atribui, fiindcă ruta nu-i în schelet sau se face pe alt drum.
     // Steagul trebuie să spună ce e, nu să acuze.
     if (A.aiurea > 40) {
-      const oreLucru = A.locuri.some(l => (l.cand || []).some(c =>
-        (c.ora >= 3 && c.ora <= 7) || (c.ora >= 13 && c.ora <= 17) || c.ora >= 21 || c.ora <= 1));
+      const oreLucru = A.locuri.some(l => (l.cand || []).some(c => oraDeSchimb(c.ora)));
       rec.steaguri.push(
         `${n1(A.aiurea)} km/zi pe care modelul nu-i poate atribui — nu-s pe formele rutelor ei din ` +
         'schelet, nu-s pe drumul spre casă și nu trec pe la poartă' +
@@ -1164,6 +1220,27 @@ for (const v of auLucrat) {
       `(${zFantoma.map(z => z.slice(5)).join(', ')}) în care urma n-arată mișcare — gol de semnal cârpit, nu drum`);
   } else rec.steaguri.push('n-are km scriși în lde_vehicle_gps_daily — km-ii de aici n-au cu ce fi verificați');
 
+  // ─── mișcările în timpul liber — «lanțul muncii» (ION-57) ──────────────────
+  // Pentru fiecare mașină a uzinei, și pentru cele fără două rute: modulul pur primește toate
+  // punctele citite (±1 zi, context pentru lanțurile de la marginea săptămânii) și numără km-ii
+  // punct cu punct după ziua de lucru, deci nimic nu intră în două rapoarte.
+  if (ferestre.length) {
+    const ctxL = { poarta: POARTA, parc: PARC, casaC: casaC ? { lat: casaC[0], lon: casaC[1] } : null,
+      ferestre, lucreazaSambata: zileLucru.sambata, lucreazaDuminica: zileLucru.duminica,
+      local, ziLucru, inSapt, sfarsitDate, alimentari: alimentari.get(v.masina) || [],
+      numeLoc: p => placesIdx.nearestWithin(p, 3.8)?.name ?? celMaiApropiatLoc(p)?.n ?? null,
+      inCuloar: grile ? inCuloarDin(grile) : null,
+      capeteRute: alese.map(r => r.capatC).filter(Boolean).map(c => ({ lat: c[0], lon: c[1] })) };
+    const curseL = curseCuOpriri(v.pts, ctxL);
+    const etich = eticheteaza(curseL, ctxL);
+    const kmZiSapt = zile.reduce((s, z) => s + (v.kmZi.get(z) || 0), 0);
+    rec.liber = rezumaSaptamina(etich, ctxL, kmZiSapt);
+    if (rec.liber.peste_prag) rec.steaguri.push(
+      `${n1(rec.liber.km)} km în timpul liber în săptămâna asta (prag ${rec.liber.prag_km}) — vezi «mișcări în timpul liber»`);
+    if (DE_CE.has(v.masina)) { console.error(`[${v.masina}] timp liber: ${curseL.length} curse, ${n1(rec.liber.km)} km liber`);
+      for (const l of explica(etich, ctxL)) console.error(`[${v.masina}]   ${l}`); }
+  }
+
   masini.push(rec);
 }
 
@@ -1186,9 +1263,17 @@ const total = { r1: S_(m => m.r1?.lei), r3: S_(m => m.r3?.lei),
   masini_uzina: aleUzinei.length,
   masini_r1: aleUzinei.filter(m => (m.r1?.lei || 0) > 0).length,
   masini_r3: aleUzinei.filter(m => (m.r3?.lei || 0) > 0).length };
+// sâmbetele: câte mașini au fost la poartă — 0 = uzina n-a lucrat, și atunci sâmbăta iese «liber»
+const sambete = [];
+for (let d = new Date(sapt.luni + 'T12:00:00Z'); d <= new Date(sapt.duminica + 'T12:00:00Z'); d = new Date(+d + 86400000))
+  if (d.getUTCDay() === 6) { const z = d.toISOString().slice(0, 10); sambete.push({ zi: z, masini_la_poarta: auLucrat.filter(v => v.zilePoarta.has(z)).length }); }
+const timpLiber = ferestre.length ? {
+  prag_km: PRAG_LIBER.PRAG_ALARMA_KM, km_total: +S_(m => m.liber?.km).toFixed(1),
+  masini_peste_prag: aleUzinei.filter(m => m.liber?.peste_prag).map(m => m.masina),
+  ferestre, zile_lucru: zileLucru, sambata: sambete } : null;
 
 // ─── tipărit ─────────────────────────────────────────────────────────────────
-console.log('mașină          tip            zile  ore   km/zi   rute            4×rute   la uz.  parc  aiurea   R1 lei   R3 lei');
+console.log('mașină          tip            zile  ore   km/zi   rute            4×rute   la uz.  parc  aiurea  liber   R1 lei   R3 lei');
 for (const m of masini.sort((a, b) => (b.r1?.lei || 0) - (a.r1?.lei || 0))) {
   console.log(
     `${m.masina.padEnd(15)} ${(m.tip || '—').padEnd(13)} ${String(m.zile_lucrate).padStart(4)} ` +
@@ -1198,6 +1283,7 @@ for (const m of masini.sort((a, b) => (b.r1?.lei || 0) - (a.r1?.lei || 0))) {
     `${(m.alte_la_uzina != null ? n1(m.alte_la_uzina) : '—').padStart(6)} ` +
     `${(m.alte_la_parc != null ? n1(m.alte_la_parc) : '—').padStart(6)} ` +
     `${(m.alte_aiurea != null ? n1(m.alte_aiurea) : '—').padStart(7)} ` +
+    `${(m.liber ? n1(m.liber.km) : '—').padStart(6)} ` +
     `${(m.r1 ? n0(m.r1.lei) : '—').padStart(8)} ${(m.r3 ? n0(m.r3.lei) : '—').padStart(8)}`);
   for (const s of m.steaguri) console.log(`                 ⚠ ${s}`);
   for (const s of (m.note || [])) console.log(`                 ⓘ ${s}`);
@@ -1235,12 +1321,28 @@ else {
   if (br.length) console.log(`\n  ${br.length} ieșiri brambura, ${n1(br.reduce((s, d) => s + d.km, 0))} km în săptămână.`);
 }
 
+if (timpLiber) {
+  console.log(`\n─── mișcări în timpul liber (prag ${timpLiber.prag_km} km/săpt.) — ${n1(timpLiber.km_total)} km pe flotă` +
+    (timpLiber.masini_peste_prag.length ? ` · peste prag: ${timpLiber.masini_peste_prag.join(', ')}` : ' · nicio mașină peste prag') + ' ───');
+  for (const m of [...masini].sort((a, b) => (b.liber?.km || 0) - (a.liber?.km || 0))) {
+    const L = m.liber; if (!L) continue;
+    const ies = L.iesiri.filter(x => x.eticheta !== 'ocol');
+    if (!L.km && !ies.length) continue;
+    console.log(`  ${m.masina}: ${n1(L.km)} km liber în ${L.zile} ${L.zile === 1 ? 'zi' : 'zile'}` +
+      (L.km_ocol ? ` · ocol în lanț ${n1(L.km_ocol)}` : '') + (L.km_naveta ? ` · navetă ${n1(L.km_naveta)}` : '') + (L.km_neclar ? ` · neclar ${n1(L.km_neclar)}` : '') +
+      (L.control ? ` · control: curse ${n1(L.control.km_curse)} + staționări ${n1(L.control.km_stationare)} = ${n1(L.control.km_zi)}` : ''));
+    for (const x of ies.slice(0, 6)) console.log(`      ${x.zi.slice(5)} ${x.de_la}–${x.pana_la} ${n1(x.km).padStart(6)} km · ${x.eticheta}${x.repetat ? ' · se repetă' : ''} · ${x.loc_principal ?? '—'}` +
+      (x.opriri.length ? ` · opriri: ${x.opriri.slice(0, 4).map(o => `${o.loc ?? '?'} ${o.min}′`).join(', ')}` : '') + (x.nota ? ` (${x.nota})` : ''));
+  }
+  for (const s of sambete) if (!s.masini_la_poarta) console.log(`  sâmbătă ${s.zi}: nicio mașină la poartă — uzina n-a lucrat, ce s-a mișcat e liber`);
+}
+
 // ─── scris ───────────────────────────────────────────────────────────────────
 if (cacheNou) writeFileSync(CALE_CACHE, JSON.stringify(cache, null, 1));
 
 const rezultat = { uzina: UZINA_NUME, saptamina: sapt.luni, pana_la: sapt.duminica,
   schelet_fixat: S.fixat, zile_luna: ZILE_LUNA, masini, steaguri, doar_trecute: doarTrecute,
-  deplasari: toateDeplasarile, total };
+  deplasari: toateDeplasarile, total, timp_liber: timpLiber };
 
 const CALE_JSON = arg('--json');
 if (CALE_JSON) { writeFileSync(CALE_JSON, JSON.stringify(rezultat)); console.log(`\nscris ${CALE_JSON}`); }

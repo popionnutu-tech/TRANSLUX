@@ -198,6 +198,8 @@ export default function ReguliClient({ raport, saptamani = [] }: {
   const R = raport;
   const masini = [...R.masini].sort((a, b) => cel(b) - cel(a));
   const ctrl = R.total.control;
+  const TL = R.timp_liber ?? null;
+  const cuLiber = [...R.masini].filter((m) => m.liber).sort((a, b) => (b.liber?.km ?? 0) - (a.liber?.km ?? 0));
   const r1Mai = (R.total.r1 ?? 0) >= (R.total.r3 ?? 0);
 
   return (
@@ -234,10 +236,11 @@ export default function ReguliClient({ raport, saptamani = [] }: {
         ori acasă. Pentru fiecare mașină, coloana «Alege» spune care îi convine.
       </p>
 
-      <div className="mt-4! grid gap-3 sm:grid-cols-3">
+      <div className="mt-4! grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
           ['Au lucrat la uzină', `${R.total.masini_uzina} mașini`, 'cel puțin 4 zile la poartă'],
           ['Deplasări și km brambura', String(R.deplasari.length), 'în afara destinației de lucru'],
+          ['Timp liber', TL ? `${n1(TL.km_total)} km` : '—', TL ? (TL.masini_peste_prag.length ? `${TL.masini_peste_prag.length} ${TL.masini_peste_prag.length === 1 ? 'mașină' : 'mașini'} peste ${TL.prag_km} km` : `nicio mașină peste ${TL.prag_km} km`) : 'raport de dinainte de ION-57'],
           ['Controlul km', ctrl ? `${ctrl.dif > 0 ? '+' : ''}${n1(ctrl.dif)}%` : '—', 'urma GPS față de workerul de noapte; peste 10% = steag'],
         ].map(([et, val, sub]) => (
           <div key={et} className="rounded-[8px] border border-neutral-200 bg-white px-4! py-3! dark:border-neutral-700 dark:bg-neutral-900">
@@ -259,9 +262,9 @@ export default function ReguliClient({ raport, saptamani = [] }: {
           <thead>
             <tr className="bg-[#9B1B30]/[0.04]">
               {['Mașina', 'Doarme la', 'Rutele ei', 'Zile', 'km/zi', 'Rutele × 4',
-                'Alte · uzină', 'Alte · parc', 'Alte · neatribuiți',
+                'Alte · uzină', 'Alte · parc', 'Alte · neatribuiți', 'Liber km',
                 'Regula 1 lei/lună', 'Regula 3 lei/lună', 'Alege'].map((h, i) => (
-                <th key={h} className={`border-b border-neutral-200 p-2! align-bottom text-[10px] font-semibold uppercase leading-tight tracking-wider text-neutral-500 dark:border-neutral-700 ${i >= 3 && i <= 10 ? 'text-right' : 'text-left'}`}>{h}</th>
+                <th key={h} className={`border-b border-neutral-200 p-2! align-bottom text-[10px] font-semibold uppercase leading-tight tracking-wider text-neutral-500 dark:border-neutral-700 ${i >= 3 && i <= 11 ? 'text-right' : 'text-left'}`}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -300,6 +303,7 @@ export default function ReguliClient({ raport, saptamani = [] }: {
                     <td className={`${nr} text-neutral-500`}>{n1(m.alte_la_uzina)}</td>
                     <td className={`${nr} text-neutral-500`}>{n1(m.alte_la_parc)}</td>
                     <td className={`${nr} ${(m.alte_aiurea ?? 0) > 40 ? 'text-[#a33a20]' : 'text-neutral-500'}`}>{n1(m.alte_aiurea)}</td>
+                    <td className={`${nr} ${m.liber?.peste_prag ? 'font-medium text-[#a33a20]' : 'text-neutral-500'}`}>{m.liber ? n1(m.liber.km) : '—'}</td>
                     <td className={`${nr} ${(m.r1?.lei ?? 0) > 0 ? 'font-medium text-[#9B1B30] dark:text-[#e0788c]' : 'text-[#a33a20]'}`}>{n0(m.r1?.lei)}</td>
                     <td className={`${nr} ${(m.r3?.lei ?? 0) > 0 ? 'font-medium text-[#9B1B30] dark:text-[#e0788c]' : 'text-[#a33a20]'}`}>{n0(m.r3?.lei)}</td>
                     <td className="border-b border-neutral-200 p-2! dark:border-neutral-700">
@@ -310,7 +314,7 @@ export default function ReguliClient({ raport, saptamani = [] }: {
                   </tr>
                   {(m.steaguri.length > 0 || (m.note ?? []).length > 0) && (
                     <tr key={`${m.masina}-stg`}>
-                      <td colSpan={12} className="border-b border-neutral-200 px-2! pb-2! dark:border-neutral-700">
+                      <td colSpan={13} className="border-b border-neutral-200 px-2! pb-2! dark:border-neutral-700">
                         {m.steaguri.map((s, i) => (
                           <span key={i} className="block text-[12px] leading-relaxed text-[#a33a20]">⚠ {s}</span>
                         ))}
@@ -322,7 +326,7 @@ export default function ReguliClient({ raport, saptamani = [] }: {
                   )}
                   {desc && (
                     <tr key={`${m.masina}-pan`}>
-                      <td colSpan={12} className="border-b border-neutral-200 bg-neutral-50 p-0! dark:border-neutral-700 dark:bg-neutral-800">
+                      <td colSpan={13} className="border-b border-neutral-200 bg-neutral-50 p-0! dark:border-neutral-700 dark:bg-neutral-800">
                         <Panou m={m} zileLuna={R.zile_luna} />
                       </td>
                     </tr>
@@ -394,6 +398,78 @@ export default function ReguliClient({ raport, saptamani = [] }: {
         satele rutelor ei din schelet, și satul unde doarme. «Brambura» e o ieșire de peste 5 km care nu e
         nici pe rutele ei, nici pe drumul de acasă, nici pe la poartă. Se numără o dată pe ieșire, nu pe punct GPS.
         Drumul la parcul de la Bălți e reparație și nu se scrie nicăieri — nici aici, nici în ziua mașinii.
+      </p>
+
+      <h2 className="mb-3! mt-9! text-xs font-bold uppercase tracking-widest text-neutral-500">
+        Mișcări în timpul liber
+      </h2>
+      {!TL && (
+        <p className="text-[13.5px] text-neutral-500">Raportul ăsta e scris înainte de detectorul de timp liber (ION-57); rulează din nou săptămâna ca să apară.</p>
+      )}
+      {TL && cuLiber.every((m) => !(m.liber?.km) && !(m.liber?.iesiri.length)) && (
+        <p className="text-[13.5px] text-neutral-500">Nicio mașină nu s-a mișcat în afara muncii în săptămâna asta.</p>
+      )}
+      {TL && cuLiber.filter((m) => (m.liber?.km ?? 0) > 0 || (m.liber?.iesiri.length ?? 0) > 0).map((m) => {
+        const L = m.liber!;
+        const nr = 'border-b border-neutral-200 p-2 text-right font-mono tabular-nums dark:border-neutral-700';
+        return (
+          <div key={m.masina} className="mb-4!">
+            <div className="mb-1! flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <b className="text-[14px]">{m.masina}</b>
+              <span className={`font-mono text-[13px] tabular-nums ${L.peste_prag ? 'font-semibold text-[#a33a20]' : ''}`}>{n1(L.km)} km liber</span>
+              {L.peste_prag && <span className="px-1.5! py-0.5! text-[10px] font-semibold uppercase tracking-wide text-[#a33a20]" style={{ background: 'rgba(163,58,32,0.12)' }}>peste {L.prag_km} km</span>}
+              <span className="text-[12px] text-neutral-500">
+                {L.zile} {L.zile === 1 ? 'zi' : 'zile'}
+                {L.km_ocol ? ` · ocol în lanț ${n1(L.km_ocol)} km` : ''}
+                {L.km_naveta ? ` · navetă ${n1(L.km_naveta)} km` : ''}
+                {L.km_neclar ? ` · neclar ${n1(L.km_neclar)} km` : ''}
+                {L.km_alimentare ? ` · alimentare ${n1(L.km_alimentare)} km` : ''}
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse border border-neutral-200 bg-white text-[13px] dark:border-neutral-700 dark:bg-neutral-900">
+                <thead>
+                  <tr className="bg-[#9B1B30]/[0.04]">
+                    {['Ziua', 'Ora', 'km', 'Cât de departe', 'Ce e', 'Unde · opriri'].map((h, i) => (
+                      <th key={h} className={`border-b border-neutral-200 p-2! text-[10px] font-semibold uppercase tracking-wider text-neutral-500 dark:border-neutral-700 ${i >= 2 && i <= 3 ? 'text-right' : 'text-left'}`}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {L.iesiri.map((x, i) => (
+                    <tr key={i}>
+                      <td className="border-b border-neutral-200 p-2! dark:border-neutral-700">{x.zi}</td>
+                      <td className={nr}>{x.de_la}–{x.pana_la}</td>
+                      <td className={`${nr} ${x.eticheta === 'liber' ? 'font-medium' : 'text-neutral-500'}`}>{n1(x.km)}</td>
+                      <td className={nr}>{n1(x.departare)} km</td>
+                      <td className="border-b border-neutral-200 p-2! text-[12px] dark:border-neutral-700">
+                        {x.eticheta}{x.eticheta === 'ocol' && x.km_ocol ? ` ${n1(x.km_ocol)} km` : ''}
+                        {x.repetat && <i className="block text-[11px] not-italic text-[#a33a20]">se repetă</i>}
+                      </td>
+                      <td className="border-b border-neutral-200 p-2! text-[12.5px] dark:border-neutral-700">
+                        {x.loc_principal ?? '—'}
+                        {x.opriri.length > 0 && <span className="block text-[11.5px] text-neutral-500">{x.opriri.map((o) => `${o.ora} ${o.loc ?? '?'} ${o.min}′`).join(' · ')}</span>}
+                        {x.nota && <span className="block text-[11.5px] text-neutral-500">{x.nota}</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {(L.si_altele ?? 0) > 0 && <div className="mt-1! text-[12px] text-neutral-500">și încă {L.si_altele} ieșiri mai mici</div>}
+          </div>
+        );
+      })}
+      {TL && TL.sambata.filter((s) => !s.masini_la_poarta).map((s) => (
+        <p key={s.zi} className="text-[12.5px] text-neutral-500">Sâmbătă {s.zi}: nicio mașină la poartă — uzina n-a lucrat, deci ce s-a mișcat sâmbăta iese «liber».</p>
+      ))}
+      <p className="mt-3! border-l-[3px] border-neutral-200 pl-4! text-[13.5px] text-neutral-500 dark:border-neutral-700">
+        Munca nu e o cursă, e un lanț: o oprire la poartă la ora schimbului (sosire în fereastra de tur, plecare în cea de retur)
+        și cursele legate de ea, înapoi și înainte, până când mașina ajunge acasă sau stă peste 2 ore. Tot ce e în lanț e muncă,
+        inclusiv drumul de acasă și înapoi. Drumul la parcul de la Bălți e reparație; drumul între două case e navetă. Ce rămâne e
+        timp liber: se arată ziua, ora, kilometrii, unde a oprit peste 2 minute și dacă același loc apare în alte zile. Steagul se
+        dă la {TL?.prag_km ?? 50} km pe săptămână. «Ocol în lanț» sunt kilometrii din afara drumului rutei într-o cursă de muncă:
+        se arată, dar nu intră în alarmă.
       </p>
     </div>
   );

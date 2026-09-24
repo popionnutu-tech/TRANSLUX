@@ -52,6 +52,28 @@ export type MasinaRand = {
   steaguri: string[];
   // ⓘ fapte citite din urmă, lămurite: ruta schimbată față de listă, capăt neatins, rută împărțită
   note?: string[];
+  // mișcările în timpul liber — «lanțul muncii» (ION-57); lipsește la rapoartele de dinainte
+  liber?: TimpLiberMasina;
+};
+
+// O oprire dintr-o ieșire în timpul liber: unde a urcat sau coborât cineva.
+export type OprireLibera = { loc: string | null; min: number; ora: string };
+// O cursă din afara lanțului muncii. `eticheta`: liber = nicio ancoră; neclar = nu se poate spune
+// (gol de semnal, zona parcului fără oprire, marginea datelor); navetă = între două case;
+// ocol = km din afara culoarelor într-o cursă de muncă (listat, nu intră în alarmă).
+export type IesireLibera = {
+  zi: string; de_la: string; pana_la: string; km: number; departare: number;
+  eticheta: 'liber' | 'neclar' | 'navetă' | 'ocol';
+  motiv?: string; nota?: string | null;
+  km_ocol?: number; km_alimentare?: number;
+  loc_principal: string | null; repetat: boolean; opriri: OprireLibera[];
+};
+export type TimpLiberMasina = {
+  km: number; prag_km: number; peste_prag: boolean; zile: number;
+  km_lucru?: number; km_reparatie?: number; km_naveta?: number; km_neclar?: number;
+  km_neanalizat?: number; km_ocol?: number; km_alimentare?: number; km_nevazut?: number;
+  iesiri: IesireLibera[]; si_altele?: number;
+  control?: { km_curse: number; km_zi: number; km_stationare: number } | null;
 };
 
 export type Deplasare = {
@@ -77,6 +99,13 @@ export type Raport = {
     r1: number; r3: number; masini_uzina: number; masini_r1: number; masini_r3: number;
     control?: { km_aici: number; km_baza: number; dif: number };
   };
+  // rezumatul timpului liber pe flotă (ION-57); null când baza n-are ferestre de ceas
+  timp_liber?: {
+    prag_km: number; km_total: number; masini_peste_prag: string[];
+    ferestre: { sens: 'tur' | 'retur'; shift_number: number; de_la_min: number; pana_la_min: number }[];
+    zile_lucru: { sambata: boolean; duminica: boolean };
+    sambata: { zi: string; masini_la_poarta: number }[];
+  } | null;
 };
 
 export async function getRaport(uzina = 'LEAR Ungheni', saptamina?: string): Promise<Raport | null> {

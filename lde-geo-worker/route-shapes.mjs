@@ -163,7 +163,10 @@ pg.types.setTypeParser(1114, (v) => new Date(v.replace(' ', 'T') + 'Z'));
 const nmea = (v) => { const d = Math.floor(v / 100); return d + (v - d * 100) / 60; };
 const normPlate = (s) => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 const ZILE_INAPOI = 14;
-const ACOPERIRE_MIN = 0.85;
+// 0,80 (era 0,85): drumul e al GPS-ului, nu al graficului (Ion, 24.09: «drumul în baza GPS-ului
+// nostru, nu cum Valhalla zice»). Ruta 58 nu merge niciodată până la Otaci — 84%; satele unde
+// rutiera nu ajunge rămân în afara liniei, cum sunt în realitate.
+const ACOPERIRE_MIN = 0.80;
 let tracker = null, devsByPlate = null;
 
 async function trackerReady() {
@@ -183,13 +186,18 @@ async function trackerReady() {
 }
 
 /** «2026-09-22» + «6:55» (ora Chișinăului) → Date UTC. */
+// Fereastra cursei ieșea decalată cu 3 ore: `new Date(toLocaleString(...))` se citește în
+// fusul VPS-ului (Europe/Chisinau), nu în UTC, deci diferența se anula. Urma turului rutei 1
+// începea la ~04:35 în loc de ~01:35 și rata tot nordul (Criva → Mihailenii Noi), iar cu
+// 53% din opriri toate cele 30 de rute cădeau pe Valhalla (24.09). Aceeași formulă ca în
+// stop-times.mjs: ghicim ora ca UTC, vedem ce oră locală iese și corectăm cu diferența.
 function localToUtc(date, hhmm) {
   const [h, m] = hhmm.split(':').map(Number);
-  const guess = new Date(`${date}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00Z`);
-  const shown = new Date(guess.toLocaleString('en-US', { timeZone: 'Europe/Chisinau' }));
-  const asUtc = new Date(guess.toLocaleString('en-US', { timeZone: 'UTC' }));
-  return new Date(guess.getTime() - (shown - asUtc));
+  const guess = Date.parse(`${date}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00Z`);
+  const local = new Date(guess).toLocaleString('sv-SE', { timeZone: 'Europe/Chisinau' }).replace(' ', 'T') + 'Z';
+  return new Date(guess - (Date.parse(local) - guess));
 }
+const utcText = (ms) => new Date(ms).toISOString().replace("T", " ").replace("Z", "");
 const toMin = (s) => { const m = String(s || '').match(/^(\d{1,2}):(\d{2})$/); const v = m ? +m[1] * 60 + +m[2] : 0; return v || null; };
 
 async function gpsShape(rid, stops, found) {
@@ -205,9 +213,12 @@ async function gpsShape(rid, stops, found) {
   const tries = [];
   for (const a of asg) {
     if (a.crm_route_id === rid && a.vehicle_id) tries.push({ date: a.assignment_date, vid: a.vehicle_id, dir: 'tur', hourKey: 'hour_from_nord' });
-    if (a.retur_route_id === rid && a.vehicle_id_retur) tries.push({ date: a.assignment_date, vid: a.vehicle_id_retur, dir: 'retur', hourKey: 'hour_from_chisinau' });
+    if (a.retur_route_id === rid && (a.vehicle_id_retur ?? a.vehicle_id)) tries.push({ date: a.assignment_date, vid: a.vehicle_id_retur ?? a.vehicle_id, dir: 'retur', hourKey: 'hour_from_chisinau' });
+    // Returul făcut de mașina rutei însăși (fără preluare): ca buildReturAssignmentMap. Ruta 13
+    // n-are tur din 09.09 (tur_ascuns), deci doar așa are urmă GPS.
+    else if (a.crm_route_id === rid && !a.retur_route_id && (a.vehicle_id_retur ?? a.vehicle_id)) tries.push({ date: a.assignment_date, vid: a.vehicle_id_retur ?? a.vehicle_id, dir: 'retur', hourKey: 'hour_from_chisinau' });
   }
-  let best = null;
+  let best = null, bestTur = null;
   for (const t of tries) {
     const plate = plateOf.get(t.vid);
     const devs = devsByPlate.get(plate);
@@ -221,10 +232,12 @@ async function gpsShape(rid, stops, found) {
     for (let i = 1; i < inOrder.length; i++) while (inOrder[i] < inOrder[i - 1] - 12 * 60) inOrder[i] += 1440;
     const a = inOrder[0], b = inOrder[inOrder.length - 1];
     if (b <= a) continue;
-    const from = localToUtc(t.date, `${Math.floor(a / 60)}:${a % 60}`), to = new Date(from.getTime() + (b - a) * 6e4);
+    // «a» poate trece de 24:00 (cursa pornește după miezul nopții): ziua în plus se adaugă separat.
+    const from = new Date(localToUtc(t.date, `${Math.floor((a % 1440) / 60)}:${a % 60}`).getTime() + Math.floor(a / 1440) * 864e5), to = new Date(from.getTime() + (b - a) * 6e4);
     const { rows } = await tracker.query(
       `SELECT w_date, x, y FROM track WHERE id = ANY($1) AND w_date BETWEEN $2 AND $3 ORDER BY w_date`,
-      [devs, new Date(from.getTime() - 30 * 6e4), new Date(to.getTime() + 60 * 6e4)],
+      // În UTC, fără fus: w_date e «timestamp» fără fus cu ora UTC; un Date ar pleca cu +03:00.
+      [devs, utcText(from.getTime() - 30 * 6e4), utcText(to.getTime() + 60 * 6e4)],
     );
     // Punctele, fără salturi imposibile (>150 km/h) și fără stat pe loc.
     const pts = [];
@@ -257,19 +270,33 @@ async function gpsShape(rid, stops, found) {
     let iA = -1;
     for (let i = iB - 1; i >= 0; i--) if (hav(pts[i], A) <= PE_LANGA_KM) { iA = i; break; }
     if (iA < 0) iA = firstNear;
+    // Capetele până la gară, nu până la marginea cercului de 3 km: linia se oprea la ~2,9 km
+    // de autogara din Chișinău pe toate rutele (24.09), iar autobuzul ajuns acolo ieșea «în
+    // afara liniei» și nu putea fi dat drept trecut. Se ia punctul cel mai apropiat de capăt
+    // cât urma rămâne în cercul lui.
+    for (let i = iB + 1; i < pts.length && hav(pts[i], B) <= PE_LANGA_KM; i++) if (hav(pts[i], B) < hav(pts[iB], B)) iB = i;
+    for (let i = iA - 1; i >= 0 && hav(pts[i], A) <= PE_LANGA_KM; i--) if (hav(pts[i], A) < hav(pts[iA], A)) iA = i;
     if (iB - iA < 30) { D(`prea scurt: puncte ${iA}..${iB}`); continue; }
     let seg = pts.slice(iA, iB + 1);
     if (t.dir === 'retur') seg = seg.reverse(); // linia se ține în ordinea stop_order
     const near = onTrip.filter((s) => departeDe(s.pt, seg) <= PE_LANGA_KM).length;
     const cover = near / onTrip.length;
     D(`acoperă ${Math.round(cover * 100)}% din ${onTrip.length} opriri; ocolite: ${onTrip.filter((s) => departeDe(s.pt, seg) > PE_LANGA_KM).map((s) => s.name_ro).join(', ') || '—'}`);
-    // Aceeași rută poate avea în grafic mașini care fac doar o bucată (23.09, ruta 8: turul
-    // 819BXI doar Bălți → Chișinău); se ține urma care acoperă cele mai multe opriri.
-    if (!best || cover > best.cover || (cover === best.cover && found.length > 0 && seg.length > best.pts.length)) {
-      let km = 0; for (let i = 1; i < seg.length; i++) km += hav(seg[i - 1], seg[i]);
-      best = { pts: seg, km, plate, date: t.date, dir: t.dir, cover };
-    }
+    // Câte gări ale rutei atinge urma (la sub GARA_M): o zi în care mașina a ocolit gara
+    // (ruta 59 — Edineț la 1,7 km, Ocnița la 6,6 km) nu e drumul obișnuit al rutei.
+    const gari = onTrip.filter((s) => STATII.has(norm(s.name_ro)));
+    const gariHit = gari.filter((s) => departeDe(STATII.get(norm(s.name_ro)), seg) * 1000 <= GARA_M).length;
+    const cand = { pts: seg, plate, date: t.date, dir: t.dir, cover, gariHit };
+    // Ordinea: întâi gările atinse, apoi opririle acoperite, apoi urma mai lungă. Aceeași rută
+    // poate avea în grafic mașini care fac doar o bucată (23.09, ruta 8: turul 819BXI doar
+    // Bălți → Chișinău).
+    const better = (x, y) => !y || x.gariHit > y.gariHit || (x.gariHit === y.gariHit && (x.cover > y.cover || (x.cover === y.cover && x.pts.length > y.pts.length)));
+    const withKm = (c) => { let km = 0; for (let i = 1; i < c.pts.length; i++) km += hav(c.pts[i - 1], c.pts[i]); return { ...c, km }; };
+    if (cover >= ACOPERIRE_MIN && better(cand, best)) best = withKm(cand);
+    // Ion, 24.09: «ideal este capătul de rută de la nord înspre Chișinău» — turul are întâietate.
+    if (t.dir === 'tur' && cover >= ACOPERIRE_MIN && better(cand, bestTur)) bestTur = withKm(cand);
   }
+  if (bestTur && bestTur.cover >= ACOPERIRE_MIN) best = bestTur;
   if (!best || best.cover < ACOPERIRE_MIN) return null;
   return { ...best, cover: Math.round(best.cover * 100) };
 }
@@ -308,6 +335,9 @@ for (const [rid, stops] of byRoute) {
   // Sîngerei) rămân puncte de trecere, iar dus-întorsul spre ele îl taie taieCarlige.
   // Întâi urma GPS a unei curse reale de pe ruta asta (Ion, 23.09: «copiază traseul
   // exact cum merg mașinile noastre, unu la unu»). Valhalla rămâne doar rezerva.
+  // Gările au punctul lor exact (peronul), și pentru urma GPS: capetele și «trece prin gară»
+  // se măsoară față de peron, nu față de centrul orașului din OSM.
+  for (const s of found) { const st = STATII.get(norm(s.name_ro)); if (st) s.pt = st; }
   let r = null, source = 'gps';
   try { r = await gpsShape(rid, stops, found); } catch (e) { console.log(`  gps ${rid}: ${e.message}`); }
   if (r) {

@@ -103,6 +103,29 @@ const PHONE_SVG = (
 );
 
 /**
+ * Doar drumul care urmează (Ion, 24.09, 08:17: «apare traseul în spate deja parcurs la
+ * mașină»): de la autobuz — sau, cât nu e pe hartă, de la localitatea omului — până la
+ * destinația lui, în sensul de mers. Linia e în ordinea opririlor spre Chișinău.
+ */
+function ahead(route: RouteLine, t: NowTrip | undefined): LatLon[] {
+  const line = route.shape;
+  if (!t || line.length < 2) return line;
+  const bus = t.lat != null && t.lon != null ? snapOn([t.lat, t.lon], line) : null;
+  const start = bus && bus.seg > 0 ? bus : route.from ? snapOn(route.from, line) : null;
+  const end = route.to ? snapOn(route.to, line) : null;
+  if (!start || start.seg < 1) return line;
+  // Segmentul `seg` e între line[seg-1] și line[seg].
+  if (t.going_north) {
+    // Spre nord se merge înapoi pe linie: line[start.seg-1], …, line[end.seg], apoi capătul.
+    const hasEnd = !!end && end.seg > 0 && end.seg <= start.seg;
+    return [start.at, ...line.slice(hasEnd ? end!.seg : 0, start.seg).reverse(), ...(hasEnd ? [end!.at] : [])];
+  }
+  // Spre Chișinău: line[start.seg], …, line[end.seg-1], apoi capătul.
+  const hasEnd = !!end && end.seg >= start.seg;
+  return [start.at, ...line.slice(start.seg, hasEnd ? end!.seg : line.length), ...(hasEnd ? [end!.at] : [])];
+}
+
+/**
  * Marginile hărții acoperite de fereastră: antetul sus; pe telefon lista jos (≈55% din
  * înălțime), pe calculator lista în stânga (320 px). Autobuzul și capetele stau în rest.
  */
@@ -163,7 +186,7 @@ function NowMap({ trips, routes, selected, onPick }: { trips: NowTrip[]; routes:
       const route = selRoute != null ? routes[selRoute] : undefined;
       if (route?.shape.length) {
         // Întreruptă (Ion, 23.09: «linia să fie întreruptă»): e drumul rutei, nu urma GPS.
-        L.polyline(route.shape, { color: RED, weight: 3, opacity: 0.8, dashArray: '6 7', lineCap: 'round', interactive: false }).addTo(g);
+        L.polyline(ahead(route, trips[selected]), { color: RED, weight: 3, opacity: 0.8, dashArray: '6 7', lineCap: 'round', interactive: false }).addTo(g);
         for (const [pt, cls] of [[route.from, 'from'], [route.to, 'to']] as const) {
           if (!pt) continue;
           // Centrul satului poate sta în afara traseului: capătul se pune pe linie.

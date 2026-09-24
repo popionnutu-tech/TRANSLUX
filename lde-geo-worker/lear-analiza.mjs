@@ -323,11 +323,23 @@ function curse(pts) {
 // Acum se măsoară pe geometrie, bucată cu bucată, fără nicio tăiere: un kilometru e «altceva»
 // dacă nu merge nici pe formele rutelor ei, nici pe culoarul dintre casă și capetele ei —
 // culoar luat de la Valhalla, drumul real pe șosea.
+// Întoarce {la_uzina, aiurea}. Ion, 24.09: «alte curse să fie separat, ele au fost la uzină?».
+// Întrebarea e bună: un drum care nu-i nici rută, nici navetă, dar ATINGE poarta, e tot muncă
+// de LEAR — un transport în plus, o cursă suplimentară. Unul care nu se apropie deloc de uzină
+// e altă treabă și n-are ce căuta în socoteala economiilor ei.
+//
+// Se taie în bucăți: kilometrii «străini» care se leagă unul de altul formează o ieșire, iar
+// ieșirea se pune într-un coș sau altul după cum a atins sau nu poarta.
 function alteCurse(pts, ruteObj, culoare, zileLucrate) {
   const peRuta = grila([].concat(...ruteObj.map(r =>
     (r._puncte || []).map(c => ({ lat: c[0], lon: c[1] })))));
   const peCasa = grila([].concat(...culoare.map(f => f.map(c => ({ lat: c[0], lon: c[1] })))));
-  let km = 0, prev = null;
+  let laUzina = 0, aiurea = 0;
+  let bucata = 0, atinsPoarta = false, prev = null;
+  const inchide = () => {
+    if (bucata > 0.2) { if (atinsPoarta) laUzina += bucata; else aiurea += bucata; }
+    bucata = 0; atinsPoarta = false;
+  };
   for (const p of pts) {
     if (prev) {
       const dk = hav(prev, p);
@@ -335,12 +347,17 @@ function alteCurse(pts, ruteObj, culoare, zileLucrate) {
         const mij = { lat: (prev.lat + p.lat) / 2, lon: (prev.lon + p.lon) / 2 };
         const eRuta = aproape(peRuta, [mij.lat, mij.lon], R_RUTA);
         const eCasa = peCasa.size && aproape(peCasa, [mij.lat, mij.lon], R_CULOAR);
-        if (!eRuta && !eCasa) km += dk;
+        if (!eRuta && !eCasa) {
+          bucata += dk;
+          if (hav(p, POARTA) <= R_POARTA) atinsPoarta = true;
+        } else inchide();
       }
     }
     prev = p;
   }
-  return zileLucrate ? km / zileLucrate : 0;
+  inchide();
+  const z = zileLucrate || 1;
+  return { la_uzina: laUzina / z, aiurea: aiurea / z };
 }
 
 // ─── deplasări în afara destinației de lucru ─────────────────────────────────
@@ -608,18 +625,23 @@ for (const v of auLucrat) {
     // drumurile de acasă la fiecare capăt: lungimea intră în regula 3, forma devine culoarul
     // după care se recunosc kilometrii de navetă
     let dCasa = 0, culoare = [], lipsaDrum = false;
+    const peCapat = [];
     for (const r of alese) {
       if (!r.capatC) { lipsaDrum = true; break; }
       const d = await drum(casaC, r.capatC, `${casa}|${r.capat}`);
       if (!d) { lipsaDrum = true; break; }
       dCasa += d.km; culoare.push(d.forma || []);
+      peCapat.push({ id: r.id, capat: r.capat, km: +d.km.toFixed(1) });
     }
     // «alte curse»: munca în plus, măsurată — nici rută, nici culoar de acasă. Nu dispare sub
     // nicio regulă, deci se adună la ziua nouă la amândouă.
-    const alte = alteCurse(ptsSapt, ruteSchelet, culoare, kmZile.length);
+    const A = alteCurse(ptsSapt, ruteSchelet, culoare, kmZile.length);
+    const alte = A.la_uzina + A.aiurea;
     rec.etalon_s1 = alese[0].etalon; rec.etalon_s2 = alese[1].etalon;
     rec.rutele_de_4 = +patru.toFixed(1);
     rec.alte = +alte.toFixed(1);
+    rec.alte_la_uzina = +A.la_uzina.toFixed(1);
+    rec.alte_aiurea = +A.aiurea.toFixed(1);
 
     // regula 1: ziua = 4 × latura fiecărui schimb + alte curse
     const z1 = patru + alte;
@@ -630,6 +652,7 @@ for (const v of auLucrat) {
     if (!lipsaDrum) {
       const z3 = 2 * sumaEtalon + dCasa + sumaEtalon + alte;
       rec.d_casa = +dCasa.toFixed(1); rec.d_uzina = +sumaEtalon.toFixed(1);
+      rec.d_casa_pe_capat = peCapat;
       rec.r3 = { zi: +z3.toFixed(1), km: +(azi - z3).toFixed(1),
         lei: Math.round((azi - z3) * lk * ZILE_LUNA) };
     } else rec.steaguri.push('Valhalla n-a dat drumul de acasă la capăt — regula 3 nu se poate socoti');
@@ -637,8 +660,11 @@ for (const v of auLucrat) {
     if (patru > azi) rec.steaguri.push(
       `cele patru drumuri pe rută fac ${n1(patru)} km, iar ea a condus ${n1(azi)} — n-a făcut ` +
       'patru drumuri complete, regula 1 nu se poate judeca la ea');
-    if (alte > 40) rec.steaguri.push(
-      `alte curse ${n1(alte)} km/zi — modelul explică prea puțin din ziua ei`);
+    if (A.aiurea > 40) rec.steaguri.push(
+      `${n1(A.aiurea)} km/zi în afara uzinei — nu-s nici rută, nici drum spre casă, și nici măcar ` +
+      'nu trec pe la poartă; mașina asta face și altă treabă');
+    else if (alte > 40) rec.steaguri.push(
+      `alte curse ${n1(alte)} km/zi, dar trec pe la poartă — muncă în plus pentru uzină`);
   }
 
   // deplasările în afara destinației de lucru
@@ -683,14 +709,15 @@ const total = { r1: S_(m => m.r1?.lei), r3: S_(m => m.r3?.lei),
   masini_r3: aleUzinei.filter(m => (m.r3?.lei || 0) > 0).length };
 
 // ─── tipărit ─────────────────────────────────────────────────────────────────
-console.log('mașină          tip            zile  ore   km/zi   rute            4×rute   alte   R1 lei   R3 lei');
+console.log('mașină          tip            zile  ore   km/zi   rute            4×rute   la uz.  aiurea   R1 lei   R3 lei');
 for (const m of masini.sort((a, b) => (b.r1?.lei || 0) - (a.r1?.lei || 0))) {
   console.log(
     `${m.masina.padEnd(15)} ${(m.tip || '—').padEnd(13)} ${String(m.zile_lucrate).padStart(4)} ` +
     `${String(Math.round(m.ore_poarta || 0)).padStart(4)}h ` +
     `${n1(m.azi).padStart(6)}  ${m.rute.map(r => r.id).join('+').padEnd(14)} ` +
     `${(m.rutele_de_4 != null ? n1(m.rutele_de_4) : '—').padStart(7)} ` +
-    `${(m.alte != null ? n1(m.alte) : '—').padStart(6)} ` +
+    `${(m.alte_la_uzina != null ? n1(m.alte_la_uzina) : '—').padStart(6)} ` +
+    `${(m.alte_aiurea != null ? n1(m.alte_aiurea) : '—').padStart(7)} ` +
     `${(m.r1 ? n0(m.r1.lei) : '—').padStart(8)} ${(m.r3 ? n0(m.r3.lei) : '—').padStart(8)}`);
   for (const s of m.steaguri) console.log(`                 ⚠ ${s}`);
 }

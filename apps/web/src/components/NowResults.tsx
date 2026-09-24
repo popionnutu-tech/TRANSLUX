@@ -33,6 +33,8 @@ interface NowTrip {
   near?: string | null;
   /** Mașina fără GPS: poziție orientativă pe linie, din orele tipice pe opriri (ION-43). */
   estimated?: boolean;
+  /** Mașina stă acum într-o gară / oprire principală a rutei; `mine` = chiar oprirea omului (ION-43). */
+  at_stop?: { name: string; mine: boolean };
   /** Ora orientativă reală la oprirea omului («HH:MM») și minutele până la ea (ION-39). */
   eta?: string;
   eta_min?: number;
@@ -83,11 +85,13 @@ const TXT = {
   ro: {
     close: 'Închide', call: 'Sună șoferul', loading: 'Caut autobuzele…', error: 'Nu am putut afla acum. Încercați peste un minut.',
     plan: (t: string) => `după grafic ${t}`,
+    here: 'în stație',
     when: (m: number) => (m <= 0 ? 'acum' : m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ''}`),
   },
   ru: {
     close: 'Закрыть', call: 'Позвонить водителю', loading: 'Ищу автобусы…', error: 'Не удалось узнать сейчас. Попробуйте через минуту.',
     plan: (t: string) => `по графику ${t}`,
+    here: 'на остановке',
     when: (m: number) => (m <= 0 ? 'сейчас' : m < 60 ? `${m} мин` : `${Math.floor(m / 60)} ч${m % 60 ? ` ${m % 60} мин` : ''}`),
   },
 } as const;
@@ -222,7 +226,7 @@ function NowMap({ trips, routes, selected, onPick, locale }: { trips: NowTrip[];
         const deg = own ? heading(own, s.seg, t.going_north) : null;
         const arrow = deg == null ? '' : `<span class="nb-arrow" style="transform:rotate(${deg.toFixed(0)}deg)">${ARROW_SVG}</span>`;
         const icon = L.divIcon({
-          html: `<span class="now-bus${on ? ' on' : ''}${t.estimated ? ' est' : ''}">${arrow}<span class="nb-dot">${BUS_FRONT_SVG}</span><b>${t.eta ? `~${t.eta}` : t.departure}</b></span>`,
+          html: `<span class="now-bus${on ? ' on' : ''}${t.estimated ? ' est' : ''}">${arrow}<span class="nb-dot">${BUS_FRONT_SVG}</span>${t.at_stop ? `<b class="here"><i></i>${t.at_stop.name}</b>` : `<b>${t.eta ? `~${t.eta}` : t.departure}</b>`}</span>`,
           className: 'now-pin-icon', iconSize: [44, 44], iconAnchor: [22, 22],
         });
         L.marker(at, { icon, keyboard: false, title: t.estimated ? `${t.departure} · ${locale === 'ru' ? 'примерное место, без GPS' : 'poziție orientativă, fără GPS'}` : t.departure, zIndexOffset: on ? 1000 : 0 })
@@ -319,7 +323,7 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
                     {/* Ora REALĂ la care ajunge (ION-39): din GPS când e pe drum, altfel din
                         trecerile reale ale zilelor trecute; graficul apare doar dacă diferă. */}
                     <span className="now-time">{t.eta ? `~${t.eta}` : t.departure}</span>
-                    <span className="now-when">{tx.when(t.eta_min ?? t.minutes_until)}</span>
+                    <span className="now-when">{t.at_stop?.mine ? <><span className="now-here-dot" />{tx.here}</> : tx.when(t.eta_min ?? t.minutes_until)}</span>
                   </div>
                   {t.eta && t.eta !== t.departure && <span className="now-plan">{tx.plan(t.departure)}</span>}
                   {crew && <span className="now-crew">{crew}</span>}
@@ -385,6 +389,12 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
 .now-bus.est .nb-dot{border-style:dashed;opacity:.85}
 .now-bus.est.on .nb-dot{background:rgba(155,27,48,.78);border:3px dashed #fff}
 .now-bus.est .nb-arrow{opacity:.7}
+/* În gară / în oprirea omului: semnal «e aici acum» în locul orei (Ion, 24.09). */
+.now-bus b.here{gap:6px;border-color:#1F8A4C;color:#1F6B3B}
+.now-bus.on b.here{border-color:#1F8A4C;color:#1F6B3B}
+.now-bus b.here i,.now-here-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#22A35A;animation:now-here 1.6s infinite}
+.now-here-dot{margin-right:6px;vertical-align:middle}
+@keyframes now-here{0%{box-shadow:0 0 0 0 rgba(34,163,90,.6)}70%{box-shadow:0 0 0 7px rgba(34,163,90,0)}100%{box-shadow:0 0 0 0 rgba(34,163,90,0)}}
 .now-end{display:block;width:16px;height:16px;border-radius:50%;box-sizing:border-box;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)}
 .now-end.from{background:#231A1C}
 .now-end.to{background:#fff;border:4px solid ${RED}}

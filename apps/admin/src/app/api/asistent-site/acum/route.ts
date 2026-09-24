@@ -36,6 +36,29 @@ const normPlate = (s: string | null | undefined) => (s ?? '').toUpperCase().repl
 /** «Chișinău» și «Chisinau» sunt aceeași oprire. */
 const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[şș]/g, 's').replace(/[ţț]/g, 't').trim();
 
+/** Gările / opririle principale ale rutelor, unde rutiera stă (Ion, 24.09: «punct de gară sau oprire principală ca în Edineț»). */
+const MAIN_STOPS = new Set(['chisinau', 'balti', 'edinet', 'briceni', 'lipcani', 'ocnita', 'riscani', 'otaci', 'soroca']);
+/** Atât de aproape de punctul peronului = mașina e acolo. */
+const AT_STOP_KM = 0.3;
+
+function km(a: [number, number], b: [number, number]): number {
+  const dLat = ((b[0] - a[0]) * Math.PI) / 180, dLon = ((b[1] - a[1]) * Math.PI) / 180;
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos((a[0] * Math.PI) / 180) * Math.cos((b[0] * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return 12742 * Math.asin(Math.sqrt(s));
+}
+
+/** Gara sau oprirea omului în care stă acum mașina; `mine` = chiar oprirea omului. */
+function stopAt(p: [number, number], stops: GeoStop[], from: string | undefined): { name: string; mine: boolean } | null {
+  let best: { name: string; mine: boolean; d: number } | null = null;
+  for (const s of stops) {
+    const mine = !!from && fold(s.name) === fold(from);
+    if (!mine && !MAIN_STOPS.has(fold(s.name))) continue;
+    const d = km(p, [s.lat, s.lon]);
+    if (d <= AT_STOP_KM && (!best || d < best.d)) best = { name: s.name, mine, d };
+  }
+  return best ? { name: best.name, mine: best.mine } : null;
+}
+
 export async function OPTIONS(req: NextRequest) {
   return new NextResponse(null, { status: 204, headers: cors(req) });
 }
@@ -126,7 +149,9 @@ export async function POST(req: NextRequest) {
           const est = estimateOnLine(g.shape, timed, t.going_north, nowMinChisinau());
           if (est) return { ...t, lat: est[0], lon: est[1], estimated: true, ...(e ?? {}) };
         }
-        return { ...t, ...(seen ?? {}), ...(e ?? {}) };
+        // În gară sau în oprirea omului: pe hartă semnal «e aici acum», nu ora (Ion, 24.09).
+        const atStop = seen && g ? stopAt([seen.lat, seen.lon], g.stops, r.fromRo) : null;
+        return { ...t, ...(seen ?? {}), ...(e ?? {}), ...(atStop ? { at_stop: atStop } : {}) };
       }))).filter((t) => {
         if ('passed' in t && t.passed) return false;
         // O cursă plecată după grafic de peste jumătate de oră rămâne doar cu o oră estimată

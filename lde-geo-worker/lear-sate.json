@@ -1,0 +1,261 @@
+{
+ "Albineț": {
+  "lat": 47.5543732,
+  "lon": 27.6363982,
+  "cum": "după început · varianta pe rută",
+  "prin": "Albinețul Vechi",
+  "ruta": "A2"
+ },
+ "Cioropcani Noi": {
+  "lat": 47.3976474,
+  "lon": 27.6967674,
+  "cum": "după început",
+  "prin": "Cioropcani",
+  "ruta": "A6"
+ },
+ "Cioropcanii Vechi": {
+  "lat": 47.3976474,
+  "lon": 27.6967674,
+  "cum": "după început",
+  "prin": "Cioropcani",
+  "ruta": "A7"
+ },
+ "Petrești traseu": {
+  "lat": 47.3088205,
+  "lon": 27.7451063,
+  "cum": "nume curățat",
+  "prin": "Petrești",
+  "ruta": "A8"
+ },
+ "Vasilica": {
+  "lat": 47.38739,
+  "lon": 27.59108,
+  "cum": "pus pe forma rutei A8, între Taxobeni",
+  "prin": null,
+  "ruta": "A8"
+ },
+ "Manoilești": {
+  "lat": 47.2307761,
+  "lon": 27.8809801,
+  "cum": "exact",
+  "prin": "Mănoilești",
+  "ruta": "A10"
+ },
+ "Curculiovca": {
+  "lat": 47.2176,
+  "lon": 27.8761,
+  "cum": "pus pe forma rutei A10, între Rezina",
+  "prin": null,
+  "ruta": "A10"
+ },
+ "Dănuțeni": {
+  "lat": 47.2176,
+  "lon": 27.8761,
+  "cum": "pus pe forma rutei A10, între Rezina",
+  "prin": null,
+  "ruta": "A10"
+ },
+ "Măcărești liceu": {
+  "lat": 47.0501591,
+  "lon": 27.9729947,
+  "cum": "nume curățat",
+  "prin": "Măcărești",
+  "ruta": "A11"
+ },
+ "Costuleni traseu": {
+  "lat": 47.080304,
+  "lon": 27.9133157,
+  "cum": "nume curățat",
+  "prin": "Costuleni",
+  "ruta": "A12"
+ },
+ "Costuleni sat": {
+  "lat": 47.080304,
+  "lon": 27.9133157,
+  "cum": "nume curățat",
+  "prin": "Costuleni",
+  "ruta": "A13"
+ },
+ "Ungheni Becu": {
+  "lat": 47.2059965,
+  "lon": 27.798917,
+  "cum": "după început",
+  "prin": "Ungheni",
+  "ruta": "A13"
+ },
+ "Ungheni Vento": {
+  "lat": 47.2059965,
+  "lon": 27.798917,
+  "cum": "după început",
+  "prin": "Ungheni",
+  "ruta": "A14"
+ },
+ "Ungheni Deal": {
+  "lat": 47.2059965,
+  "lon": 27.798917,
+  "cum": "după început",
+  "prin": "Ungheni",
+  "ruta": "A15"
+ },
+ "Șoltoia": {
+  "lat": 47.5167,
+  "lon": 27.7754,
+  "cum": "pus pe forma rutei B1, între Sărata Veche",
+  "prin": null,
+  "ruta": "B1"
+ },
+ "Pîrlița fermă": {
+  "lat": 47.3218213,
+  "lon": 27.883416,
+  "cum": "după început · varianta pe rută",
+  "prin": "Pîrlița",
+  "ruta": "B1"
+ },
+ "Ciolacul Vechi": {
+  "lat": 47.4729916,
+  "lon": 27.8659619,
+  "cum": "nume curățat",
+  "prin": "Ciolacu Vechi",
+  "ruta": "B2"
+ },
+ "Ciolacul Nou": {
+  "lat": 47.4867073,
+  "lon": 27.8256769,
+  "cum": "nume curățat",
+  "prin": "Ciolacu Nou",
+  "ruta": "B2"
+ },
+ "Țighira": {
+  "lat": 47.4461081,
+  "lon": 27.9009841,
+  "cum": "exact",
+  "prin": "Țîghira",
+  "ruta": "B4"
+ },
+ "Pîrlița stadion": {
+  "lat": 47.3218213,
+  "lon": 27.883416,
+  "cum": "nume curățat · varianta pe rută",
+  "prin": "Pîrlița",
+  "ruta": "B5"
+ },
+ "Pîrlița școală": {
+  "lat": 47.3218213,
+  "lon": 27.883416,
+  "cum": "după început · varianta pe rută",
+  "prin": "Pîrlița",
+  "ruta": "B6"
+ },
+ "Pîrlița biserică": {
+  "lat": 47.3218213,
+  "lon": 27.883416,
+  "cum": "după început · varianta pe rută",
+  "prin": "Pîrlița",
+  "ruta": "B6"
+ },
+ "Teșcureni sat vechi": {
+  "lat": 47.4092002,
+  "lon": 27.944685,
+  "cum": "după început",
+  "prin": "Teșcureni",
+  "ruta": "B7"
+ },
+ "Cetireni sat": {
+  "lat": 47.2157558,
+  "lon": 27.9141556,
+  "cum": "nume curățat",
+  "prin": "Cetireni",
+  "ruta": "B9"
+ },
+ "Fabrica Biochimică": {
+  "lat": 47.2075,
+  "lon": 27.7943,
+  "cum": "pus pe forma rutei B9, între Ungheni",
+  "prin": null,
+  "ruta": "B9"
+ },
+ "Polevaia": {
+  "lat": 47.2075,
+  "lon": 27.7943,
+  "cum": "pus pe forma rutei B9, între Ungheni",
+  "prin": null,
+  "ruta": "B9"
+ },
+ "Ungheni Vale": {
+  "lat": 47.2059965,
+  "lon": 27.798917,
+  "cum": "după început",
+  "prin": "Ungheni",
+  "ruta": "B9"
+ },
+ "Dănuțeni Moldova": {
+  "lat": 47.2033,
+  "lon": 27.8998,
+  "cum": "pus pe forma rutei B10, între Florițoaia Veche",
+  "prin": null,
+  "ruta": "B10"
+ },
+ "Dănuțeni MRAO": {
+  "lat": 47.2033,
+  "lon": 27.8998,
+  "cum": "pus pe forma rutei B10, între Florițoaia Veche",
+  "prin": null,
+  "ruta": "B10"
+ },
+ "Grozasca Veche": {
+  "lat": 47.1738865,
+  "lon": 27.9011736,
+  "cum": "după început",
+  "prin": "Grozasca",
+  "ruta": "B11"
+ },
+ "Sineștii Noi Plopi": {
+  "lat": 47.4266095,
+  "lon": 28.041594,
+  "cum": "după început · varianta pe rută",
+  "prin": "Sineștii Noi",
+  "ruta": "B13"
+ },
+ "Berești": {
+  "lat": 47.2216,
+  "lon": 27.81013,
+  "cum": "pus pe forma rutei B13, între Zagarancea",
+  "prin": null,
+  "ruta": "B13"
+ },
+ "Cornești sat": {
+  "lat": 47.3564908,
+  "lon": 28.0091608,
+  "cum": "nume curățat · varianta pe rută",
+  "prin": "Cornești",
+  "ruta": "B14"
+ },
+ "Cornești oraș": {
+  "lat": 47.3564908,
+  "lon": 28.0091608,
+  "cum": "după început · varianta pe rută",
+  "prin": "Cornești",
+  "ruta": "B14"
+ },
+ "Sineștii Vechi": {
+  "lat": 47.3943,
+  "lon": 27.9976,
+  "cum": "pus pe forma rutei B15, între Boghenii Vechi",
+  "prin": null,
+  "ruta": "B15"
+ },
+ "Sineștii Noi traseu": {
+  "lat": 47.4266095,
+  "lon": 28.041594,
+  "cum": "nume curățat",
+  "prin": "Sineștii Noi",
+  "ruta": "B15"
+ },
+ "Boghenii Noi drum": {
+  "lat": 47.4251189,
+  "lon": 28.0107531,
+  "cum": "nume curățat",
+  "prin": "Boghenii Noi",
+  "ruta": "B15"
+ }
+}

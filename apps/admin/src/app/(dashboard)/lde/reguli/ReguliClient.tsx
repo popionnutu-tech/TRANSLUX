@@ -286,6 +286,7 @@ export default function ReguliClient({ raport, saptamani = [] }: {
                       {m.rute.map((r) => (
                         <span key={r.id} className="block">
                           <b>{r.id}</b> {r.capat}{' '}
+                          {r.comasat?.length ? <span className="text-neutral-500">+{r.comasat.join('+')}{' '}</span> : null}
                           <u className="font-mono text-[11px] text-neutral-500 no-underline">{n1(r.etalon)}</u>
                         </span>
                       ))}
@@ -304,11 +305,14 @@ export default function ReguliClient({ raport, saptamani = [] }: {
                       ) : <span className="text-neutral-500">—</span>}
                     </td>
                   </tr>
-                  {m.steaguri.length > 0 && (
+                  {(m.steaguri.length > 0 || (m.note ?? []).length > 0) && (
                     <tr key={`${m.masina}-stg`}>
                       <td colSpan={12} className="border-b border-neutral-200 px-2! pb-2! dark:border-neutral-700">
                         {m.steaguri.map((s, i) => (
                           <span key={i} className="block text-[12px] leading-relaxed text-[#a33a20]">⚠ {s}</span>
+                        ))}
+                        {(m.note ?? []).map((s, i) => (
+                          <span key={`n${i}`} className="block text-[12px] leading-relaxed text-neutral-500">ⓘ {s}</span>
                         ))}
                       </td>
                     </tr>

@@ -33,10 +33,13 @@ import { loadPlaces } from './places-index.mjs';
 // ─── parametri ───────────────────────────────────────────────────────────────
 const arg = (n, d = null) => { const i = process.argv.indexOf(n); return i > 0 ? process.argv[i + 1] : d; };
 const WRITE = process.argv.includes('--write');
+// --de-ce 807MUM,320BRAT — scrie pe stderr, cursă cu cursă, de ce o rută se potrivește sau nu.
+// Diagnostic pentru duminicile în care raportul spune «n-am găsit nicio rută» și nu se vede de ce.
+const DE_CE = new Set((arg('--de-ce', '') || '').split(',').filter(Boolean));
 const UZINA_NUME = 'LEAR Ungheni';
 const AICI = path.dirname(new URL(import.meta.url).pathname);
 const CALE_SCHELET = process.env.LEAR_SCHELET || path.join(AICI, 'lear-schelet.json');
-const CALE_CACHE = process.env.LEAR_DRUMURI || path.join(AICI, 'lear-drumuri.json');
+const CALE_CACHE = process.env.LEAR_DRUMURI || path.join(AICI, 'lear-drumuri-v2.json');
 // Ce rută face fiecare mașină, pe tura A și pe tura B — confirmat de Ion pe 23.09.2026.
 // Lista asta BATE potrivirea automată. Fără ea, ruta se ghicea din geometrie, iar ghicitul
 // cădea pe satul unde doarme mașina sau pe un sat de trecere: A5 Gherman e scurtă, trece pe
@@ -154,6 +157,9 @@ function citesteSchelet() {
     // Pentru a RECUNOAȘTE ruta se ia partea plină: ea e cea care o deosebește de altele.
     const f = [...(r.g?.tur?.plin || []), ...(r.g?.retur?.plin || [])];
     r._puncte = f.filter((_, i) => i % 3 === 0);
+    // pe sensuri: o cursă e un singur sens, deci se compară cu turul SAU cu returul, nu cu amândouă
+    r._pT = (r.g?.tur?.plin || []).filter((_, i) => i % 3 === 0);
+    r._pR = (r.g?.retur?.plin || []).filter((_, i) => i % 3 === 0);
     // Linia «gol» din schelet NU se folosește. Ion, 24.09: «Zăzulenii Noi e cu totul în altă
     // parte» — și avea dreptate. Golul din schelet e drumul pe care a nimerit mașina în ziua
     // aleasă când s-a fixat scheletul, nu drumul rutei: la B6 are 66,7 km față de 21,5 ai rutei
@@ -220,12 +226,16 @@ async function drum(a, b, eticheta) {
   try {
     const res = await fetch(`${VALHALLA}/route`, { method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      // `alternates`: și drumurile alternative, nu doar cel mai scurt. 827MUM pleacă seara de la
+      // Fălești la uzină prin Horești–Gherman–Sculeni, nu pe șoseaua principală prin Sculeni;
+      // fără variante, kilometrii ăia ieșeau «neatribuiți». Lungimea rămâne a drumului principal.
       body: JSON.stringify({ locations: [{ lat: a[0], lon: a[1] }, { lat: b[0], lon: b[1] }],
-        costing: 'bus', directions_options: { units: 'kilometers' } }) });
+        costing: 'bus', alternates: 2, directions_options: { units: 'kilometers' } }) });
     if (!res.ok) { cache[eticheta] = null; cacheNou = true; return null; }
     const j = await res.json();
     const km = j?.trip?.summary?.length ?? null;
-    const forma = (j?.trip?.legs || []).flatMap(l => l.shape ? decodeaza(l.shape) : []);
+    const toate = [j?.trip, ...(j?.alternates || []).map(x => x.trip)].filter(Boolean);
+    const forma = toate.flatMap(t => (t.legs || []).flatMap(l => l.shape ? decodeaza(l.shape) : []));
     const val = km == null ? null : { km, forma: forma.filter((_, i) => i % 4 === 0) };
     cache[eticheta] = val; cacheNou = true;
     return val;
@@ -251,13 +261,14 @@ async function citesteSaptamina(t, de_la, pana_la) {
   const out = [];
   for (const d of flota) {
     const { rows } = await t.query(
-      `SELECT w_date,x,y FROM track WHERE id=$1 AND w_date>=$2 AND w_date<$3 ORDER BY w_date`,
+      `SELECT w_date,x,y,speed FROM track WHERE id=$1 AND w_date>=$2 AND w_date<$3 ORDER BY w_date`,
       [d.id, de_la, pana_la]);
     if (rows.length < 50) continue;
     const pts = [], kmZi = new Map(), zilePoarta = new Set();
     let prev = null, minPoarta = 0;
     for (const r of rows) {
-      const p = { lat: nmea(Number(r.x)), lon: nmea(Number(r.y)), t: new Date(r.w_date) };
+      // viteza vine în noduri (max ~48 = 89 km/h); sub 4 noduri (~7 km/h) = ia sau lasă oameni
+      const p = { lat: nmea(Number(r.x)), lon: nmea(Number(r.y)), t: new Date(r.w_date), v: Number(r.speed) };
       if (!Number.isFinite(p.lat) || !Number.isFinite(p.lon) || !inTara(p)) continue;
       pts.push(p);
       const z = ziLucru(p.t);
@@ -274,18 +285,149 @@ async function citesteSaptamina(t, de_la, pana_la) {
 // ─── ce rute a dus în săptămâna asta ─────────────────────────────────────────
 // Nu ghicim după nume: luăm forma fiecărei rute din schelet și vedem câte din punctele ei au
 // fost atinse de urma mașinii. Ruta cu acoperirea cea mai mare, peste prag, e ruta pe care a dus-o.
-function rutePotrivite(v, S) {
+// Ce rute a DESERVIT mașina — adică pe câte curse a legat capătul rutei de poartă.
+//
+// Acoperirea urmei nu ajunge: 320BRAT acoperea A5, A9 și A10 sută la sută fără să fi adus pe
+// nimeni de acolo — rutele scurte de lângă uzină stau pe drumul pe care trec toți. Ce deosebește
+// «a dus ruta» de «a trecut pe acolo» e cursa: pleacă de la capăt, ajunge la poartă (sau invers).
+// Ion, 24.09: «ele fac rutele, se opresc la LEAR, aduc lume la LEAR?» — asta se numără aici.
+//
+// Capătul: cel din schelet, dacă urma îl atinge în săptămâna aia; altfel satul rutei cel mai
+// depărtat de poartă la care urma ajunge. 456BRAX face A15 până la Brătuleni și nu urcă până la
+// Cîrnești (3,9 km mai departe) — ruta e tot A15, doar mai scurtă în săptămâna aia.
+// Cursa deservește ruta dacă: atinge poarta, atinge capătul, și ÎNCETINEȘTE (sub 4 noduri) în
+// cel puțin două sate ale rutei — sate dincolo de trunchiul comun de lângă uzină și departe de
+// casa mașinii. Fără încetinire nu-i rută, e trecere: Todirești e capătul lui B5, dar acolo dorm
+// patru mașini, iar naveta lor de acasă la poartă «atingea» capătul de 25 de ori pe săptămână.
+// La 809MUM, Gherman și Medeleni stau chiar pe drumul lui de la Lucăceni la uzină. Ion, 24.09:
+// «autobuzul oprește doar unde are pe cineva» — deci oprirea e semnul, nu trecerea.
+const V_LENT = 4;          // noduri ≈ 7 km/h
+const R_TRUNCHI = 8;       // km de poartă — mai aproape, satele sunt ale tuturor (plafon; la rutele
+                           // scurte se ia 40% din depărtarea capătului, altfel B9 n-ar avea sat de probă)
+const R_CASA_EXCL = 3;     // km — satul de acasă nu dovedește nimic (3, nu 2: 189OMM doarme la
+                           // Sărata Nouă, 2,1 km de Călugăr, și «oprea» acolo în fiecare zi)
+const R_DE_FORMA = 2.5;    // km — mai departe de forma rutei, satul nu-i pe drumul ei
+function rutePotrivite(v, S, casaC, fix) {
   const g = grila(v.pts);
+  const trips = curse(v.pts).map(c => ({ ...c, g: grila(c.pts),
+    gLent: grila(c.pts.filter(p => p.v <= V_LENT)),
+    laPoarta: c.pts.some(p => hav(p, POARTA) <= R_POARTA),
+    // până unde s-a dus: dacă mai departe decât capătul rutei, cursa nu-i a rutei, ci a drumului
+    // pe care stă ruta (naveta lui 809MUM de la Lucăceni trece prin capătul lui A5)
+    depMax: Math.max(...c.pts.map(p => hav(p, POARTA))) }));
+  const capete = S.rute.filter(x => x._capatC).map(x => ({ id: x.id, c: x._capatC,
+    d: hav({ lat: x._capatC[0], lon: x._capatC[1] }, POARTA) }));
+  const spune = DE_CE.has(v.masina) ? (...a) => console.error(`[${v.masina}]`, ...a) : null;
+  if (spune) {
+    const oraL = t => local(t).toISOString().slice(5, 16).replace('T', ' ');
+    spune(`casa ${casaC ? casaC.map(x => x.toFixed(4)).join(',') : '—'} · ${trips.length} curse:`);
+    for (const c of trips) {
+      let dep = null;
+      for (const p of c.pts) { const d = hav(p, POARTA); if (!dep || d > dep.d) dep = { p, d }; }
+      const sat = celMaiApropiatSat(S, dep.p);
+      // opririle ei: sub 4 noduri, pe loc (300 m), cel puțin 2 minute — unde a luat sau lăsat lume
+      const opriri = []; let st = null;
+      for (const p of c.pts) {
+        if (p.v <= V_LENT && st && hav(st.p, p) <= 0.3) { st.pana = p.t; continue; }
+        if (st && (st.pana - st.de) / 60000 >= 2) opriri.push(st);
+        st = p.v <= V_LENT ? { p, de: p.t, pana: p.t } : null;
+      }
+      if (st && (st.pana - st.de) / 60000 >= 2) opriri.push(st);
+      spune(`  ${oraL(c.pts[0].t)}–${oraL(c.pts[c.pts.length - 1].t).slice(6)} ${c.km.toFixed(0).padStart(4)} km` +
+        ` poartă:${c.laPoarta ? 'da' : 'nu'} · cel mai departe ${dep.d.toFixed(0)} km, la ${sat?.n ?? '?'} (${sat?.d.toFixed(1)} km)` +
+        ` · opriri: ${opriri.slice(0, 12).map(o => { const n = celMaiApropiatSat(S, o.p);
+          return `${oraL(o.de).slice(6)} ${n?.n ?? '?'} ${Math.round((o.pana - o.de) / 60000)}′`; }).join(', ') || '—'}`);
+    }
+  }
   const gasite = [];
   for (const r of S.rute) {
-    if (!r._puncte?.length || !r.etalon) continue;
-    // capătul rutei trebuie atins: fără asta, o rută scurtă de lângă uzină pare dusă de toți
-    if (!r._capatC || !aproape(g, r._capatC, 1.0)) continue;
+    if (!r._puncte?.length || !r.etalon || !r._capatC) continue;
     let atinse = 0;
     for (const p of r._puncte) if (aproape(g, p, R_RUTA)) atinse++;
     const acop = atinse / r._puncte.length;
-    if (acop >= ACOPERIRE) gasite.push({ id: r.id, tura: r.tura, capat: r.capat, loc: r.loc,
-      etalon: r.etalon, acoperire: +acop.toFixed(2), capatC: r._capatC });
+    if (spune && acop >= 0.3) spune(`${r.id} ${r.capat}: acoperire ${(acop * 100).toFixed(0)}%`);
+    if (acop < 0.5) continue;
+    const capatAtins = aproape(g, r._capatC, 1.5);
+    const dCap = hav({ lat: r._capatC[0], lon: r._capatC[1] }, POARTA);
+    const trunchi = Math.min(R_TRUNCHI, 0.4 * dCap);
+    // ținta: capătul; dacă nu-i atins, al DOILEA sat din nomenclator (456BRAX face A15 până la
+    // Brătuleni, al doilea sat, și nu urcă la Cîrnești) — și atât, nu orice sat de pe formă
+    let tintaC = capatAtins ? r._capatC : null;
+    // Satul se caută pe DRUMUL rutei, nu în centrul lui de pe hartă: forma rutei trece pe
+    // șoseaua de lângă sat, iar autobuzul oprește la șosea. Fălești (A1) e ocolit pe centură,
+    // Bușila (B3) și Brătuleni (A15) stau la peste 0,8 km de drum — cu centrul, 183BZP, 807MUM
+    // și 456BRAX își pierdeau rutele. Un sat la peste 2,5 km de forma rutei nu-i pe drumul ei.
+    const peForma = (c) => { let m = null;
+      for (const p of r._puncte) { const d = hav({ lat: p[0], lon: p[1] }, { lat: c[0], lon: c[1] });
+        if (!m || d < m.d) m = { p, d }; }
+      return m && m.d <= R_DE_FORMA ? m.p : null; };
+    if (!tintaC && r.sate[1]) { const c2 = coordSat(S, r.sate[1]); const c2f = c2 && (peForma(c2) ?? c2);
+      // 85%, nu 70%: la 70% Petrești (al doilea sat al lui A9) trecea drept capăt pentru orice
+      // mașină care vine de la nord-vest prin el — 809MUM «deservea» A9 de 12 ori din navetă
+      if (c2 && hav({ lat: c2[0], lon: c2[1] }, POARTA) >= 0.85 * dCap && aproape(g, c2f, 1.5)) tintaC = c2f; }
+    if (spune) spune(`  capăt atins: ${capatAtins ? 'da' : 'nu'} (${r._capatC.map(x => x.toFixed(4))}) · țintă ${tintaC ? (capatAtins ? 'capătul' : r.sate[1]) : 'NICIUNA'}`);
+    if (!tintaC) continue;
+    // Satele care pot dovedi ruta sunt cele din NOMENCLATOR — acolo ia oameni — nu cele de pe
+    // formă. Cele de pe formă le împart toate rutele de pe același drum: naveta lui 189OMM de la
+    // Sărata Nouă trece prin Călugăr (A4), Bocșa (A3), Horești (A8) și le «deservea» pe toate.
+    // Nomenclatoarele nu se suprapun: A4 are Călugăr, A5 are Gherman, Sculeni, Blindești.
+    // Un sat = mai multe puncte: locurile știute pentru nume PLUS proiecția fiecăruia pe drum.
+    // Autobuzul oprește ori în sat (Doltu), ori la șosea (Fălești) — o oprire la oricare ajunge.
+    let sateProba = r.sate.map(n => ({ n, cc: coordSatToate(S, n).filter(c =>
+      hav({ lat: c[0], lon: c[1] }, POARTA) > trunchi &&
+      (!casaC || hav({ lat: c[0], lon: c[1] }, { lat: casaC[0], lon: casaC[1] }) > R_CASA_EXCL)) }))
+      .map(x => { const pf = x.cc.map(peForma).filter(Boolean); return { n: x.n, cc: [...x.cc, ...pf] }; })
+      .filter(x => x.cc.length);
+    // rută scurtă, cu toate satele în trunchi (B9 Cetireni): capătul ei e singura probă
+    if (!sateProba.length) sateProba = [{ n: r.capat, cc: [r._capatC] }];
+    // Șoferul care doarme chiar la capăt (456BRAX la Todirești, capătul lui B5) face naveta pe
+    // drumul rutei și încetinește la o stație de la șosea. Aia nu-i rută, e navetă: de la el se
+    // cer două sate, oricâte ar trece — și dacă ruta n-are două în afara casei, nu i se dă.
+    const casaLaCapat = !!casaC && hav({ lat: casaC[0], lon: casaC[1] }, { lat: r._capatC[0], lon: r._capatC[1] }) <= R_CASA_EXCL;
+    const asteptat = !!fix && fix[r.tura] === r.id;
+    const tintaD = hav({ lat: tintaC[0], lon: tintaC[1] }, POARTA);
+    if (spune) {
+      const scoase = r.sate.filter(n => !sateProba.some(x => x.n === n));
+      spune(`  sate-probă (trunchi ${trunchi.toFixed(1)} km): ${sateProba.map(x => x.n).join(', ')}` +
+        ` · scoase: ${scoase.join(', ') || '—'}`);
+    }
+    let deservite = 0, lenteTotal = 0; const curseIdx = [];
+    for (const [ci, c] of trips.entries()) {
+      if (!c.laPoarta || !aproape(c.g, tintaC, 1.5)) continue;
+      // «doar până la Bocșa» nu se dă unei curse care merge mai departe, la capătul ALTEI rute:
+      // 537BRAT trece prin Bocșa (al doilea sat al lui A3) în drum spre Călugăr, capătul lui A4
+      if (!capatAtins && capete.some(k => k.id !== r.id && k.d > tintaD + 1 && aproape(c.g, k.c, 1.5))) continue;
+      // oprirea la capăt nu se cere: autobuzul întoarce la capăt din mers, sub 7 km/h nu coboară
+      // mereu acolo, iar 537BRAT, 827MUM, 732SHS își pierdeau rutele. Se cer opriri în satele ei.
+      // Se cer opriri în două din satele prin care cursa CHIAR trece; dacă trece doar printr-unul
+      // (B11: Grozasca și Grozasca Veche stau lângă drum, nu pe el), într-acela. Prin niciunul —
+      // a ajuns la capăt pe alt drum, nu-i cursa asta.
+      let lente = 0, trecute = 0; const vaz = new Set();
+      for (const x of sateProba) { if (vaz.has(x.n)) continue;
+        if (!x.cc.some(q => aproape(c.g, q, 0.8))) continue;
+        trecute++;
+        if (x.cc.some(q => aproape(c.gLent, q, 0.8))) { lente++; vaz.add(x.n); } }
+      // Câte opriri dovedesc cursa:
+      //  · capătul e locul unde a ÎNTORS (nu s-a dus mai departe) → una ajunge: acolo s-a dus
+      //    pentru rută. 320BRAT ia de pe B15 doar la Bumbăta, restul îi ia 032BRAT din drum.
+      //  · a mers mai departe de capăt (doarme dincolo de el: 537BRAT la Fălești, dincolo de
+      //    Călugăr) → e naveta lui pe drumul rutei. Dacă ruta e a lui după listă, oprirea zilnică
+      //    într-un sat al ei confirmă lista; dacă nu-i a lui, se cer două — altfel orice oprire
+      //    de-o clipă pe drumul comun ar «deservi» rute străine.
+      //  · doarme chiar la capăt → două, oricum (vezi mai sus).
+      const dincolo = c.depMax > dCap + 3;
+      const cerute = casaLaCapat ? 2 : (!dincolo || asteptat) ? 1 : 2;
+      if (spune) spune(`    cursă ${local(c.pts[0].t).toISOString().slice(5, 16).replace('T', ' ')}: trece prin ${trecute}, oprește în ${[...vaz].join(', ') || 'niciun sat'}${dincolo ? ', merge dincolo de capăt' : ''} → ${lente >= cerute ? 'DESERVITĂ' : 'nu'}`);
+      if (lente >= cerute) { deservite++; lenteTotal += lente; curseIdx.push(ci); }
+    }
+    if (spune) spune(`  → ${deservite} curse deservite`);
+    if (!deservite) continue;
+    // până unde a mers pe nomenclator — pentru steagul «doar până la», nu pentru potrivire
+    let panaLa = r.capat;
+    if (!capatAtins) for (const n of r.sate) { const c = coordSat(S, n); if (c && aproape(g, c, 1.5)) { panaLa = n; break; } }
+    gasite.push({ id: r.id, tura: r.tura, capat: r.capat, loc: r.loc, etalon: r.etalon,
+      acoperire: +acop.toFixed(2), capatC: r._capatC, curse: deservite, opriri: lenteTotal,
+      capat_atins: capatAtins, tinta: panaLa, curseIdx, kmCursa: Object.fromEntries(curseIdx.map(i => [i, trips[i].km])) });
   }
   return gasite;
 }
@@ -310,23 +452,34 @@ function rutePotrivite(v, S) {
 // scurtă și pe șoseaua comună, ieșea «dusă» de șase mașini deodată.
 const BONUS_LISTA = 1.25;   // cât cântărește mai mult ruta așteptată, la acoperire egală
 
+const CURSE_MIN_IMPARTIT = 3;   // a doua mașină ia și ea ruta dacă a deservit-o de atâtea ori
 function repartizeazaPeUrma(candidati, RM) {
   const toti = [];
   for (const [masina, lista] of candidati) {
     const fix = RM.get(masina);
     for (const r of lista) {
       const asteptat = !!fix && fix[r.tura] === r.id;
-      toti.push({ masina, ...r, asteptat, scor: r.acoperire * r.etalon * (asteptat ? BONUS_LISTA : 1) });
+      // întâi cursele deservite, apoi acoperirea × lungimea, apoi lista
+      // întâi cursele deservite; la egalitate, ruta din listă; abia apoi lungimea. Fără asta
+      // 189OMM lua A4 Călugăr în loc de A5 Gherman la 9 curse fiecare, doar fiindcă A4 e mai lungă —
+      // și ieșea cu «patru drumuri ar face 384 km» la 315 conduși, semn că ruta era greșită.
+      // 032BRAT: B13 și B15 la 9 curse fiecare, dar în satele lui B13 a oprit de trei ori mai
+      // des — și tocmai acolo îi rămâneau 55 km/zi «neatribuiți». Opririle decid înaintea listei.
+      toti.push({ masina, ...r, asteptat,
+        scor: r.curse * 1000 + Math.min(r.opriri || 0, 99) * 5 + (asteptat ? 200 : 0) + r.acoperire * r.etalon });
     }
   }
   toti.sort((a, b) => b.scor - a.scor);
-  const luate = new Set(), ocupat = new Set(), out = new Map();
+  const luate = new Map(), ocupat = new Set(), out = new Map();
   for (const c of toti) {
-    if (luate.has(c.id)) continue;                       // ruta e deja a altei mașini
     if (ocupat.has(`${c.masina}|${c.tura}`)) continue;    // mașina are deja rută pe tura asta
-    luate.add(c.id); ocupat.add(`${c.masina}|${c.tura}`);
+    const cine = luate.get(c.id);
+    // ruta e a altei mașini — o mai ia și asta doar dacă a deservit-o cu adevărat (rotație)
+    if (cine && c.curse < CURSE_MIN_IMPARTIT) continue;
+    if (!cine) luate.set(c.id, c.masina);
+    ocupat.add(`${c.masina}|${c.tura}`);
     if (!out.has(c.masina)) out.set(c.masina, []);
-    out.get(c.masina).push(c);
+    out.get(c.masina).push({ ...c, impartita: !!cine });
   }
   for (const [, lista] of out) lista.sort((a, b) => a.tura.localeCompare(b.tura));
   return out;
@@ -523,6 +676,17 @@ function coordSat(S, nume) {
   if (l && hav(l, POARTA) <= MAX_DE_LA_UZINA) return [l.lat, l.lon];
   return null;
 }
+// TOATE locurile știute pentru un nume, nu doar primul: scheletul are Ilenuța într-un loc, harta
+// în altul, la 1 km unul de altul, iar autobuzul oprește lângă unul din ele. Cu un singur punct,
+// 183BZP nu «oprea» niciodată în Ilenuța și își pierdea A1. Dublurile la sub 300 m se strâng.
+function coordSatToate(S, nume) {
+  const out = [];
+  const pune = (c) => { if (c && !out.some(o => hav({ lat: o[0], lon: o[1] }, { lat: c[0], lon: c[1] }) < 0.3)) out.push(c); };
+  for (const r of S.rute) for (const s of (r._sateC || [])) if (s.n === nume) pune(s.c);
+  const rez = sateRezolvate[nume]; if (rez) pune([rez.lat, rez.lon]);
+  const l = dupaNume.get(nume); if (l && hav(l, POARTA) <= MAX_DE_LA_UZINA) pune([l.lat, l.lon]);
+  return out;
+}
 
 // ─── numele localității celei mai apropiate ─────────────────────────────────
 // Se caută în TOT indexul de localități, nu doar în satele scheletului. Altfel, o mașină care
@@ -566,8 +730,8 @@ async function kmDinBaza(supa, nrDupaId, de_la, pana_la) {
   const pe = new Map();
   for (const r of data || []) {
     const nr = nrDupaId.get(r.vehicle_id); if (!nr) continue;
-    const x = pe.get(nr) || { km: 0, zile: 0 };
-    x.km += Number(r.km_total); x.zile++;
+    const x = pe.get(nr) || { km: 0, zile: 0, peZi: new Map() };
+    x.km += Number(r.km_total); x.zile++; x.peZi.set(r.date, Number(r.km_total));
     pe.set(nr, x);
   }
   return pe;
@@ -606,19 +770,28 @@ async function undeDorm(supa, nrDupaId, de_la, pana_la) {
 // 183BZP și 217RST n-au niciun rând `is_base` în săptămâna asta, deci rămâneau fără cifre.
 // Dar noaptea se vede în urmă: cea mai lungă stat-pe-loc între 17:00 și 05:00. Numele îl dă
 // indexul de localități, același pe care-l folosește workerul de noapte.
+// 217RST doarme la Călinești (46,5 km de poartă) și pleacă la 03:30: noaptea ei are 2,8 ore,
+// sub pragul de 4, iar staționările ei lungi sunt ZIUA, între ture (07:24–12:13, 16:27–21:28).
+// Deci nu se caută «noaptea», ci LOCUL unde stă cel mai mult pe loc, adunat pe săptămână, din
+// staționările de peste 2 ore — la orice oră. Parcul și poarta se scot: acolo stă de muncă.
 function casaDinUrma(pts) {
-  let best = null, ancora = null, deCand = null, ultim = null;
+  const peLoc = new Map();
+  let ancora = null, deCand = null, ultim = null;
   const inchide = () => {
     if (!ancora || !deCand || !ultim) return;
     const min = (ultim - deCand) / 60000;
-    const h = (local(deCand).getUTCHours());
-    if (min >= 240 && (h >= 17 || h < 5) && (!best || min > best.min)) best = { p: ancora, min };
+    if (min < 120) return;
+    if (hav(ancora, POARTA) <= 1.5 || hav(ancora, PARC) <= R_PARC) return;
+    const k = `${ancora.lat.toFixed(3)}|${ancora.lon.toFixed(3)}`;
+    const x = peLoc.get(k) || { p: ancora, min: 0 };
+    x.min += min; peLoc.set(k, x);
   };
   for (const p of pts) {
     if (ancora && hav(ancora, p) <= R_STAT) { ultim = p.t; continue; }
     inchide(); ancora = p; deCand = p.t; ultim = p.t;
   }
   inchide();
+  const best = [...peLoc.values()].sort((a, b) => b.min - a.min)[0];
   if (!best) return null;
   let sat = null;
   for (const l of locuri) { const d = hav(l, best.p);
@@ -656,14 +829,23 @@ const ruteFolosite = new Set();
 
 // trecerea întâi: ce rute ar putea fi ale fiecărei mașini
 const candidati = new Map();
+const RM = citesteRuteMasini();
 const auLucrat = [];
 for (const v of flota) {
   const zilePoarta = [...v.zilePoarta].filter(inSapt);
   if (!zilePoarta.length) continue;
   auLucrat.push(v);
-  candidati.set(v.masina, rutePotrivite(v, S));
+  // casa se știe de pe acum: potrivirea rutelor trebuie să nu ia naveta drept rută
+  { let c = case_[v.masina] || null, cc = c ? coordSat(S, c) : null;
+    if (!cc) { const d = casaDinUrma(v.pts); if (d) { c = d.nume; cc = d.c; v._casaDedusa = true; } }
+    v._casa = c; v._casaC = cc; }
+  // Potrivirea rutelor se face NUMAI pe punctele săptămânii. Citirea aduce o zi în plus de
+  // fiecare parte, ca fereastra de 03:00 să fie întreagă — dar luni dimineața din săptămâna
+  // următoare nu e a săptămânii ăsteia. 032BRAT a trecut pe A8 Horești luni 21.09 la 04:27 și
+  // ieșea «a mers și pe A8 (100%)» în raportul pentru 14–20.09. Corridoarele se schimbă de la
+  // o săptămână la alta, deci o zi în plus înseamnă altă rută.
+  candidati.set(v.masina, rutePotrivite({ ...v, pts: v.pts.filter(p => inSapt(ziLucru(p.t))) }, S, v._casaC, RM.get(v.masina)));
 }
-const RM = citesteRuteMasini();
 const repartitie = repartizeazaPeUrma(candidati, RM);
 
 for (const v of auLucrat) {
@@ -678,17 +860,42 @@ for (const v of auLucrat) {
   const toate = cand;
   const fix = RM.get(v.masina);
   for (const r of alese) ruteFolosite.add(r.id);
+  // Rute COMASATE: o cursă care duce ruta ei trece și prin satele altei rute de pe aceeași
+  // tură și oprește acolo. 032BRAT merge la Hîrcești (B13) prin Sineștii Noi și Boghenii (B15);
+  // 320BRAT seara face A9 Medeleni și A5 Gherman într-un drum, până la Taxobeni. Ion, 23.09,
+  // în listă: 032BRAT «extra: B13», 537BRAT «schimbul cu A3 se face comasat cu A4». Semnul e
+  // că sunt ACELEAȘI curse (indicii lor), nu curse separate — alea ar fi «a deservit și».
+  // Ruta comasată intră la atribuirea kilometrilor, iar etalonul turei e al drumului mai lung.
+  // Nu e comasare când capătul celeilalte stă chiar pe drumul rutei alese (A13 Costuleni e pe
+  // drumul lui A12 Frăsinești): aia e ruta ei, care trece prin satele celei scurte.
+  const capatPeDrum = (a, t) => (S.rute.find(x => x.id === a.id)?._puncte || [])
+    .some(p => hav({ lat: p[0], lon: p[1] }, { lat: t.capatC[0], lon: t.capatC[1] }) <= 1);
+  const comasate = [];
+  for (const a of alese) {
+    a.etalon_propriu = a.etalon;
+    for (const t of toate) {
+      if (t.tura !== a.tura || t.id === a.id || alese.some(x => x.id === t.id) || t.curse < CURSE_MIN_IMPARTIT) continue;
+      if (capatPeDrum(a, t)) continue;
+      const comune = (t.curseIdx || []).filter(i => (a.curseIdx || []).includes(i));
+      if (comune.length < 0.5 * t.curse) continue;
+      (a.comasat ??= []).push(t.id);
+      // Etalonul turei: drumul comasat e cel puțin cât ruta mai lungă din schelet — dar nu mai
+      // mult decât face mașina de fapt. A4 Călugăr are în schelet 68,2 km (buclă prin patru
+      // sate); 189OMM ajunge la Călugăr direct, pe drumul lui A5, în ~40 km. Se ia drumul măsurat
+      // al curselor comune (mediana), plafonat de etalonul din schelet.
+      const kmComune = comune.map(i => a.kmCursa?.[i]).filter(k => k > 0).sort((x, y) => x - y);
+      const masurat = kmComune.length ? kmComune[Math.floor(kmComune.length / 2)] : t.etalon;
+      const etalonT = Math.min(t.etalon, masurat);
+      comasate.push({ ...t, cu: a.id, comune: comune.length, masurat: +masurat.toFixed(1), etalonT: +etalonT.toFixed(1) });
+      if (etalonT > a.etalon) a.etalon = +etalonT.toFixed(1);
+      ruteFolosite.add(t.id);
+    }
+  }
   // se lucrează numai pe punctele săptămânii: citirea aduce o zi în plus de fiecare parte,
   // ca fereastra de 03:00 să fie întreagă, dar ele nu intră în socoteală
   const ptsSapt = v.pts.filter(p => inSapt(ziLucru(p.t)));
-  const ruteSchelet = S.rute.filter(r => alese.some(a => a.id === r.id));
-  let casa = case_[v.masina] || null;
-  let casaC = casa ? coordSat(S, casa) : null;
-  let casaDedusa = false;
-  if (!casaC) {
-    const d = casaDinUrma(v.pts);
-    if (d) { casa = d.nume; casaC = d.c; casaDedusa = true; }
-  }
+  const ruteSchelet = S.rute.filter(r => alese.some(a => a.id === r.id) || comasate.some(c => c.id === r.id));
+  const casa = v._casa, casaC = v._casaC, casaDedusa = !!v._casaDedusa;
   if (casa && !casaC) steagCasaFaraPunct.push(
     `${v.masina}: satul ${casa} nu e nici pe rute, nici în indexul de localități — n-avem coordonata lui`);
 
@@ -699,18 +906,26 @@ for (const v of auLucrat) {
     zile_lucrate: zilePoarta.length, ore_poarta: +(v.minPoarta / 60).toFixed(1),
     zile_masurate: kmZile.length, azi: +azi.toFixed(1),
     rute: alese.map(r => ({ id: r.id, tura: r.tura, capat: r.capat, loc: r.loc,
-      etalon: r.etalon, acoperire: r.acoperire })),
-    rute_toate: toate.map(r => r.id), steaguri: [] };
+      etalon: r.etalon, acoperire: r.acoperire, comasat: r.comasat, etalon_propriu: r.etalon_propriu })),
+    rute_toate: toate.map(r => `${r.id}:${r.curse}`), steaguri: [], note: [] };
   if (!rec.a_uzinei) {
     doarTrecute.push({ masina: v.masina, zile: zilePoarta.length, ore: +(v.minPoarta / 60).toFixed(1),
       km_zi: +azi.toFixed(1) });
     continue;                       // n-a lucrat aici — nu-i mașină de-a uzinei, nu intră în raport
   }
   // nepotrivirea cu lista e informație, nu greșeală: rutele se mută între mașini
-  for (const r of alese) if (fix && fix[r.tura] && fix[r.tura] !== r.id) rec.steaguri.push(
-    `pe tura ${r.tura} a dus ${r.id} ${r.capat}, nu ${fix[r.tura]} cum era în listă ` +
-    `(urma o acoperă ${Math.round(r.acoperire * 100)}%) — rutele se mută între mașini, ` +
-    'lista e doar așteptarea');
+  // Ion, 24.09: «rezolvă toate întrebările cu semnul exclamării». Ce e lămurit nu-i întrebare:
+  // ruta schimbată față de listă, capătul neatins, ruta împărțită — sunt fapte citite din urmă,
+  // deci note. Steag rămâne numai ce modelul NU poate explica.
+  for (const r of alese) {
+    if (fix && fix[r.tura] && fix[r.tura] !== r.id) rec.note.push(
+      `pe tura ${r.tura} a dus ${r.id} ${r.capat}, nu ${fix[r.tura]} din listă ` +
+      `(${r.curse} curse capăt↔poartă) — rutele se mută între mașini, lista e doar așteptarea`);
+    if (!r.capat_atins) rec.note.push(
+      `pe ${r.id} a întors la ${r.tinta}, nu la capătul ${r.capat} (${r.curse} curse) — ruta e aceeași, mai scurtă`);
+    if (r.impartita) rec.note.push(
+      `${r.id} ${r.capat} a dus-o și altă mașină în aceeași săptămână (${r.curse} curse ale ei)`);
+  }
   for (const tura of ['A', 'B']) if (fix?.[tura] && !alese.some(r => r.tura === tura))
     rec.steaguri.push(`pe tura ${tura} n-am găsit nicio rută din schelet în urma ei` +
       ` (era așteptată ${fix[tura]})`);
@@ -724,16 +939,39 @@ for (const v of auLucrat) {
       `forma rutei ${r.id} ${r.capat} e ruptă în schelet: are ${n1(sch._forma * r.etalon)} km ` +
       `desenați la un etalon de ${n1(r.etalon)} — kilometrii de pe ea nu se pot atribui, ` +
       'de aici cei «neatribuiți» de mai sus. Se repară scheletul, nu mașina.'); }
-  const straine = toate.filter(t => !alese.some(a => a.id === t.id) && t.acoperire >= 0.9 && t.etalon >= 35)
-    .map(t => `${t.id} (${Math.round(t.acoperire * 100)}%)`);
-  if (straine.length) rec.steaguri.push(
-    `a mers și pe ${straine.join(', ')} — rute care nu-s ale ei în listă`);
+  // «a mers și pe» doar când chiar a DESERVIT altă rută (curse capăt↔poartă), nu când a trecut
+  // «a mers și pe» e problemă doar dacă a deservit altă rută cel puțin cât pe a ei de pe tura
+  // aia — atunci ori a schimbat ruta, ori e mașină de rezervă. Altfel e drum comun, o notă.
+  // …și nici pentru rute al căror capăt stă chiar pe drumul rutei alese: B9 Cetireni e pe drumul
+  // lui B10 Unțești, deci mașina de pe B10 oprește la Cetireni în fiecare zi — e ruta ei, nu alta
+  const peDrumulEi = (t) => alese.some(a => (S.rute.find(x => x.id === a.id)?._puncte || [])
+    .some(p => hav({ lat: p[0], lon: p[1] }, { lat: t.capatC[0], lon: t.capatC[1] }) <= 1));
+  for (const c of comasate) { const a = alese.find(x => x.id === c.cu);
+    rec.note.push(
+      `${c.cu} comasată cu ${c.id} ${c.capat}: ${c.comune} din cursele ei trec și opresc și în satele lui ${c.id}` +
+      (a && a.etalon > a.etalon_propriu
+        ? ` — etalonul turei devine ${n1(a.etalon)} km` +
+          (c.etalonT < c.etalon ? ` (drumul măsurat al curselor comune, ${n1(c.masurat)} km; ${c.id} are în schelet ${n1(c.etalon)}, dar mașina nu-l face întreg)` : ` (etalonul lui ${c.id})`)
+        : '')); }
+  const straine = toate.filter(t => !alese.some(a => a.id === t.id) && !comasate.some(c => c.id === t.id)
+    && t.curse >= 4 && !peDrumulEi(t));
+  const peTura = Object.fromEntries(alese.map(a => [a.tura, a.curse]));
+  const concur = straine.filter(t => t.curse >= (peTura[t.tura] ?? 0));
+  const doarTrec = straine.filter(t => !concur.includes(t));
+  if (doarTrec.length) rec.note.push(`a mai oprit și pe ${doarTrec.map(t => `${t.id} (${t.curse} curse)`).join(', ')} — drum comun cu rutele ei`);
+  if (concur.length >= 2 || (concur.length && alese.length < 2)) rec.steaguri.push(
+    `pare mașină de rezervă: a deservit ${[...alese, ...concur].map(t => `${t.id} ×${t.curse}`).join(', ')} ` +
+    'în aceeași săptămână — ziua ei nu se potrivește cu două rute fixe');
+  const strainePt = concur.filter(t => !(concur.length >= 2 || (concur.length && alese.length < 2)))
+    .map(t => `${t.id} (${t.curse} curse)`);
+  if (strainePt.length) rec.steaguri.push(
+    `a deservit și ${strainePt.join(', ')} cel puțin cât ruta ei de pe tura aia — a schimbat ruta în timpul săptămânii`);
 
   if (!tip) rec.steaguri.push('la poartă, dar n-are tip cunoscut — lipsește din tabelul de costuri');
   if (alese.length < 2) rec.steaguri.push(
     `a dus ${alese.length} rută din schelet în săptămâna asta, nu două — nu se poate socoti ziua`);
-  if (casaDedusa) rec.steaguri.push(
-    `n-are noapte scrisă în bază; am luat-o din urmă — cea mai lungă staționare de noapte e la ${casa}`);
+  if (casaDedusa) rec.note.push(
+    `casa e luată din urmă, nu din bază: stă cel mai mult la ${casa}`);
   else if (!casa) rec.steaguri.push('n-are noapte lungă scrisă în GPS — nu știm unde doarme');
 
   // Fără satul unde doarme nu putem despărți drumurile spre casă (care dispar la regula 1) de
@@ -759,6 +997,11 @@ for (const v of auLucrat) {
       const u = await drum([POARTA.lat, POARTA.lon], r.capatC, `UZINA|${r.capat}`);
       if (u?.forma) culoareUzina.push(u.forma);
     }
+    // și drumul de acasă drept la poartă: 827MUM pleacă seara de la Fălești direct la uzină
+    // pentru schimbul de noapte, prin Horești–Gherman–Sculeni, nu prin capătul vreunei rute.
+    // E navetă, nu muncă în plus — dispare la regula 1 ca orice drum de acasă.
+    const hc = await drum(casaC, [POARTA.lat, POARTA.lon], `${casa}|UZINA`);
+    if (hc?.forma) culoare.push(hc.forma);
     // «alte curse»: munca în plus, măsurată — nici rută, nici culoar de acasă. Nu dispare sub
     // nicio regulă, deci se adună la ziua nouă la amândouă.
     const A = alteCurse(ptsSapt, ruteSchelet, culoare, culoareUzina, kmZile.length);
@@ -785,9 +1028,9 @@ for (const v of auLucrat) {
         lei: Math.round((azi - z3) * lk * ZILE_LUNA) };
     } else rec.steaguri.push('Valhalla n-a dat drumul de acasă la capăt — regula 3 nu se poate socoti');
 
-    if (patru > azi) rec.steaguri.push(
-      `cele patru drumuri pe rută fac ${n1(patru)} km, iar ea a condus ${n1(azi)} — n-a făcut ` +
-      'patru drumuri complete, regula 1 nu se poate judeca la ea');
+    if (patru > azi) rec.note.push(
+      `rute lungi: 4 × (${alese.map(r => n1(r.etalon)).join(' + ')}) = ${n1(patru)} km, peste cei ${n1(azi)} ` +
+      'conduși azi — nu se întoarce goală la uzină între ture, deci regula 1 i-ar ADĂUGA kilometri');
     // Steagul spunea «mașina asta face și altă treabă». Ion, 24.09: «el a făcut asta în orele
     // LEAR?» — și da, le face. La 043BRAU, 032BRAT și 320BRAT kilometrii ăștia se fac la orele
     // schimburilor, în aceleași curse care ajung la poartă. Nu-s treburi străine: e muncă pe care
@@ -805,8 +1048,8 @@ for (const v of auLucrat) {
             'care nu-i în schelet, ori aceeași rută pe alt drum.'
           : '. NU se fac la orele schimburilor.'));
     }
-    else if (alte > 40) rec.steaguri.push(
-      `alte curse ${n1(alte)} km/zi, dar trec pe la poartă — muncă în plus pentru uzină`);
+    else if (A.la_uzina > 40) rec.steaguri.push(
+      `alte curse ${n1(A.la_uzina)} km/zi, dar trec pe la poartă — muncă în plus pentru uzină`);
   }
 
   // deplasările în afara destinației de lucru — numai ale mașinilor care chiar lucrează aici
@@ -821,14 +1064,24 @@ for (const v of auLucrat) {
       unde: d.parc ? 'parcul de la Bălți' : (sat ? `${sat.n} + ${n1(sat.d)} km` : '—') });
   }
 
+  // Se compară pe ACELEAȘI zile. 189OMM ieșea −11%: baza avea 7 zile, eu 5 — cele două în plus
+  // erau sâmbăta și duminica, în care mașina n-a mișcat deloc, iar baza cârpise 35,9 km pe
+  // fiecare (km_patched = km_total). Alea nu-s kilometri, sunt un gol de semnal umplut.
   const b = kmBaza.get(v.masina);
   if (b && b.km > 0) {
+    const zileMele = new Set(zile.filter(z => (v.kmZi.get(z) || 0) > 20));
+    let bAceleasi = 0, bFantoma = 0, zFantoma = [];
+    for (const [z, km] of b.peZi) { if (zileMele.has(z)) bAceleasi += km; else { bFantoma += km; zFantoma.push(z); } }
     const mieKm = azi * kmZile.length;
-    const dif = (mieKm / b.km - 1) * 100;
-    rec.km_baza = { km: +b.km.toFixed(1), zile: b.zile, km_aici: +mieKm.toFixed(1), dif: +dif.toFixed(1) };
+    const dif = bAceleasi ? (mieKm / bAceleasi - 1) * 100 : 0;
+    rec.km_baza = { km: +bAceleasi.toFixed(1), zile: zileMele.size, km_aici: +mieKm.toFixed(1),
+      dif: +dif.toFixed(1), fantoma_km: +bFantoma.toFixed(1), fantoma_zile: zFantoma.length };
     if (Math.abs(dif) > 10) rec.steaguri.push(
-      `km-ii nu se potrivesc cu baza: aici ${n1(mieKm)} km pe ${kmZile.length} zile, ` +
-      `în lde_vehicle_gps_daily ${n1(b.km)} pe ${b.zile} — ${(dif > 0 ? '+' : '') + dif.toFixed(1)}%`);
+      `km-ii nu se potrivesc cu baza pe aceleași ${zileMele.size} zile: aici ${n1(mieKm)}, ` +
+      `în lde_vehicle_gps_daily ${n1(bAceleasi)} — ${(dif > 0 ? '+' : '') + dif.toFixed(1)}%`);
+    if (zFantoma.length) rec.note = (rec.note || []).concat(
+      `baza mai are ${n1(bFantoma)} km în ${zFantoma.length} ${zFantoma.length === 1 ? 'zi' : 'zile'} ` +
+      `(${zFantoma.map(z => z.slice(5)).join(', ')}) în care urma n-arată mișcare — gol de semnal cârpit, nu drum`);
   } else rec.steaguri.push('n-are km scriși în lde_vehicle_gps_daily — km-ii de aici n-au cu ce fi verificați');
 
   masini.push(rec);
@@ -867,6 +1120,7 @@ for (const m of masini.sort((a, b) => (b.r1?.lei || 0) - (a.r1?.lei || 0))) {
     `${(m.alte_aiurea != null ? n1(m.alte_aiurea) : '—').padStart(7)} ` +
     `${(m.r1 ? n0(m.r1.lei) : '—').padStart(8)} ${(m.r3 ? n0(m.r3.lei) : '—').padStart(8)}`);
   for (const s of m.steaguri) console.log(`                 ⚠ ${s}`);
+  for (const s of (m.note || [])) console.log(`                 ⓘ ${s}`);
 }
 console.log(`\n${total.masini_uzina} mașini au lucrat la uzină (cel puțin ${ZILE_MIN_LEAR} zile la poartă)` +
   (doarTrecute.length ? ` · ${doarTrecute.length} doar în trecere, scoase din raport: ` +

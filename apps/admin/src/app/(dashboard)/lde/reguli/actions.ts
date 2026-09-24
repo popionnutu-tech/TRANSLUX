@@ -12,6 +12,8 @@ import { verifySession, requireRole } from '@/lib/auth';
 export type RutaMasina = {
   id: string; tura: 'A' | 'B'; capat: string; loc: number;
   etalon: number; acoperire: number;
+  // rute duse în ACELEAȘI curse (032BRAT: B15 prin satele lui B13); etalonul e al drumului mai lung
+  comasat?: string[]; etalon_propriu?: number;
 };
 
 export type Regula = { zi: number; km: number; lei: number };
@@ -44,7 +46,10 @@ export type MasinaRand = {
   r1?: Regula;
   r3?: Regula;
   km_baza?: { km: number; zile: number; km_aici: number; dif: number };
+  // ⚠ ce modelul nu poate explica
   steaguri: string[];
+  // ⓘ fapte citite din urmă, lămurite: ruta schimbată față de listă, capăt neatins, rută împărțită
+  note?: string[];
 };
 
 export type Deplasare = {

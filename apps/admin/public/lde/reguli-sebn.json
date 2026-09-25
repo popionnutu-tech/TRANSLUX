@@ -48,6 +48,18 @@
  ],
  "naveta": [
   {
+   "id": "S1",
+   "nume": "Vatici → Strășeni",
+   "capat": "Vatici",
+   "uz": "straseni",
+   "masini": [
+    "552BRAO"
+   ],
+   "schimburi": 3,
+   "gol_zi": 221.6,
+   "plin_zi": 181.3
+  },
+  {
    "id": "R20",
    "nume": "Voroteț",
    "capat": "Voroteț",
@@ -301,18 +313,6 @@
    "plin_zi": 174.3
   },
   {
-   "id": "S1",
-   "nume": "Chiperceni – Vatici → Strășeni",
-   "capat": "Chiperceni",
-   "uz": "straseni",
-   "masini": [
-    "552BRAO"
-   ],
-   "schimburi": 3,
-   "gol_zi": 3.2,
-   "plin_zi": 420.4
-  },
-  {
    "id": "R11",
    "nume": "Nordic – Nistreana",
    "capat": "Nistreană",
@@ -350,7 +350,7 @@
   }
  ],
  "total": {
-  "gol_zi": 701,
-  "plin_zi": 7526
+  "gol_zi": 919,
+  "plin_zi": 7286
  }
 }

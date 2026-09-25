@@ -24,7 +24,9 @@ export interface Celula { text: string; culoare?: string; bold?: boolean; fundal
   /** rândul mic de sub text: implicit 9 pt, gri */
   micMarime?: number; micCuloare?: string }
 export interface Card { eticheta: string; titlu: string; text: string; valoare?: string; subValoare?: string }
-export interface Bilet { ora: string; ruta: string; sub?: string; telefon: string; nume?: string }
+export interface Bilet { ora: string; ruta: string; sub?: string;
+  /** rând mic, gri, pe toată lățimea cardului (satele rutei) */ sate?: string;
+  /** textul mare din bandă (telefonul; pe graficul șoferilor, numele) și cel mic alături */ telefon: string; nume?: string }
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
 
@@ -177,8 +179,10 @@ export function poster(opts: { latime?: number; titlu: string; subtitlu?: string
         if (opt.gol) { svg.push(textPath(fR, opt.gol, PAD, y + 14 * S, 13 * S, CULORI.verde, 'start')); y += 30 * S; }
         return api;
       }
-      const gap = 8 * S, w = (IN - gap) / 2, h = 78 * S, pi = 12 * S;
-      const oraS = 28 * S, rutaS = 14 * S, subS = 11.5 * S, telS = 15.5 * S, numeS = 11 * S;
+      // rândul cu satele (graficul șoferilor) lungește toate cardurile deodată, ca rândurile să rămână egale
+      const ex = bilete.some(b => b.sate) ? 15 * S : 0;
+      const gap = 8 * S, w = (IN - gap) / 2, h = 78 * S + ex, pi = 12 * S;
+      const oraS = 28 * S, rutaS = 14 * S, subS = 11.5 * S, sateS = 10.5 * S, numeS = 11 * S;
       bilete.forEach((b, i) => {
         const x = PAD + (i % 2) * (w + gap), cy = y + Math.floor(i / 2) * (h + gap);
         svg.push(`<rect x="${x}" y="${cy}" width="${w}" height="${h}" rx="${12 * S}" fill="${CULORI.card}" stroke="${CULORI.linie}" stroke-width="${S}"/>`);
@@ -186,11 +190,20 @@ export function poster(opts: { latime?: number; titlu: string; subtitlu?: string
         const xr = x + pi + textW(fB, b.ora, oraS) + 10 * S, maxR = x + w - pi - xr;
         svg.push(textPath(fB, esc(truncText(fB, b.ruta, rutaS, maxR)), xr, cy + 24 * S, rutaS, CULORI.text, 'start'));
         if (b.sub) svg.push(textPath(fB, esc(truncText(fB, b.sub, subS, maxR)), xr, cy + 39 * S, subS, CULORI.bordoInchis, 'start'));
-        svg.push(`<rect x="${x + pi - 5 * S}" y="${cy + 46 * S}" width="${w - 2 * pi + 10 * S}" height="${24 * S}" rx="${7 * S}" fill="${CULORI.antetTabel}"/>`);
-        svg.push(textPath(fB, esc(b.telefon), x + pi, cy + 63.5 * S, telS, CULORI.text, 'start'));
+        if (b.sate) svg.push(textPath(fR, esc(truncText(fR, b.sate, sateS, w - 2 * pi)), x + pi, cy + 54 * S, sateS, CULORI.gri, 'start'));
+        const by = cy + 46 * S + ex, lat = w - 2 * pi;
+        svg.push(`<rect x="${x + pi - 5 * S}" y="${by}" width="${lat + 10 * S}" height="${24 * S}" rx="${7 * S}" fill="${CULORI.antetTabel}"/>`);
+        // textul mare al benzii se strânge (până la 12 pt) ca să încapă și cel mic alături, întreg
+        let telS = 15.5 * S;
+        const loc = () => textW(fB, b.telefon, telS) + (b.nume ? 8 * S + textW(fR, b.nume, numeS) : 0);
+        while (telS > 12 * S && loc() > lat) telS -= 0.5 * S;
+        // tot nu încap: se scurtează textul mare, cel mic (telefonul, pe graficul șoferilor) rămâne întreg
+        const mic = b.nume ? 8 * S + textW(fR, b.nume, numeS) : 0;
+        const txt = truncText(fB, b.telefon, telS, Math.max(lat / 2, lat - mic));
+        svg.push(textPath(fB, esc(txt), x + pi, by + 17.5 * S, telS, CULORI.text, 'start'));
         if (b.nume) {
-          const xn = x + pi + textW(fB, b.telefon, telS) + 8 * S, maxN = x + w - pi - xn;
-          if (maxN > 20 * S) svg.push(textPath(fR, esc(truncText(fR, b.nume, numeS, maxN)), xn, cy + 63 * S, numeS, CULORI.gri, 'start'));
+          const xn = x + pi + textW(fB, txt, telS) + 8 * S, maxN = x + w - pi - xn;
+          if (maxN > 20 * S) svg.push(textPath(fR, esc(truncText(fR, b.nume, numeS, maxN)), xn, by + 17 * S, numeS, CULORI.gri, 'start'));
         }
       });
       y += Math.ceil(bilete.length / 2) * (h + gap) - gap + 16 * S;

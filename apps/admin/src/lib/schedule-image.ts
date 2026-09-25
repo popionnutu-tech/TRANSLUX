@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import opentype from 'opentype.js';
 import type { GraficEdinetRow } from '@/app/(dashboard)/grafic/actions';
-import { poster, CULORI, telefon, ziText } from './poster-sablon';
+import { poster, telefon, ziText } from './poster-sablon';
 
 /* Desenarea graficelor stă în poster-sablon.ts (Ion, 25.09: «aplică peste tot noul format»);
    aici rămân fonturile, logoul și randarea text→path, comune tuturor imaginilor. */
@@ -129,18 +129,18 @@ export async function generateScheduleImage(
     // Se citește de pe telefon (Ion, 25.09: «fă normal șriftul, umple locul maximal»): imaginea
     // îngustă, ca Telegram s-o arate pe toată lățimea ecranului fără s-o micșoreze, literele mari.
     // «– Chișinău» se repeta pe fiecare rând — toate cursele din nord merg la Chișinău, o spune subtitlul.
-    const p = poster({ latime: 540, supratitlu: 'Grafic Mejgorod', titlu: 'Plecările din nord', eticheta: ziText(date),
+    // Pe carduri, ca afișul public (Ion, 25.09: «pentru interurbane ambele tipuri», ION-72): ora mare, ruta,
+    // MAȘINA dedesubt, satele (Ion, 25.09: «cu șrift mic sub rută satele, 3»), jos numele complet și telefonul.
+    const p = poster({ latime: 540, antetMare: true, supratitlu: 'Grafic Mejgorod', titlu: 'Plecările din nord', eticheta: ziText(date),
       subtitlu: `${assigned.length} ${assigned.length === 1 ? 'cursă' : 'curse'} spre Chișinău, cu șofer. Cursele anulate nu apar.` });
-    p.tabel([{ titlu: 'Ora', latime: 56 }, { titlu: 'Ruta', latime: 166 }, { titlu: 'Mașina', latime: 94 }, { titlu: 'Șoferul', latime: 186 }],
-      assigned.map(r => [
-        { text: r.time_nord, bold: true, culoare: CULORI.bordo, marime: 15 },
-        { text: r.dest_to.replace(/^Chi[sș]in[aă]u\s*[-–]\s*/i, ''), bold: true, marime: 13.5,
-          // Ion, 25.09: «cu șrift mic sub rută satele, 3» — primele trei opriri, fără intersecții
-          mic: satele(r.stops), micMarime: 10.5 },
-        { text: r.vehicle_plate?.trim() || '—', bold: true, marime: 15 },
-        { text: r.driver_full_name || r.driver_name || '—', bold: true, marime: 13.5,
-          mic: telefon(r.driver_phone), micMarime: 12.5, micCuloare: CULORI.text },
-      ]), { gol: 'Nicio cursă cu șofer în ziua asta.', rand: 50 });
+    p.bilete(assigned.map(r => ({
+      ora: r.time_nord,
+      ruta: r.dest_to.replace(/^Chi[sș]in[aă]u\s*[-–]\s*/i, ''),
+      sub: `Mașina ${r.vehicle_plate?.trim() || '—'}`,
+      sate: satele(r.stops) || undefined,
+      telefon: r.driver_full_name || r.driver_name || '—',
+      nume: telefon(r.driver_phone) || undefined,
+    })), { gol: 'Nicio cursă cu șofer în ziua asta.' });
     return p.png();
   }
 

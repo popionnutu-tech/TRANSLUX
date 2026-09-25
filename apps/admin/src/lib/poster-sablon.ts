@@ -20,7 +20,7 @@ const S = 2;   // totul se desenează la 2×, pentru telefoane
 
 export type Aliniere = 'start' | 'end' | 'middle';
 export interface Coloana { titlu: string; latime: number; aliniere?: Aliniere }
-export interface Celula { text: string; culoare?: string; bold?: boolean; fundal?: string; mic?: string }
+export interface Celula { text: string; culoare?: string; bold?: boolean; fundal?: string; mic?: string; marime?: number }
 export interface Card { eticheta: string; titlu: string; text: string; valoare?: string; subValoare?: string }
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -49,7 +49,8 @@ export function poster(opts: { latime?: number; titlu: string; subtitlu?: string
     svg.push(textPath(fB, opts.eticheta, W - PAD - w / 2, y + logoH / 2 + 5 * S, fs, '#fff', 'middle'));
   }
   y += logoH + 30 * S;
-  if (opts.supratitlu) { svg.push(textPath(fB, opts.supratitlu.toUpperCase(), PAD, y, 9.5 * S, CULORI.bordo, 'start')); y += 24 * S; }
+  // supratitlul spune a cui e foaia (uzina, linia) — mare, bordo (Ion, 25.09: «LEAR Ungheni să fie mai mare»)
+  if (opts.supratitlu) { svg.push(textPath(fB, opts.supratitlu, PAD, y + 4 * S, 20 * S, CULORI.bordo, 'start')); y += 34 * S; }
   for (const l of rupe(fB, opts.titlu, 22 * S, IN)) { svg.push(textPath(fB, l, PAD, y, 22 * S, CULORI.text, 'start')); y += 28 * S; }
   if (opts.subtitlu) { y -= 4 * S; for (const l of rupe(fR, opts.subtitlu, 11 * S, IN)) { svg.push(textPath(fR, l, PAD, y, 11 * S, CULORI.gri, 'start')); y += 16 * S; } }
   y += 14 * S;
@@ -80,9 +81,11 @@ export function poster(opts: { latime?: number; titlu: string; subtitlu?: string
       return api;
     },
     /** tabel într-un card alb, antet deschis, rânduri în zebră; `lat` e în puncte, se scalează la lățimea utilă */
-    tabel(cols: Coloana[], randuri: Celula[][], opt: { gol?: string } = {}) {
+    tabel(cols: Coloana[], randuri: Celula[][], opt: { gol?: string; mare?: number } = {}) {
       const tot = cols.reduce((s, c) => s + c.latime, 0), k = IN / tot;
-      const TH = 34 * S, RH = 30 * S, fs = 11 * S;
+      // rând cu a doua linie mică (opriri, telefon) dacă vreo celulă are `mic`
+      const areMic = randuri.some(r => r.some(c => c.mic));
+      const TH = 34 * S, RH = (areMic ? 42 : 30) * S, fs = (opt.mare ?? 11) * S;
       const h = TH + Math.max(1, randuri.length) * RH;
       svg.push(`<rect x="${PAD}" y="${y}" width="${IN}" height="${h}" rx="${12 * S}" fill="${CULORI.card}" stroke="${CULORI.linie}" stroke-width="${S}"/>`);
       svg.push(`<path d="M${PAD} ${y + 12 * S} a${12 * S} ${12 * S} 0 0 1 ${12 * S} -${12 * S} h${IN - 24 * S} a${12 * S} ${12 * S} 0 0 1 ${12 * S} ${12 * S} v${TH - 12 * S} h-${IN} z" fill="${CULORI.antetTabel}"/>`);
@@ -99,7 +102,10 @@ export function poster(opts: { latime?: number; titlu: string; subtitlu?: string
           const t = truncText(f, c.text, fs, max);
           if (c.fundal) { const w = textW(f, t, fs) + 14 * S, x = a === 'end' ? tx(i, a) - w + 7 * S : a === 'middle' ? tx(i, a) - w / 2 : tx(i, a) - 7 * S;
             svg.push(`<rect x="${x}" y="${ry + 5 * S}" width="${w}" height="${RH - 10 * S}" rx="${(RH - 10 * S) / 2}" fill="${c.fundal}"/>`); }
-          svg.push(textPath(f, esc(t), tx(i, a), ry + RH / 2 + 4 * S, fs, c.culoare ?? CULORI.text, a));
+          const fsC = c.marime ? c.marime * S : fs;
+          const yT = c.mic ? ry + RH / 2 - 1 * S : ry + RH / 2 + 4 * S;
+          svg.push(textPath(f, esc(c.marime ? truncText(f, c.text, fsC, max) : t), tx(i, a), yT, fsC, c.culoare ?? CULORI.text, a));
+          if (c.mic) svg.push(textPath(fR, esc(truncText(fR, c.mic, 9 * S, max)), tx(i, a), ry + RH / 2 + 13 * S, 9 * S, CULORI.gri, a));
         });
       });
       y += h + 16 * S;

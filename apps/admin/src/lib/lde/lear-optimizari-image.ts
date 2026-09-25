@@ -51,7 +51,7 @@ export async function generateOptimizariImage(raport: Pick<Raport, 'saptamina' |
     : { text: v < 0 ? `+${nr(-v)}` : '0', culoare: CULORI.griDeschis };
 
   const p = poster({
-    supratitlu: 'LEAR Ungheni · optimizarea kilometrilor',
+    supratitlu: 'LEAR Ungheni',
     titlu: 'Cât se putea economisi săptămâna trecută',
     subtitlu: 'Km pe care fiecare mașină i-ar fi făcut mai puțin, cu aceleași rute și aceiași oameni, după fiecare regulă.',
     eticheta: perioadaText(raport.saptamina, raport.pana_la),

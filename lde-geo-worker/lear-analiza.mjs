@@ -41,23 +41,46 @@ const WRITE = process.argv.includes('--write');
 // --de-ce 807MUM,320BRAT — scrie pe stderr, cursă cu cursă, de ce o rută se potrivește sau nu.
 // Diagnostic pentru duminicile în care raportul spune «n-am găsit nicio rută» și nu se vede de ce.
 const DE_CE = new Set((arg('--de-ce', '') || '').split(',').filter(Boolean));
-const UZINA_NUME = 'LEAR Ungheni';
-const UZINA_ID = 'LEAR_UNGHENI';   // lde_uzine.id — în lde_analiza_reguli.uzina stă numele afișat
 const AICI = path.dirname(new URL(import.meta.url).pathname);
-const CALE_SCHELET = process.env.LEAR_SCHELET || path.join(AICI, 'lear-schelet.json');
-const CALE_CACHE = process.env.LEAR_DRUMURI || path.join(AICI, 'lear-drumuri-v2.json');
+// Ion, 25.09.2026 (ION-59): «aplică regulile livrare și regulile km/liber și brambura de la LEAR și aici» —
+// aceeași analiză rulează și pe LEAR Florești. Ce diferă între uzine stă aici, într-un singur loc:
+// numele, poarta, fișierele fixe (schelet, rute-pe-mașină, sate, cache Valhalla) și raza până la
+// care o ieșire de la poartă mai e navetă de uzină. Fără --uzina rulează Ungheni, exact ca înainte.
+// Lista rutelor pe mașini a Floreștiului e tabelul lui Ion din actul de recepție nr. 36.1.
+const UZINE = {
+  LEAR_UNGHENI: { nume: 'LEAR Ungheni', poarta: { lat: 47.2230, lon: 27.8016 }, rLearMax: 75,
+    schelet: process.env.LEAR_SCHELET || path.join(AICI, 'lear-schelet.json'),
+    cache: process.env.LEAR_DRUMURI || path.join(AICI, 'lear-drumuri-v2.json'),
+    rute: process.env.LEAR_RUTE_MASINI || path.join(AICI, 'lear-rute-masini.json'),
+    sate: process.env.LEAR_SATE || path.join(AICI, 'lear-sate.json') },
+  LEAR_FLORESTI: { nume: 'LEAR Florești', poarta: { lat: 47.89645, lon: 28.29982 },
+    // cea mai lungă rută (B4 Soroca, cu Soroca Nouă) ajunge la 31 km de poartă; parcul de la Bălți e
+    // tot la 31, dar el se recunoaște separat (PARC), nu prin raza asta
+    rLearMax: 45,
+    schelet: process.env.FLORESTI_SCHELET || path.join(AICI, 'floresti-schelet.json'),
+    cache: process.env.FLORESTI_DRUMURI || path.join(AICI, 'floresti-drumuri.json'),
+    rute: process.env.FLORESTI_RUTE_MASINI || path.join(AICI, 'floresti-rute-masini.json'),
+    sate: process.env.FLORESTI_SATE || path.join(AICI, 'floresti-sate.json') },
+};
+const UZINA_ID = arg('--uzina', 'LEAR_UNGHENI');   // lde_uzine.id — în lde_analiza_reguli.uzina stă numele afișat
+const UZ = UZINE[UZINA_ID];
+if (!UZ) { console.error(`--uzina necunoscută: ${UZINA_ID} (știu: ${Object.keys(UZINE).join(', ')})`); process.exit(2); }
+const UZINA_NUME = UZ.nume;
+const CALE_SCHELET = UZ.schelet;
+const CALE_CACHE = UZ.cache;
+
 // Ce rută face fiecare mașină, pe tura A și pe tura B — confirmat de Ion pe 23.09.2026.
 // Lista asta BATE potrivirea automată. Fără ea, ruta se ghicea din geometrie, iar ghicitul
 // cădea pe satul unde doarme mașina sau pe un sat de trecere: A5 Gherman e scurtă, trece pe
 // lângă uzină, și o «duceau» șase mașini în aceeași săptămână.
-const CALE_RUTE = process.env.LEAR_RUTE_MASINI || path.join(AICI, 'lear-rute-masini.json');
+const CALE_RUTE = UZ.rute;
 // Satele din nomenclator care nu-s pe hartă sub numele ăla: opriri scrise ca sate («Pîrlița
 // școală»), scrieri diferite («Manoilești»), sau locuri care chiar lipsesc din OSM (Dănuțeni,
 // cartier al Ungheniului). lear-sate.mjs le rezolvă o dată și scrie fișierul ăsta.
-const CALE_SATE = process.env.LEAR_SATE || path.join(AICI, 'lear-sate.json');
+const CALE_SATE = UZ.sate;
 const VALHALLA = process.env.VALHALLA_URL || 'http://localhost:8002';
 
-const POARTA = { lat: 47.2230, lon: 27.8016 };
+const POARTA = UZ.poarta;
 const R_POARTA = 0.7;          // km — raza în care mașina «e la uzină»
 const SALT_KM = 5;             // peste atât între două puncte = glitch GPS, se aruncă
 const R_RUTA = 0.45;           // km — cât de aproape trebuie să treacă urma de un punct al rutei
@@ -75,7 +98,7 @@ const R_CULOAR = 1.2;          // km — lățimea culoarului dintre casă și c
 // Cea mai lungă rută din schelet ajunge la 69 km de poartă (A2 Chetriș). O ieșire care pleacă de
 // la poartă dar se duce mai departe de atât nu mai e navetă de uzină, oricât ar atinge poarta:
 // 320BRAT pleacă de la poartă și se duce la Bălți, 96 km — ar fi fost numărată drept muncă LEAR.
-const R_LEAR_MAX = 75;
+const R_LEAR_MAX = UZ.rLearMax;
 // Parcul de la Bălți — service și reparații. Ion, 24.09: «dacă mașina pleacă la Bălți în zona de
 // reparație, nu trebuie de introdus, automat fixează reparație». Punctul nu-i scris nicăieri în
 // bază (lde_uzine_gates are doar porți de uzine), deci l-am scos din opririle pe care le scrie
@@ -265,7 +288,10 @@ async function drum(a, b, eticheta) {
 // ─── citirea săptămânii din tracker ──────────────────────────────────────────
 async function citesteSaptamina(t, de_la, pana_la) {
   const { rows: devs } = await t.query(`SELECT id,"CarName" FROM devices WHERE active=true`);
-  const xC = 47 * 100 + 0.2230 * 60, yC = 27 * 100 + 0.8016 * 60;
+  // poarta în NMEA (DDMM.mmmm), din POARTA — nu scrisă în cod: la Florești e altă poartă
+  const xC = Math.floor(POARTA.lat) * 100 + (POARTA.lat - Math.floor(POARTA.lat)) * 60,
+        yC = Math.floor(POARTA.lon) * 100 + (POARTA.lon - Math.floor(POARTA.lon)) * 60;
+
   const { rows: near } = await t.query(
     `SELECT DISTINCT id FROM track WHERE w_date>=$1 AND w_date<$2
        AND x BETWEEN $3 AND $4 AND y BETWEEN $5 AND $6`,
@@ -901,6 +927,17 @@ function casaDinUrma(pts) {
   return sat ? { nume: sat.n, c: sat.c, ore: +(best.min / 60).toFixed(1) } : null;
 }
 
+// ore de noapte (17:00–05:00) stat pe loc la sub 1,5 km de poartă — pentru mașina care doarme la uzină
+function oreNoapteaLaPoarta(pts) {
+  let min = 0, prev = null;
+  for (const p of pts) {
+    if (prev && hav(p, POARTA) <= 1.5 && hav(prev, POARTA) <= 1.5 && p.v < 4) {
+      const h = local(p.t).getUTCHours(); const dt = (p.t - prev.t) / 60000;
+      if ((h >= 17 || h < 5) && dt <= 15) min += dt; }
+    prev = p; }
+  return min / 60;
+}
+
 // ─── programul ───────────────────────────────────────────────────────────────
 const S = citesteSchelet();
 const sapt = saptamina(arg('--saptamina'));
@@ -909,7 +946,7 @@ const sapt = saptamina(arg('--saptamina'));
 const de_la = new Date(new Date(sapt.luni + 'T00:00:00Z').getTime() - 86400000).toISOString().slice(0, 10);
 const pana_la = new Date(new Date(sapt.duminica + 'T00:00:00Z').getTime() + 2 * 86400000).toISOString().slice(0, 10);
 
-console.log(`LEAR Ungheni · săptămâna ${sapt.luni} → ${sapt.duminica}`);
+console.log(`${UZINA_NUME} · săptămâna ${sapt.luni} → ${sapt.duminica}`);
 console.log(`scheletul: ${S.rute.length} rute, fixat ${S.fixat}\n`);
 
 const t = new pg.Client({ host: process.env.TRACKER_HOST, port: Number(process.env.TRACKER_PORT || 5432),
@@ -963,6 +1000,7 @@ for (const v of flota) {
     const d = casaDinUrma(v.pts.filter(p => { const z = ziLucru(p.t); return inSapt(z) && eZiDeLucru(z); }));
     let c = d?.nume ?? null, cc = d?.c ?? null;
     if (!cc) { const b = case_[v.masina] || null; const bc = b ? coordSat(S, b) : null; if (bc) { c = b; cc = bc; v._casaRezerva = true; } }
+    if (!cc && oreNoapteaLaPoarta(v.pts.filter(p => inSapt(ziLucru(p.t)))) >= 8) { c = 'la uzină (doarme lângă poartă)'; cc = [POARTA.lat, POARTA.lon]; v._casaLaPoarta = true; }
     if (DE_CE.has(v.masina)) console.error(`[${v.masina}] casa din urmă: ${d ? `${d.nume} ${d.c.map(x => x.toFixed(4))} (${d.ore} h)` : 'nimic'}${v._casaRezerva ? ` · rezervă din bază: ${c}` : ''}`);
     v._casa = c; v._casaC = cc; }
   // Potrivirea rutelor se face NUMAI pe punctele săptămânii. Citirea aduce o zi în plus de
@@ -1091,6 +1129,7 @@ for (const v of auLucrat) {
   if (!tip) rec.steaguri.push('la poartă, dar n-are tip cunoscut — lipsește din tabelul de costuri');
   if (alese.length < 2) rec.steaguri.push(
     `a dus ${alese.length} rută din schelet în săptămâna asta, nu două — nu se poate socoti ziua`);
+  if (v._casaLaPoarta) rec.note.push('doarme lângă poartă (≥ 8 h pe săptămână noaptea, la sub 1,5 km) — casa ei e uzina, regula 1 e deja aplicată');
   if (v._casaRezerva) rec.note.push(
     `urma săptămânii n-are nicio staționare lungă în zilele de lucru — casa e luată din bază: ${casa}`);
   else if (!casa) rec.steaguri.push('n-are noapte lungă scrisă în GPS — nu știm unde doarme');
@@ -1100,7 +1139,9 @@ for (const v of auLucrat) {
   // 291,8 km/zi. Mai bine niciun număr decât un număr greșit.
   if (!casaC && alese.length === 2) rec.steaguri.push(
     'nu știm unde doarme, deci drumurile spre casă nu se pot despărți de restul — regulile nu se pot socoti');
-  const gata = alese.length === 2 && lk && azi > 0 && !!casaC;
+  // Florești (ION-59): tipurile mașinilor nu-s în bază, deci lk lipsește — regulile ies în km, iar lei rămân goi.
+  const gata = alese.length === 2 && azi > 0 && !!casaC;
+  const leiDin = km => (lk ? Math.round(km * lk * ZILE_LUNA) : null);
   let grile = null;   // culoarele, pentru ocolul din lanț (doar când sunt două rute și casă)
   if (gata) {
     const sumaEtalon = alese.reduce((s, r) => s + r.etalon, 0);
@@ -1150,7 +1191,7 @@ for (const v of auLucrat) {
     // regula 1: ziua = 4 × latura fiecărui schimb + alte curse
     const z1 = patru + alte;
     rec.r1 = { zi: +z1.toFixed(1), km: +(aziL - z1).toFixed(1),
-      lei: Math.round((aziL - z1) * lk * ZILE_LUNA) };
+      lei: leiDin(aziL - z1) };
 
     // regula 3: plin (2 × fiecare rută) + de acasă la capete + de la uzină la capete + alte
     if (!lipsaDrum) {
@@ -1158,7 +1199,7 @@ for (const v of auLucrat) {
       rec.d_casa = +dCasa.toFixed(1); rec.d_uzina = +sumaEtalon.toFixed(1);
       rec.d_casa_pe_capat = peCapat;
       rec.r3 = { zi: +z3.toFixed(1), km: +(aziL - z3).toFixed(1),
-        lei: Math.round((aziL - z3) * lk * ZILE_LUNA) };
+        lei: leiDin(aziL - z3) };
       pentruR2.push({ rec, casa, casaC, lk, alese: alese.map(r => ({ id: r.id, tura: r.tura, capat: r.capat, capatC: r.capatC, loc: r.loc })) });
     } else rec.steaguri.push('Valhalla n-a dat drumul de acasă la capăt — regula 3 nu se poate socoti');
 
@@ -1296,7 +1337,7 @@ for (const tura of ['A', 'B']) {
       if (!isFinite(dOwn) || !isFinite(dNou)) return;
       const km = 2 * (dOwn - dNou);
       rec.r2.km = +(rec.r2.km + km).toFixed(1);
-      rec.r2.lei = Math.round(rec.r2.km * (a.x.lk || 0) * ZILE_LUNA);
+      rec.r2.lei = a.x.lk ? Math.round(rec.r2.km * a.x.lk * ZILE_LUNA) : null;
       rec.r2.rute[tura] = nou.id; });
   }
 }

@@ -395,7 +395,7 @@ export default function ReguliClient({ raport, saptamani = [] }: {
         </table>
       </div>
       <p className="mt-3! text-[13px] text-neutral-500">
-        Regulile după care se socotește — într-un singur loc: <a href="/lde/livrare-reguli" className="underline">Livrarea — regula · LEAR Ungheni</a>, §11.3–11.5 (brambura, reparație, altă uzină).
+        Regulile după care se socotește — într-un singur loc: <a href="/lde/livrare-reguli" className="underline">Livrarea — regula · {R.uzina}</a>, §11.3–11.5 (brambura, reparație, altă uzină).
       </p>
 
       <h2 className="mb-3! mt-9! text-xs font-bold uppercase tracking-widest text-neutral-500">
@@ -472,7 +472,7 @@ export default function ReguliClient({ raport, saptamani = [] }: {
         <p key={s.zi} className="text-[12.5px] text-neutral-500">Sâmbătă {s.zi}: nicio mașină la poartă — uzina n-a lucrat, deci ce s-a mișcat sâmbăta iese «liber».</p>
       ))}
       <p className="mt-3! text-[13px] text-neutral-500">
-        Regulile după care se socotește — într-un singur loc: <a href="/lde/livrare-reguli" className="underline">Livrarea — regula · LEAR Ungheni</a>, §11 (timp liber și brambura).
+        Regulile după care se socotește — într-un singur loc: <a href="/lde/livrare-reguli" className="underline">Livrarea — regula · {R.uzina}</a>, §11 (timp liber și brambura).
       </p>
     </div>
   );

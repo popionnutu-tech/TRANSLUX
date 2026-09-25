@@ -23,6 +23,12 @@ if ! flock -n "$LOCK" node --env-file=.env lear-analiza.mjs --write; then
   exit 1
 fi
 
+# LEAR Florești (ION-59): aceeași analiză, alt schelet și altă poartă. Lock separat; dacă pică, Ungheni
+# rămâne scris și mesajul lui pleacă oricum — Floreștiul n-are încă mesaj de luni.
+if ! flock -n "${LOCK_FLORESTI:-/tmp/lear-analiza-floresti.lock}" node --env-file=.env lear-analiza.mjs --uzina LEAR_FLORESTI --write; then
+  echo "lear-analiza LEAR_FLORESTI: rularea a picat sau lock-ul e ocupat" >&2
+fi
+
 CRON_SECRET="$(env_val CRON_SECRET || true)"
 [ -n "$CRON_SECRET" ] || { echo "CRON_SECRET lipsește din .env — raportul e scris, mesajul nu pleacă" >&2; exit 1; }
 curl -fsS -H "Authorization: Bearer $CRON_SECRET" "$BASE/api/cron/lde-timp-liber"

@@ -31,6 +31,9 @@ function saptamanaSebn(zi?: string, inapoi = 0) {
 const UZINE = [
   { id: 'lear', nume: 'LEAR Ungheni', href: '/lde/reguli' },
   { id: 'sebn', nume: 'SEBN Orhei și Strășeni', href: '/lde/reguli?uz=sebn' },
+  // Ion, 25.09.2026 (ION-59): «aplică regulile … de la LEAR și aici» — același raport, scris de
+  // lear-analiza.mjs --uzina LEAR_FLORESTI, un rând pe săptămână cu uzina 'LEAR Florești'.
+  { id: 'floresti', nume: 'LEAR Florești', href: '/lde/reguli?uz=floresti' },
 ] as const;
 
 export default async function LdeReguliPage({
@@ -39,7 +42,7 @@ export default async function LdeReguliPage({
   searchParams: Promise<{ saptamina?: string; uz?: string }>;
 }) {
   const { saptamina, uz } = await searchParams;
-  const alese = uz === 'sebn' ? 'sebn' : 'lear';
+  const alese = uz === 'sebn' ? 'sebn' : uz === 'floresti' ? 'floresti' : 'lear';
 
   const nav = (
     <nav aria-label="Uzina" className="flex gap-1.5 px-4! pt-3!">
@@ -80,9 +83,10 @@ export default async function LdeReguliPage({
     );
   }
 
+  const uzina = alese === 'floresti' ? 'LEAR Florești' : 'LEAR Ungheni';
   const [raport, saptamani] = await Promise.all([
-    getRaport('LEAR Ungheni', saptamina),
-    getSaptamani('LEAR Ungheni'),
+    getRaport(uzina, saptamina),
+    getSaptamani(uzina),
   ]);
   return <>{nav}<ReguliClient raport={raport} saptamani={saptamani} /></>;
 }

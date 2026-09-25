@@ -24,7 +24,9 @@ import { loadPlaces } from './places-index.mjs';
 const CALE_SCHELET = process.env.LEAR_SCHELET || '/root/lde-worker/lear-schelet.json';
 const CALE_OUT = process.env.LEAR_SATE || '/root/lde-worker/lear-sate.json';
 const WRITE = process.argv.includes('--write');
-const POARTA = { lat: 47.2230, lon: 27.8016 };
+// Poarta din env (ION-59): «lat,lon» — la Florești e alta. Fără env rămâne Ungheni, ca înainte.
+const POARTA = (() => { const v = (process.env.LEAR_POARTA || '').split(',').map(Number);
+  return v.length === 2 && v.every(Number.isFinite) ? { lat: v[0], lon: v[1] } : { lat: 47.2230, lon: 27.8016 }; })();
 // Cât de departe de drumul rutei poate sta un sat al ei. Peste atât, potrivirea e a altui loc:
 // «Dănuțeni» ajungea la «Danu», 71 km mai încolo, doar fiindcă numele începe la fel. Dănuțeni e
 // un cartier al Ungheniului, nu un sat de pe hartă — și atunci se așază pe drum, ca celelalte.

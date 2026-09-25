@@ -717,7 +717,7 @@ function deplasari(pts, rute, casaC) {
   };
   const out = [];
   let cur = null, prev = null;
-  const inchide = () => { if (cur && cur.km >= 1) out.push(cur); cur = null; };
+  const inchide = () => { if (cur && cur.km >= KM_BRAMBURA_MIN) out.push(cur); cur = null; };   // sub 5 km e mutat în parcare, nu deplasare
   for (const p of pts) {
     // pauză de semnal peste o jumătate de oră = altă deplasare, nu aceeași prelungită;
     // fără asta, o mașină oprită peste noapte departe dădea o singură «deplasare» de 128 de ore
@@ -1179,7 +1179,7 @@ for (const v of auLucrat) {
       masina: v.masina, zi: ziLucru(e.de_la),
       de_la: local(e.de_la).toISOString().slice(11, 16), pana_la: local(e.pana_la).toISOString().slice(11, 16),
       ore: +((e.pana_la - e.de_la) / 3600000).toFixed(1), km: +e.km.toFixed(1), departare: +e.max.toFixed(1),
-      fel: 'brambura', unde: e.loc ? `pe la ${e.loc}` : '—' });
+      fel: 'de lămurit', unde: e.loc ? `pe la ${e.loc} · în afara culoarului rutei` : 'în afara culoarului rutei' });
     rec.etalon_s1 = alese[0].etalon; rec.etalon_s2 = alese[1].etalon;
     rec.rutele_de_4 = +patru.toFixed(1);
     rec.alte = +alte.toFixed(1);

@@ -12,12 +12,15 @@ import { LIVRARE_POSTER_CHAT_KEY } from './livrare-poster';
  * Regula lui Ion (25.09): km-ii optimizabili se numără doar în zilele în care șoferul a făcut seara tot
  * traseul până la capăt ȘI dimineața naveta de acasă; dacă seara nu a mers până la capăt, e ca și cum
  * mașina ar fi rămas la capăt — zero («caz B»). Unde doarme mașina vine din tracker (ultimul punct înainte
- * de ora 03); sub 3 km (garajul din oraș) nu e navetă. Analiza o scrie VPS-ul, luni, în lde_analiza_reguli
+ * de ora 03), numit după localitatea reală din OSM, nu după cea mai apropiată oprire a rutei — Ion, 25.09: «nu poate fi
+ * capăt ruta și unde doarme egal și loc optimizarea» (235DQO/240RQR dormeau la Briceni și posterul scria «Caracușenii
+ * Vechi»); în aceeași localitate cu capătul nu e navetă. Zilele în care turul și returul le fac mașini diferite nu se
+ * numără: golul de seară e al altei mașini (ruta 16: 784MJW tur, 828MLN retur). Analiza o scrie VPS-ul, luni, în lde_analiza_reguli
  * (uzina «MEJGOROD», mejgorod/cod/saptamanal.sh); aici doar se desenează și se trimite.
  * Doar km, fără lei și fără nume de oameni.
  */
 export interface RutaOptim {
-  ruta: number; nume: string; capNord: string; km: number; zile: number; ordine: string | null; doarme: string | null; inAfara: number;
+  ruta: number; nume: string; capNord: string; km: number; zile: number; ordine: string | null; doarme: string | null; doarmeNopti?: number | null; douaMasini?: number; inAfara: number;
   searaLaCapat: number; cazB: number; navetaMed: number | null; golSearaMed: number | null; optimZi: number; optimTotal: number; masini: string[];
 }
 export interface AnalizaMejgorod { saptamina: string; pana_la: string; rute: RutaOptim[]; total: { optim: number; zile: number; laCapat: number; cazB: number } }
@@ -51,7 +54,7 @@ export async function generateMejgorodOptimizariImage(a: AnalizaMejgorod): Promi
   ], cuOptim.map((r) => [
     { text: String(r.ruta), bold: true },
     { text: r.capNord, culoare: CULORI.gri },
-    { text: r.doarme ?? '—', culoare: CULORI.gri, mic: r.ordine === 'retur→tur' ? 'retur dimineața, tur seara' : undefined },
+    { text: r.doarme ?? '—', culoare: CULORI.gri, mic: [r.doarmeNopti != null && r.doarmeNopti < r.zile ? `${r.doarmeNopti} din ${r.zile} nopți` : null, r.ordine === 'retur→tur' ? 'retur dimineața, tur seara' : null].filter(Boolean).join(' · ') || undefined },
     { text: `${r.searaLaCapat}/${r.zile}`, culoare: r.searaLaCapat >= r.zile / 2 ? CULORI.text : CULORI.griDeschis },
     km(r.navetaMed), km(r.golSearaMed),
     { text: `−${nr(r.optimTotal)}`, culoare: CULORI.verde, bold: r.optimZi >= 10, fundal: r.optimZi >= 10 ? CULORI.verdeFundal : undefined, mic: `${nr1(r.optimZi)} km/zi` },
@@ -60,7 +63,9 @@ export async function generateMejgorodOptimizariImage(a: AnalizaMejgorod): Promi
   ]), { gol: 'Nicio rută cu km optimizabili săptămâna asta.' });
   p.total(`Pe ${cuOptim.length} rute: −${nr(tot)} km pe săptămână`, `≈ −${nr(tot * 52 / 12)} km pe lună`);
   if (restul.length) p.nota(`Celelalte ${restul.length} rute n-au km optimizabili: fie dorm la capăt, fie sunt «caz B» (seara nu ajung la capăt), fie fac returul dimineața și dorm la Chișinău.`);
-  p.nota('Verde încercuit = peste 10 km optimizabili pe zi. Naveta și golul sunt mediane pe săptămână, pe scheletul rutei (un drum, tur = retur). Unde doarme mașina vine din GPS, ultimul punct înainte de ora 03; sub 3 km de capăt nu e navetă.');
+  const douaM = a.rute.filter((r) => (r.douaMasini ?? 0) > 0);
+  if (douaM.length) p.nota(`Nu se numără ${douaM.length === 1 ? 'ruta' : 'rutele'} ${douaM.map((r) => r.ruta).join(', ')}: turul și returul le fac mașini diferite, golul de seară e al altei mașini.`);
+  p.nota('Verde încercuit = peste 10 km optimizabili pe zi. Naveta și golul sunt mediane pe săptămână, pe scheletul rutei (un drum, tur = retur). Unde doarme mașina vine din GPS, ultimul punct înainte de ora 03, cu numele localității; în aceeași localitate cu capătul nu e navetă.');
   return p.png();
 }
 

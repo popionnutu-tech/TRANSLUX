@@ -46,6 +46,8 @@ export type MasinaRand = {
   d_uzina?: number;
   d_casa_pe_capat?: { id: string; capat: string; km: number }[];
   r1?: Regula;
+  // regula 2: rutele împărțite altfel pe clasă de locuri; km/zi câștigați de mașina asta, rutele noi pe tură
+  r2?: { km: number; lei: number; rute: { A?: string; B?: string } };
   r3?: Regula;
   km_baza?: { km: number; zile: number; km_aici: number; dif: number };
   // ⚠ ce modelul nu poate explica

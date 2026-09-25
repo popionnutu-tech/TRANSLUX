@@ -927,6 +927,7 @@ const case_ = await undeDorm(supa, nrDupaId, de_la, pana_la);
 const kmBaza = await kmDinBaza(supa, nrDupaId, sapt.luni, sapt.duminica);
 
 const masini = [], steaguri = [], toateDeplasarile = [], steagCasaFaraPunct = [], doarTrecute = [];
+const pentruR2 = [];   // mașinile cu casă și două rute, pentru regula 2 (se socoate pe flotă, după buclă)
 const ferestre = await citesteFerestre(supa);
 const zileLucru = await citesteZileLucru(supa);
 const alimentari = await citesteAlimentari(supa, nrDupaId, de_la, pana_la);
@@ -1158,6 +1159,7 @@ for (const v of auLucrat) {
       rec.d_casa_pe_capat = peCapat;
       rec.r3 = { zi: +z3.toFixed(1), km: +(aziL - z3).toFixed(1),
         lei: Math.round((aziL - z3) * lk * ZILE_LUNA) };
+      pentruR2.push({ rec, casa, casaC, lk, alese: alese.map(r => ({ id: r.id, tura: r.tura, capat: r.capat, capatC: r.capatC, loc: r.loc })) });
     } else rec.steaguri.push('Valhalla n-a dat drumul de acasă la capăt — regula 3 nu se poate socoti');
 
     if (patru > aziL) rec.note.push(
@@ -1257,6 +1259,46 @@ for (const r of S.rute) {
   if (!r.etalon) { steaguri.push({ fel: 'rută fără etalon', text: `${r.id} n-are etalon în schelet` }); continue; }
   if (!ruteFolosite.has(r.id)) steaguri.push({ fel: 'rută nefolosită',
     text: `${r.id} ${r.capat} n-a fost dusă de nicio mașină în săptămâna asta` });
+}
+
+// ─── regula 2: rutele împărțite altfel, pe flotă ─────────────────────────────
+// R2 (regulile LEAR, §8): rutele se mută între mașini de aceeași clasă de locuri (20–23 / 27 / 60 —
+// clasa mașinii = cea mai mare rută a ei), șoferii nu. Pe fiecare tură și clasă, rutele se împart
+// între mașinile de acolo așa încât suma drumurilor casă → capăt să fie cea mai mică (atribuire
+// exactă, prin programare dinamică pe submulțimi — cel mult câteva mașini pe clasă). Câștigul unei
+// mașini pe zi = 2 × (drumul la capătul rutei ei − drumul la capătul rutei noi), pe fiecare tură:
+// dimineața până la capăt, seara de la capăt acasă. Poate ieși și negativ pentru o mașină — suma pe
+// clasă nu. Ion, 25.09: «km optimizare pe fiecare regulă să fie în rând cu auto».
+const clasa = loc => (loc <= 23 ? '20–23' : loc <= 27 ? '27' : '60');
+for (const tura of ['A', 'B']) {
+  const grupe = new Map();
+  for (const x of pentruR2) {
+    const r = x.alese.find(a => a.tura === tura); if (!r || !r.capatC) continue;
+    const k = clasa(Math.max(...x.alese.map(a => a.loc || 0)));
+    if (!grupe.has(k)) grupe.set(k, []);
+    grupe.get(k).push({ x, r });
+  }
+  for (const [, g] of grupe) {
+    const n = g.length; if (n < 2 || n > 16) continue;
+    const cost = [];
+    for (const a of g) { const rand = [];
+      for (const b of g) { const d = await drum(a.x.casaC, b.r.capatC, `${a.x.casa}|${b.r.capat}`); rand.push(d ? d.km : Infinity); }
+      cost.push(rand); }
+    // dp[mask] = costul minim când primele popcount(mask) mașini au luat rutele din mask
+    const dp = new Array(1 << n).fill(Infinity), de = new Array(1 << n).fill(-1); dp[0] = 0;
+    for (let m = 0; m < (1 << n); m++) { if (dp[m] === Infinity) continue; let i = 0; for (let t = m; t; t &= t - 1) i++;
+      if (i >= n) continue;
+      for (let j = 0; j < n; j++) if (!(m & (1 << j)) && dp[m] + cost[i][j] < dp[m | (1 << j)]) { dp[m | (1 << j)] = dp[m] + cost[i][j]; de[m | (1 << j)] = j; } }
+    const alege = new Array(n); let m = (1 << n) - 1;
+    for (let i = n - 1; i >= 0; i--) { const j = de[m]; alege[i] = j; m &= ~(1 << j); }
+    g.forEach((a, i) => { const nou = g[alege[i]].r, dOwn = cost[i][i], dNou = cost[i][alege[i]];
+      const rec = a.x.rec; rec.r2 ??= { km: 0, lei: 0, rute: {} };
+      if (!isFinite(dOwn) || !isFinite(dNou)) return;
+      const km = 2 * (dOwn - dNou);
+      rec.r2.km = +(rec.r2.km + km).toFixed(1);
+      rec.r2.lei = Math.round(rec.r2.km * (a.x.lk || 0) * ZILE_LUNA);
+      rec.r2.rute[tura] = nou.id; });
+  }
 }
 
 // ─── totaluri ────────────────────────────────────────────────────────────────

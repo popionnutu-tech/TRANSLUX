@@ -83,6 +83,15 @@ describe('indicatiiLear', () => {
     expect(t).toContain('↳ P1 ia A1 + B2 (+50 km/săpt.)');
     expect(t).toContain('↳ P2 ia A3 + B1 (+25 km/săpt.)');
   });
+  it('schimb pe o singură tură: dă doar ruta pe care o pierde (Florești, raportul rescris 25.09 10:45)', () => {
+    const masini = [
+      m('894BRAX', 'Pohoarna', 'A2 + B3', 0, { km: 28.6, A: 'A2', B: 'B5' }, -2.2),
+      m('279BRAT', 'Țîra', 'A6 + B5', 11, { km: -8.3, A: 'A6', B: 'B3' }, 23.4),
+    ];
+    const t = indicatiiLear({ saptamina: '2026-09-14', pana_la: '2026-09-20', masini }, U, BASE)!;
+    expect(t).toContain('<b>894BRAX</b> (Pohoarna): ia B5 de la 279BRAT, dă B3 — −143 km/săpt.');
+    expect(t).not.toContain('dă A2');
+  });
   it('km liberi și brambura peste prag: doar cifrele, cu întrebarea', () => {
     const liber: NonNullable<RandLear['liber']> = { km: 61, prag_km: 50, peste_prag: true, zile: 2, km_brambura: 7, peste_prag_brambura: false,
       iesiri: [{ zi: '2026-09-15', de_la: '16:00', pana_la: '18:00', km: 61, departare: 40, eticheta: 'liber', loc_principal: 'Fălești', repetat: false, opriri: [] }] };

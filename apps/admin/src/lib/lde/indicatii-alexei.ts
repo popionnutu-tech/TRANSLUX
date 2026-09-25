@@ -82,7 +82,9 @@ export function indicatiiLear(
         deLa.set(cine, [...(deLa.get(cine) ?? []), id]);
       }
       const ia = [...deLa].map(([cine, ids]) => `${ids.join(' + ')} de la ${escapeHtml(cine)}`).join(', ');
-      linii.push(`• <b>${escapeHtml(x.m.masina)}</b>${casa(x.m)}: ia ${ia || noi.join(' + ')}, dă ${ruteAcum(x.m)} — −${nr(x.cea!.km)} km/săpt.`);
+      // dă doar rutele pe care le pierde; ce păstrează (aceeași rută pe o tură) nu se scrie
+      const da = x.m.rute.map((r) => r.id).filter((id) => !noi.includes(id)).join(' + ');
+      linii.push(`• <b>${escapeHtml(x.m.masina)}</b>${casa(x.m)}: ia ${ia || noi.join(' + ')}${da ? `, dă ${da}` : ''} — −${nr(x.cea!.km)} km/săpt.`);
       pomenite.add(x.m.masina);
       // partenerii: ce iau ei în schimb și cât îi costă (sau câștigă)
       for (const cine of deLa.keys()) {

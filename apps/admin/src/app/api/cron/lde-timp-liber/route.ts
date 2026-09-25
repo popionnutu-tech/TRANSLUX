@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ saptamina, raport: false, trimis, dry, text: dry ? text : undefined }, { status: dry ? 200 : 502 });
     }
     const row = data as Rand;
-    // Posterul «cât se putea economisi» pleacă în grupa Mejgorod, o dată pe săptămână (Ion, 25.09);
+    // Posterul «cât se putea economisi» pleacă în grupa livrărilor de uzină, o dată pe săptămână (Ion, 25.09);
     // independent de mesajul către ADMIN de mai jos.
     const poster = await trimitePosterLear({ saptamina: row.saptamina, pana_la: row.date.pana_la, masini: row.date.masini ?? [] },
       { dry, force: url.searchParams.get('poster') === 'force' }).catch((e) => ({ trimis: false, motiv: String(e) }));

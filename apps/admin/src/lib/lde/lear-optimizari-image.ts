@@ -2,14 +2,14 @@ import { poster, CULORI, type Celula } from '../poster-sablon';
 import type { Raport, MasinaRand } from '@/app/(dashboard)/lde/reguli/actions';
 
 /**
- * Posterul săptămânal «cât se putea economisi» la LEAR Ungheni, pentru grupa Mejgorod.
+ * Posterul săptămânal «cât se putea economisi» la LEAR Ungheni, pentru grupa livrărilor de uzină.
  *
  * Ion, 25.09.2026: «hai să facem poster pentru săptămâna trecută care să plece în Mejgorod,
  * posterul pleacă doar în optimizări km pe săptămână posibil, și explică simplu regula 1 2 3»;
  * apoi «km optimizare pe fiecare regulă să fie în rând cu auto» și «fă un design mai nou —
  * îl folosim acest șablon peste multe lucruri» (poster-sablon.ts).
  *
- * Doar km, fără lei și fără nume de oameni: grupa e a șoferilor. Pe săptămână = km/zi × zilele
+ * Doar km, fără lei și fără nume de oameni. Pe săptămână = km/zi × zilele
  * lucrate. Regulile 1 și 3 nu se adună (una doarme la uzină, alta acasă); regula 2 mută rutele.
  */
 const LUNI = ['ianuarie', 'februarie', 'martie', 'aprilie', 'mai', 'iunie', 'iulie', 'august', 'septembrie', 'octombrie', 'noiembrie', 'decembrie'];
@@ -78,12 +78,14 @@ export async function generateOptimizariImage(raport: Pick<Raport, 'saptamina' |
   return p.png();
 }
 
-// ─── trimiterea în Mejgorod ──────────────────────────────────────────────────
+// ─── trimiterea în grupa livrărilor de uzină ─────────────────────────────────
+// Ion, 25.09: «posterul LEAR să se trimită în grupa livrări uzină acum, și doar acolo automat» — deci
+// în aceeași grupă ca posterul de livrare SEBN (app_config.livrare_poster_chat_id), NU în Mejgorod.
 // Luni, după raportul săptămânal (lear-saptamanal.sh cheamă /api/cron/lde-timp-liber, care cheamă
 // asta). O dată pe săptămână: `app_config.lear_poster_last` ține ultima săptămână trimisă.
 import { getSupabase } from '../supabase';
 import { sendTelegramPhoto } from '../telegram-notify';
-import { DRIVERS_GROUP_CONFIG_KEY } from '@translux/db';
+import { LIVRARE_POSTER_CHAT_KEY } from './livrare-poster';
 
 export const LEAR_POSTER_LAST_KEY = 'lear_poster_last';
 
@@ -93,9 +95,9 @@ export async function trimitePosterLear(raport: Pick<Raport, 'saptamina' | 'pana
   const { data: last } = await sb.from('app_config').select('value').eq('key', LEAR_POSTER_LAST_KEY).maybeSingle();
   if (!opts.force && last?.value === raport.saptamina) return { trimis: false, motiv: 'deja trimis pentru săptămâna asta' };
   if (!randuriOptimizare(raport.masini).length) return { trimis: false, motiv: 'nicio optimizare de arătat' };
-  const { data: g } = await sb.from('app_config').select('value').eq('key', DRIVERS_GROUP_CONFIG_KEY).maybeSingle();
+  const { data: g } = await sb.from('app_config').select('value').eq('key', LIVRARE_POSTER_CHAT_KEY).maybeSingle();
   const chat = (g?.value ?? '').trim();
-  if (!chat) return { trimis: false, motiv: 'grupa Mejgorod nu e legată (app_config)' };
+  if (!chat) return { trimis: false, motiv: 'grupa livrărilor de uzină nu e legată (app_config.livrare_poster_chat_id)' };
   if (opts.dry) return { trimis: false, motiv: 'dry' };
   const png = await generateOptimizariImage(raport);
   const caption = `LEAR Ungheni · cât se putea economisi · ${perioadaText(raport.saptamina, raport.pana_la)}`;

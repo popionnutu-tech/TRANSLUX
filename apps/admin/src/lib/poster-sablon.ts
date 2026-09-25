@@ -24,6 +24,7 @@ export interface Celula { text: string; culoare?: string; bold?: boolean; fundal
   /** rândul mic de sub text: implicit 9 pt, gri */
   micMarime?: number; micCuloare?: string }
 export interface Card { eticheta: string; titlu: string; text: string; valoare?: string; subValoare?: string }
+export interface Bilet { ora: string; ruta: string; sub?: string; telefon: string; nume?: string }
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
 
@@ -53,12 +54,32 @@ export function ziText(iso: string): string {
 
 export function poster(opts: { latime?: number; titlu: string; subtitlu?: string; eticheta?: string; supratitlu?: string;
   /** format fix (TikTok / Reels / Stories): înălțime = lățime × 16/9, conținutul centrat între zonele sigure */
-  format916?: boolean }) {
+  format916?: boolean;
+  /** antet de afiș public (graficul postat pe Facebook): logoul pe toată lățimea, dedesubt supratitlul mare cu
+   *  data alături, apoi titlul; capetele tabelului și nota mai mari (Ion, 25.09: «încă mai mare, în special
+   *  partea de sus TRANSLUX», ION-72) */
+  antetMare?: boolean }) {
   const { r: fR, b: fB } = fonts();
   const W = (opts.latime ?? 820) * S, PAD = 28 * S, IN = W - 2 * PAD;
   const svg: string[] = [];
   let y = PAD;
+  const mare = !!opts.antetMare;
 
+  if (mare) {
+    const logoH = IN * (192 / 1318);
+    svg.push(`<image href="data:image/png;base64,${logoBase64()}" x="${PAD}" y="${y}" width="${IN}" height="${logoH}"/>`);
+    y += logoH + 38 * S;
+    if (opts.supratitlu) svg.push(textPath(fB, opts.supratitlu, PAD, y, 27 * S, CULORI.bordo, 'start'));
+    if (opts.eticheta) {
+      const fs = 15 * S, w = textW(fB, opts.eticheta, fs) + 32 * S, h = 38 * S;
+      svg.push(`<rect x="${W - PAD - w}" y="${y - h / 2 - 9 * S}" width="${w}" height="${h}" rx="${h / 2}" fill="${CULORI.bordo}"/>`);
+      svg.push(textPath(fB, opts.eticheta, W - PAD - w / 2, y - 3.5 * S, fs, '#fff', 'middle'));
+    }
+    y += 36 * S;
+    for (const l of rupe(fB, opts.titlu, 25 * S, IN)) { svg.push(textPath(fB, l, PAD, y, 25 * S, CULORI.text, 'start')); y += 30 * S; }
+    if (opts.subtitlu) { y -= 2 * S; for (const l of rupe(fR, opts.subtitlu, 13 * S, IN)) { svg.push(textPath(fR, l, PAD, y, 13 * S, CULORI.gri, 'start')); y += 18 * S; } }
+    y += 2 * S;
+  } else {
   // antet: logo stânga, eticheta (perioada) dreapta, apoi supratitlu, titlu, subtitlu
   // logo mare, ca pe graficul Mejgorod (Ion, 25.09: «TRANSLUX să fie mare, ca și la grafic»); pe posterul
   // îngust (graficul Mejgorod pentru telefon) logoul se micșorează cât să nu intre sub eticheta cu data
@@ -76,6 +97,7 @@ export function poster(opts: { latime?: number; titlu: string; subtitlu?: string
   for (const l of rupe(fB, opts.titlu, 22 * S, IN)) { svg.push(textPath(fB, l, PAD, y, 22 * S, CULORI.text, 'start')); y += 28 * S; }
   if (opts.subtitlu) { y -= 4 * S; for (const l of rupe(fR, opts.subtitlu, 11 * S, IN)) { svg.push(textPath(fR, l, PAD, y, 11 * S, CULORI.gri, 'start')); y += 16 * S; } }
   y += 14 * S;
+  }
 
   const api = {
     W, PAD, IN, get y() { return y; },
@@ -111,7 +133,7 @@ export function poster(opts: { latime?: number; titlu: string; subtitlu?: string
       const jum = Math.ceil(randuri.length / n);
       const bucati = n === 1 ? [randuri] : [randuri.slice(0, jum), randuri.slice(jum)];
       const areMic = randuri.some(r => r.some(c => c.mic));
-      const TH = 34 * S, RH = (opt.rand ?? (areMic ? 42 : opt.compact ? 24 : 30)) * S, fs = (opt.mare ?? (opt.compact ? 10.5 : 11)) * S;
+      const TH = (mare ? 36 : 34) * S, RH = (opt.rand ?? (areMic ? 42 : opt.compact ? 24 : 30)) * S, fs = (opt.mare ?? (opt.compact ? 10.5 : 11)) * S;
       const h = TH + Math.max(1, jum) * RH;
       bucati.forEach((rows, bi) => {
         const X = PAD + bi * (lat + gap);
@@ -120,7 +142,8 @@ export function poster(opts: { latime?: number; titlu: string; subtitlu?: string
         svg.push(`<path d="M${X} ${y + 12 * S} a${12 * S} ${12 * S} 0 0 1 ${12 * S} -${12 * S} h${lat - 24 * S} a${12 * S} ${12 * S} 0 0 1 ${12 * S} ${12 * S} v${TH - 12 * S} h-${lat} z" fill="${CULORI.antetTabel}"/>`);
         const xs: number[] = []; let cx = X; for (const c of cols) { xs.push(cx); cx += c.latime * k; }
         const tx = (i: number, a: Aliniere) => a === 'end' ? xs[i] + cols[i].latime * k - 16 * S : a === 'middle' ? xs[i] + cols[i].latime * k / 2 : xs[i] + 10 * S;
-        cols.forEach((c, i) => c.titlu && svg.push(textPath(fB, truncText(fB, c.titlu, 9.5 * S, c.latime * k - 12 * S), tx(i, c.aliniere ?? 'start'), y + TH / 2 + 4 * S, 9.5 * S, CULORI.bordoInchis, c.aliniere ?? 'start')));
+        const thS = (mare ? 12.5 : 9.5) * S;
+        cols.forEach((c, i) => c.titlu && svg.push(textPath(fB, truncText(fB, c.titlu, thS, c.latime * k - 12 * S), tx(i, c.aliniere ?? 'start'), y + TH / 2 + (mare ? 5 : 4) * S, thS, CULORI.bordoInchis, c.aliniere ?? 'start')));
         if (!rows.length && opt.gol && bi === 0) svg.push(textPath(fR, opt.gol, X + 14 * S, y + TH + RH / 2 + 4 * S, fs, CULORI.verde, 'start'));
         rows.forEach((r, j) => {
           const ry = y + TH + j * RH;
@@ -147,19 +170,48 @@ export function poster(opts: { latime?: number; titlu: string; subtitlu?: string
       y += h + 16 * S;
       return api;
     },
+    /** o cursă = un card, două pe rând (graficul public al interurbanelor, Ion 25.09: «în așa stil», ION-72):
+     *  ora mare bordo, alături ruta și un rând mic sub ea, jos banda cu telefonul și prenumele */
+    bilete(bilete: Bilet[], opt: { gol?: string } = {}) {
+      if (!bilete.length) {
+        if (opt.gol) { svg.push(textPath(fR, opt.gol, PAD, y + 14 * S, 13 * S, CULORI.verde, 'start')); y += 30 * S; }
+        return api;
+      }
+      const gap = 8 * S, w = (IN - gap) / 2, h = 78 * S, pi = 12 * S;
+      const oraS = 28 * S, rutaS = 14 * S, subS = 11.5 * S, telS = 15.5 * S, numeS = 11 * S;
+      bilete.forEach((b, i) => {
+        const x = PAD + (i % 2) * (w + gap), cy = y + Math.floor(i / 2) * (h + gap);
+        svg.push(`<rect x="${x}" y="${cy}" width="${w}" height="${h}" rx="${12 * S}" fill="${CULORI.card}" stroke="${CULORI.linie}" stroke-width="${S}"/>`);
+        svg.push(textPath(fB, esc(b.ora), x + pi, cy + 32 * S, oraS, CULORI.bordo, 'start'));
+        const xr = x + pi + textW(fB, b.ora, oraS) + 10 * S, maxR = x + w - pi - xr;
+        svg.push(textPath(fB, esc(truncText(fB, b.ruta, rutaS, maxR)), xr, cy + 24 * S, rutaS, CULORI.text, 'start'));
+        if (b.sub) svg.push(textPath(fB, esc(truncText(fB, b.sub, subS, maxR)), xr, cy + 39 * S, subS, CULORI.bordoInchis, 'start'));
+        svg.push(`<rect x="${x + pi - 5 * S}" y="${cy + 46 * S}" width="${w - 2 * pi + 10 * S}" height="${24 * S}" rx="${7 * S}" fill="${CULORI.antetTabel}"/>`);
+        svg.push(textPath(fB, esc(b.telefon), x + pi, cy + 63.5 * S, telS, CULORI.text, 'start'));
+        if (b.nume) {
+          const xn = x + pi + textW(fB, b.telefon, telS) + 8 * S, maxN = x + w - pi - xn;
+          if (maxN > 20 * S) svg.push(textPath(fR, esc(truncText(fR, b.nume, numeS, maxN)), xn, cy + 63 * S, numeS, CULORI.gri, 'start'));
+        }
+      });
+      y += Math.ceil(bilete.length / 2) * (h + gap) - gap + 16 * S;
+      return api;
+    },
     /** rând de total: text stânga îngroșat, text dreapta gri */
     total(stanga: string, dreapta?: string) {
       svg.push(textPath(fB, stanga, PAD, y + 6 * S, 14 * S, CULORI.bordoInchis, 'start'));
       if (dreapta) svg.push(textPath(fR, dreapta, W - PAD, y + 6 * S, 11 * S, CULORI.gri, 'end'));
       y += 26 * S; return api;
     },
-    nota(text: string) { for (const l of rupe(fR, text, 9.5 * S, IN)) { svg.push(textPath(fR, l, PAD, y, 9.5 * S, CULORI.gri, 'start')); y += 14 * S; } y += 4 * S; return api; },
+    nota(text: string) {
+      const fs = (mare ? 13 : 9.5) * S; if (mare) y += 6 * S;
+      for (const l of rupe(fR, text, fs, IN)) { svg.push(textPath(fR, l, PAD, y, fs, CULORI.gri, 'start')); y += 14 * S; } y += 4 * S; return api;
+    },
     async png(): Promise<Buffer> {
       const Hc = y + PAD - 10 * S;
-      // 9:16: bara de sus și butoanele de jos ale TikTok acoperă ~120 / 160 pt — conținutul stă între ele
-      const H = opts.format916 ? Math.round(W * 16 / 9) : Hc;
-      const sus = 120 * S * (W / (820 * S)), jos = 160 * S * (W / (820 * S));
-      const dy = opts.format916 ? Math.max(sus, sus + (H - sus - jos - Hc) / 2) : 0;
+      // 9:16 umplut de sus până jos, conținutul centrat; zonele goale lăsate pentru bara TikTok micșorau totul
+      // (ION-72). Ce nu încape nu se taie: foaia crește în jos.
+      const H = opts.format916 ? Math.max(Math.round(W * 16 / 9), Math.ceil(Hc)) : Hc;
+      const dy = opts.format916 ? Math.max(0, (H - Hc) / 2) : 0;
       const s = `<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}" height="${H}"><rect width="${W}" height="${H}" fill="${CULORI.fundal}"/><g transform="translate(0 ${dy})">${svg.join('')}</g></svg>`;
       return sharp(Buffer.from(s)).png().toBuffer();
     },

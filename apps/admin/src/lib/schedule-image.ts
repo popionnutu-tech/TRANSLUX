@@ -115,10 +115,9 @@ export async function generateScheduleImage(
 ): Promise<Buffer> {
   // Șablonul posterelor (poster-sablon.ts) — Ion, 25.09: «aplică peste tot noul format».
   // Conținutul rămâne cel stabilit: Mejgorod = ora din nord, ruta, MAȘINA mare, șoferul complet cu
-  // telefonul (Ion, 07–08.09); public/site = ora din nord, ruta cu opriri, ora din Chișinău, telefon +
-  // prenume. Telefonul MEREU +373 (Ion, 23.09).
+  // telefonul (Ion, 07–08.09); public/site = carduri cu ora din nord, ruta, ora din Chișinău, telefon +
+  // prenume (ION-72). Telefonul MEREU +373 (Ion, 23.09).
   const assigned = rows.filter(r => r.driver_id);
-  const ruta = (dest: string) => `${dest.replace(/^Chi[sș]in[aă]u\s*[-–]\s*/i, '')} – Chișinău`;
   // primele 3 sate de pe traseu; când trei nu încap sub rută (peste ~34 de semne), rămân două, fără «…»
   const satele = (stops?: string) => {
     const s = (stops || '').split('/').map(x => x.trim()).filter(x => x && !/^Intersec/i.test(x));
@@ -145,18 +144,21 @@ export async function generateScheduleImage(
     return p.png();
   }
 
-  const p = poster({ supratitlu: 'Curse interurbane', titlu: `Programul zilei${pagina}`, eticheta: ziText(date),
-    subtitlu: 'Din nord spre Chișinău și înapoi. Rezervări și întrebări direct la șofer, la numărul din dreptul cursei.' });
-  p.tabel([{ titlu: 'Din nord', latime: 76 }, { titlu: 'Ruta', latime: 330 }, { titlu: 'Din Chișinău', latime: 100 }, { titlu: 'Contact', latime: 200 }],
-    assigned.map(r => [
-      { text: r.time_nord, bold: true, culoare: CULORI.bordo, marime: 14 },
-      { text: ruta(r.dest_to), bold: true, mic: (r.stops || '').replace(/\s*\/\s*/g, ' · ') },
-      { text: r.time_chisinau || '—', bold: true, marime: 14 },
-      { text: telefon(r.driver_phone) || '—', bold: true, mic: r.driver_name ?? '' },
-    ]), { gol: 'Nicio cursă în ziua asta.' });
+  // Afișul public se postează ca Reels (1080×1920) și se citește de pe telefon: o cursă = un card, două pe
+  // rând, literele mari (Ion, 25.09: «e foarte nevăzibil și neclar mic» → «pentru interurbane grafic în așa
+  // stil», ION-72). Toate cursele merg la Chișinău, deci ruta e doar capătul din nord; satele nu mai încap.
+  const p = poster({ latime: 540, antetMare: true, format916: true, supratitlu: 'Curse interurbane',
+    titlu: `Programul zilei${pagina}`, eticheta: ziText(date) });
+  p.bilete(assigned.map(r => ({
+    ora: r.time_nord,
+    ruta: r.dest_to.replace(/^Chi[sș]in[aă]u\s*[-–]\s*/i, ''),
+    sub: r.time_chisinau ? `Din Chișinău ${r.time_chisinau}` : undefined,
+    telefon: telefon(r.driver_phone) || '—',
+    nume: r.driver_name ?? undefined,
+  })), { gol: 'Nicio cursă în ziua asta.' });
   p.nota(opts.pagina && opts.pagini && opts.pagina < opts.pagini
-    ? `Continuarea pe imaginea ${opts.pagina + 1} din ${opts.pagini}. Mai multe detalii: translux.md`
-    : 'Mai multe detalii: translux.md · orele pot varia cu câteva minute în funcție de drum.');
+    ? `Toate spre Chișinău · rezervări la șofer · continuarea pe imaginea ${opts.pagina + 1}`
+    : 'Toate spre Chișinău · rezervări la șofer · translux.md');
   return p.png();
 }
 
@@ -166,18 +168,19 @@ export async function generateScheduleEdinetImage(
   rows: GraficEdinetRow[],
   date: string,
 ): Promise<Buffer> {
-  // Format 9:16 fix (TikTok / Reels / Stories), pe șablonul nou; zonele de sus și de jos rămân libere.
+  // Format 9:16 (Reels / Stories) pe foaia îngustă, ca pe telefon să nu se micșoreze: logoul pe toată lățimea,
+  // orele și telefoanele mari (Ion, 25.09: «încă mai mare, în special partea de sus TRANSLUX», ION-72).
   const assigned = rows.filter(r => r.driver_id);
-  const p = poster({ supratitlu: 'Edineț – Chișinău', titlu: 'Programul zilei', eticheta: ziText(date),
-    subtitlu: 'Plecări din Edineț și din Bălți spre Chișinău, și înapoi din Chișinău. Rezervări la șofer.', format916: true });
-  p.tabel([{ titlu: 'Edineț', latime: 120, aliniere: 'middle' }, { titlu: 'Bălți', latime: 120, aliniere: 'middle' },
-    { titlu: 'Chișinău (retur)', latime: 150, aliniere: 'middle' }, { titlu: 'Contact', latime: 230 }],
+  const p = poster({ latime: 540, antetMare: true, format916: true, supratitlu: 'Edineț – Chișinău',
+    titlu: 'Programul zilei', eticheta: ziText(date) });
+  p.tabel([{ titlu: 'Edineț', latime: 92, aliniere: 'middle' }, { titlu: 'Bălți', latime: 88, aliniere: 'middle' },
+    { titlu: 'Chișinău (retur)', latime: 112, aliniere: 'middle' }, { titlu: 'Contact', latime: 192 }],
     assigned.map(r => [
-      { text: r.hour_edinet || '—', bold: true, culoare: CULORI.bordo, marime: 15 },
-      { text: r.hour_balti || '—', bold: true, marime: 15 },
-      { text: r.time_chisinau_retur || '—', bold: true, marime: 15 },
-      { text: telefon(r.driver_phone) || '—', bold: true, mic: r.driver_name ?? '' },
-    ]), { gol: 'Nicio cursă în ziua asta.' });
-  p.nota('Mai multe detalii: translux.md');
+      { text: r.hour_edinet || '—', bold: true, culoare: CULORI.bordo, marime: 25 },
+      { text: r.hour_balti || '—', bold: true, marime: 23 },
+      { text: r.time_chisinau_retur || '—', bold: true, marime: 23 },
+      { text: telefon(r.driver_phone) || '—', bold: true, marime: 19, mic: r.driver_name ?? '', micMarime: 13.5 },
+    ]), { gol: 'Nicio cursă în ziua asta.', rand: 47 });
+  p.nota('Rezervări la șofer · translux.md');
   return p.png();
 }

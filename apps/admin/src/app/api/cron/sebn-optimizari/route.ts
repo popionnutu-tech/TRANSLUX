@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyCronSecret } from '@/lib/cron-auth';
 import { chisinauTodayIso } from '@/lib/chisinau-time';
 import { trimitePosterSebn } from '@/lib/lde/sebn-optimizari-image';
+import { alertAdmins } from '@/lib/telegram-notify';
 
 // Posterul SEBN «cât se putea economisi» + întrebarea despre primele 3 mașini critice, luni 08:00 (ION-60).
 // Ion, 25.09: «săptămânal la ora 8 luni raport; cronul vechi îl anulezi, lași doar acesta». N-are cron
@@ -27,7 +28,12 @@ export async function GET(req: NextRequest) {
   const q = new URL(req.url).searchParams;
   const s = saptamina(q.get('saptamina'));
   try {
-    const r = await trimitePosterSebn({ saptamina: s.luni, pana_la: s.duminica, force: q.get('force') === '1', dry: q.get('dry') === '1' });
+    const dry = q.get('dry') === '1';
+    const r = await trimitePosterSebn({ saptamina: s.luni, pana_la: s.duminica, force: q.get('force') === '1', dry });
+    // Ion, 25.09 (ION-62): «dacă nu se trimit, îmi dai mie în bot» — un refuz real (nu dedup) ajunge la ADMIN pe loc
+    if (!dry && !r.trimis && r.motiv && !/^deja trimis/.test(r.motiv)) {
+      await alertAdmins(`⛔ SEBN: posterul pentru săptămâna din ${s.luni} n-a plecat — ${r.motiv}`);
+    }
     return NextResponse.json({ saptamina: s.luni, ...r });
   } catch (e) {
     console.error('[sebn-optimizari]', e);

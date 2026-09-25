@@ -3,6 +3,7 @@ import { getSupabase } from '@/lib/supabase';
 import { verifyCronSecret } from '@/lib/cron-auth';
 import { syncWeatherPoints } from '@/lib/weather';
 import { sendWeeklyDriverPenalties } from '@/lib/driver-penalties-sync';
+import { verificaLuni, saptaminaLunii } from '@/lib/lde/luni-paznic';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -40,6 +41,18 @@ export async function GET(req: NextRequest) {
   // luni raport; cronul vechi care l-am făcut la începutul săptămânii îl anulezi, lași doar acesta» —
   // singurul poster SEBN de luni e «cât se putea economisi» (ION-60), trimis de lear-saptamanal.sh prin
   // /api/cron/sebn-optimizari. Trimiterea de mână rămâne: /api/cron/livrare-poster?from=&to=&force=1.
+
+  // Luni seara: paznicul rulării de la 08:00 (ION-62). Ion, 25.09: «dacă nu se trimit, îmi dai mie în bot».
+  // Scriptul de pe VPS îl cheamă și el la sfârșit; de aici e plasa pentru cazul în care scriptul n-a pornit deloc.
+  try {
+    const dow = new Date().toLocaleDateString('en-US', { timeZone: 'Europe/Chisinau', weekday: 'short' });
+    if (dow === 'Mon') {
+      const r = await verificaLuni(saptaminaLunii());
+      console.log('luni-paznic:', r.lipsuri.length ? `${r.lipsuri.length} lipsuri, alertă ${r.trimis ? 'trimisă' : 'NEtrimisă'}` : 'totul plecat');
+    }
+  } catch (e) {
+    console.error('verificaLuni error:', e);
+  }
 
   try {
     const db = getSupabase();

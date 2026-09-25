@@ -136,9 +136,13 @@ export const cheiaIndicatiilor = (uz: string) => `indicatii_alexei_last_${uz || 
 
 export async function trimiteIndicatii(uz: string, saptamina: string, text: string | null, opts: { force?: boolean; dry?: boolean } = {}):
   Promise<{ trimis: boolean; motiv?: string; text?: string }> {
-  if (!text) return { trimis: false, motiv: 'nimic semnificativ — tăcere' };
   const cheie = cheiaIndicatiilor(uz);
   const sb = getSupabase();
+  if (!text) {
+    // săptămâna se marchează și când n-are ce trimite — paznicul de luni (luni-paznic.ts) ar striga altfel «neplecat»
+    if (!opts.dry) await sb.from('app_config').upsert({ key: cheie, value: saptamina }, { onConflict: 'key' });
+    return { trimis: false, motiv: 'nimic semnificativ — tăcere' };
+  }
   const { data: last } = await sb.from('app_config').select('value').eq('key', cheie).maybeSingle();
   if (!opts.force && last?.value === saptamina) return { trimis: false, motiv: 'deja trimis pentru săptămâna asta' };
   const { data: g } = await sb.from('app_config').select('value').eq('key', LIVRARE_POSTER_CHAT_KEY).maybeSingle();

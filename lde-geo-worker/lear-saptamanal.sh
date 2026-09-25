@@ -49,4 +49,6 @@ cheama "sebn-optimizari"
 # LEAR Ungheni și Florești (ION-57/59/62): posterul, apoi indicațiile pentru Alexei, apoi mesajul ADMIN.
 cheama "lde-timp-liber"
 cheama "lde-timp-liber?uz=floresti"
+# Paznicul (ION-62): ce n-a plecat ajunge la ADMIN în bot (Ion, 25.09: «dacă nu se trimit, îmi dai mie»).
+cheama "lde-luni-paznic"
 exit $picat

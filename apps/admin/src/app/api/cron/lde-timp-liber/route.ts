@@ -83,6 +83,11 @@ export async function GET(req: NextRequest) {
     const poster: Trimitere = await trimitePosterLear(raport, { dry, force: url.searchParams.get('poster') === 'force', uzina: UZINA }).catch(inca);
     const indicatii: Trimitere = await trimiteIndicatii(U.uz, row.saptamina, indicatiiLear(raport, U, BASE),
       { dry, force: url.searchParams.get('indicatii') === 'force' }).catch(inca);
+    // Ion, 25.09: «dacă nu se trimit, îmi dai mie în bot» — un refuz real (nu dedup, nu «nimic de arătat») ajunge la ADMIN pe loc
+    const refuz = (t: Trimitere) => !t.trimis && !!t.motiv && !/^(deja trimis|dry|nimic|nicio)/.test(t.motiv);
+    if (!dry) for (const [ce, t] of [['posterul', poster], ['indicațiile', indicatii]] as const) {
+      if (refuz(t)) await alertAdmins(`⛔ ${UZINA}: ${ce} pentru săptămâna din ${row.saptamina} n-au plecat — ${t.motiv}`);
+    }
     const TL = row.date?.timp_liber ?? null;
     const masini = (row.date?.masini ?? []) as Pick<MasinaRand, 'masina' | 'liber'>[];
     const text = TL ? textTimpLiber(row.saptamina, row.date.pana_la, masini, TL.prag_km, BASE, U) : null;

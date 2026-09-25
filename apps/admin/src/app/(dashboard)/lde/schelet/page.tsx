@@ -7,6 +7,7 @@ import ScheletClient, { type Schelet } from './ScheletClient';
 import ScheletSebnClient, { type ScheletSebn } from './ScheletSebnClient';
 import ScheletFlorestiClient, { type ScheletFloresti } from './ScheletFlorestiClient';
 import ScheletMejgorodClient, { type ScheletMejgorod } from './ScheletMejgorodClient';
+import ScheletBriceniClient, { type ScheletBriceni } from './ScheletBriceniClient';
 import ScheletToateClient from './ScheletToateClient';
 import { construiesteToate } from './toate';
 
@@ -25,6 +26,9 @@ const UZINE = [
   { id: 'sebn', nume: 'SEBN Orhei și Strășeni', fisier: 'schelet-sebn.json', href: '/lde/schelet?uz=sebn' },
   { id: 'floresti', nume: 'LEAR Florești', fisier: 'schelet-floresti.json', href: '/lde/schelet?uz=floresti' },
   { id: 'mejgorod', nume: 'Rute interurbane', fisier: 'schelet-mejgorod.json', href: '/lde/schelet?uz=mejgorod' },
+  // Ion, 25.09.2026: «scheletul rute Trox și suburbane nu a apărut în LDE» — schelet-briceni.json (ION-70): cele 11
+  // rute suburbane (Coteala comun) și 6 Trox pe o hartă, aceleași mașini; ales cu ?uz=briceni.
+  { id: 'briceni', nume: 'Trox + suburban Briceni', fisier: 'schelet-briceni.json', href: '/lde/schelet?uz=briceni' },
   // Ion, 25.09.2026: «fă o hartă unică unde să se aplice toate rutele… să fie ultima fișă toate» (ION-67).
   // Fila citește cele patru fișiere de mai sus; n-are fișier al ei.
   { id: 'toate', nume: 'Toate rutele', fisier: null, href: '/lde/schelet?uz=toate' },
@@ -69,7 +73,9 @@ export default async function LdeScheletPage({ searchParams }: { searchParams: P
           ? <ScheletFlorestiClient schelet={date as ScheletFloresti} />
           : aleasa.id === 'mejgorod'
             ? <ScheletMejgorodClient schelet={date as ScheletMejgorod} />
-            : <ScheletClient schelet={date as Schelet} />}
+            : aleasa.id === 'briceni'
+              ? <ScheletBriceniClient schelet={date as ScheletBriceni} />
+              : <ScheletClient schelet={date as Schelet} />}
     </>
   );
 }

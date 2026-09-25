@@ -25,9 +25,12 @@ function interval(de: string, pana?: string) {
 const VERDE = 'text-[#1f7a4d] dark:text-[#6fd3a0]';
 const URL_UZ = '/lde/reguli?uz=briceni';
 export const NUME_CAT: Record<Categorie, string> = {
-  cuOameni: 'cu oameni', nepotrivita: 'cursă în afara orarului', golRuta: 'gol pe rută', service: 'service',
+  cuOameni: 'cu oameni', nepotrivita: 'cursă în afara orarului', golRuta: 'gol pe rută', golTure: 'gol între ture (Trox)', service: 'service',
   deplasare: 'deplasare', livrare: 'livrare', legatura: 'legătură Trox ↔ suburban', necunoscut: 'necunoscut',
 };
+// Gol între ture (Trox). Ion, 25.09: «mașina are același capăt, face pentru același capăt 6 drumuri, 2 ture» — drumurile
+// goale spre capăt între ture sunt impuse de ture, nu livrare. Săptămânile scrise înainte de categoria asta n-o au.
+const gt = (k: Partial<Record<Categorie, number>>) => k.golTure ?? 0;
 const CULOARE_CAT: Partial<Record<Categorie, string>> = { livrare: VERDE, necunoscut: 'text-[#9B1B30] dark:text-[#e0788c]' };
 
 function Zile({ m }: { m: MasinaBriceni }) {
@@ -79,7 +82,7 @@ export default function RaportBriceni({ a, saptamani }: { a: RaportBriceniDate |
   const masini = [...a.masini].sort((x, y) => y.km.livrare - x.km.livrare);
   const azi = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Chisinau' });
   const inCurs = a.pana_la >= azi;
-  const cols = ['Mașina', 'Zile', 'Noaptea la', 'Cu oameni', 'Gol pe rută', 'Legătură', 'Livrare/zi', 'Livrare', 'Lei', 'Brambura'];
+  const cols = ['Mașina', 'Zile', 'Noaptea la', 'Cu oameni', 'Gol pe rută + ture', 'Legătură', 'Livrare/zi', 'Livrare', 'Lei', 'Brambura'];
 
   return (
     <div className="mx-auto! max-w-[1160px] p-4! sm:p-6!">
@@ -102,7 +105,7 @@ export default function RaportBriceni({ a, saptamani }: { a: RaportBriceniDate |
         {[
           { titlu: 'Economie posibilă · livrare', val: n0(t.livrare), unit: 'km', sub: `≈ ${n0(t.lei)} lei pe săptămână`, mare: true },
           { titlu: 'Cu oameni', val: n0(t.cuOameni + t.nepotrivita), unit: 'km', sub: `din care ${n0(t.nepotrivita)} în curse din afara orarului`, mare: false },
-          { titlu: 'Gol pe rută + legătură', val: n0(t.golRuta + t.legatura), unit: 'km', sub: 'impuse de orar și de cele două joburi — nu se optimizează', mare: false },
+          { titlu: 'Gol pe rută, între ture, legătură', val: n0(t.golRuta + gt(t) + t.legatura), unit: 'km', sub: `impuse de orar, de ture și de cele două joburi — nu se optimizează; ${n0(gt(t))} km între ture Trox (6 drumuri pe 2 ture, același capăt)`, mare: false },
           { titlu: 'Brambura', val: n0(t.brambura), unit: 'km', sub: 'drum pe care mașina n-a mai mers în altă zi (SEBN §11.3), scăzut din livrare', mare: false },
         ].map((k) => (
           <div key={k.titlu} className={`rounded-[12px] border bg-white p-5! dark:bg-neutral-900 ${k.mare ? 'border-[#1f7a4d]/40' : 'border-neutral-200 dark:border-neutral-700'}`}>
@@ -138,7 +141,7 @@ export default function RaportBriceni({ a, saptamani }: { a: RaportBriceniDate |
                     <td className="px-3! py-2! text-right font-mono tabular-nums">{m.zile}</td>
                     <td className="px-3! py-2!">{m.casa ?? '—'}</td>
                     <td className="px-3! py-2! text-right font-mono tabular-nums">{n0(m.km.cuOameni + m.km.nepotrivita)}</td>
-                    <td className="px-3! py-2! text-right font-mono tabular-nums">{n0(m.km.golRuta)}</td>
+                    <td className="px-3! py-2! text-right font-mono tabular-nums">{n0(m.km.golRuta + gt(m.km))}</td>
                     <td className="px-3! py-2! text-right font-mono tabular-nums">{n0(m.km.legatura)}</td>
                     <td className={`px-3! py-2! text-right font-mono tabular-nums ${m.livrareZi > 40 ? `font-bold ${VERDE}` : ''}`}>{n1(m.livrareZi)}</td>
                     <td className={`px-3! py-2! text-right font-mono tabular-nums ${VERDE}`}>{n0(m.km.livrare)}</td>
@@ -158,7 +161,7 @@ export default function RaportBriceni({ a, saptamani }: { a: RaportBriceniDate |
             <tr className="border-t border-neutral-200 font-semibold dark:border-neutral-700">
               <td className="px-3! py-2.5!" colSpan={3}>Pe {masini.length} mașini</td>
               <td className="px-3! py-2.5! text-right font-mono tabular-nums">{n0(t.cuOameni + t.nepotrivita)}</td>
-              <td className="px-3! py-2.5! text-right font-mono tabular-nums">{n0(t.golRuta)}</td>
+              <td className="px-3! py-2.5! text-right font-mono tabular-nums">{n0(t.golRuta + gt(t))}</td>
               <td className="px-3! py-2.5! text-right font-mono tabular-nums">{n0(t.legatura)}</td>
               <td />
               <td className={`px-3! py-2.5! text-right font-mono tabular-nums ${VERDE}`}>{n0(t.livrare)}</td>

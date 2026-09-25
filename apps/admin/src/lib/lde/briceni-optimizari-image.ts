@@ -15,11 +15,11 @@ import { LIVRARE_POSTER_CHAT_KEY } from './livrare-poster';
  * Fontul posterului n-are «↔» și «→» (se desenează gol) — pe poster «–».
  * Pe poster: doar km și lei, pe mașină și pe rută — fără casa șoferului, fără locurile și orele ocolurilor, fără nume.
  */
-export type Categorie = 'cuOameni' | 'nepotrivita' | 'golRuta' | 'service' | 'deplasare' | 'livrare' | 'legatura' | 'necunoscut';
+export type Categorie = 'cuOameni' | 'nepotrivita' | 'golRuta' | 'golTure' | 'service' | 'deplasare' | 'livrare' | 'legatura' | 'necunoscut';
 export type KmCategorii = Record<Categorie, number>;
 export interface BucataZi { ora: string; cat: Categorie; km: number; brambura: number; r: string | null; motiv: string | null }
 export interface ZiMasina {
-  z: string; dow: number; total: number; km: KmCategorii; brambura: number; lei: number | null; leiKm: number | null;
+  z: string; dow: number; total: number; km: KmCategorii; lungimeTrox?: number | null; brambura: number; lei: number | null; leiKm: number | null;
   bilant: boolean; dif: number; casaDim: string | null; casaSeara: string | null; bucati: BucataZi[];
 }
 export interface MasinaBriceni {
@@ -51,17 +51,17 @@ export async function generateBriceniOptimizariImage(a: AnalizaBriceni): Promise
   p.carduri([
     { eticheta: 'Economie posibilă', titlu: 'Livrare casă – start', text: 'Km goi de acasă până la prima cursă, între ture pe acasă și seara înapoi.', valoare: `${nr(t.livrare)} km`, subValoare: `≈ ${nr(t.lei)} lei pe săptămână` },
     { eticheta: 'Cu oameni', titlu: 'Trox și suburban', text: 'Cursele Trox capăt – poartă și cursele suburbane din orar. Nu se optimizează.', valoare: `${nr(t.cuOameni)} km` },
-    { eticheta: 'Nu e economie', titlu: 'Gol pe rută și legătură', text: 'Întoarcerea goală între curse, impusă de orar, și drumul dintre Trox și suburban (poartă – gară).', valoare: `${nr(t.golRuta + t.legatura)} km` },
+    { eticheta: 'Nu e economie', titlu: 'Gol pe rută, între ture, legătură', text: 'Întoarcerea goală impusă de orar, drumul gol spre capăt între ture Trox (6 drumuri pe 2 ture) și drumul poartă – gară.', valoare: `${nr(t.golRuta + (t.golTure ?? 0) + t.legatura)} km` },
   ]);
   const km = (v: number): Celula => v < 0.5 ? { text: '0', culoare: CULORI.griDeschis } : { text: nr(v) };
   p.tabel([
     { titlu: 'Mașina', latime: 110 }, { titlu: 'Zile', latime: 60, aliniere: 'end' }, { titlu: 'Cu oameni', latime: 110, aliniere: 'end' },
-    { titlu: 'Gol pe rută', latime: 110, aliniere: 'end' }, { titlu: 'Legătură', latime: 100, aliniere: 'end' },
+    { titlu: 'Gol rută+ture', latime: 110, aliniere: 'end' }, { titlu: 'Legătură', latime: 100, aliniere: 'end' },
     { titlu: 'Livrare/zi', latime: 110, aliniere: 'end' }, { titlu: 'Livrare', latime: 110, aliniere: 'end' }, { titlu: 'Lei', latime: 100, aliniere: 'end' },
   ], masini.filter((m) => m.km.livrare >= 0.5).map((m) => [
     { text: m.m, bold: true },
     { text: String(m.zile), culoare: CULORI.gri },
-    km(m.km.cuOameni + m.km.nepotrivita), km(m.km.golRuta), km(m.km.legatura),
+    km(m.km.cuOameni + m.km.nepotrivita), km(m.km.golRuta + (m.km.golTure ?? 0)), km(m.km.legatura),
     { text: nr1(m.livrareZi), bold: m.livrareZi > PRAG_LIVRARE_ZI, culoare: m.livrareZi > PRAG_LIVRARE_ZI ? CULORI.verde : CULORI.text,
       fundal: m.livrareZi > PRAG_LIVRARE_ZI ? CULORI.verdeFundal : undefined },
     { text: nr(m.km.livrare), culoare: CULORI.verde },

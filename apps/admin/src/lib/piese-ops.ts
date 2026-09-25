@@ -246,6 +246,25 @@ export async function submitInventory(warehouseId: number, counts: { part_id: nu
 }
 
 // ── Magazin ──
+
+// Piesele al căror preț s-a schimbat singur la recepție (migr. 367-369). Se arată ca listă de retipărit
+// etichetele: prețul urcă fără ca cineva să apese ceva, iar eticheta de pe raft rămâne cea veche. Clientul
+// ar vedea un preț pe raft și altul la casă.
+export type PretSchimbat = {
+  part_id: number; nume: string; articol: string; cod_bare: string;
+  pret_vechi: number | null; pret_nou: number; ziua: string;
+};
+export async function preturiSchimbate(zile = 7): Promise<PretSchimbat[]> {
+  const de_la = new Date(Date.now() - zile * 86400_000).toISOString();
+  const { data, error } = await getSupabase().from('piese_preturi_schimbate')
+    .select('part_id, nume, articol, cod_bare, pret_vechi, pret_nou, ziua, cand')
+    .gte('cand', de_la).limit(200);
+  // NU aruncă: e o secțiune secundară, iar `Promise.all` din pagină ar fi dus la 500 pe tot ecranul —
+  // ar fi dispărut și vânzarea. Dar nici tăcut: lista goală și „n-am putut citi" arată la fel altfel.
+  if (error) { console.error('preturiSchimbate:', error.message); return []; }
+  return (data as PretSchimbat[]) || [];
+}
+
 export async function saleParts() {
   const { data } = await getSupabase().from('piese_sale_parts').select('*');
   return data || [];

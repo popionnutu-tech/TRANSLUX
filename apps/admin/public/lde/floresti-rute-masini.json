@@ -6,5 +6,5 @@
    "nota_capat": "GPS 23.09: denumirea A2 e scrisă de la LEAR spre capăt. Mașina vine de acasă (Pohoarna) prin Cunicea fără să oprească (2 opriri din 11), primul om urcă la Cuhureștii de Sus, apoi Unchitești → LEAR. În zilele fără Cunicea merge întâi la Unchitești, întoarce la Cuhureștii de Sus și strânge înapoi."},
  "603BRAS": {"A": "A3", "B": "B1", "sursa": "ion"},
  "035BRAT": {"A": "A5", "B": "B4", "sursa": "ion"},
- "279BRAT": {"A": "A6", "sursa": "ion"}
+ "279BRAT": {"A": "A6", "B": "B5", "sursa": "ion", "nota": "B5 Racovăț e rută nouă din septembrie 2026 (Ion, 25.09), nu e în actul 36.1."}
 }

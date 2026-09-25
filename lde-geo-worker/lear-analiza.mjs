@@ -1076,6 +1076,24 @@ for (const v of auLucrat) {
       km_zi: +azi.toFixed(1) });
     continue;                       // n-a lucrat aici — nu-i mașină de-a uzinei, nu intră în raport
   }
+  // Ion, 25.09 (Florești): «372 duce Orhei, nu LEAR Florești». 372BRAY doarme în Florești și trece zilnic
+  // prin raza porții noastre, dar oprește de trei ori pe zi la poarta SEBN Orhei (la 50 m) — e a Orheiului.
+  // Regula: mașina care atinge poarta altei uzine în cel puțin atâtea zile câte pe a noastră și n-a dus
+  // nicio rută din schelet e a celeilalte uzine. Iese din raport cu numele uzinei, nu cu steag «0 rute».
+  {
+    const zileAlta = new Map();
+    for (const p of v.pts) { if (!inSapt(ziLucru(p.t))) continue;
+      for (const g of alteUzine) if (hav(p, g) <= g.r) { const k = g.nume.split(' (')[0];
+        if (!zileAlta.has(k)) zileAlta.set(k, new Set()); zileAlta.get(k).add(ziLucru(p.t)); } }
+    const alta = [...zileAlta].map(([n, z]) => ({ n, zile: z.size })).sort((a, b) => b.zile - a.zile)[0];
+    if (alta && alta.zile >= zilePoarta.length && !alese.length) {
+      doarTrecute.push({ masina: v.masina, zile: zilePoarta.length, ore: +(v.minPoarta / 60).toFixed(1),
+        km_zi: +azi.toFixed(1), alta_uzina: alta.n });
+      steaguri.push({ masina: v.masina, fel: 'altă uzină',
+        text: `a fost la poarta ${alta.n} în ${alta.zile} zile și n-a dus nicio rută din schelet — lucrează pentru altă uzină, nu intră în raport` });
+      continue;
+    }
+  }
   // nepotrivirea cu lista e informație, nu greșeală: rutele se mută între mașini
   // Ion, 24.09: «rezolvă toate întrebările cu semnul exclamării». Ce e lămurit nu-i întrebare:
   // ruta schimbată față de listă, capătul neatins, ruta împărțită — sunt fapte citite din urmă,

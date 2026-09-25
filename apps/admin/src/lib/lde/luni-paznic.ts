@@ -18,7 +18,9 @@ import { cheiaIndicatiilor } from './indicatii-alexei';
 export const UZINE_LUNI = [
   { nume: 'LEAR Ungheni', rind: 'LEAR Ungheni', poster: cheiaPosterului('LEAR Ungheni'), indicatii: cheiaIndicatiilor('') },
   { nume: 'LEAR Florești', rind: 'LEAR Florești', poster: cheiaPosterului('LEAR Florești'), indicatii: cheiaIndicatiilor('floresti') },
-  { nume: 'SEBN Orhei și Strășeni', rind: 'SEBN', poster: SEBN_POSTER_LAST_KEY, indicatii: null as string | null },
+  { nume: 'SEBN Orhei și Strășeni', rind: 'SEBN', poster: SEBN_POSTER_LAST_KEY as string | null, indicatii: null as string | null },
+  // ION-73: analiza Trox + suburban Briceni se scrie lunea; posterul NU pleacă până la «da»-ul lui Ion, deci nu i se cere
+  { nume: 'Trox + suburban Briceni', rind: 'BRICENI', poster: null, indicatii: null },
 ];
 
 export type Lipsa = { uzina: string; ce: 'raport' | 'poster' | 'indicații' };
@@ -36,7 +38,7 @@ export function lipsurileLunii(saptamina: string, rapoarte: Set<string>, chei: M
   const l: Lipsa[] = [];
   for (const u of UZINE_LUNI) {
     if (!rapoarte.has(u.rind)) l.push({ uzina: u.nume, ce: 'raport' });
-    if (chei.get(u.poster) !== saptamina) l.push({ uzina: u.nume, ce: 'poster' });
+    if (u.poster && chei.get(u.poster) !== saptamina) l.push({ uzina: u.nume, ce: 'poster' });
     if (u.indicatii && chei.get(u.indicatii) !== saptamina) l.push({ uzina: u.nume, ce: 'indicații' });
   }
   return l;
@@ -48,7 +50,7 @@ export function textLuniPaznic(saptamina: string, lipsuri: Lipsa[]): string | nu
   for (const x of lipsuri) peUzina.set(x.uzina, [...(peUzina.get(x.uzina) ?? []), x.ce]);
   const linii = [...peUzina].map(([u, ce]) => `• <b>${escapeHtml(u)}</b>: ${ce.join(', ')}`);
   return `⛔ <b>Luni, săptămâna din ${escapeHtml(saptamina)} — n-a plecat tot</b>\n${linii.join('\n')}\n` +
-    `Log: /root/lde-worker/lear-saptamanal.log pe VPS. Retrimitere de mână: /api/cron/lde-timp-liber[?uz=floresti]&poster=force&indicatii=force, /api/cron/sebn-optimizari?force=1.`;
+    `Log: /root/lde-worker/lear-saptamanal.log pe VPS. Retrimitere de mână: /api/cron/lde-timp-liber[?uz=floresti]&poster=force&indicatii=force, /api/cron/sebn-optimizari?force=1; Briceni: bash /root/lde-worker/briceni/cod/saptamanal.sh.`;
 }
 
 export async function verificaLuni(saptamina: string, opts: { dry?: boolean } = {}): Promise<{ lipsuri: Lipsa[]; trimis: boolean; text: string | null }> {

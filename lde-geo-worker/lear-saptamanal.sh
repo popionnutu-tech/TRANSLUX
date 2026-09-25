@@ -37,6 +37,15 @@ if ! flock -n "${LOCK_SEBN:-/tmp/sebn-liber.lock}" node --env-file=.env sebn-lib
   echo "sebn-liber: rularea a picat sau lock-ul e ocupat" >&2; picat=1
 fi
 
+# Trox + suburban Briceni (ION-73): regulile de livrare SEBN, analiza săptămânii scrisă în lde_analiza_reguli
+# «BRICENI». Posterul NU se cheamă aici: Ion vrea să-l vadă întâi (după «da»: cheama "briceni-optimizari?send=1").
+# Stă înaintea verificării CRON_SECRET, ca să ruleze și fără cheie; 11–30 s pe săptămână (proba 25.09).
+BRICENI_SAPT="${BRICENI_SAPT:-$LDE_DIR/briceni/cod/saptamanal.sh}"
+LIMITA=(); command -v timeout >/dev/null && LIMITA=(timeout 90m)
+if ! flock -n "${LOCK_BRICENI:-/tmp/briceni-sapt.lock}" nice -n 10 ${LIMITA[@]+"${LIMITA[@]}"} bash "$BRICENI_SAPT"; then
+  echo "briceni saptamanal: rularea a picat, a depășit 90 min sau lock-ul e ocupat" >&2; picat=1
+fi
+
 CRON_SECRET="$(env_val CRON_SECRET || true)"
 [ -n "$CRON_SECRET" ] || { echo "CRON_SECRET lipsește din .env — rapoartele sunt scrise, mesajele nu pleacă" >&2; exit 1; }
 cheama() {  # o rută de cron; picată = se scrie și se merge mai departe

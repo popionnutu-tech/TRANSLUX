@@ -3,12 +3,15 @@
 #   workeri OK             → patru apeluri curl (SEBN, Ungheni, Florești, paznic)
 #   worker picat           → tot patru apeluri (ruta anunță raportul lipsă), cod ≠ 0
 #   lock ocupat            → tot patru apeluri, cod ≠ 0
+#   Briceni picat (ION-73) → tot patru apeluri (posterul Briceni nu se cheamă), cod ≠ 0
 #   .env fără CRON_SECRET  → zero apeluri, cod ≠ 0
 # Rulare: bash lde-geo-worker/lear-saptamanal.test.sh
 set -u
 AICI="$(cd "$(dirname "$0")" && pwd)"
 T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
-mkdir -p "$T/bin" "$T/lde"
+mkdir -p "$T/bin" "$T/lde/briceni/cod"
+# ION-73: analiza Briceni e un script bash separat; aici e fals și pică doar cu FAKE_BRICENI_EXIT
+printf '#!/usr/bin/env bash\nexit "${FAKE_BRICENI_EXIT:-0}"\n' > "$T/lde/briceni/cod/saptamanal.sh"
 cat > "$T/bin/node" <<'EOF'
 #!/usr/bin/env bash
 exit "${FAKE_NODE_EXIT:-0}"
@@ -43,6 +46,7 @@ grep -q "sebn-optimizari" "$FAKE_CURL_LOG" && grep -q "uz=floresti" "$FAKE_CURL_
 # ION-62: un worker picat nu oprește celelalte uzine — rutele se cheamă oricum (raportul lipsă ajunge la ADMIN), cod ≠ 0
 FAKE_NODE_EXIT=1 FAKE_LOCK_BUSY=0 caz "worker picat → tot patru apeluri, cod ≠ 0"   4 1
 FAKE_NODE_EXIT=0 FAKE_LOCK_BUSY=1 caz "lock ocupat → tot patru apeluri, cod ≠ 0"    4 1
+FAKE_NODE_EXIT=0 FAKE_LOCK_BUSY=0 FAKE_BRICENI_EXIT=1 caz "Briceni picat → tot patru apeluri (fără poster Briceni), cod ≠ 0" 4 1
 printf 'ALTCEVA=1\n' > "$T/lde/.env"
 FAKE_NODE_EXIT=0 FAKE_LOCK_BUSY=0 caz "fără CRON_SECRET → niciun apel" 0 1
 exit $esueaza

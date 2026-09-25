@@ -119,6 +119,12 @@ export async function generateScheduleImage(
   // prenume. Telefonul MEREU +373 (Ion, 23.09).
   const assigned = rows.filter(r => r.driver_id);
   const ruta = (dest: string) => `${dest.replace(/^Chi[sș]in[aă]u\s*[-–]\s*/i, '')} – Chișinău`;
+  // primele 3 sate de pe traseu; când trei nu încap sub rută (peste ~34 de semne), rămân două, fără «…»
+  const satele = (stops?: string) => {
+    const s = (stops || '').split('/').map(x => x.trim()).filter(x => x && !/^Intersec/i.test(x));
+    const trei = s.slice(0, 3).join(' · ');
+    return trei.length > 34 ? s.slice(0, 2).join(' · ') : trei;
+  };
   const pagina = opts.pagina && opts.pagini && opts.pagini > 1 ? ` · ${opts.pagina} din ${opts.pagini}` : '';
   if (opts.forDrivers) {
     // Se citește de pe telefon (Ion, 25.09: «fă normal șriftul, umple locul maximal»): imaginea
@@ -126,10 +132,12 @@ export async function generateScheduleImage(
     // «– Chișinău» se repeta pe fiecare rând — toate cursele din nord merg la Chișinău, o spune subtitlul.
     const p = poster({ latime: 540, supratitlu: 'Grafic Mejgorod', titlu: 'Plecările din nord', eticheta: ziText(date),
       subtitlu: `${assigned.length} ${assigned.length === 1 ? 'cursă' : 'curse'} spre Chișinău, cu șofer. Cursele anulate nu apar.` });
-    p.tabel([{ titlu: 'Ora', latime: 56 }, { titlu: 'Ruta', latime: 150 }, { titlu: 'Mașina', latime: 100 }, { titlu: 'Șoferul', latime: 196 }],
+    p.tabel([{ titlu: 'Ora', latime: 56 }, { titlu: 'Ruta', latime: 166 }, { titlu: 'Mașina', latime: 94 }, { titlu: 'Șoferul', latime: 186 }],
       assigned.map(r => [
         { text: r.time_nord, bold: true, culoare: CULORI.bordo, marime: 15 },
-        { text: r.dest_to.replace(/^Chi[sș]in[aă]u\s*[-–]\s*/i, ''), bold: true, marime: 13.5 },
+        { text: r.dest_to.replace(/^Chi[sș]in[aă]u\s*[-–]\s*/i, ''), bold: true, marime: 13.5,
+          // Ion, 25.09: «cu șrift mic sub rută satele, 3» — primele trei opriri, fără intersecții
+          mic: satele(r.stops), micMarime: 10.5 },
         { text: r.vehicle_plate?.trim() || '—', bold: true, marime: 15 },
         { text: r.driver_full_name || r.driver_name || '—', bold: true, marime: 13.5,
           mic: telefon(r.driver_phone), micMarime: 12.5, micCuloare: CULORI.text },

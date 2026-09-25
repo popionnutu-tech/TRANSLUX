@@ -24,9 +24,10 @@ type Ruta = {
   id: number; nume: string; timeNord: string; timeChisinau: string;
   capNord: string; capSud: string; km: number; ajuns: boolean; tronsoane: number; kmTur: number; kmRetur: number;
   stops: Oprire[]; shape: Punct[]; real: { tur: Real; retur: Real }; neatinse: string[]; sarite: string[];
-  // Optimizări simple (Ion, 25.09): unde doarme mașina, de unde pornește turul, km goi dimineața, bucata de rută
-  // nelivrată dimineața și seara; câștigul = goii de dimineață, dacă mașina ar pleca de la capătul rutei.
-  optim: { casa: string; casaKm: number; start: string; startKm: number; goiDim: number; nelivratDim: number; nelivratSeara: number; castig: number; kmAzi: number | null; kmLaCapat: number } | null;
+  // Optimizări simple, regula lui Ion (25.09): km-ii optimizabili se numără doar în zilele în care ultimul drum al zilei
+  // a ajuns la capătul lui ȘI dimineața a fost navetă de la parcare; altfel e ca și cum mașina ar fi rămas la capăt — zero.
+  // Parcarea = ultimul punct din tracker înainte de ora 03; sub 3 km (garajul din oraș) nu e navetă.
+  optim: { zile: number; ordine: string | null; doarme: string | null; inAfara: number; searaLaCapat: number; cazB: number; navetaMed: number | null; golSearaMed: number | null; optimZi: number | null; optimTotal: number } | null;
   site: { tarif: string | null; ramura: string | null; kmTarif: number | null; opririPeste2: number | null; lipsa: string[] } | null;
 };
 export type ScheletMejgorod = {
@@ -63,7 +64,7 @@ export default function ScheletMejgorodClient({ schelet }: { schelet: ScheletMej
   const cul = (r: Ruta) => culoarea(indice.get(String(r.id)) ?? 0);
   const kmZi = schelet.rute.reduce((s, r) => s + 2 * r.km, 0);
   const kmReal = schelet.rute.reduce((s, r) => s + (r.real.tur?.km ?? 0) + (r.real.retur?.km ?? 0), 0);
-  const goiZi = schelet.rute.reduce((s, r) => s + (r.optim?.goiDim ?? 0), 0);
+  const optimZi = schelet.rute.reduce((s, r) => s + (r.optim?.optimZi ?? 0), 0);
 
   // Pe hartă: linia rutei (o singură linie, tur = retur); ca puncte, capătul de nord și gările.
   const urme: UrmaRuta[] = useMemo(() => schelet.rute.map((r) => ({
@@ -161,7 +162,7 @@ export default function ScheletMejgorodClient({ schelet }: { schelet: ScheletMej
             ['rute', String(schelet.rute.length)],
             ['km schelet', `${Math.round(kmZi).toLocaleString('ro-RO')}/zi`],
             ['km real', `${Math.round(kmReal).toLocaleString('ro-RO')}/zi`],
-            ['goi dimineața', `${Math.round(goiZi)}/zi`],
+            ['optimizabil', `${Math.round(optimZi)} km/zi`],
             ['curse cu urmă', `${schelet.curse.toLocaleString('ro-RO')}`],
             ['fixat', schelet.fixat],
           ].map(([e, v]) => (
@@ -224,19 +225,17 @@ export default function ScheletMejgorodClient({ schelet }: { schelet: ScheletMej
 
             {ruta.optim && (
               <div style={{ border: '1px solid var(--border-accent)', borderRadius: 8, padding: '8px 10px', marginBottom: 12, background: 'var(--bg-elevated)' }}>
-                <div style={{ ...ETICHETA, marginBottom: 4 }}>optimizări simple</div>
+                <div style={{ ...ETICHETA, marginBottom: 4 }}>optimizări simple · {ruta.optim.zile} zile cu tur și retur</div>
                 <div style={{ fontSize: 11.5, lineHeight: 1.5 }}>
-                  Doarme la <b>{ruta.optim.casa}</b> (km {nr1(ruta.optim.casaKm)} de la nord), turul pornește din <b>{ruta.optim.start}</b> (km {nr1(ruta.optim.startKm)}).
-                  {ruta.optim.goiDim > 0
-                    ? <> Dimineața merge gol <b style={{ color: '#B06A1F' }}>{nr1(ruta.optim.goiDim)} km</b> de acasă la start.</>
-                    : <> Dimineața nu merge gol.</>}
-                  {ruta.optim.nelivratDim > 0 && <> Bucata {ruta.capNord} → {ruta.optim.start} ({nr1(ruta.optim.nelivratDim)} km) nu se face dimineața cu oameni.</>}
-                  {ruta.optim.nelivratSeara > 0 && <> Seara returul se oprește la {ruta.optim.casa}: {nr1(ruta.optim.nelivratSeara)} km până la {ruta.capNord} rămân nefăcuți.</>}
+                  Ziua merge {ruta.optim.ordine === 'retur→tur' ? 'retur dimineața, tur după-amiaza' : 'tur dimineața, retur seara'}; doarme de obicei la <b>{ruta.optim.doarme ?? '?'}</b>
+                  {ruta.optim.inAfara > 0 && <span style={{ color: 'var(--text-secondary)' }}> ({ruta.optim.inAfara} nopți în afara rutei)</span>}.
+                  Ultimul drum ajunge la capătul lui în <b>{ruta.optim.searaLaCapat}</b> zile din {ruta.optim.zile}.
+                  Naveta de dimineață {nr1(ruta.optim.navetaMed)} km, golul de seară {nr1(ruta.optim.golSearaMed)} km (mediane).
                 </div>
                 <div style={{ fontSize: 11.5, marginTop: 5, lineHeight: 1.5 }}>
-                  Dacă ar pleca de la capătul rutei ({ruta.capNord}): <b style={{ color: ruta.optim.castig > 0 ? 'var(--success)' : 'var(--text-secondary)' }}>−{nr1(ruta.optim.castig)} km goi pe zi</b>
-                  {ruta.optim.kmAzi != null && <span style={{ color: 'var(--text-secondary)' }}> · km pe zi {nr1(ruta.optim.kmAzi)} azi → {nr1(ruta.optim.kmLaCapat)} cu tot drumul cu oameni</span>}.
-                  <span style={{ color: 'var(--text-secondary)' }}> Livrarea de dimineață nu intră în câștig.</span>
+                  Optimizabil: <b style={{ color: (ruta.optim.optimZi ?? 0) > 0.5 ? 'var(--success)' : 'var(--text-secondary)' }}>{nr1(ruta.optim.optimZi)} km pe zi</b>
+                  <span style={{ color: 'var(--text-secondary)' }}>, {Math.round(ruta.optim.optimTotal).toLocaleString('ro-RO')} km pe 100 de zile</span>
+                  {ruta.optim.cazB > 0 && <span style={{ color: 'var(--text-secondary)' }}> · {ruta.optim.cazB} zile «caz B»: navetă dimineața, dar seara nu până la capăt — ca și cum ar sta la capăt, zero</span>}.
                 </div>
               </div>
             )}
@@ -284,9 +283,10 @@ export default function ScheletMejgorodClient({ schelet }: { schelet: ScheletMej
         «Real» = capetele unde mașina chiar pornește și ajunge în majoritatea zilelor, km-ul median al zilelor întregi; ALTFEL = alte capete decât scheletul.
         Ora reală și abaterea față de grafic vin din zilele întregi ale rutei; «%» = în câte zile trece la ≤1 km / ≤3 km de oprire; roșu = oprirea e dincolo de capătul real.
         ▣ = gară, peronul exact. Tariful de la bilete nu se schimbă (Ion, 25.09).
-        Optimizări simple: casa mașinii e unde se termină returul; km goi dimineața = de acasă până unde pornește turul, pe schelet. Dacă mașina ar pleca de la
-        capătul rutei, goii de dimineață dispar, iar returul merge până la capăt cu oameni, cu aproape aceiași km pe zi. Livrarea de dimineață (bucata de rută
-        pe care turul n-o face) e arătată, dar nu intră în câștig.
+        Optimizări simple, zi cu zi: parcarea de noapte vine din tracker (ultimul punct înainte de ora 03), pusă pe schelet la cea mai apropiată oprire; naveta de
+        dimineață = de la parcare până unde pornește primul drum, golul de seară = de unde se termină ultimul drum până la parcare. Ziua contează cu navetă + gol
+        doar dacă ultimul drum a ajuns la capătul lui (tur → Chișinău, retur → capătul de nord); altfel e ca și cum mașina ar fi rămas la capăt — zero. Sub 3 km
+        (garajul din oraș) nu e navetă.
       </p>
     </div>
   );

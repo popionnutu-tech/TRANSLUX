@@ -1,8 +1,7 @@
 'use client';
 
 import { Fragment, useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import Saptamana from './Saptamana';
 import type { IesireLibera, Raport, MasinaRand } from './actions';
 
 // Raportul săptămânal al celor trei reguli (ION-48). Regulile sunt ale lui Ion:
@@ -146,40 +145,8 @@ function Panou({ m, zileLuna }: { m: MasinaRand; zileLuna: number }) {
   );
 }
 
-// Săptămâna se alege prin URL (?saptamina=), ca linkul către o săptămână să se poată trimite.
-// Lista vine de la cea mai nouă la cea mai veche: ‹ duce înapoi în timp, › înainte.
-function Saptamana({ activa, pana, saptamani }: { activa: string; pana: string; saptamani: string[] }) {
-  const router = useRouter();
-  const i = saptamani.indexOf(activa);
-  const mai_veche = i >= 0 ? saptamani[i + 1] : undefined;
-  const mai_noua = i > 0 ? saptamani[i - 1] : undefined;
-  const sageata = (s: string | undefined, semn: string, eticheta: string) => s
-    ? <Link href={`/lde/reguli?saptamina=${s}`} scroll={false} aria-label={eticheta}
-        className="flex h-9 w-9 items-center justify-center text-lg text-neutral-600 hover:bg-[#9B1B30]/[0.06] hover:text-[#9B1B30] dark:text-neutral-300">{semn}</Link>
-    : <span className="flex h-9 w-9 items-center justify-center text-lg text-neutral-300 dark:text-neutral-600" aria-hidden>{semn}</span>;
-  return (
-    <div className="flex items-center gap-2">
-      <div className="flex items-center overflow-hidden rounded-[8px] border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900">
-        {sageata(mai_veche, '‹', 'săptămâna dinainte')}
-        <span className="min-w-[170px] border-x border-neutral-200 px-3! text-center text-[13.5px] font-semibold leading-9 dark:border-neutral-700">
-          {interval(activa, pana)}
-        </span>
-        {sageata(mai_noua, '›', 'săptămâna următoare')}
-      </div>
-      {saptamani.length > 1 && (
-        <select value={activa} onChange={(e) => router.push(`/lde/reguli?saptamina=${e.target.value}`, { scroll: false })}
-          aria-label="Alege săptămâna"
-          style={{ width: 'auto', fontStyle: 'normal', padding: '0 10px', color: 'inherit', borderRadius: 8 }}
-          className="h-9 rounded-[8px] border border-neutral-200 bg-white px-2! text-[12.5px] text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
-          {saptamani.map((s) => <option key={s} value={s}>{interval(s)}</option>)}
-        </select>
-      )}
-    </div>
-  );
-}
-
-export default function ReguliClient({ raport, saptamani = [] }: {
-  raport: Raport | null; saptamani?: string[];
+export default function ReguliClient({ raport, saptamani = [], baza = '/lde/reguli?' }: {
+  raport: Raport | null; saptamani?: string[]; baza?: string;
 }) {
   const [deschis, setDeschis] = useState<string | null>(null);
 
@@ -213,7 +180,8 @@ export default function ReguliClient({ raport, saptamani = [] }: {
             {new Date(R.rulat_la).toLocaleString('ro-RO', { dateStyle: 'short', timeStyle: 'short' })}
           </p>
         </div>
-        <Saptamana activa={R.saptamina} pana={R.pana_la} saptamani={saptamani.length ? saptamani : [R.saptamina]} />
+        <Saptamana baza={baza} activa={R.saptamina} eticheta={interval(R.saptamina, R.pana_la)}
+          optiuni={(saptamani.length ? saptamani : [R.saptamina]).map((s) => ({ v: s, e: interval(s) }))} />
       </header>
 
       <div className="grid gap-4 md:grid-cols-2">

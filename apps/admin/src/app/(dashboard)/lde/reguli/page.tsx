@@ -86,8 +86,11 @@ export default async function LdeReguliPage({
     return (
       <div style={{ contain: 'inline-size' }}>
         {nav}
-        <RaportSebn s={{ luni, duminica, rows, liber, pretMotorina, leiImplicit: LEI_PE_KM, alegeri }} />
-        <ReguliSebnClient date={date} />
+        {/* același cadru ca ReguliClient (LEAR) — Ion, 25.09 (ION-68): «în aceeași stilistică ca alte uzine» */}
+        <div className="mx-auto! max-w-[1160px] p-4! sm:p-6!">
+          <RaportSebn s={{ luni, duminica, rows, liber, pretMotorina, leiImplicit: LEI_PE_KM, alegeri }} />
+          <ReguliSebnClient date={date} />
+        </div>
       </div>
     );
   }
@@ -105,5 +108,5 @@ export default async function LdeReguliPage({
     getRaport(uzina, saptamina),
     getSaptamani(uzina),
   ]);
-  return <>{nav}<ReguliClient raport={raport} saptamani={saptamani} /></>;
+  return <>{nav}<ReguliClient raport={raport} saptamani={saptamani} baza={alese === 'floresti' ? '/lde/reguli?uz=floresti&' : '/lde/reguli?'} /></>;
 }

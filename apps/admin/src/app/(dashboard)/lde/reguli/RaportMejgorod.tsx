@@ -1,8 +1,7 @@
 'use client';
 
 import { Fragment, useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import Saptamana from './Saptamana';
 import type { AnalizaMejgorod, RutaOptim } from '@/lib/lde/mejgorod-optimizari-image';
 
 // Raportul săptămânal «cât se putea economisi» pe rutele interurbane nord ↔ Chișinău (ION-65).
@@ -39,36 +38,6 @@ function interval(de: string, pana?: string) {
 }
 const VERDE = 'text-[#1f7a4d] dark:text-[#6fd3a0]';
 const URL_UZ = '/lde/reguli?uz=mejgorod';
-
-function Saptamana({ activa, pana, saptamani }: { activa: string; pana: string; saptamani: string[] }) {
-  const router = useRouter();
-  const i = saptamani.indexOf(activa);
-  const mai_veche = i >= 0 ? saptamani[i + 1] : undefined;
-  const mai_noua = i > 0 ? saptamani[i - 1] : undefined;
-  const sageata = (s: string | undefined, semn: string, eticheta: string) => s
-    ? <Link href={`${URL_UZ}&saptamina=${s}`} scroll={false} aria-label={eticheta}
-        className="flex h-9 w-9 items-center justify-center text-lg text-neutral-600 hover:bg-[#9B1B30]/[0.06] hover:text-[#9B1B30] dark:text-neutral-300">{semn}</Link>
-    : <span className="flex h-9 w-9 items-center justify-center text-lg text-neutral-300 dark:text-neutral-600" aria-hidden>{semn}</span>;
-  return (
-    <div className="flex items-center gap-2">
-      <div className="flex items-center overflow-hidden rounded-[8px] border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900">
-        {sageata(mai_veche, '‹', 'săptămâna dinainte')}
-        <span className="min-w-[170px] border-x border-neutral-200 px-3! text-center text-[13.5px] font-semibold leading-9 dark:border-neutral-700">
-          {interval(activa, pana)}
-        </span>
-        {sageata(mai_noua, '›', 'săptămâna următoare')}
-      </div>
-      {saptamani.length > 1 && (
-        <select value={activa} onChange={(e) => router.push(`${URL_UZ}&saptamina=${e.target.value}`, { scroll: false })}
-          aria-label="Alege săptămâna"
-          style={{ width: 'auto', fontStyle: 'normal', padding: '0 10px', color: 'inherit', borderRadius: 8 }}
-          className="h-9 rounded-[8px] border border-neutral-200 bg-white px-2! text-[12.5px] text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
-          {saptamani.map((s) => <option key={s} value={s}>{interval(s)}</option>)}
-        </select>
-      )}
-    </div>
-  );
-}
 
 function Zile({ r }: { r: Ruta }) {
   const d = r.zileDetalii ?? [];
@@ -146,7 +115,8 @@ export default function RaportMejgorod({ a, saptamani }: { a: RaportMejgorodDate
             {inCurs && <b className="text-[#9B1B30] dark:text-[#e0788c]"> · săptămâna în curs, cifrele nu-s finale</b>}
           </p>
         </div>
-        <Saptamana activa={a.saptamina} pana={a.pana_la} saptamani={saptamani.length ? saptamani : [a.saptamina]} />
+        <Saptamana baza={`${URL_UZ}&`} activa={a.saptamina} eticheta={interval(a.saptamina, a.pana_la)}
+          optiuni={(saptamani.length ? saptamani : [a.saptamina]).map((s) => ({ v: s, e: interval(s) }))} />
       </header>
 
       <div className="grid gap-4 md:grid-cols-3">

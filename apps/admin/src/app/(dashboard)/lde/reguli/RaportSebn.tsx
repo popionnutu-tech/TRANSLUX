@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import Saptamana from './Saptamana';
 import type { LivrareRow } from '@/lib/lde/naveta-image';
 import type { IesireLibera, TimpLiberMasina } from './actions';
 
@@ -34,7 +34,9 @@ export const eticheta = (luni: string, dum: string) => {
 };
 // peste pragul posterului — acolo un șofer din satul de start schimbă cel mai mult
 const PRAG_ROSU = 50;
-const ROSU = 'text-[#8f1d2c] dark:text-[#e0707e]';
+const ROSU = 'text-[#9B1B30] dark:text-[#e0788c]';
+// titlul unei secțiuni, ca la LEAR (ReguliClient)
+const H2 = 'text-xs font-bold uppercase tracking-widest text-neutral-500';
 
 export default function RaportSebn({ s }: { s: SaptSebn }) {
   const lei = (r: LivrareRow) => r.naveta_total * (r.lei_km ?? s.leiImplicit);
@@ -44,86 +46,99 @@ export default function RaportSebn({ s }: { s: SaptSebn }) {
   const cuLivrare = s.rows.filter((r) => r.naveta_zi > 0);
 
   return (
-    <section className="px-4! pt-3!">
-      <div className="flex flex-wrap items-baseline gap-3">
-        <h1 className="text-[18px] font-semibold">Raportul de optimizare — SEBN · {eticheta(s.luni, s.duminica)}</h1>
-        <span className="text-[12px] text-neutral-500">luni–vineri, din urma GPS a fiecărei curse</span>
-      </div>
-      <nav aria-label="Săptămâna" className="mt-2! flex flex-wrap gap-1.5">
-        {s.alegeri.map((a) => (
-          <Link key={a.luni} href={`/lde/reguli?uz=sebn&saptamina=${a.luni}`}
-            aria-current={a.luni === s.luni ? 'page' : undefined}
-            style={{ color: a.luni === s.luni ? '#fff' : 'var(--text-secondary)' }}
-            className={`rounded-md border px-2.5! py-0.5! text-[11.5px] no-underline ${a.luni === s.luni
-              ? 'border-transparent bg-[var(--primary)]'
-              : 'border-neutral-200 dark:border-neutral-700'}`}>{a.eticheta}</Link>
-        ))}
-      </nav>
+    <section>
+      <header className="mb-6! flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-neutral-500">Raport livrări</p>
+          <h1 className="text-[28px] font-bold leading-tight tracking-tight">SEBN Orhei și Strășeni</h1>
+          <p className="mt-1! text-[12.5px] text-neutral-500">
+            Luni–vineri, din urma GPS a fiecărei curse · motorină {n2(s.pretMotorina)} lei/l (ANRE)
+          </p>
+        </div>
+        <Saptamana baza="/lde/reguli?uz=sebn&" activa={s.luni} eticheta={eticheta(s.luni, s.duminica)}
+          optiuni={s.alegeri.map((a) => ({ v: a.luni, e: a.eticheta }))} />
+      </header>
 
-      <div className="mt-3! grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-3">
         {[
-          ['Livrare', `${n0(totLiv)} km`, `${cuLivrare.length} mașini fac drum de acasă până la satul de start`],
-          ['Economie posibilă', `${n0(totLei)} lei`, `pe săptămână · motorină ${n2(s.pretMotorina)} lei/l (ANRE)`],
-          ['Liber · brambura', s.liber ? `${n0(totLib)} · ${n0(totBr)} km` : '—', 'regula LEAR §11 — lanțul muncii'],
-        ].map(([e, v, sub]) => (
-          <div key={e} className="rounded-lg border border-neutral-200 px-4! py-3! dark:border-neutral-700">
-            <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-neutral-500">{e}</div>
-            <div className={`mt-1! font-mono text-[24px] leading-none tabular-nums ${e === 'Liber · brambura' && (totLib + totBr) >= 50 ? ROSU : ''}`}>{v}</div>
-            <div className="mt-1.5! text-[12px] text-neutral-500">{sub}</div>
+          { titlu: 'Economie posibilă', val: n0(totLei), unit: 'lei pe săptămână', sub: 'livrare × costul km-ului mașinii', mare: true },
+          { titlu: 'Livrare · de acasă la start', val: n0(totLiv), unit: 'km pe săptămână', sub: `${cuLivrare.length} mașini fac drum de acasă până la satul de start`, mare: false },
+          { titlu: 'Liber · brambura', val: s.liber ? `${n0(totLib)} · ${n0(totBr)}` : '—', unit: 'km', sub: 'regula LEAR §11 — lanțul muncii', mare: false, rosu: (totLib + totBr) >= 50 },
+        ].map((k) => (
+          <div key={k.titlu} className={`rounded-[12px] border bg-white p-5! dark:bg-neutral-900 ${k.mare ? 'border-[#9B1B30]/40' : 'border-neutral-200 dark:border-neutral-700'}`}>
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">{k.titlu}</div>
+            <div className="mt-2! flex items-baseline gap-2">
+              <b className={`font-mono text-[34px] leading-none tabular-nums ${k.mare || k.rosu ? ROSU : 'text-neutral-900 dark:text-neutral-100'}`}>{k.val}</b>
+              <span className="text-[13px] text-neutral-500">{k.unit}</span>
+            </div>
+            <div className="mt-2! text-[12.5px] text-neutral-500">{k.sub}</div>
           </div>
         ))}
       </div>
-
-      <h2 className="mt-5! text-[15px] font-semibold">Livrare (подача) · km de acasă până la începerea cursei</h2>
-      <p className="mt-1! max-w-[100ch] text-[12.5px] text-neutral-500">
-        Livrare = km-ii șoferului în afara rutei (casă – satul de start și înapoi), fără service și fără drumuri neobișnuite.
+      <p className="mt-2! max-w-[110ch] text-[12.5px] text-neutral-500">
+        La SEBN mașina nu poate sta la uzină, de aceea regula e alta decât la LEAR: se taie <b className="text-neutral-900 dark:text-neutral-100">livrarea</b> —
+        km-ii șoferului în afara rutei (casă – satul de start și înapoi), fără service și fără drumuri neobișnuite.
         Economie = livrare × costul km-ului mașinii (norma ei × prețul ANRE al zilei + reparație + salariu).
-        Goi pe rută = întoarcerile goale impuse de ture — ale uzinei, nu se optimizează.
       </p>
+
+      <div className="mb-3! mt-9! flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className={H2}>Mașină cu mașină · livrare (подача)</h2>
+        <span className="text-[12px] text-neutral-500">km de acasă până la începerea cursei</span>
+      </div>
       {s.rows.length === 0 ? (
-        <p className="mt-2! text-[13px] text-neutral-500">Nicio cursă măsurată în săptămâna asta.</p>
+        <p className="text-[13.5px] text-neutral-500">Nicio cursă măsurată în săptămâna asta.</p>
       ) : (
-        <div className="mt-2! overflow-x-auto">
-          <table className="w-full min-w-[900px] border-collapse text-[13px]">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[900px] border-collapse border border-neutral-200 bg-white text-[13px] dark:border-neutral-700 dark:bg-neutral-900">
             <thead>
-              <tr className="text-[10px] uppercase tracking-[0.08em] text-neutral-500">
+              <tr className="bg-[#9B1B30]/[0.04]">
                 {['Mașina', 'Ruta', 'Cine (locuiește)', 'Zile', 'Total km/zi', 'Plin/zi', 'Goi pe rută', 'Livrare/zi', 'Livrare, km', 'Economie, lei'].map((h, i) => (
-                  <th key={h} className={`border-b border-neutral-200 px-2! py-1.5! font-bold dark:border-neutral-700 ${i >= 3 ? 'text-right' : 'text-left'}`}>{h}</th>
+                  <th key={h} className={`border-b border-neutral-200 p-2! align-bottom text-[10px] font-semibold uppercase leading-tight tracking-wider text-neutral-500 dark:border-neutral-700 ${i >= 3 ? 'text-right' : 'text-left'}`}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {s.rows.map((r) => {
                 const mare = r.naveta_zi >= PRAG_ROSU;
+                const [nr, tip] = r.masina.split(' · ');
+                const c = 'border-b border-neutral-200 p-2! dark:border-neutral-700';
+                const num = `${c} text-right font-mono tabular-nums`;
                 return (
-                  <tr key={r.masina + r.ruta} className="border-b border-neutral-100 dark:border-neutral-800">
-                    <td className="px-2! py-1.5! whitespace-nowrap">{r.masina}</td>
-                    <td className="px-2! py-1.5! font-semibold">{r.ruta}</td>
-                    <td className="px-2! py-1.5!">{r.sofer}</td>
-                    <td className="px-2! py-1.5! text-right font-mono tabular-nums">{r.zile}</td>
-                    <td className="px-2! py-1.5! text-right font-mono tabular-nums">{n0(r.total_zi)}</td>
-                    <td className="px-2! py-1.5! text-right font-mono tabular-nums">{n0(r.plin_zi)}</td>
-                    <td className="px-2! py-1.5! text-right font-mono tabular-nums text-neutral-400">{n0(r.gol_ruta_zi)}</td>
-                    <td className={`px-2! py-1.5! text-right font-mono font-semibold tabular-nums ${mare ? ROSU : ''}`}>{n0(r.naveta_zi)}</td>
-                    <td className="px-2! py-1.5! text-right font-mono tabular-nums">{n0(r.naveta_total)}</td>
-                    <td className={`px-2! py-1.5! text-right font-mono tabular-nums ${mare ? ROSU : ''}`}>{n0(lei(r))}</td>
+                  <tr key={r.masina + r.ruta} className={r.naveta_zi > 0 ? '' : 'opacity-60'}>
+                    <th scope="row" className={`${c} whitespace-nowrap text-left`}>
+                      <span className="block font-semibold">{nr}</span>
+                      <span className="mt-0.5! block text-[11px] font-normal text-neutral-500">{tip ?? '—'}</span>
+                    </th>
+                    <td className={`${c} text-[12.5px] font-semibold`}>{r.ruta}</td>
+                    <td className={`${c} text-[12.5px]`}>{r.sofer}</td>
+                    <td className={num}>{r.zile}</td>
+                    <td className={num}>{n0(r.total_zi)}</td>
+                    <td className={num}>{n0(r.plin_zi)}</td>
+                    <td className={`${num} text-neutral-500`}>{n0(r.gol_ruta_zi)}</td>
+                    <td className={`${num} font-semibold ${mare ? ROSU : ''}`}>{n0(r.naveta_zi)}</td>
+                    <td className={num}>{n0(r.naveta_total)}</td>
+                    <td className={`${num} ${mare ? `font-medium ${ROSU}` : ''}`}>{n0(lei(r))}</td>
                   </tr>
                 );
               })}
             </tbody>
             <tfoot>
-              <tr className="font-semibold">
-                <td className="px-2! py-2!" colSpan={8}>Total livrare</td>
-                <td className="px-2! py-2! text-right font-mono tabular-nums">{n0(totLiv)}</td>
-                <td className={`px-2! py-2! text-right font-mono tabular-nums ${ROSU}`}>{n0(totLei)}</td>
+              <tr className="bg-[#9B1B30]/[0.04] font-semibold">
+                <td className="p-2!" colSpan={8}>Total livrare</td>
+                <td className="p-2! text-right font-mono tabular-nums">{n0(totLiv)}</td>
+                <td className={`p-2! text-right font-mono tabular-nums ${ROSU}`}>{n0(totLei)}</td>
               </tr>
             </tfoot>
           </table>
         </div>
       )}
+      <p className="mt-2! text-[12.5px] text-neutral-500">
+        Goi pe rută = întoarcerile goale impuse de ture — ale uzinei, nu se optimizează. Rândurile estompate n-au livrare.
+        Roșu = peste {PRAG_ROSU} km livrare pe zi, pragul posterului.
+      </p>
 
-      <h2 className="mt-6! text-[15px] font-semibold">Mișcări în timpul liber și brambura</h2>
-      <p className="mt-1! max-w-[100ch] text-[12.5px] text-neutral-500">
+      <h2 className={`mb-3! mt-9! ${H2}`}>Mișcări în timpul liber și brambura</h2>
+      <p className="max-w-[110ch] text-[12.5px] text-neutral-500">
         Regula de la LEAR (§11): munca e un lanț legat de poarta SEBN în orele schimbului — tot ce e în lanț e muncă, inclusiv livrarea.
         <b> Brambura</b> = km pe un drum pe care mașina n-a mers în nicio altă zi a săptămânii, în cursele lanțului care nu ating poarta.
         <b> Timp liber</b> = cursă fără nicio legătură cu poarta, care nu e reparație (Bălți), altă uzină sau navetă. Steag la 50 km pe săptămână, separat.
@@ -135,9 +150,9 @@ export default function RaportSebn({ s }: { s: SaptSebn }) {
           .map((x) => ({ ...x, masina: m.masina }))).sort((a, b) => a.zi.localeCompare(b.zi) || a.de_la.localeCompare(b.de_la));
         if (!br.length) return null;
         return (
-          <div className="mt-3! rounded-lg border border-[#8f1d2c]/30 px-4! py-3!">
-            <h3 className={`text-[14px] font-semibold ${ROSU}`}>Brambura — Alexei, unde au fost?</h3>
-            <ul className="mt-1.5! flex flex-col gap-1.5 text-[13px]">
+          <div className="mt-4! rounded-[12px] border border-[#9B1B30]/40 bg-white p-5! dark:bg-neutral-900">
+            <div className={`text-[11px] font-semibold uppercase tracking-wider ${ROSU}`}>Brambura — Alexei, unde au fost?</div>
+            <ul className="mt-2! flex flex-col gap-1.5 text-[13px]">
               {br.map((x, i) => {
                 const zi = new Date(`${x.zi}T12:00:00Z`);
                 const ziText = `${['duminică', 'luni', 'marți', 'miercuri', 'joi', 'vineri', 'sâmbătă'][zi.getUTCDay()]} ${zi.getUTCDate()}.${String(zi.getUTCMonth() + 1).padStart(2, '0')}`;
@@ -155,7 +170,7 @@ export default function RaportSebn({ s }: { s: SaptSebn }) {
         );
       })()}
       {!s.liber ? (
-        <p className="mt-2! text-[13px] text-neutral-500">Săptămâna asta n-a fost încă analizată (sebn-liber.mjs rulează lunea la 08:00).</p>
+        <p className="mt-3! text-[13.5px] text-neutral-500">Săptămâna asta n-a fost încă analizată (sebn-liber.mjs rulează lunea la 08:00).</p>
       ) : (() => {
         const L = s.liber;
         // ca la LEAR: ieșirile libere/navetă de peste 5 km, brambura de peste 5 km, neclarul de peste 20 km
@@ -163,7 +178,7 @@ export default function RaportSebn({ s }: { s: SaptSebn }) {
         const cuRanduri = L.masini.filter((m) => m.liber.iesiri.some(deAratat));
         const fara = L.masini.filter((m) => !cuRanduri.includes(m));
         return (
-          <div className="mt-2!">
+          <div className="mt-4!">
             {!cuRanduri.length && <p className="text-[13px] text-neutral-500">Nicio mașină nu s-a mișcat în afara muncii în săptămâna asta.</p>}
             {cuRanduri.map((m) => {
               const x = m.liber;
@@ -208,8 +223,8 @@ export default function RaportSebn({ s }: { s: SaptSebn }) {
               const pe = L.masini.flatMap((m) => (m.pe_ruta_fara_poarta ?? []).filter((x) => x.km >= 5).map((x) => ({ ...x, masina: m.masina })));
               if (!pe.length) return null;
               return (
-                <div className="mt-4!">
-                  <h3 className="text-[13px] font-semibold">Pe ruta ei, fără poartă — socotit muncă</h3>
+                <div className="mt-6!">
+                  <h3 className={H2}>Pe ruta ei, fără poartă — socotit muncă</h3>
                   <p className="text-[12px] text-neutral-500">Cursa merge cel puțin 80% pe drumul mașinii (traseul rutei din schelet și drumul ei de muncă din săptămână), dar nu atinge poarta.</p>
                   <ul className="mt-1! flex flex-col gap-1 text-[12.5px]">
                     {pe.sort((a, b) => a.zi.localeCompare(b.zi) || a.masina.localeCompare(b.masina)).map((x, i) => (
@@ -224,10 +239,9 @@ export default function RaportSebn({ s }: { s: SaptSebn }) {
           </div>
         );
       })()}
-      <p className="mt-3! text-[12.5px] text-neutral-500">
+      <p className="mt-3! text-[13px] text-neutral-500">
         Regulile după care se socotește — într-un singur loc: <a href="/lde/livrare-reguli" className="underline">Livrarea — regula · SEBN</a>, §11.
       </p>
-      <hr className="mt-6! border-neutral-200 dark:border-neutral-700" />
     </section>
   );
 }

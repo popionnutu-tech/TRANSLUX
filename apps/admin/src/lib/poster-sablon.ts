@@ -40,14 +40,15 @@ export function poster(opts: { latime?: number; titlu: string; subtitlu?: string
   let y = PAD;
 
   // antet: logo stânga, eticheta (perioada) dreapta, apoi supratitlu, titlu, subtitlu
-  const logoH = 22 * S, logoW = logoH * (1318 / 192);
+  // logo mare, ca pe graficul Mejgorod (Ion, 25.09: «TRANSLUX să fie mare, ca și la grafic»)
+  const logoH = 50 * S, logoW = logoH * (1318 / 192);
   svg.push(`<image href="data:image/png;base64,${logoBase64()}" x="${PAD}" y="${y}" width="${logoW}" height="${logoH}"/>`);
   if (opts.eticheta) {
-    const fs = 11 * S, w = textW(fB, opts.eticheta, fs) + 24 * S, h = 26 * S;
-    svg.push(`<rect x="${W - PAD - w}" y="${y - 2 * S}" width="${w}" height="${h}" rx="${h / 2}" fill="${CULORI.bordo}"/>`);
-    svg.push(textPath(fB, opts.eticheta, W - PAD - w / 2, y - 2 * S + h / 2 + 4 * S, fs, '#fff', 'middle'));
+    const fs = 13 * S, w = textW(fB, opts.eticheta, fs) + 30 * S, h = 34 * S;
+    svg.push(`<rect x="${W - PAD - w}" y="${y + (logoH - h) / 2}" width="${w}" height="${h}" rx="${h / 2}" fill="${CULORI.bordo}"/>`);
+    svg.push(textPath(fB, opts.eticheta, W - PAD - w / 2, y + logoH / 2 + 5 * S, fs, '#fff', 'middle'));
   }
-  y += logoH + 26 * S;
+  y += logoH + 30 * S;
   if (opts.supratitlu) { svg.push(textPath(fB, opts.supratitlu.toUpperCase(), PAD, y, 9.5 * S, CULORI.bordo, 'start')); y += 24 * S; }
   for (const l of rupe(fB, opts.titlu, 22 * S, IN)) { svg.push(textPath(fB, l, PAD, y, 22 * S, CULORI.text, 'start')); y += 28 * S; }
   if (opts.subtitlu) { y -= 4 * S; for (const l of rupe(fR, opts.subtitlu, 11 * S, IN)) { svg.push(textPath(fR, l, PAD, y, 11 * S, CULORI.gri, 'start')); y += 16 * S; } }

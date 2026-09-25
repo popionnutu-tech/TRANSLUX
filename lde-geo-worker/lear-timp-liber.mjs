@@ -56,7 +56,7 @@ export const PRAGURI = {
   CASA2_NOPTI: 2,         // …în atâtea nopți (sau o singură oprire ≥ 24 h)
   SALT_KM: 5,             // km — salt GPS între două puncte: nu se numără
   ZI_SCHIMB_ORE: 2.5,     // ziua «de schimb» începe la 02:30 (capătul ferestrelor §3.3)
-  NOAPTE_S3: [23 * 60, 6 * 60], // schimbul 3, neanalizat: atingeri ale porții în 23:00–06:00
+  NOAPTE_S3: [22 * 60, 6 * 60], // schimbul 3 (curățenie, uneori — Ion 25.09 despre 320BRAT): atingere a porții 22:00–06:00 = muncă
 };
 
 export const hav = (a, b) => { const R = 6371, r = Math.PI / 180;
@@ -228,8 +228,10 @@ export function eticheteaza(curse, ctx) {
       const fT = ferTur.find(f => inFereastra(mS, f)), fR = ferRetur.find(f => inFereastra(mP, f));
       if (fT && eZiLucru(ziSchimb(a.t_sosire))) { e.ancora = { tip: 'tur', schimb: fT.shift_number, t: a.t_sosire }; break; }
       if (fR && eZiLucru(ziSchimb(a.t_plecare))) { e.ancora = { tip: 'retur', schimb: fR.shift_number, t: a.t_plecare }; break; }
+      // schimbul 3 există uneori (curățenia): o atingere a porții noaptea e tot muncă, chiar fără fereastră
       const [n0, n1] = P.NOAPTE_S3;
-      if (mS >= n0 || mS < n1 || mP >= n0 || mP < n1) e.neanalizat = true;
+      if (mS >= n0 || mS < n1) { e.ancora = { tip: 'tur', schimb: 3, t: a.t_sosire }; break; }
+      if (mP >= n0 || mP < n1) { e.ancora = { tip: 'retur', schimb: 3, t: a.t_plecare }; break; }
     }
   }
   // 2. lanțurile: de la fiecare ancoră, înapoi și înainte
@@ -353,6 +355,9 @@ export function rezumaSaptamina(etichete, ctx, kmZiSapt = null) {
   const km = { lucru: 0, liber: 0, reparatie: 0, naveta: 0, neclar: 0, neanalizat: 0, alta_uzina: 0, brambura: 0, alimentare: 0, nevazut: 0 };
   const cheie = { 'muncă': 'lucru', 'liber': 'liber', 'reparație': 'reparatie', 'navetă': 'naveta', 'neclar': 'neclar', 'neanalizat': 'neanalizat', 'altă uzină': 'alta_uzina' };
   const iesiri = []; const zile = new Set();
+  // Zilele în care mașina a fost legată de ALTĂ uzină nu intră deloc în lista acestei uzine (Ion,
+  // 25.09): nici ieșirea de acolo, nici liberul/brambura/neclarul din aceeași zi — doar zilele LEAR.
+  const zileAlta = new Set(etichete.filter(e => e.eticheta === 'altă uzină').map(e => ctx.ziLucru(e.cursa.de_la)));
   for (const e of etichete) {
     const c = e.cursa;
     let kmS = 0;
@@ -364,7 +369,10 @@ export function rezumaSaptamina(etichete, ctx, kmZiSapt = null) {
     if (c.gol) km.nevazut += kmS;   // drum nevăzut în golul de semnal: kmZi nu-l are (salt ≥ 5 km), controlul îl scoate
     if (e.eticheta === 'muncă' && e.km_brambura) km.brambura += e.km_brambura * frac;
     if (e.km_alimentare) km.alimentare += e.km_alimentare * frac;
-    if (e.eticheta === 'liber' || e.eticheta === 'neclar' || e.eticheta === 'navetă' || e.eticheta === 'altă uzină' || (e.eticheta === 'muncă' && e.km_brambura)) {
+    const ziAlta = zileAlta.has(ctx.ziLucru(c.de_la));
+    if (ziAlta && e.eticheta !== 'muncă' && e.eticheta !== 'reparație' && e.eticheta !== 'altă uzină') { km[cheie[e.eticheta]] -= kmS; km.alta_uzina += kmS; continue; }
+    if (ziAlta && e.eticheta === 'muncă' && e.km_brambura) km.brambura -= e.km_brambura * frac;
+    if (!ziAlta && (e.eticheta === 'liber' || e.eticheta === 'neclar' || e.eticheta === 'navetă' || (e.eticheta === 'muncă' && e.km_brambura))) {
       const zi = ctx.ziLucru(c.de_la); zile.add(e.eticheta === 'liber' ? zi : null);
       const opriri = (c.opriri || []).map(o => ({ loc: ctx.numeLoc ? ctx.numeLoc(o) ?? null : null, min: Math.round(o.min), ora: hhmm(ctx, o.t), lat: o.lat, lon: o.lon }));
       const principal = opriri.length ? [...opriri].sort((a, b) => b.min - a.min)[0] : null;

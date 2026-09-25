@@ -426,7 +426,6 @@ export default function ReguliClient({ raport, saptamani = [] }: {
               {L.peste_prag_brambura && <span className="px-1.5! py-0.5! text-[10px] font-semibold uppercase tracking-wide text-[#a33a20]" style={{ background: 'rgba(163,58,32,0.12)' }}>brambura peste {L.prag_brambura_km ?? 50} km</span>}
               <span className="text-[12px] text-neutral-500">
                 {L.zile} {L.zile === 1 ? 'zi' : 'zile'}
-                {L.km_alta_uzina ? ` · altă uzină ${n1(L.km_alta_uzina)} km` : ''}
                 {L.km_naveta ? ` · navetă ${n1(L.km_naveta)} km` : ''}
                 {L.km_neclar ? ` · neclar ${n1(L.km_neclar)} km` : ''}
                 {L.km_alimentare ? ` · alimentare ${n1(L.km_alimentare)} km` : ''}

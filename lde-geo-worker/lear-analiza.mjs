@@ -1240,7 +1240,6 @@ for (const v of auLucrat) {
     // brambura se numără SEPARAT de liber (Ion, 25.09): drum neobișnuit în cursele de muncă
     if (rec.liber.peste_prag_brambura) rec.steaguri.push(
       `${n1(rec.liber.km_brambura)} km brambura în cursele de muncă — pe drumuri pe care n-a mers în nicio altă zi (prag ${rec.liber.prag_brambura_km})`);
-    if (rec.liber.km_alta_uzina) rec.note.push(`${n1(rec.liber.km_alta_uzina)} km cu oprire la poarta altei uzine — nu-s LEAR`);
     if (DE_CE.has(v.masina)) { console.error(`[${v.masina}] timp liber: ${curseL.length} curse, ${n1(rec.liber.km)} km liber`);
       for (const l of explica(etich, ctxL)) console.error(`[${v.masina}]   ${l}`); }
   }

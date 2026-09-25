@@ -88,10 +88,10 @@ test('sosire luni 02:45 = ancoră (ziua de schimb e luni, deși ziLucru e dumini
   assert.deepEqual([...new Set(etichete(r))], ['muncă']);
 });
 
-test('plecare duminică 02:30 fix: fereastra e exclusivă la capăt și ziua de schimb e duminica → nu-i ancoră', () => {
+test('plecare duminică 02:30 fix: nu-i fereastra retur s2, dar e schimbul 3 → muncă', () => {
   const r = et(urma(stai(POARTA, T('2026-09-20', '02:20'), 10), drum(POARTA, TODIRESTI, T('2026-09-20', '02:30'), 30)));
-  assert.ok(r.e.every(e => !e.ancora && e.eticheta !== 'muncă'));
-  assert.deepEqual(etichete(r), ['neanalizat'], 'atingere a porții în 23:00–06:00 fără fereastră = schimbul 3, neanalizat');
+  assert.deepEqual(etichete(r), ['muncă'], 'atingere a porții noaptea, fără fereastră = schimbul 3, tot muncă');
+  assert.equal(r.e[0].ancora.schimb, 3);
 });
 
 test('oprire la poartă la 09:00 (nicio fereastră) → nu-i ancoră → liber', () => {
@@ -239,7 +239,13 @@ test('altă uzină: cursa care atinge poarta Drăxlmaier e «altă uzină», nu 
   const DRAX = { lat: 47.7741, lon: 27.9159, r: 0.5, nume: 'Drăxlmaier Bălți' };
   const r = et(urma(drum(TODIRESTI, DRAX, T('2026-09-15', '09:00'), 80), stai(DRAX, T('2026-09-15', '10:20'), 10), drum(DRAX, TODIRESTI, T('2026-09-15', '10:30'), 80)), { alteUzine: [DRAX] });
   assert.deepEqual([...new Set(etichete(r))], ['altă uzină']);
-  assert.equal(rezumaSaptamina(r.e, r.ctx).km, 0);
+  const rez = rezumaSaptamina(r.e, r.ctx);
+  assert.equal(rez.km, 0); assert.equal(rez.iesiri.length, 0, 'ziua legată de altă uzină nu se listează');
+  // aceeași zi, și o ieșire liberă după-amiaza: nici ea nu intră
+  const r2 = et(urma(drum(TODIRESTI, DRAX, T('2026-09-15', '09:00'), 80), stai(DRAX, T('2026-09-15', '10:20'), 10), drum(DRAX, TODIRESTI, T('2026-09-15', '10:30'), 80),
+    stai(TODIRESTI, T('2026-09-15', '11:50'), 150), drum(TODIRESTI, FALESTI, T('2026-09-15', '14:20'), 40), stai(FALESTI, T('2026-09-15', '15:00'), 30), drum(FALESTI, TODIRESTI, T('2026-09-15', '15:30'), 40)), { alteUzine: [DRAX] });
+  const rez2 = rezumaSaptamina(r2.e, r2.ctx);
+  assert.equal(rez2.km, 0); assert.equal(rez2.iesiri.length, 0);
 });
 test('orice oprire la depozitul din Bălți e drum de parc (183BZP: 2′ și 6′)', () => {
   const r = et(urma(stai(POARTA, T('2026-09-15', '14:30'), 10), drum(POARTA, PARC, T('2026-09-15', '14:40'), 90), stai(PARC, T('2026-09-15', '16:10'), 3), drum(PARC, TODIRESTI, T('2026-09-15', '16:13'), 90)));

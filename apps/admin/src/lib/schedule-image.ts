@@ -1,50 +1,11 @@
-import sharp from 'sharp';
 import fs from 'fs';
 import path from 'path';
 import opentype from 'opentype.js';
 import type { GraficEdinetRow } from '@/app/(dashboard)/grafic/actions';
+import { poster, CULORI, telefon, ziText } from './poster-sablon';
 
-/* ── Hi-res 2× scale (matches html2canvas scale:2) ── */
-const S = 2;
-
-/* ── Canvas ── */
-const CANVAS_W = 900 * S;
-
-/* ── Padding (16px at 1×, inside the border-box div) ── */
-const PAD = 16 * S;
-
-/* ── Table (868px at 1× = 900 - 2×16 padding, border-box) ── */
-const TABLE_W = (900 - 32) * S;
-
-/* ── Columns (tableLayout:fixed colgroup widths at 2×): vezi columns() ── */
-
-/* ── Row heights ── */
-const LOGO_AREA = 76 * S;
-const SUB_LINE = 24 * S;
-const TH_H = 56 * S;
-const ROW_H = 56 * S;
-
-/* ── Colors ── */
-const MAROON = '#9B1B30';
-const MAROON_DK = '#6b1221';
-const ROW_BG = ['#fdf6f0', '#f5ebe3'];
-
-/* ── Font sizes (at 2×) ── */
-const FS = {
-  date: 28 * S,
-  sub: 13 * S,
-  th: 20 * S,
-  time: 28 * S,
-  route: 15 * S,
-  stops: 11 * S,
-  depart: 20 * S,
-  phone: 18 * S,
-  name: 13 * S,
-  // Varianta pentru grupa șoferilor: numele complet e rândul principal.
-  driverName: 16 * S,
-  plate: 13 * S,
-  plateBig: 24 * S,
-};
+/* Desenarea graficelor stă în poster-sablon.ts (Ion, 25.09: «aplică peste tot noul format»);
+   aici rămân fonturile, logoul și randarea text→path, comune tuturor imaginilor. */
 
 /* ── Caches ── */
 let _fR: opentype.Font | null = null;
@@ -128,6 +89,9 @@ export interface ScheduleImageOptions {
    * opriri, ora din Chișinău, telefon + prenume.
    */
   forDrivers?: boolean;
+  /** imaginea publică e pe două foi (ca la print): «1 din 2» în titlu și trimitere la continuare */
+  pagina?: number;
+  pagini?: number;
 }
 
 /** Ce are nevoie imaginea dintr-un rând — GraficRow îl satisface. */
@@ -144,181 +108,43 @@ export interface ScheduleImageRow {
   driver_full_name?: string | null;
 }
 
-/** Coloanele tabelului: lățimea coloanei șoferului diferă între cele două variante. */
-function columns(driverW: number) {
-  const w = {
-    empty: 10 * S,
-    route: (900 - 32 - 10 - 200) * S - driverW,
-    depart: 200 * S,
-    driver: driverW,
-  };
-  const x = {
-    empty: PAD,
-    route: PAD + w.empty,
-    depart: PAD + w.empty + w.route,
-    driver: PAD + w.empty + w.route + w.depart,
-  };
-  return { w, x };
-}
-
 export async function generateScheduleImage(
   rows: ScheduleImageRow[],
   date: string,
   opts: ScheduleImageOptions = {},
 ): Promise<Buffer> {
-  const forDrivers = !!opts.forDrivers;
+  // Șablonul posterelor (poster-sablon.ts) — Ion, 25.09: «aplică peste tot noul format».
+  // Conținutul rămâne cel stabilit: Mejgorod = ora din nord, ruta, MAȘINA mare, șoferul complet cu
+  // telefonul (Ion, 07–08.09); public/site = ora din nord, ruta cu opriri, ora din Chișinău, telefon +
+  // prenume. Telefonul MEREU +373 (Ion, 23.09).
   const assigned = rows.filter(r => r.driver_id);
-  const { r: fR, b: fB, i: fI } = fonts();
-  const logo = logoBase64();
-  const { w: COL_W, x: COL_X } = columns(forDrivers ? 260 * S : 220 * S);
-  // Fără rândul opririlor, rândul e mai scund (Ion, 08.09) — 30 de curse încap
-  // pe o imagine pe care șoferul o citește fără zoom.
-  const rowH = forDrivers ? 42 * S : ROW_H;
-
-  const n = Math.max(assigned.length, 1);
-  const H = PAD + LOGO_AREA + SUB_LINE + TH_H + n * rowH + PAD;
-
-  const svg: string[] = [];
-
-  // White background
-  svg.push(`<rect width="${CANVAS_W}" height="${H}" fill="#fff"/>`);
-
-  /* ── Header: TRANSLUX logo + date ── */
-  const logoImgH = 36 * S;
-  const logoY = PAD + (LOGO_AREA - logoImgH) / 2 - 4 * S;
-  svg.push(
-    `<image x="${PAD + 75 * S}" y="${logoY}" height="${logoImgH}"` +
-    ` href="data:image/png;base64,${logo}" preserveAspectRatio="xMinYMid meet"/>`,
-  );
-
-  const [yr, mo, dy] = date.split('-');
-  const dateText = `Grafic din: ${dy}.${mo}.${yr}`;
-  const dateY = PAD + LOGO_AREA / 2 + FS.date * 0.3;
-  svg.push(textPath(fI, dateText, CANVAS_W - PAD - 76 * S, dateY, FS.date, MAROON_DK, 'end'));
-
-  /* ── Sub-header: "Mai multe detalii: translux.md" ── */
-  const subBaseY = PAD + LOGO_AREA + FS.sub;
-  const sub1 = 'Mai multe detalii: ';
-  const sub2 = 'translux.md';
-  const w1 = textW(fR, sub1, FS.sub);
-  const w2 = textW(fB, sub2, FS.sub);
-  const subX = (CANVAS_W - w1 - w2) / 2;
-  svg.push(textPath(fR, sub1, subX, subBaseY, FS.sub, MAROON));
-  svg.push(textPath(fB, sub2, subX + w1, subBaseY, FS.sub, MAROON));
-
-  /* ── Table ── */
-  const tableY = PAD + LOGO_AREA + SUB_LINE;
-  const tableH = TH_H + n * rowH;
-  const bw = 2 * S; // border width
-
-  // Outer border
-  svg.push(`<rect x="${PAD}" y="${tableY}" width="${TABLE_W}" height="${tableH}" fill="none" stroke="${MAROON}" stroke-width="${bw}"/>`);
-
-  // Header row background
-  svg.push(`<rect x="${PAD}" y="${tableY}" width="${TABLE_W}" height="${TH_H}" fill="${MAROON}"/>`);
-
-  // Header text
-  const thMidY = tableY + TH_H / 2;
-
-  // "RUTA" (left-aligned in route column)
-  svg.push(textPath(fB, 'RUTA', COL_X.route + 50 * S, thMidY + FS.th * 0.35, FS.th, '#fff'));
-
-  // Coloana din mijloc: "PLECARE DIN / CHIȘINĂU" (public) sau "MAȘINA" (șoferi)
-  const departCx = COL_X.depart + COL_W.depart / 2;
-  const driverCx = COL_X.driver + COL_W.driver / 2;
-  if (forDrivers) {
-    svg.push(textPath(fB, 'MAȘINA', departCx, thMidY + FS.th * 0.35, FS.th, '#fff', 'middle'));
-    svg.push(textPath(fB, 'ȘOFER', driverCx, thMidY + FS.th * 0.35, FS.th, '#fff', 'middle'));
-  } else {
-    svg.push(textPath(fB, 'PLECARE DIN', departCx, thMidY - 2 * S, FS.th * 0.82, '#fff', 'middle'));
-    svg.push(textPath(fB, 'CHIȘINĂU', departCx, thMidY + FS.th * 0.75, FS.th * 0.82, '#fff', 'middle'));
-    svg.push(textPath(fB, 'NR. ȘOFER', driverCx, thMidY + FS.th * 0.35, FS.th, '#fff', 'middle'));
+  const ruta = (dest: string) => `${dest.replace(/^Chi[sș]in[aă]u\s*[-–]\s*/i, '')} – Chișinău`;
+  const pagina = opts.pagina && opts.pagini && opts.pagini > 1 ? ` · ${opts.pagina} din ${opts.pagini}` : '';
+  if (opts.forDrivers) {
+    const p = poster({ supratitlu: 'Grafic Mejgorod', titlu: 'Plecările din nord', eticheta: ziText(date),
+      subtitlu: `${assigned.length} ${assigned.length === 1 ? 'cursă' : 'curse'} cu șofer. Cursele anulate nu apar.` });
+    p.tabel([{ titlu: 'Ora', latime: 70 }, { titlu: 'Ruta', latime: 250 }, { titlu: 'Mașina', latime: 150 }, { titlu: 'Șoferul', latime: 240 }],
+      assigned.map(r => [
+        { text: r.time_nord, bold: true, culoare: CULORI.bordo, marime: 14 },
+        { text: ruta(r.dest_to), bold: true },
+        { text: r.vehicle_plate?.trim() || '—', bold: true, marime: 15 },
+        { text: r.driver_full_name || r.driver_name || '—', mic: telefon(r.driver_phone) },
+      ]), { gol: 'Nicio cursă cu șofer în ziua asta.' });
+    return p.png();
   }
-
-  /* ── Data rows ── */
-  const bodyY = tableY + TH_H;
-  const cellPad = 10 * S;
-
-  for (let i = 0; i < assigned.length; i++) {
-    const row = assigned[i];
-    const rY = bodyY + i * rowH;
-
-    // Alternating background
-    svg.push(`<rect x="${PAD + bw / 2}" y="${rY}" width="${TABLE_W - bw}" height="${rowH}" fill="${ROW_BG[i % 2]}"/>`);
-
-    // Bottom divider line
-    if (i < assigned.length - 1) {
-      svg.push(`<line x1="${PAD}" y1="${rY + rowH}" x2="${PAD + TABLE_W}" y2="${rY + rowH}" stroke="rgba(155,27,48,0.15)" stroke-width="1"/>`);
-    }
-
-    // Column dividers
-    svg.push(`<line x1="${COL_X.depart}" y1="${rY}" x2="${COL_X.depart}" y2="${rY + rowH}" stroke="rgba(155,27,48,0.1)" stroke-width="1"/>`);
-    svg.push(`<line x1="${COL_X.driver}" y1="${rY}" x2="${COL_X.driver}" y2="${rY + rowH}" stroke="rgba(155,27,48,0.1)" stroke-width="1"/>`);
-
-    // ── Route column: time + route name (+ stops, doar pe imaginea publică) ──
-    // Pe varianta șoferilor ora și ruta stau pe mijlocul rândului scund.
-    const timeBaseY = forDrivers ? rY + rowH / 2 + FS.time * 0.35 : rY + ROW_H * 0.42;
-
-    // Ora plecării din nord
-    const time = row.time_nord;
-    svg.push(textPath(fB, time, COL_X.route + cellPad, timeBaseY, FS.time, MAROON_DK));
-    const timeWidth = textW(fB, time, FS.time);
-
-    // Route name (next to time): «Lipcani - Chișinău»
-    const dest = row.dest_to.replace(/^Chi[sș]in[aă]u\s*[-–]\s*/i, '');
-    const routeName = `${dest} - Chișinău`;
-    const routeX = COL_X.route + cellPad + timeWidth + 8 * S;
-    const maxRouteW = COL_X.depart - routeX - cellPad;
-    svg.push(textPath(fB, truncText(fB, routeName, FS.route, maxRouteW), routeX, timeBaseY, FS.route, '#333'));
-
-    // Stops (smaller, below) — nu și pe varianta șoferilor (Ion, 08.09)
-    if (row.stops && !forDrivers) {
-      const stopsY = timeBaseY + 14 * S;
-      const maxStopsW = COL_W.route - 2 * cellPad;
-      svg.push(textPath(fR, truncText(fR, row.stops, FS.stops, maxStopsW), COL_X.route + cellPad, stopsY, FS.stops, '#888'));
-    }
-
-    // ── Coloana din mijloc: ora din Chișinău (public) / numărul mașinii (șoferi) ──
-    if (forDrivers) {
-      const plate = row.vehicle_plate?.trim();
-      if (plate) {
-        const py = rY + rowH / 2 + FS.plateBig * 0.35;
-        svg.push(textPath(fB, plate, departCx, py, FS.plateBig, MAROON_DK, 'middle'));
-      }
-    } else if (row.time_chisinau) {
-      const dtY = rY + ROW_H / 2 + FS.depart * 0.35;
-      svg.push(textPath(fB, row.time_chisinau, departCx, dtY, FS.depart, MAROON_DK, 'middle'));
-    }
-
-    // ── Driver column ──
-    const maxNameW = COL_W.driver - 16 * S;
-    if (forDrivers) {
-      // Grupa șoferilor: numele complet (rândul mare), telefonul sub el. Numele
-      // complet poate depăși coloana («Docuciaev Dumitru Petru»): se taie cu «…»
-      // în loc să iasă peste chenar.
-      const fullName = row.driver_full_name || row.driver_name;
-      const nameY = rY + rowH * 0.46;
-      if (fullName) {
-        svg.push(textPath(fB, truncText(fB, fullName, FS.driverName, maxNameW), driverCx, nameY, FS.driverName, MAROON_DK, 'middle'));
-      }
-      if (row.driver_phone) {
-        svg.push(textPath(fR, row.driver_phone, driverCx, nameY + 15 * S, FS.plate, '#555', 'middle'));
-      }
-    } else if (row.driver_phone) {
-      const phoneY = rY + ROW_H * 0.38;
-      svg.push(textPath(fB, row.driver_phone, driverCx, phoneY, FS.phone, MAROON_DK, 'middle'));
-      if (row.driver_name) {
-        svg.push(textPath(fR, truncText(fR, row.driver_name, FS.name, maxNameW), driverCx, phoneY + 16 * S, FS.name, '#555', 'middle'));
-      }
-    }
-  }
-
-  const svgStr = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${CANVAS_W}" height="${H}">
-${svg.join('\n')}
-</svg>`;
-
-  return await sharp(Buffer.from(svgStr)).png().toBuffer();
+  const p = poster({ supratitlu: 'Curse interurbane', titlu: `Programul zilei${pagina}`, eticheta: ziText(date),
+    subtitlu: 'Din nord spre Chișinău și înapoi. Rezervări și întrebări direct la șofer, la numărul din dreptul cursei.' });
+  p.tabel([{ titlu: 'Din nord', latime: 76 }, { titlu: 'Ruta', latime: 330 }, { titlu: 'Din Chișinău', latime: 100 }, { titlu: 'Contact', latime: 200 }],
+    assigned.map(r => [
+      { text: r.time_nord, bold: true, culoare: CULORI.bordo, marime: 14 },
+      { text: ruta(r.dest_to), bold: true, mic: (r.stops || '').replace(/\s*\/\s*/g, ' · ') },
+      { text: r.time_chisinau || '—', bold: true, marime: 14 },
+      { text: telefon(r.driver_phone) || '—', bold: true, mic: r.driver_name ?? '' },
+    ]), { gol: 'Nicio cursă în ziua asta.' });
+  p.nota(opts.pagina && opts.pagini && opts.pagina < opts.pagini
+    ? `Continuarea pe imaginea ${opts.pagina + 1} din ${opts.pagini}. Mai multe detalii: translux.md`
+    : 'Mai multe detalii: translux.md · orele pot varia cu câteva minute în funcție de drum.');
+  return p.png();
 }
 
 /* ── Edineț-Chișinău image generator (second type) ── */
@@ -327,142 +153,18 @@ export async function generateScheduleEdinetImage(
   rows: GraficEdinetRow[],
   date: string,
 ): Promise<Buffer> {
+  // Format 9:16 fix (TikTok / Reels / Stories), pe șablonul nou; zonele de sus și de jos rămân libere.
   const assigned = rows.filter(r => r.driver_id);
-  const { r: fR, b: fB, i: fI } = fonts();
-  const logo = logoBase64();
-
-  const n = Math.max(assigned.length, 1);
-  const HEADING_H = 44 * S;
-
-  /* ── Fixed 9:16 canvas for TikTok / Reels / Stories ── */
-  const CANVAS_H = 1600 * S;
-  const SAFE_TOP = 120 * S; // reserved for TikTok status bar + "Add sound"
-  const SAFE_BOT = 160 * S; // reserved for TikTok "Your Story" / "Next"
-  const USABLE_H = CANVAS_H - SAFE_TOP - SAFE_BOT;
-
-  const HEADER_H = PAD + LOGO_AREA + SUB_LINE + HEADING_H + TH_H;
-  const ROW_AREA_MAX = USABLE_H - HEADER_H - PAD;
-
-  /* ── Dynamic row height: shrink only when content exceeds safe area ── */
-  const ROW_H_DYN = Math.min(ROW_H, Math.floor(ROW_AREA_MAX / n));
-  const rowScale = ROW_H_DYN / ROW_H;
-  const fsTime = Math.round(FS.time * rowScale);
-  const fsPhone = Math.round(FS.phone * rowScale);
-  const fsName = Math.round(FS.name * rowScale);
-
-  const CONTENT_H = HEADER_H + n * ROW_H_DYN + PAD;
-  const yOffset = Math.max(SAFE_TOP, SAFE_TOP + (USABLE_H - CONTENT_H) / 2);
-  // Base replaces the original "content starts at PAD" origin.
-  const base = yOffset;
-
-  // 4-column layout: [Edineț | Bălți | Chișinău | Nr. Șofer]
-  // Driver column keeps 220px like the general grafic. 3 time columns split the rest.
-  const COL_DRIVER_W = 220 * S;
-  const COL_TIME_W = (TABLE_W - COL_DRIVER_W) / 3;
-  const COL_EDINET_X = PAD;
-  const COL_BALTI_X = PAD + COL_TIME_W;
-  const COL_CHISINAU_X = PAD + 2 * COL_TIME_W;
-  const COL_DRV_X = PAD + 3 * COL_TIME_W;
-
-  const svg: string[] = [];
-
-  // White background fills the entire 9:16 canvas
-  svg.push(`<rect width="${CANVAS_W}" height="${CANVAS_H}" fill="#fff"/>`);
-
-  /* ── Header: logo + date (identical to general) ── */
-  const logoImgH = 36 * S;
-  const logoY = base + (LOGO_AREA - logoImgH) / 2 - 4 * S;
-  svg.push(
-    `<image x="${PAD + 75 * S}" y="${logoY}" height="${logoImgH}"` +
-    ` href="data:image/png;base64,${logo}" preserveAspectRatio="xMinYMid meet"/>`,
-  );
-
-  const [yr, mo, dy] = date.split('-');
-  const dateText = `Grafic din: ${dy}.${mo}.${yr}`;
-  const dateY = base + LOGO_AREA / 2 + FS.date * 0.3;
-  svg.push(textPath(fI, dateText, CANVAS_W - PAD - 76 * S, dateY, FS.date, MAROON_DK, 'end'));
-
-  /* ── Sub-header ── */
-  const subBaseY = base + LOGO_AREA + FS.sub;
-  const sub1 = 'Mai multe detalii: ';
-  const sub2 = 'translux.md';
-  const w1 = textW(fR, sub1, FS.sub);
-  const w2 = textW(fB, sub2, FS.sub);
-  const subX = (CANVAS_W - w1 - w2) / 2;
-  svg.push(textPath(fR, sub1, subX, subBaseY, FS.sub, MAROON));
-  svg.push(textPath(fB, sub2, subX + w1, subBaseY, FS.sub, MAROON));
-
-  /* ── EDINEȚ - CHIȘINĂU heading ── */
-  const headingSize = 22 * S;
-  const headingY = base + LOGO_AREA + SUB_LINE + HEADING_H / 2 + headingSize * 0.35;
-  svg.push(textPath(fB, 'EDINEȚ - CHIȘINĂU', CANVAS_W / 2, headingY, headingSize, MAROON, 'middle'));
-
-  /* ── Table ── */
-  const tableY = base + LOGO_AREA + SUB_LINE + HEADING_H;
-  const tableH = TH_H + n * ROW_H_DYN;
-  const bw = 2 * S;
-
-  svg.push(`<rect x="${PAD}" y="${tableY}" width="${TABLE_W}" height="${tableH}" fill="none" stroke="${MAROON}" stroke-width="${bw}"/>`);
-  svg.push(`<rect x="${PAD}" y="${tableY}" width="${TABLE_W}" height="${TH_H}" fill="${MAROON}"/>`);
-
-  const thMidY = tableY + TH_H / 2;
-
-  // Column headers
-  svg.push(textPath(fB, 'EDINEȚ', COL_EDINET_X + COL_TIME_W / 2, thMidY + FS.th * 0.35, FS.th, '#fff', 'middle'));
-  svg.push(textPath(fB, 'BĂLȚI', COL_BALTI_X + COL_TIME_W / 2, thMidY + FS.th * 0.35, FS.th, '#fff', 'middle'));
-  // Chișinău (retur) — two lines, same style as "PLECARE DIN / CHIȘINĂU" in general grafic
-  svg.push(textPath(fB, 'CHIȘINĂU', COL_CHISINAU_X + COL_TIME_W / 2, thMidY - 2 * S, FS.th * 0.82, '#fff', 'middle'));
-  svg.push(textPath(fR, '(retur)', COL_CHISINAU_X + COL_TIME_W / 2, thMidY + FS.th * 0.75, FS.th * 0.7, '#fff', 'middle'));
-  svg.push(textPath(fB, 'NR. ȘOFER', COL_DRV_X + COL_DRIVER_W / 2, thMidY + FS.th * 0.35, FS.th, '#fff', 'middle'));
-
-  /* ── Data rows ── */
-  const bodyY = tableY + TH_H;
-
-  for (let i = 0; i < assigned.length; i++) {
-    const row = assigned[i];
-    const rY = bodyY + i * ROW_H_DYN;
-
-    // Alternating background
-    svg.push(`<rect x="${PAD + bw / 2}" y="${rY}" width="${TABLE_W - bw}" height="${ROW_H_DYN}" fill="${ROW_BG[i % 2]}"/>`);
-
-    // Bottom divider
-    if (i < assigned.length - 1) {
-      svg.push(`<line x1="${PAD}" y1="${rY + ROW_H_DYN}" x2="${PAD + TABLE_W}" y2="${rY + ROW_H_DYN}" stroke="rgba(155,27,48,0.15)" stroke-width="1"/>`);
-    }
-
-    // Column dividers
-    svg.push(`<line x1="${COL_BALTI_X}" y1="${rY}" x2="${COL_BALTI_X}" y2="${rY + ROW_H_DYN}" stroke="rgba(155,27,48,0.1)" stroke-width="1"/>`);
-    svg.push(`<line x1="${COL_CHISINAU_X}" y1="${rY}" x2="${COL_CHISINAU_X}" y2="${rY + ROW_H_DYN}" stroke="rgba(155,27,48,0.1)" stroke-width="1"/>`);
-    svg.push(`<line x1="${COL_DRV_X}" y1="${rY}" x2="${COL_DRV_X}" y2="${rY + ROW_H_DYN}" stroke="rgba(155,27,48,0.1)" stroke-width="1"/>`);
-
-    // Time cells (centered)
-    const timeY = rY + ROW_H_DYN / 2 + fsTime * 0.35;
-    if (row.hour_edinet) {
-      svg.push(textPath(fB, row.hour_edinet, COL_EDINET_X + COL_TIME_W / 2, timeY, fsTime, MAROON_DK, 'middle'));
-    }
-    if (row.hour_balti) {
-      svg.push(textPath(fB, row.hour_balti, COL_BALTI_X + COL_TIME_W / 2, timeY, fsTime, MAROON_DK, 'middle'));
-    }
-    if (row.time_chisinau_retur) {
-      svg.push(textPath(fB, row.time_chisinau_retur, COL_CHISINAU_X + COL_TIME_W / 2, timeY, fsTime, MAROON_DK, 'middle'));
-    }
-
-    // Driver phone + name (same format as general grafic)
-    if (row.driver_phone) {
-      const phoneY = rY + ROW_H_DYN * 0.38;
-      const driverCx = COL_DRV_X + COL_DRIVER_W / 2;
-      svg.push(textPath(fB, row.driver_phone, driverCx, phoneY, fsPhone, MAROON_DK, 'middle'));
-      if (row.driver_name) {
-        const maxNameW = COL_DRIVER_W - 16 * S;
-        svg.push(textPath(fR, truncText(fR, row.driver_name, fsName, maxNameW), driverCx, phoneY + 16 * S * rowScale, fsName, '#555', 'middle'));
-      }
-    }
-  }
-
-  const svgStr = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${CANVAS_W}" height="${CANVAS_H}">
-${svg.join('\n')}
-</svg>`;
-
-  return await sharp(Buffer.from(svgStr)).png().toBuffer();
+  const p = poster({ supratitlu: 'Edineț – Chișinău', titlu: 'Programul zilei', eticheta: ziText(date),
+    subtitlu: 'Plecări din Edineț și din Bălți spre Chișinău, și înapoi din Chișinău. Rezervări la șofer.', format916: true });
+  p.tabel([{ titlu: 'Edineț', latime: 120, aliniere: 'middle' }, { titlu: 'Bălți', latime: 120, aliniere: 'middle' },
+    { titlu: 'Chișinău (retur)', latime: 150, aliniere: 'middle' }, { titlu: 'Contact', latime: 230 }],
+    assigned.map(r => [
+      { text: r.hour_edinet || '—', bold: true, culoare: CULORI.bordo, marime: 15 },
+      { text: r.hour_balti || '—', bold: true, marime: 15 },
+      { text: r.time_chisinau_retur || '—', bold: true, marime: 15 },
+      { text: telefon(r.driver_phone) || '—', bold: true, mic: r.driver_name ?? '' },
+    ]), { gol: 'Nicio cursă în ziua asta.' });
+  p.nota('Mai multe detalii: translux.md');
+  return p.png();
 }

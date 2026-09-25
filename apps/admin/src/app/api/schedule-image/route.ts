@@ -55,6 +55,7 @@ export async function GET(req: NextRequest) {
 
     let rows;
     let filenameSuffix: string;
+    let pagina: { pagina?: number; pagini?: number } = {};
 
     if (merge) {
       // Merge all pages — only assigned routes
@@ -64,9 +65,10 @@ export async function GET(req: NextRequest) {
       const page = pageStr ? Math.max(1, parseInt(pageStr, 10) || 1) : 1;
       rows = data.pages[page - 1] || [];
       filenameSuffix = `-p${page}`;
+      pagina = { pagina: page, pagini: data.pages.length };
     }
 
-    const imageBuffer = await generateScheduleImage(rows, date);
+    const imageBuffer = await generateScheduleImage(rows, date, pagina);
     const filename = `grafic-${d}.${m}.${y}${filenameSuffix}.png`;
 
     return new Response(new Uint8Array(imageBuffer), {

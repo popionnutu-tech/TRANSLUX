@@ -33,7 +33,25 @@ export function rupe(f: opentype.Font, t: string, size: number, max: number): st
   if (cur) out.push(cur); return out;
 }
 
-export function poster(opts: { latime?: number; titlu: string; subtitlu?: string; eticheta?: string; supratitlu?: string }) {
+/** «069123456» / «37369123456» → «+373 69 123 456» (ca pe translux.md, lib/phone.ts din web: Ion, 23.09 —
+ *  numărul MEREU cu +373, ca să sune și de peste hotare). Altceva rămâne cum e. */
+export function telefon(raw: string | null | undefined): string {
+  const d = String(raw ?? '').replace(/\D/g, '');
+  const n = /^373\d{8}$/.test(d) ? d.slice(3) : /^0\d{8}$/.test(d) ? d.slice(1) : /^\d{8}$/.test(d) ? d : null;
+  return n ? `+373 ${n.slice(0, 2)} ${n.slice(2, 5)} ${n.slice(5)}` : String(raw ?? '');
+}
+
+/** Ziua ca pe etichetă: «vineri, 25 septembrie». */
+const LUNI_RO = ['ianuarie', 'februarie', 'martie', 'aprilie', 'mai', 'iunie', 'iulie', 'august', 'septembrie', 'octombrie', 'noiembrie', 'decembrie'];
+const ZILE_RO = ['duminică', 'luni', 'marți', 'miercuri', 'joi', 'vineri', 'sâmbătă'];
+export function ziText(iso: string): string {
+  const d = new Date(`${iso}T12:00:00Z`);
+  return `${ZILE_RO[d.getUTCDay()]}, ${d.getUTCDate()} ${LUNI_RO[d.getUTCMonth()]}`;
+}
+
+export function poster(opts: { latime?: number; titlu: string; subtitlu?: string; eticheta?: string; supratitlu?: string;
+  /** format fix (TikTok / Reels / Stories): înălțime = lățime × 16/9, conținutul centrat între zonele sigure */
+  format916?: boolean }) {
   const { r: fR, b: fB } = fonts();
   const W = (opts.latime ?? 820) * S, PAD = 28 * S, IN = W - 2 * PAD;
   const svg: string[] = [];
@@ -81,32 +99,44 @@ export function poster(opts: { latime?: number; titlu: string; subtitlu?: string
       return api;
     },
     /** tabel într-un card alb, antet deschis, rânduri în zebră; `lat` e în puncte, se scalează la lățimea utilă */
-    tabel(cols: Coloana[], randuri: Celula[][], opt: { gol?: string; mare?: number } = {}) {
-      const tot = cols.reduce((s, c) => s + c.latime, 0), k = IN / tot;
-      // rând cu a doua linie mică (opriri, telefon) dacă vreo celulă are `mic`
+    /** tabel într-un card alb, antet deschis, rânduri în zebră; `latime` e în puncte relative, se scalează.
+     *  `coloane: 2` pune lista în două tabele alăturate (liste lungi: ~65 de șoferi); `compact` = rând scund. */
+    tabel(cols: Coloana[], randuri: Celula[][], opt: { gol?: string; mare?: number; coloane?: 1 | 2; compact?: boolean } = {}) {
+      const n = opt.coloane ?? 1, gap = 12 * S, lat = (IN - gap * (n - 1)) / n;
+      const jum = Math.ceil(randuri.length / n);
+      const bucati = n === 1 ? [randuri] : [randuri.slice(0, jum), randuri.slice(jum)];
       const areMic = randuri.some(r => r.some(c => c.mic));
-      const TH = 34 * S, RH = (areMic ? 42 : 30) * S, fs = (opt.mare ?? 11) * S;
-      const h = TH + Math.max(1, randuri.length) * RH;
-      svg.push(`<rect x="${PAD}" y="${y}" width="${IN}" height="${h}" rx="${12 * S}" fill="${CULORI.card}" stroke="${CULORI.linie}" stroke-width="${S}"/>`);
-      svg.push(`<path d="M${PAD} ${y + 12 * S} a${12 * S} ${12 * S} 0 0 1 ${12 * S} -${12 * S} h${IN - 24 * S} a${12 * S} ${12 * S} 0 0 1 ${12 * S} ${12 * S} v${TH - 12 * S} h-${IN} z" fill="${CULORI.antetTabel}"/>`);
-      const xs: number[] = []; let cx = PAD; for (const c of cols) { xs.push(cx); cx += c.latime * k; }
-      const tx = (i: number, a: Aliniere) => a === 'end' ? xs[i] + cols[i].latime * k - 18 * S : a === 'middle' ? xs[i] + cols[i].latime * k / 2 : xs[i] + 10 * S;
-      cols.forEach((c, i) => svg.push(textPath(fB, truncText(fB, c.titlu, 9.5 * S, c.latime * k - 14 * S), tx(i, c.aliniere ?? 'start'), y + TH / 2 + 4 * S, 9.5 * S, CULORI.bordoInchis, c.aliniere ?? 'start')));
-      if (!randuri.length && opt.gol) svg.push(textPath(fR, opt.gol, PAD + 14 * S, y + TH + RH / 2 + 4 * S, fs, CULORI.verde, 'start'));
-      randuri.forEach((r, j) => {
-        const ry = y + TH + j * RH;
-        if (j % 2 === 1) svg.push(`<rect x="${PAD + S}" y="${ry}" width="${IN - 2 * S}" height="${RH}" fill="${CULORI.zebra}"/>`);
-        if (j > 0) svg.push(`<rect x="${PAD + 10 * S}" y="${ry}" width="${IN - 20 * S}" height="${S / 2}" fill="${CULORI.linie}"/>`);
-        r.forEach((c, i) => {
-          const a = cols[i].aliniere ?? 'start', f = c.bold ? fB : fR, max = cols[i].latime * k - 16 * S;
-          const t = truncText(f, c.text, fs, max);
-          if (c.fundal) { const w = textW(f, t, fs) + 14 * S, x = a === 'end' ? tx(i, a) - w + 7 * S : a === 'middle' ? tx(i, a) - w / 2 : tx(i, a) - 7 * S;
-            svg.push(`<rect x="${x}" y="${ry + 5 * S}" width="${w}" height="${RH - 10 * S}" rx="${(RH - 10 * S) / 2}" fill="${c.fundal}"/>`); }
-          const fsC = c.marime ? c.marime * S : fs;
-          const yT = c.mic ? ry + RH / 2 - 1 * S : ry + RH / 2 + 4 * S;
-          svg.push(textPath(f, esc(c.marime ? truncText(f, c.text, fsC, max) : t), tx(i, a), yT, fsC, c.culoare ?? CULORI.text, a));
-          if (c.mic) svg.push(textPath(fR, esc(truncText(fR, c.mic, 9 * S, max)), tx(i, a), ry + RH / 2 + 13 * S, 9 * S, CULORI.gri, a));
+      const TH = 34 * S, RH = (areMic ? 42 : opt.compact ? 24 : 30) * S, fs = (opt.mare ?? (opt.compact ? 10.5 : 11)) * S;
+      const h = TH + Math.max(1, jum) * RH;
+      bucati.forEach((rows, bi) => {
+        const X = PAD + bi * (lat + gap);
+        const tot = cols.reduce((s, c) => s + c.latime, 0), k = lat / tot;
+        svg.push(`<rect x="${X}" y="${y}" width="${lat}" height="${h}" rx="${12 * S}" fill="${CULORI.card}"/>`);
+        svg.push(`<path d="M${X} ${y + 12 * S} a${12 * S} ${12 * S} 0 0 1 ${12 * S} -${12 * S} h${lat - 24 * S} a${12 * S} ${12 * S} 0 0 1 ${12 * S} ${12 * S} v${TH - 12 * S} h-${lat} z" fill="${CULORI.antetTabel}"/>`);
+        const xs: number[] = []; let cx = X; for (const c of cols) { xs.push(cx); cx += c.latime * k; }
+        const tx = (i: number, a: Aliniere) => a === 'end' ? xs[i] + cols[i].latime * k - 16 * S : a === 'middle' ? xs[i] + cols[i].latime * k / 2 : xs[i] + 10 * S;
+        cols.forEach((c, i) => c.titlu && svg.push(textPath(fB, truncText(fB, c.titlu, 9.5 * S, c.latime * k - 12 * S), tx(i, c.aliniere ?? 'start'), y + TH / 2 + 4 * S, 9.5 * S, CULORI.bordoInchis, c.aliniere ?? 'start')));
+        if (!rows.length && opt.gol && bi === 0) svg.push(textPath(fR, opt.gol, X + 14 * S, y + TH + RH / 2 + 4 * S, fs, CULORI.verde, 'start'));
+        rows.forEach((r, j) => {
+          const ry = y + TH + j * RH;
+          // ultimul rând în zebră își rotunjește colțurile de jos, ca să nu iasă din card
+          if (j % 2 === 1) svg.push(j === rows.length - 1 && rows.length === jum
+            ? `<path d="M${X + S} ${ry} h${lat - 2 * S} v${RH - 12 * S} a${11 * S} ${11 * S} 0 0 1 -${11 * S} ${11 * S} h-${lat - 24 * S} a${11 * S} ${11 * S} 0 0 1 -${11 * S} -${11 * S} z" fill="${CULORI.zebra}"/>`
+            : `<rect x="${X + S}" y="${ry}" width="${lat - 2 * S}" height="${RH}" fill="${CULORI.zebra}"/>`);
+          if (j > 0) svg.push(`<rect x="${X + 10 * S}" y="${ry}" width="${lat - 20 * S}" height="${S / 2}" fill="${CULORI.linie}"/>`);
+          r.forEach((c, i) => {
+            const a = cols[i].aliniere ?? 'start', f = c.bold ? fB : fR, max = cols[i].latime * k - 14 * S;
+            const fsC = c.marime ? c.marime * S : fs;
+            const t = truncText(f, c.text, fsC, max);
+            if (c.fundal) { const w = textW(f, t, fsC) + 14 * S, x = a === 'end' ? tx(i, a) - w + 7 * S : a === 'middle' ? tx(i, a) - w / 2 : tx(i, a) - 7 * S;
+              const ph = Math.min(RH - 8 * S, fsC + 12 * S), py = (c.mic ? ry + RH / 2 - 1 * S : ry + RH / 2 + fsC * 0.36) - fsC * 0.36 - ph / 2;
+              svg.push(`<rect x="${x}" y="${py}" width="${w}" height="${ph}" rx="${ph / 2}" fill="${c.fundal}"/>`); }
+            const yT = c.mic ? ry + RH / 2 - 1 * S : ry + RH / 2 + fsC * 0.36;
+            svg.push(textPath(f, esc(t), tx(i, a), yT, fsC, c.culoare ?? CULORI.text, a));
+            if (c.mic) svg.push(textPath(fR, esc(truncText(fR, c.mic, 9 * S, max)), tx(i, a), ry + RH / 2 + 13 * S, 9 * S, CULORI.gri, a));
+          });
         });
+        svg.push(`<rect x="${X}" y="${y}" width="${lat}" height="${h}" rx="${12 * S}" fill="none" stroke="${CULORI.linie}" stroke-width="${S}"/>`);
       });
       y += h + 16 * S;
       return api;
@@ -119,8 +149,12 @@ export function poster(opts: { latime?: number; titlu: string; subtitlu?: string
     },
     nota(text: string) { for (const l of rupe(fR, text, 9.5 * S, IN)) { svg.push(textPath(fR, l, PAD, y, 9.5 * S, CULORI.gri, 'start')); y += 14 * S; } y += 4 * S; return api; },
     async png(): Promise<Buffer> {
-      const H = y + PAD - 10 * S;
-      const s = `<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}" height="${H}"><rect width="${W}" height="${H}" fill="${CULORI.fundal}"/>${svg.join('')}</svg>`;
+      const Hc = y + PAD - 10 * S;
+      // 9:16: bara de sus și butoanele de jos ale TikTok acoperă ~120 / 160 pt — conținutul stă între ele
+      const H = opts.format916 ? Math.round(W * 16 / 9) : Hc;
+      const sus = 120 * S * (W / (820 * S)), jos = 160 * S * (W / (820 * S));
+      const dy = opts.format916 ? Math.max(sus, sus + (H - sus - jos - Hc) / 2) : 0;
+      const s = `<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}" height="${H}"><rect width="${W}" height="${H}" fill="${CULORI.fundal}"/><g transform="translate(0 ${dy})">${svg.join('')}</g></svg>`;
       return sharp(Buffer.from(s)).png().toBuffer();
     },
   };

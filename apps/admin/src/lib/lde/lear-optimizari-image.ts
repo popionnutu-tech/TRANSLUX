@@ -77,3 +77,30 @@ export async function generateOptimizariImage(raport: Pick<Raport, 'saptamina' |
   p.nota('Verde încercuit = regula care taie cei mai mulți km la mașina aceea. «+» = cu regula aceea mașina ar merge mai mult. Regulile nu se adună. Km din urma GPS, fără drumurile la reparație.');
   return p.png();
 }
+
+// ─── trimiterea în Mejgorod ──────────────────────────────────────────────────
+// Luni, după raportul săptămânal (lear-saptamanal.sh cheamă /api/cron/lde-timp-liber, care cheamă
+// asta). O dată pe săptămână: `app_config.lear_poster_last` ține ultima săptămână trimisă.
+import { getSupabase } from '../supabase';
+import { sendTelegramPhoto } from '../telegram-notify';
+import { DRIVERS_GROUP_CONFIG_KEY } from '@translux/db';
+
+export const LEAR_POSTER_LAST_KEY = 'lear_poster_last';
+
+export async function trimitePosterLear(raport: Pick<Raport, 'saptamina' | 'pana_la' | 'masini'>, opts: { force?: boolean; dry?: boolean } = {}):
+  Promise<{ trimis: boolean; motiv?: string }> {
+  const sb = getSupabase();
+  const { data: last } = await sb.from('app_config').select('value').eq('key', LEAR_POSTER_LAST_KEY).maybeSingle();
+  if (!opts.force && last?.value === raport.saptamina) return { trimis: false, motiv: 'deja trimis pentru săptămâna asta' };
+  if (!randuriOptimizare(raport.masini).length) return { trimis: false, motiv: 'nicio optimizare de arătat' };
+  const { data: g } = await sb.from('app_config').select('value').eq('key', DRIVERS_GROUP_CONFIG_KEY).maybeSingle();
+  const chat = (g?.value ?? '').trim();
+  if (!chat) return { trimis: false, motiv: 'grupa Mejgorod nu e legată (app_config)' };
+  if (opts.dry) return { trimis: false, motiv: 'dry' };
+  const png = await generateOptimizariImage(raport);
+  const caption = `LEAR Ungheni · cât se putea economisi · ${perioadaText(raport.saptamina, raport.pana_la)}`;
+  const r = await sendTelegramPhoto(chat, png, caption, `lear-optimizari-${raport.saptamina}.png`);
+  if (!r.ok) return { trimis: false, motiv: 'Telegram n-a primit imaginea' };
+  await sb.from('app_config').upsert({ key: LEAR_POSTER_LAST_KEY, value: raport.saptamina }, { onConflict: 'key' });
+  return { trimis: true };
+}

@@ -4,6 +4,7 @@ import { getSupabase } from '@/lib/supabase';
 import { alertAdmins } from '@/lib/telegram-notify';
 import { chisinauTodayIso } from '@/lib/chisinau-time';
 import { textTimpLiber, textRaportLipsa } from '@/lib/lde/timp-liber';
+import { trimitePosterLear } from '@/lib/lde/lear-optimizari-image';
 import type { MasinaRand, Raport } from '@/app/(dashboard)/lde/reguli/actions';
 
 // Mesajul de luni către ADMIN: mașinile LEAR care s-au mișcat peste prag în timpul liber (ION-57).
@@ -63,13 +64,17 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ saptamina, raport: false, trimis, dry, text: dry ? text : undefined }, { status: dry ? 200 : 502 });
     }
     const row = data as Rand;
+    // Posterul «cât se putea economisi» pleacă în grupa Mejgorod, o dată pe săptămână (Ion, 25.09);
+    // independent de mesajul către ADMIN de mai jos.
+    const poster = await trimitePosterLear({ saptamina: row.saptamina, pana_la: row.date.pana_la, masini: row.date.masini ?? [] },
+      { dry, force: url.searchParams.get('poster') === 'force' }).catch((e) => ({ trimis: false, motiv: String(e) }));
     const TL = row.date?.timp_liber ?? null;
     const masini = (row.date?.masini ?? []) as Pick<MasinaRand, 'masina' | 'liber'>[];
     const text = TL ? textTimpLiber(row.saptamina, row.date.pana_la, masini, TL.prag_km, BASE) : null;
     const eligibil = !row.alerta_trimisa_la || row.alerta_trimisa_la < row.rulat_la;
-    if (dry) return NextResponse.json({ saptamina, raport: true, detector: !!TL, eligibil, trimis: false, dry, text: text ?? '(nimic peste prag — tăcere)' });
-    if (!text) return NextResponse.json({ saptamina, raport: true, detector: !!TL, trimis: false, motiv: TL ? 'nimic peste prag' : 'raport fără detector' });
-    if (!eligibil && !force) return NextResponse.json({ saptamina, raport: true, trimis: false, deja_trimis: true, alerta_trimisa_la: row.alerta_trimisa_la });
+    if (dry) return NextResponse.json({ saptamina, raport: true, detector: !!TL, eligibil, trimis: false, dry, text: text ?? '(nimic peste prag — tăcere)', poster });
+    if (!text) return NextResponse.json({ saptamina, raport: true, detector: !!TL, trimis: false, motiv: TL ? 'nimic peste prag' : 'raport fără detector', poster });
+    if (!eligibil && !force) return NextResponse.json({ saptamina, raport: true, trimis: false, deja_trimis: true, alerta_trimisa_la: row.alerta_trimisa_la, poster });
 
     // revendicarea: un singur UPDATE, cu versiunea citită; zero rânduri = altcineva a luat-o
     const acum = new Date().toISOString();
@@ -93,7 +98,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ saptamina, raport: true, trimis: false, motiv: 'alertAdmins a întors false' }, { status: 502 });
     }
     if (force) await sb.from('lde_analiza_reguli').update({ alerta_trimisa_la: acum }).eq('id', row.id);
-    return NextResponse.json({ saptamina, raport: true, trimis: true, masini: TL?.masini_peste_prag ?? [] });
+    return NextResponse.json({ saptamina, raport: true, trimis: true, masini: TL?.masini_peste_prag ?? [], poster });
   } catch (e) {
     console.error('[timp-liber]', e);
     return NextResponse.json({ error: 'Mesajul a eșuat' }, { status: 500 });

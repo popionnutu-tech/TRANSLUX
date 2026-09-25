@@ -77,6 +77,41 @@ export async function generateSebnOptimizariImage(o: {
   ]), { gol: `Nicio mașină cu peste ${prag} km livrare pe zi în săptămâna asta.` });
   p.total(`La aceste ${aratate.length} mașini: −${nr(tLiv)} km pe săptămână`, `≈ −${nr(tLiv * 52 / 12)} km pe lună`);
   if (restul.length) p.nota(`Pe poster doar mașinile cu peste ${prag} km livrare pe zi. Celelalte ${restul.length} mai au împreună −${nr(tRest)} km livrare pe săptămână (sub ${prag} km/zi fiecare).`);
+
+  // Ion, 25.09: «șoferii brambura trebuie să apară în raport și cu întrebare către Alexei unde ei au umblat».
+  // Aici — și numai aici — posterul numește oamenii: fiecare ieșire brambura, cu șoferul, ora, drumul și km,
+  // iar ultima coloană e întrebarea pentru Alexei (dispecerul uzinelor, alexei@translux.md).
+  const ZI = ['dum', 'lun', 'mar', 'mie', 'joi', 'vin', 'sâm'];
+  const sofer = new Map(o.livrare.map((r) => [placa(r.masina), r.sofer]));
+  const tipDupa = new Map(o.livrare.map((r) => [placa(r.masina), r.masina]));
+  const bramb = (o.liber ?? []).flatMap((m) => m.liber.iesiri
+    .filter((x) => x.eticheta === 'brambura' && (x.km_brambura ?? 0) >= 5)
+    .map((x) => ({ ...x, masina: m.masina })))
+    .sort((a, b) => a.zi.localeCompare(b.zi) || a.de_la.localeCompare(b.de_la));
+  if (bramb.length) {
+    p.total(`Brambura — Alexei, unde au fost?`, `${bramb.length} ${bramb.length === 1 ? 'ieșire' : 'ieșiri'} · ${nr(tBr)} km`);
+    p.tabel([
+      { titlu: 'Ziua', latime: 70 }, { titlu: 'Mașina', latime: 140 }, { titlu: 'Șoferul', latime: 150 },
+      { titlu: 'Pe unde a mers', latime: 330 }, { titlu: 'Km', latime: 56, aliniere: 'end' }, { titlu: 'Unde a fost? (Alexei)', latime: 158 },
+    ], bramb.map((x) => {
+      const d = new Date(`${x.zi}T12:00:00Z`);
+      // opririle din același sat se adună; fontul posterului n-are «→», deci drumul se scrie cu «–»
+      const peSat = new Map<string, number>();
+      for (const q of x.opriri) if (q.loc && q.loc !== x.pana_unde) peSat.set(q.loc, (peSat.get(q.loc) ?? 0) + q.min);
+      const opriri = [...peSat].map(([l, mn]) => `${l} ${mn}′`).join(', ');
+      const pasi = [x.de_unde === 'acasă' ? 'acasă' : (x.de_unde ?? '?'), x.cel_mai_departe ?? x.loc_principal ?? '?', x.pana_unde ?? '?']
+        .filter((s, i, a) => i === 0 || s !== a[i - 1]);
+      const drum = pasi[0] === 'acasă' ? `de acasă – ${pasi.slice(1).join(' – ')}` : `de la ${pasi.join(' – ')}`;
+      return [
+        { text: `${ZI[d.getUTCDay()]} ${String(d.getUTCDate()).padStart(2, '0')}.${String(d.getUTCMonth() + 1).padStart(2, '0')}`, bold: true },
+        { text: (tipDupa.get(x.masina) ?? x.masina).replace('Sprinter ', 'Spr '), bold: true },
+        { text: sofer.get(x.masina) ?? '—' },
+        { text: `${x.de_la}–${x.pana_la} · ${drum}`, mic: opriri ? `opriri: ${opriri}` : 'pe un drum pe care n-a mers în altă zi' },
+        { text: nr(x.km_brambura ?? 0), bold: true, culoare: CULORI.rosu },
+        { text: '?', culoare: CULORI.bordo, bold: true },
+      ] as Celula[];
+    }));
+  }
   p.nota('Verde încercuit = peste 50 km livrare pe zi — acolo un șofer din satul de start schimbă cel mai mult. Livrarea se socotește luni–vineri, din cursele scrise în fiecare noapte; fără drumurile la reparație și fără brambura.');
   p.nota('Km liberi și brambura, pe toată săptămâna, după regula §11 (ca la LEAR); roșu = peste 50 km. O cursă care merge pe ruta mașinii fără să atingă poarta e muncă, nu liber.');
   return p.png();

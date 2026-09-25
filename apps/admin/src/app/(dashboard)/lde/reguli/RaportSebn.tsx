@@ -128,6 +128,32 @@ export default function RaportSebn({ s }: { s: SaptSebn }) {
         <b> Brambura</b> = km pe un drum pe care mașina n-a mers în nicio altă zi a săptămânii, în cursele lanțului care nu ating poarta.
         <b> Timp liber</b> = cursă fără nicio legătură cu poarta, care nu e reparație (Bălți), altă uzină sau navetă. Steag la 50 km pe săptămână, separat.
       </p>
+      {s.liber && (() => {
+        // Ion, 25.09: «șoferii brambura trebuie să apară în raport și cu întrebare către Alexei unde ei au umblat»
+        const sofer = new Map(s.rows.map((r) => [r.masina.split(' · ')[0], r.sofer]));
+        const br = s.liber.masini.flatMap((m) => m.liber.iesiri.filter((x) => x.eticheta === 'brambura' && (x.km_brambura ?? 0) >= 5)
+          .map((x) => ({ ...x, masina: m.masina }))).sort((a, b) => a.zi.localeCompare(b.zi) || a.de_la.localeCompare(b.de_la));
+        if (!br.length) return null;
+        return (
+          <div className="mt-3! rounded-lg border border-[#8f1d2c]/30 px-4! py-3!">
+            <h3 className={`text-[14px] font-semibold ${ROSU}`}>Brambura — Alexei, unde au fost?</h3>
+            <ul className="mt-1.5! flex flex-col gap-1.5 text-[13px]">
+              {br.map((x, i) => {
+                const zi = new Date(`${x.zi}T12:00:00Z`);
+                const ziText = `${['duminică', 'luni', 'marți', 'miercuri', 'joi', 'vineri', 'sâmbătă'][zi.getUTCDay()]} ${zi.getUTCDate()}.${String(zi.getUTCMonth() + 1).padStart(2, '0')}`;
+                const opriri = x.opriri.filter((o) => o.loc && o.loc !== x.pana_unde).map((o) => `${o.loc} ${o.min}′`).join(', ');
+                return (
+                  <li key={i}>
+                    <b>{ziText}</b> · <b>{x.masina}</b> · {sofer.get(x.masina) ?? 'șofer necunoscut'} · {x.de_la}–{x.pana_la} ·{' '}
+                    {x.de_unde === 'acasă' ? 'de acasă' : `de la ${x.de_unde ?? '?'}`} → {x.cel_mai_departe ?? '?'} → {x.pana_unde ?? '?'}
+                    {opriri ? ` (opriri: ${opriri})` : ''} · <b className={ROSU}>{n1(x.km_brambura ?? 0)} km</b>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        );
+      })()}
       {!s.liber ? (
         <p className="mt-2! text-[13px] text-neutral-500">Săptămâna asta n-a fost încă analizată (sebn-liber.mjs rulează lunea la 08:00).</p>
       ) : (() => {

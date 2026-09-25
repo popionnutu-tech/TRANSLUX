@@ -20,7 +20,9 @@ const S = 2;   // totul se desenează la 2×, pentru telefoane
 
 export type Aliniere = 'start' | 'end' | 'middle';
 export interface Coloana { titlu: string; latime: number; aliniere?: Aliniere }
-export interface Celula { text: string; culoare?: string; bold?: boolean; fundal?: string; mic?: string; marime?: number }
+export interface Celula { text: string; culoare?: string; bold?: boolean; fundal?: string; mic?: string; marime?: number;
+  /** rândul mic de sub text: implicit 9 pt, gri */
+  micMarime?: number; micCuloare?: string }
 export interface Card { eticheta: string; titlu: string; text: string; valoare?: string; subValoare?: string }
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -133,7 +135,8 @@ export function poster(opts: { latime?: number; titlu: string; subtitlu?: string
               svg.push(`<rect x="${x}" y="${py}" width="${w}" height="${ph}" rx="${ph / 2}" fill="${c.fundal}"/>`); }
             const yT = c.mic ? ry + RH / 2 - 1 * S : ry + RH / 2 + fsC * 0.36;
             svg.push(textPath(f, esc(t), tx(i, a), yT, fsC, c.culoare ?? CULORI.text, a));
-            if (c.mic) svg.push(textPath(fR, esc(truncText(fR, c.mic, 9 * S, max)), tx(i, a), ry + RH / 2 + 13 * S, 9 * S, CULORI.gri, a));
+            if (c.mic) { const mS = (c.micMarime ?? 9) * S;
+              svg.push(textPath(fR, esc(truncText(fR, c.mic, mS, max)), tx(i, a), ry + RH / 2 + 13 * S + (mS - 9 * S) * 0.5, mS, c.micCuloare ?? CULORI.gri, a)); }
           });
         });
         svg.push(`<rect x="${X}" y="${y}" width="${lat}" height="${h}" rx="${12 * S}" fill="none" stroke="${CULORI.linie}" stroke-width="${S}"/>`);

@@ -123,12 +123,14 @@ export async function generateScheduleImage(
   if (opts.forDrivers) {
     const p = poster({ supratitlu: 'Grafic Mejgorod', titlu: 'Plecările din nord', eticheta: ziText(date),
       subtitlu: `${assigned.length} ${assigned.length === 1 ? 'cursă' : 'curse'} cu șofer. Cursele anulate nu apar.` });
-    p.tabel([{ titlu: 'Ora', latime: 70 }, { titlu: 'Ruta', latime: 250 }, { titlu: 'Mașina', latime: 150 }, { titlu: 'Șoferul', latime: 240 }],
+    // Ion, 25.09: «nu se vede bine datele în spația nume șofer» — numele bold și mare, telefonul negru, coloana mai lată.
+    p.tabel([{ titlu: 'Ora', latime: 66 }, { titlu: 'Ruta', latime: 230 }, { titlu: 'Mașina', latime: 124 }, { titlu: 'Șoferul', latime: 290 }],
       assigned.map(r => [
         { text: r.time_nord, bold: true, culoare: CULORI.bordo, marime: 14 },
         { text: ruta(r.dest_to), bold: true },
         { text: r.vehicle_plate?.trim() || '—', bold: true, marime: 15 },
-        { text: r.driver_full_name || r.driver_name || '—', mic: telefon(r.driver_phone) },
+        { text: r.driver_full_name || r.driver_name || '—', bold: true, marime: 13.5,
+          mic: telefon(r.driver_phone), micMarime: 11.5, micCuloare: CULORI.text },
       ]), { gol: 'Nicio cursă cu șofer în ziua asta.' });
     return p.png();
   }

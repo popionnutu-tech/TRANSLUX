@@ -24,6 +24,9 @@ type Ruta = {
   id: number; nume: string; timeNord: string; timeChisinau: string;
   capNord: string; capSud: string; km: number; ajuns: boolean; tronsoane: number; kmTur: number; kmRetur: number;
   stops: Oprire[]; shape: Punct[]; real: { tur: Real; retur: Real }; neatinse: string[]; sarite: string[];
+  // Optimizări simple (Ion, 25.09): unde doarme mașina, de unde pornește turul, km goi dimineața, bucata de rută
+  // nelivrată dimineața și seara; câștigul = goii de dimineață, dacă mașina ar pleca de la capătul rutei.
+  optim: { casa: string; casaKm: number; start: string; startKm: number; goiDim: number; nelivratDim: number; nelivratSeara: number; castig: number; kmAzi: number | null; kmLaCapat: number } | null;
   site: { tarif: string | null; ramura: string | null; kmTarif: number | null; opririPeste2: number | null; lipsa: string[] } | null;
 };
 export type ScheletMejgorod = {
@@ -60,6 +63,7 @@ export default function ScheletMejgorodClient({ schelet }: { schelet: ScheletMej
   const cul = (r: Ruta) => culoarea(indice.get(String(r.id)) ?? 0);
   const kmZi = schelet.rute.reduce((s, r) => s + 2 * r.km, 0);
   const kmReal = schelet.rute.reduce((s, r) => s + (r.real.tur?.km ?? 0) + (r.real.retur?.km ?? 0), 0);
+  const goiZi = schelet.rute.reduce((s, r) => s + (r.optim?.goiDim ?? 0), 0);
 
   // Pe hartă: linia rutei (o singură linie, tur = retur); ca puncte, capătul de nord și gările.
   const urme: UrmaRuta[] = useMemo(() => schelet.rute.map((r) => ({
@@ -157,6 +161,7 @@ export default function ScheletMejgorodClient({ schelet }: { schelet: ScheletMej
             ['rute', String(schelet.rute.length)],
             ['km schelet', `${Math.round(kmZi).toLocaleString('ro-RO')}/zi`],
             ['km real', `${Math.round(kmReal).toLocaleString('ro-RO')}/zi`],
+            ['goi dimineața', `${Math.round(goiZi)}/zi`],
             ['curse cu urmă', `${schelet.curse.toLocaleString('ro-RO')}`],
             ['fixat', schelet.fixat],
           ].map(([e, v]) => (
@@ -217,6 +222,25 @@ export default function ScheletMejgorodClient({ schelet }: { schelet: ScheletMej
               <tbody>{realRand(ruta, 'tur')}{realRand(ruta, 'retur')}</tbody>
             </table>
 
+            {ruta.optim && (
+              <div style={{ border: '1px solid var(--border-accent)', borderRadius: 8, padding: '8px 10px', marginBottom: 12, background: 'var(--bg-elevated)' }}>
+                <div style={{ ...ETICHETA, marginBottom: 4 }}>optimizări simple</div>
+                <div style={{ fontSize: 11.5, lineHeight: 1.5 }}>
+                  Doarme la <b>{ruta.optim.casa}</b> (km {nr1(ruta.optim.casaKm)} de la nord), turul pornește din <b>{ruta.optim.start}</b> (km {nr1(ruta.optim.startKm)}).
+                  {ruta.optim.goiDim > 0
+                    ? <> Dimineața merge gol <b style={{ color: '#B06A1F' }}>{nr1(ruta.optim.goiDim)} km</b> de acasă la start.</>
+                    : <> Dimineața nu merge gol.</>}
+                  {ruta.optim.nelivratDim > 0 && <> Bucata {ruta.capNord} → {ruta.optim.start} ({nr1(ruta.optim.nelivratDim)} km) nu se face dimineața cu oameni.</>}
+                  {ruta.optim.nelivratSeara > 0 && <> Seara returul se oprește la {ruta.optim.casa}: {nr1(ruta.optim.nelivratSeara)} km până la {ruta.capNord} rămân nefăcuți.</>}
+                </div>
+                <div style={{ fontSize: 11.5, marginTop: 5, lineHeight: 1.5 }}>
+                  Dacă ar pleca de la capătul rutei ({ruta.capNord}): <b style={{ color: ruta.optim.castig > 0 ? 'var(--success)' : 'var(--text-secondary)' }}>−{nr1(ruta.optim.castig)} km goi pe zi</b>
+                  {ruta.optim.kmAzi != null && <span style={{ color: 'var(--text-secondary)' }}> · km pe zi {nr1(ruta.optim.kmAzi)} azi → {nr1(ruta.optim.kmLaCapat)} cu tot drumul cu oameni</span>}.
+                  <span style={{ color: 'var(--text-secondary)' }}> Livrarea de dimineață nu intră în câștig.</span>
+                </div>
+              </div>
+            )}
+
             <div style={{ ...ETICHETA, marginBottom: 4 }}>opririle · km de la nord · tur și retur: grafic, real, abatere, atinsă</div>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11.5 }}>
               <thead>
@@ -260,6 +284,9 @@ export default function ScheletMejgorodClient({ schelet }: { schelet: ScheletMej
         «Real» = capetele unde mașina chiar pornește și ajunge în majoritatea zilelor, km-ul median al zilelor întregi; ALTFEL = alte capete decât scheletul.
         Ora reală și abaterea față de grafic vin din zilele întregi ale rutei; «%» = în câte zile trece la ≤1 km / ≤3 km de oprire; roșu = oprirea e dincolo de capătul real.
         ▣ = gară, peronul exact. Tariful de la bilete nu se schimbă (Ion, 25.09).
+        Optimizări simple: casa mașinii e unde se termină returul; km goi dimineața = de acasă până unde pornește turul, pe schelet. Dacă mașina ar pleca de la
+        capătul rutei, goii de dimineață dispar, iar returul merge până la capăt cu oameni, cu aproape aceiași km pe zi. Livrarea de dimineață (bucata de rută
+        pe care turul n-o face) e arătată, dar nu intră în câștig.
       </p>
     </div>
   );

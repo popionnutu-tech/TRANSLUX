@@ -168,19 +168,19 @@ export async function generateScheduleEdinetImage(
   rows: GraficEdinetRow[],
   date: string,
 ): Promise<Buffer> {
-  // Format 9:16 (Reels / Stories) pe foaia îngustă, ca pe telefon să nu se micșoreze: logoul pe toată lățimea,
-  // orele și telefoanele mari (Ion, 25.09: «încă mai mare, în special partea de sus TRANSLUX», ION-72).
+  // Format 9:16 (Reels / Stories) pe foaia îngustă, ca pe telefon să nu se micșoreze, pe carduri ca
+  // interurbanele (Ion, 25.09: «aplică aceste și la Edineț», ION-72): ora din Edineț mare, alături Bălți,
+  // sub ea ora de plecare din Chișinău, jos telefonul cu prenumele.
   const assigned = rows.filter(r => r.driver_id);
   const p = poster({ latime: 540, antetMare: true, format916: true, supratitlu: 'Edineț – Chișinău',
     titlu: 'Programul zilei', eticheta: ziText(date) });
-  p.tabel([{ titlu: 'Edineț', latime: 92, aliniere: 'middle' }, { titlu: 'Bălți', latime: 88, aliniere: 'middle' },
-    { titlu: 'Chișinău (retur)', latime: 112, aliniere: 'middle' }, { titlu: 'Contact', latime: 192 }],
-    assigned.map(r => [
-      { text: r.hour_edinet || '—', bold: true, culoare: CULORI.bordo, marime: 25 },
-      { text: r.hour_balti || '—', bold: true, marime: 23 },
-      { text: r.time_chisinau_retur || '—', bold: true, marime: 23 },
-      { text: telefon(r.driver_phone) || '—', bold: true, marime: 19, mic: r.driver_name ?? '', micMarime: 13.5 },
-    ]), { gol: 'Nicio cursă în ziua asta.', rand: 47 });
-  p.nota('Rezervări la șofer · translux.md');
+  p.bilete(assigned.map(r => ({
+    ora: r.hour_edinet || '—',
+    ruta: r.hour_balti ? `Bălți ${r.hour_balti}` : 'Edineț',
+    sub: r.time_chisinau_retur ? `Din Chișinău ${r.time_chisinau_retur}` : undefined,
+    telefon: telefon(r.driver_phone) || '—',
+    nume: r.driver_name ?? undefined,
+  })), { gol: 'Nicio cursă în ziua asta.' });
+  p.nota('Din Edineț prin Bălți spre Chișinău · rezervări la șofer · translux.md');
   return p.png();
 }

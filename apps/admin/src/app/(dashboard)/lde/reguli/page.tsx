@@ -7,6 +7,7 @@ import { getRaport, getSaptamani } from './actions';
 import ReguliClient from './ReguliClient';
 import ReguliSebnClient, { type ReguliSebn } from './ReguliSebnClient';
 import RaportSebn, { eticheta, type SaptSebn } from './RaportSebn';
+import RaportMejgorod, { type RaportMejgorodDate } from './RaportMejgorod';
 import { incarcaLivrare, UZINE_IMPLICITE } from '@/lib/lde/livrare-poster';
 import { LEI_PE_KM } from '@/lib/lde/naveta-image';
 
@@ -34,6 +35,9 @@ const UZINE = [
   // Ion, 25.09.2026 (ION-59): «aplică regulile … de la LEAR și aici» — același raport, scris de
   // lear-analiza.mjs --uzina LEAR_FLORESTI, un rând pe săptămână cu uzina 'LEAR Florești'.
   { id: 'floresti', nume: 'LEAR Florești', href: '/lde/reguli?uz=floresti' },
+  // Ion, 25.09.2026 (ION-65): «introdu raportul optimizări livrări săptămânal la interurbane aici» —
+  // analiza scrisă luni de VPS (mejgorod/cod/saptamanal.sh), un rând pe săptămână cu uzina 'MEJGOROD'.
+  { id: 'mejgorod', nume: 'Rute interurbane', href: '/lde/reguli?uz=mejgorod' },
 ] as const;
 
 export default async function LdeReguliPage({
@@ -42,7 +46,7 @@ export default async function LdeReguliPage({
   searchParams: Promise<{ saptamina?: string; uz?: string }>;
 }) {
   const { saptamina, uz } = await searchParams;
-  const alese = uz === 'sebn' ? 'sebn' : uz === 'floresti' ? 'floresti' : 'lear';
+  const alese = uz === 'sebn' || uz === 'floresti' || uz === 'mejgorod' ? uz : 'lear';
 
   const nav = (
     <nav aria-label="Uzina" className="flex gap-1.5 px-4! pt-3!">
@@ -86,6 +90,14 @@ export default async function LdeReguliPage({
         <ReguliSebnClient date={date} />
       </div>
     );
+  }
+
+  if (alese === 'mejgorod') {
+    const [raport, saptamani] = await Promise.all([
+      getRaport('MEJGOROD', saptamina),
+      getSaptamani('MEJGOROD'),
+    ]);
+    return <>{nav}<RaportMejgorod a={raport as unknown as RaportMejgorodDate | null} saptamani={saptamani} /></>;
   }
 
   const uzina = alese === 'floresti' ? 'LEAR Florești' : 'LEAR Ungheni';

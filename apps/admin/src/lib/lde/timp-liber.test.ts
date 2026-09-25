@@ -15,7 +15,7 @@ describe('textTimpLiber', () => {
   it('o mașină peste prag: km, zile, ieșiri, locul repetat, link din saptamina', () => {
     const t = textTimpLiber('2026-09-14', '2026-09-20', [{ masina: '456BRAX', liber: L(87.1) }], 50, 'https://central-hub-md.vercel.app')!;
     expect(t).toContain('14–20 septembrie');
-    expect(t).toContain('<b>456BRAX</b> — 87,1 km în 2 zile, 2 ieșiri, 2 în același loc în zile diferite');
+    expect(t).toContain('<b>456BRAX</b> — 87,1 km liber în 2 zile, 2 ieșiri, 2 în același loc în zile diferite');
     expect(t).toContain('href="https://central-hub-md.vercel.app/lde/reguli?saptamina=2026-09-14"');
     expect(t).not.toMatch(/Fălești/);   // opririle și locurile NU pleacă pe Telegram
   });

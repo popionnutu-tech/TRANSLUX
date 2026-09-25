@@ -71,7 +71,7 @@ test('timp liber: casă → Fălești 40′ → casă, marți seara, fără poar
 });
 
 test('parc: casă → Bălți 3 h în parc → casă → reparație pe ambele drumuri', () => {
-  const r = et(urma(drum(TODIRESTI, PARC, T('2026-09-15', '07:00'), 90), stai(PARC, T('2026-09-15', '08:30'), 180), drum(PARC, TODIRESTI, T('2026-09-15', '11:30'), 90)));
+  const r = et(urma(drum(TODIRESTI, PARC, T('2026-09-15', '07:00'), 90), stai(PARC, T('2026-09-15', '08:30'), 180), drum(PARC, TODIRESTI, T('2026-09-15', '11:30'), 90)));   // 3 h
   assert.equal(r.c.length, 2);
   assert.deepEqual(etichete(r), ['reparație', 'reparație']);
   assert.equal(kmLiber(r), 0);
@@ -215,13 +215,29 @@ test('alimentarea scutește doar drumul la o stație de lângă casă, nu un cir
   assert.equal(rezumaSaptamina(r3.e, r3.ctx).km_alimentare, 0);
 });
 
-test('ocol în lanț: km-ii din afara culoarului se scriu, dar nu intră în alarmă', () => {
-  const pts = urma(stai(POARTA, T('2026-09-15', '14:30'), 10), drum(POARTA, FALESTI, T('2026-09-15', '14:40'), 40), stai(FALESTI, T('2026-09-15', '15:20'), 10), drum(FALESTI, TODIRESTI, T('2026-09-15', '15:30'), 40));
-  const r = et(pts, { inCuloar: p => hav(p, FALESTI) > 12 });   // Făleștiul e în afara culoarului
+test('brambura: drumul rutei e obișnuința săptămânii — o zi pe alt drum e brambura, două zile pe el nu', () => {
+  // retur obișnuit poartă → Bocșa → Todirești, în trei zile; joi, în plus, acasă pe la Fălești (o singură zi)
+  const dus = z => drum(TODIRESTI, POARTA, T(z, '13:55'), 35);   // dimineața-i acasă, ca zilele să se lege fără gol cu deplasare
+  const retur = z => urma(dus(z), stai(POARTA, T(z, '14:30'), 10), drum(POARTA, BOCSA, T(z, '14:40'), 45), stai(BOCSA, T(z, '15:25'), 5), drum(BOCSA, TODIRESTI, T(z, '15:30'), 40));
+  const ocolit = z => urma(dus(z), stai(POARTA, T(z, '14:30'), 10), drum(POARTA, FALESTI, T(z, '14:40'), 40), stai(FALESTI, T(z, '15:20'), 10), drum(FALESTI, TODIRESTI, T(z, '15:30'), 40));
+  const r = et(urma(retur('2026-09-14'), retur('2026-09-15'), retur('2026-09-16'), ocolit('2026-09-17')));
   assert.deepEqual([...new Set(etichete(r))], ['muncă']);
   const rez = rezumaSaptamina(r.e, r.ctx);
-  assert.ok(rez.km_ocol >= 5); assert.equal(rez.km, 0);
-  assert.ok(rez.iesiri.some(x => x.eticheta === 'ocol'));
+  assert.ok(rez.km_brambura >= 20, `brambura ${rez.km_brambura}`); assert.equal(rez.km, 0);
+  assert.ok(rez.iesiri.some(x => x.eticheta === 'brambura' && x.zi === '2026-09-17'));
+  // același drum pe la Fălești în două zile → e ruta lui, nu brambura
+  const r2 = et(urma(retur('2026-09-14'), retur('2026-09-15'), ocolit('2026-09-16'), ocolit('2026-09-17')));   // fiecare drum în două zile
+  assert.equal(rezumaSaptamina(r2.e, r2.ctx).km_brambura, 0);
+});
+test('altă uzină: cursa care atinge poarta Drăxlmaier e «altă uzină», nu liber', () => {
+  const DRAX = { lat: 47.7741, lon: 27.9159, r: 0.5, nume: 'Drăxlmaier Bălți' };
+  const r = et(urma(drum(TODIRESTI, DRAX, T('2026-09-15', '09:00'), 80), stai(DRAX, T('2026-09-15', '10:20'), 10), drum(DRAX, TODIRESTI, T('2026-09-15', '10:30'), 80)), { alteUzine: [DRAX] });
+  assert.deepEqual([...new Set(etichete(r))], ['altă uzină']);
+  assert.equal(rezumaSaptamina(r.e, r.ctx).km, 0);
+});
+test('orice oprire la depozitul din Bălți e drum de parc (183BZP: 2′ și 6′)', () => {
+  const r = et(urma(stai(POARTA, T('2026-09-15', '14:30'), 10), drum(POARTA, PARC, T('2026-09-15', '14:40'), 90), stai(PARC, T('2026-09-15', '16:10'), 3), drum(PARC, TODIRESTI, T('2026-09-15', '16:13'), 90)));
+  assert.deepEqual([...new Set(etichete(r))], ['reparație']);
 });
 
 test('control: km_stationare = Σ kmZi − Σ curse', () => {

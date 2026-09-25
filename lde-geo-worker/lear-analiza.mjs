@@ -596,7 +596,6 @@ function grileCuloar(ruteObj, culoare, culoareUzina) {
   const peCasa = grila([].concat(...culoare.map(f => f.map(c => ({ lat: c[0], lon: c[1] })))));
   return { peRuta, peCasa };
 }
-const inCuloarDin = g => p => aproape(g.peRuta, [p.lat, p.lon], R_RUTA) || (g.peCasa.size > 0 && aproape(g.peCasa, [p.lat, p.lon], R_CULOAR));
 
 function alteCurse(pts, ruteObj, culoare, culoareUzina, zileLucrate) {
   const { peRuta, peCasa } = grileCuloar(ruteObj, culoare, culoareUzina);
@@ -817,6 +816,12 @@ async function citesteFerestre(supa) {
   if (error) { console.error('lde_uzina_ferestre_ceas:', error.message); return []; }
   return data || [];
 }
+// porțile celorlalte uzine (lde_uzine_gates): o cursă care oprește la una din ele e «altă uzină»
+async function citesteAlteUzine(supa) {
+  const { data, error } = await supa.from('lde_uzine_gates').select('uzina_id, label, lat, lon, radius_km').eq('active', true).neq('uzina_id', UZINA_ID);
+  if (error) { console.error('lde_uzine_gates:', error.message); return []; }
+  return (data || []).map(g => ({ lat: +g.lat, lon: +g.lon, r: +g.radius_km || 0.5, nume: `${g.uzina_id.replace(/_/g, ' ')} (${g.label})` }));
+}
 async function citesteZileLucru(supa) {
   const { data, error } = await supa.from('lde_uzine').select('works_saturday, works_sunday').eq('id', UZINA_ID).maybeSingle();
   if (error || !data) { if (error) console.error('lde_uzine:', error.message); return { sambata: true, duminica: false }; }
@@ -925,6 +930,7 @@ const masini = [], steaguri = [], toateDeplasarile = [], steagCasaFaraPunct = []
 const ferestre = await citesteFerestre(supa);
 const zileLucru = await citesteZileLucru(supa);
 const alimentari = await citesteAlimentari(supa, nrDupaId, de_la, pana_la);
+const alteUzine = await citesteAlteUzine(supa);
 const placesIdx = buildPlacesIndex(locuri);
 if (!ferestre.length) steaguri.push({ fel: 'fără ferestre', text: `fără ferestre de ceas în bază pentru ${UZINA_ID} (lde_uzina_ferestre_ceas) — timpul liber nu s-a socotit` });
 // ora unui km e «de schimb» dacă intră într-o fereastră de tur/retur (±1 h); fără ferestre,
@@ -1223,7 +1229,7 @@ for (const v of auLucrat) {
       ferestre, lucreazaSambata: zileLucru.sambata, lucreazaDuminica: zileLucru.duminica,
       local, ziLucru, inSapt, sfarsitDate, alimentari: alimentari.get(v.masina) || [],
       numeLoc: p => placesIdx.nearestWithin(p, 3.8)?.name ?? celMaiApropiatLoc(p)?.n ?? null,
-      inCuloar: grile ? inCuloarDin(grile) : null,
+      alteUzine,
       capeteRute: alese.map(r => r.capatC).filter(Boolean).map(c => ({ lat: c[0], lon: c[1] })) };
     const curseL = curseCuOpriri(v.pts, ctxL);
     const etich = eticheteaza(curseL, ctxL);
@@ -1231,6 +1237,10 @@ for (const v of auLucrat) {
     rec.liber = rezumaSaptamina(etich, ctxL, kmZiSapt);
     if (rec.liber.peste_prag) rec.steaguri.push(
       `${n1(rec.liber.km)} km în timpul liber în săptămâna asta (prag ${rec.liber.prag_km}) — vezi «mișcări în timpul liber»`);
+    // brambura se numără SEPARAT de liber (Ion, 25.09): drum neobișnuit în cursele de muncă
+    if (rec.liber.peste_prag_brambura) rec.steaguri.push(
+      `${n1(rec.liber.km_brambura)} km brambura în cursele de muncă — pe drumuri pe care n-a mers în nicio altă zi (prag ${rec.liber.prag_brambura_km})`);
+    if (rec.liber.km_alta_uzina) rec.note.push(`${n1(rec.liber.km_alta_uzina)} km cu oprire la poarta altei uzine — nu-s LEAR`);
     if (DE_CE.has(v.masina)) { console.error(`[${v.masina}] timp liber: ${curseL.length} curse, ${n1(rec.liber.km)} km liber`);
       for (const l of explica(etich, ctxL)) console.error(`[${v.masina}]   ${l}`); }
   }
@@ -1264,6 +1274,8 @@ for (let d = new Date(sapt.luni + 'T12:00:00Z'); d <= new Date(sapt.duminica + '
 const timpLiber = ferestre.length ? {
   prag_km: PRAG_LIBER.PRAG_ALARMA_KM, km_total: +S_(m => m.liber?.km).toFixed(1),
   masini_peste_prag: aleUzinei.filter(m => m.liber?.peste_prag).map(m => m.masina),
+  km_brambura_total: +S_(m => m.liber?.km_brambura).toFixed(1), prag_brambura_km: PRAG_LIBER.PRAG_ALARMA_BRAMBURA_KM,
+  masini_peste_prag_brambura: aleUzinei.filter(m => m.liber?.peste_prag_brambura).map(m => m.masina),
   ferestre, zile_lucru: zileLucru, sambata: sambete } : null;
 
 // ─── tipărit ─────────────────────────────────────────────────────────────────
@@ -1320,10 +1332,10 @@ if (timpLiber) {
     (timpLiber.masini_peste_prag.length ? ` · peste prag: ${timpLiber.masini_peste_prag.join(', ')}` : ' · nicio mașină peste prag') + ' ───');
   for (const m of [...masini].sort((a, b) => (b.liber?.km || 0) - (a.liber?.km || 0))) {
     const L = m.liber; if (!L) continue;
-    const ies = L.iesiri.filter(x => x.eticheta !== 'ocol');
-    if (!L.km && !ies.length) continue;
+    const ies = L.iesiri;
+    if (!L.km && !L.km_brambura && !ies.length) continue;
     console.log(`  ${m.masina}: ${n1(L.km)} km liber în ${L.zile} ${L.zile === 1 ? 'zi' : 'zile'}` +
-      (L.km_ocol ? ` · ocol în lanț ${n1(L.km_ocol)}` : '') + (L.km_naveta ? ` · navetă ${n1(L.km_naveta)}` : '') + (L.km_neclar ? ` · neclar ${n1(L.km_neclar)}` : '') +
+      (L.km_brambura ? ` · brambura ${n1(L.km_brambura)}` : '') + (L.km_alta_uzina ? ` · altă uzină ${n1(L.km_alta_uzina)}` : '') + (L.km_naveta ? ` · navetă ${n1(L.km_naveta)}` : '') + (L.km_neclar ? ` · neclar ${n1(L.km_neclar)}` : '') +
       (L.control ? ` · control: curse ${n1(L.control.km_curse)} + staționări ${n1(L.control.km_stationare)} = ${n1(L.control.km_zi)}` : ''));
     for (const x of ies.slice(0, 6)) console.log(`      ${x.zi.slice(5)} ${x.de_la}–${x.pana_la} ${n1(x.km).padStart(6)} km · ${x.eticheta}${x.repetat ? ' · se repetă' : ''} · ${x.loc_principal ?? '—'}` +
       (x.opriri.length ? ` · opriri: ${x.opriri.slice(0, 4).map(o => `${o.loc ?? '?'} ${o.min}′`).join(', ')}` : '') + (x.nota ? ` (${x.nota})` : ''));

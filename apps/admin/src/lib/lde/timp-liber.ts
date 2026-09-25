@@ -27,10 +27,13 @@ export function textTimpLiber(
   masini: { masina: string; liber?: TimpLiberMasina }[],
   pragKm: number, baseUrl: string,
 ): string | null {
-  const peste = masini.filter((m) => m.liber?.peste_prag).sort((a, b) => (b.liber?.km ?? 0) - (a.liber?.km ?? 0));
+  // liber și brambura se numără separat (Ion, 25.09): intră oricine e peste prag la oricare din ele
+  const peste = masini.filter((m) => m.liber?.peste_prag || m.liber?.peste_prag_brambura)
+    .sort((a, b) => ((b.liber?.km ?? 0) + (b.liber?.km_brambura ?? 0)) - ((a.liber?.km ?? 0) + (a.liber?.km_brambura ?? 0)));
   if (!peste.length) return null;
+  const nLiber = peste.filter((m) => m.liber?.peste_prag).length, nBr = peste.filter((m) => m.liber?.peste_prag_brambura).length;
   const antet = `⚠️ <b>LEAR Ungheni · timp liber · ${escapeHtml(perioada(saptamina, panaLa))}</b>\n` +
-    `Peste ${pragKm} km în afara muncii: ${peste.length} ${peste.length === 1 ? 'mașină' : 'mașini'}.`;
+    [nLiber ? `peste ${pragKm} km în afara muncii: ${nLiber}` : '', nBr ? `brambura peste ${pragKm} km: ${nBr}` : ''].filter(Boolean).join(' · ') + '.';
   // linkul se construiește NUMAI din rândul bazei (coloana date), niciodată din query
   const link = `${baseUrl}/lde/reguli?saptamina=${encodeURIComponent(saptamina)}`;
   const subsol = `\n<a href="${link}">unde, când, cu ce opriri — pe pagină</a>`;
@@ -40,8 +43,10 @@ export function textTimpLiber(
     const zile = `${L.zile} ${L.zile === 1 ? 'zi' : 'zile'}`;
     const ies = L.iesiri.filter((x) => x.eticheta === 'liber');
     const repet = ies.filter((x) => x.repetat).length;
-    linii.push(`• <b>${escapeHtml(m.masina)}</b> — ${n1(L.km)} km în ${zile}, ${ies.length} ${ies.length === 1 ? 'ieșire' : 'ieșiri'}` +
-      (repet ? `, ${repet} în același loc în zile diferite` : ''));
+    const parti: string[] = [];
+    if (L.peste_prag) parti.push(`${n1(L.km)} km liber în ${zile}, ${ies.length} ${ies.length === 1 ? 'ieșire' : 'ieșiri'}` + (repet ? `, ${repet} în același loc în zile diferite` : ''));
+    if (L.peste_prag_brambura) parti.push(`${n1(L.km_brambura ?? 0)} km brambura în cursele de muncă`);
+    linii.push(`• <b>${escapeHtml(m.masina)}</b> — ${parti.join('; ')}`);
   }
   // plafonul: linii întregi, cât încap, cu o linie de rest
   let text = antet;

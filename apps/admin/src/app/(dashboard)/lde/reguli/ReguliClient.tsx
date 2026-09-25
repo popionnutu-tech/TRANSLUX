@@ -236,11 +236,12 @@ export default function ReguliClient({ raport, saptamani = [] }: {
         ori acasă. Pentru fiecare mașină, coloana «Alege» spune care îi convine.
       </p>
 
-      <div className="mt-4! grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-4! grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {[
           ['Au lucrat la uzină', `${R.total.masini_uzina} mașini`, 'cel puțin 4 zile la poartă'],
           ['Deplasări și km brambura', String(R.deplasari.length), 'în afara destinației de lucru'],
           ['Timp liber', TL ? `${n1(TL.km_total)} km` : '—', TL ? (TL.masini_peste_prag.length ? `${TL.masini_peste_prag.length} ${TL.masini_peste_prag.length === 1 ? 'mașină' : 'mașini'} peste ${TL.prag_km} km` : `nicio mașină peste ${TL.prag_km} km`) : 'raport de dinainte de ION-57'],
+          ['Brambura', TL ? `${n1(TL.km_brambura_total ?? 0)} km` : '—', TL ? ((TL.masini_peste_prag_brambura ?? []).length ? `${(TL.masini_peste_prag_brambura ?? []).length} peste ${TL.prag_brambura_km ?? 50} km` : `nicio mașină peste ${TL.prag_brambura_km ?? 50} km`) : 'drum neobișnuit în cursele de muncă'],
           ['Controlul km', ctrl ? `${ctrl.dif > 0 ? '+' : ''}${n1(ctrl.dif)}%` : '—', 'urma GPS față de workerul de noapte; peste 10% = steag'],
         ].map(([et, val, sub]) => (
           <div key={et} className="rounded-[8px] border border-neutral-200 bg-white px-4! py-3! dark:border-neutral-700 dark:bg-neutral-900">
@@ -409,7 +410,7 @@ export default function ReguliClient({ raport, saptamani = [] }: {
       {(() => {
         // Ion, 25.09: ocolurile din cursele de muncă sunt transport pentru uzină, deci nu-s timp liber și
         // nu se arată aici; rămân ieșirile libere/navetă de peste 5 km și cele neclare de peste 20 km.
-        const deAratat = (x: IesireLibera) => x.eticheta === 'neclar' ? x.km >= 20 : x.eticheta !== 'ocol' && x.km >= 5;
+        const deAratat = (x: IesireLibera) => x.eticheta === 'neclar' ? x.km >= 20 : x.eticheta === 'brambura' ? (x.km_brambura ?? 0) >= 5 : x.km >= 5;
         const cuRanduri = cuLiber.filter((m) => (m.liber?.iesiri ?? []).some(deAratat));
         const faraRanduri = cuLiber.filter((m) => !cuRanduri.includes(m));
         if (!TL) return null;
@@ -424,8 +425,11 @@ export default function ReguliClient({ raport, saptamani = [] }: {
               <b className="text-[14px]">{m.masina}</b>
               <span className={`font-mono text-[13px] tabular-nums ${L.peste_prag ? 'font-semibold text-[#a33a20]' : ''}`}>{n1(L.km)} km liber</span>
               {L.peste_prag && <span className="px-1.5! py-0.5! text-[10px] font-semibold uppercase tracking-wide text-[#a33a20]" style={{ background: 'rgba(163,58,32,0.12)' }}>peste {L.prag_km} km</span>}
+              <span className={`font-mono text-[13px] tabular-nums ${L.peste_prag_brambura ? 'font-semibold text-[#a33a20]' : ''}`}>{n1(L.km_brambura ?? 0)} km brambura</span>
+              {L.peste_prag_brambura && <span className="px-1.5! py-0.5! text-[10px] font-semibold uppercase tracking-wide text-[#a33a20]" style={{ background: 'rgba(163,58,32,0.12)' }}>brambura peste {L.prag_brambura_km ?? 50} km</span>}
               <span className="text-[12px] text-neutral-500">
                 {L.zile} {L.zile === 1 ? 'zi' : 'zile'}
+                {L.km_alta_uzina ? ` · altă uzină ${n1(L.km_alta_uzina)} km` : ''}
                 {L.km_naveta ? ` · navetă ${n1(L.km_naveta)} km` : ''}
                 {L.km_neclar ? ` · neclar ${n1(L.km_neclar)} km` : ''}
                 {L.km_alimentare ? ` · alimentare ${n1(L.km_alimentare)} km` : ''}
@@ -445,7 +449,7 @@ export default function ReguliClient({ raport, saptamani = [] }: {
                     return (
                       <li key={i} className="border-l-[3px] border-neutral-200 pl-3! dark:border-neutral-700">
                         <b>{ziText}</b>, {x.de_la}–{x.pana_la} · <span className="font-mono tabular-nums">{n1(x.km)} km</span>
-                        {x.eticheta === 'ocol' ? <span className="text-neutral-500"> · ocol {n1(x.km_ocol ?? 0)} km într-o cursă de muncă</span> : x.eticheta !== 'liber' ? <span className="text-neutral-500"> · {x.eticheta}</span> : null}
+                        {x.eticheta === 'brambura' ? <span className="text-neutral-500"> · brambura {n1(x.km_brambura ?? 0)} km într-o cursă de muncă, pe drum pe care n-a mers în altă zi</span> : x.eticheta === 'altă uzină' ? <span className="text-neutral-500"> · altă uzină{x.uzina ? `: ${x.uzina}` : ''}</span> : x.eticheta !== 'liber' ? <span className="text-neutral-500"> · {x.eticheta}</span> : null}
                         {x.repetat && <span className="text-[#a33a20]"> · se repetă</span>}
                         <span className="block text-[12.5px] text-neutral-700 dark:text-neutral-300">
                           {x.de_unde === 'acasă' ? 'De acasă' : `De la ${x.de_unde ?? '?'}`} → {x.cel_mai_departe ?? x.loc_principal ?? '?'}{opriri ? ` (opriri: ${opriri})` : ''} → {x.pana_unde === 'acasă' ? 'acasă' : x.pana_unde === 'poartă' ? 'poartă' : (x.pana_unde ?? '?')} · {cand}
@@ -476,8 +480,9 @@ export default function ReguliClient({ raport, saptamani = [] }: {
         și cursele legate de ea, înapoi și înainte, până când mașina ajunge acasă sau stă peste 2 ore. Tot ce e în lanț e muncă,
         inclusiv drumul de acasă și înapoi. Drumul la parcul de la Bălți e reparație; drumul între două case e navetă. Ce rămâne e
         timp liber: se arată ziua, ora, kilometrii, unde a oprit peste 2 minute și dacă același loc apare în alte zile. Steagul se
-        dă la {TL?.prag_km ?? 50} km pe săptămână. «Ocol în lanț» sunt kilometrii din afara drumului rutei într-o cursă de muncă:
-        se arată, dar nu intră în alarmă.
+        dă la {TL?.prag_km ?? 50} km pe săptămână. <b>Brambura</b>, separat: kilometrii dintr-o cursă de muncă făcuți pe un drum pe care
+        mașina n-a mers în nicio altă zi a săptămânii (drumul rutei e cel obișnuit al săptămânii, nu scheletul); steag separat la {TL?.prag_brambura_km ?? 50} km.
+        «Altă uzină» = cursa oprește la poarta altei uzine — nu e LEAR și nu e liber.
       </p>
     </div>
   );

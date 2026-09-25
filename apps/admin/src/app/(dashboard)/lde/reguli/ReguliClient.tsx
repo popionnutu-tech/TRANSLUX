@@ -3,7 +3,7 @@
 import { Fragment, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import type { Raport, MasinaRand } from './actions';
+import type { IesireLibera, Raport, MasinaRand } from './actions';
 
 // Raportul săptămânal al celor trei reguli (ION-48). Regulile sunt ale lui Ion:
 //   1. mașina doarme la uzină, fiecare rută se face de patru ori
@@ -406,12 +406,18 @@ export default function ReguliClient({ raport, saptamani = [] }: {
       {!TL && (
         <p className="text-[13.5px] text-neutral-500">Raportul ăsta e scris înainte de detectorul de timp liber (ION-57); rulează din nou săptămâna ca să apară.</p>
       )}
-      {TL && cuLiber.every((m) => !(m.liber?.km) && !(m.liber?.iesiri.length)) && (
-        <p className="text-[13.5px] text-neutral-500">Nicio mașină nu s-a mișcat în afara muncii în săptămâna asta.</p>
-      )}
-      {TL && cuLiber.filter((m) => (m.liber?.km ?? 0) > 0 || (m.liber?.iesiri.length ?? 0) > 0).map((m) => {
+      {(() => {
+        // Ion, 25.09: ocolurile din cursele de muncă sunt transport pentru uzină, deci nu-s timp liber și
+        // nu se arată aici; rămân ieșirile libere/navetă de peste 5 km și cele neclare de peste 20 km.
+        const deAratat = (x: IesireLibera) => x.eticheta === 'neclar' ? x.km >= 20 : x.eticheta !== 'ocol' && x.km >= 5;
+        const cuRanduri = cuLiber.filter((m) => (m.liber?.iesiri ?? []).some(deAratat));
+        const faraRanduri = cuLiber.filter((m) => !cuRanduri.includes(m));
+        if (!TL) return null;
+        return (
+          <>
+            {!cuRanduri.length && <p className="text-[13.5px] text-neutral-500">Nicio mașină nu s-a mișcat în afara muncii în săptămâna asta.</p>}
+            {cuRanduri.map((m) => {
         const L = m.liber!;
-        const nr = 'border-b border-neutral-200 p-2 text-right font-mono tabular-nums dark:border-neutral-700';
         return (
           <div key={m.masina} className="mb-4!">
             <div className="mb-1! flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -420,7 +426,6 @@ export default function ReguliClient({ raport, saptamani = [] }: {
               {L.peste_prag && <span className="px-1.5! py-0.5! text-[10px] font-semibold uppercase tracking-wide text-[#a33a20]" style={{ background: 'rgba(163,58,32,0.12)' }}>peste {L.prag_km} km</span>}
               <span className="text-[12px] text-neutral-500">
                 {L.zile} {L.zile === 1 ? 'zi' : 'zile'}
-                {L.km_ocol ? ` · ocol în lanț ${n1(L.km_ocol)} km` : ''}
                 {L.km_naveta ? ` · navetă ${n1(L.km_naveta)} km` : ''}
                 {L.km_neclar ? ` · neclar ${n1(L.km_neclar)} km` : ''}
                 {L.km_alimentare ? ` · alimentare ${n1(L.km_alimentare)} km` : ''}
@@ -428,8 +433,7 @@ export default function ReguliClient({ raport, saptamani = [] }: {
             </div>
             {(() => {
               // se arată doar ce merită citit: ieșirile libere/neclare/navetă de peste 5 km și ocolurile de peste 20 km
-              const randuri = L.iesiri.filter((x) => (x.eticheta === 'ocol' ? (x.km_ocol ?? 0) >= 20 : x.km >= 5));
-              if (!randuri.length) return <p className="text-[12.5px] text-neutral-500">doar mișcări mărunte, sub 5 km, pe lângă casă</p>;
+              const randuri = L.iesiri.filter(deAratat);
               return (
                 <ul className="flex flex-col gap-1.5 text-[13px]">
                   {randuri.map((x, i) => {
@@ -453,10 +457,17 @@ export default function ReguliClient({ raport, saptamani = [] }: {
                 </ul>
               );
             })()}
-            {(L.si_altele ?? 0) > 0 && <div className="mt-1! text-[12px] text-neutral-500">și încă {L.si_altele} ieșiri mai mici</div>}
           </div>
         );
       })}
+            {faraRanduri.length > 0 && (
+              <p className="text-[12.5px] text-neutral-500">
+                Nimic în afara muncii la {faraRanduri.map((m) => m.masina).join(', ')}{cuRanduri.length ? '' : ''}.
+              </p>
+            )}
+          </>
+        );
+      })()}
       {TL && TL.sambata.filter((s) => !s.masini_la_poarta).map((s) => (
         <p key={s.zi} className="text-[12.5px] text-neutral-500">Sâmbătă {s.zi}: nicio mașină la poartă — uzina n-a lucrat, deci ce s-a mișcat sâmbăta iese «liber».</p>
       ))}

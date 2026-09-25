@@ -28,7 +28,7 @@
 export const PRAGURI = {
   R_POARTA: 0.7,          // km — «la poartă»
   R_POARTA_PAUZA: 1.5,    // km — o pauză lungă atât de aproape de poartă e așteptare, nu rupe lanțul
-  R_PARC: 0.8,            // km — parcul de reparații
+  R_PARC: 1.5,            // km — parcul de reparații (mașinile stau și la 0,9 km de punctul lui: 183BZP, 043BRAU)
   R_PARC_ZONA: 3,         // km — zona de reparație: drumurile de dus/întors pleacă de aici
   PARC_OPRIRE_MIN: 30,    // min — oprire în parc ca să fie reparație, nu trecere prin oraș
   R_CASA: 3,              // km — «acasă» (plafon; se ia min(3, d(casă, poartă)/2))

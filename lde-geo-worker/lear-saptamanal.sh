@@ -29,6 +29,12 @@ if ! flock -n "${LOCK_FLORESTI:-/tmp/lear-analiza-floresti.lock}" node --env-fil
   echo "lear-analiza LEAR_FLORESTI: rularea a picat sau lock-ul e ocupat" >&2
 fi
 
+# SEBN Orhei + Strășeni (ION-60): doar timpul liber și brambura, cu același modul (lear-timp-liber.mjs).
+# Scheletul fix vine din repo (apps/admin/public/lde/schelet-sebn.json → sebn-schelet.json lângă worker).
+if ! flock -n "${LOCK_SEBN:-/tmp/sebn-liber.lock}" node --env-file=.env sebn-liber.mjs --write; then
+  echo "sebn-liber: rularea a picat sau lock-ul e ocupat" >&2
+fi
+
 CRON_SECRET="$(env_val CRON_SECRET || true)"
 [ -n "$CRON_SECRET" ] || { echo "CRON_SECRET lipsește din .env — raportul e scris, mesajul nu pleacă" >&2; exit 1; }
 curl -fsS -H "Authorization: Bearer $CRON_SECRET" "$BASE/api/cron/lde-timp-liber"

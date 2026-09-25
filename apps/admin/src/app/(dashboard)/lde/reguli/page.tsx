@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { getRaport, getSaptamani } from './actions';
 import ReguliClient from './ReguliClient';
 import ReguliSebnClient, { type ReguliSebn } from './ReguliSebnClient';
-import RaportSebn, { eticheta } from './RaportSebn';
+import RaportSebn, { eticheta, type SaptSebn } from './RaportSebn';
 import { incarcaLivrare, UZINE_IMPLICITE } from '@/lib/lde/livrare-poster';
 import { LEI_PE_KM } from '@/lib/lde/naveta-image';
 
@@ -69,7 +69,12 @@ export default async function LdeReguliPage({
     // Raportul săptămânii (ION-56): livrarea și brambura, din aceeași funcție ca posterul de
     // livrare. Prag 0 — aici se văd toate mașinile, nu doar cele peste 50 km/zi ca pe poster.
     const { luni, duminica } = saptamanaSebn(saptamina);
-    const { rows, brambura, pretMotorina } = await incarcaLivrare(luni, duminica, 0, UZINE_IMPLICITE);
+    const [{ rows, pretMotorina }, raportLiber] = await Promise.all([
+      incarcaLivrare(luni, duminica, 0, UZINE_IMPLICITE),
+      // timpul liber și brambura după regula LEAR §11 (ION-60) — scrise lunea de sebn-liber.mjs
+      getRaport('SEBN', luni),
+    ]);
+    const liber = raportLiber?.saptamina === luni ? (raportLiber as unknown as SaptSebn['liber']) : null;
     const alegeri = Array.from({ length: 8 }, (_, i) => {
       const w = saptamanaSebn(undefined, i);
       return { luni: w.luni, eticheta: eticheta(w.luni, w.duminica) };
@@ -77,7 +82,7 @@ export default async function LdeReguliPage({
     return (
       <div style={{ contain: 'inline-size' }}>
         {nav}
-        <RaportSebn s={{ luni, duminica, rows, brambura, pretMotorina, leiImplicit: LEI_PE_KM, alegeri }} />
+        <RaportSebn s={{ luni, duminica, rows, liber, pretMotorina, leiImplicit: LEI_PE_KM, alegeri }} />
         <ReguliSebnClient date={date} />
       </div>
     );

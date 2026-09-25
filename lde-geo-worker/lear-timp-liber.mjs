@@ -277,8 +277,9 @@ export function eticheteaza(curse, ctx) {
     if (e.neanalizat && !e.ancora) { e.eticheta = 'neanalizat'; e.motiv = 'oprire la poartă în 23:00–06:00, schimbul 3 nu se analizează'; continue; }
     // altă uzină: cursa OPREȘTE la poarta altei uzine din bază (Drăxlmaier, Florești, SEBN…) — nu-i LEAR,
     // nu-i liber. Înaintea parcului: poarta vest Drăxlmaier e la 700 m de depozitul nostru.
-    const altaUz = (ctx.alteUzine || []).find(u => c.opriri.some(o => hav(o, u) <= (u.r ?? 0.5) + 0.2) ||
-      [c.pauzaInainte, c.pauzaDupa].some(pz => pz && !pz.gol && hav(pz.p, u) <= (u.r ?? 0.5) + 0.2));
+    // raza porții e cea din bază, fără adaos: depozitul nostru e la 730 m de poarta vest Drăxlmaier
+    const altaUz = (ctx.alteUzine || []).find(u => c.opriri.some(o => hav(o, u) <= (u.r ?? 0.5)) ||
+      [c.pauzaInainte, c.pauzaDupa].some(pz => pz && !pz.gol && hav(pz.p, u) <= (u.r ?? 0.5)));
     if (altaUz) { e.eticheta = 'altă uzină'; e.motiv = `oprește la poarta ${altaUz.nume}`; e.uzina = altaUz.nume; continue; }
     const reparatie = c.parc.oprireMin >= P.PARC_OPRIRE_MIN || parcPauza(c.pauzaInainte) || parcPauza(c.pauzaDupa);
     if (reparatie) { e.eticheta = 'reparație'; e.motiv = 'oprire la depozitul din Bălți — drum de parc'; continue; }

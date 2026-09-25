@@ -21,6 +21,9 @@ export interface MasinaLiber { masina: string; casa: string | null; liber: TimpL
 
 export async function generateSebnOptimizariImage(o: {
   saptamina: string; pana_la: string; livrare: LivrareRow[]; liber: MasinaLiber[] | null;
+  /** Ion, 25.09: «doar auto mai mult 40 km» — pe poster doar mașinile cu peste atâția km livrare pe zi
+   *  (sau cu km liberi / brambura peste atât pe săptămână); restul flotei se spune într-un rând */
+  prag?: number;
 }): Promise<Buffer> {
   const placa = (s: string) => s.split(' · ')[0];
   const lib = new Map((o.liber ?? []).map((m) => [m.masina, m]));
@@ -33,7 +36,12 @@ export async function generateSebnOptimizariImage(o: {
       liber: L ? L.liber.km : null, brambura: L ? (L.liber.km_brambura ?? 0) : null,
       pestePragLiber: !!L?.liber.peste_prag, pestePragBrambura: !!L?.liber.peste_prag_brambura };
   }).sort((a, b) => b.livrare - a.livrare);
-  const tLiv = rows.reduce((s, r) => s + r.livrare, 0);
+  const prag = o.prag ?? 40;
+  const toate = rows;
+  const peste = (r: typeof rows[number]) => r.livrareZi > prag || (r.liber ?? 0) > prag || (r.brambura ?? 0) > prag;
+  const aratate = toate.filter(peste), restul = toate.filter((r) => !peste(r));
+  const tLiv = aratate.reduce((s, r) => s + r.livrare, 0);
+  const tRest = restul.reduce((s, r) => s + r.livrare, 0);
   const tLib = (o.liber ?? []).reduce((s, m) => s + (m.liber.km || 0), 0);
   const tBr = (o.liber ?? []).reduce((s, m) => s + (m.liber.km_brambura || 0), 0);
 
@@ -57,7 +65,7 @@ export async function generateSebnOptimizariImage(o: {
     { titlu: 'Acum, km/săpt.', latime: 104, aliniere: 'end' }, { titlu: 'Livrare/zi', latime: 84, aliniere: 'end' },
     { titlu: 'Livrare, km', latime: 90, aliniere: 'end' }, { titlu: 'Km liberi', latime: 76, aliniere: 'end' },
     { titlu: 'Km brambura', latime: 80, aliniere: 'end' },
-  ], rows.map((r) => [
+  ], aratate.map((r) => [
     { text: r.masina.replace('Sprinter ', 'Spr '), bold: true },
     { text: r.casa ?? '—', culoare: CULORI.gri },
     { text: r.ruta, culoare: CULORI.gri },
@@ -66,8 +74,9 @@ export async function generateSebnOptimizariImage(o: {
     r.livrare < 1 ? { text: '0', culoare: CULORI.griDeschis }
       : { text: `−${nr(r.livrare)}`, culoare: CULORI.verde, bold: r.livrareZi >= 50, fundal: r.livrareZi >= 50 ? CULORI.verdeFundal : undefined },
     km(r.liber, r.pestePragLiber), km(r.brambura, r.pestePragBrambura),
-  ]), { gol: 'Nicio mașină n-a făcut drum de acasă în săptămâna asta.' });
-  p.total(`Fără livrare: −${nr(tLiv)} km pe săptămână`, `≈ −${nr(tLiv * 52 / 12)} km pe lună`);
+  ]), { gol: `Nicio mașină cu peste ${prag} km livrare pe zi în săptămâna asta.` });
+  p.total(`La aceste ${aratate.length} mașini: −${nr(tLiv)} km pe săptămână`, `≈ −${nr(tLiv * 52 / 12)} km pe lună`);
+  if (restul.length) p.nota(`Pe poster doar mașinile cu peste ${prag} km livrare pe zi. Celelalte ${restul.length} mai au împreună −${nr(tRest)} km livrare pe săptămână (sub ${prag} km/zi fiecare).`);
   p.nota('Verde încercuit = peste 50 km livrare pe zi — acolo un șofer din satul de start schimbă cel mai mult. Livrarea se socotește luni–vineri, din cursele scrise în fiecare noapte; fără drumurile la reparație și fără brambura.');
   p.nota('Km liberi și brambura, pe toată săptămâna, după regula §11 (ca la LEAR); roșu = peste 50 km. O cursă care merge pe ruta mașinii fără să atingă poarta e muncă, nu liber.');
   return p.png();

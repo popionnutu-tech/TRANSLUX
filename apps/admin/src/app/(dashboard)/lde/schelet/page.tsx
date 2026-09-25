@@ -6,6 +6,7 @@ import Link from 'next/link';
 import ScheletClient, { type Schelet } from './ScheletClient';
 import ScheletSebnClient, { type ScheletSebn } from './ScheletSebnClient';
 import ScheletFlorestiClient, { type ScheletFloresti } from './ScheletFlorestiClient';
+import ScheletMejgorodClient, { type ScheletMejgorod } from './ScheletMejgorodClient';
 
 // Scheletul e fix prin definiție — Ion, 23.09.2026: «să îl fixez, pe viitor să nu mai umblăm la
 // el». Deci stă ca fișier în repo, nu ca tabel în bază: o versiune, una singură, care se schimbă
@@ -15,10 +16,13 @@ import ScheletFlorestiClient, { type ScheletFloresti } from './ScheletFlorestiCl
 // și Strășeni), pe aceeași pagină, ales cu ?uz=sebn. LEAR Ungheni rămâne cum era.
 // Ion, 25.09.2026: «fă deploy la schelet pe LDE» — al treilea, schelet-floresti.json (ION-58),
 // ales cu ?uz=floresti; rutele poartă denumirile din actul de recepție nr. 36.1.
+// Ion, 25.09.2026: «pune scheletul de rute în LDE» — al patrulea, schelet-mejgorod.json (ION-55): cele 30 de
+// rute interurbane nord ↔ Chișinău, un drum pe rută cu tur = retur, din 100 de zile de GPS; ales cu ?uz=mejgorod.
 const UZINE = [
   { id: 'lear', nume: 'LEAR Ungheni', fisier: 'schelet.json', href: '/lde/schelet' },
   { id: 'sebn', nume: 'SEBN Orhei și Strășeni', fisier: 'schelet-sebn.json', href: '/lde/schelet?uz=sebn' },
   { id: 'floresti', nume: 'LEAR Florești', fisier: 'schelet-floresti.json', href: '/lde/schelet?uz=floresti' },
+  { id: 'mejgorod', nume: 'Rute interurbane', fisier: 'schelet-mejgorod.json', href: '/lde/schelet?uz=mejgorod' },
 ] as const;
 
 export default async function LdeScheletPage({ searchParams }: { searchParams: Promise<{ uz?: string }> }) {
@@ -48,7 +52,9 @@ export default async function LdeScheletPage({ searchParams }: { searchParams: P
         ? <ScheletSebnClient schelet={date as ScheletSebn} />
         : aleasa.id === 'floresti'
           ? <ScheletFlorestiClient schelet={date as ScheletFloresti} />
-          : <ScheletClient schelet={date as Schelet} />}
+          : aleasa.id === 'mejgorod'
+            ? <ScheletMejgorodClient schelet={date as ScheletMejgorod} />
+            : <ScheletClient schelet={date as Schelet} />}
     </>
   );
 }

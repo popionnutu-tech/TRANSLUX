@@ -26,16 +26,18 @@ export function textTimpLiber(
   saptamina: string, panaLa: string,
   masini: { masina: string; liber?: TimpLiberMasina }[],
   pragKm: number, baseUrl: string,
+  // Ion, 25.09 (ION-59): același mesaj și pentru LEAR Florești; `uz` e cheia paginii (?uz=floresti), goală la Ungheni
+  uzina: { nume: string; uz: string } = { nume: 'LEAR Ungheni', uz: '' },
 ): string | null {
   // liber și brambura se numără separat (Ion, 25.09): intră oricine e peste prag la oricare din ele
   const peste = masini.filter((m) => m.liber?.peste_prag || m.liber?.peste_prag_brambura)
     .sort((a, b) => ((b.liber?.km ?? 0) + (b.liber?.km_brambura ?? 0)) - ((a.liber?.km ?? 0) + (a.liber?.km_brambura ?? 0)));
   if (!peste.length) return null;
   const nLiber = peste.filter((m) => m.liber?.peste_prag).length, nBr = peste.filter((m) => m.liber?.peste_prag_brambura).length;
-  const antet = `⚠️ <b>LEAR Ungheni · timp liber · ${escapeHtml(perioada(saptamina, panaLa))}</b>\n` +
+  const antet = `⚠️ <b>${escapeHtml(uzina.nume)} · timp liber · ${escapeHtml(perioada(saptamina, panaLa))}</b>\n` +
     [nLiber ? `peste ${pragKm} km în afara muncii: ${nLiber}` : '', nBr ? `brambura peste ${pragKm} km: ${nBr}` : ''].filter(Boolean).join(' · ') + '.';
   // linkul se construiește NUMAI din rândul bazei (coloana date), niciodată din query
-  const link = `${baseUrl}/lde/reguli?saptamina=${encodeURIComponent(saptamina)}`;
+  const link = `${baseUrl}/lde/reguli?saptamina=${encodeURIComponent(saptamina)}${uzina.uz ? `&uz=${encodeURIComponent(uzina.uz)}` : ''}`;
   const subsol = `\n<a href="${link}">unde, când, cu ce opriri — pe pagină</a>`;
   const linii: string[] = [];
   for (const m of peste) {
@@ -60,6 +62,6 @@ export function textTimpLiber(
 }
 
 // mesajul când raportul de luni lipsește: o singură linie, fără dedup (cronul cheamă ruta o dată)
-export function textRaportLipsa(saptaminaAsteptata: string): string {
-  return `⛔ Raportul LEAR pentru săptămâna din ${escapeHtml(saptaminaAsteptata)} lipsește din lde_analiza_reguli — rularea de luni n-a scris nimic.`;
+export function textRaportLipsa(saptaminaAsteptata: string, uzina = 'LEAR Ungheni'): string {
+  return `⛔ Raportul ${escapeHtml(uzina)} pentru săptămâna din ${escapeHtml(saptaminaAsteptata)} lipsește din lde_analiza_reguli — rularea de luni n-a scris nimic.`;
 }

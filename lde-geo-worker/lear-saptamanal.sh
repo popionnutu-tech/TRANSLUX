@@ -39,3 +39,6 @@ CRON_SECRET="$(env_val CRON_SECRET || true)"
 [ -n "$CRON_SECRET" ] || { echo "CRON_SECRET lipsește din .env — raportul e scris, mesajul nu pleacă" >&2; exit 1; }
 curl -fsS -H "Authorization: Bearer $CRON_SECRET" "$BASE/api/cron/lde-timp-liber"
 echo
+# LEAR Florești (ION-59): posterul «cât se putea economisi» în aceeași grupă a livrărilor + mesajul către ADMIN
+curl -fsS -H "Authorization: Bearer $CRON_SECRET" "$BASE/api/cron/lde-timp-liber?uz=floresti" || echo "lde-timp-liber?uz=floresti: a picat" >&2
+echo

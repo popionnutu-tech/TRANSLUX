@@ -44,7 +44,9 @@ export function randuriOptimizare(masini: MasinaRand[]): RandOptimizare[] {
     .sort((a, b) => Math.max(b.r1 ?? 0, b.r2 ?? 0, b.r3 ?? 0) - Math.max(a.r1 ?? 0, a.r2 ?? 0, a.r3 ?? 0));
 }
 
-export async function generateOptimizariImage(raport: Pick<Raport, 'saptamina' | 'pana_la' | 'masini'>): Promise<Buffer> {
+// Ion, 25.09 (ION-59): «dă posterul pe LEAR Florești în grup livrări și postează acolo în fiecare luni» —
+// același poster, aceeași grupă, cu numele uzinei pe el; fără `uzina` rămâne LEAR Ungheni, ca înainte.
+export async function generateOptimizariImage(raport: Pick<Raport, 'saptamina' | 'pana_la' | 'masini'>, uzina = 'LEAR Ungheni'): Promise<Buffer> {
   const rows = randuriOptimizare(raport.masini);
   const suma = (k: 'r1' | 'r2' | 'r3') => rows.reduce((s, r) => s + Math.max(0, r[k] ?? 0), 0);
   // R2 net: rutele se mută între mașini, deci cine câștigă și cine pierde se adună împreună
@@ -56,7 +58,7 @@ export async function generateOptimizariImage(raport: Pick<Raport, 'saptamina' |
 
   const p = poster({
     latime: 960,
-    supratitlu: 'LEAR Ungheni',
+    supratitlu: uzina,
     titlu: 'Cât se putea economisi săptămâna trecută',
     subtitlu: 'Km pe care fiecare mașină i-ar fi făcut mai puțin, cu aceleași rute și aceiași oameni, după fiecare regulă.',
     eticheta: perioadaText(raport.saptamina, raport.pana_la),
@@ -101,20 +103,25 @@ import { LIVRARE_POSTER_CHAT_KEY } from './livrare-poster';
 
 export const LEAR_POSTER_LAST_KEY = 'lear_poster_last';
 
-export async function trimitePosterLear(raport: Pick<Raport, 'saptamina' | 'pana_la' | 'masini'>, opts: { force?: boolean; dry?: boolean } = {}):
+// cheia de dedup e pe uzină: Ungheni păstrează cheia veche, Florești are a ei
+export const cheiaPosterului = (uzina: string) => uzina === 'LEAR Ungheni' ? LEAR_POSTER_LAST_KEY : `lear_poster_last_${uzina.toLowerCase().replace(/[^a-z]+/g, '_')}`;
+
+export async function trimitePosterLear(raport: Pick<Raport, 'saptamina' | 'pana_la' | 'masini'>, opts: { force?: boolean; dry?: boolean; uzina?: string } = {}):
   Promise<{ trimis: boolean; motiv?: string }> {
+  const uzina = opts.uzina ?? 'LEAR Ungheni';
+  const cheie = cheiaPosterului(uzina);
   const sb = getSupabase();
-  const { data: last } = await sb.from('app_config').select('value').eq('key', LEAR_POSTER_LAST_KEY).maybeSingle();
+  const { data: last } = await sb.from('app_config').select('value').eq('key', cheie).maybeSingle();
   if (!opts.force && last?.value === raport.saptamina) return { trimis: false, motiv: 'deja trimis pentru săptămâna asta' };
   if (!randuriOptimizare(raport.masini).length) return { trimis: false, motiv: 'nicio optimizare de arătat' };
   const { data: g } = await sb.from('app_config').select('value').eq('key', LIVRARE_POSTER_CHAT_KEY).maybeSingle();
   const chat = (g?.value ?? '').trim();
   if (!chat) return { trimis: false, motiv: 'grupa livrărilor de uzină nu e legată (app_config.livrare_poster_chat_id)' };
   if (opts.dry) return { trimis: false, motiv: 'dry' };
-  const png = await generateOptimizariImage(raport);
-  const caption = `LEAR Ungheni · cât se putea economisi · ${perioadaText(raport.saptamina, raport.pana_la)}`;
-  const r = await sendTelegramPhoto(chat, png, caption, `lear-optimizari-${raport.saptamina}.png`);
+  const png = await generateOptimizariImage(raport, uzina);
+  const caption = `${uzina} · cât se putea economisi · ${perioadaText(raport.saptamina, raport.pana_la)}`;
+  const r = await sendTelegramPhoto(chat, png, caption, `${cheie.replace(/_last.*$/, '')}-optimizari-${raport.saptamina}.png`);
   if (!r.ok) return { trimis: false, motiv: 'Telegram n-a primit imaginea' };
-  await sb.from('app_config').upsert({ key: LEAR_POSTER_LAST_KEY, value: raport.saptamina }, { onConflict: 'key' });
+  await sb.from('app_config').upsert({ key: cheie, value: raport.saptamina }, { onConflict: 'key' });
   return { trimis: true };
 }

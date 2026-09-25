@@ -25,7 +25,12 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const UZINA = 'LEAR Ungheni';
+// Ion, 25.09 (ION-59): «postează și pe LEAR Florești, în fiecare luni» — aceeași rută, `?uz=floresti`;
+// lear-saptamanal.sh o cheamă o dată pentru fiecare uzină, după ce raportul ei e scris.
+const UZINE: Record<string, { nume: string; uz: string }> = {
+  lear: { nume: 'LEAR Ungheni', uz: '' },
+  floresti: { nume: 'LEAR Florești', uz: 'floresti' },
+};
 const BASE = process.env.ADMIN_BASE_URL ?? 'https://central-hub-md.vercel.app';
 
 // săptămâna pe care o scrie rularea de luni: cea a lui «ieri» (aceeași regulă ca în worker)
@@ -47,6 +52,8 @@ export async function GET(req: NextRequest) {
   const force = url.searchParams.get('force') === '1';
   const cerut = url.searchParams.get('saptamina') ?? '';
   const saptamina = DATE_RE.test(cerut) ? cerut : saptaminaAsteptata();
+  const U = UZINE[url.searchParams.get('uz') ?? 'lear'] ?? UZINE.lear;
+  const UZINA = U.nume;
 
   try {
     const sb = getSupabase();
@@ -59,7 +66,7 @@ export async function GET(req: NextRequest) {
     }
     if (!data) {
       // raportul lipsă e el însuși știrea; fără dedup — cronul cheamă ruta o dată pe săptămână
-      const text = textRaportLipsa(saptamina);
+      const text = textRaportLipsa(saptamina, UZINA);
       const trimis = dry ? false : await alertAdmins(text);
       return NextResponse.json({ saptamina, raport: false, trimis, dry, text: dry ? text : undefined }, { status: dry ? 200 : 502 });
     }
@@ -67,10 +74,10 @@ export async function GET(req: NextRequest) {
     // Posterul «cât se putea economisi» pleacă în grupa livrărilor de uzină, o dată pe săptămână (Ion, 25.09);
     // independent de mesajul către ADMIN de mai jos.
     const poster = await trimitePosterLear({ saptamina: row.saptamina, pana_la: row.date.pana_la, masini: row.date.masini ?? [] },
-      { dry, force: url.searchParams.get('poster') === 'force' }).catch((e) => ({ trimis: false, motiv: String(e) }));
+      { dry, force: url.searchParams.get('poster') === 'force', uzina: UZINA }).catch((e) => ({ trimis: false, motiv: String(e) }));
     const TL = row.date?.timp_liber ?? null;
     const masini = (row.date?.masini ?? []) as Pick<MasinaRand, 'masina' | 'liber'>[];
-    const text = TL ? textTimpLiber(row.saptamina, row.date.pana_la, masini, TL.prag_km, BASE) : null;
+    const text = TL ? textTimpLiber(row.saptamina, row.date.pana_la, masini, TL.prag_km, BASE, U) : null;
     const eligibil = !row.alerta_trimisa_la || row.alerta_trimisa_la < row.rulat_la;
     if (dry) return NextResponse.json({ saptamina, raport: true, detector: !!TL, eligibil, trimis: false, dry, text: text ?? '(nimic peste prag — tăcere)', poster });
     if (!text) return NextResponse.json({ saptamina, raport: true, detector: !!TL, trimis: false, motiv: TL ? 'nimic peste prag' : 'raport fără detector', poster });

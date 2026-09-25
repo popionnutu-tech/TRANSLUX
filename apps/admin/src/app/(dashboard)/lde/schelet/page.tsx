@@ -7,6 +7,8 @@ import ScheletClient, { type Schelet } from './ScheletClient';
 import ScheletSebnClient, { type ScheletSebn } from './ScheletSebnClient';
 import ScheletFlorestiClient, { type ScheletFloresti } from './ScheletFlorestiClient';
 import ScheletMejgorodClient, { type ScheletMejgorod } from './ScheletMejgorodClient';
+import ScheletToateClient from './ScheletToateClient';
+import { construiesteToate } from './toate';
 
 // Scheletul e fix prin definiție — Ion, 23.09.2026: «să îl fixez, pe viitor să nu mai umblăm la
 // el». Deci stă ca fișier în repo, nu ca tabel în bază: o versiune, una singură, care se schimbă
@@ -23,13 +25,24 @@ const UZINE = [
   { id: 'sebn', nume: 'SEBN Orhei și Strășeni', fisier: 'schelet-sebn.json', href: '/lde/schelet?uz=sebn' },
   { id: 'floresti', nume: 'LEAR Florești', fisier: 'schelet-floresti.json', href: '/lde/schelet?uz=floresti' },
   { id: 'mejgorod', nume: 'Rute interurbane', fisier: 'schelet-mejgorod.json', href: '/lde/schelet?uz=mejgorod' },
+  // Ion, 25.09.2026: «fă o hartă unică unde să se aplice toate rutele… să fie ultima fișă toate» (ION-67).
+  // Fila citește cele patru fișiere de mai sus; n-are fișier al ei.
+  { id: 'toate', nume: 'Toate rutele', fisier: null, href: '/lde/schelet?uz=toate' },
 ] as const;
+
+const citeste = async (fisier: string) =>
+  JSON.parse(await readFile(path.join(process.cwd(), 'public', 'lde', fisier), 'utf8'));
 
 export default async function LdeScheletPage({ searchParams }: { searchParams: Promise<{ uz?: string }> }) {
   const { uz } = await searchParams;
   const aleasa = UZINE.find((u) => u.id === uz) ?? UZINE[0];
-  const cale = path.join(process.cwd(), 'public', 'lde', aleasa.fisier);
-  const date = JSON.parse(await readFile(cale, 'utf8'));
+  const date = aleasa.fisier ? await citeste(aleasa.fisier) : null;
+  const retele = aleasa.id === 'toate'
+    ? construiesteToate(
+      await citeste('schelet.json'), await citeste('schelet-sebn.json'),
+      await citeste('schelet-floresti.json'), await citeste('schelet-mejgorod.json'),
+    )
+    : null;
 
   return (
     <>
@@ -48,7 +61,9 @@ export default async function LdeScheletPage({ searchParams }: { searchParams: P
           >{u.nume}</Link>
         ))}
       </nav>
-      {aleasa.id === 'sebn'
+      {retele
+        ? <ScheletToateClient retele={retele} />
+        : aleasa.id === 'sebn'
         ? <ScheletSebnClient schelet={date as ScheletSebn} />
         : aleasa.id === 'floresti'
           ? <ScheletFlorestiClient schelet={date as ScheletFloresti} />

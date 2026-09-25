@@ -305,8 +305,13 @@ export function eticheteaza(curse, ctx) {
   for (const e of E) { if (e.eticheta !== 'muncă') continue;
     for (const p of e.c.pts) { const k = cheie(p); if (!zileCelula.has(k)) zileCelula.set(k, new Set()); zileCelula.get(k).add(ctx.ziLucru(p.t)); } }
   const obisnuit = p => (zileCelula.get(cheie(p))?.size ?? 0) >= P.BRAMBURA_ZILE;
+  // Brambura NU se socoate pe cursa care atinge poarta în orele schimbului (ancora): Ion, 25.09 —
+  // «dacă e legat cu poarta uzinei cumva în orele de lucru, atunci nu e brambura, poate un auto s-a
+  // stricat» (a acoperit ruta alteia). Rămân doar cursele din lanț FĂRĂ poartă: drumul de acasă
+  // până la primul sat și de la ultimul sat acasă.
   for (const e of E) {
     const c = e.c; if (c.gol) continue;
+    if (e.eticheta === 'muncă' && (e.ancora || c.atingeriPoarta.length)) { e.km_brambura = 0; continue; }   // vine pe un drum, pleacă pe altul — tot muncă
     if (e.eticheta === 'muncă') {
       let k = 0; for (let i = 1; i < c.pts.length; i++) { const a = c.pts[i - 1], b = c.pts[i]; const d = kmPas(a, b, P.SALT_KM); if (!d) continue;
         if (!obisnuit(a) && !obisnuit(b)) k += d; }

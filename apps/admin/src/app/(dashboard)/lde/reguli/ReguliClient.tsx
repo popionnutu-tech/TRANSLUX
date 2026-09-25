@@ -449,7 +449,7 @@ export default function ReguliClient({ raport, saptamani = [] }: {
                     return (
                       <li key={i} className="border-l-[3px] border-neutral-200 pl-3! dark:border-neutral-700">
                         <b>{ziText}</b>, {x.de_la}–{x.pana_la} · <span className="font-mono tabular-nums">{n1(x.km)} km</span>
-                        {x.eticheta === 'brambura' ? <span className="text-neutral-500"> · brambura {n1(x.km_brambura ?? 0)} km într-o cursă de muncă, pe drum pe care n-a mers în altă zi</span> : x.eticheta === 'altă uzină' ? <span className="text-neutral-500"> · altă uzină{x.uzina ? `: ${x.uzina}` : ''}</span> : x.eticheta !== 'liber' ? <span className="text-neutral-500"> · {x.eticheta}</span> : null}
+                        {x.eticheta === 'brambura' ? <span className="text-neutral-500"> · brambura {n1(x.km_brambura ?? 0)} km pe drumul de acasă/spre casă, pe unde n-a mers în altă zi</span> : x.eticheta === 'altă uzină' ? <span className="text-neutral-500"> · altă uzină{x.uzina ? `: ${x.uzina}` : ''}</span> : x.eticheta !== 'liber' ? <span className="text-neutral-500"> · {x.eticheta}</span> : null}
                         {x.repetat && <span className="text-[#a33a20]"> · se repetă</span>}
                         <span className="block text-[12.5px] text-neutral-700 dark:text-neutral-300">
                           {x.de_unde === 'acasă' ? 'De acasă' : `De la ${x.de_unde ?? '?'}`} → {x.cel_mai_departe ?? x.loc_principal ?? '?'}{opriri ? ` (opriri: ${opriri})` : ''} → {x.pana_unde === 'acasă' ? 'acasă' : x.pana_unde === 'poartă' ? 'poartă' : (x.pana_unde ?? '?')} · {cand}
@@ -480,8 +480,8 @@ export default function ReguliClient({ raport, saptamani = [] }: {
         și cursele legate de ea, înapoi și înainte, până când mașina ajunge acasă sau stă peste 2 ore. Tot ce e în lanț e muncă,
         inclusiv drumul de acasă și înapoi. Drumul la parcul de la Bălți e reparație; drumul între două case e navetă. Ce rămâne e
         timp liber: se arată ziua, ora, kilometrii, unde a oprit peste 2 minute și dacă același loc apare în alte zile. Steagul se
-        dă la {TL?.prag_km ?? 50} km pe săptămână. <b>Brambura</b>, separat: kilometrii dintr-o cursă de muncă făcuți pe un drum pe care
-        mașina n-a mers în nicio altă zi a săptămânii (drumul rutei e cel obișnuit al săptămânii, nu scheletul); steag separat la {TL?.prag_brambura_km ?? 50} km.
+        dă la {TL?.prag_km ?? 50} km pe săptămână. <b>Brambura</b>, separat: kilometrii din drumul de acasă sau spre casă (cursa din lanț care nu atinge poarta) făcuți pe un drum pe care
+        mașina n-a mers în nicio altă zi a săptămânii. Cursa care trece pe la poartă în orele schimbului nu e niciodată brambura — poate a acoperit ruta unei mașini stricate (drumul rutei e cel obișnuit al săptămânii, nu scheletul); steag separat la {TL?.prag_brambura_km ?? 50} km.
         «Altă uzină» = cursa oprește la poarta altei uzine — nu e LEAR și nu e liber.
       </p>
     </div>

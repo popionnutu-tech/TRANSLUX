@@ -218,8 +218,9 @@ test('alimentarea scutește doar drumul la o stație de lângă casă, nu un cir
 test('brambura: drumul rutei e obișnuința săptămânii — o zi pe alt drum e brambura, două zile pe el nu', () => {
   // retur obișnuit poartă → Bocșa → Todirești, în trei zile; joi, în plus, acasă pe la Fălești (o singură zi)
   const dus = z => drum(TODIRESTI, POARTA, T(z, '13:55'), 35);   // dimineața-i acasă, ca zilele să se lege fără gol cu deplasare
-  const retur = z => urma(dus(z), stai(POARTA, T(z, '14:30'), 10), drum(POARTA, BOCSA, T(z, '14:40'), 45), stai(BOCSA, T(z, '15:25'), 5), drum(BOCSA, TODIRESTI, T(z, '15:30'), 40));
-  const ocolit = z => urma(dus(z), stai(POARTA, T(z, '14:30'), 10), drum(POARTA, FALESTI, T(z, '14:40'), 40), stai(FALESTI, T(z, '15:20'), 10), drum(FALESTI, TODIRESTI, T(z, '15:30'), 40));
+  // retur până la Bocșa (cursa cu poarta), 25′ acolo, apoi acasă — drumul spre casă e cursa fără poartă
+  const retur = z => urma(dus(z), stai(POARTA, T(z, '14:30'), 10), drum(POARTA, BOCSA, T(z, '14:40'), 45), stai(BOCSA, T(z, '15:25'), 25), drum(BOCSA, TODIRESTI, T(z, '15:50'), 40));
+  const ocolit = z => urma(dus(z), stai(POARTA, T(z, '14:30'), 10), drum(POARTA, BOCSA, T(z, '14:40'), 45), stai(BOCSA, T(z, '15:25'), 25), drum(BOCSA, FALESTI, T(z, '15:50'), 30), drum(FALESTI, TODIRESTI, T(z, '16:20'), 40));
   const r = et(urma(retur('2026-09-14'), retur('2026-09-15'), retur('2026-09-16'), ocolit('2026-09-17')));
   assert.deepEqual([...new Set(etichete(r))], ['muncă']);
   const rez = rezumaSaptamina(r.e, r.ctx);
@@ -228,6 +229,11 @@ test('brambura: drumul rutei e obișnuința săptămânii — o zi pe alt drum e
   // același drum pe la Fălești în două zile → e ruta lui, nu brambura
   const r2 = et(urma(retur('2026-09-14'), retur('2026-09-15'), ocolit('2026-09-16'), ocolit('2026-09-17')));   // fiecare drum în două zile
   assert.equal(rezumaSaptamina(r2.e, r2.ctx).km_brambura, 0);
+});
+test('cursa care atinge poarta în orele schimbului nu e brambura, oricât de neobișnuit drumul (poate a acoperit o mașină stricată)', () => {
+  const zi = (z, spre) => urma(drum(TODIRESTI, POARTA, T(z, '13:55'), 35), stai(POARTA, T(z, '14:30'), 10), drum(POARTA, spre, T(z, '14:40'), 45), drum(spre, TODIRESTI, T(z, '15:25'), 40));
+  const r = et(urma(zi('2026-09-14', BOCSA), zi('2026-09-15', BOCSA), zi('2026-09-16', BOCSA), zi('2026-09-17', FALESTI)));
+  assert.equal(rezumaSaptamina(r.e, r.ctx).km_brambura, 0);
 });
 test('altă uzină: cursa care atinge poarta Drăxlmaier e «altă uzină», nu liber', () => {
   const DRAX = { lat: 47.7741, lon: 27.9159, r: 0.5, nume: 'Drăxlmaier Bălți' };

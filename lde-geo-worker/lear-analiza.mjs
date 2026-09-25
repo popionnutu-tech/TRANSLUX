@@ -946,20 +946,17 @@ for (const v of flota) {
   if (!zilePoarta.length) continue;
   auLucrat.push(v);
   // casa se știe de pe acum: potrivirea rutelor trebuie să nu ia naveta drept rută
-  // Baza spune unde doarme ȘOFERUL; urma spune unde doarme MAȘINA — și asta contează. 043BRAU
-  // are în bază Drăgănești (65 km de poartă, lângă Bălți; Ion, 24.09: «043 Drăgănești e sub
-  // Bălți»), dar autobuzul n-a dormit acolo nicio noapte: stă la Horești, capătul lui A8. Cu casa
-  // la Drăgănești, drumul spre casă era un culoar fals de 65 km care înghițea kilometri. Deci: dacă
-  // locul unde stă cel mai mult e la peste 3 km de casa din bază, se ia urma și se scrie de ce.
-  { let c = case_[v.masina] || null, cc = c ? coordSat(S, c) : null;
-    // numai zilele de lucru: 043BRAU stă la Horești luni–vineri (≈20 h) și pleacă la Drăgănești
-    // pe weekend (49 h) — weekendul îi ascundea casa de lucru
-    const eZiDeLucru = (z) => { const w = new Date(z + 'T12:00:00Z').getUTCDay(); return w >= 1 && w <= 5; };
+  // Casa MAȘINII = unde stă de fapt, din urmă, în zilele de lucru. Ion, 25.09: «nu mai folosim
+  // baza, folosim date reale unde a stat» — baza spunea unde doarme șoferul (043BRAU: Drăgănești,
+  // 65 km de poartă), dar autobuzul dormea la Horești, capătul lui A8, și drumul «spre casă» era un
+  // culoar fals de 65 km. Numai zilele de lucru: 043BRAU pleacă la Drăgănești pe weekend (49 h) și
+  // weekendul îi ascundea casa de lucru. Baza (lde_gps_stops) rămâne doar rezervă, când urma
+  // săptămânii n-are nicio staționare lungă.
+  { const eZiDeLucru = (z) => { const w = new Date(z + 'T12:00:00Z').getUTCDay(); return w >= 1 && w <= 5; };
     const d = casaDinUrma(v.pts.filter(p => { const z = ziLucru(p.t); return inSapt(z) && eZiDeLucru(z); }));
-    if (DE_CE.has(v.masina)) console.error(`[${v.masina}] casa din bază: ${c ?? '—'} ${cc ? cc.map(x => x.toFixed(4)) : ''} · din urmă: ${d ? `${d.nume} ${d.c.map(x => x.toFixed(4))} (${d.ore} h)` : 'nimic'}`);
-    if (!cc) { if (d) { c = d.nume; cc = d.c; v._casaDedusa = true; } }
-    else if (d && hav({ lat: cc[0], lon: cc[1] }, { lat: d.c[0], lon: d.c[1] }) > R_CASA_EXCL) {
-      v._casaBaza = c; c = d.nume; cc = d.c; v._casaDedusa = true; v._casaOre = d.ore; }
+    let c = d?.nume ?? null, cc = d?.c ?? null;
+    if (!cc) { const b = case_[v.masina] || null; const bc = b ? coordSat(S, b) : null; if (bc) { c = b; cc = bc; v._casaRezerva = true; } }
+    if (DE_CE.has(v.masina)) console.error(`[${v.masina}] casa din urmă: ${d ? `${d.nume} ${d.c.map(x => x.toFixed(4))} (${d.ore} h)` : 'nimic'}${v._casaRezerva ? ` · rezervă din bază: ${c}` : ''}`);
     v._casa = c; v._casaC = cc; }
   // Potrivirea rutelor se face NUMAI pe punctele săptămânii. Citirea aduce o zi în plus de
   // fiecare parte, ca fereastra de 03:00 să fie întreagă — dar luni dimineața din săptămâna
@@ -1017,8 +1014,6 @@ for (const v of auLucrat) {
   const casa = v._casa, casaC = v._casaC, casaDedusa = !!v._casaDedusa;
   // controlul casei se face la TOATE mașinile uzinei, în fiecare săptămână — ca greșeala lui
   // 043BRAU să nu se repete tăcut la alta; ce nu se potrivește ajunge jos, la «de verificat»
-  if (zilePoarta.length >= ZILE_MIN_LEAR && v._casaBaza) steagCasaFaraPunct.push(
-    `${v.masina}: baza spune că doarme la ${v._casaBaza}, dar în zilele de lucru stă la ${casa} (${v._casaOre} h) — de corectat în bază`);
   if (casa && !casaC) steagCasaFaraPunct.push(
     `${v.masina}: satul ${casa} nu e nici pe rute, nici în indexul de localități — n-avem coordonata lui`);
 
@@ -1089,9 +1084,8 @@ for (const v of auLucrat) {
   if (!tip) rec.steaguri.push('la poartă, dar n-are tip cunoscut — lipsește din tabelul de costuri');
   if (alese.length < 2) rec.steaguri.push(
     `a dus ${alese.length} rută din schelet în săptămâna asta, nu două — nu se poate socoti ziua`);
-  if (casaDedusa) rec.note.push(v._casaBaza
-    ? `baza spune că doarme la ${v._casaBaza}, dar mașina n-a stat acolo: stă cel mai mult la ${casa} — se ia urma`
-    : `casa e luată din urmă, nu din bază: stă cel mai mult la ${casa}`);
+  if (v._casaRezerva) rec.note.push(
+    `urma săptămânii n-are nicio staționare lungă în zilele de lucru — casa e luată din bază: ${casa}`);
   else if (!casa) rec.steaguri.push('n-are noapte lungă scrisă în GPS — nu știm unde doarme');
 
   // Fără satul unde doarme nu putem despărți drumurile spre casă (care dispar la regula 1) de

@@ -1193,11 +1193,11 @@ for (const v of auLucrat) {
     const alte = A.la_uzina + A.aiurea;
     const aziL = azi - A.la_parc;
     rec.azi_fara_parc = +aziL.toFixed(1);
-    for (const e of A.iesiri) if (e.km >= KM_BRAMBURA_MIN) toateDeplasarile.push({
-      masina: v.masina, zi: ziLucru(e.de_la),
-      de_la: local(e.de_la).toISOString().slice(11, 16), pana_la: local(e.pana_la).toISOString().slice(11, 16),
-      ore: +((e.pana_la - e.de_la) / 3600000).toFixed(1), km: +e.km.toFixed(1), departare: +e.max.toFixed(1),
-      fel: 'de lămurit', unde: e.loc ? `pe la ${e.loc} · în afara culoarului rutei` : 'în afara culoarului rutei' });
+    // Ieșirile din afara culoarului NU se mai scriu în lista deplasărilor (Ion, 25.09, la 849BRAN: «din raport nu
+    // văd schimbări»): culoarul e drumul cel mai scurt și cel al rutei, iar drumul obișnuit de acasă poate fi
+    // altul — 849BRAN se întoarce noaptea de la Zăluceni prin Vărăncău în 11 nopți din 14, fără nicio oprire.
+    // Ce e brambura spune numai §11 (drum pe care mașina n-a mers în nicio altă zi); rândurile lui intră mai jos.
+    // Kilometrii de aici rămân în «alte curse» ale regulilor, unde le e locul.
     rec.etalon_s1 = alese[0].etalon; rec.etalon_s2 = alese[1].etalon;
     rec.rutele_de_4 = +patru.toFixed(1);
     rec.alte = +alte.toFixed(1);
@@ -1296,6 +1296,14 @@ for (const v of auLucrat) {
     const etich = eticheteaza(curseL, ctxL);
     const kmZiSapt = zile.reduce((s, z) => s + (v.kmZi.get(z) || 0), 0);
     rec.liber = rezumaSaptamina(etich, ctxL, kmZiSapt);
+    // brambura din §11, în lista deplasărilor — un singur loc care spune ce e brambura (Ion, 25.09)
+    for (const e of rec.liber.iesiri || []) if (e.eticheta === 'brambura' && (e.km_brambura || 0) >= KM_BRAMBURA_MIN) {
+      const min = h => { const [a, b] = h.split(':').map(Number); return a * 60 + b; };
+      let dur = min(e.pana_la) - min(e.de_la); if (dur < 0) dur += 1440;
+      toateDeplasarile.push({ masina: v.masina, zi: e.zi, de_la: e.de_la, pana_la: e.pana_la, ore: +(dur / 60).toFixed(1),
+        km: e.km_brambura, departare: e.departare, fel: 'brambura',
+        unde: `${e.cel_mai_departe ? `pe la ${e.cel_mai_departe}` : '—'} · drum pe care n-a mers în nicio altă zi` });
+    }
     if (rec.liber.peste_prag) rec.steaguri.push(
       `${n1(rec.liber.km)} km în timpul liber în săptămâna asta (prag ${rec.liber.prag_km}) — vezi «mișcări în timpul liber»`);
     // brambura se numără SEPARAT de liber (Ion, 25.09): drum neobișnuit în cursele de muncă

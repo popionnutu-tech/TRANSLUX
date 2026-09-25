@@ -2,8 +2,8 @@
  "_": "Ce rută face fiecare mașină la LEAR Florești, pe tura A și pe tura B — din tabelul dat de Ion pe 23.09.2026. 279BRAT are doar tura A.",
  "849BRAN": {"A": "A1", "B": "B2", "sursa": "ion"},
  "894BRAX": {"A": "A2", "B": "B3", "sursa": "ion",
-   "capat": {"A": "Cuhureștii de Sus"},
-   "nota_capat": "GPS 23.09: denumirea A2 e scrisă de la LEAR spre capăt. Mașina vine de acasă (Pohoarna) prin Cunicea fără să oprească (2 opriri din 11), primul om urcă la Cuhureștii de Sus, apoi Unchitești → LEAR. În zilele fără Cunicea merge întâi la Unchitești, întoarce la Cuhureștii de Sus și strânge înapoi."},
+   "capat": {"A": "Cunicea"},
+   "nota_capat": "Ion, 25.09 (ION-63): «Cunicea se face» — capătul A2 e Cunicea, primul sat al rutei; drumul prin Cunicea e rută, nu livrare. Până atunci (ION-59) capătul era Cuhureștii de Sus: GPS 23.09 arăta mașina trecând prin Cunicea fără să oprească (2 opriri din 11)."},
  "603BRAS": {"A": "A3", "B": "B1", "sursa": "ion"},
  "035BRAT": {"A": "A5", "B": "B4", "sursa": "ion"},
  "279BRAT": {"A": "A6", "B": "B5", "sursa": "ion", "nota": "B5 Racovăț e rută nouă din septembrie 2026 (Ion, 25.09), nu e în actul 36.1."}

@@ -184,10 +184,41 @@ for (const d of flotaDev) {
     numeLoc, alteUzine, capeteRute: capete, praguri: { R_POARTA: P.rPoarta } };
   const curse = curseCuOpriri(pts, ctx);
   const etich = eticheteaza(curse, ctx);
+  // Pe ruta ei, fără poartă = muncă. Ion, 25.09, la 142BRAZ (luni 04:13, acasă → Pepenii Noi →
+  // Sărătenii Vechi și înapoi): «asta nu e parte a rutei?» — da, 90% din drum e pe ruta R1. Iar
+  // miercuri 09.09 șapte mașini au mers la prânz pe rutele lor (86–100%) fără să atingă poarta:
+  // «mai degrabă parte a uzinei». Lanțul LEAR se agață numai de poartă, deci le scria «liber».
+  // Aici, după modulul LEAR (care rămâne neschimbat): o cursă «liber» sau «neclar» care merge
+  // ≥ 80% pe drumul mașinii — traseul din schelet al rutelor ei, plus drumul pe care a mers la
+  // muncă în ≥ 2 zile ale săptămânii — e muncă și se arată separat, ca informație.
+  const celula = p => `${Math.floor(p.lat / 0.005)}|${Math.floor(p.lon / 0.005)}`;
+  const zileCel = new Map();
+  for (const e of etich) if (e.eticheta === 'muncă' && !e.cursa.gol)
+    for (const p of e.cursa.pts) { const k = celula(p); if (!zileCel.has(k)) zileCel.set(k, new Set()); zileCel.get(k).add(ziLucru(p.t)); }
+  const ruteMele = S ? S.rute.filter(r => r.g && r.schimburi.some(s => s.masina === d.CarName)) : [];
+  const celRuta = new Set();
+  for (const r of ruteMele) for (const q of [...r.g.tur.plin, ...r.g.retur.plin]) {
+    // coridorul de ~0,5 km: celula punctului și vecinele ei
+    const i = Math.floor(q[0] / 0.005), j = Math.floor(q[1] / 0.005);
+    for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) celRuta.add(`${i + a}|${j + b}`); }
+  const peDrumulMasinii = p => celRuta.has(celula(p)) || (zileCel.get(celula(p))?.size ?? 0) >= 2;
+  const peRuta = [];
+  for (const e of etich) {
+    if (!(e.eticheta === 'liber' || e.eticheta === 'neclar') || e.cursa.gol) continue;
+    const c = e.cursa; let km = 0, kmPe = 0;
+    for (let i = 1; i < c.pts.length; i++) { const k = hav(c.pts[i - 1], c.pts[i]); if (k >= SALT_KM) continue;
+      km += k; if (peDrumulMasinii(c.pts[i])) kmPe += k; }
+    if (km < 1 || kmPe / km < 0.8) continue;
+    e.eticheta = 'muncă'; e.motiv = `pe ruta ei (${Math.round(100 * kmPe / km)}%), fără să atingă poarta`;
+    const z = ziLucru(c.de_la);
+    if (inSapt(z)) peRuta.push({ zi: z, de_la: local(c.de_la).toISOString().slice(11, 16), pana_la: local(c.pana_la).toISOString().slice(11, 16),
+      km: +km.toFixed(1), pe_ruta_pct: Math.round(100 * kmPe / km), unde: numeLoc(c.pts[Math.floor(c.pts.length / 2)]) });
+  }
   const kmZiSapt = [...kmZi].filter(([z]) => inSapt(z)).reduce((s, [, k]) => s + k, 0);
   const liber = rezumaSaptamina(etich, ctx, kmZiSapt);
   masini.push({ masina: d.CarName, poarta: P.nume, zile_poarta: zilePoarta.size,
-    casa: casa?.nume ?? null, casa_ore: casa?.ore ?? null, km_sapt: +kmZiSapt.toFixed(1), liber });
+    casa: casa?.nume ?? null, casa_ore: casa?.ore ?? null, km_sapt: +kmZiSapt.toFixed(1), liber,
+    pe_ruta_fara_poarta: peRuta });
   if (DE_CE.has(d.CarName)) { console.error(`[${d.CarName}] ${curse.length} curse, casa ${casa?.nume}`);
     for (const l of explica(etich, ctx)) console.error(`[${d.CarName}]   ${l}`);
     for (const x of liber.iesiri) console.error(`[${d.CarName}] ieșire ${x.zi} ${x.de_la}–${x.pana_la} ${x.km} km ${x.eticheta}: ${x.de_unde} → ${x.cel_mai_departe} → ${x.pana_unde} · după ${x.dupa ?? "—"} · înainte ${x.inainte ?? "—"}`); }

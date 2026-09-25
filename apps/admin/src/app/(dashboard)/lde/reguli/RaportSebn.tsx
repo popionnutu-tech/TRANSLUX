@@ -14,7 +14,9 @@ export type SaptSebn = {
   luni: string; duminica: string;
   rows: LivrareRow[];
   // timpul liber și brambura după regula LEAR §11 (ION-60), din lde_analiza_reguli «SEBN»
-  liber: { masini: { masina: string; poarta: string; casa: string | null; liber: TimpLiberMasina }[];
+  liber: { masini: { masina: string; poarta: string; casa: string | null; liber: TimpLiberMasina;
+      // cursele fără poartă care merg ≥ 80% pe drumul mașinii — socotite muncă (Ion, 25.09)
+      pe_ruta_fara_poarta?: { zi: string; de_la: string; pana_la: string; km: number; pe_ruta_pct: number; unde: string | null }[] }[];
     timp_liber: { km_total: number; km_brambura_total?: number } } | null;
   pretMotorina: number; leiImplicit: number;
   alegeri: { luni: string; eticheta: string }[];
@@ -174,6 +176,25 @@ export default function RaportSebn({ s }: { s: SaptSebn }) {
               );
             })}
             {fara.length > 0 && <p className="text-[12.5px] text-neutral-500">Nimic în afara muncii la {fara.map((m) => m.masina).join(', ')}.</p>}
+            {(() => {
+              // Ion, 25.09: «asta nu e parte a rutei?» — cursele care merg pe ruta mașinii fără să atingă poarta
+              // sunt muncă; se arată aici, ca să se vadă și dacă cineva ar lucra în afara uzinei pe drumul rutei
+              const pe = L.masini.flatMap((m) => (m.pe_ruta_fara_poarta ?? []).filter((x) => x.km >= 5).map((x) => ({ ...x, masina: m.masina })));
+              if (!pe.length) return null;
+              return (
+                <div className="mt-4!">
+                  <h3 className="text-[13px] font-semibold">Pe ruta ei, fără poartă — socotit muncă</h3>
+                  <p className="text-[12px] text-neutral-500">Cursa merge cel puțin 80% pe drumul mașinii (traseul rutei din schelet și drumul ei de muncă din săptămână), dar nu atinge poarta.</p>
+                  <ul className="mt-1! flex flex-col gap-1 text-[12.5px]">
+                    {pe.sort((a, b) => a.zi.localeCompare(b.zi) || a.masina.localeCompare(b.masina)).map((x, i) => (
+                      <li key={i} className="text-neutral-700 dark:text-neutral-300">
+                        <b>{x.masina}</b> · {x.zi.slice(8, 10)}.{x.zi.slice(5, 7)} {x.de_la}–{x.pana_la} · <span className="font-mono tabular-nums">{n1(x.km)} km</span> · {x.pe_ruta_pct}% pe rută{x.unde ? ` · pe la ${x.unde}` : ''}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })()}
           </div>
         );
       })()}

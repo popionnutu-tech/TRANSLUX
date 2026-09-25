@@ -116,3 +116,48 @@ export async function generateSebnOptimizariImage(o: {
   p.nota('Km liberi și brambura, pe toată săptămâna, după regula §11 (ca la LEAR); roșu = peste 50 km. O cursă care merge pe ruta mașinii fără să atingă poarta e muncă, nu liber.');
   return p.png();
 }
+
+// ─── trimiterea de luni în grupa livrărilor de uzină ─────────────────────────
+// Ion, 25.09.2026: «ține minte, săptămânal la ora 8 luni raport; cronul vechi care l-am făcut la
+// începutul săptămânii îl anulezi, lași doar acesta». Deci ăsta e SINGURUL poster SEBN de luni: îl
+// cheamă lear-saptamanal.sh (VPS, luni 08:00) după ce sebn-liber.mjs a scris săptămâna, prin
+// /api/cron/sebn-optimizari. Posterul vechi de livrare (copy-assignments) nu mai pleacă.
+// Sub poster, textul cu întrebarea despre primele 3 mașini critice (Ion, 25.09: «trimite posterul cu
+// întrebare text sub poster — ce facem cu auto care sunt critice, primele 3»).
+import { getSupabase } from '../supabase';
+import { sendTelegramPhoto } from '../telegram-notify';
+import { incarcaLivrare, UZINE_IMPLICITE, LIVRARE_POSTER_CHAT_KEY } from './livrare-poster';
+
+export const SEBN_POSTER_LAST_KEY = 'sebn_optimizari_poster_last';
+
+/** textul de sub poster: întrebarea despre primele 3 mașini cu cea mai mare livrare pe zi */
+export function textulSebn(saptamina: string, pana_la: string, livrare: LivrareRow[], prag = 40): string {
+  const sat = (s: string) => s.match(/\(([^)]+)\)\s*$/)?.[1] ?? null;
+  const nrT = (v: number) => Math.round(v).toLocaleString('ro-RO').replace(/ /g, ' ');
+  const top = [...livrare].filter((r) => r.naveta_zi > prag).sort((a, b) => b.naveta_zi - a.naveta_zi).slice(0, 3);
+  const cap = `<b>SEBN Orhei și Strășeni · cât se putea economisi · ${perioadaText(saptamina, pana_la)}</b>`;
+  if (!top.length) return `${cap}\n\nNicio mașină cu peste ${prag} km livrare pe zi săptămâna trecută.`;
+  const randuri = top.map((r, i) => `${i + 1}. <b>${r.masina.split(' · ')[0]}</b> — ${r.ruta}${sat(r.sofer) ? `, doarme la ${sat(r.sofer)}` : ''}: ${nrT(r.naveta_zi)} km/zi livrare (−${nrT(r.naveta_total)} km pe săptămână)`);
+  return `${cap}\n\n<b>Întrebare: ce facem cu primele ${top.length} mașini critice?</b>\n${randuri.join('\n')}\n\nȘofer din satul de start, sau mașina așteaptă la capătul rutei între ture?`;
+}
+
+export async function trimitePosterSebn(o: { saptamina: string; pana_la: string; force?: boolean; dry?: boolean }):
+  Promise<{ trimis: boolean; motiv?: string; text?: string }> {
+  const sb = getSupabase();
+  const { data: last } = await sb.from('app_config').select('value').eq('key', SEBN_POSTER_LAST_KEY).maybeSingle();
+  if (!o.force && !o.dry && last?.value === o.saptamina) return { trimis: false, motiv: 'deja trimis pentru săptămâna asta' };
+  const { data: rap } = await sb.from('lde_analiza_reguli').select('date').eq('uzina', 'SEBN').eq('saptamina', o.saptamina).maybeSingle();
+  const liber = (rap?.date as { masini?: MasinaLiber[] } | null)?.masini ?? null;
+  if (!liber) return { trimis: false, motiv: 'raportul SEBN al săptămânii nu e scris (sebn-liber.mjs)' };
+  const { rows } = await incarcaLivrare(o.saptamina, o.pana_la, 0, UZINE_IMPLICITE);
+  const text = textulSebn(o.saptamina, o.pana_la, rows);
+  const { data: g } = await sb.from('app_config').select('value').eq('key', LIVRARE_POSTER_CHAT_KEY).maybeSingle();
+  const chat = (g?.value ?? '').trim();
+  if (!chat) return { trimis: false, motiv: 'grupa livrărilor de uzină nu e legată (app_config.livrare_poster_chat_id)', text };
+  if (o.dry) return { trimis: false, motiv: 'dry', text };
+  const png = await generateSebnOptimizariImage({ saptamina: o.saptamina, pana_la: o.pana_la, livrare: rows, liber });
+  const r = await sendTelegramPhoto(chat, png, text, `sebn-optimizari-${o.saptamina}.png`);
+  if (!r.ok) return { trimis: false, motiv: 'Telegram n-a primit imaginea', text };
+  await sb.from('app_config').upsert({ key: SEBN_POSTER_LAST_KEY, value: o.saptamina }, { onConflict: 'key' });
+  return { trimis: true, text };
+}

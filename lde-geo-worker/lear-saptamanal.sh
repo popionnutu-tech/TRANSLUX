@@ -37,6 +37,11 @@ fi
 
 CRON_SECRET="$(env_val CRON_SECRET || true)"
 [ -n "$CRON_SECRET" ] || { echo "CRON_SECRET lipsește din .env — raportul e scris, mesajul nu pleacă" >&2; exit 1; }
+# SEBN (ION-60): posterul «cât se putea economisi» + întrebarea despre primele 3 mașini critice, în grupa
+# livrărilor de uzină. Singurul poster SEBN de luni (Ion, 25.09) — cel vechi de livrare nu mai pleacă.
+# Înaintea LEAR: curl-ul LEAR de mai jos oprește scriptul dacă pică (set -e).
+curl -fsS -H "Authorization: Bearer $CRON_SECRET" "$BASE/api/cron/sebn-optimizari" || echo "sebn-optimizari: a picat" >&2
+echo
 curl -fsS -H "Authorization: Bearer $CRON_SECRET" "$BASE/api/cron/lde-timp-liber"
 echo
 # LEAR Florești (ION-59): posterul «cât se putea economisi» în aceeași grupă a livrărilor + mesajul către ADMIN

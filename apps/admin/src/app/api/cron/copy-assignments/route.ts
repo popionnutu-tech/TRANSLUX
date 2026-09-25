@@ -3,8 +3,6 @@ import { getSupabase } from '@/lib/supabase';
 import { verifyCronSecret } from '@/lib/cron-auth';
 import { syncWeatherPoints } from '@/lib/weather';
 import { sendWeeklyDriverPenalties } from '@/lib/driver-penalties-sync';
-import { perioadaCadentei, trimitePosterLivrare } from '@/lib/lde/livrare-poster';
-import { chisinauTodayIso } from '@/lib/chisinau-time';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -38,18 +36,10 @@ export async function GET(req: NextRequest) {
   }
   if (penalties) console.log('driver-penalties (luni):', penalties);
 
-  // În fiecare luni: posterul de livrare (подача) pe rutele de uzină, în grupa lui
-  // (Ion, 19.09; săptămânal din 22.09) — același piggyback. Idempotent pe perioadă;
-  // fără grupă setată sare.
-  try {
-    const p = perioadaCadentei(chisinauTodayIso());
-    if (p) {
-      const r = await trimitePosterLivrare({ from: p.from, to: p.to });
-      console.log('livrare-poster:', `${r.status}${r.reason ? `: ${r.reason}` : ''} (${r.from}–${r.to}, ${r.rows} rute)`);
-    }
-  } catch (e) {
-    console.error('trimitePosterLivrare error:', e);
-  }
+  // Posterul de livrare (подача) de luni NU mai pleacă de aici. Ion, 25.09.2026: «săptămânal la ora 8
+  // luni raport; cronul vechi care l-am făcut la începutul săptămânii îl anulezi, lași doar acesta» —
+  // singurul poster SEBN de luni e «cât se putea economisi» (ION-60), trimis de lear-saptamanal.sh prin
+  // /api/cron/sebn-optimizari. Trimiterea de mână rămâne: /api/cron/livrare-poster?from=&to=&force=1.
 
   try {
     const db = getSupabase();

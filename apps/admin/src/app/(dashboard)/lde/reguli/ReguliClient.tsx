@@ -394,11 +394,8 @@ export default function ReguliClient({ raport, saptamani = [] }: {
           </tbody>
         </table>
       </div>
-      <p className="mt-3! border-l-[3px] border-neutral-200 pl-4! text-[13.5px] text-neutral-500 dark:border-neutral-700">
-        O deplasare intră aici dacă mașina a fost la peste 15 km de tot ce înseamnă lucrul ei: uzina,
-        satele rutelor ei din schelet, și satul unde doarme. «Brambura» e o ieșire de peste 5 km care nu e
-        nici pe rutele ei, nici pe drumul de acasă, nici pe la poartă. Se numără o dată pe ieșire, nu pe punct GPS.
-        Drumul la parcul de la Bălți e reparație și nu se scrie nicăieri — nici aici, nici în ziua mașinii.
+      <p className="mt-3! text-[13px] text-neutral-500">
+        Regulile după care se socotește — într-un singur loc: <a href="/lde/livrare-reguli" className="underline">Livrarea — regula · LEAR Ungheni</a>, §11.3–11.5 (brambura, reparație, altă uzină).
       </p>
 
       <h2 className="mb-3! mt-9! text-xs font-bold uppercase tracking-widest text-neutral-500">
@@ -475,14 +472,8 @@ export default function ReguliClient({ raport, saptamani = [] }: {
       {TL && TL.sambata.filter((s) => !s.masini_la_poarta).map((s) => (
         <p key={s.zi} className="text-[12.5px] text-neutral-500">Sâmbătă {s.zi}: nicio mașină la poartă — uzina n-a lucrat, deci ce s-a mișcat sâmbăta iese «liber».</p>
       ))}
-      <p className="mt-3! border-l-[3px] border-neutral-200 pl-4! text-[13.5px] text-neutral-500 dark:border-neutral-700">
-        Munca nu e o cursă, e un lanț: o oprire la poartă la ora schimbului (sosire în fereastra de tur, plecare în cea de retur)
-        și cursele legate de ea, înapoi și înainte, până când mașina ajunge acasă sau stă peste 2 ore. Tot ce e în lanț e muncă,
-        inclusiv drumul de acasă și înapoi. Drumul la parcul de la Bălți e reparație; drumul între două case e navetă. Ce rămâne e
-        timp liber: se arată ziua, ora, kilometrii, unde a oprit peste 2 minute și dacă același loc apare în alte zile. Steagul se
-        dă la {TL?.prag_km ?? 50} km pe săptămână. <b>Brambura</b>, separat: kilometrii din drumul de acasă sau spre casă (cursa din lanț care nu atinge poarta) făcuți pe un drum pe care
-        mașina n-a mers în nicio altă zi a săptămânii. Cursa care trece pe la poartă în orele schimbului nu e niciodată brambura — poate a acoperit ruta unei mașini stricate (drumul rutei e cel obișnuit al săptămânii, nu scheletul); steag separat la {TL?.prag_brambura_km ?? 50} km.
-        «Altă uzină» = cursa oprește la poarta altei uzine — nu e LEAR și nu e liber.
+      <p className="mt-3! text-[13px] text-neutral-500">
+        Regulile după care se socotește — într-un singur loc: <a href="/lde/livrare-reguli" className="underline">Livrarea — regula · LEAR Ungheni</a>, §11 (timp liber și brambura).
       </p>
     </div>
   );

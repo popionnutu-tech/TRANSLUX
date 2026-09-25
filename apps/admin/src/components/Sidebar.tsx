@@ -57,9 +57,8 @@ const ldeChildren: NavItem[] = [
   // Ion, 24.09 (ION-50): cifrele economiei LEAR sunt raport, nu nomenclator; regula stă în «Nomenclator LDE».
   { href: '/lde/reguli',         label: 'Raport livrări LEAR', adminOnly: true, icon: 'M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z' },
   // Ion, 24.09 (ION-54): rapoartele automate stau în meniul LDE, nu în nomenclator.
-  { href: '/lde/trasee',         label: 'Trasee & km goi', adminOnly: true, icon: 'M20 4H4v2h16V4zM4 20h16v-2H4v2zm0-7h16v-2H4v2zm6-5l4 3-4 3V8z' },
+  // Ion, 25.09 (ION-66): «Trasee & km goi» și «Ghid zilnic» scoase din meniu — nu le folosește; paginile rămân la adresă.
   { href: '/lde/schelet',        label: 'Schelet rute',   adminOnly: true, icon: 'M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z' },
-  { href: '/lde/atribuiri-zilnice', label: 'Ghid zilnic', adminOnly: true, icon: 'M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z' },
 ];
 
 // Sub-grupa «Nomenclator LDE» — datele de bază (catalog) ale modulului LDE, nestate sub LDE.

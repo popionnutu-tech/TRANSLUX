@@ -12,6 +12,7 @@ import { LIVRARE_POSTER_CHAT_KEY } from './livrare-poster';
  * (uzina «BRICENI», briceni/cod/saptamanal.sh); aici doar se desenează.
  *
  * NU pleacă singur: Ion vrea să-l vadă întâi. Ruta întoarce imaginea; în grupă trimite doar cu ?send=1.
+ * Fontul posterului n-are «↔» și «→» (se desenează gol) — pe poster «–».
  * Pe poster: doar km și lei, pe mașină și pe rută — fără casa șoferului, fără locurile și orele ocolurilor, fără nume.
  */
 export type Categorie = 'cuOameni' | 'nepotrivita' | 'golRuta' | 'service' | 'deplasare' | 'livrare' | 'legatura' | 'necunoscut';
@@ -48,9 +49,9 @@ export async function generateBriceniOptimizariImage(a: AnalizaBriceni): Promise
     eticheta: perioadaText(a.saptamina, a.pana_la),
   });
   p.carduri([
-    { eticheta: 'Economie posibilă', titlu: 'Livrare casă ↔ start', text: 'Km goi de acasă până la prima cursă, între ture pe acasă și seara înapoi.', valoare: `${nr(t.livrare)} km`, subValoare: `≈ ${nr(t.lei)} lei pe săptămână` },
-    { eticheta: 'Cu oameni', titlu: 'Trox și suburban', text: 'Cursele Trox capăt ↔ poartă și cursele suburbane din orar. Nu se optimizează.', valoare: `${nr(t.cuOameni)} km` },
-    { eticheta: 'Nu e economie', titlu: 'Gol pe rută și legătură', text: 'Întoarcerea goală între curse, impusă de orar, și drumul dintre Trox și suburban (poartă ↔ gară).', valoare: `${nr(t.golRuta + t.legatura)} km` },
+    { eticheta: 'Economie posibilă', titlu: 'Livrare casă – start', text: 'Km goi de acasă până la prima cursă, între ture pe acasă și seara înapoi.', valoare: `${nr(t.livrare)} km`, subValoare: `≈ ${nr(t.lei)} lei pe săptămână` },
+    { eticheta: 'Cu oameni', titlu: 'Trox și suburban', text: 'Cursele Trox capăt – poartă și cursele suburbane din orar. Nu se optimizează.', valoare: `${nr(t.cuOameni)} km` },
+    { eticheta: 'Nu e economie', titlu: 'Gol pe rută și legătură', text: 'Întoarcerea goală între curse, impusă de orar, și drumul dintre Trox și suburban (poartă – gară).', valoare: `${nr(t.golRuta + t.legatura)} km` },
   ]);
   const km = (v: number): Celula => v < 0.5 ? { text: '0', culoare: CULORI.griDeschis } : { text: nr(v) };
   p.tabel([

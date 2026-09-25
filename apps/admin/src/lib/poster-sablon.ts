@@ -60,11 +60,13 @@ export function poster(opts: { latime?: number; titlu: string; subtitlu?: string
   let y = PAD;
 
   // antet: logo stânga, eticheta (perioada) dreapta, apoi supratitlu, titlu, subtitlu
-  // logo mare, ca pe graficul Mejgorod (Ion, 25.09: «TRANSLUX să fie mare, ca și la grafic»)
-  const logoH = 50 * S, logoW = logoH * (1318 / 192);
+  // logo mare, ca pe graficul Mejgorod (Ion, 25.09: «TRANSLUX să fie mare, ca și la grafic»); pe posterul
+  // îngust (graficul Mejgorod pentru telefon) logoul se micșorează cât să nu intre sub eticheta cu data
+  const etFs = 13 * S, etW = opts.eticheta ? textW(fB, opts.eticheta, etFs) + 30 * S : 0;
+  const logoW = Math.min(50 * S * (1318 / 192), IN - (etW ? etW + 16 * S : 0)), logoH = logoW * (192 / 1318);
   svg.push(`<image href="data:image/png;base64,${logoBase64()}" x="${PAD}" y="${y}" width="${logoW}" height="${logoH}"/>`);
   if (opts.eticheta) {
-    const fs = 13 * S, w = textW(fB, opts.eticheta, fs) + 30 * S, h = 34 * S;
+    const fs = etFs, w = etW, h = 34 * S;
     svg.push(`<rect x="${W - PAD - w}" y="${y + (logoH - h) / 2}" width="${w}" height="${h}" rx="${h / 2}" fill="${CULORI.bordo}"/>`);
     svg.push(textPath(fB, opts.eticheta, W - PAD - w / 2, y + logoH / 2 + 5 * S, fs, '#fff', 'middle'));
   }
@@ -103,12 +105,13 @@ export function poster(opts: { latime?: number; titlu: string; subtitlu?: string
     /** tabel într-un card alb, antet deschis, rânduri în zebră; `lat` e în puncte, se scalează la lățimea utilă */
     /** tabel într-un card alb, antet deschis, rânduri în zebră; `latime` e în puncte relative, se scalează.
      *  `coloane: 2` pune lista în două tabele alăturate (liste lungi: ~65 de șoferi); `compact` = rând scund. */
-    tabel(cols: Coloana[], randuri: Celula[][], opt: { gol?: string; mare?: number; coloane?: 1 | 2; compact?: boolean } = {}) {
+    tabel(cols: Coloana[], randuri: Celula[][], opt: { gol?: string; mare?: number; coloane?: 1 | 2; compact?: boolean;
+      /** înălțimea rândului în puncte (implicit 42 cu rând mic, 30 fără, 24 compact) */ rand?: number } = {}) {
       const n = opt.coloane ?? 1, gap = 12 * S, lat = (IN - gap * (n - 1)) / n;
       const jum = Math.ceil(randuri.length / n);
       const bucati = n === 1 ? [randuri] : [randuri.slice(0, jum), randuri.slice(jum)];
       const areMic = randuri.some(r => r.some(c => c.mic));
-      const TH = 34 * S, RH = (areMic ? 42 : opt.compact ? 24 : 30) * S, fs = (opt.mare ?? (opt.compact ? 10.5 : 11)) * S;
+      const TH = 34 * S, RH = (opt.rand ?? (areMic ? 42 : opt.compact ? 24 : 30)) * S, fs = (opt.mare ?? (opt.compact ? 10.5 : 11)) * S;
       const h = TH + Math.max(1, jum) * RH;
       bucati.forEach((rows, bi) => {
         const X = PAD + bi * (lat + gap);
@@ -136,7 +139,7 @@ export function poster(opts: { latime?: number; titlu: string; subtitlu?: string
             const yT = c.mic ? ry + RH / 2 - 1 * S : ry + RH / 2 + fsC * 0.36;
             svg.push(textPath(f, esc(t), tx(i, a), yT, fsC, c.culoare ?? CULORI.text, a));
             if (c.mic) { const mS = (c.micMarime ?? 9) * S;
-              svg.push(textPath(fR, esc(truncText(fR, c.mic, mS, max)), tx(i, a), ry + RH / 2 + 13 * S + (mS - 9 * S) * 0.5, mS, c.micCuloare ?? CULORI.gri, a)); }
+              svg.push(textPath(fR, esc(truncText(fR, c.mic, mS, max)), tx(i, a), ry + RH / 2 + mS + 4 * S, mS, c.micCuloare ?? CULORI.gri, a)); }
           });
         });
         svg.push(`<rect x="${X}" y="${y}" width="${lat}" height="${h}" rx="${12 * S}" fill="none" stroke="${CULORI.linie}" stroke-width="${S}"/>`);

@@ -121,19 +121,22 @@ export async function generateScheduleImage(
   const ruta = (dest: string) => `${dest.replace(/^Chi[sș]in[aă]u\s*[-–]\s*/i, '')} – Chișinău`;
   const pagina = opts.pagina && opts.pagini && opts.pagini > 1 ? ` · ${opts.pagina} din ${opts.pagini}` : '';
   if (opts.forDrivers) {
-    const p = poster({ supratitlu: 'Grafic Mejgorod', titlu: 'Plecările din nord', eticheta: ziText(date),
-      subtitlu: `${assigned.length} ${assigned.length === 1 ? 'cursă' : 'curse'} cu șofer. Cursele anulate nu apar.` });
-    // Ion, 25.09: «nu se vede bine datele în spația nume șofer» — numele bold și mare, telefonul negru, coloana mai lată.
-    p.tabel([{ titlu: 'Ora', latime: 66 }, { titlu: 'Ruta', latime: 230 }, { titlu: 'Mașina', latime: 124 }, { titlu: 'Șoferul', latime: 290 }],
+    // Se citește de pe telefon (Ion, 25.09: «fă normal șriftul, umple locul maximal»): imaginea
+    // îngustă, ca Telegram s-o arate pe toată lățimea ecranului fără s-o micșoreze, literele mari.
+    // «– Chișinău» se repeta pe fiecare rând — toate cursele din nord merg la Chișinău, o spune subtitlul.
+    const p = poster({ latime: 540, supratitlu: 'Grafic Mejgorod', titlu: 'Plecările din nord', eticheta: ziText(date),
+      subtitlu: `${assigned.length} ${assigned.length === 1 ? 'cursă' : 'curse'} spre Chișinău, cu șofer. Cursele anulate nu apar.` });
+    p.tabel([{ titlu: 'Ora', latime: 56 }, { titlu: 'Ruta', latime: 150 }, { titlu: 'Mașina', latime: 100 }, { titlu: 'Șoferul', latime: 196 }],
       assigned.map(r => [
-        { text: r.time_nord, bold: true, culoare: CULORI.bordo, marime: 14 },
-        { text: ruta(r.dest_to), bold: true },
+        { text: r.time_nord, bold: true, culoare: CULORI.bordo, marime: 15 },
+        { text: r.dest_to.replace(/^Chi[sș]in[aă]u\s*[-–]\s*/i, ''), bold: true, marime: 13.5 },
         { text: r.vehicle_plate?.trim() || '—', bold: true, marime: 15 },
         { text: r.driver_full_name || r.driver_name || '—', bold: true, marime: 13.5,
-          mic: telefon(r.driver_phone), micMarime: 11.5, micCuloare: CULORI.text },
-      ]), { gol: 'Nicio cursă cu șofer în ziua asta.' });
+          mic: telefon(r.driver_phone), micMarime: 12.5, micCuloare: CULORI.text },
+      ]), { gol: 'Nicio cursă cu șofer în ziua asta.', rand: 50 });
     return p.png();
   }
+
   const p = poster({ supratitlu: 'Curse interurbane', titlu: `Programul zilei${pagina}`, eticheta: ziText(date),
     subtitlu: 'Din nord spre Chișinău și înapoi. Rezervări și întrebări direct la șofer, la numărul din dreptul cursei.' });
   p.tabel([{ titlu: 'Din nord', latime: 76 }, { titlu: 'Ruta', latime: 330 }, { titlu: 'Din Chișinău', latime: 100 }, { titlu: 'Contact', latime: 200 }],

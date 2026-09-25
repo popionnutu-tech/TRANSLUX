@@ -44,6 +44,7 @@ curl -fsS -H "Authorization: Bearer $CRON_SECRET" "$BASE/api/cron/sebn-optimizar
 echo
 curl -fsS -H "Authorization: Bearer $CRON_SECRET" "$BASE/api/cron/lde-timp-liber"
 echo
-# LEAR Florești (ION-59): posterul «cât se putea economisi» în aceeași grupă a livrărilor + mesajul către ADMIN
+# La LEAR Ungheni și Florești ruta trimite posterul, apoi indicațiile pentru Alexei (ION-62), apoi mesajul ADMIN.
+# LEAR Florești (ION-59): aceeași rută, ?uz=floresti
 curl -fsS -H "Authorization: Bearer $CRON_SECRET" "$BASE/api/cron/lde-timp-liber?uz=floresti" || echo "lde-timp-liber?uz=floresti: a picat" >&2
 echo

@@ -426,36 +426,33 @@ export default function ReguliClient({ raport, saptamani = [] }: {
                 {L.km_alimentare ? ` · alimentare ${n1(L.km_alimentare)} km` : ''}
               </span>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse border border-neutral-200 bg-white text-[13px] dark:border-neutral-700 dark:bg-neutral-900">
-                <thead>
-                  <tr className="bg-[#9B1B30]/[0.04]">
-                    {['Ziua', 'Ora', 'km', 'Cât de departe', 'Ce e', 'Unde · opriri'].map((h, i) => (
-                      <th key={h} className={`border-b border-neutral-200 p-2! text-[10px] font-semibold uppercase tracking-wider text-neutral-500 dark:border-neutral-700 ${i >= 2 && i <= 3 ? 'text-right' : 'text-left'}`}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {L.iesiri.map((x, i) => (
-                    <tr key={i}>
-                      <td className="border-b border-neutral-200 p-2! dark:border-neutral-700">{x.zi}</td>
-                      <td className={nr}>{x.de_la}–{x.pana_la}</td>
-                      <td className={`${nr} ${x.eticheta === 'liber' ? 'font-medium' : 'text-neutral-500'}`}>{n1(x.km)}</td>
-                      <td className={nr}>{n1(x.departare)} km</td>
-                      <td className="border-b border-neutral-200 p-2! text-[12px] dark:border-neutral-700">
-                        {x.eticheta}{x.eticheta === 'ocol' && x.km_ocol ? ` ${n1(x.km_ocol)} km` : ''}
-                        {x.repetat && <i className="block text-[11px] not-italic text-[#a33a20]">se repetă</i>}
-                      </td>
-                      <td className="border-b border-neutral-200 p-2! text-[12.5px] dark:border-neutral-700">
-                        {x.loc_principal ?? '—'}
-                        {x.opriri.length > 0 && <span className="block text-[11.5px] text-neutral-500">{x.opriri.map((o) => `${o.ora} ${o.loc ?? '?'} ${o.min}′`).join(' · ')}</span>}
+            {(() => {
+              // se arată doar ce merită citit: ieșirile libere/neclare/navetă de peste 5 km și ocolurile de peste 20 km
+              const randuri = L.iesiri.filter((x) => (x.eticheta === 'ocol' ? (x.km_ocol ?? 0) >= 20 : x.km >= 5));
+              if (!randuri.length) return <p className="text-[12.5px] text-neutral-500">doar mișcări mărunte, sub 5 km, pe lângă casă</p>;
+              return (
+                <ul className="flex flex-col gap-1.5 text-[13px]">
+                  {randuri.map((x, i) => {
+                    const zi = new Date(`${x.zi}T12:00:00Z`);
+                    const ziText = `${['duminică', 'luni', 'marți', 'miercuri', 'joi', 'vineri', 'sâmbătă'][zi.getUTCDay()]} ${zi.getUTCDate()}.${String(zi.getUTCMonth() + 1).padStart(2, '0')}`;
+                    const opriri = x.opriri.filter((o) => o.loc && o.loc !== x.pana_unde).map((o) => `${o.loc} ${o.min}′`).join(', ');
+                    const cand = x.zi_nelucratoare ? 'zi în care uzina nu lucrează'
+                      : x.dupa && x.inainte ? `între ${x.dupa} și ${x.inainte}` : x.dupa ? `după ${x.dupa}` : x.inainte ? `înainte de ${x.inainte}` : 'fără niciun drum la poartă în ziua aia';
+                    return (
+                      <li key={i} className="border-l-[3px] border-neutral-200 pl-3! dark:border-neutral-700">
+                        <b>{ziText}</b>, {x.de_la}–{x.pana_la} · <span className="font-mono tabular-nums">{n1(x.km)} km</span>
+                        {x.eticheta === 'ocol' ? <span className="text-neutral-500"> · ocol {n1(x.km_ocol ?? 0)} km într-o cursă de muncă</span> : x.eticheta !== 'liber' ? <span className="text-neutral-500"> · {x.eticheta}</span> : null}
+                        {x.repetat && <span className="text-[#a33a20]"> · se repetă</span>}
+                        <span className="block text-[12.5px] text-neutral-700 dark:text-neutral-300">
+                          {x.de_unde === 'acasă' ? 'De acasă' : `De la ${x.de_unde ?? '?'}`} → {x.cel_mai_departe ?? x.loc_principal ?? '?'}{opriri ? ` (opriri: ${opriri})` : ''} → {x.pana_unde === 'acasă' ? 'acasă' : x.pana_unde === 'poartă' ? 'poartă' : (x.pana_unde ?? '?')} · {cand}
+                        </span>
                         {x.nota && <span className="block text-[11.5px] text-neutral-500">{x.nota}</span>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              );
+            })()}
             {(L.si_altele ?? 0) > 0 && <div className="mt-1! text-[12px] text-neutral-500">și încă {L.si_altele} ieșiri mai mici</div>}
           </div>
         );

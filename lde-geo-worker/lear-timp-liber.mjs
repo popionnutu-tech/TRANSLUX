@@ -320,6 +320,15 @@ export function eticheteaza(curse, ctx) {
 // diferența față de curse e km_stationare (deriva și pașii peste tăieturi).
 export function rezumaSaptamina(etichete, ctx, kmZiSapt = null) {
   const P = { ...PRAGURI, ...(ctx.praguri || {}) };
+  // Ion, 25.09: «km liber … nu este clar: e parte la rută, în afara orarului? pleacă acasă, vine
+  // de acasă?» — fiecare ieșire spune de unde a plecat, unde s-a dus, unde s-a întors și când
+  // față de schimb (ancora dinainte și cea de după).
+  const case_ = [ctx.casaC, ...(ctx.caseSecundare ?? [])].filter(Boolean);
+  const rCasa = ctx.casaC ? Math.min(P.R_CASA, hav(ctx.casaC, ctx.poarta) / 2) : P.R_CASA;
+  const numeste = p => { if (!p) return null; if (case_.some(c => hav(p, c) <= rCasa)) return 'acasă'; if (hav(p, ctx.poarta) <= P.R_POARTA_PAUZA) return 'poartă';
+    const n = ctx.numeLoc ? ctx.numeLoc(p) : null; return n ?? '?'; };
+  const ancoraText = a => a ? `${a.tip} ${hhmm(ctx, a.t)}` : null;
+  const vecin = (i, pas) => { for (let j = i + pas; j >= 0 && j < etichete.length; j += pas) { const e = etichete[j]; if (e.ancora) return ancoraText(e.ancora); } return null; };
   const km = { lucru: 0, liber: 0, reparatie: 0, naveta: 0, neclar: 0, neanalizat: 0, ocol: 0, alimentare: 0, nevazut: 0 };
   const cheie = { 'muncă': 'lucru', 'liber': 'liber', 'reparație': 'reparatie', 'navetă': 'naveta', 'neclar': 'neclar', 'neanalizat': 'neanalizat' };
   const iesiri = []; const zile = new Set();
@@ -339,7 +348,11 @@ export function rezumaSaptamina(etichete, ctx, kmZiSapt = null) {
       const opriri = (c.opriri || []).map(o => ({ loc: ctx.numeLoc ? ctx.numeLoc(o) ?? null : null, min: Math.round(o.min), ora: hhmm(ctx, o.t), lat: o.lat, lon: o.lon }));
       const principal = opriri.length ? [...opriri].sort((a, b) => b.min - a.min)[0] : null;
       let dep = null; for (const p of c.pts) { const d = hav(p, ctx.poarta); if (!dep || d > dep.d) dep = { p, d }; }
+      const dincolo = (() => { let d = null; for (const p of c.pts) { const dd = hav(p, ctx.poarta); if (!d || dd > d.d) d = { p, d: dd }; } return d?.p; })();
+      const w = dow(zi); const eZiLucru = w === 0 ? !!ctx.lucreazaDuminica : w === 6 ? !!ctx.lucreazaSambata : true;
       iesiri.push({ zi, de_la: hhmm(ctx, c.de_la), pana_la: hhmm(ctx, c.pana_la), km: +kmS.toFixed(1),
+        de_unde: numeste(c.p0), pana_unde: numeste(c.p1), cel_mai_departe: numeste(dincolo),
+        dupa: vecin(e.i, -1), inainte: vecin(e.i, +1), zi_nelucratoare: !eZiLucru || undefined,
         km_ocol: e.eticheta === 'muncă' ? +(e.km_ocol * frac).toFixed(1) : undefined,
         km_alimentare: e.km_alimentare ? +(e.km_alimentare * frac).toFixed(1) : undefined,
         departare: +(c.depMax ?? 0).toFixed(1), eticheta: e.eticheta === 'muncă' ? 'ocol' : e.eticheta, motiv: e.motiv, nota: e.nota,

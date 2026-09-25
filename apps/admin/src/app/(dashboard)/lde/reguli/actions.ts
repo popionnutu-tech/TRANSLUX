@@ -65,6 +65,10 @@ export type IesireLibera = {
   zi: string; de_la: string; pana_la: string; km: number; departare: number;
   eticheta: 'liber' | 'neclar' | 'navetă' | 'ocol';
   motiv?: string; nota?: string | null;
+  // povestea: de unde a plecat, unde s-a dus cel mai departe, unde s-a întors, și ancorele vecine
+  // («retur 14:45» dinainte, «tur 05:20» după) — Ion, 25.09: «pleacă acasă, vine de acasă?»
+  de_unde?: string | null; pana_unde?: string | null; cel_mai_departe?: string | null;
+  dupa?: string | null; inainte?: string | null; zi_nelucratoare?: boolean;
   km_ocol?: number; km_alimentare?: number;
   loc_principal: string | null; repetat: boolean; opriri: OprireLibera[];
 };

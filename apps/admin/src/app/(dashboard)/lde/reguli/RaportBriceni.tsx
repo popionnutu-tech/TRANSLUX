@@ -113,7 +113,7 @@ export default function RaportBriceni({ a, saptamani }: { a: RaportBriceniDate |
   const masini = [...a.masini].sort((x, y) => y.km.livrare - x.km.livrare);
   const azi = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Chisinau' });
   const inCurs = a.pana_la >= azi;
-  const cols = ['Mașina', 'Zile', 'Noaptea la', 'Rute făcute', 'Cu oameni', 'Gol pe rută + ture', 'Legătură', 'Livrare/zi', 'Livrare', 'Lei', 'Brambura'];
+  const cols = ['Mașina', 'Zile', 'Noaptea la', 'Rute făcute', 'Livrare/zi', 'Livrare', 'Lei', 'Brambura'];
 
   return (
     <div className="mx-auto! max-w-[1160px] p-4! sm:p-6!">
@@ -155,7 +155,7 @@ export default function RaportBriceni({ a, saptamani }: { a: RaportBriceniDate |
         <span className="text-[12px] text-neutral-500">apasă un rând ca să vezi zilele, bucată cu bucată</span>
       </div>
       <div className="overflow-x-auto rounded-[12px] border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900">
-        <table className="w-full min-w-[1400px] border-collapse text-[13px]">
+        <table className="w-full min-w-[1100px] border-collapse text-[13px]">
           <thead>
             <tr className="bg-[#9B1B30]/[0.04] text-[10px] uppercase tracking-[0.08em] text-neutral-500">
               {cols.map((h, i) => <th key={h} className={`px-3! py-2.5! font-bold ${i >= 4 || i === 1 ? 'text-right' : 'text-left'}`}>{h}</th>)}
@@ -172,9 +172,6 @@ export default function RaportBriceni({ a, saptamani }: { a: RaportBriceniDate |
                     <td className="px-3! py-2! text-right font-mono tabular-nums">{m.zile}</td>
                     <td className="px-3! py-2!">{m.casa ?? '—'}</td>
                     <td className="px-3! py-2!"><Rute rute={m.rute} /></td>
-                    <td className="px-3! py-2! text-right font-mono tabular-nums">{n0(m.km.cuOameni + m.km.nepotrivita)}</td>
-                    <td className="px-3! py-2! text-right font-mono tabular-nums">{n0(m.km.golRuta + gt(m.km))}</td>
-                    <td className="px-3! py-2! text-right font-mono tabular-nums">{n0(m.km.legatura)}</td>
                     <td className={`px-3! py-2! text-right font-mono tabular-nums ${m.livrareZi > 40 ? `font-bold ${VERDE}` : ''}`}>{n1(m.livrareZi)}</td>
                     <td className={`px-3! py-2! text-right font-mono tabular-nums ${VERDE}`}>{n0(m.km.livrare)}</td>
                     <td className="px-3! py-2! text-right font-mono tabular-nums">{m.lei == null ? '—' : n0(m.lei)}</td>
@@ -192,9 +189,6 @@ export default function RaportBriceni({ a, saptamani }: { a: RaportBriceniDate |
           <tfoot>
             <tr className="border-t border-neutral-200 font-semibold dark:border-neutral-700">
               <td className="px-3! py-2.5!" colSpan={4}>Pe {masini.length} mașini</td>
-              <td className="px-3! py-2.5! text-right font-mono tabular-nums">{n0(t.cuOameni + t.nepotrivita)}</td>
-              <td className="px-3! py-2.5! text-right font-mono tabular-nums">{n0(t.golRuta + gt(t))}</td>
-              <td className="px-3! py-2.5! text-right font-mono tabular-nums">{n0(t.legatura)}</td>
               <td />
               <td className={`px-3! py-2.5! text-right font-mono tabular-nums ${VERDE}`}>{n0(t.livrare)}</td>
               <td className="px-3! py-2.5! text-right font-mono tabular-nums">{n0(t.lei)}</td>

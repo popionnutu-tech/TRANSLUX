@@ -1,6 +1,6 @@
 # Scheletul ideal Drăxlmaier — ce s-a schimbat (F3, pasul E)
 
-Linii: 93 înainte, 93 după; cu diferențe: 41; curse de prânz (steag): 403 pe 52 linii.
+Linii: 93 înainte, 93 după; cu diferențe: 40; curse de prânz (steag): 403 pe 52 linii.
 
 | rută|linie | etalon GPS v2 (km) | curse de prânz | hartă: drum desenat față de etalon (±5 %) | ce s-a schimbat (km GPS, ture/zi, ore, capăt, sate) |
 |---|---|---|---|---|
@@ -87,7 +87,7 @@ Linii: 93 înainte, 93 după; cu diferențe: 41; curse de prânz (steag): 403 pe
 | R4|Grinauti | 26.4 | 23 | -0.1 % | km 26.4 → 25.6 |
 | R5|Alunis | 35.3 | 8 | -0.1 % | km 35.3 → 34.6 |
 | R5|Recea* | — | 0 | — | — |
-| R6|Mihailenii Vechi | 55.7 | 9 | -1.5 % | km 55.7 → 58 |
+| R6|Mihailenii Vechi | 55.7 | 9 | -1.5 % | — |
 | R6|Nicoreni* | — | 0 | — | — |
 | R7|Recea* | — | 1 | — | — |
 | R7|Slobozia* | — | 42 | — | — |
@@ -98,51 +98,12 @@ Linii: 93 înainte, 93 după; cu diferențe: 41; curse de prânz (steag): 403 pe
 | R9|Glodeni* | 62.3 | 9 | -1.6 % | — |
 | R9|Hîjdieni* | — | 0 | — | — |
 
-## Dublurile scoase (39) — km păstrați față de mediana mașinii (steag > 15 %)
+## Dublurile scoase (0) — km păstrați față de mediana mașinii (steag > 15 %)
 
 | mașina | zi | km păstrat | km scos | rută|linie|sens | mediana | abatere | steag |
 |---|---|---|---|---|---|---|---|
-| 880RNK | 2026-05-04 | 20.77 | 18.97 | R12|Pelinia|retur | 25.825 | -20 % | ⚑ |
-| 880RNK | 2026-05-05 | 26.35 | 25.2 | R12|Pelinia|tur | 26.08 | 1 % |  |
-| 880RNK | 2026-05-08 | 24.6 | 23.35 | R12|Pelinia|retur | 25.825 | -5 % |  |
-| 880RNK | 2026-05-08 | 25.89 | 18.06 | R12|Pelinia|retur | 25.825 | 0 % |  |
-| 880RNK | 2026-05-09 | 40.31 | 45.89 | R12|Sofia|retur | 45.205 | -11 % |  |
-| 880RNK | 2026-05-11 | 19.22 | 16.96 | R12|Pelinia|tur | 26.08 | -26 % | ⚑ |
-| 880RNK | 2026-05-12 | 45.25 | 43.61 | R12|Sofia|tur | 45.235 | 0 % |  |
-| 880RNK | 2026-06-05 | 23.22 | 20.62 | R12|Pelinia|retur | 25.825 | -10 % |  |
-| 350KAJ | 2026-09-07 | 43.49 | 21.42 | R16|Varvareuca|tur | 42.98 | 1 % |  |
-| 350KAJ | 2026-09-07 | 43.42 | 24.09 | R16|Varvareuca|retur | 43.77 | -1 % |  |
-| 350KAJ | 2026-09-07 | 40.48 | 21.46 | R16|Varvareuca|tur | 42.98 | -6 % |  |
-| 350KAJ | 2026-09-08 | 3.62 | 3.24 | — (fără rută) | — | — |  |
-| 350KAJ | 2026-09-08 | 44.9 | 24.07 | R16|Varvareuca|retur | 43.77 | 3 % |  |
-| 350KAJ | 2026-09-08 | 41.94 | 19.29 | R16|Varvareuca|tur | 42.98 | -2 % |  |
-| 350KAJ | 2026-09-08 | 3.78 | 3.17 | — (fără rută) | — | — |  |
-| 350KAJ | 2026-09-08 | 3.57 | 2.47 | — (fără rută) | — | — |  |
-| 350KAJ | 2026-09-08 | 34.25 | 12.53 | R16|Varvareuca|retur | 43.77 | -22 % | ⚑ |
-| 350KAJ | 2026-09-08 | 43.69 | 24.16 | R16|Varvareuca|tur | 42.98 | 2 % |  |
-| 350KAJ | 2026-09-08 | 3.52 | 3.34 | — (fără rută) | — | — |  |
-| 350KAJ | 2026-09-08 | 43.58 | 23.54 | R16|Varvareuca|retur | 43.77 | -0 % |  |
-| 350KAJ | 2026-09-08 | 32.58 | 13.88 | R16|Varvareuca|tur | 42.98 | -24 % | ⚑ |
-| 350KAJ | 2026-09-08 | 3.78 | 3.54 | — (fără rută) | — | — |  |
-| 350KAJ | 2026-09-09 | 3.84 | 2.78 | — (fără rută) | — | — |  |
-| 350KAJ | 2026-09-09 | 44.68 | 20.94 | R16|Varvareuca|retur | 43.77 | 2 % |  |
-| 350KAJ | 2026-09-09 | 42.25 | 18.34 | R16|Varvareuca|tur | 42.98 | -2 % |  |
-| 350KAJ | 2026-09-09 | 3.67 | 1.94 | — (fără rută) | — | — |  |
-| 350KAJ | 2026-09-09 | 3.66 | 3.02 | — (fără rută) | — | — |  |
-| 350KAJ | 2026-09-09 | 3.48 | 3.42 | — (fără rută) | — | — |  |
-| 350KAJ | 2026-09-09 | 43.6 | 23.97 | R16|Varvareuca|retur | 43.77 | -0 % |  |
-| 350KAJ | 2026-09-09 | 40.41 | 13.2 | R16|Varvareuca|tur | 42.98 | -6 % |  |
-| 350KAJ | 2026-09-10 | 3.77 | 3.43 | — (fără rută) | — | — |  |
-| 350KAJ | 2026-09-10 | 44.78 | 19.91 | R16|Varvareuca|retur | 43.77 | 2 % |  |
-| 350KAJ | 2026-09-10 | 42.27 | 20 | R16|Varvareuca|tur | 42.98 | -2 % |  |
-| 350KAJ | 2026-09-10 | 3.54 | 2.54 | — (fără rută) | — | — |  |
-| 350KAJ | 2026-09-10 | 42.11 | 15.56 | R16|Varvareuca|retur | 43.77 | -4 % |  |
-| 350KAJ | 2026-09-10 | 43.67 | 19.23 | R16|Varvareuca|tur | 42.98 | 2 % |  |
-| 350KAJ | 2026-09-10 | 3.82 | 1.46 | — (fără rută) | — | — |  |
-| 350KAJ | 2026-09-10 | 3.59 | 3.32 | — (fără rută) | — | — |  |
-| 350KAJ | 2026-09-10 | 44.9 | 32.78 | R16|Varvareuca|retur | 43.77 | 3 % |  |
 
-Steaguri > 15 %: 4. Zile incoerente (perechi care aleg laturi diferite): —.
+Steaguri > 15 %: 0. Zile incoerente (perechi care aleg laturi diferite): —.
 
 ## Dubluri cu alt sens — listate, NU scoase (3)
 
@@ -150,30 +111,30 @@ Steaguri > 15 %: 4. Zile incoerente (perechi care aleg laturi diferite): —.
 - 880RNK 2026-09-10: t0 2026-09-10T02:32:18.000Z / 2026-09-10T02:32:29.000Z, km 15.2 / 26.21, sens 00 / 10
 - 350KAJ 2026-09-09: t0 2026-09-09T03:39:04.000Z / 2026-09-09T03:40:11.000Z, km 34.27 / 10.73, sens 11 / 01
 
-## Cardul = etalonul GPS completat (etalon-gps.mjs, ION-95)
+## Cardul = etalonul GPS completat (etalon-gps.mjs + filtru-rupte.mjs, ION-95 v4.1)
 
 - R1|Donduseni: card 91.5 → 91.9 km GPS completat (brut 91.3; 18 zile; C47 97 %) · km/zi 183 → 183.8
 - R2|Stolniceni: card 67.3 → 67.9 km GPS completat (brut 67.3; 16 zile; C47 94 %) · km/zi 134.6 → 135.8
-- R3|Nihoreni: DIAGNOSTIC CERUT — C47 31/53 (58 %) în ±4.2 km de 42.3; card vechi 44.2 rămâne
+- R3|Nihoreni: DIAGNOSTIC CERUT — C47 58 %; card vechi 44.2 (km/zi 176.8) rămâne
 - R4|Grinauti: card 26.4 → 25.6 km GPS completat (brut 25; 32 zile; C47 97 %) · km/zi 105.6 → 102.4
 - R5|Alunis: card 35.3 → 34.6 km GPS completat (brut 34; 9 zile; C47 100 %) · km/zi 70.6 → 69.2
-- R6|Mihailenii Vechi: card 55.7 → 58 km GPS completat (brut 57.3; 5 zile; C47 75 %) · km/zi 111.4 → 116
+- R6|Mihailenii Vechi: DIAGNOSTIC CERUT — variante de drum (poarta sensului 58 / orice poartă 54.8); card vechi 55.7 (km/zi 111.4) rămâne
 - R7|Usurei: card 40 → 37.4 km GPS completat (brut 36.8; 17 zile; C47 94 %) · km/zi 80 → 74.8
 - R8|Costesti: card 81.5 → 78.5 km GPS completat (brut 78; 19 zile; C47 97 %) · km/zi 163 → 157
 - R9|Cobani: card 55.2 → 55.5 km GPS completat (brut 54.9; 14 zile; C47 100 %) · km/zi 220.8 → 222
 - R10|Ciuciulea: card 67.7 → 66.5 km GPS completat (brut 65.9; 28 zile; C47 80 %) · km/zi 270.8 → 266
 - R11|Funduri Vechi: card 25.1 → 24.7 km GPS completat (brut 24.1; 16 zile; C47 100 %) · km/zi 50.2 → 49.4
-- R11|Limbenii Noi: card 31.7 → 31.2 km GPS completat (brut 30.6; 9 zile; C47 76 %) · km/zi 63.4 → 62.4
+- R11|Limbenii Noi: card 31.7 → 31.2 km GPS completat (brut 30.6; 9 zile; C47 80 %) · km/zi 63.4 → 62.4
 - R12|Pelinia: card 26 → 26.4 km GPS completat (brut 25.8; 37 zile; C47 100 %) · km/zi 104 → 105.6
 - R12|Sofia: card 32.3 → 31.5 km GPS completat (brut 31; 33 zile; C47 99 %) · km/zi 129.2 → 126
 - R13|Lazo: card 16.5 → 16.4 km GPS completat (brut 15.8; 22 zile; C47 100 %) · km/zi 66 → 65.6
 - R14|Baroncea: card 45.9 → 44.4 km GPS completat (brut 43.8; 27 zile; C47 100 %) · km/zi 183.6 → 177.6
 - R14|Dominteni: card 34.5 → 34 km GPS completat (brut 33.4; 54 zile; C47 68 %) · km/zi 207 → 204
-- R15|Suri: card 69.5 → 70 km GPS completat (brut 69.4; 8 zile; C47 96 %) · km/zi 139 → 140
+- R15|Suri: card 69.5 → 70 km GPS completat (brut 69.4; 8 zile; C47 100 %) · km/zi 139 → 140
 - R16|Floresti: card 36 → 35.7 km GPS completat (brut 35.1; 13 zile; C47 100 %) · km/zi 72 → 71.4
 - R16|Varvareuca: card 41.4 → 42.8 km GPS completat (brut 42.2; 35 zile; C47 83 %) · km/zi 165.6 → 171.2
-- R17|Prajila: card 41.9 → 41.3 km GPS completat (brut 40.7; 45 zile; C47 83 %) · km/zi 251.4 → 247.8
-- R18|Zarojeni: DIAGNOSTIC CERUT — C47 12/29 (41 %) în ±3.1 km de 30.7; card vechi 28.9 rămâne
+- R17|Prajila: card 41.9 → 41.3 km GPS completat (brut 40.7; 45 zile; C47 84 %) · km/zi 251.4 → 247.8
+- R18|Zarojeni: DIAGNOSTIC CERUT — C47 41 %; card vechi 28.9 (km/zi 115.6) rămâne
 - R19|Bilicenii Vechi: card 17.3 → 17.3 km GPS completat (brut 16.7; 25 zile; C47 81 %) · km/zi 69.2 → 69.2
 - R19|Copaceni: card 33.7 → 32.7 km GPS completat (brut 32.1; 25 zile; C47 98 %) · km/zi 67.4 → 65.4
 - R20|Nicolaevca: card 40.3 → 39.6 km GPS completat (brut 39; 28 zile; C47 100 %) · km/zi 161.2 → 158.4
@@ -181,22 +142,22 @@ Steaguri > 15 %: 4. Zile incoerente (perechi care aleg laturi diferite): —.
 - R21|Heciul Nou: card 20.3 → 20.7 km GPS completat (brut 20.1; 39 zile; C47 97 %) · km/zi 81.2 → 82.8
 - R22|Tiplesti: card 22.1 → 21.4 km GPS completat (brut 20.9; 7 zile; C47 83 %) · km/zi 44.2 → 42.8
 - R23|Scumpia: card 61.4 → 59.5 km GPS completat (brut 58.9; 21 zile; C47 97 %) · km/zi 245.6 → 238
-- R24|Catranic: DIAGNOSTIC CERUT — C47 18/35 (51 %) în ±2.8 km de 28.3; card vechi 30 rămâne
+- R24|Catranic: DIAGNOSTIC CERUT — < 3 perechi bune (2); card vechi 30 (km/zi 60) rămâne
 - R25|Hiliuti: card 32.4 → 32 km GPS completat (brut 31.4; 9 zile; C47 100 %) · km/zi 64.8 → 64
 - R26|Ilenuta: card 40 → 38.8 km GPS completat (brut 38.3; 7 zile; C47 89 %) · km/zi 80 → 77.6
 - R26|Obreja Veche: card 38.8 → 38.4 km GPS completat (brut 37.8; 15 zile; C47 100 %) · km/zi 77.6 → 76.8
 - R27|Danu: card 53.8 → 53.7 km GPS completat (brut 53.2; 11 zile; C47 92 %) · km/zi 107.6 → 107.4
-- R27|Sturzovca: DIAGNOSTIC CERUT — C47 19/66 (29 %) în ±4.7 km de 46.5; card vechi 24.9 rămâne
+- R27|Sturzovca: DIAGNOSTIC CERUT — C47 29 %; porți divergente (poarta sensului 46.5 / orice poartă 24.1); card vechi 24.9 (km/zi 149.4) rămâne
 - R28|Cuhnesti: card 66.9 → 65.5 km GPS completat (brut 64.9; 14 zile; C47 97 %) · km/zi 133.8 → 131
 - R29|Ustia: card 58.5 → 56.9 km GPS completat (brut 56.4; 9 zile; C47 100 %) · km/zi 117 → 113.8
 - R30|Cosernita: card 65.8 → 63.8 km GPS completat (brut 63.2; 18 zile; C47 97 %) · km/zi 131.6 → 127.6
 - R31|Cotiujenii Mari: card 66.7 → 65.1 km GPS completat (brut 64.5; 16 zile; C47 100 %) · km/zi 133.4 → 130.2
 - R32|Cainarii Vechi: card 48.2 → 46.9 km GPS completat (brut 46.3; 18 zile; C47 79 %) · km/zi 96.4 → 93.8
-- R32|Trifanesti: DIAGNOSTIC CERUT — C47 50/118 (42 %) în ±4.1 km de 41.2; card vechi 42.3 rămâne
+- R32|Trifanesti: DIAGNOSTIC CERUT — C47 42 %; card vechi 42.3 (km/zi 169.2) rămâne
 - R33|Iezarenii Vechi: card 34.6 → 34.7 km GPS completat (brut 34; 13 zile; C47 96 %) · km/zi 69.2 → 69.4
 - R34|Taura Veche: card 41.7 → 40.7 km GPS completat (brut 40.1; 18 zile; C47 97 %) · km/zi 83.4 → 81.4
 - R35|Cucioaia: card 54.2 → 52.5 km GPS completat (brut 51.8; 19 zile; C47 100 %) · km/zi 108.4 → 105
-- R36|Bocancea Schit: DIAGNOSTIC CERUT — C47 13/35 (37 %) în ±4.6 km de 46.2; card vechi 54.5 rămâne
+- R36|Bocancea Schit: DIAGNOSTIC CERUT — C47 41 %; card vechi 54.5 (km/zi 109) rămâne
 - R37|Musteata: card 44.6 → 43.5 km GPS completat (brut 43; 10 zile; C47 100 %) · km/zi 89.2 → 87
 - R38|Glinjeni: card 34.3 → 33.3 km GPS completat (brut 32.8; 13 zile; C47 100 %) · km/zi 68.6 → 66.6
 - R39|Popestii de jos: card 77.1 → 74.8 km GPS completat (brut 74.2; 47 zile; C47 97 %) · km/zi 154.2 → 149.6

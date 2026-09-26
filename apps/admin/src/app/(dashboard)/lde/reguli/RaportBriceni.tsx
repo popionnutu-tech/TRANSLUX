@@ -53,7 +53,8 @@ function Zile({ m }: { m: MasinaBriceni }) {
                   <td className="w-[70px] px-2! py-0.5! text-right font-mono tabular-nums">{n1(b.km)}</td>
                   <td className="w-[80px] px-2! py-0.5! font-mono text-neutral-500">{b.r ?? ''}</td>
                   <td className="px-2! py-0.5! text-neutral-500">
-                    {b.motiv ?? ''}{b.brambura ? ` · brambura ${n1(b.brambura)} km (drum nefolosit în alte zile), scăzută` : ''}
+                    {b.motiv ?? ''}{b.golTure ? ` · plus ${n1(b.golTure)} km gol între ture (pe traseul rutei), nu livrare` : ''}
+                    {b.brambura ? ` · brambura ${n1(b.brambura)} km (drum nefolosit în alte zile), scăzută` : ''}
                   </td>
                 </tr>
               ))}
@@ -196,15 +197,19 @@ export default function RaportBriceni({ a, saptamani }: { a: RaportBriceniDate |
       <div className="mt-6! space-y-1.5! text-[12.5px] text-neutral-500">
         <p>
           Categoriile, în ordine: cursele Trox (capăt ↔ poartă, inclusiv returul după predarea pe loc) și cursele suburbane din orar
-          sunt <b>cu oameni</b>; întoarcerea goală gară → sat între două curse ale aceleiași rute e <b>gol pe rută</b>; drumul de acasă
-          până la prima cursă, pe acasă între ture și seara înapoi e <b>livrare</b> — singura economie (șofer din satul de start sau
-          mașina așteaptă la capăt); drumul dintre Trox și suburban (poartă ↔ gară) e <b>legătură</b>, nu economie. Un drum gol cu
-          urcări (30 s – 5 min) în ≥2 sate ale rutei, care pleacă de la gară sau ajunge la gară ori poartă, e <b>cursă în afara orarului</b>.
+          sunt <b>cu oameni</b>, și returul spre capăt după ultima cursă a rutei (orarele suburbane au doar tururi); întoarcerea goală
+          gară → sat între două curse ale aceleiași rute e <b>gol pe rută</b>; drumul de acasă până la prima cursă și seara înapoi e{' '}
+          <b>livrare</b> — singura economie (șofer din satul de start sau mașina așteaptă la capăt). Pe acasă între două curse, livrare e
+          doar <b>ocolul</b>: km-ii peste drumul direct de la sfârșitul unei curse la începutul următoarei (km pe drum), pe care mașina
+          l-ar face oricum — între două ture Trox acel drum direct e <b>gol între ture</b> (pe traseul rutei: 6 drumuri pe 2 ture, același
+          capăt), altfel <b>legătură</b>; niciunul nu e economie. Un drum gol cu urcări (30 s – 5 min) în ≥2 sate ale rutei, care pleacă de
+          la gară sau ajunge la gară ori poartă, e <b>cursă în afara orarului</b>.
         </p>
         <p>Lei = livrare × (norma mașinii × prețul ANRE al zilei + 1,00 reparație, 1,50 la autobuz mare + 1,00 salariu).</p>
         <p>
           Flota vine din GPS, nu din lista de atribuiri: lista Trox din bază (073BRAO, 480BRAS, 281BRAT) nu e cine duce rutele.
-          Suburbanul se vede doar în zilele cu atribuire în grafic.
+          Suburbanul: rutele atribuite în grafic, plus orice cursă a unei rute neatribuite care se potrivește cu orarul ei (mașina de
+          Trox care face și curse suburbane între ture).
           {a.faraTracker.length > 0 && <> Fără tracker, deci fără analiză: {a.faraTracker.join(', ')}.</>}
           {a.zileInterurban.length > 0 && <> {a.zileInterurban.length} zile-mașină cu cursă interurbană (Chișinău ↔ nord) sunt scoase: țin de raportul rutelor interurbane.</>}
         </p>

@@ -136,48 +136,38 @@ const sumar = (o: Partial<VerifySummary> = {}): VerifySummary => ({
   date: '2026-09-10', verificate: 191, confirmate_auto: 0, nepotriviri: 0, fara_date_gps: 0,
   fara_masina: 0, uzine_libere: 0, actualizate: 0, push_trimise: 0, alerta_admin: false, dry: false, ...o,
 });
-const NUME = new Map([['LEAR_UNGHENI', 'LEAR-Ungheni'], ['TROX_BRICENI', 'Trox-Briceni']]);
 
 describe('textAlertaZilnica', () => {
-  it('zi curată, fără nepotriviri → niciun mesaj', () => {
-    expect(textAlertaZilnica('2026-09-08', new Map(), NUME, sumar({ confirmate_auto: 183, fara_date_gps: 8 }), [])).toBeNull();
+  it('zi curată → niciun mesaj', () => {
+    expect(textAlertaZilnica('2026-09-08', sumar({ confirmate_auto: 183, fara_date_gps: 8 }))).toBeNull();
+  });
+
+  // ION-93 (Ion, 26.09): «Nu mai am nevoie de această notificare, noi am șters atribuirile».
+  it('nepotrivirile, oricâte, nu mai trimit mesaj', () => {
+    expect(textAlertaZilnica('2026-09-25', sumar({ confirmate_auto: 132, nepotriviri: 26 }))).toBeNull();
   });
 
   it('feed GPS căzut (191/191) → alarmă explicită, cu ce anume să verifice', () => {
-    const t = textAlertaZilnica('2026-09-10', new Map(), NUME, sumar({ fara_date_gps: 191 }), [])!;
+    const t = textAlertaZilnica('2026-09-10', sumar({ fara_date_gps: 191 }))!;
     expect(t).toContain('GPS lipsă pe 2026-09-10');
     expect(t).toContain('191 din 191');
     expect(t).toContain('100%');
     expect(t).toContain('gps-worker.mjs');
   });
 
+  it('avarie GPS într-o zi cu nepotriviri → doar alarma, fără «Atribuiri»', () => {
+    const t = textAlertaZilnica('2026-09-12', sumar({ nepotriviri: 3, fara_date_gps: 160 }))!;
+    expect(t).toContain('GPS lipsă');
+    expect(t).not.toContain('Atribuiri');
+    expect(t).not.toContain('nepotriviri');
+  });
+
   it('lipsă GPS obișnuită (sub prag) nu declanșează alarma de avarie', () => {
-    expect(textAlertaZilnica('2026-09-05', new Map(), NUME, sumar({ confirmate_auto: 100, fara_date_gps: 68 }), [])).toBeNull();
+    expect(textAlertaZilnica('2026-09-05', sumar({ confirmate_auto: 100, fara_date_gps: 68 }))).toBeNull();
   });
 
   it('ziua mică nu se judecă pe procent — 3 rânduri fără GPS nu sunt o avarie', () => {
-    expect(textAlertaZilnica('2026-09-13', new Map(), NUME, sumar({ verificate: 3, fara_date_gps: 3 }), [])).toBeNull();
-  });
-
-  it('nepotrivirile se listează pe uzine, descrescător', () => {
-    const t = textAlertaZilnica('2026-09-08', new Map([['TROX_BRICENI', 2], ['LEAR_UNGHENI', 5]]), NUME,
-      sumar({ confirmate_auto: 166, nepotriviri: 7 }), [])!;
-    expect(t).toContain('<b>7 nepotriviri</b>');
-    expect(t.indexOf('LEAR-Ungheni')).toBeLessThan(t.indexOf('Trox-Briceni'));
-  });
-
-  it('uzina fără manager configurat e numită explicit', () => {
-    const t = textAlertaZilnica('2026-09-08', new Map([['TROX_BRICENI', 2]]), NUME,
-      sumar({ nepotriviri: 2 }), ['TROX_BRICENI'])!;
-    expect(t).toContain('Fără manager configurat');
-    expect(t).toContain('Trox-Briceni');
-  });
-
-  it('avarie GPS și nepotriviri în aceeași zi → ambele blocuri', () => {
-    const t = textAlertaZilnica('2026-09-12', new Map([['LEAR_UNGHENI', 3]]), NUME,
-      sumar({ nepotriviri: 3, fara_date_gps: 160 }), [])!;
-    expect(t).toContain('GPS lipsă');
-    expect(t).toContain('Atribuiri 2026-09-12');
+    expect(textAlertaZilnica('2026-09-13', sumar({ verificate: 3, fara_date_gps: 3 }))).toBeNull();
   });
 });
 
@@ -229,19 +219,5 @@ describe('zileLibere', () => {
     // rândurile confirmate la prima rulare nu mai vin în `rows`; vin ca `confirmariExistente`
     expect(zileLibere([v('ORHEI', 'nepotrivire'), v('ORHEI', 'nepotrivire')], new Map([['ORHEI', 49]])).size)
       .toBe(0);
-  });
-});
-
-describe('textAlertaZilnica — ziua liberă', () => {
-  it('weekend fără nicio nepotrivire reală → niciun mesaj', () => {
-    expect(textAlertaZilnica('2026-09-13', new Map(), NUME, sumar({ verificate: 73, uzine_libere: 47, fara_date_gps: 24 }), []))
-      .toBeNull();
-  });
-
-  it('când există și nepotriviri reale, uzinele libere sunt numite', () => {
-    const t = textAlertaZilnica('2026-09-12', new Map([['LEAR_UNGHENI', 4]]), NUME,
-      sumar({ nepotriviri: 4, uzine_libere: 20 }), [], ['TROX_BRICENI'])!;
-    expect(t).toContain('Nu au lucrat în ziua asta');
-    expect(t).toContain('Trox-Briceni');
   });
 });

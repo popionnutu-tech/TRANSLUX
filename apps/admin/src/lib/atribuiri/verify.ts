@@ -158,7 +158,7 @@ export async function verificaZi(date: string, dry: boolean, reverify = false): 
       .select('id, direction, vehicle_id, vehicle_id_retur, status, verification_note')
       .eq('date', date).eq('route_kind', 'uzina')
       .in('status', statuses),
-    db.from('lde_uzine').select('id, display_name, city, gps_localities'),
+    db.from('lde_uzine').select('id, city, gps_localities'),
     db.from('lde_uzine_gates').select('uzina_id, label, lat, lon, radius_km').eq('active', true),
     db.from('lde_vehicle_gps_daily').select('vehicle_id').eq('date', date).then((r) => new Set((r.data ?? []).map((x) => x.vehicle_id as string))),
     stopsOfDay(date),
@@ -181,7 +181,6 @@ export async function verificaZi(date: string, dry: boolean, reverify = false): 
       .filter((a) => a.key && !seen.has(a.key) && seen.add(a.key)));
   }
   const cityOf = new Map((uzine ?? []).map((u) => [u.id as string, u.city as string]));
-  const numeOf = new Map((uzine ?? []).map((u) => [u.id as string, (u.display_name as string) || (u.id as string)]));
 
   // Plăcile intră în note DOAR pentru turele cu retur pe altă mașină: acolo «nu a ajuns
   // în Orhei» e ambiguu — dispecerul trebuie să știe CARE mașină lipsește. Zilele fără
@@ -270,7 +269,7 @@ export async function verificaZi(date: string, dry: boolean, reverify = false): 
     }
     // la reverify nu re-spamăm managerii — nepotrivirile vechi au fost deja anunțate
     summary.push_trimise = reverify ? 0 : await pushManagers(date, nepotriviriByDir, summary);
-    if (!reverify) summary.alerta_admin = await alertaZilnica(date, nepotriviriByDir, numeOf, summary, [...libere]);
+    if (!reverify) summary.alerta_admin = await alertaZilnica(date, summary);
   }
   return summary;
 }
@@ -322,68 +321,27 @@ export function zileLibere(
   return libere;
 }
 
-/** Textul rezumatului de ADMIN. Separat de trimitere ca să poată fi testat. */
-export function textAlertaZilnica(
-  date: string,
-  nepotriviriByDir: Map<string, number>,
-  numeOf: Map<string, string>,
-  s: VerifySummary,
-  dirsFaraManager: string[],
-  uzineLibere: string[] = [],
-): string | null {
+/** Textul alarmei de ADMIN. Separat de trimitere ca să poată fi testat.
+ *
+ *  ION-93 (Ion, 26.09, despre mesajul «⚠️ Atribuiri … nepotriviri»): «Nu mai am nevoie
+ *  de această notificare, noi am șters atribuirile». Paginile de atribuiri au ieșit din
+ *  admin (ION-53, ION-66), deci nepotrivirile nu mai au cine să le corecteze. Verdictul
+ *  GPS se scrie în continuare (îl citesc trasee, etalonul și posterul); la ADMIN pleacă
+ *  doar avaria: feed-ul GPS căzut, care orbește toate rapoartele de uzină. */
+export function textAlertaZilnica(date: string, s: VerifySummary): string | null {
   const gpsCazut = s.verificate >= MIN_RANDURI_ALARMA && s.fara_date_gps / s.verificate >= PRAG_GPS_CAZUT;
-  // Ziua liberă a unei uzine NU e motiv de alertă — altfel fiecare weekend ar trimite un
-  // mesaj cu 50–75 de «abateri» care nu există, iar mesajul ar înceta să fie citit.
-  if (!gpsCazut && !nepotriviriByDir.size) return null;
-
-  const linii: string[] = [];
-  if (gpsCazut) {
-    const pct = Math.round((s.fara_date_gps / s.verificate) * 100);
-    linii.push(
-      `⛔️ <b>GPS lipsă pe ${escapeHtml(date)}</b>`,
-      `${s.fara_date_gps} din ${s.verificate} curse de uzină (${pct}%) au rămas fără date GPS — verificarea zilei NU s-a făcut.`,
-      'De controlat worker-ul nocturn de pe VPS (<code>gps-worker.mjs</code>, log <code>nightly.log</code>) și legătura cu baza trackerului.',
-    );
-    if (nepotriviriByDir.size) linii.push('');
-  }
-  if (nepotriviriByDir.size) {
-    const n = [...nepotriviriByDir.values()].reduce((a, b) => a + b, 0);
-    linii.push(
-      `⚠️ <b>Atribuiri ${escapeHtml(date)}</b>`,
-      `${s.confirmate_auto} curse confirmate automat · <b>${n} nepotriviri</b>:`,
-      ...[...nepotriviriByDir.entries()]
-        .sort((a, b) => b[1] - a[1])
-        .map(([dir, k]) => `• ${escapeHtml(numeOf.get(dir) ?? dir)} — ${k}`),
-    );
-    // Uzina fără manager în lde_manager_directions nu primește push-ul de corectare:
-    // nepotrivirile ei nu ajung la nimeni în afară de mesajul ăsta.
-    if (dirsFaraManager.length) {
-      linii.push('', `Fără manager configurat (nimeni nu primește push de corectare): ${
-        dirsFaraManager.map((d) => escapeHtml(numeOf.get(d) ?? d)).join(', ')}`);
-    }
-  }
-  // Spus explicit, ca tăcerea unei uzine să nu fie citită drept «acolo a fost bine».
-  if (uzineLibere.length) {
-    linii.push('', `Nu au lucrat în ziua asta: ${
-      uzineLibere.map((d) => escapeHtml(numeOf.get(d) ?? d)).join(', ')}`);
-  }
-  return linii.join('\n');
+  if (!gpsCazut) return null;
+  const pct = Math.round((s.fara_date_gps / s.verificate) * 100);
+  return [
+    `⛔️ <b>GPS lipsă pe ${escapeHtml(date)}</b>`,
+    `${s.fara_date_gps} din ${s.verificate} curse de uzină (${pct}%) au rămas fără date GPS — verificarea zilei NU s-a făcut.`,
+    'De controlat worker-ul nocturn de pe VPS (<code>gps-worker.mjs</code>, log <code>nightly.log</code>) și legătura cu baza trackerului.',
+  ].join('\n');
 }
 
-/** Rezumatul zilei către ADMIN: avarie de GPS sau nepotriviri. Independent de
- *  lde_manager_directions — tocmai fiindcă tabela aia poate fi (și e) goală. */
-async function alertaZilnica(
-  date: string,
-  nepotriviriByDir: Map<string, number>,
-  numeOf: Map<string, string>,
-  s: VerifySummary,
-  uzineLibere: string[],
-): Promise<boolean> {
-  const db = getSupabase();
-  const { data: mds } = await db.from('lde_manager_directions').select('direction');
-  const cuManager = new Set((mds ?? []).map((m) => m.direction as string));
-  const text = textAlertaZilnica(date, nepotriviriByDir, numeOf, s,
-    [...nepotriviriByDir.keys()].filter((d) => !cuManager.has(d)), uzineLibere);
+/** Alarma zilei către ADMIN: doar avaria de GPS. */
+async function alertaZilnica(date: string, s: VerifySummary): Promise<boolean> {
+  const text = textAlertaZilnica(date, s);
   if (!text) return false;
   return alertAdmins(text);
 }

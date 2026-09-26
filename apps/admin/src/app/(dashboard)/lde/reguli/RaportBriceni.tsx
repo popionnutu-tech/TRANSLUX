@@ -35,15 +35,22 @@ const CULOARE_CAT: Partial<Record<Categorie, string>> = { livrare: VERDE, necuno
 
 // Ce rute a făcut mașina (Ion, 26.09: «nu îmi ajunge informație, care rute face»): Trox (T1–T6) și suburbanele, cu câte
 // curse cu oameni; pe săptămână și câte zile. Săptămânile scrise înainte de 26.09 nu au câmpul.
+// Denumirea rutei (Ion, 26.09: «am nevoie să fie denumirea la rută»): Trox — denumirea din actul de primire-predare,
+// suburbanul — capătul → Briceni, ca în nomenclator.
+const numeRuta = (r: RutaFacuta) => !r.nume ? null : r.trox
+  ? r.nume.replace(/\s*-\s*/g, ' – ').replace(/Sl\.Sireuti/g, 'Sl.-Șirăuți')
+  : `${r.nume} – Briceni`;
 function Rute({ rute, zi = false }: { rute?: RutaFacuta[]; zi?: boolean }) {
   if (!rute?.length) return <span className="text-neutral-400">—</span>;
   return (
-    <span className="inline-flex flex-wrap gap-1">
+    <span className={`inline-flex gap-1 ${zi ? 'flex-wrap' : 'flex-col'}`}>
       {rute.map((r) => (
         <span key={r.r} title={`${r.trox ? 'Trox' : 'suburban'} ${r.r}: ${r.curse} curse cu oameni, ${n1(r.km)} km${r.zile ? `, în ${r.zile} zile` : ''}`}
-          className={`whitespace-nowrap rounded-[6px] border px-1.5! font-mono text-[11.5px] ${r.trox
+          className={`rounded-[6px] border px-1.5! text-[12px] leading-snug ${r.trox
             ? 'border-[#9B1B30]/40 text-[#9B1B30] dark:text-[#e0788c]' : 'border-neutral-300 text-neutral-700 dark:border-neutral-600 dark:text-neutral-300'}`}>
-          {r.trox ? 'Trox ' : ''}{r.r} <span className="text-neutral-500">{zi || !r.zile ? `×${r.curse}` : `${r.zile} z`}</span>
+          <b className="font-mono">{r.trox ? 'Trox ' : ''}{r.r === '46+52+53' ? '46, 52, 53' : r.r}</b>
+          {numeRuta(r) && <> {numeRuta(r)}</>}
+          <span className="text-neutral-500"> · {zi || !r.zile ? `${r.curse} ${r.curse === 1 ? 'cursă' : 'curse'}` : `${r.zile} ${r.zile === 1 ? 'zi' : 'zile'}`}</span>
         </span>
       ))}
     </span>
@@ -69,7 +76,7 @@ function Zile({ m }: { m: MasinaBriceni }) {
                   <td className="w-[110px] px-2! py-0.5! whitespace-nowrap font-mono text-neutral-500">{b.ora}</td>
                   <td className={`w-[190px] px-2! py-0.5! ${CULOARE_CAT[b.cat] ?? ''}`}>{NUME_CAT[b.cat]}</td>
                   <td className="w-[70px] px-2! py-0.5! text-right font-mono tabular-nums">{n1(b.km)}</td>
-                  <td className="w-[80px] px-2! py-0.5! font-mono text-neutral-500">{b.r ?? ''}</td>
+                  <td className="w-[300px] px-2! py-0.5! text-neutral-500"><span className="font-mono">{b.r ?? ""}</span>{b.r && (() => { const x = m.rute?.find((q) => q.r === b.r); const n = x ? numeRuta(x) : null; return n ? <span className="text-[11px]"> {n}</span> : null; })()}</td>
                   <td className="px-2! py-0.5! text-neutral-500">
                     {b.motiv ?? ''}{b.golTure ? ` · plus ${n1(b.golTure)} km gol între ture (pe traseul rutei), nu livrare` : ''}
                     {b.brambura ? ` · brambura ${n1(b.brambura)} km (drum nefolosit în alte zile), scăzută` : ''}
@@ -143,7 +150,7 @@ export default function RaportBriceni({ a, saptamani }: { a: RaportBriceniDate |
         <span className="text-[12px] text-neutral-500">apasă un rând ca să vezi zilele, bucată cu bucată</span>
       </div>
       <div className="overflow-x-auto rounded-[12px] border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900">
-        <table className="w-full min-w-[1180px] border-collapse text-[13px]">
+        <table className="w-full min-w-[1400px] border-collapse text-[13px]">
           <thead>
             <tr className="bg-[#9B1B30]/[0.04] text-[10px] uppercase tracking-[0.08em] text-neutral-500">
               {cols.map((h, i) => <th key={h} className={`px-3! py-2.5! font-bold ${i >= 4 || i === 1 ? 'text-right' : 'text-left'}`}>{h}</th>)}

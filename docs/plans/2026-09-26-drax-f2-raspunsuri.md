@@ -7,11 +7,11 @@ Deci întrebările NU i s-au pus lui Ion. S-au hotărât pe cifre, cu trei păr�
 - criticul Codex (gpt-6-astra), «orb», adică fără să vadă răspunsurile Claude.
 
 Verdictul l-a scris sesiunea principală (`triaj-r1.md`; precizările rundelor 2 și 3 în `triaj-r2.md`, `triaj-r3.md`). Ion îl poate răsturna oricând,
-pe `/lde/livrare-reguli` sau printr-un tichet nou. Cifrele sunt cele finale, după corecțiile rundelor 1–3 (`plan-f2-v3-pur.md`, v3.1).
+pe `/lde/livrare-reguli` sau printr-un tichet nou. Cifrele sunt cele finale, după corecțiile rundelor 1–3 și ale criticului Codex runda 2 (8,0 PASS; `plan-f2-v3-pur.md`, v3.2).
 
 Fereastra măsurată: săptămânile ISO 36–39 (31.08–25.09.2026).
 - 723 de zile-mașină L–V; eșantionul are 573, fără zilele cu o cursă probabil nedetectată (150).
-- Cifra pe flotă e o **extrapolare** pe zile-mașină (factor 1,26); pe mașină, extrapolarea ei dă cu 1,8 % mai mult.
+- Cifra pe flotă e o **extrapolare** pe zile-mașină (factor 1,26); pe mașină, extrapolarea ei dă cu 1,8 % mai mult (41.528 față de 40.778).
 - Flota pe săptămână se numără pe zilele L–V (≥ 4): 39 · 41 · 39 · 39 dispozitive, nicio mașină nu iese față de numărarea L–D.
 - 19 zile lucrătoare; pe lună = pe zi lucrătoare × 21,7.
 
@@ -47,9 +47,9 @@ Fereastra măsurată: săptămânile ISO 36–39 (31.08–25.09.2026).
 - doar km-ii intervalului din AFARA zonei uzinei (runda 2, B1-rest);
 - fără excursiile de peste 15 km (acestea trec la deplasare);
 - «o singură pereche» = numărul de perechi complete ale zilei == 1, nu eticheta tiparului (runda 2, C2: +10,9 km);
-- fără intervalele care conțin o cursă de prânz (runda 3, B14: 3 intervale, 320 km → gol pe rută);
+- fără intervalele care conțin o cursă de prânz (runda 3, B14; Codex r2, C3: intervalul se taie la cursă — aceeași linie = gol pe rută, altă linie = legătură);
 - plafonat MEREU (runda 3, S17) la drumul pe șosea dus-întors până la cea mai lungă oprire ≥ 20 min din AFARA zonei, cu bucățile de parcare unite (runda 3, B13); fără o astfel de oprire R3 = 0 (26 de intervale); P8 pe km-ii din afara zonei: 5 / 10 în ± 20 %, raport median 1,07;
-- restul (647 km pe eșantion) = «nelămurit», listă separată pe pagină (runda 3, B16), nici economie, nici alarmă.
+- restul (647 km pe eșantion) = «nelămurit», listă separată pe pagină cu mașina, ziua, ora, km și motivul (runda 3, B16; Codex r2, C4), nici economie, nici alarmă.
 
 **Motivul.**
 - (c) e citirea literală a lui «sau» (unanim).
@@ -95,19 +95,20 @@ Fereastra măsurată: săptămânile ISO 36–39 (31.08–25.09.2026).
 |---|---|---|---|---|---|---|
 | A = R1-LEAR (referință) | −16.002 | −27,9 | −20.191 | −1.063 | −23.061 | ≈ −183.100 |
 | R1a marginile | 16.788 | 29,3 | 21.183 | 1.115 | 24.193 | ≈ 161.500 |
-| R1b ocolul | 15.687 | 27,4 | 19.793 | 1.042 | 22.606 | ≈ 160.700 |
+| R1b ocolul | 15.367 | 26,8 | 19.390 | 1.021 | 22.145 | ≈ 157.800 |
 | R3 (c, 30 km, plafonat) | 163 | 0,3 | 206 | 11 | 235 | ≈ 900 |
-| **B = R1a + R1b + R3** | **32.638** | **57,0** | **41.182** | **2.168** | **47.034** | **≈ 323.100** |
+| **B = R1a + R1b + R3** | **32.318** | **56,4** | **40.778** | **2.146** | **46.573** | **≈ 320.200** |
 | nelămurit (listă separată) | 647 | 1,1 | 816 | 43 | 933 | — |
 
 - Lei: «dacă toate marginile și ocolurile ar dispărea», nu economie garantată.
-- **Extrapolarea pe mașină** (B pe zi-mașină × zilele fiecăreia): 41.917 km (+1,8 %).
+- **Extrapolarea pe mașină** (B pe zi-mașină × zilele fiecăreia): 41.528 km (+1,8 %).
   - 386PKP n-are nicio zi măsurată.
   - Sub jumătate din zile măsurate: 744ARF 4 din 19, 397VKV 1 din 9, 804MUM 2 din 10, 518MHD 6 din 19.
 - **A ar tăia mai mult decât B** (doar ca referință), la 3 mașini puțin măsurate: 744ARF (445 față de 242), 804MUM (189 față de 152), 297LVY (175 față de 124).
 - **A pe plus:** la 16 mașini, Σ 4.789 km.
 - **R2:** net 547 km pe eșantion = 3.214 câștigați − 2.666 pierduți de 9 mașini. Mai sunt 27,5 perechi despărțite.
-- **Pe săptămâni**, B pe zi-mașină: 58,8 · 54,4 · 56,3 · 58,8; pe 36–38 = 56,3, pe 36–39 = 57,0.
+- **Pe săptămâni**, B pe zi-mașină: 56,1 · 54,4 · 56,3 · 58,8; pe 36–38 = 55,5, pe 36–39 = 56,4.
+- **Efectul C3** (tăierea intervalelor cu cursă de prânz): ocolul pe acasă −604 km (L–V), legătura +359, gol pe rută +245; B pe eșantion 32.638 → 32.318.
 
 ## 4. Mesajul de timp liber către ADMIN: `?liber=1` sau nimic până la poster?
 

@@ -3,9 +3,10 @@ import type { Schelet } from './ScheletClient';
 import type { ScheletSebn } from './ScheletSebnClient';
 import type { ScheletFloresti } from './ScheletFlorestiClient';
 import type { ScheletMejgorod } from './ScheletMejgorodClient';
+import type { ScheletBriceni } from './ScheletBriceniClient';
 
 // Fila «Toate rutele» (ION-67). Ion, 25.09.2026: «fă o hartă unică unde să se aplice toate rutele,
-// vizual să fie frumos, fiecare să fie sub egida ei cumva vizibil». Cele patru schelete au împreună
+// vizual să fie frumos, fiecare să fie sub egida ei cumva vizibil». Scheletele au împreună
 // ~50.000 de puncte GPS și 1,7 MB — prea mult pentru o singură hartă în browser. Aici, pe server, se
 // păstrează doar drumul cu oameni al fiecărei rute, subțiat la ~60 m, plus zona fiecărei rețele.
 
@@ -23,6 +24,7 @@ const TENTE = {
   straseni: { h: 272, culoare: '#6B4A96' },
   floresti: { h: 30, culoare: '#B06A1F' },
   mejgorod: { h: 352, culoare: '#8E2A3A' },
+  briceni: { h: 96, culoare: '#557A2E' },
 } as const;
 const nuanta = (h: number, i: number) => `hsl(${h} 58% ${30 + ((i * 9) % 24)}%)`;
 
@@ -90,40 +92,65 @@ const plin = (g?: { tur?: { plin: Punct[] }; retur?: { plin: Punct[] } }) =>
 // Poarta LEAR Ungheni — aceeași ca în ScheletMap (acolo e poarta implicită).
 const POARTA_UNGHENI: Punct = [47.223, 27.8016];
 
-export function construiesteToate(
-  lear: Schelet, sebn: ScheletSebn, floresti: ScheletFloresti, mejgorod: ScheletMejgorod,
-): Retea[] {
-  const retea = (
-    id: keyof typeof TENTE, nume: string, sub: string, porti: Retea['porti'],
-    rute: { id: string; nume: string; km: number | null; linie: Punct[] }[], cuZona = true,
-  ): Retea => {
-    const t = TENTE[id];
-    const r = rute.map((x, i) => ({ ...x, culoare: nuanta(t.h, i), linie: subtiaza(x.linie) }));
-    const linii = r.map((x) => x.linie).filter((l) => l.length > 1);
-    return {
-      id, nume, sub, culoare: t.culoare, porti, rute: r,
-      zona: cuZona ? zona([...linii, porti.map((p) => p.c)]) : null,
-      kmZi: r.reduce((s, x) => s + (x.km ?? 0), 0),
-    };
-  };
+type RutaBruta = { id: string; nume: string; km: number | null; linie: Punct[] };
 
-  // km pe rută = km cu oameni pe zi, exact cum îi numără fila fiecărei rețele
+const retea = (
+  id: keyof typeof TENTE, nume: string, sub: string, porti: Retea['porti'], rute: RutaBruta[], cuZona = true,
+): Retea => {
+  const t = TENTE[id];
+  const r = rute.map((x, i) => ({ ...x, culoare: nuanta(t.h, i), linie: subtiaza(x.linie) }));
+  const linii = r.map((x) => x.linie).filter((l) => l.length > 1);
+  return {
+    id, nume, sub, culoare: t.culoare, porti, rute: r,
+    zona: cuZona ? zona([...linii, porti.map((p) => p.c)]) : null,
+    kmZi: r.reduce((s, x) => s + (x.km ?? 0), 0),
+  };
+};
+
+// Fiecare rețea își are aici funcția ei «pe harta comună»; registrul din page.tsx o cere obligatoriu
+// pentru fiecare filă, deci o rețea nouă nu se poate adăuga fără să apară și în «Toate rutele» (ION-88).
+// km pe rută = km cu oameni pe zi, exact cum îi numără fila fiecărei rețele.
+
+export const learLaToate = (lear: Schelet): Retea[] => [
+  retea('lear', 'LEAR Ungheni', 'uzină · tura A și B', [{ c: POARTA_UNGHENI, n: 'LEAR Ungheni' }],
+    lear.rute.map((r) => ({ id: r.id, nume: r.capat ?? r.sate[0], km: r.etalon != null ? r.etalon * 2 : null, linie: plin(r.g) }))),
+];
+
+export const sebnLaToate = (sebn: ScheletSebn): Retea[] => {
   const orhei = sebn.uzine.find((u) => u.id === 'orhei');
   const straseni = sebn.uzine.find((u) => u.id === 'straseni');
   const sebnRute = (uz: string) => sebn.rute.filter((r) => r.uz === uz).map((r) => {
     const acum = r.schimburi.filter((s) => !s.pana);
     return { id: r.id, nume: r.nume, km: acum.length ? acum.reduce((s, x) => s + x.tur + x.retur, 0) : null, linie: plin(r.g) };
   });
-
   return [
-    retea('lear', 'LEAR Ungheni', 'uzină · tura A și B', [{ c: POARTA_UNGHENI, n: 'LEAR Ungheni' }],
-      lear.rute.map((r) => ({ id: r.id, nume: r.capat ?? r.sate[0], km: r.etalon != null ? r.etalon * 2 : null, linie: plin(r.g) }))),
-    retea('floresti', 'LEAR Florești', 'uzină · actul 36.1', [{ c: floresti.poarta, n: 'LEAR Florești' }],
-      floresti.rute.map((r) => ({ id: r.id, nume: r.capat ?? r.sate[0], km: r.etalon != null ? (r.tur ?? 0) + (r.retur ?? 0) : null, linie: plin(r.g) }))),
     retea('orhei', 'SEBN Orhei', 'uzină · 3 schimburi', orhei ? [{ c: orhei.poarta, n: 'SEBN Orhei' }] : [], sebnRute('orhei')),
     retea('straseni', 'SEBN Strășeni', 'uzină · 3 schimburi', straseni ? [{ c: straseni.poarta, n: 'SEBN Strășeni' }] : [], sebnRute('straseni')),
-    // Interurbanele traversează tot nordul: o zonă în jurul lor ar acoperi celelalte rețele, deci n-au.
-    retea('mejgorod', 'Rute interurbane', 'nord ↔ Chișinău', [{ c: mejgorod.gari.chisinau, n: 'Chișinău' }],
-      mejgorod.rute.map((r) => ({ id: String(r.id), nume: `${r.capNord} ↔ ${r.capSud}`, km: 2 * r.km, linie: r.shape })), false),
   ];
-}
+};
+
+export const florestiLaToate = (floresti: ScheletFloresti): Retea[] => [
+  retea('floresti', 'LEAR Florești', 'uzină · actul 36.1', [{ c: floresti.poarta, n: 'LEAR Florești' }],
+    floresti.rute.map((r) => ({ id: r.id, nume: r.capat ?? r.sate[0], km: r.etalon != null ? (r.tur ?? 0) + (r.retur ?? 0) : null, linie: plin(r.g) }))),
+];
+
+// Interurbanele traversează tot nordul: o zonă în jurul lor ar acoperi celelalte rețele, deci n-au.
+export const mejgorodLaToate = (mejgorod: ScheletMejgorod): Retea[] => [
+  retea('mejgorod', 'Rute interurbane', 'nord ↔ Chișinău', [{ c: mejgorod.gari.chisinau, n: 'Chișinău' }],
+    mejgorod.rute.map((r) => ({ id: String(r.id), nume: `${r.capNord} ↔ ${r.capSud}`, km: 2 * r.km, linie: r.shape })), false),
+];
+
+// Trox + suburban Briceni (ION-70): Trox are două schimburi, câte un tur și un retur fiecare («6 drumuri,
+// 2 ture»), deci km/zi = S1 + S2 măsurate; seara (în afara schimburilor) nu intră. Suburbanul are în schelet
+// doar drumul pe un sens, deci km/zi = un tur și un retur, ca la interurbane.
+export const briceniLaToate = (briceni: ScheletBriceni): Retea[] => [
+  retea('briceni', 'Trox + suburban Briceni', 'Trox · 2 schimburi, suburban',
+    [{ c: briceni.poarta, n: 'Poarta Trox' }, { c: briceni.gara, n: 'Gara Briceni' }],
+    briceni.rute.map((r) => {
+      const s = r.schimburi;
+      const km = r.tip === 'trox' && s
+        ? [s.S1, s.S2].reduce((a, x) => a + (x.tur.km ?? r.km) + (x.retur.km ?? r.km), 0)
+        : 2 * r.km;
+      return { id: r.id, nume: r.tip === 'trox' ? `Trox ${r.id} · ${r.capat ?? r.nume}` : r.capat ?? r.nume, km, linie: r.shape };
+    })),
+];

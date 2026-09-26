@@ -174,7 +174,7 @@ export default function ScheletToateClient({ retele }: { retele: Retea[] }) {
 
       <p style={{ fontSize: 10.5, color: 'var(--text-secondary)', marginTop: 8, maxWidth: '150ch', lineHeight: 1.5 }}>
         Pe hartă e doar drumul cu oameni al fiecărei rute (turul, unde există), fără drumul gol al șoferului. Km/zi = km cu oameni pe zi, tur plus retur,
-        numărați ca în fila fiecărei rețele. Zona unei rețele = conturul rutelor ei, lărgit cu 3,5 km; interurbanele n-au zonă — traversează tot nordul.
+        numărați ca în fila fiecărei rețele (la Trox: cele două schimburi; la suburbanul Briceni: un tur și un retur). Zona unei rețele = conturul rutelor ei, lărgit cu 3,5 km; interurbanele n-au zonă — traversează tot nordul.
         Detaliile fiecărei rute (sate, schimburi, abateri) stau în fila rețelei ei.
       </p>
     </div>

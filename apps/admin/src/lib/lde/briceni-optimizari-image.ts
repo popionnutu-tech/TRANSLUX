@@ -13,7 +13,7 @@ import { LIVRARE_POSTER_CHAT_KEY } from './livrare-poster';
  *
  * Pleacă lunea la 08:00 din lear-saptamanal.sh (VPS) cu ?send=1 (Ion, 26.09); fără send=1 ruta doar întoarce imaginea.
  * Fontul posterului n-are «↔» și «→» (se desenează gol) — pe poster «–».
- * Pe poster: doar km și lei, pe mașină și pe rută — fără casa șoferului, fără locurile și orele ocolurilor, fără nume.
+ * Pe poster: doar km, pe mașină și pe rută — fără lei (Ion, 26.09: «fără lei să fie»), fără casa șoferului, fără locurile și orele ocolurilor, fără nume.
  */
 export type Categorie = 'cuOameni' | 'nepotrivita' | 'golRuta' | 'golTure' | 'service' | 'deplasare' | 'livrare' | 'legatura' | 'necunoscut';
 export type KmCategorii = Record<Categorie, number>;
@@ -60,14 +60,14 @@ export async function generateBriceniOptimizariImage(a: AnalizaBriceni): Promise
   const peste = cuLivrare.filter((m) => m.livrareZi > PRAG_LIVRARE_ZI);
   const rute = a.rute.filter((r) => r.livrare >= 0.5);
   p.carduri([
-    { eticheta: 'Economie posibilă', titlu: 'Livrare casă – start', text: 'Drumul gol de acasă la prima cursă, seara înapoi și ocolul pe acasă între curse.', valoare: `${nr(t.livrare)} km`, subValoare: `≈ ${nr(t.lei)} lei pe săptămână` },
+    { eticheta: 'Economie posibilă', titlu: 'Livrare casă – start', text: 'Drumul gol de acasă la prima cursă, seara înapoi și ocolul pe acasă între curse.', valoare: `${nr(t.livrare)} km` },
     { eticheta: `Peste ${PRAG_LIVRARE_ZI} km pe zi`, titlu: peste.length ? peste.map((m) => m.m).join(', ') : 'Nicio mașină', text: 'Mașinile la care livrarea zilnică e cea mai mare — primele de lămurit cu șoferul.', valoare: `${peste.length} ${peste.length === 1 ? 'mașină' : 'mașini'}` },
-    ...(rute[0] ? [{ eticheta: 'Ruta cu cea mai multă livrare', titlu: `${codRuta(rute[0].id)} ${numeRutaPoster(rute[0].id, rute[0].nume)}`, text: `Mașini: ${rute[0].masini.join(', ')}.`, valoare: `${nr(rute[0].livrare)} km`, subValoare: `≈ ${nr(rute[0].lei)} lei` }] : []),
+    ...(rute[0] ? [{ eticheta: 'Ruta cu cea mai multă livrare', titlu: `${codRuta(rute[0].id)} ${numeRutaPoster(rute[0].id, rute[0].nume)}`, text: `Mașini: ${rute[0].masini.join(', ')}.`, valoare: `${nr(rute[0].livrare)} km` }] : []),
   ]);
   const ruteFacute = (m: MasinaBriceni) => (m.rute ?? []).map((r) => `${r.trox ? 'Trox ' : ''}${codRuta(r.r)} (${r.zile ?? 0} z)`).join(', ') || '—';
   p.tabel([
     { titlu: 'Mașina', latime: 110 }, { titlu: 'Rute făcute', latime: 360 }, { titlu: 'Zile', latime: 60, aliniere: 'end' },
-    { titlu: 'Livrare/zi', latime: 110, aliniere: 'end' }, { titlu: 'Livrare', latime: 100, aliniere: 'end' }, { titlu: 'Lei', latime: 100, aliniere: 'end' },
+    { titlu: 'Livrare/zi', latime: 110, aliniere: 'end' }, { titlu: 'Livrare', latime: 100, aliniere: 'end' },
   ], cuLivrare.map((m) => [
     { text: m.m, bold: true },
     { text: ruteFacute(m), culoare: CULORI.gri },
@@ -75,11 +75,10 @@ export async function generateBriceniOptimizariImage(a: AnalizaBriceni): Promise
     { text: nr1(m.livrareZi), bold: m.livrareZi > PRAG_LIVRARE_ZI, culoare: m.livrareZi > PRAG_LIVRARE_ZI ? CULORI.verde : CULORI.text,
       fundal: m.livrareZi > PRAG_LIVRARE_ZI ? CULORI.verdeFundal : undefined },
     { text: nr(m.km.livrare), culoare: CULORI.verde },
-    { text: m.lei == null ? '—' : nr(m.lei), culoare: CULORI.gri },
   ]), { gol: 'Nicio mașină cu livrare săptămâna asta.' });
-  p.total(`Pe ${cuLivrare.length} mașini: ${nr(t.livrare)} km livrare`, `≈ ${nr(t.lei)} lei pe săptămână`);
+  p.total(`Pe ${cuLivrare.length} mașini: ${nr(t.livrare)} km livrare`);
   if (rute.length) p.nota(`Livrarea pe rute: ${rute.slice(0, 12).map((r) => `${codRuta(r.id)} ${numeRutaPoster(r.id, r.nume)} ${nr(r.livrare)} km`).join(' · ')}.`);
-  p.nota(`Verde = peste ${PRAG_LIVRARE_ZI} km livrare pe zi. Lei = livrare × norma mașinii × prețul ANRE al zilei + reparație + salariu. Brambura (drum pe care mașina n-a mai mers în nicio altă zi) e scăzută din livrare. Ziua fiecărei mașini, de unde încotro: în LDE, Raport livrări, fila Trox + suburban Briceni.`);
+  p.nota(`Verde = peste ${PRAG_LIVRARE_ZI} km livrare pe zi. Brambura (drum pe care mașina n-a mai mers în nicio altă zi) e scăzută din livrare. Ziua fiecărei mașini, de unde încotro: în LDE, Raport livrări, fila Trox + suburban Briceni.`);
   return p.png();
 }
 

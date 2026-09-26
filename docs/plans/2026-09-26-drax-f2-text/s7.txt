@@ -1,0 +1,5 @@
+7. UNDE DOARME MAȘINA
+7.1 Casa = locul unde mașina stă cel mai mult (staționări ≥ 2 h adunate) în zilele de lucru luni–vineri, din urma GPS, fără porți și fără parc (LEAR 7.1). Locul nopții (pentru livrare) = cea mai lungă staționare din 00:30–05:30, noapte de noapte.
+7.2 Măsurat 31.08–25.09 (44 de mașini): casa la 0–3 km de poartă 7 (Bălți), 3–10 km 1, 10–20 km 7, 20–40 km 23, peste 40 km 6; 42 de mașini stau cel puțin 70 % din ore în același loc.
+7.3 35 din 44 de mașini au casa la ≤ 1 km de un sat al liniilor lor: șoferul e din satul rutei. Oprirea acasă în cursa cu oameni nu e eroare.
+7.4 Noaptea la Parcul Bălți (14 nopți din 749, 10 mașini) = doarme lângă uzină: drumul parc ↔ capăt e golul impus (5.3 a), nu livrare.

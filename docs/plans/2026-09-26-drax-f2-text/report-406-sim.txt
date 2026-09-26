@@ -1,0 +1,35 @@
+Simularea migrației 406 (Drăxlmaier §5, §7, §8, §9.3, antet) — DOAR SELECT, fără UPDATE
+Rulată de uzina-analist, 26.09.2026, Supabase zqkzqpfdymddsywxjxow, prin MCP execute_sql.
+Interogarea: r3/q5.sql (generată de r3/build5.mjs din text-v3/{s5,s7,s8,old93,new93,old-antet,new-antet}.txt), cu cele
+5 replace imbricate exact ca în forma migrației din plan-f2-v3-pur.md.
+
+Textul de azi (lde_uzine.reguli_livrare, DRAXELMAIER_BALTI, reguli_livrare_la 2026-09-26 14:31:46):
+  length                         9106
+  md5                            0a122257c503d842f6efbf324803cdc1
+  «după «da»-ul lui Ion»         2 apariții (antet, poziția 189; §9.3, poziția 8.863)
+  marcajul §5 / §7 / §8          1 / 1 / 1
+  fraza §9.3 veche               1
+  fragmentul din antet vechi     1
+
+Textul după cele 5 replace:
+  length                         16181
+  md5                            2ec078589aedcfbd7f2b8fd1d3b0e2c0
+  «\n5.10 » / «\n7.4 » / «\n8.6 » 10605 / 12618 / 15114
+  «(hotărât prin dezbaterea Claude + Codex, 26.09.2026)»  15955
+  «[SE SCRIE ÎN FAZA 2» / «[SE MĂSOARĂ ÎN FAZA 2»         0 / 0
+  «după «da»-ul lui Ion»         0
+  «[SE SCRIE ÎN FAZA 3]»         3
+  «$» / CR                        0 / 0
+  începutul (antet)              «REGULILE LIVRĂRII — DRĂXLMAIER BĂLȚI (faza 1, 26.09.2026, umbrela ION-86: faptele uzinei
+                                  măsurate pe GPS; categoriile de km, locul nopții și regulile de economie se scriu după
+                                  măsurare și se hotărăsc prin dezbaterea Claude + Codex, la cererea lui Ion, 26.09.20…»
+
+Control local (len5.mjs, fără bază): 9106 − 364 (3 marcaje 58 + 61 + 72, §9.3 vechi 70, antet vechi 103) + 7439
+(§5 3684, §7 729, §8 2769, §9.3 nou 100, antet nou 157) = 16181 — egal cu simularea.
+md5 ale textelor noi: s5 8d7214ea480d46183af5187cadb96450 · s7 4cddaea41476dd26e9a36120615dde9d ·
+s8 b423b8e4361eb9cadc2e56a4b9a84b03 · new93 e766eecef15aa844ac6894d8d2b087ce · new-antet 4bfd9b70df57a48120dc94e28de403f2.
+
+Valorile pentru migrație: gardul WHERE md5(reguli_livrare) = '0a122257c503d842f6efbf324803cdc1';
+verificarea de după: length(t) = 16181 AND md5(t) = '2ec078589aedcfbd7f2b8fd1d3b0e2c0'.
+Orice schimbare a unui fișier din text-v3/ = simularea se reia și valorile se recalculează.
+Notă: interogarea rulată = r3/q5.sql cu două coloane în plus (md5(r) și substr(t, 1, 260)), fără around510 / around93.

@@ -1,0 +1,13 @@
+[
+  {
+    "m": "024XKY",
+    "economie": { "cat": ["livrare"], "dow": [1, 2, 3, 4] },
+    "alarma": { "dow": [5, 6, 7] },
+    "motiv": "luni–joi: după cursa de dimineață drumuri de 99–195 km spre Drochia (Autogara) la ore fixe, pe care F2 le are ca livrare (R1a) — scoase din R1a/R1b; vineri–duminică fără poartă, la Chișinău (Ciocana) și Drochia — scoase din alarma §11. Posibilă cursă a firmei: întrebare de fapt pentru Ion (F4)"
+  },
+  {
+    "m": "388ASB",
+    "alarma": { "zile": ["2026-09-23"] },
+    "motiv": "23.09 la Chișinău (deplasare în F2, brambura 135,7 km în §11) — scos din alarma §11. Posibilă cursă a firmei: întrebare de fapt pentru Ion (F4)"
+  }
+]

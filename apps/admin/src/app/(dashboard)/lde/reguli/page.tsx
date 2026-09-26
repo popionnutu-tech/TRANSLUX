@@ -9,6 +9,8 @@ import ReguliSebnClient, { type ReguliSebn } from './ReguliSebnClient';
 import RaportSebn, { eticheta, type SaptSebn } from './RaportSebn';
 import RaportMejgorod, { type RaportMejgorodDate } from './RaportMejgorod';
 import RaportBriceni, { type RaportBriceniDate } from './RaportBriceni';
+import RaportDrax, { type RaportDraxDate } from './RaportDrax';
+import { esteAnalizaDrax, RIND_DRAX } from '@/lib/lde/drax-analiza';
 import { incarcaLivrare, UZINE_IMPLICITE } from '@/lib/lde/livrare-poster';
 import { LEI_PE_KM } from '@/lib/lde/naveta-image';
 
@@ -42,6 +44,8 @@ const UZINE = [
   // Ion, 25.09.2026 (ION-73): «aplică regulile optimizare SEBN la Trox și suburbane» — analiza scrisă luni de VPS
   // (briceni/cod/saptamanal.sh), un rând pe săptămână cu uzina 'BRICENI'.
   { id: 'briceni', nume: 'Trox + suburban Briceni', href: '/lde/reguli?uz=briceni' },
+  // ION-94 (F3 din ION-86): analiza scrisă luni de VPS (drax/cod/saptamanal/saptamanal.sh), un rând pe săptămână cu uzina 'DRAXELMAIER'.
+  { id: 'drax', nume: 'Drăxlmaier Bălți', href: '/lde/reguli?uz=drax' },
 ] as const;
 
 export default async function LdeReguliPage({
@@ -50,7 +54,7 @@ export default async function LdeReguliPage({
   searchParams: Promise<{ saptamina?: string; uz?: string }>;
 }) {
   const { saptamina, uz } = await searchParams;
-  const alese = uz === 'sebn' || uz === 'floresti' || uz === 'mejgorod' || uz === 'briceni' ? uz : 'lear';
+  const alese = uz === 'sebn' || uz === 'floresti' || uz === 'mejgorod' || uz === 'briceni' || uz === 'drax' ? uz : 'lear';
 
   const nav = (
     <nav aria-label="Uzina" className="flex gap-1.5 px-4! pt-3!">
@@ -113,6 +117,15 @@ export default async function LdeReguliPage({
       getSaptamani('BRICENI'),
     ]);
     return <>{nav}<RaportBriceni a={raport as unknown as RaportBriceniDate | null} saptamani={saptamani} /></>;
+  }
+
+  if (alese === 'drax') {
+    const [raport, saptamani] = await Promise.all([
+      getRaport(RIND_DRAX, saptamina),
+      getSaptamani(RIND_DRAX),
+    ]);
+    // garda la rulare: un rând fără forma Drăxlmaier nu se desenează (tipuri proprii, verdictul 1 F3)
+    return <>{nav}<RaportDrax a={esteAnalizaDrax(raport) ? (raport as unknown as RaportDraxDate) : null} saptamani={saptamani} /></>;
   }
 
   const uzina = alese === 'floresti' ? 'LEAR Florești' : 'LEAR Ungheni';

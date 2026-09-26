@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { curseCuOpriri, eticheteaza, rezumaSaptamina, caseSecundare, hav } from './lear-timp-liber.mjs';
+import { curseCuOpriri, eticheteaza, rezumaSaptamina, caseSecundare, hav, portiDin, distPoarta } from './lear-timp-liber.mjs';
 import { local, ziLucru } from './ora-locala.mjs';
 
 // locuri reale din jurul LEAR Ungheni
@@ -271,4 +271,124 @@ test('iarna (UTC+2) aceleași ore de perete dau aceleași etichete ca vara', () 
   const vara = et(ziObisnuita('2026-09-15', 3)), iarna = et(ziObisnuita('2026-11-17', 2));
   assert.deepEqual(etichete(vara), etichete(iarna));
   assert.deepEqual(vara.e.map(e => e.ancora?.tip), iarna.e.map(e => e.ancora?.tip));
+});
+
+// ─── Drăxlmaier (F3): mai multe porți, parcul lângă poarta VEST, fără schimb 3 ────────────────────
+const EST = { lat: 47.78513, lon: 27.94307 }, VEST = { lat: 47.77408, lon: 27.91593 };
+const SLOBOZIA = { lat: 47.7010, lon: 27.8290 }, PARC_B = { lat: 47.7700, lon: 27.9235 };
+const FER_DRAX = [
+  { sens: 'tur', shift_number: 1, de_la_min: 210, pana_la_min: 420 }, { sens: 'tur', shift_number: 2, de_la_min: 810, pana_la_min: 960 },
+  { sens: 'retur', shift_number: 1, de_la_min: 900, pana_la_min: 1065 }, { sens: 'retur', shift_number: 2, de_la_min: 1380, pana_la_min: 105 }];
+const ctxDrax = (extra = {}) => { const c = ctxDe({ casaC: SLOBOZIA, ferestre: FER_DRAX, parc: PARC_B, porti: [EST, VEST],
+  praguri: { R_PARC: 0.5, R_PARC_ZONA: 1 }, ancoraBateParcul: true, schimb3: false, reparatieDoarFaraCurse: true, ...extra }); delete c.poarta; return c; };
+const etD = (pts, extra) => { const ctx = ctxDrax(extra); const c = curseCuOpriri(pts, ctx); return { ctx, c, e: eticheteaza(c, ctx) }; };
+
+test('helperul porților: porti ?? [poarta], idempotent; fără niciuna aruncă', () => {
+  assert.deepEqual(portiDin({ poarta: POARTA }), [POARTA]);
+  assert.deepEqual(portiDin({ porti: [EST, VEST], poarta: POARTA }), [EST, VEST]);
+  assert.equal(distPoarta(TODIRESTI, { poarta: POARTA }), hav(TODIRESTI, POARTA), 'o poartă = exact hav de dinainte');
+  assert.throws(() => portiDin({}), /fără poartă/);
+});
+
+test('nerecul: ctx vechi { poarta } și ctx nou { porti: [poarta] } dau aceleași etichete și același rezumat', () => {
+  const pts = urma(ziObisnuita('2026-09-15'), drum(TODIRESTI, FALESTI, T('2026-09-15', '18:00'), 40), drum(FALESTI, TODIRESTI, T('2026-09-15', '19:00'), 40));
+  const a = et(pts), ctxN = { ...ctxDe(), porti: [POARTA] }; delete ctxN.poarta;
+  const cN = curseCuOpriri(pts, ctxN), eN = eticheteaza(cN, ctxN);
+  assert.deepEqual(eN.map(x => [x.eticheta, x.motiv]), a.e.map(x => [x.eticheta, x.motiv]));
+  assert.deepEqual(rezumaSaptamina(eN, ctxN), rezumaSaptamina(a.e, a.ctx));
+});
+
+test('ctx FĂRĂ poarta (doar porti): toate cele patru funcții merg, depMax și rCasa finite', () => {
+  const r = etD(urma(drum(SLOBOZIA, EST, T('2026-09-15', '05:30'), 40), stai(EST, T('2026-09-15', '06:10'), 10), drum(EST, SLOBOZIA, T('2026-09-15', '06:20'), 40)));
+  assert.ok(r.c.every(c => c.gol || Number.isFinite(c.depMax)));
+  assert.ok(Array.isArray(caseSecundare(r.c, r.ctx)));
+  const rez = rezumaSaptamina(r.e, r.ctx, 1);
+  assert.ok(Number.isFinite(rez.km) && rez.control);
+  assert.deepEqual([...new Set(r.e.map(x => x.eticheta))], ['muncă']);
+});
+
+test('două porți: sosire la VEST în fereastra tur s1 e ancoră ca la EST', () => {
+  const r = etD(urma(drum(SLOBOZIA, VEST, T('2026-09-15', '05:30'), 40), stai(VEST, T('2026-09-15', '06:10'), 10), drum(VEST, SLOBOZIA, T('2026-09-15', '06:20'), 40)));
+  assert.equal(r.e[0].ancora?.tip, 'tur');
+});
+
+test('schimb3: false — atingere a porții duminică 22:10 nu e ancoră (ancora === null); implicit (LEAR) e muncă', () => {
+  const pts = urma(drum(SLOBOZIA, EST, T('2026-09-20', '21:30'), 40), stai(EST, T('2026-09-20', '22:10'), 10), drum(EST, SLOBOZIA, T('2026-09-20', '22:20'), 40));
+  const r = etD(pts);
+  assert.ok(r.e.every(x => x.ancora === null), 'fără ancoră de schimb 3');
+  assert.ok(r.e.every(x => x.eticheta !== 'muncă'));
+  const vechi = etD(pts, { schimb3: undefined });
+  assert.equal(vechi.e.some(x => x.ancora?.schimb === 3), true, 'fără ctx.schimb3 regula LEAR rămâne');
+});
+
+test('schimb3: false — sosirea la poartă la 22:40 legată de returul s2 de la 00:10 rămâne muncă (041BRAU)', () => {
+  const r = etD(urma(drum(SLOBOZIA, VEST, T('2026-09-15', '22:00'), 40), stai(VEST, T('2026-09-15', '22:40'), 90), drum(VEST, SLOBOZIA, T('2026-09-16', '00:10'), 40)));
+  assert.deepEqual([...new Set(r.e.map(x => x.eticheta))], ['muncă']);
+});
+
+test('ancoraBateParcul: tur s1 la VEST → 3 h la parc (0,7 km) → retur s1 = muncă, nu reparație; fără steag = reparație', () => {
+  const pts = urma(drum(SLOBOZIA, VEST, T('2026-09-15', '05:30'), 40), stai(VEST, T('2026-09-15', '06:10'), 10), drum(VEST, PARC_B, T('2026-09-15', '06:20'), 5),
+    stai(PARC_B, T('2026-09-15', '06:25'), 500), drum(PARC_B, VEST, T('2026-09-15', '14:45'), 5), stai(VEST, T('2026-09-15', '14:50'), 20), drum(VEST, SLOBOZIA, T('2026-09-15', '15:10'), 40));
+  assert.deepEqual([...new Set(etD(pts).e.map(x => x.eticheta))], ['muncă']);
+  assert.ok(etD(pts, { ancoraBateParcul: false, reparatieDoarFaraCurse: false }).e.some(x => x.eticheta === 'reparație'));
+});
+
+test('reparatieDoarFaraCurse: oprire la parc în afara lanțului într-o zi de lucru = neclar; duminica fără muncă = reparație; implicit (LEAR) = reparație', () => {
+  // tur s1 06:10 la EST, acasă; seara (în afara lanțului, după 3 h acasă) casă → parc 20′ → casă
+  const zi = urma(drum(SLOBOZIA, EST, T('2026-09-15', '05:30'), 40), stai(EST, T('2026-09-15', '06:10'), 10), drum(EST, SLOBOZIA, T('2026-09-15', '06:20'), 40),
+    drum(SLOBOZIA, PARC_B, T('2026-09-15', '19:00'), 40), stai(PARC_B, T('2026-09-15', '19:40'), 20), drum(PARC_B, SLOBOZIA, T('2026-09-15', '20:00'), 40));
+  const r = etD(zi);
+  assert.ok(r.e.some(x => x.eticheta === 'neclar' && /zi de lucru/.test(x.motiv)));
+  assert.ok(!r.e.some(x => x.eticheta === 'reparație'));
+  assert.ok(etD(zi, { reparatieDoarFaraCurse: undefined }).e.some(x => x.eticheta === 'reparație'), 'fără flag rămâne regula LEAR');
+  const dum = urma(drum(SLOBOZIA, PARC_B, T('2026-09-20', '10:00'), 40), stai(PARC_B, T('2026-09-20', '10:40'), 60), drum(PARC_B, SLOBOZIA, T('2026-09-20', '11:40'), 40));
+  assert.deepEqual([...new Set(etD(dum).e.map(x => x.eticheta))], ['reparație']);
+});
+
+test('distPoarta: o poartă = hav exact, inclusiv NaN (paritate cu originalul)', () => {
+  const p = { lat: NaN, lon: 27.8 };
+  assert.ok(Number.isNaN(distPoarta(p, { poarta: POARTA })) && Number.isNaN(hav(p, POARTA)));
+  assert.equal(distPoarta(VEST, { porti: [EST, VEST] }), 0);
+});
+
+test('C2 (F3 r3): cursă care trece de luni 03:00 — cu bramburaPePasi totalul săptămânii = pașii din săptămână; implicit rămâne proporțional', () => {
+  // 20 km: primii 10 (duminică 20.09, ziua de lucru până luni 03:00) pe drum neobișnuit, ultimii 10 (luni 21.09) pe drum obișnuit
+  const pts = drum(FALESTI, TODIRESTI, T('2026-09-21', '02:40'), 40);
+  const cursa = { pts, km: 20, kmPeZi: new Map([['2026-09-20', 10], ['2026-09-21', 10]]), opriri: [], atingeriPoarta: [], de_la: new Date(T('2026-09-21', '02:40')), pana_la: new Date(T('2026-09-21', '03:20')), p0: pts[0], p1: pts.at(-1), depMax: 5, parc: { zona: false, oprireMin: 0 } };
+  const e = [{ i: 0, eticheta: 'muncă', motiv: 'în lanț', ancora: null, lant: 0, km_brambura: 10, bramburaPeZi: new Map([['2026-09-20', 10]]), km_alimentare: 0, cursa }];
+  const inSapt = z => z >= '2026-09-14' && z <= '2026-09-20';
+  const nou = rezumaSaptamina(e, ctxDe({ inSapt, bramburaPePasi: true }));
+  const vechi = rezumaSaptamina(e, ctxDe({ inSapt }));
+  assert.equal(nou.km_brambura, 10, 'pe pași: toți cei 10 km neobișnuiți sunt în săptămâna 14–20');
+  assert.equal(vechi.km_brambura, 5, 'implicit (LEAR/SEBN): proporțional, 10 × 10/20');
+  assert.equal(nou.iesiri.find(x => x.eticheta === 'brambura').km_brambura, 10, 'ieșirea poartă aceeași cifră ca totalul');
+  // săptămâna următoare primește 0 km brambura din aceeași cursă (niciun km numărat de două ori)
+  assert.equal(rezumaSaptamina(e, ctxDe({ inSapt: z => z >= '2026-09-21' && z <= '2026-09-27', bramburaPePasi: true })).km_brambura, 0);
+});
+
+test('C2: eticheteaza cu bramburaPePasi pune bramburaPeZi pe zilele pașilor; fără flag câmpul lipsește', () => {
+  const dus = z => drum(TODIRESTI, POARTA, T(z, '13:55'), 35);
+  const retur = z => urma(dus(z), stai(POARTA, T(z, '14:30'), 10), drum(POARTA, BOCSA, T(z, '14:40'), 45), stai(BOCSA, T(z, '15:25'), 25), drum(BOCSA, TODIRESTI, T(z, '15:50'), 40));
+  const ocolit = z => urma(dus(z), stai(POARTA, T(z, '14:30'), 10), drum(POARTA, BOCSA, T(z, '14:40'), 45), stai(BOCSA, T(z, '15:25'), 25), drum(BOCSA, FALESTI, T(z, '15:50'), 30), drum(FALESTI, TODIRESTI, T(z, '16:20'), 40));
+  const pts = urma(retur('2026-09-14'), retur('2026-09-15'), retur('2026-09-16'), ocolit('2026-09-17'));
+  const r = et(pts, { bramburaPePasi: true }), r0 = et(pts);
+  const b = r.e.find(x => x.km_brambura > 0), b0 = r0.e.find(x => x.km_brambura > 0);
+  assert.ok(b.bramburaPeZi instanceof Map && [...b.bramburaPeZi.keys()].every(z => z === '2026-09-17'));
+  assert.ok(Math.abs([...b.bramburaPeZi.values()].reduce((a, x) => a + x, 0) - b.km_brambura) < 0.1);
+  assert.equal(b0.bramburaPeZi, null);
+  assert.equal(rezumaSaptamina(r.e, r.ctx).km_brambura, rezumaSaptamina(r0.e, r0.ctx).km_brambura, 'cursa în întregime în săptămână: aceeași cifră');
+});
+
+test('R3-2 (F3 r4): brambura pe zile din rezumat — în ziua cu «altă uzină» Σ zile = total = 0; fără flag, câmpul lipsește', () => {
+  const pts = drum(FALESTI, TODIRESTI, T('2026-09-16', '10:00'), 40);
+  const cu = (km) => ({ pts, km, kmPeZi: new Map([['2026-09-16', km]]), opriri: [], atingeriPoarta: [], de_la: new Date(T('2026-09-16', '10:00')), pana_la: new Date(T('2026-09-16', '10:40')), p0: pts[0], p1: pts.at(-1), depMax: 5, parc: { zona: false, oprireMin: 0 } });
+  const munca = { i: 0, eticheta: 'muncă', motiv: 'în lanț', ancora: null, lant: 0, km_brambura: 12, bramburaPeZi: new Map([['2026-09-16', 12]]), km_alimentare: 0, cursa: cu(20) };
+  const alta = { i: 1, eticheta: 'altă uzină', motiv: 'oprește la poarta X', ancora: null, lant: null, km_brambura: 0, bramburaPeZi: null, km_alimentare: 0, uzina: 'X', cursa: cu(8) };
+  const inSapt = z => z >= '2026-09-14' && z <= '2026-09-20';
+  const r = rezumaSaptamina([munca, alta], ctxDe({ inSapt, bramburaPePasi: true }));
+  assert.equal(r.km_brambura, 0);
+  assert.equal(Object.values(r.brambura_pe_zi).reduce((a, x) => a + x, 0), 0);
+  const r1 = rezumaSaptamina([munca], ctxDe({ inSapt, bramburaPePasi: true }));
+  assert.equal(r1.km_brambura, 12); assert.deepEqual(r1.brambura_pe_zi, { '2026-09-16': 12 });
+  assert.equal('brambura_pe_zi' in rezumaSaptamina([munca], ctxDe({ inSapt })), false);
 });

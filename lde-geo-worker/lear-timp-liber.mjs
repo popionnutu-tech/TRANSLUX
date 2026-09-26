@@ -64,6 +64,18 @@ export const hav = (a, b) => { const R = 6371, r = Math.PI / 180;
   const s = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLon / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(s)); };
 
+// ─── porțile (Drăxlmaier, F3): uzina poate avea mai multe porți (EST + VEST, 82 % din zile ating ambele) ─
+// `ctx.porti` = listă; apelanții vechi (LEAR Ungheni/Florești, SEBN) dau `ctx.poarta` și rămân neatinși.
+// Singurul loc din modul care citește `ctx.poarta` / `ctx.porti`: celelalte funcții trec prin helperii ăștia.
+// Cu o singură poartă, `distPoarta` = `hav(p, poarta)` exact (același număr, inclusiv NaN), deci etichetele vechi nu se mișcă.
+export function portiDin(ctx) {
+  const l = Array.isArray(ctx.porti) && ctx.porti.length ? ctx.porti : ctx.poarta ? [ctx.poarta] : [];
+  if (!l.length) throw new Error('lear-timp-liber: ctx fără poartă (ctx.poarta sau ctx.porti)');
+  return l;
+}
+export function distPoarta(p, ctx) { return Math.min(...portiDin(ctx).map(g => hav(p, g))); }
+const poartaCeaMaiApropiata = (p, ctx) => portiDin(ctx).reduce((b, g) => (hav(p, g) < hav(p, b) ? g : b));
+
 // Kilometrii unui pas al urmei: același pentru modul și pentru `kmZi` din worker, ca ecuația de
 // control să se închidă. Saltul GPS nu se numără; nici deriva mașinii oprite.
 export function kmPas(prev, p, saltKm = PRAGURI.SALT_KM) {
@@ -129,7 +141,7 @@ export function curseCuOpriri(pts, ctx) {
     const c = out[i], u = out[i - 1];
     c.pauzaInainte = u ? { min: (c.de_la - u.pana_la) / 60000, p: u.p1 ?? u.pts[u.pts.length - 1], gol: !!u.gol || !!c.gol } : null;
     if (u) u.pauzaDupa = c.pauzaInainte;
-    if (u && !c.pauzaInainte.gol && c.pauzaInainte.min >= P.OPRIRE_POARTA_SEC / 60 && hav(c.pauzaInainte.p, ctx.poarta) <= P.R_POARTA) {
+    if (u && !c.pauzaInainte.gol && c.pauzaInainte.min >= P.OPRIRE_POARTA_SEC / 60 && distPoarta(c.pauzaInainte.p, ctx) <= P.R_POARTA) {
       if (!u.gol) u.atingeriPoarta.push({ t_sosire: u.pana_la, t_plecare: u.pana_la, min: c.pauzaInainte.min, oprire: true, pozitie: 'final', dinPauza: true });
       if (!c.gol) c.atingeriPoarta.push({ t_sosire: c.de_la, t_plecare: c.de_la, min: c.pauzaInainte.min, oprire: true, pozitie: 'start', dinPauza: true });
     }
@@ -147,7 +159,7 @@ function finalizeaza(c, ctx, P) {
     const k = kmPas(pts[i - 1], pts[i], P.SALT_KM);
     if (k) { const z = ctx.ziLucru(pts[i].t); c.kmPeZi.set(z, (c.kmPeZi.get(z) || 0) + k); }
   }
-  for (const p of pts) { const d = hav(p, ctx.poarta); if (d > depMax) depMax = d; }
+  for (const p of pts) { const d = distPoarta(p, ctx); if (d > depMax) depMax = d; }
   c.depMax = depMax;
   // opriri în cursă: șiruri de puncte lente pe loc, ≥ 2′; și atingerile porții
   c.opriri = []; c.atingeriPoarta = [];
@@ -162,7 +174,7 @@ function finalizeaza(c, ctx, P) {
   let at = null;
   for (let i = 0; i < pts.length; i++) {
     const p = pts[i];
-    if (hav(p, ctx.poarta) <= P.R_POARTA) {
+    if (distPoarta(p, ctx) <= P.R_POARTA) {
       if (!at) at = { t_sosire: p.t, t_plecare: p.t, sec_lent: 0, i0: i };
       at.t_plecare = p.t; at.i1 = i;
       if (p.v <= P.V_LENT) { const urm = pts[i + 1]; at.sec_lent += urm ? Math.min((urm.t - p.t) / 1000, 60) : 0; }
@@ -192,7 +204,7 @@ export function caseSecundare(curse, ctx) {
     const pz = c.pauzaDupa; if (!pz || pz.gol) continue;
     const ore = pz.min / 60; if (ore < P.CASA2_ORE) continue;
     const p = pz.p;
-    if (hav(p, ctx.poarta) <= P.R_POARTA_PAUZA || hav(p, ctx.parc) <= P.R_PARC_ZONA) continue;
+    if (distPoarta(p, ctx) <= P.R_POARTA_PAUZA || hav(p, ctx.parc) <= P.R_PARC_ZONA) continue;
     if (ctx.casaC && hav(p, ctx.casaC) <= P.R_CASA) continue;
     // acoperă o noapte: cel puțin o dată 00:00–05:00 locale între început și sfârșit
     const de = c.pana_la, pana = new Date(+c.pana_la + pz.min * 60000);
@@ -210,7 +222,7 @@ export function caseSecundare(curse, ctx) {
 export function eticheteaza(curse, ctx) {
   const P = { ...PRAGURI, ...(ctx.praguri || {}) };
   const case_ = [ctx.casaC, ...(ctx.caseSecundare ?? caseSecundare(curse, ctx))].filter(Boolean);
-  const rCasa = ctx.casaC ? Math.min(P.R_CASA, hav(ctx.casaC, ctx.poarta) / 2) : P.R_CASA;
+  const rCasa = ctx.casaC ? Math.min(P.R_CASA, distPoarta(ctx.casaC, ctx) / 2) : P.R_CASA;
   const laCasa = p => case_.some(c => hav(p, c) <= rCasa);
   const eZiLucru = zi => { const w = dow(zi); return w === 0 ? !!ctx.lucreazaDuminica : w === 6 ? !!ctx.lucreazaSambata : true; };
   const ziSchimb = t => ziLoc(ctx, t, P.ZI_SCHIMB_ORE);
@@ -228,7 +240,9 @@ export function eticheteaza(curse, ctx) {
       const fT = ferTur.find(f => inFereastra(mS, f)), fR = ferRetur.find(f => inFereastra(mP, f));
       if (fT && eZiLucru(ziSchimb(a.t_sosire))) { e.ancora = { tip: 'tur', schimb: fT.shift_number, t: a.t_sosire }; break; }
       if (fR && eZiLucru(ziSchimb(a.t_plecare))) { e.ancora = { tip: 'retur', schimb: fR.shift_number, t: a.t_plecare }; break; }
-      // schimbul 3 există uneori (curățenia): o atingere a porții noaptea e tot muncă, chiar fără fereastră
+      // schimbul 3 există uneori (curățenia): o atingere a porții noaptea e tot muncă, chiar fără fereastră.
+      // Drăxlmaier n-are schimb 3 (verdictul F2, întrebarea 5: shift3_time NULL, 1 atingere în 4 săptămâni) → ctx.schimb3 = false.
+      if (ctx.schimb3 === false) continue;
       const [n0, n1] = P.NOAPTE_S3;
       if (mS >= n0 || mS < n1) { e.ancora = { tip: 'tur', schimb: 3, t: a.t_sosire }; break; }
       if (mP >= n0 || mP < n1) { e.ancora = { tip: 'retur', schimb: 3, t: a.t_plecare }; break; }
@@ -240,7 +254,7 @@ export function eticheteaza(curse, ctx) {
     if (pz.gol) return pz.min >= P.PAUZA_LANT_MIN;
     if (pz.min < P.PAUZA_LANT_MIN) return false;
     // întâi poarta/parcul (continuă lanțul), abia apoi casa (rupe)
-    if (hav(pz.p, ctx.poarta) <= P.R_POARTA_PAUZA || hav(pz.p, ctx.parc) <= P.R_PARC_ZONA) return false;
+    if (distPoarta(pz.p, ctx) <= P.R_POARTA_PAUZA || hav(pz.p, ctx.parc) <= P.R_PARC_ZONA) return false;
     return true;
   };
   for (const e of E) if (e.ancora) {
@@ -273,6 +287,7 @@ export function eticheteaza(curse, ctx) {
   }
   // 3. reparație, navetă, neclar, liber — cu prioritatea neanalizat > reparație > navetă > muncă > neclar > liber
   const parcPauza = pz => pz && !pz.gol && pz.min >= P.PARC_OPRIRE_MIN && hav(pz.p, ctx.parc) <= P.R_PARC;
+  const zileCuAncora = new Set(ctx.reparatieDoarFaraCurse ? E.filter(e => e.ancora).map(e => ctx.ziLucru(e.ancora.t)) : []);
   for (const e of E) {
     const c = e.c;
     if (c.gol) { e.eticheta = 'neclar'; e.motiv = `gol de semnal ${Math.round((c.pana_la - c.de_la) / 60000)}′ cu ${c.km.toFixed(0)} km nevăzuți`; continue; }
@@ -284,7 +299,15 @@ export function eticheteaza(curse, ctx) {
       [c.pauzaInainte, c.pauzaDupa].some(pz => pz && !pz.gol && hav(pz.p, u) <= (u.r ?? 0.5)));
     if (altaUz) { e.eticheta = 'altă uzină'; e.motiv = `oprește la poarta ${altaUz.nume}`; e.uzina = altaUz.nume; continue; }
     const reparatie = c.parc.oprireMin >= P.PARC_OPRIRE_MIN || parcPauza(c.pauzaInainte) || parcPauza(c.pauzaDupa);
-    if (reparatie) { e.eticheta = 'reparație'; e.motiv = 'oprire la depozitul din Bălți — drum de parc'; continue; }
+    // Drăxlmaier (verdictul F2, întrebarea 1): parcul e la 0,70 km de poarta VEST și e loc de așteptare lângă uzină;
+    // o cursă de muncă (ancoră SAU în lanț) care oprește la parc rămâne muncă. Implicit (LEAR/SEBN) parcul bate munca.
+    if (reparatie && !(ctx.ancoraBateParcul && e.eticheta === 'muncă')) {
+      // Drăxlmaier (verdictul F2, întrebarea 1): service = DOAR oprirea la parc într-o zi fără ancoră a mașinii SAU o
+      // staționare la parc de peste 24 h; o oprire la parc într-o zi de lucru, în afara lanțului, e «neclar», nu reparație.
+      const ziuaCuMunca = ctx.reparatieDoarFaraCurse && zileCuAncora.has(ctx.ziLucru(c.de_la));
+      const parc24 = [c.pauzaInainte, c.pauzaDupa].some(pz => parcPauza(pz) && pz.min >= 24 * 60);
+      if (ziuaCuMunca && !parc24) { e.eticheta = 'neclar'; e.motiv = 'oprire la parc într-o zi de lucru, în afara lanțului'; continue; }
+      e.eticheta = 'reparație'; e.motiv = 'oprire la depozitul din Bălți — drum de parc'; continue; }
     const c0 = case_.findIndex(x => hav(c.p0, x) <= rCasa), c1 = case_.findIndex(x => hav(c.p1, x) <= rCasa);
     if (c0 >= 0 && c1 >= 0 && c0 !== c1) { e.eticheta = 'navetă'; e.motiv = 'de la o casă la cealaltă'; continue; }
     if (e.eticheta === 'muncă') continue;
@@ -315,9 +338,13 @@ export function eticheteaza(curse, ctx) {
     const c = e.c; if (c.gol) continue;
     if (e.eticheta === 'muncă' && (e.ancora || c.atingeriPoarta.length)) { e.km_brambura = 0; continue; }   // vine pe un drum, pleacă pe altul — tot muncă
     if (e.eticheta === 'muncă') {
-      let k = 0; for (let i = 1; i < c.pts.length; i++) { const a = c.pts[i - 1], b = c.pts[i]; const d = kmPas(a, b, P.SALT_KM); if (!d) continue;
-        if (!obisnuit(a) && !obisnuit(b)) k += d; }
+      let k = 0; const peZi = new Map();
+      for (let i = 1; i < c.pts.length; i++) { const a = c.pts[i - 1], b = c.pts[i]; const d = kmPas(a, b, P.SALT_KM); if (!d) continue;
+        if (!obisnuit(a) && !obisnuit(b)) { k += d; const z = ctx.ziLucru(b.t); peZi.set(z, (peZi.get(z) || 0) + d); } }
       e.km_brambura = k >= P.BRAMBURA_MIN_KM ? +k.toFixed(1) : 0;
+      // Drăxlmaier (triaj F3 r3, C2): cu ctx.bramburaPePasi, brambura se repartizează pe zile după pașii ei efectivi, nu proporțional
+      // cu km-ii cursei — altfel o cursă care trece de luni 03:00 dă alt total pe săptămână decât suma zilelor.
+      if (ctx.bramburaPePasi && e.km_brambura) e.bramburaPeZi = peZi;
     } else if (e.eticheta === 'liber' || e.eticheta === 'neclar') {
       for (const al of ctx.alimentari || []) {
         const opr = c.opriri.filter(o => Math.abs(o.t - al.t) / 60000 <= P.ALIMENTARE_MIN || Math.abs(o.pana - al.t) / 60000 <= P.ALIMENTARE_MIN)
@@ -325,16 +352,16 @@ export function eticheteaza(curse, ctx) {
         if (!opr.length) continue;
         if (opr.length > 1 && Math.abs(opr[0].t - opr[1].t) / 60000 < 5) { e.nota = 'alimentare ambiguă — două opriri în interval'; continue; }
         const st = opr[0];
-        const aproape = case_.some(x => hav(st, x) <= P.R_ALIMENTARE) || hav(st, ctx.poarta) <= P.R_ALIMENTARE || obisnuit(st);
+        const aproape = case_.some(x => hav(st, x) <= P.R_ALIMENTARE) || distPoarta(st, ctx) <= P.R_ALIMENTARE || obisnuit(st);
         if (!aproape) { e.nota = `alimentare la ${ctx.numeLoc ? ctx.numeLoc(st) ?? '?' : '?'}, departe de casă/poartă — nu scutește`; continue; }
-        const ref = [...case_, ctx.poarta].sort((x, y) => hav(st, x) - hav(st, y))[0];
+        const ref = [...case_, poartaCeaMaiApropiata(st, ctx)].sort((x, y) => hav(st, x) - hav(st, y))[0];
         const plafon = 2 * 1.3 * hav(ref, st) + 5;
         e.km_alimentare = +Math.min(c.km, plafon).toFixed(1);
         break;
       }
     }
   }
-  return E.map(e => ({ i: e.i, eticheta: e.eticheta, motiv: e.motiv, ancora: e.ancora, lant: e.lant, km_brambura: e.km_brambura, km_alimentare: e.km_alimentare, nota: e.nota ?? null, uzina: e.uzina ?? null, plafon: !!e.plafon, cursa: e.c }));
+  return E.map(e => ({ i: e.i, eticheta: e.eticheta, motiv: e.motiv, ancora: e.ancora, lant: e.lant, km_brambura: e.km_brambura, bramburaPeZi: e.bramburaPeZi ?? null, km_alimentare: e.km_alimentare, nota: e.nota ?? null, uzina: e.uzina ?? null, plafon: !!e.plafon, cursa: e.c }));
 }
 
 // ─── rezumatul săptămânii ────────────────────────────────────────────────────
@@ -347,12 +374,15 @@ export function rezumaSaptamina(etichete, ctx, kmZiSapt = null) {
   // de acasă?» — fiecare ieșire spune de unde a plecat, unde s-a dus, unde s-a întors și când
   // față de schimb (ancora dinainte și cea de după).
   const case_ = [ctx.casaC, ...(ctx.caseSecundare ?? [])].filter(Boolean);
-  const rCasa = ctx.casaC ? Math.min(P.R_CASA, hav(ctx.casaC, ctx.poarta) / 2) : P.R_CASA;
-  const numeste = p => { if (!p) return null; if (case_.some(c => hav(p, c) <= rCasa)) return 'acasă'; if (hav(p, ctx.poarta) <= P.R_POARTA_PAUZA) return 'poartă';
+  const rCasa = ctx.casaC ? Math.min(P.R_CASA, distPoarta(ctx.casaC, ctx) / 2) : P.R_CASA;
+  const numeste = p => { if (!p) return null; if (case_.some(c => hav(p, c) <= rCasa)) return 'acasă'; if (distPoarta(p, ctx) <= P.R_POARTA_PAUZA) return 'poartă';
     const n = ctx.numeLoc ? ctx.numeLoc(p) : null; return n ?? '?'; };
   const ancoraText = a => a ? `${a.tip} ${hhmm(ctx, a.t)}` : null;
   const vecin = (i, pas) => { for (let j = i + pas; j >= 0 && j < etichete.length; j += pas) { const e = etichete[j]; if (e.ancora) return ancoraText(e.ancora); } return null; };
   const km = { lucru: 0, liber: 0, reparatie: 0, naveta: 0, neclar: 0, neanalizat: 0, alta_uzina: 0, brambura: 0, alimentare: 0, nevazut: 0 };
+  // cu ctx.bramburaPePasi: brambura pe zile din ACELAȘI calcul ca totalul (triaj F3 r4, R3-2 backend) — și zilele «altă uzină» scad la fel
+  const brZi = new Map();
+  const brPeZi = (e, semn) => { if (!ctx.bramburaPePasi || !e.bramburaPeZi) return; for (const [z, x] of e.bramburaPeZi) if (ctx.inSapt(z)) brZi.set(z, (brZi.get(z) || 0) + semn * x); };
   const cheie = { 'muncă': 'lucru', 'liber': 'liber', 'reparație': 'reparatie', 'navetă': 'naveta', 'neclar': 'neclar', 'neanalizat': 'neanalizat', 'altă uzină': 'alta_uzina' };
   const iesiri = []; const zile = new Set();
   // Zilele în care mașina a fost legată de ALTĂ uzină nu intră deloc în lista acestei uzine (Ion,
@@ -365,24 +395,26 @@ export function rezumaSaptamina(etichete, ctx, kmZiSapt = null) {
     else for (const [z, k] of c.kmPeZi) if (ctx.inSapt(z)) kmS += k;
     if (!kmS) continue;
     const frac = c.gol ? 1 : kmS / (c.km || 1);
+    // brambura cursei în săptămâna asta: pe pași (ctx.bramburaPePasi + bramburaPeZi) sau, implicit (LEAR/SEBN), proporțional
+    const brS = e.km_brambura ? (ctx.bramburaPePasi && e.bramburaPeZi ? [...e.bramburaPeZi].filter(([z]) => ctx.inSapt(z)).reduce((a, [, x]) => a + x, 0) : e.km_brambura * frac) : 0;
     km[cheie[e.eticheta]] += kmS;
     if (c.gol) km.nevazut += kmS;   // drum nevăzut în golul de semnal: kmZi nu-l are (salt ≥ 5 km), controlul îl scoate
-    if (e.eticheta === 'muncă' && e.km_brambura) km.brambura += e.km_brambura * frac;
+    if (e.eticheta === 'muncă' && e.km_brambura) { km.brambura += brS; brPeZi(e, 1); }
     if (e.km_alimentare) km.alimentare += e.km_alimentare * frac;
     const ziAlta = zileAlta.has(ctx.ziLucru(c.de_la));
     if (ziAlta && e.eticheta !== 'muncă' && e.eticheta !== 'reparație' && e.eticheta !== 'altă uzină') { km[cheie[e.eticheta]] -= kmS; km.alta_uzina += kmS; continue; }
-    if (ziAlta && e.eticheta === 'muncă' && e.km_brambura) km.brambura -= e.km_brambura * frac;
+    if (ziAlta && e.eticheta === 'muncă' && e.km_brambura) { km.brambura -= brS; brPeZi(e, -1); }
     if (!ziAlta && (e.eticheta === 'liber' || e.eticheta === 'neclar' || e.eticheta === 'navetă' || (e.eticheta === 'muncă' && e.km_brambura))) {
       const zi = ctx.ziLucru(c.de_la); zile.add(e.eticheta === 'liber' ? zi : null);
       const opriri = (c.opriri || []).map(o => ({ loc: ctx.numeLoc ? ctx.numeLoc(o) ?? null : null, min: Math.round(o.min), ora: hhmm(ctx, o.t), lat: o.lat, lon: o.lon }));
       const principal = opriri.length ? [...opriri].sort((a, b) => b.min - a.min)[0] : null;
-      let dep = null; for (const p of c.pts) { const d = hav(p, ctx.poarta); if (!dep || d > dep.d) dep = { p, d }; }
-      const dincolo = (() => { let d = null; for (const p of c.pts) { const dd = hav(p, ctx.poarta); if (!d || dd > d.d) d = { p, d: dd }; } return d?.p; })();
+      let dep = null; for (const p of c.pts) { const d = distPoarta(p, ctx); if (!dep || d > dep.d) dep = { p, d }; }
+      const dincolo = (() => { let d = null; for (const p of c.pts) { const dd = distPoarta(p, ctx); if (!d || dd > d.d) d = { p, d: dd }; } return d?.p; })();
       const w = dow(zi); const eZiLucru = w === 0 ? !!ctx.lucreazaDuminica : w === 6 ? !!ctx.lucreazaSambata : true;
       iesiri.push({ zi, de_la: hhmm(ctx, c.de_la), pana_la: hhmm(ctx, c.pana_la), km: +kmS.toFixed(1),
         de_unde: numeste(c.p0), pana_unde: numeste(c.p1), cel_mai_departe: numeste(dincolo),
         dupa: vecin(e.i, -1), inainte: vecin(e.i, +1), zi_nelucratoare: !eZiLucru || undefined,
-        km_brambura: e.eticheta === 'muncă' ? +(e.km_brambura * frac).toFixed(1) : undefined, uzina: e.uzina ?? undefined,
+        km_brambura: e.eticheta === 'muncă' ? +brS.toFixed(1) : undefined, uzina: e.uzina ?? undefined,
         km_alimentare: e.km_alimentare ? +(e.km_alimentare * frac).toFixed(1) : undefined,
         departare: +(c.depMax ?? 0).toFixed(1), eticheta: e.eticheta === 'muncă' ? 'brambura' : e.eticheta, motiv: e.motiv, nota: e.nota,
         loc_principal: principal?.loc ?? (dep && ctx.numeLoc ? ctx.numeLoc(dep.p) ?? null : null),
@@ -405,6 +437,7 @@ export function rezumaSaptamina(etichete, ctx, kmZiSapt = null) {
     km: r(kmLiberAlarma), prag_km: P.PRAG_ALARMA_KM, peste_prag: kmLiberAlarma >= P.PRAG_ALARMA_KM, zile: zile.size,
     km_brambura: r(km.brambura), prag_brambura_km: P.PRAG_ALARMA_BRAMBURA_KM, peste_prag_brambura: km.brambura >= P.PRAG_ALARMA_BRAMBURA_KM,
     km_alta_uzina: r(km.alta_uzina),
+    ...(ctx.bramburaPePasi ? { brambura_pe_zi: Object.fromEntries([...brZi].filter(([, x]) => Math.abs(x) > 1e-9).map(([z, x]) => [z, r(x)])) } : {}),
     km_lucru: r(km.lucru), km_reparatie: r(km.reparatie), km_naveta: r(km.naveta), km_neclar: r(km.neclar),
     km_neanalizat: r(km.neanalizat), km_alimentare: r(km.alimentare), km_nevazut: r(km.nevazut),
     iesiri: iesiri.slice(0, 20), si_altele: Math.max(0, iesiri.length - 20),

@@ -2,7 +2,7 @@
 
 import { Fragment, useState } from 'react';
 import Saptamana from './Saptamana';
-import type { AnalizaBriceni, MasinaBriceni, Categorie } from '@/lib/lde/briceni-optimizari-image';
+import type { AnalizaBriceni, MasinaBriceni, Categorie, RutaFacuta } from '@/lib/lde/briceni-optimizari-image';
 
 // Raportul săptămânal de livrare la Trox + suburbanele Briceni (ION-73). Ion, 25.09.2026: «aplică regulile
 // optimizare SEBN la Trox și suburbane». Aceleași mașini fac și Trox, și suburbanul, deci ziua mașinii e împărțită
@@ -33,6 +33,23 @@ export const NUME_CAT: Record<Categorie, string> = {
 const gt = (k: Partial<Record<Categorie, number>>) => k.golTure ?? 0;
 const CULOARE_CAT: Partial<Record<Categorie, string>> = { livrare: VERDE, necunoscut: 'text-[#9B1B30] dark:text-[#e0788c]' };
 
+// Ce rute a făcut mașina (Ion, 26.09: «nu îmi ajunge informație, care rute face»): Trox (T1–T6) și suburbanele, cu câte
+// curse cu oameni; pe săptămână și câte zile. Săptămânile scrise înainte de 26.09 nu au câmpul.
+function Rute({ rute, zi = false }: { rute?: RutaFacuta[]; zi?: boolean }) {
+  if (!rute?.length) return <span className="text-neutral-400">—</span>;
+  return (
+    <span className="inline-flex flex-wrap gap-1">
+      {rute.map((r) => (
+        <span key={r.r} title={`${r.trox ? 'Trox' : 'suburban'} ${r.r}: ${r.curse} curse cu oameni, ${n1(r.km)} km${r.zile ? `, în ${r.zile} zile` : ''}`}
+          className={`whitespace-nowrap rounded-[6px] border px-1.5! font-mono text-[11.5px] ${r.trox
+            ? 'border-[#9B1B30]/40 text-[#9B1B30] dark:text-[#e0788c]' : 'border-neutral-300 text-neutral-700 dark:border-neutral-600 dark:text-neutral-300'}`}>
+          {r.trox ? 'Trox ' : ''}{r.r} <span className="text-neutral-500">{zi || !r.zile ? `×${r.curse}` : `${r.zile} z`}</span>
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function Zile({ m }: { m: MasinaBriceni }) {
   return (
     <div className="space-y-3!">
@@ -40,6 +57,7 @@ function Zile({ m }: { m: MasinaBriceni }) {
         <div key={d.z}>
           <div className="mb-1! flex flex-wrap gap-x-4 text-[12.5px]">
             <b>{zi(d.z)}</b>
+            <Rute rute={d.rute} zi />
             <span className="text-neutral-500">{n1(d.total)} km în zi · noaptea la {d.casaDim ?? '—'} → {d.casaSeara ?? '—'}</span>
             <span className={VERDE}>livrare {n1(d.km.livrare)} km{d.lei != null ? ` · ${n0(d.lei)} lei` : ''}</span>
             {!d.bilant && <span className="text-[#9B1B30]">bilanț cu {n1(d.dif)} km diferență</span>}
@@ -83,7 +101,7 @@ export default function RaportBriceni({ a, saptamani }: { a: RaportBriceniDate |
   const masini = [...a.masini].sort((x, y) => y.km.livrare - x.km.livrare);
   const azi = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Chisinau' });
   const inCurs = a.pana_la >= azi;
-  const cols = ['Mașina', 'Zile', 'Noaptea la', 'Cu oameni', 'Gol pe rută + ture', 'Legătură', 'Livrare/zi', 'Livrare', 'Lei', 'Brambura'];
+  const cols = ['Mașina', 'Zile', 'Noaptea la', 'Rute făcute', 'Cu oameni', 'Gol pe rută + ture', 'Legătură', 'Livrare/zi', 'Livrare', 'Lei', 'Brambura'];
 
   return (
     <div className="mx-auto! max-w-[1160px] p-4! sm:p-6!">
@@ -125,10 +143,10 @@ export default function RaportBriceni({ a, saptamani }: { a: RaportBriceniDate |
         <span className="text-[12px] text-neutral-500">apasă un rând ca să vezi zilele, bucată cu bucată</span>
       </div>
       <div className="overflow-x-auto rounded-[12px] border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900">
-        <table className="w-full min-w-[980px] border-collapse text-[13px]">
+        <table className="w-full min-w-[1180px] border-collapse text-[13px]">
           <thead>
             <tr className="bg-[#9B1B30]/[0.04] text-[10px] uppercase tracking-[0.08em] text-neutral-500">
-              {cols.map((h, i) => <th key={h} className={`px-3! py-2.5! font-bold ${i >= 3 || i === 1 ? 'text-right' : 'text-left'}`}>{h}</th>)}
+              {cols.map((h, i) => <th key={h} className={`px-3! py-2.5! font-bold ${i >= 4 || i === 1 ? 'text-right' : 'text-left'}`}>{h}</th>)}
             </tr>
           </thead>
           <tbody>
@@ -141,6 +159,7 @@ export default function RaportBriceni({ a, saptamani }: { a: RaportBriceniDate |
                     <td className="px-3! py-2! font-mono font-semibold">{m.m}</td>
                     <td className="px-3! py-2! text-right font-mono tabular-nums">{m.zile}</td>
                     <td className="px-3! py-2!">{m.casa ?? '—'}</td>
+                    <td className="px-3! py-2!"><Rute rute={m.rute} /></td>
                     <td className="px-3! py-2! text-right font-mono tabular-nums">{n0(m.km.cuOameni + m.km.nepotrivita)}</td>
                     <td className="px-3! py-2! text-right font-mono tabular-nums">{n0(m.km.golRuta + gt(m.km))}</td>
                     <td className="px-3! py-2! text-right font-mono tabular-nums">{n0(m.km.legatura)}</td>
@@ -160,7 +179,7 @@ export default function RaportBriceni({ a, saptamani }: { a: RaportBriceniDate |
           </tbody>
           <tfoot>
             <tr className="border-t border-neutral-200 font-semibold dark:border-neutral-700">
-              <td className="px-3! py-2.5!" colSpan={3}>Pe {masini.length} mașini</td>
+              <td className="px-3! py-2.5!" colSpan={4}>Pe {masini.length} mașini</td>
               <td className="px-3! py-2.5! text-right font-mono tabular-nums">{n0(t.cuOameni + t.nepotrivita)}</td>
               <td className="px-3! py-2.5! text-right font-mono tabular-nums">{n0(t.golRuta + gt(t))}</td>
               <td className="px-3! py-2.5! text-right font-mono tabular-nums">{n0(t.legatura)}</td>

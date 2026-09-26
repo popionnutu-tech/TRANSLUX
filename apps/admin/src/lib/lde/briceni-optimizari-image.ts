@@ -17,13 +17,14 @@ import { LIVRARE_POSTER_CHAT_KEY } from './livrare-poster';
  */
 export type Categorie = 'cuOameni' | 'nepotrivita' | 'golRuta' | 'golTure' | 'service' | 'deplasare' | 'livrare' | 'legatura' | 'necunoscut';
 export type KmCategorii = Record<Categorie, number>;
+export interface RutaFacuta { r: string; trox: boolean; curse: number; km: number; zile?: number }
 export interface BucataZi { ora: string; cat: Categorie; km: number; brambura: number; golTure?: number; r: string | null; motiv: string | null }
 export interface ZiMasina {
-  z: string; dow: number; total: number; km: KmCategorii; lungimeTrox?: number | null; brambura: number; lei: number | null; leiKm: number | null;
+  z: string; dow: number; total: number; km: KmCategorii; lungimeTrox?: number | null; rute?: RutaFacuta[]; brambura: number; lei: number | null; leiKm: number | null;
   bilant: boolean; dif: number; casaDim: string | null; casaSeara: string | null; bucati: BucataZi[];
 }
 export interface MasinaBriceni {
-  m: string; zile: number; total: number; km: KmCategorii; brambura: number; livrareZi: number; lei: number | null; leiZi: number | null;
+  m: string; zile: number; total: number; km: KmCategorii; rute?: RutaFacuta[]; brambura: number; livrareZi: number; lei: number | null; leiZi: number | null;
   steagBrambura: boolean; casa: string | null; deLamurit: number; detalii: ZiMasina[];
 }
 export interface RutaBriceni { id: string; nume: string; livrare: number; lei: number; masini: string[] }

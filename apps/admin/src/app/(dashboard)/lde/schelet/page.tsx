@@ -9,9 +9,10 @@ import ScheletSebnClient, { type ScheletSebn } from './ScheletSebnClient';
 import ScheletFlorestiClient, { type ScheletFloresti } from './ScheletFlorestiClient';
 import ScheletMejgorodClient, { type ScheletMejgorod } from './ScheletMejgorodClient';
 import ScheletBriceniClient, { type ScheletBriceni } from './ScheletBriceniClient';
+import ScheletDraxClient, { type ScheletDrax } from './ScheletDraxClient';
 import ScheletToateClient from './ScheletToateClient';
 import {
-  type Retea, learLaToate, sebnLaToate, florestiLaToate, mejgorodLaToate, briceniLaToate,
+  type Retea, learLaToate, sebnLaToate, florestiLaToate, mejgorodLaToate, briceniLaToate, draxLaToate,
 } from './toate';
 
 // Scheletul e fix prin definiție — Ion, 23.09.2026: «să îl fixez, pe viitor să nu mai umblăm la
@@ -47,6 +48,10 @@ const RETELE = [
     fila: (d) => <ScheletMejgorodClient schelet={d} />, laToate: mejgorodLaToate }),
   rand<ScheletBriceni>({ id: 'briceni', nume: 'Trox + suburban Briceni', fisier: 'schelet-briceni.json', href: '/lde/schelet?uz=briceni',
     fila: (d) => <ScheletBriceniClient schelet={d} />, laToate: briceniLaToate }),
+  // ION-94 (F3 din ION-86): scheletul ideal v2 Drăxlmaier, km = etalonul GPS completat, verificat de ION-95 (verificarea 2, 27.09);
+  // liniile cu «diagnostic cerut» păstrează km-ul vechi. Fișierul îl scrie drax/cod/ideal/export-lde.mjs, doar prin poarta verificatorului.
+  rand<ScheletDrax>({ id: 'drax', nume: 'Drăxlmaier Bălți', fisier: 'schelet-drax.json', href: '/lde/schelet?uz=drax',
+    fila: (d) => <ScheletDraxClient schelet={d} />, laToate: draxLaToate }),
 ];
 
 // Ion, 25.09.2026: «fă o hartă unică unde să se aplice toate rutele… să fie ultima fișă toate» (ION-67).

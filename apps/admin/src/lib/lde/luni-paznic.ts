@@ -22,6 +22,9 @@ export const UZINE_LUNI = [
   { nume: 'SEBN Orhei și Strășeni', rind: 'SEBN', poster: SEBN_POSTER_LAST_KEY as string | null, indicatii: null as string | null },
   // ION-73: analiza Trox + suburban Briceni se scrie lunea, posterul pleacă din 26.09 (Ion: «poster care va apărea în cron săptămânal la 8 luni»)
   { nume: 'Trox + suburban Briceni', rind: 'BRICENI', poster: BRICENI_POSTER_LAST_KEY as string | null, indicatii: null },
+  // ION-94 (F3): analiza Drăxlmaier se scrie lunea (drax/cod/saptamanal); posterul și indicațiile NU pleacă până la «da»-ul lui Ion,
+  // deci aici se cere doar rândul. La «da»: poster = DRAX_POSTER_LAST_KEY, indicatii = cheiaIndicatiilor('drax').
+  { nume: 'Drăxlmaier Bălți', rind: 'DRAXELMAIER', poster: null, indicatii: null },
 ];
 
 export type Lipsa = { uzina: string; ce: 'raport' | 'poster' | 'indicații' };
@@ -51,7 +54,8 @@ export function textLuniPaznic(saptamina: string, lipsuri: Lipsa[]): string | nu
   for (const x of lipsuri) peUzina.set(x.uzina, [...(peUzina.get(x.uzina) ?? []), x.ce]);
   const linii = [...peUzina].map(([u, ce]) => `• <b>${escapeHtml(u)}</b>: ${ce.join(', ')}`);
   return `⛔ <b>Luni, săptămâna din ${escapeHtml(saptamina)} — n-a plecat tot</b>\n${linii.join('\n')}\n` +
-    `Log: /root/lde-worker/lear-saptamanal.log pe VPS. Retrimitere de mână: /api/cron/lde-timp-liber[?uz=floresti]&poster=force&indicatii=force, /api/cron/sebn-optimizari?force=1; Briceni: bash /root/lde-worker/briceni/cod/saptamanal.sh, apoi /api/cron/briceni-optimizari?send=1&force=1.`;
+    `Log: /root/lde-worker/lear-saptamanal.log pe VPS. Retrimitere de mână: /api/cron/lde-timp-liber[?uz=floresti]&poster=force&indicatii=force, /api/cron/sebn-optimizari?force=1; Briceni: bash /root/lde-worker/briceni/cod/saptamanal.sh, apoi /api/cron/briceni-optimizari?send=1&force=1. ` +
+    `Drăxlmaier: dacă drax/date/saptamanal/<luni>/scrie.log arată „P10 picat”, rerularea NU ajută (instantaneul e același) — diagnosticul e în analiza-respinsa.json; altfel bash /root/lde-worker/drax/cod/saptamanal/saptamanal.sh --write <luni>.`;
 }
 
 export async function verificaLuni(saptamina: string, opts: { dry?: boolean } = {}): Promise<{ lipsuri: Lipsa[]; trimis: boolean; text: string | null }> {

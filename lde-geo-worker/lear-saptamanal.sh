@@ -46,6 +46,15 @@ if ! flock -n "${LOCK_BRICENI:-/tmp/briceni-sapt.lock}" nice -n 10 ${LIMITA[@]+"
   echo "briceni saptamanal: rularea a picat, a depășit 90 min sau lock-ul e ocupat" >&2; picat=1
 fi
 
+# Drăxlmaier Bălți (ION-86, F3 / ION-94): analiza săptămânii → lde_analiza_reguli «DRAXELMAIER». 78–93 s (proba 26.09), timeout ≈ 3 × durata.
+# Scrie doar o săptămână încheiată și doar cu proba P10 trecută (altfel analiza-respinsa.json și cod 1; paznicul vede rândul lipsă).
+# Fără flock exterior: workerul are lock-ul lui (/tmp/drax-sapt.lock, flock -w 30).
+DRAX_SAPT="${DRAX_SAPT:-$LDE_DIR/drax/cod/saptamanal/saptamanal.sh}"
+LIMITA_D=(); command -v timeout >/dev/null && LIMITA_D=(timeout 280)
+if ! nice -n 10 ${LIMITA_D[@]+"${LIMITA_D[@]}"} bash "$DRAX_SAPT" --write; then
+  echo "drax saptamanal: rularea a picat (P10? vezi scrie.log), a depășit 280 s sau lock-ul e ocupat" >&2; picat=1
+fi
+
 CRON_SECRET="$(env_val CRON_SECRET || true)"
 [ -n "$CRON_SECRET" ] || { echo "CRON_SECRET lipsește din .env — rapoartele sunt scrise, mesajele nu pleacă" >&2; exit 1; }
 cheama() {  # o rută de cron; picată = se scrie și se merge mai departe
@@ -61,6 +70,8 @@ cheama "briceni-optimizari?send=1"
 # LEAR Ungheni și Florești (ION-57/59/62): posterul, apoi indicațiile pentru Alexei, apoi mesajul ADMIN.
 cheama "lde-timp-liber"
 cheama "lde-timp-liber?uz=floresti"
+# Drăxlmaier (ION-94): doar proba mesajului de timp liber (dry) — posterul, indicațiile și mesajul ADMIN NU pleacă până la «da»-ul lui Ion.
+cheama "drax-optimizari?liber=1&dry=1"
 # Paznicul (ION-62): ce n-a plecat ajunge la ADMIN în bot (Ion, 25.09: «dacă nu se trimit, îmi dai mie»).
 cheama "lde-luni-paznic"
 exit $picat

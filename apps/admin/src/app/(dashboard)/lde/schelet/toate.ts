@@ -4,6 +4,7 @@ import type { ScheletSebn } from './ScheletSebnClient';
 import type { ScheletFloresti } from './ScheletFlorestiClient';
 import type { ScheletMejgorod } from './ScheletMejgorodClient';
 import type { ScheletBriceni } from './ScheletBriceniClient';
+import type { ScheletDrax } from './ScheletDraxClient';
 
 // Fila «Toate rutele» (ION-67). Ion, 25.09.2026: «fă o hartă unică unde să se aplice toate rutele,
 // vizual să fie frumos, fiecare să fie sub egida ei cumva vizibil». Scheletele au împreună
@@ -25,6 +26,7 @@ const TENTE = {
   floresti: { h: 30, culoare: '#B06A1F' },
   mejgorod: { h: 352, culoare: '#8E2A3A' },
   briceni: { h: 96, culoare: '#557A2E' },
+  drax: { h: 322, culoare: '#8A3A78' },
 } as const;
 const nuanta = (h: number, i: number) => `hsl(${h} 58% ${30 + ((i * 9) % 24)}%)`;
 
@@ -153,4 +155,13 @@ export const briceniLaToate = (briceni: ScheletBriceni): Retea[] => [
         : 2 * r.km;
       return { id: r.id, nume: r.tip === 'trox' ? `Trox ${r.id} · ${r.capat ?? r.nume}` : r.capat ?? r.nume, km, linie: r.shape };
     })),
+];
+
+// Drăxlmaier Bălți (ION-94): rută × linie, tur = retur, ture/zi măsurate; km/zi = 2 × km × ture/zi pe liniile cu ideal (fără cele informative),
+// exact ca în fila ei. Două porți ale aceleiași uzini, EST și VEST.
+export const draxLaToate = (drax: ScheletDrax): Retea[] => [
+  retea('drax', 'Drăxlmaier Bălți', 'uzină · 2 porți, 2 schimburi', drax.porti,
+    drax.rute.flatMap((r) => r.linii.filter((l) => l.km != null && !l.informativ).map((l) => ({
+      id: `${r.id} ${l.nr}`, nume: `${r.id} · ${l.nr}`, km: l.kmZi, linie: l.tur.plin,
+    })))),
 ];

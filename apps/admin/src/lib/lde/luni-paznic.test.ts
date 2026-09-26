@@ -6,7 +6,7 @@ const toate = new Map([
   ['lear_poster_last', S], ['lear_poster_last_lear_flore_ti', S], ['sebn_optimizari_poster_last', S],
   ['indicatii_alexei_last_lear', S], ['indicatii_alexei_last_floresti', S], ['briceni_optimizari_poster_last', S],
 ]);
-const rapoarte = new Set(['LEAR Ungheni', 'LEAR Florești', 'SEBN', 'BRICENI']);
+const rapoarte = new Set(['LEAR Ungheni', 'LEAR Florești', 'SEBN', 'BRICENI', 'DRAXELMAIER']);
 
 describe('paznicul de luni', () => {
   it('totul plecat → nimic de spus', () => {
@@ -21,6 +21,7 @@ describe('paznicul de luni', () => {
       { uzina: 'LEAR Florești', ce: 'poster' },
       { uzina: 'SEBN Orhei și Strășeni', ce: 'raport' },
       { uzina: 'Trox + suburban Briceni', ce: 'raport' },
+      { uzina: 'Drăxlmaier Bălți', ce: 'raport' },
     ]);
     const t = textLuniPaznic(S, l)!;
     expect(t).toContain('<b>LEAR Florești</b>: poster');
@@ -36,5 +37,11 @@ describe('paznicul de luni', () => {
   });
   it('SEBN n-are indicații separate, deci nu i se cere cheia', () => {
     expect(lipsurileLunii(S, rapoarte, toate).some((x) => x.uzina.startsWith('SEBN'))).toBe(false);
+  });
+  it('Drăxlmaier: se cere doar rândul (posterul și indicațiile nu pleacă până la «da», ION-94)', () => {
+    const fara = new Set(rapoarte); fara.delete('DRAXELMAIER');
+    expect(lipsurileLunii(S, fara, toate)).toEqual([{ uzina: 'Drăxlmaier Bălți', ce: 'raport' }]);
+    expect(lipsurileLunii(S, rapoarte, new Map(toate)).some((x) => x.uzina.startsWith('Drăxlmaier'))).toBe(false);
+    expect(textLuniPaznic(S, [{ uzina: 'Drăxlmaier Bălți', ce: 'raport' }])).toContain('analiza-respinsa.json');
   });
 });

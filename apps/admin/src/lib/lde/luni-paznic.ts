@@ -14,13 +14,14 @@ import { chisinauTodayIso } from '../chisinau-time';
 import { cheiaPosterului } from './lear-optimizari-image';
 import { SEBN_POSTER_LAST_KEY } from './sebn-optimizari-image';
 import { cheiaIndicatiilor } from './indicatii-alexei';
+import { BRICENI_POSTER_LAST_KEY } from './briceni-optimizari-image';
 
 export const UZINE_LUNI = [
   { nume: 'LEAR Ungheni', rind: 'LEAR Ungheni', poster: cheiaPosterului('LEAR Ungheni'), indicatii: cheiaIndicatiilor('') },
   { nume: 'LEAR Florești', rind: 'LEAR Florești', poster: cheiaPosterului('LEAR Florești'), indicatii: cheiaIndicatiilor('floresti') },
   { nume: 'SEBN Orhei și Strășeni', rind: 'SEBN', poster: SEBN_POSTER_LAST_KEY as string | null, indicatii: null as string | null },
-  // ION-73: analiza Trox + suburban Briceni se scrie lunea; posterul NU pleacă până la «da»-ul lui Ion, deci nu i se cere
-  { nume: 'Trox + suburban Briceni', rind: 'BRICENI', poster: null, indicatii: null },
+  // ION-73: analiza Trox + suburban Briceni se scrie lunea, posterul pleacă din 26.09 (Ion: «poster care va apărea în cron săptămânal la 8 luni»)
+  { nume: 'Trox + suburban Briceni', rind: 'BRICENI', poster: BRICENI_POSTER_LAST_KEY as string | null, indicatii: null },
 ];
 
 export type Lipsa = { uzina: string; ce: 'raport' | 'poster' | 'indicații' };
@@ -50,7 +51,7 @@ export function textLuniPaznic(saptamina: string, lipsuri: Lipsa[]): string | nu
   for (const x of lipsuri) peUzina.set(x.uzina, [...(peUzina.get(x.uzina) ?? []), x.ce]);
   const linii = [...peUzina].map(([u, ce]) => `• <b>${escapeHtml(u)}</b>: ${ce.join(', ')}`);
   return `⛔ <b>Luni, săptămâna din ${escapeHtml(saptamina)} — n-a plecat tot</b>\n${linii.join('\n')}\n` +
-    `Log: /root/lde-worker/lear-saptamanal.log pe VPS. Retrimitere de mână: /api/cron/lde-timp-liber[?uz=floresti]&poster=force&indicatii=force, /api/cron/sebn-optimizari?force=1; Briceni: bash /root/lde-worker/briceni/cod/saptamanal.sh.`;
+    `Log: /root/lde-worker/lear-saptamanal.log pe VPS. Retrimitere de mână: /api/cron/lde-timp-liber[?uz=floresti]&poster=force&indicatii=force, /api/cron/sebn-optimizari?force=1; Briceni: bash /root/lde-worker/briceni/cod/saptamanal.sh, apoi /api/cron/briceni-optimizari?send=1&force=1.`;
 }
 
 export async function verificaLuni(saptamina: string, opts: { dry?: boolean } = {}): Promise<{ lipsuri: Lipsa[]; trimis: boolean; text: string | null }> {

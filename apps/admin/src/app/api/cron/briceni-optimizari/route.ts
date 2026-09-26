@@ -4,7 +4,8 @@ import { chisinauTodayIso } from '@/lib/chisinau-time';
 import { posterBriceni } from '@/lib/lde/briceni-optimizari-image';
 
 // Posterul «cât se putea economisi» la Trox + suburbanele Briceni (ION-73). Ion, 25.09.2026: posterul se face, dar
-// NU pleacă până nu-l vede el. De aceea contractul e invers față de rutele surori (sebn/mejgorod-optimizari):
+// întâi îl vede el; din 26.09 pleacă lunea la 08:00 din lear-saptamanal.sh cu ?send=1. Contractul rămâne invers față de
+// rutele surori (sebn/mejgorod-optimizari):
 //   implicit → întoarce imaginea PNG, nu trimite nimic, nu scrie nicio cheie;
 //   ?send=1  → trimite în grupa livrărilor de uzină (o dată pe săptămână; ?force=1 retrimite).
 // Altă săptămână: ?saptamina=YYYY-MM-DD. Analiza o scrie luni VPS-ul (briceni/cod/saptamanal.sh).

@@ -11,7 +11,7 @@ import { LIVRARE_POSTER_CHAT_KEY } from './livrare-poster';
  * între joburi (nu e economie), brambura (SEBN §11.3). Analiza o scrie VPS-ul, luni, în lde_analiza_reguli
  * (uzina «BRICENI», briceni/cod/saptamanal.sh); aici doar se desenează.
  *
- * NU pleacă singur: Ion vrea să-l vadă întâi. Ruta întoarce imaginea; în grupă trimite doar cu ?send=1.
+ * Pleacă lunea la 08:00 din lear-saptamanal.sh (VPS) cu ?send=1 (Ion, 26.09); fără send=1 ruta doar întoarce imaginea.
  * Fontul posterului n-are «↔» și «→» (se desenează gol) — pe poster «–».
  * Pe poster: doar km și lei, pe mașină și pe rută — fără casa șoferului, fără locurile și orele ocolurilor, fără nume.
  */
@@ -39,6 +39,11 @@ const nr1 = (v: number) => (Math.round(v * 10) / 10).toFixed(1).replace('.', ','
 export const BRICENI_POSTER_LAST_KEY = 'briceni_optimizari_poster_last';
 export const PRAG_LIVRARE_ZI = 40; // ca la SEBN: pe poster, mașinile cu livrare peste 40 km/zi ies în față
 
+// codul și denumirea rutei pe poster: Coteala 1, 2, 3 au un drum comun (ION-70); Trox cu denumirea din act, fără săgeți
+const codRuta = (id: string) => (id === '46+52+53' ? '46, 52, 53' : id);
+const numeRutaPoster = (id: string, nume: string | null | undefined) => !nume || nume === id ? ''
+  : /^T\d/.test(id) ? nume.replace(/\s*-\s*/g, ' – ').replace(/Sl\.Sireuti/g, 'Sl.-Șirăuți') : `${nume} – Briceni`;
+
 export async function generateBriceniOptimizariImage(a: AnalizaBriceni): Promise<Buffer> {
   const masini = [...a.masini].sort((x, y) => y.km.livrare - x.km.livrare);
   const t = a.total;
@@ -46,32 +51,35 @@ export async function generateBriceniOptimizariImage(a: AnalizaBriceni): Promise
     latime: 1000,
     supratitlu: 'Trox + rute suburbane Briceni',
     titlu: 'Cât se putea economisi săptămâna trecută',
-    subtitlu: 'Livrarea = drumul mașinii de acasă până la începutul cursei și înapoi. Se taie cu un șofer din satul de start sau cu mașina care așteaptă la capăt, nu acasă (regula SEBN).',
+    subtitlu: 'Livrarea = drumul gol al mașinii de acasă până la prima cursă, seara înapoi acasă și ocolul pe acasă între curse. Se taie cu un șofer din satul de start sau cu mașina care așteaptă la capăt (regula SEBN).',
     eticheta: perioadaText(a.saptamina, a.pana_la),
   });
+  // Ion, 26.09: pe pagină a scos coloanele cu oameni / gol / legătură și a cerut rutele cu denumirea — posterul la fel:
+  // doar livrarea (economia) și ce rute face mașina
+  const cuLivrare = masini.filter((m) => m.km.livrare >= 0.5);
+  const peste = cuLivrare.filter((m) => m.livrareZi > PRAG_LIVRARE_ZI);
+  const rute = a.rute.filter((r) => r.livrare >= 0.5);
   p.carduri([
-    { eticheta: 'Economie posibilă', titlu: 'Livrare casă – start', text: 'Km goi de acasă până la prima cursă, între ture pe acasă și seara înapoi.', valoare: `${nr(t.livrare)} km`, subValoare: `≈ ${nr(t.lei)} lei pe săptămână` },
-    { eticheta: 'Cu oameni', titlu: 'Trox și suburban', text: 'Cursele Trox capăt – poartă și cursele suburbane din orar. Nu se optimizează.', valoare: `${nr(t.cuOameni)} km` },
-    { eticheta: 'Nu e economie', titlu: 'Gol pe rută, între ture, legătură', text: 'Întoarcerea goală impusă de orar, drumul gol spre capăt între ture Trox (6 drumuri pe 2 ture) și drumul poartă – gară.', valoare: `${nr(t.golRuta + (t.golTure ?? 0) + t.legatura)} km` },
+    { eticheta: 'Economie posibilă', titlu: 'Livrare casă – start', text: 'Drumul gol de acasă la prima cursă, seara înapoi și ocolul pe acasă între curse.', valoare: `${nr(t.livrare)} km`, subValoare: `≈ ${nr(t.lei)} lei pe săptămână` },
+    { eticheta: `Peste ${PRAG_LIVRARE_ZI} km pe zi`, titlu: peste.length ? peste.map((m) => m.m).join(', ') : 'Nicio mașină', text: 'Mașinile la care livrarea zilnică e cea mai mare — primele de lămurit cu șoferul.', valoare: `${peste.length} ${peste.length === 1 ? 'mașină' : 'mașini'}` },
+    ...(rute[0] ? [{ eticheta: 'Ruta cu cea mai multă livrare', titlu: `${codRuta(rute[0].id)} ${numeRutaPoster(rute[0].id, rute[0].nume)}`, text: `Mașini: ${rute[0].masini.join(', ')}.`, valoare: `${nr(rute[0].livrare)} km`, subValoare: `≈ ${nr(rute[0].lei)} lei` }] : []),
   ]);
-  const km = (v: number): Celula => v < 0.5 ? { text: '0', culoare: CULORI.griDeschis } : { text: nr(v) };
+  const ruteFacute = (m: MasinaBriceni) => (m.rute ?? []).map((r) => `${r.trox ? 'Trox ' : ''}${codRuta(r.r)} (${r.zile ?? 0} z)`).join(', ') || '—';
   p.tabel([
-    { titlu: 'Mașina', latime: 110 }, { titlu: 'Zile', latime: 60, aliniere: 'end' }, { titlu: 'Cu oameni', latime: 110, aliniere: 'end' },
-    { titlu: 'Gol rută+ture', latime: 110, aliniere: 'end' }, { titlu: 'Legătură', latime: 100, aliniere: 'end' },
-    { titlu: 'Livrare/zi', latime: 110, aliniere: 'end' }, { titlu: 'Livrare', latime: 110, aliniere: 'end' }, { titlu: 'Lei', latime: 100, aliniere: 'end' },
-  ], masini.filter((m) => m.km.livrare >= 0.5).map((m) => [
+    { titlu: 'Mașina', latime: 110 }, { titlu: 'Rute făcute', latime: 360 }, { titlu: 'Zile', latime: 60, aliniere: 'end' },
+    { titlu: 'Livrare/zi', latime: 110, aliniere: 'end' }, { titlu: 'Livrare', latime: 100, aliniere: 'end' }, { titlu: 'Lei', latime: 100, aliniere: 'end' },
+  ], cuLivrare.map((m) => [
     { text: m.m, bold: true },
+    { text: ruteFacute(m), culoare: CULORI.gri },
     { text: String(m.zile), culoare: CULORI.gri },
-    km(m.km.cuOameni + m.km.nepotrivita), km(m.km.golRuta + (m.km.golTure ?? 0)), km(m.km.legatura),
     { text: nr1(m.livrareZi), bold: m.livrareZi > PRAG_LIVRARE_ZI, culoare: m.livrareZi > PRAG_LIVRARE_ZI ? CULORI.verde : CULORI.text,
       fundal: m.livrareZi > PRAG_LIVRARE_ZI ? CULORI.verdeFundal : undefined },
     { text: nr(m.km.livrare), culoare: CULORI.verde },
     { text: m.lei == null ? '—' : nr(m.lei), culoare: CULORI.gri },
   ]), { gol: 'Nicio mașină cu livrare săptămâna asta.' });
-  p.total(`Pe ${masini.filter((m) => m.km.livrare >= 0.5).length} mașini: ${nr(t.livrare)} km livrare`, `≈ ${nr(t.lei)} lei pe săptămână`);
-  const rute = a.rute.filter((r) => r.livrare >= 0.5);
-  if (rute.length) p.nota(`Pe rute: ${rute.slice(0, 10).map((r) => `${r.id} ${nr(r.livrare)} km`).join(' · ')}.`);
-  p.nota(`Verde încercuit = peste ${PRAG_LIVRARE_ZI} km livrare pe zi. Lei = livrare × norma mașinii × prețul ANRE al zilei + reparație + salariu. Brambura (drum pe care mașina n-a mai mers în nicio altă zi) e scăzută din livrare.`);
+  p.total(`Pe ${cuLivrare.length} mașini: ${nr(t.livrare)} km livrare`, `≈ ${nr(t.lei)} lei pe săptămână`);
+  if (rute.length) p.nota(`Livrarea pe rute: ${rute.slice(0, 12).map((r) => `${codRuta(r.id)} ${numeRutaPoster(r.id, r.nume)} ${nr(r.livrare)} km`).join(' · ')}.`);
+  p.nota(`Verde = peste ${PRAG_LIVRARE_ZI} km livrare pe zi. Lei = livrare × norma mașinii × prețul ANRE al zilei + reparație + salariu. Brambura (drum pe care mașina n-a mai mers în nicio altă zi) e scăzută din livrare. Ziua fiecărei mașini, de unde încotro: în LDE, Raport livrări, fila Trox + suburban Briceni.`);
   return p.png();
 }
 

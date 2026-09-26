@@ -38,7 +38,7 @@ if ! flock -n "${LOCK_SEBN:-/tmp/sebn-liber.lock}" node --env-file=.env sebn-lib
 fi
 
 # Trox + suburban Briceni (ION-73): regulile de livrare SEBN, analiza săptămânii scrisă în lde_analiza_reguli
-# «BRICENI». Posterul NU se cheamă aici: Ion vrea să-l vadă întâi (după «da»: cheama "briceni-optimizari?send=1").
+# «BRICENI». Posterul pleacă mai jos, cu celelalte (cheama "briceni-optimizari?send=1", Ion 26.09).
 # Stă înaintea verificării CRON_SECRET, ca să ruleze și fără cheie; 11–30 s pe săptămână (proba 25.09).
 BRICENI_SAPT="${BRICENI_SAPT:-$LDE_DIR/briceni/cod/saptamanal.sh}"
 LIMITA=(); command -v timeout >/dev/null && LIMITA=(timeout 90m)
@@ -55,6 +55,9 @@ cheama() {  # o rută de cron; picată = se scrie și se merge mai departe
 # SEBN (ION-60): posterul «cât se putea economisi» + întrebarea despre primele 3 mașini critice, în grupa
 # livrărilor de uzină. Singurul poster SEBN de luni (Ion, 25.09) — cel vechi de livrare nu mai pleacă.
 cheama "sebn-optimizari"
+# Trox + suburban Briceni (ION-73): posterul «cât se putea economisi», în aceeași grupă; Ion, 26.09: «formează
+# analiza suburban și Trox poster care va apărea în cron săptămânal la 8 luni». Fără analiza săptămânii nu pleacă.
+cheama "briceni-optimizari?send=1"
 # LEAR Ungheni și Florești (ION-57/59/62): posterul, apoi indicațiile pentru Alexei, apoi mesajul ADMIN.
 cheama "lde-timp-liber"
 cheama "lde-timp-liber?uz=floresti"

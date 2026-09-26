@@ -1,0 +1,28 @@
+CORECT          K1   copiat — linie din act fără ideal (neacoperită explicit)
+CORECT          K2   copiat — linie din act fără ideal
+CORECT          K3   copiat — linie din act fără ideal
+CORECT          K4   calculat — două dispozitive care transmit simultan 07–10.09
+CORECT          K5   calculat — efectul dublurii pe R16 măsurat: etalon GPS neschimbat, nu blochează
+CORECT          K6   calculat · ținut deoparte — 880RNK: dispozitiv dublu real (suprapus în timp), 12 zile
+CORECT          K7   calculat · ținut deoparte — Sturzovca: două variante de drum (24 / 46 km), eșantion mic pe s2 — diagnostic, nu corecție
+CORECT          K8   copiat — regim neclar
+CORECT          K9   copiat — regim neclar
+CORECT          K10  copiat — regim neclar
+CORECT          K11  calculat — deplasările fără schimb la prânz = în majoritate gemeni rt
+CORECT          K12  calculat — R13 servită prin bucle rt scurte, 0 zile încrucișate
+CORECT          K13  copiat — ture/zi 3 ≠ act 1
+CORECT          K14  calculat — blocuri de săptămâni pe ambele schimburi = regim pe perioadă
+CORECT          K15  copiat — sursa «toate»
+CORECT          K16  copiat — ISO 53
+CORECT          K17  calculat · ținut deoparte — salt VEST→EST 3,6–3,9 km, nu dublură
+CORECT          K18  calculat · ținut deoparte — salt VEST→EST, nu dublură
+CORECT          K19  calculat · ținut deoparte — ture/zi 2 → 4 fără dedup între mașini
+CORECT          K20  calculat · ținut deoparte — «doar s1» pe toată fereastra, «ambele» în sept.
+CORECT          K21  calculat · ținut deoparte — cu poarta pe sens și km completați, Nihoreni coboară sub 60 %
+CORECT          K22  calculat · ținut deoparte — serviciu regulat ~11:20 al unei mașini
+CORECT          K23  calculat · ținut deoparte — salturile între porți atribuite liniei * R7 Slobozia
+CORECT          K24  calculat · ținut deoparte — zile izolate pe ambele schimburi pe o linie D = abatere, nu Z
+CORECT          K25  calculat · ținut deoparte — Usurei: card 40 față de GPS completat 37,4 (7 %), C47 94 % — corecție directă
+CORECT          K26  calculat · ținut deoparte — Bocancea Schit: card 54,5 față de GPS 46,2 (18 %), C47 37 % — diagnostic înaintea corecției
+
+scor judecată (doar «calculat»): 17/17 · ținute deoparte 12/12 · copiate (nenotate) 9

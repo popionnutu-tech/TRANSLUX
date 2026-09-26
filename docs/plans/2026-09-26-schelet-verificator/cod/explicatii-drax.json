@@ -1,0 +1,92 @@
+[
+ {
+  "id": "C31",
+  "ruta": "R13",
+  "linie": "Hasnasenii Noi",
+  "motiv": "NEACOPERIT EXPLICIT: 71 de picioare (38 de deplasări, 66 în bucle rt poartă→sat→poartă) în 36 de zile-mașină, 744ARF 63; plin median 9,1 km față de 48 km în act; 0 zile cu tur și retur pe același schimb, deci niciun ideal. ≈ 9 km/zi GPS neacoperiți (71 × 9,1 km ÷ 74 de zile L–V ale ferestrei 04.05–17.07 + 01.09–25.09). Exportul arată linia fără km.",
+  "hotarat_prin": "dezbatere ION-95 r3 (triaj-r3 Q2, texte pe fapte), re-semnat de sesiune",
+  "data": "2026-09-26",
+  "sha_intrare": "43dcceaf6db74d565f21863e6c5e0a2ca09424a744778e0c205c698c8b260104"
+ },
+ {
+  "id": "C31",
+  "ruta": "R18",
+  "linie": "Putinesti",
+  "motiv": "NEACOPERIT EXPLICIT: date rare — 16 picioare în 15 zile-mașină pe toată fereastra (tur s1 7, retur s1 4, tur s2 2, retur s2 3; 397VKV 6, 763LYY 4, 804MUM 4), plin median 22,8 km. O singură zi-mașină are ambele picioare, și aceea încrucișată (tur și retur pe schimburi diferite), deci nu există nicio pereche pe același schimb și niciun ideal. ≈ 5 km/zi GPS neacoperiți (16 × 22,8 km ÷ 74 de zile L–V ale ferestrei). Satul Putinești apare în 27 % din cursele R32 Trifănești (C35(e)): de lămurit în F4 dacă linia se servește prin R32. Exportul arată linia fără km.",
+  "hotarat_prin": "dezbatere ION-95 r3 (triaj-r3 Q2, texte pe fapte), re-semnat de sesiune",
+  "data": "2026-09-26",
+  "sha_intrare": "43dcceaf6db74d565f21863e6c5e0a2ca09424a744778e0c205c698c8b260104"
+ },
+ {
+  "id": "C31",
+  "ruta": "R27",
+  "linie": "Iabloana",
+  "motiv": "NEACOPERIT EXPLICIT: date rare — 5 picioare (4 deplasări, 2 rt) în 4 zile-mașină, 441ASB 2, 348KAJ 2, 487NPL 1; plin median 28,1 km; cauză nedemonstrată. ≈ 2 km/zi GPS neacoperiți (5 × 28,1 km ÷ 74 de zile L–V ale ferestrei). Exportul arată linia fără km.",
+  "hotarat_prin": "dezbatere ION-95 r3 (triaj-r3 Q2, texte pe fapte), re-semnat de sesiune",
+  "data": "2026-09-26",
+  "sha_intrare": "43dcceaf6db74d565f21863e6c5e0a2ca09424a744778e0c205c698c8b260104"
+ },
+ {
+  "id": "C31",
+  "ruta": "R13",
+  "linie": "Hasnasenii Noi",
+  "motiv": "NEACOPERIT EXPLICIT: 71 de picioare (38 de deplasări, 66 în bucle rt poartă→sat→poartă) în 36 de zile-mașină, 744ARF 63; plin median 9,1 km față de 48 km în act; 0 zile cu tur și retur pe același schimb, deci niciun ideal. ≈ 9 km/zi GPS neacoperiți (71 × 9,1 km ÷ 74 de zile L–V ale ferestrei 04.05–17.07 + 01.09–25.09). Exportul arată linia fără km.",
+  "hotarat_prin": "dezbatere ION-95 r3 (triaj-r3 Q2, texte pe fapte), re-semnat de sesiune; re-semnat pe ideal-v2 (verificarea 2: datele se potrivesc cifră cu cifră)",
+  "data": "2026-09-27",
+  "sha_intrare": "29b2d3aab973d6e3b99aa1ded8e2266453922558c3fdd5f3b66af5ec8f5d5282"
+ },
+ {
+  "id": "C31",
+  "ruta": "R18",
+  "linie": "Putinesti",
+  "motiv": "NEACOPERIT EXPLICIT: date rare — 16 picioare în 15 zile-mașină pe toată fereastra (tur s1 7, retur s1 4, tur s2 2, retur s2 3; 397VKV 6, 763LYY 4, 804MUM 4), plin median 22,8 km. O singură zi-mașină are ambele picioare, și aceea încrucișată (tur și retur pe schimburi diferite), deci nu există nicio pereche pe același schimb și niciun ideal. ≈ 5 km/zi GPS neacoperiți (16 × 22,8 km ÷ 74 de zile L–V ale ferestrei). Satul Putinești apare în 27 % din cursele R32 Trifănești (C35(e)): de lămurit în F4 dacă linia se servește prin R32. Exportul arată linia fără km.",
+  "hotarat_prin": "dezbatere ION-95 r3 (triaj-r3 Q2, texte pe fapte), re-semnat de sesiune; re-semnat pe ideal-v2 (verificarea 2: datele se potrivesc cifră cu cifră)",
+  "data": "2026-09-27",
+  "sha_intrare": "29b2d3aab973d6e3b99aa1ded8e2266453922558c3fdd5f3b66af5ec8f5d5282"
+ },
+ {
+  "id": "C31",
+  "ruta": "R27",
+  "linie": "Iabloana",
+  "motiv": "NEACOPERIT EXPLICIT: date rare — 5 picioare (4 deplasări, 2 rt) în 4 zile-mașină, 441ASB 2, 348KAJ 2, 487NPL 1; plin median 28,1 km; cauză nedemonstrată. ≈ 2 km/zi GPS neacoperiți (5 × 28,1 km ÷ 74 de zile L–V ale ferestrei). Exportul arată linia fără km.",
+  "hotarat_prin": "dezbatere ION-95 r3 (triaj-r3 Q2, texte pe fapte), re-semnat de sesiune; re-semnat pe ideal-v2 (verificarea 2: datele se potrivesc cifră cu cifră)",
+  "data": "2026-09-27",
+  "sha_intrare": "29b2d3aab973d6e3b99aa1ded8e2266453922558c3fdd5f3b66af5ec8f5d5282"
+ },
+ {
+  "id": "G1",
+  "ruta": "R27",
+  "linie": "Sturzovca",
+  "motiv": "FALS POZITIV G1: etalonul pe poarta sensului (46,5 km) e bucla 727CWN spre Fundurii Noi–Limbenii Noi (altă linie, R11); pe orice poartă linia are 24,1 km pe 41 de zile; cardul 24,9 rămâne (+3,3 % față de 24,1). Bucla se mută la R11 în ideal-v3.",
+  "hotarat_prin": "dezbatere Claude + Codex pe verificarea 1 (verdict-dezbatere.md, 27.09: nicio schimbare de km fără metoda comună pe zile-pereche; linia păstrează cardul cu steag «diagnostic cerut» în schelet); cauza din verificarea 2 (diagnostic cursă cu cursă); valoarea nouă se hotărăște la ideal-v3 (tichetul de corecții ION-71)",
+  "data": "2026-09-27",
+  "sha_intrare": "29b2d3aab973d6e3b99aa1ded8e2266453922558c3fdd5f3b66af5ec8f5d5282"
+ },
+ {
+  "id": "G1",
+  "ruta": "R24",
+  "linie": "Catranic",
+  "motiv": "ETALON INSUFICIENT: urma ruptă pe 13 picioare (tracker dev2302, 224BZP) lasă 2 < 3 zile bune în septembrie; pe toată fereastra 29,3 km pe 41 de zile, cardul 30 e la +2,4 %. Regula de rezervă (fallback pe «toate») se hotărăște la ideal-v3.",
+  "hotarat_prin": "dezbatere Claude + Codex pe verificarea 1 (verdict-dezbatere.md, 27.09: nicio schimbare de km fără metoda comună pe zile-pereche; linia păstrează cardul cu steag «diagnostic cerut» în schelet); cauza din verificarea 2 (diagnostic cursă cu cursă); valoarea nouă se hotărăște la ideal-v3 (tichetul de corecții ION-71)",
+  "data": "2026-09-27",
+  "sha_intrare": "29b2d3aab973d6e3b99aa1ded8e2266453922558c3fdd5f3b66af5ec8f5d5282"
+ },
+ {
+  "id": "G1",
+  "ruta": "R18",
+  "linie": "Zarojeni",
+  "motiv": "ETALON CONTAMINAT: 4 din 9 zile bune sunt curse comasate cu alte linii; fără ele 30,0 km, pe toată fereastra 29,9 km pe 43 de zile; C47 41 %. Cardul 28,9 rămâne cu steag; valoarea (28,9 / 29,9 / 30,7) se hotărăște la ideal-v3.",
+  "hotarat_prin": "dezbatere Claude + Codex pe verificarea 1 (verdict-dezbatere.md, 27.09: nicio schimbare de km fără metoda comună pe zile-pereche; linia păstrează cardul cu steag «diagnostic cerut» în schelet); cauza din verificarea 2 (diagnostic cursă cu cursă); valoarea nouă se hotărăște la ideal-v3 (tichetul de corecții ION-71)",
+  "data": "2026-09-27",
+  "sha_intrare": "29b2d3aab973d6e3b99aa1ded8e2266453922558c3fdd5f3b66af5ec8f5d5282"
+ },
+ {
+  "id": "G1",
+  "ruta": "R36",
+  "linie": "Bocancea Schit",
+  "motiv": "DOUĂ DRUMURI: cardul 54,5 e varianta lungă prin Bilicenii Vechi (returul de noapte, aproape zilnic); perechile bune dau 46,2; C47 41 %. Cardul 54,5 rămâne cu steag; alegerea (54,5 / 46,2 / pe sens) se hotărăște la ideal-v3.",
+  "hotarat_prin": "dezbatere Claude + Codex pe verificarea 1 (verdict-dezbatere.md, 27.09: nicio schimbare de km fără metoda comună pe zile-pereche; linia păstrează cardul cu steag «diagnostic cerut» în schelet); cauza din verificarea 2 (diagnostic cursă cu cursă); valoarea nouă se hotărăște la ideal-v3 (tichetul de corecții ION-71)",
+  "data": "2026-09-27",
+  "sha_intrare": "29b2d3aab973d6e3b99aa1ded8e2266453922558c3fdd5f3b66af5ec8f5d5282"
+ }
+]

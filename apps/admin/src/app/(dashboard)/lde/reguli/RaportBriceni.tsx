@@ -76,6 +76,11 @@ function Zile({ m }: { m: MasinaBriceni }) {
                   <td className="w-[110px] px-2! py-0.5! whitespace-nowrap font-mono text-neutral-500">{b.ora}</td>
                   <td className={`w-[190px] px-2! py-0.5! ${CULOARE_CAT[b.cat] ?? ''}`}>{NUME_CAT[b.cat]}</td>
                   <td className="w-[70px] px-2! py-0.5! text-right font-mono tabular-nums">{n1(b.km)}</td>
+                  {/* de unde → încotro (Ion, 26.09: «la livrări nu îmi ajunge de unde încotro»); dedesubt satele prin care trece */}
+                  <td className="w-[330px] px-2! py-0.5!">
+                    {b.de || b.pana ? <span className="font-medium">{b.de ?? '?'} → {b.pana ?? '?'}</span> : null}
+                    {b.prin?.length ? <div className="text-[11px] leading-snug text-neutral-500">prin {b.prin.join(', ')}</div> : null}
+                  </td>
                   <td className="w-[300px] px-2! py-0.5! text-neutral-500"><span className="font-mono">{b.r ?? ""}</span>{b.r && (() => { const x = m.rute?.find((q) => q.r === b.r); const n = x ? numeRuta(x) : null; return n ? <span className="text-[11px]"> {n}</span> : null; })()}</td>
                   <td className="px-2! py-0.5! text-neutral-500">
                     {b.motiv ?? ''}{b.golTure ? ` · plus ${n1(b.golTure)} km gol între ture (pe traseul rutei), nu livrare` : ''}

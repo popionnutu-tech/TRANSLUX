@@ -18,7 +18,7 @@ import { LIVRARE_POSTER_CHAT_KEY } from './livrare-poster';
 export type Categorie = 'cuOameni' | 'nepotrivita' | 'golRuta' | 'golTure' | 'service' | 'deplasare' | 'livrare' | 'legatura' | 'necunoscut';
 export type KmCategorii = Record<Categorie, number>;
 export interface RutaFacuta { r: string; nume?: string | null; trox: boolean; curse: number; km: number; zile?: number }
-export interface BucataZi { ora: string; cat: Categorie; km: number; brambura: number; golTure?: number; r: string | null; motiv: string | null }
+export interface BucataZi { ora: string; cat: Categorie; km: number; brambura: number; golTure?: number; de?: string | null; pana?: string | null; prin?: string[]; r: string | null; motiv: string | null }
 export interface ZiMasina {
   z: string; dow: number; total: number; km: KmCategorii; lungimeTrox?: number | null; rute?: RutaFacuta[]; brambura: number; lei: number | null; leiKm: number | null;
   bilant: boolean; dif: number; casaDim: string | null; casaSeara: string | null; bucati: BucataZi[];

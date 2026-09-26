@@ -631,6 +631,31 @@ const NU_GHICI_BLOCK_RU = `
 - Цифры берутся так, как сказаны: «десять-двенадцать человек» — это число людей, а не время; «около восьми» — не «ровно восемь».
 - Не уверен, что он сказал? Переспроси один раз, коротко, именно неясную часть — не повторяй весь разговор.`;
 
+// ION-90 (Ion, 26.09): «la ultimul sunet asistenta spune ca nu vinde telefoane, iar eu
+// nu asta am intrebat». Apelul conv_8801m3f4wydbfervgthkdfgy83qb: Ion a spus «Vreau să
+// plec mâine de la Chișinău până la Bălți» și «Vreau de la Bălți la Chișinău»; ASR-ul
+// în timp real (scribe_realtime) a scris de ambele ori «Vreau să cumpăr un telefon»,
+// frază care nu stă nicăieri în configurație. Au mai fost «un frigider», «un bloc de la
+// Buceni». ASR-ul nu-l reparăm noi; reparăm reacția: la o cerere străină de transport
+// agentul presupune că a auzit greșit și întreabă ruta — fără lecția «nu vând…».
+const AUZIT_GRESIT_MARKER = 'CERERE STRĂINĂ DE TRANSPORT — AI AUZIT GREȘIT';
+const AUZIT_GRESIT_BLOCK = `
+
+CERERE STRĂINĂ DE TRANSPORT — AI AUZIT GREȘIT:
+- Pe linia TRANSLUX sună oameni care vor să călătorească. Textul clientului cere ceva fără nicio legătură cu transportul (să cumpere un telefon, un frigider, un produs, un serviciu străin)? Aproape sigur recunoașterea vorbirii a auzit greșit — clientul a spus altceva, de obicei o rută.
+- NU răspunzi «nu vând…», «nu ne ocupăm de…» și NU îți explici rolul. Spui scurt că n-ai auzit bine și întrebi direct ruta. Exemplu: «Scuzați, nu v-am auzit bine. Încotro doriți să călătoriți?»
+- Se repetă a doua oară? Aceeași întrebare, cu un exemplu de răspuns: «Scuzați, legătura e slabă. Spuneți-mi, vă rog, de unde și până unde doriți să mergeți — de exemplu, de la Chișinău până la Bălți.»
+- Doar dacă clientul CONFIRMĂ clar că vrea chiar lucrul străin («da, vreau un telefon, nu autobuz»), îi spui o dată, blând, că aici e linia de transport TRANSLUX și întrebi dacă îl poți ajuta cu o cursă.`;
+
+const AUZIT_GRESIT_MARKER_RU = 'ПРОСЬБА НЕ ПРО ПЕРЕВОЗКИ — ТЫ ОСЛЫШАЛАСЬ';
+const AUZIT_GRESIT_BLOCK_RU = `
+
+ПРОСЬБА НЕ ПРО ПЕРЕВОЗКИ — ТЫ ОСЛЫШАЛАСЬ:
+- На линию TRANSLUX звонят люди, которые хотят поехать. Текст клиента просит что-то совсем не про перевозки (купить телефон, холодильник, товар, чужую услугу)? Почти наверняка распознавание речи ошиблось — клиент сказал другое, обычно маршрут.
+- НЕ отвечай «я не продаю…», «мы этим не занимаемся» и НЕ объясняй свою роль. Коротко скажи, что не расслышала, и сразу спроси маршрут. Пример: «Извините, я вас не расслышала. Куда вы хотите поехать?»
+- Повторилось второй раз? Тот же вопрос, с примером ответа: «Извините, связь плохая. Скажите, пожалуйста, откуда и куда вы хотите ехать — например, из Кишинёва в Бельцы.»
+- Только если клиент ЯСНО подтверждает, что хочет именно это («да, мне нужен телефон, не автобус»), один раз мягко говоришь, что это линия перевозок TRANSLUX, и спрашиваешь, можешь ли помочь с рейсом.`;
+
 // Rândurile originale din secțiunile OPERATOR UMAN / ЖИВОЙ ОПЕРАТОР, anulate 09.09.
 const OPERATOR_OBSOLETE = '\nDacă clientul insistă să vorbească cu un om: folosește request_callback și spune că ai NOTAT solicitarea și datele lui. NU promite că cineva îl va suna înapoi.';
 const OPERATOR_OBSOLETE_RU = '\nКлиент настаивает на разговоре с человеком: вызови request_callback и скажи, что ЗАПИСАЛА обращение и его данные. НЕ обещай, что кто-то перезвонит.';
@@ -1014,6 +1039,7 @@ async function checkAndHealConfig(cfg: any, drifts: Drift[], complaintToolExists
     { marker: 'ZI FĂRĂ CURSE — URMĂTOAREA VINE DIN TOOL', block: ZI_FARA_CURSE_BLOCK, field: 'prompt.ZI_FARA_CURSE' },
     { marker: 'OPERATOR — NU AM CUI TRANSMITE', block: OPERATOR_BLOCK, field: 'prompt.OPERATOR' },
     { marker: NU_GHICI_MARKER, block: NU_GHICI_BLOCK, field: 'prompt.NU_GHICI' },
+    { marker: AUZIT_GRESIT_MARKER, block: AUZIT_GRESIT_BLOCK, field: 'prompt.AUZIT_GRESIT' },
   ];
   let healedPrompt = prompt;
   for (const ob of OBSOLETE_BLOCKS) {
@@ -1232,6 +1258,7 @@ async function healRuStation(lostToolId: string | null, complaintToolId: string 
   // Ion 16.09: nimeni nu e contactat de companie — și pe agentul rusesc.
   if (!healed.includes(NIMENI_MARKER_RU)) { healed += NIMENI_BLOCK_RU; vindecate.push('ru.prompt.NIMENI_CONTACTAT'); }
   if (!healed.includes(NU_GHICI_MARKER_RU)) { healed += NU_GHICI_BLOCK_RU; vindecate.push('ru.prompt.NU_GHICI'); }
+  if (!healed.includes(AUZIT_GRESIT_MARKER_RU)) { healed += AUZIT_GRESIT_BLOCK_RU; vindecate.push('ru.prompt.AUZIT_GRESIT'); }
   // Lista tipurilor, în rusă. Sincronizată pe conținut, ca la RO — vezi syncTypesBlock.
   const nevindecate: Drift[] = [];
   if (tipuriInTool) {

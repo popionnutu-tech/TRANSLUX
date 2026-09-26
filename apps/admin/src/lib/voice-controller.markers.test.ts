@@ -125,3 +125,32 @@ describe('«am notat» nu se ceartă cu secțiunile ANGAJARE și SUGESTII', () =
     expect(sursa).toContain('healed.replace(NIMENI_OBSOLETE_V1_RU');
   });
 });
+
+/**
+ * ION-90 (Ion, 26.09): ASR-ul a scris «Vreau să cumpăr un telefon» în loc de o rută,
+ * iar agentul a răspuns «Nu vând telefoane». Blocul întoarce reacția: auzit greșit →
+ * întrebi ruta, fără lecție despre ce nu vinde compania.
+ */
+describe('cererea străină de transport = auzit greșit', () => {
+  const bloc = corpuri.get('AUZIT_GRESIT_BLOCK') ?? '';
+  const blocRu = corpuri.get('AUZIT_GRESIT_BLOCK_RU') ?? '';
+
+  it('ambele blocuri există și poartă reperul lor', () => {
+    expect(bloc).toContain('CERERE STRĂINĂ DE TRANSPORT — AI AUZIT GREȘIT');
+    expect(blocRu).toContain('ПРОСЬБА НЕ ПРО ПЕРЕВОЗКИ — ТЫ ОСЛЫШАЛАСЬ');
+    expect(PROMPT_MARKERS_RO).toContain('CERERE STRĂINĂ DE TRANSPORT — AI AUZIT GREȘIT');
+    expect(PROMPT_MARKERS_RU).toContain('ПРОСЬБА НЕ ПРО ПЕРЕВОЗКИ — ТЫ ОСЛЫШАЛАСЬ');
+  });
+
+  it('interzice lecția «nu vând» și cere întrebarea despre rută', () => {
+    expect(bloc).toContain('NU răspunzi «nu vând…»');
+    expect(bloc).toContain('Încotro doriți să călătoriți?');
+    expect(blocRu).toContain('НЕ отвечай «я не продаю…»');
+    expect(blocRu).toContain('Куда вы хотите поехать?');
+  });
+
+  it('se vindecă pe ambii agenți', () => {
+    expect(sursa).toContain("block: AUZIT_GRESIT_BLOCK, field: 'prompt.AUZIT_GRESIT'");
+    expect(sursa).toContain("healed += AUZIT_GRESIT_BLOCK_RU; vindecate.push('ru.prompt.AUZIT_GRESIT')");
+  });
+});

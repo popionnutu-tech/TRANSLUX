@@ -1,0 +1,2737 @@
+{
+ "sapt": "2026-09-14",
+ "pana": "2026-09-19",
+ "versiune": "plan-schimb v3.1 (ION-108 A)",
+ "estimare": "gps = costul de azi (R1b + R3 din rând, extrapolat); model = cât se taie dacă mașina stă parcată (drumul cel mai scurt, Valhalla) — estimare",
+ "intrare": {
+  "economie": "ab9149a4567fdf8918fd442e0de634e7",
+  "economieZile": "839227356e17c91e9a07cba991120662",
+  "rotatie": "c9d9e25e2eabbf969766683493e9817d",
+  "cod": "200407b9ffa9dc78266259e97a43ed24"
+ },
+ "rotatie": {
+  "saptIso": 38,
+  "verificatPe": "2026-09-07",
+  "inversata": true,
+  "regula": "lanțul se publică doar dacă taie ≥ 20 km/săpt. și pe săptămâna precedentă (schimburile inversate), cu aceleași mutări pe schimbul corespondent; cifra = cea mai mică"
+ },
+ "asteptare": {
+  "gps": {
+   "dimineata": 1902.4,
+   "seara": 2241.9,
+   "intreCurse": 0,
+   "alt": 0,
+   "total": 4144.3,
+   "masini": 33
+  },
+  "model": {
+   "dimineata": 1222.1,
+   "seara": 1683.3,
+   "intreCurse": 355.4,
+   "alt": 0,
+   "total": 3260.8
+  },
+  "dimineata": {
+   "gps": 1902.4,
+   "estimare": 1074.2
+  },
+  "seara": {
+   "gps": 2241.9,
+   "estimare": 1558.4,
+   "cursaDeNoapte": "00:08–00:23",
+   "intrebare": {
+    "masini": [
+     {
+      "m": "912RNK",
+      "unde": "uzină",
+      "departeDeCasaKm": 42.6,
+      "gpsSeara": 351.8,
+      "estimareSeara": 292.3,
+      "de": "16:26",
+      "pana": "00:17",
+      "masurat": true
+     },
+     {
+      "m": "345KAJ",
+      "unde": "capătul Mihăileni (R6)",
+      "departeDeCasaKm": 29,
+      "gpsSeara": 218.2,
+      "estimareSeara": 206,
+      "de": "16:50",
+      "pana": "00:17",
+      "masurat": true
+     },
+     {
+      "m": "549RNK",
+      "unde": "capătul Stolniceni (R2)",
+      "departeDeCasaKm": 26.1,
+      "gpsSeara": null,
+      "estimareSeara": 155.5,
+      "de": "17:01",
+      "pana": "00:23",
+      "masurat": false
+     },
+     {
+      "m": "457BRAX",
+      "unde": "capătul Nihoreni (R3)",
+      "departeDeCasaKm": 24.7,
+      "gpsSeara": 151,
+      "estimareSeara": 149.6,
+      "de": "16:44",
+      "pana": "00:18",
+      "masurat": true
+     },
+     {
+      "m": "760BXI",
+      "unde": "capătul Obreja Veche (R26)",
+      "departeDeCasaKm": 23.7,
+      "gpsSeara": 132.1,
+      "estimareSeara": 132.1,
+      "de": "16:34",
+      "pana": "00:17",
+      "masurat": true
+     },
+     {
+      "m": "518MHD",
+      "unde": "capătul Vărvăreuca (R16)",
+      "departeDeCasaKm": 22.3,
+      "gpsSeara": null,
+      "estimareSeara": 63,
+      "de": "16:48",
+      "pana": "00:19",
+      "masurat": false
+     },
+     {
+      "m": "925FTI",
+      "unde": "capătul Ilenuța (R26)",
+      "departeDeCasaKm": 21.5,
+      "gpsSeara": 217.1,
+      "estimareSeara": 206.3,
+      "de": "16:32",
+      "pana": "00:14",
+      "masurat": true
+     },
+     {
+      "m": "302YEK",
+      "unde": "capătul Baroncea (R14)",
+      "departeDeCasaKm": 19.7,
+      "gpsSeara": 203.5,
+      "estimareSeara": 119.9,
+      "de": "16:46",
+      "pana": "00:17",
+      "masurat": true
+     },
+     {
+      "m": "713IZX",
+      "unde": "capătul Prajila (R17)",
+      "departeDeCasaKm": 12.1,
+      "gpsSeara": 103.7,
+      "estimareSeara": 47,
+      "de": "16:57",
+      "pana": "00:23",
+      "masurat": true
+     },
+     {
+      "m": "725CWN",
+      "unde": "capătul Copăceni (R19)",
+      "departeDeCasaKm": 6.9,
+      "gpsSeara": 68.1,
+      "estimareSeara": 13.7,
+      "de": "16:25",
+      "pana": "00:20",
+      "masurat": true
+     },
+     {
+      "m": "830MUM",
+      "unde": "capătul Bilicenii Vechi (R19)",
+      "departeDeCasaKm": 6.9,
+      "gpsSeara": 122.5,
+      "estimareSeara": 49.7,
+      "de": "16:11",
+      "pana": "00:20",
+      "masurat": true
+     },
+     {
+      "m": "146BRAZ",
+      "unde": "capătul Trifănești (R32)",
+      "departeDeCasaKm": 4.8,
+      "gpsSeara": 80.3,
+      "estimareSeara": 31,
+      "de": "16:56",
+      "pana": "00:19",
+      "masurat": true
+     }
+    ],
+    "gpsKmSapt": 1648.3,
+    "estimareKmSapt": 1466.1,
+    "nemasurate": [
+     "549RNK",
+     "518MHD"
+    ],
+    "regula": "seara mașina rămâne parcată la capătul liniei (sau la uzină); șoferul trebuie să ajungă de acolo acasă pe la 16:30 și înapoi la mașină înainte de cursa de noapte"
+   }
+  },
+  "kmSapt": 2632.6,
+  "leiSapt": 17167,
+  "bazaEstimare": "dimineața + seara ale modelului pe calendarul rândului, plafonate pe mașină la costul GPS; fără «între aducere și întoarcere» (zilele cu un singur schimb, nemăsurate pe GPS); lei = aceeași bază × norma mașinii",
+  "faraNorma": [
+   "925FTI",
+   "518MHD",
+   "402VKV",
+   "390ASB",
+   "186OMM",
+   "763LYY"
+  ],
+  "oreSeara": {
+   "cursaDeNoapte": "00:08–00:23"
+  },
+  "rotatie": {
+   "sapt": "2026-09-07",
+   "estimare": 2770.2,
+   "model": 3876,
+   "gps": 4161.4
+  },
+  "masini": [
+   {
+    "m": "925FTI",
+    "casa": "Sărata Veche",
+    "zile": 6,
+    "zileRand": 5,
+    "zileGps": "4/5",
+    "gps": {
+     "dimineata": 258,
+     "seara": 217.1,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 475.1
+    },
+    "estimare": {
+     "dimineata": 115.8,
+     "seara": 206.3,
+     "total": 322.1,
+     "plafonata": false,
+     "baza": "min(model, GPS) pe dimineață și pe seară, calendarul rândului"
+    },
+    "kmSapt": 322.1,
+    "kmZi": 64.4,
+    "model": {
+     "dimineata": 115.8,
+     "seara": 206.3,
+     "intreCurse": 199.4,
+     "alt": 0,
+     "total": 521.5
+    },
+    "modelCalendarRand": {
+     "dimineata": 115.8,
+     "seara": 206.3,
+     "intreCurse": 103.3,
+     "alt": 0,
+     "total": 425.4
+    },
+    "modelPeZileleGps": 280.9,
+    "gpsMasuratTotal": 380.1,
+    "ore": {
+     "dimineata": {
+      "de": "06:19",
+      "pana": "13:49"
+     },
+     "seara": {
+      "de": "16:32",
+      "pana": "00:14"
+     }
+    },
+    "asteapta": {
+     "dimineata": {
+      "unde": "capătul Musteața (R37)",
+      "departeDeCasaKm": 21.6,
+      "acasaEChiarLocul": false,
+      "zile": 4
+     },
+     "seara": {
+      "unde": "capătul Ilenuța (R26)",
+      "departeDeCasaKm": 21.5,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "intreCurse": {
+      "unde": "uzină",
+      "departeDeCasaKm": 51.6,
+      "acasaEChiarLocul": false,
+      "zile": 2
+     }
+    },
+    "casaInDrum": {
+     "dimineata": false,
+     "seara": false
+    },
+    "departeDeCasaKm": 51.6,
+    "leiKm": null,
+    "leiSapt": null,
+    "kmGoiSaptObicei": 1154.5,
+    "kmGoiSaptAsteapta": 632.9
+   },
+   {
+    "m": "912RNK",
+    "casa": "Dumbrăvița",
+    "zile": 5,
+    "zileRand": 5,
+    "zileGps": "3/5",
+    "gps": {
+     "dimineata": 16.8,
+     "seara": 351.8,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 368.6
+    },
+    "estimare": {
+     "dimineata": 15.8,
+     "seara": 292.3,
+     "total": 308.1,
+     "plafonata": false,
+     "baza": "min(model, GPS) pe dimineață și pe seară, calendarul rândului"
+    },
+    "kmSapt": 308.1,
+    "kmZi": 61.6,
+    "model": {
+     "dimineata": 15.8,
+     "seara": 292.3,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 308.1
+    },
+    "modelCalendarRand": {
+     "dimineata": 15.8,
+     "seara": 292.3,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 308.1
+    },
+    "modelPeZileleGps": 184.9,
+    "gpsMasuratTotal": 221.2,
+    "ore": {
+     "dimineata": {
+      "de": "06:15",
+      "pana": "13:44"
+     },
+     "seara": {
+      "de": "16:26",
+      "pana": "00:17"
+     }
+    },
+    "asteapta": {
+     "dimineata": {
+      "unde": "capătul Cucioaia (R35)",
+      "departeDeCasaKm": 11.1,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "seara": {
+      "unde": "uzină",
+      "departeDeCasaKm": 42.6,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "intreCurse": null
+    },
+    "casaInDrum": {
+     "dimineata": false,
+     "seara": false
+    },
+    "departeDeCasaKm": 42.6,
+    "leiKm": 6.7,
+    "leiSapt": 2064,
+    "kmGoiSaptObicei": 955.7,
+    "kmGoiSaptAsteapta": 647.7
+   },
+   {
+    "m": "457BRAX",
+    "casa": "Hîjdieni",
+    "zile": 6,
+    "zileRand": 5,
+    "zileGps": "4/5",
+    "gps": {
+     "dimineata": 139.8,
+     "seara": 151,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 290.8
+    },
+    "estimare": {
+     "dimineata": 117.1,
+     "seara": 149.6,
+     "total": 266.7,
+     "plafonata": false,
+     "baza": "min(model, GPS) pe dimineață și pe seară, calendarul rândului"
+    },
+    "kmSapt": 266.7,
+    "kmZi": 53.3,
+    "model": {
+     "dimineata": 131.5,
+     "seara": 179.9,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 311.4
+    },
+    "modelCalendarRand": {
+     "dimineata": 117.1,
+     "seara": 149.6,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 266.7
+    },
+    "modelPeZileleGps": 213.3,
+    "gpsMasuratTotal": 232.6,
+    "ore": {
+     "dimineata": {
+      "de": "06:11",
+      "pana": "13:35"
+     },
+     "seara": {
+      "de": "16:44",
+      "pana": "00:18"
+     }
+    },
+    "asteapta": {
+     "dimineata": {
+      "unde": "capătul Ustia (R29)",
+      "departeDeCasaKm": 23.6,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "seara": {
+      "unde": "capătul Nihoreni (R3)",
+      "departeDeCasaKm": 24.7,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "intreCurse": null
+    },
+    "casaInDrum": {
+     "dimineata": false,
+     "seara": false
+    },
+    "departeDeCasaKm": 24.7,
+    "leiKm": 7.05,
+    "leiSapt": 1880,
+    "kmGoiSaptObicei": 1078.1,
+    "kmGoiSaptAsteapta": 766.7
+   },
+   {
+    "m": "345KAJ",
+    "casa": "Zăicani",
+    "zile": 5,
+    "zileRand": 5,
+    "zileGps": "3/5",
+    "gps": {
+     "dimineata": 57.8,
+     "seara": 218.2,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 276
+    },
+    "estimare": {
+     "dimineata": 40.5,
+     "seara": 206,
+     "total": 246.5,
+     "plafonata": false,
+     "baza": "min(model, GPS) pe dimineață și pe seară, calendarul rândului"
+    },
+    "kmSapt": 246.5,
+    "kmZi": 49.3,
+    "model": {
+     "dimineata": 40.5,
+     "seara": 206,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 246.5
+    },
+    "modelCalendarRand": {
+     "dimineata": 40.5,
+     "seara": 206,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 246.5
+    },
+    "modelPeZileleGps": 149.8,
+    "gpsMasuratTotal": 165.6,
+    "ore": {
+     "dimineata": {
+      "de": "06:14",
+      "pana": "13:02"
+     },
+     "seara": {
+      "de": "16:50",
+      "pana": "00:17"
+     }
+    },
+    "asteapta": {
+     "dimineata": {
+      "unde": "capătul Costești (R8)",
+      "departeDeCasaKm": 22.5,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "seara": {
+      "unde": "capătul Mihăileni (R6)",
+      "departeDeCasaKm": 29,
+      "acasaEChiarLocul": false,
+      "zile": 4
+     },
+     "intreCurse": null
+    },
+    "casaInDrum": {
+     "dimineata": false,
+     "seara": false
+    },
+    "departeDeCasaKm": 29,
+    "leiKm": 6.35,
+    "leiSapt": 1565,
+    "kmGoiSaptObicei": 1113.4,
+    "kmGoiSaptAsteapta": 866.8
+   },
+   {
+    "m": "302YEK",
+    "casa": "Căinarii Vechi",
+    "zile": 6,
+    "zileRand": 5,
+    "zileGps": "5/5",
+    "gps": {
+     "dimineata": 53.7,
+     "seara": 203.5,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 257.2
+    },
+    "estimare": {
+     "dimineata": 11.7,
+     "seara": 119.9,
+     "total": 131.6,
+     "plafonata": false,
+     "baza": "min(model, GPS) pe dimineață și pe seară, calendarul rândului"
+    },
+    "kmSapt": 131.6,
+    "kmZi": 26.3,
+    "model": {
+     "dimineata": 11.7,
+     "seara": 119.9,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 131.6
+    },
+    "modelCalendarRand": {
+     "dimineata": 11.7,
+     "seara": 119.9,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 131.6
+    },
+    "modelPeZileleGps": 131.6,
+    "gpsMasuratTotal": 257.2,
+    "ore": {
+     "dimineata": {
+      "de": "06:03",
+      "pana": "13:37"
+     },
+     "seara": {
+      "de": "16:46",
+      "pana": "00:17"
+     }
+    },
+    "asteapta": {
+     "dimineata": {
+      "unde": "capătul Căinarii Vechi (R32)",
+      "departeDeCasaKm": 1.2,
+      "acasaEChiarLocul": true,
+      "zile": 5
+     },
+     "seara": {
+      "unde": "capătul Baroncea (R14)",
+      "departeDeCasaKm": 19.7,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "intreCurse": null
+    },
+    "casaInDrum": {
+     "dimineata": false,
+     "seara": false
+    },
+    "departeDeCasaKm": 19.7,
+    "leiKm": 6.63,
+    "leiSapt": 873,
+    "kmGoiSaptObicei": 767.2,
+    "kmGoiSaptAsteapta": 635.6
+   },
+   {
+    "m": "713IZX",
+    "casa": "Florești",
+    "zile": 5,
+    "zileRand": 5,
+    "zileGps": "5/5",
+    "gps": {
+     "dimineata": 125.4,
+     "seara": 103.7,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 229.1
+    },
+    "estimare": {
+     "dimineata": 47,
+     "seara": 47,
+     "total": 94,
+     "plafonata": false,
+     "baza": "min(model, GPS) pe dimineață și pe seară, calendarul rândului"
+    },
+    "kmSapt": 94,
+    "kmZi": 18.8,
+    "model": {
+     "dimineata": 47,
+     "seara": 47,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 94
+    },
+    "modelCalendarRand": {
+     "dimineata": 47,
+     "seara": 47,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 94
+    },
+    "modelPeZileleGps": 94,
+    "gpsMasuratTotal": 229.1,
+    "ore": {
+     "dimineata": {
+      "de": "06:24",
+      "pana": "13:41"
+     },
+     "seara": {
+      "de": "16:57",
+      "pana": "00:23"
+     }
+    },
+    "asteapta": {
+     "dimineata": {
+      "unde": "capătul Prajila (R17)",
+      "departeDeCasaKm": 12.1,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "seara": {
+      "unde": "capătul Prajila (R17)",
+      "departeDeCasaKm": 12.1,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "intreCurse": null
+    },
+    "casaInDrum": {
+     "dimineata": false,
+     "seara": false
+    },
+    "departeDeCasaKm": 12.1,
+    "leiKm": 12.42,
+    "leiSapt": 1167,
+    "kmGoiSaptObicei": 561.9,
+    "kmGoiSaptAsteapta": 467.9,
+    "dupaLant": {
+     "kmSapt": 47,
+     "kmZi": 9.4,
+     "estimare": {
+      "dimineata": 0,
+      "seara": 47,
+      "total": 47,
+      "plafonata": false,
+      "baza": "model pe calendarul rândului, după lanț"
+     },
+     "model": {
+      "dimineata": 0,
+      "seara": 47,
+      "intreCurse": 0,
+      "alt": 0,
+      "total": 47
+     },
+     "asteapta": {
+      "dimineata": null,
+      "seara": {
+       "unde": "capătul Prajila (R17)",
+       "departeDeCasaKm": 12.1,
+       "acasaEChiarLocul": false,
+       "zile": 5
+      },
+      "intreCurse": null
+     },
+     "casaInDrum": {
+      "dimineata": true,
+      "seara": false
+     },
+     "departeDeCasaKm": 12.1
+    }
+   },
+   {
+    "m": "388ASB",
+    "casa": "Șuri",
+    "zile": 5,
+    "zileRand": 5,
+    "zileGps": "4/5",
+    "gps": {
+     "dimineata": 187.3,
+     "seara": 33,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 220.3
+    },
+    "estimare": {
+     "dimineata": 187.3,
+     "seara": 9.6,
+     "total": 196.9,
+     "plafonata": true,
+     "baza": "min(model, GPS) pe dimineață și pe seară, calendarul rândului"
+    },
+    "kmSapt": 196.9,
+    "kmZi": 39.4,
+    "model": {
+     "dimineata": 196.1,
+     "seara": 9.6,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 205.7
+    },
+    "modelCalendarRand": {
+     "dimineata": 196.1,
+     "seara": 9.6,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 205.7
+    },
+    "modelPeZileleGps": 164.4,
+    "gpsMasuratTotal": 176.2,
+    "ore": {
+     "dimineata": {
+      "de": "06:14",
+      "pana": "14:03"
+     },
+     "seara": {
+      "de": "17:11",
+      "pana": "00:10"
+     }
+    },
+    "asteapta": {
+     "dimineata": {
+      "unde": "capătul Sofia (R12)",
+      "departeDeCasaKm": 22,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "seara": {
+      "unde": "capătul Șuri (R15)",
+      "departeDeCasaKm": 1.1,
+      "acasaEChiarLocul": true,
+      "zile": 5
+     },
+     "intreCurse": null
+    },
+    "casaInDrum": {
+     "dimineata": false,
+     "seara": false
+    },
+    "departeDeCasaKm": 22,
+    "leiKm": 12.42,
+    "leiSapt": 2445,
+    "kmGoiSaptObicei": 722.3,
+    "kmGoiSaptAsteapta": 516.7
+   },
+   {
+    "m": "146BRAZ",
+    "casa": "Scăieni",
+    "zile": 6,
+    "zileRand": 5,
+    "zileGps": "5/5",
+    "gps": {
+     "dimineata": 115.8,
+     "seara": 80.3,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 196.1
+    },
+    "estimare": {
+     "dimineata": 31,
+     "seara": 31,
+     "total": 62,
+     "plafonata": false,
+     "baza": "min(model, GPS) pe dimineață și pe seară, calendarul rândului"
+    },
+    "kmSapt": 62,
+    "kmZi": 12.4,
+    "model": {
+     "dimineata": 31.8,
+     "seara": 38.8,
+     "intreCurse": 80.2,
+     "alt": 0,
+     "total": 150.8
+    },
+    "modelCalendarRand": {
+     "dimineata": 31,
+     "seara": 31,
+     "intreCurse": 80.2,
+     "alt": 0,
+     "total": 142.2
+    },
+    "modelPeZileleGps": 142.2,
+    "gpsMasuratTotal": 196.1,
+    "ore": {
+     "dimineata": {
+      "de": "06:19",
+      "pana": "12:42"
+     },
+     "seara": {
+      "de": "16:56",
+      "pana": "00:19"
+     }
+    },
+    "asteapta": {
+     "dimineata": {
+      "unde": "capătul Trifănești (R32)",
+      "departeDeCasaKm": 4.8,
+      "acasaEChiarLocul": false,
+      "zile": 4
+     },
+     "seara": {
+      "unde": "capătul Trifănești (R32)",
+      "departeDeCasaKm": 4.8,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "intreCurse": null
+    },
+    "casaInDrum": {
+     "dimineata": false,
+     "seara": false
+    },
+    "departeDeCasaKm": 4.8,
+    "leiKm": 6.35,
+    "leiSapt": 394,
+    "kmGoiSaptObicei": 585.3,
+    "kmGoiSaptAsteapta": 434.5
+   },
+   {
+    "m": "725CWN",
+    "casa": "Sîngerei",
+    "zile": 6,
+    "zileRand": 5,
+    "zileGps": "4/5",
+    "gps": {
+     "dimineata": 121.8,
+     "seara": 68.1,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 189.9
+    },
+    "estimare": {
+     "dimineata": 75.3,
+     "seara": 13.7,
+     "total": 89,
+     "plafonata": false,
+     "baza": "min(model, GPS) pe dimineață și pe seară, calendarul rândului"
+    },
+    "kmSapt": 89,
+    "kmZi": 17.8,
+    "model": {
+     "dimineata": 75.3,
+     "seara": 39.9,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 115.2
+    },
+    "modelCalendarRand": {
+     "dimineata": 75.3,
+     "seara": 13.7,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 89
+    },
+    "modelPeZileleGps": 74,
+    "gpsMasuratTotal": 151.9,
+    "ore": {
+     "dimineata": {
+      "de": "06:14",
+      "pana": "13:58"
+     },
+     "seara": {
+      "de": "16:25",
+      "pana": "00:20"
+     }
+    },
+    "asteapta": {
+     "dimineata": {
+      "unde": "capătul Iezărenii Vechi (R33)",
+      "departeDeCasaKm": 16.3,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "seara": {
+      "unde": "capătul Copăceni (R19)",
+      "departeDeCasaKm": 6.9,
+      "acasaEChiarLocul": false,
+      "zile": 4
+     },
+     "intreCurse": null
+    },
+    "casaInDrum": {
+     "dimineata": false,
+     "seara": false
+    },
+    "departeDeCasaKm": 16.3,
+    "leiKm": 6.35,
+    "leiSapt": 565,
+    "kmGoiSaptObicei": 552.2,
+    "kmGoiSaptAsteapta": 437
+   },
+   {
+    "m": "447ASB",
+    "casa": "Ciuciulea",
+    "zile": 5,
+    "zileRand": 5,
+    "zileGps": "5/5",
+    "gps": {
+     "dimineata": 168,
+     "seara": 0,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 168
+    },
+    "estimare": {
+     "dimineata": 160.3,
+     "seara": 0,
+     "total": 160.3,
+     "plafonata": true,
+     "baza": "min(model, GPS) pe dimineață și pe seară, calendarul rândului"
+    },
+    "kmSapt": 160.3,
+    "kmZi": 32.1,
+    "model": {
+     "dimineata": 160.3,
+     "seara": 3.6,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 163.9
+    },
+    "modelCalendarRand": {
+     "dimineata": 160.3,
+     "seara": 3.6,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 163.9
+    },
+    "modelPeZileleGps": 163.9,
+    "gpsMasuratTotal": 168,
+    "ore": {
+     "dimineata": {
+      "de": "06:18",
+      "pana": "13:35"
+     },
+     "seara": {
+      "de": "17:14",
+      "pana": "00:23"
+     }
+    },
+    "asteapta": {
+     "dimineata": {
+      "unde": "capătul Danu (R27)",
+      "departeDeCasaKm": 23.9,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "seara": {
+      "unde": "capătul Ciuciulea (R10)",
+      "departeDeCasaKm": 1.2,
+      "acasaEChiarLocul": true,
+      "zile": 5
+     },
+     "intreCurse": null
+    },
+    "casaInDrum": {
+     "dimineata": false,
+     "seara": false
+    },
+    "departeDeCasaKm": 23.9,
+    "leiKm": 12.42,
+    "leiSapt": 1991,
+    "kmGoiSaptObicei": 802.8,
+    "kmGoiSaptAsteapta": 638.9
+   },
+   {
+    "m": "760BXI",
+    "casa": "Hîjdieni",
+    "zile": 5,
+    "zileRand": 5,
+    "zileGps": "5/5",
+    "gps": {
+     "dimineata": 29.8,
+     "seara": 132.1,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 161.9
+    },
+    "estimare": {
+     "dimineata": 17.2,
+     "seara": 132.1,
+     "total": 149.3,
+     "plafonata": true,
+     "baza": "min(model, GPS) pe dimineață și pe seară, calendarul rândului"
+    },
+    "kmSapt": 149.3,
+    "kmZi": 29.9,
+    "model": {
+     "dimineata": 17.2,
+     "seara": 144.5,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 161.7
+    },
+    "modelCalendarRand": {
+     "dimineata": 17.2,
+     "seara": 144.5,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 161.7
+    },
+    "modelPeZileleGps": 161.7,
+    "gpsMasuratTotal": 161.9,
+    "ore": {
+     "dimineata": {
+      "de": "06:17",
+      "pana": "13:33"
+     },
+     "seara": {
+      "de": "16:34",
+      "pana": "00:17"
+     }
+    },
+    "asteapta": {
+     "dimineata": {
+      "unde": "capătul Cuhnești (R28)",
+      "departeDeCasaKm": 18,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "seara": {
+      "unde": "capătul Obreja Veche (R26)",
+      "departeDeCasaKm": 23.7,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "intreCurse": null
+    },
+    "casaInDrum": {
+     "dimineata": false,
+     "seara": false
+    },
+    "departeDeCasaKm": 23.7,
+    "leiKm": 6.63,
+    "leiSapt": 990,
+    "kmGoiSaptObicei": 895.5,
+    "kmGoiSaptAsteapta": 733.8
+   },
+   {
+    "m": "549RNK",
+    "casa": "Edineț",
+    "zile": 5,
+    "zileRand": 5,
+    "zileGps": "0/5",
+    "gps": null,
+    "estimare": {
+     "dimineata": 0,
+     "seara": 155.5,
+     "total": 155.5,
+     "plafonata": false,
+     "baza": "model pe calendarul rândului (GPS nemăsurat)"
+    },
+    "kmSapt": 155.5,
+    "kmZi": 31.1,
+    "model": {
+     "dimineata": 0,
+     "seara": 155.5,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 155.5
+    },
+    "modelCalendarRand": {
+     "dimineata": 0,
+     "seara": 155.5,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 155.5
+    },
+    "modelPeZileleGps": 0,
+    "gpsMasuratTotal": 0,
+    "ore": {
+     "dimineata": {
+      "de": "06:09",
+      "pana": "13:56"
+     },
+     "seara": {
+      "de": "17:01",
+      "pana": "00:23"
+     }
+    },
+    "asteapta": {
+     "dimineata": null,
+     "seara": {
+      "unde": "capătul Stolniceni (R2)",
+      "departeDeCasaKm": 26.1,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "intreCurse": null
+    },
+    "casaInDrum": {
+     "dimineata": true,
+     "seara": false
+    },
+    "departeDeCasaKm": 26.1,
+    "leiKm": 6.7,
+    "leiSapt": 1042,
+    "kmGoiSaptObicei": 875.5,
+    "kmGoiSaptAsteapta": 720.1
+   },
+   {
+    "m": "518MHD",
+    "casa": "Izvoare",
+    "zile": 5,
+    "zileRand": 5,
+    "zileGps": "2/5",
+    "gps": null,
+    "estimare": {
+     "dimineata": 90.2,
+     "seara": 63,
+     "total": 153.2,
+     "plafonata": false,
+     "baza": "model pe calendarul rândului (GPS nemăsurat)"
+    },
+    "kmSapt": 153.2,
+    "kmZi": 30.6,
+    "model": {
+     "dimineata": 90.2,
+     "seara": 63,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 153.2
+    },
+    "modelCalendarRand": {
+     "dimineata": 90.2,
+     "seara": 63,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 153.2
+    },
+    "modelPeZileleGps": 54.8,
+    "gpsMasuratTotal": 98.9,
+    "ore": {
+     "dimineata": {
+      "de": "06:04",
+      "pana": "13:57"
+     },
+     "seara": {
+      "de": "16:48",
+      "pana": "00:19"
+     }
+    },
+    "asteapta": {
+     "dimineata": {
+      "unde": "capătul Florești (R16)",
+      "departeDeCasaKm": 19.9,
+      "acasaEChiarLocul": false,
+      "zile": 2
+     },
+     "seara": {
+      "unde": "capătul Vărvăreuca (R16)",
+      "departeDeCasaKm": 22.3,
+      "acasaEChiarLocul": false,
+      "zile": 2
+     },
+     "intreCurse": null
+    },
+    "casaInDrum": {
+     "dimineata": false,
+     "seara": false
+    },
+    "departeDeCasaKm": 22.3,
+    "leiKm": null,
+    "leiSapt": null,
+    "kmGoiSaptObicei": 538.9,
+    "kmGoiSaptAsteapta": 385.7
+   },
+   {
+    "m": "715IZX",
+    "casa": "Biruința",
+    "zile": 5,
+    "zileRand": 5,
+    "zileGps": "5/5",
+    "gps": {
+     "dimineata": 65.3,
+     "seara": 78.5,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 143.8
+    },
+    "estimare": {
+     "dimineata": 1.5,
+     "seara": 2.1,
+     "total": 3.6,
+     "plafonata": false,
+     "baza": "min(model, GPS) pe dimineață și pe seară, calendarul rândului"
+    },
+    "kmSapt": 3.6,
+    "kmZi": 0.7,
+    "model": {
+     "dimineata": 1.5,
+     "seara": 2.1,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 3.6
+    },
+    "modelCalendarRand": {
+     "dimineata": 1.5,
+     "seara": 2.1,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 3.6
+    },
+    "modelPeZileleGps": 3.6,
+    "gpsMasuratTotal": 143.8,
+    "ore": {
+     "dimineata": {
+      "de": "06:17",
+      "pana": "14:12"
+     },
+     "seara": {
+      "de": "16:27",
+      "pana": "00:21"
+     }
+    },
+    "asteapta": {
+     "dimineata": null,
+     "seara": null,
+     "intreCurse": null
+    },
+    "casaInDrum": {
+     "dimineata": true,
+     "seara": true
+    },
+    "departeDeCasaKm": null,
+    "leiKm": 12.42,
+    "leiSapt": 45,
+    "kmGoiSaptObicei": 223.6,
+    "kmGoiSaptAsteapta": 219.9
+   },
+   {
+    "m": "830MUM",
+    "casa": "Sîngerei",
+    "zile": 5,
+    "zileRand": 5,
+    "zileGps": "3/5",
+    "gps": {
+     "dimineata": 18.3,
+     "seara": 122.5,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 140.8
+    },
+    "estimare": {
+     "dimineata": 11.9,
+     "seara": 49.7,
+     "total": 61.6,
+     "plafonata": false,
+     "baza": "min(model, GPS) pe dimineață și pe seară, calendarul rândului"
+    },
+    "kmSapt": 61.6,
+    "kmZi": 12.3,
+    "model": {
+     "dimineata": 11.9,
+     "seara": 49.7,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 61.6
+    },
+    "modelCalendarRand": {
+     "dimineata": 11.9,
+     "seara": 49.7,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 61.6
+    },
+    "modelPeZileleGps": 49.2,
+    "gpsMasuratTotal": 84.5,
+    "ore": {
+     "dimineata": {
+      "de": "06:18",
+      "pana": "14:04"
+     },
+     "seara": {
+      "de": "16:11",
+      "pana": "00:20"
+     }
+    },
+    "asteapta": {
+     "dimineata": {
+      "unde": "capătul Copăceni (R19)",
+      "departeDeCasaKm": 14.1,
+      "acasaEChiarLocul": false,
+      "zile": 3
+     },
+     "seara": {
+      "unde": "capătul Bilicenii Vechi (R19)",
+      "departeDeCasaKm": 6.9,
+      "acasaEChiarLocul": false,
+      "zile": 4
+     },
+     "intreCurse": null
+    },
+    "casaInDrum": {
+     "dimineata": false,
+     "seara": false
+    },
+    "departeDeCasaKm": 14.1,
+    "leiKm": 12.42,
+    "leiSapt": 765,
+    "kmGoiSaptObicei": 357.8,
+    "kmGoiSaptAsteapta": 296.3
+   },
+   {
+    "m": "206BZP",
+    "casa": "Rădoaia",
+    "zile": 5,
+    "zileRand": 5,
+    "zileGps": "5/5",
+    "gps": {
+     "dimineata": 68.4,
+     "seara": 71.9,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 140.3
+    },
+    "estimare": {
+     "dimineata": 8.4,
+     "seara": 8.4,
+     "total": 16.8,
+     "plafonata": false,
+     "baza": "min(model, GPS) pe dimineață și pe seară, calendarul rândului"
+    },
+    "kmSapt": 16.8,
+    "kmZi": 3.4,
+    "model": {
+     "dimineata": 8.4,
+     "seara": 8.4,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 16.8
+    },
+    "modelCalendarRand": {
+     "dimineata": 8.4,
+     "seara": 8.4,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 16.8
+    },
+    "modelPeZileleGps": 16.8,
+    "gpsMasuratTotal": 140.3,
+    "ore": {
+     "dimineata": {
+      "de": "06:08",
+      "pana": "13:57"
+     },
+     "seara": {
+      "de": "16:29",
+      "pana": "00:16"
+     }
+    },
+    "asteapta": {
+     "dimineata": {
+      "unde": "capătul Rădoaia (R20)",
+      "departeDeCasaKm": 1,
+      "acasaEChiarLocul": true,
+      "zile": 5
+     },
+     "seara": {
+      "unde": "capătul Rădoaia (R20)",
+      "departeDeCasaKm": 1,
+      "acasaEChiarLocul": true,
+      "zile": 5
+     },
+     "intreCurse": null
+    },
+    "casaInDrum": {
+     "dimineata": false,
+     "seara": false
+    },
+    "departeDeCasaKm": null,
+    "leiKm": 6.35,
+    "leiSapt": 107,
+    "kmGoiSaptObicei": 259.2,
+    "kmGoiSaptAsteapta": 242.4
+   },
+   {
+    "m": "880RNK",
+    "casa": "Pelinia",
+    "zile": 5,
+    "zileRand": 5,
+    "zileGps": "5/5",
+    "gps": {
+     "dimineata": 81.9,
+     "seara": 31.6,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 113.5
+    },
+    "estimare": {
+     "dimineata": 0,
+     "seara": 0,
+     "total": 0,
+     "plafonata": false,
+     "baza": "min(model, GPS) pe dimineață și pe seară, calendarul rândului"
+    },
+    "kmSapt": 0,
+    "kmZi": 0,
+    "model": {
+     "dimineata": 0,
+     "seara": 0,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 0
+    },
+    "modelCalendarRand": {
+     "dimineata": 0,
+     "seara": 0,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 0
+    },
+    "modelPeZileleGps": 0,
+    "gpsMasuratTotal": 113.5,
+    "ore": {
+     "dimineata": {
+      "de": "06:27",
+      "pana": "14:20"
+     },
+     "seara": {
+      "de": "16:28",
+      "pana": "00:18"
+     }
+    },
+    "asteapta": {
+     "dimineata": null,
+     "seara": null,
+     "intreCurse": null
+    },
+    "casaInDrum": {
+     "dimineata": true,
+     "seara": true
+    },
+    "departeDeCasaKm": null,
+    "leiKm": 12.42,
+    "leiSapt": 0,
+    "kmGoiSaptObicei": 205.6,
+    "kmGoiSaptAsteapta": 205.6
+   },
+   {
+    "m": "446ASB",
+    "casa": "Călugăr",
+    "zile": 5,
+    "zileRand": 5,
+    "zileGps": "5/5",
+    "gps": {
+     "dimineata": 32.6,
+     "seara": 75.7,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 108.3
+    },
+    "estimare": {
+     "dimineata": 1.9,
+     "seara": 1.9,
+     "total": 3.8,
+     "plafonata": false,
+     "baza": "min(model, GPS) pe dimineață și pe seară, calendarul rândului"
+    },
+    "kmSapt": 3.8,
+    "kmZi": 0.8,
+    "model": {
+     "dimineata": 1.9,
+     "seara": 1.9,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 3.8
+    },
+    "modelCalendarRand": {
+     "dimineata": 1.9,
+     "seara": 1.9,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 3.8
+    },
+    "modelPeZileleGps": 3.8,
+    "gpsMasuratTotal": 108.3,
+    "ore": {
+     "dimineata": {
+      "de": "06:17",
+      "pana": "13:27"
+     },
+     "seara": {
+      "de": "17:09",
+      "pana": "00:18"
+     }
+    },
+    "asteapta": {
+     "dimineata": null,
+     "seara": null,
+     "intreCurse": null
+    },
+    "casaInDrum": {
+     "dimineata": true,
+     "seara": true
+    },
+    "departeDeCasaKm": null,
+    "leiKm": 12.42,
+    "leiSapt": 47,
+    "kmGoiSaptObicei": 619.1,
+    "kmGoiSaptAsteapta": 615.3
+   },
+   {
+    "m": "350KAJ",
+    "casa": "Florești",
+    "zile": 5,
+    "zileRand": 5,
+    "zileGps": "5/5",
+    "gps": {
+     "dimineata": 44,
+     "seara": 62.9,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 106.9
+    },
+    "estimare": {
+     "dimineata": 2.8,
+     "seara": 4.3,
+     "total": 7.1,
+     "plafonata": false,
+     "baza": "min(model, GPS) pe dimineață și pe seară, calendarul rândului"
+    },
+    "kmSapt": 7.1,
+    "kmZi": 1.4,
+    "model": {
+     "dimineata": 2.8,
+     "seara": 4.3,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 7.1
+    },
+    "modelCalendarRand": {
+     "dimineata": 2.8,
+     "seara": 4.3,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 7.1
+    },
+    "modelPeZileleGps": 7.1,
+    "gpsMasuratTotal": 106.9,
+    "ore": {
+     "dimineata": {
+      "de": "06:10",
+      "pana": "13:55"
+     },
+     "seara": {
+      "de": "18:04",
+      "pana": "00:16"
+     }
+    },
+    "asteapta": {
+     "dimineata": {
+      "unde": "capătul Vărvăreuca (R16)",
+      "departeDeCasaKm": 2.7,
+      "acasaEChiarLocul": true,
+      "zile": 5
+     },
+     "seara": {
+      "unde": "capătul Vărvăreuca (R16)",
+      "departeDeCasaKm": 2.7,
+      "acasaEChiarLocul": true,
+      "zile": 5
+     },
+     "intreCurse": null
+    },
+    "casaInDrum": {
+     "dimineata": false,
+     "seara": false
+    },
+    "departeDeCasaKm": null,
+    "leiKm": 6.35,
+    "leiSapt": 45,
+    "kmGoiSaptObicei": 382.1,
+    "kmGoiSaptAsteapta": 375
+   },
+   {
+    "m": "710CWN",
+    "casa": "Petreni",
+    "zile": 5,
+    "zileRand": 5,
+    "zileGps": "5/5",
+    "gps": {
+     "dimineata": 51.5,
+     "seara": 54.3,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 105.8
+    },
+    "estimare": {
+     "dimineata": 5.2,
+     "seara": 5.2,
+     "total": 10.4,
+     "plafonata": false,
+     "baza": "min(model, GPS) pe dimineață și pe seară, calendarul rândului"
+    },
+    "kmSapt": 10.4,
+    "kmZi": 2.1,
+    "model": {
+     "dimineata": 5.2,
+     "seara": 5.2,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 10.4
+    },
+    "modelCalendarRand": {
+     "dimineata": 5.2,
+     "seara": 5.2,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 10.4
+    },
+    "modelPeZileleGps": 10.4,
+    "gpsMasuratTotal": 105.8,
+    "ore": {
+     "dimineata": {
+      "de": "06:06",
+      "pana": "13:39"
+     },
+     "seara": {
+      "de": "16:49",
+      "pana": "00:18"
+     }
+    },
+    "asteapta": {
+     "dimineata": {
+      "unde": "capătul Dominteni (R14)",
+      "departeDeCasaKm": 1.1,
+      "acasaEChiarLocul": true,
+      "zile": 5
+     },
+     "seara": {
+      "unde": "capătul Dominteni (R14)",
+      "departeDeCasaKm": 1.1,
+      "acasaEChiarLocul": true,
+      "zile": 5
+     },
+     "intreCurse": null
+    },
+    "casaInDrum": {
+     "dimineata": false,
+     "seara": false
+    },
+    "departeDeCasaKm": null,
+    "leiKm": 6.35,
+    "leiSapt": 66,
+    "kmGoiSaptObicei": 322.2,
+    "kmGoiSaptAsteapta": 311.8
+   },
+   {
+    "m": "041BRAU",
+    "casa": "Drăgănești",
+    "zile": 5,
+    "zileRand": 5,
+    "zileGps": "3/5",
+    "gps": {
+     "dimineata": 56.3,
+     "seara": 44.8,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 101.1
+    },
+    "estimare": {
+     "dimineata": 0.7,
+     "seara": 0.2,
+     "total": 0.9,
+     "plafonata": false,
+     "baza": "min(model, GPS) pe dimineață și pe seară, calendarul rândului"
+    },
+    "kmSapt": 0.9,
+    "kmZi": 0.2,
+    "model": {
+     "dimineata": 0.7,
+     "seara": 0.2,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 0.9
+    },
+    "modelCalendarRand": {
+     "dimineata": 0.7,
+     "seara": 0.2,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 0.9
+    },
+    "modelPeZileleGps": 0.3,
+    "gpsMasuratTotal": 60.7,
+    "ore": {
+     "dimineata": {
+      "de": "06:10",
+      "pana": "13:41"
+     },
+     "seara": {
+      "de": "16:50",
+      "pana": "00:14"
+     }
+    },
+    "asteapta": {
+     "dimineata": null,
+     "seara": null,
+     "intreCurse": null
+    },
+    "casaInDrum": {
+     "dimineata": true,
+     "seara": true
+    },
+    "departeDeCasaKm": null,
+    "leiKm": 7.05,
+    "leiSapt": 6,
+    "kmGoiSaptObicei": 401.7,
+    "kmGoiSaptAsteapta": 400.8
+   },
+   {
+    "m": "441ASB",
+    "casa": "Sturzovca",
+    "zile": 5,
+    "zileRand": 5,
+    "zileGps": "4/5",
+    "gps": {
+     "dimineata": 38.4,
+     "seara": 55.9,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 94.3
+    },
+    "estimare": {
+     "dimineata": 10.8,
+     "seara": 29.8,
+     "total": 40.6,
+     "plafonata": false,
+     "baza": "min(model, GPS) pe dimineață și pe seară, calendarul rândului"
+    },
+    "kmSapt": 40.6,
+    "kmZi": 8.1,
+    "model": {
+     "dimineata": 10.8,
+     "seara": 29.8,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 40.6
+    },
+    "modelCalendarRand": {
+     "dimineata": 10.8,
+     "seara": 29.8,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 40.6
+    },
+    "modelPeZileleGps": 28.6,
+    "gpsMasuratTotal": 75.4,
+    "ore": {
+     "dimineata": {
+      "de": "06:19",
+      "pana": "14:11"
+     },
+     "seara": {
+      "de": "16:23",
+      "pana": "00:17"
+     }
+    },
+    "asteapta": {
+     "dimineata": {
+      "unde": "capătul Sturzovca (R27)",
+      "departeDeCasaKm": 2.2,
+      "acasaEChiarLocul": true,
+      "zile": 4
+     },
+     "seara": {
+      "unde": "capătul Fundurii Vechi (R11)",
+      "departeDeCasaKm": 7.2,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "intreCurse": null
+    },
+    "casaInDrum": {
+     "dimineata": false,
+     "seara": false
+    },
+    "departeDeCasaKm": 7.2,
+    "leiKm": 12.42,
+    "leiSapt": 504,
+    "kmGoiSaptObicei": 351.2,
+    "kmGoiSaptAsteapta": 310.6
+   },
+   {
+    "m": "727CWN",
+    "casa": "Sturzovca",
+    "zile": 6,
+    "zileRand": 5,
+    "zileGps": "4/5",
+    "gps": {
+     "dimineata": 62.6,
+     "seara": 15.8,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 78.4
+    },
+    "estimare": {
+     "dimineata": 3.3,
+     "seara": 4.1,
+     "total": 7.4,
+     "plafonata": false,
+     "baza": "min(model, GPS) pe dimineață și pe seară, calendarul rândului"
+    },
+    "kmSapt": 7.4,
+    "kmZi": 1.5,
+    "model": {
+     "dimineata": 4.1,
+     "seara": 4.1,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 8.2
+    },
+    "modelCalendarRand": {
+     "dimineata": 3.3,
+     "seara": 4.1,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 7.4
+    },
+    "modelPeZileleGps": 6.6,
+    "gpsMasuratTotal": 62.7,
+    "ore": {
+     "dimineata": {
+      "de": "06:10",
+      "pana": "14:06"
+     },
+     "seara": {
+      "de": "17:08",
+      "pana": "00:08"
+     }
+    },
+    "asteapta": {
+     "dimineata": {
+      "unde": "capătul Sturzovca (R27)",
+      "departeDeCasaKm": 1.9,
+      "acasaEChiarLocul": true,
+      "zile": 5
+     },
+     "seara": {
+      "unde": "capătul Sturzovca (R27)",
+      "departeDeCasaKm": 1.9,
+      "acasaEChiarLocul": true,
+      "zile": 5
+     },
+     "intreCurse": null
+    },
+    "casaInDrum": {
+     "dimineata": false,
+     "seara": false
+    },
+    "departeDeCasaKm": null,
+    "leiKm": 6.35,
+    "leiSapt": 47,
+    "kmGoiSaptObicei": 321.2,
+    "kmGoiSaptAsteapta": 313
+   },
+   {
+    "m": "402VKV",
+    "casa": "Hîjdieni",
+    "zile": 5,
+    "zileRand": 5,
+    "zileGps": "5/5",
+    "gps": {
+     "dimineata": 19.5,
+     "seara": 26.7,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 46.2
+    },
+    "estimare": {
+     "dimineata": 4.6,
+     "seara": 4.5,
+     "total": 9.1,
+     "plafonata": false,
+     "baza": "min(model, GPS) pe dimineață și pe seară, calendarul rândului"
+    },
+    "kmSapt": 9.1,
+    "kmZi": 1.8,
+    "model": {
+     "dimineata": 4.6,
+     "seara": 4.5,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 9.1
+    },
+    "modelCalendarRand": {
+     "dimineata": 4.6,
+     "seara": 4.5,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 9.1
+    },
+    "modelPeZileleGps": 9.1,
+    "gpsMasuratTotal": 46.2,
+    "ore": {
+     "dimineata": {
+      "de": "06:11",
+      "pana": "13:30"
+     },
+     "seara": {
+      "de": "17:13",
+      "pana": "00:18"
+     }
+    },
+    "asteapta": {
+     "dimineata": {
+      "unde": "capătul Cobani (R9)",
+      "departeDeCasaKm": 11.5,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "seara": {
+      "unde": "capătul Cobani (R9)",
+      "departeDeCasaKm": 11.5,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "intreCurse": null
+    },
+    "casaInDrum": {
+     "dimineata": false,
+     "seara": false
+    },
+    "departeDeCasaKm": 11.5,
+    "leiKm": null,
+    "leiSapt": null,
+    "kmGoiSaptObicei": 675.8,
+    "kmGoiSaptAsteapta": 666.7
+   },
+   {
+    "m": "390ASB",
+    "casa": "Pelinia",
+    "zile": 5,
+    "zileRand": 5,
+    "zileGps": "5/5",
+    "gps": {
+     "dimineata": 31.3,
+     "seara": 14.8,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 46.1
+    },
+    "estimare": {
+     "dimineata": 31.3,
+     "seara": 6.8,
+     "total": 38.1,
+     "plafonata": true,
+     "baza": "min(model, GPS) pe dimineață și pe seară, calendarul rândului"
+    },
+    "kmSapt": 38.1,
+    "kmZi": 7.6,
+    "model": {
+     "dimineata": 32.4,
+     "seara": 6.8,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 39.2
+    },
+    "modelCalendarRand": {
+     "dimineata": 32.4,
+     "seara": 6.8,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 39.2
+    },
+    "modelPeZileleGps": 39.2,
+    "gpsMasuratTotal": 46.1,
+    "ore": {
+     "dimineata": {
+      "de": "06:29",
+      "pana": "14:16"
+     },
+     "seara": {
+      "de": "16:32",
+      "pana": "00:17"
+     }
+    },
+    "asteapta": {
+     "dimineata": {
+      "unde": "capătul Grinăuți (R4)",
+      "departeDeCasaKm": 4.7,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "seara": {
+      "unde": "capătul Sofia (R12)",
+      "departeDeCasaKm": 11.8,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "intreCurse": null
+    },
+    "casaInDrum": {
+     "dimineata": false,
+     "seara": false
+    },
+    "departeDeCasaKm": 11.8,
+    "leiKm": null,
+    "leiSapt": null,
+    "kmGoiSaptObicei": 410.1,
+    "kmGoiSaptAsteapta": 370.9
+   },
+   {
+    "m": "224BZP",
+    "casa": "Catranîc",
+    "zile": 5,
+    "zileRand": 5,
+    "zileGps": "4/5",
+    "gps": {
+     "dimineata": 36.1,
+     "seara": 5,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 41.1
+    },
+    "estimare": {
+     "dimineata": 36.1,
+     "seara": 4.1,
+     "total": 40.2,
+     "plafonata": true,
+     "baza": "min(model, GPS) pe dimineață și pe seară, calendarul rândului"
+    },
+    "kmSapt": 40.2,
+    "kmZi": 8,
+    "model": {
+     "dimineata": 87.8,
+     "seara": 4.1,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 91.9
+    },
+    "modelCalendarRand": {
+     "dimineata": 87.8,
+     "seara": 4.1,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 91.9
+    },
+    "modelPeZileleGps": 73.5,
+    "gpsMasuratTotal": 32.9,
+    "ore": {
+     "dimineata": {
+      "de": "06:02",
+      "pana": "13:28"
+     },
+     "seara": {
+      "de": "19:07",
+      "pana": "00:17"
+     }
+    },
+    "asteapta": {
+     "dimineata": {
+      "unde": "uzină",
+      "departeDeCasaKm": 30.4,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "seara": {
+      "unde": "capătul Catranîc (R24)",
+      "departeDeCasaKm": 0.4,
+      "acasaEChiarLocul": true,
+      "zile": 5
+     },
+     "intreCurse": null
+    },
+    "casaInDrum": {
+     "dimineata": false,
+     "seara": false
+    },
+    "departeDeCasaKm": 30.4,
+    "leiKm": 6.35,
+    "leiSapt": 255,
+    "kmGoiSaptObicei": 693.6,
+    "kmGoiSaptAsteapta": 601.7
+   },
+   {
+    "m": "804MUM",
+    "casa": "Pământeni",
+    "zile": 5,
+    "zileRand": 5,
+    "zileGps": "0/5",
+    "gps": null,
+    "estimare": {
+     "dimineata": 24.5,
+     "seara": 0,
+     "total": 24.5,
+     "plafonata": false,
+     "baza": "model pe calendarul rândului (GPS nemăsurat)"
+    },
+    "kmSapt": 24.5,
+    "kmZi": 4.9,
+    "model": {
+     "dimineata": 24.5,
+     "seara": 0,
+     "intreCurse": 14.1,
+     "alt": 0,
+     "total": 38.6
+    },
+    "modelCalendarRand": {
+     "dimineata": 24.5,
+     "seara": 0,
+     "intreCurse": 14.1,
+     "alt": 0,
+     "total": 38.6
+    },
+    "modelPeZileleGps": 0,
+    "gpsMasuratTotal": 0,
+    "ore": {
+     "dimineata": {
+      "de": "06:16",
+      "pana": "14:09"
+     },
+     "seara": {
+      "de": "16:29",
+      "pana": null
+     }
+    },
+    "asteapta": {
+     "dimineata": {
+      "unde": "uzină",
+      "departeDeCasaKm": 7,
+      "acasaEChiarLocul": false,
+      "zile": 2
+     },
+     "seara": null,
+     "intreCurse": null
+    },
+    "casaInDrum": {
+     "dimineata": false,
+     "seara": true
+    },
+    "departeDeCasaKm": 7,
+    "leiKm": 12.42,
+    "leiSapt": 304,
+    "kmGoiSaptObicei": 300.8,
+    "kmGoiSaptAsteapta": 262.3
+   },
+   {
+    "m": "186OMM",
+    "casa": "Dacia",
+    "zile": 5,
+    "zileRand": 5,
+    "zileGps": "5/5",
+    "gps": {
+     "dimineata": 0,
+     "seara": 22.7,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 22.7
+    },
+    "estimare": {
+     "dimineata": 0,
+     "seara": 11.3,
+     "total": 11.3,
+     "plafonata": true,
+     "baza": "min(model, GPS) pe dimineață și pe seară, calendarul rândului"
+    },
+    "kmSapt": 11.3,
+    "kmZi": 2.3,
+    "model": {
+     "dimineata": 11.4,
+     "seara": 11.3,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 22.7
+    },
+    "modelCalendarRand": {
+     "dimineata": 11.4,
+     "seara": 11.3,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 22.7
+    },
+    "modelPeZileleGps": 22.7,
+    "gpsMasuratTotal": 22.7,
+    "ore": {
+     "dimineata": {
+      "de": "06:27",
+      "pana": "14:02"
+     },
+     "seara": {
+      "de": "16:29",
+      "pana": "00:18"
+     }
+    },
+    "asteapta": {
+     "dimineata": {
+      "unde": "uzină",
+      "departeDeCasaKm": 6.1,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "seara": {
+      "unde": "uzină",
+      "departeDeCasaKm": 6.1,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "intreCurse": null
+    },
+    "casaInDrum": {
+     "dimineata": false,
+     "seara": false
+    },
+    "departeDeCasaKm": 6.1,
+    "leiKm": null,
+    "leiSapt": null,
+    "kmGoiSaptObicei": 595.6,
+    "kmGoiSaptAsteapta": 572.8
+   },
+   {
+    "m": "763LYY",
+    "casa": "Băhrinești",
+    "zile": 5,
+    "zileRand": 5,
+    "zileGps": "4/5",
+    "gps": {
+     "dimineata": 22,
+     "seara": 0,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 22
+    },
+    "estimare": {
+     "dimineata": 22,
+     "seara": 0,
+     "total": 22,
+     "plafonata": true,
+     "baza": "min(model, GPS) pe dimineață și pe seară, calendarul rândului"
+    },
+    "kmSapt": 22,
+    "kmZi": 4.4,
+    "model": {
+     "dimineata": 36.1,
+     "seara": 36,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 72.1
+    },
+    "modelCalendarRand": {
+     "dimineata": 36.1,
+     "seara": 36,
+     "intreCurse": 0,
+     "alt": 0,
+     "total": 72.1
+    },
+    "modelPeZileleGps": 40.7,
+    "gpsMasuratTotal": 17.6,
+    "ore": {
+     "dimineata": {
+      "de": "06:19",
+      "pana": "13:20"
+     },
+     "seara": {
+      "de": "22:35",
+      "pana": "00:16"
+     }
+    },
+    "asteapta": {
+     "dimineata": {
+      "unde": "uzină",
+      "departeDeCasaKm": 31.9,
+      "acasaEChiarLocul": false,
+      "zile": 4
+     },
+     "seara": {
+      "unde": "capătul Prajila (R17)",
+      "departeDeCasaKm": 7.4,
+      "acasaEChiarLocul": false,
+      "zile": 3
+     },
+     "intreCurse": null
+    },
+    "casaInDrum": {
+     "dimineata": false,
+     "seara": false
+    },
+    "departeDeCasaKm": 31.9,
+    "leiKm": null,
+    "leiSapt": null,
+    "kmGoiSaptObicei": 699.9,
+    "kmGoiSaptAsteapta": 627.8,
+    "dupaLant": {
+     "kmSapt": 54.1,
+     "kmZi": 10.8,
+     "estimare": {
+      "dimineata": 18.1,
+      "seara": 36,
+      "total": 54.1,
+      "plafonata": false,
+      "baza": "model pe calendarul rândului, după lanț"
+     },
+     "model": {
+      "dimineata": 18.1,
+      "seara": 36,
+      "intreCurse": 0,
+      "alt": 0,
+      "total": 54.1
+     },
+     "asteapta": {
+      "dimineata": {
+       "unde": "capătul Prajila (R17)",
+       "departeDeCasaKm": 7.4,
+       "acasaEChiarLocul": false,
+       "zile": 4
+      },
+      "seara": {
+       "unde": "capătul Prajila (R17)",
+       "departeDeCasaKm": 7.4,
+       "acasaEChiarLocul": false,
+       "zile": 3
+      },
+      "intreCurse": null
+     },
+     "casaInDrum": {
+      "dimineata": false,
+      "seara": false
+     },
+     "departeDeCasaKm": 7.4
+    }
+   }
+  ],
+  "nemasurate": [
+   {
+    "m": "549RNK",
+    "zileGps": "0/5",
+    "kmSapt": 155.5
+   },
+   {
+    "m": "518MHD",
+    "zileGps": "2/5",
+    "kmSapt": 153.2
+   },
+   {
+    "m": "804MUM",
+    "zileGps": "0/5",
+    "kmSapt": 24.5
+   }
+  ],
+  "departeDeCasa": [
+   {
+    "m": "925FTI",
+    "casa": "Sărata Veche",
+    "departeDeCasaKm": 51.6,
+    "asteapta": {
+     "dimineata": {
+      "unde": "capătul Musteața (R37)",
+      "departeDeCasaKm": 21.6,
+      "acasaEChiarLocul": false,
+      "zile": 4
+     },
+     "seara": {
+      "unde": "capătul Ilenuța (R26)",
+      "departeDeCasaKm": 21.5,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "intreCurse": {
+      "unde": "uzină",
+      "departeDeCasaKm": 51.6,
+      "acasaEChiarLocul": false,
+      "zile": 2
+     }
+    },
+    "kmZi": 64.4
+   },
+   {
+    "m": "912RNK",
+    "casa": "Dumbrăvița",
+    "departeDeCasaKm": 42.6,
+    "asteapta": {
+     "dimineata": {
+      "unde": "capătul Cucioaia (R35)",
+      "departeDeCasaKm": 11.1,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "seara": {
+      "unde": "uzină",
+      "departeDeCasaKm": 42.6,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "intreCurse": null
+    },
+    "kmZi": 61.6
+   },
+   {
+    "m": "457BRAX",
+    "casa": "Hîjdieni",
+    "departeDeCasaKm": 24.7,
+    "asteapta": {
+     "dimineata": {
+      "unde": "capătul Ustia (R29)",
+      "departeDeCasaKm": 23.6,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "seara": {
+      "unde": "capătul Nihoreni (R3)",
+      "departeDeCasaKm": 24.7,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "intreCurse": null
+    },
+    "kmZi": 53.3
+   },
+   {
+    "m": "345KAJ",
+    "casa": "Zăicani",
+    "departeDeCasaKm": 29,
+    "asteapta": {
+     "dimineata": {
+      "unde": "capătul Costești (R8)",
+      "departeDeCasaKm": 22.5,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "seara": {
+      "unde": "capătul Mihăileni (R6)",
+      "departeDeCasaKm": 29,
+      "acasaEChiarLocul": false,
+      "zile": 4
+     },
+     "intreCurse": null
+    },
+    "kmZi": 49.3
+   },
+   {
+    "m": "302YEK",
+    "casa": "Căinarii Vechi",
+    "departeDeCasaKm": 19.7,
+    "asteapta": {
+     "dimineata": {
+      "unde": "capătul Căinarii Vechi (R32)",
+      "departeDeCasaKm": 1.2,
+      "acasaEChiarLocul": true,
+      "zile": 5
+     },
+     "seara": {
+      "unde": "capătul Baroncea (R14)",
+      "departeDeCasaKm": 19.7,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "intreCurse": null
+    },
+    "kmZi": 26.3
+   },
+   {
+    "m": "388ASB",
+    "casa": "Șuri",
+    "departeDeCasaKm": 22,
+    "asteapta": {
+     "dimineata": {
+      "unde": "capătul Sofia (R12)",
+      "departeDeCasaKm": 22,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "seara": {
+      "unde": "capătul Șuri (R15)",
+      "departeDeCasaKm": 1.1,
+      "acasaEChiarLocul": true,
+      "zile": 5
+     },
+     "intreCurse": null
+    },
+    "kmZi": 39.4
+   },
+   {
+    "m": "725CWN",
+    "casa": "Sîngerei",
+    "departeDeCasaKm": 16.3,
+    "asteapta": {
+     "dimineata": {
+      "unde": "capătul Iezărenii Vechi (R33)",
+      "departeDeCasaKm": 16.3,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "seara": {
+      "unde": "capătul Copăceni (R19)",
+      "departeDeCasaKm": 6.9,
+      "acasaEChiarLocul": false,
+      "zile": 4
+     },
+     "intreCurse": null
+    },
+    "kmZi": 17.8
+   },
+   {
+    "m": "447ASB",
+    "casa": "Ciuciulea",
+    "departeDeCasaKm": 23.9,
+    "asteapta": {
+     "dimineata": {
+      "unde": "capătul Danu (R27)",
+      "departeDeCasaKm": 23.9,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "seara": {
+      "unde": "capătul Ciuciulea (R10)",
+      "departeDeCasaKm": 1.2,
+      "acasaEChiarLocul": true,
+      "zile": 5
+     },
+     "intreCurse": null
+    },
+    "kmZi": 32.1
+   },
+   {
+    "m": "760BXI",
+    "casa": "Hîjdieni",
+    "departeDeCasaKm": 23.7,
+    "asteapta": {
+     "dimineata": {
+      "unde": "capătul Cuhnești (R28)",
+      "departeDeCasaKm": 18,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "seara": {
+      "unde": "capătul Obreja Veche (R26)",
+      "departeDeCasaKm": 23.7,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "intreCurse": null
+    },
+    "kmZi": 29.9
+   },
+   {
+    "m": "549RNK",
+    "casa": "Edineț",
+    "departeDeCasaKm": 26.1,
+    "asteapta": {
+     "dimineata": null,
+     "seara": {
+      "unde": "capătul Stolniceni (R2)",
+      "departeDeCasaKm": 26.1,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "intreCurse": null
+    },
+    "kmZi": 31.1
+   },
+   {
+    "m": "518MHD",
+    "casa": "Izvoare",
+    "departeDeCasaKm": 22.3,
+    "asteapta": {
+     "dimineata": {
+      "unde": "capătul Florești (R16)",
+      "departeDeCasaKm": 19.9,
+      "acasaEChiarLocul": false,
+      "zile": 2
+     },
+     "seara": {
+      "unde": "capătul Vărvăreuca (R16)",
+      "departeDeCasaKm": 22.3,
+      "acasaEChiarLocul": false,
+      "zile": 2
+     },
+     "intreCurse": null
+    },
+    "kmZi": 30.6
+   },
+   {
+    "m": "224BZP",
+    "casa": "Catranîc",
+    "departeDeCasaKm": 30.4,
+    "asteapta": {
+     "dimineata": {
+      "unde": "uzină",
+      "departeDeCasaKm": 30.4,
+      "acasaEChiarLocul": false,
+      "zile": 5
+     },
+     "seara": {
+      "unde": "capătul Catranîc (R24)",
+      "departeDeCasaKm": 0.4,
+      "acasaEChiarLocul": true,
+      "zile": 5
+     },
+     "intreCurse": null
+    },
+    "kmZi": 8
+   },
+   {
+    "m": "763LYY",
+    "casa": "Băhrinești",
+    "departeDeCasaKm": 31.9,
+    "asteapta": {
+     "dimineata": {
+      "unde": "uzină",
+      "departeDeCasaKm": 31.9,
+      "acasaEChiarLocul": false,
+      "zile": 4
+     },
+     "seara": {
+      "unde": "capătul Prajila (R17)",
+      "departeDeCasaKm": 7.4,
+      "acasaEChiarLocul": false,
+      "zile": 3
+     },
+     "intreCurse": null
+    },
+    "kmZi": 4.4
+   }
+  ]
+ },
+ "schimb": {
+  "dupa": "staParcata",
+  "stare": "verificat",
+  "kmSapt": 83,
+  "leiSapt": null,
+  "lanturiFaraLei": 1,
+  "faraNorma": [
+   "763LYY"
+  ],
+  "lanturi": [
+   {
+    "economieKmSapt": 83,
+    "economieSaptCurenta": 83,
+    "economieRotatie": 252.1,
+    "leiSapt": null,
+    "faraNorma": [
+     "763LYY"
+    ],
+    "peMasina": [
+     {
+      "m": "713IZX",
+      "kmSapt": 205.2
+     },
+     {
+      "m": "763LYY",
+      "kmSapt": -288.1
+     }
+    ],
+    "mutari": [
+     {
+      "linie": "R30|Cosernita>R30|Cosernita",
+      "tur": "R30|Cosernita",
+      "retur": "R30|Cosernita",
+      "nume": "Coșernița (R30)",
+      "dela": "763LYY",
+      "la": "713IZX",
+      "zile": 5,
+      "schimbInSaptamana": "s2"
+     },
+     {
+      "linie": "R17|Prajila>R17|Prajila",
+      "tur": "R17|Prajila",
+      "retur": "R17|Prajila",
+      "nume": "Prajila (R17)",
+      "dela": "713IZX",
+      "la": "763LYY",
+      "zile": 5,
+      "schimbInSaptamana": "s2"
+     }
+    ],
+    "text": "763LYY lasă Coșernița (R30) lui 713IZX, care stă la Florești; 713IZX lasă Prajila (R17) lui 763LYY, care stă la Băhrinești."
+   }
+  ],
+  "deoparte": [
+   {
+    "economieKmSapt": 9.8,
+    "rotatie": {
+     "verificat": false,
+     "motiv": "447ASB nu face aceleași linii pe schimbul corespondent în săptămâna precedentă"
+    },
+    "masini": [
+     "447ASB",
+     "457BRAX"
+    ],
+    "motiv": "sub 20 km/săpt."
+   },
+   {
+    "economieKmSapt": 24.7,
+    "rotatie": {
+     "verificat": false,
+     "motiv": "curse suprapuse în săptămâna precedentă"
+    },
+    "masini": [
+     "144BRAZ",
+     "224BZP"
+    ],
+    "motiv": "nu se verifică pe săptămâna precedentă: curse suprapuse în săptămâna precedentă"
+   },
+   {
+    "economieKmSapt": 81,
+    "rotatie": {
+     "verificat": false,
+     "motiv": "725CWN nu face aceleași linii pe schimbul corespondent în săptămâna precedentă"
+    },
+    "masini": [
+     "725CWN",
+     "830MUM"
+    ],
+    "motiv": "nu se verifică pe săptămâna precedentă: 725CWN nu face aceleași linii pe schimbul corespondent în săptămâna precedentă"
+   },
+   {
+    "economieKmSapt": 59.9,
+    "rotatie": {
+     "verificat": false,
+     "motiv": "744ARF nu face aceleași linii pe schimbul corespondent în săptămâna precedentă"
+    },
+    "masini": [
+     "186OMM",
+     "744ARF"
+    ],
+    "motiv": "nu se verifică pe săptămâna precedentă: 744ARF nu face aceleași linii pe schimbul corespondent în săptămâna precedentă"
+   },
+   {
+    "economieKmSapt": 37.2,
+    "rotatie": {
+     "verificat": true,
+     "ecKmSapt": 14.9
+    },
+    "masini": [
+     "441ASB",
+     "727CWN"
+    ],
+    "motiv": "pe săptămâna precedentă doar 14.9 km"
+   }
+  ],
+  "neconfirmateKmSapt": 202.8,
+  "optim": {
+   "optimizator": 15714.2,
+   "dupaNormalizare": 15714.2,
+   "normalizate": 0,
+   "cuToateLanturile": 295.7
+  }
+ }
+}

@@ -74,6 +74,79 @@ export interface AnalizaDrax {
     P10: { masini: number; pica: unknown[]; picaC: unknown[]; pasi: Record<string, number>; scoasDePrioritateaF2: { liber: number; brambura: number } };
     bilant: { zile: number; ok: number; maxDifPct: number } | null; schimb3: { inAfaraFerestrelor: number } | null;
   };
+  /** ION-108: planul de schimb pe toată flota; lipsă = rând scris înainte de partea A; null = calculul a eșuat (motivul alături) */
+  planSchimb?: PlanSchimbDrax | null;
+  planSchimbLipsa?: string | null;
+}
+
+// ─── planul (ION-108, partea A: câmp aditiv scris de VPS, contractul §6 din plan-v3) ─────────
+// Pârghia principală: între curse mașina STĂ PARCATĂ (la capătul cursei următoare sau la uzină). Cifra principală a paginii e
+// costul de azi pe GPS; ce se taie e o ESTIMARE de model (drumul cel mai scurt) și apare o singură dată. Schimbul de linii e un
+// plus mic, publicat doar când e verificat pe săptămâna precedentă (schimburile inversate). Mai jos sunt doar câmpurile citite de
+// pagină; forma se verifică strict la citire (drax-plan-schimb.ts), iar un plan stricat se arată «indisponibil», nu dărâmă pagina.
+/** o linie mutată: `linie` = cheia «tur>retur», `nume` = de afișat («Coșernița (R30)»); cel puțin unul din tur/retur e prezent */
+export interface MutareSchimbDrax {
+  linie: string; tur: string | null; retur: string | null; nume: string; dela: string; la: string; zile?: number;
+  /** schimbul din săptămâna calculată; NU se afișează (schimburile se inversează săptămânal) */
+  schimbInSaptamana?: string;
+}
+export interface MasinaLantDrax { m: string; kmSapt: number }
+/** lanțul = componenta mutărilor legate între ele; economia = min(săptămâna curentă, săptămâna cu rotația inversă) */
+export interface LantSchimbDrax {
+  economieKmSapt: number; economieRotatie: number | null; leiSapt: number | null; faraNorma: string[];
+  /** pe mașină: + = merge mai mult după mutare, − = mai puțin */
+  peMasina: MasinaLantDrax[];
+  mutari: MutareSchimbDrax[];
+}
+/** golul pe părți ale zilei (km/săpt.) */
+export interface KmPartiDrax { dimineata: number; seara: number; intreCurse: number; total: number }
+/** unde stă parcată mașina: «uzină» sau «capătul <Sat> (R<n>)» */
+export interface LocParcareDrax { unde: string; departeDeCasaKm: number | null; acasaEChiarLocul: boolean }
+export interface LocuriParcareDrax { dimineata: LocParcareDrax | null; seara: LocParcareDrax | null; intreCurse: LocParcareDrax | null }
+/** pe parte: casa e în drum spre cursa următoare (planul nu dă loc și nu e nimic de tăiat) → «poate sta acasă» */
+export interface CasaInDrumDrax { dimineata: boolean; seara: boolean }
+export interface AsteptareMasinaDrax {
+  /** kmSapt = estimarea v3.1 a mașinii (plafonată la GPS pe mașinile măsurate); kmZi pe zilele rândului */
+  m: string; kmSapt: number; kmZi: number;
+  /** golul de azi pe GPS; null = < 3 zile măsurate */
+  gps: KmPartiDrax | null;
+  /** null pe o parte = planul nu propune loc */
+  asteapta: LocuriParcareDrax;
+  casaInDrum: CasaInDrumDrax;
+  /** doar la mașinile din lanțurile publicate: locurile și «casa în drum» din calendarul DUPĂ lanț */
+  dupaLant?: { asteapta: LocuriParcareDrax; casaInDrum: CasaInDrumDrax } | null;
+}
+/** o mașină din întrebarea de seară (lista și sumele le calculează planul) */
+export interface IntrebareSearaMasinaDrax {
+  m: string; unde: string; departeDeCasaKm: number | null; gpsSeara: number | null; estimareSeara: number;
+  de: string | null; pana: string | null; masurat: boolean;
+  /** v3.2: seara șoferul merge acasă cu o mașină mică (Ion, 27.09); lipsește în planurile v3.1 */
+  masinaMica?: MasinaMicaSearaDrax;
+}
+/** v3.2: seri/săpt. cu drum acasă, km mașinii mici (seri × 2 × loc→casă), lei/km autobuz FĂRĂ salariu, soldul lunar înaintea costului fix */
+export interface MasinaMicaSearaDrax { seri: number; kmSapt: number; leiKmAutobuz: number | null; soldLuna: number | null }
+/** v3.2: ipotezele mașinii mici (l/100 km, uzură lei/km, prețul motorinei al săptămânii) */
+export interface MasinaMicaIpotezeDrax { litri: number; uzura: number; pret: number | null; leiKm: number | null; saptLuna: number; soldPozitivLuna: number }
+/** costul de azi (GPS) și estimarea de tăiat pe o parte a zilei */
+export interface GpsEstimareDrax { gps: number; estimare: number }
+export interface PlanSchimbDrax {
+  sapt: string;
+  rotatie: { verificatPe: string | null };
+  asteptare: {
+    dimineata: GpsEstimareDrax;
+    seara: GpsEstimareDrax & {
+      cursaDeNoapte: string | null;
+      intrebare: { masini: IntrebareSearaMasinaDrax[]; gpsKmSapt: number; estimareKmSapt: number; nemasurate: string[]; masinaMica?: MasinaMicaIpotezeDrax };
+    };
+    /** estimarea v3.1 (dimineață + seară, plafonată) și leii pe aceeași bază (doar mașinile cu normă) */
+    kmSapt: number; leiSapt: number | null;
+    masini: AsteptareMasinaDrax[];
+    nemasurate: { m: string; zileGps: string; kmSapt: number }[];
+  };
+  schimb: {
+    stare: 'verificat' | 'neverificat'; kmSapt: number; leiSapt: number | null; lanturiFaraLei: number;
+    lanturi: LantSchimbDrax[]; neconfirmateKmSapt: number;
+  };
 }
 
 /** garda la rulare: `date` din bază e JSON liber; pagina și ruta nu desenează un rând care nu are forma Drăxlmaier */

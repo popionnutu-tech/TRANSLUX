@@ -1,0 +1,27 @@
+{
+  "score": 6.0,
+  "verdict": "fail",
+  "summary": "Verificarea în worktree-ul ion-108 confirmă corecțiile contractului v3.1b, citirea estimării și întrebării din plan și folosirea locurilor după lanț; observațiile închise nu sunt redeschise. Propunerea nouă supraestimează beneficiul prin egalarea kilometrilor mașinii mici cu ocolul eliminat și prin tratarea salariului drept economie automată. Pentru afișare recomand soldul lunar pozitiv înaintea costurilor fixe, etichetat «disponibil pentru mașina mică», calculat pe ciclul rotației; «merită» doar când acest sold depășește costurile fixe confirmate, fără un prag universal în lei/km. Toate referințele de mai jos sunt din worktree-ul ion-108.",
+  "deductions": [
+    {
+      "id": "C1",
+      "severity": "high",
+      "weight": 2.5,
+      "title": "Kilometrii mașinii mici sunt confundați cu ocolul eliminat din traseul autobuzului.",
+      "detail": "Modelul calculează economia autobuzului ca drum prin casă minus drumul direct dintre curse. Mașina mică trebuie însă să parcurgă integral parcare → casă → aceeași parcare; autobuzul continuă să facă legătura directă dintre curse. Prin urmare, estimareSeara nu reprezintă kilometrii mașinii mici, iar plafonarea estimării la GPS nu plafonează distanța navetei șoferului.",
+      "evidence": "docs/plans/2026-09-27-drax-plan-schimb/v3/model.mjs:40; docs/plans/2026-09-27-drax-plan-schimb/v3/plan-schimb.mjs:177; docs/plans/2026-09-27-drax-plan-schimb/v3/plan-schimb.mjs:207; apps/admin/src/lib/lde/drax-plan-schimb-2026-09-14.fixture.json:45",
+      "failure_scenario": "Pentru 912RNK, planul indică 42,6 km între parcare și casă și 292,3 km/săptămână economisiți autobuzului. Dacă șoferul face cinci navete dus-întors cu distanțe simetrice, mașina mică parcurge aproximativ 426 km, nu 292,3. La costul propus de 2,69 lei/km, pagina supraestimează disponibilul cu aproximativ 360 lei/săptămână numai din această confuzie.",
+      "suggested_fix": "Prevede în plan două cantități independente: kilometrii autobuzului eliminați și suma distanțelor parcare → casă plus casă → parcare pentru serile efective. Folosește calendarul și locurile aplicabile după lanț; 5 × dus-întors este valid doar pentru cinci seri identice. Include eventualele deplasări pentru poziționarea mașinii mici, recalculează tabelul și totalul și adaugă o probă în care ocolul eliminat diferă de naveta completă."
+    },
+    {
+      "id": "C2",
+      "severity": "medium",
+      "weight": 1.5,
+      "title": "Componenta salarială este inclusă în beneficiu fără stabilirea cheltuielii efectiv eliminate.",
+      "detail": "Formula existentă include explicit 1 leu/km pentru salariu. Aceasta descrie costul atribuit autobuzului, dar nu dovedește că plata șoferului scade când acesta conduce mașina mică. Propunerea nouă scade doar combustibilul și uzura mașinii mici, creditând integral salariul asociat kilometrilor eliminați. Observația privește calculul nou al disponibilului, nu formula generală deja decisă de Ion.",
+      "evidence": "apps/admin/src/lib/lde/naveta-image.ts:32; apps/admin/src/lib/lde/naveta-image.ts:39; docs/plans/2026-09-26-drax-f3-executie/economie/alternative.mjs:71; docs/plans/2026-09-27-drax-plan-schimb/v3/plan-schimb.mjs:220",
+      "failure_scenario": "Dacă plata șoferului rămâne aceeași după trecerea pe mașina mică, cei 292,3 km economisiți săptămânal la 912RNK nu produc economia salarială de 292,3 lei inclusă în propunere. Disponibilul lunar este astfel supraestimat cu aproximativ 1.267 lei, independent de eroarea distanțelor.",
+      "suggested_fix": "Separă în plan costurile variabile ale vehiculelor de diferența salarială efectivă: beneficiu = km autobuz eliminați × cost autobuz fără salariu − km mașină mică × cost variabil mașină mică + salariu înainte − salariu după. Până la confirmarea regulii de remunerare, folosește diferență salarială zero și marchează ipoteza; recalculează disponibilul și verifică scenariul cu salariu neschimbat."
+    }
+  ]
+}

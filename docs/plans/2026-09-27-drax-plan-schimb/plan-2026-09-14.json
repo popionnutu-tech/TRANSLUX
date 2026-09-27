@@ -1,0 +1,2165 @@
+{
+ "sapt": "2026-09-14",
+ "pana": "2026-09-20",
+ "versiune": "plan-schimb v1.2 (ION-108 A)",
+ "rulat": "2026-09-27T11:38:39.845Z",
+ "model": {
+  "unitate": "sarcina = linia turului + linia returului pe un schimb, zilele ei; se mută întreagă",
+  "km": "Valhalla, costing bus, casă ↔ capăt, casă ↔ poartă, poartă ↔ poartă",
+  "goluri": "ts2→rs1 direct poartă→poartă; celelalte goluri prin casă dacă mașina merge azi acasă în golul de felul acesta (obiceiul măsurat pe GPS, al mașinii), altfel direct",
+  "clasa": "locurile liniei sau clasa mașinii de azi",
+  "pragLant": 20
+ },
+ "inainte": {
+  "kmGoiSapt": 19212.7
+ },
+ "dupa": {
+  "kmGoiSapt": 18887.7
+ },
+ "economie": {
+  "kmSapt": 324.9,
+  "leiSapt": 605,
+  "leiNota": "lei = Σ pe lanțurile în care toate mașinile au normă (km × lei/km al fiecărei mașini)",
+  "lanturiFaraLei": 2,
+  "faraNorma": [
+   "763LYY",
+   "390ASB",
+   "186OMM"
+  ]
+ },
+ "lanturi": [
+  {
+   "economieKmSapt": 148,
+   "masini": [
+    "713IZX",
+    "763LYY"
+   ],
+   "leiSapt": null,
+   "faraNorma": [
+    "763LYY"
+   ],
+   "peMasina": [
+    {
+     "m": "713IZX",
+     "kmSapt": 158.1
+    },
+    {
+     "m": "763LYY",
+     "kmSapt": -306.1
+    }
+   ],
+   "mutari": [
+    {
+     "linie": "R30 Coșernița",
+     "tur": "R30|Cosernita",
+     "retur": "R30|Cosernita",
+     "schimb": "s2",
+     "dela": "763LYY",
+     "la": "713IZX",
+     "zile": 5
+    },
+    {
+     "linie": "R17 Prajila",
+     "tur": "R17|Prajila",
+     "retur": "R17|Prajila",
+     "schimb": "s2",
+     "dela": "713IZX",
+     "la": "763LYY",
+     "zile": 5
+    }
+   ],
+   "text": "763LYY lasă R30 Coșernița (schimbul 2) lui 713IZX, care stă la Florești; 713IZX lasă R17 Prajila (schimbul 2) lui 763LYY, care stă la Băhrinești → −148 km/săpt."
+  },
+  {
+   "economieKmSapt": 101,
+   "masini": [
+    "725CWN",
+    "830MUM"
+   ],
+   "leiSapt": 605,
+   "faraNorma": [],
+   "peMasina": [
+    {
+     "m": "725CWN",
+     "kmSapt": -107
+    },
+    {
+     "m": "830MUM",
+     "kmSapt": 6
+    }
+   ],
+   "mutari": [
+    {
+     "linie": "R19 Copăceni",
+     "tur": "R19|Copaceni",
+     "retur": "R19|Copaceni",
+     "schimb": "s2",
+     "dela": "830MUM",
+     "la": "725CWN",
+     "zile": 4
+    },
+    {
+     "linie": "R33 Iezărenii Vechi",
+     "tur": "R33|Iezarenii Vechi",
+     "retur": "R33|Iezarenii Vechi",
+     "schimb": "s2",
+     "dela": "725CWN",
+     "la": "830MUM",
+     "zile": 5
+    }
+   ],
+   "text": "830MUM lasă R19 Copăceni (schimbul 2) lui 725CWN, care stă la Sîngerei; 725CWN lasă R33 Iezărenii Vechi (schimbul 2) lui 830MUM, care stă la Sîngerei → −101 km/săpt."
+  },
+  {
+   "economieKmSapt": 76,
+   "masini": [
+    "388ASB",
+    "390ASB",
+    "744ARF",
+    "186OMM"
+   ],
+   "leiSapt": null,
+   "faraNorma": [
+    "390ASB",
+    "186OMM"
+   ],
+   "peMasina": [
+    {
+     "m": "388ASB",
+     "kmSapt": 90
+    },
+    {
+     "m": "390ASB",
+     "kmSapt": 33.6
+    },
+    {
+     "m": "744ARF",
+     "kmSapt": -69.2
+    },
+    {
+     "m": "186OMM",
+     "kmSapt": -130.3
+    }
+   ],
+   "mutari": [
+    {
+     "linie": "R3 Nihoreni",
+     "tur": "R3|Nihoreni",
+     "retur": "R3|Nihoreni",
+     "schimb": "s2",
+     "dela": "186OMM",
+     "la": "388ASB",
+     "zile": 5
+    },
+    {
+     "linie": "R12 Sofia",
+     "tur": "R12|Sofia",
+     "retur": "R12|Sofia",
+     "schimb": "s2",
+     "dela": "388ASB",
+     "la": "390ASB",
+     "zile": 5
+    },
+    {
+     "linie": "R4 Grinăuți",
+     "tur": "R4|Grinauti",
+     "retur": "R4|Grinauti",
+     "schimb": "s2",
+     "dela": "390ASB",
+     "la": "744ARF",
+     "zile": 5
+    },
+    {
+     "linie": "R19 Bilicenii Vechi",
+     "tur": "R19|Bilicenii Vechi",
+     "retur": "R19|Bilicenii Vechi",
+     "schimb": "s2",
+     "dela": "744ARF",
+     "la": "186OMM",
+     "zile": 5
+    }
+   ],
+   "text": "186OMM lasă R3 Nihoreni (schimbul 2) lui 388ASB, care stă la Șuri; 388ASB lasă R12 Sofia (schimbul 2) lui 390ASB, care stă la Pelinia; 390ASB lasă R4 Grinăuți (schimbul 2) lui 744ARF, care stă la Dacia; 744ARF lasă R19 Bilicenii Vechi (schimbul 2) lui 186OMM, care stă la Dacia → −76 km/săpt."
+  }
+ ],
+ "deoparte": [
+  {
+   "economieKmSapt": 19.7,
+   "text": "447ASB lasă R27 Danu (schimbul 2) lui 457BRAX, care stă la Hîjdieni; 457BRAX lasă R29 Ustia (schimbul 2) lui 447ASB, care stă la Ciuciulea → −20 km/săpt.",
+   "mutari": [
+    {
+     "linie": "R27 Danu",
+     "tur": "R27|Danu",
+     "retur": "R27|Danu",
+     "schimb": "s2",
+     "dela": "447ASB",
+     "la": "457BRAX",
+     "zile": 5
+    },
+    {
+     "linie": "R29 Ustia",
+     "tur": "R29|Ustia",
+     "retur": "R29|Ustia",
+     "schimb": "s2",
+     "dela": "457BRAX",
+     "la": "447ASB",
+     "zile": 5
+    }
+   ]
+  },
+  {
+   "economieKmSapt": 17.1,
+   "text": "224BZP lasă R36 Bocancea-Schit (schimbul 2) lui 144BRAZ, care stă la Dacia; 144BRAZ lasă R38 Glinjeni (schimbul 2) lui 224BZP, care stă la Catranîc → −17 km/săpt.",
+   "mutari": [
+    {
+     "linie": "R36 Bocancea-Schit",
+     "tur": "R36|Bocancea Schit",
+     "retur": "R36|Bocancea Schit",
+     "schimb": "s2",
+     "dela": "224BZP",
+     "la": "144BRAZ",
+     "zile": 5
+    },
+    {
+     "linie": "R38 Glinjeni",
+     "tur": "R38|Glinjeni",
+     "retur": "R38|Glinjeni",
+     "schimb": "s2",
+     "dela": "144BRAZ",
+     "la": "224BZP",
+     "zile": 5
+    }
+   ]
+  }
+ ],
+ "masini": [
+  {
+   "m": "925FTI",
+   "casa": "Sărata Veche",
+   "clasa": 20,
+   "schimburi": 2,
+   "leiKm": null,
+   "acasa": {
+    "dim": true,
+    "seara": true,
+    "zi": true
+   },
+   "acasaVot": {
+    "dim": [
+     4,
+     0
+    ],
+    "seara": [
+     5,
+     0
+    ],
+    "zi": [
+     2,
+     0
+    ]
+   },
+   "inainte": {
+    "s1": "R26 Ilenuța",
+    "s2": "R37 Musteața",
+    "zile": 5,
+    "kmGoiSapt": 975.1,
+    "kmGoiZi": 195
+   },
+   "dupa": {
+    "s1": "R26 Ilenuța",
+    "s2": "R37 Musteața",
+    "zile": 5,
+    "kmGoiSapt": 975.1,
+    "kmGoiZi": 195
+   }
+  },
+  {
+   "m": "024XKY",
+   "casa": "Șuri",
+   "clasa": 27,
+   "schimburi": 1,
+   "leiKm": 6.61,
+   "acasa": {
+    "dim": true
+   },
+   "acasaVot": {
+    "dim": [
+     1,
+     0
+    ]
+   },
+   "inainte": {
+    "s1": "R14 Baroncea (doar turul)",
+    "s2": null,
+    "zile": 4,
+    "kmGoiSapt": 238.1,
+    "kmGoiZi": 59.5
+   },
+   "dupa": {
+    "s1": "R14 Baroncea (doar turul)",
+    "s2": null,
+    "zile": 4,
+    "kmGoiSapt": 238.1,
+    "kmGoiZi": 59.5
+   }
+  },
+  {
+   "m": "912RNK",
+   "casa": "Dumbrăvița",
+   "clasa": 27,
+   "schimburi": 2,
+   "leiKm": 6.7,
+   "acasa": {
+    "dim": true,
+    "seara": true
+   },
+   "acasaVot": {
+    "dim": [
+     5,
+     0
+    ],
+    "seara": [
+     5,
+     0
+    ]
+   },
+   "inainte": {
+    "s1": "R25 Hiliuți",
+    "s2": "R35 Cucioaia",
+    "zile": 5,
+    "kmGoiSapt": 989.3,
+    "kmGoiZi": 197.9
+   },
+   "dupa": {
+    "s1": "R25 Hiliuți",
+    "s2": "R35 Cucioaia",
+    "zile": 5,
+    "kmGoiSapt": 989.3,
+    "kmGoiZi": 197.9
+   }
+  },
+  {
+   "m": "345KAJ",
+   "casa": "Zăicani",
+   "clasa": 27,
+   "schimburi": 2,
+   "leiKm": 6.35,
+   "acasa": {
+    "dim": true,
+    "seara": true
+   },
+   "acasaVot": {
+    "dim": [
+     5,
+     0
+    ],
+    "seara": [
+     4,
+     1
+    ]
+   },
+   "inainte": {
+    "s1": "R6 Mihăileni",
+    "s2": "R8 Costești",
+    "zile": 5,
+    "kmGoiSapt": 1132.8,
+    "kmGoiZi": 226.6
+   },
+   "dupa": {
+    "s1": "R6 Mihăileni",
+    "s2": "R8 Costești",
+    "zile": 5,
+    "kmGoiSapt": 1132.8,
+    "kmGoiZi": 226.6
+   }
+  },
+  {
+   "m": "457BRAX",
+   "casa": "Hîjdieni",
+   "clasa": 50,
+   "schimburi": 2,
+   "leiKm": 7.05,
+   "acasa": {
+    "dim": true,
+    "seara": true
+   },
+   "acasaVot": {
+    "dim": [
+     6,
+     0
+    ],
+    "seara": [
+     6,
+     0
+    ]
+   },
+   "inainte": {
+    "s1": "R3 Nihoreni",
+    "s2": "R29 Ustia",
+    "zile": 5,
+    "kmGoiSapt": 930,
+    "kmGoiZi": 186
+   },
+   "dupa": {
+    "s1": "R3 Nihoreni",
+    "s2": "R29 Ustia",
+    "zile": 5,
+    "kmGoiSapt": 930,
+    "kmGoiZi": 186
+   }
+  },
+  {
+   "m": "302YEK",
+   "casa": "Căinarii Vechi",
+   "clasa": 27,
+   "schimburi": 2,
+   "leiKm": 6.63,
+   "acasa": {
+    "dim": true,
+    "seara": true,
+    "zi": false
+   },
+   "acasaVot": {
+    "dim": [
+     5,
+     0
+    ],
+    "seara": [
+     5,
+     0
+    ],
+    "zi": [
+     0,
+     1
+    ]
+   },
+   "inainte": {
+    "s1": "R14 Baroncea",
+    "s2": "R32 Căinarii Vechi",
+    "zile": 6,
+    "kmGoiSapt": 767.2,
+    "kmGoiZi": 127.9
+   },
+   "dupa": {
+    "s1": "R14 Baroncea",
+    "s2": "R32 Căinarii Vechi",
+    "zile": 6,
+    "kmGoiSapt": 767.2,
+    "kmGoiZi": 127.9
+   }
+  },
+  {
+   "m": "760BXI",
+   "casa": "Hîjdieni",
+   "clasa": 20,
+   "schimburi": 2,
+   "leiKm": 6.63,
+   "acasa": {
+    "dim": true,
+    "seara": true
+   },
+   "acasaVot": {
+    "dim": [
+     5,
+     0
+    ],
+    "seara": [
+     5,
+     0
+    ]
+   },
+   "inainte": {
+    "s1": "R26 Obreja Veche",
+    "s2": "R28 Cuhnești",
+    "zile": 5,
+    "kmGoiSapt": 895.5,
+    "kmGoiZi": 179.1
+   },
+   "dupa": {
+    "s1": "R26 Obreja Veche",
+    "s2": "R28 Cuhnești",
+    "zile": 5,
+    "kmGoiSapt": 895.5,
+    "kmGoiZi": 179.1
+   }
+  },
+  {
+   "m": "435ASB",
+   "casa": "Autogara",
+   "clasa": 50,
+   "schimburi": 1,
+   "leiKm": 12.42,
+   "acasa": {
+    "zi": true
+   },
+   "acasaVot": {
+    "zi": [
+     5,
+     0
+    ]
+   },
+   "inainte": {
+    "s1": null,
+    "s2": "R34 Tăura Veche",
+    "zile": 5,
+    "kmGoiSapt": 380.7,
+    "kmGoiZi": 76.1
+   },
+   "dupa": {
+    "s1": null,
+    "s2": "R34 Tăura Veche",
+    "zile": 5,
+    "kmGoiSapt": 380.7,
+    "kmGoiZi": 76.1
+   }
+  },
+  {
+   "m": "713IZX",
+   "casa": "Florești",
+   "clasa": 50,
+   "schimburi": 2,
+   "leiKm": 12.42,
+   "acasa": {
+    "dim": true,
+    "seara": true
+   },
+   "acasaVot": {
+    "dim": [
+     5,
+     0
+    ],
+    "seara": [
+     5,
+     0
+    ]
+   },
+   "inainte": {
+    "s1": "R17 Prajila",
+    "s2": "R17 Prajila",
+    "zile": 5,
+    "kmGoiSapt": 561.9,
+    "kmGoiZi": 112.4
+   },
+   "dupa": {
+    "s1": "R17 Prajila",
+    "s2": "R30 Coșernița",
+    "zile": 5,
+    "kmGoiSapt": 720.1,
+    "kmGoiZi": 144
+   }
+  },
+  {
+   "m": "388ASB",
+   "casa": "Șuri",
+   "clasa": 50,
+   "schimburi": 2,
+   "leiKm": 12.42,
+   "acasa": {
+    "dim": true,
+    "seara": true
+   },
+   "acasaVot": {
+    "dim": [
+     4,
+     1
+    ],
+    "seara": [
+     5,
+     0
+    ]
+   },
+   "inainte": {
+    "s1": "R15 Șuri",
+    "s2": "R12 Sofia",
+    "zile": 5,
+    "kmGoiSapt": 743.3,
+    "kmGoiZi": 148.7
+   },
+   "dupa": {
+    "s1": "R15 Șuri",
+    "s2": "R3 Nihoreni",
+    "zile": 5,
+    "kmGoiSapt": 833.3,
+    "kmGoiZi": 166.7
+   }
+  },
+  {
+   "m": "144BRAZ",
+   "casa": "Dacia",
+   "clasa": 20,
+   "schimburi": 1,
+   "leiKm": 6.35,
+   "acasa": {
+    "zi": true
+   },
+   "acasaVot": {
+    "zi": [
+     2,
+     0
+    ]
+   },
+   "inainte": {
+    "s1": null,
+    "s2": "R38 Glinjeni",
+    "zile": 5,
+    "kmGoiSapt": 338.4,
+    "kmGoiZi": 67.7
+   },
+   "dupa": {
+    "s1": null,
+    "s2": "R38 Glinjeni",
+    "zile": 5,
+    "kmGoiSapt": 338.4,
+    "kmGoiZi": 67.7
+   }
+  },
+  {
+   "m": "725CWN",
+   "casa": "Sîngerei",
+   "clasa": 50,
+   "schimburi": 2,
+   "leiKm": 6.35,
+   "acasa": {
+    "dim": true,
+    "seara": true
+   },
+   "acasaVot": {
+    "dim": [
+     5,
+     0
+    ],
+    "seara": [
+     5,
+     0
+    ]
+   },
+   "inainte": {
+    "s1": "R19 Copăceni",
+    "s2": "R33 Iezărenii Vechi",
+    "zile": 5,
+    "kmGoiSapt": 534.1,
+    "kmGoiZi": 106.8
+   },
+   "dupa": {
+    "s1": "R19 Copăceni",
+    "s2": "R19 Copăceni",
+    "zile": 5,
+    "kmGoiSapt": 427,
+    "kmGoiZi": 85.4
+   }
+  },
+  {
+   "m": "186OMM",
+   "casa": "Dacia",
+   "clasa": 50,
+   "schimburi": 2,
+   "leiKm": null,
+   "acasa": {
+    "dim": true,
+    "seara": true
+   },
+   "acasaVot": {
+    "dim": [
+     5,
+     0
+    ],
+    "seara": [
+     5,
+     0
+    ]
+   },
+   "inainte": {
+    "s1": "R4 Grinăuți",
+    "s2": "R3 Nihoreni",
+    "zile": 5,
+    "kmGoiSapt": 595.6,
+    "kmGoiZi": 119.1
+   },
+   "dupa": {
+    "s1": "R4 Grinăuți",
+    "s2": "R19 Bilicenii Vechi",
+    "zile": 5,
+    "kmGoiSapt": 465.3,
+    "kmGoiZi": 93.1
+   }
+  },
+  {
+   "m": "518MHD",
+   "casa": "Izvoare",
+   "clasa": 20,
+   "schimburi": 2,
+   "leiKm": null,
+   "acasa": {
+    "dim": true,
+    "seara": true
+   },
+   "acasaVot": {
+    "dim": [
+     4,
+     1
+    ],
+    "seara": [
+     4,
+     0
+    ]
+   },
+   "inainte": {
+    "s1": "R32 Trifănești (tur) / R16 Vărvăreuca (retur)",
+    "s2": "R16 Florești (tur) / R32 Trifănești (retur)",
+    "zile": 5,
+    "kmGoiSapt": 641.1,
+    "kmGoiZi": 128.2
+   },
+   "dupa": {
+    "s1": "R32 Trifănești (tur) / R16 Vărvăreuca (retur)",
+    "s2": "R16 Florești (tur) / R32 Trifănești (retur)",
+    "zile": 5,
+    "kmGoiSapt": 641.1,
+    "kmGoiZi": 128.2
+   }
+  },
+  {
+   "m": "744ARF",
+   "casa": "Dacia",
+   "clasa": 50,
+   "schimburi": 1,
+   "leiKm": 6.7,
+   "acasa": {
+    "zi": true,
+    "seara": true
+   },
+   "acasaVot": {
+    "zi": [
+     3,
+     0
+    ],
+    "seara": [
+     1,
+     0
+    ]
+   },
+   "inainte": {
+    "s1": null,
+    "s2": "R19 Bilicenii Vechi",
+    "zile": 5,
+    "kmGoiSapt": 283.7,
+    "kmGoiZi": 56.7
+   },
+   "dupa": {
+    "s1": null,
+    "s2": "R4 Grinăuți",
+    "zile": 5,
+    "kmGoiSapt": 214.5,
+    "kmGoiZi": 42.9
+   }
+  },
+  {
+   "m": "447ASB",
+   "casa": "Ciuciulea",
+   "clasa": 50,
+   "schimburi": 2,
+   "leiKm": 12.42,
+   "acasa": {
+    "dim": true,
+    "seara": true
+   },
+   "acasaVot": {
+    "dim": [
+     5,
+     0
+    ],
+    "seara": [
+     5,
+     0
+    ]
+   },
+   "inainte": {
+    "s1": "R10 Ciuciulea",
+    "s2": "R27 Danu",
+    "zile": 5,
+    "kmGoiSapt": 802.8,
+    "kmGoiZi": 160.6
+   },
+   "dupa": {
+    "s1": "R10 Ciuciulea",
+    "s2": "R27 Danu",
+    "zile": 5,
+    "kmGoiSapt": 802.8,
+    "kmGoiZi": 160.6
+   }
+  },
+  {
+   "m": "830MUM",
+   "casa": "Sîngerei",
+   "clasa": 50,
+   "schimburi": 2,
+   "leiKm": 12.42,
+   "acasa": {
+    "dim": true,
+    "seara": true
+   },
+   "acasaVot": {
+    "dim": [
+     3,
+     0
+    ],
+    "seara": [
+     4,
+     0
+    ]
+   },
+   "inainte": {
+    "s1": "R19 Bilicenii Vechi",
+    "s2": "R19 Copăceni",
+    "zile": 5,
+    "kmGoiSapt": 419.1,
+    "kmGoiZi": 83.8
+   },
+   "dupa": {
+    "s1": "R19 Bilicenii Vechi",
+    "s2": "R33 Iezărenii Vechi",
+    "zile": 5,
+    "kmGoiSapt": 425.2,
+    "kmGoiZi": 85
+   }
+  },
+  {
+   "m": "146BRAZ",
+   "casa": "Scăieni",
+   "clasa": 20,
+   "schimburi": 2,
+   "leiKm": 6.35,
+   "acasa": {
+    "dim": true,
+    "seara": true,
+    "zi": true
+   },
+   "acasaVot": {
+    "dim": [
+     5,
+     0
+    ],
+    "seara": [
+     5,
+     0
+    ],
+    "zi": [
+     1,
+     0
+    ]
+   },
+   "inainte": {
+    "s1": "R32 Trifănești",
+    "s2": "R32 Trifănești",
+    "zile": 6,
+    "kmGoiSapt": 586,
+    "kmGoiZi": 97.7
+   },
+   "dupa": {
+    "s1": "R32 Trifănești",
+    "s2": "R32 Trifănești",
+    "zile": 6,
+    "kmGoiSapt": 586,
+    "kmGoiZi": 97.7
+   }
+  },
+  {
+   "m": "763LYY",
+   "casa": "Băhrinești",
+   "clasa": 50,
+   "schimburi": 2,
+   "leiKm": null,
+   "acasa": {
+    "dim": true,
+    "seara": true,
+    "zi": false
+   },
+   "acasaVot": {
+    "dim": [
+     4,
+     0
+    ],
+    "seara": [
+     4,
+     0
+    ],
+    "zi": [
+     0,
+     1
+    ]
+   },
+   "inainte": {
+    "s1": "R17 Prajila",
+    "s2": "R30 Coșernița",
+    "zile": 5,
+    "kmGoiSapt": 693.9,
+    "kmGoiZi": 138.8
+   },
+   "dupa": {
+    "s1": "R17 Prajila",
+    "s2": "R17 Prajila",
+    "zile": 5,
+    "kmGoiSapt": 387.7,
+    "kmGoiZi": 77.5
+   }
+  },
+  {
+   "m": "446ASB",
+   "casa": "Călugăr",
+   "clasa": 50,
+   "schimburi": 2,
+   "leiKm": 12.42,
+   "acasa": {
+    "dim": true,
+    "seara": true
+   },
+   "acasaVot": {
+    "dim": [
+     5,
+     0
+    ],
+    "seara": [
+     5,
+     0
+    ]
+   },
+   "inainte": {
+    "s1": "R23 Scumpia",
+    "s2": "R23 Scumpia",
+    "zile": 5,
+    "kmGoiSapt": 619.1,
+    "kmGoiZi": 123.8
+   },
+   "dupa": {
+    "s1": "R23 Scumpia",
+    "s2": "R23 Scumpia",
+    "zile": 5,
+    "kmGoiSapt": 619.1,
+    "kmGoiZi": 123.8
+   }
+  },
+  {
+   "m": "224BZP",
+   "casa": "Catranîc",
+   "clasa": 20,
+   "schimburi": 2,
+   "leiKm": 6.35,
+   "acasa": {
+    "dim": true,
+    "seara": true
+   },
+   "acasaVot": {
+    "dim": [
+     4,
+     1
+    ],
+    "seara": [
+     5,
+     0
+    ]
+   },
+   "inainte": {
+    "s1": "R24 Catranîc",
+    "s2": "R36 Bocancea-Schit",
+    "zile": 5,
+    "kmGoiSapt": 695.2,
+    "kmGoiZi": 139
+   },
+   "dupa": {
+    "s1": "R24 Catranîc",
+    "s2": "R36 Bocancea-Schit",
+    "zile": 5,
+    "kmGoiSapt": 695.2,
+    "kmGoiZi": 139
+   }
+  },
+  {
+   "m": "715IZX",
+   "casa": "Biruința",
+   "clasa": 50,
+   "schimburi": 2,
+   "leiKm": 12.42,
+   "acasa": {
+    "dim": true,
+    "seara": true
+   },
+   "acasaVot": {
+    "dim": [
+     5,
+     0
+    ],
+    "seara": [
+     5,
+     0
+    ]
+   },
+   "inainte": {
+    "s1": "R21 Heciul Nou",
+    "s2": "R21 Heciul Nou",
+    "zile": 5,
+    "kmGoiSapt": 223.6,
+    "kmGoiZi": 44.7
+   },
+   "dupa": {
+    "s1": "R21 Heciul Nou",
+    "s2": "R21 Heciul Nou",
+    "zile": 5,
+    "kmGoiSapt": 223.6,
+    "kmGoiZi": 44.7
+   }
+  },
+  {
+   "m": "402VKV",
+   "casa": "Hîjdieni",
+   "clasa": 50,
+   "schimburi": 2,
+   "leiKm": null,
+   "acasa": {
+    "dim": true,
+    "seara": true
+   },
+   "acasaVot": {
+    "dim": [
+     5,
+     0
+    ],
+    "seara": [
+     5,
+     0
+    ]
+   },
+   "inainte": {
+    "s1": "R9 Cobani",
+    "s2": "R9 Cobani",
+    "zile": 5,
+    "kmGoiSapt": 675.8,
+    "kmGoiZi": 135.2
+   },
+   "dupa": {
+    "s1": "R9 Cobani",
+    "s2": "R9 Cobani",
+    "zile": 5,
+    "kmGoiSapt": 675.8,
+    "kmGoiZi": 135.2
+   }
+  },
+  {
+   "m": "041BRAU",
+   "casa": "Drăgănești",
+   "clasa": 20,
+   "schimburi": 2,
+   "leiKm": 7.05,
+   "acasa": {
+    "dim": true,
+    "seara": true
+   },
+   "acasaVot": {
+    "dim": [
+     5,
+     0
+    ],
+    "seara": [
+     4,
+     0
+    ]
+   },
+   "inainte": {
+    "s1": "R20 Nicolaevca",
+    "s2": "R20 Nicolaevca",
+    "zile": 5,
+    "kmGoiSapt": 418,
+    "kmGoiZi": 83.6
+   },
+   "dupa": {
+    "s1": "R20 Nicolaevca",
+    "s2": "R20 Nicolaevca",
+    "zile": 5,
+    "kmGoiSapt": 418,
+    "kmGoiZi": 83.6
+   }
+  },
+  {
+   "m": "206BZP",
+   "casa": "Rădoaia",
+   "clasa": 27,
+   "schimburi": 2,
+   "leiKm": 6.35,
+   "acasa": {
+    "dim": true,
+    "seara": true
+   },
+   "acasaVot": {
+    "dim": [
+     5,
+     0
+    ],
+    "seara": [
+     5,
+     0
+    ]
+   },
+   "inainte": {
+    "s1": "R20 Rădoaia",
+    "s2": "R20 Rădoaia",
+    "zile": 5,
+    "kmGoiSapt": 259.2,
+    "kmGoiZi": 51.8
+   },
+   "dupa": {
+    "s1": "R20 Rădoaia",
+    "s2": "R20 Rădoaia",
+    "zile": 5,
+    "kmGoiSapt": 259.2,
+    "kmGoiZi": 51.8
+   }
+  },
+  {
+   "m": "346KAJ",
+   "casa": "Țaul",
+   "clasa": 20,
+   "schimburi": 1,
+   "leiKm": 6.35,
+   "acasa": {
+    "zi": false
+   },
+   "acasaVot": {
+    "zi": [
+     0,
+     5
+    ]
+   },
+   "inainte": {
+    "s1": null,
+    "s2": "R1 Dondușeni",
+    "zile": 5,
+    "kmGoiSapt": 56.7,
+    "kmGoiZi": 11.3
+   },
+   "dupa": {
+    "s1": null,
+    "s2": "R1 Dondușeni",
+    "zile": 5,
+    "kmGoiSapt": 56.7,
+    "kmGoiZi": 11.3
+   }
+  },
+  {
+   "m": "441ASB",
+   "casa": "Sturzovca",
+   "clasa": 50,
+   "schimburi": 2,
+   "leiKm": 12.42,
+   "acasa": {
+    "dim": true,
+    "seara": true
+   },
+   "acasaVot": {
+    "dim": [
+     5,
+     0
+    ],
+    "seara": [
+     5,
+     0
+    ]
+   },
+   "inainte": {
+    "s1": "R11 Fundurii Vechi",
+    "s2": "R27 Sturzovca",
+    "zile": 5,
+    "kmGoiSapt": 351.9,
+    "kmGoiZi": 70.4
+   },
+   "dupa": {
+    "s1": "R11 Fundurii Vechi",
+    "s2": "R27 Sturzovca",
+    "zile": 5,
+    "kmGoiSapt": 351.9,
+    "kmGoiZi": 70.4
+   }
+  },
+  {
+   "m": "390ASB",
+   "casa": "Pelinia",
+   "clasa": 50,
+   "schimburi": 2,
+   "leiKm": null,
+   "acasa": {
+    "dim": true,
+    "seara": true
+   },
+   "acasaVot": {
+    "dim": [
+     5,
+     0
+    ],
+    "seara": [
+     5,
+     0
+    ]
+   },
+   "inainte": {
+    "s1": "R12 Sofia",
+    "s2": "R4 Grinăuți",
+    "zile": 5,
+    "kmGoiSapt": 410.1,
+    "kmGoiZi": 82
+   },
+   "dupa": {
+    "s1": "R12 Sofia",
+    "s2": "R12 Sofia",
+    "zile": 5,
+    "kmGoiSapt": 443.7,
+    "kmGoiZi": 88.7
+   }
+  },
+  {
+   "m": "880RNK",
+   "casa": "Pelinia",
+   "clasa": 50,
+   "schimburi": 2,
+   "leiKm": 12.42,
+   "acasa": {
+    "dim": true,
+    "seara": true
+   },
+   "acasaVot": {
+    "dim": [
+     5,
+     0
+    ],
+    "seara": [
+     5,
+     0
+    ]
+   },
+   "inainte": {
+    "s1": "R12 Pelinia",
+    "s2": "R12 Pelinia",
+    "zile": 5,
+    "kmGoiSapt": 205.6,
+    "kmGoiZi": 41.1
+   },
+   "dupa": {
+    "s1": "R12 Pelinia",
+    "s2": "R12 Pelinia",
+    "zile": 5,
+    "kmGoiSapt": 205.6,
+    "kmGoiZi": 41.1
+   }
+  },
+  {
+   "m": "350KAJ",
+   "casa": "Florești",
+   "clasa": 20,
+   "schimburi": 2,
+   "leiKm": 6.35,
+   "acasa": {
+    "dim": true,
+    "seara": true
+   },
+   "acasaVot": {
+    "dim": [
+     5,
+     0
+    ],
+    "seara": [
+     5,
+     0
+    ]
+   },
+   "inainte": {
+    "s1": "R16 Vărvăreuca",
+    "s2": "R16 Vărvăreuca",
+    "zile": 5,
+    "kmGoiSapt": 382.1,
+    "kmGoiZi": 76.4
+   },
+   "dupa": {
+    "s1": "R16 Vărvăreuca",
+    "s2": "R16 Vărvăreuca",
+    "zile": 5,
+    "kmGoiSapt": 382.1,
+    "kmGoiZi": 76.4
+   }
+  },
+  {
+   "m": "710CWN",
+   "casa": "Petreni",
+   "clasa": 50,
+   "schimburi": 2,
+   "leiKm": 6.35,
+   "acasa": {
+    "dim": true,
+    "seara": true
+   },
+   "acasaVot": {
+    "dim": [
+     5,
+     0
+    ],
+    "seara": [
+     5,
+     0
+    ]
+   },
+   "inainte": {
+    "s1": "R14 Dominteni",
+    "s2": "R14 Dominteni",
+    "zile": 5,
+    "kmGoiSapt": 322.2,
+    "kmGoiZi": 64.4
+   },
+   "dupa": {
+    "s1": "R14 Dominteni",
+    "s2": "R14 Dominteni",
+    "zile": 5,
+    "kmGoiSapt": 322.2,
+    "kmGoiZi": 64.4
+   }
+  },
+  {
+   "m": "727CWN",
+   "casa": "Sturzovca",
+   "clasa": 50,
+   "schimburi": 2,
+   "leiKm": 6.35,
+   "acasa": {
+    "seara": true,
+    "dim": true
+   },
+   "acasaVot": {
+    "seara": [
+     5,
+     0
+    ],
+    "dim": [
+     5,
+     0
+    ]
+   },
+   "inainte": {
+    "s1": "R27 Sturzovca",
+    "s2": "R27 Sturzovca",
+    "zile": 6,
+    "kmGoiSapt": 354.7,
+    "kmGoiZi": 59.1
+   },
+   "dupa": {
+    "s1": "R27 Sturzovca",
+    "s2": "R27 Sturzovca",
+    "zile": 6,
+    "kmGoiSapt": 354.7,
+    "kmGoiZi": 59.1
+   }
+  },
+  {
+   "m": "293QVT",
+   "casa": "Cotiujenii Mari",
+   "clasa": 20,
+   "schimburi": 1,
+   "leiKm": null,
+   "acasa": {
+    "zi": false,
+    "seara": false
+   },
+   "acasaVot": {
+    "zi": [
+     0,
+     4
+    ],
+    "seara": [
+     0,
+     1
+    ]
+   },
+   "inainte": {
+    "s1": null,
+    "s2": "R31 Cotiujenii Mari",
+    "zile": 5,
+    "kmGoiSapt": 12.4,
+    "kmGoiZi": 2.5
+   },
+   "dupa": {
+    "s1": null,
+    "s2": "R31 Cotiujenii Mari",
+    "zile": 5,
+    "kmGoiSapt": 12.4,
+    "kmGoiZi": 2.5
+   }
+  },
+  {
+   "m": "414ASB",
+   "casa": "Ciuciulea",
+   "clasa": 50,
+   "schimburi": 1,
+   "leiKm": 12.42,
+   "acasa": {
+    "zi": false
+   },
+   "acasaVot": {
+    "zi": [
+     0,
+     4
+    ]
+   },
+   "inainte": {
+    "s1": null,
+    "s2": "R10 Ciuciulea",
+    "zile": 5,
+    "kmGoiSapt": 18.7,
+    "kmGoiZi": 3.7
+   },
+   "dupa": {
+    "s1": null,
+    "s2": "R10 Ciuciulea",
+    "zile": 5,
+    "kmGoiSapt": 18.7,
+    "kmGoiZi": 3.7
+   }
+  },
+  {
+   "m": "826GXP",
+   "casa": "Dominteni",
+   "clasa": 50,
+   "schimburi": 1,
+   "leiKm": 12.42,
+   "acasa": {
+    "zi": false,
+    "dim": true
+   },
+   "acasaVot": {
+    "zi": [
+     0,
+     4
+    ],
+    "dim": [
+     1,
+     0
+    ]
+   },
+   "inainte": {
+    "s1": "R14 Dominteni",
+    "s2": null,
+    "zile": 5,
+    "kmGoiSapt": 22.6,
+    "kmGoiZi": 4.5
+   },
+   "dupa": {
+    "s1": "R14 Dominteni",
+    "s2": null,
+    "zile": 5,
+    "kmGoiSapt": 22.6,
+    "kmGoiZi": 4.5
+   }
+  },
+  {
+   "m": "386PKP",
+   "casa": "Chiurt",
+   "clasa": 20,
+   "schimburi": 1,
+   "leiKm": 6.35,
+   "acasa": {
+    "zi": false,
+    "seara": false
+   },
+   "acasaVot": {
+    "zi": [
+     0,
+     4
+    ],
+    "seara": [
+     0,
+     1
+    ]
+   },
+   "inainte": {
+    "s1": null,
+    "s2": "R7 Ușurei",
+    "zile": 5,
+    "kmGoiSapt": 437.9,
+    "kmGoiZi": 87.6
+   },
+   "dupa": {
+    "s1": null,
+    "s2": "R7 Ușurei",
+    "zile": 5,
+    "kmGoiSapt": 437.9,
+    "kmGoiZi": 87.6
+   }
+  },
+  {
+   "m": "549RNK",
+   "casa": "Edineț",
+   "clasa": 27,
+   "schimburi": 2,
+   "leiKm": 6.7,
+   "acasa": {
+    "dim": false,
+    "seara": true
+   },
+   "acasaVot": {
+    "dim": [
+     0,
+     5
+    ],
+    "seara": [
+     5,
+     0
+    ]
+   },
+   "inainte": {
+    "s1": "R2 Stolniceni",
+    "s2": "R5 Aluniș (tur) / R2 Cupcini (retur)",
+    "zile": 5,
+    "kmGoiSapt": 875.5,
+    "kmGoiZi": 175.1
+   },
+   "dupa": {
+    "s1": "R2 Stolniceni",
+    "s2": "R5 Aluniș (tur) / R2 Cupcini (retur)",
+    "zile": 5,
+    "kmGoiSapt": 875.5,
+    "kmGoiZi": 175.1
+   }
+  },
+  {
+   "m": "804MUM",
+   "casa": "Pământeni",
+   "clasa": 50,
+   "schimburi": 2,
+   "leiKm": 12.42,
+   "acasa": {
+    "dim": true,
+    "zi": true
+   },
+   "acasaVot": {
+    "dim": [
+     2,
+     0
+    ],
+    "zi": [
+     1,
+     0
+    ]
+   },
+   "inainte": {
+    "s1": "R18 Putinești (tur) / R22 Țiplești (retur)",
+    "s2": "R22 Țiplești (doar turul)",
+    "zile": 5,
+    "kmGoiSapt": 363.3,
+    "kmGoiZi": 72.7
+   },
+   "dupa": {
+    "s1": "R18 Putinești (tur) / R22 Țiplești (retur)",
+    "s2": "R22 Țiplești (doar turul)",
+    "zile": 5,
+    "kmGoiSapt": 363.3,
+    "kmGoiZi": 72.7
+   }
+  }
+ ],
+ "neregulate": [
+  {
+   "m": "925FTI",
+   "schimb": "s2",
+   "sens": "tur",
+   "linie": "R23 Scumpia",
+   "zile": [
+    "2026-09-19"
+   ],
+   "motiv": "altă linie decât cea obișnuită a mașinii"
+  },
+  {
+   "m": "925FTI",
+   "schimb": "s2",
+   "sens": "retur",
+   "linie": "R23 Scumpia",
+   "zile": [
+    "2026-09-19"
+   ],
+   "motiv": "altă linie decât cea obișnuită a mașinii"
+  },
+  {
+   "m": "024XKY",
+   "schimb": "s2",
+   "zile": [
+    "2026-09-16"
+   ],
+   "tur": "R15 Șuri",
+   "retur": null,
+   "motiv": "mai puțin de 2 zile"
+  },
+  {
+   "m": "912RNK",
+   "schimb": "s1",
+   "sens": "tur",
+   "linie": "R38 Glinjeni",
+   "zile": [
+    "2026-09-14",
+    "2026-09-16"
+   ],
+   "motiv": "altă linie decât cea obișnuită a mașinii"
+  },
+  {
+   "m": "345KAJ",
+   "schimb": "s1",
+   "sens": "tur",
+   "linie": "R3 Nihoreni",
+   "zile": [
+    "2026-09-14"
+   ],
+   "motiv": "altă linie decât cea obișnuită a mașinii"
+  },
+  {
+   "m": "345KAJ",
+   "schimb": "s1",
+   "sens": "retur",
+   "linie": "R3 Nihoreni",
+   "zile": [
+    "2026-09-16"
+   ],
+   "motiv": "altă linie decât cea obișnuită a mașinii"
+  },
+  {
+   "m": "457BRAX",
+   "schimb": "s1",
+   "sens": "tur",
+   "linie": "R11 Limbenii Noi",
+   "zile": [
+    "2026-09-14",
+    "2026-09-19"
+   ],
+   "motiv": "altă linie decât cea obișnuită a mașinii"
+  },
+  {
+   "m": "457BRAX",
+   "schimb": "s1",
+   "sens": "retur",
+   "linie": "R11 Limbenii Noi",
+   "zile": [
+    "2026-09-19"
+   ],
+   "motiv": "altă linie decât cea obișnuită a mașinii"
+  },
+  {
+   "m": "457BRAX",
+   "schimb": "s2",
+   "sens": "tur",
+   "linie": "R27 Danu",
+   "zile": [
+    "2026-09-19"
+   ],
+   "motiv": "altă linie decât cea obișnuită a mașinii"
+  },
+  {
+   "m": "457BRAX",
+   "schimb": "s2",
+   "sens": "retur",
+   "linie": "R27 Danu",
+   "zile": [
+    "2026-09-19"
+   ],
+   "motiv": "altă linie decât cea obișnuită a mașinii"
+  },
+  {
+   "m": "435ASB",
+   "schimb": "s2",
+   "sens": "tur",
+   "linie": "R19 Bilicenii Vechi",
+   "zile": [
+    "2026-09-16"
+   ],
+   "motiv": "altă linie decât cea obișnuită a mașinii"
+  },
+  {
+   "m": "388ASB",
+   "schimb": "s2",
+   "sens": "retur",
+   "linie": "R15 Șuri",
+   "zile": [
+    "2026-09-18"
+   ],
+   "motiv": "altă linie decât cea obișnuită a mașinii"
+  },
+  {
+   "m": "725CWN",
+   "schimb": "s1",
+   "sens": "retur",
+   "linie": "R33 Bilicenii Vechi",
+   "zile": [
+    "2026-09-19"
+   ],
+   "motiv": "altă linie decât cea obișnuită a mașinii"
+  },
+  {
+   "m": "725CWN",
+   "schimb": "s2",
+   "sens": "tur",
+   "linie": "R19 Copăceni",
+   "zile": [
+    "2026-09-19"
+   ],
+   "motiv": "altă linie decât cea obișnuită a mașinii"
+  },
+  {
+   "m": "725CWN",
+   "schimb": "s2",
+   "sens": "retur",
+   "linie": "R33 Bilicenii Vechi",
+   "zile": [
+    "2026-09-19"
+   ],
+   "motiv": "altă linie decât cea obișnuită a mașinii"
+  },
+  {
+   "m": "518MHD",
+   "schimb": "s1",
+   "sens": "retur",
+   "linie": "R32 Căinarii Vechi",
+   "zile": [
+    "2026-09-15"
+   ],
+   "motiv": "altă linie decât cea obișnuită a mașinii"
+  },
+  {
+   "m": "518MHD",
+   "schimb": "s1",
+   "sens": "retur",
+   "linie": "R32 Trifănești",
+   "zile": [
+    "2026-09-17",
+    "2026-09-18"
+   ],
+   "motiv": "altă linie decât cea obișnuită a mașinii"
+  },
+  {
+   "m": "518MHD",
+   "schimb": "s2",
+   "sens": "tur",
+   "linie": "R32 Trifănești",
+   "zile": [
+    "2026-09-15"
+   ],
+   "motiv": "altă linie decât cea obișnuită a mașinii"
+  },
+  {
+   "m": "518MHD",
+   "schimb": "s2",
+   "sens": "tur",
+   "linie": "R16 Vărvăreuca",
+   "zile": [
+    "2026-09-16"
+   ],
+   "motiv": "altă linie decât cea obișnuită a mașinii"
+  },
+  {
+   "m": "518MHD",
+   "schimb": "s2",
+   "sens": "tur",
+   "linie": "R32 Căinarii Vechi",
+   "zile": [
+    "2026-09-18"
+   ],
+   "motiv": "altă linie decât cea obișnuită a mașinii"
+  },
+  {
+   "m": "744ARF",
+   "schimb": "s1",
+   "zile": [
+    "2026-09-18"
+   ],
+   "tur": null,
+   "retur": "R13 Hăsnășenii Noi",
+   "motiv": "mai puțin de 2 zile"
+  },
+  {
+   "m": "146BRAZ",
+   "schimb": "s2",
+   "sens": "tur",
+   "linie": "R32 Căinarii Vechi",
+   "zile": [
+    "2026-09-19"
+   ],
+   "motiv": "altă linie decât cea obișnuită a mașinii"
+  },
+  {
+   "m": "763LYY",
+   "schimb": "s1",
+   "sens": "retur",
+   "linie": "R18 Zarojeni",
+   "zile": [
+    "2026-09-16"
+   ],
+   "motiv": "altă linie decât cea obișnuită a mașinii"
+  },
+  {
+   "m": "224BZP",
+   "schimb": "s2",
+   "sens": "tur",
+   "linie": "R36 Bobletici",
+   "zile": [
+    "2026-09-16"
+   ],
+   "motiv": "altă linie decât cea obișnuită a mașinii"
+  },
+  {
+   "m": "041BRAU",
+   "schimb": "s2",
+   "sens": "tur",
+   "linie": "R20 Drăgănești",
+   "zile": [
+    "2026-09-14"
+   ],
+   "motiv": "altă linie decât cea obișnuită a mașinii"
+  },
+  {
+   "m": "441ASB",
+   "schimb": "s2",
+   "sens": "tur",
+   "linie": "R11 Fundurii Vechi",
+   "zile": [
+    "2026-09-15"
+   ],
+   "motiv": "altă linie decât cea obișnuită a mașinii"
+  },
+  {
+   "m": "293QVT",
+   "schimb": "s1",
+   "zile": [
+    "2026-09-18"
+   ],
+   "tur": null,
+   "retur": "R16 Vărvăreuca",
+   "motiv": "mai puțin de 2 zile"
+  },
+  {
+   "m": "826GXP",
+   "schimb": "s2",
+   "zile": [
+    "2026-09-17"
+   ],
+   "tur": "R22 Țiplești",
+   "retur": null,
+   "motiv": "mai puțin de 2 zile"
+  },
+  {
+   "m": "386PKP",
+   "schimb": "s1",
+   "zile": [
+    "2026-09-18"
+   ],
+   "tur": null,
+   "retur": "R7 Slobozia",
+   "motiv": "mai puțin de 2 zile"
+  }
+ ],
+ "faraCasa": [],
+ "control": {
+  "fiecareSarcinaOData": {
+   "trece": true,
+   "sarcini": 67,
+   "acoperite": 67
+  },
+  "capacitate": {
+   "trece": true
+  },
+  "schimbPastrat": {
+   "trece": true
+  },
+  "oLiniePeSchimb": {
+   "trece": true
+  },
+  "economie": {
+   "trece": true,
+   "inainte": 19212.7,
+   "dupa": 18887.7,
+   "diferenta": 324.9,
+   "sumaLanturi": 325
+  },
+  "modelVsGps": {
+   "modelInainte": 19212.7,
+   "gpsGoi": 25484.9,
+   "gpsGoiFaraParc": 24538.1,
+   "abatere": -24.6,
+   "abatereFaraParc": -21.7,
+   "trece": false,
+   "peBucati": {
+    "start": {
+     "model": 2531.8,
+     "gps": 3317,
+     "dif": -785.2
+    },
+    "final": {
+     "model": 2894.9,
+     "gps": 4186.4,
+     "dif": -1291.5
+    },
+    "dim": {
+     "model": 6563.7,
+     "gps": 7188.1,
+     "dif": -624.4
+    },
+    "seara": {
+     "model": 6550.4,
+     "gps": 7307.4,
+     "dif": -757
+    },
+    "zi": {
+     "model": 385.2,
+     "gps": 2098.8,
+     "dif": -1713.6
+    },
+    "alt": {
+     "model": 0,
+     "gps": 115,
+     "dif": -115
+    },
+    "direct": {
+     "model": 286.6,
+     "gps": 1273.1,
+     "dif": -986.5
+    },
+    "inAfara": {
+     "model": 0,
+     "gps": 0,
+     "dif": 0
+    }
+   }
+  }
+ },
+ "modelVsGpsPeMasina": [
+  {
+   "m": "024XKY",
+   "model": 238.1,
+   "gps": 760.4,
+   "dif": -522.3
+  },
+  {
+   "m": "804MUM",
+   "model": 363.3,
+   "gps": 799.1,
+   "dif": -435.8
+  },
+  {
+   "m": "744ARF",
+   "model": 283.7,
+   "gps": 717.2,
+   "dif": -433.5
+  },
+  {
+   "m": "293QVT",
+   "model": 12.4,
+   "gps": 403.4,
+   "dif": -391
+  },
+  {
+   "m": "146BRAZ",
+   "model": 586,
+   "gps": 959.5,
+   "dif": -373.5
+  },
+  {
+   "m": "925FTI",
+   "model": 975.1,
+   "gps": 1290.1,
+   "dif": -315
+  },
+  {
+   "m": "302YEK",
+   "model": 767.2,
+   "gps": 1025.5,
+   "dif": -258.3
+  },
+  {
+   "m": "713IZX",
+   "model": 561.9,
+   "gps": 780.9,
+   "dif": -219
+  },
+  {
+   "m": "715IZX",
+   "model": 223.6,
+   "gps": 435.2,
+   "dif": -211.6
+  },
+  {
+   "m": "446ASB",
+   "model": 619.1,
+   "gps": 826.8,
+   "dif": -207.7
+  },
+  {
+   "m": "206BZP",
+   "model": 259.2,
+   "gps": 456.7,
+   "dif": -197.5
+  },
+  {
+   "m": "346KAJ",
+   "model": 56.7,
+   "gps": 246.9,
+   "dif": -190.2
+  },
+  {
+   "m": "710CWN",
+   "model": 322.2,
+   "gps": 502.6,
+   "dif": -180.4
+  },
+  {
+   "m": "186OMM",
+   "model": 595.6,
+   "gps": 770.3,
+   "dif": -174.7
+  },
+  {
+   "m": "350KAJ",
+   "model": 382.1,
+   "gps": 532.2,
+   "dif": -150.1
+  },
+  {
+   "m": "826GXP",
+   "model": 22.6,
+   "gps": 171.1,
+   "dif": -148.5
+  },
+  {
+   "m": "041BRAU",
+   "model": 418,
+   "gps": 562,
+   "dif": -144
+  },
+  {
+   "m": "725CWN",
+   "model": 534.1,
+   "gps": 676.4,
+   "dif": -142.4
+  },
+  {
+   "m": "441ASB",
+   "model": 351.9,
+   "gps": 479.9,
+   "dif": -128
+  },
+  {
+   "m": "880RNK",
+   "model": 205.6,
+   "gps": 313.7,
+   "dif": -108.1
+  },
+  {
+   "m": "388ASB",
+   "model": 743.3,
+   "gps": 847.6,
+   "dif": -104.4
+  },
+  {
+   "m": "435ASB",
+   "model": 380.7,
+   "gps": 484.8,
+   "dif": -104.1
+  },
+  {
+   "m": "912RNK",
+   "model": 989.3,
+   "gps": 1093.1,
+   "dif": -103.9
+  },
+  {
+   "m": "549RNK",
+   "model": 875.5,
+   "gps": 978.9,
+   "dif": -103.4
+  },
+  {
+   "m": "414ASB",
+   "model": 18.7,
+   "gps": 121.6,
+   "dif": -102.9
+  },
+  {
+   "m": "144BRAZ",
+   "model": 338.4,
+   "gps": 441.2,
+   "dif": -102.8
+  },
+  {
+   "m": "760BXI",
+   "model": 895.5,
+   "gps": 991,
+   "dif": -95.5
+  },
+  {
+   "m": "345KAJ",
+   "model": 1132.8,
+   "gps": 1227.9,
+   "dif": -95.1
+  },
+  {
+   "m": "457BRAX",
+   "model": 930,
+   "gps": 1023.4,
+   "dif": -93.4
+  },
+  {
+   "m": "386PKP",
+   "model": 437.9,
+   "gps": 528.4,
+   "dif": -90.5
+  },
+  {
+   "m": "763LYY",
+   "model": 693.9,
+   "gps": 772.9,
+   "dif": -79.1
+  },
+  {
+   "m": "402VKV",
+   "model": 675.8,
+   "gps": 754.1,
+   "dif": -78.3
+  },
+  {
+   "m": "447ASB",
+   "model": 802.8,
+   "gps": 858.9,
+   "dif": -56.1
+  },
+  {
+   "m": "390ASB",
+   "model": 410.1,
+   "gps": 452.5,
+   "dif": -42.4
+  },
+  {
+   "m": "830MUM",
+   "model": 419.1,
+   "gps": 453.1,
+   "dif": -34
+  },
+  {
+   "m": "224BZP",
+   "model": 695.2,
+   "gps": 727.5,
+   "dif": -32.4
+  },
+  {
+   "m": "518MHD",
+   "model": 641.1,
+   "gps": 664.8,
+   "dif": -23.7
+  },
+  {
+   "m": "727CWN",
+   "model": 354.7,
+   "gps": 353.3,
+   "dif": 1.4
+  }
+ ],
+ "valhalla": {
+  "noi": 7,
+  "inCache": 9739
+ }
+}

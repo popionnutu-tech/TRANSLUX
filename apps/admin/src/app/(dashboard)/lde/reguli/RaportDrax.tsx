@@ -3,8 +3,9 @@
 import { Fragment, useState } from 'react';
 import Saptamana from './Saptamana';
 import { CAT_DRAX, PRAG_INDICATII_KM, type AnalizaDrax, type CategorieDrax, type MasinaDrax } from '@/lib/lde/drax-analiza';
-import { ceFaciDrax, indicatieMasina } from '@/lib/lde/drax-ce-faci';
-import CeFaciDraxSectiune, { CazuriZiCuZi } from './CeFaciDrax';
+import { paginaCeFaci, textCard } from '@/lib/lde/drax-ce-faci-text';
+import { frazaSaptamana, povesteZi } from '@/lib/lde/drax-ziua';
+import CeFaciDraxSectiune from './CeFaciDrax';
 
 // Raportul săptămânal Drăxlmaier Bălți (ION-94, faza 3 din ION-86). Cifrele NU se socotesc aici: sunt ale rândului «DRAXELMAIER»
 // scris luni de VPS (drax/cod/saptamanal), același din care se desenează posterul. Componentă PROPRIE (nu RaportBriceni): la
@@ -32,7 +33,9 @@ export const NUME_CAT_DRAX: Record<CategorieDrax, string> = {
   cuOameni: 'cu oameni', livrare: 'livrare (casă – rută)', golRuta: 'gol pe rută', golTure: 'gol între tur și retur', parc: 'parc (lângă uzină)',
   service: 'service', deplasare: 'deplasare', legatura: 'legătură între linii', necunoscut: 'necunoscut',
 };
-const CULOARE_CAT: Partial<Record<CategorieDrax, string>> = { livrare: VERDE, necunoscut: ROSU };
+/** mișcările fără oameni în ziua povestită: km goi evidențiați */
+const GOL = 'text-[#8a5a00] dark:text-[#e0b25c]';
+const FARA_CIFRA = { kmSapt: 0, parti: { dimineata: { kmZi: 0, kmSapt: 0 }, seara: { kmZi: 0, kmSapt: 0 } } };
 
 function Card({ titlu, val, sub, mare }: { titlu: string; val: string; sub: string; mare?: boolean }) {
   return (
@@ -51,38 +54,26 @@ function Zile({ m }: { m: MasinaDrax }) {
   return (
     <div className="space-y-3!">
       {m.deLamurit && <p className={`text-[12.5px] ${ROSU}`}>De lămurit — posibilă cursă a firmei: {m.deLamurit}</p>}
-      {m.detalii.map((d) => (
-        <div key={d.z}>
-          <div className="mb-1! flex flex-wrap gap-x-4 text-[12.5px]">
-            <b>{zi(d.z)}</b>
-            <span className="text-neutral-500">{n1(d.total)} km în zi · noaptea la {d.noapteDim ?? '—'} → {d.noapteSeara ?? '—'}</span>
-            {d.economie && <span className={VERDE}>B {n1(d.economie.B)} km (R1a {n1(d.economie.R1a)} · R1b {n1(d.economie.R1b)} · R3 {n1(d.economie.R3)})</span>}
-            {d.economie && d.economie.nelamurit > 0 && <span className="text-neutral-500">nelămurit {n1(d.economie.nelamurit)} km</span>}
-            {d.exclus && <span className="text-neutral-500">nu intră în sumele §8: {d.exclus}</span>}
-            {d.brambura > 0 && <span className={ROSU}>brambura {n1(d.brambura)} km</span>}
-            {!d.bilant && <span className={ROSU}>bilanț cu {n1(d.dif)} km diferență</span>}
-          </div>
-          <table className="w-full border-collapse text-[12px]">
-            <tbody>
-              {d.bucati.map((b, i) => (
-                <tr key={i} className="border-t border-neutral-100 dark:border-neutral-800">
-                  <td className="w-[110px] px-2! py-0.5! whitespace-nowrap font-mono text-neutral-500">{b.ora}</td>
-                  <td className={`w-[190px] px-2! py-0.5! ${CULOARE_CAT[b.cat] ?? ''}`}>
-                    {NUME_CAT_DRAX[b.cat] ?? b.cat}{b.ocol ? ' · ocol' : ''}{b.pranz ? ' · cursă de prânz' : ''}
-                  </td>
-                  <td className="w-[70px] px-2! py-0.5! text-right font-mono tabular-nums">{n1(b.km)}</td>
-                  <td className="w-[300px] px-2! py-0.5!">{b.de || b.pana ? <span className="font-medium">{b.de ?? '?'} → {b.pana ?? '?'}</span> : null}</td>
-                  <td className="w-[200px] px-2! py-0.5! text-neutral-500">{linie(b.lin)}</td>
-                  <td className="px-2! py-0.5! text-neutral-500">
-                    {b.motiv ?? ''}
-                    {b.cat === 'golTure' && b.r3 != null ? ` · R3 ${n1(b.r3)} km (din afara zonei), în zona uzinei ${n1(b.inZona)} km` : ''}
-                  </td>
-                </tr>
+      {m.detalii.map((d) => {
+        const miscari = povesteZi(d, m.casa);
+        const gol = miscari.filter((x) => x.tip !== 'cuOameni').reduce((s, x) => s + x.km, 0);
+        return (
+          <div key={d.z}>
+            <div className="mb-1! flex flex-wrap gap-x-4 text-[12.5px]">
+              <b>{zi(d.z)}</b>
+              <span className="text-neutral-500">{n0(d.total)} km în zi, din care {n0(gol)} km goi · noaptea la {d.noapteDim ?? '—'} → {d.noapteSeara ?? '—'}</span>
+              {d.exclus && <span className="text-neutral-500">ziua nu intră în calcul: {d.exclus}</span>}
+              {d.brambura > 0 && <span className={ROSU}>brambura {n1(d.brambura)} km</span>}
+              {!d.bilant && <span className={ROSU}>km-ii zilei nu se închid ({n1(d.dif)} km diferență)</span>}
+            </div>
+            <ul className="space-y-0.5! text-[12.5px] leading-snug">
+              {miscari.map((x, i) => (
+                <li key={i} className={x.tip === 'cuOameni' ? '' : x.kmPeAcasa >= 0.5 ? `font-semibold ${GOL}` : GOL}>{x.text}</li>
               ))}
-            </tbody>
-          </table>
-        </div>
-      ))}
+            </ul>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -132,13 +123,16 @@ export default function RaportDrax({ a, saptamani }: { a: RaportDraxDate | null;
     );
   }
   const c = a.economie.carduri;
-  const cf = ceFaciDrax(a);
+  const pagina = paginaCeFaci(a);
+  const cf = pagina.c;
+  // cifra mașinii (gol din cauza drumului acasă între curse): aceeași în frază, în tabel și în rândul deschis
+  const cifra = new Map(cf.masini.map((x) => [x.m, x]));
   const t = a.total;
   const TL = a.timp_liber;
   const masini = [...a.masini].sort((x, y) => (y.extrapolat.B ?? -1) - (x.extrapolat.B ?? -1));
   const azi = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Chisinau' });
   const inCurs = a.pana_la >= azi;
-  const cols = ['Mașina', 'Linii', 'Zile', 'Noaptea la', 'R1a', 'R1b', 'R3', 'B', 'Liber', 'Brambura'];
+  const cols = ['Mașina', 'Linii', 'Zile', 'Noaptea la', 'Gol dimineața/seara', 'Gol între curse (acasă)', 'Total gol', 'Liber', 'Brambura'];
   const P10 = a.control.P10;
   const probe = Object.entries(a.control.probe ?? {});
 
@@ -161,20 +155,20 @@ export default function RaportDrax({ a, saptamani }: { a: RaportDraxDate | null;
       </header>
 
       <div className="grid gap-4 md:grid-cols-4">
-        <Card titlu="Se poate tăia cu o dispoziție · R1b + R3" val={n0(c.R1bR3)} mare
-          sub={`Realist (așteaptă ≤ 3 h, ≥ 20 km/zi) ${n0(cf.km.realist)} · candidați de schimb de linii ${n0(cf.km.schimb)} · mici, sub prag ${n0(cf.km.mic)} km. Ocolul pe acasă între curse și drumul acasă între tur și retur.`} />
-        <Card titlu="Cost de azi · regula B" val={n0(c.B)}
-          sub={`R1a + R1b + R3, nu economie garantată${c.deLamurit.B >= 0.5 ? ` · din care ${n0(c.deLamurit.B)} km de lămurit scoși` : ''}${c.lei ? ` · ≈ ${n0(c.lei)} lei pe mașinile cu normă` : ''}`} />
-        <Card titlu="Marginile zilei · R1a" val={n0(c.R1a)} sub="Drumul de acasă la prima cursă și seara înapoi — se taie doar cu alt șofer din satul de start." />
+        <Card titlu="Gol între curse · drumul acasă" val={n0(c.R1bR3)} mare
+          sub={textCard(cf)} />
+        <Card titlu="Total gol de tăiat" val={n0(c.B)}
+          sub={`Gol dimineața și seara + gol între curse: cât costă azi, nu economie garantată${c.deLamurit.B >= 0.5 ? ` · din care ${n0(c.deLamurit.B)} km de lămurit scoși` : ''}${c.lei ? ` · ≈ ${n0(c.lei)} lei pe mașinile cu normă` : ''}`} />
+        <Card titlu="Gol dimineața și seara" val={n0(c.R1a)} sub="Drumul de acasă la prima cursă și seara înapoi — se taie doar cu alt șofer din satul de start." />
         <Card titlu="Timp liber · brambura (§11)" val={`${n0(TL.km_total)} · ${n0(TL.km_brambura_total)}`}
           sub={`Doar în km neexplicați de §5. Peste ${TL.prag_km} km: ${TL.masini_peste_prag.join(', ') || '—'} · brambura: ${TL.masini_peste_prag_brambura.join(', ') || '—'}.`} />
       </div>
 
-      <CeFaciDraxSectiune c={cf} />
+      <CeFaciDraxSectiune p={pagina} />
 
       <div className="mb-3! mt-9! flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-xs font-bold uppercase tracking-widest text-neutral-500">Mașină cu mașină · km pe săptămână, extrapolați</h2>
-        <span className="text-[12px] text-neutral-500">apasă un rând ca să vezi zilele, bucată cu bucată</span>
+        <span className="text-[12px] text-neutral-500">apasă un rând ca să vezi ziua mașinii, drum cu drum</span>
       </div>
       <div className="overflow-x-auto rounded-[12px] border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900">
         <table className="w-full min-w-[1100px] border-collapse text-[13px]">
@@ -186,7 +180,8 @@ export default function RaportDrax({ a, saptamani }: { a: RaportDraxDate | null;
           <tbody>
             {masini.map((m) => {
               const des = deschis === m.m;
-              const d = (m.extrapolat.R1b ?? 0) + (m.extrapolat.R3 ?? 0);
+              const cm = cifra.get(m.m);
+              const d = cm?.kmSapt ?? 0;
               return (
                 <Fragment key={m.m}>
                   <tr onClick={() => setDeschis(des ? null : m.m)} aria-expanded={des}
@@ -196,11 +191,10 @@ export default function RaportDrax({ a, saptamani }: { a: RaportDraxDate | null;
                     <td className="px-3! py-2! text-right font-mono tabular-nums" title="zile măsurate / zile lucrate luni–vineri">{m.zileIncluse}/{m.zile}</td>
                     <td className="px-3! py-2!">{m.casa ?? '—'}</td>
                     {m.extrapolat.B == null
-                      ? <td colSpan={4} className="px-3! py-2! text-right text-neutral-500">nemăsurat (nicio zi măsurabilă)</td>
+                      ? <td colSpan={3} className="px-3! py-2! text-right text-neutral-500">nemăsurat (nicio zi măsurabilă)</td>
                       : <>
                           <td className="px-3! py-2! text-right font-mono tabular-nums text-neutral-500">{n0(m.extrapolat.R1a)}</td>
-                          <td className={`px-3! py-2! text-right font-mono tabular-nums ${d >= PRAG_INDICATII_KM ? `font-bold ${VERDE}` : ''}`}>{n0(m.extrapolat.R1b)}</td>
-                          <td className={`px-3! py-2! text-right font-mono tabular-nums ${d >= PRAG_INDICATII_KM ? `font-bold ${VERDE}` : ''}`}>{n0(m.extrapolat.R3)}</td>
+                          <td className={`px-3! py-2! text-right font-mono tabular-nums ${d >= PRAG_INDICATII_KM ? `font-bold ${VERDE}` : ''}`}>{n0(d)}</td>
                           <td className="px-3! py-2! text-right font-mono tabular-nums">{n0(m.extrapolat.B)}{m.deLamuritScos.B >= 0.5 && <div className="text-[11px] text-neutral-500">−{n0(m.deLamuritScos.B)} de lămurit</div>}</td>
                         </>}
                     <td className={`px-3! py-2! text-right font-mono tabular-nums ${m.liber?.peste_prag ? `font-bold ${ROSU}` : 'text-neutral-500'}`}>{m.liber ? n1(m.liber.km) : '—'}</td>
@@ -209,14 +203,7 @@ export default function RaportDrax({ a, saptamani }: { a: RaportDraxDate | null;
                   {des && (
                     <tr className="bg-neutral-50/70 dark:bg-neutral-800/30">
                       <td colSpan={cols.length} className="px-4! py-3!">
-                        <p className="mb-2! text-[12.5px] text-neutral-500">
-                          Măsurat (fără extrapolare): R1a {n1(m.economie.R1a)} · R1b {n1(m.economie.R1b)} · R3 {n1(m.economie.R3)} · B {n1(m.economie.B)} km
-                          {m.economie.A != null && <> · A (LEAR R1, doar referință, nu se aplică) {n1(m.economie.A)} km</>}
-                          {' '}· așteaptă deja lângă uzină: {m.dejaLangaUzina.intervale} intervale, {n1(m.dejaLangaUzina.km)} km
-                          {m.liber && <> · §11: neclar {n1(m.liber.km_neclar)} · navetă {n1(m.liber.km_naveta)} · reparație {n1(m.liber.km_reparatie)} · altă uzină {n1(m.liber.km_alta_uzina)} · explicat de §5 {n1(m.kmExplicatF2)} km</>}
-                          {m.steaguriLiber.length > 0 && <> · {m.steaguriLiber.join('; ')}</>}
-                        </p>
-                        <CazuriZiCuZi x={indicatieMasina(m)} />
+                        <p className="mb-3! text-[13px]">{frazaSaptamana(m, cm ?? FARA_CIFRA)}</p>
                         <Zile m={m} />
                       </td>
                     </tr>
@@ -229,8 +216,7 @@ export default function RaportDrax({ a, saptamani }: { a: RaportDraxDate | null;
             <tr className="border-t border-neutral-200 font-semibold dark:border-neutral-700">
               <td className="px-3! py-2.5!" colSpan={4}>Pe {masini.length} mașini{c.nemasurate.length ? ` · nemăsurate: ${c.nemasurate.join(', ')}` : ''}</td>
               <td className="px-3! py-2.5! text-right font-mono tabular-nums">{n0(c.R1a)}</td>
-              <td className="px-3! py-2.5! text-right font-mono tabular-nums">{n0(c.R1b)}</td>
-              <td className="px-3! py-2.5! text-right font-mono tabular-nums">{n0(c.R3)}</td>
+              <td className="px-3! py-2.5! text-right font-mono tabular-nums">{n0(c.R1bR3)}</td>
               <td className="px-3! py-2.5! text-right font-mono tabular-nums">{n0(c.B)}</td>
               <td className="px-3! py-2.5! text-right font-mono tabular-nums">{n1(TL.km_total)}</td>
               <td className="px-3! py-2.5! text-right font-mono tabular-nums">{n1(TL.km_brambura_total)}</td>

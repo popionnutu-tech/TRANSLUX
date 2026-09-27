@@ -51,7 +51,11 @@ fi
 # Fără flock exterior: workerul are lock-ul lui (/tmp/drax-sapt.lock, flock -w 30).
 DRAX_SAPT="${DRAX_SAPT:-$LDE_DIR/drax/cod/saptamanal/saptamanal.sh}"
 LIMITA_D=(); command -v timeout >/dev/null && LIMITA_D=(timeout 280)
-if ! nice -n 10 ${LIMITA_D[@]+"${LIMITA_D[@]}"} bash "$DRAX_SAPT" --write; then
+# Întrerupătorul (Ion, 27.09.2026: «fără rulare automată la moment»): cât timp există $LDE_DIR/drax/OPRIT, Drăxlmaier nu rulează luni
+# (restul uzinelor merg); paznicul va arăta rândul Drăxlmaier lipsă. Repornire: rm $LDE_DIR/drax/OPRIT.
+if [ -e "$LDE_DIR/drax/OPRIT" ]; then
+  echo "drax saptamanal: OPRIT ($(head -c 200 "$LDE_DIR/drax/OPRIT")) — sărit" >&2
+elif ! nice -n 10 ${LIMITA_D[@]+"${LIMITA_D[@]}"} bash "$DRAX_SAPT" --write; then
   echo "drax saptamanal: rularea a picat (P10? vezi scrie.log), a depășit 280 s sau lock-ul e ocupat" >&2; picat=1
 fi
 

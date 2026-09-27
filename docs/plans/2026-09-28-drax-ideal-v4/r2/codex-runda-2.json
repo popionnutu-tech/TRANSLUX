@@ -1,0 +1,27 @@
+{
+  "score": 5.0,
+  "verdict": "fail",
+  "summary": "A: DA condiționat de corecția săptămânală M-a și de v9 cu registrul valid, urmată de export reușit; NU activării imediate, iar reproducerea pe VPS nu a fost reverificată independent aici. B: DA exclusiv diagnosticului; D: steagurile și cardurile convenite rămân, inclusiv Bocancea, fără redeschiderea triajului anterior. C: NU formei actuale; susțin criteriul în trei condiții al analistului, excluderea zilei cerută de business, blocul separat de indicații și păstrarea c2 pentru Ion după recalculare. Nu susțin H2 al analistului ca high: tabelul afișează inclusiv mașinile nemăsurate (apps/admin/src/app/(dashboard)/lde/reguli/RaportDrax.tsx:181–207); nici dispariția automată a întrebării F4 nu rezultă din cod, care păstrează separat deLamurit, iar ponderile verificatorului nu respectă rubrica comună; căile citate mai jos sunt din worktree-ul ion-110.",
+  "deductions": [
+    {
+      "id": "C1",
+      "severity": "high",
+      "weight": 2.5,
+      "title": "Criteriul C.1 tratează atingerea porții drept dovadă suficientă pentru o cursă probabil nedetectată.",
+      "detail": "Propunerea executabilă nu cere sensul mișcării, separarea de cursa vecină și atingerea unui sat din afara Bălțiului. Regulile existente admit explicit drumuri goale care ating poarta, iar identificarea curselor verifică și capătul liniei. Susțin H1 al analistului privind detectorul, însă cei 351,2 km atribuiți lui 024XKY nu reprezintă o reducere nouă a R1a publicat: componentele respective sunt deja scoase prin de-lamurit.json. Prejudiciul este clasificarea falsă și, dacă se exclude ziua, eliminarea altor componente valide.",
+      "evidence": "packages/db/migrations/406_lde_drax_reguli_economie.sql:13; docs/plans/2026-09-26-drax-f3-executie/economie/etichete.mjs:45–61; docs/plans/2026-09-26-drax-f3-executie/saptamanal/de-lamurit.json:3–6; docs/plans/2026-09-27-drax-plan-schimb/v3/worker/scrie-analiza.mjs:48–54",
+      "failure_scenario": "După returul detectat, o mașină merge goală spre casa din Bălți și atinge din nou poarta în fereastra returului s2, fără să deservească vreun sat. C.1 marchează drumul drept cursă nedetectată; elimină nejustificat R1a sau, aplicat împreună cu excluderea zilei, scoate și R1b/R3 valide.",
+      "suggested_fix": "Înlocuiți explicit C.1 cu cele trei condiții ale analistului: atingere în interiorul intervalului, separată de margini; sosire pentru tur și plecare pentru retur; sat atins în afara zonei Bălți. Păstrați precedența §11.8 și cereți verificarea cazurilor 024XKY, 744ARF 16.09 și a trecerilor spre casă înaintea aplicării."
+    },
+    {
+      "id": "C2",
+      "severity": "high",
+      "weight": 2.5,
+      "title": "Planul lasă incompatibile excluderea bucății și excluderea întregii zile.",
+      "detail": "C.1 spune că bucata iese din R1a, business cere excluderea zilei, iar analistul recomandă păstrarea zilei prin schimbarea regulii. Contractul actual folosește un singur eșantion de zile pentru toate componentele economiei; simpla scădere a unei bucăți nu actualizează acest eșantion. Această alegere schimbă atât sumele, cât și numitorul extrapolării și eligibilitatea indicațiilor.",
+      "evidence": "packages/db/migrations/406_lde_drax_reguli_economie.sql:29–34; docs/plans/2026-09-26-drax-f3-executie/economie/alternative.mjs:88–91; docs/plans/2026-09-26-drax-f3-executie/economie/alternative.mjs:154–155; docs/plans/2026-09-26-drax-f3-executie/economie/alternative.mjs:204–218",
+      "failure_scenario": "O zi conține un tur probabil nedetectat în intervalul etichetat livrare, dar și R1b/R3 calculate din cursele recunoscute. Implementarea literală elimină numai bucata R1a; ziua rămâne în zileIncluse, iar celelalte componente sunt însumate și extrapolate ca măsurători valide, contrar §8.1 și §8.6.",
+      "suggested_fix": "Consolidați planul pe excluderea întregii zile conform regulii existente și introduceți noul declanșator prin migrația 413. Recalculați apoi zilele incluse, componentele B, extrapolările, indicațiile și cifrele c2; pentru criteriul în trei condiții, verificați explicit rezultatul raportat de zero zile măsurate la 744ARF, nu o singură zi. Dacă se dorește excludere numai pe bucată, aceasta trebuie separată ca schimbare explicită de regulă înaintea implementării."
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "versiune": "capete-gps ION-109 · 27.09.2026",
+  "regula": "capătul liniei = satul din numele rutei unde cursa reală începe turul și termină returul (opriri scurte < 15 min în satele rutei dincolo de capătul din act, în ora dinaintea turului / de după retur, în afara urmei cursei), dacă apare în ≥ 50 % din curse pe AMBELE sensuri și în AMBELE săptămâni măsurate (07.09 și 14.09); altfel capătul rămâne cel din act și linia primește doar steag",
+  "linii": { "R37|Musteata": "Navirnet", "R28|Cuhnesti": "Balatina" },
+  "dovezi": {
+    "R37|Musteata": "14.09: tur 4/4 (Năvîrneț 3, Albinețul Vechi 1), retur 5/5 (Năvîrneț 4); 07.09: tur 3/4, retur 3/3; ruta din act «Musteata - Rediul de Jos - Albinetul Vechi - Navirnet»",
+    "R28|Cuhnesti": "14.09: tur 5/5, retur 4/5 (Balatina); 07.09: tur 3/4, retur 5/5; ruta din act «Balatina - Cuhnesti - Movileni - Moara Domneasca - Viisoara»"
+  },
+  "steaguri": {
+    "R32|Trifanesti": "tur prin Izvoare 11/16 și 10/14, retur doar 4/17 și 6/18 — asimetric, rămâne capătul din act",
+    "R7|Slobozia*": "retur spre Ușurei 5/6 și 4/5, linie construită din GPS (*) — de lămurit",
+    "R19|Bilicenii Vechi": "Sîngerei/Grigorăuca 4/10 … 5/7, oraș pe drum — neconcludent"
+  }
+}

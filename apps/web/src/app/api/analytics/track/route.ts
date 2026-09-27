@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/supabase';
 
+const MODS = ['acum', 'mai_tarziu'];
+
 function detectDevice(ua: string): string {
   if (/tablet|ipad/i.test(ua)) return 'tablet';
   if (/mobile|android|iphone/i.test(ua)) return 'mobile';
@@ -19,9 +21,27 @@ export async function POST(request: NextRequest) {
         from_locality: body.from_locality || null,
         to_locality: body.to_locality || null,
         driver_phone: body.driver_phone || null,
+        mod: MODS.includes(body.mod) ? body.mod : null,
         country,
         device,
       }).then(() => {});
+      return NextResponse.json({ ok: true });
+    }
+
+    // «Acum» deschis (ION-102): o căutare fără dată, pentru azi. Fără ip_hash — anti-scraperul
+    // (cautari_recente) numără doar căutările pe dată, iar «Acum» nu dă orarul întreg.
+    if (body.event_type === 'now') {
+      if (typeof body.from_locality !== 'string' || typeof body.to_locality !== 'string') {
+        return NextResponse.json({ ok: false }, { status: 400 });
+      }
+      getSupabase().from('search_log').insert({
+        from_locality: body.from_locality.slice(0, 100),
+        to_locality: body.to_locality.slice(0, 100),
+        search_date: new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' }),
+        mod: 'acum',
+      }).then(({ error }) => {
+        if (error) console.warn('[search_log] insert acum eșuat:', error.message);
+      });
       return NextResponse.json({ ok: true });
     }
 

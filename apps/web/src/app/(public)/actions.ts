@@ -321,6 +321,7 @@ export async function searchTrips(
     from_locality: fromRo,
     to_locality: toRo,
     search_date: date,
+    mod: 'mai_tarziu',
     ...sursa,
   }).then(({ error }) => {
     // Un deploy peste o bază fără migrația 282 ar goli analiza căutărilor în tăcere.

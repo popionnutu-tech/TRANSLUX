@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
-import type { DailyCount, DetailedRoutesResult, DeviceCount, CountryCount } from './actions';
+import type { DailyCount, DetailedRoutesResult, DeviceCount, CountryCount, SearchesByMod } from './actions';
 import type { OverviewKPI, RouteScorecardRow, DriverScorecardRow, RouteLoadRow, RouteTypeFilter } from './sales-actions';
 import {
   getPageViewsPerDay,
@@ -17,11 +17,11 @@ import OverviewTab from './OverviewTab';
 
 interface Props {
   initialPageViews: DailyCount[];
-  initialSearches: DailyCount[];
+  initialSearches: SearchesByMod;
   initialDetailedRoutes: DetailedRoutesResult;
   initialDevices: DeviceCount[];
   initialCountries: CountryCount[];
-  initialTotals: { totalViews: number; totalSearches: number; totalCalls: number };
+  initialTotals: Awaited<ReturnType<typeof getTotalStats>>;
   initialDays: number;
   initialOverviewKPI: OverviewKPI;
   initialRouteScorecard: RouteScorecardRow[];
@@ -89,8 +89,8 @@ function MultiLineChart({ series }: { series: Series[] }) {
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" style={{ width: '100%', height: 'auto', display: 'block' }}>
         <defs>
-          {nonEmpty.map(s => (
-            <linearGradient key={s.label} id={`area-${s.label}`} x1="0" y1="0" x2="0" y2="1">
+          {nonEmpty.map((s, si) => (
+            <linearGradient key={s.label} id={`area-${si}`} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={s.color} stopOpacity="0.12" />
               <stop offset="100%" stopColor={s.color} stopOpacity="0" />
             </linearGradient>
@@ -104,7 +104,7 @@ function MultiLineChart({ series }: { series: Series[] }) {
           </g>
         ))}
 
-        {nonEmpty.map(s => {
+        {nonEmpty.map((s, si) => {
           const sn = s.data.length;
           const path = s.data.map((d, i) => `${i === 0 ? 'M' : 'L'}${toX(i).toFixed(1)},${toY(d.count).toFixed(1)}`).join(' ');
           const areaPath = sn > 1
@@ -112,7 +112,7 @@ function MultiLineChart({ series }: { series: Series[] }) {
             : '';
           return (
             <g key={s.label}>
-              {areaPath && <path d={areaPath} fill={`url(#area-${s.label})`} />}
+              {areaPath && <path d={areaPath} fill={`url(#area-${si})`} />}
               <path d={path} fill="none" stroke={s.color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
               {s.data.map((d, i) => (
                 <circle key={i} cx={toX(i)} cy={toY(d.count)} r="3" fill={s.color} />
@@ -130,6 +130,23 @@ function MultiLineChart({ series }: { series: Series[] }) {
           );
         })}
       </svg>
+    </div>
+  );
+}
+
+// --- «Acum» / «Mai târziu» (ION-102) ---
+const ACUM_COLOR = '#7c3aed';
+const LATER_COLOR = '#2563eb';
+
+function pct(part: number, whole: number): number {
+  return whole > 0 ? Math.round((part / whole) * 100) : 0;
+}
+
+function ModSplit({ acum, later }: { acum: string | number; later: string | number }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'center', gap: 14, marginTop: 8, fontSize: 12 }}>
+      <span><span style={{ color: '#888' }}>Acum </span><b style={{ color: ACUM_COLOR }}>{acum}</b></span>
+      <span><span style={{ color: '#888' }}>Mai târziu </span><b style={{ color: LATER_COLOR }}>{later}</b></span>
     </div>
   );
 }
@@ -315,26 +332,33 @@ export default function AnalyticsClient({
             <div className="card" style={{ textAlign: 'center', padding: 20 }}>
               <div style={{ fontSize: 32, fontWeight: 700, color: '#2563eb' }}>{totals.totalSearches.toLocaleString()}</div>
               <div style={{ fontSize: 13, color: '#888', marginTop: 4 }}>Cautari ({days}z)</div>
+              <ModSplit acum={totals.searchesAcum.toLocaleString()} later={totals.searchesMaiTarziu.toLocaleString()} />
             </div>
             <div className="card" style={{ textAlign: 'center', padding: 20 }}>
               <div style={{ fontSize: 32, fontWeight: 700, color: '#059669' }}>{totals.totalCalls.toLocaleString()}</div>
               <div style={{ fontSize: 13, color: '#888', marginTop: 4 }}>Apeluri ({days}z)</div>
+              <ModSplit acum={totals.callsAcum.toLocaleString()} later={totals.callsMaiTarziu.toLocaleString()} />
             </div>
             <div className="card" style={{ textAlign: 'center', padding: 20 }}>
               <div style={{ fontSize: 32, fontWeight: 700, color: '#d97706' }}>
                 {totals.totalSearches > 0 ? Math.round((totals.totalCalls / totals.totalSearches) * 100) : 0}%
               </div>
               <div style={{ fontSize: 13, color: '#888', marginTop: 4 }}>Conversie</div>
+              <ModSplit
+                acum={`${pct(totals.callsAcum, totals.searchesAcum)}%`}
+                later={`${pct(totals.callsMaiTarziu, totals.searchesMaiTarziu)}%`}
+              />
             </div>
           </div>
 
           {/* Combined vizite + cautari chart */}
           <div className="card mb-4" style={{ padding: 20 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, color: '#333' }}>Vizite si cautari pe zi</h3>
+            <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, color: '#333' }}>Vizite si cautari pe zi (Acum / Mai târziu)</h3>
             <MultiLineChart
               series={[
                 { data: pageViews, color: '#9B1B30', label: 'Vizite' },
-                { data: searches, color: '#2563eb', label: 'Cautari' },
+                { data: searches.acum, color: ACUM_COLOR, label: 'Acum' },
+                { data: searches.maiTarziu, color: LATER_COLOR, label: 'Mai târziu' },
               ]}
             />
           </div>

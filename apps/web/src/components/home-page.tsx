@@ -23,6 +23,7 @@ import { NowResults } from '@/components/NowResults';
 import CookieConsent from '@/components/CookieConsent';
 import AssistantWidget from '@/components/AssistantWidget';
 import { openConsentSettings } from '@/lib/consent';
+import { track } from '@/lib/track';
 import { type Locale, t } from '@/lib/i18n';
 import { searchTrips, type Locality, type TripResult, type PopularRoutePrice } from '@/app/(public)/actions';
 
@@ -69,6 +70,8 @@ export function HomePage({ locale, localities = [], popularPrices = [] }: HomePa
   const openNow = () => {
     const d = direction();
     if (!d) return;
+    // O singură dată la deschidere; fereastra se reîmprospătează singură, reîmprospătările nu se numără (ION-102).
+    track({ event_type: 'now', from_locality: d.from, to_locality: d.to });
     setNow({
       ...d,
       fromLabel: fromRef.current?.selectedOptions[0]?.text || d.from,

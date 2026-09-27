@@ -84,20 +84,32 @@ export async function getPageViewsPerDay(days: number = 30): Promise<DailyCount[
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
-export async function getSearchesPerDay(days: number = 30): Promise<DailyCount[]> {
+export interface SearchesByMod {
+  acum: DailyCount[];
+  maiTarziu: DailyCount[];
+}
+
+// Căutările pe zi, separat «Acum» / «Mai târziu» (ION-102). mod NULL = rânduri de dinainte
+// de 27.09.2026, pe fluxul de azi al lui «Mai târziu». Ambele serii au aceleași zile, în aceeași
+// ordine — graficul pune punctele după index.
+export async function getSearchesPerDay(days: number = 30): Promise<SearchesByMod> {
   requireRole(await verifySession(), 'ADMIN');
   const since = daysAgoDate(days);
 
-  const raw = await fetchAllSince('search_log', 'created_at', since);
+  const raw = await fetchAllSince('search_log', 'created_at, mod', since);
 
-  const map = new Map<string, number>();
+  const acum = new Map<string, number>();
+  const later = new Map<string, number>();
   for (const r of raw) {
     const day = (r.created_at as string).slice(0, 10);
+    const map = r.mod === 'acum' ? acum : later;
     map.set(day, (map.get(day) || 0) + 1);
   }
-  return Array.from(map.entries())
-    .map(([date, count]) => ({ date, count }))
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const dates = Array.from(new Set([...acum.keys(), ...later.keys()])).sort();
+  return {
+    acum: dates.map(date => ({ date, count: acum.get(date) || 0 })),
+    maiTarziu: dates.map(date => ({ date, count: later.get(date) || 0 })),
+  };
 }
 
 export async function getTopSearchedRoutes(days: number = 30): Promise<RouteCount[]> {
@@ -271,7 +283,10 @@ export async function getTotalStats(days: number = 30) {
   requireRole(await verifySession(), 'ADMIN');
   const since = daysAgoDate(days);
 
-  const [{ count: viewsCount }, { count: searchCount }, { count: callsCount }] = await Promise.all([
+  const [
+    { count: viewsCount }, { count: searchCount }, { count: callsCount },
+    { count: searchAcumCount }, { count: callsAcumCount },
+  ] = await Promise.all([
     getSupabase()
       .from('page_views')
       .select('*', { count: 'exact', head: true })
@@ -284,11 +299,30 @@ export async function getTotalStats(days: number = 30) {
       .from('call_clicks')
       .select('*', { count: 'exact', head: true })
       .gte('created_at', since + 'T00:00:00'),
+    getSupabase()
+      .from('search_log')
+      .select('*', { count: 'exact', head: true })
+      .eq('mod', 'acum')
+      .gte('created_at', since + 'T00:00:00'),
+    getSupabase()
+      .from('call_clicks')
+      .select('*', { count: 'exact', head: true })
+      .eq('mod', 'acum')
+      .gte('created_at', since + 'T00:00:00'),
   ]);
 
+  // «Mai târziu» = restul (mod 'mai_tarziu' sau NULL de dinainte de ION-102).
+  const totalSearches = searchCount || 0;
+  const totalCalls = callsCount || 0;
+  const searchesAcum = searchAcumCount || 0;
+  const callsAcum = callsAcumCount || 0;
   return {
     totalViews: viewsCount || 0,
-    totalSearches: searchCount || 0,
-    totalCalls: callsCount || 0,
+    totalSearches,
+    totalCalls,
+    searchesAcum,
+    searchesMaiTarziu: totalSearches - searchesAcum,
+    callsAcum,
+    callsMaiTarziu: totalCalls - callsAcum,
   };
 }

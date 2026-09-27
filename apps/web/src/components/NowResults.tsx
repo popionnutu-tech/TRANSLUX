@@ -14,6 +14,7 @@ import type { Map as LMap, LayerGroup } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Locale } from '@/lib/i18n';
 import { phoneTel, phoneText } from '@/lib/phone';
+import { track } from '@/lib/track';
 
 const ENDPOINT = process.env.NEXT_PUBLIC_ASSISTANT_URL || 'https://central-hub-md.vercel.app/api/asistent-site';
 const REFRESH_MS = 60_000;
@@ -361,7 +362,10 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
                   {phone && <span className="now-num">{phone.text}</span>}
                 </div>
                 {phone && (
-                  <a className="now-call" href={`tel:${phone.tel}`} aria-label={`${tx.call} ${phone.text}`} onClick={(e) => e.stopPropagation()}>
+                  <a className="now-call" href={`tel:${phone.tel}`} aria-label={`${tx.call} ${phone.text}`} onClick={(e) => {
+                    e.stopPropagation();
+                    track({ event_type: 'call', mod: 'acum', from_locality: fromValue, to_locality: toValue, driver_phone: t.phone });
+                  }}>
                     {PHONE_SVG}
                   </a>
                 )}

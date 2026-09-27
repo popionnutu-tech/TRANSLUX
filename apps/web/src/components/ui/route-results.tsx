@@ -3,6 +3,7 @@
 import * as React from "react";
 import type { TripResult } from "@/app/(public)/actions";
 import { phoneTel, phoneText } from "@/lib/phone";
+import { track } from "@/lib/track";
 
 interface RouteResultsProps {
   from: string;
@@ -253,16 +254,13 @@ export function RouteResults({ from, to, trips, selectedTime, locale = "ro", onC
                     href={phoneTel(trip.phone!)}
                     onClick={(e) => {
                       e.stopPropagation();
-                      fetch('/api/analytics/track', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          event_type: 'call',
-                          from_locality: from,
-                          to_locality: to,
-                          driver_phone: trip.phone,
-                        }),
-                      }).catch(() => {});
+                      track({
+                        event_type: 'call',
+                        mod: 'mai_tarziu',
+                        from_locality: from,
+                        to_locality: to,
+                        driver_phone: trip.phone,
+                      });
                     }}
                     className="call-btn"
                     style={{

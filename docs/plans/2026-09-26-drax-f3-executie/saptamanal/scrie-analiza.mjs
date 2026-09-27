@@ -67,13 +67,20 @@ const masini = A.masini.map((m) => {
     deLamurit: dl, liber, liberBrut: Lm?.brut ?? null, kmExplicatF2: Lm?.km_explicat_f2 ?? null, steaguriLiber: Lm?.steaguri ?? (Lm ? [] : ['fără analiza timpului liber']),
     detalii: zile.map((d) => {
       const x = peZi.get(`${d.m}|${d.z}`);
+      // ION-105 (aditiv): pentru indicațiile «ce faci» — satul unde a plecat mașina, cursele vecine (linie sens schimb) și R3 reținut
+      const acasaOcol = [...new Set([d.noapteA, d.noapteB].filter((n) => n?.tip === 'loc').map((n) => loc([n.lat, n.lon])).filter(Boolean))].join(' / ') || null;
+      const r3fin = new Map((x?.r3Lista ?? []).map((q) => [q.t0, q.km]));
+      const acasa = (s) => (s.ocol ? acasaOcol : s.cat === 'golTure' ? loc(s.casaPt) ?? (s.lunga ? loc([s.lunga[0], s.lunga[1]]) : null) : undefined);
       return { z: d.z, dow: d.dow, total: d.total, km: Object.fromEntries(CAT.map((k) => [k, d.km[k] ?? 0])), brambura: r1(brZi.get(d.z) ?? 0),
         bilant: d.bilant, dif: d.dif, tipar: d.tipar, exclus: x?.exclus ?? null,
         noapteDim: d.noapteA ? (d.noapteA.tip === 'loc' ? loc([d.noapteA.lat, d.noapteA.lon]) : d.noapteA.tip) : null,
         noapteSeara: d.noapteB ? (d.noapteB.tip === 'loc' ? loc([d.noapteB.lat, d.noapteB.lon]) : d.noapteB.tip) : null,
         economie: x ? { R1a: x.R1a, R1b: x.R1b, R3: x.R3, B: x.B, nelamurit: x.nelamurit } : null,
+        scosDeLamurit: x && !x.exclus ? dlEcon(d.m, x) : null,
         bucati: d.seg.map((s) => ({ ora: s.ora, t0: s.t0, t1: s.t1, cat: s.cat, km: s.km, golImpus: s.golImpus || 0, ocol: !!s.ocol,
           r3: s.cat === 'golTure' ? r1(s.r3km) : undefined, inZona: s.cat === 'golTure' ? r1(s.kmZona) : undefined, pranz: !!s.cursaPranz,
+          r3fin: s.cat === 'golTure' && x?.r3Lista ? r3fin.get(s.t0) ?? 0 : undefined,
+          prev: s.prev, next: s.next, acasa: acasa(s),
           de: loc(s.de), pana: loc(s.pana), lin: s.lin, motiv: s.motiv ?? null })) };
     }),
   };
@@ -137,6 +144,16 @@ for (const k of ['R1a', 'R1b', 'R3', 'B']) { const x = r1(date.masini.reduce((a,
   if (Math.abs(x - date.economie.carduri[k]) > 1) { console.error(`invariant: cardul ${k} ${date.economie.carduri[k]} ≠ Σ rânduri ${x}`); process.exit(1); } }
 for (const m of date.masini) { const zb = r1(m.detalii.reduce((a, d) => a + d.brambura, 0)), mb = r1(m.liber?.km_brambura ?? 0);
   if (Math.abs(zb - mb) > 0.5) { console.error(`invariant: ${m.m} Σ brambura pe zile ${zb} ≠ mașină ${mb}`); process.exit(1); } }
+// ION-105: bucățile explică R1b și R3 ale mașinii (Σ ocol / Σ r3fin pe zilele măsurate = economie ± 0,5 km); abaterea se
+// spune în log, nu oprește rândul — pagina arată și ea diferența lângă indicație
+const kmBucatiZi = (d, k) => (d.scosDeLamurit?.[k] ? 0 : d.bucati.reduce((a, q) =>
+  a + (k === 'R1b' ? (q.cat === 'livrare' && q.ocol ? q.km : 0) : (q.cat === 'golTure' ? q.r3fin ?? 0 : 0)), 0));
+let ceFaciAbateri = 0;
+for (const m of date.masini) for (const k of ['R1b', 'R3']) {
+  const suma = r1(m.detalii.filter((d) => d.economie && !d.exclus).reduce((a, d) => a + kmBucatiZi(d, k), 0));
+  if (Math.abs(suma - m.economie[k]) > 0.5) { ceFaciAbateri++; console.error(`atenție: ${m.m} Σ bucăți ${k} ${suma} ≠ ${m.economie[k]}`); }
+}
+if (!ceFaciAbateri) console.log('bucățile explică R1b și R3 pe fiecare mașină');
 const s = JSON.stringify(date);
 // P10 / P10c picat = rândul NU se scrie (eroare zgomotoasă; paznicul vede lipsa rândului); diagnosticul rămâne în dosar
 if (L.p10.pica.length || L.p10.picaC.length) { writeFileSync(`${DIR}/analiza-respinsa.json`, s);

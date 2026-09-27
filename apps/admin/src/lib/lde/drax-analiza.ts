@@ -18,10 +18,14 @@ type RN = { R1a: number | null; R1b: number | null; R3: number | null; B: number
 export interface BucataDrax {
   ora: string; t0: number; t1: number; cat: CategorieDrax; km: number; golImpus: number; ocol: boolean;
   r3?: number; inZona?: number; pranz: boolean; de: string | null; pana: string | null; lin: string | null; motiv: string | null;
+  // ION-105 (aditive, din 27.09): cursele vecine golului («R3|Recea* retur s1»), satul unde a plecat mașina, km-ii golului care intră în R3
+  prev?: string | null; next?: string | null; acasa?: string | null; r3fin?: number;
 }
 export interface ZiDrax {
   z: string; dow: number; total: number; km: KmDrax; brambura: number; bilant: boolean; dif: number; tipar?: string | null;
   exclus: string | null; noapteDim: string | null; noapteSeara: string | null;
+  /** ION-105: componentele zilei scoase ca «de lămurit» (nu intră în R1a / R1b / R3 ai mașinii) */
+  scosDeLamurit?: R | null;
   economie: (R & { B: number; nelamurit: number }) | null; bucati: BucataDrax[];
 }
 export interface IntervalDrax { zi?: string; exclus?: boolean; t0: number; t1: number; ora: string; km: number; lin: string | null }

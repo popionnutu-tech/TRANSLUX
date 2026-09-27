@@ -3,6 +3,8 @@
 import { Fragment, useState } from 'react';
 import Saptamana from './Saptamana';
 import { CAT_DRAX, PRAG_INDICATII_KM, type AnalizaDrax, type CategorieDrax, type MasinaDrax } from '@/lib/lde/drax-analiza';
+import { ceFaciDrax, indicatieMasina } from '@/lib/lde/drax-ce-faci';
+import CeFaciDraxSectiune, { CazuriZiCuZi } from './CeFaciDrax';
 
 // Raportul săptămânal Drăxlmaier Bălți (ION-94, faza 3 din ION-86). Cifrele NU se socotesc aici: sunt ale rândului «DRAXELMAIER»
 // scris luni de VPS (drax/cod/saptamanal), același din care se desenează posterul. Componentă PROPRIE (nu RaportBriceni): la
@@ -167,6 +169,8 @@ export default function RaportDrax({ a, saptamani }: { a: RaportDraxDate | null;
           sub={`Doar în km neexplicați de §5. Peste ${TL.prag_km} km: ${TL.masini_peste_prag.join(', ') || '—'} · brambura: ${TL.masini_peste_prag_brambura.join(', ') || '—'}.`} />
       </div>
 
+      <CeFaciDraxSectiune c={ceFaciDrax(a)} />
+
       <div className="mb-3! mt-9! flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-xs font-bold uppercase tracking-widest text-neutral-500">Mașină cu mașină · km pe săptămână, extrapolați</h2>
         <span className="text-[12px] text-neutral-500">apasă un rând ca să vezi zilele, bucată cu bucată</span>
@@ -211,6 +215,7 @@ export default function RaportDrax({ a, saptamani }: { a: RaportDraxDate | null;
                           {m.liber && <> · §11: neclar {n1(m.liber.km_neclar)} · navetă {n1(m.liber.km_naveta)} · reparație {n1(m.liber.km_reparatie)} · altă uzină {n1(m.liber.km_alta_uzina)} · explicat de §5 {n1(m.kmExplicatF2)} km</>}
                           {m.steaguriLiber.length > 0 && <> · {m.steaguriLiber.join('; ')}</>}
                         </p>
+                        <CazuriZiCuZi x={indicatieMasina(m)} />
                         <Zile m={m} />
                       </td>
                     </tr>
@@ -233,7 +238,7 @@ export default function RaportDrax({ a, saptamani }: { a: RaportDraxDate | null;
         </table>
       </div>
 
-      <h2 className="mb-2! mt-9! text-xs font-bold uppercase tracking-widest text-neutral-500">Indicații pentru dispecer (§12) · nu pleacă până la «da»</h2>
+      <h2 className="mb-2! mt-9! text-xs font-bold uppercase tracking-widest text-neutral-500">Mesajul pentru dispecer pe Telegram (§12) · nu pleacă până la «da»</h2>
       <p className="text-[12.5px] text-neutral-500">
         {a.indicatii.top.length
           ? a.indicatii.top.map((x) => `${x.m}: R1b ${n0(x.R1b)} + R3 ${n0(x.R3)} = ${n0(x.R1bR3)} km/săpt. (${x.zile} zile)`).join(' · ')

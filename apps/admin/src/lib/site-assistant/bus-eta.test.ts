@@ -71,6 +71,27 @@ describe('typicalOffset / typicalLeg — ora reală din treceri', () => {
   });
 });
 
+describe('typicalLeg — așteptarea în gară nu e drum (ION-103)', () => {
+  // Ruta 9, Lipcani (40) → Edineț (140), treceri reale 19–26.09 (ora UTC = locală − 3).
+  const p = (date: string, stop: number, hhmm: string, off: number) =>
+    ({ date, stop_order: stop, passed_at: `${date}T${hhmm}:00Z`, offset_min: off });
+  const rows = [
+    p('2026-09-19', 40, '09:24', 0), p('2026-09-19', 140, '10:54', 4),
+    p('2026-09-21', 40, '08:41', -44), p('2026-09-21', 140, '10:49', 0),
+    p('2026-09-22', 40, '08:33', -52), p('2026-09-22', 140, '10:55', 6),
+    p('2026-09-24', 40, '08:33', -52), p('2026-09-24', 140, '10:57', 7),
+    p('2026-09-26', 40, '09:30', 6), p('2026-09-26', 140, '10:50', 1),
+  ];
+  it('sosirea timpurie la Lipcani nu lungește tronsonul: ~90 min, nu 136', () => {
+    expect(typicalLeg(rows, 40, 140)).toBe(90);
+  });
+  it('trecerea întârziată din A rămâne cum e', () => {
+    const late = ['2026-09-18', '2026-09-19', '2026-09-20', '2026-09-21', '2026-09-22']
+      .flatMap((d) => [p(d, 40, '09:40', 15), p(d, 140, '11:00', 0)]);
+    expect(typicalLeg(late, 40, 140)).toBe(80);
+  });
+});
+
 describe('typicalOffset — abaterea uriașă nu se crede', () => {
   it('peste 45 min rămâne graficul', () => {
     const rows = ['2026-09-18', '2026-09-19', '2026-09-20', '2026-09-21', '2026-09-22']

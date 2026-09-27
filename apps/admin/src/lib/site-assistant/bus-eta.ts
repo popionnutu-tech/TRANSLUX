@@ -203,13 +203,19 @@ export function typicalOffset(rows: PassRow[], stopOrder: number, today: string)
 /** Peste atât, abaterea tipică nu se crede (24.09: 11 opriri din 1778, toate curse încurcate). */
 export const MAX_OFFSET_MIN = 45;
 
-/** Durata tipică (minute) de la oprirea A la oprirea B, din zilele în care s-au prins amândouă. */
+/**
+ * Durata tipică (minute) de la oprirea A la oprirea B, din zilele în care s-au prins amândouă.
+ * Din A se pleacă cel mai devreme la ora din grafic: trecerea mai timpurie e SOSIREA mașinii,
+ * care apoi stă în gară (ION-103, ruta 9: la Lipcani sosea 11:33 pentru plecarea de 12:25 —
+ * tronsonul spre Edineț ieșea 136 min în loc de ~90, iar «Acum» arăta ~14:15 pentru 13:50).
+ */
 export function typicalLeg(rows: PassRow[], a: number, b: number): number | null {
   const byDay = new Map<string, Map<number, number>>();
   for (const r of rows) {
     if (r.stop_order !== a && r.stop_order !== b) continue;
     const m = byDay.get(r.date) ?? new Map<number, number>();
-    m.set(r.stop_order, Date.parse(r.passed_at));
+    const early = r.stop_order === a ? Math.min(r.offset_min, 0) : 0;
+    m.set(r.stop_order, Date.parse(r.passed_at) - early * 60_000);
     byDay.set(r.date, m);
   }
   const mins: number[] = [];
@@ -244,6 +250,9 @@ export async function routePasses(routeId: number, goingNorth: boolean): Promise
   passCache.set(key, { at: Date.now(), rows });
   return rows;
 }
+
+/** Atât de aproape de o oprire a rutei = mașina stă în ea (ca AT_STOP_KM din /acum). */
+const PARKED_KM = 0.3;
 
 export interface GeoStop { name: string; lat: number; lon: number; stop_order: number }
 export interface RealEta { eta: string; eta_min: number; eta_source: 'gps' | 'istoric' }
@@ -302,7 +311,12 @@ export async function realEta(args: {
     }
     pace ??= await routePace(args.routeId);
     if (!pace) return null;
-    const t = Date.parse(args.pos.atIso) + rem.km * pace * 60_000;
+    let t = Date.parse(args.pos.atIso) + rem.km * pace * 60_000;
+    // Mașina stă într-o oprire a rutei (gara de capăt, de obicei): pleacă după grafic, nu acum.
+    // Nu vine la om mai devreme decât graficul + abaterea lui tipică; dacă întârzie, câștigă GPS-ul.
+    if (prev && haversineKm([args.pos.lat, args.pos.lon], [prev.s.lat, prev.s.lon]) <= PARKED_KM) {
+      t = Math.max(t, todayAt(args.scheduled, typicalOffset(rows, from.stop_order, args.today) ?? 0, now));
+    }
     return { eta: clock(t), eta_min: Math.max(0, Math.round((t - now) / 60_000)), eta_source: 'gps' };
   }
 

@@ -6,6 +6,7 @@ import { CAT_DRAX, PRAG_INDICATII_KM, type AnalizaDrax, type CategorieDrax, type
 import { paginaCeFaci, textCard } from '@/lib/lde/drax-ce-faci-text';
 import { frazaSaptamana, povesteZi } from '@/lib/lde/drax-ziua';
 import CeFaciDraxSectiune from './CeFaciDrax';
+import DormBalti from './DormBalti';
 
 // Raportul săptămânal Drăxlmaier Bălți (ION-94, faza 3 din ION-86). Cifrele NU se socotesc aici: sunt ale rândului «DRAXELMAIER»
 // scris luni de VPS (drax/cod/saptamanal), același din care se desenează posterul. Componentă PROPRIE (nu RaportBriceni): la
@@ -165,6 +166,7 @@ export default function RaportDrax({ a, saptamani }: { a: RaportDraxDate | null;
       </div>
 
       <CeFaciDraxSectiune p={pagina} />
+      <DormBalti a={a} />
 
       <div className="mb-3! mt-9! flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-xs font-bold uppercase tracking-widest text-neutral-500">Mașină cu mașină · km pe săptămână, extrapolați</h2>

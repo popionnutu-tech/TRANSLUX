@@ -1,0 +1,83 @@
+--- cod/economie/categorii.mjs	2026-09-26 20:57:22.305715810 +0300
++++ cod-ion109/economie/categorii.mjs	2026-09-27 18:44:30.089782183 +0300
+@@ -19,7 +19,9 @@
+ // Σ intervale = km-ul zilei din urma brută (03:00 → 03:00, salt > 5 km aruncat), ±3 %.
+ //   node categorii.mjs  →  date/economie-zile.json
+ import { readFileSync, existsSync } from 'node:fs';
+-import { D, PORTI, PARC, SAPT, PANA, FER, inFer, hav, poarta, bucata, parcari, tIn, tOut, localToUtc, ziua, zileIntre, dow, saptDe, hhmm, r1, med, kmDrum, salveazaCache, verificaValhalla, scrieAtomic } from './comun.mjs';
++import { D, PORTI, PARC, SAPT, PANA, FER, inFer, hav, poarta, bucata, parcari, tIn, tOut, localToUtc, ziua, zileIntre, dow, saptDe, hhmm, oraLoc, r1, med, kmDrum, salveazaCache, verificaValhalla, scrieAtomic } from './comun.mjs';
++// ION-109 (§7.4, §8.6 după migr. 413): zona Bălți = ≤ ZONA_KM de porți sau de parc; distanța față de uzină = minimul față de porți și parc
++const departeUz = (p) => Math.min(hav(p, PARC), ...PORTI.map((q) => hav(p, q)));
+ 
+ export const PR = { CASA_KM: 0.5, CASA_STAT_MIN: 20, NOAPTE: [30, 330], NOAPTE_MIN_MIN: 45, CORIDOR_KM: 1, DEPLASARE_KM: 15,
+   PARC_STAT_MIN: 5, GPS_PESTE_DRUM: 1.05, BILANT_PCT: 3, STAT_KM: 0.2, POARTA_EXTRA: 0.1, ZONA_KM: 3 };   // ZONA_KM = zona uzinei (porți + parc), S9
+@@ -243,7 +245,8 @@
+     if (dimineata || seara) {
+       const lin = dimineata ? next?.lin : prev?.lin;
+       seg.push({ ...base, cat: 'livrare', lin: lin ?? null, motiv: dimineata ? 'de la locul nopții la prima cursă' : 'de la ultima cursă la locul nopții',
+-        margine: dimineata ? 'dimineata' : 'seara', noapteTip: (dimineata ? noapteA : noapteB)?.tip, minParc }); continue;
++        margine: dimineata ? 'dimineata' : 'seara', noapteTip: (dimineata ? noapteA : noapteB)?.tip, minParc,
++        noapteZona: !!(dimineata ? noapteA : noapteB) && departeUz(dimineata ? noapteA : noapteB) <= PR.ZONA_KM }); continue;
+     }
+     // 3(b) aceeași linie, alte perechi (bate parcul: rândul 3 e înaintea rândului 5)
+     const aceeasi = prev && next && prev.lin === next.lin;
+@@ -291,8 +294,8 @@
+   for (const s of seg) {
+     if (s.cat !== 'livrare' || s.ocol || !s.margine || !s.bpts?.length || s.km <= 0 || !s.lin) continue;
+     const Lx0 = LINII.get(s.lin); const leg0 = s.margine === 'dimineata' ? Lw[0] : Lw.at(-1); const E0 = Lx0?.E[leg0?.schimb ?? 's1'] ?? null;
+-    // S5 / B5: noaptea la parc = doarme lângă uzină (verdictul 1) → parc ↔ capăt e golul impus 3(a) până la E, restul livrare
+-    if (s.noapteTip === 'parc' && E0) { const g = Math.min(s.km, E0); s.golImpus = +g.toFixed(2); s.km = +(s.km - g).toFixed(2); continue; }
++    // ION-109 (§5.3 a, §7.4 după migr. 413; Ion 27.09): noaptea în Bălți (parc, uzină, acasă la ≤ 3 km) NU scutește livrarea — fără gol impus
++    if (s.noapteZona) continue;
+     if (!s.bpts.some((p) => poarta(p, PR.POARTA_EXTRA))) continue;
+     const Lx = LINII.get(s.lin); if (!Lx?.coridor.length) continue;
+     const leg = s.margine === 'dimineata' ? Lw[0] : Lw.at(-1); const E = Lx.E[leg?.schimb ?? 's1'] ?? null; if (!E) continue;
+@@ -304,6 +307,23 @@
+     if (g > 0) { s.golImpus = +g.toFixed(2); s.km = +(s.km - g).toFixed(2); }
+   }
+   seg.sort((a, b) => a.t0 - b.t0);
++  // ION-109 (§8.6 după migr. 413; dezbaterea r2): cursă probabil nedetectată în livrare = atingerea porții în interiorul bucății (≥ 5 min de
++  // margini), în sensul cursei (tur: venea de la ≥ 5 km și atinge poarta într-o fereastră de tur; retur: atinge poarta într-o fereastră de retur
++  // și pleacă la ≥ 5 km); ziua iese întreagă din regulile de economie (alternative.mjs:exclusDe)
++  const cursaNedetectata = [];
++  for (const s of seg) {
++    if (s.cat !== 'livrare' || !s.bpts?.length) continue;
++    const pts = s.bpts;
++    for (let i = 0; i < pts.length; i++) {
++      const p = pts[i]; if (p.t == null || !poarta(p, 0.3) || p.t < s.t0 + 5 * 60e3 || p.t > s.t1 - 5 * 60e3) continue;
++      const h = oraLoc(p.t);
++      // sensul (condiția 2), în ± 60 min de atingere: turul SOSEȘTE — venea de la ≥ 5 km și nu pleacă iar departe în 10 min; returul PLEACĂ — n-a venit de departe în 30 min
++      const departeIn = (q0, q1) => pts.some((q) => q.t >= q0 && q.t <= q1 && departeUz(q) >= 5);
++      const tur = Object.values(FER.tur).some((f) => inFer(h, f)) && departeIn(p.t - 60 * 60e3, p.t) && !departeIn(p.t, p.t + 10 * 60e3);
++      const ret = Object.values(FER.retur).some((f) => inFer(h, f)) && departeIn(p.t, p.t + 60 * 60e3) && !departeIn(p.t - 30 * 60e3, p.t);
++      if (tur || ret) { cursaNedetectata.push({ ora: hhmm(p.t), sens: tur ? 'tur' : 'retur', km: r1(s.km), lin: s.lin ?? null }); break; }
++    }
++  }
+   const km = Object.fromEntries(CAT.map((k) => [k, 0]));
+   for (const s of seg) { if (s.cat !== 'stat') km[s.cat] += s.km; if (s.golImpus) km.golRuta += s.golImpus; }
+   for (const k of CAT) km[k] = r1(km[k]);
+@@ -314,12 +334,12 @@
+   return {
+     m, z, dow: dow(z), sapt: saptDe(z), dev: d.dev, total: r1(total), sum: r1(sum), dif: r1(sum - total),
+     bilant: total < 1 ? Math.abs(sum - total) <= 0.5 : Math.abs(sum - total) / total * 100 <= PR.BILANT_PCT,
+-    km, noapteA, noapteB, linii, perechi, jumatati,
++    km, noapteA, noapteB, linii, perechi, jumatati, cursaNedetectata,
+     tipar: !Lw.length ? 'fara curse' : jumatati.some((j) => !j.reala) ? 'jumatate nedetectata' : jumatati.length ? 'cu jumatati reale'
+       : linii.length === 1 ? (perechi.length === 1 ? 'o linie, o pereche' : `o linie, ${perechi.length} perechi`) : `${linii.length} linii`,
+     seg: seg.filter((s) => s.cat !== 'stat' && (s.km >= 0.05 || s.golImpus)).map((s) => ({ ora: `${hhmm(s.t0)}–${hhmm(s.t1)}`, t0: s.t0, t1: s.t1, cat: s.cat,
+       km: r1(s.km), golImpus: s.golImpus ?? 0, lin: s.lin ?? null, sens: s.sens, schimb: s.schimb, motiv: s.motiv ?? null, prev: s.prev, next: s.next, prevLin: s.prevLin, nextLin: s.nextLin,
+-      ocol: s.ocol ?? false, direct: s.direct ?? false, pePeAcasa: s.pePeAcasa, inZona: s.inZona, r3km: s.r3km, kmZona: s.kmZona, cursaPranz: s.cursaPranz, cursaInsasi: s.cursaInsasi, iesire: s.iesire, intrare: s.intrare, casaPt: s.casaPt, lunga: s.lunga, excursieKm: s.excursieKm, excursie: s.excursie, inAfara: s.inAfara, minParc: s.minParc || 0, noapteTip: s.noapteTip, departe: s.departe,
++      ocol: s.ocol ?? false, direct: s.direct ?? false, pePeAcasa: s.pePeAcasa, inZona: s.inZona, r3km: s.r3km, kmZona: s.kmZona, cursaPranz: s.cursaPranz, cursaInsasi: s.cursaInsasi, iesire: s.iesire, intrare: s.intrare, casaPt: s.casaPt, lunga: s.lunga, excursieKm: s.excursieKm, excursie: s.excursie, inAfara: s.inAfara, minParc: s.minParc || 0, noapteTip: s.noapteTip, noapteZona: s.noapteZona ?? false, departe: s.departe,
+       de: s.bpts?.[0] ? [s.bpts[0].lat, s.bpts[0].lon] : null, pana: s.bpts?.length ? [s.bpts.at(-1).lat, s.bpts.at(-1).lon] : null })),
+   };
+ }
+--- cod/economie/alternative.mjs	2026-09-27 13:04:05.508634738 +0300
++++ cod-ion109/economie/alternative.mjs	2026-09-27 18:41:39.122524623 +0300
+@@ -88,6 +88,7 @@
+ const exclusDe = (d) => {
+   const nedet = d.jumatati.filter((j) => !j.reala), reale = d.jumatati.filter((j) => j.reala);
+   const faraE = [...d.perechi.map((p) => [p.lin, p.schimb]), ...reale.map((j) => [j.lin, j.schimb])].filter(([l, s]) => !E(l, s)).map(([l]) => l);
++  if (d.cursaNedetectata?.length) return `cursa probabil nedetectata la poarta (${d.cursaNedetectata.map((q) => `${q.sens} ${q.ora}`).join(', ')})`;   // ION-109 §8.6
+   return nedet.length ? 'jumatate probabil nedetectata' : faraE.length ? `linie fara etalon (${[...new Set(faraE)].join(', ')})` : null;
+ };
+ // ---- P8 (triaj r2, B1-rest / S11): pe intervalele eșantionului cu trecere pe acasă și km în afara zonei, km-ii din afara

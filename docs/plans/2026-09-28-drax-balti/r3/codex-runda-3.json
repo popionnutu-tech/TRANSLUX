@@ -1,0 +1,27 @@
+{
+  "score": 8.0,
+  "verdict": "pass",
+  "summary": "DA la gate, cu două omisiuni noi de raportare neblocante: în worktree-ul ION-109 am confirmat excluderea zilei întregi, blocul separat și rezultatul migrației 413 (26.373/56dfde04), fără rerulare GPS/VPS. M-a: DA, regula urmărește locul nopții, inclusiv parcul pentru mașinile cu casa departe; efectul de ≈110 km măsurați/săptămână trebuie comunicat ca atare. M2: STEAG separat pentru 293QVT, fără extinderea automată a excluderii înaintea aplicării. L-b: STEAG, concordanță fără deducere repetată; precedența §11.8 trebuie implementată și testată pentru intervalele/categoriile vizate.",
+  "deductions": [
+    {
+      "id": "C1",
+      "severity": "medium",
+      "weight": 1.5,
+      "title": "Semnalele detectorului din zilele „fără curse” se pierd înainte de construirea blocului.",
+      "detail": "Raportul business numește patru zile ale lui 297LVY „excluderi noi”, dar TOATE elimină tiparul 'fara curse' înainte de exclusDe. Serializarea preia exclus doar din rezultatul economic, iar dormBalti caută semnalul exclusiv în acest text. Prin urmare, aceste detectări noi nu ajung în bloc; nu este aceeași situație cu rândurile 744ARF/804MUM deja tratate.",
+      "evidence": "docs/plans/2026-09-28-drax-balti/vps/alternative.mjs:80; docs/plans/2026-09-26-drax-f3-executie/saptamanal/scrie-analiza.mjs:69; docs/plans/2026-09-26-drax-f3-executie/saptamanal/scrie-analiza.mjs:75; apps/admin/src/lib/lde/drax-balti.ts:22; docs/plans/2026-09-28-drax-balti/r3/r3-business.md:57",
+      "failure_scenario": "O zi a lui 297LVY are cursaNedetectata, dar tipar='fara curse': nu intră în PE_ZI, detaliul publicat primește exclus=null, iar blocul nu numără cursa probabil nedetectată. Dacă toate zilele săptămânii au acest tipar, mașina dispare și din lista economică.",
+      "suggested_fix": "Adaugă în plan păstrarea semnalelor brute de cursă probabil nedetectată în datele paginii, independent de eligibilitatea economică a zilei, și o verificare pentru 297LVY; păstrează zilele respective în afara sumelor."
+    },
+    {
+      "id": "C2",
+      "severity": "low",
+      "weight": 0.5,
+      "title": "Contoarele agregate de zile nedetectate nu recunosc noul motiv de excludere.",
+      "detail": "exclusDe introduce motivul 'cursa probabil nedetectata la poarta' înaintea motivului vechi, dar flotaDin.nedetectate și flota.zileNedetectate numără numai motivele care încep cu 'jumatate'. Noul motiv lipsește astfel din statisticile publicate, deși excluderea din sumele economice funcționează.",
+      "evidence": "docs/plans/2026-09-28-drax-balti/vps/alternative.mjs:91; docs/plans/2026-09-28-drax-balti/vps/alternative.mjs:241; docs/plans/2026-09-28-drax-balti/vps/alternative.mjs:263; docs/plans/2026-09-26-drax-f3-executie/saptamanal/scrie-analiza.mjs:118",
+      "failure_scenario": "O zi care are simultan o jumătate nedetectată și cursaNedetectata rămâne exclusă, dar dispare din contorul nedetectate deoarece noul motiv îl înlocuiește pe cel vechi.",
+      "suggested_fix": "Include în plan actualizarea contoarelor și a totalurilor de km aferente pentru ambele motive, cu verificarea că fiecare zi este numărată o singură dată."
+    }
+  ]
+}

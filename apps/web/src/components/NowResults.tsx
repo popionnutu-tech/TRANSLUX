@@ -145,7 +145,7 @@ function panelPadding(m: LMap): { paddingTopLeft: [number, number]; paddingBotto
   const { x, y } = m.getSize();
   const phone = x <= 720;
   return phone
-    ? { paddingTopLeft: [30, 80], paddingBottomRight: [30, Math.round(y * 0.3)] }
+    ? { paddingTopLeft: [30, 30], paddingBottomRight: [30, Math.round(y * 0.36)] }
     : { paddingTopLeft: [370, 90], paddingBottomRight: [70, 40] };
 }
 
@@ -323,25 +323,32 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
   useEffect(() => {
     const box = panel.current;
     const row = box?.querySelector<HTMLElement>(`[data-i="${sel}"]`);
-    if (box && row) box.scrollTo({ top: row.offsetTop, behavior: 'smooth' });
+    // Capul lipit (itinerarul, pe telefon) nu acoperă cardul.
+    const head = box?.querySelector<HTMLElement>('.now-sheet-head')?.offsetHeight ?? 0;
+    if (box && row) box.scrollTo({ top: row.offsetTop - head, behavior: 'smooth' });
   }, [sel]);
   // Harta apare și fără autobuz pe drum, dacă avem linia rutei: omul vede pe unde va veni.
   const withPoint = trips.some((t) => t.lat != null || (t.route_id != null && !!data?.routes?.[t.route_id]));
   const empty = data && trips.length === 0;
+  const head = (
+    <>
+      <span className="now-title"><span className="now-dot" />{from} → {to}</span>
+      <button type="button" className="now-close" aria-label={tx.close} onClick={onClose}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+      </button>
+    </>
+  );
 
   return (
     <div className="now-overlay" onClick={onClose}>
       <div className={`now-box${withPoint ? '' : ' no-map'}`} role="dialog" aria-modal="true" aria-label={`${from} → ${to}`} onClick={(e) => e.stopPropagation()}>
         {withPoint && <NowMap trips={trips} routes={data?.routes ?? NO_ROUTES} places={data?.places ?? NO_PLACES} selected={sel} onPick={setSelected} locale={locale} />}
 
-        <div className="now-top">
-          <span className="now-title"><span className="now-dot" />{from} → {to}</span>
-          <button type="button" className="now-close" aria-label={tx.close} onClick={onClose}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
-          </button>
-        </div>
+        <div className="now-top">{head}</div>
 
         <div className="now-panel" ref={panel}>
+          {/* Pe telefon itinerarul stă deasupra cardurilor, nu peste hartă (Ion, 27.09, ION-100). */}
+          <div className="now-sheet-head">{head}</div>
           {!data && !failed && <p className="now-note">{tx.loading}</p>}
           {failed && !data && <p className="now-note">{tx.error}</p>}
           {empty && <p className="now-note">{locale === 'ru' ? data!.line_ru : data!.line_ro}</p>}
@@ -389,6 +396,7 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
 @keyframes now-pulse{0%{box-shadow:0 0 0 0 rgba(155,27,48,.45)}70%{box-shadow:0 0 0 7px rgba(155,27,48,0)}100%{box-shadow:0 0 0 0 rgba(155,27,48,0)}}
 .now-close{flex-shrink:0;width:48px;height:48px;border-radius:50%;border:none;color:#231A1C;display:flex;align-items:center;justify-content:center;cursor:pointer}
 .no-map .now-title,.no-map .now-close{box-shadow:none;background:#F6ECEE}
+.now-sheet-head{display:none}
 .now-panel{position:absolute;left:20px;bottom:20px;z-index:2;width:320px;max-height:calc(100% - 108px);overflow-y:auto;background:#fff;border-radius:22px;box-shadow:0 12px 32px rgba(40,10,18,.16)}
 .no-map .now-panel{position:static;width:auto;max-height:none;margin:0 16px 16px;box-shadow:none;border:1px solid #F1E8EA}
 .now-note{margin:0;padding:22px 20px;font-size:15px;line-height:1.5;color:#6E5A5E}
@@ -445,8 +453,13 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
   .now-top{left:12px;right:12px;top:12px}
   .now-title{height:46px;font-size:16px}
   .now-close{width:46px;height:46px}
-  .now-map .leaflet-top.leaflet-right{top:66px}
-  .now-panel{left:12px;right:12px;bottom:12px;width:auto;max-height:30%}
+  .now-map .leaflet-top.leaflet-right{top:12px}
+  .now-panel{left:12px;right:12px;bottom:12px;width:auto;max-height:36%}
+  .now-top{display:none}
+  .now-sheet-head{display:flex;position:sticky;top:0;z-index:1;align-items:center;justify-content:space-between;gap:10px;padding:8px 8px 8px 16px;background:#fff;border-bottom:1px solid #F1E8EA}
+  .now-sheet-head .now-title{height:auto;padding:0;box-shadow:none;background:none;font-size:16px}
+  .now-sheet-head .now-close{width:40px;height:40px;box-shadow:none;background:#F6ECEE}
+  .now-box.no-map{padding-top:12px}
   /* Cinci curse pe telefon (ION-100, Ion 27.09: «rău se vede în telefon, cartele mai înguste»):
      șoferul, mașina și numărul pe un rând; «după grafic» doar la cursa aleasă. */
   .now-info{flex-flow:row wrap;column-gap:6px}

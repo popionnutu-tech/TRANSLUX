@@ -6,6 +6,7 @@ import { CAT_DRAX, PRAG_INDICATII_KM, type AnalizaDrax, type CategorieDrax, type
 import { paginaCeFaci, textCard } from '@/lib/lde/drax-ce-faci-text';
 import { frazaSaptamana, povesteZi } from '@/lib/lde/drax-ziua';
 import CeFaciDraxSectiune from './CeFaciDrax';
+import { canonPlaca } from '@/lib/lde/tip-masina';
 import DormBalti from './DormBalti';
 
 // Raportul săptămânal Drăxlmaier Bălți (ION-94, faza 3 din ION-86). Cifrele NU se socotesc aici: sunt ale rândului «DRAXELMAIER»
@@ -110,7 +111,7 @@ function Liste({ a }: { a: RaportDraxDate }) {
   );
 }
 
-export default function RaportDrax({ a, saptamani }: { a: RaportDraxDate | null; saptamani: string[] }) {
+export default function RaportDrax({ a, saptamani, tipuri = {} }: { a: RaportDraxDate | null; saptamani: string[]; tipuri?: Record<string, string> }) {
   const [deschis, setDeschis] = useState<string | null>(null);
   if (!a) {
     return (
@@ -188,7 +189,8 @@ export default function RaportDrax({ a, saptamani }: { a: RaportDraxDate | null;
                 <Fragment key={m.m}>
                   <tr onClick={() => setDeschis(des ? null : m.m)} aria-expanded={des}
                     className="cursor-pointer border-t border-neutral-100 hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-800/50">
-                    <td className="px-3! py-2! font-mono font-semibold">{m.m}{m.deLamurit && <span className={`ml-1! text-[11px] ${ROSU}`} title={m.deLamurit}>de lămurit</span>}</td>
+                    <td className="px-3! py-2! font-mono font-semibold">{m.m}{m.deLamurit && <span className={`ml-1! text-[11px] ${ROSU}`} title={m.deLamurit}>de lămurit</span>}
+                      <span className="block font-sans text-[11.5px] font-normal text-neutral-500">{tipuri[canonPlaca(m.m)] ?? '—'}</span></td>
                     <td className="px-3! py-2! text-[12px] text-neutral-600 dark:text-neutral-300">{m.rute.map((r) => `${linie(r.r)} (${r.zile} z)`).join(', ') || '—'}</td>
                     <td className="px-3! py-2! text-right font-mono tabular-nums" title="zile măsurate / zile lucrate luni–vineri">{m.zileIncluse}/{m.zile}</td>
                     <td className="px-3! py-2!">{m.casa ?? '—'}</td>

@@ -151,3 +151,18 @@ export async function getSaptamani(uzina = 'LEAR Ungheni'): Promise<string[]> {
   if (error) throw new Error(`lde_analiza_reguli: ${error.message}`);
   return (data ?? []).map((r) => r.saptamina as string);
 }
+
+/** ION-114: tipul fiecărei mașini după plăcuță (vehicles → lde_vehicle_norms → lde_vehicle_types), pentru tabelul Drăxlmaier */
+export async function getTipuriMasini(): Promise<Record<string, string>> {
+  const session = await verifySession();
+  requireRole(session, 'ADMIN');
+  const supabase = getSupabase();
+  const [v, n, t] = await Promise.all([
+    supabase.from('vehicles').select('id,plate_number'),
+    supabase.from('lde_vehicle_norms').select('vehicle_id,vehicle_type_id'),
+    supabase.from('lde_vehicle_types').select('id,display_name'),
+  ]);
+  if (v.error || n.error || t.error) return {};
+  const { tipPePlaca } = await import('@/lib/lde/tip-masina');
+  return tipPePlaca(v.data ?? [], n.data ?? [], t.data ?? []);
+}

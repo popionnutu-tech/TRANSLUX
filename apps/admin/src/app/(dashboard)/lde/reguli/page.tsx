@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import Link from 'next/link';
-import { getRaport, getSaptamani } from './actions';
+import { getRaport, getSaptamani, getTipuriMasini } from './actions';
 import ReguliClient from './ReguliClient';
 import ReguliSebnClient, { type ReguliSebn } from './ReguliSebnClient';
 import RaportSebn, { eticheta, type SaptSebn } from './RaportSebn';
@@ -120,12 +120,13 @@ export default async function LdeReguliPage({
   }
 
   if (alese === 'drax') {
-    const [raport, saptamani] = await Promise.all([
+    const [raport, saptamani, tipuri] = await Promise.all([
       getRaport(RIND_DRAX, saptamina),
       getSaptamani(RIND_DRAX),
+      getTipuriMasini(),
     ]);
     // garda la rulare: un rând fără forma Drăxlmaier nu se desenează (tipuri proprii, verdictul 1 F3)
-    return <>{nav}<RaportDrax a={esteAnalizaDrax(raport) ? (raport as unknown as RaportDraxDate) : null} saptamani={saptamani} /></>;
+    return <>{nav}<RaportDrax a={esteAnalizaDrax(raport) ? (raport as unknown as RaportDraxDate) : null} saptamani={saptamani} tipuri={tipuri} /></>;
   }
 
   const uzina = alese === 'floresti' ? 'LEAR Florești' : 'LEAR Ungheni';

@@ -1,0 +1,24 @@
+2026-09-01: complete 1 [s2 830MUM] · un sens: s1 725CWN (doar tur)
+2026-09-02: complete 2 [s1 725CWN, s2 830MUM]
+2026-09-03: complete 2 [s1 725CWN, s2 830MUM]
+2026-09-04: complete 1 [s2 830MUM] · un sens: s1 725CWN (doar tur)
+2026-09-05: complete 0 [] · un sens: s1 206BZP (doar tur), s2 206BZP (doar tur)
+2026-09-07: complete 2 [s2 744ARF, s1 830MUM]
+2026-09-08: complete 2 [s2 744ARF, s1 830MUM]
+2026-09-09: complete 1 [s1 830MUM] · un sens: s2 744ARF (doar retur)
+2026-09-10: complete 2 [s2 744ARF, s1 830MUM]
+2026-09-11: complete 2 [s2 744ARF, s1 830MUM]
+2026-09-12: complete 2 [s1 206BZP, s2 206BZP]
+2026-09-14: complete 2 [s1 725CWN, s2 830MUM]
+2026-09-15: complete 2 [s2 397VKV, s1 725CWN]
+2026-09-16: complete 2 [s1 725CWN, s2 830MUM]
+2026-09-17: complete 2 [s1 725CWN, s2 830MUM]
+2026-09-18: complete 2 [s1 725CWN, s2 830MUM]
+2026-09-19: complete 0 [] · un sens: s2 725CWN (doar tur)
+2026-09-21: complete 2 [s2 725CWN, s1 830MUM]
+2026-09-22: complete 2 [s2 725CWN, s1 830MUM] · un sens: s2 346KAJ (doar tur)
+2026-09-23: complete 2 [s2 725CWN, s1 830MUM]
+2026-09-24: complete 2 [s2 725CWN, s1 830MUM]
+2026-09-25: complete 1 [s1 830MUM] · un sens: s2 725CWN (doar tur)
+
+mediana perechilor COMPLETE pe zi (zile cu ≥ 1 pereche completă): 2 · pe toate zilele cu observații (zi fără pereche = 0): 2 · lanțul (etalon-ideal tureZi): sept 2 / toate 2

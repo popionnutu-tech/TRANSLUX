@@ -1,0 +1,121 @@
+{
+ "versiune": "decizii-v3 · 2026-09-27 · v3.1 (ION-99)",
+ "sursa": "verdictul dezbaterii Claude + Codex pe ideal-v3 (docs/plans/2026-09-27-drax-ideal-v3/verdict-v3.md, 27.09.2026) + ION-99 ideal-v3.1 (cârpirea golurilor GPS, regula satelor în ordine, R6 pe metoda comună)",
+ "regula": "doar METODE (sursa, selecția perechilor, mașinile scoase cu motiv și proveniență) și valoarea AȘTEPTATĂ; niciun km scris ca intrare. card-gps.mjs și verificatorul (drax.mjs v5, D8) recalculează din GPS și pică dacă rezultatul diferă peste toleranță.",
+ "toleranta_km": 0.1,
+ "linii": [
+  {
+   "ruta": "R24",
+   "linie": "Catranic",
+   "metoda": "poarta-sensului",
+   "steag": null,
+   "motiv": "< 3 perechi bune GPS în septembrie după filtrul de urmă ruptă (dispozitivul 2302 al lui 224BZP: 13 din 37 de picioare) → regula de rezervă pe toată fereastra (C20, alege.mjs:56-58), cu garda de similaritate; 41 de zile, orice poartă 29,5",
+   "provenienta": "verdict-v3.md: unanim · valoarea așteptată refăcută în v3.1 (ION-99) = ce iese din lanțul v3.1",
+   "asteptat": {
+    "km": 29.2,
+    "tureZi": 1,
+    "kmZi": 58.4,
+    "steag": false
+   }
+  },
+  {
+   "ruta": "R6",
+   "linie": "Mihailenii Vechi",
+   "metoda": "orice-poarta",
+   "steag": null,
+   "motiv": "metoda comună: mediana pe zile-pereche bune, pe orice poartă (turul intră amestecat VEST/EST); din v3.1 cu picioarele 345KAJ de după 14.09 mutate de pe R3|Recea* pe R6 de regula satelor în ordine (etalon.mjs v3.1)",
+   "provenienta": "verdict-v3.md (metoda, unanim) + ION-99 (Ion 27.09: «fă cârpiri dacă sare GPS-ul»; reatribuirea 345KAJ); steagul v3 scos: cauza lui corectată, C47 ≥ 60 %",
+   "asteptat": {
+    "km": 54.9,
+    "tureZi": 1,
+    "kmZi": 109.8,
+    "steag": false
+   }
+  },
+  {
+   "ruta": "R32",
+   "linie": "Trifanesti",
+   "metoda": "poarta-sensului",
+   "scoate": {
+    "masini": [
+     "518MHD"
+    ]
+   },
+   "steag": "decizie v3: doar 146BRAZ; cursele lui 518MHD scoase din populație (graficul îl dă pe R16); 146BRAZ face și R18 în aceeași cursă (Gura Căinarului, Putinești)",
+   "motiv": "daily_assignments: 518MHD are R16 pe ambele schimburi zilnic 01–22.09 și nicio zi pe R32; cele 4 ture/zi l-ar număra de două ori (și pe R16)",
+   "provenienta": "verdict-v3.md (probă Claude pe daily_assignments, acceptată de Codex)",
+   "asteptat": {
+    "km": 40.2,
+    "tureZi": 2,
+    "kmZi": 160.8,
+    "steag": true
+   }
+  },
+  {
+   "ruta": "R16",
+   "linie": "Floresti",
+   "metoda": "poarta-sensului",
+   "steag": "decizie v3: drumul real al lui 518MHD (mașina liniei după grafic) e 52,9 km prin satele R32; nu se creează linie nouă; de lămurit dacă ocolul prin R32 e cu oameni",
+   "motiv": "card neschimbat, steag nou",
+   "provenienta": "verdict-v3.md",
+   "asteptat": {
+    "km": 35.7,
+    "tureZi": 1,
+    "kmZi": 71.4,
+    "steag": true
+   }
+  },
+  {
+   "ruta": "R18",
+   "linie": "Zarojeni",
+   "metoda": "card-vechi",
+   "steag": "decizie v3: card vechi (dezacord Claude 30,0 / Codex 28,9); D/EZ dau 53,3 / 25,6 pe toată fereastra — mediana comună ascunde servicii diferite; rezerva nu se aplică (9 perechi în sept.)",
+   "provenienta": "verdict-v3.md",
+   "asteptat": {
+    "km": 28.9,
+    "tureZi": 2,
+    "kmZi": 115.6,
+    "steag": true
+   }
+  },
+  {
+   "ruta": "R36",
+   "linie": "Bocancea Schit",
+   "metoda": "card-vechi",
+   "steag": "decizie v3: card vechi (dezacord Claude 46,2 / Codex 54,5); drumul lung = 8 din 9 retururi de noapte prin Bilicenii Vechi, 0 perechi pe drumul scurt; excesul nedovedit",
+   "provenienta": "verdict-v3.md",
+   "asteptat": {
+    "km": 54.5,
+    "tureZi": 1,
+    "kmZi": 109,
+    "steag": true
+   }
+  },
+  {
+   "ruta": "R27",
+   "linie": "Sturzovca",
+   "metoda": "card-vechi",
+   "steag": "decizie v3: card vechi × 3 ture; ținta 24,0 × 2 pe serviciul direct, dar bucla 727CWN (Fundurii Noi–Limbenii Noi) n-are încă regulă de atribuire reconciliată cu R11",
+   "provenienta": "verdict-v3.md",
+   "asteptat": {
+    "km": 24.9,
+    "tureZi": 3,
+    "kmZi": 149.4,
+    "steag": true
+   }
+  },
+  {
+   "ruta": "R3",
+   "linie": "Nihoreni",
+   "metoda": "card-vechi",
+   "steag": "decizie v3: card vechi (dezacord Claude 42,3 / Codex 44,2); grupa D face +12 km încărcați fără sate în plus; EZ instabilă 41,4 / 44,3",
+   "provenienta": "verdict-v3.md",
+   "asteptat": {
+    "km": 44.2,
+    "tureZi": 2,
+    "kmZi": 176.8,
+    "steag": true
+   }
+  }
+ ]
+}

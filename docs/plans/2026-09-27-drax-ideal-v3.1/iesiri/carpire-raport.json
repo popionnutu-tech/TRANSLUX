@@ -1,0 +1,401 @@
+{
+ "prag": {
+  "T_DT": 180,
+  "T_D": 1,
+  "V_MAX": 130
+ },
+ "statistica": {
+  "ordineTimpEgal": 34,
+  "curse": 833,
+  "carpite": 828,
+  "sarite": 0,
+  "dejaCarpite": 0,
+  "nepotrivite": [],
+  "goluri": 1342,
+  "goluriCarpite": 1335,
+  "ocol": 7,
+  "eroareValhalla": 0,
+  "kmCarpit": 6361,
+  "kmDreptVechi": 2921.3,
+  "steag": 113,
+  "aprCarpite": 743
+ },
+ "peMasina": {
+  "727CWN": {
+   "curse": 13,
+   "goluri": 15,
+   "kmCarpit": 70.6,
+   "kmInainte": 553.4,
+   "kmDupa": 577.4,
+   "steag": 1
+  },
+  "297LVY": {
+   "curse": 24,
+   "goluri": 51,
+   "kmCarpit": 233.3,
+   "kmInainte": 1897.3,
+   "kmDupa": 2034.4,
+   "steag": 4
+  },
+  "725CWN": {
+   "curse": 11,
+   "goluri": 14,
+   "kmCarpit": 105.9,
+   "kmInainte": 572.6,
+   "kmDupa": 651.5,
+   "steag": 2
+  },
+  "388ASB": {
+   "curse": 30,
+   "goluri": 50,
+   "kmCarpit": 253,
+   "kmInainte": 1636.6,
+   "kmDupa": 1765.6,
+   "steag": 2
+  },
+  "710CWN": {
+   "curse": 24,
+   "goluri": 32,
+   "kmCarpit": 111.6,
+   "kmInainte": 752.9,
+   "kmDupa": 794.4,
+   "steag": 0
+  },
+  "350KAJ": {
+   "curse": 20,
+   "goluri": 30,
+   "kmCarpit": 145.6,
+   "kmInainte": 714.5,
+   "kmDupa": 797.8,
+   "steag": 3
+  },
+  "518MHD": {
+   "curse": 7,
+   "goluri": 12,
+   "kmCarpit": 58.3,
+   "kmInainte": 375.2,
+   "kmDupa": 406.7,
+   "steag": 0
+  },
+  "731ARF": {
+   "curse": 20,
+   "goluri": 30,
+   "kmCarpit": 122.7,
+   "kmInainte": 1400.7,
+   "kmDupa": 1464.3,
+   "steag": 2
+  },
+  "917FTI": {
+   "curse": 25,
+   "goluri": 34,
+   "kmCarpit": 157.4,
+   "kmInainte": 1271.7,
+   "kmDupa": 1358.1,
+   "steag": 1
+  },
+  "302YEK": {
+   "curse": 18,
+   "goluri": 27,
+   "kmCarpit": 111.7,
+   "kmInainte": 999.8,
+   "kmDupa": 1037.1,
+   "steag": 0
+  },
+  "760BXI": {
+   "curse": 29,
+   "goluri": 44,
+   "kmCarpit": 242,
+   "kmInainte": 1702.9,
+   "kmDupa": 1849.6,
+   "steag": 1
+  },
+  "034BRAT": {
+   "curse": 16,
+   "goluri": 24,
+   "kmCarpit": 82.4,
+   "kmInainte": 757.2,
+   "kmDupa": 786.3,
+   "steag": 3
+  },
+  "224BZP": {
+   "curse": 114,
+   "goluri": 335,
+   "kmCarpit": 1705.5,
+   "kmInainte": 5751.2,
+   "kmDupa": 6798.8,
+   "steag": 40
+  },
+  "043BRAU": {
+   "curse": 15,
+   "goluri": 17,
+   "kmCarpit": 185.8,
+   "kmInainte": 968.1,
+   "kmDupa": 1135,
+   "steag": 3
+  },
+  "744ARF": {
+   "curse": 17,
+   "goluri": 20,
+   "kmCarpit": 75.9,
+   "kmInainte": 717.1,
+   "kmDupa": 748.6,
+   "steag": 0
+  },
+  "345KAJ": {
+   "curse": 23,
+   "goluri": 38,
+   "kmCarpit": 164.4,
+   "kmInainte": 1736.9,
+   "kmDupa": 1820.4,
+   "steag": 0
+  },
+  "348KAJ": {
+   "curse": 16,
+   "goluri": 20,
+   "kmCarpit": 92.1,
+   "kmInainte": 441.9,
+   "kmDupa": 493.9,
+   "steag": 3
+  },
+  "412BRAY": {
+   "curse": 9,
+   "goluri": 9,
+   "kmCarpit": 28,
+   "kmInainte": 297.6,
+   "kmDupa": 300.9,
+   "steag": 0
+  },
+  "763LYY": {
+   "curse": 9,
+   "goluri": 10,
+   "kmCarpit": 38.2,
+   "kmInainte": 250.2,
+   "kmDupa": 269.8,
+   "steag": 2
+  },
+  "144BRAZ": {
+   "curse": 17,
+   "goluri": 20,
+   "kmCarpit": 119.5,
+   "kmInainte": 1127.2,
+   "kmDupa": 1220,
+   "steag": 2
+  },
+  "457BRAX": {
+   "curse": 50,
+   "goluri": 83,
+   "kmCarpit": 550.4,
+   "kmInainte": 2421.9,
+   "kmDupa": 2812.6,
+   "steag": 11
+  },
+  "447ASB": {
+   "curse": 8,
+   "goluri": 10,
+   "kmCarpit": 53.5,
+   "kmInainte": 570.2,
+   "kmDupa": 587,
+   "steag": 0
+  },
+  "549RNK": {
+   "curse": 15,
+   "goluri": 26,
+   "kmCarpit": 123.7,
+   "kmInainte": 1194.6,
+   "kmDupa": 1264.2,
+   "steag": 1
+  },
+  "446ASB": {
+   "curse": 19,
+   "goluri": 24,
+   "kmCarpit": 103,
+   "kmInainte": 1061.8,
+   "kmDupa": 1107.6,
+   "steag": 1
+  },
+  "441ASB": {
+   "curse": 13,
+   "goluri": 17,
+   "kmCarpit": 60.4,
+   "kmInainte": 585,
+   "kmDupa": 596,
+   "steag": 0
+  },
+  "390ASB": {
+   "curse": 10,
+   "goluri": 13,
+   "kmCarpit": 71.3,
+   "kmInainte": 325.1,
+   "kmDupa": 367.5,
+   "steag": 4
+  },
+  "748IZX": {
+   "curse": 21,
+   "goluri": 31,
+   "kmCarpit": 101.4,
+   "kmInainte": 740.5,
+   "kmDupa": 762.1,
+   "steag": 3
+  },
+  "024XKY": {
+   "curse": 24,
+   "goluri": 30,
+   "kmCarpit": 140.2,
+   "kmInainte": 1499.3,
+   "kmDupa": 1582.4,
+   "steag": 4
+  },
+  "346KAJ": {
+   "curse": 14,
+   "goluri": 19,
+   "kmCarpit": 82.2,
+   "kmInainte": 1338.7,
+   "kmDupa": 1374.5,
+   "steag": 0
+  },
+  "386PKP": {
+   "curse": 2,
+   "goluri": 6,
+   "kmCarpit": 19.8,
+   "kmInainte": 150.4,
+   "kmDupa": 152.1,
+   "steag": 0
+  },
+  "293QVT": {
+   "curse": 1,
+   "goluri": 1,
+   "kmCarpit": 3.8,
+   "kmInainte": 66.9,
+   "kmDupa": 67.1,
+   "steag": 0
+  },
+  "206BZP": {
+   "curse": 11,
+   "goluri": 14,
+   "kmCarpit": 47.3,
+   "kmInainte": 291.3,
+   "kmDupa": 305.4,
+   "steag": 2
+  },
+  "880RNK": {
+   "curse": 9,
+   "goluri": 9,
+   "kmCarpit": 25.9,
+   "kmInainte": 301.8,
+   "kmDupa": 309.6,
+   "steag": 0
+  },
+  "912RNK": {
+   "curse": 20,
+   "goluri": 27,
+   "kmCarpit": 107.9,
+   "kmInainte": 1319.7,
+   "kmDupa": 1363.7,
+   "steag": 1
+  },
+  "397VKV": {
+   "curse": 15,
+   "goluri": 17,
+   "kmCarpit": 62.7,
+   "kmInainte": 907.5,
+   "kmDupa": 929.6,
+   "steag": 1
+  },
+  "146BRAZ": {
+   "curse": 18,
+   "goluri": 24,
+   "kmCarpit": 84.4,
+   "kmInainte": 1417.4,
+   "kmDupa": 1437.4,
+   "steag": 2
+  },
+  "925FTI": {
+   "curse": 1,
+   "goluri": 1,
+   "kmCarpit": 1.4,
+   "kmInainte": 75.1,
+   "kmDupa": 75.2,
+   "steag": 0
+  },
+  "435ASB": {
+   "curse": 7,
+   "goluri": 9,
+   "kmCarpit": 36.9,
+   "kmInainte": 223.5,
+   "kmDupa": 237.4,
+   "steag": 1
+  },
+  "715IZX": {
+   "curse": 14,
+   "goluri": 14,
+   "kmCarpit": 42.2,
+   "kmInainte": 255.5,
+   "kmDupa": 263.3,
+   "steag": 3
+  },
+  "351KAJ": {
+   "curse": 21,
+   "goluri": 26,
+   "kmCarpit": 137.6,
+   "kmInainte": 1342.5,
+   "kmDupa": 1411.2,
+   "steag": 1
+  },
+  "186OMM": {
+   "curse": 1,
+   "goluri": 1,
+   "kmCarpit": 2.5,
+   "kmInainte": 88.5,
+   "kmDupa": 88.6,
+   "steag": 0
+  },
+  "713IZX": {
+   "curse": 18,
+   "goluri": 26,
+   "kmCarpit": 85.8,
+   "kmInainte": 670.9,
+   "kmDupa": 696.5,
+   "steag": 2
+  },
+  "826GXP": {
+   "curse": 9,
+   "goluri": 11,
+   "kmCarpit": 75.3,
+   "kmInainte": 322.4,
+   "kmDupa": 372,
+   "steag": 2
+  },
+  "830MUM": {
+   "curse": 15,
+   "goluri": 18,
+   "kmCarpit": 80.5,
+   "kmInainte": 587,
+   "kmDupa": 617.8,
+   "steag": 1
+  },
+  "041BRAU": {
+   "curse": 15,
+   "goluri": 18,
+   "kmCarpit": 54.4,
+   "kmInainte": 446.9,
+   "kmDupa": 456.5,
+   "steag": 4
+  },
+  "414ASB": {
+   "curse": 19,
+   "goluri": 27,
+   "kmCarpit": 101,
+   "kmInainte": 1303.7,
+   "kmDupa": 1325.3,
+   "steag": 0
+  },
+  "804MUM": {
+   "curse": 1,
+   "goluri": 1,
+   "kmCarpit": 1.7,
+   "kmInainte": 44.4,
+   "kmDupa": 44.4,
+   "steag": 0
+  }
+ }
+}

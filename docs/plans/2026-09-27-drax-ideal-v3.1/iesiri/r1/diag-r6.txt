@@ -1,0 +1,26 @@
+linia R6 Mihailenii Vechi sursa sept real {"tur":56.5,"retur":55.7,"dif":1,"poartaTur":"EST","poartaRetur":"EST"} km 54.9 tureZi 1 zi 2026-09-08 917FTI
+poarta sensului: 58 n 5 · orice poartă: 54.9 n 17 · rupte 0 · altaPoarta 15 · tureZi 1 · reg {"tur":["Mihailenii Vechi","Ochiul Alb"],"retur":["Mihailenii Vechi","Ochiul Alb"]}
+  s1|345KAJ|2026-09-14 tur — | retur 54.9 EST MUTAT 
+  s1|345KAJ|2026-09-15 tur 58.2 VEST MUTAT | retur 54.9 EST MUTAT 
+  s1|345KAJ|2026-09-16 tur 54.1 VEST MUTAT | retur — 
+  s1|345KAJ|2026-09-17 tur 53.9 VEST MUTAT | retur 54.9 EST MUTAT 
+  s1|345KAJ|2026-09-18 tur 53.9 VEST MUTAT | retur 58.9 EST MUTAT 
+  s1|917FTI|2026-09-01 tur 53.9 VEST | retur 54.7 EST 
+  s1|917FTI|2026-09-02 tur 54.1 VEST | retur 54.8 EST 
+  s1|917FTI|2026-09-03 tur 60.4 EST | retur 54.8 EST BUNĂ(poarta sensului)
+  s1|917FTI|2026-09-04 tur 53.8 VEST | retur 54.8 EST 
+  s1|917FTI|2026-09-12 tur 72.7 EST | retur 70.1 EST BUNĂ(poarta sensului)
+  s1|917FTI|2026-09-14 tur 54 VEST | retur — 
+  s2|345KAJ|2026-09-21 tur 58.1 VEST MUTAT | retur 55.1 EST MUTAT 
+  s2|345KAJ|2026-09-22 tur 58.1 VEST MUTAT | retur 54.9 EST MUTAT 
+  s2|345KAJ|2026-09-23 tur 54.1 VEST MUTAT | retur 55 EST MUTAT 
+  s2|345KAJ|2026-09-24 tur 58.2 VEST MUTAT | retur 54.9 EST MUTAT 
+  s2|345KAJ|2026-09-25 tur 54.2 VEST MUTAT | retur — 
+  s2|917FTI|2026-09-07 tur 53.8 VEST | retur 54.5 EST 
+  s2|917FTI|2026-09-08 tur 53.7 VEST | retur 54.5 EST 
+  s2|917FTI|2026-09-09 tur — | retur 54.7 EST 
+  s2|917FTI|2026-09-10 tur 55.5 EST | retur 54.7 EST BUNĂ(poarta sensului)
+  s2|917FTI|2026-09-11 tur 55.5 EST | retur 54.6 EST BUNĂ(poarta sensului)
+  s2|917FTI|2026-09-12 tur 72.5 EST | retur 67.3 EST BUNĂ(poarta sensului)
+C47 la E=58: pe poarta sensului 20/24 = 83 % · pe orice poartă 35/39 = 90 %
+C47 la E=54.9: pe poarta sensului 19/24 = 79 % · pe orice poartă 34/39 = 87 %

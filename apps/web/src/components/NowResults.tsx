@@ -244,10 +244,12 @@ function NowMap({ trips, routes, places, selected, onPick, locale }: { trips: No
         L.marker(at, { icon, keyboard: false, title: t.estimated ? `${t.departure} · ${locale === 'ru' ? 'примерное место, без GPS' : 'poziție orientativă, fără GPS'}` : t.departure, zIndexOffset: on ? 1000 : 0 })
           .on('click', () => onPick(i))
           .addTo(g);
-        pts.push(at);
-        if (on && route?.from) pts.push(route.from);
+        // Harta se deschide pe drumul omului: autobuzul ales, localitatea lui și destinația
+        // (Ion, 27.09, ION-100: «harta să fie mai mult centralizată către punctul de plecare spre
+        // Chișinău»). Celelalte autobuze nu mai trag harta spre nord; alese din listă, harta se duce la ele.
+        if (on) pts.push(at);
       });
-      if (pts.length === 0 && route) pts.push(...[route.from, route.to].filter((x): x is LatLon => !!x));
+      if (route) pts.push(...[route.from, route.to].filter((x): x is LatLon => !!x));
       if (pts.length === 0 && route?.shape.length) pts.push(route.shape[0], route.shape[route.shape.length - 1]);
       if (!fitted.current && pts.length) {
         fitted.current = true;

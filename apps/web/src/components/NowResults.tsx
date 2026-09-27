@@ -21,6 +21,8 @@ const REFRESH_MS = 60_000;
 const RED = '#9B1B30';
 /** Reperul hărții «Acum» (ION-100): autogara Bălți, ca în route_shapes.stops. */
 const BALTI: [number, number] = [47.76972, 27.94175];
+/** Cât de departe se poate deschide harta «Acum» cel mult (ION-100). */
+const MIN_OPEN_ZOOM = 9;
 
 interface NowTrip {
   departure: string;
@@ -256,14 +258,18 @@ function NowMap({ trips, routes, places, selected, onPick, locale }: { trips: No
       if (route?.from) {
         const fromBalti = Math.abs(route.from[0] - BALTI[0]) < 0.03 && Math.abs(route.from[1] - BALTI[1]) < 0.04;
         pts.push(route.from);
+        // Din Bălți: doar Bălți și autobuzul, nu tot drumul până la Chișinău (Ion, 27.09: «harta să
+        // se deschidă mai măricel»).
         if (!fromBalti) pts.push(BALTI);
-        else if (route.to) pts.push(route.to);
       } else if (route?.to) pts.push(route.to);
       if (pts.length === 0 && route?.shape.length) pts.push(route.shape[0], route.shape[route.shape.length - 1]);
       if (!fitted.current && pts.length) {
         fitted.current = true;
         // Ce acoperă lista și antetul nu e hartă: autobuzul ales stătea sub cardul de jos (08:03).
-        map.current!.fitBounds(pts.length === 1 ? [pts[0], pts[0]] : pts, { ...panelPadding(map.current!), maxZoom: 11 });
+        const m = map.current!;
+        m.fitBounds(pts.length === 1 ? [pts[0], pts[0]] : pts, { ...panelPadding(m), maxZoom: 11 });
+        // Nu mai departe de nivelul 9 (~150 km pe lățimea telefonului): localitatea omului rămâne pe loc.
+        if (m.getZoom() < MIN_OPEN_ZOOM) m.setZoomAround(route?.from ?? pts[0], MIN_OPEN_ZOOM, { animate: false });
       }
     })();
   }, [trips, routes, places, ready, selected, onPick, locale]);

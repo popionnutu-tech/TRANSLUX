@@ -1,0 +1,17 @@
+{
+  "score": 9.0,
+  "verdict": "pass",
+  "summary": "Sunt de acord cu Nihoreni 44,2 × 2 = 176,8 km/zi: controale.json:183–188 confirmă cardul, iar migrația 417:8 elimină premisa falsă și include bucla după capăt. Acordul din runda 6 pe celelalte linii, Prajila și H4 rămâne. Singura observație este propagarea incompletă a justificării corectate în sursa deciziilor.",
+  "deductions": [
+    {
+      "id": "C1",
+      "severity": "medium",
+      "weight": 1.5,
+      "title": "Corectarea justificării Nihoreni nu acoperă sursa deciziilor consumată de lanț.",
+      "detail": "§6.6 este corectat, însă motivul R3 din decizii-v3.json încă afirmă că D și EZ merg pe același drum și că diferența provine din poartă. card-gps.mjs citește această decizie și copiază motivul în metadatele cardului inclusiv pentru metoda card-vechi. Triajul nu prevede sincronizarea acestei justificări; valoarea numerică rămâne corectă.",
+      "evidence": "docs/plans/2026-09-28-drax-6-linii/r3/vps/decizii-v3.json:47; docs/plans/2026-09-28-drax-6-linii/r3/vps/card-gps.mjs:42; docs/plans/2026-09-28-drax-6-linii/r3/vps/card-gps.mjs:80; docs/plans/2026-09-28-drax-6-linii/r3/vps/card-gps.mjs:95",
+      "failure_scenario": "",
+      "suggested_fix": "Adaugă în plan sincronizarea motivului R3 din sursa deciziilor și a explicației E1 planificate cu justificarea rundei 7: bucla D este inclusă după capăt, cardul comun rămâne 44,2 × 2. Păstrează artefactele istorice sigilate ca istoric."
+    }
+  ]
+}

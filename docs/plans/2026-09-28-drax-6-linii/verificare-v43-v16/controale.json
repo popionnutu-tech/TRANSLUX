@@ -1,0 +1,3495 @@
+{
+ "versiune": "drax.mjs v5 · 1be43dc0b57b",
+ "script": {
+  "drax_sha256": "1be43dc0b57beaf3195125153bf69aea98e87e7951a3e21cacabe2a497ba80e3",
+  "etalon_sha256": "3f958d6ca8dd12661c71c9bf06a77e70d6d541f8f7bbfb1c51cc7f1fea70ff04",
+  "timp_sha256": "0c9b7668732f6b3360f5d6a47679f0dcc641a841d0359a1e57b4117aa46054e9",
+  "etalon": "etalon-gps v5 + filtru-rupte v1",
+  "c4_sha256": "e9d6b55ec0b107617a392d36fa5c0ba6ce2a3e3264dce7fa389c1a2cd56c97f9",
+  "filtru_sha256": "96807913f1d1c089c8c3c9762cc64431eee66cd31a00772939372e38da6931b9",
+  "ruleaza_sha256": "a26fad56be25d67dc49edca96d7cfb0998f66e79428730f048d395e02e6cf329",
+  "node": "v20.20.2",
+  "tz": "2025c",
+  "icu": "78.2",
+  "fus": "Europe/Chisinau"
+ },
+ "verif_src": "/root/lde-worker/drax/date/ideal-v4.3",
+ "intrari": {
+  "schelet-ideal.json": {
+   "sursa": "/root/lde-worker/drax/date/ideal-v4.3/schelet-ideal.json",
+   "sha256": "71ee45596d35a9cb2fd8b97b2b3e9ee3295c4ee20bb2b422cd99d5024c95347e",
+   "bytes": 536751
+  },
+  "obs-ideal.json": {
+   "sursa": "/root/lde-worker/drax/date/ideal-v4.3/obs-ideal.json",
+   "sha256": "9a421935f9c2ef7f5160fb410cad2832d620b8ffea966bc8f5a541fa06b48eac",
+   "bytes": 7132988
+  },
+  "etalon-ideal.json": {
+   "sursa": "/root/lde-worker/drax/date/ideal-v4.3/etalon-ideal.json",
+   "sha256": "ff388827bfb127b4fa2235809f5e97708c9d038509e440bc6f830799d0c8885c",
+   "bytes": 2570294
+  },
+  "curse-ideal.json": {
+   "sursa": "/root/lde-worker/drax/date/ideal-v4.3/curse-ideal.json",
+   "sha256": "79b09da2780ef9d40c8459ce6a839b69246f1452f51c6dcb0326a5de8ed352e4",
+   "bytes": 22193929
+  },
+  "regulate-ideal.json": {
+   "sursa": "/root/lde-worker/drax/date/ideal-v4.3/regulate-ideal.json",
+   "sha256": "8e054478b0783f44ca0f72cdbcf57c0b9dff5c0e49e7ca7b59039a0087ec4936",
+   "bytes": 78148
+  },
+  "schimburi-ideal.json": {
+   "sursa": "/root/lde-worker/drax/date/ideal-v4.3/schimburi-ideal.json",
+   "sha256": "c94bb380461ed8776631702001b644de10d8f1be32b553463e5dc7fa04d2419d",
+   "bytes": 83129
+  },
+  "care-schimb-ideal.json": {
+   "sursa": "/root/lde-worker/drax/date/ideal-v4.3/care-schimb-ideal.json",
+   "sha256": "a3523bd5fbbfb06ed56cbc7649e7b2a2779cbeb6a6597900fdf203a59a874654",
+   "bytes": 19744
+  },
+  "dubluri-ideal.json": {
+   "sursa": "/root/lde-worker/drax/date/ideal-v4.3/dubluri-ideal.json",
+   "sha256": "91eec277af20ae4bcd3245fc671328a63c9354ddc2811a4aa4c233408d9a7bcf",
+   "bytes": 31
+  },
+  "nomenclator.json": {
+   "sursa": "/root/lde-worker/drax/date/ideal-v4.3/nomenclator.json",
+   "sha256": "2935de27e405dbdbc0a22f5b1c02e6a472a83c1e1285211168c508210a352ec0",
+   "bytes": 47831
+  },
+  "ferestre-drax.json": {
+   "sursa": null,
+   "sha256": "417584bd9b40bfb2e4c4396a0a04a348c5e9a8c944bb7d6aa985078c746f3168",
+   "bytes": 160
+  },
+  "porti-drax.json": {
+   "sursa": null,
+   "sha256": "9a262b9ac859b0a80158e6520fb955f300b7ac19a0d206fde0b6c82cf605d3f7",
+   "bytes": 214
+  },
+  "explicatii-drax.json": {
+   "sursa": null,
+   "sha256": "da3890def3b31ebf82989ab1d298f15c8c3fdb6ec0e2629c4f5795ad3d3877a8",
+   "bytes": 6264
+  },
+  "decizii-v3.json": {
+   "sursa": "/root/lde-worker/drax/date/ideal-v4.3/decizii-v3.json",
+   "sha256": "628553e604fe1c7a83b5bc78f7b66c8e6a2f1e38ac32fda41916e73d585c84df",
+   "bytes": 5448
+  }
+ },
+ "unitati": {
+  "linii_act": 51,
+  "linii_gps": 48,
+  "linii_cu_ideal": 49,
+  "masini": 49,
+  "observatii_cu_ruta": 13695,
+  "deplasari_cu_ruta": 13476,
+  "deplasari_brute": 27644
+ },
+ "linii": [
+  {
+   "ruta": "R1",
+   "linie": "Donduseni",
+   "sursa": "sept",
+   "porti": {
+    "tur": "EST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 19,
+   "etalonGPS": 91.9,
+   "etalonGPS_brut": 91.3,
+   "km_card": 91.9,
+   "dif_pct": 0,
+   "tureZiGPS": 1,
+   "tureZi_schelet": 1,
+   "kmZiGPS": 183.8,
+   "kmZi_schelet": 183.8,
+   "ore": {
+    "s1 tur": 6.35,
+    "s1 retur": 15.9,
+    "s2 tur": 14.72,
+    "s2 retur": 24.3
+   },
+   "picioareAltaPoarta": 0,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 91.9,
+   "zileBuneOricePoarta": 19,
+   "steag": null,
+   "ziAleasa": "s2|346KAJ|2026-09-17",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 100,
+   "variante": false
+  },
+  {
+   "ruta": "R2",
+   "linie": "Stolniceni",
+   "sursa": "sept",
+   "porti": {
+    "tur": "VEST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 16,
+   "etalonGPS": 67.9,
+   "etalonGPS_brut": 67.3,
+   "km_card": 67.9,
+   "dif_pct": 0,
+   "tureZiGPS": 1,
+   "tureZi_schelet": 1,
+   "kmZiGPS": 135.8,
+   "kmZi_schelet": 135.8,
+   "ore": {
+    "s1 tur": 6.17,
+    "s1 retur": 15.85,
+    "s2 tur": 14.65,
+    "s2 retur": 24.22
+   },
+   "picioareAltaPoarta": 0,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 67.9,
+   "zileBuneOricePoarta": 16,
+   "steag": null,
+   "ziAleasa": "s1|549RNK|2026-09-17",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 94,
+   "variante": false
+  },
+  {
+   "ruta": "R3",
+   "linie": "Nihoreni",
+   "sursa": "sept",
+   "porti": {
+    "tur": "VEST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 16,
+   "etalonGPS": 42.3,
+   "etalonGPS_brut": 41.7,
+   "km_card": 44.2,
+   "dif_pct": 4.5,
+   "tureZiGPS": 2,
+   "tureZi_schelet": 2,
+   "kmZiGPS": 169.2,
+   "kmZi_schelet": 176.8,
+   "ore": {
+    "s1 tur": 6.17,
+    "s1 retur": 15.88,
+    "s2 tur": 14.7,
+    "s2 retur": 24.27
+   },
+   "picioareAltaPoarta": 20,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 45.8,
+   "zileBuneOricePoarta": 26,
+   "steag": null,
+   "ziAleasa": "s2|457BRAX|2026-09-23",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": {
+    "metoda": "card-vechi",
+    "scoate": [],
+    "asteptat": {
+     "km": 44.2,
+     "tureZi": 2,
+     "kmZi": 176.8,
+     "steag": false
+    }
+   },
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 60,
+   "variante": true
+  },
+  {
+   "ruta": "R4",
+   "linie": "Grinauti",
+   "sursa": "sept",
+   "porti": {
+    "tur": "EST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 35,
+   "etalonGPS": 25.6,
+   "etalonGPS_brut": 25,
+   "km_card": 25.6,
+   "dif_pct": 0,
+   "tureZiGPS": 2,
+   "tureZi_schelet": 2,
+   "kmZiGPS": 102.4,
+   "kmZi_schelet": 102.4,
+   "ore": {
+    "s1 tur": 6.45,
+    "s1 retur": 15.88,
+    "s2 tur": 14.93,
+    "s2 retur": 24.28
+   },
+   "picioareAltaPoarta": 2,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 25.6,
+   "zileBuneOricePoarta": 35,
+   "steag": null,
+   "ziAleasa": "s2|186OMM|2026-09-22",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 96,
+   "variante": false
+  },
+  {
+   "ruta": "R5",
+   "linie": "Alunis",
+   "sursa": "sept",
+   "porti": {
+    "tur": "VEST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 9,
+   "etalonGPS": 34.6,
+   "etalonGPS_brut": 34,
+   "km_card": 34.6,
+   "dif_pct": 0,
+   "tureZiGPS": 1,
+   "tureZi_schelet": 1,
+   "kmZiGPS": 69.2,
+   "kmZi_schelet": 69.2,
+   "ore": {
+    "s1 tur": 6.27,
+    "s1 retur": 15.93,
+    "s2 tur": 14.6,
+    "s2 retur": 24.36
+   },
+   "picioareAltaPoarta": 0,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 34.6,
+   "zileBuneOricePoarta": 9,
+   "steag": null,
+   "ziAleasa": "s1|917FTI|2026-09-10",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 100,
+   "variante": false
+  },
+  {
+   "ruta": "R6",
+   "linie": "Mihailenii Vechi",
+   "sursa": "sept",
+   "porti": {
+    "tur": "EST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 17,
+   "etalonGPS": 54.9,
+   "etalonGPS_brut": 57.3,
+   "km_card": 54.9,
+   "dif_pct": 0,
+   "tureZiGPS": 1,
+   "tureZi_schelet": 1,
+   "kmZiGPS": 109.8,
+   "kmZi_schelet": 109.8,
+   "ore": {
+    "s1 tur": 6.26,
+    "s1 retur": 15.88,
+    "s2 tur": 14.72,
+    "s2 retur": 24.26
+   },
+   "picioareAltaPoarta": 15,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 54.9,
+   "zileBuneOricePoarta": 17,
+   "steag": null,
+   "ziAleasa": "s2|917FTI|2026-09-08",
+   "ziAleasaBunaGPS": false,
+   "corectie": null,
+   "decizie": {
+    "metoda": "orice-poarta",
+    "scoate": [],
+    "asteptat": {
+     "km": 54.9,
+     "tureZi": 1,
+     "kmZi": 109.8,
+     "steag": false
+    }
+   },
+   "metoda_etalon": "orice poartă (decizie)",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 79,
+   "variante": false
+  },
+  {
+   "ruta": "R7",
+   "linie": "Usurei",
+   "sursa": "sept",
+   "porti": {
+    "tur": "VEST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 18,
+   "etalonGPS": 37.4,
+   "etalonGPS_brut": 36.8,
+   "km_card": 37.4,
+   "dif_pct": 0,
+   "tureZiGPS": 1,
+   "tureZi_schelet": 1,
+   "kmZiGPS": 74.8,
+   "kmZi_schelet": 74.8,
+   "ore": {
+    "s1 tur": 6.17,
+    "s1 retur": 15.88,
+    "s2 tur": 14.65,
+    "s2 retur": 24.27
+   },
+   "picioareAltaPoarta": 1,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 37.4,
+   "zileBuneOricePoarta": 19,
+   "steag": null,
+   "ziAleasa": "s2|386PKP|2026-09-17",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 95,
+   "variante": false
+  },
+  {
+   "ruta": "R8",
+   "linie": "Costesti",
+   "sursa": "sept",
+   "porti": {
+    "tur": "VEST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 19,
+   "etalonGPS": 78.5,
+   "etalonGPS_brut": 78,
+   "km_card": 78.5,
+   "dif_pct": 0,
+   "tureZiGPS": 1,
+   "tureZi_schelet": 1,
+   "kmZiGPS": 157,
+   "kmZi_schelet": 157,
+   "ore": {
+    "s1 tur": 6.18,
+    "s1 retur": 15.87,
+    "s2 tur": 14.62,
+    "s2 retur": 24.28
+   },
+   "picioareAltaPoarta": 0,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 78.5,
+   "zileBuneOricePoarta": 19,
+   "steag": null,
+   "ziAleasa": "s2|345KAJ|2026-09-16",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 100,
+   "variante": false
+  },
+  {
+   "ruta": "R9",
+   "linie": "Cobani",
+   "sursa": "sept",
+   "porti": {
+    "tur": "VEST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 14,
+   "etalonGPS": 55.5,
+   "etalonGPS_brut": 54.9,
+   "km_card": 55.5,
+   "dif_pct": 0,
+   "tureZiGPS": 2,
+   "tureZi_schelet": 2,
+   "kmZiGPS": 222,
+   "kmZi_schelet": 222,
+   "ore": {
+    "s1 tur": 6.22,
+    "s1 retur": 15.9,
+    "s2 tur": 14.72,
+    "s2 retur": 24.35
+   },
+   "picioareAltaPoarta": 14,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 55.5,
+   "zileBuneOricePoarta": 25,
+   "steag": null,
+   "ziAleasa": "s2|402VKV|2026-09-22",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 100,
+   "variante": false
+  },
+  {
+   "ruta": "R10",
+   "linie": "Ciuciulea",
+   "sursa": "sept",
+   "porti": {
+    "tur": "EST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 28,
+   "etalonGPS": 66.5,
+   "etalonGPS_brut": 65.9,
+   "km_card": 66.5,
+   "dif_pct": 0,
+   "tureZiGPS": 2,
+   "tureZi_schelet": 2,
+   "kmZiGPS": 266,
+   "kmZi_schelet": 266,
+   "ore": {
+    "s1 tur": 6.27,
+    "s1 retur": 15.88,
+    "s2 tur": 14.72,
+    "s2 retur": 24.28
+   },
+   "picioareAltaPoarta": 8,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 66.5,
+   "zileBuneOricePoarta": 33,
+   "steag": null,
+   "ziAleasa": "s1|414ASB|2026-09-24",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 80,
+   "variante": false
+  },
+  {
+   "ruta": "R11",
+   "linie": "Funduri Vechi",
+   "sursa": "sept",
+   "porti": {
+    "tur": "VEST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 16,
+   "etalonGPS": 24.7,
+   "etalonGPS_brut": 24.1,
+   "km_card": 24.7,
+   "dif_pct": 0,
+   "tureZiGPS": 1,
+   "tureZi_schelet": 1,
+   "kmZiGPS": 49.4,
+   "kmZi_schelet": 49.4,
+   "ore": {
+    "s1 tur": 6.32,
+    "s1 retur": 15.93,
+    "s2 tur": 14.78,
+    "s2 retur": 24.35
+   },
+   "picioareAltaPoarta": 1,
+   "picioareRupte": 1,
+   "etalonOricePoarta": 24.7,
+   "zileBuneOricePoarta": 16,
+   "steag": null,
+   "ziAleasa": "s1|441ASB|2026-09-15",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 97,
+   "variante": false
+  },
+  {
+   "ruta": "R11",
+   "linie": "Limbenii Noi",
+   "sursa": "sept",
+   "porti": {
+    "tur": "VEST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 16,
+   "etalonGPS": 31.2,
+   "etalonGPS_brut": 30.6,
+   "km_card": 31.2,
+   "dif_pct": 0,
+   "tureZiGPS": 1,
+   "tureZi_schelet": 1,
+   "kmZiGPS": 62.4,
+   "kmZi_schelet": 62.4,
+   "ore": {
+    "s1 tur": 6.15,
+    "s1 retur": 15.86,
+    "s2 tur": 14.63,
+    "s2 retur": 24.28
+   },
+   "picioareAltaPoarta": 0,
+   "picioareRupte": 1,
+   "etalonOricePoarta": 31.2,
+   "zileBuneOricePoarta": 16,
+   "steag": null,
+   "ziAleasa": "s2|457BRAX|2026-09-11",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 83,
+   "variante": false
+  },
+  {
+   "ruta": "R12",
+   "linie": "Pelinia",
+   "sursa": "sept",
+   "porti": {
+    "tur": "EST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 37,
+   "etalonGPS": 26.4,
+   "etalonGPS_brut": 25.8,
+   "km_card": 26.4,
+   "dif_pct": 0,
+   "tureZiGPS": 2,
+   "tureZi_schelet": 2,
+   "kmZiGPS": 105.6,
+   "kmZi_schelet": 105.6,
+   "ore": {
+    "s1 tur": 6.44,
+    "s1 retur": 15.88,
+    "s2 tur": 14.92,
+    "s2 retur": 24.28
+   },
+   "picioareAltaPoarta": 2,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 26.4,
+   "zileBuneOricePoarta": 37,
+   "steag": null,
+   "ziAleasa": "s2|880RNK|2026-09-22",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 100,
+   "variante": false
+  },
+  {
+   "ruta": "R12",
+   "linie": "Sofia",
+   "sursa": "sept",
+   "porti": {
+    "tur": "VEST",
+    "retur": "VEST"
+   },
+   "zileBuneGPS": 34,
+   "etalonGPS": 31.5,
+   "etalonGPS_brut": 31,
+   "km_card": 31.5,
+   "dif_pct": 0,
+   "tureZiGPS": 2,
+   "tureZi_schelet": 2,
+   "kmZiGPS": 126,
+   "kmZi_schelet": 126,
+   "ore": {
+    "s1 tur": 6.45,
+    "s1 retur": 15.7,
+    "s2 tur": 14.93,
+    "s2 retur": 24.18
+   },
+   "picioareAltaPoarta": 5,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 31.9,
+   "zileBuneOricePoarta": 36,
+   "steag": null,
+   "ziAleasa": "s1|388ASB|2026-09-25",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 97,
+   "variante": false
+  },
+  {
+   "ruta": "R13",
+   "linie": "Hasnasenii Noi",
+   "sursa": "sept",
+   "porti": {
+    "tur": "EST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 14,
+   "etalonGPS": 9.5,
+   "etalonGPS_brut": 8.9,
+   "km_card": 9.5,
+   "dif_pct": 0,
+   "tureZiGPS": 1,
+   "tureZi_schelet": 1,
+   "kmZiGPS": 19,
+   "kmZi_schelet": 19,
+   "ore": {
+    "s1 tur": 6.07,
+    "s1 retur": 15.9,
+    "s2 tur": 14.57,
+    "s2 retur": 24.32
+   },
+   "picioareAltaPoarta": 0,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 9.5,
+   "zileBuneOricePoarta": 14,
+   "steag": null,
+   "ziAleasa": "s2|744ARF|2026-09-21",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 100,
+   "variante": false
+  },
+  {
+   "ruta": "R13",
+   "linie": "Lazo",
+   "sursa": "toate",
+   "porti": {
+    "tur": "EST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 116,
+   "etalonGPS": 16.2,
+   "etalonGPS_brut": 15.6,
+   "km_card": 16.2,
+   "dif_pct": 0,
+   "tureZiGPS": 2,
+   "tureZi_schelet": 2,
+   "kmZiGPS": 64.8,
+   "kmZi_schelet": 64.8,
+   "ore": {
+    "s1 tur": 6.13,
+    "s1 retur": 15.9,
+    "s2 tur": 14.62,
+    "s2 retur": 24.3
+   },
+   "picioareAltaPoarta": 0,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 16.2,
+   "zileBuneOricePoarta": 116,
+   "steag": null,
+   "ziAleasa": "s1|043BRAU|2026-06-03",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 97,
+   "variante": false
+  },
+  {
+   "ruta": "R14",
+   "linie": "Baroncea",
+   "sursa": "sept",
+   "porti": {
+    "tur": "EST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 27,
+   "etalonGPS": 44.4,
+   "etalonGPS_brut": 43.8,
+   "km_card": 44.4,
+   "dif_pct": 0,
+   "tureZiGPS": 2,
+   "tureZi_schelet": 2,
+   "kmZiGPS": 177.6,
+   "kmZi_schelet": 177.6,
+   "ore": {
+    "s1 tur": 6.07,
+    "s1 retur": 15.9,
+    "s2 tur": 14.49,
+    "s2 retur": 24.28
+   },
+   "picioareAltaPoarta": 0,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 44.4,
+   "zileBuneOricePoarta": 27,
+   "steag": null,
+   "ziAleasa": "s1|302YEK|2026-09-18",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 100,
+   "variante": false
+  },
+  {
+   "ruta": "R14",
+   "linie": "Dominteni",
+   "sursa": "sept",
+   "porti": {
+    "tur": "EST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 17,
+   "etalonGPS": 29.9,
+   "etalonGPS_brut": 29.3,
+   "km_card": 29.9,
+   "dif_pct": 0,
+   "tureZiGPS": 1,
+   "tureZi_schelet": 1,
+   "kmZiGPS": 59.8,
+   "kmZi_schelet": 59.8,
+   "ore": {
+    "s1 tur": 6.13,
+    "s1 retur": 15.93,
+    "s2 tur": 14.53,
+    "s2 retur": 24.37
+   },
+   "picioareAltaPoarta": 1,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 29.9,
+   "zileBuneOricePoarta": 17,
+   "steag": null,
+   "ziAleasa": "s2|826GXP|2026-09-23",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 97,
+   "variante": false
+  },
+  {
+   "ruta": "R15",
+   "linie": "Suri",
+   "sursa": "sept",
+   "porti": {
+    "tur": "VEST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 8,
+   "etalonGPS": 70,
+   "etalonGPS_brut": 69.4,
+   "km_card": 70,
+   "dif_pct": 0,
+   "tureZiGPS": 1,
+   "tureZi_schelet": 1,
+   "kmZiGPS": 140,
+   "kmZi_schelet": 140,
+   "ore": {
+    "s1 tur": 6.28,
+    "s1 retur": 15.87,
+    "s2 tur": 14.82,
+    "s2 retur": 24.23
+   },
+   "picioareAltaPoarta": 9,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 70,
+   "zileBuneOricePoarta": 15,
+   "steag": null,
+   "ziAleasa": "s1|388ASB|2026-09-18",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 96,
+   "variante": false
+  },
+  {
+   "ruta": "R16",
+   "linie": "Floresti",
+   "sursa": "sept",
+   "porti": {
+    "tur": "EST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 34,
+   "etalonGPS": 36.5,
+   "etalonGPS_brut": 35.8,
+   "km_card": 36.5,
+   "dif_pct": 0,
+   "tureZiGPS": 2,
+   "tureZi_schelet": 2,
+   "kmZiGPS": 146,
+   "kmZi_schelet": 146,
+   "ore": {
+    "s1 tur": 6.05,
+    "s1 retur": 15.93,
+    "s2 tur": 14.54,
+    "s2 retur": 24.33
+   },
+   "picioareAltaPoarta": 0,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 36.5,
+   "zileBuneOricePoarta": 34,
+   "steag": null,
+   "ziAleasa": "s1|518MHD|2026-09-24",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 92,
+   "variante": false
+  },
+  {
+   "ruta": "R16",
+   "linie": "Varvareuca",
+   "sursa": "sept",
+   "porti": {
+    "tur": "EST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 35,
+   "etalonGPS": 42.8,
+   "etalonGPS_brut": 42.2,
+   "km_card": 42.8,
+   "dif_pct": 0,
+   "tureZiGPS": 2,
+   "tureZi_schelet": 2,
+   "kmZiGPS": 171.2,
+   "kmZi_schelet": 171.2,
+   "ore": {
+    "s1 tur": 6.23,
+    "s1 retur": 15.87,
+    "s2 tur": 14.72,
+    "s2 retur": 24.28
+   },
+   "picioareAltaPoarta": 0,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 42.8,
+   "zileBuneOricePoarta": 35,
+   "steag": null,
+   "ziAleasa": "s1|350KAJ|2026-09-22",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 93,
+   "variante": false
+  },
+  {
+   "ruta": "R17",
+   "linie": "Prajila",
+   "sursa": "sept",
+   "porti": {
+    "tur": "EST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 34,
+   "etalonGPS": 41.3,
+   "etalonGPS_brut": 40.7,
+   "km_card": 41.3,
+   "dif_pct": 0,
+   "tureZiGPS": 2,
+   "tureZi_schelet": 2,
+   "kmZiGPS": 165.2,
+   "kmZi_schelet": 165.2,
+   "ore": {
+    "s1 tur": 6.43,
+    "s1 retur": 15.95,
+    "s2 tur": 14.72,
+    "s2 retur": 24.37
+   },
+   "picioareAltaPoarta": 0,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 41.3,
+   "zileBuneOricePoarta": 34,
+   "steag": null,
+   "ziAleasa": "s2|713IZX|2026-09-22",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": {
+    "metoda": "poarta-sensului",
+    "scoate": [
+     "763LYY"
+    ],
+    "asteptat": {
+     "km": 41.3,
+     "tureZi": 2,
+     "kmZi": 165.2,
+     "steag": false
+    }
+   },
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 180,
+   "replica_regulate": true,
+   "c47": 100,
+   "variante": false
+  },
+  {
+   "ruta": "R18",
+   "linie": "Zarojeni",
+   "sursa": "sept",
+   "porti": {
+    "tur": "EST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 4,
+   "etalonGPS": 32.1,
+   "etalonGPS_brut": 31.5,
+   "km_card": 28.9,
+   "dif_pct": -10,
+   "tureZiGPS": 1,
+   "tureZi_schelet": 1,
+   "kmZiGPS": 64.2,
+   "kmZi_schelet": 57.8,
+   "ore": {
+    "s1 tur": 6.17,
+    "s1 retur": 15.92,
+    "s2 tur": 14.53,
+    "s2 retur": 24.28
+   },
+   "picioareAltaPoarta": 0,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 32.1,
+   "zileBuneOricePoarta": 4,
+   "steag": null,
+   "ziAleasa": "s2|348KAJ|2026-09-21",
+   "ziAleasaBunaGPS": true,
+   "corectie": "diagnostic cerut",
+   "decizie": {
+    "metoda": "card-vechi",
+    "scoate": [],
+    "asteptat": {
+     "km": 28.9,
+     "tureZi": 1,
+     "kmZi": 57.8,
+     "steag": false
+    }
+   },
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 35,
+   "variante": false
+  },
+  {
+   "ruta": "R19",
+   "linie": "Bilicenii Vechi",
+   "sursa": "sept",
+   "porti": {
+    "tur": "EST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 29,
+   "etalonGPS": 17.3,
+   "etalonGPS_brut": 16.7,
+   "km_card": 17.3,
+   "dif_pct": 0,
+   "tureZiGPS": 2,
+   "tureZi_schelet": 2,
+   "kmZiGPS": 69.2,
+   "kmZi_schelet": 69.2,
+   "ore": {
+    "s1 tur": 6.27,
+    "s1 retur": 15.92,
+    "s2 tur": 14.75,
+    "s2 retur": 24.32
+   },
+   "picioareAltaPoarta": 0,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 17.3,
+   "zileBuneOricePoarta": 29,
+   "steag": null,
+   "ziAleasa": "s2|744ARF|2026-09-18",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 90,
+   "variante": false
+  },
+  {
+   "ruta": "R19",
+   "linie": "Copaceni",
+   "sursa": "sept",
+   "porti": {
+    "tur": "EST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 37,
+   "etalonGPS": 32.8,
+   "etalonGPS_brut": 32.2,
+   "km_card": 32.8,
+   "dif_pct": 0,
+   "tureZiGPS": 2,
+   "tureZi_schelet": 2,
+   "kmZiGPS": 131.2,
+   "kmZi_schelet": 131.2,
+   "ore": {
+    "s1 tur": 6.25,
+    "s1 retur": 15.88,
+    "s2 tur": 14.73,
+    "s2 retur": 24.32
+   },
+   "picioareAltaPoarta": 0,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 32.8,
+   "zileBuneOricePoarta": 37,
+   "steag": null,
+   "ziAleasa": "s1|830MUM|2026-09-23",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 99,
+   "variante": false
+  },
+  {
+   "ruta": "R20",
+   "linie": "Nicolaevca",
+   "sursa": "sept",
+   "porti": {
+    "tur": "EST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 28,
+   "etalonGPS": 39.6,
+   "etalonGPS_brut": 39,
+   "km_card": 39.6,
+   "dif_pct": 0,
+   "tureZiGPS": 2,
+   "tureZi_schelet": 2,
+   "kmZiGPS": 158.4,
+   "kmZi_schelet": 158.4,
+   "ore": {
+    "s1 tur": 6.15,
+    "s1 retur": 15.9,
+    "s2 tur": 14.6,
+    "s2 retur": 24.25
+   },
+   "picioareAltaPoarta": 0,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 39.6,
+   "zileBuneOricePoarta": 28,
+   "steag": null,
+   "ziAleasa": "s2|041BRAU|2026-09-23",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 100,
+   "variante": false
+  },
+  {
+   "ruta": "R20",
+   "linie": "Radoaia",
+   "sursa": "sept",
+   "porti": {
+    "tur": "EST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 37,
+   "etalonGPS": 26.1,
+   "etalonGPS_brut": 25.5,
+   "km_card": 26.1,
+   "dif_pct": 0,
+   "tureZiGPS": 2,
+   "tureZi_schelet": 2,
+   "kmZiGPS": 104.4,
+   "kmZi_schelet": 104.4,
+   "ore": {
+    "s1 tur": 6.12,
+    "s1 retur": 15.9,
+    "s2 tur": 14.63,
+    "s2 retur": 24.27
+   },
+   "picioareAltaPoarta": 0,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 26.1,
+   "zileBuneOricePoarta": 37,
+   "steag": null,
+   "ziAleasa": "s1|206BZP|2026-09-24",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 97,
+   "variante": false
+  },
+  {
+   "ruta": "R21",
+   "linie": "Heciul Nou",
+   "sursa": "sept",
+   "porti": {
+    "tur": "EST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 42,
+   "etalonGPS": 20.7,
+   "etalonGPS_brut": 20.1,
+   "km_card": 20.7,
+   "dif_pct": 0,
+   "tureZiGPS": 2,
+   "tureZi_schelet": 2,
+   "kmZiGPS": 82.8,
+   "kmZi_schelet": 82.8,
+   "ore": {
+    "s1 tur": 6.3,
+    "s1 retur": 15.93,
+    "s2 tur": 14.78,
+    "s2 retur": 24.35
+   },
+   "picioareAltaPoarta": 0,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 20.7,
+   "zileBuneOricePoarta": 42,
+   "steag": null,
+   "ziAleasa": "s2|715IZX|2026-09-22",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 94,
+   "variante": false
+  },
+  {
+   "ruta": "R22",
+   "linie": "Tiplesti",
+   "sursa": "sept",
+   "porti": {
+    "tur": "EST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 31,
+   "etalonGPS": 21.9,
+   "etalonGPS_brut": 21.3,
+   "km_card": 21.9,
+   "dif_pct": 0,
+   "tureZiGPS": 2,
+   "tureZi_schelet": 2,
+   "kmZiGPS": 87.6,
+   "kmZi_schelet": 87.6,
+   "ore": {
+    "s1 tur": 6.24,
+    "s1 retur": 15.95,
+    "s2 tur": 14.7,
+    "s2 retur": 24.35
+   },
+   "picioareAltaPoarta": 0,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 21.9,
+   "zileBuneOricePoarta": 31,
+   "steag": null,
+   "ziAleasa": "s1|826GXP|2026-09-07",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 92,
+   "variante": false
+  },
+  {
+   "ruta": "R23",
+   "linie": "Scumpia",
+   "sursa": "sept",
+   "porti": {
+    "tur": "VEST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 21,
+   "etalonGPS": 59.5,
+   "etalonGPS_brut": 58.9,
+   "km_card": 59.5,
+   "dif_pct": 0,
+   "tureZiGPS": 2,
+   "tureZi_schelet": 2,
+   "kmZiGPS": 238,
+   "kmZi_schelet": 238,
+   "ore": {
+    "s1 tur": 6.25,
+    "s1 retur": 15.88,
+    "s2 tur": 14.75,
+    "s2 retur": 24.3
+   },
+   "picioareAltaPoarta": 13,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 60,
+   "zileBuneOricePoarta": 33,
+   "steag": null,
+   "ziAleasa": "s1|446ASB|2026-09-25",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 98,
+   "variante": false
+  },
+  {
+   "ruta": "R24",
+   "linie": "Catranic",
+   "sursa": "sept",
+   "porti": {
+    "tur": "VEST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 15,
+   "etalonGPS": 29.4,
+   "etalonGPS_brut": 28.9,
+   "km_card": 29.3,
+   "dif_pct": -0.3,
+   "tureZiGPS": 1,
+   "tureZi_schelet": 1,
+   "kmZiGPS": 58.8,
+   "kmZi_schelet": 58.6,
+   "ore": {
+    "s1 tur": 6.03,
+    "s1 retur": 15.92,
+    "s2 tur": 14.53,
+    "s2 retur": 24.33
+   },
+   "picioareAltaPoarta": 2,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 29.4,
+   "zileBuneOricePoarta": 17,
+   "steag": null,
+   "ziAleasa": "s2|224BZP|2026-09-21",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": {
+    "metoda": "poarta-sensului",
+    "scoate": [],
+    "asteptat": {
+     "km": 29.3,
+     "tureZi": 1,
+     "kmZi": 58.6,
+     "steag": false
+    }
+   },
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 92,
+   "variante": false
+  },
+  {
+   "ruta": "R25",
+   "linie": "Hiliuti",
+   "sursa": "sept",
+   "porti": {
+    "tur": "EST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 9,
+   "etalonGPS": 32,
+   "etalonGPS_brut": 31.4,
+   "km_card": 32,
+   "dif_pct": 0,
+   "tureZiGPS": 1,
+   "tureZi_schelet": 1,
+   "kmZiGPS": 64,
+   "kmZi_schelet": 64,
+   "ore": {
+    "s1 tur": 6.25,
+    "s1 retur": 15.87,
+    "s2 tur": 14.7,
+    "s2 retur": 24.27
+   },
+   "picioareAltaPoarta": 7,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 31.5,
+   "zileBuneOricePoarta": 16,
+   "steag": null,
+   "ziAleasa": "s1|912RNK|2026-09-15",
+   "ziAleasaBunaGPS": false,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 100,
+   "variante": false
+  },
+  {
+   "ruta": "R26",
+   "linie": "Ilenuta",
+   "sursa": "sept",
+   "porti": {
+    "tur": "EST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 7,
+   "etalonGPS": 38.8,
+   "etalonGPS_brut": 38.3,
+   "km_card": 38.8,
+   "dif_pct": 0,
+   "tureZiGPS": 1,
+   "tureZi_schelet": 1,
+   "kmZiGPS": 77.6,
+   "kmZi_schelet": 77.6,
+   "ore": {
+    "s1 tur": 6.32,
+    "s1 retur": 15.87,
+    "s2 tur": 14.7,
+    "s2 retur": 24.28
+   },
+   "picioareAltaPoarta": 9,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 38.8,
+   "zileBuneOricePoarta": 11,
+   "steag": null,
+   "ziAleasa": "s1|925FTI|2026-09-15",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 89,
+   "variante": false
+  },
+  {
+   "ruta": "R26",
+   "linie": "Obreja Veche",
+   "sursa": "sept",
+   "porti": {
+    "tur": "VEST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 15,
+   "etalonGPS": 38.4,
+   "etalonGPS_brut": 37.8,
+   "km_card": 38.4,
+   "dif_pct": 0,
+   "tureZiGPS": 1,
+   "tureZi_schelet": 1,
+   "kmZiGPS": 76.8,
+   "kmZi_schelet": 76.8,
+   "ore": {
+    "s1 tur": 6.28,
+    "s1 retur": 15.88,
+    "s2 tur": 14.72,
+    "s2 retur": 24.28
+   },
+   "picioareAltaPoarta": 1,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 38.8,
+   "zileBuneOricePoarta": 16,
+   "steag": null,
+   "ziAleasa": "s1|760BXI|2026-09-18",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 100,
+   "variante": false
+  },
+  {
+   "ruta": "R27",
+   "linie": "Danu",
+   "sursa": "sept",
+   "porti": {
+    "tur": "VEST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 16,
+   "etalonGPS": 53.3,
+   "etalonGPS_brut": 52.8,
+   "km_card": 53.3,
+   "dif_pct": 0,
+   "tureZiGPS": 1,
+   "tureZi_schelet": 1,
+   "kmZiGPS": 106.6,
+   "kmZi_schelet": 106.6,
+   "ore": {
+    "s1 tur": 6.09,
+    "s1 retur": 15.92,
+    "s2 tur": 14.57,
+    "s2 retur": 24.35
+   },
+   "picioareAltaPoarta": 2,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 53.5,
+   "zileBuneOricePoarta": 17,
+   "steag": null,
+   "ziAleasa": "s1|441ASB|2026-09-08",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 94,
+   "variante": false
+  },
+  {
+   "ruta": "R27",
+   "linie": "Sturzovca",
+   "sursa": "sept",
+   "porti": {
+    "tur": "EST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 15,
+   "etalonGPS": 23.9,
+   "etalonGPS_brut": 23.3,
+   "km_card": 23.9,
+   "dif_pct": 0,
+   "tureZiGPS": 2,
+   "tureZi_schelet": 2,
+   "kmZiGPS": 95.6,
+   "kmZi_schelet": 95.6,
+   "ore": {
+    "s1 tur": 6.3,
+    "s1 retur": 15.88,
+    "s2 tur": 14.82,
+    "s2 retur": 24.21
+   },
+   "picioareAltaPoarta": 40,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 23.9,
+   "zileBuneOricePoarta": 31,
+   "steag": null,
+   "ziAleasa": "s1|804MUM|2026-09-24",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 64,
+   "variante": false
+  },
+  {
+   "ruta": "R28",
+   "linie": "Cuhnesti",
+   "sursa": "sept",
+   "porti": {
+    "tur": "VEST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 14,
+   "etalonGPS": 75,
+   "etalonGPS_brut": 74.5,
+   "km_card": 75,
+   "dif_pct": 0,
+   "tureZiGPS": 1,
+   "tureZi_schelet": 1,
+   "kmZiGPS": 150,
+   "kmZi_schelet": 150,
+   "ore": {
+    "s1 tur": 6.3,
+    "s1 retur": 15.9,
+    "s2 tur": 14.7,
+    "s2 retur": 24.28
+   },
+   "picioareAltaPoarta": 3,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 75.2,
+   "zileBuneOricePoarta": 16,
+   "steag": null,
+   "ziAleasa": "s2|760BXI|2026-09-16",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 91,
+   "variante": false
+  },
+  {
+   "ruta": "R29",
+   "linie": "Ustia",
+   "sursa": "sept",
+   "porti": {
+    "tur": "VEST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 9,
+   "etalonGPS": 56.9,
+   "etalonGPS_brut": 56.4,
+   "km_card": 56.9,
+   "dif_pct": 0,
+   "tureZiGPS": 1,
+   "tureZi_schelet": 1,
+   "kmZiGPS": 113.8,
+   "kmZi_schelet": 113.8,
+   "ore": {
+    "s1 tur": 6.05,
+    "s1 retur": 15.87,
+    "s2 tur": 14.65,
+    "s2 retur": 24.28
+   },
+   "picioareAltaPoarta": 9,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 57.5,
+   "zileBuneOricePoarta": 17,
+   "steag": null,
+   "ziAleasa": "s1|457BRAX|2026-09-25",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 100,
+   "variante": false
+  },
+  {
+   "ruta": "R30",
+   "linie": "Cosernita",
+   "sursa": "sept",
+   "porti": {
+    "tur": "EST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 18,
+   "etalonGPS": 63.8,
+   "etalonGPS_brut": 63.2,
+   "km_card": 63.8,
+   "dif_pct": 0,
+   "tureZiGPS": 1,
+   "tureZi_schelet": 1,
+   "kmZiGPS": 127.6,
+   "kmZi_schelet": 127.6,
+   "ore": {
+    "s1 tur": 6.25,
+    "s1 retur": 15.92,
+    "s2 tur": 14.72,
+    "s2 retur": 24.27
+   },
+   "picioareAltaPoarta": 0,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 63.8,
+   "zileBuneOricePoarta": 18,
+   "steag": null,
+   "ziAleasa": "s1|763LYY|2026-09-24",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 97,
+   "variante": false
+  },
+  {
+   "ruta": "R31",
+   "linie": "Cotiujenii Mari",
+   "sursa": "sept",
+   "porti": {
+    "tur": "EST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 15,
+   "etalonGPS": 65.1,
+   "etalonGPS_brut": 64.5,
+   "km_card": 65.1,
+   "dif_pct": 0,
+   "tureZiGPS": 1,
+   "tureZi_schelet": 1,
+   "kmZiGPS": 130.2,
+   "kmZi_schelet": 130.2,
+   "ore": {
+    "s1 tur": 6.3,
+    "s1 retur": 15.92,
+    "s2 tur": 14.77,
+    "s2 retur": 24.32
+   },
+   "picioareAltaPoarta": 0,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 65.1,
+   "zileBuneOricePoarta": 15,
+   "steag": null,
+   "ziAleasa": "s1|293QVT|2026-09-25",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 100,
+   "variante": false
+  },
+  {
+   "ruta": "R32",
+   "linie": "Cainarii Vechi",
+   "sursa": "sept",
+   "porti": {
+    "tur": "EST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 18,
+   "etalonGPS": 46.9,
+   "etalonGPS_brut": 46.3,
+   "km_card": 46.9,
+   "dif_pct": 0,
+   "tureZiGPS": 1,
+   "tureZi_schelet": 1,
+   "kmZiGPS": 93.8,
+   "kmZi_schelet": 93.8,
+   "ore": {
+    "s1 tur": 6.06,
+    "s1 retur": 15.88,
+    "s2 tur": 14.52,
+    "s2 retur": 24.28
+   },
+   "picioareAltaPoarta": 0,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 46.9,
+   "zileBuneOricePoarta": 18,
+   "steag": null,
+   "ziAleasa": "s2|302YEK|2026-09-17",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 95,
+   "variante": false
+  },
+  {
+   "ruta": "R32",
+   "linie": "Trifanesti",
+   "sursa": "sept",
+   "porti": {
+    "tur": "EST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 19,
+   "etalonGPS": 40.2,
+   "etalonGPS_brut": 39.6,
+   "km_card": 40.2,
+   "dif_pct": 0,
+   "tureZiGPS": 2,
+   "tureZi_schelet": 2,
+   "kmZiGPS": 160.8,
+   "kmZi_schelet": 160.8,
+   "ore": {
+    "s1 tur": 6.22,
+    "s1 retur": 15.93,
+    "s2 tur": 14.57,
+    "s2 retur": 24.31
+   },
+   "picioareAltaPoarta": 0,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 40.2,
+   "zileBuneOricePoarta": 19,
+   "steag": null,
+   "ziAleasa": "s1|146BRAZ|2026-09-23",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 72,
+   "variante": false
+  },
+  {
+   "ruta": "R33",
+   "linie": "Iezarenii Vechi",
+   "sursa": "sept",
+   "porti": {
+    "tur": "EST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 18,
+   "etalonGPS": 34.1,
+   "etalonGPS_brut": 33.5,
+   "km_card": 34.1,
+   "dif_pct": 0,
+   "tureZiGPS": 1,
+   "tureZi_schelet": 1,
+   "kmZiGPS": 68.2,
+   "kmZi_schelet": 68.2,
+   "ore": {
+    "s1 tur": 6.13,
+    "s1 retur": 15.92,
+    "s2 tur": 14.58,
+    "s2 retur": 24.33
+   },
+   "picioareAltaPoarta": 0,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 34.1,
+   "zileBuneOricePoarta": 18,
+   "steag": null,
+   "ziAleasa": "s1|725CWN|2026-09-25",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 97,
+   "variante": false
+  },
+  {
+   "ruta": "R34",
+   "linie": "Taura Veche",
+   "sursa": "sept",
+   "porti": {
+    "tur": "EST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 18,
+   "etalonGPS": 40.7,
+   "etalonGPS_brut": 40.1,
+   "km_card": 40.7,
+   "dif_pct": 0,
+   "tureZiGPS": 1,
+   "tureZi_schelet": 1,
+   "kmZiGPS": 81.4,
+   "kmZi_schelet": 81.4,
+   "ore": {
+    "s1 tur": 6.29,
+    "s1 retur": 15.95,
+    "s2 tur": 14.68,
+    "s2 retur": 24.37
+   },
+   "picioareAltaPoarta": 0,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 40.7,
+   "zileBuneOricePoarta": 18,
+   "steag": null,
+   "ziAleasa": "s2|435ASB|2026-09-15",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 100,
+   "variante": false
+  },
+  {
+   "ruta": "R35",
+   "linie": "Cucioaia",
+   "sursa": "sept",
+   "porti": {
+    "tur": "EST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 19,
+   "etalonGPS": 52.5,
+   "etalonGPS_brut": 51.8,
+   "km_card": 52.5,
+   "dif_pct": 0,
+   "tureZiGPS": 1,
+   "tureZi_schelet": 1,
+   "kmZiGPS": 105,
+   "kmZi_schelet": 105,
+   "ore": {
+    "s1 tur": 5.99,
+    "s1 retur": 15.88,
+    "s2 tur": 14.62,
+    "s2 retur": 24.28
+   },
+   "picioareAltaPoarta": 0,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 52.5,
+   "zileBuneOricePoarta": 19,
+   "steag": null,
+   "ziAleasa": "s1|912RNK|2026-09-22",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 100,
+   "variante": false
+  },
+  {
+   "ruta": "R36",
+   "linie": "Bocancea Schit",
+   "sursa": "sept",
+   "porti": {
+    "tur": "EST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 11,
+   "etalonGPS": 54,
+   "etalonGPS_brut": 53.5,
+   "km_card": 53.3,
+   "dif_pct": -1.3,
+   "tureZiGPS": 1,
+   "tureZi_schelet": 1,
+   "kmZiGPS": 108,
+   "kmZi_schelet": 106.6,
+   "ore": {
+    "s1 tur": 6.03,
+    "s1 retur": 15.87,
+    "s2 tur": 14.52,
+    "s2 retur": 24.28
+   },
+   "picioareAltaPoarta": 1,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 54,
+   "zileBuneOricePoarta": 12,
+   "steag": null,
+   "ziAleasa": "s1|224BZP|2026-09-23",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 94,
+   "variante": false
+  },
+  {
+   "ruta": "R37",
+   "linie": "Musteata",
+   "sursa": "sept",
+   "porti": {
+    "tur": "VEST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 9,
+   "etalonGPS": 60.2,
+   "etalonGPS_brut": 59.7,
+   "km_card": 60.2,
+   "dif_pct": 0,
+   "tureZiGPS": 1,
+   "tureZi_schelet": 1,
+   "kmZiGPS": 120.4,
+   "kmZi_schelet": 120.4,
+   "ore": {
+    "s1 tur": 6.13,
+    "s1 retur": 15.87,
+    "s2 tur": 14.52,
+    "s2 retur": 24.23
+   },
+   "picioareAltaPoarta": 5,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 60.2,
+   "zileBuneOricePoarta": 13,
+   "steag": null,
+   "ziAleasa": "s1|925FTI|2026-09-25",
+   "ziAleasaBunaGPS": false,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 100,
+   "variante": false
+  },
+  {
+   "ruta": "R38",
+   "linie": "Glinjeni",
+   "sursa": "sept",
+   "porti": {
+    "tur": "VEST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 17,
+   "etalonGPS": 33.3,
+   "etalonGPS_brut": 32.7,
+   "km_card": 33.3,
+   "dif_pct": 0,
+   "tureZiGPS": 1,
+   "tureZi_schelet": 1,
+   "kmZiGPS": 66.6,
+   "kmZi_schelet": 66.6,
+   "ore": {
+    "s1 tur": 6.27,
+    "s1 retur": 15.92,
+    "s2 tur": 14.73,
+    "s2 retur": 24.3
+   },
+   "picioareAltaPoarta": 0,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 33.3,
+   "zileBuneOricePoarta": 17,
+   "steag": null,
+   "ziAleasa": "s1|144BRAZ|2026-09-25",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 95,
+   "variante": false
+  },
+  {
+   "ruta": "R39",
+   "linie": "Popestii de jos",
+   "sursa": "toate",
+   "porti": {
+    "tur": "EST",
+    "retur": "EST"
+   },
+   "zileBuneGPS": 47,
+   "etalonGPS": 74.8,
+   "etalonGPS_brut": 74.2,
+   "km_card": 74.8,
+   "dif_pct": 0,
+   "tureZiGPS": 1,
+   "tureZi_schelet": 1,
+   "kmZiGPS": 149.6,
+   "kmZi_schelet": 149.6,
+   "ore": {
+    "s1 tur": 6.28,
+    "s1 retur": 15.87,
+    "s2 tur": 14.83,
+    "s2 retur": 24.25
+   },
+   "picioareAltaPoarta": 0,
+   "picioareRupte": 0,
+   "etalonOricePoarta": 74.8,
+   "zileBuneOricePoarta": 47,
+   "steag": null,
+   "ziAleasa": "s2|024XKY|2026-06-11",
+   "ziAleasaBunaGPS": true,
+   "corectie": null,
+   "decizie": null,
+   "metoda_etalon": "poarta sensului",
+   "rezerva": null,
+   "scoase_decizie": 0,
+   "replica_regulate": true,
+   "c47": 98,
+   "variante": false
+  }
+ ],
+ "controale": [
+  {
+   "id": "C5",
+   "control": "C5",
+   "nivel": "informativ",
+   "cifra": "2026-05-04…2026-09-26",
+   "motiv": "fereastra ⊂ EEST; lanțul ION-71 folosește UTC+3 fix (etalon.mjs:19) — corect doar vara"
+  },
+  {
+   "id": "R1",
+   "control": "R1",
+   "nivel": "informativ",
+   "cifra": "act 51 linii · schelet 51"
+  },
+  {
+   "id": "C31",
+   "control": "C31(a)",
+   "nivel": "blocant",
+   "ruta": "R18",
+   "linie": "Putinesti",
+   "cifra": "candidate 0",
+   "motiv": "nicio candidată (nicio zi cu tur și retur la capăt)"
+  },
+  {
+   "id": "C31",
+   "control": "C31(a)",
+   "nivel": "blocant",
+   "ruta": "R27",
+   "linie": "Iabloana",
+   "cifra": "candidate 0",
+   "motiv": "nicio candidată (nicio zi cu tur și retur la capăt)"
+  },
+  {
+   "id": "C32",
+   "control": "C32(b)",
+   "nivel": "informativ",
+   "ruta": "R13",
+   "linie": "Lazo",
+   "cifra": "bune sept 2, toate 24"
+  },
+  {
+   "id": "C32",
+   "control": "C32(b)",
+   "nivel": "informativ",
+   "ruta": "R39",
+   "linie": "Popestii de jos",
+   "cifra": "bune sept 0, toate 24"
+  },
+  {
+   "id": "C35",
+   "control": "C35(d)",
+   "nivel": "informativ",
+   "ruta": "R1",
+   "cifra": "Mindic",
+   "motiv": "sat din act cu 0 % pe rută"
+  },
+  {
+   "id": "C35",
+   "control": "C35(d)",
+   "nivel": "informativ",
+   "ruta": "R2",
+   "cifra": "Sofrincani",
+   "motiv": "sat din act cu 0 % pe rută"
+  },
+  {
+   "id": "C35",
+   "control": "C35(d)",
+   "nivel": "informativ",
+   "ruta": "R7",
+   "cifra": "Recea",
+   "motiv": "sat din act cu 0 % pe rută"
+  },
+  {
+   "id": "C35",
+   "control": "C35(d)",
+   "nivel": "informativ",
+   "ruta": "R26",
+   "cifra": "Obreja Noua",
+   "motiv": "sat din act cu 0 % pe rută"
+  },
+  {
+   "id": "C35",
+   "control": "C35(e)",
+   "nivel": "informativ",
+   "ruta": "R5",
+   "linie": "Alunis",
+   "cifra": "Sverdiac 50%"
+  },
+  {
+   "id": "C35",
+   "control": "C35(e)",
+   "nivel": "informativ",
+   "ruta": "R8",
+   "linie": "Costesti",
+   "cifra": "Recea 84%, Gălășeni 26%"
+  },
+  {
+   "id": "C35",
+   "control": "C35(e)",
+   "nivel": "informativ",
+   "ruta": "R16",
+   "linie": "Varvareuca",
+   "cifra": "Elizaveta 90%"
+  },
+  {
+   "id": "C35",
+   "control": "C35(e)",
+   "nivel": "informativ",
+   "ruta": "R18",
+   "linie": "Zarojeni",
+   "cifra": "Alexăndreni 25%"
+  },
+  {
+   "id": "C35",
+   "control": "C35(e)",
+   "nivel": "informativ",
+   "ruta": "R22",
+   "linie": "Tiplesti",
+   "cifra": "Biruința 74%"
+  },
+  {
+   "id": "C35",
+   "control": "C35(e)",
+   "nivel": "informativ",
+   "ruta": "R24",
+   "linie": "Catranic",
+   "cifra": "Catranîc, localitatea stație cale ferată 37%"
+  },
+  {
+   "id": "C35",
+   "control": "C35(e)",
+   "nivel": "informativ",
+   "ruta": "R27",
+   "linie": "Danu",
+   "cifra": "Stîrcea 37%"
+  },
+  {
+   "id": "C35",
+   "control": "C35(e)",
+   "nivel": "informativ",
+   "ruta": "R29",
+   "linie": "Ustia",
+   "cifra": "Fundurii Vechi 50%"
+  },
+  {
+   "id": "C35",
+   "control": "C35(e)",
+   "nivel": "informativ",
+   "ruta": "R30",
+   "linie": "Cosernita",
+   "cifra": "Gura Camencii 67%, Ghindești 61%, Gvozdova 56%"
+  },
+  {
+   "id": "C35",
+   "control": "C35(e)",
+   "nivel": "informativ",
+   "ruta": "R32",
+   "linie": "Trifanesti",
+   "cifra": "Putinești 39%"
+  },
+  {
+   "id": "C35",
+   "control": "C35(e)",
+   "nivel": "informativ",
+   "ruta": "R33",
+   "linie": "Iezarenii Vechi",
+   "cifra": "Bilicenii Vechi 100%"
+  },
+  {
+   "id": "C35",
+   "control": "C35(e)",
+   "nivel": "informativ",
+   "ruta": "R35",
+   "linie": "Cucioaia",
+   "cifra": "Valea lui Vlad 100%"
+  },
+  {
+   "id": "C35",
+   "control": "C35(e)",
+   "nivel": "informativ",
+   "ruta": "R36",
+   "linie": "Bocancea Schit",
+   "cifra": "Flămînzeni 44%"
+  },
+  {
+   "id": "C35",
+   "control": "C35(e)",
+   "nivel": "informativ",
+   "ruta": "R39",
+   "linie": "Popestii de jos",
+   "cifra": "Baroncea Nouă 89%, Pelinia 49%"
+  },
+  {
+   "id": "C37",
+   "control": "C37(f)",
+   "nivel": "informativ",
+   "ruta": "R17",
+   "linie": "Prajila",
+   "cifra": "713IZX=763LYY: 7 curse / 180 pe linie (4 %)"
+  },
+  {
+   "id": "C38",
+   "control": "C38(g) curse",
+   "nivel": "informativ",
+   "cifra": "23 observații cu plin > 140 km",
+   "motiv": "R16|Varvareuca, R19|Copaceni, R32|Frumușica*, R14|Baroncea, R16|Floresti"
+  },
+  {
+   "id": "C42",
+   "control": "C42(k)",
+   "nivel": "informativ",
+   "ruta": "R14",
+   "linie": "Baroncea",
+   "cifra": "GPS 2 (sept 2 / toate 1) · act 1"
+  },
+  {
+   "id": "C42",
+   "control": "C42(k)",
+   "nivel": "informativ",
+   "ruta": "R27",
+   "linie": "Sturzovca",
+   "cifra": "GPS 2 (sept 2 / toate 2) · act 1"
+  },
+  {
+   "id": "C42",
+   "control": "C42(k)",
+   "nivel": "informativ",
+   "ruta": "R32",
+   "linie": "Trifanesti",
+   "cifra": "GPS 2 (sept 2 / toate 2) · act 1"
+  },
+  {
+   "id": "C41",
+   "control": "C41(j)",
+   "nivel": "informativ",
+   "ruta": "R2",
+   "linie": "Cupcini*",
+   "cifra": "549RNK"
+  },
+  {
+   "id": "C41",
+   "control": "C41(j)",
+   "nivel": "informativ",
+   "ruta": "R20",
+   "linie": "Drăgănești*",
+   "cifra": "041BRAU"
+  },
+  {
+   "id": "C41",
+   "control": "C41(j)",
+   "nivel": "informativ",
+   "ruta": "R22",
+   "linie": "Heciul Vechi*",
+   "cifra": "412BRAY"
+  },
+  {
+   "id": "C41",
+   "control": "C41(j)",
+   "nivel": "informativ",
+   "ruta": "R22",
+   "linie": "Țipletești*",
+   "cifra": "412BRAY"
+  },
+  {
+   "id": "C41",
+   "control": "C41(j)",
+   "nivel": "informativ",
+   "ruta": "R33",
+   "linie": "Bilicenii Vechi*",
+   "cifra": "725CWN"
+  },
+  {
+   "id": "C23",
+   "control": "C23 hartă",
+   "nivel": "informativ",
+   "ruta": "R7",
+   "linie": "Usurei",
+   "cifra": "card 37.4 / drum desenat 40.5 (8.3 %)"
+  },
+  {
+   "id": "C23",
+   "control": "C23 hartă",
+   "nivel": "informativ",
+   "ruta": "R8",
+   "linie": "Costesti",
+   "cifra": "card 78.5 / drum desenat 82.8 (5.5 %)"
+  },
+  {
+   "id": "C23",
+   "control": "C23 hartă",
+   "nivel": "informativ",
+   "ruta": "R11",
+   "linie": "Funduri Vechi",
+   "cifra": "card 24.7 / drum desenat 26.0 (5.1 %)"
+  },
+  {
+   "id": "C23",
+   "control": "C23 hartă",
+   "nivel": "informativ",
+   "ruta": "R39",
+   "linie": "Popestii de jos",
+   "cifra": "card 74.8 / drum desenat 79.2 (5.9 %)"
+  },
+  {
+   "id": "V6",
+   "control": "V6 salt între porți",
+   "nivel": "informativ",
+   "masina": "346KAJ",
+   "treapta": "salt",
+   "cifra": "salt: 1 zile, 1 perechi (2026-09-05)"
+  },
+  {
+   "id": "C4",
+   "control": "C4",
+   "nivel": "informativ",
+   "masina": "880RNK",
+   "treapta": "sigur",
+   "cifra": "sigur: 7 zile, 7 perechi (2026-05-07,2026-05-11,2026-06-15,2026-06-22,2026-06-25,2026-07-01,2026-09-01)"
+  },
+  {
+   "id": "V6",
+   "control": "V6 salt între porți",
+   "nivel": "informativ",
+   "masina": "744ARF",
+   "treapta": "salt",
+   "cifra": "salt: 16 zile, 16 perechi (2026-07-16,2026-07-17,2026-09-01,2026-09-02,2026-09-03,2026-09-05,2026-09-07,2026-09-08,2026-09-09,2026-09-10,2026-09-11,2026-09-12…)"
+  },
+  {
+   "id": "V6",
+   "control": "V6 salt între porți",
+   "nivel": "informativ",
+   "masina": "412BRAY",
+   "treapta": "salt",
+   "cifra": "salt: 1 zile, 1 perechi (2026-05-13)"
+  },
+  {
+   "id": "V6",
+   "control": "V6 salt între porți",
+   "nivel": "informativ",
+   "masina": "348KAJ",
+   "treapta": "salt",
+   "cifra": "salt: 1 zile, 1 perechi (2026-06-12)"
+  },
+  {
+   "id": "V6",
+   "control": "V6 salt între porți",
+   "nivel": "informativ",
+   "masina": "350KAJ",
+   "treapta": "salt",
+   "cifra": "salt: 1 zile, 1 perechi (2026-09-09)"
+  },
+  {
+   "id": "V6",
+   "control": "V6 salt între porți",
+   "nivel": "informativ",
+   "cifra": "7731 deplasări poartă→altă poartă ≤5 km; 0 atribuite unei linii",
+   "motiv": "—"
+  },
+  {
+   "id": "G1",
+   "control": "G1 bandă",
+   "nivel": "informativ",
+   "ruta": "R3",
+   "linie": "Nihoreni",
+   "cifra": "card 44.2 / GPS completat 42.3 (4.5 %)"
+  },
+  {
+   "id": "G1",
+   "control": "G1",
+   "nivel": "blocant",
+   "ruta": "R18",
+   "linie": "Zarojeni",
+   "cifra": "card 28.9 / GPS completat 32.1 km (brut 31.5; 10.0 %, 4 zile)",
+   "motiv": "diagnostic cerut înaintea corecției: doar 35 % din picioare în toleranță (două variante de drum?)"
+  },
+  {
+   "id": "G1",
+   "control": "G1 total",
+   "nivel": "informativ",
+   "cifra": "km/zi GPS completat 5668 față de card 5667; fără etalon GPS 0; replica satelor regulate ≠ lanț pe 0 linii",
+   "motiv": "razele porților: EST 0.6, VEST 0.5 km"
+  },
+  {
+   "id": "C4",
+   "control": "C4 efect",
+   "nivel": "informativ",
+   "ruta": "R12",
+   "linie": "Sofia",
+   "masina": "880RNK",
+   "cifra": "1 zile cu dublură sigură · dispozitive 2402, 2478 · baza: etalon GPS 31.5, ture/zi 2",
+   "motiv": "efect măsurat nul pe dispozitive (2402, 2478)"
+  },
+  {
+   "id": "C4",
+   "control": "C4 efect",
+   "nivel": "informativ",
+   "ruta": "R12",
+   "linie": "Pelinia",
+   "masina": "880RNK",
+   "cifra": "6 zile cu dublură sigură · dispozitive 2402, 2478 · baza: etalon GPS 26.4, ture/zi 2",
+   "motiv": "efect măsurat nul pe dispozitive (2402, 2478) · fără dispozitivul 2402: zile bune GPS 37 → 35"
+  },
+  {
+   "id": "D8",
+   "control": "D8 decizie",
+   "nivel": "informativ",
+   "ruta": "R24",
+   "linie": "Catranic",
+   "cifra": "poarta-sensului · verificator 29.4 · card 29.3 × 1 = 58.6 · așteptat 29.3 × 1 = 58.6 · steag false/false",
+   "motiv": "verdictul dezbaterii Claude + Codex pe ideal-v3 (docs/plans/2026-09-27-drax-ideal-v3/verdict-v3.md, 27.09.2026) + ION-99 ideal-v3.1 (cârpirea golurilor GPS, regula satelor în ordine, R6 pe metoda comună; dezbaterea 27.09: punctele cârpite în afara atribuirii, picioarele > 30 % cârpite în afara etalonului, card-vechi = cardul sigilat din ideal-v3)"
+  },
+  {
+   "id": "D8",
+   "control": "D8 decizie",
+   "nivel": "informativ",
+   "ruta": "R6",
+   "linie": "Mihailenii Vechi",
+   "cifra": "orice-poarta · verificator 54.9 · card 54.9 × 1 = 109.8 · așteptat 54.9 × 1 = 109.8 · steag false/false",
+   "motiv": "verdictul dezbaterii Claude + Codex pe ideal-v3 (docs/plans/2026-09-27-drax-ideal-v3/verdict-v3.md, 27.09.2026) + ION-99 ideal-v3.1 (cârpirea golurilor GPS, regula satelor în ordine, R6 pe metoda comună; dezbaterea 27.09: punctele cârpite în afara atribuirii, picioarele > 30 % cârpite în afara etalonului, card-vechi = cardul sigilat din ideal-v3)"
+  },
+  {
+   "id": "D8",
+   "control": "D8 decizie",
+   "nivel": "informativ",
+   "ruta": "R3",
+   "linie": "Nihoreni",
+   "cifra": "card-vechi · verificator 44.2 · card 44.2 × 2 = 176.8 · așteptat 44.2 × 2 = 176.8 · steag false/false",
+   "motiv": "verdictul dezbaterii Claude + Codex pe ideal-v3 (docs/plans/2026-09-27-drax-ideal-v3/verdict-v3.md, 27.09.2026) + ION-99 ideal-v3.1 (cârpirea golurilor GPS, regula satelor în ordine, R6 pe metoda comună; dezbaterea 27.09: punctele cârpite în afara atribuirii, picioarele > 30 % cârpite în afara etalonului, card-vechi = cardul sigilat din ideal-v3)"
+  },
+  {
+   "id": "D8",
+   "control": "D8 decizie",
+   "nivel": "informativ",
+   "ruta": "R17",
+   "linie": "Prajila",
+   "cifra": "poarta-sensului fără 763LYY · verificator 41.3 · card 41.3 × 2 = 165.2 · așteptat 41.3 × 2 = 165.2 · steag false/false",
+   "motiv": "verdictul dezbaterii Claude + Codex pe ideal-v3 (docs/plans/2026-09-27-drax-ideal-v3/verdict-v3.md, 27.09.2026) + ION-99 ideal-v3.1 (cârpirea golurilor GPS, regula satelor în ordine, R6 pe metoda comună; dezbaterea 27.09: punctele cârpite în afara atribuirii, picioarele > 30 % cârpite în afara etalonului, card-vechi = cardul sigilat din ideal-v3)"
+  },
+  {
+   "id": "D8",
+   "control": "D8 decizie",
+   "nivel": "informativ",
+   "ruta": "R18",
+   "linie": "Zarojeni",
+   "cifra": "card-vechi · verificator 28.9 · card 28.9 × 1 = 57.8 · așteptat 28.9 × 1 = 57.8 · steag false/false",
+   "motiv": "verdictul dezbaterii Claude + Codex pe ideal-v3 (docs/plans/2026-09-27-drax-ideal-v3/verdict-v3.md, 27.09.2026) + ION-99 ideal-v3.1 (cârpirea golurilor GPS, regula satelor în ordine, R6 pe metoda comună; dezbaterea 27.09: punctele cârpite în afara atribuirii, picioarele > 30 % cârpite în afara etalonului, card-vechi = cardul sigilat din ideal-v3)"
+  },
+  {
+   "id": "V5",
+   "control": "V5",
+   "nivel": "abatere",
+   "ruta": "R11",
+   "linie": "Fundurii Noi*",
+   "cifra": "regim «ambele» din 0 săptămâni complete",
+   "motiv": "date insuficiente, nu regim confirmat (schimburi.mjs:29)"
+  },
+  {
+   "id": "D1",
+   "control": "D1 regim sursă ≠ total",
+   "nivel": "abatere",
+   "ruta": "R9",
+   "linie": "Cobani",
+   "cifra": "sursa «sept»: doar s1 · toată fereastra: neclar (lanț: neclar)",
+   "motiv": "regimul trebuie calculat pe aceeași fereastră ca idealul"
+  },
+  {
+   "id": "D1",
+   "control": "D1 ≠ act",
+   "nivel": "abatere",
+   "ruta": "R9",
+   "linie": "Cobani",
+   "cifra": "act EZ+D → GPS neclar (sursa: doar s1)",
+   "motiv": "săpt.: {\"s1\":2,\"s2\":5,\"ambele\":6,\"amestec\":2,\"putin\":0}"
+  },
+  {
+   "id": "D1",
+   "control": "D1 regim sursă ≠ total",
+   "nivel": "abatere",
+   "ruta": "R19",
+   "linie": "Bilicenii Vechi",
+   "cifra": "sursa «sept»: ambele · toată fereastra: rotatie (lanț: rotatie)",
+   "motiv": "regimul trebuie calculat pe aceeași fereastră ca idealul"
+  },
+  {
+   "id": "D1",
+   "control": "D1 ≠ act",
+   "nivel": "informativ",
+   "ruta": "R19",
+   "linie": "Bilicenii Vechi",
+   "cifra": "act EZ+D → GPS rotatie (sursa: ambele)",
+   "motiv": "săpt.: {\"s1\":4,\"s2\":6,\"ambele\":3,\"amestec\":0,\"putin\":2}"
+  },
+  {
+   "id": "D1",
+   "control": "D1 regim sursă ≠ total",
+   "nivel": "abatere",
+   "ruta": "R20",
+   "linie": "Nicolaevca",
+   "cifra": "sursa «sept»: ambele · toată fereastra: neclar (lanț: neclar)",
+   "motiv": "regimul trebuie calculat pe aceeași fereastră ca idealul"
+  },
+  {
+   "id": "D1",
+   "control": "D1 ≠ act",
+   "nivel": "abatere",
+   "ruta": "R20",
+   "linie": "Nicolaevca",
+   "cifra": "act EZ+D → GPS neclar (sursa: ambele)",
+   "motiv": "săpt.: {\"s1\":3,\"s2\":4,\"ambele\":6,\"amestec\":2,\"putin\":0}"
+  },
+  {
+   "id": "D1",
+   "control": "D1 regim sursă ≠ total",
+   "nivel": "abatere",
+   "ruta": "R32",
+   "linie": "Trifanesti",
+   "cifra": "sursa «sept»: doar s1 · toată fereastra: neclar (lanț: neclar)",
+   "motiv": "regimul trebuie calculat pe aceeași fereastră ca idealul"
+  },
+  {
+   "id": "D1",
+   "control": "D1 ≠ act",
+   "nivel": "abatere",
+   "ruta": "R32",
+   "linie": "Trifanesti",
+   "cifra": "act D → GPS neclar (sursa: doar s1)",
+   "motiv": "săpt.: {\"s1\":3,\"s2\":3,\"ambele\":2,\"amestec\":3,\"putin\":1}"
+  },
+  {
+   "id": "D1",
+   "control": "D1 W53",
+   "nivel": "informativ",
+   "cifra": "care-schimb-ideal.json fără paritate; 2026 are ISO 53 (28.12.2026–03.01.2027)",
+   "motiv": "regula = alternanța de la ancoră; pe fereastra de azi e identică cu paritatea; se verifică abia pe date din ian. 2027"
+  },
+  {
+   "id": "D2",
+   "control": "D2 izolat",
+   "nivel": "informativ",
+   "ruta": "R6",
+   "linie": "Mihailenii Vechi",
+   "cifra": "2 zile izolate pe ambele schimburi (din 2; aceeași mașină 2)",
+   "motiv": "posibil Z"
+  },
+  {
+   "id": "D2",
+   "control": "D2 izolat",
+   "nivel": "informativ",
+   "ruta": "R11",
+   "linie": "Funduri Vechi",
+   "cifra": "1 zile izolate pe ambele schimburi (din 1; aceeași mașină 0)",
+   "motiv": "posibil Z"
+  },
+  {
+   "id": "D2",
+   "control": "D2 ambele parțial",
+   "nivel": "informativ",
+   "ruta": "R14",
+   "linie": "Dominteni",
+   "cifra": "2 săptămâni-bloc (2026-06-08:4, 2026-06-15:4)",
+   "motiv": "regim «ambele» pe perioadă, nu Z"
+  },
+  {
+   "id": "D2",
+   "control": "D2 izolat",
+   "nivel": "informativ",
+   "ruta": "R15",
+   "linie": "Suri",
+   "cifra": "1 zile izolate pe ambele schimburi (din 1; aceeași mașină 1)",
+   "motiv": "posibil Z"
+  },
+  {
+   "id": "D2",
+   "control": "D2 ambele parțial",
+   "nivel": "informativ",
+   "ruta": "R19",
+   "linie": "Bilicenii Vechi",
+   "cifra": "3 săptămâni-bloc (2026-08-31:3, 2026-09-14:3, 2026-09-21:3)",
+   "motiv": "regim «ambele» pe perioadă, nu Z"
+  },
+  {
+   "id": "D2",
+   "control": "D2 izolat",
+   "nivel": "informativ",
+   "ruta": "R19",
+   "linie": "Bilicenii Vechi",
+   "cifra": "2 zile izolate pe ambele schimburi (din 11; aceeași mașină 0)",
+   "motiv": "fără semnal Z"
+  },
+  {
+   "id": "D2",
+   "control": "D2 izolat",
+   "nivel": "informativ",
+   "ruta": "R20",
+   "linie": "Drăgănești*",
+   "cifra": "3 zile izolate pe ambele schimburi (din 5; aceeași mașină 5)",
+   "motiv": "fără grupă în act"
+  },
+  {
+   "id": "D2",
+   "control": "D2 ambele parțial",
+   "nivel": "informativ",
+   "ruta": "R22",
+   "linie": "Heciul Vechi*",
+   "cifra": "2 săptămâni-bloc (2026-05-18:4, 2026-06-01:4)",
+   "motiv": "regim «ambele» pe perioadă, nu Z"
+  },
+  {
+   "id": "D2",
+   "control": "D2 ambele parțial",
+   "nivel": "informativ",
+   "ruta": "R27",
+   "linie": "Sturzovca",
+   "cifra": "1 săptămâni-bloc (2026-05-25:4)",
+   "motiv": "regim «ambele» pe perioadă, nu Z"
+  },
+  {
+   "id": "D2",
+   "control": "D2 izolat",
+   "nivel": "abatere",
+   "ruta": "R27",
+   "linie": "Sturzovca",
+   "cifra": "1 zile izolate pe ambele schimburi (din 5; aceeași mașină 5)",
+   "motiv": "abatere de la rotație pe linie D (nu Z) — diagnostic"
+  },
+  {
+   "id": "D2",
+   "control": "D2 ambele parțial",
+   "nivel": "informativ",
+   "ruta": "R32",
+   "linie": "Cainarii Vechi",
+   "cifra": "3 săptămâni-bloc (2026-05-04:3, 2026-05-18:5, 2026-05-25:5)",
+   "motiv": "regim «ambele» pe perioadă, nu Z"
+  },
+  {
+   "id": "D2",
+   "control": "D2 izolat",
+   "nivel": "abatere",
+   "ruta": "R32",
+   "linie": "Cainarii Vechi",
+   "cifra": "1 zile izolate pe ambele schimburi (din 14; aceeași mașină 13)",
+   "motiv": "abatere de la rotație pe linie D (nu Z) — diagnostic"
+  },
+  {
+   "id": "D3",
+   "control": "D3",
+   "nivel": "informativ",
+   "ruta": "R3",
+   "linie": "Nihoreni",
+   "cifra": "ture/zi 2 · s1 186OMM,345KAJ,457BRAX · s2 186OMM,345KAJ,457BRAX · comune 3"
+  },
+  {
+   "id": "D3",
+   "control": "D3",
+   "nivel": "informativ",
+   "ruta": "R4",
+   "linie": "Grinauti",
+   "cifra": "ture/zi 2 · s1 390ASB,186OMM,744ARF · s2 186OMM,390ASB · comune 2"
+  },
+  {
+   "id": "D3",
+   "control": "D3",
+   "nivel": "informativ",
+   "ruta": "R10",
+   "linie": "Ciuciulea",
+   "cifra": "ture/zi 2 · s1 414ASB,447ASB · s2 414ASB,447ASB · comune 2"
+  },
+  {
+   "id": "D3",
+   "control": "D3",
+   "nivel": "informativ",
+   "ruta": "R12",
+   "linie": "Pelinia",
+   "cifra": "ture/zi 2 · s1 880RNK,346KAJ,727CWN · s2 880RNK,346KAJ,388ASB · comune 2"
+  },
+  {
+   "id": "D3",
+   "control": "D3",
+   "nivel": "informativ",
+   "ruta": "R12",
+   "linie": "Sofia",
+   "cifra": "ture/zi 2 · s1 388ASB,390ASB,346KAJ · s2 390ASB,388ASB,024XKY · comune 4"
+  },
+  {
+   "id": "D3",
+   "control": "D3",
+   "nivel": "informativ",
+   "ruta": "R13",
+   "linie": "Lazo",
+   "cifra": "ture/zi 2 · s1 710CWN,043BRAU,348KAJ · s2 710CWN,043BRAU,549RNK · comune 2"
+  },
+  {
+   "id": "D3",
+   "control": "D3",
+   "nivel": "informativ",
+   "ruta": "R16",
+   "linie": "Floresti",
+   "cifra": "ture/zi 2 · s1 518MHD · s2 518MHD · comune 1"
+  },
+  {
+   "id": "D3",
+   "control": "D3",
+   "nivel": "informativ",
+   "ruta": "R16",
+   "linie": "Varvareuca",
+   "cifra": "ture/zi 2 · s1 350KAJ,293QVT,763LYY · s2 350KAJ,763LYY · comune 2"
+  },
+  {
+   "id": "D3",
+   "control": "D3",
+   "nivel": "informativ",
+   "ruta": "R17",
+   "linie": "Prajila",
+   "cifra": "ture/zi 2 · s1 713IZX,763LYY,487NPL · s2 713IZX,763LYY,487NPL · comune 3"
+  },
+  {
+   "id": "D3",
+   "control": "D3",
+   "nivel": "informativ",
+   "ruta": "R19",
+   "linie": "Copaceni",
+   "cifra": "ture/zi 2 · s1 830MUM,725CWN,206BZP · s2 830MUM,725CWN,744ARF · comune 3"
+  },
+  {
+   "id": "D3",
+   "control": "D3",
+   "nivel": "informativ",
+   "ruta": "R20",
+   "linie": "Radoaia",
+   "cifra": "ture/zi 2 · s1 206BZP · s2 206BZP · comune 1"
+  },
+  {
+   "id": "D3",
+   "control": "D3",
+   "nivel": "informativ",
+   "ruta": "R21",
+   "linie": "Heciul Nou",
+   "cifra": "ture/zi 2 · s1 715IZX,744ARF,348KAJ · s2 715IZX,744ARF,348KAJ · comune 3"
+  },
+  {
+   "id": "D3",
+   "control": "D3",
+   "nivel": "informativ",
+   "ruta": "R22",
+   "linie": "Tiplesti",
+   "cifra": "ture/zi 2 · s1 397VKV,826GXP,804MUM · s2 804MUM,397VKV,826GXP · comune 4"
+  },
+  {
+   "id": "D3",
+   "control": "D3",
+   "nivel": "informativ",
+   "ruta": "R23",
+   "linie": "Scumpia",
+   "cifra": "ture/zi 2 · s1 446ASB,487NPL,925FTI · s2 446ASB,925FTI,487NPL · comune 3"
+  },
+  {
+   "id": "D4",
+   "control": "D4 tur ≠ retur",
+   "nivel": "informativ",
+   "ruta": "R2",
+   "linie": "Stolniceni",
+   "cifra": "tur VEST / retur EST"
+  },
+  {
+   "id": "D4",
+   "control": "D4 tur ≠ retur",
+   "nivel": "informativ",
+   "ruta": "R3",
+   "linie": "Nihoreni",
+   "cifra": "tur VEST / retur EST"
+  },
+  {
+   "id": "D4",
+   "control": "D4 tur ≠ retur",
+   "nivel": "informativ",
+   "ruta": "R5",
+   "linie": "Alunis",
+   "cifra": "tur VEST / retur EST"
+  },
+  {
+   "id": "D4",
+   "control": "D4 tur ≠ retur",
+   "nivel": "informativ",
+   "ruta": "R7",
+   "linie": "Usurei",
+   "cifra": "tur VEST / retur EST"
+  },
+  {
+   "id": "D4",
+   "control": "D4 tur ≠ retur",
+   "nivel": "informativ",
+   "ruta": "R8",
+   "linie": "Costesti",
+   "cifra": "tur VEST / retur EST"
+  },
+  {
+   "id": "D4",
+   "control": "D4 tur ≠ retur",
+   "nivel": "informativ",
+   "ruta": "R9",
+   "linie": "Cobani",
+   "cifra": "tur VEST / retur EST"
+  },
+  {
+   "id": "D4",
+   "control": "D4 tur ≠ retur",
+   "nivel": "informativ",
+   "ruta": "R11",
+   "linie": "Funduri Vechi",
+   "cifra": "tur VEST / retur EST"
+  },
+  {
+   "id": "D4",
+   "control": "D4 s1 ≠ s2",
+   "nivel": "informativ",
+   "ruta": "R11",
+   "linie": "Funduri Vechi",
+   "cifra": "s1 VEST / s2 EST"
+  },
+  {
+   "id": "D4",
+   "control": "D4 tur ≠ retur",
+   "nivel": "informativ",
+   "ruta": "R11",
+   "linie": "Limbenii Noi",
+   "cifra": "tur VEST / retur EST"
+  },
+  {
+   "id": "D4",
+   "control": "D4 s1 ≠ s2",
+   "nivel": "informativ",
+   "ruta": "R11",
+   "linie": "Limbenii Noi",
+   "cifra": "s1 VEST / s2 EST"
+  },
+  {
+   "id": "D4",
+   "control": "D4 tur ≠ retur",
+   "nivel": "informativ",
+   "ruta": "R15",
+   "linie": "Suri",
+   "cifra": "tur VEST / retur EST"
+  },
+  {
+   "id": "D4",
+   "control": "D4 tur ≠ retur",
+   "nivel": "informativ",
+   "ruta": "R23",
+   "linie": "Scumpia",
+   "cifra": "tur VEST / retur EST"
+  },
+  {
+   "id": "D4",
+   "control": "D4 tur ≠ retur",
+   "nivel": "informativ",
+   "ruta": "R24",
+   "linie": "Catranic",
+   "cifra": "tur VEST / retur EST"
+  },
+  {
+   "id": "D4",
+   "control": "D4 s1 ≠ s2",
+   "nivel": "informativ",
+   "ruta": "R24",
+   "linie": "Catranic",
+   "cifra": "s1 VEST / s2 EST"
+  },
+  {
+   "id": "D4",
+   "control": "D4 s1 ≠ s2",
+   "nivel": "informativ",
+   "ruta": "R25",
+   "linie": "Hiliuti",
+   "cifra": "s1 VEST / s2 EST"
+  },
+  {
+   "id": "D4",
+   "control": "D4 tur ≠ retur",
+   "nivel": "informativ",
+   "ruta": "R26",
+   "linie": "Obreja Veche",
+   "cifra": "tur VEST / retur EST"
+  },
+  {
+   "id": "D4",
+   "control": "D4 tur ≠ retur",
+   "nivel": "informativ",
+   "ruta": "R27",
+   "linie": "Danu",
+   "cifra": "tur VEST / retur EST"
+  },
+  {
+   "id": "D4",
+   "control": "D4 s1 ≠ s2",
+   "nivel": "informativ",
+   "ruta": "R27",
+   "linie": "Danu",
+   "cifra": "s1 VEST / s2 EST"
+  },
+  {
+   "id": "D4",
+   "control": "D4 tur ≠ retur",
+   "nivel": "informativ",
+   "ruta": "R28",
+   "linie": "Cuhnesti",
+   "cifra": "tur VEST / retur EST"
+  },
+  {
+   "id": "D4",
+   "control": "D4 tur ≠ retur",
+   "nivel": "informativ",
+   "ruta": "R29",
+   "linie": "Ustia",
+   "cifra": "tur VEST / retur EST"
+  },
+  {
+   "id": "D4",
+   "control": "D4 tur ≠ retur",
+   "nivel": "informativ",
+   "ruta": "R37",
+   "linie": "Musteata",
+   "cifra": "tur VEST / retur EST"
+  },
+  {
+   "id": "D4",
+   "control": "D4 tur ≠ retur",
+   "nivel": "informativ",
+   "ruta": "R38",
+   "linie": "Glinjeni",
+   "cifra": "tur VEST / retur EST"
+  },
+  {
+   "id": "D4",
+   "control": "D4 s1 ≠ s2",
+   "nivel": "informativ",
+   "ruta": "R38",
+   "linie": "Glinjeni",
+   "cifra": "s1 EST / s2 VEST"
+  },
+  {
+   "id": "D5",
+   "control": "D5",
+   "nivel": "informativ",
+   "cifra": "10037/10037 observații cu schimb în ferestrele din bază (Intl)",
+   "motiv": "tautologic vara; contează la ora de iarnă (C5) sau la schimbarea ferestrelor"
+  },
+  {
+   "id": "D6",
+   "control": "D6",
+   "nivel": "informativ",
+   "ruta": "R18",
+   "linie": "Zarojeni",
+   "cifra": "candidate s1 31.3 (2 z) / s2 25.5 (3 z); mediane obs. s1 33.3 / s2 27.0 (19 %)",
+   "motiv": "eșantion mic (<3 zile pe un schimb) — un singur km; C44 pe zilele atipice"
+  },
+  {
+   "id": "D6",
+   "control": "D6",
+   "nivel": "informativ",
+   "ruta": "R24",
+   "linie": "Catranic",
+   "cifra": "candidate s1 67.2 (1 z) / s2 29.9 (2 z); mediane obs. s1 29.5 / s2 29.1 (2 %)",
+   "motiv": "eșantion mic (<3 zile pe un schimb) — un singur km; C44 pe zilele atipice"
+  },
+  {
+   "id": "D7",
+   "control": "D7",
+   "nivel": "informativ",
+   "cifra": "212 observații; sept 109 în 25 zile · {\"geamăn rt\":113,\"goală\":36,\"rt fără picior în fereastră\":4,\"rest\":59}",
+   "motiv": "regulate: 024XKY R15 Suri 6 zile ~11:41 · 024XKY R12 Pelinia 11 zile ~11:20 · 446ASB R23 Călugăr* 5 zile ~11:19"
+  },
+  {
+   "id": "D7",
+   "control": "D7 linie fără ideal",
+   "nivel": "informativ",
+   "ruta": "R18",
+   "linie": "Putinesti",
+   "cifra": "7 obs. (7 deplasări, rt 0, plin median 18.4) · {\"tur s2\":3,\"retur s1\":4} · zile-mașină 7, încrucișate 0 · mașini 763LYY 4, 146BRAZ 1, 731ARF 1"
+  },
+  {
+   "id": "D7",
+   "control": "D7 linie fără ideal",
+   "nivel": "informativ",
+   "ruta": "R27",
+   "linie": "Iabloana",
+   "cifra": "5 obs. (4 deplasări, rt 2, plin median 28.1) · {\"retur s1\":2,\"tur s1\":2,\"tur fără\":1} · zile-mașină 4, încrucișate 0 · mașini 441ASB 2, 348KAJ 2, 487NPL 1"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R1",
+   "linie": "Donduseni",
+   "cifra": "38/38 (100 %) în ±max(10 %, 1 km) de 91.9 km (completat), poarta pe sens (tur EST, retur EST) · plin/etalon 1.00 · rt 0/0 · altă poartă 0 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R2",
+   "linie": "Stolniceni",
+   "cifra": "34/36 (94 %) în ±max(10 %, 1 km) de 67.9 km (completat), poarta pe sens (tur VEST, retur EST) · plin/etalon 1.00 · rt 0/0 · altă poartă 0 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R3",
+   "linie": "Nihoreni",
+   "cifra": "33/55 (60 %) în ±max(10 %, 1 km) de 42.3 km (completat), poarta pe sens (tur VEST, retur EST) · plin/etalon 1.05 · rt 9/9 · altă poartă 14 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R4",
+   "linie": "Grinauti",
+   "cifra": "64/67 (96 %) în ±max(10 %, 1 km) de 25.6 km (completat), poarta pe sens (tur EST, retur EST) · plin/etalon 1.00 · rt 8/8 · altă poartă 2 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R5",
+   "linie": "Alunis",
+   "cifra": "18/18 (100 %) în ±max(10 %, 1 km) de 34.6 km (completat), poarta pe sens (tur VEST, retur EST) · plin/etalon 1.00 · rt 0/5 · altă poartă 0 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R6",
+   "linie": "Mihailenii Vechi",
+   "cifra": "19/24 (79 %) în ±max(10 %, 1 km) de 54.9 km (completat), poarta pe sens (tur EST, retur EST) · plin/etalon 1.00 · rt 0/0 · altă poartă 15 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R7",
+   "linie": "Usurei",
+   "cifra": "35/37 (95 %) în ±max(10 %, 1 km) de 37.4 km (completat), poarta pe sens (tur VEST, retur EST) · plin/etalon 1.00 · rt 0/0 · altă poartă 1 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R8",
+   "linie": "Costesti",
+   "cifra": "38/38 (100 %) în ±max(10 %, 1 km) de 78.5 km (completat), poarta pe sens (tur VEST, retur EST) · plin/etalon 1.00 · rt 0/0 · altă poartă 0 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R9",
+   "linie": "Cobani",
+   "cifra": "47/47 (100 %) în ±max(10 %, 1 km) de 55.5 km (completat), poarta pe sens (tur VEST, retur EST) · plin/etalon 1.00 · rt 0/0 · altă poartă 14 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R10",
+   "linie": "Ciuciulea",
+   "cifra": "66/82 (80 %) în ±max(10 %, 1 km) de 66.5 km (completat), poarta pe sens (tur EST, retur EST) · plin/etalon 1.00 · rt 0/0 · altă poartă 8 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R11",
+   "linie": "Funduri Vechi",
+   "cifra": "36/37 (97 %) în ±max(10 %, 1 km) de 24.7 km (completat), poarta pe sens (tur VEST, retur EST) · plin/etalon 0.98 · rt 0/0 · altă poartă 1 · urmă ruptă 1 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R11",
+   "linie": "Limbenii Noi",
+   "cifra": "33/40 (83 %) în ±max(10 %, 1 km) de 31.2 km (completat), poarta pe sens (tur VEST, retur EST) · plin/etalon 1.00 · rt 0/0 · altă poartă 0 · urmă ruptă 1 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R12",
+   "linie": "Pelinia",
+   "cifra": "75/75 (100 %) în ±max(10 %, 1 km) de 26.4 km (completat), poarta pe sens (tur EST, retur EST) · plin/etalon 1.00 · rt 0/2 · altă poartă 2 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R12",
+   "linie": "Sofia",
+   "cifra": "73/75 (97 %) în ±max(10 %, 1 km) de 31.5 km (completat), poarta pe sens (tur VEST, retur VEST) · plin/etalon 1.01 · rt 0/1 · altă poartă 5 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R13",
+   "linie": "Hasnasenii Noi",
+   "cifra": "26/26 (100 %) în ±max(10 %, 1 km) de 9.5 km (completat), poarta pe sens (tur EST, retur EST) · plin/etalon 1.00 · rt 9/9 · altă poartă 0 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R13",
+   "linie": "Lazo",
+   "cifra": "252/259 (97 %) în ±max(10 %, 1 km) de 16.2 km (completat), poarta pe sens (tur EST, retur EST) · plin/etalon 1.00 · rt 5/5 · altă poartă 0 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R14",
+   "linie": "Baroncea",
+   "cifra": "62/62 (100 %) în ±max(10 %, 1 km) de 44.4 km (completat), poarta pe sens (tur EST, retur EST) · plin/etalon 1.00 · rt 1/1 · altă poartă 0 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R14",
+   "linie": "Dominteni",
+   "cifra": "38/39 (97 %) în ±max(10 %, 1 km) de 29.9 km (completat), poarta pe sens (tur EST, retur EST) · plin/etalon 1.00 · rt 0/0 · altă poartă 1 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R15",
+   "linie": "Suri",
+   "cifra": "27/28 (96 %) în ±max(10 %, 1 km) de 70 km (completat), poarta pe sens (tur VEST, retur EST) · plin/etalon 0.98 · rt 0/0 · altă poartă 9 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R16",
+   "linie": "Floresti",
+   "cifra": "65/71 (92 %) în ±max(10 %, 1 km) de 36.5 km (completat), poarta pe sens (tur EST, retur EST) · plin/etalon 1.00 · rt 0/1 · altă poartă 0 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R16",
+   "linie": "Varvareuca",
+   "cifra": "75/81 (93 %) în ±max(10 %, 1 km) de 42.8 km (completat), poarta pe sens (tur EST, retur EST) · plin/etalon 1.00 · rt 0/0 · altă poartă 0 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R17",
+   "linie": "Prajila",
+   "cifra": "76/76 (100 %) în ±max(10 %, 1 km) de 41.3 km (completat), poarta pe sens (tur EST, retur EST) · plin/etalon 1.00 · rt 0/0 · altă poartă 0 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "abatere",
+   "ruta": "R18",
+   "linie": "Zarojeni",
+   "cifra": "6/17 (35 %) în ±max(10 %, 1 km) de 32.1 km (completat), poarta pe sens (tur EST, retur EST) · plin/etalon 0.91 · rt 0/0 · altă poartă 0 · urmă ruptă 0 (în afara comparației)",
+   "motiv": "sub 60 % — diagnostic C44 cursă cu cursă"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R19",
+   "linie": "Bilicenii Vechi",
+   "cifra": "45/50 (90 %) în ±max(10 %, 1 km) de 17.3 km (completat), poarta pe sens (tur EST, retur EST) · plin/etalon 1.00 · rt 16/21 · altă poartă 0 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R19",
+   "linie": "Copaceni",
+   "cifra": "75/76 (99 %) în ±max(10 %, 1 km) de 32.8 km (completat), poarta pe sens (tur EST, retur EST) · plin/etalon 1.00 · rt 6/6 · altă poartă 0 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R20",
+   "linie": "Nicolaevca",
+   "cifra": "68/68 (100 %) în ±max(10 %, 1 km) de 39.6 km (completat), poarta pe sens (tur EST, retur EST) · plin/etalon 1.00 · rt 0/0 · altă poartă 0 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R20",
+   "linie": "Radoaia",
+   "cifra": "75/77 (97 %) în ±max(10 %, 1 km) de 26.1 km (completat), poarta pe sens (tur EST, retur EST) · plin/etalon 1.00 · rt 0/0 · altă poartă 0 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R21",
+   "linie": "Heciul Nou",
+   "cifra": "76/81 (94 %) în ±max(10 %, 1 km) de 20.7 km (completat), poarta pe sens (tur EST, retur EST) · plin/etalon 1.00 · rt 1/5 · altă poartă 0 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R22",
+   "linie": "Tiplesti",
+   "cifra": "56/61 (92 %) în ±max(10 %, 1 km) de 21.9 km (completat), poarta pe sens (tur EST, retur EST) · plin/etalon 1.00 · rt 17/17 · altă poartă 0 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R23",
+   "linie": "Scumpia",
+   "cifra": "61/62 (98 %) în ±max(10 %, 1 km) de 59.5 km (completat), poarta pe sens (tur VEST, retur EST) · plin/etalon 1.01 · rt 1/1 · altă poartă 12 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R24",
+   "linie": "Catranic",
+   "cifra": "34/37 (92 %) în ±max(10 %, 1 km) de 29.4 km (completat), poarta pe sens (tur VEST, retur EST) · plin/etalon 1.00 · rt 0/0 · altă poartă 2 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R25",
+   "linie": "Hiliuti",
+   "cifra": "28/28 (100 %) în ±max(10 %, 1 km) de 32 km (completat), poarta pe sens (tur EST, retur EST) · plin/etalon 0.98 · rt 0/0 · altă poartă 7 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R26",
+   "linie": "Ilenuta",
+   "cifra": "24/27 (89 %) în ±max(10 %, 1 km) de 38.8 km (completat), poarta pe sens (tur EST, retur EST) · plin/etalon 1.00 · rt 0/1 · altă poartă 8 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R26",
+   "linie": "Obreja Veche",
+   "cifra": "35/35 (100 %) în ±max(10 %, 1 km) de 38.4 km (completat), poarta pe sens (tur VEST, retur EST) · plin/etalon 0.99 · rt 0/0 · altă poartă 1 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R27",
+   "linie": "Danu",
+   "cifra": "34/36 (94 %) în ±max(10 %, 1 km) de 53.3 km (completat), poarta pe sens (tur VEST, retur EST) · plin/etalon 1.00 · rt 0/0 · altă poartă 2 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R27",
+   "linie": "Sturzovca",
+   "cifra": "25/39 (64 %) în ±max(10 %, 1 km) de 23.9 km (completat), poarta pe sens (tur EST, retur EST) · plin/etalon 1.00 · rt 1/1 · altă poartă 39 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R28",
+   "linie": "Cuhnesti",
+   "cifra": "32/35 (91 %) în ±max(10 %, 1 km) de 75 km (completat), poarta pe sens (tur VEST, retur EST) · plin/etalon 1.00 · rt 0/0 · altă poartă 3 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R29",
+   "linie": "Ustia",
+   "cifra": "28/28 (100 %) în ±max(10 %, 1 km) de 56.9 km (completat), poarta pe sens (tur VEST, retur EST) · plin/etalon 1.01 · rt 0/0 · altă poartă 9 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R30",
+   "linie": "Cosernita",
+   "cifra": "37/38 (97 %) în ±max(10 %, 1 km) de 63.8 km (completat), poarta pe sens (tur EST, retur EST) · plin/etalon 1.00 · rt 0/0 · altă poartă 0 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R31",
+   "linie": "Cotiujenii Mari",
+   "cifra": "36/36 (100 %) în ±max(10 %, 1 km) de 65.1 km (completat), poarta pe sens (tur EST, retur EST) · plin/etalon 1.00 · rt 0/0 · altă poartă 0 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R32",
+   "linie": "Cainarii Vechi",
+   "cifra": "41/43 (95 %) în ±max(10 %, 1 km) de 46.9 km (completat), poarta pe sens (tur EST, retur EST) · plin/etalon 1.00 · rt 0/0 · altă poartă 0 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R32",
+   "linie": "Trifanesti",
+   "cifra": "53/74 (72 %) în ±max(10 %, 1 km) de 40.2 km (completat), poarta pe sens (tur EST, retur EST) · plin/etalon 1.00 · rt 0/0 · altă poartă 0 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R33",
+   "linie": "Iezarenii Vechi",
+   "cifra": "31/32 (97 %) în ±max(10 %, 1 km) de 34.1 km (completat), poarta pe sens (tur EST, retur EST) · plin/etalon 1.00 · rt 5/5 · altă poartă 0 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R34",
+   "linie": "Taura Veche",
+   "cifra": "37/37 (100 %) în ±max(10 %, 1 km) de 40.7 km (completat), poarta pe sens (tur EST, retur EST) · plin/etalon 1.00 · rt 0/0 · altă poartă 0 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R35",
+   "linie": "Cucioaia",
+   "cifra": "38/38 (100 %) în ±max(10 %, 1 km) de 52.5 km (completat), poarta pe sens (tur EST, retur EST) · plin/etalon 1.00 · rt 0/0 · altă poartă 0 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R36",
+   "linie": "Bocancea Schit",
+   "cifra": "31/33 (94 %) în ±max(10 %, 1 km) de 54 km (completat), poarta pe sens (tur EST, retur EST) · plin/etalon 0.99 · rt 0/0 · altă poartă 1 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R37",
+   "linie": "Musteata",
+   "cifra": "33/33 (100 %) în ±max(10 %, 1 km) de 60.2 km (completat), poarta pe sens (tur VEST, retur EST) · plin/etalon 1.00 · rt 0/0 · altă poartă 5 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R38",
+   "linie": "Glinjeni",
+   "cifra": "36/38 (95 %) în ±max(10 %, 1 km) de 33.3 km (completat), poarta pe sens (tur VEST, retur EST) · plin/etalon 1.00 · rt 0/0 · altă poartă 0 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47",
+   "nivel": "informativ",
+   "ruta": "R39",
+   "linie": "Popestii de jos",
+   "cifra": "104/106 (98 %) în ±max(10 %, 1 km) de 74.8 km (completat), poarta pe sens (tur EST, retur EST) · plin/etalon 1.00 · rt 0/0 · altă poartă 0 · urmă ruptă 0 (în afara comparației)"
+  },
+  {
+   "id": "C47",
+   "control": "C47 total",
+   "nivel": "informativ",
+   "cifra": "2409/2576 (93.5 %); picioare de pe cealaltă poartă 161, cu urmă ruptă 2 — în afara comparației",
+   "motiv": "sub 90 %: 8 linii — R3 Nihoreni 33/55 · R6 Mihailenii Vechi 19/24 · R10 Ciuciulea 66/82 · R11 Limbenii Noi 33/40 · R18 Zarojeni 6/17 · R26 Ilenuta 24/27 · R27 Sturzovca 25/39 · R32 Trifanesti 53/74"
+  },
+  {
+   "id": "C22",
+   "control": "C22 zi aleasă",
+   "nivel": "abatere",
+   "ruta": "R6",
+   "linie": "Mihailenii Vechi",
+   "cifra": "s2|917FTI|2026-09-08 nu e zi bună GPS (etalon completat 54.9, 17 zile)",
+   "motiv": "harta rămâne până la rezolvarea variantei; nu se realiniază mecanic"
+  },
+  {
+   "id": "C22",
+   "control": "C22 zi aleasă",
+   "nivel": "abatere",
+   "ruta": "R25",
+   "linie": "Hiliuti",
+   "cifra": "s1|912RNK|2026-09-15 nu e zi bună GPS (etalon completat 32, 9 zile)",
+   "motiv": "harta rămâne până la rezolvarea variantei; nu se realiniază mecanic"
+  },
+  {
+   "id": "C22",
+   "control": "C22 zi aleasă",
+   "nivel": "abatere",
+   "ruta": "R37",
+   "linie": "Musteata",
+   "cifra": "s1|925FTI|2026-09-25 nu e zi bună GPS (etalon completat 60.2, 9 zile)",
+   "motiv": "harta rămâne până la rezolvarea variantei; nu se realiniază mecanic"
+  },
+  {
+   "id": "G1",
+   "control": "G1 orice poartă",
+   "nivel": "informativ",
+   "ruta": "R3",
+   "linie": "Nihoreni",
+   "cifra": "poarta sensului 42.3 (16 zile) · orice poartă 45.8 (26 zile) · 8.3 %",
+   "motiv": "porți / variante de drum divergente — diagnostic"
+  },
+  {
+   "id": "E1",
+   "control": "E1 steag lipsă",
+   "nivel": "blocant",
+   "ruta": "R3",
+   "linie": "Nihoreni",
+   "cifra": "variante: sens 42.3 / orice poartă 45.8",
+   "motiv": "lipsește steagul «diagnostic» în schelet (sau explicația E1 în registru)"
+  },
+  {
+   "id": "E1",
+   "control": "E1 steag lipsă",
+   "nivel": "blocant",
+   "ruta": "R18",
+   "linie": "Zarojeni",
+   "cifra": "C47 35 %",
+   "motiv": "lipsește steagul «diagnostic» în schelet (sau explicația E1 în registru)"
+  }
+ ]
+}

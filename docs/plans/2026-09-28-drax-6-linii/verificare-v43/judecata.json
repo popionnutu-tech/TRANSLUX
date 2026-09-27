@@ -1,0 +1,1482 @@
+{
+ "versiune": 1,
+ "run": "/home/verif/verificator/rulari/drax-v15-1790539226",
+ "verdict_sha256": "c22ea36071c96d4361b08fbbb6d228890068f15c4c5e3587e5bc831e8a6e2ae8",
+ "inchis": "ok",
+ "linii": [
+  {
+   "ruta": "R1",
+   "linie": "Donduseni",
+   "verdict": "trece",
+   "mecanisme": [],
+   "controale": [],
+   "cifre": "sursa sept, 19 zile bune GPS · card 91.9 · GPS completat 91.9 (0 %) · orice poartă 91.9 · ture/zi 1 (schelet 1) · km/zi card 183.8 / GPS 183.8 · porți EST/EST · C47 100 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R2",
+   "linie": "Stolniceni",
+   "verdict": "trece",
+   "mecanisme": [
+    "porti-diferite"
+   ],
+   "controale": [
+    "D4"
+   ],
+   "cifre": "sursa sept, 16 zile bune GPS · card 67.9 · GPS completat 67.9 (0 %) · orice poartă 67.9 · ture/zi 1 (schelet 1) · km/zi card 135.8 / GPS 135.8 · porți VEST/EST · C47 94 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R3",
+   "linie": "Nihoreni",
+   "verdict": "blocant",
+   "mecanisme": [
+    "diagnostic-drum",
+    "porti-diferite",
+    "c47-sub-90"
+   ],
+   "controale": [
+    "D8",
+    "D4",
+    "C47",
+    "E1"
+   ],
+   "cifre": "sursa sept, 16 zile bune GPS · card 44.2 · GPS completat 42.3 (4.5 %) · orice poartă 45.8 · ture/zi 2 (schelet 2) · km/zi card 176.8 / GPS 169.2 · porți VEST/EST · C47 60 %",
+   "propunere": "nimic pe card (44,2 × 2 rămâne, în 5 % de ambele etaloane: +4,5 % față de poarta sensului 42,3, −3,5 % față de orice poartă 45,8); explicația E1 în registru cu textul CORECTAT: premisa «aceeași poartă = același drum» nu ține pe tot piciorul (vezi R-2); întrebarea Q1 despre bucla D",
+   "diagnostic": "Pe poarta EST, D și EZ trec prin Nihoreni la aceeași distanță (38,6 / 38,8 km de poartă, sept; la fel mai–iulie). Dar piciorul D (186OMM, 16+13 din 32 de picioare D) continuă o buclă de ~12 km în zona Rîșcani și trece a doua oară prin Nihoreni: D tur EST 52,6, D retur EST 50,55; EZ retur EST 42,6, EZ tur VEST 42,75 (sept; mai–iulie D 51,8 / 51,7, EZ 41,9 / 43,8). Diferența pe aceeași poartă EST (retur) = 8 km, nu 2,4 km cât ar da poarta. Textul propus («pe aceeași poartă D și EZ merg pe același drum (tur 45,0 / 44,6)») nu se reproduce pe urmă: nu există tururi EZ pe EST în septembrie, iar retururile EST diferă cu 18,7 %."
+  },
+  {
+   "ruta": "R4",
+   "linie": "Grinauti",
+   "verdict": "trece",
+   "mecanisme": [],
+   "controale": [],
+   "cifre": "sursa sept, 35 zile bune GPS · card 25.6 · GPS completat 25.6 (0 %) · orice poartă 25.6 · ture/zi 2 (schelet 2) · km/zi card 102.4 / GPS 102.4 · porți EST/EST · C47 96 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R5",
+   "linie": "Alunis",
+   "verdict": "trece",
+   "mecanisme": [
+    "sat-in-plus",
+    "porti-diferite"
+   ],
+   "controale": [
+    "C35(e)",
+    "D4"
+   ],
+   "cifre": "sursa sept, 9 zile bune GPS · card 34.6 · GPS completat 34.6 (0 %) · orice poartă 34.6 · ture/zi 1 (schelet 1) · km/zi card 69.2 / GPS 69.2 · porți VEST/EST · C47 100 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R6",
+   "linie": "Mihailenii Vechi",
+   "verdict": "abatere",
+   "mecanisme": [
+    "posibil-z",
+    "c47-sub-90",
+    "altul"
+   ],
+   "controale": [
+    "D8",
+    "D2",
+    "C47",
+    "C22"
+   ],
+   "cifre": "sursa sept, 17 zile bune GPS · card 54.9 · GPS completat 54.9 (0 %) · orice poartă 54.9 · ture/zi 1 (schelet 1) · km/zi card 109.8 / GPS 109.8 · porți EST/EST · C47 79 %",
+   "propunere": "nimic pe card; harta pe o zi bună GPS la următoarea rulare a lanțului (C22)",
+   "diagnostic": "altul = C22 zi desenată care nu e zi bună GPS: s2|917FTI|2026-09-08 nu e zi bună GPS (etalon completat 54.9, 17 zile)"
+  },
+  {
+   "ruta": "R7",
+   "linie": "Usurei",
+   "verdict": "trece",
+   "mecanisme": [
+    "porti-diferite"
+   ],
+   "controale": [
+    "C23",
+    "D4"
+   ],
+   "cifre": "sursa sept, 18 zile bune GPS · card 37.4 · GPS completat 37.4 (0 %) · orice poartă 37.4 · ture/zi 1 (schelet 1) · km/zi card 74.8 / GPS 74.8 · porți VEST/EST · C47 95 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R8",
+   "linie": "Costesti",
+   "verdict": "trece",
+   "mecanisme": [
+    "sat-in-plus",
+    "porti-diferite"
+   ],
+   "controale": [
+    "C35(e)",
+    "C23",
+    "D4"
+   ],
+   "cifre": "sursa sept, 19 zile bune GPS · card 78.5 · GPS completat 78.5 (0 %) · orice poartă 78.5 · ture/zi 1 (schelet 1) · km/zi card 157 / GPS 157 · porți VEST/EST · C47 100 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R9",
+   "linie": "Cobani",
+   "verdict": "abatere",
+   "mecanisme": [
+    "regim-sursa-diferit",
+    "regim-neclar",
+    "porti-diferite"
+   ],
+   "controale": [
+    "D1",
+    "D4"
+   ],
+   "cifre": "sursa sept, 14 zile bune GPS · card 55.5 · GPS completat 55.5 (0 %) · orice poartă 55.5 · ture/zi 2 (schelet 2) · km/zi card 222 / GPS 222 · porți VEST/EST · C47 100 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R10",
+   "linie": "Ciuciulea",
+   "verdict": "trece",
+   "mecanisme": [
+    "c47-sub-90"
+   ],
+   "controale": [
+    "C47"
+   ],
+   "cifre": "sursa sept, 28 zile bune GPS · card 66.5 · GPS completat 66.5 (0 %) · orice poartă 66.5 · ture/zi 2 (schelet 2) · km/zi card 266 / GPS 266 · porți EST/EST · C47 80 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R11",
+   "linie": "Funduri Vechi",
+   "verdict": "trece",
+   "mecanisme": [
+    "posibil-z",
+    "porti-diferite"
+   ],
+   "controale": [
+    "C23",
+    "D2",
+    "D4"
+   ],
+   "cifre": "sursa sept, 16 zile bune GPS · card 24.7 · GPS completat 24.7 (0 %) · orice poartă 24.7 · ture/zi 1 (schelet 1) · km/zi card 49.4 / GPS 49.4 · porți VEST/EST · C47 97 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R11",
+   "linie": "Limbenii Noi",
+   "verdict": "trece",
+   "mecanisme": [
+    "porti-diferite",
+    "c47-sub-90"
+   ],
+   "controale": [
+    "D4",
+    "C47"
+   ],
+   "cifre": "sursa sept, 16 zile bune GPS · card 31.2 · GPS completat 31.2 (0 %) · orice poartă 31.2 · ture/zi 1 (schelet 1) · km/zi card 62.4 / GPS 62.4 · porți VEST/EST · C47 83 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R12",
+   "linie": "Pelinia",
+   "verdict": "trece",
+   "mecanisme": [],
+   "controale": [
+    "C4"
+   ],
+   "cifre": "sursa sept, 37 zile bune GPS · card 26.4 · GPS completat 26.4 (0 %) · orice poartă 26.4 · ture/zi 2 (schelet 2) · km/zi card 105.6 / GPS 105.6 · porți EST/EST · C47 100 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R12",
+   "linie": "Sofia",
+   "verdict": "trece",
+   "mecanisme": [],
+   "controale": [
+    "C4"
+   ],
+   "cifre": "sursa sept, 34 zile bune GPS · card 31.5 · GPS completat 31.5 (0 %) · orice poartă 31.9 · ture/zi 2 (schelet 2) · km/zi card 126 / GPS 126 · porți VEST/VEST · C47 97 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R13",
+   "linie": "Hasnasenii Noi",
+   "verdict": "trece",
+   "mecanisme": [],
+   "controale": [],
+   "cifre": "sursa sept, 14 zile bune GPS · card 9.5 · GPS completat 9.5 (0 %) · orice poartă 9.5 · ture/zi 1 (schelet 1) · km/zi card 19 / GPS 19 · porți EST/EST · C47 100 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R13",
+   "linie": "Lazo",
+   "verdict": "trece",
+   "mecanisme": [
+    "sursa-toate"
+   ],
+   "controale": [
+    "C32"
+   ],
+   "cifre": "sursa toate, 116 zile bune GPS · card 16.2 · GPS completat 16.2 (0 %) · orice poartă 16.2 · ture/zi 2 (schelet 2) · km/zi card 64.8 / GPS 64.8 · porți EST/EST · C47 97 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R14",
+   "linie": "Baroncea",
+   "verdict": "trece",
+   "mecanisme": [
+    "ture-diferite-de-act"
+   ],
+   "controale": [
+    "C42"
+   ],
+   "cifre": "sursa sept, 27 zile bune GPS · card 44.4 · GPS completat 44.4 (0 %) · orice poartă 44.4 · ture/zi 2 (schelet 2) · km/zi card 177.6 / GPS 177.6 · porți EST/EST · C47 100 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R14",
+   "linie": "Dominteni",
+   "verdict": "trece",
+   "mecanisme": [
+    "regim-perioada"
+   ],
+   "controale": [
+    "D2"
+   ],
+   "cifre": "sursa sept, 17 zile bune GPS · card 29.9 · GPS completat 29.9 (0 %) · orice poartă 29.9 · ture/zi 1 (schelet 1) · km/zi card 59.8 / GPS 59.8 · porți EST/EST · C47 97 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R15",
+   "linie": "Suri",
+   "verdict": "trece",
+   "mecanisme": [
+    "posibil-z",
+    "porti-diferite"
+   ],
+   "controale": [
+    "D2",
+    "D4"
+   ],
+   "cifre": "sursa sept, 8 zile bune GPS · card 70 · GPS completat 70 (0 %) · orice poartă 70 · ture/zi 1 (schelet 1) · km/zi card 140 / GPS 140 · porți VEST/EST · C47 96 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R16",
+   "linie": "Floresti",
+   "verdict": "trece",
+   "mecanisme": [],
+   "controale": [],
+   "cifre": "sursa sept, 34 zile bune GPS · card 36.5 · GPS completat 36.5 (0 %) · orice poartă 36.5 · ture/zi 2 (schelet 2) · km/zi card 146 / GPS 146 · porți EST/EST · C47 92 %",
+   "propunere": "nimic",
+   "diagnostic": "518MHD: oprire la Florești pe 35/37 tururi și 28/34 retururi din septembrie, nicio oprire la Vărvăreuca; 14 zile × 2, 5 × 1 (mediana 2). Etalon 36,5 pe 34 de zile, C47 92 %."
+  },
+  {
+   "ruta": "R16",
+   "linie": "Varvareuca",
+   "verdict": "trece",
+   "mecanisme": [
+    "sat-in-plus"
+   ],
+   "controale": [
+    "C35(e)"
+   ],
+   "cifre": "sursa sept, 35 zile bune GPS · card 42.8 · GPS completat 42.8 (0 %) · orice poartă 42.8 · ture/zi 2 (schelet 2) · km/zi card 171.2 / GPS 171.2 · porți EST/EST · C47 93 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R17",
+   "linie": "Prajila",
+   "verdict": "trece",
+   "mecanisme": [
+    "dispozitiv-dublu"
+   ],
+   "controale": [
+    "C37",
+    "D8"
+   ],
+   "cifre": "sursa sept, 34 zile bune GPS · card 41.3 · GPS completat 41.3 (0 %) · orice poartă 41.3 · ture/zi 2 (schelet 2) · km/zi card 165.2 / GPS 165.2 · porți EST/EST · C47 100 %",
+   "propunere": "nimic",
+   "diagnostic": "763LYY: 0 opriri la Prajila în toate cele 19 zile lucrătoare din septembrie (1 oprire sâmbătă 05.09). Fără 763LYY: 15 zile × 2, 4 × 1, 1 × 0 (mediana 2); o singură mașină pe zi face ambele schimburi (487NPL 01–11.09, 713IZX 07–25.09). C47 76/76. C37 713IZX=763LYY 7 curse (4 %) — informativ."
+  },
+  {
+   "ruta": "R18",
+   "linie": "Zarojeni",
+   "verdict": "blocant",
+   "mecanisme": [
+    "km-card-vs-gps",
+    "c47-sub-60",
+    "altul",
+    "esantion-mic",
+    "sat-in-plus"
+   ],
+   "controale": [
+    "C35(e)",
+    "G1",
+    "D8",
+    "D6",
+    "C47",
+    "E1",
+    "X1"
+   ],
+   "cifre": "sursa sept, 4 zile bune GPS · card 28.9 · GPS completat 32.1 (-10 %) · orice poartă 32.1 · ture/zi 1 (schelet 1) · km/zi card 57.8 / GPS 64.2 · porți EST/EST · C47 35 %",
+   "propunere": "nimic pe card (28,9 × 1 rămâne); explicație în registru pe c541bb20 pentru G1 + E1, cu cifrele corectate (vezi corectii.md, R-1); corecție de atribuire în lanț (L-1)",
+   "diagnostic": "Etalonul GPS 32,1 (4 zile) = mediana a 8 picioare din 4 perechi: 17.09 348KAJ 34,0/33,9 (faza B, Zarojeni), 21.09 348KAJ 28,9/28,8 (faza A, Zarojeni), 18.09 348KAJ 49,0/52,7 (Moara de Piatră / Cubolta, fără oprire la Zarojeni) și 25.09 348KAJ grupa D 30,4/30,2 (Putinești / Țiplești / Heciul Vechi, fără oprire la Zarojeni). Două din patru perechi sunt serviciile altor linii etichetate R18 Zarojeni: G1 = fals pozitiv (altul: atribuire). Fără ele rămân 2 perechi → etalon nedeterminat. Tururile EZ cu oprire la Zarojeni în septembrie: 14 (348KAJ 6 + 763LYY 8, etichetat R17), toate pe EST; 09.09 763LYY are urmă ruptă (3,8 km) → 13 valide; km Zarojeni→poartă + raza: mediana 27,8 (apropiere) / 28,3 (oprire); faza A 27,6 (n 9), faza B 33,2 (n 4; 27,7 fără Elizaveta la 14.09, 32,4 și 34,9 cu Elizaveta, 34,0 la 17.09); echilibrat pe faze 30,4. Cardul 28,9 e la −3,8 % / +2,1 % de mediana tururilor. Retururile EZ ale lui 348KAJ: 0/6 opriri la Zarojeni, ultima oprire Gura Căinarului la 24,3–25,0 km (faza A) și 30,1–38,6 (faza B). C47 față de 28,9: tururi 9/14."
+  },
+  {
+   "ruta": "R19",
+   "linie": "Bilicenii Vechi",
+   "verdict": "abatere",
+   "mecanisme": [
+    "regim-sursa-diferit",
+    "regim-perioada",
+    "posibil-z"
+   ],
+   "controale": [
+    "D1",
+    "D2"
+   ],
+   "cifre": "sursa sept, 29 zile bune GPS · card 17.3 · GPS completat 17.3 (0 %) · orice poartă 17.3 · ture/zi 2 (schelet 2) · km/zi card 69.2 / GPS 69.2 · porți EST/EST · C47 90 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R19",
+   "linie": "Copaceni",
+   "verdict": "trece",
+   "mecanisme": [],
+   "controale": [],
+   "cifre": "sursa sept, 37 zile bune GPS · card 32.8 · GPS completat 32.8 (0 %) · orice poartă 32.8 · ture/zi 2 (schelet 2) · km/zi card 131.2 / GPS 131.2 · porți EST/EST · C47 99 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R20",
+   "linie": "Nicolaevca",
+   "verdict": "abatere",
+   "mecanisme": [
+    "regim-sursa-diferit",
+    "regim-neclar"
+   ],
+   "controale": [
+    "D1"
+   ],
+   "cifre": "sursa sept, 28 zile bune GPS · card 39.6 · GPS completat 39.6 (0 %) · orice poartă 39.6 · ture/zi 2 (schelet 2) · km/zi card 158.4 / GPS 158.4 · porți EST/EST · C47 100 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R20",
+   "linie": "Radoaia",
+   "verdict": "trece",
+   "mecanisme": [],
+   "controale": [],
+   "cifre": "sursa sept, 37 zile bune GPS · card 26.1 · GPS completat 26.1 (0 %) · orice poartă 26.1 · ture/zi 2 (schelet 2) · km/zi card 104.4 / GPS 104.4 · porți EST/EST · C47 97 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R21",
+   "linie": "Heciul Nou",
+   "verdict": "trece",
+   "mecanisme": [],
+   "controale": [],
+   "cifre": "sursa sept, 42 zile bune GPS · card 20.7 · GPS completat 20.7 (0 %) · orice poartă 20.7 · ture/zi 2 (schelet 2) · km/zi card 82.8 / GPS 82.8 · porți EST/EST · C47 94 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R22",
+   "linie": "Tiplesti",
+   "verdict": "trece",
+   "mecanisme": [
+    "sat-in-plus"
+   ],
+   "controale": [
+    "C35(e)"
+   ],
+   "cifre": "sursa sept, 31 zile bune GPS · card 21.9 · GPS completat 21.9 (0 %) · orice poartă 21.9 · ture/zi 2 (schelet 2) · km/zi card 87.6 / GPS 87.6 · porți EST/EST · C47 92 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R23",
+   "linie": "Scumpia",
+   "verdict": "trece",
+   "mecanisme": [
+    "porti-diferite"
+   ],
+   "controale": [
+    "D4"
+   ],
+   "cifre": "sursa sept, 21 zile bune GPS · card 59.5 · GPS completat 59.5 (0 %) · orice poartă 60 · ture/zi 2 (schelet 2) · km/zi card 238 / GPS 238 · porți VEST/EST · C47 98 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R24",
+   "linie": "Catranic",
+   "verdict": "trece",
+   "mecanisme": [
+    "sat-in-plus",
+    "porti-diferite",
+    "esantion-mic"
+   ],
+   "controale": [
+    "C35(e)",
+    "D8",
+    "D4",
+    "D6"
+   ],
+   "cifre": "sursa sept, 15 zile bune GPS · card 29.3 · GPS completat 29.4 (-0.3 %) · orice poartă 29.4 · ture/zi 1 (schelet 1) · km/zi card 58.6 / GPS 58.8 · porți VEST/EST · C47 92 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R25",
+   "linie": "Hiliuti",
+   "verdict": "abatere",
+   "mecanisme": [
+    "altul"
+   ],
+   "controale": [
+    "C22"
+   ],
+   "cifre": "sursa sept, 9 zile bune GPS · card 32 · GPS completat 32 (0 %) · orice poartă 31.5 · ture/zi 1 (schelet 1) · km/zi card 64 / GPS 64 · porți EST/EST · C47 100 %",
+   "propunere": "nimic pe card; harta pe o zi bună GPS la următoarea rulare a lanțului (C22)",
+   "diagnostic": "altul = C22 zi desenată care nu e zi bună GPS: s1|912RNK|2026-09-15 nu e zi bună GPS (etalon completat 32, 9 zile)"
+  },
+  {
+   "ruta": "R26",
+   "linie": "Ilenuta",
+   "verdict": "trece",
+   "mecanisme": [
+    "c47-sub-90"
+   ],
+   "controale": [
+    "C47"
+   ],
+   "cifre": "sursa sept, 7 zile bune GPS · card 38.8 · GPS completat 38.8 (0 %) · orice poartă 38.8 · ture/zi 1 (schelet 1) · km/zi card 77.6 / GPS 77.6 · porți EST/EST · C47 89 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R26",
+   "linie": "Obreja Veche",
+   "verdict": "trece",
+   "mecanisme": [
+    "porti-diferite"
+   ],
+   "controale": [
+    "D4"
+   ],
+   "cifre": "sursa sept, 15 zile bune GPS · card 38.4 · GPS completat 38.4 (0 %) · orice poartă 38.8 · ture/zi 1 (schelet 1) · km/zi card 76.8 / GPS 76.8 · porți VEST/EST · C47 100 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R27",
+   "linie": "Danu",
+   "verdict": "trece",
+   "mecanisme": [
+    "sat-in-plus",
+    "porti-diferite"
+   ],
+   "controale": [
+    "C35(e)",
+    "D4"
+   ],
+   "cifre": "sursa sept, 16 zile bune GPS · card 53.3 · GPS completat 53.3 (0 %) · orice poartă 53.5 · ture/zi 1 (schelet 1) · km/zi card 106.6 / GPS 106.6 · porți VEST/EST · C47 94 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R27",
+   "linie": "Sturzovca",
+   "verdict": "abatere",
+   "mecanisme": [
+    "c47-sub-90",
+    "ture-diferite-de-act",
+    "porti-diferite",
+    "abatere-rotatie",
+    "regim-perioada"
+   ],
+   "controale": [
+    "C42",
+    "D2",
+    "C47",
+    "X1"
+   ],
+   "cifre": "sursa sept, 15 zile bune GPS · card 23.9 · GPS completat 23.9 (0 %) · orice poartă 23.9 · ture/zi 2 (schelet 2) · km/zi card 95.6 / GPS 95.6 · porți EST/EST · C47 64 %",
+   "propunere": "nimic; explicația G1 veche (sha 629b0c1d) e moartă: NU se re-semnează",
+   "diagnostic": "Sept: 12 zile × 2 perechi, 7 × 1, 2 × 0 (mediana 2), toate pe schimbul grupei D (s1 în fazele A, s2 în B) — 727CWN + 397VKV / 441ASB / 804MUM. 727CWN intră pe VEST (tur 24,1 / retur 23,65, n 18), ceilalți pe EST (23,8–26,6): același drum, altă poartă → 39 de picioare pe cealaltă poartă, C47 64 %. Etalon 23,9 pe 15 zile = card."
+  },
+  {
+   "ruta": "R28",
+   "linie": "Cuhnesti",
+   "verdict": "trece",
+   "mecanisme": [
+    "porti-diferite"
+   ],
+   "controale": [
+    "D4"
+   ],
+   "cifre": "sursa sept, 14 zile bune GPS · card 75 · GPS completat 75 (0 %) · orice poartă 75.2 · ture/zi 1 (schelet 1) · km/zi card 150 / GPS 150 · porți VEST/EST · C47 91 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R29",
+   "linie": "Ustia",
+   "verdict": "trece",
+   "mecanisme": [
+    "sat-in-plus",
+    "porti-diferite"
+   ],
+   "controale": [
+    "C35(e)",
+    "D4"
+   ],
+   "cifre": "sursa sept, 9 zile bune GPS · card 56.9 · GPS completat 56.9 (0 %) · orice poartă 57.5 · ture/zi 1 (schelet 1) · km/zi card 113.8 / GPS 113.8 · porți VEST/EST · C47 100 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R30",
+   "linie": "Cosernita",
+   "verdict": "trece",
+   "mecanisme": [
+    "sat-in-plus"
+   ],
+   "controale": [
+    "C35(e)"
+   ],
+   "cifre": "sursa sept, 18 zile bune GPS · card 63.8 · GPS completat 63.8 (0 %) · orice poartă 63.8 · ture/zi 1 (schelet 1) · km/zi card 127.6 / GPS 127.6 · porți EST/EST · C47 97 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R31",
+   "linie": "Cotiujenii Mari",
+   "verdict": "trece",
+   "mecanisme": [],
+   "controale": [],
+   "cifre": "sursa sept, 15 zile bune GPS · card 65.1 · GPS completat 65.1 (0 %) · orice poartă 65.1 · ture/zi 1 (schelet 1) · km/zi card 130.2 / GPS 130.2 · porți EST/EST · C47 100 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R32",
+   "linie": "Cainarii Vechi",
+   "verdict": "abatere",
+   "mecanisme": [
+    "regim-perioada",
+    "abatere-rotatie"
+   ],
+   "controale": [
+    "D2"
+   ],
+   "cifre": "sursa sept, 18 zile bune GPS · card 46.9 · GPS completat 46.9 (0 %) · orice poartă 46.9 · ture/zi 1 (schelet 1) · km/zi card 93.8 / GPS 93.8 · porți EST/EST · C47 95 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R32",
+   "linie": "Trifanesti",
+   "verdict": "abatere",
+   "mecanisme": [
+    "sat-in-plus",
+    "ture-diferite-de-act",
+    "regim-sursa-diferit",
+    "regim-neclar",
+    "c47-sub-90"
+   ],
+   "controale": [
+    "C35(e)",
+    "C42",
+    "D1",
+    "C47"
+   ],
+   "cifre": "sursa sept, 19 zile bune GPS · card 40.2 · GPS completat 40.2 (0 %) · orice poartă 40.2 · ture/zi 2 (schelet 2) · km/zi card 160.8 / GPS 160.8 · porți EST/EST · C47 72 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R33",
+   "linie": "Iezarenii Vechi",
+   "verdict": "trece",
+   "mecanisme": [
+    "sat-in-plus"
+   ],
+   "controale": [
+    "C35(e)"
+   ],
+   "cifre": "sursa sept, 18 zile bune GPS · card 34.1 · GPS completat 34.1 (0 %) · orice poartă 34.1 · ture/zi 1 (schelet 1) · km/zi card 68.2 / GPS 68.2 · porți EST/EST · C47 97 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R34",
+   "linie": "Taura Veche",
+   "verdict": "trece",
+   "mecanisme": [],
+   "controale": [],
+   "cifre": "sursa sept, 18 zile bune GPS · card 40.7 · GPS completat 40.7 (0 %) · orice poartă 40.7 · ture/zi 1 (schelet 1) · km/zi card 81.4 / GPS 81.4 · porți EST/EST · C47 100 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R35",
+   "linie": "Cucioaia",
+   "verdict": "trece",
+   "mecanisme": [
+    "sat-in-plus"
+   ],
+   "controale": [
+    "C35(e)"
+   ],
+   "cifre": "sursa sept, 19 zile bune GPS · card 52.5 · GPS completat 52.5 (0 %) · orice poartă 52.5 · ture/zi 1 (schelet 1) · km/zi card 105 / GPS 105 · porți EST/EST · C47 100 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R36",
+   "linie": "Bocancea Schit",
+   "verdict": "trece",
+   "mecanisme": [
+    "sat-in-plus"
+   ],
+   "controale": [
+    "C35(e)"
+   ],
+   "cifre": "sursa sept, 11 zile bune GPS · card 53.3 · GPS completat 54 (-1.3 %) · orice poartă 54 · ture/zi 1 (schelet 1) · km/zi card 106.6 / GPS 108 · porți EST/EST · C47 94 %",
+   "propunere": "nimic",
+   "diagnostic": "Card 53,3 față de GPS 54,0 (−1,3 %, 11 zile), C47 94 %; km/zi −1,4 față de GPS."
+  },
+  {
+   "ruta": "R37",
+   "linie": "Musteata",
+   "verdict": "abatere",
+   "mecanisme": [
+    "porti-diferite",
+    "altul"
+   ],
+   "controale": [
+    "D4",
+    "C22"
+   ],
+   "cifre": "sursa sept, 9 zile bune GPS · card 60.2 · GPS completat 60.2 (0 %) · orice poartă 60.2 · ture/zi 1 (schelet 1) · km/zi card 120.4 / GPS 120.4 · porți VEST/EST · C47 100 %",
+   "propunere": "nimic pe card; harta pe o zi bună GPS la următoarea rulare a lanțului (C22)",
+   "diagnostic": "altul = C22 zi desenată care nu e zi bună GPS: s1|925FTI|2026-09-25 nu e zi bună GPS (etalon completat 60.2, 9 zile)"
+  },
+  {
+   "ruta": "R38",
+   "linie": "Glinjeni",
+   "verdict": "trece",
+   "mecanisme": [
+    "porti-diferite"
+   ],
+   "controale": [
+    "D4"
+   ],
+   "cifre": "sursa sept, 17 zile bune GPS · card 33.3 · GPS completat 33.3 (0 %) · orice poartă 33.3 · ture/zi 1 (schelet 1) · km/zi card 66.6 / GPS 66.6 · porți VEST/EST · C47 95 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R39",
+   "linie": "Popestii de jos",
+   "verdict": "trece",
+   "mecanisme": [
+    "sursa-toate",
+    "sat-in-plus"
+   ],
+   "controale": [
+    "C32",
+    "C35(e)",
+    "C23"
+   ],
+   "cifre": "sursa toate, 47 zile bune GPS · card 74.8 · GPS completat 74.8 (0 %) · orice poartă 74.8 · ture/zi 1 (schelet 1) · km/zi card 149.6 / GPS 149.6 · porți EST/EST · C47 98 %",
+   "propunere": "nimic",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R18",
+   "linie": "Putinesti",
+   "verdict": "blocant",
+   "mecanisme": [
+    "fara-ideal",
+    "servire-rara"
+   ],
+   "controale": [
+    "C31",
+    "D7",
+    "X1"
+   ],
+   "cifre": "7 obs. (7 deplasări, rt 0, plin median 18.4) · {\"tur s2\":3,\"retur s1\":4} · zile-mașină 7, încrucișate 0 · mașini 763LYY 4, 146BRAZ 1, 731ARF 1",
+   "propunere": "explicație C31 în registru pe c541bb20 (textul propus, cu nota din R-3)",
+   "diagnostic": "7 observații (763LYY 4, 146BRAZ 1, 731ARF 1), 0 candidate. În septembrie Putinești apare și în cursele lui 763LYY (11.09) și 348KAJ (24.09, 25.09 — grupa D, etichetat R18 Zarojeni), nu doar în R32 Trifănești."
+  },
+  {
+   "ruta": "R27",
+   "linie": "Iabloana",
+   "verdict": "blocant",
+   "mecanisme": [
+    "fara-ideal",
+    "servire-rara"
+   ],
+   "controale": [
+    "C31",
+    "D7",
+    "X1"
+   ],
+   "cifre": "5 obs. (4 deplasări, rt 2, plin median 28.1) · {\"retur s1\":2,\"tur s1\":2,\"tur fără\":1} · zile-mașină 4, încrucișate 0 · mașini 441ASB 2, 348KAJ 2, 487NPL 1",
+   "propunere": "explicație C31 în registru pe c541bb20 (textul propus)",
+   "diagnostic": "5 observații (441ASB 2, 348KAJ 2, 487NPL 1), 0 candidate; conform §1.4 (migr. 415)."
+  },
+  {
+   "ruta": "R11",
+   "linie": "Fundurii Noi*",
+   "verdict": "abatere",
+   "mecanisme": [
+    "linie-gps-informativa",
+    "date-insuficiente"
+   ],
+   "controale": [
+    "C41",
+    "V5"
+   ],
+   "cifre": "observații sept 0 / toate 7 · 457BRAX 7",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R11",
+   "linie": "Sadovoe*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 36 / toate 135 · 457BRAX 135",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R14",
+   "linie": "Hăsnășenii Mari*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 0 / toate 2 · 826GXP 2",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R16",
+   "linie": "Mărculești*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 0 / toate 7 · 144BRAZ 7",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R16",
+   "linie": "Mărășești*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 0 / toate 3 · 144BRAZ 3",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R17",
+   "linie": "Mărculești*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 0 / toate 15 · 713IZX 15",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R19",
+   "linie": "Sîngerei*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 0 / toate 2 · 435ASB 1, 830MUM 1",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R1",
+   "linie": "Tîrnova*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 1 / toate 1 · 346KAJ 1",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R20",
+   "linie": "Drăgănești*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa",
+    "abatere-rotatie"
+   ],
+   "controale": [
+    "C41",
+    "D2"
+   ],
+   "cifre": "observații sept 35 / toate 216 · 041BRAU 216",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R20",
+   "linie": "Mîndreștii Noi*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 0 / toate 2 · 206BZP 1, 041BRAU 1",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R20",
+   "linie": "Sacarovca*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 0 / toate 1 · 041BRAU 1",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R21",
+   "linie": "Alexăndreni*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 35 / toate 139 · 715IZX 139",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R22",
+   "linie": "Heciul Vechi*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa",
+    "regim-perioada"
+   ],
+   "controale": [
+    "C41",
+    "D2"
+   ],
+   "cifre": "observații sept 0 / toate 207 · 412BRAY 207",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R22",
+   "linie": "Țipletești*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 0 / toate 23 · 412BRAY 23",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R23",
+   "linie": "Călugăr*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 34 / toate 121 · 446ASB 121",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R23",
+   "linie": "Frumușica*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 0 / toate 10 · 446ASB 10",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R23",
+   "linie": "Fălești*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 1 / toate 5 · 446ASB 5",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R23",
+   "linie": "Gara Fălești*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 2 / toate 2 · 446ASB 2",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R23",
+   "linie": "Măgureanca*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 0 / toate 2 · 446ASB 2",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R27",
+   "linie": "Sadovoe*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 0 / toate 3 · 727CWN 3",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R28",
+   "linie": "Moara Domnească*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 1 / toate 1 · 760BXI 1",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R29",
+   "linie": "Limbenii Vechi*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 0 / toate 1 · 457BRAX 1",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R29",
+   "linie": "Petrunea*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 0 / toate 1 · 457BRAX 1",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R2",
+   "linie": "Cupcini*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 29 / toate 34 · 549RNK 34",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R32",
+   "linie": "Bezeni*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 0 / toate 1 · 146BRAZ 1",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R32",
+   "linie": "Frumușica*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 0 / toate 2 · 146BRAZ 2",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R33",
+   "linie": "Bilicenii Vechi*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 28 / toate 110 · 725CWN 110",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R33",
+   "linie": "Vrănești*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 0 / toate 5 · 725CWN 5",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R35",
+   "linie": "Dumbrăvița*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 34 / toate 111 · 912RNK 111",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R36",
+   "linie": "Bobletici*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 2 / toate 2 · 224BZP 2",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R38",
+   "linie": "Mărăndeni*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 0 / toate 1 · 744ARF 1",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R3",
+   "linie": "Recea*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 1 / toate 4 · 345KAJ 4",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R4",
+   "linie": "Corlăteni*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 0 / toate 4 · 748IZX 4",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R5",
+   "linie": "Recea*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 0 / toate 4 · 917FTI 4",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R7",
+   "linie": "Slobozia*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 25 / toate 98 · 386PKP 98",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R8",
+   "linie": "Pîrjota*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 1 / toate 1 · 345KAJ 1",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  },
+  {
+   "ruta": "R9",
+   "linie": "Glodeni*",
+   "verdict": "neverificabil",
+   "mecanisme": [
+    "linie-gps-informativa"
+   ],
+   "controale": [
+    "C41"
+   ],
+   "cifre": "observații sept 2 / toate 62 · 397VKV 60, 447ASB 2",
+   "propunere": "nimic (fără ideal; linie * = de verificat, nu etalon, §4.6)",
+   "diagnostic": ""
+  }
+ ],
+ "masini": [
+  {
+   "masina": "348KAJ",
+   "mecanisme": [
+    "altul",
+    "servire-incrucisata"
+   ],
+   "treapta": "—",
+   "zile": 2,
+   "cifre": "18.09 tur 49,0 / retur 52,7 pe Moara de Piatră / Cubolta și 25.09 (grupa D) 30,4 / 30,2 pe Putinești / Țiplești / Heciul Vechi, ambele etichetate R18 Zarojeni fără nicio oprire la Zarojeni; intră în etalonul GPS al liniei (2 din 4 zile bune)",
+   "propunere": "corecție de atribuire în lanț (L-1): picior fără nicio oprire în satele liniei nu e al liniei"
+  },
+  {
+   "masina": "763LYY",
+   "mecanisme": [
+    "altul",
+    "servire-incrucisata"
+   ],
+   "treapta": "—",
+   "zile": 19,
+   "cifre": "etichetat R17 Prajila, 0 opriri la Prajila în zilele lucrătoare din septembrie; 01–04.09 Gura Căinarului (EZ faza B), 07–18.09 Zarojeni + Gura Căinarului (8 tururi EZ cu oprire la Zarojeni), 22–25.09 Moara de Piatră (57–58 km)",
+   "propunere": "decizia v4.3 îl scoate din etalonul Prajila (corect); atribuirea din lanț (curse.mjs / etalon.mjs) rămâne R17 → întrebarea Q3 pentru F3"
+  },
+  {
+   "masina": "186OMM",
+   "mecanisme": [
+    "diagnostic-drum"
+   ],
+   "treapta": "—",
+   "zile": 29,
+   "cifre": "R3 Nihoreni grupa D: tur EST 52,6 / retur EST 50,55 (sept), buclă de ~12 km după prima trecere prin Nihoreni (38,6 km)",
+   "propunere": "întrebarea Q1"
+  },
+  {
+   "masina": "880RNK",
+   "mecanisme": [
+    "dispozitiv-dublu"
+   ],
+   "treapta": "sigur",
+   "zile": 7,
+   "cifre": "C4 sigur 7 zile (dispozitivele 2402, 2478); efect măsurat nul pe Sofia, pe Pelinia fără 2402 zile bune 37 → 35",
+   "propunere": "nimic (efect nul pe card și ture)"
+  },
+  {
+   "masina": "744ARF",
+   "mecanisme": [
+    "salt-intre-porti"
+   ],
+   "treapta": "salt",
+   "zile": 16,
+   "cifre": "16 zile cu salt poartă → poartă ≤5 km, 0 atribuite unei linii",
+   "propunere": "nimic (structural)"
+  },
+  {
+   "masina": "346KAJ",
+   "mecanisme": [
+    "salt-intre-porti"
+   ],
+   "treapta": "salt",
+   "zile": 1,
+   "cifre": "1 salt (05.09)",
+   "propunere": "nimic"
+  },
+  {
+   "masina": "350KAJ",
+   "mecanisme": [
+    "salt-intre-porti"
+   ],
+   "treapta": "salt",
+   "zile": 1,
+   "cifre": "1 salt (09.09)",
+   "propunere": "nimic"
+  },
+  {
+   "masina": "412BRAY",
+   "mecanisme": [
+    "salt-intre-porti"
+   ],
+   "treapta": "salt",
+   "zile": 1,
+   "cifre": "1 salt (13.05); linii * Heciul Vechi*, Țipletești*",
+   "propunere": "nimic"
+  },
+  {
+   "masina": "024XKY",
+   "mecanisme": [
+    "serviciu-regulat"
+   ],
+   "treapta": "—",
+   "zile": 17,
+   "cifre": "D7 regulat: R15 Suri 6 zile ~11:41, R12 Pelinia 11 zile ~11:20",
+   "propunere": "F4 (fereastra de prânz, §5.1)"
+  },
+  {
+   "masina": "446ASB",
+   "mecanisme": [
+    "serviciu-regulat",
+    "linie-gps-informativa"
+   ],
+   "treapta": "—",
+   "zile": 5,
+   "cifre": "D7 regulat R23 Călugăr* 5 zile ~11:19",
+   "propunere": "F4"
+  },
+  {
+   "masina": "727CWN",
+   "mecanisme": [
+    "porti-diferite"
+   ],
+   "treapta": "—",
+   "zile": 18,
+   "cifre": "R27 Sturzovca pe VEST (tur 24,1 / retur 23,65, n 18) — același drum ca ceilalți pe EST; restul picioarelor: Limbenii Noi 20, Hăsnășenii Noi 8, altele",
+   "propunere": "nimic"
+  }
+ ],
+ "flota": [
+  {
+   "tema": "km/zi pe uzină",
+   "mecanisme": [],
+   "cifre": "card 5.789 → 5.667 km/zi (−122); GPS completat 5.918 → 5.668; card − GPS = −1 km/zi; 29 linii × 1, 20 × 2, niciuna × 3",
+   "propunere": "nimic"
+  },
+  {
+   "tema": "C47 pe flotă",
+   "mecanisme": [
+    "c47-sub-90",
+    "c47-sub-60"
+   ],
+   "cifre": "2.409/2.576 (93,5 %; v12 91,2 %); sub 90 %: 8 linii (Nihoreni 60, Mihăilenii Vechi 79, Ciuciulea 80, Limbenii Noi 83, Zarojeni 35, Ilenuța 89, Sturzovca 64, Trifănești 72); sub 60 %: doar Zarojeni",
+   "propunere": "nimic în afara Zarojeni (L-1)"
+  },
+  {
+   "tema": "registrul",
+   "mecanisme": [
+    "altul"
+   ],
+   "cifre": "X2: 4 explicații pe 629b0c1d (C31 Putinești, C31 Iabloana, G1 Zarojeni, G1 Sturzovca); proba registru PICATĂ pe sha nou (c541bb20) — așteptat",
+   "propunere": "re-semnare pe c541bb20: C31 × 2, G1 Zarojeni, E1 Zarojeni, E1 Nihoreni (5 intrări); G1 Sturzovca NU (moartă)"
+  },
+  {
+   "tema": "ora locală / W53",
+   "mecanisme": [
+    "w53"
+   ],
+   "cifre": "C5 fereastra 04.05–26.09 ⊂ EEST; D1 W53 informativ; D5 10.037/10.037 în ferestre",
+   "propunere": "nimic până la 01.12.2026"
+  },
+  {
+   "tema": "deplasări fără schimb",
+   "mecanisme": [
+    "gemeni-rt",
+    "deplasare-goala",
+    "serviciu-regulat"
+   ],
+   "cifre": "D7: 212 obs., sept 109 în 25 zile · geamăn rt 113, goală 36, rt fără picior 4, rest 59",
+   "propunere": "F4"
+  },
+  {
+   "tema": "curse > 140 km",
+   "mecanisme": [],
+   "cifre": "C38: 23 observații cu plin > 140 km (Vărvăreuca, Copăceni, Frumușica*, Baroncea, Florești) — informativ, nu pe linia aleasă",
+   "propunere": "nimic"
+  },
+  {
+   "tema": "harta",
+   "mecanisme": [],
+   "cifre": "C23: Usurei 8,3 %, Costești 5,5 %, Funduri Vechi 5,1 %, Popești 5,9 % (doar harta)",
+   "propunere": "nimic"
+  },
+  {
+   "tema": "sate din act fără oprire",
+   "mecanisme": [
+    "sat-lipsa"
+   ],
+   "cifre": "C35(d): Mîndîc (R1), Sofrîncani (R2), Recea (R7), Obreja Nouă (R26) — ca §4.7",
+   "propunere": "nimic"
+  }
+ ],
+ "intrebari": [
+  {
+   "text": "Q1 Nihoreni: bucla de ~12 km a grupei D (186OMM) după prima trecere prin Nihoreni e cu oameni (zona Rîșcani) sau e drum gol? Textul E1 propus spune «pe aceeași poartă D și EZ merg pe același drum (tur 45,0 / 44,6)», dar pe urmă nu se reproduce.",
+   "cifre": "Sept, km de la poartă + raza: pe EST ambele grupe trec prin Nihoreni la 38,6 / 38,8 km; D tur EST 52,6 (n 14), D retur EST 50,55 (n 18); EZ retur EST 42,6 (n 19), EZ tur VEST 42,75 (n 18); niciun tur EZ pe EST în septembrie. Mai–iulie: D 51,8 / 51,7, EZ 41,9 (VEST) / 43,8 (EST). Pe aceeași poartă (EST, retur) diferența e 8 km (18,7 %). Cardul 44,2 e la +4,5 % față de poarta sensului (42,3, 16 zile) și la −3,5 % față de orice poartă (45,8, 26 de zile). Dacă bucla D e cu oameni, km/zi GPS pe grupe ≈ 2 × (42,7 + 51,6) = 188,6, față de cardul 176,8 (−11,8 km/zi, −6,3 %).",
+   "recomandare": "Cardul 44,2 × 2 rămâne (regula e un km pe linie, iar cardul e în 5 % de ambele etaloane). Explicația E1 se semnează cu textul corectat (R-2), NU cu premisa «același drum». Migrația 417 (§6.6) nu se aplică cu fraza «D și EZ merg pe același drum (tur 45,0 / 44,6)». Bucla D se măsoară pe opriri în F4; dacă e cu oameni, dezbaterea hotărăște dacă e nevoie de un card pe grupă, adică o regulă nouă în §6."
+  },
+  {
+   "text": "Q2 Zarojeni: cum se scot din etalonul GPS picioarele etichetate R18 Zarojeni care nu opresc în niciun sat al liniei (serviciile altor linii ale lui 348KAJ)? Azi decizii-v3 scoate doar mașini întregi.",
+   "cifre": "Etalonul verificatorului, 32,1 km (4 zile), include 18.09 (Moara de Piatră, 49,0 / 52,7) și 25.09 (grupa D, Putinești / Țiplești, 30,4 / 30,2). Fără ele rămân 2 perechi (17.09: 34,0 / 33,9; 21.09: 28,9 / 28,8), adică etalon nedeterminat. Tururile EZ cu oprire la Zarojeni: 13 valide, mediana 27,8 (km la apropiere) / 28,3 (km la oprire).",
+   "recomandare": "Corecția L-1 în lanț, în dosar nou: §4.2 (un picior fără oprire în satele rutei nu e al liniei) se aplică tuturor mașinilor, nu doar celor din afara graficului. Până atunci, G1 + E1 Zarojeni se explică în registru. Cardul nu se schimbă: e decizia sigilată, susținută de tururi."
+  },
+  {
+   "text": "Q3 763LYY: în F3 (analiza săptămânală), picioarele lui rămân atribuite R17 Prajila, deși în septembrie nu oprește niciodată la Prajila. Se reatribuie (Zarojeni / Gura Căinarului 01–18.09, Moara de Piatră 22–25.09) sau rămân R17 cu excluderea doar din etalon?",
+   "cifre": "19 zile lucrătoare din septembrie: 0 opriri la Prajila. 8 tururi EZ cu oprire la Zarojeni (07–18.09). Picioarele din 22–25.09 au 57–58 km, cu oprire la Moara de Piatră.",
+   "recomandare": "Km-ii cu oameni nu depind de etichetă (§5.1 are nevoie doar de linie ca să aibă capăt). Reatribuirea e corectă, dar nu blochează exportul. Propun s-o facă aceeași corecție L-1, cu testul pe opriri."
+  },
+  {
+   "text": "Q4 Zarojeni, numerele din textul registrului: faza A 27,8 (n 9), faza B 33,9 (n 3), mediana a 12 tururi 28,45, echilibrat 31,45. Verificatorul reproduce: A 27,6 (n 9), B 33,2 (n 4), 13 tururi 27,8 / 28,3, echilibrat 30,4. Care metodă intră în registru?",
+   "cifre": "Diferențele sunt ≤ 1,1 km. Faza B are 4 tururi cu oprire la Zarojeni: 14.09 27,7 (fără Elizaveta), 15.09 32,4 și 18.09 34,9 (cu Elizaveta), 17.09 34,0 (348KAJ). 09.09 (763LYY, 3,8 km) e urmă ruptă.",
+   "recomandare": "În registru intră cifrele reproductibile pe urma brută, cu metoda scrisă (km de la apropierea de Zarojeni la poartă + raza porții). Textul R-1 le are. Concluzia rămâne aceeași: cardul 28,9 e în 5 % de mediana tururilor."
+  }
+ ]
+}

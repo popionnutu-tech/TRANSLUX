@@ -1,0 +1,40 @@
+# ION-112 runda 1 — cele 6 linii cu steag și lista H4, pe km GPS (sursa ideal-v4.2)
+
+**Starea.** `RUN=/home/verif/verificator/rulari/drax-v13-1790534188` (număr ales de verificator — mesajul nu avea `v<N>`) · sursa `/root/lde-worker/drax/date/ideal-v4.2` (= `ideal-activ`, schelet 629b0c1d…) · drax.mjs 1be43dc0b57b ·
+**verdict.json 5f4508ae5970f18109834294a40022c0bd2149ecbb02859810fa97f211f39a2c** · valid_pentru_export true · 4 explicate · INCHIS **ok**.
+Regulile: md5 1cfc6c53c3e0c23a3269c7bd834bdeef, 27.406 caractere (verificat); față de 56dfde04 se schimbă §1.4, §4.2 și §6.5.
+**Urma brută din trackerul pg: NU** — `diag.sh` citește doar `<RUN>/in/`, iar credențialele trackerului sunt în `.env`, pe care nu am voie să-l citesc. Totul de mai jos vine din deplasările (`curse-ideal.json`: opriri §4.5, apropieri ≤ 1,2 km) și observațiile sursei.
+Metoda: km = plin + raza porții; grupa = rotația din §2.3 (săptămâna din 21.09 = faza A: D face s1, EZ face s2; alternanță); «oprire la capăt» = oprire §4.5 pe partea plină a piciorului. Diagnosticul: `diag-steag6.txt`, `diag-steag6b.txt` (scripturile `/root/diag-verif/steag6.mjs`, `steag6b.mjs`).
+
+## (A) Linie cu linie
+| linie | ce e pe urmă (sept, dacă nu se spune altfel) | poziția mea | km/zi față de v3.1 |
+|---|---|---|---|
+| **R3 Nihoreni** 44,2 × 2 | Două drumuri reale, legate de grupă, stabile pe toată fereastra: **D = 51,8** (tur 52,6 pe EST, retur 50,5; 186OMM prin Recea, sat din act; oprire la Nihoreni 29/32; toată fereastra 51,7, n140) · **EZ = 42,6** (tur 42,8 pe VEST, retur 42,6; 345KAJ / 457BRAX; oprire 25/37; toată fereastra 42,6, n139). Câte o pereche pe zi pe fiecare grupă (actul: EZ 1 + D 1). «Poarta sensului» (tur VEST) prinde doar EZ → 42,3; 44,2 e un compromis fără suport | **altă soluție: etalon pe GRUPĂ** — D 51,8 × 1 + EZ 42,6 × 1 (sau, fără schimbare de schemă, un singur km = media grupelor 47,2 × 2). Nici 42,3, nici 44,2 | 176,8 → **188,8 (+12,0)** |
+| **R16 Florești** 35,7 × 1 | În mai–iul: 144BRAZ + 518MHD, 35,7–35,8, oprire la Florești 45/51. **În sept: 518MHD face zilnic 4 picioare (s1 + s2, tur + retur; 15 din 19 zile), dar lanțul le pune pe R32 Trifănești (48), R32 Căinarii Vechi (9) și R16 Vărvăreuca (9)**, tăiate la Trifănești din parcarea de la Izvoare (53,3 km). Pe partea plină opresc doar la Florești / Mărășești (34 + 5 din 47); **de la Florești la poartă: 36,5–36,7 km** | **card v3.1 păstrat (35,7)**; **52,9 respins** — cei ~17 km Izvoare → Florești sunt drumul de acasă, care doar trece prin sat (§4.2 nou); **ture/zi 1 → 2** (actul: EZ 1 + D 1) după reatribuirea picioarelor lui 518MHD pe Florești | 71,4 → **142,8 (+71,4)**; Trifănești / Căinarii Vechi / Vărvăreuca pierd picioarele (cardurile lor nu le folosesc) |
+| **R18 Zarojeni** 28,9 × 2 | Actul: **doar EZ**. EZ (348KAJ din Gura Căinarului): tur 31,6 / retur 28,1 → **29,0** (sept); oprire la Zarojeni 2/16, la Gura Căinarului majoritar. **D (348KAJ): 0/61 opriri la Zarojeni pe toată fereastra**; sept 30,2 prin Țiplești / Heciul Vechi (R22), mai–iul 47–53 prin Sevirova / Alexandrovca (R32) = serviciul altor rute (H4). 30,7 = etalonul GPS al zilelor D | **card v3.1 păstrat (28,9 = EZ 29,0, 0,3 %)**; **ture/zi 2 → 1** (doar EZ); picioarele D în lista de diagnostic H4, nu pe Zarojeni | 115,6 → **57,8 (−57,8)** |
+| **R27 Sturzovca** 24,9 × 3 | Actul: **doar D**. D: **23,9** (tur 24,0 / retur 23,8), oprire la Sturzovca 67/74, **2 perechi/zi** (727CWN în săptămânile D, 397VKV, 441ASB, 804MUM). EZ: 727CWN, 44,8, **0/32 opriri la Sturzovca**, bucla prin Limbenii Noi / Fundurii Noi (R11) și Hăsnășenii Noi (R13) | **de acord cu ținta: 24,0 × 2** (grupa D, sept, mediana ambelor sensuri 23,9–24,0); §6.6 («s1 24,7 / s2 46,9») trebuie rescris — e grupă/mașină, nu schimb | 149,4 → **96,0 (−53,4)** |
+| **R32 Trifănești** 40,2 × 2 | 146BRAZ: **D** tur 35,9 / retur 41,2, prin Sevirova / Alexandrovca / Ivanovca (act R32), 0 opriri la Putinești · **EZ** tur 40,1 / retur 41,8, **Putinești 32/37 picioare** (nu 32/32), 1 prin Sevirova. §1.4 nou pune Putinești în km-ii R32 → legitim. 518MHD (47 de picioare pe eticheta R32) e serviciul Florești | **card v3.1 păstrat (40,2 ≈ media D ~38,5 / EZ ~41)**; ture/zi se remăsoară **fără 518MHD** (azi perechile D includ 518MHD) | 160,8 → de remăsurat (probabil neschimbat) |
+| **R36 Bocancea Schit** 54,5 × 1 | 224BZP, sept: **53,9** (tur 54,0 / retur 53,7; 43,9–58,7); oprire la capăt 17/34. **Toate retururile (s1 ziua și s2 noaptea) și toate tururile trec pe la Bilicenii Vechi la 0,65 km — e drumul, nu un ocol** (o singură oprire, 07.09). Mai–iul 58,9 (alt drum; sursa sept e corectă). Nicio mediană nu stă lângă 46,2 (un singur picior de 43,9) | **card v3.1 păstrat (54,5; GPS 54,0, 0,9 %)**; 46,2 nu are suport pe GPS | 0 |
+Efectul net al pozițiilor mele: **+12,0 + 71,4 − 57,8 − 53,4 = −27,8 km/zi** (card 5.789 → ~5.761), fără Trifănești (de remăsurat).
+
+## (B) Lista H4 pe v4.2
+| rând | poziția mea |
+|---|---|
+| Zarojeni 52 % (348KAJ) | Rezolvat de filtrul «grupa din act»: sunt exact picioarele D (0/61 opriri la Zarojeni). Ies de pe Zarojeni; rămân în lista de diagnostic (sate R22/R32), fără reatribuire automată |
+| Heciul Vechi* 47 % (412BRAY) | Linie `*` fără ideal (§4.6), nu intră în card. Doar diagnostic (sate R19/R33/R34 — Bilicenii Vechi) |
+| Prajila 26 % (763LYY) | Rămâne pe Prajila: §1.4 nou spune că Putinești e deservit în mai–iul de R17 Prajila (763LYY). Întrebare deschisă: ture/zi 3 vs act 2 (713IZX, 763LYY, 487NPL) — C44 pe 763LYY înainte de orice schimbare |
+| Sturzovca 14 % (727CWN) | Rezolvat de filtrul pe grupa D (picioarele EZ ale lui 727CWN) |
+
+## Ce trebuie ca propunerea să fie verificabilă
+1. **Grupa pe fiecare observație** (lanț și verificator), calculată prin alternanța de la ancora 21.09 (§2.3), nu prin paritate.
+2. **G1 / C47 / C28 pe grupă** în `drax.mjs` (propunere de script, sesiunea aprobă): etalon pe grupă cu ≥ 3 zile, C47 pe poarta grupei, ture/zi pe grupă. Pentru Nihoreni, `schelet-ideal.json` are nevoie de km pe grupă, iar F2 (`economie/categorii.mjs:37-40`, azi pe schimb) trebuie să mapeze grupa pe schimb pe săptămână; altfel se folosește media 47,2.
+3. **Filtrul «grupa din act» cu dovadă:** un picior al grupei care nu e în act iese de pe linie doar dacă are 0 opriri §4.5 la capăt (Zarojeni D 0/61, Sturzovca EZ 0/32); altfel rămâne și primește steag.
+4. **Reatribuirea Florești:** piciorul care atinge capătul altei linii doar din parcare (518MHD la Izvoare) și oprește pe partea plină numai în satele altei linii (Florești) trece la acea linie, tăiat la satul unde se urcă (§4.2 nou, «drumul de acasă nu face capătul»). Acceptare: Florești→poartă 36,5 ± 5 % pe 518MHD, ture/zi 2.
+5. **Registrul:** G1 Zarojeni și G1 Sturzovca devin moarte după schimbare (etalonul GPS pe grupă = cardul) → se șterg la re-semnare.
+
+## High-uri (cu scenariu) și scorul propunerii (A: card v3.1 pe toate 6, Sturzovca 24,0 × 2)
+- **H1 — Florești sub-numărat:** păstrând 35,7 × 1, 518MHD rămâne pe eticheta Trifănești. *Scenariu:* Florești are 71,4 km/zi în loc de 142,8, iar în F2 drumul gol Izvoare → Florești (~17 km pe picior, 4 picioare/zi) stă pe o cursă «cu oameni» a lui R32, deci nu apare la livrare (~68 km/zi pierduți din R1a pentru 518MHD). Varianta «52,9» ar pune același drum gol direct în card.
+- **H2 — Nihoreni pe un singur km:** și 42,3, și 44,2 ascund varianta D prin Recea (+9,2 km pe picior). *Scenariu:* −12 până la −19 km/zi cu oameni; în F2, culoarul (drumul desenat al EZ) nu acoperă Recea → km-ii D prin Recea ies la livrare.
+- **H3 — Zarojeni cu 2 ture:** păstrând 28,9 × 2, 57,8 km/zi ale serviciului R22/R32 al lui 348KAJ rămân pe Zarojeni (0/61 opriri la capăt), iar G1 rămâne blocant «explicat» pe termen nedefinit.
+- Medium: ture/zi Prajila 3 vs act 2 nelămurit; verificatorul nu poate controla azi nimic pe grupă.
+**Scorul propunerii A (10 − Σ; high −2 / −1,5 / −1, medium −0,5):** H1 −2 · H2 −1,5 · H3 −1 · Prajila −0,5 · lipsa controlului pe grupă −0,5 = **4,5 / 10**. Cu pozițiile de mai sus și cu punctele 1–5: ~8,5.

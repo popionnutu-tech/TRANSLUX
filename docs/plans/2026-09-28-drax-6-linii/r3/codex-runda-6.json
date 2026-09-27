@@ -1,0 +1,6 @@
+{
+  "score": 10.0,
+  "verdict": "pass",
+  "summary": "C2 este închis: docs/plans/2026-09-28-drax-6-linii/r3/vps/decizii-v3.json:73 precizează că atribuirea serviciului nu este dovedită și păstrează comparația fără scădere. În packages/db/migrations/417_lde_drax_sase_linii.sql:8, regula generală de excludere a fost efectiv eliminată; 28,9 este prezentat ca decizie explicită, cu limita eșantionului fazei B și necesitatea remăsurării. Acord pe cele șase linii, Prajila și H4, în condițiile deja convenite; actualizarea E1 rămâne un pas planificat, neverificat pe VPS.",
+  "deductions": []
+}

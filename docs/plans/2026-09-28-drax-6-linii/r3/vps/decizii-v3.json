@@ -1,0 +1,83 @@
+{
+ "versiune": "decizii-v3 · 2026-09-27 · v3.1 (ION-99) · v4.3 (ION-112 r2): scoase deciziile R16|Floresti și R32|Trifanesti — 518MHD e pe R16 structural (decizia de grafic în etalon.mjs), GPS-ul decide · ION-112 r3: scoase card-vechi Zarojeni, Sturzovca, Bocancea Schit (GPS decide); Prajila fără 763LYY",
+ "sursa": "verdictul dezbaterii Claude + Codex pe ideal-v3 (docs/plans/2026-09-27-drax-ideal-v3/verdict-v3.md, 27.09.2026) + ION-99 ideal-v3.1 (cârpirea golurilor GPS, regula satelor în ordine, R6 pe metoda comună; dezbaterea 27.09: punctele cârpite în afara atribuirii, picioarele > 30 % cârpite în afara etalonului, card-vechi = cardul sigilat din ideal-v3)",
+ "regula": "doar METODE (sursa, selecția perechilor, mașinile scoase cu motiv și proveniență) și valoarea AȘTEPTATĂ; niciun km scris ca intrare. card-gps.mjs și verificatorul (drax.mjs v5, D8) recalculează din GPS și pică dacă rezultatul diferă peste toleranță.",
+ "toleranta_km": 0.1,
+ "linii": [
+  {
+   "ruta": "R24",
+   "linie": "Catranic",
+   "metoda": "poarta-sensului",
+   "steag": null,
+   "motiv": "< 3 perechi bune GPS în septembrie după filtrul de urmă ruptă (dispozitivul 2302 al lui 224BZP: 13 din 37 de picioare) → regula de rezervă pe toată fereastra (C20, alege.mjs:56-58), cu garda de similaritate; 41 de zile, orice poartă 29,5",
+   "provenienta": "verdict-v3.md: unanim · valoarea așteptată refăcută în v3.1 (ION-99) = ce iese din lanțul v3.1 · valoarea așteptată refăcută în v3.1 (ION-99) = ce iese din lanțul v3.1 · valoarea așteptată refăcută în v3.1 (ION-99) = ce iese din lanțul v3.1 · valoarea așteptată refăcută în v3.1 (ION-99) = ce iese din lanțul v3.1",
+   "asteptat": {
+    "km": 29.3,
+    "tureZi": 1,
+    "kmZi": 58.6,
+    "steag": false
+   }
+  },
+  {
+   "ruta": "R6",
+   "linie": "Mihailenii Vechi",
+   "metoda": "orice-poarta",
+   "steag": null,
+   "motiv": "metoda comună: mediana pe zile-pereche bune, pe orice poartă (turul intră amestecat VEST/EST); din v3.1 cu picioarele 345KAJ de după 14.09 mutate de pe R3|Recea* pe R6 de regula satelor în ordine (etalon.mjs v3.1)",
+   "provenienta": "verdict-v3.md (metoda, unanim) + ION-99 (Ion 27.09: «fă cârpiri dacă sare GPS-ul»; reatribuirea 345KAJ); steagul v3 scos: cauza lui corectată, C47 ≥ 60 %",
+   "asteptat": {
+    "km": 54.9,
+    "tureZi": 1,
+    "kmZi": 109.8,
+    "steag": false
+   }
+  },
+  {
+   "ruta": "R3",
+   "linie": "Nihoreni",
+   "metoda": "card-vechi",
+   "steag": null,
+   "provenienta": "verdict-v3.md · ION-112 r3: steag scos, linie închisă de dezbatere · ION-112 r7: motivul corectat (premisa «același drum» din r3 era falsă)",
+   "asteptat": {
+    "km": 44.2,
+    "tureZi": 2,
+    "kmZi": 176.8,
+    "steag": false
+   },
+   "motiv": "ION-112, runda 7 (acord Claude + Codex): 44,2 × 2, un card = media grupelor pe aceeași tăietură (de la oprirea din capăt la poartă, plus raza porții). Grupa D (186OMM) face DUPĂ capăt, cu oameni, bucla prin Rîșcani (sat al rutei în act, 43 din 66 de angajați; ~4 km mai mult: 45,1–45,7), grupa EZ trece prin Rîșcani fără buclă (41,0–42,2); o pereche D și una EZ pe zi; grupele se rotesc săptămânal, deci nu card pe schimb. Staționările din Rîșcani înainte de capăt (tur) / după (retur) sunt așteptare, nu urcare (§5.1); Rîșcani, oraș, nu face capăt (§4.1). Întrebare deschisă pentru Ion: Rîșcani-Vest ca punct real de pornire (ar da ~47,0)."
+  },
+  {
+   "ruta": "R17",
+   "linie": "Prajila",
+   "metoda": "poarta-sensului",
+   "steag": null,
+   "scoate": {
+    "masini": [
+     "763LYY"
+    ]
+   },
+   "motiv": "763LYY nu oprește la Prajila în nicio zi lucrătoare din septembrie (1 tur din ~15–30); picioarele lui etichetate R17 sunt serviciul Zarojeni / Gura Căinarului (07–18.09) și Moara de Piatră (din 21.09). 713IZX și 487NPL fac împreună o mașină pe zi (se înlocuiesc).",
+   "provenienta": "ION-112 runda 3: verificator, business, analist unanim (Prajila × 2, 41,3); Codex r2 provizoriu 41,3 × 2",
+   "asteptat": {
+    "km": 41.3,
+    "tureZi": 2,
+    "kmZi": 165.2,
+    "steag": false
+   }
+  },
+  {
+   "ruta": "R18",
+   "linie": "Zarojeni",
+   "metoda": "card-vechi",
+   "steag": null,
+   "motiv": "ION-112 runda 3, 2 : 1 la Claude pe 28,9 (analistul 28,5, acceptă 28,9) + Codex r2 × 1: returul EZ se termină la Gura Căinarului (0/8 opriri la capăt în septembrie), deci etalonul pe pereche (32,1, C47 35 %) nu măsoară linia; turul de la oprire 27,8–27,9 + raza porții 0,6 = 28,4–28,5, plinul EZ septembrie 28,5 / 28,2 + raza = 28,9. O singură mașină pe zi face perechea EZ (348KAJ; 763LYY 07–18.09). Runda 4–6 (Codex r3–r5 C2): toate cele 12 tururi EZ cu oprire la capăt din septembrie, ambele faze, 348KAJ + 763LYY (etichetat R17), intră pe EST; faza A (seara) 27,8 km (n 9), faza B (dimineața) 33,9 (n 3), cu un ocol dus-întors de 3–4,3 km prin Elizaveta (sat al rutei R21 în act; atribuirea serviciului nu e dovedită). Cardul ales: 28,9 = plinul EZ septembrie, susținut de mediana celor 12 tururi (28,45 cu raza porții); comparația echilibrată pe faze fără scădere dă 31,45 (limita: faza B are 3 picioare) — de remăsurat când faza B are mai multe zile.",
+   "provenienta": "ION-112 r3; card = ideal-v3 sigilat, ture/zi măsurate (1)",
+   "asteptat": {
+    "km": 28.9,
+    "tureZi": 1,
+    "kmZi": 57.8,
+    "steag": false
+   }
+  }
+ ]
+}

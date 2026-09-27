@@ -1,0 +1,17 @@
+{
+  "score": 9.0,
+  "verdict": "pass",
+  "summary": "Exportul închide lipsa populației comune: confirmă 12 tururi, ambele faze și mediana 27,85 km. C2 rămâne deschis numai pentru o dovadă nouă: regula invocată nu justifică excluderea Elizavetei ca oraș. Aceasta afectează explicația reconcilierii, fără să demonstreze că valoarea 28,9 trebuie schimbată.",
+  "deductions": [
+    {
+      "id": "C2",
+      "severity": "medium",
+      "weight": 1.5,
+      "title": "Excluderea kilometrilor prin Elizaveta nu este justificată de regulile citate.",
+      "detail": "§5.1 exclude opririle din orașele enumerate și locurile la maximum 3 km de porți; documentația justifică explicit reducerea razei pentru a nu exclude Elizaveta, tratată ca sat. Coordonatele planului sunt la aproximativ 4,79 km de EST. În plus, §4.1 stabilește ce poate deveni capăt, fără să autorizeze scăderea segmentelor intermediare. Fără scădere, medianele exportului sunt A=27,8 și B=33,9: comparația echilibrată propusă dă 31,45 km cu rază, față de care 28,9 este cu 8,1% mai mic. Mediana comună rămâne 28,45 cu rază, deci problema este justificarea excluderii și a explicației E1, nu demonstrarea unei alte valori obligatorii.",
+      "evidence": "packages/db/migrations/406_lde_drax_reguli_economie.sql:11; packages/db/migrations/412_lde_drax_capat_din_gps.sql:10; docs/plans/2026-09-26-drax-f2.md:326; docs/plans/2026-09-26-drax-f2.md:598; docs/plans/2026-09-28-drax-6-linii/export-r4-zarojeni.json:1",
+      "failure_scenario": "",
+      "suggested_fix": "Corectează în plan și în viitoarea explicație E1 clasificarea Elizavetei. Justifică separat eliminarea ocolului prin dovada serviciului căruia îi aparține și regula aplicabilă; alternativ, păstrează 28,9 ca decizie explicită susținută de mediana comună, prezentând comparația echilibrată fără scădere și limita ei. Nu prezenta §4.1/§5.1 drept autorizație pentru scăderea kilometrilor."
+    }
+  ]
+}

@@ -1,0 +1,180 @@
+capat { lat: 47.9395295, lon: 27.5613834 } Riscani centru (OSM) { lat: 47.9535987, lon: 27.5514453 } Nihoreni (OSM) { lat: 47.9395295, lon: 27.5613834 } capat↔Riscani 1.73
+D retur 186OMM 2026-09-01 s2 EST km  EST  deLaN  bucla  N0 R0 alt0 minRC 0.29 
+      
+D retur 186OMM 2026-09-02 s2 EST km 54.4 EST 54.4 deLaN  bucla 0 N1 R0 alt0 minRC 0.3 
+     01:24 N 2.8 Drochia-Costești 
+D retur 186OMM 2026-09-03 s2 EST km  EST  deLaN  bucla  N0 R0 alt0 minRC 0.29 
+      
+D retur 186OMM 2026-09-04 s2 EST km  EST  deLaN  bucla  N0 R0 alt0 minRC 0.29 
+      
+D retur 345KAJ 2026-09-05 s2 EST km  EST  deLaN  bucla  N0 R0 alt0 minRC 0.32 
+      
+D retur 186OMM 2026-09-07 s1 EST km 54.4 EST 54.4 deLaN  bucla 16.2 N1 R1 alt0 minRC 0.3 
+     16:36 R 1.1 Strada Independenței | 17:08 N 2.8 Drochia-Costești 
+D retur 186OMM 2026-09-08 s1 EST km  EST  deLaN  bucla  N0 R0 alt0 minRC 35.09 
+      
+D retur 297LVY 2026-09-09 s1 EST km  EST  deLaN  bucla  N0 R0 alt0 minRC 1.15 
+      
+D retur 186OMM 2026-09-09 s1 EST km 53.3 EST 53.3 deLaN  bucla 13.9 N0 R2 alt0 minRC 0.29 
+     16:37 R 1.9 Strada Independenței | 17:03 R 2.4 Drochia-Costești 
+D retur 186OMM 2026-09-10 s1 EST km 55.9 EST 55.9 deLaN  bucla 14.5 N2 R1 alt0 minRC 0.29 
+     16:46 R 3.0 Strada Vitali Belousov | 16:57 N 1.3 Strada Valeri Cikalov | 17:16 N 2.8 Drochia-Costești 
+D retur 186OMM 2026-09-11 s1 EST km 51.4 EST 51.4 deLaN 44.7 bucla 13.2 N1 R3 alt0 minRC 0.29 
+     16:37 R 1.1 Strada Independenței | 16:42 R 3.2 Strada Grigori Kotovski | 16:51 N 0.5 Strada Iuri Gagarin | 17:03 R 2.4 Drochia-Costești 
+D retur 186OMM 2026-09-14 s2 EST km 54.8 EST 54.8 deLaN  bucla 16.5 N1 R1 alt0 minRC 0.29 
+     00:57 R 1.1 Strada Independenței | 01:23 N 3.2 Drochia-Costești 
+D retur 186OMM 2026-09-15 s2 EST km 38.2 EST 38.2 deLaN  bucla 0 N0 R1 alt0 minRC 0.29 
+     00:55 R 1.1 Strada Independenței 
+D retur 186OMM 2026-09-16 s2 EST km  EST  deLaN  bucla  N0 R0 alt0 minRC 0.3 
+      
+D retur 186OMM 2026-09-17 s2 EST km 53.3 EST 53.3 deLaN  bucla 12.4 N0 R2 alt0 minRC 0.29 
+     01:03 R 3.2 Strada Grigori Kotovski | 01:25 R 2.4 Drochia-Costești 
+D retur 186OMM 2026-09-18 s2 EST km 41 EST 41 deLaN  bucla 0 N0 R1 alt0 minRC 0.29 
+     01:03 R 3.2 Strada Grigori Kotovski 
+D retur 186OMM 2026-09-21 s1 EST km 55.4 EST 55.4 deLaN  bucla 11.2 N0 R2 alt0 minRC 0.29 
+     16:44 R 1.7 Strada Eternității | 17:04 R 2.4 Drochia-Costești 
+D retur 186OMM 2026-09-22 s1 EST km  EST  deLaN  bucla  N0 R0 alt0 minRC 34.91 
+      
+D retur 186OMM 2026-09-23 s1 EST km  EST  deLaN  bucla  N0 R0 alt0 minRC 34.45 
+      
+D retur 186OMM 2026-09-24 s1 EST km 53.4 EST 53.4 deLaN  bucla 13.9 N0 R2 alt0 minRC 0.29 
+     16:34 R 1.9 Strada Independenței | 17:02 R 2.5 Drochia-Costești 
+D retur 186OMM 2026-09-25 s1 EST km  EST  deLaN  bucla  N0 R0 alt0 minRC 35.32 
+      
+D tur 186OMM 2026-09-01 s2 EST km 49.4 EST 49.4 deLaN  bucla 5.7 N0 R2 alt0 minRC 0.29 
+     13:20 R 1.7 Strada Vladimir Komarov | 13:50 R 1.1 Strada Independenței 
+D tur 186OMM 2026-09-02 s2 EST km  EST  deLaN  bucla  N0 R0 alt0 minRC 35.03 
+      
+D tur 186OMM 2026-09-03 s2 EST km 43.7 EST 43.7 deLaN  bucla 2.7 N0 R2 alt0 minRC 0.29 
+     13:50 R 1.1 Strada Iuri Gagarin | 13:55 R 3.2 Strada Grigori Kotovski 
+D tur 186OMM 2026-09-04 s2 EST km  EST  deLaN  bucla  N0 R0 alt0 minRC 35.27 
+      
+D tur 345KAJ 2026-09-05 s2 EST km  EST  deLaN  bucla  N0 R0 alt0 minRC 0.3 
+      
+D tur 186OMM 2026-09-07 s1 EST km 43.7 EST 43.7 deLaN  bucla 0 N0 R1 alt0 minRC 0.3 
+     05:22 R 1.1 Strada Independenței 
+     lungi: 04:46 R 22' Strada Vladimir Komarov
+D tur 186OMM 2026-09-08 s1 EST km 46.5 EST 46.5 deLaN  bucla 0 N1 R0 alt0 minRC 0.29 
+     05:13 N 1.2 Strada Valeri Cikalov 
+     lungi: 04:48 R 20' Strada Vladimir Komarov
+D tur 186OMM 2026-09-09 s1 EST km 49.4 EST 49.4 deLaN 45.1 bucla 8.4 N1 R2 alt0 minRC 0.29 
+     04:46 R 1.7 Strada Vladimir Komarov | 05:17 N 0.0 Strada Mihail Lermontov | 05:26 R 3.2 Strada Grigori Kotovski 
+D tur 186OMM 2026-09-10 s1 EST km  EST  deLaN  bucla  N0 R0 alt0 minRC 0.29 
+      
+     lungi: 04:50 R 19' Strada Vladimir Komarov
+D tur 186OMM 2026-09-11 s1 EST km  EST  deLaN  bucla  N0 R0 alt0 minRC 0.29 
+      
+     lungi: 04:55 R 15' Strada Vladimir Komarov
+D tur 186OMM 2026-09-14 s2 EST km 54.2 EST 54.2 deLaN  bucla 13.2 N1 R1 alt0 minRC 0.3 
+     13:02 N 2.8 Drochia-Costești | 13:56 R 3.2 Strada Grigori Kotovski 
+     lungi: 13:11 R 27' Strada Vladimir Komarov
+D tur 186OMM 2026-09-15 s2 EST km  EST  deLaN  bucla  N0 R0 alt0 minRC 35.25 
+      
+D tur 186OMM 2026-09-16 s2 EST km  EST  deLaN  bucla  N0 R0 alt0 minRC 35.28 
+      
+D tur 186OMM 2026-09-17 s2 EST km  EST  deLaN  bucla  N0 R0 alt0 minRC 35.26 
+      
+D tur 186OMM 2026-09-18 s2 EST km  EST  deLaN  bucla  N0 R0 alt0 minRC 35.24 
+      
+D tur 186OMM 2026-09-21 s1 EST km 58.1 EST 58.1 deLaN 47.1 bucla 14.1 N2 R4 alt0 minRC 0.29 
+     04:37 N 3.0 Drochia-Costești | 04:52 R 1.5 Strada Alexandr Pușkin | 04:57 R 1.7 Strada Vladimir Komarov | 05:16 N 0.0 Strada Mihail Lermontov | 05:22 R 1.1 Strada Iuri Gagarin | 05:27 R 1.6 Strada Eternității 
+     lungi: 04:44 R 8' Strada Independenței
+D tur 186OMM 2026-09-22 s1 EST km 45.4 EST 45.4 deLaN 45.4 bucla 6.4 N1 R4 alt0 minRC 0.29 
+     05:16 N 0.0 Strada Mihail Lermontov | 05:19 R 1.1 Strada Independenței | 05:23 R 1.9 Strada Independenței | 05:26 R 3.2 Strada Grigori Kotovski | 05:30 R 1.7 Strada Eternității 
+     lungi: 04:49 R 15' Strada Vladimir Komarov
+D tur 186OMM 2026-09-23 s1 EST km 40.9 EST 40.9 deLaN  bucla 0 N0 R1 alt0 minRC 0.29 
+     05:26 R 3.2 Strada Grigori Kotovski 
+     lungi: 04:44 R 25' Strada Vladimir Komarov
+D tur 186OMM 2026-09-24 s1 EST km 56.8 EST 56.8 deLaN  bucla 15.8 N1 R2 alt0 minRC 0.3 
+     04:41 N 3.8 Drochia-Costești | 05:19 R 1.1 Strada Independenței | 05:24 R 3.2 Strada Grigori Kotovski 
+     lungi: 04:54 R 12' Strada Vladimir Komarov
+D tur 186OMM 2026-09-25 s1 EST km 40.9 EST 40.9 deLaN  bucla 0 N0 R1 alt0 minRC 0.29 
+     05:25 R 3.2 Strada Grigori Kotovski 
+     lungi: 04:50 R 16' Strada Vladimir Komarov
+EZ retur 345KAJ 2026-09-01 s1 EST km 43.6 EST 43.6 deLaN  bucla 5.7 N0 R3 alt0 minRC 0.3 
+     16:31 R 1.1 Strada Independenței | 16:34 R 1.5 Strada Independenței | 16:43 R 2.0 Strada Ion Creangă 
+EZ retur 345KAJ 2026-09-02 s1 EST km 38.8 EST 38.8 deLaN  bucla 0.8 N0 R2 alt0 minRC 0.31 
+     16:36 R 1.1 Strada Iuri Gagarin | 16:39 R 1.5 Strada Independenței 
+     lungi: 16:49 R 16' Strada Independenței
+EZ retur 345KAJ 2026-09-03 s1 EST km 43.7 EST 43.7 deLaN  bucla 4.9 N0 R2 alt0 minRC 0.3 
+     16:32 R 1.5 Strada Independenței | 16:41 R 2.0 Strada Ion Creangă 
+EZ retur 345KAJ 2026-09-04 s1 EST km  EST  deLaN  bucla  N0 R0 alt0 minRC 0.3 
+      
+EZ retur 345KAJ 2026-09-07 s2 EST km  EST  deLaN  bucla  N0 R0 alt0 minRC 0.31 
+      
+EZ retur 345KAJ 2026-09-08 s2 EST km  EST  deLaN  bucla  N0 R0 alt0 minRC 0.31 
+      
+EZ retur 345KAJ 2026-09-09 s2 EST km  EST  deLaN  bucla  N0 R0 alt0 minRC 0.32 
+      
+EZ retur 345KAJ 2026-09-10 s2 EST km  EST  deLaN  bucla  N0 R0 alt0 minRC 0.32 
+      
+EZ retur 345KAJ 2026-09-11 s2 EST km 98.8 EST 98.8 deLaN 98.8 bucla 60.7 N1 R2 alt0 minRC 0.31 
+     00:53 R 1.1 Strada Independenței | 05:01 R 2.0 Strada Ion Creangă | 05:17 N 0.5 Strada Iuri Gagarin 
+EZ retur 457BRAX 2026-09-14 s1 EST km  EST  deLaN  bucla  N0 R0 alt0 minRC 0.31 
+      
+EZ retur 457BRAX 2026-09-15 s1 EST km 41.7 EST 41.7 deLaN  bucla 0 N0 R1 alt0 minRC 0.32 
+     16:37 R 1.1 Strada Independenței 
+EZ retur 457BRAX 2026-09-16 s1 EST km 49.7 EST 49.7 deLaN  bucla 8.1 N1 R2 alt0 minRC 0.32 
+     16:35 R 1.1 Strada Independenței | 16:41 R 1.8 Strada Vladimir Komarov | 16:47 N 2.9 
+EZ retur 345KAJ 2026-09-16 s1 EST km  EST  deLaN  bucla  N0 R0 alt0 minRC 0.58 
+      
+EZ retur 457BRAX 2026-09-17 s1 EST km  EST  deLaN  bucla  N0 R0 alt0 minRC 0.31 
+      
+EZ retur 457BRAX 2026-09-18 s1 EST km 41.9 EST 41.9 deLaN  bucla 0.8 N0 R2 alt0 minRC 0.32 
+     16:34 R 1.5 Strada Independenței | 16:36 R 1.1 Strada Independenței 
+EZ retur 457BRAX 2026-09-21 s2 EST km  EST  deLaN  bucla  N0 R0 alt0 minRC 0.31 
+      
+EZ retur 457BRAX 2026-09-22 s2 EST km  EST  deLaN  bucla  N0 R0 alt0 minRC 0.31 
+      
+EZ retur 457BRAX 2026-09-23 s2 EST km  EST  deLaN  bucla  N0 R0 alt0 minRC 0.3 
+      
+EZ retur 457BRAX 2026-09-24 s2 EST km  EST  deLaN  bucla  N0 R0 alt0 minRC 0.31 
+      
+EZ tur 345KAJ 2026-09-01 s1 VEST km 41.6 EST 46.8 deLaN 41.6 bucla 2 N1 R1 alt0 minRC 0.32 
+     05:03 N 0.4 Strada Iuri Gagarin | 05:22 R 1.5 Strada Independenței 
+     lungi: 05:09 N 9' Strada Iuri Gagarin
+EZ tur 345KAJ 2026-09-02 s1 VEST km 38.2 EST 43.2 deLaN  bucla 0 N0 R1 alt0 minRC 0.31 
+     05:23 R 1.5 Strada Independenței 
+     lungi: 05:01 R 6' Strada Ion Creangă | 05:14 R 8' Strada Independenței
+EZ tur 345KAJ 2026-09-03 s1 VEST km 42.2 EST 47.1 deLaN  bucla 4 N0 R2 alt0 minRC 0.31 
+     05:05 R 2.0 Strada Vladimir Komarov | 05:23 R 1.5 Strada Independenței 
+     lungi: 05:15 R 5' Strada Independenței
+EZ tur 345KAJ 2026-09-04 s1 VEST km 39 EST 44 deLaN  bucla 0.8 N0 R2 alt0 minRC 0.3 
+     05:18 R 1.1 Strada Independenței | 05:24 R 1.5 Strada Independenței 
+     lungi: 05:05 R 7' Strada Ion Creangă
+EZ tur 345KAJ 2026-09-07 s2 VEST km 38.9 EST 43.9 deLaN  bucla 1.4 N0 R2 alt0 minRC 0.31 
+     13:59 R 1.1 Strada Independenței | 14:03 R 1.8 Strada Independenței 
+EZ tur 345KAJ 2026-09-08 s2 VEST km 39 EST 44 deLaN  bucla 1.8 N0 R4 alt0 minRC 0.31 
+     13:47 R 1.0 Strada Iuri Gagarin | 13:49 R 1.5 Strada Independenței | 13:54 R 1.9 Strada Independenței | 13:56 R 1.5 Strada Independenței 
+     lungi: 13:34 R 7' Strada Ion Creangă
+EZ tur 345KAJ 2026-09-10 s2 VEST km 42.1 EST 47 deLaN  bucla 0.2 N0 R2 alt0 minRC 0.3 
+     13:45 R 2.0 Strada Ion Creangă | 13:47 R 1.8 Strada Vladimir Komarov 
+EZ tur 345KAJ 2026-09-11 s2 VEST km 39 EST 43.9 deLaN  bucla 1.2 N0 R2 alt0 minRC 0.31 
+     13:55 R 1.1 Strada Independenței | 13:58 R 1.9 Strada Independenței 
+EZ tur 345KAJ 2026-09-14 s1 VEST km 46.2 EST 51.3 deLaN 41.2 bucla 10.9 N1 R3 alt0 minRC 0.31 
+     05:01 R 2.0 Strada Ion Creangă | 05:17 N 0.5 Strada Iuri Gagarin | 05:23 R 1.5 Strada Independenței | 05:40 R 1.7 Drochia-Costești 
+     lungi: 05:28 R 7' Strada Independenței
+EZ tur 457BRAX 2026-09-15 s1 VEST km 46.1 EST 51.1 deLaN  bucla 9.7 N0 R5 alt0 minRC 0.29 
+     05:07 R 1.7 Strada Vladimir Komarov | 05:18 R 1.1 Strada Independenței | 05:25 R 1.5 Strada Independenței | 05:28 R 1.9 Strada Independenței | 05:37 R 2.2 Drochia-Costești 
+EZ tur 457BRAX 2026-09-16 s1 VEST km 47 EST 51.8 deLaN  bucla 1.1 N0 R2 alt0 minRC 0.32 
+     05:09 R 0.8 Strada Vladimir Komarov | 05:14 R 1.7 Strada Vladimir Komarov 
+EZ tur 457BRAX 2026-09-17 s1 VEST km 39.4 EST 44.3 deLaN  bucla 0.5 N0 R2 alt0 minRC 0.32 
+     05:25 R 1.5 Strada Independenței | 05:28 R 1.9 Strada Independenței 
+EZ tur 457BRAX 2026-09-18 s1 VEST km  EST  deLaN  bucla  N0 R0 alt0 minRC 0.33 
+      
+EZ tur 457BRAX 2026-09-21 s2 VEST km 40.4 EST 45.2 deLaN  bucla 1.3 N0 R2 alt0 minRC 0.33 
+     13:50 R 1.0 Strada Iuri Gagarin | 13:55 R 1.9 Strada Independenței 
+EZ tur 457BRAX 2026-09-22 s2 VEST km 39.4 EST 44.5 deLaN  bucla 0 N0 R1 alt0 minRC 0.32 
+     13:55 R 1.5 Strada Independenței 
+EZ tur 457BRAX 2026-09-23 s2 VEST km 40.2 EST 45 deLaN  bucla 0.8 N0 R2 alt0 minRC 0.31 
+     13:53 R 1.1 Strada Independenței | 13:55 R 1.5 Strada Independenței 
+EZ tur 457BRAX 2026-09-24 s2 VEST km  EST  deLaN  bucla  N0 R0 alt0 minRC 0.31 
+      
+EZ tur 457BRAX 2026-09-25 s2 VEST km  EST  deLaN  bucla  N0 R0 alt0 minRC 0.32 
+      
+
+== SUMAR (mediane) ==
+D tur picioare 20 cu opriri 11 km 46.5 km→/←EST 46.5 de la Nihoreni 45.4 bucla 5.7 opriri N 1 R 2 Σ N 7 Σ R 20 porți {"EST":20} minRC med 0.3 minRC max 35.28 mașini 186OMM 345KAJ
+D retur picioare 21 cu opriri 11 km 53.4 km→/←EST 53.4 de la Nihoreni 44.7 bucla 13.2 opriri N 0 R 1 Σ N 6 Σ R 16 porți {"EST":21} minRC med 0.3 minRC max 35.32 mașini 186OMM 345KAJ 297LVY
+EZ tur picioare 18 cu opriri 15 km 40.2 km→/←EST 45 de la Nihoreni 41.4 bucla 1.2 opriri N 0 R 2 Σ N 2 Σ R 33 porți {"VEST":18} minRC med 0.3 minRC max 0.33 mașini 345KAJ 457BRAX
+EZ retur picioare 19 cu opriri 7 km 43.6 km→/←EST 43.6 de la Nihoreni 98.8 bucla 4.9 opriri N 0 R 2 Σ N 2 Σ R 14 porți {"EST":19} minRC med 0.3 minRC max 0.58 mașini 345KAJ 457BRAX

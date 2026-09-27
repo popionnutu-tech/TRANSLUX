@@ -1,0 +1,183 @@
+{
+ "versiune": "drax.mjs v5 · 1be43dc0b57b",
+ "script": {
+  "drax_sha256": "1be43dc0b57beaf3195125153bf69aea98e87e7951a3e21cacabe2a497ba80e3",
+  "etalon_sha256": "3f958d6ca8dd12661c71c9bf06a77e70d6d541f8f7bbfb1c51cc7f1fea70ff04",
+  "timp_sha256": "0c9b7668732f6b3360f5d6a47679f0dcc641a841d0359a1e57b4117aa46054e9",
+  "etalon": "etalon-gps v5 + filtru-rupte v1",
+  "c4_sha256": "e9d6b55ec0b107617a392d36fa5c0ba6ce2a3e3264dce7fa389c1a2cd56c97f9",
+  "filtru_sha256": "96807913f1d1c089c8c3c9762cc64431eee66cd31a00772939372e38da6931b9",
+  "ruleaza_sha256": "a26fad56be25d67dc49edca96d7cfb0998f66e79428730f048d395e02e6cf329",
+  "node": "v20.20.2",
+  "tz": "2025c",
+  "icu": "78.2",
+  "fus": "Europe/Chisinau"
+ },
+ "uzina": "DRAXELMAIER_BALTI",
+ "rulat_la": "2026-09-27T20:00:29.097Z",
+ "verif_d": "/home/verif/verificator/rulari/drax-v15-1790539226",
+ "verif_src": "/root/lde-worker/drax/date/ideal-v4.3",
+ "proba": null,
+ "intrari": {
+  "schelet-ideal.json": {
+   "sursa": "/root/lde-worker/drax/date/ideal-v4.3/schelet-ideal.json",
+   "sha256": "c541bb2036e8cdf3244a102a259ec80f4ddec12b484496c626b638530f7efd79",
+   "bytes": 536343
+  },
+  "obs-ideal.json": {
+   "sursa": "/root/lde-worker/drax/date/ideal-v4.3/obs-ideal.json",
+   "sha256": "9a421935f9c2ef7f5160fb410cad2832d620b8ffea966bc8f5a541fa06b48eac",
+   "bytes": 7132988
+  },
+  "etalon-ideal.json": {
+   "sursa": "/root/lde-worker/drax/date/ideal-v4.3/etalon-ideal.json",
+   "sha256": "ff388827bfb127b4fa2235809f5e97708c9d038509e440bc6f830799d0c8885c",
+   "bytes": 2570294
+  },
+  "curse-ideal.json": {
+   "sursa": "/root/lde-worker/drax/date/ideal-v4.3/curse-ideal.json",
+   "sha256": "79b09da2780ef9d40c8459ce6a839b69246f1452f51c6dcb0326a5de8ed352e4",
+   "bytes": 22193929
+  },
+  "regulate-ideal.json": {
+   "sursa": "/root/lde-worker/drax/date/ideal-v4.3/regulate-ideal.json",
+   "sha256": "8e054478b0783f44ca0f72cdbcf57c0b9dff5c0e49e7ca7b59039a0087ec4936",
+   "bytes": 78148
+  },
+  "schimburi-ideal.json": {
+   "sursa": "/root/lde-worker/drax/date/ideal-v4.3/schimburi-ideal.json",
+   "sha256": "c94bb380461ed8776631702001b644de10d8f1be32b553463e5dc7fa04d2419d",
+   "bytes": 83129
+  },
+  "care-schimb-ideal.json": {
+   "sursa": "/root/lde-worker/drax/date/ideal-v4.3/care-schimb-ideal.json",
+   "sha256": "a3523bd5fbbfb06ed56cbc7649e7b2a2779cbeb6a6597900fdf203a59a874654",
+   "bytes": 19744
+  },
+  "dubluri-ideal.json": {
+   "sursa": "/root/lde-worker/drax/date/ideal-v4.3/dubluri-ideal.json",
+   "sha256": "91eec277af20ae4bcd3245fc671328a63c9354ddc2811a4aa4c233408d9a7bcf",
+   "bytes": 31
+  },
+  "nomenclator.json": {
+   "sursa": "/root/lde-worker/drax/date/ideal-v4.3/nomenclator.json",
+   "sha256": "2935de27e405dbdbc0a22f5b1c02e6a472a83c1e1285211168c508210a352ec0",
+   "bytes": 47831
+  },
+  "ferestre-drax.json": {
+   "sursa": null,
+   "sha256": "417584bd9b40bfb2e4c4396a0a04a348c5e9a8c944bb7d6aa985078c746f3168",
+   "bytes": 160
+  },
+  "porti-drax.json": {
+   "sursa": null,
+   "sha256": "9a262b9ac859b0a80158e6520fb955f300b7ac19a0d206fde0b6c82cf605d3f7",
+   "bytes": 214
+  },
+  "explicatii-drax.json": {
+   "sursa": null,
+   "sha256": "b2c60ca7e9820d926948b8730ae5f3d0b5a9a7a033e57efe1b0774dc480f24a6",
+   "bytes": 3567
+  },
+  "decizii-v3.json": {
+   "sursa": "/root/lde-worker/drax/date/ideal-v4.3/decizii-v3.json",
+   "sha256": "92ba8eb078879f6d9b1e231f39c5d234c81797f189005180e5530caf169b17d2",
+   "bytes": 5040
+  }
+ },
+ "unitati": {
+  "linii_act": 51,
+  "linii_gps": 48,
+  "linii_cu_ideal": 49,
+  "masini": 49,
+  "observatii_cu_ruta": 13695,
+  "deplasari_cu_ruta": 13476,
+  "deplasari_brute": 27644
+ },
+ "praguri": {
+  "DIF_TUR_RETUR": 0.18,
+  "BANDA_TUR_RETUR": 0.15,
+  "S1_S2": 0.18,
+  "MIN_ZILE": 3,
+  "KM_5": 0.05,
+  "ORE_MIN": 15,
+  "C4_FEREASTRA_MIN": 15,
+  "SALT_KM": 5,
+  "C47_TOL": 0.1,
+  "C47_MIN_KM": 1,
+  "C47_REPER": 0.9,
+  "C47_ABATERE": 0.6,
+  "R_SAT": 1.2,
+  "R_TRECE": 1.5,
+  "R_OPR": 0.8,
+  "NEUTRU_PORTI": 4,
+  "KM_LIPIT": 140,
+  "PRANZ": [
+   10.5,
+   14.5
+  ],
+  "REGULAT_MIN": 30,
+  "REGULAT_ZILE": 5,
+  "EEST": [
+   "2026-03-29",
+   "2026-10-25"
+  ],
+  "W53_ATENTIE": "2026-12-01",
+  "W53_BLOCANT": "2026-12-21",
+  "SEPT": "2026-09-01"
+ },
+ "blocante": [
+  {
+   "id": "C31",
+   "control": "C31(a)",
+   "nivel": "blocant",
+   "ruta": "R18",
+   "linie": "Putinesti",
+   "cifra": "candidate 0",
+   "motiv": "nicio candidată (nicio zi cu tur și retur la capăt)"
+  },
+  {
+   "id": "C31",
+   "control": "C31(a)",
+   "nivel": "blocant",
+   "ruta": "R27",
+   "linie": "Iabloana",
+   "cifra": "candidate 0",
+   "motiv": "nicio candidată (nicio zi cu tur și retur la capăt)"
+  },
+  {
+   "id": "G1",
+   "control": "G1",
+   "nivel": "blocant",
+   "ruta": "R18",
+   "linie": "Zarojeni",
+   "cifra": "card 28.9 / GPS completat 32.1 km (brut 31.5; 10.0 %, 4 zile)",
+   "motiv": "diagnostic cerut înaintea corecției: doar 35 % din picioare în toleranță (două variante de drum?)"
+  },
+  {
+   "id": "E1",
+   "control": "E1 steag lipsă",
+   "nivel": "blocant",
+   "ruta": "R3",
+   "linie": "Nihoreni",
+   "cifra": "variante: sens 42.3 / orice poartă 45.8",
+   "motiv": "lipsește steagul «diagnostic» în schelet (sau explicația E1 în registru)"
+  },
+  {
+   "id": "E1",
+   "control": "E1 steag lipsă",
+   "nivel": "blocant",
+   "ruta": "R18",
+   "linie": "Zarojeni",
+   "cifra": "C47 35 %",
+   "motiv": "lipsește steagul «diagnostic» în schelet (sau explicația E1 în registru)"
+  }
+ ],
+ "explicate": [],
+ "numarate": {
+  "informativ": 157,
+  "blocant": 5,
+  "abatere": 19
+ },
+ "valid_pentru_export": false
+}

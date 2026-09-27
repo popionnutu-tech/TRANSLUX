@@ -1,0 +1,17 @@
+{
+  "score": 9.0,
+  "verdict": "pass",
+  "summary": "C1 este închis: conversia ×1,852 precedă verificarea opririi (docs/plans/2026-09-28-drax-6-linii/export-r3.mjs:31–35); accept regula «km sigilat, ture măsurate», însă steag=null nu înlocuiește explicațiile E1 pe noul SHA și verificarea vN (docs/plans/2026-09-28-drax-6-linii/r3/vps/card-gps.mjs:89–109; docs/plans/2026-09-26-schelet-verificator/cod/drax.mjs:282–294). Sunt de acord cu Nihoreni 44,2×2 ca decizie, susținută de comparația porților, cu Prajila 41,3×2 după verificarea tabelului zilnic și excluderea lui 763LYY, cu Bocancea Schit 53,3×1, Sturzovca 23,9×2 și Florești/Vărvăreuca/Trifănești 36,5/42,8/40,2×2 (docs/plans/2026-09-28-drax-6-linii/r3/r3-analist.md:28–50; docs/plans/2026-09-28-drax-6-linii/r3/verif-perechi-zi.mjs:3–10; docs/plans/2026-09-28-drax-6-linii/r3/vps/card-gps-raport.txt:20–23,36,42,46). Pentru H4 sunt de acord cu ieșirea lui 348KAJ, opririle după parcare fiind confirmate și în probele scratchpad inspectate, cu ieșirea lui 412BRAY din lista septembrie și a lui 727CWN după separarea buclelor; pentru 763LYY accept propunerea triajului de trecere la «atribuire greșită», cu excluderea din card și explicație în registru, fără a declara toate picioarele sale servicii R17 nelegitime — există excepția din 05.09 (docs/plans/2026-09-28-drax-6-linii/r3/r3-analist.md:100–118; docs/plans/2026-09-28-drax-6-linii/r2/r2-business.md:77–79; docs/plans/2026-09-28-drax-6-linii/r3/vps/decizii-v3.json:50–65). Pentru Zarojeni accept ×1 și păstrez 28,9 provizoriu, dar sunt în dezacord cu închiderea definitivă: dovezile fazei B contrazic justificarea uniformității kilometrilor, conform C2.",
+  "deductions": [
+    {
+      "id": "C2",
+      "severity": "medium",
+      "weight": 1.5,
+      "title": "Dovada Zarojeni pentru ambele faze nu este reconciliată cu închiderea kilometrilor.",
+      "detail": "Raportul afirmă că 763LYY reproduce serviciul de 27,8–28,1 km inclusiv pe 15 și 18.09. În p112r3-out.json inspectat, tururile respective au opriri valide în Zarojeni, dar distanțe până la EST de 32,8 și 35,1 km; export-r3.json confirmă separat 33,9 km de la oprire pentru 348KAJ pe 17.09, tot faza B. Valorile aproximativ 28 km descriu predominant faza A. Exportul unificat păstrează tururile lui 763LYY sub Prajila și nu produce mediana unei populații Zarojeni reconciliate între faze și mașini. Aceasta nu demonstrează că 28,9 este greșit, dar proba cerută în runda 2 nu justifică încă eliminarea diagnosticului; problema este distinctă de conversia vitezei, reparată.",
+      "evidence": "docs/plans/2026-09-28-drax-6-linii/export-r3.json:1; docs/plans/2026-09-28-drax-6-linii/export-r3.mjs:24–26,43; docs/plans/2026-09-28-drax-6-linii/r3/r3-analist.md:79–82; docs/plans/2026-09-28-drax-6-linii/r3/vps/decizii-v3.json:69–79. Probă suplimentară inspectată în afara repo: /private/tmp/claude-501/-Users-ionpop-Desktop-TRANSLUX/b0a7893e-64d6-4ccc-8455-63a68a04da1b/scratchpad/p112r3/p112r3-out.json:1.",
+      "failure_scenario": "",
+      "suggested_fix": "Adaugă în plan reconcilierea explicită a tururilor și retururilor EZ din ambele faze, inclusiv picioarele 763LYY etichetate Prajila: oprire validă, poartă, kilometri completați și motivul eligibilității fiecărui picior. Corectează afirmația despre 15/18.09, recalculează mediana populației eligibile și justifică apoi păstrarea lui 28,9 ca decizie; până atunci păstrează diagnosticul sau o explicație E1 explicită pe SHA-ul candidatului."
+    }
+  ]
+}

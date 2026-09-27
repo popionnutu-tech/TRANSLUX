@@ -1,0 +1,17 @@
+{
+  "score": 9.0,
+  "verdict": "pass",
+  "summary": "Comparația fără scădere și păstrarea explicită a cardului 28,9 sunt clarificate; exportul confirmă mediana comună 28,45 cu rază. C2 rămâne parțial deschis: justificarea nouă nu demonstrează că ocolul constituie serviciu R21 și trebuie exclus din kilometrii Zarojeni.",
+  "deductions": [
+    {
+      "id": "C2",
+      "severity": "medium",
+      "weight": 1.5,
+      "title": "Lipsește justificarea atribuirii ocolului serviciului R21.",
+      "detail": "Apartenența Elizavetei la R21 în act și frecvența 3/12 nu stabilesc cui aparțin kilometrii serviciului efectiv. §6.2 impune trecerea prin satele regulate pentru calificarea unei zile bune; nu prescrie eliminarea segmentelor prin sate neregulate. Migrația 415 păstrează kilometrii în liniile care deservesc efectiv satele, inclusiv Putinești din R18 deservit de R32; nu susține inversarea propusă. Prin urmare, formularea categorică din E1 și generalizarea din migrația 417 depășesc justificarea disponibilă. Problema privește explicația, nu decizia explicită de păstrare a valorii 28,9.",
+      "evidence": "packages/db/migrations/404_lde_drax_ferestre_reguli.sql:68; packages/db/migrations/415_lde_drax_linii_comasate.sql:8; packages/db/migrations/417_lde_drax_sase_linii.sql:8",
+      "failure_scenario": "",
+      "suggested_fix": "Păstrează 28,9 și comparația fără scădere, dar formulează E1 ca justificare a cardului ales, fără afirmația că ocolul este demonstrat ca serviciu R21. Elimină din migrația 417 regula generală de excludere dedusă din §6.2; dacă se dorește păstrarea ei, prezint-o separat ca regulă nouă propusă și adaugă dovada atribuirii serviciului."
+    }
+  ]
+}

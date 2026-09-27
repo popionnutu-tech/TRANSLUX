@@ -38,6 +38,10 @@ const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCa
 
 /** Gările / opririle principale ale rutelor, unde rutiera stă (Ion, 24.09: «punct de gară sau oprire principală ca în Edineț»). */
 const MAIN_STOPS = new Set(['chisinau', 'balti', 'edinet', 'briceni', 'lipcani', 'ocnita', 'riscani', 'otaci', 'soroca']);
+/** Orașele scrise pe harta «Acum» (Ion, 27.09, ION-100: «denumirile la locații să fie vizibile, special
+ *  locațiile principale prin care noi trecem… nu se înțelege unde este Bălți»). Plăcile OSM decolorate
+ *  nu arată numele orașelor la zoom mic; le scriem noi, din opririle rutelor din listă. */
+const MAP_PLACES = new Set([...MAIN_STOPS, 'orhei', 'singerei', 'cupcini', 'drochia', 'falesti', 'glodeni', 'donduseni', 'floresti', 'straseni', 'criva']);
 /** Atât de aproape de punctul peronului = mașina e acolo. */
 const AT_STOP_KM = 0.3;
 
@@ -99,6 +103,7 @@ export async function POST(req: NextRequest) {
     // pe care merge mașina, fină să fie».
     const rids = [...new Set(r.trips.map((t) => t.route_id).filter((x): x is number => x != null))];
     const routes: Record<number, { shape: [number, number][]; from: [number, number] | null; to: [number, number] | null }> = {};
+    const places = new Map<string, { name: string; lat: number; lon: number; end: boolean }>();
     // Opririle cu coordonate și stop_order, pentru ora reală (nu pleacă spre site).
     const geo: Record<number, { shape: [number, number][]; stops: GeoStop[] }> = {};
     if (rids.length) {
@@ -112,6 +117,11 @@ export async function POST(req: NextRequest) {
         };
         routes[s.crm_route_id as number] = { shape: s.shape as [number, number][], from: at(r.fromRo), to: at(r.toRo) };
         geo[s.crm_route_id as number] = { shape: s.shape as [number, number][], stops: (s.stops ?? []) as GeoStop[] };
+        for (const st of stops) {
+          const k = fold(st.name);
+          const end = same(st.name, r.fromRo) || same(st.name, r.toRo);
+          if (!places.has(k) && (end || MAP_PLACES.has(k))) places.set(k, { name: st.name, lat: st.lat, lon: st.lon, end });
+        }
       }
     }
     // Orele opririlor din grafic, pentru poziția orientativă a mașinilor fără GPS.
@@ -166,6 +176,7 @@ export async function POST(req: NextRequest) {
       from: r.fromRo ?? null,
       to: r.toRo ?? null,
       routes,
+      places: [...places.values()],
       trips,
       line_ro: none ? ((r.result.line_ro ?? r.result.result_ro) as string | undefined) ?? `Acum nu mai vine nicio cursă ${r.fromRo} → ${r.toRo}. Apăsați «Mai târziu» și alegeți altă zi.` : null,
       line_ru: none ? ((r.result.line_ru ?? r.result.result_ru) as string | undefined) ?? `Сейчас больше нет рейсов ${r.fromRo} → ${r.toRo}. Нажмите «Позже» и выберите другой день.` : null,

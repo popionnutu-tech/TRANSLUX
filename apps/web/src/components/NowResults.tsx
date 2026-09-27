@@ -43,7 +43,9 @@ interface NowTrip {
 
 type LatLon = [number, number];
 interface RouteLine { shape: LatLon[]; from: LatLon | null; to: LatLon | null }
-interface NowData { trips: NowTrip[]; routes?: Record<number, RouteLine>; line_ro: string | null; line_ru: string | null }
+/** Orașul scris pe hartă; `end` = localitatea omului sau destinația lui (au deja punctul lor pe linie). */
+interface Place { name: string; lat: number; lon: number; end: boolean }
+interface NowData { trips: NowTrip[]; routes?: Record<number, RouteLine>; places?: Place[]; line_ro: string | null; line_ru: string | null }
 
 /** Cel mai apropiat punct al liniei (proiecție pe segmente); departe de linie — punctul GPS. */
 function snapOn(p: LatLon, line: LatLon[]): { at: LatLon; seg: number } {
@@ -97,6 +99,7 @@ const TXT = {
 } as const;
 
 const NO_ROUTES: Record<number, RouteLine> = {};
+const NO_PLACES: Place[] = [];
 
 /** Microbuzul văzut din față, în cercul insignei (varianta C, aleasă de Ion pe 24.09). */
 const BUS_FRONT_SVG = `<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1" y="1" width="18" height="15" rx="3"/><path d="M1 9h18M5 16v3M15 16v3"/><circle cx="5.5" cy="12.5" r=".8" fill="currentColor"/><circle cx="14.5" cy="12.5" r=".8" fill="currentColor"/></svg>`;
@@ -143,7 +146,7 @@ function panelPadding(m: LMap): { paddingTopLeft: [number, number]; paddingBotto
     : { paddingTopLeft: [370, 90], paddingBottomRight: [70, 40] };
 }
 
-function NowMap({ trips, routes, selected, onPick, locale }: { trips: NowTrip[]; routes: Record<number, RouteLine>; selected: number; onPick: (i: number) => void; locale: Locale }) {
+function NowMap({ trips, routes, places, selected, onPick, locale }: { trips: NowTrip[]; routes: Record<number, RouteLine>; places: Place[]; selected: number; onPick: (i: number) => void; locale: Locale }) {
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<LMap | null>(null);
   const layer = useRef<LayerGroup | null>(null);
@@ -212,6 +215,15 @@ function NowMap({ trips, routes, selected, onPick, locale }: { trips: NowTrip[];
         }
       }
 
+      // Numele orașelor prin care trec rutele (Ion, 27.09, ION-100: «nu se înțelege unde este Bălți»):
+      // plăcile decolorate nu le arată la zoom mic. Sub autobuze, fără clic.
+      for (const p of places) {
+        L.marker([p.lat, p.lon], {
+          icon: L.divIcon({ html: `<span class="now-place${p.end ? ' end' : ''}"><i></i>${p.name.replace(/[<>&"]/g, '')}</span>`, className: 'now-pin-icon', iconSize: [0, 0], iconAnchor: [0, 0] }),
+          keyboard: false, interactive: false, zIndexOffset: -1000,
+        }).addTo(g);
+      }
+
       const pts: [number, number][] = [];
       trips.forEach((t, i) => {
         if (t.lat == null || t.lon == null) return;
@@ -243,7 +255,7 @@ function NowMap({ trips, routes, selected, onPick, locale }: { trips: NowTrip[];
         map.current!.fitBounds(pts.length === 1 ? [pts[0], pts[0]] : pts, { ...panelPadding(map.current!), maxZoom: 11 });
       }
     })();
-  }, [trips, routes, ready, selected, onPick, locale]);
+  }, [trips, routes, places, ready, selected, onPick, locale]);
 
   // Cursa aleasă din listă: harta se duce la autobuzul ei.
   const first = useRef(true);
@@ -309,7 +321,7 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
   return (
     <div className="now-overlay" onClick={onClose}>
       <div className={`now-box${withPoint ? '' : ' no-map'}`} role="dialog" aria-modal="true" aria-label={`${from} → ${to}`} onClick={(e) => e.stopPropagation()}>
-        {withPoint && <NowMap trips={trips} routes={data?.routes ?? NO_ROUTES} selected={sel} onPick={setSelected} locale={locale} />}
+        {withPoint && <NowMap trips={trips} routes={data?.routes ?? NO_ROUTES} places={data?.places ?? NO_PLACES} selected={sel} onPick={setSelected} locale={locale} />}
 
         <div className="now-top">
           <span className="now-title"><span className="now-dot" />{from} → {to}</span>
@@ -404,6 +416,11 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
 .now-bus b.here i,.now-here-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#22A35A;animation:now-here 1.6s infinite}
 .now-here-dot{margin-right:6px;vertical-align:middle}
 @keyframes now-here{0%{box-shadow:0 0 0 0 rgba(34,163,90,.6)}70%{box-shadow:0 0 0 7px rgba(34,163,90,0)}100%{box-shadow:0 0 0 0 rgba(34,163,90,0)}}
+.now-place{position:absolute;left:-6px;top:-7px;display:flex;align-items:center;gap:6px;white-space:nowrap;font:800 14px/1 var(--font-opensans),Open Sans,sans-serif;color:#231A1C;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 6px #fff,0 0 6px #fff;pointer-events:none}
+.now-place i{flex-shrink:0;width:8px;height:8px;border-radius:50%;background:#231A1C;border:2px solid #fff;box-sizing:content-box;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+/* Localitatea omului și destinația au punctul lor pe linie: doar numele, lângă el. */
+.now-place.end{left:12px;top:-8px;color:${RED};font-size:15px}
+.now-place.end i{display:none}
 .now-end{display:block;width:16px;height:16px;border-radius:50%;box-sizing:border-box;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)}
 .now-end.from{background:#231A1C}
 .now-end.to{background:#fff;border:4px solid ${RED}}

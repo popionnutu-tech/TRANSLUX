@@ -1,0 +1,27 @@
+{
+  "score": 7.0,
+  "verdict": "fail",
+  "summary": "V1 NU și V2 NU pentru soluția convergentă: păstrați perechile pe același schimb și ambele sensuri; V3 STEAG pentru diagnostic/comasare, fără reatribuire automată (../ion-110-translux-draxlmaier-scheletul/docs/plans/2026-09-28-drax-ideal-v4/vps/cod-ideal-v4.1/etalon.mjs:93,105,164,200). V4 STEAG, doar rezervă separată: afirmația business că lipsa etalonului împiedică tăierea cursei nu se confirmă — cursele etichetate sunt tăiate independent de km, iar excluderea vine ulterior (../ion-109-translux-draxlmaier-capetele-l/docs/plans/2026-09-28-drax-balti/vps/categorii.mjs:129,180 și vps/alternative.mjs:88). V5 DA ca direcție, cu predicatul săptămânal exact precizat în C1; confirm divergența filtrelor identificată de Claude, însă propagarea duratelor și verificarea săptămânii existente rămân incomplete. Numărătorile GPS, comasările și situația R18/R27 rămân STEAG pentru confirmare independentă, deoarece urmele invocate nu sunt în materialele locale consultate; nici 8,9 km brut nu trebuie confundat cu valoarea finală a cardului, care include raza porții (/Users/ionpop/Desktop/TRANSLUX/docs/plans/2026-09-26-schelet-verificator/cod/etalon-gps.mjs:37,67).",
+  "deductions": [
+    {
+      "id": "C1",
+      "severity": "high",
+      "weight": 2.5,
+      "title": "Completarea duratelor numai în curse.mjs nu supraviețuiește lanțului efectiv al scheletului.",
+      "detail": "Analistul a identificat deja absența sl; nu o penalizez din nou. Defectul suplimentar este că remedierea propusă nu acoperă consumatorii și rescrierile: lant.sh înlocuiește curse-ideal.json cu curse-ideal-intrare.json înainte de etichetare, iar carpire.mjs reconstruiește opririle fără sl și suprascrie c.opr pentru cursele cârpite. Astfel, simpla adăugare a câmpului în extracție nu face disponibil predicatul săptămânal la etalon.mjs.",
+      "evidence": "/Users/ionpop/Desktop/TRANSLUX/.claude/worktrees/ion-110-translux-draxlmaier-scheletul/docs/plans/2026-09-28-drax-ideal-v4/vps/cod-ideal-v4.1/lant.sh:14; /Users/ionpop/Desktop/TRANSLUX/.claude/worktrees/ion-110-translux-draxlmaier-scheletul/docs/plans/2026-09-28-drax-ideal-v4/vps/cod-ideal-v4.1/carpire.mjs:56,97; /Users/ionpop/Desktop/TRANSLUX/.claude/worktrees/ion-109-translux-draxlmaier-capetele-l/docs/plans/2026-09-28-drax-balti/vps/etichete.mjs:71",
+      "failure_scenario": "Se completează sl în curse.mjs și se regenerează curse-ideal.json, apoi se rulează lant.sh cu intrarea veche: primul pas elimină completarea. Chiar cu intrarea actualizată, o cursă cârpită, din afara graficului, fără buclă poartă–poartă, cu gol > plin și o oprire reală de 90 secunde la capăt pierde sl în carpire.mjs; filtrul copiat din săptămânal vede zero opriri eligibile și respinge cursa care trebuia recuperată.",
+      "suggested_fix": "Extindeți planul la propagarea sl prin intrarea versionată curse-ideal-intrare.json și prin reconstruirea opririlor din carpire.mjs, cu verificare după întregul lanț. Predicatul identic celui săptămânal trebuie definit exact: oprRuta conține înregistrările cu 20 ≤ sl ≤ 900 secunde și numele normalizat/alias în satele rutei; laCapatulLiniei înseamnă existența unei asemenea înregistrări cu sl ≥ 60 și distanță ≤ 2,5 km față de lin.capat. Respingerea devine: !grafic && !(c.dinP && c.spreP) && gol > plin && oprRuta.length < 2 && !laCapatulLiniei. Cele două opriri pot fi în același sat; lipsa duratei nu dovedește eligibilitatea. Respingeți echivalarea cu excepția geografică business: capătul golului la ≤ 3 km de porți/parc nu dovedește opriri și nu este regula săptămânală. Includeți probe pentru oprire unică eligibilă, două opriri, tranzit fără opriri și păstrarea rezultatului după cârpire; păstrați controlul deja prevăzut pe toate liniile."
+    },
+    {
+      "id": "C2",
+      "severity": "low",
+      "weight": 0.5,
+      "title": "Planul nu precizează cum verifică săptămâna 14.09 cu noul instantaneu al idealului.",
+      "detail": "Rezultatul promis pentru cele cinci zile ale lui 744ARF necesită referințele noului schelet. Săptămânalul păstrează referințele existente, inclusiv schelet-ideal.json și obs-ideal.json; schimbarea idealului activ sau setarea DRAX_REF_SRC nu le înlocuiește la o rerulare obișnuită.",
+      "evidence": "/Users/ionpop/Desktop/TRANSLUX/.claude/worktrees/ion-110-translux-draxlmaier-scheletul/docs/plans/2026-09-28-drax-ideal-v4/vps/saptamanal/saptamanal.sh:42,46,49,50; /Users/ionpop/Desktop/TRANSLUX/.claude/worktrees/ion-109-translux-draxlmaier-capetele-l/docs/plans/2026-09-28-drax-balti/vps/alternative.mjs:90",
+      "failure_scenario": "Idealul nou conține km pentru R13, dar rerularea în dosarul existent al săptămânii 14.09 folosește scheletul vechi; zilele continuă să fie excluse pentru linie fără etalon.",
+      "suggested_fix": "Precizați o rerulare comparativă într-un dosar nou, cu instantaneu coerent din versiunea nouă a idealului și aceleași date săptămânale. Verificați proveniența referințelor și cele cinci zile ale lui 744ARF; păstrați exclusDe neschimbat pentru V5 și separați această probă de eventuala înlocuire a rezultatului publicat."
+    }
+  ]
+}

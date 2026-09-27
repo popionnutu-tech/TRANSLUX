@@ -1,0 +1,27 @@
+{
+  "score": 8.0,
+  "verdict": "pass",
+  "summary": "C1: DA, remediul închide problema propagării pragului inferior: curse.mjs:145 filtrează deja ≥20 s, carpire.mjs:56 păstrează filtrul inclusiv la rescrierea c.opr (:97), iar lant.sh:14–21 restaurează intrarea înaintea cârpirii; fișierele verificate sunt în ../ion-111-translux-draxlmaier-km-pentru/docs/plans/2026-09-28-drax-ideal-v4/vps/cod-ideal-v4.1/; STEAG pentru echivalența integrală, deoarece excluderea geometrică nu echivalează cu plafonul temporal, iar copia etalon.mjs v4.2 nu este disponibilă local. A: DA conform raportului pentru R13 9,5 km, Dominteni 3→1, Țiplești 1→2 și card −83 km/zi, dar STEAG pentru afirmația «toate liniile sunt corecte», din cauza turului s1 fără dovadă de urcare și a excepțiilor păstrate (../ion-111-translux-draxlmaier-km-pentru/docs/plans/2026-09-28-drax-r13/r2/verificator-raport.md:9, :13, :22, :27). B/C2: DA conform simulării documentate, fără dovadă contrară care să redeschidă C2: 744ARF 0→5 zile, 710CWN trece pe Lazo și devine #1 cu R1b 462,3, B flotă 8.986→9.912 și zile măsurate 147→156; rezultatele brute și instantaneul nu au fost disponibile pentru verificare independentă (../ion-111-translux-draxlmaier-km-pentru/docs/plans/2026-09-28-drax-r13/r2/r2-business.md:4, :18, :30). C/activare: DA condiționat de v12 cu proba-registru «ok» și valid_pentru_export=true pe SHA-ul v4.2, curățarea intrărilor moarte la comutare, migrația §1.4/§4.2/§6.5 și explicarea schimbării 710CWN înaintea indicațiilor; NU este confirmată activarea acum, iar cele două goluri de acoperire de mai jos rămân neblocante (../ion-111-translux-draxlmaier-km-pentru/docs/plans/2026-09-28-drax-r13/r2/verificator-raport.md:34; ../ion-111-translux-draxlmaier-km-pentru/docs/plans/2026-09-28-drax-r13/r2/r2-business.md:63, :122).",
+  "deductions": [
+    {
+      "id": "C3",
+      "severity": "medium",
+      "weight": 1.5,
+      "title": "Turul s1 fără opriri al lui 744ARF rămâne fără o tratare verificată.",
+      "detail": "Gol de acoperire: intrarea în măsurare datorită noului etalon nu demonstrează corectitudinea categoriei «cu oameni». Codul selectează observațiile cu schimb și clasifică segmentul capăt–poartă drept cuOameni fără o verificare suplimentară a opririlor. Raportul identifică explicit șapte tururi s1 fără opriri pe partea plină; garda este propusă, dar nu inclusă ferm în pașii și verificările livrării.",
+      "evidence": "../ion-111-translux-draxlmaier-km-pentru/docs/plans/2026-09-28-drax-balti/vps/categorii.mjs:122; ../ion-111-translux-draxlmaier-km-pentru/docs/plans/2026-09-28-drax-balti/vps/categorii.mjs:181; ../ion-111-translux-draxlmaier-km-pentru/docs/plans/2026-09-28-drax-r13/r2/verificator-raport.md:27",
+      "failure_scenario": "744ARF trece dimineața prin Hăsnășenii Noi fără oprire și ajunge în fereastra s1: segmentul este numărat «cu oameni», reducând livrarea calculată și susținând perechi zilnice fără dovadă de urcare.",
+      "suggested_fix": "Include în plan rezolvarea explicită a cazului s1 și verificarea separată s1/s2: categoria segmentului, R1a/B și perechile folosite pentru ture/zi; păstrează distinctă validitatea kilometrilor R13 de validitatea transportului de pasageri."
+    },
+    {
+      "id": "C4",
+      "severity": "low",
+      "weight": 0.5,
+      "title": "Planul nu fixează o singură definiție operațională a opririlor pentru schelet și săptămânal.",
+      "detail": "Descriere incompletă: pragul inferior implicit din schelet este confirmat, dar nu asigură echivalența regulilor. Săptămânalul cere 20–900 s și minimum 60 s pentru oprirea unică la capăt, fără excluderea capetelor cursei. Regula v4.2 descrisă în plan înlocuiește plafonul cu distanța de 0,5 km și admite oprirea unică de minimum 20 s. Sunt predicate diferite; remediul «cel puțin excluderea capetelor» nu elimină toate diferențele.",
+      "evidence": "../ion-111-translux-draxlmaier-km-pentru/docs/plans/2026-09-28-drax-balti/vps/etichete.mjs:71; ../ion-111-translux-draxlmaier-km-pentru/docs/plans/2026-09-28-drax-balti/vps/etichete.mjs:82; ../ion-111-translux-draxlmaier-km-pentru/docs/plans/2026-09-28-drax-r13/r2/r2-business.md:97",
+      "failure_scenario": "O oprire unică de 30 s lângă capătul liniei, departe de capetele cursei, poate satisface regula descrisă pentru schelet, dar nu regula săptămânală; după fereastra obs-ideal, aceeași deplasare poate primi altă etichetă.",
+      "suggested_fix": "Precizează în plan predicatul comun complet, inclusiv pragul opririi unice și tratamentul opririlor peste 900 s, și verifică rezultatele fără potrivire în obs-ideal pentru 710CWN, 388ASB și 024XKY."
+    }
+  ]
+}

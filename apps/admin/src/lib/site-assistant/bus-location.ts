@@ -226,8 +226,8 @@ export async function busLocation(from: string, to: string, departure: string): 
   };
 }
 
-/** Câte plecări arată butonul «Acum» (Ion, 24.09: «doar următoarele 2 rutiere care trec prin punctul tău»). */
-export const NOW_SHOWN = 2;
+/** Câte plecări arată butonul «Acum» (Ion, 24.09: «doar următoarele 2»; 27.09, ION-100: «să se vadă următoarele 4-5 mașini»). */
+export const NOW_SHOWN = 5;
 /** Cu atât înainte de începutul cursei se arată deja mașina ei (la autogară sau venind spre ea). */
 export const COMING_MIN = 60;
 

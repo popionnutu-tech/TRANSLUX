@@ -78,3 +78,16 @@ oameni; **mic** = ocol < 20 km/zi sau < 25 % din drumul direct (casa e practic p
 
 Instantaneul vechi (ideal-v2) e arhivat pe VPS în `drax/date/saptamanal/_arhiva/2026-09-14-ideal-v2`; urmele brute GPS refăcute din tracker sunt
 identice cu cele arhivate (md5 pe toate fișierele `economie-urme`).
+
+## Etichetele din ideal devin implicite (decizia sesiunii, 27.09)
+
+`economie/etichete.mjs` ia ruta|linia din `obs-ideal.json` al instantaneului pentru orice săptămână (marcajul `etichete-din-ideal` nu mai
+e necesar, a fost mutat în `_arhiva/2026-09-14-etichete-din-ideal.marcaj`); `ETICHETE_F2=1` = doar alegerea F2, pentru diagnostic.
+Probe fără `--write`:
+- 14.09 fără marcaj: `analiza.json` identic cu rândul scris (md5 4386019…, 0 chei diferite).
+- 07.09 (în `_ciorna/2026-09-07-ion107`): 17 picioare mutate (R9|Glodeni* → R10|Ciuciulea 6, R17|Mărculești* → R16|Varvareuca 4, R7|Recea* →
+  R2|Stolniceni 2, …); P10 40/40, P10c 40/40, bilanț 208/208; R1b+R3 4.487,5, 17 mașini peste prag. Rămân 16 bucăți «Ce faci» vecine cu o
+  linie «*» (760BXI, 549RNK, 041BRAU, 725CWN): 74 din cele 83 de picioare «*» ale săptămânii sunt «*» chiar în ideal-v3.1 (R20|Drăgănești*,
+  R33|Bilicenii Vechi*, R2|Cupcini*, …), 9 n-au pereche în ideal — de lămurit în schelet, nu aici.
+- `saptamanal.test.sh`: 13/13.
+- obs-ideal v3.1 acoperă 04.05 → 25.09: în săptămâna 21.09, cursele din 26–27.09 (weekend) nu au pereche și rămân pe alegerea F2.

@@ -65,10 +65,11 @@ function alege(c, sens) {
   return best;
 }
 
-// ION-107 (aditiv): o săptămână al cărei instantaneu are fișierul «etichete-din-ideal» ia ruta și linia fiecărei curse din
-// obs-ideal.json-ul instantaneului (scheletul activ, ex. ideal-v3.1 cu mutările «sate în ordine»: R3|Recea* → R6|Mihailenii Vechi),
-// acolo unde are pereche (aceeași mașină, sens, |Δt0| ≤ 2 min); kmCap / plin / gol vin tot de acolo. Fără fișier, nimic nu se schimbă.
-const DIN_IDEAL = existsSync(`${D}/etichete-din-ideal`);
+// ION-107 (decizia sesiunii 27.09): ruta și linia fiecărei curse se iau IMPLICIT din obs-ideal.json-ul instantaneului (scheletul
+// activ la prima rulare a săptămânii, ex. ideal-v3.1 cu mutările «sate în ordine»: R3|Recea* → R6|Mihailenii Vechi), acolo unde are
+// pereche (aceeași mașină, sens, |Δt0| ≤ 2 min); kmCap / plin / gol vin tot de acolo. Fără pereche rămâne alegerea F2 (alege()).
+// ETICHETE_F2=1 = comportamentul vechi (doar alege()), numai pentru diagnostic; nu se folosește în rularea de luni.
+const DIN_IDEAL = process.env.ETICHETE_F2 !== '1' && existsSync(`${D}/obs-ideal.json`);
 const idealDe = new Map();
 if (DIN_IDEAL) for (const q of JSON.parse(readFileSync(`${D}/obs-ideal.json`, 'utf8')).curse) {
   const k = `${q.m}|${q.sens}`; (idealDe.get(k) ?? idealDe.set(k, []).get(k)).push(q); }
@@ -132,5 +133,5 @@ const inversLipsa = OI.filter((q) => q.zi <= CTRL_PANA && !unice.some((o) => o.m
 console.log(`curse etichetate: ${unice.length} (cu schimb ${unice.filter((o) => o.schimb).length}, în afara ferestrelor ${unice.filter((o) => !o.schimb).length}) · fără rută: ${fara} · dubluri scoase: ${dubluri.length}`);
 console.log(`control față de obs-ideal (01–25.09): aceeași linie și schimb ${potr} · diferă ${dif} · F2 fără pereche în ideal ${lipsa} · ideal fără pereche în F2 ${inversLipsa}`);
 for (const x of exDif) console.log('   ' + x);
-if (DIN_IDEAL) console.log(`etichete din obs-ideal (ION-107): ${mutateDinIdeal} picioare cu altă rută|linie decât alegerea F2`);
+console.log(DIN_IDEAL ? `etichete din obs-ideal (ION-107): ${mutateDinIdeal} picioare cu altă rută|linie decât alegerea F2` : 'etichete: doar alegerea F2 (ETICHETE_F2=1 sau fără obs-ideal.json)');
 scrieAtomic(`${D}/economie-obs.json`, { curse: unice, dubluri, control: { potr, dif, lipsa, inversLipsa, exDif } });

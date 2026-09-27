@@ -21,6 +21,11 @@ const REFRESH_MS = 60_000;
 const RED = '#9B1B30';
 /** Reperul hărții «Acum» (ION-100): autogara Bălți, ca în route_shapes.stops. */
 const BALTI: [number, number] = [47.76972, 27.94175];
+/** «12:44» → minute; diferența dintre ora reală și grafic se arată doar de la atâtea minute (ION-100). */
+const hm = (x: string) => { const [h, m] = x.split(':').map(Number); return h * 60 + m; };
+const PLAN_DIFF_MIN = 3;
+const near = (a: LatLon, b: LatLon) => Math.abs(a[0] - b[0]) < 0.03 && Math.abs(a[1] - b[1]) < 0.04;
+
 /** Cât de departe se poate deschide harta «Acum» cel mult (ION-100). */
 const MIN_OPEN_ZOOM = 9;
 
@@ -93,12 +98,14 @@ const TXT = {
     close: 'Închide', call: 'Sună șoferul', loading: 'Caut autobuzele…', error: 'Nu am putut afla acum. Încercați peste un minut.',
     plan: (t: string) => `după grafic ${t}`,
     here: 'în stație',
+    mine: 'stația ta',
     when: (m: number) => (m <= 0 ? 'acum' : m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ''}`),
   },
   ru: {
     close: 'Закрыть', call: 'Позвонить водителю', loading: 'Ищу автобусы…', error: 'Не удалось узнать сейчас. Попробуйте через минуту.',
     plan: (t: string) => `по графику ${t}`,
     here: 'на остановке',
+    mine: 'ваша остановка',
     when: (m: number) => (m <= 0 ? 'сейчас' : m < 60 ? `${m} мин` : `${Math.floor(m / 60)} ч${m % 60 ? ` ${m % 60} мин` : ''}`),
   },
 } as const;
@@ -156,6 +163,7 @@ function NowMap({ trips, routes, places, selected, onPick, locale }: { trips: No
   const map = useRef<LMap | null>(null);
   const layer = useRef<LayerGroup | null>(null);
   const [ready, setReady] = useState(false);
+  const [zoom, setZoom] = useState(8);
 
   useEffect(() => {
     let dead = false;
@@ -172,6 +180,7 @@ function NowMap({ trips, routes, places, selected, onPick, locale }: { trips: No
       map.current = m;
       m.on('click', () => m.scrollWheelZoom.enable());
       m.on('mouseout', () => m.scrollWheelZoom.disable());
+      m.on('zoomend', () => setZoom(m.getZoom()));
       setReady(true);
     })();
     return () => {
@@ -192,18 +201,12 @@ function NowMap({ trips, routes, places, selected, onPick, locale }: { trips: No
       const g = layer.current!;
       g.clearLayers();
 
-      // Celelalte mașini de pe hartă: doar drumul lor care urmează, altfel desenat — punctat,
-      // gri-bordo, subțire (Ion, 24.09, 08:28: «la track-ul altei mașini propun linia un pic
-      // diferită»; la 08:03 nu voia linia întreagă a celei de-a doua). Cea aleasă, deasupra.
+      // O singură linie, a cursei alese (verificarea UI/UX, ION-100, 27.09): liniile gri ale
+      // celorlalte mașini mergeau pe același drum și se amestecau cu cea roșie. Alese din listă,
+      // își primesc linia lor.
       const selRoute = trips[selected]?.route_id ?? null;
-      trips.forEach((t, i) => {
-        if (i === selected || t.lat == null || t.route_id == null || !routes[t.route_id]) return;
-        // Punctata subțire nu se vedea pe harta gri (Ion, 08:40: «nu se vede normal»): întreruptă,
-        // gri-albastru închis, cu contur alb dedesubt.
-        const rest = ahead(routes[t.route_id], t);
-        L.polyline(rest, { color: '#FFFFFF', weight: 6, opacity: 0.9, lineCap: 'round', interactive: false }).addTo(g);
-        L.polyline(rest, { color: '#3F4A63', weight: 3, opacity: 0.9, dashArray: '6 6', lineCap: 'round', interactive: false }).addTo(g);
-      });
+      const tx = TXT[locale];
+      const m = map.current!;
 
       // Linia fină a rutei alese și, pe ea, localitatea omului și destinația.
       const route = selRoute != null ? routes[selRoute] : undefined;
@@ -222,9 +225,20 @@ function NowMap({ trips, routes, places, selected, onPick, locale }: { trips: No
 
       // Numele orașelor prin care trec rutele (Ion, 27.09, ION-100: «nu se înțelege unde este Bălți»):
       // plăcile decolorate nu le arată la zoom mic. Sub autobuze, fără clic.
+      // Eticheta pe care stă un autobuz (sau ora lui) nu se scrie: «Bri…» sub mașină, «Ot…» sub oră.
+      const busBoxes = trips.flatMap((t, i) => {
+        if (t.lat == null || t.lon == null) return [];
+        const c = m.latLngToContainerPoint([t.lat, t.lon]);
+        return [{ x0: c.x - 24, x1: c.x + 24 + (i === selected ? 110 : 0), y0: c.y - 24, y1: c.y + 24 }];
+      });
       for (const p of places) {
+        const mine = !!route?.from && near([p.lat, p.lon], route.from);
+        const name = p.name.replace(/[<>&"]/g, '');
+        const c = m.latLngToContainerPoint([p.lat, p.lon]);
+        const box = { x0: c.x - 8, x1: c.x + 14 + name.length * 9, y0: c.y - 10, y1: c.y + (mine ? 26 : 10) };
+        if (!mine && busBoxes.some((b) => b.x0 < box.x1 && box.x0 < b.x1 && b.y0 < box.y1 && box.y0 < b.y1)) continue;
         L.marker([p.lat, p.lon], {
-          icon: L.divIcon({ html: `<span class="now-place${p.end ? ' end' : ''}"><i></i>${p.name.replace(/[<>&"]/g, '')}</span>`, className: 'now-pin-icon', iconSize: [0, 0], iconAnchor: [0, 0] }),
+          icon: L.divIcon({ html: `<span class="now-place${p.end ? ' end' : ''}${mine ? ' mine' : ''}"><i></i><span>${name}${mine ? `<small>${tx.mine}</small>` : ''}</span></span>`, className: 'now-pin-icon', iconSize: [0, 0], iconAnchor: [0, 0] }),
           keyboard: false, interactive: false, zIndexOffset: -1000,
         }).addTo(g);
       }
@@ -243,7 +257,7 @@ function NowMap({ trips, routes, places, selected, onPick, locale }: { trips: No
         const deg = own ? heading(own, s.seg, t.going_north) : null;
         const arrow = deg == null ? '' : `<span class="nb-arrow" style="transform:rotate(${deg.toFixed(0)}deg)">${ARROW_SVG}</span>`;
         const icon = L.divIcon({
-          html: `<span class="now-bus${on ? ' on' : ''}${t.estimated ? ' est' : ''}">${arrow}<span class="nb-dot">${BUS_FRONT_SVG}</span>${t.at_stop ? `<b class="here"><i></i>${t.at_stop.name}</b>` : `<b>${t.eta ? `~${t.eta}` : t.departure}</b>`}</span>`,
+          html: `<span class="now-bus${on ? ' on' : ''}${t.estimated ? ' est' : ''}">${arrow}<span class="nb-dot">${BUS_FRONT_SVG}</span>${!on ? '' : t.at_stop ? `<b class="here"><i></i>${t.at_stop.mine ? tx.here : t.at_stop.name}</b>` : `<b>${tx.when(t.eta_min ?? t.minutes_until)}</b>`}</span>`,
           className: 'now-pin-icon', iconSize: [44, 44], iconAnchor: [22, 22],
         });
         L.marker(at, { icon, keyboard: false, title: t.estimated ? `${t.departure} · ${locale === 'ru' ? 'примерное место, без GPS' : 'poziție orientativă, fără GPS'}` : t.departure, zIndexOffset: on ? 1000 : 0 })
@@ -256,7 +270,7 @@ function NowMap({ trips, routes, places, selected, onPick, locale }: { trips: No
         if (on) pts.push(at);
       });
       if (route?.from) {
-        const fromBalti = Math.abs(route.from[0] - BALTI[0]) < 0.03 && Math.abs(route.from[1] - BALTI[1]) < 0.04;
+        const fromBalti = near(route.from, BALTI);
         pts.push(route.from);
         // Din Bălți: doar Bălți și autobuzul, nu tot drumul până la Chișinău (Ion, 27.09: «harta să
         // se deschidă mai măricel»).
@@ -266,13 +280,12 @@ function NowMap({ trips, routes, places, selected, onPick, locale }: { trips: No
       if (!fitted.current && pts.length) {
         fitted.current = true;
         // Ce acoperă lista și antetul nu e hartă: autobuzul ales stătea sub cardul de jos (08:03).
-        const m = map.current!;
         m.fitBounds(pts.length === 1 ? [pts[0], pts[0]] : pts, { ...panelPadding(m), maxZoom: 11 });
         // Nu mai departe de nivelul 9 (~150 km pe lățimea telefonului): localitatea omului rămâne pe loc.
         if (m.getZoom() < MIN_OPEN_ZOOM) m.setZoomAround(route?.from ?? pts[0], MIN_OPEN_ZOOM, { animate: false });
       }
     })();
-  }, [trips, routes, places, ready, selected, onPick, locale]);
+  }, [trips, routes, places, ready, selected, onPick, locale, zoom]);
 
   // Cursa aleasă din listă: harta se duce la autobuzul ei.
   const first = useRef(true);
@@ -365,12 +378,12 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
               <div key={t.departure + i} data-i={i} className={`now-row${i === sel ? ' on' : ''}`} onClick={() => setSelected(i)}>
                 <div className="now-info">
                   <div className="now-line">
-                    {/* Ora REALĂ la care ajunge (ION-39): din GPS când e pe drum, altfel din
-                        trecerile reale ale zilelor trecute; graficul apare doar dacă diferă. */}
-                    <span className="now-time">{t.eta ? `~${t.eta}` : t.departure}</span>
-                    <span className="now-when">{t.at_stop?.mine ? <><span className="now-here-dot" />{tx.here}</> : tx.when(t.eta_min ?? t.minutes_until)}</span>
+                    {/* Peste cât vine — mare; ora REALĂ la care ajunge (ION-39) — mică, fără «~»
+                        (verificarea UI/UX, ION-100). Graficul doar când diferă de la 3 minute. */}
+                    <span className="now-time">{t.at_stop?.mine ? <><span className="now-here-dot" />{tx.here}</> : tx.when(t.eta_min ?? t.minutes_until)}</span>
+                    <span className="now-when">{t.eta ?? t.departure}</span>
                   </div>
-                  {t.eta && t.eta !== t.departure && <span className="now-plan">{tx.plan(t.departure)}</span>}
+                  {t.eta && Math.abs(hm(t.eta) - hm(t.departure)) >= PLAN_DIFF_MIN && <span className="now-plan">{tx.plan(t.departure)}</span>}
                   {crew && <span className="now-crew">{crew}</span>}
                   {phone && <span className="now-num">{phone.text}</span>}
                 </div>
@@ -412,9 +425,9 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
 .now-line{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
 .now-time{font-size:19px;font-weight:700}
 .now-when{font-size:14px;font-weight:600;color:${RED};white-space:nowrap}
-.now-plan{font-size:11.5px;color:#8A7D80}
+.now-plan{font-size:12px;color:#6B5B5F}
 .now-row.on .now-plan{color:#fff;opacity:.75}
-.now-crew{font-size:13px;color:#8A7B7F}
+.now-crew{font-size:13px;color:#6B5B5F}
 .now-num{font-size:14px;font-weight:600;letter-spacing:.02em}
 .now-call{flex-shrink:0;width:44px;height:44px;border-radius:50%;background:#F6ECEE;color:${RED};display:flex;align-items:center;justify-content:center;text-decoration:none;transition:transform .15s ease}
 .now-call:hover{transform:scale(1.06)}
@@ -449,8 +462,11 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
 /* Localitatea omului și destinația au punctul lor pe linie: doar numele, lângă el. */
 .now-place.end{left:12px;top:-8px;color:${RED};font-size:15px}
 .now-place.end i{display:none}
+.now-place>span{display:flex;flex-direction:column;gap:2px}
+.now-place small{font:700 11px/1 var(--font-opensans),Open Sans,sans-serif;color:${RED};text-transform:uppercase;letter-spacing:.04em}
+.now-place.mine{left:16px;top:-9px;font-size:16px}
 .now-end{display:block;width:16px;height:16px;border-radius:50%;box-sizing:border-box;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)}
-.now-end.from{background:#231A1C}
+.now-end.from{width:22px;height:22px;margin:-3px;background:${RED};border:4px solid #fff;box-shadow:0 0 0 3px rgba(155,27,48,.25),0 2px 6px rgba(0,0,0,.3)}
 .now-end.to{background:#fff;border:4px solid ${RED}}
 @media (max-width:720px){
   .now-overlay{padding:0}
@@ -476,13 +492,15 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
   .now-time{font-size:17px}
   .now-when{font-size:13px}
   .now-crew,.now-num{font-size:13px}
-  .now-call{width:38px;height:38px}
-  .now-call svg{width:16px;height:16px}
+  .now-call{width:44px;height:44px}
+  .now-call svg{width:17px;height:17px}
+  .now-map .leaflet-control-zoom{display:none}
+  .now-map .leaflet-bottom.leaflet-right{bottom:auto;top:0}
   .now-row.on{padding:12px 12px 12px 16px}
   .now-row.on .now-time{font-size:22px}
   .now-row.on .now-when{font-size:14px}
   .now-row.on .now-crew{font-size:13px}
-  .now-row.on .now-num{font-size:15px;margin-top:0}
+  .now-row.on .now-num{font-size:14px;font-weight:600;margin-top:0}
   .now-row.on .now-crew+.now-num::before{color:#fff;opacity:.85}
   .now-row.on .now-call{width:44px;height:44px;align-self:center}
 }

@@ -1224,3 +1224,23 @@ export async function getRouteLoadHeatmap(dateFrom: string, dateTo: string, rout
   result.sort((a, b) => (b.overall_ambele ?? 0) - (a.overall_ambele ?? 0));
   return result;
 }
+
+// ─── Overview dintr-un singur apel (ION-104) ───
+// Acțiunile server chemate din client rulează pe rând; patru apeluri separate însemnau patru
+// drumuri unul după altul. Aici cele patru pleacă în paralel pe server.
+export interface OverviewData {
+  kpi: OverviewKPI;
+  routes: RouteScorecardRow[];
+  drivers: DriverScorecardRow[];
+  routeLoad: RouteLoadRow[];
+}
+
+export async function getOverviewData(dateFrom: string, dateTo: string, routeType?: RouteTypeFilter): Promise<OverviewData> {
+  const [kpi, routes, drivers, routeLoad] = await Promise.all([
+    getOverviewKPI(dateFrom, dateTo, routeType),
+    getRouteScorecard(dateFrom, dateTo, routeType),
+    getDriverScorecard(dateFrom, dateTo, routeType),
+    getRouteLoadHeatmap(dateFrom, dateTo, routeType),
+  ]);
+  return { kpi, routes, drivers, routeLoad };
+}

@@ -1,19 +1,7 @@
 export const dynamic = 'force-dynamic';
 
-import {
-  getPageViewsPerDay,
-  getSearchesPerDay,
-  getTopSearchedRoutesDetailed,
-  getDeviceBreakdown,
-  getCountryBreakdown,
-  getTotalStats,
-} from './actions';
-import {
-  getOverviewKPI,
-  getRouteScorecard,
-  getDriverScorecard,
-  getRouteLoadHeatmap,
-} from './sales-actions';
+import { getSiteAnalytics } from './actions';
+import { getOverviewData } from './sales-actions';
 import AnalyticsClient from './AnalyticsClient';
 
 export default async function AnalyticsPage() {
@@ -22,35 +10,24 @@ export default async function AnalyticsPage() {
   const dateFrom = new Date(now.getTime() - days * 86400000).toISOString().slice(0, 10);
   const dateTo = now.toISOString().slice(0, 10);
 
-  const [
-    pageViews, searches, detailedRoutes, devices, countries, totals,
-    overviewKPI, routeScorecard, driverScorecard, routeLoad,
-  ] = await Promise.all([
-    getPageViewsPerDay(days),
-    getSearchesPerDay(days),
-    getTopSearchedRoutesDetailed(days),
-    getDeviceBreakdown(days),
-    getCountryBreakdown(days),
-    getTotalStats(days),
-    getOverviewKPI(dateFrom, dateTo, 'interurban'),
-    getRouteScorecard(dateFrom, dateTo, 'interurban'),
-    getDriverScorecard(dateFrom, dateTo, 'interurban'),
-    getRouteLoadHeatmap(dateFrom, dateTo, 'interurban'),
+  const [site, overview] = await Promise.all([
+    getSiteAnalytics(days),
+    getOverviewData(dateFrom, dateTo, 'interurban'),
   ]);
 
   return (
     <AnalyticsClient
-      initialPageViews={pageViews}
-      initialSearches={searches}
-      initialDetailedRoutes={detailedRoutes}
-      initialDevices={devices}
-      initialCountries={countries}
-      initialTotals={totals}
+      initialPageViews={site.pageViews}
+      initialSearches={site.searches}
+      initialDetailedRoutes={site.detailedRoutes}
+      initialDevices={site.devices}
+      initialCountries={site.countries}
+      initialTotals={site.totals}
       initialDays={days}
-      initialOverviewKPI={overviewKPI}
-      initialRouteScorecard={routeScorecard}
-      initialDriverScorecard={driverScorecard}
-      initialRouteLoad={routeLoad}
+      initialOverviewKPI={overview.kpi}
+      initialRouteScorecard={overview.routes}
+      initialDriverScorecard={overview.drivers}
+      initialRouteLoad={overview.routeLoad}
     />
   );
 }

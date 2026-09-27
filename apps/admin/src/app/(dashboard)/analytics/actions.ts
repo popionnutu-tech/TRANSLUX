@@ -8,25 +8,20 @@ export interface DailyCount {
   count: number;
 }
 
-export interface RouteCount {
-  from_locality: string;
-  to_locality: string;
-  count: number;
-  calls: number;
-}
+type Week = [number, number, number, number, number, number, number];
 
 export interface DetailedRouteCount {
   from_locality: string;
   to_locality: string;
   count: number;
   calls: number;
-  day_counts: [number, number, number, number, number, number, number];
-  day_calls: [number, number, number, number, number, number, number];
+  day_counts: Week;
+  day_calls: Week;
 }
 
 export interface DetailedRoutesResult {
   routes: DetailedRouteCount[];
-  dayTotals: [number, number, number, number, number, number, number];
+  dayTotals: Week;
   total: number;
 }
 
@@ -40,289 +35,84 @@ export interface CountryCount {
   count: number;
 }
 
+// Căutările pe zi, separat «Acum» / «Mai târziu» (ION-102). mod NULL = rânduri de dinainte
+// de 27.09.2026, pe fluxul de azi al lui «Mai târziu». Ambele serii au aceleași zile, în aceeași
+// ordine — graficul pune punctele după index.
+export interface SearchesByMod {
+  acum: DailyCount[];
+  maiTarziu: DailyCount[];
+}
+
+export interface TotalStats {
+  totalViews: number;
+  totalSearches: number;
+  totalCalls: number;
+  searchesAcum: number;
+  searchesMaiTarziu: number;
+  callsAcum: number;
+  callsMaiTarziu: number;
+}
+
+export interface SiteAnalytics {
+  pageViews: DailyCount[];
+  searches: SearchesByMod;
+  detailedRoutes: DetailedRoutesResult;
+  devices: DeviceCount[];
+  countries: CountryCount[];
+  totals: TotalStats;
+}
+
 function daysAgoDate(days: number): string {
   const d = new Date();
   d.setDate(d.getDate() - days);
   return d.toISOString().slice(0, 10);
 }
 
-async function fetchAllSince(table: string, columns: string, since: string): Promise<any[]> {
-  const PAGE = 1000;
-  const rows: any[] = [];
-  let offset = 0;
-  while (true) {
-    const { data } = await getSupabase()
-      .from(table)
-      .select(columns)
-      .gte('created_at', since + 'T00:00:00')
-      .order('created_at', { ascending: true })
-      .range(offset, offset + PAGE - 1);
-    if (!data || data.length === 0) break;
-    rows.push(...data);
-    if (data.length < PAGE) break;
-    offset += PAGE;
-  }
-  return rows;
-}
+const EMPTY_WEEK: Week = [0, 0, 0, 0, 0, 0, 0];
 
-export async function getPageViewsPerDay(days: number = 30): Promise<DailyCount[]> {
+// Toată fila Site dintr-un singur apel (ION-104): numărătoarea o face analytics_site (migr. 410)
+// în bază. Înainte, rândurile brute veneau câte 1000 în JS — 5–10 s la fiecare schimbare de perioadă.
+// Zilele și ziua săptămânii (0 = luni) sunt pe UTC, ca înainte.
+export async function getSiteAnalytics(days: number = 30): Promise<SiteAnalytics> {
   requireRole(await verifySession(), 'ADMIN');
   const since = daysAgoDate(days);
 
-  const { data } = await getSupabase().rpc('analytics_page_views_per_day', { since_date: since });
-  if (data) return data as DailyCount[];
+  const { data, error } = await getSupabase().rpc('analytics_site', { since_ts: since + 'T00:00:00Z' });
+  if (error || !data) throw new Error('analytics_site: ' + (error?.message ?? 'fără date'));
 
-  const raw = await fetchAllSince('page_views', 'created_at', since);
-
-  const map = new Map<string, number>();
-  for (const r of raw) {
-    const day = (r.created_at as string).slice(0, 10);
-    map.set(day, (map.get(day) || 0) + 1);
-  }
-  return Array.from(map.entries())
-    .map(([date, count]) => ({ date, count }))
-    .sort((a, b) => a.date.localeCompare(b.date));
-}
-
-export interface SearchesByMod {
-  acum: DailyCount[];
-  maiTarziu: DailyCount[];
-}
-
-// Căutările pe zi, separat «Acum» / «Mai târziu» (ION-102). mod NULL = rânduri de dinainte
-// de 27.09.2026, pe fluxul de azi al lui «Mai târziu». Ambele serii au aceleași zile, în aceeași
-// ordine — graficul pune punctele după index.
-export async function getSearchesPerDay(days: number = 30): Promise<SearchesByMod> {
-  requireRole(await verifySession(), 'ADMIN');
-  const since = daysAgoDate(days);
-
-  const raw = await fetchAllSince('search_log', 'created_at, mod', since);
-
-  const acum = new Map<string, number>();
-  const later = new Map<string, number>();
-  for (const r of raw) {
-    const day = (r.created_at as string).slice(0, 10);
-    const map = r.mod === 'acum' ? acum : later;
-    map.set(day, (map.get(day) || 0) + 1);
-  }
-  const dates = Array.from(new Set([...acum.keys(), ...later.keys()])).sort();
-  return {
-    acum: dates.map(date => ({ date, count: acum.get(date) || 0 })),
-    maiTarziu: dates.map(date => ({ date, count: later.get(date) || 0 })),
+  const d = data as {
+    views_per_day: DailyCount[];
+    searches_per_day: { date: string; acum: number; mai_tarziu: number }[];
+    totals: { views: number; searches: number; searches_acum: number; calls: number; calls_acum: number };
+    devices: DeviceCount[];
+    countries: CountryCount[];
+    routes: DetailedRouteCount[];
+    day_totals: Week | null;
   };
-}
 
-export async function getTopSearchedRoutes(days: number = 30): Promise<RouteCount[]> {
-  requireRole(await verifySession(), 'ADMIN');
-  const since = daysAgoDate(days);
-
-  const [searchRaw, callRaw] = await Promise.all([
-    fetchAllSince('search_log', 'from_locality, to_locality, created_at', since),
-    fetchAllSince('call_clicks', 'from_locality, to_locality, created_at', since),
-  ]);
-
-  const map = new Map<string, { from: string; to: string; count: number; calls: number }>();
-
-  for (const r of searchRaw) {
-    const key = `${r.from_locality}→${r.to_locality}`;
-    const existing = map.get(key);
-    if (existing) {
-      existing.count++;
-    } else {
-      map.set(key, { from: r.from_locality, to: r.to_locality, count: 1, calls: 0 });
-    }
-  }
-
-  for (const r of callRaw) {
-    const key = `${r.from_locality}→${r.to_locality}`;
-    const existing = map.get(key);
-    if (existing) {
-      existing.calls++;
-    } else {
-      map.set(key, { from: r.from_locality, to: r.to_locality, count: 0, calls: 1 });
-    }
-  }
-
-  return Array.from(map.values())
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 20)
-    .map(r => ({ from_locality: r.from, to_locality: r.to, count: r.count, calls: r.calls }));
-}
-
-export async function getDeviceBreakdown(days: number = 30): Promise<DeviceCount[]> {
-  requireRole(await verifySession(), 'ADMIN');
-  const since = daysAgoDate(days);
-
-  const raw = await fetchAllSince('page_views', 'device, created_at', since);
-
-  const map = new Map<string, number>();
-  for (const r of raw) {
-    const d = r.device || 'unknown';
-    map.set(d, (map.get(d) || 0) + 1);
-  }
-
-  return Array.from(map.entries())
-    .map(([device, count]) => ({ device, count }))
-    .sort((a, b) => b.count - a.count);
-}
-
-export async function getCountryBreakdown(days: number = 30): Promise<CountryCount[]> {
-  requireRole(await verifySession(), 'ADMIN');
-  const since = daysAgoDate(days);
-
-  const raw = await fetchAllSince('page_views', 'country, created_at', since);
-
-  const map = new Map<string, number>();
-  for (const r of raw) {
-    const c = r.country || '??';
-    map.set(c, (map.get(c) || 0) + 1);
-  }
-
-  return Array.from(map.entries())
-    .map(([country, count]) => ({ country, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 10);
-}
-
-function getDayOfWeek(isoString: string): number {
-  const jsDay = new Date(isoString).getDay();
-  return jsDay === 0 ? 6 : jsDay - 1;
-}
-
-export async function getTopSearchedRoutesDetailed(days: number = 30): Promise<DetailedRoutesResult> {
-  requireRole(await verifySession(), 'ADMIN');
-  const since = daysAgoDate(days);
-
-  const [searchRaw, callRaw] = await Promise.all([
-    fetchAllSince('search_log', 'from_locality, to_locality, created_at', since),
-    fetchAllSince('call_clicks', 'from_locality, to_locality, created_at', since),
-  ]);
-
-  type Entry = {
-    from: string; to: string; count: number; calls: number;
-    day_counts: number[]; day_calls: number[];
-    search_dates: Set<string>[]; call_dates: Set<string>[];
-  };
-  const makeEntry = (from: string, to: string): Entry => ({
-    from, to, count: 0, calls: 0,
-    day_counts: [0, 0, 0, 0, 0, 0, 0], day_calls: [0, 0, 0, 0, 0, 0, 0],
-    search_dates: [new Set(), new Set(), new Set(), new Set(), new Set(), new Set(), new Set()],
-    call_dates: [new Set(), new Set(), new Set(), new Set(), new Set(), new Set(), new Set()],
-  });
-
-  const map = new Map<string, Entry>();
-
-  // Global active-day tracking per weekday (across all routes) for dayTotals row
-  const globalSearchDates: Set<string>[] = [new Set(), new Set(), new Set(), new Set(), new Set(), new Set(), new Set()];
-
-  for (const r of (searchRaw || []) as any[]) {
-    const key = `${r.from_locality}→${r.to_locality}`;
-    const dow = getDayOfWeek(r.created_at);
-    const dateStr = (r.created_at as string).slice(0, 10);
-    let entry = map.get(key);
-    if (!entry) {
-      entry = makeEntry(r.from_locality, r.to_locality);
-      map.set(key, entry);
-    }
-    entry.count++;
-    entry.day_counts[dow]++;
-    entry.search_dates[dow].add(dateStr);
-    globalSearchDates[dow].add(dateStr);
-  }
-
-  for (const r of (callRaw || []) as any[]) {
-    const key = `${r.from_locality}→${r.to_locality}`;
-    const dow = getDayOfWeek(r.created_at);
-    const dateStr = (r.created_at as string).slice(0, 10);
-    let entry = map.get(key);
-    if (!entry) {
-      entry = makeEntry(r.from_locality, r.to_locality);
-      map.set(key, entry);
-    }
-    entry.calls++;
-    entry.day_calls[dow]++;
-    entry.call_dates[dow].add(dateStr);
-  }
-
-  const all = Array.from(map.values());
-  const dayTotals: [number, number, number, number, number, number, number] = [0, 0, 0, 0, 0, 0, 0];
-  let total = 0;
-  for (const entry of all) {
-    total += entry.count;
-    for (let i = 0; i < 7; i++) dayTotals[i] += entry.day_counts[i];
-  }
-
-  // Average using only days that actually had data for that weekday
-  const avgDayTotals = dayTotals.map((v, i) => {
-    const activeDays = globalSearchDates[i].size;
-    return activeDays > 0 ? Math.round(v / activeDays) : 0;
-  }) as [number, number, number, number, number, number, number];
-
-  const routes = all
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 20)
-    .map(r => ({
-      from_locality: r.from,
-      to_locality: r.to,
-      count: r.count,
-      calls: r.calls,
-      day_counts: r.day_counts.map((v, i) => {
-        const activeDays = r.search_dates[i].size;
-        return activeDays > 0 ? Math.round(v / activeDays) : 0;
-      }) as [number, number, number, number, number, number, number],
-      day_calls: r.day_calls.map((v, i) => {
-        const activeDays = r.call_dates[i].size;
-        return activeDays > 0 ? Math.round(v / activeDays) : 0;
-      }) as [number, number, number, number, number, number, number],
-    }));
-
-  return { routes, dayTotals: avgDayTotals, total };
-}
-
-export async function getTotalStats(days: number = 30) {
-  requireRole(await verifySession(), 'ADMIN');
-  const since = daysAgoDate(days);
-
-  const [
-    { count: viewsCount }, { count: searchCount }, { count: callsCount },
-    { count: searchAcumCount }, { count: callsAcumCount },
-  ] = await Promise.all([
-    getSupabase()
-      .from('page_views')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', since + 'T00:00:00'),
-    getSupabase()
-      .from('search_log')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', since + 'T00:00:00'),
-    getSupabase()
-      .from('call_clicks')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', since + 'T00:00:00'),
-    getSupabase()
-      .from('search_log')
-      .select('*', { count: 'exact', head: true })
-      .eq('mod', 'acum')
-      .gte('created_at', since + 'T00:00:00'),
-    getSupabase()
-      .from('call_clicks')
-      .select('*', { count: 'exact', head: true })
-      .eq('mod', 'acum')
-      .gte('created_at', since + 'T00:00:00'),
-  ]);
-
-  // «Mai târziu» = restul (mod 'mai_tarziu' sau NULL de dinainte de ION-102).
-  const totalSearches = searchCount || 0;
-  const totalCalls = callsCount || 0;
-  const searchesAcum = searchAcumCount || 0;
-  const callsAcum = callsAcumCount || 0;
+  const t = d.totals;
   return {
-    totalViews: viewsCount || 0,
-    totalSearches,
-    totalCalls,
-    searchesAcum,
-    searchesMaiTarziu: totalSearches - searchesAcum,
-    callsAcum,
-    callsMaiTarziu: totalCalls - callsAcum,
+    pageViews: d.views_per_day,
+    searches: {
+      acum: d.searches_per_day.map(r => ({ date: r.date, count: r.acum })),
+      maiTarziu: d.searches_per_day.map(r => ({ date: r.date, count: r.mai_tarziu })),
+    },
+    detailedRoutes: {
+      routes: d.routes,
+      dayTotals: d.day_totals ?? EMPTY_WEEK,
+      total: t.searches,
+    },
+    devices: d.devices,
+    countries: d.countries,
+    // «Mai târziu» = restul (mod 'mai_tarziu' sau NULL de dinainte de ION-102).
+    totals: {
+      totalViews: t.views,
+      totalSearches: t.searches,
+      totalCalls: t.calls,
+      searchesAcum: t.searches_acum,
+      searchesMaiTarziu: t.searches - t.searches_acum,
+      callsAcum: t.calls_acum,
+      callsMaiTarziu: t.calls - t.calls_acum,
+    },
   };
 }

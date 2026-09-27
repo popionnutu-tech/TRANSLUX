@@ -2,17 +2,10 @@
 
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
-import type { DailyCount, DetailedRoutesResult, DeviceCount, CountryCount, SearchesByMod } from './actions';
+import type { DailyCount, DetailedRoutesResult, DeviceCount, CountryCount, SearchesByMod, TotalStats } from './actions';
 import type { OverviewKPI, RouteScorecardRow, DriverScorecardRow, RouteLoadRow, RouteTypeFilter } from './sales-actions';
-import {
-  getPageViewsPerDay,
-  getSearchesPerDay,
-  getTopSearchedRoutesDetailed,
-  getDeviceBreakdown,
-  getCountryBreakdown,
-  getTotalStats,
-} from './actions';
-import { getOverviewKPI, getRouteScorecard, getDriverScorecard, getRouteLoadHeatmap } from './sales-actions';
+import { getSiteAnalytics } from './actions';
+import { getOverviewData } from './sales-actions';
 import OverviewTab from './OverviewTab';
 
 interface Props {
@@ -21,7 +14,7 @@ interface Props {
   initialDetailedRoutes: DetailedRoutesResult;
   initialDevices: DeviceCount[];
   initialCountries: CountryCount[];
-  initialTotals: Awaited<ReturnType<typeof getTotalStats>>;
+  initialTotals: TotalStats;
   initialDays: number;
   initialOverviewKPI: OverviewKPI;
   initialRouteScorecard: RouteScorecardRow[];
@@ -211,28 +204,21 @@ export default function AnalyticsClient({
     const dateFrom = new Date(Date.now() - newDays * 86400000).toISOString().slice(0, 10);
     const dateTo = new Date().toISOString().slice(0, 10);
     startTransition(async () => {
-      const [pv, sr, dr, dv, ct, tt, kpi, rs, ds, rl] = await Promise.all([
-        getPageViewsPerDay(newDays),
-        getSearchesPerDay(newDays),
-        getTopSearchedRoutesDetailed(newDays),
-        getDeviceBreakdown(newDays),
-        getCountryBreakdown(newDays),
-        getTotalStats(newDays),
-        getOverviewKPI(dateFrom, dateTo, newRouteType),
-        getRouteScorecard(dateFrom, dateTo, newRouteType),
-        getDriverScorecard(dateFrom, dateTo, newRouteType),
-        getRouteLoadHeatmap(dateFrom, dateTo, newRouteType),
+      // Două acțiuni, nu zece: acțiunile server din client rulează pe rând (ION-104).
+      const [site, overview] = await Promise.all([
+        getSiteAnalytics(newDays),
+        getOverviewData(dateFrom, dateTo, newRouteType),
       ]);
-      setPageViews(pv);
-      setSearches(sr);
-      setDetailedRoutes(dr);
-      setDevices(dv);
-      setCountries(ct);
-      setTotals(tt);
-      setOverviewKPI(kpi);
-      setRouteScorecard(rs);
-      setDriverScorecard(ds);
-      setRouteLoad(rl);
+      setPageViews(site.pageViews);
+      setSearches(site.searches);
+      setDetailedRoutes(site.detailedRoutes);
+      setDevices(site.devices);
+      setCountries(site.countries);
+      setTotals(site.totals);
+      setOverviewKPI(overview.kpi);
+      setRouteScorecard(overview.routes);
+      setDriverScorecard(overview.drivers);
+      setRouteLoad(overview.routeLoad);
     });
   }
 

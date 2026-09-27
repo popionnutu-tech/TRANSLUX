@@ -18,6 +18,8 @@ import { phoneTel, phoneText } from '@/lib/phone';
 const ENDPOINT = process.env.NEXT_PUBLIC_ASSISTANT_URL || 'https://central-hub-md.vercel.app/api/asistent-site';
 const REFRESH_MS = 60_000;
 const RED = '#9B1B30';
+/** Reperul hărții «Acum» (ION-100): autogara Bălți, ca în route_shapes.stops. */
+const BALTI: [number, number] = [47.76972, 27.94175];
 
 interface NowTrip {
   departure: string;
@@ -244,12 +246,18 @@ function NowMap({ trips, routes, places, selected, onPick, locale }: { trips: No
         L.marker(at, { icon, keyboard: false, title: t.estimated ? `${t.departure} · ${locale === 'ru' ? 'примерное место, без GPS' : 'poziție orientativă, fără GPS'}` : t.departure, zIndexOffset: on ? 1000 : 0 })
           .on('click', () => onPick(i))
           .addTo(g);
-        // Harta se deschide pe drumul omului: autobuzul ales, localitatea lui și destinația
-        // (Ion, 27.09, ION-100: «harta să fie mai mult centralizată către punctul de plecare spre
-        // Chișinău»). Celelalte autobuze nu mai trag harta spre nord; alese din listă, harta se duce la ele.
+        // Harta se deschide pe autobuzul ales, localitatea omului și Bălți ca reper; din Bălți,
+        // pe drumul până la destinație (Ion, 27.09, ION-100: «punem vizual Bălți să se vadă»; tot
+        // drumul Edineț–Chișinău «nu e clar nimic»). Celelalte autobuze nu trag harta după ele;
+        // alese din listă, harta se duce la ele.
         if (on) pts.push(at);
       });
-      if (route) pts.push(...[route.from, route.to].filter((x): x is LatLon => !!x));
+      if (route?.from) {
+        const fromBalti = Math.abs(route.from[0] - BALTI[0]) < 0.03 && Math.abs(route.from[1] - BALTI[1]) < 0.04;
+        pts.push(route.from);
+        if (!fromBalti) pts.push(BALTI);
+        else if (route.to) pts.push(route.to);
+      } else if (route?.to) pts.push(route.to);
       if (pts.length === 0 && route?.shape.length) pts.push(route.shape[0], route.shape[route.shape.length - 1]);
       if (!fitted.current && pts.length) {
         fitted.current = true;

@@ -40,6 +40,12 @@ describe('Dorm în Bălți (ION-109)', () => {
   it('mașina cu două linii: le numește pe amândouă', () => {
     expect(textBalti(r[2])).toBe('186OMM doarme la Dacia (1,7 km de poartă), liniile R4 · Grinauti și R3 · Nihoreni: drumul gol până la capăt și înapoi ≈ 282 km pe săptămână.');
   });
+  it('linia fără km în schelet (744ARF după recunoașterea R13 din opriri)', () => {
+    const b = dormBalti({ ...a, masini: [m({ m: '744ARF', R1a: null, casa: 'Dacia', casaKmPoarta: 2.4, zile: 5, zileIncluse: 0,
+      rute: [{ r: 'R13|Hasnasenii Noi', nume: 'R13 · Hasnasenii Noi', km: 88.8, zile: 5, curse: 6 }],
+      detalii: ['14', '15', '16', '17', '18'].map((d) => zi(`2026-09-${d}`, 'linie fara etalon (R13|Hasnasenii Noi)')) })] });
+    expect(textBalti(b[0])).toBe('744ARF doarme la Dacia (2,4 km de poartă). În 5 zile din 5 face cursa pe linia R13 · Hasnasenii Noi, care n-are încă km în schelet: livrarea se măsoară după ce linia primește km.');
+  });
   it('fără lei și fără «dispoziție» în fraze', () => {
     for (const x of r) expect(textBalti(x)).not.toMatch(/lei|dispoziți/);
     expect(INTRO_BALTI).toContain('Nu e o dispoziție pentru dispecer');

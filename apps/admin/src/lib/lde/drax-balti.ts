@@ -12,6 +12,8 @@ export interface RandBalti {
   r1a: number | null; zileMasurate: number; zile: number;
   /** zilele scoase din măsurare pentru o cursă probabil nedetectată: ziua + ce s-a văzut («tur 06:04») */
   nedetectate: { z: string; ce: string }[];
+  /** zilele scoase pentru că mașina face o linie fără km în schelet (744ARF: R13 Hăsnășenii Noi) — linia și câte zile */
+  faraEtalon: { linie: string; zile: number }[];
 }
 
 const nr = (x: number) => Math.round(x).toLocaleString('ro-RO');
@@ -30,15 +32,21 @@ function liniiMasina(m: MasinaDrax): string | null {
   return l.length ? l.join(' și ') : null;
 }
 
+function faraEtalon(m: MasinaDrax): RandBalti['faraEtalon'] {
+  const n = new Map<string, number>();
+  for (const d of m.detalii) { const x = d.exclus?.match(/^linie fara etalon \((.+)\)$/); if (x) for (const l of x[1].split(', ')) n.set(l, (n.get(l) ?? 0) + 1); }
+  return [...n].map(([l, zile]) => ({ linie: m.rute.find((r) => r.r === l)?.nume ?? l.replace('|', ' · '), zile }));
+}
+
 export function dormBalti(a: AnalizaDrax): RandBalti[] {
   return a.masini
     .filter((m) => m.casaKmPoarta != null && m.casaKmPoarta <= ZONA_BALTI_KM)
     .map((m) => ({
       m: m.m, casa: m.casa, kmPoarta: m.casaKmPoarta as number,
       linie: liniiMasina(m),
-      r1a: m.extrapolat.R1a ?? null, zileMasurate: m.zileIncluse, zile: m.zile, nedetectate: nedetectate(m),
+      r1a: m.extrapolat.R1a ?? null, zileMasurate: m.zileIncluse, zile: m.zile, nedetectate: nedetectate(m), faraEtalon: faraEtalon(m),
     }))
-    .filter((r) => (r.r1a ?? 0) >= 0.5 || r.nedetectate.length > 0)
+    .filter((r) => (r.r1a ?? 0) >= 0.5 || r.nedetectate.length > 0 || r.faraEtalon.length > 0)
     .sort((x, y) => (y.r1a ?? -1) - (x.r1a ?? -1) || x.m.localeCompare(y.m));
 }
 
@@ -53,6 +61,11 @@ export function textBalti(r: RandBalti): string {
   for (const x of r.nedetectate) for (const q of x.ce.split(', ')) { const [sens, ora] = q.split(' '); const e = pe.get(sens) ?? pe.set(sens, { ora, zile: 0 }).get(sens)!; e.zile++; }
   const ce = [...pe].map(([sens, e]) => `${sens} pe la ${e.ora}, ${e.zile} ${e.zile === 1 ? 'zi' : 'zile'}`).join('; ');
   const nev = r.nedetectate.length;
+  const fe = r.faraEtalon[0];
+  if ((r.r1a == null || r.zileMasurate === 0) && fe && !nev) {
+    return `${unde}. În ${fe.zile} ${fe.zile === 1 ? 'zi' : 'zile'} din ${r.zile} face cursa pe linia ${fe.linie}, care n-are încă km în schelet: `
+      + 'livrarea se măsoară după ce linia primește km.';
+  }
   if (r.r1a == null || r.zileMasurate === 0) {
     return `${unde}. În ${nev} ${nev === 1 ? 'zi' : 'zile'} din ${r.zile} face probabil o cursă cu oameni pe care analiza n-o vede (${ce}): `
       + 'livrarea se măsoară abia după ce se lămurește ce cursă e (analiza n-o leagă de nicio linie).';

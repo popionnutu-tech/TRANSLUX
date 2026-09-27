@@ -131,26 +131,19 @@ function dinGps(c: CeFaciDrax): DateIntrebare {
   return { privite, de: ore.length ? mediana(ore, dupaText) : null, kmAzi: masini.reduce((s, x) => s + x.parti.seara.kmSapt, 0), estimare: null };
 }
 
-const zec = (x: number) => x.toLocaleString('ro-RO', { maximumFractionDigits: 2 });
 
-/** v3.2 — răspunsul lui Ion la întrebarea de seară: mașina mică. Pe mașină, cât rămâne pe lună ca să plătească mașina mică
- *  (autobuzul fără salariu, mașina mică dus-întors în fiecare seară); costul fix al mașinii mici nu se presupune. */
+/** v3.2 — răspunsul lui Ion la întrebarea de seară: mașina mică. Doar km pe săptămână, pe mașină: cât nu mai face autobuzul
+ *  și cât face mașina mică (dus-întors acasă în fiecare seară). Costul în lei îl socotește Ion (27.09: «km only is ok»). */
 export function masinaMicaSeara(plan: PlanSchimbDrax | null): string | null {
   const q = plan?.asteptare.seara.intrebare;
-  const ip = q?.masinaMica;
-  if (!q || !ip || !q.masini.length || !q.masini.every((x) => x.masinaMica)) return null;
-  const cuSold = q.masini.filter((x) => x.masinaMica!.soldLuna != null).sort((a, b) => b.masinaMica!.soldLuna! - a.masinaMica!.soldLuna!);
-  const plus = cuSold.filter((x) => x.masinaMica!.soldLuna! > 0), minus = cuSold.filter((x) => x.masinaMica!.soldLuna! <= 0);
-  const faraNorma = q.masini.filter((x) => x.masinaMica!.soldLuna == null).map((x) => x.m);
+  if (!q || !q.masinaMica || !q.masini.length || !q.masini.every((x) => x.masinaMica)) return null;
   const privite = q.masini.map((x) => ({ m: x.m, unde: x.unde, departeDeCasaKm: x.departeDeCasaKm, nemasurata: !x.masurat }));
   const noapte = plan!.asteptare.seara.cursaDeNoapte;
+  const sir = [...q.masini].sort((x, y) => y.estimareSeara - x.estimareSeara)
+    .map((x) => `${x.m} ${nr(x.estimareSeara)} / ${nr(x.masinaMica!.kmSapt)}${x.masurat ? '' : ' (nemăsurată)'}`);
   return `Seara, propunerea lui Ion: mașina rămâne parcată ${undeSeara(privite)} până la cursa de noapte${noapte ? ` (${noapte})` : ''}, `
-    + `iar șoferul merge acasă și înapoi cu o mașină mică (${ip.litri} l/100 km${ip.leiKm != null ? `, ≈ ${zec(ip.leiKm)} lei/km` : ''}). `
-    + `Cât rămâne pe lună ca să plătească mașina mică: ${plus.map((x) => `${x.m} ${nr(x.masinaMica!.soldLuna!)} lei`).join(', ') || 'la nicio mașină'}. `
-    + `Merită acolo unde mașina mică costă pe lună mai puțin decât cifra. `
-    + (minus.length ? `Nu merită: ${minus.map((x) => x.m).join(', ')} (casa e prea aproape, autobuzul face puțin în plus). ` : '')
-    + (faraNorma.length ? `Fără normă în bază, deci fără lei: ${faraNorma.join(', ')}. ` : '')
-    + `Socoteala: km scutiți autobuzului × costul lui pe km fără salariu (șoferul e plătit la fel), minus mașina mică dus-întors în fiecare seară.`;
+    + `iar șoferul merge acasă și înapoi cu o mașină mică. Km pe săptămână, autobuzul nu mai face / mașina mică face: ${sir.join(', ')}. `
+    + `Mașina mică merge dus-întors acasă în fiecare seară lucrată.`;
 }
 
 /** întrebarea de seară, o singură dată pe flotă: locul, distanța până acasă pe mașină și km de azi care depind de ea */

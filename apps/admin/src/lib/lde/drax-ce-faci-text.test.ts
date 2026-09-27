@@ -188,7 +188,7 @@ describe('F6 — nota cardului adună la cifra cardului', () => {
   });
 });
 
-describe('v3.2 — mașina mică seara (Ion, 27.09; Codex r3b: km = seri × 2 × loc→casă, autobuzul fără salariu)', () => {
+describe('v3.2 — mașina mică seara (Ion, 27.09: doar km; Codex r3b: km mașinii mici = seri × 2 × loc→casă)', () => {
   // soldurile reale ale workerului v3.2 pe 14.09 (prețul săptămânii 35,89 lei/l → 2,653 lei/km mașina mică)
   const SOLD: Record<string, [number, number, number | null, number | null]> = {
     '912RNK': [5, 426, 5.7, 2321], '345KAJ': [5, 290, 5.35, 1441], '549RNK': [5, 261, 5.7, 840], '457BRAX': [5, 247, 6.05, 1082],
@@ -203,18 +203,14 @@ describe('v3.2 — mașina mică seara (Ion, 27.09; Codex r3b: km = seri × 2 ×
     } } } };
   };
   const t = masinaMicaSeara(cu())!;
-  it('înlocuiește întrebarea: soldul pe lună pe mașină, de la cel mai mare', () => {
+  it('înlocuiește întrebarea: doar km, autobuzul / mașina mică, de la cel mai mare', () => {
     expect(intrebareSeara(cuPlan.c, cu())).toBe(t);
     expect(t).toContain('mașina rămâne parcată la capătul liniei (912RNK la uzină) până la cursa de noapte (00:08–00:23)');
-    expect(t).toMatch(/912RNK 2\.?321 lei, 830MUM 1\.?665 lei, 345KAJ 1\.?441 lei/);
-    expect(t.indexOf('146BRAZ')).toBeGreaterThan(t.indexOf('760BXI'));
+    expect(t).toContain('912RNK 292 / 426, 925FTI 206 / 215, 345KAJ 206 / 290');
+    expect(t).toContain('725CWN 14 / 69');
+    expect(t).toContain('549RNK 156 / 261 (nemăsurată)');
   });
-  it('nu merită = sold ≤ 0; fără normă = fără lei; costul fix nu e presupus', () => {
-    expect(t).toContain('Nu merită: 725CWN');
-    expect(t).toContain('Fără normă în bază, deci fără lei: 518MHD, 925FTI');
-    expect(t).toContain('mașina mică costă pe lună mai puțin decât cifra');
-    expect(t).toContain('fără salariu');
-  });
+  it('fără lei', () => expect(t).not.toMatch(/lei|normă|merită/));
   it('sus: seara nu mai e întrebare', () => {
     expect(sectiuneaDeSus(cuPlan.c, cu()).join(' ')).toContain('șoferul merge acasă cu o mașină mică');
     expect(sectiuneaDeSus(cuPlan.c, plan).join(' ')).toContain('o singură întrebare pentru Ion');

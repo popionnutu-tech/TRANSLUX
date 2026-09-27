@@ -253,9 +253,19 @@ function NowMap({ trips, routes, places, selected, onPick, locale }: { trips: No
 
       // Linia cursei alese și, pe ea, localitatea omului și destinația.
       if (route?.shape.length) {
-        const full = ahead(route, trips[selected]);
-        L.polyline(full, { color: '#FFFFFF', weight: 9, opacity: 0.95, lineCap: 'round', interactive: false }).addTo(g);
-        L.polyline(full, { color: lineColor(selected), weight: 5, opacity: 1, lineCap: 'round', interactive: false }).addTo(g);
+        // Până la stația omului în culoarea mașinii; de la stație până la destinație mereu bordo,
+        // culoarea firmei (Ion, 27.09, ION-100: «ultima linie întotdeauna să fie culoarea firmei»).
+        const t = trips[selected];
+        const toStop = ahead(route, t, true);
+        // Stația în afara liniei (ocol): toată linia în culoarea mașinii, fără coada bordo.
+        const onLine = !!route.from && snapOn(route.from, route.shape).seg > 0;
+        const tail = onLine ? ahead(route, { ...t, lat: route.from![0], lon: route.from![1] }) : [];
+        if (!onLine) toStop.splice(0, toStop.length, ...ahead(route, t));
+        for (const [part, color] of [[toStop, lineColor(selected)], [tail, RED]] as const) {
+          if (part.length < 2) continue;
+          L.polyline(part, { color: '#FFFFFF', weight: 9, opacity: 0.95, lineCap: 'round', interactive: false }).addTo(g);
+          L.polyline(part, { color, weight: 5, opacity: 1, lineCap: 'round', interactive: false }).addTo(g);
+        }
         for (const [pt, cls] of [[route.from, 'from'], [route.to, 'to']] as const) {
           if (!pt) continue;
           // Centrul satului poate sta în afara traseului: capătul se pune pe linie.

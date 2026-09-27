@@ -132,14 +132,14 @@ function ahead(route: RouteLine, t: NowTrip | undefined): LatLon[] {
 }
 
 /**
- * Marginile hărții acoperite de fereastră: antetul sus; pe telefon lista jos (≈55% din
+ * Marginile hărții acoperite de fereastră: antetul sus; pe telefon lista jos (≈30% din
  * înălțime), pe calculator lista în stânga (320 px). Autobuzul și capetele stau în rest.
  */
 function panelPadding(m: LMap): { paddingTopLeft: [number, number]; paddingBottomRight: [number, number] } {
   const { x, y } = m.getSize();
   const phone = x <= 720;
   return phone
-    ? { paddingTopLeft: [30, 80], paddingBottomRight: [30, Math.round(y * 0.55)] }
+    ? { paddingTopLeft: [30, 80], paddingBottomRight: [30, Math.round(y * 0.3)] }
     : { paddingTopLeft: [370, 90], paddingBottomRight: [70, 40] };
 }
 
@@ -293,6 +293,15 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
 
   const trips = data?.trips ?? [];
   const sel = selected < trips.length ? selected : 0;
+
+  // Mașina apăsată pe hartă poate sta sub marginea listei (pe telefon lista are 30% din ecran,
+  // se văd primele două): lista se derulează singură la cardul ei (Ion, 27.09, ION-100).
+  const panel = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const box = panel.current;
+    const row = box?.querySelector<HTMLElement>(`[data-i="${sel}"]`);
+    if (box && row) box.scrollTo({ top: row.offsetTop, behavior: 'smooth' });
+  }, [sel]);
   // Harta apare și fără autobuz pe drum, dacă avem linia rutei: omul vede pe unde va veni.
   const withPoint = trips.some((t) => t.lat != null || (t.route_id != null && !!data?.routes?.[t.route_id]));
   const empty = data && trips.length === 0;
@@ -309,7 +318,7 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
           </button>
         </div>
 
-        <div className="now-panel">
+        <div className="now-panel" ref={panel}>
           {!data && !failed && <p className="now-note">{tx.loading}</p>}
           {failed && !data && <p className="now-note">{tx.error}</p>}
           {empty && <p className="now-note">{locale === 'ru' ? data!.line_ru : data!.line_ro}</p>}
@@ -317,7 +326,7 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
             const phone = t.phone ? phoneView(t.phone) : null;
             const crew = [t.driver, t.plate].filter(Boolean).join(' · ');
             return (
-              <div key={t.departure + i} className={`now-row${i === sel ? ' on' : ''}`} onClick={() => setSelected(i)}>
+              <div key={t.departure + i} data-i={i} className={`now-row${i === sel ? ' on' : ''}`} onClick={() => setSelected(i)}>
                 <div className="now-info">
                   <div className="now-line">
                     {/* Ora REALĂ la care ajunge (ION-39): din GPS când e pe drum, altfel din
@@ -406,7 +415,7 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
   .now-title{height:46px;font-size:16px}
   .now-close{width:46px;height:46px}
   .now-map .leaflet-top.leaflet-right{top:66px}
-  .now-panel{left:12px;right:12px;bottom:12px;width:auto;max-height:55%}
+  .now-panel{left:12px;right:12px;bottom:12px;width:auto;max-height:30%}
   /* Cinci curse pe telefon (ION-100, Ion 27.09: «rău se vede în telefon, cartele mai înguste»):
      șoferul, mașina și numărul pe un rând; «după grafic» doar la cursa aleasă. */
   .now-info{flex-flow:row wrap;column-gap:6px}

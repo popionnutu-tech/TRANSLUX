@@ -8,7 +8,7 @@ if (!['export', 'write'].includes(mod) || !SRC) { console.error('folosire: poart
 const sha = p => createHash('sha256').update(readFileSync(p)).digest('hex');
 const eDrax = SRC === realpathSync(join(DRAX, 'date'));
 const fisier = f => { const p = join(SRC, f + '.json'); if (existsSync(p)) return realpathSync(p); if (f === 'nomenclator' && !eDrax) return realpathSync(join(DRAX, 'date', f + '.json')); return null; };
-const SCRIPTURI = ['drax.mjs', 'etalon-gps.mjs', 'filtru-rupte.mjs', 'c4.mjs', 'poarta.sh', 'poarta.mjs']; const shaScript = Object.fromEntries(SCRIPTURI.map(f => [f, sha(join(BAZA, 'cod', f))]));
+const SCRIPTURI = ['drax.mjs', 'etalon-gps.mjs', 'filtru-rupte.mjs', 'c4.mjs', 'timp.mjs', 'poarta.sh', 'poarta.mjs']; const shaScript = Object.fromEntries(SCRIPTURI.map(f => [f, sha(join(BAZA, 'cod', f))]));   // v5: + timp.mjs
 let candidati;
 if (process.env.POARTA_VERDICT) { let p; try { p = realpathSync(process.env.POARTA_VERDICT); } catch { console.error('POARTA_VERDICT inexistent'); process.exit(2); }
   if (!p.startsWith(realpathSync(RUL) + '/')) { console.error(`POARTA_VERDICT în afara ${RUL} — refuz`); process.exit(2); } candidati = [p]; }
@@ -28,5 +28,9 @@ const err = [], lista = []; if (!V.valid_pentru_export) err.push(`verdictul ${V.
 if (!eDrax && !existsSync(join(SRC, 'GATA'))) err.push('candidatul n-are marcajul GATA al producătorului');
 for (const f of INTRARI) { const p = fisier(f), i = V.intrari[f + '.json']; if (!p) { err.push(`${f}: lipsește din sursă`); continue; } if (!i) { err.push(`${f}: lipsește din verdict`); continue; }
   const h = sha(p); if (i.sursa !== p) err.push(`${f}: sursa ${p} ≠ verificată ${i.sursa}`); if (h !== i.sha256) err.push(`${f}: sha256 diferit de cel verificat`); lista.push(`${h}  ${p}`); }
+// v5: intrarea opțională decizii-v3.json — dacă e în sursă, trebuie să fie cea verificată
+for (const f of ['decizii-v3']) { const p = join(SRC, f + '.json'), i = V.intrari[f + '.json']; if (!existsSync(p) && !i) continue;
+  if (!existsSync(p)) { err.push(`${f}: verificată, dar lipsește din sursă`); continue; } if (!i) { err.push(`${f}: în sursă, dar neverificată`); continue; }
+  const h = sha(realpathSync(p)); if (h !== i.sha256) err.push(`${f}: sha256 diferit de cel verificat`); lista.push(`${h}  ${realpathSync(p)}`); }
 if (err.length) { console.error('POARTA ÎNCHISĂ:\n  ' + err.join('\n  ')); process.exit(3); }
 console.log(lista.join('\n')); console.error(`POARTA DESCHISĂ (${mod}, ${SRC}): verdictul ${V.rulat_la} · ${V.versiune} · ${INTRARI.length} intrări cu sha256 egal`);

@@ -12,6 +12,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { creeazaEtalon, VERSIUNE_ETALON } from './etalon-gps.mjs';
 import { variante as variantePeDispozitiv, efectLinie } from './c4.mjs';
+import { ziLucru } from './timp.mjs';   // v5: ziua de lucru = timp.mjs al lanțului ideal-v3 (03:00 pe ceasul local), aceeași copie (sha în GATA)
 
 const BAZA_RULARI = '/home/verif/verificator/rulari';
 const VD = process.env.VERIF_D;
@@ -22,9 +23,9 @@ const IN = join(VDR, 'in'), OUT = join(VDR, 'work');   // work/ = al lui verif; 
 const SCOATE = process.env.VERIF_SCOATE || null;              // proba R1: «R|linie» scoasă din schelet, în MEMORIE
 const FARA_REG = process.env.VERIF_FARA_REGISTRU === '1';     // proba registrului: aceeași rulare, fără explicații
 const sha = b => createHash('sha256').update(b).digest('hex');
-const SCRIPT = { drax_sha256: sha(readFileSync(fileURLToPath(import.meta.url))), etalon_sha256: sha(readFileSync(fileURLToPath(new URL('./etalon-gps.mjs', import.meta.url)))), etalon: VERSIUNE_ETALON, c4_sha256: sha(readFileSync(fileURLToPath(new URL('./c4.mjs', import.meta.url)))), filtru_sha256: sha(readFileSync(fileURLToPath(new URL('./filtru-rupte.mjs', import.meta.url)))), ruleaza_sha256: process.env.VERIF_RULEAZA_SHA || null,
+const SCRIPT = { drax_sha256: sha(readFileSync(fileURLToPath(import.meta.url))), etalon_sha256: sha(readFileSync(fileURLToPath(new URL('./etalon-gps.mjs', import.meta.url)))), timp_sha256: sha(readFileSync(fileURLToPath(new URL('./timp.mjs', import.meta.url)))), etalon: VERSIUNE_ETALON, c4_sha256: sha(readFileSync(fileURLToPath(new URL('./c4.mjs', import.meta.url)))), filtru_sha256: sha(readFileSync(fileURLToPath(new URL('./filtru-rupte.mjs', import.meta.url)))), ruleaza_sha256: process.env.VERIF_RULEAZA_SHA || null,
   node: process.version, tz: process.versions.tz, icu: process.versions.icu, fus: Intl.DateTimeFormat().resolvedOptions().timeZone };
-const VERSIUNE = `drax.mjs v4.1 · ${SCRIPT.drax_sha256.slice(0, 12)}`;
+const VERSIUNE = `drax.mjs v5 · ${SCRIPT.drax_sha256.slice(0, 12)}`;
 const SURSE = JSON.parse(readFileSync(join(IN, 'surse.json'), 'utf8'));
 const intrari = {}; const J = f => { const b = readFileSync(join(IN, f)); const h = sha(b);
   if (SURSE[f] && SURSE[f].sha256 !== h) { console.error(`copia ${f} ≠ sursa (${SURSE[f].sursa})`); process.exit(3); }
@@ -33,6 +34,9 @@ const S0 = J('schelet-ideal.json'), O = J('obs-ideal.json'), E = J('etalon-ideal
 const SH = J('schimburi-ideal.json'), CSC = J('care-schimb-ideal.json'), DUB = J('dubluri-ideal.json'), N = J('nomenclator.json'), FER = J('ferestre-drax.json');
 const PORTI = J('porti-drax.json');   // razele porților (drax/cod/ideal/curse.mjs:18), fișier sigilat
 const EXPL0 = J('explicatii-drax.json'); const EXPL = FARA_REG ? [] : EXPL0;
+// v5 (d): deciziile pe linie (decizii-v3.json al sursei, copiat și sigilat de ruleaza.sh; lipsă = nicio decizie)
+const DEC0 = existsSync(join(IN, 'decizii-v3.json')) ? J('decizii-v3.json') : null;
+const DEC = new Map((DEC0?.linii || []).map(d => [`${d.ruta}|${d.linie}`, d]));
 const S = SCOATE ? S0.filter(l => `${l.ruta}|${l.linie}` !== SCOATE) : S0;
 if (SCOATE && S.length === S0.length) { console.error(`VERIF_SCOATE=${SCOATE} nu există în schelet`); process.exit(2); }
 
@@ -60,7 +64,6 @@ const hav = (a, b) => { const R = 6371, r = Math.PI / 180; const dLat = (b.lat -
 const lung = d => { let k = 0; for (let i = 1; i < d.length; i++) k += hav({ lat: d[i - 1][0], lon: d[i - 1][1] }, { lat: d[i][0], lon: d[i][1] }); return k; };
 const fmtLoc = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Chisinau', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 const loc = t => { const p = Object.fromEntries(fmtLoc.formatToParts(new Date(t)).map(x => [x.type, x.value])); return { zi: `${p.year}-${p.month}-${p.day}`, h: +p.hour + +p.minute / 60 }; };
-const ziLucru = t => loc(new Date(t).getTime() - 3 * 3600000).zi;   // ziua de lucru 03:00 → 03:00 locală (LEAR §2.4)
 const luni = z => { const d = new Date(z + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() - (d.getUTCDay() + 6) % 7); return d.toISOString().slice(0, 10); };
 const cur = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z]/g, '');
 const ALIAS = { mihaileniivechi: 'mihaileni', dobrujaveche: 'dobrogeaveche', satmarculesti: 'marculesti', zorojeni: 'zarojeni',
@@ -140,12 +143,16 @@ const EG = creeazaEtalon({ O, D, E, N, porti: PORTI, P }); const metrici = EG.me
 
 // ── G1 km card = etalonul GPS COMPLETAT (poarta sensului + raza porții; Ion 26.09, triaj r3 Q1 (c)): >5 % sau nedeterminat = blocant ──
 const LINII = [], BAZA = new Map(), G1 = new Map();
-for (const l of cu) { const m = metrici(l, new Set()); BAZA.set(id(l.ruta, l.linie), m);
+const SCOATE_DEC = new Map();   // rută|linie → Set(okey) scoase prin decizie (aceeași populație ca generatorul)
+for (const l of cu) { const dec = DEC.get(id(l.ruta, l.linie)) || null;
+  const r = dec?.metoda === 'card-vechi' ? null : EG.etalonLinie(l, dec); const m = r ? { ...r.m, etalonGPS: r.etalon, nBune: r.zile, sursa: r.sursa } : metrici(l, new Set());
+  SCOATE_DEC.set(id(l.ruta, l.linie), r?.scoate ?? new Set()); BAZA.set(id(l.ruta, l.linie), m);
   const kmZiGPS = m.etalonGPS != null && m.tureZi != null ? +(2 * m.etalonGPS * m.tureZi).toFixed(1) : null; const za = l.zi ? `${l.schimbZi}|${l.masinaZi}|${l.zi}` : null;
   const k = id(l.ruta, l.linie), rgT = (RG.linii[k]?.[m.sursa]?.tur?.regulate || []).slice().sort(), rgR = (RG.linii[k]?.[m.sursa]?.retur?.regulate || []).slice().sort();
   LINII.push({ ruta: l.ruta, linie: l.linie, sursa: m.sursa, porti: m.poarta, zileBuneGPS: m.nBune, etalonGPS: m.etalonGPS, etalonGPS_brut: m.etalonBrut, km_card: l.km,
     dif_pct: m.etalonGPS ? +(100 * (l.km - m.etalonGPS) / m.etalonGPS).toFixed(1) : null, tureZiGPS: m.tureZi, tureZi_schelet: l.tureZi, kmZiGPS, kmZi_schelet: l.kmZi,
     ore: m.ore, picioareAltaPoarta: m.altaPoarta, picioareRupte: m.rupte, etalonOricePoarta: m.etalonOricePoarta, zileBuneOricePoarta: m.nBuneOrice, steag: l.diagnostic ?? null, ziAleasa: za, ziAleasaBunaGPS: za ? m.bune.has(za) : null, corectie: null,
+    decizie: dec ? { metoda: dec.metoda, scoate: dec.scoate?.masini ?? [], asteptat: dec.asteptat } : null, metoda_etalon: r?.metoda ?? 'poarta sensului', rezerva: r?.rezerva ?? null, scoase_decizie: r?.scoate?.size ?? 0,
     replica_regulate: m.reg.tur?.join() === rgT.join() && m.reg.retur?.join() === rgR.join() });
   if (m.etalonGPS == null) G1.set(k, pune('G1', 'blocant', { ruta: l.ruta, linie: l.linie, cifra: `${m.nBune} zile bune GPS pe poarta sensului în sursa «${m.sursa}» (<${P.MIN_ZILE})`, motiv: 'etalon GPS nedeterminat — cardul nu poate purta km GPS' }));
   else { const d = Math.abs(l.km - m.etalonGPS) / m.etalonGPS;
@@ -162,12 +169,19 @@ const SCURTE = new Set();   // cursele scurte ale perechilor «sigur» — scoas
   for (const [k, xsS] of peLinie) { const xs = [...xsS]; const [ruta, linie] = k.split('|'); const l = S.find(q => q.ruta === ruta && q.linie === linie);
     const masina = [...new Set(xs.map(x => x.m))].join(','), zile = new Set(xs.map(x => x.zi)).size;
     if (!l || !areKm(l) || l.informativ) { pune('C4 efect', 'informativ', { ruta, linie, masina, cifra: `${zile} zile cu dublură sigură`, motiv: 'linie fără ideal' }); continue; }
-    const V = variantePeDispozitiv(xs, cursePeZi, obsDe); const r = efectLinie({ l, baza: BAZA.get(k), metrici, V, P });
+    const V = variantePeDispozitiv(xs, cursePeZi, obsDe); const sd = SCOATE_DEC.get(k) ?? new Set(); const r = efectLinie({ l, baza: BAZA.get(k), metrici: (l2, sc, x) => metrici(l2, new Set([...sc, ...sd]), x), V, P });
     pune('C4 efect', r.nivel, { ruta, linie, masina, cifra: `${zile} zile cu dublură sigură · ${V.determinat ? 'dispozitive ' + V.devs.join(', ') : 'identitatea dispozitivului lipsește'} · baza: etalon GPS ${BAZA.get(k).etalonGPS}, ture/zi ${BAZA.get(k).tureZi}`, motiv: r.motiv }); } }
 
 // ── V2 efect: ture/zi cu dedup ±3 min DOAR pe aceeași mașină (etalon.mjs:122 unește și mașini diferite) ──
-for (const l of cu) { const b = BAZA.get(id(l.ruta, l.linie)), q = metrici(l, new Set(), true);
-  if (b.tureZi != null && q.tureZi !== b.tureZi) { const km = b.etalonGPS ?? l.km; pune('V2 efect', 'abatere', { ruta: l.ruta, linie: l.linie, cifra: `ture/zi ${b.tureZi} → ${q.tureZi} fără dedup între mașini (${(2 * km * (q.tureZi - b.tureZi)).toFixed(0)} km/zi)`, motiv: 'diagnostic C44 înainte de a atinge dedup-ul; exportul păstrează valoarea de azi' }); } }
+// v5: implicitul e acum dedup doar pe aceeași mașină / același dispozitiv; V2 arată diferența față de regula v4.1 (dedup între mașini)
+for (const l of cu) { const b = BAZA.get(id(l.ruta, l.linie)), q = metrici(l, SCOATE_DEC.get(id(l.ruta, l.linie)) ?? new Set(), false);
+  if (b.tureZi != null && q.tureZi !== b.tureZi) { const km = b.etalonGPS ?? l.km; pune('V2 efect', 'informativ', { ruta: l.ruta, linie: l.linie, cifra: `ture/zi ${b.tureZi} (v5, aceeași mașină) · ${q.tureZi} cu dedup între mașini (v4.1) (${(2 * km * (b.tureZi - q.tureZi)).toFixed(0)} km/zi)`, motiv: 'verdictul ideal-v3 (a): două autobuze reale nu se contopesc' }); }
+  if (typeof l.tureZi === 'number' && b.tureZi != null && l.tureZi !== b.tureZi) pune('V2 ture ≠ schelet', 'abatere', { ruta: l.ruta, linie: l.linie, cifra: `schelet ${l.tureZi} · GPS ${b.tureZi}` }); }
+// ── D8 deciziile: valoarea recalculată aici față de valoarea așteptată (toleranța din fișier) ──
+if (DEC0) { const tol = DEC0.toleranta_km ?? 0.1; for (const [k, d] of DEC) { const l = S.find(x => id(x.ruta, x.linie) === k), b = BAZA.get(k);
+  if (!l) { pune('D8 decizie', 'blocant', { ruta: d.ruta, linie: d.linie, motiv: 'decizie pentru o linie absentă din schelet' }); continue; }
+  const kmV = d.metoda === 'card-vechi' ? l.km : b?.etalonGPS; const ok = kmV != null && Math.abs(kmV - d.asteptat.km) <= tol && Math.abs(l.km - d.asteptat.km) <= tol && l.tureZi === d.asteptat.tureZi && Math.abs(l.kmZi - d.asteptat.kmZi) <= 2 * tol * d.asteptat.tureZi && !!l.diagnostic === !!d.asteptat.steag;
+  pune('D8 decizie', ok ? 'informativ' : 'blocant', { ruta: d.ruta, linie: d.linie, cifra: `${d.metoda}${d.scoate?.masini?.length ? ' fără ' + d.scoate.masini.join(',') : ''} · verificator ${kmV} · card ${l.km} × ${l.tureZi} = ${l.kmZi} · așteptat ${d.asteptat.km} × ${d.asteptat.tureZi} = ${d.asteptat.kmZi} · steag ${!!l.diagnostic}/${!!d.asteptat.steag}`, motiv: ok ? `${DEC0.sursa}` : 'decizia nu se reproduce (toleranța ' + tol + ' km)' }); } }
 // ── V3 / V5 ───────────────────────────────────────────────────────────────────
 { const k = new Map(); for (const c of O.curse) if (c.schimb) { const q = c.m + '|' + c.t0; k.set(q, (k.get(q) || 0) + 1); }
   const col = [...k].filter(([, v]) => v > 1).length; if (col) pune('V3', 'informativ', { cifra: `${col} chei m|t0 cu >1 observație cu schimb`, motiv: 'alege.mjs:34 păstrează doar ultima' }); }
@@ -246,8 +260,8 @@ for (const l of cu) { const a = l.schimburi?.s1?.km, b = l.schimburi?.s2?.km; if
 // G1 pe o linie cu C47 <60 %: corecția NU e automată — «diagnostic cerut» (două variante de drum posibile; triaj r3 M2)
 { let tot = 0, ok = 0, alta = 0, ruptTot = 0; const sub = [];
   for (const l of cu) { const k0 = id(l.ruta, l.linie), E0 = BAZA.get(k0)?.etalonGPS; if (E0 == null) { pune('C47', 'informativ', { ruta: l.ruta, linie: l.linie, motiv: 'fără etalon GPS — necomparabil' }); continue; }
-    const src = c => l.sursa === 'toate' || c.zi >= P.SEPT; const tol = Math.max(P.C47_TOL * E0, P.C47_MIN_KM);
-    const o = O.curse.filter(c => c.schimb && c.ruta === l.ruta && c.linie === l.linie && src(c) && !SCURTE.has(okey(c)));
+    const sE = BAZA.get(k0)?.sursa ?? l.sursa, sd = SCOATE_DEC.get(k0) ?? new Set(); const src = c => sE === 'toate' || c.zi >= P.SEPT; const tol = Math.max(P.C47_TOL * E0, P.C47_MIN_KM);
+    const o = O.curse.filter(c => c.schimb && c.ruta === l.ruta && c.linie === l.linie && src(c) && !SCURTE.has(okey(c)) && !sd.has(okey(c)));
     const peP = c => c.poarta === (c.sens === 'tur' ? l.real?.poartaTur : l.real?.poartaRetur);
     const rupteL = o.filter(c => EG.rupt(c)).length; ruptTot += rupteL; const o2 = o.filter(c => !EG.rupt(c));
     const pe = o2.filter(c => !c.rt && peP(c)), rt = o2.filter(c => c.rt), altaP = o2.filter(c => !c.rt && !peP(c)).length; alta += altaP;

@@ -8,7 +8,12 @@
 //     urma brută (apropiere ≤1,2 km din extracție sau oprire ≤1,5 km, pe partea cu oameni); etalonul = mediana km-ilor completați, ≥3 zile.
 //   · ture/zi = replica etalon.mjs:115-128 (toate porțile — turele nu depind de poartă); `faraDedupIntreMasini` = V2.
 import { creeazaFiltru, VERSIUNE_FILTRU } from './filtru-rupte.mjs';
-export const VERSIUNE_ETALON = `etalon-gps v4.1 + ${VERSIUNE_FILTRU}`;
+export const VERSIUNE_ETALON = `etalon-gps v5 + ${VERSIUNE_FILTRU}`;
+// v5 (ION-97, verdictul dezbaterii ideal-v3, 27.09.2026): (a) ture/zi deduplică ±3 min DOAR pe aceeași mașină sau pe același dispozitiv
+// (implicit; `faraDedupIntreMasini = false` redă regula v4.1, dedup între mașini, pentru V2); (b) `etalonLinie(l, dec)`: etalonul liniei cu
+// decizia din decizii-v3.json (mașini scoase din populație, metoda «orice poartă») și regula de rezervă pe toată fereastra (C20,
+// alege.mjs:56-58) când sursa are < 3 perechi bune GPS după filtre, cu garda de similaritate a drumului (picioarele întregi din sursă în
+// ±max(10 % × E, 1 km) de etalonul «toate» în ≥ 60 % — pragurile C47). Folosit de card-gps.mjs (lanț) și drax.mjs (G1, C47).
 const cur = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z]/g, '');
 const ALIAS = { mihaileniivechi: 'mihaileni', dobrujaveche: 'dobrogeaveche', satmarculesti: 'marculesti', zorojeni: 'zarojeni',
   grigoreuca: 'grigorauca', ustea: 'ustia', iezarenivechi: 'iezareniivechi', garacatranic: 'catranic', funduriivechi: 'fundurivechi', fundurivechi: 'funduriivechi' };
@@ -45,7 +50,7 @@ export function creeazaEtalon(ctx) {
     const ks = new Set(d.apr.filter(om).map(a => a.k)); const op = c.opr.filter(om);
     return sate.every(s => { const T = tinteSat(s); return !T.length || kk(s).some(k => ks.has(k)) || (capC && T.some(t => hav(t, capC) < 0.05)) || T.some(t => op.some(o => hav(o, t) <= P.R_TRECE)); }); }
   // l = linia din schelet (ruta, linie, sursa, real.poartaTur/poartaRetur); scoate = Set(okey) observații excluse (variantele C4)
-  function metrici(l, scoate = new Set(), faraDedupIntreMasini = false) {
+  function metrici(l, scoate = new Set(), faraDedupIntreMasini = true) {
     const sursa = l.sursa || 'toate', e = E.find(x => x.ruta === l.ruta && x.linie === l.linie);
     const capC = e?.capatC ? { lat: e.capatC[0], lon: e.capatC[1] } : null; const inS = z => sursa === 'toate' || z >= P.SEPT;
     const poarta = { tur: l.real?.poartaTur, retur: l.real?.poartaRetur };
@@ -65,10 +70,28 @@ export function creeazaEtalon(ctx) {
     const calif = new Set([...amb].filter(([, n]) => n >= 3).map(([s]) => s)); const zile = new Map();
     for (const [q, p] of per) { const [s, m, z] = q.split('|'); if (!inS(z) || !calif.has(s + '|' + m)) continue; if (!zile.has(z)) zile.set(z, []); zile.get(z).push({ s, m, ...p }); }
     const apr = (a, b) => a && b && Math.abs(new Date(a.t0) - new Date(b.t0)) <= 180000;
-    const cnt = [...zile.values()].map(arr => { const kept = []; for (const p of arr) if (!kept.some(x => x.s === p.s && (!faraDedupIntreMasini || x.m === p.m) && (apr(p.tur, x.tur) || apr(p.retur, x.retur)))) kept.push(p); return kept.length; });
+    const dev = p => p.tur?.dev ?? p.retur?.dev ?? null;   // același dispozitiv = același autobuz, oricare plăcuță (verdict v3 (a))
+    const acelasi = (x, p) => x.m === p.m || (dev(x) != null && dev(x) === dev(p));
+    const cnt = [...zile.values()].map(arr => { const kept = []; for (const p of arr) if (!kept.some(x => x.s === p.s && (!faraDedupIntreMasini || acelasi(x, p)) && (apr(p.tur, x.tur) || apr(p.retur, x.retur)))) kept.push(p); return kept.length; });
     const tureZi = cnt.length ? Math.round(med(cnt)) : null;
     const ore = {}; for (const s of ['s1', 's2']) for (const sens of ['tur', 'retur']) { const h = ob.filter(c => c.schimb === s && c.sens === sens && inS(c.zi)).map(c => { const x = oraLoc(sens === 'tur' ? c.t1 : c.t0); return x < 3 ? x + 24 : x; }); ore[`${s} ${sens}`] = h.length ? +med(h).toFixed(2) : null; }
     return { sursa, poarta, reg, nBune: ok.length, etalonGPS, etalonBrut, etalonOricePoarta, nBuneOrice: buneOrice.length, rupte, tureZi, ore, altaPoarta, bune: new Set(ok.map(b => b.q)) };
   }
-  return { metrici, regulate, plinC, rupt, limita: FR.limita, tinteSat, depl };
+  // decizia unei linii (decizii-v3.json): { metoda: 'poarta-sensului' | 'orice-poarta' | 'card-vechi', scoate?: { masini: [...] } }
+  const scoateDin = (l, dec) => { const ms = new Set(dec?.scoate?.masini || []); if (!ms.size) return new Set();
+    return new Set((peLinie.get(`${l.ruta}|${l.linie}`) || []).filter(c => ms.has(c.m)).map(okey)); };
+  function garda(l, E0, sursa, scoate) {   // picioarele întregi ale sursei, pe poarta sensului, fără rt, în toleranța C47 de etalonul «toate»
+    const inS = z => sursa === 'toate' || z >= P.SEPT, tol = Math.max(P.C47_TOL * E0, P.C47_MIN_KM);
+    const pe = (peLinie.get(`${l.ruta}|${l.linie}`) || []).filter(c => inS(c.zi) && !scoate.has(okey(c)) && !rupt(c) && !c.rt && c.poarta === (c.sens === 'tur' ? l.real?.poartaTur : l.real?.poartaRetur));
+    const k = pe.filter(c => plinC(c) != null && Math.abs(plinC(c) - E0) <= tol).length;
+    return { n: pe.length, inTol: k, rap: pe.length ? +(k / pe.length).toFixed(2) : null, ok: pe.length >= P.MIN_ZILE && k / pe.length >= P.C47_ABATERE }; }
+  function etalonLinie(l, dec = null) {
+    const scoate = scoateDin(l, dec); const m = metrici(l, scoate);
+    if (dec?.metoda === 'orice-poarta') return { etalon: m.etalonOricePoarta, zile: m.nBuneOrice, metoda: 'orice poartă (decizie)', sursa: m.sursa, rezerva: null, m, scoate };
+    if (m.etalonGPS != null || m.sursa === 'toate') return { etalon: m.etalonGPS, zile: m.nBune, metoda: 'poarta sensului', sursa: m.sursa, rezerva: null, m, scoate };
+    const mt = metrici({ ...l, sursa: 'toate' }, scoate); if (mt.etalonGPS == null) return { etalon: null, zile: m.nBune, metoda: 'poarta sensului', sursa: m.sursa, rezerva: { etalon: null, zile: mt.nBune }, m, scoate };
+    const g = garda(l, mt.etalonGPS, m.sursa, scoate); const rezerva = { etalon: mt.etalonGPS, zile: mt.nBune, garda: g };
+    return g.ok ? { etalon: mt.etalonGPS, zile: mt.nBune, metoda: 'rezervă toată fereastra (C20)', sursa: 'toate', rezerva, m: mt, scoate }
+      : { etalon: null, zile: m.nBune, metoda: 'poarta sensului', sursa: m.sursa, rezerva, m, scoate }; }
+  return { metrici, etalonLinie, scoateDin, regulate, plinC, rupt, limita: FR.limita, tinteSat, depl };
 }

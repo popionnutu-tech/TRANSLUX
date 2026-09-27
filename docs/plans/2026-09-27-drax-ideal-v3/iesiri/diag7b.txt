@@ -1,0 +1,162 @@
+## R18 Zarojeni
+    s1|348KAJ|2026-09-17 EZ EST/EST tur 34 retur 33.9 BUNĂ · străine tur [tipletesti,alexandreni,biruinta,elizaveta,slobozia] retur [slobozia,elizaveta,biruinta]
+    s1|348KAJ|2026-09-18 EZ EST/EST tur 49 retur 52.7 BUNĂ · străine tur [cubolta,moaradepiatra,biruinta] retur [slobozia,biruinta,cubolta,moaradepiatra,alexandreni,tipletesti]
+    s1|348KAJ|2026-09-19 EZ EST/EST tur 40.9 retur 39.8 BUNĂ · străine tur [tipletesti,alexandreni,biruinta,grigoresti,heciulnou,elizaveta,slobozia] retur [slobozia,elizaveta,biruinta,alexandreni,grigoresti,heciulnou,tipletesti]
+    s1|348KAJ|2026-09-22 D EST/EST tur 30 retur 29.7 BUNĂ · străine tur [tipletesti,tiplesti,alexandreni,heciulvechi,biruinta] retur [biruinta,alexandreni,heciulvechi,tipletesti,tiplesti]
+    s1|348KAJ|2026-09-23 D EST/EST tur 29.9 retur 30.1 BUNĂ · străine tur [tipletesti,tiplesti,alexandreni,heciulvechi,biruinta] retur [slobozia,biruinta,alexandreni,heciulvechi,tipletesti,tiplesti]
+    s1|348KAJ|2026-09-24 D EST/EST tur 29.9 retur 31 BUNĂ · străine tur [tipletesti,tiplesti,alexandreni,heciulvechi,biruinta] retur [slobozia,biruinta,alexandreni,heciulvechi,tipletesti,tiplesti]
+    s1|348KAJ|2026-09-25 D EST/EST tur 30.4 retur 30.2 BUNĂ · străine tur [tipletesti,tiplesti,alexandreni,heciulvechi,biruinta,slobozia] retur [biruinta,alexandreni,heciulvechi,tipletesti,tiplesti]
+    s2|348KAJ|2026-09-17 D EST/EST tur 53.9 retur 55.3 BUNĂ · străine tur [ivanovca,sevirova,trifanesti,frumusica,alexandrovca,biruinta] retur [biruinta,ivanovca,sevirova,trifanesti,frumusica,alexandrovca]
+    s2|348KAJ|2026-09-21 EZ EST/EST tur 28.9 retur 28.8 BUNĂ · străine tur [tipletesti,alexandreni,biruinta] retur [slobozia,biruinta]
+    s2|348KAJ|2026-09-22 EZ EST/EST tur 27.6 retur 22.6 · străine tur [tipletesti,alexandreni,biruinta,slobozia] retur [biruinta]
+    s2|348KAJ|2026-09-23 EZ EST/EST tur 27.4 retur 22.5 · străine tur [tipletesti,alexandreni,biruinta,slobozia] retur [biruinta]
+    s2|348KAJ|2026-09-24 EZ EST/EST tur 39.3 retur 22.6 · străine tur [tipletesti,alexandreni,biruinta] retur [slobozia,biruinta]
+  sept toate picioarele: 30.7 (9 zile; orice poartă 30.7/9; ture/zi 2, fără dedup între mașini 2)
+  «toate»: 29.9 (43 zile; orice poartă 29.9/43; ture/zi 2, fără dedup între mașini 2)
+  sept fără picioare comasate (sate din actul altor rute): — (0 zile; orice poartă —/0; ture/zi —, fără dedup între mașini —)
+  sept grupa D (s1 în faza B… după fază): 30.1 (5 zile; orice poartă 30.1/5; ture/zi 1, fără dedup între mașini 1) · «toate» D: 53.3 (16 zile; orice poartă 53.3/16; ture/zi 1, fără dedup între mașini 1)
+  sept grupa EZ: 36.9 (4 zile; orice poartă 36.9/4; ture/zi 1, fără dedup între mașini 1) · «toate» EZ: 25.6 (27 zile; orice poartă 25.6/27; ture/zi 1, fără dedup între mașini 1)
+  EZ sept pe sens (fără comasate): tur null (n0) · retur null (n0)
+  opțiune 28.9: km/zi 115.6 (Δ 0.0)
+  opțiune 29.9: km/zi 119.6 (Δ 4.0)
+  opțiune 30: km/zi 120.0 (Δ 4.4)
+  opțiune 30.7: km/zi 122.8 (Δ 7.2)
+
+## R24 Catranic
+    s1|224BZP|2026-09-01 EZ VEST/EST tur 28.7 retur 4.6 rupt
+    s1|224BZP|2026-09-02 EZ VEST/EST tur 29.2 retur 12 rupt
+    s1|224BZP|2026-09-03 EZ VEST/EST tur 28.7 retur 18.7 rupt
+    s1|224BZP|2026-09-04 EZ VEST/EST tur 28.8 retur 16.4 rupt
+    s1|224BZP|2026-09-14 EZ VEST/EST tur 28.9 retur 23.6
+    s1|224BZP|2026-09-15 EZ VEST/EST tur 28.7 retur 22.9
+    s1|224BZP|2026-09-16 EZ VEST/EST tur 23.5 retur 22.1 rupt
+    s1|224BZP|2026-09-17 EZ VEST/VEST tur 28.3 retur 7.7 rupt
+    s1|224BZP|2026-09-18 EZ VEST/EST tur 29.2 retur 11.9 rupt
+    s2|224BZP|2026-09-07 EZ VEST/EST tur 14.7 retur 23.2 rupt
+    s2|224BZP|2026-09-08 EZ VEST/EST tur 15.5 retur 30.3 rupt
+    s2|224BZP|2026-09-10 EZ VEST/EST tur 14.2 retur 21 rupt
+    s2|224BZP|2026-09-11 EZ VEST/EST tur 12.1 retur 29.7 rupt
+    s2|224BZP|2026-09-21 EZ VEST/EST tur 29 retur 30.6 BUNĂ
+    s2|224BZP|2026-09-23 EZ VEST/EST tur 22.5 retur 29.7
+    s2|224BZP|2026-09-24 EZ VEST/EST tur 27.6 retur 30.3 BUNĂ
+  sept: — (2 zile; orice poartă —/2; ture/zi 1, fără dedup între mașini 1)
+  «toate» (C20, alege.mjs:54-58): 29.3 (41 zile; orice poartă 29.5/43; ture/zi 1, fără dedup între mașini 1)
+  sept, picioare întregi pe poarta sensului: tur 28.7 · retur 29.799999999999997 · rupte sept 13 (dispozitive ["2302"])
+  opțiune 30: km/zi 60.0 (Δ 0.0)
+  opțiune 29.3: km/zi 58.6 (Δ -1.4)
+  picioare / rupte pe lună: {"2026-06":[40,1],"2026-05":[38,0],"2026-07":[21,0],"2026-09":[37,13]}
+
+## R36 Bocancea Schit
+    s1|224BZP|2026-09-07 D EST/EST tur 50.9 retur 37.1
+    s1|224BZP|2026-09-08 D EST/EST tur 53.3 retur 45.3 BUNĂ
+    s1|224BZP|2026-09-10 D EST/EST tur 45.7 retur 42.8 BUNĂ
+    s1|224BZP|2026-09-11 D EST/EST tur 46.7 retur 33.5
+    s1|224BZP|2026-09-21 D VEST/EST tur 47 retur 52.9
+    s1|224BZP|2026-09-22 D EST/EST tur 42.6 retur 50 BUNĂ
+    s1|224BZP|2026-09-23 D EST/EST tur 52.9 retur 45.4 BUNĂ
+    s1|224BZP|2026-09-24 D EST/EST tur 52.5 retur 32.5 rupt
+    s1|224BZP|2026-09-25 D EST/EST tur 47.2 retur 31.1 rupt
+    s2|224BZP|2026-09-01 D VEST/EST tur 4.7 retur 54.4 rupt
+    s2|224BZP|2026-09-02 D EST/EST tur 38.2 retur 55.1
+    s2|224BZP|2026-09-03 D EST/EST tur 46.6 retur 44.7 BUNĂ
+    s2|224BZP|2026-09-04 D EST/EST tur 45.8 retur 54.3 BUNĂ
+    s2|224BZP|2026-09-14 D EST/EST tur 43.3 retur 53.4
+    s2|224BZP|2026-09-15 D EST/EST tur 33.6 retur 54.2
+    s2|224BZP|2026-09-16 D EST/EST tur 55.5 retur 53.3 BUNĂ
+    s2|224BZP|2026-09-17 D EST/EST tur 45.5 retur 51.7
+    s2|224BZP|2026-09-18 D EST/EST tur 34.8 retur 54
+  sept: 46.2 (7 zile; orice poartă 46.8/8; ture/zi 1, fără dedup între mașini 1)
+  sept varianta lungă (prin Bilicenii Vechi): — (2 zile; orice poartă —/2; ture/zi 1, fără dedup între mașini 1)
+  sept varianta scurtă: — (0 zile; orice poartă —/0; ture/zi —, fără dedup între mașini —)
+  «toate»: 59.1 (48 zile; orice poartă 59.1/50; ture/zi 1, fără dedup între mașini 1)
+  pe sens (sept, poarta sensului, întregi): tur 46.2 (n16) · retur 52.3 (n16) · pe schimb: tur s1 49.05 · tur s2 44.4 · retur s1 45.3 · retur s2 54
+  lung/scurt pe lună: {"2026-05":{"lung":37,"scurt":1},"2026-06":{"lung":42,"scurt":0},"2026-07":{"lung":23,"scurt":1},"2026-09":{"lung":23,"scurt":14}}
+  opțiune 54.5: km/zi 109.0 (Δ 0.0)
+  opțiune 46.2: km/zi 92.4 (Δ -16.6)
+  opțiune pe sens 46.2+52.3: km/zi 98.5 (Δ -10.5)
+
+## R27 Sturzovca / R11 Limbenii Noi
+  sept tot: 46.5 (8 zile; orice poartă 24.1/41; ture/zi 3, fără dedup între mașini 3)
+  sept fără bucla 727CWN, porțile actuale VEST/EST: — (0 zile; orice poartă 24/33; ture/zi 2, fără dedup între mașini 2)
+  … VEST/VEST: 24 (17 zile; orice poartă 24/33; ture/zi 2, fără dedup între mașini 2)
+  … EST/EST: 23.9 (16 zile; orice poartă 24/33; ture/zi 2, fără dedup între mașini 2)
+  «toate» fără buclă: 64.7 (32 zile; orice poartă 23.9/159; ture/zi 3, fără dedup între mașini 3)
+  doar bucla (VEST/EST): 46.5 (8 zile; orice poartă 46.5/8; ture/zi 1, fără dedup între mașini 1)
+  bucla: 28 picioare (toată fereastra), sept 22 · {"tur s1 EZ VEST":8,"retur s1 EZ EST":9,"retur s1 EZ VEST":1,"tur s2 D EST":1,"tur s2 EZ VEST":5,"retur s2 EZ EST":4} · km med tur 44.6 retur 47.150000000000006
+  Sturzovca 24.9 × 3 ture: 149.4 (Δ 0.0)
+  Sturzovca 24.9 × 2 ture: 99.6 (Δ -49.8)
+  R11 Limbenii Noi azi: card 31.2 · ture/zi 1 · 62.4 · mașini 457BRAX(66) 760BXI(2) 351KAJ(1) 293QVT(1) 710CWN(1)
+  zile sept cu Limbenii Noi (457BRAX…) 12 · cu bucla 727CWN 12 · în ambele 2
+  grupa (după fază) sept: bucla {"D":1,"EZ":21} · Limbenii Noi {"EZ":21}
+
+## R32 Trifanesti
+  sept tot: 41.2 (40 zile; orice poartă 41.2/40; ture/zi 2, fără dedup între mașini 4)
+  146BRAZ: 40.2 (18 zile; orice poartă 40.2/18; ture/zi 2, fără dedup între mașini 2) · «toate» 41.2 (48 zile; orice poartă 41.2/48; ture/zi 2, fără dedup între mașini 2)
+  518MHD: 52.9 (12 zile; orice poartă 52.9/12; ture/zi 2, fără dedup între mașini 2) · «toate» 53.4 (25 zile; orice poartă 53.4/25; ture/zi 2, fără dedup între mașini 2)
+  picioare sept pe mașină/schimb/grupă: {"146BRAZ s2 D":17,"146BRAZ s1 EZ":20,"146BRAZ s1 D":17,"146BRAZ s2 EZ":17,"518MHD s1 EZ":12,"518MHD s2 D":10,"518MHD s1 D":15,"518MHD s2 EZ":11}
+  pe lună: {"144BRAZ 2026-05":2,"146BRAZ 2026-05":22,"146BRAZ 2026-06":14,"146BRAZ 2026-07":29,"146BRAZ 2026-09":71,"518MHD 2026-06":31,"518MHD 2026-07":31,"518MHD 2026-09":48,"731ARF 2026-05":10,"731ARF 2026-06":2,"348KAJ 2026-06":2,"763LYY 2026-05":1,"763LYY 2026-06":2}
+  518MHD pe linii (toată fereastra): {"R5|Alunis":3,"R6|Mihailenii Vechi":2,"R16|Varvareuca":24,"R24|Catranic":9,"R36|Bocancea Schit":7,"R32|Trifanesti":110,"R16|Floresti":18,"R32|Cainarii Vechi":20}
+  R16 Varvareuca: card 42.8 ture 2 mașini 350KAJ(60) 144BRAZ(27) 518MHD(20) 731ARF(8) 293QVT(7) 146BRAZ(7) 763LYY(4) 348KAJ(3) 412BRAY(1) · R16 Floresti: card 35.7 ture 1 mașini 518MHD(18) 144BRAZ(17) 763LYY(1) 297LVY(1)
+  v2: o linie, 2 ture: 169.2
+  v3 mecanic: o linie, 4 ture: 338.4
+  două linii: 146BRAZ 40.2 × 2 + 518MHD 52.9 × 2 = 372.4 km/zi
+
+## R3 Nihoreni
+    s1|186OMM|2026-09-07 D EST/EST tur 52.7 retur 52.9
+    s1|186OMM|2026-09-08 D EST/EST tur 52.6 retur 49.1
+    s1|186OMM|2026-09-10 D EST/EST tur 52.7 retur 48.3
+    s1|186OMM|2026-09-21 D EST/EST tur 56.4 retur 50.3
+    s1|186OMM|2026-09-22 D EST/EST tur 48.5 retur 38.8
+    s1|186OMM|2026-09-23 D EST/EST tur 48.1 retur 38.8
+    s1|186OMM|2026-09-24 D EST/EST tur 48.1 retur 48.3
+    s1|186OMM|2026-09-25 D EST/EST tur 52.6 retur 38.8
+    s1|345KAJ|2026-09-01 EZ VEST/EST tur 41.6 retur 42.1 BUNĂ
+    s1|345KAJ|2026-09-02 EZ VEST/EST tur 40.4 retur 41.2 BUNĂ
+    s1|345KAJ|2026-09-03 EZ VEST/EST tur 40.3 retur 42 BUNĂ
+    s1|345KAJ|2026-09-04 EZ VEST/EST tur 40.4 retur 42.4 BUNĂ
+    s1|457BRAX|2026-09-15 EZ VEST/EST tur 47.8 retur 47.4 BUNĂ
+    s1|457BRAX|2026-09-16 EZ VEST/EST tur 47.9 retur 47.7 BUNĂ
+    s1|457BRAX|2026-09-17 EZ VEST/EST tur 47.2 retur 47.3 BUNĂ
+    s1|457BRAX|2026-09-18 EZ VEST/EST tur 44.1 retur 47.5 BUNĂ
+    s2|186OMM|2026-09-01 D EST/EST tur 52.7 retur 52.9
+    s2|186OMM|2026-09-02 D EST/EST tur 38.6 retur 52.8
+    s2|186OMM|2026-09-03 D EST/EST tur 52.7 retur 52.9
+    s2|186OMM|2026-09-04 D EST/EST tur 38.6 retur 50.9
+    s2|186OMM|2026-09-14 D EST/EST tur 48.2 retur 52.9
+    s2|186OMM|2026-09-15 D EST/EST tur 38.6 retur 52.9
+    s2|186OMM|2026-09-16 D EST/EST tur 38.6 retur 50.8
+    s2|186OMM|2026-09-17 D EST/EST tur 38.5 retur 48.3
+    s2|186OMM|2026-09-18 D EST/EST tur 38.6 retur 45.9
+    s2|345KAJ|2026-09-05 D EST/EST tur 48.8 retur 38.3
+    s2|345KAJ|2026-09-07 EZ VEST/EST tur 40.3 retur 42.2 BUNĂ
+    s2|345KAJ|2026-09-08 EZ VEST/EST tur 40.3 retur 42 BUNĂ
+    s2|345KAJ|2026-09-10 EZ VEST/EST tur 40.2 retur 42.1 BUNĂ
+    s2|345KAJ|2026-09-11 EZ VEST/EST tur 40.4 retur 42.1 BUNĂ
+    s2|457BRAX|2026-09-21 EZ VEST/EST tur 41.5 retur 43.2 BUNĂ
+    s2|457BRAX|2026-09-22 EZ VEST/EST tur 44.5 retur 43.7 BUNĂ
+    s2|457BRAX|2026-09-23 EZ VEST/EST tur 43.9 retur 43.6 BUNĂ
+    s2|457BRAX|2026-09-24 EZ VEST/EST tur 43.9 retur 43.5 BUNĂ
+  sept: 42.3 (16 zile; orice poartă 44.3/24; ture/zi 2, fără dedup între mașini 2)
+  grupa EZ (porțile liniei): 42.3 (16 zile; orice poartă 42.3/16; ture/zi 1, fără dedup între mașini 1) · VEST/EST: 42.3 (16 zile; orice poartă 42.3/16; ture/zi 1, fără dedup între mașini 1)
+  grupa D: — (0 zile; orice poartă 52.7/8; ture/zi 1, fără dedup între mașini 1) · EST/EST: 52.7 (8 zile; orice poartă 52.7/8; ture/zi 1, fără dedup între mașini 1)
+  pe mașină: 186OMM — (0 zile; orice poartă 52.7/8; ture/zi 1, fără dedup între mașini 1) | 345KAJ 41.4 (8 zile; orice poartă 41.4/8; ture/zi 1, fără dedup între mașini 1) | 457BRAX 44.3 (8 zile; orice poartă 44.3/8; ture/zi 1, fără dedup între mașini 1) · 186OMM EST/EST 52.7 (8 zile; orice poartă 52.7/8; ture/zi 1, fără dedup între mașini 1)
+  mașină/grupă/schimb sept: {"457BRAX EZ s1":9,"457BRAX EZ s2":9,"345KAJ EZ s1":10,"345KAJ D s2":2,"345KAJ EZ s2":9,"297LVY D s1":1,"186OMM D s2":18,"186OMM D s1":18}
+
+## R6 Mihailenii Vechi
+    s1|917FTI|2026-09-01 EZ VEST/EST tur 53.9 retur 54.7 · străine tur [recea,corlateni] retur [slobozia,corlateni,recea]
+    s1|917FTI|2026-09-02 EZ VEST/EST tur 54.1 retur 54.8 · străine tur [recea,corlateni] retur [slobozia,corlateni,recea]
+    s1|917FTI|2026-09-03 EZ EST/EST tur 60.4 retur 54.8 BUNĂ · străine tur [recea,corlateni,singureni,slobozia] retur [slobozia,corlateni,recea]
+    s1|917FTI|2026-09-04 EZ VEST/EST tur 53.8 retur 54.8 · străine tur [recea,corlateni] retur [slobozia,corlateni,recea]
+    s1|917FTI|2026-09-12 D EST/EST tur 72.7 retur 70.1 BUNĂ · străine tur [drochia,sofia,pelinia,corlateni,slobozia] retur [slobozia,corlateni,pelinia,sofia,drochia]
+    s2|917FTI|2026-09-07 EZ VEST/EST tur 53.8 retur 54.5 · străine tur [recea,corlateni] retur [slobozia,corlateni,recea]
+    s2|917FTI|2026-09-08 EZ VEST/EST tur 53.7 retur 54.5 · străine tur [recea,corlateni] retur [slobozia,corlateni,recea]
+    s2|917FTI|2026-09-10 EZ EST/EST tur 55.5 retur 54.7 BUNĂ · străine tur [recea,corlateni,slobozia] retur [slobozia,corlateni,recea]
+    s2|917FTI|2026-09-11 EZ EST/EST tur 55.5 retur 54.6 BUNĂ · străine tur [recea,corlateni,slobozia] retur [slobozia,corlateni,recea]
+    s2|917FTI|2026-09-12 EZ EST/EST tur 72.5 retur 67.3 BUNĂ · străine tur [drochia,sofia,pelinia,corlateni,slobozia] retur [slobozia,corlateni,pelinia,drochia]
+  sept porțile EST/EST: 58 (5 zile; orice poartă 54.8/10; ture/zi 1, fără dedup între mașini 1)
+  sept VEST/EST: 54.3 (5 zile; orice poartă 54.8/10; ture/zi 1, fără dedup între mașini 1)
+  sept fără comasate (EST/EST): — (0 zile; orice poartă —/0; ture/zi —, fără dedup între mașini —) · VEST/EST: — (0 zile; orice poartă —/0; ture/zi —, fără dedup între mașini —)
+  «toate»: 55.5 (7 zile; orice poartă 54.5/57; ture/zi 1, fără dedup între mașini 1)
+  opțiune 55.7: km/zi 111.4 (Δ 0.0)
+  opțiune 58: km/zi 116.0 (Δ 4.6)
+  opțiune 54.8: km/zi 109.6 (Δ -1.8)

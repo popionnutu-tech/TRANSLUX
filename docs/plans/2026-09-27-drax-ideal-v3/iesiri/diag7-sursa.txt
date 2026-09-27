@@ -1,0 +1,101 @@
+
+### R18|Zarojeni · card 28.9 · ture/zi 2 · kmZi 115.6 · sursa sept · porți EST/EST · regim rotatie/s1 în faza B · act {"EZ":1,"D":0} · steag: C47 41 %
+  etalon sept: 30.7 (9 zile) · orice poartă 30.7 (9) · ture/zi GPS 2 · «toate»: 29.9 (43) · orice poartă 29.9 (43) · ture/zi 2 · regulate tur ["Gura Cainarului"] retur ["Gura Cainarului"]
+  picioare 29 (rupte 0) · sate discriminante: alexandreni, alexandrovca, elizaveta, frumusica, grigoresti, guracainarului, heciulnou, heciulvechi, ivanovca, marasesti, putinesti, sevirova, slobozia, tiplesti, tipletesti, trifanesti, zarojeni
+  pe sens|schimb|poartă|mașină: retur|s1|EST|348KAJ n8 med 30.6 [29.7–52.7] · tur|s1|EST|348KAJ n7 med 30.4 [29.9–49.0] · tur|s2|EST|348KAJ n7 med 29.1 [27.4–53.9] · retur|s2|EST|348KAJ n6 med 25.7 [22.5–55.3] · retur|s1|EST|763LYY n1 med 27.5 [27.5–27.5]
+  variante (semnătura satelor discriminante):
+    [alexandreni+guracainarului+heciulvechi+putinesti+tiplesti+tipletesti] n5 · km med 29.9 [29.7–30.2] · zile 4 · mașini {"348KAJ":5} · {"tur s1 EST":3,"retur s1 EST":2} · grupa {"D":5}
+    [alexandreni+guracainarului+heciulvechi+putinesti+slobozia+tiplesti+tipletesti] n4 · km med 30.3 [30.1–31.0] · zile 4 · mașini {"348KAJ":4} · {"retur s1 EST":3,"tur s1 EST":1} · grupa {"D":4}
+    [alexandrovca+frumusica+guracainarului+ivanovca+marasesti+sevirova+trifanesti] n3 · km med 53.9 [51.2–55.3] · zile 2 · mașini {"348KAJ":3} · {"tur s2 EST":2,"retur s2 EST":1} · grupa {"D":3}
+    [alexandreni+elizaveta+grigoresti+guracainarului+heciulnou+putinesti+slobozia+tipletesti] n3 · km med 40.9 [39.8–47.6] · zile 1 · mașini {"348KAJ":3} · {"tur s1 EST":1,"retur s1 EST":1,"retur s2 EST":1} · grupa {"EZ":2,"D":1}
+    [alexandreni+guracainarului+putinesti+slobozia+tipletesti+zarojeni] n3 · km med 27.6 [27.4–29.1] · zile 3 · mașini {"348KAJ":3} · {"tur s2 EST":3} · grupa {"EZ":3}
+    [alexandreni+guracainarului+putinesti+tipletesti+zarojeni] n2 · km med 34.1 [28.9–39.3] · zile 2 · mașini {"348KAJ":2} · {"tur s2 EST":2} · grupa {"EZ":2}
+    [marasesti+zarojeni] n2 · km med 22.6 [22.5–22.6] · zile 2 · mașini {"348KAJ":2} · {"retur s2 EST":2} · grupa {"EZ":2}
+    [alexandreni+elizaveta+guracainarului+putinesti+slobozia+tipletesti+zarojeni] n1 · km med 34.0 [34.0–34.0] · zile 1 · mașini {"348KAJ":1} · {"tur s1 EST":1} · grupa {"EZ":1}
+    [elizaveta+guracainarului+marasesti+slobozia] n1 · km med 33.9 [33.9–33.9] · zile 1 · mașini {"348KAJ":1} · {"retur s1 EST":1} · grupa {"EZ":1}
+    [guracainarului+marasesti] n1 · km med 49.0 [49.0–49.0] · zile 1 · mașini {"348KAJ":1} · {"tur s1 EST":1} · grupa {"EZ":1}
+    [alexandreni+guracainarului+putinesti+slobozia+tipletesti] n1 · km med 52.7 [52.7–52.7] · zile 1 · mașini {"348KAJ":1} · {"retur s1 EST":1} · grupa {"EZ":1}
+    [guracainarului+marasesti+slobozia] n1 · km med 28.8 [28.8–28.8] · zile 1 · mașini {"348KAJ":1} · {"retur s2 EST":1} · grupa {"EZ":1}
+    [marasesti+slobozia+zarojeni] n1 · km med 22.6 [22.6–22.6] · zile 1 · mașini {"348KAJ":1} · {"retur s2 EST":1} · grupa {"EZ":1}
+    [elizaveta+marasesti+zarojeni] n1 · km med 27.5 [27.5–27.5] · zile 1 · mașini {"763LYY":1} · {"retur s1 EST":1} · grupa {"EZ":1}
+
+### R24|Catranic · card 30 · ture/zi 1 · kmZi 60 · sursa sept · porți VEST/EST · regim rotatie/s1 în faza B · act {"EZ":1,"D":0} · steag: < 3 perechi bune (2)
+  etalon sept: null (2 zile) · orice poartă null (2) · ture/zi GPS 1 · «toate»: 29.3 (41) · orice poartă 29.5 (43) · ture/zi 1 · regulate tur ["Catranic","Gara Catranic"] retur ["Catranic","Gara Catranic"]
+  picioare 37 (rupte 13) · sate discriminante: slobozia
+  pe sens|schimb|poartă|mașină: tur|s1|VEST|224BZP n9 med 28.7 [23.5–29.2] · retur|s2|EST|224BZP n8 med 30.1 [23.2–30.7] · tur|s2|VEST|224BZP n4 med 26.8 [22.5–29.0] · retur|s1|EST|224BZP n2 med 23.3 [22.9–23.6] · tur|s1|EST|224BZP n1 med 67.0 [67.0–67.0]
+  variante (semnătura satelor discriminante):
+    [(drumul de bază)] n17 · km med 28.7 [22.5–29.9] · zile 14 · mașini {"224BZP":17} · {"tur s1 VEST":9,"retur s2 EST":3,"retur s1 EST":2,"tur s2 VEST":3} · grupa {"EZ":17}
+    [slobozia] n7 · km med 30.3 [23.2–67.0] · zile 6 · mașini {"224BZP":7} · {"retur s2 EST":5,"tur s1 EST":1,"tur s2 VEST":1} · grupa {"EZ":6,"D":1}
+
+### R36|Bocancea Schit · card 54.5 · ture/zi 1 · kmZi 109 · sursa sept · porți EST/EST · regim rotatie/s1 în faza A · act {"EZ":0,"D":1} · steag: C47 41 %
+  etalon sept: 46.2 (7 zile) · orice poartă 46.8 (8) · ture/zi GPS 1 · «toate»: 59.1 (48) · orice poartă 59.1 (50) · ture/zi 1 · regulate tur ["Bobletici","Bocancea Schit"] retur ["Bobletici","Bocancea Schit"]
+  picioare 37 (rupte 4) · sate discriminante: biliceniivechi, bobletici, coscodeni, slobozia
+  pe sens|schimb|poartă|mașină: retur|s2|EST|224BZP n9 med 54.0 [44.7–55.1] · tur|s2|EST|224BZP n8 med 44.4 [33.6–55.5] · tur|s1|EST|224BZP n8 med 49.0 [42.6–53.3] · retur|s1|EST|224BZP n7 med 45.3 [33.5–52.9] · tur|s1|VEST|224BZP n1 med 47.0 [47.0–47.0]
+  variante (semnătura satelor discriminante):
+    [biliceniivechi+bobletici+coscodeni+slobozia] n10 · km med 53.1 [45.8–55.1] · zile 9 · mașini {"224BZP":10} · {"retur s2 EST":4,"tur s2 EST":2,"tur s1 EST":3,"retur s1 EST":1} · grupa {"D":10}
+    [biliceniivechi+bobletici+coscodeni] n7 · km med 52.5 [45.4–54.4] · zile 7 · mașini {"224BZP":7} · {"retur s2 EST":3,"tur s1 EST":3,"retur s1 EST":1} · grupa {"D":7}
+    [bobletici+coscodeni+slobozia] n5 · km med 43.3 [33.6–47.0] · zile 5 · mașini {"224BZP":5} · {"retur s2 EST":1,"tur s2 EST":2,"tur s1 VEST":1,"tur s1 EST":1} · grupa {"D":5}
+    [bobletici+slobozia] n3 · km med 45.3 [33.5–46.7] · zile 2 · mașini {"224BZP":3} · {"retur s1 EST":2,"tur s1 EST":1} · grupa {"D":3}
+    [biliceniivechi+bobletici+slobozia] n2 · km med 45.5 [38.2–52.9] · zile 2 · mașini {"224BZP":2} · {"tur s2 EST":1,"retur s1 EST":1} · grupa {"D":2}
+    [bobletici] n2 · km med 49.1 [42.8–55.5] · zile 2 · mașini {"224BZP":2} · {"retur s1 EST":1,"tur s2 EST":1} · grupa {"D":2}
+    [biliceniivechi] n1 · km med 37.1 [37.1–37.1] · zile 1 · mașini {"224BZP":1} · {"retur s1 EST":1} · grupa {"D":1}
+    [biliceniivechi+coscodeni] n1 · km med 45.5 [45.5–45.5] · zile 1 · mașini {"224BZP":1} · {"tur s2 EST":1} · grupa {"D":1}
+    [biliceniivechi+bobletici] n1 · km med 51.7 [51.7–51.7] · zile 1 · mașini {"224BZP":1} · {"retur s2 EST":1} · grupa {"D":1}
+    [coscodeni] n1 · km med 34.8 [34.8–34.8] · zile 1 · mașini {"224BZP":1} · {"tur s2 EST":1} · grupa {"D":1}
+
+### R27|Sturzovca · card 24.9 · ture/zi 3 · kmZi 149.4 · sursa sept · porți VEST/EST · regim ambele · act {"EZ":0,"D":1} · steag: C47 29 %; porți divergente (poarta sensului 46.5 / orice poartă 24.1)
+  etalon sept: 46.5 (8 zile) · orice poartă 24.1 (41) · ture/zi GPS 3 · «toate»: 64.5 (42) · orice poartă 23.9 (169) · ture/zi 3 · regulate tur ["Sturzovca"] retur ["Sturzovca"]
+  picioare 108 (rupte 0) · sate discriminante: funduriinoi, limbeniinoi, slobozia
+  pe sens|schimb|poartă|mașină: tur|s1|VEST|727CWN n16 med 24.3 [21.8–60.3] · tur|s2|VEST|727CWN n13 med 24.3 [22.1–44.8] · retur|s1|VEST|727CWN n10 med 23.6 [22.9–59.3] · retur|s1|EST|727CWN n9 med 47.1 [23.6–58.2] · retur|s2|VEST|727CWN n9 med 23.7 [23.6–23.8] · retur|s2|EST|727CWN n8 med 44.0 [41.2–64.2] · retur|s2|EST|441ASB n5 med 26.5 [26.4–26.8] · tur|s1|EST|804MUM n5 med 23.9 [23.9–23.9] · retur|s1|EST|804MUM n5 med 23.8 [23.8–23.8] · tur|s2|EST|441ASB n4 med 26.6 [26.5–26.7] · tur|s2|EST|397VKV n4 med 23.9 [23.9–24.0] · tur|s1|EST|397VKV n4 med 23.9 [23.9–24.0] · retur|s2|EST|397VKV n3 med 25.5 [23.8–25.5] · tur|s2|EST|727CWN n3 med 41.6 [41.6–85.7] · retur|s1|EST|441ASB n2 med 26.6 [26.6–26.7] · retur|s1|EST|397VKV n2 med 23.8 [23.7–23.8] · retur|s2|EST|351KAJ n1 med 42.0 [42.0–42.0] · tur|s1|VEST|351KAJ n1 med 58.9 [58.9–58.9] · retur|s1|VEST|351KAJ n1 med 40.9 [40.9–40.9] · tur|s2|VEST|351KAJ n1 med 24.9 [24.9–24.9] · tur|s1|EST|441ASB n1 med 26.7 [26.7–26.7] · tur|s2|VEST|549RNK n1 med 23.6 [23.6–23.6]
+  variante (semnătura satelor discriminante):
+    [slobozia] n44 · km med 24.0 [23.6–42.0] · zile 19 · mașini {"351KAJ":1,"441ASB":12,"397VKV":13,"727CWN":8,"804MUM":10} · {"retur s2 EST":13,"tur s1 EST":10,"retur s1 EST":11,"tur s2 EST":10} · grupa {"EZ":9,"D":35}
+    [(drumul de bază)] n42 · km med 24.0 [21.8–60.3] · zile 21 · mașini {"351KAJ":3,"549RNK":1,"727CWN":38} · {"tur s1 VEST":12,"retur s1 VEST":11,"tur s2 VEST":10,"retur s2 VEST":9} · grupa {"D":40,"EZ":2}
+    [funduriinoi+limbeniinoi+slobozia] n12 · km med 47.1 [46.3–85.7] · zile 11 · mașini {"727CWN":12} · {"tur s2 EST":1,"retur s1 EST":7,"retur s2 EST":4} · grupa {"D":1,"EZ":11}
+    [funduriinoi+limbeniinoi] n10 · km med 44.6 [44.3–55.8] · zile 10 · mașini {"727CWN":10} · {"tur s1 VEST":5,"tur s2 VEST":5} · grupa {"EZ":10}
+
+### R32|Trifanesti · card 42.3 · ture/zi 4 · kmZi 338.4 · sursa sept · porți EST/EST · regim doar s1 · act {"EZ":0,"D":1} · steag: C47 42 %
+  etalon sept: 41.2 (40 zile) · orice poartă 41.2 (40) · ture/zi GPS 2 · «toate»: 46.5 (76) · orice poartă 46.5 (76) · ture/zi 2 · regulate tur [] retur []
+  picioare 119 (rupte 0) · sate discriminante: alexandreni, alexandrovca, floresti, frumusica, guracainarului, marasesti, marculesti, putinesti, slobozia, tipletesti, varvareuca
+  pe sens|schimb|poartă|mașină: retur|s2|EST|146BRAZ n19 med 41.8 [41.2–61.7] · tur|s1|EST|146BRAZ n19 med 40.0 [35.9–61.7] · retur|s1|EST|146BRAZ n18 med 40.7 [40.0–59.6] · retur|s2|EST|518MHD n17 med 53.3 [51.6–53.8] · tur|s2|EST|146BRAZ n15 med 40.1 [35.8–135.9] · retur|s1|EST|518MHD n14 med 53.1 [52.4–64.8] · tur|s1|EST|518MHD n13 med 53.3 [52.4–53.7] · tur|s2|EST|518MHD n4 med 53.3 [52.5–53.5]
+  variante (semnătura satelor discriminante):
+    [alexandreni+guracainarului+putinesti+slobozia+tipletesti] n33 · km med 40.1 [40.0–45.5] · zile 20 · mașini {"146BRAZ":33} · {"retur s1 EST":10,"tur s1 EST":8,"retur s2 EST":9,"tur s2 EST":6} · grupa {"EZ":33}
+    [alexandrovca+frumusica+marasesti+slobozia] n18 · km med 41.2 [40.7–41.3] · zile 14 · mașini {"146BRAZ":18} · {"retur s2 EST":7,"retur s1 EST":7,"tur s1 EST":4} · grupa {"D":18}
+    [marasesti+slobozia] n12 · km med 35.9 [35.8–36.0] · zile 12 · mașini {"146BRAZ":12} · {"tur s2 EST":6,"tur s1 EST":6} · grupa {"D":12}
+    [floresti+marasesti+marculesti+varvareuca] n12 · km med 53.4 [53.3–53.7] · zile 11 · mașini {"518MHD":12} · {"tur s1 EST":6,"retur s2 EST":5,"tur s2 EST":1} · grupa {"EZ":12}
+    [floresti+marasesti+marculesti+slobozia+varvareuca] n10 · km med 53.5 [52.8–135.9] · zile 9 · mașini {"146BRAZ":2,"518MHD":8} · {"tur s2 EST":3,"retur s1 EST":2,"retur s2 EST":4,"tur s1 EST":1} · grupa {"D":2,"EZ":8}
+    [floresti+marasesti+marculesti] n8 · km med 52.5 [52.0–53.2] · zile 8 · mașini {"518MHD":8} · {"retur s2 EST":4,"retur s1 EST":2,"tur s1 EST":2} · grupa {"D":8}
+    [floresti+marasesti+marculesti+slobozia] n7 · km med 52.5 [51.8–53.8] · zile 7 · mașini {"146BRAZ":1,"518MHD":6} · {"retur s2 EST":3,"tur s1 EST":3,"retur s1 EST":1} · grupa {"D":7}
+    [alexandrovca+floresti+marasesti+marculesti+slobozia] n6 · km med 52.9 [51.6–54.6] · zile 6 · mașini {"518MHD":6} · {"retur s2 EST":1,"retur s1 EST":5} · grupa {"D":6}
+    [marasesti+marculesti+slobozia] n5 · km med 60.7 [59.6–61.7] · zile 2 · mașini {"146BRAZ":5} · {"tur s2 EST":1,"retur s2 EST":2,"tur s1 EST":1,"retur s1 EST":1} · grupa {"EZ":4,"D":1}
+    [alexandrovca+floresti+marasesti+marculesti] n5 · km med 52.5 [51.6–53.3] · zile 5 · mașini {"518MHD":5} · {"tur s2 EST":2,"retur s2 EST":1,"tur s1 EST":1,"retur s1 EST":1} · grupa {"D":5}
+    [alexandrovca+floresti+marasesti+marculesti+slobozia+varvareuca] n2 · km med 53.5 [53.4–53.5] · zile 2 · mașini {"518MHD":2} · {"retur s1 EST":2} · grupa {"EZ":2}
+    [alexandrovca+floresti+frumusica+marasesti+marculesti+slobozia+varvareuca] n1 · km med 64.8 [64.8–64.8] · zile 1 · mașini {"518MHD":1} · {"retur s1 EST":1} · grupa {"EZ":1}
+
+### R3|Nihoreni · card 44.2 · ture/zi 2 · kmZi 176.8 · sursa sept · porți VEST/EST · regim ambele · act {"EZ":1,"D":1} · steag: C47 58 %
+  etalon sept: 42.3 (16 zile) · orice poartă 44.3 (24) · ture/zi GPS 2 · «toate»: 42.2 (64) · orice poartă 44 (115) · ture/zi 2 · regulate tur ["Nihoreni","Riscani"] retur ["Nihoreni","Riscani"]
+  picioare 76 (rupte 0) · sate discriminante: riscani, slobozia
+  pe sens|schimb|poartă|mașină: tur|s1|EST|186OMM n10 med 52.6 [48.1–56.4] · tur|s2|EST|186OMM n9 med 38.6 [38.5–52.7] · retur|s2|EST|186OMM n9 med 52.8 [45.9–52.9] · retur|s1|EST|186OMM n8 med 48.3 [38.8–52.9] · retur|s2|EST|345KAJ n6 med 42.0 [38.3–42.2] · retur|s1|EST|457BRAX n5 med 47.4 [42.6–47.7] · tur|s2|VEST|457BRAX n5 med 43.9 [41.5–44.5] · tur|s1|VEST|345KAJ n5 med 40.4 [40.3–44.6] · retur|s1|EST|345KAJ n5 med 42.1 [41.2–108.6] · tur|s1|VEST|457BRAX n4 med 47.5 [44.1–47.9] · retur|s2|EST|457BRAX n4 med 43.5 [43.2–43.7] · tur|s2|VEST|345KAJ n4 med 40.3 [40.2–40.4] · tur|s2|EST|345KAJ n1 med 48.8 [48.8–48.8] · retur|s1|EST|297LVY n1 med 72.6 [72.6–72.6]
+  variante (semnătura satelor discriminante):
+    [riscani+slobozia] n48 · km med 48.3 [41.2–108.6] · zile 20 · mașini {"457BRAX":9,"345KAJ":11,"297LVY":1,"186OMM":27} · {"retur s1 EST":16,"retur s2 EST":18,"tur s2 EST":4,"tur s1 EST":10} · grupa {"EZ":19,"D":29}
+    [riscani] n18 · km med 42.8 [40.2–47.9] · zile 18 · mașini {"457BRAX":9,"345KAJ":9} · {"tur s1 VEST":9,"tur s2 VEST":9} · grupa {"EZ":18}
+    [slobozia] n10 · km med 38.6 [38.3–38.8] · zile 10 · mașini {"345KAJ":1,"186OMM":9} · {"retur s2 EST":1,"tur s2 EST":6,"retur s1 EST":3} · grupa {"D":10}
+
+### R6|Mihailenii Vechi · card 55.7 · ture/zi 1 · kmZi 111.4 · sursa sept · porți EST/EST · regim rotatie/s1 în faza B · act {"EZ":1,"D":0} · steag: variante de drum (poarta sensului 58 / orice poartă 54.8)
+  etalon sept: 58 (5 zile) · orice poartă 54.8 (10) · ture/zi GPS 1 · «toate»: 55.5 (7) · orice poartă 54.5 (57) · ture/zi 1 · regulate tur ["Mihailenii Vechi","Ochiul Alb"] retur ["Mihailenii Vechi"]
+  picioare 22 (rupte 0) · sate discriminante: drochia, pelinia, recea, slobozia, sofia
+  pe sens|schimb|poartă|mașină: retur|s2|EST|917FTI n6 med 54.7 [54.5–67.3] · retur|s1|EST|917FTI n5 med 54.8 [54.7–70.1] · tur|s1|VEST|917FTI n4 med 54.0 [53.8–54.1] · tur|s2|EST|917FTI n3 med 55.5 [55.5–72.5] · tur|s1|EST|917FTI n2 med 66.5 [60.4–72.7] · tur|s2|VEST|917FTI n2 med 53.8 [53.7–53.8]
+  variante (semnătura satelor discriminante):
+    [recea+slobozia] n12 · km med 54.8 [54.5–60.4] · zile 9 · mașini {"917FTI":12} · {"retur s1 EST":4,"tur s1 EST":1,"retur s2 EST":5,"tur s2 EST":2} · grupa {"EZ":12}
+    [recea] n6 · km med 53.8 [53.7–54.1] · zile 6 · mașini {"917FTI":6} · {"tur s1 VEST":4,"tur s2 VEST":2} · grupa {"EZ":6}
+    [drochia+pelinia+slobozia+sofia] n3 · km med 72.5 [70.1–72.7] · zile 1 · mașini {"917FTI":3} · {"tur s1 EST":1,"tur s2 EST":1,"retur s1 EST":1} · grupa {"D":2,"EZ":1}
+    [drochia+pelinia+slobozia] n1 · km med 67.3 [67.3–67.3] · zile 1 · mașini {"917FTI":1} · {"retur s2 EST":1} · grupa {"EZ":1}
+
+### R11|Limbenii Noi · card 31.2 · ture/zi 1 · kmZi 62.4 · sursa sept · porți VEST/EST · regim rotatie/s1 în faza B · act {"EZ":1,"D":0} · steag: —
+  etalon sept: 31.2 (9 zile) · orice poartă 31.2 (9) · ture/zi GPS 1 · «toate»: 31.1 (46) · orice poartă 31.1 (53) · ture/zi 1 · regulate tur ["Fundurii Noi","Limbenii Noi"] retur ["Fundurii Noi","Limbenii Noi"]
+  picioare 21 (rupte 1) · sate discriminante: funduriivechi, slobozia
+  pe sens|schimb|poartă|mașină: tur|s1|VEST|457BRAX n6 med 29.5 [29.2–40.7] · retur|s1|EST|457BRAX n4 med 31.2 [31.1–42.2] · tur|s2|VEST|457BRAX n4 med 29.4 [29.2–29.7] · retur|s2|EST|457BRAX n4 med 31.2 [31.2–31.4] · tur|s2|VEST|351KAJ n1 med 42.1 [42.1–42.1] · retur|s2|EST|351KAJ n1 med 44.6 [44.6–44.6]
+  variante (semnătura satelor discriminante):
+    [(drumul de bază)] n9 · km med 29.4 [29.2–29.7] · zile 9 · mașini {"457BRAX":9} · {"tur s1 VEST":5,"tur s2 VEST":4} · grupa {"EZ":9}
+    [slobozia] n7 · km med 31.2 [31.1–31.4] · zile 7 · mașini {"457BRAX":7} · {"retur s1 EST":3,"retur s2 EST":4} · grupa {"EZ":7}
+    [funduriivechi] n2 · km med 41.4 [40.7–42.1] · zile 2 · mașini {"351KAJ":1,"457BRAX":1} · {"tur s2 VEST":1,"tur s1 VEST":1} · grupa {"EZ":2}
+    [funduriivechi+slobozia] n2 · km med 43.4 [42.2–44.6] · zile 2 · mașini {"351KAJ":1,"457BRAX":1} · {"retur s2 EST":1,"retur s1 EST":1} · grupa {"EZ":2}

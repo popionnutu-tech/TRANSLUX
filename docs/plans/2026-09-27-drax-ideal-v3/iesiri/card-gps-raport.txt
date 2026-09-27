@@ -1,0 +1,48 @@
+R1|Donduseni: card 91.5 → 91.9 km GPS completat (brut 91.3; 18 zile; C47 97 %) · km/zi 183 → 183.8
+R2|Stolniceni: card 67.3 → 67.9 km GPS completat (brut 67.3; 16 zile; C47 94 %) · km/zi 134.6 → 135.8
+R3|Nihoreni: DECIZIE card-vechi — 44.2 (km/zi 176.8) rămâne · steag: decizie v3: card vechi (dezacord Claude 42,3 / Codex 44,2); grupa D face +12 km încărcați fără sate în plus; EZ instabilă 41,4 / 44,3; C47 58 %
+R4|Grinauti: card 26.4 → 25.6 km GPS completat (brut 25; 32 zile; C47 97 %) · km/zi 105.6 → 102.4
+R5|Alunis: card 35.3 → 34.6 km GPS completat (brut 34; 9 zile; C47 100 %) · km/zi 70.6 → 69.2
+R6|Mihailenii Vechi: DECIZIE orice-poarta — card 55.7 → 54.8 (orice poartă (decizie), 10 zile), ture/zi 1 → 1, km/zi 111.4 → 109.6 · steag: decizie v3: 54,8 pe orice poartă (58 = cursa comasată 12.09 prin Drochia–Pelinia–Sofia); din 14.09 linia o face 345KAJ, ale cărui picioare stau pe R3|Recea* (reatribuire = corecție de lanț ulterioară)
+R7|Usurei: card 40 → 37.4 km GPS completat (brut 36.8; 17 zile; C47 94 %) · km/zi 80 → 74.8
+R8|Costesti: card 81.5 → 78.5 km GPS completat (brut 78; 19 zile; C47 97 %) · km/zi 163 → 157
+R9|Cobani: card 55.2 → 55.5 km GPS completat (brut 54.9; 14 zile; C47 100 %) · km/zi 220.8 → 222
+R10|Ciuciulea: card 67.7 → 66.5 km GPS completat (brut 65.9; 28 zile; C47 80 %) · km/zi 270.8 → 266
+R11|Funduri Vechi: card 25.1 → 24.7 km GPS completat (brut 24.1; 16 zile; C47 100 %) · km/zi 50.2 → 49.4
+R11|Limbenii Noi: card 31.7 → 31.2 km GPS completat (brut 30.6; 9 zile; C47 80 %) · km/zi 63.4 → 62.4
+R12|Pelinia: card 26 → 26.4 km GPS completat (brut 25.8; 37 zile; C47 100 %) · km/zi 104 → 105.6
+R12|Sofia: card 32.3 → 31.5 km GPS completat (brut 31; 33 zile; C47 99 %) · km/zi 129.2 → 126
+R13|Lazo: card 16.5 → 16.4 km GPS completat (brut 15.8; 22 zile; C47 100 %) · km/zi 66 → 65.6
+R14|Baroncea: card 45.9 → 44.4 km GPS completat (brut 43.8; 27 zile; C47 100 %) · km/zi 183.6 → 177.6
+R14|Dominteni: card 34.5 → 34 km GPS completat (brut 33.4; 54 zile; C47 68 %) · km/zi 207 → 204
+R15|Suri: card 69.5 → 70 km GPS completat (brut 69.4; 8 zile; C47 100 %) · km/zi 139 → 140
+R16|Floresti: DECIZIE poarta-sensului — card 36 → 35.7 (poarta sensului, 13 zile), ture/zi 1 → 1, km/zi 72 → 71.4 · steag: decizie v3: drumul real al lui 518MHD (mașina liniei după grafic) e 52,9 km prin satele R32; nu se creează linie nouă; de lămurit dacă ocolul prin R32 e cu oameni
+R16|Varvareuca: card 41.4 → 42.8 km GPS completat (brut 42.2; 35 zile; C47 83 %) · km/zi 165.6 → 171.2
+R17|Prajila: card 41.9 → 41.3 km GPS completat (brut 40.7; 45 zile; C47 84 %) · km/zi 251.4 → 247.8
+R18|Zarojeni: DECIZIE card-vechi — 28.9 (km/zi 115.6) rămâne · steag: decizie v3: card vechi (dezacord Claude 30,0 / Codex 28,9); D/EZ dau 53,3 / 25,6 pe toată fereastra — mediana comună ascunde servicii diferite; rezerva nu se aplică (9 perechi în sept.); C47 41 %
+R19|Bilicenii Vechi: card 17.3 → 17.3 km GPS completat (brut 16.7; 25 zile; C47 81 %) · km/zi 69.2 → 69.2
+R19|Copaceni: card 33.7 → 32.7 km GPS completat (brut 32.1; 25 zile; C47 98 %) · km/zi 67.4 → 65.4
+R20|Nicolaevca: card 40.3 → 39.6 km GPS completat (brut 39; 28 zile; C47 100 %) · km/zi 161.2 → 158.4
+R20|Radoaia: card 27.1 → 26.1 km GPS completat (brut 25.5; 37 zile; C47 97 %) · km/zi 108.4 → 104.4
+R21|Heciul Nou: card 20.3 → 20.7 km GPS completat (brut 20.1; 39 zile; C47 97 %) · km/zi 81.2 → 82.8
+R22|Tiplesti: card 22.1 → 21.4 km GPS completat (brut 20.9; 7 zile; C47 83 %) · km/zi 44.2 → 42.8
+R23|Scumpia: card 61.4 → 59.5 km GPS completat (brut 58.9; 21 zile; C47 97 %) · km/zi 245.6 → 238
+R24|Catranic: DECIZIE poarta-sensului — card 30 → 29.3 (rezervă toată fereastra (C20), 41 zile), ture/zi 1 → 1, km/zi 60 → 58.6 · fără steag
+R25|Hiliuti: card 32.4 → 32 km GPS completat (brut 31.4; 9 zile; C47 100 %) · km/zi 64.8 → 64
+R26|Ilenuta: card 40 → 38.8 km GPS completat (brut 38.3; 7 zile; C47 89 %) · km/zi 80 → 77.6
+R26|Obreja Veche: card 38.8 → 38.4 km GPS completat (brut 37.8; 15 zile; C47 100 %) · km/zi 77.6 → 76.8
+R27|Danu: card 53.8 → 53.7 km GPS completat (brut 53.2; 11 zile; C47 92 %) · km/zi 107.6 → 107.4
+R27|Sturzovca: DECIZIE card-vechi — 24.9 (km/zi 149.4) rămâne · steag: decizie v3: card vechi × 3 ture; ținta 24,0 × 2 pe serviciul direct, dar bucla 727CWN (Fundurii Noi–Limbenii Noi) n-are încă regulă de atribuire reconciliată cu R11; C47 29 %; porți divergente (poarta sensului 46.5 / orice poartă 24.1)
+R28|Cuhnesti: card 66.9 → 65.5 km GPS completat (brut 64.9; 14 zile; C47 97 %) · km/zi 133.8 → 131
+R29|Ustia: card 58.5 → 56.9 km GPS completat (brut 56.4; 9 zile; C47 100 %) · km/zi 117 → 113.8
+R30|Cosernita: card 65.8 → 63.8 km GPS completat (brut 63.2; 18 zile; C47 97 %) · km/zi 131.6 → 127.6
+R31|Cotiujenii Mari: card 66.7 → 65.1 km GPS completat (brut 64.5; 16 zile; C47 100 %) · km/zi 133.4 → 130.2
+R32|Cainarii Vechi: card 48.2 → 46.9 km GPS completat (brut 46.3; 18 zile; C47 79 %) · km/zi 96.4 → 93.8
+R32|Trifanesti: DECIZIE poarta-sensului fără 518MHD — card 42.3 → 40.2 (poarta sensului, 18 zile), ture/zi 4 → 2, km/zi 338.4 → 160.8 · steag: decizie v3: doar 146BRAZ; cursele lui 518MHD scoase din populație (graficul îl dă pe R16); 146BRAZ face și R18 în aceeași cursă (Gura Căinarului, Putinești)
+R33|Iezarenii Vechi: card 34.6 → 34.7 km GPS completat (brut 34; 13 zile; C47 96 %) · km/zi 69.2 → 69.4
+R34|Taura Veche: card 41.7 → 40.7 km GPS completat (brut 40.1; 18 zile; C47 97 %) · km/zi 83.4 → 81.4
+R35|Cucioaia: card 54.2 → 52.5 km GPS completat (brut 51.8; 19 zile; C47 100 %) · km/zi 108.4 → 105
+R36|Bocancea Schit: DECIZIE card-vechi — 54.5 (km/zi 109) rămâne · steag: decizie v3: card vechi (dezacord Claude 46,2 / Codex 54,5); drumul lung = 8 din 9 retururi de noapte prin Bilicenii Vechi, 0 perechi pe drumul scurt; excesul nedovedit; C47 41 %
+R37|Musteata: card 44.6 → 43.5 km GPS completat (brut 43; 10 zile; C47 100 %) · km/zi 89.2 → 87
+R38|Glinjeni: card 34.3 → 33.3 km GPS completat (brut 32.8; 13 zile; C47 100 %) · km/zi 68.6 → 66.6
+R39|Popestii de jos: card 77.1 → 74.8 km GPS completat (brut 74.2; 47 zile; C47 97 %) · km/zi 154.2 → 149.6

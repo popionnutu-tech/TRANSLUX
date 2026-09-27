@@ -26,6 +26,31 @@ const hm = (x: string) => { const [h, m] = x.split(':').map(Number); return h * 
 const PLAN_DIFF_MIN = 3;
 const near = (a: LatLon, b: LatLon) => Math.abs(a[0] - b[0]) < 0.03 && Math.abs(a[1] - b[1]) < 0.04;
 
+/**
+ * Culoarea liniei fiecărei rutiere, în ordinea listei (Ion, 27.09, ION-100: «linia de altă culoare
+ * pentru fiecare mașină»; mașinile rămân bordo, «doar liniile diferit»). Se deosebesc pe harta gri;
+ * bordo rămâne pentru mașini și stația omului.
+ */
+const LINE_COLORS = ['#2563C9', '#E07A1F', '#1F8A4C', '#7C4DCC', '#0E8C96'];
+const lineColor = (i: number) => LINE_COLORS[i % LINE_COLORS.length];
+/** Sub atâția km de linia unei rutiere care vine mai devreme, drumul e comun: rămâne o singură linie. */
+const JOIN_KM = 0.15;
+
+/** Distanța aproximativă (km) de la punct la cea mai apropiată porțiune a liniei. */
+function kmToLine(p: LatLon, line: LatLon[]): number {
+  const k = Math.cos((p[0] * Math.PI) / 180);
+  let best = Infinity;
+  for (let i = 1; i < line.length; i++) {
+    const [ay, ax] = line[i - 1], [by, bx] = line[i];
+    const dx = (bx - ax) * k, dy = by - ay;
+    const len = dx * dx + dy * dy;
+    const t = len ? Math.max(0, Math.min(1, (((p[1] - ax) * k) * dx + (p[0] - ay) * dy) / len)) : 0;
+    const d = ((ax + t * (bx - ax) - p[1]) * k) ** 2 + (ay + t * (by - ay) - p[0]) ** 2;
+    if (d < best) best = d;
+  }
+  return Math.sqrt(best) * 111.2;
+}
+
 /** Cât de departe se poate deschide harta «Acum» cel mult (ION-100). */
 const MIN_OPEN_ZOOM = 9;
 
@@ -128,12 +153,13 @@ const PHONE_SVG = (
  * mașină»): de la autobuz — sau, cât nu e pe hartă, de la localitatea omului — până la
  * destinația lui, în sensul de mers. Linia e în ordinea opririlor spre Chișinău.
  */
-function ahead(route: RouteLine, t: NowTrip | undefined): LatLon[] {
+function ahead(route: RouteLine, t: NowTrip | undefined, untilFrom = false): LatLon[] {
   const line = route.shape;
   if (!t || line.length < 2) return line;
   const bus = t.lat != null && t.lon != null ? snapOn([t.lat, t.lon], line) : null;
   const start = bus && bus.seg > 0 ? bus : route.from ? snapOn(route.from, line) : null;
-  const end = route.to ? snapOn(route.to, line) : null;
+  const stop = untilFrom ? route.from : route.to;
+  const end = stop ? snapOn(stop, line) : null;
   if (!start || start.seg < 1) return line;
   // Segmentul `seg` e între line[seg-1] și line[seg].
   if (t.going_north) {
@@ -201,18 +227,35 @@ function NowMap({ trips, routes, places, selected, onPick, locale }: { trips: No
       const g = layer.current!;
       g.clearLayers();
 
-      // O singură linie, a cursei alese (verificarea UI/UX, ION-100, 27.09): liniile gri ale
-      // celorlalte mașini mergeau pe același drum și se amestecau cu cea roșie. Alese din listă,
-      // își primesc linia lor.
       const selRoute = trips[selected]?.route_id ?? null;
       const tx = TXT[locale];
       const m = map.current!;
-
-      // Linia fină a rutei alese și, pe ea, localitatea omului și destinația.
       const route = selRoute != null ? routes[selRoute] : undefined;
+
+      // Fiecare rutieră cu linia ei colorată, de la mașină până la stația omului (Ion, 27.09, ION-100,
+      // mockup-ul aprobat). Unde intră pe drumul unei rutiere care vine mai devreme, linia se oprește:
+      // pe drumul comun rămâne o singură linie («în momentul ce se unesc 2 sau mai multe — au o linie»).
+      // Cea aleasă se desenează întreagă, până la destinație, plină și deasupra.
+      const earlier: LatLon[][] = [];
+      trips.forEach((t, i) => {
+        const r = t.route_id != null ? routes[t.route_id] : undefined;
+        if (!r || t.lat == null || t.lon == null || snapOn([t.lat, t.lon], r.shape).seg < 1) return;
+        let path = ahead(r, t, true);
+        if (i !== selected) {
+          const k = path.findIndex((p) => earlier.some((e) => kmToLine(p, e) < JOIN_KM));
+          if (k >= 0) path = path.slice(0, k + 1);
+        }
+        earlier.push(ahead(r, t, true));
+        if (i === selected || path.length < 2) return;
+        L.polyline(path, { color: '#FFFFFF', weight: 6, opacity: 0.9, lineCap: 'round', interactive: false }).addTo(g);
+        L.polyline(path, { color: lineColor(i), weight: 3, opacity: 0.9, dashArray: '7 6', lineCap: 'round', interactive: false }).addTo(g);
+      });
+
+      // Linia cursei alese și, pe ea, localitatea omului și destinația.
       if (route?.shape.length) {
-        // Întreruptă (Ion, 23.09: «linia să fie întreruptă»): e drumul rutei, nu urma GPS.
-        L.polyline(ahead(route, trips[selected]), { color: RED, weight: 3, opacity: 0.8, dashArray: '6 7', lineCap: 'round', interactive: false }).addTo(g);
+        const full = ahead(route, trips[selected]);
+        L.polyline(full, { color: '#FFFFFF', weight: 9, opacity: 0.95, lineCap: 'round', interactive: false }).addTo(g);
+        L.polyline(full, { color: lineColor(selected), weight: 5, opacity: 1, lineCap: 'round', interactive: false }).addTo(g);
         for (const [pt, cls] of [[route.from, 'from'], [route.to, 'to']] as const) {
           if (!pt) continue;
           // Centrul satului poate sta în afara traseului: capătul se pune pe linie.
@@ -236,9 +279,11 @@ function NowMap({ trips, routes, places, selected, onPick, locale }: { trips: No
         const name = p.name.replace(/[<>&"]/g, '');
         const c = m.latLngToContainerPoint([p.lat, p.lon]);
         const box = { x0: c.x - 8, x1: c.x + 14 + name.length * 9, y0: c.y - 10, y1: c.y + (mine ? 26 : 10) };
-        if (!mine && busBoxes.some((b) => b.x0 < box.x1 && box.x0 < b.x1 && b.y0 < box.y1 && box.y0 < b.y1)) continue;
+        const hit = busBoxes.some((b) => b.x0 < box.x1 && box.x0 < b.x1 && b.y0 < box.y1 && box.y0 < b.y1);
+        if (!mine && hit) continue;
+        // Stația omului nu se ascunde: când stă o mașină peste ea, numele trece în stânga punctului.
         L.marker([p.lat, p.lon], {
-          icon: L.divIcon({ html: `<span class="now-place${p.end ? ' end' : ''}${mine ? ' mine' : ''}"><i></i><span>${name}${mine ? `<small>${tx.mine}</small>` : ''}</span></span>`, className: 'now-pin-icon', iconSize: [0, 0], iconAnchor: [0, 0] }),
+          icon: L.divIcon({ html: `<span class="now-place${p.end ? ' end' : ''}${mine ? ' mine' : ''}${mine && hit ? ' left' : ''}"><i></i><span>${name}${mine ? `<small>${tx.mine}</small>` : ''}</span></span>`, className: 'now-pin-icon', iconSize: [0, 0], iconAnchor: [0, 0] }),
           keyboard: false, interactive: false, zIndexOffset: -1000,
         }).addTo(g);
       }
@@ -381,7 +426,7 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
                     {/* Peste cât vine — mare; ora REALĂ la care ajunge (ION-39) — mică, fără «~»
                         (verificarea UI/UX, ION-100). Graficul doar când diferă de la 3 minute. */}
                     <span className="now-time">{t.at_stop?.mine ? <><span className="now-here-dot" />{tx.here}</> : tx.when(t.eta_min ?? t.minutes_until)}</span>
-                    <span className="now-when">{t.eta ?? t.departure}</span>
+                    <span className="now-when"><i className="now-lsw" style={{ background: lineColor(i) }} aria-hidden="true" />{t.eta ?? t.departure}</span>
                   </div>
                   {t.eta && Math.abs(hm(t.eta) - hm(t.departure)) >= PLAN_DIFF_MIN && <span className="now-plan">{tx.plan(t.departure)}</span>}
                   {crew && <span className="now-crew">{crew}</span>}
@@ -424,7 +469,8 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
 .now-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
 .now-line{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
 .now-time{font-size:19px;font-weight:700}
-.now-when{font-size:14px;font-weight:600;color:${RED};white-space:nowrap}
+.now-when{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600;color:${RED};white-space:nowrap}
+.now-lsw{display:inline-block;width:18px;height:4px;border-radius:2px;box-shadow:0 0 0 1.5px #fff}
 .now-plan{font-size:12px;color:#6B5B5F}
 .now-row.on .now-plan{color:#fff;opacity:.75}
 .now-crew{font-size:13px;color:#6B5B5F}
@@ -465,6 +511,8 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
 .now-place>span{display:flex;flex-direction:column;gap:2px}
 .now-place small{font:700 11px/1 var(--font-opensans),Open Sans,sans-serif;color:${RED};text-transform:uppercase;letter-spacing:.04em}
 .now-place.mine{left:16px;top:-9px;font-size:16px}
+.now-place.mine.left{left:auto;right:16px;text-align:right}
+.now-place.mine.left>span{align-items:flex-end}
 .now-end{display:block;width:16px;height:16px;border-radius:50%;box-sizing:border-box;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)}
 .now-end.from{width:22px;height:22px;margin:-3px;background:${RED};border:4px solid #fff;box-shadow:0 0 0 3px rgba(155,27,48,.25),0 2px 6px rgba(0,0,0,.3)}
 .now-end.to{background:#fff;border:4px solid ${RED}}

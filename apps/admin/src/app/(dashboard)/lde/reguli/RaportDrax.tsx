@@ -132,6 +132,7 @@ export default function RaportDrax({ a, saptamani }: { a: RaportDraxDate | null;
     );
   }
   const c = a.economie.carduri;
+  const cf = ceFaciDrax(a);
   const t = a.total;
   const TL = a.timp_liber;
   const masini = [...a.masini].sort((x, y) => (y.extrapolat.B ?? -1) - (x.extrapolat.B ?? -1));
@@ -161,7 +162,7 @@ export default function RaportDrax({ a, saptamani }: { a: RaportDraxDate | null;
 
       <div className="grid gap-4 md:grid-cols-4">
         <Card titlu="Se poate tăia cu o dispoziție · R1b + R3" val={n0(c.R1bR3)} mare
-          sub={`Ocolul pe acasă între curse și drumul acasă între tur și retur. ${a.indicatii.peste_prag} mașini peste ${PRAG_INDICATII_KM} km/săpt.`} />
+          sub={`Realist (așteaptă ≤ 3 h, ≥ 20 km/zi) ${n0(cf.km.realist)} · candidați de schimb de linii ${n0(cf.km.schimb)} · mici, sub prag ${n0(cf.km.mic)} km. Ocolul pe acasă între curse și drumul acasă între tur și retur.`} />
         <Card titlu="Cost de azi · regula B" val={n0(c.B)}
           sub={`R1a + R1b + R3, nu economie garantată${c.deLamurit.B >= 0.5 ? ` · din care ${n0(c.deLamurit.B)} km de lămurit scoși` : ''}${c.lei ? ` · ≈ ${n0(c.lei)} lei pe mașinile cu normă` : ''}`} />
         <Card titlu="Marginile zilei · R1a" val={n0(c.R1a)} sub="Drumul de acasă la prima cursă și seara înapoi — se taie doar cu alt șofer din satul de start." />
@@ -169,7 +170,7 @@ export default function RaportDrax({ a, saptamani }: { a: RaportDraxDate | null;
           sub={`Doar în km neexplicați de §5. Peste ${TL.prag_km} km: ${TL.masini_peste_prag.join(', ') || '—'} · brambura: ${TL.masini_peste_prag_brambura.join(', ') || '—'}.`} />
       </div>
 
-      <CeFaciDraxSectiune c={ceFaciDrax(a)} />
+      <CeFaciDraxSectiune c={cf} />
 
       <div className="mb-3! mt-9! flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-xs font-bold uppercase tracking-widest text-neutral-500">Mașină cu mașină · km pe săptămână, extrapolați</h2>

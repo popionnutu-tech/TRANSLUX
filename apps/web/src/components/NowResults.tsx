@@ -407,6 +407,25 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
   .now-close{width:46px;height:46px}
   .now-map .leaflet-top.leaflet-right{top:66px}
   .now-panel{left:12px;right:12px;bottom:12px;width:auto;max-height:55%}
+  /* Cinci curse pe telefon (ION-100, Ion 27.09: «rău se vede în telefon, cartele mai înguste»):
+     șoferul, mașina și numărul pe un rând; «după grafic» doar la cursa aleasă. */
+  .now-info{flex-flow:row wrap;column-gap:6px}
+  .now-line,.now-plan{flex-basis:100%}
+  .now-crew+.now-num::before{content:"· ";font-weight:400;color:#8A7B7F}
+  .now-row{padding:9px 10px 9px 16px;gap:10px}
+  .now-row:not(.on) .now-plan{display:none}
+  .now-time{font-size:17px}
+  .now-when{font-size:13px}
+  .now-crew,.now-num{font-size:13px}
+  .now-call{width:38px;height:38px}
+  .now-call svg{width:16px;height:16px}
+  .now-row.on{padding:12px 12px 12px 16px}
+  .now-row.on .now-time{font-size:22px}
+  .now-row.on .now-when{font-size:14px}
+  .now-row.on .now-crew{font-size:13px}
+  .now-row.on .now-num{font-size:15px;margin-top:0}
+  .now-row.on .now-crew+.now-num::before{color:#fff;opacity:.85}
+  .now-row.on .now-call{width:44px;height:44px;align-self:center}
 }
 `}</style>
     </div>

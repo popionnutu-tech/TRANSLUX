@@ -19,6 +19,8 @@ Valhalla: `~/dev/valhalla-eu` (colima, 127.0.0.1:8003; în `valhalla.json`, `bre
 
 - **Vămi (Ion, 28.09):** Costești–Stânca și Ungheni/Sculeni sunt scoase în general; ieșirea spre România doar prin Giurgiulești sau Albița. Biodieselul fără ZEL nu trece prin zona Ungheni.
 
+- **Spre Constanța (Ion, 28.09):** și drumul rapid merge pe partea de jos (Brăila → Măcin → Babadag, DN22). A2 (Slobozia–Fetești) e cu +40…60 km mai lung și câștigă ≤ 15 min; cisternele reale de biodiesel merg azi pe A2.
+
 ## Motorină (Port Constanța / Petromidia → stație)
 
 | Încărcare | Stația | Baza | prin bază · Giurgiulești | prin bază · Albița | direct · Giurgiulești | direct · Albița | direct de bază | curse/an |
@@ -47,13 +49,13 @@ Valhalla: `~/dev/valhalla-eu` (colima, 127.0.0.1:8003; în `valhalla.json`, `bre
 
 | Cod | Traseu | Vămi (ideal) | Ideal km | Pe magistrale km | Km minim absolut |
 |---|---|---|---|---|---|
-| B1 | Бердичев → Констанца | Otaci → Albița | 856 | 907 | 843 (Otaci → Giurgiulești) |
+| B1 | Бердичев → Констанца | Otaci → Albița | 856 | 912 | 843 (Otaci → Giurgiulești) |
 | B2 | Бердичев → София | Otaci → Albița → Giurgiu | 1.207 | 1.271 | 1.207 |
 | B3 | Бердичев → София через ZEL Унгены | Otaci → ZEL → Albița → Giurgiu | 1.465 | 1.584 | 1.465 |
 | B4 | Бердичев → Русе | Otaci → Albița | 884 | 942 | 884 |
 | B5 | Бердичев → нефтебаза Бричень | Otaci | 252 | 283 | 252 |
 | B6 | Бердичев → нефтебаза Кишинёв (Маноле) | Otaci | 400 | 431 | 400 |
-| B7 | Бердичев → Констанца через ZEL Унгены | Otaci → ZEL → Albița | 1.114 | 1.280 | 1.114 |
+| B7 | Бердичев → Констанца через ZEL Унгены | Otaci → ZEL → Albița | 1.114 | 1.235 | 1.114 |
 | B8 | Бердичев → Русе через ZEL Унгены | Otaci → ZEL → Albița | 1.142 | 1.255 | 1.142 |
 
 ## Biodiesel: al doilea ideal (Ion, 28.09: «tot acceptabil») — magistrala prin Moldova Soroca → Orhei → Chișinău → Leușeni

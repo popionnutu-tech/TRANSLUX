@@ -1,5 +1,6 @@
-// Cele 4 reguli de optimizare ale lui Ion pentru Drăxlmaier (ION-120, 28.09.2026; §8.7): 1 doarme la capăt dacă ruta se termină în aceeași
-// localitate, 2 rămâne la uzină între tur și retur, 3 rutele împărțite altfel, 4 nu pleacă acasă între schimburi. Cifrele vin din rândul
+// Cele 3 reguli de optimizare ale lui Ion pentru Drăxlmaier (ION-120, 28.09.2026; §8.7): 1 doarme la capăt dacă ruta se termină în aceeași
+// localitate, 2 rutele împărțite altfel, 3 nu pleacă acasă între schimburi. «Rămâne la uzină» a fost scoasă de Ion («scoate regula 2 în general,
+// fă în 3 reguli»); câmpurile rândului păstrează numele interne R1 / R3 / R4. Cifrele vin din rândul
 // săptămânii (date.reguli4, scris de VPS: drax/cod/saptamanal/{patru-reguli,scrie-reguli4}.mjs), după dezbaterea Claude + Codex și deciziile
 // lui Ion: Bălți în afara regulii 1, regula 1 propusă doar peste 100 km/săpt. pe mașină, regula 2 fără plafon, regula 3 doar dacă totalul flotei
 // scade cu ≥ 50 km/săpt. Fiecare km e într-o singură regulă. Aici doar textul, funcții pure.
@@ -8,26 +9,27 @@ export interface KmRegula { masurat: number; extrapolat: number }
 export interface Reguli4Masina {
   m: string;
   R1: { propus: boolean; km: number; kmSapt: number; nopti: number; X: string | null; soferKm: number | null; motiv: string | null } | null;
-  R2: number; R4: number; R4laCapat: number; R4laUzina: number; balti: number; total: number;
+  R2?: number; R4: number; R4laCapat: number; R4laUzina: number; balti: number; total: number;
 }
 export interface Reguli4Drax {
   versiune: string; rulat: string; esantion: number; zileLV: number; factor: number;
   flota: {
-    R1propus: KmRegula; R1masuratToateMasinile: KmRegula; R2: KmRegula; R4: KmRegula; sumaPropusa: KmRegula;
+    R1propus: KmRegula; R1masuratToateMasinile: KmRegula; R2?: KmRegula; R4: KmRegula; sumaPropusa: KmRegula;
     R3: { candidati: number; net: number; nota: string }; balti: KmRegula & { toateZileleDiag: number; nota: string };
   };
   R3: { candidati: { A: string; B: string; net: number; castigA: number; castigB: number }[]; perechiVerificate: number; masiniEligibile: number;
     masiniCuZileExcluse: number; prag: number; capacitate: string };
   masini: Reguli4Masina[];
+  /** din 28.09.2026 (Ion): 3 reguli, fără «rămâne la uzină» */
+  treiReguli?: boolean;
 }
 
 const nr = (x: number) => Math.round(x).toLocaleString('ro-RO');
 
 export const TITLURI_REGULI4 = {
   R1: '1 · Doarme la capăt',
-  R2: '2 · Rămâne la uzină',
-  R3: '3 · Rute împărțite altfel',
-  R4: '4 · Nu pleacă acasă între schimburi',
+  R3: '2 · Rute împărțite altfel',
+  R4: '3 · Nu pleacă acasă între schimburi',
 } as const;
 
 /** regula 1 pe mașină: unde doarme și cât taie, sau de ce nu se propune */

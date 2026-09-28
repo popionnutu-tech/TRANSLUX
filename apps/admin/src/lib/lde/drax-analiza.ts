@@ -9,9 +9,11 @@ import { escapeHtml } from '@/lib/telegram-notify';
 import { perioada, PLAFON } from './timp-liber';
 import type { TimpLiberMasina } from '@/app/(dashboard)/lde/reguli/actions';
 
-export const CAT_DRAX = ['cuOameni', 'livrare', 'golRuta', 'golTure', 'parc', 'service', 'deplasare', 'legatura', 'necunoscut'] as const;
+// ION-119 (Ion, 28.09): intreUzine = drumul între porțile VEST și EST, cursă între uzine (muncă), nu gol; rândurile de dinainte n-au cheia
+export const CAT_DRAX = ['cuOameni', 'livrare', 'golRuta', 'golTure', 'parc', 'service', 'deplasare', 'legatura', 'necunoscut', 'intreUzine'] as const;
 export type CategorieDrax = (typeof CAT_DRAX)[number];
-export type KmDrax = Record<CategorieDrax, number>;
+/** rândurile scrise înainte de ION-119 (28.09.2026) n-au «intreUzine» */
+export type KmDrax = Record<Exclude<CategorieDrax, 'intreUzine'>, number> & { intreUzine?: number };
 type R = { R1a: number; R1b: number; R3: number };
 type RN = { R1a: number | null; R1b: number | null; R3: number | null; B: number | null };
 
@@ -20,6 +22,8 @@ export interface BucataDrax {
   r3?: number; inZona?: number; pranz: boolean; de: string | null; pana: string | null; lin: string | null; motiv: string | null;
   // ION-105 (aditive, din 27.09): cursele vecine golului («R3|Recea* retur s1»), satul unde a plecat mașina, km-ii golului care intră în R3
   prev?: string | null; next?: string | null; acasa?: string | null; r3fin?: number;
+  /** ION-119: porțile cursei între uzine, în ordine («VEST → EST», «EST → VEST, VEST → EST») */
+  porti?: string;
 }
 export interface ZiDrax {
   z: string; dow: number; total: number; km: KmDrax; brambura: number; bilant: boolean; dif: number; tipar?: string | null;

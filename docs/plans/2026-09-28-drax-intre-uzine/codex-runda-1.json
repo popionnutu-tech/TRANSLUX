@@ -1,0 +1,37 @@
+{
+  "score": 5.0,
+  "verdict": "fail",
+  "summary": "Categoria aditivă, compatibilitatea cu rândurile vechi și afișarea separată sunt tratate coerent; dus-întorsul este compatibil cu cererea utilizatorului. Două defecte ale clasificării au fost reproduse sintetic: traversările fără oprire sunt acceptate, iar golul impus poate împiedica reclasificarea unei traversări valide. Datele brute ale simulării săptămânale lipsesc din worktree, deci frecvența acestor cazuri și calibrarea pragurilor nu au putut fi confirmate.",
+  "deductions": [
+    {
+      "id": "C1",
+      "severity": "high",
+      "weight": 2.5,
+      "title": "Condiția de staționare acceptă timpul petrecut în mers în raza porții.",
+      "detail": "Funcția `dur` măsoară intervalul dintre primul și ultimul punct al vizitei, iar `la` nu verifică staționarea. Raza extinsă permite traversări în mers de peste un minut. Proba sintetică executată cu blocul existent a reclasificat integral 4,65 km fără nicio oprire, deși ambele capete ale mișcării erau în afara porților. Măsurarea din porti3.mjs folosește suplimentar viteza, deci nici criteriul măsurat nu coincide cu workerul.",
+      "evidence": "docs/plans/2026-09-28-drax-intre-uzine/vps/categorii.mjs:329; docs/plans/2026-09-28-drax-intre-uzine/vps/categorii.mjs:332; docs/plans/2026-09-28-drax-intre-uzine/porti3.mjs:18",
+      "failure_scenario": "Mașina traversează fiecare rază de poartă timp de 90 de secunde fără oprire, trece între porți în mai puțin de 40 de minute și parcurge sub 11 km în zonă. Workerul transformă întreaga mișcare în muncă între uzine, contrar excluderii explicite a simplelor traversări.",
+      "suggested_fix": "Precizează în plan că minutul se măsoară prin staționare efectivă și aliniază măsurarea cu workerul. Păstrează separat excepția justificată prin cursa vecină și adaugă cazul negativ de traversare fără oprire."
+    },
+    {
+      "id": "C2",
+      "severity": "high",
+      "weight": 2,
+      "title": "Mișcările mixte nu pot reclasifica kilometrii dintre porți deja alocați golului impus.",
+      "detail": "Pasul 5.3(a) mută kilometri din `s.km` în `s.golImpus`. Ramura mixtă limitează apoi transferul exclusiv la suma `s.km`, fără partea impusă. Proba sintetică cu opriri valide la ambele porți și `km=0, golImpus>0` produce `intreUzine=0`, eliminat ulterior la serializare; kilometrii rămân în golRuta. Conservarea bilanțului nu detectează această clasificare greșită.",
+      "evidence": "docs/plans/2026-09-28-drax-intre-uzine/vps/categorii.mjs:314; docs/plans/2026-09-28-drax-intre-uzine/vps/categorii.mjs:345; docs/plans/2026-09-28-drax-intre-uzine/vps/categorii.mjs:372; docs/plans/2026-09-28-drax-intre-uzine/vps/categorii.mjs:384",
+      "failure_scenario": "O livrare care iese din zonă conține o traversare validă VEST→EST, dar kilometrii ei sunt integral sau aproape integral alocați golului impus. Traversarea primește zero kilometri sau mai puțini decât cei detectați și continuă să fie raportată drept gol.",
+      "suggested_fix": "Definește în plan precedența și tratarea suprapunerii dintre §5.3(a) și §5.11 pentru mișcările mixte. Transferă kilometrii identificați dintre porți din componenta căreia îi aparțin, păstrând doar golul impus rămas, și verifică separat impactul asupra R1a."
+    },
+    {
+      "id": "C3",
+      "severity": "low",
+      "weight": 0.5,
+      "title": "Validarea nu include regresii pentru detectorul nou și limitele pragurilor.",
+      "detail": "Testele adăugate verifică prezentarea unor bucăți deja clasificate. P1–P10 și bilanțul raportate nu demonstrează distincția oprire/traversare, comportamentul la limitele de 40 de minute și 11 km sau suprapunerea cu golul impus.",
+      "evidence": "apps/admin/src/lib/lde/drax-ziua.test.ts:68; apps/admin/src/lib/lde/drax-ziua.test.ts:83; docs/plans/2026-09-28-drax-intre-uzine/vps/categorii.mjs:335",
+      "failure_scenario": "",
+      "suggested_fix": "Completează planul cu probe reproductibile ale clasificării: cazul 925FTI, traversare fără oprire, dus-întors, valori imediat sub/peste praguri și mișcare mixtă cu gol impus; verifică atât categoriile, cât și R1a/R1b/R3."
+    }
+  ]
+}

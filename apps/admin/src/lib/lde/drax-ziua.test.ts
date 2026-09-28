@@ -64,3 +64,30 @@ describe('fraza săptămânii (în locul rândului «Măsurat…»)', () => {
     expect(sumarSaptamana(kaj).peAcasa).toBe(Math.round(kaj.economie.R1b + kaj.economie.R3));
   });
 });
+
+describe('ION-119 — drumul între porți e cursă între uzine, nu gol', () => {
+  const b = (x: Partial<import('./drax-analiza').BucataDrax>) => ({ t0: 0, t1: 1, golImpus: 0, ocol: false, pranz: false, de: null, pana: null, lin: null, motiv: null, ...x }) as import('./drax-analiza').BucataDrax;
+  const zi = (bucati: import('./drax-analiza').BucataDrax[]) => ({ z: '2026-09-14', bucati } as unknown as import('./drax-analiza').ZiDrax);
+
+  it('mișcarea doar între porți: «poarta VEST → poarta EST, cursă între uzine»', () => {
+    const [x] = povesteZi(zi([b({ ora: '14:32–15:52', cat: 'intreUzine', km: 7.1, porti: 'VEST → EST' })]), null);
+    expect(x.tip).toBe('intreUzine');
+    expect(x.text).toBe('14:32–15:52 poarta VEST → poarta EST, cursă între uzine, 7 km');
+  });
+
+  it('dus-întors între porți: toate porțile în ordine', () => {
+    const [x] = povesteZi(zi([b({ ora: '06:20–06:40', cat: 'intreUzine', km: 7, porti: 'EST → VEST, VEST → EST' })]), null);
+    expect(x.text).toBe('06:20–06:40 poarta EST → poarta VEST → poarta EST, cursă între uzine, 7 km');
+  });
+
+  it('mișcarea mixtă: golul rămâne gol, porțiunea între porți se spune separat și nu intră în gol', () => {
+    const [x] = povesteZi(zi([
+      b({ ora: '16:30–00:14', cat: 'livrare', km: 40, ocol: true, acasa: 'Sărata Veche' }),
+      b({ ora: '16:30–00:14', cat: 'legatura', km: 30 }),
+      b({ ora: '16:30–00:14', cat: 'intreUzine', km: 3.4, porti: 'VEST → EST' }),
+    ]), 'Sărata Veche');
+    expect(x.tip).toBe('gol');
+    expect(x.km).toBe(70);
+    expect(x.text).toContain('plus 3 km cursă între uzine (poarta VEST → poarta EST)');
+  });
+});

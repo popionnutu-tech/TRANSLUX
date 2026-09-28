@@ -1,0 +1,17 @@
+{
+  "score": 9.5,
+  "verdict": "pass",
+  "summary": "C1 și C2 sunt închise: detectorul exclude traversarea în mers testată, iar ramura mixtă transferă efectiv kilometri din golImpus și păstrează restul. P11 importă funcția reală, conține cele cinci cazuri promise și setează exitCode=3 la eșec; cazurile au trecut la executarea izolată a blocurilor din repo. C3 rămâne parțial închisă; simularea săptămânală nu poate fi confirmată integral fără comun.mjs și datele brute.",
+  "deductions": [
+    {
+      "id": "C3",
+      "severity": "low",
+      "weight": 0.5,
+      "title": "Validarea descrisă nu include toate probele acceptate pentru închiderea C3.",
+      "detail": "P11 verifică numai lista porților detectate. Lipsesc cazurile imediat sub/la/peste pragurile de 1 minut, 40 de minute și 11 km, precum și regresia clasificării mixte cu golImpus și verificarea cantităților transferate. Pragul de 11 km și transferul din golImpus sunt în afara funcției apelate de P11, deci cele cinci rezultate corecte nu le protejează.",
+      "evidence": "docs/plans/2026-09-28-drax-intre-uzine/vps/probe.mjs:107; docs/plans/2026-09-28-drax-intre-uzine/vps/probe.mjs:114; docs/plans/2026-09-28-drax-intre-uzine/vps/categorii.mjs:356; docs/plans/2026-09-28-drax-intre-uzine/vps/categorii.mjs:361",
+      "failure_scenario": "",
+      "suggested_fix": "Completează validarea planului cu probe reproductibile la limitele pragurilor și pentru mișcarea mixtă cu golImpus, inclusiv km=0. Cere verificarea kilometrilor pe categorii, a bilanțului și a efectului așteptat asupra R1a/R1b/R3, apoi marchează C3 închisă."
+    }
+  ]
+}

@@ -4,11 +4,13 @@
 // deci se unesc; ce e «în plus doar pentru că a trecut pe acasă» se spune separat. Termenii tehnici nu ies în text. Funcții pure.
 import type { BucataDrax, MasinaDrax, ZiDrax } from './drax-analiza';
 
-export type TipMiscareDrax = 'cuOameni' | 'gol' | 'service' | 'deplasare' | 'necunoscut';
+export type TipMiscareDrax = 'cuOameni' | 'intreUzine' | 'gol' | 'service' | 'deplasare' | 'necunoscut';
 export interface MiscareDrax {
   ora: string; tip: TipMiscareDrax; traseu: string[]; km: number;
   /** km în plus doar pentru că mașina a trecut pe acasă (ocolul pe acasă și golul din afara zonei uzinei între tur și retur) */
   kmPeAcasa: number; parc: boolean; pranz: boolean; text: string;
+  /** ION-119: km de cursă între uzine (VEST ↔ EST) din mișcare; muncă, nu gol */
+  kmIntreUzine?: number; porti?: string | null;
 }
 
 export const UZINA = 'uzina';
@@ -34,8 +36,15 @@ export const kmPeAcasaBucata = (b: BucataDrax) =>
 
 const tipGrup = (g: BucataDrax[]): TipMiscareDrax => {
   for (const t of ['cuOameni', 'service', 'deplasare', 'necunoscut'] as const) if (g.some((b) => b.cat === t)) return t;
-  return 'gol';
+  return g.every((b) => b.cat === 'intreUzine') ? 'intreUzine' : 'gol';
 };
+
+/** «VEST → EST, EST → VEST» → [poarta VEST, poarta EST, poarta VEST] */
+function traseuPorti(porti: string | null | undefined): string[] {
+  const pasi = String(porti ?? '').split(',').map((x) => x.trim().split(' → ')).filter((x) => x.length === 2);
+  if (!pasi.length) return ['poarta', 'cealaltă poartă'];
+  return [pasi[0][0], ...pasi.map((x) => x[1])].map((p) => `poarta ${p}`);
+}
 
 // Turul se termină la poartă, returul pleacă de la poartă. Sensul cursei cu oameni se citește din golurile vecine
 // (golul de dinainte are `next`, cel de după are `prev`); numele porților nu se codează.
@@ -63,7 +72,7 @@ function traseuCursa(b: BucataDrax, sens: string | null): string[] {
 }
 
 const ETICHETA: Record<TipMiscareDrax, string> = {
-  cuOameni: 'cu oameni', gol: 'gol', service: 'la service', deplasare: 'drum fără oameni, în afara liniilor', necunoscut: 'drum nelămurit',
+  cuOameni: 'cu oameni', intreUzine: 'cursă între uzine', gol: 'gol', service: 'la service', deplasare: 'drum fără oameni, în afara liniilor', necunoscut: 'drum nelămurit',
 };
 
 export function textMiscare(x: Omit<MiscareDrax, 'text'>): string {
@@ -72,7 +81,9 @@ export function textMiscare(x: Omit<MiscareDrax, 'text'>): string {
   // ordinea opririi la parc față de drumul pe acasă nu se știe din bucăți, deci parcul nu se pune în traseu
   const eticheta = `${ETICHETA[x.tip]}${x.parc ? ', cu o oprire la parcul de lângă uzină' : ''}${x.pranz ? ', cursă de prânz' : ''}`;
   const acasa = x.kmPeAcasa >= 0.5 ? ` — din care ${nr(x.kmPeAcasa)} km doar pentru că a trecut pe acasă` : '';
-  return `${x.ora} ${traseu}, ${eticheta}, ${nr(x.km)} km${acasa}`;
+  const intre = x.tip !== 'intreUzine' && (x.kmIntreUzine ?? 0) >= 0.5
+    ? `; plus ${nr(x.kmIntreUzine ?? 0)} km cursă între uzine (${traseuPorti(x.porti).join(' → ')})` : '';
+  return `${x.ora} ${traseu}, ${eticheta}, ${nr(x.km)} km${acasa}${intre}`;
 }
 
 /** ziua, o linie pe mișcare, în ordine */
@@ -81,10 +92,13 @@ export function povesteZi(d: ZiDrax, casa: string | null): MiscareDrax[] {
   return grupe.map((g, i) => {
     const tip = tipGrup(g);
     const cursa = g.find((b) => b.cat === 'cuOameni');
+    const iu = g.filter((b) => b.cat === 'intreUzine'), rest = tip === 'intreUzine' ? g : g.filter((b) => b.cat !== 'intreUzine');
+    const porti = iu.find((b) => b.porti)?.porti ?? null;
     const baza = {
       ora: g[0].ora, tip,
-      traseu: cursa ? traseuCursa(cursa, sensCursa(grupe, i)) : traseuGol(g, casa),
-      km: Math.round(g.reduce((s, b) => s + b.km, 0) * 10) / 10,
+      traseu: cursa ? traseuCursa(cursa, sensCursa(grupe, i)) : tip === 'intreUzine' ? traseuPorti(porti) : traseuGol(rest, casa),
+      km: Math.round(rest.reduce((s, b) => s + b.km, 0) * 10) / 10,
+      kmIntreUzine: tip === 'intreUzine' ? 0 : Math.round(iu.reduce((s, b) => s + b.km, 0) * 10) / 10, porti,
       kmPeAcasa: Math.round(g.reduce((s, b) => s + kmPeAcasaBucata(b), 0) * 10) / 10,
       parc: g.some((b) => b.cat === 'parc'), pranz: g.some((b) => b.pranz),
     };

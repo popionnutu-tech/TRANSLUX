@@ -1,0 +1,117 @@
+--- economie/categorii.mjs.bak-ion119	2026-09-28 10:14:58.203278865 +0300
++++ economie/categorii.mjs	2026-09-28 10:25:22.767102918 +0300
+@@ -24,8 +24,8 @@
+ const departeUz = (p) => Math.min(hav(p, PARC), ...PORTI.map((q) => hav(p, q)));
+ 
+ export const PR = { CASA_KM: 0.5, CASA_STAT_MIN: 20, NOAPTE: [30, 330], NOAPTE_MIN_MIN: 45, CORIDOR_KM: 1, DEPLASARE_KM: 15,
+-  PARC_STAT_MIN: 5, GPS_PESTE_DRUM: 1.05, BILANT_PCT: 3, STAT_KM: 0.2, POARTA_EXTRA: 0.1, ZONA_KM: 3 };   // ZONA_KM = zona uzinei (porți + parc), S9
+-export const CAT = ['cuOameni', 'livrare', 'golRuta', 'golTure', 'parc', 'service', 'deplasare', 'legatura', 'necunoscut'];
++  PARC_STAT_MIN: 5, GPS_PESTE_DRUM: 1.05, BILANT_PCT: 3, STAT_KM: 0.2, POARTA_EXTRA: 0.1, ZONA_KM: 3, INTRE_UZINE_MAX_KM: 11 };   // ZONA_KM = zona uzinei (porți + parc), S9
++export const CAT = ['cuOameni', 'livrare', 'golRuta', 'golTure', 'parc', 'service', 'deplasare', 'legatura', 'necunoscut', 'intreUzine'];
+ const F = JSON.parse(readFileSync(`${D}/economie-flota.json`, 'utf8'));
+ const O = JSON.parse(readFileSync(`${D}/economie-obs.json`, 'utf8')).curse;
+ const S = JSON.parse(readFileSync(`${D}/schelet-ideal.json`, 'utf8'));
+@@ -150,6 +150,30 @@
+   return { L, jumatati };
+ }
+ 
++// ION-119 (§5.11): drumurile între porțile VEST și EST dintr-o mișcare fără oameni (puncte { lat, lon, t, stat?, t1? }). Mașina e LA poarta A
++// (STAȚIONEAZĂ efectiv ≥ 1 min în raza porții + 0,3 km — pași sub 8 km/h sau punct de parcare — SAU mișcarea începe acolo, cursa de dinainte s-a
++// terminat la A), merge doar prin zona uzinei, ≤ 40 min, și e LA poarta B ≠ A (staționează ≥ 1 min SAU mișcarea se termină acolo). Trecerea
++// în mers prin raza porților nu intră (Codex r1 C1). Km = de la ultimul punct din A la primul din B.
++export const inZonaUz = (p) => hav(p, PARC) <= PR.ZONA_KM || PORTI.some((q) => hav(p, q) <= PR.ZONA_KM);
++export function drumuriIntrePorti(mv) {
++  const viz = [];
++  for (const p of mv) { const g = poarta(p, 0.3); const u = viz.at(-1);
++    if (g && u && u.g === g && u.deschis) u.pts.push(p); else { if (u) u.deschis = false; if (g) viz.push({ g, pts: [p], deschis: true }); } }
++  const statMs = (v) => { let ms = 0;
++    for (let i = 0; i < v.pts.length; i++) { const p = v.pts[i];
++      if (p.stat && p.t1 != null) ms += Math.max(0, p.t1 - p.t);
++      if (i) { const q = v.pts[i - 1], dt = p.t - (q.t1 ?? q.t); if (dt > 0 && hav(q, p) / (dt / 3.6e6) < 8) ms += dt; } }
++    return ms; };
++  const la = (v, i) => statMs(v) >= 60e3 || (i === 0 && v.pts[0] === mv[0]) || (i === viz.length - 1 && v.pts.at(-1) === mv.at(-1));
++  let kmIU = 0; const drum = [];
++  for (let i = 0; i + 1 < viz.length; i++) { const A = viz[i], B = viz[i + 1], a = A.pts.at(-1), b = B.pts[0];
++    if (A.g === B.g || !la(A, i) || !la(B, i + 1) || b.t - (a.t1 ?? a.t) > 40 * 60e3) continue;
++    const ia = mv.indexOf(a), ib = mv.indexOf(b); if (!mv.slice(ia, ib + 1).every(inZonaUz)) continue;
++    let k = 0; for (let q = ia + 1; q <= ib; q++) { const dd = hav(mv[q - 1], mv[q]); if (dd <= 5) k += dd; }
++    kmIU += k; drum.push(`${A.g} → ${B.g}`); }
++  return { kmIU, drum };
++}
++
+ /** Codex r2 (C3): taie intervalul [g0, g1] al perechii la cursele de prânz; pur, testat sintetic în probe.mjs (P10). */
+ export function taieLaPranz(g0, g1, linPrev, linNext, runs) {
+   const out = []; let c = g0, lin = linPrev;
+@@ -313,6 +337,34 @@
+     const g = Math.min(s.km * on / tot, E);
+     if (g > 0) { s.golImpus = +g.toFixed(2); s.km = +(s.km - g).toFixed(2); }
+   }
++  // ION-119 (Ion, 28.09.2026: «from vest to east and vice versa is trip between factories also for work»): drumul între porțile VEST și EST =
++  // CURSĂ ÎNTRE UZINE (muncă), nu gol (§5.11). Detectorul e drumuriIntrePorti (pur, probat în probe.mjs P11).
++  // Toată mișcarea în zonă și ≤ INTRE_UZINE_MAX_KM → toată e cursă între uzine; altfel doar porțiunea A → B, luată din bucățile mișcării
++  // (întâi km-ii bucății, apoi golul ei impus 5.3 a — Codex r1 C2), în ordinea: gol pe rută, legătură, parc, gol între ture, …, ocolul pe acasă ultimul.
++  {
++    const grupe = new Map();
++    for (const s of seg) { if (['cuOameni', 'stat'].includes(s.cat) || !s.bpts?.length) continue; const k = `${s.t0}|${s.t1}`; (grupe.get(k) ?? grupe.set(k, []).get(k)).push(s); }
++    const scoase = new Set(), noi = [];
++    const ORD = ['golRuta', 'legatura', 'parc', 'golTure', 'deplasare', 'necunoscut', 'service', 'livrare'];
++    const rang = (s) => (s.cat === 'livrare' && s.ocol ? 99 : ORD.indexOf(s.cat) < 0 ? 50 : ORD.indexOf(s.cat));
++    for (const G of grupe.values()) {
++      const mv = G[0].bpts, { kmIU, drum } = drumuriIntrePorti(mv);
++      if (!drum.length) continue;
++      const tot = G.reduce((a, s) => a + s.km + (s.golImpus || 0), 0);
++      const baza = { t0: G[0].t0, t1: G[0].t1, bpts: mv, prev: G[0].prev, next: G[0].next, prevLin: G[0].prevLin, nextLin: G[0].nextLin, cat: 'intreUzine', lin: null,
++        porti: drum.join(', '), motiv: `cursă între uzine: ${drum.join(', ')}` };
++      if (mv.every(inZonaUz) && tot <= PR.INTRE_UZINE_MAX_KM) { for (const s of G) scoase.add(s); noi.push({ ...baza, km: +tot.toFixed(2) }); continue; }
++      const luat0 = Math.min(kmIU, tot); let rest = luat0;
++      for (const s of [...G].sort((a, b) => rang(a) - rang(b))) { if (rest <= 1e-9) break;
++        const dinKm = Math.min(s.km, rest); s.km = +(s.km - dinKm).toFixed(2); rest -= dinKm;
++        if (s.cat === 'golTure' && s.kmZona != null) s.kmZona = +Math.max(0, s.kmZona - dinKm).toFixed(2);
++        if (rest > 1e-9 && s.golImpus) { const dinImpus = Math.min(s.golImpus, rest); s.golImpus = +(s.golImpus - dinImpus).toFixed(2); rest -= dinImpus; }
++        if (s.km <= 0.005 && !(s.golImpus > 0.005)) scoase.add(s); }
++      noi.push({ ...baza, km: +(luat0 - rest).toFixed(2) });
++    }
++    for (let i = seg.length - 1; i >= 0; i--) if (scoase.has(seg[i])) seg.splice(i, 1);
++    seg.push(...noi);
++  }
+   seg.sort((a, b) => a.t0 - b.t0);
+   // ION-109 (§8.6 după migr. 413; dezbaterea r2): cursă probabil nedetectată în livrare = atingerea porții în interiorul bucății (≥ 5 min de
+   // margini), în sensul cursei (tur: venea de la ≥ 5 km și atinge poarta într-o fereastră de tur; retur: atinge poarta într-o fereastră de retur
+@@ -346,7 +398,7 @@
+       : linii.length === 1 ? (perechi.length === 1 ? 'o linie, o pereche' : `o linie, ${perechi.length} perechi`) : `${linii.length} linii`,
+     seg: seg.filter((s) => s.cat !== 'stat' && (s.km >= 0.05 || s.golImpus)).map((s) => ({ ora: `${hhmm(s.t0)}–${hhmm(s.t1)}`, t0: s.t0, t1: s.t1, cat: s.cat,
+       km: r1(s.km), golImpus: s.golImpus ?? 0, lin: s.lin ?? null, sens: s.sens, schimb: s.schimb, motiv: s.motiv ?? null, prev: s.prev, next: s.next, prevLin: s.prevLin, nextLin: s.nextLin,
+-      ocol: s.ocol ?? false, direct: s.direct ?? false, pePeAcasa: s.pePeAcasa, inZona: s.inZona, r3km: s.r3km, kmZona: s.kmZona, cursaPranz: s.cursaPranz, cursaInsasi: s.cursaInsasi, iesire: s.iesire, intrare: s.intrare, casaPt: s.casaPt, lunga: s.lunga, excursieKm: s.excursieKm, excursie: s.excursie, inAfara: s.inAfara, minParc: s.minParc || 0, noapteTip: s.noapteTip, noapteZona: s.noapteZona ?? false, departe: s.departe,
++      ocol: s.ocol ?? false, direct: s.direct ?? false, pePeAcasa: s.pePeAcasa, inZona: s.inZona, r3km: s.r3km, kmZona: s.kmZona, cursaPranz: s.cursaPranz, cursaInsasi: s.cursaInsasi, iesire: s.iesire, intrare: s.intrare, casaPt: s.casaPt, lunga: s.lunga, excursieKm: s.excursieKm, excursie: s.excursie, inAfara: s.inAfara, minParc: s.minParc || 0, noapteTip: s.noapteTip, noapteZona: s.noapteZona ?? false, departe: s.departe, porti: s.porti,
+       de: s.bpts?.[0] ? [s.bpts[0].lat, s.bpts[0].lon] : null, pana: s.bpts?.length ? [s.bpts.at(-1).lat, s.bpts.at(-1).lon] : null })),
+   };
+ }
+--- economie/probe.mjs.bak-ion119	2026-09-28 10:25:22.731102237 +0300
++++ economie/probe.mjs	2026-09-28 10:26:04.287888859 +0300
+@@ -96,5 +96,26 @@
+   console.log(`P10 sintetic A→B→A: ${s1} (${okB ? 'ok' : 'PICĂ'}) · A→A→A: ${s2} (${okA ? 'ok' : 'PICĂ'}) · reale: ${reale.length} bucăți, zile cu linie diferită: ${cuLinieDiferita}`);
+   for (const r of reale) console.log('   ' + r);
+ }
++// P11 (ION-119, Codex r1 C1/C3): detectorul cursei între uzine, sintetic — 925FTI (VEST → EST, începe la VEST, stă la EST), trecere în mers prin
++// ambele porți (nu intră), dus-întors EST → VEST → EST, drum de 70 min între razele porților (nu intră), ieșire din zonă între porți (nu intră)
++{
++  const { drumuriIntrePorti } = await import('./categorii.mjs');
++  const V = { lat: 47.77408, lon: 27.91593 }, E = { lat: 47.78513, lon: 27.94307 }, N = { lat: 47.84, lon: 27.93 }, M = { lat: 47.7796, lon: 27.9295 };
++  const drum = (a, b, t0, min, n = 12) => Array.from({ length: n + 1 }, (_, i) => ({ lat: a.lat + (b.lat - a.lat) * i / n, lon: a.lon + (b.lon - a.lon) * i / n, t: t0 + i * min * 60e3 / n }));
++  const sta = (g, t0, min) => [{ ...g, t: t0, stat: 1, t1: t0 + min * 60e3 }];
++  const T = 1e12;
++  const cazuri = [
++    ['925FTI VEST→EST', [...drum(V, E, T, 10), ...sta(E, T + 11 * 60e3, 60)], 'VEST → EST'],
++    ['trecere în mers', [...drum({ lat: 47.765, lon: 27.90 }, V, T, 3, 6), ...drum(V, E, T + 3 * 60e3, 6), ...drum(E, { lat: 47.79, lon: 27.96 }, T + 9 * 60e3, 3, 6)], ''],
++    ['dus-întors', [...sta(E, T, 5), ...drum(E, V, T + 5 * 60e3, 10), ...sta(V, T + 16 * 60e3, 5), ...drum(V, E, T + 21 * 60e3, 10), ...sta(E, T + 32 * 60e3, 30)], 'EST → VEST, VEST → EST'],
++    ['70 de minute între porți', [...sta(V, T, 5), ...drum(V, M, T + 5 * 60e3, 4), ...sta(M, T + 10 * 60e3, 70), ...drum(M, E, T + 81 * 60e3, 4), ...sta(E, T + 86 * 60e3, 5)], ''],
++    ['iese din zonă', [...sta(V, T, 5), ...drum(V, N, T + 5 * 60e3, 8), ...drum(N, E, T + 13 * 60e3, 8), ...sta(E, T + 22 * 60e3, 5)], ''],
++  ];
++  const rez = cazuri.map(([n, mv, asteptat]) => { const r = drumuriIntrePorti(mv).drum.join(', '); return { n, r, ok: r === asteptat }; });
++  P.P11 = { tip: 'defect', titlu: 'cursă între uzine: oprire efectivă la porți, fără trecere în mers, în zonă, ≤ 40 min', conditie: rez.length, trec: rez.filter((x) => x.ok).length,
++    pica: rez.filter((x) => !x.ok).length, picaExemple: rez.filter((x) => !x.ok).map((x) => `${x.n}: «${x.r}»`) };
++  console.log('P11 cursă între uzine (sintetic): ' + rez.map((x) => `${x.n} «${x.r}» ${x.ok ? 'ok' : 'PICĂ'}`).join(' · '));
++  if (P.P11.pica) process.exitCode = 3;
++}
+ salveazaCache(); verificaValhalla();
+ scrieAtomic(`${D}/economie-probe.json`, P);

@@ -34,6 +34,7 @@ const linie = (lin: string | null | undefined) => (lin ? lin.split('|').join(' �
 export const NUME_CAT_DRAX: Record<CategorieDrax, string> = {
   cuOameni: 'cu oameni', livrare: 'livrare (casă – rută)', golRuta: 'gol pe rută', golTure: 'gol între tur și retur', parc: 'parc (lângă uzină)',
   service: 'service', deplasare: 'deplasare', legatura: 'legătură între linii', necunoscut: 'necunoscut',
+  intreUzine: 'cursă între uzine (VEST ↔ EST)',
 };
 /** mișcările fără oameni în ziua povestită: km goi evidențiați */
 const GOL = 'text-[#8a5a00] dark:text-[#e0b25c]';
@@ -58,7 +59,7 @@ function Zile({ m }: { m: MasinaDrax }) {
       {m.deLamurit && <p className={`text-[12.5px] ${ROSU}`}>De lămurit — posibilă cursă a firmei: {m.deLamurit}</p>}
       {m.detalii.map((d) => {
         const miscari = povesteZi(d, m.casa);
-        const gol = miscari.filter((x) => x.tip !== 'cuOameni').reduce((s, x) => s + x.km, 0);
+        const gol = miscari.filter((x) => x.tip !== 'cuOameni' && x.tip !== 'intreUzine').reduce((s, x) => s + x.km, 0);
         return (
           <div key={d.z}>
             <div className="mb-1! flex flex-wrap gap-x-4 text-[12.5px]">
@@ -70,7 +71,7 @@ function Zile({ m }: { m: MasinaDrax }) {
             </div>
             <ul className="space-y-0.5! text-[12.5px] leading-snug">
               {miscari.map((x, i) => (
-                <li key={i} className={x.tip === 'cuOameni' ? '' : x.kmPeAcasa >= 0.5 ? `font-semibold ${GOL}` : GOL}>{x.text}</li>
+                <li key={i} className={x.tip === 'cuOameni' || x.tip === 'intreUzine' ? '' : x.kmPeAcasa >= 0.5 ? `font-semibold ${GOL}` : GOL}>{x.text}</li>
               ))}
             </ul>
           </div>
@@ -268,7 +269,7 @@ export default function RaportDrax({ a, saptamani, tipuri = {} }: { a: RaportDra
           uzinei, peste pragul de 30 km); <b>parc</b> = așteptare lângă uzină; <b>legătură</b> = drumul direct între linii diferite. Regula B
           (§8) = R1a + R1b + R3, cost de azi; R2 nu se propune; A (LEAR R1) e doar referință.
         </p>
-        <p>Total pe săptămână (toate zilele): cu oameni {n0(t.cuOameni)} · livrare {n0(t.livrare)} · gol pe rută {n0(t.golRuta)} · între tur și retur {n0(t.golTure)} · parc {n0(t.parc)} · legătură {n0(t.legatura)} · deplasare {n0(t.deplasare)} · necunoscut {n0(t.necunoscut)} km.</p>
+        <p>Total pe săptămână (toate zilele): cu oameni {n0(t.cuOameni)} · livrare {n0(t.livrare)} · gol pe rută {n0(t.golRuta)} · între tur și retur {n0(t.golTure)} · parc {n0(t.parc)} · legătură {n0(t.legatura)} · deplasare {n0(t.deplasare)} · necunoscut {n0(t.necunoscut)} · cursă între uzine {n0(t.intreUzine ?? 0)} km.</p>
         <p className="text-[11px]">Categoriile: {CAT_DRAX.map((k) => NUME_CAT_DRAX[k]).join(' · ')}.</p>
       </div>
     </div>

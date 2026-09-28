@@ -33,26 +33,25 @@ export const TITLURI_REGULI4 = {
 /** regula 1 pe mașină: unde doarme și cât taie, sau de ce nu se propune */
 export function textR1(m: Reguli4Masina): string {
   if (!m.R1 || m.R1.km < 0.5) return '—';
-  const unde = m.R1.X ? `la ${m.R1.X}` : 'la capăt';
-  if (!m.R1.propus) return `sub prag: ${nr(m.R1.kmSapt)} km/săpt. (${unde})`;
-  const sofer = m.R1.soferKm != null && m.R1.soferKm >= 0.5 ? ` · șoferul stă la ${nr(m.R1.soferKm)} km` : '';
-  return `doarme ${unde} · ${nr(m.R1.km)} km${sofer}`;
+  const unde = m.R1.X ?? 'capăt';
+  if (!m.R1.propus) return `sub prag (${nr(m.R1.kmSapt)}/săpt.)`;
+  const sofer = m.R1.soferKm != null && m.R1.soferKm >= 0.5 ? ` · șofer ${nr(m.R1.soferKm)} km` : '';
+  return `${unde} · ${nr(m.R1.km)}${sofer}`;
 }
 
 /** regula 4 pe mașină: câți km și unde așteaptă în loc să meargă acasă */
 export function textR4(m: Reguli4Masina): string {
   if (m.R4 < 0.5) return '—';
-  const parti = [m.R4laCapat >= 0.5 ? `la capăt ${nr(m.R4laCapat)}` : '', m.R4laUzina >= 0.5 ? `la uzină ${nr(m.R4laUzina)}` : ''].filter(Boolean);
-  return `${nr(m.R4)} km (așteaptă ${parti.join(', ')})`;
+  const parti = [m.R4laCapat >= 0.5 ? `capăt ${nr(m.R4laCapat)}` : '', m.R4laUzina >= 0.5 ? `uzină ${nr(m.R4laUzina)}` : ''].filter(Boolean);
+  return `${nr(m.R4)} · ${parti.join(' / ')}`;
 }
 
 /** textul cardului regulii 3: schimburile propuse sau de ce nu e niciunul */
 export function textR3(r: Reguli4Drax): string {
   if (!r.R3.candidati.length)
-    return `Niciun schimb de linii între două mașini nu scade totalul flotei cu cel puțin ${r.R3.prag} km/săpt. `
-      + `(${r.R3.masiniEligibile} mașini verificate; ${r.R3.masiniCuZileExcluse} cu zile nemăsurate nu intră). Locurile pe tip de mașină: ${r.R3.capacitate}.`;
+    return `Niciun schimb nu scade flota cu ≥ ${r.R3.prag} km/săpt. (${r.R3.masiniEligibile} mașini verificate). Locuri pe tip: de confirmat.`;
   return r.R3.candidati.map((c) => `${c.A} ↔ ${c.B}: flota −${nr(c.net)} km/săpt. (${c.A} ${c.castigA >= 0 ? '−' : '+'}${nr(Math.abs(c.castigA))}, ${c.B} ${c.castigB >= 0 ? '−' : '+'}${nr(Math.abs(c.castigB))})`).join(' · ')
-    + ` · locurile pe tip: ${r.R3.capacitate}`;
+    + ' · locuri pe tip: de confirmat';
 }
 
 /** mașinile cu ceva de tăiat, în ordinea totalului; cele doar cu Bălți la coadă */

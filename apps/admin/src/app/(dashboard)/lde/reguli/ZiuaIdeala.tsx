@@ -38,12 +38,19 @@ export default function ZiuaIdeala({ z, tipuri = {}, zile }: { z: ZiIdealaDrax |
         <Card titlu="Noaptea departe de capăt" val={n0(c.noapte * factor)} sub="Seara nu rămâne unde termină / de unde pleacă dimineața (și vineri → luni)." />
         <Card titlu="Drum mai lung" val={n0((c.drumLung + c.drumMaiScurt) * factor)} sub={`Mai lung decât drumul direct, fără casă (${n0(c.drumLung * factor)}), minus zilele mai scurte decât idealul (${n0(c.drumMaiScurt * factor)}).`} />
       </div>
-      <div className="mt-3! overflow-x-auto rounded-[12px] border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900">
-        <table className="w-full min-w-[640px] border-collapse text-[12.5px]">
+      <p className="mt-4! mb-1! text-[12.5px] text-neutral-600 dark:text-neutral-300">
+        Pe fiecare mașină: câți km pe săptămână se pot tăia și din ce vin. <b>Total = acasă între curse + noaptea departe de capăt + drum mai lung.</b> Apasă pe mașină ca să vezi ziua ei.
+      </p>
+      <div className="overflow-x-auto rounded-[12px] border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900">
+        <table className="w-full min-w-[720px] border-collapse text-[12.5px]">
           <thead>
-            <tr className="bg-[#9B1B30]/[0.04] text-left text-[10px] uppercase tracking-[0.08em] text-neutral-500">
-              <th className="px-2! py-1.5!">Mașina</th><th className="px-2! py-1.5! text-right">Pe zi</th><th className="px-2! py-1.5! text-right">Acasă</th>
-              <th className="px-2! py-1.5! text-right">Noapte</th><th className="px-2! py-1.5! text-right">Drum</th><th className="px-2! py-1.5! text-right">Săptămâna</th>
+            <tr className="bg-[#9B1B30]/[0.04] text-left align-bottom text-[11.5px] leading-tight text-neutral-500">
+              <th className="min-w-[190px] px-2! py-1.5! font-semibold">Mașina</th>
+              <th className="px-2! py-1.5! text-right font-semibold">Total de tăiat<br />km pe săptămână</th>
+              <th className="px-2! py-1.5! text-right font-normal">din care:<br />acasă între curse</th>
+              <th className="px-2! py-1.5! text-right font-normal"><br />noaptea departe de capăt</th>
+              <th className="px-2! py-1.5! text-right font-normal"><br />drum mai lung*</th>
+              <th className="px-2! py-1.5! text-right font-normal">în medie<br />pe zi</th>
             </tr>
           </thead>
           <tbody>
@@ -53,11 +60,13 @@ export default function ZiuaIdeala({ z, tipuri = {}, zile }: { z: ZiIdealaDrax |
                   className={`cursor-pointer border-t border-neutral-100 hover:bg-[#9B1B30]/[0.03] dark:border-neutral-800 ${deschis === m.m ? 'bg-[#9B1B30]/[0.04]' : ''} ${m.separat ? 'text-neutral-400' : ''}`}>
                   <td className="whitespace-nowrap px-2! py-1! font-mono">{m.m}<span className="ml-2! font-sans text-[11px] text-neutral-500">{tipuri[canonPlaca(m.m)] ?? ''}</span>
                     {m.separat && <span className={`ml-2! font-sans text-[11px] ${ROSU}`}>posibilă cursă nedetectată, în afara totalului</span>}</td>
-                  <td className="px-2! py-1! text-right tabular-nums">{n0(m.peZi)}</td>
+                  <td className={`px-2! py-1! text-right font-semibold tabular-nums ${m.pestePrag && !m.separat ? VERDE : ''}`}>{n0(m.kmSapt)}</td>
                   <td className="px-2! py-1! text-right tabular-nums">{m.cauze.acasa >= 0.5 ? n0(m.cauze.acasa) : '—'}</td>
                   <td className="px-2! py-1! text-right tabular-nums">{m.cauze.noapte >= 0.5 ? n0(m.cauze.noapte) : '—'}</td>
-                  <td className="px-2! py-1! text-right tabular-nums">{Math.abs(m.cauze.drumLung + m.cauze.drumMaiScurt) >= 0.5 ? n0(m.cauze.drumLung + m.cauze.drumMaiScurt) : '—'}</td>
-                  <td className={`px-2! py-1! text-right font-semibold tabular-nums ${m.pestePrag && !m.separat ? VERDE : ''}`}>{n0(m.kmSapt)}</td>
+                  <td className={`px-2! py-1! text-right tabular-nums ${m.cauze.drumLung + m.cauze.drumMaiScurt < 0 ? 'text-neutral-400' : ''}`}
+                    title={m.cauze.drumLung + m.cauze.drumMaiScurt < 0 ? 'minus: a mers mai scurt decât drumul socotit ideal; se scade din total' : undefined}>
+                    {Math.abs(m.cauze.drumLung + m.cauze.drumMaiScurt) >= 0.5 ? n0(m.cauze.drumLung + m.cauze.drumMaiScurt) : '—'}</td>
+                  <td className="px-2! py-1! text-right tabular-nums text-neutral-500">{n0(m.peZi)}</td>
                 </tr>
                 {deschis === m.m && (
                   <tr className="border-t border-neutral-100 dark:border-neutral-800">
@@ -76,7 +85,7 @@ export default function ZiuaIdeala({ z, tipuri = {}, zile }: { z: ZiIdealaDrax |
             ))}
           </tbody>
         </table>
-        <p className="px-2! py-1.5! text-[11px] text-neutral-500">Tabelul: km măsurați pe zilele din eșantion (cardurile: extrapolat). Verde = peste {z.prag} km/săpt. Drumul direct: real din GPS pe {z.legaturi.gps} din {z.legaturi.perechi} perechi de locuri, restul estimat pe hartă.</p>
+        <p className="px-2! py-1.5! text-[11px] text-neutral-500">* Drum mai lung: km peste drumul direct între curse; minus (gri) = a mers mai scurt decât drumul socotit ideal și se scade. Tabelul: km măsurați pe zilele măsurate (cardurile de sus: pe toate zilele). Verde = peste {z.prag} km/săpt. Drumul direct: real din GPS pe {z.legaturi.gps} din {z.legaturi.perechi} perechi de locuri, restul estimat pe hartă.</p>
       </div>
     </section>
   );

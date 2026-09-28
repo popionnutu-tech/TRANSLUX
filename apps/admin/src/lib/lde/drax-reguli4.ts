@@ -7,6 +7,8 @@
 
 export interface KmRegula { masurat: number; extrapolat: number }
 export interface Reguli4Masina {
+  /** ION-124 (provizoriu): orașele din actul rutei cu angajați — cifrele mașinii sunt de verificat */
+  orasPeLinie?: string[];
   m: string;
   R1: { propus: boolean; km: number; kmSapt: number; nopti: number; X: string | null; soferKm: number | null; motiv: string | null;
     /** nopțile (din 28.09, pentru rândul deschis) */

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { indicatiiLear, PRAG_INDICATII_KM_SAPT, type RandLear } from './indicatii-alexei';
+import { indicatiiLear, INDICATII_OPRITE, PRAG_INDICATII_KM_SAPT, trimiteIndicatii, type RandLear } from './indicatii-alexei';
 import { PLAFON } from './timp-liber';
 
 // cifrele reale din lde_analiza_reguli, săptămâna 14–20.09.2026 (km/zi, 5 zile lucrate)
@@ -106,5 +106,12 @@ describe('indicatiiLear', () => {
     expect(t.length).toBeLessThanOrEqual(PLAFON);
     expect(t).toMatch(/… și încă \d+ rânduri/);
     expect((t.match(/<b>/g) || []).length).toBe((t.match(/<\/b>/g) || []).length);
+  });
+});
+
+describe('trimiteIndicatii (ION-118: textele dublează posterul)', () => {
+  it('nu trimite nimic, nici cu force; dry arată încă textul', async () => {
+    expect(await trimiteIndicatii('floresti', '2026-09-21', 'text', { force: true })).toEqual({ trimis: false, motiv: INDICATII_OPRITE });
+    expect(await trimiteIndicatii('', '2026-09-21', 'text', { dry: true })).toEqual({ trimis: false, motiv: 'dry', text: 'text' });
   });
 });

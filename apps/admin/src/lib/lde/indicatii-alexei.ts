@@ -124,33 +124,14 @@ export function indicatiiLear(
   return impacheteaza(antet, linii, subsol);
 }
 
-// ─── trimiterea în grupa livrărilor de uzină ─────────────────────────────────
-// Aceeași grupă ca posterul (app_config.livrare_poster_chat_id). O dată pe săptămână și pe uzină:
-// `app_config.indicatii_alexei_last_<uz>` ține ultima săptămână trimisă; dedup separat de al posterului,
-// ca un poster deja plecat de mână să nu lase indicațiile netrimise.
-import { getSupabase } from '../supabase';
-import { sendTelegram } from '../telegram-notify';
-import { LIVRARE_POSTER_CHAT_KEY } from './livrare-poster';
 
 export const cheiaIndicatiilor = (uz: string) => `indicatii_alexei_last_${uz || 'lear'}`;
 
+/** ION-118 (Ion, 28.09: «textele dublează posterul»): mesajul nu mai pleacă, nici cu force; dry=1 îl arată încă */
+export const INDICATII_OPRITE = 'oprit: textele dublează posterul (Ion, 28.09, ION-118)';
+
 export async function trimiteIndicatii(uz: string, saptamina: string, text: string | null, opts: { force?: boolean; dry?: boolean } = {}):
   Promise<{ trimis: boolean; motiv?: string; text?: string }> {
-  const cheie = cheiaIndicatiilor(uz);
-  const sb = getSupabase();
-  if (!text) {
-    // săptămâna se marchează și când n-are ce trimite — paznicul de luni (luni-paznic.ts) ar striga altfel «neplecat»
-    if (!opts.dry) await sb.from('app_config').upsert({ key: cheie, value: saptamina }, { onConflict: 'key' });
-    return { trimis: false, motiv: 'nimic semnificativ — tăcere' };
-  }
-  const { data: last } = await sb.from('app_config').select('value').eq('key', cheie).maybeSingle();
-  if (!opts.force && last?.value === saptamina) return { trimis: false, motiv: 'deja trimis pentru săptămâna asta' };
-  const { data: g } = await sb.from('app_config').select('value').eq('key', LIVRARE_POSTER_CHAT_KEY).maybeSingle();
-  const chat = (g?.value ?? '').trim();
-  if (!chat) return { trimis: false, motiv: 'grupa livrărilor de uzină nu e legată (app_config.livrare_poster_chat_id)' };
-  if (opts.dry) return { trimis: false, motiv: 'dry', text };
-  const ok = await sendTelegram(chat, text);
-  if (!ok) return { trimis: false, motiv: 'Telegram n-a primit mesajul' };
-  await sb.from('app_config').upsert({ key: cheie, value: saptamina }, { onConflict: 'key' });
-  return { trimis: true };
+  if (opts.dry) return { trimis: false, motiv: 'dry', text: text ?? undefined };
+  return { trimis: false, motiv: INDICATII_OPRITE };
 }

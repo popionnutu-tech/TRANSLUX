@@ -13,11 +13,10 @@ describe('paznicul de luni', () => {
     expect(lipsurileLunii(S, rapoarte, toate)).toEqual([]);
     expect(textLuniPaznic(S, [])).toBeNull();
   });
-  it('cheie de săptămâna trecută = neplecat; raport lipsă și indicații lipsă, pe uzină', () => {
+  it('cheie de săptămâna trecută = neplecat; raport lipsă, pe uzină; indicațiile nu se mai cer (ION-118)', () => {
     const chei = new Map(toate); chei.set('lear_poster_last_lear_flore_ti', '2026-09-21'); chei.delete('indicatii_alexei_last_lear');
     const l = lipsurileLunii(S, new Set(['LEAR Ungheni', 'LEAR Florești']), chei);
     expect(l).toEqual([
-      { uzina: 'LEAR Ungheni', ce: 'indicații' },
       { uzina: 'LEAR Florești', ce: 'poster' },
       { uzina: 'SEBN Orhei și Strășeni', ce: 'raport' },
       { uzina: 'Trox + suburban Briceni', ce: 'raport' },

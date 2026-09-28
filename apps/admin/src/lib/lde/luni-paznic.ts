@@ -13,17 +13,17 @@ import { alertAdmins, escapeHtml } from '../telegram-notify';
 import { chisinauTodayIso } from '../chisinau-time';
 import { cheiaPosterului } from './lear-optimizari-image';
 import { SEBN_POSTER_LAST_KEY } from './sebn-optimizari-image';
-import { cheiaIndicatiilor } from './indicatii-alexei';
 import { BRICENI_POSTER_LAST_KEY } from './briceni-optimizari-image';
 
+// ION-118 (Ion, 28.09: «textele dublează posterul»): indicațiile nu mai pleacă, deci nu se mai cer
 export const UZINE_LUNI = [
-  { nume: 'LEAR Ungheni', rind: 'LEAR Ungheni', poster: cheiaPosterului('LEAR Ungheni'), indicatii: cheiaIndicatiilor('') },
-  { nume: 'LEAR Florești', rind: 'LEAR Florești', poster: cheiaPosterului('LEAR Florești'), indicatii: cheiaIndicatiilor('floresti') },
-  { nume: 'SEBN Orhei și Strășeni', rind: 'SEBN', poster: SEBN_POSTER_LAST_KEY as string | null, indicatii: null as string | null },
+  { nume: 'LEAR Ungheni', rind: 'LEAR Ungheni', poster: cheiaPosterului('LEAR Ungheni'), indicatii: null as string | null },
+  { nume: 'LEAR Florești', rind: 'LEAR Florești', poster: cheiaPosterului('LEAR Florești'), indicatii: null },
+  { nume: 'SEBN Orhei și Strășeni', rind: 'SEBN', poster: SEBN_POSTER_LAST_KEY as string | null, indicatii: null },
   // ION-73: analiza Trox + suburban Briceni se scrie lunea, posterul pleacă din 26.09 (Ion: «poster care va apărea în cron săptămânal la 8 luni»)
   { nume: 'Trox + suburban Briceni', rind: 'BRICENI', poster: BRICENI_POSTER_LAST_KEY as string | null, indicatii: null },
-  // ION-94 (F3): analiza Drăxlmaier se scrie lunea (drax/cod/saptamanal); posterul și indicațiile NU pleacă până la «da»-ul lui Ion,
-  // deci aici se cere doar rândul. La «da»: poster = DRAX_POSTER_LAST_KEY, indicatii = cheiaIndicatiilor('drax').
+  // ION-94 (F3): analiza Drăxlmaier se scrie lunea (drax/cod/saptamanal); posterul NU pleacă până la «da»-ul lui Ion,
+  // deci aici se cere doar rândul. La «da»: poster = DRAX_POSTER_LAST_KEY.
   { nume: 'Drăxlmaier Bălți', rind: 'DRAXELMAIER', poster: null, indicatii: null },
 ];
 
@@ -54,7 +54,7 @@ export function textLuniPaznic(saptamina: string, lipsuri: Lipsa[]): string | nu
   for (const x of lipsuri) peUzina.set(x.uzina, [...(peUzina.get(x.uzina) ?? []), x.ce]);
   const linii = [...peUzina].map(([u, ce]) => `• <b>${escapeHtml(u)}</b>: ${ce.join(', ')}`);
   return `⛔ <b>Luni, săptămâna din ${escapeHtml(saptamina)} — n-a plecat tot</b>\n${linii.join('\n')}\n` +
-    `Log: /root/lde-worker/lear-saptamanal.log pe VPS. Retrimitere de mână: /api/cron/lde-timp-liber[?uz=floresti]&poster=force&indicatii=force, /api/cron/sebn-optimizari?force=1; Briceni: bash /root/lde-worker/briceni/cod/saptamanal.sh, apoi /api/cron/briceni-optimizari?send=1&force=1. ` +
+    `Log: /root/lde-worker/lear-saptamanal.log pe VPS. Retrimitere de mână: /api/cron/lde-timp-liber[?uz=floresti]&poster=force, /api/cron/sebn-optimizari?force=1; Briceni: bash /root/lde-worker/briceni/cod/saptamanal.sh, apoi /api/cron/briceni-optimizari?send=1&force=1. ` +
     `Drăxlmaier: dacă drax/date/saptamanal/<luni>/scrie.log arată „P10 picat”, rerularea NU ajută (instantaneul e același) — diagnosticul e în analiza-respinsa.json; altfel bash /root/lde-worker/drax/cod/saptamanal/saptamanal.sh --write <luni>.`;
 }
 

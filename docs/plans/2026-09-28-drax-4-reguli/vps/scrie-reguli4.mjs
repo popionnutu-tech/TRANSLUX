@@ -16,8 +16,11 @@ const r4 = {}; for (const x of L.R4.filter((q) => q.esant)) { const o = (r4[x.m]
 const balti = Object.fromEntries((rez.R1.balti.peMasina ?? []).filter((x) => x.kmEsant > 0).map((x) => [x.m, r1(x.kmEsant)]));   // nopțile eligibile R-1 în Bălți, pe eșantion (§7.4, Ion 1)
 const masini = new Map();
 const m = (k) => masini.get(k) ?? masini.set(k, { m: k, R1: null, R2: 0, R4: 0, R4laCapat: 0, R4laUzina: 0, balti: balti[k] ?? 0 }).get(k);
-for (const x of L.R1peMasina) Object.assign(m(x.m), { R1: { propus: !!x.propus, km: r1(x.kmEsant), kmSapt: r1(x.kmSapt12_2 ?? 0), nopti: x.nopti, X: x.X ?? null, soferKm: x.soferKm?.med ?? null, motiv: x.motiv ?? null } });
-for (const x of Object.values(r4)) Object.assign(m(x.m), { R4: r1(x.km), R4laCapat: r1(x.laCapat), R4laUzina: r1(x.laUzina) });
+for (const x of L.R1peMasina) Object.assign(m(x.m), { R1: { propus: !!x.propus, km: r1(x.kmEsant), kmSapt: r1(x.kmSapt12_2 ?? 0), nopti: x.nopti, X: x.X ?? null, soferKm: x.soferKm?.med ?? null, motiv: x.motiv ?? null,
+  // Ion 28.09 («nu pot apăsa pe auto»): nopțile, pentru rândul deschis pe pagină
+  detaliu: (x.noptiDetaliu ?? []).map((n) => ({ noapte: n.noapte, ora: n.ora, X: n.X ?? null, seara: r1(n.seara ?? 0), dim: r1(n.dim ?? 0) })) } });
+for (const x of Object.values(r4)) Object.assign(m(x.m), { R4: r1(x.km), R4laCapat: r1(x.laCapat), R4laUzina: r1(x.laUzina),
+  R4lista: L.R4.filter((q) => q.esant && q.m === x.m).map((q) => ({ z: q.z, ora: q.ora, km: r1(q.km), unde: q.unde ?? null })) });
 for (const k of Object.keys(balti)) m(k);
 const lista = [...masini.values()].map((x) => ({ ...x, total: r1((x.R1?.propus ? x.R1.km : 0) + x.R4) })).sort((a, b) => b.total - a.total);
 A.reguli4 = {

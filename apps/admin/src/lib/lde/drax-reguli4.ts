@@ -8,7 +8,11 @@
 export interface KmRegula { masurat: number; extrapolat: number }
 export interface Reguli4Masina {
   m: string;
-  R1: { propus: boolean; km: number; kmSapt: number; nopti: number; X: string | null; soferKm: number | null; motiv: string | null } | null;
+  R1: { propus: boolean; km: number; kmSapt: number; nopti: number; X: string | null; soferKm: number | null; motiv: string | null;
+    /** nopțile (din 28.09, pentru rândul deschis) */
+    detaliu?: { noapte: string; ora: string; X: string | null; seara: number; dim: number }[] } | null;
+  /** drumurile pe acasă tăiate de regula 3 (din 28.09, pentru rândul deschis) */
+  R4lista?: { z: string; ora: string; km: number; unde: string | null }[];
   R2?: number; R4: number; R4laCapat: number; R4laUzina: number; balti: number; total: number;
 }
 export interface Reguli4Drax {
@@ -54,6 +58,22 @@ export function textR3(r: Reguli4Drax): string {
     return `Niciun schimb nu scade flota cu ≥ ${r.R3.prag} km/săpt. (${r.R3.masiniEligibile} mașini verificate). Locuri pe tip: de confirmat.`;
   return r.R3.candidati.map((c) => `${c.A} ↔ ${c.B}: flota −${nr(c.net)} km/săpt. (${c.A} ${c.castigA >= 0 ? '−' : '+'}${nr(Math.abs(c.castigA))}, ${c.B} ${c.castigB >= 0 ? '−' : '+'}${nr(Math.abs(c.castigB))})`).join(' · ')
     + ' · locuri pe tip: de confirmat';
+}
+
+const ZILE_S = ['dum', 'lun', 'mar', 'mie', 'joi', 'vin', 'sâm'];
+const ziScurt = (z: string) => { const t = new Date(`${z}T12:00:00Z`); return `${ZILE_S[t.getUTCDay()]} ${t.getUTCDate()}.${String(t.getUTCMonth() + 1).padStart(2, '0')}`; };
+
+/** rândul deschis, regula 1: o linie pe noapte («lun 14.09 → mar 15.09, la Lazo: seara 18 + dimineața 19 = 37 km») */
+export function liniiR1(m: Reguli4Masina): string[] {
+  return (m.R1?.detaliu ?? []).filter((n) => n.seara + n.dim >= 0.5).map((n) => {
+    const [a, b] = n.noapte.split('→');
+    return `${ziScurt(a)} → ${ziScurt(b)} (${n.ora}), la ${n.X ?? 'capăt'}: seara ${nr(n.seara)} + dimineața ${nr(n.dim)} = ${nr(n.seara + n.dim)} km`;
+  });
+}
+
+/** rândul deschis, regula 3: o linie pe drum («lun 14.09 06:09–14:01 · 35 km · așteaptă la capătul Lazo, nu acasă») */
+export function liniiR4(m: Reguli4Masina): string[] {
+  return (m.R4lista ?? []).filter((x) => x.km >= 0.5).map((x) => `${ziScurt(x.z)} ${x.ora} · ${nr(x.km)} km · așteaptă ${x.unde ?? 'la capăt sau la uzină'}, nu acasă`);
 }
 
 /** mașinile cu ceva de tăiat, în ordinea totalului; cele doar cu Bălți la coadă */

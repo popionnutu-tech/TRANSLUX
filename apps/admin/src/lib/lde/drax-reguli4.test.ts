@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { randuriReguli4, textR1, textR3, textR4, type Reguli4Drax, type Reguli4Masina } from './drax-reguli4';
+import { liniiR1, liniiR4, randuriReguli4, textR1, textR3, textR4, type Reguli4Drax, type Reguli4Masina } from './drax-reguli4';
 
 const m = (x: Partial<Reguli4Masina>): Reguli4Masina => ({ m: 'X', R1: null, R2: 0, R4: 0, R4laCapat: 0, R4laUzina: 0, balti: 0, total: 0, ...x });
 const r = (x: Partial<Reguli4Drax>): Reguli4Drax => ({ versiune: '', rulat: '', esantion: 159, zileLV: 189, factor: 1.19,
@@ -25,5 +25,16 @@ describe('ION-120 — cele 4 reguli pe pagină', () => {
   it('rândurile: după total, fără mașinile fără nimic', () => {
     const rows = randuriReguli4(r({ masini: [m({ m: 'A', total: 10 }), m({ m: 'B' }), m({ m: 'C', total: 300 }), m({ m: 'D', balti: 50 })] }));
     expect(rows.map((x) => x.m)).toEqual(['C', 'A', 'D']);
+  });
+});
+
+describe('rândul deschis (Ion 28.09: «nu pot apăsa pe auto»)', () => {
+  it('regula 1: o linie pe noapte', () => {
+    expect(liniiR1(m({ R1: { propus: true, km: 37.1, kmSapt: 149, nopti: 1, X: 'Lazo', soferKm: 6.3, motiv: null, detaliu: [{ noapte: '2026-09-14→2026-09-15', ora: '00:48 → 05:39', X: 'Lazo', seara: 17.9, dim: 19.2 }] } })))
+      .toEqual(['lun 14.09 → mar 15.09 (00:48 → 05:39), la Lazo: seara 18 + dimineața 19 = 37 km']);
+  });
+  it('regula 3: o linie pe drum', () => {
+    expect(liniiR4(m({ R4: 34.6, R4lista: [{ z: '2026-09-14', ora: '06:09–14:01', km: 34.6, unde: 'la capătul Lazo' }] })))
+      .toEqual(['lun 14.09 06:09–14:01 · 35 km · așteaptă la capătul Lazo, nu acasă']);
   });
 });

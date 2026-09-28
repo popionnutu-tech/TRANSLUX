@@ -1,8 +1,9 @@
 'use client';
 
 // Cele 3 reguli de optimizare ale lui Ion (ION-120, 28.09.2026; §8.7; «rămâne la uzină» scoasă de Ion). Doar afișare: cifrele sunt ale rândului săptămânii (date.reguli4).
+import { Fragment, useState, type ReactNode } from 'react';
 import { canonPlaca } from '@/lib/lde/tip-masina';
-import { TITLURI_REGULI4, randuriReguli4, textR1, textR3, textR4, type Reguli4Drax } from '@/lib/lde/drax-reguli4';
+import { TITLURI_REGULI4, liniiR1, liniiR4, randuriReguli4, textR1, textR3, textR4, type Reguli4Drax } from '@/lib/lde/drax-reguli4';
 
 const n0 = (x: number | null | undefined) => (x == null ? '—' : Math.round(x).toLocaleString('ro-RO'));
 const VERDE = 'text-[#1f7a4d] dark:text-[#6fd3a0]';
@@ -20,7 +21,8 @@ function Regula({ titlu, val, sub }: { titlu: string; val: string; sub: string }
   );
 }
 
-export default function PatruReguli({ r, tipuri = {} }: { r: Reguli4Drax | null; tipuri?: Record<string, string> }) {
+export default function PatruReguli({ r, tipuri = {}, zile }: { r: Reguli4Drax | null; tipuri?: Record<string, string>; zile?: (placa: string) => ReactNode }) {
+  const [deschis, setDeschis] = useState<string | null>(null);
   if (!r) return (
     <p className="mt-9! text-[12.5px] text-neutral-500">Cele 3 reguli de optimizare: lipsă pentru săptămâna aceasta (rândul e de dinainte de 28.09.2026 sau pasul nu s-a calculat).</p>
   );
@@ -50,13 +52,27 @@ export default function PatruReguli({ r, tipuri = {} }: { r: Reguli4Drax | null;
             </thead>
             <tbody>
               {rows.map((m) => (
-                <tr key={m.m} className="border-t border-neutral-100 dark:border-neutral-800">
+                <Fragment key={m.m}>
+                <tr onClick={() => setDeschis(deschis === m.m ? null : m.m)} title="apasă ca să vezi nopțile, drumurile și ziua mașinii"
+                  className={`cursor-pointer border-t border-neutral-100 hover:bg-[#9B1B30]/[0.03] dark:border-neutral-800 ${deschis === m.m ? 'bg-[#9B1B30]/[0.04]' : ''}`}>
                   <td className="whitespace-nowrap px-2! py-1! font-mono">{m.m}<span className="ml-2! font-sans text-[11px] text-neutral-500">{tipuri[canonPlaca(m.m)] ?? ''}</span></td>
                   <td className="px-2! py-1!">{textR1(m)}</td>
                   <td className="px-2! py-1!">{textR4(m)}</td>
                   <td className={`px-2! py-1! text-right font-semibold tabular-nums ${VERDE}`}>{m.total >= 0.5 ? n0(m.total) : '—'}</td>
                   {cuBalti && <td className="px-2! py-1! text-right tabular-nums text-neutral-500">{m.balti >= 0.5 ? n0(m.balti) : '—'}</td>}
                 </tr>
+                {deschis === m.m && (
+                  <tr className="border-t border-neutral-100 dark:border-neutral-800">
+                    <td colSpan={cuBalti ? 5 : 4} className="px-3! py-2! text-[12.5px]">
+                      {liniiR1(m).length > 0 && (<div className="mb-2!"><b>1 · Doarme la capăt{m.R1?.propus ? '' : ' (sub prag, nu se propune)'}</b>
+                        <ul className="mt-0.5! space-y-0.5!">{liniiR1(m).map((x, i) => <li key={i}>{x}</li>)}</ul></div>)}
+                      {liniiR4(m).length > 0 && (<div className="mb-2!"><b>3 · Nu pleacă acasă între schimburi</b>
+                        <ul className="mt-0.5! space-y-0.5!">{liniiR4(m).map((x, i) => <li key={i}>{x}</li>)}</ul></div>)}
+                      {zile && <div className="mt-2! border-t border-neutral-100 pt-2! dark:border-neutral-800"><b>Ziua mașinii, drum cu drum</b><div className="mt-1!">{zile(m.m)}</div></div>}
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               ))}
             </tbody>
           </table>

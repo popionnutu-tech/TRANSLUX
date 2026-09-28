@@ -168,7 +168,7 @@ export default function RaportDrax({ a, saptamani, tipuri = {} }: { a: RaportDra
           sub={`Doar în km neexplicați de §5. Peste ${TL.prag_km} km: ${TL.masini_peste_prag.join(', ') || '—'} · brambura: ${TL.masini_peste_prag_brambura.join(', ') || '—'}.`} />
       </div>
 
-      <PatruReguli r={a.reguli4 ?? null} tipuri={tipuri} />
+      <PatruReguli r={a.reguli4 ?? null} tipuri={tipuri} zile={(placa) => { const mm = a.masini.find((x) => x.m === placa); return mm ? <Zile m={mm} /> : null; }} />
       <CeFaciDraxSectiune p={pagina} />
       <DormBalti a={a} />
 

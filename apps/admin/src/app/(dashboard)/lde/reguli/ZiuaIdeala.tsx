@@ -33,9 +33,9 @@ export default function ZiuaIdeala({ z, tipuri = {}, zile }: { z: ZiIdealaDrax |
         <span className="text-[12px] text-neutral-500">ziua ideală = cursele și munca + drumul direct între curse + noaptea la capăt · măsurat {n0(f.economie)} km pe {f.zile} zile</span>
       </div>
       <div className="grid gap-3 md:grid-cols-4">
-        <Card mare titlu="Total de tăiat" val={n0(f.extrapolat)} sub={`Km făcuți − ziua ideală, pe toate zilele lucrate. Separat: weekend ${n0(f.separat.weekend.economie * factor)}, nopțile în Bălți ${n0(f.separat.balti.economie * factor)}.`} />
+        <Card mare titlu="Total de tăiat" val={n0(f.extrapolat)} sub={`Km făcuți − ziua ideală, pe toate zilele lucrate, cu nopțile de weekend. Separat: nopțile în Bălți ${n0((f.separat.balti?.economie ?? 0) * factor)}.`} />
         <Card titlu="Acasă între curse" val={n0(c.acasa * factor)} sub="Între curse merge acasă în loc să aștepte la capăt sau la uzină (cu tot drumul mai lung prin casă)." />
-        <Card titlu="Noaptea departe de capăt" val={n0(c.noapte * factor)} sub="Seara nu rămâne unde termină / de unde pleacă dimineața." />
+        <Card titlu="Noaptea departe de capăt" val={n0(c.noapte * factor)} sub="Seara nu rămâne unde termină / de unde pleacă dimineața (și vineri → luni)." />
         <Card titlu="Drum mai lung" val={n0((c.drumLung + c.drumMaiScurt) * factor)} sub={`Mai lung decât drumul direct, fără casă (${n0(c.drumLung * factor)}), minus zilele mai scurte decât idealul (${n0(c.drumMaiScurt * factor)}).`} />
       </div>
       <div className="mt-3! overflow-x-auto rounded-[12px] border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900">
@@ -43,7 +43,7 @@ export default function ZiuaIdeala({ z, tipuri = {}, zile }: { z: ZiIdealaDrax |
           <thead>
             <tr className="bg-[#9B1B30]/[0.04] text-left text-[10px] uppercase tracking-[0.08em] text-neutral-500">
               <th className="px-2! py-1.5!">Mașina</th><th className="px-2! py-1.5! text-right">Pe zi</th><th className="px-2! py-1.5! text-right">Acasă</th>
-              <th className="px-2! py-1.5! text-right">Noapte</th><th className="px-2! py-1.5! text-right">Drum</th><th className="px-2! py-1.5! text-right">Săptămâna</th><th className="px-2! py-1.5! text-right">Weekend</th>
+              <th className="px-2! py-1.5! text-right">Noapte</th><th className="px-2! py-1.5! text-right">Drum</th><th className="px-2! py-1.5! text-right">Săptămâna</th>
             </tr>
           </thead>
           <tbody>
@@ -58,11 +58,10 @@ export default function ZiuaIdeala({ z, tipuri = {}, zile }: { z: ZiIdealaDrax |
                   <td className="px-2! py-1! text-right tabular-nums">{m.cauze.noapte >= 0.5 ? n0(m.cauze.noapte) : '—'}</td>
                   <td className="px-2! py-1! text-right tabular-nums">{Math.abs(m.cauze.drumLung + m.cauze.drumMaiScurt) >= 0.5 ? n0(m.cauze.drumLung + m.cauze.drumMaiScurt) : '—'}</td>
                   <td className={`px-2! py-1! text-right font-semibold tabular-nums ${m.pestePrag && !m.separat ? VERDE : ''}`}>{n0(m.kmSapt)}</td>
-                  <td className="px-2! py-1! text-right tabular-nums text-neutral-500">{m.separatKm?.weekend?.economie >= 0.5 ? n0(m.separatKm.weekend.economie) : '—'}</td>
                 </tr>
                 {deschis === m.m && (
                   <tr className="border-t border-neutral-100 dark:border-neutral-800">
-                    <td colSpan={7} className="px-3! py-2! text-[12.5px]">
+                    <td colSpan={6} className="px-3! py-2! text-[12.5px]">
                       {m.zile.map((d) => (
                         <div key={d.z} className="mb-2!">
                           <b>{textZiIdeala(d)}</b>

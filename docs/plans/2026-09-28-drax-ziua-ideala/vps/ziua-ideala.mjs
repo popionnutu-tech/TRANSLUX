@@ -230,7 +230,8 @@ for (const L of peMasina.values()) {
 // ---------- ecuațiile pe zi ----------
 const CAUZE = ['noapte', 'acasa', 'drumLung', 'drumMaiScurt'];   // r3/C5: «acasa» unită
 const COMP = ['acasaOcol', 'acasaDrumLung'];                      // componentele lui «acasa» (diagnostic, NU se adună a doua oară)
-const SEPC = ['weekend', 'balti', 'pauza'];
+// Ion, 28.09.2026 («count in total»): noaptea de weekend (vineri → luni) intră în total ca orice noapte; separat rămân Bălți (§7.4) și pauza > 1 zi
+const SEPC = ['balti', 'pauza'];
 const ROWS = [];
 for (const x of D) {
   const { d, iv } = x;
@@ -261,7 +262,7 @@ for (const x of D) {
     const share = N.real > 0 ? N.link.km * real / N.real : N.link.km / 2;
     const e = real - intern - share;
     noapteIdeal += intern + share;
-    const k = N.cat === 'normal' ? null : N.cat;
+    const k = SEPC.includes(N.cat) ? N.cat : null;   // weekendul (Ion 28.09) ca noaptea obișnuită
     if (!k) { golElig += real; if (e >= 0) c.noapte += e; else { c.drumMaiScurt += e; steaguri.push(`noaptea ${part} ${N.noapte}: ideal peste real ${r1(e)}`); } }
     else if (e >= 0) c['sep_' + k] += e; else c['sepMaiScurt_' + k] += e;
     jum.push({ part, noapte: N.noapte, cat: N.cat, real: r1(real), golRuta: r1(sum(x.iv.filter((v) => v.tip === part), (v) => v.golRuta)), livrMargine: r1(sum(x.iv.filter((v) => v.tip === part), (v) => v.livrMargine)),

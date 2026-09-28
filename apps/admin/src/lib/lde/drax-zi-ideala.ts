@@ -1,24 +1,24 @@
 // «Ziua ideală» a mașinii Drăxlmaier (ION-123, 28.09.2026; cererea lui Ion: «ideal ar fi 15–17 km × 6 drumuri … minus km total se primește economie»).
 // Ideal = cursele cu oameni și munca (km GPS) + drumul direct între curse (mediana GPS observată, altfel Valhalla × 1,05) + noaptea la capăt;
-// economie = km făcuți − ideal, pe cauze: noaptea departe de capăt, acasă între curse, drum mai lung decât cel direct. Weekendul, nopțile în Bălți
-// și mașinile cu posibilă cursă nedetectată sunt separat. Cifrele vin din rândul săptămânii (date.ziIdeala, VPS: drax/cod/saptamanal/{ziua-ideala,
+// economie = km făcuți − ideal, pe cauze: noaptea departe de capăt (și cea de weekend — Ion 28.09: «count in total»), acasă între curse, drum mai lung
+// decât cel direct. Nopțile în Bălți și mașinile cu posibilă cursă nedetectată sunt separat. Cifrele vin din rândul săptămânii (date.ziIdeala, VPS: drax/cod/saptamanal/{ziua-ideala,
 // scrie-ziua-ideala}.mjs), după dezbaterea Claude + Codex (r3 10/10). Aici doar textul, funcții pure.
 
 export interface CauzeZiIdeala { noapte: number; acasa: number; drumLung: number; drumMaiScurt: number }
 export interface IntervalZiIdeala { ora: string; km: number; obl: number; munca: number; leg: number; src: string; ocol: number; economie: number; intreUzine: string | null }
 export interface ZiIdealaZi {
   z: string; gps: number; ideal: number; economie: number; cuOameni: number; obligatorii: number; legaturi: number; noapteIdeala: number;
-  cauze: CauzeZiIdeala; separat: { weekend: number; balti: number; pauza: number }; steaguri: string[];
+  cauze: CauzeZiIdeala; separat: { weekend?: number; balti: number; pauza: number }; steaguri: string[];
   intervale: IntervalZiIdeala[]; jumatati: { part: string; noapte: string; cat: string; real: number; economie: number }[];
 }
 export interface ZiIdealaMasina {
   m: string; separat: boolean; zileLV: number; zileMasurate: number; kmSapt: number; peZi: number; pestePrag: boolean; cauze: CauzeZiIdeala;
-  separatKm: Record<'weekend' | 'balti' | 'pauza', { economie: number; maiScurt: number }>; zile: ZiIdealaZi[];
+  separatKm: Partial<Record<'weekend' | 'balti' | 'pauza', { economie: number; maiScurt: number }>>; zile: ZiIdealaZi[];
 }
 export interface ZiIdealaDrax {
   versiune: string; rulat: string;
   flota: { zile: number; gps: number; ideal: number; economie: number; extrapolat: number; cauze: CauzeZiIdeala;
-    separat: Record<'weekend' | 'balti' | 'pauza', { economie: number; maiScurt: number }> };
+    separat: Partial<Record<'weekend' | 'balti' | 'pauza', { economie: number; maiScurt: number }>> };
   separatMasini: { masini: string[]; economie: number; motiv: string };
   legaturi: { perechi: number; gps: number; valhalla: number }; prag: number;
   zileSubMinus5: { m: string; z: string; e: number }[];
@@ -38,7 +38,8 @@ export function textCauze(c: CauzeZiIdeala): string {
 
 /** o zi: «mar 15.09 · făcut 238 km · ideal 129 · economie 109 (noapte 37, acasă 72)» */
 export function textZiIdeala(d: ZiIdealaZi): string {
-  const sep = d.separat.weekend + d.separat.balti + d.separat.pauza >= 0.5 ? ` · separat ${nr(d.separat.weekend + d.separat.balti + d.separat.pauza)} (${d.separat.weekend >= 0.5 ? 'weekend' : d.separat.balti >= 0.5 ? 'Bălți' : 'pauză'})` : '';
+  const we = d.separat.weekend ?? 0, s = we + d.separat.balti + d.separat.pauza;
+  const sep = s >= 0.5 ? ` · separat ${nr(s)} (${we >= 0.5 ? 'weekend' : d.separat.balti >= 0.5 ? 'Bălți' : 'pauză'})` : '';
   return `${ziScurtZi(d.z)} · făcut ${nr(d.gps)} km · ideal ${nr(d.ideal)} · economie ${nr(d.economie)} (${textCauze(d.cauze)})${sep}`;
 }
 

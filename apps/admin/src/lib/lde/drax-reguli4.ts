@@ -55,9 +55,9 @@ export function textR4(m: Reguli4Masina): string {
 /** textul cardului regulii 3: schimburile propuse sau de ce nu e niciunul */
 export function textR3(r: Reguli4Drax): string {
   if (!r.R3.candidati.length)
-    return `Niciun schimb nu scade flota cu ≥ ${r.R3.prag} km/săpt. (${r.R3.masiniEligibile} mașini verificate). Locuri pe tip: de confirmat.`;
+    return `Niciun schimb nu scade flota cu ≥ ${r.R3.prag} km/săpt. (${r.R3.masiniEligibile} mașini verificate). Locuri: ${r.R3.capacitate}.`;
   return r.R3.candidati.map((c) => `${c.A} ↔ ${c.B}: flota −${nr(c.net)} km/săpt. (${c.A} ${c.castigA >= 0 ? '−' : '+'}${nr(Math.abs(c.castigA))}, ${c.B} ${c.castigB >= 0 ? '−' : '+'}${nr(Math.abs(c.castigB))})`).join(' · ')
-    + ' · locuri pe tip: de confirmat';
+    + ` · locuri: ${r.R3.capacitate}`;
 }
 
 const ZILE_S = ['dum', 'lun', 'mar', 'mie', 'joi', 'vin', 'sâm'];

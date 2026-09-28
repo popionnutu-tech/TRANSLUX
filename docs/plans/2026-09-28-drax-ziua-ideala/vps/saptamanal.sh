@@ -101,7 +101,7 @@ pas scrie node --env-file=$E scrie-analiza.mjs "$ECON_D" $WRITE
 # patru-reguli.mjs citește rândul scris (analiza.json) și dosarul; scrie-reguli4.mjs adaugă date.reguli4 în rând (PATCH, doar cu --write).
 # Eșecul NU atinge rândul: pagina arată «cele 4 reguli: lipsă». DRAX_REGULI4=0 sare pasul.
 if [ "${DRAX_REGULI4:-1}" = 1 ]; then
-  pas reguli4 timeout 300 $N patru-reguli.mjs "$ECON_D" < /dev/null && pas scrie-reguli4 node --env-file=$E scrie-reguli4.mjs "$ECON_D" $WRITE < /dev/null || true
+  pas reguli4 timeout 300 $N --env-file=$E patru-reguli.mjs "$ECON_D" < /dev/null && pas scrie-reguli4 node --env-file=$E scrie-reguli4.mjs "$ECON_D" $WRITE < /dev/null || true
 fi
 # ION-123 (aditiv, 28.09.2026): «ziua ideală» a fiecărei mașini (economia = km făcuți − ideal; dezbaterea Claude + Codex, docs/plans/2026-09-28-drax-ziua-ideala).
 # Citește rândul cu date.reguli4; eșecul NU atinge rândul. DRAX_ZI_IDEALA=0 sare pasul.

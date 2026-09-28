@@ -20,7 +20,7 @@ describe('ION-120 — cele 4 reguli pe pagină', () => {
   });
   it('regula 3 cu schimb: totalul flotei și fiecare mașină', () => {
     expect(textR3(r({ R3: { candidati: [{ A: '446ASB', B: '925FTI', net: 60.2, castigA: -121.6, castigB: 181.8 }], perechiVerificate: 1, masiniEligibile: 2, masiniCuZileExcluse: 0, prag: 50, capacitate: 'de confirmat' } })))
-      .toBe('446ASB ↔ 925FTI: flota −60 km/săpt. (446ASB +122, 925FTI −182) · locuri pe tip: de confirmat');
+      .toBe('446ASB ↔ 925FTI: flota −60 km/săpt. (446ASB +122, 925FTI −182) · locuri: de confirmat');
   });
   it('rândurile: după total, fără mașinile fără nimic', () => {
     const rows = randuriReguli4(r({ masini: [m({ m: 'A', total: 10 }), m({ m: 'B' }), m({ m: 'C', total: 300 }), m({ m: 'D', balti: 50 })] }));

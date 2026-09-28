@@ -29,7 +29,7 @@ A.reguli4 = {
   flota: { ...rez.flota, R2: undefined, sumaPropusa: { masurat: r1(rez.flota.R1propus.masurat + rez.flota.R4.masurat), extrapolat: rez.flota.R1propus.extrapolat + rez.flota.R4.extrapolat } },
   treiReguli: true,
   R3: { candidati: (L.R3.candidati ?? []).map((p) => ({ A: p.A, B: p.B, net: p.net, castigA: p.castigA, castigB: p.castigB })), perechiVerificate: rez.R3.perechiTotal,
-    masiniEligibile: rez.R3.masiniEligibile, masiniCuZileExcluse: rez.R3.masiniCuZileExcluse?.length ?? 0, prag: 50, capacitate: 'DAF 50, Sprinter 518 30; microbuzele 20–30 — pe clasa dusă deja (Ion 28.09, migr. 422)' },
+    masiniEligibile: rez.R3.masiniEligibile, masiniCuZileExcluse: rez.R3.masiniCuZileExcluse?.length ?? 0, prag: 50, capacitate: 'pe mașină (Ion 28.09): DAF 50; 043BRAU, 041BRAU, 917FTI, 302YEK, 457BRAX, 912RNK 27; restul 20 (sau clasa dusă deja)' },
   masini: lista,
 };
 writeFileSync(`${DIR}/analiza.json`, JSON.stringify(A));

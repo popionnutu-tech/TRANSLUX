@@ -143,15 +143,16 @@ const PROBA = MAS.map((m) => {
 // ============ R-3: schimb complet A ↔ B pe săptămână ============
 // capacitatea OBSERVATĂ (C7: nu e confirmată): cea mai mare clasă de linie dusă de mașină în fereastra scheletului
 const capM = new Map(), capM3 = new Map();
-// Ion, 28.09.2026: «daf big bus, rest is 20-30 seats, mercedes 518 is 30 seats» (migr. 422, lde_vehicle_types.passenger_seats): capacitatea mașinii =
+// Ion, 28.09.2026: «27 locuri 043/041/917/302/457/912, restul 20 locuri, daf-urile 50» (migr. 424, vehicles.passenger_seats; tipul, migr. 422, doar dacă mașina n-are): capacitatea mașinii =
 // max(locurile tipului ei, clasa cea mai mare de linie dusă deja). Tipurile fără cifră (microbuzele 20–30) rămân pe clasa observată.
 const LOC = new Map();
 { const SB = process.env.SUPABASE_URL, KEY = process.env.SUPABASE_SERVICE_KEY;
   if (SB && KEY) { const g = async (q) => { const r = await fetch(`${SB}/rest/v1/${q}`, { headers: { apikey: KEY, Authorization: `Bearer ${KEY}` } }); if (!r.ok) throw new Error(`${q}: HTTP ${r.status}`); return r.json(); };
-    const [v, n, t] = await Promise.all([g('vehicles?select=id,plate_number'), g('lde_vehicle_norms?select=vehicle_id,vehicle_type_id'), g('lde_vehicle_types?select=id,passenger_seats')]);
+    const [v, n, t] = await Promise.all([g('vehicles?select=id,plate_number,passenger_seats'), g('lde_vehicle_norms?select=vehicle_id,vehicle_type_id'), g('lde_vehicle_types?select=id,passenger_seats')]);
     const loc = new Map(t.filter((x) => x.passenger_seats).map((x) => [x.id, x.passenger_seats])), tipV = new Map(n.filter((x) => x.vehicle_type_id).map((x) => [x.vehicle_id, loc.get(x.vehicle_type_id)]));
     const canon = (p) => { const q = String(p ?? '').toUpperCase().replace(/[^A-Z0-9]/g, ''); const m = q.match(/^([A-Z]{3})(\d{3})$/); return m ? m[2] + m[1] : q; };
-    for (const x of v) { const l = tipV.get(x.id); if (l) LOC.set(canon(x.plate_number), l); } }
+    // Ion, 28.09.2026 (migr. 424): locurile PE MAȘINĂ (vehicles.passenger_seats) bat locurile tipului
+    for (const x of v) { const l = x.passenger_seats ?? tipV.get(x.id); if (l) LOC.set(canon(x.plate_number), l); } }
   else console.error('atenție: fără SUPABASE_URL — locurile pe tip nu se citesc, capacitatea rămâne cea observată'); }
 for (const l of S) for (const q of l.masini ?? []) { const m = numeM(q.m); if (!l.locuri) continue;
   capM.set(m, Math.max(capM.get(m) ?? 0, l.locuri)); if ((q.zile ?? 0) >= 3) capM3.set(m, Math.max(capM3.get(m) ?? 0, l.locuri)); }

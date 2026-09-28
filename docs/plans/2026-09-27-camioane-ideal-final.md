@@ -55,3 +55,11 @@ Valhalla: `~/dev/valhalla-eu` (colima, 127.0.0.1:8003; în `valhalla.json`, `bre
 | B6 | Бердичев → нефтебаза Кишинёв (Маноле) | Otaci | 400 | 431 | 400 |
 | B7 | Бердичев → Констанца через ZEL Унгены | Otaci → ZEL → Albița | 1.114 | 1.280 | 1.114 |
 | B8 | Бердичев → Русе через ZEL Унгены | Otaci → ZEL → Albița | 1.142 | 1.255 | 1.142 |
+
+## Biodiesel: al doilea ideal (Ion, 28.09: «tot acceptabil») — magistrala prin Moldova Soroca → Orhei → Chișinău → Leușeni
+
+| Cod | Ideal 1 km | Ideal 2 km | Ideal 2 ore de mers |
+|---|---|---|---|
+| B1 | 856 | 888 | 18.7 |
+| B2 | 1.207 | 1.239 | 24.7 |
+| B4 | 884 | 914 | 18.7 |

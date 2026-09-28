@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { agregaLivrare, agregaBrambura, descrieZiua, perioadaCadentei, textulEconomiei, type CursaLivrare, type NavetaRand } from './livrare-poster';
+import { agregaLivrare, agregaBrambura, faraZileDeNaveta, descrieZiua, perioadaCadentei, textulEconomiei, type CursaLivrare, type NavetaRand } from './livrare-poster';
 
 const rute = [
   { id: 'r1', uzina_id: 'SEBN_STRASENI', route_number: 1, stops_in_order: 'Vatici → SEBN MD2 Strășeni' },
@@ -227,5 +227,21 @@ describe('perioadaCadentei', () => {
     expect(perioadaCadentei('2026-10-12')).toEqual({ from: '2026-10-05', to: '2026-10-11' });
     expect(perioadaCadentei('2026-10-06')).toBeNull();   // marți
     expect(perioadaCadentei('2026-09-21')).toBeNull();   // înainte de prima luni
+  });
+});
+
+describe('faraZileDeNaveta (ION-117)', () => {
+  it('scoate cursele mașinii doar în zilele ei de navetă', () => {
+    const curse = [
+      { vehicle_id: 'v-073', run_date: '2026-09-22', km: 122 },
+      { vehicle_id: 'v-073', run_date: '2026-09-23', km: 30 },
+      { vehicle_id: 'v-820', run_date: '2026-09-22', km: 19 },
+    ];
+    const out = faraZileDeNaveta(curse, [{ vehicle_id: 'v-073', run_date: '2026-09-22' }]);
+    expect(out.map((c) => `${c.vehicle_id} ${c.run_date}`)).toEqual(['v-073 2026-09-23', 'v-820 2026-09-22']);
+  });
+  it('fără navete lasă totul', () => {
+    const curse = [{ vehicle_id: 'a', run_date: '2026-09-22' }];
+    expect(faraZileDeNaveta(curse)).toBe(curse);
   });
 });

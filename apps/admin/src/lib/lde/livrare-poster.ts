@@ -226,6 +226,19 @@ export function agregaLivrare(input: {
  * mașini au făcut kilometraj neagreat, brambura». O linie pe (mașină, zi) cu excesul
  * scris de agregator (`km_brambura`), peste `min` km.
  */
+/**
+ * ION-117: cursele unei mașini în zilele în care ea face naveta altui autobuz (`lde_naveta_sofer`)
+ * ies din livrare și din brambura. 073BRAO trece dimineața pe la Bucuria și lanțul de noapte îi
+ * scrie o «cursă» (22.09 retur s3 pe ruta 25, 122 km); km-ii ei sunt deja în rândul navetei.
+ */
+export function faraZileDeNaveta<T extends { vehicle_id: string; run_date: string }>(
+  curse: T[], navete: { vehicle_id: string; run_date: string }[] = [],
+): T[] {
+  if (!navete.length) return curse;
+  const zile = new Set(navete.map((n) => `${n.vehicle_id}|${n.run_date}`));
+  return curse.filter((c) => !zile.has(`${c.vehicle_id}|${c.run_date}`));
+}
+
 export const MIN_BRAMBURA_KM = 20;
 export function agregaBrambura(input: {
   curse: CursaLivrare[];
@@ -400,9 +413,11 @@ export async function incarcaLivrare(from: string, to: string, prag = PRAG_LIVRA
   // «Slobozia Doamnei» e Orheiul — numele cartierului derutează pe poster
   for (const [k, v] of caseMap) if (/slobozia doamnei|nordic|bucuria|centru|mitoc/i.test(v)) caseMap.set(k, 'Orhei');
   const ruteAlese = uzine === 'all' ? rute : rute.filter((r) => uzine.includes(r.uzina_id));
+  // ION-117: în ziua de navetă «cursa» mașinii de navetă e trecerea ei pe lângă poartă, nu o rută
+  const curseR = faraZileDeNaveta(curse, navete);
   return {
-    rows: agregaLivrare({ curse, rute: ruteAlese, startReal, soferi: soferiMap, case: caseMap, masini: masiniMap, norme: normeMap, pretZi, navete, prag }),
-    brambura: await cuDescriere(agregaBrambura({ curse, rute: ruteAlese, masini: masiniMap, soferZi }), ruteAlese, atribuiri, caseMap, curse),
+    rows: agregaLivrare({ curse: curseR, rute: ruteAlese, startReal, soferi: soferiMap, case: caseMap, masini: masiniMap, norme: normeMap, pretZi, navete, prag }),
+    brambura: await cuDescriere(agregaBrambura({ curse: curseR, rute: ruteAlese, masini: masiniMap, soferZi }), ruteAlese, atribuiri, caseMap, curseR),
     pretMotorina,
   };
 }

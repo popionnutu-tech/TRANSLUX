@@ -66,11 +66,45 @@ test('autobuzul rutei nu se numără pe sine: are curse, deci km-ii lui sunt dej
   assert.equal(out.filter((r) => r.vehicle_id === AUTOBUZ).length, 0);
 });
 
-test('ziua în care mașina navetei a avut cursă proprie nu intră', () => {
+test('ION-117: ziua cu o «cursă» falsă a mașinii navetei intră, dacă tiparul e dovedit pe zile curate', () => {
+  // 22.09: 073BRAO trece pe la Bucuria și lanțul de noapte îi scrie o cursă pe ruta 25
   const inp = intrare();
   inp.curse.push({ vehicle_id: NAVETA, run_date: '2026-09-17', factory_route_id: 'r-12', km_real: 66.2 });
   const out = detecteazaNaveta(inp);
-  assert.deepEqual(out.map((r) => r.run_date), ['2026-09-15', '2026-09-16', '2026-09-18']);
+  assert.deepEqual(out.map((r) => r.run_date), ZILE);
+  assert.ok(out.every((r) => !('cuCursa' in r)), 'câmpul intern nu ajunge în tabel');
+});
+
+test('ION-117: zilele cu cursă nu fac singure tiparul (mașina care face rute adevărate nu devine navetă)', () => {
+  const inp = intrare();
+  for (const d of ['2026-09-15', '2026-09-16']) inp.curse.push({ vehicle_id: NAVETA, run_date: d, factory_route_id: 'r-12', km_real: 66.2 });
+  // rămân 2 zile curate < MIN_ZILE_NAVETA
+  assert.equal(detecteazaNaveta(inp).length, 0);
+});
+
+test('ION-117: opririle scrise de două ori în lde_gps_stops se iau o dată', () => {
+  const simplu = detecteazaNaveta(intrare());
+  const inp = intrare();
+  inp.opriri.push(...inp.opriri.filter((s) => s.vehicle_id === NAVETA).map((s) => ({ ...s })));
+  assert.deepEqual(detecteazaNaveta(inp), simplu);
+});
+
+test('ION-117: la punctul cu două autobuze, ziua merge la cel care stă acolo în același timp', () => {
+  // 25.09 la Vatici: 820GXP și 152BRAZ stau în același loc; naveta așteaptă lângă 820GXP
+  const ALT = 'v-152BRAZ', ALTA = 'r-13';
+  const cuOre = (s, h) => ({ ...s, arrival_at: `${s.date}T${String(h).padStart(2, '0')}:00:00Z` });
+  const inp = { opriri: [], curse: [], porti: [POARTA] };
+  for (const d of ZILE) {
+    const z = ziua(d);
+    const oreA = [0, 3, 4, 11, 12, 19, 20], oreN = [0, 1, 3, 8, 11, 12, 16, 17, 19];
+    inp.opriri.push(...z.autobuz.map((s, i) => cuOre(s, oreA[i])), ...z.naveta.map((s, i) => cuOre(s, oreN[i])));
+    // celălalt autobuz stă la Vatici doar între 05 și 07, când naveta e acasă — dar e primul în listă
+    inp.opriri.unshift(cuOre(op(ALT, d, 1, VATICI, 120, null, 'Vatici'), 5));
+    inp.curse.push(...z.curse, { vehicle_id: ALT, run_date: d, factory_route_id: ALTA, km_real: 30 });
+  }
+  const out = detecteazaNaveta(inp);
+  assert.equal(out.length, ZILE.length);
+  assert.ok(out.every((r) => r.factory_route_id === RUTA && r.autobuz_id === AUTOBUZ));
 });
 
 test('curtea comună (Fălești) NU e navetă: mașina doarme chiar lângă autobuz', () => {

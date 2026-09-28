@@ -15,7 +15,11 @@
 // brută nu e necesară.
 //
 // Tiparul, așa cum se vede în date:
-//   mașina navetei N-ARE nicio cursă în ziua aia (dacă are, km-ii ei sunt deja numărați)
+//   mașina navetei N-ARE cursă în ziua aia — SAU are una, dar tiparul navetei e acolo și perechea
+//   mașină×rută are cel puțin MIN_ZILE_NAVETA zile curate (fără cursă). ION-117: 073BRAO trece
+//   dimineața pe la Bucuria (poarta Orhei) și lanțul de noapte îi scrie o «cursă» falsă (22.09
+//   retur s3 pe ruta 25, 24.09 tur Peresecina), deci ziua de navetă se pierdea; livrare-poster.ts
+//   nu mai numără cursele unei mașini în zilele ei de navetă
 //   ȘI stă de cel puțin două ori lângă locul unde stă un autobuz CU cursă
 //   ȘI locul ăla e departe de poartă (altfel prindem așteptarea la uzină)
 //   ȘI baza ei — locul unde stă cele mai multe minute din zi — e la peste 5 km de el
@@ -39,9 +43,28 @@ const MARJA_OCOL_KM = 20;
 const cheia = (vehicle_id, date) => `${vehicle_id}|${date}`;
 const nr = (v) => (v == null ? 0 : Number(v) || 0);
 const punct = (s) => ({ lat: Number(s.lat), lon: Number(s.lon) });
+// intervalul opririi, în ms (null fără ora sosirii)
+const interval = (s) => {
+  const t0 = s.arrival_at ? Date.parse(s.arrival_at) : NaN;
+  return Number.isFinite(t0) ? { t0, t1: t0 + nr(s.dwell_min) * 60000 } : { t0: null, t1: null };
+};
+// ION-117: la Vatici stau în același loc 820GXP și 152BRAZ; primul găsit trimitea ziua lui
+// 073BRAO pe ruta lui 152BRAZ. Se alege autobuzul care stă acolo ÎN ACELAȘI TIMP (cea mai lungă
+// suprapunere); fără ore sau fără suprapunere, primul, ca înainte
+function alegePunct(cand, { t0, t1 }) {
+  if (!cand.length) return null;
+  if (t0 == null) return cand[0];
+  let best = cand[0], max = 0;
+  for (const x of cand) {
+    if (x.t0 == null) continue;
+    const o = Math.min(t1, x.t1) - Math.max(t0, x.t0);
+    if (o > max) { max = o; best = x; }
+  }
+  return best;
+}
 
 /**
- * @param opriri  lde_gps_stops: { vehicle_id, date, seq, lat, lon, dwell_min, km_from_prev, locality }
+ * @param opriri  lde_gps_stops: { vehicle_id, date, seq, lat, lon, dwell_min, km_from_prev, locality, arrival_at? }
  * @param curse   lde_route_run: { vehicle_id, run_date, factory_route_id, km_real }
  * @param porti   lde_uzine_gates: { lat, lon }
  * @returns [{ run_date, vehicle_id, factory_route_id, km, drumuri, autobuz_id, locul }]
@@ -63,9 +86,13 @@ export function detecteazaNaveta({ opriri, curse, porti = [], minZile = MIN_ZILE
   }
 
   // ── opririle, pe mașină-zi, în ordinea urmei ──
+  // ION-117: lde_gps_stops are zile scrise de două ori (073BRAO 25.09: seq 1–5 dublate);
+  // o oprire se ia o singură dată pe (mașină, zi, seq)
   const peMasinaZi = new Map();
+  const vazut = new Set();
   for (const s of opriri) {
     const k = cheia(s.vehicle_id, s.date);
+    if (s.seq != null) { const u = `${k}|${s.seq}`; if (vazut.has(u)) continue; vazut.add(u); }
     if (!peMasinaZi.has(k)) peMasinaZi.set(k, []);
     peMasinaZi.get(k).push(s);
   }
@@ -84,14 +111,15 @@ export function detecteazaNaveta({ opriri, curse, porti = [], minZile = MIN_ZILE
       const p = punct(s);
       if (langaPoarta(p)) continue;
       if (!punctePeZi.has(date)) punctePeZi.set(date, []);
-      punctePeZi.get(date).push({ p, vehicle_id, factory_route_id: rid, locality: s.locality ?? null });
+      punctePeZi.get(date).push({ p, vehicle_id, factory_route_id: rid, locality: s.locality ?? null, ...interval(s) });
     }
   }
 
   // ── zilele de navetă ──
   const brute = [];
   for (const [k, list] of peMasinaZi) {
-    if (rutaZilei.has(k)) continue;               // are cursă proprie: km-ii ei sunt deja numărați
+    // are cursă proprie: ziua intră doar dacă perechea are destule zile curate (filtrul de la sfârșit)
+    const cuCursa = rutaZilei.has(k);
     const date = list[0].date, vehicle_id = list[0].vehicle_id;
     const puncte = (punctePeZi.get(date) ?? []).filter((x) => x.vehicle_id !== vehicle_id);
     if (!puncte.length) continue;
@@ -116,7 +144,7 @@ export function detecteazaNaveta({ opriri, curse, porti = [], minZile = MIN_ZILE
     const marcaje = list.map((s) => {
       const p = punct(s);
       const acasa = hav(p, baza.p) <= RAZA_ACELASI_LOC_KM;
-      const langa = puncte.find((x) => hav(p, x.p) <= RAZA_ACELASI_LOC_KM);
+      const langa = alegePunct(puncte.filter((x) => hav(p, x.p) <= RAZA_ACELASI_LOC_KM), interval(s));
       if (!acasa && langa && nr(s.dwell_min) >= PRAG_ASTEPTARE_MIN) return { fel: 'ancora', punct: langa, p };
       if (acasa && nr(s.dwell_min) >= PRAG_BAZA_MIN) return { fel: 'acasa', p, dwell: nr(s.dwell_min), locality: s.locality ?? null };
       return null;
@@ -149,17 +177,21 @@ export function detecteazaNaveta({ opriri, curse, porti = [], minZile = MIN_ZILE
     const casa = baza.locality;
     for (const [factory_route_id, v] of peRuta) {
       if (v.km <= 0) continue;
-      brute.push({ run_date: date, vehicle_id, factory_route_id, km: +v.km.toFixed(2), drumuri: v.drumuri, autobuz_id: v.autobuz_id, locul: v.locul, casa });
+      brute.push({ run_date: date, vehicle_id, factory_route_id, km: +v.km.toFixed(2), drumuri: v.drumuri, autobuz_id: v.autobuz_id, locul: v.locul, casa, cuCursa });
     }
   }
 
   // ── pragul de tipar: o singură potrivire e coincidență ──
+  // numărate doar zilele CURATE (fără cursă proprie): o mașină care face rute adevărate nu devine
+  // «navetă» din zilele ei cu curse; zilele cu cursă se adaugă doar unui tipar deja dovedit
   const zilePePereche = new Map();
   for (const r of brute) {
+    if (r.cuCursa) continue;
     const k = `${r.vehicle_id}|${r.factory_route_id}`;
     zilePePereche.set(k, (zilePePereche.get(k) ?? new Set()).add(r.run_date));
   }
   return brute
     .filter((r) => (zilePePereche.get(`${r.vehicle_id}|${r.factory_route_id}`)?.size ?? 0) >= minZile)
+    .map(({ cuCursa, ...r }) => r)
     .sort((a, b) => a.run_date.localeCompare(b.run_date) || (a.vehicle_id < b.vehicle_id ? -1 : 1));
 }

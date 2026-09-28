@@ -417,7 +417,7 @@ async function recalculeazaStartReal() {
  * apar zile noi (pragul de 3 zile), iar un rând rămas ar fi o navetă care nu mai există.
  */
 async function recalculeazaNaveta() {
-  const opriri = await fetchAll('lde_gps_stops', 'vehicle_id,date,seq,lat,lon,dwell_min,km_from_prev,locality',
+  const opriri = await fetchAll('lde_gps_stops', 'vehicle_id,date,seq,lat,lon,dwell_min,km_from_prev,locality,arrival_at',
     (q) => q.gte('date', deLa));
   const curse = await fetchAll('lde_route_run', 'vehicle_id,run_date,factory_route_id,km_real',
     (q) => q.gte('run_date', deLa).gt('km_real', 0));

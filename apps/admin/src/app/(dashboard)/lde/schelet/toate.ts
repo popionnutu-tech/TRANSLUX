@@ -5,6 +5,7 @@ import type { ScheletFloresti } from './ScheletFlorestiClient';
 import type { ScheletMejgorod } from './ScheletMejgorodClient';
 import type { ScheletBriceni } from './ScheletBriceniClient';
 import type { ScheletDrax } from './ScheletDraxClient';
+import type { ScheletCamioane } from './ScheletCamioaneClient';
 
 // Fila «Toate rutele» (ION-67). Ion, 25.09.2026: «fă o hartă unică unde să se aplice toate rutele,
 // vizual să fie frumos, fiecare să fie sub egida ei cumva vizibil». Scheletele au împreună
@@ -15,6 +16,8 @@ export type RutaToate = { id: string; nume: string; km: number | null; culoare: 
 export type Retea = {
   id: string; nume: string; sub: string; culoare: string; zona: Punct[] | null;
   porti: { c: Punct; n: string }[]; rute: RutaToate[]; kmZi: number;
+  // ION-121: rețeaua pornește ascunsă pe harta comună (camioanele merg până în Bulgaria și ar micșora restul la puncte)
+  ascunsaImplicit?: boolean;
 };
 
 // Egida = familia de culoare a rețelei: rutele ei sunt nuanțe ale aceleiași tente, ca dintr-o
@@ -27,6 +30,7 @@ const TENTE = {
   mejgorod: { h: 352, culoare: '#8E2A3A' },
   briceni: { h: 96, culoare: '#557A2E' },
   drax: { h: 322, culoare: '#8A3A78' },
+  camioane: { h: 62, culoare: '#6B7A12' },
 } as const;
 const nuanta = (h: number, i: number) => `hsl(${h} 58% ${30 + ((i * 9) % 24)}%)`;
 
@@ -165,3 +169,15 @@ export const draxLaToate = (drax: ScheletDrax): Retea[] => [
       id: `${r.id} ${l.nr}`, nume: `${r.id} · ${l.nr}`, km: l.kmZi, linie: l.tur.plin,
     })))),
 ];
+
+// Camioane / cisterne (ION-121, din ION-69): idealul de bază al fiecărui traseu, pe un sens. Nu sunt «km cu oameni pe zi»,
+// deci nu intră în total (kmZi = 0), iar rețeaua pornește ascunsă: traseele merg până la Constanța, Ruse și Sofia.
+export const camioaneLaToate = (c: ScheletCamioane): Retea[] => [{
+  ...retea('camioane', 'Camioane (cisterne)', 'motorină + biodiesel · km pe cursă, nu intră în total',
+    c.puncte.filter((p) => /Berdichev|Port Constanța|Baza Chișinău/.test(p.n)),
+    [
+      ...c.motorina.map((r) => { const v = r.variante.find((x) => x.id === r.deBaza) ?? r.variante[0]; return { id: r.id, nume: r.id, km: v.km, linie: v.linie }; }),
+      ...c.biodiesel.map((r) => ({ id: r.id, nume: `${r.id} · ${r.nume}`, km: r.variante[0].km, linie: r.variante[0].linie })),
+    ], false),
+  kmZi: 0, ascunsaImplicit: true,
+}];

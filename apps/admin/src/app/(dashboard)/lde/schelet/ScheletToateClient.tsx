@@ -20,7 +20,7 @@ const ETICHETA: React.CSSProperties = {
 
 export default function ScheletToateClient({ retele }: { retele: Retea[] }) {
   const [ales, setAles] = useState<{ retea: string | null; ruta: string | null }>({ retea: null, ruta: null });
-  const [ascunse, setAscunse] = useState<Set<string>>(new Set());
+  const [ascunse, setAscunse] = useState<Set<string>>(() => new Set(retele.filter((r) => r.ascunsaImplicit).map((r) => r.id)));
 
   useEffect(() => {
     const cere = (strange: boolean) => {

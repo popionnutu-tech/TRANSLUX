@@ -10,9 +10,10 @@ import ScheletFlorestiClient, { type ScheletFloresti } from './ScheletFlorestiCl
 import ScheletMejgorodClient, { type ScheletMejgorod } from './ScheletMejgorodClient';
 import ScheletBriceniClient, { type ScheletBriceni } from './ScheletBriceniClient';
 import ScheletDraxClient, { type ScheletDrax } from './ScheletDraxClient';
+import ScheletCamioaneClient, { type ScheletCamioane } from './ScheletCamioaneClient';
 import ScheletToateClient from './ScheletToateClient';
 import {
-  type Retea, learLaToate, sebnLaToate, florestiLaToate, mejgorodLaToate, briceniLaToate, draxLaToate,
+  type Retea, learLaToate, sebnLaToate, florestiLaToate, mejgorodLaToate, briceniLaToate, draxLaToate, camioaneLaToate,
 } from './toate';
 
 // Scheletul e fix prin definiție — Ion, 23.09.2026: «să îl fixez, pe viitor să nu mai umblăm la
@@ -52,6 +53,10 @@ const RETELE = [
   // liniile cu «diagnostic cerut» păstrează km-ul vechi. Fișierul îl scrie drax/cod/ideal/export-lde.mjs, doar prin poarta verificatorului.
   rand<ScheletDrax>({ id: 'drax', nume: 'Drăxlmaier Bălți', fisier: 'schelet-drax.json', href: '/lde/schelet?uz=drax',
     fila: (d) => <ScheletDraxClient schelet={d} />, laToate: draxLaToate }),
+  // ION-121 (din ION-69): scheletul ideal al cisternelor — motorina prin baza petrolieră și direct, biodieselul B1–B8 de la Berdichev.
+  // Ion, 28.09.2026: «aplică scheletul camioane în LDE». Fișierul îl scrie ~/dev/camioane-schelet/export-lde.mjs.
+  rand<ScheletCamioane>({ id: 'camioane', nume: 'Camioane (cisterne)', fisier: 'schelet-camioane.json', href: '/lde/schelet?uz=camioane',
+    fila: (d) => <ScheletCamioaneClient schelet={d} />, laToate: camioaneLaToate }),
 ];
 
 // Ion, 25.09.2026: «fă o hartă unică unde să se aplice toate rutele… să fie ultima fișă toate» (ION-67).

@@ -2,31 +2,32 @@
 
 Ion, 28.09: «în baza la acest schelet fă analize pe luna august».
 Artifact (secțiunea «August 2026»): https://claude.ai/artifact/QAYzzjh1cvD7jvf6Sxj9CG
+Prezentarea scheletului cu hărți (pentru analiză): https://claude.ai/artifact/PLmjCcGVMccC46x6WtWoca
 
 ## Rezultatul
-Toate cursele cu încărcarea în august, din GPS Wialon, pe 11 cisterne cu curse în lună.
+Toate cursele cu încărcarea în august, din GPS Wialon. Verificat pe toate cele 39 de unități din Wialon, nu doar pe cele 19 cisterne din nomenclator (Ion, 28.09: «nu doar nomenclator în soft»): cisterna RWN169 lipsește din nomenclator și e inclusă; alte 10 unități active sunt camioane de cereale (porturile Constanța sud/nord și Brăila); BNQ076, ANT316, QDQ396, QDQ714 dau error 7 (fără drept de istoric). În total 12 cisterne cu curse în august.
 
 | Ce | Curse | Km reali | Km ideali | În plus | Lei |
 |---|---:|---:|---:|---:|---:|
-| Motorină încărcată (până la prima descărcare) | 21 | 11.754 | 9.678 | +2.076 | 22.785 |
+| Motorină încărcată (până la prima descărcare) | 23 | 12.774 | 10.519 | +2.255 | 24.749 |
 | Biodiesel (până la locul real de descărcare) | 4 | 6.197 | 4.632 | +1.565 | 17.176 |
-| Drumuri goale | 36 | 22.150 | 19.476 | +2.674 | 29.348 |
-| **Total** | 61 | 40.101 | 33.786 | **+6.315** | **≈ 69.300** |
+| Drumuri goale | 39 | 23.828 | 20.974 | +2.854 | 31.323 |
+| **Total** | 66 | 42.799 | 36.125 | **+6.674** | **≈ 73.200** |
 
 - Litri și lei: norma LDE a camionului cisternă, 34 l/100 km, și prețul mediu din august, 32,28 lei/l (`lde_diesel_price`). Consumul real din `lde_fuel_alimentari` e incomplet (4–49 l/100 km), deci nu s-a folosit.
-- «Limita de sus», cu drumurile goale luate direct, fără opriri: 9.112 km.
+- «Limita de sus», cu drumurile goale luate direct, fără opriri: 9.609 km.
 
 ## Unde se duc km
-1. **A2 prin Fetești–Slobozia în loc de Brăila → Măcin.** Au mers pe A2 16 din 26 de curse încărcate și 23 din 32 de drumuri goale.
+1. **A2 prin Fetești–Slobozia în loc de Brăila → Măcin.** Au mers pe A2 19 din 29 de curse încărcate și 24 din 35 de drumuri goale.
    - Costul față de drumul cel mai scurt: Port → Giurgiulești +59,5 km, Port → Albița +96,3 km, Petromidia +103,8 / +140,5 km.
-   - Total ≈ 3.055 km ≈ 33.500 lei: cea mai mare pierdere a lunii.
-2. **Mașinile goale se întorc prin Albița:** 21 din 26 de drumuri. Au făcut 14.316 km, față de 12.034 km pe drumul cel mai scurt.
-   - Nici timp nu câștigă: stau la vamă, în mediană, 119 min la Albița și 60 min la Giurgiulești (5 treceri).
+   - Total ≈ 3.293 km ≈ 36.100 lei: cea mai mare pierdere a lunii.
+2. **Mașinile goale se întorc prin Albița:** 22 din 29 de drumuri. Au făcut 14.881 km, față de 12.501 km pe drumul cel mai scurt.
+   - Timp nu câștigă: la vamă stau cam la fel, 118 min la Albița și 124 min la Giurgiulești (7 treceri).
 3. **Petromidia prin Albița:** 2 curse KWX620, cu +215 și +222 km.
 4. **Biodieselul trece prin terminalul de export și unde regula nu-l cere** (B2 fără ZEL, B6): +539 km.
    - După ZEL, cursele spre Sofia au mers prin TLX Ungheni și Chișinău: +260 km.
    - Opririle la Briceni și Bălți: +146 km.
-5. **Vama, cu marfă:** motorina stă în mediană 9,6 h la Giurgiulești (22 de treceri) și 6,2 h la Albița (4). Biodieselul stă 15,8 h la Albița.
+5. **Vama, cu marfă:** motorina stă în mediană 9,6 h la Giurgiulești (25 de treceri) și 6,2 h la Albița (4). Biodieselul stă 15,8 h la Albița.
 
 ## Metoda
 - **Motorina:** idealul direct din scheletul ION-69 (`idealDirect`), pentru că cursa se măsoară până la prima descărcare.

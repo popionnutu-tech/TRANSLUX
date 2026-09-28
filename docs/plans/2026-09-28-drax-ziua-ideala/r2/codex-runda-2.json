@@ -1,0 +1,27 @@
+{
+  "score": 6.0,
+  "verdict": "fail",
+  "summary": "C1 și C2 sunt închise în contract și în probele salvate: legătura dublată dispare, iar eligibilitatea și factorul B sunt aplicate conform specificației. C3 este închis în calculul scriptului, însă cifra propusă ulterior pentru unirea cauzelor rupe bilanțul. Q3 și Q5 sunt reflectate în script; Q2 are un defect de identificare a mașinilor care poate contamina observațiile GPS. Înainte de implementare trebuie corectată această identificare, repetată măsurarea fără ciornă și reconciliate cauzele finale.",
+  "deductions": [
+    {
+      "id": "C4",
+      "severity": "high",
+      "weight": 2.5,
+      "title": "Observațiile Q2 nu aplică aliasurile dispozitivelor înainte de filtrarea curselor și a casei.",
+      "detail": "Scriptul indexează cursele și casa după numele mașinii din datele clasificate, dar le caută folosind direct numele directorului din economie-urme. Codul producător al acestor date distinge explicit dispozitivul de mașină și normalizează «0357544371228442» la «880RNK», respectiv «350KAJ#2284» la «350KAJ». Pentru directoarele respective, filtrarea Q2 nu găsește cursele sau casa.",
+      "evidence": "docs/plans/2026-09-28-drax-intre-uzine/vps/categorii.mjs:32; docs/plans/2026-09-28-drax-intre-uzine/vps/categorii.mjs:55; docs/plans/2026-09-28-drax-intre-uzine/vps/categorii.mjs:59; docs/plans/2026-09-28-drax-ziua-ideala/r2/ziua-ideala-v2.mjs:63; docs/plans/2026-09-28-drax-ziua-ideala/r2/ziua-ideala-v2.mjs:70; docs/plans/2026-09-28-drax-ziua-ideala/r2/ziua-ideala-v2.mjs:79",
+      "failure_scenario": "La citirea directorului 350KAJ#2284, cursele sunt indexate sub 350KAJ, astfel încât CU devine gol și cs nedefinit. O cursă cu oameni, cu opriri sub 20 de minute, poate deveni observație pentru o legătură goală; dacă perechea ajunge la minimum trei observații, mediana și economia calculată pot fi alterate.",
+      "suggested_fix": "Cereți în plan normalizarea identității dispozitiv–mașină înaintea căutării curselor și casei, păstrând identificatorul dispozitivului pentru citirea fișierelor. Adăugați o probă pentru ambele aliasuri și recalculați rezultatul fără ciornă."
+    },
+    {
+      "id": "C5",
+      "severity": "high",
+      "weight": 2.5,
+      "title": "Cifra de 3.718,5 km pentru cauza unită amestecă varianta veche cu un total deja net de reziduuri.",
+      "detail": "În rezultatul fără ciornă, acasa este 2.713,1 și drumLungAcasa este 1.122,2: unirea cauzelor pozitive produce aproximativ 3.835,3 km, păstrând separat drumMaiScurt. Cifra 3.718,5 este economia netă a intervalelor cu ocol din varianta cu ciornă; echivalentul fără ciornă este 3.695,5. Folosirea unui total net drept cauză pozitivă, concomitent cu păstrarea reziduurilor negative, le scade din nou.",
+      "evidence": "docs/plans/2026-09-28-drax-ziua-ideala/runda-2-claude.md:13; docs/plans/2026-09-28-drax-ziua-ideala/r2/ziua-ideala-v2.mjs:214; docs/plans/2026-09-28-drax-ziua-ideala/r2/ziua-ideala-v2.mjs:293; docs/plans/2026-09-28-drax-ziua-ideala/r2/ziua-ideala-v2.json:1; docs/plans/2026-09-28-drax-ziua-ideala/r2/ziua-ideala-v2-fara-ciorna.json:1",
+      "failure_scenario": "Pentru flota fără ciornă, aplicarea cifrei promise dă 1.162,5 + 3.718,5 + 226,6 − 245,7 = 4.861,9 km, față de economia raportată de 4.978,6 km. Diferența de 116,7 km depășește rotunjirea și încalcă Σ cauze = economie.",
+      "suggested_fix": "Definiți unirea ca acasa + drumLungAcasa, cu toate reziduurile păstrate exclusiv în drumMaiScurt. Cereți verificarea bilanțului după unire și actualizarea tuturor cifrelor finale din aceeași rulare fără ciornă, inclusiv weekendul pozitiv și reziduul său negativ."
+    }
+  ]
+}

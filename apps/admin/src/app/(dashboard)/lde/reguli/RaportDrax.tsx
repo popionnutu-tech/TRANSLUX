@@ -9,6 +9,7 @@ import CeFaciDraxSectiune from './CeFaciDrax';
 import { canonPlaca } from '@/lib/lde/tip-masina';
 import DormBalti from './DormBalti';
 import PatruReguli from './PatruReguli';
+import ZiuaIdeala from './ZiuaIdeala';
 
 // Raportul săptămânal Drăxlmaier Bălți (ION-94, faza 3 din ION-86). Cifrele NU se socotesc aici: sunt ale rândului «DRAXELMAIER»
 // scris luni de VPS (drax/cod/saptamanal), același din care se desenează posterul. Componentă PROPRIE (nu RaportBriceni): la
@@ -168,6 +169,7 @@ export default function RaportDrax({ a, saptamani, tipuri = {} }: { a: RaportDra
           sub={`Doar în km neexplicați de §5. Peste ${TL.prag_km} km: ${TL.masini_peste_prag.join(', ') || '—'} · brambura: ${TL.masini_peste_prag_brambura.join(', ') || '—'}.`} />
       </div>
 
+      <ZiuaIdeala z={a.ziIdeala ?? null} tipuri={tipuri} zile={(placa) => { const mm = a.masini.find((x) => x.m === placa); return mm ? <Zile m={mm} /> : null; }} />
       <PatruReguli r={a.reguli4 ?? null} tipuri={tipuri} zile={(placa) => { const mm = a.masini.find((x) => x.m === placa); return mm ? <Zile m={mm} /> : null; }} />
       <CeFaciDraxSectiune p={pagina} />
       <DormBalti a={a} />

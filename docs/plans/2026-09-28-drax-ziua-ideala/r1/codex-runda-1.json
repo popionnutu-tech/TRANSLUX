@@ -1,0 +1,37 @@
+{
+  "score": 5.0,
+  "verdict": "fail",
+  "summary": "GPS-ul real pentru curse, păstrarea muncii în ideal și excluderea zilelor neclare sunt direcții solide. Opțiunile încă deschise pentru legături, Bălți și golul lângă uzină nu sunt penalizate ca decizii greșite. Riscul principal este că cifrele prezentate provin dintr-un calcul care dublează unele deplasări obligatorii și folosește un eșantion incompatibil cu extrapolarea și identitățile promise.",
+  "deductions": [
+    {
+      "id": "C1",
+      "severity": "high",
+      "weight": 2.5,
+      "title": "Formula adaugă legături deja acoperite de cursele obligatorii între uzine.",
+      "detail": "Scriptul însumează munca la kilometrii reali, apoi adaugă separat legătura dintre cursele cu oameni, fără să țină cont că munca efectuează deja acea deplasare. Astfel, prevederea «între uzine în ideal la GPS real» nu garantează contribuție zero la economie și contrazice clasificarea obligatorie a acestui drum ca muncă.",
+      "evidence": "docs/plans/2026-09-28-drax-ziua-ideala/r1/ziua-ideala.mjs:91; docs/plans/2026-09-28-drax-ziua-ideala/r1/ziua-ideala.mjs:99; docs/plans/2026-09-28-drax-ziua-ideala/r1/ziua-ideala.mjs:125; docs/plans/2026-09-28-drax-ziua-ideala/r1/ziua-ideala.json:1",
+      "failure_scenario": "925FTI, 14.09, intervalul 14:32–15:52: datele au 7,1 km muncă și zero kilometri goi. Calculul adaugă încă 4 km de legătură, producând un ideal de 11,1 km pentru interval și o contribuție artificială de −4 km la economie.",
+      "suggested_fix": "Introduceți explicit în plan ordonarea tuturor deplasărilor obligatorii, inclusiv între uzine, service și deplasare. Legăturile ideale trebuie calculate numai între aceste deplasări, fără suprapunere; cereți o probă pe intervalul 925FTI și pe intervalele mixte înainte de recalcularea flotei."
+    },
+    {
+      "id": "C2",
+      "severity": "high",
+      "weight": 2.5,
+      "title": "Cifra recomandată și extrapolarea folosesc un eșantion diferit de cel promis.",
+      "detail": "Varianta recomandată păstrează sâmbetele și cele cinci zile 293QVT, deși acordul de la punctul 4 cere scoaterea lor. Weekendul este detectat numai prin închiderea circulară sau pauze mai mari de o zi, deci vineri–sâmbătă intră ca noapte obișnuită. Regulile existente folosesc L–V și clasifică explicit nopțile care ating weekendul; de aici și diferența dintre «acasă» 2.793 km și regula 3 de 2.713 km. Aplicarea factorului existent aproximativ 1,19 acestui alt eșantion nu reproduce extrapolarea B.",
+      "evidence": "docs/plans/2026-09-28-drax-ziua-ideala/r1/ziua-ideala.mjs:75; docs/plans/2026-09-28-drax-ziua-ideala/r1/ziua-ideala.mjs:85; docs/plans/2026-09-28-drax-ziua-ideala/r1/ziua-ideala.json:1; docs/plans/2026-09-28-drax-4-reguli/vps/patru-reguli.mjs:45; docs/plans/2026-09-28-drax-4-reguli/vps/patru-reguli.mjs:72; docs/plans/2026-09-28-drax-4-reguli/vps/patru-reguli.mjs:220",
+      "failure_scenario": "În săptămâna analizată, 293QVT contribuie încă 325,4 km la cei 7.105,3 km recomandați, iar toate cele șase sâmbete au noaptea de dimineață marcată weekend=false. Publicarea celor aproximativ 8.450 km extrapolați ar include și amplifica kilometri pe care planul îi declară separați sau excluși.",
+      "suggested_fix": "Definiți un singur contract de eligibilitate pentru zile, nopți și componente neclare. Recalculați suma măsurată, numărătorul și numitorul extrapolării și mașinile peste prag după aplicarea lui; verificați identitățile cu regulile 1 și 3 pe exact același eșantion."
+    },
+    {
+      "id": "C3",
+      "severity": "medium",
+      "weight": 1.5,
+      "title": "Probele nu stabilesc un bilanț coerent pentru componentele separate și cauzele negative.",
+      "detail": "Planul cere simultan nicio cauză negativă și Σ cauze + weekend + Bălți = total − ideal. Scriptul scoate însă kilometrii reali și ideali ai componentelor separate din totalurile calculate și verifică numai Σ cauze = economia rămasă. Verificarea negativelor urmărește doar drumLung sub −2 km. Cazul 763LYY arată că o sumă corectă poate ascunde o atribuire greșită: parc pozitiv compensat de drumLung negativ; simpla plafonare la zero rupe bilanțul.",
+      "evidence": "docs/plans/2026-09-28-drax-ziua-ideala/r1/ziua-ideala.mjs:118; docs/plans/2026-09-28-drax-ziua-ideala/r1/ziua-ideala.mjs:124; docs/plans/2026-09-28-drax-ziua-ideala/r1/ziua-ideala.mjs:143; docs/plans/2026-09-28-drax-ziua-ideala/r1/ziua-ideala.mjs:147; docs/plans/2026-09-28-drax-ziua-ideala/r1/analist.md:62",
+      "failure_scenario": "",
+      "suggested_fix": "Definiți separat totalul GPS integral, idealul integral și economia eligibilă, cu ecuații explicite între ele. Adăugați probe pentru fiecare cauză, pentru contribuția zero a muncii și pentru cazul 763LYY; precizați cum sunt tratate reziduurile negative fără plafonare care ascunde diferențe."
+    }
+  ]
+}

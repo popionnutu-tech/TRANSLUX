@@ -1,0 +1,261 @@
+{
+ "flota": {
+  "zile": 151,
+  "gps": 42386.8,
+  "obligatorii": 25011.2,
+  "ideal": 36245.3,
+  "economie": 5058.5,
+  "cauze": {
+   "noapte": 1162.5,
+   "acasa": 3881.6,
+   "drumLung": 249.1,
+   "drumMaiScurt": -234.7
+  },
+  "componenteAcasa": {
+   "acasaOcol": 2713.1,
+   "acasaDrumLung": 1168.5
+  },
+  "sumaCauze": 5058.5,
+  "bilantGps": 5058.5,
+  "separat": {
+   "weekend": {
+    "economie": 449.7,
+    "maiScurt": -19.1
+   },
+   "balti": {
+    "economie": 652.4,
+    "maiScurt": 0
+   },
+   "pauza": {
+    "economie": 0,
+    "maiScurt": 0
+   }
+  },
+  "extrapolat": 6013
+ },
+ "sep": {
+  "masini": [
+   "386PKP",
+   "293QVT"
+  ],
+  "zile": 5,
+  "gps": 1104.4,
+  "obligatorii": 1026.6,
+  "ideal": 1070,
+  "economie": 29.3,
+  "cauze": {
+   "noapte": 20.3,
+   "acasa": 0,
+   "drumLung": 9,
+   "drumMaiScurt": 0
+  },
+  "componenteAcasa": {
+   "acasaOcol": 0,
+   "acasaDrumLung": 0
+  },
+  "sumaCauze": 29.3,
+  "bilantGps": 29.3,
+  "separat": {
+   "weekend": {
+    "economie": 5.1,
+    "maiScurt": 0
+   },
+   "balti": {
+    "economie": 0,
+    "maiScurt": 0
+   },
+   "pauza": {
+    "economie": 0,
+    "maiScurt": 0
+   }
+  },
+  "extrapolat": 35
+ },
+ "obs": {
+  "dosare": [
+   "/root/lde-worker/drax/date/saptamanal/2026-09-14"
+  ],
+  "puncte": 449819,
+  "curse": 682,
+  "runde": 2102,
+  "dispozitive": [
+   "024XKY",
+   "041BRAU",
+   "144BRAZ",
+   "146BRAZ",
+   "186OMM",
+   "206BZP",
+   "224BZP",
+   "293QVT",
+   "302YEK",
+   "345KAJ",
+   "346KAJ",
+   "350KAJ#2284→350KAJ",
+   "386PKP",
+   "388ASB",
+   "390ASB",
+   "402VKV",
+   "414ASB",
+   "435ASB",
+   "441ASB",
+   "446ASB",
+   "447ASB",
+   "457BRAX",
+   "518MHD",
+   "549RNK",
+   "710CWN",
+   "713IZX",
+   "715IZX",
+   "725CWN",
+   "727CWN",
+   "744ARF",
+   "760BXI",
+   "763LYY",
+   "804MUM",
+   "826GXP",
+   "830MUM",
+   "880RNK",
+   "912RNK",
+   "925FTI"
+  ],
+  "fisiereDubluOmise": 0,
+  "perechi": 305,
+  "perechiGps": 167,
+  "perechiValhalla": 138,
+  "perechiNull": 0,
+  "obsMedianPerPerecheGps": 14,
+  "perechiGpsCuCiorna": 0,
+  "apeluri": {
+   "zero": 282,
+   "gps": 266,
+   "valhalla": 201,
+   "valhallaNull": 0
+  },
+  "ancoreNepotrivite": 1,
+  "valhallaNule": 0,
+  "aliasuri": {
+   "0357544371228442": "880RNK",
+   "350KAJ#2284": "350KAJ"
+  },
+  "probaAlias": {
+   "2026-09-14|350KAJ#2284": {
+    "masina": "350KAJ",
+    "puncte": 6251,
+    "curseDupaDispozitiv": 0,
+    "curseDupaMasina": 20,
+    "casaDupaDispozitiv": false,
+    "casaDupaMasina": true,
+    "puncteInCurseScapateInV2": 3620,
+    "puncteLaCasaScapateInV2": 310
+   }
+  },
+  "observatiiTotal": 23193,
+  "observatiiDinAlias": 869,
+  "observatiiInCursa": 0
+ },
+ "esantion": {
+  "zileCuCurse": 195,
+  "zileEsantion": 156,
+  "zileEsantionFaraSep": 151,
+  "zileSep": 5,
+  "afara": [
+   [
+    "de lămurit §11.8",
+    3
+   ],
+   [
+    "§8.6: jumatate probabil nedetectata",
+    29
+   ],
+   [
+    "§8.6: cursa probabil nedetectata la poarta (retur 00:05)",
+    1
+   ],
+   [
+    "weekend",
+    6
+   ]
+  ],
+  "faraCurse": 0
+ },
+ "nopti": {
+  "toate": 195,
+  "peCategorie": {
+   "normal": 130,
+   "weekend": 44,
+   "balti": 21
+  }
+ },
+ "probe": {
+  "bilantGps": 0,
+  "economiePesteGol": 0,
+  "idealSubObligatorii": 0,
+  "cauzaNegativa": 0,
+  "ziSubMinus5": 2,
+  "totalAnalizaDifGps": 7,
+  "acasaNeUnita": 0,
+  "cauzeDiferitDeEconomie": 0,
+  "obsInCursa": 0,
+  "munca0": 0,
+  "intervaleDoarObligatorii": 188
+ },
+ "probaAlias": {
+  "2026-09-14|350KAJ#2284": {
+   "masina": "350KAJ",
+   "puncte": 6251,
+   "curseDupaDispozitiv": 0,
+   "curseDupaMasina": 20,
+   "casaDupaDispozitiv": false,
+   "casaDupaMasina": true,
+   "puncteInCurseScapateInV2": 3620,
+   "puncteLaCasaScapateInV2": 310
+  }
+ },
+ "p925": {
+  "ora": "14:32–15:52",
+  "cats": "intreUzine",
+  "km": 7.1,
+  "obl": 7.1,
+  "neobl": 0,
+  "ocol": 0,
+  "intreUzine": "VEST→EST",
+  "plin": false,
+  "langaUzina": 0,
+  "parc": 0,
+  "golTure": 0,
+  "munca": 7.1,
+  "leg": 0,
+  "src": "0",
+  "legR1": null,
+  "economie": 0
+ },
+ "idR1": {
+  "nopti": 37,
+  "R1km": 789.6,
+  "livrMargine": 789.6,
+  "golRuta": 0,
+  "altNeobl": 0,
+  "idealNoapte": 0,
+  "noapteCauza": 789.6,
+  "maiScurt": 0,
+  "abateri": 0
+ },
+ "idR3": {
+  "acasaToateMasinile": 2713.1,
+  "R4dinReguli4": 2713.1,
+  "dif": 0,
+  "acasaIntervalCuOcol": 3750,
+  "drumLungPeAcelesiBucati": 1036.9,
+  "intervaleCuOcol": 214,
+  "intervaleSubOcol": 38,
+  "exempleSubOcol": [
+   "186OMM 2026-09-17 16:31–00:18 ocol 1.1 ec -5.3 leg 23.9 gps",
+   "186OMM 2026-09-18 16:29–00:17 ocol 2.3 ec -3.7 leg 23.9 gps",
+   "302YEK 2026-09-14 06:03–13:37 ocol 2.3 ec -2.4 leg 50.9 gps+gps",
+   "345KAJ 2026-09-17 06:12–13:02 ocol 8.1 ec 4 leg 80.5 gps+valhalla",
+   "350KAJ 2026-09-16 06:10–13:55 ocol 0.6 ec 0.4 leg 42.3 valhalla",
+   "388ASB 2026-09-15 17:06–00:10 ocol 2.2 ec -6.9 leg 53.9 gps"
+  ]
+ },
+ "pestePrag": 22
+}

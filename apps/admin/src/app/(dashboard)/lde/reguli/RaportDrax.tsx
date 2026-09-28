@@ -55,7 +55,7 @@ function Card({ titlu, val, sub, mare }: { titlu: string; val: string; sub: stri
   );
 }
 
-function Zile({ m }: { m: MasinaDrax }) {
+function Zile({ m, sapt }: { m: MasinaDrax; sapt: string }) {
   return (
     <div className="space-y-3!">
       {m.deLamurit && <p className={`text-[12.5px] ${ROSU}`}>De lămurit — posibilă cursă a firmei: {m.deLamurit}</p>}
@@ -66,6 +66,8 @@ function Zile({ m }: { m: MasinaDrax }) {
           <div key={d.z}>
             <div className="mb-1! flex flex-wrap gap-x-4 text-[12.5px]">
               <b>{zi(d.z)}</b>
+              {/* ION-130: ziua pe hartă, peste scheletul mașinii */}
+              <a href={`/lde/harta?sapt=${sapt}&m=${m.m}&z=${d.z}`} className="text-[#1D6B6B] underline">pe hartă</a>
               <span className="text-neutral-500">{n0(d.total)} km în zi, din care {n0(gol)} km goi · noaptea la {d.noapteDim ?? '—'} → {d.noapteSeara ?? '—'}</span>
               {d.exclus && <span className="text-neutral-500">ziua nu intră în calcul: {d.exclus}</span>}
               {d.brambura > 0 && <span className={ROSU}>brambura {n1(d.brambura)} km</span>}
@@ -169,8 +171,8 @@ export default function RaportDrax({ a, saptamani, tipuri = {} }: { a: RaportDra
           sub={`Doar în km neexplicați de §5. Peste ${TL.prag_km} km: ${TL.masini_peste_prag.join(', ') || '—'} · brambura: ${TL.masini_peste_prag_brambura.join(', ') || '—'}.`} />
       </div>
 
-      <ZiuaIdeala z={a.ziIdeala ?? null} tipuri={tipuri} zile={(placa) => { const mm = a.masini.find((x) => x.m === placa); return mm ? <Zile m={mm} /> : null; }} />
-      <PatruReguli r={a.reguli4 ?? null} tipuri={tipuri} zile={(placa) => { const mm = a.masini.find((x) => x.m === placa); return mm ? <Zile m={mm} /> : null; }} />
+      <ZiuaIdeala z={a.ziIdeala ?? null} tipuri={tipuri} zile={(placa) => { const mm = a.masini.find((x) => x.m === placa); return mm ? <Zile m={mm} sapt={a.saptamina} /> : null; }} />
+      <PatruReguli r={a.reguli4 ?? null} tipuri={tipuri} zile={(placa) => { const mm = a.masini.find((x) => x.m === placa); return mm ? <Zile m={mm} sapt={a.saptamina} /> : null; }} />
       <CeFaciDraxSectiune p={pagina} />
       <DormBalti a={a} />
 
@@ -213,7 +215,7 @@ export default function RaportDrax({ a, saptamani, tipuri = {} }: { a: RaportDra
                     <tr className="bg-neutral-50/70 dark:bg-neutral-800/30">
                       <td colSpan={cols.length} className="px-4! py-3!">
                         <p className="mb-3! text-[13px]">{frazaSaptamana(m, cm ?? FARA_CIFRA)}</p>
-                        <Zile m={m} />
+                        <Zile m={m} sapt={a.saptamina} />
                       </td>
                     </tr>
                   )}

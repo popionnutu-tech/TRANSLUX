@@ -59,6 +59,8 @@ const ldeChildren: NavItem[] = [
   // Ion, 24.09 (ION-54): rapoartele automate stau în meniul LDE, nu în nomenclator.
   // Ion, 25.09 (ION-66): «Trasee & km goi» și «Ghid zilnic» scoase din meniu — nu le folosește; paginile rămân la adresă.
   { href: '/lde/schelet',        label: 'Schelet rute',   adminOnly: true, icon: 'M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z' },
+  // Ion, 28.09 (ION-130): «fiecare mașină s-o vizualizăm pe schelet… drumurile detaliat pe hartă».
+  { href: '/lde/harta',          label: 'Harta mașinii',  adminOnly: true, icon: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z' },
 ];
 
 // Sub-grupa «Nomenclator LDE» — datele de bază (catalog) ale modulului LDE, nestate sub LDE.

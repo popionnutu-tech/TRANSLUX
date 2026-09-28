@@ -1,0 +1,668 @@
+{
+ "iv": [
+  {
+   "s": [
+    [
+     0,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     5371
+    ]
+   ],
+   "de": [
+    47.53732,
+    27.68402
+   ],
+   "km": 9.7,
+   "t0": 0,
+   "t1": 5371,
+   "lin": "R23|Scumpia",
+   "ora": "03:00–04:29",
+   "tip": "gol",
+   "cats": {
+    "livrare": 9.7
+   },
+   "ocol": false,
+   "pana": [
+    47.46429,
+    27.74352
+   ],
+   "prelungit": null
+  },
+  {
+   "s": [
+    [
+     0,
+     0,
+     5371
+    ],
+    [
+     0,
+     0,
+     11894
+    ]
+   ],
+   "de": [
+    47.46429,
+    27.74352
+   ],
+   "km": 58.5,
+   "t0": 5371,
+   "t1": 11894,
+   "lin": "R23|Scumpia",
+   "ora": "04:29–06:18",
+   "tip": "cursa",
+   "cats": {
+    "cuOameni": 58.5
+   },
+   "ocol": false,
+   "pana": [
+    47.7796,
+    27.91525
+   ],
+   "prelungit": null
+  },
+  {
+   "s": [
+    [
+     0,
+     0,
+     11894
+    ],
+    [
+     0,
+     0,
+     37660
+    ]
+   ],
+   "de": [
+    47.7796,
+    27.91525
+   ],
+   "km": 59.4,
+   "t0": 11894,
+   "t1": 37660,
+   "lin": "R23|Scumpia",
+   "ora": "06:18–13:27",
+   "tip": "gol",
+   "cats": {
+    "golRuta": 55.2,
+    "livrare": 0.4,
+    "intreUzine": 3.8
+   },
+   "ocol": true,
+   "pana": [
+    47.46419,
+    27.74351
+   ],
+   "prelungit": null
+  },
+  {
+   "s": [
+    [
+     0,
+     0,
+     37660
+    ],
+    [
+     0,
+     0,
+     42843
+    ]
+   ],
+   "de": [
+    47.46419,
+    27.74351
+   ],
+   "km": 57.7,
+   "t0": 37660,
+   "t1": 42843,
+   "lin": "R23|Scumpia",
+   "ora": "13:27–14:54",
+   "tip": "cursa",
+   "cats": {
+    "cuOameni": 57.7
+   },
+   "ocol": false,
+   "pana": [
+    47.78066,
+    27.91461
+   ],
+   "prelungit": null
+  },
+  {
+   "s": [
+    [
+     0,
+     0,
+     42843
+    ],
+    [
+     0,
+     0,
+     46358
+    ]
+   ],
+   "de": [
+    47.78066,
+    27.91461
+   ],
+   "km": 17.4,
+   "t0": 42843,
+   "t1": 46358,
+   "lin": "R23|Scumpia",
+   "ora": "14:54–15:52",
+   "tip": "gol",
+   "cats": {
+    "golRuta": 13.4,
+    "intreUzine": 4
+   },
+   "ocol": false,
+   "pana": [
+    47.78943,
+    27.93454
+   ],
+   "prelungit": null
+  },
+  {
+   "s": [
+    [
+     0,
+     0,
+     46358
+    ],
+    [
+     0,
+     0,
+     50706
+    ]
+   ],
+   "de": [
+    47.78943,
+    27.93454
+   ],
+   "km": 59.3,
+   "t0": 46358,
+   "t1": 50706,
+   "lin": "R23|Scumpia",
+   "ora": "15:52–17:05",
+   "tip": "cursa",
+   "cats": {
+    "cuOameni": 59.3
+   },
+   "ocol": false,
+   "pana": [
+    47.46376,
+    27.74425
+   ],
+   "prelungit": null
+  },
+  {
+   "s": [
+    [
+     0,
+     0,
+     50706
+    ],
+    [
+     0,
+     0,
+     76964
+    ]
+   ],
+   "de": [
+    47.46376,
+    27.74425
+   ],
+   "km": 70.7,
+   "t0": 50706,
+   "t1": 76964,
+   "lin": "R23|Scumpia",
+   "ora": "17:05–00:22",
+   "tip": "gol",
+   "cats": {
+    "golRuta": 66.2,
+    "livrare": 0.4,
+    "intreUzine": 4.1
+   },
+   "ocol": true,
+   "pana": [
+    47.78943,
+    27.93453
+   ],
+   "prelungit": null
+  },
+  {
+   "s": [
+    [
+     0,
+     0,
+     76964
+    ],
+    [
+     0,
+     0,
+     80896
+    ]
+   ],
+   "de": [
+    47.78943,
+    27.93453
+   ],
+   "km": 59.4,
+   "t0": 76964,
+   "t1": 80896,
+   "lin": "R23|Scumpia",
+   "ora": "00:22–01:28",
+   "tip": "cursa",
+   "cats": {
+    "cuOameni": 59.4
+   },
+   "ocol": false,
+   "pana": [
+    47.46446,
+    27.74327
+   ],
+   "prelungit": null
+  },
+  {
+   "s": [
+    [
+     0,
+     0,
+     80896
+    ],
+    [
+     0,
+     0,
+     86400
+    ]
+   ],
+   "de": [
+    47.46446,
+    27.74327
+   ],
+   "km": 21.1,
+   "t0": 80896,
+   "t1": 86400,
+   "lin": "R23|Scumpia",
+   "ora": "01:28–03:00",
+   "tip": "gol",
+   "cats": {
+    "livrare": 21.1
+   },
+   "ocol": false,
+   "pana": [
+    47.46377,
+    27.74428
+   ],
+   "prelungit": null
+  }
+ ],
+ "zi": {
+  "z": "2026-09-14",
+  "km": {
+   "parc": 0,
+   "golRuta": 134.8,
+   "golTure": 0,
+   "livrare": 31.6,
+   "service": 0,
+   "cuOameni": 234.9,
+   "legatura": 0,
+   "deplasare": 0,
+   "intreUzine": 11.9,
+   "necunoscut": 0
+  },
+  "dif": 0,
+  "dow": 1,
+  "tipar": "o linie, 2 perechi",
+  "total": 413.2,
+  "bilant": true,
+  "bucati": [
+   {
+    "de": "Călugăr",
+    "km": 9.7,
+    "t0": 1789344000000,
+    "t1": 1789349371000,
+    "cat": "livrare",
+    "lin": "R23|Scumpia",
+    "ora": "03:00–04:29",
+    "next": "R23|Scumpia tur s1",
+    "ocol": false,
+    "pana": "Scumpia",
+    "prev": null,
+    "motiv": "de la locul nopții la prima cursă",
+    "pranz": false,
+    "golImpus": 0
+   },
+   {
+    "de": "Scumpia",
+    "km": 58.5,
+    "t0": 1789349371000,
+    "t1": 1789355894000,
+    "cat": "cuOameni",
+    "lin": "R23|Scumpia",
+    "ora": "04:29–06:18",
+    "ocol": false,
+    "pana": "Slobozia",
+    "motiv": null,
+    "pranz": false,
+    "golImpus": 0
+   },
+   {
+    "de": "Slobozia",
+    "km": 0.4,
+    "t0": 1789355894000,
+    "t1": 1789381660000,
+    "cat": "livrare",
+    "lin": "R23|Scumpia",
+    "ora": "06:18–13:27",
+    "next": "R23|Scumpia tur s2",
+    "ocol": true,
+    "pana": "Scumpia",
+    "prev": "R23|Scumpia tur s1",
+    "acasa": "Călugăr / Scumpia",
+    "motiv": "ocolul pe acasă între curse (1 % din drum; prin casă 47.1 km pe drum față de 46.8 direct)",
+    "pranz": false,
+    "golImpus": 0
+   },
+   {
+    "de": "Slobozia",
+    "km": 55.2,
+    "t0": 1789355894000,
+    "t1": 1789381660000,
+    "cat": "golRuta",
+    "lin": "R23|Scumpia",
+    "ora": "06:18–13:27",
+    "next": "R23|Scumpia tur s2",
+    "ocol": false,
+    "pana": "Scumpia",
+    "prev": "R23|Scumpia tur s1",
+    "motiv": "drumul direct între curse, 46.8 km pe drum (12.1 km peste drumul cel mai scurt, nu din cauza casei)",
+    "pranz": false,
+    "golImpus": 0
+   },
+   {
+    "de": "Slobozia",
+    "km": 3.8,
+    "t0": 1789355894000,
+    "t1": 1789381660000,
+    "cat": "intreUzine",
+    "lin": null,
+    "ora": "06:18–13:27",
+    "next": "R23|Scumpia tur s2",
+    "ocol": false,
+    "pana": "Scumpia",
+    "prev": "R23|Scumpia tur s1",
+    "motiv": "cursă între uzine: VEST → EST",
+    "porti": "VEST → EST",
+    "pranz": false,
+    "golImpus": 0
+   },
+   {
+    "de": "Scumpia",
+    "km": 57.7,
+    "t0": 1789381660000,
+    "t1": 1789386843000,
+    "cat": "cuOameni",
+    "lin": "R23|Scumpia",
+    "ora": "13:27–14:54",
+    "ocol": false,
+    "pana": "Slobozia",
+    "motiv": null,
+    "pranz": false,
+    "golImpus": 0
+   },
+   {
+    "de": "Slobozia",
+    "km": 13.4,
+    "t0": 1789386843000,
+    "t1": 1789390358000,
+    "cat": "golRuta",
+    "lin": "R23|Scumpia",
+    "ora": "14:54–15:52",
+    "next": "R23|Scumpia retur s1",
+    "ocol": false,
+    "pana": "Slobozia",
+    "prev": "R23|Scumpia tur s2",
+    "motiv": "R23|Scumpia → R23|Scumpia",
+    "pranz": false,
+    "golImpus": 0
+   },
+   {
+    "de": "Slobozia",
+    "km": 4,
+    "t0": 1789386843000,
+    "t1": 1789390358000,
+    "cat": "intreUzine",
+    "lin": null,
+    "ora": "14:54–15:52",
+    "next": "R23|Scumpia retur s1",
+    "ocol": false,
+    "pana": "Slobozia",
+    "prev": "R23|Scumpia tur s2",
+    "motiv": "cursă între uzine: VEST → EST",
+    "porti": "VEST → EST",
+    "pranz": false,
+    "golImpus": 0
+   },
+   {
+    "de": "Slobozia",
+    "km": 59.3,
+    "t0": 1789390358000,
+    "t1": 1789394706000,
+    "cat": "cuOameni",
+    "lin": "R23|Scumpia",
+    "ora": "15:52–17:05",
+    "ocol": false,
+    "pana": "Scumpia",
+    "motiv": null,
+    "pranz": false,
+    "golImpus": 0
+   },
+   {
+    "de": "Scumpia",
+    "km": 0.4,
+    "t0": 1789394706000,
+    "t1": 1789420964000,
+    "cat": "livrare",
+    "lin": "R23|Scumpia",
+    "ora": "17:05–00:22",
+    "next": "R23|Scumpia retur s2",
+    "ocol": true,
+    "pana": "Slobozia",
+    "prev": "R23|Scumpia retur s1",
+    "acasa": "Călugăr / Scumpia",
+    "motiv": "ocolul pe acasă între curse (1 % din drum; prin casă 48.5 km pe drum față de 48.1 direct)",
+    "pranz": false,
+    "golImpus": 0
+   },
+   {
+    "de": "Scumpia",
+    "km": 66.2,
+    "t0": 1789394706000,
+    "t1": 1789420964000,
+    "cat": "golRuta",
+    "lin": "R23|Scumpia",
+    "ora": "17:05–00:22",
+    "next": "R23|Scumpia retur s2",
+    "ocol": false,
+    "pana": "Slobozia",
+    "prev": "R23|Scumpia retur s1",
+    "motiv": "drumul direct între curse, 48.1 km pe drum (22.2 km peste drumul cel mai scurt, nu din cauza casei)",
+    "pranz": false,
+    "golImpus": 0
+   },
+   {
+    "de": "Scumpia",
+    "km": 4.1,
+    "t0": 1789394706000,
+    "t1": 1789420964000,
+    "cat": "intreUzine",
+    "lin": null,
+    "ora": "17:05–00:22",
+    "next": "R23|Scumpia retur s2",
+    "ocol": false,
+    "pana": "Slobozia",
+    "prev": "R23|Scumpia retur s1",
+    "motiv": "cursă între uzine: VEST → EST",
+    "porti": "VEST → EST",
+    "pranz": false,
+    "golImpus": 0
+   },
+   {
+    "de": "Slobozia",
+    "km": 59.4,
+    "t0": 1789420964000,
+    "t1": 1789424896000,
+    "cat": "cuOameni",
+    "lin": "R23|Scumpia",
+    "ora": "00:22–01:28",
+    "ocol": false,
+    "pana": "Scumpia",
+    "motiv": null,
+    "pranz": false,
+    "golImpus": 0
+   },
+   {
+    "de": "Scumpia",
+    "km": 21.1,
+    "t0": 1789424896000,
+    "t1": 1789430400000,
+    "cat": "livrare",
+    "lin": "R23|Scumpia",
+    "ora": "01:28–03:00",
+    "next": null,
+    "ocol": false,
+    "pana": "Scumpia",
+    "prev": "R23|Scumpia retur s2",
+    "motiv": "de la ultima cursă la locul nopții",
+    "pranz": false,
+    "golImpus": 0
+   }
+  ],
+  "exclus": null,
+  "brambura": 0,
+  "economie": {
+   "B": 31.6,
+   "R3": 0,
+   "R1a": 30.8,
+   "R1b": 0.8,
+   "nelamurit": 0
+  },
+  "noapteDim": "Călugăr",
+  "noapteSeara": "Scumpia",
+  "scosDeLamurit": null
+ },
+ "t00": 1789344000000,
+ "casa": {
+  "n": "Călugăr",
+  "c": [
+   0,
+   0
+  ]
+ },
+ "stai": [],
+ "ideal": {
+  "cauze": {
+   "acasa": 20.9,
+   "noapte": 30.8,
+   "drumLung": 0,
+   "drumMaiScurt": 0
+  },
+  "economie": 51.7,
+  "jumatati": [
+   {
+    "cat": "weekend",
+    "src": "0",
+    "part": "dim",
+    "real": 9.7,
+    "noapte": "2026-09-18→(circular) 2026-09-14",
+    "golRuta": 0,
+    "economie": 9.7,
+    "legNoapte": 0,
+    "partNoapte": 0,
+    "livrMargine": 9.7,
+    "legaturaInterna": 0
+   },
+   {
+    "cat": "normal",
+    "src": "0",
+    "part": "seara",
+    "real": 21.1,
+    "noapte": "2026-09-14→2026-09-15",
+    "golRuta": 0,
+    "economie": 21.1,
+    "legNoapte": 0,
+    "partNoapte": 0,
+    "livrMargine": 21.1,
+    "legaturaInterna": 0
+   }
+  ],
+  "intervale": [
+   {
+    "km": 59.4,
+    "leg": 51.5,
+    "obl": 3.8,
+    "ora": "06:18–13:27",
+    "src": "valhalla",
+    "cats": "livrare*+golRuta+intreUzine",
+    "ocol": 0.4,
+    "parc": 0,
+    "plin": false,
+    "legR1": null,
+    "munca": 3.8,
+    "neobl": 55.6,
+    "golTure": 0,
+    "economie": 4.1,
+    "intreUzine": "VEST→EST",
+    "langaUzina": 0
+   },
+   {
+    "km": 17.4,
+    "leg": 0,
+    "obl": 17.4,
+    "ora": "14:54–15:52",
+    "src": "0",
+    "cats": "golRuta+intreUzine",
+    "ocol": 0,
+    "parc": 0,
+    "plin": false,
+    "legR1": null,
+    "munca": 4,
+    "neobl": 0,
+    "golTure": 0,
+    "economie": 0,
+    "intreUzine": "VEST→EST",
+    "langaUzina": 13.4
+   },
+   {
+    "km": 70.7,
+    "leg": 49.8,
+    "obl": 4.1,
+    "ora": "17:05–00:22",
+    "src": "valhalla",
+    "cats": "livrare*+golRuta+intreUzine",
+    "ocol": 0.4,
+    "parc": 0,
+    "plin": false,
+    "legR1": null,
+    "munca": 4.1,
+    "neobl": 66.6,
+    "golTure": 0,
+    "economie": 16.8,
+    "intreUzine": "VEST→EST",
+    "langaUzina": 0
+   }
+  ]
+ },
+ "linii": [
+  "R23|Scumpia"
+ ],
+ "noapteA": null,
+ "noapteB": null
+}

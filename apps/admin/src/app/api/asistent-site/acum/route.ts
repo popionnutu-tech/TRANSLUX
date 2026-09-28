@@ -3,7 +3,7 @@ import { cors } from '@/lib/site-assistant/cors';
 import { nextTrips, MAX_AGE_MIN, NOW_SHOWN, hhmmToMin, nowMinChisinau } from '@/lib/site-assistant/bus-location';
 import { estimateOnLine, type TimedStop } from '@/lib/site-assistant/bus-estimate';
 import { getSupabase } from '@/lib/supabase';
-import { realEta, routePasses, typicalOffset, type GeoStop } from '@/lib/site-assistant/bus-eta';
+import { realEta, routePasses, typicalOffset, lateMin, NOT_ON_TRIP_LATE_MIN, type GeoStop } from '@/lib/site-assistant/bus-eta';
 import { chisinauTodayIso } from '@/lib/chisinau-time';
 
 // Butonul «Acum» de pe prima pagină a translux.md (ION-43). Ion, 23.09: omul alege
@@ -164,6 +164,13 @@ export async function POST(req: NextRequest) {
         return { ...t, ...(seen ?? {}), ...(e ?? {}), ...(atStop ? { at_stop: atStop } : {}) };
       }))).filter((t) => {
         if ('passed' in t && t.passed) return false;
+        // Mașina văzută de GPS cu peste o oră în urmă față de grafic nu face cursa (ION-129, 28.09:
+        // 759LYY stătea la Briceni din 13:06, harta arăta cursa de 20:15 din Bălți «1 h 57 min»).
+        // Doar ETA din GPS: cea «istoric» e graficul corectat, nu spune unde e mașina.
+        if ('eta_source' in t && t.eta_source === 'gps' && 'eta' in t && typeof t.eta === 'string') {
+          const late = lateMin(t.departure, t.eta);
+          if (late != null && late > NOT_ON_TRIP_LATE_MIN) return false;
+        }
         // O cursă plecată după grafic de peste jumătate de oră rămâne doar cu o oră estimată
         // spre localitatea omului. Punctul singur nu ajunge: 24.09, 07:25, Bălți → Chișinău,
         // cursa de 05:10 stătea deja la Chișinău (Ciocana), fără eta și fără «passed», și ieșea

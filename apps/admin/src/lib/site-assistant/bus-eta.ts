@@ -329,3 +329,22 @@ export async function realEta(args: {
   if (t < now - PASSED_GRACE_MIN * 60_000) return { passed: true };
   return { eta: clock(t), eta_min: Math.max(0, Math.round((t - now) / 60_000)), eta_source: 'istoric' };
 }
+
+/**
+ * Cu câte minute ajunge mașina (ETA din GPS) după ora din grafic la oprirea omului; negativ = mai
+ * devreme. Peste miezul nopții: 23:50 → 00:20 = +30, nu −1410. ION-129.
+ */
+export function lateMin(scheduled: string, eta: string): number | null {
+  const toMin = (x: string) => { const m = /^(\d{1,2}):(\d{2})$/.exec(x.trim()); return m ? +m[1] * 60 + +m[2] : null; };
+  const s = toMin(scheduled), e = toMin(eta);
+  if (s == null || e == null) return null;
+  const d = (e - s + 1440) % 1440;
+  return d > 720 ? d - 1440 : d;
+}
+
+/**
+ * Peste atâtea minute de întârziere după GPS, mașina nu face cursa din grafic (Ion, 28.09, ION-129:
+ * «de ce apare dacă nu face cursa?» — 759LYY stătea la Briceni din 13:06, iar harta «Acum» arăta
+ * cursa de 20:15 din Bălți cu ETA 22:01). Cursa nu se arată deloc: nici pe hartă, nici în listă.
+ */
+export const NOT_ON_TRIP_LATE_MIN = 60;

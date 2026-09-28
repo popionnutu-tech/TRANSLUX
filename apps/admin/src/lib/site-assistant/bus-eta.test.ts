@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { etaFrom, haversineKm, paceFromStops, remainingKm, typicalLeg, typicalOffset, type LatLon, type StopRow } from './bus-eta';
+import { etaFrom, haversineKm, paceFromStops, remainingKm, typicalLeg, typicalOffset, lateMin, type LatLon, type StopRow } from './bus-eta';
 
 // O linie dreaptă nord-sud, un vârf la ~1,11 km (0,01° latitudine).
 const shape: LatLon[] = Array.from({ length: 11 }, (_, i) => [47 + i * 0.01, 28]);
@@ -98,4 +98,11 @@ describe('typicalOffset — abaterea uriașă nu se crede', () => {
       .map((date) => ({ date, stop_order: 5, passed_at: `${date}T10:00:00Z`, offset_min: -60 }));
     expect(typicalOffset(rows, 5, '2026-09-23')).toBeNull();
   });
+});
+
+describe('lateMin (ION-129)', () => {
+  it('759LYY, 28.09: grafic 20:15, GPS 22:01 → 106 min', () => expect(lateMin('20:15', '22:01')).toBe(106));
+  it('peste miezul nopții', () => expect(lateMin('23:50', '00:20')).toBe(30));
+  it('mai devreme e negativ', () => expect(lateMin('07:30', '07:22')).toBe(-8));
+  it('oră stricată → null', () => expect(lateMin('7.30', '07:22')).toBeNull());
 });

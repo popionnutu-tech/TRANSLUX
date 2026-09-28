@@ -1,0 +1,47 @@
+{
+  "score": 2.5,
+  "verdict": "fail",
+  "summary": "C2 este tratat prin reconcilierea pe mașină–noapte și selecția jumătăților, C3 prin separarea eligibilității de plafon, iar C4 prin proprietarii expliciți și verificarea exclusivității; C1 rămâne deschis prin defectele R-3 demonstrate mai jos. Pentru Bălți, §7.4 cere analizarea livrării, iar §12.1 păstrează separat indicațiile: includerea în noua propunere R-1 cere decizia lui Ion (packages/db/migrations/413_lde_drax_livrare_balti.sql:10). Pentru distanțe ≥15 km, §5.10 exclude naveta din calcul, fără să stabilească un prag de interdicție; fezabilitatea transportului șoferului trebuie clarificată operațional, fără inventarea unor kilometri de navetă (packages/db/migrations/406_lde_drax_reguli_economie.sql:20). Plafonul R-2 rămâne justificat de §8.3 — rezultat 0 și 186,4 km nelămuriți — iar acceptarea pierderilor individuale la R-3 este opțiunea lui Ion, însă nici pragul de o zi, nici cel de trei zile nu confirmă capacitatea fizică (packages/db/migrations/406_lde_drax_reguli_economie.sql:31; docs/plans/2026-09-28-drax-4-reguli/r2/patru-reguli-v2.mjs:134).",
+  "deductions": [
+    {
+      "id": "C5",
+      "severity": "high",
+      "weight": 2.5,
+      "title": "R-3 continuă să înlocuiască reperul actual GPS cu un cost Valhalla.",
+      "detail": "Aceasta este tratarea insuficientă a vechiului C1, demonstrată în noul script: cost(m,m) și costurile după schimb folosesc aceeași funcție Valhalla, iar GPS este doar afișat. Simetria este implementată corect matematic, dar produce o diferență între două scenarii modelate, nu economia față de costul actual cerut de §1.6. Nu există o decizie a lui Ion care să înlocuiască această cerință.",
+      "evidence": "packages/db/migrations/404_lde_drax_ferestre_reguli.sql:35; docs/plans/2026-09-28-drax-4-reguli/r2/patru-reguli-v2.mjs:153; docs/plans/2026-09-28-drax-4-reguli/r2/patru-reguli-v2.mjs:164; docs/plans/2026-09-28-drax-4-reguli/r2/patru-reguli-v2.mjs:169",
+      "failure_scenario": "Pentru 446ASB↔925FTI, chiar pe marginile selectate de script, GPS însumează 20,9+243,0 km, iar reperul folosit este 20,3+235,1 km. Cu aceleași costuri propuse, comparația GPS ar da aproximativ 68,7 km, nu 60,2 km; câștigurile și pierderile publicate nu reprezintă diferența față de costul actual măsurat.",
+      "suggested_fix": "Păstrați comparația Valhalla–Valhalla ca diagnostic distinct. Cereți calculul economiei față de rezidualul GPS după regulile precedente, pe aceeași populație și aceleași componente, cu Valhalla pentru drumurile propuse; nu validați încă netul publicabil."
+    },
+    {
+      "id": "C6",
+      "severity": "high",
+      "weight": 2.5,
+      "title": "R-3 declară acoperite nopți neacoperite de R-1 și include zile excluse prin §8.6.",
+      "detail": "Dovada nouă privind C1 este filtrul acoperita bazat numai pe acelasiX, în timp ce R-1 folosește eligibilitatea, inTotal și eșantionul fiecărei jumătăți. În plus, R-3 construiește programul din toate zilele L–V; exclus este doar raportat, fără să oprească propunerea. Astfel, lanțul săptămânal există structural, dar starea sa inițială nu este rezultatul regulilor R-1/R-2/R-4 aplicate și încalcă excluderea zilelor cu curse probabil nedetectate.",
+      "evidence": "packages/db/migrations/406_lde_drax_reguli_economie.sql:34; docs/plans/2026-09-28-drax-4-reguli/r2/patru-reguli-v2.mjs:73; docs/plans/2026-09-28-drax-4-reguli/r2/patru-reguli-v2.mjs:137; docs/plans/2026-09-28-drax-4-reguli/r2/patru-reguli-v2.mjs:140; docs/plans/2026-09-28-drax-4-reguli/r2/patru-reguli-v2-2026-09-14.json:11127",
+      "failure_scenario": "386PKP↔549RNK este propus cu +78,4 km deși ambele mașini au toate cele cinci zile excluse; nopțile lui 386PKP sunt considerate eliminate de R-1, deși contribuția sa R-1 pe eșantion este zero. Separat, noaptea 144BRAZ 16→17 este exclusă din totalul R-1 ca Bălți, dar acelasiX o face gratuită în R-3. Rezultatul presupune intervenții neincluse în scenariul declarat și programe cu curse lipsă.",
+      "suggested_fix": "Definiți un scenariu comun explicit după primele trei reguli, cu starea fiecărei nopți și costurile rămase, apoi recalculați această stare după schimb. Păstrați programele cu zile excluse doar ca diagnostic până la completarea și validarea lor; nu publicați schimburi săptămânale fezabile pe programe incomplete."
+    },
+    {
+      "id": "C7",
+      "severity": "high",
+      "weight": 2,
+      "title": "Clasa unei linii transportate este tratată drept capacitate confirmată a mașinii.",
+      "detail": "Vechiul C1 cerea capacități confirmate. Noul script atribuie mașinii maximul l.locuri din istoricul liniilor, apoi îl folosește drept condiție suficientă de fezabilitate. Clasa din nomenclator descrie linia, nu dovedește locurile vehiculului; repetarea observației în trei zile nu schimbă natura dovezii. Întrebarea despre prag poate rămâne o preferință pentru filtrarea candidaților, dar nu înlocuiește confirmarea capacității înaintea unei propuneri operative.",
+      "evidence": "packages/db/migrations/404_lde_drax_ferestre_reguli.sql:32; docs/plans/2026-09-28-drax-4-reguli/r2/patru-reguli-v2.mjs:134; docs/plans/2026-09-28-drax-4-reguli/r2/patru-reguli-v2.mjs:168; docs/plans/2026-09-28-drax-4-reguli/r2/patru-reguli-v2-2026-09-14.json:11108",
+      "failure_scenario": "386PKP primește capA=50 dintr-o apariție rară și este acceptat pentru programul de clasă 27 al lui 549RNK. Dacă vehiculul are efectiv 20 de locuri, această apariție istorică nu împiedică scriptul să propună un schimb incapabil să satisfacă cerința de capacitate.",
+      "suggested_fix": "Separați capacitatea observată indirect de capacitatea confirmată. Cereți o sursă verificabilă pentru locurile fiecărei mașini înainte de marcarea schimbului ca fezabil; până atunci, afișați numai candidați condiționați, în afara economiei validate."
+    },
+    {
+      "id": "C8",
+      "severity": "low",
+      "weight": 0.5,
+      "title": "Opțiunea Bălți este descrisă cu kilometrii tuturor zilelor drept adaos măsurat pe eșantion.",
+      "detail": "Întrebarea pentru Ion promite +592 km măsurați, însă agregarea steagului Bălți însumează kmToate, nu kmEsant. Reagregarea celor zece nopți din JSON dă 473,5 km pe eșantion: 117,1 pentru 144BRAZ, 187,3 pentru 435ASB și 169,1 pentru 804MUM. Cei 591,7 km includ jumătăți excluse. Aceasta este o eroare nouă de descriere a opțiunii, nu o deducere pentru alegerea de a include sau exclude Bălți.",
+      "evidence": "docs/plans/2026-09-28-drax-4-reguli/r2/analist.md:107; docs/plans/2026-09-28-drax-4-reguli/r2/patru-reguli-v2.mjs:195; docs/plans/2026-09-28-drax-4-reguli/r2/patru-reguli-v2-2026-09-14.json:754",
+      "failure_scenario": "",
+      "suggested_fix": "Corectați opțiunea pentru Ion: +473,5 km măsurați pe eșantion, aproximativ +563 km extrapolați cu factorul actual și 591,7 km pe toate zilele, ultimii doar diagnostic."
+    }
+  ]
+}

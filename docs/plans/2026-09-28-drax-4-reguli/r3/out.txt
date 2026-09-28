@@ -1,0 +1,427 @@
+{
+ "sursa": {
+  "rand": "/root/lde-worker/drax/date/saptamanal/2026-09-14",
+  "economieZileRulat": "2026-09-28T07:31:31.335Z",
+  "economieRulat": "2026-09-28T07:31:32.050Z",
+  "schelet": "ideal-activ → ideal-v4.3",
+  "zileLV": 189,
+  "esantion": 159,
+  "factorExtrapolare": 1.1887
+ },
+ "R1": {
+  "nopti": 157,
+  "peStare": {
+   "ziua nu se termină cu retur": {
+    "n": 4,
+    "kmMargini": 381
+   },
+   "ELIGIBIL": {
+    "n": 48,
+    "kmMargini": 1783.6
+   },
+   "ziua următoare nu începe cu tur": {
+    "n": 2,
+    "kmMargini": 60.7
+   },
+   "turul pornește din altă localitate": {
+    "n": 75,
+    "kmMargini": 2599.6
+   },
+   "doarme deja la X": {
+    "n": 26,
+    "kmMargini": 133.5
+   },
+   "locul nopții necunoscut": {
+    "n": 2,
+    "kmMargini": 55.9
+   }
+  },
+  "eligibile": {
+   "n": 48,
+   "kmToate": 1783.6
+  },
+  "masurat": {
+   "n": 37,
+   "kmEsant": 789.6,
+   "kmToate": 1182.5,
+   "extrapolat": 939
+  },
+  "propus": {
+   "masini": 4,
+   "n": 15,
+   "kmEsant": 528,
+   "extrapolat": 628,
+   "kmSapt12_2": 566.8
+  },
+  "subPrag": {
+   "masini": 7,
+   "kmEsant": 261.6
+  },
+  "balti": {
+   "n": 10,
+   "kmEsant": 473.5,
+   "extrapolat": 563,
+   "kmToateDiag": 591.7,
+   "peMasina": [
+    {
+     "m": "144BRAZ",
+     "n": 3,
+     "kmEsant": 117.1,
+     "kmToate": 175.9,
+     "X": "Glinjeni",
+     "laX": 20.5
+    },
+    {
+     "m": "435ASB",
+     "n": 3,
+     "kmEsant": 187.3,
+     "kmToate": 222.5,
+     "X": "Tăura Veche",
+     "laX": 25.7
+    },
+    {
+     "m": "804MUM",
+     "n": 4,
+     "kmEsant": 169.1,
+     "kmToate": 193.3,
+     "X": "Țiplești",
+     "laX": 20.6
+    }
+   ]
+  },
+  "weekend": {
+   "n": 1,
+   "km": 9.4
+  },
+  "jumatatiWeekendNemasurabile": {
+   "n": 65,
+   "km": 990
+  },
+  "peMasina": [
+   {
+    "m": "518MHD",
+    "nopti": 4,
+    "kmEsant": 155.2,
+    "kmToate": 177.1,
+    "zileLV": 5,
+    "zileMasurate": 4,
+    "kmSapt12_2": 194,
+    "propus": true,
+    "motiv": null,
+    "X": "Florești",
+    "soferKm": {
+     "min": 15.6,
+     "med": 15.6,
+     "max": 15.6
+    }
+   },
+   {
+    "m": "710CWN",
+    "nopti": 4,
+    "kmEsant": 148.8,
+    "kmToate": 148.8,
+    "zileLV": 5,
+    "zileMasurate": 5,
+    "kmSapt12_2": 148.8,
+    "propus": true,
+    "motiv": null,
+    "X": "Lazo",
+    "soferKm": {
+     "min": 6.3,
+     "med": 6.3,
+     "max": 6.3
+    }
+   },
+   {
+    "m": "346KAJ",
+    "nopti": 3,
+    "kmEsant": 115.7,
+    "kmToate": 115.7,
+    "zileLV": 5,
+    "zileMasurate": 5,
+    "kmSapt12_2": 115.7,
+    "propus": true,
+    "motiv": null,
+    "X": "Dondușeni",
+    "soferKm": {
+     "min": 4.9,
+     "med": 4.9,
+     "max": 5
+    }
+   },
+   {
+    "m": "713IZX",
+    "nopti": 4,
+    "kmEsant": 108.3,
+    "kmToate": 108.3,
+    "zileLV": 5,
+    "zileMasurate": 5,
+    "kmSapt12_2": 108.3,
+    "propus": true,
+    "motiv": null,
+    "X": "Prajila",
+    "soferKm": {
+     "min": 8.3,
+     "med": 8.3,
+     "max": 8.3
+    }
+   },
+   {
+    "m": "402VKV",
+    "nopti": 4,
+    "kmEsant": 98.3,
+    "kmToate": 98.3,
+    "zileLV": 5,
+    "zileMasurate": 5,
+    "kmSapt12_2": 98.3,
+    "propus": false,
+    "motiv": "sub prag (98.3 < 100 km/săpt.)",
+    "X": "Cobani",
+    "soferKm": {
+     "min": 9.5,
+     "med": 9.5,
+     "max": 9.5
+    }
+   },
+   {
+    "m": "041BRAU",
+    "nopti": 4,
+    "kmEsant": 35.7,
+    "kmToate": 47.7,
+    "zileLV": 5,
+    "zileMasurate": 3,
+    "kmSapt12_2": 59.5,
+    "propus": false,
+    "motiv": "sub prag (59.5 < 100 km/săpt.)",
+    "X": "Nicolaevca",
+    "soferKm": {
+     "min": 5.2,
+     "med": 5.2,
+     "max": 5.2
+    }
+   },
+   {
+    "m": "763LYY",
+    "nopti": 1,
+    "kmEsant": 30.7,
+    "kmToate": 61.4,
+    "zileLV": 5,
+    "zileMasurate": 4,
+    "kmSapt12_2": 38.4,
+    "propus": false,
+    "motiv": "sub prag (38.4 < 100 km/săpt.)",
+    "X": "Coșernița",
+    "soferKm": {
+     "min": 19.2,
+     "med": 19.2,
+     "max": 19.2
+    }
+   },
+   {
+    "m": "146BRAZ",
+    "nopti": 4,
+    "kmEsant": 37.7,
+    "kmToate": 37.7,
+    "zileLV": 5,
+    "zileMasurate": 5,
+    "kmSapt12_2": 37.7,
+    "propus": false,
+    "motiv": "sub prag (37.7 < 100 km/săpt.)",
+    "X": "Trifănești",
+    "soferKm": {
+     "min": 3.9,
+     "med": 3.9,
+     "max": 3.9
+    }
+   },
+   {
+    "m": "715IZX",
+    "nopti": 4,
+    "kmEsant": 37.2,
+    "kmToate": 37.2,
+    "zileLV": 5,
+    "zileMasurate": 5,
+    "kmSapt12_2": 37.2,
+    "propus": false,
+    "motiv": "sub prag (37.2 < 100 km/săpt.)",
+    "X": "Heciul Nou",
+    "soferKm": {
+     "min": 3.6,
+     "med": 3.6,
+     "max": 3.6
+    }
+   },
+   {
+    "m": "446ASB",
+    "nopti": 1,
+    "kmEsant": 22,
+    "kmToate": 22,
+    "zileLV": 5,
+    "zileMasurate": 5,
+    "kmSapt12_2": 22,
+    "propus": false,
+    "motiv": "sub prag (22 < 100 km/săpt.)",
+    "X": "Scumpia",
+    "soferKm": {
+     "min": 9.3,
+     "med": 9.3,
+     "max": 9.3
+    }
+   },
+   {
+    "m": "386PKP",
+    "nopti": 4,
+    "kmEsant": 0,
+    "kmToate": 328.3,
+    "zileLV": 5,
+    "zileMasurate": 0,
+    "kmSapt12_2": 0,
+    "propus": false,
+    "motiv": "doar 0 zile măsurate (< 3, §12.2)",
+    "X": "Ușurei",
+    "soferKm": {
+     "min": 26.7,
+     "med": 26.7,
+     "max": 26.7
+    }
+   }
+  ]
+ },
+ "R2": {
+  "bucati": {
+   "toate": 26,
+   "esant": 26
+  },
+  "kmGol": 589,
+  "afara": 186.4,
+  "extrapolat": 222,
+  "toateZilele": 186.4,
+  "cuOprire20": 0,
+  "faraOprire": 186.4,
+  "peMasina": [
+   {
+    "m": "293QVT",
+    "km": 159.8,
+    "bucati": 4,
+    "zile": [
+     "2026-09-14 14:43–00:23 R31|Cotiujenii Mari 39.9",
+     "2026-09-15 14:47–00:18 R31|Cotiujenii Mari 40",
+     "2026-09-16 14:46–00:18 R31|Cotiujenii Mari 39.9",
+     "2026-09-17 14:43–00:19 R31|Cotiujenii Mari 40"
+    ]
+   },
+   {
+    "m": "146BRAZ",
+    "km": 26.6,
+    "bucati": 1,
+    "zile": [
+     "2026-09-17 06:18–15:53 R32|Trifanesti 26.6"
+    ]
+   }
+  ]
+ },
+ "R4": {
+  "bucati": 214,
+  "km": 2713.1,
+  "extrapolat": 3225,
+  "toateZilele": 3170.6,
+  "economieJson": 2713.1,
+  "peUnde": {
+   "laCapat": 1221.2,
+   "laUzina": 1491.9
+  }
+ },
+ "R3": {
+  "masini": 38,
+  "perechiTotal": 703,
+  "faraCasa": 0,
+  "cuZileExcluse": 493,
+  "masiniEligibile": 21,
+  "masiniCuZileExcluse": [
+   "024XKY",
+   "041BRAU",
+   "144BRAZ",
+   "224BZP",
+   "345KAJ",
+   "386PKP",
+   "414ASB",
+   "435ASB",
+   "441ASB",
+   "518MHD",
+   "549RNK",
+   "725CWN",
+   "727CWN",
+   "763LYY",
+   "804MUM",
+   "830MUM",
+   "912RNK"
+  ],
+  "respinseCapObservata": 12,
+  "fezabileObservat": 198,
+  "aziGpsRezidualFlota": 5617.5,
+  "aziGpsRezidualEligibile": 2145.7,
+  "aziValhallaEligibile": 2061.5,
+  "biasEligibile": 84.3,
+  "peste50": 0,
+  "candidati": 0,
+  "netCandidati": 0,
+  "candidatiSubPragValhalla": 0,
+  "netCandidatiValhallaDiag": 0,
+  "candidatiCap3ok": 0,
+  "suprapR1SubPrag": 0,
+  "diagCuZileExcusePeste50": 14
+ },
+ "proba": {
+  "masini": 38,
+  "ok": 38,
+  "rele": [],
+  "bucatiCuProprietar": 248,
+  "peRegula": {
+   "R-1": 29,
+   "R-2": 5,
+   "R-4": 214,
+   "R-3": 0
+  }
+ },
+ "valhallaNull": 0,
+ "flota": {
+  "R1propus": {
+   "masurat": 528,
+   "extrapolat": 628
+  },
+  "R1masuratToateMasinile": {
+   "masurat": 789.6,
+   "extrapolat": 939
+  },
+  "R2": {
+   "masurat": 186.4,
+   "extrapolat": 222
+  },
+  "R4": {
+   "masurat": 2713.1,
+   "extrapolat": 3225
+  },
+  "sumaPropusa": {
+   "masurat": 3427.5,
+   "extrapolat": 4075
+  },
+  "sumaMasurata": {
+   "masurat": 3689.1,
+   "extrapolat": 4386
+  },
+  "R3": {
+   "candidati": 0,
+   "net": 0,
+   "nota": "CONDIȚIONAT (capacitate de confirmat), în afara totalului; pe toate zilele L–V ale mașinilor fără zile excluse (= eșantion), fără extrapolare"
+  },
+  "balti": {
+   "masurat": 473.5,
+   "extrapolat": 563,
+   "toateZileleDiag": 591.7,
+   "nota": "separat §7.4, în afara totalului"
+  }
+ }
+}
+CANDIDATI []
+TOP10 [["186OMM","744ARF",43.7,96.2,-52.4,2.2],["402VKV","457BRAX",2.4,-108.4,110.8,-5.3],["710CWN","826GXP",0.5,26,-25.5,8.1],["390ASB","880RNK",-7.2,75.9,-83.1,-0.1],["402VKV","760BXI",-8.7,-67.3,58.6,-13.4],["457BRAX","760BXI",-12,41.5,-53.4,-3.5],["146BRAZ","302YEK",-25.6,-93.8,68.2,-22.8],["186OMM","390ASB",-42.1,52.3,-94.4,-54.5],["446ASB","925FTI",-58.4,-35.1,-23.2,-71.8],["186OMM","880RNK",-75,99.2,-174.2,-86.9]]
+DIAG10 [["024XKY","710CWN",329.9,23.4,4,0,true],["024XKY","388ASB",320.5,-2.8,4,0,true],["024XKY","186OMM",281.6,-39.7,4,0,true],["024XKY","518MHD",217.8,-92.1,4,1,false],["024XKY","826GXP",187.9,-109.4,4,0,true],["024XKY","302YEK",181.9,-121.6,4,0,true],["024XKY","390ASB",137.7,-164.6,4,0,true],["024XKY","713IZX",124.9,-182.7,4,0,true],["144BRAZ","744ARF",124.3,-1.4,2,0,true],["144BRAZ","186OMM",115.8,0.3,2,0,true]]

@@ -8,6 +8,7 @@
 import { escapeHtml } from '@/lib/telegram-notify';
 import { perioada, PLAFON } from './timp-liber';
 import type { TimpLiberMasina } from '@/app/(dashboard)/lde/reguli/actions';
+import type { Reguli4Drax } from './drax-reguli4';
 
 // ION-119 (Ion, 28.09): intreUzine = drumul între porțile VEST și EST, cursă între uzine (muncă), nu gol; rândurile de dinainte n-au cheia
 export const CAT_DRAX = ['cuOameni', 'livrare', 'golRuta', 'golTure', 'parc', 'service', 'deplasare', 'legatura', 'necunoscut', 'intreUzine'] as const;
@@ -81,6 +82,8 @@ export interface AnalizaDrax {
   /** ION-108: planul de schimb pe toată flota; lipsă = rând scris înainte de partea A; null = calculul a eșuat (motivul alături) */
   planSchimb?: PlanSchimbDrax | null;
   planSchimbLipsa?: string | null;
+  /** ION-120: cele 4 reguli de optimizare ale lui Ion (§8.7); lipsă la rândurile de dinainte de 28.09.2026 sau dacă pasul a picat */
+  reguli4?: Reguli4Drax | null;
 }
 
 // ─── planul (ION-108, partea A: câmp aditiv scris de VPS, contractul §6 din plan-v3) ─────────

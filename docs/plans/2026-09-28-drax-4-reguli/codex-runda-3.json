@@ -1,0 +1,6 @@
+{
+  "score": 10.0,
+  "verdict": "pass",
+  "summary": "Implementarea r3 respectă deciziile lui Ion: pragul R-1 și excluderea Bălți, respectiv R-2 fără plafon (docs/plans/2026-09-28-drax-4-reguli/r3/patru-reguli-v3.mjs:83, :94, :114). R-3 compară rezidualul GPS cu drumurile propuse, exclude programele cu zile nevalidate și păstrează capacitatea neconfirmată în afara totalului; nu am găsit dovezi noi care să redeschidă C5–C8 (:170, :194, :200, :261). Reagregarea JSON confirmă cifrele raportate și zero candidați peste pragul de 50 km; riscul rămas este completitudinea datelor și confirmarea capacităților, limitări tratate explicit.",
+  "deductions": []
+}

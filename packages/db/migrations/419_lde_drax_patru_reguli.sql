@@ -1,0 +1,18 @@
+-- 419_lde_drax_patru_reguli.sql — Drăxlmaier §8.5 + §8.7: cele 4 reguli de optimizare ale lui Ion (28.09.2026; ION-120, dezbaterea Claude + Codex, Codex r3 10/10).
+-- Gard de intrare: textul de după 418 (30540 / 15baca3626a41a6e51aaf1eb22d44e9e).
+BEGIN;
+DO $$
+DECLARE n int; t text;
+BEGIN
+  UPDATE lde_uzine SET reguli_livrare = replace(replace(reguli_livrare, $v0$8.5 Realocarea rutelor între mașini (LEAR R2) NU se propune: câștigul net (≈ 550 km pe zilele măsurate ale ferestrei 31.08–25.09) vine din ≈ 3.200 km câștigați de unele mașini și ≈ 2.700 pierduți de alte 9, pe o atribuire care se schimbă cu rotația săptămânală. Se remăsoară după două luni de rulare.$v0$, $n0$8.5 Realocarea rutelor între mașini se socotește ca regula 3 din §8.7 (Ion, 28.09.2026), pe lanțul săptămânii întregi și doar dacă scade totalul flotei. Modelul LEAR R2 (costul pe pereche, câștig net ≈ 550 km pe 31.08–25.09 din ≈ 3.200 câștigați și ≈ 2.700 pierduți) nu se mai folosește: la zilele cu două perechi dădea câștig fals (ION-120).$n0$), $v1$
+9. COSTUL KM$v1$, $n1$
+8.7 CELE 4 REGULI DE OPTIMIZARE (Ion, 28.09.2026: «1. Auto la capăt de rută rămâne dacă ruta se termină în aceeași localitate; 2. Auto rămâne la uzină; 3. Rutele împărțite altfel; 4. Nu pleacă acasă între schimburi»; dezbaterea Claude + Codex ION-120, 3 runde, Codex 10/10; deciziile lui Ion din 28.09). Fiecare km e într-o singură regulă, după bucata lui din §5. (1) DOARME LA CAPĂT: marginile nopții (livrarea de seară și de dimineață, fără golul impus) când ultimul retur al zilei se termină la capătul X (≤ 1,5 km) și primul tur de a doua zi pleacă din același X, iar mașina doarme la peste 2,5 km de X. Se propune mașinii doar peste 100 km pe săptămână (Ion: «depends on weekly»), cu distanța șoferului alături; naveta șoferului nu se numără (5.10). Nopțile în Bălți (7.4) și weekendul nu intră (Ion: «no»), se arată separat. Între schimburi nu există caz: turul schimbului 2 vine înaintea returului schimbului 1. (2) RĂMÂNE LA UZINĂ: între turul și returul aceleiași ture, toți km-ii din afara zonei uzinei (peste 3 km de porți și de parc), fără condițiile și fără plafonul din 8.3 (Ion, 28.09: «ok»). (3) RUTE ÎMPĂRȚITE ALTFEL: schimbul complet al atribuirii săptămânale între două mașini, după regulile 1, 2 și 4; costul de azi = km GPS ai marginilor rămase, costul după schimb = drumul pe șosea (Valhalla) de la locul nopții celeilalte mașini. Se propune doar dacă totalul flotei scade cu cel puțin 50 km pe săptămână (Ion: «if 1 bus is doing more and other less — what is the point?») și doar între mașini cu toate zilele măsurate; locurile pe tip de mașină lipsesc din bază, deci schimbul rămâne condiționat până la confirmarea lor. (4) NU PLEACĂ ACASĂ ÎNTRE SCHIMBURI: ocolul pe acasă între curse (5.2: cât lungește casa drumul); mașina așteaptă la capătul cursei următoare (tur) sau la uzină (retur). Săptămâna 14–20.09: regula 1 = 528 km măsurat (628 extrapolat, 4 mașini), 2 = 186 (222), 4 = 2.713 (3.225), împreună 3.428 (4.075) km pe săptămână; regula 3 = niciun schimb; nopțile în Bălți separat 474 (563). Pe pagină: blocul «Cele 4 reguli de optimizare», pe flotă și pe mașină. Indicațiile pentru dispecer (§12) nu se schimbă până la «da»-ul lui Ion.
+
+9. COSTUL KM$n1$)
+   WHERE id = 'DRAXELMAIER_BALTI' AND length(reguli_livrare) = 30540 AND md5(reguli_livrare) = '15baca3626a41a6e51aaf1eb22d44e9e';
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 1 THEN RAISE EXCEPTION '419: textul din bază nu e cel de după 418, rânduri: %', n; END IF;
+  SELECT reguli_livrare INTO t FROM lde_uzine WHERE id = 'DRAXELMAIER_BALTI';
+  IF length(t) <> 32752 OR md5(t) <> '50038da2804decc680563712949f49bc' THEN RAISE EXCEPTION '419: text neașteptat (lungime %, md5 %)', length(t), md5(t); END IF;
+END $$;
+COMMIT;

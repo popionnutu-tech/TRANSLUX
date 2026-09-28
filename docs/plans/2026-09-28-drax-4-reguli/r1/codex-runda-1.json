@@ -1,0 +1,47 @@
+{
+  "score": 5.5,
+  "verdict": "fail",
+  "summary": "R-4 ca ocol, separarea R-2 de A și evaluarea R-3 după celelalte reguli sunt bine fundamentate. Riscul principal este prezentarea unui total „fără dublă numărare” care include încă realocări calculate pe perechi, înainte de R-1. Reconcilierea R-1 este parțial posibilă din fișierele păstrate, dar acordul asupra formulelor și populațiilor nu este încă închis.",
+  "deductions": [
+    {
+      "id": "C1",
+      "severity": "high",
+      "weight": 2.5,
+      "title": "Totalul propus reutilizează drept economie R-3 cifre calculate prin modelul declarat necorespunzător.",
+      "detail": "Scriptul calculează atât atribuirea curentă, cât și cea propusă prin 2 × Valhalla(casă, capăt), separat pe zi și schimb, fără aplicarea R-1/R-2/R-4. Calculul suprapunerilor însumează doar minime pe mașină; nu reconstruiește atribuirea după schimbarea locului nopții. Prin urmare, 349,8 km și mutările „5/5” nu validează scenariul săptămânal pe lanț, iar adăugarea lor la total încalcă cerința explicită ca reperul actual să provină din GPS, Valhalla fiind rezervată drumului propus.",
+      "evidence": "docs/plans/2026-09-28-drax-4-reguli/r1/scripturi/patru-reguli.mjs:136; docs/plans/2026-09-28-drax-4-reguli/r1/scripturi/patru-reguli.mjs:144; docs/plans/2026-09-28-drax-4-reguli/r1/scripturi/patru-reguli.mjs:156; docs/plans/2026-09-28-drax-4-reguli/r1/scripturi/suprapuneri.mjs:9",
+      "failure_scenario": "Pentru 435ASB, R-1 propune nopți la Tăura Veche și contabilizează 148,1 km. R-3 păstrează însă câștigul de 150,6 km calculat față de casa inițială, fără reevaluarea acelor nopți. Totalul poate atribui realocării economii deja revendicate de R-1 și include un câștig care nu descrie scenariul propus.",
+      "suggested_fix": "Retrageți intervalul total validat și păstrați cifrele R-3 doar ca diagnostic al modelului vechi. Cereți măsurarea pe lanțuri zilnice legate prin nopți, atribuiri săptămânale complete și capacități confirmate; istoricul unei linii transportate nu dovedește numărul de locuri. Precizați reperul GPS și economia incrementală după celelalte reguli. Comparați netul pe cicluri complete cu varianta fără pierderi săptămânale pe mașină, afișând toate efectele cu semn."
+    },
+    {
+      "id": "C2",
+      "severity": "medium",
+      "weight": 1.5,
+      "title": "Reconcilierea R-1 nu are încă o populație comună și o regulă comună de eligibilitate.",
+      "detail": "Diferența nu este doar numerică: analistul folosește 1,5 km, include nopțile deja la capăt și cere ambele zile eligibile; business folosește 2,5 km, exclude nopțile deja la capăt și descrie eligibilitatea separat pe jumătăți. Reagregarea JSON-ului dă 61 nopți/1.225,1 km în eșantion, dintre care 24/126,5 deja la capăt: rămân 37/1.098,6. Pe toate zilele C1 sunt 74/1.925,6; eliminarea celor deja la capăt lasă 49/1.795,6. Aceste valori nu reproduc încă 50/1.839,5. Formula analistului include și golImpus, deși pe nopțile C1 păstrate rezultatul coincide numeric cu R1a.",
+      "evidence": "docs/plans/2026-09-28-drax-4-reguli/r1/scripturi/patru-reguli.mjs:55; docs/plans/2026-09-28-drax-4-reguli/r1/scripturi/patru-reguli.mjs:64; docs/plans/2026-09-28-drax-4-reguli/r1/scripturi/patru-reguli.mjs:77; docs/plans/2026-09-28-drax-4-reguli/r1/scripturi/patru-reguli.mjs:87; docs/plans/2026-09-28-drax-4-reguli/r1/scripturi/patru-reguli-2026-09-14.json:34",
+      "failure_scenario": "",
+      "suggested_fix": "Adăugați o reconciliere pe cheie mașină–noapte cu ambele selecții și motivele diferențelor. Fixați raza, tratamentul nopților deja la capăt, golul impus, eligibilitatea ambelor capete și atribuirea jumătăților la săptămână. Atașați extracția business necesară explicării diferenței rămase; nu declarați încă una dintre sume drept valoare comună."
+    },
+    {
+      "id": "C3",
+      "severity": "low",
+      "weight": 0.5,
+      "title": "Formularea acordului R-2 confundă eliminarea eligibilității cu eliminarea plafonului.",
+      "detail": "„Fără condiții” nu stabilește dacă dispare doar filtrul o pereche/linie peste 30 km sau și cerința opririi pentru plafon. Scriptul separă explicit cele două: orice tur→retur produce 186,3 km exteriori, dar 0 km acceptați cu plafon. Acestea nu sunt două prezentări ale aceleiași economii.",
+      "evidence": "docs/plans/2026-09-28-drax-4-reguli/r1/scripturi/patru-reguli.mjs:107; docs/plans/2026-09-28-drax-4-reguli/r1/scripturi/patru-reguli.mjs:109; docs/plans/2026-09-28-drax-4-reguli/r1/scripturi/patru-reguli-2026-09-14.json:66",
+      "failure_scenario": "",
+      "suggested_fix": "Scrieți distinct eligibilitatea tur→retur și formula de plafonare. Dacă plafonul se păstrează, cifra propusă este 0, iar 186,3 km rămân nelămuriți; dacă se propune eliminarea lui, marcați aceasta ca schimbare separată care necesită justificarea urmelor."
+    },
+    {
+      "id": "C4",
+      "severity": "medium",
+      "weight": 1,
+      "title": "Atribuirea ocolului tur→retur diferă între regulile declarate de acord.",
+      "detail": "Business atribuie livrarea-ocol lui R-4, inclusiv când R-2 preia restul intervalului; scriptul elimină din R-4 întregul gol tur→retur. Coincidența R-4=R1b există pe eșantion, unde ocolul acestor goluri este zero. Pe toate zilele, R1b este 3.170,6 km, dar R-4 după această excludere este 3.167,6 km. Inegalitatea P10 nu dovedește unicitatea atribuirii și nici păstrarea kilometrilor eligibili.",
+      "evidence": "docs/plans/2026-09-28-drax-4-reguli/r1/scripturi/patru-reguli.mjs:195; docs/plans/2026-09-28-drax-4-reguli/r1/scripturi/patru-reguli.mjs:196; docs/plans/2026-09-28-drax-4-reguli/r1/scripturi/patru-reguli-2026-09-14.json:237",
+      "failure_scenario": "",
+      "suggested_fix": "Definiți proprietarul fiecărei componente a intervalului, nu doar ordinea regulilor. Clarificați dacă ocolul tur→retur rămâne R-4 sau este absorbit de R-2 și ajustați afirmația R-4=R1b corespunzător. Cereți verificarea exclusivității pe componente GPS și explicarea restului, suplimentar plafonului global P10."
+    }
+  ]
+}

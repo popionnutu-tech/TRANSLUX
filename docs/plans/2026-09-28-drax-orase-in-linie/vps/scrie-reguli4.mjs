@@ -29,7 +29,11 @@ const normO = (s) => String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').
 const orasePeRuta = (() => { try { const N = JSON.parse(readFileSync(`${DIR}/nomenclator.json`, 'utf8')); const o = {};
   for (const r of Object.values(N.rute ?? {})) { const t = Object.entries(r.ang ?? {}).filter(([s, a]) => ORASE_51.some((x) => normO(x) === normO(s)) && ((a.D || 0) + (a.E || 0) + (a.Z || 0)) > 0)
     .map(([s, a]) => `${s} ${(a.D || 0) + (a.E || 0) + (a.Z || 0)}`); if (t.length) o[r.id] = t; } return o; } catch { return {}; } })();
-const orasPeLinie = (m) => [...new Set((A.masini.find((x) => x.m === m)?.rute ?? []).flatMap((q) => orasePeRuta[String(q.r).split('|')[0]] ?? []))];
+// ION-124 (după verdictul Codex r6 10/10): marcajul provizoriu «de verificat» e înlocuit cu cursele PRELUNGITE prin oraș (economie-zile.json, seg.prelungit)
+const ZZ124 = (() => { try { return JSON.parse(readFileSync(`${DIR}/economie-zile.json`, 'utf8')); } catch { return { zile: [] }; } })();
+const orasPeLinie = (m) => { const c = {}; for (const d of ZZ124.zile.filter((x) => x.m === m)) for (const q of d.seg) if (q.prelungit) c[q.prelungit.oras] = (c[q.prelungit.oras] ?? 0) + 1;
+  const NUME124 = { singerei: 'Sîngerei', riscani: 'Rîșcani', falesti: 'Fălești', donduseni: 'Dondușeni', costesti: 'Costești', floresti: 'Florești', marculesti: 'Mărculești', biruinta: 'Biruința', ghindesti: 'Ghindești', cupcini: 'Cupcini', glodeni: 'Glodeni', drochia: 'Drochia' };
+  return Object.entries(c).map(([o, n]) => `${NUME124[o.toLowerCase()] ?? o} ${n}`); };
 const lista = [...masini.values()].map((x) => ({ ...x, orasPeLinie: orasPeLinie(x.m), total: r1((x.R1?.propus ? x.R1.km : 0) + x.R4) })).sort((a, b) => b.total - a.total);
 A.reguli4 = {
   versiune: 'ION-120 · 28.09.2026 · dezbaterea Claude + Codex (r3 10/10) + deciziile lui Ion', rulat: P.rulat,

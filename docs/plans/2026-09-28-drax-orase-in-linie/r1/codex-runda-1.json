@@ -1,0 +1,37 @@
+{
+  "score": 6.0,
+  "verdict": "fail",
+  "summary": "Planul identifică corect efectul limitat al eOras și necesitatea remăsurării, a deciziilor sigilate și a unui instantaneu nou. Copiile de cod din repo arată însă că alegerea capătului pe fiecare cursă nu se propagă automat în regulile de economie. Mai trebuie precizate reconstruirea intervalelor și validarea detectorului final înainte de publicarea cifrelor.",
+  "deductions": [
+    {
+      "id": "C1",
+      "severity": "high",
+      "weight": 2.5,
+      "title": "Capătul variabil pe cursă nu are un contract de propagare în regulile de economie.",
+      "detail": "Poziția consolidată cere prima urcare reală pe fiecare cursă, dar pașii pentru patru-reguli menționează razele și rerularea, fără înlocuirea dependenței de capătul unic al liniei. R-1 folosește capatC pentru eligibilitatea nopții, iar R-3 preferă explicit capatLin față de coordonatele efective de/pana. O simplă rerulare continuă astfel să calculeze deplasările după un capăt fix.",
+      "evidence": "docs/plans/2026-09-28-drax-ziua-ideala/vps/patru-reguli.mjs:62; docs/plans/2026-09-28-drax-ziua-ideala/vps/patru-reguli.mjs:79; docs/plans/2026-09-28-drax-ziua-ideala/vps/patru-reguli.mjs:176; docs/plans/2026-09-28-drax-ziua-ideala/vps/patru-reguli.mjs:194",
+      "failure_scenario": "830MUM începe o cursă R19|Bilicenii Vechi cu urcări în Sîngerei, iar 744ARF începe aceeași linie din Bilicenii. Dacă capatC rămâne Bilicenii, R-3 calculează costul înlocuitorului lui 830MUM până la Bilicenii, omițând deplasarea necesară la prima urcare din Sîngerei. Dacă se mută global în Sîngerei, costul pentru cursa scurtă a lui 744ARF este calculat până la un punct pe care nu trebuie să-l deservească.",
+      "suggested_fix": "Adaugă un pas explicit care definește capetele efective pe cursă și consumarea lor în R-1, R-3 și ziua ideală, separat de etalonul agregat al cardului. Cere probe pentru aceeași linie cu și fără prelungirea urbană, inclusiv costul mașinii înlocuitoare."
+    },
+    {
+      "id": "C2",
+      "severity": "medium",
+      "weight": 1.5,
+      "title": "Planul nu precizează reconstruirea intervalelor după extinderea curselor cu oameni.",
+      "detail": "Scriptul de măsurare repartizează proporțional kilometrii eliminați între categoriile suprapuse. În clasificator, însă, ocolul și drumul direct sunt componente calculate pentru aceleași limite temporale, în funcție de distanțele dintre capete și casă. După mutarea capătului cursei, ocolul trebuie recalculat pe intervalul rămas; scăderea proporțională nu demonstrează rezultatul. Bilanțul total poate rămâne corect chiar dacă repartizarea economiei este greșită.",
+      "evidence": "docs/plans/2026-09-28-drax-orase-in-linie/r1/s3b-saptamana.mjs:55; docs/plans/2026-09-28-drax-ocol-casa/vps/categorii.mjs:179; docs/plans/2026-09-28-drax-ocol-casa/vps/categorii.mjs:183; docs/plans/2026-09-28-drax-ocol-casa/vps/categorii.mjs:275",
+      "failure_scenario": "",
+      "suggested_fix": "Precizează că limitele curselor se actualizează înaintea construirii golurilor, apoi se recalculează ocolul, legătura și golul impus din urma rămasă. Adaugă o probă cu retur urban urmat de trecere pe acasă, verificând atât lipsa suprapunerilor, cât și costul recalculat între noile capete; păstrează repartizarea proporțională doar ca diagnostic."
+    },
+    {
+      "id": "C3",
+      "severity": "medium",
+      "weight": 1.5,
+      "title": "Măsurătorile și probele propuse nu validează încă detectorul final de urcare.",
+      "detail": "Scripturile acceptă minimum două opriri, în timp ce propunerea analistului cere trei. Pentru 518MHD, doar cazul de 1 km are trei opriri; celelalte cazuri din totalul prezentat drept 5,8 km sigur au două. În plus, durata detectorului include punctele vecine dinaintea și de după viteza redusă, iar s6 nu limitează golurile temporale. P11 verifică locuința, durata maximă și ruta, dar nu acoperă încetinirile, semafoarele recurente sau lipsa punctelor GPS.",
+      "evidence": "docs/plans/2026-09-28-drax-orase-in-linie/r1/s6-urcari-fereastra.mjs:44; docs/plans/2026-09-28-drax-orase-in-linie/r1/s6-urcari-fereastra.mjs:60; docs/plans/2026-09-28-drax-orase-in-linie/r1/s3b-saptamana.mjs:70; docs/plans/2026-09-28-drax-orase-in-linie/r1/s3b-saptamana.json:286; docs/plans/2026-09-28-drax-orase-in-linie/r1/s3b-saptamana.json:300",
+      "failure_scenario": "",
+      "suggested_fix": "Cere remăsurarea tuturor totalurilor cu exact detectorul adoptat și extinde probele cu opriri reale scurte, încetinire fără oprire, semafoare recurente și goluri GPS. Definește calculul duratei și continuitatea observațiilor înainte de compararea pragurilor; până atunci, marchează totalurile drept rezultate ale detectorului exploratoriu."
+    }
+  ]
+}

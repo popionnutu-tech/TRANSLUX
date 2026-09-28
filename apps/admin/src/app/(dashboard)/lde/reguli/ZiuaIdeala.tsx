@@ -38,8 +38,7 @@ export default function ZiuaIdeala({ z, tipuri = {}, zile }: { z: ZiIdealaDrax |
         <Card titlu="Noaptea departe de capăt" val={n0(c.noapte * factor)} sub="Seara nu rămâne unde termină / de unde pleacă dimineața (și vineri → luni)." />
         <Card titlu="Drum mai lung" val={n0((c.drumLung + c.drumMaiScurt) * factor)} sub={`Mai lung decât drumul direct, fără casă (${n0(c.drumLung * factor)}), minus zilele mai scurte decât idealul (${n0(c.drumMaiScurt * factor)}).`} />
       </div>
-{(z.masini).filter((m) => m.orasPeLinie?.length).length > 0 && (
-        <p className="mt-2! text-[12px] text-[#9B1B30] dark:text-[#e0788c]">De verificat: {(z.masini).filter((m) => m.orasPeLinie?.length).length} mașini au linia prin oraș (Sîngerei, Glodeni, Rîșcani, Florești, Fălești…), unde se iau oameni; drumul prin oraș e numărat încă «gol», deci economia lor e prea mare. Se repară (ION-124).</p>)}
+
       <p className="mt-4! mb-1! text-[12.5px] text-neutral-600 dark:text-neutral-300">
         Pe fiecare mașină: câți km pe săptămână se pot tăia și din ce vin. <b>Total = acasă între curse + noaptea departe de capăt + drum mai lung.</b> Apasă pe mașină ca să vezi ziua ei.
       </p>
@@ -61,7 +60,7 @@ export default function ZiuaIdeala({ z, tipuri = {}, zile }: { z: ZiIdealaDrax |
                 <tr onClick={() => setDeschis(deschis === m.m ? null : m.m)} title="apasă ca să vezi ziua ideală față de ziua făcută"
                   className={`cursor-pointer border-t border-neutral-100 hover:bg-[#9B1B30]/[0.03] dark:border-neutral-800 ${deschis === m.m ? 'bg-[#9B1B30]/[0.04]' : ''} ${m.separat ? 'text-neutral-400' : ''}`}>
                   <td className="whitespace-nowrap px-2! py-1! font-mono">{m.m}<span className="ml-2! font-sans text-[11px] text-neutral-500">{tipuri[canonPlaca(m.m)] ?? ''}</span>
-                    {m.orasPeLinie?.length ? <span className="ml-2! font-sans text-[11px] text-[#9B1B30] dark:text-[#e0788c]" title="linia trece prin oraș, unde se iau oameni; cifrele sunt de verificat">de verificat: prin {m.orasPeLinie.map((o) => o.replace(/ \d+$/, '')).join(', ')}</span> : null}
+                    {m.orasPeLinie?.length ? <span className="ml-2! font-sans text-[11px] text-neutral-500" title="curse prelungite prin orașul rutei (urcări / coborâri în oraș, ION-124)">curse prin {m.orasPeLinie.join(', ')}</span> : null}
                     {m.separat && <span className={`ml-2! font-sans text-[11px] ${ROSU}`}>posibilă cursă nedetectată, în afara totalului</span>}</td>
                   <td className={`px-2! py-1! text-right font-semibold tabular-nums ${m.pestePrag && !m.separat ? VERDE : ''}`}>{n0(m.kmSapt)}</td>
                   <td className="px-2! py-1! text-right tabular-nums">{m.cauze.acasa >= 0.5 ? n0(m.cauze.acasa) : '—'}</td>

@@ -1,0 +1,57 @@
+{
+  "score": 1.0,
+  "verdict": "fail",
+  "summary": "Prelungirea este aplicată înaintea construirii golurilor, iar C4 din runda precedentă este închisă: probe.mjs:147–148 plasează opririle după staționarea 12–37. Cele 11 probe P12 trec în execuția izolată, dar cazuri suplimentare reproduc suprapunerea curselor și încălcarea ferestrei temporale. Abaterile 1 și 2 sunt plauzibile ca euristici, însă necesită validare reproductibilă pe rezultatul final; datele VPS nu sunt disponibile în repo pentru confirmarea simulării complete.",
+  "deductions": [
+    {
+      "id": "C1",
+      "severity": "high",
+      "weight": 2.5,
+      "title": "Pragurile diferite pe sens și deduplicarea prematură permit suprapunerea prelungirilor.",
+      "detail": "urcariOras deduplică spațial separat pentru retur și tur, după aplicarea pragului de durată. prelungesteCurse verifică exclusivitatea doar prin egalitatea t0 a opririlor rămase. Astfel, cele două liste pot păstra vizite diferite la aceleași locuri, fără t0 comun, deși intervalele prelungite se suprapun. Defectul a fost reprodus pe funcțiile extrase din implementare.",
+      "evidence": "docs/plans/2026-09-28-drax-orase-in-linie/r4/vps/categorii.mjs:214; docs/plans/2026-09-28-drax-orase-in-linie/r4/vps/categorii.mjs:226; docs/plans/2026-09-28-drax-orase-in-linie/r4/vps/categorii.mjs:233",
+      "failure_scenario": "Returul are tCap 05:00, turul 05:40, fără odihnă ≥20 min. În trei locuri distincte apar opriri de 8 s la 05:05/05:15/05:25 și reveniri de 30 s la 05:10/05:20/05:30. Returul păstrează vizitele scurte, turul pe cele lungi. Implementarea prelungește returul până la 05:25:08 și turul de la 05:10, fără ambiguitate: 15 min și 8 s de urmă apar în ambele curse.",
+      "suggested_fix": "Adaugă în plan atribuirea exclusivă a opririlor și intervalelor înaintea deduplicării pe cursă, plus verificarea explicită a nesuprapunerii limitelor finale. Include acest caz P12 și repetă bilanțul după corectare."
+    },
+    {
+      "id": "C2",
+      "severity": "high",
+      "weight": 2.5,
+      "title": "Selecția temporală omite limita de 45 de minute și acceptă opriri tăiate de fereastră.",
+      "detail": "Limitele a/b folosesc numai cursele vecine sau marginile zilei; nu sunt intersectate cu tCap ±45 min. În plus, punctele sunt filtrate înaintea identificării șirurilor lente, astfel încât detectorul pierde informația că o oprire începe ori se termină în afara ferestrei. Ambele condiții erau explicite în specificația acceptată și nu fac parte din abaterile declarate.",
+      "evidence": "docs/plans/2026-09-28-drax-orase-in-linie/r4/vps/categorii.mjs:202; docs/plans/2026-09-28-drax-orase-in-linie/r4/vps/categorii.mjs:205; docs/plans/2026-09-28-drax-orase-in-linie/r4/vps/categorii.mjs:223",
+      "failure_scenario": "Un tur la minutul 100, cu trei opriri la minutele 10/15/20 și fără staționare >5 min, este prelungit cu 90 min, deși toate opririle sunt în afara ferestrei admise. Separat, un șir lent început cu 30 s înaintea limitei inferioare, cu puncte la +10/+30 s, este acceptat ca oprire nouă în fereastră; împreună cu două opriri valide poate declanșa o prelungire nepermisă.",
+      "suggested_fix": "Precizează în plan intersecția ferestrei de 45 min cu limitele vecinilor și identificarea opririlor complete înaintea filtrării temporale. Cere probe pentru ambele margini, inclusiv șiruri lente care traversează limita."
+    },
+    {
+      "id": "C3",
+      "severity": "high",
+      "weight": 2.5,
+      "title": "Coordonata efectivă nu este calculată și propagată consecvent.",
+      "detail": "Pentru un număr par de puncte lente, detectorul ia elementul superior, nu media celor două valori centrale folosită de mediana proiectului. Coordonatele rezultate sunt stocate în prelungit.de/pana, însă serializarea segmentului reconstruiește de/pana din extremitățile bpts. P9 și patru-reguli citesc aceste extremități, ignorând coordonata opririi stocată în prelungit; ziua-ideala citește tot de/pana.",
+      "evidence": "docs/plans/2026-09-28-drax-orase-in-linie/r4/vps/categorii.mjs:210; docs/plans/2026-09-28-drax-orase-in-linie/r4/vps/categorii.mjs:239; docs/plans/2026-09-28-drax-orase-in-linie/r4/vps/categorii.mjs:471; docs/plans/2026-09-28-drax-orase-in-linie/r4/vps/patru-reguli.mjs:64; docs/plans/2026-09-28-drax-orase-in-linie/r4/vps/probe.mjs:78; docs/plans/2026-09-28-drax-ziua-ideala/vps/ziua-ideala.mjs:174",
+      "failure_scenario": "Două puncte lente la latitudinile 47.6385 și 47.6389, cu aceeași longitudine, produc 47.6389 în loc de 47.6387. Pentru locul nopții la latitudinea 47.6352, mediana este la aproximativ 389 m, dar punctul ales la aproximativ 411 m: oprirea exclusă contractual devine eligibilă și poate constitui a treia urcare. La o cursă prelungită, dacă primul punct bpts diferă de mediana opririi, consumatorii calculează distanțele către alt capăt decât cel declarat în prelungit.",
+      "suggested_fix": "Completează planul cu o singură definiție a medianei și un contract explicit pentru propagarea coordonatelor efective în segmente și consumatori. Cere verificări numerice ale coordonatelor, inclusiv lângă pragul de excludere, și o probă de integrare pentru P9, R-1/R-3 și ziua ideală."
+    },
+    {
+      "id": "C5",
+      "severity": "medium",
+      "weight": 1.5,
+      "title": "Condiția nouă «același oraș» nu este folosită la eligibilitatea R-1.",
+      "detail": "r.acelasiX include acelasiOras, dar r.stare verifică în continuare exclusiv turDinX >1,5 km, iar eligibilitatea rezultă din stare. Ramura nouă nu influențează economia R-1 și produce diagnostice contradictorii. Cazul cu două capete prelungite în Sîngerei, separate prin 2 km, a produs simultan acelasiX=true și «turul pornește din altă localitate».",
+      "evidence": "docs/plans/2026-09-28-drax-orase-in-linie/r4/vps/patru-reguli.mjs:82; docs/plans/2026-09-28-drax-orase-in-linie/r4/vps/patru-reguli.mjs:85; docs/plans/2026-09-28-drax-orase-in-linie/r4/vps/patru-reguli.mjs:86",
+      "failure_scenario": "Ultimul retur și primul tur sunt prelungite prin același oraș, cu capetele efective la 2 km unul de altul și noaptea la peste 2,5 km de capăt. Deși condiția nouă declară acelasiX=true, noaptea rămâne neeligibilă, iar ramura «același oraș» anunțată în runda 4 nu se aplică.",
+      "suggested_fix": "Clarifică în plan efectul regulii «același oraș» și cere un singur criteriu consecvent pentru stare, eligibilitate și raportare. Adaugă cazul cu două capete urbane aflate la peste 1,5 km înaintea recalculării R-1."
+    },
+    {
+      "id": "C6",
+      "severity": "medium",
+      "weight": 1.5,
+      "title": "Validarea finală nu furnizează comparațiile și dovezile reproductibile cerute.",
+      "detail": "dbg2.mjs și dbg5.mjs sunt scripturi care citesc fișiere VPS, nu rezultate GPS arhivate. P9 păstrează numai rezultate agregate, fără linie și indicator de prelungire pentru comparația cerută 830MUM/744ARF. Runda 4 raportează categorii aproximative din «prima variantă» și numai două mașini, fără tabelul final pentru cele 18 mașini și flotă.",
+      "evidence": "docs/plans/2026-09-28-drax-orase-in-linie/r4/dbg2.mjs:3; docs/plans/2026-09-28-drax-orase-in-linie/r4/dbg5.mjs:3; docs/plans/2026-09-28-drax-orase-in-linie/r4/vps/probe.mjs:80; docs/plans/2026-09-28-drax-orase-in-linie/r4/vps/probe.mjs:82; docs/plans/2026-09-28-drax-orase-in-linie/runda-4.md:22",
+      "failure_scenario": "",
+      "suggested_fix": "Adaugă înainte de --write arhivarea extraselor GPS și a rezultatelor unei simulări pe versiunea finală, comparația înainte/după pentru cele 18 mașini și flotă, plus P9 separat pe curse prelungite/neprelungite ale aceleiași linii. Leagă explicit aceste rezultate de versiunea codului evaluat."
+    }
+  ]
+}

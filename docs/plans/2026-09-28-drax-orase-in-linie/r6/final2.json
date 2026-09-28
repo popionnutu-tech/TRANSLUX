@@ -1,0 +1,490 @@
+{
+ "cod": {
+  "categorii": "3ac65b69653f0467",
+  "probe": "5bbc596e1d2ca65e",
+  "patruReguli": "dcd36b86f231f724"
+ },
+ "intrare": {
+  "economieZile": "08a48452ccc47341",
+  "snapshotSchelet": "/tmp/p124-sim/_ref/schelet-ideal-73d06c89438148cc881be916b31c1252.json"
+ },
+ "rows": [
+  {
+   "m": "518MHD",
+   "ziuaIdealaMasurat": [
+    457.4,
+    457.4
+   ],
+   "ziuaIdealaExtrapolat": [
+    571.8,
+    571.8
+   ],
+   "zileMasurate": 4,
+   "zileLV": 5,
+   "separat": false,
+   "R1a": [
+    177.1,
+    177.1
+   ],
+   "R1b": [
+    163.2,
+    163.2
+   ],
+   "prelungiri": []
+  },
+  {
+   "m": "925FTI",
+   "ziuaIdealaMasurat": [
+    455,
+    455
+   ],
+   "ziuaIdealaExtrapolat": [
+    455,
+    455
+   ],
+   "zileMasurate": 5,
+   "zileLV": 5,
+   "separat": false,
+   "R1a": [
+    243,
+    243
+   ],
+   "R1b": [
+    350.5,
+    350.5
+   ],
+   "prelungiri": []
+  },
+  {
+   "m": "446ASB",
+   "ziuaIdealaMasurat": [
+    337.6,
+    337.6
+   ],
+   "ziuaIdealaExtrapolat": [
+    337.6,
+    337.6
+   ],
+   "zileMasurate": 5,
+   "zileLV": 5,
+   "separat": false,
+   "R1a": [
+    106.7,
+    106.7
+   ],
+   "R1b": [
+    3.1,
+    3.1
+   ],
+   "prelungiri": []
+  },
+  {
+   "m": "457BRAX",
+   "ziuaIdealaMasurat": [
+    329.5,
+    329.5
+   ],
+   "ziuaIdealaExtrapolat": [
+    329.5,
+    329.5
+   ],
+   "zileMasurate": 5,
+   "zileLV": 5,
+   "separat": false,
+   "R1a": [
+    231.3,
+    231.3
+   ],
+   "R1b": [
+    255.3,
+    255.3
+   ],
+   "prelungiri": []
+  },
+  {
+   "m": "345KAJ",
+   "ziuaIdealaMasurat": [
+    191.6,
+    191.6
+   ],
+   "ziuaIdealaExtrapolat": [
+    319.3,
+    319.3
+   ],
+   "zileMasurate": 3,
+   "zileLV": 5,
+   "separat": false,
+   "R1a": [
+    178.3,
+    178.3
+   ],
+   "R1b": [
+    141,
+    141
+   ],
+   "prelungiri": []
+  },
+  {
+   "m": "713IZX",
+   "ziuaIdealaMasurat": [
+    290.9,
+    290.9
+   ],
+   "ziuaIdealaExtrapolat": [
+    290.9,
+    290.9
+   ],
+   "zileMasurate": 5,
+   "zileLV": 5,
+   "separat": false,
+   "R1a": [
+    134.3,
+    134.3
+   ],
+   "R1b": [
+    94,
+    94
+   ],
+   "prelungiri": []
+  },
+  {
+   "m": "830MUM",
+   "ziuaIdealaMasurat": [
+    121.4,
+    83.8
+   ],
+   "ziuaIdealaExtrapolat": [
+    202.3,
+    139.5
+   ],
+   "zileMasurate": 3,
+   "zileLV": 5,
+   "separat": false,
+   "R1a": [
+    83.4,
+    64.9
+   ],
+   "R1b": [
+    46.4,
+    23.8
+   ],
+   "prelungiri": [
+    "2026-09-14 05:46–06:18 tur Singerei 4",
+    "2026-09-14 15:55–16:42 retur Singerei 5",
+    "2026-09-16 15:52–16:26 retur Singerei 3",
+    "2026-09-18 05:46–06:18 tur Singerei 3",
+    "2026-09-18 15:53–16:22 retur Singerei 3"
+   ]
+  },
+  {
+   "m": "725CWN",
+   "ziuaIdealaMasurat": [
+    157.6,
+    157.6
+   ],
+   "ziuaIdealaExtrapolat": [
+    197,
+    197
+   ],
+   "zileMasurate": 4,
+   "zileLV": 5,
+   "separat": false,
+   "R1a": [
+    102.2,
+    102.2
+   ],
+   "R1b": [
+    74.3,
+    74.3
+   ],
+   "prelungiri": []
+  },
+  {
+   "m": "388ASB",
+   "ziuaIdealaMasurat": [
+    179.7,
+    179.7
+   ],
+   "ziuaIdealaExtrapolat": [
+    179.7,
+    179.7
+   ],
+   "zileMasurate": 5,
+   "zileLV": 5,
+   "separat": false,
+   "R1a": [
+    133.3,
+    133.3
+   ],
+   "R1b": [
+    165.9,
+    165.9
+   ],
+   "prelungiri": []
+  },
+  {
+   "m": "744ARF",
+   "ziuaIdealaMasurat": [
+    156.7,
+    156.7
+   ],
+   "ziuaIdealaExtrapolat": [
+    156.7,
+    156.7
+   ],
+   "zileMasurate": 5,
+   "zileLV": 5,
+   "separat": false,
+   "R1a": [
+    204.8,
+    204.8
+   ],
+   "R1b": [
+    87.9,
+    87.9
+   ],
+   "prelungiri": []
+  },
+  {
+   "m": "186OMM",
+   "ziuaIdealaMasurat": [
+    134.6,
+    107
+   ],
+   "ziuaIdealaExtrapolat": [
+    134.6,
+    106.9
+   ],
+   "zileMasurate": 5,
+   "zileLV": 5,
+   "separat": false,
+   "R1a": [
+    281.7,
+    281.7
+   ],
+   "R1b": [
+    9.9,
+    9.9
+   ],
+   "prelungiri": [
+    "2026-09-17 13:47–14:46 tur Riscani 3",
+    "2026-09-18 13:39–14:43 tur Riscani 6"
+   ]
+  },
+  {
+   "m": "402VKV",
+   "ziuaIdealaMasurat": [
+    134.1,
+    134.1
+   ],
+   "ziuaIdealaExtrapolat": [
+    134.1,
+    134.1
+   ],
+   "zileMasurate": 5,
+   "zileLV": 5,
+   "separat": false,
+   "R1a": [
+    125,
+    125
+   ],
+   "R1b": [
+    9,
+    9
+   ],
+   "prelungiri": []
+  },
+  {
+   "m": "715IZX",
+   "ziuaIdealaMasurat": [
+    106.2,
+    106.2
+   ],
+   "ziuaIdealaExtrapolat": [
+    106.2,
+    106.2
+   ],
+   "zileMasurate": 5,
+   "zileLV": 5,
+   "separat": false,
+   "R1a": [
+    46.5,
+    46.5
+   ],
+   "R1b": [
+    3.7,
+    3.7
+   ],
+   "prelungiri": []
+  },
+  {
+   "m": "435ASB",
+   "ziuaIdealaMasurat": [
+    70,
+    70
+   ],
+   "ziuaIdealaExtrapolat": [
+    87.5,
+    87.5
+   ],
+   "zileMasurate": 4,
+   "zileLV": 5,
+   "separat": false,
+   "R1a": [
+    292.5,
+    292.5
+   ],
+   "R1b": [
+    0,
+    0
+   ],
+   "prelungiri": []
+  },
+  {
+   "m": "350KAJ",
+   "ziuaIdealaMasurat": [
+    58.5,
+    58.5
+   ],
+   "ziuaIdealaExtrapolat": [
+    58.5,
+    58.5
+   ],
+   "zileMasurate": 5,
+   "zileLV": 5,
+   "separat": false,
+   "R1a": [
+    9.2,
+    9.2
+   ],
+   "R1b": [
+    4.2,
+    4.2
+   ],
+   "prelungiri": []
+  },
+  {
+   "m": "293QVT",
+   "ziuaIdealaMasurat": [
+    34.4,
+    34.4
+   ],
+   "ziuaIdealaExtrapolat": [
+    34.4,
+    34.4
+   ],
+   "zileMasurate": 5,
+   "zileLV": 5,
+   "separat": true,
+   "R1a": [
+    25.4,
+    25.4
+   ],
+   "R1b": [
+    0,
+    0
+   ],
+   "prelungiri": []
+  },
+  {
+   "m": "763LYY",
+   "ziuaIdealaMasurat": [
+    24.9,
+    24.9
+   ],
+   "ziuaIdealaExtrapolat": [
+    31.3,
+    31.3
+   ],
+   "zileMasurate": 4,
+   "zileLV": 5,
+   "separat": false,
+   "R1a": [
+    159.5,
+    159.5
+   ],
+   "R1b": [
+    16.6,
+    16.6
+   ],
+   "prelungiri": []
+  },
+  {
+   "m": "024XKY",
+   "ziuaIdealaMasurat": [
+    0,
+    0
+   ],
+   "ziuaIdealaExtrapolat": [
+    0,
+    0
+   ],
+   "zileMasurate": 0,
+   "zileLV": 4,
+   "separat": false,
+   "R1a": [
+    0,
+    0
+   ],
+   "R1b": [
+    0,
+    0
+   ],
+   "prelungiri": []
+  }
+ ],
+ "reconciliere": {
+  "masuratElig18": [
+   3240.1,
+   3174.9
+  ],
+  "extrapolat18": [
+   3626.4,
+   3535.9
+  ],
+  "flotaMasurat": [
+   5489.1,
+   5423.8
+  ],
+  "nota": "coloana «km/săpt.» a mașinii e EXTRAPOLATĂ pe zilele ei L–V (economie măsurată / zile măsurate × zile L–V), iar flota e suma MĂSURATĂ pe eșantion; mașinile separate (386PKP, 293QVT) nu intră în flotă"
+ },
+ "flota": {
+  "R1a": [
+   4852.4,
+   4833.9
+  ],
+  "R1b": [
+   2713.1,
+   2690.5
+  ],
+  "reguli3": [
+   3241.1,
+   3218.5
+  ]
+ },
+ "P9": {
+  "R19Bilicenii": [
+   "435ASB 2026-09-16 neprelungit 15.7/17.2 ok",
+   "830MUM 2026-09-14 prelungit 8.2/4.6 pică",
+   "830MUM 2026-09-15 neprelungit 17.3/7.5 pică",
+   "830MUM 2026-09-17 neprelungit 17.4/7.5 pică",
+   "830MUM 2026-09-18 prelungit 8.1/4.6 pică"
+  ],
+  "motiv744ARF": "P9 ia doar livrarea de dimineață spre PRIMA cursă a zilei; la 744ARF prima cursă e R13 Hăsnășenii Noi (tura 1), R19 Bilicenii e tura 2 → nu intră în P9 pe R19",
+  "zile744ARF": [
+   "2026-09-14: prima cursă R13|Hasnasenii Noi tur",
+   "2026-09-15: prima cursă R13|Hasnasenii Noi tur",
+   "2026-09-16: prima cursă R13|Hasnasenii Noi tur",
+   "2026-09-17: prima cursă R13|Hasnasenii Noi tur",
+   "2026-09-18: prima cursă R13|Hasnasenii Noi tur"
+  ]
+ },
+ "P12": {
+  "tip": "defect",
+  "titlu": "prelungirea cursei prin orașul rutei (urcări 15 s – 5 min, ≥ 3 distincte, exclusivitate)",
+  "conditie": 17,
+  "trec": 17,
+  "pica": 0,
+  "picaExemple": []
+ }
+}

@@ -55,7 +55,7 @@ export default function PatruReguli({ r, tipuri = {}, zile }: { r: Reguli4Drax |
                 <Fragment key={m.m}>
                 <tr onClick={() => setDeschis(deschis === m.m ? null : m.m)} title="apasă ca să vezi nopțile, drumurile și ziua mașinii"
                   className={`cursor-pointer border-t border-neutral-100 hover:bg-[#9B1B30]/[0.03] dark:border-neutral-800 ${deschis === m.m ? 'bg-[#9B1B30]/[0.04]' : ''}`}>
-                  <td className="whitespace-nowrap px-2! py-1! font-mono">{m.m}<span className="ml-2! font-sans text-[11px] text-neutral-500">{tipuri[canonPlaca(m.m)] ?? ''}</span>{m.orasPeLinie?.length ? <span className="ml-2! font-sans text-[11px] text-[#9B1B30] dark:text-[#e0788c]" title="linia trece prin oraș, unde se iau oameni; cifrele sunt de verificat">de verificat: prin {m.orasPeLinie.map((o) => o.replace(/ \d+$/, '')).join(', ')}</span> : null}</td>
+                  <td className="whitespace-nowrap px-2! py-1! font-mono">{m.m}<span className="ml-2! font-sans text-[11px] text-neutral-500">{tipuri[canonPlaca(m.m)] ?? ''}</span>{m.orasPeLinie?.length ? <span className="ml-2! font-sans text-[11px] text-neutral-500" title="curse prelungite prin orașul rutei (urcări / coborâri în oraș, ION-124)">curse prin {m.orasPeLinie.join(', ')}</span> : null}</td>
                   <td className="px-2! py-1!">{textR1(m)}</td>
                   <td className="px-2! py-1!">{textR4(m)}</td>
                   <td className={`px-2! py-1! text-right font-semibold tabular-nums ${VERDE}`}>{m.total >= 0.5 ? n0(m.total) : '—'}</td>

@@ -1,0 +1,17 @@
+{
+  "score": 9.5,
+  "verdict": "pass",
+  "summary": "C1–C3 sunt închise de completările rundei 3. Verificarea categorii.mjs, probe.mjs, patru-reguli.mjs și ziua-ideala.mjs confirmă că modificările prevăzute acoperă exclusivitatea, reperul P9 și propagarea capetelor efective. Specificația combinată este suficientă pentru implementare; rămâne o neconcordanță temporală în exemplul sintetic P12.",
+  "deductions": [
+    {
+      "id": "C4",
+      "severity": "low",
+      "weight": 0.5,
+      "title": "Varianta P12 cu staționare de 25 de minute nu precizează ore compatibile pentru opririle ulterioare.",
+      "detail": "Staționarea începută la 05:12 durează până la 05:37, deci opririle variantei inițiale de la 05:20 și 05:25 nu pot fi urcări distincte după ea. Formularea „cele de după” cere alte ore, încă nespecificate. Regula de exclusivitate este închisă, dar acest exemplu trebuie corectat pentru a deveni o probă GPS coerentă.",
+      "evidence": "doar planul",
+      "failure_scenario": "",
+      "suggested_fix": "Precizează pentru această variantă staționarea 05:12–05:37 și mută cele două opriri ulterioare, de exemplu la 05:38 și 05:39, integral înainte de tCap 05:40 și în afara razei de excludere a staționării."
+    }
+  ]
+}

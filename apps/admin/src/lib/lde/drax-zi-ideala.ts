@@ -12,7 +12,7 @@ export interface ZiIdealaZi {
   intervale: IntervalZiIdeala[]; jumatati: { part: string; noapte: string; cat: string; real: number; economie: number }[];
 }
 export interface ZiIdealaMasina {
-  /** ION-124 (provizoriu): orașele din actul rutei cu angajați, scoase încă din linie de §4.1/§5.1 — cifrele mașinii sunt de verificat */
+  /** ION-124: cursele prelungite prin orașul rutei, «Sîngerei 5» (oraș + număr de curse) */
   orasPeLinie?: string[];
   m: string; separat: boolean; zileLV: number; zileMasurate: number; kmSapt: number; peZi: number; pestePrag: boolean; cauze: CauzeZiIdeala;
   separatKm: Partial<Record<'weekend' | 'balti' | 'pauza', { economie: number; maiScurt: number }>>; zile: ZiIdealaZi[];

@@ -1,0 +1,27 @@
+{
+  "score": 7.0,
+  "verdict": "fail",
+  "summary": "Scenariile C1–C3 și C5 din r4 sunt reparate; cele 15 probe P12 trec în execuție izolată, iar cazul R-1 cu capete urbane la 2,1 km devine eligibil. Am reprodus însă o regresie: fereastra de 45 de minute restrânge incorect și căutarea locurilor de odihnă excluse. C6 este reparată parțial: există tabelul și extrasele GPS, dar comparațiile și reconcilierea rezultatelor rămân incomplete.",
+  "deductions": [
+    {
+      "id": "C1",
+      "severity": "high",
+      "weight": 2.5,
+      "title": "Excluderea locurilor de odihnă nu mai acoperă întregul gol dintre curse.",
+      "detail": "După limitarea a/b la 45 de minute, odihna folosită pentru excluderea spațială este căutată numai în această fereastră. Specificația cere excluderea opririlor la ≤400 m de orice staționare ≥20 min din același gol. Ramura retur→tur găsește ulterior odihna din întregul gol, dar folosește numai limitele ei temporale, fără să completeze excluderea spațială. Reproducerea pe funcția r5, cu punctele staționării incluse în urma GPS, produce o prelungire nepermisă.",
+      "evidence": "docs/plans/2026-09-28-drax-orase-in-linie/r5/vps/categorii.mjs:228; docs/plans/2026-09-28-drax-orase-in-linie/r5/vps/categorii.mjs:230; docs/plans/2026-09-28-drax-orase-in-linie/r5/vps/categorii.mjs:237; docs/plans/2026-09-28-drax-orase-in-linie/runda-2.md:11",
+      "failure_scenario": "Returul se termină la minutul 0, iar turul începe la minutul 100. În același gol există odihnă la locul A între minutele 20–45, apoi trei opriri urbane de 30 s la minutele 60, 70 și 80, în locuri distincte; prima este chiar la A. Fereastra turului este 55–100, deci odihna dispare din lista excluderilor. Codul numără trei urcări și mută începutul turului la minutul 60, deși oprirea la A trebuie exclusă și rămân numai două.",
+      "suggested_fix": "Separă în plan limitele întregului gol de fereastra de selecție a urcărilor: locurile de odihnă excluse se determină pe întregul gol, iar opririle candidate se limitează la ±45 min. Adaugă cazul reprodus și varianta simetrică pentru retur în P12, apoi repetă simularea înainte de scriere."
+    },
+    {
+      "id": "C2",
+      "severity": "medium",
+      "weight": 0.5,
+      "title": "Dovezile C6 nu închid toate comparațiile și reconcilierea cerute.",
+      "detail": "final.json conține cele 18 mașini și extrasele GPS, dar nu comparațiile R1a/R1b. P9 raportează acum linia și prelungirea, însă 744ARF lipsește fără un motiv de excludere. În plus, scăderea însumată a zilei ideale pentru cele 18 mașini este 90,5 km/săpt., iar scăderea flotei este 65,3: diferența de 25,2 nu este explicată prin rezultate pentru restul flotei. Aceasta este o lipsă de dovezi, nu demonstrația unui calcul greșit.",
+      "evidence": "docs/plans/2026-09-28-drax-orase-in-linie/r5/vps/probe.mjs:75; docs/plans/2026-09-28-drax-orase-in-linie/r5/vps/probe.mjs:83; docs/plans/2026-09-28-drax-orase-in-linie/r5/final.json:100; docs/plans/2026-09-28-drax-orase-in-linie/r5/final.json:166; docs/plans/2026-09-28-drax-orase-in-linie/r5/final.json:286; docs/plans/2026-09-28-drax-orase-in-linie/r5/final.json:319",
+      "failure_scenario": "",
+      "suggested_fix": "Completează etapa de validare cu R1a/R1b înainte/după, rezultatul P9 pentru 744ARF sau motivul exact al excluderii și reconcilierea diferenței de 25,2 km/săpt. Leagă rezultatele de versiunea codului și snapshotul de intrare folosite."
+    }
+  ]
+}

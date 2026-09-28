@@ -1,0 +1,1048 @@
+{
+ "R19|Bilicenii Vechi": {
+  "n": {
+   "tur": 215,
+   "retur": 179
+  },
+  "dincolo": {
+   "tur": 65,
+   "retur": 92
+  },
+  "peDrum": {
+   "retur": 3,
+   "tur": 1
+  },
+  "niciuna": {
+   "tur": 149,
+   "retur": 84
+  },
+  "kmDincolo": {
+   "tur": {
+    "n": 65,
+    "med": 8.2
+   },
+   "retur": {
+    "n": 92,
+    "med": 7.6
+   }
+  },
+  "dCapatOras": {
+   "Sîngerei": 7.8
+  },
+  "pctDincolo": {
+   "tur": 30,
+   "retur": 51
+  },
+  "lunile": {
+   "2026-05": 50,
+   "2026-06": 49,
+   "2026-07": 19,
+   "2026-09": 39
+  },
+  "schelet": {
+   "capat": "Bilicenii Vechi",
+   "km": 17.3,
+   "poarta": "EST",
+   "tureZi": 2
+  }
+ },
+ "R19|Copaceni": {
+  "n": {
+   "retur": 166,
+   "tur": 163
+  },
+  "dincolo": {
+   "tur": 59,
+   "retur": 42
+  },
+  "peDrum": {
+   "retur": 92,
+   "tur": 85
+  },
+  "niciuna": {
+   "retur": 61,
+   "tur": 60
+  },
+  "kmDincolo": {
+   "tur": {
+    "n": 59,
+    "med": 7.7
+   },
+   "retur": {
+    "n": 42,
+    "med": 7.1
+   }
+  },
+  "dCapatOras": {
+   "Sîngerei": 7.3
+  },
+  "pctDincolo": {
+   "tur": 36,
+   "retur": 25
+  },
+  "lunile": {
+   "2026-05": 43,
+   "2026-06": 21,
+   "2026-07": 15,
+   "2026-09": 22
+  },
+  "schelet": {
+   "capat": "Copăceni",
+   "km": 32.8,
+   "poarta": "EST",
+   "tureZi": 2
+  }
+ },
+ "R21|Heciul Nou": {
+  "n": {
+   "retur": 159,
+   "tur": 162
+  },
+  "dincolo": {
+   "retur": 145,
+   "tur": 32
+  },
+  "peDrum": {
+   "retur": 158,
+   "tur": 159
+  },
+  "niciuna": {
+   "tur": 2
+  },
+  "kmDincolo": {
+   "tur": {
+    "n": 32,
+    "med": 4.2
+   },
+   "retur": {
+    "n": 145,
+    "med": 5.1
+   }
+  },
+  "dCapatOras": {
+   "Biruința": 4.3
+  },
+  "pctDincolo": {
+   "tur": 20,
+   "retur": 91
+  },
+  "lunile": {
+   "2026-05": 46,
+   "2026-06": 55,
+   "2026-07": 27,
+   "2026-09": 49
+  },
+  "schelet": {
+   "capat": "Heciul Nou",
+   "km": 20.7,
+   "poarta": "EST",
+   "tureZi": 2
+  }
+ },
+ "R21|Alexăndreni*": {
+  "n": {
+   "retur": 67,
+   "tur": 72
+  },
+  "dincolo": {
+   "retur": 58,
+   "tur": 67
+  },
+  "peDrum": {
+   "retur": 31,
+   "tur": 44
+  },
+  "niciuna": {
+   "tur": 2,
+   "retur": 5
+  },
+  "kmDincolo": {
+   "tur": {
+    "n": 67,
+    "med": 1
+   },
+   "retur": {
+    "n": 58,
+    "med": 1.4
+   }
+  },
+  "dCapatOras": {
+   "Biruința": 1.3
+  },
+  "pctDincolo": {
+   "tur": 93,
+   "retur": 87
+  },
+  "lunile": {
+   "2026-05": 32,
+   "2026-06": 35,
+   "2026-07": 24,
+   "2026-09": 34
+  },
+  "schelet": "fără ideal"
+ },
+ "R19|Sîngerei*": {
+  "n": {
+   "tur": 2
+  },
+  "dincolo": {},
+  "peDrum": {
+   "tur": 1
+  },
+  "niciuna": {
+   "tur": 1
+  },
+  "kmDincolo": {
+   "tur": {
+    "n": 0,
+    "med": null
+   },
+   "retur": {
+    "n": 0,
+    "med": null
+   }
+  },
+  "dCapatOras": {
+   "Sîngerei": 0
+  },
+  "pctDincolo": {
+   "tur": 0,
+   "retur": null
+  },
+  "lunile": {},
+  "schelet": "fără ideal"
+ },
+ "R15|Suri": {
+  "n": {
+   "retur": 180,
+   "tur": 169
+  },
+  "dincolo": {
+   "tur": 1,
+   "retur": 2
+  },
+  "peDrum": {
+   "retur": 66,
+   "tur": 71
+  },
+  "niciuna": {
+   "retur": 113,
+   "tur": 98
+  },
+  "kmDincolo": {
+   "tur": {
+    "n": 1,
+    "med": 27.5
+   },
+   "retur": {
+    "n": 2,
+    "med": 18.1
+   }
+  },
+  "dCapatOras": {
+   "Drochia": 7.7
+  },
+  "pctDincolo": {
+   "tur": 1,
+   "retur": 1
+  },
+  "lunile": {
+   "2026-09": 2,
+   "2026-05": 1
+  },
+  "schelet": {
+   "capat": "Șuri",
+   "km": 70,
+   "poarta": "VEST",
+   "tureZi": 1
+  }
+ },
+ "R1|Donduseni": {
+  "n": {
+   "tur": 67,
+   "retur": 67
+  },
+  "dincolo": {
+   "tur": 21,
+   "retur": 12
+  },
+  "peDrum": {
+   "tur": 60,
+   "retur": 66
+  },
+  "niciuna": {
+   "retur": 1,
+   "tur": 2
+  },
+  "kmDincolo": {
+   "tur": {
+    "n": 21,
+    "med": 2.7
+   },
+   "retur": {
+    "n": 12,
+    "med": 2.2
+   }
+  },
+  "dCapatOras": {
+   "Dondușeni": 0
+  },
+  "pctDincolo": {
+   "tur": 31,
+   "retur": 18
+  },
+  "lunile": {
+   "2026-05": 14,
+   "2026-06": 9,
+   "2026-07": 2,
+   "2026-09": 8
+  },
+  "schelet": {
+   "capat": "Dondușeni",
+   "km": 91.9,
+   "poarta": "EST",
+   "tureZi": 1
+  }
+ },
+ "R16|Varvareuca": {
+  "n": {
+   "retur": 257,
+   "tur": 271
+  },
+  "dincolo": {
+   "tur": 56,
+   "retur": 31
+  },
+  "peDrum": {
+   "retur": 238,
+   "tur": 116
+  },
+  "niciuna": {
+   "retur": 13,
+   "tur": 125
+  },
+  "kmDincolo": {
+   "tur": {
+    "n": 56,
+    "med": 1.6
+   },
+   "retur": {
+    "n": 31,
+    "med": 2.2
+   }
+  },
+  "dCapatOras": {
+   "Florești": 1.8,
+   "Mărculești": 5.3
+  },
+  "pctDincolo": {
+   "tur": 21,
+   "retur": 12
+  },
+  "lunile": {
+   "2026-05": 47,
+   "2026-06": 22,
+   "2026-07": 4,
+   "2026-09": 14
+  },
+  "schelet": {
+   "capat": "Vărvăreuca",
+   "km": 42.8,
+   "poarta": "EST",
+   "tureZi": 2
+  }
+ },
+ "R16|Mărculești*": {
+  "n": {
+   "retur": 7
+  },
+  "dincolo": {},
+  "peDrum": {
+   "retur": 7
+  },
+  "niciuna": {},
+  "kmDincolo": {
+   "tur": {
+    "n": 0,
+    "med": null
+   },
+   "retur": {
+    "n": 0,
+    "med": null
+   }
+  },
+  "dCapatOras": {
+   "Florești": 4.1,
+   "Mărculești": 1.5
+  },
+  "pctDincolo": {
+   "tur": null,
+   "retur": 0
+  },
+  "lunile": {},
+  "schelet": "fără ideal"
+ },
+ "R16|Mărășești*": {
+  "n": {
+   "retur": 1,
+   "tur": 2
+  },
+  "dincolo": {},
+  "peDrum": {},
+  "niciuna": {
+   "retur": 1,
+   "tur": 2
+  },
+  "kmDincolo": {
+   "tur": {
+    "n": 0,
+    "med": null
+   },
+   "retur": {
+    "n": 0,
+    "med": null
+   }
+  },
+  "dCapatOras": {
+   "Florești": 17.3,
+   "Mărculești": 12.6
+  },
+  "pctDincolo": {
+   "tur": 0,
+   "retur": 0
+  },
+  "lunile": {},
+  "schelet": "fără ideal"
+ },
+ "R16|Floresti": {
+  "n": {
+   "tur": 125,
+   "retur": 129
+  },
+  "dincolo": {
+   "retur": 12,
+   "tur": 13
+  },
+  "peDrum": {
+   "tur": 103,
+   "retur": 99
+  },
+  "niciuna": {
+   "retur": 28,
+   "tur": 20
+  },
+  "kmDincolo": {
+   "tur": {
+    "n": 13,
+    "med": 4.3
+   },
+   "retur": {
+    "n": 12,
+    "med": 4.3
+   }
+  },
+  "dCapatOras": {
+   "Florești": 0,
+   "Mărculești": 5.1
+  },
+  "pctDincolo": {
+   "tur": 10,
+   "retur": 9
+  },
+  "lunile": {
+   "2026-05": 4,
+   "2026-06": 6,
+   "2026-07": 2,
+   "2026-09": 13
+  },
+  "schelet": {
+   "capat": "Florești",
+   "km": 36.5,
+   "poarta": "EST",
+   "tureZi": 2
+  }
+ },
+ "R23|Scumpia": {
+  "n": {
+   "tur": 144,
+   "retur": 143
+  },
+  "dincolo": {
+   "retur": 1,
+   "tur": 1
+  },
+  "peDrum": {
+   "tur": 130,
+   "retur": 124
+  },
+  "niciuna": {
+   "retur": 18,
+   "tur": 13
+  },
+  "kmDincolo": {
+   "tur": {
+    "n": 1,
+    "med": 12.9
+   },
+   "retur": {
+    "n": 1,
+    "med": 26
+   }
+  },
+  "dCapatOras": {
+   "Fălești": 12.5
+  },
+  "pctDincolo": {
+   "tur": 1,
+   "retur": 1
+  },
+  "lunile": {
+   "2026-09": 1,
+   "2026-05": 1
+  },
+  "schelet": {
+   "capat": "Scumpia",
+   "km": 59.5,
+   "poarta": "VEST",
+   "tureZi": 2
+  }
+ },
+ "R23|Călugăr*": {
+  "n": {
+   "retur": 56,
+   "tur": 65
+  },
+  "dincolo": {},
+  "peDrum": {
+   "retur": 38,
+   "tur": 7
+  },
+  "niciuna": {
+   "retur": 18,
+   "tur": 58
+  },
+  "kmDincolo": {
+   "tur": {
+    "n": 0,
+    "med": null
+   },
+   "retur": {
+    "n": 0,
+    "med": null
+   }
+  },
+  "dCapatOras": {
+   "Fălești": 3.9
+  },
+  "pctDincolo": {
+   "tur": 0,
+   "retur": 0
+  },
+  "lunile": {},
+  "schelet": "fără ideal"
+ },
+ "R23|Măgureanca*": {
+  "n": {
+   "tur": 1,
+   "retur": 1
+  },
+  "dincolo": {},
+  "peDrum": {
+   "tur": 1
+  },
+  "niciuna": {
+   "retur": 1
+  },
+  "kmDincolo": {
+   "tur": {
+    "n": 0,
+    "med": null
+   },
+   "retur": {
+    "n": 0,
+    "med": null
+   }
+  },
+  "dCapatOras": {
+   "Fălești": 7.7
+  },
+  "pctDincolo": {
+   "tur": 0,
+   "retur": 0
+  },
+  "lunile": {},
+  "schelet": "fără ideal"
+ },
+ "R23|Frumușica*": {
+  "n": {
+   "retur": 6,
+   "tur": 4
+  },
+  "dincolo": {},
+  "peDrum": {
+   "retur": 4
+  },
+  "niciuna": {
+   "retur": 2,
+   "tur": 4
+  },
+  "kmDincolo": {
+   "tur": {
+    "n": 0,
+    "med": null
+   },
+   "retur": {
+    "n": 0,
+    "med": null
+   }
+  },
+  "dCapatOras": {
+   "Fălești": 6.8
+  },
+  "pctDincolo": {
+   "tur": 0,
+   "retur": 0
+  },
+  "lunile": {},
+  "schelet": "fără ideal"
+ },
+ "R23|Fălești*": {
+  "n": {
+   "retur": 5
+  },
+  "dincolo": {},
+  "peDrum": {
+   "retur": 5
+  },
+  "niciuna": {},
+  "kmDincolo": {
+   "tur": {
+    "n": 0,
+    "med": null
+   },
+   "retur": {
+    "n": 0,
+    "med": null
+   }
+  },
+  "dCapatOras": {
+   "Fălești": 0
+  },
+  "pctDincolo": {
+   "tur": null,
+   "retur": 0
+  },
+  "lunile": {},
+  "schelet": "fără ideal"
+ },
+ "R23|Gara Fălești*": {
+  "n": {
+   "retur": 1,
+   "tur": 1
+  },
+  "dincolo": {},
+  "peDrum": {
+   "retur": 1
+  },
+  "niciuna": {
+   "tur": 1
+  },
+  "kmDincolo": {
+   "tur": {
+    "n": 0,
+    "med": null
+   },
+   "retur": {
+    "n": 0,
+    "med": null
+   }
+  },
+  "dCapatOras": {
+   "Fălești": 3.6
+  },
+  "pctDincolo": {
+   "tur": 0,
+   "retur": 0
+  },
+  "lunile": {},
+  "schelet": "fără ideal"
+ },
+ "R9|Cobani": {
+  "n": {
+   "tur": 105,
+   "retur": 110
+  },
+  "dincolo": {
+   "tur": 28,
+   "retur": 29
+  },
+  "peDrum": {
+   "tur": 103,
+   "retur": 107
+  },
+  "niciuna": {
+   "retur": 3,
+   "tur": 2
+  },
+  "kmDincolo": {
+   "tur": {
+    "n": 28,
+    "med": 15.3
+   },
+   "retur": {
+    "n": 29,
+    "med": 15.3
+   }
+  },
+  "dCapatOras": {
+   "Glodeni": 13.5
+  },
+  "pctDincolo": {
+   "tur": 27,
+   "retur": 26
+  },
+  "lunile": {
+   "2026-05": 29,
+   "2026-06": 28
+  },
+  "schelet": {
+   "capat": "Cobani",
+   "km": 55.5,
+   "poarta": "VEST",
+   "tureZi": 2
+  }
+ },
+ "R3|Nihoreni": {
+  "n": {
+   "retur": 220,
+   "tur": 213
+  },
+  "dincolo": {
+   "tur": 82,
+   "retur": 75
+  },
+  "peDrum": {
+   "retur": 155,
+   "tur": 142
+  },
+  "niciuna": {
+   "retur": 37,
+   "tur": 63
+  },
+  "kmDincolo": {
+   "tur": {
+    "n": 82,
+    "med": 2.5
+   },
+   "retur": {
+    "n": 75,
+    "med": 2.4
+   }
+  },
+  "dCapatOras": {
+   "Rîșcani": 1.7
+  },
+  "pctDincolo": {
+   "tur": 38,
+   "retur": 34
+  },
+  "lunile": {
+   "2026-09": 48,
+   "2026-06": 37,
+   "2026-07": 35,
+   "2026-05": 37
+  },
+  "schelet": {
+   "capat": "Nihoreni",
+   "km": 44.2,
+   "poarta": "VEST",
+   "tureZi": 2
+  }
+ },
+ "R9|Glodeni*": {
+  "n": {
+   "tur": 31,
+   "retur": 31
+  },
+  "dincolo": {},
+  "peDrum": {
+   "retur": 29,
+   "tur": 6
+  },
+  "niciuna": {
+   "tur": 25,
+   "retur": 2
+  },
+  "kmDincolo": {
+   "tur": {
+    "n": 0,
+    "med": null
+   },
+   "retur": {
+    "n": 0,
+    "med": null
+   }
+  },
+  "dCapatOras": {
+   "Glodeni": 0
+  },
+  "pctDincolo": {
+   "tur": 0,
+   "retur": 0
+  },
+  "lunile": {},
+  "schelet": "fără ideal"
+ },
+ "R17|Prajila": {
+  "n": {
+   "tur": 284,
+   "retur": 280
+  },
+  "dincolo": {
+   "tur": 34,
+   "retur": 22
+  },
+  "peDrum": {
+   "tur": 270,
+   "retur": 277
+  },
+  "niciuna": {
+   "retur": 2,
+   "tur": 14
+  },
+  "kmDincolo": {
+   "tur": {
+    "n": 34,
+    "med": 6.4
+   },
+   "retur": {
+    "n": 22,
+    "med": 5.4
+   }
+  },
+  "dCapatOras": {
+   "Mărculești": 4
+  },
+  "pctDincolo": {
+   "tur": 12,
+   "retur": 8
+  },
+  "lunile": {
+   "2026-09": 8,
+   "2026-05": 25,
+   "2026-06": 19,
+   "2026-07": 4
+  },
+  "schelet": {
+   "capat": "Prajila",
+   "km": 41.3,
+   "poarta": "EST",
+   "tureZi": 2
+  }
+ },
+ "R31|Cotiujenii Mari": {
+  "n": {
+   "retur": 45,
+   "tur": 44
+  },
+  "dincolo": {},
+  "peDrum": {
+   "retur": 45,
+   "tur": 44
+  },
+  "niciuna": {},
+  "kmDincolo": {
+   "tur": {
+    "n": 0,
+    "med": null
+   },
+   "retur": {
+    "n": 0,
+    "med": null
+   }
+  },
+  "dCapatOras": {
+   "Ghindești": 12.7
+  },
+  "pctDincolo": {
+   "tur": 0,
+   "retur": 0
+  },
+  "lunile": {},
+  "schelet": {
+   "capat": "Cotiujenii Mari",
+   "km": 65.1,
+   "poarta": "EST",
+   "tureZi": 1
+  }
+ },
+ "R1|Tîrnova*": {
+  "n": {
+   "retur": 1
+  },
+  "dincolo": {},
+  "peDrum": {},
+  "niciuna": {
+   "retur": 1
+  },
+  "kmDincolo": {
+   "tur": {
+    "n": 0,
+    "med": null
+   },
+   "retur": {
+    "n": 0,
+    "med": null
+   }
+  },
+  "dCapatOras": {
+   "Dondușeni": 8.6
+  },
+  "pctDincolo": {
+   "tur": null,
+   "retur": 0
+  },
+  "lunile": {},
+  "schelet": "fără ideal"
+ },
+ "R8|Costesti": {
+  "n": {
+   "tur": 71,
+   "retur": 71
+  },
+  "dincolo": {
+   "retur": 1,
+   "tur": 1
+  },
+  "peDrum": {
+   "tur": 70,
+   "retur": 67
+  },
+  "niciuna": {
+   "retur": 3
+  },
+  "kmDincolo": {
+   "tur": {
+    "n": 1,
+    "med": 0.9
+   },
+   "retur": {
+    "n": 1,
+    "med": 1
+   }
+  },
+  "dCapatOras": {
+   "Costești": 0
+  },
+  "pctDincolo": {
+   "tur": 1,
+   "retur": 1
+  },
+  "lunile": {
+   "2026-05": 1,
+   "2026-07": 1
+  },
+  "schelet": {
+   "capat": "Costești",
+   "km": 78.5,
+   "poarta": "VEST",
+   "tureZi": 1
+  }
+ },
+ "R3|Recea*": {
+  "n": {
+   "tur": 3,
+   "retur": 1
+  },
+  "dincolo": {},
+  "peDrum": {},
+  "niciuna": {
+   "tur": 3,
+   "retur": 1
+  },
+  "kmDincolo": {
+   "tur": {
+    "n": 0,
+    "med": null
+   },
+   "retur": {
+    "n": 0,
+    "med": null
+   }
+  },
+  "dCapatOras": {
+   "Rîșcani": 10.9
+  },
+  "pctDincolo": {
+   "tur": 0,
+   "retur": 0
+  },
+  "lunile": {},
+  "schelet": "fără ideal"
+ },
+ "R8|Pîrjota*": {
+  "n": {
+   "tur": 1
+  },
+  "dincolo": {},
+  "peDrum": {},
+  "niciuna": {
+   "tur": 1
+  },
+  "kmDincolo": {
+   "tur": {
+    "n": 0,
+    "med": null
+   },
+   "retur": {
+    "n": 0,
+    "med": null
+   }
+  },
+  "dCapatOras": {
+   "Costești": 17
+  },
+  "pctDincolo": {
+   "tur": 0,
+   "retur": null
+  },
+  "lunile": {},
+  "schelet": "fără ideal"
+ },
+ "R17|Mărculești*": {
+  "n": {
+   "retur": 6,
+   "tur": 9
+  },
+  "dincolo": {
+   "retur": 6,
+   "tur": 8
+  },
+  "peDrum": {},
+  "niciuna": {
+   "tur": 1
+  },
+  "kmDincolo": {
+   "tur": {
+    "n": 8,
+    "med": 1
+   },
+   "retur": {
+    "n": 6,
+    "med": 1.2
+   }
+  },
+  "dCapatOras": {
+   "Mărculești": 1.5
+  },
+  "pctDincolo": {
+   "tur": 89,
+   "retur": 100
+  },
+  "lunile": {
+   "2026-05": 7,
+   "2026-06": 7
+  },
+  "schelet": "fără ideal"
+ }
+}

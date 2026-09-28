@@ -1,0 +1,759 @@
+{
+ "rulat": "2026-09-28T11:08:35.223Z",
+ "masini": {
+  "830MUM": {
+   "casa": "Sîngerei",
+   "zile": 5,
+   "kmAnaliza": {
+    "cuOameni": 390.3,
+    "livrare": 208.5,
+    "golRuta": 0,
+    "golTure": 0,
+    "parc": 5.4,
+    "service": 0,
+    "deplasare": 0,
+    "legatura": 229.9,
+    "necunoscut": 0,
+    "intreUzine": 9.2
+   },
+   "mutat": {
+    "livrare(noapte)": 41.4,
+    "acasa(ocol)": 14.2,
+    "legatura": 41.6
+   },
+   "cazuri": [
+    {
+     "zi": "2026-09-14",
+     "lin": "R19|Bilicenii Vechi",
+     "sens": "tur",
+     "oras": "Sîngerei",
+     "urcari": 5,
+     "de": "05:38",
+     "pana": "06:02",
+     "dupa": "oprire lungă/acasă",
+     "km": 13.7,
+     "parti": {
+      "livrare(noapte)": 13.7
+     }
+    },
+    {
+     "zi": "2026-09-14",
+     "lin": "R19|Copaceni",
+     "sens": "tur",
+     "oras": "Sîngerei",
+     "urcari": 2,
+     "de": "13:49",
+     "pana": "14:02",
+     "dupa": "cursă",
+     "km": 8.1,
+     "parti": {
+      "acasa(ocol)": 0.7,
+      "legatura": 7.5
+     }
+    },
+    {
+     "zi": "2026-09-14",
+     "lin": "R19|Bilicenii Vechi",
+     "sens": "retur",
+     "oras": "Sîngerei",
+     "coborari": 5,
+     "de": "16:14",
+     "pana": "16:42",
+     "km": 16.1,
+     "parti": {
+      "acasa(ocol)": 4.7,
+      "legatura": 11.4
+     }
+    },
+    {
+     "zi": "2026-09-15",
+     "lin": "R19|Bilicenii Vechi",
+     "sens": "tur",
+     "oras": "Sîngerei",
+     "urcari": 3,
+     "de": "05:45",
+     "pana": "06:01",
+     "dupa": "oprire lungă/acasă",
+     "km": 9.9,
+     "parti": {
+      "livrare(noapte)": 9.9
+     }
+    },
+    {
+     "zi": "2026-09-16",
+     "lin": "R19|Bilicenii Vechi",
+     "sens": "retur",
+     "oras": "Sîngerei",
+     "coborari": 3,
+     "de": "16:10",
+     "pana": "16:26",
+     "km": 9.6,
+     "parti": {
+      "acasa(ocol)": 2.5,
+      "legatura": 7.1
+     }
+    },
+    {
+     "zi": "2026-09-17",
+     "lin": "R19|Bilicenii Vechi",
+     "sens": "tur",
+     "oras": "Sîngerei",
+     "urcari": 5,
+     "de": "05:48",
+     "pana": "06:02",
+     "dupa": "oprire lungă/acasă",
+     "km": 8.6,
+     "parti": {
+      "livrare(noapte)": 8.6
+     }
+    },
+    {
+     "zi": "2026-09-17",
+     "lin": "R19|Bilicenii Vechi",
+     "sens": "retur",
+     "oras": "Sîngerei",
+     "coborari": 4,
+     "de": "16:10",
+     "pana": "16:35",
+     "km": 13.9,
+     "parti": {
+      "acasa(ocol)": 4.2,
+      "legatura": 9.7
+     }
+    },
+    {
+     "zi": "2026-09-18",
+     "lin": "R19|Bilicenii Vechi",
+     "sens": "tur",
+     "oras": "Sîngerei",
+     "urcari": 6,
+     "de": "05:46",
+     "pana": "06:02",
+     "dupa": "oprire lungă/acasă",
+     "km": 9.2,
+     "parti": {
+      "livrare(noapte)": 9.2
+     }
+    },
+    {
+     "zi": "2026-09-18",
+     "lin": "R19|Bilicenii Vechi",
+     "sens": "retur",
+     "oras": "Sîngerei",
+     "coborari": 4,
+     "de": "16:11",
+     "pana": "16:23",
+     "km": 8.1,
+     "parti": {
+      "acasa(ocol)": 2.1,
+      "legatura": 5.9
+     }
+    }
+   ],
+   "peDrum": {
+    "R19|Copaceni tur · Sîngerei": 22,
+    "R19|Copaceni retur · Sîngerei": 18
+   },
+   "faraLegatura": 0,
+   "mutatTotal": 97.2
+  },
+  "725CWN": {
+   "casa": "Sîngerei",
+   "zile": 6,
+   "kmAnaliza": {
+    "cuOameni": 638.1,
+    "livrare": 203,
+    "golRuta": 0,
+    "golTure": 0,
+    "parc": 35.2,
+    "service": 0,
+    "deplasare": 0,
+    "legatura": 384.9,
+    "necunoscut": 0,
+    "intreUzine": 53.6
+   },
+   "mutat": {
+    "acasa(ocol)": 7.6,
+    "legatura": 8.3,
+    "golRuta": 6.7,
+    "intreUzine": 1
+   },
+   "cazuri": [
+    {
+     "zi": "2026-09-14",
+     "lin": "R19|Copaceni",
+     "sens": "retur",
+     "oras": "Sîngerei",
+     "coborari": 2,
+     "de": "16:26",
+     "pana": "16:59",
+     "km": 9,
+     "parti": {
+      "acasa(ocol)": 0.8,
+      "legatura": 8.3
+     }
+    },
+    {
+     "zi": "2026-09-19",
+     "lin": "R33|Bilicenii Vechi*",
+     "sens": "retur",
+     "oras": "Sîngerei",
+     "coborari": 9,
+     "de": "16:05",
+     "pana": "16:46",
+     "km": 14.5,
+     "parti": {
+      "acasa(ocol)": 6.8,
+      "golRuta": 6.7,
+      "intreUzine": 1
+     }
+    }
+   ],
+   "peDrum": {
+    "R19|Copaceni tur · Sîngerei": 1
+   },
+   "faraLegatura": 0,
+   "mutatTotal": 23.6
+  },
+  "744ARF": {
+   "casa": "Dacia",
+   "zile": 5,
+   "kmAnaliza": {
+    "cuOameni": 259.6,
+    "livrare": 292.6,
+    "golRuta": 0,
+    "golTure": 0,
+    "parc": 11.4,
+    "service": 0,
+    "deplasare": 0,
+    "legatura": 247,
+    "necunoscut": 0,
+    "intreUzine": 69.6
+   },
+   "mutat": {},
+   "cazuri": [],
+   "peDrum": {},
+   "faraLegatura": 0,
+   "mutatTotal": 0
+  },
+  "435ASB": {
+   "casa": "Autogara",
+   "zile": 5,
+   "kmAnaliza": {
+    "cuOameni": 379.2,
+    "livrare": 346.3,
+    "golRuta": 0,
+    "golTure": 88.6,
+    "parc": 0,
+    "service": 0,
+    "deplasare": 0,
+    "legatura": 18,
+    "necunoscut": 0,
+    "intreUzine": 31.9
+   },
+   "mutat": {},
+   "cazuri": [],
+   "peDrum": {},
+   "faraLegatura": 0,
+   "mutatTotal": 0
+  },
+  "518MHD": {
+   "casa": "Izvoare",
+   "zile": 5,
+   "kmAnaliza": {
+    "cuOameni": 675.6,
+    "livrare": 411.7,
+    "golRuta": 463.5,
+    "golTure": 0,
+    "parc": 0,
+    "service": 0,
+    "deplasare": 0,
+    "legatura": 0,
+    "necunoscut": 0,
+    "intreUzine": 37.5
+   },
+   "mutat": {
+    "livrare(noapte)": 2,
+    "acasa(ocol)": 1.4,
+    "golRuta": 2.4
+   },
+   "cazuri": [
+    {
+     "zi": "2026-09-14",
+     "lin": "R16|Floresti",
+     "sens": "tur",
+     "oras": "Florești",
+     "urcari": 3,
+     "de": "05:26",
+     "pana": "05:32",
+     "dupa": "oprire lungă/acasă",
+     "km": 1,
+     "parti": {
+      "livrare(noapte)": 1
+     }
+    },
+    {
+     "zi": "2026-09-16",
+     "lin": "R16|Floresti",
+     "sens": "tur",
+     "oras": "Florești",
+     "urcari": 2,
+     "de": "13:57",
+     "pana": "14:01",
+     "dupa": "cursă",
+     "km": 1.9,
+     "parti": {
+      "acasa(ocol)": 0.6,
+      "golRuta": 1.2
+     }
+    },
+    {
+     "zi": "2026-09-17",
+     "lin": "R16|Floresti",
+     "sens": "retur",
+     "oras": "Florești",
+     "coborari": 2,
+     "de": "16:24",
+     "pana": "16:29",
+     "km": 2,
+     "parti": {
+      "acasa(ocol)": 0.8,
+      "golRuta": 1.2
+     }
+    },
+    {
+     "zi": "2026-09-18",
+     "lin": "R16|Floresti",
+     "sens": "tur",
+     "oras": "Florești",
+     "urcari": 2,
+     "de": "05:28",
+     "pana": "05:31",
+     "dupa": "oprire lungă/acasă",
+     "km": 1,
+     "parti": {
+      "livrare(noapte)": 1
+     }
+    }
+   ],
+   "peDrum": {
+    "R16|Floresti tur · Florești": 23,
+    "R16|Floresti retur · Florești": 25
+   },
+   "faraLegatura": 0,
+   "mutatTotal": 5.8
+  },
+  "350KAJ": {
+   "casa": "Florești",
+   "zile": 0,
+   "kmAnaliza": {
+    "cuOameni": 843.1,
+    "livrare": 13.2,
+    "golRuta": 446.7,
+    "golTure": 0,
+    "parc": 0,
+    "service": 0,
+    "deplasare": 0,
+    "legatura": 0,
+    "necunoscut": 0,
+    "intreUzine": 72.2
+   },
+   "mutat": {},
+   "cazuri": [],
+   "peDrum": {},
+   "faraLegatura": 0,
+   "mutatTotal": 0
+  },
+  "925FTI": {
+   "casa": "Sărata Veche",
+   "zile": 6,
+   "kmAnaliza": {
+    "cuOameni": 964,
+    "livrare": 593.5,
+    "golRuta": 0,
+    "golTure": 0,
+    "parc": 15.3,
+    "service": 0,
+    "deplasare": 0,
+    "legatura": 410.8,
+    "necunoscut": 0,
+    "intreUzine": 59.3
+   },
+   "mutat": {},
+   "cazuri": [],
+   "peDrum": {
+    "R23|Scumpia tur · Fălești": 3,
+    "R23|Scumpia retur · Fălești": 2
+   },
+   "faraLegatura": 0,
+   "mutatTotal": 0
+  },
+  "446ASB": {
+   "casa": "Călugăr",
+   "zile": 5,
+   "kmAnaliza": {
+    "cuOameni": 1173.9,
+    "livrare": 109.7,
+    "golRuta": 654.6,
+    "golTure": 0,
+    "parc": 0,
+    "service": 0,
+    "deplasare": 0,
+    "legatura": 0,
+    "necunoscut": 0,
+    "intreUzine": 62.5
+   },
+   "mutat": {},
+   "cazuri": [],
+   "peDrum": {
+    "R23|Scumpia tur · Fălești": 54,
+    "R23|Scumpia retur · Fălești": 32
+   },
+   "faraLegatura": 0,
+   "mutatTotal": 0
+  },
+  "457BRAX": {
+   "casa": "Hîjdieni",
+   "zile": 6,
+   "kmAnaliza": {
+    "cuOameni": 1011.1,
+    "livrare": 486.7,
+    "golRuta": 0,
+    "golTure": 0,
+    "parc": 27.4,
+    "service": 0,
+    "deplasare": 0,
+    "legatura": 463.6,
+    "necunoscut": 0,
+    "intreUzine": 45.7
+   },
+   "mutat": {},
+   "cazuri": [],
+   "peDrum": {
+    "R3|Nihoreni retur · Rîșcani": 15,
+    "R3|Nihoreni tur · Rîșcani": 11
+   },
+   "faraLegatura": 0,
+   "mutatTotal": 0
+  },
+  "345KAJ": {
+   "casa": "Zăicani",
+   "zile": 5,
+   "kmAnaliza": {
+    "cuOameni": 1374.5,
+    "livrare": 484.5,
+    "golRuta": 0,
+    "golTure": 0,
+    "parc": 48.3,
+    "service": 0,
+    "deplasare": 0,
+    "legatura": 638,
+    "necunoscut": 0,
+    "intreUzine": 57
+   },
+   "mutat": {
+    "parc": 0,
+    "acasa(ocol)": 0,
+    "legatura": 0.3,
+    "intreUzine": 0
+   },
+   "cazuri": [
+    {
+     "zi": "2026-09-14",
+     "lin": "R8|Costesti",
+     "sens": "tur",
+     "oras": "Costești",
+     "urcari": 2,
+     "de": "13:01",
+     "pana": "13:02",
+     "dupa": "cursă",
+     "km": 0.4,
+     "parti": {
+      "parc": 0,
+      "acasa(ocol)": 0,
+      "legatura": 0.3,
+      "intreUzine": 0
+     }
+    }
+   ],
+   "peDrum": {
+    "R8|Costesti tur · Costești": 5,
+    "R8|Costesti retur · Costești": 11,
+    "R3|Nihoreni retur · Rîșcani": 1
+   },
+   "faraLegatura": 0,
+   "mutatTotal": 0.3
+  },
+  "186OMM": {
+   "casa": "Dacia",
+   "zile": 5,
+   "kmAnaliza": {
+    "cuOameni": 698.9,
+    "livrare": 291.4,
+    "golRuta": 0,
+    "golTure": 0,
+    "parc": 64.1,
+    "service": 0,
+    "deplasare": 0,
+    "legatura": 407.9,
+    "necunoscut": 0,
+    "intreUzine": 6.6
+   },
+   "mutat": {
+    "parc": 3.7,
+    "legatura": 28.6
+   },
+   "cazuri": [
+    {
+     "zi": "2026-09-16",
+     "lin": "R3|Nihoreni",
+     "sens": "tur",
+     "oras": "Rîșcani",
+     "urcari": 5,
+     "de": "13:25",
+     "pana": "14:02",
+     "dupa": "cursă",
+     "km": 9.5,
+     "parti": {
+      "parc": 1.2,
+      "legatura": 8.3
+     }
+    },
+    {
+     "zi": "2026-09-17",
+     "lin": "R3|Nihoreni",
+     "sens": "tur",
+     "oras": "Rîșcani",
+     "urcari": 5,
+     "de": "13:41",
+     "pana": "14:06",
+     "dupa": "cursă",
+     "km": 11.4,
+     "parti": {
+      "parc": 1.3,
+      "legatura": 10.1
+     }
+    },
+    {
+     "zi": "2026-09-18",
+     "lin": "R3|Nihoreni",
+     "sens": "tur",
+     "oras": "Rîșcani",
+     "urcari": 4,
+     "de": "13:26",
+     "pana": "14:03",
+     "dupa": "cursă",
+     "km": 11.4,
+     "parti": {
+      "parc": 1.2,
+      "legatura": 10.2
+     }
+    }
+   ],
+   "peDrum": {
+    "R3|Nihoreni tur · Rîșcani": 5,
+    "R3|Nihoreni retur · Rîșcani": 17
+   },
+   "faraLegatura": 0,
+   "mutatTotal": 32.3
+  },
+  "402VKV": {
+   "casa": "Hîjdieni",
+   "zile": 5,
+   "kmAnaliza": {
+    "cuOameni": 1102.5,
+    "livrare": 133.8,
+    "golRuta": 582.7,
+    "golTure": 0,
+    "parc": 0,
+    "service": 0,
+    "deplasare": 0,
+    "legatura": 0,
+    "necunoscut": 0,
+    "intreUzine": 37.8
+   },
+   "mutat": {},
+   "cazuri": [],
+   "peDrum": {
+    "R9|Cobani tur · Glodeni": 37,
+    "R9|Cobani retur · Glodeni": 36
+   },
+   "faraLegatura": 0,
+   "mutatTotal": 0
+  },
+  "388ASB": {
+   "casa": "Șuri",
+   "zile": 5,
+   "kmAnaliza": {
+    "cuOameni": 993,
+    "livrare": 299.1,
+    "golRuta": 0,
+    "golTure": 0,
+    "parc": 60.1,
+    "service": 0,
+    "deplasare": 0,
+    "legatura": 454.3,
+    "necunoscut": 0,
+    "intreUzine": 58.1
+   },
+   "mutat": {},
+   "cazuri": [],
+   "peDrum": {
+    "R15|Suri tur · Drochia": 22,
+    "R15|Suri retur · Drochia": 18
+   },
+   "faraLegatura": 0,
+   "mutatTotal": 0
+  },
+  "024XKY": {
+   "casa": "Șuri",
+   "zile": 4,
+   "kmAnaliza": {
+    "cuOameni": 255.9,
+    "livrare": 545.7,
+    "golRuta": 144.6,
+    "golTure": 0,
+    "parc": 0,
+    "service": 0,
+    "deplasare": 0,
+    "legatura": 62.5,
+    "necunoscut": 0,
+    "intreUzine": 7.5
+   },
+   "mutat": {},
+   "cazuri": [],
+   "peDrum": {
+    "R15|Suri tur · Drochia": 1
+   },
+   "faraLegatura": 0,
+   "mutatTotal": 0
+  },
+  "715IZX": {
+   "casa": "Biruința",
+   "zile": 5,
+   "kmAnaliza": {
+    "cuOameni": 392.7,
+    "livrare": 50.4,
+    "golRuta": 310.1,
+    "golTure": 0,
+    "parc": 0,
+    "service": 0,
+    "deplasare": 0,
+    "legatura": 0,
+    "necunoscut": 0,
+    "intreUzine": 74.3
+   },
+   "mutat": {},
+   "cazuri": [],
+   "peDrum": {
+    "R21|Heciul Nou tur · Biruința": 7,
+    "R21|Heciul Nou retur · Biruința": 7
+   },
+   "faraLegatura": 0,
+   "mutatTotal": 0
+  },
+  "713IZX": {
+   "casa": "Florești",
+   "zile": 5,
+   "kmAnaliza": {
+    "cuOameni": 808.8,
+    "livrare": 228.1,
+    "golRuta": 478,
+    "golTure": 0,
+    "parc": 0,
+    "service": 0,
+    "deplasare": 0,
+    "legatura": 0,
+    "necunoscut": 0,
+    "intreUzine": 74.6
+   },
+   "mutat": {},
+   "cazuri": [],
+   "peDrum": {
+    "R17|Prajila tur · Mărculești": 13,
+    "R17|Prajila retur · Mărculești": 17
+   },
+   "faraLegatura": 0,
+   "mutatTotal": 0
+  },
+  "763LYY": {
+   "casa": "Băhrinești",
+   "zile": 5,
+   "kmAnaliza": {
+    "cuOameni": 953.1,
+    "livrare": 238.1,
+    "golRuta": 0,
+    "golTure": 13.5,
+    "parc": 67.1,
+    "service": 0,
+    "deplasare": 0,
+    "legatura": 378,
+    "necunoscut": 0,
+    "intreUzine": 76.4
+   },
+   "mutat": {},
+   "cazuri": [],
+   "peDrum": {
+    "R17|Prajila retur · Mărculești": 2,
+    "R17|Prajila tur · Mărculești": 1
+   },
+   "faraLegatura": 0,
+   "mutatTotal": 0
+  },
+  "293QVT": {
+   "casa": "Cotiujenii Mari",
+   "zile": 5,
+   "kmAnaliza": {
+    "cuOameni": 683,
+    "livrare": 25.4,
+    "golRuta": 0,
+    "golTure": 269.3,
+    "parc": 12.3,
+    "service": 0,
+    "deplasare": 0,
+    "legatura": 61.6,
+    "necunoscut": 0,
+    "intreUzine": 52.8
+   },
+   "mutat": {},
+   "cazuri": [],
+   "peDrum": {
+    "R31|Cotiujenii Mari tur · Ghindești": 10,
+    "R31|Cotiujenii Mari retur · Ghindești": 8
+   },
+   "faraLegatura": 0,
+   "mutatTotal": 0
+  }
+ },
+ "total": {
+  "livrare(noapte)": 43.4,
+  "acasa(ocol)": 23.2,
+  "legatura": 78.8,
+  "golRuta": 9.1,
+  "intreUzine": 1,
+  "parc": 3.7
+ },
+ "peDrum": {
+  "R19|Copaceni tur · Sîngerei": 23,
+  "R19|Copaceni retur · Sîngerei": 18,
+  "R16|Floresti tur · Florești": 23,
+  "R16|Floresti retur · Florești": 25,
+  "R23|Scumpia tur · Fălești": 57,
+  "R23|Scumpia retur · Fălești": 34,
+  "R3|Nihoreni retur · Rîșcani": 33,
+  "R3|Nihoreni tur · Rîșcani": 16,
+  "R8|Costesti tur · Costești": 5,
+  "R8|Costesti retur · Costești": 11,
+  "R9|Cobani tur · Glodeni": 37,
+  "R9|Cobani retur · Glodeni": 36,
+  "R15|Suri tur · Drochia": 23,
+  "R15|Suri retur · Drochia": 18,
+  "R21|Heciul Nou tur · Biruința": 7,
+  "R21|Heciul Nou retur · Biruința": 7,
+  "R17|Prajila tur · Mărculești": 14,
+  "R17|Prajila retur · Mărculești": 19,
+  "R31|Cotiujenii Mari tur · Ghindești": 10,
+  "R31|Cotiujenii Mari retur · Ghindești": 8
+ },
+ "totalKm": 159.2
+}

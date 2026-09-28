@@ -1,0 +1,5977 @@
+{
+ "luni": [
+  "2026-05",
+  "2026-06",
+  "2026-07",
+  "2026-09"
+ ],
+ "curse": 4039,
+ "rez": {
+  "R19|Bilicenii Vechi": {
+   "perM": {
+    "912RNK": {
+     "tur": 1,
+     "retur": 0,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "435ASB": {
+     "tur": 28,
+     "retur": 21,
+     "dTur": 1,
+     "dRetur": 14
+    },
+    "390ASB": {
+     "tur": 6,
+     "retur": 5,
+     "dTur": 2,
+     "dRetur": 3
+    },
+    "346KAJ": {
+     "tur": 1,
+     "retur": 2,
+     "dTur": 0,
+     "dRetur": 1
+    },
+    "146BRAZ": {
+     "tur": 0,
+     "retur": 1,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "549RNK": {
+     "tur": 3,
+     "retur": 0,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "397VKV": {
+     "tur": 13,
+     "retur": 13,
+     "dTur": 4,
+     "dRetur": 8
+    },
+    "744ARF": {
+     "tur": 23,
+     "retur": 23,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "412BRAY": {
+     "tur": 19,
+     "retur": 1,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "731ARF": {
+     "tur": 1,
+     "retur": 1,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "348KAJ": {
+     "tur": 1,
+     "retur": 1,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "297LVY": {
+     "tur": 7,
+     "retur": 3,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "830MUM": {
+     "tur": 112,
+     "retur": 108,
+     "dTur": 54,
+     "dRetur": 54
+    }
+   },
+   "capat": "Bilicenii Vechi",
+   "kmSchelet": 17.3,
+   "n": {
+    "tur": 215,
+    "retur": 179
+   },
+   "dCapatMed": 0.7,
+   "peDrum": {
+    "tur": 2,
+    "retur": 0
+   },
+   "doarCasa": {
+    "tur": 86,
+    "retur": 55
+   },
+   "asteptareDincolo": {
+    "tur": 1,
+    "retur": 2
+   },
+   "dincolo": {
+    "tur": {
+     "curse": 61,
+     "pct": 28,
+     "kmMed": 9.6,
+     "opririMed": 5,
+     "punctMed": [
+      47.6325,
+      28.1644
+     ]
+    },
+    "retur": {
+     "curse": 80,
+     "pct": 45,
+     "kmMed": 9.6,
+     "opririMed": 4,
+     "punctMed": [
+      47.6345,
+      28.1521
+     ]
+    }
+   }
+  },
+  "R19|Copaceni": {
+   "perM": {
+    "912RNK": {
+     "tur": 0,
+     "retur": 1,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "435ASB": {
+     "tur": 30,
+     "retur": 34,
+     "dTur": 1,
+     "dRetur": 10
+    },
+    "024XKY": {
+     "tur": 0,
+     "retur": 2,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "144BRAZ": {
+     "tur": 0,
+     "retur": 1,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "390ASB": {
+     "tur": 7,
+     "retur": 7,
+     "dTur": 2,
+     "dRetur": 2
+    },
+    "293QVT": {
+     "tur": 0,
+     "retur": 1,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "441ASB": {
+     "tur": 1,
+     "retur": 0,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "346KAJ": {
+     "tur": 1,
+     "retur": 1,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "146BRAZ": {
+     "tur": 0,
+     "retur": 1,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "549RNK": {
+     "tur": 0,
+     "retur": 1,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "206BZP": {
+     "tur": 6,
+     "retur": 3,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "397VKV": {
+     "tur": 11,
+     "retur": 11,
+     "dTur": 3,
+     "dRetur": 2
+    },
+    "744ARF": {
+     "tur": 11,
+     "retur": 11,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "725CWN": {
+     "tur": 45,
+     "retur": 41,
+     "dTur": 1,
+     "dRetur": 2
+    },
+    "297LVY": {
+     "tur": 1,
+     "retur": 4,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "830MUM": {
+     "tur": 50,
+     "retur": 47,
+     "dTur": 11,
+     "dRetur": 5
+    }
+   },
+   "capat": "Copăceni",
+   "kmSchelet": 32.8,
+   "n": {
+    "tur": 163,
+    "retur": 166
+   },
+   "dCapatMed": 0.3,
+   "peDrum": {
+    "tur": 87,
+    "retur": 102
+   },
+   "doarCasa": {
+    "tur": 67,
+    "retur": 89
+   },
+   "asteptareDincolo": {
+    "tur": 3,
+    "retur": 10
+   },
+   "dincolo": {
+    "tur": {
+     "curse": 18,
+     "pct": 11,
+     "kmMed": 8.3,
+     "opririMed": 2,
+     "punctMed": [
+      47.63545,
+      28.13715
+     ]
+    },
+    "retur": {
+     "curse": 21,
+     "pct": 13,
+     "kmMed": 7.9,
+     "opririMed": 2,
+     "punctMed": [
+      47.6345,
+      28.143
+     ]
+    }
+   }
+  },
+  "R21|Heciul Nou": {
+   "perM": {
+    "912RNK": {
+     "tur": 0,
+     "retur": 1,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "715IZX": {
+     "tur": 142,
+     "retur": 142,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "146BRAZ": {
+     "tur": 1,
+     "retur": 0,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "744ARF": {
+     "tur": 5,
+     "retur": 6,
+     "dTur": 1,
+     "dRetur": 1
+    },
+    "412BRAY": {
+     "tur": 2,
+     "retur": 2,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "348KAJ": {
+     "tur": 7,
+     "retur": 4,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "763LYY": {
+     "tur": 4,
+     "retur": 4,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "725CWN": {
+     "tur": 1,
+     "retur": 0,
+     "dTur": 0,
+     "dRetur": 0
+    }
+   },
+   "capat": "Heciul Nou",
+   "kmSchelet": 20.7,
+   "n": {
+    "tur": 162,
+    "retur": 159
+   },
+   "dCapatMed": 0.1,
+   "peDrum": {
+    "tur": 60,
+    "retur": 57
+   },
+   "doarCasa": {
+    "tur": 138,
+    "retur": 142
+   },
+   "asteptareDincolo": {
+    "tur": 0,
+    "retur": 0
+   },
+   "dincolo": {
+    "tur": {
+     "curse": 1,
+     "pct": 1,
+     "kmMed": 7.7,
+     "opririMed": 2,
+     "punctMed": [
+      47.8138,
+      28.0751
+     ]
+    },
+    "retur": {
+     "curse": 1,
+     "pct": 1,
+     "kmMed": 11.6,
+     "opririMed": 3,
+     "punctMed": [
+      47.8192,
+      28.0568
+     ]
+    }
+   }
+  },
+  "R15|Suri": {
+   "perM": {
+    "024XKY": {
+     "tur": 30,
+     "retur": 41,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "390ASB": {
+     "tur": 3,
+     "retur": 3,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "388ASB": {
+     "tur": 136,
+     "retur": 135,
+     "dTur": 0,
+     "dRetur": 1
+    },
+    "731ARF": {
+     "tur": 0,
+     "retur": 1,
+     "dTur": 0,
+     "dRetur": 0
+    }
+   },
+   "capat": "Șuri",
+   "kmSchelet": 70,
+   "n": {
+    "tur": 169,
+    "retur": 180
+   },
+   "dCapatMed": 0.2,
+   "peDrum": {
+    "tur": 117,
+    "retur": 139
+   },
+   "doarCasa": {
+    "tur": 0,
+    "retur": 0
+   },
+   "asteptareDincolo": {
+    "tur": 0,
+    "retur": 1
+   },
+   "dincolo": {
+    "tur": {
+     "curse": 0,
+     "pct": 0,
+     "kmMed": null,
+     "opririMed": null,
+     "punctMed": null
+    },
+    "retur": {
+     "curse": 1,
+     "pct": 1,
+     "kmMed": 7.3,
+     "opririMed": 2,
+     "punctMed": [
+      48.0314,
+      27.8107
+     ]
+    }
+   }
+  },
+  "R1|Donduseni": {
+   "perM": {
+    "024XKY": {
+     "tur": 1,
+     "retur": 1,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "346KAJ": {
+     "tur": 64,
+     "retur": 66,
+     "dTur": 41,
+     "dRetur": 35
+    },
+    "549RNK": {
+     "tur": 2,
+     "retur": 0,
+     "dTur": 0,
+     "dRetur": 0
+    }
+   },
+   "capat": "Dondușeni",
+   "kmSchelet": 91.9,
+   "n": {
+    "tur": 67,
+    "retur": 67
+   },
+   "dCapatMed": 0,
+   "peDrum": {
+    "tur": 58,
+    "retur": 67
+   },
+   "doarCasa": {
+    "tur": 0,
+    "retur": 1
+   },
+   "asteptareDincolo": {
+    "tur": 18,
+    "retur": 14
+   },
+   "dincolo": {
+    "tur": {
+     "curse": 41,
+     "pct": 61,
+     "kmMed": 4,
+     "opririMed": 3,
+     "punctMed": [
+      48.2375,
+      27.6104
+     ]
+    },
+    "retur": {
+     "curse": 35,
+     "pct": 52,
+     "kmMed": 2.9,
+     "opririMed": 3,
+     "punctMed": [
+      48.2396,
+      27.6047
+     ]
+    }
+   }
+  },
+  "R16|Varvareuca": {
+   "perM": {
+    "144BRAZ": {
+     "tur": 28,
+     "retur": 31,
+     "dTur": 18,
+     "dRetur": 6
+    },
+    "487NPL": {
+     "tur": 5,
+     "retur": 6,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "293QVT": {
+     "tur": 6,
+     "retur": 5,
+     "dTur": 0,
+     "dRetur": 1
+    },
+    "346KAJ": {
+     "tur": 0,
+     "retur": 1,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "146BRAZ": {
+     "tur": 5,
+     "retur": 6,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "412BRAY": {
+     "tur": 1,
+     "retur": 0,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "731ARF": {
+     "tur": 4,
+     "retur": 6,
+     "dTur": 3,
+     "dRetur": 3
+    },
+    "348KAJ": {
+     "tur": 1,
+     "retur": 2,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "763LYY": {
+     "tur": 3,
+     "retur": 1,
+     "dTur": 1,
+     "dRetur": 0
+    },
+    "350KAJ": {
+     "tur": 165,
+     "retur": 162,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "713IZX": {
+     "tur": 53,
+     "retur": 37,
+     "dTur": 0,
+     "dRetur": 0
+    }
+   },
+   "capat": "Vărvăreuca",
+   "kmSchelet": 42.8,
+   "n": {
+    "tur": 271,
+    "retur": 257
+   },
+   "dCapatMed": 0.8,
+   "peDrum": {
+    "tur": 171,
+    "retur": 119
+   },
+   "doarCasa": {
+    "tur": 76,
+    "retur": 207
+   },
+   "asteptareDincolo": {
+    "tur": 23,
+    "retur": 19
+   },
+   "dincolo": {
+    "tur": {
+     "curse": 22,
+     "pct": 8,
+     "kmMed": 2.4,
+     "opririMed": 2,
+     "punctMed": [
+      47.8922,
+      28.2858
+     ]
+    },
+    "retur": {
+     "curse": 10,
+     "pct": 4,
+     "kmMed": 3.3,
+     "opririMed": 2.5,
+     "punctMed": [
+      47.89255,
+      28.28975
+     ]
+    }
+   }
+  },
+  "R16|Floresti": {
+   "perM": {
+    "144BRAZ": {
+     "tur": 15,
+     "retur": 17,
+     "dTur": 6,
+     "dRetur": 11
+    },
+    "518MHD": {
+     "tur": 106,
+     "retur": 109,
+     "dTur": 35,
+     "dRetur": 53
+    },
+    "348KAJ": {
+     "tur": 1,
+     "retur": 1,
+     "dTur": 1,
+     "dRetur": 0
+    },
+    "763LYY": {
+     "tur": 0,
+     "retur": 1,
+     "dTur": 0,
+     "dRetur": 1
+    },
+    "297LVY": {
+     "tur": 1,
+     "retur": 1,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "713IZX": {
+     "tur": 2,
+     "retur": 0,
+     "dTur": 0,
+     "dRetur": 0
+    }
+   },
+   "capat": "Florești",
+   "kmSchelet": 36.5,
+   "n": {
+    "tur": 125,
+    "retur": 129
+   },
+   "dCapatMed": 0.1,
+   "peDrum": {
+    "tur": 106,
+    "retur": 101
+   },
+   "doarCasa": {
+    "tur": 4,
+    "retur": 4
+   },
+   "asteptareDincolo": {
+    "tur": 59,
+    "retur": 20
+   },
+   "dincolo": {
+    "tur": {
+     "curse": 42,
+     "pct": 34,
+     "kmMed": 1,
+     "opririMed": 2,
+     "punctMed": [
+      47.8922,
+      28.2859
+     ]
+    },
+    "retur": {
+     "curse": 65,
+     "pct": 50,
+     "kmMed": 2.5,
+     "opririMed": 2,
+     "punctMed": [
+      47.8978,
+      28.3077
+     ]
+    }
+   }
+  },
+  "R23|Scumpia": {
+   "perM": {
+    "446ASB": {
+     "tur": 135,
+     "retur": 135,
+     "dTur": 1,
+     "dRetur": 1
+    },
+    "351KAJ": {
+     "tur": 4,
+     "retur": 2,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "402VKV": {
+     "tur": 0,
+     "retur": 1,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "487NPL": {
+     "tur": 2,
+     "retur": 2,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "412BRAY": {
+     "tur": 1,
+     "retur": 1,
+     "dTur": 1,
+     "dRetur": 0
+    },
+    "925FTI": {
+     "tur": 2,
+     "retur": 2,
+     "dTur": 0,
+     "dRetur": 0
+    }
+   },
+   "capat": "Scumpia",
+   "kmSchelet": 59.5,
+   "n": {
+    "tur": 144,
+    "retur": 143
+   },
+   "dCapatMed": 0.2,
+   "peDrum": {
+    "tur": 139,
+    "retur": 139
+   },
+   "doarCasa": {
+    "tur": 0,
+    "retur": 0
+   },
+   "asteptareDincolo": {
+    "tur": 0,
+    "retur": 0
+   },
+   "dincolo": {
+    "tur": {
+     "curse": 2,
+     "pct": 1,
+     "kmMed": 15.1,
+     "opririMed": 3,
+     "punctMed": [
+      47.57965,
+      27.70975
+     ]
+    },
+    "retur": {
+     "curse": 1,
+     "pct": 1,
+     "kmMed": 27,
+     "opririMed": 5,
+     "punctMed": [
+      47.5827,
+      27.7103
+     ]
+    }
+   }
+  },
+  "R9|Cobani": {
+   "perM": {
+    "457BRAX": {
+     "tur": 1,
+     "retur": 1,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "447ASB": {
+     "tur": 43,
+     "retur": 46,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "402VKV": {
+     "tur": 23,
+     "retur": 26,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "487NPL": {
+     "tur": 2,
+     "retur": 1,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "441ASB": {
+     "tur": 2,
+     "retur": 0,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "397VKV": {
+     "tur": 31,
+     "retur": 33,
+     "dTur": 7,
+     "dRetur": 4
+    },
+    "727CWN": {
+     "tur": 0,
+     "retur": 2,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "760BXI": {
+     "tur": 0,
+     "retur": 1,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "297LVY": {
+     "tur": 1,
+     "retur": 0,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "826GXP": {
+     "tur": 1,
+     "retur": 0,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "414ASB": {
+     "tur": 1,
+     "retur": 0,
+     "dTur": 0,
+     "dRetur": 0
+    }
+   },
+   "capat": "Cobani",
+   "kmSchelet": 55.5,
+   "n": {
+    "tur": 105,
+    "retur": 110
+   },
+   "dCapatMed": 0.1,
+   "peDrum": {
+    "tur": 103,
+    "retur": 109
+   },
+   "doarCasa": {
+    "tur": 6,
+    "retur": 20
+   },
+   "asteptareDincolo": {
+    "tur": 0,
+    "retur": 0
+   },
+   "dincolo": {
+    "tur": {
+     "curse": 7,
+     "pct": 7,
+     "kmMed": 14.9,
+     "opririMed": 2,
+     "punctMed": [
+      47.7755,
+      27.4991
+     ]
+    },
+    "retur": {
+     "curse": 4,
+     "pct": 4,
+     "kmMed": 17.8,
+     "opririMed": 2,
+     "punctMed": [
+      47.7754,
+      27.49895
+     ]
+    }
+   }
+  },
+  "R3|Nihoreni": {
+   "perM": {
+    "457BRAX": {
+     "tur": 9,
+     "retur": 9,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "402VKV": {
+     "tur": 2,
+     "retur": 3,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "390ASB": {
+     "tur": 2,
+     "retur": 1,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "386PKP": {
+     "tur": 2,
+     "retur": 2,
+     "dTur": 2,
+     "dRetur": 1
+    },
+    "487NPL": {
+     "tur": 4,
+     "retur": 5,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "397VKV": {
+     "tur": 36,
+     "retur": 34,
+     "dTur": 1,
+     "dRetur": 0
+    },
+    "345KAJ": {
+     "tur": 127,
+     "retur": 127,
+     "dTur": 3,
+     "dRetur": 11
+    },
+    "297LVY": {
+     "tur": 2,
+     "retur": 2,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "826GXP": {
+     "tur": 0,
+     "retur": 1,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "186OMM": {
+     "tur": 29,
+     "retur": 36,
+     "dTur": 3,
+     "dRetur": 13
+    }
+   },
+   "capat": "Nihoreni",
+   "kmSchelet": 44.2,
+   "n": {
+    "tur": 213,
+    "retur": 220
+   },
+   "dCapatMed": 0.1,
+   "peDrum": {
+    "tur": 141,
+    "retur": 140
+   },
+   "doarCasa": {
+    "tur": 4,
+    "retur": 13
+   },
+   "asteptareDincolo": {
+    "tur": 65,
+    "retur": 6
+   },
+   "dincolo": {
+    "tur": {
+     "curse": 9,
+     "pct": 4,
+     "kmMed": 4.1,
+     "opririMed": 2,
+     "punctMed": [
+      47.953,
+      27.5584
+     ]
+    },
+    "retur": {
+     "curse": 25,
+     "pct": 11,
+     "kmMed": 4.1,
+     "opririMed": 3,
+     "punctMed": [
+      47.9598,
+      27.5542
+     ]
+    }
+   }
+  },
+  "R17|Prajila": {
+   "perM": {
+    "487NPL": {
+     "tur": 12,
+     "retur": 11,
+     "dTur": 1,
+     "dRetur": 0
+    },
+    "146BRAZ": {
+     "tur": 1,
+     "retur": 0,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "043BRAU": {
+     "tur": 0,
+     "retur": 1,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "348KAJ": {
+     "tur": 5,
+     "retur": 5,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "763LYY": {
+     "tur": 150,
+     "retur": 145,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "713IZX": {
+     "tur": 116,
+     "retur": 117,
+     "dTur": 3,
+     "dRetur": 1
+    },
+    "186OMM": {
+     "tur": 0,
+     "retur": 1,
+     "dTur": 0,
+     "dRetur": 0
+    }
+   },
+   "capat": "Prajila",
+   "kmSchelet": 41.3,
+   "n": {
+    "tur": 284,
+    "retur": 280
+   },
+   "dCapatMed": 0.1,
+   "peDrum": {
+    "tur": 224,
+    "retur": 226
+   },
+   "doarCasa": {
+    "tur": 16,
+    "retur": 12
+   },
+   "asteptareDincolo": {
+    "tur": 1,
+    "retur": 0
+   },
+   "dincolo": {
+    "tur": {
+     "curse": 4,
+     "pct": 1,
+     "kmMed": 7.7,
+     "opririMed": 2,
+     "punctMed": [
+      47.87615,
+      28.23505
+     ]
+    },
+    "retur": {
+     "curse": 1,
+     "pct": 0,
+     "kmMed": 6,
+     "opririMed": 2,
+     "punctMed": [
+      47.8762,
+      28.2351
+     ]
+    }
+   }
+  },
+  "R31|Cotiujenii Mari": {
+   "perM": {
+    "293QVT": {
+     "tur": 43,
+     "retur": 45,
+     "dTur": 0,
+     "dRetur": 0
+    },
+    "348KAJ": {
+     "tur": 1,
+     "retur": 0,
+     "dTur": 0,
+     "dRetur": 0
+    }
+   },
+   "capat": "Cotiujenii Mari",
+   "kmSchelet": 65.1,
+   "n": {
+    "tur": 44,
+    "retur": 45
+   },
+   "dCapatMed": 0.2,
+   "peDrum": {
+    "tur": 43,
+    "retur": 45
+   },
+   "doarCasa": {
+    "tur": 0,
+    "retur": 0
+   },
+   "asteptareDincolo": {
+    "tur": 0,
+    "retur": 0
+   },
+   "dincolo": {
+    "tur": {
+     "curse": 0,
+     "pct": 0,
+     "kmMed": null,
+     "opririMed": null,
+     "punctMed": null
+    },
+    "retur": {
+     "curse": 0,
+     "pct": 0,
+     "kmMed": null,
+     "opririMed": null,
+     "punctMed": null
+    }
+   }
+  },
+  "R8|Costesti": {
+   "perM": {
+    "345KAJ": {
+     "tur": 71,
+     "retur": 71,
+     "dTur": 4,
+     "dRetur": 6
+    }
+   },
+   "capat": "Costești",
+   "kmSchelet": 78.5,
+   "n": {
+    "tur": 71,
+    "retur": 71
+   },
+   "dCapatMed": 0.4,
+   "peDrum": {
+    "tur": 68,
+    "retur": 71
+   },
+   "doarCasa": {
+    "tur": 0,
+    "retur": 0
+   },
+   "asteptareDincolo": {
+    "tur": 17,
+    "retur": 2
+   },
+   "dincolo": {
+    "tur": {
+     "curse": 4,
+     "pct": 6,
+     "kmMed": 0.4,
+     "opririMed": 2,
+     "punctMed": [
+      47.85385,
+      27.258
+     ]
+    },
+    "retur": {
+     "curse": 6,
+     "pct": 8,
+     "kmMed": 1.1,
+     "opririMed": 2,
+     "punctMed": [
+      47.8538,
+      27.2513
+     ]
+    }
+   }
+  }
+ },
+ "exemple": [
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "435ASB",
+   "zi": "2026-05-04",
+   "sens": "tur",
+   "n": 4,
+   "km": 9.2,
+   "casaLa": [
+    47.6344,
+    28.1476
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "435ASB",
+   "zi": "2026-05-04",
+   "sens": "retur",
+   "n": 3,
+   "km": 8.5,
+   "casaLa": [
+    47.6411,
+    28.1223
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "435ASB",
+   "zi": "2026-05-05",
+   "sens": "retur",
+   "n": 3,
+   "km": 8,
+   "casaLa": [
+    47.641,
+    28.1223
+   ]
+  },
+  {
+   "k": "R19|Copaceni",
+   "m": "435ASB",
+   "zi": "2026-05-05",
+   "sens": "retur",
+   "n": 2,
+   "km": 7.9,
+   "casaLa": [
+    47.641,
+    28.1223
+   ]
+  },
+  {
+   "k": "R19|Copaceni",
+   "m": "435ASB",
+   "zi": "2026-05-06",
+   "sens": "retur",
+   "n": 2,
+   "km": 7,
+   "casaLa": [
+    47.641,
+    28.1223
+   ]
+  },
+  {
+   "k": "R19|Copaceni",
+   "m": "435ASB",
+   "zi": "2026-05-06",
+   "sens": "retur",
+   "n": 2,
+   "km": 7.6,
+   "casaLa": [
+    47.641,
+    28.1223
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "435ASB",
+   "zi": "2026-05-07",
+   "sens": "retur",
+   "n": 3,
+   "km": 7.1,
+   "casaLa": [
+    47.641,
+    28.1224
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "435ASB",
+   "zi": "2026-05-08",
+   "sens": "retur",
+   "n": 4,
+   "km": 8.3,
+   "casaLa": [
+    47.641,
+    28.1223
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "435ASB",
+   "zi": "2026-05-15",
+   "sens": "retur",
+   "n": 3,
+   "km": 8.3,
+   "casaLa": [
+    47.641,
+    28.1223
+   ]
+  },
+  {
+   "k": "R19|Copaceni",
+   "m": "435ASB",
+   "zi": "2026-05-15",
+   "sens": "retur",
+   "n": 2,
+   "km": 7.4,
+   "casaLa": [
+    47.641,
+    28.1223
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "435ASB",
+   "zi": "2026-05-20",
+   "sens": "retur",
+   "n": 3,
+   "km": 8.3,
+   "casaLa": [
+    47.6411,
+    28.1223
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "435ASB",
+   "zi": "2026-05-21",
+   "sens": "retur",
+   "n": 3,
+   "km": 8.4,
+   "casaLa": [
+    47.641,
+    28.1224
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "435ASB",
+   "zi": "2026-05-25",
+   "sens": "retur",
+   "n": 3,
+   "km": 9.4,
+   "casaLa": [
+    47.641,
+    28.1223
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "435ASB",
+   "zi": "2026-05-26",
+   "sens": "retur",
+   "n": 4,
+   "km": 8.3,
+   "casaLa": [
+    47.6411,
+    28.1222
+   ]
+  },
+  {
+   "k": "R19|Copaceni",
+   "m": "435ASB",
+   "zi": "2026-05-26",
+   "sens": "retur",
+   "n": 2,
+   "km": 7.5,
+   "casaLa": [
+    47.641,
+    28.1223
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "435ASB",
+   "zi": "2026-05-27",
+   "sens": "retur",
+   "n": 4,
+   "km": 8.3,
+   "casaLa": [
+    47.6411,
+    28.1222
+   ]
+  },
+  {
+   "k": "R19|Copaceni",
+   "m": "435ASB",
+   "zi": "2026-05-27",
+   "sens": "retur",
+   "n": 2,
+   "km": 7,
+   "casaLa": [
+    47.641,
+    28.1223
+   ]
+  },
+  {
+   "k": "R19|Copaceni",
+   "m": "435ASB",
+   "zi": "2026-05-28",
+   "sens": "retur",
+   "n": 2,
+   "km": 7.4,
+   "casaLa": [
+    47.6411,
+    28.1223
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "435ASB",
+   "zi": "2026-05-29",
+   "sens": "retur",
+   "n": 4,
+   "km": 8.3,
+   "casaLa": [
+    47.6411,
+    28.1222
+   ]
+  },
+  {
+   "k": "R19|Copaceni",
+   "m": "435ASB",
+   "zi": "2026-05-29",
+   "sens": "retur",
+   "n": 3,
+   "km": 7.5,
+   "casaLa": [
+    47.641,
+    28.1224
+   ]
+  },
+  {
+   "k": "R19|Copaceni",
+   "m": "435ASB",
+   "zi": "2026-06-02",
+   "sens": "retur",
+   "n": 3,
+   "km": 7.5,
+   "casaLa": [
+    47.641,
+    28.1224
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "435ASB",
+   "zi": "2026-06-03",
+   "sens": "retur",
+   "n": 3,
+   "km": 8.3,
+   "casaLa": [
+    47.641,
+    28.1223
+   ]
+  },
+  {
+   "k": "R19|Copaceni",
+   "m": "435ASB",
+   "zi": "2026-06-03",
+   "sens": "retur",
+   "n": 3,
+   "km": 8.6,
+   "casaLa": [
+    47.6411,
+    28.1223
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "435ASB",
+   "zi": "2026-06-04",
+   "sens": "retur",
+   "n": 3,
+   "km": 8.3,
+   "casaLa": [
+    47.641,
+    28.1223
+   ]
+  },
+  {
+   "k": "R19|Copaceni",
+   "m": "435ASB",
+   "zi": "2026-06-05",
+   "sens": "tur",
+   "n": 2,
+   "km": 7.8,
+   "casaLa": [
+    47.6411,
+    28.1224
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "435ASB",
+   "zi": "2026-06-08",
+   "sens": "retur",
+   "n": 7,
+   "km": 9.7,
+   "casaLa": [
+    47.7695,
+    27.9445
+   ]
+  },
+  {
+   "k": "R16|Varvareuca",
+   "m": "144BRAZ",
+   "zi": "2026-05-04",
+   "sens": "tur",
+   "n": 3,
+   "km": 2.2,
+   "casaLa": [
+    47.9796,
+    28.1289
+   ]
+  },
+  {
+   "k": "R16|Varvareuca",
+   "m": "144BRAZ",
+   "zi": "2026-05-06",
+   "sens": "tur",
+   "n": 4,
+   "km": 4.1,
+   "casaLa": [
+    47.9054,
+    28.3055
+   ]
+  },
+  {
+   "k": "R16|Varvareuca",
+   "m": "144BRAZ",
+   "zi": "2026-05-06",
+   "sens": "tur",
+   "n": 3,
+   "km": 5,
+   "casaLa": [
+    47.7798,
+    27.9477
+   ]
+  },
+  {
+   "k": "R16|Varvareuca",
+   "m": "144BRAZ",
+   "zi": "2026-05-07",
+   "sens": "tur",
+   "n": 2,
+   "km": 4.6,
+   "casaLa": [
+    47.8961,
+    28.2973
+   ]
+  },
+  {
+   "k": "R16|Varvareuca",
+   "m": "144BRAZ",
+   "zi": "2026-05-07",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.3,
+   "casaLa": [
+    47.9791,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Varvareuca",
+   "m": "144BRAZ",
+   "zi": "2026-05-11",
+   "sens": "retur",
+   "n": 2,
+   "km": 2.2,
+   "casaLa": [
+    47.9773,
+    28.1258
+   ]
+  },
+  {
+   "k": "R16|Varvareuca",
+   "m": "144BRAZ",
+   "zi": "2026-05-12",
+   "sens": "tur",
+   "n": 2,
+   "km": 2.4,
+   "casaLa": [
+    47.9793,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Varvareuca",
+   "m": "144BRAZ",
+   "zi": "2026-05-13",
+   "sens": "retur",
+   "n": 4,
+   "km": 6.5,
+   "casaLa": [
+    47.9791,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Varvareuca",
+   "m": "144BRAZ",
+   "zi": "2026-05-14",
+   "sens": "tur",
+   "n": 2,
+   "km": 2.2,
+   "casaLa": [
+    47.9792,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Varvareuca",
+   "m": "144BRAZ",
+   "zi": "2026-05-15",
+   "sens": "tur",
+   "n": 3,
+   "km": 2.2,
+   "casaLa": [
+    47.9795,
+    28.1336
+   ]
+  },
+  {
+   "k": "R16|Varvareuca",
+   "m": "144BRAZ",
+   "zi": "2026-05-18",
+   "sens": "tur",
+   "n": 3,
+   "km": 2.4,
+   "casaLa": [
+    47.9793,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "144BRAZ",
+   "zi": "2026-05-19",
+   "sens": "tur",
+   "n": 3,
+   "km": 1.5,
+   "casaLa": [
+    47.9792,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "144BRAZ",
+   "zi": "2026-05-19",
+   "sens": "retur",
+   "n": 3,
+   "km": 3.3,
+   "casaLa": [
+    47.8844,
+    28.2431
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "144BRAZ",
+   "zi": "2026-05-20",
+   "sens": "tur",
+   "n": 3,
+   "km": 1.4,
+   "casaLa": [
+    47.9792,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Varvareuca",
+   "m": "144BRAZ",
+   "zi": "2026-05-20",
+   "sens": "tur",
+   "n": 2,
+   "km": 2.4,
+   "casaLa": [
+    47.9795,
+    28.1346
+   ]
+  },
+  {
+   "k": "R16|Varvareuca",
+   "m": "144BRAZ",
+   "zi": "2026-05-21",
+   "sens": "tur",
+   "n": 3,
+   "km": 4.9,
+   "casaLa": [
+    47.9795,
+    28.1336
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "144BRAZ",
+   "zi": "2026-05-21",
+   "sens": "retur",
+   "n": 2,
+   "km": 2.7,
+   "casaLa": [
+    47.9773,
+    28.1258
+   ]
+  },
+  {
+   "k": "R16|Varvareuca",
+   "m": "144BRAZ",
+   "zi": "2026-05-25",
+   "sens": "tur",
+   "n": 2,
+   "km": 1.4,
+   "casaLa": [
+    47.9796,
+    28.1336
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "144BRAZ",
+   "zi": "2026-05-25",
+   "sens": "retur",
+   "n": 4,
+   "km": 3.5,
+   "casaLa": [
+    47.9791,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Varvareuca",
+   "m": "144BRAZ",
+   "zi": "2026-05-26",
+   "sens": "tur",
+   "n": 2,
+   "km": 2.2,
+   "casaLa": [
+    47.9792,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "144BRAZ",
+   "zi": "2026-05-26",
+   "sens": "tur",
+   "n": 2,
+   "km": 1,
+   "casaLa": [
+    47.8845,
+    28.2432
+   ]
+  },
+  {
+   "k": "R16|Varvareuca",
+   "m": "144BRAZ",
+   "zi": "2026-05-26",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.3,
+   "casaLa": [
+    47.9773,
+    28.1258
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "144BRAZ",
+   "zi": "2026-05-26",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.1,
+   "casaLa": [
+    47.9791,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Varvareuca",
+   "m": "144BRAZ",
+   "zi": "2026-05-27",
+   "sens": "tur",
+   "n": 2,
+   "km": 2.3,
+   "casaLa": [
+    47.9794,
+    28.1336
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "144BRAZ",
+   "zi": "2026-05-27",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.2,
+   "casaLa": [
+    47.9791,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Varvareuca",
+   "m": "144BRAZ",
+   "zi": "2026-05-28",
+   "sens": "tur",
+   "n": 2,
+   "km": 2.7,
+   "casaLa": [
+    47.9795,
+    28.1336
+   ]
+  },
+  {
+   "k": "R16|Varvareuca",
+   "m": "144BRAZ",
+   "zi": "2026-05-29",
+   "sens": "tur",
+   "n": 2,
+   "km": 2.7,
+   "casaLa": [
+    47.9794,
+    28.1336
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "144BRAZ",
+   "zi": "2026-05-29",
+   "sens": "tur",
+   "n": 2,
+   "km": 0.7,
+   "casaLa": [
+    47.885,
+    28.2441
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "144BRAZ",
+   "zi": "2026-05-29",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.6,
+   "casaLa": [
+    47.9793,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "144BRAZ",
+   "zi": "2026-05-29",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.8,
+   "casaLa": [
+    47.977,
+    28.1258
+   ]
+  },
+  {
+   "k": "R16|Varvareuca",
+   "m": "144BRAZ",
+   "zi": "2026-06-03",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.2,
+   "casaLa": [
+    47.9791,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "144BRAZ",
+   "zi": "2026-06-04",
+   "sens": "tur",
+   "n": 2,
+   "km": 0.6,
+   "casaLa": [
+    47.9793,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "144BRAZ",
+   "zi": "2026-06-04",
+   "sens": "retur",
+   "n": 2,
+   "km": 2.6,
+   "casaLa": [
+    47.8844,
+    28.2432
+   ]
+  },
+  {
+   "k": "R16|Varvareuca",
+   "m": "144BRAZ",
+   "zi": "2026-06-05",
+   "sens": "tur",
+   "n": 3,
+   "km": 2.6,
+   "casaLa": [
+    47.8924,
+    28.2871
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "144BRAZ",
+   "zi": "2026-06-05",
+   "sens": "retur",
+   "n": 3,
+   "km": 2.7,
+   "casaLa": [
+    47.9773,
+    28.1258
+   ]
+  },
+  {
+   "k": "R16|Varvareuca",
+   "m": "144BRAZ",
+   "zi": "2026-06-08",
+   "sens": "tur",
+   "n": 2,
+   "km": 2.3,
+   "casaLa": [
+    47.9795,
+    28.1336
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "144BRAZ",
+   "zi": "2026-06-08",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.7,
+   "casaLa": [
+    47.9791,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Varvareuca",
+   "m": "144BRAZ",
+   "zi": "2026-06-09",
+   "sens": "tur",
+   "n": 2,
+   "km": 2.3,
+   "casaLa": [
+    47.9792,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "144BRAZ",
+   "zi": "2026-06-09",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.7,
+   "casaLa": [
+    47.9791,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Varvareuca",
+   "m": "144BRAZ",
+   "zi": "2026-06-10",
+   "sens": "retur",
+   "n": 2,
+   "km": 1,
+   "casaLa": [
+    47.9791,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "144BRAZ",
+   "zi": "2026-06-11",
+   "sens": "tur",
+   "n": 2,
+   "km": 0.6,
+   "casaLa": [
+    47.8846,
+    28.2433
+   ]
+  },
+  {
+   "k": "R23|Scumpia",
+   "m": "446ASB",
+   "zi": "2026-09-08",
+   "sens": "tur",
+   "n": 4,
+   "km": 15.6,
+   "casaLa": [
+    47.7894,
+    27.9347
+   ]
+  },
+  {
+   "k": "R23|Scumpia",
+   "m": "446ASB",
+   "zi": "2026-09-08",
+   "sens": "retur",
+   "n": 5,
+   "km": 27,
+   "casaLa": [
+    47.7885,
+    27.9364
+   ]
+  },
+  {
+   "k": "R19|Copaceni",
+   "m": "390ASB",
+   "zi": "2026-05-11",
+   "sens": "retur",
+   "n": 2,
+   "km": 7.6,
+   "casaLa": [
+    47.641,
+    28.1227
+   ]
+  },
+  {
+   "k": "R19|Copaceni",
+   "m": "390ASB",
+   "zi": "2026-05-13",
+   "sens": "retur",
+   "n": 2,
+   "km": 6.9,
+   "casaLa": [
+    47.641,
+    28.1223
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "390ASB",
+   "zi": "2026-05-27",
+   "sens": "retur",
+   "n": 7,
+   "km": 12.7,
+   "casaLa": [
+    47.6438,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "390ASB",
+   "zi": "2026-05-28",
+   "sens": "tur",
+   "n": 3,
+   "km": 9.2,
+   "casaLa": [
+    47.6439,
+    28.1146
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "390ASB",
+   "zi": "2026-05-28",
+   "sens": "retur",
+   "n": 4,
+   "km": 9.8,
+   "casaLa": [
+    47.6438,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "390ASB",
+   "zi": "2026-05-29",
+   "sens": "tur",
+   "n": 5,
+   "km": 11.6,
+   "casaLa": [
+    47.6439,
+    28.1144
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "390ASB",
+   "zi": "2026-05-29",
+   "sens": "retur",
+   "n": 3,
+   "km": 19.9,
+   "casaLa": [
+    47.77,
+    27.9237
+   ]
+  },
+  {
+   "k": "R19|Copaceni",
+   "m": "390ASB",
+   "zi": "2026-06-17",
+   "sens": "tur",
+   "n": 2,
+   "km": 7.8,
+   "casaLa": [
+    47.7804,
+    27.9469
+   ]
+  },
+  {
+   "k": "R19|Copaceni",
+   "m": "390ASB",
+   "zi": "2026-06-29",
+   "sens": "tur",
+   "n": 5,
+   "km": 8.2,
+   "casaLa": [
+    47.7802,
+    27.9472
+   ]
+  },
+  {
+   "k": "R3|Nihoreni",
+   "m": "386PKP",
+   "zi": "2026-06-15",
+   "sens": "tur",
+   "n": 2,
+   "km": 4.1,
+   "casaLa": [
+    47.7888,
+    27.936
+   ]
+  },
+  {
+   "k": "R3|Nihoreni",
+   "m": "386PKP",
+   "zi": "2026-06-15",
+   "sens": "retur",
+   "n": 2,
+   "km": 3.4,
+   "casaLa": [
+    47.7787,
+    27.9158
+   ]
+  },
+  {
+   "k": "R3|Nihoreni",
+   "m": "386PKP",
+   "zi": "2026-06-22",
+   "sens": "tur",
+   "n": 3,
+   "km": 3.3,
+   "casaLa": [
+    47.7888,
+    27.9359
+   ]
+  },
+  {
+   "k": "R17|Prajila",
+   "m": "487NPL",
+   "zi": "2026-09-02",
+   "sens": "tur",
+   "n": 2,
+   "km": 6.1,
+   "casaLa": [
+    47.8929,
+    28.2899
+   ]
+  },
+  {
+   "k": "R16|Varvareuca",
+   "m": "293QVT",
+   "zi": "2026-06-24",
+   "sens": "retur",
+   "n": 3,
+   "km": 5.2,
+   "casaLa": [
+    47.8662,
+    28.1828
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-05-04",
+   "sens": "tur",
+   "n": 3,
+   "km": 5.5,
+   "casaLa": [
+    48.221,
+    27.6727
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-05-04",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.3,
+   "casaLa": [
+    48.2384,
+    27.6117
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-05-05",
+   "sens": "tur",
+   "n": 2,
+   "km": 2.6,
+   "casaLa": [
+    48.2209,
+    27.6728
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-05-06",
+   "sens": "retur",
+   "n": 3,
+   "km": 3.1,
+   "casaLa": [
+    48.2208,
+    27.6728
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-05-11",
+   "sens": "tur",
+   "n": 4,
+   "km": 4.1,
+   "casaLa": [
+    48.2208,
+    27.6728
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-05-11",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.3,
+   "casaLa": [
+    48.2208,
+    27.6728
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-05-13",
+   "sens": "tur",
+   "n": 4,
+   "km": 4,
+   "casaLa": [
+    48.2207,
+    27.6728
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-05-14",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.3,
+   "casaLa": [
+    48.2209,
+    27.6727
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-05-19",
+   "sens": "retur",
+   "n": 3,
+   "km": 1.7,
+   "casaLa": [
+    48.2209,
+    27.6729
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-05-20",
+   "sens": "tur",
+   "n": 2,
+   "km": 2.6,
+   "casaLa": [
+    48.2211,
+    27.6729
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-05-20",
+   "sens": "retur",
+   "n": 3,
+   "km": 1.7,
+   "casaLa": [
+    48.2208,
+    27.6728
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-05-21",
+   "sens": "retur",
+   "n": 4,
+   "km": 5.9,
+   "casaLa": [
+    48.2208,
+    27.6728
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-05-25",
+   "sens": "tur",
+   "n": 3,
+   "km": 2.6,
+   "casaLa": [
+    48.2207,
+    27.6728
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-05-26",
+   "sens": "tur",
+   "n": 3,
+   "km": 2.7,
+   "casaLa": [
+    48.2209,
+    27.6729
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-05-27",
+   "sens": "tur",
+   "n": 4,
+   "km": 2.7,
+   "casaLa": [
+    48.2209,
+    27.673
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-05-27",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.4,
+   "casaLa": [
+    48.2208,
+    27.6728
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-06-02",
+   "sens": "tur",
+   "n": 2,
+   "km": 2.6,
+   "casaLa": [
+    48.2209,
+    27.6729
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-06-03",
+   "sens": "tur",
+   "n": 2,
+   "km": 2.6,
+   "casaLa": [
+    48.2209,
+    27.6727
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-06-04",
+   "sens": "tur",
+   "n": 2,
+   "km": 5.5,
+   "casaLa": [
+    48.2211,
+    27.6734
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-06-05",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.3,
+   "casaLa": [
+    48.2375,
+    27.6113
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-06-08",
+   "sens": "tur",
+   "n": 2,
+   "km": 1.8,
+   "casaLa": [
+    48.2349,
+    27.6117
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "346KAJ",
+   "zi": "2026-06-09",
+   "sens": "retur",
+   "n": 6,
+   "km": 9.1,
+   "casaLa": [
+    47.6289,
+    28.1714
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-06-11",
+   "sens": "tur",
+   "n": 2,
+   "km": 1.3,
+   "casaLa": [
+    48.221,
+    27.6722
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-06-12",
+   "sens": "tur",
+   "n": 3,
+   "km": 2.6,
+   "casaLa": [
+    48.2207,
+    27.673
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-06-12",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.3,
+   "casaLa": [
+    48.2208,
+    27.6728
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-06-15",
+   "sens": "tur",
+   "n": 3,
+   "km": 4,
+   "casaLa": [
+    48.2208,
+    27.6729
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-06-15",
+   "sens": "retur",
+   "n": 3,
+   "km": 3.4,
+   "casaLa": [
+    48.2208,
+    27.6727
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-06-16",
+   "sens": "tur",
+   "n": 3,
+   "km": 4,
+   "casaLa": [
+    48.2209,
+    27.6728
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-06-16",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.3,
+   "casaLa": [
+    48.2208,
+    27.6728
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-06-17",
+   "sens": "tur",
+   "n": 3,
+   "km": 4,
+   "casaLa": [
+    48.2208,
+    27.6729
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-06-18",
+   "sens": "tur",
+   "n": 2,
+   "km": 4.1,
+   "casaLa": [
+    48.2209,
+    27.6729
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-06-18",
+   "sens": "retur",
+   "n": 5,
+   "km": 3.7,
+   "casaLa": [
+    48.2209,
+    27.6728
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-06-19",
+   "sens": "tur",
+   "n": 3,
+   "km": 8,
+   "casaLa": [
+    48.2209,
+    27.6728
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-06-19",
+   "sens": "retur",
+   "n": 3,
+   "km": 3,
+   "casaLa": [
+    48.2209,
+    27.6727
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-06-22",
+   "sens": "tur",
+   "n": 7,
+   "km": 4.9,
+   "casaLa": [
+    48.2207,
+    27.6727
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-06-22",
+   "sens": "retur",
+   "n": 3,
+   "km": 3.6,
+   "casaLa": [
+    48.2208,
+    27.6728
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-06-23",
+   "sens": "tur",
+   "n": 4,
+   "km": 4.9,
+   "casaLa": [
+    48.2207,
+    27.6727
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-06-23",
+   "sens": "retur",
+   "n": 4,
+   "km": 5.6,
+   "casaLa": [
+    48.2208,
+    27.6728
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-06-24",
+   "sens": "tur",
+   "n": 3,
+   "km": 2.8,
+   "casaLa": [
+    48.2209,
+    27.6729
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-06-24",
+   "sens": "retur",
+   "n": 2,
+   "km": 2.8,
+   "casaLa": [
+    48.2208,
+    27.6728
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-06-25",
+   "sens": "retur",
+   "n": 3,
+   "km": 4.8,
+   "casaLa": [
+    48.2209,
+    27.6727
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-06-30",
+   "sens": "tur",
+   "n": 3,
+   "km": 8,
+   "casaLa": [
+    48.2208,
+    27.6727
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-06-30",
+   "sens": "retur",
+   "n": 3,
+   "km": 2.9,
+   "casaLa": [
+    48.2208,
+    27.6727
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-07-01",
+   "sens": "tur",
+   "n": 4,
+   "km": 6.7,
+   "casaLa": [
+    48.2209,
+    27.6726
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-07-06",
+   "sens": "retur",
+   "n": 4,
+   "km": 4.8,
+   "casaLa": [
+    48.2209,
+    27.6728
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-07-07",
+   "sens": "retur",
+   "n": 4,
+   "km": 4.3,
+   "casaLa": [
+    48.2208,
+    27.6727
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-07-09",
+   "sens": "tur",
+   "n": 2,
+   "km": 5.6,
+   "casaLa": [
+    48.221,
+    27.6727
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-07-10",
+   "sens": "tur",
+   "n": 2,
+   "km": 6.4,
+   "casaLa": [
+    48.2208,
+    27.6728
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-07-10",
+   "sens": "retur",
+   "n": 2,
+   "km": 2.9,
+   "casaLa": [
+    48.2208,
+    27.6727
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-09-01",
+   "sens": "tur",
+   "n": 6,
+   "km": 7.8,
+   "casaLa": [
+    48.2207,
+    27.6728
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-09-02",
+   "sens": "tur",
+   "n": 3,
+   "km": 7,
+   "casaLa": [
+    48.2208,
+    27.6727
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-09-02",
+   "sens": "retur",
+   "n": 4,
+   "km": 3.9,
+   "casaLa": [
+    48.2208,
+    27.6728
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-09-03",
+   "sens": "tur",
+   "n": 2,
+   "km": 1.4,
+   "casaLa": [
+    48.2207,
+    27.6728
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-09-03",
+   "sens": "retur",
+   "n": 3,
+   "km": 4,
+   "casaLa": [
+    48.2208,
+    27.6727
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-09-04",
+   "sens": "tur",
+   "n": 4,
+   "km": 7.8,
+   "casaLa": [
+    48.2209,
+    27.6728
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-09-04",
+   "sens": "retur",
+   "n": 3,
+   "km": 3.6,
+   "casaLa": [
+    48.2208,
+    27.6728
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-09-07",
+   "sens": "tur",
+   "n": 5,
+   "km": 4,
+   "casaLa": [
+    48.2208,
+    27.6729
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-09-08",
+   "sens": "tur",
+   "n": 3,
+   "km": 4.1,
+   "casaLa": [
+    48.2207,
+    27.672
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-09-08",
+   "sens": "retur",
+   "n": 6,
+   "km": 7.5,
+   "casaLa": [
+    48.2024,
+    27.6888
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-09-09",
+   "sens": "tur",
+   "n": 3,
+   "km": 4.1,
+   "casaLa": [
+    48.221,
+    27.6727
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-09-09",
+   "sens": "retur",
+   "n": 5,
+   "km": 3.9,
+   "casaLa": [
+    48.2209,
+    27.6727
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-09-10",
+   "sens": "tur",
+   "n": 4,
+   "km": 4,
+   "casaLa": [
+    48.2208,
+    27.6728
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-09-10",
+   "sens": "retur",
+   "n": 4,
+   "km": 4.3,
+   "casaLa": [
+    48.2208,
+    27.6729
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-09-11",
+   "sens": "tur",
+   "n": 3,
+   "km": 4.1,
+   "casaLa": [
+    48.2206,
+    27.6728
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-09-11",
+   "sens": "retur",
+   "n": 4,
+   "km": 7,
+   "casaLa": [
+    48.2209,
+    27.6727
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-09-14",
+   "sens": "tur",
+   "n": 2,
+   "km": 1.1,
+   "casaLa": [
+    48.2207,
+    27.6728
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-09-14",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.4,
+   "casaLa": [
+    48.2209,
+    27.6728
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-09-16",
+   "sens": "tur",
+   "n": 3,
+   "km": 1.6,
+   "casaLa": [
+    48.0961,
+    27.8666
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-09-17",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.5,
+   "casaLa": [
+    48.2209,
+    27.6727
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-09-18",
+   "sens": "retur",
+   "n": 3,
+   "km": 1.6,
+   "casaLa": [
+    48.2209,
+    27.6728
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-09-22",
+   "sens": "tur",
+   "n": 3,
+   "km": 3.4,
+   "casaLa": [
+    48.2207,
+    27.6728
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-09-22",
+   "sens": "retur",
+   "n": 3,
+   "km": 1.4,
+   "casaLa": [
+    48.2209,
+    27.6728
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-09-23",
+   "sens": "tur",
+   "n": 3,
+   "km": 6,
+   "casaLa": [
+    48.2209,
+    27.6729
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-09-24",
+   "sens": "tur",
+   "n": 5,
+   "km": 3.7,
+   "casaLa": [
+    48.2212,
+    27.672
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-09-24",
+   "sens": "retur",
+   "n": 3,
+   "km": 1.5,
+   "casaLa": [
+    48.2209,
+    27.6728
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-09-25",
+   "sens": "tur",
+   "n": 2,
+   "km": 1.7,
+   "casaLa": [
+    48.2208,
+    27.6727
+   ]
+  },
+  {
+   "k": "R1|Donduseni",
+   "m": "346KAJ",
+   "zi": "2026-09-25",
+   "sens": "retur",
+   "n": 4,
+   "km": 2.4,
+   "casaLa": [
+    48.2377,
+    27.6123
+   ]
+  },
+  {
+   "k": "R9|Cobani",
+   "m": "397VKV",
+   "zi": "2026-05-04",
+   "sens": "tur",
+   "n": 2,
+   "km": 14.8,
+   "casaLa": [
+    47.7759,
+    27.5054
+   ]
+  },
+  {
+   "k": "R9|Cobani",
+   "m": "397VKV",
+   "zi": "2026-05-14",
+   "sens": "retur",
+   "n": 2,
+   "km": 17.8,
+   "casaLa": [
+    47.776,
+    27.5054
+   ]
+  },
+  {
+   "k": "R9|Cobani",
+   "m": "397VKV",
+   "zi": "2026-05-18",
+   "sens": "tur",
+   "n": 2,
+   "km": 14.9,
+   "casaLa": [
+    47.7759,
+    27.5054
+   ]
+  },
+  {
+   "k": "R9|Cobani",
+   "m": "397VKV",
+   "zi": "2026-05-19",
+   "sens": "tur",
+   "n": 2,
+   "km": 17.8,
+   "casaLa": [
+    47.7759,
+    27.5054
+   ]
+  },
+  {
+   "k": "R9|Cobani",
+   "m": "397VKV",
+   "zi": "2026-05-20",
+   "sens": "tur",
+   "n": 2,
+   "km": 14.9,
+   "casaLa": [
+    47.7759,
+    27.5054
+   ]
+  },
+  {
+   "k": "R9|Cobani",
+   "m": "397VKV",
+   "zi": "2026-05-21",
+   "sens": "tur",
+   "n": 2,
+   "km": 14.9,
+   "casaLa": [
+    47.7759,
+    27.5054
+   ]
+  },
+  {
+   "k": "R3|Nihoreni",
+   "m": "397VKV",
+   "zi": "2026-05-26",
+   "sens": "tur",
+   "n": 2,
+   "km": 4.7,
+   "casaLa": [
+    47.776,
+    27.5054
+   ]
+  },
+  {
+   "k": "R9|Cobani",
+   "m": "397VKV",
+   "zi": "2026-06-11",
+   "sens": "retur",
+   "n": 2,
+   "km": 14.7,
+   "casaLa": [
+    47.7759,
+    27.5055
+   ]
+  },
+  {
+   "k": "R9|Cobani",
+   "m": "397VKV",
+   "zi": "2026-06-15",
+   "sens": "tur",
+   "n": 2,
+   "km": 14.9,
+   "casaLa": [
+    47.7759,
+    27.5054
+   ]
+  },
+  {
+   "k": "R9|Cobani",
+   "m": "397VKV",
+   "zi": "2026-06-19",
+   "sens": "tur",
+   "n": 2,
+   "km": 15,
+   "casaLa": [
+    47.7759,
+    27.5055
+   ]
+  },
+  {
+   "k": "R9|Cobani",
+   "m": "397VKV",
+   "zi": "2026-06-22",
+   "sens": "retur",
+   "n": 2,
+   "km": 17.8,
+   "casaLa": [
+    47.776,
+    27.5055
+   ]
+  },
+  {
+   "k": "R9|Cobani",
+   "m": "397VKV",
+   "zi": "2026-06-24",
+   "sens": "retur",
+   "n": 2,
+   "km": 17.8,
+   "casaLa": [
+    47.776,
+    27.5054
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "397VKV",
+   "zi": "2026-06-30",
+   "sens": "retur",
+   "n": 9,
+   "km": 12,
+   "casaLa": [
+    47.6438,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Copaceni",
+   "m": "397VKV",
+   "zi": "2026-07-01",
+   "sens": "retur",
+   "n": 4,
+   "km": 10.2,
+   "casaLa": [
+    47.6438,
+    28.115
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "397VKV",
+   "zi": "2026-07-01",
+   "sens": "retur",
+   "n": 3,
+   "km": 9.5,
+   "casaLa": [
+    47.6438,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "397VKV",
+   "zi": "2026-07-02",
+   "sens": "retur",
+   "n": 5,
+   "km": 12,
+   "casaLa": [
+    47.6439,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "397VKV",
+   "zi": "2026-07-06",
+   "sens": "tur",
+   "n": 4,
+   "km": 9.2,
+   "casaLa": [
+    47.6438,
+    28.1148
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "397VKV",
+   "zi": "2026-07-06",
+   "sens": "retur",
+   "n": 3,
+   "km": 9.5,
+   "casaLa": [
+    47.6438,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "397VKV",
+   "zi": "2026-07-07",
+   "sens": "tur",
+   "n": 3,
+   "km": 9.2,
+   "casaLa": [
+    47.6439,
+    28.1146
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "397VKV",
+   "zi": "2026-07-07",
+   "sens": "retur",
+   "n": 6,
+   "km": 13.7,
+   "casaLa": [
+    47.6438,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Copaceni",
+   "m": "397VKV",
+   "zi": "2026-07-09",
+   "sens": "tur",
+   "n": 3,
+   "km": 9.7,
+   "casaLa": [
+    47.6438,
+    28.115
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "397VKV",
+   "zi": "2026-07-09",
+   "sens": "retur",
+   "n": 6,
+   "km": 9.5,
+   "casaLa": [
+    47.6438,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "397VKV",
+   "zi": "2026-07-10",
+   "sens": "tur",
+   "n": 4,
+   "km": 9.2,
+   "casaLa": [
+    47.6439,
+    28.1147
+   ]
+  },
+  {
+   "k": "R19|Copaceni",
+   "m": "397VKV",
+   "zi": "2026-07-10",
+   "sens": "tur",
+   "n": 2,
+   "km": 7.6,
+   "casaLa": [
+    47.6439,
+    28.1148
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "397VKV",
+   "zi": "2026-07-10",
+   "sens": "retur",
+   "n": 4,
+   "km": 12.1,
+   "casaLa": [
+    47.6438,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "397VKV",
+   "zi": "2026-07-14",
+   "sens": "retur",
+   "n": 5,
+   "km": 11.4,
+   "casaLa": [
+    47.6438,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Copaceni",
+   "m": "397VKV",
+   "zi": "2026-07-15",
+   "sens": "retur",
+   "n": 3,
+   "km": 9.5,
+   "casaLa": [
+    47.6438,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Copaceni",
+   "m": "397VKV",
+   "zi": "2026-09-15",
+   "sens": "tur",
+   "n": 3,
+   "km": 8.5,
+   "casaLa": [
+    47.644,
+    28.1144
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "397VKV",
+   "zi": "2026-09-16",
+   "sens": "tur",
+   "n": 5,
+   "km": 13.9,
+   "casaLa": [
+    47.6439,
+    28.1146
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-06-15",
+   "sens": "retur",
+   "n": 3,
+   "km": 2.6,
+   "casaLa": [
+    47.9791,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-06-16",
+   "sens": "retur",
+   "n": 2,
+   "km": 2.5,
+   "casaLa": [
+    47.9792,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-06-17",
+   "sens": "retur",
+   "n": 3,
+   "km": 2.6,
+   "casaLa": [
+    47.9794,
+    28.1336
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-06-18",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.3,
+   "casaLa": [
+    47.9773,
+    28.1258
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-06-19",
+   "sens": "retur",
+   "n": 2,
+   "km": 0.8,
+   "casaLa": [
+    47.8844,
+    28.2431
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-06-23",
+   "sens": "tur",
+   "n": 2,
+   "km": 1,
+   "casaLa": [
+    47.9794,
+    28.1336
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-06-23",
+   "sens": "retur",
+   "n": 2,
+   "km": 6.3,
+   "casaLa": [
+    47.9791,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-06-24",
+   "sens": "tur",
+   "n": 2,
+   "km": 1,
+   "casaLa": [
+    47.9792,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-06-24",
+   "sens": "retur",
+   "n": 3,
+   "km": 3.3,
+   "casaLa": [
+    47.9791,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-06-25",
+   "sens": "tur",
+   "n": 2,
+   "km": 1,
+   "casaLa": [
+    47.8848,
+    28.2437
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-06-25",
+   "sens": "retur",
+   "n": 3,
+   "km": 4.6,
+   "casaLa": [
+    47.9791,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-06-25",
+   "sens": "retur",
+   "n": 3,
+   "km": 2.4,
+   "casaLa": [
+    47.9791,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-06-26",
+   "sens": "tur",
+   "n": 4,
+   "km": 1.4,
+   "casaLa": [
+    47.9792,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-06-26",
+   "sens": "tur",
+   "n": 4,
+   "km": 6.6,
+   "casaLa": [
+    47.885,
+    28.2441
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-06-26",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.2,
+   "casaLa": [
+    47.9792,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-06-29",
+   "sens": "tur",
+   "n": 2,
+   "km": 1,
+   "casaLa": [
+    47.9794,
+    28.1336
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-06-29",
+   "sens": "retur",
+   "n": 3,
+   "km": 2.6,
+   "casaLa": [
+    47.9792,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-06-30",
+   "sens": "tur",
+   "n": 3,
+   "km": 1.2,
+   "casaLa": [
+    47.9795,
+    28.1336
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-06-30",
+   "sens": "retur",
+   "n": 2,
+   "km": 5.4,
+   "casaLa": [
+    47.9767,
+    28.1259
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-06-30",
+   "sens": "retur",
+   "n": 3,
+   "km": 2.6,
+   "casaLa": [
+    47.9792,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-01",
+   "sens": "tur",
+   "n": 2,
+   "km": 1,
+   "casaLa": [
+    47.7698,
+    27.9232
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-01",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.3,
+   "casaLa": [
+    47.8593,
+    28.1809
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-02",
+   "sens": "tur",
+   "n": 2,
+   "km": 1,
+   "casaLa": [
+    47.9795,
+    28.1336
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-02",
+   "sens": "retur",
+   "n": 2,
+   "km": 5.5,
+   "casaLa": [
+    47.9773,
+    28.1259
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-03",
+   "sens": "retur",
+   "n": 2,
+   "km": 7.3,
+   "casaLa": [
+    47.9791,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-03",
+   "sens": "retur",
+   "n": 2,
+   "km": 8,
+   "casaLa": [
+    47.9792,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-06",
+   "sens": "tur",
+   "n": 2,
+   "km": 1,
+   "casaLa": [
+    47.8846,
+    28.2434
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-06",
+   "sens": "retur",
+   "n": 2,
+   "km": 3.9,
+   "casaLa": [
+    47.9791,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-07",
+   "sens": "tur",
+   "n": 3,
+   "km": 1,
+   "casaLa": [
+    47.9795,
+    28.1336
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-07",
+   "sens": "retur",
+   "n": 2,
+   "km": 2,
+   "casaLa": [
+    47.9791,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-07",
+   "sens": "retur",
+   "n": 3,
+   "km": 1.6,
+   "casaLa": [
+    47.9793,
+    28.1336
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-08",
+   "sens": "tur",
+   "n": 2,
+   "km": 1,
+   "casaLa": [
+    47.9797,
+    28.1333
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-08",
+   "sens": "tur",
+   "n": 2,
+   "km": 1,
+   "casaLa": [
+    47.8848,
+    28.2439
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-08",
+   "sens": "retur",
+   "n": 3,
+   "km": 5.6,
+   "casaLa": [
+    47.9773,
+    28.126
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-08",
+   "sens": "retur",
+   "n": 3,
+   "km": 4,
+   "casaLa": [
+    47.9791,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-09",
+   "sens": "tur",
+   "n": 2,
+   "km": 0.9,
+   "casaLa": [
+    47.8844,
+    28.243
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-09",
+   "sens": "retur",
+   "n": 2,
+   "km": 2.6,
+   "casaLa": [
+    47.9774,
+    28.126
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-09",
+   "sens": "retur",
+   "n": 3,
+   "km": 3.4,
+   "casaLa": [
+    47.9791,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-10",
+   "sens": "tur",
+   "n": 2,
+   "km": 1,
+   "casaLa": [
+    47.9792,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-10",
+   "sens": "tur",
+   "n": 2,
+   "km": 1,
+   "casaLa": [
+    47.8842,
+    28.2427
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-10",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.9,
+   "casaLa": [
+    47.8914,
+    28.2776
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-10",
+   "sens": "retur",
+   "n": 3,
+   "km": 3.4,
+   "casaLa": [
+    47.9791,
+    28.1338
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-13",
+   "sens": "tur",
+   "n": 2,
+   "km": 0.9,
+   "casaLa": [
+    47.9792,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-14",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.1,
+   "casaLa": [
+    47.9791,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-14",
+   "sens": "retur",
+   "n": 2,
+   "km": 2.1,
+   "casaLa": [
+    47.9791,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-15",
+   "sens": "tur",
+   "n": 2,
+   "km": 0.9,
+   "casaLa": [
+    47.9794,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-15",
+   "sens": "tur",
+   "n": 2,
+   "km": 2.7,
+   "casaLa": [
+    47.9794,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-15",
+   "sens": "retur",
+   "n": 3,
+   "km": 5.3,
+   "casaLa": [
+    47.9776,
+    28.1259
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-15",
+   "sens": "retur",
+   "n": 2,
+   "km": 2.6,
+   "casaLa": [
+    47.9794,
+    28.1336
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-16",
+   "sens": "tur",
+   "n": 2,
+   "km": 1,
+   "casaLa": [
+    47.9797,
+    28.1334
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-16",
+   "sens": "retur",
+   "n": 2,
+   "km": 2.5,
+   "casaLa": [
+    47.9791,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-17",
+   "sens": "tur",
+   "n": 2,
+   "km": 1,
+   "casaLa": [
+    47.7693,
+    27.9242
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-17",
+   "sens": "retur",
+   "n": 2,
+   "km": 2.6,
+   "casaLa": [
+    47.8914,
+    28.2777
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-07-17",
+   "sens": "retur",
+   "n": 3,
+   "km": 2.7,
+   "casaLa": [
+    47.9791,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-01",
+   "sens": "tur",
+   "n": 2,
+   "km": 1,
+   "casaLa": [
+    47.9794,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-01",
+   "sens": "retur",
+   "n": 3,
+   "km": 2.2,
+   "casaLa": [
+    47.9775,
+    28.1259
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-04",
+   "sens": "tur",
+   "n": 3,
+   "km": 0.9,
+   "casaLa": [
+    47.9792,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-04",
+   "sens": "retur",
+   "n": 2,
+   "km": 2.3,
+   "casaLa": [
+    47.9791,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-04",
+   "sens": "retur",
+   "n": 3,
+   "km": 2.4,
+   "casaLa": [
+    47.9792,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-07",
+   "sens": "tur",
+   "n": 2,
+   "km": 1,
+   "casaLa": [
+    47.9792,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-07",
+   "sens": "tur",
+   "n": 2,
+   "km": 1.1,
+   "casaLa": [
+    47.9794,
+    28.1336
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-07",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.1,
+   "casaLa": [
+    47.9793,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-07",
+   "sens": "retur",
+   "n": 2,
+   "km": 2.4,
+   "casaLa": [
+    47.9792,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-08",
+   "sens": "tur",
+   "n": 2,
+   "km": 1,
+   "casaLa": [
+    47.9795,
+    28.1336
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-09",
+   "sens": "tur",
+   "n": 2,
+   "km": 1,
+   "casaLa": [
+    47.9795,
+    28.1336
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-09",
+   "sens": "retur",
+   "n": 2,
+   "km": 2.2,
+   "casaLa": [
+    47.9791,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-10",
+   "sens": "tur",
+   "n": 2,
+   "km": 1,
+   "casaLa": [
+    47.9794,
+    28.1336
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-10",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.3,
+   "casaLa": [
+    47.9765,
+    28.1304
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-10",
+   "sens": "retur",
+   "n": 2,
+   "km": 2.2,
+   "casaLa": [
+    47.9794,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-11",
+   "sens": "retur",
+   "n": 3,
+   "km": 5.2,
+   "casaLa": [
+    47.7802,
+    27.9471
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-11",
+   "sens": "retur",
+   "n": 2,
+   "km": 2.3,
+   "casaLa": [
+    47.9794,
+    28.1336
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-14",
+   "sens": "tur",
+   "n": 3,
+   "km": 1,
+   "casaLa": [
+    47.9793,
+    28.1336
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-14",
+   "sens": "retur",
+   "n": 3,
+   "km": 1,
+   "casaLa": [
+    47.9766,
+    28.1261
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-14",
+   "sens": "retur",
+   "n": 2,
+   "km": 2.5,
+   "casaLa": [
+    47.9791,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-15",
+   "sens": "retur",
+   "n": 5,
+   "km": 6.4,
+   "casaLa": [
+    47.9796,
+    28.1336
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-16",
+   "sens": "tur",
+   "n": 2,
+   "km": 1.4,
+   "casaLa": [
+    47.9793,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-16",
+   "sens": "retur",
+   "n": 2,
+   "km": 0.9,
+   "casaLa": [
+    47.9767,
+    28.1258
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-17",
+   "sens": "tur",
+   "n": 2,
+   "km": 1.3,
+   "casaLa": [
+    47.9793,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-17",
+   "sens": "retur",
+   "n": 3,
+   "km": 4.8,
+   "casaLa": [
+    47.9773,
+    28.1259
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-17",
+   "sens": "retur",
+   "n": 2,
+   "km": 2.7,
+   "casaLa": [
+    47.9791,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-18",
+   "sens": "tur",
+   "n": 2,
+   "km": 1,
+   "casaLa": [
+    47.9792,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-18",
+   "sens": "retur",
+   "n": 2,
+   "km": 2.2,
+   "casaLa": [
+    47.9791,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-21",
+   "sens": "retur",
+   "n": 2,
+   "km": 2,
+   "casaLa": [
+    47.9793,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-22",
+   "sens": "tur",
+   "n": 2,
+   "km": 1,
+   "casaLa": [
+    47.9796,
+    28.1336
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-22",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.2,
+   "casaLa": [
+    47.9774,
+    28.1257
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-23",
+   "sens": "tur",
+   "n": 2,
+   "km": 0.9,
+   "casaLa": [
+    47.9795,
+    28.1337
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-25",
+   "sens": "tur",
+   "n": 2,
+   "km": 1,
+   "casaLa": [
+    47.8846,
+    28.2434
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "518MHD",
+   "zi": "2026-09-25",
+   "sens": "retur",
+   "n": 3,
+   "km": 2.7,
+   "casaLa": [
+    47.9792,
+    28.1337
+   ]
+  },
+  {
+   "k": "R15|Suri",
+   "m": "388ASB",
+   "zi": "2026-05-07",
+   "sens": "retur",
+   "n": 2,
+   "km": 7.3,
+   "casaLa": [
+    47.7895,
+    27.9343
+   ]
+  },
+  {
+   "k": "R21|Heciul Nou",
+   "m": "744ARF",
+   "zi": "2026-09-12",
+   "sens": "retur",
+   "n": 3,
+   "km": 11.6,
+   "casaLa": [
+    47.7795,
+    27.9481
+   ]
+  },
+  {
+   "k": "R21|Heciul Nou",
+   "m": "744ARF",
+   "zi": "2026-09-12",
+   "sens": "tur",
+   "n": 2,
+   "km": 7.7,
+   "casaLa": [
+    47.779,
+    27.9487
+   ]
+  },
+  {
+   "k": "R23|Scumpia",
+   "m": "412BRAY",
+   "zi": "2026-05-13",
+   "sens": "tur",
+   "n": 2,
+   "km": 14.6,
+   "casaLa": [
+    47.7895,
+    27.9345
+   ]
+  },
+  {
+   "k": "R16|Varvareuca",
+   "m": "731ARF",
+   "zi": "2026-05-09",
+   "sens": "tur",
+   "n": 2,
+   "km": 3.1,
+   "casaLa": [
+    47.9567,
+    28.1335
+   ]
+  },
+  {
+   "k": "R16|Varvareuca",
+   "m": "731ARF",
+   "zi": "2026-05-23",
+   "sens": "tur",
+   "n": 3,
+   "km": 6.1,
+   "casaLa": [
+    47.957,
+    28.1343
+   ]
+  },
+  {
+   "k": "R16|Varvareuca",
+   "m": "731ARF",
+   "zi": "2026-05-23",
+   "sens": "retur",
+   "n": 3,
+   "km": 10,
+   "casaLa": [
+    47.9566,
+    28.1332
+   ]
+  },
+  {
+   "k": "R16|Varvareuca",
+   "m": "731ARF",
+   "zi": "2026-05-28",
+   "sens": "retur",
+   "n": 5,
+   "km": 5.4,
+   "casaLa": [
+    47.9567,
+    28.1335
+   ]
+  },
+  {
+   "k": "R16|Varvareuca",
+   "m": "731ARF",
+   "zi": "2026-06-11",
+   "sens": "retur",
+   "n": 5,
+   "km": 4.4,
+   "casaLa": [
+    47.9567,
+    28.1332
+   ]
+  },
+  {
+   "k": "R16|Varvareuca",
+   "m": "731ARF",
+   "zi": "2026-06-15",
+   "sens": "tur",
+   "n": 4,
+   "km": 2.4,
+   "casaLa": [
+    47.9571,
+    28.1344
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "348KAJ",
+   "zi": "2026-06-03",
+   "sens": "tur",
+   "n": 2,
+   "km": 0.8,
+   "casaLa": [
+    47.8663,
+    28.1829
+   ]
+  },
+  {
+   "k": "R16|Floresti",
+   "m": "763LYY",
+   "zi": "2026-05-07",
+   "sens": "retur",
+   "n": 2,
+   "km": 1,
+   "casaLa": [
+    47.8857,
+    28.2287
+   ]
+  },
+  {
+   "k": "R16|Varvareuca",
+   "m": "763LYY",
+   "zi": "2026-06-17",
+   "sens": "tur",
+   "n": 2,
+   "km": 1.7,
+   "casaLa": [
+    47.8555,
+    28.2339
+   ]
+  },
+  {
+   "k": "R3|Nihoreni",
+   "m": "345KAJ",
+   "zi": "2026-05-07",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.1,
+   "casaLa": [
+    47.9766,
+    27.3525
+   ]
+  },
+  {
+   "k": "R8|Costesti",
+   "m": "345KAJ",
+   "zi": "2026-05-13",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.1,
+   "casaLa": [
+    47.9767,
+    27.3525
+   ]
+  },
+  {
+   "k": "R3|Nihoreni",
+   "m": "345KAJ",
+   "zi": "2026-05-14",
+   "sens": "retur",
+   "n": 2,
+   "km": 2.7,
+   "casaLa": [
+    47.9767,
+    27.3523
+   ]
+  },
+  {
+   "k": "R3|Nihoreni",
+   "m": "345KAJ",
+   "zi": "2026-05-19",
+   "sens": "retur",
+   "n": 3,
+   "km": 1.2,
+   "casaLa": [
+    47.9767,
+    27.3526
+   ]
+  },
+  {
+   "k": "R8|Costesti",
+   "m": "345KAJ",
+   "zi": "2026-05-21",
+   "sens": "retur",
+   "n": 2,
+   "km": 0.9,
+   "casaLa": [
+    47.9766,
+    27.3524
+   ]
+  },
+  {
+   "k": "R8|Costesti",
+   "m": "345KAJ",
+   "zi": "2026-05-29",
+   "sens": "tur",
+   "n": 2,
+   "km": 1.7,
+   "casaLa": [
+    47.9768,
+    27.3523
+   ]
+  },
+  {
+   "k": "R8|Costesti",
+   "m": "345KAJ",
+   "zi": "2026-06-04",
+   "sens": "tur",
+   "n": 2,
+   "km": 0.4,
+   "casaLa": [
+    47.9769,
+    27.352
+   ]
+  },
+  {
+   "k": "R8|Costesti",
+   "m": "345KAJ",
+   "zi": "2026-06-05",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.1,
+   "casaLa": [
+    47.9767,
+    27.3526
+   ]
+  },
+  {
+   "k": "R3|Nihoreni",
+   "m": "345KAJ",
+   "zi": "2026-06-11",
+   "sens": "retur",
+   "n": 2,
+   "km": 2.7,
+   "casaLa": [
+    47.9766,
+    27.3525
+   ]
+  },
+  {
+   "k": "R8|Costesti",
+   "m": "345KAJ",
+   "zi": "2026-06-16",
+   "sens": "tur",
+   "n": 2,
+   "km": 0.4,
+   "casaLa": [
+    47.9768,
+    27.3523
+   ]
+  },
+  {
+   "k": "R3|Nihoreni",
+   "m": "345KAJ",
+   "zi": "2026-06-17",
+   "sens": "tur",
+   "n": 2,
+   "km": 2.5,
+   "casaLa": [
+    47.9767,
+    27.3524
+   ]
+  },
+  {
+   "k": "R3|Nihoreni",
+   "m": "345KAJ",
+   "zi": "2026-07-01",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.3,
+   "casaLa": [
+    47.9767,
+    27.3526
+   ]
+  },
+  {
+   "k": "R3|Nihoreni",
+   "m": "345KAJ",
+   "zi": "2026-07-01",
+   "sens": "retur",
+   "n": 2,
+   "km": 4.5,
+   "casaLa": [
+    47.9766,
+    27.3524
+   ]
+  },
+  {
+   "k": "R3|Nihoreni",
+   "m": "345KAJ",
+   "zi": "2026-07-07",
+   "sens": "retur",
+   "n": 2,
+   "km": 0.8,
+   "casaLa": [
+    47.9766,
+    27.3526
+   ]
+  },
+  {
+   "k": "R3|Nihoreni",
+   "m": "345KAJ",
+   "zi": "2026-07-08",
+   "sens": "tur",
+   "n": 2,
+   "km": 3.2,
+   "casaLa": [
+    47.9767,
+    27.3523
+   ]
+  },
+  {
+   "k": "R8|Costesti",
+   "m": "345KAJ",
+   "zi": "2026-07-08",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.1,
+   "casaLa": [
+    47.9766,
+    27.3524
+   ]
+  },
+  {
+   "k": "R3|Nihoreni",
+   "m": "345KAJ",
+   "zi": "2026-07-10",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.4,
+   "casaLa": [
+    47.9767,
+    27.3525
+   ]
+  },
+  {
+   "k": "R3|Nihoreni",
+   "m": "345KAJ",
+   "zi": "2026-07-13",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.3,
+   "casaLa": [
+    47.9766,
+    27.3525
+   ]
+  },
+  {
+   "k": "R3|Nihoreni",
+   "m": "345KAJ",
+   "zi": "2026-07-14",
+   "sens": "retur",
+   "n": 3,
+   "km": 3.3,
+   "casaLa": [
+    47.7801,
+    27.9149
+   ]
+  },
+  {
+   "k": "R8|Costesti",
+   "m": "345KAJ",
+   "zi": "2026-09-08",
+   "sens": "retur",
+   "n": 2,
+   "km": 0.8,
+   "casaLa": [
+    47.9766,
+    27.3525
+   ]
+  },
+  {
+   "k": "R3|Nihoreni",
+   "m": "345KAJ",
+   "zi": "2026-09-10",
+   "sens": "retur",
+   "n": 2,
+   "km": 1.1,
+   "casaLa": [
+    47.9766,
+    27.3524
+   ]
+  },
+  {
+   "k": "R3|Nihoreni",
+   "m": "345KAJ",
+   "zi": "2026-09-10",
+   "sens": "tur",
+   "n": 2,
+   "km": 2.1,
+   "casaLa": [
+    47.9768,
+    27.3521
+   ]
+  },
+  {
+   "k": "R8|Costesti",
+   "m": "345KAJ",
+   "zi": "2026-09-14",
+   "sens": "tur",
+   "n": 2,
+   "km": 0.4,
+   "casaLa": [
+    47.9768,
+    27.3522
+   ]
+  },
+  {
+   "k": "R8|Costesti",
+   "m": "345KAJ",
+   "zi": "2026-09-24",
+   "sens": "retur",
+   "n": 3,
+   "km": 1.4,
+   "casaLa": [
+    47.9766,
+    27.3525
+   ]
+  },
+  {
+   "k": "R19|Copaceni",
+   "m": "725CWN",
+   "zi": "2026-05-14",
+   "sens": "retur",
+   "n": 2,
+   "km": 119.9,
+   "casaLa": [
+    47.6364,
+    28.1668
+   ]
+  },
+  {
+   "k": "R19|Copaceni",
+   "m": "725CWN",
+   "zi": "2026-06-30",
+   "sens": "tur",
+   "n": 2,
+   "km": 7,
+   "casaLa": [
+    47.6362,
+    28.1664
+   ]
+  },
+  {
+   "k": "R19|Copaceni",
+   "m": "725CWN",
+   "zi": "2026-09-01",
+   "sens": "retur",
+   "n": 4,
+   "km": 9.6,
+   "casaLa": [
+    47.6361,
+    28.1661
+   ]
+  },
+  {
+   "k": "R17|Prajila",
+   "m": "713IZX",
+   "zi": "2026-06-12",
+   "sens": "tur",
+   "n": 2,
+   "km": 7.8,
+   "casaLa": [
+    47.8929,
+    28.2894
+   ]
+  },
+  {
+   "k": "R17|Prajila",
+   "m": "713IZX",
+   "zi": "2026-07-03",
+   "sens": "tur",
+   "n": 2,
+   "km": 7.6,
+   "casaLa": [
+    47.8929,
+    28.289
+   ]
+  },
+  {
+   "k": "R17|Prajila",
+   "m": "713IZX",
+   "zi": "2026-09-15",
+   "sens": "tur",
+   "n": 2,
+   "km": 7.9,
+   "casaLa": [
+    47.8929,
+    28.2891
+   ]
+  },
+  {
+   "k": "R17|Prajila",
+   "m": "713IZX",
+   "zi": "2026-09-25",
+   "sens": "retur",
+   "n": 2,
+   "km": 6,
+   "casaLa": [
+    47.893,
+    28.2899
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-05-04",
+   "sens": "retur",
+   "n": 2,
+   "km": 7,
+   "casaLa": [
+    47.6438,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-05-05",
+   "sens": "retur",
+   "n": 2,
+   "km": 7,
+   "casaLa": [
+    47.6438,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-05-06",
+   "sens": "tur",
+   "n": 6,
+   "km": 9.4,
+   "casaLa": [
+    47.6438,
+    28.115
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-05-06",
+   "sens": "retur",
+   "n": 2,
+   "km": 8.2,
+   "casaLa": [
+    47.6438,
+    28.1148
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-05-07",
+   "sens": "tur",
+   "n": 4,
+   "km": 8.2,
+   "casaLa": [
+    47.6438,
+    28.1148
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-05-07",
+   "sens": "retur",
+   "n": 4,
+   "km": 8,
+   "casaLa": [
+    47.6438,
+    28.115
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-05-08",
+   "sens": "tur",
+   "n": 3,
+   "km": 14.3,
+   "casaLa": [
+    47.6438,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-05-11",
+   "sens": "tur",
+   "n": 4,
+   "km": 9.6,
+   "casaLa": [
+    47.6443,
+    28.1108
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-05-11",
+   "sens": "retur",
+   "n": 3,
+   "km": 9.3,
+   "casaLa": [
+    47.6439,
+    28.1148
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-05-12",
+   "sens": "tur",
+   "n": 6,
+   "km": 9.2,
+   "casaLa": [
+    47.644,
+    28.1141
+   ]
+  },
+  {
+   "k": "R19|Copaceni",
+   "m": "830MUM",
+   "zi": "2026-05-12",
+   "sens": "tur",
+   "n": 3,
+   "km": 9.7,
+   "casaLa": [
+    47.6437,
+    28.115
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-05-12",
+   "sens": "retur",
+   "n": 2,
+   "km": 9.8,
+   "casaLa": [
+    47.6438,
+    28.115
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-05-12",
+   "sens": "retur",
+   "n": 4,
+   "km": 9.2,
+   "casaLa": [
+    47.6438,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-05-13",
+   "sens": "tur",
+   "n": 5,
+   "km": 9.2,
+   "casaLa": [
+    47.6443,
+    28.1108
+   ]
+  },
+  {
+   "k": "R19|Copaceni",
+   "m": "830MUM",
+   "zi": "2026-05-13",
+   "sens": "tur",
+   "n": 2,
+   "km": 8.2,
+   "casaLa": [
+    47.6438,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-05-13",
+   "sens": "retur",
+   "n": 5,
+   "km": 11.6,
+   "casaLa": [
+    47.6437,
+    28.115
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-05-14",
+   "sens": "tur",
+   "n": 6,
+   "km": 9.2,
+   "casaLa": [
+    47.6439,
+    28.1146
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-05-14",
+   "sens": "retur",
+   "n": 9,
+   "km": 15.1,
+   "casaLa": [
+    47.6438,
+    28.1148
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-05-15",
+   "sens": "tur",
+   "n": 6,
+   "km": 9.2,
+   "casaLa": [
+    47.6439,
+    28.1148
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-05-15",
+   "sens": "retur",
+   "n": 3,
+   "km": 8.7,
+   "casaLa": [
+    47.6439,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-05-15",
+   "sens": "retur",
+   "n": 7,
+   "km": 12.9,
+   "casaLa": [
+    47.6439,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-05-18",
+   "sens": "tur",
+   "n": 5,
+   "km": 9.9,
+   "casaLa": [
+    47.6438,
+    28.1152
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-05-18",
+   "sens": "retur",
+   "n": 3,
+   "km": 9.2,
+   "casaLa": [
+    47.6437,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-05-19",
+   "sens": "tur",
+   "n": 6,
+   "km": 9.2,
+   "casaLa": [
+    47.6439,
+    28.1148
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-05-19",
+   "sens": "retur",
+   "n": 4,
+   "km": 8.3,
+   "casaLa": [
+    47.6438,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-05-20",
+   "sens": "tur",
+   "n": 6,
+   "km": 15.4,
+   "casaLa": [
+    47.6438,
+    28.115
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-05-20",
+   "sens": "retur",
+   "n": 4,
+   "km": 9.2,
+   "casaLa": [
+    47.6437,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-05-21",
+   "sens": "tur",
+   "n": 9,
+   "km": 20.4,
+   "casaLa": [
+    47.6439,
+    28.115
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-05-21",
+   "sens": "retur",
+   "n": 3,
+   "km": 9.3,
+   "casaLa": [
+    47.6438,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-05-25",
+   "sens": "tur",
+   "n": 7,
+   "km": 9.2,
+   "casaLa": [
+    47.6439,
+    28.1145
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-05-25",
+   "sens": "retur",
+   "n": 8,
+   "km": 12.1,
+   "casaLa": [
+    47.6437,
+    28.1148
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-05-26",
+   "sens": "tur",
+   "n": 6,
+   "km": 9.3,
+   "casaLa": [
+    47.6438,
+    28.1148
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-05-26",
+   "sens": "retur",
+   "n": 5,
+   "km": 9,
+   "casaLa": [
+    47.6438,
+    28.1147
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-05-27",
+   "sens": "tur",
+   "n": 6,
+   "km": 9.1,
+   "casaLa": [
+    47.6438,
+    28.1148
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-02",
+   "sens": "tur",
+   "n": 8,
+   "km": 13.3,
+   "casaLa": [
+    47.6438,
+    28.1151
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-02",
+   "sens": "retur",
+   "n": 7,
+   "km": 9.2,
+   "casaLa": [
+    47.6438,
+    28.1151
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-03",
+   "sens": "tur",
+   "n": 8,
+   "km": 20.4,
+   "casaLa": [
+    47.6439,
+    28.115
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-03",
+   "sens": "retur",
+   "n": 4,
+   "km": 9.2,
+   "casaLa": [
+    47.6438,
+    28.1151
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-04",
+   "sens": "tur",
+   "n": 5,
+   "km": 9.2,
+   "casaLa": [
+    47.6439,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-04",
+   "sens": "retur",
+   "n": 7,
+   "km": 12.8,
+   "casaLa": [
+    47.6438,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-05",
+   "sens": "tur",
+   "n": 6,
+   "km": 15.5,
+   "casaLa": [
+    47.6439,
+    28.115
+   ]
+  },
+  {
+   "k": "R19|Copaceni",
+   "m": "830MUM",
+   "zi": "2026-06-08",
+   "sens": "retur",
+   "n": 4,
+   "km": 10.3,
+   "casaLa": [
+    47.6438,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-09",
+   "sens": "tur",
+   "n": 4,
+   "km": 9.2,
+   "casaLa": [
+    47.6439,
+    28.1148
+   ]
+  },
+  {
+   "k": "R19|Copaceni",
+   "m": "830MUM",
+   "zi": "2026-06-09",
+   "sens": "tur",
+   "n": 2,
+   "km": 9.8,
+   "casaLa": [
+    47.7698,
+    27.9231
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-10",
+   "sens": "tur",
+   "n": 2,
+   "km": 9.2,
+   "casaLa": [
+    47.6439,
+    28.1148
+   ]
+  },
+  {
+   "k": "R19|Copaceni",
+   "m": "830MUM",
+   "zi": "2026-06-10",
+   "sens": "tur",
+   "n": 2,
+   "km": 9.3,
+   "casaLa": [
+    47.6439,
+    28.115
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-10",
+   "sens": "retur",
+   "n": 6,
+   "km": 13.8,
+   "casaLa": [
+    47.6439,
+    28.1148
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-11",
+   "sens": "retur",
+   "n": 5,
+   "km": 9.2,
+   "casaLa": [
+    47.6438,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-12",
+   "sens": "retur",
+   "n": 2,
+   "km": 9.8,
+   "casaLa": [
+    47.6438,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-15",
+   "sens": "tur",
+   "n": 5,
+   "km": 9.9,
+   "casaLa": [
+    47.644,
+    28.1147
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-15",
+   "sens": "retur",
+   "n": 2,
+   "km": 9.2,
+   "casaLa": [
+    47.6438,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-16",
+   "sens": "tur",
+   "n": 8,
+   "km": 11.2,
+   "casaLa": [
+    47.6438,
+    28.115
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-16",
+   "sens": "retur",
+   "n": 4,
+   "km": 12,
+   "casaLa": [
+    47.6438,
+    28.1148
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-17",
+   "sens": "tur",
+   "n": 7,
+   "km": 16.4,
+   "casaLa": [
+    47.6438,
+    28.115
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-17",
+   "sens": "retur",
+   "n": 3,
+   "km": 9.6,
+   "casaLa": [
+    47.6438,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-18",
+   "sens": "tur",
+   "n": 3,
+   "km": 9.2,
+   "casaLa": [
+    47.6438,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-18",
+   "sens": "retur",
+   "n": 3,
+   "km": 9.6,
+   "casaLa": [
+    47.6438,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-19",
+   "sens": "tur",
+   "n": 5,
+   "km": 9.9,
+   "casaLa": [
+    47.644,
+    28.1147
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-22",
+   "sens": "tur",
+   "n": 6,
+   "km": 9.9,
+   "casaLa": [
+    47.6438,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-22",
+   "sens": "retur",
+   "n": 7,
+   "km": 10,
+   "casaLa": [
+    47.6438,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-23",
+   "sens": "tur",
+   "n": 5,
+   "km": 9.6,
+   "casaLa": [
+    47.6438,
+    28.115
+   ]
+  },
+  {
+   "k": "R19|Copaceni",
+   "m": "830MUM",
+   "zi": "2026-06-23",
+   "sens": "tur",
+   "n": 2,
+   "km": 7.8,
+   "casaLa": [
+    47.6439,
+    28.1147
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-23",
+   "sens": "retur",
+   "n": 7,
+   "km": 13.6,
+   "casaLa": [
+    47.6438,
+    28.115
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-24",
+   "sens": "tur",
+   "n": 6,
+   "km": 9.9,
+   "casaLa": [
+    47.6439,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-24",
+   "sens": "retur",
+   "n": 3,
+   "km": 9.5,
+   "casaLa": [
+    47.6438,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-25",
+   "sens": "tur",
+   "n": 2,
+   "km": 11.7,
+   "casaLa": [
+    47.6438,
+    28.1148
+   ]
+  },
+  {
+   "k": "R19|Copaceni",
+   "m": "830MUM",
+   "zi": "2026-06-25",
+   "sens": "tur",
+   "n": 4,
+   "km": 10.2,
+   "casaLa": [
+    47.6438,
+    28.115
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-25",
+   "sens": "retur",
+   "n": 4,
+   "km": 9.5,
+   "casaLa": [
+    47.6438,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-26",
+   "sens": "tur",
+   "n": 5,
+   "km": 9.2,
+   "casaLa": [
+    47.6438,
+    28.1148
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-26",
+   "sens": "retur",
+   "n": 3,
+   "km": 7.2,
+   "casaLa": [
+    47.6439,
+    28.1151
+   ]
+  },
+  {
+   "k": "R19|Copaceni",
+   "m": "830MUM",
+   "zi": "2026-06-26",
+   "sens": "tur",
+   "n": 3,
+   "km": 10,
+   "casaLa": [
+    47.644,
+    28.1151
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-26",
+   "sens": "retur",
+   "n": 4,
+   "km": 9.6,
+   "casaLa": [
+    47.6438,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-29",
+   "sens": "tur",
+   "n": 5,
+   "km": 9.2,
+   "casaLa": [
+    47.6439,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-06-29",
+   "sens": "retur",
+   "n": 6,
+   "km": 9.8,
+   "casaLa": [
+    47.6438,
+    28.1151
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-07-08",
+   "sens": "retur",
+   "n": 4,
+   "km": 12,
+   "casaLa": [
+    47.6439,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-07-09",
+   "sens": "tur",
+   "n": 4,
+   "km": 9.2,
+   "casaLa": [
+    47.6437,
+    28.1149
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-07-13",
+   "sens": "tur",
+   "n": 5,
+   "km": 15.4,
+   "casaLa": [
+    47.6439,
+    28.115
+   ]
+  },
+  {
+   "k": "R19|Bilicenii Vechi",
+   "m": "830MUM",
+   "zi": "2026-07-13",
+   "sens": "retur",
+   "n": 2,
+   "km": 10.7,
+   "casaLa": [
+    47.6438,
+    28.115
+   ]
+  },
+  {
+   "k": "R19|Copaceni",
+   "m": "830MUM",
+   "zi": "2026-07-14",
+   "sens": "retur",
+   "n": 2,
+   "km": 10.3,
+   "casaLa": [
+    47.6438,
+    28.1149
+   ]
+  }
+ ]
+}

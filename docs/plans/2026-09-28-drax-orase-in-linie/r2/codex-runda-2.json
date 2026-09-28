@@ -1,0 +1,37 @@
+{
+  "score": 6.5,
+  "verdict": "fail",
+  "summary": "Specificația închide C2 prin reconstruirea golurilor și definește coerent separarea capetelor efective de scheletul neschimbat. Contractul C1 se poate aplica separat fiecărei curse: vecina neprelungită păstrează capatC, indiferent de prelungirea celeilalte. Pragurile și remăsurarea cerută rezolvă problemele principale din C3, dar rămân detalii de delimitare și o probă cu reper învechit. Riscul principal nou este atribuirea aceleiași porțiuni GPS ambelor curse vecine.",
+  "deductions": [
+    {
+      "id": "C1",
+      "severity": "high",
+      "weight": 2.5,
+      "title": "Ferestrele de prelungire nu au o regulă de exclusivitate între cursele vecine.",
+      "detail": "§3 ancorează corect ferestrele la tCap, dar continuitatea fără staționări > 5 min nu împiedică două prelungiri să revendice aceleași urcări. Clasificatorul calculează separat kilometrii fiecărei curse, iar construirea ulterioară a golurilor nu elimină suprapunerea dintre curse. Aceasta este o problemă nouă introdusă de prelungirea în ambele sensuri, distinctă de recalcularea golurilor acceptată la C2.",
+      "evidence": "docs/plans/2026-09-28-drax-intre-uzine/vps/categorii.mjs:203; docs/plans/2026-09-28-drax-intre-uzine/vps/categorii.mjs:204; docs/plans/2026-09-28-drax-intre-uzine/vps/categorii.mjs:208",
+      "failure_scenario": "Un retur are tCap la 05:00, iar turul următor al aceleiași mașini are tCap la 05:40. În gol sunt trei opriri eligibile în orașul ambelor curse, la 05:10, 05:20 și 05:25, fără staționare > 5 min. Aplicarea independentă a §3 prelungește returul până la ultima oprire și începe turul la prima: intervalul dintre ele este numărat de două ori ca transport cu oameni.",
+      "suggested_fix": "Precizează că ferestrele sunt limitate de cursele existente și definește explicit soluționarea conflictului când două prelungiri revendică același gol: atribuire unică sau respingerea cazului ambiguu. Adaugă în P12 cazul retur→tur cu trei opriri comune și verificarea absenței suprapunerilor."
+    },
+    {
+      "id": "C2",
+      "severity": "medium",
+      "weight": 1.5,
+      "title": "P9 păstrează un reper incompatibil cu noul capăt efectiv.",
+      "detail": "Planul cere trecerea P1–P11, dar nu include adaptarea P9. Această probă compară livrarea până la prima cursă cu distanța dintre locul nopții și capatC al liniei. După prelungire, livrarea se termină la prima urcare urbană, în timp ce scheletul rămâne intenționat neschimbat. Proba poate respinge un rezultat corect sau valida unul greșit.",
+      "evidence": "docs/plans/2026-09-28-drax-intre-uzine/vps/probe.mjs:75; docs/plans/2026-09-28-drax-intre-uzine/vps/probe.mjs:77; docs/plans/2026-09-28-drax-intre-uzine/vps/probe.mjs:78",
+      "failure_scenario": "",
+      "suggested_fix": "Include explicit actualizarea reperului independent P9 la capătul efectiv al primei curse prelungite, cu fallback la capatC pentru cursa neprelungită. Cere rezultate pentru ambele variante ale aceleiași linii."
+    },
+    {
+      "id": "C3",
+      "severity": "low",
+      "weight": 0.5,
+      "title": "Momentul și coordonata reprezentativă ale unei urcări nu sunt definite complet.",
+      "detail": "Durata opririi este acum precisă, dar «ora primei/ultimei urcări» nu precizează începutul sau sfârșitul opririi, iar coordonata poate proveni din primul punct, ultimul punct ori mijloc. Scriptul exploratoriu păstrează separat t0/t1 și coordonata punctului median; pentru retur folosește t1. Aceste alegeri influențează limitele cursei și comparațiile cu pragurile de 150 m și 0,4 km.",
+      "evidence": "docs/plans/2026-09-28-drax-orase-in-linie/r1/s3b-saptamana.mjs:46; docs/plans/2026-09-28-drax-orase-in-linie/r1/s3b-saptamana.mjs:47; docs/plans/2026-09-28-drax-orase-in-linie/r1/s3b-saptamana.mjs:75",
+      "failure_scenario": "",
+      "suggested_fix": "Definește explicit momentul folosit la tur și retur, coordonata reprezentativă pentru distanțe și tratamentul opririlor care intersectează marginea ferestrei de 45 min. Adaugă probe P12 care verifică exact limitele temporale și coordonatele rezultate."
+    }
+  ]
+}

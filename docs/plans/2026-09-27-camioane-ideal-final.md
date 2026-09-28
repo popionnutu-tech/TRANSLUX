@@ -6,7 +6,7 @@ Deciziile lui Ion (25–27.09):
 - **Motorina** trece obligatoriu prin baza petrolieră Chișinău (Meșterul Manole) sau Briceni. Direct la stație doar rar, dar și atunci se calculează idealul.
 - **Idealuri pe două vămi,** prin Giurgiulești și prin Albița, și în regimul prin bază, și direct.
 - **Albița de bază** dacă e mai lungă cu cel mult 20 km (`baza-albita.mjs`, PRAG_KM).
-- **Biodieselul:** terminalul de export de lângă Zviahel e obligatoriu. Chișinău = Meșterul Manole. Ruse = zona industrială de la pod (43.877, 26.020). Ruse prin ZEL (B8) e cerut explicit.
+- **Biodieselul (Ion, 28.09):** fără ZEL (B1, B2, B4, B5, B6) cisterna pleacă direct Berdichev → Vinița → Otaci, fără terminalul de export (ca ruta Google, −~280 km); prin ZEL Ungheni (B3, B7, B8) trece întâi pe la terminalul de lângă Zviahel. Chișinău = Meșterul Manole. Ruse = zona industrială de la pod (43.877, 26.020). Ruse prin ZEL (B8) e cerut explicit.
 - **Biodieselul:** idealul trecut prin 3 runde de dezbatere Claude + Codex (`2026-09-27-biodiesel-ideal-dezbatere.md`).
 
 Sursa datelor (pe Mac mini, în afara repo-ului, ca scheletele uzinelor):
@@ -45,11 +45,11 @@ Valhalla: `~/dev/valhalla-eu` (colima, 127.0.0.1:8003; în `valhalla.json`, `bre
 
 | Cod | Traseu | Vămi (ideal) | Ideal km | Pe magistrale km | Km minim absolut |
 |---|---|---|---|---|---|
-| B1 | Бердичев → Констанца | Otaci → Albița | 1.114 | 1.297 | 1.114 |
-| B2 | Бердичев → София | Otaci → Albița → Giurgiu | 1.465 | 1.570 | 1.449 (Otaci → Costești → Giurgiu) |
+| B1 | Бердичев → Констанца | Otaci → Albița | 831 | 966 | 831 |
+| B2 | Бердичев → София | Otaci → Albița → Giurgiu | 1.182 | 1.240 | 1.165 (Otaci → Costești → Giurgiu) |
 | B3 | Бердичев → София через ZEL Унгены | Otaci → ZEL → Albița → Giurgiu | 1.465 | 1.584 | 1.465 |
-| B4 | Бердичев → Русе | Otaci → Albița | 1.142 | 1.241 | 1.126 (Otaci → Costești) |
-| B5 | Бердичев → нефтебаза Бричень | Mămăliga | 522 | 613 | 522 |
-| B6 | Бердичев → нефтебаза Кишинёв (Маноле) | Otaci | 673 | 761 | 673 |
+| B4 | Бердичев → Русе | Otaci → Albița | 859 | 911 | 843 (Otaci → Costești) |
+| B5 | Бердичев → нефтебаза Бричень | Otaci | 252 | 283 | 252 |
+| B6 | Бердичев → нефтебаза Кишинёв (Маноле) | Otaci | 400 | 431 | 400 |
 | B7 | Бердичев → Констанца через ZEL Унгены | Otaci → ZEL → Albița | 1.114 | 1.280 | 1.114 |
 | B8 | Бердичев → Русе через ZEL Унгены | Otaci → ZEL → Albița | 1.142 | 1.255 | 1.142 |

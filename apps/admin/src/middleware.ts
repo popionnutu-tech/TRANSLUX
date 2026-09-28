@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
 // Căile publice (fără JWT) stau în lib/public-paths.ts — funcție pură, cu test.
 import { isPublicPath } from '@/lib/public-paths';
+import { accountState } from '@/lib/account-state';
+import { sesiuneValida } from '@/lib/login-guard';
 
 const DISPATCHER_ALLOWED = ['/grafic', '/drivers', '/vehicles'];
 const GRAFIC_ALLOWED = ['/grafic'];
@@ -37,10 +39,19 @@ export async function middleware(request: NextRequest) {
 
   try {
     const { payload } = await jwtVerify(token, new TextEncoder().encode(authSecret));
-    const role = payload.role as string;
-    if (!role) {
+    if (!payload.role || !payload.sub) {
       return NextResponse.redirect(new URL('/login', request.url));
     }
+    // ION-126: tokenul semnat nu mai ajunge — contul trebuie să fie activ și cu aceeași versiune de
+    // sesiune (migr. 428). Altfel parola schimbată, contul dezactivat sau «Închide sesiunile» n-ar
+    // scoate afară un cookie deja copiat. Rolul se ia din bază, nu din token.
+    const cont = await accountState(payload.sub);
+    if (!sesiuneValida(payload.sv, cont)) {
+      const r = NextResponse.redirect(new URL('/login', request.url));
+      r.cookies.delete('translux-session');
+      return r;
+    }
+    const role = cont!.role;
 
     if (role === 'DISPATCHER') {
       const allowed = DISPATCHER_ALLOWED.some(r => pathname === r || pathname.startsWith(r + '/'));

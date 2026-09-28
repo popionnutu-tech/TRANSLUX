@@ -77,6 +77,7 @@ export interface AdminAccount {
   // Migr. 282 — drepturi fine per cont (perioada de implementare), NU per rol:
   edit_window_days: number;      // zile în urmă în care poate corecta documente; 0 = doar azi. ADMIN e nelimitat.
   sees_all_invoices: boolean;    // true = vede toate facturile în e-Factura, nu doar ale lui. ADMIN/CONTABIL oricum le văd.
+  session_version: number;       // Migr. 428: crește la parolă/rol/dezactivare/«Închide sesiunile»; JWT-ul poartă `sv`.
 }
 
 export interface User {

@@ -4,6 +4,8 @@ import bcrypt from 'bcryptjs';
 const { compare } = bcrypt;
 import { getSupabase } from './supabase';
 import type { AdminAccount, AdminRole } from '@translux/db';
+import { accountState } from './account-state';
+import { sesiuneValida } from './login-guard';
 
 const AUTH_SECRET = process.env.AUTH_SECRET;
 if (!AUTH_SECRET && (process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV)) {
@@ -12,27 +14,33 @@ if (!AUTH_SECRET && (process.env.NODE_ENV === 'production' || process.env.VERCEL
 const secret = new TextEncoder().encode(AUTH_SECRET || 'dev-only-secret-local-only');
 const COOKIE_NAME = 'translux-session';
 
-export async function authenticate(email: string, password: string): Promise<string | null> {
+export type AuthResult =
+  | { ok: true; token: string; admin: AdminAccount }
+  | { ok: false; motiv: 'necunoscut' | 'inactiv' | 'parola'; adminId: string | null };
+
+export async function authenticate(email: string, password: string): Promise<AuthResult> {
   email = (email || '').trim().toLowerCase();
   const { data } = await getSupabase()
     .from('admin_accounts')
     .select('*')
     .eq('email', email)
-    .single();
+    .maybeSingle();
 
-  if (!data) return null;
+  if (!data) return { ok: false, motiv: 'necunoscut', adminId: null };
 
   const admin = data as AdminAccount;
-  if (admin.active === false) return null;
+  if (admin.active === false) return { ok: false, motiv: 'inactiv', adminId: admin.id };
   const valid = await compare(password, admin.password_hash);
-  if (!valid) return null;
+  if (!valid) return { ok: false, motiv: 'parola', adminId: admin.id };
 
-  const token = await new SignJWT({ sub: admin.id, email: admin.email, role: admin.role })
+  // `sv` (migr. 428): tokenul cade când versiunea sesiunii contului crește — schimbarea parolei,
+  // a rolului, dezactivarea sau butonul «Închide sesiunile» de pe /users.
+  const token = await new SignJWT({ sub: admin.id, email: admin.email, role: admin.role, sv: admin.session_version ?? 0 })
     .setProtectedHeader({ alg: 'HS256' })
     .setExpirationTime('24h')
     .sign(secret);
 
-  return token;
+  return { ok: true, token, admin };
 }
 
 export interface Session {
@@ -52,10 +60,14 @@ export async function verifySession(): Promise<Session | null> {
     // (facturile mele, depozitul meu, fereastra mea). Un `sub` lipsă ar da `undefined`, iar filtrele
     // care tratează valoarea falsy drept „fără restricție" s-ar deschide tăcut.
     if (!payload.role || !payload.sub) return null;
+    // Semnătura singură nu mai ajunge (ION-126): contul trebuie să fie activ și cu aceeași versiune
+    // de sesiune, iar rolul se ia din bază — o retrogradare lucrează fără să aștepte expirarea tokenului.
+    const cont = await accountState(payload.sub);
+    if (!sesiuneValida(payload.sv, cont)) return null;
     return {
       id: payload.sub as string,
       email: payload.email as string,
-      role: payload.role as AdminRole,
+      role: cont!.role as AdminRole,
     };
   } catch {
     return null;

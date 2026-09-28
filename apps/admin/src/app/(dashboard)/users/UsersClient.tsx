@@ -17,6 +17,7 @@ import {
   updateAdminRole,
   updateAdminEditWindow,
   updateAdminInvoiceVisibility,
+  closeAdminSessions,
   createPeronAppLinkCode,
 } from './actions';
 import type { InviteWithAdmin, AdminAccountInfo } from './actions';
@@ -128,6 +129,17 @@ export default function UsersClient({
     setError('');
     try {
       await updateAdminInvoiceVisibility(id, seesAll);
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
+
+  async function handleCloseSessions(id: string, email: string) {
+    if (!confirm(`Închizi toate sesiunile deschise ale contului ${email}? Va trebui să se logheze din nou pe toate aparatele. Parola rămâne aceeași.`)) return;
+    setError('');
+    try {
+      await closeAdminSessions(id);
       router.refresh();
     } catch (err: any) {
       setError(err.message);
@@ -608,6 +620,7 @@ export default function UsersClient({
                 <th>DEPOZIT</th>
                 <th>CORECȚII</th>
                 <th>FACTURI</th>
+                <th>SESIUNI</th>
               </tr>
             </thead>
             <tbody>
@@ -620,7 +633,7 @@ export default function UsersClient({
                   <td style={{ fontFamily: 'monospace', fontSize: 12 }}>•••</td>
                   <td>
                     {/* Rolul e sursa drepturilor (piese-access.ts + piese-nav.ts + middleware).
-                        Intră în vigoare după ce contul se re-autentifică — rolul stă în JWT (24h). */}
+                        Schimbarea închide sesiunile contului (migr. 428); omul se loghează din nou. */}
                     <select
                       className="u-select"
                       value={a.role}
@@ -688,6 +701,17 @@ export default function UsersClient({
                     ) : (
                       <span style={{ color: '#ccc' }}>—</span>
                     )}
+                  </td>
+                  <td>
+                    {/* ION-126: scoate contul de pe toate aparatele, inclusiv un cookie copiat. */}
+                    <button
+                      type="button"
+                      className="u-btn-link"
+                      style={{ fontSize: 12, color: '#b42318', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                      onClick={() => handleCloseSessions(a.id, a.email)}
+                    >
+                      Închide sesiunile
+                    </button>
                   </td>
                 </tr>
               ))}

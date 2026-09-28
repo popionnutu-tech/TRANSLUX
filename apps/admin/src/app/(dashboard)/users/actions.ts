@@ -9,6 +9,7 @@ import type { User, UserRole, InviteToken, PointEnum, AdminRole } from '@translu
 import crypto from 'crypto';
 import { canReceiveLinkCode, generateLinkCode } from './linkCode';
 import bcrypt from 'bcryptjs';
+import { forgetAccountState } from '@/lib/account-state';
 
 // ── Users ────────────────────────────────────────────
 
@@ -108,8 +109,8 @@ export async function updateAdminWarehouse(id: string, warehouseId: number | nul
 const VALID_ADMIN_ROLES = ['ADMIN', 'DISPATCHER', 'GRAFIC', 'UZINE', 'OPERATOR_CAMERE', 'ADMIN_CAMERE', 'EVALUATOR_INCASARI', 'CONTABIL', 'DEPOZITAR', 'VINZATOR', 'MANAGER', 'GESTIONAR', 'DISPECER', 'OBSERVATOR'];
 
 // Schimbă rolul unui cont administrativ (ex. acces lărgit pe durata testării, apoi restrâns). Doar ADMIN.
-// ATENȚIE: rolul e purtat de JWT-ul de sesiune (24h, vezi lib/auth.ts) — contul afectat trebuie să se
-// re-autentifice ca noul rol să intre în vigoare; până atunci middleware-ul îl vede tot cu rolul vechi.
+// Schimbarea rolului crește session_version (trigger, migr. 428): sesiunile deschise ale contului cad
+// în cel mult 30 s (cache-ul din lib/account-state.ts), iar omul se loghează din nou cu rolul nou.
 export async function updateAdminRole(id: string, role: string): Promise<void> {
   const session = await verifySession();
   if (!session || session.role !== 'ADMIN') throw new Error('Acces interzis');
@@ -146,6 +147,7 @@ export async function updateAdminRole(id: string, role: string): Promise<void> {
 
   const { error } = await db.from('admin_accounts').update(patch).eq('id', id);
   if (error) throw new Error(error.message);
+  forgetAccountState(id);
   // Acordarea/retragerea unui drept lasă urmă: altfel nu se poate verifica retroactiv că o lărgire
   // temporară a fost și retrasă. `entityId: 0` — subiectul e un cont (uuid), care stă în `detail`.
   // Consemnăm PATCH-ul efectiv aplicat, nu o replică scrisă de mână a lui: dacă regula de resetare se
@@ -205,6 +207,22 @@ export async function updateAdminInvoiceVisibility(id: string, seesAll: boolean)
   if (error) throw new Error(error.message);
   const vPrev = !!(acc as { sees_all_invoices: boolean }).sees_all_invoices;
   if (vPrev !== !!seesAll) await auditWrite({ adminId: session.id, action: 'INVOICE_VISIBILITY', entity: 'admin_account', subjectId: id, before: { sees_all_invoices: vPrev }, after: { sees_all_invoices: !!seesAll } });
+  revalidatePath('/users');
+}
+
+// ION-126: scoate contul din toate sesiunile deschise (telefon, laptop, un cookie copiat). Pe celelalte
+// instanțe Vercel lucrează în cel mult 30 s — cât ține cache-ul stării contului. Parola NU se schimbă.
+export async function closeAdminSessions(id: string): Promise<void> {
+  const session = await verifySession();
+  if (!session || session.role !== 'ADMIN') throw new Error('Acces interzis');
+  const db = getSupabase();
+  const { data: acc } = await db.from('admin_accounts').select('session_version').eq('id', id).maybeSingle();
+  if (!acc) throw new Error('Cont inexistent');
+  const prev = (acc as { session_version: number }).session_version ?? 0;
+  const { error } = await db.from('admin_accounts').update({ session_version: prev + 1 }).eq('id', id);
+  if (error) throw new Error(error.message);
+  forgetAccountState(id);
+  await auditWrite({ adminId: session.id, action: 'SESSIONS_CLOSED', entity: 'admin_account', subjectId: id, before: { session_version: prev }, after: { session_version: prev + 1 } });
   revalidatePath('/users');
 }
 

@@ -1,6 +1,7 @@
 'use server';
 
 import { getSupabase } from '@/lib/supabase';
+import { forgetAccountState } from '@/lib/account-state';
 import { verifySession } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
 
@@ -108,6 +109,8 @@ export async function toggleOperatorActive(
     .eq('id', id);
 
   if (error) return { error: error.message };
+  // Dezactivarea crește session_version (trigger, migr. 428) — operatorul iese din sesiunile deschise.
+  forgetAccountState(id);
   return {};
 }
 

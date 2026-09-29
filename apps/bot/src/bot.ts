@@ -16,6 +16,7 @@ import { initAdminAlert } from './services/adminAlert.js';
 import { handleDaily, handleSmmWeekly, handleSmmMonth } from './handlers/smm.js';
 import { initTaskBoard, bindTaskBoard, getBoardAssignee, sweepTaskBoards } from './services/taskBoard.js';
 import { sendVoiceLessonDigest, decideVoiceLesson } from './services/voiceLessons.js';
+import { grupaCamioane, intrebareCatreBot, raspundeTraseu } from './services/camioaneTrasee.js';
 import { bindDriversGroup, currentDriversGroup, bindGraficGroup, currentGraficGroup, bindLivrariGroup, currentLivrariGroup, bindDtGroup, currentDtGroup, bindCamioaneGroup, currentCamioaneGroup } from './services/driversGroup.js';
 
 export function createBot(): Bot<BotContext> {
@@ -360,6 +361,20 @@ export function createBot(): Bot<BotContext> {
         '• Poți anula ultimul raport în primele 10 minute.\n\n' +
         'Probleme? Contactează administratorul.'
     );
+  });
+
+  // Grupa camioanelor (ION-144): botul răspunde cu drumul corect al cisternei, din scheletul ideal, doar când e
+  // menționat, când i se răspunde la mesaj sau la /traseu. Celelalte grupe și mesajele obișnuite trec mai departe.
+  bot.on('message:text', async (ctx, next) => {
+    if (ctx.chat.type === 'private') return next();
+    const grup = await grupaCamioane();
+    if (!grup || String(ctx.chat.id) !== grup) return next();
+    const q = intrebareCatreBot(ctx.message, ctx.me.id, ctx.me.username);
+    if (!q) return next();
+    await ctx.replyWithChatAction('typing').catch(() => {});
+    const r = ctx.message.reply_to_message;
+    const raspuns = await raspundeTraseu(q, r?.from?.id === ctx.me.id ? (r.text ?? r.caption) : undefined);
+    await ctx.reply(raspuns, { reply_to_message_id: ctx.message.message_id } as any).catch((err) => console.error('camioane-traseu reply:', err?.message ?? err));
   });
 
   // Fallback for unauthorized users

@@ -2,6 +2,7 @@
 // să fie o pagină separată în LDE, în care drumurile se arată detaliat la fiecare mașină pe hartă».
 // Rândul îl scrie VPS-ul (drax/cod/saptamanal/harta-zi.mjs) în lde_harta_zi; aici doar tipurile și funcțiile pure ale paginii.
 import type { ZiDrax } from './drax-analiza';
+import type { DrumPropus, LocParcare, ZiParcare } from './drax-parcare';
 
 export type Punct = [number, number];
 /** tipul intervalului: cursă cu oameni, gol, muncă (între uzine / deplasare / service), la uzină (parc, gol între ture) */
@@ -21,6 +22,8 @@ export interface ZiHarta {
   stai: [number, number, number, number, string][];
   zi: ZiDrax | null;
   ideal: { economie: number; cauze: Record<string, number> } | null;
+  /** ION-136: parcarea propusă a mașinii și drumurile propuse ale zilei */
+  parcare?: { locuri: LocParcare[]; economieSapt: number; idealSapt: number | null; zi: ZiParcare | null; legi: DrumPropus[] } | null;
 }
 export interface SumarZiHarta {
   dow: number; total: number; cuOameni: number; gol: number;
@@ -28,8 +31,12 @@ export interface SumarZiHarta {
   economie: number | null; ideal: number | null; linii: string[];
   /** de ce ziua nu intră în calcul */
   motivAfara?: string | null;
-  /** cifra mașinii din raport («Economie față de ziua ideală», km pe săptămână, adusă la 5 zile) — aceeași pe toate zilele ei */
+  /** cifra mașinii din raport (din ION-136: parcarea propusă, km pe săptămână, adusă la 5 zile) — aceeași pe toate zilele ei */
   economieSapt?: number | null;
+  /** ION-136: locurile de parcare propuse */
+  locuri?: string[];
+  /** de unde vine economia din listă: parcarea propusă (din 29.09) sau ziua ideală (rândurile vechi) */
+  sursaEconomie?: 'parcare' | 'ideal';
 }
 export interface RandListaHarta { m: string; z: string; sumar: SumarZiHarta }
 
@@ -70,6 +77,7 @@ export function masiniSaptamana(rows: RandListaHarta[]) {
 /** cadrul hărții: urma zilei (fără ea, liniile din schelet) */
 export function cadru(zi: ZiHarta, linii: LinieSchelet[]): [Punct, Punct] | null {
   const pts: Punct[] = zi.iv.flatMap((v) => v.s.map((p) => [p[0], p[1]] as Punct));
+  for (const l of zi.parcare?.locuri ?? []) pts.push(l.c);   // ION-136: locurile de parcare propuse rămân în cadru
   if (pts.length < 2) for (const l of linii) pts.push(...l.plin);
   if (pts.length < 2) return null;
   const la = pts.map((p) => p[0]), lo = pts.map((p) => p[1]);

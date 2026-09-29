@@ -1,0 +1,17 @@
+{
+  "score": 8.0,
+  "verdict": "fail",
+  "summary": "Reparația este confirmată pentru rândurile cu ancore: exportul este aditiv, iar formula produce 52 km în exemplul verificat. Pentru rândurile vechi, fallback-ul reintroduce eroarea și permite publicarea unei economii supraestimate.",
+  "deductions": [
+    {
+      "id": "C2",
+      "severity": "high",
+      "weight": 2.5,
+      "title": "Rândurile fără ancore reintroduc ocolul între capetele greșite.",
+      "detail": "Fallback-ul folosește capetele curselor, dar păstrează legNoapte calculată între E și S. Marcajul ancore:false există doar intern și dispare din legiOut; proba ignoră nopțile fără ancore, iar verificarea înaintea scrierii nu le respinge. Executarea în memorie a fragmentelor reale de selecție a ancorelor și calcul al costului confirmă diferența dintre rândurile noi și cele vechi.",
+      "evidence": "docs/plans/2026-09-29-drax-parcare/vps/parcare.mjs:72; docs/plans/2026-09-29-drax-parcare/vps/parcare.mjs:78; docs/plans/2026-09-29-drax-parcare/vps/parcare.mjs:97; docs/plans/2026-09-29-drax-parcare/vps/parcare.mjs:140; docs/plans/2026-09-29-drax-parcare/vps/proba-noapte.mjs:13; docs/plans/2026-09-29-drax-parcare/vps/scrie-parcare.mjs:9",
+      "failure_scenario": "Un ziua-ideala.json vechi, fără ancore, conține o noapte cu ambele zile măsurate, A=P=0, legătură internă A→U=10, deplasare obligatorie U→E=12 și E=22, S=B=20, legNoapte=2. Fallback-ul calculează 10+2+max(0,0+20−20)=12 km în loc de 52. Economia este supraestimată cu 40 km, dar plafonul ideal trece deoarece costul calculat este chiar costul ideal.",
+      "suggested_fix": "Impune în plan regenerarea zilei ideale cu ancore înaintea calculului parcării și oprirea calculului/publicării pentru nopțile relevante fără E sau S. Cere ca proba să respingă ancorele lipsă și adaugă regresia pe un rând vechi, verificând că acesta nu poate produce o propunere publicabilă."
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+parcare: 38 mașini · de tăiat 4028.8 km măsurat (4507.2 adus la 5 zile; ideal 4777.2) · două locuri 15 · peste 100 km 17
+  710CWN    534.1 (ideal 535.1) · P1 Lazo (15) · 2 locuri −0
+  518MHD    453.5 (ideal 467.3) · P1 Florești·oraș (13) · 2 locuri −2.6
+  925FTI    439.7 (ideal 443.3) · P1 Fălești·oraș (10) + P2 Ilenuța (6) · 2 locuri −51.2
+  345KAJ      291 (ideal 296.3) · P1 Recea (3) + P2 Rîșcani·oraș (8) · 2 locuri −33.4
+  457BRAX   284.9 (ideal 301.3) · P1 Limbenii Vechi (11) + P2 Rîșcani·oraș (5) · 2 locuri −141.3
+  912RNK    264.2 (ideal 266.7) · P1 Cucioaia Nouă (5) + P2 Hiliuți (6) · 2 locuri −81.5
+  713IZX    226.7 (ideal 228.3) · P1 Prajila (15) · 2 locuri −1.2
+  302YEK    208.6 (ideal 213.1) · P1 Căinarii Vechi·deja (10) + P2 Baroncea (6) · 2 locuri −82.8
+  447ASB    165.8 (ideal 165.9) · P1 Danu (6) + P2 acasă (Ciuciulea)·deja (9) · 2 locuri −40.9
+  388ASB    161.5 (ideal 166.3) · P1 Sofia (5) + P2 Șuri·deja (10) · 2 locuri −27
+  346KAJ      154 (ideal 154) · P1 Dondușeni·oraș (5) · 2 locuri −0
+  804MUM    148.4 (ideal 159.3) · P1 Biruința·oraș (8) · 2 locuri −1.7
+  725CWN    128.6 (ideal 146.8) · P1 Vrănești (13) · 2 locuri −15.7
+  402VKV      119 (ideal 122.7) · P1 Cobani (15) · 2 locuri −2.9
+  744ARF    113.7 (ideal 137.1) · P1 Bălți·deja (5) + P2 Hăsnășenii Noi (6) · 2 locuri −50.6
+  146BRAZ   107.9 (ideal 112.7) · P1 Trifănești (14) · 2 locuri −4.7
+  446ASB    103.7 (ideal 109.8) · P1 Scumpia·deja (15) · 2 locuri −4.9
+  830MUM     97.2 (ideal 110) · P1 Grigorăuca (7) + P2 Bilicenii Vechi (3) · 2 locuri −35.2
+  760BXI     93.8 (ideal 109.7) · P1 Bălți·deja (5) + P2 Balatina (10) · 2 locuri −41.8
+  435ASB     87.3 (ideal 87.5) · P1 Tăura Veche (1) · 2 locuri −0
+  144BRAZ    51.5 (ideal 51.8) · P1 acasă (Dacia)·deja (1) · 2 locuri −0
+  715IZX     49.3 (ideal 50.2) · P1 Heciul Nou (15) · 2 locuri −0.2
+  041BRAU    46.8 (ideal 60.2) · P1 Nicolaevca (10) · 2 locuri −9.9
+  186OMM     36.9 (ideal 37.1) · P1 Grinăuți (5) + P2 Răcăria (6) · 2 locuri −23.2
+  206BZP     32.3 (ideal 33.9) · P1 Rădoaia (15) · 2 locuri −1
+  763LYY     20.9 (ideal 21.6) · P1 Coșernița (8) + P2 acasă (Băhrinești)·deja (3) · 2 locuri −56.2
+  224BZP     20.2 (ideal 23) · P1 Sîngerei·oraș (4) + P2 Catranîc·deja (9) · 2 locuri −86.1
+  441ASB       17 (ideal 26.4) · P1 acasă (Sturzovca)·deja (4) + P2 Fundurii Vechi (9) · 2 locuri −36.9
+  880RNK     14.8 (ideal 23) · P1 acasă (Pelinia) (15) · 2 locuri −6.2
+  414ASB     12.4 (ideal 13.3) · P1 Ciuciulea (5) · 2 locuri −0
+  350KAJ      9.8 (ideal 14.6) · P1 acasă (Florești)·deja (15) · 2 locuri −2.6
+  390ASB      9.6 (ideal 25.7) · P1 Grinăuți (15) · 2 locuri −15.7
+  727CWN      2.1 (ideal 5.9) · P1 acasă (Sturzovca)·deja (5) + P2 Fundurii Noi (8) · 2 locuri −35.8
+  024XKY        0 (ideal 0) · nicio zi măsurată
+  293QVT        0 (ideal —) · nicio zi măsurată
+  386PKP        0 (ideal —) · nicio zi măsurată
+  549RNK        0 (ideal 0) · nicio zi măsurată
+  826GXP        0 (ideal 57.3) · propunerea nu scade km — rămâne cum e · 2 locuri −41.4

@@ -1,0 +1,17 @@
+{
+  "score": 8.0,
+  "verdict": "fail",
+  "summary": "Protecțiile din runda 5 sunt prezente în calcul și în scrierea raportului. C2 rămâne deschisă pe baza unei dovezi noi: publicarea hărții ocolește verificarea ancorelor și acceptă datele respinse de scrie-parcare.mjs.",
+  "deductions": [
+    {
+      "id": "C2",
+      "severity": "high",
+      "weight": 2.5,
+      "title": "Publicarea hărții ocolește protecția pentru nopțile fără ancore.",
+      "detail": "harta-zi.mjs citește direct parcare.json, copiază economia și drumurile în rândurile hărții și le publică fără verificarea ancore === true. Verificarea în memorie a celor două scripturi, cu fișiere și cereri HTTP simulate, confirmă: aceeași propunere cu ancore:false produce exit 1 în scrie-parcare.mjs, dar ajunge la DELETE și POST în harta-zi.mjs.",
+      "evidence": "docs/plans/2026-09-29-drax-parcare/vps/harta-zi.mjs:55; docs/plans/2026-09-29-drax-parcare/vps/harta-zi.mjs:104; docs/plans/2026-09-29-drax-parcare/vps/harta-zi.mjs:114; docs/plans/2026-09-29-drax-parcare/vps/harta-zi.mjs:130; docs/plans/2026-09-29-drax-parcare/vps/harta-zi.mjs:133; docs/plans/2026-09-29-drax-parcare/vps/scrie-parcare.mjs:11",
+      "failure_scenario": "În dosarul săptămânii există parcare.json dintr-un calcul vechi sau din regresia R3, cu loc propus și noapte ne-separată fără ancore valide. Rularea harta-zi.mjs <dosar> --write publică propunerea și economia neverificată în lde_harta_zi, chiar dacă scrie-parcare.mjs respinge același fișier.",
+      "suggested_fix": "Extinde planul cu aceeași validare obligatorie înaintea oricărei scrieri a hărții, inclusiv înainte de DELETE. Extinde R3 la harta-zi.mjs și cere respingerea atât pentru ancore:false, cât și pentru câmpul absent, fără cereri de modificare către bază."
+    }
+  ]
+}

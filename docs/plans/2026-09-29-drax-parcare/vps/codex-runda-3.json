@@ -1,0 +1,17 @@
+{
+  "score": 8.0,
+  "verdict": "fail",
+  "summary": "Reparațiile C1, C3 și C4 sunt confirmate în cod. C2 este reparată parțial: legăturile interne sunt păstrate, dar ancorele greșite ale ocolului pot încă supraestima economia, fără ca verificarea plafonului ideal să detecteze eroarea.",
+  "deductions": [
+    {
+      "id": "C2",
+      "severity": "high",
+      "weight": 2.5,
+      "title": "Ocolul nocturn folosește încă alte ancore decât legătura directă căreia îi este adăugat.",
+      "detail": "Producătorul zilei ideale calculează legNoapte între sfârșitul ultimei deplasări obligatorii E și începutul următoarei S. parcare.mjs adaugă corect legaturaInterna, dar calculează ocolul între capetele curselor cu oameni. Astfel, adună o bază E→S cu un ocol A→P→B minus A→B. Această combinație nu reprezintă costul traseului păstrând deplasările obligatorii. Limita erorii revendicată în plan nu este garantată, iar economia poate egala idealul chiar dacă parcarea impune un ocol suplimentar.",
+      "evidence": "docs/plans/2026-09-29-drax-plimbat/vps/ziua-ideala-activ-ion133.mjs:212; docs/plans/2026-09-29-drax-plimbat/vps/ziua-ideala-activ-ion133.mjs:230; docs/plans/2026-09-29-drax-parcare/vps/parcare.mjs:75; docs/plans/2026-09-29-drax-parcare/vps/parcare.mjs:76; docs/plans/2026-09-29-drax-parcare/vps/parcare.mjs:95; docs/plans/2026-09-29-drax-parcare/vps/scrie-parcare.mjs:9",
+      "failure_scenario": "Exemplu cu distanțe rutiere pe aceeași axă: ultima cursă termină la A=0, legătura internă duce la U=10, deplasarea obligatorie de seară merge U→E=12, iar următoarea cursă începe la B=S=20. Parcarea P=A produce ocol zero în formula actuală. Cu ambele zile măsurate, metoda contabilizează 10 km interni + 8 km nocturni = 18 km. Păstrând deplasarea obligatorie înaintea parcării, traseul necesită 10 + 12 + 20 = 42 km neobligatorii. Economia este supraestimată cu 24 km, dar proba plafonului trece deoarece costul calculat este egal cu idealul.",
+      "suggested_fix": "Completează reparația C2 cu exportarea și folosirea ancorelor E/S pentru ocolul nocturn, păstrând legăturile interne pe zilele lor. Cere o probă de bilanț cu deplasare obligatorie seara sau dimineața și parcare la capătul cursei, inclusiv când numai una dintre zile este măsurată."
+    }
+  ]
+}

@@ -10,6 +10,7 @@ import { perioada, PLAFON } from './timp-liber';
 import type { TimpLiberMasina } from '@/app/(dashboard)/lde/reguli/actions';
 import type { Reguli4Drax } from './drax-reguli4';
 import type { ZiIdealaDrax } from './drax-zi-ideala';
+import type { ParcareDrax } from './drax-parcare';
 
 // ION-119 (Ion, 28.09): intreUzine = drumul între porțile VEST și EST, cursă între uzine (muncă), nu gol; rândurile de dinainte n-au cheia
 export const CAT_DRAX = ['cuOameni', 'livrare', 'golRuta', 'golTure', 'parc', 'service', 'deplasare', 'legatura', 'necunoscut', 'intreUzine'] as const;
@@ -87,6 +88,8 @@ export interface AnalizaDrax {
   reguli4?: Reguli4Drax | null;
   /** ION-123: economia față de «ziua ideală» a fiecărei mașini; lipsă la rândurile de dinainte de 28.09.2026 */
   ziIdeala?: ZiIdealaDrax | null;
+  /** ION-136 (29.09.2026): parcarea propusă, cifra principală în locul zilei ideale */
+  parcare?: ParcareDrax | null;
 }
 
 // ─── planul (ION-108, partea A: câmp aditiv scris de VPS, contractul §6 din plan-v3) ─────────

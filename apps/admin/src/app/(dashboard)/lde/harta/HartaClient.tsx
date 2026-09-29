@@ -8,6 +8,7 @@ import { povesteZi } from '@/lib/lde/drax-ziua';
 import {
   CULOARE, LINIE, NUME_TIP, eticZi, masiniSaptamana, type LinieSchelet, type Punct, type RandListaHarta, type TipInterval, type ZiHarta,
 } from '@/lib/lde/drax-harta';
+import { culoareLoc } from '@/lib/lde/drax-parcare';
 
 const HartaMasinaMap = dynamic(() => import('@/components/HartaMasinaMap'), {
   ssr: false,
@@ -109,6 +110,7 @@ export default function HartaClient({ saptamani, sapt, masini, masina, z, zi, zi
               </span>
             ))}
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><svg width="26" height="8" aria-hidden><line x1="1" y1="4" x2="25" y2="4" stroke="#C9B458" strokeOpacity="0.5" strokeWidth="7" /></svg>schelet</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><svg width="26" height="6" aria-hidden><line x1="2" y1="3" x2="25" y2="3" stroke={culoareLoc(1)} strokeWidth="3.5" strokeDasharray="1 6" strokeLinecap="round" /></svg>drum propus · <b style={{ background: culoareLoc(1), color: '#fff', borderRadius: 4, padding: '0 4px' }}>P1</b> <b style={{ background: culoareLoc(2), color: '#fff', borderRadius: 4, padding: '0 4px' }}>P2</b> parcare</span>
             <span>● oprire ≥ 5 min · <b style={{ color: '#2E7D32' }}>○</b> acasă · <b style={{ color: '#5B3A8C' }}>○</b> noaptea</span>
           </div>
           {ales && (
@@ -124,9 +126,26 @@ export default function HartaClient({ saptamani, sapt, masini, masina, z, zi, zi
             {zi?.casa && <span style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>acasă: {zi.casa.n}</span>}
           </div>
           <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 2 }}>
-            săptămâna: {n0(m?.total)} km, de tăiat față de ziua ideală {n0(m?.economie)} km pe săptămână
+            săptămâna: {n0(m?.total)} km, de tăiat {sumar?.sursaEconomie === 'parcare' ? 'cu parcarea propusă' : 'față de ziua ideală (calcul vechi)'} {n0(m?.economie)} km pe săptămână
             {m && Math.abs(m.economie - m.zileMasurate) > 0.5 && <> (în zilele măsurate {n0(m.zileMasurate)} km, adus la 5 zile ca în raport)</>}
           </div>
+
+          {zi?.parcare?.locuri.length ? (
+            <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border-accent)', background: '#FFF7F0' }}>
+              <div style={ETICHETA}>Parcare propusă</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4, fontSize: 13 }}>
+                {zi.parcare.locuri.map((l) => (
+                  <span key={l.nr} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                    <b style={{ background: culoareLoc(l.nr), color: '#fff', borderRadius: 5, padding: '2px 6px', fontFamily: MONO, fontSize: 11.5 }}>P{l.nr}</b>{l.n}
+                  </span>
+                ))}
+              </div>
+              <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 4, lineHeight: 1.4 }}>
+                Între schimburi și noaptea mașina stă aici; drumurile propuse sunt punctate pe hartă. Drumul șoferului spre casă nu e socotit.
+                {zi.parcare.idealSapt != null ? ` Maximul teoretic (așteaptă la fiecare capăt): ${n0(zi.parcare.idealSapt)} km/săpt.` : ''}
+              </div>
+            </div>
+          ) : null}
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, margin: '10px 0' }}>
             {zileMasina.map((r) => {

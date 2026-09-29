@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect } from 'react';
-import { MapContainer, TileLayer, Polyline, CircleMarker, Tooltip, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Polyline, CircleMarker, Marker, Tooltip, useMap } from 'react-leaflet';
+import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
   CULOARE, LINIE, NUME_TIP, cadru, durata, oraLocala, type LinieSchelet, type Punct, type ZiHarta,
 } from '@/lib/lde/drax-harta';
+import { culoareLoc, etichetaLoc } from '@/lib/lde/drax-parcare';
 
 // Harta unei mașini pe o zi (ION-130): dedesubt linia (liniile) ei din schelet, deasupra urma GPS pe intervale colorate după ce face
 // mașina, opririle ≥ 5 min, casa, locul nopții și porțile. Intervalul ales în listă se îngroașă, celelalte pălesc.
@@ -24,6 +26,10 @@ function Incadreaza({ zi, linii, ales }: { zi: ZiHarta; linii: LinieSchelet[]; a
   }, [zi, linii, ales, map]);
   return null;
 }
+
+// ION-136: locul de parcare propus — insignă mare «P1» / «P2», în culoarea lui, cu numele permanent alături
+const insigna = (nr: number) => L.divIcon({ className: '', iconSize: [36, 30], iconAnchor: [18, 15],
+  html: `<div style="background:${culoareLoc(nr)};color:#fff;font:700 14px/1 system-ui,sans-serif;padding:7px 8px;border-radius:8px;border:2px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.5);text-align:center">P${nr}</div>` });
 
 const INEL = (culoare: string, r = 7) => ({ radius: r, pathOptions: { color: culoare, weight: 3, fillColor: '#fff', fillOpacity: 1 } });
 
@@ -88,6 +94,23 @@ export default function HartaMasinaMap({ zi, linii, porti, ales, onAlege }: {
         <CircleMarker key={x.cand} center={x.c} {...INEL('#5B3A8C', 6)}>
           <Tooltip direction="bottom" offset={[0, 6]}>{x.cand}: {x.n}{x.min ? ` (${durata(x.min * 60)})` : ''}</Tooltip>
         </CircleMarker>
+      ))}
+
+      {/* ION-136: drumurile propuse (capătul cursei → locul de parcare → plecarea următoare), punctate în culoarea locului */}
+      {(zi.parcare?.legi ?? []).filter((l) => !l.separat).flatMap((l, i) => {
+        const loc = zi.parcare!.locuri.find((x) => x.nr === l.loc); if (!loc) return [];
+        const sel = ales !== null && (ales === l.ora || ales === l.oraDim), pal = ales !== null && !sel;
+        const po = { color: culoareLoc(l.loc), weight: sel ? 5 : 3.5, opacity: pal ? 0.25 : 0.95, dashArray: '1 8', lineCap: 'round' as const };
+        const txt = `propus: ${l.aN ?? 'capăt'} → ${etichetaLoc(loc)} → ${l.bN ?? 'capăt'}, ${l.km.toLocaleString('ro-RO')} km${l.parte === 'noapte' ? ' (noaptea)' : ''}`;
+        const out = [];
+        if (l.parte !== 'noapte' || l.seara) out.push(<Polyline key={`pa-${i}`} positions={[l.a, loc.c]} pathOptions={po}><Tooltip sticky>{txt}</Tooltip></Polyline>);
+        if (l.parte !== 'noapte' || l.dimineata) out.push(<Polyline key={`pb-${i}`} positions={[loc.c, l.b]} pathOptions={po}><Tooltip sticky>{txt}</Tooltip></Polyline>);
+        return out;
+      })}
+      {(zi.parcare?.locuri ?? []).map((l) => (
+        <Marker key={`P${l.nr}`} position={l.c} icon={insigna(l.nr)} zIndexOffset={1000}>
+          <Tooltip direction="right" offset={[18, 0]} permanent opacity={1}><b>{etichetaLoc(l)}</b> — parcare propusă</Tooltip>
+        </Marker>
       ))}
 
       {porti.map((p) => (

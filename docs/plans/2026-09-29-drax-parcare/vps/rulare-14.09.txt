@@ -1,0 +1,39 @@
+parcare: 38 mașini · de tăiat 3881.2 km măsurat (4335.6 adus la 5 zile; ideal 4811.6) · două locuri 11 · peste 100 km 17
+  710CWN    534.1 (ideal 535.1) · P1 Lazo (15) · 2 locuri −0
+  518MHD    453.5 (ideal 467.3) · P1 Florești (14) · 2 locuri −2
+  925FTI    415.4 (ideal 443.3) · P1 Ilenuța (16) · 2 locuri −18.5
+  345KAJ      268 (ideal 296.3) · P1 Rîșcani (15) · 2 locuri −17.7
+  912RNK    256.8 (ideal 266.7) · P1 Popovca (5) + P2 acasă (Dumbrăvița) (10) · 2 locuri −79.4
+  457BRAX   254.9 (ideal 301.3) · P1 Slobozia-Recea (5) + P2 Limbenii Vechi (13) · 2 locuri −105.1
+  713IZX    226.7 (ideal 228.3) · P1 Prajila (15) · 2 locuri −1.2
+  302YEK    193.8 (ideal 213.1) · P1 Baroncea (6) + P2 Căinarii Vechi (10) · 2 locuri −81.7
+  447ASB    165.9 (ideal 165.9) · P1 Danu (6) + P2 acasă (Ciuciulea) (9) · 2 locuri −40.9
+  804MUM    157.5 (ideal 159.3) · P1 Țiplești (13) · 2 locuri −1.3
+  388ASB    156.7 (ideal 166.3) · P1 Sofia (9) + P2 Pelinia (6) · 2 locuri −22.1
+  346KAJ      154 (ideal 154) · P1 Dondușeni (5) · 2 locuri −0
+  725CWN    129.9 (ideal 146.8) · P1 Vrănești (16) · 2 locuri −13
+  402VKV      119 (ideal 122.7) · P1 Cobani (15) · 2 locuri −0
+  744ARF    113.7 (ideal 137.1) · P1 Bălți (5) + P2 Hăsnășenii Noi (10) · 2 locuri −33.9
+  146BRAZ   107.9 (ideal 112.7) · P1 Trifănești (16) · 2 locuri −4.7
+  446ASB    103.7 (ideal 109.8) · P1 Scumpia (15) · 2 locuri −3.8
+  830MUM       97 (ideal 110) · P1 Grigorăuca (8) + P2 Bilicenii Vechi (4) · 2 locuri −21.1
+  760BXI     91.7 (ideal 109.7) · P1 Limbenii Vechi (10) + P2 acasă (Hîjdieni) (5) · 2 locuri −24.7
+  435ASB     87.3 (ideal 87.5) · P1 Tăura Veche (5) · 2 locuri −0
+  715IZX     49.3 (ideal 50.2) · P1 Heciul Nou (15) · 2 locuri −0.2
+  041BRAU    46.7 (ideal 60.2) · P1 Nicolaevca (14) · 2 locuri −5.7
+  144BRAZ    42.7 (ideal 51.8) · P1 Glinjeni (5) · 2 locuri −0
+  206BZP     32.3 (ideal 33.9) · P1 Rădoaia (15) · 2 locuri −1
+  441ASB     21.1 (ideal 26.4) · P1 Fundurii Vechi (8) + P2 Sadovoe (7) · 2 locuri −29.5
+  880RNK     14.8 (ideal 23) · P1 acasă (Pelinia) (15) · 2 locuri −6.2
+  186OMM     13.8 (ideal 37.1) · P1 Corlăteni (15) · 2 locuri −16.6
+  350KAJ      9.8 (ideal 14.6) · P1 acasă (Florești) (15) · 2 locuri −2.6
+  390ASB      9.6 (ideal 25.7) · P1 Grinăuți (15) · 2 locuri −15.7
+  826GXP        8 (ideal 57.3) · P1 Dominteni (6) · 2 locuri −15.1
+  024XKY        0 (ideal 0) · P1 Drochia (5) · 2 locuri −0
+  224BZP        0 (ideal 23) · P1 Glinjeni (10) + P2 Catranîc (5) · 2 locuri −35.3
+  293QVT        0 (ideal 34.4) · P1 Bălți (6) · 2 locuri −0
+  386PKP        0 (ideal 0) · P1 Rîșcani (5) · 2 locuri −0
+  414ASB        0 (ideal 13.3) · P1 Ciuciulea (5) · 2 locuri −0
+  549RNK        0 (ideal 0) · P1 Edineț (15) · 2 locuri −0
+  727CWN        0 (ideal 5.9) · P1 Sadovoe (8) + P2 Fundurii Noi (8) · 2 locuri −28.8
+  763LYY        0 (ideal 21.6) · P1 Mărculești (13) · 2 locuri −17.4

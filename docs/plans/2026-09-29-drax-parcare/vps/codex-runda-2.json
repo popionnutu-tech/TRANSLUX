@@ -1,0 +1,47 @@
+{
+  "score": 3.0,
+  "verdict": "fail",
+  "summary": "Căutarea tuturor candidaților și verificarea economiei față de ideal sunt îmbunătățiri solide. Totuși, selecția finală poate încălca regulile pentru două locuri, iar calculul nopții omite legături păstrate în ziua ideală. Integrarea pierde motivele lipsei propunerii și poate prezenta cifrele teoretice vechi drept economii ale parcării propuse.",
+  "deductions": [
+    {
+      "id": "C1",
+      "severity": "high",
+      "weight": 2.5,
+      "title": "Condițiile pentru două locuri nu sunt garantate pentru perechea publicată.",
+      "detail": "Pragul de câștig și minimum trei drumuri sunt verificate înaintea înlocuirilor pentru preferință. Aceste înlocuiri schimbă costul și repartizarea drumurilor fără reverificarea condițiilor. Rularea reală confirmă problema: 830MUM primește P2 Bilicenii Vechi pentru numai două drumuri. În plus, căutarea păstrează întâi minimul necondiționat și verifică utilizarea doar pentru acesta; dacă perechea minimă este neeligibilă, alte perechi eligibile nu mai sunt considerate.",
+      "evidence": "docs/plans/2026-09-29-drax-parcare/vps/parcare.mjs:103; docs/plans/2026-09-29-drax-parcare/vps/parcare.mjs:105; docs/plans/2026-09-29-drax-parcare/vps/parcare.mjs:111; docs/plans/2026-09-29-drax-parcare/vps/rulare-14.09-r2.txt:20",
+      "failure_scenario": "În rularea din 14.09, 830MUM primește două locuri, dar al doilea este folosit numai la două drumuri, sub MIN_DRUMURI=3. O înlocuire care consumă toleranța poate reduce și câștigul final sub pragul de 20 km/săptămână.",
+      "suggested_fix": "Prevede alegerea dintre perechile eligibile, aplicarea preferințelor numai dacă păstrează eligibilitatea și o probă obligatorie asupra perechii finale: minimum trei drumuri pentru fiecare loc și câștig final de minimum 20 km/săptămână."
+    },
+    {
+      "id": "C2",
+      "severity": "high",
+      "weight": 2.5,
+      "title": "Costul nopții omite legăturile interne dinaintea sau de după deplasările obligatorii.",
+      "detail": "Metoda preia numai legNoapte și construiește ocolul între capetele curselor cu oameni. Producătorul zilei ideale mută însă ancorele nopții la capetele deplasărilor obligatorii și adaugă separat legaturaInterna. Aceste legături nu sunt incluse nici în obligatorii, nici în plimbat, deci dispar din costul propus. Proba plafonului poate opri publicarea, dar nu repară calculul.",
+      "evidence": "docs/plans/2026-09-29-drax-parcare/vps/parcare.mjs:71; docs/plans/2026-09-29-drax-parcare/vps/parcare.mjs:75; docs/plans/2026-09-29-drax-parcare/vps/parcare.mjs:121; docs/plans/2026-09-29-drax-plimbat/vps/ziua-ideala-activ-ion133.mjs:209; docs/plans/2026-09-29-drax-plimbat/vps/ziua-ideala-activ-ion133.mjs:361; docs/plans/2026-09-29-drax-plimbat/vps/ziua-ideala-activ-ion133.mjs:369",
+      "failure_scenario": "După ultima cursă există o legătură de 10 km până la o deplasare obligatorie, apoi o legătură nocturnă de 17 km spre următoarea cursă. Pentru un candidat cu ocol calculat zero, metoda contabilizează numai 17 km în locul celor 27 km de legături. Dacă ambele zile sunt măsurate, economia este supraestimată cu 10 km și poate bloca scrierea întregii săptămâni prin depășirea idealului.",
+      "suggested_fix": "Completează planul cu păstrarea legăturilor interne pe zilele lor și folosirea ancorelor corecte ale deplasărilor obligatorii pentru ocolul prin parcare. Cere o probă de bilanț pentru nopți cu legaturaInterna pozitivă, inclusiv când numai una dintre zile este măsurată."
+    },
+    {
+      "id": "C3",
+      "severity": "medium",
+      "weight": 1.5,
+      "title": "Scrierea raportului elimină motivul pentru care mașina nu primește parcare.",
+      "detail": "parcare.mjs produce motivFara, iar componenta îl folosește pentru a diferenția lipsa zilelor măsurate, excluderea și propunerea fără economie. Proiecția din scrie-parcare.mjs nu transferă acest câmp. După publicare, toate aceste cazuri apar în raport drept «nimic de schimbat», inclusiv mașinile fără date suficiente.",
+      "evidence": "docs/plans/2026-09-29-drax-parcare/vps/parcare.mjs:136; docs/plans/2026-09-29-drax-parcare/vps/scrie-parcare.mjs:14; apps/admin/src/app/(dashboard)/lde/reguli/ParcareDrax.tsx:72",
+      "failure_scenario": "024XKY are motivul «nicio zi măsurată» în rezultatul metodei, dar publicarea îl pierde; raportul afișează «nimic de schimbat», sugerând o concluzie de optimizare care nu a fost măsurată.",
+      "suggested_fix": "Include motivFara în contractul de publicare și verifică transferul până în UI pentru fiecare categorie fără propunere."
+    },
+    {
+      "id": "C4",
+      "severity": "low",
+      "weight": 0.5,
+      "title": "Harta etichetează economiile teoretice vechi drept economii ale parcării propuse.",
+      "detail": "Când parcare.json lipsește, harta-zi.mjs păstrează economia zilei ideale în sumar.economie și sumar.economieSapt. Același contract există la rândurile istorice. HartaClient afișează însă necondiționat eticheta «cu parcarea propusă», fără verificarea provenienței cifrei.",
+      "evidence": "docs/plans/2026-09-29-drax-parcare/vps/harta-zi.mjs:103; docs/plans/2026-09-29-drax-parcare/vps/harta-zi.mjs:104; apps/admin/src/lib/lde/drax-harta.ts:65; apps/admin/src/app/(dashboard)/lde/harta/HartaClient.tsx:129",
+      "failure_scenario": "La deschiderea unei săptămâni fără calcul de parcare, harta poate afișa economia ideală existentă sub eticheta «cu parcarea propusă», deși nu există locuri propuse.",
+      "suggested_fix": "Definește explicit comportamentul pentru săptămânile fără calcul de parcare și păstrează proveniența cifrei în contract, astfel încât eticheta să corespundă calculului disponibil."
+    }
+  ]
+}

@@ -34,8 +34,10 @@ export const GRUPURI: { id: string; titlu: string; scurt: string; directii: stri
 // Posterul îngust (pe telefon imaginea se întinde pe lățimea ecranului, deci textul iese de ~1,6× mai mare decât la
 // 1000), fără subtitlu și fără carduri. Apoi: «fă maxim posibil mare tot ce e legat de norme, mașini și devieri» —
 // tabelul mașinilor are doar mașina, cele trei norme și abaterea (litrii și km-ii stau în sumarul de sus), 18 pt.
-const LATIME = 520;
-const TABEL = { mare: 18, rand: 36, antet: 14 } as const;
+// Ion, 29.09 (a treia oară): «în fiecare poză să fie câți km a mers și câți litri a luat în perioadă» — litrii și km-ii
+// înapoi pe fiecare mașină; 7 coloane încap la 600 cu 16 pt.
+const LATIME = 600;
+const TABEL = { mare: 16, rand: 34, antet: 13 } as const;
 export const GRUP_STRAINI = 'straini';
 // «mașini cu foi de parcurs până la utilaje» — tipurile din lde_fuel_consumatori, în ordinea paginii
 const TIPURI_STRAINI: [string, string][] = [
@@ -142,11 +144,13 @@ export async function genereazaGrup(grupId: string, luna: string): Promise<{ png
   p.total(`${nf.format(litri)} L · ${nf.format(km)} km`, `${m.length} mașini`);
   p.total(`Luna ${l100Txt(fapt)} · 3 luni ${l100Txt(fapt3)}`, `teoretică ${l100Txt(teoretica)}`);
   const cols: Coloana[] = [
-    { titlu: 'Mașina', latime: 112 }, { titlu: 'Luna', latime: 60, aliniere: 'end' }, { titlu: '3 luni', latime: 66, aliniere: 'end' },
-    { titlu: 'Teor.', latime: 60, aliniere: 'end' }, { titlu: 'Abat.', latime: 74, aliniere: 'end' },
+    { titlu: 'Mașina', latime: 104 }, { titlu: 'Litri', latime: 64, aliniere: 'end' }, { titlu: 'Km', latime: 70, aliniere: 'end' },
+    { titlu: 'Luna', latime: 54, aliniere: 'end' }, { titlu: '3 luni', latime: 60, aliniere: 'end' },
+    { titlu: 'Teor.', latime: 54, aliniere: 'end' }, { titlu: 'Abat.', latime: 66, aliniere: 'end' },
   ];
   p.tabel(cols, m.map((x) => [
     { text: x.plate.replace(/\s+/g, ''), bold: true },
+    { text: nf.format(x.litri) }, { text: nf.format(x.km), culoare: CULORI.gri },
     x.km >= PRAG_KM_LUNA ? { text: l100Txt(x.fapt), bold: true } : { text: l100Txt(x.fapt), culoare: CULORI.griDeschis },
     { text: l100Txt(x.fapt3) },
     { text: l100Txt(x.teoretica), culoare: CULORI.gri },

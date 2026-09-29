@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { etaFrom, haversineKm, paceFromStops, remainingKm, typicalLeg, typicalOffset, lateMin, type LatLon, type StopRow } from './bus-eta';
+import { etaFrom, haversineKm, paceFromStops, remainingKm, typicalLeg, typicalOffset, lateMin, notAfterSchedule, type LatLon, type StopRow } from './bus-eta';
 
 // O linie dreaptă nord-sud, un vârf la ~1,11 km (0,01° latitudine).
 const shape: LatLon[] = Array.from({ length: 11 }, (_, i) => [47 + i * 0.01, 28]);
@@ -105,4 +105,17 @@ describe('lateMin (ION-129)', () => {
   it('peste miezul nopții', () => expect(lateMin('23:50', '00:20')).toBe(30));
   it('mai devreme e negativ', () => expect(lateMin('07:30', '07:22')).toBe(-8));
   it('oră stricată → null', () => expect(lateMin('7.30', '07:22')).toBeNull());
+});
+
+describe('notAfterSchedule (ION-141)', () => {
+  const trip = (departure: string, minutes_until: number, eta?: string, eta_min?: number) => ({ departure, minutes_until, eta, eta_min });
+  it('Bălți → Chișinău, 29.09: grafic 14:10, GPS 14:30 → 14:10', () =>
+    expect(notAfterSchedule(trip('14:10', 86, '14:30', 106))).toMatchObject({ eta: '14:10', eta_min: 86 }));
+  it('cursa întârziată deja: minutele nu coboară sub 0', () =>
+    expect(notAfterSchedule(trip('12:30', -14, '12:43', 0))).toMatchObject({ eta: '12:30', eta_min: 0 }));
+  it('mai devreme rămâne', () =>
+    expect(notAfterSchedule(trip('13:00', 16, '12:49', 5))).toMatchObject({ eta: '12:49', eta_min: 5 }));
+  it('peste miezul nopții: 23:50 → 00:10 se plafonează', () =>
+    expect(notAfterSchedule(trip('23:50', 10, '00:10', 30))).toMatchObject({ eta: '23:50', eta_min: 10 }));
+  it('fără eta: neschimbat', () => expect(notAfterSchedule(trip('14:20', 96))).toEqual(trip('14:20', 96)));
 });

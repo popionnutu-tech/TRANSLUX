@@ -343,6 +343,19 @@ export function lateMin(scheduled: string, eta: string): number | null {
 }
 
 /**
+ * Ora arătată omului nu e niciodată după grafic (Ion, 29.09, ION-141: «aceste timpuri nu pot fi
+ * mai târziu de grafic» — Bălți → Chișinău arăta cursa de 14:10 la 14:30). Cine vine după ora
+ * afișată pierde autobuzul care recuperează sau pleacă din gară la timp. Mai devreme rămâne.
+ * Se aplică DUPĂ filtrul NOT_ON_TRIP_LATE_MIN, care are nevoie de ETA-ul brut din GPS.
+ */
+export function notAfterSchedule<T extends { departure: string; minutes_until: number; eta?: string; eta_min?: number }>(t: T): T {
+  if (t.eta == null) return t;
+  const late = lateMin(t.departure, t.eta);
+  if (late == null || late <= 0) return t;
+  return { ...t, eta: t.departure, eta_min: Math.max(0, Math.min(t.eta_min ?? t.minutes_until, t.minutes_until)) };
+}
+
+/**
  * Peste atâtea minute de întârziere după GPS, mașina nu face cursa din grafic (Ion, 28.09, ION-129:
  * «de ce apare dacă nu face cursa?» — 759LYY stătea la Briceni din 13:06, iar harta «Acum» arăta
  * cursa de 20:15 din Bălți cu ETA 22:01). Cursa nu se arată deloc: nici pe hartă, nici în listă.

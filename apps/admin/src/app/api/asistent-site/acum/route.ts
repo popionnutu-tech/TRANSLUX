@@ -3,7 +3,7 @@ import { cors } from '@/lib/site-assistant/cors';
 import { nextTrips, MAX_AGE_MIN, NOW_SHOWN, hhmmToMin, nowMinChisinau } from '@/lib/site-assistant/bus-location';
 import { estimateOnLine, type TimedStop } from '@/lib/site-assistant/bus-estimate';
 import { getSupabase } from '@/lib/supabase';
-import { realEta, routePasses, typicalOffset, lateMin, NOT_ON_TRIP_LATE_MIN, type GeoStop } from '@/lib/site-assistant/bus-eta';
+import { realEta, routePasses, typicalOffset, lateMin, notAfterSchedule, NOT_ON_TRIP_LATE_MIN, type GeoStop } from '@/lib/site-assistant/bus-eta';
 import { chisinauTodayIso } from '@/lib/chisinau-time';
 
 // Butonul «Acum» de pe prima pagină a translux.md (ION-43). Ion, 23.09: omul alege
@@ -176,7 +176,9 @@ export async function POST(req: NextRequest) {
         // cursa de 05:10 stătea deja la Chișinău (Ciocana), fără eta și fără «passed», și ieșea
         // prima în listă cu «acum» (Ion: «arată greșit chiar acum»).
         return 'eta' in t || t.minutes_until >= -STALE_MIN;
-      }).slice(0, NOW_SHOWN); // plafonul abia după ce ies cursele trecute
+      }).slice(0, NOW_SHOWN) // plafonul abia după ce ies cursele trecute
+      // Ora arătată omului nu trece de grafic (ION-141); filtrul de mai sus a judecat pe ETA-ul brut.
+      .map((t) => notAfterSchedule(t as typeof t & { eta?: string; eta_min?: number }));
     // Lista golită de filtru are nevoie de aceeași frază ca lista goală din start.
     const none = trips.length === 0;
     return NextResponse.json({

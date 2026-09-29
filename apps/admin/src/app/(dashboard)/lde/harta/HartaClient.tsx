@@ -155,25 +155,31 @@ export default function HartaClient({ saptamani, sapt, masini, masina, z, zi, zi
           )}
 
           <div style={{ ...ETICHETA, margin: '10px 0 4px' }}>Ziua făcută, drum cu drum</div>
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+          {/* Rânduri, nu <button>: regula globală «.dashboard button» (globals.css) centrează, face cursiv și ține textul pe un rând.
+              Ion, 29.09: «nu se citește normal». Trei coloane: semnul culorii, ora, ce a făcut mașina. */}
+          <div role="list">
             {miscari.map((x, i) => {
               const tip = TIP_MISCARE[x.tip] ?? 'gol', activ = ales === x.ora;
+              const rest = x.text.startsWith(x.ora) ? x.text.slice(x.ora.length).trim() : x.text;
+              const alege = () => setAles(activ ? null : x.ora);
               return (
-                <li key={i}>
-                  <button onClick={() => setAles(activ ? null : x.ora)} style={{
-                    display: 'flex', gap: 8, width: '100%', textAlign: 'left', font: 'inherit', fontSize: 12.5, lineHeight: 1.4, cursor: 'pointer',
-                    padding: '5px 6px', border: 0, borderRadius: 6, background: activ ? 'var(--primary-dim)' : 'transparent', whiteSpace: 'normal', overflowWrap: 'anywhere',
+                <div key={i} role="listitem" tabIndex={0} onClick={alege} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); alege(); } }}
+                  aria-current={activ ? 'true' : undefined}
+                  style={{
+                    display: 'grid', gridTemplateColumns: '18px 84px minmax(0, 1fr)', columnGap: 6, alignItems: 'start', cursor: 'pointer',
+                    padding: '5px 6px', borderRadius: 6, background: activ ? 'var(--primary-dim)' : 'transparent',
+                    fontSize: 12.5, lineHeight: 1.45, textAlign: 'left', whiteSpace: 'normal', fontStyle: 'normal',
                     color: tip === 'gol' ? '#8A2A1F' : 'var(--text)', fontWeight: x.kmPeAcasa >= 0.5 ? 600 : 400,
                   }}>
-                    <svg width="18" height="10" style={{ flexShrink: 0, marginTop: 5 }} aria-hidden>
-                      <line x1="1" y1="5" x2="17" y2="5" stroke={CULOARE[tip]} strokeWidth="3.5" strokeDasharray={LINIE[tip]} />
-                    </svg>
-                    <span>{x.text}</span>
-                  </button>
-                </li>
+                  <svg width="18" height="10" style={{ marginTop: 5 }} aria-hidden>
+                    <line x1="1" y1="5" x2="17" y2="5" stroke={CULOARE[tip]} strokeWidth="3.5" strokeDasharray={LINIE[tip]} />
+                  </svg>
+                  <span style={{ fontFamily: MONO, fontSize: 11.5, fontVariantNumeric: 'tabular-nums', fontWeight: 500, paddingTop: 1 }}>{x.ora}</span>
+                  <span>{rest}</span>
+                </div>
               );
             })}
-          </ul>
+          </div>
           {zi?.stai.length ? (
             <>
               <div style={{ ...ETICHETA, margin: '12px 0 4px' }}>Opriri de peste 5 minute</div>

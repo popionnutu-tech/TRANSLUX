@@ -35,6 +35,10 @@ export const LIVRARE_POSTER_CONFIG_KEY = 'livrare_poster_chat_id';
 export const COMBUSTIBIL_POSTER_CONFIG_KEY = 'combustibil_poster_chat_id';
 export const COMBUSTIBIL_POSTER_THREAD_CONFIG_KEY = 'combustibil_poster_thread_id';
 
+// Grupa camioanelor (Ion, 29.09.2026, ION-144): la 08:00 pleacă acolo abaterile de ieri ale cisternelor
+// față de scheletul ideal (vama, A2, terminal/ZEL, km în plus). Legată cu /lega_camioane; citită de panou.
+export const CAMIOANE_GROUP_CONFIG_KEY = 'camioane_group_chat_id';
+
 // Map: controller point → direction they report for
 export const POINT_DIRECTION_MAP: Record<PointEnum, DirectionEnum> = {
   CHISINAU: 'CHISINAU_BALTI',

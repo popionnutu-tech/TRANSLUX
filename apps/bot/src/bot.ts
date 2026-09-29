@@ -16,7 +16,7 @@ import { initAdminAlert } from './services/adminAlert.js';
 import { handleDaily, handleSmmWeekly, handleSmmMonth } from './handlers/smm.js';
 import { initTaskBoard, bindTaskBoard, getBoardAssignee, sweepTaskBoards } from './services/taskBoard.js';
 import { sendVoiceLessonDigest, decideVoiceLesson } from './services/voiceLessons.js';
-import { bindDriversGroup, currentDriversGroup, bindGraficGroup, currentGraficGroup, bindLivrariGroup, currentLivrariGroup, bindDtGroup, currentDtGroup } from './services/driversGroup.js';
+import { bindDriversGroup, currentDriversGroup, bindGraficGroup, currentGraficGroup, bindLivrariGroup, currentLivrariGroup, bindDtGroup, currentDtGroup, bindCamioaneGroup, currentCamioaneGroup } from './services/driversGroup.js';
 
 export function createBot(): Bot<BotContext> {
   const bot = new Bot<BotContext>(config.botToken);
@@ -203,6 +203,36 @@ export function createBot(): Bot<BotContext> {
       '✓ Grupa a fost legată.\n'
       + 'Aici va veni, la două săptămâni (luni), posterul de livrare (подача) pe rutele de uzină '
       + 'și textul cu economia posibilă.',
+    );
+  });
+
+  // Grupa camioanelor (Ion, 29.09, ION-144): «hai să legăm grupa camioane cu botul ... verifică ziua de ieri și dă un
+  // mesaj pentru toate mașinile». La 08:00 panoul trimite aici abaterile de ieri față de scheletul cisternelor; mașinile
+  // în regulă nu apar. Același tipar ca /lega_grafic.
+  bot.command('lega_camioane', async (ctx) => {
+    if (!ctx.dbUser || ctx.dbUser.role !== 'ADMIN') {
+      await ctx.reply('Doar administratorii pot lega o grupă.');
+      return;
+    }
+    if (ctx.chat?.type !== 'group' && ctx.chat?.type !== 'supergroup') {
+      await ctx.reply('Comanda funcționează doar într-o grupă.');
+      return;
+    }
+    try {
+      const veche = await currentCamioaneGroup();
+      if (veche && veche !== String(ctx.chat.id)) {
+        await ctx.reply('Atenție: era legată altă grupă. De acum verificarea traseelor vine aici, iar acolo nu mai vine deloc.');
+      }
+      await bindCamioaneGroup(ctx.chat.id);
+    } catch (err) {
+      console.error('lega_camioane:', err);
+      await ctx.reply('Nu am putut lega grupa acum. Încercați din nou peste un minut.');
+      return;
+    }
+    await ctx.reply(
+      '✓ Grupa a fost legată.\n'
+      + 'În fiecare dimineață la 08:00 aici vine verificarea zilei de ieri: cisternele care au ieșit de pe traseul ideal '
+      + '(vama, A2, terminal/ZEL, km în plus). Mașinile care au mers corect nu apar.',
     );
   });
 

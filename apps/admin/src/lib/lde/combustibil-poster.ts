@@ -179,24 +179,9 @@ export async function genereazaGrup(grupId: string, luna: string): Promise<{ png
     x.km >= PRAG_KM_LUNA ? abatere(x.fapt, x.teoretica) : { text: '—', culoare: CULORI.griDeschis },
   ]), { ...TABEL, gol: 'Nicio alimentare în lună' });
   p.nota(`Litri la 100 km. Din iunie = plin la plin, de la 10.06. Normă = din iunie; * = sub 3 pliniri, normă ${cam ? 'Clava' : 'veche'}. Gri = sub 1.000 km.`);
-  // ION-145 (Ion, 29.09: «ceva nu e ok» … «repară»): foaia de cisternă cu mai mulți litri decât cel mai mare plin al mașinii nu încape în
-  // rezervor — nu intră în consum (lde_fuel_flota, migr. 444) și se arată aici, ca să fie verificată
-  const dv = await foiDeVerificat(luna, new Set(m.map((x) => x.id)));
-  if (dv.length) p.nota(`De verificat (nu intră în consum, mai mult decât încape în rezervor): ${dv.map((x) => `${x.plate} ${x.zi.slice(8, 10)}.${x.zi.slice(5, 7)} foaia ${nf.format(x.litri)} L`).join('; ')}.`);
   const caption = `<b>Combustibil — ${escapeHtml(g.titlu)}</b>, ${eticheta}\n`
     + `${nf.format(litri)} L · ${nf.format(km)} km · <b>${l100Txt(fapt)} l/100 km</b> (din iunie ${l100Txt(fapt3)}, normă ${l100Txt(teoretica)})`;
   return { png: await p.png(), caption, randuri: m.length };
-}
-
-async function foiDeVerificat(luna: string, masini: Set<string>): Promise<{ plate: string; zi: string; litri: number }[]> {
-  const { de, pana } = capete(luna), sb = getSupabase();
-  const { data, error } = await sb.rpc('lde_fuel_foaie_de_verificat', { de, pana });
-  if (error) throw new Error(`lde_fuel_foaie_de_verificat: ${error.message}`);
-  const rows = ((data ?? []) as { vehicle_id: string; zi: string; litri: number }[]).filter((r) => masini.has(r.vehicle_id));
-  if (!rows.length) return [];
-  const { data: v } = await sb.from('vehicles').select('id, plate_number').in('id', [...new Set(rows.map((r) => r.vehicle_id))]);
-  const pl = new Map((v ?? []).map((x) => [x.id as string, String(x.plate_number).replace(/\s+/g, '')]));
-  return rows.map((r) => ({ plate: pl.get(r.vehicle_id) ?? '?', zi: r.zi, litri: Math.round(Number(r.litri)) })).sort((a, b) => a.zi.localeCompare(b.zi));
 }
 
 async function citesteStraini(luna: string) {

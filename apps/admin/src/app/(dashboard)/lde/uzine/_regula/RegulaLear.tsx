@@ -41,7 +41,7 @@ export default async function RegulaLear() {
         <p className="text-gray-500 text-sm">
           {r.validata ? 'Validată' : 'Nevalidată'}{marcata ? ` · marcată ${marcata}` : ''} · se editează pe{' '}
           <Link href="/lde/livrare-reguli" className="underline">Livrare — regula</Link> · cifrele economiei:{' '}
-          <Link href="/lde/reguli" className="underline">Raport livrări LEAR</Link>
+          <Link href="/lde/reguli" className="underline">Raport livrări</Link>
         </p>
       </div>
       {sectiuni.map((s) => (

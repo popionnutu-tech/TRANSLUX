@@ -57,7 +57,7 @@ const ldeChildren: NavItem[] = [
   { href: '/lde/combustibil',    label: 'Combustibil',    adminOnly: true, icon: 'M19.77 7.23l.01-.01-3.72-3.72L15 4.56l2.11 2.11c-.94.36-1.61 1.26-1.61 2.33 0 1.38 1.12 2.5 2.5 2.5.36 0 .69-.08 1-.21v7.21c0 .55-.45 1-1 1s-1-.45-1-1V14c0-1.1-.9-2-2-2h-1V5c0-1.1-.9-2-2-2H6c-1.1 0-2 .9-2 2v16h10v-7.5h1.5v5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V9c0-.69-.28-1.32-.73-1.77zM12 10H6V5h6v5zm6 0c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z' },
   { href: '/lde/livrare-reguli', label: 'Livrare — regula', adminOnly: true, icon: 'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3h2v2h-2V6zm0 4h2v8h-2v-8z' },
   // Ion, 24.09 (ION-50): cifrele economiei LEAR sunt raport, nu nomenclator; regula stă în «Nomenclator LDE».
-  { href: '/lde/reguli',         label: 'Raport livrări LEAR', adminOnly: true, icon: 'M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z' },
+  { href: '/lde/reguli',         label: 'Raport livrări', adminOnly: true, icon: 'M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z' },
   // Ion, 24.09 (ION-54): rapoartele automate stau în meniul LDE, nu în nomenclator.
   // Ion, 25.09 (ION-66): «Trasee & km goi» și «Ghid zilnic» scoase din meniu — nu le folosește; paginile rămân la adresă.
   { href: '/lde/schelet',        label: 'Schelet rute',   adminOnly: true, icon: 'M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z' },

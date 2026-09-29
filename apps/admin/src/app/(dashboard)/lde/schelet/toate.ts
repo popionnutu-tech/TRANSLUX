@@ -16,8 +16,11 @@ export type RutaToate = { id: string; nume: string; km: number | null; culoare: 
 export type Retea = {
   id: string; nume: string; sub: string; culoare: string; zona: Punct[] | null;
   porti: { c: Punct; n: string }[]; rute: RutaToate[]; kmZi: number;
-  // ION-121: rețeaua pornește ascunsă pe harta comună (camioanele merg până în Bulgaria și ar micșora restul la puncte)
+  // ION-121: rețeaua poate porni ascunsă pe harta comună. Camioanele nu mai pornesc așa (ION-137, Ion 29.09: «când apăs
+  // toate să fie inclusiv camioanele scheletele»).
   ascunsaImplicit?: boolean;
+  // Rețea fără km cu oameni (camioanele): cardul arată km pe cursă, însumați pe trasee, în locul lui «0 km/zi».
+  kmCursa?: number;
 };
 
 // Egida = familia de culoare a rețelei: rutele ei sunt nuanțe ale aceleiași tente, ca dintr-o
@@ -171,13 +174,13 @@ export const draxLaToate = (drax: ScheletDrax): Retea[] => [
 ];
 
 // Camioane / cisterne (ION-121, din ION-69): idealul de bază al fiecărui traseu, pe un sens. Nu sunt «km cu oameni pe zi»,
-// deci nu intră în total (kmZi = 0), iar rețeaua pornește ascunsă: traseele merg până la Constanța, Ruse și Sofia.
-export const camioaneLaToate = (c: ScheletCamioane): Retea[] => [{
-  ...retea('camioane', 'Camioane (cisterne)', 'motorină + biodiesel · km pe cursă, nu intră în total',
+// deci nu intră în total (kmZi = 0). Pe harta comună se văd din start (ION-137), deși merg până la Constanța, Ruse și Sofia.
+export const camioaneLaToate = (c: ScheletCamioane): Retea[] => {
+  const r = retea('camioane', 'Camioane (cisterne)', 'motorină + biodiesel · km pe cursă, nu intră în total',
     c.puncte.filter((p) => /Berdichev|Port Constanța|Baza Chișinău/.test(p.n)),
     [
       ...c.motorina.map((r) => { const v = r.variante.find((x) => x.id === r.deBaza) ?? r.variante[0]; return { id: r.id, nume: r.id, km: v.km, linie: v.linie }; }),
       ...c.biodiesel.map((r) => ({ id: r.id, nume: `${r.id} · ${r.nume}`, km: r.variante[0].km, linie: r.variante[0].linie })),
-    ], false),
-  kmZi: 0, ascunsaImplicit: true,
-}];
+    ], false);
+  return [{ ...r, kmZi: 0, kmCursa: r.rute.reduce((s, x) => s + (x.km ?? 0), 0) }];
+};

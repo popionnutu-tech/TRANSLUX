@@ -36,10 +36,11 @@ describe('schelet-camioane.json', () => {
 });
 
 describe('camioaneLaToate', () => {
-  it('pe harta comună e ascunsă implicit și nu intră în km cu oameni', () => {
+  it('pe harta comună se vede din start și nu intră în km cu oameni (ION-137)', () => {
     const [r] = camioaneLaToate(schelet);
-    expect(r.ascunsaImplicit).toBe(true);
+    expect(r.ascunsaImplicit).toBeFalsy();
     expect(r.kmZi).toBe(0);
+    expect(r.kmCursa).toBeGreaterThan(0);
     expect(r.rute.length).toBe(schelet.motorina.length + schelet.biodiesel.length);
   });
 });

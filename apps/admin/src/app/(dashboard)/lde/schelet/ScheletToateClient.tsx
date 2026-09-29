@@ -66,7 +66,7 @@ export default function ScheletToateClient({ retele }: { retele: Retea[] }) {
             </div>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontFamily: MONO, fontSize: 14, fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>{r.rute.length} <span style={{ fontSize: 9.5, color: 'var(--text-muted)' }}>rute</span></div>
-              <div style={{ fontFamily: MONO, fontSize: 11, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>{mii(r.kmZi)} km/zi</div>
+              <div style={{ fontFamily: MONO, fontSize: 11, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>{r.kmCursa != null ? `${mii(r.kmCursa)} km pe cursă` : `${mii(r.kmZi)} km/zi`}</div>
             </div>
           </button>
           <button onClick={() => comuta(r.id)} title={ascunsa ? 'Arată pe hartă' : 'Ascunde de pe hartă'} aria-pressed={!ascunsa} style={{

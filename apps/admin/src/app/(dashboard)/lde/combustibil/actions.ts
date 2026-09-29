@@ -148,7 +148,7 @@ export async function getAlimentariMasina(vehicleId: string, from: string, to: s
 }
 
 // Fiecare alimentare a unui consumator din afara flotei (toate variantele de scriere ale cheii).
-export async function getAlimentariConsumator(variante: string[], from: string, to: string): Promise<Alimentare[]> {
+export async function getAlimentariConsumator(variante: string[], denumire: string, from: string, to: string): Promise<Alimentare[]> {
   requireRole(await verifySession(), 'ADMIN');
   if (!DATE_RE.test(from) || !DATE_RE.test(to) || !variante.length) return [];
   const sb = getSupabase();
@@ -160,7 +160,10 @@ export async function getAlimentariConsumator(variante: string[], from: string, 
     const ora = r.alimentat_at
       ? new Date(r.alimentat_at).toLocaleString('sv-SE', { timeZone: 'Europe/Chisinau' }).slice(11, 16)
       : null;
-    const detaliu = [variante.length > 1 ? r.placuta : null, r.sofer, r.observatii].filter(Boolean).join(' · ') || null;
+    // plăcuța doar când e scrisă altfel decât denumirea rândului (CONSUMINTW sub CONSUMINTE)
+    const norm = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const altfel = norm(r.placuta ?? '') !== norm(denumire) ? r.placuta : null;
+    const detaliu = [altfel, r.sofer, r.observatii].filter(Boolean).join(' · ') || null;
     return { zi: r.zi, ora, litri: Number(r.litri), sursa: r.foaie ? `foaie ${r.foaie}` : r.sursa, detaliu };
   });
 }

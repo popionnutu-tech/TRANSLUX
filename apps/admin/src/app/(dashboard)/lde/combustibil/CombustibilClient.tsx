@@ -317,7 +317,7 @@ export default function CombustibilClient({ data }: { data: CombustibilData }) {
                     return (
                       <Fragment key={key}>
                         <tr style={{ cursor: 'pointer' }}
-                          onClick={() => toggle(key, () => getAlimentariConsumator(c.variante, data.from, data.to))}>
+                          onClick={() => toggle(key, () => getAlimentariConsumator(c.variante, c.denumire, data.from, data.to))}>
                           <td>
                             <strong>{c.denumire}</strong>
                             {c.variante.length > 1 && (

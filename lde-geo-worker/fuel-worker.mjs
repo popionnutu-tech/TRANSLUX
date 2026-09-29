@@ -1,37 +1,28 @@
 // ============================================================================
 // LDE Fuel worker — importă alimentările din Benzol (MySQL) în lde_fuel_alimentari.
-// Idempotent prin UNIQUE(source, external_id). Doar mașinile NOASTRE (plăcuța în flotă).
+// Idempotent prin UNIQUE(source, external_id). Doar mașinile NOASTRE (plăcuța în flotă, și cele
+// oprite — ION-134); restul merge în lde_fuel_strain prin fuel-strain-worker.mjs.
 // Rulare: node --env-file=.env fuel-worker.mjs [YYYY-MM-DD start] [--write]
 // Implicit: ultimele 45 zile.
 // ============================================================================
 import mysql from 'mysql2/promise';
 import { WebSocket as WS } from 'ws';
 import { createClient } from '@supabase/supabase-js';
+import { normPlate, vehicleMap, benzolIso } from './fuel-common.mjs';
 globalThis.WebSocket = globalThis.WebSocket || WS;
 
 const args = process.argv.slice(2);
 const WRITE = args.includes('--write');
 const START = args.find(a => /^\d{4}-\d{2}-\d{2}$/.test(a)) || (() => { const d = new Date(); d.setDate(d.getDate() - 45); return d.toISOString().slice(0, 10); })();
 const DBS = ['benzol', 'benzol2']; // benzol3 = moartă (doar 2020)
-const normPlate = s => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-// Benzol scrie unele plăcuțe invers față de vehicles (139HMK vs HMK139) → indexăm ambele variante.
-const flipPlate = p => { const m = p.match(/^(\d+)([A-Z]+)$/) || p.match(/^([A-Z]+)(\d+)$/); return m ? m[2] + m[1] : null; };
 
 // ── Supabase + harta plăcuță→mașină ──
 const supa = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY, { auth: { persistSession: false } });
-const { data: vehs, error: ve } = await supa.from('vehicles').select('id,plate_number').eq('active', true);
-if (ve) { console.error('Supabase vehicles:', ve.message); process.exit(1); }
-const plate2veh = new Map(vehs.map(v => [normPlate(v.plate_number), v.id]));
-for (const v of vehs) { const f = flipPlate(normPlate(v.plate_number)); if (f && !plate2veh.has(f)) plate2veh.set(f, v.id); }
+const plate2veh = await vehicleMap(supa);
 
 // ── Benzol MySQL ──
 const my = await mysql.createConnection({ host: process.env.BENZOL_HOST, port: +process.env.BENZOL_PORT, user: process.env.BENZOL_USER, password: process.env.BENZOL_PASS });
 
-function toIso(data, ora) { // data=DDMMYYYY, ora=HHMM (Moldova local, iunie = +03:00)
-  const dd = data.slice(0, 2), mm = data.slice(2, 4), yyyy = data.slice(4, 8);
-  const o = String(ora || '').padStart(4, '0'); const HH = o.slice(0, 2), MI = o.slice(2, 4);
-  return `${yyyy}-${mm}-${dd}T${HH}:${MI}:00+03:00`;
-}
 
 let scanned = 0, ours = 0, byDb = {};
 const records = [];
@@ -45,8 +36,8 @@ for (const db of DBS) {
     const vid = plate2veh.get(plate);
     if (!vid) continue; // client extern — ignorăm
     ours++; byDb[db].ours++;
-    const iso = toIso(String(r.data), String(r.ora));
-    if (isNaN(new Date(iso).getTime())) continue; // dată coruptă
+    const iso = benzolIso(r.data, r.ora)?.iso; // ora Chișinău: +03:00 vara, +02:00 iarna
+    if (!iso) continue; // dată coruptă
     // Benzol = alimentare la stațiile noastre, fără preț în log → suma_lei=0 (doar litri).
     records.push({ vehicle_id: vid, alimentat_at: iso, litri: Number(r.litri) || 0, suma_lei: 0, statie: db, source: db, external_id: String(r.id), is_full: false, imported_at: new Date().toISOString() });
   }

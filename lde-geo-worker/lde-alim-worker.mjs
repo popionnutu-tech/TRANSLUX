@@ -7,7 +7,8 @@
 // introduce operatorul — Chișinău (pz_c) și Ungheni (pz_u) aproape numai așa, ~70.000 l/lună care
 // lipsesc din benzol. `r_alim_info` e copia benzol2, iar `litri_cec` e gol din 2025.
 //
-// Doar mașinile NOASTRE (plăcuța în flotă, și inversată, ca la fuel-worker). Idempotent prin
+// Doar mașinile NOASTRE (plăcuța în flotă, și inversată, și cele oprite — ION-134; restul merge în
+// lde_fuel_strain prin fuel-strain-worker.mjs). Idempotent prin
 // UNIQUE(external_id = '<foaie>:<id>'). Un rând șters sau pus pe 0 în LDE se scoate și la noi.
 //
 // Rulare: node --env-file=.env lde-alim-worker.mjs [YYYY-MM-DD start|--all] [--write]
@@ -16,6 +17,7 @@
 import mysql from 'mysql2/promise';
 import { WebSocket as WS } from 'ws';
 import { createClient } from '@supabase/supabase-js';
+import { normPlate, vehicleMap } from './fuel-common.mjs';
 globalThis.WebSocket = globalThis.WebSocket || WS;
 
 const args = process.argv.slice(2);
@@ -24,8 +26,6 @@ const ALL = args.includes('--all');
 const START = ALL ? '2000-01-01'
   : args.find(a => /^\d{4}-\d{2}-\d{2}$/.test(a)) || (() => { const d = new Date(); d.setDate(d.getDate() - 45); return d.toISOString().slice(0, 10); })();
 const TODAY = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Chisinau' });
-const normPlate = s => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-const flipPlate = p => { const m = p.match(/^(\d+)([A-Z]+)$/) || p.match(/^([A-Z]+)(\d+)$/); return m ? m[2] + m[1] : null; };
 
 for (const k of ['BENZOL_HOST', 'BENZOL_PORT', 'LDE_DB_USER', 'LDE_DB_PASS', 'LDE_DB_NAME']) {
   if (!process.env[k]) { console.error(`lipsește ${k} în .env`); process.exit(1); }
@@ -33,10 +33,7 @@ for (const k of ['BENZOL_HOST', 'BENZOL_PORT', 'LDE_DB_USER', 'LDE_DB_PASS', 'LD
 
 // ── Supabase + harta plăcuță→mașină ──
 const supa = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY, { auth: { persistSession: false } });
-const { data: vehs, error: ve } = await supa.from('vehicles').select('id,plate_number').eq('active', true);
-if (ve) { console.error('Supabase vehicles:', ve.message); process.exit(1); }
-const plate2veh = new Map(vehs.map(v => [normPlate(v.plate_number), v.id]));
-for (const v of vehs) { const f = flipPlate(normPlate(v.plate_number)); if (f && !plate2veh.has(f)) plate2veh.set(f, v.id); }
+const plate2veh = await vehicleMap(supa);
 
 // ── LDE MySQL: toate foile pz_* care au masina + data + litri ──
 const my = await mysql.createConnection({

@@ -1,0 +1,27 @@
+{
+  "score": 7.0,
+  "verdict": "fail",
+  "summary": "C1 este reparat: probele cu 0, 1 și 2 puncte păstrează plimbat = 0, iar lanțul patchurilor reproduce exact candidatul. C2 rămâne incomplet, iar C3 nu demonstrează validarea pe intervale independente. Cifrele flotei nu au fost rerulate local, deoarece necesită datele VPS.",
+  "deductions": [
+    {
+      "id": "C2",
+      "severity": "high",
+      "weight": 2.5,
+      "title": "Noua scădere geografică nu elimină toți kilometrii obligatorii din mijloc.",
+      "detail": "Producătorul recunoaște deplasările între porți într-o zonă de 3 km, dar mijlocUzina măsoară numai muchiile cu ambele puncte în raza porții + 1 km sau la maximum 1 km de parc. Aceste mulțimi diferă, iar min(oblK, mijlocUzina) nu reprezintă intersecția porțiunilor obligatorii cu mijlocul. Într-o probă sintetică folosind funcțiile extrase din repo, detectorul acceptă 10,66 km obligatorii, însă candidatul scade numai 5,93 km.",
+      "evidence": "docs/plans/2026-09-29-drax-plimbat/vps/ziua-ideala-candidat.mjs:48; docs/plans/2026-09-29-drax-plimbat/vps/ziua-ideala-candidat.mjs:255; docs/plans/2026-09-29-drax-plimbat/vps/ziua-ideala-candidat.mjs:275; docs/plans/2026-09-28-drax-orase-in-linie/r6/vps/categorii.mjs:157; docs/plans/2026-09-28-drax-orase-in-linie/r6/vps/categorii.mjs:171",
+      "failure_scenario": "Un interval rural → VEST → EST → rural conține o deplasare obligatorie care iese din razele înguste, rămânând în zona acceptată de producător. Proba reproduce 10,66 km obligatorii și numai 5,93 km scăzuți. Cu rest0 = 10 km proveniți din plimbat terminal, CAL = 0 și mijlocul neobligatoriu egal cu baza ideală, formula păstrează artificial 4,73 km economie și recunoaște numai 5,27 km muncă.",
+      "suggested_fix": "Înlocuiește în plan aproximarea geografică cu delimitarea porțiunilor obligatorii după indicii sau timpii utilizați de producător și intersectarea lor cu mijlocul. Folosește aceeași măsură la aplicare și calibrare; cere probe pentru deplasări obligatorii în afara razelor înguste și pentru obligatorii aflate parțial în fazele terminale."
+    },
+    {
+      "id": "C3",
+      "severity": "medium",
+      "weight": 0.5,
+      "title": "Validarea pe jumătăți raportează mediane fără să testeze clasificarea pe date nefolosite.",
+      "detail": "CAL și CAL_SRC sunt calculate din toate controalele selectate prin |rest0| ≤ 2. Obiectul validare împarte ulterior aceleași controale în zile pare și impare și raportează medianele; nu aplică estimarea unei jumătăți pe cealaltă și nu măsoară erori față de trasee verificate. Lipsesc astfel probele independente cu rest0 > 2 și rezultatele pe perechi cerute în runda precedentă.",
+      "evidence": "docs/plans/2026-09-29-drax-plimbat/vps/ziua-ideala-candidat.mjs:282; docs/plans/2026-09-29-drax-plimbat/vps/ziua-ideala-candidat.mjs:285; docs/plans/2026-09-29-drax-plimbat/vps/ziua-ideala-candidat.mjs:287; docs/plans/2026-09-29-drax-plimbat/vps/ziua-ideala-candidat.mjs:406",
+      "failure_scenario": "",
+      "suggested_fix": "Adaugă aplicarea CAL estimat pe o jumătate asupra celeilalte, inclusiv pe intervale cu rest0 > 2 clasificate independent din traseu. Raportează eroarea în kilometri separat pe perechi și surse și condiționează alegerea calibrării de aceste rezultate."
+    }
+  ]
+}

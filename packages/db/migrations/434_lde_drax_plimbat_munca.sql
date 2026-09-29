@@ -1,0 +1,11 @@
+-- 434: ION-133 — plimbatul pe loc la capetele golului dintre curse e muncă (§8.8) + cifrele săptămânii 14.09.
+DO $$
+DECLARE n int; t text;
+BEGIN
+  UPDATE lde_uzine SET reguli_livrare = replace(replace(replace(reguli_livrare, $v0$altfel drumul pe șosea × 1,05, cu steag) + noaptea la capăt$v0$, $n0$altfel drumul pe șosea × 1,05, cu steag; PLIMBATUL PE LOC E MUNCĂ — Ion, 29.09.2026, ION-133: «tot ce este plimbat prin Bălți și Florești în mare parte este lucrul»; dezbaterea Claude + Codex, 6 runde, Codex 10/10: pe fiecare gol între curse rămân economie ocolul pe acasă (5.2) și km în plus pe drumul din mijloc — între ieșirea din raza de 5 km a locului de plecare și intrarea în raza de 5 km a locului de sosire (vizita acasă oprește raza), față de legătura fără drumurile de ieșire (Valhalla) și fără km obligatorii (între uzine, parc) delimitați pe urmă cu regulile din 5.11 și 5.5; restul golului, făcut în cele două raze (porți, autogară, capătul liniei), intră în ideal; golul cu mai puțin de 3 puncte GPS nu se reclasifică) + noaptea la capăt$n0$), $v1$Săptămâna 14–20.09: 5.314 km măsurat (6.316 extrapolat, după ION-124 și ION-128) — acasă între curse 3.751, noaptea (cu weekendul) 1.620, drum mai lung 198, mai scurt decât idealul −256;$v1$, $n1$Săptămâna 14–20.09: 4.273 km măsurat (5.079 extrapolat, după ION-124, ION-128 și ION-133; plimbatul pe loc trecut la muncă 1.041) — acasă între curse 2.902 (din care ocolul pe acasă 2.691), noaptea (cu weekendul) 1.620, drum mai lung 7, mai scurt decât idealul −256;$n1$), $v2$23 de mașini peste 100 km pe săptămână (710CWN 583, 518MHD 572, 925FTI 455)$v2$, $n2$19 mașini peste 100 km pe săptămână (710CWN 535, 518MHD 467, 925FTI 443)$n2$)
+   WHERE id = 'DRAXELMAIER_BALTI' AND length(reguli_livrare) = 36883 AND md5(reguli_livrare) = 'e7bf2b69c8cf89b9b00056d0ceb642d0';
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 1 THEN RAISE EXCEPTION '434: textul din bază nu e cel de după 430 (431–433 nu ating textul), rânduri: %', n; END IF;
+  SELECT reguli_livrare INTO t FROM lde_uzine WHERE id = 'DRAXELMAIER_BALTI';
+  IF length(t) <> 37653 OR md5(t) <> '9878818ca525b99beb50883bb4b8ac9d' THEN RAISE EXCEPTION '434: text neașteptat (lungime %, md5 %)', length(t), md5(t); END IF;
+END $$;

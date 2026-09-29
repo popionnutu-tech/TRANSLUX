@@ -1,0 +1,37 @@
+{
+  "score": 5.0,
+  "verdict": "fail",
+  "summary": "Răsturnarea metodei este coerentă ca principiu, iar plafonarea păstrează ocolul pe acasă; lanțul patchurilor reproduce exact candidatul. Am reprodus însă două defecte: propagarea NaN pentru urme insuficiente și includerea kilometrilor obligatorii în surplusul din mijloc. Cifrele simulării flotei nu au fost rerulate local, deoarece necesită datele VPS.",
+  "deductions": [
+    {
+      "id": "C1",
+      "severity": "high",
+      "weight": 2.5,
+      "title": "Urmele cu mai puțin de trei puncte invalidează calculele prin NaN.",
+      "detail": "Returul pentru Q.length < 3 nu conține mijloc și iesiri, dar calculul economiei și calibrarea folosesc aceste câmpuri fără verificare. NaN se propagă în ideal, economie și agregări, se serializează ca null, iar verificările bazate pe comparații numerice nu îl detectează. Defectul a fost reprodus folosind funcția și formula extrase din candidat.",
+      "evidence": "docs/plans/2026-09-29-drax-plimbat/vps/ziua-ideala-candidat.mjs:245; docs/plans/2026-09-29-drax-plimbat/vps/ziua-ideala-candidat.mjs:277; docs/plans/2026-09-29-drax-plimbat/vps/ziua-ideala-candidat.mjs:297; docs/plans/2026-09-29-drax-plimbat/vps/ziua-ideala-candidat.mjs:355",
+      "failure_scenario": "Un interval eligibil are rest0 = 10 km, dar urma filtrată conține numai două puncte. Calculul produce plimb = NaN, contaminând ziua și totalul flotei; proba de bilanț nu semnalează abaterea deoarece comparația cu NaN este falsă.",
+      "suggested_fix": "Introduce în plan un rezultat explicit «urmă insuficientă»: fără reclasificare în muncă, exclus din calibrare și semnalat diagnostic. Cere verificări Number.isFinite înaintea agregării și probe pentru 0, 1 și 2 puncte."
+    },
+    {
+      "id": "C2",
+      "severity": "high",
+      "weight": 2.5,
+      "title": "Kilometrii obligatorii din mijloc sunt interpretați drept surplus economic.",
+      "detail": "neobl exclude kilometrii obligatorii, iar pentru între uzine L însumează numai legăturile până la prima poartă și după ultima. În schimb, mijloc însumează întreaga urmă GPS, inclusiv deplasarea obligatorie dintre porți. Compararea acestor cantități păstrează artificial economie și reduce munca recunoscută. Este un defect al formulei noi, distinct de vechea scădere a obligatorilor din plimbat.",
+      "evidence": "docs/plans/2026-09-29-drax-plimbat/vps/ziua-ideala-candidat.mjs:186; docs/plans/2026-09-29-drax-plimbat/vps/ziua-ideala-candidat.mjs:194; docs/plans/2026-09-29-drax-plimbat/vps/ziua-ideala-candidat.mjs:255; docs/plans/2026-09-29-drax-plimbat/vps/ziua-ideala-candidat.mjs:264; docs/plans/2026-09-29-drax-plimbat/vps/ziua-ideala-candidat.mjs:297",
+      "failure_scenario": "Interval între două capete rurale, prin uzine: GPS = 45 km, obligatorii în mijloc = 5, neobl = 40, L = 30, ieșiri = 10, mijloc = 25, ocol = 0 și CAL = 0. Cei 10 km suplimentari sunt plimbat în fazele terminale, dar formula păstrează 5 km economie deoarece numără deplasarea obligatorie drept surplus în mijloc.",
+      "suggested_fix": "Precizează în plan că mijlocul și baza sa trebuie comparate pe aceeași componentă neobligatorie. Delimitează porțiunile obligatorii după poziția lor în urmă și exclude contribuția lor corespunzătoare inclusiv din calibrare; adaugă o probă pentru un interval mixt cu între uzine în mijloc."
+    },
+    {
+      "id": "C3",
+      "severity": "medium",
+      "weight": 1.5,
+      "title": "Validarea CAL nu demonstrează separarea corectă dintre plimbat și drum real.",
+      "detail": "Golurile de control sunt selectate prin |rest0| ≤ 2, iar formula plafonează munca la rest0 pozitiv: maximul de 2 km raportat este astfel garantat prin construcție. Aceleași controale stabilesc CAL. Diagnosticul s6 distribuie încă munca folosind factorul vechi 1,3, deci nu validează independent metoda actuală sau transferul calibrării între perechi și surse GPS/Valhalla.",
+      "evidence": "docs/plans/2026-09-29-drax-plimbat/vps/ziua-ideala-candidat.mjs:277; docs/plans/2026-09-29-drax-plimbat/vps/ziua-ideala-candidat.mjs:297; docs/plans/2026-09-29-drax-plimbat/rev/s6.mjs:33; docs/plans/2026-09-29-drax-plimbat/rev/s6.mjs:37",
+      "failure_scenario": "",
+      "suggested_fix": "Adaugă validare pe intervale nefolosite la calibrare, cu traseul verificat ca drum real sau plimbat, inclusiv rest0 > 2. Raportează erorile separat pe perechi și surse GPS/Valhalla; folosește rezultatele pentru alegerea între CAL global și pe pereche."
+    }
+  ]
+}

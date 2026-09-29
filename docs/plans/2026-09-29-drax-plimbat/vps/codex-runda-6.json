@@ -1,0 +1,6 @@
+{
+  "score": 10.0,
+  "verdict": "pass",
+  "summary": "Reparația C2 acoperă condițiile semnalate: staționări efective, excluderea porților și activarea măștii numai pentru intervalele cu parc atribuit de producător (docs/plans/2026-09-29-drax-plimbat/vps/ziua-ideala-candidat.mjs:265 și :313; docs/plans/2026-09-28-drax-orase-in-linie/r6/vps/categorii.mjs:298 și :360). Condiția perechii valide de porți și plafonarea separată pe categorii sunt implementate în candidat la :263 și :309; nu am identificat un defect nou demonstrabil. Verificarea sintactică trece, dar simularea integrală și rezultatele probelor VPS nu au fost reproduse local.",
+  "deductions": []
+}

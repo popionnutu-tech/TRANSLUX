@@ -1,0 +1,17 @@
+{
+  "score": 8.0,
+  "verdict": "fail",
+  "summary": "Intersecția pe muchii și dezactivarea calibrării sunt implementate, iar cele opt cazuri auditate au rezultate actualizate. C2 rămâne incompletă: detectorul parcului nu reproduce condițiile producătorului și poate marca drept obligatorii muchii neobligatorii din mijloc. Simularea integrală a flotei nu a fost rerulată local, deoarece necesită datele VPS.",
+  "deductions": [
+    {
+      "id": "C2",
+      "severity": "high",
+      "weight": 2.5,
+      "title": "Detectorul parcului poate reintroduce scăderea din mijloc a kilometrilor obligatorii aflați în faza terminală.",
+      "detail": "Dovada nouă este în muchiiObligatorii: parcul este detectat numai din prezența continuă în rază timp de minimum cinci minute. Producătorul cere puncte de staționare, exclude raza porților și atribuie parc numai dacă liniile adiacente diferă (!aceeasi). Candidatul nu primește contextul liniilor și ignoră aceste condiții. Astfel, intersecția este calculată pe o mască incorectă, iar min(v.oblK, pl.mijlocUzina) poate folosi din nou obligatorii terminali pentru a deduce mișcare neobligatorie din mijloc.",
+      "evidence": "docs/plans/2026-09-29-drax-plimbat/vps/ziua-ideala-candidat.mjs:265; docs/plans/2026-09-29-drax-plimbat/vps/ziua-ideala-candidat.mjs:287; docs/plans/2026-09-29-drax-plimbat/vps/ziua-ideala-candidat.mjs:307; docs/plans/2026-09-28-drax-orase-in-linie/r6/vps/categorii.mjs:298; docs/plans/2026-09-28-drax-orase-in-linie/r6/vps/categorii.mjs:360",
+      "failure_scenario": "Interval între curse pe aceeași linie, din perechi diferite: VEST→EST în faza A, ieșire din raza terminală, revenire la parc, două opriri de peste cinci minute separate de o buclă în zonă, apoi continuare spre capătul rural. Proba locală cu funcțiile extrase identifică 0,79 km între porți, integral terminali, dar candidatul marchează 2,41 km obligatorii în mijloc. Producătorul nu atribuie parc pe aceeași linie, deci intersecția corectă este zero; candidatul deduce totuși 0,79 km. Când surplusul este pozitiv și plafonarea nu intervine, economia scade eronat cu acești kilometri.",
+      "suggested_fix": "Completează C2 cu toate condițiile producătorului pentru parc: contextul liniilor, staționările efective și excluderea porților. Cere probe comparative pentru aceeași linie din perechi diferite, mers continuu în raza parcului și opriri în zona comună parc–poartă, verificând atât masca obligatorie, cât și economia finală."
+    }
+  ]
+}

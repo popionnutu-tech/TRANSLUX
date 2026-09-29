@@ -1,0 +1,15 @@
+206BZP 2026-09-15 06:08–13:56 · gol 37.2 · legătura 23.7 (gps) · ocol 1.8 · rest 11.7 → muncă 11.7 · păstrat 0.0 · faze 12.1+0 · mijloc 18.4 ieșiri 6.6
+710CWN 2026-09-14 06:09–14:01 · gol 62.9 · legătura 14.8 (valhalla) · ocol 34.6 · rest 13.5 → muncă 12.6 · păstrat 0.9 · faze 12.9+0 · mijloc 37.1 ieșiri 13.2
+186OMM 2026-09-15 06:29–14:02 · gol 60.5 · legătura 38.9 (gps) · ocol 0 · rest 21.6 → muncă 21.6 · păstrat 0.0 · faze 14.2+15.5 · mijloc 25.1 ieșiri 13.1
+186OMM 2026-09-15 16:20–00:18 · gol 28.2 · legătura 19.4 (gps) · ocol 1.9 · rest 6.9 → muncă 5.1 · păstrat 1.8 · faze 3.4+1.6 · mijloc 12.4 ieșiri 10.7
+446ASB 2026-09-14 17:05–00:22 · gol 66.6 · legătura 49.8 (valhalla) · ocol 0.4 · rest 16.4 → muncă 16.4 · păstrat 0.0 · faze 0.6+20.5 · mijloc 38.1 ieșiri 11.5
+912RNK 2026-09-18 16:28–00:19 · gol 97 · legătura 26.2 (valhalla) · ocol 57.8 · rest 13.0 → muncă 12.2 · păstrat 0.8 · faze 3.4+12.3 · mijloc 71.2 ieșiri 13.7
+146BRAZ 2026-09-14 06:19–14:00 · gol 63.2 · legătura 39.1 (gps) · ocol 8 · rest 16.1 → muncă 16.1 · păstrat 0.0 · faze 24.7+2.1 · mijloc 38.4 ieșiri 8.5
+146BRAZ 2026-09-14 16:48–00:23 · gol 54.3 · legătura 37 (gps) · ocol 7.7 · rest 9.6 → muncă 8.5 · păstrat 1.1 · faze 0+15.4 · mijloc 36.5 ieșiri 9.3
+713IZX 2026-09-17 06:27–13:41 · gol 63.7 · legătura 35.5 (valhalla) · ocol 9.4 · rest 18.8 → muncă 18.8 · păstrat 0.0 · faze 18.7+1.6 · mijloc 31.9 ieșiri 11.6
+713IZX 2026-09-17 17:08–00:22 · gol 52.3 · legătura 41.9 (valhalla) · ocol 9.4 · rest 1.0 → muncă 1 · păstrat -0.0 · faze 0+12.4 · mijloc 31.4 ieșiri 12
+715IZX 2026-09-14 06:19–14:14 · gol 23.3 · legătura 18.8 (valhalla) · ocol 0.3 · rest 4.2 → muncă 4.2 · păstrat 0.0 · faze 12.8+0 · mijloc 8.8 ieșiri 8.8
+715IZX 2026-09-14 16:29–00:25 · gol 31 · legătura 18.8 (valhalla) · ocol 0.4 · rest 11.8 → muncă 11.8 · păstrat -0.0 · faze 0.9+19.6 · mijloc 8.7 ieșiri 8.8
+P1 obligatoriu VEST→EST: 0.86 km, muchii 8 … 11 · după EST nimic obligatoriu: ok
+P2 toată în zonă: ok
+P3 trecere fără oprire: ok

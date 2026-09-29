@@ -1,0 +1,27 @@
+{
+  "score": 7.0,
+  "verdict": "fail",
+  "summary": "Raza producătorului și validarea încrucișată sunt implementate efectiv. C2 repară cazul razei prea înguste, dar nu delimitarea obligatorilor aflați în fazele terminale; C3 rămâne parțial rezolvat. Simularea flotei nu a fost rerulată local, deoarece necesită datele VPS.",
+  "deductions": [
+    {
+      "id": "C2",
+      "severity": "high",
+      "weight": 2.5,
+      "title": "Scăderea geografică poate deduce din mijloc kilometri obligatorii aflați în fazele terminale.",
+      "detail": "inZonaProd reproduce zona de 3 km, însă min(v.oblK, pl.mijlocUzina) intersectează două totaluri, nu porțiunile traseului. Producătorul delimitează obligatorii între indicii ia și ib; candidatul numără orice muchie din mijloc aflată în zonă. Obligatorii terminali pot astfel finanța scăderea unor muchii neobligatorii din mijloc. Este partea neacoperită a C2, pentru care runda precedentă ceruse explicit delimitarea după indicii producătorului.",
+      "evidence": "docs/plans/2026-09-29-drax-plimbat/vps/ziua-ideala-candidat.mjs:257; docs/plans/2026-09-29-drax-plimbat/vps/ziua-ideala-candidat.mjs:277; docs/plans/2026-09-28-drax-orase-in-linie/r6/vps/categorii.mjs:169",
+      "failure_scenario": "Probă sintetică executată cu funcțiile extrase și distanțe ideale geometrice: VEST → ocol în zona producătorului → oprire EST, apoi ieșire din raza terminală, revenire în zonă fără atingerea porții și continuare spre un capăt rural. Detectorul recunoaște 5,75 km obligatorii, integral în faza A. Mijlocul conține 4,01 km în zonă, dar zero kilometri obligatorii; candidatul scade totuși 4,01 km. Cu CAL = 0 și rest0 = 10,47 km, reclasifică 3,26 km suplimentar față de formula cu intersecția exactă.",
+      "suggested_fix": "Completează reparația C2 prin delimitarea porțiunilor obligatorii după indicii/timpii producătorului și intersectarea lor efectivă cu mijlocul, identic la aplicare și calibrare. Include probe cu obligatorii integral și parțial în fazele terminale, urmate de mișcare neobligatorie în zona de 3 km."
+    },
+    {
+      "id": "C3",
+      "severity": "medium",
+      "weight": 0.5,
+      "title": "Validarea încrucișată nu verifică încă clasificarea metodei curente pe intervalele independente cu rest0 > 2.",
+      "detail": "Aplicarea calibrării între jumătăți există acum, iar calPentru limitează aplicarea la Valhalla. Totuși, validarea folosește exclusiv plStat.control, populat numai pentru |rest0| ≤ 2, și raportează abateri ale surplusului pe surse, fără rezultate pe perechi. Auditul manual anterior poate furniza referințe independente, dar probele disponibile nu compară aceste referințe cu kilometrii păstrați/reclasificați de metoda actuală.",
+      "evidence": "docs/plans/2026-09-29-drax-plimbat/vps/ziua-ideala-candidat.mjs:284; docs/plans/2026-09-29-drax-plimbat/vps/ziua-ideala-candidat.mjs:310; docs/plans/2026-09-29-drax-plimbat/vps/ziua-ideala-candidat.mjs:410; docs/plans/2026-09-29-drax-plimbat/rev/s2.mjs:29",
+      "failure_scenario": "",
+      "suggested_fix": "Completează C3 cu rezultatele metodei curente pe cele opt intervale auditate, inclusiv 912RNK: kilometri de referință, păstrați și reclasificați, cu și fără calibrarea estimată pe cealaltă jumătate. Raportează erorile pe perechi și surse și folosește rezultatele pentru confirmarea alegerii calibrării."
+    }
+  ]
+}

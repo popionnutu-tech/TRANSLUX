@@ -86,6 +86,9 @@ export async function generateBriceniOptimizariImage(a: AnalizaBriceni): Promise
  * Posterul săptămânii. Fără `trimite`, doar se desenează și se întoarce (nimic nu pleacă, nicio cheie nu se scrie);
  * cu `trimite`, pleacă în grupa livrărilor o dată pe săptămână (app_config.briceni_optimizari_poster_last).
  */
+export const captionBriceni = (saptamina: string, pana_la: string) =>
+  `Trox + suburban Briceni · cât se putea economisi · ${perioadaText(saptamina, pana_la)}`;
+
 export async function posterBriceni(o: { saptamina: string; pana_la: string; trimite: boolean; force?: boolean }):
   Promise<{ png: Buffer | null; trimis: boolean; motiv?: string; livrare?: number }> {
   const sb = getSupabase();
@@ -99,7 +102,7 @@ export async function posterBriceni(o: { saptamina: string; pana_la: string; tri
   const { data: g } = await sb.from('app_config').select('value').eq('key', LIVRARE_POSTER_CHAT_KEY).maybeSingle();
   const chat = (g?.value ?? '').trim();
   if (!chat) return { png, trimis: false, motiv: 'grupa livrărilor de uzină nu e legată (app_config.livrare_poster_chat_id)', livrare: a.total.livrare };
-  const caption = `Trox + suburban Briceni · cât se putea economisi · ${perioadaText(o.saptamina, o.pana_la)}`;
+  const caption = captionBriceni(o.saptamina, o.pana_la);
   const r = await sendTelegramPhoto(chat, png, caption, `briceni-optimizari-${o.saptamina}.png`);
   if (!r.ok) return { png, trimis: false, motiv: 'Telegram n-a primit imaginea', livrare: a.total.livrare };
   await sb.from('app_config').upsert({ key: BRICENI_POSTER_LAST_KEY, value: o.saptamina }, { onConflict: 'key' });

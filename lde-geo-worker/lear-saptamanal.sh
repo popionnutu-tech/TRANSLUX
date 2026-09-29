@@ -65,15 +65,13 @@ cheama() {  # o rută de cron; picată = se scrie și se merge mai departe
   curl -fsS -H "Authorization: Bearer $CRON_SECRET" "$BASE/api/cron/$1" || { echo "$1: a picat" >&2; picat=1; }
   echo
 }
-# SEBN (ION-60): posterul «cât se putea economisi» + întrebarea despre primele 3 mașini critice, în grupa
-# livrărilor de uzină. Singurul poster SEBN de luni (Ion, 25.09) — cel vechi de livrare nu mai pleacă.
-cheama "sebn-optimizari"
-# Trox + suburban Briceni (ION-73): posterul «cât se putea economisi», în aceeași grupă; Ion, 26.09: «formează
-# analiza suburban și Trox poster care va apărea în cron săptămânal la 8 luni». Fără analiza săptămânii nu pleacă.
-cheama "briceni-optimizari?send=1"
-# LEAR Ungheni și Florești (ION-57/59/62): posterul, apoi indicațiile pentru Alexei, apoi mesajul ADMIN.
-cheama "lde-timp-liber"
-cheama "lde-timp-liber?uz=floresti"
+# Posterele «cât se putea economisi» — SEBN (ION-60, cu întrebarea despre primele 3 mașini), Trox + suburban Briceni
+# (ION-73), LEAR Ungheni și Florești (ION-57/59) — pleacă în grupa livrărilor de uzină ca O SINGURĂ postare, un album
+# (ION-139, Ion 29.09: «1 postare cu toate pozele»). Ruta scrie marcajele fiecărui poster, pe care le citește paznicul.
+cheama "livrari-luni"
+# LEAR Ungheni și Florești (ION-57/59/62): fără poster (e în album) — indicațiile pentru Alexei și mesajul ADMIN de timp liber.
+cheama "lde-timp-liber?poster=0"
+cheama "lde-timp-liber?uz=floresti&poster=0"
 # Drăxlmaier (ION-94): doar proba mesajului de timp liber (dry) — posterul, indicațiile și mesajul ADMIN NU pleacă până la «da»-ul lui Ion.
 cheama "drax-optimizari?liber=1&dry=1"
 # Paznicul (ION-62): ce n-a plecat ajunge la ADMIN în bot (Ion, 25.09: «dacă nu se trimit, îmi dai mie»).

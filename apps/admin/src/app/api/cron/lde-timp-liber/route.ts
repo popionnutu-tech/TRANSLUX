@@ -80,11 +80,14 @@ export async function GET(req: NextRequest) {
     // apoi indicațiile pentru Alexei (ION-62) — după poster, niciodată înaintea lui; amândouă independente
     // de mesajul către ADMIN de mai jos.
     const raport = { saptamina: row.saptamina, pana_la: row.date.pana_la, masini: row.date.masini ?? [] };
-    const poster: Trimitere = await trimitePosterLear(raport, { dry, force: url.searchParams.get('poster') === 'force', uzina: UZINA }).catch(inca);
+    // ?poster=0: posterul pleacă în albumul de luni (/api/cron/livrari-luni, ION-139), aici doar indicațiile și mesajul ADMIN
+    const poster: Trimitere = url.searchParams.get('poster') === '0'
+      ? { trimis: false, motiv: 'în albumul de luni (livrari-luni)' }
+      : await trimitePosterLear(raport, { dry, force: url.searchParams.get('poster') === 'force', uzina: UZINA }).catch(inca);
     const indicatii: Trimitere = await trimiteIndicatii(U.uz, row.saptamina, indicatiiLear(raport, U, BASE),
       { dry, force: url.searchParams.get('indicatii') === 'force' }).catch(inca);
     // Ion, 25.09: «dacă nu se trimit, îmi dai mie în bot» — un refuz real (nu dedup, nu «nimic de arătat») ajunge la ADMIN pe loc
-    const refuz = (t: Trimitere) => !t.trimis && !!t.motiv && !/^(deja trimis|dry|nimic|nicio)/.test(t.motiv);
+    const refuz = (t: Trimitere) => !t.trimis && !!t.motiv && !/^(deja trimis|dry|nimic|nicio|în albumul)/.test(t.motiv);
     if (!dry) for (const [ce, t] of [['posterul', poster], ['indicațiile', indicatii]] as const) {
       if (refuz(t)) await alertAdmins(`⛔ ${UZINA}: ${ce} pentru săptămâna din ${row.saptamina} n-au plecat — ${t.motiv}`);
     }

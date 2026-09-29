@@ -106,6 +106,14 @@ export const LEAR_POSTER_LAST_KEY = 'lear_poster_last';
 // cheia de dedup e pe uzină: Ungheni păstrează cheia veche, Florești are a ei
 export const cheiaPosterului = (uzina: string) => uzina === 'LEAR Ungheni' ? LEAR_POSTER_LAST_KEY : `lear_poster_last_${uzina.toLowerCase().replace(/[^a-z]+/g, '_')}`;
 
+/** Posterul LEAR (Ungheni / Florești) al săptămânii, fără trimitere (ION-139: albumul de luni). */
+export async function pregatestePosterLear(raport: Pick<Raport, 'saptamina' | 'pana_la' | 'masini'>, uzina = 'LEAR Ungheni'):
+  Promise<{ png: Buffer; caption: string; cheie: string } | { motiv: string }> {
+  if (!randuriOptimizare(raport.masini).length) return { motiv: 'nicio optimizare de arătat' };
+  const png = await generateOptimizariImage(raport, uzina);
+  return { png, caption: `${uzina} · cât se putea economisi · ${perioadaText(raport.saptamina, raport.pana_la)}`, cheie: cheiaPosterului(uzina) };
+}
+
 export async function trimitePosterLear(raport: Pick<Raport, 'saptamina' | 'pana_la' | 'masini'>, opts: { force?: boolean; dry?: boolean; uzina?: string } = {}):
   Promise<{ trimis: boolean; motiv?: string }> {
   const uzina = opts.uzina ?? 'LEAR Ungheni';

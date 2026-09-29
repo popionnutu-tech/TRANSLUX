@@ -141,6 +141,18 @@ export function textulSebn(saptamina: string, pana_la: string, livrare: LivrareR
   return `${cap}\n\n<b>Întrebare: ce facem cu primele ${top.length} mașini critice?</b>\n${randuri.join('\n')}\n\nȘofer din satul de start, sau mașina așteaptă la capătul rutei între ture?`;
 }
 
+/** Posterul SEBN al săptămânii și textul lui, fără trimitere (ION-139: albumul de luni). null + motiv dacă nu e raport. */
+export async function pregatestePosterSebn(o: { saptamina: string; pana_la: string }):
+  Promise<{ png: Buffer; text: string } | { motiv: string }> {
+  const sb = getSupabase();
+  const { data: rap } = await sb.from('lde_analiza_reguli').select('date').eq('uzina', 'SEBN').eq('saptamina', o.saptamina).maybeSingle();
+  const liber = (rap?.date as { masini?: MasinaLiber[] } | null)?.masini ?? null;
+  if (!liber) return { motiv: 'raportul SEBN al săptămânii nu e scris (sebn-liber.mjs)' };
+  const { rows } = await incarcaLivrare(o.saptamina, o.pana_la, 0, UZINE_IMPLICITE);
+  const png = await generateSebnOptimizariImage({ saptamina: o.saptamina, pana_la: o.pana_la, livrare: rows, liber });
+  return { png, text: textulSebn(o.saptamina, o.pana_la, rows) };
+}
+
 export async function trimitePosterSebn(o: { saptamina: string; pana_la: string; force?: boolean; dry?: boolean }):
   Promise<{ trimis: boolean; motiv?: string; text?: string }> {
   const sb = getSupabase();

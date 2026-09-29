@@ -32,11 +32,10 @@ export function mesajTraseu(zi: string, randuri: Verificare[]): string[] {
   if (!abateri.length) return [`${cap}\n✅ ${randuri.length} ${randuri.length === 1 ? 'drum' : 'drumuri'}, toate pe traseu.`];
 
   const kmPlus = abateri.reduce((s, r) => s + Math.max(0, r.km_plus ?? 0), 0);
-  const leiPlus = abateri.reduce((s, r) => s + Math.max(0, r.lei_plus ?? 0), 0);
   const masini = [...new Set(abateri.map((r) => r.placa))];
   const blocuri: string[] = [
     `${cap}\n⚠️ Abateri: <b>${masini.length}</b> ${masini.length === 1 ? 'mașină' : 'mașini'}, ${abateri.length} din ${randuri.length} drumuri`
-    + (kmPlus >= 1 ? ` · <b>+${nr(kmPlus)} km</b> ≈ ${nr(leiPlus)} lei` : ''),
+    + (kmPlus >= 1 ? ` · <b>+${nr(kmPlus)} km</b>` : ''), // fără lei (Ion, 29.09)
   ];
   for (const placa of masini.sort()) {
     const ale = abateri.filter((r) => r.placa === placa);
@@ -51,7 +50,7 @@ export function mesajTraseu(zi: string, randuri: Verificare[]): string[] {
       const parti = r.abateri.filter((a) => a.cod !== 'traseu' && a.cod !== 'km');
       const cuKm = parti.filter((a) => a.km != null && Math.abs(a.km) >= 1);
       const plus = r.km_plus != null && r.km_plus >= 1 ? r.km_plus : null;
-      if (plus) out.push(`   <b>+${nr(plus)} km</b>${r.lei_plus ? ` ≈ ${nr(r.lei_plus)} lei` : ''}${cuKm.length ? ', din care:' : ''}`);
+      if (plus) out.push(`   <b>+${nr(plus)} km</b>${cuKm.length ? ', din care:' : ''}`);
       else if (cuKm.length) out.push('   km în plus:');
       for (const a of cuKm) out.push(`   <code>${(a.km! >= 0 ? '+' : '−') + nr(Math.abs(a.km!))}</code> ${escapeHtml(a.text)}`);
       for (const a of parti.filter((x) => !cuKm.includes(x))) out.push(`   ⚠ ${escapeHtml(a.text)}`);

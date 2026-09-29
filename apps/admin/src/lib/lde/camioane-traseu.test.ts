@@ -25,7 +25,8 @@ describe('mesajTraseu (ION-144)', () => {
     ] })]);
     expect(m).toContain('ideal: Giurgiulești · 430 km');
     expect(m).toContain('real: Albița · 662 km');
-    expect(m).toContain('<b>+232 km</b> ≈ 2.877 lei, din care:');
+    expect(m).toContain('<b>+232 km</b>, din care:');
+    expect(m).not.toContain('lei');
     expect(m).toContain('<code>+29</code> vama Albița');
     expect(m).toContain('<code>+126</code> Moldova');
     expect(m).not.toContain('662 km în loc de 430 km');

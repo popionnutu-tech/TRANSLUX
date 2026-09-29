@@ -32,6 +32,11 @@ describe('lista mașinilor', () => {
     const L = masiniSaptamana([r('B', '2026-09-15', 10), r('A', '2026-09-14', 5), r('B', '2026-09-14', 30), r('A', '2026-09-15', null)]);
     expect(L.map((x) => [x.m, x.economie, x.zile])).toEqual([['B', 40, ['2026-09-14', '2026-09-15']], ['A', 5, ['2026-09-14', '2026-09-15']]]);
   });
+  it('cifra din raport (adusă la 5 zile) bate suma zilelor măsurate; weekendul nu intră', () => {
+    const z = (zz: string, economie: number | null): RandListaHarta => ({ m: 'C', z: zz, sumar: { dow: 1, total: 100, cuOameni: 50, gol: 50, economie, ideal: null, linii: [], economieSapt: 50 } });
+    const [c] = masiniSaptamana([z('2026-09-14', 10), z('2026-09-15', 20), z('2026-09-19', null)]);
+    expect([c.economie, c.zileMasurate]).toEqual([50, 30]);
+  });
   it('durata și eticheta zilei', () => {
     expect(durata(299 * 60)).toBe('4 h 59 min');
     expect(durata(20 * 60)).toBe('20 min');

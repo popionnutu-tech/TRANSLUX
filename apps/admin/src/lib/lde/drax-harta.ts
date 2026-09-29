@@ -22,7 +22,15 @@ export interface ZiHarta {
   zi: ZiDrax | null;
   ideal: { economie: number; cauze: Record<string, number> } | null;
 }
-export interface SumarZiHarta { dow: number; total: number; cuOameni: number; gol: number; economie: number | null; ideal: number | null; linii: string[] }
+export interface SumarZiHarta {
+  dow: number; total: number; cuOameni: number; gol: number;
+  /** economia zilei față de ziua ideală; null când ziua nu intră în calcul (weekend, în afara eșantionului, Bălți/pauză) */
+  economie: number | null; ideal: number | null; linii: string[];
+  /** de ce ziua nu intră în calcul */
+  motivAfara?: string | null;
+  /** cifra mașinii din raport («Economie față de ziua ideală», km pe săptămână, adusă la 5 zile) — aceeași pe toate zilele ei */
+  economieSapt?: number | null;
+}
 export interface RandListaHarta { m: string; z: string; sumar: SumarZiHarta }
 
 /** linia din schelet sub urma mașinii */
@@ -44,16 +52,18 @@ export const durata = (sec: number) => {
 const ZILE = ['dum', 'lun', 'mar', 'mie', 'joi', 'vin', 'sâm'];
 export const eticZi = (z: string) => { const d = new Date(`${z}T12:00:00Z`); return `${ZILE[d.getUTCDay()]} ${z.slice(8, 10)}.${z.slice(5, 7)}`; };
 
-/** mașinile săptămânii, cu km-ii de tăiat pe săptămână (suma economiei zilelor măsurate), cele mai mari întâi */
+/** mașinile săptămânii, cu km-ii de tăiat pe săptămână (cifra din raport), cele mai mari întâi */
 export function masiniSaptamana(rows: RandListaHarta[]) {
-  const m = new Map<string, { m: string; zile: string[]; economie: number; total: number; linii: Set<string> }>();
+  const m = new Map<string, { m: string; zile: string[]; economie: number; total: number; linii: Set<string>; sapt: number | null }>();
   for (const r of rows) {
-    const x = m.get(r.m) ?? { m: r.m, zile: [], economie: 0, total: 0, linii: new Set<string>() };
+    const x = m.get(r.m) ?? { m: r.m, zile: [], economie: 0, total: 0, linii: new Set<string>(), sapt: null };
+    if (r.sumar.economieSapt != null) x.sapt = r.sumar.economieSapt;
     x.zile.push(r.z); x.economie += r.sumar.economie ?? 0; x.total += r.sumar.total;
     for (const l of r.sumar.linii) x.linii.add(l);
     m.set(r.m, x);
   }
-  return [...m.values()].map((x) => ({ ...x, zile: x.zile.sort(), economie: Math.round(x.economie * 10) / 10, total: Math.round(x.total), linii: [...x.linii] }))
+  // cifra din raport când există (rândurile de după 29.09); altfel suma zilelor măsurate
+  return [...m.values()].map(({ sapt, ...x }) => ({ ...x, zile: x.zile.sort(), zileMasurate: Math.round(x.economie * 10) / 10, economie: Math.round((sapt ?? x.economie) * 10) / 10, total: Math.round(x.total), linii: [...x.linii] }))
     .sort((a, b) => b.economie - a.economie || a.m.localeCompare(b.m));
 }
 

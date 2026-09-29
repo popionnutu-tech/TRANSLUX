@@ -73,7 +73,7 @@ export default function HartaClient({ saptamani, sapt, masini, masina, z, zi, zi
       <div className="harta-grid">
         {/* stânga: mașinile, cele cu mai mulți km de tăiat întâi */}
         <div className="harta-col stanga" style={{ borderRight: '1px solid var(--border-accent)' }}>
-          <div style={{ ...ETICHETA, padding: '6px 11px', background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border-accent)', position: 'sticky', top: 0, zIndex: 1 }}>
+          <div style={{ ...ETICHETA, padding: '6px 11px', background: '#fff', borderBottom: '1px solid var(--border-accent)', position: 'sticky', top: 0, zIndex: 2 }}>
             {masini.length} mașini · km de tăiat pe săpt.
           </div>
           {masini.map((x) => {
@@ -118,20 +118,21 @@ export default function HartaClient({ saptamani, sapt, masini, masina, z, zi, zi
         </div>
 
         {/* dreapta: zilele și ziua drum cu drum */}
-        <div className="harta-col" style={{ borderLeft: '1px solid var(--border-accent)', padding: '10px 12px' }}>
+        <div className="harta-col" style={{ borderLeft: '1px solid var(--border-accent)', padding: '10px 12px', overflowX: 'hidden' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
             <b style={{ fontFamily: MONO, fontSize: 16 }}>{masina}</b>
             {zi?.casa && <span style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>acasă: {zi.casa.n}</span>}
           </div>
           <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 2 }}>
-            săptămâna: {n0(m?.total)} km, de tăiat față de ziua ideală {n0(m?.economie)} km
+            săptămâna: {n0(m?.total)} km, de tăiat față de ziua ideală {n0(m?.economie)} km pe săptămână
+            {m && Math.abs(m.economie - m.zileMasurate) > 0.5 && <> (în zilele măsurate {n0(m.zileMasurate)} km, adus la 5 zile ca în raport)</>}
           </div>
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, margin: '10px 0' }}>
             {zileMasina.map((r) => {
               const activ = r.z === z;
               return (
-                <Link key={r.z} href={href(masina, r.z)} aria-current={activ ? 'page' : undefined} style={{
+                <Link key={r.z} href={href(masina, r.z)} aria-current={activ ? 'page' : undefined} title={r.sumar.economie == null ? `nu intră în calcul${r.sumar.motivAfara ? `: ${r.sumar.motivAfara}` : ''}` : undefined} style={{
                   textDecoration: 'none', fontSize: 11.5, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border-accent)',
                   background: activ ? 'var(--primary)' : 'transparent', color: activ ? '#fff' : 'var(--text)', lineHeight: 1.25, textAlign: 'center',
                 }}>
@@ -144,7 +145,7 @@ export default function HartaClient({ saptamani, sapt, masini, masina, z, zi, zi
 
           {sumar && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8, padding: '8px 0', borderTop: '1px solid var(--border-accent)', borderBottom: '1px solid var(--border-accent)' }}>
-              {[['în zi', sumar.total], ['cu oameni', sumar.cuOameni], ['goi', sumar.gol], ['de tăiat', sumar.economie]].map(([e, v]) => (
+              {[['în zi', sumar.total], ['cu oameni', sumar.cuOameni], ['goi', sumar.gol], [sumar.economie == null ? 'nu intră în calcul' : 'de tăiat', sumar.economie]].map(([e, v]) => (
                 <div key={e as string}>
                   <div style={ETICHETA}>{e}</div>
                   <div style={{ fontFamily: MONO, fontSize: 14, color: e === 'de tăiat' ? '#9B1B30' : 'var(--text)' }}>{n1(v as number | null)}</div>
@@ -161,7 +162,7 @@ export default function HartaClient({ saptamani, sapt, masini, masina, z, zi, zi
                 <li key={i}>
                   <button onClick={() => setAles(activ ? null : x.ora)} style={{
                     display: 'flex', gap: 8, width: '100%', textAlign: 'left', font: 'inherit', fontSize: 12.5, lineHeight: 1.4, cursor: 'pointer',
-                    padding: '5px 6px', border: 0, borderRadius: 6, background: activ ? 'var(--primary-dim)' : 'transparent',
+                    padding: '5px 6px', border: 0, borderRadius: 6, background: activ ? 'var(--primary-dim)' : 'transparent', whiteSpace: 'normal', overflowWrap: 'anywhere',
                     color: tip === 'gol' ? '#8A2A1F' : 'var(--text)', fontWeight: x.kmPeAcasa >= 0.5 ? 600 : 400,
                   }}>
                     <svg width="18" height="10" style={{ flexShrink: 0, marginTop: 5 }} aria-hidden>

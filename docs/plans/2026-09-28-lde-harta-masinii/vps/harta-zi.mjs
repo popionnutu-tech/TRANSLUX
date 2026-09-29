@@ -50,6 +50,8 @@ const tipIv = (cats) => (cats.cuOameni ? 'cursa' : Object.keys(cats).every((c) =
 const casaDe = new Map(EC.masini.map((x) => [x.m, x.casa ? P(x.casa) : null]));
 const masA = new Map(A.masini.map((x) => [x.m, x]));
 const ecZi = new Map((ZI.randuri ?? []).map((r) => [`${r.m}|${r.z}`, r]));
+// cifra săptămânii, aceeași ca în raport («Economie față de ziua ideală»): doar zilele măsurate, fără Bălți/pauză (separat)
+const ecSapt = new Map((ZI.masini ?? []).map((x) => [x.m, x.kmSapt12_2 ?? x.economieMasurata ?? null]));
 
 const randuri = []; const probe = { zile: 0, faraUrma: [], intervaleFaraPuncte: 0, difKm: [] };
 for (const d of Z.zile) {
@@ -93,7 +95,9 @@ for (const d of Z.zile) {
   randuri.push({
     uzina: 'DRAXELMAIER', saptamina: A.saptamina, m: d.m, z: d.z,
     sumar: { dow: d.dow, total: r1(d.total), cuOameni: r1(d.km.cuOameni ?? 0), gol: r1(d.total - (d.km.cuOameni ?? 0) - (d.km.intreUzine ?? 0)),
-      economie: e ? r1(e.economie) : null, ideal: e ? r1(e.ideal) : null, linii: d.linii ?? [] },
+      // ziua intră în cifra săptămânii doar dacă e măsurată (luni–vineri, în eșantion, nu separată) — ca în raport
+      economie: e && e.esant && !e.sep ? r1(e.economie) : null, ideal: e ? r1(e.ideal) : null, motivAfara: e ? (e.motiv ?? (e.sep ? 'separat' : null)) : 'weekend',
+      economieSapt: ecSapt.get(d.m) ?? null, linii: d.linii ?? [] },
     date: {
       t00, casa: casa ? { n: ma?.casa ?? numeLoc(casa), c: [r5(casa.lat), r5(casa.lon)] } : null,
       noapteA: d.noapteA ? { c: [r5(d.noapteA.lat), r5(d.noapteA.lon)], n: numeLoc(d.noapteA), min: d.noapteA.min } : null,

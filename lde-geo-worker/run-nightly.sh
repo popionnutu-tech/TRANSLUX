@@ -21,6 +21,8 @@ node --env-file=.env lde-alim-worker.mjs --write >> nightly.log 2>&1
 # Tot ce aruncă cele două de mai sus — plăcuțe/nume care nu sunt în vehicles → lde_fuel_strain (ION-134).
 # DUPĂ ele. O mașină adăugată în flotă: rulează o dată toate trei cu --all, ca istoricul ei să treacă la ea.
 node --env-file=.env fuel-strain-worker.mjs --write >> nightly.log 2>&1
+# Km pe mașină × zi din LDE (raznareadca.km_m2m) — norma faptică pe /lde/combustibil unde GPS-ul nostru n-are km (ION-135).
+node --env-file=.env km-m2m-worker.mjs --write >> nightly.log 2>&1
 node --env-file=.env price-worker.mjs 7 >> nightly.log 2>&1
 # Tipul camionului din recepțiile TLX: cine a descărcat carburant în ultimele
 # 60 de zile e cisternă (Ion, 08.09). Înainte de trip-live/trip-worker, ca

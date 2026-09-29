@@ -24,6 +24,13 @@ export type FlotaRow = {
   foaie_n: number;
   foaie_l: number;
   total_l: number;
+  km: number;                 // km pe perioadă: GPS-ul nostru pe zi, altfel km_m2m din LDE (migr. 436)
+  km_zile_gps: number;
+  km_zile_lde: number;
+  litri_cu_km: number;        // litrii din zilele ≥ prima zi cu km (camioanele au km doar din iunie)
+  consum: number | null;      // l/100 km faptic = litri_cu_km / km × 100; null sub 100 km
+  norma: number | null;       // l/100 km, ca pe /lde/vehicule
+  prima: string | null;
   ultima: string | null;
 };
 
@@ -39,6 +46,8 @@ export type ConsumatorRow = {
   litri_total: number;
   prima: string;
   ultima: string;
+  prima_p: string | null;     // prima / ultima alimentare ÎN perioadă
+  ultima_p: string | null;
 };
 
 export type CombustibilData = {
@@ -85,6 +94,13 @@ export async function getCombustibil(from?: string, to?: string): Promise<Combus
     foaie_n: Number(r.foaie_n),
     foaie_l: Number(r.foaie_l),
     total_l: Number(r.benzol_l) + Number(r.foaie_l),
+    km: Number(r.km),
+    km_zile_gps: Number(r.km_zile_gps),
+    km_zile_lde: Number(r.km_zile_lde),
+    litri_cu_km: Number(r.litri_cu_km),
+    consum: Number(r.km) >= 100 && Number(r.litri_cu_km) > 0 ? (Number(r.litri_cu_km) / Number(r.km)) * 100 : null,
+    norma: r.norma != null ? Number(r.norma) : null,
+    prima: r.prima,
     ultima: r.ultima,
   }));
   flota.sort((a, b) => b.total_l - a.total_l || a.plate_number.localeCompare(b.plate_number));
@@ -101,6 +117,8 @@ export async function getCombustibil(from?: string, to?: string): Promise<Combus
     litri_total: Number(r.litri_total),
     prima: r.prima,
     ultima: r.ultima,
+    prima_p: r.prima_p,
+    ultima_p: r.ultima_p,
   }));
   const izolateRows = toti.filter((c) => c.randuri_total < PRAG_UNIFICAT);
   const consumatori = toti

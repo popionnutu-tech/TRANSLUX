@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Fuel, Truck, Users, ShoppingCart } from 'lucide-react';
 import {
   getAlimentariMasina, getAlimentariConsumator,
-  type CombustibilData, type Alimentare, type ConsumatorRow,
+  type CombustibilData, type Alimentare, type ConsumatorRow, type FlotaRow,
 } from './actions';
 
 const nf = new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 });
@@ -46,6 +46,14 @@ function fmtZi(zi: string | null): string {
   if (!zi) return '—';
   const [y, m, d] = zi.split('-');
   return `${d}.${m}.${y}`;
+}
+
+// Abaterea faptic − normă, în %: roșu peste +5 %, verde sub −5 %
+function Abatere({ consum, norma }: { consum: number | null; norma: number | null }) {
+  if (consum == null || norma == null || norma <= 0) return <span className="text-muted-foreground">—</span>;
+  const p = ((consum - norma) / norma) * 100;
+  const color = p > 5 ? 'var(--danger, #ef4444)' : p < -5 ? 'var(--success, #16a34a)' : undefined;
+  return <span style={{ color }}>{p > 0 ? '+' : ''}{nf.format(p)} %</span>;
 }
 
 function DetaliuTabel({ rows }: { rows: Alimentare[] | 'loading' }) {
@@ -111,16 +119,24 @@ export default function CombustibilClient({ data }: { data: CombustibilData }) {
     [data.flota, faraLitri, q],
   );
 
+  // Ion, 29.09: «împărțirea să fie pe direcții, nu toate împreună» — un tabel pe direcție, cu norma faptică
   const peDirectii = useMemo(() => {
-    const m = new Map<string, { litri: number; masini: number }>();
+    type Dir = { litri: number; masini: number; km: number; litriCuKm: number; normaKm: number; kmCuNorma: number; rows: FlotaRow[] };
+    const m = new Map<string, Dir>();
     for (const r of data.flota) {
-      if (r.total_l <= 0) continue;
-      const e = m.get(r.directie) ?? { litri: 0, masini: 0 };
-      e.litri += r.total_l; e.masini++;
+      if (r.total_l <= 0 && r.km <= 0) continue;
+      const e = m.get(r.directie) ?? { litri: 0, masini: 0, km: 0, litriCuKm: 0, normaKm: 0, kmCuNorma: 0, rows: [] };
+      e.litri += r.total_l; e.masini++; e.km += r.km; e.litriCuKm += r.litri_cu_km;
+      if (r.norma != null && r.km > 0) { e.normaKm += r.norma * r.km; e.kmCuNorma += r.km; }
       m.set(r.directie, e);
     }
-    return [...m.entries()].sort((a, b) => b[1].litri - a[1].litri);
-  }, [data.flota]);
+    for (const r of flotaVizibila) m.get(r.directie)?.rows.push(r);
+    return [...m.entries()].sort((a, b) => b[1].litri - a[1].litri).map(([d, e]) => ({
+      directie: d, ...e,
+      consum: e.km >= 100 ? (e.litriCuKm / e.km) * 100 : null,
+      norma: e.kmCuNorma > 0 ? e.normaKm / e.kmCuNorma : null,
+    }));
+  }, [data.flota, flotaVizibila]);
 
   const consumatoriPeTip = useMemo(() => {
     const m = new Map<string, ConsumatorRow[]>();
@@ -213,7 +229,7 @@ export default function CombustibilClient({ data }: { data: CombustibilData }) {
       </div>
 
       <Card style={{ marginBottom: '1rem' }}>
-        <CardHeader><CardTitle>Flota pe direcții</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Flota pe direcții — norma faptică</CardTitle></CardHeader>
         <CardContent>
           <table className="pivot-table" style={{ width: '100%' }}>
             <thead>
@@ -221,74 +237,94 @@ export default function CombustibilClient({ data }: { data: CombustibilData }) {
                 <th style={{ textAlign: 'left' }}>Direcția</th>
                 <th style={{ textAlign: 'right' }}>Mașini</th>
                 <th style={{ textAlign: 'right' }}>Litri</th>
+                <th style={{ textAlign: 'right' }}>Km</th>
+                <th style={{ textAlign: 'right' }}>l/100 km faptic</th>
+                <th style={{ textAlign: 'right' }}>Normă</th>
+                <th style={{ textAlign: 'right' }}>Abatere</th>
               </tr>
             </thead>
             <tbody>
-              {peDirectii.map(([d, e]) => (
-                <tr key={d}>
-                  <td>{DIR_LABELS[d] ?? d}</td>
-                  <td style={{ textAlign: 'right' }}>{e.masini}</td>
-                  <td style={{ textAlign: 'right' }}>{nf.format(e.litri)}</td>
+              {peDirectii.map((d) => (
+                <tr key={d.directie}>
+                  <td>{DIR_LABELS[d.directie] ?? d.directie}</td>
+                  <td style={{ textAlign: 'right' }}>{d.masini}</td>
+                  <td style={{ textAlign: 'right' }}>{nf.format(d.litri)}</td>
+                  <td style={{ textAlign: 'right' }}>{nf.format(d.km)}</td>
+                  <td style={{ textAlign: 'right' }}><strong>{d.consum != null ? nf1.format(d.consum) : '—'}</strong></td>
+                  <td style={{ textAlign: 'right' }}>{d.norma != null ? nf1.format(d.norma) : '—'}</td>
+                  <td style={{ textAlign: 'right' }}><Abatere consum={d.consum} norma={d.norma} /></td>
                 </tr>
               ))}
             </tbody>
           </table>
+          <p className="text-sm text-muted-foreground" style={{ marginTop: '0.5rem' }}>
+            Km: GPS-ul nostru pe zi; unde lipsește (înainte de 10.06.2026), km din LDE. Norma faptică se ia din prima zi cu km
+            a fiecărei mașini — camioanele au km doar din iunie. Norma = ca pe «Mașini LDE» (măsurată sau a tipului).
+          </p>
         </CardContent>
       </Card>
 
-      <Card style={{ marginBottom: '1rem' }}>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle>Flota — fiecare mașină</CardTitle>
-          <span className="text-sm text-muted-foreground">{flotaVizibila.length} mașini</span>
-        </CardHeader>
-        <CardContent>
-          <div style={{ overflowX: 'auto' }}>
-            <table className="pivot-table" style={{ width: '100%' }}>
-              <thead>
-                <tr>
-                  <th style={{ textAlign: 'left' }}>Mașina</th>
-                  <th style={{ textAlign: 'left' }}>Direcția</th>
-                  <th style={{ textAlign: 'right' }}>Benzol L</th>
-                  <th style={{ textAlign: 'right' }}>Alim.</th>
-                  <th style={{ textAlign: 'right' }}>Foi L</th>
-                  <th style={{ textAlign: 'right' }}>Foi</th>
-                  <th style={{ textAlign: 'right' }}>Total L</th>
-                  <th style={{ textAlign: 'left' }}>Ultima</th>
-                </tr>
-              </thead>
-              <tbody>
-                {flotaVizibila.length === 0 && (
-                  <tr><td colSpan={8} className="text-center text-muted">Nu există date.</td></tr>
-                )}
-                {flotaVizibila.map((r) => {
-                  const key = `v:${r.vehicle_id}`;
-                  return (
-                    <Fragment key={key}>
-                      <tr style={{ cursor: 'pointer' }}
-                        onClick={() => toggle(key, () => getAlimentariMasina(r.vehicle_id, data.from, data.to))}>
-                        <td>
-                          <strong>{r.plate_number}</strong>
-                          {!r.active && <span className="text-sm text-muted-foreground"> · oprită</span>}
-                        </td>
-                        <td>{DIR_LABELS[r.directie] ?? r.directie}</td>
-                        <td style={{ textAlign: 'right' }}>{nf.format(r.benzol_l)}</td>
-                        <td style={{ textAlign: 'right' }}>{r.benzol_n}</td>
-                        <td style={{ textAlign: 'right' }}>{nf.format(r.foaie_l)}</td>
-                        <td style={{ textAlign: 'right' }}>{r.foaie_n}</td>
-                        <td style={{ textAlign: 'right' }}><strong>{nf.format(r.total_l)}</strong></td>
-                        <td>{fmtZi(r.ultima)}</td>
-                      </tr>
-                      {deschis[key] && (
-                        <tr><td colSpan={8}><DetaliuTabel rows={deschis[key]} /></td></tr>
-                      )}
-                    </Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+      {peDirectii.filter((d) => d.rows.length > 0).map((d) => (
+        <Card key={d.directie} style={{ marginBottom: '1rem' }}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle>{DIR_LABELS[d.directie] ?? d.directie}</CardTitle>
+            <span className="text-sm text-muted-foreground">
+              {d.rows.length} mașini · {nf.format(d.litri)} L · {nf.format(d.km)} km
+              {d.consum != null && <> · <strong>{nf1.format(d.consum)} l/100 km</strong></>}
+              {d.norma != null && <> (normă {nf1.format(d.norma)})</>}
+            </span>
+          </CardHeader>
+          <CardContent>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="pivot-table" style={{ width: '100%' }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left' }}>Mașina</th>
+                    <th style={{ textAlign: 'right' }}>Benzol L</th>
+                    <th style={{ textAlign: 'right' }}>Alim.</th>
+                    <th style={{ textAlign: 'right' }}>Foi L</th>
+                    <th style={{ textAlign: 'right' }}>Total L</th>
+                    <th style={{ textAlign: 'right' }}>Km</th>
+                    <th style={{ textAlign: 'right' }}>l/100 km</th>
+                    <th style={{ textAlign: 'right' }}>Normă</th>
+                    <th style={{ textAlign: 'right' }}>Abatere</th>
+                    <th style={{ textAlign: 'left' }}>Prima → ultima</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {d.rows.map((r) => {
+                    const key = `v:${r.vehicle_id}`;
+                    return (
+                      <Fragment key={key}>
+                        <tr style={{ cursor: 'pointer' }}
+                          onClick={() => toggle(key, () => getAlimentariMasina(r.vehicle_id, data.from, data.to))}>
+                          <td>
+                            <strong>{r.plate_number}</strong>
+                            {!r.active && <span className="text-sm text-muted-foreground"> · oprită</span>}
+                          </td>
+                          <td style={{ textAlign: 'right' }}>{nf.format(r.benzol_l)}</td>
+                          <td style={{ textAlign: 'right' }}>{r.benzol_n}</td>
+                          <td style={{ textAlign: 'right' }}>{nf.format(r.foaie_l)}</td>
+                          <td style={{ textAlign: 'right' }}><strong>{nf.format(r.total_l)}</strong></td>
+                          <td style={{ textAlign: 'right' }}
+                            title={`GPS-ul nostru ${r.km_zile_gps} zile, LDE ${r.km_zile_lde} zile`}>{nf.format(r.km)}</td>
+                          <td style={{ textAlign: 'right' }}><strong>{r.consum != null ? nf1.format(r.consum) : '—'}</strong></td>
+                          <td style={{ textAlign: 'right' }}>{r.norma != null ? nf1.format(r.norma) : '—'}</td>
+                          <td style={{ textAlign: 'right' }}><Abatere consum={r.consum} norma={r.norma} /></td>
+                          <td>{fmtZi(r.prima)} → {fmtZi(r.ultima)}</td>
+                        </tr>
+                        {deschis[key] && (
+                          <tr><td colSpan={10}><DetaliuTabel rows={deschis[key]} /></td></tr>
+                        )}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
 
       {consumatoriPeTip.map(([tip, rows]) => (
         <Card key={tip} style={{ marginBottom: '1rem' }}>
@@ -306,8 +342,7 @@ export default function CombustibilClient({ data }: { data: CombustibilData }) {
                     <th style={{ textAlign: 'left' }}>Plăcuța / denumirea</th>
                     <th style={{ textAlign: 'right' }}>Alim.</th>
                     <th style={{ textAlign: 'right' }}>Litri</th>
-                    <th style={{ textAlign: 'right' }}>Litri tot istoricul</th>
-                    <th style={{ textAlign: 'left' }}>Prima → ultima</th>
+                    <th style={{ textAlign: 'left' }}>Prima → ultima (în perioadă)</th>
                     <th style={{ textAlign: 'left' }}>Surse</th>
                   </tr>
                 </thead>
@@ -326,12 +361,11 @@ export default function CombustibilClient({ data }: { data: CombustibilData }) {
                           </td>
                           <td style={{ textAlign: 'right' }}>{c.randuri}</td>
                           <td style={{ textAlign: 'right' }}><strong>{nf.format(c.litri)}</strong></td>
-                          <td style={{ textAlign: 'right' }}>{nf.format(c.litri_total)}</td>
-                          <td>{fmtZi(c.prima)} → {fmtZi(c.ultima)}</td>
+                          <td>{fmtZi(c.prima_p)} → {fmtZi(c.ultima_p)}</td>
                           <td className="text-sm text-muted-foreground">{c.surse.join(', ')}</td>
                         </tr>
                         {deschis[key] && (
-                          <tr><td colSpan={6}><DetaliuTabel rows={deschis[key]} /></td></tr>
+                          <tr><td colSpan={5}><DetaliuTabel rows={deschis[key]} /></td></tr>
                         )}
                       </Fragment>
                     );

@@ -41,8 +41,9 @@ export function mesajTraseu(zi: string, randuri: Verificare[]): string[] {
     const linii = ale.map((r) => {
       const traseu = [r.de, r.pana].filter(Boolean).join(' → ');
       const km = r.km_plus != null && r.km_plus >= 1 && r.km_ideal ? ` · ${nr(r.km_gps ?? 0)} km în loc de ${nr(r.km_ideal)} (<b>+${nr(r.km_plus)}</b>)` : '';
-      const cauze = r.abateri.map((a) => `   – ${escapeHtml(a.text)}`).join('\n');
-      return `• ${TIP[r.tip]}${traseu ? ` ${escapeHtml(traseu)}` : ''}${km}\n${cauze}`;
+      // km totali stau deja pe rândul cursei; sub el rămân doar cauzele (vama, drumul prin România, ZEL)
+      const cauze = r.abateri.filter((a) => a.cod !== 'km' || !km).map((a) => `   – ${escapeHtml(a.text)}`).join('\n');
+      return `• ${TIP[r.tip]}${traseu ? ` ${escapeHtml(traseu)}` : ''}${km}${cauze ? `\n${cauze}` : ''}`;
     });
     blocuri.push(`<b>${escapeHtml(placa)}</b>\n${linii.join('\n')}`);
   }

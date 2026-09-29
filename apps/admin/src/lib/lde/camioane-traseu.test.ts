@@ -15,6 +15,12 @@ describe('mesajTraseu (ION-144)', () => {
     expect(m).toContain('+222');
   });
 
+  it('km totali doar pe rândul cursei, nu și ca abatere', () => {
+    const [m] = mesajTraseu('2026-08-28', [r({ abateri: [{ cod: 'ro_drum', text: 'în România pe alt drum' }, { cod: 'km', text: '621 km în loc de 399 km' }] })]);
+    expect(m).toContain('în România pe alt drum');
+    expect(m).not.toContain('621 km în loc de 399 km');
+  });
+
   it('fără abateri: o singură linie', () => {
     expect(mesajTraseu('2026-08-28', [r({ ok: true, abateri: [] })])).toEqual(['🚚 <b>Cisterne · traseul de ieri, 28.08.2026</b>\n✅ 1 drum, toate pe traseu.']);
   });

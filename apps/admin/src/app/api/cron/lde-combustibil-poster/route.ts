@@ -9,7 +9,7 @@ export const maxDuration = 60;
 /**
  * Posterul lunar de combustibil pe grupuri de direcții (ION-138, Ion 29.09.2026).
  *
- * Planul Hobby nu mai are cronuri Vercel libere — îl pornește crontab-ul VPS pe 1 ale lunii la 08:00
+ * Planul Hobby nu mai are cronuri Vercel libere — îl pornește crontab-ul VPS pe 25 ale lunii la 08:00
  * (lde-geo-worker/run-nightly.sh, antetul), pentru luna încheiată. `?luna=2026-09` alege luna;
  * `?grup=lear,sebn` doar câteva grupuri; `?force=1` retrimite; `?preview=1&grup=lear` întoarce PNG-ul fără să trimită.
  */

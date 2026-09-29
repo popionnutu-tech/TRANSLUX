@@ -10,7 +10,8 @@ const db = () => getSupabase();
 // trebuie să ceară deploy, iar cine leagă grupa e chiar omul din ea.
 
 // Cheia e în @translux/db: panoul citește exact aceeași valoare.
-import { DRIVERS_GROUP_CONFIG_KEY, GRAFIC_GROUP_CONFIG_KEY, LIVRARE_POSTER_CONFIG_KEY } from '@translux/db';
+import { DRIVERS_GROUP_CONFIG_KEY, GRAFIC_GROUP_CONFIG_KEY, LIVRARE_POSTER_CONFIG_KEY,
+  COMBUSTIBIL_POSTER_CONFIG_KEY, COMBUSTIBIL_POSTER_THREAD_CONFIG_KEY } from '@translux/db';
 export const DRIVERS_GROUP_KEY = DRIVERS_GROUP_CONFIG_KEY;
 // Grupa «Livrari Uzini» (Ion, 19.09): posterul de livrare la două săptămâni. /lega_livrari.
 export const LIVRARI_GROUP_KEY = LIVRARE_POSTER_CONFIG_KEY;
@@ -56,4 +57,19 @@ export async function bindLivrariGroup(chatId: number): Promise<void> {
 
 export async function currentLivrariGroup(): Promise<string | null> {
   return currentGroup(LIVRARI_GROUP_KEY);
+}
+
+// Grupa P9, tabul «DT» (Ion, 29.09, ION-138): posterele de combustibil pe 25 ale lunii. /lega_dt.
+export async function currentDtGroup(): Promise<{ chat: string | null; thread: number | null }> {
+  const chat = await currentGroup(COMBUSTIBIL_POSTER_CONFIG_KEY);
+  const thread = Number(await currentGroup(COMBUSTIBIL_POSTER_THREAD_CONFIG_KEY)) || null;
+  return { chat, thread };
+}
+
+export async function bindDtGroup(chatId: number, threadId: number | null): Promise<void> {
+  await bindGroup(COMBUSTIBIL_POSTER_CONFIG_KEY, chatId, 'bindDtGroup');
+  const { error } = threadId
+    ? await db().from('app_config').upsert({ key: COMBUSTIBIL_POSTER_THREAD_CONFIG_KEY, value: String(threadId), updated_at: new Date().toISOString() }, { onConflict: 'key' })
+    : await db().from('app_config').delete().eq('key', COMBUSTIBIL_POSTER_THREAD_CONFIG_KEY);
+  if (error) throw new Error(`bindDtGroup (tab): ${error.message}`);
 }

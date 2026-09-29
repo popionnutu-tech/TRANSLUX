@@ -7,14 +7,16 @@ export function escapeHtml(s: string): string {
 
 /** Отправка одного сообщения в Telegram. Никогда не бросает — возвращает успех.
  *  replyMarkup (опционально) — inline-клавиатура, напр. кнопка web_app в Mini App. */
-export async function sendTelegram(chatId: string | number, text: string, replyMarkup?: unknown): Promise<boolean> {
+export async function sendTelegram(chatId: string | number, text: string, replyMarkup?: unknown,
+  /** tabul (topicul) dintr-o grupă-forum; lipsă = chatul întreg */ threadId?: number | null): Promise<boolean> {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   if (!botToken) return false;
   try {
     const resp = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML', ...(replyMarkup ? { reply_markup: replyMarkup } : {}) }),
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML', ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+        ...(threadId ? { message_thread_id: threadId } : {}) }),
       // Serverless: без таймаута зависший Telegram держит инвокацию до maxDuration.
       signal: AbortSignal.timeout(5000),
     });
@@ -34,6 +36,8 @@ export async function sendTelegramPhoto(
   png: Buffer | Uint8Array,
   caption: string,
   filename = 'image.png',
+  /** tabul (topicul) dintr-o grupă-forum; lipsă = chatul întreg */
+  threadId?: number | null,
 ): Promise<{ ok: boolean; messageId: number | null }> {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   if (!botToken) return { ok: false, messageId: null };
@@ -42,6 +46,7 @@ export async function sendTelegramPhoto(
     form.append('chat_id', String(chatId));
     form.append('caption', caption);
     form.append('parse_mode', 'HTML');
+    if (threadId) form.append('message_thread_id', String(threadId));
     form.append('photo', new Blob([new Uint8Array(png)], { type: 'image/png' }), filename);
     const resp = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
       method: 'POST',

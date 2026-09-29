@@ -16,7 +16,7 @@ import { initAdminAlert } from './services/adminAlert.js';
 import { handleDaily, handleSmmWeekly, handleSmmMonth } from './handlers/smm.js';
 import { initTaskBoard, bindTaskBoard, getBoardAssignee, sweepTaskBoards } from './services/taskBoard.js';
 import { sendVoiceLessonDigest, decideVoiceLesson } from './services/voiceLessons.js';
-import { bindDriversGroup, currentDriversGroup, bindGraficGroup, currentGraficGroup, bindLivrariGroup, currentLivrariGroup } from './services/driversGroup.js';
+import { bindDriversGroup, currentDriversGroup, bindGraficGroup, currentGraficGroup, bindLivrariGroup, currentLivrariGroup, bindDtGroup, currentDtGroup } from './services/driversGroup.js';
 
 export function createBot(): Bot<BotContext> {
   const bot = new Bot<BotContext>(config.botToken);
@@ -204,6 +204,49 @@ export function createBot(): Bot<BotContext> {
       + 'Aici va veni, la două săptămâni (luni), posterul de livrare (подача) pe rutele de uzină '
       + 'și textul cu economia posibilă.',
     );
+  });
+
+  // Grupa P9, tabul «DT» (Ion, 29.09, ION-138): «creează tab DT» + «hai mai bine în grup să unesc». Pe 25 ale lunii
+  // panoul trimite aici posterele de combustibil pe luna trecută. Același tipar ca /lega_livrari; în plus, într-o
+  // grupă cu taburi comanda creează tabul «DT» (o singură dată pe grupă) și ține minte id-ul lui.
+  bot.command('lega_dt', async (ctx) => {
+    if (!ctx.dbUser || ctx.dbUser.role !== 'ADMIN') {
+      await ctx.reply('Doar administratorii pot lega o grupă.');
+      return;
+    }
+    if (ctx.chat?.type !== 'group' && ctx.chat?.type !== 'supergroup') {
+      await ctx.reply('Comanda funcționează doar într-o grupă.');
+      return;
+    }
+    const chatId = ctx.chat.id;
+    const forum = ctx.chat.type === 'supergroup' && (ctx.chat as { is_forum?: boolean }).is_forum === true;
+    let thread: number | null = null;
+    try {
+      const veche = await currentDtGroup();
+      if (forum) {
+        // Același chat și un tab deja creat → îl refolosim, nu facem al doilea «DT»
+        if (veche.chat === String(chatId) && veche.thread) thread = veche.thread;
+        else {
+          try {
+            thread = (await ctx.api.createForumTopic(chatId, 'DT')).message_thread_id;
+          } catch (err) {
+            console.error('lega_dt createForumTopic:', err);
+            await ctx.reply('Nu pot crea tabul «DT»: dați botului dreptul de administrator «Gestionare subiecte» (Manage topics) și scrieți din nou /lega_dt.');
+            return;
+          }
+        }
+      }
+      await bindDtGroup(chatId, thread);
+    } catch (err) {
+      console.error('lega_dt:', err);
+      await ctx.reply('Nu am putut lega grupa acum. Încercați din nou peste un minut.');
+      return;
+    }
+    const text = '✓ Tabul DT a fost legat.\n'
+      + 'Aici vin, pe 25 ale fiecărei luni, posterele de combustibil pentru luna trecută: '
+      + 'câte unul pe direcție, unul pentru tot ce e în afara flotei, posterul general și un mesaj cu explicațiile.';
+    if (thread) await ctx.api.sendMessage(chatId, text, { message_thread_id: thread });
+    else await ctx.reply(text + (forum ? '' : '\nGrupa n-are taburi, deci posterele vin în chatul grupei.'));
   });
 
   // Уроки голосового агента: ручной запуск дайджеста (тест-рычаг, только ADMIN).

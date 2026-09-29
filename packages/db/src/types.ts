@@ -30,6 +30,11 @@ export const GRAFIC_GROUP_CONFIG_KEY = 'grafic_group_chat_id';
 // posterul numește oamenii și satele lor. Legată cu /lega_livrari; citită de panou.
 export const LIVRARE_POSTER_CONFIG_KEY = 'livrare_poster_chat_id';
 
+// Grupa P9, tabul «DT» (Ion, 29.09.2026, ION-138): pe 25 ale lunii pleacă acolo posterele de combustibil pe luna
+// trecută (8 postere + mesajul de introducere). Legată cu /lega_dt, care creează și tabul; citite de panou.
+export const COMBUSTIBIL_POSTER_CONFIG_KEY = 'combustibil_poster_chat_id';
+export const COMBUSTIBIL_POSTER_THREAD_CONFIG_KEY = 'combustibil_poster_thread_id';
+
 // Map: controller point → direction they report for
 export const POINT_DIRECTION_MAP: Record<PointEnum, DirectionEnum> = {
   CHISINAU: 'CHISINAU_BALTI',

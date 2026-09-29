@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
-import type { DailyCount, DetailedRoutesResult, DeviceCount, CountryCount, SearchesByMod, TotalStats } from './actions';
+import type { Anomaly, DailyCount, DetailedRoutesResult, DeviceCount, CountryCount, SearchesByMod, TotalStats } from './actions';
 import type { OverviewKPI, RouteScorecardRow, DriverScorecardRow, RouteLoadRow, RouteTypeFilter } from './sales-actions';
 import { getSiteAnalytics } from './actions';
 import { getOverviewData } from './sales-actions';
@@ -15,6 +15,7 @@ interface Props {
   initialDevices: DeviceCount[];
   initialCountries: CountryCount[];
   initialTotals: TotalStats;
+  initialAnomalies: Anomaly[];
   initialDays: number;
   initialOverviewKPI: OverviewKPI;
   initialRouteScorecard: RouteScorecardRow[];
@@ -144,6 +145,19 @@ function ModSplit({ acum, later }: { acum: string | number; later: string | numb
   );
 }
 
+// Câți oameni distincți stau în spatele cifrei (ION-142, Ion 29.09: «nu se înțelege câte unice»).
+// Se numără din uniqueSince (migr. 439); înainte nu există amprentă — atunci o spune, nu arată 0.
+function Unique({ n, since }: { n: number; since: string | null }) {
+  if (!since) return <div style={{ fontSize: 12, color: '#aaa', marginTop: 6 }}>oameni: din ziua livrării</div>;
+  return (
+    <div style={{ fontSize: 13, color: '#555', marginTop: 6 }}>
+      <b>{n.toLocaleString()}</b> oameni <span style={{ color: '#aaa', fontSize: 11 }}>din {since.slice(8, 10)}.{since.slice(5, 7)}</span>
+    </div>
+  );
+}
+
+const ANOMALY_LABEL: Record<Anomaly['kind'], string> = { zi: 'o zi', zilnic: 'zilnic' };
+
 // --- Device labels ---
 const DEVICE_LABELS: Record<string, string> = {
   mobile: 'Mobile',
@@ -177,6 +191,7 @@ export default function AnalyticsClient({
   initialDevices,
   initialCountries,
   initialTotals,
+  initialAnomalies,
   initialDays,
   initialOverviewKPI,
   initialRouteScorecard,
@@ -191,6 +206,7 @@ export default function AnalyticsClient({
   const [devices, setDevices] = useState(initialDevices);
   const [countries, setCountries] = useState(initialCountries);
   const [totals, setTotals] = useState(initialTotals);
+  const [anomalies, setAnomalies] = useState(initialAnomalies);
   const [overviewKPI, setOverviewKPI] = useState(initialOverviewKPI);
   const [routeScorecard, setRouteScorecard] = useState(initialRouteScorecard);
   const [driverScorecard, setDriverScorecard] = useState(initialDriverScorecard);
@@ -215,6 +231,7 @@ export default function AnalyticsClient({
       setDevices(site.devices);
       setCountries(site.countries);
       setTotals(site.totals);
+      setAnomalies(site.anomalies);
       setOverviewKPI(overview.kpi);
       setRouteScorecard(overview.routes);
       setDriverScorecard(overview.drivers);
@@ -314,16 +331,19 @@ export default function AnalyticsClient({
             <div className="card" style={{ textAlign: 'center', padding: 20 }}>
               <div style={{ fontSize: 32, fontWeight: 700, color: '#9B1B30' }}>{totals.totalViews.toLocaleString()}</div>
               <div style={{ fontSize: 13, color: '#888', marginTop: 4 }}>Vizite ({days}z)</div>
+              <Unique n={totals.viewsUnique} since={totals.uniqueSince} />
             </div>
             <div className="card" style={{ textAlign: 'center', padding: 20 }}>
               <div style={{ fontSize: 32, fontWeight: 700, color: '#2563eb' }}>{totals.totalSearches.toLocaleString()}</div>
               <div style={{ fontSize: 13, color: '#888', marginTop: 4 }}>Cautari ({days}z)</div>
               <ModSplit acum={totals.searchesAcum.toLocaleString()} later={totals.searchesMaiTarziu.toLocaleString()} />
+              <Unique n={totals.searchesUnique} since={totals.uniqueSince} />
             </div>
             <div className="card" style={{ textAlign: 'center', padding: 20 }}>
               <div style={{ fontSize: 32, fontWeight: 700, color: '#059669' }}>{totals.totalCalls.toLocaleString()}</div>
               <div style={{ fontSize: 13, color: '#888', marginTop: 4 }}>Apeluri ({days}z)</div>
               <ModSplit acum={totals.callsAcum.toLocaleString()} later={totals.callsMaiTarziu.toLocaleString()} />
+              <Unique n={totals.callsUnique} since={totals.uniqueSince} />
             </div>
             <div className="card" style={{ textAlign: 'center', padding: 20 }}>
               <div style={{ fontSize: 32, fontWeight: 700, color: '#d97706' }}>
@@ -343,10 +363,58 @@ export default function AnalyticsClient({
             <MultiLineChart
               series={[
                 { data: pageViews, color: '#9B1B30', label: 'Vizite' },
+                ...(pageViews.some(d => (d.unique ?? 0) > 0)
+                  ? [{ data: pageViews.map(d => ({ date: d.date, count: d.unique ?? 0 })), color: '#059669', label: 'Oameni' }]
+                  : []),
                 { data: searches.acum, color: ACUM_COLOR, label: 'Acum' },
                 { data: searches.maiTarziu, color: LATER_COLOR, label: 'Mai târziu' },
               ]}
             />
+          </div>
+
+          {/* Surse anormale (ION-142, Ion 29.09: «dacă este anomalie de pe un IP, să fie în analitică», «sau multe căutări zilnice») */}
+          <div className="card mb-4" style={{ padding: 20 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 4, color: '#333' }}>Surse anormale</h3>
+            <p style={{ fontSize: 12, color: '#888', margin: '0 0 12px' }}>
+              O zi: ≥ 30 căutări, ≥ 60 vizite sau bot. Zilnic: ≥ 5 zile, ≥ 5 căutări pe zi.
+              {totals.anomalySearches > 0 && <> Din căutări, <b style={{ color: '#9B1B30' }}>{totals.anomalySearches.toLocaleString()}</b> ({pct(totals.anomalySearches, totals.totalSearches)}%) vin de la ele.</>}
+            </p>
+            {anomalies.length === 0 ? (
+              <p style={{ color: '#999', fontSize: 14 }}>Nicio sursă anormală.</p>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ color: '#888', fontSize: 12, textAlign: 'left' }}>
+                      {['Fel', 'Perioada', 'Sursa', 'Căutări', 'Rute', 'Vizite', 'Apeluri', 'Țara', 'Browser'].map(h => (
+                        <th key={h} style={{ padding: '6px 8px', borderBottom: '1px solid #eee', fontWeight: 500 }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {anomalies.map((a, i) => (
+                      <tr key={i}>
+                        <td style={{ padding: '6px 8px', borderBottom: '1px solid #f5f5f5', fontWeight: 600, color: a.kind === 'zilnic' ? '#d97706' : '#9B1B30' }}>
+                          {ANOMALY_LABEL[a.kind]}
+                        </td>
+                        <td style={{ padding: '6px 8px', borderBottom: '1px solid #f5f5f5', whiteSpace: 'nowrap' }}>
+                          {a.period}{a.kind === 'zilnic' && <span style={{ color: '#aaa' }}> · {a.days} zile</span>}
+                        </td>
+                        <td style={{ padding: '6px 8px', borderBottom: '1px solid #f5f5f5', fontFamily: 'monospace', color: '#555' }}>{a.source}</td>
+                        <td style={{ padding: '6px 8px', borderBottom: '1px solid #f5f5f5', fontWeight: 700, color: '#2563eb' }}>{a.searches}</td>
+                        <td style={{ padding: '6px 8px', borderBottom: '1px solid #f5f5f5' }}>{a.routes || '—'}</td>
+                        <td style={{ padding: '6px 8px', borderBottom: '1px solid #f5f5f5' }}>{a.views || '—'}</td>
+                        <td style={{ padding: '6px 8px', borderBottom: '1px solid #f5f5f5' }}>{a.calls || '—'}</td>
+                        <td style={{ padding: '6px 8px', borderBottom: '1px solid #f5f5f5' }}>{a.country ? `${countryFlag(a.country)} ${a.country}` : '—'}</td>
+                        <td style={{ padding: '6px 8px', borderBottom: '1px solid #f5f5f5', color: '#888', fontSize: 12, maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={a.user_agent ?? ''}>
+                          {a.user_agent ?? '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
           {/* Bottom grid: routes, devices, countries */}

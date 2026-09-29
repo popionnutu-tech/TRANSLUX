@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/supabase';
+import { visitorHash } from '@/lib/visitor';
 
 const MODS = ['acum', 'mai_tarziu'];
 
@@ -15,6 +16,8 @@ export async function POST(request: NextRequest) {
     const country = request.headers.get('x-vercel-ip-country') || null;
     const ua = request.headers.get('user-agent') || '';
     const device = detectDevice(ua);
+    // Oamenii unici și sursele anormale în /analytics (ION-142).
+    const vizitator = visitorHash(request.headers);
 
     if (body.event_type === 'call') {
       getSupabase().from('call_clicks').insert({
@@ -24,6 +27,7 @@ export async function POST(request: NextRequest) {
         mod: MODS.includes(body.mod) ? body.mod : null,
         country,
         device,
+        vizitator,
       }).then(() => {});
       return NextResponse.json({ ok: true });
     }
@@ -39,6 +43,8 @@ export async function POST(request: NextRequest) {
         to_locality: body.to_locality.slice(0, 100),
         search_date: new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' }),
         mod: 'acum',
+        vizitator,
+        user_agent: ua.slice(0, 200) || null,
       }).then(({ error }) => {
         if (error) console.warn('[search_log] insert acum eșuat:', error.message);
       });
@@ -57,6 +63,7 @@ export async function POST(request: NextRequest) {
       country,
       device,
       referrer,
+      vizitator,
     }).then(() => {});
 
     return NextResponse.json({ ok: true });

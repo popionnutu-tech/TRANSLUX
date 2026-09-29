@@ -23,6 +23,7 @@ export default async function AnalyticsPage() {
       initialDevices={site.devices}
       initialCountries={site.countries}
       initialTotals={site.totals}
+      initialAnomalies={site.anomalies}
       initialDays={days}
       initialOverviewKPI={overview.kpi}
       initialRouteScorecard={overview.routes}

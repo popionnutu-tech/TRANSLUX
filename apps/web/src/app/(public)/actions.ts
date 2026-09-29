@@ -6,6 +6,7 @@ import { createHash } from 'crypto';
 import { getSupabase } from '@/lib/supabase';
 import { buildTurAssignmentMap, buildReturAssignmentMap } from '@/lib/assignments';
 import { depasesteLimita, FEREASTRA_MINUTE } from '@/lib/search-rate-limit';
+import { visitorHash } from '@/lib/visitor';
 import { resolveOfferPriceForDate, resolveOfferForDate } from '@translux/db';
 
 export interface Locality {
@@ -279,7 +280,7 @@ async function resolveAssignmentDate(
  *
  * Nu aruncă niciodată: un log lipsă nu are voie să rupă căutarea.
  */
-async function clientFingerprint(): Promise<{ ip_hash: string | null; user_agent: string | null }> {
+async function clientFingerprint(): Promise<{ ip_hash: string | null; user_agent: string | null; vizitator: string | null }> {
   try {
     const h = await headers();
     const ip = h.get('x-forwarded-for')?.split(',')[0].trim() || h.get('x-real-ip') || null;
@@ -287,9 +288,10 @@ async function clientFingerprint(): Promise<{ ip_hash: string | null; user_agent
     return {
       ip_hash: ip ? createHash('sha256').update(salt + ip).digest('hex').slice(0, 16) : null,
       user_agent: h.get('user-agent')?.slice(0, 200) || null,
+      vizitator: visitorHash(h),
     };
   } catch {
-    return { ip_hash: null, user_agent: null };
+    return { ip_hash: null, user_agent: null, vizitator: null };
   }
 }
 

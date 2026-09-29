@@ -6,6 +6,8 @@ import { verifySession, requireRole } from '@/lib/auth';
 export interface DailyCount {
   date: string;
   count: number;
+  /** Oamenii unici ai zilei (doar la vizite, ION-142). */
+  unique?: number;
 }
 
 type Week = [number, number, number, number, number, number, number];
@@ -51,9 +53,35 @@ export interface TotalStats {
   searchesMaiTarziu: number;
   callsAcum: number;
   callsMaiTarziu: number;
+  // Oamenii unici pe perioadă (ION-142, migr. 439): vizitatorii distincți, numărați doar din uniqueSince.
+  viewsUnique: number;
+  searchesUnique: number;
+  searchesAcumUnique: number;
+  callsUnique: number;
+  callsAcumUnique: number;
+  uniqueSince: string | null;
+  /** Câte căutări din perioadă vin de la sursele anormale. */
+  anomalySearches: number;
+}
+
+// Sursa anormală (ION-142): 'zi' = o zi cu ≥ 30 căutări / ≥ 60 vizite / bot;
+// 'zilnic' = ≥ 5 zile active cu ≥ 5 căutări pe zi în medie. Pragurile stau în migr. 439.
+export interface Anomaly {
+  kind: 'zi' | 'zilnic';
+  period: string;
+  days: number;
+  source: string;
+  searches: number;
+  routes: number;
+  views: number;
+  calls: number;
+  user_agent: string | null;
+  country: string | null;
+  device: string | null;
 }
 
 export interface SiteAnalytics {
+  anomalies: Anomaly[];
   pageViews: DailyCount[];
   searches: SearchesByMod;
   detailedRoutes: DetailedRoutesResult;
@@ -83,7 +111,12 @@ export async function getSiteAnalytics(days: number = 30): Promise<SiteAnalytics
   const d = data as {
     views_per_day: DailyCount[];
     searches_per_day: { date: string; acum: number; mai_tarziu: number }[];
-    totals: { views: number; searches: number; searches_acum: number; calls: number; calls_acum: number };
+    totals: {
+      views: number; searches: number; searches_acum: number; calls: number; calls_acum: number;
+      views_unique: number; searches_unique: number; searches_acum_unique: number;
+      calls_unique: number; calls_acum_unique: number; unique_since: string | null; anomaly_searches: number;
+    };
+    anomalies: Anomaly[] | null;
     devices: DeviceCount[];
     countries: CountryCount[];
     routes: DetailedRouteCount[];
@@ -113,6 +146,14 @@ export async function getSiteAnalytics(days: number = 30): Promise<SiteAnalytics
       searchesMaiTarziu: t.searches - t.searches_acum,
       callsAcum: t.calls_acum,
       callsMaiTarziu: t.calls - t.calls_acum,
+      viewsUnique: t.views_unique,
+      searchesUnique: t.searches_unique,
+      searchesAcumUnique: t.searches_acum_unique,
+      callsUnique: t.calls_unique,
+      callsAcumUnique: t.calls_acum_unique,
+      uniqueSince: t.unique_since,
+      anomalySearches: t.anomaly_searches,
     },
+    anomalies: d.anomalies ?? [],
   };
 }

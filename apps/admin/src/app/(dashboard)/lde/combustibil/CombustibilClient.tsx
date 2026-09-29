@@ -241,8 +241,8 @@ export default function CombustibilClient({ data }: { data: CombustibilData }) {
                 <th style={{ textAlign: 'right' }}>Litri</th>
                 <th style={{ textAlign: 'right' }}>Km</th>
                 <th style={{ textAlign: 'right' }}>l/100 km faptic</th>
-                <th style={{ textAlign: 'right' }}>Faptic 3 luni</th>
-                <th style={{ textAlign: 'right' }}>Normă teoretică</th>
+                <th style={{ textAlign: 'right' }}>Din iunie</th>
+                <th style={{ textAlign: 'right' }}>Normă</th>
                 <th style={{ textAlign: 'right' }}>Abatere</th>
               </tr>
             </thead>
@@ -263,7 +263,7 @@ export default function CombustibilClient({ data }: { data: CombustibilData }) {
           </table>
           <p className="text-sm text-muted-foreground" style={{ marginTop: '0.5rem' }}>
             Km: GPS-ul nostru pe zi; unde lipsește (înainte de 10.06.2026), km din LDE. Norma faptică se ia din prima zi cu km
-            a fiecărei mașini — camioanele au km doar din iunie. «3 luni» = ultimele 3 luni calendaristice până la sfârșitul perioadei. Norma teoretică = a tipului mașinii; abaterea = perioada față de ea.
+            a fiecărei mașini — camioanele au km doar din iunie. «Din iunie» = consumul plin la plin de la 10.06 până la sfârșitul perioadei. Normă = acest consum la mașinile cu cel puțin 3 pliniri; * = mai puține, norma de până acum. Abaterea = perioada față de normă.
           </p>
         </CardContent>
       </Card>
@@ -275,8 +275,8 @@ export default function CombustibilClient({ data }: { data: CombustibilData }) {
             <span className="text-sm text-muted-foreground">
               {d.rows.length} mașini · {nf.format(d.litri)} L · {nf.format(d.km)} km
               {d.consum != null && <> · <strong>{nf1.format(d.consum)} l/100 km</strong></>}
-              {d.consum3 != null && <> · 3 luni {nf1.format(d.consum3)}</>}
-              {d.norma != null && <> · teoretică {nf1.format(d.norma)}</>}
+              {d.consum3 != null && <> · din iunie {nf1.format(d.consum3)}</>}
+              {d.norma != null && <> · normă {nf1.format(d.norma)}</>}
             </span>
           </CardHeader>
           <CardContent>
@@ -291,8 +291,8 @@ export default function CombustibilClient({ data }: { data: CombustibilData }) {
                     <th style={{ textAlign: 'right' }}>Total L</th>
                     <th style={{ textAlign: 'right' }}>Km</th>
                     <th style={{ textAlign: 'right' }}>l/100 km</th>
-                    <th style={{ textAlign: 'right' }}>3 luni</th>
-                    <th style={{ textAlign: 'right' }}>Teoretică</th>
+                    <th style={{ textAlign: 'right' }}>Din iunie</th>
+                    <th style={{ textAlign: 'right' }}>Normă</th>
                     <th style={{ textAlign: 'right' }}>Abatere</th>
                     <th style={{ textAlign: 'left' }}>Prima → ultima</th>
                   </tr>
@@ -316,7 +316,7 @@ export default function CombustibilClient({ data }: { data: CombustibilData }) {
                             title={`GPS-ul nostru ${r.km_zile_gps} zile, LDE ${r.km_zile_lde} zile`}>{nf.format(r.km)}</td>
                           <td style={{ textAlign: 'right' }}><strong>{r.consum != null ? nf1.format(r.consum) : '—'}</strong></td>
                           <td style={{ textAlign: 'right' }}>{r.consum3 != null ? nf1.format(r.consum3) : '—'}</td>
-                          <td style={{ textAlign: 'right' }}>{r.norma_teoretica != null ? nf1.format(r.norma_teoretica) : '—'}</td>
+                          <td style={{ textAlign: 'right' }}>{r.norma_teoretica != null ? nf1.format(r.norma_teoretica) + (r.norma_veche ? '*' : '') : '—'}</td>
                           <td style={{ textAlign: 'right' }}><Abatere consum={r.consum} norma={r.norma_teoretica} /></td>
                           <td>{fmtZi(r.prima)} → {fmtZi(r.ultima)}</td>
                         </tr>

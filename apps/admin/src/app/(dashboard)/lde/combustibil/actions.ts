@@ -30,8 +30,9 @@ export type FlotaRow = {
   litri_cu_km: number;        // litrii din zilele ≥ prima zi cu km (camioanele au km doar din iunie)
   consum: number | null;      // l/100 km faptic = litri_cu_km / km × 100; null sub 100 km
   norma: number | null;       // l/100 km, ca pe /lde/vehicule (măsurată, altfel a tipului)
-  norma_teoretica: number | null;  // norma tipului mașinii (ION-138)
-  consum3: number | null;     // l/100 km faptic pe ultimele 3 luni calendaristice până la «to» (ION-138)
+  norma_teoretica: number | null;  // norma mașinii: consumul propriu plin la plin din 10.06 (≥ 3 pliniri), altfel cea veche
+  norma_veche: boolean;       // true = sub 3 pliniri, norma de până acum (măsurată / Clava / a tipului) — «*» pe pagină
+  consum3: number | null;     // l/100 km plin la plin de la 10.06.2026 până la «to» (ION-138: «aplică logica asta peste tot»)
   prima: string | null;
   ultima: string | null;
 };
@@ -81,16 +82,15 @@ export async function getCombustibil(from?: string, to?: string): Promise<Combus
   let f = from && DATE_RE.test(from) ? from : `${today.slice(0, 4)}-01-01`;
   if (f > t) f = t;
 
-  // Ion, 29.09 (ION-138): norma faptică pe perioadă, pe ultimele 3 luni și cea teoretică — ca pe posterul lunar
-  const [ty, tm] = t.split('-').map(Number);
-  const d3 = new Date(Date.UTC(ty, tm - 3, 1));
-  const de3 = `${d3.getUTCFullYear()}-${String(d3.getUTCMonth() + 1).padStart(2, '0')}-01`;
-  const [fl, co, fl3] = await Promise.all([
+  // Ion, 29.09 (ION-138): «aplică logica asta peste tot» — ca pe posterul lunar: consumul plin la plin de la 10.06.2026
+  // (lde_fuel_plin_la_plin, migr. 443) și norma = acest consum la mașinile cu ≥ 3 pliniri, altfel norma de până acum
+  const [fl, co] = await Promise.all([
     sb.rpc('lde_fuel_flota', { de: f, pana: t }),
     sb.rpc('lde_fuel_consumatori', { de: f, pana: t }),
-    sb.rpc('lde_fuel_flota', { de: de3, pana: t }),
   ]);
-  const trei = new Map<string, any>((fl3.data ?? []).map((r: any) => [r.vehicle_id, r]));
+  const ids = (fl.data ?? []).filter((r: any) => Number(r.benzol_l) + Number(r.foaie_l) > 0 || Number(r.km) > 0).map((r: any) => r.vehicle_id);
+  const pl = ids.length && t >= '2026-06-10' ? await sb.rpc('lde_fuel_plin_la_plin', { de: '2026-06-10', pana: t, vehicule: ids }) : { data: [] as any[] };
+  const trei = new Map<string, any>((pl.data ?? []).map((r: any) => [r.vehicle_id, r]));
 
   const flota: FlotaRow[] = (fl.data ?? []).map((r: any) => ({
     vehicle_id: r.vehicle_id,
@@ -108,9 +108,12 @@ export async function getCombustibil(from?: string, to?: string): Promise<Combus
     litri_cu_km: Number(r.litri_cu_km),
     consum: Number(r.km) >= 100 && Number(r.litri_cu_km) > 0 ? (Number(r.litri_cu_km) / Number(r.km)) * 100 : null,
     norma: r.norma != null ? Number(r.norma) : null,
-    norma_teoretica: r.norma_teoretica != null ? Number(r.norma_teoretica) : null,
-    consum3: (() => { const x = trei.get(r.vehicle_id); const k = Number(x?.km ?? 0), l = Number(x?.litri_cu_km ?? 0);
-      return k >= 100 && l > 0 ? (l / k) * 100 : null; })(),
+    ...(() => {
+      const x = trei.get(r.vehicle_id);
+      const plin = x && Number(x.intervale) >= 3 ? Number(x.consum) : null;
+      const veche = r.norma != null ? Number(r.norma) : r.norma_teoretica != null ? Number(r.norma_teoretica) : null;
+      return { consum3: x ? Number(x.consum) : null, norma_teoretica: plin ?? veche, norma_veche: plin == null };
+    })(),
     prima: r.prima,
     ultima: r.ultima,
   }));

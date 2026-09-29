@@ -79,13 +79,14 @@ export function lunaTrecuta(azi: string) {
 
 type Masina = { plate: string; activ: boolean; dir: string; litri: number; km: number;
   fapt: number | null; fapt3: number | null; teoretica: number | null; litriCuKm: number; litriCuKm3: number; km3: number;
-  /** camioane: de unde vine norma — consumul plin la plin din iunie (≥ 3 pliniri) sau norma «încărcat» din interviul Clava */
-  sursaNorma?: 'plin' | 'clava' };
+  /** de unde vine norma — consumul propriu plin la plin din iunie (≥ 3 pliniri) sau norma de până acum (*) */
+  sursaNorma?: 'plin' | 'veche' };
 
-// Camioane (Ion, 29.09: «refacem norma începând cu iunie» + «fă amândouă»): norma camionului = consumul lui plin la plin
-// de la 10.06.2026 (de când Wialon dă km) până la sfârșitul lunii raportului (lde_fuel_plin_la_plin, migr. 443), dacă are
-// cel puțin 3 pliniri; altfel norma «încărcat» din interviul Clava (07.2026). Coloana «3 luni» a camioanelor = același
-// plin la plin — marja lui scade de la ±15–20 % pe o lună la ±3–5 % pe un an.
+// Ion, 29.09, întâi la camioane («refacem norma începând cu iunie» + «fă amândouă»), apoi «aplică logica asta peste tot,
+// ea are sens»: norma fiecărei mașini = consumul ei plin la plin de la 10.06.2026 (de când avem GPS pe toată flota) până la
+// sfârșitul lunii raportului (lde_fuel_plin_la_plin, migr. 443), dacă are cel puțin 3 pliniri; altfel norma de până acum
+// (măsurată / Clava la camioane / a tipului), marcată cu *. Coloana «Din iunie» = același plin la plin — marja lui scade de
+// la ±15–20 % pe o lună la ±3–5 % pe un an.
 const PLIN_DE_LA = '2026-06-10';
 const PLIN_MIN_INTERVALE = 3;
 
@@ -104,8 +105,8 @@ async function citesteFlotaDinBaza(luna: string) {
   ]);
   if (a.error || b.error) throw new Error(`lde_fuel_flota: ${(a.error ?? b.error)!.message}`);
   const trei = new Map<string, any>((b.data ?? []).map((r: any) => [r.vehicle_id, r]));
-  const camioane = (a.data ?? []).filter((r: any) => r.directions?.includes('camioane')).map((r: any) => r.vehicle_id);
-  const pl = camioane.length ? await sb.rpc('lde_fuel_plin_la_plin', { de: PLIN_DE_LA, pana, vehicule: camioane }) : { data: [], error: null };
+  const cuLitri = (a.data ?? []).filter((r: any) => Number(r.benzol_l) + Number(r.foaie_l) > 0 || Number(r.km) > 0).map((r: any) => r.vehicle_id);
+  const pl = cuLitri.length ? await sb.rpc('lde_fuel_plin_la_plin', { de: PLIN_DE_LA, pana, vehicule: cuLitri }) : { data: [], error: null };
   if (pl.error) throw new Error(`lde_fuel_plin_la_plin: ${pl.error.message}`);
   const plin = new Map<string, any>((pl.data ?? []).map((r: any) => [r.vehicle_id, r]));
   const l100 = (l: number, km: number) => (km >= PRAG_KM && l > 0 ? (l / km) * 100 : null);
@@ -118,13 +119,12 @@ async function citesteFlotaDinBaza(luna: string) {
       fapt: l100(lck, km), fapt3: l100(lck3, km3),
       teoretica: r.norma_teoretica != null ? Number(r.norma_teoretica) : null,
     };
-    if (r.directions?.includes('camioane')) {
-      const p = plin.get(r.vehicle_id);
-      // «din iunie»: plin la plin; totalurile grupului se adună pe litrii și km-ii intervalelor
-      m.km3 = p ? Number(p.km) : 0; m.litriCuKm3 = p ? Number(p.litri) : 0; m.fapt3 = p ? Number(p.consum) : null;
-      if (p && Number(p.intervale) >= PLIN_MIN_INTERVALE) { m.teoretica = Number(p.consum); m.sursaNorma = 'plin'; }
-      else if (r.norma != null) { m.teoretica = Number(r.norma); m.sursaNorma = 'clava'; }
-    }
+    // «din iunie»: plin la plin; totalurile grupului se adună pe litrii și km-ii intervalelor
+    const p = plin.get(r.vehicle_id);
+    m.km3 = p ? Number(p.km) : 0; m.litriCuKm3 = p ? Number(p.litri) : 0; m.fapt3 = p ? Number(p.consum) : null;
+    if (p && Number(p.intervale) >= PLIN_MIN_INTERVALE) { m.teoretica = Number(p.consum); m.sursaNorma = 'plin'; }
+    else if (r.norma != null) { m.teoretica = Number(r.norma); m.sursaNorma = 'veche'; }
+    else m.sursaNorma = 'veche';
     return m;
   });
 }
@@ -164,25 +164,23 @@ export async function genereazaGrup(grupId: string, luna: string): Promise<{ png
 
   const p = poster({ latime: LATIME, supratitlu: 'Combustibil', titlu: g.titlu, eticheta });
   p.total(`${nf.format(litri)} L · ${nf.format(km)} km`, `${m.length} mașini`);
-  p.total(`Luna ${l100Txt(fapt)} · ${cam ? 'din iunie' : '3 luni'} ${l100Txt(fapt3)}`, `${cam ? 'normă' : 'teoretică'} ${l100Txt(teoretica)}`);
+  p.total(`Luna ${l100Txt(fapt)} · din iunie ${l100Txt(fapt3)}`, `normă ${l100Txt(teoretica)}`);
   const cols: Coloana[] = [
     { titlu: 'Mașina', latime: 104 }, { titlu: 'Litri', latime: 64, aliniere: 'end' }, { titlu: 'Km', latime: 70, aliniere: 'end' },
-    { titlu: 'Luna', latime: 54, aliniere: 'end' }, { titlu: cam ? 'Din iunie' : '3 luni', latime: 60, aliniere: 'end' },
-    { titlu: cam ? 'Normă' : 'Teor.', latime: 54, aliniere: 'end' }, { titlu: 'Abat.', latime: 66, aliniere: 'end' },
+    { titlu: 'Luna', latime: 54, aliniere: 'end' }, { titlu: 'Din iunie', latime: 62, aliniere: 'end' },
+    { titlu: 'Normă', latime: 56, aliniere: 'end' }, { titlu: 'Abat.', latime: 64, aliniere: 'end' },
   ];
   p.tabel(cols, m.map((x) => [
     { text: x.plate.replace(/\s+/g, ''), bold: true },
     { text: nf.format(x.litri) }, { text: nf.format(x.km), culoare: CULORI.gri },
     x.km >= PRAG_KM_LUNA ? { text: l100Txt(x.fapt), bold: true } : { text: l100Txt(x.fapt), culoare: CULORI.griDeschis },
     { text: l100Txt(x.fapt3) },
-    { text: l100Txt(x.teoretica) + (x.sursaNorma === 'clava' ? '*' : ''), culoare: CULORI.gri },
+    { text: l100Txt(x.teoretica) + (x.sursaNorma === 'veche' && x.teoretica != null ? '*' : ''), culoare: CULORI.gri },
     x.km >= PRAG_KM_LUNA ? abatere(x.fapt, x.teoretica) : { text: '—', culoare: CULORI.griDeschis },
   ]), { ...TABEL, gol: 'Nicio alimentare în lună' });
-  p.nota(cam
-    ? 'Litri la 100 km. Din iunie = plin la plin, de la 10.06. Normă = din iunie; * = sub 3 pliniri, normă Clava. Gri = sub 1.000 km.'
-    : 'Luna, 3 luni, Teor. = litri la 100 km. Roșu = peste normă, verde = sub normă. Gri = sub 1.000 km în lună.');
+  p.nota(`Litri la 100 km. Din iunie = plin la plin, de la 10.06. Normă = din iunie; * = sub 3 pliniri, normă ${cam ? 'Clava' : 'veche'}. Gri = sub 1.000 km.`);
   const caption = `<b>Combustibil — ${escapeHtml(g.titlu)}</b>, ${eticheta}\n`
-    + `${nf.format(litri)} L · ${nf.format(km)} km · <b>${l100Txt(fapt)} l/100 km</b> (3 luni ${l100Txt(fapt3)}, teoretică ${l100Txt(teoretica)})`;
+    + `${nf.format(litri)} L · ${nf.format(km)} km · <b>${l100Txt(fapt)} l/100 km</b> (din iunie ${l100Txt(fapt3)}, normă ${l100Txt(teoretica)})`;
   return { png: await p.png(), caption, randuri: m.length };
 }
 
@@ -235,8 +233,8 @@ async function genereazaGeneral(luna: string, eticheta: string) {
   // Ion, 29.09: «la general nu ajunge totalul pe fiecare direcție» — litrii direcției, lângă cele trei norme
   p.tabel([
     { titlu: 'Direcția', latime: 138 }, { titlu: 'Litri', latime: 86, aliniere: 'end' },
-    { titlu: 'Luna', latime: 56, aliniere: 'end' }, { titlu: '3 luni', latime: 62, aliniere: 'end' },
-    { titlu: 'Teor.', latime: 56, aliniere: 'end' }, { titlu: 'Abat.', latime: 70, aliniere: 'end' },
+    { titlu: 'Luna', latime: 56, aliniere: 'end' }, { titlu: 'Din iunie', latime: 66, aliniere: 'end' },
+    { titlu: 'Normă', latime: 58, aliniere: 'end' }, { titlu: 'Abat.', latime: 66, aliniere: 'end' },
   ], [
     ...grupuri.map(({ g, st }) => [
       { text: g.scurt, bold: true }, { text: nf.format(st.litri), bold: true },
@@ -253,9 +251,9 @@ async function genereazaGeneral(luna: string, eticheta: string) {
     [...peTip.map((x) => [{ text: x.titlu.replace(/ \(.*\)$/, '') }, { text: nf.format(x.litri), bold: true }] as Celula[]),
      [{ text: 'Total', bold: true, culoare: CULORI.bordoInchis }, { text: nf.format(totalStraini), bold: true }] as Celula[]],
     { ...TABEL, gol: 'Nimic în afara flotei în lună' });
-  p.nota('Luna, 3 luni, Teor. = litri la 100 km. Vânzările și benzovozul nu sunt consum.');
+  p.nota('Litri la 100 km. Din iunie = plin la plin. Normă = consumul propriu din iunie. Vânzările și benzovozul nu sunt consum.');
   const caption = `<b>Combustibil — general</b>, ${eticheta}\n`
-    + `Flota ${nf.format(flota.litri)} L · <b>${l100Txt(flota.fapt)} l/100 km</b> (3 luni ${l100Txt(flota.fapt3)}, teoretică ${l100Txt(flota.teoretica)}) · în afara flotei ${nf.format(totalStraini)} L`;
+    + `Flota ${nf.format(flota.litri)} L · <b>${l100Txt(flota.fapt)} l/100 km</b> (din iunie ${l100Txt(flota.fapt3)}, normă ${l100Txt(flota.teoretica)}) · în afara flotei ${nf.format(totalStraini)} L`;
   return { png: await p.png(), caption, randuri: grupuri.length };
 }
 
@@ -264,7 +262,7 @@ async function genereazaGeneral(luna: string, eticheta: string) {
 export function textIntroducere(luna: string) {
   return [
     `<b>DT · combustibil · ${lunaText(luna)}</b>`,
-    'Luna / 3 luni / Teor. = litri la 100 km. Roșu = peste normă, verde = sub normă.',
+    'Litri la 100 km. Normă = consumul propriu din iunie (plin la plin). Roșu = peste, verde = sub.',
     'Detalii: LDE → Combustibil. Următorul raport: pe 25.',
   ].join('\n');
 }

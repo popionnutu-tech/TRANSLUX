@@ -33,9 +33,10 @@ export const GRUPURI: { id: string; titlu: string; scurt: string; directii: stri
 ];
 // Ion, 29.09: «textul e foarte mic, sunt oameni de 67 ani — fă maxim posibil textul și lasă minim spațiile goale».
 // Posterul îngust (pe telefon imaginea se întinde pe lățimea ecranului, deci textul iese de ~1,6× mai mare decât la
-// 1000), fără subtitlu și fără carduri, rânduri de tabel de 15 pt, titluri de coloane scurte de 12 pt.
-const LATIME = 640;
-const TABEL = { mare: 15, rand: 30, antet: 12 } as const;
+// 1000), fără subtitlu și fără carduri. Apoi: «fă maxim posibil mare tot ce e legat de norme, mașini și devieri» —
+// tabelul mașinilor are doar mașina, cele trei norme și abaterea (litrii și km-ii stau în sumarul de sus), 18 pt.
+const LATIME = 520;
+const TABEL = { mare: 18, rand: 36, antet: 14 } as const;
 export const GRUP_STRAINI = 'straini';
 // «mașini cu foi de parcurs până la utilaje» — tipurile din lde_fuel_consumatori, în ordinea paginii
 const TIPURI_STRAINI: [string, string][] = [
@@ -142,13 +143,11 @@ export async function genereazaGrup(grupId: string, luna: string): Promise<{ png
   p.total(`${nf.format(litri)} L · ${nf.format(km)} km`, `${m.length} mașini`);
   p.total(`Luna ${l100Txt(fapt)} · 3 luni ${l100Txt(fapt3)}`, `teoretică ${l100Txt(teoretica)}`);
   const cols: Coloana[] = [
-    { titlu: 'Mașina', latime: 118 }, { titlu: 'Litri', latime: 66, aliniere: 'end' }, { titlu: 'Km', latime: 76, aliniere: 'end' },
-    { titlu: 'Luna', latime: 58, aliniere: 'end' }, { titlu: '3 luni', latime: 60, aliniere: 'end' },
-    { titlu: 'Teor.', latime: 56, aliniere: 'end' }, { titlu: 'Abat.', latime: 66, aliniere: 'end' },
+    { titlu: 'Mașina', latime: 112 }, { titlu: 'Luna', latime: 60, aliniere: 'end' }, { titlu: '3 luni', latime: 66, aliniere: 'end' },
+    { titlu: 'Teor.', latime: 60, aliniere: 'end' }, { titlu: 'Abat.', latime: 74, aliniere: 'end' },
   ];
   p.tabel(cols, m.map((x) => [
-    { text: x.plate, bold: true },
-    { text: nf.format(x.litri) }, { text: nf.format(x.km), culoare: CULORI.gri },
+    { text: x.plate.replace(/\s+/g, ''), bold: true },
     x.km >= PRAG_KM_LUNA ? { text: l100Txt(x.fapt), bold: true } : { text: l100Txt(x.fapt), culoare: CULORI.griDeschis },
     { text: l100Txt(x.fapt3) },
     { text: l100Txt(x.teoretica), culoare: CULORI.gri },
@@ -178,7 +177,7 @@ async function genereazaStraini(luna: string, eticheta: string) {
     total += sl; n += t.length;
     p.total(titlu, `${t.length} · ${nf.format(sl)} L`);
     p.tabel([
-      { titlu: 'Plăcuța / nume', latime: 200 }, { titlu: 'Ori', latime: 60, aliniere: 'end' },
+      { titlu: 'Plăcuța / nume', latime: 190 }, { titlu: 'Ori', latime: 50, aliniere: 'end' },
       { titlu: 'Litri', latime: 90, aliniere: 'end' }, { titlu: 'Zilele', latime: 150, aliniere: 'end' },
     ], t.map((r: any) => [
       { text: r.denumire, bold: true }, { text: nf.format(Number(r.randuri)) }, { text: nf.format(Number(r.litri)), bold: true },
@@ -207,17 +206,17 @@ async function genereazaGeneral(luna: string, eticheta: string) {
   p.total(`Total: ${nf.format(flota.litri + totalStraini)} L`, `flota ${nf.format(flota.litri)}`);
   // litri la 100 km pe direcție; litrii și km pe direcție stau pe posterele direcțiilor
   p.tabel([
-    { titlu: 'Direcția', latime: 150 }, { titlu: 'Litri', latime: 80, aliniere: 'end' },
-    { titlu: 'Luna', latime: 58, aliniere: 'end' }, { titlu: '3 luni', latime: 60, aliniere: 'end' },
-    { titlu: 'Teor.', latime: 56, aliniere: 'end' }, { titlu: 'Abat.', latime: 66, aliniere: 'end' },
+    { titlu: 'Direcția', latime: 150 },
+    { titlu: 'Luna', latime: 60, aliniere: 'end' }, { titlu: '3 luni', latime: 66, aliniere: 'end' },
+    { titlu: 'Teor.', latime: 60, aliniere: 'end' }, { titlu: 'Abat.', latime: 74, aliniere: 'end' },
   ], [
     ...grupuri.map(({ g, st }) => [
-      { text: g.scurt, bold: true }, { text: nf.format(st.litri) },
+      { text: g.scurt, bold: true },
       { text: l100Txt(st.fapt), bold: true }, { text: l100Txt(st.fapt3) }, { text: l100Txt(st.teoretica), culoare: CULORI.gri },
       abatere(st.fapt, st.teoretica),
     ] as Celula[]),
     [
-      { text: 'Toată flota', bold: true, culoare: CULORI.bordoInchis }, { text: nf.format(flota.litri), bold: true },
+      { text: 'Flota', bold: true, culoare: CULORI.bordoInchis },
       { text: l100Txt(flota.fapt), bold: true }, { text: l100Txt(flota.fapt3), bold: true },
       { text: l100Txt(flota.teoretica), bold: true }, abatere(flota.fapt, flota.teoretica),
     ] as Celula[],

@@ -14,6 +14,8 @@ export interface MasinaParcare {
   castigAlDoilea?: number | null;
   zileMasurate: number; zileLV: number; real: number; propus: number; economieMasurata: number; economieSapt: number; idealSapt: number | null;
   zile: ZiParcare[];
+  /** ION-143 (LEAR): programul pe fiecare drum de parcare */
+  drumuri?: DrumProgram[];
 }
 export interface ParcareDrax {
   versiune: string; rulat: string;
@@ -25,6 +27,16 @@ export interface ParcareDrax {
 export interface DrumPropus {
   z: string; zUrm: string | null; parte: 'intre' | 'noapte'; ora: string | null; oraDim: string | null;
   a: Punct; b: Punct; aN: string | null; bN: string | null; loc: number; km: number; separat: boolean; seara?: boolean; dimineata?: boolean;
+  /** ION-143 (LEAR): km de acum ai drumului și unde stă mașina acum; loc 0 = «rămâne cum e» */
+  real?: number; acum?: string | null;
+}
+/** ION-143 (LEAR): programul pe drum — fiecare drum de parcare prin P1 / P2 sau «rămâne cum e» (loc 0) */
+export interface DrumProgram { z: string; ora: string; de: string | null; spre: string | null; acum: string | null; loc: number; real: number; propus: number }
+
+/** ION-143: textul unui drum din program — «P1 Petrești» sau «rămâne cum e (acum: Fălești)» */
+export function textDrum(d: Pick<DrumProgram, 'loc' | 'acum'>, locuri: Pick<LocParcare, 'nr' | 'n'>[]): string {
+  const l = locuri.find((x) => x.nr === d.loc);
+  return l ? `P${l.nr} ${l.n}` : `rămâne cum e${d.acum ? ` (acum: ${d.acum})` : ''}`;
 }
 
 /** eticheta locului, ex. «P1 · Ilenuța», «P2 · acasă (Ciuciulea)» */

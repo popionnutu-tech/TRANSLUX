@@ -1,0 +1,10 @@
+== proba C5 (827MUM fără Valhalla)
+LEAR Ungheni 2026-09-21: 14 mașini · de tăiat 2762.1 km/săpt. · două locuri 6 · perechi fără Valhalla 0
+  809MUM    580.1 (real 767 → 186.9) · P1 la uzină (poarta LEAR)·deja (9) · casa Lucăceni · {"tur":9,"retur":3,"plus":12,"faraPoarta":1,"taiat
+  827MUM        0 (real — → —) · niciun loc cu drum pe șosea (Valhalla) spre capetele drumurilor ei · casa Fălești · {"tur":11,"retur":9,"
+== publicare reală
+publicat: date.parcare + 71 rânduri lde_harta_zi · LEAR_UNGHENI 2026-09-21 · 1.55 MB în 4135 ms
+publicat: date.parcare + 30 rânduri lde_harta_zi · LEAR_FLORESTI 2026-09-21 · 0.55 MB în 2362 ms
+publicat: date.parcare + 71 rânduri lde_harta_zi · LEAR_UNGHENI 2026-09-21 · 1.55 MB în 2913 ms
+publicat: date.parcare + 71 rânduri lde_harta_zi · LEAR_UNGHENI 2026-09-21 · 1.55 MB în 1492 ms
+publicat: date.parcare + 71 rânduri lde_harta_zi · LEAR_UNGHENI 2026-09-21 · 1.55 MB în 2165 ms

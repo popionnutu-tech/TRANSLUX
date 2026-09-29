@@ -134,5 +134,5 @@ export default async function LdeReguliPage({
     getRaport(uzina, saptamina),
     getSaptamani(uzina),
   ]);
-  return <>{nav}<ReguliClient raport={raport} saptamani={saptamani} baza={alese === 'floresti' ? '/lde/reguli?uz=floresti&' : '/lde/reguli?'} /></>;
+  return <>{nav}<ReguliClient raport={raport} saptamani={saptamani} baza={alese === 'floresti' ? '/lde/reguli?uz=floresti&' : '/lde/reguli?'} uz={alese === 'floresti' ? 'floresti' : 'ungheni'} /></>;
 }

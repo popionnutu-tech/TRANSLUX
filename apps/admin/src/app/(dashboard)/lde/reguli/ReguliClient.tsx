@@ -2,6 +2,7 @@
 
 import { Fragment, useState } from 'react';
 import Saptamana from './Saptamana';
+import ParcareDrax from './ParcareDrax';
 import type { IesireLibera, Raport, MasinaRand } from './actions';
 
 // Raportul săptămânal al celor trei reguli (ION-48). Regulile sunt ale lui Ion:
@@ -145,8 +146,8 @@ function Panou({ m, zileLuna }: { m: MasinaRand; zileLuna: number }) {
   );
 }
 
-export default function ReguliClient({ raport, saptamani = [], baza = '/lde/reguli?' }: {
-  raport: Raport | null; saptamani?: string[]; baza?: string;
+export default function ReguliClient({ raport, saptamani = [], baza = '/lde/reguli?', uz = 'ungheni' }: {
+  raport: Raport | null; saptamani?: string[]; baza?: string; uz?: 'ungheni' | 'floresti';
 }) {
   const [deschis, setDeschis] = useState<string | null>(null);
 
@@ -221,6 +222,9 @@ export default function ReguliClient({ raport, saptamani = [], baza = '/lde/regu
           </div>
         ))}
       </div>
+
+      {/* ION-143 (Ion, 29.09: «aplică pe pagina hartă și LEAR cu punctele optimale»): locurile de parcare P1 / P2 din urma GPS */}
+      {R.parcare !== undefined && <ParcareDrax p={R.parcare ?? null} sapt={R.saptamina} uz={uz} />}
 
       <div className="mb-3! mt-9! flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-xs font-bold uppercase tracking-widest text-neutral-500">Mașină cu mașină</h2>

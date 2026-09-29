@@ -1,0 +1,146 @@
+LEAR Ungheni 2026-09-21: 14 mașini · de tăiat 4181.7 km/săpt. · două locuri 12
+  827MUM    670.6 (real 1140.7 → 470.1) · P1 Petrești (14) · casa Fălești · A6 Bulhac, B5 Todirești
+  807MUM    592.3 (real 874.5 → 282.2) · P1 Todirești (3) + P2 la uzină (poarta LEAR) (9) · casa Fălești · A9 Medeleni, B3 Chirileni
+  189OMM    500.3 (real 1011.3 → 511) · P1 Unțești (5) + P2 Sculeni (9) · casa Sărata Nouă · A5 Gherman, B8 Rădenii Vechi
+  809MUM    391.2 (real 826.5 → 435.3) · P1 Unțești (8) + P2 Lucăceni·deja (5) · casa Lucăceni · A12 Frăsinești, B10 Unțești
+  217RST    363.2 (real 1035.8 → 672.6) · P1 Fălești·oraș (4) + P2 la uzină (poarta LEAR) (9) · casa Călinești · A2 Chetriș, B2 Ciolacu Vechi
+  061COY    323.7 (real 1087.8 → 764.1) · P1 Todirești·deja (4) + P2 la uzină (poarta LEAR) (10) · casa Todirești · A3 Risipeni, B14 Sipoteni
+  320BRAT   296.6 (real 552.3 → 255.7) · P1 Cetireni (13) + P2 Cornești·oraș (4) · casa Unțești · B15 Sineștii Noi
+  537BRAT   235.5 (real 786.4 → 550.9) · P1 Teșcureni (5) + P2 acasă (Gara Fălești)·deja (8) · casa Gara Fălești · A4 Călugăr, B4 Coșeni
+  032BRAT   208.4 (real 871 → 662.6) · P1 Frumușica (4) + P2 la uzină (poarta LEAR) (10) · casa Mircești · A8 Horești, B13 Hîrcești
+  183BZP    190.1 (real 832.3 → 642.2) · P1 Elizavetovca (10) + P2 Fălești·oraș (4) · casa Sărata Veche · A1 Pînzăreni, B1 Doltu
+  732SHS    166.3 (real 711.9 → 545.6) · P1 Ungheni·oraș (6) + P2 Bărboieni (9) · casa Morenii Vechi · A11 Bălăurești, B11 Grozasca
+  145BRAZ   122.9 (real 346.2 → 223.4) · P1 Pîrlița (4) + P2 Elizavetovca (12) · casa Todirești · A14 Șicovăț, B9 Cetireni
+  456BRAX   117.3 (real 399.4 → 282) · P1 Teșcureni (8) + P2 Ungheni·oraș (5) · casa Todirești · A15 Cîrnești, B7 Teșcureni
+  504BRAR     3.3 (real 476.2 → 473) · P1 Ungheni·oraș (16) · casa Ungheni · A12 Frăsinești, B12 Cornova
+LEAR Florești 2026-09-21: 6 mașini · de tăiat 963.3 km/săpt. · două locuri 3
+  894BRAX   329.9 (real 801.1 → 471.2) · P1 Pohoarna·deja (5) + P2 Vărăncău (8) · casa Pohoarna · A2 Cunicea, B3 Vărăncău
+  849BRAN   224.2 (real 740.6 → 516.4) · P1 Florești·oraș (5) + P2 Tîrgul Vertiujeni (9) · casa Cașunca · A1 Zăluceni, B2 Nicolaevca
+  279BRAT     211 (real 649.2 → 438.2) · P1 Gura Camencii (14) · casa Țîra · A6 Pohoarna, B5 Racovăț
+  035BRAT   160.9 (real 648.5 → 487.6) · P1 Căinarii Vechi (9) + P2 Florești·oraș (5) · casa Bulboci · A5 Căinarii Vechi
+  603BRAS    37.3 (real 359.6 → 322.3) · P1 Florești·oraș (10) · casa null · A3 Țepilova, B1 Prajila
+  713IZX        0 (real — → —) · niciun gol în care mașina să stea (≥ 60 min) în zilele de lucru · casa Slobozia · 
+
+827MUM    670.6 {"tur":12,"retur":12,"faraCapat":5,"cursePlus":0,"scurte":0,"lungi":1,"parc":0,"laPoarta":5} Petrești
+807MUM    592.3 {"tur":11,"retur":12,"faraCapat":0,"cursePlus":0,"scurte":4,"lungi":1,"parc":1,"laPoarta":1} Todirești + la uzină (poarta LEAR)
+189OMM    500.3 {"tur":12,"retur":12,"faraCapat":0,"cursePlus":24,"scurte":2,"lungi":0,"parc":1,"laPoarta":3} Unțești + Sculeni
+809MUM    391.2 {"tur":13,"retur":17,"faraCapat":11,"cursePlus":0,"scurte":11,"lungi":1,"parc":1,"laPoarta":0} Unțești + Lucăceni
+217RST    363.2 {"tur":12,"retur":12,"faraCapat":0,"cursePlus":0,"scurte":5,"lungi":1,"parc":1,"laPoarta":0} Fălești + la uzină (poarta LEAR)
+061COY    323.7 {"tur":12,"retur":12,"faraCapat":0,"cursePlus":0,"scurte":0,"lungi":1,"parc":0,"laPoarta":5} Todirești + la uzină (poarta LEAR)
+320BRAT   296.6 {"tur":17,"retur":17,"faraCapat":22,"cursePlus":1,"scurte":11,"lungi":1,"parc":0,"laPoarta":1} Cetireni + Cornești
+537BRAT   235.5 {"tur":13,"retur":13,"faraCapat":3,"cursePlus":2,"scurte":7,"lungi":1,"parc":0,"laPoarta":2} Teșcureni + acasă (Gara Fălești)
+032BRAT   208.4 {"tur":12,"retur":13,"faraCapat":3,"cursePlus":1,"scurte":6,"lungi":1,"parc":0,"laPoarta":1} Frumușica + la uzină (poarta LEAR)
+183BZP    190.1 {"tur":12,"retur":12,"faraCapat":2,"cursePlus":0,"scurte":3,"lungi":1,"parc":0,"laPoarta":2} Elizavetovca + Fălești
+732SHS    166.3 {"tur":13,"retur":12,"faraCapat":1,"cursePlus":0,"scurte":3,"lungi":1,"parc":0,"laPoarta":2} Ungheni + Bărboieni
+145BRAZ   122.9 {"tur":24,"retur":22,"faraCapat":23,"cursePlus":0,"scurte":21,"lungi":1,"parc":0,"laPoarta":1} Pîrlița + Elizavetovca
+456BRAX   117.3 {"tur":24,"retur":21,"faraCapat":22,"cursePlus":2,"scurte":18,"lungi":1,"parc":1,"laPoarta":2} Teșcureni + Ungheni
+504BRAR     3.3 {"tur":17,"retur":17,"faraCapat":22,"cursePlus":3,"scurte":10,"lungi":1,"parc":0,"laPoarta":3} Ungheni
+894BRAX   329.9 {"tur":11,"retur":12,"faraCapat":0,"cursePlus":0,"scurte":5,"lungi":1,"parc":0,"laPoarta":0} Pohoarna + Vărăncău
+849BRAN   224.2 {"tur":13,"retur":13,"faraCapat":2,"cursePlus":0,"scurte":4,"lungi":1,"parc":0,"laPoarta":1} Florești + Tîrgul Vertiujeni
+279BRAT     211 {"tur":12,"retur":12,"faraCapat":0,"cursePlus":0,"scurte":5,"lungi":1,"parc":0,"laPoarta":0} Gura Camencii
+035BRAT   160.9 {"tur":12,"retur":12,"faraCapat":12,"cursePlus":0,"scurte":5,"lungi":1,"parc":0,"laPoarta":0} Căinarii Vechi + Florești
+603BRAS    37.3 {"tur":15,"retur":13,"faraCapat":1,"cursePlus":2,"scurte":7,"lungi":1,"parc":1,"laPoarta":4} Florești
+713IZX        0 {} 
+
+827MUM casa Fălești [ 'A6 Bulhac', 'B5 Todirești' ] locuri [ 'Petrești' ] real 1140.7 propus 470.1
+ zi 2026-09-21 drumuri 3 real 240.2 propus 101.5
+ zi 2026-09-22 drumuri 3 real 240.2 propus 101.7
+ zi 2026-09-23 drumuri 3 real 240.1 propus 101.8
+ zi 2026-09-24 drumuri 3 real 248.6 propus 101.8
+ zi 2026-09-25 drumuri 2 real 171.6 propus 63.3
+  2026-09-21 05:25–13:27 8h tur→tur | poarta LEAR → Todirești | acum Fălești 346min | real 97.2 · P1 21.3
+  2026-09-21 15:43–23:26 7.7h retur→retur | Bulhac → poarta LEAR | acum Fălești 323min | real 82.3 · P1 42.8
+  2026-09-21 00:00–04:27 4.5h retur→tur | Todirești → Bulhac | acum Fălești 196min | real 60.8 · P1 37.4
+  2026-09-22 05:30–13:26 7.9h tur→tur | poarta LEAR → Todirești | acum Fălești 338min | real 97.2 · P1 21.6
+  2026-09-22 15:47–23:26 7.7h retur→retur | Bulhac → poarta LEAR | acum Fălești 310min | real 82.2 · P1 42.7
+  2026-09-22 00:00–04:26 4.4h retur→tur | Todirești → Bulhac | acum Fălești 197min | real 60.9 · P1 37.4
+  2026-09-23 05:26–13:29 8h tur→tur | poarta LEAR → Todirești | acum Fălești 357min | real 97.1 · P1 21.6
+  2026-09-23 15:46–23:27 7.7h retur→retur | Bulhac → poarta LEAR | acum Fălești 320min | real 82.3 · P1 42.7
+  2026-09-23 00:03–04:25 4.4h retur→tur | Todirești (2 km) → Bulhac | acum Fălești 194min | real 60.8 · P1 37.5
+  2026-09-24 05:29–13:31 8h tur→tur | poarta LEAR → Todirești | acum Fălești 328min | real 97.6 · P1 21.6
+  2026-09-24 15:47–23:25 7.6h retur→retur | Bulhac → poarta LEAR | acum Fălești 310min | real 82.1 · P1 42.7
+  2026-09-24 23:43–04:28 4.8h retur→tur | Todirești (2 km) → Bulhac | acum Fălești 197min | real 68.9 · P1 37.5
+  2026-09-25 05:27–13:05 7.6h tur→tur | poarta LEAR → Todirești (2 km) | acum Fălești 349min | real 89.4 · P1 21.5
+  2026-09-25 15:46–23:25 7.7h retur→retur | Bulhac → poarta LEAR | acum Fălești 290min | real 82.2 · P1 41.7
+809MUM casa Lucăceni [ 'A12 Frăsinești', 'B10 Unțești' ] locuri [ 'Unțești', 'Lucăceni' ] real 826.5 propus 435.3
+ zi 2026-09-21 drumuri 3 real 196.8 propus 97.7
+ zi 2026-09-22 drumuri 3 real 196.9 propus 97.7
+ zi 2026-09-23 drumuri 3 real 195.9 propus 98.7
+ zi 2026-09-24 drumuri 3 real 195.8 propus 98.7
+ zi 2026-09-25 drumuri 1 real 41.2 propus 42.5
+  2026-09-21 05:31–13:28 8h tur→tur | poarta LEAR → Unțești | acum Lucăceni 255min | real 100.6 · P1 12.8
+  2026-09-21 17:19–23:25 6.1h retur→retur | Lucăceni → poarta LEAR | acum Lucăceni 242min | real 41.2 · P2 41.9
+  2026-09-21 23:59–04:15 4.3h retur→tur | Unțești (2 km) → Frăsinești | acum — min | real 54.9 · P1 42.9
+  2026-09-22 05:32–13:27 7.9h tur→tur | poarta LEAR → Unțești | acum Lucăceni 264min | real 100.7 · P1 12.8
+  2026-09-22 17:22–23:25 6.1h retur→retur | Lucăceni → poarta LEAR | acum Lucăceni 212min | real 41.2 · P2 41.9
+  2026-09-22 00:11–04:44 4.6h retur→tur | Unțești (2 km) → Frăsinești | acum — min | real 55 · P1 42.9
+  2026-09-23 05:34–12:54 7.3h tur→tur | poarta LEAR → Unțești | acum Lucăceni 279min | real 99.7 · P1 13.8
+  2026-09-23 17:31–23:25 5.9h retur→retur | Lucăceni → poarta LEAR | acum Lucăceni 179min | real 41.2 · P2 41.9
+  2026-09-23 00:02–04:45 4.7h retur→tur | Unțești (2 km) → Frăsinești | acum — min | real 55 · P1 43
+  2026-09-24 05:34–13:03 7.5h tur→tur | poarta LEAR → Unțești (2 km) | acum Lucăceni 281min | real 99.6 · P1 13.9
+  2026-09-24 17:41–23:25 5.7h retur→retur | Lucăceni → poarta LEAR | acum Lucăceni 173min | real 41.3 · P2 41.9
+  2026-09-24 00:01–04:34 4.6h retur→tur | Unțești → Frăsinești | acum — min | real 54.9 · P1 42.9
+  2026-09-25 17:38–23:27 5.8h retur→retur | Lucăceni → poarta LEAR | acum Lucăceni 221min | real 41.2 · P2 42.5
+504BRAR casa Ungheni [ 'A12 Frăsinești', 'B12 Cornova' ] locuri [ 'Ungheni' ] real 476.2 propus 473
+ zi 2026-09-21 drumuri 3 real 104.8 propus 108
+ zi 2026-09-22 drumuri 4 real 112.5 propus 112.4
+ zi 2026-09-23 drumuri 3 real 65.4 propus 59
+ zi 2026-09-24 drumuri 4 real 112.9 propus 112.5
+ zi 2026-09-25 drumuri 2 real 80.8 propus 81
+  2026-09-21 10:26–12:54 2.5h poarta→tur | poarta LEAR → Cornova | acum Cornova 86min | real 47 · P1 53.1
+  2026-09-21 15:27–23:26 8h retur→retur | Măcărești → poarta LEAR | acum Ungheni 354min | real 31.9 · P1 27.5
+  2026-09-21 01:28–04:36 3.1h retur→tur | Ungheni → Măcărești | acum Ungheni 160min | real 25.8 · P1 27.5
+  2026-09-22 05:25–11:08 5.7h tur→tur | poarta LEAR → Ungheni | acum Ungheni 302min | real 8.3 · P1 4.1
+  2026-09-22 11:14–12:51 1.6h tur→tur | poarta LEAR → Cornova | acum — min | real 47.5 · P1 53.1
+  2026-09-22 15:28–23:25 7.9h retur→retur | Măcărești → poarta LEAR | acum Ungheni 377min | real 30.9 · P1 27.5
+  2026-09-22 01:26–04:36 3.2h retur→tur | Ungheni → Măcărești | acum Ungheni 163min | real 25.8 · P1 27.8
+  2026-09-23 05:24–11:15 5.9h tur→tur | poarta LEAR → Ungheni | acum Ungheni 336min | real 8.5 · P1 4.2
+  2026-09-23 15:28–23:27 8h retur→retur | Măcărești → poarta LEAR | acum Ungheni 371min | real 31.1 · P1 27.4
+  2026-09-23 01:29–04:36 3.1h retur→tur | Ungheni → Măcărești | acum Ungheni 161min | real 25.8 · P1 27.4
+  2026-09-24 05:24–11:28 6.1h tur→tur | poarta LEAR → Ungheni | acum Ungheni 341min | real 8.5 · P1 4.1
+  2026-09-24 11:35–12:53 1.3h tur→tur | poarta LEAR → Cornova | acum — min | real 47.5 · P1 53.1
+  2026-09-24 15:29–23:26 7.9h retur→retur | Măcărești → poarta LEAR | acum Ungheni 346min | real 31 · P1 27.5
+  2026-09-24 01:29–04:37 3.1h retur→tur | Ungheni → Măcărești | acum Ungheni 158min | real 25.8 · P1 27.8
+  2026-09-25 09:28–12:53 3.4h poarta→tur | poarta LEAR → Cornova | acum Cornova 91min | real 50.2 · P1 53.6
+  2026-09-25 15:27–23:25 8h retur→retur | Măcărești → poarta LEAR | acum Ungheni 376min | real 30.6 · P1 27.5
+189OMM casa Sărata Nouă [ 'A5 Gherman', 'B8 Rădenii Vechi' ] locuri [ 'Unțești', 'Sculeni' ] real 1011.3 propus 511
+ zi 2026-09-21 drumuri 3 real 226.7 propus 113.5
+ zi 2026-09-22 drumuri 3 real 226.6 propus 113.5
+ zi 2026-09-23 drumuri 2 real 150 propus 85.6
+ zi 2026-09-24 drumuri 3 real 226.7 propus 113.5
+ zi 2026-09-25 drumuri 3 real 181.4 propus 85
+  2026-09-21 05:24–13:15 7.9h tur→tur | poarta LEAR → Rădenii Vechi | acum Sărata Nouă 346min | real 77.8 · P1 27.9
+  2026-09-21 15:22–23:26 8.1h retur→retur | Taxobeni → poarta LEAR | acum Sărata Nouă 349min | real 73.9 · P2 30.5
+  2026-09-21 00:07–04:49 4.7h retur→tur | Rădenii Vechi → Taxobeni | acum Sărata Nouă 180min | real 75 · P2 55
+  2026-09-22 05:28–13:04 7.6h tur→tur | poarta LEAR → Rădenii Vechi | acum Sărata Nouă 342min | real 77.8 · P1 27.9
+  2026-09-22 15:25–23:26 8h retur→retur | Taxobeni → poarta LEAR | acum Sărata Nouă 350min | real 74 · P2 30.4
+  2026-09-22 00:08–04:48 4.7h retur→tur | Rădenii Vechi → Taxobeni | acum Sărata Nouă 181min | real 74.9 · P2 55.1
+  2026-09-23 15:25–23:27 8h retur→retur | Taxobeni → poarta LEAR | acum Sărata Nouă 346min | real 75.1 · P2 30.5
+  2026-09-23 00:07–04:48 4.7h retur→tur | Rădenii Vechi → Taxobeni | acum Sărata Nouă 170min | real 74.9 · P2 55.1
+  2026-09-24 05:24–12:58 7.6h tur→tur | poarta LEAR → Rădenii Vechi | acum Sărata Nouă 345min | real 77.7 · P1 27.9
+  2026-09-24 15:23–23:26 8.1h retur→retur | Taxobeni → poarta LEAR | acum Sărata Nouă 340min | real 74 · P2 30.5
+  2026-09-24 00:06–04:46 4.7h retur→tur | Rădenii Vechi → Taxobeni | acum Sărata Nouă 182min | real 74.9 · P2 55.1
+  2026-09-25 05:24–13:05 7.7h tur→tur | poarta LEAR → Rădenii Vechi | acum Sărata Nouă 353min | real 77.7 · P1 27.9
+  2026-09-25 15:22–23:26 8.1h retur→retur | Taxobeni → poarta LEAR | acum Sărata Nouă 341min | real 73.8 · P2 30.4
+  2026-09-25 00:02–07:35 7.6h retur→poarta | Rădenii Vechi → poarta LEAR | acum — min | real 29.8 · P1 26.7
+894BRAX casa Pohoarna [ 'A2 Cunicea', 'B3 Vărăncău' ] locuri [ 'Pohoarna', 'Vărăncău' ] real 801.1 propus 471.2
+ zi 2026-09-21 drumuri 3 real 164.9 propus 117.6
+ zi 2026-09-22 drumuri 3 real 260.5 propus 78.9
+ zi 2026-09-23 drumuri 2 real 100.6 propus 79.6
+ zi 2026-09-24 drumuri 3 real 170.2 propus 117.1
+ zi 2026-09-25 drumuri 2 real 104.8 propus 78
+  2026-09-21 05:30–13:12 7.7h tur→tur | poarta LEAR → Vărăncău | acum Pohoarna 362min | real 63.7 · P2 37.5
+  2026-09-21 15:44–23:25 7.7h retur→retur | Cunicea → poarta LEAR | acum Pohoarna 372min | real 40.3 · P1 40.7
+  2026-09-21 00:10–04:23 4.2h retur→tur | Vărăncău → Cunicea | acum Pohoarna 190min | real 61 · P2 39.4
+  2026-09-22 05:33–13:09 7.6h tur→tur | poarta LEAR → Vărăncău | acum Pohoarna 381min | real 64.3 · P2 37.5
+  2026-09-22 15:39–23:24 7.7h retur→retur | Cunicea → poarta LEAR | acum Pohoarna 367min | real 40.2 · P1 40.2
+  2026-09-22 00:07–13:16 13.1h retur→tur | Vărăncău → Vărăncău | acum Pohoarna 381min | real 156 · P2 1.2
+  2026-09-23 15:42–23:24 7.7h retur→retur | Cunicea → poarta LEAR | acum Pohoarna 353min | real 40.2 · P1 40.2
+  2026-09-23 00:07–04:26 4.3h retur→tur | Vărăncău → Cunicea | acum Pohoarna 199min | real 60.4 · P2 39.4
+  2026-09-24 05:33–13:14 7.7h tur→tur | poarta LEAR → Vărăncău | acum Pohoarna 334min | real 63.9 · P2 37.5
+  2026-09-24 15:40–23:23 7.7h retur→retur | Cunicea → poarta LEAR | acum Pohoarna 347min | real 45.2 · P1 40.2
+  2026-09-24 00:07–04:26 4.3h retur→tur | Vărăncău → Cunicea | acum Pohoarna 191min | real 61.1 · P2 39.4
+  2026-09-25 05:34–13:10 7.6h tur→tur | poarta LEAR → Vărăncău | acum Pohoarna 358min | real 64.7 · P2 37.6
+  2026-09-25 16:19–23:24 7.1h retur→retur | Cunicea → poarta LEAR | acum Pohoarna 323min | real 40.1 · P1 40.4
+5207d375c3d61a539b4f2838027cebc8  parcare-floresti-0921.json
+e23862ffbe951999e6076eaaaa9ae9d4  parcare-ungheni-0921.json

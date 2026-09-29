@@ -38,6 +38,8 @@ import { local, ziLucru } from './ora-locala.mjs';
 // ─── parametri ───────────────────────────────────────────────────────────────
 const arg = (n, d = null) => { const i = process.argv.indexOf(n); return i > 0 ? process.argv[i + 1] : d; };
 const WRITE = process.argv.includes('--write');
+// ION-143 dump: --dump <fișier> scrie urmele săptămânii și rutele fiecărei mașini a uzinei, pentru lear-parcare.mjs (parcarea propusă). Nu schimbă nimic altceva.
+const DUMP = arg('--dump'); const DUMP_M = [];
 // --de-ce 807MUM,320BRAT — scrie pe stderr, cursă cu cursă, de ce o rută se potrivește sau nu.
 // Diagnostic pentru duminicile în care raportul spune «n-am găsit nicio rută» și nu se vede de ce.
 const DE_CE = new Set((arg('--de-ce', '') || '').split(',').filter(Boolean));
@@ -1294,6 +1296,8 @@ for (const v of auLucrat) {
       capeteRute: alese.map(r => r.capatC).filter(Boolean).map(c => ({ lat: c[0], lon: c[1] })) };
     const curseL = curseCuOpriri(v.pts, ctxL);
     const etich = eticheteaza(curseL, ctxL);
+    // ION-143 dump v2: cursele «timp liber» și brambura (§11), ca parcarea să nu le numere a doua oară
+    if (DUMP) v._liber = etich.filter(e => e.eticheta === 'liber' || (e.km_brambura || 0) > 0).map(e => ({ t0: +e.cursa.de_la, t1: +e.cursa.pana_la, et: e.eticheta, kmB: +(e.km_brambura || 0).toFixed(2), km: +(e.cursa.km || 0).toFixed(2) }));
     const kmZiSapt = zile.reduce((s, z) => s + (v.kmZi.get(z) || 0), 0);
     rec.liber = rezumaSaptamina(etich, ctxL, kmZiSapt);
     // brambura din §11, în lista deplasărilor — un singur loc care spune ce e brambura (Ion, 25.09)
@@ -1313,6 +1317,13 @@ for (const v of auLucrat) {
       for (const l of explica(etich, ctxL)) console.error(`[${v.masina}]   ${l}`); }
   }
 
+  // lista rută-pe-mașină (§1.4) cu capetele ei: capătul fixat în listă (§4.5 / ION-63) sau primul sat al rutei din schelet
+  const listaIds = fix ? [fix.A, fix.B, ...(fix.extra || [])].filter(Boolean) : [];
+  const lista = listaIds.map(id => { const r = S.rute.find(x => x.id === id); if (!r) return null; const tura = id[0]; const capat = fix.capat?.[tura] && tura === r.tura ? fix.capat[tura] : r.capat;
+    return { id, tura: r.tura, capat, capatC: coordSat(S, capat) ?? r._capatC }; }).filter(Boolean);
+  if (DUMP) DUMP_M.push({ m: v.masina, casa, casaC, lista, liber: v._liber ?? [], rute: alese.map(r => ({ id: r.id, tura: r.tura, capat: r.capat, capatC: r.capatC, tinta: r.tinta, capat_atins: r.capat_atins, curse: r.curse })),
+    comasate: comasate.map(c => ({ id: c.id, capat: c.capat, capatC: c.capatC })), zile: zile.filter(z => (v.kmZi.get(z) || 0) > 20).sort(),
+    pts: v.pts.map(p => [+p.t, +p.lat.toFixed(5), +p.lon.toFixed(5), p.v]) });
   masini.push(rec);
 }
 
@@ -1459,6 +1470,7 @@ const rezultat = { uzina: UZINA_NUME, saptamina: sapt.luni, pana_la: sapt.dumini
   deplasari: toateDeplasarile, total, timp_liber: timpLiber };
 
 const CALE_JSON = arg('--json');
+if (DUMP) { writeFileSync(DUMP, JSON.stringify({ uzina: UZINA_ID, nume: UZINA_NUME, saptamina: sapt.luni, pana_la: sapt.duminica, poarta: POARTA, parc: PARC, ferestre, zileLucru, alteUzine, masini: DUMP_M })); console.log(`dump ${DUMP}: ${DUMP_M.length} mașini`); }
 if (CALE_JSON) { writeFileSync(CALE_JSON, JSON.stringify(rezultat)); console.log(`\nscris ${CALE_JSON}`); }
 
 if (WRITE) {

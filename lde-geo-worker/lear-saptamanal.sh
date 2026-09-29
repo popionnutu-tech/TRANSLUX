@@ -22,13 +22,20 @@ picat=0
 # Cele trei uzine sunt independente (ION-62, 25.09): un worker picat nu oprește nici workerii următori, nici
 # curl-urile — ruta uzinei fără raport trimite singură «raportul lipsește» către ADMIN, așa se află. Codul de
 # ieșire rămâne ≠ 0 dacă a picat ceva.
-if ! flock -n "$LOCK" node --env-file=.env lear-analiza.mjs --write; then
+# ION-143: analiza scrie și dump-ul săptămânii (urma + rutele), din care lear-parcare/lant.sh calculează locurile optime de parcare
+# (date.parcare în rândul LEAR + lde_harta_zi). Parcarea picată nu atinge raportul; LEAR_PARCARE=0 o sare.
+mkdir -p lear-parcare/date
+if ! flock -n "$LOCK" node --env-file=.env lear-analiza.mjs --write --dump lear-parcare/date/ungheni.json; then
   echo "lear-analiza: rularea a picat sau lock-ul e ocupat" >&2; picat=1
+elif [ "${LEAR_PARCARE:-1}" != 0 ] && ! bash lear-parcare/lant.sh lear-parcare/date/ungheni.json; then
+  echo "lear-parcare Ungheni a picat" >&2; picat=1
 fi
 
 # LEAR Florești (ION-59): aceeași analiză, alt schelet și altă poartă; lock separat.
-if ! flock -n "${LOCK_FLORESTI:-/tmp/lear-analiza-floresti.lock}" node --env-file=.env lear-analiza.mjs --uzina LEAR_FLORESTI --write; then
+if ! flock -n "${LOCK_FLORESTI:-/tmp/lear-analiza-floresti.lock}" node --env-file=.env lear-analiza.mjs --uzina LEAR_FLORESTI --write --dump lear-parcare/date/floresti.json; then
   echo "lear-analiza LEAR_FLORESTI: rularea a picat sau lock-ul e ocupat" >&2; picat=1
+elif [ "${LEAR_PARCARE:-1}" != 0 ] && ! bash lear-parcare/lant.sh lear-parcare/date/floresti.json; then
+  echo "lear-parcare Florești a picat" >&2; picat=1
 fi
 
 # SEBN Orhei + Strășeni (ION-60): doar timpul liber și brambura, cu același modul (lear-timp-liber.mjs).

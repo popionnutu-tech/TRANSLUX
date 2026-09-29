@@ -83,3 +83,26 @@ export function cadru(zi: ZiHarta, linii: LinieSchelet[]): [Punct, Punct] | null
   const la = pts.map((p) => p[0]), lo = pts.map((p) => p[1]);
   return [[Math.min(...la), Math.min(...lo)], [Math.max(...la), Math.max(...lo)]];
 }
+
+// ─── ION-143 (Ion, 29.09.2026: «aplică pe pagina hartă și LEAR cu punctele optimale»): harta are și LEAR Ungheni / LEAR Florești ───
+/** uzinele cu hartă: cheia din adresă (?uz=) → uzina din lde_harta_zi, numele, scheletul din public/lde și poarta */
+export const UZINE_HARTA = {
+  drax: { id: 'DRAXELMAIER', nume: 'Drăxlmaier Bălți', lear: false },
+  ungheni: { id: 'LEAR_UNGHENI', nume: 'LEAR Ungheni', lear: true, schelet: 'schelet.json', poarta: [47.2230, 27.8016] as Punct },
+  floresti: { id: 'LEAR_FLORESTI', nume: 'LEAR Florești', lear: true, schelet: 'schelet-floresti.json', poarta: [47.89645, 28.29982] as Punct },
+} as const;
+export type UzHarta = keyof typeof UZINE_HARTA;
+/** cheia din adresă; orice altceva = Drăxlmaier (adresele vechi, fără ?uz=, rămân valabile) */
+export const uzHarta = (x?: string | null): UzHarta => (x === 'ungheni' || x === 'floresti' ? x : 'drax');
+
+/** un rând din «Ziua făcută, drum cu drum» pe hartă */
+export interface RandZi { ora: string; tip: TipInterval; text: string; tare: boolean }
+const TEXT_TIP: Record<TipInterval, string> = { cursa: 'cu oameni', gol: 'gol', munca: 'parcul Bălți (reparație)', uzina: 'așteaptă la poartă' };
+/** ziua LEAR n-are povestea Drăxlmaier (drax-ziua.ts): rândurile se fac din intervalele hărții — ora, drumul, km și ce fel de drum */
+export function randuriDinIntervale(iv: IntervalHarta[]): RandZi[] {
+  return iv.map((v) => {
+    const km = `${(Math.round(v.km * 10) / 10).toLocaleString('ro-RO')} km`;
+    const drum = v.tip === 'uzina' ? '' : v.de === v.pana ? `pe la ${v.de ?? '—'}, ` : `${v.de ?? '—'} → ${v.pana ?? '—'}, `;
+    return { ora: v.ora, tip: v.tip, text: `${drum}${km} ${TEXT_TIP[v.tip]}`, tare: v.tip === 'gol' && v.km >= 20 };
+  });
+}

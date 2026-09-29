@@ -1,0 +1,8 @@
+import { readFileSync, writeFileSync } from 'node:fs';
+const F = '/root/lde-worker/lear-analiza.mjs'; let s = readFileSync(F, 'utf8');
+if (s.includes('ION-143 dump v2')) { console.log('deja'); process.exit(0); }
+const rep = (a, b) => { if (s.split(a).length !== 2) throw new Error('ancoră: ' + a.slice(0, 70)); s = s.replace(a, b); };
+rep("    const etich = eticheteaza(curseL, ctxL);\n", "    const etich = eticheteaza(curseL, ctxL);\n    // ION-143 dump v2: cursele «timp liber» și brambura (§11), ca parcarea să nu le numere a doua oară\n    if (DUMP) v._liber = etich.filter(e => e.eticheta === 'liber' || (e.km_brambura || 0) > 0).map(e => ({ t0: +e.cursa.de_la, t1: +e.cursa.pana_la, et: e.eticheta, kmB: +(e.km_brambura || 0).toFixed(2), km: +(e.cursa.km || 0).toFixed(2) }));\n");
+rep("  if (DUMP) DUMP_M.push({ m: v.masina, casa, casaC,", "  // lista rută-pe-mașină (§1.4) cu capetele ei: capătul fixat în listă (§4.5 / ION-63) sau primul sat al rutei din schelet\n  const listaIds = fix ? [fix.A, fix.B, ...(fix.extra || [])].filter(Boolean) : [];\n  const lista = listaIds.map(id => { const r = S.rute.find(x => x.id === id); if (!r) return null; const tura = id[0]; const capat = fix.capat?.[tura] && tura === r.tura ? fix.capat[tura] : r.capat;\n    return { id, tura: r.tura, capat, capatC: coordSat(S, capat) ?? r._capatC }; }).filter(Boolean);\n  if (DUMP) DUMP_M.push({ m: v.masina, casa, casaC, lista, liber: v._liber ?? [],");
+rep("poarta: POARTA, parc: PARC, ferestre, zileLucru, masini: DUMP_M }));", "poarta: POARTA, parc: PARC, ferestre, zileLucru, alteUzine, masini: DUMP_M }));");
+writeFileSync(F, s); console.log('ok');

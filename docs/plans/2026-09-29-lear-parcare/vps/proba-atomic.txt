@@ -1,0 +1,4 @@
+apel cu rândul 41 stricat: 400 {"code":"22007","details":null,"hint":null,"message":"invalid input syntax for type date: \"nu-e-data\""}
+înainte {"n":71,"r":"2026-09-29T11:34:51.53629+00:00","p":[{"rulat":"2026-09-29T11:34:48.403Z"}]}
+după    {"n":71,"r":"2026-09-29T11:34:51.53629+00:00","p":[{"rulat":"2026-09-29T11:34:48.403Z"}]}
+NESCHIMBAT — tranzacția s-a anulat

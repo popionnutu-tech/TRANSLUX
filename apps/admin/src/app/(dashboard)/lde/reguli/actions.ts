@@ -1,5 +1,6 @@
 'use server';
 
+import type { ParcareDrax } from '@/lib/lde/drax-parcare';
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
 
@@ -95,6 +96,8 @@ export type Deplasare = {
 
 export type Raport = {
   uzina: string;
+  /** ION-143: parcarea propusă (1–2 locuri pe mașină), scrisă de lear-parcare.mjs după analiza de luni; lipsește pe rândurile vechi */
+  parcare?: ParcareDrax | null;
   saptamina: string;
   pana_la: string;
   schelet_fixat: string;

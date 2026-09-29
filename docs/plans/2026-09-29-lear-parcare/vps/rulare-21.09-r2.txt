@@ -1,0 +1,230 @@
+LEAR Ungheni 2026-09-21: 14 mașini · de tăiat 3471.3 km/săpt. · două locuri 9 · perechi fără Valhalla 0
+  827MUM    662.8 (real 1111.1 → 448.3) · P1 Petrești (14) · casa Fălești · {"tur":11,"retur":9,"plus":4,"faraPoarta":0,"taiatePeOpriri":5,"schimburi":2,"scurte":0,"lungi":1,"laPoarta":5,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":0,"candFaraDrum":1}
+  809MUM    567.5 (real 751.5 → 184) · P1 la uzină (poarta LEAR)·deja (11) · casa Lucăceni · {"tur":10,"retur":4,"plus":12,"faraPoarta":1,"taiatePeOpriri":7,"schimburi":2,"scurte":7,"lungi":1,"laPoarta":3,"depozit":1,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":4,"candFaraDrum":1}
+  189OMM    478.1 (real 942.2 → 464.1) · P1 Sărata Nouă·deja (5) + P2 la uzină (poarta LEAR) (9) · casa Sărata Nouă · {"tur":11,"retur":9,"plus":4,"faraPoarta":0,"taiatePeOpriri":0,"schimburi":2,"scurte":2,"lungi":1,"laPoarta":3,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":9,"candFaraDrum":1}
+  145BRAZ   324.2 (real 469.9 → 145.7) · P1 Pîrlița (3) + P2 la uzină (poarta LEAR)·deja (12) · casa Todirești · {"tur":5,"retur":7,"plus":17,"faraPoarta":0,"taiatePeOpriri":8,"schimburi":2,"scurte":6,"lungi":2,"laPoarta":1,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":3,"candFaraDrum":1}
+  807MUM    269.9 (real 631.6 → 361.7) · P1 Todirești (4) + P2 Ungheni·oraș (6) · casa Fălești · {"tur":9,"retur":8,"plus":6,"faraPoarta":0,"taiatePeOpriri":1,"schimburi":2,"scurte":5,"lungi":2,"laPoarta":2,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":6,"candFaraDrum":1}
+  217RST    257.8 (real 869.7 → 611.9) · P1 Sărata Nouă (13) · casa Călinești · {"tur":16,"retur":15,"plus":0,"faraPoarta":0,"taiatePeOpriri":7,"schimburi":2,"scurte":9,"lungi":1,"laPoarta":2,"depozit":1,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":11,"candFaraDrum":1}
+  061COY    230.4 (real 753.3 → 522.9) · P1 Todirești·deja (5) + P2 la uzină (poarta LEAR) (9) · casa Todirești · {"tur":13,"retur":13,"plus":0,"faraPoarta":0,"taiatePeOpriri":2,"schimburi":2,"scurte":1,"lungi":1,"laPoarta":5,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":10,"candFaraDrum":1}
+  537BRAT     209 (real 764.8 → 555.8) · P1 Ungheni·oraș (3) + P2 Făgădău (11) · casa Gara Fălești · {"tur":15,"retur":14,"plus":2,"faraPoarta":0,"taiatePeOpriri":9,"schimburi":2,"scurte":11,"lungi":1,"laPoarta":1,"depozit":0,"altaUzina":0,"kmLiberScos":3.1,"goluriCuOpriri":0,"goluriTaiate":4,"candFaraDrum":1}
+  456BRAX   197.4 (real 445.2 → 247.8) · P1 Pîrlița (4) + P2 Elizavetovca (10) · casa Todirești · {"tur":11,"retur":14,"plus":18,"faraPoarta":1,"taiatePeOpriri":21,"schimburi":2,"scurte":19,"lungi":1,"laPoarta":0,"depozit":1,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":6,"candFaraDrum":1}
+  183BZP    177.3 (real 784.5 → 607.2) · P1 Fălești·oraș (6) + P2 Făgădău (8) · casa Sărata Veche · {"tur":13,"retur":13,"plus":0,"faraPoarta":0,"taiatePeOpriri":4,"schimburi":2,"scurte":5,"lungi":1,"laPoarta":2,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":2,"candFaraDrum":1}
+  732SHS     90.4 (real 497.6 → 407.2) · P1 Ungheni·oraș (8) + P2 Morenii Vechi·deja (5) · casa Morenii Vechi · {"tur":12,"retur":12,"plus":0,"faraPoarta":0,"taiatePeOpriri":1,"schimburi":2,"scurte":4,"lungi":1,"laPoarta":2,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":4,"candFaraDrum":1}
+  032BRAT     6.5 (real 589.6 → 583.1) · P1 Cornești·oraș (10) + P2 Gherman·deja (5) · casa Mircești · {"tur":15,"retur":15,"plus":1,"faraPoarta":1,"taiatePeOpriri":8,"schimburi":2,"scurte":10,"lungi":1,"laPoarta":0,"depozit":0,"altaUzina":0,"kmLiberScos":32,"goluriCuOpriri":1,"goluriTaiate":3,"candFaraDrum":1}
+  320BRAT       0 (real — → —) · rute neverificate: 17 din 30 curse cu oameni nu trec pe la capătul rutelor ei · casa Unțești · {"tur":11,"retur":10,"plus":9,"faraPoarta":0,"taiatePeOpriri":17,"schimburi":2,"scurte":11,"lungi":1,"laPoarta":0,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":1,"goluriTaiate":1}
+  504BRAR       0 (real 290.2 → 324.4) · propunerea nu scade km — rămâne cum e · casa Ungheni · {"tur":11,"retur":10,"plus":7,"faraPoarta":0,"taiatePeOpriri":0,"schimburi":2,"scurte":7,"lungi":1,"laPoarta":1,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":5,"candFaraDrum":1}
+LEAR Florești 2026-09-21: 6 mașini · de tăiat 789 km/săpt. · două locuri 4 · perechi fără Valhalla 0
+  849BRAN     217 (real 657.1 → 440.1) · P1 Ghindești·oraș (4) + P2 la uzină (poarta LEAR) (10) · casa Cașunca · {"tur":12,"retur":12,"plus":0,"faraPoarta":0,"taiatePeOpriri":0,"schimburi":2,"scurte":4,"lungi":1,"laPoarta":1,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":3}
+  894BRAX     208 (real 692.8 → 484.8) · P1 Gura Camencii (10) + P2 Temeleuți (5) · casa Pohoarna · {"tur":11,"retur":11,"plus":0,"faraPoarta":2,"taiatePeOpriri":0,"schimburi":2,"scurte":4,"lungi":1,"laPoarta":0,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":6}
+  035BRAT   171.3 (real 552.1 → 380.8) · P1 Căinarii Vechi (10) + P2 Florești·oraș (4) · casa Bulboci · {"tur":13,"retur":12,"plus":0,"faraPoarta":3,"taiatePeOpriri":1,"schimburi":2,"scurte":8,"lungi":1,"laPoarta":0,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":1}
+  279BRAT   125.1 (real 465 → 339.9) · P1 Florești·oraș (4) + P2 Ghindești·oraș (9) · casa Țîra · {"tur":13,"retur":12,"plus":0,"faraPoarta":0,"taiatePeOpriri":2,"schimburi":2,"scurte":7,"lungi":1,"laPoarta":0,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":9}
+  603BRAS    67.6 (real 302.9 → 235.3) · P1 la uzină (poarta LEAR)·deja (10) · casa null · {"tur":11,"retur":9,"plus":3,"faraPoarta":0,"taiatePeOpriri":0,"schimburi":2,"scurte":5,"lungi":1,"laPoarta":2,"depozit":1,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":2}
+  713IZX        0 (real — → —) · un singur schimb măsurat în săptămână (§8.3) · casa Slobozia · {"tur":13,"retur":9,"plus":2,"faraPoarta":2,"taiatePeOpriri":2,"schimburi":0,"scurte":2,"lungi":1,"laPoarta":6,"depozit":3,"altaUzina":10,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":0}
+
+827MUM    662.8 {"tur":11,"retur":9,"plus":4,"faraPoarta":0,"taiatePeOpriri":5,"schimburi":2,"scurte":0,"lungi":1,"laPoarta":5,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":0,"candFaraDrum":1} Petrești
+809MUM    567.5 {"tur":10,"retur":4,"plus":12,"faraPoarta":1,"taiatePeOpriri":7,"schimburi":2,"scurte":7,"lungi":1,"laPoarta":3,"depozit":1,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":4,"candFaraDrum":1} la uzină (poarta LEAR)
+189OMM    478.1 {"tur":11,"retur":9,"plus":4,"faraPoarta":0,"taiatePeOpriri":0,"schimburi":2,"scurte":2,"lungi":1,"laPoarta":3,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":9,"candFaraDrum":1} Sărata Nouă + la uzină (poarta LEAR)
+145BRAZ   324.2 {"tur":5,"retur":7,"plus":17,"faraPoarta":0,"taiatePeOpriri":8,"schimburi":2,"scurte":6,"lungi":2,"laPoarta":1,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":3,"candFaraDrum":1} Pîrlița + la uzină (poarta LEAR)
+807MUM    269.9 {"tur":9,"retur":8,"plus":6,"faraPoarta":0,"taiatePeOpriri":1,"schimburi":2,"scurte":5,"lungi":2,"laPoarta":2,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":6,"candFaraDrum":1} Todirești + Ungheni
+217RST    257.8 {"tur":16,"retur":15,"plus":0,"faraPoarta":0,"taiatePeOpriri":7,"schimburi":2,"scurte":9,"lungi":1,"laPoarta":2,"depozit":1,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":11,"candFaraDrum":1} Sărata Nouă
+061COY    230.4 {"tur":13,"retur":13,"plus":0,"faraPoarta":0,"taiatePeOpriri":2,"schimburi":2,"scurte":1,"lungi":1,"laPoarta":5,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":10,"candFaraDrum":1} Todirești + la uzină (poarta LEAR)
+537BRAT     209 {"tur":15,"retur":14,"plus":2,"faraPoarta":0,"taiatePeOpriri":9,"schimburi":2,"scurte":11,"lungi":1,"laPoarta":1,"depozit":0,"altaUzina":0,"kmLiberScos":3.1,"goluriCuOpriri":0,"goluriTaiate":4,"candFaraDrum":1} Ungheni + Făgădău
+456BRAX   197.4 {"tur":11,"retur":14,"plus":18,"faraPoarta":1,"taiatePeOpriri":21,"schimburi":2,"scurte":19,"lungi":1,"laPoarta":0,"depozit":1,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":6,"candFaraDrum":1} Pîrlița + Elizavetovca
+183BZP    177.3 {"tur":13,"retur":13,"plus":0,"faraPoarta":0,"taiatePeOpriri":4,"schimburi":2,"scurte":5,"lungi":1,"laPoarta":2,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":2,"candFaraDrum":1} Fălești + Făgădău
+732SHS     90.4 {"tur":12,"retur":12,"plus":0,"faraPoarta":0,"taiatePeOpriri":1,"schimburi":2,"scurte":4,"lungi":1,"laPoarta":2,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":4,"candFaraDrum":1} Ungheni + Morenii Vechi
+032BRAT     6.5 {"tur":15,"retur":15,"plus":1,"faraPoarta":1,"taiatePeOpriri":8,"schimburi":2,"scurte":10,"lungi":1,"laPoarta":0,"depozit":0,"altaUzina":0,"kmLiberScos":32,"goluriCuOpriri":1,"goluriTaiate":3,"candFaraDrum":1} Cornești + Gherman
+320BRAT       0 {"tur":11,"retur":10,"plus":9,"faraPoarta":0,"taiatePeOpriri":17,"schimburi":2,"scurte":11,"lungi":1,"laPoarta":0,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":1,"goluriTaiate":1} 
+504BRAR       0 {"tur":11,"retur":10,"plus":7,"faraPoarta":0,"taiatePeOpriri":0,"schimburi":2,"scurte":7,"lungi":1,"laPoarta":1,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":5,"candFaraDrum":1} 
+849BRAN     217 {"tur":12,"retur":12,"plus":0,"faraPoarta":0,"taiatePeOpriri":0,"schimburi":2,"scurte":4,"lungi":1,"laPoarta":1,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":3} Ghindești + la uzină (poarta LEAR)
+894BRAX     208 {"tur":11,"retur":11,"plus":0,"faraPoarta":2,"taiatePeOpriri":0,"schimburi":2,"scurte":4,"lungi":1,"laPoarta":0,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":6} Gura Camencii + Temeleuți
+035BRAT   171.3 {"tur":13,"retur":12,"plus":0,"faraPoarta":3,"taiatePeOpriri":1,"schimburi":2,"scurte":8,"lungi":1,"laPoarta":0,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":1} Căinarii Vechi + Florești
+279BRAT   125.1 {"tur":13,"retur":12,"plus":0,"faraPoarta":0,"taiatePeOpriri":2,"schimburi":2,"scurte":7,"lungi":1,"laPoarta":0,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":9} Florești + Ghindești
+603BRAS    67.6 {"tur":11,"retur":9,"plus":3,"faraPoarta":0,"taiatePeOpriri":0,"schimburi":2,"scurte":5,"lungi":1,"laPoarta":2,"depozit":1,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":2} la uzină (poarta LEAR)
+713IZX        0 {"tur":13,"retur":9,"plus":2,"faraPoarta":2,"taiatePeOpriri":2,"schimburi":0,"scurte":2,"lungi":1,"laPoarta":6,"depozit":3,"altaUzina":10,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":0} 
+
+809MUM 2026-09-21 16:46–23:25 Sculeni → poarta LEAR acum Lucăceni real 58.9 P 24.1 | mutate: Sculeni 16:38
+809MUM 2026-09-21 00:27–04:14 poarta LEAR → Frăsinești acum poarta LEAR real 31.1 P 32.4 | mutate: Frăsinești 04:14
+809MUM 2026-09-22 00:41–04:15 poarta LEAR → Frăsinești acum poarta LEAR real 31.1 P 32.4 | mutate: Frăsinești 04:15
+809MUM 2026-09-24 05:34–12:30 poarta LEAR → Semeni acum Lucăceni real 72.7 P 9.3 | mutate: Semeni 12:30, Pîrlița 12:47
+189OMM 2026-09-21 05:24–12:52 poarta LEAR → Pîrlița acum Sărata Nouă real 60.6 P 17.1 | mutate: Pîrlița 12:52
+189OMM 2026-09-21 00:11–04:22 Rădenii Vechi → Călugăr acum Sărata Nouă real 52.1 P 55 | mutate: Călugăr 04:22
+189OMM 2026-09-22 05:28–12:36 poarta LEAR → Pîrlița acum Sărata Nouă real 60.6 P 17.1 | mutate: Pîrlița 12:36, Alexeevca 12:49
+189OMM 2026-09-22 15:45–23:26 Călugăr → poarta LEAR acum Sărata Nouă real 52.5 P 53.6 | mutate: Călugăr 15:43
+189OMM 2026-09-22 00:12–04:21 Rădenii Vechi → Călugăr acum Sărata Nouă real 52.1 P 55 | mutate: Călugăr 04:21
+189OMM 2026-09-23 05:27–12:51 poarta LEAR → Pîrlița acum Sărata Nouă real 146.1 P 17.1 | mutate: Pîrlița 12:51
+189OMM 2026-09-23 00:51–04:21 Bușila → Călugăr acum Sărata Nouă real 26.7 P 28.3 | mutate: Bușila 00:49, Călugăr 04:21
+189OMM 2026-09-24 00:10–04:21 Rădenii Vechi → Călugăr acum Sărata Nouă real 52.1 P 55 | mutate: Călugăr 04:21
+189OMM 2026-09-25 05:24–12:44 poarta LEAR → Pîrlița acum Sărata Nouă real 60.6 P 17.1 | mutate: Pîrlița 12:44
+145BRAZ 2026-09-22 16:04–23:24 Pîrlița → poarta LEAR acum Todirești real 27.3 P 16.8 | mutate: Pîrlița 16:01
+145BRAZ 2026-09-24 16:16–23:25 Pîrlița → poarta LEAR acum Todirești real 27.5 P 16.8 | mutate: Pîrlița 16:14
+145BRAZ 2026-09-25 16:17–23:25 Pîrlița → poarta LEAR acum Todirești real 27.5 P 16.8 | mutate: Pîrlița 16:11
+807MUM 2026-09-21 15:55–23:25 Călugăr → poarta LEAR acum Fălești real 52.6 P 55.5 | mutate: Blindești 15:19, Călugăr 15:53
+807MUM 2026-09-22 00:18–04:49 Făgădău → Medeleni acum Fălești real 56.1 P 32.1 | mutate: Bușila 00:08, Făgădău 00:16
+807MUM 2026-09-23 00:17–04:50 Făgădău → Medeleni acum Fălești real 57.3 P 32 | mutate: Făgădău 00:15
+807MUM 2026-09-24 05:18–12:57 poarta LEAR → Făgădău acum Fălești real 64.1 P 36.4 | mutate: Făgădău 12:57
+807MUM 2026-09-24 15:52–23:25 Călugăr → poarta LEAR acum Fălești real 52.4 P 55.6 | mutate: Călugăr 15:50
+807MUM 2026-09-24 00:14–04:51 Făgădău → Medeleni acum Fălești real 56.9 P 32 | mutate: Făgădău 00:12
+217RST 2026-09-21 06:28–12:25 Elizavetovca → Sărata Nouă acum Călinești real 95.9 P 36.9 | mutate: Sărata Nouă 12:25, Ciolacu Nou 12:40
+217RST 2026-09-21 16:06–23:27 Hîncești → poarta LEAR acum Călinești real 72.9 P 71 | mutate: Hîncești 16:01
+217RST 2026-09-21 00:13–03:49 Ciolacu Vechi → Hîncești acum Călinești real 42.9 P 39.3 | mutate: Hîncești 03:49
+217RST 2026-09-22 16:08–22:34 Hîncești → Novaia Nicolaevca acum Călinești real 63.8 P 63.4 | mutate: Hîncești 16:04
+217RST 2026-09-22 00:28–03:53 Ciolacu Vechi → Hîncești acum Călinești real 41.4 P 39.2 | mutate: Hîncești 03:53
+217RST 2026-09-23 05:16–12:27 poarta LEAR → Sărata Nouă acum Călinești real 101.3 P 42 | mutate: Sărata Nouă 12:27
+217RST 2026-09-23 16:11–22:44 Hîncești → Elizavetovca acum Călinești real 67.1 P 66.9 | mutate: Hîncești 16:07
+217RST 2026-09-23 00:17–03:50 Ciolacu Vechi → Hîncești acum Călinești real 42.9 P 39.3 | mutate: Hîncești 03:50
+217RST 2026-09-24 16:12–22:09 Hîncești → Novaia Nicolaevca acum Călinești real 64.5 P 63.4 | mutate: Hîncești 16:08
+217RST 2026-09-24 00:23–03:55 Ciolacu Vechi → Hîncești acum Călinești real 41.5 P 39.2 | mutate: Hîncești 03:55
+217RST 2026-09-25 16:15–22:31 Hîncești → Pîrlița acum Călinești real 56.6 P 55.8 | mutate: Hîncești 16:09
+061COY 2026-09-21 05:16–12:03 poarta LEAR → Pîrlița acum Todirești real 26.2 P 17.1 | mutate: Pîrlița 12:03
+061COY 2026-09-21 00:14–03:58 Sipoteni → Izvoare acum Todirești real 92.5 P 80.3 | mutate: Izvoare 03:58
+061COY 2026-09-22 05:13–12:09 poarta LEAR → Pîrlița acum Todirești real 26.3 P 17 | mutate: Pîrlița 12:09
+061COY 2026-09-22 16:30–23:25 Semeni → poarta LEAR acum Todirești real 43 P 8 | mutate: Semeni 16:28
+061COY 2026-09-22 00:12–03:58 Sipoteni → Izvoare acum Todirești real 91.8 P 80.5 | mutate: Izvoare 03:58
+061COY 2026-09-23 00:20–03:30 Sipoteni → Semeni acum Todirești real 56.4 P 52.2 | mutate: Semeni 03:30, Izvoare 04:05
+061COY 2026-09-24 16:26–23:26 Semeni → poarta LEAR acum Todirești real 42.9 P 8.1 | mutate: Semeni 16:24
+061COY 2026-09-24 00:13–03:15 Sipoteni → Pîrlița acum Todirești real 40.1 P 45.4 | mutate: Pîrlița 03:15, Izvoare 03:59
+061COY 2026-09-25 05:27–12:09 Novaia Nicolaevca → Pîrlița acum Todirești real 18.3 P 21.8 | mutate: Pîrlița 12:09
+061COY 2026-09-25 16:31–23:25 Semeni → poarta LEAR acum Todirești real 42.9 P 8 | mutate: Bocșa 15:53, Semeni 16:26
+537BRAT 2026-09-21 06:20–12:53 Novaia Nicolaevca → Coșeni acum Hitrești (2 km) real 73.4 P 44.1 | mutate: Novaia Nicolaevca 06:18
+537BRAT 2026-09-22 06:03–12:58 Sărata Nouă → Țîghira acum Hitrești (2 km) real 38.2 P 26.5 | mutate: Sărata Nouă 06:01
+537BRAT 2026-09-22 16:39–22:25 Fălești → Elizavetovca acum Hitrești (2 km) real 42.6 P 44.8 | mutate: Fălești 16:08
+537BRAT 2026-09-23 00:16–04:02 Țîghira → Călugăr acum Hitrești (2 km) real 40.1 P 41.6 | mutate: Țîghira 00:14
+456BRAX 2026-09-21 05:32–07:16 Novaia Nicolaevca → Făgădău acum Todirești real 31.5 P 23.1 | mutate: Novaia Nicolaevca 05:32
+456BRAX 2026-09-21 16:36–23:26 Pîrlița → poarta LEAR acum Todirești real 28.9 P 15.4 | mutate: Pîrlița 16:32
+456BRAX 2026-09-22 17:27–23:25 Pîrlița → poarta LEAR acum Todirești real 28.7 P 15.3 | mutate: Pîrlița 17:14
+456BRAX 2026-09-23 05:30–12:51 Novaia Nicolaevca → Pîrlița acum Todirești real 20.6 P 9.3 | mutate: Pîrlița 12:51
+456BRAX 2026-09-24 16:57–23:26 Elizavetovca → poarta LEAR acum Todirești real 39.2 P 4.3 | mutate: Elizavetovca 16:57
+456BRAX 2026-09-25 05:19–12:51 poarta LEAR → Pîrlița acum Todirești real 28.8 P 15.8 | mutate: Pîrlița 12:51
+183BZP 2026-09-21 16:30–23:26 Fălești → poarta LEAR acum Sărata Veche real 57.8 P 48.7 | mutate: Fălești 16:17
+183BZP 2026-09-23 16:31–23:28 Fălești → poarta LEAR acum Sărata Veche real 58.1 P 49 | mutate: Ilenuța 16:10, Fălești 16:21
+732SHS 2026-09-21 16:37–23:26 Valea Mare → poarta LEAR acum Morenii Vechi real 19 P 14.3 | mutate: Bărboieni 15:55, Măcărești 16:06, Valea Mare 16:30
+732SHS 2026-09-22 17:01–23:26 Valea Mare → poarta LEAR acum Morenii Vechi real 18.5 P 14.2 | mutate: Măcărești 16:39, Valea Mare 16:54
+732SHS 2026-09-23 16:53–23:26 Valea Mare → poarta LEAR acum Morenii Vechi real 19 P 14.2 | mutate: Frăsinești 15:59, Valea Mare 16:48
+732SHS 2026-09-25 05:20–11:39 poarta LEAR → Valea Mare acum Morenii Vechi real 18.9 P 14.8 | mutate: Valea Mare 11:39
+032BRAT 2026-09-21 06:57–12:42 Novaia Nicolaevca → Drujba (2.1 km) acum Mircești real 28.3 P 31.1 | mutate: Novaia Nicolaevca 06:26
+032BRAT 2026-09-22 17:07–23:26 Cornești → poarta LEAR acum Mircești real 34.3 P 28.8 | mutate: Gherman 15:58, Pîrlița 16:44, Cornești 16:58
+032BRAT 2026-09-25 17:04–23:27 Cornești → poarta LEAR acum Mircești real 34.3 P 28.8 | mutate: Semeni 16:26, Cornești 16:56
+504BRAR 2026-09-21 15:46–23:26 Costuleni → poarta LEAR acum Ungheni real 24.5 P 20.8 | mutate: Costuleni 15:39
+504BRAR 2026-09-23 15:48–23:27 Valea Mare → poarta LEAR acum Ungheni real 17.2 P 13.1 | mutate: Valea Mare 15:42
+504BRAR 2026-09-24 15:47–23:26 Valea Mare → poarta LEAR acum Ungheni real 17.1 P 13 | mutate: Valea Mare 15:43
+504BRAR 2026-09-25 05:26–09:31 poarta LEAR → Zagarancea acum Ungheni real 16.3 P 6.7 | mutate: Zagarancea 09:31, Drujba 11:03
+504BRAR 2026-09-25 15:44–23:25 Valea Mare → poarta LEAR acum Ungheni real 16.8 P 13 | mutate: Valea Mare 15:41
+849BRAN 2026-09-21 23:55–03:29 Nicolaevca → Ghindești acum Cașunca real 24 P 19.9 | mutate: Ghindești 03:29
+849BRAN 2026-09-22 17:16–23:23 Vărăncău → poarta LEAR acum Cașunca real 62.3 P 36.8 | mutate: Vărăncău 16:33
+849BRAN 2026-09-24 18:31–23:22 Gvozdova → poarta LEAR acum Cașunca real 35.1 P 7.7 | mutate: Vărăncău 16:20, Gvozdova 18:24
+894BRAX 2026-09-21 05:30–12:44 poarta LEAR → Vărăncău acum Pohoarna real 63.5 P 37.5 | mutate: Vărăncău 12:44
+894BRAX 2026-09-22 05:33–12:39 poarta LEAR → Gvozdova acum Pohoarna real 35.7 P 7.2 | mutate: Gvozdova 12:39
+894BRAX 2026-09-22 16:00–23:24 Cotiujenii Mari → poarta LEAR acum Pohoarna real 26.6 P 52.8 | mutate: Cotiujenii Mari 15:55
+894BRAX 2026-09-23 16:06–23:24 Cotiujenii Mari → poarta LEAR acum Pohoarna real 26.4 P 29.2 | mutate: Cotiujenii Mari 15:58
+894BRAX 2026-09-24 05:33–12:54 poarta LEAR → Slobozia-Cremene acum Pohoarna real 54.5 P 27.5 | mutate: Slobozia-Cremene 12:54
+894BRAX 2026-09-24 16:28–23:23 Cotiujenii Mari → poarta LEAR acum Pohoarna real 26.5 P 29.1 | mutate: Cotiujenii Mari 16:10
+035BRAT 2026-09-23 00:39–04:46 Regina Maria → Căinarii Vechi acum Bulboci real 9.2 P 9.9 | mutate: Regina Maria 00:37
+279BRAT 2026-09-21 15:27–23:24 Ghindești → poarta LEAR acum Țîra real 19.3 P 12.6 | mutate: Ghindești 15:25
+279BRAT 2026-09-21 00:06–04:58 Parcani → Pohoarna acum Țîra real 46.8 P 42.3 | mutate: Parcani 00:04
+279BRAT 2026-09-22 00:06–04:57 Parcani → Pohoarna acum Țîra real 46.7 P 42.4 | mutate: Parcani 00:04
+279BRAT 2026-09-23 15:48–23:23 Ghindești → poarta LEAR acum Țîra real 19.2 P 13.5 | mutate: Ghindești 15:30
+279BRAT 2026-09-23 00:08–04:59 Parcani → Pohoarna acum Țîra real 46.9 P 42.5 | mutate: Parcani 00:06
+279BRAT 2026-09-24 15:29–23:22 Ghindești → poarta LEAR acum Țîra real 20.1 P 13.1 | mutate: Ghindești 15:25
+279BRAT 2026-09-24 00:04–04:58 Parcani → Pohoarna acum Țîra real 46.8 P 42.4 | mutate: Parcani 00:02
+279BRAT 2026-09-25 05:37–12:39 poarta LEAR → Ciripcău acum Țîra real 37 P 20.1 | mutate: Ciripcău 12:39
+279BRAT 2026-09-25 15:26–22:48 Ghindești → Ghindești acum Țîra real 8.3 P 1.1 | mutate: Ghindești 15:24
+603BRAS 2026-09-22 15:50–23:21 Alexeevca → poarta LEAR acum poarta LEAR real 12.3 P 5.8 | mutate: Alexeevca 15:47
+603BRAS 2026-09-22 23:51–04:14 Prajila → Alexeevca acum poarta LEAR real 20.1 P 18.4 | mutate: Alexeevca 04:14, Pîrlița 04:34
+
+189OMM casa Sărata Nouă [ 'A5 Gherman', 'B8 Rădenii Vechi' ] locuri [ 'Sărata Nouă', 'la uzină (poarta LEAR)' ] real 942.2 propus 464.1
+ zi 2026-09-21 drumuri 3 real 188 propus 101.6
+ zi 2026-09-22 drumuri 3 real 165.1 propus 125.7
+ zi 2026-09-23 drumuri 3 real 249.4 propus 74.9
+ zi 2026-09-24 drumuri 3 real 203.8 propus 115.5
+ zi 2026-09-25 drumuri 2 real 135.9 propus 46.4
+  2026-09-21 05:24–12:52 7.5h tur→tur | poarta LEAR → Pîrlița | acum Sărata Nouă 342min | real 60.6 · P2 17.1
+  2026-09-21 15:19–23:26 8.1h retur→retur | Gherman → poarta LEAR | acum Sărata Nouă 343min | real 75.3 · P2 29.5
+  2026-09-21 00:11–04:22 4.2h retur→tur | Rădenii Vechi → Călugăr | acum Sărata Nouă 176min | real 52.1 · P1 55
+  2026-09-22 05:28–12:36 7.1h tur→tur | poarta LEAR → Pîrlița | acum Sărata Nouă 338min | real 60.6 · P2 17.1
+  2026-09-22 15:45–23:26 7.7h retur→retur | Călugăr → poarta LEAR | acum Sărata Nouă 347min | real 52.5 · P1 53.6
+  2026-09-22 00:12–04:21 4.2h retur→tur | Rădenii Vechi → Călugăr | acum Sărata Nouă 176min | real 52.1 · P1 55
+  2026-09-23 05:27–12:51 7.4h tur→tur | poarta LEAR → Pîrlița | acum Sărata Nouă 115min | real 146.1 · P2 17.1
+  2026-09-23 15:22–23:27 8.1h retur→retur | Gherman → poarta LEAR | acum Sărata Nouă 343min | real 76.5 · P2 29.4
+  2026-09-23 00:51–04:21 3.5h retur→tur | Bușila → Călugăr | acum Sărata Nouă 167min | real 26.7 · P1 28.3
+  2026-09-24 05:24–12:54 7.5h tur→tur | poarta LEAR → Rădenii Vechi | acum Sărata Nouă 342min | real 76.3 · P2 31
+  2026-09-24 15:20–23:26 8.1h retur→retur | Gherman → poarta LEAR | acum Sărata Nouă 337min | real 75.4 · P2 29.5
+  2026-09-24 00:10–04:21 4.2h retur→tur | Rădenii Vechi → Călugăr | acum Sărata Nouă 178min | real 52.1 · P1 55
+  2026-09-25 05:24–12:44 7.3h tur→tur | poarta LEAR → Pîrlița | acum Sărata Nouă 345min | real 60.6 · P2 17.1
+  2026-09-25 15:20–23:26 8.1h retur→plus | Gherman → poarta LEAR | acum Sărata Nouă 240min | real 75.3 · P2 29.4
+809MUM casa Lucăceni [ 'A12 Frăsinești', 'B10 Unțești' ] locuri [ 'la uzină (poarta LEAR)' ] real 751.5 propus 184
+ zi 2026-09-21 drumuri 3 real 191.4 propus 69.5
+ zi 2026-09-22 drumuri 3 real 190.6 propus 69.6
+ zi 2026-09-23 drumuri 2 real 134.7 propus 31.3
+ zi 2026-09-24 drumuri 2 real 153.7 propus 11.4
+ zi 2026-09-25 drumuri 1 real 81 propus 2.2
+  2026-09-21 05:31–13:30 8h plus→tur | poarta LEAR → Unțești | acum Lucăceni 240min | real 101.4 · P1 13.1
+  2026-09-21 16:46–23:25 6.6h retur→plus | Sculeni → poarta LEAR | acum Lucăceni 232min | real 58.9 · P1 24.1
+  2026-09-21 00:27–04:14 3.8h plus→tur | poarta LEAR → Frăsinești | acum poarta LEAR 186min | real 31.1 · P1 32.4
+  2026-09-22 05:32–13:30 8h tur→tur | poarta LEAR → Unțești | acum Lucăceni 129min | real 101.5 · P1 13.2
+  2026-09-22 16:22–21:29 5.1h plus→tur | poarta LEAR → Sculeni | acum Lucăceni 210min | real 58 · P1 24
+  2026-09-22 00:41–04:15 3.6h plus→tur | poarta LEAR → Frăsinești | acum poarta LEAR 171min | real 31.1 · P1 32.4
+  2026-09-23 05:34–11:56 6.4h tur→fara-poarta | poarta LEAR → Gherman | acum Lucăceni 271min | real 53.8 · P1 29.2
+  2026-09-23 16:25–23:25 7h plus→plus | poarta LEAR → poarta LEAR | acum Lucăceni 151min | real 81 · P1 2.1
+  2026-09-24 05:34–12:30 6.9h plus→tur | poarta LEAR → Semeni | acum Lucăceni 275min | real 72.7 · P1 9.3
+  2026-09-24 16:30–23:25 6.9h plus→plus | poarta LEAR → poarta LEAR | acum Lucăceni 161min | real 81 · P1 2.1
+  2026-09-25 16:33–23:27 6.9h plus→retur | poarta LEAR → poarta LEAR | acum Lucăceni 211min | real 81 · P1 2.2
+827MUM casa Fălești [ 'A6 Bulhac', 'B5 Todirești' ] locuri [ 'Petrești' ] real 1111.1 propus 448.3
+ zi 2026-09-21 drumuri 3 real 232.8 propus 96.8
+ zi 2026-09-22 drumuri 3 real 236.8 propus 96.8
+ zi 2026-09-23 drumuri 3 real 234.6 propus 97.1
+ zi 2026-09-24 drumuri 3 real 234.9 propus 96.9
+ zi 2026-09-25 drumuri 2 real 172 propus 60.7
+  2026-09-21 05:25–12:58 7.5h tur→tur | poarta LEAR → Todirești | acum Fălești 346min | real 90.5 · P1 20.2
+  2026-09-21 15:45–23:26 7.7h retur→retur | Bulhac → poarta LEAR | acum Fălești 323min | real 81.2 · P1 41.6
+  2026-09-21 23:59–04:22 4.4h retur→tur | Todirești → Bulhac | acum Fălești 196min | real 61.1 · P1 35
+  2026-09-22 05:30–12:59 7.5h tur→tur | poarta LEAR → Todirești | acum Fălești 338min | real 90.4 · P1 20.3
+  2026-09-22 15:43–23:26 7.7h retur→retur | Bulhac → poarta LEAR | acum Fălești 310min | real 83.2 · P1 41.6
+  2026-09-22 23:59–04:32 4.5h retur→tur | Todirești → Bulhac | acum Fălești 197min | real 63.2 · P1 34.9
+  2026-09-23 05:26–13:04 7.6h tur→tur | poarta LEAR → Todirești | acum Fălești 357min | real 90.4 · P1 20.3
+  2026-09-23 15:49–23:27 7.6h retur→retur | Bulhac → poarta LEAR | acum Fălești 320min | real 81.2 · P1 41.6
+  2026-09-23 00:02–04:32 4.5h retur→tur | Todirești → Bulhac | acum Fălești 194min | real 63 · P1 35.1
+  2026-09-24 05:29–13:04 7.6h tur→tur | poarta LEAR → Todirești | acum Fălești 328min | real 90.6 · P1 20.3
+  2026-09-24 15:44–23:25 7.7h retur→retur | Bulhac → poarta LEAR | acum Fălești 310min | real 83.1 · P1 41.6
+  2026-09-24 23:57–04:21 4.4h retur→tur | Todirești → Bulhac | acum Fălești 197min | real 61.2 · P1 35
+  2026-09-25 05:27–13:07 7.7h tur→tur | poarta LEAR → Todirești | acum Fălești 349min | real 90.9 · P1 20
+  2026-09-25 15:49–23:25 7.6h retur→plus | Bulhac → poarta LEAR | acum Fălești 290min | real 81.1 · P1 40.6
+217RST casa Călinești [ 'A2 Chetriș', 'B2 Ciolacu Vechi' ] locuri [ 'Sărata Nouă' ] real 869.7 propus 611.9
+ zi 2026-09-21 drumuri 3 real 211.6 propus 147.3
+ zi 2026-09-22 drumuri 3 real 175.7 propus 110.5
+ zi 2026-09-23 drumuri 3 real 211.3 propus 148.2
+ zi 2026-09-24 drumuri 3 real 214.5 propus 150
+ zi 2026-09-25 drumuri 1 real 56.6 propus 55.8
+  2026-09-21 06:28–12:25 6h retur→tur | Elizavetovca → Sărata Nouă | acum Călinești 213min | real 95.9 · P1 36.9
+  2026-09-21 16:06–23:27 7.4h retur→retur | Hîncești → poarta LEAR | acum Călinești 326min | real 72.9 · P1 71
+  2026-09-21 00:13–03:49 3.6h retur→tur | Ciolacu Vechi → Hîncești | acum Călinești 160min | real 42.9 · P1 39.3
+  2026-09-22 06:43–12:40 6h retur→tur | Sărata Nouă → Ciolacu Vechi | acum Călinești 240min | real 70.4 · P1 7.8
+  2026-09-22 16:08–22:34 6.4h retur→tur | Hîncești → Novaia Nicolaevca | acum Călinești 325min | real 63.8 · P1 63.4
+  2026-09-22 00:28–03:53 3.4h retur→tur | Ciolacu Vechi → Hîncești | acum Călinești 155min | real 41.4 · P1 39.2
+  2026-09-23 05:16–12:27 7.2h tur→tur | poarta LEAR → Sărata Nouă | acum Călinești 291min | real 101.3 · P1 42
+  2026-09-23 16:11–22:44 6.5h retur→tur | Hîncești → Elizavetovca | acum Călinești 301min | real 67.1 · P1 66.9
+  2026-09-23 00:17–03:50 3.5h retur→tur | Ciolacu Vechi → Hîncești | acum Călinești 151min | real 42.9 · P1 39.3
+  2026-09-24 05:18–12:51 7.5h tur→tur | poarta LEAR → Ciolacu Vechi | acum Călinești 240min | real 108.5 · P1 47.4
+  2026-09-24 16:12–22:09 5.9h retur→tur | Hîncești → Novaia Nicolaevca | acum Călinești 160min | real 64.5 · P1 63.4
+  2026-09-24 00:23–03:55 3.5h retur→tur | Ciolacu Vechi → Hîncești | acum Călinești 157min | real 41.5 · P1 39.2
+  2026-09-25 16:15–22:31 6.3h retur→tur | Hîncești → Pîrlița | acum Călinești 316min | real 56.6 · P1 55.8
+894BRAX casa Pohoarna [ 'A2 Cunicea', 'B3 Vărăncău' ] locuri [ 'Gura Camencii', 'Temeleuți' ] real 692.8 propus 484.8
+ zi 2026-09-21 drumuri 3 real 162.9 propus 112.3
+ zi 2026-09-22 drumuri 3 real 134 propus 85
+ zi 2026-09-23 drumuri 3 real 146.6 propus 89
+ zi 2026-09-24 drumuri 3 real 139 propus 92
+ zi 2026-09-25 drumuri 3 real 110.3 propus 106.5
+  2026-09-21 05:30–12:44 7.2h tur→tur | poarta LEAR → Vărăncău | acum Pohoarna 362min | real 63.5 · P1 37.5
+  2026-09-21 15:48–23:25 7.6h retur→retur | Cunicea → poarta LEAR | acum Pohoarna 372min | real 38.7 · P1 40.2
+  2026-09-21 00:14–04:26 4.2h retur→tur | Vărăncău → Cunicea | acum Pohoarna 190min | real 60.6 · P2 34.6
+  2026-09-22 05:33–12:39 7.1h tur→tur | poarta LEAR → Gvozdova | acum Pohoarna 381min | real 35.7 · P1 7.2
+  2026-09-22 16:00–23:24 7.4h retur→retur | Cotiujenii Mari → poarta LEAR | acum Pohoarna 367min | real 26.6 · P1 52.8
+  2026-09-22 00:09–04:42 4.5h retur→fara-poarta | Vărăncău → Cuhureștii de Sus | acum Pohoarna 195min | real 71.7 · P2 25
+  2026-09-23 05:26–13:12 7.8h fara-poarta→tur | Coșernița → Vărăncău | acum Pohoarna 381min | real 60.1 · P2 24.8
+  2026-09-23 16:06–23:24 7.3h retur→retur | Cotiujenii Mari → poarta LEAR | acum Pohoarna 353min | real 26.4 · P1 29.2
+  2026-09-23 00:09–04:29 4.3h retur→tur | Vărăncău → Cunicea | acum Pohoarna 199min | real 60.1 · P2 35
+  2026-09-24 05:33–12:54 7.4h tur→tur | poarta LEAR → Slobozia-Cremene | acum Pohoarna 334min | real 54.5 · P1 27.5
+  2026-09-24 16:28–23:23 6.9h retur→retur | Cotiujenii Mari → poarta LEAR | acum Pohoarna 347min | real 26.5 · P1 29.1
+  2026-09-24 00:14–04:22 4.1h retur→tur | Vărăncău → Cunicea | acum Pohoarna 191min | real 58.1 · P2 35.3
+  2026-09-25 05:34–12:56 7.4h tur→tur | poarta LEAR → Vărăncău | acum Pohoarna 358min | real 63.3 · P1 36.2
+  2026-09-25 14:03–15:41 1.6h tur→fara-poarta | poarta LEAR → Hîrtop | acum — min | real 19.4 · P1 18.6
+  2026-09-25 16:56–23:24 6.5h fara-poarta→retur | Cotiujenii Mari → poarta LEAR | acum Pohoarna 323min | real 27.6 · P1 51.7

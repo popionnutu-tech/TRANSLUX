@@ -1,0 +1,164 @@
+LEAR Ungheni 2026-09-21: 14 mașini · de tăiat 3611.9 km/săpt. · două locuri 6 · perechi fără Valhalla 0
+  827MUM    662.8 (real 1111.1 → 448.3) · P1 Petrești (14) · casa Fălești · {"tur":11,"retur":9,"plus":4,"faraPoarta":0,"taiatePeOpriri":1,"schimburi":2,"scurte":0,"lungi":1,"laPoarta":5,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":0,"candFaraDrum":1}
+  809MUM    580.1 (real 767 → 186.9) · P1 la uzină (poarta LEAR)·deja (9) · casa Lucăceni · {"tur":9,"retur":3,"plus":12,"faraPoarta":1,"taiatePeOpriri":5,"schimburi":2,"scurte":6,"lungi":1,"laPoarta":2,"depozit":1,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":5,"candFaraDrum":1}
+  145BRAZ   360.2 (real 496.9 → 136.7) · P1 Ungheni·oraș (12) · casa Todirești · {"tur":2,"retur":2,"plus":17,"faraPoarta":0,"taiatePeOpriri":0,"schimburi":2,"scurte":2,"lungi":2,"laPoarta":1,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":3,"candFaraDrum":1}
+  189OMM    347.4 (real 796.1 → 448.7) · P1 la uzină (poarta LEAR) (8) · casa Sărata Nouă · {"tur":11,"retur":9,"plus":4,"faraPoarta":0,"taiatePeOpriri":0,"schimburi":2,"scurte":2,"lungi":1,"laPoarta":3,"depozit":1,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":8,"candFaraDrum":1}
+  217RST    290.9 (real 907.6 → 616.7) · P1 Sărata Nouă (7) + P2 Ungheni·oraș (6) · casa Călinești · {"tur":12,"retur":12,"plus":0,"faraPoarta":0,"taiatePeOpriri":0,"schimburi":2,"scurte":5,"lungi":1,"laPoarta":0,"depozit":1,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":12,"candFaraDrum":1}
+  807MUM      276 (real 631.6 → 355.6) · P1 Todirești (4) + P2 Ungheni·oraș (4) · casa Fălești · {"tur":8,"retur":8,"plus":6,"faraPoarta":0,"taiatePeOpriri":0,"schimburi":2,"scurte":4,"lungi":2,"laPoarta":2,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":7,"candFaraDrum":1}
+  061COY    263.6 (real 1044.1 → 780.5) · P1 Todirești·deja (4) + P2 la uzină (poarta LEAR) (10) · casa Todirești · {"tur":12,"retur":12,"plus":0,"faraPoarta":0,"taiatePeOpriri":0,"schimburi":2,"scurte":0,"lungi":1,"laPoarta":5,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":5,"candFaraDrum":1}
+  537BRAT   252.5 (real 789.3 → 536.8) · P1 Elizavetovca (7) + P2 Negurenii Vechi (3) · casa Gara Fălești · {"tur":12,"retur":12,"plus":2,"faraPoarta":0,"taiatePeOpriri":3,"schimburi":2,"scurte":6,"lungi":1,"laPoarta":1,"depozit":0,"altaUzina":0,"kmLiberScos":3.1,"goluriCuOpriri":0,"goluriTaiate":4,"candFaraDrum":1}
+  456BRAX     186 (real 488.5 → 302.5) · P1 Elizavetovca (13) · casa Todirești · {"tur":7,"retur":6,"plus":18,"faraPoarta":1,"taiatePeOpriri":1,"schimburi":2,"scurte":11,"lungi":1,"laPoarta":0,"depozit":1,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":5,"candFaraDrum":1}
+  183BZP    161.1 (real 810.2 → 649.1) · P1 Ungheni·oraș (5) + P2 Fălești·oraș (9) · casa Sărata Veche · {"tur":12,"retur":12,"plus":0,"faraPoarta":0,"taiatePeOpriri":2,"schimburi":2,"scurte":3,"lungi":1,"laPoarta":2,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":2,"candFaraDrum":1}
+  732SHS     96.6 (real 497.6 → 401) · P1 Ungheni·oraș (8) · casa Morenii Vechi · {"tur":11,"retur":12,"plus":0,"faraPoarta":0,"taiatePeOpriri":0,"schimburi":2,"scurte":3,"lungi":1,"laPoarta":2,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":5,"candFaraDrum":1}
+  032BRAT      73 (real 591.8 → 518.8) · P1 Romanovca (6) + P2 Todirești (4) · casa Mircești · {"tur":12,"retur":12,"plus":1,"faraPoarta":1,"taiatePeOpriri":1,"schimburi":2,"scurte":6,"lungi":1,"laPoarta":0,"depozit":0,"altaUzina":0,"kmLiberScos":3,"goluriCuOpriri":1,"goluriTaiate":5,"candFaraDrum":1}
+  504BRAR    61.7 (real 336.9 → 275.2) · P1 Ungheni·oraș (13) · casa Ungheni · {"tur":11,"retur":9,"plus":7,"faraPoarta":0,"taiatePeOpriri":0,"schimburi":2,"scurte":6,"lungi":1,"laPoarta":1,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":5,"candFaraDrum":1}
+  320BRAT       0 (real — → —) · un singur schimb măsurat în săptămână (§8.3) · casa Unțești · {"tur":9,"retur":2,"plus":9,"faraPoarta":0,"taiatePeOpriri":8,"schimburi":1,"scurte":5,"lungi":1,"laPoarta":0,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":1,"goluriTaiate":7}
+LEAR Florești 2026-09-21: 6 mașini · de tăiat 828.1 km/săpt. · două locuri 3 · perechi fără Valhalla 0
+  894BRAX   258.5 (real 692.8 → 434.3) · P1 Florești·oraș (4) + P2 Temeleuți (5) · casa Pohoarna · {"tur":11,"retur":11,"plus":0,"faraPoarta":2,"taiatePeOpriri":0,"schimburi":2,"scurte":4,"lungi":1,"laPoarta":0,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":6}
+  849BRAN     217 (real 657.1 → 440.1) · P1 Ghindești·oraș (4) + P2 la uzină (poarta LEAR) (10) · casa Cașunca · {"tur":12,"retur":12,"plus":0,"faraPoarta":0,"taiatePeOpriri":0,"schimburi":2,"scurte":4,"lungi":1,"laPoarta":1,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":3}
+  035BRAT   171.9 (real 552.1 → 380.2) · P1 Căinarii Vechi (9) + P2 Florești·oraș (4) · casa Bulboci · {"tur":13,"retur":12,"plus":0,"faraPoarta":3,"taiatePeOpriri":0,"schimburi":2,"scurte":8,"lungi":1,"laPoarta":0,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":1}
+  279BRAT   113.1 (real 452.1 → 339) · P1 Gura Camencii (11) · casa Țîra · {"tur":11,"retur":12,"plus":0,"faraPoarta":0,"taiatePeOpriri":0,"schimburi":2,"scurte":5,"lungi":1,"laPoarta":0,"depozit":0,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":10}
+  603BRAS    67.6 (real 302.9 → 235.3) · P1 la uzină (poarta LEAR)·deja (10) · casa null · {"tur":11,"retur":9,"plus":3,"faraPoarta":0,"taiatePeOpriri":0,"schimburi":2,"scurte":5,"lungi":1,"laPoarta":2,"depozit":1,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":2}
+  713IZX        0 (real — → —) · un singur schimb măsurat în săptămână (§8.3) · casa Slobozia · {"tur":13,"retur":8,"plus":2,"faraPoarta":1,"taiatePeOpriri":1,"schimburi":0,"scurte":1,"lungi":1,"laPoarta":6,"depozit":12,"altaUzina":0,"kmLiberScos":0,"goluriCuOpriri":0,"goluriTaiate":0}
+
+827MUM   r2  662.8 → r3  662.8  Petrești
+809MUM   r2  567.5 → r3  580.1  la uzină (poarta LEAR)
+    nou  2026-09-24 05:34–12:47 real 88.3 → 14.8 (loc 1)
+    scos 2026-09-24 05:34–12:30 real 72.7 ec 63.4
+145BRAZ  r2  324.2 → r3  360.2  Ungheni
+    dif  2026-09-21 05:25–12:38 ec 28.2 → 25.9 (loc 1)
+    dif  2026-09-21 15:58–23:26 ec 40.3 → 38.1 (loc 1)
+    dif  2026-09-21 00:10–04:32 ec 37.8 → 35.5 (loc 1)
+    nou  2026-09-22 05:24–12:55 real 58.2 → 15.3 (loc 1)
+    nou  2026-09-22 15:49–23:24 real 41.7 → 3.9 (loc 1)
+    dif  2026-09-22 00:13–04:34 ec 37.8 → 35.5 (loc 1)
+    dif  2026-09-23 05:26–12:13 ec 27.3 → 25.1 (loc 1)
+    nou  2026-09-24 05:24–12:17 real 28.5 → 19.2 (loc 1)
+    nou  2026-09-24 16:08–23:25 real 35.1 → 11.1 (loc 1)
+    dif  2026-09-24 00:08–04:33 ec 37.8 → 35.6 (loc 1)
+    nou  2026-09-25 05:22–13:19 real 57.4 → 15.1 (loc 1)
+    dif  2026-09-25 16:17–23:25 ec 10.7 → 8.3 (loc 1)
+    scos 2026-09-22 05:24–11:27 real 28.5 ec 12.5
+    scos 2026-09-22 11:47–12:55 real 14.4 ec -3.3
+    scos 2026-09-22 16:04–23:24 real 27.3 ec 10.5
+    scos 2026-09-24 05:47–12:17 real 13.4 ec 11.1
+    scos 2026-09-24 12:33–14:50 real 37.8 ec 36
+    scos 2026-09-24 16:16–23:25 real 27.5 ec 10.7
+    scos 2026-09-25 05:22–11:38 real 29 ec 12.8
+    scos 2026-09-25 13:55–15:57 real 15.8 ec 13.9
+189OMM   r2  478.1 → r3  347.4  la uzină (poarta LEAR)
+    dif  2026-09-21 15:19–23:26 ec 45.8 → 32.6 (loc 1)
+    dif  2026-09-21 00:11–04:22 ec -2.9 → 0 (loc 0)
+    dif  2026-09-22 00:12–04:21 ec -2.9 → 0 (loc 0)
+    dif  2026-09-24 00:10–04:21 ec -2.9 → 0 (loc 0)
+    scos 2026-09-23 05:27–12:51 real 146.1 ec 129
+217RST   r2  257.8 → r3  290.9  Sărata Nouă + Ungheni
+    nou  2026-09-21 05:23–12:25 real 101.2 → 41.9 (loc 1)
+    dif  2026-09-21 16:06–23:27 ec 1.9 → 8.8 (loc 2)
+    nou  2026-09-22 06:45–12:16 real 61.8 → 2.4 (loc 1)
+    nou  2026-09-22 16:08–23:27 real 72.8 → 64 (loc 2)
+    nou  2026-09-23 16:11–23:29 real 72.8 → 64.1 (loc 2)
+    nou  2026-09-24 16:12–23:27 real 73.5 → 64.1 (loc 2)
+    nou  2026-09-25 16:15–23:27 real 74 → 64 (loc 2)
+    scos 2026-09-21 06:28–12:25 real 95.9 ec 59
+    scos 2026-09-22 06:43–12:40 real 70.4 ec 62.6
+    scos 2026-09-22 16:08–22:34 real 63.8 ec 0.4
+    scos 2026-09-23 16:11–22:44 real 67.1 ec 0.2
+    scos 2026-09-24 16:12–22:09 real 64.5 ec 1.1
+    scos 2026-09-25 16:15–22:31 real 56.6 ec 0.8
+807MUM   r2  269.9 → r3    276  Todirești + Ungheni
+    dif  2026-09-21 15:55–23:25 ec -2.9 → 0 (loc 0)
+    dif  2026-09-24 15:52–23:25 ec -3.2 → 0 (loc 0)
+061COY   r2  230.4 → r3  263.6  Todirești + la uzină (poarta LEAR)
+    nou  2026-09-21 05:16–12:52 real 56.7 → 47.7 (loc 2)
+    nou  2026-09-22 05:13–12:51 real 56.8 → 47.6 (loc 2)
+    nou  2026-09-22 15:48–23:25 real 79.1 → 44.7 (loc 2)
+    nou  2026-09-23 00:20–04:05 real 91.6 → 80.2 (loc 1)
+    nou  2026-09-24 15:48–23:26 real 79.2 → 44.6 (loc 2)
+    nou  2026-09-24 00:13–03:59 real 91.1 → 80.2 (loc 1)
+    nou  2026-09-25 05:08–12:50 real 57.2 → 47.5 (loc 2)
+    nou  2026-09-25 15:54–23:25 real 75.1 → 42.6 (loc 2)
+    scos 2026-09-21 05:16–12:03 real 26.2 ec 9.1
+    scos 2026-09-22 05:13–12:09 real 26.3 ec 9.3
+    scos 2026-09-22 16:30–23:25 real 43 ec 35
+    scos 2026-09-23 00:20–03:30 real 56.4 ec 4.2
+    scos 2026-09-24 16:26–23:26 real 42.9 ec 34.8
+    scos 2026-09-24 00:13–03:15 real 40.1 ec -5.3
+    scos 2026-09-25 05:27–12:09 real 18.3 ec -3.5
+    scos 2026-09-25 16:31–23:25 real 42.9 ec 34.9
+537BRAT  r2    209 → r3  252.5  Elizavetovca + Negurenii Vechi
+    dif  2026-09-21 06:20–12:53 ec 29.3 → 44.8 (loc 2)
+    nou  2026-09-21 16:02–23:26 real 54.2 → 52.8 (loc 1)
+    nou  2026-09-22 16:39–23:25 real 49.1 → 48.8 (loc 1)
+    dif  2026-09-24 05:16–12:50 ec 39.9 → 42.8 (loc 1)
+    dif  2026-09-25 05:15–12:57 ec 40.8 → 43.7 (loc 1)
+    nou  2026-09-25 16:55–23:25 real 98.1 → 7.3 (loc 1)
+    scos 2026-09-21 16:02–22:25 real 45.1 ec -0.2
+    scos 2026-09-22 16:39–22:25 real 42.6 ec -2.2
+    scos 2026-09-25 16:55–22:27 real 89.1 ec 77.8
+456BRAX  r2  197.4 → r3    186  Elizavetovca
+    dif  2026-09-21 05:32–07:16 ec 8.4 → 0.2 (loc 1)
+    nou  2026-09-23 05:18–13:19 real 41.8 → 26.5 (loc 1)
+    nou  2026-09-23 16:12–22:19 real 26.2 → 15.4 (loc 1)
+    nou  2026-09-24 05:19–13:20 real 41.9 → 26.4 (loc 1)
+    nou  2026-09-25 05:19–13:20 real 41.8 → 26.3 (loc 1)
+    nou  2026-09-25 16:32–22:26 real 12 → 12 (loc 0)
+    scos 2026-09-23 05:30–12:51 real 20.6 ec 11.3
+    scos 2026-09-23 16:16–22:19 real 23.7 ec 11
+    scos 2026-09-24 05:31–13:20 real 33.3 ec 13.7
+    scos 2026-09-25 05:19–12:51 real 28.8 ec 13
+    scos 2026-09-25 16:15–22:26 real 14 ec 11.4
+183BZP   r2  177.3 → r3  161.1  Ungheni + Fălești
+    nou  2026-09-21 05:27–13:01 real 64.2 → 56.4 (loc 1)
+    dif  2026-09-22 05:32–12:58 ec 12.6 → 9.4 (loc 1)
+    nou  2026-09-22 15:56–23:25 real 70.2 → 57.9 (loc 2)
+    dif  2026-09-23 05:33–13:00 ec 10.9 → 7.8 (loc 1)
+    dif  2026-09-24 05:32–13:00 ec 11.6 → 8.4 (loc 1)
+    dif  2026-09-25 05:35–13:02 ec 12.5 → 9.5 (loc 1)
+    scos 2026-09-21 06:00–13:01 real 55.5 ec 10.5
+    scos 2026-09-22 15:56–22:22 real 53.2 ec 10.7
+732SHS   r2   90.4 → r3   96.6  Ungheni
+    dif  2026-09-23 23:53–04:27 ec -2.1 → 0 (loc 0)
+032BRAT  r2    6.5 → r3     73  Romanovca + Todirești
+    nou  2026-09-21 05:22–12:42 real 38.5 → 38.5 (loc 0)
+    nou  2026-09-21 17:08–23:26 real 35.2 → 26.8 (loc 1)
+    dif  2026-09-21 00:40–04:23 ec 2 → 7.9 (loc 2)
+    dif  2026-09-22 05:17–12:43 ec -2.1 → 0 (loc 0)
+    dif  2026-09-22 00:38–04:24 ec 2 → 7.9 (loc 2)
+    dif  2026-09-23 05:20–12:45 ec -2.2 → 0 (loc 0)
+    nou  2026-09-23 19:23–22:33 real 22.8 → 19.1 (loc 1)
+    dif  2026-09-23 00:44–04:25 ec 2 → 7.9 (loc 2)
+    nou  2026-09-24 17:48–22:17 real 11 → 2.9 (loc 1)
+    dif  2026-09-24 00:40–04:24 ec 2 → 7.9 (loc 2)
+    dif  2026-09-25 05:24–12:43 ec -2.1 → 0 (loc 0)
+    scos 2026-09-21 06:57–12:42 real 28.3 ec -2.8
+    scos 2026-09-21 17:01–22:36 real 30.4 ec 5.7
+    scos 2026-09-23 15:45–18:50 real 12.9 ec -25
+    scos 2026-09-23 19:15–22:33 real 22.8 ec 1.7
+    scos 2026-09-24 17:48–22:16 real 10.9 ec 6.8
+504BRAR  r2      0 → r3   61.7  Ungheni
+    dif  2026-09-21 11:27–12:53 ec -102.5 → 0 (loc 0)
+    nou  2026-09-24 05:24–12:51 real 58.7 → 53.3 (loc 1)
+    dif  2026-09-24 15:47–23:26 ec 4.1 → 0 (loc 0)
+    scos 2026-09-24 05:24–11:35 real 12 ec 7.9
+320BRAT  r2      0 → r3      0  un singur schimb măsurat în săptămână (§8.3)
+894BRAX  r2    208 → r3  258.5  Florești + Temeleuți
+    dif  2026-09-22 16:00–23:24 ec -26.2 → 0 (loc 0)
+    dif  2026-09-23 16:06–23:24 ec -2.8 → 0 (loc 0)
+    dif  2026-09-24 16:28–23:23 ec -2.6 → 0 (loc 0)
+    dif  2026-09-25 16:56–23:24 ec -24.1 → 0 (loc 0)
+849BRAN  r2    217 → r3    217  Ghindești + la uzină (poarta LEAR)
+035BRAT  r2  171.3 → r3  171.9  Căinarii Vechi + Florești
+279BRAT  r2  125.1 → r3  113.1  Gura Camencii
+    nou  2026-09-22 15:43–22:41 real 4.8 → 4.8 (loc 0)
+    nou  2026-09-25 15:32–22:48 real 6.4 → 6.4 (loc 0)
+    scos 2026-09-22 15:26–22:41 real 15.9 ec 6
+    scos 2026-09-25 15:26–22:48 real 8.3 ec 7.2
+603BRAS  r2   67.6 → r3   67.6  la uzină (poarta LEAR)
+713IZX   r2      0 → r3      0  un singur schimb măsurat în săptămână (§8.3)
+LEAR Ungheni 2026-09-21: 14 mașini · de tăiat 3611.9 km/săpt. · două locuri 6
+(fără --write, nimic scris în bază)
+LEAR Florești 2026-09-21: 6 mașini · de tăiat 828.1 km/săpt. · două locuri 3
+(fără --write, nimic scris în bază)
+harta LEAR Ungheni 2026-09-21: 71 zile · 71 rânduri · 1544 KB · km diferiți 0
+harta LEAR Florești 2026-09-21: 30 zile · 30 rânduri · 542 KB · km diferiți 0

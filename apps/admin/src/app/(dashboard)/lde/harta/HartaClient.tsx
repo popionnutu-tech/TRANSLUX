@@ -6,9 +6,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { povesteZi } from '@/lib/lde/drax-ziua';
 import {
-  CULOARE, LINIE, NUME_TIP, eticZi, masiniSaptamana, type LinieSchelet, type Punct, type RandListaHarta, type TipInterval, type ZiHarta,
+  CULOARE, LINIE, NUME_TIP, UZINE_HARTA, eticZi, masiniSaptamana, randuriDinIntervale,
+  type LinieSchelet, type Punct, type RandListaHarta, type RandZi, type TipInterval, type UzHarta, type ZiHarta,
 } from '@/lib/lde/drax-harta';
-import { culoareLoc } from '@/lib/lde/drax-parcare';
+import { culoareLoc, textDrum } from '@/lib/lde/drax-parcare';
 
 const HartaMasinaMap = dynamic(() => import('@/components/HartaMasinaMap'), {
   ssr: false,
@@ -23,8 +24,8 @@ const TIP_MISCARE: Record<string, TipInterval> = { cuOameni: 'cursa', intreUzine
 
 type Masina = ReturnType<typeof masiniSaptamana>[number];
 
-export default function HartaClient({ saptamani, sapt, masini, masina, z, zi, zileMasina, linii, porti }: {
-  saptamani: string[]; sapt: string; masini: Masina[]; masina: string; z: string; zi: ZiHarta | null;
+export default function HartaClient({ uz, saptamani, sapt, masini, masina, z, zi, zileMasina, linii, porti }: {
+  uz: UzHarta; saptamani: string[]; sapt: string; masini: Masina[]; masina: string; z: string; zi: ZiHarta | null;
   zileMasina: RandListaHarta[]; linii: LinieSchelet[]; porti: { c: Punct; n: string }[];
 }) {
   const router = useRouter();
@@ -36,8 +37,12 @@ export default function HartaClient({ saptamani, sapt, masini, masina, z, zi, zi
     return () => cere(false);
   }, []);
 
-  const href = (m: string, zz?: string) => `/lde/harta?sapt=${sapt}&m=${m}${zz ? `&z=${zz}` : ''}`;
-  const miscari = useMemo(() => (zi?.zi ? povesteZi(zi.zi, zi.casa?.n ?? null) : []), [zi]);
+  const U = UZINE_HARTA[uz], pre = uz === 'drax' ? '/lde/harta?' : `/lde/harta?uz=${uz}&`;
+  const href = (m: string, zz?: string) => `${pre}sapt=${sapt}&m=${m}${zz ? `&z=${zz}` : ''}`;
+  // Drăxlmaier: povestea zilei (drax-ziua.ts); LEAR (ION-143): rândurile din intervalele hărții
+  const miscari: RandZi[] = useMemo(() => (zi?.zi
+    ? povesteZi(zi.zi, zi.casa?.n ?? null).map((x) => ({ ora: x.ora, tip: TIP_MISCARE[x.tip] ?? 'gol', text: x.text.startsWith(x.ora) ? x.text.slice(x.ora.length).trim() : x.text, tare: x.kmPeAcasa >= 0.5 }))
+    : zi ? randuriDinIntervale(zi.iv) : []), [zi]);
   const sumar = zileMasina.find((r) => r.z === z)?.sumar;
   const m = masini.find((x) => x.m === masina);
 
@@ -57,15 +62,23 @@ export default function HartaClient({ saptamani, sapt, masini, masina, z, zi, zi
 
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap', marginBottom: 10 }}>
         <div style={{ flex: '1 1 420px' }}>
-          <h1 style={{ fontSize: 18, margin: 0 }}>Harta mașinii — Drăxlmaier Bălți</h1>
+          <h1 style={{ fontSize: 18, margin: 0 }}>Harta mașinii — {U.nume}</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: 11.5, margin: '3px 0 0', maxWidth: '96ch', lineHeight: 1.45 }}>
-            Urma GPS a zilei peste linia mașinii din schelet (galben pal). Culoarea spune ce face mașina, aceleași intervale ca în
+            Urma GPS a zilei peste {U.lear ? 'rutele' : 'linia'} mașinii din schelet (galben pal). Culoarea spune ce face mașina, aceleași intervale ca în
             «Ziua făcută, drum cu drum». Apasă pe un rând din dreapta sau pe urmă ca să vezi doar acel drum.
           </p>
         </div>
+        <nav aria-label="Uzina" style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+          {(Object.keys(UZINE_HARTA) as UzHarta[]).map((k) => (
+            <Link key={k} href={k === 'drax' ? '/lde/harta' : `/lde/harta?uz=${k}`} aria-current={k === uz ? 'page' : undefined} style={{
+              fontSize: 12, padding: '4px 10px', borderRadius: 6, textDecoration: 'none', border: '1px solid var(--border-accent)',
+              background: k === uz ? 'var(--primary)' : 'transparent', color: k === uz ? '#fff' : 'var(--text)',
+            }}>{UZINE_HARTA[k].nume}</Link>
+          ))}
+        </nav>
         <label style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
           Săptămâna{' '}
-          <select value={sapt} onChange={(e) => router.push(`/lde/harta?sapt=${e.target.value}`)} style={{ fontSize: 12, fontStyle: 'normal', width: 'auto' }}>
+          <select value={sapt} onChange={(e) => router.push(`${pre}sapt=${e.target.value}`)} style={{ fontSize: 12, fontStyle: 'normal', width: 'auto' }}>
             {saptamani.map((s) => <option key={s} value={s}>{eticZi(s)}.{s.slice(0, 4)}</option>)}
           </select>
         </label>
@@ -141,9 +154,22 @@ export default function HartaClient({ saptamani, sapt, masini, masina, z, zi, zi
                 ))}
               </div>
               <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 4, lineHeight: 1.4 }}>
-                Între schimburi și noaptea mașina stă aici; drumurile propuse sunt punctate pe hartă. Drumul șoferului spre casă nu e socotit.
+                {U.lear
+                  ? 'Pe drumurile de mai jos mașina stă la locul arătat (punctat pe hartă); unde scrie «rămâne cum e», face ca acum. «La uzină» = așteaptă la poarta LEAR (regula 1). Drumul șoferului spre casă nu e socotit.'
+                  : 'Între schimburi și noaptea mașina stă aici; drumurile propuse sunt punctate pe hartă. Drumul șoferului spre casă nu e socotit.'}
                 {zi.parcare.idealSapt != null ? ` Maximul teoretic (așteaptă la fiecare capăt): ${n0(zi.parcare.idealSapt)} km/săpt.` : ''}
               </div>
+              {U.lear && zi.parcare.legi.length ? (
+                <div style={{ marginTop: 6, display: 'grid', gap: 2, fontSize: 11.5 }}>
+                  {zi.parcare.legi.map((l, i) => (
+                    <div key={i} style={{ display: 'grid', gridTemplateColumns: '84px minmax(0, 1fr) auto', columnGap: 6 }}>
+                      <span style={{ fontFamily: MONO, fontVariantNumeric: 'tabular-nums' }}>{l.ora}</span>
+                      <span>{l.aN ?? '—'} → <b style={{ color: l.loc ? culoareLoc(l.loc) : 'var(--text-secondary)' }}>{textDrum({ loc: l.loc, acum: l.acum ?? null }, zi.parcare!.locuri)}</b> → {l.bN ?? '—'}</span>
+                      <span style={{ fontFamily: MONO, fontVariantNumeric: 'tabular-nums', color: 'var(--text-secondary)' }}>{n0(l.real)} → {n0(l.km)} km</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -178,8 +204,7 @@ export default function HartaClient({ saptamani, sapt, masini, masina, z, zi, zi
               Ion, 29.09: «nu se citește normal». Trei coloane: semnul culorii, ora, ce a făcut mașina. */}
           <div role="list">
             {miscari.map((x, i) => {
-              const tip = TIP_MISCARE[x.tip] ?? 'gol', activ = ales === x.ora;
-              const rest = x.text.startsWith(x.ora) ? x.text.slice(x.ora.length).trim() : x.text;
+              const tip = x.tip, activ = ales === x.ora, rest = x.text;
               const alege = () => setAles(activ ? null : x.ora);
               return (
                 <div key={i} role="listitem" tabIndex={0} onClick={alege} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); alege(); } }}
@@ -188,7 +213,7 @@ export default function HartaClient({ saptamani, sapt, masini, masina, z, zi, zi
                     display: 'grid', gridTemplateColumns: '18px 84px minmax(0, 1fr)', columnGap: 6, alignItems: 'start', cursor: 'pointer',
                     padding: '5px 6px', borderRadius: 6, background: activ ? 'var(--primary-dim)' : 'transparent',
                     fontSize: 12.5, lineHeight: 1.45, textAlign: 'left', whiteSpace: 'normal', fontStyle: 'normal',
-                    color: tip === 'gol' ? '#8A2A1F' : 'var(--text)', fontWeight: x.kmPeAcasa >= 0.5 ? 600 : 400,
+                    color: tip === 'gol' ? '#8A2A1F' : 'var(--text)', fontWeight: x.tare ? 600 : 400,
                   }}>
                   <svg width="18" height="10" style={{ marginTop: 5 }} aria-hidden>
                     <line x1="1" y1="5" x2="17" y2="5" stroke={CULOARE[tip]} strokeWidth="3.5" strokeDasharray={LINIE[tip]} />

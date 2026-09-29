@@ -204,18 +204,19 @@ async function genereazaGeneral(luna: string, eticheta: string) {
   const p = poster({ latime: LATIME, supratitlu: 'Combustibil', titlu: 'General', eticheta });
   p.total(`Total: ${nf.format(flota.litri + totalStraini)} L`, `flota ${nf.format(flota.litri)}`);
   // litri la 100 km pe direcție; litrii și km pe direcție stau pe posterele direcțiilor
+  // Ion, 29.09: «la general nu ajunge totalul pe fiecare direcție» — litrii direcției, lângă cele trei norme
   p.tabel([
-    { titlu: 'Direcția', latime: 150 },
-    { titlu: 'Luna', latime: 60, aliniere: 'end' }, { titlu: '3 luni', latime: 66, aliniere: 'end' },
-    { titlu: 'Teor.', latime: 60, aliniere: 'end' }, { titlu: 'Abat.', latime: 74, aliniere: 'end' },
+    { titlu: 'Direcția', latime: 138 }, { titlu: 'Litri', latime: 86, aliniere: 'end' },
+    { titlu: 'Luna', latime: 56, aliniere: 'end' }, { titlu: '3 luni', latime: 62, aliniere: 'end' },
+    { titlu: 'Teor.', latime: 56, aliniere: 'end' }, { titlu: 'Abat.', latime: 70, aliniere: 'end' },
   ], [
     ...grupuri.map(({ g, st }) => [
-      { text: g.scurt, bold: true },
+      { text: g.scurt, bold: true }, { text: nf.format(st.litri), bold: true },
       { text: l100Txt(st.fapt), bold: true }, { text: l100Txt(st.fapt3) }, { text: l100Txt(st.teoretica), culoare: CULORI.gri },
       abatere(st.fapt, st.teoretica),
     ] as Celula[]),
     [
-      { text: 'Flota', bold: true, culoare: CULORI.bordoInchis },
+      { text: 'Flota', bold: true, culoare: CULORI.bordoInchis }, { text: nf.format(flota.litri), bold: true, culoare: CULORI.bordoInchis },
       { text: l100Txt(flota.fapt), bold: true }, { text: l100Txt(flota.fapt3), bold: true },
       { text: l100Txt(flota.teoretica), bold: true }, abatere(flota.fapt, flota.teoretica),
     ] as Celula[],
@@ -236,9 +237,9 @@ export function textIntroducere(luna: string) {
   return [
     `<b>DT — raportul de combustibil pe ${e}</b>`,
     '',
-    'Mai sus sunt 8 postere: câte unul pe Interurban, Drăxlmaier, SEBN (Orhei + Strășeni), LEAR (Ungheni + Florești), '
-      + 'Trox + suburban Briceni și Camioane; unul cu tot ce s-a alimentat în afara flotei (mașini cu foi, vânzări, consum intern, '
-      + 'protocol, utilaje); ultimul, posterul general cu toate direcțiile și totalul.',
+    'Mai sus: albumul cu câte un poster pe Interurban, Drăxlmaier, SEBN (Orhei + Strășeni), LEAR (Ungheni + Florești), '
+      + 'Trox + suburban Briceni și Camioane, plus unul cu tot ce s-a alimentat în afara flotei (mașini cu foi, vânzări, consum intern, '
+      + 'protocol, utilaje); după el, separat, posterul general cu toate direcțiile și totalul.',
     '',
     '<b>Cum se citesc:</b>',
     '• <b>l/100 luna</b> — norma faptică a lunii: litrii (stațiile benzol + foile de parcurs LDE) împărțiți la km (GPS).',
@@ -284,11 +285,20 @@ export async function trimitePostereCombustibil(opts: { luna: string; grupuri?: 
   // o eroare la un poster oprește tot: un album fără o direcție ar părea complet
   if (out.some((x) => x.status === 'error')) return out.map((x) => (x.status === 'sent' ? { ...x, status: 'skipped' as const, reason: 'albumul n-a plecat: eroare la alt poster' } : x));
   if (!poze.length) return out;
-  const trimis = poze.length === 1
-    ? await sendTelegramPhoto(chatId, poze[0].png, poze[0].caption, poze[0].filename, threadId).then((r) => ({ ok: r.ok, messageIds: r.messageId ? [r.messageId] : [] }))
-    : await sendTelegramAlbum(chatId, poze, threadId);
+  // Ion, 29.09: posterul general «să se transmită unic, separat» — albumul are posterele direcțiilor și «în afara
+  // flotei», generalul pleacă singur după el
+  const iGen = ids.filter((g) => out.find((x) => x.grup === g)?.status === 'sent').indexOf(GRUP_GENERAL);
+  const general = iGen >= 0 ? poze.splice(iGen, 1)[0] : null;
+  const unu = (p: { png: Buffer; caption: string; filename: string }) =>
+    sendTelegramPhoto(chatId, p.png, p.caption, p.filename, threadId).then((r) => ({ ok: r.ok, messageIds: r.messageId ? [r.messageId] : [] }));
+  const trimis = !poze.length ? { ok: true, messageIds: [] as number[] } : poze.length === 1 ? await unu(poze[0]) : await sendTelegramAlbum(chatId, poze, threadId);
   if (!trimis.ok) return out.map((x) => (x.status === 'sent' ? { ...x, status: 'error' as const, reason: 'Telegram a refuzat albumul' } : x));
-  out.forEach((x) => { if (x.status === 'sent') x.messageId = trimis.messageIds.shift() ?? null; });
+  const trimisGen = general ? await unu(general) : null;
+  out.forEach((x) => {
+    if (x.status !== 'sent') return;
+    if (x.grup === GRUP_GENERAL) { x.messageId = trimisGen?.messageIds[0] ?? null; if (!trimisGen?.ok) { x.status = 'error'; x.reason = 'Telegram a refuzat posterul general'; } }
+    else x.messageId = trimis.messageIds.shift() ?? null;
+  });
   await sb.from('app_config').upsert({ key: MARCA_ALBUM_KEY, value: opts.luna }, { onConflict: 'key' });
 
   // după album: introducerea, fixată sus (doar la trimiterea întreagă)

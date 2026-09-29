@@ -232,23 +232,12 @@ async function genereazaGeneral(luna: string, eticheta: string) {
 }
 
 /** Mesajul de după postere: ce sunt, cum se citesc, când vin. */
+// Ion, 29.09: «textul — învață să trimiți succint și minimalist». Trei rânduri, fără explicații lungi.
 export function textIntroducere(luna: string) {
-  const e = lunaText(luna);
   return [
-    `<b>DT — raportul de combustibil pe ${e}</b>`,
-    '',
-    'Mai sus: albumul cu câte un poster pe Interurban, Drăxlmaier, SEBN (Orhei + Strășeni), LEAR (Ungheni + Florești), '
-      + 'Trox + suburban Briceni și Camioane, plus unul cu tot ce s-a alimentat în afara flotei (mașini cu foi, vânzări, consum intern, '
-      + 'protocol, utilaje); după el, separat, posterul general cu toate direcțiile și totalul.',
-    '',
-    '<b>Cum se citesc:</b>',
-    '• <b>l/100 luna</b> — norma faptică a lunii: litrii (stațiile benzol + foile de parcurs LDE) împărțiți la km (GPS).',
-    '• <b>l/100 3 luni</b> — norma faptică pe ultimele 3 luni; mai sigură, fiindcă plinul nu cade mereu în aceeași lună.',
-    '• <b>Teoretică</b> — norma tipului mașinii.',
-    '• <b>Abatere</b> — luna față de norma teoretică: roșu peste +5 %, fond roșu peste +10 %, verde sub −5 %. '
-      + 'Mașinile cu sub 1.000 km în lună au cifra gri — se judecă după 3 luni.',
-    '',
-    'Raportul vine aici pe 25 ale fiecărei luni, pentru luna trecută. Detaliile pe fiecare alimentare: pagina «Combustibil» din LDE.',
+    `<b>DT · combustibil · ${lunaText(luna)}</b>`,
+    'Luna / 3 luni / Teor. = litri la 100 km. Roșu = peste normă, verde = sub normă.',
+    'Detalii: LDE → Combustibil. Următorul raport: pe 25.',
   ].join('\n');
 }
 

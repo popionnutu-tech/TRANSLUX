@@ -1,5 +1,5 @@
 import { getSupabase } from '../supabase';
-import { sendTelegram, sendTelegramPhoto, escapeHtml } from '../telegram-notify';
+import { sendTelegramPhoto, sendTelegramAlbum, sendTelegramText, pinTelegramMessage, escapeHtml } from '../telegram-notify';
 import { poster, CULORI, type Celula, type Coloana } from '../poster-sablon';
 import { COMBUSTIBIL_POSTER_CONFIG_KEY, COMBUSTIBIL_POSTER_THREAD_CONFIG_KEY } from '@translux/db';
 
@@ -20,8 +20,7 @@ import { COMBUSTIBIL_POSTER_CONFIG_KEY, COMBUSTIBIL_POSTER_THREAD_CONFIG_KEY } f
 // Grupa P9 și tabul ei «DT» (message_thread_id); fără grupă setată nu pleacă nimic — nu în altă grupă
 export const COMBUSTIBIL_POSTER_CHAT_KEY = COMBUSTIBIL_POSTER_CONFIG_KEY;          // /lega_dt în bot
 export const COMBUSTIBIL_POSTER_THREAD_KEY = COMBUSTIBIL_POSTER_THREAD_CONFIG_KEY;
-const MARCA_KEY = (g: string) => `combustibil_poster_last_${g}`;
-const MARCA_INTRO_KEY = 'combustibil_poster_intro_last';
+const MARCA_ALBUM_KEY = 'combustibil_poster_album_last';
 
 export const GRUPURI: { id: string; titlu: string; scurt: string; directii: string[] }[] = [
   { id: 'interurban', titlu: 'Interurban', scurt: 'Interurban', directii: ['interurban'] },
@@ -256,6 +255,8 @@ export interface TrimitereCombustibil { grup: string; status: 'sent' | 'skipped'
 
 /** Trimite posterele lunii în grupă; idempotent pe grup și lună (app_config combustibil_poster_last_<grup>). */
 export async function trimitePostereCombustibil(opts: { luna: string; grupuri?: string[]; force?: boolean }): Promise<TrimitereCombustibil[]> {
+  // Ion, 29.09: «trimite toate 8 poze ca o postare cu mai multe poze» — un album (sendMediaGroup), apoi introducerea,
+  // fixată sus în tab. Anti-dublură pe lună (app_config combustibil_poster_album_last), nu pe fiecare grup.
   const sb = getSupabase();
   const cfg = async (key: string) => {
     const { data } = await sb.from('app_config').select('value').eq('key', key).maybeSingle();
@@ -263,30 +264,38 @@ export async function trimitePostereCombustibil(opts: { luna: string; grupuri?: 
   };
   const chatId = await cfg(COMBUSTIBIL_POSTER_CHAT_KEY);
   const threadId = Number(await cfg(COMBUSTIBIL_POSTER_THREAD_KEY)) || null;
-  const ids = opts.grupuri?.length ? opts.grupuri : GRUP_IDS;
+  const ids = opts.grupuri?.length ? GRUP_IDS.filter((g) => opts.grupuri!.includes(g)) : GRUP_IDS;
   flotaPeLuna.delete(opts.luna);   // instanța poate trăi între apeluri — cifrele se citesc proaspăt
-  if (!chatId) return ids.map((grup) => ({ grup, status: 'skipped' as const, reason: `grupa nu e setată (app_config.${COMBUSTIBIL_POSTER_CHAT_KEY})` }));
+  if (!chatId) return [{ grup: 'album', status: 'skipped', reason: `grupa nu e setată (app_config.${COMBUSTIBIL_POSTER_CHAT_KEY}) — /lega_dt` }];
+  if (!opts.force && (await cfg(MARCA_ALBUM_KEY)) === opts.luna) return [{ grup: 'album', status: 'skipped', reason: 'luna a plecat deja' }];
+
   const out: TrimitereCombustibil[] = [];
+  const poze: { png: Buffer; caption: string; filename: string }[] = [];
   for (const grup of ids) {
     try {
-      if (!opts.force && (await cfg(MARCA_KEY(grup))) === opts.luna) { out.push({ grup, status: 'skipped', reason: 'luna a plecat deja' }); continue; }
       const { png, caption, randuri } = await genereazaGrup(grup, opts.luna);
       if (!randuri) { out.push({ grup, status: 'skipped', randuri, reason: 'nimic în lună' }); continue; }
-      const sent = await sendTelegramPhoto(chatId, png, caption, `combustibil-${grup}-${opts.luna}.png`, threadId);
-      if (!sent.ok) { out.push({ grup, status: 'error', randuri, reason: 'Telegram a refuzat poza' }); continue; }
-      await sb.from('app_config').upsert({ key: MARCA_KEY(grup), value: opts.luna }, { onConflict: 'key' });
-      out.push({ grup, status: 'sent', randuri, messageId: sent.messageId });
+      poze.push({ png, caption, filename: `combustibil-${grup}-${opts.luna}.png` });
+      out.push({ grup, status: 'sent', randuri });
     } catch (e) {
       out.push({ grup, status: 'error', reason: e instanceof Error ? e.message : String(e) });
     }
   }
-  // după toate posterele, o singură dată pe lună: mesajul de introducere (doar la trimiterea întreagă, fără erori)
-  const toate = !opts.grupuri?.length || GRUP_IDS.every((g) => opts.grupuri!.includes(g));
-  if (toate && out.some((x) => x.status === 'sent') && !out.some((x) => x.status === 'error')
-      && (opts.force || (await cfg(MARCA_INTRO_KEY)) !== opts.luna)) {
-    const ok = await sendTelegram(chatId, textIntroducere(opts.luna), undefined, threadId);
-    if (ok) await sb.from('app_config').upsert({ key: MARCA_INTRO_KEY, value: opts.luna }, { onConflict: 'key' });
-    out.push({ grup: 'introducere', status: ok ? 'sent' : 'error', reason: ok ? undefined : 'Telegram a refuzat mesajul' });
+  // o eroare la un poster oprește tot: un album fără o direcție ar părea complet
+  if (out.some((x) => x.status === 'error')) return out.map((x) => (x.status === 'sent' ? { ...x, status: 'skipped' as const, reason: 'albumul n-a plecat: eroare la alt poster' } : x));
+  if (!poze.length) return out;
+  const trimis = poze.length === 1
+    ? await sendTelegramPhoto(chatId, poze[0].png, poze[0].caption, poze[0].filename, threadId).then((r) => ({ ok: r.ok, messageIds: r.messageId ? [r.messageId] : [] }))
+    : await sendTelegramAlbum(chatId, poze, threadId);
+  if (!trimis.ok) return out.map((x) => (x.status === 'sent' ? { ...x, status: 'error' as const, reason: 'Telegram a refuzat albumul' } : x));
+  out.forEach((x) => { if (x.status === 'sent') x.messageId = trimis.messageIds.shift() ?? null; });
+  await sb.from('app_config').upsert({ key: MARCA_ALBUM_KEY, value: opts.luna }, { onConflict: 'key' });
+
+  // după album: introducerea, fixată sus (doar la trimiterea întreagă)
+  if (ids.length === GRUP_IDS.length) {
+    const intro = await sendTelegramText(chatId, textIntroducere(opts.luna), threadId);
+    if (intro) await pinTelegramMessage(chatId, intro);
+    out.push({ grup: 'introducere', status: intro ? 'sent' : 'error', messageId: intro, reason: intro ? undefined : 'Telegram a refuzat mesajul' });
   }
   return out;
 }

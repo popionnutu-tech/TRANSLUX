@@ -68,6 +68,75 @@ export async function sendTelegramPhoto(
   }
 }
 
+/** Trimite 2–10 imagini ca O SINGURĂ postare (album, sendMediaGroup). Ion, 29.09: «trimite toate 8 poze ca o
+ *  postare cu mai multe poze». Fiecare poză își poate păstra subtitlul (se vede la deschidere). Nu aruncă niciodată;
+ *  întoarce message_id-urile pozelor, în ordine. Peste 10 poze Telegram refuză — se împart de cel care cheamă. */
+export async function sendTelegramAlbum(
+  chatId: string | number,
+  poze: { png: Buffer | Uint8Array; caption?: string; filename?: string }[],
+  threadId?: number | null,
+): Promise<{ ok: boolean; messageIds: number[] }> {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  if (!botToken || poze.length < 2 || poze.length > 10) return { ok: false, messageIds: [] };
+  try {
+    const form = new FormData();
+    form.append('chat_id', String(chatId));
+    if (threadId) form.append('message_thread_id', String(threadId));
+    form.append('media', JSON.stringify(poze.map((p, i) => ({
+      type: 'photo', media: `attach://poza${i}`, ...(p.caption ? { caption: p.caption, parse_mode: 'HTML' } : {}),
+    }))));
+    poze.forEach((p, i) => form.append(`poza${i}`, new Blob([new Uint8Array(p.png)], { type: 'image/png' }), p.filename ?? `poza${i}.png`));
+    const resp = await fetch(`https://api.telegram.org/bot${botToken}/sendMediaGroup`, {
+      method: 'POST', body: form, signal: AbortSignal.timeout(60000),
+    });
+    if (!resp.ok) {
+      const body = await resp.text().catch(() => '');
+      console.error('sendTelegramAlbum failed:', resp.status, body.slice(0, 300));
+      return { ok: false, messageIds: [] };
+    }
+    const json = (await resp.json().catch(() => null)) as { result?: { message_id?: number }[] } | null;
+    return { ok: true, messageIds: (json?.result ?? []).map((m) => m.message_id ?? 0).filter(Boolean) };
+  } catch (err) {
+    console.error('sendTelegramAlbum failed:', err);
+    return { ok: false, messageIds: [] };
+  }
+}
+
+/** Text HTML cu message_id înapoi (pentru fixare). Nu aruncă niciodată. */
+export async function sendTelegramText(chatId: string | number, text: string, threadId?: number | null): Promise<number | null> {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  if (!botToken) return null;
+  try {
+    const resp = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML', ...(threadId ? { message_thread_id: threadId } : {}) }),
+      signal: AbortSignal.timeout(10000),
+    });
+    const json = (await resp.json().catch(() => null)) as { ok?: boolean; result?: { message_id?: number } } | null;
+    return json?.ok ? json.result?.message_id ?? null : null;
+  } catch (err) {
+    console.error('sendTelegramText failed:', err);
+    return null;
+  }
+}
+
+/** Fixează un mesaj fără notificare (botul are nevoie de dreptul «Pin messages»). Nu aruncă niciodată. */
+export async function pinTelegramMessage(chatId: string | number, messageId: number): Promise<boolean> {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  if (!botToken) return false;
+  try {
+    const resp = await fetch(`https://api.telegram.org/bot${botToken}/pinChatMessage`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, message_id: messageId, disable_notification: true }),
+      signal: AbortSignal.timeout(5000),
+    });
+    return resp.ok;
+  } catch (err) {
+    console.error('pinTelegramMessage failed:', err);
+    return false;
+  }
+}
+
 /** Șterge un mesaj trimis de bot (ex. graficul precedent din grupa Mejgorod,
  *  când pleacă unul nou pe aceeași zi). Nu aruncă niciodată. Telegram lasă
  *  botul să-și șteargă propriile mesaje doar în 48 h — după, întoarce false și

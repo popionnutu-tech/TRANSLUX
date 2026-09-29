@@ -121,13 +121,14 @@ export default function CombustibilClient({ data }: { data: CombustibilData }) {
 
   // Ion, 29.09: «împărțirea să fie pe direcții, nu toate împreună» — un tabel pe direcție, cu norma faptică
   const peDirectii = useMemo(() => {
-    type Dir = { litri: number; masini: number; km: number; litriCuKm: number; normaKm: number; kmCuNorma: number; rows: FlotaRow[] };
+    type Dir = { litri: number; masini: number; km: number; litriCuKm: number; normaKm: number; kmCuNorma: number; c3Km: number; km3: number; rows: FlotaRow[] };
     const m = new Map<string, Dir>();
     for (const r of data.flota) {
       if (r.total_l <= 0 && r.km <= 0) continue;
-      const e = m.get(r.directie) ?? { litri: 0, masini: 0, km: 0, litriCuKm: 0, normaKm: 0, kmCuNorma: 0, rows: [] };
+      const e = m.get(r.directie) ?? { litri: 0, masini: 0, km: 0, litriCuKm: 0, normaKm: 0, kmCuNorma: 0, c3Km: 0, km3: 0, rows: [] };
       e.litri += r.total_l; e.masini++; e.km += r.km; e.litriCuKm += r.litri_cu_km;
-      if (r.norma != null && r.km > 0) { e.normaKm += r.norma * r.km; e.kmCuNorma += r.km; }
+      if (r.norma_teoretica != null && r.km > 0) { e.normaKm += r.norma_teoretica * r.km; e.kmCuNorma += r.km; }
+      if (r.consum3 != null && r.km > 0) { e.c3Km += r.consum3 * r.km; e.km3 += r.km; }
       m.set(r.directie, e);
     }
     for (const r of flotaVizibila) m.get(r.directie)?.rows.push(r);
@@ -135,6 +136,7 @@ export default function CombustibilClient({ data }: { data: CombustibilData }) {
       directie: d, ...e,
       consum: e.km >= 100 ? (e.litriCuKm / e.km) * 100 : null,
       norma: e.kmCuNorma > 0 ? e.normaKm / e.kmCuNorma : null,
+      consum3: e.km3 > 0 ? e.c3Km / e.km3 : null,
     }));
   }, [data.flota, flotaVizibila]);
 
@@ -239,7 +241,8 @@ export default function CombustibilClient({ data }: { data: CombustibilData }) {
                 <th style={{ textAlign: 'right' }}>Litri</th>
                 <th style={{ textAlign: 'right' }}>Km</th>
                 <th style={{ textAlign: 'right' }}>l/100 km faptic</th>
-                <th style={{ textAlign: 'right' }}>Normă</th>
+                <th style={{ textAlign: 'right' }}>Faptic 3 luni</th>
+                <th style={{ textAlign: 'right' }}>Normă teoretică</th>
                 <th style={{ textAlign: 'right' }}>Abatere</th>
               </tr>
             </thead>
@@ -251,6 +254,7 @@ export default function CombustibilClient({ data }: { data: CombustibilData }) {
                   <td style={{ textAlign: 'right' }}>{nf.format(d.litri)}</td>
                   <td style={{ textAlign: 'right' }}>{nf.format(d.km)}</td>
                   <td style={{ textAlign: 'right' }}><strong>{d.consum != null ? nf1.format(d.consum) : '—'}</strong></td>
+                  <td style={{ textAlign: 'right' }}>{d.consum3 != null ? nf1.format(d.consum3) : '—'}</td>
                   <td style={{ textAlign: 'right' }}>{d.norma != null ? nf1.format(d.norma) : '—'}</td>
                   <td style={{ textAlign: 'right' }}><Abatere consum={d.consum} norma={d.norma} /></td>
                 </tr>
@@ -259,7 +263,7 @@ export default function CombustibilClient({ data }: { data: CombustibilData }) {
           </table>
           <p className="text-sm text-muted-foreground" style={{ marginTop: '0.5rem' }}>
             Km: GPS-ul nostru pe zi; unde lipsește (înainte de 10.06.2026), km din LDE. Norma faptică se ia din prima zi cu km
-            a fiecărei mașini — camioanele au km doar din iunie. Norma = ca pe «Mașini LDE» (măsurată sau a tipului).
+            a fiecărei mașini — camioanele au km doar din iunie. «3 luni» = ultimele 3 luni calendaristice până la sfârșitul perioadei. Norma teoretică = a tipului mașinii; abaterea = perioada față de ea.
           </p>
         </CardContent>
       </Card>
@@ -271,7 +275,8 @@ export default function CombustibilClient({ data }: { data: CombustibilData }) {
             <span className="text-sm text-muted-foreground">
               {d.rows.length} mașini · {nf.format(d.litri)} L · {nf.format(d.km)} km
               {d.consum != null && <> · <strong>{nf1.format(d.consum)} l/100 km</strong></>}
-              {d.norma != null && <> (normă {nf1.format(d.norma)})</>}
+              {d.consum3 != null && <> · 3 luni {nf1.format(d.consum3)}</>}
+              {d.norma != null && <> · teoretică {nf1.format(d.norma)}</>}
             </span>
           </CardHeader>
           <CardContent>
@@ -286,7 +291,8 @@ export default function CombustibilClient({ data }: { data: CombustibilData }) {
                     <th style={{ textAlign: 'right' }}>Total L</th>
                     <th style={{ textAlign: 'right' }}>Km</th>
                     <th style={{ textAlign: 'right' }}>l/100 km</th>
-                    <th style={{ textAlign: 'right' }}>Normă</th>
+                    <th style={{ textAlign: 'right' }}>3 luni</th>
+                    <th style={{ textAlign: 'right' }}>Teoretică</th>
                     <th style={{ textAlign: 'right' }}>Abatere</th>
                     <th style={{ textAlign: 'left' }}>Prima → ultima</th>
                   </tr>
@@ -309,12 +315,13 @@ export default function CombustibilClient({ data }: { data: CombustibilData }) {
                           <td style={{ textAlign: 'right' }}
                             title={`GPS-ul nostru ${r.km_zile_gps} zile, LDE ${r.km_zile_lde} zile`}>{nf.format(r.km)}</td>
                           <td style={{ textAlign: 'right' }}><strong>{r.consum != null ? nf1.format(r.consum) : '—'}</strong></td>
-                          <td style={{ textAlign: 'right' }}>{r.norma != null ? nf1.format(r.norma) : '—'}</td>
-                          <td style={{ textAlign: 'right' }}><Abatere consum={r.consum} norma={r.norma} /></td>
+                          <td style={{ textAlign: 'right' }}>{r.consum3 != null ? nf1.format(r.consum3) : '—'}</td>
+                          <td style={{ textAlign: 'right' }}>{r.norma_teoretica != null ? nf1.format(r.norma_teoretica) : '—'}</td>
+                          <td style={{ textAlign: 'right' }}><Abatere consum={r.consum} norma={r.norma_teoretica} /></td>
                           <td>{fmtZi(r.prima)} → {fmtZi(r.ultima)}</td>
                         </tr>
                         {deschis[key] && (
-                          <tr><td colSpan={10}><DetaliuTabel rows={deschis[key]} /></td></tr>
+                          <tr><td colSpan={11}><DetaliuTabel rows={deschis[key]} /></td></tr>
                         )}
                       </Fragment>
                     );

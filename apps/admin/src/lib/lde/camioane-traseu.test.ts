@@ -15,10 +15,20 @@ describe('mesajTraseu (ION-144)', () => {
     expect(m).toContain('+222');
   });
 
-  it('km totali doar pe rândul cursei, nu și ca abatere', () => {
-    const [m] = mesajTraseu('2026-08-28', [r({ abateri: [{ cod: 'ro_drum', text: 'în România pe alt drum' }, { cod: 'km', text: '621 km în loc de 399 km' }] })]);
-    expect(m).toContain('în România pe alt drum');
-    expect(m).not.toContain('621 km în loc de 399 km');
+  it('drumul ideal și cel real, totalul și părțile cu km în față', () => {
+    const [m] = mesajTraseu('2026-09-26', [r({ placa: 'HMK135', km_gps: 662, km_ideal: 430, km_plus: 232, lei_plus: 2877, abateri: [
+      { cod: 'vama', text: 'vama Albița în loc de Giurgiulești', km: 29 },
+      { cod: 'drum', text: 'România: A2 (Fetești–Slobozia), nu prin Măcin', km: 77 },
+      { cod: 'drum', text: 'Moldova: ocol prin Cricova → Orhei', km: 126 },
+      { cod: 'km', text: '662 km în loc de 430 km', km: 232 },
+      { cod: 'traseu', text: '', ideal: 'Giurgiulești · 430 km · Constanța → Măcin → Galați → Chișinău', real: 'Albița · 662 km · Constanța → Fetești → Albița → Orhei → Chișinău' },
+    ] })]);
+    expect(m).toContain('ideal: Giurgiulești · 430 km');
+    expect(m).toContain('real: Albița · 662 km');
+    expect(m).toContain('<b>+232 km</b> ≈ 2.877 lei, din care:');
+    expect(m).toContain('<code>+29</code> vama Albița');
+    expect(m).toContain('<code>+126</code> Moldova');
+    expect(m).not.toContain('662 km în loc de 430 km');
   });
 
   it('fără abateri: o singură linie', () => {

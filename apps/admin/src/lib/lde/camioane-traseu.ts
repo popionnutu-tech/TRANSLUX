@@ -4,7 +4,9 @@ import { escapeHtml } from '@/lib/telegram-notify';
 // Ion, 29.09: «verifică ziua de ieri și dă un mesaj pentru toate mașinile», apoi «mașinile care sunt ok să nu apară».
 // Rândurile le scrie VPS-ul (camioane/cod/verifica-zi.mjs) în lde_truck_route_checks; aici doar se formulează.
 
-export type Abatere = { cod: string; text: string; km?: number | null };
+// cod 'traseu' = drumul ideal și cel real (orașele); cod 'info' = parte din km în plus care nu e abatere în sine;
+// cod 'km' = totalul (stă pe rândul cursei). Părțile cu km se adună la km_plus (vama + România + Moldova + restul).
+export type Abatere = { cod: string; text: string; km?: number | null; ideal?: string; real?: string };
 export type Verificare = {
   placa: string;
   tip: 'incarcata' | 'goala' | 'biodiesel';
@@ -38,12 +40,22 @@ export function mesajTraseu(zi: string, randuri: Verificare[]): string[] {
   ];
   for (const placa of masini.sort()) {
     const ale = abateri.filter((r) => r.placa === placa);
+    // Ion, 29.09: «nu e clar de unde km în plus». Drumul ideal și cel real unul sub altul, apoi totalul și părțile,
+    // fiecare cu km în față — se adună exact la total.
     const linii = ale.map((r) => {
       const traseu = [r.de, r.pana].filter(Boolean).join(' → ');
-      const km = r.km_plus != null && r.km_plus >= 1 && r.km_ideal ? ` · ${nr(r.km_gps ?? 0)} km în loc de ${nr(r.km_ideal)} (<b>+${nr(r.km_plus)}</b>)` : '';
-      // km totali stau deja pe rândul cursei; sub el rămân doar cauzele (vama, drumul prin România, ZEL)
-      const cauze = r.abateri.filter((a) => a.cod !== 'km' || !km).map((a) => `   – ${escapeHtml(a.text)}`).join('\n');
-      return `• ${TIP[r.tip]}${traseu ? ` ${escapeHtml(traseu)}` : ''}${km}${cauze ? `\n${cauze}` : ''}`;
+      const out = [`• ${TIP[r.tip]}${traseu ? ` ${escapeHtml(traseu)}` : ''}`];
+      const tr = r.abateri.find((a) => a.cod === 'traseu');
+      if (tr?.ideal) out.push(`   ideal: ${escapeHtml(tr.ideal)}`);
+      if (tr?.real) out.push(`   real: ${escapeHtml(tr.real)}`);
+      const parti = r.abateri.filter((a) => a.cod !== 'traseu' && a.cod !== 'km');
+      const cuKm = parti.filter((a) => a.km != null && Math.abs(a.km) >= 1);
+      const plus = r.km_plus != null && r.km_plus >= 1 ? r.km_plus : null;
+      if (plus) out.push(`   <b>+${nr(plus)} km</b>${r.lei_plus ? ` ≈ ${nr(r.lei_plus)} lei` : ''}${cuKm.length ? ', din care:' : ''}`);
+      else if (cuKm.length) out.push('   km în plus:');
+      for (const a of cuKm) out.push(`   <code>${(a.km! >= 0 ? '+' : '−') + nr(Math.abs(a.km!))}</code> ${escapeHtml(a.text)}`);
+      for (const a of parti.filter((x) => !cuKm.includes(x))) out.push(`   ⚠ ${escapeHtml(a.text)}`);
+      return out.join('\n');
     });
     blocuri.push(`<b>${escapeHtml(placa)}</b>\n${linii.join('\n')}`);
   }

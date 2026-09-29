@@ -15,6 +15,9 @@ Y=$(TZ=Europe/Chisinau date -d yesterday +%F)
 echo "===== $(TZ=Europe/Chisinau date '+%F %T') | ziua $Y =====" >> nightly.log
 node --env-file=.env gps-worker.mjs "$Y" --write >> nightly.log 2>&1
 node --env-file=.env fuel-worker.mjs --write >> nightly.log 2>&1
+# Litrii de pe foile de parcurs LDE (baza raznareadca, ION-132):
+# litrii scriși de operator pe foile pz_* → lde_fuel_foaie (litri_a = benzol, deja importat mai sus).
+node --env-file=.env lde-alim-worker.mjs --write >> nightly.log 2>&1
 node --env-file=.env price-worker.mjs 7 >> nightly.log 2>&1
 # Tipul camionului din recepțiile TLX: cine a descărcat carburant în ultimele
 # 60 de zile e cisternă (Ion, 08.09). Înainte de trip-live/trip-worker, ca

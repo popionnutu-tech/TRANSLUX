@@ -12,7 +12,7 @@ export type KmPerioadaRow = {
   vehicle_id: string;
   plate_number: string;
   km: number;                // total km pe perioadă (km_total, aceeași cifră ca în salarii/acte)
-  litri: number;             // total litri alimentați pe perioadă (toate sursele: benzol + cash)
+  litri: number;             // total litri pe perioadă: benzol (lde_fuel_alimentari) + foaia LDE (lde_fuel_foaie)
   consum: number | null;     // l/100km = litri/km×100 — media pe perioadă; null când km≈0
   probleme: string[];        // motive agregate — menționate, NU corectate
 };
@@ -105,6 +105,19 @@ export async function getKmPerioada(from?: string, to?: string): Promise<KmPerio
       for (const r of data) litriByVeh.set(r.vehicle_id, (litriByVeh.get(r.vehicle_id) ?? 0) + Number(r.litri ?? 0));
       if (data.length < 1000) break;
     }
+  }
+  // Litrii scriși de operator pe foaia de parcurs LDE (Chișinău, Ungheni…), pe zi, fără oră — ION-132
+  for (let offset = 0; ; offset += 1000) {
+    const { data } = await sb
+      .from('lde_fuel_foaie')
+      .select('vehicle_id, litri')
+      .gte('zi', f)
+      .lte('zi', t)
+      .order('id', { ascending: true })
+      .range(offset, offset + 999);
+    if (!data?.length) break;
+    for (const r of data) litriByVeh.set(r.vehicle_id, (litriByVeh.get(r.vehicle_id) ?? 0) + Number(r.litri ?? 0));
+    if (data.length < 1000) break;
   }
 
   // agregare per mașină

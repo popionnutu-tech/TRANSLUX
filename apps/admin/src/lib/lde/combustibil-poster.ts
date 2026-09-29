@@ -23,14 +23,19 @@ export const COMBUSTIBIL_POSTER_THREAD_KEY = COMBUSTIBIL_POSTER_THREAD_CONFIG_KE
 const MARCA_KEY = (g: string) => `combustibil_poster_last_${g}`;
 const MARCA_INTRO_KEY = 'combustibil_poster_intro_last';
 
-export const GRUPURI: { id: string; titlu: string; directii: string[] }[] = [
-  { id: 'interurban', titlu: 'Interurban', directii: ['interurban'] },
-  { id: 'drax', titlu: 'Drăxlmaier Bălți', directii: ['DRAXELMAIER_BALTI'] },
-  { id: 'sebn', titlu: 'SEBN Orhei + Strășeni', directii: ['SEBN_ORHEI', 'SEBN_STRASENI'] },
-  { id: 'lear', titlu: 'LEAR Ungheni + Florești', directii: ['LEAR_UNGHENI', 'LEAR_FLORESTI'] },
-  { id: 'briceni', titlu: 'Trox + suburban Briceni', directii: ['suburban'] },
-  { id: 'camioane', titlu: 'Camioane', directii: ['camioane'] },
+export const GRUPURI: { id: string; titlu: string; scurt: string; directii: string[] }[] = [
+  { id: 'interurban', titlu: 'Interurban', scurt: 'Interurban', directii: ['interurban'] },
+  { id: 'drax', titlu: 'Drăxlmaier Bălți', scurt: 'Drăxlmaier', directii: ['DRAXELMAIER_BALTI'] },
+  { id: 'sebn', titlu: 'SEBN Orhei + Strășeni', scurt: 'SEBN', directii: ['SEBN_ORHEI', 'SEBN_STRASENI'] },
+  { id: 'lear', titlu: 'LEAR Ungheni + Florești', scurt: 'LEAR', directii: ['LEAR_UNGHENI', 'LEAR_FLORESTI'] },
+  { id: 'briceni', titlu: 'Trox + suburban Briceni', scurt: 'Trox + Briceni', directii: ['suburban'] },
+  { id: 'camioane', titlu: 'Camioane', scurt: 'Camioane', directii: ['camioane'] },
 ];
+// Ion, 29.09: «textul e foarte mic, sunt oameni de 67 ani — fă maxim posibil textul și lasă minim spațiile goale».
+// Posterul îngust (pe telefon imaginea se întinde pe lățimea ecranului, deci textul iese de ~1,6× mai mare decât la
+// 1000), fără subtitlu și fără carduri, rânduri de tabel de 15 pt, titluri de coloane scurte de 12 pt.
+const LATIME = 640;
+const TABEL = { mare: 15, rand: 30, antet: 12 } as const;
 export const GRUP_STRAINI = 'straini';
 // «mașini cu foi de parcurs până la utilaje» — tipurile din lde_fuel_consumatori, în ordinea paginii
 const TIPURI_STRAINI: [string, string][] = [
@@ -103,7 +108,7 @@ async function citesteFlotaDinBaza(luna: string) {
 
 function abatere(f: number | null, t: number | null): Celula {
   if (f == null || t == null || t <= 0) return { text: '—', culoare: CULORI.griDeschis };
-  const p = Math.round(((f - t) / t) * 100);   // întâi rotunjit, apoi semnul — altfel «-0 %»
+  const p = Math.round(((f - t) / t) * 100) || 0;   // întâi rotunjit, apoi semnul; «|| 0» scoate −0 → altfel «-0 %»
   const rau = p > 10, atent = p > 5, bine = p < -5;
   return { text: `${p > 0 ? '+' : ''}${nf.format(p)} %`, bold: rau,
     culoare: atent ? CULORI.rosu : bine ? CULORI.verde : CULORI.text, fundal: rau ? '#f8e3e0' : undefined };
@@ -133,33 +138,23 @@ export async function genereazaGrup(grupId: string, luna: string): Promise<{ png
   const m = masiniGrup(await citesteFlota(luna), g.directii);
   const { litri, km, fapt, fapt3, teoretica } = statGrup(m);
 
-  const p = poster({ latime: 1000, supratitlu: 'Combustibil pe lună', titlu: g.titlu, eticheta,
-    subtitlu: 'Norma faptică = litri (stațiile benzol + foile de parcurs LDE) / km (GPS-ul nostru, altfel km din LDE). '
-      + 'Luna, ultimele 3 luni și norma teoretică a tipului mașinii; abaterea = luna față de norma teoretică.' });
-  p.carduri([
-    { eticheta: 'Motorină', titlu: `${nf.format(litri)} L`, text: `${m.length} mașini`, valoare: `${nf.format(km)} km` },
-    { eticheta: 'Norma faptică', titlu: 'Luna', text: eticheta, valoare: fapt != null ? `${nf1.format(fapt)} l/100` : '—' },
-    { eticheta: 'Norma faptică', titlu: 'Ultimele 3 luni', text: 'aceleași mașini', valoare: fapt3 != null ? `${nf1.format(fapt3)} l/100` : '—' },
-    { eticheta: 'Norma teoretică', titlu: 'Tipul mașinii', text: 'medie pe km', valoare: teoretica != null ? `${nf1.format(teoretica)} l/100` : '—' },
-  ]);
+  const p = poster({ latime: LATIME, supratitlu: 'Combustibil', titlu: g.titlu, eticheta });
+  p.total(`${nf.format(litri)} L · ${nf.format(km)} km`, `${m.length} mașini`);
+  p.total(`Luna ${l100Txt(fapt)} · 3 luni ${l100Txt(fapt3)}`, `teoretică ${l100Txt(teoretica)}`);
   const cols: Coloana[] = [
-    { titlu: 'Mașina', latime: 150 }, { titlu: 'Litri', latime: 90, aliniere: 'end' }, { titlu: 'Km', latime: 100, aliniere: 'end' },
-    { titlu: 'l/100 luna', latime: 100, aliniere: 'end' }, { titlu: 'l/100 3 luni', latime: 100, aliniere: 'end' },
-    { titlu: 'Norma teoretică', latime: 110, aliniere: 'end' }, { titlu: 'Abatere', latime: 90, aliniere: 'end' },
+    { titlu: 'Mașina', latime: 118 }, { titlu: 'Litri', latime: 66, aliniere: 'end' }, { titlu: 'Km', latime: 76, aliniere: 'end' },
+    { titlu: 'Luna', latime: 58, aliniere: 'end' }, { titlu: '3 luni', latime: 60, aliniere: 'end' },
+    { titlu: 'Teor.', latime: 56, aliniere: 'end' }, { titlu: 'Abat.', latime: 66, aliniere: 'end' },
   ];
   p.tabel(cols, m.map((x) => [
-    { text: x.plate + (x.activ ? '' : ' · oprită'), bold: true },
+    { text: x.plate, bold: true },
     { text: nf.format(x.litri) }, { text: nf.format(x.km), culoare: CULORI.gri },
     x.km >= PRAG_KM_LUNA ? { text: l100Txt(x.fapt), bold: true } : { text: l100Txt(x.fapt), culoare: CULORI.griDeschis },
     { text: l100Txt(x.fapt3) },
     { text: l100Txt(x.teoretica), culoare: CULORI.gri },
     x.km >= PRAG_KM_LUNA ? abatere(x.fapt, x.teoretica) : { text: '—', culoare: CULORI.griDeschis },
-  ]), { compact: true, gol: 'Nicio alimentare în lună' });
-  p.total(`Total: ${nf.format(litri)} L · ${nf.format(km)} km · ${l100Txt(fapt)} l/100 km`,
-    `3 luni ${l100Txt(fapt3)} · teoretică ${l100Txt(teoretica)}`);
-  p.nota(`Roșu = peste norma teoretică cu mai mult de 5 % (fond roșu peste 10 %), verde = sub ea cu 5 %. «—» = sub ${PRAG_KM} km `
-    + `sau fără tip de mașină. Gri = sub ${nf.format(PRAG_KM_LUNA)} km în lună: plinul cade adesea în luna vecină, se judecă după 3 luni.`
-    + ' La camioane km vin din Wialon doar din iunie 2026: l/100 km se ia din prima zi cu km.');
+  ]), { ...TABEL, gol: 'Nicio alimentare în lună' });
+  p.nota('Luna, 3 luni, Teor. = litri la 100 km. Roșu = peste normă, verde = sub normă. Gri = sub 1.000 km în lună.');
   const caption = `<b>Combustibil — ${escapeHtml(g.titlu)}</b>, ${eticheta}\n`
     + `${nf.format(litri)} L · ${nf.format(km)} km · <b>${l100Txt(fapt)} l/100 km</b> (3 luni ${l100Txt(fapt3)}, teoretică ${l100Txt(teoretica)})`;
   return { png: await p.png(), caption, randuri: m.length };
@@ -174,9 +169,7 @@ async function citesteStraini(luna: string) {
 
 async function genereazaStraini(luna: string, eticheta: string) {
   const rows = await citesteStraini(luna);
-  const p = poster({ latime: 1000, supratitlu: 'Combustibil pe lună', titlu: 'În afara flotei', eticheta,
-    subtitlu: 'Tot ce s-a alimentat la stațiile benzol și pe foile LDE pe plăcuțe sau nume care nu sunt în flota noastră: '
-      + 'de la mașinile cu foi de parcurs până la utilaje.' });
+  const p = poster({ latime: LATIME, supratitlu: 'Combustibil', titlu: 'În afara flotei', eticheta });
   let total = 0, n = 0;
   for (const [tip, titlu] of TIPURI_STRAINI) {
     const t = rows.filter((r: any) => r.tip === tip).sort((a: any, b: any) => Number(b.litri) - Number(a.litri));
@@ -185,16 +178,14 @@ async function genereazaStraini(luna: string, eticheta: string) {
     total += sl; n += t.length;
     p.total(titlu, `${t.length} · ${nf.format(sl)} L`);
     p.tabel([
-      { titlu: 'Plăcuța / denumirea', latime: 260 }, { titlu: 'Alimentări', latime: 110, aliniere: 'end' },
-      { titlu: 'Litri', latime: 120, aliniere: 'end' }, { titlu: 'Prima – ultima', latime: 250 },
+      { titlu: 'Plăcuța / nume', latime: 200 }, { titlu: 'Ori', latime: 60, aliniere: 'end' },
+      { titlu: 'Litri', latime: 90, aliniere: 'end' }, { titlu: 'Zilele', latime: 150, aliniere: 'end' },
     ], t.map((r: any) => [
       { text: r.denumire, bold: true }, { text: nf.format(Number(r.randuri)) }, { text: nf.format(Number(r.litri)), bold: true },
       { text: `${String(r.prima_p).slice(8, 10)}.${String(r.prima_p).slice(5, 7)} – ${String(r.ultima_p).slice(8, 10)}.${String(r.ultima_p).slice(5, 7)}`, culoare: CULORI.gri },
-    ]), { compact: true });
+    ]), TABEL);
   }
-  p.total(`Total în afara flotei: ${nf.format(total)} L`, `${n} plăcuțe / denumiri`);
-  p.nota('Vânzările și benzovozul nu sunt consum. Variantele de scriere sunt unite (VINZARI = VINZARE = VINZAREA…); '
-    + 'scrierile cu mai puțin de 4 alimentări în tot istoricul nu apar. Detaliile: pagina «Combustibil» din LDE.');
+  p.total(`Total: ${nf.format(total)} L`, `${n} plăcuțe / nume`);
   const caption = `<b>Combustibil — în afara flotei</b>, ${eticheta}\n${nf.format(total)} L pe ${n} plăcuțe / denumiri`;
   return { png: await p.png(), caption, randuri: n };
 }
@@ -212,38 +203,30 @@ async function genereazaGeneral(luna: string, eticheta: string) {
   }).filter((x) => x.n > 0);
   const totalStraini = peTip.reduce((s, x) => s + x.litri, 0);
 
-  const p = poster({ latime: 1000, supratitlu: 'Combustibil pe lună', titlu: 'General', eticheta,
-    subtitlu: 'Toate direcțiile într-un loc: litri, km, norma faptică pe lună și pe ultimele 3 luni, norma teoretică. '
-      + 'Sub ele, tot ce s-a alimentat în afara flotei.' });
-  p.carduri([
-    { eticheta: 'Flota', titlu: `${nf.format(flota.litri)} L`, text: `${flota.masini} mașini`, valoare: `${nf.format(flota.km)} km` },
-    { eticheta: 'Norma faptică', titlu: 'Luna', text: eticheta, valoare: flota.fapt != null ? `${nf1.format(flota.fapt)} l/100` : '—' },
-    { eticheta: 'Norma faptică', titlu: 'Ultimele 3 luni', text: 'toată flota', valoare: flota.fapt3 != null ? `${nf1.format(flota.fapt3)} l/100` : '—' },
-    { eticheta: 'În afara flotei', titlu: `${nf.format(totalStraini)} L`, text: 'vânzări, consum intern, străini…', valoare: `${nf.format(flota.litri + totalStraini)} L`, subValoare: 'total' },
-  ]);
+  const p = poster({ latime: LATIME, supratitlu: 'Combustibil', titlu: 'General', eticheta });
+  p.total(`Total: ${nf.format(flota.litri + totalStraini)} L`, `flota ${nf.format(flota.litri)}`);
+  // litri la 100 km pe direcție; litrii și km pe direcție stau pe posterele direcțiilor
   p.tabel([
-    { titlu: 'Direcția', latime: 230 }, { titlu: 'Mașini', latime: 70, aliniere: 'end' }, { titlu: 'Litri', latime: 100, aliniere: 'end' },
-    { titlu: 'Km', latime: 110, aliniere: 'end' }, { titlu: 'l/100 luna', latime: 95, aliniere: 'end' }, { titlu: 'l/100 3 luni', latime: 95, aliniere: 'end' },
-    { titlu: 'Teoretică', latime: 90, aliniere: 'end' }, { titlu: 'Abatere', latime: 85, aliniere: 'end' },
+    { titlu: 'Direcția', latime: 150 }, { titlu: 'Litri', latime: 80, aliniere: 'end' },
+    { titlu: 'Luna', latime: 58, aliniere: 'end' }, { titlu: '3 luni', latime: 60, aliniere: 'end' },
+    { titlu: 'Teor.', latime: 56, aliniere: 'end' }, { titlu: 'Abat.', latime: 66, aliniere: 'end' },
   ], [
     ...grupuri.map(({ g, st }) => [
-      { text: g.titlu, bold: true }, { text: String(st.masini) }, { text: nf.format(st.litri) }, { text: nf.format(st.km), culoare: CULORI.gri },
+      { text: g.scurt, bold: true }, { text: nf.format(st.litri) },
       { text: l100Txt(st.fapt), bold: true }, { text: l100Txt(st.fapt3) }, { text: l100Txt(st.teoretica), culoare: CULORI.gri },
       abatere(st.fapt, st.teoretica),
     ] as Celula[]),
     [
-      { text: 'Toată flota', bold: true, culoare: CULORI.bordoInchis }, { text: String(flota.masini), bold: true }, { text: nf.format(flota.litri), bold: true },
-      { text: nf.format(flota.km), bold: true }, { text: l100Txt(flota.fapt), bold: true }, { text: l100Txt(flota.fapt3), bold: true },
+      { text: 'Toată flota', bold: true, culoare: CULORI.bordoInchis }, { text: nf.format(flota.litri), bold: true },
+      { text: l100Txt(flota.fapt), bold: true }, { text: l100Txt(flota.fapt3), bold: true },
       { text: l100Txt(flota.teoretica), bold: true }, abatere(flota.fapt, flota.teoretica),
     ] as Celula[],
-  ], { compact: true });
-  p.tabel([{ titlu: 'În afara flotei', latime: 520 }, { titlu: 'Plăcuțe / denumiri', latime: 170, aliniere: 'end' }, { titlu: 'Litri', latime: 185, aliniere: 'end' }],
-    [...peTip.map((x) => [{ text: x.titlu }, { text: String(x.n) }, { text: nf.format(x.litri), bold: true }] as Celula[]),
-     [{ text: 'Total în afara flotei', bold: true, culoare: CULORI.bordoInchis }, { text: String(peTip.reduce((s, x) => s + x.n, 0)), bold: true }, { text: nf.format(totalStraini), bold: true }] as Celula[]],
-    { compact: true, gol: 'Nimic în afara flotei în lună' });
-  p.total(`Total general: ${nf.format(flota.litri + totalStraini)} L`, `flota ${nf.format(flota.litri)} · în afara flotei ${nf.format(totalStraini)}`);
-  p.nota('Abaterea = luna față de norma teoretică: roșu peste +5 % (fond roșu peste +10 %), verde sub −5 %. Vânzările și benzovozul '
-    + 'nu sunt consum. Detaliile pe fiecare mașină: posterele direcțiilor de mai sus și pagina «Combustibil» din LDE.');
+  ], TABEL);
+  p.tabel([{ titlu: 'În afara flotei', latime: 330 }, { titlu: 'Litri', latime: 140, aliniere: 'end' }],
+    [...peTip.map((x) => [{ text: x.titlu.replace(/ \(.*\)$/, '') }, { text: nf.format(x.litri), bold: true }] as Celula[]),
+     [{ text: 'Total', bold: true, culoare: CULORI.bordoInchis }, { text: nf.format(totalStraini), bold: true }] as Celula[]],
+    { ...TABEL, gol: 'Nimic în afara flotei în lună' });
+  p.nota('Luna, 3 luni, Teor. = litri la 100 km. Vânzările și benzovozul nu sunt consum.');
   const caption = `<b>Combustibil — general</b>, ${eticheta}\n`
     + `Flota ${nf.format(flota.litri)} L · <b>${l100Txt(flota.fapt)} l/100 km</b> (3 luni ${l100Txt(flota.fapt3)}, teoretică ${l100Txt(flota.teoretica)}) · în afara flotei ${nf.format(totalStraini)} L`;
   return { png: await p.png(), caption, randuri: grupuri.length };

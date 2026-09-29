@@ -130,12 +130,13 @@ export function poster(opts: { latime?: number; titlu: string; subtitlu?: string
     /** tabel într-un card alb, antet deschis, rânduri în zebră; `latime` e în puncte relative, se scalează.
      *  `coloane: 2` pune lista în două tabele alăturate (liste lungi: ~65 de șoferi); `compact` = rând scund. */
     tabel(cols: Coloana[], randuri: Celula[][], opt: { gol?: string; mare?: number; coloane?: 1 | 2; compact?: boolean;
-      /** înălțimea rândului în puncte (implicit 42 cu rând mic, 30 fără, 24 compact) */ rand?: number } = {}) {
+      /** înălțimea rândului în puncte (implicit 42 cu rând mic, 30 fără, 24 compact) */ rand?: number;
+      /** mărimea titlurilor de coloană în puncte (implicit 9,5; 12,5 la antetMare) — posterele pentru oameni în vârstă */ antet?: number } = {}) {
       const n = opt.coloane ?? 1, gap = 12 * S, lat = (IN - gap * (n - 1)) / n;
       const jum = Math.ceil(randuri.length / n);
       const bucati = n === 1 ? [randuri] : [randuri.slice(0, jum), randuri.slice(jum)];
       const areMic = randuri.some(r => r.some(c => c.mic));
-      const TH = (mare ? 36 : 34) * S, RH = (opt.rand ?? (areMic ? 42 : opt.compact ? 24 : 30)) * S, fs = (opt.mare ?? (opt.compact ? 10.5 : 11)) * S;
+      const TH = Math.max(mare ? 36 : 34, (opt.antet ?? 0) + 22) * S, RH = (opt.rand ?? (areMic ? 42 : opt.compact ? 24 : 30)) * S, fs = (opt.mare ?? (opt.compact ? 10.5 : 11)) * S;
       const h = TH + Math.max(1, jum) * RH;
       bucati.forEach((rows, bi) => {
         const X = PAD + bi * (lat + gap);
@@ -144,7 +145,7 @@ export function poster(opts: { latime?: number; titlu: string; subtitlu?: string
         svg.push(`<path d="M${X} ${y + 12 * S} a${12 * S} ${12 * S} 0 0 1 ${12 * S} -${12 * S} h${lat - 24 * S} a${12 * S} ${12 * S} 0 0 1 ${12 * S} ${12 * S} v${TH - 12 * S} h-${lat} z" fill="${CULORI.antetTabel}"/>`);
         const xs: number[] = []; let cx = X; for (const c of cols) { xs.push(cx); cx += c.latime * k; }
         const tx = (i: number, a: Aliniere) => a === 'end' ? xs[i] + cols[i].latime * k - 16 * S : a === 'middle' ? xs[i] + cols[i].latime * k / 2 : xs[i] + 10 * S;
-        const thS = (mare ? 12.5 : 9.5) * S;
+        const thS = (opt.antet ?? (mare ? 12.5 : 9.5)) * S;
         cols.forEach((c, i) => c.titlu && svg.push(textPath(fB, truncText(fB, c.titlu, thS, c.latime * k - 12 * S), tx(i, c.aliniere ?? 'start'), y + TH / 2 + (mare ? 5 : 4) * S, thS, CULORI.bordoInchis, c.aliniere ?? 'start')));
         if (!rows.length && opt.gol && bi === 0) svg.push(textPath(fR, opt.gol, X + 14 * S, y + TH + RH / 2 + 4 * S, fs, CULORI.verde, 'start'));
         rows.forEach((r, j) => {

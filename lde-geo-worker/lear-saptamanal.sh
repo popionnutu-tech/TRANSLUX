@@ -46,18 +46,8 @@ if ! flock -n "${LOCK_BRICENI:-/tmp/briceni-sapt.lock}" nice -n 10 ${LIMITA[@]+"
   echo "briceni saptamanal: rularea a picat, a depășit 90 min sau lock-ul e ocupat" >&2; picat=1
 fi
 
-# Drăxlmaier Bălți (ION-86, F3 / ION-94): analiza săptămânii → lde_analiza_reguli «DRAXELMAIER». 78–93 s (proba 26.09), timeout ≈ 3 × durata.
-# Scrie doar o săptămână încheiată și doar cu proba P10 trecută (altfel analiza-respinsa.json și cod 1; paznicul vede rândul lipsă).
-# Fără flock exterior: workerul are lock-ul lui (/tmp/drax-sapt.lock, flock -w 30).
-DRAX_SAPT="${DRAX_SAPT:-$LDE_DIR/drax/cod/saptamanal/saptamanal.sh}"
-LIMITA_D=(); command -v timeout >/dev/null && LIMITA_D=(timeout 280)
-# Întrerupătorul (Ion, 27.09.2026: «fără rulare automată la moment»): cât timp există $LDE_DIR/drax/OPRIT, Drăxlmaier nu rulează luni
-# (restul uzinelor merg); paznicul va arăta rândul Drăxlmaier lipsă. Repornire: rm $LDE_DIR/drax/OPRIT.
-if [ -e "$LDE_DIR/drax/OPRIT" ]; then
-  echo "drax saptamanal: OPRIT ($(head -c 200 "$LDE_DIR/drax/OPRIT")) — sărit" >&2
-elif ! nice -n 10 ${LIMITA_D[@]+"${LIMITA_D[@]}"} bash "$DRAX_SAPT" --write; then
-  echo "drax saptamanal: rularea a picat (P10? vezi scrie.log), a depășit 280 s sau lock-ul e ocupat" >&2; picat=1
-fi
+# Drăxlmaier Bălți (ION-86 / ION-94): analiza săptămânii rulează separat, LUNI la 06:30 (drax-luni.sh, ION-140) — lanțul cu parcarea
+# propusă durează ≈ 15 min; rândul e gata înainte de album, iar posterul «unde să stea mașina» pleacă în albumul de mai jos (livrari-luni).
 
 CRON_SECRET="$(env_val CRON_SECRET || true)"
 [ -n "$CRON_SECRET" ] || { echo "CRON_SECRET lipsește din .env — rapoartele sunt scrise, mesajele nu pleacă" >&2; exit 1; }
@@ -67,7 +57,7 @@ cheama() {  # o rută de cron; picată = se scrie și se merge mai departe
 }
 # Posterele «cât se putea economisi» — SEBN (ION-60, cu întrebarea despre primele 3 mașini), Trox + suburban Briceni
 # (ION-73), LEAR Ungheni și Florești (ION-57/59) — pleacă în grupa livrărilor de uzină ca O SINGURĂ postare, un album
-# (ION-139, Ion 29.09: «1 postare cu toate pozele»). Ruta scrie marcajele fiecărui poster, pe care le citește paznicul.
+# (ION-139, Ion 29.09: «1 postare cu toate pozele»); din ION-140 și Drăxlmaier «unde să stea mașina». Ruta scrie marcajele fiecărui poster.
 cheama "livrari-luni"
 # LEAR Ungheni și Florești (ION-57/59/62): fără poster (e în album) — indicațiile pentru Alexei și mesajul ADMIN de timp liber.
 cheama "lde-timp-liber?poster=0"

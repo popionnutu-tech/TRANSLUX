@@ -4,6 +4,7 @@ import { LIVRARE_POSTER_CHAT_KEY } from './livrare-poster';
 import { pregatestePosterSebn, SEBN_POSTER_LAST_KEY } from './sebn-optimizari-image';
 import { posterBriceni, captionBriceni, BRICENI_POSTER_LAST_KEY } from './briceni-optimizari-image';
 import { pregatestePosterLear } from './lear-optimizari-image';
+import { pregatestePosterDraxParcare } from './drax-parcare-image';
 import type { Raport } from '@/app/(dashboard)/lde/reguli/actions';
 
 /**
@@ -21,7 +22,7 @@ import type { Raport } from '@/app/(dashboard)/lde/reguli/actions';
 export const LIVRARI_LUNI_LAST_KEY = 'livrari_luni_album_last';
 const LIMITA_SUBTITLU = 1024;   // Telegram: subtitlul unei poze din album
 
-export interface PosterLuni { id: 'sebn' | 'briceni' | 'lear' | 'floresti'; png: Buffer; caption: string; cheie: string; textDupa?: string }
+export interface PosterLuni { id: 'sebn' | 'briceni' | 'lear' | 'floresti' | 'drax'; png: Buffer; caption: string; cheie: string; textDupa?: string }
 export interface SaltLuni { id: string; motiv: string }
 
 /** luni–duminică a săptămânii trecute față de azi (sau a săptămânii cerute) */
@@ -33,7 +34,7 @@ export function saptaminaLuni(azi: string, cerut?: string | null) {
   return { luni: d.toISOString().slice(0, 10), duminica: dum.toISOString().slice(0, 10) };
 }
 
-/** Cele patru postere, în ordinea albumului, fără să trimită nimic. */
+/** Posterele (SEBN, Briceni, LEAR Ungheni, LEAR Florești, Drăxlmaier), în ordinea albumului, fără să trimită nimic. */
 export async function pregatestePostereLuni(luni: string, duminica: string): Promise<{ postere: PosterLuni[]; sarite: SaltLuni[] }> {
   const sb = getSupabase();
   const postere: PosterLuni[] = [], sarite: SaltLuni[] = [];
@@ -59,6 +60,12 @@ export async function pregatestePostereLuni(luni: string, duminica: string): Pro
     if ('motiv' in p) sarite.push({ id, motiv: p.motiv });
     else postere.push({ id, png: p.png, caption: p.caption, cheie: p.cheie });
   }
+
+  // Drăxlmaier (ION-140, Ion 29.09.2026: «la Dra dă poster în grup, cu punctul optimal de dislocație … include în postare săptămânal
+  // 8:00»): locul de parcare propus, doar autobuzele ≥ 100 km și rutierele ≥ 150 km de tăiat pe săptămână
+  const drax = await pregatestePosterDraxParcare({ saptamina: luni, pana_la: duminica });
+  if ('motiv' in drax) sarite.push({ id: 'drax', motiv: drax.motiv });
+  else postere.push({ id: 'drax', png: drax.png, caption: drax.caption, cheie: drax.cheie });
   return { postere, sarite };
 }
 

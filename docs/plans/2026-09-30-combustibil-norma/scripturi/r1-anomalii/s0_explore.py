@@ -1,0 +1,12 @@
+from common import *
+v,b,f,g,m=load()
+pd.set_option('display.width',250); pd.set_option('display.max_columns',30)
+print(v.head(3).T)
+print(v.tip.value_counts().head(30)); print(v.categorie.value_counts()); print(v.directii.value_counts())
+print(b.describe(include='all').T)
+print(b.sursa.value_counts()); print(b.sofer.notna().mean())
+print(f.describe(include='all').T); print(f.foaie.value_counts())
+print(g.describe(include='all').T); print(g.data_source.value_counts())
+print(m.describe(include='all').T); print(m.directia.value_counts())
+print('benzol month', b.groupby(b['loc'].dt.strftime('%Y-%m')).litri.agg(['sum','count']))
+print('foi month', f.groupby(f.zi.str[:7]).litri.agg(['sum','count']))

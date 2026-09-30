@@ -20,22 +20,23 @@ export type Verificare = {
   ok: boolean;
 };
 
-const TIP: Record<Verificare['tip'], string> = { incarcata: 'cu motorină', goala: 'gol', biodiesel: 'cu biodiesel' };
-const nr = (x: number) => Math.round(x).toLocaleString('ro-RO');
+// pe rusă (Ion, 30.09: «toată comunicarea de azi înainte în rusă»); textele abaterilor vin deja pe rusă de pe VPS
+const TIP: Record<Verificare['tip'], string> = { incarcata: 'с дизелем', goala: 'пустой', biodiesel: 'с биодизелем' };
+const nr = (x: number) => Math.round(x).toLocaleString('ru-RU').replace(/\u00a0/g, ' ');
 const ziRo = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
 
 /** Textul mesajului (HTML Telegram), împărțit în bucăți sub limita de 4096 de caractere. */
 export function mesajTraseu(zi: string, randuri: Verificare[]): string[] {
   const abateri = randuri.filter((r) => !r.ok);
-  const cap = `🚚 <b>Cisterne · traseul de ieri, ${ziRo(zi)}</b>`;
-  if (!randuri.length) return [`${cap}\nNicio cursă încheiată ieri.`];
-  if (!abateri.length) return [`${cap}\n✅ ${randuri.length} ${randuri.length === 1 ? 'drum' : 'drumuri'}, toate pe traseu.`];
+  const cap = `🚚 <b>Цистерны · маршрут за вчера, ${ziRo(zi)}</b>`;
+  if (!randuri.length) return [`${cap}\nВчера рейсов не закончилось.`];
+  if (!abateri.length) return [`${cap}\n✅ Рейсов: ${randuri.length}, все по маршруту.`];
 
   const kmPlus = abateri.reduce((s, r) => s + Math.max(0, r.km_plus ?? 0), 0);
   const masini = [...new Set(abateri.map((r) => r.placa))];
   const blocuri: string[] = [
-    `${cap}\n⚠️ Abateri: <b>${masini.length}</b> ${masini.length === 1 ? 'mașină' : 'mașini'}, ${abateri.length} din ${randuri.length} drumuri`
-    + (kmPlus >= 1 ? ` · <b>+${nr(kmPlus)} km</b>` : ''), // fără lei (Ion, 29.09)
+    `${cap}\n⚠️ Отклонения: машин <b>${masini.length}</b>, рейсов ${abateri.length} из ${randuri.length}`
+    + (kmPlus >= 1 ? ` · <b>+${nr(kmPlus)} км</b>` : ''), // fără lei (Ion, 29.09)
   ];
   for (const placa of masini.sort()) {
     const ale = abateri.filter((r) => r.placa === placa);
@@ -45,20 +46,20 @@ export function mesajTraseu(zi: string, randuri: Verificare[]): string[] {
       const traseu = [r.de, r.pana].filter(Boolean).join(' → ');
       const out = [`• ${TIP[r.tip]}${traseu ? ` ${escapeHtml(traseu)}` : ''}`];
       const tr = r.abateri.find((a) => a.cod === 'traseu');
-      if (tr?.ideal) out.push(`   ideal: ${escapeHtml(tr.ideal)}`);
-      if (tr?.real) out.push(`   real: ${escapeHtml(tr.real)}`);
+      if (tr?.ideal) out.push(`   надо: ${escapeHtml(tr.ideal)}`);
+      if (tr?.real) out.push(`   было: ${escapeHtml(tr.real)}`);
       const parti = r.abateri.filter((a) => a.cod !== 'traseu' && a.cod !== 'km');
       const cuKm = parti.filter((a) => a.km != null && Math.abs(a.km) >= 1);
       const plus = r.km_plus != null && r.km_plus >= 1 ? r.km_plus : null;
-      if (plus) out.push(`   <b>+${nr(plus)} km</b>${cuKm.length ? ', din care:' : ''}`);
-      else if (cuKm.length) out.push('   km în plus:');
+      if (plus) out.push(`   <b>+${nr(plus)} км</b>${cuKm.length ? ', из них:' : ''}`);
+      else if (cuKm.length) out.push('   лишние км:');
       for (const a of cuKm) out.push(`   <code>${(a.km! >= 0 ? '+' : '−') + nr(Math.abs(a.km!))}</code> ${escapeHtml(a.text)}`);
       for (const a of parti.filter((x) => !cuKm.includes(x))) out.push(`   ⚠ ${escapeHtml(a.text)}`);
       return out.join('\n');
     });
     blocuri.push(`<b>${escapeHtml(placa)}</b>\n${linii.join('\n')}`);
   }
-  blocuri.push('<i>Mașinile care au mers pe traseu nu apar. Traseul ideal: LDE → Schelet → Camioane.</i>');
+  blocuri.push('<i>Машины, которые ехали по маршруту, здесь не показаны. Км не по маршруту не засчитываются ни в солярку, ни в зарплату. Маршруты — в закреплённых картах.</i>');
 
   const bucati: string[] = []; let cur = '';
   for (const b of blocuri) {

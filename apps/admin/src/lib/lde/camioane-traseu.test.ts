@@ -11,7 +11,7 @@ describe('mesajTraseu (ION-144)', () => {
     const [m] = mesajTraseu('2026-08-28', [r({}), r({ placa: 'LJN076', ok: true, abateri: [], km_plus: 5 })]);
     expect(m).toContain('KWX620');
     expect(m).not.toContain('LJN076');
-    expect(m).toContain('1</b> mașină, 1 din 2 drumuri');
+    expect(m).toContain('машин <b>1</b>, рейсов 1 из 2');
     expect(m).toContain('+222');
   });
 
@@ -23,9 +23,9 @@ describe('mesajTraseu (ION-144)', () => {
       { cod: 'km', text: '662 km în loc de 430 km', km: 232 },
       { cod: 'traseu', text: '', ideal: 'Giurgiulești · 430 km · Constanța → Măcin → Galați → Chișinău', real: 'Albița · 662 km · Constanța → Fetești → Albița → Orhei → Chișinău' },
     ] })]);
-    expect(m).toContain('ideal: Giurgiulești · 430 km');
-    expect(m).toContain('real: Albița · 662 km');
-    expect(m).toContain('<b>+232 km</b>, din care:');
+    expect(m).toContain('надо: Giurgiulești · 430 km');
+    expect(m).toContain('было: Albița · 662 km');
+    expect(m).toContain('<b>+232 км</b>, из них:');
     expect(m).not.toContain('lei');
     expect(m).toContain('<code>+29</code> vama Albița');
     expect(m).toContain('<code>+126</code> Moldova');
@@ -33,7 +33,7 @@ describe('mesajTraseu (ION-144)', () => {
   });
 
   it('fără abateri: o singură linie', () => {
-    expect(mesajTraseu('2026-08-28', [r({ ok: true, abateri: [] })])).toEqual(['🚚 <b>Cisterne · traseul de ieri, 28.08.2026</b>\n✅ 1 drum, toate pe traseu.']);
+    expect(mesajTraseu('2026-08-28', [r({ ok: true, abateri: [] })])).toEqual(['🚚 <b>Цистерны · маршрут за вчера, 28.08.2026</b>\n✅ Рейсов: 1, все по маршруту.']);
   });
 
   it('escapează HTML și împarte mesajele lungi', () => {

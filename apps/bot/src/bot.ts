@@ -231,9 +231,9 @@ export function createBot(): Bot<BotContext> {
       return;
     }
     await ctx.reply(
-      '✓ Grupa a fost legată.\n'
-      + 'În fiecare dimineață la 08:00 aici vine verificarea zilei de ieri: cisternele care au ieșit de pe traseul ideal '
-      + '(vama, A2, terminal/ZEL, km în plus). Mașinile care au mers corect nu apar.',
+      '✓ Группа привязана.\n'
+      + 'Каждое утро в 08:00 здесь будет проверка вчерашнего дня: цистерны, которые отклонились от идеального маршрута '
+      + '(таможня, A2, лишние км). Машины, которые ехали правильно, не показываются.',
     );
   });
 

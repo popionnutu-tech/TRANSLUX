@@ -14,12 +14,13 @@ const SYSTEM = `Ești asistentul de traseu al cisternelor TLX, în grupa de Tele
 Răspunzi DOAR din fișa scheletului ideal de mai jos. Nu inventa drumuri, km, ore, vămi sau reguli care nu sunt în fișă.
 
 Cum răspunzi:
-- În limba întrebării (română sau rusă), scurt: cel mult 8 rânduri, text simplu fără markdown; poți folosi → și •.
+- MEREU pe RUSĂ (Ion, 30.09: toată comunicarea din grupă e pe rusă), oricum ar fi scrisă întrebarea; numele orașelor și ale vămilor pe rusă (Джурджулешты, Албица, Отачь, Констанца, Бельцы, Унгены…). Scurt: cel mult 8 rânduri, text simplu fără markdown; poți folosi → și •.
 - Pentru o cursă: drumul (orașele cu →), vama, km și orele din fișă. La motorină dai varianta DE BAZĂ (prin baza petrolieră); varianta directă doar dacă e întrebată sau dacă omul spune că merge direct (atunci «doar cu acordul dispecerului»).
 - Amintește, când e cazul, drumul de jos prin România (Măcin → podul Brăila → Galați, nu A2) și vama corectă.
 - Pentru drum gol înapoi: vama și km din tabelul drumurilor goale.
-- Dacă destinația, marfa sau punctul nu sunt în fișă, spune că nu sunt în schelet și să întrebe dispecerul.
-- Nu răspunzi la altceva decât traseele (salarii, norme, încărcare, acte): «întrebați dispecerul».
+- Dacă destinația, marfa sau punctul nu sunt în fișă, spune (pe rusă) că nu sunt în schemă și să întrebe dispecerul.
+- Amintește, dacă e firesc, că km în afara traseului nu se socotesc nici la motorină, nici la salariu.
+- Nu răspunzi la altceva decât traseele (salarii, norme, încărcare, acte): «спросите диспетчера».
 
 FIȘA:
 ${CAMIOANE_SCHELET_FISA}`;
@@ -67,8 +68,8 @@ let client: Anthropic | null = null;
 
 /** Răspunsul la o întrebare de traseu. Nu aruncă: la orice eșec, un mesaj scurt care trimite la dispecer. */
 export async function raspundeTraseu(intrebare: string, contextAnterior?: string): Promise<string> {
-  if (!config.anthropicApiKey) return 'Asistentul de traseu nu e configurat. Traseele sunt în imaginile fixate în grupă.';
-  if (!permis()) return 'Prea multe întrebări în ultima oră. Traseele sunt în imaginile fixate în grupă.';
+  if (!config.anthropicApiKey) return 'Помощник по маршрутам не настроен. Маршруты — в закреплённых картах группы.';
+  if (!permis()) return 'Слишком много вопросов за последний час. Маршруты — в закреплённых картах группы.';
   if (!client) client = new Anthropic({ apiKey: config.anthropicApiKey });
   try {
     const res = await client.messages.create({
@@ -81,9 +82,9 @@ export async function raspundeTraseu(intrebare: string, contextAnterior?: string
       ],
     });
     const text = res.content.find((b) => b.type === 'text')?.text?.trim();
-    return text || 'Nu am găsit răspunsul în schelet. Întrebați dispecerul.';
+    return text || 'В схеме ответа нет. Спросите диспетчера.';
   } catch (err) {
     console.error('[camioane-traseu] Anthropic:', (err as Error)?.message ?? err);
-    return 'Nu pot răspunde acum. Traseele sunt în imaginile fixate în grupă; la nevoie, întrebați dispecerul.';
+    return 'Сейчас не могу ответить. Маршруты — в закреплённых картах группы; если нужно, спросите диспетчера.';
   }
 }

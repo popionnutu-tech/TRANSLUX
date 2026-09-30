@@ -10,13 +10,15 @@ import SalaryTab from './tabs/SalaryTab';
 import TariffsTab from './tabs/TariffsTab';
 import IncasareTab from './tabs/IncasareTab';
 import AuditTab from './tabs/AuditTab';
+import BileteAparatTab from './tabs/BileteAparatTab';
 
-type Tab = 'numarare' | 'audit' | 'incasare' | 'operatori' | 'salariu' | 'tarife';
+type Tab = 'numarare' | 'audit' | 'incasare' | 'bilete' | 'operatori' | 'salariu' | 'tarife';
 
 const ALL_TABS: { key: Tab; label: string }[] = [
   { key: 'numarare', label: 'GO' },
   { key: 'audit', label: 'Audit' },
   { key: 'incasare', label: 'Încasare' },
+  { key: 'bilete', label: 'Bilete aparat' },
   { key: 'operatori', label: 'Operatori' },
   { key: 'salariu', label: 'Salariu' },
   { key: 'tarife', label: 'Tarife' },
@@ -24,7 +26,7 @@ const ALL_TABS: { key: Tab; label: string }[] = [
 
 export default function NumararePageClient({ role }: { role: AdminRole }) {
   // Vizibilitatea tab-urilor pe rol:
-  // - ADMIN              → toate tab-urile
+  // - ADMIN              → toate tab-urile (inclusiv «Bilete aparat», doar pentru ADMIN)
   // - ADMIN_CAMERE       → toate EXCEPT 'incasare' (mutat sub EVALUATOR_INCASARI)
   // - EVALUATOR_INCASARI → DOAR 'incasare'
   // - alți utilizatori   → fără tab-uri (NumarareClient direct)
@@ -33,7 +35,7 @@ export default function NumararePageClient({ role }: { role: AdminRole }) {
   const isEvaluator = role === 'EVALUATOR_INCASARI';
 
   const visibleTabs: Tab[] = isAdmin
-    ? ['numarare', 'audit', 'incasare', 'operatori', 'salariu', 'tarife']
+    ? ['numarare', 'audit', 'incasare', 'bilete', 'operatori', 'salariu', 'tarife']
     : isAdminCamere
     ? ['numarare', 'audit', 'operatori', 'salariu', 'tarife']
     : isEvaluator
@@ -73,7 +75,7 @@ export default function NumararePageClient({ role }: { role: AdminRole }) {
 
   // Doar tab-urile cu tabele late (Document casier / GO) folosesc toată lățimea; restul
   // (operatori/salariu/tarife/audit) rămân centrate ca înainte.
-  const wideTab = activeTab === 'incasare' || activeTab === 'numarare';
+  const wideTab = activeTab === 'incasare' || activeTab === 'numarare' || activeTab === 'bilete';
 
   return (
     <div className="page" style={wideTab ? { maxWidth: 'none' } : undefined}>
@@ -113,6 +115,7 @@ export default function NumararePageClient({ role }: { role: AdminRole }) {
       {activeTab === 'numarare' && visibleTabs.includes('numarare') && <NumarareClient role={role} />}
       {activeTab === 'audit' && visibleTabs.includes('audit') && <AuditTab />}
       {activeTab === 'incasare' && visibleTabs.includes('incasare') && <IncasareTab role={role} />}
+      {activeTab === 'bilete' && visibleTabs.includes('bilete') && <BileteAparatTab />}
       {activeTab === 'operatori' && visibleTabs.includes('operatori') && <OperatorsTab />}
       {activeTab === 'salariu' && visibleTabs.includes('salariu') && <SalaryTab />}
       {activeTab === 'tarife' && visibleTabs.includes('tarife') && <TariffsTab />}

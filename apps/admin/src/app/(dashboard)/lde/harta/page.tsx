@@ -2,13 +2,14 @@ export const dynamic = 'force-dynamic';
 
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { getListaHarta, getSaptamaniHarta, getZiHarta } from './actions';
+import { getControlCamioane, getListaHarta, getSaptamaniHarta, getZiHarta, type ControlCamion } from './actions';
 import HartaClient from './HartaClient';
-import { masiniSaptamana, UZINE_HARTA, uzHarta, type LinieSchelet, type Punct } from '@/lib/lde/drax-harta';
+import { liniiCamioane, masiniCamioane, masiniSaptamana, UZINE_HARTA, uzHarta, type LinieSchelet, type Punct, type ScheletCamioaneHarta } from '@/lib/lde/drax-harta';
 
 // Harta fiecărei mașini pe zi, peste scheletul liniilor ei (ION-130, Drăxlmaier). Ion, 28.09.2026: «ar fi bine să putem fiecare mașină
 // s-o vizualizăm pe schelet, să fie o pagină separată în LDE, în care drumurile se arată detaliat la fiecare mașină pe hartă».
 // ION-143 (29.09): și LEAR Ungheni / LEAR Florești, cu locurile optime de parcare (?uz=ungheni|floresti; fără uz = Drăxlmaier).
+// ION-150 (30.09): și cisternele (?uz=camioane) — urma față de linia ideală din schelet-camioane.json, P1/P2 doar informativ.
 // Alegerea (uzina, săptămâna, mașina, ziua) stă în adresă: /lde/harta?uz=ungheni&sapt=2026-09-21&m=827MUM&z=2026-09-21.
 type ScheletDrax = {
   porti: { c: Punct; n: string }[]; parc: Punct;
@@ -25,14 +26,21 @@ export default async function LdeHartaPage({ searchParams }: { searchParams: Pro
   if (!sapt) return <p style={{ padding: 16 }}>Nu există încă nicio hartă scrisă pentru {U.nume} (lanțul săptămânal, pasul «harta»).</p>;
 
   const lista = await getListaHarta(uz, sapt);
-  const masini = masiniSaptamana(lista);
+  const masini = uz === 'camioane' ? masiniCamioane(lista) : masiniSaptamana(lista);
   const masina = masini.find((x) => x.m === q.m) ?? masini[0];
   const z = masina.zile.includes(q.z ?? '') ? q.z! : masina.zile[0];
   const zi = await getZiHarta(uz, sapt, masina.m, z);
 
   const liniiMasina = new Set(masina.linii);
   let linii: LinieSchelet[], porti: { c: Punct; n: string }[];
-  if (U.lear) {
+  let control: ControlCamion[] = [];
+  if (uz === 'camioane') {
+    // cisternele: liniile ideale ale drumurilor care ating ziua (cheile scrise de harta.mjs), punctele fixe ale scheletului
+    const s = JSON.parse(await readFile(path.join(process.cwd(), 'public', 'lde', 'schelet-camioane.json'), 'utf8')) as ScheletCamioaneHarta;
+    linii = liniiCamioane(s, zi?.linii ?? []);
+    porti = s.puncte;
+    control = await getControlCamioane(sapt);
+  } else if (U.lear) {
     // LEAR: rutele mașinii (A12, B10 …) din scheletul fix al uzinei; turul plin sub urmă
     const s = JSON.parse(await readFile(path.join(process.cwd(), 'public', 'lde', U.schelet), 'utf8')) as ScheletLear;
     linii = s.rute.filter((r) => liniiMasina.has(r.id)).map((r) => ({ id: r.id, capat: r.capat, plin: r.g?.tur?.plin ?? [], sate: r.g?.tur?.sate ?? [] }));
@@ -47,7 +55,7 @@ export default async function LdeHartaPage({ searchParams }: { searchParams: Pro
   return (
     <HartaClient
       uz={uz} saptamani={saptamani} sapt={sapt} masini={masini} masina={masina.m} z={z} zi={zi}
-      zileMasina={lista.filter((r) => r.m === masina.m)} linii={linii} porti={porti}
+      zileMasina={lista.filter((r) => r.m === masina.m)} linii={linii} porti={porti} control={control}
     />
   );
 }

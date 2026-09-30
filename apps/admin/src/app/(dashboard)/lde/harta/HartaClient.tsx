@@ -6,9 +6,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { povesteZi } from '@/lib/lde/drax-ziua';
 import {
-  CULOARE, LINIE, NUME_TIP, UZINE_HARTA, eticZi, masiniSaptamana, randuriDinIntervale,
-  type LinieSchelet, type Punct, type RandListaHarta, type RandZi, type TipInterval, type UzHarta, type ZiHarta,
+  CULOARE, FEL_STATIONARE, LINIE, NUME_TIP, UZINE_HARTA, eticZi, masiniCamioane, masiniSaptamana, randuriCamioane, randuriDinIntervale, tipuriLegenda,
+  type LinieSchelet, type Punct, type RandListaHarta, type RandZi, type UzHarta, type ZiHarta,
 } from '@/lib/lde/drax-harta';
+import type { ControlCamion } from './actions';
 import { culoareLoc, textDrum } from '@/lib/lde/drax-parcare';
 
 const HartaMasinaMap = dynamic(() => import('@/components/HartaMasinaMap'), {
@@ -20,13 +21,13 @@ const MONO = "var(--font-mono, 'JetBrains Mono', ui-monospace, monospace)";
 const ETICHETA: React.CSSProperties = { fontSize: 9.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' };
 const n0 = (x: number | null | undefined) => (x == null ? '—' : Math.round(x).toLocaleString('ro-RO'));
 const n1 = (x: number | null | undefined) => (x == null ? '—' : (Math.round(x * 10) / 10).toLocaleString('ro-RO'));
-const TIP_MISCARE: Record<string, TipInterval> = { cuOameni: 'cursa', intreUzine: 'munca', service: 'munca', deplasare: 'munca' };
+const TIP_MISCARE: Record<string, RandZi['tip']> = { cuOameni: 'cursa', intreUzine: 'munca', service: 'munca', deplasare: 'munca' };
 
-type Masina = ReturnType<typeof masiniSaptamana>[number];
+type Masina = ReturnType<typeof masiniSaptamana>[number] & Partial<Pick<ReturnType<typeof masiniCamioane>[number], 'kmPlus' | 'nrAbateri' | 'plin'>>;
 
-export default function HartaClient({ uz, saptamani, sapt, masini, masina, z, zi, zileMasina, linii, porti }: {
+export default function HartaClient({ uz, saptamani, sapt, masini, masina, z, zi, zileMasina, linii, porti, control = [] }: {
   uz: UzHarta; saptamani: string[]; sapt: string; masini: Masina[]; masina: string; z: string; zi: ZiHarta | null;
-  zileMasina: RandListaHarta[]; linii: LinieSchelet[]; porti: { c: Punct; n: string }[];
+  zileMasina: RandListaHarta[]; linii: LinieSchelet[]; porti: { c: Punct; n: string }[]; control?: ControlCamion[];
 }) {
   const router = useRouter();
   const [ales, setAles] = useState<string | null>(null);
@@ -38,11 +39,12 @@ export default function HartaClient({ uz, saptamani, sapt, masini, masina, z, zi
   }, []);
 
   const U = UZINE_HARTA[uz], pre = uz === 'drax' ? '/lde/harta?' : `/lde/harta?uz=${uz}&`;
+  const cam = uz === 'camioane';   // ION-150: cisternele — drumul față de schelet, P1/P2 doar informativ
   const href = (m: string, zz?: string) => `${pre}sapt=${sapt}&m=${m}${zz ? `&z=${zz}` : ''}`;
   // Drăxlmaier: povestea zilei (drax-ziua.ts); LEAR (ION-143): rândurile din intervalele hărții
   const miscari: RandZi[] = useMemo(() => (zi?.zi
     ? povesteZi(zi.zi, zi.casa?.n ?? null).map((x) => ({ ora: x.ora, tip: TIP_MISCARE[x.tip] ?? 'gol', text: x.text.startsWith(x.ora) ? x.text.slice(x.ora.length).trim() : x.text, tare: x.kmPeAcasa >= 0.5 }))
-    : zi ? randuriDinIntervale(zi.iv) : []), [zi]);
+    : zi ? (cam ? randuriCamioane(zi.iv) : randuriDinIntervale(zi.iv)) : []), [zi, cam]);
   const sumar = zileMasina.find((r) => r.z === z)?.sumar;
   const m = masini.find((x) => x.m === masina);
 
@@ -64,7 +66,9 @@ export default function HartaClient({ uz, saptamani, sapt, masini, masina, z, zi
         <div style={{ flex: '1 1 420px' }}>
           <h1 style={{ fontSize: 18, margin: 0 }}>Harta mașinii — {U.nume}</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: 11.5, margin: '3px 0 0', maxWidth: '96ch', lineHeight: 1.45 }}>
-            Urma GPS a zilei peste {U.lear ? 'rutele' : 'linia'} mașinii din schelet (galben pal). Culoarea spune ce face mașina, aceleași intervale ca în
+            {cam ? <>Urma GPS a zilei (00:00–24:00) peste linia ideală din schelet a drumurilor zilei (galben pal): vama, drumul prin România și Moldova,
+              abaterile din verificarea zilnică. Locurile de stat P1/P2 sunt doar informative, fără km de tăiat (Ion, 30.09).</> : <>
+            Urma GPS a zilei peste {U.lear ? 'rutele' : 'linia'} mașinii din schelet (galben pal).</>}{' '} Culoarea spune ce face mașina, aceleași intervale ca în
             «Ziua făcută, drum cu drum». Apasă pe un rând din dreapta sau pe urmă ca să vezi doar acel drum.
           </p>
         </div>
@@ -88,7 +92,7 @@ export default function HartaClient({ uz, saptamani, sapt, masini, masina, z, zi
         {/* stânga: mașinile, cele cu mai mulți km de tăiat întâi */}
         <div className="harta-col stanga" style={{ borderRight: '1px solid var(--border-accent)' }}>
           <div style={{ ...ETICHETA, padding: '6px 11px', background: '#fff', borderBottom: '1px solid var(--border-accent)', position: 'sticky', top: 0, zIndex: 2 }}>
-            {masini.length} mașini · km de tăiat pe săpt.
+            {cam ? `${masini.length} cisterne · km în săpt. · peste ideal` : `${masini.length} mașini · km de tăiat pe săpt.`}
           </div>
           {masini.map((x) => {
             const activ = x.m === masina;
@@ -100,31 +104,48 @@ export default function HartaClient({ uz, saptamani, sapt, masini, masina, z, zi
               }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                   <b style={{ fontFamily: MONO, fontSize: 13, flex: 1 }}>{x.m}</b>
-                  <span style={{ fontFamily: MONO, fontSize: 13, fontVariantNumeric: 'tabular-nums', color: x.economie >= 100 ? '#9B1B30' : 'var(--text)' }}>{n0(x.economie)}</span>
-                  <span style={{ fontSize: 9.5, color: 'var(--text-muted)' }}>km</span>
+                  {cam ? <>
+                    <span style={{ fontFamily: MONO, fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>{n0(x.total)}</span>
+                    <span style={{ fontSize: 9.5, color: 'var(--text-muted)' }}>km</span>
+                  </> : <>
+                    <span style={{ fontFamily: MONO, fontSize: 13, fontVariantNumeric: 'tabular-nums', color: x.economie >= 100 ? '#9B1B30' : 'var(--text)' }}>{n0(x.economie)}</span>
+                    <span style={{ fontSize: 9.5, color: 'var(--text-muted)' }}>km</span>
+                  </>}
                 </div>
                 <div style={{ fontSize: 10.5, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {x.linii.map((l) => l.replace('|', ' · ')).join(', ') || 'fără linie'} · {x.zile.length} zile
+                  {cam
+                    ? <>{x.kmPlus ? <b style={{ color: '#9B1B30' }}>+{n0(x.kmPlus)} km peste ideal</b> : 'fără km peste ideal'} · {x.zile.length} zile</>
+                    : <>{x.linii.map((l) => l.replace('|', ' · ')).join(', ') || 'fără linie'} · {x.zile.length} zile</>}
                 </div>
               </Link>
             );
           })}
+          {cam && control.some((c) => !c.pe || c.motiv) ? (
+            <div style={{ padding: '8px 11px', fontSize: 10.5, color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+              <div style={{ ...ETICHETA, marginBottom: 3 }}>Restul flotei ({control.filter((c) => !c.pe).length} fără hartă)</div>
+              {control.filter((c) => !c.pe || c.motiv).map((c) => (
+                <div key={`${c.m}-${c.pe}`} style={{ marginBottom: 2 }}><b style={{ fontFamily: MONO }}>{c.m}</b> {c.motiv}</div>
+              ))}
+            </div>
+          ) : null}
         </div>
 
         {/* mijloc: harta */}
         <div className="harta-harta">
-          {zi ? <HartaMasinaMap zi={zi} linii={linii} porti={porti} ales={ales} onAlege={setAles} />
+          {zi ? <HartaMasinaMap zi={zi} linii={linii} porti={porti} ales={ales} onAlege={setAles} informativ={cam} />
             : <p style={{ padding: 16 }}>Nu există hartă pentru {masina} în {z}.</p>}
           <div style={{ position: 'absolute', left: 10, bottom: 22, zIndex: 500, background: '#fff', border: '1px solid var(--border-accent)',
             borderRadius: 6, padding: '6px 9px', fontSize: 10.5, color: 'var(--text-secondary)', display: 'grid', gap: 3 }}>
-            {(Object.keys(CULOARE) as TipInterval[]).map((t) => (
+            {tipuriLegenda(uz).map((t) => (
               <span key={t} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <svg width="26" height="6" aria-hidden><line x1="1" y1="3" x2="25" y2="3" stroke={CULOARE[t]} strokeWidth="3" strokeDasharray={LINIE[t]} /></svg>{NUME_TIP[t]}
               </span>
             ))}
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><svg width="26" height="8" aria-hidden><line x1="1" y1="4" x2="25" y2="4" stroke="#C9B458" strokeOpacity="0.5" strokeWidth="7" /></svg>schelet</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><svg width="26" height="6" aria-hidden><line x1="2" y1="3" x2="25" y2="3" stroke={culoareLoc(1)} strokeWidth="3.5" strokeDasharray="1 6" strokeLinecap="round" /></svg>drum propus · <b style={{ background: culoareLoc(1), color: '#fff', borderRadius: 4, padding: '0 4px' }}>P1</b> <b style={{ background: culoareLoc(2), color: '#fff', borderRadius: 4, padding: '0 4px' }}>P2</b> parcare</span>
-            <span>● oprire ≥ 5 min · <b style={{ color: '#2E7D32' }}>○</b> acasă · <b style={{ color: '#5B3A8C' }}>○</b> noaptea</span>
+            {cam
+              ? <span><b style={{ background: culoareLoc(1), color: '#fff', borderRadius: 4, padding: '0 4px' }}>P1</b> <b style={{ background: culoareLoc(2), color: '#fff', borderRadius: 4, padding: '0 4px' }}>P2</b> unde stă (informativ) · <b style={{ color: '#B3261E' }}>◎</b> odihnă departe de drumul ideal</span>
+              : <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><svg width="26" height="6" aria-hidden><line x1="2" y1="3" x2="25" y2="3" stroke={culoareLoc(1)} strokeWidth="3.5" strokeDasharray="1 6" strokeLinecap="round" /></svg>drum propus · <b style={{ background: culoareLoc(1), color: '#fff', borderRadius: 4, padding: '0 4px' }}>P1</b> <b style={{ background: culoareLoc(2), color: '#fff', borderRadius: 4, padding: '0 4px' }}>P2</b> parcare</span>}
+            <span>● oprire ≥ 5 min · <b style={{ color: '#2E7D32' }}>○</b> acasă · <b style={{ color: '#5B3A8C' }}>○</b> noaptea{cam ? ' · ■ puncte (încărcare, stații, vămi)' : ''}</span>
           </div>
           {ales && (
             <button onClick={() => setAles(null)} style={{ position: 'absolute', right: 10, top: 10, zIndex: 500, fontSize: 12, padding: '4px 10px',
@@ -138,12 +159,35 @@ export default function HartaClient({ uz, saptamani, sapt, masini, masina, z, zi
             <b style={{ fontFamily: MONO, fontSize: 16 }}>{masina}</b>
             {zi?.casa && <span style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>acasă: {zi.casa.n}</span>}
           </div>
+          {cam ? (
+            <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 2 }}>
+              săptămâna: {n0(m?.total)} km, din care cu marfă {n0(m?.plin)} km; peste ideal (verificarea zilnică) {m?.kmPlus ? <b style={{ color: '#9B1B30' }}>{n0(m.kmPlus)} km</b> : '0 km'}
+              {m?.nrAbateri ? ` în ${m.nrAbateri} drumuri` : ''}
+            </div>
+          ) : (
           <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 2 }}>
             săptămâna: {n0(m?.total)} km, de tăiat {sumar?.sursaEconomie === 'parcare' ? 'cu parcarea propusă' : 'față de ziua ideală (calcul vechi)'} {n0(m?.economie)} km pe săptămână
             {m && Math.abs(m.economie - m.zileMasurate) > 0.5 && <> (în zilele măsurate {n0(m.zileMasurate)} km, adus la 5 zile ca în raport)</>}
           </div>
+          )}
 
-          {zi?.parcare?.locuri.length ? (
+          {cam && zi?.parcare?.locuri.length ? (
+            <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border-accent)', background: '#F6F4EE' }}>
+              <div style={ETICHETA}>Unde stă în săptămână — informativ</div>
+              <div style={{ display: 'grid', gap: 3, marginTop: 4, fontSize: 12.5 }}>
+                {zi.parcare.locuri.map((l) => (
+                  <span key={l.nr} style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                    <b style={{ background: culoareLoc(l.nr), color: '#fff', borderRadius: 5, padding: '1px 6px', fontFamily: MONO, fontSize: 11 }}>P{l.nr}</b>
+                    <span>{l.n}{l.ore != null ? `, ${l.ore} h` : ''} — <span style={{ color: l.fel === 'abatere' ? '#9B1B30' : 'var(--text-secondary)' }}>{FEL_STATIONARE[l.fel] ?? l.fel}</span></span>
+                  </span>
+                ))}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4, lineHeight: 1.4 }}>
+                Fără km de tăiat (Ion, 30.09). Staționările de peste 24 h rămân; odihna la Galați, Ovidiu / Agigea, Giurgiu, Novi Iskăr e bună;
+                odihna la peste 5 km de drumul ideal e abatere (ex. Albina).
+              </div>
+            </div>
+          ) : !cam && zi?.parcare?.locuri.length ? (
             <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border-accent)', background: '#FFF7F0' }}>
               <div style={ETICHETA}>Parcare propusă</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4, fontSize: 13 }}>
@@ -182,7 +226,7 @@ export default function HartaClient({ uz, saptamani, sapt, masini, masina, z, zi
                   background: activ ? 'var(--primary)' : 'transparent', color: activ ? '#fff' : 'var(--text)', lineHeight: 1.25, textAlign: 'center',
                 }}>
                   <div style={{ fontWeight: 600 }}>{eticZi(r.z)}</div>
-                  <div style={{ fontFamily: MONO, fontSize: 10.5, opacity: 0.85 }}>{r.sumar.economie == null ? '—' : `−${n0(r.sumar.economie)}`}</div>
+                  <div style={{ fontFamily: MONO, fontSize: 10.5, opacity: 0.85 }}>{cam ? `${n0(r.sumar.total)}${r.sumar.kmPlus ? ` +${n0(r.sumar.kmPlus)}` : ''}` : r.sumar.economie == null ? '—' : `−${n0(r.sumar.economie)}`}</div>
                 </Link>
               );
             })}
@@ -190,14 +234,52 @@ export default function HartaClient({ uz, saptamani, sapt, masini, masina, z, zi
 
           {sumar && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8, padding: '8px 0', borderTop: '1px solid var(--border-accent)', borderBottom: '1px solid var(--border-accent)' }}>
-              {[['în zi', sumar.total], ['cu oameni', sumar.cuOameni], ['goi', sumar.gol], [sumar.economie == null ? 'nu intră în calcul' : 'de tăiat', sumar.economie]].map(([e, v]) => (
+              {(cam
+                ? [['în zi', sumar.total], ['cu marfă', sumar.plin ?? sumar.cuOameni], ['gol', sumar.gol], ['peste ideal', sumar.kmPlus ?? 0]]
+                : [['în zi', sumar.total], ['cu oameni', sumar.cuOameni], ['goi', sumar.gol], [sumar.economie == null ? 'nu intră în calcul' : 'de tăiat', sumar.economie]]).map(([e, v]) => (
                 <div key={e as string}>
                   <div style={ETICHETA}>{e}</div>
-                  <div style={{ fontFamily: MONO, fontSize: 14, color: e === 'de tăiat' ? '#9B1B30' : 'var(--text)' }}>{n1(v as number | null)}</div>
+                  <div style={{ fontFamily: MONO, fontSize: 14, color: e === 'de tăiat' || (e === 'peste ideal' && Number(v) > 0) ? '#9B1B30' : 'var(--text)' }}>{n1(v as number | null)}</div>
                 </div>
               ))}
             </div>
           )}
+
+          {cam && zi?.drumuri?.length ? (
+            <>
+              <div style={{ ...ETICHETA, margin: '10px 0 4px' }}>Drumurile față de schelet</div>
+              <div style={{ display: 'grid', gap: 4, fontSize: 12 }}>
+                {zi.drumuri.map((d) => (
+                  <div key={d.inceput + d.tip} style={{ lineHeight: 1.4 }}>
+                    <b style={{ color: d.tip === 'plin' ? CULOARE.plin : CULOARE.gol }}>{d.tip === 'plin' ? `cu ${d.marfa ?? 'marfă'}` : 'gol'}</b> {d.de ?? '—'} → {d.pana ?? '—'}
+                    <span style={{ fontFamily: MONO, color: 'var(--text-secondary)' }}> · {n0(d.km)} km{d.ideal != null ? ` / ideal ${n0(d.ideal)}` : ''}</span>
+                    {d.plus != null && d.plus > 0 ? <b style={{ color: '#9B1B30' }}> +{n0(d.plus)}</b> : null}
+                    {d.vama ? <span style={{ color: 'var(--text-secondary)' }}> · vama {d.vama}</span> : null}
+                    <div style={{ fontSize: 10.5, color: 'var(--text-secondary)' }}>
+                      {eticZi(d.inceput.slice(0, 10))} → {eticZi(d.sfarsit.slice(0, 10))}
+                      {d.nota ? ` · ${d.nota}` : ''}
+                      {d.verif ? ` · verificat ${eticZi(d.verif.zi)}: ${d.verif.ok ? 'în regulă' : `abatere +${n0(d.verif.kmPlus)} km`}` : d.tip === 'plin' || d.ideal != null ? ' · fără verificare zilnică (ION-144 rulează din 29.09)' : ''}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : null}
+          {cam && zi?.verif?.some((v) => !v.ok) ? (
+            <>
+              <div style={{ ...ETICHETA, margin: '10px 0 4px' }}>Abaterile din verificarea zilnică (ION-144)</div>
+              {zi.verif.filter((v) => !v.ok).map((v) => (
+                <div key={v.cheie} style={{ fontSize: 11.5, lineHeight: 1.45, marginBottom: 6 }}>
+                  <b>{v.de ?? '—'} → {v.pana ?? '—'}</b> <span style={{ fontFamily: MONO }}>{n0(v.km_gps)} km{v.km_ideal != null ? ` / ${n0(v.km_ideal)}` : ''}</span>
+                  {v.km_plus > 0 ? <b style={{ color: '#9B1B30' }}> +{n0(v.km_plus)}</b> : null} <span style={{ color: 'var(--text-secondary)' }}>(zi {eticZi(v.zi)})</span>
+                  <ul style={{ margin: '2px 0 0', paddingLeft: 16 }}>
+                    {v.abateri.filter((a) => a.cod !== 'traseu').map((a, i) => <li key={i}>{a.text}{a.km ? ` (${a.km > 0 ? '+' : ''}${n0(a.km)} km)` : ''}</li>)}
+                    {v.abateri.filter((a) => a.cod === 'traseu').map((a, i) => <li key={`t${i}`} style={{ color: 'var(--text-secondary)' }}>ideal: {a.ideal}<br />real: {a.real}</li>)}
+                  </ul>
+                </div>
+              ))}
+            </>
+          ) : null}
 
           <div style={{ ...ETICHETA, margin: '10px 0 4px' }}>Ziua făcută, drum cu drum</div>
           {/* Rânduri, nu <button>: regula globală «.dashboard button» (globals.css) centrează, face cursiv și ține textul pe un rând.

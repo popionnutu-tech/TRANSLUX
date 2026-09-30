@@ -1,0 +1,38 @@
+rute noi 720
+candidați 39 | picioare cu parcare ≥ 8 h 25
+ANT347 gol → Rafinăria Petromidia | parcări: Bubuieci 77h | direct 417 prin parcări 434 ocol 17.3 (≥24h)
+ANT347 plin → Bază Briceni | parcări: Bubuieci 22h | direct 749 prin parcări 689 ocol -60.2 
+ANT347 plin → Bază Chișinău | parcări: Bubuieci 146h | direct 436 prin parcări 458 ocol 21.9 (≥24h)
+ANT347 plin → Bază Chișinău | parcări: Bubuieci 83h | direct 444 prin parcări 451 ocol 6.8 (≥24h)
+HMK135 gol → Port Constanța | parcări: Нови Искър 18h | direct 608 prin parcări 608 ocol -0.2 
+HMK135 gol → Port Constanța | parcări: Răuțel 59h, Răuțel 29h, Răuțel 117h | direct 634 prin parcări 639 ocol 5.1 (≥24h)
+HMK135 gol → Bază Berdichev | parcări: Răuțel 36h | direct 403 prin parcări 446 ocol 42.9 (≥24h)
+IIC263 gol → Port Constanța | parcări: Agigea 9h | direct 608 prin parcări 615 ocol 6.6 
+KWX620 gol → Rafinăria Petromidia | parcări: Bubuieci 110h | direct 53 prin parcări 65 ocol 11.5 (≥24h)
+KWX620 gol → Rafinăria Petromidia | parcări: Bubuieci 8h | direct 0 prin parcări 13 ocol 12.7 
+KWX620 gol → Rafinăria Petromidia | parcări: Bubuieci 23h | direct 0 prin parcări 13 ocol 12.8 
+KWX620 gol → Rafinăria Petromidia | parcări: Bubuieci 19h | direct 422 prin parcări 429 ocol 6.9 
+KWX620 plin → Bază Chișinău | parcări: Bubuieci 51h | direct 436 prin parcări 458 ocol 21.9 (≥24h)
+KWX620 plin → Bază Chișinău | parcări: Bubuieci 123h | direct 418 prin parcări 425 ocol 6.8 (≥24h)
+LJN076 gol → Port Constanța | parcări: Ovidiu 9h | direct 449 prin parcări 449 ocol 0 
+LJN076 gol → Bază Berdichev | parcări: Cupcini 11h | direct 256 prin parcări 295 ocol 38.4 
+LJN076 plin → Bază Chișinău | parcări: Galați 10h | direct 436 prin parcări 436 ocol 0.1 
+LJN076 plin → Bază Chișinău | parcări: Albina 12h | direct 436 prin parcări 482 ocol 45.7 
+MOW214 gol → Port Constanța | parcări: Нови Искър 21h, Agigea 9h | direct 611 prin parcări 618 ocol 6.6 
+MOW214 plin → Bază Chișinău | parcări: Galați 10h | direct 444 prin parcări 445 ocol 0 
+RWN169 gol → Port Constanța | parcări: Ovidiu 9h | direct 467 prin parcări 467 ocol 0 
+RWN169 gol → Port Constanța | parcări: Edineț 83h, Stolniceni 13h, Stolniceni 17h, Adjudu Vechi 10h, Edineț 45h, Adjudu Vechi 9h, Stolniceni 9h, Edineț 15h, Lămotești 9h, Stolniceni 9h, Brad 11h, Edineț 44h, Poiana lui Stângă 9h, Brad 9h | direct 449 prin parcări 6279 ocol 5829.7 (≥24h)
+RWN169 gol → Bază Berdichev | parcări: Edineț 36h | direct 403 prin parcări 470 ocol 66.6 (≥24h)
+RWN169 plin → Bază Chișinău | parcări: Galați 10h | direct 444 prin parcări 445 ocol 0 
+RWN193 gol → Port Constanța | parcări: Нови Искър 17h, Siminoc 11h | direct 611 prin parcări 611 ocol 0 
+
+placa | picioare | ore parcate | ocol real | A: toate parcările (economie, locuri) | B: doar sub 24 h
+ANT347 4 327h ocol -14.2 | A 0 Bază Briceni (punct) | B 0 Bază Briceni (punct)
+HMK135 3 258h ocol 47.8 | A 102.6 Galați (stă deja) | B 0 Bază Briceni (punct)
+IIC263 1 9h ocol 6.6 | A 0 Bază Briceni (punct) | B 0 Bază Briceni (punct)
+KWX620 6 334h ocol 72.6 | A 37 Bază Chișinău — stație Meșterul Manole (punct) | B 25.5 Bază Chișinău — stație Meșterul Manole (punct)
+LJN076 4 42h ocol 84.2 | A 45.7 Bază Chișinău — stație Bacioi (punct) | B 45.7 Bază Chișinău — stație Bacioi (punct)
+MOW214 2 41h ocol 6.6 | A 0 Bază Briceni (punct) | B 0 Bază Briceni (punct)
+RWN169 4 348h ocol 5896.3 | A 5896.4 Bază Chișinău — stație Meșterul Manole (punct) | B 0 Bază Briceni (punct)
+RWN193 1 28h ocol 0 | A 0 Bază Briceni (punct) | B 0 Bază Briceni (punct)
+TOTAL ocol 6100 economie A 6082 economie B 71

@@ -1,0 +1,15 @@
+import fs from 'node:fs';
+const A = JSON.parse(fs.readFileSync('analiza.json', 'utf8'));
+const P = JSON.parse(fs.readFileSync('parcare.json', 'utf8'));
+const act = A.masini.filter((m) => !m.motiv);
+console.log('active', act.length, act.map((m) => m.placa).join(','), 'km sept', act.reduce((s, m) => s + m.km, 0));
+const g = A.goluri.filter((x) => !(x.ore > 120 && x.km > 2 * (x.ideal ?? 1000)));
+const cu = g.filter((x) => x.ideal != null);
+console.log('goluri sept', A.goluri.length, 'judecabile', g.length, 'cu ideal', cu.length, 'km', Math.round(cu.reduce((s, x) => s + x.km, 0)), 'ideal', cu.reduce((s, x) => s + x.ideal, 0), 'plus', cu.reduce((s, x) => s + x.plus, 0));
+console.log('goluri fără ideal (Berdichev / din capăt biodiesel)', g.filter((x) => x.ideal == null).map((x) => `${x.placa} ${x.spre.replace(/ — .*/, '')} ${x.km}`).join('; '));
+const pic = P.picioare.filter((p) => p.real != null && !(p.placa === 'RWN169' && p.ocol > 1000));
+const zi = pic.filter((p) => !p.sapt), sapt = pic.filter((p) => p.sapt);
+const s = (l) => Math.round(l.reduce((a, p) => a + Math.max(0, p.ocol), 0));
+console.log('picioare cu parcare ≥8h (fără RWN169 4-24.09):', pic.length, '| sub 24h:', zi.length, 'ocol', s(zi), 'km | ≥24h (acasă / așteaptă comanda):', sapt.length, 'ocol', s(sapt), 'km');
+for (const p of zi) console.log('  zi', p.placa, p.tip, p.parc.map((x) => x.n).join(','), p.ocol);
+console.log('ore 03:00 total', Object.values(A.noapte).reduce((a, b) => a + b, 0), JSON.stringify(A.noapte));

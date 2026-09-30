@@ -33,8 +33,10 @@ const insigna = (nr: number) => L.divIcon({ className: '', iconSize: [36, 30], i
 
 const INEL = (culoare: string, r = 7) => ({ radius: r, pathOptions: { color: culoare, weight: 3, fillColor: '#fff', fillOpacity: 1 } });
 
-export default function HartaMasinaMap({ zi, linii, porti, ales, onAlege }: {
+export default function HartaMasinaMap({ zi, linii, porti, ales, onAlege, informativ = false }: {
   zi: ZiHarta; linii: LinieSchelet[]; porti: { c: Punct; n: string }[]; ales: string | null; onAlege: (ora: string | null) => void;
+  /** ION-150 (cisterne): P1/P2 = unde stă mașina, doar informativ; porțile = punctele fixe (pătrate) */
+  informativ?: boolean;
 }) {
   const ora = (s: number) => oraLocala(zi.t00, s);
   return (
@@ -109,8 +111,15 @@ export default function HartaMasinaMap({ zi, linii, porti, ales, onAlege }: {
       })}
       {(zi.parcare?.locuri ?? []).map((l) => (
         <Marker key={`P${l.nr}`} position={l.c} icon={insigna(l.nr)} zIndexOffset={1000}>
-          <Tooltip direction="right" offset={[18, 0]} permanent opacity={1}><b>{etichetaLoc(l)}</b> — parcare propusă</Tooltip>
+          <Tooltip direction="right" offset={[18, 0]} permanent opacity={1}><b>{etichetaLoc(l)}</b> — {informativ ? 'unde stă (informativ)' : 'parcare propusă'}</Tooltip>
         </Marker>
+      ))}
+
+      {/* ION-150: odihna departe de drumul ideal — inel roșu, cu judecata și locul propus informativ */}
+      {zi.iv.filter((v) => v.abatere && v.s.length).map((v) => (
+        <CircleMarker key={`ab-${v.ora}`} center={[v.s[0][0], v.s[0][1]]} {...INEL('#B3261E', 11)}>
+          <Tooltip direction="top" offset={[0, -10]}><b>{v.de}</b> {v.ora}<br />{v.nota}</Tooltip>
+        </CircleMarker>
       ))}
 
       {porti.map((p) => (

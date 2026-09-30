@@ -35,3 +35,13 @@ export async function getZiHarta(uz: string, saptamina: string, m: string, z: st
   if (error) throw new Error(`lde_harta_zi: ${error.message}`);
   return (data?.date as ZiHarta | undefined) ?? null;
 }
+
+/** ION-150: controlul flotei cisternelor pe săptămână — fiecare placă Wialon / cisternă din lde_truck_profile: pe hartă sau motivul */
+export interface ControlCamion { m: string; pe: boolean; motiv: string | null; tip: string | null; km?: number; zile?: number }
+export async function getControlCamioane(saptamina: string): Promise<ControlCamion[]> {
+  const session = await verifySession();
+  requireRole(session, 'ADMIN');
+  const { data, error } = await getSupabase().from('lde_analiza_reguli').select('date').eq('uzina', UZINE_HARTA.camioane.id).eq('saptamina', saptamina).maybeSingle();
+  if (error) throw new Error(`lde_analiza_reguli: ${error.message}`);
+  return ((data?.date as { control?: ControlCamion[] } | null)?.control ?? []);
+}

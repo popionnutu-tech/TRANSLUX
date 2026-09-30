@@ -8,6 +8,7 @@ import { buildTurAssignmentMap, buildReturAssignmentMap } from '@/lib/assignment
 import { depasesteLimita, FEREASTRA_MINUTE } from '@/lib/search-rate-limit';
 import { visitorHash } from '@/lib/visitor';
 import { resolveOfferPriceForDate, resolveOfferForDate } from '@translux/db';
+import { buildScheduledTrips, pickRate, type TimetableKmPair, type TimetableRoute, type TimetableStop } from '@/lib/timetable';
 
 export interface Locality {
   id: number;
@@ -65,6 +66,9 @@ export async function getLocalities(): Promise<Locality[]> {
 }
 
 export interface PopularRoutePrice {
+  /** Slug-urile (chisinau, balti…) — pentru linkul spre pagina de direcție (ION-153). */
+  from_slug?: string;
+  to_slug?: string;
   from_ro: string;
   to_ro: string;
   from_ru: string;
@@ -73,34 +77,20 @@ export interface PopularRoutePrice {
 }
 
 const POPULAR_ROUTES = [
-  { from: 'chisinau', to: 'balti', from_ro: 'Chișinău', to_ro: 'Bălți', from_ru: 'Кишинёв', to_ru: 'Бэлць' },
+  { from: 'chisinau', to: 'balti', from_ro: 'Chișinău', to_ro: 'Bălți', from_ru: 'Кишинёв', to_ru: 'Бельцы' },
   { from: 'chisinau', to: 'edinet', from_ro: 'Chișinău', to_ro: 'Edineț', from_ru: 'Кишинёв', to_ru: 'Единец' },
   { from: 'chisinau', to: 'singerei', from_ro: 'Chișinău', to_ro: 'Sîngerei', from_ru: 'Кишинёв', to_ru: 'Сынжерей' },
   { from: 'chisinau', to: 'ocnita', from_ro: 'Chișinău', to_ro: 'Ocnița', from_ru: 'Кишинёв', to_ru: 'Окница' },
-  { from: 'chisinau', to: 'otaci', from_ro: 'Chișinău', to_ro: 'Otaci', from_ru: 'Кишинёв', to_ru: 'Отачь' },
-  { from: 'chisinau', to: 'briceni', from_ro: 'Chișinău', to_ro: 'Briceni', from_ru: 'Кишинёв', to_ru: 'Бричень' },
+  { from: 'chisinau', to: 'otaci', from_ro: 'Chișinău', to_ro: 'Otaci', from_ru: 'Кишинёв', to_ru: 'Атаки' },
+  { from: 'chisinau', to: 'briceni', from_ro: 'Chișinău', to_ro: 'Briceni', from_ru: 'Кишинёв', to_ru: 'Бричаны' },
   { from: 'chisinau', to: 'cupcini', from_ro: 'Chișinău', to_ro: 'Cupcini', from_ru: 'Кишинёв', to_ru: 'Купчинь' },
-  { from: 'chisinau', to: 'lipcani', from_ro: 'Chișinău', to_ro: 'Lipcani', from_ru: 'Кишинёв', to_ru: 'Липкань' },
-  { from: 'chisinau', to: 'corjeuti', from_ro: 'Chișinău', to_ro: 'Corjeuți', from_ru: 'Кишинёв', to_ru: 'Коржеуць' },
-  { from: 'chisinau', to: 'grimancauti', from_ro: 'Chișinău', to_ro: 'Grimăncăuți', from_ru: 'Кишинёв', to_ru: 'Гримэнкэуць' },
+  { from: 'chisinau', to: 'lipcani', from_ro: 'Chișinău', to_ro: 'Lipcani', from_ru: 'Кишинёв', to_ru: 'Липканы' },
+  { from: 'chisinau', to: 'corjeuti', from_ro: 'Chișinău', to_ro: 'Corjeuți', from_ru: 'Кишинёв', to_ru: 'Коржеуцы' },
+  { from: 'chisinau', to: 'grimancauti', from_ro: 'Chișinău', to_ro: 'Grimăncăuți', from_ru: 'Кишинёв', to_ru: 'Гриманкауцы' },
   { from: 'chisinau', to: 'criva', from_ro: 'Chișinău', to_ro: 'Criva', from_ru: 'Кишинёв', to_ru: 'Крива' },
   { from: 'chisinau', to: 'larga', from_ro: 'Chișinău', to_ro: 'Larga', from_ru: 'Кишинёв', to_ru: 'Ларга' },
 ];
 
-/**
- * Alege rata corectă: dacă AMBELE opriri (A și B) sunt în raionul de start
- * al rutei → tarif suburban; altfel → tarif interurban (lung).
- */
-function pickRate(
-  fromD: string | null,
-  toD: string | null,
-  startD: string | null,
-  rateLong: number,
-  rateSub: number,
-): number {
-  if (startD && fromD === startD && toD === startD) return rateSub;
-  return rateLong;
-}
 
 /**
  * Resolvă tarifele (interurban lung + suburban) pentru o dată.
@@ -169,6 +159,8 @@ export async function getPopularPrices(): Promise<PopularRoutePrice[]> {
       }
 
       return {
+        from_slug: r.from,
+        to_slug: r.to,
         from_ro: r.from_ro,
         to_ro: r.to_ro,
         from_ru: r.from_ru,
@@ -440,20 +432,16 @@ export async function searchTrips(
   // O singură cifră per zi pentru toate cursele; ofertele manuale rămân fixe.
   const dateOfferPrice = offer ? resolveOfferPriceForDate(offer, historicalRate) : null;
 
-  // Build price lookup: tariff_id → price.
-  // Dacă ambele opriri sunt în raionul de start al rutei → tarif suburban; altfel interurban.
-  const priceMap = new Map<number, number>();
-  for (const p of (kmPairs) as any[]) {
-    if (!priceMap.has(p.tariff_id)) {
-      const kmVal = Number(p.km);
-      let price = 0;
-      if (historicalRate && historicalRateSub && kmVal > 0 && kmVal < 1000) {
-        const rate = pickRate(p.from_district, p.to_district, p.start_district, historicalRate, historicalRateSub);
-        price = Math.round(kmVal * rate);
-      }
-      priceMap.set(p.tariff_id, price);
-    }
-  }
+  // Care curse leagă cele două opriri, la ce oră și cu ce preț — nucleul comun cu paginile
+  // de direcție (lib/timetable.ts, ION-153). Aici se adaugă doar șoferul, mașina și oferta.
+  const scheduled = buildScheduledTrips({
+    routes: routes as TimetableRoute[],
+    fromStops: fromStops as TimetableStop[],
+    toStops: toStops as TimetableStop[],
+    kmPairs: kmPairs as TimetableKmPair[],
+    rateLong: historicalRate,
+    rateSub: historicalRateSub,
+  });
 
   // Build tur/retur assignment maps using shared utility
   const turDriverMap = buildTurAssignmentMap(allAssignments as any[]);
@@ -473,124 +461,56 @@ export async function searchTrips(
 
   const results: TripResult[] = [];
 
-  for (const route of routes as any[]) {
-    const from = fromMap.get(route.id)!;
-    const to = toMap.get(route.id)!;
-    // Ordinea opririlor vine din stop_order (id-ul nu mai garanteaza ordinea dupa migratia 263)
-    const goingNorth = from.stop_order > to.stop_order;
-    const tariffId = goingNorth ? route.tariff_id_retur : route.tariff_id_tur;
-    if (!tariffId) continue;
-
-    // Hide route if there's no km pair for this tariff — means the bus
-    // doesn't physically pass through both stops on this direction
-    // (ex: Coteala listed as stop in crm_stop_fares but tariff_retur=105 Criva Direct
-    //  which doesn't include Coteala).
-    if (!priceMap.has(tariffId)) continue;
-
-    const price = priceMap.get(tariffId) ?? 0;
-
+  for (const trip of scheduled) {
     // Apply offer: override price and keep original for display
     const offerPrice = dateOfferPrice;
-    const displayPrice = offerPrice ?? price;
-    const displayOriginal = offerPrice ? price : null;
+    const displayPrice = offerPrice ?? trip.price;
+    const displayOriginal = offerPrice ? trip.price : null;
 
-    if (goingNorth) {
-      // RETUR direction (Chișinău → Nord) — use retur assignment map.
-      // Ruta poate avea plecarea din Chișinău ascunsă (migr. 284): slotul există în
-      // orar, dar nu se operează ca plecare separată — de ex. ruta 2, al cărei șofer
-      // face returul la 10:40. Nu e o gaură de completat, deci n-o oferim nimănui.
-      if (route.retur_ascuns) continue;
-      const time = from.hour_from_chisinau;
-      const arrival = to.hour_from_chisinau && to.hour_from_chisinau !== '0:00' ? to.hour_from_chisinau : '';
-      if (time && time !== '0:00') {
-        const details = resolveDetails(returDriverMap.get(route.id));
-        const hasDriver = !!(details?.driver && details?.phone);
-        if (!hasDriver) {
-          // Cursa fără șofer se ARATĂ pentru orice zi viitoare. Decizia lui Ion (25.08,
-          // pe agentul vocal; 26.08 aceeași lipsă văzută pe site): «dacă nu este șoferul,
-          // trebuie spus că ruta va fi, dar datele șoferului mai târziu». Graficul zilei
-          // următoare se completează după-amiaza, iar oamenii caută dimineața — altfel
-          // cursa de 10:40 Chișinău–Bălți pur și simplu lipsea din listă.
-          // Pentru AZI rămâne ascunsă: azi graficul e complet, iar lipsa șoferului
-          // înseamnă de obicei că nu se merge.
-          if (daysUntilDeparture >= 1) {
-            results.push({
-              time,
-              arrivalTime: arrival,
-              destination_ro: route.dest_to_ro,
-              destination_ru: route.dest_to_ru,
-              duration: route.time_chisinau || '',
-              driver: null,
-              phone: null,
-              vehicle_plate: null,
-              // Peste 7 zile tariful se mai poate schimba, deci 0; pentru zilele
-              // apropiate prețul e cunoscut și pasagerul are dreptul să-l vadă.
-              price: daysUntilDeparture > 7 ? 0 : displayPrice,
-              originalPrice: daysUntilDeparture > 7 ? null : displayOriginal,
-              isAwaitingDriver: true,
-            });
-          }
-          continue;
-        }
+    // Chișinău → Nord folosește harta retur, Nord → Chișinău harta tur.
+    const details = resolveDetails((trip.goingNorth ? returDriverMap : turDriverMap).get(trip.routeId));
+    const hasDriver = !!(details?.driver && details?.phone);
+    const base = {
+      time: trip.time,
+      arrivalTime: trip.arrival,
+      destination_ro: trip.destination_ro,
+      destination_ru: trip.destination_ru,
+      duration: trip.routeDuration,
+    };
+
+    if (!hasDriver) {
+      // Cursa fără șofer se ARATĂ pentru orice zi viitoare. Decizia lui Ion (25.08,
+      // pe agentul vocal; 26.08 aceeași lipsă văzută pe site): «dacă nu este șoferul,
+      // trebuie spus că ruta va fi, dar datele șoferului mai târziu». Graficul zilei
+      // următoare se completează după-amiaza, iar oamenii caută dimineața — altfel
+      // cursa de 10:40 Chișinău–Bălți pur și simplu lipsea din listă.
+      // Pentru AZI rămâne ascunsă: azi graficul e complet, iar lipsa șoferului
+      // înseamnă de obicei că nu se merge.
+      if (daysUntilDeparture >= 1) {
         results.push({
-          time,
-          arrivalTime: arrival,
-          destination_ro: route.dest_to_ro,
-          destination_ru: route.dest_to_ru,
-          duration: route.time_chisinau || '',
-          driver: details!.driver,
-          phone: details!.phone,
-          vehicle_plate: details?.plate || null,
-          price: displayPrice,
-          originalPrice: displayOriginal,
+          ...base,
+          driver: null,
+          phone: null,
+          vehicle_plate: null,
+          // Peste 7 zile tariful se mai poate schimba, deci 0; pentru zilele
+          // apropiate prețul e cunoscut și pasagerul are dreptul să-l vadă.
+          price: daysUntilDeparture > 7 ? 0 : displayPrice,
+          originalPrice: daysUntilDeparture > 7 ? null : displayOriginal,
+          isAwaitingDriver: true,
         });
       }
-    } else {
-      // TUR direction (Nord → Chișinău) — use tur assignment map
-      // Plecarea din Nord poate fi ascunsă (migr. 332): ruta 13, Lipcani prin Rîșcani
-      // 15:00, nu se mai operează, dar returul ei de 08:00 din Chișinău da (Ion, 09.09).
-      if (route.tur_ascuns) continue;
-      const time = from.hour_from_nord;
-      const arrival = to.hour_from_nord && to.hour_from_nord !== '0:00' ? to.hour_from_nord : '';
-      if (time && time !== '0:00') {
-        const details = resolveDetails(turDriverMap.get(route.id));
-        const hasDriver = !!(details?.driver && details?.phone);
-        if (!hasDriver) {
-          // Vezi comentariul din ramura RETUR: se arată pentru orice zi viitoare.
-          if (daysUntilDeparture >= 1) {
-            results.push({
-              time,
-              arrivalTime: arrival,
-              destination_ro: route.dest_from_ro,
-              destination_ru: route.dest_from_ru,
-              duration: route.time_nord || '',
-              driver: null,
-              phone: null,
-              vehicle_plate: null,
-              // Peste 7 zile tariful se mai poate schimba, deci 0; pentru zilele
-              // apropiate prețul e cunoscut și pasagerul are dreptul să-l vadă.
-              price: daysUntilDeparture > 7 ? 0 : displayPrice,
-              originalPrice: daysUntilDeparture > 7 ? null : displayOriginal,
-              isAwaitingDriver: true,
-            });
-          }
-          continue;
-        }
-        results.push({
-          time,
-          arrivalTime: arrival,
-          destination_ro: route.dest_from_ro,
-          destination_ru: route.dest_from_ru,
-          duration: route.time_nord || '',
-          driver: details!.driver,
-          phone: details!.phone,
-          vehicle_plate: details?.plate || null,
-          price: displayPrice,
-          originalPrice: displayOriginal,
-        });
-      }
+      continue;
     }
+    results.push({
+      ...base,
+      driver: details!.driver,
+      phone: details!.phone,
+      vehicle_plate: details?.plate || null,
+      price: displayPrice,
+      originalPrice: displayOriginal,
+    });
   }
+
 
   results.sort((a, b) => {
     const [ah, am] = a.time.split(':').map(Number);

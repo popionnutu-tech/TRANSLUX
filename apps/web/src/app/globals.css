@@ -940,3 +940,56 @@ body {
   .cookie-banner { bottom: 64px !important; }
   .legal-main { padding: 4px 16px 48px; font-size: 14px; }
 }
+
+/* ── Pagini de direcție și «Toate rutele» (ION-153) ─────────── */
+.all-routes {
+  width: 100%; max-width: 720px; margin-top: 28px;
+  background: rgba(255,255,255,0.5); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border-radius: 24px; padding: 22px 36px 24px;
+  border: 1px solid rgba(255,255,255,0.4);
+  box-shadow: 0 4px 24px rgba(155,27,48,0.05);
+  font-family: var(--font-opensans), 'Open Sans', sans-serif;
+}
+.all-routes h2 {
+  color: #9B1B30; font-size: 17px; font-style: italic; text-align: center;
+  margin: 0 0 14px; font-weight: 400; letter-spacing: 0.5px;
+}
+.all-routes ul {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px 18px;
+}
+.all-routes a {
+  display: block; padding: 5px 2px; font-size: 12px; color: #555; text-decoration: none;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.all-routes a:hover { color: #9B1B30; }
+a.route-row:hover { background: rgba(155,27,48,0.04); }
+
+.route-crumbs { font-size: 13px; color: #777; margin-top: 4px; }
+.route-crumbs a { color: #9B1B30; text-decoration: none; }
+.route-cta {
+  display: inline-block; margin: 6px 0 4px; padding: 12px 20px; border-radius: 12px;
+  background: #9B1B30; color: #fff; font-weight: 700; font-size: 14px; text-decoration: none;
+}
+.route-cta:hover { filter: brightness(1.08); }
+.route-table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 4px 0 8px; }
+.route-table th {
+  text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px;
+  color: #777; font-weight: 600; padding: 8px 6px; border-bottom: 2px solid rgba(155,27,48,0.15);
+}
+.route-table td { padding: 8px 6px; border-bottom: 1px solid rgba(155,27,48,0.06); }
+.route-time { font-weight: 700; color: #9B1B30; }
+.route-via { color: #666; font-size: 13px; }
+.route-note { font-size: 13px; color: #777; }
+.route-phone { color: #9B1B30; font-weight: 700; font-size: 17px; text-decoration: none; }
+.route-others { columns: 2; padding-left: 18px; }
+.route-others a { color: #9B1B30; text-decoration: none; }
+.route-others a:hover, .route-crumbs a:hover { text-decoration: underline; }
+
+@media (max-width: 640px) {
+  .all-routes { padding: 18px 16px 20px; }
+  .all-routes ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .route-table { font-size: 13px; }
+  .route-table th:nth-child(3), .route-table td:nth-child(3) { display: none; }
+  .route-others { columns: 1; }
+}

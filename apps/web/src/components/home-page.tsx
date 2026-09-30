@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { format } from 'date-fns';
 
@@ -25,15 +25,18 @@ import AssistantWidget from '@/components/AssistantWidget';
 import { openConsentSettings } from '@/lib/consent';
 import { track } from '@/lib/track';
 import { type Locale, t } from '@/lib/i18n';
+import { homePath, majorBySlug } from '@/lib/seo';
 import { searchTrips, type Locality, type TripResult, type PopularRoutePrice } from '@/app/(public)/actions';
 
 interface HomePageProps {
   locale: Locale;
   localities?: Locality[];
   popularPrices?: PopularRoutePrice[];
+  /** Paginile de direcție (ION-153), randate pe server; goală când baza n-a răspuns. */
+  routeLinks?: { key: string; href: string; label: string }[];
 }
 
-export function HomePage({ locale, localities = [], popularPrices = [] }: HomePageProps) {
+export function HomePage({ locale, localities = [], popularPrices = [], routeLinks = [] }: HomePageProps) {
   const [showResults, setShowResults] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -105,16 +108,31 @@ export function HomePage({ locale, localities = [], popularPrices = [] }: HomePa
     }
   };
 
+  // Venit de pe o pagină de direcție (/ro/autobuz/…) cu ?dela=<slug>&spre=<slug>: direcția e
+  // gata aleasă, omul apasă doar «Acum» sau «Mai târziu». Căutarea NU pornește singură (ION-153):
+  // Googlebot rulează JS și ar scrie în search_log la fiecare link.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const pick = (ref: React.RefObject<HTMLSelectElement | null>, slug: string | null) => {
+      const name = slug ? majorBySlug(slug)?.ro : undefined;
+      if (name && ref.current && [...ref.current.options].some((o) => o.value === name)) ref.current.value = name;
+    };
+    pick(fromRef, q.get('dela'));
+    pick(toRef, q.get('spre'));
+  }, []);
+
+  const routeHrefs = useMemo(() => new Map(routeLinks.map((r) => [r.key, r.href])), [routeLinks]);
+
   const getName = (l: Locality) => locale === 'ru' ? l.name_ru : l.name_ro;
 
   return (
-    <div style={{ minHeight: '100vh', position: 'relative', fontFamily: 'var(--font-opensans), Open Sans, sans-serif' }}>
+    <div lang={locale} style={{ minHeight: '100vh', position: 'relative', fontFamily: 'var(--font-opensans), Open Sans, sans-serif' }}>
       <ShaderBackground />
 
       <div style={{ position: 'relative', zIndex: 1 }}>
 
         <header className="site-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 40px' }}>
-          <a href={`/${locale}`} aria-label="TRANSLUX">
+          <a href={homePath(locale)} aria-label="TRANSLUX">
             <span className="site-logo" style={{
               display: 'inline-block', height: 36, aspectRatio: '1318/192',
               backgroundColor: '#9B1B30',
@@ -130,7 +148,7 @@ export function HomePage({ locale, localities = [], popularPrices = [] }: HomePa
             display: 'flex', gap: 2,
             borderRadius: 10, padding: 3,
           }}>
-            <a href="/ro" className="lang-btn" style={{
+            <a href="/" hrefLang="ro" className="lang-btn" style={{
               color: locale === 'ro' ? '#9B1B30' : 'rgba(155,27,48,0.35)',
               fontWeight: 700, fontSize: 11, letterSpacing: 1.2,
               textDecoration: 'none', padding: '5px 10px', borderRadius: 8,
@@ -138,7 +156,7 @@ export function HomePage({ locale, localities = [], popularPrices = [] }: HomePa
               fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
               transition: 'all 0.15s ease',
             }}>RO</a>
-            <a href="/ru" className="lang-btn" style={{
+            <a href="/ru" hrefLang="ru" className="lang-btn" style={{
               color: locale === 'ru' ? '#9B1B30' : 'rgba(155,27,48,0.35)',
               fontWeight: 700, fontSize: 11, letterSpacing: 1.2,
               textDecoration: 'none', padding: '5px 10px', borderRadius: 8,
@@ -309,11 +327,14 @@ export function HomePage({ locale, localities = [], popularPrices = [] }: HomePa
                 const routeName = locale === 'ru'
                   ? `${r.from_ru} - ${r.to_ru}`
                   : `${r.from_ro} - ${r.to_ro}`;
+                // Link doar spre o pagină de direcție care există (Larga/Grimăncăuți n-au).
+                const href = r.from_slug && r.to_slug ? routeHrefs.get(`${r.from_slug}-${r.to_slug}`) : undefined;
+                const Row = href ? 'a' : 'div';
                 return (
-                  <div key={routeName} className="route-row" style={{
+                  <Row key={routeName} {...(href ? { href } : {})} className="route-row" style={{
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                     padding: '9px 4px', borderBottom: '1px solid rgba(155,27,48,0.06)',
-                    borderRadius: 4, transition: 'background 0.15s ease',
+                    borderRadius: 4, transition: 'background 0.15s ease', textDecoration: 'none',
                   }}>
                     <span style={{
                       fontSize: 10, color: '#666', textTransform: 'uppercase', letterSpacing: 0.8,
@@ -327,11 +348,23 @@ export function HomePage({ locale, localities = [], popularPrices = [] }: HomePa
                     }}>
                       {r.price} LEI
                     </span>
-                  </div>
+                  </Row>
                 );
               })}
             </div>
           </div>
+
+          {/* Toate paginile de direcție (ION-153): orar și preț pe fiecare, pentru oameni și pentru Google. */}
+          {routeLinks.length > 0 && (
+            <nav className="all-routes" aria-label={i.allRoutes}>
+              <h2>{i.allRoutes}</h2>
+              <ul>
+                {routeLinks.map((r) => (
+                  <li key={r.key}><a href={r.href}>{r.label}</a></li>
+                ))}
+              </ul>
+            </nav>
+          )}
 
         </section>
 

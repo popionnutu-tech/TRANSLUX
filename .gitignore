@@ -45,3 +45,5 @@ peron-android/.expo/
 peron-android/.env
 peron-android/android/
 peron-android/dist/
+# Imaginea de distribuire a translux.md (ION-153)
+!apps/web/public/og.png

@@ -107,17 +107,19 @@ describe('parseTikiExport', () => {
       HEADER,
       line(['30.09.2026 15:46', '1', 'Chisinau - Ocnita 15:55', 'Chisinau GA', 'Edinet', 'PAT9 Nord', 'MLD 069', 'A B', 'Terminal', 'Numerar', '10']),
       line(['30.09.2026 15:47', '1', 'Chisinau - Ocnita 15:55', 'Chisinau GA', 'Edinet', 'PAT9 Nord', 'MLD 069', 'A B', 'Terminal', 'Numerar', '10']),
+      // același număr, alt bilet (aparatul refolosește numerele): rămâne
+      line(['28.02.2026 11:27', '1', 'Chisinau - Ocnita 15:55', 'Chisinau GA', 'Edinet', 'PAT9 Nord', 'MLD 069', 'A B', 'Terminal', 'Numerar', '11.52']),
       line(['01.09.2026 06:00', '2', 'Anulare 6.6', '—', '—', 'PAT9 Nord', 'X', 'C D', 'Terminal', 'Numerar', '65.00']),
       line(['01.09.2026 06:00', '3', 'TEST 23:35 Lipcani - Chisinau TestTIKI', '—', '—', 'PAT9 Nord', 'X', 'C D', 'Terminal', 'Numerar', '16']),
     ].join('\r\n');
     const r = parseTikiExport(t);
     if ('error' in r) throw new Error(r.error);
-    expect(r.rows.map(x => x.ticket_no)).toEqual(['1', '2']);
+    expect(r.rows.map(x => x.ticket_no)).toEqual(['1', '1', '2']);
     expect(r.duplicatesInFile).toBe(1);
     expect(r.excluded.test).toBe(1);
-    expect(r.dateMin).toBe('2026-09-01');
+    expect(r.dateMin).toBe('2026-02-28');
     expect(r.dateMax).toBe('2026-09-30');
-    expect(r.rows[1].is_anulare).toBe(true);
+    expect(r.rows[2].is_anulare).toBe(true);
   });
 });
 

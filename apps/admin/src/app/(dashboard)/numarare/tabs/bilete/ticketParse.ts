@@ -186,7 +186,14 @@ export function checkHeader(header: string[]): string | null {
   return null;
 }
 
-/** Tot fișierul: antet, rânduri, excluderi, dubluri (același număr de bilet de mai multe ori). */
+/** Cheia unui bilet: aparatul refolosește numerele (ex. «31-12-155» pe 13.11.2025 și pe 28.02.2026, alt preț),
+ *  deci biletul e numărul + cursa + mașina + șoferul + prețul. Ora nu intră: același bilet apare în
+ *  exporturi diferite cu un minut diferență. Aceeași cheie e coloana generată tiki_tickets.ticket_key (migr. 448). */
+export function ticketKey(r: Pick<TikiRow, 'ticket_no' | 'route_raw' | 'vehicle' | 'driver_name' | 'price'>): string {
+  return [r.ticket_no, r.route_raw, r.vehicle ?? '', r.driver_name ?? '', r.price].join('|');
+}
+
+/** Tot fișierul: antet, rânduri, excluderi, dubluri (același bilet de mai multe ori, după ticketKey). */
 export function parseTikiExport(text: string): ParseResult | { error: string } {
   const table = parseCsv(text);
   if (!table.length) return { error: 'Fișierul e gol.' };
@@ -201,8 +208,9 @@ export function parseTikiExport(text: string): ParseResult | { error: string } {
   for (let i = 1; i < table.length; i++) {
     const r = normalizeRow(table[i]);
     if ('excluded' in r) { excluded[r.excluded]++; continue; }
-    if (seen.has(r.ticket_no)) { dup++; continue; }
-    seen.add(r.ticket_no);
+    const key = ticketKey(r);
+    if (seen.has(key)) { dup++; continue; }
+    seen.add(key);
     rows.push(r);
     if (!dateMin || r.sale_date < dateMin) dateMin = r.sale_date;
     if (!dateMax || r.sale_date > dateMax) dateMax = r.sale_date;

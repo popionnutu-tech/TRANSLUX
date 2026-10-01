@@ -70,9 +70,10 @@ export async function insertTikiChunk(batchId: number, packed: PackedRow[]): Pro
     }
   }
   // Biletele deja importate (din alt fișier suprapus) se sar; întoarcem doar cele noi.
+  // Cheia e ticket_key (număr + cursă + mașină + șofer + preț, migr. 448): numerele se refolosesc.
   const { data, error } = await getSupabase()
     .from('tiki_tickets')
-    .upsert(rows, { onConflict: 'ticket_no', ignoreDuplicates: true })
+    .upsert(rows, { onConflict: 'ticket_key', ignoreDuplicates: true })
     .select('ticket_no');
   if (error) return { error: error.message };
   return { data: data?.length ?? 0 };

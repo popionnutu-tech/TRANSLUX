@@ -3,7 +3,7 @@
 //
 //   cd apps/admin && node --env-file=.env --import tsx scripts/bilete-aparat-import.mts ~/Downloads/carrier-2-sales-*.csv
 //
-// Fiecare bilet intră o singură dată (după numărul lui): fișierele suprapuse sau reimportate nu dublează nimic.
+// Fiecare bilet intră o singură dată (după ticket_key: număr + cursă + mașină + șofer + preț): fișierele suprapuse sau reimportate nu dublează nimic.
 // La final reface tabela preț → pereche și, lună cu lună, tipurile de bilet deduse și totalurile (migrația 446).
 // Rulează cu --recalc fără fișiere ca să refacă doar recalculul pe toate lunile.
 
@@ -46,7 +46,7 @@ for (const file of files) {
         ...x, pair_source: x.pair ? 'statii' : 'nedeterminat', import_batch_id: b.data.id,
       }));
       const res = await sb.from('tiki_tickets')
-        .upsert(rows, { onConflict: 'ticket_no', ignoreDuplicates: true }).select('ticket_no');
+        .upsert(rows, { onConflict: 'ticket_key', ignoreDuplicates: true }).select('ticket_no');
       if (res.error) throw new Error(res.error.message);
       inserted += res.data?.length ?? 0;
       sent += rows.length;
@@ -63,10 +63,12 @@ for (const file of files) {
 }
 
 if (recalcOnly) {
-  const m = await sb.rpc('get_tiki_meta');
-  if (m.error) { console.error(m.error.message); process.exit(1); }
-  if (!m.data?.date_min) { console.error('Nu sunt bilete importate.'); process.exit(1); }
-  T.monthsBetween(m.data.date_min, m.data.date_max).forEach((x: string) => months.add(x));
+  // Intervalul din bilete, nu din get_tiki_meta: acela citește totalurile, goale înaintea primului recalcul.
+  const edge = (asc: boolean) => sb.from('tiki_tickets').select('sale_date').order('sale_date', { ascending: asc }).limit(1);
+  const [lo, hi] = await Promise.all([edge(true), edge(false)]);
+  if (lo.error || hi.error) { console.error((lo.error ?? hi.error).message); process.exit(1); }
+  if (!lo.data?.length) { console.error('Nu sunt bilete importate.'); process.exit(1); }
+  T.monthsBetween(lo.data[0].sale_date, hi.data[0].sale_date).forEach((x: string) => months.add(x));
 }
 
 console.log('Tabela preț → pereche…');

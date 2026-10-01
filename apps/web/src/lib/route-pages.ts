@@ -1,7 +1,7 @@
 import { unstable_cache } from 'next/cache';
 import { resolveOfferPriceForDate } from '@translux/db';
 import { getSupabase } from '@/lib/supabase';
-import { HUB_SLUGS, MAJOR, pageLocalityBySlug, UPCOMING, type MajorLocality } from '@/lib/seo';
+import { HUB_SLUGS, LOCALITIES, MAJOR, pageLocalityBySlug, routePath, UPCOMING, type MajorLocality } from '@/lib/seo';
 import { buildScheduledTrips, type ScheduledTrip, type TimetableKmPair, type TimetableRoute, type TimetableStop } from '@/lib/timetable';
 
 /**
@@ -30,10 +30,10 @@ export interface RoutePair {
 }
 
 // Și localitățile anunțate (Drochia): când opririle lor apar în orar, pagina le arată singură.
-const MAJOR_NAMES = [...MAJOR, ...UPCOMING].map((m) => m.ro);
+const PAGE_NAMES = [...MAJOR, ...LOCALITIES, ...UPCOMING].map((m) => m.ro);
 const todayChisinau = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
 
-/** Aceeași normalizare ca searchTrips (actions.ts normalizeStop) pentru cele 13 nume majore. */
+/** Aceeași normalizare ca searchTrips (actions.ts normalizeStop) pentru numele din seo.ts (fără paranteze, puncte, «ga»). */
 function kmKey(nameRo: string): string {
   return nameRo.toLowerCase().trim().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ');
 }
@@ -72,25 +72,33 @@ async function loadRates(date: string): Promise<{ rateLong: number | null; rateS
   };
 }
 
-/** Opririle celor 13 localități majore pe toate rutele active + rutele. O singură citire pentru toate perechile. */
+/** Plafonul PostgREST: un răspuns plin poate fi trunchiat, deci se citește pe pagini. */
+const PAGE = 1000;
+
+/**
+ * Opririle tuturor localităților cu pagină pe toate rutele active + rutele. O singură citire
+ * pentru toate perechile. Opririle sunt peste 1000 (1215 pe 01.10) → pe pagini, după id.
+ */
 async function loadNetwork() {
   const supabase = getSupabase();
-  const [stops, routes] = await Promise.all([
-    supabase
+  const stops: (TimetableStop & { name_ro: string })[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
       .from('crm_stop_fares')
       .select('crm_route_id, name_ro, stop_order, hour_from_chisinau, hour_from_nord')
-      .in('name_ro', MAJOR_NAMES),
-    supabase
-      .from('crm_routes')
-      .select('id, dest_to_ro, dest_to_ru, dest_from_ro, dest_from_ru, time_chisinau, time_nord, tariff_id_tur, tariff_id_retur, retur_ascuns, tur_ascuns')
-      .eq('active', true),
-  ]);
-  if (stops.error) fail('crm_stop_fares', stops.error);
+      .in('name_ro', PAGE_NAMES)
+      .order('id')
+      .range(from, from + PAGE - 1);
+    if (error) fail('crm_stop_fares', error);
+    stops.push(...((data || []) as typeof stops));
+    if (!data || data.length < PAGE) break;
+  }
+  const routes = await supabase
+    .from('crm_routes')
+    .select('id, dest_to_ro, dest_to_ru, dest_from_ro, dest_from_ru, time_chisinau, time_nord, tariff_id_tur, tariff_id_retur, retur_ascuns, tur_ascuns')
+    .eq('active', true);
   if (routes.error) fail('crm_routes', routes.error);
-  return {
-    stops: (stops.data || []) as (TimetableStop & { name_ro: string })[],
-    routes: (routes.data || []) as TimetableRoute[],
-  };
+  return { stops, routes: (routes.data || []) as TimetableRoute[] };
 }
 
 async function loadKmPairs(from: MajorLocality, to: MajorLocality): Promise<TimetableKmPair[]> {
@@ -147,50 +155,91 @@ export const getRouteTimetable = (fromSlug: string, toSlug: string) =>
   })();
 
 /**
- * Toate perechile km cu un hub la un capăt, în două cereri (238 de rânduri pe 30.09 — sub
- * plafonul de 1000 al PostgREST), grupate pe «de|spre» în ordinea răspunsului.
+ * Perechile km pentru toate paginile, în patru cereri (01.10: 722 de rânduri cu Chișinău la
+ * un capăt, câteva zeci Bălți↔majore), grupate pe «de|spre» în ordinea răspunsului.
+ * Un răspuns de exact 1000 de rânduri ar putea fi trunchiat → eroare, nu o listă incompletă.
  */
-async function loadHubKmPairs(): Promise<Map<string, TimetableKmPair[]>> {
+async function loadPageKmPairs(): Promise<Map<string, TimetableKmPair[]>> {
   const supabase = getSupabase();
   const cols = 'from_stop, to_stop, tariff_id, km, from_district, to_district, start_district';
-  const hubs = MAJOR.filter((m) => (HUB_SLUGS as readonly string[]).includes(m.slug)).map((m) => kmKey(m.ro));
-  const all = MAJOR.map((m) => kmKey(m.ro));
-  const nonHubs = all.filter((k) => !hubs.includes(k));
-  const [fromHub, toHub] = await Promise.all([
-    supabase.from('v_interurban_v2_km_pairs').select(cols).in('from_stop', hubs).in('to_stop', all),
-    // Hub↔hub e deja în prima cerere; aici doar majoră (non-hub) → hub.
-    supabase.from('v_interurban_v2_km_pairs').select(cols).in('from_stop', nonHubs).in('to_stop', hubs),
+  const chi = kmKey('Chișinău');
+  const balti = kmKey('Bălți');
+  const majorsNoChi = MAJOR.map((m) => kmKey(m.ro)).filter((k) => k !== chi && k !== balti);
+  const view = () => supabase.from('v_interurban_v2_km_pairs').select(cols);
+  const parts = await Promise.all([
+    view().eq('from_stop', chi),
+    view().eq('to_stop', chi),
+    view().eq('from_stop', balti).in('to_stop', majorsNoChi),
+    view().in('from_stop', majorsNoChi).eq('to_stop', balti),
   ]);
-  if (fromHub.error) fail('km din hub', fromHub.error);
-  if (toHub.error) fail('km spre hub', toHub.error);
   const byPair = new Map<string, TimetableKmPair[]>();
-  for (const row of [...(fromHub.data || []), ...(toHub.data || [])] as (TimetableKmPair & { from_stop: string; to_stop: string })[]) {
-    const key = `${row.from_stop}|${row.to_stop}`;
-    const list = byPair.get(key) ?? [];
-    list.push(row);
-    byPair.set(key, list);
+  for (const part of parts) {
+    if (part.error) fail('km', part.error);
+    if ((part.data?.length ?? 0) >= PAGE) throw new Error('[route-pages] km: răspuns de 1000 de rânduri, posibil trunchiat');
+    for (const row of (part.data || []) as (TimetableKmPair & { from_stop: string; to_stop: string })[]) {
+      const key = `${row.from_stop}|${row.to_stop}`;
+      const list = byPair.get(key) ?? [];
+      list.push(row);
+      byPair.set(key, list);
+    }
   }
   return byPair;
 }
 
-async function computePairs(): Promise<RoutePair[]> {
-  const [network, km] = await Promise.all([loadNetwork(), loadHubKmPairs()]);
+/** Perechile care au pagină: majore cu un hub + Chișinău ↔ fiecare localitate din LOCALITIES. */
+function candidatePairs(): [MajorLocality, MajorLocality][] {
   const isHub = (s: string) => (HUB_SLUGS as readonly string[]).includes(s);
-  const pairs: RoutePair[] = [];
+  const out: [MajorLocality, MajorLocality][] = [];
   for (const a of MAJOR) {
     for (const b of MAJOR) {
-      if (a.slug === b.slug || (!isHub(a.slug) && !isHub(b.slug))) continue;
-      // Ca în searchTrips: A→B urmat de B→A.
-      const kmPairs = [...(km.get(`${kmKey(a.ro)}|${kmKey(b.ro)}`) ?? []), ...(km.get(`${kmKey(b.ro)}|${kmKey(a.ro)}`) ?? [])];
-      const trips = tripsFor(network, a, b, kmPairs, null, null);
-      if (trips.length > 0) pairs.push({ from: a, to: b, trips: trips.length });
+      if (a.slug !== b.slug && (isHub(a.slug) || isHub(b.slug))) out.push([a, b]);
     }
+  }
+  const chisinau = MAJOR[0];
+  for (const l of LOCALITIES) out.push([chisinau, l], [l, chisinau]);
+  return out;
+}
+
+async function computePairs(): Promise<RoutePair[]> {
+  const [network, km] = await Promise.all([loadNetwork(), loadPageKmPairs()]);
+  const pairs: RoutePair[] = [];
+  for (const [a, b] of candidatePairs()) {
+    // Ca în searchTrips: A→B urmat de B→A.
+    const kmPairs = [...(km.get(`${kmKey(a.ro)}|${kmKey(b.ro)}`) ?? []), ...(km.get(`${kmKey(b.ro)}|${kmKey(a.ro)}`) ?? [])];
+    const trips = tripsFor(network, a, b, kmPairs, null, null);
+    if (trips.length > 0) pairs.push({ from: a, to: b, trips: trips.length });
   }
   return pairs;
 }
 
-/** Toate perechile hub↔majoră cu ≥1 plecare (pentru sitemap și linkurile interne). Cache 1 h. */
-export const getRoutePairs = unstable_cache(computePairs, ['route-pairs'], {
+/** Toate perechile cu pagină și ≥1 plecare (pentru sitemap și linkurile interne). Cache 1 h. */
+export const getRoutePairs = unstable_cache(computePairs, ['route-pairs-v2'], {
   revalidate: 3600,
   tags: ['route-pages'],
 });
+
+export interface HomeLink {
+  key: string;
+  href: string;
+  label: string;
+}
+
+/**
+ * Linkurile paginii principale: direcțiile dintre orașele principale (blocul «Toate rutele»)
+ * și Chișinău → fiecare sat din nord (blocul «Toate localitățile»; retururile se leagă din pagini).
+ */
+export function homeLinks(pairs: RoutePair[], locale: 'ro' | 'ru'): { routes: HomeLink[]; localities: HomeLink[] } {
+  const isMajor = (slug: string) => MAJOR.some((m) => m.slug === slug);
+  const link = (p: RoutePair, label: string): HomeLink => ({
+    key: `${p.from.slug}-${p.to.slug}`,
+    href: routePath(locale, p.from.slug, p.to.slug),
+    label,
+  });
+  return {
+    routes: pairs.filter((p) => isMajor(p.from.slug) && isMajor(p.to.slug)).map((p) => link(p, `${p.from[locale]} – ${p.to[locale]}`)),
+    localities: pairs
+      .filter((p) => p.from.slug === 'chisinau' && !isMajor(p.to.slug))
+      .map((p) => link(p, p.to[locale]))
+      .sort((a, b) => a.label.localeCompare(b.label, locale)),
+  };
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { jsonLd, legacySearchTarget, MAJOR, parsePair, routePath, slugify } from './seo';
+import { jsonLd, legacySearchTarget, LOCALITIES, MAJOR, parsePair, routePath, slugify, UPCOMING } from './seo';
 
 describe('slugify', () => {
   it('scoate diacriticele, și virgula, și sedila', () => {
@@ -24,7 +24,7 @@ describe('parsePair', () => {
   it('fără hub, aceeași localitate sau gunoi → null', () => {
     expect(parsePair('briceni-lipcani')).toBeNull();
     expect(parsePair('chisinau-chisinau')).toBeNull();
-    expect(parsePair('chisinau-larga')).toBeNull();
+    expect(parsePair('balti-larga')).toBeNull();
     expect(parsePair('chisinau-briceni-x')).toBeNull();
     expect(parsePair('')).toBeNull();
   });
@@ -37,7 +37,7 @@ describe('legacySearchTarget — adresele vechi /search/<de>/<spre>', () => {
     expect(legacySearchTarget('ru', 'Balti', 'Edinet')).toBe(routePath('ru', 'balti', 'edinet'));
   });
   it('perechea fără pagină → pagina principală', () => {
-    expect(legacySearchTarget('ro', 'chisinau', 'larga')).toBe('/');
+    expect(legacySearchTarget('ro', 'balti', 'larga')).toBe('/');
     expect(legacySearchTarget('ru', 'briceni', 'lipcani')).toBe('/ru');
   });
   it('codarea stricată nu aruncă', () => {
@@ -63,5 +63,46 @@ describe('direcții anunțate (Drochia, fără curse încă)', () => {
   });
   it('adresa veche duce pe pagina anunțată', () => {
     expect(legacySearchTarget('ru', 'Drochia', 'Chisinau')).toBe('/ru/avtobus/drochia-chisinau');
+  });
+});
+
+describe('toate localitățile din nord ↔ Chișinău (01.10)', () => {
+  const all = [...MAJOR, ...LOCALITIES, ...UPCOMING];
+
+  it('slug-uri unice, egale cu slugify(nume)', () => {
+    expect(new Set(all.map((l) => l.slug)).size).toBe(all.length);
+    for (const l of LOCALITIES) expect(l.slug).toBe(slugify(l.ro));
+  });
+
+  it('fiecare localitate are pagina în ambele sensuri, cu tăietura corectă', () => {
+    for (const l of LOCALITIES) {
+      expect(parsePair(`chisinau-${l.slug}`)).toMatchObject({ from: { slug: 'chisinau' }, to: { slug: l.slug } });
+      expect(parsePair(`${l.slug}-chisinau`)).toMatchObject({ from: { slug: l.slug }, to: { slug: 'chisinau' } });
+    }
+  });
+
+  it('numele cu cratimă: Ocnița-Sat nu se confundă cu Ocnița', () => {
+    expect(parsePair('ocnita-sat-chisinau')?.from.ro).toBe('Ocnița-Sat');
+    expect(parsePair('chisinau-ocnita-sat')?.to.ro).toBe('Ocnița-Sat');
+    expect(parsePair('chisinau-ocnita')?.to.ro).toBe('Ocnița');
+    expect(parsePair('chisinau-grinauti-raia')?.to.ru).toBe('Гринауцы-Рая');
+  });
+
+  it('satele au pagină doar cu Chișinău', () => {
+    expect(parsePair('balti-larga')).toBeNull();
+    expect(parsePair('larga-briceni')).toBeNull();
+    expect(parsePair('larga-tabani')).toBeNull();
+  });
+
+  it('adresa veche cu un sat → pagina satului', () => {
+    expect(legacySearchTarget('ro', 'Chisinau', 'Larga')).toBe('/ro/autobuz/chisinau-larga');
+    expect(legacySearchTarget('ru', 'Ocni%C8%9Ba-Sat', 'Chi%C8%99in%C4%83u')).toBe('/ru/avtobus/ocnita-sat-chisinau');
+  });
+});
+
+describe('Glodeni (anunțată, 01.10)', () => {
+  it('Chișinău ↔ Glodeni în ambele sensuri', () => {
+    expect(parsePair('chisinau-glodeni')).toMatchObject({ upcoming: true, to: { ru: 'Глодяны' } });
+    expect(parsePair('glodeni-chisinau')?.upcoming).toBe(true);
   });
 });

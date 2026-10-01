@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import type { Locale } from '@/lib/i18n';
 import { OPERATOR } from '@/components/legal/legal-content';
 import { getRoutePairs, getRouteTimetable, type RouteTimetable } from '@/lib/route-pages';
-import { homePath, jsonLd, parsePair, routePath, SITE_URL, type MajorLocality } from '@/lib/seo';
+import { homePath, jsonLd, majorBySlug, parsePair, routePath, SITE_URL, type MajorLocality } from '@/lib/seo';
 
 /**
  * Pagina de direcție (ION-153): «Autobuz Chișinău – Briceni: orar și preț».
@@ -249,10 +249,10 @@ export async function RoutePage({ pair, locale }: { pair: string; locale: Locale
   const typical = typicalMinutes(tt);
 
   const hasReturn = pairs.some((p) => p.from.slug === tt.to.slug && p.to.slug === tt.from.slug);
-  // «Alte direcții»: din același hub (dacă plecarea e hub), altfel spre același hub.
+  // «Alte direcții»: din același hub spre orașele principale (satele sunt în sitemap și pe pagina principală).
   const hub = ['chisinau', 'balti'].includes(tt.from.slug) ? tt.from : tt.to;
   const others = pairs.filter((p) =>
-    p.from.slug === hub.slug && !(p.from.slug === tt.from.slug && p.to.slug === tt.to.slug),
+    p.from.slug === hub.slug && !!majorBySlug(p.to.slug) && !(p.from.slug === tt.from.slug && p.to.slug === tt.to.slug),
   );
 
   const lead =

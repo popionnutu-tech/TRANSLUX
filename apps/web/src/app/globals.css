@@ -993,3 +993,9 @@ a.route-row:hover { background: rgba(155,27,48,0.04); }
   .route-table th:nth-child(3), .route-table td:nth-child(3) { display: none; }
   .route-others { columns: 1; }
 }
+.all-localities summary { list-style: none; cursor: pointer; }
+.all-localities summary::-webkit-details-marker { display: none; }
+.all-localities summary h2 { margin-bottom: 0; }
+.all-localities summary h2::after { content: ' ▾'; font-style: normal; font-size: 13px; }
+.all-localities[open] summary h2 { margin-bottom: 14px; }
+.all-localities[open] summary h2::after { content: ' ▴'; }

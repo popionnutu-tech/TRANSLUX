@@ -33,6 +33,85 @@ export const MAJOR: readonly MajorLocality[] = [
   { slug: 'cupcini', ro: 'Cupcini', ru: 'Купчинь' },
 ];
 
+/**
+ * Celelalte localități active din `localities` (01.10.2026), cu pagină doar spre și dinspre
+ * Chișinău (Ion, 01.10: «toate locațiile de la nord spre Chișinău și de la Chișinău spre nord»).
+ * Fără opririle care nu sunt localități (Intersecția …, Petrom Rîșcani). Slug-ul poate conține «-».
+ */
+export const LOCALITIES: readonly MajorLocality[] = [
+  { slug: 'badragii-noi', ro: 'Bădragii Noi', ru: 'Новые Бадражи' },
+  { slug: 'badragii-vechi', ro: 'Bădragii Vechi', ru: 'Старые Бадражи' },
+  { slug: 'banesti', ro: 'Bănești', ru: 'Банешты' },
+  { slug: 'beleavinti', ro: 'Beleavinți', ru: 'Белявинцы' },
+  { slug: 'bezeda', ro: 'Bezeda', ru: 'Безеда' },
+  { slug: 'bilicenii-noi', ro: 'Bilicenii Noi', ru: 'Новые Биличены' },
+  { slug: 'bilicenii-vechi', ro: 'Bilicenii Vechi', ru: 'Старые Биличены' },
+  { slug: 'birladeni', ro: 'Bîrlădeni', ru: 'Бырладяны' },
+  { slug: 'birnova', ro: 'Bîrnova', ru: 'Бырново' },
+  { slug: 'bratuseni', ro: 'Brătușeni', ru: 'Братушаны' },
+  { slug: 'bratusenii-noi', ro: 'Brătușenii Noi', ru: 'Новые Братушаны' },
+  { slug: 'brinzeni', ro: 'Brînzeni', ru: 'Брынзены' },
+  { slug: 'caracusenii-noi', ro: 'Caracușenii Noi', ru: 'Новые Каракушаны' },
+  { slug: 'caracusenii-vechi', ro: 'Caracușenii Vechi', ru: 'Старые Каракушаны' },
+  { slug: 'ciocilteni', ro: 'Ciocîlteni', ru: 'Чокылтяны' },
+  { slug: 'colicauti', ro: 'Colicăuți', ru: 'Коликауцы' },
+  { slug: 'copaceni', ro: 'Copăceni', ru: 'Копачены' },
+  { slug: 'corestauti', ro: 'Corestăuți', ru: 'Корестоуцы' },
+  { slug: 'corlateni', ro: 'Corlateni', ru: 'Корлатены' },
+  { slug: 'corpaci', ro: 'Corpaci', ru: 'Корпачь' },
+  { slug: 'coteala', ro: 'Coteala', ru: 'Котяла' },
+  { slug: 'cotiujeni', ro: 'Cotiujeni', ru: 'Котюжены' },
+  { slug: 'criva-vama', ro: 'Criva Vama', ru: 'Крива Таможня' },
+  { slug: 'cuconestii-noi', ro: 'Cuconeștii Noi', ru: 'Новые Куконешты' },
+  { slug: 'dingeni', ro: 'Dîngeni', ru: 'Дынжаны' },
+  { slug: 'drepcauti', ro: 'Drepcăuți', ru: 'Дрепкауцы' },
+  { slug: 'druta', ro: 'Druța', ru: 'Друца' },
+  { slug: 'dumeni', ro: 'Dumeni', ru: 'Думень' },
+  { slug: 'duruitoarea-noua', ro: 'Duruitoarea Nouă', ru: 'Новая Дуруитоаря' },
+  { slug: 'frunza', ro: 'Frunză', ru: 'Фрунзэ' },
+  { slug: 'gordinestii-noi', ro: 'Gordineștii Noi', ru: 'Новые Гординешты' },
+  { slug: 'grigorauca', ro: 'Grigorăuca', ru: 'Григоровка' },
+  { slug: 'grimancauti', ro: 'Grimăncăuți', ru: 'Гриманкауцы' },
+  { slug: 'grimesti', ro: 'Grimești', ru: 'Гримешты' },
+  { slug: 'grinauti-raia', ro: 'Grinăuți-Raia', ru: 'Гринауцы-Рая' },
+  { slug: 'hadarauti', ro: 'Hădărăuți', ru: 'Ходороуцы' },
+  { slug: 'halahora-de-sus', ro: 'Halahora de Sus', ru: 'Верхние Холохоры' },
+  { slug: 'hancauti', ro: 'Hancăuți', ru: 'Ганкауцы' },
+  { slug: 'hlina', ro: 'Hlina', ru: 'Глинка' },
+  { slug: 'hlinaia', ro: 'Hlinaia', ru: 'Глиное' },
+  { slug: 'larga', ro: 'Larga', ru: 'Ларга' },
+  { slug: 'lencauti', ro: 'Lencăuți', ru: 'Ленкауцы' },
+  { slug: 'lopatnic', ro: 'Lopatnic', ru: 'Лопатник' },
+  { slug: 'magdacesti', ro: 'Măgdăcești', ru: 'Магдачешты' },
+  { slug: 'mereseuca', ro: 'Mereșeuca', ru: 'Мерешовка' },
+  { slug: 'mihailenii-noi', ro: 'Mihailenii Noi', ru: 'Новые Михайлены' },
+  { slug: 'mihalaseni', ro: 'Mihălășeni', ru: 'Михалашаны' },
+  { slug: 'ocnita-sat', ro: 'Ocnița-Sat', ru: 'Окница-Сат' },
+  { slug: 'paladea', ro: 'Paladea', ru: 'Паладя' },
+  { slug: 'pascani', ro: 'Pașcani', ru: 'Пашканы' },
+  { slug: 'pererita', ro: 'Pererita', ru: 'Перерыта' },
+  { slug: 'peresecina', ro: 'Peresecina', ru: 'Пересечино' },
+  { slug: 'pirjota', ro: 'Pîrjota', ru: 'Пыржота' },
+  { slug: 'prepelita', ro: 'Prepelița', ru: 'Препелица' },
+  { slug: 'ratus', ro: 'Ratuș', ru: 'Ратуш' },
+  { slug: 'recea', ro: 'Recea', ru: 'Реча' },
+  { slug: 'ruseni', ro: 'Ruseni', ru: 'Русяны' },
+  { slug: 'sirauti', ro: 'Șirăuți', ru: 'Ширеуцы' },
+  { slug: 'slobotca', ro: 'Slobotca', ru: 'Слободка' },
+  { slug: 'slobozia-sirauti', ro: 'Slobozia Șirăuți', ru: 'Слобозия-Ширеуцы' },
+  { slug: 'stauceni', ro: 'Stăuceni', ru: 'Ставчены' },
+  { slug: 'tabani', ro: 'Tabani', ru: 'Табаны' },
+  { slug: 'tetcani', ro: 'Tețcani', ru: 'Тецканы' },
+  { slug: 'tirnova', ro: 'Tîrnova', ru: 'Тырново' },
+  { slug: 'trebisauti', ro: 'Trebisăuți', ru: 'Требисоуцы' },
+  { slug: 'trinca', ro: 'Trinca', ru: 'Тринка' },
+  { slug: 'valcinet', ro: 'Vălcineț', ru: 'Волчинец' },
+  { slug: 'varatic', ro: 'Văratic', ru: 'Варатик' },
+  { slug: 'viisoara', ro: 'Viișoara', ru: 'Виишоара' },
+  { slug: 'zahareuca', ro: 'Zăhăreuca', ru: 'Захареука' },
+  { slug: 'zaicani', ro: 'Zaicani', ru: 'Заиканы' },
+];
+
 /** Paginile de direcție există doar pentru perechile în care una din localități e hub. */
 export const HUB_SLUGS = ['chisinau', 'balti'] as const;
 
@@ -44,7 +123,11 @@ const BY_SLUG = new Map(MAJOR.map((m) => [m.slug, m]));
  * Când opririle Drochiei apar în crm_stop_fares, pagina arată singură orarul real; atunci
  * Drochia se mută în MAJOR (cu `is_major` în localities) și iese de aici.
  */
-export const UPCOMING: readonly MajorLocality[] = [{ slug: 'drochia', ro: 'Drochia', ru: 'Дрокия' }];
+export const UPCOMING: readonly MajorLocality[] = [
+  { slug: 'drochia', ro: 'Drochia', ru: 'Дрокия' },
+  // Ion, 01.10: «pune și Glodeni – Chișinău … în două direcții, 2 limbi». Nici Glodeni nu are opriri în orar.
+  { slug: 'glodeni', ro: 'Glodeni', ru: 'Глодяны' },
+];
 
 const CHISINAU = MAJOR[0];
 export const UPCOMING_PAIRS: readonly [MajorLocality, MajorLocality][] = UPCOMING.flatMap(
@@ -53,7 +136,7 @@ export const UPCOMING_PAIRS: readonly [MajorLocality, MajorLocality][] = UPCOMIN
 
 /** O localitate cu pagină (majoră sau anunțată) după slug. */
 export function pageLocalityBySlug(slug: string): MajorLocality | undefined {
-  return BY_SLUG.get(slug) ?? UPCOMING.find((u) => u.slug === slug);
+  return BY_SLUG.get(slug) ?? LOCALITIES.find((l) => l.slug === slug) ?? UPCOMING.find((u) => u.slug === slug);
 }
 
 export function majorBySlug(slug: string): MajorLocality | undefined {
@@ -85,21 +168,39 @@ export function routePath(locale: Locale, fromSlug: string, toSlug: string): str
   return locale === 'ru' ? `/ru/avtobus/${fromSlug}-${toSlug}` : `/ro/autobuz/${fromSlug}-${toSlug}`;
 }
 
+const LOCALITY_BY_SLUG = new Map(LOCALITIES.map((l) => [l.slug, l]));
+const isHub = (s: string) => (HUB_SLUGS as readonly string[]).includes(s);
+
 /**
- * «chisinau-briceni» → cele două localități, dacă ambele sunt majore, diferite și una e hub.
- * Se cheamă ÎNAINTE de orice citire din bază: o pereche aleatorie nu ajunge la Supabase.
+ * Perechea are pagină: (a) două localități majore, una hub; (b) Chișinău ↔ o localitate din
+ * LOCALITIES; (c) o direcție anunțată (Drochia).
+ */
+function pairOf(fromSlug: string, toSlug: string): { from: MajorLocality; to: MajorLocality; upcoming: boolean } | null {
+  if (fromSlug === toSlug) return null;
+  const up = UPCOMING_PAIRS.find(([a, b]) => a.slug === fromSlug && b.slug === toSlug);
+  if (up) return { from: up[0], to: up[1], upcoming: true };
+  const fromMajor = BY_SLUG.get(fromSlug);
+  const toMajor = BY_SLUG.get(toSlug);
+  if (fromMajor && toMajor) {
+    return isHub(fromSlug) || isHub(toSlug) ? { from: fromMajor, to: toMajor, upcoming: false } : null;
+  }
+  if (fromSlug === 'chisinau' && LOCALITY_BY_SLUG.has(toSlug)) return { from: fromMajor!, to: LOCALITY_BY_SLUG.get(toSlug)!, upcoming: false };
+  if (toSlug === 'chisinau' && LOCALITY_BY_SLUG.has(fromSlug)) return { from: LOCALITY_BY_SLUG.get(fromSlug)!, to: toMajor!, upcoming: false };
+  return null;
+}
+
+/**
+ * «chisinau-briceni», «ocnita-sat-chisinau» → cele două localități, dacă perechea are pagină.
+ * Slug-urile pot conține «-», deci se încearcă fiecare tăietură. Se cheamă ÎNAINTE de orice
+ * citire din bază: o pereche aleatorie nu ajunge la Supabase.
  */
 export function parsePair(pair: string): { from: MajorLocality; to: MajorLocality; upcoming: boolean } | null {
-  const parts = pair.split('-');
-  if (parts.length !== 2) return null;
-  const up = UPCOMING_PAIRS.find(([a, b]) => a.slug === parts[0] && b.slug === parts[1]);
-  if (up) return { from: up[0], to: up[1], upcoming: true };
-  const from = BY_SLUG.get(parts[0]);
-  const to = BY_SLUG.get(parts[1]);
-  if (!from || !to || from.slug === to.slug) return null;
-  const isHub = (s: string) => (HUB_SLUGS as readonly string[]).includes(s);
-  if (!isHub(from.slug) && !isHub(to.slug)) return null;
-  return { from, to, upcoming: false };
+  if (pair.length > 80) return null;
+  for (let i = pair.indexOf('-'); i > 0; i = pair.indexOf('-', i + 1)) {
+    const found = pairOf(pair.slice(0, i), pair.slice(i + 1));
+    if (found) return found;
+  }
+  return null;
 }
 
 /**

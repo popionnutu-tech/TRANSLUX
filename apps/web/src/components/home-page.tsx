@@ -34,9 +34,11 @@ interface HomePageProps {
   popularPrices?: PopularRoutePrice[];
   /** Paginile de direcție (ION-153), randate pe server; goală când baza n-a răspuns. */
   routeLinks?: { key: string; href: string; label: string }[];
+  /** Chișinău → fiecare sat din nord, cu pagină proprie (ION-153). */
+  localityLinks?: { key: string; href: string; label: string }[];
 }
 
-export function HomePage({ locale, localities = [], popularPrices = [], routeLinks = [] }: HomePageProps) {
+export function HomePage({ locale, localities = [], popularPrices = [], routeLinks = [], localityLinks = [] }: HomePageProps) {
   const [showResults, setShowResults] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -121,7 +123,10 @@ export function HomePage({ locale, localities = [], popularPrices = [], routeLin
     pick(toRef, q.get('spre'));
   }, []);
 
-  const routeHrefs = useMemo(() => new Map(routeLinks.map((r) => [r.key, r.href])), [routeLinks]);
+  const routeHrefs = useMemo(
+    () => new Map([...routeLinks, ...localityLinks].map((r) => [r.key, r.href])),
+    [routeLinks, localityLinks],
+  );
 
   const getName = (l: Locality) => locale === 'ru' ? l.name_ru : l.name_ro;
 
@@ -327,7 +332,7 @@ export function HomePage({ locale, localities = [], popularPrices = [], routeLin
                 const routeName = locale === 'ru'
                   ? `${r.from_ru} - ${r.to_ru}`
                   : `${r.from_ro} - ${r.to_ro}`;
-                // Link doar spre o pagină de direcție care există (Larga/Grimăncăuți n-au).
+                // Link doar spre o pagină de direcție care există (perechea e în getRoutePairs).
                 const href = r.from_slug && r.to_slug ? routeHrefs.get(`${r.from_slug}-${r.to_slug}`) : undefined;
                 const Row = href ? 'a' : 'div';
                 return (
@@ -364,6 +369,19 @@ export function HomePage({ locale, localities = [], popularPrices = [], routeLin
                 ))}
               </ul>
             </nav>
+          )}
+
+          {/* Satele din nord, fiecare cu pagina Chișinău → sat (Ion, 01.10). Strânse implicit:
+              lista e lungă; textul rămâne în HTML pentru Google. */}
+          {localityLinks.length > 0 && (
+            <details className="all-routes all-localities">
+              <summary><h2>{i.allLocalities}</h2></summary>
+              <ul>
+                {localityLinks.map((r) => (
+                  <li key={r.key}><a href={r.href}>{i.toLocality(r.label)}</a></li>
+                ))}
+              </ul>
+            </details>
           )}
 
         </section>

@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
     to,
     // Oferta pe rata de AZI (formula RPC), nu snapshotul din tabel — altfel în
     // ziua intrării în vigoare telefonul ar anunța prețul vechi până rulează RPC-ul.
-    price: offer ? resolveOfferPriceForDate(offer, rateLong) : basePrice,
+    price: offer ? resolveOfferPriceForDate(offer, rateLong, today) : basePrice,
     original_price: offer ? basePrice || offer.original_price : null,
     has_offer: !!offer,
     currency: 'MDL',

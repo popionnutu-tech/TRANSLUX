@@ -53,7 +53,7 @@ export async function getActiveOffers(): Promise<ActiveOffer[]> {
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
   const { rateLong } = await resolveTariffRates(supabase, today);
 
-  return offers.map((o) => resolveOfferForDate(o, rateLong));
+  return offers.map((o) => resolveOfferForDate(o, rateLong, today));
 }
 
 export async function getLocalities(): Promise<Locality[]> {
@@ -430,7 +430,7 @@ export async function searchTrips(
   // Oferta urmează tariful DATEI căutate (formula RPC: 133 km × rată − reducere),
   // nu snapshotul din offers, care se rescrie abia în ziua intrării în vigoare.
   // O singură cifră per zi pentru toate cursele; ofertele manuale rămân fixe.
-  const dateOfferPrice = offer ? resolveOfferPriceForDate(offer, historicalRate) : null;
+  const dateOfferPrice = offer ? resolveOfferPriceForDate(offer, historicalRate, date) : null;
 
   // Care curse leagă cele două opriri, la ce oră și cu ce preț — nucleul comun cu paginile
   // de direcție (lib/timetable.ts, ION-153). Aici se adaugă doar șoferul, mașina și oferta.

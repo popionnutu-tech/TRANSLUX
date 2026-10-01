@@ -8,6 +8,7 @@
 // Deosebirea față de site: acolo tariful e «al zilei de azi», aici îl cerem
 // pentru o DATĂ anume — ca să putem pune alături prețul de azi și cel care
 // intră în vigoare vineri.
+import { baltiChisinauFixedPrice } from '@translux/db';
 import { getSupabase } from '@/lib/supabase';
 
 export interface RutaPopulara {
@@ -102,10 +103,12 @@ export const BALTI_REDUCERE = 20;
 
 export interface OfertaBalti { intreg: number; cuReducere: number }
 
-export function ofertaBalti(rateLong: number | null): OfertaBalti | null {
+// Din 02.10.2026 (ION-165) Bălți → Chișinău are preț fix — vezi BALTI_CHISINAU_FIXED.
+export function ofertaBalti(rateLong: number | null, date?: string | null): OfertaBalti | null {
   if (!rateLong) return null;
   const intreg = Math.round(BALTI_KM * rateLong);
-  return { intreg, cuReducere: Math.max(intreg - BALTI_REDUCERE, 0) };
+  const fix = baltiChisinauFixedPrice('Bălți', 'Chișinău', date);
+  return { intreg, cuReducere: fix ?? Math.max(intreg - BALTI_REDUCERE, 0) };
 }
 
 export interface RandPret {

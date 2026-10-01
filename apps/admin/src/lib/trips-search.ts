@@ -65,7 +65,7 @@ export async function getActiveOffers(): Promise<ActiveOffer[]> {
     .maybeSingle();
   const rateLong = period ? Number((period as { rate_interurban_long: number }).rate_interurban_long) : null;
 
-  return offers.map((o) => resolveOfferForDate(o, rateLong));
+  return offers.map((o) => resolveOfferForDate(o, rateLong, today));
 }
 
 export async function getLocalities(): Promise<Locality[]> {
@@ -396,7 +396,7 @@ export async function searchTrips(
   // Oferta urmează tariful DATEI căutate (formula RPC: 133 km × rată − reducere),
   // nu snapshotul din offers — aceeași regulă ca searchTrips din apps/web, altfel
   // telefonul (vocea/FB) și site-ul ar anunța prețuri diferite pentru aceeași zi.
-  const dateOfferPrice = offer ? resolveOfferPriceForDate(offer, historicalRate) : null;
+  const dateOfferPrice = offer ? resolveOfferPriceForDate(offer, historicalRate, date) : null;
 
   // Build price lookup: tariff_id → price.
   // Dacă ambele opriri sunt în raionul de start al rutei → tarif suburban; altfel interurban.

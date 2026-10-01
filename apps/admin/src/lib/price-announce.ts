@@ -100,7 +100,7 @@ export async function anuntaPreturiNoi(proposalId: string, applyOn: string): Pro
     const { randuri, tarifNou } = await comparaPreturi(ziuaDinainte(applyOn), applyOn);
     if (randuri.length === 0) return { status: 'no_rows', applyOn, reason: 'nicio destinație cu km' };
 
-    const png = await generatePriceImage({ randuri, aplicaDin: applyOn, site: SITE, oferta: ofertaBalti(tarifNou.rateLong) });
+    const png = await generatePriceImage({ randuri, aplicaDin: applyOn, site: SITE, oferta: ofertaBalti(tarifNou.rateLong, applyOn) });
     const azi = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
     const sent = await sendTelegramPhoto(chatId, png, pretCaption(applyOn, azi), `preturi-${applyOn}.png`);
     if (!sent.ok) {

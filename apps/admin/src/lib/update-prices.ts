@@ -1,4 +1,5 @@
 import { getSupabase } from '@/lib/supabase';
+import { ofertaBalti } from '@/lib/price-popular';
 import { anuntaPreturiNoi } from '@/lib/price-announce';
 
 // ─── Constants ───
@@ -403,7 +404,7 @@ function buildTariffBody(
   previous: CurrentRates,
   preview: PopularPrice[],
 ): string {
-  const baltiPrice = Math.round(133 * effective.interurbanLong);
+  const balti = ofertaBalti(effective.interurbanLong)!;
   const priceLines = preview
     .map((p) => `  ${p.from_ro} → ${p.to_ro}: <b>${p.price} lei</b>`)
     .join('\n');
@@ -416,7 +417,7 @@ function buildTariffBody(
 
   return (
     `${rateLines}\n` +
-    `Bălți → Chișinău: <b>${baltiPrice - 20} lei</b> (reducere -20)\n\n` +
+    `Bălți → Chișinău: <b>${balti.cuReducere} lei</b> (în loc de ${balti.intreg})\n\n` +
     `<b>Destinații populare:</b>\n${priceLines}`
   );
 }
@@ -851,7 +852,6 @@ export async function applyProposal(
       // Tarif care intră în vigoare CHIAR AZI (dată ANTA în trecut sau confirmare
       // târzie): anunțul spune «de azi». Aceeași pază, deci fără dublură.
       await anuntaPreturiNoi(proposalId, applyOn);
-      const baltiPrice = Math.round(133 * effective.interurbanLong);
       return {
         status: 'updated',
         result: {
@@ -867,7 +867,7 @@ export async function applyProposal(
             suburban: previous.suburban,
           },
           rowsUpdated,
-          baltiChisinauOffer: baltiPrice - 20,
+          baltiChisinauOffer: ofertaBalti(effective.interurbanLong, applyOn)!.cuReducere,
           period: { start: period.periodStart, end: period.periodEnd },
         },
       };

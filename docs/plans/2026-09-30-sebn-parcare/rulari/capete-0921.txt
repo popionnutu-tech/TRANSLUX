@@ -1,0 +1,43 @@
+042BRAU  zile 6 · în schelet: R5 · trece pe la: R5* Izvoare 5z · propunerea nu scade km — rămâne cum e
+795MUM   zile 6 · în schelet: R16 · trece pe la: R16* Rezina 6z | R23 Bălți 1z | R9 Mihailovca 1z · propunerea nu scade km — rămâne cum e
+541NPL   zile 6 · în schelet: R18 · trece pe la: R18* Telenești 6z · P1 Telenești 182.6
+861BRAS  zile 6 · în schelet: R27 · trece pe la: R27* Cașunca 6z | R3 Domulgeni 1z | R4 Florești 1z | R23 Bălți 1z · P1 Ciutulești 40.8
+584BRAX  zile 6 · în schelet: R3,R14 · trece pe la: R14* Pohoarna 6z | R3* Domulgeni 6z · P1 Pohoarna 327.9
+514BRAZ  zile 6 · în schelet: R17 · trece pe la: R17* Susleni 6z | R8 Lupoaica 6z · propunerea nu scade km — rămâne cum e
+142BRAZ  zile 6 · în schelet: R1 · trece pe la: R1* Bălășești 6z | R9 Mihailovca 1z | R23 Bălți 1z · propunerea nu scade km — rămâne cum e
+522BRAT  zile 6 · în schelet: R6 · trece pe la: R17 Susleni 6z | R8 Lupoaica 6z | R6* Lopatna 5z · rute neverificate: 20 din 32 tururi și retururi nu trec pe la capătul rutelor ei
+152BRAZ  zile 5 · în schelet: R23 · trece pe la: R23* Bălți 5z | R9 Mihailovca 5z | R1 Bălășești 1z | R11 Nistreană 1z | R25 Vatici 1z | S1 Vatici 1z · P1 Cișmea 114.9
+430CMX   zile 6 · în schelet: R15,S1 · trece pe la: R15* Cobîlea 6z | R3 Domulgeni 6z · propunerea nu scade km — rămâne cum e
+812MUM   zile 6 · în schelet: R2 · trece pe la: R2* Crihana 6z · P1 Crihana 124
+942BRAZ  zile 6 · în schelet: R10 · trece pe la: R10* Mîrzești 6z | R17 Susleni 6z | R8 Lupoaica 6z · propunerea nu scade km — rămâne cum e
+314BRAT  zile 5 · în schelet: R13,R20 · trece pe la: R13* Peresecina 5z | R11 Nistreană 5z · un singur schimb măsurat în săptămână (§8.3)
+503BRAR  zile 6 · în schelet: R7 · trece pe la: R7* Lalova 6z · propunerea nu scade km — rămâne cum e
+739BRAZ  zile 5 · în schelet: R22 · trece pe la: R21 Clișova 5z | R22* Clișova 5z · P1 Clișova 96.3
+389VKV   zile 2 · în schelet: — · trece pe la: R9 Mihailovca 2z | R23 Bălți 2z | R16 Rezina 1z | R19 Vadul-Leca 1z · un singur schimb măsurat în săptămână (§8.3)
+820GXP   zile 6 · în schelet: R25 · trece pe la: R25* Vatici 6z | S1 Vatici 6z · propunerea nu scade km — rămâne cum e
+823MUM   zile 6 · în schelet: R8,R11 · trece pe la: R8* Lupoaica 6z | R11* Nistreană 6z · P1 Pohorniceni 28.6
+893BRAX  zile 7 · în schelet: R20 · trece pe la: R11 Nistreană 6z | R20* Voroteț 5z | R13 Peresecina 5z | R9 Mihailovca 1z · rute neverificate: 17 din 25 tururi și retururi nu trec pe la capătul rutelor ei
+725YOZ   zile 6 · în schelet: — · trece pe la: R12 Olișcani 6z · un singur schimb măsurat în săptămână (§8.3)
+034BRAT  zile 6 · în schelet: — · trece pe la: R3 Domulgeni 6z · rute neverificate: 34 din 34 tururi și retururi nu trec pe la capătul rutelor ei
+808MUM   zile 6 · în schelet: R19 · trece pe la: R19* Vadul-Leca 6z | R9 Mihailovca 1z | R23 Bălți 1z · propunerea nu scade km — rămâne cum e
+863MXL   zile 6 · în schelet: R21 · trece pe la: R21* Clișova 6z | R22 Clișova 6z · P1 acasă (Ciocîlteni) 12.6
+372BRAY  zile 6 · în schelet: R4 · trece pe la: R4* Florești 6z | R3 Domulgeni 6z | R23 Bălți 1z · propunerea nu scade km — rămâne cum e
+602BRAS  zile 6 · în schelet: R9 · trece pe la: R9* Mihailovca 6z | R23 Bălți 1z · propunerea nu scade km — rămâne cum e
+552BRAO  zile 6 · în schelet: S1 · trece pe la: R25 Vatici 6z | S1* Vatici 6z · P1 Vatici 996
+bucla 584BRAX 4 goluri 66.1 km
+bucla 541NPL 5 goluri 80.2 km
+bucla 152BRAZ 2 goluri 29.8 km
+bucla 739BRAZ 5 goluri 69.1 km
+bucla 861BRAS 3 goluri 26.8 km
+bucla 863MXL 8 goluri 87.1 km
+bucla 034BRAT 8 goluri 79.3 km
+bucla 142BRAZ 7 goluri 74.4 km
+bucla 389VKV 1 goluri 9 km
+bucla 430CMX 5 goluri 84.7 km
+bucla 503BRAR 1 goluri 9.2 km
+bucla 602BRAS 5 goluri 65.8 km
+bucla 795MUM 10 goluri 117.8 km
+bucla 808MUM 10 goluri 136.2 km
+bucla 893BRAX 9 goluri 92.4 km
+bucla 942BRAZ 7 goluri 93.4 km
+bucla total 90 goluri 1121.3 km

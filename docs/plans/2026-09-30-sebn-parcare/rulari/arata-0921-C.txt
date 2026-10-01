@@ -1,0 +1,370 @@
+
+== 552BRAO casa Chiperceni · rute S1 Vatici · eco 996 · P1 Vatici
+  2026-09-21 14:14–21:51  7.6h Vatici → [acum Chiperceni 180m] → Vatici · real 81.6 → loc 1 0.4 · după retur · înainte tur
+  2026-09-21 23:45–04:53  5.1h Vatici → [acum Chiperceni 120m] → Vatici · real 81 → loc 1 0.5 · după retur · înainte tur
+  2026-09-22 06:41–12:43    6h Vatici → [acum Chiperceni 100m] → Curchi · real 77.8 → loc 1 3.2 · după retur · înainte opriri+tur
+  2026-09-22 13:35–21:48  8.2h poarta SEBN Strășeni → [acum Chiperceni 148m] → Vatici · real 108.4 → loc 1 27.1 · după opriri+tur · înainte tur
+  2026-09-22 23:49–04:44  4.9h Vatici → [acum Chiperceni 153m] → Vatici · real 78.3 → loc 1 0.5 · după retur · înainte tur
+  2026-09-23 07:06–12:47  5.7h poarta SEBN Orhei → [acum Chiperceni 118m] → Vatici · real 64.4 → loc 1 18.9 · după retur+opriri · înainte tur
+  2026-09-23 13:36–21:56  8.3h poarta SEBN Strășeni → [acum Chiperceni 264m] → Vatici · real 114.5 → loc 1 27.2 · după tur · înainte tur
+  2026-09-23 23:51–04:52    5h Vatici → [acum Chiperceni 212m] → Vatici · real 78.2 → loc 1 0.5 · după retur · înainte tur
+  2026-09-24 06:51–12:41  5.8h Vatici → [acum Chiperceni 153m] → Curchi · real 75.1 → loc 1 3.3 · după retur · înainte opriri+tur
+  2026-09-24 14:43–21:43    7h poarta SEBN Orhei → [acum Chiperceni 240m] → Vatici · real 61.2 → loc 1 19 · după retur+opriri · înainte tur
+  2026-09-24 23:43–04:52  5.1h Vatici → [acum Chiperceni 120m] → Vatici · real 81.1 → loc 1 0.4 · după retur · înainte tur
+  2026-09-25 06:53–12:41  5.8h Vatici → [acum Chiperceni 139m] → Curchi · real 75.1 → loc 1 3.2 · după retur · înainte opriri+tur
+  2026-09-25 15:49–21:52  6.1h poarta SEBN Orhei → [acum Chiperceni 256m] → Vatici · real 61.7 → loc 1 19 · după opriri+tur+opriri · înainte tur
+  2026-09-25 23:50–04:43  4.9h Vatici → [acum Chiperceni 208m] → Vatici · real 81 → loc 1 0.5 · după retur · înainte tur
+
+== 034BRAT casa Ghindești · rute R3·GPS Domulgeni · eco 390 · P1 Domulgeni
+  2026-09-21 05:10–12:58  7.8h poarta SEBN Orhei → [acum Ghindești 385m] → Domulgeni · real 90.1 → loc 1 59.7 · după tur · înainte tur
+  2026-09-21 15:34–20:59  5.4h Domulgeni → [acum Ghindești 279m] → Domulgeni · real 26.2 → loc 1 0.1 · după retur · înainte tur
+  2026-09-21 23:57–04:11  4.2h Domulgeni → [acum Ghindești 225m] → Domulgeni · real 26.3 → loc 1 0.1 · după retur · înainte tur
+  2026-09-22 06:50–12:59  6.2h Domulgeni → [acum Ghindești 346m] → Domulgeni · real 26.1 → loc 1 0.1 · după retur · înainte tur
+  2026-09-22 15:33–21:01  5.5h Domulgeni → [acum Ghindești 280m] → Domulgeni · real 26.1 → loc 1 0.1 · după retur · înainte tur
+  2026-09-22 00:01–04:11  4.2h Domulgeni → [acum Ghindești 224m] → Domulgeni · real 26 → loc 1 0.1 · după retur · înainte tur
+  2026-09-23 06:58–13:07  6.1h Domulgeni → [acum Ghindești 238m] → Domulgeni · real 26.6 → loc 1 0.1 · după retur · înainte tur
+  2026-09-23 15:29–21:01  5.5h Domulgeni → [acum Ghindești 302m] → Domulgeni · real 26.1 → loc 1 0.1 · după retur · înainte tur
+  2026-09-23 00:00–04:15  4.2h Domulgeni → [acum Ghindești 225m] → Domulgeni · real 25.5 → loc 1 0.1 · după retur · înainte tur
+  2026-09-24 06:57–12:57    6h Domulgeni → [acum Ghindești 274m] → Domulgeni · real 26.1 → loc 1 0.1 · după retur · înainte tur
+  2026-09-24 15:41–20:55  5.2h Domulgeni → [acum Ghindești 275m] → Domulgeni · real 25.7 → loc 1 0.1 · după retur · înainte tur
+  2026-09-24 00:07–04:14  4.1h Domulgeni → [acum Ghindești 221m] → Domulgeni · real 25.5 → loc 1 0.1 · după retur · înainte tur
+  2026-09-25 07:00–13:12  6.2h Domulgeni → [acum Ghindești 328m] → Domulgeni · real 26.2 → loc 1 0.1 · după retur · înainte tur
+  2026-09-25 15:40–20:54  5.2h Domulgeni → [acum Ghindești 230m] → Domulgeni · real 25.6 → loc 1 0.1 · după retur · înainte tur
+  2026-09-25 00:03–04:06  4.1h Domulgeni → [acum Ghindești 218m] → Domulgeni · real 24.7 → loc 1 1.4 · după retur · înainte tur
+
+== 584BRAX casa Cotiujenii Mari · rute R3 Domulgeni | R14 Pohoarna · eco 327.9 · P1 Pohoarna
+  2026-09-21 05:12–12:42  7.5h poarta SEBN Orhei → [acum Cotiujenii Mari 286m] → Pohoarna · real 99 → loc 1 87.6 · după tur · înainte tur
+  2026-09-21 15:40–21:08  5.5h Pohoarna → [acum Cotiujenii Mari 180m] → Pohoarna · real 25.4 → loc 1 2 · după retur · înainte tur
+  2026-09-21 00:06–04:09    4h Pohoarna → [acum Cotiujenii Mari 180m] → Pohoarna · real 25.4 → loc 1 2.1 · după retur · înainte tur
+  2026-09-22 07:05–12:41  5.6h Pohoarna → [acum Cotiujenii Mari 275m] → Pohoarna · real 24.5 → loc 1 2 · după retur · înainte tur
+  2026-09-22 15:42–21:06  5.4h Pohoarna → [acum Cotiujenii Mari 240m] → Pohoarna · real 24.5 → loc 1 2.1 · după retur · înainte tur
+  2026-09-22 00:06–04:10  4.1h Pohoarna → [acum Cotiujenii Mari 180m] → Pohoarna · real 25.5 → loc 1 2 · după retur · înainte tur
+  2026-09-23 07:04–12:41  5.6h Pohoarna → [acum Cotiujenii Mari 274m] → Pohoarna · real 24.6 → loc 1 2.1 · după retur · înainte tur
+  2026-09-23 15:44–20:43    5h Pohoarna → [acum Cotiujenii Mari 230m] → Pohoarna · real 23.7 → loc 1 2 · după retur · înainte tur
+  2026-09-23 00:12–04:07  3.9h Pohoarna → [acum Cotiujenii Mari 180m] → Pohoarna · real 23.7 → loc 1 2 · după retur · înainte tur
+  2026-09-24 07:06–12:48  5.7h Pohoarna → [acum Cotiujenii Mari 272m] → Pohoarna · real 27.5 → loc 1 2 · după retur · înainte tur
+  2026-09-24 15:41–20:57  5.3h Pohoarna → [acum Cotiujenii Mari 208m] → Pohoarna · real 24.6 → loc 1 2 · după retur · înainte tur
+  2026-09-24 00:09–04:11    4h Pohoarna → [acum Cotiujenii Mari 180m] → Pohoarna · real 25.4 → loc 1 2 · după retur · înainte tur
+  2026-09-25 07:02–12:40  5.6h Pohoarna → [acum Cotiujenii Mari 215m] → Pohoarna · real 25.4 → loc 1 2 · după retur · înainte tur
+  2026-09-25 15:43–21:08  5.4h Pohoarna → [acum Cotiujenii Mari 240m] → Pohoarna · real 24.6 → loc 1 2.1 · după retur · înainte tur
+  2026-09-25 00:09–04:24  4.2h Pohoarna → [acum Cotiujenii Mari 209m] → Domulgeni · real 31.1 → loc 1 13.1 · după retur · înainte tur
+
+== 541NPL casa Ciulucani · rute R18 Telenești · eco 182.6 · P1 Telenești
+  2026-09-21 05:13–12:25  7.2h poarta SEBN Orhei → [acum Ciulucani 384m] → Mîndrești · real 57 → loc 1 51.2 · după tur · înainte opriri+tur
+  2026-09-21 15:54–21:19  5.4h Mîndrești → [acum Ciulucani 315m] → Telenești · real 7.1 → loc 0 7.1 · după retur+opriri · înainte tur
+  2026-09-21 00:20–04:15  3.9h Mîndrești → [acum Ciulucani 209m] → Telenești · real 16.9 → loc 1 9.3 · după retur+opriri · înainte tur
+  2026-09-22 07:02–12:23  5.3h Telenești → [acum Ciulucani 310m] → Mîndrești · real 7.3 → loc 0 7.3 · după retur · înainte opriri+tur
+  2026-09-22 15:40–21:16  5.6h Telenești → [acum Ciulucani 310m] → Telenești · real 16.7 → loc 1 1 · după retur · înainte tur
+  2026-09-22 00:09–03:54  3.7h Telenești → [acum Ciulucani 203m] → Mîndrești · real 14 → loc 1 6.9 · după retur · înainte opriri+tur
+  2026-09-23 07:03–12:36  5.6h Telenești → [acum Ciulucani 307m] → Telenești · real 18.8 → loc 1 0.8 · după retur · înainte tur
+  2026-09-23 15:39–21:15  5.6h Telenești → [acum Ciulucani 305m] → Telenești · real 19 → loc 1 1 · după retur · înainte tur
+  2026-09-23 00:15–04:20  4.1h Telenești → [acum Ciulucani 205m] → Telenești · real 25.6 → loc 1 1 · după retur · înainte tur
+  2026-09-24 07:11–12:45  5.6h Telenești → [acum Ciulucani 302m] → Telenești · real 18.9 → loc 1 1 · după retur · înainte tur
+  2026-09-24 15:47–21:24  5.6h Mihălașa Nouă → [acum Ciulucani 313m] → Telenești · real 13.7 → loc 1 4 · după retur+opriri · înainte tur
+  2026-09-24 00:10–04:16  4.1h Telenești → [acum Ciulucani 208m] → Telenești · real 25.6 → loc 1 1 · după retur · înainte tur
+  2026-09-25 07:06–12:24  5.3h Telenești → [acum Ciulucani 308m] → Mîndrești · real 7.1 → loc 0 7.1 · după retur · înainte opriri+tur
+  2026-09-25 15:41–21:12  5.5h Telenești → [acum Ciulucani 302m] → Telenești · real 18.7 → loc 1 1 · după retur · înainte tur
+  2026-09-25 00:08–05:13  5.1h Telenești → [acum Ciulucani 278m] → Telenești · real 17.5 → loc 1 1.7 · după retur · înainte tur
+
+== 812MUM casa Cucuruzeni · rute R2 Crihana · eco 124 · P1 Crihana
+  2026-09-21 05:29–13:14  7.8h poarta SEBN Orhei → [acum Cucuruzeni 410m] → Crihana · real 29.2 → loc 1 18.8 · după tur · înainte tur
+  2026-09-21 14:59–21:49  6.8h Ocnița-Țărani → [acum Cucuruzeni 390m] → Crihana · real 11.1 → loc 1 8.7 · după retur · înainte tur
+  2026-09-21 23:56–04:48  4.9h Crihana → [acum Cucuruzeni 278m] → Crihana · real 8.8 → loc 1 0 · după retur · înainte tur
+  2026-09-22 06:44–13:17  6.5h Crihana → [acum Cucuruzeni 361m] → Crihana · real 9.4 → loc 1 0 · după retur · înainte tur
+  2026-09-22 15:20–21:48  6.5h Crihana → [acum Cucuruzeni 361m] → Crihana · real 8.8 → loc 1 0 · după retur · înainte tur
+  2026-09-22 23:57–04:48  4.9h Crihana → [acum Cucuruzeni 277m] → Crihana · real 8.8 → loc 1 0.1 · după retur · înainte tur
+  2026-09-23 06:43–13:15  6.5h Crihana → [acum Cucuruzeni 361m] → Crihana · real 9.4 → loc 1 0.1 · după retur · înainte tur
+  2026-09-23 15:02–21:50  6.8h Ocnița-Țărani → [acum Cucuruzeni 386m] → Crihana · real 12.4 → loc 1 8.6 · după retur · înainte tur
+  2026-09-23 23:58–04:48  4.8h Crihana → [acum Cucuruzeni 273m] → Crihana · real 8.7 → loc 1 0.1 · după retur · înainte tur
+  2026-09-24 06:45–13:17  6.5h Crihana → [acum Cucuruzeni 361m] → Crihana · real 9.3 → loc 1 0.1 · după retur · înainte tur
+  2026-09-24 15:23–21:48  6.4h Crihana → [acum Cucuruzeni 361m] → Crihana · real 9.4 → loc 1 0.1 · după retur · înainte tur
+  2026-09-24 23:56–04:48  4.9h Crihana → [acum Cucuruzeni 273m] → Crihana · real 8.7 → loc 1 0.1 · după retur · înainte tur
+  2026-09-25 06:45–13:14  6.5h Crihana → [acum Cucuruzeni 361m] → Crihana · real 8.7 → loc 1 0 · după retur · înainte tur
+  2026-09-25 15:22–21:48  6.4h Crihana → [acum Cucuruzeni 361m] → Crihana · real 9.3 → loc 1 0 · după retur · înainte tur
+  2026-09-25 23:58–06:09  6.2h Crihana → [acum Cucuruzeni 301m] → poarta SEBN Orhei · real 27.5 → loc 1 18.8 · după retur · înainte retur
+
+== 152BRAZ casa Pământeni · rute R23 Bălți · eco 114.9 · P1 Cișmea
+  2026-09-22 15:41–17:43    2h Prepelița → [acum — m] → poarta SEBN Orhei · real 53.1 → loc 1 46.7 · după retur · înainte retur
+  2026-09-24 08:32–17:41  9.1h poarta SEBN Orhei → [acum poarta SEBN 257m] → poarta SEBN Orhei · real 109.5 → loc 1 9.8 · după tur · înainte retur
+  2026-09-25 08:33–15:13  6.7h poarta SEBN Orhei → [acum poarta SEBN 237m] → Vatici · real 39.4 → loc 1 30.5 · după tur · înainte opriri+retur
+
+== 739BRAZ casa Ciocîlteni · rute R22 Clișova · eco 96.3 · P1 Clișova
+  2026-09-21 05:12–12:47  7.6h poarta SEBN Orhei → [acum Clișova Nouă 387m] → Clișova · real 37.8 → loc 1 26.9 · după tur · înainte tur
+  2026-09-21 15:14–22:02  6.8h Clișova → [acum Clișova Nouă 246m] → Pelivan · real 23.6 → loc 0 23.6 · după retur · înainte opriri+retur
+  2026-09-21 23:47–04:24  4.6h Clișova → [acum Clișova Nouă 240m] → Clișova · real 15.9 → loc 1 0.1 · după opriri+retur · înainte tur
+  2026-09-22 06:18–12:58  6.7h Pelivan → [acum Clișova Nouă 337m] → Clișova · real 26.1 → loc 0 26.1 · după tur+opriri · înainte tur
+  2026-09-22 15:12–22:00  6.8h Clișova → [acum Clișova Nouă 245m] → Pelivan · real 23 → loc 0 23 · după retur · înainte opriri+retur
+  2026-09-22 23:42–04:22  4.7h Clișova → [acum Clișova Nouă 244m] → Clișova · real 17.7 → loc 1 0.1 · după opriri+retur · înainte tur
+  2026-09-23 07:00–12:49  5.8h Clișova → [acum Clișova Nouă 283m] → Clișova · real 13.9 → loc 1 2 · după retur · înainte tur
+  2026-09-23 15:09–22:02  6.9h Clișova → [acum Clișova Nouă 358m] → Pelivan · real 25.8 → loc 0 25.8 · după retur · înainte opriri+retur
+  2026-09-23 23:42–04:36  4.9h Clișova → [acum Clișova Nouă 240m] → Clișova · real 20.2 → loc 1 0.1 · după opriri+retur · înainte tur
+  2026-09-24 06:19–12:59  6.7h Pelivan → [acum Clișova Nouă 245m] → Clișova · real 23.5 → loc 0 23.5 · după tur+opriri · înainte tur
+  2026-09-24 15:15–22:03  6.8h Clișova → [acum Clișova Nouă 242m] → Pelivan · real 24 → loc 0 24 · după retur · înainte opriri+retur
+  2026-09-24 23:44–04:39  4.9h Clișova → [acum Clișova Nouă 242m] → Clișova · real 20 → loc 1 0 · după opriri+retur · înainte tur
+  2026-09-25 06:17–12:51  6.6h Pelivan → [acum Clișova Nouă 110m] → Clișova · real 24.7 → loc 0 24.7 · după tur+opriri · înainte tur
+
+== 861BRAS casa Prodăneștii Vechi · rute R27 Cașunca · eco 40.8 · P1 Ciutulești
+  2026-09-21 07:16–12:05  4.8h Ștefănești → [acum Prodăneștii Vechi 255m] → Ciutulești · real 13.6 → loc 1 7.3 · după tur+opriri · înainte opriri+tur
+  2026-09-21 16:05–20:35  4.5h Ștefănești → [acum Prodăneștii Vechi 252m] → Ștefănești · real 4.6 → loc 0 4.6 · după retur+opriri · înainte opriri+tur
+  2026-09-21 00:46–04:01  3.3h Ștefănești → [acum Prodăneștii Vechi 152m] → Cașunca · real 13.8 → loc 1 9.8 · după retur+opriri · înainte tur
+  2026-09-22 07:43–11:49  4.1h Ștefănești → [acum Prodăneștii Vechi 229m] → Ștefănești · real 4.6 → loc 0 4.6 · după retur+opriri · înainte opriri+tur
+  2026-09-22 16:09–20:52  4.7h Ștefănești → [acum Prodăneștii Vechi 249m] → Ciutulești · real 10.3 → loc 1 7.7 · după retur+opriri · înainte opriri+tur
+  2026-09-22 00:21–04:01  3.7h Cașunca → [acum Prodăneștii Vechi 157m] → Cașunca · real 24.5 → loc 1 6.4 · după retur · înainte tur
+  2026-09-23 07:39–12:00  4.4h Ștefănești → [acum Prodăneștii Vechi 249m] → Ștefănești · real 4.2 → loc 0 4.2 · după retur+opriri · înainte opriri+tur
+  2026-09-23 16:01–20:38  4.6h Ciutulești → [acum Prodăneștii Vechi 246m] → Ștefănești · real 10.4 → loc 1 7.5 · după retur+opriri · înainte opriri+tur
+  2026-09-23 00:45–04:04  3.3h Ștefănești → [acum Prodăneștii Vechi 164m] → Cașunca · real 13.8 → loc 1 9.7 · după retur+opriri · înainte tur
+  2026-09-24 16:15–20:56  4.7h Ștefănești → [acum Prodăneștii Vechi 252m] → Ciutulești · real 10.4 → loc 1 7.7 · după retur+opriri · înainte opriri+tur
+  2026-09-24 00:42–03:42    3h Ștefănești → [acum Prodăneștii Vechi 159m] → Ștefănești · real 4.6 → loc 0 4.6 · după retur+opriri · înainte opriri+tur
+  2026-09-25 07:43–11:56  4.2h Ștefănești → [acum Prodăneștii Vechi 234m] → Ștefănești · real 4.7 → loc 0 4.7 · după retur+opriri · înainte opriri+tur
+  2026-09-25 16:28–20:28    4h Ștefănești → [acum Prodăneștii Vechi 229m] → Prodăneștii Vechi · real 2.4 → loc 0 2.4 · după retur+opriri · înainte pe-ruta
+  2026-09-25 21:53–23:09  1.3h Țînțăreni → [acum poarta SEBN 76m] → poarta SEBN Orhei · real 0.7 → loc 0 0.7 · după pe-ruta · înainte retur
+  2026-09-25 00:40–04:42    4h Ștefănești → [acum Prodăneștii Vechi 214m] → Prodănești · real 6.6 → loc 0 6.6 · după retur+opriri · înainte opriri+retur
+
+== 823MUM casa Slobozia Doamnei · rute R8 Lupoaica | R11 Nistreană · eco 28.6 · P1 Pohorniceni
+  2026-09-21 05:37–07:55  2.3h poarta SEBN Orhei → [acum Orhei 98m] → Orhei (2.1 km) · real 10.9 → loc 0 10.9 · după tur · înainte tur
+  2026-09-21 08:37–11:27  2.8h poarta SEBN Orhei → [acum Orhei 160m] → Orhei (2.1 km) · real 5.5 → loc 0 5.5 · după tur · înainte pe-ruta
+  2026-09-21 11:37–13:13  1.6h Orhei → [acum Orhei 86m] → Orhei (2.1 km) · real 4.2 → loc 0 4.2 · după pe-ruta · înainte tur
+  2026-09-21 15:18–17:42  2.4h Seliște (2.9 km) → [acum Orhei (2 km) 108m] → poarta SEBN Orhei · real 10.1 → loc 0 10.1 · după retur · înainte retur
+  2026-09-21 17:59–21:58    4h Orhei (2.1 km) → [acum Orhei 208m] → Orhei (2.1 km) · real 9.9 → loc 1 7.9 · după retur · înainte tur
+  2026-09-21 23:29–04:59  5.5h Orhei (2.1 km) → [acum Orhei 305m] → Orhei (2.1 km) · real 13.5 → loc 0 13.5 · după retur · înainte tur
+  2026-09-22 06:50–08:03  1.2h Orhei (2.1 km) → [acum Orhei 73m] → Orhei · real 0.5 → loc 0 0.5 · după retur · înainte tur
+  2026-09-22 08:38–13:15  4.6h poarta SEBN Orhei → [acum Orhei 209m] → Orhei (2.1 km) · real 11.1 → loc 0 11.1 · după tur · înainte tur
+  2026-09-22 15:19–17:42  2.4h Seliște (2.8 km) → [acum Orhei 113m] → poarta SEBN Orhei · real 10.1 → loc 0 10.1 · după retur · înainte retur
+  2026-09-22 17:58–21:58    4h Orhei (2 km) → [acum Orhei 215m] → Orhei (2.1 km) · real 10.3 → loc 1 7.9 · după retur · înainte tur
+  2026-09-22 23:29–04:58  5.5h Orhei (2.1 km) → [acum Orhei 300m] → Orhei (2.1 km) · real 13.8 → loc 1 7.9 · după retur · înainte tur
+  2026-09-23 08:38–13:14  4.6h poarta SEBN Orhei → [acum Orhei 241m] → Orhei (2.1 km) · real 10.8 → loc 0 10.8 · după tur · înainte tur
+  2026-09-23 15:20–17:41  2.3h Seliște (2.8 km) → [acum Orhei (2 km) 107m] → poarta SEBN Orhei · real 10 → loc 0 10 · după retur · înainte retur
+  2026-09-23 17:59–22:20  4.4h Orhei (2.2 km) → [acum Orhei 239m] → Orhei (2.1 km) · real 10.5 → loc 1 7.9 · după retur · înainte tur
+  2026-09-23 23:30–04:58  5.5h Orhei (2.1 km) → [acum Orhei 301m] → Orhei (2 km) · real 13.6 → loc 1 8 · după retur · înainte tur
+  2026-09-24 08:38–13:14  4.6h poarta SEBN Orhei → [acum Orhei 230m] → Orhei (2.1 km) · real 11.2 → loc 0 11.2 · după tur · înainte tur
+  2026-09-24 15:01–17:41  2.7h Orhei (2 km) → [acum Orhei (2 km) 123m] → poarta SEBN Orhei · real 13.4 → loc 0 13.4 · după retur · înainte retur
+  2026-09-24 18:00–22:00    4h Orhei (2.1 km) → [acum Orhei 217m] → Orhei (2.1 km) · real 10.2 → loc 1 7.9 · după retur · înainte tur
+  2026-09-24 23:31–04:59  5.5h Orhei (2 km) → [acum Orhei 302m] → Orhei (2 km) · real 13.2 → loc 1 8.1 · după retur · înainte tur
+  2026-09-25 06:55–08:01  1.1h Orhei (2.1 km) → [acum Orhei (2.3 km) 66m] → Orhei (2.1 km) · real 0.7 → loc 0 0.7 · după retur · înainte tur
+  2026-09-25 08:37–13:15  4.6h poarta SEBN Orhei → [acum Orhei 176m] → Orhei (2 km) · real 14.3 → loc 0 14.3 · după tur · înainte tur
+  2026-09-25 15:16–17:42  2.4h Seliște (2.9 km) → [acum Orhei 114m] → poarta SEBN Orhei · real 10.1 → loc 0 10.1 · după retur · înainte retur
+  2026-09-25 17:58–21:59    4h Orhei → [acum Orhei 219m] → Orhei (2 km) · real 9.7 → loc 0 9.7 · după retur · înainte tur
+  2026-09-25 23:31–06:11  6.7h Orhei (2.1 km) → [acum Orhei 356m] → poarta SEBN Orhei · real 16.7 → loc 1 13.9 · după retur · înainte retur
+
+== 863MXL casa Ciocîlteni · rute R21 Clișova · eco 12.6 · P1 acasă (Ciocîlteni)
+  2026-09-21 05:12–12:38  7.4h poarta SEBN Orhei → [acum Ciocîlteni 395m] → Clișova · real 35.2 → loc 0 35.2 · după tur · înainte tur
+  2026-09-21 15:35–21:08  5.5h Clișova → [acum Ciocîlteni 300m] → Clișova · real 7.4 → loc 0 7.4 · după retur · înainte tur
+  2026-09-21 00:02–04:22  4.3h Clișova → [acum Ciocîlteni 240m] → Clișova · real 7.3 → loc 0 7.3 · după retur · înainte tur
+  2026-09-22 07:01–12:33  5.5h Clișova → [acum Ciocîlteni 313m] → Clișova · real 8.3 → loc 0 8.3 · după retur · înainte tur
+  2026-09-22 15:18–21:09  5.8h Clișova → [acum Ciocîlteni 333m] → Clișova · real 7.4 → loc 0 7.4 · după retur · înainte tur
+  2026-09-22 00:07–04:23  4.3h Clișova → [acum Ciocîlteni 240m] → Clișova · real 7.4 → loc 0 7.4 · după retur · înainte tur
+  2026-09-23 05:10–12:38  7.5h poarta SEBN Orhei → [acum Orhei 160m] → Clișova · real 37.5 → loc 1 24.9 · după tur · înainte tur
+  2026-09-23 15:25–21:14  5.8h Clișova → [acum Ciocîlteni 228m] → Clișova · real 7.4 → loc 0 7.4 · după retur · înainte tur
+  2026-09-23 00:02–04:08  4.1h Clișova → [acum Ciocîlteni 231m] → Clișova · real 7.3 → loc 0 7.3 · după retur · înainte tur
+  2026-09-24 07:04–12:32  5.5h Clișova → [acum Ciocîlteni 180m] → Clișova · real 8.1 → loc 0 8.1 · după retur · înainte tur
+  2026-09-24 15:27–21:08  5.7h Clișova → [acum Ciocîlteni 156m] → Clișova · real 7.7 → loc 0 7.7 · după retur · înainte tur
+  2026-09-24 00:04–04:12  4.1h Clișova → [acum Ciocîlteni 231m] → Clișova · real 7.6 → loc 0 7.6 · după retur · înainte tur
+  2026-09-25 06:58–12:40  5.7h Clișova → [acum Ciocîlteni 300m] → Clișova · real 8 → loc 0 8 · după retur · înainte tur
+  2026-09-25 15:37–21:11  5.6h Clișova Nouă → [acum Ciocîlteni 212m] → Clișova · real 4.8 → loc 0 4.8 · după retur+opriri · înainte tur
+  2026-09-25 00:18–06:09  5.9h Clișova → [acum Ciocîlteni 265m] → poarta SEBN Orhei · real 33 → loc 0 33 · după retur · înainte retur
+
+== 042BRAU casa Pohrebeni · rute R5 Izvoare · eco 0 · propunerea nu scade km — rămâne cum e
+  2026-09-21 15:29–21:18  5.8h Izvoare → [acum Pohrebeni 320m] → Izvoare · real 10.8 → loc null 10.8 · după retur · înainte tur
+  2026-09-22 15:28–21:13  5.7h Izvoare → [acum Pohrebeni 232m] → Izvoare · real 10.5 → loc null 10.5 · după retur · înainte tur
+  2026-09-22 22:15–23:39  1.4h poarta SEBN Orhei → [acum — m] → Șercani · real 7 → loc null 7 · după tur · înainte pe-ruta
+  2026-09-22 00:09–04:22  4.2h Pohrebeni → [acum — m] → Izvoare · real 0 → loc null 0 · după pe-ruta · înainte tur
+  2026-09-23 06:55–12:45  5.8h Izvoare → [acum Pohrebeni 321m] → Izvoare · real 10.4 → loc null 10.4 · după retur · înainte tur
+  2026-09-23 15:35–21:02  5.5h Izvoare → [acum Pohrebeni 177m] → Pohrebeni · real 5.3 → loc null 5.3 · după retur · înainte pe-ruta
+  2026-09-24 07:00–12:43  5.7h Izvoare → [acum Izvoare 315m] → Izvoare · real 7 → loc null 7 · după retur · înainte tur
+  2026-09-24 15:33–21:22  5.8h Izvoare → [acum Pohrebeni 151m] → Izvoare · real 10.6 → loc null 10.6 · după retur · înainte tur
+  2026-09-24 00:05–04:21  4.3h Izvoare → [acum Pohrebeni 234m] → Izvoare · real 10.1 → loc null 10.1 · după retur · înainte tur
+  2026-09-25 05:19–06:43  1.4h poarta SEBN Orhei → [acum — m] → Șercani · real 7.4 → loc null 7.4 · după tur · înainte pe-ruta
+  2026-09-25 06:45–12:50  6.1h Pohrebeni → [acum Pohrebeni 272m] → Izvoare · real 6.5 → loc null 6.5 · după pe-ruta · înainte tur
+  2026-09-25 15:33–21:04  5.5h Izvoare → [acum Pohrebeni 270m] → Pohrebeni · real 5.1 → loc null 5.1 · după retur · înainte pe-ruta
+  2026-09-25 22:04–23:52  1.8h Zorile (4.4 km) → [acum — m] → Pohrebeni · real 0 → loc null 0 · după pe-ruta · înainte pe-ruta
+
+== 142BRAZ casa Sloveanca · rute R1 Bălășești · eco 0 · propunerea nu scade km — rămâne cum e
+  2026-09-21 05:07–12:40  7.6h poarta SEBN Orhei → [acum Sloveanca 380m] → Bălășești · real 70.1 → loc null 70.1 · după tur · înainte tur
+  2026-09-21 15:25–21:19  5.9h Răzălăi → [acum Sloveanca 344m] → Răzălăi · real 5 → loc null 5 · după retur · înainte tur
+  2026-09-21 23:55–04:17  4.4h Bălășești → [acum Sloveanca 250m] → Răzălăi · real 7.4 → loc null 7.4 · după retur · înainte tur
+  2026-09-22 06:58–12:31  5.6h Răzălăi → [acum Sloveanca 328m] → Sloveanca · real 2.4 → loc null 2.4 · după retur · înainte pe-ruta
+  2026-09-22 23:56–04:15  4.3h Bălășești → [acum Sloveanca 246m] → Răzălăi · real 7.3 → loc null 7.3 · după retur · înainte tur
+  2026-09-23 06:58–12:40  5.7h Răzălăi → [acum Sloveanca 329m] → Bălășești · real 7.1 → loc null 7.1 · după retur · înainte tur
+  2026-09-23 15:26–21:19  5.9h Răzălăi → [acum Sloveanca 343m] → Răzălăi · real 4.7 → loc null 4.7 · după retur · înainte tur
+  2026-09-23 23:58–04:17  4.3h Bălășești → [acum Sloveanca 249m] → Răzălăi · real 7.2 → loc null 7.2 · după retur · înainte tur
+  2026-09-24 07:01–12:42  5.7h Răzălăi → [acum Sloveanca 327m] → Bălășești · real 7.1 → loc null 7.1 · după retur · înainte tur
+  2026-09-24 15:27–21:18  5.8h Răzălăi → [acum Sloveanca 340m] → Răzălăi · real 4.7 → loc null 4.7 · după retur · înainte tur
+  2026-09-24 23:58–04:18  4.3h Bălășești → [acum Sloveanca 245m] → Răzălăi · real 7.3 → loc null 7.3 · după retur · înainte tur
+  2026-09-25 07:01–12:42  5.7h Răzălăi → [acum Sloveanca 328m] → Bălășești · real 7.1 → loc null 7.1 · după retur · înainte tur
+  2026-09-25 15:32–21:20  5.8h Răzălăi → [acum Sloveanca 336m] → Răzălăi · real 4.6 → loc null 4.6 · după retur · înainte tur
+  2026-09-25 23:55–04:55    5h Bălășești → [acum Sloveanca 288m] → Răzălăi · real 8.1 → loc null 8.1 · după retur · înainte tur
+
+== 314BRAT casa Donici · rute R13 Peresecina | R20 Voroteț · eco undefined · un singur schimb măsurat în săptămână (§8.3)
+
+== 372BRAY casa Florești · rute R4 Florești · eco 0 · propunerea nu scade km — rămâne cum e
+  2026-09-21 06:51–12:22  5.5h Florești → [acum Florești 323m] → Florești · real 5.4 → loc null 5.4 · după retur · înainte tur
+  2026-09-21 16:17–20:43  4.4h Florești → [acum Florești 263m] → Florești · real 3.1 → loc null 3.1 · după retur · înainte tur
+  2026-09-21 00:31–03:46  3.3h Florești → [acum Florești 191m] → Florești · real 3 → loc null 3 · după retur · înainte tur
+  2026-09-22 07:33–12:28  4.9h Florești → [acum Florești 289m] → Florești · real 3.7 → loc null 3.7 · după retur · înainte tur
+  2026-09-22 16:19–20:46  4.4h Florești → [acum Florești 261m] → Florești · real 3.3 → loc null 3.3 · după retur · înainte tur
+  2026-09-22 00:28–03:41  3.2h Florești → [acum Florești 189m] → Florești · real 3.1 → loc null 3.1 · după retur · înainte tur
+  2026-09-23 08:19–12:24  4.1h Florești → [acum Florești 243m] → Florești · real 1.5 → loc null 1.5 · după retur · înainte tur
+  2026-09-23 16:20–20:50  4.5h Florești → [acum Florești 266m] → Florești · real 3.2 → loc null 3.2 · după retur · înainte tur
+  2026-09-23 00:28–03:42  3.2h Florești → [acum Florești 190m] → Florești · real 3.1 → loc null 3.1 · după retur · înainte tur
+  2026-09-24 16:20–20:50  4.5h Florești → [acum Florești 264m] → Florești · real 3.2 → loc null 3.2 · după retur · înainte tur
+  2026-09-24 00:27–03:45  3.3h Florești → [acum Florești 195m] → Florești · real 3 → loc null 3 · după retur · înainte tur
+  2026-09-25 07:34–12:24  4.8h Florești → [acum Florești 283m] → Florești · real 3.8 → loc null 3.8 · după retur · înainte tur
+  2026-09-25 16:22–20:46  4.4h Florești → [acum Florești 260m] → Florești · real 3.1 → loc null 3.1 · după retur · înainte tur
+  2026-09-25 00:28–04:31  4.1h Florești → [acum Florești 240m] → Florești · real 3 → loc null 3 · după retur · înainte tur
+
+== 389VKV casa Rezina · rute  · eco undefined · un singur schimb măsurat în săptămână (§8.3)
+
+== 430CMX casa Cobîlea · rute R15 Cobîlea | S1 Vatici · eco 0 · propunerea nu scade km — rămâne cum e
+  2026-09-21 15:52–20:52    5h Cobîlea → [acum Cobîlea 120m] → Cobîlea · real 3.4 → loc null 3.4 · după retur · înainte tur
+  2026-09-21 00:30–04:00  3.5h Cobîlea → [acum Cobîlea 120m] → Cobîlea · real 1.5 → loc null 1.5 · după retur · înainte tur
+  2026-09-22 07:27–11:59  4.5h Cobîlea → [acum Cobîlea 119m] → Cobîlea · real 1.6 → loc null 1.6 · după retur · înainte tur
+  2026-09-22 15:52–20:56  5.1h Cobîlea → [acum Cobîlea 165m] → Cobîlea · real 3.5 → loc null 3.5 · după retur · înainte tur
+  2026-09-22 00:32–04:04  3.5h Cobîlea → [acum Cobîlea 202m] → Cobîlea · real 1.7 → loc null 1.7 · după retur · înainte tur
+  2026-09-23 07:29–12:01  4.5h Cobîlea → [acum Cobîlea 257m] → Cobîlea · real 1.5 → loc null 1.5 · după retur · înainte tur
+  2026-09-23 16:08–20:55  4.8h Cobîlea → [acum Cobîlea 187m] → Cobîlea · real 1.6 → loc null 1.6 · după retur · înainte tur
+  2026-09-23 00:30–04:06  3.6h Cobîlea → [acum Cobîlea 206m] → Cobîlea · real 3.5 → loc null 3.5 · după retur · înainte tur
+  2026-09-24 07:29–12:04  4.6h Cobîlea → [acum Cobîlea 90m] → Cobîlea · real 1.6 → loc null 1.6 · după retur · înainte tur
+  2026-09-24 15:59–20:56    5h Cobîlea → [acum Cobîlea 110m] → Cobîlea · real 3.5 → loc null 3.5 · după retur · înainte tur
+  2026-09-24 00:33–04:02  3.5h Cobîlea → [acum Cobîlea 195m] → Cobîlea · real 1.5 → loc null 1.5 · după retur · înainte tur
+  2026-09-25 07:29–11:49  4.3h Cobîlea → [acum Cobîlea 159m] → Cobîlea · real 1.5 → loc null 1.5 · după retur · înainte tur
+  2026-09-25 16:27–20:58  4.5h Șoldănești → [acum Cobîlea 75m] → Cobîlea · real 15.4 → loc null 15.4 · după tur+opriri · înainte tur
+  2026-09-25 00:28–03:42  3.2h Cobîlea → [acum Cobîlea 114m] → Cobîlea · real 0.8 → loc null 0.8 · după retur · înainte tur
+
+== 503BRAR casa Lalova · rute R7 Lalova · eco 0 · propunerea nu scade km — rămâne cum e
+  2026-09-21 05:09–12:53  7.7h poarta SEBN Orhei → [acum Lalova 410m] → Lalova · real 58.5 → loc null 58.5 · după tur · înainte tur
+  2026-09-21 15:26–21:18  5.9h Lalova → [acum Lalova 347m] → Lalova · real 1.9 → loc null 1.9 · după retur · înainte tur
+  2026-09-21 22:14–04:19  6.1h poarta SEBN Orhei → [acum Cogîlniceni 284m] → Lalova · real 48.9 → loc null 48.9 · după tur · înainte tur
+  2026-09-22 05:03–12:50  7.8h poarta SEBN Orhei → [acum Cogîlniceni 376m] → Lalova · real 39.6 → loc null 39.6 · după tur · înainte tur
+  2026-09-22 15:50–21:23  5.5h Lalova → [acum Lalova 329m] → Lalova · real 1.9 → loc null 1.9 · după retur · înainte tur
+  2026-09-22 00:24–04:21    4h Lalova → [acum Lalova 236m] → Lalova · real 1 → loc null 1 · după retur · înainte tur
+  2026-09-23 07:03–12:49  5.8h Lalova → [acum Lalova 342m] → Lalova · real 2.2 → loc null 2.2 · după retur · înainte tur
+  2026-09-23 15:38–21:22  5.7h Lalova → [acum Lalova 340m] → Lalova · real 2 → loc null 2 · după retur · înainte tur
+  2026-09-23 22:18–00:15  1.9h poarta SEBN Orhei → [acum — m] → Lalova · real 39.1 → loc null 39.1 · după tur · înainte pe-ruta
+  2026-09-23 00:17–04:17    4h Lalova → [acum Lalova 238m] → Lalova · real 1.1 → loc null 1.1 · după pe-ruta · înainte tur
+  2026-09-24 05:05–07:06    2h poarta SEBN Orhei → [acum — m] → Lalova · real 38.8 → loc null 38.8 · după tur · înainte pe-ruta
+  2026-09-24 07:10–12:53  5.7h Lalova → [acum Lalova 341m] → Lalova · real 1.3 → loc null 1.3 · după pe-ruta · înainte tur
+  2026-09-24 15:37–21:20  5.7h Lalova → [acum Lalova 339m] → Lalova · real 1.7 → loc null 1.7 · după retur · înainte tur
+  2026-09-24 00:08–04:17  4.2h Lalova → [acum Lalova 248m] → Lalova · real 1.2 → loc null 1.2 · după retur · înainte tur
+  2026-09-25 07:02–12:50  5.8h Lalova → [acum Lalova 344m] → Lalova · real 2.3 → loc null 2.3 · după retur · înainte tur
+  2026-09-25 15:32–21:17  5.7h Lalova → [acum Lalova 341m] → Lalova · real 1.8 → loc null 1.8 · după retur · înainte tur
+  2026-09-25 00:22–04:06  3.7h Lalova → [acum Lalova 223m] → Lalova · real 1.1 → loc null 1.1 · după retur · înainte tur
+
+== 514BRAZ casa Susleni · rute R17 Susleni · eco 0 · propunerea nu scade km — rămâne cum e
+  2026-09-21 05:56–12:14  6.3h Susleni → [acum Susleni 219m] → Berezlogi · real 5.6 → loc null 5.6 · după retur · înainte opriri+tur
+  2026-09-21 16:04–21:00  4.9h Berezlogi → [acum Susleni 279m] → Susleni · real 5.6 → loc null 5.6 · după retur+opriri · înainte tur
+  2026-09-21 23:56–03:51  3.9h Susleni → [acum Susleni 221m] → Susleni · real 0 → loc null 0 · după retur · înainte tur
+  2026-09-22 07:01–12:32  5.5h Susleni → [acum Susleni 270m] → Hîjdieni · real 8.6 → loc null 8.6 · după retur · înainte opriri+tur
+  2026-09-22 15:32–20:46  5.2h Susleni → [acum Susleni 194m] → Susleni · real 0.2 → loc null 0.2 · după retur · înainte tur
+  2026-09-22 23:57–03:50  3.9h Susleni → [acum Susleni 222m] → Susleni · real 0 → loc null 0 · după retur · înainte tur
+  2026-09-23 06:51–12:15  5.4h Susleni → [acum Susleni 180m] → Hîjdieni · real 8.7 → loc null 8.7 · după retur · înainte opriri+tur
+  2026-09-23 15:40–21:01  5.4h Susleni → [acum Susleni 180m] → Susleni · real 0 → loc null 0 · după retur · înainte tur
+  2026-09-23 00:15–03:53  3.6h Susleni → [acum Susleni 209m] → Susleni · real 0.3 → loc null 0.3 · după retur · înainte tur
+  2026-09-24 06:56–12:26  5.5h Susleni → [acum Susleni 174m] → Hîjdieni · real 9.1 → loc null 9.1 · după retur · înainte opriri+tur
+  2026-09-24 15:30–21:21  5.8h Susleni → [acum Susleni 333m] → Susleni · real 0 → loc null 0 · după retur · înainte tur
+  2026-09-24 00:02–04:11  4.2h Susleni → [acum Susleni 236m] → Susleni · real 0 → loc null 0 · după retur · înainte tur
+  2026-09-25 06:56–12:29  5.6h Susleni → [acum Susleni 294m] → Hîjdieni · real 8.8 → loc null 8.8 · după retur · înainte opriri+tur
+  2026-09-25 15:31–20:58  5.4h Susleni → [acum Susleni 301m] → Susleni · real 0 → loc null 0 · după retur · înainte tur
+  2026-09-25 00:00–04:40  4.7h Susleni → [acum Susleni 271m] → Susleni · real 0.3 → loc null 0.3 · după retur · înainte tur
+
+== 522BRAT casa Jora de Jos · rute R6 Lopatna · eco undefined · rute neverificate: 20 din 32 tururi și retururi nu trec pe la capătul rutelor ei
+
+== 602BRAS casa Mihailovca · rute R9 Mihailovca · eco 0 · propunerea nu scade km — rămâne cum e
+  2026-09-21 15:58–20:53  4.9h Mihailovca → [acum Mihailovca 295m] → Mihailovca · real 0 → loc null 0 · după pe-ruta · înainte tur
+  2026-09-21 00:42–03:51  3.2h Mihailovca → [acum Mihailovca 174m] → Mihailovca · real 0.1 → loc null 0.1 · după retur · înainte tur
+  2026-09-22 07:04–11:46  4.7h Mihailovca → [acum Mihailovca 280m] → Mihailovca · real 1.4 → loc null 1.4 · după retur · înainte tur
+  2026-09-22 16:53–21:25  4.5h Mihailovca → [acum Mihailovca 214m] → Mihailovca · real 0 → loc null 0 · după retur · înainte tur
+  2026-09-22 00:34–03:50  3.3h Mihailovca → [acum Mihailovca 192m] → Mihailovca · real 0 → loc null 0 · după retur · înainte tur
+  2026-09-23 07:01–12:01    5h Mihailovca → [acum Mihailovca 295m] → Mihailovca · real 0.1 → loc null 0.1 · după retur · înainte tur
+  2026-09-23 16:54–21:23  4.5h Mihailovca → [acum Mihailovca 247m] → Mihailovca · real 0 → loc null 0 · după retur · înainte tur
+  2026-09-23 00:41–03:55  3.2h Mihailovca → [acum Mihailovca 190m] → Mihailovca · real 0.1 → loc null 0.1 · după retur · înainte tur
+  2026-09-24 07:06–11:27  4.4h Mihailovca → [acum Mihailovca 166m] → Mihailovca · real 0.5 → loc null 0.5 · după retur · înainte tur
+  2026-09-24 16:35–21:11  4.6h Sîngerei → [acum Mihailovca 166m] → Mihailovca · real 10.9 → loc null 10.9 · după retur+opriri · înainte tur
+  2026-09-24 00:40–03:52  3.2h Mihailovca → [acum Mihailovca 189m] → Mihailovca · real 0 → loc null 0 · după retur · înainte tur
+  2026-09-25 07:01–11:28  4.4h Mihailovca → [acum Mihailovca 162m] → Mihailovca · real 0.3 → loc null 0.3 · după retur · înainte tur
+  2026-09-25 17:04–21:20  4.3h Mihailovca → [acum Mihailovca 151m] → Mihailovca · real 0 → loc null 0 · după retur · înainte tur
+  2026-09-25 00:33–04:51  4.3h Mihailovca → [acum Mihailovca 252m] → Mihailovca · real 0 → loc null 0 · după retur · înainte tur
+  2026-09-26 07:00–09:39  2.7h Mihailovca → [acum Mihailovca 156m] → Mihailovca · real 0 → loc null 0 · după retur · înainte pe-ruta
+
+== 725YOZ casa Olișcani · rute R12·GPS Olișcani · eco 0 · propunerea nu scade km — rămâne cum e
+  2026-09-21 06:30–12:42  6.2h Olișcani → [acum Olișcani 361m] → Olișcani · real 4.5 → loc null 4.5 · după retur · înainte tur
+  2026-09-21 15:37–21:20  5.7h Olișcani → [acum Olișcani 334m] → Olișcani · real 2.1 → loc null 2.1 · după retur · înainte tur
+  2026-09-21 00:10–04:15  4.1h Olișcani → [acum Olișcani 235m] → Olișcani · real 2.1 → loc null 2.1 · după retur · înainte tur
+  2026-09-22 07:05–12:36  5.5h Olișcani → [acum Olișcani 328m] → Olișcani · real 2.2 → loc null 2.2 · după retur · înainte tur
+  2026-09-22 15:48–21:19  5.5h Olișcani → [acum Olișcani 324m] → Olișcani · real 2.1 → loc null 2.1 · după retur · înainte tur
+  2026-09-22 00:13–04:15    4h Olișcani → [acum Olișcani 229m] → Olișcani · real 2.2 → loc null 2.2 · după retur · înainte tur
+  2026-09-23 07:04–12:37  5.5h Olișcani → [acum Olișcani 320m] → Olișcani · real 2.1 → loc null 2.1 · după retur · înainte tur
+  2026-09-23 15:44–21:24  5.7h Olișcani → [acum Olișcani 335m] → Olișcani · real 2.1 → loc null 2.1 · după retur · înainte tur
+  2026-09-23 00:15–04:16    4h Olișcani → [acum Olișcani 238m] → Olișcani · real 2.2 → loc null 2.2 · după retur · înainte tur
+  2026-09-24 07:06–12:35  5.5h Olișcani → [acum Olișcani 317m] → Olișcani · real 2.1 → loc null 2.1 · după retur · înainte tur
+  2026-09-24 15:36–21:18  5.7h Olișcani → [acum Olișcani 335m] → Olișcani · real 2.1 → loc null 2.1 · după retur · înainte tur
+  2026-09-24 00:12–04:13    4h Olișcani → [acum Olișcani 238m] → Olișcani · real 2.2 → loc null 2.2 · după retur · înainte tur
+  2026-09-25 07:00–12:36  5.6h Olișcani → [acum Olișcani 330m] → Olișcani · real 2.2 → loc null 2.2 · după retur · înainte tur
+  2026-09-25 15:43–21:20  5.6h Olișcani → [acum Olișcani 325m] → Olișcani · real 2.1 → loc null 2.1 · după retur · înainte tur
+  2026-09-25 00:04–04:21  4.3h Olișcani → [acum Olișcani 246m] → Olișcani · real 4.6 → loc null 4.6 · după retur · înainte tur
+
+== 795MUM casa Rezina · rute R16 Rezina · eco 0 · propunerea nu scade km — rămâne cum e
+  2026-09-21 15:32–20:44  5.2h Rezina → [acum Rezina 303m] → Rezina · real 4.8 → loc null 4.8 · după retur · înainte tur
+  2026-09-21 00:03–03:42  3.6h Rezina → [acum Rezina 209m] → Ciorna · real 4.9 → loc null 4.9 · după retur · înainte opriri+tur
+  2026-09-22 07:26–12:18  4.9h Rezina → [acum Rezina 285m] → Rezina · real 4.7 → loc null 4.7 · după retur · înainte tur
+  2026-09-22 15:46–20:34  4.8h Rezina → [acum Rezina 286m] → Rezina · real 0.7 → loc null 0.7 · după retur · înainte tur
+  2026-09-22 00:19–03:40  3.4h Rezina → [acum Rezina 197m] → Rezina · real 2.6 → loc null 2.6 · după retur · înainte tur
+  2026-09-23 07:34–12:27  4.9h Rezina → [acum Rezina 285m] → Rezina · real 4.7 → loc null 4.7 · după retur · înainte tur
+  2026-09-23 16:01–20:49  4.8h Rezina → [acum Rezina 279m] → Rezina · real 4.6 → loc null 4.6 · după retur · înainte tur
+  2026-09-23 00:32–03:56  3.4h Rezina → [acum Rezina 197m] → Rezina · real 4 → loc null 4 · după retur · înainte tur
+  2026-09-24 07:59–12:26  4.5h Rezina → [acum Rezina 259m] → Rezina · real 4.7 → loc null 4.7 · după retur · înainte tur
+  2026-09-24 15:59–21:00    5h Rezina → [acum Rezina 290m] → Rezina · real 4.6 → loc null 4.6 · după retur · înainte tur
+  2026-09-24 00:31–03:46  3.3h Rezina → [acum Rezina 190m] → Rezina · real 3.7 → loc null 3.7 · după retur · înainte tur
+  2026-09-25 07:24–12:23    5h Rezina → [acum Rezina 291m] → Rezina · real 4.8 → loc null 4.8 · după retur · înainte tur
+  2026-09-25 15:46–20:40  4.9h Rezina → [acum Rezina 293m] → Rezina · real 0.7 → loc null 0.7 · după retur · înainte tur
+  2026-09-25 00:16–04:26  4.2h Rezina → [acum Rezina 248m] → Rezina · real 0.7 → loc null 0.7 · după retur · înainte tur
+
+== 808MUM casa Căzănești · rute R19 Vadul-Leca · eco 0 · propunerea nu scade km — rămâne cum e
+  2026-09-21 05:06–12:37  7.5h poarta SEBN Orhei → [acum Căzănești 403m] → Vadul-Leca · real 49.2 → loc null 49.2 · după tur · înainte tur
+  2026-09-21 15:36–21:09  5.5h Vadul-Leca → [acum Căzănești 324m] → Vadul-Leca · real 4.4 → loc null 4.4 · după retur · înainte tur
+  2026-09-21 00:06–04:22  4.3h Vadul-Leca → [acum Căzănești 246m] → Vadul-Leca · real 4.1 → loc null 4.1 · după retur · înainte tur
+  2026-09-22 07:06–12:39  5.6h Vadul-Leca → [acum Căzănești 324m] → Vadul-Leca · real 4.1 → loc null 4.1 · după retur · înainte tur
+  2026-09-22 15:29–21:04  5.6h Vadul-Leca → [acum Căzănești 324m] → Vadul-Leca · real 4.4 → loc null 4.4 · după retur · înainte tur
+  2026-09-22 00:06–04:07    4h Vadul-Leca → [acum Căzănești 230m] → Vadul-Leca · real 4.2 → loc null 4.2 · după retur · înainte tur
+  2026-09-23 00:06–04:16  4.2h Vadul-Leca → [acum Căzănești 241m] → Vadul-Leca · real 4.4 → loc null 4.4 · după retur · înainte tur
+  2026-09-24 07:06–12:38  5.5h Vadul-Leca → [acum Căzănești 323m] → Vadul-Leca · real 4.1 → loc null 4.1 · după retur · înainte tur
+  2026-09-24 15:28–21:08  5.7h Vadul-Leca → [acum Căzănești 330m] → Vadul-Leca · real 4.4 → loc null 4.4 · după retur · înainte tur
+  2026-09-24 00:03–04:19  4.3h Vadul-Leca → [acum Căzănești 247m] → Vadul-Leca · real 4.1 → loc null 4.1 · după retur · înainte tur
+  2026-09-25 07:03–12:41  5.6h Vadul-Leca → [acum Căzănești 329m] → Vadul-Leca · real 4.1 → loc null 4.1 · după retur · înainte tur
+  2026-09-25 15:35–21:10  5.6h Vadul-Leca → [acum Căzănești 324m] → Vadul-Leca · real 4.4 → loc null 4.4 · după retur · înainte tur
+  2026-09-25 00:04–05:13  5.1h Vadul-Leca → [acum Căzănești 305m] → Căzănești · real 1.7 → loc null 1.7 · după retur · înainte tur
+
+== 820GXP casa Vatici · rute R25 Vatici · eco 0 · propunerea nu scade km — rămâne cum e
+  2026-09-21 05:56–13:46  7.8h Vatici → [acum Vatici 465m] → Vatici · real 2.7 → loc null 2.7 · după retur · înainte tur
+  2026-09-21 14:59–22:17  7.3h Vatici → [acum Vatici 408m] → Vatici · real 2.8 → loc null 2.8 · după retur · înainte tur
+  2026-09-21 23:30–05:18  5.8h Vatici → [acum Vatici 344m] → Vatici · real 2.7 → loc null 2.7 · după retur · înainte tur
+  2026-09-22 06:39–13:48  7.2h Vatici → [acum Vatici 425m] → Vatici · real 2.7 → loc null 2.7 · după retur · înainte tur
+  2026-09-22 14:58–22:17  7.3h Vatici → [acum Vatici 434m] → Vatici · real 2.6 → loc null 2.6 · după retur · înainte tur
+  2026-09-22 23:28–05:17  5.8h Vatici → [acum Vatici 345m] → Vatici · real 2.5 → loc null 2.5 · după retur · înainte tur
+  2026-09-23 06:30–13:47  7.3h Vatici → [acum Vatici 433m] → Vatici · real 2.8 → loc null 2.8 · după retur · înainte tur
+  2026-09-23 15:00–22:17  7.3h Vatici → [acum Vatici 434m] → Vatici · real 2.7 → loc null 2.7 · după retur · înainte tur
+  2026-09-23 23:30–05:17  5.8h Vatici → [acum Vatici 342m] → Vatici · real 2.7 → loc null 2.7 · după retur · înainte tur
+  2026-09-24 06:39–13:47  7.1h Vatici → [acum Vatici 424m] → Vatici · real 2.8 → loc null 2.8 · după retur · înainte tur
+  2026-09-24 15:00–22:13  7.2h Vatici → [acum Vatici 420m] → Vatici · real 2.7 → loc null 2.7 · după retur · înainte tur
+  2026-09-24 23:31–05:17  5.8h Vatici → [acum Vatici 327m] → Vatici · real 2.6 → loc null 2.6 · după retur · înainte tur
+  2026-09-25 06:29–13:48  7.3h Vatici → [acum Vatici 421m] → Vatici · real 2.8 → loc null 2.8 · după retur · înainte tur
+  2026-09-25 15:04–22:16  7.2h Vatici → [acum Vatici 429m] → Vatici · real 2.6 → loc null 2.6 · după retur · înainte tur
+  2026-09-25 23:29–05:10  5.7h Vatici → [acum Vatici 337m] → Vatici · real 2.7 → loc null 2.7 · după retur · înainte tur
+
+== 893BRAX casa Slobozia Doamnei · rute R20 Voroteț · eco undefined · rute neverificate: 17 din 25 tururi și retururi nu trec pe la capătul rutelor ei
+
+== 942BRAZ casa Mîrzești · rute R10 Mîrzești · eco 0 · propunerea nu scade km — rămâne cum e
+  2026-09-21 06:07–13:01  6.9h Mîrzești → [acum Mîrzești 412m] → Mîrzești · real 1.5 → loc null 1.5 · după retur · înainte tur
+  2026-09-21 15:34–21:38  6.1h Mîrzești → [acum Mîrzești 362m] → Mîrzești · real 1.4 → loc null 1.4 · după retur · înainte tur
+  2026-09-21 23:51–06:13  6.4h Mîrzești → [acum Mîrzești 296m] → poarta SEBN Orhei · real 32.4 → loc null 32.4 · după retur · înainte retur
+  2026-09-22 06:52–13:03  6.2h Mîrzești → [acum Mîrzești 370m] → Mîrzești · real 0.7 → loc null 0.7 · după retur · înainte tur
+  2026-09-22 15:29–21:35  6.1h Mîrzești → [acum Mîrzești 365m] → Mîrzești · real 1.4 → loc null 1.4 · după retur · înainte tur
+  2026-09-22 23:56–04:27  4.5h Mîrzești → [acum Mîrzești 270m] → Mîrzești · real 1.5 → loc null 1.5 · după retur · înainte tur
+  2026-09-23 06:50–13:03  6.2h Mîrzești → [acum Mîrzești 371m] → Mîrzești · real 1.7 → loc null 1.7 · după retur · înainte tur
+  2026-09-23 15:34–21:28  5.9h Mîrzești → [acum Mîrzești 352m] → Mîrzești · real 1.6 → loc null 1.6 · după retur · înainte tur
+  2026-09-23 00:01–04:30  4.5h Mîrzești → [acum Mîrzești 267m] → Mîrzești · real 0.7 → loc null 0.7 · după retur · înainte tur
+  2026-09-24 06:52–13:08  6.3h Mîrzești → [acum Mîrzești 374m] → Mîrzești · real 0.9 → loc null 0.9 · după retur · înainte tur
+  2026-09-24 15:46–21:31  5.7h Mîrzești → [acum Mîrzești 342m] → Mîrzești · real 1.5 → loc null 1.5 · după retur · înainte tur
+  2026-09-24 23:52–04:26  4.6h Mîrzești → [acum Mîrzești 264m] → Mîrzești · real 1.5 → loc null 1.5 · după retur · înainte tur
+  2026-09-25 06:51–13:01  6.2h Mîrzești → [acum Mîrzești 368m] → Mîrzești · real 1.5 → loc null 1.5 · după retur · înainte tur
+  2026-09-25 15:34–21:37  6.1h Mîrzești → [acum Mîrzești 353m] → Mîrzești · real 2.4 → loc null 2.4 · după retur · înainte tur
+  2026-09-25 23:53–04:27  4.6h Mîrzești → [acum Mîrzești 273m] → Mîrzești · real 1.3 → loc null 1.3 · după retur · înainte tur

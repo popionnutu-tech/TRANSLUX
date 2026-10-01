@@ -1,0 +1,128 @@
+== km pe zi (luni..duminică) și zile în dump
+042BRAU  SEBN_ORHEI      194  221  204  304  213   69    0 · casa Pohrebeni · rute R5 Izvoare
+795MUM   SEBN_ORHEI      336  394  378  403  411  109    0 · casa Rezina · rute R16 Rezina
+541NPL   SEBN_ORHEI      406  417  420  419  420  115    0 · casa Ciulucani · rute R18 Telenești
+861BRAS  SEBN_ORHEI      464  528  447  548  408  140    0 · casa Prodăneștii Vechi · rute R27 Cașunca
+584BRAX  SEBN_ORHEI      514  516  515  518  516  164    0 · casa Cotiujenii Mari · rute R3 Domulgeni, R14 Pohoarna
+514BRAZ  SEBN_ORHEI      263  245  253  253  247   64    0 · casa Susleni · rute R17 Susleni
+142BRAZ  SEBN_ORHEI      382  370  390  382  382  124    0 · casa Sloveanca · rute R1 Bălășești
+522BRAT  SEBN_ORHEI      227  242  236  241  242   71    0 · casa Jora de Jos · rute R6 Lopatna
+152BRAZ  SEBN_ORHEI      478  318  215  301  258    0    0 · casa Pământeni · rute R23 Bălți
+430CMX   SEBN_ORHEI      368  539  531  542  540  148    0 · casa Cobîlea · rute R15 Cobîlea, S1 Vatici
+812MUM   SEBN_ORHEI      181  203  201  212  203   48    0 · casa Cucuruzeni · rute R2 Crihana
+942BRAZ  SEBN_ORHEI      177  199  180  195  219   56    0 · casa Mîrzești · rute R10 Mîrzești
+314BRAT  SEBN_ORHEI      130  135  130  130  129    0    0 · casa Donici · rute R13 Peresecina, R20 Voroteț
+503BRAR  SEBN_ORHEI      306  331  311  332  367   96    0 · casa Lalova · rute R7 Lalova
+739BRAZ  SEBN_ORHEI      221  238  259  235  158    0    0 · casa Ciocîlteni · rute R22 Clișova
+389VKV   SEBN_ORHEI      161    0  227    0    0    0    0 · casa Rezina · rute — (nu e în schelet)
+820GXP   SEBN_ORHEI      120  121  121  121  121   40    0 · casa Vatici · rute R25 Vatici
+823MUM   SEBN_ORHEI      156  161  166  163  169   29    0 · casa Slobozia Doamnei · rute R8 Lupoaica, R11 Nistreană
+893BRAX  SEBN_ORHEI      395  446  454  443  451   70  265 · casa Slobozia Doamnei · rute R20 Voroteț
+725YOZ   SEBN_ORHEI      362  405  384  409  431  112    0 · casa Olișcani · rute — (nu e în schelet)
+034BRAT  SEBN_ORHEI      467  471  473  473  473  153    0 · casa Ghindești · rute — (nu e în schelet)
+808MUM   SEBN_ORHEI      331  339  385  338  344  102    0 · casa Căzănești · rute R19 Vadul-Leca
+863MXL   SEBN_ORHEI      289  310  276  316  337   79    0 · casa Ciocîlteni · rute R21 Clișova
+372BRAY  SEBN_ORHEI      569  569  574  634  572  176    0 · casa Florești · rute R4 Florești
+602BRAS  SEBN_ORHEI      373  456  446  448  443  116    0 · casa Mihailovca · rute R9 Mihailovca
+552BRAO  SEBN_STRASENI   279  413  422  413  413  137    0 · casa Chiperceni · rute S1 Vatici
+TOTAL                   8145 8587 8598 8774 8467 2215  266
+
+== golurile poartă → poartă (≥ 60 min): cel mai depărtat punct și staționarea cea mai lungă
+  584BRAX 2026-09-22 22:07–23:11 real 18.8 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 22 min la Bucuria (0.4 km de poartă) · loc 2 → 5.5
+  584BRAX 2026-09-24 22:09–23:12 real 18.8 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 23 min la Bucuria (0.5 km de poartă) · loc 2 → 5.5
+  584BRAX 2026-09-25 13:40–14:41 real 9.7 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 52 min la Bucuria (0.4 km de poartă) · loc 2 → 5.5
+  584BRAX 2026-09-25 22:10–23:11 real 18.8 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 21 min la Bucuria (0.4 km de poartă) · loc 2 → 5.6
+  541NPL 2026-09-21 13:40–14:41 real 18.1 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 24 min la Bucuria (0.4 km de poartă) · loc 2 → 5.5
+  541NPL 2026-09-22 13:39–14:41 real 17.3 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 32 min la Bucuria (0.4 km de poartă) · loc 2 → 6.5
+  541NPL 2026-09-23 05:11–06:11 real 8.6 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 53 min la Bucuria (0.4 km de poartă) · loc 2 → 5.4
+  541NPL 2026-09-23 13:35–14:43 real 18.1 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 35 min la Bucuria (0.4 km de poartă) · loc 2 → 5.4
+  541NPL 2026-09-25 13:41–14:43 real 18.1 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 28 min la Bucuria (0.4 km de poartă) · loc 2 → 5.4
+  739BRAZ 2026-09-21 13:34–14:38 real 9.8 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 57 min la Bucuria (0.4 km de poartă) · loc 1 → 5.6
+  739BRAZ 2026-09-22 13:29–14:38 real 21.1 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 27 min la Bucuria (0.5 km de poartă) · loc 1 → 5.6
+  739BRAZ 2026-09-23 13:29–14:39 real 9.7 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 62 min la Bucuria (0.4 km de poartă) · loc 0 → 9.7
+  739BRAZ 2026-09-24 13:30–14:40 real 18.8 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 19 min la Centru (1.1 km de poartă) · loc 1 → 5.6
+  739BRAZ 2026-09-25 13:29–14:38 real 9.7 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 60 min la Bucuria (0.5 km de poartă) · loc 0 → 9.7
+  152BRAZ 2026-09-21 13:18–14:41 real 9 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 76 min la Bucuria (0.4 km de poartă) · loc 0 → 9
+  152BRAZ 2026-09-23 08:33–17:40 real 20.8 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 489 min la Bucuria (0.4 km de poartă) · loc 1 → 9.8
+  152BRAZ 2026-09-24 08:32–17:41 real 109.5 · cel mai departe Brînzenii Noi 39.3 km de poartă · stă 250 min la Bucuria (0.5 km de poartă) · loc 1 → 9.8
+  808MUM 2026-09-21 13:32–14:41 real 18.3 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 34 min la Bucuria (0.4 km de poartă) · loc 1 → 4.4
+  808MUM 2026-09-21 22:09–23:12 real 8.8 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 54 min la Bucuria (0.4 km de poartă) · loc 1 → 3.2
+  808MUM 2026-09-22 13:39–14:43 real 18.2 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 24 min la Bucuria (0.4 km de poartă) · loc 1 → 3.2
+  808MUM 2026-09-22 22:06–23:12 real 8.9 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 56 min la Bucuria (0.4 km de poartă) · loc 1 → 4.3
+  808MUM 2026-09-23 05:07–06:11 real 9.4 · cel mai departe Slobozia Doamnei 3.5 km de poartă · stă 52 min la Bucuria (0.4 km de poartă) · loc 1 → 3.2
+  808MUM 2026-09-23 22:06–23:11 real 18 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 31 min la Bucuria (0.4 km de poartă) · loc 1 → 3.3
+  808MUM 2026-09-24 05:11–06:11 real 9.2 · cel mai departe Slobozia Doamnei 3.6 km de poartă · stă 48 min la Bucuria (0.4 km de poartă) · loc 1 → 5.3
+  808MUM 2026-09-24 13:32–14:41 real 18.2 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 38 min la Bucuria (0.4 km de poartă) · loc 1 → 4.3
+  808MUM 2026-09-24 22:08–23:12 real 9 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 55 min la Bucuria (0.4 km de poartă) · loc 1 → 3.2
+  808MUM 2026-09-25 13:34–14:42 real 18.2 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 35 min la Bucuria (0.5 km de poartă) · loc 1 → 4.3
+  795MUM 2026-09-21 22:08–23:13 real 9 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 56 min la Bucuria (0.4 km de poartă) · loc 1 → 4.3
+  795MUM 2026-09-22 05:09–06:13 real 18.2 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 29 min la Bucuria (0.4 km de poartă) · loc 1 → 3.2
+  795MUM 2026-09-22 13:39–14:43 real 8.9 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 56 min la Bucuria (0.4 km de poartă) · loc 1 → 3.3
+  795MUM 2026-09-22 22:10–23:13 real 9.1 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 54 min la Bucuria (0.4 km de poartă) · loc 1 → 3.2
+  795MUM 2026-09-23 05:12–06:12 real 9 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 50 min la Bucuria (0.4 km de poartă) · loc 1 → 3.2
+  795MUM 2026-09-23 13:43–14:43 real 18.1 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 21 min la Bucuria (0.5 km de poartă) · loc 1 → 3.2
+  795MUM 2026-09-24 13:42–14:43 real 8.9 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 51 min la Bucuria (0.4 km de poartă) · loc 1 → 3.2
+  795MUM 2026-09-25 05:09–06:12 real 18.1 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 32 min la Bucuria (0.4 km de poartă) · loc 1 → 3.1
+  795MUM 2026-09-25 13:43–14:43 real 9.1 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 51 min la Bucuria (0.4 km de poartă) · loc 1 → 3.2
+  795MUM 2026-09-26 05:11–06:12 real 9.4 · cel mai departe Slobozia Doamnei 3.5 km de poartă · stă 34 min la Bucuria (0.4 km de poartă) · loc 1 → 3.1
+  863MXL 2026-09-21 13:38–14:39 real 9.8 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 52 min la Bucuria (0.5 km de poartă) · loc 1 → 3.3
+  863MXL 2026-09-21 22:03–23:08 real 9.5 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 58 min la Bucuria (0.5 km de poartă) · loc 1 → 3.2
+  863MXL 2026-09-22 05:10–06:10 real 19 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 22 min la Bucuria (0.5 km de poartă) · loc 1 → 3.3
+  863MXL 2026-09-22 13:36–14:38 real 9.7 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 54 min la Bucuria (0.5 km de poartă) · loc 1 → 3.3
+  863MXL 2026-09-22 22:06–23:09 real 9.6 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 55 min la Bucuria (0.4 km de poartă) · loc 1 → 3.3
+  863MXL 2026-09-23 22:09–23:09 real 9.5 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 52 min la Bucuria (0.4 km de poartă) · loc 1 → 3.2
+  863MXL 2026-09-24 13:36–14:38 real 10.2 · cel mai departe Slobozia Doamnei 3.6 km de poartă · stă 41 min la Bucuria (0.5 km de poartă) · loc 1 → 6.3
+  863MXL 2026-09-25 13:31–14:39 real 9.8 · cel mai departe Slobozia Doamnei 3.6 km de poartă · stă 49 min la Bucuria (0.5 km de poartă) · loc 1 → 3.3
+  942BRAZ 2026-09-21 13:40–14:53 real 12.2 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 47 min la Bucuria (0.4 km de poartă) · loc 0 → 12.2
+  942BRAZ 2026-09-23 05:11–06:11 real 11.8 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 48 min la Bucuria (0.4 km de poartă) · loc 1 → 2.1
+  942BRAZ 2026-09-23 13:48–14:48 real 12 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 39 min la Bucuria (0.4 km de poartă) · loc 1 → 2.2
+  942BRAZ 2026-09-24 05:09–06:14 real 12.1 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 52 min la Bucuria (0.4 km de poartă) · loc 1 → 1.9
+  942BRAZ 2026-09-24 13:45–14:58 real 12.1 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 44 min la Bucuria (0.5 km de poartă) · loc 0 → 12.1
+  942BRAZ 2026-09-25 05:06–06:12 real 11.8 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 54 min la Bucuria (0.4 km de poartă) · loc 1 → 2.2
+  942BRAZ 2026-09-25 13:46–14:49 real 21.4 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 15 min la Bucuria (0.5 km de poartă) · loc 1 → 2
+  430CMX 2026-09-21 13:30–14:40 real 18.9 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 40 min la Bucuria (0.3 km de poartă) · loc 1 → 5.4
+  430CMX 2026-09-22 13:28–14:40 real 18.7 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 33 min la Bucuria (0.3 km de poartă) · loc 1 → 5.5
+  430CMX 2026-09-23 13:34–14:39 real 18.7 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 27 min la Bucuria (0.3 km de poartă) · loc 1 → 5.5
+  430CMX 2026-09-24 13:32–14:39 real 18.8 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 28 min la Bucuria (0.3 km de poartă) · loc 1 → 5.6
+  430CMX 2026-09-26 04:58–06:10 real 9.6 · cel mai departe Slobozia Doamnei 3.6 km de poartă · stă 41 min la Bucuria (0.5 km de poartă) · loc 1 → 5.4
+  142BRAZ 2026-09-21 13:32–14:37 real 9.1 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 57 min la Bucuria (0.5 km de poartă) · loc 1 → 5.6
+  142BRAZ 2026-09-22 05:05–06:08 real 9.7 · cel mai departe Slobozia Doamnei 3.6 km de poartă · stă 45 min la Bucuria (0.5 km de poartă) · loc 1 → 5.4
+  142BRAZ 2026-09-23 05:04–06:08 real 9.6 · cel mai departe Slobozia Doamnei 3.5 km de poartă · stă 43 min la Bucuria (0.5 km de poartă) · loc 1 → 5.4
+  142BRAZ 2026-09-23 13:34–14:40 real 17.8 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 28 min la Bucuria (0.5 km de poartă) · loc 1 → 5.4
+  142BRAZ 2026-09-24 05:04–06:09 real 9.7 · cel mai departe Slobozia Doamnei 3.5 km de poartă · stă 48 min la Bucuria (0.5 km de poartă) · loc 1 → 5.5
+  142BRAZ 2026-09-24 13:37–14:40 real 9 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 54 min la Bucuria (0.4 km de poartă) · loc 1 → 5.4
+  142BRAZ 2026-09-25 05:06–06:09 real 9.5 · cel mai departe Slobozia Doamnei 3.5 km de poartă · stă 47 min la Bucuria (0.4 km de poartă) · loc 0 → 9.5
+  861BRAS 2026-09-21 22:09–23:10 real 8.8 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 53 min la Bucuria (0.5 km de poartă) · loc 0 → 8.8
+  861BRAS 2026-09-23 13:39–14:40 real 8.9 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 51 min la Bucuria (0.4 km de poartă) · loc 0 → 8.9
+  861BRAS 2026-09-25 13:35–14:40 real 9.1 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 57 min la Bucuria (0.4 km de poartă) · loc 0 → 9.1
+  602BRAS 2026-09-22 13:26–14:39 real 18.5 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 22 min la Bucuria (0.5 km de poartă) · loc 1 → 5.5
+  602BRAS 2026-09-23 13:29–14:40 real 18.3 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 29 min la Bucuria (0.5 km de poartă) · loc 1 → 5.5
+  602BRAS 2026-09-24 13:27–14:40 real 9.7 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 64 min la Bucuria (0.4 km de poartă) · loc 0 → 9.7
+  602BRAS 2026-09-25 05:10–06:11 real 9.6 · cel mai departe Slobozia Doamnei 3.6 km de poartă · stă 44 min la Bucuria (0.5 km de poartă) · loc 1 → 5.5
+  602BRAS 2026-09-25 13:25–14:39 real 9.7 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 65 min la Bucuria (0.5 km de poartă) · loc 0 → 9.7
+  503BRAR 2026-09-25 05:07–06:08 real 9.2 · cel mai departe Slobozia Doamnei 3.7 km de poartă · stă 53 min la Bucuria (0.5 km de poartă) · loc null → 9.2
+  total 73 goluri, 1050.1 km real; cel mai departe: Slobozia Doamnei 72, Brînzenii Noi 1
+
+== mașinile fără propunere: excursiile (ieșire din poartă → întoarcere), cel mai depărtat sat, pe zile
+-- 034BRAT: rute neverificate: 34 din 34 tururi și retururi nu trec pe la capătul rutelor ei
+   09-21 05:11–05:17 Slobozia Doamnei 4km | 09-21 05:21–13:47 Ghindești 62km | 09-21 14:03–14:09 Slobozia Doamnei 4km | 09-21 14:40–22:07 Ghindești 62km | 09-21 22:08–22:13 Slobozia Doamnei 4km | 09-21 23:09–05:15 Ghindești 62km | 09-22 05:16–05:21 Slobozia Doamnei 4km | 09-22 06:09–13:44 Ghindești 62km | 09-22 13:53–14:00 Slobozia Doamnei 4km | 09-22 14:38–22:02 Ghindești 62km | 09-22 22:03–22:08 Slobozia Doamnei 4km | 09-22 23:09–05:06 Ghindești 62km | 09-23 05:14–05:20 Slobozia Doamnei 4km | 09-23 06:08–13:56 Ghindești 62km
+-- 042BRAU: propunerea nu scade km — rămâne cum e
+   09-21 13:58–14:04 Slobozia Doamnei 4km | 09-21 14:15–14:23 Slobozia Doamnei 4km | 09-21 14:39–22:16 Izvoare 22km | 09-21 22:18–22:22 Slobozia Doamnei 4km | 09-21 23:09–05:13 Izvoare 22km | 09-22 05:14–05:20 Slobozia Doamnei 4km | 09-22 06:09–13:42 Izvoare 22km | 09-22 13:43–13:48 Slobozia Doamnei 4km | 09-22 14:05–14:13 Slobozia Doamnei 4km | 09-22 14:39–22:15 Izvoare 22km | 09-22 22:16–05:16 Izvoare 22km | 09-23 05:17–05:23 Slobozia Doamnei 4km | 09-23 06:09–13:46 Izvoare 22km | 09-23 13:48–13:54 Slobozia Doamnei 4km
+-- 314BRAT: un singur schimb măsurat în săptămână (§8.3)
+   09-21 13:56–22:28 Donici 16km | 09-21 23:12–13:49 Peresecina 17km | 09-22 13:54–14:05 Pelivan 3km | 09-22 14:17–22:24 Donici 16km | 09-22 23:12–13:48 Peresecina 17km | 09-23 13:55–22:24 Donici 16km | 09-23 23:13–13:53 Peresecina 17km | 09-24 14:13–22:30 Donici 16km | 09-24 23:12–13:52 Peresecina 17km | 09-25 13:59–22:29 Donici 16km | 09-25 23:11–05:21 Peresecina 17km | 09-28 05:28–13:46 Donici 16km | 09-28 14:06–14:13 Slobozia Doamnei 4km
+-- 372BRAY: propunerea nu scade km — rămâne cum e
+   09-21 05:29–05:35 Slobozia Doamnei 4km | 09-21 05:40–13:45 Florești 69km | 09-21 13:46–13:51 Slobozia Doamnei 4km | 09-21 14:11–14:21 Slobozia Doamnei 4km | 09-21 14:40–22:24 Florești 69km | 09-21 22:25–22:31 Slobozia Doamnei 4km | 09-21 23:10–05:25 Florești 69km | 09-22 05:25–05:31 Slobozia Doamnei 4km | 09-22 06:10–13:48 Florești 69km | 09-22 13:49–13:55 Slobozia Doamnei 4km | 09-22 14:14–14:23 Slobozia Doamnei 4km | 09-22 14:40–22:18 Florești 69km | 09-22 22:18–22:24 Slobozia Doamnei 4km | 09-22 23:09–05:21 Florești 69km
+-- 389VKV: un singur schimb măsurat în săptămână (§8.3)
+   09-21 05:22–05:29 Slobozia Doamnei 4km | 09-21 05:32–13:36 Bălți 79km | 09-23 13:37–13:43 Slobozia Doamnei 4km | 09-23 14:42–16:59 Vadul-Leca 37km
+-- 503BRAR: propunerea nu scade km — rămâne cum e
+   09-21 05:10–05:15 Slobozia Doamnei 4km | 09-21 05:20–13:55 Mincenii de Jos 28km | 09-21 13:56–14:02 Slobozia Doamnei 4km | 09-21 14:38–22:14 Mincenii de Jos 28km | 09-21 22:15–22:21 Slobozia Doamnei 4km | 09-21 22:37–22:47 Slobozia Doamnei 4km | 09-21 23:09–05:03 Mincenii de Jos 28km | 09-22 05:04–05:10 Slobozia Doamnei 4km | 09-22 06:09–13:47 Mincenii de Jos 28km | 09-22 13:48–13:54 Slobozia Doamnei 4km | 09-22 14:40–22:11 Mincenii de Jos 28km | 09-22 22:18–22:26 Slobozia Doamnei 4km | 09-22 23:10–05:11 Mincenii de Jos 28km | 09-23 05:12–05:18 Slobozia Doamnei 4km
+-- 514BRAZ: propunerea nu scade km — rămâne cum e
+   09-21 05:39–13:43 Susleni 14km | 09-21 14:41–22:22 Susleni 14km | 09-21 23:12–05:22 Susleni 14km | 09-22 06:16–13:46 Susleni 14km | 09-22 14:40–22:21 Susleni 14km | 09-22 23:11–05:22 Susleni 14km | 09-23 06:14–13:45 Susleni 14km | 09-23 14:42–22:27 Susleni 14km | 09-23 23:11–05:25 Susleni 14km | 09-24 06:15–13:46 Susleni 14km | 09-24 14:41–22:23 Susleni 14km | 09-24 23:12–05:26 Susleni 14km | 09-25 06:16–13:46 Susleni 14km | 09-25 14:42–22:23 Susleni 14km
+-- 522BRAT: rute neverificate: 20 din 32 tururi și retururi nu trec pe la capătul rutelor ei
+   09-21 05:20–13:45 Jora de Jos 24km | 09-21 14:41–22:13 Jora de Jos 24km | 09-21 23:11–05:10 Jora de Jos 24km | 09-22 06:16–13:45 Jora de Jos 24km | 09-22 14:41–22:14 Jora de Jos 24km | 09-22 23:10–05:11 Jora de Jos 24km | 09-23 06:19–13:46 Jora de Jos 24km | 09-23 14:43–22:13 Jora de Jos 24km | 09-23 23:10–05:12 Jora de Jos 24km | 09-24 06:18–13:52 Jora de Jos 24km | 09-24 14:40–22:11 Jora de Jos 24km | 09-24 23:10–05:10 Jora de Jos 24km | 09-25 06:17–13:47 Jora de Jos 24km | 09-25 14:41–22:14 Jora de Jos 24km
+-- 725YOZ: un singur schimb măsurat în săptămână (§8.3)
+   09-21 05:10–05:15 Slobozia Doamnei 4km | 09-21 05:34–13:41 Șoldănești 48km | 09-21 13:42–13:47 Slobozia Doamnei 4km | 09-21 14:07–14:16 Slobozia Doamnei 4km | 09-21 14:40–22:17 Șoldănești 48km | 09-21 22:17–22:22 Slobozia Doamnei 4km | 09-21 23:10–05:09 Șoldănești 48km | 09-22 05:10–05:15 Slobozia Doamnei 4km | 09-22 06:10–13:39 Șoldănești 48km | 09-22 13:40–13:44 Slobozia Doamnei 4km | 09-22 14:20–14:27 Slobozia Doamnei 4km | 09-22 14:40–22:17 Șoldănești 48km | 09-22 22:18–22:23 Slobozia Doamnei 4km | 09-22 23:11–05:11 Șoldănești 48km
+-- 820GXP: propunerea nu scade km — rămâne cum e
+   09-21 05:39–14:03 Vatici 16km | 09-21 14:43–22:34 Vatici 16km | 09-21 23:14–05:34 Vatici 16km | 09-22 06:22–14:04 Vatici 16km | 09-22 14:43–22:33 Vatici 16km | 09-22 23:13–05:33 Vatici 16km | 09-23 06:14–14:07 Vatici 16km | 09-23 14:45–22:36 Vatici 16km | 09-23 23:14–05:33 Vatici 16km | 09-24 06:22–14:03 Vatici 16km | 09-24 14:45–22:31 Vatici 16km | 09-24 23:14–05:34 Vatici 16km | 09-25 06:14–14:09 Vatici 16km | 09-25 14:44–22:33 Vatici 16km
+-- 893BRAX: rute neverificate: 17 din 25 tururi și retururi nu trec pe la capătul rutelor ei
+   09-21 05:37–12:00 Slobozia Doamnei 4km | 09-21 12:01–13:37 Voroteț 20km | 09-21 13:39–13:44 Slobozia Doamnei 4km | 09-21 14:40–17:08 Chiperceni 15km | 09-21 17:38–21:09 Rîșcani 39km | 09-21 21:10–22:20 Chiperceni 15km | 09-21 22:21–22:26 Slobozia Doamnei 4km | 09-21 23:09–05:19 Voroteț 20km | 09-22 05:20–05:25 Slobozia Doamnei 4km | 09-22 06:10–06:57 Chiperceni 15km | 09-22 07:05–12:02 Slobozia Doamnei 4km | 09-22 12:03–13:36 Voroteț 20km | 09-22 13:38–13:43 Slobozia Doamnei 4km | 09-22 14:39–17:14 Chiperceni 15km

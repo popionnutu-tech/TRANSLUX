@@ -1,0 +1,10 @@
+dimineața (după s3/s1) din poartă     7 drumuri · real 137.4 → 123.3 · tăiat 14.1 · «rămâne cum e» 5
+dimineața (după s3/s1)               35 drumuri · real 652.4 → 136.9 · tăiat 515.5 · «rămâne cum e» 15
+după-amiaza (după s1) din poartă      3 drumuri · real 150.4 → 114.2 · tăiat 36.2 · «rămâne cum e» 0
+după-amiaza (după s1)                43 drumuri · real 852.5 → 194.8 · tăiat 657.7 · «rămâne cum e» 17
+noaptea (după s2) din poartă          2 drumuri · real 155.0 → 32.9 · tăiat 122.1 · «rămâne cum e» 0
+noaptea (după s2)                    40 drumuri · real 785.9 → 226.7 · tăiat 559.2 · «rămâne cum e» 19
+drumuri 130, din ele «rămâne cum e» 56
+excluderi pe flotă {"tur":385,"retur":375,"plus":18,"faraPoarta":12,"taiatePeOpriri":64,"schimburi":69,"scurte":224,"lungi":36,"laPoarta":8,"depozit":7,"altaUzina":2,"kmLiberScos":29.8,"goluriCuOpriri":2,"goluriTaiate":50,"buclaPoarta":76,"kmBuclaPoarta":988.4}
+cu loc 9 fără 15 peste 100 km/săpt 552BRAO,584BRAX,541NPL,812MUM,739BRAZ
+fel loc [["village",6],["town",1],["city",2]]

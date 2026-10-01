@@ -1,6 +1,6 @@
 # Bilete aparat: comparație între perioade, raport pe rute, șoferi clar (ION-167)
 
-> Versiunea 5 (după runda 2 Codex; v4 = runda 2 Claude, v3 = runda 1 Codex). Secțiunile «Review» de la sfârșit sunt pe v1; triajul în «Triaj runda 1».
+> Versiunea 7 — finală (după runda 3 Codex; v6 = runda 3 Claude; v5 = runda 2 Codex; v4 = runda 2 Claude, v3 = runda 1 Codex). Secțiunile «Review» de la sfârșit sunt pe v1; triajul în «Triaj runda 1».
 
 ## De ce
 
@@ -21,39 +21,55 @@ Față de anul trecut, Șoferi. Panoul a mers greu azi din cauza calculelor grel
 **Două măsuri, numite clar, peste tot:** «**Bilete TIKI**» (mereu) și «**Fără bilet TIKI (numărați)**» (din Numărare: numărat
 − TIKI pe porțiuni de drum, estimare); «**Oameni transportați**» = suma lor. **Acoperirea se judecă pe rută** (nu pe toată
 perioada — 09.2026 are 86,7 % din cauza a trei rute: 13 0 %, 19 37 %, 10 60 %): o rută e «numărată» într-o perioadă dacă ≥
-90 % din **picioarele circulate** (rută × sens × zi, din plecările cu sursa «grafic») au picior numărat eligibil. O singură zi peste tot: **ziua cursei** Mobilet (și
+90 % din **picioarele circulate** (rută × sens × zi, din plecările cu sursa «grafic») au picior numărat eligibil — **folosită doar ca informație**; cifrele
+«fără bilet» se dau prin **estimarea pe rută** de mai jos (business-logic r3 · 1: pe 09.2026 pragul de 90 % ar lăsa doar 17
+din 30 de rute, din cauza găurii Numărării pe toată flota 05–13.09).
+
+**Estimarea pe rută (aceeași peste tot):** zi **complet numărată** = toate sensurile circulate ale rutei (după grafic) au
+picior numărat eligibil; fără bilet pe zi al rutei = media pe zilele complet numărate; fără bilet în perioadă = media × zilele
+circulate; perechile «fără bilet» ale rutei se împart după ponderile din zilele complet numărate. Ruta intră dacă are ≥ 50 %
+zile complet numărate (la «Comparație»: în **ambele** perioade); altfel «—» și apare în lista «puțin numărate». O singură zi peste tot: **ziua cursei** Mobilet (și
 «Tipuri bilet & direcții» trece pe ea). Fiecare total are lângă el și cifra **pe zi**.
 
 1. **«Comparație perioade»** (înlocuiește «Față de anul trecut»). Implicit: **luna ultimă vs luna dinainte**; butoane:
    «aceeași lună anul trecut» (doar Bilete TIKI, spus pe ecran — atunci nu exista Numărare), perioade libere. Sus o
    propoziție: «Septembrie: 52.000 de oameni transportați (1.733 pe zi), cu 1.200 mai puțini pe zi decât în august».
    Tabel pe tip de bilet (pereche fără sens): Bilete TIKI A · B · diferența (toate rutele); Fără bilet A · B · diferența și
-   Oameni A · B · diferența (număr, pe zi și %) **doar pe rutele numărate în ambele perioade** — aceeași mulțime de rute în
-   A și B, ca o rută numărată 95 % în iulie și 35 % în august (ruta 31) să nu apară drept clienți pierduți; sus: «Fără bilet
-   și oameni: pe 27 din 30 de rute (lipsesc 13, 19, 10 — puțin numărate)». Sortare: cea mai mare scădere de oameni sus;
+   Oameni A · B · diferența (număr, pe zi și %) prin **estimarea pe rută**, pe aceeași mulțime de rute în A și B (ruta
+   numărată 95 % în iulie și 35 % în august nu apare drept clienți pierduți); sus: «Fără bilet și oameni: estimat pe N din
+   30 de rute (lipsesc …)», cu N calculat, nu presupus. Sortare: cea mai mare scădere de oameni sus;
    primele 15 + «Altele» + Total.
-2. **«Rute»** (nou). Sus: «În septembrie au circulat 30 de rute; în medie 56 de oameni pe zi pe rută (31 cu bilet TIKI, 25
-   fără)». Tabel: ruta (capătul + ora nord → ora Chișinău), zile circulate (plecări din grafic), **zile numărate / zile
+2. **«Rute»** (nou). Sus: «În septembrie au circulat 30 de rute; pe cele N estimate, în medie X oameni pe zi pe rută (Y cu
+   bilet TIKI, Z fără)» — media spune peste câte rute e făcută. Tabel: ruta (capătul + ora nord → ora Chișinău), zile circulate (plecări din grafic), **zile numărate / zile
    circulate**, oameni pe zi și **«se ține pe»** (prima pereche cu oameni pe zi și %, apoi a doua și a treia) — **calculate
    doar pe zilele complet numărate**: zi în care **toate** sensurile circulate ale rutei (după grafic) au picior numărat
-   eligibil; TIKI și fără bilet din aceleași zile (eșantion comun, Codex C1). Rute cu zile complet numărate sub 50 % din
+   eligibil; TIKI pe zi pe toate zilele circulate, fără bilet pe zi prin estimarea pe rută; «se ține pe» = ponderile
+   perechilor TIKI + fără bilet din zilele complet numărate (eșantion comun doar pentru ponderi, Codex C1). Rute cu zile complet numărate sub 50 % din
    zilele circulate: «puțin numărată», oameni și perechi «—»; biletele TIKI pe zi se arată oricum, separat. Sortare: oameni pe
    zi. Clic pe rută: toate perechile ei (tur / retur), cu oameni pe zi și %.
 3. **«Șoferi»** (refăcut). Implicit luna ultimă. Tabel: șofer · zile lucrate · curse (sens × zi) · bilete TIKI pe cursă ·
    **ceilalți șoferi pe aceleași curse** · **diferența pe cursă** · **bilete în plus / în minus** · **curse comparabile «20 /
    30»** · încasat pe zi · ruta principală. Formula (Codex C5, business-logic r2 · 4, Codex r2 · C1): «cursă» = plecare din **grafic** = rută × sens × zi ×
-   **mașină**, cu șoferul din `daily_assignments` (inclusiv plecările fără niciun bilet — 153 în 09.2026); pe același picior
+   **mașină**, dintr-o **singură funcție de plecări** (backend r3 · 2): grafic (`daily_assignments`) + sesiunile Numărării
+   (mașina și șoferul sesiunii) unde graficul n-are plecare (905 bilete pe 57 de picioare în 09.2026), inclusiv plecările fără
+   niciun bilet (153 în 09.2026); fiecare bilet primește **șoferul plecării lui** în `tiki_attr_month` (`sofer_plecare`) —
+   aceeași sursă pentru filtrul «șofer» din Tipuri bilet și pentru «Șoferi» (backend r3 · 3); biletele cu mașina fără plecare
+   pe picior (216 în 09.2026) intră în coșul numit «bilete fără plecare în grafic», arătat sub tabel; pe același picior
    pot fi două plecări (două programări cu întoarcere pe aceeași rută), deci fiecare bilet merge la plecarea **mașinii lui**
    (`tiki_ticket_attr.vkey`, plăcuța din grafic la sursele mașină / șofer); biletele legate doar pe etichetă pe un picior cu
-   ≥ 2 plecări sunt **ambigue**: ies din comparația șoferilor, se numără și se arată sub tabel («N bilete fără șofer
-   sigur»); suma biletelor se conservă (verificare); așteptarea fiecărei curse a șoferului = media colegilor (fără el) pe **aceeași rută × sens × zi a
-   săptămânii**, dacă colegii au ≥ 3 curse acolo, altfel pe rută × sens (≥ 5 curse), altfel cursa e necomparabilă;
+   ≥ 2 plecări sunt **ambigue**: ies din comparația șoferilor **împreună cu cursele acelui picior** (business-logic r3 · low), se numără și se arată sub tabel («N bilete fără șofer
+   sigur»); suma biletelor se conservă (verificare); așteptarea fiecărei curse a șoferului = media colegilor (fără el) pe **rută × sens** (≥ 5 curse,
+   altfel necomparabilă) × **indicele zilei săptămânii** al rutei × sens, cu baza colegilor **normalizată** (Codex r3 · C3): indice(z) =
+   bilete pe cursă în ziua z / bilete pe cursă în medie, pe ultimele 90 de zile, toți șoferii; baza colegilor = Σ biletele
+   lor / Σ indicele zilelor curselor lor; așteptarea cursei = baza × indice(ziua cursei) (business-logic r3 · 2: celula rută ×
+   sens × zi a săptămânii avea ≥ 3 curse doar la 21 %); test obligatoriu: zile slabe 20, tari 40, media 30, șoferul doar
+   în zile slabe cu 20, colegii doar în zile tari cu 40 → diferența 0;
    diferența = Σ pe cursele comparabile (bilete − așteptare); «comparabile 20 / 30». Înainte de 04.04.2026 (fără grafic):
    șoferul și cursele din TIKI, marcat. Sortare: bilete în minus. Scoase: indicele «Ține clienții», «Tendință», «Card», lista de curse.
    Sub titlu, câte o propoziție pe coloană. Doar TIKI (fără «fără bilet» pe șofer — analiza furtului e închisă).
 
-**Respinse:** omiși pe șofer (furtul, închis); comparație pe zi a săptămânii la șoferi (~4 curse pe celulă = zgomot);
-scalarea omișilor pe acoperire (estimare peste estimare — se arată «—» sub prag); grafice în locul tabelelor.
+**Respinse:** omiși pe șofer (furtul, închis); comparație pe celula rută × sens × zi a săptămânii la șoferi (prea puține
+curse — înlocuită de indicele zilei); pragul de 90 % pe perioadă sau pe rută ca filtru (17 din 30 de rute pe 09.2026); grafice în locul tabelelor.
 
 ## 🔬 Verificat pe viu
 
@@ -82,16 +98,20 @@ scalarea omișilor pe acoperire (estimare peste estimare — se arată «—» s
      coloana «Sursa» (stații / dedus din preț) rămâne; test cu un filtru activ;
    - `omisi_pereche_daily(zi, crm_route_id, leg, pereche_cheie, oameni)` umplut în `count_aggr_days` (tabel separat: cele
      două funcții refac bucăți diferite);
-   - `tiki_sofer_daily(zi, sofer, crm_route_id, leg, curse, bilete, lei)` în `tiki_aggr_month`;
+   - `tiki_plecari_v2(zi, crm_route_id, leg, vkey, sofer, sursa: grafic / numarare)` — funcția unică de plecări;
+   - `tiki_sofer_daily(zi, sofer, crm_route_id, leg, curse, bilete, lei, bilete_ambigue, bilete_fara_plecare)` în
+     `tiki_aggr_month`, din plecări (cu 0 bilete) + `tiki_ticket_attr.sofer_plecare`; fără dimensiunea mașinii;
    - acoperirea: `count_leg_daily` (eligibil) față de `tiki_plecari_daily`.
 2. **RPC-uri noi, cu nume noi** (Codex C3: cele folosite azi de pagină — `get_tiki_pairs`, `get_tiki_omisi`,
    `get_tiki_tendinta`, `get_tiki_drivers` — **nu se ating** până la comutare), pe aceste tabele, `statement_timeout '5s'`,
    < 3 s la rece pe 12 luni: `get_tiki_comparatie`, `get_tiki_rute` + `get_tiki_ruta_perechi` (la clic),
    `get_tiki_soferi_v2`, `get_tiki_perechi_v2` (Tipuri bilet pe ziua cursei, cu omiși).
 3. **Ordinea lansării** (Codex C3): (a) migrația: tabele noi (RLS + REVOKE / GRANT, r2 · N7) + scriitorii + RPC-urile noi,
-   **fără să pună nimic în coadă** (r2 · N3), nimic schimbat în cele vechi; (b) la **20:00** lunile 12.2024–09.2026 se pun
-   explicit în coadă și se golesc pas cu pas (estimat ~28 min luni + ~94 de pași Numărare); dacă la 05:30 cozile nu sunt
-   goale, oprire și raport (importul de 06:30 nu pornește peste ele); (c) verificarea: ambele cozi goale,
+   **fără să pună nimic în coadă** (r2 · N3), nimic schimbat în cele vechi; (b) refacerea istorică **doar noaptea, 23:00–05:00**, în pași ≤ 20 s — baza e pe instanța NANO (0,5 GB),
+   care a încremenit pe 01.10 19:33–20:20 după o zi de refaceri grele; mecanismul (fereastra de noapte, pași pe săptămâni,
+   suspendarea persistentă a istoricului, rularea de dimineață care nu consumă istoricul suspendat) e **ION-166**, de care
+   ION-167 depinde: lunile 12.2024–09.2026 se pun în coadă abia după ce ION-166 e în producție (Codex r3 · C4); până atunci
+   nimic istoric nu rulează; (c) verificarea: ambele cozi goale,
    Σ din tabelele noi = Σ din `tiki_ticket_attr` (fără Anulare) / `tiki_ceilalti_od` pe fiecare lună; (d) push-ul interfeței
    care cheamă RPC-urile noi; (e) după o zi fără erori, cele vechi se scot.
 4. **Bugetul refacerii** (Codex C4): înainte de (b), pasul lunar complet (atribuire + agregate noi) se măsoară pe luna cea
@@ -99,9 +119,12 @@ scalarea omișilor pe acoperire (estimare peste estimare — se arată «—» s
    noi devin pas separat cu **coadă proprie** `tiki_aggr_queue`, pusă de pasul atribuirii în aceeași tranzacție (r2 · N4: altfel
    luna se pierde dacă pasul separat cade). Estimarea cozii
    întregi se scrie în raport.
-5. **Invalidarea la corectura graficului** (Codex r2 · C2): trigger pe `daily_assignments` (insert / update / delete, OLD
-   și NEW, `EXCEPTION WHEN OTHERS` — nu blochează salvarea din grafic) pune luna zilei în `tiki_refresh_queue`; refacerea o
-   face rularea următoare (după import / 08:00), nu sincron.
+5. **Invalidarea la corecturi** (Codex r2 · C2, backend r3 · 1, 4): triggere `FOR EACH STATEMENT` (tabele de tranziție) pe
+   `daily_assignments` și `tiki_label_override` scriu lunile în **jurnalul fără cheie** `tiki_refresh_log` — **deja în
+   producție din migr. 461** (01.10), unde triggerele Numărării au fost mutate pe jurnal, pentru că inserția ON CONFLICT în
+   coada cu cheie aștepta ~70 s după pasul de refacere și putea bloca salvarea din GO; jurnalul trece în cozi la începutul
+   `tiki_refacere_pas`. Lunile trecute se refac la rularea de seară, luna curentă la import. Costul: luna curentă e oricum
+   în coadă după fiecare import, deci triggerul adaugă muncă doar la corecturile pe lunile trecute (backend r3 · 5).
 6. **Vederi**: `ComparatieView.tsx` (înlocuiește `TendintaView`), `RuteView.tsx`, `DriversView.tsx` refăcut; meniul:
    Tipuri bilet & direcții · Comparație perioade · Rute · Șoferi. Denumiri: «Bilete TIKI», «Fără bilet TIKI (numărați)»,
    «Oameni transportați».
@@ -114,8 +137,9 @@ scalarea omișilor pe acoperire (estimare peste estimare — se arată «—» s
 
 ## Riscuri
 
-- Perioadă cu acoperire sub 90 %: «Fără bilet» și «Oameni» = «—», cu motivul; nu se scalează.
-- Recalculul greu încetinește panoul: doar seara, pas cu pas.
+- Ruta cu zile complet numărate sub 50 % (la «Comparație»: în oricare perioadă): «—» și lista «puțin numărate»; pragul
+  de 90 % e doar informativ (Codex r3 · C5).
+- Recalculul greu pe NANO: doar noaptea 23:00–05:00, pași ≤ 20 s (ION-166).
 - Fără bilet e o estimare (diferență pe tronsoane), spus într-o propoziție; ~3 % subestimat pe picioarele cu două mașini.
 
 ## Verificare
@@ -125,6 +149,8 @@ scalarea omișilor pe acoperire (estimare peste estimare — se arată «—» s
 - Șoferi: un șofer pe două rute, una fără colegi → «comparabile 1 / 2», diferența doar pe prima.
 - Șoferi: două programări cu întoarcere pe aceeași rută în aceeași zi → biletele se împart pe mașini, Σ bilete conservată;
   biletele doar pe etichetă pe acel picior → «fără șofer sigur».
+- Implicitul «luna ultimă» se oprește la ultima zi cu Numărarea închisă (30.09 era 72 % pe 01.10), spus sus.
+- Salvarea unei sesiuni în GO în timpul `tiki_refacere_pas` nu așteaptă (migr. 461, verificat cu două conexiuni).
 - Grafic: corectura șoferului pe o zi din iulie → iulie intră în coadă; după golire, raportul arată șoferul nou.
 - Tipuri bilet: filtru pe rută și pe șofer activ, înainte și după comutare; cu filtrul pe șofer, coloana «fără bilet» se
   ascunde (omișii n-au șofer, business-logic r2 · 6).
@@ -134,6 +160,30 @@ scalarea omișilor pe acoperire (estimare peste estimare — se arată «—» s
 - La rece, pe 12 luni: fiecare RPC < 3 s, planul fără citiri din `tiki_tickets`.
 - vitest în `bilete/analiza.test.ts`: acoperirea, media fără șofer, perioade de lungimi diferite (pe zi).
 - typecheck.
+
+## Critic extern - runda 3
+
+**Scor 1.5 (JSON 3.5, inconsistent: Σ greutăți 8.5) · fail la livrare · critical/high: 2, ambele acceptate și reparate în producție.**
+
+| id | severitate | esență | decizie | motiv |
+|---|---|---|---|---|
+| C1 | high | 461: jurnalul citit și șters în instrucțiuni separate → un eveniment confirmat între ele se pierdea | acceptat, **reparat** | migr. 462 (01.10): un singur `DELETE … RETURNING` alimentează ambele cozi; verificat în catalog |
+| C2 | high | triggerul sesiunilor: fără luna NOUĂ și fără `driver_id` | acceptat, **reparat** | migr. 462: luna OLD și NEW, trigger și pe `driver_id`; verificat în catalog |
+| C3 | medium | indicele zilei aplicat pe media brută a colegilor | acceptat | baza colegilor normalizată + testul numeric cu diferența 0 |
+| C4 | medium | fereastra de noapte fără mecanism | acceptat | dependență de ION-166 (noaptea 23:00–05:00, pași ≤ 20 s); 20:00 scos — NANO a căzut la 19:33 |
+| C5 | low | Riscuri cu regula veche de 90 % | acceptat | Riscuri rescrise |
+
+## Triaj runda 3 (Claude)
+
+| revizor · nr | sev. | esență | decizie | unde |
+|---|---|---|---|---|
+| business-logic r3 · 1 | high | pragul 90 % pe rută lasă 17 / 30 rute pe 09.2026 (gaura 05–13.09) | acceptat | estimarea pe rută (zile complet numărate × zile circulate), ≥ 50 % în ambele perioade, N calculat |
+| business-logic r3 · 2 | high | ziua săptămânii acoperă doar 21 % din curse | acceptat | rută × sens × indicele zilei pe 90 de zile |
+| business-logic r3 · medii/low | medium/low | «Rute» se contrazice; media fără numărul de rute; cursele ambigue; ultima zi incompletă; trigger pe instrucțiune | acceptate | «Ce facem» 2–3, Pași 5, Verificare |
+| senior-backend r3 · 1 | high | triggerul în coada cu PK așteaptă după pasul de refacere → salvarea blocată | acceptat **și reparat în producție** | migr. 461 (01.10): jurnal fără cheie pentru triggerele Numărării; triggerele noi tot pe jurnal |
+| senior-backend r3 · 2 | medium | 1.121 de bilete fără plecare cu mașina lor | acceptat | funcția unică de plecări (grafic + Numărare) + coș numit |
+| senior-backend r3 · 3 | medium | `tiki_sofer_daily` nu poate da formula; sursa șoferului | acceptat | `sofer_plecare` în attr; plecări cu 0 bilete; fără mașină în agregat |
+| senior-backend r3 · 4, 5 | low | invalidare și pe override / sesiuni; costul ca fapt | acceptate | Pași 5 |
 
 ## Critic extern - runda 2
 

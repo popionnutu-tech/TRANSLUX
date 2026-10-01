@@ -10,7 +10,7 @@ import { verifySession } from '@/lib/auth';
 import { unpackRow, type PackedRow } from './bilete/ticketParse';
 import type {
   TikiBatch, TikiMeta, TikiSummary, TikiDriverRow, TikiRouteRow, TikiPairRow, TikiMonthly,
-  TikiCalitate, OrarRoute, TikiTendinta, TikiClienti, TikiOd,
+  TikiCalitate, OrarRoute, TikiTendinta, TikiClienti, TikiOd, TikiOmisi,
 } from './bilete/types';
 
 type Res<T> = { data?: T; error?: string };
@@ -265,4 +265,14 @@ export async function getTikiOd(from: string, to: string, route?: number | null)
   const { data, error } = await getSupabase().rpc('get_tiki_od', { p_from: from, p_to: to, p_route: route ?? null });
   if (error) return { error: error.message };
   return { data: data as TikiOd };
+}
+
+export async function getTikiOmisi(from: string, to: string): Promise<Res<TikiOmisi>> {
+  const a = await adminOnly();
+  if ('error' in a) return a;
+  const bad = badRange(from, to);
+  if (bad) return { error: bad };
+  const { data, error } = await getSupabase().rpc('get_tiki_omisi', { p_from: from, p_to: to });
+  if (error) return { error: error.message };
+  return { data: data as TikiOmisi };
 }

@@ -2,34 +2,29 @@
 
 // Numărare → «Bilete aparat» (doar ADMIN): biletele bătute de șoferi din terminalul TIKI.
 // Ion, 30.09: șoferii au voie să bată bilete fiindcă încasarea se verifică prin numărare.
-// ION-159: «Orar» (ce curse tai / adaug / mut), «Față de anul trecut» și «Cine merge pe rută» (TIKI + Numărare),
-// toate pe ziua cursei Mobilet; Șoferi și Tipuri bilet rămân pe ziua vânzării.
+// ION-159: «Față de anul trecut» pe ziua cursei Mobilet; Șoferi și Tipuri bilet pe ziua vânzării. Ion, 01.10: «șterge
+// cine merge pe rută, șterge orar; în tipul bilet și direcții să apară o coloană — oamenii omiși de TIKI dar fixați în
+// numărare»; «șterge import, că am făcut cron automat» (importul zilnic din Mobilet, ION-160).
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getTikiMeta } from './biletAparatActions';
 import type { Filters, TikiMeta } from './bilete/types';
 import { presetRange, fmtDate, unreliableOverlap, type Preset } from './bilete/periods';
 import { Notice, Pill } from './bilete/ui';
-import OrarView from './bilete/OrarView';
 import TendintaView from './bilete/TendintaView';
-import ClientiView from './bilete/ClientiView';
 import DriversView from './bilete/DriversView';
 import PairsView from './bilete/PairsView';
-import ImportPanel from './bilete/ImportPanel';
 
-type View = 'orar' | 'tendinta' | 'clienti' | 'drivers' | 'pairs' | 'import';
+type View = 'tendinta' | 'drivers' | 'pairs';
 
 const VIEWS: { key: View; label: string }[] = [
-  { key: 'orar', label: 'Orar' },
-  { key: 'tendinta', label: 'Față de anul trecut' },
-  { key: 'clienti', label: 'Cine merge pe rută' },
-  { key: 'drivers', label: 'Șoferi' },
   { key: 'pairs', label: 'Tipuri bilet & direcții' },
-  { key: 'import', label: 'Import' },
+  { key: 'tendinta', label: 'Față de anul trecut' },
+  { key: 'drivers', label: 'Șoferi' },
 ];
 
 /** Vederile cu perioadă (de la – până la); «Față de anul trecut» ia toată istoria pe luni. */
-const WITH_PERIOD: View[] = ['orar', 'clienti', 'drivers', 'pairs'];
+const WITH_PERIOD: View[] = ['drivers', 'pairs'];
 /** Filtrele pe eticheta TIKI și șofer au sens doar pe vederile vechi (ziua vânzării). */
 const WITH_LABEL_FILTERS: View[] = ['drivers', 'pairs'];
 
@@ -50,10 +45,9 @@ const inputStyle: React.CSSProperties = {
 export default function BileteAparatTab() {
   const [meta, setMeta] = useState<TikiMeta | null>(null);
   const [metaError, setMetaError] = useState<string | null>(null);
-  const [view, setView] = useState<View>('orar');
+  const [view, setView] = useState<View>('pairs');
   const [filters, setFilters] = useState<Filters | null>(null);
   const [preset, setPreset] = useState<Preset | null>('ultimele_8s');
-  const [clientiRoute, setClientiRoute] = useState<number | null>(null);
 
   const loadMeta = useCallback(async () => {
     const r = await getTikiMeta();
@@ -61,7 +55,7 @@ export default function BileteAparatTab() {
     setMetaError(null);
     setMeta(r.data!);
     const anchor = r.data!.date_max;
-    if (!anchor) { setView('import'); return; }
+    if (!anchor) return;
     setFilters(f => f ?? { ...presetRange('ultimele_8s', anchor), route: '', driver: '' });
   }, []);
 
@@ -132,22 +126,15 @@ export default function BileteAparatTab() {
         <Notice>⚠ Perioada aleasă atinge {fmtDate(unreliable.from)} – {fmtDate(unreliable.to)}. {unreliable.reason} Cifrele pe zile și cursele din acest interval nu sunt corecte; totalul pe perioadă rămâne corect.</Notice>
       )}
 
-      {empty && view !== 'import' && (
-        <Notice tone="info">Nu există încă bilete importate. Deschide «Import» și încarcă exporturile din aparat.</Notice>
+      {empty && (
+        <Notice tone="info">Nu există încă bilete. Importul automat din Mobilet rulează în fiecare dimineață.</Notice>
       )}
 
-      {view === 'orar' && filters && meta?.date_max && (
-        <OrarView filters={filters} onOpenRoute={id => { setClientiRoute(id); setView('clienti'); }} />
-      )}
       {view === 'tendinta' && meta?.date_max && <TendintaView dateMax={meta.date_max} />}
-      {view === 'clienti' && filters && meta?.date_max && (
-        <ClientiView filters={filters} routeId={clientiRoute} onRouteChange={setClientiRoute} />
-      )}
       {view === 'drivers' && filters && meta?.date_max && (
         <DriversView filters={filters} onPickDriver={d => setFilters({ ...filters, driver: d })} />
       )}
       {view === 'pairs' && filters && meta?.date_max && <PairsView filters={filters} />}
-      {view === 'import' && <ImportPanel onImported={loadMeta} />}
     </div>
   );
 }

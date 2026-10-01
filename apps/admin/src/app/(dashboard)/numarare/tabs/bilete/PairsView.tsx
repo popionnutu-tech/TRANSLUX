@@ -1,17 +1,30 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { getTikiPairs } from '../biletAparatActions';
-import type { Filters, TikiPairRow } from './types';
+import { getTikiOmisi, getTikiPairs } from '../biletAparatActions';
+import type { Filters, TikiOmisi, TikiPairRow } from './types';
 import { sameRangeLastYear, pctChange, fmtDate, unreliableOverlap } from './periods';
 import { SplitBar, SERIES } from './charts';
 import { Delta, Kpi, Notice, Th, fmtInt, fmtLei, fmtPct, share, nf2, sortRows, tableWrap } from './ui';
 
-type Col = 'pair' | 'tickets' | 'share' | 'lei' | 'avg' | 'tur' | 'yoy';
+type Col = 'pair' | 'tickets' | 'share' | 'lei' | 'avg' | 'tur' | 'yoy' | 'omisi';
+
+// Ion, 01.10: «în tipul bilet și direcții să apară o coloană — oamenii omiși de TIKI dar fixați în numărare».
+// Cheia perechii, ca tiki_stop_norm din SQL (migr. 452): fără diacritice, fără «GA», ordonată.
+const NUMARARE_FROM = '2026-03-28';
+function stopNorm(x: string): string {
+  return x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    .replace(/\b(ga|gara|autogara)\b/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+}
+function pairNorm(pair: string): string {
+  const [a = '', b = ''] = pair.split(' - ');
+  return [stopNorm(a), stopNorm(b)].sort().join('|');
+}
 
 export default function PairsView({ filters }: { filters: Filters }) {
   const [rows, setRows] = useState<TikiPairRow[] | null>(null);
   const [yoy, setYoy] = useState<Map<string, TikiPairRow>>(new Map());
+  const [omisi, setOmisi] = useState<TikiOmisi | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState('');
   const [limit, setLimit] = useState(40);
@@ -20,24 +33,34 @@ export default function PairsView({ filters }: { filters: Filters }) {
 
   useEffect(() => {
     let alive = true;
-    setRows(null); setError(null);
+    setRows(null); setError(null); setOmisi(null);
+    const withCount = filters.to >= NUMARARE_FROM && !filters.route && !filters.driver;
     Promise.all([
       getTikiPairs(filters.from, filters.to, filters.route, filters.driver),
       getTikiPairs(yoyRange.from, yoyRange.to, filters.route, filters.driver),
-    ]).then(([a, b]) => {
+      withCount ? getTikiOmisi(filters.from < NUMARARE_FROM ? NUMARARE_FROM : filters.from, filters.to) : Promise.resolve(null),
+    ]).then(([a, b, c]) => {
       if (!alive) return;
       if (a.error) { setError(a.error); return; }
       setRows(a.data!);
       setYoy(new Map((b.data ?? []).map(r => [r.pair, r])));
+      setOmisi(c?.data ?? null);
     });
     return () => { alive = false; };
   }, [filters, yoyRange]);
 
   const total = useMemo(() => (rows ?? []).reduce((s, r) => s + r.tickets, 0), [rows]);
+  const omisiMap = useMemo(() => new Map((omisi?.perechi ?? []).map(p => [p.cheie, p])), [omisi]);
+  const omisiTotal = useMemo(() => (omisi?.perechi ?? []).reduce((s, p) => s + p.oameni, 0), [omisi]);
   const table = useMemo(() => {
     if (!rows) return [];
     const needle = q.trim().toLowerCase();
-    const list = rows
+    // perechile pe care le au doar ceilalți (nicio vânzare TIKI) apar și ele, cu 0 bilete
+    const tikiKeys = new Set(rows.map(r => pairNorm(r.pair)));
+    const onlyCounted: TikiPairRow[] = (omisi?.perechi ?? [])
+      .filter(p => !tikiKeys.has(p.cheie))
+      .map(p => ({ pair: `${p.de_la} - ${p.pana_la}`, tickets: 0, lei: 0, tur: 0, retur: 0, fara_sens: 0, statii: 0, dedus: 0 }));
+    const list = [...rows, ...onlyCounted]
       .filter(r => !needle || r.pair.toLowerCase().includes(needle))
       .map(r => ({
         ...r,
@@ -46,6 +69,7 @@ export default function PairsView({ filters }: { filters: Filters }) {
         turPct: share(r.tur, r.tur + r.retur),
         yoyPct: yoy.size ? pctChange(r.tickets, yoy.get(r.pair)?.tickets ?? null) : null,
         isNew: yoy.size > 0 && !yoy.has(r.pair),
+        omisi: omisi ? (omisiMap.get(pairNorm(r.pair))?.oameni ?? 0) : null,
       }));
     const get = (r: typeof list[number]) => {
       switch (sort.col) {
@@ -56,10 +80,11 @@ export default function PairsView({ filters }: { filters: Filters }) {
         case 'avg': return r.avg;
         case 'tur': return r.turPct;
         case 'yoy': return r.yoyPct;
+        case 'omisi': return r.omisi;
       }
     };
     return sortRows(list, get, sort.dir);
-  }, [rows, yoy, q, sort, total]);
+  }, [rows, yoy, q, sort, total, omisi, omisiMap]);
 
   if (error) return <Notice tone="danger">{error}</Notice>;
   if (!rows) return <div style={{ padding: 20, color: '#999' }}>Se încarcă…</div>;
@@ -83,11 +108,15 @@ export default function PairsView({ filters }: { filters: Filters }) {
         <Kpi title="Tur / retur" value={`${fmtPct(share(tur, tur + retur), 0)} / ${fmtPct(share(retur, tur + retur), 0)}`}
           sub="din Chișinău / spre Chișinău" />
         <Kpi title="Tip dedus din preț" value={fmtPct(share(dedus, total))} sub="bilete fără stații în export" />
+        <Kpi title="Omiși de TIKI (în Numărare)" value={omisi ? fmtInt(Math.round(omisiTotal)) : '—'}
+          sub={omisi ? `oameni numărați fără bilet TIKI · ${omisi.zile} zile numărate` : 'Numărarea există din 28.03.2026, fără filtru pe cursă/șofer'} />
       </div>
       <Notice tone="info">
         Tipul biletului = perechea de stații, fără sens (Chișinău – Bălți cuprinde ambele sensuri; sensul e în coloana Tur/Retur).
         «vs an trecut» compară cu {fmtDate(yoyRange.from)} – {fmtDate(yoyRange.to)}. Pentru biletele de dinainte de feb. 2026
-        stațiile lipsesc din export: tipul e dedus din preț (98,6% potriviri verificate).
+        stațiile lipsesc din export: tipul e dedus din preț (98,6% potriviri verificate). «Omiși de TIKI» = oameni numărați
+        în Numărare pe pereche, fără bilet TIKI: pe fiecare porțiune de drum numărat − TIKI; unde diferența crește au urcat,
+        unde scade au coborât. Doar din {fmtDate(NUMARARE_FROM)} și doar zilele numărate.
       </Notice>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
         <input placeholder="Caută stația…" value={q} onChange={e => setQ(e.target.value)}
@@ -110,6 +139,7 @@ export default function PairsView({ filters }: { filters: Filters }) {
                 {th('lei', 'Încasat')}
                 {th('avg', 'Preț mediu')}
                 {th('tur', 'Tur / retur', 'left')}
+                {th('omisi', 'Omiși de TIKI', 'right', 'Oameni numărați în Numărare pe această pereche, fără bilet TIKI (calculat: numărat − TIKI pe porțiuni de drum)')}
                 <th style={{ textAlign: 'right' }}>Sursa</th>
               </tr>
             </thead>
@@ -130,8 +160,9 @@ export default function PairsView({ filters }: { filters: Filters }) {
                     ]} />
                     <span style={{ marginLeft: 6, color: '#555' }}>{fmtInt(r.tur)} / {fmtInt(r.retur)}</span>
                   </td>
+                  <td style={{ textAlign: 'right', fontWeight: 600, color: '#eb6834' }}>{r.omisi == null ? '—' : fmtInt(r.omisi)}</td>
                   <td style={{ textAlign: 'right', fontSize: 12, color: '#777', whiteSpace: 'nowrap' }}>
-                    {r.dedus === 0 ? 'stații' : r.statii === 0 ? 'dedus din preț' : `${fmtPct(share(r.dedus, r.tickets), 0)} dedus`}
+                    {r.tickets === 0 ? 'doar în Numărare' : r.dedus === 0 ? 'stații' : r.statii === 0 ? 'dedus din preț' : `${fmtPct(share(r.dedus, r.tickets), 0)} dedus`}
                   </td>
                 </tr>
               ))}

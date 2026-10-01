@@ -187,3 +187,9 @@ export interface TikiOd {
   ceilalti_total: number | null;
   ceilalti_total_pe_zi: number | null;
 }
+
+// Oamenii omiși de TIKI dar numărați în Numărare, pe pereche fără sens (migr. 459).
+export interface TikiOmisi {
+  zile: number;
+  perechi: { cheie: string; de_la: string; pana_la: string; oameni: number; tur: number | null; retur: number | null }[];
+}

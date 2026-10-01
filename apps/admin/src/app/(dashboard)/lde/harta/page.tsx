@@ -2,15 +2,16 @@ export const dynamic = 'force-dynamic';
 
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { getControlCamioane, getListaHarta, getSaptamaniHarta, getZiHarta, type ControlCamion } from './actions';
+import { getControlBriceni, getControlCamioane, getListaHarta, getSaptamaniHarta, getZiHarta, type ControlCamion } from './actions';
 import HartaClient from './HartaClient';
-import { liniiCamioane, masiniCamioane, masiniSaptamana, UZINE_HARTA, uzHarta, type LinieSchelet, type Punct, type ScheletCamioaneHarta } from '@/lib/lde/drax-harta';
+import { liniiBriceni, liniiCamioane, masiniCamioane, masiniSaptamana, UZINE_HARTA, uzHarta, type LinieSchelet, type Punct, type ScheletBriceniHarta, type ScheletCamioaneHarta } from '@/lib/lde/drax-harta';
 
 // Harta fiecărei mașini pe zi, peste scheletul liniilor ei (ION-130, Drăxlmaier). Ion, 28.09.2026: «ar fi bine să putem fiecare mașină
 // s-o vizualizăm pe schelet, să fie o pagină separată în LDE, în care drumurile se arată detaliat la fiecare mașină pe hartă».
 // ION-143 (29.09): și LEAR Ungheni / LEAR Florești, cu locurile optime de parcare (?uz=ungheni|floresti; fără uz = Drăxlmaier).
 // ION-147 (01.10): și SEBN Orhei + Strășeni (?uz=sebn) — parcarea P1/P2, bucla la predarea turei separat, mașinile fără parcare cu motivul.
 // ION-150 (30.09): și cisternele (?uz=camioane) — urma față de linia ideală din schelet-camioane.json, P1/P2 doar informativ.
+// ION-148 (01.10): și Briceni, Trox + suburban (?uz=briceni) — rutele mașinii din schelet-briceni.json, poarta Trox + autogara, P1/P2.
 // Alegerea (uzina, săptămâna, mașina, ziua) stă în adresă: /lde/harta?uz=ungheni&sapt=2026-09-21&m=827MUM&z=2026-09-21.
 type ScheletDrax = {
   porti: { c: Punct; n: string }[]; parc: Punct;
@@ -48,6 +49,11 @@ export default async function LdeHartaPage({ searchParams }: { searchParams: Pro
     porti = [...UZINE_HARTA.sebn.porti, { c: PARC_BALTI, n: 'Parcul Bălți' }];
     // controlul flotei: fiecare mașină e pe hartă; cele fără parcare propusă, cu motivul (sumar.motivAfara, același pe toate zilele ei)
     control = [...new Map(lista.filter((r) => r.sumar.motivAfara).map((r) => [r.m, { m: r.m, pe: true, motiv: r.sumar.motivAfara ?? null, tip: null }])).values()];
+  } else if (uz === 'briceni') {
+    // Briceni: rutele mașinii din săptămână (T1…T6 și suburbanele) din scheletul fix ION-70, poarta Trox și autogara alături
+    const s = JSON.parse(await readFile(path.join(process.cwd(), 'public', 'lde', 'schelet-briceni.json'), 'utf8')) as ScheletBriceniHarta;
+    ({ linii, porti } = liniiBriceni(s, liniiMasina));
+    control = (await getControlBriceni(sapt)).map((c) => ({ m: c.m, pe: c.pe, motiv: c.motiv, tip: null, km: c.km, zile: c.zile }));
   } else if (U.lear) {
     // LEAR: rutele mașinii (A12, B10 …) din scheletul fix al uzinei; turul plin sub urmă
     const s = JSON.parse(await readFile(path.join(process.cwd(), 'public', 'lde', U.schelet), 'utf8')) as ScheletLear;

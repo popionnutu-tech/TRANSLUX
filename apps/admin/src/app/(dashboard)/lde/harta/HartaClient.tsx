@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { povesteZi } from '@/lib/lde/drax-ziua';
 import {
-  CULOARE, FEL_STATIONARE, LINIE, NUME_TIP, UZINE_HARTA, eticZi, masiniCamioane, masiniSaptamana, randuriCamioane, randuriDinIntervale, tipuriLegenda,
+  CULOARE, FEL_STATIONARE, LINIE, UZINE_HARTA, eticZi, masiniCamioane, masiniSaptamana, numeTip, randuriBriceni, randuriCamioane, randuriDinIntervale, tipuriLegenda,
   type LinieSchelet, type Punct, type RandListaHarta, type RandZi, type UzHarta, type ZiHarta,
 } from '@/lib/lde/drax-harta';
 import type { ControlCamion } from './actions';
@@ -41,11 +41,12 @@ export default function HartaClient({ uz, saptamani, sapt, masini, masina, z, zi
   const U = UZINE_HARTA[uz], pre = uz === 'drax' ? '/lde/harta?' : `/lde/harta?uz=${uz}&`;
   const cam = uz === 'camioane';   // ION-150: cisternele — drumul față de schelet, P1/P2 doar informativ
   const sebn = uz === 'sebn';      // ION-147: SEBN — bucla la predarea turei separat, poarta nu e loc de parcare, fără parcare = cu motivul
+  const bri = uz === 'briceni';    // ION-148: Briceni, Trox + suburban — ziua tăiată ca raportul BRICENI, «gol forțat» separat de livrare
   const href = (m: string, zz?: string) => `${pre}sapt=${sapt}&m=${m}${zz ? `&z=${zz}` : ''}`;
   // Drăxlmaier: povestea zilei (drax-ziua.ts); LEAR (ION-143): rândurile din intervalele hărții
   const miscari: RandZi[] = useMemo(() => (zi?.zi
     ? povesteZi(zi.zi, zi.casa?.n ?? null).map((x) => ({ ora: x.ora, tip: TIP_MISCARE[x.tip] ?? 'gol', text: x.text.startsWith(x.ora) ? x.text.slice(x.ora.length).trim() : x.text, tare: x.kmPeAcasa >= 0.5 }))
-    : zi ? (cam ? randuriCamioane(zi.iv) : randuriDinIntervale(zi.iv)) : []), [zi, cam]);
+    : zi ? (cam ? randuriCamioane(zi.iv) : bri ? randuriBriceni(zi.iv) : randuriDinIntervale(zi.iv)) : []), [zi, cam, bri]);
   const sumar = zileMasina.find((r) => r.z === z)?.sumar;
   const m = masini.find((x) => x.m === masina);
 
@@ -68,7 +69,9 @@ export default function HartaClient({ uz, saptamani, sapt, masini, masina, z, zi
           <h1 style={{ fontSize: 18, margin: 0 }}>Harta mașinii — {U.nume}</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: 11.5, margin: '3px 0 0', maxWidth: '96ch', lineHeight: 1.45 }}>
             {cam ? <>Urma GPS a zilei (00:00–24:00) peste linia ideală din schelet a drumurilor zilei (galben pal): vama, drumul prin România și Moldova,
-              abaterile din verificarea zilnică. Locurile de stat P1/P2 sunt doar informative, fără km de tăiat (Ion, 30.09).</> : <>
+              abaterile din verificarea zilnică. Locurile de stat P1/P2 sunt doar informative, fără km de tăiat (Ion, 30.09).</> : bri ? <>
+            Urma GPS a zilei (03:00–03:00) peste rutele mașinii din schelet (galben pal), tăiată ca în raportul BRICENI: roșu = livrarea (golul de tăiat),
+            portocaliu = gol forțat (gol pe rută, gol între ture, legătură — nu e economie). P1/P2 = parcarea propusă între curse și noaptea.</> : <>
             Urma GPS a zilei peste {U.lear ? 'rutele' : 'linia'} mașinii din schelet (galben pal).</>}{' '} Culoarea spune ce face mașina, aceleași intervale ca în
             «Ziua făcută, drum cu drum». Apasă pe un rând din dreapta sau pe urmă ca să vezi doar acel drum.
           </p>
@@ -121,9 +124,9 @@ export default function HartaClient({ uz, saptamani, sapt, masini, masina, z, zi
               </Link>
             );
           })}
-          {(cam || sebn) && control.some((c) => !c.pe || c.motiv) ? (
+          {(cam || sebn || bri) && control.some((c) => !c.pe || c.motiv) ? (
             <div style={{ padding: '8px 11px', fontSize: 10.5, color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-              <div style={{ ...ETICHETA, marginBottom: 3 }}>{sebn ? `Fără parcare propusă (${control.length} din ${masini.length})` : `Restul flotei (${control.filter((c) => !c.pe).length} fără hartă)`}</div>
+              <div style={{ ...ETICHETA, marginBottom: 3 }}>{sebn ? `Fără parcare propusă (${control.length} din ${masini.length})` : bri ? `Fără parcare propusă (${control.filter((c) => !c.pe).length} fără hartă)` : `Restul flotei (${control.filter((c) => !c.pe).length} fără hartă)`}</div>
               {control.filter((c) => !c.pe || c.motiv).map((c) => (
                 <div key={`${c.m}-${c.pe}`} style={{ marginBottom: 2 }}><b style={{ fontFamily: MONO }}>{c.m}</b> {c.motiv}</div>
               ))}
@@ -139,7 +142,7 @@ export default function HartaClient({ uz, saptamani, sapt, masini, masina, z, zi
             borderRadius: 6, padding: '6px 9px', fontSize: 10.5, color: 'var(--text-secondary)', display: 'grid', gap: 3 }}>
             {tipuriLegenda(uz).map((t) => (
               <span key={t} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <svg width="26" height="6" aria-hidden><line x1="1" y1="3" x2="25" y2="3" stroke={CULOARE[t]} strokeWidth="3" strokeDasharray={LINIE[t]} /></svg>{NUME_TIP[t]}
+                <svg width="26" height="6" aria-hidden><line x1="1" y1="3" x2="25" y2="3" stroke={CULOARE[t]} strokeWidth="3" strokeDasharray={LINIE[t]} /></svg>{numeTip(uz, t)}
               </span>
             ))}
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><svg width="26" height="8" aria-hidden><line x1="1" y1="4" x2="25" y2="4" stroke="#C9B458" strokeOpacity="0.5" strokeWidth="7" /></svg>schelet</span>
@@ -202,12 +205,14 @@ export default function HartaClient({ uz, saptamani, sapt, masini, masina, z, zi
               <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 4, lineHeight: 1.4 }}>
                 {sebn
                   ? 'Pe drumurile de mai jos mașina stă la locul arătat (punctat pe hartă); unde scrie «rămâne cum e», face ca acum. Poarta SEBN nu e loc de parcare (§2.3). Bucla la predarea turei (portocaliu) nu e drum de parcare și nu intră în km de tăiat. Drumul șoferului spre casă nu e socotit.'
+                  : bri
+                  ? 'Pe drumurile de mai jos (golurile de 1–20 h dintre curse) mașina stă la locul arătat (punctat pe hartă); unde scrie «rămâne cum e», face ca acum. Golul Trox dintre ture nu iese sub lungimea rutei (Ion, 01.10). Drumul șoferului spre casă nu e socotit.'
                   : U.lear
                   ? 'Pe drumurile de mai jos mașina stă la locul arătat (punctat pe hartă); unde scrie «rămâne cum e», face ca acum. «La uzină» = așteaptă la poarta LEAR (regula 1). Drumul șoferului spre casă nu e socotit.'
                   : 'Între schimburi și noaptea mașina stă aici; drumurile propuse sunt punctate pe hartă. Drumul șoferului spre casă nu e socotit.'}
                 {zi.parcare.idealSapt != null ? ` Maximul teoretic (așteaptă la fiecare capăt): ${n0(zi.parcare.idealSapt)} km/săpt.` : ''}
               </div>
-              {U.lear && zi.parcare.legi.length ? (
+              {(U.lear || bri) && zi.parcare.legi.length ? (
                 <div style={{ marginTop: 6, display: 'grid', gap: 2, fontSize: 11.5 }}>
                   {zi.parcare.legi.map((l, i) => (
                     <div key={i} style={{ display: 'grid', gridTemplateColumns: '84px minmax(0, 1fr) auto', columnGap: 6 }}>
@@ -223,6 +228,11 @@ export default function HartaClient({ uz, saptamani, sapt, masini, masina, z, zi
             <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border-accent)', background: '#F6F4EE' }}>
               <div style={ETICHETA}>Fără parcare propusă</div>
               <div style={{ fontSize: 12, marginTop: 3, lineHeight: 1.4 }}>{sumar.motivAfara}</div>
+            </div>
+          ) : bri && zi?.parcare?.motivFara ? (
+            <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border-accent)', background: '#F6F4EE', fontSize: 12, lineHeight: 1.45 }}>
+              <div style={ETICHETA}>Fără parcare propusă</div>
+              {zi.parcare.motivFara}
             </div>
           ) : null}
           {sebn && sumar?.ruteGps ? (
@@ -245,9 +255,11 @@ export default function HartaClient({ uz, saptamani, sapt, masini, masina, z, zi
           </div>
 
           {sumar && (
-            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${sebn ? 5 : 4}, minmax(0, 1fr))`, gap: 8, padding: '8px 0', borderTop: '1px solid var(--border-accent)', borderBottom: '1px solid var(--border-accent)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${sebn || bri ? 5 : 4}, minmax(0, 1fr))`, gap: 8, padding: '8px 0', borderTop: '1px solid var(--border-accent)', borderBottom: '1px solid var(--border-accent)' }}>
               {(cam
                 ? [['în zi', sumar.total], ['cu marfă', sumar.plin ?? sumar.cuOameni], ['gol', sumar.gol], ['peste ideal', sumar.kmPlus ?? 0]]
+                : bri
+                ? [['în zi', sumar.total], ['cu oameni', sumar.cuOameni], ['livrare', sumar.gol], ['gol forțat', sumar.fortat ?? 0], [sumar.economie == null ? 'fără parcare' : 'de tăiat', sumar.economie]]
                 : [['în zi', sumar.total], ['cu oameni', sumar.cuOameni], ['goi', sumar.gol], ...(sebn ? [['buclă predare', sumar.bucla ?? 0]] : []), [sumar.economie == null ? 'nu intră în calcul' : 'de tăiat', sumar.economie]]).map(([e, v]) => (
                 <div key={e as string}>
                   <div style={ETICHETA}>{e}</div>

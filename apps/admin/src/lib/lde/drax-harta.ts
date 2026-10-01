@@ -7,8 +7,9 @@ import type { DrumPropus, LocParcare, ZiParcare } from './drax-parcare';
 export type Punct = [number, number];
 /** tipul intervalului: cursă cu oameni, gol, muncă (între uzine / deplasare / service), la uzină (parc, gol între ture);
  * ION-150 (cisterne): plin (cu marfă), la punct (încărcare / descărcare / bază / vamă), parcare (≥ 60 min în afara punctelor);
- * ION-147 (SEBN): bucla la predarea turei (poartă → Slobozia Doamnei → Bucuria), fără km de tăiat */
-export type TipInterval = 'cursa' | 'gol' | 'munca' | 'uzina' | 'plin' | 'punct' | 'parcare' | 'bucla';
+ * ION-147 (SEBN): bucla la predarea turei (poartă → Slobozia Doamnei → Bucuria), fără km de tăiat
+ * ION-148 (Briceni): gol forțat — gol pe rută, gol între ture, legătură (Ion, 01.10: «o singură culoare, separată de livrare») */
+export type TipInterval = 'cursa' | 'gol' | 'munca' | 'uzina' | 'plin' | 'punct' | 'parcare' | 'bucla' | 'fortat';
 
 export interface IntervalHarta {
   ora: string; t0: number; t1: number; tip: TipInterval; cats: Record<string, number>; km: number;
@@ -28,7 +29,9 @@ export interface ZiHarta {
   zi: ZiDrax | null;
   ideal: { economie: number; cauze: Record<string, number> } | null;
   /** ION-136: parcarea propusă a mașinii și drumurile propuse ale zilei */
-  parcare?: { locuri: (LocParcare & { ore?: number; nota?: string })[]; economieSapt: number; idealSapt: number | null; zi: ZiParcare | null; legi: DrumPropus[]; informativ?: boolean } | null;
+  parcare?: { locuri: (LocParcare & { ore?: number; nota?: string })[]; economieSapt: number; idealSapt: number | null; zi: ZiParcare | null; legi: DrumPropus[]; informativ?: boolean;
+    /** ION-148 (Briceni): de ce mașina n-are parcare propusă */
+    motivFara?: string | null } | null;
   /** ION-150 (cisterne): drumurile care ating ziua, față de schelet, și verificarea zilnică ION-144 a lor */
   drumuri?: DrumCamion[];
   verif?: VerifCamion[];
@@ -61,6 +64,8 @@ export interface SumarZiHarta {
   plin?: number; kmPlus?: number; nrAbateri?: number; opririAbatere?: number;
   /** ION-147 (SEBN): km în bucla la predarea turei, rutele luate din GPS (nu din schelet), poarta mașinii (Orhei / Strășeni) */
   bucla?: number; ruteGps?: boolean; poarta?: string | null;
+  /** ION-148 (Briceni): km gol forțat (gol pe rută, între ture, legătură) și livrarea zilei din raportul BRICENI */
+  fortat?: number; livrare?: number;
 }
 export interface RandListaHarta { m: string; z: string; sumar: SumarZiHarta }
 
@@ -68,11 +73,12 @@ export interface RandListaHarta { m: string; z: string; sumar: SumarZiHarta }
 export interface LinieSchelet { id: string; capat: string | null; plin: Punct[]; sate: { n: string; c: Punct }[] }
 
 export const CULOARE: Record<TipInterval, string> = {
-  cursa: '#1D6B6B', gol: '#B3261E', munca: '#2F5DA8', uzina: '#8A7F72', plin: '#1D6B6B', punct: '#2F5DA8', parcare: '#8A7F72', bucla: '#C26A00',
+  cursa: '#1D6B6B', gol: '#B3261E', munca: '#2F5DA8', uzina: '#8A7F72', plin: '#1D6B6B', punct: '#2F5DA8', parcare: '#8A7F72', bucla: '#C26A00', fortat: '#C77D0A',
 };
-export const LINIE: Record<TipInterval, string | undefined> = { cursa: undefined, gol: '8 6', munca: '2 6', uzina: '4 5', plin: undefined, punct: '2 6', parcare: '4 5', bucla: '6 3' };
+export const LINIE: Record<TipInterval, string | undefined> = { cursa: undefined, gol: '8 6', munca: '2 6', uzina: '4 5', plin: undefined, punct: '2 6', parcare: '4 5', bucla: '6 3', fortat: '6 4' };
 export const NUME_TIP: Record<TipInterval, string> = {
   cursa: 'cu oameni', gol: 'gol', munca: 'între uzine / service', uzina: 'lângă uzină', plin: 'cu marfă', punct: 'la punct (încarcă / descarcă / bază / vamă)', parcare: 'stă (≥ 1 h)', bucla: 'buclă la predarea turei',
+  fortat: 'gol forțat (pe rută, între ture, legătură)',
 };
 
 const FMT = new Intl.DateTimeFormat('ro-RO', { timeZone: 'Europe/Chisinau', hour: '2-digit', minute: '2-digit', hour12: false });
@@ -127,17 +133,25 @@ export const UZINE_HARTA = {
   // două uzine, un singur rând 'SEBN'; porțile: Orhei (poarta principală + punctul Bucuria) și Strășeni
   sebn: { id: 'SEBN', nume: 'SEBN Orhei + Strășeni', lear: true, schelet: 'schelet-sebn.json', poarta: [47.3864, 28.8014] as Punct,
     porti: [{ c: [47.3864, 28.8014] as Punct, n: 'poarta SEBN Orhei' }, { c: [47.38724, 28.81155] as Punct, n: 'SEBN Orhei — punctul Bucuria' }, { c: [47.15225, 28.62686] as Punct, n: 'poarta SEBN Strășeni' }] },
+  // ION-148 (Ion, 01.10.2026: «adaugă toate direcțiile»): rândurile le scrie VPS briceni-parcare/harta.mjs, controlul flotei în
+  // lde_analiza_reguli 'BRICENI_HARTA'; pe hartă poarta Trox și autogara Briceni (din scheletul public)
+  briceni: { id: 'BRICENI', nume: 'Briceni: Trox + suburban', lear: false, schelet: 'schelet-briceni.json', control: 'BRICENI_HARTA' },
 } as const;
 export type UzHarta = keyof typeof UZINE_HARTA;
 /** cheia din adresă; orice altceva = Drăxlmaier (adresele vechi, fără ?uz=, rămân valabile) */
-export const uzHarta = (x?: string | null): UzHarta => (x === 'ungheni' || x === 'floresti' || x === 'camioane' || x === 'sebn' ? x : 'drax');
+export const uzHarta = (x?: string | null): UzHarta => (x === 'ungheni' || x === 'floresti' || x === 'camioane' || x === 'sebn' || x === 'briceni' ? x : 'drax');
 /** tipurile din legenda hărții: cisternele au plin / gol / la punct / stă, uzinele cursă / gol / muncă / uzină */
-export const tipuriLegenda = (uz: UzHarta): TipInterval[] => (uz === 'camioane' ? ['plin', 'gol', 'punct', 'parcare'] : uz === 'sebn' ? ['cursa', 'gol', 'bucla', 'munca', 'uzina'] : ['cursa', 'gol', 'munca', 'uzina']);
+export const tipuriLegenda = (uz: UzHarta): TipInterval[] => (uz === 'camioane' ? ['plin', 'gol', 'punct', 'parcare']
+  : uz === 'sebn' ? ['cursa', 'gol', 'bucla', 'munca', 'uzina'] : uz === 'briceni' ? ['cursa', 'gol', 'fortat', 'munca', 'parcare'] : ['cursa', 'gol', 'munca', 'uzina']);
+/** numele tipului în legendă: la Briceni roșul e livrarea (economia), iar «stă» nu are pragul de 1 h al cisternelor */
+export const numeTip = (uz: UzHarta, t: TipInterval): string =>
+  uz === 'briceni' && t === 'gol' ? 'livrare (gol de tăiat)' : uz === 'briceni' && t === 'parcare' ? 'stă' : uz === 'briceni' && t === 'munca' ? 'service / deplasare' : NUME_TIP[t];
 
 /** un rând din «Ziua făcută, drum cu drum» pe hartă */
 export interface RandZi { ora: string; tip: TipInterval; text: string; tare: boolean }
 const TEXT_TIP: Record<TipInterval, string> = {
   cursa: 'cu oameni', gol: 'gol', munca: 'parcul Bălți (reparație)', uzina: 'așteaptă la poartă', plin: 'cu marfă', punct: 'la punct', parcare: 'stă', bucla: 'buclă la predarea turei (nu e drum de parcare)',
+  fortat: 'gol forțat',
 };
 /** ziua LEAR n-are povestea Drăxlmaier (drax-ziua.ts): rândurile se fac din intervalele hărții — ora, drumul, km și ce fel de drum */
 export function randuriDinIntervale(iv: IntervalHarta[]): RandZi[] {
@@ -201,4 +215,37 @@ export function liniiCamioane(s: ScheletCamioaneHarta, chei: string[]): LinieSch
     out.push({ id: `${bio ? `${id} ${bio.nume}` : id} · ${v.nume} · ${Math.round(v.km)} km`, capat: null, plin: v.linie, sate: [] });
   }
   return out;
+}
+
+// ─── ION-148 (Ion, 01.10.2026: «adaugă toate direcțiile»): Briceni, Trox + suburban ───
+/** categoriile raportului BRICENI (livrare.mjs) în cuvinte, în ordinea în care se arată pe rândul zilei */
+const CAT_BRICENI: [string, string][] = [
+  ['cuOameni', 'cu oameni'], ['nepotrivita', 'cursă în afara orarului'], ['livrare', 'livrare'], ['brambura', 'brambura'],
+  ['golRuta', 'gol pe rută'], ['golTure', 'gol între ture'], ['legatura', 'legătură'], ['service', 'service'], ['deplasare', 'deplasare'],
+  ['necunoscut', 'necunoscut'],
+];
+/** rândurile zilei Briceni: drumul, km pe categoriile raportului (ocolul pe acasă = livrare + drumul impus), motivul */
+export function randuriBriceni(iv: IntervalHarta[]): RandZi[] {
+  const f = (x: number) => `${(Math.round(x * 10) / 10).toLocaleString('ro-RO')} km`;
+  return iv.map((v) => {
+    if (v.tip === 'parcare') return { ora: v.ora, tip: v.tip, text: `stă la ${v.de ?? '—'}`, tare: false };
+    const drum = v.de === v.pana ? `pe la ${v.de ?? '—'}` : `${v.de ?? '—'} → ${v.pana ?? '—'}`;
+    const parti = CAT_BRICENI.filter(([c]) => (v.cats[c] ?? 0) >= 0.1).map(([c, n]) => `${f(v.cats[c])} ${n}`);
+    const km = parti.length ? parti.join(' + ') : `${f(v.km)} ${TEXT_TIP[v.tip]}`;
+    return { ora: v.ora, tip: v.tip, text: `${drum}, ${km}${v.nota ? ` · ${v.nota}` : ''}`, tare: (v.cats.livrare ?? 0) >= 20 };
+  });
+}
+
+/** scheletul Briceni (public/lde/schelet-briceni.json), doar cât citește harta */
+export interface ScheletBriceniHarta {
+  gara: Punct; poarta: Punct;
+  rute: { id: string; nume: string; capat: string | null; shape: Punct[]; stops: { n: string; c: Punct }[] }[];
+}
+/** liniile mașinii din schelet (T1…T6, 44…57, «46+52+53+54») și cele două ancore: poarta Trox și autogara, una lângă alta */
+export function liniiBriceni(s: ScheletBriceniHarta, chei: Iterable<string>): { linii: LinieSchelet[]; porti: { c: Punct; n: string }[] } {
+  const k = new Set(chei);
+  return {
+    linii: s.rute.filter((r) => k.has(r.id)).map((r) => ({ id: `${r.id} · ${r.nume}`, capat: r.capat, plin: r.shape, sate: r.stops.map((x) => ({ n: x.n, c: x.c })) })),
+    porti: [{ c: s.poarta, n: 'poarta Trox' }, { c: s.gara, n: 'autogara Briceni' }],
+  };
 }

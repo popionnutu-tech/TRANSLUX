@@ -1,0 +1,28 @@
+=== 2026-10-01 13:06:02 harta Briceni, săptămâna 2026-09-14 → 2026-09-20
+la poartă (zile): 904BRAN 5, 029BRAS 1, 532BRAO 4, 283YEK 5, 319BRAT 5, 246BRAP 5, 459BRAX 2, 054MLD 4, 318BRAT 1
+Trox: 125 curse · pe rută 109 · de lămurit 16 · predări respinse 16 · manevre 52
+ocoluri pe acasă între curse: 51 (fără drum Valhalla: 0)
+harta BRICENI 2026-09-14: 61 rânduri · 1114 KB · mașini 12 (cu parcare 10) · de tăiat 1045 km/săpt. · livrare R1 2186
+  goluri scoase: {"sub 60 min":164,"peste 20 h (weekend / pauză)":16,"stă la autogară / poartă":3}
+  ✓ 904BRAN  6 zile · 1435 km · real 571.1 → 320.9 = −250.2 · 14 drumuri · P1 Groznița (7 drumuri) + P2 Trestieni (4 drumuri) 
+  ✓ 054MLD   6 zile · 1617 km · real 502.5 → 303.8 = −198.7 · 14 drumuri · P1 Briceni (3 drumuri) + P2 Drepcăuți (6 drumuri) 
+  ✓ 246BRAP  7 zile · 1887 km · real 436.5 → 227.1 = −209.4 · 13 drumuri · P1 Medveja (5 drumuri) + P2 Briceni (4 drumuri) 
+  ✓ 285BRAT  5 zile · 1382 km · real 169.8 → 88.5 = −81.3 · 5 drumuri · P1 Coteala (5 drumuri) 
+  ✓ 283YEK   6 zile · 1163 km · real 308.4 → 207.3 = −101.1 · 14 drumuri · P1 Briceni (3 drumuri) 
+  ✓ 480BRAS  3 zile · 696 km · real 0 → 0 = −0 · 0 drumuri · — niciun gol între curse de 1–20 h în care să plece de la autogară / poartă (mașina stă la capătul cursei sau pauzele sunt scurte)
+  ✓ 459BRAX  7 zile · 976 km · real 107 → 46.3 = −60.7 · 3 drumuri · P1 Tabani (3 drumuri) 
+  ✓ 532BRAO  5 zile · 1066 km · real 224 → 189.7 = −34.4 · 7 drumuri · P1 Briceni (4 drumuri) 
+  ✓ 029BRAS  4 zile · 847 km · real 104.7 → 61.3 = −43.4 · 3 drumuri · P1 Drepcăuți (2 drumuri) 
+  ✓ 318BRAT  5 zile · 1270 km · real 141.4 → 102.4 = −38.9 · 5 drumuri · P1 Coteala (3 drumuri) 
+  ✓ 319BRAT  6 zile · 1245 km · real 331.2 → 304.2 = −26.9 · 15 drumuri · P1 Lipcani (1 drumuri) 
+  ✓ 145BZP   1 zile · 156 km · real 0 → 0 = −0 · 0 drumuri · — o singură zi cu cursă Briceni în săptămână — rămâne în afara parcării (Ion, 01.10, întrebarea 7)
+  · 065LTL   528 km urmă GPS 528 km, dar nicio cursă Trox pe rută și nicio cursă suburbană din orar
+  · 263NSX   3979 km zile cu cursă interurbană (Chișinău ↔ nord: 2026-09-15, 2026-09-16, 2026-09-17) — țin de analiza mejgorod, nu de Briceni
+  · 281BRAT  0 km fără urmă GPS în săptămână (atribuită în grafic; fără tracker) — în afara parcării (Ion, 01.10, întrebarea 7)
+  · 319YEK   0 km fără urmă GPS în săptămână — în afara parcării (Ion, 01.10, întrebarea 7)
+  · 396SWL   600 km urmă GPS 600 km, dar nicio cursă Trox pe rută și nicio cursă suburbană din orar
+  · 692TWK   4106 km zile cu cursă interurbană (Chișinău ↔ nord: 2026-09-15, 2026-09-16, 2026-09-17, 2026-09-18, 2026-09-20) — țin de analiza mejgorod, nu de Briceni
+  · 703TWK   4057 km zile cu cursă interurbană (Chișinău ↔ nord: 2026-09-14, 2026-09-15, 2026-09-16, 2026-09-17, 2026-09-20) — țin de analiza mejgorod, nu de Briceni
+  · 789MJW   546 km zile cu cursă interurbană (Chișinău ↔ nord: 2026-09-14) — țin de analiza mejgorod, nu de Briceni
+  · 795MJW   58 km urmă GPS 58 km, dar nicio cursă Trox pe rută și nicio cursă suburbană din orar
+gata 2026-10-01 13:06:13

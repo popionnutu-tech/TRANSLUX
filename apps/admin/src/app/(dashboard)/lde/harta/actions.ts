@@ -45,3 +45,14 @@ export async function getControlCamioane(saptamina: string): Promise<ControlCami
   if (error) throw new Error(`lde_analiza_reguli: ${error.message}`);
   return ((data?.date as { control?: ControlCamion[] } | null)?.control ?? []);
 }
+
+/** ION-148: controlul flotei Briceni (Trox + suburban) pe săptămână — fiecare mașină cu urmă sau atribuire: parcarea sau motivul.
+ * Rândul îl scrie VPS briceni-parcare/harta.mjs în lde_analiza_reguli 'BRICENI_HARTA' (rândul «BRICENI» al analizei rămâne neatins). */
+export interface ControlBriceni { m: string; pe: boolean; motiv: string | null; km?: number; zile?: number; economieSapt?: number; locuri?: string[] }
+export async function getControlBriceni(saptamina: string): Promise<ControlBriceni[]> {
+  const session = await verifySession();
+  requireRole(session, 'ADMIN');
+  const { data, error } = await getSupabase().from('lde_analiza_reguli').select('date').eq('uzina', UZINE_HARTA.briceni.control).eq('saptamina', saptamina).maybeSingle();
+  if (error) throw new Error(`lde_analiza_reguli: ${error.message}`);
+  return ((data?.date as { control?: ControlBriceni[] } | null)?.control ?? []);
+}

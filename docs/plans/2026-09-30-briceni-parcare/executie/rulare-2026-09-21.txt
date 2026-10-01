@@ -1,0 +1,24 @@
+=== 2026-10-01 13:06:13 harta Briceni, săptămâna 2026-09-21 → 2026-09-27
+la poartă (zile): 904BRAN 5, 285BRAT 1, 532BRAO 5, 283YEK 5, 054MLD 5, 246BRAP 5, 319BRAT 4
+Trox: 124 curse · pe rută 110 · de lămurit 14 · predări respinse 9 · manevre 46
+ocoluri pe acasă între curse: 57 (fără drum Valhalla: 0)
+harta BRICENI 2026-09-21: 58 rânduri · 1059 KB · mașini 12 (cu parcare 7) · de tăiat 1371.7 km/săpt. · livrare R1 2325.6
+  goluri scoase: {"stă la autogară / poartă":5,"sub 60 min":157,"peste 20 h (weekend / pauză)":15}
+  ✓ 054MLD   5 zile · 1981 km · real 756.7 → 375.1 = −381.6 · 18 drumuri · P1 Bezeda (6 drumuri) + P2 Criva (8 drumuri) 
+  ✓ 532BRAO  6 zile · 1253 km · real 489.7 → 199.3 = −290.5 · 13 drumuri · P1 Tețcani (4 drumuri) + P2 Briceni (6 drumuri) 
+  ✓ 904BRAN  6 zile · 1485 km · real 557.1 → 339.9 = −217.2 · 16 drumuri · P1 Groznița (8 drumuri) + P2 Trestieni (4 drumuri) 
+  ✓ 246BRAP  7 zile · 1743 km · real 545.2 → 351.9 = −193.3 · 17 drumuri · P1 Medveja (11 drumuri) 
+  ✓ 283YEK   6 zile · 1181 km · real 355.2 → 205.6 = −149.7 · 14 drumuri · P1 Briceni (4 drumuri) 
+  ✓ 285BRAT  5 zile · 1310 km · real 162.3 → 91.8 = −70.5 · 5 drumuri · P1 Larga (4 drumuri) 
+  ✓ 480BRAS  3 zile · 768 km · real 23.9 → 23.9 = −0 · 1 drumuri · — rămâne cum e: pe fiecare drum stă deja la ≤ 4 km de locul cel mai bun sau câștigul e sub max(2 km, 5 %)
+  ✓ 318BRAT  5 zile · 1210 km · real 81 → 12.2 = −68.9 · 3 drumuri · P1 Coteala (3 drumuri) 
+  ✓ 459BRAX  7 zile · 699 km · real 31.2 → 31.2 = −0 · 2 drumuri · — rămâne cum e: pe fiecare drum stă deja la ≤ 4 km de locul cel mai bun sau câștigul e sub max(2 km, 5 %)
+  ✓ 065LTL   1 zile · 122 km · real 0 → 0 = −0 · 0 drumuri · — o singură zi cu cursă Briceni în săptămână — rămâne în afara parcării (Ion, 01.10, întrebarea 7)
+  ✓ 319BRAT  5 zile · 1115 km · real 237 → 237 = −0 · 12 drumuri · — rămâne cum e: pe fiecare drum stă deja la ≤ 4 km de locul cel mai bun sau câștigul e sub max(2 km, 5 %)
+  ✓ 029BRAS  2 zile · 331 km · real 0 → 0 = −0 · 0 drumuri · — niciun gol între curse de 1–20 h în care să plece de la autogară / poartă (mașina stă la capătul cursei sau pauzele sunt scurte)
+  · 145BZP   6 km urmă GPS 6 km, dar nicio cursă Trox pe rută și nicio cursă suburbană din orar
+  · 263NSX   3947 km zile cu cursă interurbană (Chișinău ↔ nord: 2026-09-21, 2026-09-22, 2026-09-23, 2026-09-25) — țin de analiza mejgorod, nu de Briceni
+  · 281BRAT  0 km fără urmă GPS în săptămână — în afara parcării (Ion, 01.10, întrebarea 7)
+  · 692TWK   4011 km zile cu cursă interurbană (Chișinău ↔ nord: 2026-09-21, 2026-09-22, 2026-09-23, 2026-09-24, 2026-09-25) — țin de analiza mejgorod, nu de Briceni
+  · 703TWK   555 km zile cu cursă interurbană (Chișinău ↔ nord: 2026-09-21) — țin de analiza mejgorod, nu de Briceni
+gata 2026-10-01 13:06:24

@@ -27,7 +27,9 @@ export type FlotaRow = {
   km: number;                 // km pe perioadă: GPS-ul nostru pe zi, altfel km_m2m din LDE (migr. 436)
   km_zile_gps: number;
   km_zile_lde: number;
-  litri_cu_km: number;        // litrii din zilele ≥ prima zi cu km (camioanele au km doar din iunie)
+  fereastra_de: string | null;   // ION-162: camioanele — km și litri_cu_km pe cursele pornite în perioadă, până la plinul următor (GPS)
+  fereastra_pana: string | null;
+  litri_cu_km: number;       // litrii din zilele ≥ prima zi cu km (camioanele au km doar din iunie)
   consum: number | null;      // l/100 km faptic = litri_cu_km / km × 100; null sub 100 km
   norma: number | null;       // l/100 km, ca pe /lde/vehicule (măsurată, altfel a tipului)
   norma_teoretica: number | null;  // norma mașinii: consumul propriu plin la plin din 10.06 (≥ 3 pliniri), altfel cea veche
@@ -109,6 +111,8 @@ export async function getCombustibil(from?: string, to?: string): Promise<Combus
     km: Number(r.km),
     km_zile_gps: Number(r.km_zile_gps),
     km_zile_lde: Number(r.km_zile_lde),
+    fereastra_de: r.fereastra_de ?? null,
+    fereastra_pana: r.fereastra_pana ?? null,
     litri_cu_km: Number(r.litri_cu_km),
     consum: Number(r.km) >= 100 && Number(r.litri_cu_km) > 0 ? (Number(r.litri_cu_km) / Number(r.km)) * 100 : null,
     norma: r.norma != null ? Number(r.norma) : null,

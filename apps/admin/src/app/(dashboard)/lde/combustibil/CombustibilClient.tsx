@@ -313,7 +313,9 @@ export default function CombustibilClient({ data }: { data: CombustibilData }) {
                           <td style={{ textAlign: 'right' }}>{nf.format(r.foaie_l)}</td>
                           <td style={{ textAlign: 'right' }}><strong>{nf.format(r.total_l)}</strong></td>
                           <td style={{ textAlign: 'right' }}
-                            title={`GPS-ul nostru ${r.km_zile_gps} zile, LDE ${r.km_zile_lde} zile`}>{nf.format(r.km)}</td>
+                            title={r.fereastra_de
+                              ? `Cursele pornite în perioadă: ${r.fereastra_de} – ${r.fereastra_pana} (până la plinul următor), km din GPS`
+                              : `GPS-ul nostru ${r.km_zile_gps} zile, LDE ${r.km_zile_lde} zile`}>{nf.format(r.km)}</td>
                           <td style={{ textAlign: 'right' }}><strong>{r.consum != null ? nf1.format(r.consum) : '—'}</strong></td>
                           <td style={{ textAlign: 'right' }}>{r.consum3 != null ? nf1.format(r.consum3) : '—'}</td>
                           <td style={{ textAlign: 'right' }}>{r.norma_teoretica != null ? nf1.format(r.norma_teoretica) + (r.norma_veche ? '*' : '') : '—'}</td>

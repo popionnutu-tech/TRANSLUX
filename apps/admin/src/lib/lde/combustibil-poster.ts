@@ -124,12 +124,17 @@ async function citesteFlotaDinBaza(luna: string, cuLunaTrecuta: boolean) {
   if (pl.error) throw new Error(`lde_fuel_plin_la_plin: ${pl.error.message}`);
   const plin = new Map<string, any>((pl.data ?? []).map((r: any) => [r.vehicle_id, r]));
   const l100 = (l: number, km: number) => (km >= PRAG_KM && l > 0 ? (l / km) * 100 : null);
+  // ION-162: luna camionului = cursele pornite în ea, până la plinul următor (km doar din GPS) — litrii afișați sunt ai curselor;
+  // plinul din 31 pentru cursa din luna următoare nu mai apare aici. Camionul fără GPS în lună (fără tracker) păstrează litrii
+  // calendaristici, ca să se vadă «fără km».
+  const litriLuna = (r: any, dir: string) => (dir === 'camioane' && (r.fereastra_de != null || Number(r.km_zile_gps) > 0)
+    ? Number(r.litri_cu_km) : Number(r.benzol_l) + Number(r.foaie_l));
   return (a.data ?? []).map((r: any): Masina => {
     const km = Number(r.km), lck = Number(r.litri_cu_km);
     const dir = r.directions?.[0] ?? '';
     const m: Masina = {
       id: r.vehicle_id, plate: r.plate_number, activ: r.active, dir,
-      litri: Number(r.benzol_l) + Number(r.foaie_l), km, litriCuKm: lck, km3: 0, litriCuKm3: 0,
+      litri: litriLuna(r, dir), km, litriCuKm: lck, km3: 0, litriCuKm3: 0,
       fapt: l100(lck, km), fapt3: null, teoretica: null,
     };
     // «din iunie»: plin la plin; totalurile grupului se adună pe litrii și km-ii intervalelor
@@ -208,7 +213,7 @@ export async function genereazaGrup(grupId: string, luna: string): Promise<{ png
       : x.km === 0 && x.litri > 0 ? { text: 'fără km', bold: true, culoare: CULORI.rosu } : { text: '—', culoare: CULORI.griDeschis },
   ]), { ...TABEL, gol: 'Nicio alimentare în lună' });
   p.nota(cam
-    ? 'Litri la 100 km. Normă = consumul din cele 3 luni dinainte. Camioanele se judecă pe 3 luni, nu pe o lună. ! = peste celelalte camioane. «Fără km» = motorină fără GPS.'
+    ? 'Litri la 100 km. Normă = consumul din cele 3 luni dinainte. Luna = cursele pornite în lună, până la plinul următor (km din GPS). Camioanele se judecă pe 3 luni, nu pe o lună. ! = peste celelalte camioane. «Fără km» = motorină fără GPS.'
     : 'Litri la 100 km. Normă = consumul din cele 3 luni dinainte, față de mașinile de același model. Roșu = mult peste normă, fond roșu = de cercetat. ! = de 3 luni peste mașinile de același model. Gri = sub 1.000 km. «Fără km» = motorină fără GPS.');
   const caption = `<b>Combustibil — ${escapeHtml(g.titlu)}</b>, ${eticheta}\n`
     + `${nf.format(litri)} L · ${nf.format(km)} km · <b>${l100Txt(fapt)} l/100 km</b> (din iunie ${l100Txt(fapt3)}, normă ${l100Txt(teoretica)})`;

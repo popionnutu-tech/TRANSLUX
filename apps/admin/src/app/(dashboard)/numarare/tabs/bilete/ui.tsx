@@ -123,21 +123,22 @@ export function CertaintyLegend({ types = true, hatch }: { types?: boolean; hatc
   );
 }
 
-/** «Legate pe mașină X % · pe etichetă Y % · nelegate N bilete …» — sus în fiecare vedere. */
+/** «Legate pe mașină X % · pe șofer Y % · pe etichetă Z % · nelegate N bilete …» — sus în fiecare vedere. */
 export function QualityLine({ q }: { q: import('./types').TikiCalitate | null }) {
   if (!q) return null;
   const s = q.surse ?? {};
   const total = Object.values(s).reduce((a, b) => a + (b || 0), 0);
   const pct = (n: number) => (total ? `${Math.round((n / total) * 100)} %` : '—');
   const masina = s.masina ?? 0;
+  const sofer = s.sofer ?? 0;
   const eticheta = (s.eticheta_luna ?? 0) + (s.eticheta_2026 ?? 0);
   const manual = s.override ?? 0;
   const nelegat = s.nelegat ?? 0;
   const anulare = s.anulare ?? 0;
   return (
     <div style={{ fontSize: 12, color: '#666', margin: '0 0 6px', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-      <span title="Cum s-a aflat ruta fiecărui bilet: după mașina din grafic sau, unde nu se știe mașina, după eticheta cursei">
-        Bilete legate de rută: pe mașină <b>{pct(masina)}</b> · pe etichetă <b>{pct(eticheta)}</b>
+      <span title="Cum s-a aflat ruta fiecărui bilet: după mașina din grafic, după șoferul din grafic, altfel după eticheta cursei">
+        Bilete legate de rută: pe mașină <b>{pct(masina)}</b> · pe șofer <b>{pct(sofer)}</b> · pe etichetă <b>{pct(eticheta)}</b>
         {manual > 0 && <> · corectate de mână <b>{fmtInt(manual)}</b></>}
         {' · '}nelegate <b>{fmtInt(nelegat)}</b> bilete
       </span>

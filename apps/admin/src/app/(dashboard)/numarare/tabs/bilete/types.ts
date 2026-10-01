@@ -122,7 +122,7 @@ export interface OrarRoute {
 }
 
 export interface TikiCalitate {
-  surse: Record<string, number>;   // masina / eticheta_luna / eticheta_2026 / override / nelegat / anulare → bilete
+  surse: Record<string, number>;   // masina / sofer / eticheta_luna / eticheta_2026 / override / nelegat / anulare → bilete
   zi_vanzare: number;              // bilete fără zi de cursă sigură (luată ziua vânzării)
   coada: number;                   // luni încă de refăcut
   ultima_zi: string | null;

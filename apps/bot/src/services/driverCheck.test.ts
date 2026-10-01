@@ -96,6 +96,9 @@ describe('promptul șoferului — criteriile lui Ion (interviu 09.09, spec peron
     expect(DRIVER_SYSTEM_PROMPT).toContain('CLASICĂ (guler întors');
     expect(DRIVER_SYSTEM_PROMPT).toContain('cămașa cu guler tunică');
     expect(DRIVER_SYSTEM_PROMPT).toContain('Dacă nu se poate spune sigur că e cămașă clasică');
+    // Ion, 01.10 (poza lui Strasnii): bretelele «țin pantalonii»
+    expect(config.DRIVER_UNIFORM_DESCRIPTION).toContain('bretelele');
+    expect(DRIVER_SYSTEM_PROMPT).toContain('Bretelele (care țin pantalonii)');
   });
 
   it('vesta peste cămașă e în regulă; cămașa albă sau bleu, nuanțele pale trec (Ion 24.09, ION-46)', () => {

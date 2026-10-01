@@ -35,10 +35,10 @@ export const config = {
   // lui Vitalic de la Gara Chișinău): vesta peste cămașă «e OK, doar cămașa să fie
   // albastră deschisă sau albă». Ion 01.10 (ION-164, poza lui Cramari în cămașă
   // albă de in cu guler tunică): «asta nu e uniforma», «regula stricta camasa
-  // classica». Singurul loc unde se descrie uniforma; verdictul
+  // classica». Tot 01.10, la poza lui Strasnii: bretelele «țin pantalonii» — sunt OK. Singurul loc unde se descrie uniforma; verdictul
   // modelului e final.
   DRIVER_UNIFORM_DESCRIPTION:
-    'tricou vișiniu (bordo) cu emblema TRANSLUX pe piept, SAU cămașă clasică (de birou) cu guler întors și nasturi pe toată lungimea, albă ori bleu (albastru-deschis), într-o singură culoare (fără carouri, fără dungi, fără model), băgată în pantaloni; cămașa de in sau de vară, cu guler tunică (guler mic drept) sau fără guler, polo-ul și cămașa descheiată larg la piept NU sunt uniformă; peste cămașă poate fi o vestă (pulover fără mâneci) neagră sau închisă la culoare — vesta nu strică uniforma',
+    'tricou vișiniu (bordo) cu emblema TRANSLUX pe piept, SAU cămașă clasică (de birou) cu guler întors și nasturi pe toată lungimea, albă ori bleu (albastru-deschis), într-o singură culoare (fără carouri, fără dungi, fără model), băgată în pantaloni; cămașa de in sau de vară, cu guler tunică (guler mic drept) sau fără guler, polo-ul și cămașa descheiată larg la piept NU sunt uniformă; peste cămașă poate fi o vestă (pulover fără mâneci) neagră sau închisă la culoare — vesta nu strică uniforma; bretelele (care țin pantalonii) peste cămașă sunt în regulă',
 } as const;
 
 export function validateConfig() {

@@ -1,7 +1,7 @@
 import { unstable_cache } from 'next/cache';
 import { resolveOfferPriceForDate } from '@translux/db';
 import { getSupabase } from '@/lib/supabase';
-import { HUB_SLUGS, MAJOR, type MajorLocality } from '@/lib/seo';
+import { HUB_SLUGS, MAJOR, pageLocalityBySlug, UPCOMING, type MajorLocality } from '@/lib/seo';
 import { buildScheduledTrips, type ScheduledTrip, type TimetableKmPair, type TimetableRoute, type TimetableStop } from '@/lib/timetable';
 
 /**
@@ -29,7 +29,8 @@ export interface RoutePair {
   trips: number;
 }
 
-const MAJOR_NAMES = MAJOR.map((m) => m.ro);
+// Și localitățile anunțate (Drochia): când opririle lor apar în orar, pagina le arată singură.
+const MAJOR_NAMES = [...MAJOR, ...UPCOMING].map((m) => m.ro);
 const todayChisinau = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
 
 /** Aceeași normalizare ca searchTrips (actions.ts normalizeStop) pentru cele 13 nume majore. */
@@ -127,8 +128,8 @@ function tripsFor(network: Awaited<ReturnType<typeof loadNetwork>>, from: MajorL
 }
 
 async function computeTimetable(fromSlug: string, toSlug: string): Promise<RouteTimetable | null> {
-  const from = MAJOR.find((m) => m.slug === fromSlug);
-  const to = MAJOR.find((m) => m.slug === toSlug);
+  const from = pageLocalityBySlug(fromSlug);
+  const to = pageLocalityBySlug(toSlug);
   if (!from || !to) return null;
   const [network, kmPairs, rates] = await Promise.all([loadNetwork(), loadKmPairs(from, to), loadRates(todayChisinau())]);
   const trips = tripsFor(network, from, to, kmPairs, rates.rateLong, rates.rateSub);

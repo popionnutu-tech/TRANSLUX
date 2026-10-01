@@ -53,3 +53,15 @@ describe('jsonLd', () => {
     expect(JSON.parse(out).name).toBe('</script><script>alert(1)</script>');
   });
 });
+
+describe('direcții anunțate (Drochia, fără curse încă)', () => {
+  it('doar cu Chișinău, în ambele sensuri', () => {
+    expect(parsePair('chisinau-drochia')).toMatchObject({ upcoming: true, to: { ro: 'Drochia', ru: 'Дрокия' } });
+    expect(parsePair('drochia-chisinau')?.upcoming).toBe(true);
+    expect(parsePair('balti-drochia')).toBeNull();
+    expect(parsePair('chisinau-briceni')?.upcoming).toBe(false);
+  });
+  it('adresa veche duce pe pagina anunțată', () => {
+    expect(legacySearchTarget('ru', 'Drochia', 'Chisinau')).toBe('/ru/avtobus/drochia-chisinau');
+  });
+});

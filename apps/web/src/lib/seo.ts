@@ -38,6 +38,24 @@ export const HUB_SLUGS = ['chisinau', 'balti'] as const;
 
 const BY_SLUG = new Map(MAJOR.map((m) => [m.slug, m]));
 
+/**
+ * Direcții anunțate, încă fără curse în orar. Ion, 01.10.2026: Drochia «facem pagina pentru
+ * viitor, dar fără rute». Pagina spune că orarul apare când pornesc cursele — nu inventează ore.
+ * Când opririle Drochiei apar în crm_stop_fares, pagina arată singură orarul real; atunci
+ * Drochia se mută în MAJOR (cu `is_major` în localities) și iese de aici.
+ */
+export const UPCOMING: readonly MajorLocality[] = [{ slug: 'drochia', ro: 'Drochia', ru: 'Дрокия' }];
+
+const CHISINAU = MAJOR[0];
+export const UPCOMING_PAIRS: readonly [MajorLocality, MajorLocality][] = UPCOMING.flatMap(
+  (u) => [[CHISINAU, u], [u, CHISINAU]] as [MajorLocality, MajorLocality][],
+);
+
+/** O localitate cu pagină (majoră sau anunțată) după slug. */
+export function pageLocalityBySlug(slug: string): MajorLocality | undefined {
+  return BY_SLUG.get(slug) ?? UPCOMING.find((u) => u.slug === slug);
+}
+
 export function majorBySlug(slug: string): MajorLocality | undefined {
   return BY_SLUG.get(slug);
 }
@@ -71,15 +89,17 @@ export function routePath(locale: Locale, fromSlug: string, toSlug: string): str
  * «chisinau-briceni» → cele două localități, dacă ambele sunt majore, diferite și una e hub.
  * Se cheamă ÎNAINTE de orice citire din bază: o pereche aleatorie nu ajunge la Supabase.
  */
-export function parsePair(pair: string): { from: MajorLocality; to: MajorLocality } | null {
+export function parsePair(pair: string): { from: MajorLocality; to: MajorLocality; upcoming: boolean } | null {
   const parts = pair.split('-');
   if (parts.length !== 2) return null;
+  const up = UPCOMING_PAIRS.find(([a, b]) => a.slug === parts[0] && b.slug === parts[1]);
+  if (up) return { from: up[0], to: up[1], upcoming: true };
   const from = BY_SLUG.get(parts[0]);
   const to = BY_SLUG.get(parts[1]);
   if (!from || !to || from.slug === to.slug) return null;
   const isHub = (s: string) => (HUB_SLUGS as readonly string[]).includes(s);
   if (!isHub(from.slug) && !isHub(to.slug)) return null;
-  return { from, to };
+  return { from, to, upcoming: false };
 }
 
 /**

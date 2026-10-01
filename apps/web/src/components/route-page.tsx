@@ -48,6 +48,11 @@ const T = {
     home: 'Pagina principală',
     crumbs: 'TRANSLUX',
     h: 'h', min: 'min',
+    soonTitle: (a: string, b: string) => `Autobuz ${a} – ${b}`,
+    soonLead: (a: string, b: string) => `TRANSLUX pregătește curse pe direcția ${a} – ${b}. Orarul și prețurile apar pe această pagină imediat ce cursele pornesc. Informații la telefon.`,
+    soonDesc: (a: string, b: string) => `Autobuz ${a} – ${b}: TRANSLUX pregătește curse pe această direcție. Orarul apare aici, informații la +373 60 401 010.`,
+    soonNear: 'Cea mai apropiată direcție cu curse chiar acum:',
+    soonTrips: (n: number) => `${roCurse(n)} pe zi`,
     desc: (a: string, b: string, n: number, first: string, last: string, price: number | null) =>
       `Autobuz ${a} – ${b}: ${roCurse(n)} pe zi, ${n === 1 ? `plecare la ${first}` : `plecări între ${first} și ${last}`}${price ? `, bilet de la ${price} lei` : ''}. Orar actual, șoferul și telefonul cursei — TRANSLUX.`,
   },
@@ -70,6 +75,11 @@ const T = {
     home: 'Главная',
     crumbs: 'TRANSLUX',
     h: 'ч', min: 'мин',
+    soonTitle: (a: string, b: string) => `Автобус ${a} – ${b}`,
+    soonLead: (a: string, b: string) => `TRANSLUX готовит рейсы по направлению ${a} – ${b}. Расписание и цены появятся на этой странице, как только рейсы начнут выполняться. Уточнить можно по телефону.`,
+    soonDesc: (a: string, b: string) => `Автобус ${a} – ${b}: TRANSLUX готовит рейсы по этому направлению. Расписание появится здесь, справки по телефону +373 60 401 010.`,
+    soonNear: 'Ближайшее направление с рейсами уже сейчас:',
+    soonTrips: (n: number) => `${ruReis(n)} в день`,
     desc: (a: string, b: string, n: number, first: string, last: string, price: number | null) =>
       `Автобус ${a} – ${b}: ${ruReis(n)} в день, ${n === 1 ? `отправление в ${first}` : `отправления с ${first} до ${last}`}${price ? `, билет от ${price} лей` : ''}. Актуальное расписание, водитель и телефон рейса — TRANSLUX.`,
   },
@@ -91,41 +101,58 @@ function typicalMinutes(tt: RouteTimetable): number | null {
   return d.length ? d[Math.floor(d.length / 2)] : null;
 }
 
+type Loaded =
+  | { kind: 'timetable'; tt: RouteTimetable }
+  /** Direcție anunțată (Drochia), încă fără curse în orar. */
+  | { kind: 'soon'; from: MajorLocality; to: MajorLocality };
+
 /** Validează perechea pe lista statică ÎNAINTE de orice citire din bază. */
-async function load(pair: string): Promise<RouteTimetable> {
+async function load(pair: string): Promise<Loaded> {
   const parsed = parsePair(pair);
   if (!parsed) notFound();
   const tt = await getRouteTimetable(parsed.from.slug, parsed.to.slug);
-  if (!tt || tt.trips.length === 0) notFound();
-  return tt;
+  if (tt && tt.trips.length > 0) return { kind: 'timetable', tt };
+  if (parsed.upcoming) return { kind: 'soon', from: parsed.from, to: parsed.to };
+  notFound();
+}
+
+function pageAlternates(locale: Locale, from: MajorLocality, to: MajorLocality) {
+  return {
+    canonical: routePath(locale, from.slug, to.slug),
+    languages: {
+      ro: routePath('ro', from.slug, to.slug),
+      ru: routePath('ru', from.slug, to.slug),
+      'x-default': routePath('ro', from.slug, to.slug),
+    },
+  };
 }
 
 export async function routeMetadata(pair: string, locale: Locale): Promise<Metadata> {
-  const parsed = parsePair(pair);
-  if (!parsed) notFound();
-  const tt = await getRouteTimetable(parsed.from.slug, parsed.to.slug);
-  // notFound() și aici: metadatele se rezolvă înaintea corpului (blocant pentru roboți), deci statusul rămâne 404.
-  if (!tt || tt.trips.length === 0) notFound();
-  const a = nameOf(tt.from, locale);
-  const b = nameOf(tt.to, locale);
-  const first = tt.trips[0].time;
-  const last = tt.trips[tt.trips.length - 1].time;
+  // notFound() din load() vine și aici: metadatele se rezolvă înaintea corpului (blocant pentru roboți), deci statusul rămâne 404.
+  const loaded = await load(pair);
   const t = T[locale];
+  const from = loaded.kind === 'timetable' ? loaded.tt.from : loaded.from;
+  const to = loaded.kind === 'timetable' ? loaded.tt.to : loaded.to;
+  const a = nameOf(from, locale);
+  const b = nameOf(to, locale);
+  let title: string;
+  let description: string;
+  if (loaded.kind === 'timetable') {
+    const tt = loaded.tt;
+    title = t.title(a, b);
+    description = t.desc(a, b, tt.trips.length, tt.trips[0].time, tt.trips[tt.trips.length - 1].time, tt.priceFrom);
+  } else {
+    title = t.soonTitle(a, b);
+    description = t.soonDesc(a, b);
+  }
   return {
-    title: t.title(a, b),
-    description: t.desc(a, b, tt.trips.length, first, last, tt.priceFrom),
-    alternates: {
-      canonical: routePath(locale, tt.from.slug, tt.to.slug),
-      languages: {
-        ro: routePath('ro', tt.from.slug, tt.to.slug),
-        ru: routePath('ru', tt.from.slug, tt.to.slug),
-        'x-default': routePath('ro', tt.from.slug, tt.to.slug),
-      },
-    },
+    title,
+    description,
+    alternates: pageAlternates(locale, from, to),
     openGraph: {
-      title: t.title(a, b),
-      description: t.desc(a, b, tt.trips.length, first, last, tt.priceFrom),
-      url: routePath(locale, tt.from.slug, tt.to.slug),
+      title,
+      description,
+      url: routePath(locale, from.slug, to.slug),
       siteName: 'TRANSLUX',
       locale: locale === 'ru' ? 'ru_MD' : 'ro_MD',
       type: 'website',
@@ -134,8 +161,83 @@ export async function routeMetadata(pair: string, locale: Locale): Promise<Metad
   };
 }
 
+function PageHeader({ locale, from, to }: { locale: Locale; from: MajorLocality; to: MajorLocality }) {
+  const otherLocale: Locale = locale === 'ro' ? 'ru' : 'ro';
+  return (
+    <header className="site-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 40px' }}>
+      <a href={homePath(locale)} aria-label="TRANSLUX">
+        <span style={{
+          display: 'inline-block', height: 30, aspectRatio: '1318/192',
+          backgroundColor: '#9B1B30',
+          WebkitMaskImage: 'url(/translux-logo-red.png)', WebkitMaskSize: 'contain', WebkitMaskRepeat: 'no-repeat',
+          maskImage: 'url(/translux-logo-red.png)', maskSize: 'contain', maskRepeat: 'no-repeat',
+        }} />
+      </a>
+      <a href={routePath(otherLocale, from.slug, to.slug)} className="legal-lang" hrefLang={otherLocale}>
+        {otherLocale.toUpperCase()}
+      </a>
+    </header>
+  );
+}
+
+function breadcrumbs(locale: Locale, from: MajorLocality, to: MajorLocality) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: T[locale].crumbs, item: `${SITE_URL}${homePath(locale) === '/' ? '' : homePath(locale)}` },
+      { '@type': 'ListItem', position: 2, name: `${nameOf(from, locale)} – ${nameOf(to, locale)}`, item: `${SITE_URL}${routePath(locale, from.slug, to.slug)}` },
+    ],
+  };
+}
+
+/**
+ * Direcția anunțată, fără curse încă (Ion, 01.10: Drochia «pentru viitor, dar fără rute»).
+ * Nu inventează ore: spune că orarul apare aici și trimite la cea mai apropiată direcție reală.
+ */
+async function SoonPage({ locale, from, to }: { locale: Locale; from: MajorLocality; to: MajorLocality }) {
+  const t = T[locale];
+  const a = nameOf(from, locale);
+  const b = nameOf(to, locale);
+  const pairs = await getRoutePairs().catch(() => []);
+  // Drochia e lângă Bălți: cea mai apropiată direcție reală e Chișinău ↔ Bălți, în același sens.
+  const near = pairs.find((p) =>
+    from.slug === 'chisinau' ? p.from.slug === 'chisinau' && p.to.slug === 'balti' : p.from.slug === 'balti' && p.to.slug === 'chisinau',
+  );
+  return (
+    <div className="legal-page" lang={locale}>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbs(locale, from, to)) }} />
+      <PageHeader locale={locale} from={from} to={to} />
+      <main className="legal-main route-main">
+        <nav className="route-crumbs" aria-label="breadcrumb">
+          <a href={homePath(locale)}>{t.home}</a> / <span>{a} – {b}</span>
+        </nav>
+        <h1>{t.soonTitle(a, b)}</h1>
+        <p className="legal-intro">{t.soonLead(a, b)}</p>
+        {near && (
+          <p>
+            {t.soonNear}{' '}
+            <a className="route-phone" style={{ fontSize: 15 }} href={routePath(locale, near.from.slug, near.to.slug)}>
+              {nameOf(near.from, locale)} – {nameOf(near.to, locale)}
+            </a>{' '}
+            ({t.soonTrips(near.trips)})
+          </p>
+        )}
+        <h2>{t.phone}</h2>
+        <p><a className="route-phone" href={OPERATOR.phoneHref}>+373 60 401 010</a></p>
+        <nav className="legal-nav route-links">
+          <a href={routePath(locale, to.slug, from.slug)}>{t.back}: {b} – {a}</a>
+          <a href={homePath(locale)}>{t.home}</a>
+        </nav>
+      </main>
+    </div>
+  );
+}
+
 export async function RoutePage({ pair, locale }: { pair: string; locale: Locale }) {
-  const tt = await load(pair);
+  const loaded = await load(pair);
+  if (loaded.kind === 'soon') return <SoonPage locale={locale} from={loaded.from} to={loaded.to} />;
+  const tt = loaded.tt;
   // Lista perechilor doar pentru linkurile «alte direcții»; o eroare aici nu strică pagina.
   const pairs = await getRoutePairs().catch(() => []);
   const t = T[locale];
@@ -145,7 +247,6 @@ export async function RoutePage({ pair, locale }: { pair: string; locale: Locale
   const first = tt.trips[0].time;
   const last = tt.trips[n - 1].time;
   const typical = typicalMinutes(tt);
-  const otherLocale: Locale = locale === 'ro' ? 'ru' : 'ro';
 
   const hasReturn = pairs.some((p) => p.from.slug === tt.to.slug && p.to.slug === tt.from.slug);
   // «Alte direcții»: din același hub (dacă plecarea e hub), altfel spre același hub.
@@ -160,33 +261,13 @@ export async function RoutePage({ pair, locale }: { pair: string; locale: Locale
     (tt.priceFrom ? t.price(tt.priceFrom) : '') +
     (tt.offerPrice ? t.offer : '');
 
-  const crumbs = {
-    '@context': 'https://schema.org',
-    '@type': 'BreadcrumbList',
-    itemListElement: [
-      { '@type': 'ListItem', position: 1, name: t.crumbs, item: `${SITE_URL}${homePath(locale) === '/' ? '' : homePath(locale)}` },
-      { '@type': 'ListItem', position: 2, name: `${a} – ${b}`, item: `${SITE_URL}${routePath(locale, tt.from.slug, tt.to.slug)}` },
-    ],
-  };
-
+  const crumbs = breadcrumbs(locale, tt.from, tt.to);
   const searchHref = `${homePath(locale)}?dela=${tt.from.slug}&spre=${tt.to.slug}`;
 
   return (
     <div className="legal-page" lang={locale}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(crumbs) }} />
-      <header className="site-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 40px' }}>
-        <a href={homePath(locale)} aria-label="TRANSLUX">
-          <span style={{
-            display: 'inline-block', height: 30, aspectRatio: '1318/192',
-            backgroundColor: '#9B1B30',
-            WebkitMaskImage: 'url(/translux-logo-red.png)', WebkitMaskSize: 'contain', WebkitMaskRepeat: 'no-repeat',
-            maskImage: 'url(/translux-logo-red.png)', maskSize: 'contain', maskRepeat: 'no-repeat',
-          }} />
-        </a>
-        <a href={routePath(otherLocale, tt.from.slug, tt.to.slug)} className="legal-lang" hrefLang={otherLocale}>
-          {otherLocale.toUpperCase()}
-        </a>
-      </header>
+      <PageHeader locale={locale} from={tt.from} to={tt.to} />
 
       <main className="legal-main route-main">
         <nav className="route-crumbs" aria-label="breadcrumb">

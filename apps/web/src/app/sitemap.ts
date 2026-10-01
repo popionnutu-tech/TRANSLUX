@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { getRoutePairs, type RoutePair } from '@/lib/route-pages';
-import { routePath, SITE_URL } from '@/lib/seo';
+import { routePath, SITE_URL, UPCOMING_PAIRS } from '@/lib/seo';
 
 export const revalidate = 3600;
 
@@ -24,7 +24,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     pairs = [];
   }
 
-  const routes = pairs.flatMap((p) => {
+  // Direcțiile anunțate (Drochia) intră și ele, cât n-au încă orar — ca Google să le știe din timp.
+  const known = new Set(pairs.map((p) => `${p.from.slug}-${p.to.slug}`));
+  const upcoming = UPCOMING_PAIRS.filter(([a, b]) => !known.has(`${a.slug}-${b.slug}`)).map(([from, to]) => ({ from, to }));
+
+  const routes = [...pairs, ...upcoming].flatMap((p) => {
     const languages = { ro: abs(routePath('ro', p.from.slug, p.to.slug)), ru: abs(routePath('ru', p.from.slug, p.to.slug)) };
     const priority = p.from.slug === 'chisinau' || p.to.slug === 'chisinau' ? 0.8 : 0.6;
     return [

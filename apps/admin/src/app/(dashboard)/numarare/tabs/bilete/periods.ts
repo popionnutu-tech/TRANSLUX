@@ -4,11 +4,22 @@
 export interface DateRange { from: string; to: string }
 
 /** Perioade în care data din export NU e ziua vânzării (terminalele s-au sincronizat în bloc). */
+// Toate exporturile TIKI (01.10) dau aceleași zile: biletele din golurile de mai jos stau pe ziua sincronizării.
 export const UNRELIABLE_RANGES: (DateRange & { reason: string })[] = [
+  {
+    from: '2025-05-08',
+    to: '2025-05-12',
+    reason: 'Terminalele s-au sincronizat în bloc (12 mai): biletele din 9–11 mai au data sincronizării, nu a vânzării.',
+  },
   {
     from: '2025-12-01',
     to: '2026-01-17',
     reason: 'Terminalele s-au sincronizat în bloc (6, 15–17 ianuarie): data din export e ziua sincronizării, nu a vânzării.',
+  },
+  {
+    from: '2026-04-02',
+    to: '2026-04-24',
+    reason: 'Terminalele s-au sincronizat în bloc (23–24 aprilie): biletele din 2–22 aprilie au data sincronizării, nu a vânzării.',
   },
 ];
 

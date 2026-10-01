@@ -52,6 +52,8 @@ export default function PairsView({ filters }: { filters: Filters }) {
   const total = useMemo(() => (rows ?? []).reduce((s, r) => s + r.tickets, 0), [rows]);
   const omisiMap = useMemo(() => new Map((omisi?.perechi ?? []).map(p => [p.cheie, p])), [omisi]);
   const omisiTotal = useMemo(() => (omisi?.perechi ?? []).reduce((s, p) => s + p.oameni, 0), [omisi]);
+  const omisiTur = useMemo(() => (omisi?.perechi ?? []).reduce((s, p) => s + (p.tur ?? 0), 0), [omisi]);
+  const omisiRetur = useMemo(() => (omisi?.perechi ?? []).reduce((s, p) => s + (p.retur ?? 0), 0), [omisi]);
   const table = useMemo(() => {
     if (!rows) return [];
     const needle = q.trim().toLowerCase();
@@ -70,6 +72,8 @@ export default function PairsView({ filters }: { filters: Filters }) {
         yoyPct: yoy.size ? pctChange(r.tickets, yoy.get(r.pair)?.tickets ?? null) : null,
         isNew: yoy.size > 0 && !yoy.has(r.pair),
         omisi: omisi ? (omisiMap.get(pairNorm(r.pair))?.oameni ?? 0) : null,
+        omisiTur: omisi ? (omisiMap.get(pairNorm(r.pair))?.tur ?? 0) : null,
+        omisiRetur: omisi ? (omisiMap.get(pairNorm(r.pair))?.retur ?? 0) : null,
       }));
     const get = (r: typeof list[number]) => {
       switch (sort.col) {
@@ -109,7 +113,9 @@ export default function PairsView({ filters }: { filters: Filters }) {
           sub="din Chișinău / spre Chișinău" />
         <Kpi title="Tip dedus din preț" value={fmtPct(share(dedus, total))} sub="bilete fără stații în export" />
         <Kpi title="Omiși de TIKI (în Numărare)" value={omisi ? fmtInt(Math.round(omisiTotal)) : '—'}
-          sub={omisi ? `oameni numărați fără bilet TIKI · ${omisi.zile} zile numărate` : 'Numărarea există din 28.03.2026, fără filtru pe cursă/șofer'} />
+          sub={omisi
+            ? `tur ${fmtInt(Math.round(omisiTur))} / retur ${fmtInt(Math.round(omisiRetur))} · oameni numărați fără bilet TIKI · ${omisi.zile} zile numărate`
+            : 'Numărarea există din 28.03.2026, fără filtru pe cursă/șofer'} />
       </div>
       <Notice tone="info">
         Tipul biletului = perechea de stații, fără sens (Chișinău – Bălți cuprinde ambele sensuri; sensul e în coloana Tur/Retur).
@@ -139,7 +145,7 @@ export default function PairsView({ filters }: { filters: Filters }) {
                 {th('lei', 'Încasat')}
                 {th('avg', 'Preț mediu')}
                 {th('tur', 'Tur / retur', 'left')}
-                {th('omisi', 'Omiși de TIKI', 'right', 'Oameni numărați în Numărare pe această pereche, fără bilet TIKI (calculat: numărat − TIKI pe porțiuni de drum)')}
+                {th('omisi', 'Omiși de TIKI (tur / retur)', 'right', 'Oameni numărați în Numărare pe această pereche, fără bilet TIKI (calculat: numărat − TIKI pe porțiuni de drum)')}
                 <th style={{ textAlign: 'right' }}>Sursa</th>
               </tr>
             </thead>
@@ -160,13 +166,51 @@ export default function PairsView({ filters }: { filters: Filters }) {
                     ]} />
                     <span style={{ marginLeft: 6, color: '#555' }}>{fmtInt(r.tur)} / {fmtInt(r.retur)}</span>
                   </td>
-                  <td style={{ textAlign: 'right', fontWeight: 600, color: '#eb6834' }}>{r.omisi == null ? '—' : fmtInt(r.omisi)}</td>
+                  <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    {r.omisi == null ? '—' : (
+                      <>
+                        <div style={{ fontWeight: 600, color: '#eb6834' }}>{fmtInt(r.omisi)}</div>
+                        {r.omisi > 0 && (
+                          <div style={{ fontSize: 12 }}>
+                            <SplitBar width={70} parts={[
+                              { value: r.omisiTur ?? 0, color: SERIES[0], label: 'Tur' },
+                              { value: r.omisiRetur ?? 0, color: SERIES[1], label: 'Retur' },
+                            ]} />
+                            <span style={{ marginLeft: 6, color: '#555' }}>{fmtInt(r.omisiTur)} / {fmtInt(r.omisiRetur)}</span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </td>
                   <td style={{ textAlign: 'right', fontSize: 12, color: '#777', whiteSpace: 'nowrap' }}>
                     {r.tickets === 0 ? 'doar în Numărare' : r.dedus === 0 ? 'stații' : r.statii === 0 ? 'dedus din preț' : `${fmtPct(share(r.dedus, r.tickets), 0)} dedus`}
                   </td>
                 </tr>
               ))}
             </tbody>
+            <tfoot>
+              <tr style={{ fontWeight: 600, borderTop: '2px solid rgba(0,0,0,0.15)' }}>
+                <td />
+                <td style={{ textAlign: 'left' }}>Total{q.trim() ? ' (căutarea)' : ''}</td>
+                <td style={{ textAlign: 'right' }}>{fmtInt(table.reduce((a, r) => a + r.tickets, 0))}</td>
+                <td />
+                <td />
+                <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{fmtLei(table.reduce((a, r) => a + r.lei, 0))}</td>
+                <td />
+                <td style={{ textAlign: 'left', whiteSpace: 'nowrap', fontSize: 12 }}>
+                  {fmtInt(table.reduce((a, r) => a + r.tur, 0))} / {fmtInt(table.reduce((a, r) => a + r.retur, 0))}
+                </td>
+                <td style={{ textAlign: 'right', whiteSpace: 'nowrap', color: '#eb6834' }}>
+                  {omisi ? <>
+                    {fmtInt(Math.round(table.reduce((a, r) => a + (r.omisi ?? 0), 0)))}
+                    <div style={{ fontSize: 12, color: '#555', fontWeight: 400 }}>
+                      {fmtInt(Math.round(table.reduce((a, r) => a + (r.omisiTur ?? 0), 0)))} / {fmtInt(Math.round(table.reduce((a, r) => a + (r.omisiRetur ?? 0), 0)))}
+                    </div>
+                  </> : '—'}
+                </td>
+                <td />
+              </tr>
+            </tfoot>
           </table>
         </div>
       </div>

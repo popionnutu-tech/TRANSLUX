@@ -65,9 +65,11 @@ Pagina răspunde la trei întrebări:
      comparația lor stă la nivelul grupului de rute / coridorului (Codex r3 · C6).
    - Din 04.2026: **bilete pe plecare** (plecări = grafic, deschiderile comasate) și **«Cât de plin (doar TIKI)»** =
      om × km TIKI / (locuri × km ai piciorului), locurile din `vehicles.passenger_seats` — gol azi pe toate cele 34 de mașini care vând; Ion (01.10): «toate sunt de 20
-     de locuri, doar auto lui Boaghe 23–27, și Fordurile 17 locuri» → 20 implicit, mașina lui Boaghe (WJQ 827 până la
-     09.09, AKD 686 din 12.09 — de confirmat care și câte locuri), Fordurile 17 (plăcuțele de primit de la Ion: în bază
-     modelul e doar «Autobuz/microbuz»). Fără comparație cu anul trecut pe aceste
+     de locuri, doar auto lui Boaghe 23–27, și Fordurile 17 locuri» → locurile din nomenclatorul de mașini (`lde_vehicle_norms` →
+     `lde_vehicle_types.passenger_seats`): 20 pe autobuzele interurbane (MJW, TWK, AKD) și Sprinterele 313/316/515/516;
+     **Ford = GLE 802, 17**; mașina lui Boaghe = **WJQ 827** (46 de zile TIKI și 60 în grafic pe 07–09.2026; AKD 686 doar
+     din 12.09) → tipul Sprinter 518, **27** (singurul tip de 23–27 din nomenclator; Ion poate corecta); «819»,
+     «TWC 697», «REZERVA» fără tip → «—». La implementare: completarea `passenger_seats` pe tipuri și WJQ 827 → SPRINTER_518. Fără comparație cu anul trecut pe aceste
      două măsuri până în 04.2027. Lângă orice semnal de tăiere/mutare: ponderea celorlalți (din «Cine merge pe rută») și
      legătura spre ea — TIKI singur e un minim al plinului.
    - Hartă L–D (mediana, aceeași scară, cifra în celulă, «—» gri unde nu circulă), sparkline 52 săpt. cu anul trecut gri,

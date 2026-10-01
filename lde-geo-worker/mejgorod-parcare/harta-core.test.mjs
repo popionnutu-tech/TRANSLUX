@@ -32,6 +32,9 @@ test('pauza de prânz: ieșirea > 5 km de capete = timp liber (răspunsul 7)', (
 test('Briceni = parcare existentă (răspunsul 3)', () => {
   assert.equal(numeAcum({ lat: 48.36, lon: 27.08 }, 'Briceni'), 'Briceni (parcare existentă)');
   assert.equal(numeAcum({ lat: 48.12, lon: 27.2 }, 'Halahora de Sus'), 'Halahora de Sus');
+  // Ion, 01.10: noaptea la Briceni nu se mută; pauza de zi la Briceni rămâne pauză
+  assert.equal(felGol({ t1: ora('2026-09-21', 20), t0Urm: ora('2026-09-22', 5), briceni: true }).motiv, 'Briceni (parcare existentă)');
+  assert.equal(felGol({ t1: ora('2026-09-21', 11), t0Urm: ora('2026-09-21', 14), briceni: true }).motiv, null);
 });
 
 test('pasul GPS: saltul > 5 km și deriva mașinii oprite nu se numără', () => {

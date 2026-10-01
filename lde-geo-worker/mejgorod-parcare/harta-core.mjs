@@ -39,9 +39,10 @@ export const oraLoc = (t) => FMT_ORA.format(new Date(t));
 /**
  * Felul golului dintre două curse ale aceleiași mașini (cercetarea, ca la LEAR):
  * sub 60 min / peste 20 h (zi liberă) / la poarta altei uzine (muncă știută, ex. 652AKD la SEBN Orhei) / Bălți (service) → afară;
+ * noaptea dormită la Briceni → afară: parcare existentă, nu se mută (Ion, 01.10).
  * altfel noapte (trece de 03:00) sau zi (pauza de prânz).
  */
-export function felGol({ t1, t0Urm, poarta = null, balti = false }) {
+export function felGol({ t1, t0Urm, poarta = null, balti = false, briceni = false }) {
   const min = (t0Urm - t1) / 6e4;
   const noapte = ziLucru(t1) !== ziLucru(t0Urm);
   let motiv = null;
@@ -49,6 +50,7 @@ export function felGol({ t1, t0Urm, poarta = null, balti = false }) {
   else if (min > GOL_MAX_H * 60) motiv = 'peste 20 h (zi liberă)';
   else if (poarta) motiv = `la poarta ${poarta} (muncă știută)`;
   else if (balti) motiv = 'Bălți (service)';
+  else if (briceni && noapte) motiv = 'Briceni (parcare existentă)';
   return { min, noapte, motiv };
 }
 

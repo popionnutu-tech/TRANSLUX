@@ -3,7 +3,7 @@
 // 01.10.2026: «adaugă toate direcțiile» — variantele recomandate din docs/plans/2026-09-30-mejgorod-parcare/raspunsuri.md:
 //   1. noaptea în care returul se oprește înainte de capăt: ocolul pe acasă se socotește; regula din 25.09 se arată ca informație;
 //   2. locul propus = capătul rutei când costă ≤ 20 km/săpt. mai mult decât satul cel mai ieftin;
-//   3. Briceni: «parcare existentă», rămâne printre candidați;  4–5. nopțile până la 20 h, zilele libere afară;
+//   3. Briceni: «parcare existentă» — noaptea dormită acolo nu se mută (Ion, 01.10);  4–5. nopțile până la 20 h, zilele libere afară;
 //   6. «rămâne cum e» la ≤ 4 km;  7. ocolul de la prânz = «timp liber», separat;  8. locuri propuse doar pentru noapte;
 //   9. 652AKD la SEBN Orhei = muncă știută, afară;  12. doar pe /lde/harta?uz=mejgorod; fără migrație, REST, ștergere + rescriere.
 //
@@ -17,7 +17,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { nmea, normPlate, inMd, utcText, STATII } from './mej/geo.mjs';
 import {
-  adaugaZile, alegeNoapte, bucataLa, bucatiGol, felGol, hav, intervaleZi, judecaPauza, kmPas, miezulNoptii, numeAcum, oraLoc, regula2509,
+  adaugaZile, alegeNoapte, bucataLa, bucatiGol, eBriceni, felGol, hav, intervaleZi, judecaPauza, kmPas, miezulNoptii, numeAcum, oraLoc, regula2509,
   statii, ziLocala, ziLucru, PREF, LA_FEL_KM, TOLERANTA, GOL_MAX_H,
 } from './harta-core.mjs';
 pg.types.setTypeParser(1114, (v) => new Date(v.replace(' ', 'T') + 'Z'));   // w_date = UTC fără fus (ora-locala.mjs)
@@ -125,7 +125,7 @@ for (const m of PLACI) {
     // poarta altei uzine: oprire ≥ 2 min în rază, SAU trecere când poarta e la > 20 km de E, S și de locul staționării (Trox e pe drumul prin Briceni)
     const porta = (q) => opresteLa(P, a.t1, b.t0, q, q.r) || (hav(q, E) > 20 && hav(q, S) > 20 && (!st || hav(q, st) > 20) && Qg.some((p) => hav(p, q) <= q.r));
     const poarta = PORTI.filter(porta).map((q) => q.n).join('+') || null;
-    const f = felGol({ t1: a.t1, t0Urm: b.t0, poarta, balti: opresteLa(P, a.t1, b.t0, PARC_BALTI, R_BALTI) });
+    const f = felGol({ t1: a.t1, t0Urm: b.t0, poarta, balti: opresteLa(P, a.t1, b.t0, PARC_BALTI, R_BALTI), briceni: !!st && st.min >= 60 && eBriceni(st) });
     let real = 0; for (let k = 1; k < P.length; k++) if (P[k].t > a.t1 && P[k].t <= b.t0) real += kmPas(P[k - 1], P[k]);
     const ca = a.c.at(-1), cb = b.c[0];
     const departe = Qg.length ? Math.max(0, ...Qg.map((p) => Math.min(hav(p, E), hav(p, S)))) : 0;

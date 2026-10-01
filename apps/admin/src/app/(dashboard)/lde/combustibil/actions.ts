@@ -82,15 +82,19 @@ export async function getCombustibil(from?: string, to?: string): Promise<Combus
   let f = from && DATE_RE.test(from) ? from : `${today.slice(0, 4)}-01-01`;
   if (f > t) f = t;
 
-  // Ion, 29.09 (ION-138): «aplică logica asta peste tot» — ca pe posterul lunar: consumul plin la plin de la 10.06.2026
-  // (lde_fuel_plin_la_plin, migr. 443) și norma = acest consum la mașinile cu ≥ 3 pliniri, altfel norma de până acum
+  // Ca pe posterul lunar: «din iunie» = plin la plin de la 10.06.2026 (control, ≥ 3 intervale și ≥ 3.000 km); norma =
+  // consumul din cele 3 luni închise de dinaintea perioadei, tras spre tipul mașinii (ION-154, lde_fuel_norma_eb), altfel norma veche
   const [fl, co] = await Promise.all([
     sb.rpc('lde_fuel_flota', { de: f, pana: t }),
     sb.rpc('lde_fuel_consumatori', { de: f, pana: t }),
   ]);
   const ids = (fl.data ?? []).filter((r: any) => Number(r.benzol_l) + Number(r.foaie_l) > 0 || Number(r.km) > 0).map((r: any) => r.vehicle_id);
-  const pl = ids.length && t >= '2026-06-10' ? await sb.rpc('lde_fuel_plin_la_plin', { de: '2026-06-10', pana: t, vehicule: ids }) : { data: [] as any[] };
+  const [pl, eb] = await Promise.all([
+    ids.length && t >= '2026-06-10' ? sb.rpc('lde_fuel_plin_la_plin', { de: '2026-06-10', pana: t, vehicule: ids }) : Promise.resolve({ data: [] as any[] }),
+    ids.length ? sb.rpc('lde_fuel_norma_eb', { luna: f, vehicule: ids }) : Promise.resolve({ data: [] as any[] }),
+  ]);
   const trei = new Map<string, any>((pl.data ?? []).map((r: any) => [r.vehicle_id, r]));
+  const norme = new Map<string, any>((eb.data ?? []).map((r: any) => [r.vehicle_id, r]));
 
   const flota: FlotaRow[] = (fl.data ?? []).map((r: any) => ({
     vehicle_id: r.vehicle_id,
@@ -110,9 +114,11 @@ export async function getCombustibil(from?: string, to?: string): Promise<Combus
     norma: r.norma != null ? Number(r.norma) : null,
     ...(() => {
       const x = trei.get(r.vehicle_id);
-      const plin = x && Number(x.intervale) >= 3 ? Number(x.consum) : null;
+      const plin = x && Number(x.intervale) >= 3 && Number(x.km) >= 3000 ? Number(x.consum) : null;
+      const n = norme.get(r.vehicle_id);
       const veche = r.norma != null ? Number(r.norma) : r.norma_teoretica != null ? Number(r.norma_teoretica) : null;
-      return { consum3: x ? Number(x.consum) : null, norma_teoretica: plin ?? veche, norma_veche: plin == null };
+      const norma = n?.norma != null ? Number(n.norma) : veche;
+      return { consum3: plin, norma_teoretica: norma, norma_veche: n?.sursa !== 'eb' };
     })(),
     prima: r.prima,
     ultima: r.ultima,

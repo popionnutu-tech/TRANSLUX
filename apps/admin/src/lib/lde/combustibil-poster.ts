@@ -10,7 +10,7 @@ import { COMBUSTIBIL_POSTER_CONFIG_KEY, COMBUSTIBIL_POSTER_THREAD_CONFIG_KEY } f
  * ultimele 3 luni, 3. norma teoretică».
  *
  * O imagine pe grup. Cifrele vin din aceleași funcții ca pagina /lde/combustibil (migr. 435–437):
- * lde_fuel_flota(lună) și lde_fuel_flota(3 luni) — l/100 km = litrii din fereastra cu km / km; lde_fuel_consumatori
+ * lde_fuel_flota(lună) — l/100 km = litrii din fereastra cu km / km; norma = lde_fuel_norma_eb (ION-154); lde_fuel_consumatori
  * pentru tot ce e în afara flotei. Norma teoretică = norma tipului mașinii (lde_vehicle_types).
  *
  * Ion, 29.09 (a doua parte): postarea merge în grupa P9, tabul «DT», pe 25 ale lunii pentru luna trecută; «la sfârșit
@@ -77,64 +77,90 @@ export function lunaTrecuta(azi: string) {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
+type Nivel = 'investigatie' | 'supraveghere' | 'sub' | null;
 type Masina = { id: string; plate: string; activ: boolean; dir: string; litri: number; km: number;
   fapt: number | null; fapt3: number | null; teoretica: number | null; litriCuKm: number; litriCuKm3: number; km3: number;
-  /** de unde vine norma — consumul propriu plin la plin din iunie (≥ 3 pliniri) sau norma de până acum (*) */
-  sursaNorma?: 'plin' | 'veche' };
+  /** de unde vine norma — cele 3 luni dinainte trase spre tip (ION-154) sau norma de până acum (*) */
+  sursaNorma?: 'eb' | 'veche';
+  /** norma e umflată: mașina consumă de 3 luni cu peste 15 % mai mult decât mașinile de același tip (!) */
+  umflata?: boolean;
+  /** abaterea în litri față de pragul ION-154 */
+  nivel?: Nivel };
 
-// Ion, 29.09, întâi la camioane («refacem norma începând cu iunie» + «fă amândouă»), apoi «aplică logica asta peste tot,
-// ea are sens»: norma fiecărei mașini = consumul ei plin la plin de la 10.06.2026 (de când avem GPS pe toată flota) până la
-// sfârșitul lunii raportului (lde_fuel_plin_la_plin, migr. 443), dacă are cel puțin 3 pliniri; altfel norma de până acum
-// (măsurată / Clava la camioane / a tipului), marcată cu *. Coloana «Din iunie» = același plin la plin — marja lui scade de
-// la ±15–20 % pe o lună la ±3–5 % pe un an.
+// ION-154 (Ion, 01.10.2026, după analiza ION-151 în 3 runde Claude + Codex): norma lunii = consumul mașinii în cele 3 luni
+// ÎNCHISE de dinaintea lunii, tras spre mașinile de același tip (lde_fuel_norma_eb, migr. 447). Până acum norma era plin la
+// plin până la sfârșitul lunii judecate, deci mașina care ardea mult își ridica singură norma (aug.: 4 din 15 mașini ascunse).
+// Abaterea se judecă în litri: D = litri − normă·km/100; q = alimentarea tipică pe zi a mașinii (P90 în cele 3 luni).
+//   supraveghere: D > max(15 % din normă·km, 2q); investigație: D > max(20 %, 2q) sau supraveghere și luna trecută;
+//   sub normă cu mult (D < −max(15 %, 2q)) = de verificat km și foile, nu «bine». Camioanele nu primesc culoare lunară
+//   (eroarea pe o lună e 17–26 % la orice metodă), se judecă pe 3 luni.
+// Coloana «Din iunie» = plin la plin de la 10.06 (control), doar cu ≥ 3 intervale și ≥ 3.000 km.
 const PLIN_DE_LA = '2026-06-10';
 const PLIN_MIN_INTERVALE = 3;
+const PLIN_MIN_KM = 3000;
+const UMFLATA = 1.15;
 
 // o citire pe lună pentru toate grupurile din aceeași cerere (7 postere într-un apel de ≤ 60 s)
 const flotaPeLuna = new Map<string, Promise<Masina[]>>();
-function citesteFlota(luna: string) {
-  if (!flotaPeLuna.has(luna)) flotaPeLuna.set(luna, citesteFlotaDinBaza(luna).catch((e) => { flotaPeLuna.delete(luna); throw e; }));
-  return flotaPeLuna.get(luna)!;
+function citesteFlota(luna: string, cuLunaTrecuta = true) {
+  const cheie = `${luna}:${cuLunaTrecuta}`;
+  if (!flotaPeLuna.has(cheie)) flotaPeLuna.set(cheie, citesteFlotaDinBaza(luna, cuLunaTrecuta).catch((e) => { flotaPeLuna.delete(cheie); throw e; }));
+  return flotaPeLuna.get(cheie)!;
 }
-async function citesteFlotaDinBaza(luna: string) {
+async function citesteFlotaDinBaza(luna: string, cuLunaTrecuta: boolean) {
   const sb = getSupabase();
-  const { de, pana, de3 } = capete(luna);
-  const [a, b] = await Promise.all([
+  const { de, pana } = capete(luna);
+  const [a, eb, trecuta] = await Promise.all([
     sb.rpc('lde_fuel_flota', { de, pana }),
-    sb.rpc('lde_fuel_flota', { de: de3, pana }),
+    sb.rpc('lde_fuel_norma_eb', { luna: de }),
+    cuLunaTrecuta ? citesteFlota(lunaTrecuta(de), false) : Promise.resolve([] as Masina[]),
   ]);
-  if (a.error || b.error) throw new Error(`lde_fuel_flota: ${(a.error ?? b.error)!.message}`);
-  const trei = new Map<string, any>((b.data ?? []).map((r: any) => [r.vehicle_id, r]));
+  if (a.error) throw new Error(`lde_fuel_flota: ${a.error.message}`);
+  if (eb.error) throw new Error(`lde_fuel_norma_eb: ${eb.error.message}`);
+  const norme = new Map<string, any>((eb.data ?? []).map((r: any) => [r.vehicle_id, r]));
+  const supraTrecuta = new Set(trecuta.filter((x) => x.nivel === 'supraveghere' || x.nivel === 'investigatie').map((x) => x.id));
   const cuLitri = (a.data ?? []).filter((r: any) => Number(r.benzol_l) + Number(r.foaie_l) > 0 || Number(r.km) > 0).map((r: any) => r.vehicle_id);
   const pl = cuLitri.length ? await sb.rpc('lde_fuel_plin_la_plin', { de: PLIN_DE_LA, pana, vehicule: cuLitri }) : { data: [], error: null };
   if (pl.error) throw new Error(`lde_fuel_plin_la_plin: ${pl.error.message}`);
   const plin = new Map<string, any>((pl.data ?? []).map((r: any) => [r.vehicle_id, r]));
   const l100 = (l: number, km: number) => (km >= PRAG_KM && l > 0 ? (l / km) * 100 : null);
   return (a.data ?? []).map((r: any): Masina => {
-    const t = trei.get(r.vehicle_id);
-    const km = Number(r.km), lck = Number(r.litri_cu_km), km3 = Number(t?.km ?? 0), lck3 = Number(t?.litri_cu_km ?? 0);
+    const km = Number(r.km), lck = Number(r.litri_cu_km);
+    const dir = r.directions?.[0] ?? '';
     const m: Masina = {
-      id: r.vehicle_id, plate: r.plate_number, activ: r.active, dir: r.directions?.[0] ?? '',
-      litri: Number(r.benzol_l) + Number(r.foaie_l), km, litriCuKm: lck, km3, litriCuKm3: lck3,
-      fapt: l100(lck, km), fapt3: l100(lck3, km3),
-      teoretica: r.norma_teoretica != null ? Number(r.norma_teoretica) : null,
+      id: r.vehicle_id, plate: r.plate_number, activ: r.active, dir,
+      litri: Number(r.benzol_l) + Number(r.foaie_l), km, litriCuKm: lck, km3: 0, litriCuKm3: 0,
+      fapt: l100(lck, km), fapt3: null, teoretica: null,
     };
     // «din iunie»: plin la plin; totalurile grupului se adună pe litrii și km-ii intervalelor
     const p = plin.get(r.vehicle_id);
-    m.km3 = p ? Number(p.km) : 0; m.litriCuKm3 = p ? Number(p.litri) : 0; m.fapt3 = p ? Number(p.consum) : null;
-    if (p && Number(p.intervale) >= PLIN_MIN_INTERVALE) { m.teoretica = Number(p.consum); m.sursaNorma = 'plin'; }
-    else if (r.norma != null) { m.teoretica = Number(r.norma); m.sursaNorma = 'veche'; }
-    else m.sursaNorma = 'veche';
+    if (p && Number(p.intervale) >= PLIN_MIN_INTERVALE && Number(p.km) >= PLIN_MIN_KM) {
+      m.km3 = Number(p.km); m.litriCuKm3 = Number(p.litri); m.fapt3 = Number(p.consum);
+    }
+    const n = norme.get(r.vehicle_id);
+    if (n?.norma != null) {
+      m.teoretica = Number(n.norma); m.sursaNorma = n.sursa === 'eb' ? 'eb' : 'veche';
+      m.umflata = n.sursa === 'eb' && n.r_masina != null && n.r_tip != null && Number(n.r_masina) > UMFLATA * Number(n.r_tip);
+    } else m.sursaNorma = 'veche';
+    if (dir !== 'camioane' && km >= PRAG_KM_LUNA && m.teoretica != null) {
+      const prev = (m.teoretica * km) / 100, d = lck - prev, q2 = 2 * Number(n?.q ?? 0);
+      const p15 = Math.max(0.15 * prev, q2), p20 = Math.max(0.2 * prev, q2);
+      m.nivel = d > p20 || (d > p15 && supraTrecuta.has(m.id)) ? 'investigatie' : d > p15 ? 'supraveghere' : d < -p15 ? 'sub' : null;
+    }
     return m;
   });
 }
 
-function abatere(f: number | null, t: number | null): Celula {
+/** Abaterea în %; culoarea vine din pragul în litri (ION-154): roșu = supraveghere, fond roșu = investigație, gri = sub normă cu mult. */
+function abatere(f: number | null, t: number | null, nivel?: Nivel, faraCuloare = false): Celula {
   if (f == null || t == null || t <= 0) return { text: '—', culoare: CULORI.griDeschis };
   const p = Math.round(((f - t) / t) * 100) || 0;   // întâi rotunjit, apoi semnul; «|| 0» scoate −0 → altfel «-0 %»
-  const rau = p > 10, atent = p > 5, bine = p < -5;
-  return { text: `${p > 0 ? '+' : ''}${nf.format(p)} %`, bold: rau,
-    culoare: atent ? CULORI.rosu : bine ? CULORI.verde : CULORI.text, fundal: rau ? '#f8e3e0' : undefined };
+  const text = `${p > 0 ? '+' : ''}${nf.format(p)} %`;
+  if (faraCuloare) return { text, culoare: CULORI.gri };
+  if (nivel === 'investigatie') return { text, bold: true, culoare: CULORI.rosu, fundal: '#f8e3e0' };
+  if (nivel === 'supraveghere') return { text, bold: true, culoare: CULORI.rosu };
+  if (nivel === 'sub') return { text, culoare: CULORI.gri };
+  return { text, culoare: CULORI.text };
 }
 const l100Txt = (v: number | null) => (v == null ? '—' : nf1.format(v));
 
@@ -175,10 +201,15 @@ export async function genereazaGrup(grupId: string, luna: string): Promise<{ png
     { text: nf.format(x.litri) }, { text: nf.format(x.km), culoare: CULORI.gri },
     x.km >= PRAG_KM_LUNA ? { text: l100Txt(x.fapt), bold: true } : { text: l100Txt(x.fapt), culoare: CULORI.griDeschis },
     { text: l100Txt(x.fapt3) },
-    { text: l100Txt(x.teoretica) + (x.sursaNorma === 'veche' && x.teoretica != null ? '*' : ''), culoare: CULORI.gri },
-    x.km >= PRAG_KM_LUNA ? abatere(x.fapt, x.teoretica) : { text: '—', culoare: CULORI.griDeschis },
+    { text: l100Txt(x.teoretica) + (x.sursaNorma === 'veche' && x.teoretica != null ? '*' : '') + (x.umflata ? '!' : ''),
+      culoare: x.umflata ? CULORI.rosu : CULORI.gri, bold: x.umflata },
+    // ION-151: motorină luată fără niciun km (fără GPS / fără drept Wialon) — nimeni n-o poate verifica
+    x.km >= PRAG_KM_LUNA ? abatere(x.fapt, x.teoretica, x.nivel, cam)
+      : x.km === 0 && x.litri > 0 ? { text: 'fără km', bold: true, culoare: CULORI.rosu } : { text: '—', culoare: CULORI.griDeschis },
   ]), { ...TABEL, gol: 'Nicio alimentare în lună' });
-  p.nota(`Litri la 100 km. Din iunie = plin la plin, de la 10.06. Normă = din iunie; * = sub 3 pliniri, normă ${cam ? 'Clava' : 'veche'}. Gri = sub 1.000 km.`);
+  p.nota(cam
+    ? 'Litri la 100 km. Normă = consumul din cele 3 luni dinainte. Camioanele se judecă pe 3 luni, nu pe o lună. ! = peste celelalte camioane. «Fără km» = motorină fără GPS.'
+    : 'Litri la 100 km. Normă = consumul din cele 3 luni dinainte, față de mașinile de același model. Roșu = mult peste normă, fond roșu = de cercetat. ! = de 3 luni peste mașinile de același model. Gri = sub 1.000 km. «Fără km» = motorină fără GPS.');
   const caption = `<b>Combustibil — ${escapeHtml(g.titlu)}</b>, ${eticheta}\n`
     + `${nf.format(litri)} L · ${nf.format(km)} km · <b>${l100Txt(fapt)} l/100 km</b> (din iunie ${l100Txt(fapt3)}, normă ${l100Txt(teoretica)})`;
   return { png: await p.png(), caption, randuri: m.length };
@@ -251,7 +282,7 @@ async function genereazaGeneral(luna: string, eticheta: string) {
     [...peTip.map((x) => [{ text: x.titlu.replace(/ \(.*\)$/, '') }, { text: nf.format(x.litri), bold: true }] as Celula[]),
      [{ text: 'Total', bold: true, culoare: CULORI.bordoInchis }, { text: nf.format(totalStraini), bold: true }] as Celula[]],
     { ...TABEL, gol: 'Nimic în afara flotei în lună' });
-  p.nota('Litri la 100 km. Din iunie = plin la plin. Normă = consumul propriu din iunie. Vânzările și benzovozul nu sunt consum.');
+  p.nota('Litri la 100 km. Din iunie = plin la plin. Normă = consumul din cele 3 luni dinainte. Vânzările și benzovozul nu sunt consum.');
   const caption = `<b>Combustibil — general</b>, ${eticheta}\n`
     + `Flota ${nf.format(flota.litri)} L · <b>${l100Txt(flota.fapt)} l/100 km</b> (din iunie ${l100Txt(flota.fapt3)}, normă ${l100Txt(flota.teoretica)}) · în afara flotei ${nf.format(totalStraini)} L`;
   return { png: await p.png(), caption, randuri: grupuri.length };
@@ -262,7 +293,7 @@ async function genereazaGeneral(luna: string, eticheta: string) {
 export function textIntroducere(luna: string) {
   return [
     `<b>DT · combustibil · ${lunaText(luna)}</b>`,
-    'Litri la 100 km. Normă = consumul propriu din iunie (plin la plin). Roșu = peste, verde = sub.',
+    'Litri la 100 km. Normă = consumul din cele 3 luni dinainte. Roșu = mult peste normă, fond roșu = de cercetat.',
     'Detalii: LDE → Combustibil. Următorul raport: pe 25.',
   ].join('\n');
 }

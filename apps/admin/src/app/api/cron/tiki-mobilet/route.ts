@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyCronSecret } from '@/lib/cron-auth';
 import { getSupabase } from '@/lib/supabase';
-import { mobiletLogin, mobiletSales, mobiletTrips, saleToCsvCols, type MobiletTrip } from '@/lib/mobilet';
+import {
+  mobiletLogin, mobiletSales, mobiletTrips, mobiletTripSales, saleToCsvCols, type MobiletTrip, type MobiletTripSales,
+} from '@/lib/mobilet';
+import { parseRoDateTime } from '@/app/(dashboard)/numarare/tabs/bilete/ticketParse';
 import { normalizeRow, ticketKey, monthsBetween, type TikiRow } from '@/app/(dashboard)/numarare/tabs/bilete/ticketParse';
 
 // Importul zilnic al biletelor din cabinetul Mobilet (ION-160). Ion, 01.10: «fă ca o dată în zi, pe ziua de ieri, să
@@ -57,6 +60,22 @@ function tripRow(t: MobiletTrip) {
   };
 }
 
+/** Cursă din raportul «Vânzări pe curse» — doar ce are (fără stare/locuri); nu suprascrie cursele din /carrier/trips. */
+function tripSalesRow(t: MobiletTripSales) {
+  const dt = t.date ? parseRoDateTime(t.date) : null;
+  if (!dt) return null;
+  return {
+    trip_id: t.id,
+    trip_date: dt.date,
+    dep_time: dt.ts.slice(11, 16),
+    route_name: (t.name ?? '').trim(),
+    vehicle: t.vehicle?.replace(/\s+/g, ' ').trim().toUpperCase() || null,
+    driver_name: t.driver?.replace(/\s+/g, ' ').trim().toUpperCase() || null,
+    tickets_sold: t.tickets,
+    fetched_at: new Date().toISOString(),
+  };
+}
+
 export async function GET(req: NextRequest) {
   const authError = verifyCronSecret(req);
   if (authError) return authError;
@@ -86,7 +105,9 @@ export async function GET(req: NextRequest) {
 
   try {
     const token = await mobiletLogin();
-    const [sales, trips] = await Promise.all([mobiletSales(token, from, to), mobiletTrips(token, from, to)]);
+    const [sales, trips, tripSales] = await Promise.all([
+      mobiletSales(token, from, to), mobiletTrips(token, from, to), mobiletTripSales(token, from, to),
+    ]);
 
     const excluded: Record<string, number> = {};
     const seen = new Set<string>();
@@ -122,6 +143,13 @@ export async function GET(req: NextRequest) {
       if (up.error) throw new Error(up.error.message);
     }
 
+    // Cursele lipsă (înainte de 02.2026 /carrier/trips e gol): din «Vânzări pe curse», fără a le suprascrie pe cele complete.
+    const extra = tripSales.map(tripSalesRow).filter((x): x is NonNullable<typeof x> => !!x);
+    for (let i = 0; i < extra.length; i += CHUNK) {
+      const up = await sb.from('tiki_trips').upsert(extra.slice(i, i + CHUNK), { onConflict: 'trip_id', ignoreDuplicates: true });
+      if (up.error) throw new Error(up.error.message);
+    }
+
     const dates = rows.map(r => r.sale_date).sort();
     const months = dates.length ? monthsBetween(dates[0], dates[dates.length - 1]) : [];
     for (const month of months) {
@@ -139,7 +167,7 @@ export async function GET(req: NextRequest) {
     }).eq('id', batchId);
 
     return NextResponse.json({
-      ok: true, batchId, from, to, vanzari: sales.length, bilete: rows.length, noi: inserted, curse: trips.length,
+      ok: true, batchId, from, to, vanzari: sales.length, bilete: rows.length, noi: inserted, curse: trips.length, curse_din_vanzari: extra.length,
       excluse: excluded, luni: months,
     });
   } catch (e) {

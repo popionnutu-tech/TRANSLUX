@@ -97,6 +97,29 @@ export async function mobiletTrips(token: string, from: string, to: string): Pro
   return r.items ?? [];
 }
 
+export interface MobiletTripSales {
+  id: number;            // = tripId din vânzări
+  name: string;          // 'Chisinau - Criva/Larga 12:30'
+  vehicle: string | null;
+  driver: string | null;
+  date: string | null;   // '10.04.2026 11:21' — plecarea reală a cursei
+  tickets: number | null;
+}
+
+/** Raportul «Vânzări pe curse»: are ziua reală a cursei și înainte de 02.2026, unde /reports/carrier/trips e gol
+ *  (01.10: 0 curse pe 12.2024–10.2025, 12 în 12.2025), iar vânzările din blocurile sincronizate sunt datate pe ziua
+ *  sincronizării. */
+export async function mobiletTripSales(token: string, from: string, to: string): Promise<MobiletTripSales[]> {
+  const out: MobiletTripSales[] = [];
+  for (let page = 0; page < 50; page++) {
+    const q = new URLSearchParams({ dateFrom: from, dateTo: to, page: String(page), pageSize: '50000' });
+    const r = await call<{ items: MobiletTripSales[]; total: number }>(`/reports/carrier/reports/trips?${q}`, { token });
+    out.push(...r.items);
+    if (out.length >= r.total || r.items.length === 0) break;
+  }
+  return out;
+}
+
 /** Vânzarea din API → rândul exportului CSV (ordinea TIKI_HEADER), ca să treacă prin același normalizeRow. */
 export function saleToCsvCols(s: MobiletSale): string[] {
   const cols: Record<(typeof TIKI_HEADER)[number], string> = {

@@ -21,7 +21,7 @@ describe('mesajTraseu (ION-144, forma din 01.10)', () => {
     expect(m).toContain('1. +112 — после ZEL через Кишинёв');
     expect(m).toContain('2. +54 — заезд на База Бричены');
     expect(m).toContain('3. +32 — в Румынии');
-    expect(m).toContain('4. +29 — прочее');
+    expect(m).toContain('4. +29 — прочее, без точной причины');
     expect(m).toContain('<i>Стоял: ZEL 79 ч, Албица 56 ч</i>');
     expect(m).not.toContain('1123 km вместо');
   });

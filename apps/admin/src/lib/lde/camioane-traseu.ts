@@ -28,7 +28,7 @@ const nr = (x: number) => Math.round(x).toLocaleString('ru-RU').replace(/\u00a0/
 const ziRo = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}`;
 
 function blocMasina(r: Verificare): string {
-  const traseu = [r.de, r.pana].filter(Boolean).join(' → ');
+  const traseu = r.de ? [r.de, r.pana].filter(Boolean).join(' → ') : r.pana ? `→ ${r.pana}` : '';
   const out = [`<b>${escapeHtml(r.placa)}</b> · ${TIP[r.tip]}${traseu ? ` ${escapeHtml(traseu)}` : ''}`];
   const plus = r.km_plus != null && r.km_plus >= 1 ? r.km_plus : null;
   if (plus && r.km_ideal) out.push(`${nr(r.km_gps ?? 0)} км вместо ${nr(r.km_ideal)} · <b>+${nr(plus)} км</b>`);
@@ -36,7 +36,7 @@ function blocMasina(r: Verificare): string {
   const cauze = r.abateri.filter((a) => a.cod !== 'traseu' && a.cod !== 'km' && a.cod !== 'stai' && !(a.cod === 'info' && Math.abs(a.km ?? 0) < 10));
   cauze.sort((x, y) => (y.km ?? -1e9) - (x.km ?? -1e9));
   const suma = cauze.reduce((t, a) => t + (a.km ?? 0), 0);
-  if (plus && plus - suma >= 15 && !cauze.some((a) => /остальное/.test(a.text))) cauze.push({ cod: 'info', text: 'прочее (манёвры, неточность GPS)', km: Math.round(plus - suma) });
+  if (plus && plus - suma >= 15 && !cauze.some((a) => /остальное/.test(a.text))) cauze.push({ cod: 'info', text: 'прочее, без точной причины (терминал, манёвры, неточность GPS)', km: Math.round(plus - suma) });
   cauze.forEach((a, i) => {
     const km = a.km != null && Math.abs(a.km) >= 1 ? `${a.km >= 0 ? '+' : '−'}${nr(Math.abs(a.km))} — ` : '';
     out.push(`${i + 1}. ${km}${escapeHtml(a.text)}`);

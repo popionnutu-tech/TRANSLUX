@@ -8,13 +8,12 @@ import {
   getCleaningChecksForDate,
   getDirectionForPoint,
   getOperatorChecksForDate,
-  getPresencePings,
   getReportedPassengers,
   getSkipsForDate,
   type CleaningSlot,
   type CleaningZone,
 } from './db.js';
-import { formatPresenceLine, lateStart, localToUtcMs, presencePeriods, presenceWindow, windowBounds } from '../api/presence.js';
+import { localToUtcMs } from '../api/presence.js';
 import { POINT_LABELS, type PointEnum } from '@translux/db';
 import { isDayOff, weekdayName } from '../api/dayState.js';
 
@@ -95,14 +94,15 @@ export async function addViolation(v: Violation): Promise<void> {
 export async function sendCompactDigest(): Promise<boolean> {
   const state = await loadState();
   const today = state.date;
-  // Zi fără operator la punct (vineri la Chișinău): nu reclamăm poze și prezență lipsă degeaba.
+  // Zi fără operator la punct (vineri la Chișinău): nu reclamăm poze lipsă degeaba.
   const dayOffPoints = new Set<PointEnum>(POINTS.filter((pt) => isDayOff(pt, today)));
   const dayOffLines = Array.from(dayOffPoints).map((pt) => `${POINT_LABELS[pt]}: ${weekdayName(today)}, zi fără operator`);
   const skipLines = await buildSkipLines(today);
   const cleaningLines = dayOffPoints.has('CHISINAU') ? [] : await buildCleaningLines(today);
   const operatorLines = dayOffPoints.has('CHISINAU') ? [] : await buildOperatorLines(today, new Date());
-  const presenceLines = await buildPresenceLines(today, new Date(), dayOffPoints);
-  if (state.violations.length === 0 && dayOffLines.length === 0 && skipLines.length === 0 && cleaningLines.length === 0 && operatorLines.length === 0 && presenceLines.length === 0) return false;
+  // Secțiunea «📍 Prezență în zona de lucru» (perioadele fără semnal / lipsă din GPS-ul aplicației)
+  // a fost scoasă din raport (Ion, 01.10, ION-168); ping-urile se colectează în continuare.
+  if (state.violations.length === 0 && dayOffLines.length === 0 && skipLines.length === 0 && cleaningLines.length === 0 && operatorLines.length === 0) return false;
 
   // Count total reports today from DB per point
   const reportsByPoint: Record<string, number> = {};
@@ -158,10 +158,6 @@ export async function sendCompactDigest(): Promise<boolean> {
 
   if (operatorLines.length > 0) {
     msg += `\n\n👤 Operator Chișinău (poza de deschidere)\n` + operatorLines.join('\n');
-  }
-
-  if (presenceLines.length > 0) {
-    msg += `\n\n📍 Prezență în zona de lucru\n` + presenceLines.join('\n');
   }
 
   await sendAdminAlert(msg);
@@ -283,41 +279,6 @@ async function buildOperatorLines(date: string, now: Date): Promise<string[]> {
     return lines;
   } catch (err) {
     console.error('[digest] secțiunea pozei operatorului a picat:', err);
-    return [];
-  }
-}
-
-// ── Prezență în zona de lucru (GPS din aplicația de peron, S05) ──
-
-/**
- * Un rând per operator care a folosit aplicația azi (ping-uri sau rapoarte din app):
- * perioadele de lipsă din zonă / fără semnal cu durata, sau «toată tura în zonă»;
- * plus «urmărire pornită abia la HH:MM» când primul ping vine la > 15 min după
- * începutul ferestrei. Nimic nu se trimite în timpul zilei — doar aici, seara.
- */
-async function buildPresenceLines(date: string, now: Date = new Date(), skipPoints: ReadonlySet<PointEnum> = new Set()): Promise<string[]> {
-  try {
-    const dayFrom = new Date(localToUtcMs(date, '00:00')).toISOString();
-    const dayTo = new Date(localToUtcMs(date, '23:59')).toISOString();
-    const operators = (await getActiveAppOperators(date, dayFrom, dayTo)).filter((op) => !skipPoints.has(op.point));
-    if (operators.length === 0) return [];
-
-    const boundsByPoint = new Map<PointEnum, { fromMs: number; toMs: number } | null>();
-    const lines: string[] = [];
-    for (const op of operators) {
-      if (!boundsByPoint.has(op.point)) {
-        const window = presenceWindow(await getAllTripsForDirection(getDirectionForPoint(op.point)));
-        boundsByPoint.set(op.point, window ? windowBounds(date, window) : null);
-      }
-      const bounds = boundsByPoint.get(op.point);
-      if (!bounds) continue;
-      const pings = await getPresencePings(op.id, new Date(bounds.fromMs).toISOString(), new Date(bounds.toMs).toISOString());
-      const periods = presencePeriods(pings, bounds, now);
-      lines.push(formatPresenceLine(presenceOperatorLabel(op), POINT_LABELS[op.point], periods, lateStart(pings, bounds)));
-    }
-    return lines;
-  } catch (err) {
-    console.error('[presence] digest: secțiunea de prezență a picat:', err);
     return [];
   }
 }

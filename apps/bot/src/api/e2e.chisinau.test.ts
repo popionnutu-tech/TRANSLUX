@@ -1094,7 +1094,7 @@ describe('15. Prezența GPS pe toată tura', () => {
     expect(executorMessages).toHaveLength(2);
   });
 
-  it('digestul de la 20:30: 2 încălcări (locație 1, întârziere 1), curățenia pe ambele ture, prezența cu lipsă 25 min și fără semnal 10 min', async () => {
+  it('digestul de la 20:30: 2 încălcări (locație 1, întârziere 1), curățenia pe ambele ture, fără secțiunea de prezență (ION-168)', async () => {
     clock('20:30');
     expect(await sendCompactDigest()).toBe(true);
     expect(alerts).toHaveLength(1);
@@ -1109,10 +1109,11 @@ describe('15. Prezența GPS pe toată tura', () => {
 
     expect(msg).toContain('\n\n👤 Operator Chișinău (poza de deschidere)\n@vitalie_peron: 🔴 aspect neîngrijit (06:44)');
 
-    expect(msg).toContain('\n\n📍 Prezență în zona de lucru\n');
-    expect(msg).toContain('@vitalie_peron (Chișinău): lipsă 12:40–13:05 (25 min) · fără semnal 17:10–17:20 (10 min)');
-    // pauza de 8 min (14:59 → 15:07) e sub pragul de 10 min și nu se raportează
-    expect(msg).not.toContain('14:59');
+    // Secțiunea «📍 Prezență în zona de lucru» nu mai intră în raport (Ion, 01.10, ION-168);
+    // ping-urile se colectează în continuare (verificate mai sus în peron_presence_pings).
+    expect(msg).not.toContain('Prezență în zona de lucru');
+    expect(msg).not.toContain('fără semnal');
+    expect(msg).not.toContain('12:40');
     expect(msg).not.toContain('Andrei');
     expect(msg).not.toContain('Bălți');
   });

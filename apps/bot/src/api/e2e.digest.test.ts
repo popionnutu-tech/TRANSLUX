@@ -293,12 +293,10 @@ describe('2. Ziua cu ambele puncte', () => {
         '',
         '👤 Operator Chișinău (poza de deschidere)',
         '@vitalie_peron: ✅ uniformă, bărbierit, aspect (06:39)',
-        '',
-        '📍 Prezență în zona de lucru',
-        '@vitalie_peron (Chișinău): fără semnal 06:25–06:50 (25 min) · lipsă 09:00–09:12 (12 min) · urmărire pornită abia la 06:50',
-        '@andrei_balti (Bălți): toată tura în zonă',
       ].join('\n'),
     );
+    // Secțiunea «📍 Prezență în zona de lucru» a fost scoasă din raport (ION-168); ping-urile rămân în bază.
+    expect(alerts[0]).not.toContain('Prezență');
     // digestul nu trimite nimic pe API-ul botului (loading board), doar prin sendAdminAlert
     expect(telegram.filter((t) => t.method === 'sendMessage')).toHaveLength(2);
   });
@@ -363,12 +361,6 @@ describe('3. Joi: «N-am fost la cursă» la ambele puncte', () => {
         '',
         '👤 Operator Chișinău (poza de deschidere)',
         '@vitalie_peron: ⬜ fără poză la deschidere',
-        '',
-        // Cifrele date din aplicație îi fac «activi în aplicație» — și, într-o zi de lucru
-        // în care n-au fost la nicio cursă, lipsa semnalului e exact ce trebuie să se vadă.
-        '📍 Prezență în zona de lucru',
-        '@vitalie_peron (Chișinău): fără semnal 06:25–20:30 (14 h 05 min)',
-        '@andrei_balti (Bălți): fără semnal 04:50–20:30 (15 h 40 min)',
       ].join('\n'),
     ]);
   });
@@ -445,7 +437,7 @@ describe('4. Vineri: zi fără operator la Chișinău', () => {
     expect(ping.body.accepted).toBe(vitalie.length);
   });
 
-  it('digestul: rândul de zi liberă, FĂRĂ curățenie și fără prezența lui Vitalie; Bălți apare', async () => {
+  it('digestul: rândul de zi liberă, FĂRĂ curățenie și fără secțiunea de prezență (ION-168)', async () => {
     clockOn(FRI, '20:30');
     expect(await sendCompactDigest()).toBe(true);
     expect(alerts).toEqual([
@@ -455,9 +447,6 @@ describe('4. Vineri: zi fără operator la Chișinău', () => {
         '',
         '⏭ Curse sărite',
         'Chișinău: operatorul n-a fost la 06:55 (7 pas.) (Vitalie)',
-        '',
-        '📍 Prezență în zona de lucru',
-        '@andrei_balti (Bălți): toată tura în zonă',
       ].join('\n'),
     ]);
   });

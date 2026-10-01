@@ -217,7 +217,7 @@ export default function ImportPanel({ onImported }: { onImported: () => void }) 
                     <td style={{ textAlign: 'right' }}>{fmtInt(b.rows_sent - b.rows_inserted)}</td>
                     <td style={{ textAlign: 'left' }}>
                       {b.status === 'done' ? <span style={{ color: 'var(--success)' }}>gata</span>
-                        : b.status === 'failed' ? <span style={{ color: 'var(--danger)' }}>întrerupt</span>
+                        : b.status === 'failed' ? <span style={{ color: 'var(--danger)' }} title={b.error ?? undefined}>întrerupt{b.error ? `: ${b.error}` : ''}</span>
                         : <span style={{ color: '#8a5a00' }}>în curs</span>}
                     </td>
                   </tr>

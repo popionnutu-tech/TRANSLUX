@@ -13,6 +13,7 @@ export interface TikiBatch {
   date_min: string | null;
   date_max: string | null;
   status: 'in_progress' | 'done' | 'failed';
+  error: string | null;   // rulările automate din Mobilet (migr. 451)
 }
 
 export interface TikiMeta {

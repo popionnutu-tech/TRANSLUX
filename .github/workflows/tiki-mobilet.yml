@@ -1,0 +1,41 @@
+name: tiki-mobilet
+
+# Importul zilnic al biletelor din cabinetul Mobilet (ION-160): vânzările și cursele ultimelor 8 zile până ieri intră în
+# Numărare → Bilete aparat (fără dubluri: biletele deja importate se sar). Ion, 01.10: «fă ca o dată în zi, pe ziua de
+# ieri, să lucreze automatizarea: să intre pe site și să colecteze datele de bilete».
+# Rulează pe GitHub infra: Vercel Hobby are ambele sloturi de cron ocupate. A doua rulare = retry (idempotent).
+# 03:30 / 05:00 UTC = 06:30 / 08:00 Chișinău vara (EEST), 05:30 / 07:00 iarna.
+
+on:
+  schedule:
+    - cron: '30 3 * * *'
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+    inputs:
+      from:
+        description: 'De la (YYYY-MM-DD), gol = ultimele 8 zile'
+        required: false
+      to:
+        description: 'Până la (YYYY-MM-DD), gol = ieri'
+        required: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Import Mobilet
+        env:
+          FROM: ${{ github.event.inputs.from }}
+          TO: ${{ github.event.inputs.to }}
+        run: |
+          q=""
+          if [ -n "$FROM" ] && [ -n "$TO" ]; then q="?from=$FROM&to=$TO"; fi
+          code=$(curl -s -m 320 -o /tmp/body -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "https://central-hub-md.vercel.app/api/cron/tiki-mobilet$q")
+          echo "tiki-mobilet responded: HTTP $code"
+          cat /tmp/body
+          if [ "$code" -lt 200 ] || [ "$code" -ge 400 ]; then
+            echo "::warning::tiki-mobilet returned HTTP $code"
+            exit 1
+          fi

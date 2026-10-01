@@ -16,14 +16,20 @@ const r = (o: Partial<Verificare>): Verificare => ({
 describe('mesajTraseu (ION-144, forma din 01.10)', () => {
   it('pe mașină: traseul, km față de ideal, cauzele numerotate cu km în față, stările', () => {
     const [m] = mesajTraseu('2026-09-30', [r({})]);
-    expect(m).toContain('<b>RWN193</b> · биодизель Бердичев → Русе (через ZEL)');
-    expect(m).toContain('1 123 км вместо 896 · <b>+227 км</b>');
+    expect(m).toContain('<b>RWN193</b> · биодизель Бердичев → Русе (через ZEL) · <b>+198 км</b>');
+    expect(m).not.toContain('вместо 896');
     expect(m).toContain('1. +112 — после ZEL через Кишинёв');
     expect(m).toContain('2. +54 — заезд на База Бричены');
     expect(m).toContain('3. +32 — в Румынии');
-    expect(m).toContain('4. +29 — прочее, без точной причины');
+    expect(m).not.toContain('прочее');
+    expect(m).toContain('лишних <b>+198 км</b>');
     expect(m).toContain('<i>Стоял: ZEL 79 ч, Албица 56 ч</i>');
     expect(m).not.toContain('1123 km вместо');
+  });
+
+  it('drumul doar cu km în plus fără cauză numită nu se arată', () => {
+    const [m] = mesajTraseu('2026-09-30', [r({}), r({ placa: 'IIC000', abateri: [{ cod: 'km', text: 'x', km: 60 }] })]);
+    expect(m).not.toContain('IIC000');
   });
 
   it('mașinile în regulă nu apar; fără abateri — o linie', () => {

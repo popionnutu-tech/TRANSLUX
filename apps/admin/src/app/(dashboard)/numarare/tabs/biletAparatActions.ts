@@ -10,6 +10,7 @@ import { verifySession } from '@/lib/auth';
 import { unpackRow, type PackedRow } from './bilete/ticketParse';
 import type {
   TikiBatch, TikiMeta, TikiSummary, TikiDriverRow, TikiRouteRow, TikiPairRow, TikiMonthly,
+  TikiCalitate, OrarRoute, TikiTendinta, TikiClienti,
 } from './bilete/types';
 
 type Res<T> = { data?: T; error?: string };
@@ -204,4 +205,53 @@ export async function getTikiMonthly(
   });
   if (error) return { error: error.message };
   return { data: data as TikiMonthly };
+}
+
+// ─── ION-159: Orar · Față de anul trecut · Cine merge pe rută (pe ziua cursei, migr. 452) ───
+
+const MAX_DAYS = 400;
+
+function badRange(from: string, to: string): string | null {
+  if (!DATE_RE.test(from) || !DATE_RE.test(to) || from > to) return 'Interval invalid';
+  const days = (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000;
+  return days > MAX_DAYS ? `Interval prea lung (max ${MAX_DAYS} de zile)` : null;
+}
+
+export async function getTikiCalitate(from: string, to: string): Promise<Res<TikiCalitate>> {
+  const a = await adminOnly();
+  if ('error' in a) return a;
+  const bad = badRange(from, to);
+  if (bad) return { error: bad };
+  const { data, error } = await getSupabase().rpc('get_tiki_calitate', { p_from: from, p_to: to });
+  if (error) return { error: error.message };
+  return { data: data as TikiCalitate };
+}
+
+export async function getTikiOrar(from: string, to: string): Promise<Res<OrarRoute[]>> {
+  const a = await adminOnly();
+  if ('error' in a) return a;
+  const bad = badRange(from, to);
+  if (bad) return { error: bad };
+  const { data, error } = await getSupabase().rpc('get_tiki_orar', { p_from: from, p_to: to });
+  if (error) return { error: error.message };
+  return { data: (data ?? []) as OrarRoute[] };
+}
+
+export async function getTikiTendinta(): Promise<Res<TikiTendinta>> {
+  const a = await adminOnly();
+  if ('error' in a) return a;
+  const { data, error } = await getSupabase().rpc('get_tiki_tendinta');
+  if (error) return { error: error.message };
+  return { data: data as TikiTendinta };
+}
+
+export async function getTikiClienti(from: string, to: string, route?: number | null): Promise<Res<TikiClienti>> {
+  const a = await adminOnly();
+  if ('error' in a) return a;
+  const bad = badRange(from, to);
+  if (bad) return { error: bad };
+  if (route != null && !Number.isInteger(route)) return { error: 'Rută invalidă' };
+  const { data, error } = await getSupabase().rpc('get_tiki_clienti', { p_from: from, p_to: to, p_route: route ?? null });
+  if (error) return { error: error.message };
+  return { data: data as TikiClienti };
 }

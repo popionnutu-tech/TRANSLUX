@@ -39,3 +39,20 @@ jobs:
             echo "::warning::tiki-mobilet returned HTTP $code"
             exit 1
           fi
+      # ION-159: refacerea Orarului / Față de anul trecut / Cine merge pe rută pe lunile curselor importate.
+      # Rulează și când importul a picat: golește ce a rămas în coadă (corecturile din Numărare, lunile neterminate).
+      - name: Refacere vederi
+        if: always()
+        run: |
+          for i in 1 2 3; do
+            code=$(curl -s -m 320 -o /tmp/body -w "%{http_code}" \
+              -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+              "https://central-hub-md.vercel.app/api/cron/tiki-refacere")
+            echo "tiki-refacere #$i: HTTP $code"
+            cat /tmp/body; echo
+            if [ "$code" -lt 200 ] || [ "$code" -ge 400 ]; then
+              echo "::warning::tiki-refacere returned HTTP $code"
+              exit 1
+            fi
+            grep -q '"ramase":0' /tmp/body && break
+          done

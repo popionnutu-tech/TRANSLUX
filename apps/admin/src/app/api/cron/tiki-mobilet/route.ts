@@ -160,6 +160,12 @@ export async function GET(req: NextRequest) {
       const a = await sb.rpc('tiki_refresh_agg', { p_from: `${month}-01`, p_to: last });
       if (a.error) throw new Error(a.error.message);
     }
+    // Orar / Față de anul trecut / Cine merge pe rută (ION-159): lunile CURSELOR biletelor importate intră în coada
+    // refăcută de /api/cron/tiki-refacere — un bilet sincronizat azi poate fi dintr-o cursă de acum o lună.
+    if (dates.length) {
+      const q = await sb.rpc('tiki_enqueue_import', { p_from: dates[0], p_to: dates[dates.length - 1] });
+      if (q.error) throw new Error(q.error.message);
+    }
 
     await sb.from('tiki_import_batches').update({
       status: 'done', rows_in_file: sales.length, rows_excluded: excluded, rows_dup_in_file: dup,

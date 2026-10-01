@@ -137,7 +137,7 @@ export function retentionLabel(idx: number | null): { text: string; tone: 'good'
   return { text: 'Sub medie', tone: 'bad' };
 }
 
-export type Preset = 'luna_curenta' | 'luna_trecuta' | 'ultimele_30' | 'ultimele_90' | 'anul_curent';
+export type Preset = 'ultimele_8s' | 'luna_curenta' | 'luna_trecuta' | 'ultimele_30' | 'ultimele_90' | 'anul_curent';
 
 /** Presetări raportate la ultima zi cu date (nu la azi), ca «luna curentă» să nu fie goală. */
 export function presetRange(p: Preset, anchor: string): DateRange {
@@ -148,6 +148,7 @@ export function presetRange(p: Preset, anchor: string): DateRange {
       const from = shiftMonth(monthStart, -1);
       return { from, to: addDays(monthStart, -1) };
     }
+    case 'ultimele_8s': return { from: addDays(anchor, -55), to: anchor };
     case 'ultimele_30': return { from: addDays(anchor, -29), to: anchor };
     case 'ultimele_90': return { from: addDays(anchor, -89), to: anchor };
     case 'anul_curent': return { from: `${anchor.slice(0, 4)}-01-01`, to: anchor };

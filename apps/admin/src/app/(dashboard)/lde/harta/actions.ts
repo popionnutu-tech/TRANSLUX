@@ -56,3 +56,17 @@ export async function getControlBriceni(saptamina: string): Promise<ControlBrice
   if (error) throw new Error(`lde_analiza_reguli: ${error.message}`);
   return ((data?.date as { control?: ControlBriceni[] } | null)?.control ?? []);
 }
+
+/** ION-149: controlul flotei interurbane pe săptămână — fiecare plăcuță cu atribuire interurbană: loc propus sau motivul.
+ * Rândul îl scrie VPS mejgorod-parcare/harta.mjs în lde_analiza_reguli 'MEJGOROD_HARTA' (rândul 'MEJGOROD' e analiza de luni). */
+export interface ControlMejgorod {
+  m: string; pe: boolean; propunere: boolean; motiv: string | null; rute: number[]; km?: number; zile?: number; nopti?: number;
+  economieSapt?: number; locuri?: string[]; liber?: number; regula2509?: number; acum?: string;
+}
+export async function getControlMejgorod(saptamina: string): Promise<ControlMejgorod[]> {
+  const session = await verifySession();
+  requireRole(session, 'ADMIN');
+  const { data, error } = await getSupabase().from('lde_analiza_reguli').select('date').eq('uzina', 'MEJGOROD_HARTA').eq('saptamina', saptamina).maybeSingle();
+  if (error) throw new Error(`lde_analiza_reguli: ${error.message}`);
+  return ((data?.date as { control?: ControlMejgorod[] } | null)?.control ?? []);
+}

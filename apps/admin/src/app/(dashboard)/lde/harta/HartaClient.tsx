@@ -6,10 +6,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { povesteZi } from '@/lib/lde/drax-ziua';
 import {
-  CULOARE, FEL_STATIONARE, LINIE, UZINE_HARTA, eticZi, masiniCamioane, masiniSaptamana, numeTip, randuriBriceni, randuriCamioane, randuriDinIntervale, tipuriLegenda,
-  type LinieSchelet, type Punct, type RandListaHarta, type RandZi, type UzHarta, type ZiHarta,
+  CULOARE, FEL_STATIONARE, LINIE, UZINE_HARTA, eticZi, masiniCamioane, masiniSaptamana, numeTip, randuriBriceni, randuriCamioane, randuriDinIntervale, randuriMejgorod,
+  textRute, tipuriLegenda, type LinieSchelet, type Punct, type RandListaHarta, type RandZi, type UzHarta, type ZiHarta,
 } from '@/lib/lde/drax-harta';
-import type { ControlCamion } from './actions';
+import type { ControlCamion, ControlMejgorod } from './actions';
 import { culoareLoc, textDrum } from '@/lib/lde/drax-parcare';
 
 const HartaMasinaMap = dynamic(() => import('@/components/HartaMasinaMap'), {
@@ -25,9 +25,9 @@ const TIP_MISCARE: Record<string, RandZi['tip']> = { cuOameni: 'cursa', intreUzi
 
 type Masina = ReturnType<typeof masiniSaptamana>[number] & Partial<Pick<ReturnType<typeof masiniCamioane>[number], 'kmPlus' | 'nrAbateri' | 'plin'>>;
 
-export default function HartaClient({ uz, saptamani, sapt, masini, masina, z, zi, zileMasina, linii, porti, control = [] }: {
+export default function HartaClient({ uz, saptamani, sapt, masini, masina, z, zi, zileMasina, linii, porti, control = [], controlMej = [] }: {
   uz: UzHarta; saptamani: string[]; sapt: string; masini: Masina[]; masina: string; z: string; zi: ZiHarta | null;
-  zileMasina: RandListaHarta[]; linii: LinieSchelet[]; porti: { c: Punct; n: string }[]; control?: ControlCamion[];
+  zileMasina: RandListaHarta[]; linii: LinieSchelet[]; porti: { c: Punct; n: string }[]; control?: ControlCamion[]; controlMej?: ControlMejgorod[];
 }) {
   const router = useRouter();
   const [ales, setAles] = useState<string | null>(null);
@@ -42,11 +42,12 @@ export default function HartaClient({ uz, saptamani, sapt, masini, masina, z, zi
   const cam = uz === 'camioane';   // ION-150: cisternele — drumul față de schelet, P1/P2 doar informativ
   const sebn = uz === 'sebn';      // ION-147: SEBN — bucla la predarea turei separat, poarta nu e loc de parcare, fără parcare = cu motivul
   const bri = uz === 'briceni';    // ION-148: Briceni, Trox + suburban — ziua tăiată ca raportul BRICENI, «gol forțat» separat de livrare
+  const mej = uz === 'mejgorod';   // ION-149: rutele interurbane — locul de noapte P1/P2, timpul liber de la prânz separat
   const href = (m: string, zz?: string) => `${pre}sapt=${sapt}&m=${m}${zz ? `&z=${zz}` : ''}`;
   // Drăxlmaier: povestea zilei (drax-ziua.ts); LEAR (ION-143): rândurile din intervalele hărții
   const miscari: RandZi[] = useMemo(() => (zi?.zi
     ? povesteZi(zi.zi, zi.casa?.n ?? null).map((x) => ({ ora: x.ora, tip: TIP_MISCARE[x.tip] ?? 'gol', text: x.text.startsWith(x.ora) ? x.text.slice(x.ora.length).trim() : x.text, tare: x.kmPeAcasa >= 0.5 }))
-    : zi ? (cam ? randuriCamioane(zi.iv) : bri ? randuriBriceni(zi.iv) : randuriDinIntervale(zi.iv)) : []), [zi, cam, bri]);
+    : zi ? (cam ? randuriCamioane(zi.iv) : bri ? randuriBriceni(zi.iv) : mej ? randuriMejgorod(zi.iv) : randuriDinIntervale(zi.iv)) : []), [zi, cam, bri, mej]);
   const sumar = zileMasina.find((r) => r.z === z)?.sumar;
   const m = masini.find((x) => x.m === masina);
 
@@ -71,7 +72,9 @@ export default function HartaClient({ uz, saptamani, sapt, masini, masina, z, zi
             {cam ? <>Urma GPS a zilei (00:00–24:00) peste linia ideală din schelet a drumurilor zilei (galben pal): vama, drumul prin România și Moldova,
               abaterile din verificarea zilnică. Locurile de stat P1/P2 sunt doar informative, fără km de tăiat (Ion, 30.09).</> : bri ? <>
             Urma GPS a zilei (03:00–03:00) peste rutele mașinii din schelet (galben pal), tăiată ca în raportul BRICENI: roșu = livrarea (golul de tăiat),
-            portocaliu = gol forțat (gol pe rută, gol între ture, legătură — nu e economie). P1/P2 = parcarea propusă între curse și noaptea.</> : <>
+            portocaliu = gol forțat (gol pe rută, gol între ture, legătură — nu e economie). P1/P2 = parcarea propusă între curse și noaptea.</> : mej ? <>
+              Urma GPS a zilei (00:00–24:00) peste rutele autobuzului din schelet (galben pal). P1/P2 = locul propus pentru noapte, între ultima cursă
+              și prima de a doua zi; pauzele de la prânz apar doar pe hartă, iar ocolul de la prânz e «timp liber», separat (Ion, 01.10).</> : <>
             Urma GPS a zilei peste {U.lear ? 'rutele' : 'linia'} mașinii din schelet (galben pal).</>}{' '} Culoarea spune ce face mașina, aceleași intervale ca în
             «Ziua făcută, drum cu drum». Apasă pe un rând din dreapta sau pe urmă ca să vezi doar acel drum.
           </p>
@@ -119,7 +122,7 @@ export default function HartaClient({ uz, saptamani, sapt, masini, masina, z, zi
                 <div style={{ fontSize: 10.5, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {cam
                     ? <>{x.kmPlus ? <b style={{ color: '#9B1B30' }}>+{n0(x.kmPlus)} km peste ideal</b> : 'fără km peste ideal'} · {x.zile.length} zile</>
-                    : <>{x.linii.map((l) => l.replace('|', ' · ')).join(', ') || 'fără linie'} · {x.zile.length} zile</>}
+                    : <>{textRute(uz, x.linii)} · {x.zile.length} zile</>}
                 </div>
               </Link>
             );
@@ -129,6 +132,14 @@ export default function HartaClient({ uz, saptamani, sapt, masini, masina, z, zi
               <div style={{ ...ETICHETA, marginBottom: 3 }}>{sebn ? `Fără parcare propusă (${control.length} din ${masini.length})` : bri ? `Fără parcare propusă (${control.filter((c) => !c.pe).length} fără hartă)` : `Restul flotei (${control.filter((c) => !c.pe).length} fără hartă)`}</div>
               {control.filter((c) => !c.pe || c.motiv).map((c) => (
                 <div key={`${c.m}-${c.pe}`} style={{ marginBottom: 2 }}><b style={{ fontFamily: MONO }}>{c.m}</b> {c.motiv}</div>
+              ))}
+            </div>
+          ) : null}
+          {mej && controlMej.some((c) => !c.propunere) ? (
+            <div style={{ padding: '8px 11px', fontSize: 10.5, color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+              <div style={{ ...ETICHETA, marginBottom: 3 }}>Fără loc propus ({controlMej.filter((c) => !c.propunere).length} din {controlMej.length})</div>
+              {controlMej.filter((c) => !c.propunere).map((c) => (
+                <div key={c.m} style={{ marginBottom: 2 }}><b style={{ fontFamily: MONO }}>{c.m}</b> {c.motiv}</div>
               ))}
             </div>
           ) : null}
@@ -168,6 +179,10 @@ export default function HartaClient({ uz, saptamani, sapt, masini, masina, z, zi
               săptămâna: {n0(m?.total)} km, din care cu marfă {n0(m?.plin)} km; peste ideal (verificarea zilnică) {m?.kmPlus ? <b style={{ color: '#9B1B30' }}>{n0(m.kmPlus)} km</b> : '0 km'}
               {m?.nrAbateri ? ` în ${m.nrAbateri} drumuri` : ''}
             </div>
+          ) : mej ? (
+            <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 2 }}>
+              săptămâna: {n0(m?.total)} km, de tăiat cu locul de noapte propus {n0(m?.economie)} km pe săptămână
+            </div>
           ) : (
           <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 2 }}>
             săptămâna: {n0(m?.total)} km, de tăiat {sumar?.sursaEconomie === 'parcare' ? 'cu parcarea propusă' : 'față de ziua ideală (calcul vechi)'} {n0(m?.economie)} km pe săptămână
@@ -193,7 +208,7 @@ export default function HartaClient({ uz, saptamani, sapt, masini, masina, z, zi
             </div>
           ) : !cam && zi?.parcare?.locuri.length ? (
             <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border-accent)', background: '#FFF7F0' }}>
-              <div style={ETICHETA}>Parcare propusă</div>
+              <div style={ETICHETA}>{mej ? 'Locul de noapte propus' : 'Parcare propusă'}</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4, fontSize: 13 }}>
                 {zi.parcare.locuri.map((l) => (
                   <span key={l.nr} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
@@ -203,7 +218,9 @@ export default function HartaClient({ uz, saptamani, sapt, masini, masina, z, zi
                 ))}
               </div>
               <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 4, lineHeight: 1.4 }}>
-                {sebn
+                {mej
+                  ? 'Noaptea, între ultima cursă și prima de a doua zi, autobuzul stă la locul arătat (punctat pe hartă: seara spre loc, dimineața de la loc); unde scrie «rămâne cum e», face ca acum. Ocolul pe acasă se socotește; capătul rutei e ales când costă cel mult 20 km/săpt. mai mult decât satul cel mai ieftin; nopțile la Briceni sunt «parcare existentă» (Ion, 01.10).'
+                  : sebn
                   ? 'Pe drumurile de mai jos mașina stă la locul arătat (punctat pe hartă); unde scrie «rămâne cum e», face ca acum. Poarta SEBN nu e loc de parcare (§2.3). Bucla la predarea turei (portocaliu) nu e drum de parcare și nu intră în km de tăiat. Drumul șoferului spre casă nu e socotit.'
                   : bri
                   ? 'Pe drumurile de mai jos (golurile de 1–20 h dintre curse) mașina stă la locul arătat (punctat pe hartă); unde scrie «rămâne cum e», face ca acum. Golul Trox dintre ture nu iese sub lungimea rutei (Ion, 01.10). Drumul șoferului spre casă nu e socotit.'
@@ -212,7 +229,7 @@ export default function HartaClient({ uz, saptamani, sapt, masini, masina, z, zi
                   : 'Între schimburi și noaptea mașina stă aici; drumurile propuse sunt punctate pe hartă. Drumul șoferului spre casă nu e socotit.'}
                 {zi.parcare.idealSapt != null ? ` Maximul teoretic (așteaptă la fiecare capăt): ${n0(zi.parcare.idealSapt)} km/săpt.` : ''}
               </div>
-              {(U.lear || bri) && zi.parcare.legi.length ? (
+              {(U.lear || bri || mej) && zi.parcare.legi.length ? (
                 <div style={{ marginTop: 6, display: 'grid', gap: 2, fontSize: 11.5 }}>
                   {zi.parcare.legi.map((l, i) => (
                     <div key={i} style={{ display: 'grid', gridTemplateColumns: '84px minmax(0, 1fr) auto', columnGap: 6 }}>
@@ -237,6 +254,25 @@ export default function HartaClient({ uz, saptamani, sapt, masini, masina, z, zi
           ) : null}
           {sebn && sumar?.ruteGps ? (
             <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 6 }}>Rutele {sumar.linii.join(', ')} sunt luate din GPS: ruta mașinii din schelet nu mai e trecută (§1.1).</div>
+          ) : null}
+
+          {mej && zi?.mejgorod ? (
+            <div style={{ marginTop: 8, display: 'grid', gap: 6, fontSize: 11.5, lineHeight: 1.45 }}>
+              {zi.mejgorod.motivFara ? (
+                <div style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border-accent)', background: '#F6F4EE' }}>
+                  <div style={ETICHETA}>Fără loc propus</div>
+                  <div>{zi.mejgorod.motivFara}</div>
+                </div>
+              ) : null}
+              <div style={{ color: 'var(--text-secondary)' }}>
+                <b style={{ color: CULOARE.liber }}>Timp liber la prânz</b> (separat, nu e parcare): {zi.mejgorod.liberSapt ? `${n1(zi.mejgorod.liberSapt)} km în săptămână` : 'niciun ocol'}
+                {zi.mejgorod.liber.length ? ` — ${zi.mejgorod.liber.map((l) => `${eticZi(l.z)} ${l.ora} ${l.de}, ${n1(l.km)} km (până la ${n0(l.departe)} km)`).join('; ')}` : ''}
+              </div>
+              <div style={{ color: 'var(--text-secondary)' }}>
+                <b>După regula din 25.09</b> (doar seara la capăt; informativ): {n1(zi.mejgorod.regula2509.sapt)} km în săptămână
+                {zi.mejgorod.regula2509.zile ? ` (${zi.mejgorod.regula2509.zile} zile cu tur și retur, ${zi.mejgorod.regula2509.laCapat} seara la capăt, ${zi.mejgorod.regula2509.cazB} «caz B» puse zero)` : ''}.
+              </div>
+            </div>
           ) : null}
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, margin: '10px 0' }}>

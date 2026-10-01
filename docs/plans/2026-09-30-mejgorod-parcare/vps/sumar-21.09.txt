@@ -1,0 +1,26 @@
+clasa                                                    n     real   direct   propus
+noapte intră · A: returul a ajuns la capăt                73   1349.6    145.5    603.6
+noapte intră · B: returul s-a oprit înainte de capăt     108   4939.8   2250.7     2466
+noapte · intră                                           181   6289.4   2396.2   3069.6
+noapte · peste 20 h (zi liberă)                           13    929.7        0        0
+zi · intră                                               114      228     44.1    184.9
+zi · la poarta SEBN Orhei                                  5    483.2        0        0
+zi · sub 60 min                                           45      167        0        0
+
+nopți care intră: A (returul la capăt) 73, de tăiat 746 km · B (returul oprit înainte) 108, de tăiat 2473.8 km
+varianta «doarme la capătul de nord al rutei» (fără alegere): A 1007.7 km · B 2042.9 km
+pauzele de zi cu ieșire > 5 km de E/S: 2
+  998TCP 09-23 12:06 → 14:34 real 73.6 departe 33.4 km (Criva)
+  998TCP 09-25 11:00 → 14:42 real 29.8 departe 11.8 km (Briceni)
+unde stă noaptea (cea mai lungă staționare): gară 29 · capătul / E / S 41 · altundeva 111
+  altundeva: Briceni 27, Cotiujeni 8, Ocnița 6, Beleavinți 6, Halahora de Sus 6, Clocușna 6, Berlinți 5, Fetești 5, Lipcani 5, Rujnița 4, Balasinești 4, Colicăuți 4, Viișoara 4, Drepcăuți 4, Bulboaca 4, Maiovca 3, Trestieni 3, Caracușenii Noi 3, Mărcăuți 3, Corpaci 1
+
+goluri cu urma mai scurtă decât drumul direct (tracker tăcut în mers, real < 0,8 × direct): 2
+  263NSX 09-23 22:06 real 14.1 direct 38.2
+  805BXI 09-23 23:12 real 22.8 direct 68.3
+
+mașini fără propunere: 029BRAS (0 km), 065LTL (0 km), 145BZP (0 km), 318BRAT (nicio cursă cu urmă), 319YEK (0 km), 651AKD (0 km), 654TWK (0 km), 662AKD (0 km), 759LYY (0 km), 827WJQ (0 km)
+
+regula Ion 25.09 (optim2, schelet): zile 180, seara la capăt 76, caz B 102, optimizabil 681.2 km/săpt.
+  pe mașină: 789MJW 114.6, 735LYY 94.4, 805BXI 90.9, 240RQR 70.5, 235DQO 68.4, 330RQR 68.4, 652TWK 48.2, 652AKD 39.1, 711CWN 34.8, 662AKD 30.1, 069MLD 21.8
+0.04 s

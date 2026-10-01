@@ -1,0 +1,48 @@
+fără urmă: 396SWL 2026-09-21 ruta 20 tur — 1 puncte
+fără urmă: 396SWL 2026-09-21 ruta 20 retur — 23 puncte
+fără urmă: 330RQR 2026-09-21 ruta 31 tur — prea scurt: 1 puncte
+fără urmă: 065LTL 2026-09-22 ruta 15 retur — 49 puncte
+fără urmă: 065LTL 2026-09-23 ruta 11 tur — 1 puncte
+fără urmă: 298RQR 2026-09-23 ruta 30 tur — urma nu trece pe lângă nicio oprire
+fără urmă: 330RQR 2026-09-24 ruta 31 tur — 0 puncte
+fără urmă: 330RQR 2026-09-24 ruta 31 retur — 0 puncte
+fără urmă: 319YEK 2026-09-25 ruta 30 tur — 1 puncte
+fără urmă: 318BRAT 2026-09-25 ruta 13 tur — 0 puncte
+fără urmă: 318BRAT 2026-09-25 ruta 13 retur — 0 puncte
+fără urmă: 235DQO 2026-09-25 ruta 31 tur — 0 puncte
+fără urmă: 235DQO 2026-09-25 ruta 31 retur — 0 puncte
+fără urmă: 318BRAT 2026-09-26 ruta 13 tur — 0 puncte
+fără urmă: 318BRAT 2026-09-26 ruta 13 retur — 0 puncte
+fără urmă: 029BRAS 2026-09-27 ruta 13 tur — 1 puncte
+fără tracker: —
+ruta  1 capăt grafic Criva Vama         · returul se termină: gara lipcani 4, Criva 1, Caracușenii Noi 1 · turul pornește: Grimăncăuți 6
+ruta  2 capăt grafic Criva Vama         · returul se termină:  · turul pornește: gara lipcani 6, Hlina 1
+ruta  3 capăt grafic Ocnița             · returul se termină: gara ocnita 5, Ocnița (2.1 km) 1, Dîngeni (2.9 km) 1 · turul pornește: gara ocnita 6, Mihăilenii Noi 1
+ruta  5 capăt grafic Lipcani            · returul se termină: Corpaci 4, Bădragii Noi 1 · turul pornește: Hancăuți 3, gara lipcani 1, Lopatnic 1
+ruta  6 capăt grafic Tețcani            · returul se termină: Corjeuți 5, Tețcani 2 · turul pornește: Tețcani 7
+ruta  7 capăt grafic Criva Vama         · returul se termină: Criva 7 · turul pornește: Criva 7
+ruta  8 capăt grafic Criva Vama         · returul se termină: Drepcăuți 5, Caracușenii Noi 1, Hlina 1 · turul pornește: Criva 7
+ruta  9 capăt grafic Criva Vama         · returul se termină: gara briceni 5, Caracușenii Noi 1 · turul pornește: Criva 7
+ruta 10 capăt grafic Criva Vama         · returul se termină: Criva 4, Beleavinți 2, gara lipcani 1 · turul pornește: Criva 4
+ruta 11 capăt grafic Criva Vama         · returul se termină: Criva 3, gara lipcani 1 · turul pornește: Criva 3
+ruta 12 capăt grafic Criva Vama         · returul se termină: Criva 6, Briceni 1 · turul pornește: Criva 6, gara lipcani 1
+ruta 13 capăt grafic Lipcani            · returul se termină: gara lipcani 3 · turul pornește: 
+ruta 14 capăt grafic Criva Vama         · returul se termină: Criva 6 · turul pornește: Criva 6
+ruta 15 capăt grafic Criva Vama         · returul se termină: Criva 6 · turul pornește: Criva 7
+ruta 16 capăt grafic Criva Vama         · returul se termină: gara lipcani 2, gara briceni 2, Beleavinți 2 · turul pornește: Criva 7
+ruta 17 capăt grafic Criva              · returul se termină: Corjeuți 5, Tabani 2 · turul pornește: Corjeuți 7
+ruta 18 capăt grafic Lipcani            · returul se termină: gara lipcani 3, Pererita 2, Tețcani 1 · turul pornește: Pererita 4, gara lipcani 2
+ruta 19 capăt grafic Criva Vama         · returul se termină: Criva 6, Drepcăuți 1 · turul pornește: Criva 7
+ruta 20 capăt grafic Criva Vama         · returul se termină: gara lipcani 2, Hlina 2, Larga 1 · turul pornește: gara lipcani 5
+ruta 21 capăt grafic Otaci              · returul se termină: gara ocnita 2, Frunză 2, Ocnița 1 · turul pornește: Otaci 6, Frunză 1
+ruta 22 capăt grafic Criva Vama         · returul se termină: gara lipcani 3, Hlina 1, Berlinți 1 · turul pornește: Criva 7
+ruta 23 capăt grafic Criva Vama         · returul se termină: Criva 3, Drepcăuți 3, gara lipcani 1 · turul pornește: Criva 7
+ruta 24 capăt grafic Criva Vama         · returul se termină: gara briceni 7 · turul pornește: Criva 7
+ruta 25 capăt grafic Caracușenii Vechi  · returul se termină: Caracușenii Vechi 6, gara edinet 1 · turul pornește: Caracușenii Vechi 6
+ruta 26 capăt grafic Tețcani            · returul se termină: Caracușenii Vechi 3, Tabani 3, Corjeuți 1 · turul pornește: Tețcani 7
+ruta 27 capăt grafic Criva Vama         · returul se termină: gara briceni 7 · turul pornește: Criva 6, gara lipcani 1
+ruta 28 capăt grafic Criva Vama         · returul se termină: gara briceni 4, Berlinți 1, gara lipcani 1 · turul pornește: Criva 7
+ruta 29 capăt grafic Briceni            · returul se termină: gara ocnita 4, Ocnița 1, Dîngeni (2.9 km) 1 · turul pornește: gara briceni 7
+ruta 30 capăt grafic Otaci              · returul se termină: gara ocnita 6 · turul pornește: gara ocnita 5
+ruta 31 capăt grafic Ocnița             · returul se termină: gara ocnita 4 · turul pornește: gara ocnita 5
+0.16 s

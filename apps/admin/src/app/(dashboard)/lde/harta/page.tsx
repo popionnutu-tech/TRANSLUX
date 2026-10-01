@@ -2,9 +2,12 @@ export const dynamic = 'force-dynamic';
 
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { getControlBriceni, getControlCamioane, getListaHarta, getSaptamaniHarta, getZiHarta, type ControlCamion } from './actions';
+import { getControlBriceni, getControlCamioane, getControlMejgorod, getListaHarta, getSaptamaniHarta, getZiHarta, type ControlCamion, type ControlMejgorod } from './actions';
 import HartaClient from './HartaClient';
-import { liniiBriceni, liniiCamioane, masiniCamioane, masiniSaptamana, UZINE_HARTA, uzHarta, type LinieSchelet, type Punct, type ScheletBriceniHarta, type ScheletCamioaneHarta } from '@/lib/lde/drax-harta';
+import {
+  gariMejgorod, liniiBriceni, liniiCamioane, liniiMejgorod, masiniCamioane, masiniSaptamana, UZINE_HARTA, uzHarta,
+  type LinieSchelet, type Punct, type ScheletBriceniHarta, type ScheletCamioaneHarta, type ScheletMejgorodHarta,
+} from '@/lib/lde/drax-harta';
 
 // Harta fiecărei mașini pe zi, peste scheletul liniilor ei (ION-130, Drăxlmaier). Ion, 28.09.2026: «ar fi bine să putem fiecare mașină
 // s-o vizualizăm pe schelet, să fie o pagină separată în LDE, în care drumurile se arată detaliat la fiecare mașină pe hartă».
@@ -12,6 +15,7 @@ import { liniiBriceni, liniiCamioane, masiniCamioane, masiniSaptamana, UZINE_HAR
 // ION-147 (01.10): și SEBN Orhei + Strășeni (?uz=sebn) — parcarea P1/P2, bucla la predarea turei separat, mașinile fără parcare cu motivul.
 // ION-150 (30.09): și cisternele (?uz=camioane) — urma față de linia ideală din schelet-camioane.json, P1/P2 doar informativ.
 // ION-148 (01.10): și Briceni, Trox + suburban (?uz=briceni) — rutele mașinii din schelet-briceni.json, poarta Trox + autogara, P1/P2.
+// ION-149 (01.10): și rutele interurbane (?uz=mejgorod) — locul de noapte P1/P2 peste scheletul simetric ION-55, gările în locul porților.
 // Alegerea (uzina, săptămâna, mașina, ziua) stă în adresă: /lde/harta?uz=ungheni&sapt=2026-09-21&m=827MUM&z=2026-09-21.
 type ScheletDrax = {
   porti: { c: Punct; n: string }[]; parc: Punct;
@@ -35,8 +39,13 @@ export default async function LdeHartaPage({ searchParams }: { searchParams: Pro
 
   const liniiMasina = new Set(masina.linii);
   let linii: LinieSchelet[], porti: { c: Punct; n: string }[];
-  let control: ControlCamion[] = [];
-  if (uz === 'camioane') {
+  let control: ControlCamion[] = [], controlMej: ControlMejgorod[] = [];
+  if (uz === 'mejgorod') {
+    const s = JSON.parse(await readFile(path.join(process.cwd(), 'public', 'lde', 'schelet-mejgorod.json'), 'utf8')) as ScheletMejgorodHarta;
+    linii = liniiMejgorod(s, masina.linii);
+    porti = gariMejgorod(s);
+    controlMej = await getControlMejgorod(sapt);
+  } else if (uz === 'camioane') {
     // cisternele: liniile ideale ale drumurilor care ating ziua (cheile scrise de harta.mjs), punctele fixe ale scheletului
     const s = JSON.parse(await readFile(path.join(process.cwd(), 'public', 'lde', 'schelet-camioane.json'), 'utf8')) as ScheletCamioaneHarta;
     linii = liniiCamioane(s, zi?.linii ?? []);
@@ -69,7 +78,7 @@ export default async function LdeHartaPage({ searchParams }: { searchParams: Pro
   return (
     <HartaClient
       uz={uz} saptamani={saptamani} sapt={sapt} masini={masini} masina={masina.m} z={z} zi={zi}
-      zileMasina={lista.filter((r) => r.m === masina.m)} linii={linii} porti={porti} control={control}
+      zileMasina={lista.filter((r) => r.m === masina.m)} linii={linii} porti={porti} control={control} controlMej={controlMej}
     />
   );
 }

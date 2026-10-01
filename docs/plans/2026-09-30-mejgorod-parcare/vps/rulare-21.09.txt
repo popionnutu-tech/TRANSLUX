@@ -1,0 +1,467 @@
+
+029BRAS  atribuiri 2 · curse cu urmă 1 (19.5 km) · km săpt. 504.2 · goluri 0 (intră 0)
+
+065LTL   atribuiri 10 · curse cu urmă 8 (2086.5 km) · km săpt. 2303.7 · goluri 8 (intră 4)
+   P: Cricova · real 5 → propus 5 · de tăiat 0 km/săpt. (nopți A 0 · B 0 · zi 0; doarme acum: gara chisinau ×1, Lipcani ×1; varianta «la capăt» 1.1; direct E→S 0.3)
+   Z 09-21 09:11 → 09-21 12:30   199′ după 18 tur    gara chisinau (cap Chișinău 0.1 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 199′ · real 0.1 direct 0.1 capăt — dep 0.1 · rămâne 0.1
+   N 09-21 18:15 → 09-22 17:34  1400′ după 18 retur  gara lipcani (cap Lipcani 0.2 km) → Criva (cap Criva Vama 0.3 km) · stă gara lipcani 829′ · real 70 direct — capăt — dep 24 · peste 20 h (zi liberă)
+   N 09-22 22:13 → 09-23 07:00   527′ după 15 tur    gara chisinau (cap Chișinău 0.1 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 450′ · real 1.7 direct 0.1 capăt — dep 0.5 · rămâne 1.7
+   N 09-23 12:11 → 09-24 04:04   953′ după 11 retur  gara lipcani (cap Criva Vama 10.1 km) → gara lipcani (cap Lipcani 0 km) · stă Lipcani 945′ · real 1.2 direct 0 capăt 0.1 dep 0.4 · rămâne 1.2
+   Z 09-24 09:04 → 09-24 12:30   206′ după 18 tur    gara chisinau (cap Chișinău 0.1 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 170′ · real 2 direct 0.1 capăt — dep 0.4 · rămâne 2
+   N 09-24 17:46 → 09-26 02:59  1994′ după 18 retur  gara lipcani (cap Lipcani 0.1 km) → Criva (cap Criva Vama 0.3 km) · stă gara lipcani 1370′ · real 14.5 direct — capăt — dep 5 · peste 20 h (zi liberă)
+   Z 09-26 07:16 → 09-26 08:14    59′ după 16 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0.1 km) · stă gara chisinau 40′ · real 1.6 direct — capăt — dep 0.5 · sub 60 min
+   N 09-26 12:32 → 09-28 10:35  2763′ după 13 retur  gara lipcani (cap Lipcani 0.2 km) → gara lipcani (cap Lipcani 0.2 km) · stă gara lipcani 1392′ · real 125.3 direct — capăt — dep 23.9 · peste 20 h (zi liberă)
+
+069MLD   atribuiri 14 · curse cu urmă 14 (3386.3 km) · km săpt. 3542 · goluri 13 (intră 13)
+   P: Ocnița (stă acum) · real 153.8 → propus 78.5 · de tăiat 75.3 km/săpt. (nopți A 30.3 · B 45 · zi 0; doarme acum: Ocnița ×5, Maiovca ×2; varianta «la capăt» 89.5; direct E→S 27.5)
+   Z 09-21 12:12 → 09-21 15:25   192′ după 3 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 192′ · real 0 direct 0 capăt — dep 0 · rămâne 0
+   N 09-21 20:15 → 09-22 07:35   681′ după 3 retur   gara ocnita (cap Ocnița 0 km) → gara ocnita (cap Ocnița 0 km) · stă Ocnița 674′ · real 3.7 direct 0 capăt 0 dep 1.7 · rămâne 3.7
+   Z 09-22 12:30 → 09-22 15:58   208′ după 3 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 208′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-22 19:45 → 09-23 07:36   711′ după 3 retur   Ocnița (2.1 km) (cap Ocnița 2.8 km) → gara ocnita (cap Ocnița 0 km) · stă Maiovca 662′ · real 34.1 direct 3.5 capăt 3.5 dep 6.9 · P1 3.8
+   Z 09-23 12:18 → 09-23 16:03   225′ după 3 tur     gara chisinau (cap Chișinău 0.1 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 225′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-23 19:45 → 09-24 13:01  1036′ după 3 retur   Dîngeni (2.9 km) (cap Ocnița 7.6 km) → Frunză (cap Otaci 14.8 km) · stă Maiovca 697′ · real 68.3 direct 21.9 capăt 57.9 dep 25.6 · P1 23.3
+   N 09-24 22:41 → 09-25 08:00   560′ după 21 retur  Ocnița (cap Otaci 23.8 km) → gara ocnita (cap Ocnița 0 km) · stă Ocnița 473′ · real 23.9 direct 1.7 capăt 1.7 dep 7.4 · rămâne 23.9
+   Z 09-25 12:25 → 09-25 15:28   183′ după 3 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 183′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-25 19:49 → 09-26 07:31   702′ după 3 retur   gara ocnita (cap Ocnița 0.1 km) → gara ocnita (cap Ocnița 0 km) · stă Ocnița 692′ · real 4.6 direct 0.1 capăt 0.2 dep 1.8 · rămâne 4.6
+   Z 09-26 12:23 → 09-26 15:47   204′ după 3 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 204′ · real 0.3 direct 0 capăt — dep 0 · rămâne 0.3
+   N 09-26 19:53 → 09-27 07:37   704′ după 3 retur   gara ocnita (cap Ocnița 0.1 km) → gara ocnita (cap Ocnița 0 km) · stă Ocnița 686′ · real 4.1 direct 0.1 capăt 0.1 dep 1.6 · rămâne 4.1
+   Z 09-27 12:17 → 09-27 16:05   228′ după 3 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 228′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-27 19:56 → 09-28 07:58   722′ după 3 retur   gara ocnita (cap Ocnița 0.1 km) → gara ocnita (cap Ocnița 0 km) · stă Ocnița 656′ · real 14.4 direct 0.2 capăt 0.2 dep 2.6 · rămâne 14.4
+
+145BZP   atribuiri 2 · curse cu urmă 2 (516.9 km) · km săpt. 607.5 · goluri 1 (intră 1)
+   P: Chișinău · real 0.1 → propus 0.1 · de tăiat 0 km/săpt. (nopți A 0 · B 0 · zi 0; doarme acum: ; varianta «la capăt» 0; direct E→S 0.1)
+   Z 09-24 16:11 → 09-24 17:56   105′ după 5 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 105′ · real 0.1 direct 0.1 capăt — dep 0 · rămâne 0.1
+
+235DQO   atribuiri 8 · curse cu urmă 6 (1411.1 km) · km săpt. 1607.1 · goluri 5 (intră 3)
+   P: gara ocnita · real 100.1 → propus 0.5 · de tăiat 99.6 km/săpt. (nopți A 99.6 · B 0 · zi 0; doarme acum: Rujnița ×2; varianta «la capăt» 99.6; direct E→S 0.3)
+   Z 09-21 11:40 → 09-21 16:05   265′ după 25 tur    gara chisinau (cap Chișinău 0.1 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 265′ · real 0.1 direct 0 capăt — dep 0.1 · rămâne 0.1
+   N 09-21 19:33 → 09-26 05:13  6340′ după 25 retur  gara edinet (cap Caracușenii Vechi 21 km) → gara ocnita (cap Ocnița 0 km) · stă Briceni 4238′ · real 91 direct — capăt — dep 26.9 · peste 20 h (zi liberă)
+   Z 09-26 10:27 → 09-26 11:13    46′ după 31 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 35′ · real 4 direct — capăt — dep 1.6 · sub 60 min
+   N 09-26 17:25 → 09-27 05:10   706′ după 31 retur  gara ocnita (cap Ocnița 0.2 km) → gara ocnita (cap Ocnița 0 km) · stă Rujnița 632′ · real 54.6 direct 0.2 capăt 0.2 dep 17.5 · P1 0.2
+   N 09-27 17:18 → 09-28 05:12   714′ după 31 retur  gara ocnita (cap Ocnița 0.1 km) → gara ocnita (cap Ocnița 0 km) · stă Rujnița 657′ · real 45.4 direct 0.1 capăt 0.2 dep 17.5 · P1 0.2
+
+240RQR   atribuiri 10 · curse cu urmă 10 (2360 km) · km săpt. 2538.6 · goluri 10 (intră 9)
+   P: Tabani · real 136.6 → propus 68.7 · de tăiat 67.9 km/săpt. (nopți A 67.9 · B 0 · zi 0; doarme acum: Trestieni ×3, Briceni ×1; varianta «la capăt» 113.7; direct E→S 11.5)
+   Z 09-22 11:32 → 09-22 15:45   252′ după 25 tur    gara chisinau (cap Chișinău 0.1 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 252′ · real 0.5 direct 0.1 capăt — dep 0.1 · rămâne 0.5
+   N 09-22 19:58 → 09-23 06:53   655′ după 25 retur  Caracușenii Vechi (cap Caracușenii Vechi 0.2 km) → Caracușenii Vechi (cap Caracușenii Vechi 0.2 km) · stă Trestieni 565′ · real 28.6 direct 0 capăt 0.5 dep 9.3 · P1 11.8
+   Z 09-23 11:33 → 09-23 15:45   252′ după 25 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 175′ · real 3.6 direct 0 capăt — dep 1.6 · rămâne 3.6
+   N 09-23 20:09 → 09-24 06:49   640′ după 25 retur  Caracușenii Vechi (cap Caracușenii Vechi 0.3 km) → Caracușenii Vechi (cap Caracușenii Vechi 0.2 km) · stă Trestieni 553′ · real 32.4 direct 0.1 capăt 0.5 dep 9.8 · P1 12
+   Z 09-24 11:47 → 09-24 15:45   238′ după 25 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 196′ · real 5.4 direct 0 capăt — dep 2.4 · rămâne 5.4
+   N 09-24 20:15 → 09-25 06:47   632′ după 25 retur  Caracușenii Vechi (cap Caracușenii Vechi 0.3 km) → Caracușenii Vechi (cap Caracușenii Vechi 0.3 km) · stă Trestieni 573′ · real 29 direct 0.1 capăt 0.5 dep 9.5 · P1 12.2
+   Z 09-25 11:41 → 09-25 15:45   244′ după 25 tur    gara chisinau (cap Chișinău 0 km) → Chișinău (cap Chișinău 10.2 km) · stă gara chisinau 227′ · real 11 direct 11.6 capăt — dep 5 · rămâne 11
+   N 09-25 19:25 → 09-26 06:51   686′ după 25 retur  Caracușenii Vechi (cap Caracușenii Vechi 0.3 km) → Caracușenii Vechi (cap Caracușenii Vechi 0.2 km) · stă Briceni 644′ · real 25.7 direct 0.1 capăt 0.5 dep 9.8 · P1 11.8
+   Z 09-26 11:34 → 09-26 15:45   250′ după 25 tur    gara chisinau (cap Chișinău 0.1 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 250′ · real 0.4 direct 0.1 capăt — dep 0.2 · rămâne 0.4
+   N 09-26 20:13 → 09-28 06:45  2072′ după 25 retur  Caracușenii Vechi (cap Caracușenii Vechi 0.2 km) → Caracușenii Vechi (cap Caracușenii Vechi 0.2 km) · stă Briceni 1280′ · real 28.3 direct — capăt — dep 9.4 · peste 20 h (zi liberă)
+
+263NSX   atribuiri 14 · curse cu urmă 14 (3624.7 km) · km săpt. 3934.8 · goluri 14 (intră 14)
+   P: gara briceni · real 300 → propus 238.3 · de tăiat 61.7 km/săpt. (nopți A 0 · B 61.7 · zi 0; doarme acum: Ocnița ×7; varianta «la capăt» 62.6; direct E→S 221.2)
+   Z 09-21 14:35 → 09-21 17:42   187′ după 29 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 187′ · real 0.2 direct 0 capăt — dep 0.1 · rămâne 0.2
+   N 09-21 22:03 → 09-22 08:19   616′ după 29 retur  gara ocnita (cap Briceni 29.7 km) → gara briceni (cap Briceni 0 km) · stă Ocnița 546′ · real 40.7 direct 38.3 capăt 38.3 dep 15 · P1 38.3
+   Z 09-22 14:36 → 09-22 18:11   215′ după 29 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 215′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-22 21:47 → 09-23 08:26   639′ după 29 retur  Ocnița (cap Briceni 28.5 km) → gara briceni (cap Briceni 0 km) · stă Ocnița 566′ · real 39 direct 36.2 capăt 36.2 dep 14.6 · P1 36.2
+   Z 09-23 14:54 → 09-23 17:40   166′ după 29 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 166′ · real 0.2 direct 0 capăt — dep 0 · rămâne 0.2
+   N 09-23 22:06 → 09-24 08:42   636′ după 29 retur  gara ocnita (cap Briceni 29.7 km) → gara briceni (cap Briceni 0 km) · stă Ocnița 572′ · real 14.1 direct 38.2 capăt 38.2 dep 4 · rămâne 14.1
+   Z 09-24 14:44 → 09-24 18:05   201′ după 29 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 106′ · real 8.6 direct 0 capăt — dep 3.1 · rămâne 8.6
+   N 09-24 21:35 → 09-25 08:35   660′ după 29 retur  Dîngeni (2.9 km) (cap Briceni 26 km) → gara briceni (cap Briceni 0 km) · stă Ocnița 566′ · real 49.3 direct 33.5 capăt 33.5 dep 12.9 · P1 33.5
+   Z 09-25 15:01 → 09-25 17:41   160′ după 29 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 81′ · real 6.8 direct 0 capăt — dep 2.4 · rămâne 6.8
+   N 09-25 21:33 → 09-26 08:38   665′ după 29 retur  gara ocnita (cap Briceni 29.8 km) → gara briceni (cap Briceni 0 km) · stă Ocnița 588′ · real 39.2 direct 38.4 capăt 38.3 dep 15 · rămâne 39.2
+   Z 09-26 15:00 → 09-26 18:11   190′ după 29 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 190′ · real 0.3 direct 0 capăt — dep 0 · rămâne 0.3
+   N 09-26 21:55 → 09-27 08:43   648′ după 29 retur  gara ocnita (cap Briceni 29.7 km) → gara briceni (cap Briceni 0 km) · stă Ocnița 561′ · real 48.9 direct 38.3 capăt 38.3 dep 15 · P1 38.3
+   Z 09-27 14:32 → 09-27 17:55   204′ după 29 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 204′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-27 21:41 → 09-28 08:40   658′ după 29 retur  Hădărăuți (cap Briceni 18.8 km) → gara briceni (cap Briceni 0 km) · stă Ocnița 557′ · real 52.5 direct 22.4 capăt 22.4 dep 10.2 · P1 22.4
+
+298RQR   atribuiri 10 · curse cu urmă 9 (2179.7 km) · km săpt. 2585.8 · goluri 9 (intră 8)
+   P: gara ocnita (stă acum) · real 61.7 → propus 55.3 · de tăiat 6.4 km/săpt. (nopți A 0 · B 0 · zi 6.4; doarme acum: gara chisinau ×3, Chișinău ×1; varianta «la capăt» 0; direct E→S 0)
+   Z 09-21 15:20 → 09-21 17:07   107′ după 30 retur  gara ocnita (cap Otaci 22.7 km) → gara ocnita (cap Otaci 22.7 km) · stă gara ocnita 78′ · real 10 direct 0 capăt 56.1 dep 3.8 · rămâne 10
+   N 09-21 21:20 → 09-22 10:31   791′ după 30 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 687′ · real 12.4 direct 0 capăt — dep 2.5 · rămâne 12.4
+   Z 09-22 15:41 → 09-22 17:10    89′ după 30 retur  gara ocnita (cap Otaci 22.6 km) → gara ocnita (cap Otaci 22.7 km) · stă gara ocnita 89′ · real 0.1 direct 0 capăt 56.2 dep 0 · rămâne 0.1
+   N 09-22 21:13 → 09-23 11:05   832′ după 30 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă Chișinău 710′ · real 13.1 direct 0 capăt — dep 3.9 · rămâne 13.1
+   N 09-23 15:18 → 09-26 10:30  4032′ după 30 retur  gara ocnita (cap Otaci 22.7 km) → gara chisinau (cap Chișinău 0 km) · stă Briceni 1846′ · real 329.7 direct — capăt — dep 93.3 · peste 20 h (zi liberă)
+   Z 09-26 14:54 → 09-26 16:40   107′ după 30 retur  gara ocnita (cap Otaci 22.7 km) → gara ocnita (cap Otaci 22.7 km) · stă gara ocnita 107′ · real 0 direct 0 capăt 56.2 dep 0 · rămâne 0
+   N 09-26 20:49 → 09-27 10:30   821′ după 30 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 724′ · real 9.5 direct 0 capăt — dep 2.4 · rămâne 9.5
+   Z 09-27 15:10 → 09-27 16:27    77′ după 30 retur  gara ocnita (cap Otaci 22.7 km) → gara ocnita (cap Otaci 22.6 km) · stă Ocnița 32′ · real 6.4 direct 0 capăt 56.2 dep 1.8 · P1 0
+   N 09-27 21:02 → 09-28 10:33   811′ după 30 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 382′ · real 10.2 direct 0 capăt — dep 2.4 · rămâne 10.2
+
+318BRAT  atribuiri 4 · curse cu urmă 0 (0 km) · km săpt. 1210.2 · goluri 0 (intră 0) · nicio cursă cu urmă
+
+319YEK   atribuiri 4 · curse cu urmă 3 (724.3 km) · km săpt. 1068.4 · goluri 2 (intră 1)
+   P: Chișinău · real 17.1 → propus 17.1 · de tăiat 0 km/săpt. (nopți A 0 · B 0 · zi 0; doarme acum: Chișinău ×1; varianta «la capăt» 0; direct E→S 0)
+   Z 09-24 15:31 → 09-24 16:14    43′ după 30 retur  gara ocnita (cap Otaci 22.7 km) → gara ocnita (cap Otaci 22.6 km) · stă Ocnița 38′ · real 2.6 direct — capăt — dep 1 · sub 60 min
+   N 09-24 21:07 → 09-25 10:31   804′ după 30 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă Chișinău 698′ · real 17.1 direct 0 capăt — dep 3.9 · rămâne 17.1
+
+330RQR   atribuiri 8 · curse cu urmă 5 (1201.5 km) · km săpt. 1314.6 · goluri 4 (intră 4)
+   P: gara ocnita · real 101.5 → propus 0.6 · de tăiat 100.9 km/săpt. (nopți A 100.9 · B 0 · zi 0; doarme acum: Rujnița ×2; varianta «la capăt» 100.9; direct E→S 0.3)
+   N 09-21 17:18 → 09-22 05:08   709′ după 31 retur  gara ocnita (cap Ocnița 0.1 km) → gara ocnita (cap Ocnița 0 km) · stă Rujnița 639′ · real 55.4 direct 0.1 capăt 0.2 dep 17.5 · P1 0.2
+   Z 09-22 10:28 → 09-22 13:11   163′ după 31 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 163′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-22 17:15 → 09-23 05:12   717′ după 31 retur  gara ocnita (cap Ocnița 0.1 km) → gara ocnita (cap Ocnița 0 km) · stă Rujnița 663′ · real 45.9 direct 0.1 capăt 0.2 dep 17.5 · P1 0.2
+   Z 09-23 10:26 → 09-23 13:13   166′ după 31 tur    gara chisinau (cap Chișinău 0.1 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 166′ · real 0.1 direct 0.1 capăt — dep 0 · rămâne 0.1
+
+396SWL   atribuiri 12 · curse cu urmă 10 (2641.5 km) · km săpt. 2874.1 · goluri 9 (intră 9)
+   P: Hlina · real 215.6 → propus 65.5 · de tăiat 150.1 km/săpt. (nopți A 0 · B 150.1 · zi 0; doarme acum: Cotiujeni ×3, Briceni ×2; varianta «la capăt» 73.4; direct E→S 35.4)
+   Z 09-23 10:58 → 09-23 12:06    69′ după 20 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 69′ · real 0 direct 0 capăt — dep 0 · rămâne 0
+   N 09-23 17:19 → 09-24 05:50   751′ după 20 retur  gara lipcani (cap Criva Vama 10.1 km) → gara lipcani (cap Criva Vama 10.1 km) · stă Cotiujeni 682′ · real 42.2 direct 0.1 capăt 23.6 dep 14.5 · P1 13.7
+   Z 09-24 10:54 → 09-24 12:30    96′ după 20 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 96′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-24 17:08 → 09-25 06:02   774′ după 20 retur  Larga (cap Criva Vama 17.3 km) → gara lipcani (cap Criva Vama 10.1 km) · stă Cotiujeni 734′ · real 29.9 direct 17.4 capăt 40.8 dep 10.9 · P1 18.1
+   N 09-25 16:58 → 09-26 05:57   779′ după 20 retur  gara lipcani (cap Criva Vama 10.1 km) → gara lipcani (cap Criva Vama 10.1 km) · stă Briceni 668′ · real 58.5 direct 0.1 capăt 23.6 dep 22.8 · P1 13.7
+   Z 09-26 10:53 → 09-26 12:26    93′ după 20 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 93′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-26 16:36 → 09-27 05:57   801′ după 20 retur  Hlina (cap Criva Vama 15.4 km) → gara lipcani (cap Criva Vama 10.1 km) · stă Briceni 715′ · real 49.2 direct 6.4 capăt 29.9 dep 18.2 · P1 7.5
+   Z 09-27 10:50 → 09-27 12:12    82′ după 20 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 82′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-27 16:44 → 09-28 05:53   789′ după 20 retur  Coteala (cap Criva Vama 16 km) → gara lipcani (cap Criva Vama 10.1 km) · stă Cotiujeni 743′ · real 35.5 direct 11.4 capăt 34.9 dep 7.2 · P1 12.2
+
+526WDW   atribuiri 14 · curse cu urmă 14 (3451.4 km) · km săpt. 3698.6 · goluri 14 (intră 14)
+   P: Corjeuți · real 244.4 → propus 52.3 · de tăiat 192.1 km/săpt. (nopți A 0 · B 192.1 · zi 0; doarme acum: Berlinți ×5, Balasinești ×2; varianta «la capăt» 0; direct E→S 33.8)
+   Z 09-21 09:28 → 09-21 13:37   249′ după 17 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 168′ · real 9.7 direct 0 capăt — dep 3.2 · rămâne 9.7
+   N 09-21 18:29 → 09-22 04:04   574′ după 17 retur  Corjeuți (cap Criva 28.3 km) → Corjeuți (cap Criva 28.4 km) · stă Berlinți 515′ · real 31.8 direct 0 capăt 73.6 dep 12.8 · P1 1.4
+   Z 09-22 08:44 → 09-22 13:30   285′ după 17 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 285′ · real 0 direct 0 capăt — dep 0 · rămâne 0
+   N 09-22 18:12 → 09-23 05:28   676′ după 17 retur  Corjeuți (cap Criva 28.3 km) → Corjeuți (cap Criva 28.4 km) · stă Balasinești 595′ · real 37.7 direct 0 capăt 73.6 dep 12.8 · P1 1.3
+   Z 09-23 09:33 → 09-23 13:33   240′ după 17 tur    gara chisinau (cap Chișinău 0.1 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 240′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-23 18:23 → 09-24 04:05   583′ după 17 retur  Corjeuți (cap Criva 28.3 km) → Corjeuți (cap Criva 28.3 km) · stă Balasinești 542′ · real 20.7 direct 0 capăt 73.6 dep 7.7 · P1 1.4
+   Z 09-24 09:00 → 09-24 13:25   265′ după 17 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 265′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-24 18:07 → 09-25 04:03   596′ după 17 retur  Corjeuți (cap Criva 28.3 km) → Corjeuți (cap Criva 28.3 km) · stă Berlinți 418′ · real 38.3 direct 0 capăt 73.7 dep 12.8 · P1 1.5
+   Z 09-25 08:41 → 09-25 13:53   312′ după 17 tur    gara chisinau (cap Chișinău 0.1 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 312′ · real 0.6 direct 0.1 capăt — dep 0.1 · rămâne 0.6
+   N 09-25 18:25 → 09-26 04:07   582′ după 17 retur  Corjeuți (cap Criva 28.3 km) → Corjeuți (cap Criva 28.3 km) · stă Berlinți 526′ · real 31.8 direct 0 capăt 73.6 dep 12.8 · P1 1.4
+   Z 09-26 08:17 → 09-26 13:54   336′ după 17 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 336′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-26 17:36 → 09-27 04:03   628′ după 17 retur  Tabani (cap Criva 33.8 km) → Corjeuți (cap Criva 28.3 km) · stă Berlinți 548′ · real 37.3 direct 16.8 capăt 80.3 dep 13 · P1 17.3
+   Z 09-27 08:19 → 09-27 13:35   316′ după 17 tur    gara chisinau (cap Chișinău 0.1 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 316′ · real 0.1 direct 0.1 capăt — dep 0 · rămâne 0.1
+   N 09-27 17:36 → 09-28 04:01   625′ după 17 retur  Tabani (cap Criva 33.8 km) → Corjeuți (cap Criva 28.3 km) · stă Berlinți 564′ · real 36.1 direct 16.8 capăt 80.3 dep 13 · P1 17.3
+
+648CWN   atribuiri 14 · curse cu urmă 14 (3480.8 km) · km săpt. 3803.5 · goluri 13 (intră 12)
+   P: Caracușenii Noi (stă acum) · real 254.9 → propus 227.9 · de tăiat 27 km/săpt. (nopți A 0 · B 27 · zi 0; doarme acum: Briceni ×4, Caracușenii Noi ×2; varianta «la capăt» 26.7; direct E→S 218.8)
+   Z 09-21 17:38 → 09-21 18:56    77′ după 9 tur     gara chisinau (cap Chișinău 0.1 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 77′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-21 22:51 → 09-22 12:00   789′ după 9 retur   gara briceni (cap Criva Vama 32.8 km) → Criva (cap Criva Vama 0.2 km) · stă Briceni 698′ · real 44.9 direct 37.6 capăt 38.5 dep 16.7 · P1 37.6
+   Z 09-22 17:18 → 09-22 19:17   119′ după 9 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 119′ · real 0 direct 0 capăt — dep 0 · rămâne 0
+   N 09-22 22:40 → 09-23 11:59   800′ după 9 retur   gara briceni (cap Criva Vama 32.8 km) → Criva (cap Criva Vama 0.2 km) · stă Briceni 733′ · real 45.4 direct 37.7 capăt 38.5 dep 16.7 · P1 37.7
+   Z 09-23 17:09 → 09-23 19:01   111′ după 9 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 111′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-23 22:38 → 09-24 11:42   784′ după 9 retur   gara briceni (cap Criva Vama 32.8 km) → Criva (cap Criva Vama 0.2 km) · stă Briceni 715′ · real 40.4 direct 37.6 capăt 38.5 dep 16.7 · P1 37.6
+   Z 09-24 17:13 → 09-24 19:23   130′ după 9 tur     gara chisinau (cap Chișinău 0.1 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 130′ · real 0.1 direct 0.1 capăt — dep 0 · rămâne 0.1
+   N 09-24 22:49 → 09-25 11:58   789′ după 9 retur   gara briceni (cap Criva Vama 32.8 km) → Criva (cap Criva Vama 0.2 km) · stă Briceni 619′ · real 46.8 direct 37.6 capăt 38.5 dep 16.7 · P1 37.6
+   Z 09-25 18:15 → 09-25 18:50    35′ după 9 tur     gara chisinau (cap Chișinău 0 km) → Porumbeni (cap Chișinău 13.7 km) · stă Chișinău 7′ · real 14.9 direct — capăt — dep 6.9 · sub 60 min
+   N 09-25 21:45 → 09-26 11:58   853′ după 9 retur   gara briceni (cap Criva Vama 32.8 km) → Criva (cap Criva Vama 0.2 km) · stă Caracușenii Noi 634′ · real 41.6 direct 37.6 capăt 38.5 dep 16.6 · rămâne 41.6
+   Z 09-26 17:21 → 09-26 19:21   119′ după 9 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 102′ · real 3.8 direct 0 capăt — dep 1.6 · rămâne 3.8
+   N 09-26 22:48 → 09-27 12:02   794′ după 9 retur   Caracușenii Noi (cap Criva Vama 27.1 km) → Criva (cap Criva Vama 0.2 km) · stă Caracușenii Noi 745′ · real 31.6 direct 30.6 capăt 31.5 dep 13.6 · rămâne 31.6
+   Z 09-27 17:20 → 09-27 19:10   110′ după 9 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 110′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+
+651AKD   atribuiri 14 · curse cu urmă 14 (3726.5 km) · km săpt. 3825.7 · goluri 14 (intră 13)
+   P: Cricova · real 63.5 → propus 63.5 · de tăiat 0 km/săpt. (nopți A 0 · B 0 · zi 0; doarme acum: Criva ×7; varianta «la capăt» 59.5; direct E→S 0.2)
+   Z 09-21 16:25 → 09-21 18:17   111′ după 7 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 111′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-21 22:50 → 09-22 11:00   730′ după 7 retur   Criva (cap Criva Vama 0.2 km) → Criva (cap Criva Vama 0.2 km) · stă Criva 689′ · real 7.4 direct 0 capăt 0.5 dep 3 · rămâne 7.4
+   Z 09-22 16:19 → 09-22 18:30   130′ după 7 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 130′ · real 0.2 direct 0 capăt — dep 0 · rămâne 0.2
+   N 09-22 22:46 → 09-23 10:59   733′ după 7 retur   Criva (cap Criva Vama 0.2 km) → Criva (cap Criva Vama 0.2 km) · stă Criva 706′ · real 11 direct 0 capăt 0.5 dep 3 · rămâne 11
+   Z 09-23 16:26 → 09-23 18:13   107′ după 7 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 107′ · real 0 direct 0 capăt — dep 0 · rămâne 0
+   N 09-23 22:44 → 09-24 10:34   710′ după 7 retur   Criva (cap Criva Vama 0.2 km) → Criva (cap Criva Vama 0.2 km) · stă Criva 695′ · real 4.7 direct 0.1 capăt 0.5 dep 1.6 · rămâne 4.7
+   Z 09-24 17:20 → 09-24 18:29    69′ după 7 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 69′ · real 0 direct 0 capăt — dep 0 · rămâne 0
+   N 09-24 22:49 → 09-25 11:03   734′ după 7 retur   Criva (cap Criva Vama 0.2 km) → Criva (cap Criva Vama 0.2 km) · stă Criva 712′ · real 7.2 direct 0 capăt 0.5 dep 3 · rămâne 7.2
+   Z 09-25 17:23 → 09-25 18:03    41′ după 7 tur     gara chisinau (cap Chișinău 0 km) → Peresecina (cap Chișinău 26.2 km) · stă Chișinău 3′ · real 28.5 direct — capăt — dep 13.3 · sub 60 min
+   N 09-25 22:34 → 09-26 11:00   746′ după 7 retur   Criva (cap Criva Vama 0.2 km) → Criva (cap Criva Vama 0.2 km) · stă Criva 677′ · real 14.6 direct 0 capăt 0.5 dep 3.1 · rămâne 14.6
+   Z 09-26 16:17 → 09-26 18:02   105′ după 7 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 105′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-26 22:43 → 09-27 11:01   738′ după 7 retur   Criva (cap Criva Vama 0.2 km) → Criva (cap Criva Vama 0.2 km) · stă Criva 703′ · real 7.9 direct 0.1 capăt 0.5 dep 3 · rămâne 7.9
+   Z 09-27 15:37 → 09-27 18:07   150′ după 7 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 150′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-27 22:40 → 09-28 11:01   741′ după 7 retur   Criva (cap Criva Vama 0.3 km) → Criva (cap Criva Vama 0.2 km) · stă Criva 683′ · real 10.2 direct 0 capăt 0.5 dep 3.1 · rămâne 10.2
+
+652AKD   atribuiri 10 · curse cu urmă 10 (2469.2 km) · km săpt. 3208.9 · goluri 10 (intră 4)
+   P: Lipcani · real 197.3 → propus 129.6 · de tăiat 67.7 km/săpt. (nopți A 15.6 · B 52.1 · zi 0; doarme acum: Colicăuți ×4; varianta «la capăt» 14.9; direct E→S 129.2)
+   Z 09-21 07:41 → 09-21 10:51   190′ după 1 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 70′ · real 96.5 direct — capăt — dep 41.2 · la poarta SEBN Orhei
+   N 09-21 16:39 → 09-22 03:03   624′ după 1 retur   Criva (cap Criva Vama 0.2 km) → Grimăncăuți (cap Criva Vama 33.8 km) · stă Colicăuți 500′ · real 56.4 direct 40.6 capăt 41.5 dep 17.6 · P1 40.8
+   Z 09-22 07:46 → 09-22 11:31   225′ după 1 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 83′ · real 95.8 direct — capăt — dep 41.2 · la poarta SEBN Orhei
+   N 09-22 16:27 → 09-23 03:02   635′ după 1 retur   gara lipcani (cap Criva Vama 10.1 km) → Grimăncăuți (cap Criva Vama 33.8 km) · stă Colicăuți 548′ · real 45.8 direct 29.6 capăt 53.1 dep 12.6 · P1 29.6
+   Z 09-23 07:47 → 09-23 10:50   183′ după 1 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 60′ · real 95.9 direct — capăt — dep 41.2 · la poarta SEBN Orhei
+   N 09-23 16:23 → 09-24 03:02   639′ după 1 retur   gara lipcani (cap Criva Vama 10.1 km) → Grimăncăuți (cap Criva Vama 33.8 km) · stă Colicăuți 499′ · real 47.1 direct 29.5 capăt 53 dep 12.6 · P1 29.6
+   Z 09-24 07:46 → 09-24 10:57   191′ după 1 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 71′ · real 99.4 direct — capăt — dep 40.6 · la poarta SEBN Orhei
+   N 09-24 16:29 → 09-25 03:04   635′ după 1 retur   gara lipcani (cap Criva Vama 10.1 km) → Grimăncăuți (cap Criva Vama 33.8 km) · stă Colicăuți 535′ · real 48 direct 29.5 capăt 53 dep 12.6 · P1 29.6
+   Z 09-25 07:24 → 09-25 11:27   242′ după 1 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 101′ · real 95.6 direct — capăt — dep 41.2 · la poarta SEBN Orhei
+   N 09-25 16:34 → 09-28 03:02  3508′ după 1 retur   gara lipcani (cap Criva Vama 10.1 km) → Grimăncăuți (cap Criva Vama 33.9 km) · stă Colicăuți 3399′ · real 47 direct — capăt — dep 12.6 · peste 20 h (zi liberă)
+
+652TWK   atribuiri 10 · curse cu urmă 10 (2570.4 km) · km săpt. 3073 · goluri 10 (intră 9)
+   P: Pererita · real 170.1 → propus 36.2 · de tăiat 133.9 km/săpt. (nopți A 35.7 · B 98.2 · zi 0; doarme acum: Viișoara ×4; varianta «la capăt» 92.8; direct E→S 29.9)
+   Z 09-22 09:17 → 09-22 12:30   193′ după 18 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 193′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-22 16:54 → 09-23 03:56   663′ după 18 retur  Tețcani (cap Lipcani 16.2 km) → Pererita (cap Lipcani 10.7 km) · stă Viișoara 605′ · real 30.5 direct 6.4 capăt 29.8 dep 10 · P1 7.5
+   Z 09-23 09:06 → 09-23 12:30   204′ după 18 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 204′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-23 17:11 → 09-25 03:54  2083′ după 18 retur  Slobozia-Șirăuți (cap Lipcani 5.5 km) → Pererita (cap Lipcani 10.7 km) · stă Viișoara 1982′ · real 44 direct — capăt — dep 15.5 · peste 20 h (zi liberă)
+   Z 09-25 09:04 → 09-25 12:38   215′ după 18 tur    gara chisinau (cap Chișinău 0.1 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 215′ · real 0.1 direct 0.1 capăt — dep 0 · rămâne 0.1
+   N 09-25 17:01 → 09-26 03:44   643′ după 18 retur  Pererita (cap Lipcani 10.7 km) → gara lipcani (cap Lipcani 0 km) · stă Viișoara 494′ · real 52.9 direct 11.8 capăt 11.8 dep 15.5 · P1 13.2
+   Z 09-26 08:45 → 09-26 12:31   225′ după 18 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 225′ · real 0.1 direct 0 capăt — dep 0.1 · rămâne 0.1
+   N 09-26 17:00 → 09-27 03:54   654′ după 18 retur  Pererita (cap Lipcani 10.7 km) → Pererita (cap Lipcani 10.7 km) · stă Viișoara 550′ · real 37.4 direct 0 capăt 23.4 dep 15.5 · P1 1.9
+   Z 09-27 08:45 → 09-27 12:31   227′ după 18 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 227′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-27 17:20 → 09-28 03:50   630′ după 18 retur  gara lipcani (cap Lipcani 0.1 km) → Pererita (cap Lipcani 10.7 km) · stă Viișoara 501′ · real 48.8 direct 11.6 capăt 11.8 dep 15.5 · P1 13.1
+
+654TWK   atribuiri 14 · curse cu urmă 14 (3753 km) · km săpt. 3806.8 · goluri 13 (intră 7)
+   P: gara chisinau (stă acum) · real 7.9 → propus 7.9 · de tăiat 0 km/săpt. (nopți A 0 · B 0 · zi 0; doarme acum: gara chisinau ×7; varianta «la capăt» 0; direct E→S 0)
+   N 09-21 20:50 → 09-22 09:47   777′ după 14 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 748′ · real 3.8 direct 0 capăt — dep 1.6 · rămâne 3.8
+   Z 09-22 14:44 → 09-22 15:35    52′ după 14 retur  Criva (cap Criva Vama 0.2 km) → Criva (cap Criva Vama 0.2 km) · stă Criva (2.6 km) 39′ · real 7.2 direct — capăt — dep 3 · sub 60 min
+   N 09-22 20:40 → 09-23 10:01   801′ după 14 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 801′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   Z 09-23 15:31 → 09-23 15:39     9′ după 14 retur  Criva (cap Criva Vama 0.2 km) → Criva (cap Criva Vama 0.2 km) · stă Criva (3 km) 4′ · real 6.3 direct — capăt — dep 3 · sub 60 min
+   N 09-23 20:40 → 09-24 10:00   799′ după 14 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 779′ · real 3.8 direct 0 capăt — dep 1.6 · rămâne 3.8
+   Z 09-24 14:57 → 09-24 15:37    40′ după 14 retur  Criva (cap Criva Vama 0.2 km) → Criva (cap Criva Vama 0.2 km) · stă Criva 34′ · real 6.4 direct — capăt — dep 3 · sub 60 min
+   N 09-24 20:44 → 09-25 09:59   795′ după 14 tur    gara chisinau (cap Chișinău 0.1 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 795′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   Z 09-25 14:47 → 09-25 15:40    53′ după 14 retur  Criva (cap Criva Vama 0.2 km) → Criva (cap Criva Vama 0.2 km) · stă Criva 47′ · real 6.4 direct — capăt — dep 3 · sub 60 min
+   N 09-25 20:38 → 09-26 09:55   797′ după 14 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 797′ · real 0 direct 0 capăt — dep 0 · rămâne 0
+   Z 09-26 14:49 → 09-26 15:35    47′ după 14 retur  Criva (cap Criva Vama 0.2 km) → Criva (cap Criva Vama 0.2 km) · stă Criva (2.9 km) 40′ · real 6.5 direct — capăt — dep 3 · sub 60 min
+   N 09-26 20:38 → 09-27 09:56   798′ după 14 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 798′ · real 0 direct 0 capăt — dep 0 · rămâne 0
+   Z 09-27 14:47 → 09-27 15:30    44′ după 14 retur  Criva (cap Criva Vama 0.2 km) → Criva (cap Criva Vama 0.2 km) · stă Criva (3 km) 38′ · real 6.3 direct — capăt — dep 3 · sub 60 min
+   N 09-27 20:40 → 09-28 09:45   784′ după 14 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 784′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+
+662AKD   atribuiri 14 · curse cu urmă 14 (3837.3 km) · km săpt. 3958.5 · goluri 14 (intră 13)
+   P: Cricova · real 116 → propus 116 · de tăiat 0 km/săpt. (nopți A 0 · B 0 · zi 0; doarme acum: Drepcăuți ×5, Criva ×2; varianta «la capăt» 98.5; direct E→S 4.7)
+   Z 09-21 13:06 → 09-21 13:54    48′ după 19 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 48′ · real 0.1 direct — capăt — dep 0 · sub 60 min
+   N 09-21 19:59 → 09-22 06:01   602′ după 19 retur  Criva (cap Criva Vama 0.2 km) → Criva (cap Criva Vama 0.2 km) · stă Drepcăuți 582′ · real 16.9 direct 0 capăt 0.5 dep 5.1 · rămâne 16.9
+   Z 09-22 11:52 → 09-22 14:25   153′ după 19 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 153′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-22 18:57 → 09-23 06:04   667′ după 19 retur  Criva (cap Criva Vama 0.2 km) → Criva (cap Criva Vama 0.2 km) · stă Drepcăuți 629′ · real 24.1 direct 0.1 capăt 0.5 dep 5.2 · rămâne 24.1
+   Z 09-23 12:01 → 09-23 14:06   125′ după 19 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 125′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-23 18:51 → 09-24 06:02   672′ după 19 retur  Drepcăuți (cap Criva Vama 4.2 km) → Criva (cap Criva Vama 0.2 km) · stă Drepcăuți 657′ · real 10.5 direct 4.5 capăt 5.4 dep 2.1 · rămâne 10.5
+   Z 09-24 12:08 → 09-24 13:46    99′ după 19 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 50′ · real 7.7 direct 0 capăt — dep 2.2 · rămâne 7.7
+   N 09-24 18:48 → 09-25 06:04   676′ după 19 retur  Criva (cap Criva Vama 0.2 km) → Criva (cap Criva Vama 0.2 km) · stă Drepcăuți 639′ · real 23.5 direct 0 capăt 0.5 dep 5.2 · rămâne 23.5
+   Z 09-25 12:13 → 09-25 14:04   111′ după 19 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 111′ · real 0.5 direct 0 capăt — dep 0.1 · rămâne 0.5
+   N 09-25 19:00 → 09-26 06:07   667′ după 19 retur  Criva (cap Criva Vama 0.2 km) → Criva (cap Criva Vama 0.2 km) · stă Criva 659′ · real 7.5 direct 0 capăt 0.5 dep 3 · rămâne 7.5
+   Z 09-26 11:53 → 09-26 14:11   138′ după 19 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 138′ · real 0.3 direct 0 capăt — dep 0.1 · rămâne 0.3
+   N 09-26 19:01 → 09-27 06:05   664′ după 19 retur  Criva (cap Criva Vama 0.2 km) → Criva (cap Criva Vama 0.2 km) · stă Criva 643′ · real 7.5 direct 0.1 capăt 0.5 dep 3 · rămâne 7.5
+   Z 09-27 12:03 → 09-27 13:56   113′ după 19 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 113′ · real 0.4 direct 0 capăt — dep 0.1 · rămâne 0.4
+   N 09-27 19:31 → 09-28 06:01   630′ după 19 retur  Criva (cap Criva Vama 0.2 km) → Criva (cap Criva Vama 0.2 km) · stă Drepcăuți 597′ · real 16.9 direct 0 capăt 0.5 dep 5.1 · rămâne 16.9
+
+686AKD   atribuiri 14 · curse cu urmă 14 (3570.4 km) · km săpt. 3929.5 · goluri 14 (intră 11)
+   P: gara briceni · real 356.5 → propus 276 · de tăiat 80.5 km/săpt. (nopți A 0 · B 80.5 · zi 0; doarme acum: Beleavinți ×4, Caracușenii Noi ×2; varianta «la capăt» 85.9; direct E→S 263.5)
+   Z 09-21 13:14 → 09-21 14:46    92′ după 24 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 92′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-21 18:43 → 09-22 07:30   767′ după 24 retur  gara briceni (cap Criva Vama 32.8 km) → Criva (cap Criva Vama 0.2 km) · stă Caracușenii Noi 699′ · real 60.1 direct 37.6 capăt 38.5 dep 16.7 · P1 37.7
+   Z 09-22 13:16 → 09-22 14:25    70′ după 24 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 70′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-22 18:26 → 09-23 07:33   787′ după 24 retur  gara briceni (cap Criva Vama 32.8 km) → Criva (cap Criva Vama 0.2 km) · stă Caracușenii Noi 612′ · real 50.2 direct 37.6 capăt 38.5 dep 16.7 · P1 37.7
+   Z 09-23 13:12 → 09-23 14:39    87′ după 24 tur    gara chisinau (cap Chișinău 0.1 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 87′ · real 0.5 direct 0.1 capăt — dep 0.2 · rămâne 0.5
+   N 09-23 18:32 → 09-24 07:23   771′ după 24 retur  gara briceni (cap Criva Vama 32.8 km) → Criva (cap Criva Vama 0.2 km) · stă Beleavinți 668′ · real 56.5 direct 37.7 capăt 38.5 dep 16.7 · P1 37.7
+   Z 09-24 13:08 → 09-24 14:51   102′ după 24 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 102′ · real 0.2 direct 0 capăt — dep 0.1 · rămâne 0.2
+   N 09-24 18:40 → 09-25 07:32   771′ după 24 retur  gara briceni (cap Criva Vama 32.8 km) → Criva (cap Criva Vama 0.2 km) · stă Beleavinți 710′ · real 45 direct 37.7 capăt 38.5 dep 16.7 · P1 37.7
+   Z 09-25 14:14 → 09-25 14:20     5′ după 24 tur    gara chisinau (cap Chișinău 0 km) → Chișinău (cap Chișinău 2.5 km) · stă gara chisinau 1′ · real 2.8 direct — capăt — dep 1.2 · sub 60 min
+   N 09-25 17:47 → 09-26 07:32   825′ după 24 retur  gara briceni (cap Criva Vama 32.8 km) → Criva (cap Criva Vama 0.2 km) · stă Beleavinți 759′ · real 48.7 direct 37.6 capăt 38.5 dep 16.7 · P1 37.7
+   Z 09-26 14:18 → 09-26 14:31    13′ după 24 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 13′ · real 0 direct — capăt — dep 0 · sub 60 min
+   N 09-26 18:31 → 09-27 07:30   779′ după 24 retur  gara briceni (cap Criva Vama 32.8 km) → Criva (cap Criva Vama 0.2 km) · stă Beleavinți 722′ · real 46.1 direct 37.6 capăt 38.6 dep 16.7 · P1 37.6
+   Z 09-27 14:03 → 09-27 14:33    29′ după 24 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 29′ · real 0 direct — capăt — dep 0 · sub 60 min
+   N 09-27 18:22 → 09-28 07:28   786′ după 24 retur  gara briceni (cap Criva Vama 32.8 km) → Criva (cap Criva Vama 0.2 km) · stă Briceni 631′ · real 49 direct 37.6 capăt 38.6 dep 16.7 · rămâne 49
+
+688AKD   atribuiri 14 · curse cu urmă 14 (3466.8 km) · km săpt. 3942 · goluri 14 (intră 14)
+   P: Corjeuți · real 468.2 → propus 132.1 · de tăiat 336.1 km/săpt. (nopți A 0 · B 336.1 · zi 0; doarme acum: Halahora de Sus ×6, Mărcăuți ×1; varianta «la capăt» 335.9; direct E→S 125.7)
+   Z 09-21 14:55 → 09-21 17:07   131′ după 26 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 131′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-21 21:23 → 09-22 08:00   637′ după 26 retur  Caracușenii Vechi (cap Tețcani 12.3 km) → Tețcani (cap Tețcani 0.2 km) · stă Halahora de Sus 517′ · real 79.3 direct 15.4 capăt 15.3 dep 15.6 · P1 16.1
+   Z 09-22 13:44 → 09-22 17:22   217′ după 26 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 217′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-22 21:37 → 09-23 07:58   621′ după 26 retur  Corjeuți (cap Tețcani 6.8 km) → Tețcani (cap Tețcani 0.2 km) · stă Mărcăuți 512′ · real 84.4 direct 8.1 capăt 8 dep 20.2 · P1 8.8
+   Z 09-23 13:44 → 09-23 17:21   217′ după 26 tur    gara chisinau (cap Chișinău 0.1 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 217′ · real 0.2 direct 0.1 capăt — dep 0.1 · rămâne 0.2
+   N 09-23 20:43 → 09-24 08:01   677′ după 26 retur  Tabani (cap Tețcani 18 km) → Tețcani (cap Tețcani 0.3 km) · stă Halahora de Sus 471′ · real 57.9 direct 23.1 capăt 24.5 dep 13.5 · P1 23.8
+   Z 09-24 13:37 → 09-24 16:50   193′ după 26 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 193′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-24 21:00 → 09-25 07:59   659′ după 26 retur  Tabani (cap Tețcani 18 km) → Tețcani (cap Tețcani 0.2 km) · stă Halahora de Sus 530′ · real 76.2 direct 23.1 capăt 24.4 dep 15.6 · P1 23.8
+   Z 09-25 13:56 → 09-25 16:50   174′ după 26 tur    gara chisinau (cap Chișinău 0 km) → Chișinău (cap Chișinău 1.8 km) · stă gara chisinau 172′ · real 2 direct 1.9 capăt — dep 0.9 · rămâne 2
+   N 09-25 20:31 → 09-26 07:42   671′ după 26 retur  Tabani (cap Tețcani 18 km) → Tețcani (cap Tețcani 0.6 km) · stă Halahora de Sus 581′ · real 45.2 direct 22.3 capăt 25 dep 13 · P1 23
+   Z 09-26 13:38 → 09-26 17:07   209′ după 26 tur    gara chisinau (cap Chișinău 0.1 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 209′ · real 0.5 direct 0.1 capăt — dep 0.2 · rămâne 0.5
+   N 09-26 20:54 → 09-27 07:41   647′ după 26 retur  Caracușenii Vechi (cap Tețcani 13 km) → Tețcani (cap Tețcani 0 km) · stă Halahora de Sus 557′ · real 50.2 direct 16.1 capăt 16.1 dep 11.3 · P1 16.8
+   Z 09-27 13:42 → 09-27 17:04   202′ după 26 tur    gara chisinau (cap Chișinău 0.1 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 202′ · real 0.6 direct 0.1 capăt — dep 0.2 · rămâne 0.6
+   N 09-27 21:14 → 09-28 08:00   646′ după 26 retur  Caracușenii Vechi (cap Tețcani 12.3 km) → Tețcani (cap Tețcani 0.2 km) · stă Halahora de Sus 554′ · real 71.4 direct 15.4 capăt 15.4 dep 15.6 · P1 16.2
+
+692 TWK  atribuiri 14 · curse cu urmă 14 (3545.6 km) · km săpt. 4024.8 · goluri 13 (intră 9)
+   P: Hlina · real 470 → propus 226.8 · de tăiat 243.2 km/săpt. (nopți A 0 · B 243.2 · zi 0; doarme acum: gara briceni ×4, Briceni ×3; varianta «la capăt» 256.2; direct E→S 207.1)
+   Z 09-21 15:20 → 09-21 15:56    36′ după 28 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 36′ · real 0 direct — capăt — dep 0 · sub 60 min
+   N 09-21 20:32 → 09-22 09:37   784′ după 28 retur  gara briceni (cap Criva Vama 32.8 km) → Criva (cap Criva Vama 0.2 km) · stă gara briceni 533′ · real 63.4 direct 37.6 capăt 38.5 dep 16.7 · P1 38.6
+   Z 09-22 15:25 → 09-22 16:01    36′ după 28 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 36′ · real 0 direct — capăt — dep 0 · sub 60 min
+   N 09-22 20:33 → 09-23 09:42   789′ după 28 retur  gara briceni (cap Criva Vama 32.8 km) → Criva (cap Criva Vama 0.2 km) · stă gara briceni 621′ · real 65.1 direct 37.7 capăt 38.6 dep 16.7 · P1 38.7
+   Z 09-23 15:24 → 09-23 16:00    36′ după 28 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 36′ · real 0 direct — capăt — dep 0 · sub 60 min
+   N 09-23 20:29 → 09-24 09:39   790′ după 28 retur  gara briceni (cap Criva Vama 32.8 km) → Criva (cap Criva Vama 0.2 km) · stă Briceni 571′ · real 62.6 direct 37.6 capăt 38.5 dep 16.6 · P1 38.6
+   Z 09-24 15:20 → 09-24 16:05    45′ după 28 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 45′ · real 0.1 direct — capăt — dep 0 · sub 60 min
+   N 09-24 20:34 → 09-25 09:37   783′ după 28 retur  Berlinți (cap Criva Vama 20.6 km) → Criva (cap Criva Vama 0.2 km) · stă gara briceni 622′ · real 76.1 direct 23.3 capăt 24.2 dep 15.6 · P1 24.2
+   N 09-25 20:17 → 09-26 09:36   800′ după 28 retur  gara lipcani (cap Criva Vama 10.1 km) → Criva (cap Criva Vama 0.2 km) · stă Briceni 671′ · real 72.8 direct 11.1 capăt 12 dep 24 · P1 24.6
+   Z 09-26 15:17 → 09-26 16:46    90′ după 28 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 90′ · real 0.2 direct 0 capăt — dep 0 · rămâne 0.2
+   N 09-26 21:01 → 09-27 09:41   760′ după 28 retur  Beleavinți (cap Criva Vama 19.8 km) → Criva (cap Criva Vama 0.2 km) · stă Briceni 662′ · real 60.6 direct 22.2 capăt 23.1 dep 14 · P1 23.2
+   Z 09-27 15:21 → 09-27 16:41    80′ după 28 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 80′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-27 20:37 → 09-28 09:50   792′ după 28 retur  gara briceni (cap Criva Vama 32.8 km) → Criva (cap Criva Vama 0.2 km) · stă gara briceni 615′ · real 69.1 direct 37.6 capăt 38.6 dep 16.7 · P1 38.6
+
+697TWK   atribuiri 12 · curse cu urmă 12 (2809.4 km) · km săpt. 3133.7 · goluri 10 (intră 7)
+   P: Hancăuți · real 166.1 → propus 84.3 · de tăiat 81.8 km/săpt. (nopți A 0 · B 81.8 · zi 0; doarme acum: Corpaci ×4; varianta «la capăt» 0; direct E→S 78.2)
+   Z 09-21 17:10 → 09-21 17:50    40′ după 5 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 40′ · real 0.9 direct — capăt — dep 0.1 · sub 60 min
+   N 09-21 21:50 → 09-22 11:21   811′ după 5 retur   Corpaci (cap Lipcani 37.7 km) → Hancăuți (cap Lipcani 36.9 km) · stă Corpaci 711′ · real 56.2 direct 5.9 capăt 110.8 dep 17.1 · P1 6.4
+   Z 09-22 16:05 → 09-22 17:20    75′ după 5 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 75′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-22 21:40 → 09-23 10:42   783′ după 5 retur   Corpaci (cap Lipcani 37.6 km) → Lopatnic (cap Lipcani 23.5 km) · stă Corpaci 737′ · real 34.2 direct 32.1 capăt 84.4 dep 8.1 · rămâne 34.2
+   N 09-23 21:57 → 09-25 11:22  2245′ după 5 retur   Corpaci (cap Lipcani 37.6 km) → Hancăuți (cap Lipcani 36.9 km) · stă Corpaci 1442′ · real 108.4 direct — capăt — dep 34.6 · peste 20 h (zi liberă)
+   Z 09-25 16:01 → 09-25 17:50   109′ după 5 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 109′ · real 1 direct 0 capăt — dep 0.1 · rămâne 1
+   N 09-25 22:30 → 09-26 11:18   768′ după 5 retur   Bădragii Noi (cap Lipcani 29.8 km) → Hancăuți (cap Lipcani 36.9 km) · stă Corpaci 708′ · real 46.4 direct 17.1 capăt 87.8 dep 6 · P1 17.9
+   Z 09-26 17:19 → 09-26 17:52    33′ după 5 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 33′ · real 1.4 direct — capăt — dep 0.2 · sub 60 min
+   N 09-26 21:46 → 09-27 11:02   796′ după 5 retur   Corpaci (cap Lipcani 37.7 km) → Bădragii Noi (cap Lipcani 29.7 km) · stă Corpaci 758′ · real 27.1 direct 23.1 capăt 93.6 dep 7.9 · P1 23.6
+   Z 09-27 16:00 → 09-27 17:48   108′ după 5 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 108′ · real 1.1 direct 0 capăt — dep 0.1 · rămâne 1.1
+
+703TWK   atribuiri 14 · curse cu urmă 14 (3474.5 km) · km săpt. 3861.1 · goluri 8 (intră 7)
+   P: Lipcani · real 372.2 → propus 253.5 · de tăiat 118.7 km/săpt. (nopți A 0 · B 118.7 · zi 0; doarme acum: Bulboaca ×4, Briceni ×3; varianta «la capăt» 108.6; direct E→S 252.8)
+   N 09-21 19:28 → 09-22 08:50   801′ după 27 retur  gara briceni (cap Criva Vama 32.8 km) → gara lipcani (cap Criva Vama 10.1 km) · stă Briceni 689′ · real 32.5 direct 26.7 capăt 50.2 dep 11.8 · P1 26.7
+   N 09-22 19:23 → 09-23 08:45   802′ după 27 retur  gara briceni (cap Criva Vama 32.8 km) → Criva (cap Criva Vama 0.2 km) · stă Briceni 733′ · real 44.3 direct 37.7 capăt 38.5 dep 16.7 · P1 37.8
+   N 09-23 19:20 → 09-24 08:45   805′ după 27 retur  gara briceni (cap Criva Vama 32.8 km) → Criva (cap Criva Vama 0.2 km) · stă Bulboaca 669′ · real 55.7 direct 37.7 capăt 38.6 dep 16.7 · P1 37.8
+   N 09-24 19:22 → 09-25 08:44   802′ după 27 retur  gara briceni (cap Criva Vama 32.8 km) → Criva (cap Criva Vama 0.2 km) · stă Bulboaca 700′ · real 63.7 direct 37.6 capăt 38.5 dep 16.7 · P1 37.8
+   Z 09-25 15:01 → 09-25 15:05     4′ după 27 tur    gara chisinau (cap Chișinău 0 km) → Chișinău (cap Chișinău 2.5 km) · stă gara chisinau 1′ · real 2.7 direct — capăt — dep 1.2 · sub 60 min
+   N 09-25 18:51 → 09-26 08:47   836′ după 27 retur  gara briceni (cap Criva Vama 32.8 km) → Criva (cap Criva Vama 0.2 km) · stă Bulboaca 675′ · real 63.9 direct 37.7 capăt 38.5 dep 16.7 · P1 37.8
+   N 09-26 19:24 → 09-27 08:46   802′ după 27 retur  gara briceni (cap Criva Vama 32.8 km) → Criva (cap Criva Vama 0.2 km) · stă Bulboaca 703′ · real 64.4 direct 37.7 capăt 38.5 dep 16.7 · P1 37.8
+   N 09-27 19:21 → 09-28 08:44   803′ după 27 retur  gara briceni (cap Criva Vama 32.8 km) → Criva (cap Criva Vama 0.2 km) · stă Briceni 680′ · real 47.7 direct 37.7 capăt 38.5 dep 16.7 · P1 37.8
+
+711CWN   atribuiri 6 · curse cu urmă 6 (1481 km) · km săpt. 2166.5 · goluri 5 (intră 4)
+   P: Briceni · real 137.7 → propus 72.4 · de tăiat 65.3 km/săpt. (nopți A 34 · B 31.3 · zi 0; doarme acum: Mărcăuți ×2; varianta «la capăt» 72.6; direct E→S 63.7)
+   N 09-22 16:33 → 09-26 02:55  4943′ după 20 retur  Hlina (cap Criva Vama 15.4 km) → Grimăncăuți (cap Criva Vama 33.9 km) · stă Briceni 4887′ · real 23.6 direct — capăt — dep 9.9 · peste 20 h (zi liberă)
+   Z 09-26 07:08 → 09-26 11:30   263′ după 1 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 263′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-26 15:30 → 09-27 06:46   916′ după 1 retur   Caracușenii Noi (cap Criva Vama 27.3 km) → Caracușenii Vechi (cap Caracușenii Vechi 0.2 km) · stă Mărcăuți 796′ · real 52.1 direct 16.4 capăt 16.8 dep 13.2 · P1 20.8
+   Z 09-27 11:38 → 09-27 16:27   289′ după 25 tur    gara chisinau (cap Chișinău 0.1 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 289′ · real 0.1 direct 0.1 capăt — dep 0 · rămâne 0.1
+   N 09-27 20:32 → 09-28 12:00   928′ după 25 retur  Caracușenii Vechi (cap Caracușenii Vechi 0.2 km) → Criva (cap Criva Vama 0.2 km) · stă Mărcăuți 781′ · real 85.4 direct 47.2 capăt 48.1 dep 15.2 · P1 51.4
+
+735LYY   atribuiri 14 · curse cu urmă 14 (3301.4 km) · km săpt. 3577.9 · goluri 8 (intră 7)
+   P: Tețcani · real 270.6 → propus 35.8 · de tăiat 234.8 km/săpt. (nopți A 87.6 · B 147.2 · zi 0; doarme acum: Fetești ×5, Briceni ×2; varianta «la capăt» 234.8; direct E→S 30.3)
+   N 09-21 16:06 → 09-22 05:44   818′ după 6 retur   Tețcani (cap Tețcani 0.1 km) → Tețcani (cap Tețcani 0.1 km) · stă Briceni 739′ · real 54.8 direct 0 capăt 0.1 dep 21.2 · P1 0.1
+   N 09-22 15:50 → 09-23 05:57   847′ după 6 retur   Corjeuți (cap Tețcani 6.1 km) → Tețcani (cap Tețcani 0.1 km) · stă Briceni 787′ · real 47.8 direct 6.5 capăt 6.7 dep 16.1 · P1 6.7
+   N 09-23 15:56 → 09-24 05:57   841′ după 6 retur   Corjeuți (cap Tețcani 6 km) → Tețcani (cap Tețcani 0.6 km) · stă Fetești 711′ · real 63.2 direct 6 capăt 7.3 dep 16.1 · P1 7.3
+   N 09-24 15:53 → 09-25 06:11   857′ după 6 retur   Corjeuți (cap Tețcani 6 km) → Tețcani (cap Tețcani 0.6 km) · stă Fetești 753′ · real 24.7 direct 5.9 capăt 7.1 dep 6.1 · P1 7.1
+   Z 09-25 10:37 → 09-25 11:34    57′ după 6 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 57′ · real 0 direct — capăt — dep 0 · sub 60 min
+   N 09-25 15:53 → 09-26 06:05   852′ după 6 retur   Corjeuți (cap Tețcani 6 km) → Tețcani (cap Tețcani 0.6 km) · stă Fetești 757′ · real 23.9 direct 6 capăt 7.3 dep 6.7 · P1 7.3
+   N 09-26 15:52 → 09-27 06:05   853′ după 6 retur   Tețcani (cap Tețcani 0 km) → Tețcani (cap Tețcani 0.1 km) · stă Fetești 718′ · real 33 direct 0 capăt 0.1 dep 8.8 · P1 0.1
+   N 09-27 15:43 → 09-28 06:00   857′ după 6 retur   Corjeuți (cap Tețcani 6 km) → Tețcani (cap Tețcani 0.6 km) · stă Fetești 775′ · real 23.2 direct 5.9 capăt 7.2 dep 6.1 · P1 7.2
+
+759LYY   atribuiri 12 · curse cu urmă 12 (3208.9 km) · km săpt. 3232.9 · goluri 12 (intră 11)
+   P: Cricova · real 19.9 → propus 19.9 · de tăiat 0 km/săpt. (nopți A 0 · B 0 · zi 0; doarme acum: gara chisinau ×5; varianta «la capăt» 0; direct E→S 0.6)
+   Z 09-21 14:31 → 09-21 16:55   144′ după 15 retur  Criva (cap Criva Vama 0.2 km) → Criva (cap Criva Vama 0.2 km) · stă Criva 144′ · real 0 direct 0 capăt 0.5 dep 0 · rămâne 0
+   N 09-21 21:56 → 09-23 09:10  2113′ după 15 tur    gara chisinau (cap Chișinău 0.1 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 2113′ · real 0.1 direct — capăt — dep 0 · peste 20 h (zi liberă)
+   Z 09-23 14:41 → 09-23 17:27   167′ după 15 retur  Criva (cap Criva Vama 0.3 km) → Criva (cap Criva Vama 0.3 km) · stă Criva 149′ · real 6.1 direct 0.2 capăt 0.5 dep 2.9 · rămâne 6.1
+   N 09-23 22:18 → 09-24 09:10   651′ după 15 tur    gara chisinau (cap Chișinău 0.1 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 651′ · real 0.1 direct 0.1 capăt — dep 0 · rămâne 0.1
+   Z 09-24 15:17 → 09-24 16:55    98′ după 15 retur  Criva (cap Criva Vama 0.2 km) → Criva (cap Criva Vama 0.2 km) · stă Criva 98′ · real 0 direct 0 capăt 0.5 dep 0 · rămâne 0
+   N 09-24 22:15 → 09-25 09:10   654′ după 15 tur    gara chisinau (cap Chișinău 0.1 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 654′ · real 0.2 direct 0 capăt — dep 0.1 · rămâne 0.2
+   Z 09-25 14:22 → 09-25 17:31   189′ după 15 retur  Criva (cap Criva Vama 0.2 km) → Criva (cap Criva Vama 0.2 km) · stă Criva 146′ · real 6.2 direct 0 capăt 0.5 dep 3 · rămâne 6.2
+   N 09-25 21:58 → 09-26 09:10   672′ după 15 tur    gara chisinau (cap Chișinău 0.1 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 672′ · real 0.5 direct 0.1 capăt — dep 0.1 · rămâne 0.5
+   Z 09-26 14:19 → 09-26 16:55   156′ după 15 retur  Criva (cap Criva Vama 0.3 km) → Criva (cap Criva Vama 0.2 km) · stă Criva 156′ · real 0.1 direct 0.1 capăt 0.5 dep 0 · rămâne 0.1
+   N 09-26 21:55 → 09-27 09:10   675′ după 15 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 675′ · real 0 direct 0 capăt — dep 0 · rămâne 0
+   Z 09-27 14:23 → 09-27 17:27   184′ după 15 retur  Criva (cap Criva Vama 0.3 km) → Criva (cap Criva Vama 0.2 km) · stă Criva 166′ · real 6.2 direct 0 capăt 0.5 dep 2.9 · rămâne 6.2
+   N 09-27 21:52 → 09-28 09:10   678′ după 15 tur    gara chisinau (cap Chișinău 0.1 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 678′ · real 0.5 direct 0.1 capăt — dep 0.1 · rămâne 0.5
+
+776MJW   atribuiri 12 · curse cu urmă 12 (3225.1 km) · km săpt. 3318.8 · goluri 9 (intră 5)
+   P: gara chisinau (stă acum) · real 57.6 → propus 0.4 · de tăiat 57.2 km/săpt. (nopți A 57.2 · B 0 · zi 0; doarme acum: Chișinău ×3, gara chisinau ×2; varianta «la capăt» 0; direct E→S 0)
+   N 09-21 18:31 → 09-22 07:00   749′ după 11 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă Chișinău 592′ · real 20.3 direct 0 capăt — dep 6.5 · P1 0.1
+   Z 09-22 12:30 → 09-22 12:58    29′ după 11 retur  Criva (cap Criva Vama 0.2 km) → Criva (cap Criva Vama 0.2 km) · stă Criva (2.6 km) 21′ · real 6.7 direct — capăt — dep 3 · sub 60 min
+   N 09-22 18:30 → 09-24 07:00  2191′ după 11 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 1151′ · real 8 direct — capăt — dep 2.2 · peste 20 h (zi liberă)
+   N 09-24 19:20 → 09-25 07:00   699′ după 11 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă Chișinău 624′ · real 19 direct 0 capăt — dep 6.5 · P1 0
+   Z 09-25 12:36 → 09-25 13:26    50′ după 11 retur  Criva (cap Criva Vama 0.2 km) → Criva (cap Criva Vama 0.2 km) · stă Criva (2.7 km) 30′ · real 6.9 direct — capăt — dep 2.9 · sub 60 min
+   N 09-25 18:36 → 09-26 07:02   746′ după 11 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 746′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   Z 09-26 12:36 → 09-26 13:23    47′ după 11 retur  Criva (cap Criva Vama 0.2 km) → Criva (cap Criva Vama 0.2 km) · stă Criva (3 km) 40′ · real 6.2 direct — capăt — dep 3 · sub 60 min
+   N 09-26 18:33 → 09-27 07:00   746′ după 11 tur    gara chisinau (cap Chișinău 0.1 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 746′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-27 19:10 → 09-28 07:00   710′ după 11 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă Chișinău 662′ · real 18.1 direct 0 capăt — dep 6.2 · P1 0.1
+
+784MJW   atribuiri 12 · curse cu urmă 12 (3117.6 km) · km săpt. 3347.4 · goluri 11 (intră 5)
+   P: gara lipcani · real 200.9 → propus 106.7 · de tăiat 94.2 km/săpt. (nopți A 41.6 · B 52.6 · zi 0; doarme acum: Beleavinți ×4, Briceni ×1; varianta «la capăt» 90.5; direct E→S 105.7)
+   Z 09-21 08:13 → 09-21 08:28    15′ după 16 tur    gara chisinau (cap Chișinău 0 km) → Chișinău (cap Chișinău 8.1 km) · stă Chișinău 2′ · real 8.8 direct — capăt — dep 4.1 · sub 60 min
+   N 09-21 12:44 → 09-22 03:07   863′ după 10 retur  gara lipcani (cap Criva Vama 10.1 km) → Criva (cap Criva Vama 0.2 km) · stă Beleavinți 825′ · real 40 direct 11.2 capăt 12.1 dep 10.3 · P1 11.2
+   Z 09-22 07:28 → 09-22 08:20    52′ după 16 tur    gara chisinau (cap Chișinău 0 km) → Chișinău (cap Chișinău 2.4 km) · stă gara chisinau 49′ · real 2.5 direct — capăt — dep 1.2 · sub 60 min
+   N 09-22 13:12 → 09-23 03:07   835′ după 10 retur  Beleavinți (cap Criva Vama 19.9 km) → Criva (cap Criva Vama 0.2 km) · stă Beleavinți 806′ · real 29.5 direct 22.9 capăt 23.8 dep 10.1 · P1 23.2
+   Z 09-23 08:14 → 09-23 08:25    10′ după 16 tur    gara chisinau (cap Chișinău 0 km) → Chișinău (cap Chișinău 8 km) · stă Chișinău 1′ · real 8.8 direct — capăt — dep 4.1 · sub 60 min
+   N 09-23 12:32 → 09-24 03:03   871′ după 10 retur  Beleavinți (cap Criva Vama 19.9 km) → Criva (cap Criva Vama 0.2 km) · stă Beleavinți 842′ · real 29.8 direct 22.8 capăt 23.7 dep 10.1 · P1 23.1
+   Z 09-24 07:25 → 09-24 08:20    55′ după 16 tur    gara chisinau (cap Chișinău 0 km) → Chișinău (cap Chișinău 2.1 km) · stă gara chisinau 52′ · real 2.2 direct — capăt — dep 1.1 · sub 60 min
+   N 09-24 11:59 → 09-25 03:13   914′ după 10 retur  gara briceni (cap Criva Vama 32.8 km) → Criva (cap Criva Vama 0.2 km) · stă Briceni 720′ · real 48.8 direct 37.6 capăt 38.6 dep 16.7 · P1 38
+   N 09-25 12:37 → 09-27 03:03  2306′ după 13 retur  gara lipcani (cap Lipcani 0.1 km) → Criva (cap Criva Vama 0.2 km) · stă Beleavinți 2234′ · real 39.8 direct — capăt — dep 10.2 · peste 20 h (zi liberă)
+   Z 09-27 07:13 → 09-27 07:31    19′ după 16 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 19′ · real 0 direct — capăt — dep 0 · sub 60 min
+   N 09-27 12:27 → 09-28 03:04   877′ după 13 retur  gara lipcani (cap Lipcani 0 km) → Criva (cap Criva Vama 0.2 km) · stă Beleavinți 783′ · real 52.8 direct 11.2 capăt 12.2 dep 10.3 · P1 11.2
+
+789MJW   atribuiri 14 · curse cu urmă 14 (3718.2 km) · km săpt. 4024 · goluri 14 (intră 14)
+   P: Șirăuți · real 294.1 → propus 192.5 · de tăiat 101.6 km/săpt. (nopți A 51.3 · B 50.3 · zi 0; doarme acum: Lipcani ×5, Briceni ×2; varianta «la capăt» 260.9; direct E→S 27.9)
+   Z 09-21 12:51 → 09-21 14:52   121′ după 23 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 121′ · real 0 direct 0 capăt — dep 0 · rămâne 0
+   N 09-21 19:44 → 09-22 07:15   691′ după 23 retur  Criva (cap Criva Vama 0.2 km) → Criva (cap Criva Vama 0.2 km) · stă Briceni 545′ · real 83.1 direct 0 capăt 0.5 dep 33.2 · P1 33.9
+   Z 09-22 12:46 → 09-22 15:01   135′ după 23 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 135′ · real 0 direct 0 capăt — dep 0 · rămâne 0
+   N 09-22 19:39 → 09-23 07:10   691′ după 23 retur  Criva (cap Criva Vama 0.2 km) → Criva (cap Criva Vama 0.2 km) · stă Lipcani 619′ · real 36.1 direct 0 capăt 0.5 dep 10.2 · P1 34
+   Z 09-23 12:52 → 09-23 14:48   116′ după 23 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 116′ · real 0 direct 0 capăt — dep 0 · rămâne 0
+   N 09-23 19:59 → 09-24 07:08   670′ după 23 retur  Drepcăuți (cap Criva Vama 5.6 km) → Criva (cap Criva Vama 0.2 km) · stă Lipcani 632′ · real 20.6 direct 6.1 capăt 6.9 dep 4.6 · rămâne 20.6
+   Z 09-24 12:58 → 09-24 14:49   111′ după 23 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 111′ · real 0 direct 0 capăt — dep 0 · rămâne 0
+   N 09-24 19:59 → 09-25 07:11   672′ după 23 retur  Criva (cap Criva Vama 1.5 km) → Criva (cap Criva Vama 0.2 km) · stă Lipcani 624′ · real 27.2 direct 1.7 capăt 2.5 dep 8.7 · rămâne 27.2
+   Z 09-25 13:09 → 09-25 14:45    96′ după 23 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0.1 km) · stă gara chisinau 96′ · real 0.2 direct 0.1 capăt — dep 0 · rămâne 0.2
+   N 09-25 19:42 → 09-26 07:14   692′ după 23 retur  Drepcăuți (cap Criva Vama 4.1 km) → Criva (cap Criva Vama 0.2 km) · stă Lipcani 606′ · real 28.3 direct 4.5 capăt 5.3 dep 7.2 · rămâne 28.3
+   Z 09-26 14:04 → 09-26 15:06    62′ după 23 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 62′ · real 0 direct 0 capăt — dep 0 · rămâne 0
+   N 09-26 19:36 → 09-27 07:16   700′ după 23 retur  gara lipcani (cap Criva Vama 10.1 km) → Criva (cap Criva Vama 0.2 km) · stă Briceni 573′ · real 73.1 direct 11.1 capăt 12 dep 23.9 · P1 22.8
+   Z 09-27 12:42 → 09-27 14:50   128′ după 23 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 128′ · real 0 direct 0 capăt — dep 0 · rămâne 0
+   N 09-27 19:33 → 09-28 07:11   698′ după 23 retur  Drepcăuți (cap Criva Vama 4.1 km) → Criva (cap Criva Vama 0.2 km) · stă Lipcani 638′ · real 25.5 direct 4.4 capăt 5.3 dep 6.1 · rămâne 25.5
+
+795 MJW  atribuiri 14 · curse cu urmă 14 (3624.9 km) · km săpt. 4090.7 · goluri 14 (intră 13)
+   P: Hlina · real 456.1 → propus 180 · de tăiat 276.1 km/săpt. (nopți A 0 · B 276.1 · zi 0; doarme acum: Briceni ×7; varianta «la capăt» 314.2; direct E→S 135)
+   Z 09-21 11:22 → 09-21 13:11   108′ după 22 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 108′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-21 17:35 → 09-22 06:14   759′ după 22 retur  Hlina (cap Criva Vama 15.4 km) → Criva (cap Criva Vama 0.2 km) · stă Briceni 628′ · real 69.7 direct 17.3 capăt 18.2 dep 18.3 · P1 18.4
+   Z 09-22 11:26 → 09-22 13:03    97′ după 22 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 97′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-22 17:51 → 09-23 06:19   747′ după 22 retur  gara lipcani (cap Criva Vama 10.1 km) → Criva (cap Criva Vama 0.2 km) · stă Briceni 604′ · real 72.3 direct 11.1 capăt 12 dep 24 · P1 24.6
+   Z 09-23 11:13 → 09-23 13:31   138′ după 22 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 138′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-23 18:06 → 09-24 06:17   731′ după 22 retur  gara lipcani (cap Criva Vama 10.1 km) → Criva (cap Criva Vama 0.2 km) · stă Briceni 602′ · real 71 direct 11.1 capăt 12 dep 24 · P1 24.6
+   Z 09-24 11:16 → 09-24 13:34   137′ după 22 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 137′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-24 17:30 → 09-25 06:18   768′ după 22 retur  Berlinți (cap Criva Vama 21.5 km) → Criva (cap Criva Vama 0.2 km) · stă Briceni 688′ · real 61.7 direct 24.4 capăt 25.3 dep 12.1 · P1 25.4
+   Z 09-25 11:23 → 09-25 13:05   102′ după 22 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 102′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-25 17:06 → 09-26 06:17   791′ după 22 retur  gara briceni (cap Criva Vama 32.8 km) → Criva (cap Criva Vama 0.3 km) · stă Briceni 636′ · real 52.4 direct 37.7 capăt 38.6 dep 16.7 · P1 38.6
+   Z 09-26 12:35 → 09-26 13:01    26′ după 22 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 26′ · real 0 direct — capăt — dep 0 · sub 60 min
+   N 09-26 17:53 → 09-27 06:17   743′ după 22 retur  gara lipcani (cap Criva Vama 10.1 km) → Criva (cap Criva Vama 0.2 km) · stă Briceni 628′ · real 71.3 direct 11.1 capăt 12 dep 24 · P1 24.6
+   Z 09-27 11:16 → 09-27 13:04   108′ după 22 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 108′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-27 17:35 → 09-28 06:16   761′ după 22 retur  Beleavinți (cap Criva Vama 19.8 km) → Criva (cap Criva Vama 0.2 km) · stă Briceni 655′ · real 57.1 direct 22.3 capăt 23.2 dep 14 · P1 23.2
+
+805BXI   atribuiri 14 · curse cu urmă 14 (3460.8 km) · km săpt. 4020.4 · goluri 11 (intră 8)
+   P: Frunză · real 493.6 → propus 185.4 · de tăiat 308.2 km/săpt. (nopți A 124.3 · B 183.9 · zi 0; doarme acum: Clocușna ×6, Maiovca ×1; varianta «la capăt» 305.6; direct E→S 179.2)
+   N 09-21 22:22 → 09-22 12:05   822′ după 21 retur  Mihălășeni (2.8 km) (cap Otaci 27.7 km) → Otaci (cap Otaci 0.7 km) · stă Clocușna 734′ · real 60.8 direct 39.1 capăt 41.5 dep 13.9 · P1 40
+   Z 09-22 17:56 → 09-22 18:25    29′ după 21 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 29′ · real 0 direct — capăt — dep 0 · sub 60 min
+   N 09-22 22:55 → 09-23 12:39   824′ după 21 retur  gara ocnita (cap Otaci 22.7 km) → Otaci (cap Otaci 0.6 km) · stă Clocușna 701′ · real 63.7 direct 27.2 capăt 29 dep 11.2 · P1 28.1
+   Z 09-23 17:44 → 09-23 18:25    40′ după 21 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 40′ · real 0 direct — capăt — dep 0 · sub 60 min
+   N 09-23 23:12 → 09-24 09:17   605′ după 21 retur  Bîrnova (cap Otaci 19.8 km) → Mihăilenii Noi (cap Ocnița 43 km) · stă Clocușna 579′ · real 22.8 direct 68.3 capăt 68.9 dep 13.4 · rămâne 22.8
+   Z 09-24 12:27 → 09-24 15:25   178′ după 3 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 178′ · real 0 direct 0 capăt — dep 0 · rămâne 0
+   N 09-24 19:58 → 09-25 12:05   966′ după 3 retur   gara ocnita (cap Ocnița 0.1 km) → Otaci (cap Otaci 0.6 km) · stă Clocușna 652′ · real 152.4 direct 27.2 capăt 29 dep 29.9 · P1 28.1
+   N 09-25 23:37 → 09-26 12:05   748′ după 21 retur  Frunză (cap Otaci 15 km) → Otaci (cap Otaci 0.6 km) · stă Clocușna 640′ · real 72.7 direct 17.4 capăt 19.2 dep 18.4 · P1 18.7
+   N 09-26 23:11 → 09-27 12:12   780′ după 21 retur  gara ocnita (cap Otaci 22.7 km) → Otaci (cap Otaci 0.2 km) · stă Clocușna 721′ · real 64.4 direct 27.6 capăt 28.2 dep 11.1 · P1 28.5
+   Z 09-27 17:41 → 09-27 18:25    43′ după 21 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 43′ · real 0 direct — capăt — dep 0 · sub 60 min
+   N 09-27 22:38 → 09-28 12:07   809′ după 21 retur  Frunză (cap Otaci 15 km) → Otaci (cap Otaci 0.2 km) · stă Maiovca 384′ · real 56.8 direct 17.9 capăt 18.3 dep 15.8 · P1 19.2
+
+819BXI   atribuiri 14 · curse cu urmă 14 (3645.6 km) · km săpt. 3834.4 · goluri 14 (intră 14)
+   P: Hlina · real 178.7 → propus 103.9 · de tăiat 74.8 km/săpt. (nopți A 0 · B 74.8 · zi 0; doarme acum: Drepcăuți ×5, Caracușenii Noi ×1; varianta «la capăt» 101.4; direct E→S 69)
+   Z 09-21 18:01 → 09-21 19:30    88′ după 8 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 88′ · real 0 direct 0 capăt — dep 0 · rămâne 0
+   N 09-21 23:53 → 09-22 12:43   770′ după 8 retur   Drepcăuți (cap Criva Vama 4.2 km) → Criva (cap Criva Vama 0.3 km) · stă Drepcăuți 685′ · real 12 direct 4.6 capăt 5.4 dep 2.9 · rămâne 12
+   Z 09-22 17:57 → 09-22 19:30    93′ după 8 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 93′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-23 00:01 → 09-23 12:48   766′ după 8 retur   Drepcăuți (cap Criva Vama 4.1 km) → Criva (cap Criva Vama 0.2 km) · stă Drepcăuți 673′ · real 12 direct 4.4 capăt 5.3 dep 3 · rămâne 12
+   Z 09-23 18:09 → 09-23 19:30    81′ după 8 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 81′ · real 0.1 direct 0 capăt — dep 0 · rămâne 0.1
+   N 09-23 23:47 → 09-24 12:10   743′ după 8 retur   Drepcăuți (cap Criva Vama 4.1 km) → Criva (cap Criva Vama 0.3 km) · stă Drepcăuți 586′ · real 11.7 direct 4.3 capăt 5.4 dep 2.9 · rămâne 11.7
+   Z 09-24 17:49 → 09-24 19:30   100′ după 8 tur     gara chisinau (cap Chișinău 0.1 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 100′ · real 0.5 direct 0.1 capăt — dep 0.2 · rămâne 0.5
+   N 09-24 23:37 → 09-25 12:40   783′ după 8 retur   Caracușenii Noi (cap Criva Vama 26.9 km) → Criva (cap Criva Vama 0.2 km) · stă Caracușenii Noi 666′ · real 49.8 direct 30.4 capăt 31.3 dep 13.4 · P1 31.3
+   Z 09-25 18:14 → 09-25 19:30    76′ după 8 tur     gara chisinau (cap Chișinău 0.1 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 76′ · real 0.1 direct 0.1 capăt — dep 0 · rămâne 0.1
+   N 09-25 23:32 → 09-26 12:45   793′ după 8 retur   Hlina (cap Criva Vama 15.3 km) → Criva (cap Criva Vama 0.3 km) · stă Briceni 625′ · real 74.7 direct 17.1 capăt 18.1 dep 18.3 · P1 18.4
+   Z 09-26 18:08 → 09-26 19:30    82′ după 8 tur     gara chisinau (cap Chișinău 0.1 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 82′ · real 0.5 direct 0.1 capăt — dep 0.1 · rămâne 0.5
+   N 09-27 00:01 → 09-27 12:44   762′ după 8 retur   Drepcăuți (cap Criva Vama 4.2 km) → Criva (cap Criva Vama 0.2 km) · stă Drepcăuți 681′ · real 12.1 direct 4.6 capăt 5.4 dep 2.9 · rămâne 12.1
+   Z 09-27 17:47 → 09-27 19:30   103′ după 8 tur     gara chisinau (cap Chișinău 0.1 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 103′ · real 0.5 direct 0.1 capăt — dep 0.2 · rămâne 0.5
+   N 09-28 00:07 → 09-28 12:23   735′ după 8 retur   Drepcăuți (cap Criva Vama 4 km) → Criva (cap Criva Vama 1 km) · stă Drepcăuți 684′ · real 4.6 direct 3.2 capăt 6.7 dep 1.5 · rămâne 4.6
+
+827WJQ   atribuiri 14 · curse cu urmă 14 (3783.4 km) · km săpt. 3848.6 · goluri 11 (intră 7)
+   P: gara chisinau (stă acum) · real 21.1 → propus 21.1 · de tăiat 0 km/săpt. (nopți A 0 · B 0 · zi 0; doarme acum: gara chisinau ×5, Chișinău ×2; varianta «la capăt» 0; direct E→S 0)
+   Z 09-21 13:20 → 09-21 13:45    26′ după 10 retur  Criva (cap Criva Vama 0.3 km) → Criva (cap Criva Vama 0.2 km) · stă Criva (3 km) 19′ · real 6.6 direct — capăt — dep 3 · sub 60 min
+   N 09-21 19:02 → 09-22 08:23   801′ după 10 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 801′ · real 0.3 direct 0 capăt — dep 0 · rămâne 0.3
+   N 09-22 18:57 → 09-23 08:24   807′ după 10 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 807′ · real 0.2 direct 0 capăt — dep 0 · rămâne 0.2
+   Z 09-23 13:34 → 09-23 13:45    11′ după 10 retur  Criva (cap Criva Vama 0.2 km) → Criva (cap Criva Vama 0.2 km) · stă Criva (3 km) 5′ · real 6.3 direct — capăt — dep 2.9 · sub 60 min
+   N 09-23 18:46 → 09-24 08:48   843′ după 10 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 843′ · real 0.7 direct 0 capăt — dep 0 · rămâne 0.7
+   N 09-24 19:02 → 09-25 08:52   830′ după 10 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă Chișinău 691′ · real 12.6 direct 0 capăt — dep 3.9 · rămâne 12.6
+   N 09-25 19:02 → 09-26 08:52   830′ după 10 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 830′ · real 0.4 direct 0 capăt — dep 0 · rămâne 0.4
+   Z 09-26 13:15 → 09-26 13:44    29′ după 10 retur  Criva (cap Criva Vama 0.3 km) → Criva (cap Criva Vama 0.2 km) · stă Criva (2.9 km) 22′ · real 6.8 direct — capăt — dep 3 · sub 60 min
+   N 09-26 18:42 → 09-27 08:42   839′ după 10 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă Chișinău 671′ · real 6.9 direct 0 capăt — dep 1.7 · rămâne 6.9
+   Z 09-27 13:23 → 09-27 13:45    22′ după 10 retur  Criva (cap Criva Vama 0.2 km) → Criva (cap Criva Vama 0.2 km) · stă Criva (3 km) 16′ · real 6.3 direct — capăt — dep 3 · sub 60 min
+   N 09-27 19:03 → 09-28 08:26   804′ după 10 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 804′ · real 0 direct 0 capăt — dep 0 · rămâne 0
+
+828MLN   atribuiri 14 · curse cu urmă 14 (3615.1 km) · km săpt. 3881.5 · goluri 13 (intră 7)
+   P: gara lipcani · real 260.7 → propus 89.6 · de tăiat 171.1 km/săpt. (nopți A 0 · B 171.1 · zi 0; doarme acum: Cotiujeni ×5, Balasinești ×2; varianta «la capăt» 50.8; direct E→S 89.4)
+   Z 09-21 09:43 → 09-21 10:31    47′ după 2 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 47′ · real 0 direct — capăt — dep 0 · sub 60 min
+   N 09-21 15:07 → 09-22 04:24   797′ după 16 retur  gara lipcani (cap Criva Vama 10.1 km) → gara lipcani (cap Criva Vama 10.1 km) · stă Balasinești 517′ · real 36.6 direct 0.1 capăt 23.6 dep 11.6 · P1 0.1
+   Z 09-22 09:47 → 09-22 10:30    42′ după 2 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 42′ · real 0 direct — capăt — dep 0 · sub 60 min
+   N 09-22 14:54 → 09-23 04:30   815′ după 16 retur  Drepcăuți (cap Criva Vama 4.1 km) → gara lipcani (cap Criva Vama 10.1 km) · stă Cotiujeni 663′ · real 48.5 direct 6.8 capăt 17 dep 13.6 · P1 6.8
+   Z 09-23 09:44 → 09-23 10:30    46′ după 2 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 46′ · real 0.1 direct — capăt — dep 0 · sub 60 min
+   N 09-23 14:46 → 09-24 04:42   836′ după 16 retur  gara lipcani (cap Criva Vama 10.1 km) → Hlina (cap Criva Vama 15.3 km) · stă Cotiujeni 696′ · real 36 direct 6.2 capăt 29.7 dep 8.2 · P1 6.4
+   Z 09-24 09:32 → 09-24 10:29    58′ după 2 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 58′ · real 0 direct — capăt — dep 0 · sub 60 min
+   N 09-24 14:20 → 09-25 04:28   848′ după 16 retur  gara briceni (cap Criva Vama 32.8 km) → gara lipcani (cap Criva Vama 10.1 km) · stă Cotiujeni 760′ · real 50 direct 26.7 capăt 50.2 dep 13.2 · P1 26.7
+   Z 09-25 09:31 → 09-25 10:30    59′ după 2 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 59′ · real 0.1 direct — capăt — dep 0 · sub 60 min
+   N 09-25 14:22 → 09-26 04:29   847′ după 16 retur  gara briceni (cap Criva Vama 32.8 km) → gara lipcani (cap Criva Vama 10.1 km) · stă Cotiujeni 782′ · real 34.9 direct 26.7 capăt 50.2 dep 12.2 · P1 26.7
+   Z 09-26 09:33 → 09-26 10:31    58′ după 2 tur     gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 58′ · real 0 direct — capăt — dep 0 · sub 60 min
+   N 09-26 14:42 → 09-27 04:30   828′ după 16 retur  Beleavinți (cap Criva Vama 19.8 km) → gara lipcani (cap Criva Vama 10.1 km) · stă Cotiujeni 788′ · real 29.3 direct 11.4 capăt 34.9 dep 6.1 · P1 11.4
+   N 09-27 14:52 → 09-28 04:19   806′ după 16 retur  Beleavinți (cap Criva Vama 19.9 km) → gara lipcani (cap Criva Vama 10.1 km) · stă Balasinești 494′ · real 25.4 direct 11.5 capăt 34.9 dep 6.9 · P1 11.5
+
+998TCP   atribuiri 14 · curse cu urmă 14 (3670.9 km) · km săpt. 3810.3 · goluri 14 (intră 14)
+   P: Slobozia-Șirăuți · real 147.8 → propus 111.1 · de tăiat 36.7 km/săpt. (nopți A 0 · B 0 · zi 36.7; doarme acum: Chișinău ×5, gara chisinau ×2; varianta «la capăt» 0; direct E→S 28.8)
+   Z 09-21 11:58 → 09-21 14:20   141′ după 12 retur  Criva (cap Criva Vama 0.3 km) → Criva (cap Criva Vama 1 km) · stă Criva 103′ · real 7 direct 1.3 capăt 2.1 dep 2.8 · rămâne 7
+   N 09-21 19:54 → 09-22 06:25   631′ după 12 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 631′ · real 0 direct 0 capăt — dep 0 · rămâne 0
+   Z 09-22 11:53 → 09-22 14:20   146′ după 12 retur  Criva (cap Criva Vama 0.2 km) → Criva (cap Criva Vama 0.2 km) · stă Criva 146′ · real 0 direct 0 capăt 0.5 dep 0 · rămâne 0
+   N 09-22 20:14 → 09-23 06:25   610′ după 12 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0 km) · stă gara chisinau 610′ · real 0 direct 0 capăt — dep 0 · rămâne 0
+   Z 09-23 12:06 → 09-23 14:34   147′ după 12 retur  Criva (cap Criva Vama 0.2 km) → Criva (cap Criva Vama 0.3 km) · stă Criva 39′ · real 73.6 direct 0.1 capăt 0.5 dep 33.4 · P1 36.9
+   N 09-23 20:11 → 09-24 06:56   645′ după 12 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0.1 km) · stă Chișinău 585′ · real 9 direct 0.1 capăt — dep 1.8 · rămâne 9
+   Z 09-24 12:48 → 09-24 14:54   126′ după 12 retur  Criva (cap Criva Vama 0.2 km) → Criva (cap Criva Vama 0.2 km) · stă Criva (2.9 km) 91′ · real 6.3 direct 0 capăt 0.5 dep 3 · rămâne 6.3
+   N 09-24 19:54 → 09-25 06:57   662′ după 12 tur    gara chisinau (cap Chișinău 0 km) → gara chisinau (cap Chișinău 0.1 km) · stă Chișinău 613′ · real 5.6 direct 0.1 capăt — dep 1.8 · rămâne 5.6
+   Z 09-25 11:00 → 09-25 14:42   222′ după 12 retur  Briceni (cap Criva Vama 33.3 km) → gara lipcani (cap Criva Vama 10.1 km) · stă Briceni 181′ · real 29.8 direct 26.8 capăt 50.2 dep 11.8 · rămâne 29.8
+   N 09-25 20:11 → 09-26 06:28   618′ după 12 tur    gara chisinau (cap Chișinău 0.1 km) → gara chisinau (cap Chișinău 0 km) · stă Chișinău 609′ · real 5.2 direct 0.1 capăt — dep 1.6 · rămâne 5.2
+   Z 09-26 11:33 → 09-26 14:20   167′ după 12 retur  Criva (cap Criva Vama 0.2 km) → Criva (cap Criva Vama 0.2 km) · stă Criva 167′ · real 0.6 direct 0 capăt 0.5 dep 0.3 · rămâne 0.6
+   N 09-26 20:08 → 09-27 06:31   624′ după 12 tur    gara chisinau (cap Chișinău 0.1 km) → gara chisinau (cap Chișinău 0 km) · stă Chișinău 616′ · real 5.2 direct 0.1 capăt — dep 1.6 · rămâne 5.2
+   Z 09-27 11:43 → 09-27 14:20   156′ după 12 retur  Criva (cap Criva Vama 1.1 km) → Criva (cap Criva Vama 1 km) · stă Criva 156′ · real 0.1 direct 0.1 capăt 3.7 dep 0 · rămâne 0.1
+   N 09-27 20:06 → 09-28 06:25   619′ după 12 tur    gara chisinau (cap Chișinău 0.1 km) → gara chisinau (cap Chișinău 0 km) · stă Chișinău 609′ · real 5.4 direct 0.1 capăt — dep 1.8 · rămâne 5.4
+
+FLOTA: real 6517.4 · propus 3254.5 · de tăiat 3262.9 km/săpt. · fără Valhalla: 0
+54.92 s

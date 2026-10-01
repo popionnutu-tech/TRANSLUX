@@ -10,7 +10,7 @@ import { verifySession } from '@/lib/auth';
 import { unpackRow, type PackedRow } from './bilete/ticketParse';
 import type {
   TikiBatch, TikiMeta, TikiSummary, TikiDriverRow, TikiRouteRow, TikiPairRow, TikiMonthly,
-  TikiCalitate, OrarRoute, TikiTendinta, TikiClienti,
+  TikiCalitate, OrarRoute, TikiTendinta, TikiClienti, TikiOd,
 } from './bilete/types';
 
 type Res<T> = { data?: T; error?: string };
@@ -254,4 +254,15 @@ export async function getTikiClienti(from: string, to: string, route?: number | 
   const { data, error } = await getSupabase().rpc('get_tiki_clienti', { p_from: from, p_to: to, p_route: route ?? null });
   if (error) return { error: error.message };
   return { data: data as TikiClienti };
+}
+
+export async function getTikiOd(from: string, to: string, route?: number | null): Promise<Res<TikiOd>> {
+  const a = await adminOnly();
+  if ('error' in a) return a;
+  const bad = badRange(from, to);
+  if (bad) return { error: bad };
+  if (route != null && !Number.isInteger(route)) return { error: 'Rută invalidă' };
+  const { data, error } = await getSupabase().rpc('get_tiki_od', { p_from: from, p_to: to, p_route: route ?? null });
+  if (error) return { error: error.message };
+  return { data: data as TikiOd };
 }

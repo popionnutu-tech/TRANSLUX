@@ -174,3 +174,16 @@ export interface TikiClienti {
   zile: ClientiZi[] | null;
   tronsoane: ClientiTronson[] | null;
 }
+
+// De unde până unde (migr. 458): clienții TIKI din bilete, ceilalți = Numărare − TIKI pe tronsoane.
+export interface OdPair { de_la: string; pana_la: string; calatorii: number; pct: number | null; pe_zi: number; lei?: number }
+export interface TikiOd {
+  zile_numarare: number;
+  zile_tiki: number;
+  tiki: OdPair[];
+  tiki_total: number | null;
+  tiki_total_pe_zi: number | null;
+  ceilalti: OdPair[];
+  ceilalti_total: number | null;
+  ceilalti_total_pe_zi: number | null;
+}

@@ -80,7 +80,7 @@ describe('promptul șoferului — criteriile lui Ion (interviu 09.09, spec peron
   it('uniforma: tricou vișiniu cu emblema TRANSLUX SAU cămașă albă/bleu uni băgată în pantaloni', () => {
     expect(config.DRIVER_UNIFORM_DESCRIPTION).toContain('tricou vișiniu');
     expect(config.DRIVER_UNIFORM_DESCRIPTION).toContain('emblema TRANSLUX');
-    expect(config.DRIVER_UNIFORM_DESCRIPTION).toContain('cămașă albă');
+    expect(config.DRIVER_UNIFORM_DESCRIPTION).toContain('albă ori bleu');
     expect(config.DRIVER_UNIFORM_DESCRIPTION).toContain('bleu');
     expect(config.DRIVER_UNIFORM_DESCRIPTION).toContain('băgată în pantaloni');
     expect(config.DRIVER_UNIFORM_DESCRIPTION).toContain('fără carouri');
@@ -88,6 +88,14 @@ describe('promptul șoferului — criteriile lui Ion (interviu 09.09, spec peron
     expect(DRIVER_SYSTEM_PROMPT).toContain('SAU o cămașă albă ori bleu');
     expect(DRIVER_SYSTEM_PROMPT).toContain('băgată în pantaloni');
     expect(DRIVER_SYSTEM_PROMPT).toContain('carouri');
+  });
+
+  it('doar cămașa clasică cu guler întors; in/guler tunică/polo nu; la îndoială false (Ion 01.10, ION-164)', () => {
+    expect(config.DRIVER_UNIFORM_DESCRIPTION).toContain('cămașă clasică (de birou) cu guler întors');
+    expect(config.DRIVER_UNIFORM_DESCRIPTION).toContain('guler tunică');
+    expect(DRIVER_SYSTEM_PROMPT).toContain('CLASICĂ (guler întors');
+    expect(DRIVER_SYSTEM_PROMPT).toContain('cămașa cu guler tunică');
+    expect(DRIVER_SYSTEM_PROMPT).toContain('Dacă nu se poate spune sigur că e cămașă clasică');
   });
 
   it('vesta peste cămașă e în regulă; cămașa albă sau bleu, nuanțele pale trec (Ion 24.09, ION-46)', () => {

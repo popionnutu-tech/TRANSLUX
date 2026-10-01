@@ -15,6 +15,8 @@
 // Ion 24.09 (ION-46): vesta (pulover fără mâneci) peste cămașă e în regulă — se judecă
 // cămașa care se vede (guler, mâneci): albă sau bleu, uni; nuanțele pale de albastru,
 // inclusiv bleu-liliachiu, trec ca bleu (poza lui Vitalic a fost acceptată de Ion).
+// Ion 01.10 (ION-164): regulă strictă — doar cămașa clasică cu guler întors; cea de in
+// cu guler tunică (Cramari) nu e uniformă; la îndoială → uniforma=false.
 import Anthropic from '@anthropic-ai/sdk';
 import { config } from '../config.js';
 
@@ -32,7 +34,7 @@ Dacă în poză nu se vede nicio persoană (lipsește sau e doar un fragment), s
 
 Când cadrul nu e complet sau persoana nu e vizibilă, lasă cele trei verdicte false. Nu ghici.
 
-Uniforma: ${config.DRIVER_UNIFORM_DESCRIPTION}. «uniforma» = true dacă șoferul poartă vizibil UNA din cele două variante — tricoul vișiniu (bordo) cu emblema TRANSLUX pe piept SAU o cămașă albă ori bleu, într-o singură culoare, băgată în pantaloni — ȘI încălțăminte acceptată. Vesta (pulover fără mâneci, neagră sau închisă la culoare) purtată peste cămașă este în regulă: judeci cămașa după ce se vede — gulerul și mânecile — albă sau bleu, uni; nuanțele pale de albastru, inclusiv bleu-liliachiu, se socotesc bleu. Sub vestă nu se vede dacă e băgată în pantaloni — nu ții asta împotriva șoferului. Cămașă în carouri, cu dungi sau cu model, cămașă vizibil scoasă din pantaloni, tricou de altă culoare, haină groasă cu mâneci (geacă, hanorac, pulover) care acoperă complet tricoul sau cămașa → uniforma=false. Încălțămintea: fără șlapi — șlapi, papuci de plajă, flip-flops → uniforma=false. Sandale, pantofi, adidași, ghete sunt în regulă dacă sunt curate; încălțăminte vizibil murdară (noroi, praf gros) → uniforma=false.
+Uniforma: ${config.DRIVER_UNIFORM_DESCRIPTION}. «uniforma» = true dacă șoferul poartă vizibil UNA din cele două variante — tricoul vișiniu (bordo) cu emblema TRANSLUX pe piept SAU o cămașă albă ori bleu, CLASICĂ (guler întors, ca la cămașa de birou, nasturi pe toată lungimea), într-o singură culoare, băgată în pantaloni — ȘI încălțăminte acceptată. Vesta (pulover fără mâneci, neagră sau închisă la culoare) purtată peste cămașă este în regulă: judeci cămașa după ce se vede — gulerul și mânecile — albă sau bleu, uni; nuanțele pale de albastru, inclusiv bleu-liliachiu, se socotesc bleu. Sub vestă nu se vede dacă e băgată în pantaloni — nu ții asta împotriva șoferului. Regulă strictă pentru cămașă (Ion): cămașa de in sau de vară cu aspect lejer, cămașa cu guler tunică (guler mic drept, fără clapele întoarse) sau fără guler, tricoul polo, cămașa descheiată larg la piept → uniforma=false, chiar dacă e albă sau bleu. Dacă nu se poate spune sigur că e cămașă clasică cu guler întors sau că e băgată în pantaloni (poala atârnă peste talie, cureaua nu se vede) → uniforma=false. Cămașă în carouri, cu dungi sau cu model, cămașă vizibil scoasă din pantaloni, tricou de altă culoare, haină groasă cu mâneci (geacă, hanorac, pulover) care acoperă complet tricoul sau cămașa → uniforma=false. Încălțămintea: fără șlapi — șlapi, papuci de plajă, flip-flops → uniforma=false. Sandale, pantofi, adidași, ghete sunt în regulă dacă sunt curate; încălțăminte vizibil murdară (noroi, praf gros) → uniforma=false.
 
 Bărbierit: «barbierit» = true dacă șoferul e bărbierit sau are barba îngrijită: scurtă, egală, tunsă. Barbă de câteva zile, neregulată, neîngrijită → barbierit=false. Dacă poartă mască și barba nu se vede, barbierit=true și scrie în descriere că fața e acoperită.
 
@@ -51,7 +53,7 @@ const OUTPUT_SCHEMA = {
   properties: {
     cadru_complet: { type: 'boolean', description: 'Șoferul din față, întreg: se văd încălțămintea și capul' },
     persoana_vizibila: { type: 'boolean', description: 'Se vede o persoană în poză' },
-    uniforma: { type: 'boolean', description: 'Tricou vișiniu TRANSLUX sau cămașă albă/bleu uni băgată în pantaloni (vestă peste cămașă e OK); fără șlapi, încălțăminte curată' },
+    uniforma: { type: 'boolean', description: 'Tricou vișiniu TRANSLUX sau cămașă CLASICĂ cu guler întors albă/bleu uni băgată în pantaloni (vestă peste cămașă e OK); fără șlapi, încălțăminte curată' },
     barbierit: { type: 'boolean', description: 'Bărbierit sau barbă îngrijită, scurtă și egală (cu mască: true)' },
     aspect_ingrijit: { type: 'boolean', description: 'Haine nerupte, curate, nemototolite; fără pantaloni scurți' },
     descriere: { type: 'string' },
@@ -155,9 +157,9 @@ export type PhotoSubject = 'driver' | 'operator';
 
 const SUBJECT_TASK: Record<PhotoSubject, string> = {
   driver:
-    'Evaluează șoferul din poză: cadrul complet (din față, de la încălțăminte până la cap, poză clară), persoana vizibilă, uniforma (tricou vișiniu sau cămașă albă/bleu uni băgată în pantaloni; vesta peste cămașă e în regulă) și încălțămintea (fără șlapi, curată), bărbieritul, aspectul îngrijit (haine nerupte, curate, fără pantaloni scurți). Șapca, ochelarii și masca sunt în regulă.',
+    'Evaluează șoferul din poză: cadrul complet (din față, de la încălțăminte până la cap, poză clară), persoana vizibilă, uniforma (tricou vișiniu sau cămașă clasică cu guler întors, albă/bleu uni, băgată în pantaloni; vesta peste cămașă e în regulă) și încălțămintea (fără șlapi, curată), bărbieritul, aspectul îngrijit (haine nerupte, curate, fără pantaloni scurți). Șapca, ochelarii și masca sunt în regulă.',
   operator:
-    'În poză e OPERATORUL DE PERON, fotografiat de un șofer la deschiderea turei — judecă-l exact ca pe un șofer: cadrul complet (din față, de la încălțăminte până la cap, poză clară), persoana vizibilă, uniforma (tricou vișiniu sau cămașă albă/bleu uni băgată în pantaloni; vesta peste cămașă e în regulă) și încălțămintea (fără șlapi, curată), bărbieritul, aspectul îngrijit (haine nerupte, curate, fără pantaloni scurți). Șapca, ochelarii și masca sunt în regulă.',
+    'În poză e OPERATORUL DE PERON, fotografiat de un șofer la deschiderea turei — judecă-l exact ca pe un șofer: cadrul complet (din față, de la încălțăminte până la cap, poză clară), persoana vizibilă, uniforma (tricou vișiniu sau cămașă clasică cu guler întors, albă/bleu uni, băgată în pantaloni; vesta peste cămașă e în regulă) și încălțămintea (fără șlapi, curată), bărbieritul, aspectul îngrijit (haine nerupte, curate, fără pantaloni scurți). Șapca, ochelarii și masca sunt în regulă.',
 };
 
 /** Judecă poza șoferului (sau a operatorului). Nu aruncă: orice eșec devine EROARE. */

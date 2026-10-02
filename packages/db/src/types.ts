@@ -951,3 +951,73 @@ export interface LdeReceptieAct {
   generated_by_admin_id: string | null;
   notes: string | null;
 }
+
+// ============================================================
+// Bilete online (ION-191, migr. 483): comanda, biletul, alerta
+// ============================================================
+
+export type BileteComandaStatus = 'noua' | 'platita' | 'expirata' | 'eroare_creare' | 'anulata' | 'returnata' | 'platita_fara_bilet';
+export type BiletStatus = 'valid' | 'urcat' | 'anulat' | 'returnat';
+export type BileteAlertaTip =
+  | 'platita_fara_bilet' | 'suma_nepotrivita' | 'refund_necunoscut' | 'refund_respins'
+  | 'cursa_fara_sofer' | 'urcat_pe_anulat' | 'creare_esuata' | 'plafon_atins' | 'refund_pe_zi_confirmata';
+
+export interface BileteComanda {
+  id: string;
+  /** Secretul paginii biletului (128 de biți, hex). Nu pleacă la maib. */
+  cod: string;
+  idempotency_key: string;
+  trip_date: string;
+  crm_route_id: number;
+  going_north: boolean;
+  from_stop_order: number;
+  to_stop_order: number;
+  from_name: string;
+  to_name: string;
+  /** Plecarea de la oprirea de urcare (ISO, Europe/Chisinau). */
+  departure_at: string;
+  seats: number;
+  price_per_seat: number;
+  total: number;
+  passenger_name: string;
+  /** 373XXXXXXXX */
+  phone: string;
+  email: string | null;
+  lang: 'ro' | 'ru';
+  telegram_id: number | null;
+  status: BileteComandaStatus;
+  checkout_id: string | null;
+  creare_in_curs_la: string | null;
+  creare_incercari: number;
+  paid_at: string | null;
+  cancelled_at: string | null;
+  cancel_source: 'pasager' | 'admin' | 'sistem' | null;
+  refund_reason: string | null;
+  refund_finalizat_la: string | null;
+  notificat_la: string | null;
+  ip_hash: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Bilet {
+  id: string;
+  comanda_id: string;
+  nr: number;
+  /** Codul din QR: 20 de caractere Base32 Crockford. */
+  cod_qr: string;
+  status: BiletStatus;
+  urcat_at: string | null;
+  urcat_de: string | null;
+  urcat_sursa: 'scan' | 'manual' | null;
+  created_at: string;
+}
+
+export interface BileteAlerta {
+  id: number;
+  comanda_id: string | null;
+  tip: BileteAlertaTip;
+  detalii: string | null;
+  moment: string;
+  rezolvat_la: string | null;
+}

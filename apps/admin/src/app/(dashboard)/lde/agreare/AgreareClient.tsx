@@ -7,7 +7,7 @@ import { salveazaAgreare, type AgreareData, type Agreat, type RandAgreare, type 
 // Agrearea lunară a șoferilor (ION-174), după macheta aprobată de Ion pe 02.10.2026: un rând pe mașină, nopțile din GPS
 // (localitate + zilele), șoferii agreați cu perioada «de la – până la» și banda zilelor lunii; «+» adaugă din lista uzinei.
 
-const UZINE = ['Toate', 'Drăxlmaier', 'SEBN', 'LEAR Ungheni', 'LEAR Florești'];
+const UZINE = ['Toate', 'Drăxlmaier', 'SEBN', 'LEAR Ungheni', 'LEAR Florești', 'Camioane'];
 const STARI: [string, string][] = [['toate', 'Toate'], ['de agreat', 'Fără șofer'], ['alt sat', 'Doarme în alt sat'], ['agreată', 'Agreate']];
 const BORDO = 'var(--primary, #9B1B30)';
 const LUNI_RO = ['ianuarie', 'februarie', 'martie', 'aprilie', 'mai', 'iunie', 'iulie', 'august', 'septembrie', 'octombrie', 'noiembrie', 'decembrie'];

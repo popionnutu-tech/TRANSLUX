@@ -4,7 +4,7 @@
 // Unde a dormit mașina = localitatea din care a pornit ziua, din lde_harta_zi (date->'iv'->0->>'de';
 // harta o scrie lanțul săptămânal al fiecărei uzine, din GPS-ul nostru; la Drăxlmaier iv[0].de e o coordonată, iar
 // numele stă în sumar.locuri[0]) → lde_noapte_zi, pe mașină și zi.
-// Fără MEJGOROD (șoferul vine din grafic) și fără CAMIOANE. Ion, 02.10.2026: «de LDE trebuie să ne
+// Fără MEJGOROD (șoferul vine din grafic); camioanele intră. Ion, 02.10.2026: «de LDE trebuie să ne
 // refuzăm» — nicio foaie de parcurs LDE aici, doar datele noastre.
 //
 // Rulare: node --env-file=.env noapte-worker.mjs [YYYY-MM-DD start|--all] [--write]
@@ -19,7 +19,7 @@ const WRITE = args.includes('--write');
 const ALL = args.includes('--all');
 const zileInUrma = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
 const START = ALL ? '2026-08-01' : args.find(a => /^\d{4}-\d{2}-\d{2}$/.test(a)) || zileInUrma(21);
-const FARA_UZINE = new Set(['MEJGOROD', 'CAMIOANE']);
+const FARA_UZINE = new Set(['MEJGOROD']); // camioanele intră (Ion, 02.10: «camioane aici tot trebuiesc»)
 
 for (const k of ['SUPABASE_URL', 'SUPABASE_SERVICE_KEY']) {
   if (!process.env[k]) { console.error(`lipsește ${k} în .env`); process.exit(1); }

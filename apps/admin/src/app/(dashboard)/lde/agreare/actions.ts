@@ -16,6 +16,7 @@ const UZINE: Record<string, string> = {
   SEBN_STRASENI: 'SEBN',
   LEAR_UNGHENI: 'LEAR Ungheni',
   LEAR_FLORESTI: 'LEAR Florești',
+  camioane: 'Camioane',        // Ion, 02.10: «camioane aici tot trebuiesc»
 };
 const LUNA_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 
@@ -47,11 +48,18 @@ const seSuprapun = (a: string[], b: string[]) => a.some((x) => b.includes(x));
 export async function getAgreare(lunaParam?: string): Promise<AgreareData> {
   const session = await verifySession();
   requireRole(session, 'ADMIN', 'CONTABIL_LDE');
-  const luna = lunaParam && LUNA_RE.test(lunaParam) ? lunaParam : new Date().toISOString().slice(0, 7);
+  const db = getSupabase();
+  let luna = lunaParam && LUNA_RE.test(lunaParam) ? lunaParam : new Date().toISOString().slice(0, 7);
+  if (!lunaParam) {
+    // Harta mașinii (și deci nopțile) se scrie lunea pentru săptămâna trecută: la începutul lunii luna curentă e goală,
+    // așa că pagina se deschide pe ultima lună care are nopți.
+    const { data } = await db.from('lde_noapte_zi').select('zi').order('zi', { ascending: false }).limit(1);
+    const ultima = data?.[0]?.zi as string | undefined;
+    if (ultima && ultima.slice(0, 7) < luna) luna = ultima.slice(0, 7);
+  }
   const [y, mo] = luna.split('-').map(Number);
   const zileInLuna = new Date(y, mo, 0).getDate();
   const primaZi = `${luna}-01`;
-  const db = getSupabase();
 
   const [veh, nopti, drv, atrib, agr] = await Promise.all([
     db.from('vehicles').select('id, plate_number, directions').eq('active', true).overlaps('directions', Object.keys(UZINE)).order('plate_number').limit(1000),
@@ -62,10 +70,14 @@ export async function getAgreare(lunaParam?: string): Promise<AgreareData> {
   ]);
   for (const r of [veh, nopti, drv, atrib, agr]) if (r.error) throw new Error(r.error.message);
 
+  // Șoferii de camioane n-au uzină în lde_driver_extras: îi recunoaștem după atribuirea activă pe un camion
+  const camioaneIds = new Set((veh.data ?? []).filter((v) => (v.directions as string[]).includes('camioane')).map((v) => v.id));
+  const soferiCamioane = new Set((atrib.data ?? []).filter((a) => camioaneIds.has(a.vehicle_id)).map((a) => a.driver_id));
   type DrvRow = { id: string; full_name: string; lde_driver_extras: { uzina_id: string | null; home_address: string | null } | { uzina_id: string | null; home_address: string | null }[] | null };
   const soferi: SoferOpt[] = (drv.data as DrvRow[]).map((d) => {
     const e = Array.isArray(d.lde_driver_extras) ? d.lde_driver_extras[0] : d.lde_driver_extras;
-    return { id: d.id, nume: d.full_name, uzina: UZINE[e?.uzina_id ?? ''] ?? '', sat: e?.home_address?.split('/')[0] ?? null };
+    const uzina = UZINE[e?.uzina_id ?? ''] ?? (soferiCamioane.has(d.id) ? 'Camioane' : '');
+    return { id: d.id, nume: d.full_name, uzina, sat: e?.home_address?.split('/')[0] ?? null };
   }).sort((a, b) => a.nume.localeCompare(b.nume, 'ro'));
   const soferById = new Map(soferi.map((s) => [s.id, s]));
   const cheiSofer = new Map(soferi.map((s) => [s.id, cheieLoc(s.sat)]));

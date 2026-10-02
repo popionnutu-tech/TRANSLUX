@@ -66,10 +66,10 @@ export function descriePereche(p: PiataPereche, parametri: Record<string, unknow
   rows.push(`Bilete observate (ziua cursei): ${nf0.format(p.bilete)}`);
   if (p.omisi != null) rows.push(`~Omiși de TIKI (estimare, extrapolată la zilele lunii; Numărare pe ${Math.round((p.omisi_acoperire ?? 0) * 100)} % din zile): ${nf0.format(p.omisi)}`);
   if (p.tip !== 'trunchi' && p.tip !== 'mic') {
-    rows.push(`Concurenți (ANTA): ${fmtInterval(p.conc_min, p.conc_max)} bilete = Σ curse străine × ${pond} % din îmbarcarea noastră pe cursă la oră similară × 5/7…7/7 zile`);
+    rows.push(`Concurenți (ANTA): ${fmtInterval(p.conc_min, p.conc_max)} bilete = Σ curse străine × ${pond} % din ${Number(parametri.locuri_straine ?? 20)} locuri pe plecare × factor de oră (îmbarcarea noastră la ora cursei ÷ media, 0,5…1,5) × 5/7…7/7 zile`);
     const curse = p.detalii?.curse ?? [];
     for (const c of curse.slice(0, 12)) {
-      rows.push(`  · ${c.firma} — ${c.cursa}, ${c.sens === 'chisinau_nord' ? 'din Chișinău' : 'spre Chișinău'} ${c.ora}: ${c.bpp == null ? '?' : c.bpp} bilete/plecare la noi${c.tranzit !== 1 ? `, tranzit ×${c.tranzit}` : ''} → ~${nf0.format(c.luna)}/lună`);
+      rows.push(`  · ${c.firma} — ${c.cursa}, ${c.sens === 'chisinau_nord' ? 'din Chișinău' : 'spre Chișinău'} ${c.ora}: factor de oră ${c.factor_ora ?? 1} (noi ${c.bpp == null ? '?' : c.bpp} bilete/plecare)${c.tranzit !== 1 ? `, tranzit ×${c.tranzit}` : ''} → ~${nf0.format(c.luna)}/lună`);
     }
     if (curse.length > 12) rows.push(`  · … încă ${curse.length - 12} curse`);
     if (p.detalii?.delta != null && p.detalii.delta !== 1) rows.push(`Delta față de luna de bază (09.2026): ×${Number(p.detalii.delta).toFixed(2)}`);

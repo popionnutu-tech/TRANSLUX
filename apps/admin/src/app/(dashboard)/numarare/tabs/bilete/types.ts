@@ -203,7 +203,7 @@ export interface TikiOmisi {
 }
 // «Piața» pe pereche (ION-171, migr. 463): lunile încheiate din interval cu rând calculat (piata_pereche_luna).
 export type PiataTip = 'coada' | 'balti' | 'trunchi' | 'local' | 'mic';  // mic = sat sub pragul «orașe / sate foarte mari» (Ion, 02.10): doar bilete + ~omiși
-export interface PiataCursa { firma: string; cursa: string; sens: Leg; ora: string; bpp: number | null; tranzit: number; luna: number }
+export interface PiataCursa { firma: string; cursa: string; sens: Leg; ora: string; bpp: number | null; factor_ora?: number; locuri?: number; tranzit: number; luna: number }
 export interface PiataPereche {
   cheie: string; de_la: string; pana_la: string; tip: PiataTip;
   bilete: number;

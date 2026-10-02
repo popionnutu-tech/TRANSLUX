@@ -49,7 +49,7 @@ describe('descriePereche', () => {
     const t = descriePereche(p, { pondere_imbarcare: 0.4 });
     expect(t).toContain('Bilete observate (ziua cursei): 2.396');
     expect(t).toContain('~Omiși de TIKI (estimare');
-    expect(t).toContain('40 % din îmbarcarea noastră');
+    expect(t).toContain('40 % din 20 locuri pe plecare');
     expect(t).toContain('Pascari');
     expect(t).toContain('numitor de scară');
     expect(t).toContain('⚑ regula 40 %');

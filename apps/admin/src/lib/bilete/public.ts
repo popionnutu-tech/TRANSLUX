@@ -37,6 +37,21 @@ export interface ComandaPublica {
 
 const COD_RE = /^[0-9a-f]{32}$/i;
 
+export class BazaIndisponibilaError extends Error {
+  constructor(mesaj: string) { super(mesaj); this.name = 'BazaIndisponibilaError'; }
+}
+
+/**
+ * Plafon pentru traficul neautentificat pe biletul public (Codex X13): pe IP, în bază (serverless n-are memorie
+ * comună). Dacă plafonul însuși nu poate fi verificat, lăsăm cererea să treacă — un bilet trebuie să se poată arăta.
+ */
+export async function plafonPublic(ip: string | null, max = 60): Promise<boolean> {
+  const cheie = `pub:${ip ?? 'fara-ip'}`;
+  const { data, error } = await getSupabase().rpc('bilete_plafon', { p_cheie: cheie, p_fereastra_s: 60, p_max: max });
+  if (error) { console.warn('[bilete] plafon public:', error.message); return true; }
+  return data !== false;
+}
+
 /**
  * Pagina pe care se întoarce pasagerul după plată: dacă comanda e încă «noua» și are sesiune, citim starea de la
  * maib ACUM (callback-ul poate întârzia sau lipsi) — sincronizarea emite și biletele. Un drum la maib, doar
@@ -53,13 +68,18 @@ export async function sincronizeazaComandaDupaCod(cod: string): Promise<void> {
 export async function biletPublic(cod: string): Promise<ComandaPublica | null> {
   if (!COD_RE.test(cod)) return null;
   const db = getSupabase();
-  const { data: c } = await db.from('bilete_comenzi').select('cod, status, trip_date, from_name, to_name, departure_at, seats, price_per_seat, total, passenger_name, lang, paid_at, cancelled_at, crm_route_id, going_north, id').eq('cod', cod).maybeSingle();
+  const { data: c, error: cErr } = await db.from('bilete_comenzi').select('cod, status, trip_date, from_name, to_name, departure_at, seats, price_per_seat, total, passenger_name, lang, paid_at, cancelled_at, crm_route_id, going_north, id').eq('cod', cod).maybeSingle();
+  if (cErr) throw new BazaIndisponibilaError(cErr.message); // «nu există» ≠ «baza nu răspunde» (Codex X11)
   if (!c) return null;
   const comanda = c as BileteComanda;
-  const [{ data: bilete }, { data: ruta }] = await Promise.all([
+  const [rB, rR] = await Promise.all([
     db.from('bilete').select('nr, cod_qr, status, urcat_at').eq('comanda_id', comanda.id).order('nr'),
     db.from('crm_routes').select('id, dest_from_ro, dest_from_ru, dest_to_ro, dest_to_ru').eq('id', comanda.crm_route_id).maybeSingle(),
   ]);
+  if (rB.error) throw new BazaIndisponibilaError(rB.error.message);
+  if (rR.error) throw new BazaIndisponibilaError(rR.error.message);
+  const bilete = rB.data;
+  const ruta = rR.data;
   const bileteCuQr = await Promise.all(((bilete || []) as Omit<BiletPublic, 'qr_svg'>[]).map(async (b) => ({
     ...b,
     qr_svg: await QRCode.toString(b.cod_qr, { type: 'svg', errorCorrectionLevel: 'M', margin: 1 }),

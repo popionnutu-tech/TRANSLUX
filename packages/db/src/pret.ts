@@ -56,6 +56,19 @@ export interface CursaCuPret extends ScheduledTrip {
  * (ex. săptămâna curentă încă n-are tarif), cade pe cel mai recent period început — ca prețurile
  * să nu apară niciodată 0.
  */
+/** O eroare a bazei la datele de PREȚ nu e «lipsă de date»: aruncă, ca apelantul să nu vândă pe un tarif gol. */
+export class PretIndisponibilError extends Error {
+  constructor(sursa: string, mesaj: string) {
+    super(`${sursa}: ${mesaj}`);
+    this.name = 'PretIndisponibilError';
+  }
+}
+
+function verifica<T>(sursa: string, r: { data: T; error: { message: string } | null }): T {
+  if (r.error) throw new PretIndisponibilError(sursa, r.error.message);
+  return r.data;
+}
+
 export async function resolveTariffRates(db: DbClient, date: string): Promise<TarifeZi> {
   const covering = await db
     .from('tariff_periods')
@@ -66,7 +79,7 @@ export async function resolveTariffRates(db: DbClient, date: string): Promise<Ta
     .limit(1)
     .maybeSingle();
 
-  let period = covering.data as { rate_interurban_long: number; rate_suburban: number } | null;
+  let period = verifica('tariff_periods', covering) as { rate_interurban_long: number; rate_suburban: number } | null;
 
   if (!period) {
     const latest = await db
@@ -76,7 +89,7 @@ export async function resolveTariffRates(db: DbClient, date: string): Promise<Ta
       .order('period_start', { ascending: false })
       .limit(1)
       .maybeSingle();
-    period = latest.data as { rate_interurban_long: number; rate_suburban: number } | null;
+    period = verifica('tariff_periods', latest) as { rate_interurban_long: number; rate_suburban: number } | null;
   }
 
   return {
@@ -130,7 +143,7 @@ export async function incarcaCurse(
 ): Promise<DateCurse | null> {
   const { fromRo, toRo, date } = args;
 
-  const [{ data: fromStops }, { data: toStops }] = await Promise.all([
+  const [rFrom, rTo] = await Promise.all([
     db
       .from('crm_stop_fares')
       .select('id, crm_route_id, stop_order, hour_from_chisinau, hour_from_nord')
@@ -140,6 +153,8 @@ export async function incarcaCurse(
       .select('id, crm_route_id, stop_order, hour_from_chisinau, hour_from_nord')
       .ilike('name_ro', toRo),
   ]);
+  const fromStops = verifica('crm_stop_fares', rFrom) as TimetableStop[] | null;
+  const toStops = verifica('crm_stop_fares', rTo) as TimetableStop[] | null;
 
   if (!fromStops || !toStops || fromStops.length === 0 || toStops.length === 0) return null;
 
@@ -150,7 +165,7 @@ export async function incarcaCurse(
   const fromNorm = stopFilterValue(fromRo);
   const toNorm = stopFilterValue(toRo);
 
-  const [{ data: routes }, { data: kmPairsA }, { data: kmPairsB }, { data: activeOffers }, rates] = await Promise.all([
+  const [rRoutes, rKmA, rKmB, rOffers, rates] = await Promise.all([
     db
       .from('crm_routes')
       .select('id, dest_to_ro, dest_to_ru, dest_from_ro, dest_from_ru, time_chisinau, time_nord, tariff_id_tur, tariff_id_retur, retur_ascuns, tur_ascuns')
@@ -175,6 +190,10 @@ export async function incarcaCurse(
     resolveTariffRates(db, date),
   ]);
 
+  const routes = verifica('crm_routes', rRoutes) as TimetableRoute[] | null;
+  const kmPairsA = verifica('v_interurban_v2_km_pairs', rKmA) as TimetableKmPair[] | null;
+  const kmPairsB = verifica('v_interurban_v2_km_pairs', rKmB) as TimetableKmPair[] | null;
+  const activeOffers = verifica('offers', rOffers) as OfertaActiva[] | null;
   if (!routes) return null;
 
   return {

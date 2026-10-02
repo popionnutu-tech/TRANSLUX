@@ -272,7 +272,13 @@ export async function searchTrips(
 
   // Opririle, rutele, km-ii, tariful zilei și oferta — din @translux/db, ca API-ul biletelor
   // să calculeze același preț (ION-192). Atribuirile zilei rămân aici: sunt partea site-ului.
-  const datele = await incarcaCurse(supabase, { fromRo, toRo, date });
+  // O eroare a bazei la preț/orar NU e «nicio cursă»: pe site păstrăm lista goală (ca înainte), dar o jurnalizăm;
+  // în API-ul biletelor aceeași eroare oprește comanda (nu se vinde pe un tarif gol).
+  let datele: Awaited<ReturnType<typeof incarcaCurse>>;
+  try { datele = await incarcaCurse(supabase, { fromRo, toRo, date }); } catch (e) {
+    console.error('[searchTrips] datele cursei indisponibile:', e instanceof Error ? e.message : e);
+    return [];
+  }
   if (!datele) return [];
   const { matchingRouteIds } = datele;
 

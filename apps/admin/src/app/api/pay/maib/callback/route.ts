@@ -121,6 +121,11 @@ export async function POST(req: NextRequest) {
     // exact suma comenzii și nu există alt rând maib_checkouts pentru comanda asta. Altfel alertă, nu tăcere.
     const legat = await leagaComandaOrfana(req, body, checkoutId, rawBody);
     if (legat === 'legat') return await marcheazaBiletele(checkoutId, true);
+    if (legat.startsWith('eroare:')) {
+      // Eroare TEMPORARĂ a bazei, nu un conflict: 500, ca banca să reîncerce (Codex X4).
+      console.error('[maib/callback] comandă orfană:', legat);
+      return NextResponse.json({ ok: false }, { status: 500 });
+    }
     await jurnal(req, checkoutId, true, legat === 'necunoscut' ? 'checkoutId necunoscut' : `comandă orfană neaplicată: ${legat}`, rawBody);
     // O plată EXECUTATĂ pe o comandă a noastră, pe care n-am putut-o lega, nu rămâne în tăcere: alertă pentru admin.
     if (legat !== 'necunoscut' && stareEgala(body.paymentStatus, 'Executed') && body.orderId && UUID_RE.test(body.orderId)) {
@@ -154,7 +159,10 @@ export async function POST(req: NextRequest) {
   if (body.paymentStatus && !(areRefund && executat)) upd.payment_status = body.paymentStatus; // după refund nu redevine Executed
 
   await jurnal(req, checkoutId, true, null, rawBody);
-  const { error } = await supabase.from('maib_checkouts').update(upd).eq('checkout_id', checkoutId);
+  // Condiția stă în UPDATE, nu în snapshot (Codex X7): un «Failed» întârziat nu rescrie un Completed scris între timp.
+  let q = supabase.from('maib_checkouts').update(upd).eq('checkout_id', checkoutId);
+  if (!executat) q = q.not('status', 'ilike', 'completed');
+  const { error } = await q;
   if (error) {
     console.error('[maib/callback] update:', error.message);
     return NextResponse.json({ ok: false }, { status: 500 });
@@ -182,14 +190,16 @@ async function leagaComandaOrfana(req: NextRequest, body: MaibCallbackBody, chec
   const orderId = body.orderId && UUID_RE.test(body.orderId) ? body.orderId : null;
   if (!orderId) return 'necunoscut';
   const supabase = getSupabase();
-  const { data: c } = await supabase.from('bilete_comenzi').select('id, status, total, checkout_id').eq('id', orderId).maybeSingle();
+  const { data: c, error: cErr } = await supabase.from('bilete_comenzi').select('id, status, total, checkout_id').eq('id', orderId).maybeSingle();
+  if (cErr) return `eroare: citirea comenzii: ${cErr.message}`;
   if (!c) return 'necunoscut';
   if (!(c.status === 'noua' || c.status === 'eroare_creare')) return `stare ${c.status}`;
   if (c.checkout_id) return 'are deja checkout';
   if (!stareEgala(body.paymentStatus, 'Executed')) return `plată ${body.paymentStatus}`;
   if (body.currency && body.currency !== 'MDL') return `valută ${body.currency}`;
   if (typeof body.amount !== 'number' || Math.abs(body.amount - Number(c.total)) >= 0.005) return `sumă ${body.amount} ≠ ${c.total}`;
-  const { data: altul } = await supabase.from('maib_checkouts').select('checkout_id').eq('order_id', orderId).maybeSingle();
+  const { data: altul, error: aErr } = await supabase.from('maib_checkouts').select('checkout_id').eq('order_id', orderId).maybeSingle();
+  if (aErr) return `eroare: citirea sesiunii: ${aErr.message}`;
   if (altul) return 'alt rând pentru comandă';
 
   const { error: pErr } = await persistaCheckout({
@@ -197,11 +207,12 @@ async function leagaComandaOrfana(req: NextRequest, body: MaibCallbackBody, chec
     paymentId: body.paymentId && UUID_RE.test(body.paymentId) ? body.paymentId : null,
     paymentStatus: body.paymentStatus ?? null, callback: faraDatePersonale(body), createdBy: 'callback',
   });
-  if (pErr) return `persistare: ${pErr}`;
-  const { error: lErr } = await supabase.from('bilete_comenzi')
+  if (pErr) return `eroare: persistare: ${pErr}`;
+  const { data: legate, error: lErr } = await supabase.from('bilete_comenzi')
     .update({ checkout_id: checkoutId, creare_in_curs_la: null, updated_at: new Date().toISOString() })
-    .eq('id', orderId).is('checkout_id', null);
-  if (lErr) return `legare: ${lErr.message}`;
+    .eq('id', orderId).is('checkout_id', null).select('id');
+  if (lErr) return `eroare: legare: ${lErr.message}`;
+  if (!legate || legate.length === 0) return 'comanda a fost legată între timp de altcineva';
   await jurnal(req, checkoutId, true, 'comandă orfană legată după orderId', rawBody);
   return 'legat';
 }

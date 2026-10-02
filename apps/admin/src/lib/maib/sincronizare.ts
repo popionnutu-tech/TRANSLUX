@@ -34,8 +34,11 @@ export async function sincronizeazaStare(ref: string): Promise<SincronizareRezul
   try {
     const c = await getCheckout(rand.checkout_id);
     const p = c.payment ?? null;
+    // Starea nu dă înapoi: o sesiune deja Completed (scrisă de callback între timp) nu se rescrie cu un
+    // snapshot mai vechi citit de aici (Codex X7).
+    const stareNoua = stareEgala(rand.status, 'Completed') && !stareEgala(c.status, 'Completed') ? rand.status : c.status;
     const upd: Record<string, unknown> = {
-      status: c.status,
+      status: stareNoua,
       checkout_url: c.url ?? rand.checkout_url,
       updated_at: new Date().toISOString(),
     };
@@ -48,7 +51,7 @@ export async function sincronizeazaStare(ref: string): Promise<SincronizareRezul
     if (error) return { ok: false, eroare: error.message };
     // Biletele (ION-193): dacă plata e executată și callback-ul s-a pierdut, le emite sincronizarea — funcția din
     // bază e idempotentă și verifică singură suma; pe o plată de test din /plati întoarce 0 (nu e comandă).
-    if (stareEgala(c.status, 'Completed') && p && stareEgala(p.status, 'Executed')) {
+    if (stareEgala(stareNoua, 'Completed') && p && stareEgala(p.status, 'Executed')) {
       const { error: rpcErr } = await getSupabase().rpc('bilete_marcheaza_platita', { p_checkout_id: rand.checkout_id });
       if (rpcErr) console.error('[maib/sincronizare] bilete_marcheaza_platita:', rpcErr.message);
     }

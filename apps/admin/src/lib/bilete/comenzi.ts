@@ -228,11 +228,14 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
     .select('id');
   if (!revendicat || revendicat.length === 0) throw new ComandaError('in_lucru', 'comanda e deja în curs de plată; reîncearcă într-un minut');
 
+  // Plata se construiește din COMANDA salvată (la o reluare după schimbarea tarifului, suma trimisă băncii trebuie
+  // să fie cea a comenzii, altfel bilete_marcheaza_platita refuză emiterea — Codex X3).
+  const sumaComenzii = Number(comanda.total);
   const descr = descriere(input, cursa.trip.time);
   let checkout: { checkoutId: string; checkoutUrl: string };
   try {
     checkout = await createCheckout({
-      amount: total,
+      amount: sumaComenzii,
       language: v.lang,
       orderId: comanda.id,
       description: descr,
@@ -252,7 +255,7 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
     throw new ComandaError('maib', refuzClar ? 'banca a refuzat sesiunea de plată' : 'banca nu a răspuns; încearcă din nou');
   }
 
-  const legat = await scrieSiLeaga(comanda.id, { checkoutId: checkout.checkoutId, checkoutUrl: checkout.checkoutUrl, amount: total, description: descr }, opt);
+  const legat = await scrieSiLeaga(comanda.id, { checkoutId: checkout.checkoutId, checkoutUrl: checkout.checkoutUrl, amount: sumaComenzii, description: descr }, opt);
   if (!legat.ok) {
     // Sesiunea există la maib, dar legătura nu s-a scris: la următoarea încercare recupereazaSesiunea() o găsește
     // după orderId, iar un callback sosit între timp e legat de bilete_marcheaza_platita după order_id (migr. 484).

@@ -18,7 +18,7 @@ describe('luni', () => {
 
 const ruta = (o: Partial<TikiRuta>): TikiRuta => ({
   route: 1, de_la: 'Briceni', pana_la: 'Chișinău', time_nord: '05:00', time_chisinau: '15:00',
-  zile_circulate: 30, zile_numarate: 20, tiki: 900, lei: 90000, tiki_c: 600, fara_c: 400, top: [], top_tiki: [], ...o,
+  zile_circulate: 30, zile_numarate: 20, tiki: 900, lei: 90000, tiki_c: 600, fara_c: 400, top: [], top_tiki: [], mici: 300, mici_fara_c: 100, ...o,
 });
 
 describe('rute', () => {
@@ -29,6 +29,8 @@ describe('rute', () => {
     expect(r.faraZi).toBe(20);
     expect(r.oameniZi).toBe(50);
     expect(r.top[0]).toEqual({ nume: 'A – B', oameniZi: 25, pct: 50 });
+    expect(r.miciZi).toBe(15);          // 300/30 TIKI + 100/20 fără bilet
+    expect(r.miciPct).toBe(30);         // din 50 oameni pe zi
   });
   it('sub 50 % zile complet numărate: fără «fără bilet», clienții doar din TIKI', () => {
     const r = rutaRand(ruta({ zile_numarate: 14, top: [{ cheie: 'a|b', de_la: 'A', pana_la: 'B', tiki: 1, fara: 1 }],

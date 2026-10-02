@@ -2,10 +2,11 @@
 
 // «Rute» (ION-167). Ion, 01.10: «fă un raport cu numărul de rute și media oameni transportați pe fiecare zi și analiza pe
 // ce clienți în mare parte se ține ruta»; 02.10: «nu am nevoie pe coridor, am nevoie pe fiecare grafic în parte și tipul de
-// clienți pe care se ține exact pe fiecare grafic». Un card pe rută: graficul biletelor TIKI pe lună (anul acesta față de
-// anul trecut) și, sub el, clienții pe care se ține ruta în perioada aleasă. Clic pe card: toate perechile.
+// clienți pe care se ține exact pe fiecare grafic», «în formă de listă», «adaugă coloniță bilete mici» (drum fără Chișinău
+// sau sub 50 lei, într-o coloană). Un rând pe rută: oameni pe zi, TIKI, fără bilet, bilete mici, graficul mic pe 12 luni și
+// clienții pe care se ține; clic pe rând: graficul mare și toate perechile.
 
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { getTikiRute, getTikiRuteLunar, getTikiRutaPerechi } from '../biletAparatActions';
 import type { TikiRuta, TikiRutaLuna, TikiRutaPerechi } from './types';
 import type { DateRange } from './periods';
@@ -16,10 +17,11 @@ import {
 import { LEG_LABEL } from './analiza';
 import { YearLegend, YearLines } from './charts';
 import PerioadaPicker, { perioadaLabel } from './PerioadaPicker';
-import { Notice, fmtInt, fmtPct, nf1 } from './ui';
+import { Notice, fmtPct, nf1, tableWrap } from './ui';
 
 const ora = (t: string | null) => (t ? t.split(' - ')[0] : '');
 const mLabel = (m: string) => `${MONTHS_RO[+m.slice(5, 7) - 1]} ${m.slice(2, 4)}`;
+const zi = (n: number | null) => (n == null ? '—' : nf1.format(n));
 
 function Perechi({ p }: { p: TikiRutaPerechi | null }) {
   if (!p) return <div style={{ padding: 10, color: '#999' }}>Se încarcă…</div>;
@@ -40,8 +42,8 @@ function Perechi({ p }: { p: TikiRutaPerechi | null }) {
           <tr key={i}>
             <td style={{ textAlign: 'left' }}>{r.nume}</td>
             <td style={{ textAlign: 'left', color: '#777' }}>{r.leg === '?' ? '—' : LEG_LABEL[r.leg as keyof typeof LEG_LABEL]}</td>
-            <td style={{ textAlign: 'right' }}>{r.tikiZi == null ? '—' : nf1.format(r.tikiZi)}</td>
-            <td style={{ textAlign: 'right' }}>{r.oameniZi == null ? '—' : nf1.format(r.oameniZi)}</td>
+            <td style={{ textAlign: 'right' }}>{zi(r.tikiZi)}</td>
+            <td style={{ textAlign: 'right' }}>{zi(r.oameniZi)}</td>
             <td style={{ textAlign: 'right' }}>{fmtPct(r.pct, 0)}</td>
           </tr>
         ))}
@@ -79,11 +81,11 @@ export default function RuteView({ dateMin, dateMax }: { dateMin: string; dateMa
     return () => { alive = false; };
   }, [open, per]);
 
-  const carduri = useMemo(() => {
+  const lista = useMemo(() => {
     const list = (rows ?? []).map(rutaRand);
     return list.sort((a, b) => (b.oameniZi ?? -1) - (a.oameniZi ?? -1) || (b.tikiZi ?? 0) - (a.tikiZi ?? 0));
   }, [rows]);
-  const s = useMemo(() => ruteSumar(carduri), [carduri]);
+  const s = useMemo(() => ruteSumar(lista), [lista]);
   const lastMonth = per.to.slice(0, 7);
 
   return (
@@ -101,52 +103,78 @@ export default function RuteView({ dateMin, dateMax }: { dateMin: string; dateMa
               ({nf1.format(s.tikiZi!)} cu bilet TIKI, {nf1.format(s.faraZi!)} fără).</>}
           </div>
           <Notice tone="info">
-            Graficul: biletele TIKI pe lună, anul acesta față de anul trecut. Sub grafic: pe ce clienți se ține ruta în {perioadaLabel(per)} —
-            oameni pe zi (cu bilet TIKI și fără, din Numărare) pe tip de bilet. Rutele numărate în mai puțin de {PRAG_NUMARATA * 100}% din
-            zile arată clienții doar din biletele TIKI. Clic pe card pentru toate perechile.
+            <b>Oameni pe zi</b> = cu bilet TIKI + numărați fără bilet. <b>Bilete mici</b> = drum scurt fără Chișinău sau bilet sub 50 lei.
+            Graficul: biletele TIKI pe lună, ultimele 12 luni (gri = anul trecut). <b>Se ține pe</b> = primele 3 tipuri de clienți.
+            Rutele numărate în mai puțin de {PRAG_NUMARATA * 100}% din zile («puțin numărată») arată doar biletele TIKI.
+            Clic pe rând: graficul mare și toate perechile.
           </Notice>
-          <div style={{ marginBottom: 8 }}><YearLegend /></div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 12 }}>
-            {carduri.map(r => {
-              const g = seriiRuta(lunar, r.r.route, lastMonth);
-              const deschis = open === r.r.route;
-              return (
-                <div key={r.r.route} className="card" style={{ padding: '12px 14px', gridColumn: deschis ? '1 / -1' : undefined }}>
-                  <div onClick={() => setOpen(o => (o === r.r.route ? null : r.r.route))} style={{ cursor: 'pointer' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
-                      <div>
-                        <b style={{ color: '#9B1B30', fontSize: 15 }}>{capatNord(r.r.de_la, r.r.pana_la)}</b>
-                        <div style={{ fontSize: 11, color: '#999' }}>{ora(r.r.time_nord)} spre Chișinău · {ora(r.r.time_chisinau)} din Chișinău</div>
-                      </div>
-                      <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        <div style={{ fontSize: 18, fontWeight: 700 }}>{r.oameniZi == null ? (r.tikiZi == null ? '—' : nf1.format(r.tikiZi)) : nf1.format(r.oameniZi)}</div>
-                        <div style={{ fontSize: 11, color: '#777' }}>{r.oameniZi == null ? 'bilete TIKI pe zi' : 'oameni pe zi'}</div>
-                      </div>
-                    </div>
-                    <YearLines labels={g.months.map(mLabel)} cur={g.cur} prev={g.prev} height={110}
-                      note={i => (g.oameniZi[i] == null ? null : `oameni pe zi (cu și fără bilet): ${nf1.format(g.oameniZi[i]!)}`)} />
-                    <div style={{ fontSize: 12, marginTop: 4 }}>
-                      <div style={{ color: '#777', marginBottom: 2 }}>
-                        Se ține pe{r.topDoarTiki ? ' (doar bilete TIKI — ruta e puțin numărată)' : ''}:
-                      </div>
-                      {r.top.length === 0 ? <span style={{ color: '#999' }}>—</span> : r.top.map((p, i) => (
-                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                          <span>{p.nume}</span>
-                          <span style={{ color: '#555', whiteSpace: 'nowrap' }}>{nf1.format(p.oameniZi)}/zi · <b>{p.pct.toFixed(0)}%</b></span>
-                        </div>
-                      ))}
-                      <div style={{ color: '#999', marginTop: 4 }}>
-                        {fmtInt(r.r.zile_circulate)} zile circulate · {fmtInt(r.r.zile_numarate)} numărate complet
-                        {r.faraZi != null && <> · {nf1.format(r.tikiZi!)} cu bilet + {nf1.format(r.faraZi)} fără, pe zi</>}
-                      </div>
-                    </div>
-                  </div>
-                  {deschis && <div style={{ marginTop: 10 }}><Perechi p={perechi} /></div>}
-                </div>
-              );
-            })}
+          <div className="card" style={{ padding: 0 }}>
+            <div style={tableWrap}>
+              <table style={{ width: '100%' }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left' }}>Ruta / ore</th>
+                    <th style={{ textAlign: 'right' }}>Oameni pe zi</th>
+                    <th style={{ textAlign: 'right' }}>TIKI pe zi</th>
+                    <th style={{ textAlign: 'right' }}>Fără bilet pe zi</th>
+                    <th style={{ textAlign: 'right' }}>Bilete mici pe zi</th>
+                    <th style={{ textAlign: 'left', minWidth: 190 }}>Bilete pe lună</th>
+                    <th style={{ textAlign: 'left' }}>Se ține pe (oameni pe zi · %)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lista.map(r => {
+                    const g = seriiRuta(lunar, r.r.route, lastMonth);
+                    const deschis = open === r.r.route;
+                    return (
+                      <Fragment key={r.r.route}>
+                        <tr onClick={() => setOpen(o => (o === r.r.route ? null : r.r.route))}
+                          style={{ cursor: 'pointer', background: deschis ? 'rgba(155,27,48,0.04)' : undefined }}>
+                          <td style={{ textAlign: 'left', verticalAlign: 'top' }}>
+                            <b style={{ color: '#9B1B30' }}>{capatNord(r.r.de_la, r.r.pana_la)}</b>
+                            <div style={{ fontSize: 11, color: '#999', whiteSpace: 'nowrap' }}>{ora(r.r.time_nord)} ↓ · {ora(r.r.time_chisinau)} ↑</div>
+                            {!r.numarata && <div style={{ fontSize: 11, color: '#8a5a00' }}>⚠ puțin numărată</div>}
+                          </td>
+                          <td style={{ textAlign: 'right', fontWeight: 700, verticalAlign: 'top' }}>{zi(r.oameniZi)}</td>
+                          <td style={{ textAlign: 'right', verticalAlign: 'top' }}>{zi(r.tikiZi)}</td>
+                          <td style={{ textAlign: 'right', verticalAlign: 'top' }}>{zi(r.faraZi)}</td>
+                          <td style={{ textAlign: 'right', verticalAlign: 'top', whiteSpace: 'nowrap' }}>
+                            {zi(r.miciZi)}
+                            {r.miciPct != null && <div style={{ fontSize: 11, color: '#777' }}>{r.miciPct.toFixed(0)}% din rută</div>}
+                          </td>
+                          <td style={{ verticalAlign: 'top', width: 200 }}>
+                            <YearLines labels={g.months.map(mLabel)} cur={g.cur} prev={g.prev} height={56} />
+                          </td>
+                          <td style={{ textAlign: 'left', fontSize: 12, verticalAlign: 'top' }}>
+                            {r.topDoarTiki && r.top.length > 0 && <div style={{ color: '#999' }}>doar bilete TIKI</div>}
+                            {r.top.length === 0 ? <span style={{ color: '#999' }}>—</span> : r.top.map((p, i) => (
+                              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                                <span>{p.nume}</span>
+                                <span style={{ color: '#555', whiteSpace: 'nowrap' }}>{nf1.format(p.oameniZi)}/zi · <b>{p.pct.toFixed(0)}%</b></span>
+                              </div>
+                            ))}
+                          </td>
+                        </tr>
+                        {deschis && (
+                          <tr>
+                            <td colSpan={7} style={{ background: 'rgba(0,0,0,0.02)' }}>
+                              <div style={{ margin: '4px 0 8px' }}><YearLegend /></div>
+                              <YearLines labels={g.months.map(mLabel)} cur={g.cur} prev={g.prev} height={150}
+                                note={i => (g.oameniZi[i] == null ? null : `oameni pe zi (cu și fără bilet): ${nf1.format(g.oameniZi[i]!)}`)} />
+                              <div style={{ marginTop: 10 }}><Perechi p={perechi} /></div>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })}
+                  {lista.length === 0 && (
+                    <tr><td colSpan={7} style={{ textAlign: 'center', color: '#999', padding: 20 }}>Nicio rută în perioada aleasă.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-          {carduri.length === 0 && <div style={{ padding: 20, color: '#999' }}>Nicio rută în perioada aleasă.</div>}
         </>
       )}
     </div>

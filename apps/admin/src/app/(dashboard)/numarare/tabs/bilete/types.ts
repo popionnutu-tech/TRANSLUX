@@ -253,6 +253,8 @@ export interface TikiRuta {
   fara_c: number;
   top: (PerechePe & { tiki: number; fara: number })[];
   top_tiki: (PerechePe & { tiki: number })[];       // după biletele TIKI pe toate zilele (migr. 472)
+  mici: number;          // bilete TIKI mici: drum fără Chișinău sau sub 50 lei, toate zilele (migr. 473)
+  mici_fara_c: number;   // fără bilet pe perechi fără Chișinău, zilele complet numărate
 }
 
 /** Rută × lună, ultimele 24 de luni (migr. 471): graficul fiecărei rute. */

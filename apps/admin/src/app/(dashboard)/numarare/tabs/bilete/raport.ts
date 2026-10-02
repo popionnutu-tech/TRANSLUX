@@ -49,6 +49,9 @@ export interface RutaRand {
   /** clienții pe care se ține ruta: din oameni (TIKI + fără bilet) dacă e numărată, altfel doar din biletele TIKI */
   top: { nume: string; oameniZi: number; pct: number }[];
   topDoarTiki: boolean;
+  /** bilete mici pe zi (TIKI fără Chișinău sau sub 50 lei + fără bilet fără Chișinău, dacă e numărată) și partea din rută */
+  miciZi: number | null;
+  miciPct: number | null;
 }
 
 export function rutaRand(r: TikiRuta): RutaRand {
@@ -66,6 +69,13 @@ export function rutaRand(r: TikiRuta): RutaRand {
         ? (r.top_tiki ?? []).map(p => ({ nume: numePereche(p), oameniZi: p.tiki / r.zile_circulate, pct: (p.tiki / r.tiki) * 100 }))
         : [],
     topDoarTiki: !(numarata && totC > 0),
+    ...(() => {
+      const t = div(r.mici ?? 0, r.zile_circulate);
+      if (t == null) return { miciZi: null, miciPct: null };
+      const f = numarata ? (r.mici_fara_c ?? 0) / r.zile_numarate : 0;
+      const baza = numarata && tikiZi != null && faraZi != null ? tikiZi + faraZi : tikiZi;
+      return { miciZi: t + f, miciPct: baza ? ((t + f) / baza) * 100 : null };
+    })(),
   };
 }
 

@@ -442,21 +442,71 @@ testele pasului 6 sunt CONDIȚIE DE PUSH, nu pas ulterior. Notificările șoferu
 - Gate-urile proiectului: `vitest` admin + web + packages (la handoff), `tsc` pe toate 5 (pre-push), `db-migrate.sh
   --dry-run`, `tp handoff`.
 
-## Întrebări pentru Ion (obligatorii, răspunsurile se scriu aici)
+## Întrebări pentru Ion — cu răspunsurile lui (02.10.2026, 23:40) și ce schimbă în plan (v6)
 
-1. **Cum ajunge biletul la pasager** în afara paginii deschise după plată? Nu există SMS în proiect. (a) doar pagina +
-   «salvează captura», (b) e-mail opțional (furnizor nou, ex. Resend), (c) SMS (furnizor MD, cost pe mesaj). Recomand (a)+(b).
-2. **Închiderea vânzării**: cu câte minute înainte de plecarea de la oprirea pasagerului dispare «Cumpără bilet»? Recomand 30.
-3. **Legarea șoferului prin telefon** (contactul PROPRIU trimis botului → `drivers.phone`) e acceptabilă? Alternativa e
-   doar de mână, din `/drivers`. Recomand telefonul, cu legarea de mână ca rezervă.
-4. **Anularea parțială** (1 din 2 locuri) — în v1 doar toată comanda. De acord?
-5. **Textul despre bani** după anulare: «banii se întorc pe card în până la N zile lucrătoare» — N îl spune maib.
-6. **Mesaj în grupa Mejgorod la fiecare vânzare** — recomand NU (șoferul primește în privat și vede în mini app).
-7. **Păstrarea datelor**: nume + telefon pasager anonimizate după 90 de zile de la cursă; dovada plății semnate 13 luni?
-8. **Pilotul**: pe care 1–2 rute pornim după 12 octombrie (recomand una cu șofer stabil și ocupare medie)?
-9. **Mini app-ul în BotFather** (`/newapp`, numele `bilete`) și **grupul de test** le faci tu sau îți dau pașii?
-10. **Biletul online și terminalul**: confirmi regula «șoferul NU bate bon la terminal pentru biletul online» și că
-    pasagerii online intră la Încasare/Raport grafic ca «Online» la prețul camerei, separat de «Bilete aparat»?
+1. **Cum ajunge biletul la pasager.** Răspuns: «Salvează bilet + e-mail opțional și pe Telegram botul nostru facem
+   forward.» → Pagina biletului are «Salvează» (PNG/print), câmp e-mail opțional (furnizor de e-mail: Resend, cont nou,
+   env `RESEND_API_KEY`) și butonul «Primește în Telegram» → `https://t.me/<bot>?start=bilet_<cod>`; botul primește
+   payload-ul `bilet_` ÎNAINTEA verificării invitației (ca `bilete` la 7b; pasagerul NU e în `users` și nu primește
+   cont) și trimite biletul (QR + text) în privat; `bilete_comenzi.telegram_id` se salvează ca să poată primi și
+   anularea/schimbările. Suprafață nouă pentru `security-reviewer` la implementare (pasul 3b).
+2. **Închiderea vânzării.** Răspuns: «până șoferul să înceapă tura tur, și din Chișinău cu 2 ore înainte.» → `sale_open`
+   pe DIRECȚIE: tur (plecare din nord) — până la ora plecării rutei din prima oprire (graficul publicat); retur (din
+   Chișinău) — până la T−2h. În `app_config`: `bilete_inchidere_tur_min = 0`, `bilete_inchidere_retur_min = 120`
+   (înlocuiesc `bilete_inchidere_min`).
+3. **Legarea prin telefon.** Răspuns: da. → 7b rămâne (contact PROPRIU), 7c rezervă.
+4. **Anularea parțială.** Răspuns: da, doar toată comanda în v1.
+5. **Textul despre bani.** Răspuns: ok; N se cere lui Octavian în același mail.
+6. **Mesaj în grupă la fiecare vânzare.** Răspuns: «aici vom uni șoferul cu botul, și pe fiecare zi șoferul va avea
+   biletele vândute tur și retur.» → Fără grupă. Botul, în PRIVAT: la fiecare vânzare un rând scurt; în fiecare zi (ora
+   `bilete_digest_sofer_ora`, implicit 05:30) lista biletelor pentru tur și retur ale zilei; butonul «Biletele mele»
+   deschide mini app-ul.
+7. **Păstrarea datelor.** Răspuns: NU (fără anonimizare). → 5c păstrează doar curățenia tehnică (`bilete_api_apeluri`,
+   `bilete_scanari` > 1 an); datele pasagerilor rămân; politica Legii 195 trebuie să declare păstrarea pe durată
+   nelimitată — risc legal notat, decizia e a lui Ion.
+8. **Pilotul.** Răspuns: «pe toate rutele, dar pe direcții țintit, ex. Briceni→Chișinău sau Bălți→Chișinău.» →
+   Steagul e pe rută ȘI direcție: `crm_routes.bilete_online_tur bool`, `crm_routes.bilete_online_retur bool` (implicit
+   false); pilotul pornește pe direcțiile nord→Chișinău alese de Ion.
+9. **Grupa Mejgorod / BotFather.** Răspuns: «nu cu grupa Mejgorod, ci cu botul TRANSLUX; fiecare șofer va avea acces la
+   el.» → Pasul 9 se rescrie: NU există buton în grupă. Șoferul dă `/start` botului în privat → legare prin contact (7b)
+   → butonul `web_app` «🎫 Biletele mele» (permis în privat — Bot API; F8 devine irelevant, `initData.user` e garantat la
+   `web_app`) + Menu Button al botului setat pe mini app. În grupa Mejgorod rămâne doar anunțul ION-189 și, o singură
+   dată, instrucțiunea «apasă Start la @bot». `/newapp` în BotFather nu mai e obligatoriu (butonul `web_app` primește
+   URL-ul direct); grupul de test dispare; pasul S se reduce la proba `requestContact` + scanner pe două telefoane.
+10. **Biletul online și terminalul.** Răspuns: «nu înțeleg» → explicat în chat (vezi mai jos); rămâne de confirmat:
+    (a) șoferul NU bate bon pe terminal pentru pasagerul care arată QR; (b) dacă legea cere bon fiscal și pentru plata
+    online — întrebare pentru contabilitate/maib, înaintea lansării.
+
+### Ce se schimbă în pași (v6, din răspunsuri)
+- Pasul 1: steagurile pe direcție (8), `bilete_inchidere_tur_min/retur_min` (2), `bilete_comenzi.telegram_id` +
+  `email` (1), fără anonimizare (7).
+- Pasul 3: `sale_open` pe direcție (2); pagina biletului cu «Salvează», e-mail opțional, «Primește în Telegram» (1).
+- Pasul 3b (nou, după 7b): handler `/start bilet_<cod>` în bot pentru pasageri + trimiterea biletului; e-mail prin Resend.
+- Pasul 5a: digestul zilnic al șoferului (6) se trimite din cron la ora setată, pe lângă notificarea la vânzare.
+- Pasul 9: buton `web_app` în privat + Menu Button; fără grupă (9). Pasul S: doar `requestContact` + scanner.
+- Decizia 3 și F8: linkul direct din grupă nu se mai folosește; mini app-ul se deschide din privat.
+
+### Ion, 02.10, 23:45: «logica simplă» și clauza de returnare prin bot, cu AI
+Citat: «omul cumpără bilet QR, acest bilet îl prezintă la șofer, șoferul apasă pe buton și scanează confirmând că
+clientul a venit. Trebuie de gândit clauza returnare bilet. Ar fi bine să o facem tot prin bot și în bot să punem un AI
+care va verifica.»
+- Fluxul de bază rămâne exact așa (pașii 3, 8). Nimic în plus pentru pasager la urcare.
+- **Clauza de returnare** (propunere, de confirmat de Ion; regulile sunt DETERMINISTE, AI-ul nu decide banii):
+  (a) până la T−2h înaintea plecării de la oprirea pasagerului → refund integral, automat; (b) între T−2h și plecare
+  → fără refund automat; doar dispecerul, cu motiv; (c) după plecare, bilet nescanat (neprezentat) → fără refund;
+  (d) cursa anulată de companie / fără șofer → refund integral automat + mesaj; (e) scanat «urcat» → nu se mai
+  returnează. Pasul 6 rămâne implementarea; clauza se scrie și pe pagina biletului și în FAQ.
+- **Returnarea prin bot** (pasul 6b, nou): pasagerul legat prin «Primește în Telegram» scrie botului (sau apasă
+  «Returnează biletul» sub biletul trimis); botul identifică comanda (telegram_id → comenzi; sau codul biletului),
+  aplică clauza prin ACEEAȘI funcție `anuleazaSiReturneaza` și răspunde cu rezultatul.
+- **AI-ul din bot** = asistentul care poartă conversația (RO/RU), explică clauza pe cazul concret (ora, starea
+  biletului), strânge motivul și, când cazul NU intră în regulile automate ((b), (c) sau pretenții: «autobuzul n-a
+  venit», «am fost la oprire»), face un rezumat și îl trimite adminului cu butoane «Returnează / Refuză». Verifică cu
+  date din sistem: ora reală a trecerii autobuzului prin oprire (`route_stop_passes`, memoria «ora-reala-pe-opriri»),
+  scanările, GPS-ul. AI-ul NU cheamă refund-ul singur în afara regulilor (a)/(d): decizia pe bani rămâne regulă sau
+  om. Modelul: cel folosit deja de asistentul site-ului (`site-assistant`), cu un prompt separat și instrumentele
+  `bilet(cod)`, `trecere_oprire(ruta, zi, oprire)`, `escaladeaza(rezumat)`. Pas separat după 6 și 3b; `security-reviewer`
+  obligatoriu (bani + conversație liberă).
 
 ## Revizori Claude — runda 1 (triaj, pe v1)
 

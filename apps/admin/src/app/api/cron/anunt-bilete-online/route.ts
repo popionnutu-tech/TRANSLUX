@@ -10,7 +10,7 @@ export const maxDuration = 30;
 
 // ION-189 (Ion, 02.10.2026): anunț zilnic în grupa Mejgorod, în rusă, despre lansarea vânzării de bilete online
 // (după 12 octombrie): verificarea și confirmarea biletelor se fac prin Telegram, șoferul fără cont Telegram și
-// telefon nu pleacă în cursă. «După ce vom lansa plata online, mesajul să nu mai plece» → se oprește când
+// telefon nu pleacă în cursă. Ion, 02.10 seara: «И телефона важно» → telefonul e punct separat, îngroșat. «După ce vom lansa plata online, mesajul să nu mai plece» → se oprește când
 // app_config.bilete_online_lansat are o dată ≤ azi.
 //
 // Cron: VPS root@217.26.149.23, crontab 0 8 * * * (Vercel Hobby are doar 2 cron-uri, ambele ocupate).
@@ -27,13 +27,15 @@ const TEXT_ANUNT = [
   '',
   'В ближайшее время мы запускаем <b>продажу билетов онлайн</b>. Запуск планируется <b>после 12 октября</b>.',
   '',
-  'Проверка проданных билетов и их подтверждение будут проходить <b>через Telegram</b>. Поэтому у каждого водителя должны быть:',
-  '• аккаунт в Telegram;',
-  '• телефон, с помощью которого он сможет идентифицировать пассажиров и подтверждать билеты.',
+  'Проверка проданных билетов и их подтверждение будут проходить <b>через Telegram</b>. Поэтому у каждого водителя обязательно должны быть:',
   '',
-  '⚠️ Водитель, у которого не будет аккаунта в Telegram и такого телефона, <b>не будет допущен к рейсу</b>.',
+  '📱 <b>Телефон (смартфон) с интернетом</b> — через него водитель будет идентифицировать пассажиров и подтверждать их билеты. <b>Без телефона работать на рейсе будет невозможно.</b>',
   '',
-  'Просим подготовиться заранее: установить Telegram, войти в аккаунт и убедиться, что телефон работает. По всем вопросам обращайтесь к диспетчеру.',
+  '✅ <b>Аккаунт в Telegram</b> на этом телефоне.',
+  '',
+  '⚠️ Водитель <b>без телефона</b> или <b>без аккаунта в Telegram</b> <b>не будет допущен к рейсу</b>.',
+  '',
+  'Просим подготовиться заранее: взять с собой рабочий телефон с интернетом, установить Telegram и войти в аккаунт. По всем вопросам обращайтесь к диспетчеру.',
   '',
   'Спасибо за понимание и за вашу работу!',
   '<i>Администрация TRANSLUX</i>',

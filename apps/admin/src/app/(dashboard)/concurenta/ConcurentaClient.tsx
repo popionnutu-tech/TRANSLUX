@@ -24,7 +24,11 @@ const pad = (t: string | null) => (t ? t.replace(/^(\d):/, '0$1:') : '—');
 const mins = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
 // ION-182 (Ion, 02.10): «apăsând pe coloană să pot pune crescător/descrescător orarul» — sortarea listei pe oricare coloană.
 type SortCol = 'dep' | 'back' | 'lei' | 'route' | 'firm' | 'code';
-const backOf = (r: Row) => (r.dir === 'tur' ? r.course.dep_retur : r.course.dep_tur);
+// ION-186 (Ion, 02.10: «dacă pun din Edineț, cu mare să fie ora din Edineț și jos cu mic ora din primul punct»):
+// «Pornire înapoi» = ora la care cursa de întoarcere pleacă din punctul ales («Încotro»); dedesubt, ora din capătul cursei.
+const backFromEnd = (r: Row) => (r.dir === 'tur' ? r.course.dep_retur : r.course.dep_tur);
+const backAt = (r: Row) => (r.to.name === r.terminus ? null : r.dir === 'tur' ? r.to.time_retur : r.to.time_tur);
+const backOf = (r: Row) => backAt(r) ?? backFromEnd(r);
 const codeOf = (r: Row) => (r.course.source === 'tlx' ? '\uffff' : r.course.code);   // ale noastre la sfârșit
 function cmpRows(a: Row, b: Row, col: SortCol): number {
   switch (col) {
@@ -351,7 +355,7 @@ export default function ConcurentaClient({ init }: { init: ConcurentaInit }) {
                       onClick={() => openRow(r)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openRow(r); } }}>
                       <td className={s.num}>{i + 1}</td>
                       <td><div className={s.t1}>{pad(r.dep)}</div><div className={s.t2}>{r.from.name}{r.from.note ? ` · ${r.from.note}` : ''}</div></td>
-                      <td><div className={s.t1}>{pad(r.dir === 'tur' ? r.course.dep_retur : r.course.dep_tur)}</div><div className={s.t2}>din {r.terminus}</div></td>
+                      <td><div className={s.t1}>{pad(backOf(r))}</div><div className={s.t2}>{backAt(r) ? `${pad(backFromEnd(r))} din ${r.terminus}` : `din ${r.terminus}`}</div></td>
                       <td><div className={s.price}>{r.lei ? `${r.lei} lei` : '—'}</div><div className={s.t2}>{r.km} km</div></td>
                       <td><div className={s.route}>{r.course.route_name}</div><div className={s.dir}>{r.dir} · spre {r.terminus} · {r.course.stops.length} opriri</div></td>
                       <td className={`${s.hideM} ${s.op}`}>{r.course.operator}{mine && <span className={s.pill}>NOI</span>}

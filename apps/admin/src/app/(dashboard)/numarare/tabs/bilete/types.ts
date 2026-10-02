@@ -16,6 +16,14 @@ export interface TikiBatch {
   error: string | null;   // rulările automate din Mobilet (migr. 451)
 }
 
+/** Refacerea vederilor (ION-166): ce așteaptă noaptea, ultimul pas. */
+export interface TikiRefacereStare {
+  luni_in_asteptare: string[];
+  zile_numarare: number;
+  ultimul_pas: { la: string; tip: string; luna: string | null; ms: number } | null;
+  pas_maxim_ms_24h: number | null;
+}
+
 export interface TikiMeta {
   date_min: string | null;
   date_max: string | null;

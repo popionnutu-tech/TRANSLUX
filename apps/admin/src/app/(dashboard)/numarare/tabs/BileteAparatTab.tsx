@@ -7,8 +7,8 @@
 // numărare»; «șterge import, că am făcut cron automat» (importul zilnic din Mobilet, ION-160).
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { getTikiMeta } from './biletAparatActions';
-import type { Filters, TikiMeta } from './bilete/types';
+import { getTikiMeta, getTikiRefacereStare } from './biletAparatActions';
+import type { Filters, TikiMeta, TikiRefacereStare } from './bilete/types';
 import { presetRange, fmtDate, unreliableOverlap, type Preset } from './bilete/periods';
 import { Notice, Pill } from './bilete/ui';
 import TendintaView from './bilete/TendintaView';
@@ -42,9 +42,13 @@ const inputStyle: React.CSSProperties = {
   width: 'auto', flex: '0 0 auto',
 };
 
+const LUNI = ['ian.', 'feb.', 'mar.', 'apr.', 'mai', 'iun.', 'iul.', 'aug.', 'sep.', 'oct.', 'nov.', 'dec.'];
+const fmtLuna = (d: string) => `${LUNI[Number(d.slice(5, 7)) - 1]} ${d.slice(0, 4)}`;
+
 export default function BileteAparatTab() {
   const [meta, setMeta] = useState<TikiMeta | null>(null);
   const [metaError, setMetaError] = useState<string | null>(null);
+  const [refacere, setRefacere] = useState<TikiRefacereStare | null>(null);
   const [view, setView] = useState<View>('pairs');
   const [filters, setFilters] = useState<Filters | null>(null);
   const [preset, setPreset] = useState<Preset | null>('ultimele_8s');
@@ -60,6 +64,7 @@ export default function BileteAparatTab() {
   }, []);
 
   useEffect(() => { loadMeta(); }, [loadMeta]);
+  useEffect(() => { getTikiRefacereStare().then(r => { if (r.data) setRefacere(r.data); }); }, []);
 
   const applyPreset = (p: Preset) => {
     if (!meta?.date_max || !filters) return;
@@ -83,6 +88,14 @@ export default function BileteAparatTab() {
       </div>
 
       {metaError && <Notice tone="danger">Nu s-au putut încărca datele: {metaError}</Notice>}
+      {refacere && (refacere.luni_in_asteptare.length > 0 || refacere.zile_numarare > 0) && (
+        <Notice tone="info">
+          Recalcul în așteptare
+          {refacere.luni_in_asteptare.length > 0 && <> pentru {refacere.luni_in_asteptare.map(fmtLuna).join(', ')}</>}
+          {refacere.zile_numarare > 0 && <> · Numărarea: {refacere.zile_numarare} zile × rute</>}
+          . Se face noaptea (23:00–05:00), până atunci cifrele acestor luni sunt cele vechi.
+        </Notice>
+      )}
 
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
         {VIEWS.map(v => (

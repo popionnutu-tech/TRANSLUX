@@ -10,7 +10,7 @@ import { verifySession } from '@/lib/auth';
 import { unpackRow, type PackedRow } from './bilete/ticketParse';
 import type {
   TikiBatch, TikiMeta, TikiSummary, TikiDriverRow, TikiRouteRow, TikiPairRow, TikiMonthly,
-  TikiCalitate, OrarRoute, TikiTendinta, TikiClienti, TikiOd, TikiOmisi,
+  TikiCalitate, OrarRoute, TikiTendinta, TikiClienti, TikiOd, TikiOmisi, TikiRefacereStare,
 } from './bilete/types';
 
 type Res<T> = { data?: T; error?: string };
@@ -145,6 +145,14 @@ export async function getTikiMeta(): Promise<Res<TikiMeta>> {
   const { data, error } = await getSupabase().rpc('get_tiki_meta');
   if (error) return { error: error.message };
   return { data: data as TikiMeta };
+}
+
+export async function getTikiRefacereStare(): Promise<Res<TikiRefacereStare>> {
+  const a = await adminOnly();
+  if ('error' in a) return a;
+  const { data, error } = await getSupabase().rpc('get_tiki_refacere_stare');
+  if (error) return { error: error.message };
+  return { data: data as TikiRefacereStare };
 }
 
 export async function getTikiSummary(

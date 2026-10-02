@@ -3,13 +3,15 @@ name: tiki-mobilet
 # Importul zilnic al biletelor din cabinetul Mobilet (ION-160): vânzările și cursele ultimelor 8 zile până ieri intră în
 # Numărare → Bilete aparat (fără dubluri: biletele deja importate se sar). Ion, 01.10: «fă ca o dată în zi, pe ziua de
 # ieri, să lucreze automatizarea: să intre pe site și să colecteze datele de bilete».
-# Rulează pe GitHub infra: Vercel Hobby are ambele sloturi de cron ocupate. A doua rulare = retry (idempotent).
-# 03:30 / 05:00 UTC = 06:30 / 08:00 Chișinău vara (EEST), 05:30 / 07:00 iarna.
+# Rulează pe GitHub infra: Vercel Hobby are ambele sloturi de cron ocupate. A doua rulare = retry (idempotent) și
+# continuarea refacerii.
+# ION-166: totul NOAPTEA — baza (Supabase NANO) a încremenit pe 01.10 după o zi de refaceri grele. 00:30 / 01:30 UTC =
+# 03:30 / 04:30 Chișinău vara (EEST), 02:30 / 03:30 iarna; ruta de refacere lucrează doar 23:00–05:00 Chișinău.
 
 on:
   schedule:
-    - cron: '30 3 * * *'
-    - cron: '0 5 * * *'
+    - cron: '30 0 * * *'
+    - cron: '30 1 * * *'
   workflow_dispatch:
     inputs:
       from:
@@ -39,20 +41,23 @@ jobs:
             echo "::warning::tiki-mobilet returned HTTP $code"
             exit 1
           fi
-      # ION-159: refacerea Orarului / Față de anul trecut / Cine merge pe rută pe lunile curselor importate.
-      # Rulează și când importul a picat: golește ce a rămas în coadă (corecturile din Numărare, lunile neterminate).
+      # ION-159 / ION-166: refacerea vederilor Bilete aparat pe lunile curselor importate, în pași mici (≤ 10 s fiecare,
+      # ~45 s pe apel). Rulează și când importul a picat: golește ce a rămas în coadă. Se oprește când cozile sunt goale
+      # («gata»), când ruta spune că a ieșit din fereastra de noapte («oprit») sau după 60 de apeluri; restul — noaptea
+      # următoare.
       - name: Refacere vederi
         if: always()
         run: |
-          for i in 1 2 3; do
-            code=$(curl -s -m 320 -o /tmp/body -w "%{http_code}" \
+          for i in $(seq 1 60); do
+            code=$(curl -s -m 90 -o /tmp/body -w "%{http_code}" \
               -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
               "https://central-hub-md.vercel.app/api/cron/tiki-refacere")
             echo "tiki-refacere #$i: HTTP $code"
-            cat /tmp/body; echo
+            head -c 600 /tmp/body; echo
             if [ "$code" -lt 200 ] || [ "$code" -ge 400 ]; then
               echo "::warning::tiki-refacere returned HTTP $code"
               exit 1
             fi
-            grep -q '"ramase":0' /tmp/body && break
+            grep -q '"gata":true' /tmp/body && break
+            grep -q '"oprit"' /tmp/body && break
           done

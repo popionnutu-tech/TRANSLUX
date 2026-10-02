@@ -8,6 +8,7 @@
 import { getSupabase } from '@/lib/supabase';
 import { verifySession } from '@/lib/auth';
 import { unpackRow, type PackedRow } from './bilete/ticketParse';
+import { nordDeBalti, type StopKm } from './bilete/grupare';
 import type {
   TikiBatch, TikiMeta, TikiSummary, TikiDriverRow, TikiRouteRow, TikiPairRow, TikiMonthly,
   TikiCalitate, OrarRoute, TikiTendinta, TikiClienti, TikiOd, TikiOmisi, TikiRefacereStare, Piata,
@@ -202,6 +203,19 @@ export async function getTikiPairs(
   });
   if (error) return { error: error.message };
   return { data: (data ?? []) as TikiPairRow[] };
+}
+
+// ION-180: stațiile de după Bălți (dincolo de Bălți, văzut din Chișinău) din nomenclatorul interurban,
+// ca grupul «Chișinău – după Bălți» din tabelul perechilor să nu fie o listă scrisă de mână. Cheile sunt stopNorm().
+export async function getTikiNordDeBalti(): Promise<Res<string[]>> {
+  const a = await adminOnly();
+  if ('error' in a) return a;
+  const { data, error } = await getSupabase()
+    .from('interurban_v2_stops')
+    .select('tariff_id,name_ro,km_from_start')
+    .limit(1000);
+  if (error) return { error: error.message };
+  return { data: [...nordDeBalti((data ?? []) as StopKm[])] };
 }
 
 export async function getTikiMonthly(

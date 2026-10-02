@@ -11,7 +11,7 @@ import { unpackRow, type PackedRow } from './bilete/ticketParse';
 import type {
   TikiBatch, TikiMeta, TikiSummary, TikiDriverRow, TikiRouteRow, TikiPairRow, TikiMonthly,
   TikiCalitate, OrarRoute, TikiTendinta, TikiClienti, TikiOd, TikiOmisi, TikiRefacereStare, Piata,
-  TikiComparatie, TikiRuta, TikiRutaPerechi, TikiSoferi,
+  TikiComparatie, TikiRuta, TikiRutaPerechi, TikiSoferi, TikiRutaLuna,
 } from './bilete/types';
 
 type Res<T> = { data?: T; error?: string };
@@ -318,6 +318,15 @@ export async function getTikiRute(from: string, to: string): Promise<Res<TikiRut
   const { data, error } = await getSupabase().rpc('get_tiki_rute', { p_from: from, p_to: to });
   if (error) return { error: error.message };
   return { data: data as TikiRuta[] };
+}
+
+export async function getTikiRuteLunar(to: string): Promise<Res<TikiRutaLuna[]>> {
+  const a = await adminOnly();
+  if ('error' in a) return a;
+  if (!DATE_RE.test(to)) return { error: 'Dată invalidă' };
+  const { data, error } = await getSupabase().rpc('get_tiki_rute_lunar', { p_to: to });
+  if (error) return { error: error.message };
+  return { data: data as TikiRutaLuna[] };
 }
 
 export async function getTikiRutaPerechi(from: string, to: string, route: number): Promise<Res<TikiRutaPerechi>> {

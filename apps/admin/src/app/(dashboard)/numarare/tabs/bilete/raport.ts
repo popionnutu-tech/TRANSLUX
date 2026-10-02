@@ -5,7 +5,7 @@
 // «Oameni transportați» = suma lor. «Fără bilet» se estimează pe rută: media pe zilele complet numărate × zilele circulate,
 // doar pe rutele cu cel puțin jumătate din zile complet numărate.
 
-import type { TikiComparatie, TikiRuta, TikiRutaPerechi, TikiSoferV2 } from './types';
+import type { TikiComparatie, TikiRuta, TikiRutaLuna, TikiRutaPerechi, TikiSoferV2 } from './types';
 
 export const PRAG_NUMARATA = 0.5;
 
@@ -46,7 +46,9 @@ export interface RutaRand {
   tikiZi: number | null;          // TIKI pe zi circulată
   faraZi: number | null;          // fără bilet pe zi complet numărată
   oameniZi: number | null;
+  /** clienții pe care se ține ruta: din oameni (TIKI + fără bilet) dacă e numărată, altfel doar din biletele TIKI */
   top: { nume: string; oameniZi: number; pct: number }[];
+  topDoarTiki: boolean;
 }
 
 export function rutaRand(r: TikiRuta): RutaRand {
@@ -60,7 +62,10 @@ export function rutaRand(r: TikiRuta): RutaRand {
     oameniZi: tikiZi != null && faraZi != null ? tikiZi + faraZi : null,
     top: numarata && totC > 0
       ? r.top.map(p => ({ nume: numePereche(p), oameniZi: (p.tiki + p.fara) / r.zile_numarate, pct: ((p.tiki + p.fara) / totC) * 100 }))
-      : [],
+      : r.tiki > 0 && r.zile_circulate > 0
+        ? (r.top_tiki ?? []).map(p => ({ nume: numePereche(p), oameniZi: p.tiki / r.zile_circulate, pct: (p.tiki / r.tiki) * 100 }))
+        : [],
+    topDoarTiki: !(numarata && totC > 0),
   };
 }
 
@@ -160,4 +165,21 @@ export function soferRand(s: TikiSoferV2): SoferRand {
 export function capatNord(deLa: string | null, panaLa: string | null): string {
   const parti = [deLa, panaLa].flatMap(x => (x ?? '').split(' - ')).map(x => x.trim()).filter(Boolean);
   return parti.find(x => !/chi[sș]in[aă]u/i.test(x)) ?? parti[0] ?? '—';
+}
+
+/** Graficul unei rute: biletele TIKI pe lună, ultimele 12 luni față de aceleași luni cu un an înainte. */
+export function seriiRuta(rows: TikiRutaLuna[], route: number, lastMonth: string) {
+  const by = new Map(rows.filter(r => r.route === route).map(r => [r.luna, r]));
+  const months = Array.from({ length: 12 }, (_, i) => shiftMonthKey(lastMonth, i - 11));
+  const val = (m: string) => by.get(m)?.tiki ?? null;
+  return {
+    months,
+    cur: months.map(val),
+    prev: months.map(m => val(shiftMonthKey(m, -12))),
+    oameniZi: months.map(m => {
+      const r = by.get(m);
+      if (!r || r.zile_numarate === 0 || r.zile_numarate / Math.max(r.zile_circulate, 1) < PRAG_NUMARATA) return null;
+      return r.tiki / r.zile_circulate + r.fara_c / r.zile_numarate;
+    }),
+  };
 }

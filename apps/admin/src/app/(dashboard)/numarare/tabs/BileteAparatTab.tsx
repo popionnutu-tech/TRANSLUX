@@ -5,8 +5,8 @@
 // ION-159: «Față de anul trecut» pe ziua cursei Mobilet; Șoferi și Tipuri bilet pe ziua vânzării. Ion, 01.10: «șterge
 // cine merge pe rută, șterge orar; în tipul bilet și direcții să apară o coloană — oamenii omiși de TIKI dar fixați în
 // numărare»; «șterge import, că am făcut cron automat» (importul zilnic din Mobilet, ION-160).
-// ION-167 (Ion, 01.10): «Față de anul trecut» → «Comparație perioade» (graficele pe luni rămân, fila «Grafice pe luni»,
-// Ion 02.10: «graficele acestea vor dispărea? că sunt înțeles forma asta»); raport nou «Rute»; «Șoferi» refăcut — toate pe ziua
+// ION-167 (Ion, 01.10): «Față de anul trecut» → «Comparație perioade»; graficele pe luni sunt acum pe fiecare rută, în «Rute»
+// (Ion, 02.10: «nu am nevoie pe coridor, am nevoie pe fiecare grafic în parte și tipul de clienți pe care se ține»); raport nou «Rute»; «Șoferi» refăcut — toate pe ziua
 // cursei, din totalurile zilnice de noapte (migr. 466).
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -15,17 +15,15 @@ import type { Filters, TikiMeta, TikiRefacereStare } from './bilete/types';
 import { presetRange, fmtDate, unreliableOverlap, type Preset } from './bilete/periods';
 import { Notice, Pill } from './bilete/ui';
 import ComparatieView from './bilete/ComparatieView';
-import TendintaView from './bilete/TendintaView';
 import RuteView from './bilete/RuteView';
 import DriversView from './bilete/DriversView';
 import PairsView from './bilete/PairsView';
 
-type View = 'pairs' | 'comparatie' | 'tendinta' | 'rute' | 'drivers';
+type View = 'pairs' | 'comparatie' | 'rute' | 'drivers';
 
 const VIEWS: { key: View; label: string }[] = [
   { key: 'pairs', label: 'Tipuri bilet & direcții' },
   { key: 'comparatie', label: 'Comparație perioade' },
-  { key: 'tendinta', label: 'Grafice pe luni' },
   { key: 'rute', label: 'Rute' },
   { key: 'drivers', label: 'Șoferi' },
 ];
@@ -151,7 +149,6 @@ export default function BileteAparatTab() {
       )}
 
       {view === 'comparatie' && meta?.date_min && meta.date_max && <ComparatieView dateMin={meta.date_min} dateMax={meta.date_max} />}
-      {view === 'tendinta' && meta?.date_max && <TendintaView dateMax={meta.date_max} />}
       {view === 'rute' && meta?.date_min && meta.date_max && <RuteView dateMin={meta.date_min} dateMax={meta.date_max} />}
       {view === 'drivers' && meta?.date_min && meta.date_max && <DriversView dateMin={meta.date_min} dateMax={meta.date_max} />}
       {view === 'pairs' && filters && meta?.date_max && <PairsView filters={filters} />}

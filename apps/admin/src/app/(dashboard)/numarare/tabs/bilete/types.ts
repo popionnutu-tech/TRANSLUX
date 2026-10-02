@@ -252,6 +252,18 @@ export interface TikiRuta {
   tiki_c: number;
   fara_c: number;
   top: (PerechePe & { tiki: number; fara: number })[];
+  top_tiki: (PerechePe & { tiki: number })[];       // după biletele TIKI pe toate zilele (migr. 472)
+}
+
+/** Rută × lună, ultimele 24 de luni (migr. 471): graficul fiecărei rute. */
+export interface TikiRutaLuna {
+  route: number;
+  luna: string;               // 'YYYY-MM'
+  zile_circulate: number;
+  zile_numarate: number;
+  tiki: number;
+  tiki_c: number;
+  fara_c: number;
 }
 
 export interface TikiRutaPerechi {

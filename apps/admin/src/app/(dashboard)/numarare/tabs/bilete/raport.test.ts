@@ -18,7 +18,7 @@ describe('luni', () => {
 
 const ruta = (o: Partial<TikiRuta>): TikiRuta => ({
   route: 1, de_la: 'Briceni', pana_la: 'Chișinău', time_nord: '05:00', time_chisinau: '15:00',
-  zile_circulate: 30, zile_numarate: 20, tiki: 900, lei: 90000, tiki_c: 600, fara_c: 400, top: [], ...o,
+  zile_circulate: 30, zile_numarate: 20, tiki: 900, lei: 90000, tiki_c: 600, fara_c: 400, top: [], top_tiki: [], ...o,
 });
 
 describe('rute', () => {
@@ -30,12 +30,14 @@ describe('rute', () => {
     expect(r.oameniZi).toBe(50);
     expect(r.top[0]).toEqual({ nume: 'A – B', oameniZi: 25, pct: 50 });
   });
-  it('sub 50 % zile complet numărate: fără «fără bilet», fără perechi', () => {
-    const r = rutaRand(ruta({ zile_numarate: 14, top: [{ cheie: 'a|b', de_la: 'A', pana_la: 'B', tiki: 1, fara: 1 }] }));
+  it('sub 50 % zile complet numărate: fără «fără bilet», clienții doar din TIKI', () => {
+    const r = rutaRand(ruta({ zile_numarate: 14, top: [{ cheie: 'a|b', de_la: 'A', pana_la: 'B', tiki: 1, fara: 1 }],
+                              top_tiki: [{ cheie: 'c|d', de_la: 'C', pana_la: 'D', tiki: 450 }] }));
     expect(r.numarata).toBe(false);
     expect(r.faraZi).toBeNull();
     expect(r.oameniZi).toBeNull();
-    expect(r.top).toEqual([]);
+    expect(r.topDoarTiki).toBe(true);
+    expect(r.top).toEqual([{ nume: 'C – D', oameniZi: 15, pct: 50 }]);
   });
   it('media pe rută doar peste rutele estimate', () => {
     const s = ruteSumar([rutaRand(ruta({})), rutaRand(ruta({ zile_numarate: 0, tiki: 3000 }))]);
@@ -98,5 +100,22 @@ describe('numele rutei', () => {
     const { capatNord } = await import('./raport');
     expect(capatNord('Grimăncăuți - Chișinău', 'Chișinău - Grimăncăuți')).toBe('Grimăncăuți');
     expect(capatNord('Chișinău', 'Ocnița')).toBe('Ocnița');
+  });
+});
+
+describe('graficul rutei', () => {
+  it('12 luni, anul trecut, oameni pe zi doar pe lunile numărate', async () => {
+    const { seriiRuta } = await import('./raport');
+    const rows = [
+      { route: 1, luna: '2026-09', zile_circulate: 30, zile_numarate: 30, tiki: 900, tiki_c: 900, fara_c: 600 },
+      { route: 1, luna: '2025-09', zile_circulate: 30, zile_numarate: 0, tiki: 800, tiki_c: 0, fara_c: 0 },
+      { route: 2, luna: '2026-09', zile_circulate: 30, zile_numarate: 30, tiki: 5, tiki_c: 5, fara_c: 0 },
+    ];
+    const g = seriiRuta(rows, 1, '2026-09');
+    expect(g.months[0]).toBe('2025-10');
+    expect(g.cur[11]).toBe(900);
+    expect(g.prev[11]).toBe(800);
+    expect(g.oameniZi[11]).toBe(50);
+    expect(g.cur[0]).toBeNull();
   });
 });

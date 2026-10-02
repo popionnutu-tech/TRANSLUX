@@ -4,9 +4,13 @@ import * as React from "react";
 import type { TripResult } from "@/app/(public)/actions";
 import { phoneTel, phoneText } from "@/lib/phone";
 import { track } from "@/lib/track";
+import { BuyTicketForm } from "./buy-ticket-form";
 
 interface RouteResultsProps {
   from: string;
+  /** Numele RO ale opririlor (valorile selectoarelor), pentru comanda de bilet. */
+  fromRo?: string;
+  toRo?: string;
   to: string;
   trips: TripResult[];
   selectedTime: string | null;
@@ -14,7 +18,8 @@ interface RouteResultsProps {
   onClose: () => void;
 }
 
-export function RouteResults({ from, to, trips, selectedTime, locale = "ro", onClose }: RouteResultsProps) {
+export function RouteResults({ from, to, fromRo = "", toRo = "", trips, selectedTime, locale = "ro", onClose }: RouteResultsProps) {
+  const [cumpara, setCumpara] = React.useState<number | null>(null);
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const selectedRef = React.useRef<HTMLDivElement>(null);
 
@@ -145,8 +150,8 @@ export function RouteResults({ from, to, trips, selectedTime, locale = "ro", onC
             // Mereu +373 (Ion, 23.09): din străinătate «069…» nu sună, iar linkul fără «+» nici el.
             const displayPhone = trip.phone ? phoneText(trip.phone) : null;
             return (
+              <React.Fragment key={`${trip.time}-${i}`}>
               <div
-                key={`${trip.time}-${i}`}
                 ref={isSelected ? selectedRef : undefined}
                 className="trip-card"
                 style={{
@@ -286,6 +291,23 @@ export function RouteResults({ from, to, trips, selectedTime, locale = "ro", onC
                   </a>
                 )}
               </div>
+              {/* Biletele online (ION-197): doar când panoul spune că se vinde acum pe cursa asta. */}
+              {trip.sale_open && fromRo && toRo && (cumpara === i ? (
+                <BuyTicketForm trip={trip} fromRo={fromRo} toRo={toRo} locale={locale} onCancel={() => setCumpara(null)} />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setCumpara(i)}
+                  style={{
+                    alignSelf: "flex-end", marginTop: -2, padding: "7px 14px", borderRadius: 20,
+                    border: "1px solid #9B1B30", background: "#fff", color: "#9B1B30",
+                    fontWeight: 700, fontSize: 13, cursor: "pointer",
+                  }}
+                >
+                  {locale === "ru" ? "Купить билет" : "Cumpără bilet"}
+                </button>
+              ))}
+              </React.Fragment>
             );
           })}
         </div>

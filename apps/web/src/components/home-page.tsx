@@ -442,6 +442,8 @@ export function HomePage({ locale, localities = [], popularPrices = [], routeLin
         <RouteResults
           from={fromRef.current?.selectedOptions[0]?.text || ''}
           to={toRef.current?.selectedOptions[0]?.text || ''}
+          fromRo={fromRef.current?.value || ''}
+          toRo={toRef.current?.value || ''}
           trips={trips}
           selectedTime={null}
           locale={locale}

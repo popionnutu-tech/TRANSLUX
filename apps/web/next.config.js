@@ -26,6 +26,15 @@ const nextConfig = {
         ],
       },
       {
+        // Pagina biletului (ION-197): codul din cale e secretul — fără cache, fără referrer, fără index.
+        source: '/:locale(ro|ru)/bilet/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'no-store' },
+          { key: 'Referrer-Policy', value: 'no-referrer' },
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
+        ],
+      },
+      {
         source: '/fonts/:path*',
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },

@@ -57,6 +57,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false }, { status: 400 });
     }
 
+    // Pagina biletului are codul secret în cale (ION-197): nu intră în page_views.
+    if (path.includes('/bilet/')) return NextResponse.json({ ok: true });
+
     const referrer = request.headers.get('referer') || null;
     getSupabase().from('page_views').insert({
       path,

@@ -6,11 +6,13 @@ import { createHash } from 'crypto';
 import { getSupabase } from '@/lib/supabase';
 import { depasesteLimita, FEREASTRA_MINUTE } from '@/lib/search-rate-limit';
 import { visitorHash } from '@/lib/visitor';
+import { configBilete } from '@/lib/bilete-api';
+import { vanzareDeschisaPeSite } from '@/lib/bilete-reguli';
 // Prețul, orarul și atribuirile zilei vin din @translux/db (ION-192): aceleași reguli pe site,
 // în asistent și în API-ul biletelor online.
 import {
   buildTurAssignmentMap, buildReturAssignmentMap, calculeazaCurse, incarcaCurse, pickRate,
-  resolveOfferForDate, resolveTariffRates,
+  resolveOfferForDate, resolveTariffRates, parseTimeLabel,
 } from '@translux/db';
 
 export interface Locality {
@@ -33,6 +35,11 @@ export interface TripResult {
   price: number;
   originalPrice: number | null; // non-null when an offer applies (show crossed out)
   isAwaitingDriver?: boolean; // true when departure is >7 days out and no driver assigned yet
+  // Biletele online (ION-197): identitatea cursei pentru comandă și dacă se vinde online acum.
+  crm_route_id: number;
+  going_north: boolean;
+  trip_date: string;
+  sale_open: boolean;
 }
 
 export interface ActiveOffer {
@@ -335,9 +342,27 @@ export async function searchTrips(
     };
   }
 
+  // Biletele online (ION-197): configurația panoului o dată pe căutare (cache 60 s; fără răspuns = închis).
+  // Butonul cere șofer atribuit PE ziua cursei: când ziua n-are încă grafic, site-ul arată șoferul zilei
+  // anterioare, dar pe ăla nu se vinde (API-ul ar refuza oricum).
+  const cfgBilete = await configBilete();
+  const graficPeZi = assignmentDate === date;
+  const nowMs = Date.now();
+  function pornireRuta(routeId: number, goingNorth: boolean): string | null {
+    const r = datele!.routes.find((x) => x.id === routeId);
+    const interval = r ? (goingNorth ? r.time_chisinau : r.time_nord) : null;
+    const p = interval ? parseTimeLabel(interval) : null;
+    return p && /^\d{2}:\d{2}$/.test(p) ? p : null;
+  }
+
   const results: TripResult[] = [];
 
   for (const trip of scheduled) {
+    const bilet = {
+      crm_route_id: trip.routeId,
+      going_north: trip.goingNorth,
+      trip_date: date,
+    };
     // Prețul afișat vine deja cu oferta aplicată (calculeazaCurse); originalPrice e cel tăiat.
     const displayPrice = trip.price;
     const displayOriginal = trip.originalPrice;
@@ -372,6 +397,8 @@ export async function searchTrips(
           price: daysUntilDeparture > 7 ? 0 : displayPrice,
           originalPrice: daysUntilDeparture > 7 ? null : displayOriginal,
           isAwaitingDriver: true,
+          ...bilet,
+          sale_open: false,
         });
       }
       continue;
@@ -383,6 +410,11 @@ export async function searchTrips(
       vehicle_plate: details?.plate || null,
       price: displayPrice,
       originalPrice: displayOriginal,
+      ...bilet,
+      sale_open: displayPrice > 0 && vanzareDeschisaPeSite({
+        cfg: cfgBilete, routeId: trip.routeId, goingNorth: trip.goingNorth, tripDate: date, time: trip.time,
+        pornireRuta: pornireRuta(trip.routeId, trip.goingNorth), soferPeZi: graficPeZi, nowMs,
+      }),
     });
   }
 

@@ -47,7 +47,7 @@ export function fmtInterval(min: number, max: number): string {
 }
 
 export const TIP_LABEL: Record<PiataPereche['tip'], string> = {
-  coada: 'coadă', balti: 'Bălți (doar cursele cu capătul Bălți; tranzit 10 %)', trunchi: 'trunchi — fără concurenți', local: 'fără Chișinău — fără concurenți',
+  mic: 'sat mic — fără estimare (doar orașe și sate foarte mari, ca Corjeuți)', coada: 'coadă', balti: 'Bălți (doar cursele directe Bălți–Chișinău)', trunchi: 'trunchi — fără concurenți', local: 'fără Chișinău (cursele străine care ating ambele capete)',
 };
 
 export const STEAG_LABEL: Record<string, string> = {
@@ -65,7 +65,7 @@ export function descriePereche(p: PiataPereche, parametri: Record<string, unknow
   rows.push(`${p.de_la} – ${p.pana_la} · ${TIP_LABEL[p.tip]} · ${p.luni} ${p.luni === 1 ? 'lună' : 'luni'}`);
   rows.push(`Bilete observate (ziua cursei): ${nf0.format(p.bilete)}`);
   if (p.omisi != null) rows.push(`~Omiși de TIKI (estimare, extrapolată la zilele lunii; Numărare pe ${Math.round((p.omisi_acoperire ?? 0) * 100)} % din zile): ${nf0.format(p.omisi)}`);
-  if (p.tip === 'coada' || p.tip === 'balti') {
+  if (p.tip !== 'trunchi' && p.tip !== 'mic') {
     rows.push(`Concurenți (ANTA): ${fmtInterval(p.conc_min, p.conc_max)} bilete = Σ curse străine × ${pond} % din îmbarcarea noastră pe cursă la oră similară × 5/7…7/7 zile`);
     const curse = p.detalii?.curse ?? [];
     for (const c of curse.slice(0, 12)) {

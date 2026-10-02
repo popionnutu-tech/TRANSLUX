@@ -64,7 +64,7 @@ export default function PairsView({ filters }: { filters: Filters }) {
   const piataMotiv = useMemo(() => motivFaraPiata(filters, piata), [filters, piata]);
   const piataPerechi = piata?.perechi ?? [];
   const cotaTotal = useMemo(() => {
-    const cu = piataPerechi.filter(p => (p.tip === 'coada' || p.tip === 'balti') && p.piata_max > 0);
+    const cu = piataPerechi.filter(p => p.tip !== 'trunchi' && p.tip !== 'mic' && p.piata_max > 0);
     const bil = cu.reduce((s, p) => s + p.bilete, 0);
     const mij = cu.reduce((s, p) => s + (p.piata_min + p.piata_max) / 2, 0);
     return { pct: mij ? (bil / mij) * 100 : null, perechi: cu.length };
@@ -146,7 +146,7 @@ export default function PairsView({ filters }: { filters: Filters }) {
         biletele noastre + cursele străine din graficul ANTA (o cursă străină ia 40 % din cât ia o cursă de-a noastră pe aceeași
         pereche la oră similară; interval 5/7…7/7 zile, ANTA n-are zilele de circulație); omișii stau separat, ca estimare.
         Oraș / bazin = populația (recensământ 2024) a localității și a satelor fără stație din 10 km — numitor de scară, nu
-        clienți posibili. Pe perechile de trunchi (Orhei, Strășeni…) și pe cele fără Chișinău nu se numără concurenți.
+        clienți posibili. Pe perechile de trunchi (Orhei, Strășeni…) nu se numără concurenți; pe cele fără Chișinău (Bălți–Edineț) se numără cursele străine care ating ambele capete; pe Chișinău–Bălți doar cursele directe. Estimarea se face doar pentru orașe și sate foarte mari (≥ 4.000 loc., ca Corjeuți); satele mici arată doar biletele.
         Tipul dedus din preț (biletele vechi fără stații): {fmtPct(share(dedus, total))}.
       </Notice>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
@@ -212,12 +212,12 @@ export default function PairsView({ filters }: { filters: Filters }) {
                     title={r.piata ? descriePereche(r.piata, piata?.parametri) : (piataMotiv ?? 'Fără bilete pe ziua cursei în lunile încheiate din perioadă')}>
                     {r.piata ? (
                       <>
-                        <div style={{ fontWeight: 600, color: r.piata.tip === 'coada' || r.piata.tip === 'balti' ? '#1f6f8b' : '#777', cursor: 'help' }}>
+                        <div style={{ fontWeight: 600, color: r.piata.tip !== 'trunchi' && r.piata.tip !== 'mic' ? '#1f6f8b' : '#777', cursor: 'help' }}>
                           {fmtInterval(r.piata.piata_min, r.piata.piata_max)}
                           {(r.piata.steaguri ?? []).length > 0 && <span style={{ marginLeft: 4, color: '#eb6834' }}>⚑</span>}
                         </div>
                         <div style={{ fontSize: 11, color: '#777' }}>
-                          {r.piata.tip === 'trunchi' ? 'trunchi' : r.piata.tip === 'local' ? 'fără Chișinău' : `concurenți ${fmtInterval(r.piata.conc_min, r.piata.conc_max)}`}
+                          {r.piata.tip === 'trunchi' ? 'trunchi' : r.piata.tip === 'mic' ? 'sat mic — fără estimare' : `${r.piata.tip === 'local' ? 'fără Chișinău · ' : ''}concurenți ${fmtInterval(r.piata.conc_min, r.piata.conc_max)}`}
                           {r.piata.omisi != null && r.piata.omisi >= 0.5 ? ` · ~${fmtInt(Math.round(r.piata.omisi))} omiși est.` : ''}
                         </div>
                         {r.piata.oras != null && (

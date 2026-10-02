@@ -54,9 +54,11 @@ describe('descriePereche', () => {
     expect(t).toContain('numitor de scară');
     expect(t).toContain('⚑ regula 40 %');
   });
-  it('perechile fără Chișinău nu au concurenți în text', () => {
-    const t = descriePereche({ ...p, tip: 'local', conc_min: 0, conc_max: 0 });
-    expect(t).not.toContain('Concurenți (ANTA)');
+  it('perechile de trunchi nu au concurenți în text; cele fără Chișinău au', () => {
+    expect(descriePereche({ ...p, tip: 'trunchi', conc_min: 0, conc_max: 0 })).not.toContain('Concurenți (ANTA)');
+    expect(descriePereche({ ...p, tip: 'mic', conc_min: 0, conc_max: 0 })).toContain('sat mic');
+    const t = descriePereche({ ...p, tip: 'local' });
+    expect(t).toContain('Concurenți (ANTA)');
     expect(t).toContain('fără Chișinău');
   });
 });

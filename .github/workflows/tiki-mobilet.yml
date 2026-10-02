@@ -5,11 +5,13 @@ name: tiki-mobilet
 # ieri, să lucreze automatizarea: să intre pe site și să colecteze datele de bilete».
 # Rulează pe GitHub infra: Vercel Hobby are ambele sloturi de cron ocupate. A doua rulare = retry (idempotent) și
 # continuarea refacerii.
-# ION-166: totul NOAPTEA — baza (Supabase NANO) a încremenit pe 01.10 după o zi de refaceri grele. 00:30 / 01:30 UTC =
-# 03:30 / 04:30 Chișinău vara (EEST), 02:30 / 03:30 iarna; ruta de refacere lucrează doar 23:00–05:00 Chișinău.
+# ION-166: totul NOAPTEA — baza (Supabase NANO) a încremenit pe 01.10 după o zi de refaceri grele. 21:05 / 00:30 / 01:30 UTC
+# = 00:05 / 03:30 / 04:30 Chișinău vara (EEST), 23:05 / 02:30 / 03:30 iarna; ruta de refacere lucrează doar 23:00–05:00
+# Chișinău. Pornirea de la miezul nopții (ION-167) dă timp refacerilor mari (toate lunile, ~1 h în pași mici).
 
 on:
   schedule:
+    - cron: '5 21 * * *'
     - cron: '30 0 * * *'
     - cron: '30 1 * * *'
   workflow_dispatch:

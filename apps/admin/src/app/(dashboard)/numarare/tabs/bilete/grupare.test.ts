@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { esteDupaBalti, nordDeBalti, pairNorm, stopNorm, sumPairs } from './grupare';
+import { zonaPerechii, zoneBalti, pairNorm, stopNorm, sumPairs, type ZoneBalti } from './grupare';
 
 // Tariful 1 (Criva – Chișinău) și tariful 7 (Otaci + Briceni – Chișinău, două trasee cu km diferiți în același tarif).
 const stops = [
@@ -9,6 +9,7 @@ const stops = [
   { tariff_id: 1, name_ro: 'Corlăteni', km_from_start: '135.10' },
   { tariff_id: 1, name_ro: 'Bălți', km_from_start: '148.50' },
   { tariff_id: 1, name_ro: 'Bilicenii Noi', km_from_start: '158.20' },
+  { tariff_id: 1, name_ro: 'Bilicenii Vechi', km_from_start: '163.10' },
   { tariff_id: 1, name_ro: 'Sîngerei', km_from_start: '174.70' },
   { tariff_id: 1, name_ro: 'Orhei', km_from_start: '234.50' },
   { tariff_id: 1, name_ro: 'Chișinău', km_from_start: '282.50' },
@@ -37,37 +38,39 @@ describe('normalizare', () => {
   });
 });
 
-describe('nordDeBalti', () => {
-  const nord = nordDeBalti(stops);
-  it('stațiile de dincolo de Bălți intră, cele dintre Bălți și Chișinău nu', () => {
-    expect([...nord].sort()).toEqual(['briceni', 'corlateni', 'criva', 'edinet', 'ocnita', 'otaci', 'riscani']);
+describe('zoneBalti', () => {
+  const z: ZoneBalti = zoneBalti(stops);
+  it('nord = dincolo de Bălți, intre = între Chișinău și Bălți', () => {
+    expect([...z.nord].sort()).toEqual(['briceni', 'corlateni', 'criva', 'edinet', 'ocnita', 'otaci', 'riscani']);
+    expect([...z.intre].sort()).toEqual(['bilicenii noi', 'bilicenii vechi', 'orhei', 'singerei']);
   });
-  it('al doilea traseu din tariful 7 nu trage Bilicenii Vechi la nord', () => {
-    expect(nord.has('bilicenii vechi')).toBe(false);
-    expect(nord.has('balti')).toBe(false);
-    expect(nord.has('chisinau')).toBe(false);
+  it('al doilea traseu din tariful 7 nu trage Bilicenii Vechi la nord (147,6 < 154 pe tariful 7, dar 163,1 > 148,5 pe tariful 1)', () => {
+    expect(z.nord.has('bilicenii vechi')).toBe(false);
+    expect(z.nord.has('balti')).toBe(false);
+    expect(z.intre.has('chisinau')).toBe(false);
   });
   it('perechile', () => {
-    expect(esteDupaBalti('Chisinau - Briceni', nord)).toBe(true);
-    expect(esteDupaBalti('Briceni - Chisinau', nord)).toBe(true);
-    expect(esteDupaBalti('Chisinau - Balti', nord)).toBe(false);
-    expect(esteDupaBalti('Chisinau - Singerei', nord)).toBe(false);
-    expect(esteDupaBalti('Balti - Edinet', nord)).toBe(false);
-    expect(esteDupaBalti('Chisinau - Zahareuca', nord)).toBe(false);
-    expect(esteDupaBalti('Nedeterminat', nord)).toBe(false);
+    expect(zonaPerechii('Chisinau - Briceni', z)).toBe('nord');
+    expect(zonaPerechii('Briceni - Chisinau', z)).toBe('nord');
+    expect(zonaPerechii('Chisinau - Singerei', z)).toBe('intre');
+    expect(zonaPerechii('Chisinau - alexandreni', z)).toBe('intre');
+    expect(zonaPerechii('Chisinau - Balti', z)).toBeNull();
+    expect(zonaPerechii('Balti - Edinet', z)).toBeNull();
+    expect(zonaPerechii('Chisinau - Zahareuca', z)).toBeNull();
+    expect(zonaPerechii('Nedeterminat', z)).toBeNull();
   });
   it('scrierile TIKI diferite de nomenclator', () => {
-    const n = nordDeBalti([
+    const n = zoneBalti([
       ...stops,
       { tariff_id: 1, name_ro: 'Beleavinți', km_from_start: '29.50' },
       { tariff_id: 1, name_ro: 'Coteala', km_from_start: '28.50' },
       { tariff_id: 1, name_ro: 'Gordineștii Noi', km_from_start: '23.00' },
       { tariff_id: 1, name_ro: 'Slobozia Șirăuți', km_from_start: '7.00' },
     ]);
-    expect(esteDupaBalti('Chisinau - Beleavineti', n)).toBe(true);
-    expect(esteDupaBalti('Chisinau - Cotelea', n)).toBe(true);
-    expect(esteDupaBalti('Chisinau - Gordinesti', n)).toBe(true);
-    expect(esteDupaBalti('Chisinau - sl. Sirauti', n)).toBe(true);
+    expect(zonaPerechii('Chisinau - Beleavineti', n)).toBe('nord');
+    expect(zonaPerechii('Chisinau - Cotelea', n)).toBe('nord');
+    expect(zonaPerechii('Chisinau - Gordinesti', n)).toBe('nord');
+    expect(zonaPerechii('Chisinau - sl. Sirauti', n)).toBe('nord');
   });
 });
 

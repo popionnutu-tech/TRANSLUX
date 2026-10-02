@@ -1,12 +1,12 @@
 'use client';
 
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { getTikiNordDeBalti, getTikiOmisi, getTikiPairs } from '../biletAparatActions';
+import { getTikiZoneBalti, getTikiOmisi, getTikiPairs } from '../biletAparatActions';
 import type { Filters, TikiOmisi, TikiPairRow } from './types';
 import { sameRangeLastYear, pctChange, fmtDate, unreliableOverlap } from './periods';
 import { SplitBar, SERIES } from './charts';
 import { Delta, Kpi, Notice, Th, fmtInt, fmtLei, fmtPct, share, nf2, sortRows, tableWrap } from './ui';
-import { GRUP_DUPA_BALTI, esteDupaBalti, pairNorm, sumPairs } from './grupare';
+import { GRUP, ZONE, zonaPerechii, pairNorm, sumPairs, type Zona, type ZoneBalti } from './grupare';
 
 type Col = 'pair' | 'tickets' | 'share' | 'lei' | 'avg' | 'tur' | 'yoy' | 'omisi';
 
@@ -18,24 +18,24 @@ type Enriched = TikiPairRow & {
   sh: number | null; avg: number | null; turPct: number | null; yoyPct: number | null; isNew: boolean;
   omisi: number | null; omisiTur: number | null; omisiRetur: number | null;
 };
-// ION-180: un rând al tabelului e o pereche sau grupul «Chișinău – după Bălți» cu localitățile lui.
-type Item = { row: Enriched; members?: Enriched[] };
+// ION-180: un rând al tabelului e o pereche sau un grup («Chișinău – după Bălți» / «Chișinău – până la Bălți») cu localitățile lui.
+type Item = { row: Enriched; zona?: Zona; members?: Enriched[] };
 
 export default function PairsView({ filters }: { filters: Filters }) {
   const [rows, setRows] = useState<TikiPairRow[] | null>(null);
   const [yoy, setYoy] = useState<Map<string, TikiPairRow>>(new Map());
   const [omisi, setOmisi] = useState<TikiOmisi | null>(null);
-  const [nord, setNord] = useState<Set<string>>(new Set());
+  const [zone, setZone] = useState<ZoneBalti>({ nord: new Set(), intre: new Set() });
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState('');
   const [limit, setLimit] = useState(40);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState<Set<Zona>>(new Set());
   const [sort, setSort] = useState<{ col: Col; dir: 'asc' | 'desc' }>({ col: 'tickets', dir: 'desc' });
   const yoyRange = useMemo(() => sameRangeLastYear(filters), [filters]);
 
   useEffect(() => {
     let alive = true;
-    getTikiNordDeBalti().then(r => { if (alive && r.data) setNord(new Set(r.data)); });
+    getTikiZoneBalti().then(r => { if (alive && r.data) setZone({ nord: new Set(r.data.nord), intre: new Set(r.data.intre) }); });
     return () => { alive = false; };
   }, []);
 
@@ -88,10 +88,10 @@ export default function PairsView({ filters }: { filters: Filters }) {
     };
     const matches = (pair: string) => !needle || pair.toLowerCase().includes(needle);
     const items: Item[] = [];
-    const inGroup = all.filter(r => esteDupaBalti(r.pair, nord));
-    const groupMatches = matches(GRUP_DUPA_BALTI);
-    const shown = groupMatches ? inGroup : inGroup.filter(r => matches(r.pair));
-    if (shown.length) {
+    for (const zona of ZONE) {
+      const inGroup = all.filter(r => zonaPerechii(r.pair, zone) === zona);
+      const shown = matches(GRUP[zona]) ? inGroup : inGroup.filter(r => matches(r.pair));
+      if (!shown.length) continue;
       // la căutare grupul se însumează doar din localitățile rămase pe ecran, ca Totalul «(căutarea)» să bată
       const yoyMembers = shown.filter(r => yoy.has(r.pair));
       const yoyTickets = yoyMembers.reduce((s, r) => s + (yoy.get(r.pair)?.tickets ?? 0), 0);
@@ -99,10 +99,10 @@ export default function PairsView({ filters }: { filters: Filters }) {
       const om = oms.length
         ? { oameni: oms.reduce((s, p) => s + p.oameni, 0), tur: oms.reduce((s, p) => s + (p.tur ?? 0), 0), retur: oms.reduce((s, p) => s + (p.retur ?? 0), 0) }
         : null;
-      const row = enrich(sumPairs(shown, GRUP_DUPA_BALTI), yoyMembers.length ? yoyTickets : null, yoy.size > 0 && !yoyMembers.length, om);
-      items.push({ row, members: shown.map(one) });
+      const row = enrich(sumPairs(shown, GRUP[zona]), yoyMembers.length ? yoyTickets : null, yoy.size > 0 && !yoyMembers.length, om);
+      items.push({ row, zona, members: shown.map(one) });
     }
-    for (const r of all) if (!esteDupaBalti(r.pair, nord) && matches(r.pair)) items.push({ row: one(r) });
+    for (const r of all) if (zonaPerechii(r.pair, zone) === null && matches(r.pair)) items.push({ row: one(r) });
     const get = (r: Enriched) => {
       switch (sort.col) {
         case 'pair': return r.pair;
@@ -117,7 +117,7 @@ export default function PairsView({ filters }: { filters: Filters }) {
     };
     return sortRows(items, it => get(it.row), sort.dir)
       .map(it => (it.members ? { ...it, members: sortRows(it.members, get, sort.dir) } : it));
-  }, [rows, yoy, needle, sort, total, omisi, omisiMap, nord]);
+  }, [rows, yoy, needle, sort, total, omisi, omisiMap, zone]);
 
   if (error) return <Notice tone="danger">{error}</Notice>;
   if (!rows) return <div style={{ padding: 20, color: '#999' }}>Se încarcă…</div>;
@@ -128,7 +128,6 @@ export default function PairsView({ filters }: { filters: Filters }) {
   const retur = rows.reduce((s, r) => s + r.retur, 0);
   const dedus = rows.reduce((s, r) => s + r.dedus, 0);
   const top3 = rows.slice(0, 3).reduce((s, r) => s + r.tickets, 0);
-  const expanded = open || !!needle;
   const th = (col: Col, label: string, align: 'left' | 'right' = 'right', title?: string) => (
     <Th align={align} title={title} active={sort.col === col} dir={sort.dir}
       onClick={() => setSort(s => ({ col, dir: s.col === col && s.dir === 'desc' ? 'asc' : 'desc' }))}>{label}</Th>
@@ -185,8 +184,8 @@ export default function PairsView({ filters }: { filters: Filters }) {
       </div>
       <Notice tone="info">
         Tipul biletului = perechea de stații, fără sens (Chișinău – Bălți cuprinde ambele sensuri; sensul e în coloana Tur/Retur).
-        «{GRUP_DUPA_BALTI}» adună biletele Chișinău ↔ orice stație de dincolo de Bălți (Edineț, Briceni, Lipcani, Ocnița…); click pe rând
-        deschide localitățile. «vs an trecut» compară cu {fmtDate(yoyRange.from)} – {fmtDate(yoyRange.to)}. Pentru biletele de dinainte de feb. 2026
+        «{GRUP.nord}» adună biletele Chișinău ↔ orice stație de dincolo de Bălți (Edineț, Briceni, Lipcani, Ocnița…), «{GRUP.intre}» pe cele
+        dintre Chișinău și Bălți (Orhei, Sîngerei, Prepelița…); click pe rând deschide localitățile. «vs an trecut» compară cu {fmtDate(yoyRange.from)} – {fmtDate(yoyRange.to)}. Pentru biletele de dinainte de feb. 2026
         stațiile lipsesc din export: tipul e dedus din preț (98,6% potriviri verificate). «Omiși de TIKI» = oameni numărați
         în Numărare pe pereche, fără bilet TIKI: pe fiecare porțiune de drum numărat − TIKI; unde diferența crește au urcat,
         unde scade au coborât. Doar din {fmtDate(NUMARARE_FROM)} și doar zilele numărate.
@@ -217,9 +216,12 @@ export default function PairsView({ filters }: { filters: Filters }) {
               </tr>
             </thead>
             <tbody>
-              {table.slice(0, limit).map((it, i) => it.members ? (
+              {table.slice(0, limit).map((it, i) => {
+                const expanded = !!it.zona && (open.has(it.zona) || !!needle);
+                const toggle = () => it.zona && setOpen(o => { const n = new Set(o); if (n.has(it.zona!)) n.delete(it.zona!); else n.add(it.zona!); return n; });
+                return it.members ? (
                 <Fragment key={it.row.pair}>
-                  <tr onClick={() => setOpen(o => !o)} style={{ cursor: 'pointer', background: 'rgba(155,27,48,0.04)' }}
+                  <tr onClick={toggle} style={{ cursor: 'pointer', background: 'rgba(155,27,48,0.04)' }}
                     title={expanded ? 'Închide localitățile' : 'Deschide localitățile'}>
                     <td style={{ textAlign: 'right', color: '#999' }}>{i + 1}</td>
                     <td style={{ textAlign: 'left', fontWeight: 600 }}>
@@ -245,7 +247,7 @@ export default function PairsView({ filters }: { filters: Filters }) {
                   <td style={{ textAlign: 'left', fontWeight: 600 }}>{it.row.pair}</td>
                   {cells(it.row)}
                 </tr>
-              ))}
+              ); })}
             </tbody>
             <tfoot>
               <tr style={{ fontWeight: 600, borderTop: '2px solid rgba(0,0,0,0.15)' }}>

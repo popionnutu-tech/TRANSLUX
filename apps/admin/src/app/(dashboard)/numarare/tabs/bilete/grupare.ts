@@ -1,6 +1,6 @@
-// ION-180 (Ion, 02.10.2026): «biletele după Bălți spre Chișinău să fie grupate în una și dacă apasă să se deschidă locațiile».
-// Funcții pure: cheia perechii (ca tiki_stop_norm din SQL, migr. 452), lista stațiilor de după Bălți derivată din
-// nomenclatorul interurban (interurban_v2_stops), și însumarea perechilor într-un rând de grup.
+// ION-180 (Ion, 02.10.2026): «biletele după Bălți spre Chișinău să fie grupate în una și dacă apasă să se deschidă locațiile»,
+// apoi «nu îmi ajunge Chișinău până la Bălți». Funcții pure: cheia perechii (ca tiki_stop_norm din SQL, migr. 452),
+// zonele față de Bălți derivate din nomenclatorul interurban (interurban_v2_stops) și însumarea perechilor într-un rând de grup.
 
 import type { TikiPairRow } from './types';
 
@@ -23,20 +23,30 @@ const TIKI_ALIAS: Record<string, string> = {
   'gordinesti': 'gordinestii noi',
   'sl sirauti': 'slobozia sirauti',
 };
+/** Stații vândute în TIKI care lipsesc din nomenclatorul interurban (02.10.2026): unde stau față de Bălți. */
+const LIPSA_DIN_NOMENCLATOR: Record<string, Zona> = {
+  'alexandreni': 'intre', // Sîngerei, între Bălți și Sîngerei
+};
 
 export const CHISINAU = 'chisinau';
 export const BALTI = 'balti';
-export const GRUP_DUPA_BALTI = 'Chișinău – după Bălți';
+export type Zona = 'nord' | 'intre';
+export const GRUP: Record<Zona, string> = {
+  nord: 'Chișinău – după Bălți',
+  intre: 'Chișinău – până la Bălți',
+};
+export const ZONE: Zona[] = ['nord', 'intre'];
 
 export interface StopKm { tariff_id: number; name_ro: string; km_from_start: number | string | null }
+export interface ZoneBalti { nord: Set<string>; intre: Set<string> }
 
 /**
- * Stațiile de după Bălți (dincolo de Bălți, văzut din Chișinău), din nomenclatorul interurban.
- * Pe fiecare tarif care are și Chișinău, și Bălți: stația e «la nord» dacă stă, pe km, de partea cealaltă a Bălțiului
- * față de Chișinău. Un tarif poate conține două trasee cu km diferiți (tariful 7: Otaci + Briceni), de aceea se ia
- * Bălțiul cel mai apropiat de capăt (km minim) și se scot stațiile care pe vreun tarif stau între Bălți și Chișinău.
+ * Stațiile față de Bălți, văzut din Chișinău, din nomenclatorul interurban: «nord» = dincolo de Bălți, «intre» = între
+ * Chișinău și Bălți. Pe fiecare tarif care are și Chișinău, și Bălți se judecă pe km. Un tarif poate conține două trasee
+ * cu km diferiți (tariful 7: Otaci + Briceni), de aceea Bălți se ia la km minim/maxim și o stație care pe vreun tarif
+ * stă între Bălți și Chișinău nu poate fi «nord».
  */
-export function nordDeBalti(stops: StopKm[]): Set<string> {
+export function zoneBalti(stops: StopKm[]): ZoneBalti {
   type T = { kbMin: number; kbMax: number; kc: number | null; rows: { n: string; km: number }[] };
   const byTariff = new Map<number, T>();
   for (const s of stops) {
@@ -50,28 +60,31 @@ export function nordDeBalti(stops: StopKm[]): Set<string> {
     byTariff.set(s.tariff_id, t);
   }
   const nord = new Set<string>();
-  const sud = new Set<string>();
+  const intre = new Set<string>();
   for (const t of byTariff.values()) {
     if (t.kc == null || !isFinite(t.kbMin)) continue;
     const chisinauLaCapatMare = t.kc > t.kbMin;
     for (const r of t.rows) {
       const dincolo = chisinauLaCapatMare ? r.km < t.kbMin : r.km > t.kbMax;
-      const intre = chisinauLaCapatMare ? r.km > t.kbMax && r.km < t.kc : r.km < t.kbMin && r.km > t.kc;
+      const laMijloc = chisinauLaCapatMare ? r.km > t.kbMax && r.km < t.kc : r.km < t.kbMin && r.km > t.kc;
       if (dincolo) nord.add(r.n);
-      if (intre) sud.add(r.n);
+      if (laMijloc) intre.add(r.n);
     }
   }
-  for (const n of sud) nord.delete(n);
-  return nord;
+  for (const n of intre) nord.delete(n);
+  return { nord, intre };
 }
 
-/** Perechea «Chisinau - X» cu X după Bălți? */
-export function esteDupaBalti(pair: string, nord: Set<string>): boolean {
+/** Grupul perechii «Chisinau - X»: după Bălți, până la Bălți, sau niciunul (Bălți însuși, perechi fără Chișinău, necunoscute). */
+export function zonaPerechii(pair: string, z: ZoneBalti): Zona | null {
   const [a = '', b = ''] = pair.split(' - ').map(stopNorm);
-  if (a !== CHISINAU && b !== CHISINAU) return false;
+  if (a !== CHISINAU && b !== CHISINAU) return null;
   const x = a === CHISINAU ? b : a;
-  if (!x || x === CHISINAU || x === BALTI) return false;
-  return nord.has(TIKI_ALIAS[x] ?? x);
+  if (!x || x === CHISINAU || x === BALTI) return null;
+  const k = TIKI_ALIAS[x] ?? x;
+  if (z.nord.has(k)) return 'nord';
+  if (z.intre.has(k)) return 'intre';
+  return LIPSA_DIN_NOMENCLATOR[k] ?? null;
 }
 
 /** Însumarea perechilor într-un singur rând. */

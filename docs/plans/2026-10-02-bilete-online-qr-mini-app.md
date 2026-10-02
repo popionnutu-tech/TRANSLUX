@@ -1263,3 +1263,6 @@ Scor: 6.0 · Blocante (critical/high): 1
   ]
 }
 ```
+
+### Decizia lui Ion din 03.10 (pagina biletului → botul)
+«Mesajul la client: vezi biletul tău și locația autobusului tău, ca îndemn de a deschide botul Telegram.» Pe pagina biletului plătit, butonul principal e «📍 Vezi biletul și autobuzul tău în Telegram», cu promisiunea: biletul la îndemână + în ziua cursei, pe hartă, unde e autobuzul și când ajunge. Consecință pentru pasul 3b: `/start bilet_<cod>` nu doar salvează biletul, ci în ziua cursei îi arată pasagerului locația autobuzului cursei lui (aceleași reguli ca asistentul site-ului, ION-37: doar mașina cursei, doar în orele cursei, fără viteză).

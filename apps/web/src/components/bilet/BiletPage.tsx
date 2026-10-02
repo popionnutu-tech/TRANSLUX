@@ -17,7 +17,8 @@ const TXT = {
     plataNu: 'Plata nu a trecut. Poți încerca din nou de pe site.',
     cursa: 'Cursa', pasager: 'Pasager', locuri: 'Locuri', total: 'Total', loc: 'Loc', urcat: 'urcat',
     arata: 'Arată codul QR șoferului la urcare. Fiecare cod e un loc.',
-    salveaza: 'Salvează / tipărește', telegram: 'Primește biletul în Telegram',
+    salveaza: 'Salvează / tipărește', telegram: '📍 Vezi biletul și autobuzul tău în Telegram',
+    telegramSub: 'Biletul e mereu la îndemână, iar în ziua cursei vezi pe hartă unde e autobuzul tău și când ajunge la tine.',
     retur: 'Returnarea biletului se cere prin botul nostru din Telegram. Întârzierea la cursă nu se returnează.',
     indisponibil: 'Biletul nu poate fi afișat acum. Reîncarcă pagina peste un minut.', acasa: '← Pagina principală',
   },
@@ -27,7 +28,8 @@ const TXT = {
     plataNu: 'Оплата не прошла. Можно попробовать ещё раз на сайте.',
     cursa: 'Рейс', pasager: 'Пассажир', locuri: 'Мест', total: 'Итого', loc: 'Место', urcat: 'посадка',
     arata: 'Покажите QR-код водителю при посадке. Каждый код — одно место.',
-    salveaza: 'Сохранить / распечатать', telegram: 'Получить билет в Telegram',
+    salveaza: 'Сохранить / распечатать', telegram: '📍 Билет и ваш автобус в Telegram',
+    telegramSub: 'Билет всегда под рукой, а в день поездки на карте видно, где ваш автобус и когда он подъедет.',
     retur: 'Возврат билета оформляется через наш бот в Telegram. Опоздание на рейс не возвращается.',
     indisponibil: 'Билет сейчас недоступен. Обновите страницу через минуту.', acasa: '← Главная',
   },
@@ -110,12 +112,17 @@ export async function BiletPage({ cod, locale, plataNu }: { cod: string; locale:
 
               {c.status === 'noua' && <AsteaptaPlata locale={locale} />}
 
-              {(c.status === 'platita' || c.status === 'noua') && (
-                <div className="bilet-no-print" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
-                  {c.status === 'platita' && <SalveazaBilet text={tx.salveaza} />}
+              {c.status === 'platita' && (
+                <div className="bilet-no-print" style={{ display: 'grid', gap: 10, marginTop: 8 }}>
+                  {/* Momeala spre bot (Ion, 03.10): biletul la îndemână + unde e autobuzul în ziua cursei. */}
                   <a href={`https://t.me/${BOT}?start=bilet_${c.cod}`} target="_blank" rel="noopener noreferrer" style={{
-                    padding: '11px 16px', borderRadius: 12, background: '#229ED9', color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none',
-                  }}>{tx.telegram}</a>
+                    display: 'block', padding: '14px 16px', borderRadius: 14, background: '#229ED9', color: '#fff', textDecoration: 'none',
+                    boxShadow: '0 4px 14px rgba(34,158,217,0.3)',
+                  }}>
+                    <div style={{ fontWeight: 700, fontSize: 16 }}>{tx.telegram}</div>
+                    <div style={{ fontSize: 13, opacity: 0.92, marginTop: 4, lineHeight: 1.4 }}>{tx.telegramSub}</div>
+                  </a>
+                  <SalveazaBilet text={tx.salveaza} />
                 </div>
               )}
 

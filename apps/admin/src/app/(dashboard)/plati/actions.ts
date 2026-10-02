@@ -6,9 +6,10 @@ import { randomBytes } from 'crypto';
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
 import {
-  cancelCheckout, createCheckout, getCheckout, getPayment, getRefund, refundPayment,
+  cancelCheckout, createCheckout, getPayment, getRefund, refundPayment,
   maibMediu, maibConfigurat, stareEgala, MaibError,
 } from '@/lib/maib/client';
+import { randDupaCheckoutSauOrder as randDupaRef, sincronizeazaStare } from '@/lib/maib/sincronizare';
 import { chisinauTodayIso } from '@/lib/chisinau-time';
 
 // Pagina internă /plati (ION-188): testele cerute de maib — o plată reușită și refund-ul ei — plus
@@ -121,43 +122,15 @@ export async function creeazaPlataTest(
 }
 
 async function randDupaCheckoutSauOrder(ref: string): Promise<PlataRow | null> {
-  const col = /^[0-9a-f-]{36}$/i.test(ref) ? 'checkout_id' : 'order_id';
-  const { data } = await getSupabase().from('maib_checkouts').select('*').eq(col, ref).maybeSingle();
-  return (data as PlataRow | null) ?? null;
+  return (await randDupaRef(ref)) as PlataRow | null;
 }
 
-/** Citește starea de la maib și o scrie în rând (callback-ul poate întârzia sau lipsi). */
+/** Butonul «Actualizează»: sincronizarea din lib + revalidarea paginii (în randare NU se poate revalida). */
 export async function sincronizeaza(ref: string): Promise<Rezultat & { rand?: PlataRow }> {
   requireRole(await verifySession(), 'ADMIN');
-  const rand = await randDupaCheckoutSauOrder(ref);
-  if (!rand) return { ok: false, eroare: 'sesiune necunoscută' };
-  try {
-    const c = await getCheckout(rand.checkout_id);
-    const p = c.payment ?? null;
-    const upd: Partial<PlataRow> & { updated_at: string } = {
-      status: c.status,
-      checkout_url: c.url ?? rand.checkout_url,
-      updated_at: new Date().toISOString(),
-    };
-    if (p?.paymentId) {
-      upd.payment_id = p.paymentId;
-      upd.payment_status = p.status;
-      upd.refunded_amount = Number(p.refundedAmount ?? rand.refunded_amount ?? 0);
-    }
-    const { data, error } = await getSupabase().from('maib_checkouts').update(upd).eq('checkout_id', rand.checkout_id).select('*').single();
-    if (error) return { ok: false, eroare: error.message };
-    revalidatePath('/plati');
-    return { ok: true, rand: data as PlataRow };
-  } catch (e) {
-    // Sesiunea nu mai există / a expirat la maib — o marcăm, ca să nu rămână «în așteptare» pe veci.
-    // Verificat 02.10.2026: sandbox-ul răspunde HTTP 200 + ok=false + cod «…-1800» (docs: 43001 / 404).
-    if (e instanceof MaibError && !stareEgala(rand.status, 'Completed') && (e.status === 404 || e.errors.some(x => /-(1800|43001)$/.test(x.errorCode ?? '')))) {
-      await getSupabase().from('maib_checkouts').update({ status: 'Expired', updated_at: new Date().toISOString() }).eq('checkout_id', rand.checkout_id);
-      revalidatePath('/plati');
-      return { ok: true, mesaj: 'maib nu mai cunoaște sesiunea (expirată)' };
-    }
-    return eroare(e);
-  }
+  const r = await sincronizeazaStare(ref);
+  if (r.ok) revalidatePath('/plati');
+  return r as Rezultat & { rand?: PlataRow };
 }
 
 export async function anuleaza(checkoutId: string): Promise<Rezultat> {

@@ -106,7 +106,7 @@ export async function updateAdminWarehouse(id: string, warehouseId: number | nul
   revalidatePath('/users');
 }
 
-const VALID_ADMIN_ROLES = ['ADMIN', 'DISPATCHER', 'GRAFIC', 'UZINE', 'OPERATOR_CAMERE', 'ADMIN_CAMERE', 'EVALUATOR_INCASARI', 'CONTABIL', 'DEPOZITAR', 'VINZATOR', 'MANAGER', 'GESTIONAR', 'DISPECER', 'OBSERVATOR'];
+const VALID_ADMIN_ROLES = ['ADMIN', 'DISPATCHER', 'GRAFIC', 'UZINE', 'OPERATOR_CAMERE', 'ADMIN_CAMERE', 'EVALUATOR_INCASARI', 'CONTABIL', 'DEPOZITAR', 'VINZATOR', 'MANAGER', 'GESTIONAR', 'DISPECER', 'OBSERVATOR', 'CONTABIL_LDE'];
 
 // Schimbă rolul unui cont administrativ (ex. acces lărgit pe durata testării, apoi restrâns). Doar ADMIN.
 // Schimbarea rolului crește session_version (trigger, migr. 428): sesiunile deschise ale contului cad

@@ -71,7 +71,7 @@ export const STATUS_LABELS: Record<ReportStatus, string> = {
 // MANAGER (piese) diferă de MANAGER_LDE (users.role, mini app).
 // OBSERVATOR (01.09.2026, Ion): vede banda camioanelor și harta, atât. Nicio scriere —
 // nu planifică, nu mută, nu marchează. Ion: «видят только календарь и карту».
-export type AdminRole = 'ADMIN' | 'DISPATCHER' | 'GRAFIC' | 'OPERATOR_CAMERE' | 'ADMIN_CAMERE' | 'EVALUATOR_INCASARI' | 'CONTABIL' | 'DEPOZITAR' | 'VINZATOR' | 'MANAGER' | 'GESTIONAR' | 'UZINE' | 'DISPECER' | 'OBSERVATOR';
+export type AdminRole = 'ADMIN' | 'DISPATCHER' | 'GRAFIC' | 'OPERATOR_CAMERE' | 'ADMIN_CAMERE' | 'EVALUATOR_INCASARI' | 'CONTABIL' | 'DEPOZITAR' | 'VINZATOR' | 'MANAGER' | 'GESTIONAR' | 'UZINE' | 'DISPECER' | 'OBSERVATOR' | 'CONTABIL_LDE';
 
 export interface AdminAccount {
   id: string;

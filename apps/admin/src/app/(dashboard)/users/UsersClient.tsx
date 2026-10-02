@@ -48,6 +48,7 @@ const ROLE_LABELS: Record<string, string> = {
   GESTIONAR: 'Gestionar (depozitar intern)',
   DISPECER: 'Dispecer camioane',
   OBSERVATOR: 'Observator camioane (doar citește)',
+  CONTABIL_LDE: 'Contabil LDE (agreare șoferi)',
 };
 
 export default function UsersClient({

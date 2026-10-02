@@ -18,6 +18,8 @@ const DISPECER_ALLOWED = ['/lde/camioane', '/api/lde/camioane'];
 // OBSERVATOR vede aceleași căi, dar fără drept de scriere — interdicția aceea stă
 // în `poateScrie` (lib/lde/camioane-nav.ts), pe fiecare acțiune de server.
 const OBSERVATOR_ALLOWED = ['/lde/camioane', '/api/lde/camioane'];
+// CONTABIL_LDE (Clava, ION-174): doar agrearea lunară a șoferilor.
+const CONTABIL_LDE_ALLOWED = ['/lde/agreare'];
 const NUMARARE_ONLY_ROLES = ['OPERATOR_CAMERE', 'ADMIN_CAMERE', 'EVALUATOR_INCASARI'] as const;
 
 export async function middleware(request: NextRequest) {
@@ -61,6 +63,11 @@ export async function middleware(request: NextRequest) {
     if (role === 'GRAFIC') {
       const allowed = GRAFIC_ALLOWED.some(r => pathname === r || pathname.startsWith(r + '/'));
       if (!allowed) return NextResponse.redirect(new URL('/grafic', request.url));
+    }
+
+    if (role === 'CONTABIL_LDE') {
+      const allowed = CONTABIL_LDE_ALLOWED.some(r => pathname === r || pathname.startsWith(r + '/'));
+      if (!allowed) return NextResponse.redirect(new URL('/lde/agreare', request.url));
     }
 
     if (role === 'UZINE') {

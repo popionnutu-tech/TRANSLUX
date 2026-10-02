@@ -33,7 +33,7 @@ export default function LoginPage() {
       }
 
       const data = await res.json();
-      router.push(data.role === 'CONTABIL' ? '/piese' : '/reports');
+      router.push(data.role === 'CONTABIL' ? '/piese' : data.role === 'CONTABIL_LDE' ? '/lde/agreare' : '/reports');
       router.refresh();
     } catch {
       setError('Eroare de conexiune');

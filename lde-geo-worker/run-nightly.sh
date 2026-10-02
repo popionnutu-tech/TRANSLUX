@@ -20,6 +20,8 @@ node --env-file=.env fuel-worker.mjs --write >> nightly.log 2>&1
 # Litrii de pe foile de parcurs LDE (baza raznareadca, ION-132):
 # litrii scriși de operator pe foile pz_* → lde_fuel_foaie (litri_a = benzol, deja importat mai sus).
 node --env-file=.env lde-alim-worker.mjs --write >> nightly.log 2>&1
+# Unde a dormit fiecare mașină de uzină (din harta mașinii, GPS) → lde_noapte_zi, pentru agrearea lunară a șoferilor (ION-174).
+node --env-file=.env noapte-worker.mjs --write >> nightly.log 2>&1
 # Tot ce aruncă cele două de mai sus — plăcuțe/nume care nu sunt în vehicles → lde_fuel_strain (ION-134).
 # DUPĂ ele. O mașină adăugată în flotă: rulează o dată toate trei cu --all, ca istoricul ei să treacă la ea.
 node --env-file=.env fuel-strain-worker.mjs --write >> nightly.log 2>&1

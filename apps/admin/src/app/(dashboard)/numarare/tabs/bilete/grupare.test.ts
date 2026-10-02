@@ -6,9 +6,11 @@ const stops = [
   { tariff_id: 1, name_ro: 'Criva', km_from_start: '3.50', district: 'briceni' },
   { tariff_id: 1, name_ro: 'Briceni', km_from_start: '44.50', district: 'briceni' },
   { tariff_id: 1, name_ro: 'Lopatnic', km_from_start: '33.00', district: 'edinet' },
-  { tariff_id: 1, name_ro: 'Edineț', km_from_start: '78.50' },
-  { tariff_id: 1, name_ro: 'Cupcini', km_from_start: '85.10' },
-  { tariff_id: 1, name_ro: 'Corlăteni', km_from_start: '135.10' },
+  { tariff_id: 1, name_ro: 'Edineț', km_from_start: '78.50', district: 'edinet' },
+  { tariff_id: 1, name_ro: 'Cupcini', km_from_start: '85.10', district: 'edinet' },
+  { tariff_id: 1, name_ro: 'Corlăteni', km_from_start: '135.10', district: 'riscani' },
+  { tariff_id: 1, name_ro: 'Intersecția Pelenia', km_from_start: '130.20', district: 'drochia' },
+  { tariff_id: 1, name_ro: 'Hlinaia', km_from_start: '66.70' },
   { tariff_id: 1, name_ro: 'Bălți', km_from_start: '148.50' },
   { tariff_id: 1, name_ro: 'Bilicenii Noi', km_from_start: '158.20' },
   { tariff_id: 1, name_ro: 'Bilicenii Vechi', km_from_start: '163.10' },
@@ -28,7 +30,7 @@ const stops = [
   // tarif cu Chișinău la km 0 (sens invers)
   { tariff_id: 10, name_ro: 'Chișinău', km_from_start: '0.00' },
   { tariff_id: 10, name_ro: 'Bălți', km_from_start: '134.00' },
-  { tariff_id: 10, name_ro: 'Rîșcani', km_from_start: '176.00' },
+  { tariff_id: 10, name_ro: 'Rîșcani', km_from_start: '176.00', district: 'riscani' },
 ];
 
 describe('normalizare', () => {
@@ -42,17 +44,13 @@ describe('normalizare', () => {
 
 describe('zoneBalti', () => {
   const z: ZoneBalti = zoneBalti(stops);
-  it('intre = între Chișinău și Bălți, edinet = de la Edineț la Bălți, dincolo de Edineț pe raioane', () => {
+  it('intre = între Chișinău și Bălți; dincolo de Bălți pe raioane', () => {
     expect([...z.intre].sort()).toEqual(['bilicenii noi', 'bilicenii vechi', 'orhei', 'singerei']);
-    expect([...z.edinet].sort()).toEqual(['corlateni', 'cupcini', 'riscani']);
+    expect([...z.edinet].sort()).toEqual(['cupcini', 'edinet', 'lopatnic']);
+    expect([...z.riscani].sort()).toEqual(['corlateni', 'intersectia pelenia', 'riscani']);
     expect([...z.briceni].sort()).toEqual(['briceni', 'criva']);
     expect([...z.ocnita].sort()).toEqual(['ocnita', 'otaci']);
-    expect([...z.nord].sort()).toEqual(['lopatnic']);
-  });
-  it('ramura fără Edineț se împarte după distanța până la Bălți (Edineț – Bălți = 70 km)', () => {
-    // Rîșcani: 176 − 134 = 42 km de Bălți pe tariful 10 → «edinet»; Otaci/Ocnița pe tariful 7: 133 / 86 km → «nord»
-    expect(z.edinet.has('riscani')).toBe(true);
-    expect(z.ocnita.has('ocnita')).toBe(true);
+    expect([...z.nord].sort()).toEqual(['hlinaia']);
   });
   it('al doilea traseu din tariful 7 nu trage Bilicenii Vechi la nord (147,6 < 154 pe tariful 7, dar 163,1 > 148,5 pe tariful 1)', () => {
     expect(z.nord.has('bilicenii vechi')).toBe(false);
@@ -62,7 +60,9 @@ describe('zoneBalti', () => {
   it('perechile', () => {
     expect(zonaPerechii('Chisinau - Briceni', z)).toBe('briceni');
     expect(zonaPerechii('Chisinau - Otaci', z)).toBe('ocnita');
-    expect(zonaPerechii('Chisinau - lopatnic', z)).toBe('nord');
+    expect(zonaPerechii('Chisinau - lopatnic', z)).toBe('edinet');
+    expect(zonaPerechii('Chisinau - Riscani', z)).toBe('riscani');
+    expect(zonaPerechii('Chisinau - Hlinaia', z)).toBe('nord');
     expect(zonaPerechii('Chisinau - Edinet', z)).toBe('edinet');
     expect(zonaPerechii('Chisinau - Cupcini', z)).toBe('edinet');
     expect(zonaPerechii('Briceni - Chisinau', z)).toBe('briceni');

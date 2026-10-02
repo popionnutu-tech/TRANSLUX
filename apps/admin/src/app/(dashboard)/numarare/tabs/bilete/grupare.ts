@@ -1,7 +1,8 @@
 // ION-180 (Ion, 02.10.2026): «biletele după Bălți spre Chișinău să fie grupate în una și dacă apasă să se deschidă locațiile»,
 // apoi «nu îmi ajunge Chișinău până la Bălți», apoi «asta să fie între Edineț și Bălți, inclusiv Edineț și fără Bălți, și
-// încă o grupare de la Edineț în jos fără Edineț», apoi «divizează asta în 2 raioane Briceni și Ocnița». Funcții pure: cheia perechii (ca tiki_stop_norm din SQL, migr. 452),
-// zonele față de Bălți și Edineț derivate din nomenclatorul interurban (interurban_v2_stops) și însumarea într-un rând de grup.
+// încă o grupare de la Edineț în jos fără Edineț», apoi «divizează asta în 2 raioane Briceni și Ocnița», apoi «împarte separat
+// raionul Edineț și împreună Drochia/Rîșcani» → dincolo de Bălți totul e pe raion. Funcții pure: cheia perechii (ca tiki_stop_norm din SQL, migr. 452),
+// zonele față de Bălți și raioanele derivate din nomenclatorul interurban (interurban_v2_stops) și însumarea într-un rând de grup.
 
 import type { TikiPairRow } from './types';
 
@@ -31,38 +32,33 @@ const LIPSA_DIN_NOMENCLATOR: Record<string, Zona> = {
 
 export const CHISINAU = 'chisinau';
 export const BALTI = 'balti';
-export const EDINET = 'edinet';
 /**
- * intre = între Chișinău și Bălți; edinet = de la Edineț (inclusiv) până la Bălți (exclusiv); dincolo de Edineț, pe
- * coloana district din nomenclator: briceni / ocnita, iar restul (raioanele Edineț și Rîșcani de pe ramura Lipcani – Rîșcani) = nord.
+ * intre = între Chișinău și Bălți; dincolo de Bălți, pe coloana district din nomenclator: edinet / riscani (Drochia +
+ * Rîșcani, satele pe unde trecem) / briceni / ocnita; nord = dincolo de Bălți fără raion cunoscut (în practică gol).
  */
-export type Zona = 'intre' | 'edinet' | 'briceni' | 'ocnita' | 'nord';
+export type Zona = 'intre' | 'edinet' | 'riscani' | 'briceni' | 'ocnita' | 'nord';
 export const GRUP: Record<Zona, string> = {
   intre: 'Chișinău – până la Bălți',
-  edinet: 'Chișinău – de la Edineț la Bălți',
+  edinet: 'Chișinău – raionul Edineț',
+  riscani: 'Chișinău – raioanele Drochia / Rîșcani',
   briceni: 'Chișinău – raionul Briceni',
   ocnita: 'Chișinău – raionul Ocnița',
-  nord: 'Chișinău – după Edineț, alte raioane',
+  nord: 'Chișinău – după Bălți, alt raion',
 };
-export const ZONE: Zona[] = ['intre', 'edinet', 'briceni', 'ocnita', 'nord'];
-const RAIOANE: Partial<Record<string, Zona>> = { briceni: 'briceni', ocnita: 'ocnita' };
+export const ZONE: Zona[] = ['intre', 'edinet', 'riscani', 'briceni', 'ocnita', 'nord'];
+const RAIOANE: Partial<Record<string, Zona>> = { edinet: 'edinet', riscani: 'riscani', drochia: 'riscani', briceni: 'briceni', ocnita: 'ocnita' };
 
 export interface StopKm { tariff_id: number; name_ro: string; km_from_start: number | string | null; district?: string | null }
 export type ZoneBalti = Record<Zona, Set<string>>;
 
 /**
  * Zonele stațiilor, văzut din Chișinău, din nomenclatorul interurban. Pe fiecare tarif care are și Chișinău, și Bălți
- * se judecă pe km: «intre» = între Chișinău și Bălți; dincolo de Bălți, dacă tariful trece prin Edineț: «nord» = dincolo
- * de Edineț, «edinet» = între Edineț și Bălți. Tarifele de dincolo de Bălți care NU trec prin Edineț (ramura Lipcani –
- * Rîșcani) se împart după distanța până la Bălți: până la cât e Edineț – Bălți pe trunchi (70 km) = «edinet», mai departe
- * = «nord»; aceasta doar pentru stațiile pe care niciun tarif cu Edineț nu le-a așezat deja.
- * Un tarif poate conține două trasee cu km diferiți (tariful 7: Otaci + Briceni), de aceea Bălți și Edineț se iau la
- * km minim/maxim, iar stația care cade între cele două valori pe acel tarif rămâne pe seama celorlalte tarife.
- * Precedență la conflict: cea mai apropiată de Chișinău (intre > edinet > nord). Apoi «nord» se împarte pe raioane
- * (district din nomenclator): Briceni, Ocnița, restul rămâne «nord».
+ * se judecă pe km: «intre» = între Chișinău și Bălți; dincolo de Bălți stația se așază pe raionul ei (district).
+ * Un tarif poate conține două trasee cu km diferiți (tariful 7: Otaci + Briceni), de aceea Bălți se ia la km minim/maxim,
+ * iar o stație care pe vreun tarif stă între Bălți și Chișinău e «intre» (precedență: cea mai apropiată de Chișinău).
  */
 export function zoneBalti(stops: StopKm[]): ZoneBalti {
-  type T = { kbMin: number; kbMax: number; keMin: number; keMax: number; kc: number | null; rows: { n: string; km: number }[] };
+  type T = { kbMin: number; kbMax: number; kc: number | null; rows: { n: string; km: number }[] };
   const byTariff = new Map<number, T>();
   const raion = new Map<string, Zona>();
   for (const s of stops) {
@@ -71,56 +67,40 @@ export function zoneBalti(stops: StopKm[]): ZoneBalti {
     const n = stopNorm(s.name_ro);
     const rz = s.district ? RAIOANE[stopNorm(s.district)] : undefined;
     if (rz) raion.set(n, rz);
-    const t = byTariff.get(s.tariff_id) ?? { kbMin: Infinity, kbMax: -Infinity, keMin: Infinity, keMax: -Infinity, kc: null, rows: [] };
+    const t = byTariff.get(s.tariff_id) ?? { kbMin: Infinity, kbMax: -Infinity, kc: null, rows: [] };
     if (n === BALTI) { t.kbMin = Math.min(t.kbMin, km); t.kbMax = Math.max(t.kbMax, km); }
-    else if (n === EDINET) { t.keMin = Math.min(t.keMin, km); t.keMax = Math.max(t.keMax, km); }
     else if (n === CHISINAU) t.kc = Math.max(t.kc ?? -Infinity, km);
     else t.rows.push({ n, km });
     byTariff.set(s.tariff_id, t);
   }
-  const z: ZoneBalti = { intre: new Set(), edinet: new Set(), briceni: new Set(), ocnita: new Set(), nord: new Set() };
-  const faraEdinet: { n: string; dist: number }[] = [];
-  let dEdinetBalti = 0;
+  const z: ZoneBalti = { intre: new Set(), edinet: new Set(), riscani: new Set(), briceni: new Set(), ocnita: new Set(), nord: new Set() };
+  const dincolo = new Set<string>();
   for (const t of byTariff.values()) {
     if (t.kc == null || !isFinite(t.kbMin)) continue;
     // toate tarifele din nomenclator au Chișinău la capătul cu km mare; dacă nu, oglindim km-ii
     const flip = t.kc < t.kbMin;
     const f = (km: number) => (flip ? -km : km);
     const kbMin = flip ? -t.kbMax : t.kbMin, kbMax = flip ? -t.kbMin : t.kbMax;
-    const keMin = flip ? -t.keMax : t.keMin, keMax = flip ? -t.keMin : t.keMax;
     const kc = f(t.kc);
-    const areEdinet = isFinite(keMin);
-    if (areEdinet) dEdinetBalti = Math.max(dEdinetBalti, kbMin - keMin);
     for (const r of t.rows) {
       const km = f(r.km);
       if (km > kbMax && km < kc) z.intre.add(r.n);
-      else if (km < kbMin) {
-        if (!areEdinet) faraEdinet.push({ n: r.n, dist: kbMin - km });
-        else if (km < keMin) z.nord.add(r.n);
-        else if (km > keMax) z.edinet.add(r.n);
-      }
+      else if (km < kbMin) dincolo.add(r.n);
     }
   }
-  for (const { n, dist } of faraEdinet) {
-    if (z.intre.has(n) || z.edinet.has(n) || z.nord.has(n)) continue;
-    (dist <= dEdinetBalti ? z.edinet : z.nord).add(n);
-  }
-  for (const n of z.intre) { z.edinet.delete(n); z.nord.delete(n); }
-  for (const n of z.edinet) z.nord.delete(n);
-  for (const n of [...z.nord]) {
-    const rz = raion.get(n);
-    if (rz) { z.nord.delete(n); z[rz].add(n); }
+  for (const n of dincolo) {
+    if (z.intre.has(n)) continue;
+    z[raion.get(n) ?? 'nord'].add(n);
   }
   return z;
 }
 
-/** Grupul perechii «Chisinau - X», sau null (Bălți însuși, perechi fără Chișinău, necunoscute). Edineț intră la «edinet». */
+/** Grupul perechii «Chisinau - X», sau null (Bălți însuși, perechi fără Chișinău, necunoscute). */
 export function zonaPerechii(pair: string, z: ZoneBalti): Zona | null {
   const [a = '', b = ''] = pair.split(' - ').map(stopNorm);
   if (a !== CHISINAU && b !== CHISINAU) return null;
   const x = a === CHISINAU ? b : a;
   if (!x || x === CHISINAU || x === BALTI) return null;
-  if (x === EDINET) return 'edinet';
   const k = TIKI_ALIAS[x] ?? x;
   for (const zona of ZONE) if (z[zona].has(k)) return zona;
   return LIPSA_DIN_NOMENCLATOR[k] ?? null;

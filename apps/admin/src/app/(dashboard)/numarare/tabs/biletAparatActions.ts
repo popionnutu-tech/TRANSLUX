@@ -8,7 +8,7 @@
 import { getSupabase } from '@/lib/supabase';
 import { verifySession } from '@/lib/auth';
 import { unpackRow, type PackedRow } from './bilete/ticketParse';
-import { zoneBalti, type StopKm, type Zona } from './bilete/grupare';
+import { ZONE, zoneBalti, type StopKm, type Zona } from './bilete/grupare';
 import type {
   TikiBatch, TikiMeta, TikiSummary, TikiDriverRow, TikiRouteRow, TikiPairRow, TikiMonthly,
   TikiCalitate, OrarRoute, TikiTendinta, TikiClienti, TikiOd, TikiOmisi, TikiRefacereStare, Piata, TikiBalti,
@@ -216,7 +216,7 @@ export async function getTikiZoneBalti(): Promise<Res<Record<Zona, string[]>>> {
     .limit(1000);
   if (error) return { error: error.message };
   const z = zoneBalti((data ?? []) as StopKm[]);
-  return { data: { intre: [...z.intre], edinet: [...z.edinet], briceni: [...z.briceni], ocnita: [...z.ocnita], nord: [...z.nord] } };
+  return { data: Object.fromEntries(ZONE.map(zn => [zn, [...z[zn]]])) as Record<Zona, string[]> };
 }
 
 export async function getTikiMonthly(

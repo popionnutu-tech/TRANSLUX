@@ -490,6 +490,22 @@ testele pasului 6 sunt CONDIȚIE DE PUSH, nu pas ulterior. Notificările șoferu
 - Pasul 9: buton `web_app` în privat + Menu Button; fără grupă (9). Pasul S: doar `requestContact` + scanner.
 - Decizia 3 și F8: linkul direct din grupă nu se mai folosește; mini app-ul se deschide din privat.
 
+### Ion, 03.10, 00:45: biletul se salvează; grupa Telegram a clienților
+Citat: «clientul biletul îl poate salva; după achiziție poate trece în grupa Telegram și acolo automat se salvează el
+și numărul de telefon ca client.»
+- Pagina biletului: «Salvează» (imagine/print) — era deja în pasul 3 (răspunsul 1).
+- **Baza de clienți** (pas nou, 3c, după 3b): tabel `clienti` (telegram_id UNIQUE, telefon normalizat, nume, prima
+  comandă, ultima comandă, sursa: `bilet` | `grupa`, created_at). Botul, la `/start bilet_<cod>` (3b), trimite biletul
+  ȘI scrie clientul (telefonul vine din comandă, nu de la pasager) și arată butonul «Intră în grupa clienților» —
+  linkul de invitație stă în `app_config.clienti_group_invite` (grupa o face Ion, botul e admin în ea).
+- La intrarea în grupă (`chat_member` pentru chat-ul clienților) botul leagă `telegram_id`-ul de client dacă îl
+  cunoaște din comenzi; dacă nu, îl scrie ca `sursa=grupa` fără telefon (grupa nu dă telefonul) — telefonul se
+  completează la prima comandă. Nicio scriere automată în grupă din partea botului (memoria «no-public-broadcast»:
+  grupa e a clienților, nu un canal de anunțuri; ce se postează decide Ion).
+- Admin: lista clienților în `/bilete` (11b) cu export; fără altceva în v1.
+- Notă: decizia din 21.09 («fără canal de pasageri») e înlocuită explicit de aceasta pentru GRUPA clienților;
+  rămâne fără FB/TikTok automat.
+
 ### Ion, 02.10, 23:45: «logica simplă» și clauza de returnare prin bot, cu AI
 Citat: «omul cumpără bilet QR, acest bilet îl prezintă la șofer, șoferul apasă pe buton și scanează confirmând că
 clientul a venit. Trebuie de gândit clauza returnare bilet. Ar fi bine să o facem tot prin bot și în bot să punem un AI

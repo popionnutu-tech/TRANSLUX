@@ -1,6 +1,6 @@
 // ION-180 (Ion, 02.10.2026): «biletele după Bălți spre Chișinău să fie grupate în una și dacă apasă să se deschidă locațiile»,
 // apoi «nu îmi ajunge Chișinău până la Bălți», apoi «asta să fie între Edineț și Bălți, inclusiv Edineț și fără Bălți, și
-// încă o grupare de la Edineț în jos fără Edineț». Funcții pure: cheia perechii (ca tiki_stop_norm din SQL, migr. 452),
+// încă o grupare de la Edineț în jos fără Edineț», apoi «divizează asta în 2 raioane Briceni și Ocnița». Funcții pure: cheia perechii (ca tiki_stop_norm din SQL, migr. 452),
 // zonele față de Bălți și Edineț derivate din nomenclatorul interurban (interurban_v2_stops) și însumarea într-un rând de grup.
 
 import type { TikiPairRow } from './types';
@@ -32,16 +32,22 @@ const LIPSA_DIN_NOMENCLATOR: Record<string, Zona> = {
 export const CHISINAU = 'chisinau';
 export const BALTI = 'balti';
 export const EDINET = 'edinet';
-/** intre = între Chișinău și Bălți; edinet = de la Edineț (inclusiv) până la Bălți (exclusiv); nord = dincolo de Edineț. */
-export type Zona = 'intre' | 'edinet' | 'nord';
+/**
+ * intre = între Chișinău și Bălți; edinet = de la Edineț (inclusiv) până la Bălți (exclusiv); dincolo de Edineț, pe
+ * coloana district din nomenclator: briceni / ocnita, iar restul (raioanele Edineț și Rîșcani de pe ramura Lipcani – Rîșcani) = nord.
+ */
+export type Zona = 'intre' | 'edinet' | 'briceni' | 'ocnita' | 'nord';
 export const GRUP: Record<Zona, string> = {
   intre: 'Chișinău – până la Bălți',
   edinet: 'Chișinău – de la Edineț la Bălți',
-  nord: 'Chișinău – după Edineț',
+  briceni: 'Chișinău – raionul Briceni',
+  ocnita: 'Chișinău – raionul Ocnița',
+  nord: 'Chișinău – după Edineț, alte raioane',
 };
-export const ZONE: Zona[] = ['intre', 'edinet', 'nord'];
+export const ZONE: Zona[] = ['intre', 'edinet', 'briceni', 'ocnita', 'nord'];
+const RAIOANE: Partial<Record<string, Zona>> = { briceni: 'briceni', ocnita: 'ocnita' };
 
-export interface StopKm { tariff_id: number; name_ro: string; km_from_start: number | string | null }
+export interface StopKm { tariff_id: number; name_ro: string; km_from_start: number | string | null; district?: string | null }
 export type ZoneBalti = Record<Zona, Set<string>>;
 
 /**
@@ -52,15 +58,19 @@ export type ZoneBalti = Record<Zona, Set<string>>;
  * = «nord»; aceasta doar pentru stațiile pe care niciun tarif cu Edineț nu le-a așezat deja.
  * Un tarif poate conține două trasee cu km diferiți (tariful 7: Otaci + Briceni), de aceea Bălți și Edineț se iau la
  * km minim/maxim, iar stația care cade între cele două valori pe acel tarif rămâne pe seama celorlalte tarife.
- * Precedență la conflict: cea mai apropiată de Chișinău (intre > edinet > nord).
+ * Precedență la conflict: cea mai apropiată de Chișinău (intre > edinet > nord). Apoi «nord» se împarte pe raioane
+ * (district din nomenclator): Briceni, Ocnița, restul rămâne «nord».
  */
 export function zoneBalti(stops: StopKm[]): ZoneBalti {
   type T = { kbMin: number; kbMax: number; keMin: number; keMax: number; kc: number | null; rows: { n: string; km: number }[] };
   const byTariff = new Map<number, T>();
+  const raion = new Map<string, Zona>();
   for (const s of stops) {
     const km = Number(s.km_from_start);
     if (!isFinite(km)) continue;
     const n = stopNorm(s.name_ro);
+    const rz = s.district ? RAIOANE[stopNorm(s.district)] : undefined;
+    if (rz) raion.set(n, rz);
     const t = byTariff.get(s.tariff_id) ?? { kbMin: Infinity, kbMax: -Infinity, keMin: Infinity, keMax: -Infinity, kc: null, rows: [] };
     if (n === BALTI) { t.kbMin = Math.min(t.kbMin, km); t.kbMax = Math.max(t.kbMax, km); }
     else if (n === EDINET) { t.keMin = Math.min(t.keMin, km); t.keMax = Math.max(t.keMax, km); }
@@ -68,7 +78,7 @@ export function zoneBalti(stops: StopKm[]): ZoneBalti {
     else t.rows.push({ n, km });
     byTariff.set(s.tariff_id, t);
   }
-  const z: ZoneBalti = { intre: new Set(), edinet: new Set(), nord: new Set() };
+  const z: ZoneBalti = { intre: new Set(), edinet: new Set(), briceni: new Set(), ocnita: new Set(), nord: new Set() };
   const faraEdinet: { n: string; dist: number }[] = [];
   let dEdinetBalti = 0;
   for (const t of byTariff.values()) {
@@ -97,6 +107,10 @@ export function zoneBalti(stops: StopKm[]): ZoneBalti {
   }
   for (const n of z.intre) { z.edinet.delete(n); z.nord.delete(n); }
   for (const n of z.edinet) z.nord.delete(n);
+  for (const n of [...z.nord]) {
+    const rz = raion.get(n);
+    if (rz) { z.nord.delete(n); z[rz].add(n); }
+  }
   return z;
 }
 

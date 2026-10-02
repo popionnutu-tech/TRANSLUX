@@ -212,11 +212,11 @@ export async function getTikiZoneBalti(): Promise<Res<Record<Zona, string[]>>> {
   if ('error' in a) return a;
   const { data, error } = await getSupabase()
     .from('interurban_v2_stops')
-    .select('tariff_id,name_ro,km_from_start')
+    .select('tariff_id,name_ro,km_from_start,district')
     .limit(1000);
   if (error) return { error: error.message };
   const z = zoneBalti((data ?? []) as StopKm[]);
-  return { data: { intre: [...z.intre], edinet: [...z.edinet], nord: [...z.nord] } };
+  return { data: { intre: [...z.intre], edinet: [...z.edinet], briceni: [...z.briceni], ocnita: [...z.ocnita], nord: [...z.nord] } };
 }
 
 export async function getTikiMonthly(

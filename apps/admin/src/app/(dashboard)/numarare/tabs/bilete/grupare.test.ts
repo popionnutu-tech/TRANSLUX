@@ -3,8 +3,9 @@ import { zonaPerechii, zoneBalti, pairNorm, stopNorm, sumPairs, type ZoneBalti }
 
 // Tariful 1 (Criva – Chișinău) și tariful 7 (Otaci + Briceni – Chișinău, două trasee cu km diferiți în același tarif).
 const stops = [
-  { tariff_id: 1, name_ro: 'Criva', km_from_start: '3.50' },
-  { tariff_id: 1, name_ro: 'Briceni', km_from_start: '44.50' },
+  { tariff_id: 1, name_ro: 'Criva', km_from_start: '3.50', district: 'briceni' },
+  { tariff_id: 1, name_ro: 'Briceni', km_from_start: '44.50', district: 'briceni' },
+  { tariff_id: 1, name_ro: 'Lopatnic', km_from_start: '33.00', district: 'edinet' },
   { tariff_id: 1, name_ro: 'Edineț', km_from_start: '78.50' },
   { tariff_id: 1, name_ro: 'Cupcini', km_from_start: '85.10' },
   { tariff_id: 1, name_ro: 'Corlăteni', km_from_start: '135.10' },
@@ -14,8 +15,8 @@ const stops = [
   { tariff_id: 1, name_ro: 'Sîngerei', km_from_start: '174.70' },
   { tariff_id: 1, name_ro: 'Orhei', km_from_start: '234.50' },
   { tariff_id: 1, name_ro: 'Chișinău', km_from_start: '282.50' },
-  { tariff_id: 7, name_ro: 'Otaci', km_from_start: '0.00' },
-  { tariff_id: 7, name_ro: 'Ocnița', km_from_start: '47.00' },
+  { tariff_id: 7, name_ro: 'Otaci', km_from_start: '0.00', district: 'ocnita' },
+  { tariff_id: 7, name_ro: 'Ocnița', km_from_start: '47.00', district: 'ocnita' },
   { tariff_id: 7, name_ro: 'Bălți', km_from_start: '154.00' },
   { tariff_id: 7, name_ro: 'Bălți', km_from_start: '133.00' },
   { tariff_id: 7, name_ro: 'Bilicenii Vechi', km_from_start: '147.60' },
@@ -41,15 +42,17 @@ describe('normalizare', () => {
 
 describe('zoneBalti', () => {
   const z: ZoneBalti = zoneBalti(stops);
-  it('intre = între Chișinău și Bălți, edinet = de la Edineț la Bălți, nord = dincolo de Edineț', () => {
+  it('intre = între Chișinău și Bălți, edinet = de la Edineț la Bălți, dincolo de Edineț pe raioane', () => {
     expect([...z.intre].sort()).toEqual(['bilicenii noi', 'bilicenii vechi', 'orhei', 'singerei']);
     expect([...z.edinet].sort()).toEqual(['corlateni', 'cupcini', 'riscani']);
-    expect([...z.nord].sort()).toEqual(['briceni', 'criva', 'ocnita', 'otaci']);
+    expect([...z.briceni].sort()).toEqual(['briceni', 'criva']);
+    expect([...z.ocnita].sort()).toEqual(['ocnita', 'otaci']);
+    expect([...z.nord].sort()).toEqual(['lopatnic']);
   });
   it('ramura fără Edineț se împarte după distanța până la Bălți (Edineț – Bălți = 70 km)', () => {
     // Rîșcani: 176 − 134 = 42 km de Bălți pe tariful 10 → «edinet»; Otaci/Ocnița pe tariful 7: 133 / 86 km → «nord»
     expect(z.edinet.has('riscani')).toBe(true);
-    expect(z.nord.has('ocnita')).toBe(true);
+    expect(z.ocnita.has('ocnita')).toBe(true);
   });
   it('al doilea traseu din tariful 7 nu trage Bilicenii Vechi la nord (147,6 < 154 pe tariful 7, dar 163,1 > 148,5 pe tariful 1)', () => {
     expect(z.nord.has('bilicenii vechi')).toBe(false);
@@ -57,10 +60,12 @@ describe('zoneBalti', () => {
     expect(z.intre.has('chisinau')).toBe(false);
   });
   it('perechile', () => {
-    expect(zonaPerechii('Chisinau - Briceni', z)).toBe('nord');
+    expect(zonaPerechii('Chisinau - Briceni', z)).toBe('briceni');
+    expect(zonaPerechii('Chisinau - Otaci', z)).toBe('ocnita');
+    expect(zonaPerechii('Chisinau - lopatnic', z)).toBe('nord');
     expect(zonaPerechii('Chisinau - Edinet', z)).toBe('edinet');
     expect(zonaPerechii('Chisinau - Cupcini', z)).toBe('edinet');
-    expect(zonaPerechii('Briceni - Chisinau', z)).toBe('nord');
+    expect(zonaPerechii('Briceni - Chisinau', z)).toBe('briceni');
     expect(zonaPerechii('Chisinau - Singerei', z)).toBe('intre');
     expect(zonaPerechii('Chisinau - alexandreni', z)).toBe('intre');
     expect(zonaPerechii('Chisinau - Balti', z)).toBeNull();
@@ -71,15 +76,15 @@ describe('zoneBalti', () => {
   it('scrierile TIKI diferite de nomenclator', () => {
     const n = zoneBalti([
       ...stops,
-      { tariff_id: 1, name_ro: 'Beleavinți', km_from_start: '29.50' },
-      { tariff_id: 1, name_ro: 'Coteala', km_from_start: '28.50' },
-      { tariff_id: 1, name_ro: 'Gordineștii Noi', km_from_start: '23.00' },
-      { tariff_id: 1, name_ro: 'Slobozia Șirăuți', km_from_start: '7.00' },
+      { tariff_id: 1, name_ro: 'Beleavinți', km_from_start: '29.50', district: 'briceni' },
+      { tariff_id: 1, name_ro: 'Coteala', km_from_start: '28.50', district: 'briceni' },
+      { tariff_id: 1, name_ro: 'Gordineștii Noi', km_from_start: '23.00', district: 'briceni' },
+      { tariff_id: 1, name_ro: 'Slobozia Șirăuți', km_from_start: '7.00', district: 'briceni' },
     ]);
-    expect(zonaPerechii('Chisinau - Beleavineti', n)).toBe('nord');
-    expect(zonaPerechii('Chisinau - Cotelea', n)).toBe('nord');
-    expect(zonaPerechii('Chisinau - Gordinesti', n)).toBe('nord');
-    expect(zonaPerechii('Chisinau - sl. Sirauti', n)).toBe('nord');
+    expect(zonaPerechii('Chisinau - Beleavineti', n)).toBe('briceni');
+    expect(zonaPerechii('Chisinau - Cotelea', n)).toBe('briceni');
+    expect(zonaPerechii('Chisinau - Gordinesti', n)).toBe('briceni');
+    expect(zonaPerechii('Chisinau - sl. Sirauti', n)).toBe('briceni');
   });
 });
 

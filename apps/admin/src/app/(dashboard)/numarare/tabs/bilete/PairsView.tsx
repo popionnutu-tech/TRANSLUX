@@ -18,14 +18,14 @@ type Enriched = TikiPairRow & {
   sh: number | null; avg: number | null; turPct: number | null; yoyPct: number | null; isNew: boolean;
   omisi: number | null; omisiTur: number | null; omisiRetur: number | null;
 };
-// ION-180: un rând al tabelului e o pereche sau un grup (până la Bălți / de la Edineț la Bălți / după Edineț) cu localitățile lui.
+// ION-180: un rând al tabelului e o pereche sau un grup (până la Bălți / de la Edineț la Bălți / raionul Briceni / raionul Ocnița / alte raioane) cu localitățile lui.
 type Item = { row: Enriched; zona?: Zona; members?: Enriched[] };
 
 export default function PairsView({ filters }: { filters: Filters }) {
   const [rows, setRows] = useState<TikiPairRow[] | null>(null);
   const [yoy, setYoy] = useState<Map<string, TikiPairRow>>(new Map());
   const [omisi, setOmisi] = useState<TikiOmisi | null>(null);
-  const [zone, setZone] = useState<ZoneBalti>({ intre: new Set(), edinet: new Set(), nord: new Set() });
+  const [zone, setZone] = useState<ZoneBalti>({ intre: new Set(), edinet: new Set(), briceni: new Set(), ocnita: new Set(), nord: new Set() });
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState('');
   const [limit, setLimit] = useState(40);
@@ -35,7 +35,11 @@ export default function PairsView({ filters }: { filters: Filters }) {
 
   useEffect(() => {
     let alive = true;
-    getTikiZoneBalti().then(r => { if (alive && r.data) setZone({ intre: new Set(r.data.intre), edinet: new Set(r.data.edinet), nord: new Set(r.data.nord) }); });
+    getTikiZoneBalti().then(r => {
+      if (!alive || !r.data) return;
+      const d = r.data;
+      setZone({ intre: new Set(d.intre), edinet: new Set(d.edinet), briceni: new Set(d.briceni), ocnita: new Set(d.ocnita), nord: new Set(d.nord) });
+    });
     return () => { alive = false; };
   }, []);
 
@@ -185,8 +189,9 @@ export default function PairsView({ filters }: { filters: Filters }) {
       <Notice tone="info">
         Tipul biletului = perechea de stații, fără sens (Chișinău – Bălți cuprinde ambele sensuri; sensul e în coloana Tur/Retur).
         Grupurile: «{GRUP.intre}» = stațiile dintre Chișinău și Bălți (Orhei, Sîngerei, Prepelița…); «{GRUP.edinet}» = de la Edineț
-        (inclusiv) până la Bălți (exclusiv: Cupcini, Rîșcani, Recea, Corlăteni…); «{GRUP.nord}» = dincolo de Edineț (Briceni, Lipcani, Ocnița…).
-        Click pe rând deschide localitățile. «vs an trecut» compară cu {fmtDate(yoyRange.from)} – {fmtDate(yoyRange.to)}. Pentru biletele de dinainte de feb. 2026
+        (inclusiv) până la Bălți (exclusiv: Cupcini, Rîșcani, Recea, Corlăteni…); dincolo de Edineț, pe raioane: «{GRUP.briceni}»
+        (Briceni, Lipcani, Criva, Corjeuți…), «{GRUP.ocnita}» (Ocnița, Otaci, Bîrlădeni…), «{GRUP.nord}» = satele din raioanele Edineț și Rîșcani
+        de pe ramura Lipcani – Rîșcani (Bădragii, Brînzeni, Văratic, Corpaci…). Click pe rând deschide localitățile. «vs an trecut» compară cu {fmtDate(yoyRange.from)} – {fmtDate(yoyRange.to)}. Pentru biletele de dinainte de feb. 2026
         stațiile lipsesc din export: tipul e dedus din preț (98,6% potriviri verificate). «Omiși de TIKI» = oameni numărați
         în Numărare pe pereche, fără bilet TIKI: pe fiecare porțiune de drum numărat − TIKI; unde diferența crește au urcat,
         unde scade au coborât. Doar din {fmtDate(NUMARARE_FROM)} și doar zilele numărate.

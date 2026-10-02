@@ -6,12 +6,14 @@ import { randomBytes, randomUUID } from 'crypto';
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
 import {
-  cancelCheckout, createCheckout, getPayment, getRefund, refundPayment,
+  cancelCheckout, createCheckout,
   maibMediu, maibConfigurat, stareEgala, MaibError,
 } from '@/lib/maib/client';
 import { randDupaCheckoutSauOrder as randDupaRef, sincronizeazaStare } from '@/lib/maib/sincronizare';
 import { persistaCheckout } from '@/lib/maib/persist';
 import { ComandaError, creeazaComanda } from '@/lib/bilete/comenzi';
+import { anuleazaSiReturneaza } from '@/lib/bilete/refund';
+import { elibereazaRefund, executaRefund, revendicaRefund, verificaSiFinalizeazaRefund } from '@/lib/maib/refund';
 
 /**
  * Comanda de test pentru bilete (ION-193, pasul 4): ocolește steagurile de vânzare (mod test_admin) — permis
@@ -178,49 +180,36 @@ export async function returneaza(checkoutId: string, motiv: string): Promise<Rez
   if (!rand) return { ok: false, eroare: 'sesiune necunoscută' };
   if (!rand.payment_id || !stareEgala(rand.payment_status, 'Executed')) return { ok: false, eroare: 'plata nu e executată' };
   if (rand.refund_id) return { ok: false, eroare: `refund-ul există deja (${rand.refund_status ?? 'creat'})` };
-  // Plata unei comenzi de bilete: returnarea de aici ar lăsa biletele valide (Codex X5). Până la pasul 6 (anularea
-  // coordonată, aceeași funcție pentru pasager și admin), refuzăm — nu există cale de refund pe bilete în v1.
-  // … și după order_id (comanda orfană, încă nelegată): uuid-ul din order_id e id-ul ei. O eroare la citire = refuz.
+  if (!motiv.trim()) return { ok: false, eroare: 'motivul e obligatoriu' };
+
+  // Plata unei comenzi de bilete (și după order_id — comanda orfană, încă nelegată): trece prin EXECUTORUL comun
+  // (ION-194): comanda → anulata + biletele → anulat, apoi banca; bilet scanat «urcat» = refuz. O eroare la citire = refuz.
   const { data: comanda, error: cErr } = await getSupabase().from('bilete_comenzi').select('id, status')
     .or(`checkout_id.eq.${rand.checkout_id}${/^[0-9a-f-]{36}$/i.test(rand.order_id) ? `,id.eq.${rand.order_id}` : ''}`)
     .limit(1).maybeSingle();
   if (cErr) return { ok: false, eroare: `nu pot verifica dacă plata e a unei comenzi de bilete (${cErr.message}); nu returnez` };
-  if (comanda) return { ok: false, eroare: `plata aparține comenzii de bilete ${comanda.id} (${comanda.status}); returnarea biletelor se face din /bilete (pasul 6), nu de aici` };
-  if (!motiv.trim()) return { ok: false, eroare: 'motivul e obligatoriu' };
-
-  // Revendicăm rândul ÎNAINTE de apelul la maib (update condiționat): doi admini sau un dublu-clic
-  // nu pot cere două refund-uri pentru aceeași plată (revizorul de securitate, ION-188).
-  const supabase = getSupabase();
-  const { data: revendicat, error: revErr } = await supabase
-    .from('maib_checkouts')
-    .update({ refund_status: 'Pending', refund_reason: motiv.trim(), updated_at: new Date().toISOString() })
-    .eq('checkout_id', rand.checkout_id)
-    .is('refund_id', null)
-    .is('refund_status', null)
-    .select('checkout_id');
-  if (revErr) return { ok: false, eroare: revErr.message };
-  if (!revendicat || revendicat.length === 0) return { ok: false, eroare: 'refund-ul e deja în lucru' };
-
-  try {
-    const p = await getPayment(rand.payment_id);
-    if (p.isRefundable === false) throw new MaibError('maib spune că plata nu se poate returna', 0);
-    const suma = Number(p.refundableAmount ?? rand.amount);
-    const r = await refundPayment(rand.payment_id, suma, motiv);
-    const { error } = await supabase.from('maib_checkouts').update({
-      refund_id: r.refundId,
-      refund_status: r.status,
-      updated_at: new Date().toISOString(),
-    }).eq('checkout_id', rand.checkout_id);
-    if (error) return { ok: false, eroare: `refund-ul ${r.refundId} e creat la maib, dar nu s-a scris în bază: ${error.message}` };
-    revalidatePath('/plati');
-    return { ok: true, mesaj: `refund ${r.refundId}: ${r.status}` };
-  } catch (e) {
-    // maib a refuzat: eliberăm revendicarea, ca să se poată încerca din nou.
-    await supabase.from('maib_checkouts').update({ refund_status: null, refund_reason: null, updated_at: new Date().toISOString() })
-      .eq('checkout_id', rand.checkout_id).is('refund_id', null);
-    revalidatePath('/plati');
-    return eroare(e);
+  if (comanda) {
+    try {
+      const r = await anuleazaSiReturneaza(comanda.id, { sursa: 'admin', motiv });
+      revalidatePath('/plati');
+      return { ok: true, mesaj: `comanda ${r.comanda.status}; refund: ${r.refund}${r.refundId ? ` (${r.refundId})` : ''}` };
+    } catch (e) {
+      revalidatePath('/plati');
+      if (e instanceof ComandaError) return { ok: false, eroare: e.message };
+      return eroare(e);
+    }
   }
+
+  // Plată simplă (de test, fără comandă): revendicare + banca, prin aceeași lib.
+  const rev = await revendicaRefund(rand.checkout_id, motiv);
+  if (rev.eroare) return { ok: false, eroare: rev.eroare };
+  if (!rev.ok) return { ok: false, eroare: 'refund-ul e deja în lucru' };
+  const r = await executaRefund({ checkout_id: rand.checkout_id, payment_id: rand.payment_id, amount: Number(rand.amount) }, motiv);
+  revalidatePath('/plati');
+  if (r.fel === 'creat') return { ok: true, mesaj: `refund ${r.refundId}: ${r.status}` };
+  if (r.fel === 'necunoscut') return { ok: false, eroare: `banca nu a răspuns clar (${r.motiv}); starea e «Necunoscut» — apasă «Verifică refund-ul» mai târziu` };
+  await elibereazaRefund(rand.checkout_id);
+  return { ok: false, eroare: `banca a refuzat: ${r.motiv}` };
 }
 
 export async function verificaRefund(checkoutId: string): Promise<Rezultat> {
@@ -228,18 +217,10 @@ export async function verificaRefund(checkoutId: string): Promise<Rezultat> {
   const rand = await randDupaCheckoutSauOrder(checkoutId);
   if (!rand?.refund_id) return { ok: false, eroare: 'fără refund' };
   try {
-    const r = await getRefund(rand.refund_id);
-    const upd: Record<string, unknown> = { refund_status: r.status, updated_at: new Date().toISOString() };
-    if (stareEgala(r.status, 'Accepted')) {
-      upd.refunded_amount = Number(r.amount);
-      if (rand.payment_id) {
-        const p = await getPayment(rand.payment_id).catch(() => null);
-        if (p) { upd.payment_status = p.status; upd.refunded_amount = Number(p.refundedAmount ?? r.amount); }
-      }
-    }
-    await getSupabase().from('maib_checkouts').update(upd).eq('checkout_id', rand.checkout_id);
+    // Finalizarea comună (Codex C4): scrie starea pe checkout ȘI pe comanda de bilete legată (returnata / alertă).
+    const r = await verificaSiFinalizeazaRefund({ checkout_id: rand.checkout_id, refund_id: rand.refund_id, payment_id: rand.payment_id });
     revalidatePath('/plati');
-    return { ok: true, mesaj: `refund: ${r.status}` };
+    return { ok: true, mesaj: `refund: ${r?.decizie ?? '?'}${r?.comandaId ? ` (comanda ${r.comandaId})` : ''}` };
   } catch (e) {
     return eroare(e);
   }

@@ -22,7 +22,9 @@ describe('isPublicPath — căile lăsate de middleware fără sesiune', () => {
     expect(isPublicPath('/api/bilete')).toBe(false);
     expect(isPublicPath('/api/bilete/admin')).toBe(false);
     // Lista exhaustivă a rutelor publice de sub prefix — se completează conștient la fiecare rută nouă.
+    // ION-194: NU există anulare publică de pe site — returnarea se cere prin bot și o decide AI-ul (Ion, 03.10).
     const subPrefix = ['/api/bilete/public/config', '/api/bilete/public/0123456789abcdef0123456789abcdef'];
+    expect(isPublicPath('/api/bilete/public/0123456789abcdef0123456789abcdef/anulare')).toBe(true); // sub prefix, dar ruta nu există
     for (const p of subPrefix) expect(isPublicPath(p)).toBe(true);
   });
 

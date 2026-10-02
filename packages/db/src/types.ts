@@ -991,7 +991,7 @@ export interface BileteComanda {
   creare_incercari: number;
   paid_at: string | null;
   cancelled_at: string | null;
-  cancel_source: 'pasager' | 'admin' | 'sistem' | null;
+  cancel_source: 'pasager' | 'admin' | 'sistem' | 'ai' | null;
   refund_reason: string | null;
   refund_finalizat_la: string | null;
   notificat_la: string | null;

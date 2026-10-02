@@ -1,0 +1,1967 @@
+cod,nivel,nume,raion,total,v0_14,v15_64,v65
+"A","A1","B","",1,2,3,4
+"RM","Republica Moldova","Total","",2409207,494474,1343069,571664
+"100000","Raioane","Mun. Chișinău","Mun. Chișinău",720128,153055,431905,135168
+"101000","Comune","or. Chișinău, din care pe sectoare³","Mun. Chișinău",567038,116303,343000,107735
+"110000","Localitati","Sectorul Botanica","Mun. Chișinău",144824,28513,87369,28942
+"120000","Localitati","Sectorul Buiucani","Mun. Chișinău",100985,21462,61062,18461
+"130000","Localitati","Sectorul Centru","Mun. Chișinău",87230,17284,54305,15641
+"140000","Localitati","Sectorul Ciocana","Mun. Chișinău",105680,23350,63277,19053
+"150000","Localitati","Sectorul Rîşcani","Mun. Chișinău",128319,25694,76987,25638
+"111000","Comune","or. Sîngera","Mun. Chișinău",12368,2960,7230,2178
+"111000","Localitati","Sîngera","Mun. Chișinău",8303,1887,4889,1527
+"111001","Localitati","Dobrogea","Mun. Chișinău",2962,770,1711,481
+"111002","Localitati","Revaca","Mun. Chișinău",1103,303,630,170
+"112000","Comune","com. Băcioi","Mun. Chișinău",11663,2924,6693,2046
+"112000","Localitati","Băcioi","Mun. Chișinău",9334,2355,5325,1654
+"112001","Localitati","Brăila","Mun. Chișinău",969,248,541,180
+"112002","Localitati","Frumuşica","Mun. Chișinău",653,163,380,110
+"112003","Localitati","Străisteni","Mun. Chișinău",707,158,447,102
+"121000","Comune","or. Durleşti","Mun. Chișinău",26308,6561,15600,4147
+"122000","Comune","or. Vatra","Mun. Chișinău",3391,740,2017,634
+"123000","Comune","Condriţa","Mun. Chișinău",547,119,301,127
+"125000","Comune","Ghidighici","Mun. Chișinău",5240,1266,2951,1023
+"126000","Comune","com. Truşeni","Mun. Chișinău",10937,2603,5885,2449
+"126000","Localitati","Truşeni","Mun. Chișinău",7667,1747,4180,1740
+"126001","Localitati","Dumbrava","Mun. Chișinău",3270,856,1705,709
+"131000","Comune","or. Codru","Mun. Chișinău",18310,3794,11158,3358
+"141000","Comune","or. Vadul lui Vodă","Mun. Chișinău",4280,793,2340,1147
+"141000","Localitati","Vadul lui Vodă","Mun. Chișinău",3864,721,2120,1023
+"141001","Localitati","Văduleni","Mun. Chișinău",416,72,220,124
+"142000","Comune","com. Bubuieci","Mun. Chișinău",11152,3042,6393,1717
+"142000","Localitati","Bubuieci","Mun. Chișinău",8586,2354,4961,1271
+"142001","Localitati","Bîc","Mun. Chișinău",2341,634,1301,406
+"142002","Localitati","Humuleşti","Mun. Chișinău",225,54,131,40
+"143000","Comune","Budeşti","Mun. Chișinău",4425,1106,2545,774
+"144000","Comune","Coloniţa","Mun. Chișinău",3956,1025,2227,704
+"145000","Comune","com. Cruzeşti","Mun. Chișinău",1709,419,965,325
+"145000","Localitati","Cruzeşti","Mun. Chișinău",1683,409,953,321
+"145001","Localitati","Ceroborta","Mun. Chișinău",26,10,12,4
+"146000","Comune","com. Tohatin","Mun. Chișinău",4045,1119,2256,670
+"146000","Localitati","Tohatin","Mun. Chișinău",3068,878,1684,506
+"146001","Localitati","Buneţi","Mun. Chișinău",79,22,26,31
+"146002","Localitati","Cheltuitori","Mun. Chișinău",898,219,546,133
+"151000","Comune","or. Cricova","Mun. Chișinău",9536,1935,5934,1667
+"152000","Comune","com. Ciorescu","Mun. Chișinău",6714,1606,3720,1388
+"152000","Localitati","Ciorescu","Mun. Chișinău",5949,1421,3254,1274
+"152001","Localitati","Făureşti","Mun. Chișinău",432,109,255,68
+"152002","Localitati","Goian","Mun. Chișinău",333,76,211,46
+"153000","Comune","com. Grătieşti","Mun. Chișinău",7299,1833,4154,1312
+"153000","Localitati","Grătieşti","Mun. Chișinău",5508,1356,3150,1002
+"153001","Localitati","Hulboaca","Mun. Chișinău",1791,477,1004,310
+"154000","Comune","com. Stăuceni","Mun. Chișinău",11210,2907,6536,1767
+"154000","Localitati","Stăuceni","Mun. Chișinău",10617,2769,6218,1630
+"154001","Localitati","Goianul Nou","Mun. Chișinău",593,138,318,137
+"MD011","Regiuni","Regiunea Nord","Mun. Chișinău",608651,,,
+"300000","Raioane","Mun. Bălți","Mun. Bălți",94546,20217,53463,20866
+"301000","Comune","Bălţi","Mun. Bălți",90954,19457,51463,20034
+"310000","Comune","Elizaveta","Mun. Bălți",2620,571,1457,592
+"311000","Comune","Sadovoe","Mun. Bălți",972,189,543,240
+"1400000","Raioane","Raionul Briceni","Raionul Briceni",46894,8049,24874,13971
+"1401000","Comune","or. Briceni","Raionul Briceni",5785,1038,3062,1685
+"1402000","Comune","or. Lipcani","Raionul Briceni",3569,522,1979,1068
+"1410000","Comune","Balasineşti","Raionul Briceni",1237,225,574,438
+"1411000","Comune","Beleavinţi","Raionul Briceni",1284,213,675,396
+"1412000","Comune","com. Bălcăuţi","Raionul Briceni",339,51,176,112
+"1412000","Localitati","Bălcăuţi","Raionul Briceni",330,51,173,106
+"1412001","Localitati","Bocicăuţi","Raionul Briceni",9,0,3,6
+"1413000","Comune","com. Berlinţi","Raionul Briceni",1136,169,578,389
+"1413000","Localitati","Berlinţi","Raionul Briceni",781,109,378,294
+"1413001","Localitati","Caracuşenii Noi","Raionul Briceni",355,60,200,95
+"1414000","Comune","com. Bogdăneşti","Raionul Briceni",891,196,509,186
+"1414000","Localitati","Bogdăneşti","Raionul Briceni",373,83,223,67
+"1414001","Localitati","Bezeda","Raionul Briceni",383,80,212,91
+"1414002","Localitati","Grimeşti","Raionul Briceni",135,33,74,28
+"1415000","Comune","Bulboaca","Raionul Briceni",509,75,252,182
+"1416000","Comune","Caracuşenii Vechi","Raionul Briceni",2629,482,1423,724
+"1417000","Comune","com. Colicăuţi","Raionul Briceni",2025,307,1101,617
+"1417000","Localitati","Colicăuţi","Raionul Briceni",1695,254,920,521
+"1417001","Localitati","Trestieni","Raionul Briceni",330,53,181,96
+"1418000","Comune","Corjeuţi","Raionul Briceni",4495,1061,2234,1200
+"1419000","Comune","Coteala","Raionul Briceni",1338,214,725,399
+"1420000","Comune","Cotiujeni","Raionul Briceni",2200,335,1219,646
+"1421000","Comune","Criva","Raionul Briceni",920,146,486,288
+"1422000","Comune","Drepcăuţi","Raionul Briceni",1316,226,644,446
+"1423000","Comune","Grimăncăuţi","Raionul Briceni",2854,524,1563,767
+"1424000","Comune","com. Halahora de Sus","Raionul Briceni",951,168,536,247
+"1424000","Localitati","Halahora de Sus","Raionul Briceni",704,129,402,173
+"1424001","Localitati","Chirilovca","Raionul Briceni",15,2,10,3
+"1424002","Localitati","Halahora de Jos","Raionul Briceni",232,37,124,71
+"1425000","Comune","Hlina","Raionul Briceni",647,114,351,182
+"1426000","Comune","com. Larga","Raionul Briceni",2977,419,1578,980
+"1426000","Localitati","Larga","Raionul Briceni",2972,419,1576,977
+"1426001","Localitati","Pavlovca","Raionul Briceni",5,0,2,3
+"1427000","Comune","com. Mărcăuţi","Raionul Briceni",863,156,447,260
+"1427000","Localitati","Mărcăuţi","Raionul Briceni",838,148,440,250
+"1427001","Localitati","Mărcăuţii Noi","Raionul Briceni",25,8,7,10
+"1428000","Comune","com. Medveja","Raionul Briceni",885,88,486,311
+"1428000","Localitati","Medveja","Raionul Briceni",867,88,483,296
+"1428001","Localitati","Slobozia-Medveja","Raionul Briceni",18,0,3,15
+"1429000","Comune","com. Mihăileni","Raionul Briceni",392,40,221,131
+"1429000","Localitati","Mihăileni","Raionul Briceni",188,20,110,58
+"1429001","Localitati","Grozniţa","Raionul Briceni",204,20,111,73
+"1430000","Comune","Pererita","Raionul Briceni",939,152,471,316
+"1431000","Comune","Slobozia-Şirăuţi","Raionul Briceni",689,127,400,162
+"1432000","Comune","Şirăuţi","Raionul Briceni",1217,209,643,365
+"1433000","Comune","Tabani","Raionul Briceni",1807,306,933,568
+"1434000","Comune","Teţcani","Raionul Briceni",1701,272,926,503
+"1435000","Comune","Trebisăuţi","Raionul Briceni",1299,214,682,403
+"3400000","Raioane","Raionul Donduşeni","Raionul Donduşeni",28108,5041,14901,8166
+"3401000","Comune","or. Donduşeni","Raionul Donduşeni",5987,1030,3034,1923
+"3410000","Comune","Arioneşti","Raionul Donduşeni",1033,216,575,242
+"3411000","Comune","Baraboi","Raionul Donduşeni",2148,374,1163,611
+"3412000","Comune","Briceni","Raionul Donduşeni",437,62,209,166
+"3413000","Comune","Cernoleuca","Raionul Donduşeni",1151,171,608,372
+"3414000","Comune","Climăuţi","Raionul Donduşeni",701,98,390,213
+"3415000","Comune","Corbu","Raionul Donduşeni",805,112,407,286
+"3416000","Comune","Crişcăuţi","Raionul Donduşeni",735,91,405,239
+"3417000","Comune","Donduşeni","Raionul Donduşeni",994,154,521,319
+"3417100","Comune","com. Elizavetovca","Raionul Donduşeni",339,52,160,127
+"3417100","Localitati","Elizavetovca","Raionul Donduşeni",284,43,140,101
+"3417101","Localitati","Boroseni","Raionul Donduşeni",55,9,20,26
+"3418000","Comune","com. Frasin","Raionul Donduşeni",1313,283,740,290
+"3418000","Localitati","Frasin","Raionul Donduşeni",865,182,501,182
+"3418001","Localitati","Caraiman","Raionul Donduşeni",0,0,0,0
+"3418002","Localitati","Codrenii Noi","Raionul Donduşeni",448,101,239,108
+"3419000","Comune","Horodişte","Raionul Donduşeni",584,138,304,142
+"3420000","Comune","com. Moşana","Raionul Donduşeni",1265,221,678,366
+"3420000","Localitati","Moşana","Raionul Donduşeni",1238,219,663,356
+"3420001","Localitati","Octeabriscoe","Raionul Donduşeni",27,2,15,10
+"3421000","Comune","Pivniceni","Raionul Donduşeni",408,73,215,120
+"3422000","Comune","Plop","Raionul Donduşeni",936,164,493,279
+"3423000","Comune","Pocrovca","Raionul Donduşeni",940,176,491,273
+"3424000","Comune","Rediul Mare","Raionul Donduşeni",613,118,322,173
+"3425000","Comune","Scăieni","Raionul Donduşeni",1044,180,556,308
+"3426000","Comune","com. Sudarca","Raionul Donduşeni",1272,253,704,315
+"3426000","Localitati","Sudarca","Raionul Donduşeni",990,202,545,243
+"3426001","Localitati","Braicău","Raionul Donduşeni",282,51,159,72
+"3427000","Comune","com. Teleşeuca","Raionul Donduşeni",533,87,320,126
+"3427000","Localitati","Teleşeuca","Raionul Donduşeni",419,71,259,89
+"3427001","Localitati","Teleşeuca Nouă","Raionul Donduşeni",114,16,61,37
+"3428000","Comune","com. Tîrnova","Raionul Donduşeni",2923,630,1577,716
+"3428000","Localitati","Tîrnova","Raionul Donduşeni",2758,608,1469,681
+"3428001","Localitati","Briceva","Raionul Donduşeni",160,22,105,33
+"3428002","Localitati","Elenovca","Raionul Donduşeni",5,0,3,2
+"3429000","Comune","Ţaul","Raionul Donduşeni",1947,358,1029,560
+"3600000","Raioane","Drochia","Drochia",53738,9989,27669,16080
+"3601000","Comune","or. Drochia","Drochia",12939,2583,6761,3595
+"3610000","Comune","Antoneuca","Drochia",274,58,154,62
+"3611000","Comune","com. Baroncea","Drochia",1028,210,548,270
+"3611000","Localitati","Baroncea","Drochia",912,185,481,246
+"3611001","Localitati","Baroncea Nouă","Drochia",116,25,67,24
+"3612000","Comune","Chetrosu","Drochia",3388,606,1755,1027
+"3613000","Comune","com. Cotova","Drochia",1785,293,906,586
+"3613000","Localitati","Cotova","Drochia",1535,260,790,485
+"3613001","Localitati","Măcăreuca","Drochia",250,33,116,101
+"3614000","Comune","Dominteni","Drochia",745,137,348,260
+"3615000","Comune","Drochia","Drochia",1908,342,984,582
+"3616000","Comune","Gribova","Drochia",1194,235,594,365
+"3617000","Comune","com. Fîntîniţa","Drochia",744,126,406,212
+"3617000","Localitati","Fîntîniţa","Drochia",742,126,406,210
+"3617001","Localitati","Ghizdita, loc.st.c.f.","Drochia",2,0,0,2
+"3618000","Comune","Hăsnăşenii Mari","Drochia",1056,200,516,340
+"3619000","Comune","com. Hăsnăşenii Noi","Drochia",1098,223,589,286
+"3619000","Localitati","Hăsnăşenii Noi","Drochia",852,187,455,210
+"3619001","Localitati","Lazo","Drochia",246,36,134,76
+"3620000","Comune","Maramonovca","Drochia",1443,250,740,453
+"3621000","Comune","Miciurin","Drochia",888,164,464,260
+"3622000","Comune","Mîndîc","Drochia",1899,338,954,607
+"3623000","Comune","Moara de Piatră","Drochia",876,168,466,242
+"3624000","Comune","Nicoreni","Drochia",1958,434,1010,514
+"3625000","Comune","Ochiul Alb","Drochia",1853,328,996,529
+"3626000","Comune","com. Palanca","Drochia",485,81,249,155
+"3626000","Localitati","Palanca","Drochia",175,36,84,55
+"3626001","Localitati","Holoşniţa Nouă","Drochia",79,14,35,30
+"3626002","Localitati","Şalvirii Noi","Drochia",231,31,130,70
+"3627000","Comune","com. Pеlinia","Drochia",4913,923,2526,1464
+"3627000","Localitati","Pеlinia","Drochia",4898,923,2521,1454
+"3627001","Localitati","Pеlinia, loc.st.c.f.","Drochia",15,0,5,10
+"3628000","Comune","com. Pervomaiscoe","Drochia",490,69,213,208
+"3628000","Localitati","Pervomaiscoe","Drochia",452,62,202,188
+"3628001","Localitati","Sergheuca","Drochia",38,7,11,20
+"3629000","Comune","com. Petreni","Drochia",643,135,302,206
+"3629000","Localitati","Petreni","Drochia",618,135,289,194
+"3629001","Localitati","Popeştii Noi","Drochia",25,0,13,12
+"3630000","Comune","Popeştii de Jos","Drochia",1067,140,558,369
+"3631000","Comune","Popeştii de Sus","Drochia",857,87,418,352
+"3632000","Comune","Sofia","Drochia",2798,550,1388,860
+"3633000","Comune","com. Şalvirii Vechi","Drochia",474,84,230,160
+"3633000","Localitati","Şalvirii Vechi","Drochia",203,23,92,88
+"3633001","Localitati","Ceapaevca","Drochia",175,47,93,35
+"3633002","Localitati","Iliciovca","Drochia",96,14,45,37
+"3634000","Comune","com. Şuri","Drochia",2859,474,1479,906
+"3634000","Localitati","Şuri","Drochia",2281,337,1165,779
+"3634001","Localitati","Şurii Noi","Drochia",578,137,314,127
+"3635000","Comune","Ţarigrad","Drochia",2682,529,1372,781
+"3636000","Comune","Zguriţa","Drochia",1394,222,743,429
+"4100000","Raioane","Raionul Edineţ","Raionul Edineţ",50429,9282,26316,14831
+"4101000","Comune","or. Edineţ","Raionul Edineţ",12369,2405,6465,3499
+"4101000","Localitati","Edineţ","Raionul Edineţ",11290,2229,5911,3150
+"4101001","Localitati","Alexăndreni","Raionul Edineţ",819,134,402,283
+"4101002","Localitati","Gordineştii Noi","Raionul Edineţ",260,42,152,66
+"4102000","Comune","or. Cupcini","Raionul Edineţ",5493,989,2875,1629
+"4102000","Localitati","Cupcini","Raionul Edineţ",4517,789,2387,1341
+"4102001","Localitati","Chetroşica Veche","Raionul Edineţ",482,111,229,142
+"4102002","Localitati","Chiurt","Raionul Edineţ",494,89,259,146
+"4111000","Comune","Alexeevca","Raionul Edineţ",488,88,258,142
+"4112000","Comune","Bădragii Noi","Raionul Edineţ",653,116,345,192
+"4113000","Comune","Bădragii Vechi","Raionul Edineţ",382,48,191,143
+"4114000","Comune","com. Bleşteni","Raionul Edineţ",1088,184,540,364
+"4114000","Localitati","Bleşteni","Raionul Edineţ",563,76,274,213
+"4114001","Localitati","Volodeni","Raionul Edineţ",525,108,266,151
+"4115000","Comune","com. Brătuşeni","Raionul Edineţ",3625,660,1980,985
+"4115000","Localitati","Brătuşeni","Raionul Edineţ",3223,551,1770,902
+"4115001","Localitati","Brătuşenii Noi","Raionul Edineţ",402,109,210,83
+"4116000","Comune","Brînzeni","Raionul Edineţ",983,120,541,322
+"4117000","Comune","com. Burlăneşti","Raionul Edineţ",1067,203,533,331
+"4117000","Localitati","Burlăneşti","Raionul Edineţ",828,153,411,264
+"4117001","Localitati","Buzdugeni","Raionul Edineţ",239,50,122,67
+"4118000","Comune","com. Cepeleuţi","Raionul Edineţ",834,148,440,246
+"4118000","Localitati","Cepeleuţi","Raionul Edineţ",660,111,348,201
+"4118001","Localitati","Rîngaci","Raionul Edineţ",134,34,69,31
+"4118002","Localitati","Vancicăuţi","Raionul Edineţ",40,3,23,14
+"4119000","Comune","Chetroşica Nouă","Raionul Edineţ",629,104,315,210
+"4119100","Comune","com. Constantinovca","Raionul Edineţ",340,77,186,77
+"4119100","Localitati","Constantinovca","Raionul Edineţ",328,76,178,74
+"4119101","Localitati","Iachimeni","Raionul Edineţ",12,1,8,3
+"4120000","Comune","Corpaci","Raionul Edineţ",837,180,490,167
+"4121000","Comune","com. Cuconeştii Noi","Raionul Edineţ",1215,241,662,312
+"4121000","Localitati","Cuconeştii Noi","Raionul Edineţ",1214,241,661,312
+"4121001","Localitati","Cuconeştii Vechi","Raionul Edineţ",1,0,1,0
+"4122000","Comune","Feteşti","Raionul Edineţ",1653,258,867,528
+"4123000","Comune","Gaşpar","Raionul Edineţ",847,181,441,225
+"4124000","Comune","Goleni","Raionul Edineţ",717,127,359,231
+"4125000","Comune","Gordineşti","Raionul Edineţ",2012,358,1093,561
+"4127000","Comune","Hancăuţi","Raionul Edineţ",647,128,369,150
+"4128000","Comune","com. Hincăuţi","Raionul Edineţ",1042,180,575,287
+"4128000","Localitati","Hincăuţi","Raionul Edineţ",687,113,380,194
+"4128001","Localitati","Clişcăuţi","Raionul Edineţ",179,51,102,26
+"4128002","Localitati","Poiana","Raionul Edineţ",176,16,93,67
+"4129000","Comune","Hlinaia","Raionul Edineţ",1207,221,627,359
+"4130000","Comune","Lopatnic","Raionul Edineţ",817,166,395,256
+"4131000","Comune","com. Parcova","Raionul Edineţ",1483,293,714,476
+"4131000","Localitati","Parcova","Raionul Edineţ",945,181,458,306
+"4131001","Localitati","Fîntîna Albă","Raionul Edineţ",538,112,256,170
+"4132000","Comune","com. Rotunda","Raionul Edineţ",783,132,397,254
+"4132000","Localitati","Rotunda","Raionul Edineţ",763,132,388,243
+"4132001","Localitati","Hlinaia Mică","Raionul Edineţ",20,0,9,11
+"4133000","Comune","com. Ruseni","Raionul Edineţ",1299,242,663,394
+"4133000","Localitati","Ruseni","Raionul Edineţ",1262,241,651,370
+"4133001","Localitati","Slobodca","Raionul Edineţ",37,1,12,24
+"4134000","Comune","Stolniceni","Raionul Edineţ",800,112,387,301
+"4135000","Comune","Şofrîncani","Raionul Edineţ",1152,208,579,365
+"4136000","Comune","Terebna","Raionul Edineţ",843,144,455,244
+"4137000","Comune","Tîrnova","Raionul Edineţ",1200,241,599,360
+"4138000","Comune","Trinca","Raionul Edineţ",1677,318,822,537
+"4140000","Comune","Viişoara","Raionul Edineţ",939,185,504,250
+"4141000","Comune","com. Zăbriceni","Raionul Edineţ",1308,225,649,434
+"4141000","Localitati","Zăbriceni","Raionul Edineţ",690,117,335,238
+"4141001","Localitati","Oneşti","Raionul Edineţ",618,108,314,196
+"4300000","Raioane","Raionul Făleşti","Raionul Făleşti",56039,11499,29756,14784
+"4301000","Comune","or. Făleşti","Raionul Făleşti",11946,2673,6179,3094
+"4301000","Localitati","Făleşti","Raionul Făleşti",11328,2573,5871,2884
+"4301001","Localitati","Fabrica de Zahăr","Raionul Făleşti",618,100,308,210
+"4310000","Comune","com. Albineţul Vechi","Raionul Făleşti",1755,388,916,451
+"4310000","Localitati","Albineţul Vechi","Raionul Făleşti",1336,280,693,363
+"4310001","Localitati","Albineţul Nou","Raionul Făleşti",221,73,112,36
+"4310002","Localitati","Rediul de Jos","Raionul Făleşti",141,23,77,41
+"4310003","Localitati","Rediul de Sus","Raionul Făleşti",57,12,34,11
+"4311000","Comune","Bocani","Raionul Făleşti",783,150,445,188
+"4312000","Comune","Catranîc","Raionul Făleşti",783,147,440,196
+"4313000","Comune","Călineşti","Raionul Făleşti",1633,320,847,466
+"4314000","Comune","com. Călugăr","Raionul Făleşti",1733,362,931,440
+"4314000","Localitati","Călugăr","Raionul Făleşti",1288,273,672,343
+"4314001","Localitati","Frumuşica","Raionul Făleşti",304,69,186,49
+"4314002","Localitati","Socii Noi","Raionul Făleşti",132,20,67,45
+"4314003","Localitati","Socii Vechi","Raionul Făleşti",9,0,6,3
+"4314100","Comune","com. Chetriş","Raionul Făleşti",967,213,519,235
+"4314100","Localitati","Chetriș","Raionul Făleşti",967,213,519,235
+"4314101","Localitati","Chetrișul Nou","Raionul Făleşti",0,0,0,0
+"4315000","Comune","com. Ciolacu Nou","Raionul Făleşti",1615,288,889,438
+"4315000","Localitati","Ciolacu Nou","Raionul Făleşti",598,85,310,203
+"4315001","Localitati","Ciolacu Vechi","Raionul Făleşti",513,103,284,126
+"4315002","Localitati","Făgădău","Raionul Făleşti",342,70,202,70
+"4315003","Localitati","Pocrovca","Raionul Făleşti",51,9,33,9
+"4315004","Localitati","Şoltoaia","Raionul Făleşti",111,21,60,30
+"4316000","Comune","com. Egorovca","Raionul Făleşti",1223,209,654,360
+"4316000","Localitati","Egorovca","Raionul Făleşti",581,104,303,174
+"4316001","Localitati","Catranîc, loc.st.c.f.","Raionul Făleşti",551,93,304,154
+"4316002","Localitati","Ciuluc","Raionul Făleşti",91,12,47,32
+"4317000","Comune","com. Făleştii Noi","Raionul Făleşti",1567,333,874,360
+"4317000","Localitati","Făleştii Noi","Raionul Făleşti",1403,296,778,329
+"4317001","Localitati","Pietrosul Nou","Raionul Făleşti",164,37,96,31
+"4318000","Comune","Glinjeni","Raionul Făleşti",2092,389,1030,673
+"4319000","Comune","com. Hiliuţi","Raionul Făleşti",1405,271,762,372
+"4319000","Localitati","Hiliuţi","Raionul Făleşti",1315,259,721,335
+"4319001","Localitati","Răuţelul Nou","Raionul Făleşti",90,12,41,37
+"4319100","Comune","Hînceşti","Raionul Făleşti",619,120,314,185
+"4320000","Comune","com. Horeşti","Raionul Făleşti",642,115,343,184
+"4320000","Localitati","Horeşti","Raionul Făleşti",473,97,241,135
+"4320001","Localitati","Lucăceni","Raionul Făleşti",126,10,81,35
+"4320002","Localitati","Unteni","Raionul Făleşti",43,8,21,14
+"4321000","Comune","Ilenuţa","Raionul Făleşti",1024,247,564,213
+"4322000","Comune","com. Işcălău","Raionul Făleşti",1526,256,822,448
+"4322000","Localitati","Işcălău","Raionul Făleşti",570,98,301,171
+"4322001","Localitati","Burghelea","Raionul Făleşti",396,83,209,104
+"4322002","Localitati","Doltu","Raionul Făleşti",560,75,312,173
+"4323000","Comune","Izvoare","Raionul Făleşti",1262,238,687,337
+"4324000","Comune","com. Logofteni","Raionul Făleşti",662,131,335,196
+"4324000","Localitati","Logofteni","Raionul Făleşti",325,57,166,102
+"4324001","Localitati","Moldoveanca","Raionul Făleşti",337,74,169,94
+"4325000","Comune","Mărăndeni","Raionul Făleşti",1592,299,800,493
+"4326000","Comune","Musteaţa","Raionul Făleşti",853,203,453,197
+"4327000","Comune","com. Natalievca","Raionul Făleşti",1506,307,816,383
+"4327000","Localitati","Natalievca","Raionul Făleşti",344,69,195,80
+"4327001","Localitati","Beleuţi","Raionul Făleşti",86,18,42,26
+"4327002","Localitati","Comarovca","Raionul Făleşti",169,30,100,39
+"4327003","Localitati","Ivanovca","Raionul Făleşti",9,2,5,2
+"4327004","Localitati","Popovca","Raionul Făleşti",687,137,363,187
+"4327005","Localitati","Ţapoc","Raionul Făleşti",211,51,111,49
+"4328000","Comune","Năvîrneţ","Raionul Făleşti",1512,275,840,397
+"4329000","Comune","com. Obreja Veche","Raionul Făleşti",1577,384,868,325
+"4329000","Localitati","Obreja Veche","Raionul Făleşti",1119,272,616,231
+"4329001","Localitati","Obreja Nouă","Raionul Făleşti",458,112,252,94
+"4330000","Comune","com. Pietrosu","Raionul Făleşti",473,92,246,135
+"4330000","Localitati","Pietrosu","Raionul Făleşti",401,82,197,122
+"4330001","Localitati","Măgura","Raionul Făleşti",16,3,12,1
+"4330002","Localitati","Măgura Nouă","Raionul Făleşti",56,7,37,12
+"4331000","Comune","com. Pînzăreni","Raionul Făleşti",809,173,433,203
+"4331000","Localitati","Pînzăreni","Raionul Făleşti",782,169,422,191
+"4331001","Localitati","Pînzărenii Noi","Raionul Făleşti",27,4,11,12
+"4332000","Comune","Pîrliţa","Raionul Făleşti",2137,409,1136,592
+"4333000","Comune","com. Pompa","Raionul Făleşti",709,150,399,160
+"4333000","Localitati","Pompa","Raionul Făleşti",414,78,235,101
+"4333001","Localitati","Pervomaisc","Raionul Făleşti",45,12,27,6
+"4333002","Localitati","Suvorovca","Raionul Făleşti",250,60,137,53
+"4334000","Comune","com. Pruteni","Raionul Făleşti",1414,241,748,425
+"4334000","Localitati","Pruteni","Raionul Făleşti",881,158,428,295
+"4334001","Localitati","Cuzmenii Vechi","Raionul Făleşti",134,25,89,20
+"4334002","Localitati","Drujineni","Raionul Făleşti",111,32,58,21
+"4334003","Localitati","Valea Rusului","Raionul Făleşti",288,26,173,89
+"4335000","Comune","Răuţel","Raionul Făleşti",2727,537,1480,710
+"4336000","Comune","com. Risipeni","Raionul Făleşti",1246,258,627,361
+"4336000","Localitati","Risipeni","Raionul Făleşti",630,114,310,206
+"4336001","Localitati","Bocşa","Raionul Făleşti",616,144,317,155
+"4337000","Comune","com. Sărata Veche","Raionul Făleşti",3009,649,1601,759
+"4337000","Localitati","Sărata Veche","Raionul Făleşti",2096,444,1129,523
+"4337001","Localitati","Hitreşti","Raionul Făleşti",351,73,178,100
+"4337002","Localitati","Sărata Nouă","Raionul Făleşti",562,132,294,136
+"4338000","Comune","com. Scumpia","Raionul Făleşti",2169,424,1142,603
+"4338000","Localitati","Scumpia","Raionul Făleşti",1845,342,972,531
+"4338001","Localitati","Hîrtop","Raionul Făleşti",60,12,28,20
+"4338002","Localitati","Măgureanca","Raionul Făleşti",228,57,128,43
+"4338003","Localitati","Nicolaevca","Raionul Făleşti",36,13,14,9
+"4339000","Comune","com. Taxobeni","Raionul Făleşti",1069,248,616,205
+"4339000","Localitati","Taxobeni","Raionul Făleşti",892,200,526,166
+"4339001","Localitati","Hrubna Nouă","Raionul Făleşti",162,46,81,35
+"4339002","Localitati","Vrăneşti","Raionul Făleşti",15,2,9,4
+"4500000","Raioane","Raionul Floreşti","Raionul Floreşti",53264,10628,28296,14340
+"4501000","Comune","or. Floreşti","Raionul Floreşti",10925,2291,6040,2594
+"4502000","Comune","or. Ghindeşti","Raionul Floreşti",1251,284,662,305
+"4503000","Comune","or. Mărculeşti","Raionul Floreşti",1049,199,506,344
+"4510000","Comune","com. Alexeevca","Raionul Floreşti",704,141,329,234
+"4510000","Localitati","Alexeevca","Raionul Floreşti",437,92,209,136
+"4510001","Localitati","Chirilovca","Raionul Floreşti",51,19,23,9
+"4510002","Localitati","Dumitreni","Raionul Floreşti",203,28,89,86
+"4510003","Localitati","Rădulenii Noi","Raionul Floreşti",13,2,8,3
+"4511000","Comune","Băhrineşti","Raionul Floreşti",1382,266,768,348
+"4512000","Comune","Caşunca","Raionul Floreşti",1162,224,642,296
+"4514000","Comune","Cerniţa","Raionul Floreşti",545,81,297,167
+"4515000","Comune","Ciripcău","Raionul Floreşti",681,165,357,159
+"4516000","Comune","com. Ciutuleşti","Raionul Floreşti",1832,384,1025,423
+"4516000","Localitati","Ciutuleşti","Raionul Floreşti",1328,253,728,347
+"4516001","Localitati","Ion Vodă","Raionul Floreşti",193,51,113,29
+"4516002","Localitati","Mărineşti","Raionul Floreşti",9,0,6,3
+"4516003","Localitati","Sîrbeşti","Raionul Floreşti",302,80,178,44
+"4517000","Comune","Coşerniţa","Raionul Floreşti",914,151,482,281
+"4518000","Comune","com. Cuhureştii de Jos","Raionul Floreşti",1177,225,659,293
+"4518000","Localitati","Cuhureştii de Jos","Raionul Floreşti",975,187,558,230
+"4518001","Localitati","Ţipordei","Raionul Floreşti",202,38,101,63
+"4519000","Comune","com. Cuhureştii de Sus","Raionul Floreşti",1475,329,828,318
+"4519000","Localitati","Cuhureştii de Sus","Raionul Floreşti",1015,233,571,211
+"4519001","Localitati","Nicolaevca","Raionul Floreşti",15,1,9,5
+"4519002","Localitati","Unchiteşti","Raionul Floreşti",393,84,222,87
+"4519003","Localitati","Unchiteşti, loc.st.c.f.","Raionul Floreşti",52,11,26,15
+"4520000","Comune","Cunicea","Raionul Floreşti",1656,252,882,522
+"4521000","Comune","Domulgeni","Raionul Floreşti",932,192,521,219
+"4522000","Comune","com. Frumuşica","Raionul Floreşti",731,124,369,238
+"4522000","Localitati","Frumușica","Raionul Floreşti",731,,,
+"4522001","Localitati","Frumușica Nouă","Raionul Floreşti",0,,,
+"4523000","Comune","com. Ghindeşti","Raionul Floreşti",1558,298,766,494
+"4523000","Localitati","Ghindeşti","Raionul Floreşti",936,181,463,292
+"4523001","Localitati","Hîrtop","Raionul Floreşti",480,96,236,148
+"4523002","Localitati","Ţîra","Raionul Floreşti",140,21,67,52
+"4523003","Localitati","Ţîra, loc.st.c.f.","Raionul Floreşti",2,0,0,2
+"4524000","Comune","com. Gura Camencii","Raionul Floreşti",2232,490,1131,611
+"4524000","Localitati","Gura Camencii","Raionul Floreşti",973,192,472,309
+"4524001","Localitati","Bobuleşti","Raionul Floreşti",527,134,267,126
+"4524002","Localitati","Gvozdova","Raionul Floreşti",732,164,392,176
+"4525000","Comune","com. Gura Căinarului","Raionul Floreşti",1206,245,609,352
+"4525000","Localitati","Gura Căinarului","Raionul Floreşti",1056,225,550,281
+"4525001","Localitati","Zarojeni","Raionul Floreşti",150,20,59,71
+"4526000","Comune","com. Iliciovca","Raionul Floreşti",721,101,324,296
+"4526000","Localitati","Iliciovca","Raionul Floreşti",605,85,266,254
+"4526001","Localitati","Maiscoe","Raionul Floreşti",116,16,58,42
+"4527000","Comune","com. Izvoare","Raionul Floreşti",1004,169,491,344
+"4527000","Localitati","Izvoare","Raionul Floreşti",626,103,325,198
+"4527001","Localitati","Bezeni","Raionul Floreşti",105,11,39,55
+"4527002","Localitati","Scăieni","Raionul Floreşti",273,55,127,91
+"4528000","Comune","com. Japca","Raionul Floreşti",880,138,480,262
+"4528000","Localitati","Japca","Raionul Floreşti",636,92,334,210
+"4528001","Localitati","Bursuc","Raionul Floreşti",244,46,146,52
+"4529000","Comune","Lunga","Raionul Floreşti",1154,222,633,299
+"4530000","Comune","Mărculeşti","Raionul Floreşti",514,98,249,167
+"4531000","Comune","Năpadova","Raionul Floreşti",562,98,277,187
+"4532000","Comune","com. Nicolaevca","Raionul Floreşti",591,157,298,136
+"4532000","Localitati","Nicolaevca","Raionul Floreşti",519,135,264,120
+"4532001","Localitati","Valea Rădoaiei","Raionul Floreşti",72,22,34,16
+"4534000","Comune","com. Prajila","Raionul Floreşti",1932,419,1016,497
+"4534000","Localitati","Prajila","Raionul Floreşti",1792,399,939,454
+"4534001","Localitati","Antonovca","Raionul Floreşti",11,0,8,3
+"4534002","Localitati","Frunzeşti","Raionul Floreşti",4,0,2,2
+"4534003","Localitati","Mihailovca","Raionul Floreşti",125,20,67,38
+"4535000","Comune","com. Prodăneşti","Raionul Floreşti",1154,264,596,294
+"4535000","Localitati","Prodăneşti","Raionul Floreşti",654,137,356,161
+"4535001","Localitati","Căpreşti","Raionul Floreşti",500,127,240,133
+"4536000","Comune","Putineşti","Raionul Floreşti",1220,251,637,332
+"4537000","Comune","Rădulenii Vechi","Raionul Floreşti",742,108,362,272
+"4538000","Comune","com. Roşietici","Raionul Floreşti",1418,251,769,398
+"4538000","Localitati","Roşietici","Raionul Floreşti",225,31,114,80
+"4538001","Localitati","Cenuşa","Raionul Floreşti",509,73,262,174
+"4538002","Localitati","Roşieticii Vechi","Raionul Floreşti",684,147,393,144
+"4539000","Comune","Sănătăuca","Raionul Floreşti",1623,310,790,523
+"4540000","Comune","com. Sevirova","Raionul Floreşti",768,129,419,220
+"4540000","Localitati","Sevirova","Raionul Floreşti",505,81,288,136
+"4540001","Localitati","Ivanovca","Raionul Floreşti",263,48,131,84
+"4541000","Comune","com. Ştefăneşti","Raionul Floreşti",1396,311,756,329
+"4541000","Localitati","Ştefăneşti","Raionul Floreşti",1246,281,664,301
+"4541001","Localitati","Prodăneştii Vechi","Raionul Floreşti",150,30,92,28
+"4542000","Comune","Temeleuţi","Raionul Floreşti",709,159,388,162
+"4543000","Comune","Tîrgul-Vertiujeni","Raionul Floreşti",487,71,217,199
+"4544000","Comune","com. Trifăneşti","Raionul Floreşti",727,127,373,227
+"4544000","Localitati","Trifăneşti","Raionul Floreşti",525,98,271,156
+"4544001","Localitati","Alexandrovca","Raionul Floreşti",202,29,102,71
+"4545000","Comune","com. Vărvăreuca","Raionul Floreşti",1903,410,982,511
+"4545000","Localitati","Vărvăreuca","Raionul Floreşti",1890,410,976,504
+"4545001","Localitati","Stîrceni","Raionul Floreşti",13,0,6,7
+"4546000","Comune","com. Văscăuţi","Raionul Floreşti",503,84,280,139
+"4546000","Localitati","Văscăuţi","Raionul Floreşti",377,62,208,107
+"4546001","Localitati","Făgădău","Raionul Floreşti",31,3,21,7
+"4546002","Localitati","Octeabriscoe","Raionul Floreşti",95,19,51,25
+"4547000","Comune","Vertiujeni","Raionul Floreşti",1314,300,792,222
+"4548000","Comune","Zăluceni","Raionul Floreşti",530,110,294,126
+"4800000","Raioane","Raionul Glodeni","Raionul Glodeni",35829,7165,18874,9790
+"4801000","Comune","or. Glodeni","Raionul Glodeni",7284,1540,3673,2071
+"4801000","Localitati","Glodeni","Raionul Glodeni",7075,1504,3566,2005
+"4801001","Localitati","Stîrcea","Raionul Glodeni",209,36,107,66
+"4810000","Comune","com. Balatina","Raionul Glodeni",3361,753,1750,858
+"4810000","Localitati","Balatina","Raionul Glodeni",2436,561,1255,620
+"4810001","Localitati","Clococenii Vechi","Raionul Glodeni",420,90,221,109
+"4810002","Localitati","Lipovăţ","Raionul Glodeni",50,4,33,13
+"4810003","Localitati","Tomeştii Noi","Raionul Glodeni",449,98,237,114
+"4810004","Localitati","Tomeştii Vechi","Raionul Glodeni",6,0,4,2
+"4811000","Comune","Cajba","Raionul Glodeni",944,186,516,242
+"4812000","Comune","com. Camenca","Raionul Glodeni",1190,207,623,360
+"4812000","Localitati","Camenca","Raionul Glodeni",643,82,338,223
+"4812001","Localitati","Brînzeni","Raionul Glodeni",212,37,113,62
+"4812002","Localitati","Buteşti","Raionul Glodeni",242,59,119,64
+"4812003","Localitati","Moleşti","Raionul Glodeni",93,29,53,11
+"4813000","Comune","Ciuciulea","Raionul Glodeni",1957,376,1032,549
+"4814000","Comune","Cobani","Raionul Glodeni",1434,224,762,448
+"4815000","Comune","com. Cuhneşti","Raionul Glodeni",1778,383,915,480
+"4815000","Localitati","Cuhneşti","Raionul Glodeni",1135,248,579,308
+"4815001","Localitati","Bisericani","Raionul Glodeni",82,10,48,24
+"4815002","Localitati","Cot","Raionul Glodeni",22,3,11,8
+"4815003","Localitati","Movileni","Raionul Glodeni",529,120,273,136
+"4815004","Localitati","Serghieni","Raionul Glodeni",10,2,4,4
+"4816000","Comune","com. Danu","Raionul Glodeni",1907,336,991,580
+"4816000","Localitati","Danu","Raionul Glodeni",1740,316,914,510
+"4816001","Localitati","Camencuţa","Raionul Glodeni",20,1,10,9
+"4816002","Localitati","Nicolaevca","Raionul Glodeni",147,19,67,61
+"4817000","Comune","Duşmani","Raionul Glodeni",1199,277,645,277
+"4818000","Comune","Fundurii Noi","Raionul Glodeni",498,83,271,144
+"4819000","Comune","Fundurii Vechi","Raionul Glodeni",1778,341,957,480
+"4820000","Comune","Hîjdieni","Raionul Glodeni",2368,472,1207,689
+"4821000","Comune","com. Iabloana","Raionul Glodeni",1580,266,843,471
+"4821000","Localitati","Iabloana","Raionul Glodeni",1540,260,825,455
+"4821001","Localitati","Soroca","Raionul Glodeni",40,6,18,16
+"4822000","Comune","Limbenii Noi","Raionul Glodeni",1079,226,590,263
+"4823000","Comune","Limbenii Vechi","Raionul Glodeni",1107,221,614,272
+"4824000","Comune","Petrunea","Raionul Glodeni",1224,231,659,334
+"4825000","Comune","Sturzovca","Raionul Glodeni",2968,609,1658,701
+"4826000","Comune","Ustia","Raionul Glodeni",1104,211,602,291
+"4827000","Comune","com. Viişoara","Raionul Glodeni",1069,223,566,280
+"4827000","Localitati","Viişoara","Raionul Glodeni",741,157,378,206
+"4827001","Localitati","Moara Domnească","Raionul Glodeni",328,66,188,74
+"6200000","Raioane","Raionul Ocniţa","Raionul Ocniţa",31610,5200,17059,9351
+"6201000","Comune","or. Ocniţa","Raionul Ocniţa",5187,735,2860,1592
+"6202000","Comune","or. Frunză","Raionul Ocniţa",581,55,285,241
+"6203000","Comune","or. Otaci","Raionul Ocniţa",3598,692,2042,864
+"6210000","Comune","com. Bîrlădeni","Raionul Ocniţa",1778,353,997,428
+"6210000","Localitati","Bîrlădeni","Raionul Ocniţa",474,84,270,120
+"6210001","Localitati","Paladea","Raionul Ocniţa",395,83,224,88
+"6210002","Localitati","Rujniţa","Raionul Ocniţa",909,186,503,220
+"6211000","Comune","Bîrnova","Raionul Ocniţa",1498,262,816,420
+"6212000","Comune","com. Calaraşovca","Raionul Ocniţa",1571,285,879,407
+"6212000","Localitati","Calaraşovca","Raionul Ocniţa",1158,197,641,320
+"6212001","Localitati","Berezovca","Raionul Ocniţa",413,88,238,87
+"6213000","Comune","Clocuşna","Raionul Ocniţa",1365,228,691,446
+"6214000","Comune","Corestăuţi","Raionul Ocniţa",674,,,
+"6214000","Localitati","Corestăuţi","Raionul Ocniţa",674,117,350,207
+"6214001","Localitati","Stălinești","Raionul Ocniţa",0,0,0,0
+"6215000","Comune","com. Dîngeni","Raionul Ocniţa",1011,181,546,284
+"6215000","Localitati","Dîngeni","Raionul Ocniţa",999,181,541,277
+"6215001","Localitati","Grinăuţi","Raionul Ocniţa",12,0,5,7
+"6216000","Comune","Gîrbova","Raionul Ocniţa",873,139,471,263
+"6217000","Comune","com. Grinăuţi-Moldova","Raionul Ocniţa",1246,161,658,427
+"6217000","Localitati","Grinăuţi-Moldova","Raionul Ocniţa",489,69,263,157
+"6217001","Localitati","Grinăuţi-Raia","Raionul Ocniţa",360,45,199,116
+"6217002","Localitati","Rediul Mare","Raionul Ocniţa",397,47,196,154
+"6218000","Comune","Hădărăuţi","Raionul Ocniţa",1128,156,596,376
+"6219000","Comune","com. Lencăuţi","Raionul Ocniţa",1042,149,527,366
+"6219000","Localitati","Lencăuţi","Raionul Ocniţa",581,89,295,197
+"6219001","Localitati","Verejeni","Raionul Ocniţa",461,60,232,169
+"6220000","Comune","com. Lipnic","Raionul Ocniţa",2077,374,1028,675
+"6220000","Localitati","Lipnic","Raionul Ocniţa",1513,292,753,468
+"6220001","Localitati","Paustova","Raionul Ocniţa",564,82,275,207
+"6221000","Comune","Mereşeuca","Raionul Ocniţa",762,125,395,242
+"6222000","Comune","com. Mihălăşeni","Raionul Ocniţa",906,134,495,277
+"6222000","Localitati","Mihălăşeni","Raionul Ocniţa",839,132,441,266
+"6222001","Localitati","Grinăuţi","Raionul Ocniţa",67,2,54,11
+"6223000","Comune","Naslavcea","Raionul Ocniţa",426,47,198,181
+"6224000","Comune","com. Ocniţa","Raionul Ocniţa",2054,376,1125,553
+"6224000","Localitati","Ocniţa","Raionul Ocniţa",1936,350,1064,522
+"6224001","Localitati","Maiovca","Raionul Ocniţa",118,26,61,31
+"6225000","Comune","Sauca","Raionul Ocniţa",1082,179,559,344
+"6226000","Comune","Unguri","Raionul Ocniţa",999,180,596,223
+"6227000","Comune","com. Vălcineţ","Raionul Ocniţa",1752,272,945,535
+"6227000","Localitati","Vălcineţ","Raionul Ocniţa",1275,194,683,398
+"6227001","Localitati","Codreni","Raionul Ocniţa",477,78,262,137
+"7100000","Raioane","Rîşcani","Rîşcani",43652,8100,23219,12333
+"7101000","Comune","or. Rîşcani","Rîşcani",8622,1714,4446,2462
+"7101000","Localitati","Rîşcani","Rîşcani",8054,1594,4139,2321
+"7101001","Localitati","Balanul Nou","Rîşcani",227,65,122,40
+"7101002","Localitati","Rămăzan","Rîşcani",341,55,185,101
+"7102000","Comune","or. Costeşti","Rîşcani",2544,464,1336,744
+"7102000","Localitati","Costeşti","Rîşcani",1495,270,760,465
+"7102001","Localitati","Dămăşcani","Rîşcani",219,50,124,45
+"7102002","Localitati","Duruitoarea","Rîşcani",222,41,137,44
+"7102003","Localitati","Păscăuţi","Rîşcani",510,80,267,163
+"7102004","Localitati","Proscureni","Rîşcani",98,23,48,27
+"7110000","Comune","com. Alexăndreşti","Rîşcani",572,110,311,151
+"7110000","Localitati","Alexăndreşti","Rîşcani",41,9,18,14
+"7110001","Localitati","Cucuieţii Noi","Rîşcani",239,46,136,57
+"7110002","Localitati","Cucuieţii Vechi","Rîşcani",212,43,117,52
+"7110003","Localitati","Ivăneşti","Rîşcani",80,12,40,28
+"7111000","Comune","Aluniş","Rîşcani",1218,228,639,351
+"7112000","Comune","Borosenii Noi","Rîşcani",1024,157,559,308
+"7113000","Comune","com. Branişte","Rîşcani",835,161,477,197
+"7113000","Localitati","Branişte","Rîşcani",294,54,159,81
+"7113001","Localitati","Avrămeni","Rîşcani",266,50,153,63
+"7113002","Localitati","Reteni","Rîşcani",166,41,89,36
+"7113003","Localitati","Reteni-Vasileuţi","Rîşcani",109,16,76,17
+"7114000","Comune","Corlăteni","Rîşcani",4646,965,2577,1104
+"7115000","Comune","com. Duruitoarea Nouă","Rîşcani",555,96,299,160
+"7115000","Localitati","Duruitoarea Nouă","Rîşcani",455,83,235,137
+"7115001","Localitati","Dumeni","Rîşcani",100,13,64,23
+"7116000","Comune","com. Gălăşeni","Rîşcani",891,134,494,263
+"7116000","Localitati","Gălăşeni","Rîşcani",549,81,294,174
+"7116001","Localitati","Mălăieşti","Rîşcani",342,53,200,89
+"7117000","Comune","com. Grinăuţi","Rîşcani",776,139,404,233
+"7117000","Localitati","Grinăuţi","Rîşcani",756,136,398,222
+"7117001","Localitati","Ciobanovca","Rîşcani",20,3,6,11
+"7118000","Comune","Hiliuţi","Rîşcani",1150,163,527,460
+"7119000","Comune","Horodişte","Rîşcani",436,72,244,120
+"7120000","Comune","com. Malinovscoe","Rîşcani",766,130,405,231
+"7120000","Localitati","Malinovscoe","Rîşcani",653,113,340,200
+"7120001","Localitati","Lupăria","Rîşcani",113,17,65,31
+"7121000","Comune","Mihăileni","Rîşcani",2820,480,1535,805
+"7122000","Comune","Nihoreni","Rîşcani",2106,418,1104,584
+"7123000","Comune","Petruşeni","Rîşcani",641,141,332,168
+"7125000","Comune","Pîrjota","Rîşcani",986,162,510,314
+"7126000","Comune","Pociumbăuţi","Rîşcani",425,75,239,111
+"7127000","Comune","com. Pociumbeni","Rîşcani",759,132,412,215
+"7127000","Localitati","Pociumbeni","Rîşcani",517,91,284,142
+"7127001","Localitati","Druţa","Rîşcani",242,41,128,73
+"7128000","Comune","com. Răcăria","Rîşcani",1289,249,728,312
+"7128000","Localitati","Răcăria","Rîşcani",937,174,528,235
+"7128001","Localitati","Uşurei","Rîşcani",352,75,200,77
+"7130000","Comune","com. Recea","Rîşcani",2110,466,1051,593
+"7130000","Localitati","Recea","Rîşcani",1758,401,866,491
+"7130001","Localitati","Slobozia-Recea","Rîşcani",44,9,21,14
+"7130002","Localitati","Sverdiac","Rîşcani",308,56,164,88
+"7131000","Comune","Singureni","Rîşcani",1436,292,813,331
+"7132000","Comune","Sturzeni","Rîşcani",651,86,347,218
+"7133000","Comune","Şaptebani","Rîşcani",862,125,458,279
+"7133100","Comune","com. Şumna","Rîşcani",285,37,134,114
+"7133100","Localitati","Şumna","Rîşcani",45,3,15,27
+"7133101","Localitati","Bulhac","Rîşcani",146,23,66,57
+"7133102","Localitati","Cepăria","Rîşcani",94,11,53,30
+"7134000","Comune","com. Vasileuţi","Rîşcani",2075,374,1131,570
+"7134000","Localitati","Vasileuţi","Rîşcani",983,146,571,266
+"7134001","Localitati","Armanca","Rîşcani",4,0,0,4
+"7134002","Localitati","Ciubara","Rîşcani",239,43,127,69
+"7134003","Localitati","Mihăilenii Noi","Rîşcani",141,23,72,46
+"7134004","Localitati","Moşeni","Rîşcani",388,68,203,117
+"7134005","Localitati","Ştiubeieni","Rîşcani",320,94,158,68
+"7135000","Comune","Văratic","Rîşcani",1278,236,686,356
+"7136000","Comune","Zăicani","Rîşcani",1894,294,1021,579
+"7400000","Raioane","Raionul Sîngerei","Raionul Sîngerei",55933,12275,29459,14199
+"7401000","Comune","or. Sîngerei","Raionul Sîngerei",9954,2127,5172,2655
+"7401000","Localitati","Sîngerei","Raionul Sîngerei",9550,2020,4972,2558
+"7401001","Localitati","Vrăneşti","Raionul Sîngerei",404,107,200,97
+"7402000","Comune","or. Biruinţa","Raionul Sîngerei",2203,510,1200,493
+"7410000","Comune","com. Alexăndreni","Raionul Sîngerei",3922,835,2073,1014
+"7410000","Localitati","Alexăndreni","Raionul Sîngerei",1031,238,544,249
+"7410001","Localitati","Grigoreşti","Raionul Sîngerei",923,223,504,196
+"7410002","Localitati","Heciul Vechi","Raionul Sîngerei",870,173,443,254
+"7410003","Localitati","Ţipleşti","Raionul Sîngerei",465,74,278,113
+"7410004","Localitati","Ţipleteşti","Raionul Sîngerei",633,127,304,202
+"7411000","Comune","com. Bălăşeşti","Raionul Sîngerei",1607,433,833,341
+"7411000","Localitati","Bălăşeşti","Raionul Sîngerei",1135,309,566,260
+"7411001","Localitati","Sloveanca","Raionul Sîngerei",472,124,267,81
+"7412000","Comune","com. Bilicenii Noi","Raionul Sîngerei",1313,275,678,360
+"7412000","Localitati","Bilicenii Noi","Raionul Sîngerei",547,104,266,177
+"7412001","Localitati","Lipovanca","Raionul Sîngerei",64,22,31,11
+"7412002","Localitati","Mîndreştii Noi","Raionul Sîngerei",702,149,381,172
+"7413000","Comune","com. Bilicenii Vechi","Raionul Sîngerei",2122,477,1107,538
+"7413000","Localitati","Bilicenii Vechi","Raionul Sîngerei",1908,434,985,489
+"7413001","Localitati","Coada Iazului","Raionul Sîngerei",214,43,122,49
+"7414000","Comune","com. Bursuceni","Raionul Sîngerei",865,186,471,208
+"7414000","Localitati","Bursuceni","Raionul Sîngerei",673,158,357,158
+"7414001","Localitati","Slobozia-Măgura","Raionul Sîngerei",192,28,114,50
+"7415000","Comune","com. Chişcăreni","Raionul Sîngerei",3289,600,1682,1007
+"7415000","Localitati","Chişcăreni","Raionul Sîngerei",2572,446,1335,791
+"7415001","Localitati","Nicolaevca","Raionul Sîngerei",114,18,60,36
+"7415002","Localitati","Slobozia-Chişcăreni","Raionul Sîngerei",603,136,287,180
+"7416000","Comune","com. Ciuciuieni","Raionul Sîngerei",814,201,473,140
+"7416000","Localitati","Ciuciuieni","Raionul Sîngerei",695,178,396,121
+"7416001","Localitati","Brejeni","Raionul Sîngerei",119,23,77,19
+"7417000","Comune","com. Copăceni","Raionul Sîngerei",1534,256,754,524
+"7417000","Localitati","Copăceni","Raionul Sîngerei",1069,183,478,408
+"7417001","Localitati","Antonovca","Raionul Sîngerei",27,5,12,10
+"7417002","Localitati","Evghenievca","Raionul Sîngerei",29,2,20,7
+"7417003","Localitati","Gavrilovca","Raionul Sîngerei",0,0,0,0
+"7417004","Localitati","Petrovca","Raionul Sîngerei",356,60,210,86
+"7417005","Localitati","Vladimireuca","Raionul Sîngerei",53,6,34,13
+"7418000","Comune","com. Coşcodeni","Raionul Sîngerei",1786,385,951,450
+"7418000","Localitati","Coşcodeni","Raionul Sîngerei",574,120,311,143
+"7418001","Localitati","Bobletici","Raionul Sîngerei",335,75,193,67
+"7418002","Localitati","Flămînzeni","Raionul Sîngerei",877,190,447,240
+"7419000","Comune","com. Cotiujenii Mici","Raionul Sîngerei",1065,222,613,230
+"7419000","Localitati","Cotiujenii Mici","Raionul Sîngerei",649,124,373,152
+"7419001","Localitati","Alexeuca","Raionul Sîngerei",330,78,194,58
+"7419002","Localitati","Gura-Oituz","Raionul Sîngerei",86,20,46,20
+"7420000","Comune","com. Cubolta","Raionul Sîngerei",1375,305,713,357
+"7420000","Localitati","Cubolta","Raionul Sîngerei",1241,273,641,327
+"7420001","Localitati","Mărăşeşti","Raionul Sîngerei",134,32,72,30
+"7421000","Comune","com. Dobrogea Veche","Raionul Sîngerei",1257,160,669,428
+"7421000","Localitati","Dobrogea Veche","Raionul Sîngerei",837,101,434,302
+"7421001","Localitati","Cotovca","Raionul Sîngerei",36,1,15,20
+"7421002","Localitati","Dobrogea Nouă","Raionul Sîngerei",384,58,220,106
+"7422000","Comune","com. Drăgăneşti","Raionul Sîngerei",1843,376,930,537
+"7422000","Localitati","Drăgăneşti","Raionul Sîngerei",1553,300,775,478
+"7422001","Localitati","Chirileni","Raionul Sîngerei",105,19,57,29
+"7422002","Localitati","Sacarovca","Raionul Sîngerei",185,57,98,30
+"7423000","Comune","com. Dumbrăviţa","Raionul Sîngerei",1458,291,800,367
+"7423000","Localitati","Dumbrăviţa","Raionul Sîngerei",932,181,504,247
+"7423001","Localitati","Bocancea-Schit","Raionul Sîngerei",215,47,129,39
+"7423002","Localitati","Valea lui Vlad","Raionul Sîngerei",311,63,167,81
+"7424000","Comune","com. Grigorăuca","Raionul Sîngerei",1792,391,917,484
+"7424000","Localitati","Grigorăuca","Raionul Sîngerei",1195,263,600,332
+"7424001","Localitati","Cozeşti","Raionul Sîngerei",388,71,207,110
+"7424002","Localitati","Petropavlovca","Raionul Sîngerei",209,57,110,42
+"7425000","Comune","com. Heciul Nou","Raionul Sîngerei",1874,444,950,480
+"7425000","Localitati","Heciul Nou","Raionul Sîngerei",1376,291,705,380
+"7425001","Localitati","Trifăneşti","Raionul Sîngerei",498,153,245,100
+"7426000","Comune","com. Iezărenii Vechi","Raionul Sîngerei",1156,279,643,234
+"7426000","Localitati","Iezărenii Vechi","Raionul Sîngerei",1144,277,635,232
+"7426001","Localitati","Iezărenii Noi","Raionul Sîngerei",12,2,8,2
+"7427000","Comune","com. Izvoare","Raionul Sîngerei",514,109,296,109
+"7427000","Localitati","Izvoare","Raionul Sîngerei",325,69,192,64
+"7427001","Localitati","Valea Norocului","Raionul Sîngerei",189,40,104,45
+"7428000","Comune","com. Pepeni","Raionul Sîngerei",3962,902,2140,920
+"7428000","Localitati","Pepeni","Raionul Sîngerei",2682,545,1453,684
+"7428001","Localitati","Pepenii Noi","Raionul Sîngerei",592,194,320,78
+"7428002","Localitati","Răzălăi","Raionul Sîngerei",601,136,324,141
+"7428003","Localitati","Romanovca","Raionul Sîngerei",87,27,43,17
+"7429000","Comune","com. Prepeliţa","Raionul Sîngerei",2098,444,1096,558
+"7429000","Localitati","Prepeliţa","Raionul Sîngerei",1634,364,855,415
+"7429001","Localitati","Clişcăuţi","Raionul Sîngerei",82,10,48,24
+"7429002","Localitati","Mihailovca","Raionul Sîngerei",376,67,190,119
+"7429003","Localitati","Şestaci","Raionul Sîngerei",6,3,3,0
+"7430000","Comune","Rădoaia","Raionul Sîngerei",3307,829,1781,697
+"7431000","Comune","com. Tăura Veche","Raionul Sîngerei",456,89,248,119
+"7431000","Localitati","Tăura Veche","Raionul Sîngerei",322,63,186,73
+"7431001","Localitati","Tăura Nouă","Raionul Sîngerei",134,26,62,46
+"7432000","Comune","com. Sîngereii Noi","Raionul Sîngerei",3233,916,1642,675
+"7432000","Localitati","Sîngereii Noi","Raionul Sîngerei",2385,660,1242,483
+"7432001","Localitati","Mărineşti","Raionul Sîngerei",848,256,400,192
+"7433000","Comune","com. Ţambula","Raionul Sîngerei",1134,233,627,274
+"7433000","Localitati","Ţambula","Raionul Sîngerei",483,96,270,117
+"7433001","Localitati","Octeabriscoe","Raionul Sîngerei",608,126,332,150
+"7433002","Localitati","Pălăria","Raionul Sîngerei",43,11,25,7
+"7800000","Raioane","Raionul Soroca","Raionul Soroca",58609,10828,31519,16262
+"7801000","Comune","or. Soroca","Raionul Soroca",21135,4041,11515,5579
+"7810000","Comune","com. Bădiceni","Raionul Soroca",2003,302,1137,564
+"7810000","Localitati","Bădiceni","Raionul Soroca",1924,285,1099,540
+"7810001","Localitati","Grigorăuca","Raionul Soroca",79,17,38,24
+"7811000","Comune","Băxani","Raionul Soroca",522,98,267,157
+"7812000","Comune","com. Bulboci","Raionul Soroca",1177,185,579,413
+"7812000","Localitati","Bulboci","Raionul Soroca",1018,166,509,343
+"7812001","Localitati","Bulbocii Noi","Raionul Soroca",159,19,70,70
+"7813000","Comune","com. Căinarii Vechi","Raionul Soroca",1742,281,819,642
+"7813000","Localitati","Căinarii Vechi","Raionul Soroca",1647,262,776,609
+"7813001","Localitati","Floriceni","Raionul Soroca",95,19,43,33
+"7814000","Comune","com. Cosăuţi","Raionul Soroca",2180,413,1206,561
+"7814000","Localitati","Cosăuţi","Raionul Soroca",1691,312,934,445
+"7814001","Localitati","Iorjniţa","Raionul Soroca",489,101,272,116
+"7815000","Comune","com. Cremenciug","Raionul Soroca",579,107,321,151
+"7815000","Localitati","Cremenciug","Raionul Soroca",384,69,208,107
+"7815001","Localitati","Livezi","Raionul Soroca",6,1,4,1
+"7815002","Localitati","Sobari","Raionul Soroca",181,36,105,40
+"7815003","Localitati","Valea","Raionul Soroca",8,1,4,3
+"7816000","Comune","com. Dărcăuţi","Raionul Soroca",941,170,513,258
+"7816000","Localitati","Dărcăuţi","Raionul Soroca",836,147,469,220
+"7816001","Localitati","Dărcăuţii Noi","Raionul Soroca",0,0,0,0
+"7816002","Localitati","Mălcăuţi","Raionul Soroca",105,23,44,38
+"7817000","Comune","Dubna","Raionul Soroca",442,99,197,146
+"7818000","Comune","Egoreni","Raionul Soroca",667,129,344,194
+"7819000","Comune","com. Holoşniţa","Raionul Soroca",788,147,393,248
+"7819000","Localitati","Holoşniţa","Raionul Soroca",552,98,285,169
+"7819001","Localitati","Cureşniţa","Raionul Soroca",236,49,108,79
+"7820000","Comune","Hristici","Raionul Soroca",671,111,341,219
+"7821000","Comune","com. Iarova","Raionul Soroca",540,70,266,204
+"7821000","Localitati","Iarova","Raionul Soroca",345,48,170,127
+"7821001","Localitati","Balinţi","Raionul Soroca",169,19,81,69
+"7821002","Localitati","Balinţii Noi","Raionul Soroca",26,3,15,8
+"7821100","Comune","com. Nimereuca","Raionul Soroca",2023,398,1084,541
+"7821100","Localitati","Nimereuca","Raionul Soroca",1253,213,681,359
+"7821101","Localitati","Cerlina","Raionul Soroca",770,185,403,182
+"7822000","Comune","Oclanda","Raionul Soroca",360,59,184,117
+"7823000","Comune","com. Ocolina","Raionul Soroca",1241,247,674,320
+"7823000","Localitati","Ocolina","Raionul Soroca",655,131,335,189
+"7823001","Localitati","Ţepilova","Raionul Soroca",586,116,339,131
+"7824000","Comune","com. Parcani","Raionul Soroca",1004,175,540,289
+"7824000","Localitati","Parcani","Raionul Soroca",417,79,202,136
+"7824001","Localitati","Voloave","Raionul Soroca",587,96,338,153
+"7825000","Comune","com. Pîrliţa","Raionul Soroca",464,82,255,127
+"7825000","Localitati","Pîrliţa","Raionul Soroca",301,53,163,85
+"7825001","Localitati","Vanţina","Raionul Soroca",162,29,91,42
+"7825002","Localitati","Vanţina Mică","Raionul Soroca",1,0,1,0
+"7826000","Comune","Racovăţ","Raionul Soroca",1762,333,940,489
+"7827000","Comune","Redi-Cereşnovăţ","Raionul Soroca",542,87,286,169
+"7828000","Comune","com. Regina Maria","Raionul Soroca",391,66,228,97
+"7828000","Localitati","Regina Maria","Raionul Soroca",304,52,177,75
+"7828001","Localitati","Lugovoe","Raionul Soroca",87,14,51,22
+"7829000","Comune","com. Rubleniţa","Raionul Soroca",2342,436,1338,568
+"7829000","Localitati","Rubleniţa","Raionul Soroca",2215,412,1262,541
+"7829001","Localitati","Rubleniţa Nouă","Raionul Soroca",127,24,76,27
+"7830000","Comune","Rudi","Raionul Soroca",783,145,425,213
+"7831000","Comune","com. Schineni","Raionul Soroca",957,190,523,244
+"7831000","Localitati","Schineni","Raionul Soroca",937,189,511,237
+"7831001","Localitati","Schinenii Noi","Raionul Soroca",20,1,12,7
+"7832000","Comune","com. Stoicani","Raionul Soroca",831,182,424,225
+"7832000","Localitati","Stoicani","Raionul Soroca",522,133,255,134
+"7832001","Localitati","Soloneţ","Raionul Soroca",309,49,169,91
+"7833000","Comune","Şeptelici","Raionul Soroca",691,142,394,155
+"7834000","Comune","com. Şolcani","Raionul Soroca",958,186,529,243
+"7834000","Localitati","Şolcani","Raionul Soroca",711,123,398,190
+"7834001","Localitati","Cureşniţa Nouă","Raionul Soroca",247,63,131,53
+"7835000","Comune","com. Tătărăuca Veche","Raionul Soroca",1205,221,644,340
+"7835000","Localitati","Tătărăuca Veche","Raionul Soroca",338,57,180,101
+"7835001","Localitati","Decebal","Raionul Soroca",83,14,51,18
+"7835002","Localitati","Niorcani","Raionul Soroca",293,53,160,80
+"7835003","Localitati","Slobozia Nouă","Raionul Soroca",163,34,85,44
+"7835004","Localitati","Tătărăuca Nouă","Raionul Soroca",288,57,148,83
+"7835005","Localitati","Tolocăneşti","Raionul Soroca",40,6,20,14
+"7836000","Comune","Trifăuţi","Raionul Soroca",630,123,354,153
+"7837000","Comune","com. Vasilcău","Raionul Soroca",1638,281,884,473
+"7837000","Localitati","Vasilcău","Raionul Soroca",1311,210,702,399
+"7837001","Localitati","Inundeni","Raionul Soroca",198,37,111,50
+"7837002","Localitati","Ruslanovca","Raionul Soroca",129,34,71,24
+"7838000","Comune","com. Vădeni","Raionul Soroca",1194,186,608,400
+"7838000","Localitati","Vădeni","Raionul Soroca",1068,163,549,356
+"7838001","Localitati","Dumbrăveni","Raionul Soroca",126,23,59,44
+"7839000","Comune","com. Vărăncău","Raionul Soroca",2135,423,1169,543
+"7839000","Localitati","Vărăncău","Raionul Soroca",895,189,489,217
+"7839001","Localitati","Slobozia-Cremene","Raionul Soroca",833,158,460,215
+"7839002","Localitati","Slobozia-Vărăncău","Raionul Soroca",407,76,220,111
+"7840000","Comune","Visoca","Raionul Soroca",1165,190,598,377
+"7841000","Comune","com. Voloviţa","Raionul Soroca",1399,243,738,418
+"7841000","Localitati","Voloviţa","Raionul Soroca",1060,192,565,303
+"7841001","Localitati","Alexandru cel Bun","Raionul Soroca",339,51,173,115
+"7842000","Comune","Zastînca","Raionul Soroca",1507,280,802,425
+"MD012","Regiuni","Regiunea Centru","Raionul Soroca",670088,,,
+"1000000","Raioane","Raionul Anenii Noi","Raionul Anenii Noi",57687,11521,31487,14679
+"1001000","Comune","or. Anenii Noi","Raionul Anenii Noi",8933,1914,4745,2274
+"1001000","Localitati","Anenii Noi","Raionul Anenii Noi",6610,1470,3478,1662
+"1001001","Localitati","Albiniţa","Raionul Anenii Noi",264,51,150,63
+"1001002","Localitati","Beriozchi","Raionul Anenii Noi",483,80,270,133
+"1001003","Localitati","Hîrbovăţul Nou","Raionul Anenii Noi",368,74,199,95
+"1001004","Localitati","Ruseni","Raionul Anenii Noi",888,183,479,226
+"1001005","Localitati","Socoleni","Raionul Anenii Noi",320,56,169,95
+"1010000","Comune","com. Botnăreşti","Raionul Anenii Noi",946,225,571,150
+"1010000","Localitati","Botnăreşti","Raionul Anenii Noi",789,196,472,121
+"1010001","Localitati","Salcia","Raionul Anenii Noi",157,29,99,29
+"1011000","Comune","Bulboaca","Raionul Anenii Noi",3598,761,1903,934
+"1012000","Comune","com. Calfa","Raionul Anenii Noi",1226,201,669,356
+"1012000","Localitati","Calfa","Raionul Anenii Noi",1078,164,588,326
+"1012001","Localitati","Calfa Nouă","Raionul Anenii Noi",148,37,81,30
+"1013000","Comune","com. Chetrosu","Raionul Anenii Noi",3073,661,1721,691
+"1013000","Localitati","Chetrosu","Raionul Anenii Noi",1694,356,952,386
+"1013001","Localitati","Todireşti","Raionul Anenii Noi",1379,305,769,305
+"1014000","Comune","com. Chirca","Raionul Anenii Noi",1314,251,770,293
+"1014000","Localitati","Chirca","Raionul Anenii Noi",1207,233,712,262
+"1014001","Localitati","Botnăreştii Noi","Raionul Anenii Noi",107,18,58,31
+"1015000","Comune","com. Ciobanovca","Raionul Anenii Noi",1136,220,604,312
+"1015000","Localitati","Ciobanovca","Raionul Anenii Noi",640,143,326,171
+"1015001","Localitati","Balmaz","Raionul Anenii Noi",75,9,50,16
+"1015002","Localitati","Mirnoe","Raionul Anenii Noi",132,21,70,41
+"1015003","Localitati","Troiţa Nouă","Raionul Anenii Noi",289,47,158,84
+"1016000","Comune","Cobusca Nouă","Raionul Anenii Noi",943,197,516,230
+"1017000","Comune","com. Cobusca Veche","Raionul Anenii Noi",1787,275,1134,378
+"1017000","Localitati","Cobusca Veche","Raionul Anenii Noi",1293,253,699,341
+"1017001","Localitati","Floreşti","Raionul Anenii Noi",494,22,435,37
+"1018000","Comune","Delacău","Raionul Anenii Noi",1210,202,650,358
+"1019000","Comune","Floreni","Raionul Anenii Noi",3059,677,1757,625
+"1020000","Comune","com. Geamăna","Raionul Anenii Noi",2436,563,1327,546
+"1020000","Localitati","Geamăna","Raionul Anenii Noi",2430,563,1325,542
+"1020001","Localitati","Batîc","Raionul Anenii Noi",6,0,2,4
+"1021000","Comune","Gura Bîcului","Raionul Anenii Noi",2138,391,1072,675
+"1022000","Comune","Hîrbovăţ","Raionul Anenii Noi",3540,621,1911,1008
+"1023000","Comune","Maximovca","Raionul Anenii Noi",1494,296,837,361
+"1024000","Comune","Mereni","Raionul Anenii Noi",4206,867,2301,1038
+"1025000","Comune","Merenii Noi","Raionul Anenii Noi",1182,246,617,319
+"1026000","Comune","com. Ochiul Roş","Raionul Anenii Noi",236,40,137,59
+"1026000","Localitati","Ochiul Roş","Raionul Anenii Noi",192,34,111,47
+"1026001","Localitati","Picus","Raionul Anenii Noi",44,6,26,12
+"1027000","Comune","Puhăceni","Raionul Anenii Noi",2199,410,1146,643
+"1028000","Comune","Roşcani","Raionul Anenii Noi",1670,338,909,423
+"1029000","Comune","Speia","Raionul Anenii Noi",1593,302,805,486
+"1030000","Comune","Şerpeni","Raionul Anenii Noi",2094,406,1118,570
+"1031000","Comune","com. Teliţa","Raionul Anenii Noi",823,175,468,180
+"1031000","Localitati","Teliţa","Raionul Anenii Noi",811,175,460,176
+"1031001","Localitati","Teliţa Nouă","Raionul Anenii Noi",12,0,8,4
+"1032000","Comune","com. Ţînţăreni","Raionul Anenii Noi",2462,552,1353,557
+"1032000","Localitati","Ţînţăreni","Raionul Anenii Noi",2160,490,1188,482
+"1032001","Localitati","Creţoaia","Raionul Anenii Noi",302,62,165,75
+"1033000","Comune","Varniţa","Raionul Anenii Noi",3827,588,2163,1076
+"1034000","Comune","com. Zolotievca","Raionul Anenii Noi",562,142,283,137
+"1034000","Localitati","Zolotievca","Raionul Anenii Noi",380,100,204,76
+"1034001","Localitati","Larga","Raionul Anenii Noi",156,39,61,56
+"1034002","Localitati","Nicolaevca","Raionul Anenii Noi",26,3,18,5
+"2500000","Raioane","Raionul Călăraşi","Raionul Călăraşi",43864,8891,23311,11662
+"2501000","Comune","or. Călăraşi","Raionul Călăraşi",9469,2183,4783,2503
+"2501000","Localitati","Călăraşi","Raionul Călăraşi",9413,2174,4748,2491
+"2501001","Localitati","Oricova","Raionul Călăraşi",56,9,35,12
+"2510000","Comune","com. Bahmut","Raionul Călăraşi",1121,246,588,287
+"2510000","Localitati","Bahmut","Raionul Călăraşi",676,149,346,181
+"2510001","Localitati","Bahmut, loc.st.c.f.","Raionul Călăraşi",445,97,242,106
+"2511000","Comune","Bravicea","Raionul Călăraşi",2069,411,1151,507
+"2512000","Comune","com. Buda","Raionul Călăraşi",772,199,446,127
+"2512000","Localitati","Buda","Raionul Călăraşi",510,119,287,104
+"2512001","Localitati","Ursari","Raionul Călăraşi",262,80,159,23
+"2513000","Comune","Căbăieşti","Raionul Călăraşi",526,115,296,115
+"2514000","Comune","com. Dereneu","Raionul Călăraşi",738,119,369,250
+"2514000","Localitati","Dereneu","Raionul Călăraşi",632,96,320,216
+"2514001","Localitati","Bularda","Raionul Călăraşi",67,17,36,14
+"2514002","Localitati","Duma","Raionul Călăraşi",39,6,13,20
+"2515000","Comune","Frumoasa","Raionul Călăraşi",408,72,246,90
+"2516000","Comune","Hirova","Raionul Călăraşi",780,114,413,253
+"2517000","Comune","com. Hîrjauca","Raionul Călăraşi",1829,378,972,479
+"2517000","Localitati","Hîrjauca","Raionul Călăraşi",505,86,277,142
+"2517001","Localitati","Leordoaia","Raionul Călăraşi",217,43,129,45
+"2517002","Localitati","Mîndra","Raionul Călăraşi",475,101,227,147
+"2517003","Localitati","Palanca","Raionul Călăraşi",632,148,339,145
+"2518000","Comune","Hogineşti","Raionul Călăraşi",1146,166,673,307
+"2519000","Comune","Horodişte","Raionul Călăraşi",1619,283,894,442
+"2520000","Comune","Meleşeni","Raionul Călăraşi",932,164,527,241
+"2521000","Comune","Nişcani","Raionul Călăraşi",1021,187,514,320
+"2522000","Comune","com. Onişcani","Raionul Călăraşi",969,146,491,332
+"2522000","Localitati","Onişcani","Raionul Călăraşi",572,90,283,199
+"2522001","Localitati","Hîrbovăţ","Raionul Călăraşi",360,54,188,118
+"2522002","Localitati","Sverida","Raionul Călăraşi",37,2,20,15
+"2523000","Comune","Păuleşti","Raionul Călăraşi",547,84,305,158
+"2523100","Comune","Peticeni","Raionul Călăraşi",820,199,450,171
+"2524000","Comune","Pituşca","Raionul Călăraşi",1796,368,979,449
+"2525000","Comune","Pîrjolteni","Raionul Călăraşi",932,191,476,265
+"2526000","Comune","com. Răciula","Raionul Călăraşi",1433,304,789,340
+"2526000","Localitati","Răciula","Raionul Călăraşi",1024,190,535,299
+"2526001","Localitati","Parcani","Raionul Călăraşi",409,114,254,41
+"2527000","Comune","Rădeni","Raionul Călăraşi",868,185,456,227
+"2528000","Comune","Sadova","Raionul Călăraşi",1422,235,718,469
+"2529000","Comune","com. Săseni","Raionul Călăraşi",1304,224,686,394
+"2529000","Localitati","Săseni","Raionul Călăraşi",983,170,498,315
+"2529001","Localitati","Bahu","Raionul Călăraşi",321,54,188,79
+"2530000","Comune","com. Sipoteni","Raionul Călăraşi",4491,968,2518,1005
+"2530000","Localitati","Sipoteni","Raionul Călăraşi",4482,967,2511,1004
+"2530001","Localitati","Podul Lung","Raionul Călăraşi",9,1,7,1
+"2531000","Comune","Temeleuţi","Raionul Călăraşi",783,156,419,208
+"2532000","Comune","com. Tuzara","Raionul Călăraşi",1706,333,939,434
+"2532000","Localitati","Tuzara","Raionul Călăraşi",497,98,290,109
+"2532001","Localitati","Novaci","Raionul Călăraşi",337,56,179,102
+"2532002","Localitati","Seliştea Nouă","Raionul Călăraşi",872,179,470,223
+"2534000","Comune","com. Ţibirica","Raionul Călăraşi",1474,291,774,409
+"2534000","Localitati","Ţibirica","Raionul Călăraşi",1218,206,627,385
+"2534001","Localitati","Schinoasa","Raionul Călăraşi",256,85,147,24
+"2535000","Comune","Vălcineţ","Raionul Călăraşi",2118,408,1063,647
+"2536000","Comune","Vărzăreştii Noi","Raionul Călăraşi",771,162,376,233
+"3100000","Raioane","Raionul Criuleni","Raionul Criuleni",52926,11517,29497,11912
+"3101000","Comune","or. Criuleni","Raionul Criuleni",5844,1238,2967,1639
+"3101000","Localitati","Criuleni","Raionul Criuleni",5044,1073,2511,1460
+"3101001","Localitati","Ohrincea","Raionul Criuleni",613,117,344,152
+"3101002","Localitati","Zolonceni","Raionul Criuleni",187,48,112,27
+"3110000","Comune","com. Bălăbăneşti","Raionul Criuleni",2738,591,1604,543
+"3110000","Localitati","Bălăbăneşti","Raionul Criuleni",1473,300,821,352
+"3110001","Localitati","Mălăieşti","Raionul Criuleni",373,91,221,61
+"3110002","Localitati","Mălăieştii Noi","Raionul Criuleni",892,200,562,130
+"3111000","Comune","com. Bălţata","Raionul Criuleni",1560,367,890,303
+"3111000","Localitati","Bălţata","Raionul Criuleni",1186,287,676,223
+"3111001","Localitati","Bălţata de Sus","Raionul Criuleni",38,2,26,10
+"3111002","Localitati","Sagaidac","Raionul Criuleni",312,69,182,61
+"3111003","Localitati","Sagaidacul de Sus","Raionul Criuleni",24,9,6,9
+"3112000","Comune","com. Boşcana","Raionul Criuleni",2312,516,1225,571
+"3112000","Localitati","Boşcana","Raionul Criuleni",1745,370,901,474
+"3112001","Localitati","Mărdăreuca","Raionul Criuleni",567,146,324,97
+"3113000","Comune","Cimişeni","Raionul Criuleni",1977,424,1087,466
+"3114000","Comune","Corjova","Raionul Criuleni",1750,361,976,413
+"3115000","Comune","Coşerniţa","Raionul Criuleni",885,166,492,227
+"3116000","Comune","Cruglic","Raionul Criuleni",1865,423,1019,423
+"3117000","Comune","com. Dolinnoe","Raionul Criuleni",883,176,505,202
+"3117000","Localitati","Dolinnoe","Raionul Criuleni",713,138,414,161
+"3117001","Localitati","Valea Coloniţei","Raionul Criuleni",124,26,65,33
+"3117002","Localitati","Valea Satului","Raionul Criuleni",46,12,26,8
+"3118000","Comune","com. Drăsliceni","Raionul Criuleni",2617,597,1488,532
+"3118000","Localitati","Drăsliceni","Raionul Criuleni",1236,286,689,261
+"3118001","Localitati","Logăneşti","Raionul Criuleni",297,83,170,44
+"3118002","Localitati","Ratuş","Raionul Criuleni",1084,228,629,227
+"3119000","Comune","Dubăsarii Vechi","Raionul Criuleni",4305,893,2497,915
+"3120000","Comune","com. Hîrtopul Mare","Raionul Criuleni",2295,469,1216,610
+"3120000","Localitati","Hîrtopul Mare","Raionul Criuleni",1561,323,837,401
+"3120001","Localitati","Hîrtopul Mic","Raionul Criuleni",734,146,379,209
+"3121000","Comune","com. Hruşova","Raionul Criuleni",1713,398,916,399
+"3121000","Localitati","Hruşova","Raionul Criuleni",767,177,413,177
+"3121001","Localitati","Chetroasa","Raionul Criuleni",96,23,46,27
+"3121002","Localitati","Ciopleni","Raionul Criuleni",850,198,457,195
+"3122000","Comune","Işnovăţ","Raionul Criuleni",1059,231,591,237
+"3123000","Comune","Izbişte","Raionul Criuleni",2060,478,1169,413
+"3124000","Comune","Jevreni","Raionul Criuleni",908,176,496,236
+"3125000","Comune","Maşcăuţi","Raionul Criuleni",2707,589,1557,561
+"3126000","Comune","Măgdăceşti","Raionul Criuleni",4636,1108,2707,821
+"3127000","Comune","com. Micleşti","Raionul Criuleni",1640,362,955,323
+"3127000","Localitati","Micleşti","Raionul Criuleni",948,191,540,217
+"3127001","Localitati","Steţcani","Raionul Criuleni",692,171,415,106
+"3128000","Comune","Oniţcani","Raionul Criuleni",1550,351,790,409
+"3129000","Comune","com. Paşcani","Raionul Criuleni",2128,477,1231,420
+"3129000","Localitati","Paşcani","Raionul Criuleni",784,169,470,145
+"3129001","Localitati","Porumbeni","Raionul Criuleni",1344,308,761,275
+"3129100","Comune","com. Răculeşti","Raionul Criuleni",1250,285,718,247
+"3129100","Localitati","Răculeşti","Raionul Criuleni",723,171,386,166
+"3129101","Localitati","Bălăşeşti","Raionul Criuleni",527,114,332,81
+"3130000","Comune","Rîşcova","Raionul Criuleni",914,201,550,163
+"3131000","Comune","Slobozia-Duşca","Raionul Criuleni",1903,364,1001,538
+"3132000","Comune","Zăicana","Raionul Criuleni",1427,276,850,301
+"3800000","Raioane","Raionul Dubăsari","Raionul Dubăsari",21781,4404,11991,5386
+"3810000","Comune","com. Cocieri","Raionul Dubăsari",3068,516,1734,818
+"3810000","Localitati","Cocieri","Raionul Dubăsari",2943,492,1650,801
+"3810001","Localitati","Vasilievca","Raionul Dubăsari",125,24,84,17
+"3812000","Comune","com. Coşniţa","Raionul Dubăsari",4481,1003,2417,1061
+"3812000","Localitati","Coşniţa","Raionul Dubăsari",3977,925,2119,933
+"3812001","Localitati","Pohrebea","Raionul Dubăsari",504,78,298,128
+"3813000","Comune","Doroţcaia","Raionul Dubăsari",2506,515,1403,588
+"3814000","Comune","Holercani","Raionul Dubăsari",1505,319,821,365
+"3815000","Comune","Marcăuţi","Raionul Dubăsari",466,89,268,109
+"3816000","Comune","Molovata","Raionul Dubăsari",1706,283,920,503
+"3817000","Comune","Molovata Nouă","Raionul Dubăsari",1585,315,874,396
+"3818000","Comune","Oxentea","Raionul Dubăsari",1680,364,961,355
+"3819000","Comune","Pîrîta","Raionul Dubăsari",2472,505,1392,575
+"3820000","Comune","Ustia","Raionul Dubăsari",2312,495,1201,616
+"5300000","Raioane","Raionul Hînceşti","Raionul Hînceşti",69462,14178,36965,18319
+"5301000","Comune","or. Hînceşti","Raionul Hînceşti",11391,2580,6028,2783
+"5310000","Comune","Bălceana","Raionul Hînceşti",955,172,538,245
+"5311000","Comune","com. Bobeica","Raionul Hînceşti",1553,254,853,446
+"5311000","Localitati","Bobeica","Raionul Hînceşti",329,53,180,96
+"5311001","Localitati","Dahnovici","Raionul Hînceşti",528,79,275,174
+"5311002","Localitati","Drăguşeni","Raionul Hînceşti",696,122,398,176
+"5312000","Comune","Boghiceni","Raionul Hînceşti",1530,274,871,385
+"5313000","Comune","com. Bozieni","Raionul Hînceşti",1559,371,808,380
+"5313000","Localitati","Bozieni","Raionul Hînceşti",1405,331,730,344
+"5313001","Localitati","Dubovca","Raionul Hînceşti",154,40,78,36
+"5314000","Comune","Bujor","Raionul Hînceşti",2045,372,1076,597
+"5315000","Comune","Buţeni","Raionul Hînceşti",2147,426,1111,610
+"5316000","Comune","Caracui","Raionul Hînceşti",1342,254,739,349
+"5317000","Comune","Călmăţui","Raionul Hînceşti",1048,216,594,238
+"5318000","Comune","com. Cărpineni","Raionul Hînceşti",5566,1163,2733,1670
+"5318000","Localitati","Cărpineni","Raionul Hînceşti",4863,971,2342,1550
+"5318001","Localitati","Horjeşti","Raionul Hînceşti",703,192,391,120
+"5319000","Comune","Căţeleni","Raionul Hînceşti",705,168,385,152
+"5320000","Comune","Cioara","Raionul Hînceşti",1475,270,889,316
+"5321000","Comune","Ciuciuleni","Raionul Hînceşti",2487,377,1172,938
+"5322000","Comune","com. Cotul Morii","Raionul Hînceşti",1196,298,646,252
+"5322000","Localitati","Cotul Morii","Raionul Hînceşti",832,219,430,183
+"5322001","Localitati","Sărăteni","Raionul Hînceşti",364,79,216,69
+"5323000","Comune","com. Crasnoarmeiscoe","Raionul Hînceşti",2747,556,1603,588
+"5323000","Localitati","Crasnoarmeiscoe","Raionul Hînceşti",2285,467,1363,455
+"5323001","Localitati","Tălăieşti","Raionul Hînceşti",462,89,240,133
+"5324000","Comune","Dancu","Raionul Hînceşti",860,198,467,195
+"5325000","Comune","com. Drăguşenii Noi","Raionul Hînceşti",1270,215,694,361
+"5325000","Localitati","Drăguşenii Noi","Raionul Hînceşti",1091,189,593,309
+"5325001","Localitati","Horodca","Raionul Hînceşti",179,26,101,52
+"5326000","Comune","Fîrlădeni","Raionul Hînceşti",535,96,305,134
+"5327000","Comune","Fundul Galbenei","Raionul Hînceşti",1591,310,886,395
+"5328000","Comune","com. Ivanovca","Raionul Hînceşti",645,150,372,123
+"5328000","Localitati","Ivanovca","Raionul Hînceşti",373,73,215,85
+"5328001","Localitati","Costeşti","Raionul Hînceşti",238,64,139,35
+"5328002","Localitati","Frasin","Raionul Hînceşti",34,13,18,3
+"5329000","Comune","com. Lăpuşna","Raionul Hînceşti",3386,587,1767,1032
+"5329000","Localitati","Lăpuşna","Raionul Hînceşti",2947,548,1446,953
+"5329001","Localitati","Anini","Raionul Hînceşti",97,14,51,32
+"5329002","Localitati","Rusca","Raionul Hînceşti",342,25,270,47
+"5330000","Comune","com. Leuşeni","Raionul Hînceşti",1209,236,662,311
+"5330000","Localitati","Leuşeni","Raionul Hînceşti",1144,228,633,283
+"5330001","Localitati","Feteasca","Raionul Hînceşti",65,8,29,28
+"5331000","Comune","Logăneşti","Raionul Hînceşti",2323,484,1216,623
+"5332000","Comune","com. Mereşeni","Raionul Hînceşti",1531,319,789,423
+"5332000","Localitati","Mereşeni","Raionul Hînceşti",1079,193,546,340
+"5332001","Localitati","Sărata-Mereşeni","Raionul Hînceşti",452,126,243,83
+"5333000","Comune","com. Mingir","Raionul Hînceşti",2948,697,1541,710
+"5333000","Localitati","Mingir","Raionul Hînceşti",2942,697,1538,707
+"5333001","Localitati","Semionovca","Raionul Hînceşti",6,0,3,3
+"5334000","Comune","com. Mireşti","Raionul Hînceşti",828,215,431,182
+"5334000","Localitati","Mireşti","Raionul Hînceşti",597,147,317,133
+"5334001","Localitati","Chetroşeni","Raionul Hînceşti",231,68,114,49
+"5335000","Comune","Negrea","Raionul Hînceşti",941,171,471,299
+"5336000","Comune","Nemţeni","Raionul Hînceşti",927,177,476,274
+"5337000","Comune","Obileni","Raionul Hînceşti",747,128,427,192
+"5338000","Comune","com. Oneşti","Raionul Hînceşti",882,183,461,238
+"5338000","Localitati","Oneşti","Raionul Hînceşti",370,69,185,116
+"5338001","Localitati","Strîmbeni","Raionul Hînceşti",512,114,276,122
+"5339000","Comune","com. Paşcani","Raionul Hînceşti",1424,237,772,415
+"5339000","Localitati","Paşcani","Raionul Hînceşti",751,105,385,261
+"5339001","Localitati","Pereni","Raionul Hînceşti",673,132,387,154
+"5340000","Comune","Pervomaiscoe","Raionul Hînceşti",424,106,219,99
+"5341000","Comune","com. Pogăneşti","Raionul Hînceşti",932,231,505,196
+"5341000","Localitati","Pogăneşti","Raionul Hînceşti",838,205,463,170
+"5341001","Localitati","Marchet","Raionul Hînceşti",94,26,42,26
+"5342000","Comune","com. Sărata- Galbenă","Raionul Hînceşti",3752,781,2006,965
+"5342000","Localitati","Sărata- Galbenă","Raionul Hînceşti",3346,696,1763,887
+"5342001","Localitati","Brătianovca","Raionul Hînceşti",191,29,125,37
+"5342002","Localitati","Cărpineanca","Raionul Hînceşti",57,10,29,18
+"5342003","Localitati","Coroliovca","Raionul Hînceşti",41,12,21,8
+"5342004","Localitati","Valea Florii","Raionul Hînceşti",117,34,68,15
+"5343000","Comune","com. Secăreni","Raionul Hînceşti",960,186,537,237
+"5343000","Localitati","Secăreni","Raionul Hînceşti",361,75,191,95
+"5343001","Localitati","Corneşti","Raionul Hînceşti",383,73,224,86
+"5343002","Localitati","Secărenii Noi","Raionul Hînceşti",216,38,122,56
+"5344000","Comune","Sofia","Raionul Hînceşti",629,111,336,182
+"5345000","Comune","Stolniceni","Raionul Hînceşti",1111,172,618,321
+"5346000","Comune","Şipoteni","Raionul Hînceşti",443,99,221,123
+"5347000","Comune","Voinescu","Raionul Hînceşti",1418,338,740,340
+"5500000","Raioane","Raionul Ialoveni","Raionul Ialoveni",74458,16644,41685,16129
+"5501000","Comune","or. Ialoveni","Raionul Ialoveni",14665,3516,8169,2980
+"5510000","Comune","Bardar","Raionul Ialoveni",3763,828,1988,947
+"5511000","Comune","Cărbuna","Raionul Ialoveni",1251,282,711,258
+"5512000","Comune","Cigîrleni","Raionul Ialoveni",1512,304,845,363
+"5513000","Comune","Costeşti","Raionul Ialoveni",8427,1977,4595,1855
+"5514000","Comune","com. Gangura","Raionul Ialoveni",1751,365,1014,372
+"5514000","Localitati","Gangura","Raionul Ialoveni",737,161,424,152
+"5514001","Localitati","Alexandrovca","Raionul Ialoveni",578,136,325,117
+"5514002","Localitati","Homuteanovca","Raionul Ialoveni",69,5,37,27
+"5514003","Localitati","Misovca","Raionul Ialoveni",367,63,228,76
+"5515000","Comune","Dănceni","Raionul Ialoveni",1802,408,969,425
+"5516000","Comune","Hansca","Raionul Ialoveni",834,191,507,136
+"5517000","Comune","Horeşti","Raionul Ialoveni",2642,620,1466,556
+"5518000","Comune","Horodca","Raionul Ialoveni",713,152,432,129
+"5519000","Comune","Malcoci","Raionul Ialoveni",1954,452,1117,385
+"5520000","Comune","com. Mileştii Mici","Raionul Ialoveni",3136,625,1718,793
+"5520000","Localitati","Mileştii Mici","Raionul Ialoveni",2852,584,1555,713
+"5520001","Localitati","Piatra Albă","Raionul Ialoveni",284,41,163,80
+"5521000","Comune","Moleşti","Raionul Ialoveni",1907,428,1069,410
+"5522000","Comune","Nimoreni","Raionul Ialoveni",1594,327,884,383
+"5523000","Comune","Pojăreni","Raionul Ialoveni",702,129,404,169
+"5524000","Comune","Puhoi","Raionul Ialoveni",4168,933,2311,924
+"5525000","Comune","com. Răzeni","Raionul Ialoveni",5115,1180,2916,1019
+"5525000","Localitati","Răzeni","Raionul Ialoveni",4866,1124,2780,962
+"5525001","Localitati","Mileştii Noi","Raionul Ialoveni",249,56,136,57
+"5526000","Comune","com. Ruseştii Noi","Raionul Ialoveni",3984,856,2302,826
+"5526000","Localitati","Ruseştii Noi","Raionul Ialoveni",3708,787,2142,779
+"5526001","Localitati","Ruseştii Vechi","Raionul Ialoveni",276,69,160,47
+"5527000","Comune","Sociteni","Raionul Ialoveni",1438,325,872,241
+"5528000","Comune","Suruceni","Raionul Ialoveni",2262,486,1250,526
+"5529000","Comune","com. Ţipala","Raionul Ialoveni",3113,689,1785,639
+"5529000","Localitati","Ţipala","Raionul Ialoveni",2505,524,1444,537
+"5529001","Localitati","Bălţaţi","Raionul Ialoveni",381,96,215,70
+"5529002","Localitati","Budăi","Raionul Ialoveni",227,69,126,32
+"5530000","Comune","Ulmu","Raionul Ialoveni",2165,377,1207,581
+"5531000","Comune","Văratic","Raionul Ialoveni",860,217,465,178
+"5532000","Comune","Văsieni","Raionul Ialoveni",2586,534,1430,622
+"5533000","Comune","com. Zîmbreni","Raionul Ialoveni",2114,443,1259,412
+"5533000","Localitati","Zîmbreni","Raionul Ialoveni",1733,363,1029,341
+"5533001","Localitati","Găureni","Raionul Ialoveni",381,80,230,71
+"6000000","Raioane","Raionul Nisporeni","Raionul Nisporeni",36413,7628,19281,9504
+"6001000","Comune","or. Nisporeni","Raionul Nisporeni",9140,2065,4531,2544
+"6010000","Comune","com. Bălăneşti","Raionul Nisporeni",1390,259,751,380
+"6010000","Localitati","Bălăneşti","Raionul Nisporeni",1061,187,575,299
+"6010001","Localitati","Găureni","Raionul Nisporeni",329,72,176,81
+"6011000","Comune","Bălăureşti","Raionul Nisporeni",1421,273,824,324
+"6012000","Comune","Bărboieni","Raionul Nisporeni",592,157,328,107
+"6013000","Comune","com. Boldureşti","Raionul Nisporeni",1960,456,969,535
+"6013000","Localitati","Boldureşti","Raionul Nisporeni",1532,338,745,449
+"6013001","Localitati","Băcşeni","Raionul Nisporeni",340,97,172,71
+"6013002","Localitati","Chilişoaia","Raionul Nisporeni",88,21,52,15
+"6014000","Comune","Bolţun","Raionul Nisporeni",614,139,343,132
+"6015000","Comune","com. Brătuleni","Raionul Nisporeni",1111,235,608,268
+"6015000","Localitati","Brătuleni","Raionul Nisporeni",879,190,476,213
+"6015001","Localitati","Cîrneşti","Raionul Nisporeni",232,45,132,55
+"6016000","Comune","Bursuc","Raionul Nisporeni",709,119,452,138
+"6017000","Comune","Călimăneşti","Raionul Nisporeni",575,118,349,108
+"6018000","Comune","com. Cioreşti","Raionul Nisporeni",2165,438,1193,534
+"6018000","Localitati","Cioreşti","Raionul Nisporeni",1650,301,886,463
+"6018001","Localitati","Vulcăneşti","Raionul Nisporeni",515,137,307,71
+"6019000","Comune","com. Ciuteşti","Raionul Nisporeni",894,162,458,274
+"6019000","Localitati","Ciuteşti","Raionul Nisporeni",675,121,352,202
+"6019001","Localitati","Valea Nîrnovei","Raionul Nisporeni",219,41,106,72
+"6020000","Comune","Cristeşti","Raionul Nisporeni",659,128,362,169
+"6021000","Comune","Grozeşti","Raionul Nisporeni",1294,244,642,408
+"6022000","Comune","com. Iurceni","Raionul Nisporeni",1066,211,583,272
+"6022000","Localitati","Iurceni","Raionul Nisporeni",990,186,536,268
+"6022001","Localitati","Mîrzoaia","Raionul Nisporeni",76,25,47,4
+"6023000","Comune","com. Marinici","Raionul Nisporeni",1333,243,734,356
+"6023000","Localitati","Marinici","Raionul Nisporeni",1147,211,623,313
+"6023001","Localitati","Heleşteni","Raionul Nisporeni",186,32,111,43
+"6024000","Comune","Mileşti","Raionul Nisporeni",1575,316,867,392
+"6025000","Comune","com. Selişte","Raionul Nisporeni",1740,337,930,473
+"6025000","Localitati","Selişte","Raionul Nisporeni",1479,274,796,409
+"6025001","Localitati","Păruceni","Raionul Nisporeni",261,63,134,64
+"6026000","Comune","Soltăneşti","Raionul Nisporeni",965,232,497,236
+"6027000","Comune","com. Şişcani","Raionul Nisporeni",1291,262,667,362
+"6027000","Localitati","Şişcani","Raionul Nisporeni",939,176,490,273
+"6027001","Localitati","Drojdieni","Raionul Nisporeni",289,73,146,70
+"6027002","Localitati","Odaia","Raionul Nisporeni",63,13,31,19
+"6028000","Comune","com. Valea-Trestieni","Raionul Nisporeni",1175,279,652,244
+"6028000","Localitati","Valea-Trestieni","Raionul Nisporeni",393,85,209,99
+"6028001","Localitati","Isăicani","Raionul Nisporeni",570,162,324,84
+"6028002","Localitati","Luminiţa","Raionul Nisporeni",93,6,49,38
+"6028003","Localitati","Odobeşti","Raionul Nisporeni",54,9,35,10
+"6028004","Localitati","Selişteni","Raionul Nisporeni",65,17,35,13
+"6029000","Comune","com. Vărzăreşti","Raionul Nisporeni",3208,630,1703,875
+"6029000","Localitati","Vărzăreşti","Raionul Nisporeni",2328,476,1243,609
+"6029001","Localitati","Şendreni","Raionul Nisporeni",880,154,460,266
+"6030000","Comune","Vînători","Raionul Nisporeni",511,105,269,137
+"6031000","Comune","Zberoaia","Raionul Nisporeni",1025,220,569,236
+"6400000","Raioane","Raionul Orhei","Raionul Orhei",79242,16340,43672,19230
+"6401000","Comune","or. Orhei","Raionul Orhei",22183,4813,12105,5265
+"6410000","Comune","com. Berezlogi","Raionul Orhei",1292,266,663,363
+"6410000","Localitati","Berezlogi","Raionul Orhei",873,190,424,259
+"6410001","Localitati","Hîjdieni","Raionul Orhei",419,76,239,104
+"6411000","Comune","com. Bieşti","Raionul Orhei",1675,363,881,431
+"6411000","Localitati","Bieşti","Raionul Orhei",707,151,381,175
+"6411001","Localitati","Cihoreni","Raionul Orhei",581,140,306,135
+"6411002","Localitati","Slobozia-Hodorogea","Raionul Orhei",387,72,194,121
+"6412000","Comune","Bolohan","Raionul Orhei",977,192,508,277
+"6413000","Comune","Brăviceni","Raionul Orhei",1384,293,743,348
+"6414000","Comune","Bulăieşti","Raionul Orhei",1067,198,658,211
+"6415000","Comune","com. Chiperceni","Raionul Orhei",1982,427,1092,463
+"6415000","Localitati","Chiperceni","Raionul Orhei",1401,312,753,336
+"6415001","Localitati","Andreevca","Raionul Orhei",92,19,54,19
+"6415002","Localitati","Voroteţ","Raionul Orhei",489,96,285,108
+"6416000","Comune","com. Ciocîlteni","Raionul Orhei",1847,343,917,587
+"6416000","Localitati","Ciocîlteni","Raionul Orhei",1335,269,638,428
+"6416001","Localitati","Clişova Nouă","Raionul Orhei",264,30,160,74
+"6416002","Localitati","Fedoreuca","Raionul Orhei",248,44,119,85
+"6417000","Comune","Clişova","Raionul Orhei",679,144,374,161
+"6418000","Comune","com. Crihana","Raionul Orhei",652,101,371,180
+"6418000","Localitati","Crihana","Raionul Orhei",133,15,94,24
+"6418001","Localitati","Cucuruzenii de Sus","Raionul Orhei",221,32,95,94
+"6418002","Localitati","Sirota","Raionul Orhei",298,54,182,62
+"6419000","Comune","com. Cucuruzeni","Raionul Orhei",1350,244,719,387
+"6419000","Localitati","Cucuruzeni","Raionul Orhei",1131,200,618,313
+"6419001","Localitati","Ocniţa-Răzeşi","Raionul Orhei",219,44,101,74
+"6420000","Comune","com. Donici","Raionul Orhei",1227,251,693,283
+"6420000","Localitati","Donici","Raionul Orhei",524,105,271,148
+"6420001","Localitati","Camencea","Raionul Orhei",657,141,387,129
+"6420002","Localitati","Pocşeşti","Raionul Orhei",46,5,35,6
+"6421000","Comune","com. Ghetlova","Raionul Orhei",1553,277,899,377
+"6421000","Localitati","Ghetlova","Raionul Orhei",914,152,555,207
+"6421001","Localitati","Hulboaca","Raionul Orhei",382,83,189,110
+"6421002","Localitati","Noroceni","Raionul Orhei",257,42,155,60
+"6422000","Comune","Isacova","Raionul Orhei",1102,186,578,338
+"6423000","Comune","com. Ivancea","Raionul Orhei",3624,585,2277,762
+"6423000","Localitati","Ivancea","Raionul Orhei",1286,214,663,409
+"6423001","Localitati","Brăneşti","Raionul Orhei",1573,208,1170,195
+"6423002","Localitati","Furceni","Raionul Orhei",765,163,444,158
+"6424000","Comune","com. Jora de Mijloc","Raionul Orhei",2289,417,1264,608
+"6424000","Localitati","Jora de Mijloc","Raionul Orhei",540,94,297,149
+"6424001","Localitati","Jora de Jos","Raionul Orhei",999,179,548,272
+"6424002","Localitati","Jora de Sus","Raionul Orhei",417,69,231,117
+"6424003","Localitati","Lopatna","Raionul Orhei",333,75,188,70
+"6425000","Comune","com. Mălăieşti","Raionul Orhei",897,183,442,272
+"6425000","Localitati","Mălăieşti","Raionul Orhei",709,151,346,212
+"6425001","Localitati","Tîrzieni","Raionul Orhei",188,32,96,60
+"6426000","Comune","Mitoc","Raionul Orhei",1800,370,991,439
+"6426100","Comune","com. Mîrzeşti","Raionul Orhei",816,177,462,177
+"6426100","Localitati","Mîrzeşti","Raionul Orhei",447,89,258,100
+"6426101","Localitati","Mîrzaci","Raionul Orhei",369,88,204,77
+"6427000","Comune","com. Morozeni","Raionul Orhei",1143,204,646,293
+"6427000","Localitati","Morozeni","Raionul Orhei",827,157,462,208
+"6427001","Localitati","Breanova","Raionul Orhei",316,47,184,85
+"6428000","Comune","Neculăieuca","Raionul Orhei",817,181,435,201
+"6429000","Comune","com. Pelivan","Raionul Orhei",2397,490,1277,630
+"6429000","Localitati","Pelivan","Raionul Orhei",1430,287,741,402
+"6429001","Localitati","Cişmea","Raionul Orhei",967,203,536,228
+"6430000","Comune","Peresecina","Raionul Orhei",6076,1250,3443,1383
+"6431000","Comune","com. Piatra","Raionul Orhei",1832,391,1061,380
+"6431000","Localitati","Piatra","Raionul Orhei",1367,300,780,287
+"6431001","Localitati","Jeloboc","Raionul Orhei",465,91,281,93
+"6432000","Comune","Podgoreni","Raionul Orhei",644,123,366,155
+"6432100","Comune","Pohorniceni","Raionul Orhei",847,192,494,161
+"6433000","Comune","com. Pohrebeni","Raionul Orhei",1861,429,1019,413
+"6433000","Localitati","Pohrebeni","Raionul Orhei",1385,327,747,311
+"6433001","Localitati","Izvoare","Raionul Orhei",173,28,99,46
+"6433002","Localitati","Şercani","Raionul Orhei",303,74,173,56
+"6434000","Comune","com. Puţintei","Raionul Orhei",1382,289,801,292
+"6434000","Localitati","Puţintei","Raionul Orhei",528,119,294,115
+"6434001","Localitati","Dişcova","Raionul Orhei",492,103,292,97
+"6434002","Localitati","Vîprova","Raionul Orhei",362,67,215,80
+"6435000","Comune","Sămănanca","Raionul Orhei",619,165,349,105
+"6436000","Comune","com. Selişte","Raionul Orhei",2822,622,1476,724
+"6436000","Localitati","Selişte","Raionul Orhei",1393,306,734,353
+"6436001","Localitati","Lucăşeuca","Raionul Orhei",1176,266,610,300
+"6436002","Localitati","Mana","Raionul Orhei",253,50,132,71
+"6437000","Comune","com. Step-Soci","Raionul Orhei",1673,379,910,384
+"6437000","Localitati","Step-Soci","Raionul Orhei",1398,325,743,330
+"6437001","Localitati","Budăi","Raionul Orhei",275,54,167,54
+"6438000","Comune","Susleni","Raionul Orhei",2669,507,1388,774
+"6439000","Comune","Teleşeu","Raionul Orhei",978,232,510,236
+"6440000","Comune","com. Trebujeni","Raionul Orhei",1169,208,650,311
+"6440000","Localitati","Trebujeni","Raionul Orhei",898,153,498,247
+"6440001","Localitati","Butuceni","Raionul Orhei",186,36,105,45
+"6440002","Localitati","Morovaia","Raionul Orhei",85,19,47,19
+"6441000","Comune","com. Vatici","Raionul Orhei",1513,358,834,321
+"6441000","Localitati","Vatici","Raionul Orhei",587,129,333,125
+"6441001","Localitati","Curchi","Raionul Orhei",263,48,147,68
+"6441002","Localitati","Tabăra","Raionul Orhei",663,181,354,128
+"6442000","Comune","Vîşcăuţi","Raionul Orhei",876,178,512,186
+"6443000","Comune","Zahoreni","Raionul Orhei",855,163,492,200
+"6444000","Comune","com. Zorile","Raionul Orhei",673,149,372,152
+"6444000","Localitati","Zorile","Raionul Orhei",547,117,296,134
+"6444001","Localitati","Inculeţ","Raionul Orhei",77,21,44,12
+"6444002","Localitati","Ocniţa-Ţărani","Raionul Orhei",49,11,32,6
+"6700000","Raioane","Raionul Rezina","Raionul Rezina",30243,6011,16759,7473
+"6701000","Comune","or. Rezina","Raionul Rezina",9380,2030,5033,2317
+"6701000","Localitati","Rezina","Raionul Rezina",7586,1756,3970,1860
+"6701001","Localitati","Boşerniţa","Raionul Rezina",289,41,157,91
+"6701002","Localitati","Ciorna","Raionul Rezina",816,137,438,241
+"6701003","Localitati","Stohnaia","Raionul Rezina",689,96,468,125
+"6710000","Comune","Buşăuca","Raionul Rezina",611,129,317,165
+"6711000","Comune","Cinişeuţi","Raionul Rezina",1920,416,1050,454
+"6712000","Comune","Cogîlniceni","Raionul Rezina",339,81,179,79
+"6713000","Comune","Cuizăuca","Raionul Rezina",839,204,448,187
+"6714000","Comune","Echimăuţi","Raionul Rezina",1130,177,662,291
+"6715000","Comune","com. Ghiduleni","Raionul Rezina",695,146,388,161
+"6715000","Localitati","Ghiduleni","Raionul Rezina",552,103,309,140
+"6715001","Localitati","Roşcanii de Jos","Raionul Rezina",34,15,15,4
+"6715002","Localitati","Roşcanii de Sus","Raionul Rezina",109,28,64,17
+"6716000","Comune","Gordineşti","Raionul Rezina",567,96,307,164
+"6717000","Comune","com. Horodişte","Raionul Rezina",833,149,490,194
+"6717000","Localitati","Horodişte","Raionul Rezina",519,98,303,118
+"6717001","Localitati","Slobozia-Horodişte","Raionul Rezina",314,51,187,76
+"6718000","Comune","Ignăţei","Raionul Rezina",1432,242,786,404
+"6719000","Comune","com. Lalova","Raionul Rezina",682,102,365,215
+"6719000","Localitati","Lalova","Raionul Rezina",554,84,288,182
+"6719001","Localitati","Nistreni","Raionul Rezina",0,,,
+"6719002","Localitati","Ţipova","Raionul Rezina",128,18,77,33
+"6720000","Comune","Lipceni","Raionul Rezina",367,70,228,69
+"6721000","Comune","Mateuţi","Raionul Rezina",1416,287,797,332
+"6722000","Comune","Meşeni","Raionul Rezina",536,92,339,105
+"6723000","Comune","com. Mincenii de Jos","Raionul Rezina",413,69,251,93
+"6723000","Localitati","Mincenii de Jos","Raionul Rezina",224,35,142,47
+"6723001","Localitati","Mincenii de Sus","Raionul Rezina",189,34,109,46
+"6724000","Comune","Otac","Raionul Rezina",368,46,227,95
+"6725000","Comune","Păpăuţi","Raionul Rezina",891,182,493,216
+"6726000","Comune","Pecişte","Raionul Rezina",1188,257,707,224
+"6726100","Comune","com. Pereni","Raionul Rezina",375,79,217,79
+"6726100","Localitati","Pereni","Raionul Rezina",343,66,203,74
+"6726101","Localitati","Roşcani","Raionul Rezina",32,13,14,5
+"6727000","Comune","com. Pripiceni-Răzeşi","Raionul Rezina",801,194,446,161
+"6727000","Localitati","Pripiceni-Răzeşi","Raionul Rezina",564,130,319,115
+"6727001","Localitati","Pripiceni-Curchi","Raionul Rezina",237,64,127,46
+"6728000","Comune","com. Saharna Nouă","Raionul Rezina",970,145,548,277
+"6728000","Localitati","Saharna Nouă","Raionul Rezina",554,93,314,147
+"6728001","Localitati","Buciuşca","Raionul Rezina",144,10,87,47
+"6728002","Localitati","Saharna","Raionul Rezina",272,42,147,83
+"6729000","Comune","com. Sîrcova","Raionul Rezina",1289,249,732,308
+"6729000","Localitati","Sîrcova","Raionul Rezina",1035,204,585,246
+"6729001","Localitati","Piscăreşti","Raionul Rezina",254,45,147,62
+"6730000","Comune","com. Solonceni","Raionul Rezina",874,164,479,231
+"6730000","Localitati","Solonceni","Raionul Rezina",588,95,315,178
+"6730001","Localitati","Tarasova","Raionul Rezina",286,69,164,53
+"6731000","Comune","Trifeşti","Raionul Rezina",509,100,281,128
+"6732000","Comune","com. Ţareuca","Raionul Rezina",1818,305,989,524
+"6732000","Localitati","Ţareuca","Raionul Rezina",1006,179,543,284
+"6732001","Localitati","Ţahnăuţi","Raionul Rezina",812,126,446,240
+"8000000","Raioane","Raionul Străşeni","Raionul Străşeni",61362,13044,33101,15217
+"8001000","Comune","or. Străşeni","Raionul Străşeni",14497,3394,7729,3374
+"8001000","Localitati","Străşeni","Raionul Străşeni",13915,3261,7388,3266
+"8001001","Localitati","Făgureni","Raionul Străşeni",582,133,341,108
+"8002000","Comune","or. Bucovăţ","Raionul Străşeni",1064,212,549,303
+"8002000","Localitati","Bucovăţ","Raionul Străşeni",807,161,404,242
+"8002001","Localitati","Rassvet","Raionul Străşeni",257,51,145,61
+"8010000","Comune","Căpriana","Raionul Străşeni",1560,352,845,363
+"8011000","Comune","Chirianca","Raionul Străşeni",660,125,354,181
+"8012000","Comune","com. Codreanca","Raionul Străşeni",1765,387,971,407
+"8012000","Localitati","Codreanca","Raionul Străşeni",1459,330,786,343
+"8012001","Localitati","Lupa-Recea","Raionul Străşeni",306,57,185,64
+"8013000","Comune","Cojuşna","Raionul Străşeni",5235,1137,2806,1292
+"8014000","Comune","Dolna","Raionul Străşeni",699,132,391,176
+"8015000","Comune","com. Găleşti","Raionul Străşeni",1673,312,888,473
+"8015000","Localitati","Găleşti","Raionul Străşeni",1218,219,648,351
+"8015001","Localitati","Găleştii Noi","Raionul Străşeni",455,93,240,122
+"8016000","Comune","com. Ghelăuza","Raionul Străşeni",810,167,458,185
+"8016000","Localitati","Ghelăuza","Raionul Străşeni",490,71,288,131
+"8016001","Localitati","Saca","Raionul Străşeni",320,96,170,54
+"8017000","Comune","com. Grebleşti","Raionul Străşeni",536,101,283,152
+"8017000","Localitati","Grebleşti","Raionul Străşeni",448,85,231,132
+"8017001","Localitati","Mărtineşti","Raionul Străşeni",88,16,52,20
+"8018000","Comune","com. Lozova","Raionul Străşeni",3857,702,2015,1140
+"8018000","Localitati","Lozova","Raionul Străşeni",3616,657,1891,1068
+"8018001","Localitati","Stejăreni","Raionul Străşeni",241,45,124,72
+"8019000","Comune","com. Micăuţi","Raionul Străşeni",2302,522,1298,482
+"8019000","Localitati","Micăuţi","Raionul Străşeni",2037,451,1163,423
+"8019001","Localitati","Gornoe","Raionul Străşeni",265,71,135,59
+"8020000","Comune","com. Micleuşeni","Raionul Străşeni",1465,306,767,392
+"8020000","Localitati","Micleuşeni","Raionul Străşeni",1316,280,673,363
+"8020001","Localitati","Huzun","Raionul Străşeni",149,26,94,29
+"8021000","Comune","Negreşti","Raionul Străşeni",1136,280,621,235
+"8022000","Comune","Oneşti","Raionul Străşeni",532,95,274,163
+"8023000","Comune","com. Pănăşeşti","Raionul Străşeni",2327,481,1274,572
+"8023000","Localitati","Pănăşeşti","Raionul Străşeni",1835,383,983,469
+"8023001","Localitati","Ciobanca","Raionul Străşeni",492,98,291,103
+"8024000","Comune","com. Rădeni","Raionul Străşeni",1935,379,1010,546
+"8024000","Localitati","Rădeni","Raionul Străşeni",598,102,300,196
+"8024001","Localitati","Drăguşeni","Raionul Străşeni",612,125,331,156
+"8024002","Localitati","Zamcioji","Raionul Străşeni",725,152,379,194
+"8025000","Comune","Recea","Raionul Străşeni",1483,304,757,422
+"8026000","Comune","Romăneşti","Raionul Străşeni",972,179,510,283
+"8027000","Comune","Roşcani","Raionul Străşeni",1254,290,679,285
+"8028000","Comune","Scoreni","Raionul Străşeni",2658,469,1503,686
+"8029000","Comune","Sireţi","Raionul Străşeni",4824,1146,2719,959
+"8030000","Comune","Tătăreşti","Raionul Străşeni",985,175,498,312
+"8031000","Comune","Ţigăneşti","Raionul Străşeni",982,219,550,213
+"8032000","Comune","Voinova","Raionul Străşeni",985,206,570,209
+"8033000","Comune","Vorniceni","Raionul Străşeni",3073,553,1642,878
+"8034000","Comune","Zubreşti","Raionul Străşeni",2093,419,1140,534
+"8300000","Raioane","Raionul Şoldăneşti","Raionul Şoldăneşti",25394,5252,13919,6223
+"8301000","Comune","or. Şoldăneşti","Raionul Şoldăneşti",4797,1031,2526,1240
+"8310000","Comune","com. Alcedar","Raionul Şoldăneşti",803,147,456,200
+"8310000","Localitati","Alcedar","Raionul Şoldăneşti",591,118,330,143
+"8310001","Localitati","Curătura","Raionul Şoldăneşti",211,29,125,57
+"8310002","Localitati","Odaia","Raionul Şoldăneşti",1,0,1,0
+"8311000","Comune","Chipeşca","Raionul Şoldăneşti",901,185,530,186
+"8312000","Comune","com. Climăuţii de Jos","Raionul Şoldăneşti",776,142,431,203
+"8312000","Localitati","Climăuţii de Jos","Raionul Şoldăneşti",578,97,332,149
+"8312001","Localitati","Cot","Raionul Şoldăneşti",198,45,99,54
+"8313000","Comune","Cobîlea","Raionul Şoldăneşti",1514,283,792,439
+"8314000","Comune","com. Cotiujenii Mari","Raionul Şoldăneşti",2169,428,1152,589
+"8314000","Localitati","Cotiujenii Mari","Raionul Şoldăneşti",1948,393,1025,530
+"8314001","Localitati","Cobîlea, loc.st.c.f.","Raionul Şoldăneşti",173,33,100,40
+"8314002","Localitati","Cuşelăuca","Raionul Şoldăneşti",48,2,27,19
+"8315000","Comune","Cuşmirca","Raionul Şoldăneşti",1359,293,748,318
+"8316000","Comune","com. Dobruşa","Raionul Şoldăneşti",881,172,505,204
+"8316000","Localitati","Dobruşa","Raionul Şoldăneşti",513,98,292,123
+"8316001","Localitati","Receşti","Raionul Şoldăneşti",192,46,110,36
+"8316002","Localitati","Zahorna","Raionul Şoldăneşti",176,28,103,45
+"8317000","Comune","Fuzăuca","Raionul Şoldăneşti",464,94,276,94
+"8318000","Comune","Găuzeni","Raionul Şoldăneşti",908,244,510,154
+"8319000","Comune","Glinjeni","Raionul Şoldăneşti",507,91,286,130
+"8320000","Comune","Mihuleni","Raionul Şoldăneşti",348,75,183,90
+"8321000","Comune","Olişcani","Raionul Şoldăneşti",1691,360,912,419
+"8322000","Comune","Parcani","Raionul Şoldăneşti",541,123,312,106
+"8323000","Comune","Pohoarna","Raionul Şoldăneşti",1123,205,572,346
+"8324000","Comune","Poiana","Raionul Şoldăneşti",528,107,316,105
+"8325000","Comune","Răspopeni","Raionul Şoldăneşti",1823,451,976,396
+"8326000","Comune","com. Rogojeni","Raionul Şoldăneşti",433,76,239,118
+"8326000","Localitati","Rogojeni","Raionul Şoldăneşti",30,5,17,8
+"8326001","Localitati","Rogojeni, loc.st.c.f.","Raionul Şoldăneşti",403,71,222,110
+"8327000","Comune","com. Salcia","Raionul Şoldăneşti",642,144,366,132
+"8327000","Localitati","Salcia","Raionul Şoldăneşti",635,144,360,131
+"8327001","Localitati","Lelina","Raionul Şoldăneşti",7,0,6,1
+"8328000","Comune","Sămăşcani","Raionul Şoldăneşti",808,158,491,159
+"8329000","Comune","Şestaci","Raionul Şoldăneşti",740,134,410,196
+"8330000","Comune","Şipca","Raionul Şoldăneşti",491,92,276,123
+"8331000","Comune","com. Vadul-Raşcov","Raionul Şoldăneşti",1147,217,654,276
+"8331000","Localitati","Vadul-Raşcov","Raionul Şoldăneşti",734,119,411,204
+"8331001","Localitati","Socola","Raionul Şoldăneşti",413,98,243,72
+"8900000","Raioane","Raionul Teleneşti","Raionul Teleneşti",41452,8442,22211,10799
+"8901000","Comune","or. Teleneşti","Raionul Teleneşti",5670,1241,2826,1603
+"8901000","Localitati","Teleneşti","Raionul Teleneşti",4695,1028,2321,1346
+"8901001","Localitati","Mihălaşa","Raionul Teleneşti",718,156,348,214
+"8901002","Localitati","Mihălaşa Nouă","Raionul Teleneşti",257,57,157,43
+"8910000","Comune","com. Băneşti","Raionul Teleneşti",2185,507,1234,444
+"8910000","Localitati","Băneşti","Raionul Teleneşti",1638,356,935,347
+"8910001","Localitati","Băneştii Noi","Raionul Teleneşti",547,151,299,97
+"8911000","Comune","Bogzeşti","Raionul Teleneşti",336,59,196,81
+"8912000","Comune","com. Brînzenii Noi","Raionul Teleneşti",1634,334,866,434
+"8912000","Localitati","Brînzenii Noi","Raionul Teleneşti",570,128,286,156
+"8912001","Localitati","Brînzenii Vechi","Raionul Teleneşti",1064,206,580,278
+"8913000","Comune","Budăi","Raionul Teleneşti",1087,225,578,284
+"8914000","Comune","com. Căzăneşti","Raionul Teleneşti",1933,392,1055,486
+"8914000","Localitati","Căzăneşti","Raionul Teleneşti",1025,212,522,291
+"8914001","Localitati","Vadul-Leca","Raionul Teleneşti",891,175,523,193
+"8914002","Localitati","Vadul-Leca Nou","Raionul Teleneşti",17,5,10,2
+"8915000","Comune","Chiştelniţa","Raionul Teleneşti",1928,416,1043,469
+"8916000","Comune","com. Chiţcanii Vechi","Raionul Teleneşti",1498,251,859,388
+"8916000","Localitati","Chiţcanii Vechi","Raionul Teleneşti",1317,230,752,335
+"8916001","Localitati","Chiţcanii Noi","Raionul Teleneşti",181,21,107,53
+"8916100","Comune","Ciulucani","Raionul Teleneşti",1010,187,570,253
+"8917000","Comune","Cîşla","Raionul Teleneşti",558,99,319,140
+"8918000","Comune","Codrul Nou","Raionul Teleneşti",395,81,222,92
+"8919000","Comune","Coropceni","Raionul Teleneşti",919,195,514,210
+"8920000","Comune","Crăsnăşeni","Raionul Teleneşti",644,165,345,134
+"8921000","Comune","com. Ghiliceni","Raionul Teleneşti",1637,320,910,407
+"8921000","Localitati","Ghiliceni","Raionul Teleneşti",1087,236,589,262
+"8921001","Localitati","Cucioaia","Raionul Teleneşti",537,82,315,140
+"8921002","Localitati","Cucioaia Nouă","Raionul Teleneşti",13,2,6,5
+"8922000","Comune","Hirişeni","Raionul Teleneşti",842,134,421,287
+"8923000","Comune","Ineşti","Raionul Teleneşti",1475,301,783,391
+"8924000","Comune","Leuşeni","Raionul Teleneşti",1166,261,636,269
+"8925000","Comune","com. Mîndreşti","Raionul Teleneşti",2508,462,1279,767
+"8925000","Localitati","Mîndreşti","Raionul Teleneşti",2179,415,1110,654
+"8925001","Localitati","Codru","Raionul Teleneşti",329,47,169,113
+"8926000","Comune","com. Negureni","Raionul Teleneşti",1840,400,1044,396
+"8926000","Localitati","Negureni","Raionul Teleneşti",1832,400,1041,391
+"8926001","Localitati","Chersac","Raionul Teleneşti",8,0,3,5
+"8926002","Localitati","Dobrușa","Raionul Teleneşti",0,0,0,0
+"8927000","Comune","Nucăreni","Raionul Teleneşti",611,133,354,124
+"8928000","Comune","Ordăşei","Raionul Teleneşti",469,62,233,174
+"8929000","Comune","com. Pistruieni","Raionul Teleneşti",655,140,369,146
+"8929000","Localitati","Pistruieni","Raionul Teleneşti",446,88,253,105
+"8929001","Localitati","Hîrtop","Raionul Teleneşti",144,36,85,23
+"8929002","Localitati","Pistruienii Noi","Raionul Teleneşti",65,16,31,18
+"8930000","Comune","com. Ratuş","Raionul Teleneşti",1080,224,581,275
+"8930000","Localitati","Ratuş","Raionul Teleneşti",508,87,248,173
+"8930001","Localitati","Mîndra","Raionul Teleneşti",245,75,127,43
+"8930002","Localitati","Sărătenii Noi","Raionul Teleneşti",114,14,80,20
+"8930003","Localitati","Zăicani","Raionul Teleneşti",104,30,56,18
+"8930004","Localitati","Zăicanii Noi","Raionul Teleneşti",109,18,70,21
+"8931000","Comune","com. Sărătenii Vechi","Raionul Teleneşti",1709,319,846,544
+"8931000","Localitati","Sărătenii Vechi","Raionul Teleneşti",1561,289,770,502
+"8931001","Localitati","Zahareuca","Raionul Teleneşti",148,30,76,42
+"8932000","Comune","Scorţeni","Raionul Teleneşti",1459,322,793,344
+"8933000","Comune","com. Suhuluceni","Raionul Teleneşti",1111,209,566,336
+"8933000","Localitati","Suhuluceni","Raionul Teleneşti",797,142,386,269
+"8933001","Localitati","Ghermăneşti","Raionul Teleneşti",314,67,180,67
+"8934000","Comune","com. Tîrşiţei","Raionul Teleneşti",1022,186,574,262
+"8934000","Localitati","Tîrşiţei","Raionul Teleneşti",807,148,444,215
+"8934001","Localitati","Flutura","Raionul Teleneşti",215,38,130,47
+"8935000","Comune","Ţînţăreni","Raionul Teleneşti",988,170,523,295
+"8936000","Comune","Văsieni","Raionul Teleneşti",763,163,410,190
+"8937000","Comune","Verejeni","Raionul Teleneşti",1835,395,1006,434
+"8938000","Comune","com. Zgărdeşti","Raionul Teleneşti",485,89,256,140
+"8938000","Localitati","Zgărdeşti","Raionul Teleneşti",472,85,248,139
+"8938001","Localitati","Bondareuca","Raionul Teleneşti",0,0,0,0
+"8938002","Localitati","Ciofu","Raionul Teleneşti",13,4,8,1
+"9200000","Raioane","Raionul Ungheni","Raionul Ungheni",75804,16831,42237,16736
+"9201000","Comune","or. Ungheni","Raionul Ungheni",26457,6019,15132,5306
+"9202000","Comune","or. Corneşti","Raionul Ungheni",1698,311,877,510
+"9202000","Localitati","Corneşti","Raionul Ungheni",1390,254,712,424
+"9202001","Localitati","Romanovca","Raionul Ungheni",308,57,165,86
+"9210000","Comune","com. Agronomovca","Raionul Ungheni",740,147,414,179
+"9210000","Localitati","Agronomovca","Raionul Ungheni",497,91,286,120
+"9210001","Localitati","Negurenii Noi","Raionul Ungheni",55,17,30,8
+"9210002","Localitati","Zăzulenii Noi","Raionul Ungheni",188,39,98,51
+"9211000","Comune","com. Alexeevca","Raionul Ungheni",708,148,369,191
+"9211000","Localitati","Alexeevca","Raionul Ungheni",638,139,330,169
+"9211001","Localitati","Lidovca","Raionul Ungheni",39,4,25,10
+"9211002","Localitati","Săghieni","Raionul Ungheni",31,5,14,12
+"9212000","Comune","com. Boghenii Noi","Raionul Ungheni",919,184,491,244
+"9212000","Localitati","Boghenii Noi","Raionul Ungheni",350,65,209,76
+"9212001","Localitati","Boghenii Vechi","Raionul Ungheni",168,33,89,46
+"9212002","Localitati","Izvoreni","Raionul Ungheni",50,12,26,12
+"9212003","Localitati","Mirceşti","Raionul Ungheni",179,32,92,55
+"9212004","Localitati","Poiana","Raionul Ungheni",172,42,75,55
+"9213000","Comune","com. Buciumeni","Raionul Ungheni",968,218,556,194
+"9213000","Localitati","Buciumeni","Raionul Ungheni",424,91,261,72
+"9213001","Localitati","Buciumeni, loc.st.c.f.","Raionul Ungheni",8,0,5,3
+"9213002","Localitati","Floreşti","Raionul Ungheni",536,127,290,119
+"9214000","Comune","Bumbăta","Raionul Ungheni",1305,240,712,353
+"9215000","Comune","Buşila","Raionul Ungheni",1301,285,796,220
+"9216000","Comune","Cetireni","Raionul Ungheni",1285,263,666,356
+"9217000","Comune","Chirileni","Raionul Ungheni",1074,215,602,257
+"9218000","Comune","com. Cioropcani","Raionul Ungheni",1567,348,811,408
+"9218000","Localitati","Cioropcani","Raionul Ungheni",946,220,472,254
+"9218001","Localitati","Bulhac","Raionul Ungheni",102,23,57,22
+"9218002","Localitati","Stolniceni","Raionul Ungheni",519,105,282,132
+"9219000","Comune","com. Condrăteşti","Raionul Ungheni",618,118,350,150
+"9219000","Localitati","Condrăteşti","Raionul Ungheni",517,102,297,118
+"9219001","Localitati","Curtoaia","Raionul Ungheni",101,16,53,32
+"9220000","Comune","Corneşti","Raionul Ungheni",1149,211,593,345
+"9221000","Comune","Cornova","Raionul Ungheni",599,102,338,159
+"9222000","Comune","Costuleni","Raionul Ungheni",2249,526,1222,501
+"9223000","Comune","com. Floriţoaia Veche","Raionul Ungheni",1379,288,769,322
+"9223000","Localitati","Floriţoaia Veche","Raionul Ungheni",580,121,309,150
+"9223001","Localitati","Floriţoaia Nouă","Raionul Ungheni",506,96,301,109
+"9223002","Localitati","Grozasca","Raionul Ungheni",293,71,159,63
+"9224000","Comune","com. Hîrceşti","Raionul Ungheni",1148,232,601,315
+"9224000","Localitati","Hîrceşti","Raionul Ungheni",400,59,239,102
+"9224001","Localitati","Drujba","Raionul Ungheni",419,105,192,122
+"9224002","Localitati","Leordoaia","Raionul Ungheni",17,1,14,2
+"9224003","Localitati","Mînzăteşti","Raionul Ungheni",226,51,106,69
+"9224004","Localitati","Veveriţa","Raionul Ungheni",86,16,50,20
+"9225000","Comune","com. Măcăreşti","Raionul Ungheni",3146,689,1814,643
+"9225000","Localitati","Măcăreşti","Raionul Ungheni",2246,493,1306,447
+"9225001","Localitati","Frăsineşti","Raionul Ungheni",900,196,508,196
+"9226000","Comune","Măgurele","Raionul Ungheni",414,82,211,121
+"9227000","Comune","com. Mănoileşti","Raionul Ungheni",2390,540,1346,504
+"9227000","Localitati","Mănoileşti","Raionul Ungheni",600,115,366,119
+"9227001","Localitati","Novaia Nicolaevca","Raionul Ungheni",165,44,84,37
+"9227002","Localitati","Rezina","Raionul Ungheni",521,117,285,119
+"9227003","Localitati","Vulpeşti","Raionul Ungheni",1104,264,611,229
+"9228000","Comune","com. Morenii Noi","Raionul Ungheni",848,232,464,152
+"9228000","Localitati","Morenii Noi","Raionul Ungheni",751,205,409,137
+"9228001","Localitati","Şicovăţ","Raionul Ungheni",97,27,55,15
+"9229000","Comune","Năpădeni","Raionul Ungheni",512,99,276,137
+"9230000","Comune","com. Negurenii Vechi","Raionul Ungheni",1158,215,623,320
+"9230000","Localitati","Negurenii Vechi","Raionul Ungheni",393,66,207,120
+"9230001","Localitati","Coşeni","Raionul Ungheni",196,35,100,61
+"9230002","Localitati","Ţîghira","Raionul Ungheni",389,84,213,92
+"9230003","Localitati","Zăzulenii Vechi","Raionul Ungheni",180,30,103,47
+"9231000","Comune","com. Petreşti","Raionul Ungheni",3153,745,1802,606
+"9231000","Localitati","Petreşti","Raionul Ungheni",2875,706,1641,528
+"9231001","Localitati","Medeleni","Raionul Ungheni",266,39,153,74
+"9231002","Localitati","Petreşti, loc.st.c.f.","Raionul Ungheni",12,0,8,4
+"9232000","Comune","com. Pîrliţa","Raionul Ungheni",3722,884,1988,850
+"9232000","Localitati","Pîrliţa","Raionul Ungheni",3364,794,1805,765
+"9232001","Localitati","Hristoforovca","Raionul Ungheni",358,90,183,85
+"9233000","Comune","Rădenii Vechi","Raionul Ungheni",1027,203,536,288
+"9234000","Comune","com. Sculeni","Raionul Ungheni",3773,854,2069,850
+"9234000","Localitati","Sculeni","Raionul Ungheni",1906,406,1039,461
+"9234001","Localitati","Blindeşti","Raionul Ungheni",429,113,218,98
+"9234002","Localitati","Floreni","Raionul Ungheni",210,54,123,33
+"9234003","Localitati","Gherman","Raionul Ungheni",1228,281,689,258
+"9235000","Comune","com. Sineşti","Raionul Ungheni",697,139,366,192
+"9235000","Localitati","Sineşti","Raionul Ungheni",671,133,354,184
+"9235001","Localitati","Pojarna","Raionul Ungheni",26,6,12,8
+"9236000","Comune","Teşcureni","Raionul Ungheni",646,109,379,158
+"9237000","Comune","com. Todireşti","Raionul Ungheni",2794,683,1573,538
+"9237000","Localitati","Todireşti","Raionul Ungheni",2178,518,1216,444
+"9237001","Localitati","Grăseni","Raionul Ungheni",616,165,357,94
+"9238000","Comune","Unţeşti","Raionul Ungheni",1127,227,663,237
+"9239000","Comune","com. Valea Mare","Raionul Ungheni",2327,539,1238,550
+"9239000","Localitati","Valea Mare","Raionul Ungheni",1111,277,605,229
+"9239001","Localitati","Buzduganii de Jos","Raionul Ungheni",366,75,169,122
+"9239002","Localitati","Buzduganii de Sus","Raionul Ungheni",405,84,216,105
+"9239003","Localitati","Morenii Vechi","Raionul Ungheni",445,103,248,94
+"9240000","Comune","com. Zagarancea","Raionul Ungheni",2906,736,1590,580
+"9240000","Localitati","Zagarancea","Raionul Ungheni",1316,329,722,265
+"9240001","Localitati","Elizavetovca","Raionul Ungheni",199,50,108,41
+"9240002","Localitati","Semeni","Raionul Ungheni",1391,357,760,274
+"MD013","Regiuni","Regiunea Sud","Raionul Ungheni",306672,,,
+"1200000","Raioane","Raionul Basarabeasca","Raionul Basarabeasca",14914,2626,7816,4472
+"1201000","Comune","or. Basarabeasca","Raionul Basarabeasca",6291,1108,3229,1954
+"1210000","Comune","Abaclia","Raionul Basarabeasca",2856,482,1534,840
+"1211000","Comune","Başcalia","Raionul Basarabeasca",1311,187,632,492
+"1212000","Comune","Carabetovca","Raionul Basarabeasca",971,180,540,251
+"1213000","Comune","Iordanovca","Raionul Basarabeasca",434,87,231,116
+"1214000","Comune","com. Iserlia","Raionul Basarabeasca",628,104,309,215
+"1214000","Localitati","Iserlia","Raionul Basarabeasca",505,89,252,164
+"1214001","Localitati","Bogdanovca","Raionul Basarabeasca",19,2,8,9
+"1214002","Localitati","Carabiber","Raionul Basarabeasca",17,1,11,5
+"1214003","Localitati","Ivanovca","Raionul Basarabeasca",87,12,38,37
+"1215000","Comune","Sadaclia","Raionul Basarabeasca",2423,478,1341,604
+"1700000","Raioane","Raionul Cahul","Raionul Cahul",72775,14766,39659,18350
+"1701000","Comune","or. Cahul","Raionul Cahul",22223,4551,12202,5470
+"1701000","Localitati","Cahul","Raionul Cahul",21326,4364,11689,5273
+"1701001","Localitati","Cotihana","Raionul Cahul",897,187,513,197
+"1710000","Comune","Alexanderfeld*","Raionul Cahul",831,,,
+"1711000","Comune","Alexandru Ioan Cuza","Raionul Cahul",1714,384,978,352
+"1712000","Comune","Andruşul de Jos","Raionul Cahul",1457,354,811,292
+"1713000","Comune","Andruşul de Sus","Raionul Cahul",1071,215,589,267
+"1714000","Comune","Badicul Moldovenesc","Raionul Cahul",776,161,435,180
+"1715000","Comune","Baurci-Moldoveni","Raionul Cahul",1285,306,710,269
+"1715100","Comune","Borceag","Raionul Cahul",1001,221,516,264
+"1715200","Comune","Brînza","Raionul Cahul",1398,246,763,389
+"1716000","Comune","Bucuria","Raionul Cahul",383,71,214,98
+"1717000","Comune","com. Burlacu","Raionul Cahul",1172,237,648,287
+"1717000","Localitati","Burlacu","Raionul Cahul",1081,225,589,267
+"1717001","Localitati","Spicoasa","Raionul Cahul",91,12,59,20
+"1718000","Comune","com. Burlăceni","Raionul Cahul",1228,264,663,301
+"1718000","Localitati","Burlăceni","Raionul Cahul",1170,252,630,288
+"1718001","Localitati","Greceni","Raionul Cahul",58,12,33,13
+"1720000","Comune","com. Chioselia Mare","Raionul Cahul",1074,240,609,225
+"1720000","Localitati","Chioselia Mare","Raionul Cahul",530,118,294,118
+"1720001","Localitati","Frumuşica","Raionul Cahul",544,122,315,107
+"1721000","Comune","Cîşliţa-Prut","Raionul Cahul",812,144,448,220
+"1722000","Comune","Colibaşi","Raionul Cahul",3053,549,1575,929
+"1723000","Comune","Crihana Veche","Raionul Cahul",3654,794,2040,820
+"1724000","Comune","com. Cucoara","Raionul Cahul",1086,235,572,279
+"1724000","Localitati","Cucoara","Raionul Cahul",710,149,370,191
+"1724001","Localitati","Chircani","Raionul Cahul",376,86,202,88
+"1725000","Comune","com. Doina","Raionul Cahul",1072,237,579,256
+"1725000","Localitati","Doina","Raionul Cahul",817,197,434,186
+"1725001","Localitati","Iasnaia Poleana","Raionul Cahul",68,7,41,20
+"1725002","Localitati","Rumeanţev","Raionul Cahul",187,33,104,50
+"1726000","Comune","com. Găvănoasa","Raionul Cahul",1529,299,844,386
+"1726000","Localitati","Găvănoasa","Raionul Cahul",802,148,429,225
+"1726001","Localitati","Nicolaevca","Raionul Cahul",460,91,255,114
+"1726002","Localitati","Vladimirovca","Raionul Cahul",267,60,160,47
+"1727000","Comune","Giurgiuleşti","Raionul Cahul",1936,356,1056,524
+"1728000","Comune","Huluboaia","Raionul Cahul",645,181,335,129
+"1729000","Comune","Iujnoe","Raionul Cahul",422,82,235,105
+"1730000","Comune","com. Larga Nouă","Raionul Cahul",958,197,510,251
+"1730000","Localitati","Larga Nouă","Raionul Cahul",764,169,411,184
+"1730001","Localitati","Larga Veche","Raionul Cahul",194,28,99,67
+"1731000","Comune","com. Lebedenco","Raionul Cahul",1656,369,883,404
+"1731000","Localitati","Lebedenco","Raionul Cahul",572,130,303,139
+"1731001","Localitati","Hutulu","Raionul Cahul",279,65,154,60
+"1731002","Localitati","Ursoaia","Raionul Cahul",805,174,426,205
+"1732000","Comune","Lopăţica","Raionul Cahul",396,73,219,104
+"1733000","Comune","Luceşti","Raionul Cahul",425,101,232,92
+"1734000","Comune","com. Manta","Raionul Cahul",2524,481,1394,649
+"1734000","Localitati","Manta","Raionul Cahul",1823,330,1000,493
+"1734001","Localitati","Paşcani","Raionul Cahul",701,151,394,156
+"1735000","Comune","com. Moscovei","Raionul Cahul",2038,384,1101,553
+"1735000","Localitati","Moscovei","Raionul Cahul",1805,354,951,500
+"1735001","Localitati","Trifeştii Noi","Raionul Cahul",233,30,150,53
+"1736000","Comune","com. Pelinei","Raionul Cahul",1435,299,760,376
+"1736000","Localitati","Pelinei","Raionul Cahul",1365,282,725,358
+"1736001","Localitati","Sătuc","Raionul Cahul",70,17,35,18
+"1737000","Comune","Roşu","Raionul Cahul",2287,452,1269,566
+"1738000","Comune","Slobozia Mare","Raionul Cahul",3580,654,1897,1029
+"1739000","Comune","Taraclia de Salcie","Raionul Cahul",966,207,505,254
+"1740000","Comune","com. Tartaul de Salcie","Raionul Cahul",633,102,376,155
+"1740000","Localitati","Tartaul de Salcie","Raionul Cahul",571,99,340,132
+"1740001","Localitati","Tudoreşti","Raionul Cahul",62,3,36,23
+"1741000","Comune","Tătăreşti","Raionul Cahul",1118,300,549,269
+"1742000","Comune","Vadul lui Isac","Raionul Cahul",1437,256,745,436
+"1743000","Comune","Văleni","Raionul Cahul",1956,314,1095,547
+"1744000","Comune","com. Zîrneşti","Raionul Cahul",1544,284,860,400
+"1744000","Localitati","Zîrneşti","Raionul Cahul",1196,211,678,307
+"1744001","Localitati","Paicu","Raionul Cahul",309,66,161,82
+"1744002","Localitati","Treteşti","Raionul Cahul",39,7,21,11
+"2100000","Raioane","Raionul Cantemir","Raionul Cantemir",33181,6914,17972,8295
+"2101000","Comune","or. Cantemir","Raionul Cantemir",2655,570,1341,744
+"2110000","Comune","com. Antoneşti","Raionul Cantemir",948,221,519,208
+"2110000","Localitati","Antoneşti","Raionul Cantemir",613,138,353,122
+"2110001","Localitati","Leca","Raionul Cantemir",335,83,166,86
+"2111000","Comune","com. Baimaclia","Raionul Cantemir",1871,435,1004,432
+"2111000","Localitati","Baimaclia","Raionul Cantemir",1467,347,783,337
+"2111001","Localitati","Acui","Raionul Cantemir",224,49,117,58
+"2111002","Localitati","Suhat","Raionul Cantemir",180,39,104,37
+"2112000","Comune","com. Cania","Raionul Cantemir",1971,369,1042,560
+"2112000","Localitati","Cania","Raionul Cantemir",1395,274,720,401
+"2112001","Localitati","Iepureni","Raionul Cantemir",576,95,322,159
+"2113000","Comune","Capaclia","Raionul Cantemir",999,193,519,287
+"2114000","Comune","com. Chioselia","Raionul Cantemir",1361,403,662,296
+"2114000","Localitati","Chioselia","Raionul Cantemir",871,244,437,190
+"2114001","Localitati","Ţărăncuţa","Raionul Cantemir",490,159,225,106
+"2115000","Comune","com. Ciobalaccia","Raionul Cantemir",1791,322,997,472
+"2115000","Localitati","Ciobalaccia","Raionul Cantemir",814,144,449,221
+"2115001","Localitati","Flocoasa","Raionul Cantemir",432,87,248,97
+"2115002","Localitati","Victorovca","Raionul Cantemir",545,91,300,154
+"2116000","Comune","com. Cîietu","Raionul Cantemir",772,182,411,179
+"2116000","Localitati","Cîietu","Raionul Cantemir",544,143,284,117
+"2116001","Localitati","Dimitrova","Raionul Cantemir",228,39,127,62
+"2117000","Comune","Cîrpeşti","Raionul Cantemir",1257,285,727,245
+"2118000","Comune","com. Cîşla","Raionul Cantemir",392,108,222,62
+"2118000","Localitati","Cîşla","Raionul Cantemir",353,99,203,51
+"2118001","Localitati","Şofranovca","Raionul Cantemir",39,9,19,11
+"2119000","Comune","Cociulia","Raionul Cantemir",1797,338,936,523
+"2120000","Comune","Coştangalia","Raionul Cantemir",608,146,337,125
+"2122000","Comune","com. Enichioi","Raionul Cantemir",1283,282,767,234
+"2122000","Localitati","Enichioi","Raionul Cantemir",690,171,401,118
+"2122001","Localitati","Bobocica","Raionul Cantemir",217,53,128,36
+"2122002","Localitati","Floricica","Raionul Cantemir",143,23,86,34
+"2122003","Localitati","Ţolica","Raionul Cantemir",233,35,152,46
+"2123000","Comune","com. Goteşti","Raionul Cantemir",2520,468,1365,687
+"2123000","Localitati","Goteşti","Raionul Cantemir",2308,427,1253,628
+"2123001","Localitati","Constantineşti","Raionul Cantemir",212,41,112,59
+"2124000","Comune","Haragîş","Raionul Cantemir",517,145,287,85
+"2125000","Comune","Lărguţa","Raionul Cantemir",1301,264,678,359
+"2126000","Comune","com. Lingura","Raionul Cantemir",913,178,568,167
+"2126000","Localitati","Lingura","Raionul Cantemir",747,139,475,133
+"2126001","Localitati","Crăciun","Raionul Cantemir",164,39,91,34
+"2126002","Localitati","Popovca","Raionul Cantemir",2,0,2,0
+"2127000","Comune","com. Pleşeni","Raionul Cantemir",1713,353,980,380
+"2127000","Localitati","Pleşeni","Raionul Cantemir",672,165,405,102
+"2127001","Localitati","Hănăseni","Raionul Cantemir",873,157,465,251
+"2127002","Localitati","Tătărăşeni","Raionul Cantemir",168,31,110,27
+"2128000","Comune","com. Plopi","Raionul Cantemir",754,132,385,237
+"2128000","Localitati","Plopi","Raionul Cantemir",325,36,161,128
+"2128001","Localitati","Alexandrovca","Raionul Cantemir",32,6,17,9
+"2128002","Localitati","Hîrtop","Raionul Cantemir",276,75,144,57
+"2128003","Localitati","Taraclia","Raionul Cantemir",121,15,63,43
+"2129000","Comune","Porumbeşti","Raionul Cantemir",1006,219,570,217
+"2130000","Comune","com. Sadîc","Raionul Cantemir",1271,272,696,303
+"2130000","Localitati","Sadîc","Raionul Cantemir",1169,253,644,272
+"2130001","Localitati","Taraclia","Raionul Cantemir",102,19,52,31
+"2131000","Comune","Stoianovca","Raionul Cantemir",736,113,354,269
+"2132000","Comune","Şamalia","Raionul Cantemir",395,41,213,141
+"2133000","Comune","Tartaul","Raionul Cantemir",1249,270,689,290
+"2134000","Comune","com. Toceni","Raionul Cantemir",663,122,390,151
+"2134000","Localitati","Toceni","Raionul Cantemir",415,67,239,109
+"2134001","Localitati","Vîlcele","Raionul Cantemir",248,55,151,42
+"2135000","Comune","com. Ţiganca","Raionul Cantemir",1487,270,808,409
+"2135000","Localitati","Ţiganca","Raionul Cantemir",894,143,507,244
+"2135001","Localitati","Ghioltosu","Raionul Cantemir",520,103,260,157
+"2135002","Localitati","Ţiganca Nouă","Raionul Cantemir",73,24,41,8
+"2136000","Comune","Vişniovca","Raionul Cantemir",951,213,505,233
+"2700000","Raioane","Raionul Căuşeni","Raionul Căuşeni",57261,11401,31218,14642
+"2701000","Comune","or. Căuşeni","Raionul Căuşeni",13458,3023,7183,3252
+"2702000","Comune","or. Căinari","Raionul Căuşeni",2135,452,1177,506
+"2702000","Localitati","Căinari","Raionul Căuşeni",1993,424,1103,466
+"2702001","Localitati","Căinari, loc.st.c.f.","Raionul Căuşeni",142,28,74,40
+"2710000","Comune","com. Baccealia","Raionul Căuşeni",1315,228,705,382
+"2710000","Localitati","Baccealia","Raionul Căuşeni",1036,175,559,302
+"2710001","Localitati","Tricolici","Raionul Căuşeni",6,0,1,5
+"2710002","Localitati","Florica","Raionul Căuşeni",187,40,99,48
+"2710003","Localitati","Plop","Raionul Căuşeni",86,13,46,27
+"2711000","Comune","com. Baimaclia","Raionul Căuşeni",1445,260,797,388
+"2711000","Localitati","Baimaclia","Raionul Căuşeni",1144,219,628,297
+"2711001","Localitati","Surchiceni","Raionul Căuşeni",301,41,169,91
+"2712000","Comune","Chircăieşti","Raionul Căuşeni",1904,320,998,586
+"2713000","Comune","com. Chircăieştii Noi","Raionul Căuşeni",939,202,481,256
+"2713000","Localitati","Chircăieştii Noi","Raionul Căuşeni",637,147,320,170
+"2713001","Localitati","Baurci","Raionul Căuşeni",302,55,161,86
+"2715000","Comune","Ciufleşti","Raionul Căuşeni",655,135,371,149
+"2716000","Comune","Cîrnăţeni","Raionul Căuşeni",1961,416,1059,486
+"2717000","Comune","com. Cîrnăţenii Noi","Raionul Căuşeni",1022,237,537,248
+"2717000","Localitati","Cîrnăţenii Noi","Raionul Căuşeni",816,168,437,211
+"2717001","Localitati","Sălcuţa Nouă","Raionul Căuşeni",206,69,100,37
+"2718000","Comune","Copanca","Raionul Căuşeni",2688,416,1468,804
+"2719000","Comune","Coşcalia","Raionul Căuşeni",1366,284,789,293
+"2721000","Comune","com. Fîrlădeni","Raionul Căuşeni",3263,576,1805,882
+"2721000","Localitati","Fîrlădeni","Raionul Căuşeni",3079,538,1712,829
+"2721001","Localitati","Fîrlădenii Noi","Raionul Căuşeni",184,38,93,53
+"2723000","Comune","com. Grădiniţa","Raionul Căuşeni",605,111,306,188
+"2723000","Localitati","Grădiniţa","Raionul Căuşeni",314,45,172,97
+"2723001","Localitati","Leuntea","Raionul Căuşeni",250,61,114,75
+"2723002","Localitati","Valea Verde","Raionul Căuşeni",41,5,20,16
+"2724000","Comune","Grigorievca","Raionul Căuşeni",855,165,431,259
+"2725000","Comune","Hagimus","Raionul Căuşeni",2054,293,1071,690
+"2726000","Comune","Opaci","Raionul Căuşeni",2145,430,1255,460
+"2727000","Comune","com. Pervomaisc","Raionul Căuşeni",848,159,461,228
+"2727000","Localitati","Pervomaisc","Raionul Căuşeni",377,70,200,107
+"2727001","Localitati","Constantinovca","Raionul Căuşeni",471,89,261,121
+"2728000","Comune","Plop-Ştiubei","Raionul Căuşeni",1222,286,711,225
+"2729000","Comune","Săiţi","Raionul Căuşeni",1174,230,646,298
+"2730000","Comune","Sălcuţa","Raionul Căuşeni",3124,661,1730,733
+"2731000","Comune","Taraclia","Raionul Căuşeni",2537,510,1426,601
+"2732000","Comune","Tănătari","Raionul Căuşeni",1676,291,920,465
+"2733000","Comune","com. Tănătarii Noi","Raionul Căuşeni",474,76,285,113
+"2733000","Localitati","Tănătarii Noi","Raionul Căuşeni",291,44,177,70
+"2733001","Localitati","Ştefăneşti","Raionul Căuşeni",42,8,29,5
+"2733002","Localitati","Ursoaia Nouă","Raionul Căuşeni",141,24,79,38
+"2734000","Comune","Tocuz","Raionul Căuşeni",2582,532,1425,625
+"2735000","Comune","com. Ucrainca","Raionul Căuşeni",972,164,555,253
+"2735000","Localitati","Ucrainca","Raionul Căuşeni",966,164,550,252
+"2735001","Localitati","Zviozdocica","Raionul Căuşeni",6,0,5,1
+"2736000","Comune","Ursoaia","Raionul Căuşeni",1777,324,960,493
+"2737000","Comune","com. Zaim","Raionul Căuşeni",3065,620,1666,779
+"2737000","Localitati","Zaim","Raionul Căuşeni",3013,611,1642,760
+"2737001","Localitati","Marianca de Sus","Raionul Căuşeni",27,3,12,12
+"2737002","Localitati","Zaim, loc. st. c. f.","Raionul Căuşeni",25,6,12,7
+"2900000","Raioane","Raionul Cimişlia","Raionul Cimişlia",30986,5658,16086,9242
+"2901000","Comune","or. Cimişlia","Raionul Cimişlia",8765,1808,4340,2617
+"2901000","Localitati","Cimişlia","Raionul Cimişlia",7918,1694,3885,2339
+"2901001","Localitati","Bogdanovca Nouă","Raionul Cimişlia",103,12,52,39
+"2901002","Localitati","Bogdanovca Veche","Raionul Cimişlia",612,88,329,195
+"2901003","Localitati","Dimitrovca","Raionul Cimişlia",132,14,74,44
+"2910000","Comune","com. Albina","Raionul Cimişlia",1010,195,484,331
+"2910000","Localitati","Albina","Raionul Cimişlia",426,98,205,123
+"2910001","Localitati","Fetiţa","Raionul Cimişlia",229,34,122,73
+"2910002","Localitati","Mereni","Raionul Cimişlia",355,63,157,135
+"2911000","Comune","Batîr","Raionul Cimişlia",1319,272,733,314
+"2912000","Comune","Cenac","Raionul Cimişlia",877,131,485,261
+"2913000","Comune","Ciucur-Mingir","Raionul Cimişlia",842,155,424,263
+"2914000","Comune","com. Codreni","Raionul Cimişlia",409,74,203,132
+"2914000","Localitati","Codreni","Raionul Cimişlia",248,40,118,90
+"2914001","Localitati","Zloţi, loc.st.c.f.","Raionul Cimişlia",161,34,85,42
+"2915000","Comune","com. Ecaterinovca","Raionul Cimişlia",905,150,488,267
+"2915000","Localitati","Ecaterinovca","Raionul Cimişlia",536,95,293,148
+"2915001","Localitati","Coştangalia","Raionul Cimişlia",369,55,195,119
+"2916000","Comune","com. Gradişte","Raionul Cimişlia",1092,171,535,386
+"2916000","Localitati","Gradişte","Raionul Cimişlia",833,132,399,302
+"2916001","Localitati","Iurievca","Raionul Cimişlia",259,39,136,84
+"2917000","Comune","Gura Galbenei","Raionul Cimişlia",2512,430,1211,871
+"2918000","Comune","com. Hîrtop","Raionul Cimişlia",1200,247,651,302
+"2918000","Localitati","Hîrtop","Raionul Cimişlia",1055,225,576,254
+"2918001","Localitati","Ialpug","Raionul Cimişlia",120,22,62,36
+"2918002","Localitati","Prisaca","Raionul Cimişlia",25,0,13,12
+"2919000","Comune","com. Ialpujeni","Raionul Cimişlia",849,119,468,262
+"2919000","Localitati","Ialpujeni","Raionul Cimişlia",578,85,320,173
+"2919001","Localitati","Marienfeld","Raionul Cimişlia",271,34,148,89
+"2920000","Comune","Ivanovca Nouă","Raionul Cimişlia",400,49,224,127
+"2921000","Comune","com. Javgur","Raionul Cimişlia",907,150,482,275
+"2921000","Localitati","Javgur","Raionul Cimişlia",662,109,350,203
+"2921001","Localitati","Artimonovca","Raionul Cimişlia",8,0,1,7
+"2921002","Localitati","Maximeni","Raionul Cimişlia",237,41,131,65
+"2922000","Comune","com. Lipoveni","Raionul Cimişlia",882,113,442,327
+"2922000","Localitati","Lipoveni","Raionul Cimişlia",566,70,273,223
+"2922001","Localitati","Munteni","Raionul Cimişlia",272,40,142,90
+"2922002","Localitati","Schinoşica","Raionul Cimişlia",44,3,27,14
+"2923000","Comune","Mihailovca","Raionul Cimişlia",1799,334,924,541
+"2924000","Comune","com. Porumbrei","Raionul Cimişlia",1088,244,667,177
+"2924000","Localitati","Porumbrei","Raionul Cimişlia",980,216,599,165
+"2924001","Localitati","Sagaidacul Nou","Raionul Cimişlia",108,28,68,12
+"2925000","Comune","Sagaidac","Raionul Cimişlia",1233,212,681,340
+"2926000","Comune","Satul Nou","Raionul Cimişlia",1022,129,587,306
+"2927000","Comune","Selemet","Raionul Cimişlia",1981,372,1037,572
+"2928000","Comune","Suric","Raionul Cimişlia",378,31,232,115
+"2929000","Comune","Topala","Raionul Cimişlia",395,75,179,141
+"2930000","Comune","Troiţcoe","Raionul Cimişlia",627,104,352,171
+"2931000","Comune","Valea Perjei","Raionul Cimişlia",494,93,257,144
+"5700000","Raioane","Raionul Leova","Raionul Leova",28835,5844,15344,7647
+"5701000","Comune","or. Leova","Raionul Leova",6394,1240,3333,1821
+"5702000","Comune","or. Iargara","Raionul Leova",2536,539,1245,752
+"5702000","Localitati","Iargara","Raionul Leova",2498,526,1225,747
+"5702001","Localitati","Meşeni","Raionul Leova",38,13,20,5
+"5710000","Comune","com. Băiuş","Raionul Leova",587,112,269,206
+"5710000","Localitati","Băiuş","Raionul Leova",449,88,191,170
+"5710001","Localitati","Cociulia Nouă","Raionul Leova",109,20,59,30
+"5710002","Localitati","Hîrtop","Raionul Leova",29,4,19,6
+"5711000","Comune","com. Beştemac","Raionul Leova",496,79,256,161
+"5711000","Localitati","Beştemac","Raionul Leova",489,79,250,160
+"5711001","Localitati","Piteşti","Raionul Leova",7,0,6,1
+"5712000","Comune","Borogani","Raionul Leova",2684,633,1504,547
+"5713000","Comune","com. Cazangic","Raionul Leova",992,228,579,185
+"5713000","Localitati","Cazangic","Raionul Leova",656,161,382,113
+"5713001","Localitati","Frumuşica","Raionul Leova",108,23,66,19
+"5713002","Localitati","Selişte","Raionul Leova",228,44,131,53
+"5714000","Comune","Ceadîr","Raionul Leova",740,157,436,147
+"5715000","Comune","com. Cneazevca","Raionul Leova",556,84,277,195
+"5715000","Localitati","Cneazevca","Raionul Leova",422,56,195,171
+"5715001","Localitati","Cîzlar","Raionul Leova",134,28,82,24
+"5716000","Comune","Colibabovca","Raionul Leova",533,83,285,165
+"5717000","Comune","Covurlui","Raionul Leova",850,165,497,188
+"5718000","Comune","Cupcui","Raionul Leova",869,195,515,159
+"5719000","Comune","Filipeni","Raionul Leova",1964,468,1059,437
+"5720000","Comune","com. Hănăsenii Noi","Raionul Leova",614,122,334,158
+"5720000","Localitati","Hănăsenii Noi","Raionul Leova",576,118,316,142
+"5720001","Localitati","Nicolaevca","Raionul Leova",38,4,18,16
+"5721000","Comune","Orac","Raionul Leova",552,97,263,192
+"5722000","Comune","Romanovca","Raionul Leova",304,72,167,65
+"5723000","Comune","com. Sărata Nouă","Raionul Leova",849,154,424,271
+"5723000","Localitati","Sărata Nouă","Raionul Leova",796,150,388,258
+"5723001","Localitati","Bulgărica","Raionul Leova",53,4,36,13
+"5724000","Comune","Sărata-Răzeşi","Raionul Leova",509,85,268,156
+"5725000","Comune","com. Sărăteni","Raionul Leova",555,98,284,173
+"5725000","Localitati","Sărăteni","Raionul Leova",462,77,228,157
+"5725001","Localitati","Victoria","Raionul Leova",93,21,56,16
+"5726000","Comune","com. Sărăţica Nouă","Raionul Leova",572,98,304,170
+"5726000","Localitati","Sărăţica Nouă","Raionul Leova",358,66,208,84
+"5726001","Localitati","Cîmpul Drept","Raionul Leova",214,32,96,86
+"5727000","Comune","Sîrma","Raionul Leova",639,153,344,142
+"5728000","Comune","com. Tigheci","Raionul Leova",1343,267,699,377
+"5728000","Localitati","Tigheci","Raionul Leova",1152,231,604,317
+"5728001","Localitati","Cuporani","Raionul Leova",191,36,95,60
+"5729000","Comune","Tochile-Răducani","Raionul Leova",802,168,433,201
+"5730000","Comune","Tomai","Raionul Leova",1838,371,1040,427
+"5731000","Comune","com. Tomaiul Nou","Raionul Leova",400,62,206,132
+"5731000","Localitati","Tomaiul Nou","Raionul Leova",224,32,119,73
+"5731001","Localitati","Sărăţica Veche","Raionul Leova",176,30,87,59
+"5732000","Comune","com. Vozneseni","Raionul Leova",657,114,323,220
+"5732000","Localitati","Vozneseni","Raionul Leova",345,62,155,128
+"5732001","Localitati","Troian","Raionul Leova",145,31,80,34
+"5732002","Localitati","Troiţa","Raionul Leova",167,21,88,58
+"8500000","Raioane","Raionul Ştefan Vodă","Raionul Ştefan Vodă",42285,8613,22335,11337
+"8501000","Comune","or. Ştefan Vodă","Raionul Ştefan Vodă",5436,1217,2757,1462
+"8510000","Comune","com. Alava","Raionul Ştefan Vodă",307,67,174,66
+"8510000","Localitati","Alava","Raionul Ştefan Vodă",250,58,140,52
+"8510001","Localitati","Lazo","Raionul Ştefan Vodă",57,9,34,14
+"8511000","Comune","Antoneşti","Raionul Ştefan Vodă",1745,379,963,403
+"8512000","Comune","Brezoaia","Raionul Ştefan Vodă",542,94,311,137
+"8513000","Comune","Carahasani","Raionul Ştefan Vodă",1609,280,812,517
+"8514000","Comune","Căplani","Raionul Ştefan Vodă",1956,299,995,662
+"8515000","Comune","Cioburciu","Raionul Ştefan Vodă",1688,336,866,486
+"8516000","Comune","Copceac","Raionul Ştefan Vodă",1637,296,923,418
+"8517000","Comune","Crocmaz","Raionul Ştefan Vodă",1769,292,946,531
+"8518000","Comune","Ermoclia","Raionul Ştefan Vodă",2524,569,1356,599
+"8519000","Comune","Feşteliţa","Raionul Ştefan Vodă",1838,411,1037,390
+"8520000","Comune","Marianca de Jos","Raionul Ştefan Vodă",377,98,183,96
+"8521000","Comune","Olăneşti","Raionul Ştefan Vodă",3027,505,1531,991
+"8522000","Comune","Palanca","Raionul Ştefan Vodă",1207,248,635,324
+"8523000","Comune","Popeasca","Raionul Ştefan Vodă",1775,368,981,426
+"8524000","Comune","com. Purcari","Raionul Ştefan Vodă",1586,309,804,473
+"8524000","Localitati","Purcari","Raionul Ştefan Vodă",1346,262,687,397
+"8524001","Localitati","Viişoara","Raionul Ştefan Vodă",240,47,117,76
+"8525000","Comune","com. Răscăieţi","Raionul Ştefan Vodă",2108,420,1155,533
+"8525000","Localitati","Răscăieţi","Raionul Ştefan Vodă",1704,336,916,452
+"8525001","Localitati","Răscăieţii Noi","Raionul Ştefan Vodă",404,84,239,81
+"8526000","Comune","Semionovca","Raionul Ştefan Vodă",410,70,232,108
+"8527000","Comune","Slobozia","Raionul Ştefan Vodă",2161,476,1179,506
+"8528000","Comune","Ştefăneşti","Raionul Ştefan Vodă",740,179,384,177
+"8529000","Comune","Talmaza","Raionul Ştefan Vodă",4460,995,2405,1060
+"8530000","Comune","Tudora","Raionul Ştefan Vodă",1317,262,676,379
+"8531000","Comune","Volintiri","Raionul Ştefan Vodă",2066,443,1030,593
+"8700000","Raioane","Raionul Taraclia","Raionul Taraclia",26435,4952,14249,7234
+"8701000","Comune","or. Taraclia","Raionul Taraclia",10021,2168,5518,2335
+"8702000","Comune","or. Tvardiţa","Raionul Taraclia",3503,527,1951,1025
+"8710000","Comune","com. Albota de Jos","Raionul Taraclia",952,201,533,218
+"8710000","Localitati","Albota de Jos","Raionul Taraclia",495,86,274,135
+"8710001","Localitati","Hagichioi","Raionul Taraclia",212,68,111,33
+"8710002","Localitati","Hîrtop","Raionul Taraclia",245,47,148,50
+"8711000","Comune","com. Albota de Sus","Raionul Taraclia",1304,258,681,365
+"8711000","Localitati","Albota de Sus","Raionul Taraclia",768,161,375,232
+"8711001","Localitati","Roşiţa","Raionul Taraclia",81,22,48,11
+"8711002","Localitati","Sofievca","Raionul Taraclia",455,75,258,122
+"8712000","Comune","Aluatu","Raionul Taraclia",497,108,221,168
+"8713000","Comune","Balabanu","Raionul Taraclia",604,150,356,98
+"8715000","Comune","com. Budăi","Raionul Taraclia",591,85,336,170
+"8715000","Localitati","Budăi","Raionul Taraclia",569,85,326,158
+"8715001","Localitati","Dermengi","Raionul Taraclia",22,0,10,12
+"8716000","Comune","Cairaclia","Raionul Taraclia",1154,210,628,316
+"8717000","Comune","com. Cealîc","Raionul Taraclia",633,134,342,157
+"8717000","Localitati","Cealîc","Raionul Taraclia",322,73,189,60
+"8717001","Localitati","Cortenul Nou","Raionul Taraclia",147,32,69,46
+"8717002","Localitati","Samurza","Raionul Taraclia",164,29,84,51
+"8718000","Comune","Corten","Raionul Taraclia",1833,250,892,691
+"8719000","Comune","Musaitu","Raionul Taraclia",554,87,279,188
+"8720000","Comune","Novosiolovca","Raionul Taraclia",842,202,421,219
+"8720100","Comune","com. Salcia","Raionul Taraclia",182,35,95,52
+"8720100","Localitati","Salcia","Raionul Taraclia",166,35,85,46
+"8720101","Localitati","Orehovca","Raionul Taraclia",16,0,10,6
+"8722000","Comune","Valea Perjei","Raionul Taraclia",2637,335,1389,913
+"8723000","Comune","com. Vinogradovca","Raionul Taraclia",1128,202,607,319
+"8723000","Localitati","Vinogradovca","Raionul Taraclia",244,40,122,82
+"8723001","Localitati","Chirilovca","Raionul Taraclia",109,16,56,37
+"8723002","Localitati","Ciumai","Raionul Taraclia",612,111,335,166
+"8723003","Localitati","Mirnoe","Raionul Taraclia",163,35,94,34
+"9600000","Raioane","Unitatea Teritorială Autonomă Găgăuzia","Unitatea Teritorială Autonomă Găgăuzia",103668,,,
+"9601000","Comune","or. Comrat","Unitatea Teritorială Autonomă Găgăuzia",19120,4332,10615,4173
+"9602000","Comune","or. Ceadîr-Lunga","Unitatea Teritorială Autonomă Găgăuzia",14285,3073,7539,3673
+"9603000","Comune","or. Vulcăneşti","Unitatea Teritorială Autonomă Găgăuzia",10919,2252,5500,3167
+"9603000","Localitati","Vulcăneşti","Unitatea Teritorială Autonomă Găgăuzia",10754,2227,5399,3128
+"9603001","Localitati","Vulcăneşti, loc.st.c.f.","Unitatea Teritorială Autonomă Găgăuzia",165,25,101,39
+"9610000","Comune","Avdarma","Unitatea Teritorială Autonomă Găgăuzia",2437,516,1211,710
+"9611000","Comune","Baurci","Unitatea Teritorială Autonomă Găgăuzia",3942,747,2165,1030
+"9612000","Comune","Beşalma","Unitatea Teritorială Autonomă Găgăuzia",2458,477,1303,678
+"9613000","Comune","Beşghioz","Unitatea Teritorială Autonomă Găgăuzia",1940,478,952,510
+"9614000","Comune","Bugeac","Unitatea Teritorială Autonomă Găgăuzia",1145,242,654,249
+"9615000","Comune","Carbalia","Unitatea Teritorială Autonomă Găgăuzia",283,55,147,81
+"9616000","Comune","Cazaclia","Unitatea Teritorială Autonomă Găgăuzia",4468,919,2167,1382
+"9616100","Comune","Chioselia Rusă","Unitatea Teritorială Autonomă Găgăuzia",422,86,225,111
+"9617000","Comune","Chiriet-Lunga","Unitatea Teritorială Autonomă Găgăuzia",1251,234,666,351
+"9618000","Comune","Chirsova","Unitatea Teritorială Autonomă Găgăuzia",4774,912,2486,1376
+"9619000","Comune","Cioc-Maidan","Unitatea Teritorială Autonomă Găgăuzia",2202,365,1138,699
+"9620000","Comune","Cişmichioi","Unitatea Teritorială Autonomă Găgăuzia",3039,512,1547,980
+"9622000","Comune","Congaz","Unitatea Teritorială Autonomă Găgăuzia",8269,1824,4403,2042
+"9623000","Comune","com. Congazcicul de Sus","Unitatea Teritorială Autonomă Găgăuzia",1396,299,806,291
+"9623000","Localitati","Congazcicul de Sus","Unitatea Teritorială Autonomă Găgăuzia",1169,246,665,258
+"9623001","Localitati","Congazcicul de Jos","Unitatea Teritorială Autonomă Găgăuzia",226,53,140,33
+"9623002","Localitati","Duduleşti","Unitatea Teritorială Autonomă Găgăuzia",1,0,1,0
+"9624000","Comune","Copceac","Unitatea Teritorială Autonomă Găgăuzia",6434,1549,3557,1328
+"9625000","Comune","Cotovscoe","Unitatea Teritorială Autonomă Găgăuzia",669,170,380,119
+"9626000","Comune","Dezghingea","Unitatea Teritorială Autonomă Găgăuzia",3582,711,1914,957
+"9627000","Comune","com. Etulia","Unitatea Teritorială Autonomă Găgăuzia",2080,306,1008,766
+"9627000","Localitati","Etulia","Unitatea Teritorială Autonomă Găgăuzia",1457,222,696,539
+"9627001","Localitati","Etulia, loc.st.c.f.","Unitatea Teritorială Autonomă Găgăuzia",214,35,109,70
+"9627002","Localitati","Etulia Nouă","Unitatea Teritorială Autonomă Găgăuzia",409,49,203,157
+"9628000","Comune","Ferapontievca","Unitatea Teritorială Autonomă Găgăuzia",600,82,316,202
+"9629000","Comune","Gaidar","Unitatea Teritorială Autonomă Găgăuzia",2538,456,1393,689
+"9630000","Comune","Joltai","Unitatea Teritorială Autonomă Găgăuzia",1111,236,581,294
+"9631000","Comune","com. Svetlîi","Unitatea Teritorială Autonomă Găgăuzia",1278,218,681,379
+"9631000","Localitati","Svetlîi","Unitatea Teritorială Autonomă Găgăuzia",1037,174,559,304
+"9631001","Localitati","Alexeevca","Unitatea Teritorială Autonomă Găgăuzia",241,44,122,75
+"9632000","Comune","Tomai","Unitatea Teritorială Autonomă Găgăuzia",3026,618,1610,798

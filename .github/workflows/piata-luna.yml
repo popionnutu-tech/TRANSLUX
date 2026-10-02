@@ -1,0 +1,29 @@
+name: piata-luna
+
+# «Piața» pe pereche (ION-171): calculul lunar al coloanei din Bilete aparat, NOAPTEA, separat de tiki-refacere (baza NANO,
+# ION-166 — nimic greu ziua). Un apel = câteva luni «murdare», una pe pas. 00:30 UTC = 03:30 Chișinău vara, 02:30 iarna;
+# ora provizorie, de legat de sfârșitul ferestrei de noapte când ION-166 are plan.
+
+on:
+  schedule:
+    - cron: '30 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  piata:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Piața pe pereche
+        run: |
+          for i in 1 2 3; do
+            code=$(curl -s -m 320 -o /tmp/body -w "%{http_code}" \
+              -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+              "https://central-hub-md.vercel.app/api/cron/piata-luna")
+            echo "piata-luna #$i: HTTP $code"
+            cat /tmp/body; echo
+            if [ "$code" -lt 200 ] || [ "$code" -ge 400 ]; then
+              echo "::warning::piata-luna returned HTTP $code"
+              exit 1
+            fi
+            grep -q '"ramase":0' /tmp/body && break
+          done

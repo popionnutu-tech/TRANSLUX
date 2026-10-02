@@ -201,3 +201,26 @@ export interface TikiOmisi {
   zile: number;
   perechi: { cheie: string; de_la: string; pana_la: string; oameni: number; tur: number | null; retur: number | null }[];
 }
+// «Piața» pe pereche (ION-171, migr. 463): lunile încheiate din interval cu rând calculat (piata_pereche_luna).
+export type PiataTip = 'coada' | 'balti' | 'trunchi' | 'local';
+export interface PiataCursa { firma: string; cursa: string; sens: Leg; ora: string; bpp: number | null; tranzit: number; luna: number }
+export interface PiataPereche {
+  cheie: string; de_la: string; pana_la: string; tip: PiataTip;
+  bilete: number;
+  omisi: number | null;               // estimare (tiki_ceilalti_od), extrapolată la zilele lunii
+  omisi_acoperire: number | null;     // zile numărate ÷ zile lună
+  conc_min: number; conc_max: number; // concurenți, 5/7 … 7/7
+  piata_min: number; piata_max: number;
+  cota: number | null;                // bilete ÷ mijlocul intervalului (doar coada / balti)
+  oras: number | null; bazin: number | null; bazin_echiv: number | null;
+  aford_net: number | null; aford_pensie: number | null;
+  steaguri: string[] | null;
+  detalii: { raion?: string | null; bilete_baza?: number | null; delta?: number; zile?: number; curse?: PiataCursa[] } | null;
+  luni: number;
+}
+export interface Piata {
+  luni: string[];                     // 'YYYY-MM' încheiate, conținute în interval, cu rând
+  prima_luna: string;                 // '2026-05-01'
+  parametri: Record<string, unknown>;
+  perechi: PiataPereche[];
+}

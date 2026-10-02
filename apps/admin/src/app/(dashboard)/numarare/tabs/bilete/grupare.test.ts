@@ -6,6 +6,7 @@ const stops = [
   { tariff_id: 1, name_ro: 'Criva', km_from_start: '3.50' },
   { tariff_id: 1, name_ro: 'Briceni', km_from_start: '44.50' },
   { tariff_id: 1, name_ro: 'Edineț', km_from_start: '78.50' },
+  { tariff_id: 1, name_ro: 'Cupcini', km_from_start: '85.10' },
   { tariff_id: 1, name_ro: 'Corlăteni', km_from_start: '135.10' },
   { tariff_id: 1, name_ro: 'Bălți', km_from_start: '148.50' },
   { tariff_id: 1, name_ro: 'Bilicenii Noi', km_from_start: '158.20' },
@@ -40,9 +41,15 @@ describe('normalizare', () => {
 
 describe('zoneBalti', () => {
   const z: ZoneBalti = zoneBalti(stops);
-  it('nord = dincolo de Bălți, intre = între Chișinău și Bălți', () => {
-    expect([...z.nord].sort()).toEqual(['briceni', 'corlateni', 'criva', 'edinet', 'ocnita', 'otaci', 'riscani']);
+  it('intre = între Chișinău și Bălți, edinet = de la Edineț la Bălți, nord = dincolo de Edineț', () => {
     expect([...z.intre].sort()).toEqual(['bilicenii noi', 'bilicenii vechi', 'orhei', 'singerei']);
+    expect([...z.edinet].sort()).toEqual(['corlateni', 'cupcini', 'riscani']);
+    expect([...z.nord].sort()).toEqual(['briceni', 'criva', 'ocnita', 'otaci']);
+  });
+  it('ramura fără Edineț se împarte după distanța până la Bălți (Edineț – Bălți = 70 km)', () => {
+    // Rîșcani: 176 − 134 = 42 km de Bălți pe tariful 10 → «edinet»; Otaci/Ocnița pe tariful 7: 133 / 86 km → «nord»
+    expect(z.edinet.has('riscani')).toBe(true);
+    expect(z.nord.has('ocnita')).toBe(true);
   });
   it('al doilea traseu din tariful 7 nu trage Bilicenii Vechi la nord (147,6 < 154 pe tariful 7, dar 163,1 > 148,5 pe tariful 1)', () => {
     expect(z.nord.has('bilicenii vechi')).toBe(false);
@@ -51,6 +58,8 @@ describe('zoneBalti', () => {
   });
   it('perechile', () => {
     expect(zonaPerechii('Chisinau - Briceni', z)).toBe('nord');
+    expect(zonaPerechii('Chisinau - Edinet', z)).toBe('edinet');
+    expect(zonaPerechii('Chisinau - Cupcini', z)).toBe('edinet');
     expect(zonaPerechii('Briceni - Chisinau', z)).toBe('nord');
     expect(zonaPerechii('Chisinau - Singerei', z)).toBe('intre');
     expect(zonaPerechii('Chisinau - alexandreni', z)).toBe('intre');

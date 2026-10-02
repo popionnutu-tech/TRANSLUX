@@ -8,7 +8,7 @@
 import { getSupabase } from '@/lib/supabase';
 import { verifySession } from '@/lib/auth';
 import { unpackRow, type PackedRow } from './bilete/ticketParse';
-import { zoneBalti, type StopKm } from './bilete/grupare';
+import { zoneBalti, type StopKm, type Zona } from './bilete/grupare';
 import type {
   TikiBatch, TikiMeta, TikiSummary, TikiDriverRow, TikiRouteRow, TikiPairRow, TikiMonthly,
   TikiCalitate, OrarRoute, TikiTendinta, TikiClienti, TikiOd, TikiOmisi, TikiRefacereStare, Piata, TikiBalti,
@@ -205,9 +205,9 @@ export async function getTikiPairs(
   return { data: (data ?? []) as TikiPairRow[] };
 }
 
-// ION-180: stațiile față de Bălți (după / până la, văzut din Chișinău) din nomenclatorul interurban,
-// ca grupurile «Chișinău – după Bălți» / «Chișinău – până la Bălți» să nu fie liste scrise de mână. Cheile sunt stopNorm().
-export async function getTikiZoneBalti(): Promise<Res<{ nord: string[]; intre: string[] }>> {
+// ION-180: zonele stațiilor (până la Bălți / de la Edineț la Bălți / după Edineț, văzut din Chișinău) din nomenclatorul
+// interurban, ca grupurile din tabelul perechilor să nu fie liste scrise de mână. Cheile sunt stopNorm().
+export async function getTikiZoneBalti(): Promise<Res<Record<Zona, string[]>>> {
   const a = await adminOnly();
   if ('error' in a) return a;
   const { data, error } = await getSupabase()
@@ -216,7 +216,7 @@ export async function getTikiZoneBalti(): Promise<Res<{ nord: string[]; intre: s
     .limit(1000);
   if (error) return { error: error.message };
   const z = zoneBalti((data ?? []) as StopKm[]);
-  return { data: { nord: [...z.nord], intre: [...z.intre] } };
+  return { data: { intre: [...z.intre], edinet: [...z.edinet], nord: [...z.nord] } };
 }
 
 export async function getTikiMonthly(

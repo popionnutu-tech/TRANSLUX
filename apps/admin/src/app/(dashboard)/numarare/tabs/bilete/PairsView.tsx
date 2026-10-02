@@ -143,8 +143,8 @@ export default function PairsView({ filters }: { filters: Filters }) {
         în Numărare pe pereche, fără bilet TIKI: pe fiecare porțiune de drum numărat − TIKI; unde diferența crește au urcat,
         unde scade au coborât. Doar din {fmtDate(NUMARARE_FROM)} și doar zilele numărate.
         «Piața» = câte bilete se vând în total pe coridor, toți transportatorii, pe lunile ÎNCHEIATE din perioadă (din mai 2026):
-        biletele noastre + cursele străine din graficul ANTA (o cursă străină = 40 % din 20 de locuri pe plecare, corectat după
-        orele la care îmbarcăm noi; interval 5/7…7/7 zile, ANTA n-are zilele de circulație); omișii stau separat, ca estimare.
+        biletele noastre + cursele străine din graficul ANTA (o cursă străină = 40 % din 20 de locuri pe plecare, împărțite pe perechile pe care
+        le atinge după biletele noastre, corectat după orele la care îmbarcăm noi; interval 5/7…7/7 zile, ANTA n-are zilele de circulație); omișii stau separat, ca estimare.
         Oraș / bazin = populația (recensământ 2024) a localității și a satelor fără stație din 10 km — numitor de scară, nu
         clienți posibili. Pe perechile de trunchi (Orhei, Strășeni…) nu se numără concurenți; pe cele fără Chișinău (Bălți–Edineț) se numără cursele străine care ating ambele capete; pe Chișinău–Bălți doar cursele directe. Estimarea se face doar pentru orașe și sate foarte mari (≥ 4.000 loc., ca Corjeuți); satele mici arată doar biletele.
         Tipul dedus din preț (biletele vechi fără stații): {fmtPct(share(dedus, total))}.

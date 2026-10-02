@@ -1,0 +1,140 @@
+{
+  "rezumat": "Audit al commitului livrat 68fe653c; liniile se referă la acest commit, nu la corecțiile necomise apărute în timpul reviziei. Codurile aleatoare, HMAC, drepturile SQL și emiterea tranzacțională a biletelor sunt baze solide. Fiabilitatea se pierde la reluarea creării, legarea plății și sincronizarea stărilor. Trei defecte au fost reproduse local cu dependențe simulate; nu am executat plăți sau modificări SQL.",
+  "observatii": [
+    {
+      "id": "X1",
+      "severitate": "high",
+      "zona": "reliability",
+      "titlu": "Persistarea sesiunii și legarea comenzii pot lăsa o plată fără bilet",
+      "dovada": "apps/admin/src/lib/bilete/comenzi.ts:237-248; apps/admin/src/lib/maib/persist.ts:22-38; apps/admin/src/app/api/pay/maib/callback/route.ts:118-123,158-172; packages/db/migrations/483_bilete_online.sql:205-206",
+      "scenariu": "INSERT în maib_checkouts reușește, dar UPDATE pe comandă eșuează. Sesiunea există și poate fi deschisă din /plati. După plată, callback-ul găsește sesiunea, deci nu execută recuperarea comenzii orfane. RPC-ul nu găsește comanda după checkout_id, întoarce 0, iar callback-ul răspunde 200. Banii sunt luați fără emiterea biletului.",
+      "corectie": "Un singur RPC tranzacțional pentru persistarea sesiunii și legarea condiționată a comenzii. Recuperarea trebuie să repare și cazul în care sesiunea există deja, folosind order_id și verificând suma."
+    },
+    {
+      "id": "X2",
+      "severitate": "high",
+      "zona": "reliability",
+      "titlu": "Timeout-ul la creare permite o nouă sesiune pentru aceeași comandă",
+      "dovada": "apps/admin/src/lib/bilete/comenzi.ts:200-234,237-248; apps/admin/src/lib/maib/client.ts:246-252; packages/db/migrations/482_maib_plati.sql:9-10",
+      "scenariu": "Maib creează sesiunea, dar răspunsul se pierde. Catch-ul pune eroare_creare și eliberează revendicarea. Reluarea cheamă imediat createCheckout din nou; findCheckoutByOrderId nu este folosit. Dacă maib acceptă repetarea, apar sesiuni multiple. Dacă prima sesiune fusese deja persistată, UNIQUE(order_id) face persistarea celei noi să eșueze repetat.",
+      "corectie": "Pentru un rezultat incert sau o revendicare expirată, caută mai întâi sesiunea existentă local și la maib. Refolosește sesiunea găsită; nu considera expirarea revendicării drept dovadă că banca nu a creat nimic."
+    },
+    {
+      "id": "X3",
+      "severitate": "high",
+      "zona": "reliability",
+      "titlu": "Reluarea poate încasa alt total decât cel salvat pe comandă",
+      "dovada": "apps/admin/src/lib/bilete/comenzi.ts:161-165,190-192,216-219,237-239; packages/db/migrations/483_bilete_online.sql:209-211",
+      "scenariu": "Comanda rămâne eroare_creare cu totalul 150. Tariful sau oferta se modifică înaintea reluării. RPC-ul întoarce comanda veche, dar createCheckout și persistaCheckout primesc totalul recalculat, de exemplu 170. După încasare, SQL refuză emiterea deoarece 170 ≠ 150. Reprodus local.",
+      "corectie": "După obținerea comenzii persistate, construiește plata exclusiv din totalul și datele ei. Dacă este necesară o ofertă nouă, trateaz-o explicit ca o comandă nouă, după rezolvarea sesiunii anterioare."
+    },
+    {
+      "id": "X4",
+      "severitate": "high",
+      "zona": "reliability",
+      "titlu": "Callback-ul confirmă cu 200 erorile recuperării unei comenzi orfane",
+      "dovada": "apps/admin/src/app/api/pay/maib/callback/route.ts:122-126,181-200",
+      "scenariu": "Citirea comenzii eșuează temporar: error este ignorat și comanda devine aparent necunoscută. Erorile de persistare și legare sunt transformate în șiruri, apoi tot în HTTP 200. Banca primește confirmarea procesării, deși plata nu a produs bilet. Cazul erorii de citire a fost reprodus local; ramura nu creează nici alertă bilete_alerte.",
+      "corectie": "Separă explicit necunoscut, conflict de business și eroare temporară. Pentru erori de bază întoarce 500; pentru o plată identificată care nu poate fi aplicată salvează alertă durabilă. Verifică și numărul rândurilor efectiv legate."
+    },
+    {
+      "id": "X5",
+      "severitate": "high",
+      "zona": "reliability",
+      "titlu": "Refund-ul din /plati lasă biletele valide",
+      "dovada": "apps/admin/src/app/(dashboard)/plati/actions.ts:89-95,175-205,218-234; apps/admin/src/app/(dashboard)/plati/PlatiClient.tsx:174,199-202",
+      "scenariu": "/plati listează inclusiv plățile comenzilor de bilete și oferă Returnează pentru acestea. După un refund acceptat se modifică numai maib_checkouts. Comanda rămâne platita, iar biletele rămân valid: pasagerul are bani returnați și QR-uri încă valabile în baza sistemului.",
+      "corectie": "Până la implementarea anulării coordonate, refuză în backend refund-ul generic pentru checkout-urile legate de bilete. Ulterior folosește aceeași operație de anulare/refund pentru toate intrările, cu actualizarea comenzii și biletelor."
+    },
+    {
+      "id": "X6",
+      "severitate": "high",
+      "zona": "reliability",
+      "titlu": "Actualizarea manuală a unei plăți nu recuperează biletele lipsă",
+      "dovada": "apps/admin/src/lib/maib/sincronizare.ts:31-49; apps/admin/src/app/(dashboard)/plati/actions.ts:152-156; apps/admin/src/app/(dashboard)/plati/page.tsx:15-20; apps/admin/src/lib/bilete/public.ts:37-71",
+      "scenariu": "Plata reușește, dar callback-ul nu ajunge. Adminul apasă Actualizează și vede Completed/Executed, însă sincronizarea nu cheamă bilete_marcheaza_platita. Reîncărcarea biletului citește doar baza. În codul livrat comanda poate rămâne noua fără bilete, chiar după confirmarea manuală a plății.",
+      "corectie": "După confirmarea verificată a plății, sincronizarea trebuie să invoce aceeași emitere idempotentă și să raporteze eșecul ei. Leagă și recuperarea periodică de această operație comună."
+    },
+    {
+      "id": "X7",
+      "severitate": "high",
+      "zona": "reliability",
+      "titlu": "Actualizările concurente pot regresa starea plății",
+      "dovada": "apps/admin/src/app/api/pay/maib/callback/route.ts:109-113,140-153; apps/admin/src/lib/maib/sincronizare.ts:35-47; packages/db/migrations/483_bilete_online.sql:207-208",
+      "scenariu": "O sincronizare citește de la maib o stare încă nefinală. Între timp callback-ul scrie Completed. Sincronizarea întârziată suprascrie apoi Completed cu starea veche. Dacă aceasta se întâmplă înaintea RPC-ului callback-ului, emiterea întoarce 0 și callback-ul răspunde 200 fără bilete. Protecția dejaCompleta verifică un snapshot, nu starea la UPDATE.",
+      "corectie": "Aplică tranzițiile condiționat în SQL, sub blocare, astfel încât o stare finală să nu regreseze. Actualizarea plății și emiterea trebuie să folosească aceeași regulă, atât pentru callback, cât și pentru sincronizare."
+    },
+    {
+      "id": "X8",
+      "severitate": "high",
+      "zona": "reliability",
+      "titlu": "Comenzile abandonate pot închide definitiv plafonul global",
+      "dovada": "packages/db/migrations/483_bilete_online.sql:176-181; apps/admin/src/lib/maib/sincronizare.ts:47-55; apps/admin/src/app/(dashboard)/plati/actions.ts:159-168",
+      "scenariu": "În versiunea livrată, expirarea sau anularea sesiunii maib nu trece comanda din noua în expirata. După 50 de comenzi abandonate, orice comandă nouă este respinsă; pe telefon sunt suficiente trei. Alerta inserată înainte de RAISE EXCEPTION este anulată de rollback, deci plafonul global nici nu lasă alerta intenționată.",
+      "corectie": "Propagă stările terminale ale sesiunii în comandă prin recuperare periodică. Până atunci, limitează plafonul comenzilor active la o fereastră justificată de viața sesiunii. Scrie alerta în afara tranzacției care aruncă excepția."
+    },
+    {
+      "id": "X9",
+      "severitate": "high",
+      "zona": "reliability",
+      "titlu": "Bugetul maib poate depăși durata funcției înainte de recuperare",
+      "dovada": "apps/admin/src/app/api/bilete/comanda/route.ts:11; apps/admin/src/lib/maib/client.ts:19,150-163,185-200; apps/admin/src/lib/bilete/comenzi.ts:205-234; apps/admin/src/lib/supabase.ts:15-16",
+      "scenariu": "La pornirea unei instanțe fără token, autentificarea și crearea sunt secvențiale și au fiecare timeout de 20 s. Două răspunsuri de câte 16 s depășesc maxDuration=30, fără a include baza. Funcția poate fi terminată după ce banca a creat sesiunea, înaintea catch-ului și persistării. Reîmprospătarea după 401 adaugă alte apeluri; Supabase nu are deadline explicit aici.",
+      "corectie": "Folosește un buget total pentru cerere, timeout-uri pe apel care încap în el și timp rezervat persistării. Rezultatul unei întreruperi în timpul creării trebuie recuperat după orderId, nu prin creare repetată."
+    },
+    {
+      "id": "X10",
+      "severitate": "high",
+      "zona": "reliability",
+      "titlu": "Erorile de citire a prețului sunt confundate cu lipsa datelor",
+      "dovada": "packages/db/src/pret.ts:60-79,153-188,206-210; packages/db/src/offer-calc.ts:83-95; apps/admin/src/lib/bilete/comenzi.ts:150-162",
+      "scenariu": "Citirea offers eșuează, dar celelalte interogări reușesc. Codul tratează eroarea ca lipsă de ofertă și încasează tariful de bază în locul prețului afișat anterior. Similar, eroarea citirii perioadei tarifare active declanșează fallback-ul ca și cum perioada nu ar exista.",
+      "corectie": "Verifică error pentru toate sursele care determină suma. Fallback-ul este permis numai după un răspuns reușit fără rânduri. La date financiare indisponibile, oprește crearea cu eroare temporară."
+    },
+    {
+      "id": "X11",
+      "severitate": "medium",
+      "zona": "reliability",
+      "titlu": "API-ul biletului raportează date inexistente când baza e indisponibilă",
+      "dovada": "apps/admin/src/lib/bilete/public.ts:40-49; apps/admin/src/app/api/bilete/public/[cod]/route.ts:14-16",
+      "scenariu": "O eroare la citirea comenzii produce 404 pentru un cod real. O eroare la citirea biletelor produce HTTP 200 cu status platita și bilete: [], deși biletele există. Al doilea caz a fost reprodus local. Pasagerul care încearcă să urce primește un răspuns fals despre bilet.",
+      "corectie": "Distinge lipsa rândului de eroarea interogării. Întoarce 503 pentru indisponibilitate și nu construi răspunsuri parțiale de succes când lipsesc biletele din cauza unei erori."
+    },
+    {
+      "id": "X12",
+      "severitate": "medium",
+      "zona": "reliability",
+      "titlu": "Idempotența depinde de validările curente și de momentul plafonului",
+      "dovada": "apps/admin/src/lib/bilete/comenzi.ts:144-158,165-198; packages/db/migrations/483_bilete_online.sql:169-193",
+      "scenariu": "Răspunsul primei comenzi se pierde chiar înaintea închiderii vânzării. Reluarea cu aceeași cheie este respinsă înainte de recuperarea checkout-ului existent. Separat, două cereri simultane cu aceeași cheie pot citi ambele lipsa comenzii; prima ocupă ultimul loc din plafon, iar a doua primește PLAFON înainte să ajungă la ON CONFLICT.",
+      "corectie": "Rezolvă întâi comanda existentă și verifică identitatea cererii, fără a reaplica condițiile pentru o vânzare nouă. În SQL, repetă verificarea idempotency_key după obținerea blocării și înainte de plafoane."
+    },
+    {
+      "id": "X13",
+      "severitate": "medium",
+      "zona": "security",
+      "titlu": "Endpoint-urile publice permit consum nelimitat de bază și jurnal",
+      "dovada": "apps/admin/src/app/api/bilete/public/[cod]/route.ts:12-16; apps/admin/src/lib/bilete/public.ts:38-49; apps/admin/src/app/api/pay/maib/callback/route.ts:61-69,98-101; packages/db/migrations/483_bilete_online.sql:151-159",
+      "scenariu": "Un atacator nu trebuie să ghicească secretul: fiecare cod hexazecimal de 32 de caractere provoacă o interogare. Fiecare callback cu semnătură falsă provoacă INSERT în maib_callbacks. Un cod valid permite repetarea citirilor și regenerării QR-urilor. Niciunul dintre aceste trasee nu aplică bilete_plafon. Funcția respectivă, dacă este conectată ca atare, permite depășirea limitei prin count/insert concurente.",
+      "corectie": "Aplică plafoane pentru traficul neautentificat și limitează jurnalizarea repetitivă a respingerilor. Fă bilete_plafon atomic pe cheie înainte de utilizare. Curăță și cheile abandonate: DELETE-ul actual șterge numai istoricul cheii reapelate."
+    },
+    {
+      "id": "X14",
+      "severitate": "medium",
+      "zona": "speed",
+      "titlu": "Crearea normală face 15 apeluri la bază, cu prea multe etape secvențiale",
+      "dovada": "apps/admin/src/lib/bilete/comenzi.ts:144-153,165,205,237-243; packages/db/src/pret.ts:133-175; packages/db/migrations/483_bilete_online.sql:23-24,60,62-63,77",
+      "scenariu": "Pe traseul public fără fallback tarifar sunt 11 citiri și patru operații de scriere/RPC, grupate în aproximativ nouă etape secvențiale de bază, plus maib. Latența fiecărui drum se adună. Codul folosește deja loturi pentru curse, deci problema principală aici nu este N+1. Căutările după cod, cheie și checkout au indexuri; adăugarea altora nu elimină drumurile.",
+      "corectie": "După verificarea steagului global, încarcă în paralel direcția, cursa și atribuirile, păstrând ordinea evaluării validărilor. Refolosește rândul rutei pentru steaguri și unește persistarea cu legarea într-un RPC. Măsoară separat latența instanțelor reci și calde înaintea altor optimizări."
+    },
+    {
+      "id": "X15",
+      "severitate": "low",
+      "zona": "simplity",
+      "titlu": "Indexul separat pe comanda_id dublează accesul oferit de constrângerea unică",
+      "dovada": "packages/db/migrations/483_bilete_online.sql:77-80; apps/admin/src/lib/bilete/public.ts:44",
+      "scenariu": "Fiecare bilet întreține atât indexul UNIQUE(comanda_id, nr), cât și bilete_comanda_idx. Interogarea livrată filtrează după comanda_id și ordonează după nr, fiind deja acoperită de primul index. Al doilea adaugă scrieri și spațiu fără un beneficiu demonstrat pentru acest traseu.",
+      "corectie": "Elimină indexul redundant după verificarea interogărilor existente; păstrează constrângerea UNIQUE(comanda_id, nr)."
+    }
+  ]
+}

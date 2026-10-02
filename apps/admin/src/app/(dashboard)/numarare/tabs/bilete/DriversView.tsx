@@ -1,148 +1,128 @@
 'use client';
 
+// «Șoferi» (ION-167, refăcut). Ion, 01.10: «șoferi raport nu înțeleg până la capăt». Fiecare cursă a șoferului (plecarea
+// din grafic, cu mașina lui) e comparată cu colegii de pe aceeași rută și sens, FĂRĂ el, ținând cont de ziua săptămânii;
+// rezultatul e în bilete reale: cât a vândut în plus sau în minus față de colegi. Doar bilete TIKI (furtul — alte instrumente).
+
 import { useEffect, useMemo, useState } from 'react';
-import { getTikiDrivers } from '../biletAparatActions';
-import type { Filters, TikiDriverRow } from './types';
-import { previousPeriod, pctChange, retentionIndex, retentionLabel, unreliableOverlap, fmtDate } from './periods';
-import { Delta, Notice, Th, fmtInt, fmtLei, fmtPct, share, nf1, nf2, sortRows, tableWrap } from './ui';
+import { getTikiSoferi } from '../biletAparatActions';
+import type { TikiSoferi } from './types';
+import type { DateRange } from './periods';
+import { capatNord, lastFullMonth, monthBounds, monthsDesc, soferRand, type SoferRand } from './raport';
+import PerioadaPicker, { perioadaLabel } from './PerioadaPicker';
+import { Notice, Th, fmtInt, fmtLei, nf1, sortRows, tableWrap } from './ui';
 
-type Col = 'driver' | 'trip_days' | 'tickets' | 'per_trip' | 'idx' | 'lei' | 'card' | 'trend';
+type Col = 'sofer' | 'zile' | 'curse' | 'peCursa' | 'colegi' | 'difPeCursa' | 'dif' | 'leiZi';
 
-const MIN_TRIPS = 5;
+const semn = (n: number | null, f: (x: number) => string) =>
+  n == null ? '—' : `${n > 0 ? '+' : n < 0 ? '−' : ''}${f(Math.abs(n))}`;
 
-export default function DriversView({ filters, onPickDriver }: { filters: Filters; onPickDriver: (d: string) => void }) {
-  const [rows, setRows] = useState<TikiDriverRow[] | null>(null);
-  const [prev, setPrev] = useState<Map<string, TikiDriverRow>>(new Map());
+export default function DriversView({ dateMin, dateMax }: { dateMin: string; dateMax: string }) {
+  const months = useMemo(() => monthsDesc(dateMin, dateMax), [dateMin, dateMax]);
+  const [per, setPer] = useState<DateRange>(monthBounds(lastFullMonth(dateMax)));
+  const [data, setData] = useState<TikiSoferi | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [sort, setSort] = useState<{ col: Col; dir: 'asc' | 'desc' }>({ col: 'idx', dir: 'desc' });
-  const [showFew, setShowFew] = useState(false);
-
-  const prevRange = useMemo(() => previousPeriod(filters), [filters]);
+  const [sort, setSort] = useState<{ col: Col; dir: 'asc' | 'desc' }>({ col: 'dif', dir: 'asc' });
 
   useEffect(() => {
     let alive = true;
-    setRows(null); setError(null);
-    Promise.all([
-      getTikiDrivers(filters.from, filters.to, filters.route),
-      getTikiDrivers(prevRange.from, prevRange.to, filters.route),
-    ]).then(([a, b]) => {
+    setData(null); setError(null);
+    getTikiSoferi(per.from, per.to).then(r => {
       if (!alive) return;
-      if (a.error) { setError(a.error); return; }
-      setRows(a.data!);
-      setPrev(new Map((b.data ?? []).map(r => [r.driver, r])));
+      if (r.error) setError(r.error); else setData(r.data!);
     });
     return () => { alive = false; };
-  }, [filters, prevRange]);
+  }, [per]);
 
   const table = useMemo(() => {
-    if (!rows) return [];
-    const list = rows
-      .filter(r => !filters.driver || r.driver === filters.driver)
-      .map(r => {
-        const p = prev.get(r.driver);
-        const perTrip = r.trip_days ? r.tickets / r.trip_days : null;
-        const prevPerTrip = p && p.trip_days ? p.tickets / p.trip_days : null;
-        return {
-          ...r,
-          perTrip,
-          idx: r.trip_days >= MIN_TRIPS ? retentionIndex(r.tickets, r.expected) : null,
-          trend: p && p.trip_days >= MIN_TRIPS && r.trip_days >= MIN_TRIPS ? pctChange(perTrip, prevPerTrip) : null,
-          cardPct: share(r.card, r.tickets),
-        };
-      })
-      .filter(r => showFew || r.trip_days >= MIN_TRIPS);
-    const get = (r: typeof list[number]) => {
+    const list = (data?.soferi ?? []).map(soferRand);
+    const get = (r: SoferRand) => {
       switch (sort.col) {
-        case 'driver': return r.driver;
-        case 'trip_days': return r.trip_days;
-        case 'tickets': return r.tickets;
-        case 'per_trip': return r.perTrip;
-        case 'idx': return r.idx;
-        case 'lei': return r.lei;
-        case 'card': return r.cardPct;
-        case 'trend': return r.trend;
+        case 'sofer': return r.s.sofer;
+        case 'zile': return r.s.zile;
+        case 'curse': return r.s.curse;
+        case 'peCursa': return r.peCursa;
+        case 'colegi': return r.colegiPeCursa;
+        case 'difPeCursa': return r.difPeCursa;
+        case 'dif': return r.dif;
+        case 'leiZi': return r.leiZi;
       }
     };
     return sortRows(list, get, sort.dir);
-  }, [rows, prev, sort, showFew, filters.driver]);
+  }, [data, sort]);
 
-  if (error) return <Notice tone="danger">{error}</Notice>;
-  if (!rows) return <div style={{ padding: 20, color: '#999' }}>Se încarcă…</div>;
-
-  const hidden = rows.filter(r => r.trip_days < MIN_TRIPS).length;
-  const th = (col: Col, label: string, align: 'left' | 'right' = 'right', title?: string) => (
-    <Th align={align} title={title} active={sort.col === col} dir={sort.dir}
-      onClick={() => setSort(s => ({ col, dir: s.col === col && s.dir === 'desc' ? 'asc' : 'desc' }))}>{label}</Th>
+  const th = (col: Col, label: string, align: 'left' | 'right' = 'right') => (
+    <Th align={align} active={sort.col === col} dir={sort.dir}
+      onClick={() => setSort(s => ({ col, dir: s.col === col && s.dir === 'asc' ? 'desc' : 'asc' }))}>{label}</Th>
   );
-  const syncNote = unreliableOverlap(filters) || unreliableOverlap(prevRange);
 
   return (
     <div>
-      <Notice tone="info">
-        <b>Indicele «ține clienții»</b> compară biletele șoferului cu cât vinde în medie <i>orice</i> șofer pe aceleași curse
-        (aceeași rută, oră și direcție) în aceeași perioadă: <b>1,00</b> = media, peste <b>1,10</b> = vinde vizibil mai mult decât colegii
-        pe aceleași curse. Așa nu contează dacă lucrează pe o rută mare sau pe una mică. Se calculează de la {MIN_TRIPS} curse în sus.
-        Tendința = bilete pe cursă față de {fmtDate(prevRange.from)} – {fmtDate(prevRange.to)}.
-      </Notice>
-      {syncNote && <Notice>⚠ Perioada atinge sincronizarea în bloc (dec. 2025 – 17 ian. 2026): numărul de curse și biletele pe cursă din acest interval nu sunt corecte.</Notice>}
-      <div className="card" style={{ padding: 0 }}>
-        <div style={tableWrap}>
-          <table style={{ width: '100%' }}>
-            <thead>
-              <tr>
-                {th('driver', 'Șofer', 'left')}
-                {th('trip_days', 'Curse')}
-                {th('tickets', 'Bilete')}
-                {th('per_trip', 'Bilete / cursă')}
-                {th('idx', 'Ține clienții', 'right', 'Bilete reale / bilete așteptate pe aceleași curse')}
-                {th('trend', 'Tendință')}
-                {th('lei', 'Încasat')}
-                {th('card', 'Card')}
-                <th style={{ textAlign: 'left' }}>Cursele principale</th>
-              </tr>
-            </thead>
-            <tbody>
-              {table.map(r => {
-                const lbl = retentionLabel(r.idx);
-                const color = lbl.tone === 'good' ? 'var(--success)' : lbl.tone === 'bad' ? 'var(--danger)' : '#555';
-                return (
-                  <tr key={r.driver}>
-                    <td style={{ textAlign: 'left' }}>
-                      <button onClick={() => onPickDriver(r.driver)} title="Filtrează pe acest șofer"
-                        style={{ background: 'none', border: 'none', padding: 0, color: '#9B1B30', cursor: 'pointer', fontWeight: 600, textAlign: 'left' }}>
-                        {r.driver}
-                      </button>
-                      {r.vehicles > 1 && <div style={{ fontSize: 11, color: '#999' }}>{r.vehicles} mașini</div>}
-                    </td>
-                    <td style={{ textAlign: 'right' }}>{fmtInt(r.trip_days)}</td>
-                    <td style={{ textAlign: 'right' }}>{fmtInt(r.tickets)}</td>
-                    <td style={{ textAlign: 'right' }}>{r.perTrip == null ? '—' : nf1.format(r.perTrip)}</td>
-                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      <span style={{ fontWeight: 700, color }}>{r.idx == null ? '—' : nf2.format(r.idx)}</span>
-                      <div style={{ fontSize: 11, color }}>{r.idx == null ? 'puține curse' : lbl.text}</div>
-                    </td>
-                    <td style={{ textAlign: 'right' }}><Delta pct={r.trend} /></td>
-                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{fmtLei(r.lei)}</td>
-                    <td style={{ textAlign: 'right' }}>{fmtPct(r.cardPct, 0)}</td>
-                    <td style={{ textAlign: 'left', fontSize: 12, color: '#555' }}>
-                      {(r.routes ?? []).map(x => `${x.route} (${fmtInt(x.tickets)})`).join(' · ')}
-                      {r.routes_n > 3 && <span style={{ color: '#999' }}> +{r.routes_n - 3}</span>}
-                    </td>
-                  </tr>
-                );
-              })}
-              {table.length === 0 && (
-                <tr><td colSpan={9} style={{ textAlign: 'center', color: '#999', padding: 20 }}>Nu sunt șoferi în perioada aleasă.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+      <div className="card" style={{ padding: '10px 12px', marginBottom: 12 }}>
+        <PerioadaPicker months={months} value={per} onChange={setPer} dateMin={dateMin} dateMax={dateMax} />
       </div>
-      {hidden > 0 && (
-        <label style={{ display: 'inline-flex', gap: 6, alignItems: 'center', fontSize: 12, color: '#777', marginTop: 8 }}>
-          <input type="checkbox" style={{ width: "auto", padding: 0 }} checked={showFew} onChange={e => setShowFew(e.target.checked)} />
-          Arată și șoferii cu mai puțin de {MIN_TRIPS} curse ({hidden})
-        </label>
+      <Notice tone="info">
+        <b>Cum se citește</b> ({perioadaLabel(per)}):
+        <div>• <b>Curse</b> — plecările șoferului după grafic (un sens într-o zi), cu mașina lui; biletele unei curse sunt ale mașinii ei.</div>
+        <div>• <b>Colegii pe aceleași curse</b> — câte bilete vând în medie ceilalți șoferi pe aceeași rută și sens, fără el, ajustat la ziua săptămânii (vinerea și duminica se vinde mai mult).</div>
+        <div>• <b>Bilete în plus / în minus</b> — cât a vândut el peste sau sub colegi, adunat pe toate cursele lui care au cu cine fi comparate (cel puțin 5 curse ale colegilor pe aceeași rută și sens).</div>
+      </Notice>
+      {error && <Notice tone="danger">{error}</Notice>}
+      {!data && !error && <div style={{ padding: 20, color: '#999' }}>Se încarcă…</div>}
+      {data && (
+        <>
+          <div className="card" style={{ padding: 0 }}>
+            <div style={tableWrap}>
+              <table style={{ width: '100%' }}>
+                <thead>
+                  <tr>
+                    {th('sofer', 'Șofer', 'left')}
+                    {th('zile', 'Zile')}
+                    {th('curse', 'Curse')}
+                    {th('peCursa', 'Bilete pe cursă')}
+                    {th('colegi', 'Colegii pe aceleași curse')}
+                    {th('difPeCursa', 'Diferența pe cursă')}
+                    {th('dif', 'Bilete în plus / în minus')}
+                    {th('leiZi', 'Încasat pe zi')}
+                    <th style={{ textAlign: 'left' }}>Ruta principală</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {table.map(r => {
+                    const color = r.dif == null ? '#999' : r.dif < 0 ? 'var(--danger)' : r.dif > 0 ? 'var(--success)' : '#555';
+                    return (
+                      <tr key={r.s.sofer}>
+                        <td style={{ textAlign: 'left', fontWeight: 600 }}>{r.s.sofer}</td>
+                        <td style={{ textAlign: 'right' }}>{fmtInt(r.s.zile)}</td>
+                        <td style={{ textAlign: 'right' }}>{fmtInt(r.s.curse)}</td>
+                        <td style={{ textAlign: 'right' }}>{r.peCursa == null ? '—' : nf1.format(r.peCursa)}</td>
+                        <td style={{ textAlign: 'right' }}>{r.colegiPeCursa == null ? '—' : nf1.format(r.colegiPeCursa)}</td>
+                        <td style={{ textAlign: 'right', color }}>{semn(r.difPeCursa, x => nf1.format(x))}</td>
+                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          {r.dif == null
+                            ? <span style={{ fontSize: 12, color: '#999' }}>nu are cu cine fi comparat</span>
+                            : <span style={{ fontWeight: 700, color }}>{semn(Math.round(r.dif), x => fmtInt(x))}</span>}
+                          <div style={{ fontSize: 11, color: '#999' }}>{fmtInt(r.s.curse_comp)} din {fmtInt(r.s.curse)} curse comparate</div>
+                        </td>
+                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{fmtLei(r.leiZi)}</td>
+                        <td style={{ textAlign: 'left', fontSize: 12, color: '#555' }}>
+                          {r.s.ruta_de_la ? `${capatNord(r.s.ruta_de_la, null)} ${r.s.ruta_ora ? r.s.ruta_ora.split(' - ')[0] : ''}` : '—'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {table.length === 0 && (
+                    <tr><td colSpan={9} style={{ textAlign: 'center', color: '#999', padding: 20 }}>Nu sunt curse cu șofer în perioada aleasă.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div style={{ fontSize: 12, color: '#999', marginTop: 6 }}>
+            Din {fmtInt(data.bilete_total)} bilete TIKI în perioadă: {fmtInt(data.bilete_fara_sofer)} fără șofer sigur (mașina lor n-are
+            plecare în grafic pe acea rută și zi) și {fmtInt(data.bilete_fara_ruta)} nelegate de nicio rută — nu intră la șoferi.
+          </div>
+        </>
       )}
     </div>
   );

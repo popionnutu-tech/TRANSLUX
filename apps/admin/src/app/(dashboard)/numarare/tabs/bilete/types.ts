@@ -224,3 +224,59 @@ export interface Piata {
   parametri: Record<string, unknown>;
   perechi: PiataPereche[];
 }
+
+// ── ION-167: trei rapoarte (migr. 466) ──────────────────────────────────────────────────────────────────────────────────
+export interface PerechePe { cheie: string; de_la: string | null; pana_la: string | null }
+
+export interface TikiComparatie {
+  zile_a: number;
+  zile_b: number;
+  numarare_a: boolean;
+  numarare_b: boolean;
+  rute_circulate: number;
+  rute_incluse: number;
+  rute_excluse: { route: number; de_la: string; acop_a: number | null; acop_b: number | null }[];
+  perechi: (PerechePe & { tiki_a: number; tiki_b: number; fara_a: number; fara_b: number })[];
+}
+
+export interface TikiRuta {
+  route: number;
+  de_la: string;
+  pana_la: string;
+  time_nord: string | null;
+  time_chisinau: string | null;
+  zile_circulate: number;
+  zile_numarate: number;
+  tiki: number;
+  lei: number;
+  tiki_c: number;
+  fara_c: number;
+  top: (PerechePe & { tiki: number; fara: number })[];
+}
+
+export interface TikiRutaPerechi {
+  zile_circulate: number;
+  zile_numarate: number;
+  perechi: (PerechePe & { leg: Leg | '?'; tiki: number; tiki_c: number; fara: number })[];
+}
+
+export interface TikiSoferV2 {
+  sofer: string;
+  zile: number;
+  curse: number;
+  bilete: number;
+  lei: number;
+  curse_comp: number;
+  bilete_comp: number;
+  asteptat: number;
+  ruta: number | null;
+  ruta_de_la: string | null;
+  ruta_ora: string | null;
+}
+
+export interface TikiSoferi {
+  soferi: TikiSoferV2[];
+  bilete_fara_sofer: number;
+  bilete_fara_ruta: number;
+  bilete_total: number;
+}

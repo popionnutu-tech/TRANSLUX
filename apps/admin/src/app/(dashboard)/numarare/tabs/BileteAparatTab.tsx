@@ -5,28 +5,32 @@
 // ION-159: «Față de anul trecut» pe ziua cursei Mobilet; Șoferi și Tipuri bilet pe ziua vânzării. Ion, 01.10: «șterge
 // cine merge pe rută, șterge orar; în tipul bilet și direcții să apară o coloană — oamenii omiși de TIKI dar fixați în
 // numărare»; «șterge import, că am făcut cron automat» (importul zilnic din Mobilet, ION-160).
+// ION-167 (Ion, 01.10): «Față de anul trecut» → «Comparație perioade»; raport nou «Rute»; «Șoferi» refăcut — toate pe ziua
+// cursei, din totalurile zilnice de noapte (migr. 466).
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getTikiMeta, getTikiRefacereStare } from './biletAparatActions';
 import type { Filters, TikiMeta, TikiRefacereStare } from './bilete/types';
 import { presetRange, fmtDate, unreliableOverlap, type Preset } from './bilete/periods';
 import { Notice, Pill } from './bilete/ui';
-import TendintaView from './bilete/TendintaView';
+import ComparatieView from './bilete/ComparatieView';
+import RuteView from './bilete/RuteView';
 import DriversView from './bilete/DriversView';
 import PairsView from './bilete/PairsView';
 
-type View = 'tendinta' | 'drivers' | 'pairs';
+type View = 'pairs' | 'comparatie' | 'rute' | 'drivers';
 
 const VIEWS: { key: View; label: string }[] = [
   { key: 'pairs', label: 'Tipuri bilet & direcții' },
-  { key: 'tendinta', label: 'Față de anul trecut' },
+  { key: 'comparatie', label: 'Comparație perioade' },
+  { key: 'rute', label: 'Rute' },
   { key: 'drivers', label: 'Șoferi' },
 ];
 
-/** Vederile cu perioadă (de la – până la); «Față de anul trecut» ia toată istoria pe luni. */
-const WITH_PERIOD: View[] = ['drivers', 'pairs'];
-/** Filtrele pe eticheta TIKI și șofer au sens doar pe vederile vechi (ziua vânzării). */
-const WITH_LABEL_FILTERS: View[] = ['drivers', 'pairs'];
+/** Vederile cu perioada comună de sus; Comparație, Rute și Șoferi își aleg singure luna. */
+const WITH_PERIOD: View[] = ['pairs'];
+/** Filtrele pe eticheta TIKI și șofer: doar «Tipuri bilet & direcții» (ziua vânzării). */
+const WITH_LABEL_FILTERS: View[] = ['pairs'];
 
 const PRESETS: { key: Preset; label: string }[] = [
   { key: 'ultimele_8s', label: '8 săptămâni' },
@@ -143,10 +147,9 @@ export default function BileteAparatTab() {
         <Notice tone="info">Nu există încă bilete. Importul automat din Mobilet rulează în fiecare dimineață.</Notice>
       )}
 
-      {view === 'tendinta' && meta?.date_max && <TendintaView dateMax={meta.date_max} />}
-      {view === 'drivers' && filters && meta?.date_max && (
-        <DriversView filters={filters} onPickDriver={d => setFilters({ ...filters, driver: d })} />
-      )}
+      {view === 'comparatie' && meta?.date_min && meta.date_max && <ComparatieView dateMin={meta.date_min} dateMax={meta.date_max} />}
+      {view === 'rute' && meta?.date_min && meta.date_max && <RuteView dateMin={meta.date_min} dateMax={meta.date_max} />}
+      {view === 'drivers' && meta?.date_min && meta.date_max && <DriversView dateMin={meta.date_min} dateMax={meta.date_max} />}
       {view === 'pairs' && filters && meta?.date_max && <PairsView filters={filters} />}
     </div>
   );

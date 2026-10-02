@@ -4,7 +4,7 @@ import {
   parseTimeLabel, PhoneError, type BileteComanda, type CursaCuPret,
 } from '@translux/db';
 import { getSupabase } from '@/lib/supabase';
-import { createCheckout, MaibError } from '@/lib/maib/client';
+import { createCheckout, findCheckoutByOrderId, MaibError } from '@/lib/maib/client';
 import { persistaCheckout } from '@/lib/maib/persist';
 import { chisinauInstantIso, chisinauTodayIso } from '@/lib/chisinau-time';
 import { calculeazaDepartureAt, vanzareDeschisa } from './reguli';
@@ -139,18 +139,23 @@ function cheileComenzii(c: Pick<BileteComanda, 'trip_date' | 'crm_route_id' | 'g
  */
 export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): Promise<{ comanda: BileteComanda; checkoutUrl: string }> {
   const v = valideaza(input);
+  if (opt.mod === 'public' && !input.ipHash) throw new ComandaError('validare', 'ip_hash lipsește');
   const db = getSupabase();
 
-  const cfg = await citesteConfigBilete();
+  // Cele patru citiri sunt independente: în paralel (o rundă, nu patru), erorile în aceeași ordine ca înainte.
+  const [cfg, directie, cursa, sofer] = await Promise.all([
+    citesteConfigBilete(),
+    opt.mod === 'public' ? directiaDeschisa(input.crmRouteId, input.goingNorth) : Promise.resolve(true),
+    gasesteCursa(input),
+    areSofer(input.tripDate, input.crmRouteId, input.goingNorth),
+  ]);
   if (opt.mod === 'public') {
     if (!cfg.activ) throw new ComandaError('inchis', 'vânzarea online nu e deschisă');
-    if (!(await directiaDeschisa(input.crmRouteId, input.goingNorth))) throw new ComandaError('inchis', 'vânzarea online nu e deschisă pe această cursă');
+    if (!directie) throw new ComandaError('inchis', 'vânzarea online nu e deschisă pe această cursă');
   }
-
-  const cursa = await gasesteCursa(input);
   if (!cursa) throw new ComandaError('validare', 'cursa nu există între aceste opriri');
   if (!(cursa.trip.price > 1)) throw new ComandaError('validare', 'prețul cursei nu e cunoscut încă');
-  if (!(await areSofer(input.tripDate, input.crmRouteId, input.goingNorth))) throw new ComandaError('inchis', 'cursa nu are încă șofer atribuit pe ziua aleasă');
+  if (!sofer) throw new ComandaError('inchis', 'cursa nu are încă șofer atribuit pe ziua aleasă');
 
   const departureAt = calculeazaDepartureAt(input.tripDate, cursa.trip.time, cursa.pornireRuta);
   const pornireRutaAt = chisinauInstantIso(input.tripDate, cursa.pornireRuta ?? cursa.trip.time);
@@ -181,9 +186,14 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
       email: v.email,
       lang: v.lang,
       ip_hash: input.ipHash ?? '',
+      test: opt.mod === 'test_admin',
     },
   });
   if (error) {
+    if (/PLAFON_GLOBAL/.test(error.message)) {
+      // Excepția din funcție anulează orice INSERT din ea — alerta se scrie de aici.
+      await db.from('bilete_alerte').insert({ tip: 'plafon_atins', detalii: 'plafonul global de comenzi deschise (50 / 30 min) a fost atins' });
+    }
     if (/PLAFON_/.test(error.message)) throw new ComandaError('plafon', 'prea multe comenzi; încearcă peste câteva minute');
     throw new Error(`bilete_creeaza_comanda: ${error.message}`);
   }
@@ -201,6 +211,14 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
     throw new ComandaError('idempotenta', `comanda e deja ${comanda.status}`);
   }
 
+  // Comanda a mai încercat o dată (eroare_creare) sau e reluată: poate că sesiunea EXISTĂ la maib, dar n-am apucat
+  // s-o scriem. O căutăm după orderId (= id) înainte să creăm alta — altfel pasagerul ar putea plăti sesiunea
+  // veche, iar callback-ul ei ar găsi comanda legată de cea nouă (revizia de cod, 03.10).
+  if (comanda.status === 'eroare_creare' || comanda.creare_incercari > 0) {
+    const recuperat = await recupereazaSesiunea(comanda, descriere(input, cursa.trip.time), opt);
+    if (recuperat) return recuperat;
+  }
+
   // O singură sesiune maib pe comandă: revendicăm crearea (2 minute), apoi chemăm banca.
   const { data: revendicat } = await db.from('bilete_comenzi')
     .update({ creare_in_curs_la: new Date().toISOString(), updated_at: new Date().toISOString() })
@@ -210,14 +228,14 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
     .select('id');
   if (!revendicat || revendicat.length === 0) throw new ComandaError('in_lucru', 'comanda e deja în curs de plată; reîncearcă într-un minut');
 
-  const descriere = `Bilet ${input.fromRo.trim()} → ${input.toRo.trim()}, ${input.tripDate} ${cursa.trip.time}, ${input.seats} loc.`.slice(0, 125);
+  const descr = descriere(input, cursa.trip.time);
   let checkout: { checkoutId: string; checkoutUrl: string };
   try {
     checkout = await createCheckout({
       amount: total,
       language: v.lang,
       orderId: comanda.id,
-      description: descriere,
+      description: descr,
       payer: { name: v.name, phone: `+${v.phone}` },
       callbackUrl: `${opt.bazaAdmin}/api/pay/maib/callback`,
       successUrl: (opt.urlBilet ?? urlBiletImplicit(opt.bazaSite))(comanda.cod, v.lang, true),
@@ -234,21 +252,72 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
     throw new ComandaError('maib', refuzClar ? 'banca a refuzat sesiunea de plată' : 'banca nu a răspuns; încearcă din nou');
   }
 
-  const { error: pErr } = await persistaCheckout({
-    checkoutId: checkout.checkoutId, orderId: comanda.id, amount: total, description: descriere,
-    checkoutUrl: checkout.checkoutUrl, createdBy: opt.createdBy ?? (opt.mod === 'public' ? 'site' : null),
-  });
-  const { error: lErr } = pErr ? { error: null } : await db.from('bilete_comenzi')
-    .update({ checkout_id: checkout.checkoutId, creare_in_curs_la: null, updated_at: new Date().toISOString() })
-    .eq('id', comanda.id);
-  if (pErr || lErr) {
-    // Sesiunea există la maib, dar legătura nu s-a scris: împăcarea o regăsește după orderId (= id).
+  const legat = await scrieSiLeaga(comanda.id, { checkoutId: checkout.checkoutId, checkoutUrl: checkout.checkoutUrl, amount: total, description: descr }, opt);
+  if (!legat.ok) {
+    // Sesiunea există la maib, dar legătura nu s-a scris: la următoarea încercare recupereazaSesiunea() o găsește
+    // după orderId, iar un callback sosit între timp e legat de bilete_marcheaza_platita după order_id (migr. 484).
     await db.from('bilete_comenzi').update({ status: 'eroare_creare', creare_in_curs_la: null, updated_at: new Date().toISOString() }).eq('id', comanda.id);
-    await db.from('bilete_alerte').insert({ comanda_id: comanda.id, tip: 'creare_esuata', detalii: `sesiunea ${checkout.checkoutId} creată la maib; scrierea a eșuat: ${pErr ?? lErr?.message}` });
+    await db.from('bilete_alerte').insert({ comanda_id: comanda.id, tip: 'creare_esuata', detalii: `sesiunea ${checkout.checkoutId} creată la maib; scrierea a eșuat: ${legat.eroare}` });
     throw new ComandaError('maib', 'plata nu s-a putut înregistra; încearcă din nou');
   }
 
   return { comanda: { ...comanda, checkout_id: checkout.checkoutId, creare_in_curs_la: null }, checkoutUrl: checkout.checkoutUrl };
+}
+
+function descriere(input: ComandaInput, ora: string): string {
+  return `Bilet ${input.fromRo.trim()} → ${input.toRo.trim()}, ${input.tripDate} ${ora}, ${input.seats} loc.`.slice(0, 125);
+}
+
+/**
+ * Rândul maib_checkouts + legarea comenzii. Nu sunt o tranzacție (două tabele prin PostgREST), de aceea:
+ * rândul poate exista deja (order_id e UNIQUE) → îl refolosim; legarea e condiționată pe `checkout_id IS NULL`,
+ * ca să nu suprascrie o legare făcută între timp de callback (migr. 484) sau de altă încercare.
+ */
+async function scrieSiLeaga(
+  comandaId: string,
+  ck: { checkoutId: string; checkoutUrl: string | null; amount: number; description: string | null },
+  opt: ComandaOptiuni,
+): Promise<{ ok: true } | { ok: false; eroare: string }> {
+  const db = getSupabase();
+  const { error: pErr } = await persistaCheckout({
+    checkoutId: ck.checkoutId, orderId: comandaId, amount: ck.amount, description: ck.description,
+    checkoutUrl: ck.checkoutUrl, createdBy: opt.createdBy ?? (opt.mod === 'public' ? 'site' : null),
+  });
+  if (pErr && !/duplicate key|unique/i.test(pErr)) return { ok: false, eroare: pErr };
+  const { data, error: lErr } = await db.from('bilete_comenzi')
+    .update({ checkout_id: ck.checkoutId, creare_in_curs_la: null, updated_at: new Date().toISOString() })
+    .eq('id', comandaId).is('checkout_id', null).select('id');
+  if (lErr) return { ok: false, eroare: lErr.message };
+  if (!data || data.length === 0) {
+    // Altcineva a legat deja comanda (callback sau altă încercare): e în regulă dacă e aceeași sesiune.
+    const { data: c } = await db.from('bilete_comenzi').select('checkout_id').eq('id', comandaId).maybeSingle();
+    if (c?.checkout_id !== ck.checkoutId) return { ok: false, eroare: `comanda e legată de altă sesiune (${c?.checkout_id})` };
+  }
+  return { ok: true };
+}
+
+/**
+ * Sesiunea maib a comenzii, dacă a fost creată într-o încercare anterioară și n-a fost scrisă: o legăm și o
+ * refolosim în loc să creăm alta. Sesiunile încheiate (Expired/Cancelled/Failed/Abandoned) nu se refolosesc;
+ * una Completed se leagă și se marchează plătită.
+ */
+async function recupereazaSesiunea(comanda: BileteComanda, descr: string, opt: ComandaOptiuni): Promise<{ comanda: BileteComanda; checkoutUrl: string } | null> {
+  let gasit: Awaited<ReturnType<typeof findCheckoutByOrderId>>;
+  try { gasit = await findCheckoutByOrderId(comanda.id); } catch (e) {
+    console.warn('[bilete] căutarea sesiunii după orderId:', e instanceof Error ? e.message : e);
+    return null;
+  }
+  if (!gasit) return null;
+  const s = (gasit.status ?? '').toLowerCase();
+  if (['expired', 'cancelled', 'failed', 'abandoned'].includes(s)) return null;
+  const legat = await scrieSiLeaga(comanda.id, { checkoutId: gasit.id, checkoutUrl: gasit.url ?? null, amount: Number(gasit.amount), description: descr }, opt);
+  if (!legat.ok) return null;
+  if (s === 'completed') {
+    const db = getSupabase();
+    await db.from('maib_checkouts').update({ status: gasit.status, payment_id: gasit.payment?.paymentId ?? null, payment_status: gasit.payment?.status ?? null, updated_at: new Date().toISOString() }).eq('checkout_id', gasit.id);
+    await db.rpc('bilete_marcheaza_platita', { p_checkout_id: gasit.id });
+  }
+  return { comanda: { ...comanda, checkout_id: gasit.id, creare_in_curs_la: null }, checkoutUrl: gasit.url ?? '' };
 }
 
 function urlBiletImplicit(bazaSite: string) {

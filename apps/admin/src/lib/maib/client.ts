@@ -16,7 +16,9 @@ import 'server-only';
 
 export const MAIB_SANDBOX_URL = 'https://sandbox.maibmerchants.md';
 export const MAIB_PRODUCTION_URL = 'https://api.maibmerchants.md';
-const TIMEOUT_MS = 20_000;
+// 8 s pe apel: comanda face token + createCheckout în ruta cu maxDuration 30; la 20 s × 2 Vercel ar fi tăiat
+// funcția înaintea catch-ului și comanda rămânea revendicată (revizia de cod, 03.10). Sandbox-ul răspunde sub 1 s.
+const TIMEOUT_MS = 8_000;
 /** Reîmprospătăm tokenul cu atât înainte de expirare. */
 const TOKEN_MARGIN_S = 60;
 

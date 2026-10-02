@@ -996,6 +996,8 @@ export interface BileteComanda {
   refund_finalizat_la: string | null;
   notificat_la: string | null;
   ip_hash: string | null;
+  /** comandă de probă din /plati (mod test_admin); nu intră în digest și în online_lei */
+  test: boolean;
   created_at: string;
   updated_at: string;
 }

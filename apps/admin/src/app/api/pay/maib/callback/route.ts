@@ -122,6 +122,10 @@ export async function POST(req: NextRequest) {
     const legat = await leagaComandaOrfana(req, body, checkoutId, rawBody);
     if (legat === 'legat') return await marcheazaBiletele(checkoutId, true);
     await jurnal(req, checkoutId, true, legat === 'necunoscut' ? 'checkoutId necunoscut' : `comandă orfană neaplicată: ${legat}`, rawBody);
+    // O plată EXECUTATĂ pe o comandă a noastră, pe care n-am putut-o lega, nu rămâne în tăcere: alertă pentru admin.
+    if (legat !== 'necunoscut' && stareEgala(body.paymentStatus, 'Executed') && body.orderId && UUID_RE.test(body.orderId)) {
+      await supabase.from('bilete_alerte').insert({ comanda_id: body.orderId, tip: 'platita_fara_bilet', detalii: `callback ${checkoutId} neaplicat: ${legat}` });
+    }
     console.warn('[maib/callback] checkoutId necunoscut:', checkoutId, legat);
     return NextResponse.json({ ok: true, cunoscut: false });
   }

@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { listaPlati, stareMaib } from './actions';
 import { sincronizeazaStare } from '@/lib/maib/sincronizare';
-import { biletPublic } from '@/lib/bilete/public';
+import { biletPublic, sincronizeazaComandaDupaCod } from '@/lib/bilete/public';
 import PlatiClient from './PlatiClient';
 
 interface Props {
@@ -12,6 +12,7 @@ interface Props {
 export default async function PlatiPage({ searchParams }: Props) {
   const sp = await searchParams;
   // Întoarcerea de la o comandă de test de bilete (ION-193): arătăm comanda și biletele prin același API ca site-ul.
+  if (sp.bilet) await sincronizeazaComandaDupaCod(sp.bilet);
   const bilet = sp.bilet ? await biletPublic(sp.bilet) : null;
   // Întoarcerea de la maib (successUrl/failUrl): sincronizăm întâi, callback-ul poate întârzia.
   // Fără revalidatePath aici — pagina e deja dynamic și Next interzice revalidarea în randare.

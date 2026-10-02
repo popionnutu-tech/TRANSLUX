@@ -14,7 +14,7 @@ const BEARER_RE = /^Bearer\s+(.+)$/i;
 
 function cheieValida(req: NextRequest): boolean {
   const asteptat = process.env.BILETE_API_KEY;
-  if (!asteptat || asteptat.length < 32) {
+  if (!asteptat || asteptat.length < 64) { // 32 de octeți hex = 256 de biți
     console.error('[bilete/comanda] BILETE_API_KEY lipsește sau e prea scurtă');
     return false;
   }
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
   const input: ComandaInput = {
     tripDate: String(body.tripDate ?? ''),
     crmRouteId: Number(body.crmRouteId),
-    goingNorth: Boolean(body.goingNorth),
+    goingNorth: body.goingNorth === true, // nu Boolean(): «false» ca text ar fi devenit true
     fromRo: String(body.fromRo ?? '').slice(0, 80),
     toRo: String(body.toRo ?? '').slice(0, 80),
     seats: Number(body.seats),

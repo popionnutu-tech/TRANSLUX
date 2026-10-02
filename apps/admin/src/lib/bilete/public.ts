@@ -2,6 +2,7 @@ import 'server-only';
 import QRCode from 'qrcode';
 import type { Bilet, BileteComanda } from '@translux/db';
 import { getSupabase } from '@/lib/supabase';
+import { sincronizeazaStare } from '@/lib/maib/sincronizare';
 import { citesteConfigBilete } from './comenzi';
 
 // Ce vede pasagerul (pagina biletului de pe site, prin API cu codul din link ca secret) și ce vede site-ul
@@ -34,10 +35,25 @@ export interface ComandaPublica {
   bilete: BiletPublic[];
 }
 
+const COD_RE = /^[0-9a-f]{32}$/i;
+
+/**
+ * Pagina pe care se întoarce pasagerul după plată: dacă comanda e încă «noua» și are sesiune, citim starea de la
+ * maib ACUM (callback-ul poate întârzia sau lipsi) — sincronizarea emite și biletele. Un drum la maib, doar
+ * cât comanda e deschisă; apoi pagina citește din bază.
+ */
+export async function sincronizeazaComandaDupaCod(cod: string): Promise<void> {
+  if (!COD_RE.test(cod)) return;
+  const { data } = await getSupabase().from('bilete_comenzi').select('status, checkout_id').eq('cod', cod).maybeSingle();
+  if (!data || !data.checkout_id || !(data.status === 'noua' || data.status === 'eroare_creare')) return;
+  const r = await sincronizeazaStare(data.checkout_id);
+  if (!r.ok) console.warn('[bilete] sincronizare la întoarcere:', r.eroare);
+}
+
 export async function biletPublic(cod: string): Promise<ComandaPublica | null> {
-  if (!/^[0-9a-f]{32}$/i.test(cod)) return null;
+  if (!COD_RE.test(cod)) return null;
   const db = getSupabase();
-  const { data: c } = await db.from('bilete_comenzi').select('*').eq('cod', cod).maybeSingle();
+  const { data: c } = await db.from('bilete_comenzi').select('cod, status, trip_date, from_name, to_name, departure_at, seats, price_per_seat, total, passenger_name, lang, paid_at, cancelled_at, crm_route_id, going_north, id').eq('cod', cod).maybeSingle();
   if (!c) return null;
   const comanda = c as BileteComanda;
   const [{ data: bilete }, { data: ruta }] = await Promise.all([

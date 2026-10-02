@@ -4,11 +4,14 @@ import { unstable_cache } from 'next/cache';
 import { headers } from 'next/headers';
 import { createHash } from 'crypto';
 import { getSupabase } from '@/lib/supabase';
-import { buildTurAssignmentMap, buildReturAssignmentMap } from '@/lib/assignments';
 import { depasesteLimita, FEREASTRA_MINUTE } from '@/lib/search-rate-limit';
 import { visitorHash } from '@/lib/visitor';
-import { resolveOfferPriceForDate, resolveOfferForDate } from '@translux/db';
-import { buildScheduledTrips, pickRate, type TimetableKmPair, type TimetableRoute, type TimetableStop } from '@/lib/timetable';
+// Prețul, orarul și atribuirile zilei vin din @translux/db (ION-192): aceleași reguli pe site,
+// în asistent și în API-ul biletelor online.
+import {
+  buildTurAssignmentMap, buildReturAssignmentMap, calculeazaCurse, incarcaCurse, pickRate,
+  resolveOfferForDate, resolveTariffRates,
+} from '@translux/db';
 
 export interface Locality {
   id: number;
@@ -92,43 +95,6 @@ const POPULAR_ROUTES = [
 ];
 
 
-/**
- * Resolvă tarifele (interurban lung + suburban) pentru o dată.
- * Dacă niciun period nu acoperă data (ex: săptămâna curentă încă nu are tarif),
- * cade pe cel mai recent period început — ca prețurile să nu apară niciodată 0.
- */
-async function resolveTariffRates(
-  supabase: ReturnType<typeof getSupabase>,
-  date: string,
-): Promise<{ rateLong: number | null; rateSub: number | null }> {
-  const covering = await supabase
-    .from('tariff_periods')
-    .select('rate_interurban_long, rate_suburban')
-    .lte('period_start', date)
-    .gte('period_end', date)
-    .order('period_start', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  let period = covering.data as { rate_interurban_long: number; rate_suburban: number } | null;
-
-  if (!period) {
-    const latest = await supabase
-      .from('tariff_periods')
-      .select('rate_interurban_long, rate_suburban')
-      .lte('period_start', date)
-      .order('period_start', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    period = latest.data as { rate_interurban_long: number; rate_suburban: number } | null;
-  }
-
-  return {
-    rateLong: period ? Number(period.rate_interurban_long) : null,
-    rateSub: period ? Number(period.rate_suburban) : null,
-  };
-}
-
 /** Fetch popular route prices using today's tariff rate from tariff_periods */
 export async function getPopularPrices(): Promise<PopularRoutePrice[]> {
   const supabase = getSupabase();
@@ -186,38 +152,6 @@ export const getCachedPopularPrices = unstable_cache(
   ['public-popular-prices'],
   { revalidate: 60, tags: ['popular-prices'] }
 );
-
-/**
- * Normalize stop name: lowercase, remove diacritics, trim
- * Must match the normalization in import-km-prices.mjs
- */
-function normalizeStop(name: string): string {
-  let n = name
-    .toLowerCase()
-    .trim()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/\s+/g, ' ');
-
-  n = n.replace(/\s*translux$/i, '');
-  n = n.replace(/\s+ga$/i, '');
-  n = n.replace(/\(sat\)$/i, '');
-  n = n.replace(/^ret\s+/i, '');
-  n = n.replace(/^sl\.\s*/i, 'slobozia ');
-  n = n.replace(/^-\//, '');
-  n = n.replace(/\/-$/, '');
-
-  // Note: removed aliases ('beleavinti'→'larga', 'hlinaia'→'hlina', 'criva vama'→'criva',
-  // 'intersectia tabani'→'tabani', 'intersectia trestieni'→'halahora de sus',
-  // 'intersectia riscani'/'petrom riscani'→'riscani', 'berlinti/cotiujeni'→'cotiujeni')
-  // — после миграции 078 эти стопы имеют свои собственные записи в route_km_pairs с правильными км.
-  const aliases: Record<string, string> = {
-    'caracusenii noi/-': 'caracusenii noi',
-  };
-
-  n = n.trim();
-  return aliases[n] || n;
-}
 
 /**
  * Resolve which date to read daily_assignments from for the public site.
@@ -336,47 +270,13 @@ export async function searchTrips(
     ? 0
     : Math.round((targetMs - todayMs) / 86_400_000);
 
-  // Query 1+2: Get from/to stops in parallel
-  const [{ data: fromStops }, { data: toStops }] = await Promise.all([
-    supabase
-      .from('crm_stop_fares')
-      .select('id, crm_route_id, stop_order, hour_from_chisinau, hour_from_nord')
-      .ilike('name_ro', fromRo),
-    supabase
-      .from('crm_stop_fares')
-      .select('id, crm_route_id, stop_order, hour_from_chisinau, hour_from_nord')
-      .ilike('name_ro', toRo),
-  ]);
+  // Opririle, rutele, km-ii, tariful zilei și oferta — din @translux/db, ca API-ul biletelor
+  // să calculeze același preț (ION-192). Atribuirile zilei rămân aici: sunt partea site-ului.
+  const datele = await incarcaCurse(supabase, { fromRo, toRo, date });
+  if (!datele) return [];
+  const { matchingRouteIds } = datele;
 
-  if (!fromStops || !toStops || fromStops.length === 0 || toStops.length === 0) return [];
-
-  const fromMap = new Map(fromStops.map((s: any) => [s.crm_route_id, s]));
-  const toMap = new Map(toStops.map((s: any) => [s.crm_route_id, s]));
-
-  const matchingRouteIds = [...fromMap.keys()].filter(id => toMap.has(id));
-  if (matchingRouteIds.length === 0) return [];
-
-  // Normalized stop names for km lookup — sanitize for PostgREST filter safety
-  const fromNorm = normalizeStop(fromRo).replace(/[(),."'\\]/g, '');
-  const toNorm = normalizeStop(toRo).replace(/[(),."'\\]/g, '');
-
-  // Query 3+4+5+6+7: Get routes, prices, assignments, retur overrides AND offers in parallel
-  const [{ data: routes }, { data: kmPairsA }, { data: kmPairsB }, { data: assignments }, { data: returOverrides }, { data: activeOffers }] = await Promise.all([
-    supabase
-      .from('crm_routes')
-      .select('id, dest_to_ro, dest_to_ru, dest_from_ro, dest_from_ru, time_chisinau, time_nord, tariff_id_tur, tariff_id_retur, retur_ascuns, tur_ascuns')
-      .in('id', matchingRouteIds)
-      .eq('active', true),
-    supabase
-      .from('v_interurban_v2_km_pairs')
-      .select('tariff_id, km, from_district, to_district, start_district')
-      .eq('from_stop', fromNorm)
-      .eq('to_stop', toNorm),
-    supabase
-      .from('v_interurban_v2_km_pairs')
-      .select('tariff_id, km, from_district, to_district, start_district')
-      .eq('from_stop', toNorm)
-      .eq('to_stop', fromNorm),
+  const [{ data: assignments }, { data: returOverrides }] = await Promise.all([
     supabase
       .from('daily_assignments')
       .select('crm_route_id, driver_id, vehicle_id, vehicle_id_retur, driver_id_retur, retur_route_id')
@@ -387,15 +287,7 @@ export async function searchTrips(
       .select('crm_route_id, driver_id, vehicle_id, vehicle_id_retur, driver_id_retur, retur_route_id')
       .eq('assignment_date', assignmentDate)
       .in('retur_route_id', matchingRouteIds),
-    supabase
-      .from('offers')
-      .select('from_locality, to_locality, original_price, offer_price')
-      .eq('active', true)
-      .ilike('from_locality', fromRo)
-      .ilike('to_locality', toRo),
   ]);
-
-  if (!routes) return [];
 
   // Fetch drivers and vehicles separately to avoid Supabase FK join issues
   const allAssignments = [...(assignments || []), ...(returOverrides || [])];
@@ -417,31 +309,9 @@ export async function searchTrips(
   }]));
   const vehicleMap = new Map((vehiclesData || []).map((v: any) => [v.id, v]));
 
-  // Merge both direction results
-  const kmPairs = [...(kmPairsA || []), ...(kmPairsB || [])];
-
-  // Check if an offer applies to this search direction
-  const offer = (activeOffers && activeOffers.length > 0) ? activeOffers[0] as any : null;
-
-  // Look up tariff for the search date (interurban long + suburban), falling back to
-  // the most recent period so prices never drop to 0 when no period covers the date.
-  const { rateLong: historicalRate, rateSub: historicalRateSub } = await resolveTariffRates(supabase, date);
-
-  // Oferta urmează tariful DATEI căutate (formula RPC: 133 km × rată − reducere),
-  // nu snapshotul din offers, care se rescrie abia în ziua intrării în vigoare.
-  // O singură cifră per zi pentru toate cursele; ofertele manuale rămân fixe.
-  const dateOfferPrice = offer ? resolveOfferPriceForDate(offer, historicalRate, date) : null;
-
-  // Care curse leagă cele două opriri, la ce oră și cu ce preț — nucleul comun cu paginile
-  // de direcție (lib/timetable.ts, ION-153). Aici se adaugă doar șoferul, mașina și oferta.
-  const scheduled = buildScheduledTrips({
-    routes: routes as TimetableRoute[],
-    fromStops: fromStops as TimetableStop[],
-    toStops: toStops as TimetableStop[],
-    kmPairs: kmPairs as TimetableKmPair[],
-    rateLong: historicalRate,
-    rateSub: historicalRateSub,
-  });
+  // Care curse leagă cele două opriri, la ce oră și cu ce preț (oferta zilei inclusă) — nucleul
+  // comun cu paginile de direcție și cu API-ul biletelor. Aici se adaugă doar șoferul și mașina.
+  const scheduled = calculeazaCurse(datele, date);
 
   // Build tur/retur assignment maps using shared utility
   const turDriverMap = buildTurAssignmentMap(allAssignments as any[]);
@@ -462,10 +332,9 @@ export async function searchTrips(
   const results: TripResult[] = [];
 
   for (const trip of scheduled) {
-    // Apply offer: override price and keep original for display
-    const offerPrice = dateOfferPrice;
-    const displayPrice = offerPrice ?? trip.price;
-    const displayOriginal = offerPrice ? trip.price : null;
+    // Prețul afișat vine deja cu oferta aplicată (calculeazaCurse); originalPrice e cel tăiat.
+    const displayPrice = trip.price;
+    const displayOriginal = trip.originalPrice;
 
     // Chișinău → Nord folosește harta retur, Nord → Chișinău harta tur.
     const details = resolveDetails((trip.goingNorth ? returDriverMap : turDriverMap).get(trip.routeId));

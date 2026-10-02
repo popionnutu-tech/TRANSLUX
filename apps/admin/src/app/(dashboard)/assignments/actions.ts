@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
 import { verificaTelefonSofer } from '@/lib/driver-guard';
-import { parseFirstTime, parseTimeLabel } from '@/lib/assignments';
+import { parseFirstTime, parseTimeLabel } from '@translux/db';
 import { normalizeDriverPhone } from '@translux/db';
 import { notifyGraficChanged } from '@/lib/grafic-group-sync';
 

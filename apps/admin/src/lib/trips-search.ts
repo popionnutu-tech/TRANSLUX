@@ -2,8 +2,7 @@
 
 import { unstable_cache } from 'next/cache';
 import { getSupabase } from '@/lib/supabase';
-import { buildTurAssignmentMap, buildReturAssignmentMap } from '@/lib/assignments';
-import { resolveOfferPriceForDate, resolveOfferForDate } from '@translux/db';
+import { buildTurAssignmentMap, buildReturAssignmentMap, pickRate, resolveOfferPriceForDate, resolveOfferForDate } from '@translux/db';
 
 export interface Locality {
   id: number;
@@ -100,20 +99,9 @@ const POPULAR_ROUTES = [
   { from: 'chisinau', to: 'larga', from_ro: 'Chișinău', to_ro: 'Larga', from_ru: 'Кишинёв', to_ru: 'Ларга' },
 ];
 
-/**
- * Alege rata corectă: dacă AMBELE opriri sunt în raionul de start
- * al rutei → tarif suburban; altfel → tarif interurban (lung).
- */
-function pickRate(
-  fromD: string | null,
-  toD: string | null,
-  startD: string | null,
-  rateLong: number,
-  rateSub: number,
-): number {
-  if (startD && fromD === startD && toD === startD) return rateSub;
-  return rateLong;
-}
+// pickRate vine din @translux/db (ION-192). Restul încărcării de aici (normalizeStop cu aliasurile
+// vechi, tariful fără cădere pe perioada precedentă) rămâne a asistentului — unificarea completă cu
+// cursePentru() e un pas separat, ca să nu schimbăm comportamentul asistentului în același commit.
 
 /** Fetch popular route prices using today's tariff rate from tariff_periods */
 export async function getPopularPrices(): Promise<PopularRoutePrice[]> {

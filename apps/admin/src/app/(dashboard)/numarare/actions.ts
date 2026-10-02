@@ -3,7 +3,7 @@
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
-import { resolveReturTime } from '@/lib/assignments';
+import { resolveReturTime } from '@translux/db';
 import { suburbanFareRound, isWithinGrace } from './calculation';
 
 // ─── Типы ───

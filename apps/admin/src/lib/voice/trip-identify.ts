@@ -11,7 +11,7 @@ import { searchTrips } from '../trips-search';
 import { getSupabase } from '../supabase';
 import { localitiesToRo, type Suggestion } from '../voice-locality';
 import { resolveVoiceDatePast } from '../date-spoken';
-import { parseTimeLabel } from '../assignments';
+import { parseTimeLabel } from '@translux/db';
 import { phoneSpoken } from '../phone-spoken';
 
 // Lucruri uitate: obiectul nu mai stă la șofer după două săptămâni.

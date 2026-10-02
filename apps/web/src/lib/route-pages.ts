@@ -2,7 +2,7 @@ import { unstable_cache } from 'next/cache';
 import { resolveOfferPriceForDate } from '@translux/db';
 import { getSupabase } from '@/lib/supabase';
 import { HUB_SLUGS, LOCALITIES, MAJOR, pageLocalityBySlug, routePath, UPCOMING, type MajorLocality } from '@/lib/seo';
-import { buildScheduledTrips, type ScheduledTrip, type TimetableKmPair, type TimetableRoute, type TimetableStop } from '@/lib/timetable';
+import { buildScheduledTrips, type ScheduledTrip, type TimetableKmPair, type TimetableRoute, type TimetableStop } from '@translux/db';
 
 /**
  * Datele paginilor de direcție /ro/autobuz/<de>-<spre> (ION-153): orarul planificat și prețul

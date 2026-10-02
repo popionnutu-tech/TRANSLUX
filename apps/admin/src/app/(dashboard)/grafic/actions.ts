@@ -3,7 +3,7 @@
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole, type Session } from '@/lib/auth';
 import { verificaTelefonSofer } from '@/lib/driver-guard';
-import { parseFirstTime, parseTimeLabel, resolveReturTime } from '@/lib/assignments';
+import { parseFirstTime, parseTimeLabel, resolveReturTime } from '@translux/db';
 import { scrieFoaie, mutaFoaiaLaSofer } from '@/lib/foaie';
 import { loadGraficPages, toLocalPhone, extractFirstName, type GraficRow } from '@/lib/grafic-data';
 import { graficGroupChatId } from '@/lib/grafic-group';

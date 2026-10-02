@@ -1,5 +1,5 @@
 import { getSupabase } from '@/lib/supabase';
-import { parseFirstTime, parseTimeLabel, resolveReturTime, type RawAssignment } from '@/lib/assignments';
+import { parseFirstTime, parseTimeLabel, resolveReturTime, type RawAssignment } from '@translux/db';
 
 export interface GraficRow {
   crm_route_id: number;

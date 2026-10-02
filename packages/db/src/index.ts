@@ -7,3 +7,6 @@ export * from './lde-card-calc.js';
 export * from './lde-geo-rules.js';
 export * from './offer-calc.js';
 export * from './driver-phone.js';
+export * from './timetable.js';
+export * from './assignments.js';
+export * from './pret.js';

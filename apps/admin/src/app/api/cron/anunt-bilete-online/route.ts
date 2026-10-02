@@ -10,7 +10,7 @@ export const maxDuration = 30;
 
 // ION-189 (Ion, 02.10.2026): anunț zilnic în grupa Mejgorod, în rusă, despre lansarea vânzării de bilete online
 // (după 12 octombrie): verificarea și confirmarea biletelor se fac prin Telegram, șoferul fără cont Telegram și
-// telefon nu pleacă în cursă. Ion, 02.10 seara: «И телефона важно» → telefonul e punct separat, îngroșat. «După ce vom lansa plata online, mesajul să nu mai plece» → se oprește când
+// telefon nu pleacă în cursă. Ion, 02.10 seara: «И телефона важно» → telefonul e punct separat, îngroșat; apoi formularea lui: «Без аккаунта и современного телефона». «După ce vom lansa plata online, mesajul să nu mai plece» → se oprește când
 // app_config.bilete_online_lansat are o dată ≤ azi.
 //
 // Cron: VPS root@217.26.149.23, crontab 0 8 * * * (Vercel Hobby are doar 2 cron-uri, ambele ocupate).
@@ -29,13 +29,13 @@ const TEXT_ANUNT = [
   '',
   'Проверка проданных билетов и их подтверждение будут проходить <b>через Telegram</b>. Поэтому у каждого водителя обязательно должны быть:',
   '',
-  '📱 <b>Телефон (смартфон) с интернетом</b> — через него водитель будет идентифицировать пассажиров и подтверждать их билеты. <b>Без телефона работать на рейсе будет невозможно.</b>',
+  '📱 <b>Современный телефон (смартфон) с интернетом</b> — через него водитель будет идентифицировать пассажиров и подтверждать их билеты.',
   '',
   '✅ <b>Аккаунт в Telegram</b> на этом телефоне.',
   '',
-  '⚠️ Водитель <b>без телефона</b> или <b>без аккаунта в Telegram</b> <b>не будет допущен к рейсу</b>.',
+  '⚠️ <b>Без аккаунта в Telegram и современного телефона водитель не будет допущен к рейсу.</b>',
   '',
-  'Просим подготовиться заранее: взять с собой рабочий телефон с интернетом, установить Telegram и войти в аккаунт. По всем вопросам обращайтесь к диспетчеру.',
+  'Просим подготовиться заранее: взять с собой современный телефон с интернетом, установить Telegram и войти в аккаунт. По всем вопросам обращайтесь к диспетчеру.',
   '',
   'Спасибо за понимание и за вашу работу!',
   '<i>Администрация TRANSLUX</i>',

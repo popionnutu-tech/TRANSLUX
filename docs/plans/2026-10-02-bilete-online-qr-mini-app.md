@@ -490,6 +490,19 @@ testele pasului 6 sunt CONDIȚIE DE PUSH, nu pas ulterior. Notificările șoferu
 - Pasul 9: buton `web_app` în privat + Menu Button; fără grupă (9). Pasul S: doar `requestContact` + scanner.
 - Decizia 3 și F8: linkul direct din grupă nu se mai folosește; mini app-ul se deschide din privat.
 
+### Ion, 03.10, 01:05: returnarea DOAR prin Telegram, decisă de AI
+Citat: «validarea la refund doar prin Telegram și trebuie să dăm AI să decidă când se face refund, că dacă întârzie
+clientul la rută — nu facem.»
+- Pasul 6 se împarte: **6 (ION-194) = executorul** — `anuleazaSiReturneaza()` (comanda → anulată + biletele anulate
+  atomic, refund la bancă, refuz explicit → reactivare, timeout → «Necunoscut» + împăcare), calea dispecerului din
+  /plati și /bilete, finalizarea comună; **FĂRĂ anulare publică de pe site** (ruta `/anulare` nu există); **6b (după
+  7 și 3b) = decizia** — în botul Telegram, pasagerul legat cere returnarea; AI-ul (asistentul, cu prompt separat)
+  verifică cu date: ora plecării din grafic, trecerea reală a autobuzului pe la oprire (`route_stop_passes`),
+  scanările, starea biletului, momentul cererii — și DECIDE: aprobă (cheamă executorul cu `sursa='ai'`), refuză cu
+  explicație (ex. clientul a întârziat la cursă: NU se returnează) sau escaladează la dispecer. Regulile tari rămân
+  în executor: bilet scanat «urcat» = nu; plasa de timp (`bilete_anulare_pasager_min`) pentru sursa pasager/ai.
+- Clauza (a)–(e) din 02.10 devine POLITICA pe care o aplică AI-ul, nu un buton pe pagină.
+
 ### Ion, 03.10, 00:45: biletul se salvează; grupa Telegram a clienților
 Citat: «clientul biletul îl poate salva; după achiziție poate trece în grupa Telegram și acolo automat se salvează el
 și numărul de telefon ca client.»

@@ -48,6 +48,9 @@ export function antaTime(hhmm: string | null | undefined): string | null {
 
 /** Firma noastră, așa cum apare în graficul ANTA. */
 export const OUR_OPERATOR = 'S.R.L. PARCUL DE AUTOBUZE ŞI TAXIMETRE NR.9 DIN BRICENI';
+/** Toate firmele noastre din graficul ANTA (Ion, 02.10: «aceeași firmă suntem, doar că 2 SRL-uri diferite» — ION-184). */
+export const OUR_OPERATORS = [OUR_OPERATOR, 'S.C. POND-TRANS S.R.L.'];
+export const isOurs = (operator: string) => OUR_OPERATORS.includes(operator);
 
 /**
  * O linie «Deservit de» din graficul ANTA poate ține două firme: «IURTOL-TRANS S.R.L., S.C. ODOGRAF S.R.L.».

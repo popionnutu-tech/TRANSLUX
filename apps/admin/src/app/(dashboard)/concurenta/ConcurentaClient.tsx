@@ -125,7 +125,7 @@ function PlacePicker({ id, label, placeholder, opts, value, onChange }: {
 }
 
 /* ---------- firme: listă alfabetică, mai multe deodată ---------- */
-function FirmPicker({ all, chosen, ours, onChange, ownersOf }: { all: string[]; chosen: Pick[]; ours: string; onChange: (v: Pick[]) => void; ownersOf: (f: string) => string }) {
+function FirmPicker({ all, chosen, ours, onChange, ownersOf }: { all: string[]; chosen: Pick[]; ours: string[]; onChange: (v: Pick[]) => void; ownersOf: (f: string) => string }) {
   const [text, setText] = useState('');
   const [open, setOpen] = useState(false);
   const clean = (x: string) => foldName(x).replace(/[".]/g, '');
@@ -152,7 +152,7 @@ function FirmPicker({ all, chosen, ours, onChange, ownersOf }: { all: string[]; 
           <ul role="listbox">
             {list.map((f) => (
               <li key={f} role="option" onMouseDown={(e) => { e.preventDefault(); add(f, false); }}>
-                <span>{f === ours ? '★ ' : ''}{f}<span className={s.own}>{ownersOf(f)}</span></span>
+                <span>{ours.includes(f) ? '★ ' : ''}{f}<span className={s.own}>{ownersOf(f)}</span></span>
                 <button type="button" className={s.no} title="Exclude din căutare" onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); add(f, true); }}>fără</button>
               </li>
             ))}
@@ -161,7 +161,7 @@ function FirmPicker({ all, chosen, ours, onChange, ownersOf }: { all: string[]; 
       </div>
       <div className={s.chips}>
         {chosen.map((c) => (
-          <span key={c.name} className={`${s.chip} ${c.name === ours ? s.ours : ''} ${c.not ? s.not : ''}`}>
+          <span key={c.name} className={`${s.chip} ${ours.includes(c.name) ? s.ours : ''} ${c.not ? s.not : ''}`}>
             <button type="button" className={s.chipName} title={c.not ? 'Exclusă — click ca să o incluzi' : 'Inclusă — click ca să o excluzi'} onClick={() => flip(c.name)}>{c.not ? 'fără ' : ''}{c.name}</button>
             <button type="button" aria-label="Scoate" onClick={() => onChange(chosen.filter((x) => x.name !== c.name))}>✕</button>
           </span>
@@ -222,8 +222,9 @@ export default function ConcurentaClient({ init }: { init: ConcurentaInit }) {
   const opts = useMemo(() => toOpts(init.places), [init.places]);
   const firms = useMemo(() => {
     const all = init.operators.map((o) => o.operator).sort((a, b) => a.localeCompare(b, 'ro'));
-    return all.includes(init.ourOperator) ? [init.ourOperator, ...all.filter((f) => f !== init.ourOperator)] : all;
-  }, [init.operators, init.ourOperator]);
+    const mine = init.ourOperators.filter((o) => all.includes(o));
+    return [...mine, ...all.filter((f) => !mine.includes(f))];
+  }, [init.operators, init.ourOperators]);
   const rate = init.rate?.value ?? null;
   const companyMap = useMemo(() => new Map(init.companies.map((c) => [c.company, c])), [init.companies]);
   const companiesOf = (operator: string) => splitOperator(operator).map((n) => companyMap.get(n));
@@ -295,7 +296,8 @@ export default function ConcurentaClient({ init }: { init: ConcurentaInit }) {
     </th>
   );
 
-  const ours = rows.filter((r) => r.course.operator === init.ourOperator).length;
+  const isOurs = (op: string) => init.ourOperators.includes(op);
+  const ours = rows.filter((r) => isOurs(r.course.operator)).length;
   const openRow = (r: Row) => { setSel(r); setDir(r.dir); };
 
   return (
@@ -311,7 +313,7 @@ export default function ConcurentaClient({ init }: { init: ConcurentaInit }) {
         <PlacePicker id="from" label="De unde" placeholder="localitate…" opts={opts} value={from} onChange={setFrom} />
         <button type="button" className={s.swap} title="Schimbă direcția" aria-label="Schimbă direcția" onClick={() => { const a = from; setFrom(to); setTo(a); }}>⇄</button>
         <PlacePicker id="to" label="Încotro" placeholder="orice punct" opts={opts} value={to} onChange={setTo} />
-        <FirmPicker all={firms} chosen={chosenFirms} ours={init.ourOperator} onChange={setChosenFirms} ownersOf={(f) => ownersText(companiesOf(f)).text} />
+        <FirmPicker all={firms} chosen={chosenFirms} ours={init.ourOperators} onChange={setChosenFirms} ownersOf={(f) => ownersText(companiesOf(f)).text} />
         <OwnerPicker all={ownerOptions} chosen={chosenOwners} onChange={setChosenOwners} />
       </form>
       <p className={s.hint}>
@@ -342,7 +344,7 @@ export default function ConcurentaClient({ init }: { init: ConcurentaInit }) {
               <thead><tr><th className={s.num}>#</th>{th('dep', 'Plecare')}{th('back', 'Pornire înapoi')}{th('lei', 'Bilet')}{th('route', 'Ruta')}{th('firm', 'Firma', s.hideM)}{th('code', 'Cod', s.hideM)}</tr></thead>
               <tbody>
                 {sorted.map((r, i) => {
-                  const mine = r.course.operator === init.ourOperator;
+                  const mine = isOurs(r.course.operator);
                   const isSel = sel === r;
                   return (
                     <tr key={`${r.course.id}-${r.dir}-${i}`} className={`${s.row} ${mine ? s.ours : ''} ${isSel ? s.sel : ''}`} tabIndex={0}
@@ -363,7 +365,7 @@ export default function ConcurentaClient({ init }: { init: ConcurentaInit }) {
           )}
         </section>
 
-        {sel && <Detail row={sel} dir={dir} setDir={setDir} rate={init.rate} ours={init.ourOperator} onClose={() => setSel(null)}
+        {sel && <Detail row={sel} dir={dir} setDir={setDir} rate={init.rate} ours={init.ourOperators} onClose={() => setSel(null)}
           companies={companiesOf(sel.course.operator)} allCompanies={init.companies} />}
       </div>
     </div>
@@ -372,7 +374,7 @@ export default function ConcurentaClient({ init }: { init: ConcurentaInit }) {
 
 /* ---------- detaliul cursei: opririle tur și retur, km și bilet de la urcare ---------- */
 function Detail({ row, dir, setDir, rate, ours, onClose, companies, allCompanies }: {
-  row: Row; dir: Dir; setDir: (d: Dir) => void; rate: ConcurentaInit['rate']; ours: string; onClose: () => void;
+  row: Row; dir: Dir; setDir: (d: Dir) => void; rate: ConcurentaInit['rate']; ours: string[]; onClose: () => void;
   companies: (Company | undefined)[]; allCompanies: Company[];
 }) {
   const c = row.course;
@@ -387,7 +389,7 @@ function Detail({ row, dir, setDir, rate, ours, onClose, companies, allCompanies
       <button type="button" className={s.close} aria-label="Închide" onClick={onClose}>✕</button>
       <div className={s.k}>{c.source === 'tlx' ? 'translux.md' : c.code}</div>
       <h3>{c.route_name}</h3>
-      <div className={s.meta}><span>{c.operator}{c.operator === ours && <span className={s.pill}>NOI</span>}</span><span>{last.km_tur} km toată ruta</span><span>{c.stops.length} opriri</span></div>
+      <div className={s.meta}><span>{c.operator}{ours.includes(c.operator) && <span className={s.pill}>NOI</span>}</span><span>{last.km_tur} km toată ruta</span><span>{c.stops.length} opriri</span></div>
       {splitOperator(c.operator).map((name, i) => {
         const co = companies[i];
         if (!co) return <div key={name} className={s.co}><h4>{name}</h4><div className={s.own}><i>proprietar: necunoscut (nu e în registrul strâns)</i></div></div>;

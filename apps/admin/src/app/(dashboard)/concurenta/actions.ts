@@ -2,7 +2,7 @@
 
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
-import { OUR_OPERATOR } from '@/lib/anta/names';
+import { OUR_OPERATOR, OUR_OPERATORS } from '@/lib/anta/names';
 
 // Concurența pe direcție (ION-12): cine circulă prin două puncte, din graficul ANTA importat
 // (anta_courses / anta_course_stops, migr. 382) plus cursele noastre (source='tlx').
@@ -50,6 +50,7 @@ export interface ConcurentaInit {
   companies: Company[];
   rate: TariffRate | null;
   ourOperator: string;
+  ourOperators: string[];   // ION-184: Parcul nr. 9 Briceni + S.C. POND-TRANS S.R.L.
   counts: { courses: number; ours: number };
 }
 
@@ -92,6 +93,7 @@ export async function getConcurentaInit(): Promise<ConcurentaInit> {
     companies: (compR.data ?? []) as Company[],
     rate,
     ourOperator: OUR_OPERATOR,
+    ourOperators: OUR_OPERATORS,
     counts: { courses: total.count ?? 0, ours: ours.count ?? 0 },
   };
 }

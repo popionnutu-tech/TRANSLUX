@@ -4,7 +4,7 @@ import {
   parseTimeLabel, PhoneError, type BileteComanda, type CursaCuPret,
 } from '@translux/db';
 import { getSupabase } from '@/lib/supabase';
-import { createCheckout, findCheckoutByOrderId, MaibError } from '@/lib/maib/client';
+import { createCheckout, findCheckoutByOrderId, MaibError, type MaibCheckout } from '@/lib/maib/client';
 import { persistaCheckout } from '@/lib/maib/persist';
 import { chisinauInstantIso, chisinauTimeOf, chisinauTodayIso } from '@/lib/chisinau-time';
 import { calculeazaDepartureAt, vanzareDeschisa } from './reguli';
@@ -120,7 +120,7 @@ async function gasesteCursa(input: ComandaInput): Promise<{ trip: CursaCuPret; f
 }
 
 /** Șoferul atribuit cursei PE ziua cerută (fără căderea pe ziua anterioară de pe site). */
-async function areSofer(tripDate: string, crmRouteId: number, goingNorth: boolean): Promise<boolean> {
+export async function areSofer(tripDate: string, crmRouteId: number, goingNorth: boolean): Promise<boolean> {
   const db = getSupabase();
   const sel = 'crm_route_id, driver_id, vehicle_id, vehicle_id_retur, driver_id_retur, retur_route_id';
   const [a, b] = await Promise.all([
@@ -356,6 +356,18 @@ async function recupereazaSesiunea(comanda: BileteComanda, opt: ComandaOptiuni):
     if (error) console.error('[bilete] emiterea la recuperare:', error.message);
   }
   return { comanda: { ...comanda, checkout_id: gasit.id, creare_in_curs_la: null }, checkoutUrl: gasit.url ?? '' };
+}
+
+/**
+ * Pentru împăcare (ION-196): leagă de comandă o sesiune găsită la maib după orderId (rândul maib_checkouts +
+ * checkout_id, cu aceleași garanții ca la creare). true = legată (sau era deja legată de aceeași sesiune).
+ */
+export async function leagaSesiuneExistenta(comanda: BileteComanda, gasit: MaibCheckout, createdBy: string): Promise<boolean> {
+  const legat = await scrieSiLeaga(comanda.id, {
+    checkoutId: gasit.id, checkoutUrl: gasit.url ?? null, amount: Number(gasit.amount), description: descriereDin(comanda),
+  }, { mod: 'public', bazaAdmin: '', bazaSite: '', createdBy });
+  if (!legat.ok) console.warn('[bilete] legarea sesiunii găsite:', legat.eroare);
+  return legat.ok;
 }
 
 /** Codul HTTP pentru fiecare clasă de eroare a comenzii. */

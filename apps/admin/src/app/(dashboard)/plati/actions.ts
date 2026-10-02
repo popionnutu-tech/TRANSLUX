@@ -180,7 +180,11 @@ export async function returneaza(checkoutId: string, motiv: string): Promise<Rez
   if (rand.refund_id) return { ok: false, eroare: `refund-ul există deja (${rand.refund_status ?? 'creat'})` };
   // Plata unei comenzi de bilete: returnarea de aici ar lăsa biletele valide (Codex X5). Până la pasul 6 (anularea
   // coordonată, aceeași funcție pentru pasager și admin), refuzăm — nu există cale de refund pe bilete în v1.
-  const { data: comanda } = await getSupabase().from('bilete_comenzi').select('id, status').eq('checkout_id', rand.checkout_id).maybeSingle();
+  // … și după order_id (comanda orfană, încă nelegată): uuid-ul din order_id e id-ul ei. O eroare la citire = refuz.
+  const { data: comanda, error: cErr } = await getSupabase().from('bilete_comenzi').select('id, status')
+    .or(`checkout_id.eq.${rand.checkout_id}${/^[0-9a-f-]{36}$/i.test(rand.order_id) ? `,id.eq.${rand.order_id}` : ''}`)
+    .limit(1).maybeSingle();
+  if (cErr) return { ok: false, eroare: `nu pot verifica dacă plata e a unei comenzi de bilete (${cErr.message}); nu returnez` };
   if (comanda) return { ok: false, eroare: `plata aparține comenzii de bilete ${comanda.id} (${comanda.status}); returnarea biletelor se face din /bilete (pasul 6), nu de aici` };
   if (!motiv.trim()) return { ok: false, eroare: 'motivul e obligatoriu' };
 

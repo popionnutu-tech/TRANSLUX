@@ -8,7 +8,8 @@ import { ComandaError, creeazaComanda, statusPentru, type ComandaInput } from '@
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 30;
+// Bugetul: token + creare (+ reîmprospătare la 401) × 8 s + căutarea sesiunii + baza — încape în 60 s (Codex X9).
+export const maxDuration = 60;
 
 const BEARER_RE = /^Bearer\s+(.+)$/i;
 

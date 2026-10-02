@@ -96,7 +96,12 @@ export async function POST(req: NextRequest) {
   const checkoutId = body && typeof body.checkoutId === 'string' && UUID_RE.test(body.checkoutId) ? body.checkoutId : null;
 
   if (!verdict.ok) {
-    await jurnal(req, checkoutId, false, verdict.motiv, rawBody);
+    // Respingerile se jurnalizează cu plafon pe IP (30/min): un necunoscut nu poate umple maib_callbacks (Codex X13).
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || null;
+    const { data: permis } = ip
+      ? await getSupabase().rpc('bilete_plafon', { p_cheie: `cb:${ip}`, p_fereastra_s: 60, p_max: 30 })
+      : { data: true };
+    if (permis !== false) await jurnal(req, checkoutId, false, verdict.motiv, rawBody);
     console.warn('[maib/callback] respins:', verdict.motiv);
     return NextResponse.json({ ok: false }, { status: 401 });
   }

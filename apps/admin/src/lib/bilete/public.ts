@@ -46,7 +46,9 @@ export class BazaIndisponibilaError extends Error {
  * comună). Dacă plafonul însuși nu poate fi verificat, lăsăm cererea să treacă — un bilet trebuie să se poată arăta.
  */
 export async function plafonPublic(ip: string | null, max = 60): Promise<boolean> {
-  const cheie = `pub:${ip ?? 'fara-ip'}`;
+  // Fără IP (nu se întâmplă pe Vercel, care pune mereu x-forwarded-for) nu punem pe toți într-o găleată comună (Y3).
+  if (!ip) return true;
+  const cheie = `pub:${ip}`;
   const { data, error } = await getSupabase().rpc('bilete_plafon', { p_cheie: cheie, p_fereastra_s: 60, p_max: max });
   if (error) { console.warn('[bilete] plafon public:', error.message); return true; }
   return data !== false;

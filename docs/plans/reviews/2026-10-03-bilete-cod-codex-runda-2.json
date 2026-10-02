@@ -1,0 +1,79 @@
+{
+  "rezumat": "8 observații sunt închise corect, 7 rămân parțial deschise; am identificat 3 defecte suplimentare. HEAD de748421 diferă de 09995f35 doar prin documentele reviziei. Verificarea a inclus reproduceri locale ale codului cu dependențe simulate, fără modificări în repo, plăți sau execuții SQL. Emiterea tranzacțională și UNIQUE(comanda_id, nr) împiedică biletele duble, însă crearea repetată a sesiunilor bancare rămâne posibilă. Suspiciunile privind status=NULL și emiterea pentru plata generică TEST- din /plati nu se confirmă: coloana este NOT NULL, respectiv order_id nu este UUID.",
+  "inchise": [
+    "X1",
+    "X3",
+    "X4",
+    "X8",
+    "X10",
+    "X11",
+    "X14",
+    "X15"
+  ],
+  "deschise": [
+    {
+      "id": "X2",
+      "de_ce": "Recuperarea confundă eroarea căutării cu absența sesiunii: un timeout la findCheckoutByOrderId întoarce null și permite un nou createCheckout. În plus, dacă procesul moare după crearea la bancă, comanda rămâne noua cu creare_incercari=0; după expirarea revendicării, recuperarea este omisă complet. Am reprodus ambele ramuri. Dacă banca acceptă repetarea orderId, pot exista două sesiuni; UNIQUE(order_id) protejează numai baza locală. Căutarea incertă trebuie să oprească recrearea, iar revendicarea expirată trebuie reconciliată.",
+      "dovada": "apps/admin/src/lib/bilete/comenzi.ts:217-237,247-254,307-317; packages/db/migrations/482_maib_plati.sql:10"
+    },
+    {
+      "id": "X5",
+      "de_ce": "Protecția refund-ului permite continuarea când citirea bilete_comenzi eșuează: error este ignorat, comanda devine null și refundPayment se execută. Reprodus local. În plus, verificarea numai după checkout_id nu recunoaște comanda orfană identificabilă prin order_id, deși noul RPC poate ulterior lega și emite biletele. Refuzul trebuie să acopere erorile citirii și ambele forme de asociere.",
+      "dovada": "apps/admin/src/app/(dashboard)/plati/actions.ts:179-204; packages/db/migrations/484_bilete_online_corecturi.sql:50-56"
+    },
+    {
+      "id": "X6",
+      "de_ce": "Sincronizarea invocă acum emiterea, dar o eroare a RPC-ului este doar jurnalizată, după care întoarce ok:true. Am reprodus eșecul emiterii cu rezultat de succes. Adminul primește confirmarea actualizării, iar GET-ul public poate răspunde 200 cu comanda încă noua și fără bilete. Rezultatul emiterii trebuie propagat și recuperarea trebuie să rămână explicit necesară.",
+      "dovada": "apps/admin/src/lib/maib/sincronizare.ts:54-58; apps/admin/src/lib/bilete/public.ts:60-65; apps/admin/src/app/api/bilete/public/[cod]/route.ts:20-23"
+    },
+    {
+      "id": "X7",
+      "de_ce": "Condiția atomică a fost adăugată în callback, dar sincronizarea continuă să decidă din snapshot-ul inițial și să execute UPDATE necondiționat. Am reprodus: sincronizarea citește Initialized, callback-ul scrie Completed, apoi sincronizarea suprascrie cu Initialized. Ramura de expirare are aceeași cursă. Protecția trebuie aplicată în operația SQL pentru toate aceste actualizări.",
+      "dovada": "apps/admin/src/lib/maib/sincronizare.ts:32-50,62-64; apps/admin/src/app/api/pay/maib/callback/route.ts:162-165"
+    },
+    {
+      "id": "X9",
+      "de_ce": "Timeout-ul individual de 8 secunde îmbunătățește traseul obișnuit, dar nu constituie un buget total. Pornirea fără token urmată de 401 permite patru apeluri secvențiale: token, creare, token reîmprospătat, creare repetată. La 7,6 secunde fiecare sunt deja 30,4 secunde, fără bază; recuperarea adaugă și căutarea sesiunii. Ruta poate fi terminată înaintea persistării. Este necesar un deadline comun cu timp rezervat salvării rezultatului.",
+      "dovada": "apps/admin/src/lib/maib/client.ts:21,152-165,187-202; apps/admin/src/lib/bilete/comenzi.ts:217-237; apps/admin/src/app/api/bilete/comanda/route.ts:11"
+    },
+    {
+      "id": "X12",
+      "de_ce": "Migrația 485 închide cursa dintre cheia de idempotență și plafoane, dar nu și dependența reluării de validările curente. Steagurile, șoferul, tariful și fereastra de vânzare sunt verificate înaintea recuperării comenzii existente. Dacă răspunsul inițial se pierde înaintea închiderii vânzării, aceeași cerere primește 400 în locul checkout-ului deja creat. Comanda existentă trebuie rezolvată înaintea validărilor unei vânzări noi.",
+      "dovada": "apps/admin/src/lib/bilete/comenzi.ts:145-170,205-208; packages/db/migrations/485_bilete_online_idempotenta.sql:13-16"
+    },
+    {
+      "id": "X13",
+      "de_ce": "Plafonul este conectat la biletul public, dar funcția utilizată rămâne neatomică: cereri concurente pot număra aceeași valoare și toate pot insera peste limită. Callback-urile neautentificate continuă să producă INSERT fără plafon. Curățarea elimină numai istoricul cheii reapelate, astfel încât IP-urile care nu revin lasă rânduri permanent. Aceste componente ale observației inițiale nu sunt corectate.",
+      "dovada": "apps/admin/src/lib/bilete/public.ts:48-52; packages/db/migrations/483_bilete_online.sql:151-159; apps/admin/src/app/api/pay/maib/callback/route.ts:61-69,98-101"
+    }
+  ],
+  "noi": [
+    {
+      "id": "Y1",
+      "severitate": "high",
+      "zona": "recuperare și emitere",
+      "titlu": "Recuperarea emite bilete și pentru o plată deja returnată",
+      "dovada": "apps/admin/src/lib/bilete/comenzi.ts:314-321; packages/db/migrations/484_bilete_online_corecturi.sql:63-72",
+      "scenariu": "O comandă eroare_creare fără checkout_id are la bancă o sesiune Completed, dar plata este deja Refunded sau PartiallyRefunded. Acest caz poate apărea după returnarea unei plăți orfane din /plati. Recuperarea salvează payment_status=Refunded și invocă emiterea doar pentru că sesiunea este Completed. SQL verifică statusul sesiunii și suma, fără să verifice starea plății sau refund-ul, apoi creează bilete valide. Am reprodus apelarea RPC-ului pentru payment.status=Refunded; ramura SQL permite emiterea.",
+      "corectie": "Verifică în tranzacția de emitere că plata este Executed, fără sumă returnată sau refund în curs. Aplică aceeași condiție în recuperare și sincronizare; cazurile neeligibile trebuie reconciliate și semnalate."
+    },
+    {
+      "id": "Y2",
+      "severitate": "high",
+      "zona": "concurență între creare și callback",
+      "titlu": "Tratarea erorii de legare poate retrograda o comandă deja plătită",
+      "dovada": "apps/admin/src/lib/bilete/comenzi.ts:258-264,290-297; packages/db/migrations/484_bilete_online_corecturi.sql:50-72; packages/db/migrations/483_bilete_online.sql:77",
+      "scenariu": "Sesiunea este persistată, iar callback-ul o leagă prin order_id și emite biletele. Operația concurentă scrieSiLeaga raportează o eroare temporară; tratarea erorii execută necondiționat status=eroare_creare, suprascriind platita. Am reprodus starea finală eroare_creare cu bilet deja emis. Următoarea emitere încearcă din nou INSERT pentru aceleași numere și eșuează pe UNIQUE(comanda_id, nr), anulând tranzacția. Nu apar bilete duble, dar comanda rămâne inconsistentă și callback-urile pot eșua repetat.",
+      "corectie": "Actualizează stările de eroare numai condiționat, cât comanda este încă neplătită și revendicarea aparține încercării curente. Recitește rezultatul după un conflict și tratează comanda deja plătită ca succes."
+    },
+    {
+      "id": "Y3",
+      "severitate": "medium",
+      "zona": "disponibilitatea biletului public",
+      "titlu": "Cererile fără IP împart același plafon global de 60 pe minut",
+      "dovada": "apps/admin/src/app/api/bilete/public/[cod]/route.ts:16-17; apps/admin/src/lib/bilete/public.ts:48-50",
+      "scenariu": "Dacă lipsesc atât x-forwarded-for, cât și x-real-ip, toți pasagerii intră în cheia pub:fara-ip. Într-un asemenea traseu prin proxy, 60 de cereri pentru coduri cu format valid, inclusiv inexistente, blochează afișarea biletelor tuturor celorlalte cereri fără IP. Absența doar a x-forwarded-for este acoperită dacă x-real-ip există.",
+      "corectie": "Folosește identitatea clientului furnizată de infrastructura de încredere. Când aceasta lipsește, aplică o strategie distinctă de limitare care nu transformă plafonul unui client într-un blocaj comun pentru toate biletele."
+    }
+  ]
+}

@@ -47,20 +47,31 @@ export async function sincronizeazaStare(ref: string): Promise<SincronizareRezul
       upd.payment_status = p.status;
       upd.refunded_amount = Number(p.refundedAmount ?? rand.refunded_amount ?? 0);
     }
-    const { data, error } = await getSupabase().from('maib_checkouts').update(upd).eq('checkout_id', rand.checkout_id).select('*').single();
+    // Condiția e în UPDATE (Codex X7, runda 2): dacă NU scriem Completed, nu atingem un rând devenit Completed între
+    // timp (callback-ul). Dacă rândul a fost sărit, îl recitim și raportăm starea lui reală.
+    let q = getSupabase().from('maib_checkouts').update(upd).eq('checkout_id', rand.checkout_id);
+    if (!stareEgala(stareNoua, 'Completed')) q = q.not('status', 'ilike', 'completed');
+    const { data: scrise, error } = await q.select('*');
     if (error) return { ok: false, eroare: error.message };
-    // Biletele (ION-193): dacă plata e executată și callback-ul s-a pierdut, le emite sincronizarea — funcția din
-    // bază e idempotentă și verifică singură suma; pe o plată de test din /plati întoarce 0 (nu e comandă).
-    if (stareEgala(stareNoua, 'Completed') && p && stareEgala(p.status, 'Executed')) {
-      const { error: rpcErr } = await getSupabase().rpc('bilete_marcheaza_platita', { p_checkout_id: rand.checkout_id });
-      if (rpcErr) console.error('[maib/sincronizare] bilete_marcheaza_platita:', rpcErr.message);
+    let data = (scrise && scrise[0]) as MaibCheckoutRow | undefined;
+    if (!data) {
+      const { data: acum } = await getSupabase().from('maib_checkouts').select('*').eq('checkout_id', rand.checkout_id).maybeSingle();
+      data = (acum as MaibCheckoutRow | null) ?? rand;
     }
-    return { ok: true, rand: data as MaibCheckoutRow };
+    // Biletele (ION-193): dacă plata e executată și callback-ul s-a pierdut, le emite sincronizarea — funcția din
+    // bază e idempotentă și verifică singură suma și starea plății; pe o plată de test din /plati întoarce 0.
+    // O eroare a emiterii se întoarce apelantului (Codex X6): «actualizat» fără bilete nu e succes.
+    if (stareEgala(data.status, 'Completed') && stareEgala(data.payment_status, 'Executed')) {
+      const { error: rpcErr } = await getSupabase().rpc('bilete_marcheaza_platita', { p_checkout_id: rand.checkout_id });
+      if (rpcErr) return { ok: false, eroare: `starea e actualizată, dar emiterea biletelor a eșuat: ${rpcErr.message}` };
+    }
+    return { ok: true, rand: data };
   } catch (e) {
     // Sesiunea nu mai există / a expirat la maib — o marcăm, ca să nu rămână «în așteptare» pe veci.
     // Verificat 02.10.2026: sandbox-ul răspunde HTTP 200 + ok=false + cod «…-1800» (docs: 43001 / 404).
     if (e instanceof MaibError && !stareEgala(rand.status, 'Completed') && (e.status === 404 || e.errors.some(x => /-(1800|43001)$/.test(x.errorCode ?? '')))) {
-      await getSupabase().from('maib_checkouts').update({ status: 'Expired', updated_at: new Date().toISOString() }).eq('checkout_id', rand.checkout_id);
+      await getSupabase().from('maib_checkouts').update({ status: 'Expired', updated_at: new Date().toISOString() })
+        .eq('checkout_id', rand.checkout_id).not('status', 'ilike', 'completed');
       return { ok: true, mesaj: 'maib nu mai cunoaște sesiunea (expirată)' };
     }
     const msg = e instanceof Error ? e.message : String(e);

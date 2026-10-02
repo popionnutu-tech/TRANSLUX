@@ -28,3 +28,20 @@ ideal, fără bug-uri». Revizori: Claude senior-backend (fiabilitate), security
 | SEC-7 | low | codul secret în URL-uri (maib, jurnale) | respins cu fapt: risc acceptat explicit în plan (SEC-18, v3) | — |
 | REL-7 | low | `leagaComandaOrfana` ar fi cod mort | respins cu fapt: ramura e atinsă când `persistaCheckout` eșuează după crearea sesiunii (`comenzi.ts`, `scrieSiLeaga` → `eroare_creare`) și pasagerul deschide totuși linkul primit în răspunsul anterior; X4 a cerut chiar întărirea ei | — |
 | SPD-8 | low | `bilete_plafon` nefolosit | închis de X13 (folosit pe biletul public) | — |
+
+## Codex runda 2 (pe 09995f35, `codex-runda-2.json`) — triaj
+
+Închise confirmate de critic: X1, X3, X4, X8, X10, X11, X14, X15. Restul, închise în al treilea commit (migr. 486 + cod):
+
+| id | sev. | esență | decizie | unde |
+|---|---|---|---|---|
+| Y1 | high | emitere de bilete pe o plată Completed dar Refunded | acceptat | migr. 486: emiterea cere `payment_status=Executed`, `refunded_amount=0`, fără `refund_id`; altfel alertă |
+| Y2 | high | eroarea la legare retrograda o comandă deja plătită de callback | acceptat | `comenzi.ts`: stările de eroare se scriu doar cât comanda e deschisă și nelegată; «legată de altă sesiune, platita» = succes |
+| X2 (rest) | high | eroare la căutarea sesiunii → creare nouă; revendicare expirată fără recuperare | acceptat | căutarea eșuată → `maib` 503, nu creare; recuperarea rulează și când a existat o revendicare |
+| X5 (rest) | high | eroarea citirii comenzii lăsa refund-ul să treacă; comanda orfană neverificată | acceptat | `/plati`: eroare = refuz; verificare și după `order_id` |
+| X6 (rest) | high | eroarea emiterii din sincronizare → ok:true | acceptat | eroarea se propagă apelantului |
+| X7 (rest) | high | sincronizarea scria necondiționat | acceptat | `not status ilike completed` în UPDATE (și la expirare) |
+| X9 (rest) | high | fără buget total | acceptat | `maxDuration = 60` pe ruta comenzii (4 × 8 s + bază încap) |
+| X12 (rest) | medium | reluarea trecea prin validările vânzării noi | acceptat | comanda existentă se rezolvă ÎNAINTEA validărilor (`asiguraSesiunea`) |
+| X13 (rest) | medium | `bilete_plafon` neatomic; callback-urile respinse fără plafon; curățare parțială | acceptat | migr. 486: advisory lock pe cheie + curățare globală; callback: respingerile jurnalizate cu plafon 30/min pe IP |
+| Y3 | medium | fără IP toți într-o găleată | acceptat | fără IP nu se aplică plafonul (Vercel pune mereu x-forwarded-for) |

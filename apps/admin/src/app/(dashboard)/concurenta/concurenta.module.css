@@ -24,6 +24,12 @@
 .chip.ours { border-color: var(--brand); background: var(--ours); }
 .chip button { border: 0; background: transparent; cursor: pointer; color: var(--ink3); padding: 0 2px; line-height: 1; font-size: 12px; }
 .chip button:hover { color: var(--brand); }
+.chip.not { border-color: #d2525f; background: #fdf1f3; }
+.chip.not .chipName { text-decoration: line-through; text-decoration-color: #d2525f; }
+.chipName { all: unset; cursor: pointer; }
+.chipName:hover { color: var(--brand); }
+.pk li .no { font-size: 11px; line-height: 1; padding: 3px 8px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink2); cursor: pointer; white-space: nowrap; }
+.pk li .no:hover { color: #b32f3b; border-color: #d2525f; }
 
 .main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 440px); gap: 0; }
 .main.solo { grid-template-columns: minmax(0, 1fr); }

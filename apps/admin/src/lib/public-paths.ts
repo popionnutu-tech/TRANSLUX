@@ -44,6 +44,9 @@ export const PUBLIC_EXACT = [
   '/api/asistent-site/pozitie',
   // Butonul «Acum» de pe prima pagină (ION-43): autobuzele de pe drum ale direcției.
   '/api/asistent-site/acum',
+  // Callback-ul maib Checkout (ION-188): banca POST-ează fără cookie; se apără singur prin
+  // semnătura HMAC din X-Signature (lib/maib/signature.ts). Exact, nu prefix.
+  '/api/pay/maib/callback',
 ] as const;
 
 export function isPublicPath(pathname: string): boolean {

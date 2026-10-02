@@ -104,7 +104,7 @@ export default function PlatiClient({ rows, stare, banner }: Props) {
           <tbody>
             {rows.length === 0 && <tr><td style={td} colSpan={8}>Nicio sesiune încă.</td></tr>}
             {rows.map(r => {
-              const platita = r.payment_id && egal(r.payment_status, 'Executed') && !r.refund_id;
+              const platita = r.payment_id && egal(r.payment_status, 'Executed') && !r.refund_id && !r.refund_status;
               const deschisa = !egal(r.status, 'Completed') && !egal(r.status, 'Cancelled') && !egal(r.status, 'Expired') && !egal(r.status, 'Failed');
               return (
                 <tr key={r.checkout_id}>

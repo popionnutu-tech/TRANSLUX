@@ -12,6 +12,8 @@
  * documentația («Waitingforinit»), de aceea comparațiile de stare se fac cu stareEgala().
  */
 
+import 'server-only';
+
 export const MAIB_SANDBOX_URL = 'https://sandbox.maibmerchants.md';
 export const MAIB_PRODUCTION_URL = 'https://api.maibmerchants.md';
 const TIMEOUT_MS = 20_000;

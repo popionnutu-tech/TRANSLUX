@@ -66,8 +66,10 @@ export async function listaPlati(): Promise<PlataRow[]> {
   return (data || []) as PlataRow[];
 }
 
-/** Adresa publică a acestui panou (central-hub), din antetele cererii. */
+/** Adresa publică a acestui panou (central-hub): MAIB_PUBLIC_BASE_URL dacă e pusă, altfel din antetele cererii. */
 async function bazaUrl(): Promise<string> {
+  const fix = process.env.MAIB_PUBLIC_BASE_URL?.replace(/\/+$/, '');
+  if (fix) return fix;
   const h = await headers();
   const host = h.get('x-forwarded-host') ?? h.get('host') ?? 'central-hub-md.vercel.app';
   const proto = h.get('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https');
@@ -181,21 +183,38 @@ export async function returneaza(checkoutId: string, motiv: string): Promise<Rez
   if (!rand.payment_id || !stareEgala(rand.payment_status, 'Executed')) return { ok: false, eroare: 'plata nu e executată' };
   if (rand.refund_id) return { ok: false, eroare: `refund-ul există deja (${rand.refund_status ?? 'creat'})` };
   if (!motiv.trim()) return { ok: false, eroare: 'motivul e obligatoriu' };
+
+  // Revendicăm rândul ÎNAINTE de apelul la maib (update condiționat): doi admini sau un dublu-clic
+  // nu pot cere două refund-uri pentru aceeași plată (revizorul de securitate, ION-188).
+  const supabase = getSupabase();
+  const { data: revendicat, error: revErr } = await supabase
+    .from('maib_checkouts')
+    .update({ refund_status: 'Pending', refund_reason: motiv.trim(), updated_at: new Date().toISOString() })
+    .eq('checkout_id', rand.checkout_id)
+    .is('refund_id', null)
+    .is('refund_status', null)
+    .select('checkout_id');
+  if (revErr) return { ok: false, eroare: revErr.message };
+  if (!revendicat || revendicat.length === 0) return { ok: false, eroare: 'refund-ul e deja în lucru' };
+
   try {
     const p = await getPayment(rand.payment_id);
-    if (p.isRefundable === false) return { ok: false, eroare: 'maib spune că plata nu se poate returna' };
+    if (p.isRefundable === false) throw new MaibError('maib spune că plata nu se poate returna', 0);
     const suma = Number(p.refundableAmount ?? rand.amount);
     const r = await refundPayment(rand.payment_id, suma, motiv);
-    const { error } = await getSupabase().from('maib_checkouts').update({
+    const { error } = await supabase.from('maib_checkouts').update({
       refund_id: r.refundId,
       refund_status: r.status,
-      refund_reason: motiv.trim(),
       updated_at: new Date().toISOString(),
     }).eq('checkout_id', rand.checkout_id);
     if (error) return { ok: false, eroare: `refund-ul ${r.refundId} e creat la maib, dar nu s-a scris în bază: ${error.message}` };
     revalidatePath('/plati');
     return { ok: true, mesaj: `refund ${r.refundId}: ${r.status}` };
   } catch (e) {
+    // maib a refuzat: eliberăm revendicarea, ca să se poată încerca din nou.
+    await supabase.from('maib_checkouts').update({ refund_status: null, refund_reason: null, updated_at: new Date().toISOString() })
+      .eq('checkout_id', rand.checkout_id).is('refund_id', null);
+    revalidatePath('/plati');
     return eroare(e);
   }
 }

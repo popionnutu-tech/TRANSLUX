@@ -39,6 +39,12 @@
 
 .tt { width: 100%; border-collapse: collapse; }
 .tt th { text-align: left; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink3); font-weight: 600; padding: 12px 14px 8px 0; border-bottom: 1px solid var(--line-soft); }
+.sortable button { all: unset; cursor: pointer; font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; white-space: nowrap; }
+.sortable button i { font-style: normal; margin-left: 5px; font-size: 10px; opacity: .45; }
+.sortable button:hover, .sortable button:focus-visible { color: var(--brand); }
+.sortable button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 3px; }
+.sortOn button { color: var(--brand); }
+.sortOn button i { opacity: 1; }
 .tt td { padding: 10px 14px 10px 0; border-bottom: 1px solid var(--line-soft); vertical-align: middle; }
 .tt tr.row { cursor: pointer; }
 .tt tr.row:hover td { background: var(--tint); }

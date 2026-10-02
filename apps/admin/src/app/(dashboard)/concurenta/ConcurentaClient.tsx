@@ -19,6 +19,20 @@ interface PlaceOpt { name: string; district: string | null; base: string; ty: st
 const TY: Record<string, string> = { or: 'oraș', s: 'sat', mun: 'municipiu', com: 'comună', '': '' };
 const pad = (t: string | null) => (t ? t.replace(/^(\d):/, '0$1:') : '—');
 const mins = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+// ION-182 (Ion, 02.10): «apăsând pe coloană să pot pune crescător/descrescător orarul» — sortarea listei pe oricare coloană.
+type SortCol = 'dep' | 'back' | 'lei' | 'route' | 'firm' | 'code';
+const backOf = (r: Row) => (r.dir === 'tur' ? r.course.dep_retur : r.course.dep_tur);
+const codeOf = (r: Row) => (r.course.source === 'tlx' ? '\uffff' : r.course.code);   // ale noastre la sfârșit
+function cmpRows(a: Row, b: Row, col: SortCol): number {
+  switch (col) {
+    case 'dep': return mins(a.dep) - mins(b.dep);
+    case 'back': { const x = backOf(a), y = backOf(b); return (x ? mins(x) : 1e9) - (y ? mins(y) : 1e9); }
+    case 'lei': return a.lei - b.lei || a.km - b.km;
+    case 'route': return a.course.route_name.localeCompare(b.course.route_name, 'ro');
+    case 'firm': return a.course.operator.localeCompare(b.course.operator, 'ro');
+    case 'code': return codeOf(a).localeCompare(codeOf(b), 'ro');
+  }
+}
 const price = (km: number, rate: number | null) => (rate && km > 0 && km < 1000 ? Math.round(km * rate) : 0);
 const matchStop = (st: AntaStop, p: PlaceOpt) => st.name === p.name && (!p.district || !st.district || st.district === p.district);
 
@@ -206,6 +220,7 @@ export default function ConcurentaClient({ init }: { init: ConcurentaInit }) {
   const [error, setError] = useState<string | null>(null);
   const [sel, setSel] = useState<Row | null>(null);
   const [dir, setDir] = useState<Dir>('tur');
+  const [sort, setSort] = useState<{ col: SortCol; asc: boolean }>({ col: 'dep', asc: true });
   const [pending, start] = useTransition();
   const reqId = useRef(0);
 
@@ -238,8 +253,18 @@ export default function ConcurentaClient({ init }: { init: ConcurentaInit }) {
         out.push({ course: c, dir: d, dep, arr, from: f, to: e, km, lei: price(km, rate), terminus: c.stops[fwd ? c.stops.length - 1 : 0].name });
       }
     }
-    return out.sort((a, b) => mins(a.dep) - mins(b.dep));
+    return out;
   }, [courses, from, to, chosenFirms, chosenOwners, rate]);
+  const sorted = useMemo(() => {
+    const list = [...rows].sort((a, b) => cmpRows(a, b, sort.col) || mins(a.dep) - mins(b.dep));
+    return sort.asc ? list : list.reverse();
+  }, [rows, sort]);
+  const clickSort = (col: SortCol) => setSort((s) => ({ col, asc: s.col === col ? !s.asc : true }));
+  const th = (col: SortCol, label: string, cls?: string) => (
+    <th className={`${cls ?? ''} ${s.sortable} ${sort.col === col ? s.sortOn : ''}`} aria-sort={sort.col === col ? (sort.asc ? 'ascending' : 'descending') : 'none'}>
+      <button type="button" onClick={() => clickSort(col)} title={`Sortează după ${label.toLowerCase()}`}>{label}<i>{sort.col === col ? (sort.asc ? '▲' : '▼') : '↕'}</i></button>
+    </th>
+  );
 
   const ours = rows.filter((r) => r.course.operator === init.ourOperator).length;
   const openRow = (r: Row) => { setSel(r); setDir(r.dir); };
@@ -282,9 +307,9 @@ export default function ConcurentaClient({ init }: { init: ConcurentaInit }) {
           {from && !pending && !rows.length && !error && <p className={s.empty}>Nicio cursă între aceste puncte{chosenFirms.length ? ' pentru firmele alese' : ''}.</p>}
           {rows.length > 0 && (
             <table className={s.tt}>
-              <thead><tr><th className={s.num}>#</th><th>Plecare</th><th>Pornire înapoi</th><th>Bilet</th><th>Ruta</th><th className={s.hideM}>Firma</th><th className={s.hideM}>Cod</th></tr></thead>
+              <thead><tr><th className={s.num}>#</th>{th('dep', 'Plecare')}{th('back', 'Pornire înapoi')}{th('lei', 'Bilet')}{th('route', 'Ruta')}{th('firm', 'Firma', s.hideM)}{th('code', 'Cod', s.hideM)}</tr></thead>
               <tbody>
-                {rows.map((r, i) => {
+                {sorted.map((r, i) => {
                   const mine = r.course.operator === init.ourOperator;
                   const isSel = sel === r;
                   return (

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/supabase';
 import { verifyMaibCallback } from '@/lib/maib/signature';
 import { stareEgala } from '@/lib/maib/client';
+import { persistaCheckout } from '@/lib/maib/persist';
 
 // Callback-ul maib Checkout (ION-188). Public (lib/public-paths.ts) — banca nu are sesiune la noi;
 // autenticitatea e semnătura HMAC din X-Signature peste corpul brut + X-Signature-Timestamp
@@ -115,8 +116,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false }, { status: 500 });
   }
   if (!rand) {
-    await jurnal(req, checkoutId, true, 'checkoutId necunoscut', rawBody);
-    console.warn('[maib/callback] checkoutId necunoscut:', checkoutId);
+    // Comandă de bilete rămasă fără legătură (timeout la creare, ION-193): orderId = id-ul comenzii. Legăm doar
+    // dacă TOATE condițiile țin: comanda e «noua»/«eroare_creare» fără checkout_id, plata e Executed în MDL cu
+    // exact suma comenzii și nu există alt rând maib_checkouts pentru comanda asta. Altfel alertă, nu tăcere.
+    const legat = await leagaComandaOrfana(req, body, checkoutId, rawBody);
+    if (legat === 'legat') return await marcheazaBiletele(checkoutId, true);
+    await jurnal(req, checkoutId, true, legat === 'necunoscut' ? 'checkoutId necunoscut' : `comandă orfană neaplicată: ${legat}`, rawBody);
+    console.warn('[maib/callback] checkoutId necunoscut:', checkoutId, legat);
     return NextResponse.json({ ok: true, cunoscut: false });
   }
 
@@ -149,5 +155,49 @@ export async function POST(req: NextRequest) {
     console.error('[maib/callback] update:', error.message);
     return NextResponse.json({ ok: false }, { status: 500 });
   }
-  return NextResponse.json({ ok: true, cunoscut: true, aplicat: true });
+  return await marcheazaBiletele(checkoutId, executat);
+}
+
+/**
+ * Biletele comenzii (ION-193): funcția din bază verifică singură că sesiunea e Completed și suma e a comenzii,
+ * emite N bilete în aceeași tranzacție și e idempotentă. O eroare → 500, ca banca să reîncerce.
+ */
+async function marcheazaBiletele(checkoutId: string, executat: boolean) {
+  if (!executat) return NextResponse.json({ ok: true, cunoscut: true, aplicat: true, bilete: 0 });
+  const { data, error } = await getSupabase().rpc('bilete_marcheaza_platita', { p_checkout_id: checkoutId });
+  if (error) {
+    console.error('[maib/callback] bilete_marcheaza_platita:', error.message);
+    return NextResponse.json({ ok: false }, { status: 500 });
+  }
+  return NextResponse.json({ ok: true, cunoscut: true, aplicat: true, bilete: Number(data ?? 0) });
+}
+
+type LegareOrfana = 'legat' | 'necunoscut' | string;
+
+async function leagaComandaOrfana(req: NextRequest, body: MaibCallbackBody, checkoutId: string, rawBody: string): Promise<LegareOrfana> {
+  const orderId = body.orderId && UUID_RE.test(body.orderId) ? body.orderId : null;
+  if (!orderId) return 'necunoscut';
+  const supabase = getSupabase();
+  const { data: c } = await supabase.from('bilete_comenzi').select('id, status, total, checkout_id').eq('id', orderId).maybeSingle();
+  if (!c) return 'necunoscut';
+  if (!(c.status === 'noua' || c.status === 'eroare_creare')) return `stare ${c.status}`;
+  if (c.checkout_id) return 'are deja checkout';
+  if (!stareEgala(body.paymentStatus, 'Executed')) return `plată ${body.paymentStatus}`;
+  if (body.currency && body.currency !== 'MDL') return `valută ${body.currency}`;
+  if (typeof body.amount !== 'number' || Math.abs(body.amount - Number(c.total)) >= 0.005) return `sumă ${body.amount} ≠ ${c.total}`;
+  const { data: altul } = await supabase.from('maib_checkouts').select('checkout_id').eq('order_id', orderId).maybeSingle();
+  if (altul) return 'alt rând pentru comandă';
+
+  const { error: pErr } = await persistaCheckout({
+    checkoutId, orderId, amount: body.amount, status: 'Completed',
+    paymentId: body.paymentId && UUID_RE.test(body.paymentId) ? body.paymentId : null,
+    paymentStatus: body.paymentStatus ?? null, callback: faraDatePersonale(body), createdBy: 'callback',
+  });
+  if (pErr) return `persistare: ${pErr}`;
+  const { error: lErr } = await supabase.from('bilete_comenzi')
+    .update({ checkout_id: checkoutId, creare_in_curs_la: null, updated_at: new Date().toISOString() })
+    .eq('id', orderId).is('checkout_id', null);
+  if (lErr) return `legare: ${lErr.message}`;
+  await jurnal(req, checkoutId, true, 'comandă orfană legată după orderId', rawBody);
+  return 'legat';
 }

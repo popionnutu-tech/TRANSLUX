@@ -16,6 +16,16 @@ describe('isPublicPath — căile lăsate de middleware fără sesiune', () => {
     expect(isPublicPath('/api/asistent-site/x')).toBe(false);
   });
 
+  it('biletele online (ION-193): comanda e exactă, sub /api/bilete/public/ stau DOAR rutele cunoscute', () => {
+    expect(isPublicPath('/api/bilete/comanda')).toBe(true);
+    expect(isPublicPath('/api/bilete/comanda/x')).toBe(false);
+    expect(isPublicPath('/api/bilete')).toBe(false);
+    expect(isPublicPath('/api/bilete/admin')).toBe(false);
+    // Lista exhaustivă a rutelor publice de sub prefix — se completează conștient la fiecare rută nouă.
+    const subPrefix = ['/api/bilete/public/config', '/api/bilete/public/0123456789abcdef0123456789abcdef'];
+    for (const p of subPrefix) expect(isPublicPath(p)).toBe(true);
+  });
+
   it('callback-ul maib e public exact (banca vine fără cookie), pagina /plati nu', () => {
     expect(isPublicPath('/api/pay/maib/callback')).toBe(true);
     expect(isPublicPath('/api/pay/maib/callback/x')).toBe(false);

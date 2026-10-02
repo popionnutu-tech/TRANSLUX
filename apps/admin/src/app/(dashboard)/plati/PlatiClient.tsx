@@ -2,13 +2,22 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { anuleaza, creeazaPlataTest, returneaza, sincronizeaza, verificaRefund } from './actions';
+import { anuleaza, comandaDeTest, creeazaPlataTest, returneaza, sincronizeaza, verificaRefund } from './actions';
 import type { PlataRow, StareMaib } from './actions';
+import type { ComandaPublica } from '@/lib/bilete/public';
 
 interface Props {
   rows: PlataRow[];
   stare: StareMaib;
   banner: { ok: boolean; text: string } | null;
+  /** Comanda de test de bilete la întoarcerea de la maib (/plati?bilet=<cod>), ION-193. */
+  bilet?: ComandaPublica | null;
+  plataNereusita?: boolean;
+}
+
+function maine(): string {
+  const d = new Date(Date.now() + 86_400_000);
+  return d.toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
 }
 
 const RED = '#9B1B30';
@@ -40,7 +49,9 @@ function Stare({ s }: { s: string | null }) {
   return <span style={{ color: culoare, fontWeight: 600 }}>{s}</span>;
 }
 
-export default function PlatiClient({ rows, stare, banner }: Props) {
+export default function PlatiClient({ rows, stare, banner, bilet, plataNereusita }: Props) {
+  const [tInput, setTInput] = useState({ tripDate: maine(), crmRouteId: '2', goingNorth: false, fromRo: 'Briceni', toRo: 'Chișinău', seats: '1', passengerName: 'Test Bilet', phone: '+373 60 000 000', lang: 'ro' as 'ro' | 'ru' });
+  const [tDeschis, setTDeschis] = useState(false);
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [suma, setSuma] = useState('1.50');
@@ -54,6 +65,17 @@ export default function PlatiClient({ rows, stare, banner }: Props) {
       const r = await f();
       setMesaj(r.ok ? { ok: true, text: r.mesaj ?? 'Gata' } : { ok: false, text: r.eroare ?? 'eroare' });
       router.refresh();
+    });
+  }
+
+  function comandaTest(e: React.FormEvent) {
+    e.preventDefault();
+    startTransition(async () => {
+      const r = await comandaDeTest({
+        ...tInput, crmRouteId: Number(tInput.crmRouteId), seats: Number(tInput.seats),
+      });
+      if (r.ok && r.checkoutUrl) { window.location.assign(r.checkoutUrl); return; }
+      setMesaj({ ok: false, text: r.ok ? 'fără adresă de plată' : r.eroare });
     });
   }
 
@@ -94,6 +116,51 @@ export default function PlatiClient({ rows, stare, banner }: Props) {
         <button type="submit" disabled={pending || !stare.configurat} style={btn(true)}>{pending ? '…' : 'Plătește la maib'}</button>
         <span style={{ fontSize: 11, color: '#888' }}>sandbox: card 5102 1800 6010 1124 · 06/28 · 760 · Test Test</span>
       </form>
+
+      {bilet && (
+        <div style={{ padding: 14, background: '#fff', borderRadius: 16, marginBottom: 20, boxShadow: '0 2px 10px rgba(0,0,0,.05)' }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'baseline', flexWrap: 'wrap' }}>
+            <b style={{ fontSize: 14 }}>Comandă de test de bilete</b>
+            <Stare s={bilet.status} />
+            {plataNereusita && <span style={{ color: RED, fontSize: 12 }}>plata nu s-a încheiat</span>}
+            <span style={{ fontSize: 12, color: '#666' }}>{bilet.from_name} → {bilet.to_name} · {bilet.trip_date} · {bilet.ruta?.nume_ro ?? ''} · {bilet.seats} loc. × {bilet.price_per_seat} = <b>{bilet.total} MDL</b> · {bilet.passenger_name}</span>
+            <code style={{ fontSize: 11, color: '#999' }}>{bilet.cod}</code>
+          </div>
+          {bilet.status === 'noua' && <div style={{ fontSize: 12, color: '#8a6d00', marginTop: 6 }}>Încă fără plată confirmată — callback-ul poate întârzia câteva secunde; reîncarcă pagina.</div>}
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 10 }}>
+            {bilet.bilete.map(b => (
+              <div key={b.cod_qr} style={{ textAlign: 'center', fontSize: 11 }}>
+                <div style={{ width: 140, height: 140 }} dangerouslySetInnerHTML={{ __html: b.qr_svg }} />
+                <div style={{ fontFamily: 'monospace', letterSpacing: 1 }}>{b.cod_qr}</div>
+                <div>bilet {b.nr} · <Stare s={b.status} /></div>
+              </div>
+            ))}
+            {bilet.bilete.length === 0 && <span style={{ fontSize: 12, color: '#999' }}>niciun bilet emis încă</span>}
+          </div>
+        </div>
+      )}
+
+      <div style={{ padding: 14, background: '#fff', borderRadius: 16, marginBottom: 20, boxShadow: '0 2px 10px rgba(0,0,0,.05)' }}>
+        <button type="button" onClick={() => setTDeschis(v => !v)} style={{ ...btn(), marginBottom: tDeschis ? 10 : 0 }}>
+          {tDeschis ? 'Ascunde' : 'Comandă de test (bilete online)'}
+        </button>
+        {tDeschis && (
+          <form onSubmit={comandaTest} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <input value={tInput.tripDate} onChange={e => setTInput({ ...tInput, tripDate: e.target.value })} style={{ ...inp, width: 120 }} aria-label="Data cursei" />
+            <input value={tInput.crmRouteId} onChange={e => setTInput({ ...tInput, crmRouteId: e.target.value })} style={{ ...inp, width: 60 }} aria-label="Id rută" title="crm_routes.id" />
+            <select value={tInput.goingNorth ? 'retur' : 'tur'} onChange={e => setTInput({ ...tInput, goingNorth: e.target.value === 'retur' })} style={inp} aria-label="Direcția">
+              <option value="tur">din nord (tur)</option><option value="retur">din Chișinău (retur)</option>
+            </select>
+            <input value={tInput.fromRo} onChange={e => setTInput({ ...tInput, fromRo: e.target.value })} style={{ ...inp, width: 120 }} aria-label="De la" />
+            <input value={tInput.toRo} onChange={e => setTInput({ ...tInput, toRo: e.target.value })} style={{ ...inp, width: 120 }} aria-label="Până la" />
+            <input value={tInput.seats} onChange={e => setTInput({ ...tInput, seats: e.target.value })} style={{ ...inp, width: 50 }} inputMode="numeric" aria-label="Locuri" />
+            <input value={tInput.passengerName} onChange={e => setTInput({ ...tInput, passengerName: e.target.value })} style={{ ...inp, width: 140 }} aria-label="Nume" />
+            <input value={tInput.phone} onChange={e => setTInput({ ...tInput, phone: e.target.value })} style={{ ...inp, width: 150 }} aria-label="Telefon" />
+            <button type="submit" disabled={pending || !stare.configurat} style={btn(true)}>{pending ? '…' : 'Comandă și plătește'}</button>
+            <span style={{ fontSize: 11, color: '#888' }}>ocolește steagurile (mod test_admin); prețul e cel de pe site</span>
+          </form>
+        )}
+      </div>
 
       <div style={{ background: '#fff', borderRadius: 16, overflow: 'auto', boxShadow: '0 2px 10px rgba(0,0,0,.05)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1100 }}>

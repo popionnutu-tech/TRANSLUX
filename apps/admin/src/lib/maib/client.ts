@@ -238,6 +238,20 @@ export function getCheckout(checkoutId: string): Promise<MaibCheckout> {
   return apel<MaibCheckout>('GET', `/v2/checkouts/${encodeURIComponent(checkoutId)}`);
 }
 
+/**
+ * GET /v2/checkouts?orderId=… — sesiunea după comanda noastră. Verificat pe sandbox 02.10.2026 (ION-190, F26):
+ * filtrul `orderId` întoarce exact sesiunea; parametrii necunoscuți sunt IGNORAȚI (ar întoarce tot), deci numele
+ * trebuie scris exact așa. Folosit de împăcare, când comanda a rămas fără checkout_id după un timeout la creare.
+ */
+export async function findCheckoutByOrderId(orderId: string): Promise<MaibCheckout | null> {
+  const r = await apel<{ items?: MaibCheckout[]; count?: number }>('GET', `/v2/checkouts?orderId=${encodeURIComponent(orderId)}&count=5`);
+  const items = r.items ?? [];
+  // Siguranță contra ignorării filtrului: păstrăm doar sesiunile cu comanda cerută.
+  const ale = items.filter(c => c.order?.id === orderId);
+  if (ale.length === 0) return null;
+  return ale.sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''))[0];
+}
+
 /** POST /v2/checkouts/{id}/cancel — doar sesiuni neplătite. */
 export function cancelCheckout(checkoutId: string): Promise<{ checkoutId: string; status: string }> {
   return apel('POST', `/v2/checkouts/${encodeURIComponent(checkoutId)}/cancel`);

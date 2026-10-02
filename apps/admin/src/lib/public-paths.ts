@@ -47,9 +47,19 @@ export const PUBLIC_EXACT = [
   // Callback-ul maib Checkout (ION-188): banca POST-ează fără cookie; se apără singur prin
   // semnătura HMAC din X-Signature (lib/maib/signature.ts). Exact, nu prefix.
   '/api/pay/maib/callback',
+  // Comanda de bilete online (ION-193): site-ul o cheamă server-la-server; se apără prin BILETE_API_KEY.
+  '/api/bilete/comanda',
 ] as const;
+
+/**
+ * Prefixul biletelor pentru pasager (ION-193): pagina biletului (codul din link e secretul) și
+ * configurația vânzării. Rutele de sub el sunt listate EXHAUSTIV în public-paths.test.ts: orice rută
+ * nouă aici trebuie să fie gândită ca publică.
+ */
+export const BILETE_PUBLIC_PREFIX = '/api/bilete/public/';
 
 export function isPublicPath(pathname: string): boolean {
   if ((PUBLIC_EXACT as readonly string[]).includes(pathname)) return true;
+  if (pathname.startsWith(BILETE_PUBLIC_PREFIX)) return true;
   return PUBLIC_PREFIXES.some(p => pathname.startsWith(p));
 }

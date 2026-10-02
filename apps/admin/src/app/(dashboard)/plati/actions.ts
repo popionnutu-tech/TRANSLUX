@@ -2,7 +2,7 @@
 
 import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
-import { randomBytes } from 'crypto';
+import { randomBytes, randomUUID } from 'crypto';
 import { getSupabase } from '@/lib/supabase';
 import { verifySession, requireRole } from '@/lib/auth';
 import {
@@ -10,6 +10,36 @@ import {
   maibMediu, maibConfigurat, stareEgala, MaibError,
 } from '@/lib/maib/client';
 import { randDupaCheckoutSauOrder as randDupaRef, sincronizeazaStare } from '@/lib/maib/sincronizare';
+import { persistaCheckout } from '@/lib/maib/persist';
+import { ComandaError, creeazaComanda } from '@/lib/bilete/comenzi';
+
+/**
+ * Comanda de test pentru bilete (ION-193, pasul 4): ocolește steagurile de vânzare (mod test_admin) — permis
+ * DOAR de aici, cu sesiune ADMIN. Trece prin exact același drum ca o comandă de pe site: preț din @translux/db,
+ * plafoane în bază, o sesiune maib, bilete la callback. Întoarcerea de la maib vine pe /plati?bilet=<cod>.
+ */
+export async function comandaDeTest(input: {
+  tripDate: string; crmRouteId: number; goingNorth: boolean; fromRo: string; toRo: string;
+  seats: number; passengerName: string; phone: string; lang: 'ro' | 'ru';
+}): Promise<Rezultat & { checkoutUrl?: string; cod?: string }> {
+  const session = requireRole(await verifySession(), 'ADMIN');
+  const baza = await bazaUrl();
+  try {
+    const r = await creeazaComanda(
+      { ...input, idempotencyKey: randomUUID(), ipHash: 'test-admin' },
+      {
+        mod: 'test_admin', bazaAdmin: baza, bazaSite: baza, createdBy: session.email,
+        // Site-ul n-are încă pagina biletului (pasul 3): întoarcerea vine pe /plati, care arată biletele prin API.
+        urlBilet: (cod, _lang, ok) => `${baza}/plati?bilet=${cod}${ok ? '' : '&plata=nu'}`,
+      },
+    );
+    revalidatePath('/plati');
+    return { ok: true, checkoutUrl: r.checkoutUrl, cod: r.comanda.cod };
+  } catch (e) {
+    if (e instanceof ComandaError) return { ok: false, eroare: `${e.cod}: ${e.message}` };
+    return eroare(e);
+  }
+}
 import { chisinauTodayIso } from '@/lib/chisinau-time';
 
 // Pagina internă /plati (ION-188): testele cerute de maib — o plată reușită și refund-ul ei — plus
@@ -102,18 +132,11 @@ export async function creeazaPlataTest(
       successUrl: `${baza}/plati?checkout=${orderId}&rezultat=ok`,
       failUrl: `${baza}/plati?checkout=${orderId}&rezultat=fail`,
     });
-    const { error } = await getSupabase().from('maib_checkouts').insert({
-      checkout_id: c.checkoutId,
-      order_id: orderId,
-      mediu: maibMediu(),
-      amount: Number(suma.toFixed(2)),
-      currency: 'MDL',
-      description: descriere.trim() || null,
-      status: 'WaitingForInit',
-      checkout_url: c.checkoutUrl,
-      created_by: session.email,
+    const { error } = await persistaCheckout({
+      checkoutId: c.checkoutId, orderId, amount: suma, description: descriere.trim() || null,
+      checkoutUrl: c.checkoutUrl, createdBy: session.email,
     });
-    if (error) return { ok: false, eroare: `sesiunea ${c.checkoutId} e creată la maib, dar nu s-a scris în bază: ${error.message}` };
+    if (error) return { ok: false, eroare: `sesiunea ${c.checkoutId} e creată la maib, dar nu s-a scris în bază: ${error}` };
     revalidatePath('/plati');
     return { ok: true, checkoutUrl: c.checkoutUrl };
   } catch (e) {

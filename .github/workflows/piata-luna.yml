@@ -1,12 +1,12 @@
 name: piata-luna
 
 # «Piața» pe pereche (ION-171): calculul lunar al coloanei din Bilete aparat, NOAPTEA, separat de tiki-refacere (baza NANO,
-# ION-166 — nimic greu ziua). Un apel = câteva luni «murdare», una pe pas. 00:30 UTC = 03:30 Chișinău vara, 02:30 iarna;
-# ora provizorie, de legat de sfârșitul ferestrei de noapte când ION-166 are plan.
+# ION-166 — nimic greu ziua). Un apel = câteva luni «murdare», una pe pas. 01:30 UTC = 04:30 Chișinău vara, 03:30 iarna —
+# mutat de la 03:30 ca să nu pornească deodată cu importul Mobilet + refacerea Bilete aparat (Ion, 02.10: «mută la 4:30»).
 
 on:
   schedule:
-    - cron: '30 0 * * *'
+    - cron: '30 1 * * *'
   workflow_dispatch:
 
 jobs:

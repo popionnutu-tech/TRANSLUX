@@ -173,7 +173,7 @@ const idx = new D.LocalityIndex(localities);
 let noDistrict = 0; const unknown = new Map<string, number>();
 for (const c of courses) {
   const ds: (string | null)[] = D.resolveDistricts(c.stops.map((s) => s.name), idx);
-  c.stops.forEach((s, i) => { s.district = ds[i]; if (!ds[i]) { noDistrict++; unknown.set(s.name, (unknown.get(s.name) ?? 0) + 1); } });
+  c.stops.forEach((s, i) => { s.district = ds[i]; s.name = D.villageName(s.name, ds[i], idx); if (!ds[i]) { noDistrict++; unknown.set(s.name, (unknown.get(s.name) ?? 0) + 1); } });
 }
 console.log(`raion: ${noDistrict} opriri fără raion, ${unknown.size} nume necunoscute:`, [...unknown.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([n, k]) => `${n}×${k}`).join(', '));
 

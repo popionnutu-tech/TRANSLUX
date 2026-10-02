@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { LocalityIndex, resolveDistricts, parseLocalities } from './district';
+import { LocalityIndex, resolveDistricts, parseLocalities, villageName } from './district';
 import { foldName, splitPrefix, cleanOperator, antaTime, cleanTime } from './names';
 
 const idx = new LocalityIndex(parseLocalities(`
@@ -17,6 +17,12 @@ Chetrosu|Anenii Noi|46.91500|29.05194
 Chetrosu|Drochia|48.06972|27.90167
 Puhoi|Ialoveni|46.78583|28.77806
 Căinari|Căușeni|46.67889|29.04611
+Sălcuța Nouă|Căușeni|46.62000|29.07000
+Taraclia|Căușeni|46.57028|29.11556
+Taraclia|Cantemir|46.21556|28.51806
+Taraclia|Taraclia|45.90000|28.66889
+Baimaclia|Căușeni|46.59083|29.09278
+Baimaclia|Cantemir|46.18722|28.38694
 Bălți|mun. Bălți|47.76111|27.91667
 Pelinia|Drochia|47.87583|27.83139
 Drochia|Drochia|48.11389|27.80806
@@ -58,6 +64,22 @@ describe('resolveDistricts — raionul opririlor pe cursă', () => {
       .toEqual(['mun. Chișinău', 'Edineț', 'Briceni', 'Briceni']);
     expect(resolveDistricts(['or. Donduseni', 's. Mosana', 's. Briceni', 's. Sauca', 'or. Otaci'], idx))
       .toEqual(['Dondușeni', 'Dondușeni', 'Dondușeni', 'Ocnița', 'Ocnița']);
+  });
+
+  it('ION-185: ANTA scrie «or. Briceni» și pentru satul din Dondușeni — geometria bate prefixul, numele devine «s.»', () => {
+    const stops = ['or. Donduseni', 's. Mosana', 'or. Briceni', 's. Sauca', 'or. Otaci'];
+    const ds = resolveDistricts(stops, idx);
+    expect(ds).toEqual(['Dondușeni', 'Dondușeni', 'Dondușeni', 'Ocnița', 'Ocnița']);
+    expect(villageName('or. Briceni', ds[2], idx)).toBe('s. Briceni');
+    // orașul Briceni între Edineț și Lipcani rămâne orașul, cu numele lui
+    const town = resolveDistricts(['or. Chisinau', 'or. Edinet', 'or. Briceni', 'or. Lipcani'], idx);
+    expect(town[2]).toBe('Briceni');
+    expect(villageName('or. Briceni', town[2], idx)).toBe('or. Briceni');
+    // fără vecini cu coordonate: orașul de raion, ca până acum
+    expect(resolveDistricts(['s. Inexistent', 'or. Briceni'], idx)).toEqual([null, 'Briceni']);
+    // Taraclia după Sălcuța Nouă e satul din Căușeni, și Baimaclia îl urmează în Căușeni, nu în Cantemir
+    expect(resolveDistricts(['or. Cainari', 's. Salcuta Noua', 'or. Taraclia', 's. Baimaclia'], idx))
+      .toEqual(['Căușeni', 'Căușeni', 'Căușeni', 'Căușeni']);
   });
 
   it('Chetrosu se alege după vecinii de pe cursă', () => {

@@ -11,7 +11,7 @@ import { unpackRow, type PackedRow } from './bilete/ticketParse';
 import { nordDeBalti, type StopKm } from './bilete/grupare';
 import type {
   TikiBatch, TikiMeta, TikiSummary, TikiDriverRow, TikiRouteRow, TikiPairRow, TikiMonthly,
-  TikiCalitate, OrarRoute, TikiTendinta, TikiClienti, TikiOd, TikiOmisi, TikiRefacereStare, Piata,
+  TikiCalitate, OrarRoute, TikiTendinta, TikiClienti, TikiOd, TikiOmisi, TikiRefacereStare, Piata, TikiBalti,
   TikiComparatie, TikiRuta, TikiRutaPerechi, TikiSoferi, TikiRutaLuna,
 } from './bilete/types';
 
@@ -300,7 +300,7 @@ export async function getTikiOmisi(from: string, to: string): Promise<Res<TikiOm
   return { data: data as TikiOmisi };
 }
 
-// ─── ION-171: «Piața» pe pereche (migr. 463) — doar luni încheiate, fără filtre de rută/șofer ───
+// ─── ION-171: «Piața» pe pereche (migr. 480) — doar luni încheiate, fără filtre de rută/șofer ───
 
 export async function getPiata(from: string, to: string): Promise<Res<Piata>> {
   const a = await adminOnly();
@@ -362,4 +362,16 @@ export async function getTikiSoferi(from: string, to: string): Promise<Res<TikiS
   const { data, error } = await getSupabase().rpc('get_tiki_soferi_v2', { p_from: from, p_to: to });
   if (error) return { error: error.message };
   return { data: data as TikiSoferi };
+}
+
+// ─── ION-181: Locuri în Bălți (migr. 480, pe ziua cursei Mobilet) ───
+
+export async function getTikiBalti(from: string, to: string): Promise<Res<TikiBalti>> {
+  const a = await adminOnly();
+  if ('error' in a) return a;
+  const bad = badRange(from, to);
+  if (bad) return { error: bad };
+  const { data, error } = await getSupabase().rpc('get_tiki_balti', { p_from: from, p_to: to });
+  if (error) return { error: error.message };
+  return { data: data as TikiBalti };
 }

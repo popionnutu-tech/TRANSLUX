@@ -8,6 +8,8 @@
 // ION-167 (Ion, 01.10): «Față de anul trecut» → «Comparație perioade»; graficele pe luni sunt acum pe fiecare rută, în «Rute»
 // (Ion, 02.10: «nu am nevoie pe coridor, am nevoie pe fiecare grafic în parte și tipul de clienți pe care se ține»); raport nou «Rute»; «Șoferi» refăcut — toate pe ziua
 // cursei, din totalurile zilnice de noapte (migr. 466).
+// ION-181 (Ion, 02.10): «Locuri în Bălți» — locuri libere la sosirea în Bălți, urcați și de vândut, pe grafic, cu coloanele
+// grupate pe luni și săptămâni (−/+ ca în Google Sheets); perioada din bara comună.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getTikiMeta, getTikiRefacereStare } from './biletAparatActions';
@@ -18,18 +20,20 @@ import ComparatieView from './bilete/ComparatieView';
 import RuteView from './bilete/RuteView';
 import DriversView from './bilete/DriversView';
 import PairsView from './bilete/PairsView';
+import BaltiView from './bilete/BaltiView';
 
-type View = 'pairs' | 'comparatie' | 'rute' | 'drivers';
+type View = 'pairs' | 'comparatie' | 'rute' | 'drivers' | 'balti';
 
 const VIEWS: { key: View; label: string }[] = [
   { key: 'pairs', label: 'Tipuri bilet & direcții' },
   { key: 'comparatie', label: 'Comparație perioade' },
   { key: 'rute', label: 'Rute' },
   { key: 'drivers', label: 'Șoferi' },
+  { key: 'balti', label: 'Locuri în Bălți' },
 ];
 
 /** Vederile cu perioada comună de sus; Comparație, Rute și Șoferi își aleg singure luna. */
-const WITH_PERIOD: View[] = ['pairs'];
+const WITH_PERIOD: View[] = ['pairs', 'balti'];
 /** Filtrele pe eticheta TIKI și șofer: doar «Tipuri bilet & direcții» (ziua vânzării). */
 const WITH_LABEL_FILTERS: View[] = ['pairs'];
 
@@ -152,6 +156,7 @@ export default function BileteAparatTab() {
       {view === 'rute' && meta?.date_min && meta.date_max && <RuteView dateMin={meta.date_min} dateMax={meta.date_max} />}
       {view === 'drivers' && meta?.date_min && meta.date_max && <DriversView dateMin={meta.date_min} dateMax={meta.date_max} />}
       {view === 'pairs' && filters && meta?.date_max && <PairsView filters={filters} />}
+      {view === 'balti' && filters && meta?.date_max && <BaltiView filters={filters} />}
     </div>
   );
 }

@@ -473,9 +473,13 @@ testele pasului 6 sunt CONDIȚIE DE PUSH, nu pas ulterior. Notificările șoferu
    `web_app`) + Menu Button al botului setat pe mini app. În grupa Mejgorod rămâne doar anunțul ION-189 și, o singură
    dată, instrucțiunea «apasă Start la @bot». `/newapp` în BotFather nu mai e obligatoriu (butonul `web_app` primește
    URL-ul direct); grupul de test dispare; pasul S se reduce la proba `requestContact` + scanner pe două telefoane.
-10. **Biletul online și terminalul.** Răspuns: «nu înțeleg» → explicat în chat (vezi mai jos); rămâne de confirmat:
-    (a) șoferul NU bate bon pe terminal pentru pasagerul care arată QR; (b) dacă legea cere bon fiscal și pentru plata
-    online — întrebare pentru contabilitate/maib, înaintea lansării.
+10. **Biletul online și terminalul.** Răspuns (02.10, 23:55): «bon fiscal șoferul emite în momentul când vine
+    clientul.» → La urcare șoferul face DOUĂ gesturi: scanează QR-ul în mini app (confirmă venirea) și emite bonul pe
+    terminalul TIKI cu tipul de plată «online / altă metodă de plată» (fără numerar). Consecințe: bonul fiscal e
+    rezolvat de terminal, nu de noi; în `tiki_tickets` pasagerii online apar cu `payment` ≠ numerar/POS, deci raportul
+    «Bilete aparat» (ION-167) îi vede ca atare; termenul «Online» din Încasare (4b) rămâne din `bilete` (`urcat`), care
+    e sursa noastră; mini app-ul arată, lângă pasager, segmentul (de → spre) și numărul de locuri, ca șoferul să le bată
+    pe terminal fără să întrebe. Regula se scrie în mesajul către șoferi (pasul 9).
 
 ### Ce se schimbă în pași (v6, din răspunsuri)
 - Pasul 1: steagurile pe direcție (8), `bilete_inchidere_tur_min/retur_min` (2), `bilete_comenzi.telegram_id` +

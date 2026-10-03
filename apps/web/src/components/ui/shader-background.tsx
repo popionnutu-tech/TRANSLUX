@@ -10,16 +10,16 @@ const STATIC_STYLE: React.CSSProperties = {
 };
 
 /**
- * Shader-ul nu pornește (ION-204): omul a cerut «reduce motion», sau aparatul e slab —
- * ≤ 4 nuclee ori ≤ 4 GB RAM (deviceMemory, unde browserul îl dă). Rula la fiecare cadru pe
- * orice telefon; acum pe astea rămâne gradientul.
+ * Shader-ul nu pornește (ION-204): omul a cerut «reduce motion», sau telefonul e cu adevărat
+ * slab — ≤ 2 GB RAM (deviceMemory, doar Chrome îl dă). Pragul pe nuclee e scos (ION-211):
+ * Safari pe iPhone raportează cel mult 4 nuclee, iar pragul ≤ 4 stingea fundalul pe orice
+ * iPhone; tot din cauza plafonării, deviceMemory 4 apare și pe telefoane bune.
  */
 function prefersStatic(): boolean {
   if (typeof window === 'undefined') return true;
   if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return true;
   const nav = navigator as Navigator & { deviceMemory?: number };
-  if (typeof nav.hardwareConcurrency === 'number' && nav.hardwareConcurrency <= 4) return true;
-  if (typeof nav.deviceMemory === 'number' && nav.deviceMemory <= 4) return true;
+  if (typeof nav.deviceMemory === 'number' && nav.deviceMemory <= 2) return true;
   return false;
 }
 

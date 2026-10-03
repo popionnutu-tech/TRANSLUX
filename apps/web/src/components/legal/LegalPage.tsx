@@ -1,25 +1,26 @@
 import Link from 'next/link';
 import type { Locale } from '@/lib/i18n';
 import { cookiesDoc, privacyDoc, type LegalDoc } from './legal-content';
+import { termsDoc } from './legal-terms';
 
-type Kind = 'privacy' | 'cookies';
+type Kind = 'privacy' | 'cookies' | 'terms';
 
-const SLUG: Record<Kind, string> = { privacy: 'confidentialitate', cookies: 'cookies' };
+const SLUG: Record<Kind, string> = { privacy: 'confidentialitate', cookies: 'cookies', terms: 'conditii-vanzare' };
 
 const NAV = {
-  ro: { home: '← Pagina principală', privacy: 'Politica de confidențialitate', cookies: 'Politica cookie', settings: 'Setări cookie' },
-  ru: { home: '← Главная', privacy: 'Политика конфиденциальности', cookies: 'Политика cookie', settings: 'Настройки cookie' },
+  ro: { home: '← Pagina principală', privacy: 'Politica de confidențialitate', cookies: 'Politica cookie', terms: 'Condițiile de vânzare', settings: 'Setări cookie' },
+  ru: { home: '← Главная', privacy: 'Политика конфиденциальности', cookies: 'Политика cookie', terms: 'Условия продажи', settings: 'Настройки cookie' },
 } as const;
 
 export function legalDoc(kind: Kind, locale: Locale): LegalDoc {
-  return kind === 'privacy' ? privacyDoc(locale) : cookiesDoc(locale);
+  return kind === 'privacy' ? privacyDoc(locale) : kind === 'terms' ? termsDoc(locale) : cookiesDoc(locale);
 }
 
 /** Pagină juridică statică (server component) — aceeași coajă pentru ambele politici și limbi. */
 export function LegalPage({ kind, locale }: { kind: Kind; locale: Locale }) {
   const doc = legalDoc(kind, locale);
   const nav = NAV[locale];
-  const other: Kind = kind === 'privacy' ? 'cookies' : 'privacy';
+  const other: Kind = kind === 'privacy' ? 'terms' : 'privacy';
   const otherLocale: Locale = locale === 'ro' ? 'ru' : 'ro';
 
   return (

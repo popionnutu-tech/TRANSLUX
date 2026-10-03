@@ -461,6 +461,7 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
           }}>
             <Link href={`/${locale}/confidentialitate`} style={{ color: '#777', textDecoration: 'none' }}>{i.privacy}</Link>
             <Link href={`/${locale}/cookies`} style={{ color: '#777', textDecoration: 'none' }}>{i.cookies}</Link>
+            <Link href={`/${locale}/conditii-vanzare`} style={{ color: '#777', textDecoration: 'none' }}>{i.terms}</Link>
             <button type="button" onClick={() => { if (cookie) openConsentSettings(); else setCookie('settings'); }} style={{
               background: 'none', border: 'none', padding: 0, cursor: 'pointer',
               color: '#777', fontSize: 12, fontFamily: 'inherit',

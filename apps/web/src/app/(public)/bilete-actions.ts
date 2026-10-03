@@ -32,7 +32,7 @@ export async function cumparaBilet(_prev: StareComanda, fd: FormData): Promise<S
   if (!telefon) return { eroare: ru ? 'Введите молдавский номер: 069 123 456.' : 'Scrie un număr moldovenesc: 069 123 456.' };
   if (email === 'invalid') return { eroare: ru ? 'Проверьте e-mail или оставьте поле пустым.' : 'Verifică e-mailul sau lasă câmpul gol.' };
   if (!Number.isInteger(seats) || seats < 1 || seats > 4) return { eroare: ru ? 'От 1 до 4 мест.' : 'Între 1 și 4 locuri.' };
-  if (fd.get('consent') !== 'on') return { eroare: ru ? 'Нужно согласие на обработку данных.' : 'E nevoie de acordul pentru prelucrarea datelor.' };
+  if (fd.get('consent') !== 'on') return { eroare: ru ? 'Нужно принять условия продажи и политику конфиденциальности.' : 'E nevoie să accepți condițiile de vânzare și politica de confidențialitate.' };
   if (!UUID_RE.test(idempotencyKey) || !Number.isInteger(crmRouteId) || !/^\d{4}-\d{2}-\d{2}$/.test(tripDate)) {
     return { eroare: mesajEroareComanda('necunoscut', 400, locale) };
   }

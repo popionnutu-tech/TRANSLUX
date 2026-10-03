@@ -15,13 +15,13 @@ const RED = "#9B1B30";
 const TXT = {
   ro: {
     title: "Bilet online", lastName: "Nume", firstName: "Prenume", phone: "Telefon", email: "E-mail (opțional)", seats: "Locuri", total: "Total",
-    consent: "Sunt de acord cu prelucrarea datelor pentru bilet", policy: "politica de confidențialitate",
+    consent: "Am citit și accept", terms: "condițiile de vânzare", and: "și", policy: "politica de confidențialitate",
     pay: "Plătește cu cardul", paying: "Se deschide banca…", cancel: "Înapoi",
     note: "După plată primești biletul cu cod QR. Îl arăți șoferului la urcare. Returnarea se cere prin Telegram.",
   },
   ru: {
     title: "Онлайн-билет", lastName: "Фамилия", firstName: "Имя", phone: "Телефон", email: "E-mail (необязательно)", seats: "Мест", total: "Итого",
-    consent: "Согласен на обработку данных для билета", policy: "политика конфиденциальности",
+    consent: "Я прочитал(а) и принимаю", terms: "условия продажи", and: "и", policy: "политику конфиденциальности",
     pay: "Оплатить картой", paying: "Открываем банк…", cancel: "Назад",
     note: "После оплаты вы получите билет с QR-кодом. Покажите его водителю при посадке. Возврат — через Telegram.",
   },
@@ -96,7 +96,8 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel }: {
       </div>
       <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12, color: "#555" }}>
         <input type="checkbox" name="consent" required style={{ marginTop: 2 }} />
-        <span>{tx.consent} (<a href={`/${locale}/confidentialitate`} target="_blank" rel="noopener" style={{ color: RED }}>{tx.policy}</a>)</span>
+        {/* ION-208: acceptarea condițiilor de vânzare (HG 854/2006) și a politicii, la cumpărare. */}
+        <span>{tx.consent}{" "}<a href={`/${locale}/conditii-vanzare`} target="_blank" rel="noopener" style={{ color: RED }}>{tx.terms}</a>{" "}{tx.and}{" "}<a href={`/${locale}/confidentialitate`} target="_blank" rel="noopener" style={{ color: RED }}>{tx.policy}</a></span>
       </label>
       <div style={{ fontSize: 11, color: "#888", lineHeight: 1.4 }}>{tx.note}</div>
       {stare.eroare && <div role="alert" style={{ fontSize: 13, color: RED, fontWeight: 600 }}>{stare.eroare}</div>}

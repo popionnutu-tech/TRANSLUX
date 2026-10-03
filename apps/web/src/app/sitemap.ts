@@ -10,7 +10,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const home: MetadataRoute.Sitemap = [
     { url: abs('/'), changeFrequency: 'daily', priority: 1, alternates: { languages: { ro: abs('/'), ru: abs('/ru') } } },
     { url: abs('/ru'), changeFrequency: 'daily', priority: 1, alternates: { languages: { ro: abs('/'), ru: abs('/ru') } } },
-    ...(['confidentialitate', 'cookies'] as const).flatMap((p) => [
+    ...(['confidentialitate', 'cookies', 'conditii-vanzare'] as const).flatMap((p) => [
       { url: abs(`/ro/${p}`), changeFrequency: 'yearly' as const, priority: 0.1 },
       { url: abs(`/ru/${p}`), changeFrequency: 'yearly' as const, priority: 0.1 },
     ]),

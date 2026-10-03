@@ -20,7 +20,7 @@ export const OPERATOR = {
   site: 'translux.md',
 } as const;
 
-export const LAST_UPDATED = { ro: '12 septembrie 2026', ru: '12 сентября 2026' } as const;
+export const LAST_UPDATED = { ro: '3 octombrie 2026', ru: '3 октября 2026' } as const;
 
 export interface LegalSection {
   title: string;
@@ -62,6 +62,7 @@ export function privacyDoc(locale: Locale): LegalDoc {
             `Звонки в колл-центр ${OPERATOR.phone}. На звонки отвечает автоматический голосовой ассистент (искусственный интеллект). Обрабатываются: ваш номер телефона, запись и расшифровка разговора, содержание обращения (расписание, жалоба, забытая вещь, просьба перезвонить) и имя, если вы его называете. Жалобы и сообщения о забытых вещах передаются диспетчерам и, при необходимости, водителю рейса — без вашего номера телефона. Основание — исполнение обязательств перевозчика, законный интерес в качестве обслуживания и, для записи разговора, ваше согласие, о котором ассистент предупреждает в начале звонка.`,
             'Портал «Verificare» для партнёров и водителей. Обрабатываются данные входа и cookie сессии (30 дней). Основание — договорные отношения с партнёром.',
             'Ссылки на Facebook и TikTok ведут на внешние сайты. Мы не загружаем на translux.md их скрипты и пиксели; их политики применяются только после перехода.',
+            'Покупка онлайн-билета. Обрабатываются: фамилия и имя пассажира, телефон, e-mail (если вы его указали), рейс и места, сумма и статус оплаты, сведения о посадке (сканирование QR-кода водителем) и, если вы открываете билет в Telegram, идентификатор вашего аккаунта Telegram. Данные карты обрабатывает только банк maib; мы их не видим. Цель: продать билет, отправить его вам, допустить вас к посадке, вернуть деньги и разобрать жалобу. Основание: исполнение договора перевозки и требования законодательства о перевозках и бухгалтерском учёте.',
           ],
         },
         {
@@ -73,6 +74,9 @@ export function privacyDoc(locale: Locale): LegalDoc {
             '- ElevenLabs Inc. (США) — телефония и голосовой ассистент;',
             '- поставщики языковых моделей (например, Anthropic PBC, США) — понимание речи ассистентом;',
             '- Telegram — внутренние группы диспетчеров и водителей.',
+            '- BC «Moldova Agroindbank» SA (maib, Республика Молдова) — приём оплаты картой и возврат денег;',
+            '- Resend Inc. (США/ЕС) — отправка билета на e-mail;',
+            '- Telegram — бот, в котором вы открываете билет и подаёте заявку на возврат, если вы им пользуетесь;',
             'Часть этих поставщиков находится за пределами Республики Молдова (ЕС, США). Передача происходит на основании договорных гарантий защиты данных, предусмотренных Законом № 195/2024. Данные не продаются и не передаются третьим лицам в рекламных целях. Государственным органам данные передаются только по законному требованию.',
           ],
         },
@@ -83,6 +87,7 @@ export function privacyDoc(locale: Locale): LegalDoc {
             '- записи и расшифровки звонков — пока это нужно для решения обращения и контроля качества ассистента, после чего удаляются или обезличиваются;',
             '- жалобы и сообщения о забытых вещах — до закрытия дела и в течение срока, установленного законодательством о перевозках и бухгалтерском учёте;',
             '- данные партнёров — на срок действия договора.',
+            '- заказы онлайн-билетов и данные о посадке — в течение срока, установленного законодательством о бухгалтерском учёте, и до разрешения возможных жалоб.',
           ],
         },
         {
@@ -130,6 +135,7 @@ export function privacyDoc(locale: Locale): LegalDoc {
           `Apelurile la call-center ${OPERATOR.phone}. La apeluri răspunde un asistent vocal automat (inteligență artificială). Se prelucrează: numărul de telefon, înregistrarea și transcrierea convorbirii, conținutul solicitării (orar, reclamație, obiect uitat, cerere de reapelare) și numele, dacă îl comunicați. Reclamațiile și obiectele uitate se transmit dispecerilor și, la nevoie, șoferului cursei — fără numărul dumneavoastră de telefon. Temei: executarea obligațiilor de transportator, interesul legitim în calitatea deservirii și, pentru înregistrarea convorbirii, consimțământul dumneavoastră, anunțat de asistent la începutul apelului.`,
           'Portalul «Verificare» pentru parteneri și șoferi. Se prelucrează datele de autentificare și un cookie de sesiune (30 de zile). Temei: relația contractuală cu partenerul.',
           'Linkurile către Facebook și TikTok duc pe site-uri externe. Nu încărcăm pe translux.md scripturile sau pixelii acestora; politicile lor se aplică doar după ce le accesați.',
+          'Cumpărarea biletului online. Se prelucrează: numele și prenumele pasagerului, telefonul, e-mailul (dacă l-ați lăsat), cursa și locurile, suma și starea plății, datele urcării (scanarea codului QR de către șofer) și, dacă deschideți biletul în Telegram, identificatorul contului dumneavoastră de Telegram. Datele cardului le prelucrează doar banca maib; noi nu le vedem. Scopul: să vindem biletul, să vi-l trimitem, să vă admitem la urcare, să restituim banii și să soluționăm reclamațiile. Temei: executarea contractului de transport și obligațiile din legislația transporturilor și din cea contabilă.',
         ],
       },
       {
@@ -141,6 +147,9 @@ export function privacyDoc(locale: Locale): LegalDoc {
           '- ElevenLabs Inc. (SUA) — telefonia și asistentul vocal;',
           '- furnizori de modele lingvistice (de ex. Anthropic PBC, SUA) — înțelegerea vorbirii de către asistent;',
           '- Telegram — grupurile interne ale dispecerilor și șoferilor.',
+          '- B.C. „Moldova Agroindbank” S.A. (maib, Republica Moldova) — încasarea plății cu cardul și restituirea banilor;',
+          '- Resend Inc. (SUA/UE) — trimiterea biletului pe e-mail;',
+          '- Telegram — botul în care deschideți biletul și cereți restituirea, dacă îl folosiți;',
           'O parte din acești furnizori se află în afara Republicii Moldova (UE, SUA). Transferul are loc pe baza garanțiilor contractuale de protecție a datelor prevăzute de Legea nr. 195/2024. Datele nu se vând și nu se transmit terților în scop publicitar. Autorităților publice le transmitem date doar la cerere legală.',
         ],
       },
@@ -151,6 +160,7 @@ export function privacyDoc(locale: Locale): LegalDoc {
           '- înregistrările și transcrierile apelurilor — cât este necesar soluționării solicitării și controlului calității asistentului, după care se șterg sau se anonimizează;',
           '- reclamațiile și obiectele uitate — până la închiderea dosarului și pe termenul cerut de legislația transporturilor și de cea contabilă;',
           '- datele partenerilor — pe durata contractului.',
+          '- comenzile de bilete online și datele urcării — pe termenul cerut de legislația contabilă și până la soluționarea eventualelor reclamații.',
         ],
       },
       {

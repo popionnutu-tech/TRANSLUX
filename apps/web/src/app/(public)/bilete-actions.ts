@@ -27,6 +27,10 @@ export async function cumparaBilet(_prev: StareComanda, fd: FormData): Promise<S
   const idempotencyKey = String(fd.get('idempotencyKey') ?? '');
   const crmRouteId = Number(fd.get('crmRouteId'));
   const tripDate = String(fd.get('tripDate') ?? '');
+  const punctRaw = String(fd.get('punctUrcareId') ?? '').trim();
+  const punctUrcareId = /^\d{1,12}$/.test(punctRaw) ? Number(punctRaw) : null;
+  // ≥ 2 puncte pe cursă → alegerea e obligatorie (formularul o cere; aici doar mesajul, dacă browserul n-a cerut-o)
+  if (fd.get('punctObligatoriu') === '1' && punctUrcareId == null) return { eroare: ru ? 'Выберите, где вы сядете в автобус.' : 'Alege unde urci în autobuz.' };
 
   if (!nume) return { eroare: ru ? 'Введите фамилию и имя (не короче 2 букв).' : 'Scrie numele și prenumele (cel puțin 2 litere fiecare).' };
   if (!telefon) return { eroare: ru ? 'Введите молдавский номер: 069 123 456.' : 'Scrie un număr moldovenesc: 069 123 456.' };
@@ -63,6 +67,7 @@ export async function cumparaBilet(_prev: StareComanda, fd: FormData): Promise<S
     lang: locale,
     idempotencyKey,
     ipHash,
+    punctUrcareId,
   });
   if (!r.ok) {
     if (r.status >= 500 && r.cod !== 'maib') console.error('[bilete] comanda:', r.status, r.eroare);

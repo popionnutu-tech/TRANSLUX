@@ -6,8 +6,8 @@ import { createHash } from 'crypto';
 import { getSupabase } from '@/lib/supabase';
 import { depasesteLimita, FEREASTRA_MINUTE } from '@/lib/search-rate-limit';
 import { visitorHash } from '@/lib/visitor';
-import { configBilete } from '@/lib/bilete-api';
-import { vanzareDeschisaPeSite } from '@/lib/bilete-reguli';
+import { configBilete, puncteUrcare } from '@/lib/bilete-api';
+import { vanzareDeschisaPeSite, puncteCursei, type PunctUrcare } from '@/lib/bilete-reguli';
 // Opririle, km-ii, oferta și tariful zilei stau în cache-ul de date (ION-205); rutele se citesc live.
 import { repereleCautarii, rutele } from '@/lib/cautare-cache';
 // Prețul, orarul și atribuirile zilei vin din @translux/db (ION-192): aceleași reguli pe site,
@@ -44,6 +44,8 @@ export interface TripResult {
   going_north: boolean;
   trip_date: string;
   sale_open: boolean;
+  /** ION-198: unde poate urca pasagerul în localitatea de plecare (doar pe cursele care se vând online). */
+  puncte: PunctUrcare[];
 }
 
 export interface ActiveOffer {
@@ -445,6 +447,7 @@ export async function searchTrips(
           isAwaitingDriver: true,
           ...bilet,
           sale_open: false,
+          puncte: [],
         });
       }
       continue;
@@ -461,7 +464,19 @@ export async function searchTrips(
         cfg: cfgBilete, routeId: trip.routeId, goingNorth: trip.goingNorth, tripDate: date, time: trip.time,
         pornireRuta: pornireRuta(trip.routeId, trip.goingNorth), soferPeZi: graficPeZi, nowMs,
       }),
+      puncte: [],
     });
+  }
+
+  // Punctele de urcare (ION-198): o singură cerere pe căutare, doar dacă vreo cursă se vinde online acum; numele
+  // canonic al opririi (crm_stop_fares.name_ro), nu cel scris în căutare.
+  // Numele e cel al opririi de pe ruta cursei — același pe care îl folosește panoul la validare.
+  const numeOprire = (routeId: number) => repere.fromStops.find((s) => s.crm_route_id === routeId)?.name_ro ?? fromRo;
+  const deVandut = results.filter((r) => r.sale_open);
+  if (deVandut.length) {
+    const nume = [...new Set(deVandut.map((r) => numeOprire(r.crm_route_id)))];
+    const liste = new Map(await Promise.all(nume.map(async (n) => [n, await puncteUrcare(n)] as const)));
+    for (const r of deVandut) r.puncte = puncteCursei(liste.get(numeOprire(r.crm_route_id)) ?? [], r.crm_route_id, r.going_north);
   }
 
 

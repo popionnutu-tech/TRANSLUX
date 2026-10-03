@@ -126,7 +126,7 @@ export default function BileteClient({ comenzi, alerte, nouaVechi, filtre }: Pro
               return [
                 <tr key={c.id} style={c.test ? { background: '#fafafa' } : undefined}>
                   <td style={td}>{dataRo(c.created_at)}{c.test && <div style={{ fontSize: 10, color: '#999' }}>TEST</div>}</td>
-                  <td style={td}><b>{c.trip_date}</b> {dataRo(c.departure_at).slice(-5)}<div style={{ fontSize: 12, color: '#666' }}>{c.ruta_nume ?? `ruta ${c.crm_route_id}`}</div><div style={{ fontSize: 12 }}>{c.from_name} → {c.to_name}</div></td>
+                  <td style={td}><b>{c.trip_date}</b> {dataRo(c.departure_at).slice(-5)}<div style={{ fontSize: 12, color: '#666' }}>{c.ruta_nume ?? `ruta ${c.crm_route_id}`}</div><div style={{ fontSize: 12 }}>{c.from_name} → {c.to_name}</div>{c.punct_urcare_nume_ro && <div style={{ fontSize: 12 }}>urcare: <a href={`https://www.google.com/maps/search/?api=1&query=${c.punct_urcare_lat},${c.punct_urcare_lon}`} target="_blank" rel="noopener noreferrer">{c.punct_urcare_nume_ro}</a></div>}</td>
                   <td style={td}>{c.passenger_name}<div style={{ fontSize: 12, color: '#666' }}>+{c.phone}</div></td>
                   <td style={td}>{c.seats} × {Number(c.price_per_seat).toFixed(0)} = <b>{Number(c.total).toFixed(2)}</b></td>
                   <td style={td}><Stare s={c.status} />{c.cancel_source && <div style={{ fontSize: 11, color: '#999' }}>anulat de {c.cancel_source}</div>}</td>

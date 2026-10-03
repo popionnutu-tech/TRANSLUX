@@ -1,5 +1,5 @@
 import 'server-only';
-import { CONFIG_INCHIS, parseazaConfig, type ConfigBilete } from './bilete-reguli';
+import { CONFIG_INCHIS, parseazaConfig, parseazaPuncte, type ConfigBilete } from './bilete-reguli';
 
 // Biletele online pe translux.md (ION-197): site-ul NU scrie în bază (are doar cheia anon) — vorbește cu panoul
 // central-hub, care ține comenzile, plata maib și biletele. Secretul rămâne pe server (BILETE_API_KEY, doar aici).
@@ -27,6 +27,29 @@ export async function configBilete(): Promise<ConfigBilete> {
   }
 }
 
+// Punctele de urcare ale unei localități (ION-198), cu perechile lor (rută, sens). Cache 60 s pe localitate; orice
+// eroare = listă goală, adică formularul nu întreabă nimic (comanda merge, panoul pune punctul principal).
+const CACHE_PUNCTE_MS = 60_000;
+const cachePuncte = new Map<string, { la: number; puncte: ReturnType<typeof parseazaPuncte> }>();
+
+export async function puncteUrcare(nameRo: string): Promise<ReturnType<typeof parseazaPuncte>> {
+  const k = nameRo.trim();
+  if (!k || k.length > 80) return [];
+  const c = cachePuncte.get(k);
+  if (c && Date.now() - c.la < CACHE_PUNCTE_MS) return c.puncte;
+  try {
+    const r = await fetch(`${BAZA}/api/bilete/public/puncte?de=${encodeURIComponent(k)}`, { signal: AbortSignal.timeout(TIMEOUT_MS / 2), cache: 'no-store' });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const puncte = parseazaPuncte(await r.json());
+    if (cachePuncte.size > 300) cachePuncte.clear();
+    cachePuncte.set(k, { la: Date.now(), puncte });
+    return puncte;
+  } catch (e) {
+    console.warn('[bilete] puncte de urcare indisponibile:', e instanceof Error ? e.message : e);
+    return [];
+  }
+}
+
 export interface ComandaBiletInput {
   tripDate: string;
   crmRouteId: number;
@@ -40,6 +63,8 @@ export interface ComandaBiletInput {
   lang: 'ro' | 'ru';
   idempotencyKey: string;
   ipHash: string | null;
+  /** ION-198: punctul de urcare ales (null = panoul pune punctul principal, dacă există). */
+  punctUrcareId: number | null;
 }
 
 export type RaspunsComanda =
@@ -88,6 +113,7 @@ export interface ComandaPublica {
   paid_at: string | null;
   cancelled_at: string | null;
   ruta: { id: number; nume_ro: string; nume_ru: string } | null;
+  punct_urcare?: { nume_ro: string; nume_ru: string; lat: number; lon: number } | null;
   bilete: BiletPublic[];
 }
 

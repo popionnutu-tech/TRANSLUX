@@ -32,6 +32,8 @@ export interface ComandaPublica {
   paid_at: string | null;
   cancelled_at: string | null;
   ruta: { id: number; nume_ro: string; nume_ru: string } | null;
+  /** ION-198: unde urcă pasagerul (copia de la comandă). */
+  punct_urcare: { nume_ro: string; nume_ru: string; lat: number; lon: number } | null;
   bilete: BiletPublic[];
 }
 
@@ -70,7 +72,7 @@ export async function sincronizeazaComandaDupaCod(cod: string): Promise<void> {
 export async function biletPublic(cod: string): Promise<ComandaPublica | null> {
   if (!COD_RE.test(cod)) return null;
   const db = getSupabase();
-  const { data: c, error: cErr } = await db.from('bilete_comenzi').select('cod, status, trip_date, from_name, to_name, departure_at, seats, price_per_seat, total, passenger_name, lang, paid_at, cancelled_at, crm_route_id, going_north, id').eq('cod', cod).maybeSingle();
+  const { data: c, error: cErr } = await db.from('bilete_comenzi').select('cod, status, trip_date, from_name, to_name, departure_at, seats, price_per_seat, total, passenger_name, lang, paid_at, cancelled_at, crm_route_id, going_north, id, punct_urcare_nume_ro, punct_urcare_nume_ru, punct_urcare_lat, punct_urcare_lon').eq('cod', cod).maybeSingle();
   if (cErr) throw new BazaIndisponibilaError(cErr.message); // «nu există» ≠ «baza nu răspunde» (Codex X11)
   if (!c) return null;
   const comanda = c as BileteComanda;
@@ -104,6 +106,12 @@ export async function biletPublic(cod: string): Promise<ComandaPublica | null> {
       id: ruta.id,
       nume_ro: comanda.going_north ? ruta.dest_to_ro : ruta.dest_from_ro,
       nume_ru: comanda.going_north ? ruta.dest_to_ru : ruta.dest_from_ru,
+    } : null,
+    punct_urcare: comanda.punct_urcare_nume_ro && comanda.punct_urcare_lat != null && comanda.punct_urcare_lon != null ? {
+      nume_ro: comanda.punct_urcare_nume_ro,
+      nume_ru: comanda.punct_urcare_nume_ru || comanda.punct_urcare_nume_ro,
+      lat: Number(comanda.punct_urcare_lat),
+      lon: Number(comanda.punct_urcare_lon),
     } : null,
     bilete: bileteCuQr,
   };

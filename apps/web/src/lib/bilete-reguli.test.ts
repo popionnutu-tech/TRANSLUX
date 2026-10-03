@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CONFIG_INCHIS, emailOptional, mesajEroareComanda, normalizeazaTelefon, numeComplet, parseazaConfig, urlPlataSigur, vanzareDeschisaPeSite } from './bilete-reguli';
+import { CONFIG_INCHIS, emailOptional, linkHarta, mesajEroareComanda, normalizeazaTelefon, numeComplet, parseazaConfig, parseazaPuncte, puncteCursei, urlPlataSigur, vanzareDeschisaPeSite } from './bilete-reguli';
 
 const cfg = { activ: true, inchidere_tur_min: 0, inchidere_retur_min: 120, rute: [{ id: 2, tur: true, retur: false }, { id: 8, tur: true, retur: true }] };
 // Marți 14.10.2026, 05:00 la Chișinău (ora de vară, +03:00).
@@ -100,5 +100,32 @@ describe('emailOptional', () => {
     expect(emailOptional('ion pop@mail.md')).toBe('invalid');
     expect(emailOptional(`${'a'.repeat(115)}@x.md`)).toBe(`${'a'.repeat(115)}@x.md`); // 120 = limita, permis
     expect(emailOptional(`${'a'.repeat(116)}@x.md`)).toBe('invalid');
+  });
+});
+
+describe('punctele de urcare (ION-198)', () => {
+  const raspuns = { ok: true, puncte: [
+    { id: 2, nume_ro: 'Strada Farmaciei', nume_ru: 'ул. Фармачией', lat: 48.354, lon: 27.1, rang: 2, perechi: [[14, false], [27, false]] },
+    { id: 1, nume_ro: 'Autogara', nume_ru: 'Автовокзал', lat: 48.357, lon: 27.092, rang: 1, perechi: [[14, false], [14, true]] },
+    { id: 'x', nume_ro: 'rău', perechi: [] },
+  ] };
+
+  it('parsează doar punctele bine formate; orice altceva = listă goală', () => {
+    expect(parseazaPuncte(raspuns).map((p) => p.id)).toEqual([2, 1]);
+    expect(parseazaPuncte({ ok: false, puncte: raspuns.puncte })).toEqual([]);
+    expect(parseazaPuncte(null)).toEqual([]);
+    expect(parseazaPuncte({ ok: true, puncte: 'nu' })).toEqual([]);
+  });
+
+  it('punctele unei curse: pe rută și sens, după rang, fără perechi', () => {
+    const toate = parseazaPuncte(raspuns);
+    expect(puncteCursei(toate, 14, false).map((p) => p.id)).toEqual([1, 2]);
+    expect(puncteCursei(toate, 14, true).map((p) => p.id)).toEqual([1]);
+    expect(puncteCursei(toate, 5, false)).toEqual([]);
+    expect(Object.keys(puncteCursei(toate, 27, false)[0]).sort()).toEqual(['id', 'lat', 'lon', 'nume_ro', 'nume_ru', 'rang']);
+  });
+
+  it('linkul spre hartă', () => {
+    expect(linkHarta({ lat: 48.354, lon: 27.1 })).toBe('https://www.google.com/maps/search/?api=1&query=48.354,27.1');
   });
 });

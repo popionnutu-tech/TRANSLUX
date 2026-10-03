@@ -21,7 +21,7 @@ import {
 const UN_CEAS = 3600;
 const CINCI_MINUTE = 300;
 
-const COLOANE_OPRIRE = 'id, crm_route_id, stop_order, hour_from_chisinau, hour_from_nord';
+const COLOANE_OPRIRE = 'id, crm_route_id, stop_order, hour_from_chisinau, hour_from_nord, name_ro';
 const COLOANE_KM = 'tariff_id, km, from_district, to_district, start_district';
 const COLOANE_RUTA = 'id, dest_to_ro, dest_to_ru, dest_from_ro, dest_from_ru, time_chisinau, time_nord, tariff_id_tur, tariff_id_retur, retur_ascuns, tur_ascuns';
 
@@ -38,7 +38,7 @@ const opririDupaNume = unstable_cache(
     esueaza('crm_stop_fares', error);
     return (data || []) as TimetableStop[];
   },
-  ['cautare-opriri'],
+  ['cautare-opriri-v2'], // v2 (ION-198): rândurile au și name_ro
   { revalidate: UN_CEAS, tags: ['crm_stop_fares'] },
 );
 

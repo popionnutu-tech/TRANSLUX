@@ -8,6 +8,8 @@ import { createCheckout, findCheckoutByOrderId, MaibError, type MaibCheckout } f
 import { persistaCheckout } from '@/lib/maib/persist';
 import { chisinauInstantIso, chisinauTimeOf, chisinauTodayIso } from '@/lib/chisinau-time';
 import { calculeazaDepartureAt, vanzareDeschisa } from './reguli';
+import { localitateaPunctului, puncteActive } from './puncte';
+import { alegePunct, punctePentru } from './puncte-reguli';
 
 // Comanda de bilete online (ION-193, pasul 4 din planul ION-190): validare → preț din @translux/db (același ca pe
 // site) → rând în bilete_comenzi (plafoanele sunt în bază) → O SINGURĂ sesiune maib pe comandă → maib_checkouts.
@@ -40,6 +42,8 @@ export interface ComandaInput {
   idempotencyKey: string;
   ipHash?: string | null;
   telegramId?: number | null;
+  /** ION-198: punctul de urcare ales pe site; lipsă → primul punct al cursei (dacă localitatea are puncte). */
+  punctUrcareId?: number | null;
 }
 
 export interface ComandaOptiuni {
@@ -104,7 +108,7 @@ function valideaza(input: ComandaInput): { phone: string; name: string; lang: 'r
 }
 
 /** Cursa cerută, din aceleași date și reguli ca pe site; null când nu există. */
-async function gasesteCursa(input: ComandaInput): Promise<{ trip: CursaCuPret; fromOrder: number; toOrder: number; pornireRuta: string | null } | null> {
+async function gasesteCursa(input: ComandaInput): Promise<{ trip: CursaCuPret; fromOrder: number; toOrder: number; fromNameRo: string; pornireRuta: string | null } | null> {
   const db = getSupabase();
   const d = await incarcaCurse(db, { fromRo: input.fromRo, toRo: input.toRo, date: input.tripDate });
   if (!d) return null;
@@ -116,7 +120,7 @@ async function gasesteCursa(input: ComandaInput): Promise<{ trip: CursaCuPret; f
   if (!from || !to || !route) return null;
   const interval = input.goingNorth ? route.time_chisinau : route.time_nord;
   const pornire = interval ? parseTimeLabel(interval) : null;
-  return { trip, fromOrder: from.stop_order, toOrder: to.stop_order, pornireRuta: pornire && /^\d{2}:\d{2}$/.test(pornire) ? pornire : null };
+  return { trip, fromOrder: from.stop_order, toOrder: to.stop_order, fromNameRo: from.name_ro ?? input.fromRo.trim(), pornireRuta: pornire && /^\d{2}:\d{2}$/.test(pornire) ? pornire : null };
 }
 
 /** Șoferul atribuit cursei PE ziua cerută (fără căderea pe ziua anterioară de pe site). */
@@ -141,6 +145,7 @@ async function directiaDeschisa(crmRouteId: number, goingNorth: boolean): Promis
   return goingNorth ? Boolean(data.bilete_online_retur) : Boolean(data.bilete_online_tur);
 }
 
+// Punctul de urcare NU intră în cheie: o reluare cu altă alegere întoarce comanda inițială, cu punctul ei (ION-198).
 function cheileComenzii(c: Pick<BileteComanda, 'trip_date' | 'crm_route_id' | 'going_north' | 'seats' | 'phone'>): string {
   return [c.trip_date, c.crm_route_id, c.going_north, c.seats, c.phone].join('|');
 }
@@ -197,6 +202,18 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
   const pricePerSeat = cursa.trip.price;
   const total = Number((pricePerSeat * input.seats).toFixed(2));
 
+  // Punctul de urcare (ION-198): din bază, după numele canonic al opririi; copia nume/coordonate o face serverul.
+  // Punctele nu sunt o condiție a vânzării: dacă tabelul nu răspunde, comanda merge fără punct (ca înainte de ION-198).
+  const active = await puncteActive().catch((e: unknown) => { console.warn('[bilete] puncte indisponibile:', e instanceof Error ? e.message : e); return []; });
+  const lista = punctePentru(active, cursa.fromNameRo, input.crmRouteId, input.goingNorth);
+  const cerut = input.punctUrcareId ?? null;
+  // id ∉ lista cursei → a cui localitate e? Dacă citirea cade, îl tratăm ca dezactivat (primul punct), nu refuzăm comanda.
+  const localitateaCeruta = cerut != null && !lista.some((p) => p.id === cerut) && Number.isInteger(cerut) && cerut > 0
+    ? await localitateaPunctului(cerut).catch(() => cursa.fromNameRo) : null;
+  const alegere = alegePunct(lista, cursa.fromNameRo, cerut, localitateaCeruta);
+  if (alegere.tip === 'validare') throw new ComandaError('validare', 'punctul de urcare nu e al acestei opriri');
+  const punct = alegere.tip === 'punct' ? alegere.punct : null;
+
   // 3. Plafoanele și INSERT-ul, atomic, în bază (migr. 483/485).
   const { data: rand, error } = await db.rpc('bilete_creeaza_comanda', {
     p: {
@@ -218,6 +235,11 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
       lang: v.lang,
       ip_hash: input.ipHash ?? '',
       test: opt.mod === 'test_admin',
+      punct_urcare_id: punct?.id ?? null,
+      punct_urcare_nume_ro: punct?.nume_ro ?? null,
+      punct_urcare_nume_ru: punct?.nume_ru ?? null,
+      punct_urcare_lat: punct?.lat ?? null,
+      punct_urcare_lon: punct?.lon ?? null,
     },
   });
   if (error) {

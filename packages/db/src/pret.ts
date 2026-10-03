@@ -146,11 +146,11 @@ export async function incarcaCurse(
   const [rFrom, rTo] = await Promise.all([
     db
       .from('crm_stop_fares')
-      .select('id, crm_route_id, stop_order, hour_from_chisinau, hour_from_nord')
+      .select('id, crm_route_id, stop_order, hour_from_chisinau, hour_from_nord, name_ro')
       .ilike('name_ro', fromRo),
     db
       .from('crm_stop_fares')
-      .select('id, crm_route_id, stop_order, hour_from_chisinau, hour_from_nord')
+      .select('id, crm_route_id, stop_order, hour_from_chisinau, hour_from_nord, name_ro')
       .ilike('name_ro', toRo),
   ]);
   const fromStops = verifica('crm_stop_fares', rFrom) as TimetableStop[] | null;

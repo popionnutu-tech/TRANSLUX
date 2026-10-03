@@ -102,7 +102,7 @@ describe('incarcaCurse', () => {
   it('încarcă opririle, rutele, km-ii în ambele sensuri, tariful și oferta', async () => {
     const apeluri: string[] = [];
     const db = dbFals({
-      crm_stop_fares: [{ crm_route_id: 2, stop_order: 10, hour_from_chisinau: '21:40', hour_from_nord: '05:45' }],
+      crm_stop_fares: [{ crm_route_id: 2, stop_order: 10, hour_from_chisinau: '21:40', hour_from_nord: '05:45', name_ro: 'Briceni' }],
       crm_routes: [BRICENI_CHISINAU.routes[0]],
       v_interurban_v2_km_pairs: [{ tariff_id: 104, km: 238, from_district: 'briceni', to_district: null, start_district: 'briceni' }],
       offers: [],
@@ -114,5 +114,7 @@ describe('incarcaCurse', () => {
     expect(d?.rates).toEqual({ rateLong: 1.19, rateSub: 1.29 });
     expect(d?.offer).toBeNull();
     expect(apeluri.filter((t) => t === 'crm_stop_fares').length).toBe(2);
+    // numele canonic al opririi ajunge la apelant (punctele de urcare se caută după el, ION-198)
+    expect(d?.fromStops[0].name_ro).toBe('Briceni');
   });
 });

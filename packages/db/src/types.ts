@@ -1002,6 +1002,12 @@ export interface BileteComanda {
   ip_hash: string | null;
   /** comandă de probă din /plati (mod test_admin); nu intră în digest și în online_lei */
   test: boolean;
+  /** ION-198 (migr. 490): punctul de urcare ales + copia numelui și a coordonatelor la momentul comenzii. */
+  punct_urcare_id?: number | null;
+  punct_urcare_nume_ro?: string | null;
+  punct_urcare_nume_ru?: string | null;
+  punct_urcare_lat?: number | string | null;
+  punct_urcare_lon?: number | string | null;
   created_at: string;
   updated_at: string;
 }

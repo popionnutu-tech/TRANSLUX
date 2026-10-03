@@ -11,6 +11,8 @@ export interface TimetableStop {
   stop_order: number;
   hour_from_chisinau: string | null;
   hour_from_nord: string | null;
+  /** Numele canonic al opririi (crm_stop_fares.name_ro); lipsește în datele construite fără bază. */
+  name_ro?: string;
 }
 
 export interface TimetableRoute {

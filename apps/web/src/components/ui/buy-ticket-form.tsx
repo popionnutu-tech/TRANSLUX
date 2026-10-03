@@ -5,6 +5,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import type { TripResult } from "@/app/(public)/actions";
 import { cumparaBilet, type StareComanda } from "@/app/(public)/bilete-actions";
+import { linkHarta } from "@/lib/bilete-reguli";
 
 // Formularul «Cumpără bilet» (ION-197): în fereastra rezultatelor, sub cursa aleasă. Cheia de idempotență se
 // generează la deschidere — un dublu-clic sau un «înapoi» din bancă nu face două comenzi. Prețul e informativ;
@@ -18,12 +19,14 @@ const TXT = {
     consent: "Am citit și accept", terms: "condițiile de vânzare", and: "și", policy: "politica de confidențialitate",
     pay: "Plătește cu cardul", paying: "Se deschide banca…", cancel: "Înapoi",
     note: "După plată primești biletul cu cod QR. Îl arăți șoferului la urcare. Returnarea se cere prin Telegram.",
+    unde: "Unde urci în autobuz", urcare: "Urcare", harta: "pe hartă",
   },
   ru: {
     title: "Онлайн-билет", lastName: "Фамилия", firstName: "Имя", phone: "Телефон", email: "E-mail (необязательно)", seats: "Мест", total: "Итого",
     consent: "Я прочитал(а) и принимаю", terms: "условия продажи", and: "и", policy: "политику конфиденциальности",
     pay: "Оплатить картой", paying: "Открываем банк…", cancel: "Назад",
     note: "После оплаты вы получите билет с QR-кодом. Покажите его водителю при посадке. Возврат — через Telegram.",
+    unde: "Где вы сядете в автобус", urcare: "Посадка", harta: "на карте",
   },
 } as const;
 
@@ -67,6 +70,27 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel }: {
       <input type="hidden" name="tripDate" value={trip.trip_date} />
       <input type="hidden" name="fromRo" value={fromRo} />
       <input type="hidden" name="toRo" value={toRo} />
+      {/* Punctul de urcare (ION-198): 2–3 puncte → alegere obligatorie; unul → doar afișat; niciunul → nimic. */}
+      {(trip.puncte?.length ?? 0) >= 2 && (
+        <fieldset style={{ border: "none", margin: 0, padding: 0, display: "grid", gap: 6, minWidth: 0 }}>
+          <input type="hidden" name="punctObligatoriu" value="1" />
+          <legend style={{ fontSize: 12, color: "#555", padding: 0, marginBottom: 4 }}>{tx.unde}</legend>
+          {trip.puncte.map((p) => (
+            <label key={p.id} style={{ display: "flex", gap: 8, alignItems: "center", padding: "8px 10px", borderRadius: 10, border: "1px solid #ddd", background: "#fff", fontSize: 14, minWidth: 0 }}>
+              <input type="radio" name="punctUrcareId" value={p.id} required />
+              <span style={{ flex: 1, minWidth: 0 }}>{locale === "ru" ? p.nume_ru : p.nume_ro}</span>
+              <a href={linkHarta(p)} target="_blank" rel="noopener noreferrer" style={{ color: RED, fontSize: 12, whiteSpace: "nowrap" }}>{tx.harta} ↗</a>
+            </label>
+          ))}
+        </fieldset>
+      )}
+      {trip.puncte?.length === 1 && (
+        <div style={{ fontSize: 13, color: "#555" }}>
+          <input type="hidden" name="punctUrcareId" value={trip.puncte[0].id} />
+          {tx.urcare}: <b>{locale === "ru" ? trip.puncte[0].nume_ru : trip.puncte[0].nume_ro}</b>{" "}
+          <a href={linkHarta(trip.puncte[0])} target="_blank" rel="noopener noreferrer" style={{ color: RED, fontSize: 12 }}>{tx.harta} ↗</a>
+        </div>
+      )}
       {/* capcana pentru roboți: invizibilă pentru oameni */}
       <input type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" style={{ position: "absolute", left: -9999, width: 1, height: 1, opacity: 0 }} />
       {/* Numele și prenumele în două câmpuri (Ion, 03.10); pe telefonul îngust se așază unul sub altul. */}

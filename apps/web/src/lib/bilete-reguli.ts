@@ -123,3 +123,37 @@ export function emailOptional(raw: string): string | null | 'invalid' {
   if (e.length > 120 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)) return 'invalid';
   return e;
 }
+
+// ---------------------------------------------------------------------------------------------------------------
+// Punctele de urcare (ION-198): panoul dă punctele localității cu perechile (rută, sens) pe care se oferă.
+
+export interface PunctUrcare {
+  id: number;
+  nume_ro: string;
+  nume_ru: string;
+  lat: number;
+  lon: number;
+  rang: number;
+}
+
+interface PunctCuPerechi extends PunctUrcare { perechi: Array<[number, boolean]> }
+
+/** Răspunsul panoului → doar punctele bine formate; orice altceva = listă goală (nu se întreabă nimic). */
+export function parseazaPuncte(j: unknown): PunctCuPerechi[] {
+  const a = (j as { ok?: boolean; puncte?: unknown })?.ok ? (j as { puncte?: unknown }).puncte : null;
+  if (!Array.isArray(a)) return [];
+  return a.filter((p): p is PunctCuPerechi => !!p && Number.isInteger(p.id) && typeof p.nume_ro === 'string' && typeof p.nume_ru === 'string'
+    && Number.isFinite(p.lat) && Number.isFinite(p.lon) && Number.isInteger(p.rang) && Array.isArray(p.perechi));
+}
+
+/** Punctele oferite pe o cursă (rută + sens), după rang, fără perechi. */
+export function puncteCursei(toate: PunctCuPerechi[], routeId: number, goingNorth: boolean): PunctUrcare[] {
+  return toate.filter((p) => p.perechi.some(([r, n]) => r === routeId && n === goingNorth))
+    .sort((a, b) => a.rang - b.rang)
+    .map(({ id, nume_ro, nume_ru, lat, lon, rang }) => ({ id, nume_ro, nume_ru, lat, lon, rang }));
+}
+
+/** Locul pe hartă (se deschide în aplicația de hărți a telefonului). */
+export function linkHarta(p: { lat: number; lon: number }): string {
+  return `https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lon}`;
+}

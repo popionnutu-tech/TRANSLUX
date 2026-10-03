@@ -54,6 +54,9 @@ export async function POST(req: NextRequest) {
     lang: body.lang === 'ru' ? 'ru' : 'ro',
     idempotencyKey: String(body.idempotencyKey ?? ''),
     ipHash: body.ipHash ? String(body.ipHash).slice(0, 64) : (body.ip_hash ? String(body.ip_hash).slice(0, 64) : null),
+    // doar un întreg (număr sau text de cifre); orice altceva (true, [5], «abc») → validare în alegePunct
+    punctUrcareId: body.punctUrcareId == null || body.punctUrcareId === ('' as unknown) ? null
+      : (typeof body.punctUrcareId === 'number' || (typeof body.punctUrcareId === 'string' && /^\d{1,12}$/.test(body.punctUrcareId)) ? Number(body.punctUrcareId) : -1),
   };
 
   const siteUrl = (process.env.SITE_URL || 'https://translux.md').replace(/\/+$/, '');

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useMemo, useEffect } from 'react';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import { format } from 'date-fns';
 
 const ShaderBackground = dynamic(
@@ -137,7 +138,8 @@ export function HomePage({ locale, localities = [], popularPrices = [], routeLin
       <div style={{ position: 'relative', zIndex: 1 }}>
 
         <header className="site-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 40px' }}>
-          <a href={homePath(locale)} aria-label="TRANSLUX">
+          {/* Legăturile interne prin next/link (ION-203): navigare pe client, cu prefetch; tel: și externele rămân <a>. */}
+          <Link href={homePath(locale)} aria-label="TRANSLUX">
             <span className="site-logo" style={{
               display: 'inline-block', height: 36, aspectRatio: '1318/192',
               backgroundColor: '#9B1B30',
@@ -146,29 +148,29 @@ export function HomePage({ locale, localities = [], popularPrices = [], routeLin
               maskImage: 'url(/translux-logo-red.png)',
               maskSize: 'contain', maskRepeat: 'no-repeat',
             }} />
-          </a>
+          </Link>
 
           {/* Limba: sus, în antet (ION-39) — colțul de jos e al asistentului */}
           <div className="lang-toggle-3d" style={{
             display: 'flex', gap: 2,
             borderRadius: 10, padding: 3,
           }}>
-            <a href="/" hrefLang="ro" className="lang-btn" style={{
+            <Link href="/" hrefLang="ro" className="lang-btn" style={{
               color: locale === 'ro' ? '#9B1B30' : 'rgba(155,27,48,0.35)',
               fontWeight: 700, fontSize: 11, letterSpacing: 1.2,
               textDecoration: 'none', padding: '5px 10px', borderRadius: 8,
               background: locale === 'ro' ? 'rgba(155,27,48,0.08)' : 'transparent',
               fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
               transition: 'all 0.15s ease',
-            }}>RO</a>
-            <a href="/ru" hrefLang="ru" className="lang-btn" style={{
+            }}>RO</Link>
+            <Link href="/ru" hrefLang="ru" className="lang-btn" style={{
               color: locale === 'ru' ? '#9B1B30' : 'rgba(155,27,48,0.35)',
               fontWeight: 700, fontSize: 11, letterSpacing: 1.2,
               textDecoration: 'none', padding: '5px 10px', borderRadius: 8,
               background: locale === 'ru' ? 'rgba(155,27,48,0.08)' : 'transparent',
               fontFamily: 'var(--font-opensans), Open Sans, sans-serif',
               transition: 'all 0.15s ease',
-            }}>RU</a>
+            }}>RU</Link>
           </div>
         </header>
 
@@ -365,20 +367,21 @@ export function HomePage({ locale, localities = [], popularPrices = [], routeLin
               <h2>{i.allRoutes}</h2>
               <ul>
                 {routeLinks.map((r) => (
-                  <li key={r.key}><a href={r.href}>{r.label}</a></li>
+                  <li key={r.key}><Link href={r.href}>{r.label}</Link></li>
                 ))}
               </ul>
             </nav>
           )}
 
           {/* Satele din nord, fiecare cu pagina Chișinău → sat (Ion, 01.10). Strânse implicit:
-              lista e lungă; textul rămâne în HTML pentru Google. */}
+              lista e lungă; textul rămâne în HTML pentru Google. 70+ linkuri fără prefetch,
+              altfel s-ar descărca 70 de pagini la derulare (ION-203). */}
           {localityLinks.length > 0 && (
             <details className="all-routes all-localities">
               <summary><h2>{i.allLocalities}</h2></summary>
               <ul>
                 {localityLinks.map((r) => (
-                  <li key={r.key}><a href={r.href}>{i.toLocality(r.label)}</a></li>
+                  <li key={r.key}><Link href={r.href} prefetch={false}>{i.toLocality(r.label)}</Link></li>
                 ))}
               </ul>
             </details>
@@ -421,8 +424,8 @@ export function HomePage({ locale, localities = [], popularPrices = [], routeLin
             maxWidth: 720, margin: '0 auto', padding: '0 36px 18px',
             display: 'flex', flexWrap: 'wrap', gap: '6px 18px', fontSize: 12,
           }}>
-            <a href={`/${locale}/confidentialitate`} style={{ color: '#777', textDecoration: 'none' }}>{i.privacy}</a>
-            <a href={`/${locale}/cookies`} style={{ color: '#777', textDecoration: 'none' }}>{i.cookies}</a>
+            <Link href={`/${locale}/confidentialitate`} style={{ color: '#777', textDecoration: 'none' }}>{i.privacy}</Link>
+            <Link href={`/${locale}/cookies`} style={{ color: '#777', textDecoration: 'none' }}>{i.cookies}</Link>
             <button type="button" onClick={openConsentSettings} style={{
               background: 'none', border: 'none', padding: 0, cursor: 'pointer',
               color: '#777', fontSize: 12, fontFamily: 'inherit',

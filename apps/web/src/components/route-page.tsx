@@ -1,8 +1,10 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { cache } from 'react';
 import type { Locale } from '@/lib/i18n';
 import { OPERATOR } from '@/components/legal/legal-content';
-import { getRoutePairs, getRouteTimetable, type RouteTimetable } from '@/lib/route-pages';
+import { getRoutePairs, getRouteTimetable, type RoutePair, type RouteTimetable } from '@/lib/route-pages';
 import { homePath, jsonLd, majorBySlug, parsePair, routePath, SITE_URL, type MajorLocality } from '@/lib/seo';
 
 /**
@@ -106,15 +108,23 @@ type Loaded =
   /** Direcție anunțată (Drochia), încă fără curse în orar. */
   | { kind: 'soon'; from: MajorLocality; to: MajorLocality };
 
-/** Validează perechea pe lista statică ÎNAINTE de orice citire din bază. */
-async function load(pair: string): Promise<Loaded> {
+/**
+ * Validează perechea pe lista statică ÎNAINTE de orice citire din bază.
+ * În React.cache (ION-203): generateMetadata și Page cer aceeași pereche în aceeași cerere,
+ * iar orarul se calculează o singură dată; cache-ul memorează și notFound() aruncat, deci
+ * a doua chemare aruncă același 404.
+ */
+const load = cache(async (pair: string): Promise<Loaded> => {
   const parsed = parsePair(pair);
   if (!parsed) notFound();
   const tt = await getRouteTimetable(parsed.from.slug, parsed.to.slug);
   if (tt && tt.trips.length > 0) return { kind: 'timetable', tt };
   if (parsed.upcoming) return { kind: 'soon', from: parsed.from, to: parsed.to };
   notFound();
-}
+});
+
+/** Lista perechilor doar pentru linkurile «alte direcții» / «cea mai apropiată»; o eroare aici nu strică pagina. */
+const loadPairs = () => getRoutePairs().catch(() => [] as RoutePair[]);
 
 function pageAlternates(locale: Locale, from: MajorLocality, to: MajorLocality) {
   return {
@@ -165,17 +175,17 @@ function PageHeader({ locale, from, to }: { locale: Locale; from: MajorLocality;
   const otherLocale: Locale = locale === 'ro' ? 'ru' : 'ro';
   return (
     <header className="site-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 40px' }}>
-      <a href={homePath(locale)} aria-label="TRANSLUX">
+      <Link href={homePath(locale)} aria-label="TRANSLUX">
         <span style={{
           display: 'inline-block', height: 30, aspectRatio: '1318/192',
           backgroundColor: '#9B1B30',
           WebkitMaskImage: 'url(/translux-logo-red.png)', WebkitMaskSize: 'contain', WebkitMaskRepeat: 'no-repeat',
           maskImage: 'url(/translux-logo-red.png)', maskSize: 'contain', maskRepeat: 'no-repeat',
         }} />
-      </a>
-      <a href={routePath(otherLocale, from.slug, to.slug)} className="legal-lang" hrefLang={otherLocale}>
+      </Link>
+      <Link href={routePath(otherLocale, from.slug, to.slug)} className="legal-lang" hrefLang={otherLocale}>
         {otherLocale.toUpperCase()}
-      </a>
+      </Link>
     </header>
   );
 }
@@ -195,11 +205,10 @@ function breadcrumbs(locale: Locale, from: MajorLocality, to: MajorLocality) {
  * Direcția anunțată, fără curse încă (Ion, 01.10: Drochia «pentru viitor, dar fără rute»).
  * Nu inventează ore: spune că orarul apare aici și trimite la cea mai apropiată direcție reală.
  */
-async function SoonPage({ locale, from, to }: { locale: Locale; from: MajorLocality; to: MajorLocality }) {
+function SoonPage({ locale, from, to, pairs }: { locale: Locale; from: MajorLocality; to: MajorLocality; pairs: RoutePair[] }) {
   const t = T[locale];
   const a = nameOf(from, locale);
   const b = nameOf(to, locale);
-  const pairs = await getRoutePairs().catch(() => []);
   // Drochia e lângă Bălți: cea mai apropiată direcție reală e Chișinău ↔ Bălți, în același sens.
   const near = pairs.find((p) =>
     from.slug === 'chisinau' ? p.from.slug === 'chisinau' && p.to.slug === 'balti' : p.from.slug === 'balti' && p.to.slug === 'chisinau',
@@ -210,24 +219,24 @@ async function SoonPage({ locale, from, to }: { locale: Locale; from: MajorLocal
       <PageHeader locale={locale} from={from} to={to} />
       <main className="legal-main route-main">
         <nav className="route-crumbs" aria-label="breadcrumb">
-          <a href={homePath(locale)}>{t.home}</a> / <span>{a} – {b}</span>
+          <Link href={homePath(locale)}>{t.home}</Link> / <span>{a} – {b}</span>
         </nav>
         <h1>{t.soonTitle(a, b)}</h1>
         <p className="legal-intro">{t.soonLead(a, b)}</p>
         {near && (
           <p>
             {t.soonNear}{' '}
-            <a className="route-phone" style={{ fontSize: 15 }} href={routePath(locale, near.from.slug, near.to.slug)}>
+            <Link className="route-phone" style={{ fontSize: 15 }} href={routePath(locale, near.from.slug, near.to.slug)}>
               {nameOf(near.from, locale)} – {nameOf(near.to, locale)}
-            </a>{' '}
+            </Link>{' '}
             ({t.soonTrips(near.trips)})
           </p>
         )}
         <h2>{t.phone}</h2>
         <p><a className="route-phone" href={OPERATOR.phoneHref}>+373 60 401 010</a></p>
         <nav className="legal-nav route-links">
-          <a href={routePath(locale, to.slug, from.slug)}>{t.back}: {b} – {a}</a>
-          <a href={homePath(locale)}>{t.home}</a>
+          <Link href={routePath(locale, to.slug, from.slug)}>{t.back}: {b} – {a}</Link>
+          <Link href={homePath(locale)}>{t.home}</Link>
         </nav>
       </main>
     </div>
@@ -235,11 +244,10 @@ async function SoonPage({ locale, from, to }: { locale: Locale; from: MajorLocal
 }
 
 export async function RoutePage({ pair, locale }: { pair: string; locale: Locale }) {
-  const loaded = await load(pair);
-  if (loaded.kind === 'soon') return <SoonPage locale={locale} from={loaded.from} to={loaded.to} />;
+  // Orarul perechii și lista perechilor nu depind una de alta → în paralel (ION-203).
+  const [loaded, pairs] = await Promise.all([load(pair), loadPairs()]);
+  if (loaded.kind === 'soon') return <SoonPage locale={locale} from={loaded.from} to={loaded.to} pairs={pairs} />;
   const tt = loaded.tt;
-  // Lista perechilor doar pentru linkurile «alte direcții»; o eroare aici nu strică pagina.
-  const pairs = await getRoutePairs().catch(() => []);
   const t = T[locale];
   const a = nameOf(tt.from, locale);
   const b = nameOf(tt.to, locale);
@@ -271,12 +279,12 @@ export async function RoutePage({ pair, locale }: { pair: string; locale: Locale
 
       <main className="legal-main route-main">
         <nav className="route-crumbs" aria-label="breadcrumb">
-          <a href={homePath(locale)}>{t.home}</a> / <span>{a} – {b}</span>
+          <Link href={homePath(locale)}>{t.home}</Link> / <span>{a} – {b}</span>
         </nav>
         <h1>{t.title(a, b)}</h1>
         <p className="legal-intro">{lead}</p>
 
-        <a className="route-cta" href={searchHref}>{t.cta}</a>
+        <Link className="route-cta" href={searchHref}>{t.cta}</Link>
 
         <h2>{t.table}</h2>
         <table className="route-table">
@@ -302,7 +310,7 @@ export async function RoutePage({ pair, locale }: { pair: string; locale: Locale
         {(hasReturn || others.length > 0) && (
           <nav className="legal-nav route-links">
             {hasReturn && (
-              <a href={routePath(locale, tt.to.slug, tt.from.slug)}>{t.back}: {b} – {a}</a>
+              <Link href={routePath(locale, tt.to.slug, tt.from.slug)}>{t.back}: {b} – {a}</Link>
             )}
           </nav>
         )}
@@ -312,7 +320,7 @@ export async function RoutePage({ pair, locale }: { pair: string; locale: Locale
             <ul className="route-others">
               {others.map((p) => (
                 <li key={`${p.from.slug}-${p.to.slug}`}>
-                  <a href={routePath(locale, p.from.slug, p.to.slug)}>{nameOf(p.from, locale)} – {nameOf(p.to, locale)}</a>
+                  <Link href={routePath(locale, p.from.slug, p.to.slug)}>{nameOf(p.from, locale)} – {nameOf(p.to, locale)}</Link>
                 </li>
               ))}
             </ul>

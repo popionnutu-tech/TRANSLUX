@@ -1,7 +1,7 @@
 import { unstable_cache } from 'next/cache';
 import { resolveOfferPriceForDate } from '@translux/db';
 import { getSupabase } from '@/lib/supabase';
-import { HUB_SLUGS, LOCALITIES, MAJOR, pageLocalityBySlug, routePath, UPCOMING, type MajorLocality } from '@/lib/seo';
+import { HUB_SLUGS, LOCALITIES, MAJOR, pageLocalityBySlug, routePath, UPCOMING, UPCOMING_PAIRS, type MajorLocality } from '@/lib/seo';
 import { buildScheduledTrips, type ScheduledTrip, type TimetableKmPair, type TimetableRoute, type TimetableStop } from '@translux/db';
 
 /**
@@ -79,7 +79,7 @@ const PAGE = 1000;
  * Opririle tuturor localităților cu pagină pe toate rutele active + rutele. O singură citire
  * pentru toate perechile. Opririle sunt peste 1000 (1215 pe 01.10) → pe pagini, după id.
  */
-async function loadNetwork() {
+async function loadNetworkUncached() {
   const supabase = getSupabase();
   const stops: (TimetableStop & { name_ro: string })[] = [];
   for (let from = 0; ; from += PAGE) {
@@ -101,6 +101,17 @@ async function loadNetwork() {
   return { stops, routes: (routes.data || []) as TimetableRoute[] };
 }
 
+/**
+ * Rețeaua e aceeași pentru toate perechile, dar până la ION-203 se descărca din nou la fiecare
+ * pagină (2 cereri + ~1.200 de rânduri pe fiecare din ~390 de perechi). Acum stă o oră în cache,
+ * cu eticheta «network», ca o pagină nouă sau revalidarea să citească doar km-ii, tariful și oferta.
+ * Cache-ul nu memorează excepțiile (vezi nota din capul fișierului), deci o cădere nu se lipește.
+ */
+const loadNetwork = unstable_cache(loadNetworkUncached, ['route-network'], {
+  revalidate: 3600,
+  tags: ['network', 'route-pages'],
+});
+
 async function loadKmPairs(from: MajorLocality, to: MajorLocality): Promise<TimetableKmPair[]> {
   const supabase = getSupabase();
   const cols = 'tariff_id, km, from_district, to_district, start_district';
@@ -114,7 +125,14 @@ async function loadKmPairs(from: MajorLocality, to: MajorLocality): Promise<Time
   return [...(a.data || []), ...(b.data || [])] as TimetableKmPair[];
 }
 
-async function loadOfferPrice(from: MajorLocality, to: MajorLocality, rateLong: number | null): Promise<number | null> {
+type OfferRow = Parameters<typeof resolveOfferPriceForDate>[0];
+
+/**
+ * Oferta activă pe acest sens, brută. Citirea nu depinde nici de rețea, nici de tarif, deci
+ * merge în paralel cu ele (ION-203); doar PREȚUL ofertei depinde de tariful zilei (formula
+ * Bălți–Chișinău din resolveOfferPriceForDate) și se calculează după, în computeTimetable.
+ */
+async function loadOffer(from: MajorLocality, to: MajorLocality): Promise<OfferRow | null> {
   const { data, error } = await getSupabase()
     .from('offers')
     .select('from_locality, to_locality, original_price, offer_price')
@@ -122,9 +140,7 @@ async function loadOfferPrice(from: MajorLocality, to: MajorLocality, rateLong: 
     .ilike('from_locality', from.ro)
     .ilike('to_locality', to.ro);
   if (error) fail('offers', error);
-  const offer = data && data.length > 0 ? data[0] : null;
-  // Oferta urmează tariful zilei (formula RPC), ca în searchTrips — doar pe sensul ei.
-  return offer ? resolveOfferPriceForDate(offer as any, rateLong) : null;
+  return data && data.length > 0 ? (data[0] as OfferRow) : null;
 }
 
 function tripsFor(network: Awaited<ReturnType<typeof loadNetwork>>, from: MajorLocality, to: MajorLocality, kmPairs: TimetableKmPair[], rateLong: number | null, rateSub: number | null) {
@@ -139,10 +155,17 @@ async function computeTimetable(fromSlug: string, toSlug: string): Promise<Route
   const from = pageLocalityBySlug(fromSlug);
   const to = pageLocalityBySlug(toSlug);
   if (!from || !to) return null;
-  const [network, kmPairs, rates] = await Promise.all([loadNetwork(), loadKmPairs(from, to), loadRates(todayChisinau())]);
+  // Toate cele patru citiri sunt independente → un singur drum la bază (ION-203).
+  const [network, kmPairs, rates, offer] = await Promise.all([
+    loadNetwork(),
+    loadKmPairs(from, to),
+    loadRates(todayChisinau()),
+    loadOffer(from, to),
+  ]);
   const trips = tripsFor(network, from, to, kmPairs, rates.rateLong, rates.rateSub);
   if (trips.length === 0) return { from, to, trips, priceFrom: null, offerPrice: null };
-  const offerPrice = await loadOfferPrice(from, to, rates.rateLong);
+  // Oferta urmează tariful zilei (formula RPC), ca în searchTrips — doar pe sensul ei.
+  const offerPrice = offer ? resolveOfferPriceForDate(offer, rates.rateLong) : null;
   const prices = trips.map((t) => offerPrice ?? t.price).filter((p) => p > 0);
   return { from, to, trips, priceFrom: prices.length ? Math.min(...prices) : null, offerPrice };
 }
@@ -217,6 +240,24 @@ export const getRoutePairs = unstable_cache(computePairs, ['route-pairs-v2'], {
   revalidate: 3600,
   tags: ['route-pages'],
 });
+
+/**
+ * Perechile prerandate la build de paginile de direcție (ION-203): aceeași listă ca sitemap-ul —
+ * perechile cu curse + direcțiile anunțate (Drochia, Glodeni). Fără bază la build (env lipsă,
+ * cădere) întoarce lista goală și paginile rămân pe ISR, ca până acum: nu ar fi corect să
+ * prerandeze doar direcțiile anunțate, căci și SoonPage citește orarul și ar pica build-ul.
+ */
+export async function routeStaticParams(): Promise<{ pair: string }[]> {
+  let pairs: RoutePair[];
+  try {
+    pairs = await getRoutePairs();
+  } catch {
+    return [];
+  }
+  const known = new Set(pairs.map((p) => `${p.from.slug}-${p.to.slug}`));
+  const upcoming = UPCOMING_PAIRS.map(([a, b]) => `${a.slug}-${b.slug}`).filter((pair) => !known.has(pair));
+  return [...known, ...upcoming].map((pair) => ({ pair }));
+}
 
 export interface HomeLink {
   key: string;

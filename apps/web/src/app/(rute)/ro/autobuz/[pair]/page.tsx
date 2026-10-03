@@ -1,12 +1,15 @@
 import type { Metadata } from 'next';
 import { RoutePage, routeMetadata } from '@/components/route-page';
+import { routeStaticParams } from '@/lib/route-pages';
 
-// ISR: randată la prima cerere, apoi reîmprospătată din oră în oră (ION-153).
-// Stă în grupul (rute), în afara ro/loading.tsx: sub Suspense, notFound() ar răspunde 200.
+// Prerandată la build pentru toate perechile cu pagină (ION-203), apoi reîmprospătată din oră
+// în oră (ISR, ION-153). Stă în grupul (rute), în afara ro/loading.tsx: sub Suspense, notFound() ar răspunde 200.
 export const revalidate = 3600;
+// O pereche nouă (apărută în orar după build) se randează la prima cerere, nu dă 404.
+export const dynamicParams = true;
 
 export function generateStaticParams() {
-  return [];
+  return routeStaticParams();
 }
 
 type Props = { params: Promise<{ pair: string }> };

@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import type { Locale } from '@/lib/i18n';
 import { cookiesDoc, privacyDoc, type LegalDoc } from './legal-content';
 
@@ -24,15 +25,16 @@ export function LegalPage({ kind, locale }: { kind: Kind; locale: Locale }) {
   return (
     <div className="legal-page">
       <header className="site-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 40px' }}>
-        <a href={`/${locale}`} aria-label="TRANSLUX">
+        {/* Legături interne prin next/link (ION-203): navigare pe client, cu prefetch. */}
+        <Link href={`/${locale}`} aria-label="TRANSLUX">
           <span style={{
             display: 'inline-block', height: 30, aspectRatio: '1318/192',
             backgroundColor: '#9B1B30',
             WebkitMaskImage: 'url(/translux-logo-red.png)', WebkitMaskSize: 'contain', WebkitMaskRepeat: 'no-repeat',
             maskImage: 'url(/translux-logo-red.png)', maskSize: 'contain', maskRepeat: 'no-repeat',
           }} />
-        </a>
-        <a href={`/${otherLocale}/${SLUG[kind]}`} className="legal-lang">{otherLocale.toUpperCase()}</a>
+        </Link>
+        <Link href={`/${otherLocale}/${SLUG[kind]}`} className="legal-lang" hrefLang={otherLocale}>{otherLocale.toUpperCase()}</Link>
       </header>
 
       <main className="legal-main">
@@ -45,8 +47,8 @@ export function LegalPage({ kind, locale }: { kind: Kind; locale: Locale }) {
           </section>
         ))}
         <nav className="legal-nav">
-          <a href={`/${locale}`}>{nav.home}</a>
-          <a href={`/${locale}/${SLUG[other]}`}>{nav[other]}</a>
+          <Link href={`/${locale}`}>{nav.home}</Link>
+          <Link href={`/${locale}/${SLUG[other]}`}>{nav[other]}</Link>
         </nav>
       </main>
     </div>

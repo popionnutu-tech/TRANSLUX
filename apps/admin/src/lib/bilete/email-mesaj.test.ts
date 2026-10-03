@@ -37,3 +37,12 @@ describe('construiesteMesaj', () => {
     expect(construiesteMesaj({ ...baza, passenger_name: 'Ion' }, opt).html).toContain('Bună, Ion!');
   });
 });
+
+describe('construiesteMesaj — fără căsuță de răspuns', () => {
+  it('spune că e trimis automat și dă telefonul și Telegramul, în HTML și în text', () => {
+    const m = construiesteMesaj(baza, opt);
+    expect(m.html).toContain('nu răspunde la el');
+    expect(m.text).toContain('+373 60 401 010');
+    expect(construiesteMesaj({ ...baza, lang: 'ru' }, opt).text).toContain('не отвечайте');
+  });
+});

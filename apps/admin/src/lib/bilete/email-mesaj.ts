@@ -34,6 +34,7 @@ const T = {
     deschide: 'Deschide biletul pe site', telegram: '📍 Vezi biletul și autobuzul tău în Telegram',
     retur: 'Returnarea biletului se cere prin botul nostru din Telegram. Întârzierea la cursă nu se returnează.',
     semnatura: 'TRANSLUX · +373 60 401 010',
+    nuRaspunde: 'Acest e-mail e trimis automat, nu răspunde la el. Întrebări: +373 60 401 010 sau botul nostru din Telegram.',
   },
   ru: {
     subiect: (de: string, spre: string, cand: string) => `Ваш билет TRANSLUX: ${de} → ${spre}, ${cand}`,
@@ -43,6 +44,7 @@ const T = {
     deschide: 'Открыть билет на сайте', telegram: '📍 Билет и ваш автобус в Telegram',
     retur: 'Возврат билета оформляется через наш бот в Telegram. Опоздание на рейс не возвращается.',
     semnatura: 'TRANSLUX · +373 60 401 010',
+    nuRaspunde: 'Это письмо отправлено автоматически, не отвечайте на него. Вопросы: +373 60 401 010 или наш бот в Telegram.',
   },
 } as const;
 
@@ -97,6 +99,7 @@ ${d.bilete.map((b, i) => `<tr><td align="center" style="padding:18px 0 6px;borde
 </td></tr>
 <tr><td style="font-size:12px;color:#888;padding-top:8px;">${esc(t.retur)}</td></tr>
 <tr><td style="font-size:12px;color:#888;padding-top:8px;">${esc(t.semnatura)}</td></tr>
+<tr><td style="font-size:11px;color:#aaa;padding-top:8px;">${esc(t.nuRaspunde)}</td></tr>
 </table></td></tr></table></body></html>`;
 
   const text = [
@@ -116,6 +119,7 @@ ${d.bilete.map((b, i) => `<tr><td align="center" style="padding:18px 0 6px;borde
     '',
     t.retur,
     t.semnatura,
+    t.nuRaspunde,
   ].join('\n');
 
   return { subiect: t.subiect(d.from_name, d.to_name, cand), html, text, qrIds };

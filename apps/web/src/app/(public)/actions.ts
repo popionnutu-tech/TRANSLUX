@@ -8,12 +8,16 @@ import { depasesteLimita, FEREASTRA_MINUTE } from '@/lib/search-rate-limit';
 import { visitorHash } from '@/lib/visitor';
 import { configBilete } from '@/lib/bilete-api';
 import { vanzareDeschisaPeSite } from '@/lib/bilete-reguli';
+// Opririle, km-ii, oferta și tariful zilei stau în cache-ul de date (ION-205); rutele se citesc live.
+import { repereleCautarii, rutele } from '@/lib/cautare-cache';
 // Prețul, orarul și atribuirile zilei vin din @translux/db (ION-192): aceleași reguli pe site,
 // în asistent și în API-ul biletelor online.
 import {
-  buildTurAssignmentMap, buildReturAssignmentMap, calculeazaCurse, incarcaCurse, pickRate,
-  resolveOfferForDate, resolveTariffRates, parseTimeLabel,
+  buildTurAssignmentMap, buildReturAssignmentMap, calculeazaCurse, pickRate,
+  resolveOfferForDate, resolveTariffRates, parseTimeLabel, type DateCurse,
 } from '@translux/db';
+
+const todayChisinau = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
 
 export interface Locality {
   id: number;
@@ -102,48 +106,53 @@ const POPULAR_ROUTES = [
 ];
 
 
-/** Fetch popular route prices using today's tariff rate from tariff_periods */
+/**
+ * Prețurile rutelor populare la tariful zilei date (tariff_periods).
+ * Tariful și cele 12 perechi de km pornesc deodată (ION-205): o singură rundă de interogări, nu două.
+ */
 export async function getPopularPrices(): Promise<PopularRoutePrice[]> {
+  return preturiPopulareLa(todayChisinau());
+}
+
+// Neexportată: un export din 'use server' e acțiune apelabilă de oricine, cu orice «zi».
+async function preturiPopulareLa(today: string): Promise<PopularRoutePrice[]> {
   const supabase = getSupabase();
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
 
-  // Get today's tariff rates (interurban long + suburban), falling back to the
-  // most recent period so prices never drop to 0 when the current week has no tariff.
-  const { rateLong, rateSub } = await resolveTariffRates(supabase, today);
-
-  // Get km for each popular route from interurban_v2 view and calculate price
-  // Uses cel mai scurt km între cele 2 opriri (toate tarifele care au ambele opriri)
-  const results = await Promise.all(
-    POPULAR_ROUTES.map(async (r) => {
-      const { data: pairs } = await supabase
+  // Tarifele zilei (interurban lung + suburban) cad pe ultima perioadă începută, ca prețurile să nu
+  // ajungă niciodată 0 când săptămâna curentă n-are tarif. Km-ii: cel mai scurt drum între cele
+  // 2 opriri (toate tarifele care le au pe amândouă), din v_interurban_v2_km_pairs.
+  const [{ rateLong, rateSub }, ...perechi] = await Promise.all([
+    resolveTariffRates(supabase, today),
+    ...POPULAR_ROUTES.map((r) =>
+      supabase
         .from('v_interurban_v2_km_pairs')
         .select('km, from_district, to_district, start_district')
         .eq('from_stop', r.from)
         .eq('to_stop', r.to)
         .order('km', { ascending: true })
-        .limit(1);
+        .limit(1),
+    ),
+  ]);
 
-      const row = pairs?.[0] as any;
-      const km = row ? Number(row.km) : 0;
-      let price = 0;
-      if (rateLong && rateSub && km > 0 && km < 1000) {
-        const rate = pickRate(row.from_district, row.to_district, row.start_district, rateLong, rateSub);
-        price = Math.round(km * rate);
-      }
+  return POPULAR_ROUTES.map((r, i) => {
+    const row = perechi[i].data?.[0] as any;
+    const km = row ? Number(row.km) : 0;
+    let price = 0;
+    if (rateLong && rateSub && km > 0 && km < 1000) {
+      const rate = pickRate(row.from_district, row.to_district, row.start_district, rateLong, rateSub);
+      price = Math.round(km * rate);
+    }
 
-      return {
-        from_slug: r.from,
-        to_slug: r.to,
-        from_ro: r.from_ro,
-        to_ro: r.to_ro,
-        from_ru: r.from_ru,
-        to_ru: r.to_ru,
-        price,
-      };
-    })
-  );
-
-  return results;
+    return {
+      from_slug: r.from,
+      to_slug: r.to,
+      from_ro: r.from_ro,
+      to_ro: r.to_ro,
+      from_ru: r.from_ru,
+      to_ru: r.to_ru,
+      price,
+    };
+  });
 }
 
 /** Cached version of getLocalities for public pages (60s ISR) */
@@ -153,12 +162,20 @@ export const getCachedLocalities = unstable_cache(
   { revalidate: 60, tags: ['localities'] }
 );
 
-/** Cached version of getPopularPrices for public pages (60s ISR) */
-export const getCachedPopularPrices = unstable_cache(
-  async () => getPopularPrices(),
-  ['public-popular-prices'],
-  { revalidate: 60, tags: ['popular-prices'] }
+/**
+ * Prețurile populare pentru paginile publice: cache 1 h, ca getRoutePairs (ION-205) — prețurile se
+ * schimbă cu tariff_periods, nu la minut. Cheia poartă ziua Chișinăului, deci la miezul nopții
+ * tariful nou intră imediat, nu după o oră; `/`, `/ro` și `/ru` împart aceeași intrare.
+ */
+const preturiPopulareZi = unstable_cache(
+  async (today: string) => preturiPopulareLa(today),
+  ['public-popular-prices-v2'],
+  { revalidate: 3600, tags: ['popular-prices', 'route-pages'] }
 );
+
+export async function getCachedPopularPrices(): Promise<PopularRoutePrice[]> {
+  return preturiPopulareZi(todayChisinau());
+}
 
 /**
  * Resolve which date to read daily_assignments from for the public site.
@@ -168,20 +185,16 @@ export const getCachedPopularPrices = unstable_cache(
  * requested date sits in the window [today+1 .. today+7] (Europe/Chisinau).
  * This keeps passengers from seeing an empty search result while the
  * dispatcher still sees the day as "not introduced" in the admin grafic.
+ *
+ * O singură interogare (ION-205): cea mai nouă zi cu grafic din [date−7, date]. Dacă e chiar
+ * `date`, ziua are grafic; dacă e mai veche, e rezerva; dacă nu e niciuna, rămâne `date`.
+ * În afara ferestrei [azi+1 .. azi+7] răspunsul era oricum `date` — nu mai întrebăm baza.
  */
 async function resolveAssignmentDate(
   supabase: ReturnType<typeof getSupabase>,
   date: string,
+  today: string,
 ): Promise<string> {
-  const { data: anyOnDate } = await supabase
-    .from('daily_assignments')
-    .select('id')
-    .eq('assignment_date', date)
-    .limit(1);
-
-  if (anyOnDate && anyOnDate.length > 0) return date;
-
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
   const todayMs = Date.parse(today + 'T00:00:00Z');
   const targetMs = Date.parse(date + 'T00:00:00Z');
   if (Number.isNaN(todayMs) || Number.isNaN(targetMs)) return date;
@@ -194,13 +207,51 @@ async function resolveAssignmentDate(
   const { data: latest } = await supabase
     .from('daily_assignments')
     .select('assignment_date')
-    .lt('assignment_date', date)
+    .lte('assignment_date', date)
     .gte('assignment_date', lowerBoundStr)
     .order('assignment_date', { ascending: false })
     .limit(1);
 
   if (latest && latest.length > 0) return latest[0].assignment_date as string;
   return date;
+}
+
+/**
+ * Anti-scraper (Ion, 09.09): peste 10 căutări în 10 minute de la aceeași sursă, răspunsul e listă
+ * goală. Numărăm prin RPC-ul cautari_recente (migr. 334) — anon nu poate citi search_log — și abia
+ * DUPĂ numărătoare logăm căutarea curentă (altfel a 10-a ar fi prima blocată, nu a 11-a). Logul e
+ * fire-and-forget, și pentru cele blocate: scraperul rămâne vizibil în analytics, iar fereastra lui
+ * nu se «răcește» cât insistă. Orice eroare → nu blocăm: limita nu are voie să rupă căutarea.
+ *
+ * Numărătoarea merge în paralel cu citirea datelor (ION-205), nu înaintea lor; întoarce «blocată».
+ */
+async function verificaLimitaSiLogheaza(
+  supabase: ReturnType<typeof getSupabase>,
+  sursa: Awaited<ReturnType<typeof clientFingerprint>>,
+  cautare: { fromRo: string; toRo: string; date: string },
+): Promise<boolean> {
+  let blocata = false;
+  if (sursa.ip_hash) {
+    const { data: anterioare, error } = await supabase.rpc('cautari_recente', {
+      p_ip_hash: sursa.ip_hash,
+      p_minute: FEREASTRA_MINUTE,
+    });
+    if (error) console.warn('[search_log] cautari_recente eșuat:', error.message);
+    else blocata = depasesteLimita(anterioare as number | null);
+  }
+
+  supabase.from('search_log').insert({
+    from_locality: cautare.fromRo,
+    to_locality: cautare.toRo,
+    search_date: cautare.date,
+    mod: 'mai_tarziu',
+    ...sursa,
+  }).then(({ error }) => {
+    // Un deploy peste o bază fără migrația 282 ar goli analiza căutărilor în tăcere.
+    if (error) console.warn('[search_log] insert eșuat:', error.message);
+  });
+
+  return blocata;
 }
 
 /**
@@ -234,73 +285,70 @@ export async function searchTrips(
   date: string,
 ): Promise<TripResult[]> {
   const supabase = getSupabase();
+  // headers() o singură dată pe căutare; tot ce depinde de cerere iese de aici.
   const sursa = await clientFingerprint();
+  const todayStr = todayChisinau();
 
-  // Anti-scraper (Ion, 09.09): peste 10 căutări în 10 minute de la aceeași sursă,
-  // răspunsul e listă goală. Numărăm ÎNAINTE de a loga căutarea curentă, prin RPC-ul
-  // cautari_recente (migr. 334) — anon nu poate citi search_log. Orice eroare → nu
-  // blocăm: limita nu are voie să rupă căutarea clienților.
-  let blocata = false;
-  if (sursa.ip_hash) {
-    const { data: anterioare, error } = await supabase.rpc('cautari_recente', {
-      p_ip_hash: sursa.ip_hash,
-      p_minute: FEREASTRA_MINUTE,
-    });
-    if (error) console.warn('[search_log] cautari_recente eșuat:', error.message);
-    else blocata = depasesteLimita(anterioare as number | null);
-  }
-
-  // Fire-and-forget: log search query for analytics (și cele blocate — scraperul
-  // rămâne vizibil în analytics, iar fereastra lui nu se «răcește» cât insistă).
-  supabase.from('search_log').insert({
-    from_locality: fromRo,
-    to_locality: toRo,
-    search_date: date,
-    mod: 'mai_tarziu',
-    ...sursa,
-  }).then(({ error }) => {
-    // Un deploy peste o bază fără migrația 282 ar goli analiza căutărilor în tăcere.
-    if (error) console.warn('[search_log] insert eșuat:', error.message);
-  });
+  // Trei runde de interogări, nu șase–nouă (ION-205, Ion 03.10: «site ultrafast»):
+  //   1. deodată: limita anti-scraper, ziua cu grafic, reperele (opriri/km/ofertă/tarif — în cache),
+  //      configurația biletelor (cache 60 s);
+  //   2. deodată: rutele (live) și atribuirile zilei (live, pe rutele găsite);
+  //   3. deodată: șoferii și mașinile atribuite.
+  // Răspunsul rămâne același JSON ca înainte — doar ordinea în care se cer datele s-a schimbat.
+  //
+  // Reperele vin din @translux/db ca interogări (prin cache-ul din lib/cautare-cache), ca API-ul
+  // biletelor să calculeze același preț (ION-192). O eroare a bazei la preț/orar NU e «nicio cursă»:
+  // pe site păstrăm lista goală (ca înainte), dar o jurnalizăm; în API-ul biletelor aceeași eroare
+  // oprește comanda (nu se vinde pe un tarif gol).
+  // Biletele online (ION-197): configurația panoului o dată pe căutare (cache 60 s; fără răspuns = închis).
+  const [blocata, assignmentDate, repere, cfgBilete] = await Promise.all([
+    verificaLimitaSiLogheaza(supabase, sursa, { fromRo, toRo, date }),
+    resolveAssignmentDate(supabase, date, todayStr),
+    repereleCautarii({ fromRo, toRo, date }).catch((e: unknown) => {
+      console.error('[searchTrips] datele cursei indisponibile:', e instanceof Error ? e.message : e);
+      return null;
+    }),
+    configBilete(),
+  ]);
 
   if (blocata) return [];
-
-  const assignmentDate = await resolveAssignmentDate(supabase, date);
+  if (!repere) return [];
+  const { matchingRouteIds } = repere;
 
   // Compute days between today and the requested date (Europe/Chișinău).
   // Used to decide whether routes without an assigned driver should appear
   // as a "driver coming soon" placeholder (>7 days) or be hidden (today / 1–7 days).
-  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
   const todayMs = Date.parse(todayStr + 'T00:00:00Z');
   const targetMs = Date.parse(date + 'T00:00:00Z');
   const daysUntilDeparture = (Number.isNaN(todayMs) || Number.isNaN(targetMs))
     ? 0
     : Math.round((targetMs - todayMs) / 86_400_000);
 
-  // Opririle, rutele, km-ii, tariful zilei și oferta — din @translux/db, ca API-ul biletelor
-  // să calculeze același preț (ION-192). Atribuirile zilei rămân aici: sunt partea site-ului.
-  // O eroare a bazei la preț/orar NU e «nicio cursă»: pe site păstrăm lista goală (ca înainte), dar o jurnalizăm;
-  // în API-ul biletelor aceeași eroare oprește comanda (nu se vinde pe un tarif gol).
-  let datele: Awaited<ReturnType<typeof incarcaCurse>>;
-  try { datele = await incarcaCurse(supabase, { fromRo, toRo, date }); } catch (e) {
-    console.error('[searchTrips] datele cursei indisponibile:', e instanceof Error ? e.message : e);
-    return [];
-  }
-  if (!datele) return [];
-  const { matchingRouteIds } = datele;
-
-  const [{ data: assignments }, { data: returOverrides }] = await Promise.all([
+  // Runda 2: rutele (orele lor le poate schimba dispecerul în timpul zilei → live) și atribuirile
+  // zilei (graficul se schimbă și după publicare → live), pe rutele care au ambele opriri.
+  const coloaneAtribuire = 'crm_route_id, driver_id, vehicle_id, vehicle_id_retur, driver_id_retur, retur_route_id';
+  const [routesSauEroare, { data: assignments }, { data: returOverrides }] = await Promise.all([
+    rutele(matchingRouteIds).then(
+      (routes) => ({ routes, eroare: null as string | null }),
+      (e: unknown) => ({ routes: null, eroare: e instanceof Error ? e.message : String(e) }),
+    ),
     supabase
       .from('daily_assignments')
-      .select('crm_route_id, driver_id, vehicle_id, vehicle_id_retur, driver_id_retur, retur_route_id')
+      .select(coloaneAtribuire)
       .eq('assignment_date', assignmentDate)
       .in('crm_route_id', matchingRouteIds),
     supabase
       .from('daily_assignments')
-      .select('crm_route_id, driver_id, vehicle_id, vehicle_id_retur, driver_id_retur, retur_route_id')
+      .select(coloaneAtribuire)
       .eq('assignment_date', assignmentDate)
       .in('retur_route_id', matchingRouteIds),
   ]);
+  if (routesSauEroare.eroare !== null) {
+    console.error('[searchTrips] datele cursei indisponibile:', routesSauEroare.eroare);
+    return [];
+  }
+  if (!routesSauEroare.routes) return [];
+  const datele: DateCurse = { ...repere, routes: routesSauEroare.routes };
 
   // Fetch drivers and vehicles separately to avoid Supabase FK join issues
   const allAssignments = [...(assignments || []), ...(returOverrides || [])];
@@ -342,14 +390,12 @@ export async function searchTrips(
     };
   }
 
-  // Biletele online (ION-197): configurația panoului o dată pe căutare (cache 60 s; fără răspuns = închis).
-  // Butonul cere șofer atribuit PE ziua cursei: când ziua n-are încă grafic, site-ul arată șoferul zilei
-  // anterioare, dar pe ăla nu se vinde (API-ul ar refuza oricum).
-  const cfgBilete = await configBilete();
+  // Biletele online (ION-197): butonul cere șofer atribuit PE ziua cursei: când ziua n-are încă grafic,
+  // site-ul arată șoferul zilei anterioare, dar pe ăla nu se vinde (API-ul ar refuza oricum).
   const graficPeZi = assignmentDate === date;
   const nowMs = Date.now();
   function pornireRuta(routeId: number, goingNorth: boolean): string | null {
-    const r = datele!.routes.find((x) => x.id === routeId);
+    const r = datele.routes.find((x) => x.id === routeId);
     const interval = r ? (goingNorth ? r.time_chisinau : r.time_nord) : null;
     const p = interval ? parseTimeLabel(interval) : null;
     return p && /^\d{2}:\d{2}$/.test(p) ? p : null;
@@ -426,8 +472,7 @@ export async function searchTrips(
   });
 
   // If searching for today, hide trips that already departed
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
-  if (date === today) {
+  if (date === todayStr) {
     const now = new Date().toLocaleTimeString('en-GB', { timeZone: 'Europe/Chisinau', hour: '2-digit', minute: '2-digit', hour12: false });
     const nowMin = parseInt(now.split(':')[0]) * 60 + parseInt(now.split(':')[1]);
     return results.filter(r => {

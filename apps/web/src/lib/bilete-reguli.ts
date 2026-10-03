@@ -100,3 +100,15 @@ export function urlPlataSigur(url: string): boolean {
     return false;
   }
 }
+
+/**
+ * Numele pasagerului din două câmpuri (Ion, 03.10: «două»): numele și prenumele, fiecare 2–40 de caractere,
+ * spațiile strânse. Rezultatul «Nume Prenume» intră în comandă (un singur câmp în API). Altfel → null.
+ */
+export function numeComplet(nume: string, prenume: string): string | null {
+  const curat = (s: string) => String(s ?? '').trim().replace(/\s+/g, ' ');
+  const n = curat(nume);
+  const p = curat(prenume);
+  if (n.length < 2 || n.length > 40 || p.length < 2 || p.length > 40) return null;
+  return `${n} ${p}`;
+}

@@ -14,13 +14,13 @@ const RED = "#9B1B30";
 
 const TXT = {
   ro: {
-    title: "Bilet online", name: "Nume și prenume", phone: "Telefon", seats: "Locuri", total: "Total",
+    title: "Bilet online", lastName: "Nume", firstName: "Prenume", phone: "Telefon", seats: "Locuri", total: "Total",
     consent: "Sunt de acord cu prelucrarea datelor pentru bilet", policy: "politica de confidențialitate",
     pay: "Plătește cu cardul", paying: "Se deschide banca…", cancel: "Înapoi",
     note: "După plată primești biletul cu cod QR. Îl arăți șoferului la urcare. Returnarea se cere prin Telegram.",
   },
   ru: {
-    title: "Онлайн-билет", name: "Имя и фамилия", phone: "Телефон", seats: "Мест", total: "Итого",
+    title: "Онлайн-билет", lastName: "Фамилия", firstName: "Имя", phone: "Телефон", seats: "Мест", total: "Итого",
     consent: "Согласен на обработку данных для билета", policy: "политика конфиденциальности",
     pay: "Оплатить картой", paying: "Открываем банк…", cancel: "Назад",
     note: "После оплаты вы получите билет с QR-кодом. Покажите его водителю при посадке. Возврат — через Telegram.",
@@ -69,9 +69,15 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel }: {
       <input type="hidden" name="toRo" value={toRo} />
       {/* capcana pentru roboți: invizibilă pentru oameni */}
       <input type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" style={{ position: "absolute", left: -9999, width: 1, height: 1, opacity: 0 }} />
-      <label style={{ fontSize: 12, color: "#555" }}>{tx.name}
-        <input name="passengerName" required minLength={2} maxLength={80} autoComplete="name" style={inp} />
-      </label>
+      {/* Numele și prenumele în două câmpuri (Ion, 03.10); pe telefonul îngust se așază unul sub altul. */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 10 }}>
+        <label style={{ fontSize: 12, color: "#555", minWidth: 0 }}>{tx.lastName}
+          <input id="bilet-nume" name="lastName" required minLength={2} maxLength={40} autoComplete="family-name" style={inp} />
+        </label>
+        <label style={{ fontSize: 12, color: "#555", minWidth: 0 }}>{tx.firstName}
+          <input id="bilet-prenume" name="firstName" required minLength={2} maxLength={40} autoComplete="given-name" style={inp} />
+        </label>
+      </div>
       <label style={{ fontSize: 12, color: "#555" }}>{tx.phone}
         <input name="phone" required inputMode="tel" autoComplete="tel" placeholder="+373 69 123 456" style={inp} />
       </label>

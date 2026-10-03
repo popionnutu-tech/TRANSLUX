@@ -4,7 +4,7 @@ import { createHash } from 'crypto';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { comandaBilet } from '@/lib/bilete-api';
-import { mesajEroareComanda, normalizeazaTelefon, urlPlataSigur } from '@/lib/bilete-reguli';
+import { mesajEroareComanda, normalizeazaTelefon, numeComplet, urlPlataSigur } from '@/lib/bilete-reguli';
 
 // «Cumpără bilet» (ION-197): formularul din fereastra rezultatelor → comanda la panou → pasagerul pleacă la maib.
 // Validarea de aici e doar pentru mesaje bune; adevărul (cursa, prețul, fereastra, plafonul) îl spune API-ul.
@@ -20,14 +20,14 @@ export async function cumparaBilet(_prev: StareComanda, fd: FormData): Promise<S
   // Capcana pentru roboți: un câmp invizibil completat → răspuns «ok» fără comandă.
   if (String(fd.get('website') ?? '').trim()) return {};
 
-  const nume = String(fd.get('passengerName') ?? '').trim().replace(/\s+/g, ' ');
+  const nume = numeComplet(String(fd.get('lastName') ?? ''), String(fd.get('firstName') ?? ''));
   const telefon = normalizeazaTelefon(String(fd.get('phone') ?? ''));
   const seats = Number(fd.get('seats'));
   const idempotencyKey = String(fd.get('idempotencyKey') ?? '');
   const crmRouteId = Number(fd.get('crmRouteId'));
   const tripDate = String(fd.get('tripDate') ?? '');
 
-  if (nume.length < 2 || nume.length > 80) return { eroare: ru ? 'Введите имя и фамилию.' : 'Scrie numele și prenumele.' };
+  if (!nume) return { eroare: ru ? 'Введите фамилию и имя (не короче 2 букв).' : 'Scrie numele și prenumele (cel puțin 2 litere fiecare).' };
   if (!telefon) return { eroare: ru ? 'Введите молдавский номер: 069 123 456.' : 'Scrie un număr moldovenesc: 069 123 456.' };
   if (!Number.isInteger(seats) || seats < 1 || seats > 4) return { eroare: ru ? 'От 1 до 4 мест.' : 'Între 1 și 4 locuri.' };
   if (fd.get('consent') !== 'on') return { eroare: ru ? 'Нужно согласие на обработку данных.' : 'E nevoie de acordul pentru prelucrarea datelor.' };

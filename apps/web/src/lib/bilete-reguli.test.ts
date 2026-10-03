@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CONFIG_INCHIS, mesajEroareComanda, normalizeazaTelefon, parseazaConfig, urlPlataSigur, vanzareDeschisaPeSite } from './bilete-reguli';
+import { CONFIG_INCHIS, mesajEroareComanda, normalizeazaTelefon, numeComplet, parseazaConfig, urlPlataSigur, vanzareDeschisaPeSite } from './bilete-reguli';
 
 const cfg = { activ: true, inchidere_tur_min: 0, inchidere_retur_min: 120, rute: [{ id: 2, tur: true, retur: false }, { id: 8, tur: true, retur: true }] };
 // Marți 14.10.2026, 05:00 la Chișinău (ora de vară, +03:00).
@@ -78,5 +78,16 @@ describe('urlPlataSigur', () => {
     expect(urlPlataSigur('https://evilmaib.md/abc')).toBe(false);
     expect(urlPlataSigur('https://checkout.maib.md.evil.com/abc')).toBe(false);
     expect(urlPlataSigur('nu e url')).toBe(false);
+  });
+});
+
+describe('numeComplet', () => {
+  it('două câmpuri → «Nume Prenume», cu spațiile strânse', () => {
+    expect(numeComplet('  Popescu ', 'Ion  Vasile')).toBe('Popescu Ion Vasile');
+  });
+  it('câmp gol, prea scurt sau prea lung → null', () => {
+    expect(numeComplet('', 'Ion')).toBeNull();
+    expect(numeComplet('Popescu', 'I')).toBeNull();
+    expect(numeComplet('P'.repeat(41), 'Ion')).toBeNull();
   });
 });

@@ -105,6 +105,10 @@ export async function BiletPage({ cod, locale, plataNu }: { cod: string; locale:
                   <div style={{ display: 'grid', gap: 14 }}>
                     {valide.map((b) => (
                       <div key={b.nr} style={{ padding: 14, borderRadius: 14, background: '#fff', border: '1px solid #eee', textAlign: 'center', breakInside: 'avoid' }}>
+                        {/* Ion, 03.10: pe bilet, pe lângă cod, ruta și de unde încotro — o captură a unui singur cod spune tot. */}
+                        {nume && <div style={{ fontSize: 12, color: '#888' }}>{nume}</div>}
+                        <div style={{ fontSize: 16, fontWeight: 700, color: '#222' }}>{c.from_name} → {c.to_name}</div>
+                        <div style={{ fontSize: 13, color: RED, fontWeight: 600 }}>{dataOra(c.departure_at, locale)}</div>
                         <div style={{ fontSize: 12, color: '#888' }}>{tx.loc} {b.nr}/{c.seats}{b.status === 'urcat' ? ` · ${tx.urcat}` : ''}</div>
                         {/* SVG-ul vine de la panou, generat de biblioteca qrcode din codul biletului (nu din text de la utilizator). */}
                         <div className="bilet-qr" style={{ maxWidth: 260, margin: '8px auto', opacity: b.status === 'urcat' ? 0.35 : 1 }} dangerouslySetInnerHTML={{ __html: b.qr_svg }} />

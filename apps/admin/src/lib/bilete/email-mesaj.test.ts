@@ -20,7 +20,7 @@ describe('construiesteMesaj', () => {
     expect(m.html).toContain('566.00 lei');
     expect(m.html).toContain(`https://translux.md/ro/bilet/${baza.cod}`);
     expect(m.html).toContain(`https://t.me/TransluxMoldova_bot?start=bilet_${baza.cod}`);
-    expect(m.text).toContain('Loc 2/2: DDDD3333EEEE4444FFFF');
+    expect(m.text).toContain('Loc 2/2 · Briceni → Chișinău, 14.10.2026, 05:45: DDDD3333EEEE4444FFFF');
   });
   it('RU: textele și pagina RU', () => {
     const m = construiesteMesaj({ ...baza, lang: 'ru' }, opt);
@@ -44,5 +44,14 @@ describe('construiesteMesaj — fără căsuță de răspuns', () => {
     expect(m.html).toContain('nu răspunde la el');
     expect(m.text).toContain('+373 60 401 010');
     expect(construiesteMesaj({ ...baza, lang: 'ru' }, opt).text).toContain('не отвечайте');
+  });
+});
+
+describe('construiesteMesaj — ruta pe fiecare loc', () => {
+  it('fiecare QR are deasupra ruta, de unde încotro și ora; textul simplu la fel', () => {
+    const m = construiesteMesaj(baza, opt);
+    expect(m.html.split('Briceni → Chișinău</div>').length - 1).toBe(2);
+    expect(m.html.split('Briceni – Chișinău</div>').length - 1).toBe(2);
+    expect(m.text).toContain('Loc 1/2 · Briceni → Chișinău, 14.10.2026, 05:45: AAAA1111BBBB2222CCCC');
   });
 });

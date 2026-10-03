@@ -87,6 +87,9 @@ export function construiesteMesaj(d: DateEmail, opt: { bazaSite: string; bot: st
 ${randuri.map(([k, v]) => `<tr><td style="color:#888;padding:3px 10px 3px 0;white-space:nowrap;">${esc(k)}</td><td style="padding:3px 0;${k === '' ? `font-size:18px;font-weight:bold;color:${RED};` : ''}">${esc(v)}</td></tr>`).join('\n')}
 </table></td></tr>
 ${d.bilete.map((b, i) => `<tr><td align="center" style="padding:18px 0 6px;border-top:1px solid #eee;">
+${d.ruta ? `<div style="font-size:12px;color:#888;">${esc(d.ruta)}</div>` : ''}
+<div style="font-size:16px;font-weight:bold;color:#222;">${esc(d.from_name)} → ${esc(d.to_name)}</div>
+<div style="font-size:13px;font-weight:bold;color:${RED};">${esc(cand)}</div>
 <div style="font-size:12px;color:#888;">${esc(t.loc)} ${b.nr}/${d.seats}</div>
 <img src="cid:${qrIds[i]}" width="220" height="220" alt="QR ${esc(b.cod_qr)}" style="display:block;margin:8px auto;width:220px;height:220px;">
 <div style="font-family:'Courier New',monospace;font-size:14px;letter-spacing:1px;">${esc(b.cod_qr)}</div>
@@ -112,7 +115,7 @@ ${d.bilete.map((b, i) => `<tr><td align="center" style="padding:18px 0 6px;borde
     `${t.pasager}: ${d.passenger_name}`,
     `${t.locuri}: ${d.seats} · ${t.total}: ${Number(d.total).toFixed(2)} lei`,
     '',
-    ...d.bilete.map((b) => `${t.loc} ${b.nr}/${d.seats}: ${b.cod_qr}`),
+    ...d.bilete.map((b) => `${t.loc} ${b.nr}/${d.seats} · ${d.from_name} → ${d.to_name}, ${cand}: ${b.cod_qr}`),
     '',
     `${t.deschide}: ${urlBilet}`,
     `${t.telegram}: ${urlTg}`,

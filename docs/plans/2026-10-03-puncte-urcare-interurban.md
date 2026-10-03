@@ -38,7 +38,7 @@ durată (pauzele șoferilor); rezultatul → tabel nou în Supabase (scris atomi
 | Frecvența punctelor | 3 zile 805BXI + 3 curse reale 15.09 (`opr-fapte2/3.mjs`) | pas median 20 s (p90 20 s); 776MJW/688AKD în încetinire ~5 s (3.882 pct / 334 min) | o oprire < 20 s se poate pierde → recurența pe 100 de zile compensează; rulaj = ≥ 2 probe sau `speed = 0` |
 | Unitatea vitezei | memoria ION-112 (`verifica-tăietura-la-oprire`: «viteza × 1,852») + revizorul backend | `track.speed` e în noduri | pragul se scrie «≤ 3 noduri» (≈ 5,6 km/h); faptele de mai jos au fost măsurate cu același câmp |
 | Opririle scurte se văd | ruta 11 tur 776MJW: 126 rulaje `speed ≤ 3`; ruta 8 retur 819BXI: 23; ruta 26 tur 688AKD: 59 | în sate 20–90 s (Lipcani 71 s, Briceni 179 s, Edineț 34 s); în Chișinău zeci de rulaje de 20 s (trafic) | filtre de recurență + obstacole fixe; praguri mai stricte în Chișinău și Bălți |
-| Punctele secundare reale există | aceleași 3 curse | Briceni 48.3543,27.1015 la toate trei mașinile (lângă gara 48.3578,27.0925); Bălți 47.7873,27.8844 la 776 și 688; Edineț 48.1733,27.3001 + gara 48.1669,27.3096 | ipoteza «1–3 puncte» ține |
+| Punctele secundare reale există | **proba pe 30 de mașini × 3 curse = 90 de curse** (03.10, `docs/plans/2026-10-03-puncte-urcare-proba30.mjs` pe `curse-urcare.json`, `cover ≥ 0,8`): 1.581 opriri, 60 de grupuri în 22 de localități | Briceni: gara (25 mașini, 97 %) + 48.3542,27.1015 (22 mașini, 91 %, 139 s) + 48.3536,27.0858 (8, 19 %) + 48.3590,27.0894 (7, 12 %). Cupcini: un singur punct, NU gara: 48.1176,27.3854 (27 mașini, 51 %, 178 s). Lipcani, Edineț, Ocnița: doar gara (95 %, 86 %, 100 %). **Edineț 48.1733,27.3001 din proba de 3 curse NU se confirmă** (3 mașini, 4 %). Bălți: gara (30 mașini, 100 %); restul ≤ 13 % (intrarea nord 47.7914,27.8919: 6 mașini, 9 %). Chișinău: gara (30, 97 %); opririle de pe Calea Orheiului / Renașterii (12–13 mașini, 15–16 %) sunt aproape toate la TUR = coborâre. Sate: Tețcani 90 %, Trinca 80 %, Corjeuți 50 %, Grigorăuca 55 % | majoritatea localităților vor avea 1 punct; 2–3 doar unde se confirmă (Briceni); vezi regulile noi din pas 4 |
 | Cine pe ce rută × sens | `nomenclator.mjs:73-78` (copia `lde-geo-worker/mejgorod-parcare/mej/`) | turul = `crm_route_id`, returul = `retur_route_id` (altfel `crm_route_id`), mașina returului = `vehicle_id_retur ?? vehicle_id`; 190 de atribuiri cu `retur_route_id ≠ crm_route_id` în fereastră (revizorul BL, SQL) | NU e semantica `buildReturAssignmentMap` (`assignments.ts:99-117`: returul propriu doar dacă nimeni nu l-a revendicat); `nomenclator.mjs:79-80` îl scrie oricum → 104 zile-rută pe 6 rute cu două mașini «retur» (revizorul BL, SQL). Ruta 2: `retur_uses_route_id = 16`, `retur_ascuns`, 83/100 rânduri deja cu `retur_route_id = 16`, 13 cu NULL. `retur_uses_route_id` nu e folosit în `pret.ts`/`assignments.ts` (grep 0) → se rezolvă în nomenclatorul-urcare (pas 1b), API-ul nu lărgește nimic |
 | Pasul 1 rulat deja (citire, fișiere cu sufix) | `SUFIX=-urcare nomenclator.mjs 2026-06-24 2026-10-01` pe VPS, 03.10 01:30 | 30 rute, 5.954 atribuiri, 49 de mașini; `curse.mjs` rulează (1.400 curse în ~4 min, estimare ~20 min total) | fișierele scheletului ION-55 nu se ating (`nomenclator.mjs:82`, `curse.mjs:115` cu `SUFIX`) |
 | Mașini fără tracker | memoria ION-55 | 216RQR, 749SHS, 239BZP, 526WVW | ies din analiză; raportul le numără |
@@ -98,6 +98,12 @@ durată (pauzele șoferilor); rezultatul → tabel nou în Supabase (scris atomi
      Chișinău și Bălți) ȘI oprirea s-a văzut în ≥ 5 zile distincte pe ruta×sensul respectiv (nu «≥ 2 mașini»: 14 din 30
      de rute au aceeași mașină ≥ 90 % din zile — revizorul BL; mașinile distincte rămân pe grup, ≥ 3). Grupul fără
      nicio pereche publicabilă nu se publică; raportul numără perechile tăiate de fiecare prag.
+   - **Doar urcare:** perechea (punct, rută, sens) nu se publică dacă localitatea e capătul de sosire al sensului
+     (Chișinău la tur, capătul de nord la retur) — acolo opririle sunt coborâri (proba pe 30 de mașini: opririle din
+     Chișinău de pe Calea Orheiului sunt aproape toate la tur).
+   - **Scutirea gării** (de obstacole și durată) se aplică DOAR grupului cel mai apropiat de punctul din `STATII`;
+     celelalte grupuri din raza gării trec toate filtrele (proba: la Gara de Nord un al doilea grup, 15 mașini, stă la
+     5 m de o trecere de cale ferată = coada la barieră).
    - Scor grup = zile distincte × √mașini; **top 3 pe localitate**, la ≥ 150 m între ele. Două grupuri la < 150 m
      se unesc DOAR dacă grupul unit trece din nou toate filtrele (medoid nou, întindere ≤ 120 m, obstacole, durată)
      și, pentru FIECARE pereche rută×sens păstrată, medoidul e la ≤ 30 m de ≥ 2 evenimente de oprire ale perechii;
@@ -636,3 +642,13 @@ Codex (gpt-6-astra): **scor 9.5, verdict pass**, 0 critical/high. Fișier brut: 
 | Codex — critic extern (runda 2) | 9.5 | 0 |
 
 Istoric: Claude r1 min 2.0 (3 high) → r2 min 5.5 (1 high) → r3 min 8.0 (0); Codex r1 5.5 fail (1 high) → r2 9.5 pass.
+
+## Proba pe 30 de mașini (Ion, 03.10: «verifică nu 3 mașini, dar 30 mașini»)
+
+90 de curse (30 de mașini × 3, rute/sensuri/zile diferite, din cele 5.574 cu urmă pe 24.06–01.10), detectarea din
+pasul 2 + gruparea din pasul 4 pe probă (minPts 3). Rezultatul e în «Verificat pe viu». Ce schimbă în plan:
+1. ipoteza «1–3 puncte» ține doar parțial: cele mai multe localități au UN punct (gara sau oprirea principală); al doilea
+   punct puternic s-a văzut în Briceni; Edinețul din proba de 3 curse era o întâmplare;
+2. regulă nouă «doar urcare» (capătul de sosire al sensului nu primește puncte);
+3. scutirea gării doar pentru grupul gării, nu pentru tot ce e în raza ei.
+Pragurile (10 % / 25 %, ≥ 5 zile pe rută×sens) rămân; pe 100 de zile satele vor avea mult mai multe curse decât în probă.

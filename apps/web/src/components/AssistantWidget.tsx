@@ -9,22 +9,21 @@
 // bază, nu de model.
 
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronLeft, ChevronRight, Clock, MapPin, Maximize2, MessageCircle, MessageSquareWarning, Minimize2, Navigation, Phone, ShoppingBag, X, ArrowUp, Bus } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Clock, MapPin, Maximize2, MessageSquareWarning, Minimize2, Navigation, Phone, ShoppingBag, X, ArrowUp, Bus } from 'lucide-react';
 import type { Locale } from '@/lib/i18n';
 import { parseAssistantText, type Inline } from '@/lib/assistant-text';
 import type { Card, Crew } from '@/lib/assistant-cards';
 import BusMap from './BusMap';
+import { TEASER_CLOSED_KEY as TEASER_KEY } from './assistant-launcher';
 import { LINE_TEL, LINE_TEXT, phoneTel, phoneText } from '@/lib/phone';
 
 const ENDPOINT = process.env.NEXT_PUBLIC_ASSISTANT_URL || 'https://central-hub-md.vercel.app/api/asistent-site';
 const RED = '#9B1B30';
 // Linia companiei, în forma internațională (lib/phone).
 const STORE_KEY = 'translux_asistent_v2';
-const TEASER_KEY = 'translux_asistent_teaser_closed';
 
 const TEXT = {
   ro: {
-    launcher: 'Întreabă asistentul',
     teaserName: 'Asistent TRANSLUX',
     teaser: 'Sunt asistentul care te ajută cu orice întrebare',
     title: 'Asistent TRANSLUX',
@@ -45,7 +44,6 @@ const TEXT = {
     teaserChips: ['Unde e autobuzul?', 'Curse de azi', 'Am uitat ceva', 'Reclamație'],
     placeholder: 'Scrie o întrebare…',
     send: 'Trimite',
-    open: 'Deschide asistentul',
     minimize: 'Minimizează',
     hideTeaser: 'Ascunde invitația',
     call: 'Sună la +373 60 401 010',
@@ -76,7 +74,6 @@ const TEXT = {
     followAsk: { 'Altă cursă': 'Unde e autobuzul meu?' } as Record<string, string>,
   },
   ru: {
-    launcher: 'Спросить ассистента',
     teaserName: 'Ассистент TRANSLUX',
     teaser: 'Я ассистент, помогу с любым вопросом',
     title: 'Ассистент TRANSLUX',
@@ -97,7 +94,6 @@ const TEXT = {
     teaserChips: ['Где автобус?', 'Рейсы на сегодня', 'Забытая вещь', 'Жалоба'],
     placeholder: 'Напишите вопрос…',
     send: 'Отправить',
-    open: 'Открыть ассистента',
     minimize: 'Свернуть',
     hideTeaser: 'Скрыть приглашение',
     call: 'Позвонить +373 60 401 010',
@@ -368,9 +364,15 @@ function BusCardView({ card: first, i, locale, live }: { card: BusCard; i: T; lo
 
 const TILE_ICONS = { trips: Clock, lost: ShoppingBag, complaint: MessageSquareWarning, station: MapPin } as const;
 
-export default function AssistantWidget({ locale }: { locale: Locale }) {
+/**
+ * ION-204 (03.10): butonul «Întreabă asistentul» stă în pagina principală (assistant-launcher.tsx),
+ * iar componenta asta — cu lucide, cardurile și harta — se încarcă dinamic, la apăsare sau
+ * când browserul are timp liber. De aceea `open` vine de la părinte: launcher-ul de afară și
+ * invitația/minimizarea de aici schimbă aceeași stare.
+ */
+export default function AssistantWidget({ locale, open, onOpenChange }: { locale: Locale; open: boolean; onOpenChange: (open: boolean) => void }) {
   const i = TEXT[locale];
-  const [open, setOpen] = useState(false);
+  const setOpen = onOpenChange;
   const [teaser, setTeaser] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -406,6 +408,7 @@ export default function AssistantWidget({ locale }: { locale: Locale }) {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
     window.addEventListener('keydown', onKey);
     return () => { clearTimeout(t); window.removeEventListener('keydown', onKey); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const closeTeaser = () => {
@@ -475,11 +478,7 @@ export default function AssistantWidget({ locale }: { locale: Locale }) {
         </div>
       )}
 
-      {!open && (
-        <button type="button" className="asst-launcher" onClick={() => setOpen(true)} aria-label={i.open}>
-          <MessageCircle size={22} aria-hidden /> <span className="asst-launcher-label">{i.launcher}</span>
-        </button>
-      )}
+      {/* Butonul «Întreabă asistentul» îl desenează pagina (assistant-launcher.tsx, ION-204). */}
 
       {open && (
         <section className="asst-panel" role="dialog" aria-label={i.title}>
@@ -576,10 +575,6 @@ export default function AssistantWidget({ locale }: { locale: Locale }) {
 // Culorile și proporțiile machetei aprobate (claude.ai artifact TFJi4ceHQQ5mdgKqnvk92g).
 const CSS = `
 .asst-vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
-.asst-launcher{position:fixed;right:24px;bottom:24px;z-index:45;height:56px;padding:0 22px 0 18px;border:none;border-radius:999px;cursor:pointer;
-  background:${RED};color:#fff;display:flex;align-items:center;gap:10px;font:700 15px var(--font-opensans),Open Sans,sans-serif;
-  box-shadow:0 12px 32px rgba(155,27,48,.35);transition:transform .18s ease}
-.asst-launcher:hover{transform:translateY(-2px)}
 .asst-teaser{position:fixed;right:24px;bottom:96px;z-index:45;width:320px;box-sizing:border-box;padding:16px;background:#fff;border:1px solid #EADFE1;
   border-radius:18px 18px 6px 18px;box-shadow:0 16px 48px rgba(90,20,35,.16);display:flex;flex-direction:column;gap:12px;animation:asst-in .35s ease;
   font-family:var(--font-opensans),Open Sans,sans-serif}
@@ -647,7 +642,7 @@ const CSS = `
 .asst-crew-name{font-size:13px;font-weight:600;color:#231A1C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .asst-crew-name.muted{font-weight:400;color:#8A7D80;font-size:12px}
 .asst-dot-sep{margin:0 5px;font-weight:400;color:#8A7D80}
-.asst-plate{font-family:var(--font-mono),ui-monospace,monospace;font-size:12px;font-weight:500;color:#5E5255}
+.asst-plate{font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:500;color:#5E5255}
 .asst-crew-sub{font-size:12px;color:#6B5E61}
 .asst-crew-box{display:flex;align-items:center;gap:10px;margin:0 14px 10px;padding:10px 10px 10px 12px;border:1px solid #EFE6E8;border-radius:12px}
 .asst-call{display:flex;align-items:center;gap:6px;flex-shrink:0;padding:8px 10px;border-radius:10px;background:#F4E8EA;color:#7A1526;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap}
@@ -696,11 +691,9 @@ const CSS = `
 .asst-foot button{background:none;border:none;padding:0;color:${RED};font:600 11px var(--font-opensans),Open Sans,sans-serif;cursor:pointer}
 @media (max-width:520px){
   .asst-panel{right:0;bottom:0;width:100%;height:100dvh;border-radius:0}
-  .asst-launcher{right:16px;bottom:16px}
   .asst-teaser{right:16px;bottom:84px;width:calc(100vw - 32px);max-width:320px}
   .asst-input input{font-size:16px}
   .asst-compose{padding-bottom:max(10px,env(safe-area-inset-bottom))}
 }
-@media (max-width:380px){.asst-launcher-label{display:none}.asst-launcher{padding:0 17px}}
 @media (prefers-reduced-motion:reduce){.asst-teaser,.asst-panel,.asst-lf-pin,.asst-live-dot.pulse{animation:none}}
 `;

@@ -27,9 +27,13 @@ const TEXT = {
  * Notificarea GDPR / cookie a site-ului public (Legea 195/2024). Un singur
  * buton, fiindcă nu există nimic de refuzat — vezi `lib/consent.ts`.
  * Se redeschide din footer prin `openConsentSettings()`.
+ *
+ * `defaultOpen` (ION-204): pagina principală o montează abia când e nevoie (prima vizită
+ * sau «Setări cookie»); la apăsarea din footer componenta nu exista încă să audă
+ * evenimentul, deci se deschide direct de la montare.
  */
-export default function CookieConsent({ locale }: { locale: Locale }) {
-  const [open, setOpen] = useState(false);
+export default function CookieConsent({ locale, defaultOpen = false }: { locale: Locale; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
   const t = TEXT[locale];
 
   useEffect(() => {

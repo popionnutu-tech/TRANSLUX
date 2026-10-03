@@ -1,9 +1,32 @@
 "use client";
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+
+// Fundalul static, același gradient ca al «loading»-ului din home-page.tsx: pe telefoanele
+// slabe și la «reduce motion» stă în locul shader-ului (ION-204, 03.10).
+const STATIC_STYLE: React.CSSProperties = {
+  position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 0,
+  background: 'linear-gradient(135deg, #fff 0%, #f5f5f6 100%)',
+};
+
+/**
+ * Shader-ul nu pornește (ION-204): omul a cerut «reduce motion», sau aparatul e slab —
+ * ≤ 4 nuclee ori ≤ 4 GB RAM (deviceMemory, unde browserul îl dă). Rula la fiecare cadru pe
+ * orice telefon; acum pe astea rămâne gradientul.
+ */
+function prefersStatic(): boolean {
+  if (typeof window === 'undefined') return true;
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return true;
+  const nav = navigator as Navigator & { deviceMemory?: number };
+  if (typeof nav.hardwareConcurrency === 'number' && nav.hardwareConcurrency <= 4) return true;
+  if (typeof nav.deviceMemory === 'number' && nav.deviceMemory <= 4) return true;
+  return false;
+}
 
 const ShaderBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // Componenta se încarcă doar în browser (ssr: false), deci decizia se ia la prima randare.
+  const [isStatic] = useState(prefersStatic);
 
   const vsSource = `
     attribute vec4 aVertexPosition;
@@ -147,7 +170,7 @@ const ShaderBackground = () => {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || isStatic) return;
 
     const gl = canvas.getContext('webgl');
     if (!gl) {
@@ -180,22 +203,34 @@ const ShaderBackground = () => {
       },
     };
 
+    // Canvas la cel mult 1 pixel pe pixel CSS (ION-204): pe ecranele Retina/telefon shader-ul
+    // ar fi desenat de 4–9 ori mai mulți pixeli pentru linii oricum moi.
     const resizeCanvas = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      const scale = Math.min(window.devicePixelRatio || 1, 1);
+      canvas.width = Math.round(window.innerWidth * scale);
+      canvas.height = Math.round(window.innerHeight * scale);
       gl.viewport(0, 0, canvas.width, canvas.height);
     };
 
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
-    const startTime = Date.now();
-    let animationFrameId: number;
+    // Timpul shader-ului curge doar cât se desenează: la revenire animația continuă de unde
+    // a rămas, fără salt.
+    let elapsed = 0;
+    let lastFrame = 0;
+    let animationFrameId = 0;
     let alive = true;
+    // Se desenează doar cât fila e vizibilă și canvas-ul e în ecran (ION-204).
+    let hidden = document.hidden;
+    let offscreen = false;
+    let running = false;
 
-    const render = () => {
-      if (!alive) return;
-      const currentTime = (Date.now() - startTime) / 1000;
+    const render = (ts: number) => {
+      if (!alive || hidden || offscreen) { running = false; return; }
+      if (lastFrame) elapsed += Math.min(ts - lastFrame, 100);
+      lastFrame = ts;
+      const currentTime = elapsed / 1000;
 
       gl.clearColor(0.0, 0.0, 0.0, 1.0);
       gl.clear(gl.COLOR_BUFFER_BIT);
@@ -221,14 +256,31 @@ const ShaderBackground = () => {
       animationFrameId = requestAnimationFrame(render);
     };
 
-    animationFrameId = requestAnimationFrame(render);
+    const start = () => {
+      if (!alive || running || hidden || offscreen) return;
+      running = true;
+      lastFrame = 0;
+      animationFrameId = requestAnimationFrame(render);
+    };
+    const onVisibility = () => { hidden = document.hidden; start(); };
+    document.addEventListener('visibilitychange', onVisibility);
+    const io = typeof IntersectionObserver === 'function'
+      ? new IntersectionObserver((entries) => { offscreen = !entries.some((e) => e.isIntersecting); start(); })
+      : null;
+    io?.observe(canvas);
+    start();
 
     return () => {
       alive = false;
       cancelAnimationFrame(animationFrameId);
+      document.removeEventListener('visibilitychange', onVisibility);
+      io?.disconnect();
       window.removeEventListener('resize', resizeCanvas);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStatic]);
+
+  if (isStatic) return <div style={STATIC_STYLE} aria-hidden />;
 
   return (
     <canvas ref={canvasRef} style={{

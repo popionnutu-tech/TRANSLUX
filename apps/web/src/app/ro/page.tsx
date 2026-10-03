@@ -5,6 +5,7 @@ import PageTracker from '@/components/PageTracker';
 import { getRoutePairs, homeLinks } from '@/lib/route-pages';
 import { homeMetadata } from '@/lib/seo';
 import { getCachedLocalities, getCachedPopularPrices } from '../(public)/actions';
+import { homeOptions, homePopular } from '@/lib/home-props';
 
 export const metadata: Metadata = homeMetadata('ro');
 
@@ -20,7 +21,7 @@ export default async function RoPage() {
     <>
       <PageTracker />
       <HomeJsonLd locale="ro" />
-      <HomePage locale="ro" localities={localities} popularPrices={popularPrices} routeLinks={links.routes} localityLinks={links.localities} />
+      <HomePage locale="ro" options={homeOptions(localities, 'ro')} popular={homePopular(popularPrices, [...links.routes, ...links.localities], 'ro')} routeLinks={links.routes} localityLinks={links.localities} />
     </>
   );
 }

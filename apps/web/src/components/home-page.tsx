@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useRef, useMemo, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { format } from 'date-fns';
 
 const ShaderBackground = dynamic(
   () => import('@/components/ui/shader-background'),
@@ -18,28 +17,52 @@ const ShaderBackground = dynamic(
     ),
   }
 );
-import { MiniCalendar } from '@/components/ui/mini-calendar';
-import { RouteResults } from '@/components/ui/route-results';
-import { NowResults } from '@/components/NowResults';
-import CookieConsent from '@/components/CookieConsent';
-import AssistantWidget from '@/components/AssistantWidget';
-import { openConsentSettings } from '@/lib/consent';
+
+// ION-204 (Ion, 03.10, planul «site ultrafast», punctul 3): pagina principală hidrata asistentul,
+// harta, calendarul și rezultatele înainte ca formularul să meargă. Acum chunk-ul inițial are
+// doar formularul; fiecare fereastră se încarcă la prima interacțiune (butonul asistentului,
+// «Acum», «Mai târziu», rezultatele). Funcțiile de încărcare stau separat ca să le putem
+// chema și înainte (la prima atingere a formularului), iar chunk-ul să fie deja în cache
+// când omul apasă. CSS-ul Leaflet vine cu NowResults/BusMap, nu cu pagina.
+const loadNowResults = () => import('@/components/NowResults').then((m) => m.NowResults);
+const loadRouteResults = () => import('@/components/ui/route-results').then((m) => m.RouteResults);
+const loadMiniCalendar = () => import('@/components/ui/mini-calendar').then((m) => m.MiniCalendar);
+const loadAssistant = () => import('@/components/AssistantWidget');
+const loadCookieConsent = () => import('@/components/CookieConsent');
+const NowResults = dynamic(loadNowResults, { ssr: false });
+const RouteResults = dynamic(loadRouteResults, { ssr: false });
+const MiniCalendar = dynamic(loadMiniCalendar, { ssr: false });
+const AssistantWidget = dynamic(loadAssistant, { ssr: false });
+const CookieConsent = dynamic(loadCookieConsent, { ssr: false });
+import { AssistantLauncher, TEASER_CLOSED_KEY } from '@/components/assistant-launcher';
+import { openConsentSettings, readConsent } from '@/lib/consent';
 import { track } from '@/lib/track';
 import { type Locale, t } from '@/lib/i18n';
-import { homePath, majorBySlug } from '@/lib/seo';
-import { searchTrips, type Locality, type TripResult, type PopularRoutePrice } from '@/app/(public)/actions';
+import { homePath, slugify } from '@/lib/seo-paths';
+import type { HomeOptions, HomePopular } from '@/lib/home-props';
+import { searchTrips, type TripResult } from '@/app/(public)/actions';
 
 interface HomePageProps {
   locale: Locale;
-  localities?: Locality[];
-  popularPrices?: PopularRoutePrice[];
+  /** Opțiunile selectoarelor, sortate pe server (lib/home-props.ts, ION-204). */
+  options?: HomeOptions;
+  /** «Destinații populare», cu numele în limba paginii și linkul gata ales. */
+  popular?: HomePopular[];
   /** Paginile de direcție (ION-153), randate pe server; goală când baza n-a răspuns. */
   routeLinks?: { key: string; href: string; label: string }[];
   /** Chișinău → fiecare sat din nord, cu pagină proprie (ION-153). */
   localityLinks?: { key: string; href: string; label: string }[];
 }
 
-export function HomePage({ locale, localities = [], popularPrices = [], routeLinks = [], localityLinks = [] }: HomePageProps) {
+/** «2026-10-03» din data locală — ce făcea date-fns `format(d, 'yyyy-MM-dd')`, fără cei ~10 KB ai lui. */
+function ymd(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+const EMPTY_OPTIONS: HomeOptions = { major: [], minor: [] };
+
+export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeLinks = [], localityLinks = [] }: HomePageProps) {
   const [showResults, setShowResults] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -48,18 +71,43 @@ export function HomePage({ locale, localities = [], popularPrices = [], routeLin
   const [trips, setTrips] = useState<TripResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [now, setNow] = useState<{ from: string; to: string; fromLabel: string; toLabel: string } | null>(null);
+  // Asistentul: montat (chunk-ul încărcat) și deschis — două lucruri diferite (ION-204).
+  const [assistant, setAssistant] = useState(false);
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  // Notificarea cookie: montată doar la prima vizită sau din «Setări cookie».
+  const [cookie, setCookie] = useState<null | 'auto' | 'settings'>(null);
   const fromRef = useRef<HTMLSelectElement>(null);
   const toRef = useRef<HTMLSelectElement>(null);
   const calRef = useRef<HTMLDivElement>(null);
+  const warmed = useRef(false);
   const i = t(locale);
 
-  const sortedLocalities = useMemo(() => {
-    const major = localities.filter(l => l.is_major).sort((a, b) => b.sort_order - a.sort_order);
-    const minor = localities.filter(l => !l.is_major).sort((a, b) =>
-      (locale === 'ru' ? a.name_ru : a.name_ro).localeCompare(locale === 'ru' ? b.name_ru : b.name_ro)
-    );
-    return { major, minor };
-  }, [localities, locale]);
+  // Prima atingere a formularului: ferestrele «Acum», calendarul și rezultatele se aduc în
+  // cache, ca apăsarea de după să le deschidă pe loc.
+  const warm = useCallback(() => {
+    if (warmed.current) return;
+    warmed.current = true;
+    void loadNowResults(); void loadMiniCalendar(); void loadRouteResults();
+  }, []);
+
+  const openAssistant = () => { setAssistant(true); setAssistantOpen(true); };
+
+  useEffect(() => {
+    if (!readConsent()) setCookie('auto');
+    // Asistentul se montează și nechemat, când browserul are timp liber, ca invitația lui
+    // («Sunt asistentul care te ajută…», ION-39) să apară ca până acum — dar nu pentru cine
+    // a închis-o deja: acela îl primește abia la apăsare.
+    let closed = false;
+    try { closed = localStorage.getItem(TEASER_CLOSED_KEY) === '1'; } catch { /* nimic */ }
+    if (closed) return;
+    const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void };
+    if (w.requestIdleCallback) {
+      const id = w.requestIdleCallback(() => setAssistant(true), { timeout: 2500 });
+      return () => w.cancelIdleCallback?.(id);
+    }
+    const tm = setTimeout(() => setAssistant(true), 1500);
+    return () => clearTimeout(tm);
+  }, []);
 
   /** Direcția aleasă, sau null — atunci browserul arată ce câmp lipsește. */
   const direction = () => {
@@ -101,7 +149,7 @@ export function HomePage({ locale, localities = [], popularPrices = [], routeLin
 
     setSearching(true);
     try {
-      const results = await searchTrips(from, to, format(date, 'yyyy-MM-dd'));
+      const results = await searchTrips(from, to, ymd(date));
       setTrips(results);
       setShowResults(true);
     } catch (err) {
@@ -114,22 +162,37 @@ export function HomePage({ locale, localities = [], popularPrices = [], routeLin
   // Venit de pe o pagină de direcție (/ro/autobuz/…) cu ?dela=<slug>&spre=<slug>: direcția e
   // gata aleasă, omul apasă doar «Acum» sau «Mai târziu». Căutarea NU pornește singură (ION-153):
   // Googlebot rulează JS și ar scrie în search_log la fiecare link.
+  // Slug-ul se potrivește cu opțiunea al cărei nume RO dă același slug (ION-204): fără lista
+  // din seo.ts în browser; prinde și satele (paginile Chișinău → sat trimit la fel, ION-153).
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     const pick = (ref: React.RefObject<HTMLSelectElement | null>, slug: string | null) => {
-      const name = slug ? majorBySlug(slug)?.ro : undefined;
-      if (name && ref.current && [...ref.current.options].some((o) => o.value === name)) ref.current.value = name;
+      if (!slug || !ref.current) return;
+      const o = [...ref.current.options].find((o) => o.value && slugify(o.value) === slug);
+      if (o) ref.current.value = o.value;
     };
     pick(fromRef, q.get('dela'));
     pick(toRef, q.get('spre'));
   }, []);
 
-  const routeHrefs = useMemo(
-    () => new Map([...routeLinks, ...localityLinks].map((r) => [r.key, r.href])),
-    [routeLinks, localityLinks],
+  const optgroups = (
+    <>
+      {options.major.length > 0 && (
+        <optgroup label={locale === 'ru' ? 'Основные' : 'Principale'}>
+          {options.major.map(o => (
+            <option key={o.v} value={o.v}>{o.l}</option>
+          ))}
+        </optgroup>
+      )}
+      {options.minor.length > 0 && (
+        <optgroup label={locale === 'ru' ? 'Все остановки' : 'Toate stațiile'}>
+          {options.minor.map(o => (
+            <option key={o.v} value={o.v}>{o.l}</option>
+          ))}
+        </optgroup>
+      )}
+    </>
   );
-
-  const getName = (l: Locality) => locale === 'ru' ? l.name_ru : l.name_ro;
 
   return (
     <div lang={locale} style={{ minHeight: '100vh', position: 'relative', fontFamily: 'var(--font-opensans), Open Sans, sans-serif' }}>
@@ -197,7 +260,7 @@ export function HomePage({ locale, localities = [], popularPrices = [], routeLin
               {i.hero}
             </h1>
 
-            <form onSubmit={handleSearch} className="hero-form" style={{
+            <form onSubmit={handleSearch} onPointerDown={warm} onFocus={warm} className="hero-form" style={{
               display: 'flex', alignItems: 'center', gap: 8, width: '100%',
             }}>
               {/* FROM */}
@@ -213,20 +276,7 @@ export function HomePage({ locale, localities = [], popularPrices = [], routeLin
                   transition: 'box-shadow 0.2s ease', cursor: 'pointer',
                 }}>
                   <option value="">{i.from}</option>
-                  {sortedLocalities.major.length > 0 && (
-                    <optgroup label={locale === 'ru' ? 'Основные' : 'Principale'}>
-                      {sortedLocalities.major.map(l => (
-                        <option key={l.id} value={l.name_ro}>{getName(l)}</option>
-                      ))}
-                    </optgroup>
-                  )}
-                  {sortedLocalities.minor.length > 0 && (
-                    <optgroup label={locale === 'ru' ? 'Все остановки' : 'Toate stațiile'}>
-                      {sortedLocalities.minor.map(l => (
-                        <option key={l.id} value={l.name_ro}>{getName(l)}</option>
-                      ))}
-                    </optgroup>
-                  )}
+                  {optgroups}
                 </select>
               </div>
 
@@ -266,20 +316,7 @@ export function HomePage({ locale, localities = [], popularPrices = [], routeLin
                   transition: 'box-shadow 0.2s ease', cursor: 'pointer',
                 }}>
                   <option value="">{i.to}</option>
-                  {sortedLocalities.major.length > 0 && (
-                    <optgroup label={locale === 'ru' ? 'Основные' : 'Principale'}>
-                      {sortedLocalities.major.map(l => (
-                        <option key={l.id} value={l.name_ro}>{getName(l)}</option>
-                      ))}
-                    </optgroup>
-                  )}
-                  {sortedLocalities.minor.length > 0 && (
-                    <optgroup label={locale === 'ru' ? 'Все остановки' : 'Toate stațiile'}>
-                      {sortedLocalities.minor.map(l => (
-                        <option key={l.id} value={l.name_ro}>{getName(l)}</option>
-                      ))}
-                    </optgroup>
-                  )}
+                  {optgroups}
                 </select>
               </div>
 
@@ -330,12 +367,10 @@ export function HomePage({ locale, localities = [], popularPrices = [], routeLin
               display: 'grid', gridTemplateColumns: '1fr 1fr',
               gap: '0 48px', maxWidth: 520, margin: '0 auto',
             }}>
-              {popularPrices.map((r) => {
-                const routeName = locale === 'ru'
-                  ? `${r.from_ru} - ${r.to_ru}`
-                  : `${r.from_ro} - ${r.to_ro}`;
-                // Link doar spre o pagină de direcție care există (perechea e în getRoutePairs).
-                const href = r.from_slug && r.to_slug ? routeHrefs.get(`${r.from_slug}-${r.to_slug}`) : undefined;
+              {popular.map((r) => {
+                // Numele și linkul (doar spre o pagină de direcție care există) vin gata de pe server (lib/home-props.ts).
+                const routeName = r.name;
+                const href = r.href;
                 const Row = href ? 'a' : 'div';
                 return (
                   <Row key={routeName} {...(href ? { href } : {})} className="route-row" style={{
@@ -426,7 +461,7 @@ export function HomePage({ locale, localities = [], popularPrices = [], routeLin
           }}>
             <Link href={`/${locale}/confidentialitate`} style={{ color: '#777', textDecoration: 'none' }}>{i.privacy}</Link>
             <Link href={`/${locale}/cookies`} style={{ color: '#777', textDecoration: 'none' }}>{i.cookies}</Link>
-            <button type="button" onClick={openConsentSettings} style={{
+            <button type="button" onClick={() => { if (cookie) openConsentSettings(); else setCookie('settings'); }} style={{
               background: 'none', border: 'none', padding: 0, cursor: 'pointer',
               color: '#777', fontSize: 12, fontFamily: 'inherit',
             }}>{i.cookieSettings}</button>
@@ -435,10 +470,12 @@ export function HomePage({ locale, localities = [], popularPrices = [], routeLin
 
       </div>
 
-      <CookieConsent locale={locale} />
+      {cookie && <CookieConsent locale={locale} defaultOpen={cookie === 'settings'} />}
 
-      {/* Asistentul AI (ION-37): colțul dreapta-jos, deasupra comutatorului de limbă */}
-      <AssistantWidget locale={locale} />
+      {/* Asistentul AI (ION-37): colțul dreapta-jos, deasupra comutatorului de limbă.
+          Butonul e al paginii; fereastra se încarcă la apăsare sau când browserul are timp liber (ION-204). */}
+      {!assistantOpen && <AssistantLauncher locale={locale} onClick={openAssistant} />}
+      {assistant && <AssistantWidget locale={locale} open={assistantOpen} onOpenChange={setAssistantOpen} />}
 
 
       {showResults && (

@@ -1,4 +1,5 @@
 import type { Locale } from '@/lib/i18n';
+import { homePath, routePath, slugify } from '@/lib/seo-paths';
 
 /**
  * SEO pentru translux.md (ION-153): adresa canonică, localitățile cu pagină de direcție,
@@ -7,7 +8,11 @@ import type { Locale } from '@/lib/i18n';
  * Fișier pur, fără bază: îl importă și middleware-ul (edge). Lista MAJOR = localitățile
  * `is_major` din `localities` (30.09.2026); numele rusești sunt cele din `localities.name_ru`.
  * O localitate nouă devine pagină abia după ce e adăugată aici.
+ *
+ * Căile și slug-ul stau în `lib/seo-paths.ts` (ION-204): componentele de client le iau de
+ * acolo, ca listele de mai jos să nu ajungă în bundle-ul browserului.
  */
+export { homePath, routePath, slugify };
 
 export const SITE_URL = 'https://translux.md';
 
@@ -146,26 +151,6 @@ export function majorBySlug(slug: string): MajorLocality | undefined {
 export function majorByNameRo(nameRo: string): MajorLocality | undefined {
   const s = slugify(nameRo);
   return BY_SLUG.get(s);
-}
-
-/** «Chișinău», «Chişinău» (sedilă), «CHIȘINĂU» → «chisinau». */
-export function slugify(name: string): string {
-  return name
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
-
-/** Pagina principală: RO stă la «/» (adresa indexată), RU la «/ru». */
-export function homePath(locale: Locale): string {
-  return locale === 'ru' ? '/ru' : '/';
-}
-
-export function routePath(locale: Locale, fromSlug: string, toSlug: string): string {
-  return locale === 'ru' ? `/ru/avtobus/${fromSlug}-${toSlug}` : `/ro/autobuz/${fromSlug}-${toSlug}`;
 }
 
 const LOCALITY_BY_SLUG = new Map(LOCALITIES.map((l) => [l.slug, l]));

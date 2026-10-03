@@ -112,3 +112,14 @@ export function numeComplet(nume: string, prenume: string): string | null {
   if (n.length < 2 || n.length > 40 || p.length < 2 || p.length > 40) return null;
   return `${n} ${p}`;
 }
+
+/**
+ * E-mailul opțional (Ion, 03.10): gol → null (valid); altfel litere mici, aceeași regulă ca API-ul comenzii
+ * (`apps/admin/src/lib/bilete/comenzi.ts`), cel mult 120 de caractere. Invalid → 'invalid'.
+ */
+export function emailOptional(raw: string): string | null | 'invalid' {
+  const e = String(raw ?? '').trim().toLowerCase();
+  if (!e) return null;
+  if (e.length > 120 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)) return 'invalid';
+  return e;
+}

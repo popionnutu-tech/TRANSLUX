@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CONFIG_INCHIS, mesajEroareComanda, normalizeazaTelefon, numeComplet, parseazaConfig, urlPlataSigur, vanzareDeschisaPeSite } from './bilete-reguli';
+import { CONFIG_INCHIS, emailOptional, mesajEroareComanda, normalizeazaTelefon, numeComplet, parseazaConfig, urlPlataSigur, vanzareDeschisaPeSite } from './bilete-reguli';
 
 const cfg = { activ: true, inchidere_tur_min: 0, inchidere_retur_min: 120, rute: [{ id: 2, tur: true, retur: false }, { id: 8, tur: true, retur: true }] };
 // Marți 14.10.2026, 05:00 la Chișinău (ora de vară, +03:00).
@@ -89,5 +89,16 @@ describe('numeComplet', () => {
     expect(numeComplet('', 'Ion')).toBeNull();
     expect(numeComplet('Popescu', 'I')).toBeNull();
     expect(numeComplet('P'.repeat(41), 'Ion')).toBeNull();
+  });
+});
+
+describe('emailOptional', () => {
+  it('gol → null; valid → litere mici; greșit sau prea lung → invalid', () => {
+    expect(emailOptional('   ')).toBeNull();
+    expect(emailOptional(' Ion.Pop@Mail.MD ')).toBe('ion.pop@mail.md');
+    expect(emailOptional('ion@mail')).toBe('invalid');
+    expect(emailOptional('ion pop@mail.md')).toBe('invalid');
+    expect(emailOptional(`${'a'.repeat(115)}@x.md`)).toBe(`${'a'.repeat(115)}@x.md`); // 120 = limita, permis
+    expect(emailOptional(`${'a'.repeat(116)}@x.md`)).toBe('invalid');
   });
 });

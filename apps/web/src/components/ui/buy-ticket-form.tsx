@@ -14,13 +14,13 @@ const RED = "#9B1B30";
 
 const TXT = {
   ro: {
-    title: "Bilet online", lastName: "Nume", firstName: "Prenume", phone: "Telefon", seats: "Locuri", total: "Total",
+    title: "Bilet online", lastName: "Nume", firstName: "Prenume", phone: "Telefon", email: "E-mail (opțional)", seats: "Locuri", total: "Total",
     consent: "Sunt de acord cu prelucrarea datelor pentru bilet", policy: "politica de confidențialitate",
     pay: "Plătește cu cardul", paying: "Se deschide banca…", cancel: "Înapoi",
     note: "După plată primești biletul cu cod QR. Îl arăți șoferului la urcare. Returnarea se cere prin Telegram.",
   },
   ru: {
-    title: "Онлайн-билет", lastName: "Фамилия", firstName: "Имя", phone: "Телефон", seats: "Мест", total: "Итого",
+    title: "Онлайн-билет", lastName: "Фамилия", firstName: "Имя", phone: "Телефон", email: "E-mail (необязательно)", seats: "Мест", total: "Итого",
     consent: "Согласен на обработку данных для билета", policy: "политика конфиденциальности",
     pay: "Оплатить картой", paying: "Открываем банк…", cancel: "Назад",
     note: "После оплаты вы получите билет с QR-кодом. Покажите его водителю при посадке. Возврат — через Telegram.",
@@ -80,6 +80,9 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel }: {
       </div>
       <label style={{ fontSize: 12, color: "#555" }}>{tx.phone}
         <input name="phone" required inputMode="tel" autoComplete="tel" placeholder="+373 69 123 456" style={inp} />
+      </label>
+      <label style={{ fontSize: 12, color: "#555" }}>{tx.email}
+        <input id="bilet-email" name="email" type="email" inputMode="email" autoComplete="email" maxLength={120} placeholder="nume@exemplu.md" style={inp} />
       </label>
       <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
         <label style={{ fontSize: 12, color: "#555" }}>{tx.seats}

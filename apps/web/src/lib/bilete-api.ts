@@ -36,6 +36,7 @@ export interface ComandaBiletInput {
   seats: number;
   passengerName: string;
   phone: string;
+  email: string | null;
   lang: 'ro' | 'ru';
   idempotencyKey: string;
   ipHash: string | null;

@@ -5,11 +5,17 @@
 import { addDays } from './periods';
 
 /**
- * Sumele unei celule (pe toate cursele din ea); mediile se fac la afișare. verif = Σ (20 − oamenii numărați la ieșirea
- * din Bălți), verificarea din Numărare (ION-216).
+ * Sumele unei celule (pe toate cursele din ea); mediile se fac la afișare (ION-220, după revizia Claude + GPT):
+ *   vinde = Σ max(20 − numărați la ieșirea din Bălți, 0), plafonat pe fiecare plecare, apoi media;
+ *   libere / urca = doar pe plecările cu bilete Mobilet atribuite (nLib), altfel necunoscute;
+ *   plin = plecările cu 20 sau mai mulți numărați; nepotr = plecările cu mai multe bilete din Bălți decât numărați.
  */
-export interface Cell { n: number; libere: number; urca: number; verif: number }
-export interface CellMean { n: number; libere: number; urca: number; vinde: number; plin: boolean; verif: number }
+export interface Cell { n: number; vinde: number; plin: number; nLib: number; libere: number; urca: number; nepotr: number }
+export interface CellMean {
+  n: number; vinde: number; libere: number | null; urca: number | null; plin: boolean; nepotr: number;
+  /** doar la total: curse numărate și curse din grafic în zilele coloanei */
+  numarate?: number; programate?: number;
+}
 
 export const LOCURI = 20;
 
@@ -18,40 +24,60 @@ export interface Column { key: string; kind: ColKind; dates: string[]; label: st
 export interface Week { key: string; label: string; iso: number; dates: string[] }
 export interface Month { key: string; label: string; weeks: Week[] }
 
-export const ZERO: Cell = { n: 0, libere: 0, urca: 0, verif: 0 };
+export const ZERO: Cell = { n: 0, vinde: 0, plin: 0, nLib: 0, libere: 0, urca: 0, nepotr: 0 };
 
 export function addCell(a: Cell, b: Cell | undefined): Cell {
   if (!b) return a;
-  return { n: a.n + b.n, libere: a.libere + b.libere, urca: a.urca + b.urca, verif: a.verif + b.verif };
+  return {
+    n: a.n + b.n, vinde: a.vinde + b.vinde, plin: a.plin + b.plin, nLib: a.nLib + b.nLib,
+    libere: a.libere + b.libere, urca: a.urca + b.urca, nepotr: a.nepotr + b.nepotr,
+  };
 }
 
 export function mean(c: Cell): CellMean | null {
   if (!c.n) return null;
-  const libere = c.libere / c.n;
-  const urca = c.urca / c.n;
-  return { n: c.n, libere, urca, vinde: Math.max(0, libere - urca), plin: urca > libere, verif: c.verif / c.n };
+  return {
+    n: c.n, vinde: c.vinde / c.n, plin: c.plin === c.n, nepotr: c.nepotr,
+    libere: c.nLib ? c.libere / c.nLib : null, urca: c.nLib ? c.urca / c.nLib : null,
+  };
 }
 
 /**
- * Totalul pe toate graficele, media pe zi (ION-213 → ION-214, Ion: «totalul tot media, i.e. media pe o sâmbătă din 4»):
- * pe fiecare zi a coloanei se adună toate cursele zilei, apoi media pe zilele cu curse. «Mai putem vinde» se ia pe
- * fiecare grafic al zilei și se adună: cursa plină nu scade din locurile altora. n = zilele cu curse.
+ * Totalul pe toate graficele, media pe zi (ION-214; acoperirea ION-220). Pe fiecare zi a coloanei se iau graficele din
+ * grafic (program): cel numărat intră cu cifrele lui, cel nenumărat cu media lui în aceeași coloană (dacă are), ca o zi
+ * numărată incomplet să nu scadă totalul; apoi media pe zile (ex. media celor 4 sâmbete). Fără program pe o zi, intră
+ * graficele numărate. numarate / programate se arată la hover.
  */
-export function totalRoutes(idx: CellIndex, routes: string[], dates: string[]): CellMean | null {
-  let zile = 0, libere = 0, urca = 0, vinde = 0, verif = 0;
+export function totalRoutes(idx: CellIndex, prog: Set<string>, routes: string[], dates: string[]): CellMean | null {
+  const medii = new Map<string, CellMean | null>(routes.map(r => [r, mean(sumCells(idx, [r], dates))]));
+  let zile = 0, vinde = 0, libere = 0, urca = 0, nLibZile = 0, numarate = 0, programate = 0, nepotr = 0;
   for (const d of dates) {
-    let are = false;
+    let are = false, zLib = 0, zUrca = 0, libOk = true;
+    let zVinde = 0;
     for (const r of routes) {
       const c = idx.get(cellKey(r, d));
-      const m = c && mean(c);
-      if (!m) continue;
+      const inProgram = prog.has(cellKey(r, d)) || !!c;
+      if (!inProgram) continue;
+      programate++;
+      const m = c ? mean(c) : medii.get(r) ?? null;
+      if (!m) { libOk = false; continue; }
+      if (c) { numarate++; nepotr += c.nepotr; }
       are = true;
-      libere += c.libere; urca += c.urca; vinde += m.vinde * m.n; verif += c.verif;
+      zVinde += m.vinde;
+      if (m.libere == null || m.urca == null) libOk = false;
+      else { zLib += m.libere; zUrca += m.urca; }
     }
-    if (are) zile++;
+    if (!are) continue;
+    zile++;
+    vinde += zVinde;
+    if (libOk) { nLibZile++; libere += zLib; urca += zUrca; }
   }
   if (!zile) return null;
-  return { n: zile, libere: libere / zile, urca: urca / zile, vinde: vinde / zile, plin: false, verif: verif / zile };
+  return {
+    n: zile, vinde: vinde / zile, plin: false, nepotr,
+    libere: nLibZile ? libere / nLibZile : null, urca: nLibZile ? urca / nLibZile : null,
+    numarate, programate,
+  };
 }
 
 const DAY = 86_400_000;
@@ -151,16 +177,22 @@ export function weekdayColumns(from: string, to: string): Column[] {
 export type CellIndex = Map<string, Cell>;
 export const cellKey = (r: string, d: string) => `${r}|${d}`;
 
-export function indexCells(
-  zile: { r: string; d: string; n: number; libere: number; urca: number; la_plecare?: number | null }[],
-): CellIndex {
+export interface ZiBalti { r: string; d: string; la_plecare: number; vinde: number; urca: number | null; libere: number | null }
+
+export function indexCells(zile: ZiBalti[]): CellIndex {
   const m: CellIndex = new Map();
   for (const z of zile) {
-    const verif = Math.max(0, LOCURI - (z.la_plecare ?? LOCURI)) * z.n;
-    m.set(cellKey(z.r, z.d), { n: z.n, libere: Number(z.libere), urca: Number(z.urca), verif });
+    const lib = z.urca != null && z.libere != null;
+    m.set(cellKey(z.r, z.d), {
+      n: 1, vinde: Number(z.vinde), plin: z.la_plecare >= LOCURI ? 1 : 0, nLib: lib ? 1 : 0,
+      libere: lib ? Number(z.libere) : 0, urca: lib ? Number(z.urca) : 0,
+      nepotr: lib && Number(z.urca) > z.la_plecare ? 1 : 0,
+    });
   }
   return m;
 }
+
+export const programSet = (program: { r: string; d: string }[]) => new Set(program.map(p => cellKey(p.r, p.d)));
 
 /** Suma celulelor unei rute (sau ale tuturor rutelor) pe zilele unei coloane. */
 export function sumCells(idx: CellIndex, routes: string[], dates: string[]): Cell {

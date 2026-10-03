@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildCalendar, calendarColumns, defaultClosed, monthKey, weekKey, monthSpan, weekSpan, weekdayColumns,
-  indexCells, sumCells, mean, totalRoutes, step, isoDow, isoWeek, fmtOra,
+  indexCells, programSet, sumCells, mean, totalRoutes, step, isoDow, isoWeek, fmtOra,
 } from './balti';
 
 describe('Locuri în Bălți: calendarul grupat', () => {
@@ -52,31 +52,46 @@ describe('Locuri în Bălți: calendarul grupat', () => {
   });
 });
 
-describe('Locuri în Bălți: mediile și culoarea', () => {
+// O zi pe rută, ca din get_tiki_balti (migr. 499): vinde = max(20 − numărați, 0); libere/urca null = bilete neatribuite.
+const zi = (r: string, d: string, n: number, urca: number | null) => ({
+  r, d, la_plecare: n, vinde: Math.max(20 - n, 0), urca, libere: urca == null ? null : 20 - Math.max(n - urca, 0),
+});
+
+describe('Locuri în Bălți: mediile și culoarea (ION-220)', () => {
   const idx = indexCells([
-    { r: 'A', d: '2026-09-01', n: 2, libere: 30, urca: 8 },
-    { r: 'A', d: '2026-09-02', n: 1, libere: 3, urca: 5 },
-    { r: 'B', d: '2026-09-01', n: 1, libere: 18, urca: 0 },
+    zi('A', '2026-09-01', 10, 4),   // mai avem 10, lib. 14
+    zi('A', '2026-09-02', 24, 8),   // supraaglomerat: mai avem 0 (nu −4), lib. 4
+    zi('A', '2026-09-03', 12, 15),  // bilete > numărați: mai avem 8 (din numărare), «!»
+    zi('B', '2026-09-01', 16, null),// bilete neatribuite: lib./↑ necunoscute
   ]);
 
-  it('media e ponderată pe curse, nu pe zile', () => {
+  it('cifra mare se plafonează pe fiecare plecare, apoi media (o zi plină nu anulează alta)', () => {
     const m = mean(sumCells(idx, ['A'], ['2026-09-01', '2026-09-02']))!;
-    expect(m.n).toBe(3);
-    expect(m.libere).toBeCloseTo(11, 5);
-    expect(m.urca).toBeCloseTo(13 / 3, 5);
-    expect(m.vinde).toBeCloseTo(11 - 13 / 3, 5);
+    expect(m.vinde).toBe(5);
+    expect(m.libere).toBe(9);
+    expect(m.urca).toBe(6);
     expect(m.plin).toBe(false);
+    expect(mean(sumCells(idx, ['A'], ['2026-09-02']))!.plin).toBe(true);
   });
 
-  it('urcă mai mulți decât locurile libere → plin, nimic de vândut', () => {
-    const m = mean(sumCells(idx, ['A'], ['2026-09-02']))!;
-    expect(m.plin).toBe(true);
-    expect(m.vinde).toBe(0);
+  it('cifra mare vine din numărare chiar când biletele din Bălți sunt mai multe decât numărații', () => {
+    const m = mean(sumCells(idx, ['A'], ['2026-09-03']))!;
+    expect(m.vinde).toBe(8);
+    expect(m.nepotr).toBe(1);
   });
 
-  it('fără curse → null; toate rutele se adună', () => {
-    expect(mean(sumCells(idx, ['A'], ['2026-09-03']))).toBeNull();
-    expect(sumCells(idx, ['A', 'B'], ['2026-09-01'])).toEqual({ n: 3, libere: 48, urca: 8, verif: 0 });
+  it('bilete neatribuite → lib. și ↑ necunoscute, nu 0', () => {
+    const m = mean(sumCells(idx, ['B'], ['2026-09-01']))!;
+    expect(m.vinde).toBe(4);
+    expect(m.libere).toBeNull();
+    expect(m.urca).toBeNull();
+    const ab = mean(sumCells(idx, ['A', 'B'], ['2026-09-01']))!;
+    expect(ab.vinde).toBe(7);
+    expect(ab.libere).toBe(14);
+  });
+
+  it('fără curse → null', () => {
+    expect(mean(sumCells(idx, ['A'], ['2026-09-04']))).toBeNull();
   });
 
   it('treapta de culoare pe 0–20', () => {
@@ -95,20 +110,34 @@ describe('Locuri în Bălți: mediile și culoarea', () => {
   });
 });
 
-describe('Locuri în Bălți: totalul pe toate graficele, media pe zi (ION-214)', () => {
+describe('Locuri în Bălți: totalul pe toate graficele, media pe zi (ION-214, acoperirea ION-220)', () => {
   const idx = indexCells([
-    { r: 'A', d: '2026-09-05', n: 1, libere: 10, urca: 4, la_plecare: 14 },
-    { r: 'B', d: '2026-09-05', n: 1, libere: 5, urca: 9, la_plecare: 22 },
-    { r: 'A', d: '2026-09-12', n: 1, libere: 14, urca: 6, la_plecare: 12 },
+    zi('A', '2026-09-05', 14, 4),   // mai avem 6, lib. 10
+    zi('B', '2026-09-05', 22, 9),   // plin: 0, lib. 7
+    zi('A', '2026-09-12', 12, 6),   // 8, lib. 14
+  ]);
+  const prog = programSet([
+    { r: 'A', d: '2026-09-05' }, { r: 'B', d: '2026-09-05' },
+    { r: 'A', d: '2026-09-12' }, { r: 'B', d: '2026-09-12' },   // B în grafic, dar nenumărat pe 12.09
   ]);
 
-  it('media totalurilor zilnice; graficul lipsă într-o zi nu umflă totalul; cursa plină nu scade din «vinde»', () => {
-    const t = totalRoutes(idx, ['A', 'B'], ['2026-09-05', '2026-09-12', '2026-09-19'])!;
-    // 05.09: 15 libere, 13 urcă, vinde 6 + 0, num. 6 + 0 (22 numărați = plin); 12.09: 14 libere, 6 urcă, vinde 8, num. 8
-    expect(t).toEqual({ n: 2, libere: 14.5, urca: 9.5, vinde: 7, plin: false, verif: 7 });
+  it('graficul nenumărat într-o zi intră cu media lui din coloană; media pe zile', () => {
+    const t = totalRoutes(idx, prog, ['A', 'B'], ['2026-09-05', '2026-09-12', '2026-09-19'])!;
+    // 05.09: 6 + 0 = 6, lib. 17; 12.09: 8 + 0 (media lui B) = 8, lib. 14 + 7 = 21
+    expect(t.n).toBe(2);
+    expect(t.vinde).toBe(7);
+    expect(t.libere).toBe(19);
+    expect(t.numarate).toBe(3);
+    expect(t.programate).toBe(4);
+  });
+
+  it('o rută care nu e în grafic într-o zi nu se adaugă', () => {
+    const t = totalRoutes(idx, programSet([]), ['A', 'B'], ['2026-09-12'])!;
+    expect(t.vinde).toBe(8);
+    expect(t.programate).toBe(1);
   });
 
   it('fără curse în coloană → nimic', () => {
-    expect(totalRoutes(idx, ['A', 'B'], ['2026-09-19'])).toBeNull();
+    expect(totalRoutes(idx, prog, ['A', 'B'], ['2026-09-19'])).toBeNull();
   });
 });

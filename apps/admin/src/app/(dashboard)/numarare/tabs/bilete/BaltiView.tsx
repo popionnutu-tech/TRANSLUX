@@ -10,7 +10,7 @@ import type { Filters, TikiBalti } from './types';
 import { Notice, Pill } from './ui';
 import {
   buildCalendar, calendarColumns, defaultClosed, monthKey, weekKey, monthSpan, weekSpan, weekdayColumns,
-  indexCells, sumCells, mean, totalRoutes, step, fmtOra, nf1, type Column, type CellMean,
+  indexCells, programSet, sumCells, mean, totalRoutes, step, fmtOra, nf1, type Column, type CellMean,
 } from './balti';
 
 type Mode = 'calendar' | 'dow';
@@ -42,9 +42,14 @@ function CellBox({ m, title, total = false }: { m: CellMean | null; title: strin
   const ink = total ? INK[0] : m.plin ? FULL_INK : INK[s];
   const sell = total ? SELL[0] : m.plin ? FULL_INK : SELL[s];
   // Ion, 03.10 (ION-218): cifra mare = câte locuri mai avem din Bălți; mici: cu câte libere a venit, câți s-au încărcat.
-  const t = `${title}\n${nf1.format(m.vinde)} locuri mai avem din Bălți` + (m.plin ? ` (urcă mai mulți decât locurile libere)` : '') +
-    `\n${nf1.format(m.libere)} locuri libere la sosirea în Bălți\n${nf1.format(m.urca)} s-au încărcat în Bălți` + (total
-      ? `\ntotalul zilei pe toate graficele, media pe ${m.n} ${m.n === 1 ? 'zi' : 'zile'}`
+  // ION-220: «?» = biletele Mobilet ale cursei încă nu sunt atribuite (sau lipsesc), nu 0.
+  const nr = (v: number | null) => (v == null ? '?' : nf1.format(v));
+  const t = `${title}\n${nf1.format(m.vinde)} locuri mai avem din Bălți` + (m.plin ? ' (pleacă plin)' : '') +
+    `\n${m.libere == null ? 'necunoscut' : nf1.format(m.libere)} locuri libere la sosirea în Bălți` +
+    `\n${m.urca == null ? 'necunoscut câți' : nf1.format(m.urca)} s-au încărcat în Bălți` +
+    (m.nepotr ? `\n! ${m.nepotr} ${m.nepotr === 1 ? 'cursă' : 'curse'} cu mai multe bilete din Bălți decât oameni numărați` : '') + (total
+      ? `\ntotalul zilei pe toate graficele, media pe ${m.n} ${m.n === 1 ? 'zi' : 'zile'}` +
+        (m.programate ? `\nnumărate ${m.numarate} din ${m.programate} curse din grafic; cele nenumărate intră cu media rutei` : '')
       : `\nmedia pe ${m.n} ${m.n === 1 ? 'cursă' : 'curse'}`);
   return (
     <div title={t} style={{
@@ -53,8 +58,8 @@ function CellBox({ m, title, total = false }: { m: CellMean | null; title: strin
       outline: m.plin ? `1px dashed ${FULL_INK}` : 'none', outlineOffset: -1,
     }}>
       <span style={{ gridRow: '1 / span 2', alignSelf: 'center', fontSize: 19, fontWeight: 700, lineHeight: 1, color: sell }}>{nf1.format(m.vinde)}</span>
-      <span style={{ justifySelf: 'end', fontSize: 12, lineHeight: 1, opacity: 0.85 }} title="locuri libere la sosirea în Bălți">lib. {nf1.format(m.libere)}</span>
-      <span style={{ justifySelf: 'end', fontSize: 12, lineHeight: 1, opacity: 0.85 }} title="s-au încărcat în Bălți">↑{nf1.format(m.urca)}</span>
+      <span style={{ justifySelf: 'end', fontSize: 12, lineHeight: 1, opacity: 0.85 }} title="locuri libere la sosirea în Bălți">lib. {nr(m.libere)}</span>
+      <span style={{ justifySelf: 'end', fontSize: 12, lineHeight: 1, opacity: 0.85 }} title="s-au încărcat în Bălți">↑{nr(m.urca)}{m.nepotr ? <b style={{ color: '#b45309' }}> !</b> : null}</span>
     </div>
   );
 }
@@ -80,6 +85,7 @@ export default function BaltiView({ filters }: { filters: Filters }) {
   useEffect(() => { setClosed(defaultClosed(cal)); }, [cal]);
 
   const idx = useMemo(() => indexCells(data?.zile ?? []), [data]);
+  const prog = useMemo(() => programSet(data?.program ?? []), [data]);
   const routes = useMemo(() => data?.rute ?? [], [data]);
   const routeKeys = useMemo(() => routes.map(r => r.cheie), [routes]);
   const cols: Column[] = useMemo(
@@ -103,14 +109,14 @@ export default function BaltiView({ filters }: { filters: Filters }) {
   return (
     <div>
       <div className="card" style={{ padding: '10px 12px', marginBottom: 10, display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center', fontSize: 13 }}>
-        <CellBox m={{ n: 9, libere: 13.3, urca: 5, vinde: 8.3, plin: false, verif: 8 }} title="exemplu" />
+        <CellBox m={{ n: 9, libere: 13.3, urca: 5, vinde: 8.3, plin: false, nepotr: 0 }} title="exemplu" />
         <div style={{ color: '#555', maxWidth: 640 }}>
           <b style={{ color: SELL[0] }}>8,3</b> locuri mai avem din Bălți ·
           <b> lib. 13,3</b> locuri libere când microbuzul ajunge în Bălți (20 minus cei din nord care merg mai departe) ·
           <b> ↑5,0</b> s-au încărcat în Bălți.
           Fondul {ramp} e cu atât mai roșu cu cât sunt mai multe locuri de vândut;
           <span style={{ display: 'inline-block', width: 12, height: 12, background: FULL_BG, border: `1px dashed ${FULL_INK}`, borderRadius: 3, verticalAlign: 'middle', margin: '0 4px 0 6px' }} />
-          gri = urcă mai mulți decât locurile libere. Media pe curse; la hover se vede numărul de curse.
+          gri = autobuzul pleacă plin din Bălți (20 sau mai mulți numărați). Media pe curse; la hover se vede numărul de curse.
         </div>
       </div>
 
@@ -193,7 +199,7 @@ export default function BaltiView({ filters }: { filters: Filters }) {
                 );
               })}
               {routes.length === 0 && (
-                <tr><td colSpan={cols.length + 2} style={{ textAlign: 'center', color: '#999', padding: 20 }}>Nu sunt curse spre Chișinău cu bilete în perioada aleasă.</td></tr>
+                <tr><td colSpan={cols.length + 2} style={{ textAlign: 'center', color: '#999', padding: 20 }}>Nu sunt curse spre Chișinău numărate în perioada aleasă.</td></tr>
               )}
             </tbody>
             {routes.length > 0 && (
@@ -202,11 +208,11 @@ export default function BaltiView({ filters }: { filters: Filters }) {
                   <th style={{ ...stickyCol, padding: '6px 12px', whiteSpace: 'nowrap', fontSize: 12, color: '#777', fontWeight: 600, borderTop: '2px solid rgba(0,0,0,0.12)' }}>Total pe toate graficele, media pe zi</th>
                   {cols.map(c => (
                     <td key={c.key} style={{ padding: 3, borderTop: '2px solid rgba(0,0,0,0.12)', borderLeft: '1px solid rgba(0,0,0,0.04)' }}>
-                      <CellBox total m={totalRoutes(idx, routeKeys, c.dates)} title={`total pe toate graficele · ${c.title}`} />
+                      <CellBox total m={totalRoutes(idx, prog, routeKeys, c.dates)} title={`total pe toate graficele · ${c.title}`} />
                     </td>
                   ))}
                   <td style={{ padding: 3, borderTop: '2px solid rgba(0,0,0,0.12)', borderLeft: '2px solid rgba(0,0,0,0.12)' }}>
-                    <CellBox total m={totalRoutes(idx, routeKeys, allDates)} title="total pe toate graficele · toată perioada" />
+                    <CellBox total m={totalRoutes(idx, prog, routeKeys, allDates)} title="total pe toate graficele · toată perioada" />
                   </td>
                 </tr>
               </tfoot>
@@ -216,12 +222,12 @@ export default function BaltiView({ filters }: { filters: Filters }) {
       </div>
 
       <div style={{ fontSize: 12, color: '#777', marginTop: 10, maxWidth: 760, display: 'grid', gap: 4 }}>
-        <div>Doar zilele numărate; o zi pe rută = un autobuz. <b>Numărați</b> = oamenii din autobuz la ieșirea din Bălți (Numărare). <b>Încărcați în Bălți</b> = biletele Mobilet ale rutei din acea zi cu urcarea în Bălți.</div>
+        <div>Doar zilele numărate (sesiuni terminate, drumul spre Chișinău numărat); o zi pe rută = un autobuz. <b>Numărați</b> = oamenii din autobuz la ieșirea din Bălți (Numărare). <b>Încărcați în Bălți</b> = biletele Mobilet ale rutei din acea zi cu urcarea în Bălți, fără biletele altui autobuz (altă mașină decât cea numărată sau ora din etichetă la peste 3 ore de plecarea rutei, adică altă cursă a zilei).</div>
         <div><b>Mai avem din Bălți</b> (cifra mare) = 20 − numărați: locurile goale când autobuzul pleacă din Bălți.</div>
         <div><b>lib.</b> = locurile libere la sosirea în Bălți = 20 − (numărați − încărcați în Bălți): cei din nord care merg mai departe sunt numărații fără cei încărcați în Bălți. <b>↑</b> = s-au încărcat în Bălți. Exemplu: 16 numărați, 14 încărcați → 2 merg mai departe, lib. 18, mai avem 4.</div>
-        <div>Celula gri = autobuzul pleacă plin din Bălți (încărcați mai mulți decât locurile libere).</div>
+        <div>Celula gri = autobuzul pleacă plin din Bălți (20 sau mai mulți numărați). <b>?</b> = biletele Mobilet ale cursei încă nu sunt atribuite pe rută (se face noaptea) sau lipsesc. <b>!</b> = mai multe bilete din Bălți decât oameni numărați: ori numărarea, ori biletele sunt greșite.</div>
         <div>Ora e plecarea din capătul de nord, din graficul rutei.</div>
-        <div><b>Total pe toate graficele</b> = totalul unei zile pe toate cursele spre Chișinău, mediat pe zilele coloanei (pe «sâmbătă» în septembrie: media celor 4 sâmbete). «Mai avem» se adună pe grafice, cursa plină nu scade din celelalte.</div>
+        <div><b>Total pe toate graficele</b> = totalul unei zile pe toate cursele spre Chișinău din grafic, mediat pe zilele coloanei (pe «sâmbătă» în septembrie: media celor 4 sâmbete). O cursă din grafic nenumărată în acea zi intră cu media rutei din aceeași coloană; la hover: câte sunt numărate din câte sunt în grafic. «Mai avem» se adună pe grafice, cursa plină nu scade din celelalte.</div>
       </div>
     </div>
   );

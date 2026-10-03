@@ -106,7 +106,7 @@ export default function BaltiView({ filters }: { filters: Filters }) {
       <div className="card" style={{ padding: '10px 12px', marginBottom: 10, display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center', fontSize: 13 }}>
         <CellBox m={{ n: 9, libere: 13.3, urca: 5, vinde: 8.3, plin: false, verif: 8 }} title="exemplu" />
         <div style={{ color: '#555', maxWidth: 640 }}>
-          <b>13,3</b> locuri libere când microbuzul ajunge în Bălți (20 minus cei din nord care merg mai departe de Bălți, Mobilet + Numărare) ·
+          <b>13,3</b> locuri libere când microbuzul ajunge în Bălți (20 minus cei din nord care merg mai departe de Bălți: numărați − urcați în Bălți) ·
           <b> ↑5,0</b> oameni urcă în Bălți · <b style={{ color: SELL[0] }}>+8,3</b> locuri mai putem vinde din Bălți.
           Fondul {ramp} e cu atât mai roșu cu cât sunt mai multe locuri de vândut;
           <span style={{ display: 'inline-block', width: 12, height: 12, background: FULL_BG, border: `1px dashed ${FULL_INK}`, borderRadius: 3, verticalAlign: 'middle', margin: '0 4px 0 6px' }} />
@@ -216,9 +216,9 @@ export default function BaltiView({ filters }: { filters: Filters }) {
       </div>
 
       <div style={{ fontSize: 12, color: '#777', marginTop: 10, maxWidth: 760, display: 'grid', gap: 4 }}>
-        <div><b>Oamenii</b> = biletele Mobilet ale rutei din acea zi + clienții fără bilet deja identificați din Numărare (aceiași ca în «Omiși de TIKI»). Doar zilele numărate; o zi pe rută = un autobuz.</div>
-        <div><b>Locuri libere la sosirea în Bălți</b> = 20 minus oamenii urcați înainte de Bălți care coboară după Bălți.</div>
-        <div><b>Urcă în Bălți</b> = oamenii cu urcarea în Bălți, oriunde ar coborî. <b>Mai putem vinde</b> = libere minus urcați; sub 0 nu scade. <b>num.</b> = verificarea: 20 minus oamenii numărați în autobuz la ieșirea din Bălți; trebuie să fie aproape de «mai putem vinde».</div>
+        <div>Doar zilele numărate; o zi pe rută = un autobuz. <b>Numărați</b> = oamenii din autobuz la ieșirea din Bălți (Numărare). <b>Urcă în Bălți</b> = biletele Mobilet ale rutei din acea zi cu urcarea în Bălți.</div>
+        <div><b>Locuri libere la sosirea în Bălți</b> = 20 − (numărați − urcă în Bălți): cei din nord care merg mai departe sunt numărații fără cei urcați în Bălți. Exemplu: 16 numărați, 14 urcă → 2 merg mai departe, 18 libere.</div>
+        <div><b>Mai putem vinde</b> = libere minus urcați; sub 0 nu scade. <b>num.</b> = 20 − numărați: e egal cu «mai putem vinde», iar când e mai mic, în Mobilet sunt mai multe bilete din Bălți decât oameni numărați.</div>
         <div>Ora e plecarea din capătul de nord, din graficul rutei.</div>
         <div><b>Total pe toate graficele</b> = totalul unei zile pe toate cursele spre Chișinău, mediat pe zilele coloanei (pe «sâmbătă» în septembrie: media celor 4 sâmbete). «Mai putem vinde» se adună pe grafice, cursa plină nu scade din celelalte.</div>
       </div>

@@ -2,6 +2,7 @@ import { InlineKeyboard } from 'grammy';
 import type { BotContext } from '../types.js';
 import { validateInviteToken, markInviteUsed, createOrUpdateUser } from '../services/db.js';
 import { POINT_LABELS } from '@translux/db';
+import { codDinPayload, handleBiletStart } from './bilet.js';
 
 export async function handleStart(ctx: BotContext) {
   const telegramId = ctx.from?.id;
@@ -9,6 +10,13 @@ export async function handleStart(ctx: BotContext) {
 
   // Check for invite token in /start payload
   const payload = ctx.match as string | undefined;
+
+  // Clientul de bilete online (ION-199): ÎNAINTEA invitațiilor, fără să atingă `users`.
+  const codBilet = codDinPayload(payload);
+  if (codBilet) {
+    await handleBiletStart(ctx, codBilet);
+    return;
+  }
 
   if (payload) {
     // Attempt to activate invite

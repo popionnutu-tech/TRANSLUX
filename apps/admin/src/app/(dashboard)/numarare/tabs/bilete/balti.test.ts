@@ -76,7 +76,7 @@ describe('Locuri în Bălți: mediile și culoarea', () => {
 
   it('fără curse → null; toate rutele se adună', () => {
     expect(mean(sumCells(idx, ['A'], ['2026-09-03']))).toBeNull();
-    expect(sumCells(idx, ['A', 'B'], ['2026-09-01'])).toEqual({ n: 3, libere: 48, urca: 8 });
+    expect(sumCells(idx, ['A', 'B'], ['2026-09-01'])).toEqual({ n: 3, libere: 48, urca: 8, verif: 0 });
   });
 
   it('treapta de culoare pe 0–20', () => {
@@ -97,15 +97,15 @@ describe('Locuri în Bălți: mediile și culoarea', () => {
 
 describe('Locuri în Bălți: totalul pe toate graficele, media pe zi (ION-214)', () => {
   const idx = indexCells([
-    { r: 'A', d: '2026-09-05', n: 1, libere: 10, urca: 4 },
-    { r: 'B', d: '2026-09-05', n: 1, libere: 5, urca: 9 },
-    { r: 'A', d: '2026-09-12', n: 1, libere: 14, urca: 6 },
+    { r: 'A', d: '2026-09-05', n: 1, libere: 10, urca: 4, la_plecare: 14 },
+    { r: 'B', d: '2026-09-05', n: 1, libere: 5, urca: 9, la_plecare: 22 },
+    { r: 'A', d: '2026-09-12', n: 1, libere: 14, urca: 6, la_plecare: 12 },
   ]);
 
   it('media totalurilor zilnice; graficul lipsă într-o zi nu umflă totalul; cursa plină nu scade din «vinde»', () => {
     const t = totalRoutes(idx, ['A', 'B'], ['2026-09-05', '2026-09-12', '2026-09-19'])!;
-    // 05.09: 15 libere, 13 urcă, vinde 6 + 0; 12.09: 14 libere, 6 urcă, vinde 8; 19.09 fără curse
-    expect(t).toEqual({ n: 2, libere: 14.5, urca: 9.5, vinde: 7, plin: false });
+    // 05.09: 15 libere, 13 urcă, vinde 6 + 0, num. 6 + 0 (22 numărați = plin); 12.09: 14 libere, 6 urcă, vinde 8, num. 8
+    expect(t).toEqual({ n: 2, libere: 14.5, urca: 9.5, vinde: 7, plin: false, verif: 7 });
   });
 
   it('fără curse în coloană → nimic', () => {

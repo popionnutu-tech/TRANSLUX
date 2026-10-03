@@ -200,7 +200,7 @@ export interface TikiOd {
 // în Bălți și suma celor urcați în Bălți; mediile și gruparea pe săptămâni/luni se fac în client (bilete/balti.ts).
 export interface TikiBalti {
   rute: { cheie: string; ora: string; nume: string; curse: number }[];
-  zile: { r: string; d: string; n: number; libere: number; urca: number }[];
+  zile: { r: string; d: string; n: number; libere: number; urca: number; la_plecare: number | null }[];
 }
 
 // Oamenii omiși de TIKI dar numărați în Numărare, pe pereche fără sens (migr. 459).

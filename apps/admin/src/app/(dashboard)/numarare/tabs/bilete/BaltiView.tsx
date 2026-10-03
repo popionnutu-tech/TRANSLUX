@@ -42,18 +42,20 @@ function CellBox({ m, title, total = false }: { m: CellMean | null; title: strin
   const ink = total ? INK[0] : m.plin ? FULL_INK : INK[s];
   const sell = total ? SELL[0] : m.plin ? FULL_INK : SELL[s];
   const t = `${title}\n${nf1.format(m.libere)} locuri libere la sosirea în Bălți\n↑ ${nf1.format(m.urca)} urcă în Bălți\n` +
-    (m.plin ? `urcă mai mulți decât locurile libere` : `+ ${nf1.format(m.vinde)} mai putem vinde din Bălți`) + (total
+    (m.plin ? `urcă mai mulți decât locurile libere` : `+ ${nf1.format(m.vinde)} mai putem vinde din Bălți`) +
+    `\nverificare: 20 − numărați la ieșirea din Bălți = ${nf1.format(m.verif)}` + (total
       ? `\ntotalul zilei pe toate graficele, media pe ${m.n} ${m.n === 1 ? 'zi' : 'zile'}`
       : `\nmedia pe ${m.n} ${m.n === 1 ? 'cursă' : 'curse'}`);
   return (
     <div title={t} style={{
-      ...MONO, display: 'grid', gridTemplateColumns: 'auto 1fr', gridTemplateRows: 'auto auto', columnGap: 8, rowGap: 2, alignItems: 'baseline',
+      ...MONO, display: 'grid', gridTemplateColumns: 'auto 1fr', gridTemplateRows: 'auto auto auto', columnGap: 8, rowGap: 2, alignItems: 'baseline',
       padding: '5px 8px', borderRadius: 5, background: bg, color: ink, minWidth: 84,
       outline: m.plin ? `1px dashed ${FULL_INK}` : 'none', outlineOffset: -1,
     }}>
       <span style={{ gridRow: '1 / span 2', alignSelf: 'center', fontSize: 19, fontWeight: 600, lineHeight: 1 }}>{nf1.format(m.libere)}</span>
       <span style={{ justifySelf: 'end', fontSize: 12, lineHeight: 1, opacity: 0.85 }}>↑{nf1.format(m.urca)}</span>
       <span style={{ justifySelf: 'end', fontSize: 14, fontWeight: 700, lineHeight: 1, color: sell }}>+{nf1.format(m.vinde)}</span>
+      <span style={{ gridColumn: '1 / span 2', justifySelf: 'end', fontSize: 11, lineHeight: 1, opacity: 0.75 }}>num. {nf1.format(m.verif)}</span>
     </div>
   );
 }
@@ -102,9 +104,9 @@ export default function BaltiView({ filters }: { filters: Filters }) {
   return (
     <div>
       <div className="card" style={{ padding: '10px 12px', marginBottom: 10, display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center', fontSize: 13 }}>
-        <CellBox m={{ n: 9, libere: 13.3, urca: 5, vinde: 8.3, plin: false }} title="exemplu" />
+        <CellBox m={{ n: 9, libere: 13.3, urca: 5, vinde: 8.3, plin: false, verif: 8 }} title="exemplu" />
         <div style={{ color: '#555', maxWidth: 640 }}>
-          <b>13,3</b> locuri libere când microbuzul ajunge în Bălți (20 minus cei din nord care merg mai departe de Bălți) ·
+          <b>13,3</b> locuri libere când microbuzul ajunge în Bălți (20 minus cei din nord care merg mai departe de Bălți, Mobilet + Numărare) ·
           <b> ↑5,0</b> oameni urcă în Bălți · <b style={{ color: SELL[0] }}>+8,3</b> locuri mai putem vinde din Bălți.
           Fondul {ramp} e cu atât mai roșu cu cât sunt mai multe locuri de vândut;
           <span style={{ display: 'inline-block', width: 12, height: 12, background: FULL_BG, border: `1px dashed ${FULL_INK}`, borderRadius: 3, verticalAlign: 'middle', margin: '0 4px 0 6px' }} />
@@ -214,9 +216,10 @@ export default function BaltiView({ filters }: { filters: Filters }) {
       </div>
 
       <div style={{ fontSize: 12, color: '#777', marginTop: 10, maxWidth: 760, display: 'grid', gap: 4 }}>
-        <div><b>Locuri libere la sosirea în Bălți</b> = cele 20 de locuri ale rutierei (Mobilet vinde 18, dar fizic sunt 20) minus biletele de la o stație la nord de Bălți spre una la sud (Chișinău, Orhei, Sîngerei, Prepelița, Bilicenii Vechi, Zahareuca, Peresecina, Copăceni, Rătuș, Bănești).</div>
-        <div><b>Urcă în Bălți</b> = biletele cu stația de plecare Bălți, oriunde ar coborî. <b>Mai putem vinde</b> = libere minus urcați; sub 0 nu scade.</div>
-        <div>O zi pe un grafic = un autobuz: când Mobilet împarte cursa în mai multe, biletele lor se adună. Zilele fără niciun bilet cu urcare la nord de Bălți nu intră (biletele din nord lipsesc din Mobilet în acele zile). Se văd doar biletele bătute: oamenii luați fără bilet nu apar. Ora e plecarea din capătul de nord.</div>
+        <div><b>Oamenii</b> = biletele Mobilet ale rutei din acea zi + clienții fără bilet deja identificați din Numărare (aceiași ca în «Omiși de TIKI»). Doar zilele numărate; o zi pe rută = un autobuz.</div>
+        <div><b>Locuri libere la sosirea în Bălți</b> = 20 minus oamenii urcați înainte de Bălți care coboară după Bălți.</div>
+        <div><b>Urcă în Bălți</b> = oamenii cu urcarea în Bălți, oriunde ar coborî. <b>Mai putem vinde</b> = libere minus urcați; sub 0 nu scade. <b>num.</b> = verificarea: 20 minus oamenii numărați în autobuz la ieșirea din Bălți; trebuie să fie aproape de «mai putem vinde».</div>
+        <div>Ora e plecarea din capătul de nord, din graficul rutei.</div>
         <div><b>Total pe toate graficele</b> = totalul unei zile pe toate cursele spre Chișinău, mediat pe zilele coloanei (pe «sâmbătă» în septembrie: media celor 4 sâmbete). «Mai putem vinde» se adună pe grafice, cursa plină nu scade din celelalte.</div>
       </div>
     </div>

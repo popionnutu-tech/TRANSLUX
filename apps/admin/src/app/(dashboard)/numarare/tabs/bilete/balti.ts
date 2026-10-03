@@ -4,27 +4,32 @@
 
 import { addDays } from './periods';
 
-/** Sumele unei celule (pe toate cursele din ea); mediile se fac la afișare. */
-export interface Cell { n: number; libere: number; urca: number }
-export interface CellMean { n: number; libere: number; urca: number; vinde: number; plin: boolean }
+/**
+ * Sumele unei celule (pe toate cursele din ea); mediile se fac la afișare. verif = Σ (20 − oamenii numărați la ieșirea
+ * din Bălți), verificarea din Numărare (ION-216).
+ */
+export interface Cell { n: number; libere: number; urca: number; verif: number }
+export interface CellMean { n: number; libere: number; urca: number; vinde: number; plin: boolean; verif: number }
+
+export const LOCURI = 20;
 
 export type ColKind = 'day' | 'week' | 'month' | 'period' | 'dow';
 export interface Column { key: string; kind: ColKind; dates: string[]; label: string; title: string }
 export interface Week { key: string; label: string; iso: number; dates: string[] }
 export interface Month { key: string; label: string; weeks: Week[] }
 
-export const ZERO: Cell = { n: 0, libere: 0, urca: 0 };
+export const ZERO: Cell = { n: 0, libere: 0, urca: 0, verif: 0 };
 
 export function addCell(a: Cell, b: Cell | undefined): Cell {
   if (!b) return a;
-  return { n: a.n + b.n, libere: a.libere + b.libere, urca: a.urca + b.urca };
+  return { n: a.n + b.n, libere: a.libere + b.libere, urca: a.urca + b.urca, verif: a.verif + b.verif };
 }
 
 export function mean(c: Cell): CellMean | null {
   if (!c.n) return null;
   const libere = c.libere / c.n;
   const urca = c.urca / c.n;
-  return { n: c.n, libere, urca, vinde: Math.max(0, libere - urca), plin: urca > libere };
+  return { n: c.n, libere, urca, vinde: Math.max(0, libere - urca), plin: urca > libere, verif: c.verif / c.n };
 }
 
 /**
@@ -33,7 +38,7 @@ export function mean(c: Cell): CellMean | null {
  * fiecare grafic al zilei și se adună: cursa plină nu scade din locurile altora. n = zilele cu curse.
  */
 export function totalRoutes(idx: CellIndex, routes: string[], dates: string[]): CellMean | null {
-  let zile = 0, libere = 0, urca = 0, vinde = 0;
+  let zile = 0, libere = 0, urca = 0, vinde = 0, verif = 0;
   for (const d of dates) {
     let are = false;
     for (const r of routes) {
@@ -41,12 +46,12 @@ export function totalRoutes(idx: CellIndex, routes: string[], dates: string[]): 
       const m = c && mean(c);
       if (!m) continue;
       are = true;
-      libere += c.libere; urca += c.urca; vinde += m.vinde * m.n;
+      libere += c.libere; urca += c.urca; vinde += m.vinde * m.n; verif += c.verif;
     }
     if (are) zile++;
   }
   if (!zile) return null;
-  return { n: zile, libere: libere / zile, urca: urca / zile, vinde: vinde / zile, plin: false };
+  return { n: zile, libere: libere / zile, urca: urca / zile, vinde: vinde / zile, plin: false, verif: verif / zile };
 }
 
 const DAY = 86_400_000;
@@ -146,9 +151,14 @@ export function weekdayColumns(from: string, to: string): Column[] {
 export type CellIndex = Map<string, Cell>;
 export const cellKey = (r: string, d: string) => `${r}|${d}`;
 
-export function indexCells(zile: { r: string; d: string; n: number; libere: number; urca: number }[]): CellIndex {
+export function indexCells(
+  zile: { r: string; d: string; n: number; libere: number; urca: number; la_plecare?: number | null }[],
+): CellIndex {
   const m: CellIndex = new Map();
-  for (const z of zile) m.set(cellKey(z.r, z.d), { n: z.n, libere: z.libere, urca: z.urca });
+  for (const z of zile) {
+    const verif = Math.max(0, LOCURI - (z.la_plecare ?? LOCURI)) * z.n;
+    m.set(cellKey(z.r, z.d), { n: z.n, libere: Number(z.libere), urca: Number(z.urca), verif });
+  }
   return m;
 }
 

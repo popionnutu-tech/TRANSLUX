@@ -28,20 +28,25 @@ export function mean(c: Cell): CellMean | null {
 }
 
 /**
- * Totalul pe toate graficele (ION-213, Ion: «jos să fie total pe toate rutele»): suma mediilor fiecărui grafic pe
- * zilele coloanei = o zi obișnuită pe toate cursele. «Mai putem vinde» se adună pe grafice: cursa plină nu scade
- * din locurile altora. n = cursele din coloană, pe toate graficele.
+ * Totalul pe toate graficele, media pe zi (ION-213 → ION-214, Ion: «totalul tot media, i.e. media pe o sâmbătă din 4»):
+ * pe fiecare zi a coloanei se adună toate cursele zilei, apoi media pe zilele cu curse. «Mai putem vinde» se ia pe
+ * fiecare grafic al zilei și se adună: cursa plină nu scade din locurile altora. n = zilele cu curse.
  */
 export function totalRoutes(idx: CellIndex, routes: string[], dates: string[]): CellMean | null {
-  let tot: CellMean | null = null;
-  for (const r of routes) {
-    const m = mean(sumCells(idx, [r], dates));
-    if (!m) continue;
-    tot = tot
-      ? { n: tot.n + m.n, libere: tot.libere + m.libere, urca: tot.urca + m.urca, vinde: tot.vinde + m.vinde, plin: false }
-      : { ...m, plin: false };
+  let zile = 0, libere = 0, urca = 0, vinde = 0;
+  for (const d of dates) {
+    let are = false;
+    for (const r of routes) {
+      const c = idx.get(cellKey(r, d));
+      const m = c && mean(c);
+      if (!m) continue;
+      are = true;
+      libere += c.libere; urca += c.urca; vinde += m.vinde * m.n;
+    }
+    if (are) zile++;
   }
-  return tot;
+  if (!zile) return null;
+  return { n: zile, libere: libere / zile, urca: urca / zile, vinde: vinde / zile, plin: false };
 }
 
 const DAY = 86_400_000;

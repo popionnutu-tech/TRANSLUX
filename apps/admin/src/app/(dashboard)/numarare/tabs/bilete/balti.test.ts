@@ -95,20 +95,20 @@ describe('Locuri în Bălți: mediile și culoarea', () => {
   });
 });
 
-describe('Locuri în Bălți: totalul pe toate graficele (ION-213)', () => {
+describe('Locuri în Bălți: totalul pe toate graficele, media pe zi (ION-214)', () => {
   const idx = indexCells([
-    { r: 'A', d: '2026-09-01', n: 1, libere: 10, urca: 4 },
-    { r: 'A', d: '2026-09-02', n: 1, libere: 14, urca: 6 },
-    { r: 'B', d: '2026-09-01', n: 1, libere: 5, urca: 9 },
+    { r: 'A', d: '2026-09-05', n: 1, libere: 10, urca: 4 },
+    { r: 'B', d: '2026-09-05', n: 1, libere: 5, urca: 9 },
+    { r: 'A', d: '2026-09-12', n: 1, libere: 14, urca: 6 },
   ]);
 
-  it('adună mediile graficelor; cursa plină nu scade din «mai putem vinde»', () => {
-    const t = totalRoutes(idx, ['A', 'B'], ['2026-09-01', '2026-09-02'])!;
-    // A: media 12 libere, 5 urcă, 7 de vândut; B: 5 libere, 9 urcă, 0 de vândut (plină)
-    expect(t).toEqual({ n: 3, libere: 17, urca: 14, vinde: 7, plin: false });
+  it('media totalurilor zilnice; graficul lipsă într-o zi nu umflă totalul; cursa plină nu scade din «vinde»', () => {
+    const t = totalRoutes(idx, ['A', 'B'], ['2026-09-05', '2026-09-12', '2026-09-19'])!;
+    // 05.09: 15 libere, 13 urcă, vinde 6 + 0; 12.09: 14 libere, 6 urcă, vinde 8; 19.09 fără curse
+    expect(t).toEqual({ n: 2, libere: 14.5, urca: 9.5, vinde: 7, plin: false });
   });
 
   it('fără curse în coloană → nimic', () => {
-    expect(totalRoutes(idx, ['A', 'B'], ['2026-09-05'])).toBeNull();
+    expect(totalRoutes(idx, ['A', 'B'], ['2026-09-19'])).toBeNull();
   });
 });

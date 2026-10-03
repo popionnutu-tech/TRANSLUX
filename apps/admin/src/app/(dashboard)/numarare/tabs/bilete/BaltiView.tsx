@@ -43,7 +43,7 @@ function CellBox({ m, title, total = false }: { m: CellMean | null; title: strin
   const sell = total ? SELL[0] : m.plin ? FULL_INK : SELL[s];
   const t = `${title}\n${nf1.format(m.libere)} locuri libere la sosirea în Bălți\n↑ ${nf1.format(m.urca)} urcă în Bălți\n` +
     (m.plin ? `urcă mai mulți decât locurile libere` : `+ ${nf1.format(m.vinde)} mai putem vinde din Bălți`) + (total
-      ? `\nsuma pe grafice a mediei fiecăruia (o zi obișnuită), din ${m.n} ${m.n === 1 ? 'cursă' : 'curse'}`
+      ? `\ntotalul zilei pe toate graficele, media pe ${m.n} ${m.n === 1 ? 'zi' : 'zile'}`
       : `\nmedia pe ${m.n} ${m.n === 1 ? 'cursă' : 'curse'}`);
   return (
     <div title={t} style={{
@@ -197,7 +197,7 @@ export default function BaltiView({ filters }: { filters: Filters }) {
             {routes.length > 0 && (
               <tfoot>
                 <tr>
-                  <th style={{ ...stickyCol, padding: '6px 12px', whiteSpace: 'nowrap', fontSize: 12, color: '#777', fontWeight: 600, borderTop: '2px solid rgba(0,0,0,0.12)' }}>Total pe toate graficele, pe zi</th>
+                  <th style={{ ...stickyCol, padding: '6px 12px', whiteSpace: 'nowrap', fontSize: 12, color: '#777', fontWeight: 600, borderTop: '2px solid rgba(0,0,0,0.12)' }}>Total pe toate graficele, media pe zi</th>
                   {cols.map(c => (
                     <td key={c.key} style={{ padding: 3, borderTop: '2px solid rgba(0,0,0,0.12)', borderLeft: '1px solid rgba(0,0,0,0.04)' }}>
                       <CellBox total m={totalRoutes(idx, routeKeys, c.dates)} title={`total pe toate graficele · ${c.title}`} />
@@ -217,7 +217,7 @@ export default function BaltiView({ filters }: { filters: Filters }) {
         <div><b>Locuri libere la sosirea în Bălți</b> = cele 20 de locuri ale rutierei (Mobilet vinde 18, dar fizic sunt 20) minus biletele de la o stație la nord de Bălți spre una la sud (Chișinău, Orhei, Sîngerei, Prepelița, Bilicenii Vechi, Zahareuca, Peresecina, Copăceni, Rătuș, Bănești).</div>
         <div><b>Urcă în Bălți</b> = biletele cu stația de plecare Bălți, oriunde ar coborî. <b>Mai putem vinde</b> = libere minus urcați; sub 0 nu scade.</div>
         <div>Media e pe cursele cu cel puțin un bilet, pe ziua cursei din Mobilet. Se văd doar biletele bătute: oamenii luați fără bilet nu apar. Ora e plecarea din capătul de nord.</div>
-        <div><b>Total pe toate graficele</b> = suma, pe grafice, a mediei fiecăruia în coloana respectivă: cât e într-o zi obișnuită pe toate cursele spre Chișinău. «Mai putem vinde» se adună pe grafice, cursa plină nu scade din celelalte.</div>
+        <div><b>Total pe toate graficele</b> = totalul unei zile pe toate cursele spre Chișinău, mediat pe zilele coloanei (pe «sâmbătă» în septembrie: media celor 4 sâmbete). «Mai putem vinde» se adună pe grafice, cursa plină nu scade din celelalte.</div>
       </div>
     </div>
   );

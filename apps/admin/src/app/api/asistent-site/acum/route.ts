@@ -22,17 +22,9 @@ import { chisinauTodayIso } from '@/lib/chisinau-time';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-// Fereastra de pe site cere o dată pe minut, cât e deschisă. Plafonul taie abuzul.
-const WINDOW_MS = 60_000;
-const MAX = 300;
-let start = Date.now();
-let count = 0;
-function limited(): boolean {
-  const now = Date.now();
-  if (now - start > WINDOW_MS) { start = now; count = 0; }
-  count += 1;
-  return count > MAX;
-}
+// Fereastra de pe site cere o dată pe minut, cât e deschisă. Abuzul îl taie Vercel Firewall (ION-209): 30 de cereri
+// pe minut pe IP, la marginea rețelei. Contorul din memorie de aici era pe instanță și pentru toți vizitatorii laolaltă:
+// nu oprea abuzul și la vârf putea refuza clienți adevărați.
 
 /** Cursa plecată după grafic de peste atâtea minute, fără punct și fără istoric, iese din listă. */
 const STALE_MIN = 30;
@@ -95,7 +87,6 @@ async function handle(req: NextRequest, from: string, to: string, { light }: { l
   // GET-ul nu are voie să rămână în CDN: pozițiile sunt de acum.
   const headers: Record<string, string> = { ...cors(req), 'Cache-Control': 'no-store' };
   if (!headers['Access-Control-Allow-Origin']) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
-  if (limited()) return NextResponse.json({ error: 'rate limited' }, { status: 429, headers });
   if (!from || !to) return NextResponse.json({ error: 'bad request' }, { status: 400, headers });
 
   try {

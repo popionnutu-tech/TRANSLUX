@@ -20,12 +20,18 @@ log(`curse ${toate.length} → fără dubluri ${best.size} → cover ≥ 0,5: ${
 
 // localitățile = opririle rutelor cu coordonate; opririle cu aceleași coordonate sunt o singură localitate
 const rute = new Map(N.rute.map((r) => [r.id, r]));
+// corecturi de loc: nomenclatorul pune unele opriri pe centrul altui sat (Ion, 03.10: «Criva Vama e separat lângă vamă,
+// Criva e oprirea în sat»). Vama = postul de frontieră din OSM (barrier=border_control), tratat ca o gară: capăt, așteptare lungă.
+// Orhei: rutierele trec pe ocolitoare și opresc la ieșirea spre Bălți, lângă Petrom/Bemol, pe dreapta spre nord (Ion, 03.10);
+// punctul = stația OSM «Traseul R6 48 km», nu centrul orașului (3 km, în afara razei).
+const FIX = { 'Criva Vama': { lat: 48.26461, lon: 26.62298, gara: 'vama', numeGara: 'Vama Criva' }, 'Orhei': { lat: 47.39202, lon: 28.79749 } };
+for (const r of N.rute) for (const o of r.opriri) if (FIX[o.n]) Object.assign(o, FIX[o.n]);
 const locs = new Map();   // cheie lat,lon → {nume[], lat, lon, gara}
 const locDe = (o) => `${o.lat.toFixed(4)},${o.lon.toFixed(4)}`;
 for (const r of N.rute) for (const o of r.opriri) {
   if (o.lat == null) continue; const k = locDe(o);
-  if (!locs.has(k)) locs.set(k, { k, nume: [], lat: o.lat, lon: o.lon, gara: o.gara || null, rute: new Set() });
-  const L = locs.get(k); if (!L.nume.includes(o.n)) L.nume.push(o.n); L.rute.add(r.id); if (o.gara) L.gara = o.gara;
+  if (!locs.has(k)) locs.set(k, { k, nume: [], lat: o.lat, lon: o.lon, gara: o.gara || null, numeGara: o.numeGara || null, rute: new Set() });
+  const L = locs.get(k); if (!L.nume.includes(o.n)) L.nume.push(o.n); L.rute.add(r.id); if (o.gara) { L.gara = o.gara; L.numeGara = o.numeGara || L.numeGara; }
 }
 const capete = new Map(N.rute.map((r) => { const op = r.opriri.filter((o) => o.lat != null); return [r.id, { tur: locDe(op[op.length - 1]), retur: locDe(op[0]) }]; }));
 
@@ -106,7 +112,7 @@ const ORAS_MARE = new Set(['chisinau', 'balti']);
 const rez = [];
 for (const L of locs.values()) {
   const es = ev.filter((e) => e.k === L.k); const mare = ORAS_MARE.has(L.gara);
-  const garaPt = L.gara ? STATII.get(L.gara) : null;
+  const garaPt = L.gara ? (STATII.get(L.gara) || { lat: L.lat, lon: L.lon }) : null;
   // grupare prin vârfuri de densitate: eventul cu cei mai mulți vecini la ≤ 30 m dintre cei rămași, grupul = cei rămași
   // la ≤ 50 m de el; repetat cât vârful are ≥ 5 opriri. Grupurile ies compacte (≤ 100 m), fără lanțuri de-a lungul drumului.
   const g2 = new Map(); es.forEach((e, i) => { const c = `${Math.floor(e.lat * 2500)}:${Math.floor(e.lon * 1700)}`; if (!g2.has(c)) g2.set(c, []); g2.get(c).push(i); });
@@ -166,9 +172,9 @@ for (const L of locs.values()) {
   const alese = [];
   for (const g of cand) { const lang = alese.find((a) => hav(a.med, g.med) * 1000 < 150); if (lang) { g.motive.push(`la ${Math.round(hav(lang.med, g.med) * 1000)} m de punctul ${alese.indexOf(lang) + 1}, unit cu el`); g.ok = false; continue; } if (alese.length >= 3) { g.motive.push('al 4-lea ca scor'); g.ok = false; continue; } alese.push(g); }
   const GENERIC = /^(statie|stație|staţie|oprire|остановка|bus ?stop|stație autobuz|statia|stația|автобусная остановка)( autobuz)?$/i;
-  alese.forEach((g, i) => { g.rang = i + 1; if (g.esteGara) { g.med = { ...garaPt }; g.nume = 'Autogara'; } else g.nume = g.statie?.name && !GENERIC.test(g.statie.name.trim()) ? g.statie.name : null; });
+  alese.forEach((g, i) => { g.rang = i + 1; if (g.esteGara) { g.med = { ...garaPt }; g.nume = L.numeGara || 'Autogara'; } else g.nume = g.statie?.name && !GENERIC.test(g.statie.name.trim()) ? g.statie.name : null; });
   const trecL = new Set(); for (const g of grupuri) for (const u of trecute(g.med, 60)) trecL.add(u);
-  rez.push({ k: L.k, nume: L.nume, lat: L.lat, lon: L.lon, gara: L.gara, rute: [...L.rute].sort((a, b) => a - b), opriri: es.length,
+  rez.push({ k: L.k, nume: L.nume, lat: L.lat, lon: L.lon, gara: L.gara, numeGara: L.numeGara, rute: [...L.rute].sort((a, b) => a - b), opriri: es.length,
     masini: new Set(es.map((e) => e.m)).size, grupuri, alese });
 }
 log(`grupare gata: ${rez.length} localități, ${rez.reduce((a, L) => a + L.grupuri.length, 0)} grupuri, ${rez.reduce((a, L) => a + L.alese.length, 0)} puncte alese`);
@@ -186,6 +192,7 @@ for await (const line of rl) {
     L.drumuri.push({ t: MARI.has(f.properties.highway) ? 1 : 0, n: f.properties.name || null, p: c.map(([x, y]) => [+y.toFixed(5), +x.toFixed(5)]) }); }
 }
 function strada(L, p) { let b = null, bd = 40; for (const d of L.drumuri) { if (!d.n) continue; for (let i = 1; i < d.p.length; i++) { const x = segDist(p, d.p[i - 1][0], d.p[i - 1][1], d.p[i][0], d.p[i][1]); if (x < bd) { bd = x; b = d.n; } } } return b; }
+for (const L of rez) for (const g of L.grupuri) if (g.rang && !g.nume && L.gara === 'vama') g.nume = `lângă ${L.numeGara}`;
 for (const L of rez) for (const g of L.grupuri) if (g.rang && !g.nume) { const st = strada(L, g.med); g.nume = st ? `${st}` : null; g.numeStrada = !!st; }
 // ieșirea pentru pagină
 const r5 = (x) => +x.toFixed(5);

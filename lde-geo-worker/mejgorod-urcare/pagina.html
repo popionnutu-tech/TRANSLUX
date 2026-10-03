@@ -1,0 +1,271 @@
+<title>Puncte de urcare interurbane</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a working list — summary strip, then cards of 10 localities, each card = map left, points right (stacks on phones). */
+:root {
+  --bg: #f3f5f4; --surface: #ffffff; --ink: #18211f; --muted: #5d6b67; --line: #d6ddda;
+  --road: #c3ccc8; --road-major: #9aa7a2; --trace: #8db4d9; --dot: #3f6f9c;
+  --accent: #0f5c8c; --accent-ink: #ffffff; --ok: #1e7a4b; --warn: #a3561b; --reject: #8a9590;
+  --font-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Source Sans 3", "Segoe UI", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121816; --surface: #1a2220; --ink: #e5ece9; --muted: #9aa8a3; --line: #2c3734;
+  --road: #34403c; --road-major: #4d5b56; --trace: #2f5f8a; --dot: #7fb0dc;
+  --accent: #5fb0e6; --accent-ink: #0c1a24; --ok: #5cc28c; --warn: #e09a5a; --reject: #6f7c77; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #121816; --surface: #1a2220; --ink: #e5ece9; --muted: #9aa8a3; --line: #2c3734;
+  --road: #34403c; --road-major: #4d5b56; --trace: #2f5f8a; --dot: #7fb0dc;
+  --accent: #5fb0e6; --accent-ink: #0c1a24; --ok: #5cc28c; --warn: #e09a5a; --reject: #6f7c77; color-scheme: dark }
+body { background: var(--bg); color: var(--ink); font: 16px/1.5 var(--font-body); }
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 56px; display: grid; gap: 22px; }
+h1 { font: 700 clamp(1.6rem, 3.4vw, 2.3rem)/1.1 var(--font-display); margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+h2 { font: 600 1.15rem/1.2 var(--font-display); margin: 0; }
+.lede { color: var(--muted); max-width: 68ch; margin: 6px 0 0; }
+.nums { display: flex; flex-wrap: wrap; gap: 8px 22px; font-family: var(--font-mono); font-size: .86rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.nums b { color: var(--ink); font-weight: 500; }
+.bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 2; background: var(--bg); padding-block: 10px; border-bottom: 1px solid var(--line); }
+.bar input, .bar select { font: inherit; font-size: .95rem; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); min-width: 0; }
+.bar input { flex: 1 1 200px; }
+.pager { display: flex; gap: 6px; align-items: center; margin-left: auto; font-family: var(--font-mono); font-size: .85rem; }
+button { font: inherit; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 6px; padding: 6px 12px; }
+button:disabled { opacity: .4; cursor: default; }
+button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.loc { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); overflow: hidden; }
+@media (max-width: 820px) { .loc { grid-template-columns: minmax(0, 1fr); } }
+.map { border-right: 1px solid var(--line); background: var(--bg); position: relative; }
+@media (max-width: 820px) { .map { border-right: 0; border-bottom: 1px solid var(--line); } }
+.map svg { display: block; width: 100%; height: auto; aspect-ratio: 1; max-width: 100%; }
+.scale { position: absolute; left: 10px; bottom: 8px; font: .72rem var(--font-mono); color: var(--muted); }
+.info { padding: 14px 14px 16px; display: grid; gap: 8px; align-content: start; min-width: 0; font-size: .92rem; }
+.head { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; }
+.tag { font: 500 .72rem var(--font-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.verdict { font-weight: 600; }
+.verdict.n0 { color: var(--warn); } .verdict.n1 { color: var(--ink); } .verdict.n2, .verdict.n3 { color: var(--ok); }
+.meta { font: .74rem var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+ol.pts { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.pt { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 8px; align-items: start; }
+.badge { width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font: 600 .78rem/22px var(--font-display); text-align: center; }
+.pt h3 { margin: 0; font: 600 .95rem/1.25 var(--font-body); }
+.pt .meta a { color: var(--accent); }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.chip { font: .66rem var(--font-mono); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; font-variant-numeric: tabular-nums; }
+.chip.on { border-color: var(--ok); color: var(--ok); }
+.chip.off { color: var(--reject); text-decoration: line-through; }
+details { border-top: 1px dashed var(--line); padding-top: 8px; }
+summary { cursor: pointer; color: var(--muted); font-size: .9rem; }
+.rej { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; font-size: .88rem; }
+.rej li { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 6px; align-items: start; }
+.x { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--reject); margin-top: 3px; }
+.why { color: var(--warn); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: .82rem; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { display: inline-block; width: 12px; height: 12px; border-radius: 50%; }
+.empty { padding: 40px; text-align: center; color: var(--muted); }
+.note { font-size: .88rem; color: var(--muted); max-width: 80ch; }
+.act { display: flex; gap: 6px; align-items: center; }
+.act button { font-size: .78rem; padding: 2px 8px; white-space: nowrap; }
+.act .scoate { color: var(--warn); border-color: var(--warn); }
+.act .readu { color: var(--ok); border-color: var(--ok); }
+.form { display: grid; gap: 6px; margin-top: 6px; padding: 10px; border: 1px solid var(--warn); border-radius: 8px; }
+.form select, .form input { font: inherit; font-size: .88rem; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); min-width: 0; }
+.pt.scos h3 { text-decoration: line-through; color: var(--reject); }
+.pt.scos .badge { background: var(--reject); }
+.dec { font-size: .84rem; color: var(--warn); }
+.dec.add { color: var(--ok); }
+.salv { font-size: .82rem; color: var(--muted); }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="tag">ION-198 · rutele interurbane · analiză GPS</div>
+    <h1>Unde urcă oamenii în fiecare localitate</h1>
+    <p class="lede">Opririle scurte ale tuturor autobuzelor din grafic, într-o lună, grupate pe localități. Cercurile numerotate sunt punctele propuse pentru alegerea la cumpărarea biletului; cercurile goale sunt locuri unde autobuzele opresc, dar care nu trec regulile, cu motivul.</p>
+  </header>
+  <div class="nums" id="nums">Se încarcă datele…</div>
+  <p class="salv" id="salv">Butoanele «Scoate» și «Adaugă totuși» apar după ce pagina se conectează la baza ei.</p>
+  <div class="legend">
+    <span><i class="sw" style="background:var(--accent)"></i>punct propus</span>
+    <span><i class="sw" style="border:2px solid var(--reject)"></i>loc respins de reguli</span>
+    <span><i class="sw" style="border:2px solid var(--warn)"></i>scos de tine</span>
+    <span><i class="sw" style="background:var(--dot);opacity:.5"></i>o oprire a unui autobuz</span>
+    <span><i class="sw" style="background:var(--trace)"></i>urma autobuzelor</span>
+    <span><i class="sw" style="background:var(--road-major)"></i>drum</span>
+  </div>
+  <div class="bar">
+    <input id="q" type="search" placeholder="Caută localitatea" aria-label="Caută localitatea">
+    <select id="f" aria-label="Filtru">
+      <option value="toate">Toate localitățile</option>
+      <option value="multe">Cu 2–3 puncte</option>
+      <option value="unu">Cu un punct</option>
+      <option value="zero">Fără punct</option>
+      <option value="decise">Cu decizia ta</option>
+    </select>
+    <select id="o" aria-label="Ordine">
+      <option value="bilete">După bilete vândute</option>
+      <option value="opriri">După numărul de opriri</option>
+      <option value="nume">După nume</option>
+    </select>
+    <div class="pager"><button id="prev" type="button">←</button><span id="pg">–</span><button id="next" type="button">→</button></div>
+  </div>
+  <main id="list" style="display:grid;gap:18px"></main>
+  <p class="note" id="reguli"></p>
+</div>
+
+<script>
+const BILETE = {"chisinau":70603,"balti":41163,"edinet":12646,"briceni":11238,"cupcini":2244,"ocnita":1869,"lipcani":1717,"riscani":1332,"corjeuti":1239,"prepelita":1218,"singerei":1190,"halahora de sus":1122,"beleavinti":1110,"recea":1029,"criva":840,"orhei":758,"zahareuca":706,"trinca":688,"caracusenii vechi":679,"grimancauti":640,"varatic":518,"hlina":516,"corlateni":508,"bilicenii vechi":469,"zaicani":452,"ruseni":374,"corpaci":355,"peresecina":351,"tirnova":338,"gordinesti":317,"copaceni":304,"birladeni":295,"larga":284,"grinauti-raia":255,"drepcauti":252,"mihalaseni":234,"tetcani":231,"duruitoarea noua":230,"pererita":195,"cotelea":184,"cuconestii noi":183,"cotiujeni":159,"otaci":145,"pirjota":142,"tabani":136,"viisoara":119,"paladea":105,"brinzeni":97,"mihailenii noi":89,"badragii vechi":78,"badragii noi":72,"hadarauti":66,"caracusenii noi":60,"birnova":60,"lopatnic":54,"bezeda":52,"banesti":50,"bratuseni":42,"ratus":35,"sirauti":28,"frunza":23,"mereseuca":22,"corestauti":21,"valcinet":18,"lencauti":9,"alexandreni":8,"trebisauti":5};
+const norm = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[şș]/g, "s").replace(/[ţț]/g, "t").replace(/\s+/g, " ").trim();
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmt = (n) => Number(n).toLocaleString("ro-RO");
+const PE_PAGINA = 10;
+let D = null, pagina = 0, db = null, eu = null, deschis = null;
+const decizii = new Map();   // cheia punctului → {stare: "scos" | "adaugat", motiv}
+const cheie = (L, p) => `${norm(L.nume[0]).replace(/[^a-z0-9]+/g, "-")}_${Math.round(p.lat * 1e5)}_${Math.round(p.lon * 1e5)}`;
+const MOTIVE = ["nu e loc de urcare", "semafor, trafic sau intersecție", "pauza șoferului sau benzinărie", "loc greșit, oamenii urcă în altă parte", "alt motiv"];
+function stare(L, p) { const d = decizii.get(cheie(L, p)); if (p.rang) return d?.stare === "scos" ? "scos" : "propus"; return d?.stare === "adaugat" ? "adaugat" : "respins"; }
+function finale(L) { return L.puncte.filter((p) => ["propus", "adaugat"].includes(stare(L, p))); }
+
+function bilete(L) { return Math.max(0, ...L.nume.map((n) => BILETE[norm(n)] || 0)); }
+function nAlese(L) { return finale(L).length; }
+
+function harta(L) {
+  const [la0, lo0, la1, lo1] = L.bbox, W = 600, H = 600;
+  const X = (lo) => ((lo - lo0) / (lo1 - lo0)) * W, Y = (la) => H - ((la - la0) / (la1 - la0)) * H;
+  const path = (pts) => pts.map((p, i) => (i ? "L" : "M") + X(p[1]).toFixed(1) + " " + Y(p[0]).toFixed(1)).join("");
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Harta opririlor din ${esc(L.nume[0])}">`;
+  s += `<rect width="${W}" height="${H}" fill="var(--bg)"/>`;
+  for (const d of L.drumuri) if (!d.t) s += `<path d="${path(d.p)}" fill="none" stroke="var(--road)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>`;
+  for (const d of L.drumuri) if (d.t) s += `<path d="${path(d.p)}" fill="none" stroke="var(--road-major)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>`;
+  for (const u of L.urme) s += `<path d="${path(u)}" fill="none" stroke="var(--trace)" stroke-width="1.2" stroke-opacity=".55"/>`;
+  for (const e of L.ev) s += `<circle cx="${X(e[1]).toFixed(1)}" cy="${Y(e[0]).toFixed(1)}" r="2.1" fill="var(--dot)" fill-opacity=".35"/>`;
+  const ok = finale(L), rej = L.puncte.filter((p) => !ok.includes(p));
+  for (const p of rej) { const x = X(p.lon).toFixed(1), y = Y(p.lat).toFixed(1), sc = stare(L, p) === "scos";
+    s += `<circle cx="${x}" cy="${y}" r="${sc ? 12 : 9}" fill="var(--surface)" fill-opacity=".6" stroke="${sc ? "var(--warn)" : "var(--reject)"}" stroke-width="2.4"><title>${esc(sc ? "scos: " + (decizii.get(cheie(L, p))?.motiv || "") : p.motive.join("; "))}</title></circle>`;
+    if (sc) s += `<path d="M${x - 6} ${y - 6}L${+x + 6} ${+y + 6}M${+x + 6} ${y - 6}L${x - 6} ${+y + 6}" stroke="var(--warn)" stroke-width="2.4"/>`; }
+  ok.forEach((p, i) => { s += `<g><circle cx="${X(p.lon).toFixed(1)}" cy="${Y(p.lat).toFixed(1)}" r="15" fill="var(--accent)" stroke="var(--surface)" stroke-width="3"/><text x="${X(p.lon).toFixed(1)}" y="${(Y(p.lat) + 5.5).toFixed(1)}" text-anchor="middle" font-family="Archivo, sans-serif" font-weight="700" font-size="16" fill="var(--accent-ink)">${i + 1}</text></g>`; });
+  s += `</svg>`;
+  const km = (lo1 - lo0) * 111.32 * Math.cos(((la0 + la1) / 2) * Math.PI / 180);
+  return s + `<div class="scale">lățimea hărții ≈ ${km.toFixed(1).replace(".", ",")} km</div>`;
+}
+
+const sens = (s) => (s === "tur" ? "spre Chișinău" : "spre nord");
+function chips(p) {
+  return `<div class="chips">` + p.perechi.map((P) => `<span class="chip ${P.pub ? "on" : "off"}" title="${esc(P.de || "publicat")}">ruta ${P.r} ${sens(P.s)} · ${Math.round(P.p * 100)} % · ${P.zile} z</span>`).join("") + `</div>`;
+}
+function gmaps(p) { return `https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lon}`; }
+
+function actiuni(L, p) {
+  if (!db) return "";
+  const k = cheie(L, p), st = stare(L, p);
+  if (st === "propus") return `<div class="act"><button type="button" class="scoate" data-scoate="${k}" title="Scoate punctul">× Scoate</button></div>`;
+  if (st === "respins") return `<div class="act"><button type="button" data-adauga="${k}" title="Adaugă locul ca punct">+ Adaugă</button></div>`;
+  return `<div class="act"><button type="button" class="readu" data-anuleaza-decizia="${k}">${st === "scos" ? "↺ Readu" : "↺ Anulează"}</button></div>`;
+}
+
+function card(L) {
+  const ok = finale(L), alte = L.puncte.filter((p) => !ok.includes(p)), n = ok.length;
+  const verdict = n === 0 ? "Fără punct · la cumpărare nu se întreabă" : n === 1 ? "Un punct · clientul doar îl vede" : `${n} puncte · clientul alege`;
+  const linie = (p) => `${p.masini} mașini · ${p.zile} zile · ${fmt(p.opriri)} opriri · stă ${p.durMed} s · <a href="${gmaps(p)}" target="_blank" rel="noopener">${p.lat.toFixed(5)}, ${p.lon.toFixed(5)} ↗</a>`;
+  const pts = ok.map((p, i) => { const d = decizii.get(cheie(L, p)); return `<li class="pt"><div class="badge">${i + 1}</div><div>
+      <h3>${esc(p.nume || (p.gara ? "Autogara" : "Oprire fără nume în OSM"))}</h3>
+      <div class="meta">${linie(p)}</div>
+      ${p.statie && !p.gara ? `<div class="meta">stație OSM: ${esc(p.statie)}</div>` : ""}
+      ${stare(L, p) === "adaugat" ? `<div class="dec add">Adăugat de tine</div>` : ""}
+      ${chips(p)}</div>${actiuni(L, p)}</li>`; }).join("");
+  const scoase = alte.filter((p) => stare(L, p) === "scos"), rej = alte.filter((p) => stare(L, p) === "respins");
+  const scl = scoase.map((p) => `<li class="pt scos"><div class="badge">×</div><div>
+      <h3>${esc(p.nume || (p.gara ? "Autogara" : "Oprire fără nume în OSM"))}</h3>
+      <div class="dec">Scos de tine</div>
+      <div class="meta">${linie(p)}</div></div>${actiuni(L, p)}</li>`).join("");
+  const rejl = rej.map((p) => `<li><i class="x"></i><div><span class="why">${esc(p.motive.join("; "))}</span>
+      <div class="meta">${linie(p)}</div></div>${actiuni(L, p)}</li>`).join("");
+  const b = bilete(L);
+  return `<article class="loc" id="${esc(norm(L.nume[0]).replace(/[^a-z0-9]+/g, "-"))}">
+    <div class="map">${harta(L)}</div>
+    <div class="info">
+      <div class="head"><h2>${esc(L.nume.join(" / "))}</h2>${L.gara ? `<span class="tag">${L.gara === "vama" ? "vamă" : "autogară"}</span>` : ""}</div>
+      <div class="verdict n${n}">${verdict}</div>
+      <div class="meta">${L.masini} mașini au oprit aici · ${fmt(L.opriri)} opriri · rutele ${L.rute.join(", ")}${b ? ` · ${fmt(b)} bilete din apr.` : ""}</div>
+      ${n ? `<ol class="pts">${pts}</ol>` : `<p class="meta">Niciun loc nu trece regulile.</p>`}
+      ${scoase.length ? `<ol class="pts">${scl}</ol>` : ""}
+      ${rej.length ? `<details${rej.some((p) => deschis === cheie(L, p)) ? " open" : ""}><summary>${rej.length} ${rej.length === 1 ? "loc respins de reguli" : "locuri respinse de reguli"}</summary><ul class="rej">${rejl}</ul></details>` : ""}
+    </div></article>`;
+}
+
+function filtrate() {
+  const q = norm(document.getElementById("q").value), f = document.getElementById("f").value, o = document.getElementById("o").value;
+  let a = D.localitati.filter((L) => !q || L.nume.some((n) => norm(n).includes(q)));
+  if (f === "multe") a = a.filter((L) => nAlese(L) >= 2); else if (f === "unu") a = a.filter((L) => nAlese(L) === 1); else if (f === "zero") a = a.filter((L) => nAlese(L) === 0);
+  else if (f === "decise") a = a.filter((L) => L.puncte.some((p) => decizii.has(cheie(L, p))));
+  if (o === "bilete") a.sort((x, y) => bilete(y) - bilete(x) || y.opriri - x.opriri);
+  else if (o === "opriri") a.sort((x, y) => y.opriri - x.opriri);
+  else a.sort((x, y) => x.nume[0].localeCompare(y.nume[0], "ro"));
+  return a;
+}
+function arata() {
+  const a = filtrate(), pag = Math.max(1, Math.ceil(a.length / PE_PAGINA));
+  pagina = Math.min(pagina, pag - 1);
+  const parte = a.slice(pagina * PE_PAGINA, pagina * PE_PAGINA + PE_PAGINA);
+  document.getElementById("list").innerHTML = parte.length ? parte.map(card).join("") : `<div class="empty">Nicio localitate nu se potrivește.</div>`;
+  document.getElementById("pg").textContent = `${pagina + 1} / ${pag} · ${a.length} loc.`;
+  document.getElementById("prev").disabled = pagina === 0;
+  document.getElementById("next").disabled = pagina >= pag - 1;
+  try { localStorage.setItem("puncte-pg", JSON.stringify({ pagina, q: document.getElementById("q").value, f: document.getElementById("f").value, o: document.getElementById("o").value })); } catch (e) {}
+}
+
+function rezumat() {
+  if (!D) return;
+  const L = D.localitati, dist = [0, 1, 2, 3, 4].map((k) => L.filter((x) => Math.min(nAlese(x), 4) === k).length);
+  const sc = [...decizii.values()].filter((x) => x.stare === "scos").length, ad = [...decizii.values()].filter((x) => x.stare === "adaugat").length;
+  document.getElementById("nums").innerHTML =
+    `<span><b>${D.FROM.split("-").reverse().join(".")}–${D.TO.split("-").reverse().join(".")}</b></span>` +
+    `<span><b>${fmt(D.masini)}</b> mașini</span><span><b>${fmt(D.curse)}</b> curse</span><span><b>${fmt(D.opriri)}</b> opriri în localități</span>` +
+    `<span><b>${L.length}</b> localități</span><span>fără punct <b>${dist[0]}</b> · un punct <b>${dist[1]}</b> · două <b>${dist[2]}</b> · trei+ <b>${dist[3] + dist[4]}</b></span>` +
+    `<span>scoase de tine <b>${sc}</b> · adăugate <b>${ad}</b></span>`;
+}
+
+async function conecteaza() {
+  try { db = await claude.use("db"); } catch (e) { db = null; }
+  const el = document.getElementById("salv");
+  if (!db) { el.textContent = "Deciziile nu se pot salva în această vizualizare. Deschide pagina din contul tău claude.ai."; return; }
+  try { const u = await claude.use("user"); eu = u ? await u.id() : null; } catch (e) { eu = null; }
+  el.textContent = "«× Scoate» scoate punctul dintr-un clic, «↺ Readu» îl pune înapoi. Se salvează imediat; un punct scos nu intră pe site și în bot, nici după o nouă analiză.";
+  db.collection("decizii").onSnapshot((snap) => {
+    decizii.clear(); for (const d of snap.docs) { const v = d.data(); if (v && (v.stare === "scos" || v.stare === "adaugat")) decizii.set(d.id, v); }
+    rezumat(); arata();
+  }, () => { el.textContent = "Legătura cu baza paginii s-a întrerupt. Reîncarcă pagina."; });
+  arata();
+}
+
+async function salveaza(k, act, motiv) {
+  const [L, p] = gaseste(k); if (!L) return;
+  try {
+    await db.collection("decizii").doc(k).set({ stare: act, motiv, localitate: L.nume[0], lat: p.lat, lon: p.lon, propusDeAnaliza: !!p.rang, la: new Date().toISOString(), de: eu });
+    document.getElementById("salv").textContent = act === "scos" ? `Scos un punct din ${L.nume[0]}. «↺ Readu» îl pune înapoi.` : `Adăugat un punct în ${L.nume[0]}.`;
+  } catch (e) { document.getElementById("salv").textContent = e?.code === "not_granted" || e?.code === "permission_denied" ? "Nu ai drept de scriere pe această pagină." : "Nu s-a salvat. Încearcă din nou."; }
+}
+async function anuleaza(k) {
+  try { await db.collection("decizii").doc(k).delete(); document.getElementById("salv").textContent = "Decizia a fost anulată."; }
+  catch (e) { document.getElementById("salv").textContent = "Nu s-a anulat. Încearcă din nou."; }
+}
+function gaseste(k) { for (const L of D.localitati) for (const p of L.puncte) if (cheie(L, p) === k) return [L, p]; return [null, null]; }
+
+document.getElementById("list").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.scoate) salveaza(b.dataset.scoate, "scos", "");
+  else if (b.dataset.adauga) salveaza(b.dataset.adauga, "adaugat", "");
+  else if (b.dataset.anuleazaDecizia) anuleaza(b.dataset.anuleazaDecizia);
+});
+fetch("puncte-luna.json").then((r) => r.json()).then((d) => {
+  D = d; rezumat();
+  document.getElementById("reguli").textContent = "Reguli: oprire = viteza sub 3 noduri cel puțin 15 s; locurile sunt grupuri de opriri la 40 m unele de altele, cu cel puțin 5 opriri. Un punct se propune unei rute și unui sens dacă autobuzele lor opresc acolo în cel puțin 10 % din trecerile pe lângă el (25 % în Chișinău și Bălți) și în cel puțin 5 zile. Se resping locurile lângă semafoare, treceri de cale ferată, semne STOP, denivelări, benzinării cu oprire lungă, pauzele de peste 3 minute, locurile cu sub 3 mașini și capătul cursei (acolo se coboară). Autogara e mereu punctul 1. Între punctele unei localități sunt cel puțin 150 m. Cifrele de pe rute: procentul de opriri din treceri și zilele cu oprire.";
+  try { const s = JSON.parse(localStorage.getItem("puncte-pg") || "null"); if (s) { pagina = s.pagina || 0; document.getElementById("q").value = s.q || ""; document.getElementById("f").value = s.f || "toate"; document.getElementById("o").value = s.o || "bilete"; } } catch (e) {}
+  arata(); conecteaza();
+}).catch(() => { document.getElementById("nums").textContent = "Datele nu s-au încărcat. Reîncarcă pagina."; });
+
+document.getElementById("prev").onclick = () => { pagina--; arata(); window.scrollTo({ top: 0 }); };
+document.getElementById("next").onclick = () => { pagina++; arata(); window.scrollTo({ top: 0 }); };
+for (const id of ["q", "f", "o"]) document.getElementById(id).addEventListener("input", () => { pagina = 0; arata(); });
+</script>

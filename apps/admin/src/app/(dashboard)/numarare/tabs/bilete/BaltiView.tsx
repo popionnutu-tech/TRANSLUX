@@ -41,21 +41,20 @@ function CellBox({ m, title, total = false }: { m: CellMean | null; title: strin
   const bg = total ? TOTAL_BG : m.plin ? FULL_BG : RAMP[s];
   const ink = total ? INK[0] : m.plin ? FULL_INK : INK[s];
   const sell = total ? SELL[0] : m.plin ? FULL_INK : SELL[s];
-  const t = `${title}\n${nf1.format(m.libere)} locuri libere la sosirea în Bălți\n↑ ${nf1.format(m.urca)} urcă în Bălți\n` +
-    (m.plin ? `urcă mai mulți decât locurile libere` : `+ ${nf1.format(m.vinde)} mai putem vinde din Bălți`) +
-    `\nverificare: 20 − numărați la ieșirea din Bălți = ${nf1.format(m.verif)}` + (total
+  // Ion, 03.10 (ION-218): cifra mare = câte locuri mai avem din Bălți; mici: cu câte libere a venit, câți s-au încărcat.
+  const t = `${title}\n${nf1.format(m.vinde)} locuri mai avem din Bălți` + (m.plin ? ` (urcă mai mulți decât locurile libere)` : '') +
+    `\n${nf1.format(m.libere)} locuri libere la sosirea în Bălți\n${nf1.format(m.urca)} s-au încărcat în Bălți` + (total
       ? `\ntotalul zilei pe toate graficele, media pe ${m.n} ${m.n === 1 ? 'zi' : 'zile'}`
       : `\nmedia pe ${m.n} ${m.n === 1 ? 'cursă' : 'curse'}`);
   return (
     <div title={t} style={{
-      ...MONO, display: 'grid', gridTemplateColumns: 'auto 1fr', gridTemplateRows: 'auto auto auto', columnGap: 8, rowGap: 2, alignItems: 'baseline',
+      ...MONO, display: 'grid', gridTemplateColumns: 'auto 1fr', gridTemplateRows: 'auto auto', columnGap: 8, rowGap: 2, alignItems: 'baseline',
       padding: '5px 8px', borderRadius: 5, background: bg, color: ink, minWidth: 84,
       outline: m.plin ? `1px dashed ${FULL_INK}` : 'none', outlineOffset: -1,
     }}>
-      <span style={{ gridRow: '1 / span 2', alignSelf: 'center', fontSize: 19, fontWeight: 600, lineHeight: 1 }}>{nf1.format(m.libere)}</span>
-      <span style={{ justifySelf: 'end', fontSize: 12, lineHeight: 1, opacity: 0.85 }}>↑{nf1.format(m.urca)}</span>
-      <span style={{ justifySelf: 'end', fontSize: 14, fontWeight: 700, lineHeight: 1, color: sell }}>+{nf1.format(m.vinde)}</span>
-      <span style={{ gridColumn: '1 / span 2', justifySelf: 'end', fontSize: 11, lineHeight: 1, opacity: 0.75 }}>num. {nf1.format(m.verif)}</span>
+      <span style={{ gridRow: '1 / span 2', alignSelf: 'center', fontSize: 19, fontWeight: 700, lineHeight: 1, color: sell }}>{nf1.format(m.vinde)}</span>
+      <span style={{ justifySelf: 'end', fontSize: 12, lineHeight: 1, opacity: 0.85 }} title="locuri libere la sosirea în Bălți">lib. {nf1.format(m.libere)}</span>
+      <span style={{ justifySelf: 'end', fontSize: 12, lineHeight: 1, opacity: 0.85 }} title="s-au încărcat în Bălți">↑{nf1.format(m.urca)}</span>
     </div>
   );
 }
@@ -106,8 +105,9 @@ export default function BaltiView({ filters }: { filters: Filters }) {
       <div className="card" style={{ padding: '10px 12px', marginBottom: 10, display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center', fontSize: 13 }}>
         <CellBox m={{ n: 9, libere: 13.3, urca: 5, vinde: 8.3, plin: false, verif: 8 }} title="exemplu" />
         <div style={{ color: '#555', maxWidth: 640 }}>
-          <b>13,3</b> locuri libere când microbuzul ajunge în Bălți (20 minus cei din nord care merg mai departe de Bălți: numărați − urcați în Bălți) ·
-          <b> ↑5,0</b> oameni urcă în Bălți · <b style={{ color: SELL[0] }}>+8,3</b> locuri mai putem vinde din Bălți.
+          <b style={{ color: SELL[0] }}>8,3</b> locuri mai avem din Bălți ·
+          <b> lib. 13,3</b> locuri libere când microbuzul ajunge în Bălți (20 minus cei din nord care merg mai departe) ·
+          <b> ↑5,0</b> s-au încărcat în Bălți.
           Fondul {ramp} e cu atât mai roșu cu cât sunt mai multe locuri de vândut;
           <span style={{ display: 'inline-block', width: 12, height: 12, background: FULL_BG, border: `1px dashed ${FULL_INK}`, borderRadius: 3, verticalAlign: 'middle', margin: '0 4px 0 6px' }} />
           gri = urcă mai mulți decât locurile libere. Media pe curse; la hover se vede numărul de curse.
@@ -216,11 +216,12 @@ export default function BaltiView({ filters }: { filters: Filters }) {
       </div>
 
       <div style={{ fontSize: 12, color: '#777', marginTop: 10, maxWidth: 760, display: 'grid', gap: 4 }}>
-        <div>Doar zilele numărate; o zi pe rută = un autobuz. <b>Numărați</b> = oamenii din autobuz la ieșirea din Bălți (Numărare). <b>Urcă în Bălți</b> = biletele Mobilet ale rutei din acea zi cu urcarea în Bălți.</div>
-        <div><b>Locuri libere la sosirea în Bălți</b> = 20 − (numărați − urcă în Bălți): cei din nord care merg mai departe sunt numărații fără cei urcați în Bălți. Exemplu: 16 numărați, 14 urcă → 2 merg mai departe, 18 libere.</div>
-        <div><b>Mai putem vinde</b> = libere minus urcați; sub 0 nu scade. <b>num.</b> = 20 − numărați: e egal cu «mai putem vinde», iar când e mai mic, în Mobilet sunt mai multe bilete din Bălți decât oameni numărați.</div>
+        <div>Doar zilele numărate; o zi pe rută = un autobuz. <b>Numărați</b> = oamenii din autobuz la ieșirea din Bălți (Numărare). <b>Încărcați în Bălți</b> = biletele Mobilet ale rutei din acea zi cu urcarea în Bălți.</div>
+        <div><b>Mai avem din Bălți</b> (cifra mare) = 20 − numărați: locurile goale când autobuzul pleacă din Bălți.</div>
+        <div><b>lib.</b> = locurile libere la sosirea în Bălți = 20 − (numărați − încărcați în Bălți): cei din nord care merg mai departe sunt numărații fără cei încărcați în Bălți. <b>↑</b> = s-au încărcat în Bălți. Exemplu: 16 numărați, 14 încărcați → 2 merg mai departe, lib. 18, mai avem 4.</div>
+        <div>Celula gri = autobuzul pleacă plin din Bălți (încărcați mai mulți decât locurile libere).</div>
         <div>Ora e plecarea din capătul de nord, din graficul rutei.</div>
-        <div><b>Total pe toate graficele</b> = totalul unei zile pe toate cursele spre Chișinău, mediat pe zilele coloanei (pe «sâmbătă» în septembrie: media celor 4 sâmbete). «Mai putem vinde» se adună pe grafice, cursa plină nu scade din celelalte.</div>
+        <div><b>Total pe toate graficele</b> = totalul unei zile pe toate cursele spre Chișinău, mediat pe zilele coloanei (pe «sâmbătă» în septembrie: media celor 4 sâmbete). «Mai avem» se adună pe grafice, cursa plină nu scade din celelalte.</div>
       </div>
     </div>
   );

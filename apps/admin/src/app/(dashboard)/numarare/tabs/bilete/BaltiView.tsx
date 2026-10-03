@@ -216,7 +216,7 @@ export default function BaltiView({ filters }: { filters: Filters }) {
       <div style={{ fontSize: 12, color: '#777', marginTop: 10, maxWidth: 760, display: 'grid', gap: 4 }}>
         <div><b>Locuri libere la sosirea în Bălți</b> = cele 20 de locuri ale rutierei (Mobilet vinde 18, dar fizic sunt 20) minus biletele de la o stație la nord de Bălți spre una la sud (Chișinău, Orhei, Sîngerei, Prepelița, Bilicenii Vechi, Zahareuca, Peresecina, Copăceni, Rătuș, Bănești).</div>
         <div><b>Urcă în Bălți</b> = biletele cu stația de plecare Bălți, oriunde ar coborî. <b>Mai putem vinde</b> = libere minus urcați; sub 0 nu scade.</div>
-        <div>Media e pe cursele cu cel puțin un bilet, pe ziua cursei din Mobilet. Se văd doar biletele bătute: oamenii luați fără bilet nu apar. Ora e plecarea din capătul de nord.</div>
+        <div>O zi pe un grafic = un autobuz: când Mobilet împarte cursa în mai multe, biletele lor se adună. Zilele fără niciun bilet cu urcare la nord de Bălți nu intră (biletele din nord lipsesc din Mobilet în acele zile). Se văd doar biletele bătute: oamenii luați fără bilet nu apar. Ora e plecarea din capătul de nord.</div>
         <div><b>Total pe toate graficele</b> = totalul unei zile pe toate cursele spre Chișinău, mediat pe zilele coloanei (pe «sâmbătă» în septembrie: media celor 4 sâmbete). «Mai putem vinde» se adună pe grafice, cursa plină nu scade din celelalte.</div>
       </div>
     </div>

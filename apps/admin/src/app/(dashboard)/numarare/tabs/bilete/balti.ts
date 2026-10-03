@@ -27,6 +27,23 @@ export function mean(c: Cell): CellMean | null {
   return { n: c.n, libere, urca, vinde: Math.max(0, libere - urca), plin: urca > libere };
 }
 
+/**
+ * Totalul pe toate graficele (ION-213, Ion: «jos să fie total pe toate rutele»): suma mediilor fiecărui grafic pe
+ * zilele coloanei = o zi obișnuită pe toate cursele. «Mai putem vinde» se adună pe grafice: cursa plină nu scade
+ * din locurile altora. n = cursele din coloană, pe toate graficele.
+ */
+export function totalRoutes(idx: CellIndex, routes: string[], dates: string[]): CellMean | null {
+  let tot: CellMean | null = null;
+  for (const r of routes) {
+    const m = mean(sumCells(idx, [r], dates));
+    if (!m) continue;
+    tot = tot
+      ? { n: tot.n + m.n, libere: tot.libere + m.libere, urca: tot.urca + m.urca, vinde: tot.vinde + m.vinde, plin: false }
+      : { ...m, plin: false };
+  }
+  return tot;
+}
+
 const DAY = 86_400_000;
 const toUtc = (d: string) => Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10));
 
@@ -137,8 +154,8 @@ export function sumCells(idx: CellIndex, routes: string[], dates: string[]): Cel
   return acc;
 }
 
-/** Treapta de culoare 0…5 pentru «mai putem vinde», pe scara 0–18 locuri. */
-export function step(vinde: number, max = 18): number {
+/** Treapta de culoare 0…5 pentru «mai putem vinde», pe scara 0–20 locuri (20 de locuri în rutieră, ION-213). */
+export function step(vinde: number, max = 20): number {
   return Math.min(5, Math.max(0, Math.floor((vinde / max) * 6)));
 }
 

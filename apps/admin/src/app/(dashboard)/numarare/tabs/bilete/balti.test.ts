@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildCalendar, calendarColumns, defaultClosed, monthKey, weekKey, monthSpan, weekSpan, weekdayColumns,
-  indexCells, sumCells, mean, step, isoDow, isoWeek, fmtOra,
+  indexCells, sumCells, mean, totalRoutes, step, isoDow, isoWeek, fmtOra,
 } from './balti';
 
 describe('Locuri în Bălți: calendarul grupat', () => {
@@ -79,17 +79,36 @@ describe('Locuri în Bălți: mediile și culoarea', () => {
     expect(sumCells(idx, ['A', 'B'], ['2026-09-01'])).toEqual({ n: 3, libere: 48, urca: 8 });
   });
 
-  it('treapta de culoare pe 0–18', () => {
+  it('treapta de culoare pe 0–20', () => {
     expect(step(0)).toBe(0);
     expect(step(2.9)).toBe(0);
-    expect(step(3)).toBe(1);
+    expect(step(3.3)).toBe(0);
+    expect(step(3.4)).toBe(1);
     expect(step(8.3)).toBe(2);
     expect(step(17.9)).toBe(5);
-    expect(step(18)).toBe(5);
+    expect(step(20)).toBe(5);
   });
 
   it('ora cu două cifre', () => {
     expect(fmtOra('2:35')).toBe('02:35');
     expect(fmtOra('12:35')).toBe('12:35');
+  });
+});
+
+describe('Locuri în Bălți: totalul pe toate graficele (ION-213)', () => {
+  const idx = indexCells([
+    { r: 'A', d: '2026-09-01', n: 1, libere: 10, urca: 4 },
+    { r: 'A', d: '2026-09-02', n: 1, libere: 14, urca: 6 },
+    { r: 'B', d: '2026-09-01', n: 1, libere: 5, urca: 9 },
+  ]);
+
+  it('adună mediile graficelor; cursa plină nu scade din «mai putem vinde»', () => {
+    const t = totalRoutes(idx, ['A', 'B'], ['2026-09-01', '2026-09-02'])!;
+    // A: media 12 libere, 5 urcă, 7 de vândut; B: 5 libere, 9 urcă, 0 de vândut (plină)
+    expect(t).toEqual({ n: 3, libere: 17, urca: 14, vinde: 7, plin: false });
+  });
+
+  it('fără curse în coloană → nimic', () => {
+    expect(totalRoutes(idx, ['A', 'B'], ['2026-09-05'])).toBeNull();
   });
 });

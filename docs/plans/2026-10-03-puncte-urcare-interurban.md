@@ -652,3 +652,19 @@ pasul 2 + gruparea din pasul 4 pe probă (minPts 3). Rezultatul e în «Verifica
 2. regulă nouă «doar urcare» (capătul de sosire al sensului nu primește puncte);
 3. scutirea gării doar pentru grupul gării, nu pentru tot ce e în raza ei.
 Pragurile (10 % / 25 %, ≥ 5 zile pe rută×sens) rămân; pe 100 de zile satele vor avea mult mai multe curse decât în probă.
+
+## Analiza pe o lună, toate mașinile (Ion, 03.10: «o pagină cu câte 10 sate… minim o lună la toate mașinile»)
+
+`lde-geo-worker/mejgorod-urcare/luna.mjs` (VPS `cod/opr-luna.mjs 2026-09-01 2026-10-01`, ~4 min): 37 de mașini, 1.732 de curse,
+24.468 de opriri în 80 de localități → 80 de puncte (0 puncte: 34 localități, 1: 25, 2: 8, 3: 13). Pagina:
+https://claude.ai/artifact/7VFcdHMtyQhby6J2Patt4h. Fără scriere în bază.
+
+Prima trecere a scos la iveală două reguli greșite din plan, schimbate:
+1. **Ponderea în sate** = opririle rutei×sensului în grup / cursele rutei×sensului care au OPRIT în localitate (prag 20 %),
+   nu / toate trecerile: autobuzul oprește în sat doar când așteaptă cineva, deci față de treceri Prepelița (1.218 bilete)
+   ieșea sub 10 % și fără punct. În Chișinău și Bălți rămâne ponderea pe treceri ≥ 25 % + ≥ 30 s (trafic).
+2. **Gruparea** = vârfuri de densitate (30 m) cu grupul la ≤ 50 m, nu DBSCAN-lanț: lanțurile de-a lungul drumului ieșeau
+   întinse > 120 m și se respingeau, inclusiv autogările. Grupul autogării e scutit de întindere; coordonata lui = peronul din `STATII`.
+Alte schimbări: «≥ 3 mașini» devine «≥ min(3, mașinile care au oprit în localitate)»; numele = stația OSM dacă nu e generică
+(«Stație autobuz»), altfel strada cea mai apropiată (≤ 40 m). Returul dublu se rezolvă aici provizoriu (cursa cu acoperirea
+mai bună); pasul 1b rămâne pentru rularea finală.

@@ -50,6 +50,8 @@ jobs:
       - name: Refacere vederi
         if: always()
         run: |
+          # ION-219: o eroare (504) nu mai oprește noaptea — se reîncearcă; abia 3 erori la rând opresc bucla.
+          err=0
           for i in $(seq 1 60); do
             code=$(curl -s -m 90 -o /tmp/body -w "%{http_code}" \
               -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
@@ -58,8 +60,12 @@ jobs:
             head -c 600 /tmp/body; echo
             if [ "$code" -lt 200 ] || [ "$code" -ge 400 ]; then
               echo "::warning::tiki-refacere returned HTTP $code"
-              exit 1
+              err=$((err + 1))
+              if [ "$err" -ge 3 ]; then exit 1; fi
+              sleep 20
+              continue
             fi
+            err=0
             grep -q '"gata":true' /tmp/body && break
             grep -q '"oprit"' /tmp/body && break
           done

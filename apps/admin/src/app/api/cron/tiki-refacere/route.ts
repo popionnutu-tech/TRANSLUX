@@ -12,7 +12,8 @@ import { inFereastraDeNoapte } from '@/lib/fereastra-noapte';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const BUDGET_MS = 45_000;
+// 30 s, nu 45: un pas poate dura ~25 s (eticheta), iar 45 + 25 trecea de maxDuration 60 → 504 și oprirea nopții (03.10, ION-219).
+const BUDGET_MS = 30_000;
 const PAUZA_MS = 2_000;
 
 interface Pas { pas?: string; planificat?: string; numarare_zile?: number; ocupat?: boolean; ms?: number }

@@ -1,0 +1,43 @@
+name: tiki-refacere
+
+# Refacerea vederilor Bilete aparat fără import (ION-219). Ion, 03.10: «nu apar oamenii fără bilet» → «fă tot».
+# Cronurile GitHub din tiki-mobilet au pornit pe 03.10 cu ore de întârziere (21:05 → 00:12, 00:30 → 05:30, 01:30 → 06:40 UTC),
+# deci două din trei rulări au căzut în afara ferestrei de noapte (23:00–05:00 Chișinău) și coada a rămas plină.
+# Aici: mai multe porniri în fereastră, doar refacerea (pași mici, idempotenți; ruta refuză singură ziua).
+# 20:15 / 22:15 / 23:15 UTC = 23:15 / 01:15 / 02:15 Chișinău vara (EEST).
+
+on:
+  schedule:
+    - cron: '15 20 * * *'
+    - cron: '15 22 * * *'
+    - cron: '15 23 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: tiki-refacere
+  cancel-in-progress: false
+
+jobs:
+  refacere:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refacere vederi
+        run: |
+          err=0
+          for i in $(seq 1 60); do
+            code=$(curl -s -m 90 -o /tmp/body -w "%{http_code}" \
+              -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+              "https://central-hub-md.vercel.app/api/cron/tiki-refacere")
+            echo "tiki-refacere #$i: HTTP $code"
+            head -c 600 /tmp/body; echo
+            if [ "$code" -lt 200 ] || [ "$code" -ge 400 ]; then
+              echo "::warning::tiki-refacere returned HTTP $code"
+              err=$((err + 1))
+              if [ "$err" -ge 3 ]; then exit 1; fi
+              sleep 20
+              continue
+            fi
+            err=0
+            grep -q '"gata":true' /tmp/body && break
+            grep -q '"oprit"' /tmp/body && break
+          done

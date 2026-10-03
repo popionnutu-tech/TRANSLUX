@@ -76,6 +76,10 @@ summary { cursor: pointer; color: var(--muted); font-size: .9rem; }
 .dec { font-size: .84rem; color: var(--warn); }
 .dec.add { color: var(--ok); }
 .salv { font-size: .82rem; color: var(--muted); }
+.corecturi { display: grid; gap: 12px; padding: 16px; border: 2px solid var(--accent); border-radius: 12px; }
+.sect-head { display: grid; gap: 2px; }
+.lista-titlu { margin-top: 8px; }
+.fix { font-size: .84rem; color: var(--accent); font-weight: 600; }
 </style>
 
 <div class="wrap">
@@ -94,6 +98,11 @@ summary { cursor: pointer; color: var(--muted); font-size: .9rem; }
     <span><i class="sw" style="background:var(--trace)"></i>urma autobuzelor</span>
     <span><i class="sw" style="background:var(--road-major)"></i>drum</span>
   </div>
+  <section id="corecturi" class="corecturi" hidden>
+    <div class="sect-head"><h2 id="corecturi-titlu">Corecturile tale</h2><p class="meta">Localitățile mutate după observațiile tale. Nu mai apar în lista de mai jos.</p></div>
+    <div id="corecturi-list" style="display:grid;gap:18px"></div>
+  </section>
+  <h2 class="lista-titlu">Toate celelalte localități</h2>
   <div class="bar">
     <input id="q" type="search" placeholder="Caută localitatea" aria-label="Caută localitatea">
     <select id="f" aria-label="Filtru">
@@ -186,6 +195,7 @@ function card(L) {
     <div class="map">${harta(L)}</div>
     <div class="info">
       <div class="head"><h2>${esc(L.nume.join(" / "))}</h2>${L.gara ? `<span class="tag">${L.gara === "vama" ? "vamă" : "autogară"}</span>` : ""}</div>
+      ${L.corectat ? `<div class="fix">Corectat: ${esc(L.corectat)}</div>` : ""}
       <div class="verdict n${n}">${verdict}</div>
       <div class="meta">${L.masini} mașini au oprit aici · ${fmt(L.opriri)} opriri · rutele ${L.rute.join(", ")}${b ? ` · ${fmt(b)} bilete din apr.` : ""}</div>
       ${n ? `<ol class="pts">${pts}</ol>` : `<p class="meta">Niciun loc nu trece regulile.</p>`}
@@ -196,7 +206,7 @@ function card(L) {
 
 function filtrate() {
   const q = norm(document.getElementById("q").value), f = document.getElementById("f").value, o = document.getElementById("o").value;
-  let a = D.localitati.filter((L) => !q || L.nume.some((n) => norm(n).includes(q)));
+  let a = D.localitati.filter((L) => !L.corectat && (!q || L.nume.some((n) => norm(n).includes(q))));
   if (f === "multe") a = a.filter((L) => nAlese(L) >= 2); else if (f === "unu") a = a.filter((L) => nAlese(L) === 1); else if (f === "zero") a = a.filter((L) => nAlese(L) === 0);
   else if (f === "decise") a = a.filter((L) => L.puncte.some((p) => decizii.has(cheie(L, p))));
   if (o === "bilete") a.sort((x, y) => bilete(y) - bilete(x) || y.opriri - x.opriri);
@@ -204,7 +214,14 @@ function filtrate() {
   else a.sort((x, y) => x.nume[0].localeCompare(y.nume[0], "ro"));
   return a;
 }
+function arataCorecturi() {
+  const c = D.localitati.filter((L) => L.corectat);
+  const sec = document.getElementById("corecturi"); sec.hidden = !c.length;
+  document.getElementById("corecturi-titlu").textContent = `Corecturile tale (${c.length})`;
+  document.getElementById("corecturi-list").innerHTML = c.map(card).join("");
+}
 function arata() {
+  arataCorecturi();
   const a = filtrate(), pag = Math.max(1, Math.ceil(a.length / PE_PAGINA));
   pagina = Math.min(pagina, pag - 1);
   const parte = a.slice(pagina * PE_PAGINA, pagina * PE_PAGINA + PE_PAGINA);
@@ -252,6 +269,12 @@ async function anuleaza(k) {
 }
 function gaseste(k) { for (const L of D.localitati) for (const p of L.puncte) if (cheie(L, p) === k) return [L, p]; return [null, null]; }
 
+document.getElementById("corecturi-list").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.scoate) salveaza(b.dataset.scoate, "scos", "");
+  else if (b.dataset.adauga) salveaza(b.dataset.adauga, "adaugat", "");
+  else if (b.dataset.anuleazaDecizia) anuleaza(b.dataset.anuleazaDecizia);
+});
 document.getElementById("list").addEventListener("click", (e) => {
   const b = e.target.closest("button"); if (!b) return;
   if (b.dataset.scoate) salveaza(b.dataset.scoate, "scos", "");
@@ -260,7 +283,7 @@ document.getElementById("list").addEventListener("click", (e) => {
 });
 fetch("puncte-luna.json").then((r) => r.json()).then((d) => {
   D = d; rezumat();
-  document.getElementById("reguli").textContent = "Reguli: oprire = viteza sub 3 noduri cel puțin 15 s; locurile sunt grupuri de opriri la 40 m unele de altele, cu cel puțin 5 opriri. Un punct se propune unei rute și unui sens dacă autobuzele lor opresc acolo în cel puțin 10 % din trecerile pe lângă el (25 % în Chișinău și Bălți) și în cel puțin 5 zile. Se resping locurile lângă semafoare, treceri de cale ferată, semne STOP, denivelări, benzinării cu oprire lungă, pauzele de peste 3 minute, locurile cu sub 3 mașini și capătul cursei (acolo se coboară). Autogara e mereu punctul 1. Între punctele unei localități sunt cel puțin 150 m. Cifrele de pe rute: procentul de opriri din treceri și zilele cu oprire.";
+  document.getElementById("reguli").textContent = "Reguli: oprire = viteza sub 3 noduri cel puțin 15 s; locurile sunt grupuri de opriri la 40 m unele de altele, cu cel puțin 5 opriri. Un punct se propune unei rute și unui sens dacă autobuzele lor opresc acolo în cel puțin 10 % din trecerile pe lângă el (25 % în Chișinău și Bălți) și în cel puțin 3 zile din lună. Se resping locurile lângă semafoare, treceri de cale ferată, semne STOP, denivelări, benzinării cu oprire lungă, pauzele de peste 3 minute, locurile cu sub 3 mașini și capătul cursei (acolo se coboară). Autogara e mereu punctul 1. Între punctele unei localități sunt cel puțin 150 m. Cifrele de pe rute: procentul de opriri din treceri și zilele cu oprire.";
   try { const s = JSON.parse(localStorage.getItem("puncte-pg") || "null"); if (s) { pagina = s.pagina || 0; document.getElementById("q").value = s.q || ""; document.getElementById("f").value = s.f || "toate"; document.getElementById("o").value = s.o || "bilete"; } } catch (e) {}
   arata(); conecteaza();
 }).catch(() => { document.getElementById("nums").textContent = "Datele nu s-au încărcat. Reîncarcă pagina."; });

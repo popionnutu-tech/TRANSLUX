@@ -6,6 +6,8 @@ import { sincronizeazaStare } from '@/lib/maib/sincronizare';
 import { finalizeazaRefund, verificaSiFinalizeazaRefund } from '@/lib/maib/refund';
 import { areSofer, leagaSesiuneExistenta } from './comenzi';
 import { emailConfigurat, trimiteEmailBilet } from './email';
+import { alertAdmins } from '@/lib/telegram-notify';
+import { mesajAlerte, type AlertaPentruMesaj } from './alerte-mesaj';
 import { INCERCARI_MAX, inFereastraFaraSofer, REFUND_NECUNOSCUT_ALERTA_MS, sesiuneInchisa, VARSTA_MIN_MS } from './impacare-reguli';
 
 // Împăcarea comenzilor de bilete cu banca (ION-196, pasul 5), pe cron la 10 minute. Patru treburi, fiecare cu cotă
@@ -26,6 +28,7 @@ export interface RaportImpacare {
   refund: ContorJob;
   cursa_fara_sofer: ContorJob;
   email: ContorJob;
+  alerte: ContorJob;
   durata_ms: number;
   oprit_de_buget: boolean;
 }
@@ -69,6 +72,7 @@ export async function ruleazaImpacarea(opt: { dry: boolean; bugetMs?: number }):
     refund: { procesate: 0, aplicate: 0, erori: 0 },
     cursa_fara_sofer: { procesate: 0, aplicate: 0, erori: 0 },
     email: { procesate: 0, aplicate: 0, erori: 0 },
+    alerte: { procesate: 0, aplicate: 0, erori: 0 },
     durata_ms: 0,
     oprit_de_buget: false,
   };
@@ -166,6 +170,30 @@ export async function ruleazaImpacarea(opt: { dry: boolean; bugetMs?: number }):
       if (opt.dry) return;
       if ((await trimiteEmailBilet(c.id)) === 'trimis') raport.email.aplicate += 1;
     }, raport.email);
+  }
+
+  // F. alertele la Ion (ION-207): nenotificate → un mesaj Telegram la ADMIN; marcate doar dacă mesajul a plecat.
+  // O citire și un mesaj. Dacă bugetul s-a terminat mai sus, alertele pleacă la tick-ul următor (10 min).
+  {
+    const { data: noi } = await db.from("bilete_alerte").select("id, tip, detalii, moment, comanda_id")
+      .is("notificat_la", null).order("id").limit(50);
+    const lista = (noi || []) as { id: number; tip: string; detalii: string | null; moment: string; comanda_id: string | null }[];
+    raport.alerte.procesate = lista.length;
+    if (lista.length > 0 && !opt.dry) {
+      const ids = [...new Set(lista.map((a) => a.comanda_id).filter((x): x is string => Boolean(x)))];
+      const { data: comenzi } = ids.length
+        ? await db.from("bilete_comenzi").select("id, from_name, to_name, departure_at, passenger_name, phone, total").in("id", ids)
+        : { data: [] as { id: string; from_name: string; to_name: string; departure_at: string; passenger_name: string; phone: string; total: number }[] };
+      const harta = new Map((comenzi || []).map((c) => [c.id, c]));
+      const pentruMesaj: AlertaPentruMesaj[] = lista.map((a) => ({ tip: a.tip, detalii: a.detalii, moment: a.moment, comanda: a.comanda_id ? harta.get(a.comanda_id) ?? null : null }));
+      const baza = (process.env.ADMIN_URL || "https://central-hub-md.vercel.app").replace(/\/+$/, "");
+      if (await alertAdmins(mesajAlerte(pentruMesaj, `${baza}/bilete`))) {
+        await db.from("bilete_alerte").update({ notificat_la: new Date().toISOString() }).in("id", lista.map((a) => a.id)).is("notificat_la", null);
+        raport.alerte.aplicate = lista.length;
+      } else {
+        raport.alerte.erori = 1;
+      }
+    }
   }
 
   raport.durata_ms = Date.now() - start;

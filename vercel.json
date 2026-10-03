@@ -1,4 +1,7 @@
 {
+  "regions": [
+    "dub1"
+  ],
   "buildCommand": "npm run build --workspace=packages/db && npm run build --workspace=apps/web",
   "installCommand": "npm install",
   "outputDirectory": "apps/web/.next",
@@ -7,7 +10,10 @@
     {
       "source": "/tiktokNhGbg7LgXUYoHZjwxeTq4Z7lKRoAKrhc.txt",
       "headers": [
-        { "key": "Content-Type", "value": "text/plain" }
+        {
+          "key": "Content-Type",
+          "value": "text/plain"
+        }
       ]
     }
   ]

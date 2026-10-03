@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { JetBrains_Mono, Open_Sans } from 'next/font/google';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import './globals.css';
 import { SITE_URL } from '@/lib/seo';
 
@@ -40,7 +41,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ro" className={`${openSans.variable} ${jetbrainsMono.variable}`}>
-      <body>{children}</body>
+      <body>
+        {children}
+        {/* ION-202 (03.10.2026): Web Vitals reale de la vizitatori (LCP/INP/CLS), fără cookie-uri și fără identificatori. */}
+        <SpeedInsights />
+      </body>
     </html>
   );
 }

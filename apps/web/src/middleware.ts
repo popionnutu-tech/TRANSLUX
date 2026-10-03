@@ -55,5 +55,7 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.txt$).*)'],
+  // ION-202 (03.10.2026): doar paginile HTML. Înainte rula și pe /api, /_next, fonturi, PNG, SVG —
+  // un apel edge în plus pe fiecare resursă, fără rost: redirectele de mai sus privesc doar paginile.
+  matcher: ['/((?!api/|_next/|fonts/|.*\\.(?:png|svg|ico|txt|xml|webmanifest|js|css|woff2?|json)$).*)'],
 };

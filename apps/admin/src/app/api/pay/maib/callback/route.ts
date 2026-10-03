@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/supabase';
 import { verifyMaibCallback } from '@/lib/maib/signature';
 import { stareEgala } from '@/lib/maib/client';
 import { persistaCheckout } from '@/lib/maib/persist';
+import { trimiteEmailPentruCheckout } from '@/lib/bilete/email';
 
 // Callback-ul maib Checkout (ION-188). Public (lib/public-paths.ts) — banca nu are sesiune la noi;
 // autenticitatea e semnătura HMAC din X-Signature peste corpul brut + X-Signature-Timestamp
@@ -185,6 +186,10 @@ async function marcheazaBiletele(checkoutId: string, executat: boolean) {
   if (error) {
     console.error('[maib/callback] bilete_marcheaza_platita:', error.message);
     return NextResponse.json({ ok: false }, { status: 500 });
+  }
+  // Biletul pe e-mail (ION-201): după răspunsul către bancă, fără să-l întârzie; eșecul se reia din împăcare.
+  if (Number(data ?? 0) > 0) {
+    after(() => trimiteEmailPentruCheckout(checkoutId).catch((e) => console.error('[maib/callback] e-mail:', e instanceof Error ? e.message : e)));
   }
   return NextResponse.json({ ok: true, cunoscut: true, aplicat: true, bilete: Number(data ?? 0) });
 }

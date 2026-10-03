@@ -983,6 +983,10 @@ export interface BileteComanda {
   /** 373XXXXXXXX */
   phone: string;
   email: string | null;
+  /** ION-201: biletul trimis pe e-mail (revendicarea), încercările și ultima eroare. */
+  email_trimis_la?: string | null;
+  email_incercari?: number;
+  email_eroare?: string | null;
   lang: 'ro' | 'ru';
   telegram_id: number | null;
   status: BileteComandaStatus;

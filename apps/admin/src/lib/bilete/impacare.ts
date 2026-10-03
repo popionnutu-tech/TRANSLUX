@@ -5,6 +5,7 @@ import { findCheckoutByOrderId, getPayment } from '@/lib/maib/client';
 import { sincronizeazaStare } from '@/lib/maib/sincronizare';
 import { finalizeazaRefund, verificaSiFinalizeazaRefund } from '@/lib/maib/refund';
 import { areSofer, leagaSesiuneExistenta } from './comenzi';
+import { emailConfigurat, trimiteEmailBilet } from './email';
 import { INCERCARI_MAX, inFereastraFaraSofer, REFUND_NECUNOSCUT_ALERTA_MS, sesiuneInchisa, VARSTA_MIN_MS } from './impacare-reguli';
 
 // Împăcarea comenzilor de bilete cu banca (ION-196, pasul 5), pe cron la 10 minute. Patru treburi, fiecare cu cotă
@@ -24,11 +25,12 @@ export interface RaportImpacare {
   cu_checkout: ContorJob;
   refund: ContorJob;
   cursa_fara_sofer: ContorJob;
+  email: ContorJob;
   durata_ms: number;
   oprit_de_buget: boolean;
 }
 
-const COTE = { fara_checkout: 10, cu_checkout: 10, refund: 5, cursa_fara_sofer: 20 };
+const COTE = { fara_checkout: 10, cu_checkout: 10, refund: 5, cursa_fara_sofer: 20, email: 10 };
 const PARALEL = 5;
 
 async function inLoturi<T>(items: T[], fn: (x: T) => Promise<void>, contor: ContorJob): Promise<void> {
@@ -66,6 +68,7 @@ export async function ruleazaImpacarea(opt: { dry: boolean; bugetMs?: number }):
     cu_checkout: { procesate: 0, aplicate: 0, erori: 0 },
     refund: { procesate: 0, aplicate: 0, erori: 0 },
     cursa_fara_sofer: { procesate: 0, aplicate: 0, erori: 0 },
+    email: { procesate: 0, aplicate: 0, erori: 0 },
     durata_ms: 0,
     oprit_de_buget: false,
   };
@@ -151,6 +154,19 @@ export async function ruleazaImpacarea(opt: { dry: boolean; bugetMs?: number }):
     if (await areSofer(c.trip_date, c.crm_route_id, c.going_north)) return;
     if (await alertaOData(c.id, 'cursa_fara_sofer', `plecare ${c.departure_at}, ruta ${c.crm_route_id} ${c.going_north ? 'retur' : 'tur'} fără șofer în grafic`, opt.dry)) raport.cursa_fara_sofer.aplicate += 1;
   }, raport.cursa_fara_sofer);
+
+  // E. e-mailuri restante (ION-201): plătite de > 2 min, cu e-mail, netrimise, sub 3 încercări. Prinde plățile
+  // sincronizate din pagina biletului, «Emite biletele» și eșecurile trimiterii din callback.
+  if (emailConfigurat() && maiAmTimp()) {
+    const { data: restante } = await db.from('bilete_comenzi').select('id')
+      .eq('status', 'platita').not('email', 'is', null).is('email_trimis_la', null).lt('email_incercari', 3)
+      .lt('paid_at', new Date(Date.now() - 2 * 60_000).toISOString())
+      .order('paid_at').limit(COTE.email);
+    await inLoturi((restante || []) as { id: string }[], async (c) => {
+      if (opt.dry) return;
+      if ((await trimiteEmailBilet(c.id)) === 'trimis') raport.email.aplicate += 1;
+    }, raport.email);
+  }
 
   raport.durata_ms = Date.now() - start;
   return raport;

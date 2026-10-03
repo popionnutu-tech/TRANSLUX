@@ -8,6 +8,7 @@
 import { useEffect, useRef } from 'react';
 import type { Map as LMap, Marker } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { TILE_ATTRIBUTION, TILE_MAX_ZOOM, TILE_URL, loadLeaflet, preconnectTiles } from '@/lib/map-tiles';
 
 const PIN_HTML = `<span class="asst-lf-pin"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h19.6"/><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/><circle cx="7" cy="18" r="2"/><path d="M9 18h5"/><circle cx="16" cy="18" r="2"/></svg></span>`;
 
@@ -19,14 +20,15 @@ export default function BusMap({ lat, lon, label, expanded }: { lat: number; lon
   // Harta se face o singură dată; Leaflet cere `window`, deci se încarcă aici.
   useEffect(() => {
     let dead = false;
+    // Legătura cu serverul de plăci pornește odată cu Leaflet, nu după el (ION-206).
+    preconnectTiles();
     (async () => {
-      const L = (await import('leaflet')).default;
+      const L = await loadLeaflet();
       if (dead || !box.current || map.current) return;
       const m = L.map(box.current, { zoomControl: true, attributionControl: true, scrollWheelZoom: false })
         .setView([lat, lon], 13);
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 18, attribution: '© OpenStreetMap',
-      }).addTo(m);
+      // Aceeași sursă de plăci ca harta «Acum» (lib/map-tiles, ION-206).
+      L.tileLayer(TILE_URL, { maxZoom: TILE_MAX_ZOOM, attribution: TILE_ATTRIBUTION }).addTo(m);
       const icon = L.divIcon({ html: PIN_HTML, className: 'asst-lf-icon', iconSize: [38, 38], iconAnchor: [19, 19] });
       marker.current = L.marker([lat, lon], { icon, title: label, keyboard: false }).addTo(m);
       map.current = m;

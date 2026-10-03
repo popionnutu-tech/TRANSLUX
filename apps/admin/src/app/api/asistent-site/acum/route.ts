@@ -3,7 +3,8 @@ import { cors } from '@/lib/site-assistant/cors';
 import { nextTrips, MAX_AGE_MIN, NOW_SHOWN, hhmmToMin, nowMinChisinau } from '@/lib/site-assistant/bus-location';
 import { estimateOnLine, type TimedStop } from '@/lib/site-assistant/bus-estimate';
 import { getSupabase } from '@/lib/supabase';
-import { realEta, routePasses, typicalOffset, lateMin, notAfterSchedule, NOT_ON_TRIP_LATE_MIN, type GeoStop } from '@/lib/site-assistant/bus-eta';
+import { realEta, routePasses, typicalOffset, lateMin, notAfterSchedule, preloadEtaCache, etaKeys, NOT_ON_TRIP_LATE_MIN, type GeoStop } from '@/lib/site-assistant/bus-eta';
+import { routeShapes, stopHours, type LatLon } from '@/lib/site-assistant/static-cache';
 import { chisinauTodayIso } from '@/lib/chisinau-time';
 
 // Butonul «Acum» de pe prima pagină a translux.md (ION-43). Ion, 23.09: omul alege
@@ -11,6 +12,12 @@ import { chisinauTodayIso } from '@/lib/chisinau-time';
 // «Acum» = următoarele plecări de azi din localitatea omului (nextTrips), fiecare cu
 // șoferul, mașina și numărul lui; punctul autobuzului doar cât cursa e pe drum după
 // grafic și poziția e proaspătă — aceeași poartă ca în chat. Fără model.
+//
+// ION-206 (Ion, 03.10, «site ultrafast»): GET cu query `?from=&to=&lang=` = cerere «simplă», fără
+// preflight CORS; răspunsul ușor — pozițiile, ora estimată și AMPRENTA liniei fiecărei rute (`v`),
+// nu linia (46 KB din 48 la fiecare poll de 60 s). Linia o cere clientul o dată, de la /forme, pe
+// amprentă (immutable). POST-ul vechi, cu linia în răspuns, rămâne până trece deploy-ul site-ului.
+// `lang` nu se folosește: line_ro/line_ru sunt ambele mici, clientul alege.
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -63,73 +70,89 @@ function stopAt(p: [number, number], stops: GeoStop[], from: string | undefined)
   return best ? { name: best.name, mine: best.mine } : null;
 }
 
+interface PosRow { plate: string; lat: number; lon: number; at: string; near: string | null }
+
 export async function OPTIONS(req: NextRequest) {
   return new NextResponse(null, { status: 204, headers: cors(req) });
 }
 
-export async function POST(req: NextRequest) {
-  const headers = cors(req);
-  if (!headers['Access-Control-Allow-Origin']) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
-  if (limited()) return NextResponse.json({ error: 'rate limited' }, { status: 429, headers });
+/** Clientul nou (ION-206): răspuns ușor, fără linia rutei — doar amprenta ei. */
+export async function GET(req: NextRequest) {
+  const q = req.nextUrl.searchParams;
+  const s = (v: string | null) => (v ?? '').slice(0, 80);
+  return handle(req, s(q.get('from')), s(q.get('to')), { light: true });
+}
 
+/** Clientul vechi (până la deploy-ul site-ului): linia rutei în răspuns, ca înainte. */
+export async function POST(req: NextRequest) {
   let body: Record<string, unknown> = {};
   try { body = await req.json(); } catch { /* validat mai jos */ }
   const s = (v: unknown) => (typeof v === 'string' ? v.slice(0, 80) : '');
-  const from = s(body.from), to = s(body.to);
+  return handle(req, s(body.from), s(body.to), { light: false });
+}
+
+async function handle(req: NextRequest, from: string, to: string, { light }: { light: boolean }) {
+  // GET-ul nu are voie să rămână în CDN: pozițiile sunt de acum.
+  const headers: Record<string, string> = { ...cors(req), 'Cache-Control': 'no-store' };
+  if (!headers['Access-Control-Allow-Origin']) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  if (limited()) return NextResponse.json({ error: 'rate limited' }, { status: 429, headers });
   if (!from || !to) return NextResponse.json({ error: 'bad request' }, { status: 400, headers });
 
   try {
     const r = await nextTrips(from, to);
     // Punctul doar pentru autobuzul care e deja pe drum după grafic (poarta ION-39).
     const plates = [...new Set(r.trips.filter((t) => t.on_road || t.coming).map((t) => normPlate(t.plate)).filter(Boolean))];
+    const rids = [...new Set(r.trips.map((t) => t.route_id).filter((x): x is number => x != null))];
+    // Cele patru citiri nu depind una de alta: în paralel (ION-206). Pozițiile din bază; linia rutei și
+    // orele opririlor din Data Cache (static-cache, 1 h); ritmul și trecerile din site_eta_cache
+    // (migr. 490), scrise noaptea de cronul site-eta-cache — fără ele s-ar calcula aici, ca înainte.
+    const [posRows, shapeRows, hourRows] = await Promise.all([
+      plates.length
+        ? getSupabase().from('bus_live_positions').select('plate, lat, lon, at, near').in('plate', plates).then((x) => (x.data ?? []) as PosRow[])
+        : Promise.resolve([] as PosRow[]),
+      routeShapes(rids).catch((e) => { console.error('asistent-site/acum route_shapes:', e); return []; }),
+      stopHours(rids).catch((e) => { console.error('asistent-site/acum crm_stop_fares:', e); return []; }),
+      preloadEtaCache([etaKeys.pace(null), ...rids.flatMap((id) => [etaKeys.pace(id), etaKeys.passes(id, true), etaKeys.passes(id, false)])]).catch(() => 0),
+    ]);
+
     const pos = new Map<string, { lat: number; lon: number; near: string | null; at: string; atIso: string; fresh: boolean }>();
-    if (plates.length) {
-      const { data } = await getSupabase().from('bus_live_positions').select('plate, lat, lon, at, near').in('plate', plates);
-      for (const p of data ?? []) {
-        // Mașina oprită la gară, cu motorul stins, trimite rar (24.09, 07:35: 18 din 42 cu punctul
-        // mai vechi de 5 min; 828 MLN la Autogara Bălți, ultimul la 07:28) — pe hartă se vede
-        // punctul până la SHOW_MAX_AGE_MIN; ora estimată și «passed» primesc doar punctul proaspăt.
-        const age = (Date.now() - Date.parse(p.at as string)) / 60_000;
-        if (age > SHOW_MAX_AGE_MIN) continue;
-        pos.set(p.plate as string, {
-          fresh: age <= MAX_AGE_MIN,
-          lat: p.lat as number, lon: p.lon as number, near: (p.near as string | null) ?? null, atIso: p.at as string,
-          at: new Date(p.at as string).toLocaleTimeString('en-GB', { timeZone: 'Europe/Chisinau', hour: '2-digit', minute: '2-digit', hour12: false }),
-        });
-      }
+    for (const p of posRows) {
+      // Mașina oprită la gară, cu motorul stins, trimite rar (24.09, 07:35: 18 din 42 cu punctul
+      // mai vechi de 5 min; 828 MLN la Autogara Bălți, ultimul la 07:28) — pe hartă se vede
+      // punctul până la SHOW_MAX_AGE_MIN; ora estimată și «passed» primesc doar punctul proaspăt.
+      const age = (Date.now() - Date.parse(p.at)) / 60_000;
+      if (age > SHOW_MAX_AGE_MIN) continue;
+      pos.set(p.plate, {
+        fresh: age <= MAX_AGE_MIN,
+        lat: p.lat, lon: p.lon, near: p.near ?? null, atIso: p.at,
+        at: new Date(p.at).toLocaleTimeString('en-GB', { timeZone: 'Europe/Chisinau', hour: '2-digit', minute: '2-digit', hour12: false }),
+      });
     }
     // Linia pe drum a fiecărei rute din listă (route_shapes, migr. 392) și, pe ea, unde
     // sunt localitatea omului și destinația lui. Ion, 23.09: «pune totuși linia de traseu
-    // pe care merge mașina, fină să fie».
-    const rids = [...new Set(r.trips.map((t) => t.route_id).filter((x): x is number => x != null))];
-    const routes: Record<number, { shape: [number, number][]; from: [number, number] | null; to: [number, number] | null }> = {};
+    // pe care merge mașina, fină să fie». Clientului nou îi pleacă doar amprenta `v` (ION-206).
+    const routes: Record<number, { v: string; shape?: LatLon[]; from: LatLon | null; to: LatLon | null }> = {};
     const places = new Map<string, { name: string; lat: number; lon: number; end: boolean }>();
     // Opririle cu coordonate și stop_order, pentru ora reală (nu pleacă spre site).
-    const geo: Record<number, { shape: [number, number][]; stops: GeoStop[] }> = {};
-    if (rids.length) {
-      const { data } = await getSupabase().from('route_shapes').select('crm_route_id, shape, stops').in('crm_route_id', rids);
-      const same = (a: string, b: string | undefined) => !!b && fold(a) === fold(b);
-      for (const s of data ?? []) {
-        const stops = (s.stops ?? []) as { name: string; lat: number; lon: number }[];
-        const at = (name: string | undefined) => {
-          const st = stops.find((x) => same(x.name, name));
-          return st ? [st.lat, st.lon] as [number, number] : null;
-        };
-        routes[s.crm_route_id as number] = { shape: s.shape as [number, number][], from: at(r.fromRo), to: at(r.toRo) };
-        geo[s.crm_route_id as number] = { shape: s.shape as [number, number][], stops: (s.stops ?? []) as GeoStop[] };
-        for (const st of stops) {
-          const k = fold(st.name);
-          const end = same(st.name, r.fromRo) || same(st.name, r.toRo);
-          if (!places.has(k) && (end || MAP_PLACES.has(k))) places.set(k, { name: st.name, lat: st.lat, lon: st.lon, end });
-        }
+    const geo: Record<number, { shape: LatLon[]; stops: GeoStop[] }> = {};
+    const same = (a: string, b: string | undefined) => !!b && fold(a) === fold(b);
+    for (const s of shapeRows) {
+      const stops = s.stops;
+      const at = (name: string | undefined) => {
+        const st = stops.find((x) => same(x.name, name));
+        return st ? [st.lat, st.lon] as LatLon : null;
+      };
+      routes[s.crm_route_id] = { v: s.v, ...(light ? {} : { shape: s.shape }), from: at(r.fromRo), to: at(r.toRo) };
+      geo[s.crm_route_id] = { shape: s.shape, stops };
+      for (const st of stops) {
+        const k = fold(st.name);
+        const end = same(st.name, r.fromRo) || same(st.name, r.toRo);
+        if (!places.has(k) && (end || MAP_PLACES.has(k))) places.set(k, { name: st.name, lat: st.lat, lon: st.lon, end });
       }
     }
     // Orele opririlor din grafic, pentru poziția orientativă a mașinilor fără GPS.
     const hours = new Map<string, { nord: number | null; chis: number | null }>();
-    if (rids.length) {
-      const { data } = await getSupabase().from('crm_stop_fares').select('crm_route_id, stop_order, hour_from_nord, hour_from_chisinau').in('crm_route_id', rids);
-      for (const h of data ?? []) hours.set(`${h.crm_route_id}:${h.stop_order}`, { nord: hhmmToMin(h.hour_from_nord as string), chis: hhmmToMin(h.hour_from_chisinau as string) });
-    }
+    for (const h of hourRows) hours.set(`${h.crm_route_id}:${h.stop_order}`, { nord: hhmmToMin(h.hour_from_nord), chis: hhmmToMin(h.hour_from_chisinau) });
     // Autobuzul care a trecut deja de oprirea omului nu mai e al lui — iese din listă,
     // chiar dacă după grafic ar mai fi pe drum (nextTrips ține și cursele întârziate).
     const trips = (await Promise.all(r.trips.map(async (t) => {

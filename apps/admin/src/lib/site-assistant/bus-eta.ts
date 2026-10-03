@@ -95,7 +95,24 @@ export function paceFromStops(rows: StopRow[], minKm = 100): { minPerKm: number;
 
 const HISTORY_DAYS = 14;
 const TTL_MS = 6 * 60 * 60_000;
-const cache = new Map<string, { at: number; pace: number | null }>();
+const cache = new Map<string, { at: number; ttl: number; pace: number | null }>();
+
+// ---------------------------------------------------------------------------
+// Cache-ul precalculat (ION-206, migr. 490). Ion, 03.10: «Acum» pe o instanță rece dura 5,7 s,
+// fiindcă ritmul rutei (computePace: 14 zile de lde_gps_stops + daily_assignments) și trecerile
+// (routePasses) se calculau la cerere și trăiau doar în memoria instanței. Cronul site-eta-cache
+// le scrie noaptea în site_eta_cache; aici doar se citesc (preloadEtaCache, o singură interogare),
+// iar calculul vechi rămâne rezerva când cheia lipsește (rută nouă, cron nerulat) sau e prea veche.
+// Formulele nu se schimbă: aceleași funcții, doar rulate noaptea în loc de la cerere.
+// ---------------------------------------------------------------------------
+export const etaKeys = {
+  pace: (routeId: number | null) => (routeId == null ? 'pace:fleet' : `pace:r${routeId}`),
+  passes: (routeId: number, goingNorth: boolean) => `passes:${routeId}:${goingNorth ? 'n' : 's'}`,
+};
+/** Valoarea citită din tabelă stă în memorie atât; după, se recitește (cronul a putut scrie între timp). */
+const DB_TTL_MS = 15 * 60_000;
+/** Rând mai vechi de atât = cronul n-a mai rulat; nu se crede, se calculează ca înainte. */
+const DB_MAX_AGE_MS = 36 * 60 * 60_000;
 
 async function pagedStops(vehicleIds: string[], since: string): Promise<StopRow[]> {
   const out: StopRow[] = [];
@@ -115,7 +132,8 @@ async function pagedStops(vehicleIds: string[], since: string): Promise<StopRow[
   return out;
 }
 
-async function computePace(routeId: number | null): Promise<number | null> {
+/** Ritmul (minute pe km) al rutei, sau al flotei interurbane (null) — calcul greu, de rulat noaptea (eta-precalc). */
+export async function computePace(routeId: number | null): Promise<number | null> {
   const since = new Date(Date.now() - HISTORY_DAYS * 86_400_000).toISOString().slice(0, 10);
   // Pe pagini, ca routePasses: flota întreagă pe 14 zile e azi ~510 rânduri, aproape de plafon.
   const data: { assignment_date: string; vehicle_id: string | null; vehicle_id_retur: string | null }[] = [];
@@ -144,15 +162,41 @@ async function computePace(routeId: number | null): Promise<number | null> {
 
 async function cached(key: string, fn: () => Promise<number | null>): Promise<number | null> {
   const hit = cache.get(key);
-  if (hit && Date.now() - hit.at < TTL_MS) return hit.pace;
+  if (hit && Date.now() - hit.at < hit.ttl) return hit.pace;
   const pace = await fn().catch(() => null);
-  cache.set(key, { at: Date.now(), pace });
+  cache.set(key, { at: Date.now(), ttl: TTL_MS, pace });
   return pace;
 }
 
 /** Minute pe km pentru rută; fără istoric suficient — media flotei interurbane. */
 export async function routePace(routeId: number): Promise<number | null> {
-  return (await cached(`r${routeId}`, () => computePace(routeId))) ?? cached('fleet', () => computePace(null));
+  return (await cached(etaKeys.pace(routeId), () => computePace(routeId))) ?? cached(etaKeys.pace(null), () => computePace(null));
+}
+
+/**
+ * Aduce din site_eta_cache, într-o singură interogare, cheile cerute (ritm + treceri) și le pune în
+ * memorie; routePace/routePasses le găsesc apoi gata. Cheile lipsă sau vechi nu se ating — pentru ele
+ * rămâne calculul la cerere. Întoarce câte chei a încărcat.
+ */
+export async function preloadEtaCache(keys: string[]): Promise<number> {
+  const now = Date.now();
+  const need = [...new Set(keys)].filter((k) => {
+    const h = k.startsWith('passes:') ? passCache.get(k) : cache.get(k);
+    return !(h && now - h.at < h.ttl);
+  });
+  if (!need.length) return 0;
+  const { data, error } = await getSupabase().from('site_eta_cache').select('key, value, computed_at').in('key', need);
+  if (error || !data) return 0;
+  let n = 0;
+  for (const row of data) {
+    if (now - Date.parse(row.computed_at as string) > DB_MAX_AGE_MS) continue;
+    const key = row.key as string;
+    const v = (row.value ?? {}) as { pace?: unknown; rows?: unknown };
+    if (key.startsWith('passes:')) passCache.set(key, { at: now, ttl: DB_TTL_MS, rows: Array.isArray(v.rows) ? (v.rows as PassRow[]) : [] });
+    else cache.set(key, { at: now, ttl: DB_TTL_MS, pace: typeof v.pace === 'number' ? v.pace : null });
+    n += 1;
+  }
+  return n;
 }
 
 export interface Eta { eta: string; eta_min: number }
@@ -226,11 +270,18 @@ export function typicalLeg(rows: PassRow[], a: number, b: number): number | null
   return mins.length >= MIN_ALL ? median(mins) : null;
 }
 
-const passCache = new Map<string, { at: number; rows: PassRow[] }>();
+const passCache = new Map<string, { at: number; ttl: number; rows: PassRow[] }>();
 export async function routePasses(routeId: number, goingNorth: boolean): Promise<PassRow[]> {
-  const key = `${routeId}:${goingNorth}`;
+  const key = etaKeys.passes(routeId, goingNorth);
   const hit = passCache.get(key);
-  if (hit && Date.now() - hit.at < TTL_MS) return hit.rows;
+  if (hit && Date.now() - hit.at < hit.ttl) return hit.rows;
+  const rows = await fetchPasses(routeId, goingNorth);
+  passCache.set(key, { at: Date.now(), ttl: TTL_MS, rows });
+  return rows;
+}
+
+/** Trecerile din ultimele HISTORY_DAYS zile, direct din bază (fără cache) — și pentru cronul site-eta-cache. */
+export async function fetchPasses(routeId: number, goingNorth: boolean): Promise<PassRow[]> {
   const since = new Date(Date.now() - HISTORY_DAYS * 86_400_000).toISOString().slice(0, 10);
   // Pe pagini: PostgREST taie tăcut la 1000 de rânduri (24.09, crm_stop_fares în
   // windowsFor — ruta 28 rămânea fără fereastră). Azi sunt ~40 de opriri × 15 zile, dar
@@ -247,7 +298,6 @@ export async function routePasses(routeId: number, goingNorth: boolean): Promise
     rows.push(...(data as PassRow[]));
     if (data.length < 1000) break;
   }
-  passCache.set(key, { at: Date.now(), rows });
   return rows;
 }
 

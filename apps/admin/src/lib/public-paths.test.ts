@@ -13,6 +13,7 @@ describe('isPublicPath — căile lăsate de middleware fără sesiune', () => {
     expect(isPublicPath('/api/asistent-site')).toBe(true);
     expect(isPublicPath('/api/asistent-site/pozitie')).toBe(true);
     expect(isPublicPath('/api/asistent-site/acum')).toBe(true);
+    expect(isPublicPath('/api/asistent-site/forme')).toBe(true);
     expect(isPublicPath('/api/asistent-site/x')).toBe(false);
   });
 

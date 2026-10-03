@@ -8,13 +8,20 @@
 // care sunt deja pe drum după grafic, cu ora cursei. Cursa aleasă din listă e roșie,
 // pe hartă și în listă; harta se duce la autobuzul ei. Linia fină a rutei (route_shapes,
 // migr. 392) și autobuzul pus pe ea; fără viteză, ca în chat (ION-39). Se actualizează o dată pe minut, cât fereastra e deschisă.
+//
+// ION-206 (Ion, 03.10, «site ultrafast»): la deschidere pornesc ÎN PARALEL Leaflet, legătura cu
+// serverul de plăci și cererea GET /acum (fără preflight); harta se montează goală pe loc și primește
+// datele când vin. Linia rutelor vine o singură dată de la /forme (immutable, pe amprentă) și stă în
+// memorie — poll-ul aduce doar pozițiile. Cu tab-ul ascuns nu se cere nimic. La zoom nu se reface
+// nimic în afară de numele orașelor: geometria se calculează o dată per set de date.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Map as LMap, LayerGroup } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Locale } from '@/lib/i18n';
 import { phoneTel, phoneText } from '@/lib/phone';
 import { track } from '@/lib/track';
+import { TILE_ATTRIBUTION, TILE_MAX_ZOOM, TILE_URL, loadLeaflet, preconnectTiles, type Leaflet } from '@/lib/map-tiles';
 
 const ENDPOINT = process.env.NEXT_PUBLIC_ASSISTANT_URL || 'https://central-hub-md.vercel.app/api/asistent-site';
 const REFRESH_MS = 60_000;
@@ -80,7 +87,51 @@ type LatLon = [number, number];
 interface RouteLine { shape: LatLon[]; from: LatLon | null; to: LatLon | null }
 /** Orașul scris pe hartă; `end` = localitatea omului sau destinația lui (au deja punctul lor pe linie). */
 interface Place { name: string; lat: number; lon: number; end: boolean }
-interface NowData { trips: NowTrip[]; routes?: Record<number, RouteLine>; places?: Place[]; line_ro: string | null; line_ru: string | null }
+/** Ruta așa cum vine de la /acum: amprenta `v` a liniei (ION-206); `shape` doar de la central-hub vechi, cu linia în răspuns. */
+interface RouteRef { v?: string; shape?: LatLon[]; from: LatLon | null; to: LatLon | null }
+interface NowRaw { trips: NowTrip[]; routes?: Record<number, RouteRef>; places?: Place[]; line_ro: string | null; line_ru: string | null }
+interface NowData extends Omit<NowRaw, 'routes'> { routes: Record<number, RouteLine> }
+
+/** Liniile rutelor, pe amprentă («id:v»), cât trăiește pagina: vin o dată de la /forme, nu la fiecare poll (ION-206). */
+const shapeStore = new Map<string, LatLon[]>();
+/** central-hub vechi, fără GET pe /acum (405): se trece pe POST până la deploy-ul lui. */
+let postOnly = false;
+
+/** GET cu query = cerere «simplă», fără preflight CORS; `lang` e informativ, serverul trimite ambele fraze. */
+async function fetchAcum(from: string, to: string, lang: Locale): Promise<NowRaw> {
+  const q = new URLSearchParams({ from, to, lang });
+  let res = postOnly ? null : await fetch(`${ENDPOINT}/acum?${q}`);
+  if (!res || res.status === 405 || res.status === 404) {
+    postOnly = true;
+    res = await fetch(`${ENDPOINT}/acum`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ from, to }) });
+  }
+  if (!res.ok) throw new Error(String(res.status));
+  return res.json();
+}
+
+/** Liniile lipsă din memorie se cer o dată de la /forme; ruta fără linie nu se desenează (punctul rămâne). */
+async function withShapes(raw: NowRaw): Promise<Record<number, RouteLine>> {
+  const refs = Object.entries(raw.routes ?? {});
+  const missing = refs.filter(([id, r]) => !r.shape && r.v && !shapeStore.has(`${id}:${r.v}`));
+  if (missing.length) {
+    try {
+      const res = await fetch(`${ENDPOINT}/forme?ids=${missing.map(([id, r]) => `${id}:${r.v}`).join(',')}`);
+      if (res.ok) {
+        const { shapes } = await res.json() as { shapes?: Record<string, LatLon[]> };
+        for (const [id, r] of missing) {
+          const s = shapes?.[id];
+          if (Array.isArray(s)) shapeStore.set(`${id}:${r.v}`, s);
+        }
+      }
+    } catch { /* la poll-ul următor se încearcă iar */ }
+  }
+  const out: Record<number, RouteLine> = {};
+  for (const [id, r] of refs) {
+    const shape = r.shape ?? (r.v ? shapeStore.get(`${id}:${r.v}`) : undefined);
+    if (shape) out[Number(id)] = { shape, from: r.from, to: r.to };
+  }
+  return out;
+}
 
 /** Cel mai apropiat punct al liniei (proiecție pe segmente); departe de linie — punctul GPS. */
 function snapOn(p: LatLon, line: LatLon[]): { at: LatLon; seg: number } {
@@ -184,163 +235,211 @@ function panelPadding(m: LMap): { paddingTopLeft: [number, number]; paddingBotto
     : { paddingTopLeft: [370, 90], paddingBottomRight: [70, 40] };
 }
 
+/**
+ * Scena hărții, calculată O DATĂ per set de date (ION-206): drumurile de la fiecare mașină la stația
+ * omului (ahead, snapOn, kmToLine), capetele și autobuzele puse pe linie. La zoom Leaflet scalează
+ * singur liniile și insignele; doar numele orașelor se rejudecă (cele de sub un autobuz se ascund).
+ */
+interface Scene {
+  /** Rutierele nealese: linia punctată, în culoarea lor, până unde intră pe drumul uneia mai devreme. */
+  lines: { path: LatLon[]; color: string }[];
+  /** Cursa aleasă: până la stația omului în culoarea ei, de la stație la destinație bordo. */
+  sel: { part: LatLon[]; color: string }[];
+  ends: { at: LatLon; cls: 'from' | 'to' }[];
+  buses: { i: number; t: NowTrip; at: LatLon; deg: number | null; on: boolean }[];
+  /** Punctele pe care se potrivește harta prima dată. */
+  fit: LatLon[];
+  /** Stația omului pe linia cursei alese. */
+  from: LatLon | null;
+}
+
+function buildScene(trips: NowTrip[], routes: Record<number, RouteLine>, selected: number): Scene {
+  const selRoute = trips[selected]?.route_id ?? null;
+  const route = selRoute != null ? routes[selRoute] : undefined;
+
+  // Fiecare rutieră cu linia ei colorată, de la mașină până la stația omului (Ion, 27.09, ION-100,
+  // mockup-ul aprobat). Unde intră pe drumul unei rutiere care vine mai devreme, linia se oprește:
+  // pe drumul comun rămâne o singură linie («în momentul ce se unesc 2 sau mai multe — au o linie»).
+  // Cea aleasă se desenează întreagă, până la destinație, plină și deasupra.
+  const lines: Scene['lines'] = [];
+  const earlier: LatLon[][] = [];
+  trips.forEach((t, i) => {
+    const r = t.route_id != null ? routes[t.route_id] : undefined;
+    if (!r || t.lat == null || t.lon == null || snapOn([t.lat, t.lon], r.shape).seg < 1) return;
+    let path = ahead(r, t, true);
+    if (i !== selected) {
+      const k = path.findIndex((p) => earlier.some((e) => kmToLine(p, e) < JOIN_KM));
+      if (k >= 0) path = path.slice(0, k + 1);
+    }
+    earlier.push(ahead(r, t, true));
+    if (i === selected || path.length < 2) return;
+    lines.push({ path, color: lineColor(i) });
+  });
+
+  // Linia cursei alese și, pe ea, localitatea omului și destinația.
+  const sel: Scene['sel'] = [];
+  const ends: Scene['ends'] = [];
+  if (route?.shape.length) {
+    // Până la stația omului în culoarea mașinii; de la stație până la destinație mereu bordo,
+    // culoarea firmei (Ion, 27.09, ION-100: «ultima linie întotdeauna să fie culoarea firmei»).
+    const t = trips[selected];
+    const toStop = ahead(route, t, true);
+    // Stația în afara liniei (ocol): toată linia în culoarea mașinii, fără coada bordo.
+    const onLine = !!route.from && snapOn(route.from, route.shape).seg > 0;
+    const tail = onLine ? ahead(route, { ...t, lat: route.from![0], lon: route.from![1] }) : [];
+    if (!onLine) toStop.splice(0, toStop.length, ...ahead(route, t));
+    for (const [part, color] of [[toStop, lineColor(selected)], [tail, RED]] as const) {
+      if (part.length >= 2) sel.push({ part, color });
+    }
+    // Centrul satului poate sta în afara traseului: capătul se pune pe linie.
+    for (const [pt, cls] of [[route.from, 'from'], [route.to, 'to']] as const) {
+      if (pt) ends.push({ at: snap(pt, route.shape), cls });
+    }
+  }
+
+  const buses: Scene['buses'] = [];
+  const fit: LatLon[] = [];
+  trips.forEach((t, i) => {
+    if (t.lat == null || t.lon == null) return;
+    const on = i === selected;
+    // Autobuzul stă pe linia rutei lui: GPS-ul e la câțiva metri de drum.
+    const own = t.route_id != null ? routes[t.route_id]?.shape : undefined;
+    const s = own ? snapOn([t.lat, t.lon], own) : { at: [t.lat, t.lon] as LatLon, seg: -1 };
+    buses.push({ i, t, at: s.at, deg: own ? heading(own, s.seg, t.going_north) : null, on });
+    // Harta se deschide pe autobuzul ales, localitatea omului și Bălți ca reper; din Bălți,
+    // pe drumul până la destinație (Ion, 27.09, ION-100: «punem vizual Bălți să se vadă»; tot
+    // drumul Edineț–Chișinău «nu e clar nimic»). Celelalte autobuze nu trag harta după ele;
+    // alese din listă, harta se duce la ele.
+    if (on) fit.push(s.at);
+  });
+  if (route?.from) {
+    fit.push(route.from);
+    // Din Bălți: doar Bălți și autobuzul, nu tot drumul până la Chișinău (Ion, 27.09: «harta să
+    // se deschidă mai măricel»).
+    if (!near(route.from, BALTI)) fit.push(BALTI);
+  } else if (route?.to) fit.push(route.to);
+  if (fit.length === 0 && route?.shape.length) fit.push(route.shape[0], route.shape[route.shape.length - 1]);
+  return { lines, sel, ends, buses, fit, from: route?.from ?? null };
+}
+
 function NowMap({ trips, routes, places, selected, onPick, locale }: { trips: NowTrip[]; routes: Record<number, RouteLine>; places: Place[]; selected: number; onPick: (i: number) => void; locale: Locale }) {
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<LMap | null>(null);
+  const Lref = useRef<Leaflet | null>(null);
+  /** Linii, capete, autobuze — refăcute doar când vin date noi sau se alege altă cursă. */
   const layer = useRef<LayerGroup | null>(null);
+  /** Numele orașelor — refăcute și la zoom (se ascund sub autobuze). */
+  const labels = useRef<LayerGroup | null>(null);
   const [ready, setReady] = useState(false);
   const [zoom, setZoom] = useState(8);
 
+  // Harta se montează pe loc, cu plăcile, înainte să vină datele (ION-206): Leaflet e deja pe drum
+  // (loadLeaflet pornit la deschiderea filei), legătura cu serverul de plăci la fel.
   useEffect(() => {
     let dead = false;
-    (async () => {
-      const L = (await import('leaflet')).default;
+    loadLeaflet().then((L) => {
       if (dead || !box.current || map.current) return;
       const m = L.map(box.current, { zoomControl: false, attributionControl: true, scrollWheelZoom: false })
         .setView([47.3, 28.4], 8);
-      // Plăcile OSM, ca în chat; decolorate din CSS (.leaflet-tile-pane), ca autobuzele roșii
-      // să iasă în față. Carto light cere de acum cheie API (23.09: «API KEY REQUIRED» pe hartă).
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap' }).addTo(m);
+      // Plăcile din lib/map-tiles (aceeași sursă ca în chat); decolorate din CSS (.leaflet-tile-pane),
+      // ca autobuzele roșii să iasă în față.
+      L.tileLayer(TILE_URL, { maxZoom: TILE_MAX_ZOOM, attribution: TILE_ATTRIBUTION }).addTo(m);
       L.control.zoom({ position: 'topright' }).addTo(m);
+      labels.current = L.layerGroup().addTo(m);
       layer.current = L.layerGroup().addTo(m);
+      Lref.current = L;
       map.current = m;
       m.on('click', () => m.scrollWheelZoom.enable());
       m.on('mouseout', () => m.scrollWheelZoom.disable());
       m.on('zoomend', () => setZoom(m.getZoom()));
       setReady(true);
-    })();
+    });
     return () => {
       dead = true;
       map.current?.remove();
       map.current = null;
       layer.current = null;
+      labels.current = null;
+      Lref.current = null;
     };
   }, []);
 
-  // Punctele se refac la fiecare actualizare; harta se potrivește pe ele doar prima dată,
-  // ca omul care a mărit-o să nu fie aruncat înapoi la fiecare minut.
+  const scene = useMemo(() => buildScene(trips, routes, selected), [trips, routes, selected]);
+
+  // Liniile și autobuzele se refac doar la date noi sau la altă cursă aleasă — NU la zoom (ION-206).
+  // Harta se potrivește pe ele doar prima dată, ca omul care a mărit-o să nu fie aruncat înapoi la fiecare minut.
   const fitted = useRef(false);
   useEffect(() => {
-    if (!ready || !map.current || !layer.current) return;
-    (async () => {
-      const L = (await import('leaflet')).default;
-      const g = layer.current!;
-      g.clearLayers();
+    const L = Lref.current, m = map.current, g = layer.current;
+    if (!ready || !L || !m || !g) return;
+    g.clearLayers();
+    const tx = TXT[locale];
 
-      const selRoute = trips[selected]?.route_id ?? null;
-      const tx = TXT[locale];
-      const m = map.current!;
-      const route = selRoute != null ? routes[selRoute] : undefined;
-
-      // Fiecare rutieră cu linia ei colorată, de la mașină până la stația omului (Ion, 27.09, ION-100,
-      // mockup-ul aprobat). Unde intră pe drumul unei rutiere care vine mai devreme, linia se oprește:
-      // pe drumul comun rămâne o singură linie («în momentul ce se unesc 2 sau mai multe — au o linie»).
-      // Cea aleasă se desenează întreagă, până la destinație, plină și deasupra.
-      const earlier: LatLon[][] = [];
-      trips.forEach((t, i) => {
-        const r = t.route_id != null ? routes[t.route_id] : undefined;
-        if (!r || t.lat == null || t.lon == null || snapOn([t.lat, t.lon], r.shape).seg < 1) return;
-        let path = ahead(r, t, true);
-        if (i !== selected) {
-          const k = path.findIndex((p) => earlier.some((e) => kmToLine(p, e) < JOIN_KM));
-          if (k >= 0) path = path.slice(0, k + 1);
-        }
-        earlier.push(ahead(r, t, true));
-        if (i === selected || path.length < 2) return;
-        L.polyline(path, { color: '#FFFFFF', weight: 6, opacity: 0.9, lineCap: 'round', interactive: false }).addTo(g);
-        L.polyline(path, { color: lineColor(i), weight: 3, opacity: 0.9, dashArray: '7 6', lineCap: 'round', interactive: false }).addTo(g);
+    for (const { path, color } of scene.lines) {
+      L.polyline(path, { color: '#FFFFFF', weight: 6, opacity: 0.9, lineCap: 'round', interactive: false }).addTo(g);
+      L.polyline(path, { color, weight: 3, opacity: 0.9, dashArray: '7 6', lineCap: 'round', interactive: false }).addTo(g);
+    }
+    for (const { part, color } of scene.sel) {
+      L.polyline(part, { color: '#FFFFFF', weight: 9, opacity: 0.95, lineCap: 'round', interactive: false }).addTo(g);
+      L.polyline(part, { color, weight: 5, opacity: 1, lineCap: 'round', interactive: false }).addTo(g);
+    }
+    for (const { at, cls } of scene.ends) {
+      L.marker(at, {
+        icon: L.divIcon({ html: `<span class="now-end ${cls}"></span>`, className: 'now-pin-icon', iconSize: [16, 16], iconAnchor: [8, 8] }),
+        keyboard: false, interactive: false,
+      }).addTo(g);
+    }
+    for (const { i, t, at, deg, on } of scene.buses) {
+      // Insigna rotundă cu microbuzul și săgeata spre direcția de mers, ora alături (varianta C
+      // aleasă de Ion pe 24.09; 23.09: «маршрутка должна быть в сторону направления, куда едет
+      // морда»). Săgeata se rotește pe orice unghi; ora rămâne dreaptă, de citit.
+      const arrow = deg == null ? '' : `<span class="nb-arrow" style="transform:rotate(${deg.toFixed(0)}deg)">${ARROW_SVG}</span>`;
+      const icon = L.divIcon({
+        html: `<span class="now-bus${on ? ' on' : ''}${t.estimated ? ' est' : ''}">${arrow}<span class="nb-dot">${BUS_FRONT_SVG}</span>${!on ? '' : t.at_stop ? `<b class="here"><i></i>${t.at_stop.mine ? tx.here : t.at_stop.name}</b>` : `<b>${tx.when(t.eta_min ?? t.minutes_until)}</b>`}</span>`,
+        className: 'now-pin-icon', iconSize: [44, 44], iconAnchor: [22, 22],
       });
+      L.marker(at, { icon, keyboard: false, title: t.estimated ? `${t.departure} · ${locale === 'ru' ? 'примерное место, без GPS' : 'poziție orientativă, fără GPS'}` : t.departure, zIndexOffset: on ? 1000 : 0 })
+        .on('click', () => onPick(i))
+        .addTo(g);
+    }
 
-      // Linia cursei alese și, pe ea, localitatea omului și destinația.
-      if (route?.shape.length) {
-        // Până la stația omului în culoarea mașinii; de la stație până la destinație mereu bordo,
-        // culoarea firmei (Ion, 27.09, ION-100: «ultima linie întotdeauna să fie culoarea firmei»).
-        const t = trips[selected];
-        const toStop = ahead(route, t, true);
-        // Stația în afara liniei (ocol): toată linia în culoarea mașinii, fără coada bordo.
-        const onLine = !!route.from && snapOn(route.from, route.shape).seg > 0;
-        const tail = onLine ? ahead(route, { ...t, lat: route.from![0], lon: route.from![1] }) : [];
-        if (!onLine) toStop.splice(0, toStop.length, ...ahead(route, t));
-        for (const [part, color] of [[toStop, lineColor(selected)], [tail, RED]] as const) {
-          if (part.length < 2) continue;
-          L.polyline(part, { color: '#FFFFFF', weight: 9, opacity: 0.95, lineCap: 'round', interactive: false }).addTo(g);
-          L.polyline(part, { color, weight: 5, opacity: 1, lineCap: 'round', interactive: false }).addTo(g);
-        }
-        for (const [pt, cls] of [[route.from, 'from'], [route.to, 'to']] as const) {
-          if (!pt) continue;
-          // Centrul satului poate sta în afara traseului: capătul se pune pe linie.
-          L.marker(snap(pt, route.shape), {
-            icon: L.divIcon({ html: `<span class="now-end ${cls}"></span>`, className: 'now-pin-icon', iconSize: [16, 16], iconAnchor: [8, 8] }),
-            keyboard: false, interactive: false,
-          }).addTo(g);
-        }
-      }
+    const pts = scene.fit;
+    if (!fitted.current && pts.length) {
+      fitted.current = true;
+      // Ce acoperă lista și antetul nu e hartă: autobuzul ales stătea sub cardul de jos (08:03).
+      m.fitBounds(pts.length === 1 ? [pts[0], pts[0]] : pts, { ...panelPadding(m), maxZoom: 11 });
+      // Nu mai departe de nivelul 9 (~150 km pe lățimea telefonului): localitatea omului rămâne pe loc.
+      if (m.getZoom() < MIN_OPEN_ZOOM) m.setZoomAround(scene.from ?? pts[0], MIN_OPEN_ZOOM, { animate: false });
+    }
+  }, [scene, ready, locale, onPick]);
 
-      // Numele orașelor prin care trec rutele (Ion, 27.09, ION-100: «nu se înțelege unde este Bălți»):
-      // plăcile decolorate nu le arată la zoom mic. Sub autobuze, fără clic.
-      // Eticheta pe care stă un autobuz (sau ora lui) nu se scrie: «Bri…» sub mașină, «Ot…» sub oră.
-      const busBoxes = trips.flatMap((t, i) => {
-        if (t.lat == null || t.lon == null) return [];
-        const c = m.latLngToContainerPoint([t.lat, t.lon]);
-        return [{ x0: c.x - 24, x1: c.x + 24 + (i === selected ? 110 : 0), y0: c.y - 24, y1: c.y + 24 }];
-      });
-      for (const p of places) {
-        const mine = !!route?.from && near([p.lat, p.lon], route.from);
-        const name = p.name.replace(/[<>&"]/g, '');
-        const c = m.latLngToContainerPoint([p.lat, p.lon]);
-        const box = { x0: c.x - 8, x1: c.x + 14 + name.length * 9, y0: c.y - 10, y1: c.y + (mine ? 26 : 10) };
-        const hit = busBoxes.some((b) => b.x0 < box.x1 && box.x0 < b.x1 && b.y0 < box.y1 && box.y0 < b.y1);
-        if (!mine && hit) continue;
-        // Stația omului nu se ascunde: când stă o mașină peste ea, numele trece în stânga punctului.
-        L.marker([p.lat, p.lon], {
-          icon: L.divIcon({ html: `<span class="now-place${p.end ? ' end' : ''}${mine ? ' mine' : ''}${mine && hit ? ' left' : ''}"><i></i><span>${name}${mine ? `<small>${tx.mine}</small>` : ''}</span></span>`, className: 'now-pin-icon', iconSize: [0, 0], iconAnchor: [0, 0] }),
-          keyboard: false, interactive: false, zIndexOffset: -1000,
-        }).addTo(g);
-      }
-
-      const pts: [number, number][] = [];
-      trips.forEach((t, i) => {
-        if (t.lat == null || t.lon == null) return;
-        const on = i === selected;
-        // Autobuzul stă pe linia rutei lui: GPS-ul e la câțiva metri de drum.
-        const own = t.route_id != null ? routes[t.route_id]?.shape : undefined;
-        const s = own ? snapOn([t.lat, t.lon], own) : { at: [t.lat, t.lon] as LatLon, seg: -1 };
-        const at = s.at;
-        // Insigna rotundă cu microbuzul și săgeata spre direcția de mers, ora alături (varianta C
-        // aleasă de Ion pe 24.09; 23.09: «маршрутка должна быть в сторону направления, куда едет
-        // морда»). Săgeata se rotește pe orice unghi; ora rămâne dreaptă, de citit.
-        const deg = own ? heading(own, s.seg, t.going_north) : null;
-        const arrow = deg == null ? '' : `<span class="nb-arrow" style="transform:rotate(${deg.toFixed(0)}deg)">${ARROW_SVG}</span>`;
-        const icon = L.divIcon({
-          html: `<span class="now-bus${on ? ' on' : ''}${t.estimated ? ' est' : ''}">${arrow}<span class="nb-dot">${BUS_FRONT_SVG}</span>${!on ? '' : t.at_stop ? `<b class="here"><i></i>${t.at_stop.mine ? tx.here : t.at_stop.name}</b>` : `<b>${tx.when(t.eta_min ?? t.minutes_until)}</b>`}</span>`,
-          className: 'now-pin-icon', iconSize: [44, 44], iconAnchor: [22, 22],
-        });
-        L.marker(at, { icon, keyboard: false, title: t.estimated ? `${t.departure} · ${locale === 'ru' ? 'примерное место, без GPS' : 'poziție orientativă, fără GPS'}` : t.departure, zIndexOffset: on ? 1000 : 0 })
-          .on('click', () => onPick(i))
-          .addTo(g);
-        // Harta se deschide pe autobuzul ales, localitatea omului și Bălți ca reper; din Bălți,
-        // pe drumul până la destinație (Ion, 27.09, ION-100: «punem vizual Bălți să se vadă»; tot
-        // drumul Edineț–Chișinău «nu e clar nimic»). Celelalte autobuze nu trag harta după ele;
-        // alese din listă, harta se duce la ele.
-        if (on) pts.push(at);
-      });
-      if (route?.from) {
-        const fromBalti = near(route.from, BALTI);
-        pts.push(route.from);
-        // Din Bălți: doar Bălți și autobuzul, nu tot drumul până la Chișinău (Ion, 27.09: «harta să
-        // se deschidă mai măricel»).
-        if (!fromBalti) pts.push(BALTI);
-      } else if (route?.to) pts.push(route.to);
-      if (pts.length === 0 && route?.shape.length) pts.push(route.shape[0], route.shape[route.shape.length - 1]);
-      if (!fitted.current && pts.length) {
-        fitted.current = true;
-        // Ce acoperă lista și antetul nu e hartă: autobuzul ales stătea sub cardul de jos (08:03).
-        m.fitBounds(pts.length === 1 ? [pts[0], pts[0]] : pts, { ...panelPadding(m), maxZoom: 11 });
-        // Nu mai departe de nivelul 9 (~150 km pe lățimea telefonului): localitatea omului rămâne pe loc.
-        if (m.getZoom() < MIN_OPEN_ZOOM) m.setZoomAround(route?.from ?? pts[0], MIN_OPEN_ZOOM, { animate: false });
-      }
-    })();
-  }, [trips, routes, places, ready, selected, onPick, locale, zoom]);
+  // Numele orașelor prin care trec rutele (Ion, 27.09, ION-100: «nu se înțelege unde este Bălți»):
+  // plăcile decolorate nu le arată la zoom mic. Sub autobuze, fără clic.
+  // Eticheta pe care stă un autobuz (sau ora lui) nu se scrie: «Bri…» sub mașină, «Ot…» sub oră.
+  // Se rejudecă la zoom (ce stă sub ce se schimbă pe ecran) — doar ele, nu toată harta (ION-206).
+  useEffect(() => {
+    const L = Lref.current, m = map.current, g = labels.current;
+    if (!ready || !L || !m || !g) return;
+    g.clearLayers();
+    const tx = TXT[locale];
+    const busBoxes = scene.buses.map((b) => {
+      const c = m.latLngToContainerPoint(b.at);
+      return { x0: c.x - 24, x1: c.x + 24 + (b.on ? 110 : 0), y0: c.y - 24, y1: c.y + 24 };
+    });
+    for (const p of places) {
+      const mine = !!scene.from && near([p.lat, p.lon], scene.from);
+      const name = p.name.replace(/[<>&"]/g, '');
+      const c = m.latLngToContainerPoint([p.lat, p.lon]);
+      const box = { x0: c.x - 8, x1: c.x + 14 + name.length * 9, y0: c.y - 10, y1: c.y + (mine ? 26 : 10) };
+      const hit = busBoxes.some((b) => b.x0 < box.x1 && box.x0 < b.x1 && b.y0 < box.y1 && box.y0 < b.y1);
+      if (!mine && hit) continue;
+      // Stația omului nu se ascunde: când stă o mașină peste ea, numele trece în stânga punctului.
+      L.marker([p.lat, p.lon], {
+        icon: L.divIcon({ html: `<span class="now-place${p.end ? ' end' : ''}${mine ? ' mine' : ''}${mine && hit ? ' left' : ''}"><i></i><span>${name}${mine ? `<small>${tx.mine}</small>` : ''}</span></span>`, className: 'now-pin-icon', iconSize: [0, 0], iconAnchor: [0, 0] }),
+        keyboard: false, interactive: false, zIndexOffset: -1000,
+      }).addTo(g);
+    }
+  }, [scene, places, ready, locale, zoom]);
 
   // Cursa aleasă din listă: harta se duce la autobuzul ei.
   const first = useRef(true);
@@ -362,24 +461,33 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
   const [failed, setFailed] = useState(false);
   const [selected, setSelected] = useState(0);
 
+  // Răspunsul unei direcții schimbate între timp nu mai contează.
+  const seq = useRef(0);
   const load = useCallback(async () => {
+    const my = ++seq.current;
     try {
-      const res = await fetch(`${ENDPOINT}/acum`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from: fromValue, to: toValue }),
-      });
-      if (!res.ok) throw new Error(String(res.status));
-      setData(await res.json());
+      const raw = await fetchAcum(fromValue, toValue, locale);
+      const routes = await withShapes(raw);
+      if (my !== seq.current) return;
+      setData({ ...raw, routes });
       setFailed(false);
     } catch {
-      setFailed(true);
+      if (my === seq.current) setFailed(true);
     }
-  }, [fromValue, toValue]);
+  }, [fromValue, toValue, locale]);
+
+  // Leaflet și legătura cu serverul de plăci pornesc odată cu cererea, nu după ea (ION-206).
+  useEffect(() => { loadLeaflet(); preconnectTiles(); }, []);
 
   useEffect(() => {
-    load();
-    const id = setInterval(load, REFRESH_MS);
-    return () => clearInterval(id);
+    let last = 0;
+    const tick = () => { if (document.hidden) return; last = Date.now(); load(); };
+    tick();
+    const id = setInterval(tick, REFRESH_MS);
+    // Tab-ul ascuns nu cere nimic; la întoarcere, dacă a trecut minutul, cere pe loc (ION-206).
+    const onVis = () => { if (!document.hidden && Date.now() - last >= REFRESH_MS) tick(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', onVis); };
   }, [load]);
 
   useEffect(() => {
@@ -402,7 +510,9 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
     if (box && row) box.scrollTo({ top: row.offsetTop - head, behavior: 'smooth' });
   }, [sel]);
   // Harta apare și fără autobuz pe drum, dacă avem linia rutei: omul vede pe unde va veni.
-  const withPoint = trips.some((t) => t.lat != null || (t.route_id != null && !!data?.routes?.[t.route_id]));
+  const withPoint = trips.some((t) => t.lat != null || (t.route_id != null && !!data?.routes[t.route_id]));
+  // Până vin datele, harta e deja pe ecran, cu plăcile (ION-206); după, rămâne doar dacă are ce arăta.
+  const showMap = data ? withPoint : !failed;
   const empty = data && trips.length === 0;
   const head = (
     <>
@@ -415,8 +525,8 @@ export function NowResults({ from, to, fromValue, toValue, locale, onClose }: {
 
   return (
     <div className="now-overlay" onClick={onClose}>
-      <div className={`now-box${withPoint ? '' : ' no-map'}`} role="dialog" aria-modal="true" aria-label={`${from} → ${to}`} onClick={(e) => e.stopPropagation()}>
-        {withPoint && <NowMap trips={trips} routes={data?.routes ?? NO_ROUTES} places={data?.places ?? NO_PLACES} selected={sel} onPick={setSelected} locale={locale} />}
+      <div className={`now-box${showMap ? '' : ' no-map'}`} role="dialog" aria-modal="true" aria-label={`${from} → ${to}`} onClick={(e) => e.stopPropagation()}>
+        {showMap && <NowMap trips={trips} routes={data?.routes ?? NO_ROUTES} places={data?.places ?? NO_PLACES} selected={sel} onPick={setSelected} locale={locale} />}
 
         <div className="now-top">{head}</div>
 

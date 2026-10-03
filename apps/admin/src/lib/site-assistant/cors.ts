@@ -15,7 +15,8 @@ export function cors(req: NextRequest): Record<string, string> {
   if (!ORIGINS.has(origin)) return {};
   return {
     'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    // GET cu query (ION-206): cerere «simplă», fără preflight — /acum și /pozitie se cer o dată pe minut.
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Max-Age': '86400',
     Vary: 'Origin',

@@ -278,6 +278,8 @@ function CardView({ card, i, locale, ask, busy, live = false }: { card: Card; i:
 
 type BusCard = Extract<Card, { type: 'bus' }>;
 const REFRESH_MS = 60_000;
+/** central-hub vechi, fără GET pe /pozitie (405): se trece pe POST până la deploy-ul lui (ION-206). */
+let pozitiePostOnly = false;
 
 // Autobuzul: doar punctul de acum — fără viteză, direcție sau traseu (Ion, 23.09).
 // Cât cardul e ultimul din chat, punctul se cere din nou o dată pe minut (cronul de
@@ -291,14 +293,22 @@ function BusCardView({ card: first, i, locale, live }: { card: BusCard; i: T; lo
   useEffect(() => {
     if (!live || ended) return;
     let stop = false;
+    let last = Date.now();
     const tick = async () => {
       if (document.hidden) return;
+      last = Date.now();
       try {
-        const res = await fetch(`${ENDPOINT}/pozitie`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ from: card.from, to: card.to, departure: card.departure }),
-        });
+        // GET cu query = cerere «simplă», fără preflight CORS la fiecare minut (ION-206).
+        const q = new URLSearchParams({ from: card.from, to: card.to, departure: card.departure });
+        let res = pozitiePostOnly ? null : await fetch(`${ENDPOINT}/pozitie?${q}`);
+        if (!res || res.status === 405 || res.status === 404) {
+          pozitiePostOnly = true;
+          res = await fetch(`${ENDPOINT}/pozitie`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ from: card.from, to: card.to, departure: card.departure }),
+          });
+        }
         if (!res.ok || stop) return;
         const d = await res.json() as { live?: boolean; card?: BusCard; line_ro?: string | null; line_ru?: string | null };
         if (d.live && d.card) setCard(d.card);
@@ -306,7 +316,10 @@ function BusCardView({ card: first, i, locale, live }: { card: BusCard; i: T; lo
       } catch { /* următorul minut */ }
     };
     const t = setInterval(tick, REFRESH_MS);
-    return () => { stop = true; clearInterval(t); };
+    // Tab-ul ascuns nu cere nimic; la întoarcere, dacă a trecut minutul, cere pe loc (ION-206).
+    const onVis = () => { if (!document.hidden && Date.now() - last >= REFRESH_MS) tick(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => { stop = true; clearInterval(t); document.removeEventListener('visibilitychange', onVis); };
   }, [live, ended, card.from, card.to, card.departure, locale, i.busEnded]);
 
   useEffect(() => {

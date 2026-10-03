@@ -15,6 +15,7 @@ import { localitiesToRo, unknownLocalityResponse } from '@/lib/voice-locality';
 import { chisinauTodayIso } from '@/lib/chisinau-time';
 import { crewOf, type Crew } from './cards';
 import { formatPhone } from './voice-to-text';
+import { stopHours, type HourRow } from './static-cache';
 
 /** După sfârșitul din grafic cursa mai e «pe drum» atât: autobuzele întârzie. */
 export const END_SLACK_MIN = 20;
@@ -64,25 +65,12 @@ export function isOnRoad(w: { start: number; end: number }, now: number): boolea
 }
 
 async function windowsFor(trips: TripResult[]): Promise<Map<string, { start: number; end: number }>> {
-  const ids = [...new Set(trips.map((t) => t.route_id).filter((x) => x != null))];
+  const ids = [...new Set(trips.map((t) => Number(t.route_id)).filter((x) => Number.isInteger(x)))];
   const out = new Map<string, { start: number; end: number }>();
   if (ids.length === 0) return out;
-  // PostgREST dă cel mult 1000 de rânduri pe cerere; cursele unei zile pe o direcție trec
-  // prin zeci de rute × ~41 de opriri. Fără pagini, rutele de la coadă rămâneau fără
-  // fereastră — deci nici «pe drum», nici punct (24.09, 12:46, Bălți → Sîngerei: ruta 28,
-  // 692 TWK la Autogara cu GPS proaspăt, nevăzută pe hartă).
-  const data: { crm_route_id: number; stop_order: number; hour_from_chisinau: string | null; hour_from_nord: string | null }[] = [];
-  for (let from = 0; ; from += 1000) {
-    const { data: page, error } = await getSupabase()
-      .from('crm_stop_fares')
-      .select('crm_route_id, stop_order, hour_from_chisinau, hour_from_nord')
-      .in('crm_route_id', ids)
-      .order('crm_route_id').order('stop_order')
-      .range(from, from + 999);
-    if (error || !page) break;
-    data.push(...(page as typeof data));
-    if (page.length < 1000) break;
-  }
+  // Orele opririlor sunt statice: din Data Cache (static-cache, 1 h; pe pagini de 1000 acolo —
+  // 24.09, 12:46, Bălți → Sîngerei: ruta 28 rămânea fără fereastră, deci fără punct). ION-206.
+  const data = await stopHours(ids).catch(() => [] as HourRow[]);
   if (data.length === 0) return out;
   for (const t of trips) {
     if (t.route_id == null) continue;

@@ -28,15 +28,26 @@ export async function OPTIONS(req: NextRequest) {
   return new NextResponse(null, { status: 204, headers: cors(req) });
 }
 
-export async function POST(req: NextRequest) {
-  const headers = cors(req);
-  if (!headers['Access-Control-Allow-Origin']) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
-  if (limited()) return NextResponse.json({ error: 'rate limited' }, { status: 429, headers });
+/** GET cu query (ION-206): cerere «simplă», fără preflight CORS la fiecare minut. */
+export async function GET(req: NextRequest) {
+  const q = req.nextUrl.searchParams;
+  const s = (v: string | null) => (v ?? '').slice(0, 80);
+  return handle(req, s(q.get('from')), s(q.get('to')), s(q.get('departure')));
+}
 
+/** POST-ul vechi rămâne până trece deploy-ul site-ului. */
+export async function POST(req: NextRequest) {
   let body: Record<string, unknown> = {};
   try { body = await req.json(); } catch { /* validat mai jos */ }
   const s = (v: unknown) => (typeof v === 'string' ? v.slice(0, 80) : '');
-  const from = s(body.from), to = s(body.to), departure = s(body.departure);
+  return handle(req, s(body.from), s(body.to), s(body.departure));
+}
+
+async function handle(req: NextRequest, from: string, to: string, departure: string) {
+  // Punctul e de acum: GET-ul nu are voie să rămână în CDN.
+  const headers: Record<string, string> = { ...cors(req), 'Cache-Control': 'no-store' };
+  if (!headers['Access-Control-Allow-Origin']) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  if (limited()) return NextResponse.json({ error: 'rate limited' }, { status: 429, headers });
   if (!from || !to || !/^\d{1,2}:\d{2}$/.test(departure)) return NextResponse.json({ error: 'bad request' }, { status: 400, headers });
 
   try {

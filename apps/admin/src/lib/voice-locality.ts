@@ -44,7 +44,42 @@ export function lev(a: string, b: string): number {
 const RU_ALIASES: Record<string, string> = {
   'купчин': 'Cupcini', // в БД name_ru = «Калининск», но говорят и «Купчинь»
   'атак': 'Otaci', // традиционное русское «Атаки»
+  // ION-224 (звонки 04.10.2026): обычные русские названия, которых нет в name_ru.
+  'оргеев': 'Orhei', // name_ru = «Орхей»; по-русски говорят «Оргеев», ASR пишет «Ордеев»
+  'единц': 'Edineț', // name_ru = «Единец»; по-русски «Единцы» → ключ «единц»
 };
+
+/**
+ * Фонетический ключ, ОБЩИЙ для обоих алфавитов (ION-224).
+ *
+ * ASR пишет румынские названия кириллицей и наоборот: клиент сказал «Бричаны», а в
+ * транскрипте «Бречень» (румынское Briceni, услышанное по-русски). Сравнивать
+ * кириллицу только с name_ru, а латиницу только с name_ro — значит промахиваться
+ * всякий раз, когда алфавит транскрипта не совпал с языком названия.
+ *
+ * Обе стороны сводятся к одной латинской записи «как звучит»: ч = румынское c перед
+ * e/i, ж = j и румынское g перед e/i (Sîngerei = Сынжерей), ш = ș, ц = ț, ы = î,
+ * к = c перед a/o/u и ch перед e/i.
+ */
+const CYR2LAT: Record<string, string> = {
+  а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ж: 'j', з: 'z', и: 'i', й: 'i', к: 'k', л: 'l',
+  м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f', х: 'h', ц: 't', ч: 'c',
+  ш: 's', щ: 's', ы: 'i', э: 'e', ю: 'iu', я: 'ia', ь: '', ъ: '',
+};
+export function phon(s: string): string {
+  const n = norm(s).replace(/[\s-]/g, '');
+  if (/[а-я]/.test(n)) {
+    return n.replace(/дж/g, 'ж').split('').map((ch) => CYR2LAT[ch] ?? ch).join('');
+  }
+  return n
+    .replace(/ch(?=[ei])/g, 'k').replace(/gh(?=[ei])/g, 'g')
+    .replace(/c(?=[ei])/g, 'C').replace(/g(?=[ei])/g, 'j')
+    .replace(/c/g, 'k').replace(/C/g, 'c')
+    .replace(/[^a-z]/g, '');
+}
+
+/** Предлоги, которые ASR приклеивает к названию: «в Окницу» → «Вокница». */
+const GLUED_PREPOSITIONS = ['из', 'во', 'со', 'в', 'с'];
 
 // Кэш алиасов из БД на время жизни инстанса (5 мин) — резолвер дёргается на каждый тул.
 let aliasCache: { at: number; map: Record<string, string> } | null = null;
@@ -100,11 +135,19 @@ export interface Suggestion { ro: string; ru: string }
 export function closestNames(heard: string, rows: LocalityRow[], alphabet: 'ro' | 'ru'): Suggestion[] {
   const k = key(heard);
   if (!k || k.length > SUGGEST_MAX_KEY) return [];
+  // ION-224: și în cheia fonetică comună («Бречень» ≈ Briceni), ca agentul să aibă ce
+  // propune și când transcrierea a ales celălalt alfabet. Se ia distanța cea mai mică.
+  const p = phon(heard);
   return rows
     .map((r) => {
       const candidat = key(alphabet === 'ru' ? r.name_ru : r.name_ro);
-      const d = levFull(k, candidat);
-      return { r, d, raport: d / Math.max(k.length, candidat.length, 1) };
+      const d0 = levFull(k, candidat);
+      const variante = [
+        { d: d0, len: Math.max(k.length, candidat.length, 1) },
+        ...[phon(r.name_ro), phon(r.name_ru)].map((pc) => ({ d: levFull(p, pc), len: Math.max(p.length, pc.length, 1) })),
+      ];
+      const best = variante.reduce((x, y) => (y.d / y.len < x.d / x.len ? y : x));
+      return { r, d: best.d, raport: best.d / best.len };
     })
     .filter((c) => c.d <= SUGGEST_MAX_DIST && c.raport <= SUGGEST_MAX_RATIO)
     .sort((a, b) => a.d - b.d || a.r.name_ro.localeCompare(b.r.name_ro))
@@ -137,6 +180,86 @@ async function dbLocalities(): Promise<{ name_ro: string; name_ru: string }[]> {
   return rows;
 }
 
+/** Порог автоматического выбора: 1 буква на 5–8 буквах ключа, 2 — от 9. Меньше 5 — только точно. */
+function autoMaxDist(len: number): number {
+  return len >= 9 ? 2 : len >= 5 ? 1 : 0;
+}
+
+/**
+ * Один вход → name_ro или null. Чистая функция: таблица и выученные алиасы приходят
+ * параметрами, поэтому её можно проверить на всех 91 названиях без базы.
+ *
+ * Порядок стадий — от самой надёжной к самой смелой; каждая следующая срабатывает,
+ * только если предыдущие промолчали, и выбирает ТОЛЬКО однозначного кандидата.
+ * Неоднозначность = null → агент переспрашивает с вариантами, а не гадает.
+ */
+export function resolveLocality(
+  input: string,
+  rows: LocalityRow[],
+  learned: Record<string, string> = {},
+): string | null {
+  if (!input || !/\p{L}/u.test(input)) return null;
+  // De la 24.08 se rezolvă AMBELE alfabete: și numele latine stâlcite de ASR
+  // («Brăcești») trec prin aceleași trepte contra name_ro; nepotrivit = unknown,
+  // ca agentul să reîntrebe în loc de «0 curse» tăcut sau «nu e pe rută» inventat.
+  const isCyr = /[а-яё]/i.test(input);
+  const nameOf = (r: LocalityRow) => (isCyr ? r.name_ru : r.name_ro);
+  const n = norm(input);
+  const k = key(input);
+  const aliases: Record<string, string> = { ...learned, ...RU_ALIASES };
+  const exactly = (kk: string): string | null => {
+    if (aliases[kk]) return aliases[kk];
+    const r = rows.find((x) => key(nameOf(x)) === kk);
+    return r ? r.name_ro : null;
+  };
+  if (aliases[k]) return aliases[k];
+  const exact = rows.find((r) => norm(nameOf(r)) === n) || rows.find((r) => key(nameOf(r)) === k);
+  if (exact) return exact.name_ro;
+  // Приклеенный предлог (ION-224, звонок 04.10: «с Единец — Вокница»): только ТОЧНОЕ
+  // попадание остатка — «В» в начале настоящего названия (Волчинец) сюда не доходит,
+  // его уже нашла точная стадия выше.
+  if (isCyr) {
+    for (const p of GLUED_PREPOSITIONS) {
+      if (k.startsWith(p) && k.length - p.length >= 4) {
+        const hit = exactly(k.slice(p.length));
+        if (hit) return hit;
+      }
+    }
+  }
+  // Префиксная стадия: только на осмысленном ключе и только при однозначном попадании —
+  // короткий ключ («б») иначе схлопнул бы половину таблицы в первое село.
+  if (k.length >= 4) {
+    const prefix = rows.filter((r) => key(nameOf(r)).startsWith(k) || k.startsWith(key(nameOf(r))));
+    if (prefix.length === 1) return prefix[0].name_ro;
+  }
+  // Fuzzy-стадия для ASR-ошибок («кор жоуце» → Corjeuți): допускаем 1 букву разницы
+  // (2 для длинных имён) и берём только ОДНОЗНАЧНО лучшего кандидата. С ION-224 в
+  // кандидатах и алиасы («Ордеев» в 1 букве от алиаса «Оргеев»), а однозначность
+  // меряется по ИТОГОВОМУ name_ro: два варианта одного села — не спор.
+  const fuzzyPick = (cands: { k: string; ro: string }[], probe: string): string | null => {
+    const maxD = autoMaxDist(probe.length);
+    if (maxD === 0 || cands.length === 0) return null;
+    const scored = cands.map((c) => ({ ro: c.ro, d: lev(probe, c.k) })).sort((x, y) => x.d - y.d);
+    const best = scored[0];
+    if (best.d > maxD) return null;
+    const rival = scored.find((c) => c.ro !== best.ro);
+    return !rival || best.d < rival.d ? best.ro : null;
+  };
+  const sameAlphabet = [
+    ...rows.map((r) => ({ k: key(nameOf(r)), ro: r.name_ro })),
+    ...Object.entries(aliases).filter(([ak]) => /[а-я]/.test(ak) === isCyr).map(([ak, ro]) => ({ k: ak, ro })),
+  ];
+  const fz = fuzzyPick(sameAlphabet, k);
+  if (fz) return fz;
+  // Межалфавитная стадия (ION-224): «Бречень» → Briceni, «Biedeneț» по-русски и т.п.
+  // Тот же порог и та же однозначность, но в общем фонетическом ключе.
+  const p = phon(input);
+  return fuzzyPick(
+    rows.flatMap((r) => [{ k: phon(r.name_ro), ro: r.name_ro }, { k: phon(r.name_ru), ro: r.name_ro }]),
+    p,
+  );
+}
+
 export async function localitiesToRo(inputs: (string | undefined)[]): Promise<LocalityResolution> {
   if (!inputs.some((s) => s && /\p{L}/u.test(s))) return { values: inputs, unknown: [], suggestions: {} };
 
@@ -147,35 +270,9 @@ export async function localitiesToRo(inputs: (string | undefined)[]): Promise<Lo
   const suggestions: Record<string, Suggestion[]> = {};
   const values = inputs.map((input) => {
     if (!input || !/\p{L}/u.test(input)) return input;
-    // De la 24.08 se rezolvă AMBELE alfabete: și numele latine stâlcite de ASR
-    // («Brăcești») trec prin aceleași trepte contra name_ro; nepotrivit = unknown,
-    // ca agentul să reîntrebe în loc de «0 curse» tăcut sau «nu e pe rută» inventat.
+    const hit = resolveLocality(input, rows, learned);
+    if (hit) return hit;
     const isCyr = /[а-яё]/i.test(input);
-    const nameOf = (r: { name_ro: string; name_ru: string }) => (isCyr ? r.name_ru : r.name_ro);
-    const n = norm(input);
-    const k = key(input);
-    if (RU_ALIASES[k]) return RU_ALIASES[k];
-    if (learned[k]) return learned[k];
-    const exact = rows.find((r) => norm(nameOf(r)) === n) || rows.find((r) => key(nameOf(r)) === k);
-    if (exact) return exact.name_ro;
-    // Префиксная стадия: только на осмысленном ключе и только при однозначном попадании —
-    // короткий ключ («б») иначе схлопнул бы половину таблицы в первое село.
-    if (k.length >= 4) {
-      const prefix = rows.filter((r) => key(nameOf(r)).startsWith(k) || k.startsWith(key(nameOf(r))));
-      if (prefix.length === 1) return prefix[0].name_ro;
-    }
-    // Fuzzy-стадия для ASR-ошибок («кор жоуце» → Corjeuți): допускаем 1 букву разницы
-    // (2 для длинных имён) и берём только ОДНОЗНАЧНО лучшего кандидата. Проверено на
-    // живой таблице: единственная пара с dist≤2 — Рышканы/Пашканы — отсечена порогом длины.
-    const maxD = k.length >= 9 ? 2 : k.length >= 5 ? 1 : 0;
-    if (maxD > 0 && rows.length > 0) {
-      const scored = rows
-        .map((r) => ({ r, d: lev(k, key(nameOf(r))) }))
-        .sort((a, b) => a.d - b.d);
-      if (scored[0].d <= maxD && (scored.length === 1 || scored[0].d < scored[1].d)) {
-        return scored[0].r.name_ro;
-      }
-    }
     if (!unknown.includes(input)) unknown.push(input); // ambele capete pot fi același nume
     // Nu ghicim, dar nici nu lăsăm agentul cu mâinile goale: îi dăm cele mai apropiate
     // nume ca să ÎNTREBE clientul care din ele. Apel 24.08: transcrierea a scris

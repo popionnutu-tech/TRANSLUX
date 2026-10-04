@@ -631,6 +631,28 @@ const NU_GHICI_BLOCK_RU = `
 - Цифры берутся так, как сказаны: «десять-двенадцать человек» — это число людей, а не время; «около восьми» — не «ровно восемь».
 - Не уверен, что он сказал? Переспроси один раз, коротко, именно неясную часть — не повторяй весь разговор.`;
 
+// ION-224 (Ion, 04.10: «оператор не может разобраться в населённых пунктах никогда… ни с
+// первого раза, ни со второго»). Apelul conv_…957r2m: clientul a spus «из Единец в Окницу»,
+// ASR-ul a scris «с Единец — Вокница», iar agentul a răspuns «не расслышала» FĂRĂ să caute —
+// regula NU_GHICI («непохожее ни на что название → попроси повторить») l-a oprit. La a doua
+// încercare ASR-ul a greșit la fel. Serverul (lib/voice-locality) repară acum singur prepoziția
+// lipită, o literă greșită și alfabetul încurcat — dar numai dacă numele AJUNGE la el.
+const NUME_AUZIT_MARKER = 'NUMELE AUZIT CIUDAT — ÎL TRIMIȚI ÎN CĂUTARE';
+const NUME_AUZIT_BLOCK = `
+
+NUMELE AUZIT CIUDAT — ÎL TRIMIȚI ÎN CĂUTARE:
+- Recunoașterea vorbirii stâlcește des numele de sate și orașe: lipește prepoziția («Vocnița» = «în Ocnița»), schimbă o literă («Ordeev» = Orhei), scrie româna cu litere rusești. Serverul le corectează singur.
+- De aceea, când clientul spune DE UNDE și UNDE vrea să meargă, trimiți în search_trips numele EXACT cum le-ai primit, chiar dacă sună ciudat. NU spui «nu am auzit» ÎNAINTE de căutare — aceasta e o excepție de la regula «NU GHICI»: nu ghicești nimic, doar lași serverul să verifice.
+- Ceri repetarea DOAR dacă rezultatul vine cu unknown_locality. Atunci urmezi mesajul lui: dacă are variante, întrebi «Ați spus …?» cu ele, nu «repetați».`;
+
+const NUME_AUZIT_MARKER_RU = 'СТРАННО УСЛЫШАННОЕ НАЗВАНИЕ — ОТПРАВЛЯЕШЬ В ПОИСК';
+const NUME_AUZIT_BLOCK_RU = `
+
+СТРАННО УСЛЫШАННОЕ НАЗВАНИЕ — ОТПРАВЛЯЕШЬ В ПОИСК:
+- Распознавание речи часто коверкает названия сёл и городов: приклеивает предлог («Вокница» = «в Окницу»), путает букву («Ордеев» = Оргеев), пишет румынское название русскими буквами. Сервер исправляет это сам.
+- Поэтому, когда клиент говорит, ОТКУДА и КУДА хочет ехать, отправляй в search_trips названия ТОЧНО так, как их получила, даже если они звучат странно. НЕ говори «не расслышала» ДО поиска — это исключение из правила «НЕ ДОМЫСЛИВАЙ»: ты ничего не домысливаешь, а даёшь серверу проверить.
+- Переспрашиваешь ТОЛЬКО если в ответе есть unknown_locality. Тогда действуй по его сообщению: есть варианты — спроси «Вы сказали …?» с ними, а не «повторите».`;
+
 // ION-90 (Ion, 26.09): «la ultimul sunet asistenta spune ca nu vinde telefoane, iar eu
 // nu asta am intrebat». Apelul conv_8801m3f4wydbfervgthkdfgy83qb: Ion a spus «Vreau să
 // plec mâine de la Chișinău până la Bălți» și «Vreau de la Bălți la Chișinău»; ASR-ul
@@ -1040,6 +1062,7 @@ async function checkAndHealConfig(cfg: any, drifts: Drift[], complaintToolExists
     { marker: 'OPERATOR — NU AM CUI TRANSMITE', block: OPERATOR_BLOCK, field: 'prompt.OPERATOR' },
     { marker: NU_GHICI_MARKER, block: NU_GHICI_BLOCK, field: 'prompt.NU_GHICI' },
     { marker: AUZIT_GRESIT_MARKER, block: AUZIT_GRESIT_BLOCK, field: 'prompt.AUZIT_GRESIT' },
+    { marker: NUME_AUZIT_MARKER, block: NUME_AUZIT_BLOCK, field: 'prompt.NUME_AUZIT' },
   ];
   let healedPrompt = prompt;
   for (const ob of OBSOLETE_BLOCKS) {
@@ -1258,6 +1281,7 @@ async function healRuStation(lostToolId: string | null, complaintToolId: string 
   // Ion 16.09: nimeni nu e contactat de companie — și pe agentul rusesc.
   if (!healed.includes(NIMENI_MARKER_RU)) { healed += NIMENI_BLOCK_RU; vindecate.push('ru.prompt.NIMENI_CONTACTAT'); }
   if (!healed.includes(NU_GHICI_MARKER_RU)) { healed += NU_GHICI_BLOCK_RU; vindecate.push('ru.prompt.NU_GHICI'); }
+  if (!healed.includes(NUME_AUZIT_MARKER_RU)) { healed += NUME_AUZIT_BLOCK_RU; vindecate.push('ru.prompt.NUME_AUZIT'); }
   if (!healed.includes(AUZIT_GRESIT_MARKER_RU)) { healed += AUZIT_GRESIT_BLOCK_RU; vindecate.push('ru.prompt.AUZIT_GRESIT'); }
   // Lista tipurilor, în rusă. Sincronizată pe conținut, ca la RO — vezi syncTypesBlock.
   const nevindecate: Drift[] = [];

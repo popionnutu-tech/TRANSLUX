@@ -33,6 +33,7 @@ export const PROMPT_MARKERS_RO = [
   'OPERATOR — NU AM CUI TRANSMITE',
   'NU GHICI — CE N-A SPUS CLIENTUL NU EXISTĂ',
   'CERERE STRĂINĂ DE TRANSPORT — AI AUZIT GREȘIT',
+  'NUMELE AUZIT CIUDAT — ÎL TRIMIȚI ÎN CĂUTARE',
 ];
 
 /** Aceleași repere, în promptul agentului rusesc. */
@@ -50,6 +51,7 @@ export const PROMPT_MARKERS_RU = [
   'НИКТО НЕ ПЕРЕЗВАНИВАЕТ — НИКОГДА, А «ЗАПИСАЛА» — НЕ ОБЕЩАНИЕ',
   'НЕ ДОМЫСЛИВАЙ — ЧЕГО КЛИЕНТ НЕ СКАЗАЛ, ТОГО НЕТ',
   'ПРОСЬБА НЕ ПРО ПЕРЕВОЗКИ — ТЫ ОСЛЫШАЛАСЬ',
+  'СТРАННО УСЛЫШАННОЕ НАЗВАНИЕ — ОТПРАВЛЯЕШЬ В ПОИСК',
 ];
 
 export const TOATE_MARKERELE = [...PROMPT_MARKERS_RO, ...PROMPT_MARKERS_RU];

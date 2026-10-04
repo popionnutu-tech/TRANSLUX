@@ -96,6 +96,10 @@ describe('promptul șoferului — criteriile lui Ion (interviu 09.09, spec peron
     expect(DRIVER_SYSTEM_PROMPT).toContain('CLASICĂ (guler întors');
     expect(DRIVER_SYSTEM_PROMPT).toContain('cămașa cu guler tunică');
     expect(DRIVER_SYSTEM_PROMPT).toContain('Dacă nu se poate spune sigur că e cămașă clasică');
+    // Ion, 04.10 (ION-227, poza lui Mariciuc): pulover cu mâneci peste cămașa clasică, gulerul la vedere = uniformă
+    expect(config.DRIVER_UNIFORM_DESCRIPTION).toContain('pulover subțire cu mâneci');
+    expect(DRIVER_SYSTEM_PROMPT).toContain('judeci cămașa după guler');
+    expect(DRIVER_SYSTEM_PROMPT).toContain('pulover fără cămașă clasică');
     // Ion, 01.10 (poza lui Strasnii): bretelele «țin pantalonii»
     expect(config.DRIVER_UNIFORM_DESCRIPTION).toContain('bretelele');
     expect(DRIVER_SYSTEM_PROMPT).toContain('Bretelele (care țin pantalonii)');
@@ -108,7 +112,7 @@ describe('promptul șoferului — criteriile lui Ion (interviu 09.09, spec peron
     expect(DRIVER_SYSTEM_PROMPT).toContain('bleu-liliachiu');
     expect(DRIVER_SYSTEM_PROMPT).toContain('Sub vestă nu se vede dacă e băgată în pantaloni');
     // haina cu mâneci care acoperă complet rămâne fără uniformă
-    expect(DRIVER_SYSTEM_PROMPT).toContain('haină groasă cu mâneci (geacă, hanorac, pulover) care acoperă complet');
+    expect(DRIVER_SYSTEM_PROMPT).toContain('haină groasă cu mâneci (geacă, hanorac, trening) care acoperă complet');
   });
 
   it('încălțăminte: fără șlapi, restul acceptat dacă e curat', () => {

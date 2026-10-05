@@ -90,6 +90,17 @@ export const T_MINI_APP = {
   ].join('\n'),
 };
 
+/** Butonul de meniu (≡) al șoferului devine «🎫 Билеты» → mini app-ul (Ion, 05.10: «setează acum butonul bilete»). Nu aruncă. */
+export async function puneMeniulBilete(ctx: Context): Promise<void> {
+  const chatId = ctx.chat?.id;
+  if (!chatId) return;
+  try {
+    await ctx.api.setChatMenuButton({ chat_id: chatId, menu_button: { type: 'web_app', text: '🎫 Билеты', web_app: { url: config.miniAppBileteUrl } } });
+  } catch (e) {
+    console.error('[sofer] setChatMenuButton:', e);
+  }
+}
+
 export function tastaturaMiniApp(): InlineKeyboard {
   return new InlineKeyboard().webApp(T_MINI_APP.buton, config.miniAppBileteUrl);
 }
@@ -142,6 +153,7 @@ export async function handleSoferContact(ctx: Context): Promise<void> {
     return;
   }
   await ctx.reply(T.reusit(d.sofer.full_name), { parse_mode: 'HTML', reply_markup: { remove_keyboard: true } });
+  await puneMeniulBilete(ctx);
   // ION-241: butonul web_app vine în al doilea mesaj — un mesaj nu poate purta și remove_keyboard, și tastatură inline.
   await ctx.reply(T_MINI_APP.dupaLegare, { parse_mode: 'HTML', reply_markup: tastaturaMiniApp() });
 }

@@ -3,6 +3,7 @@ import type { BotContext } from '../types.js';
 import { validateInviteToken, markInviteUsed, createOrUpdateUser } from '../services/db.js';
 import { POINT_LABELS } from '@translux/db';
 import { codDinPayload, handleBiletStart } from './bilet.js';
+import { esteStartSofer, handleSoferStart } from './sofer.js';
 
 export async function handleStart(ctx: BotContext) {
   const telegramId = ctx.from?.id;
@@ -15,6 +16,12 @@ export async function handleStart(ctx: BotContext) {
   const codBilet = codDinPayload(payload);
   if (codBilet) {
     await handleBiletStart(ctx, codBilet);
+    return;
+  }
+
+  // Șoferul se leagă de Telegram prin telefon (ION-234): nu atinge `users`, nu cere invitație.
+  if (esteStartSofer(payload)) {
+    await handleSoferStart(ctx);
     return;
   }
 

@@ -3,7 +3,7 @@ import { getSupabase } from '@/lib/supabase';
 import { verifyCronSecret } from '@/lib/cron-auth';
 import { chisinauTodayIso } from '@/lib/chisinau-time';
 import { graficGroupChatId } from '@/lib/grafic-group';
-import { sendTelegramText } from '@/lib/telegram-notify';
+import { sendTelegram, sendTelegramText } from '@/lib/telegram-notify';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -19,6 +19,21 @@ export const maxDuration = 30;
 
 const ULTIMA = 'anunt_bilete_online_ultima';
 const LANSAT = 'bilete_online_lansat';
+// ION-234 (Ion, 05.10): «trimite mesaj în rusă în grupă zilnic până pe 12 că șoferul trebuie să se lege în bot».
+const LEGARE_ULTIMA = 'anunt_legare_sofer_ultima';
+const LEGARE_PANA_LA = '2026-10-12';
+const BOT = process.env.NEXT_PUBLIC_BOT_USERNAME || 'TransluxMoldova_bot';
+const LINK_LEGARE = `https://t.me/${BOT}?start=sofer`;
+const TEXT_LEGARE = [
+  '🔗 <b>Привяжите свой Telegram — один раз</b>',
+  '',
+  'Чтобы онлайн-билеты работали, система должна знать, какой водитель за каким телефоном. Нажмите кнопку ниже, затем в боте — «Отправить мой номер». Это занимает 10 секунд.',
+  '',
+  'Сканирование билетов пассажиров будет здесь, в этом боте.',
+  '',
+  'Если бот ответил, что номер не найден — скажите диспетчеру.',
+].join('\n');
+const BUTON_LEGARE = { inline_keyboard: [[{ text: '🔗 Привязать мой Telegram', url: LINK_LEGARE }]] };
 
 const TEXT_ANUNT = [
   '📣 <b>Важное объявление</b>',
@@ -61,14 +76,32 @@ export async function GET(req: NextRequest) {
   const val = (k: string) => (cfg ?? []).find(r => r.key === k)?.value?.trim() || null;
   const lansat = val(LANSAT);
   if (lansat && lansat <= azi) return NextResponse.json({ skipped: 'lansat', lansat });
-  if (q.get('dry') === '1') return NextResponse.json({ dry: true, azi, lansat, text: TEXT_ANUNT });
-  if (val(ULTIMA) === azi && q.get('force') !== '1') return NextResponse.json({ skipped: 'azi', azi });
-
+  if (q.get('dry') === '1') return NextResponse.json({ dry: true, azi, lansat, text: TEXT_ANUNT, legare: { text: TEXT_LEGARE, link: LINK_LEGARE, pana_la: LEGARE_PANA_LA } });
+  const force = q.get('force') === '1';
   const chatId = await graficGroupChatId();
   if (!chatId) return NextResponse.json({ error: 'Grupa Mejgorod nu e legată (/lega_grafic).' }, { status: 500 });
-  const messageId = await sendTelegramText(chatId, TEXT_ANUNT);
-  if (!messageId) return NextResponse.json({ error: 'Telegram nu a primit mesajul' }, { status: 502 });
-  await sb.from('app_config').upsert({ key: ULTIMA, value: azi, updated_at: acum }, { onConflict: 'key' });
-  console.log('[anunt-bilete-online]', azi, 'message_id', messageId);
-  return NextResponse.json({ ok: true, azi, message_id: messageId });
+
+  const out: Record<string, unknown> = { azi };
+  if (val(ULTIMA) === azi && !force) out.anunt = 'azi';
+  else {
+    const messageId = await sendTelegramText(chatId, TEXT_ANUNT);
+    if (!messageId) return NextResponse.json({ error: 'Telegram nu a primit anunțul' }, { status: 502 });
+    await sb.from('app_config').upsert({ key: ULTIMA, value: azi, updated_at: acum }, { onConflict: 'key' });
+    console.log('[anunt-bilete-online]', azi, 'message_id', messageId);
+    out.anunt = messageId;
+  }
+
+  // Al doilea mesaj: legarea șoferului, până pe 12.10 inclusiv (ION-234)
+  if (azi > LEGARE_PANA_LA) out.legare = 'expirat';
+  else if (val(LEGARE_ULTIMA) === azi && !force) out.legare = 'azi';
+  else {
+    const ok = await sendTelegram(chatId, TEXT_LEGARE, BUTON_LEGARE);
+    if (!ok) return NextResponse.json({ ...out, error: 'Telegram nu a primit mesajul de legare' }, { status: 502 });
+    await sb.from('app_config').upsert({ key: LEGARE_ULTIMA, value: azi, updated_at: acum }, { onConflict: 'key' });
+    out.legare = 'trimis';
+  }
+  // câți șoferi interurbani activi sunt legați (doar în răspuns, nu în grupă)
+  const { data: dr } = await sb.from('drivers').select('telegram_id').eq('active', true).eq('is_lde', false);
+  out.soferi = { legati: (dr ?? []).filter(r => r.telegram_id != null).length, activi: (dr ?? []).length };
+  return NextResponse.json({ ok: true, ...out });
 }

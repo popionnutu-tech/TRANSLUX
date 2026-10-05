@@ -7,6 +7,7 @@ import { authMiddleware } from './middleware/auth.js';
 import { rateLimitMiddleware } from './middleware/rateLimit.js';
 import { handleStart, showMainMenu } from './handlers/start.js';
 import { handleCancelLastReport } from './handlers/cancel.js';
+import { handleSoferContact } from './handlers/sofer.js';
 
 import { handleDigest } from './handlers/admin.js';
 import { reportConversation } from './conversations/report.js';
@@ -365,6 +366,10 @@ export function createBot(): Bot<BotContext> {
 
   // Grupa camioanelor (ION-144): botul răspunde cu drumul corect al cisternei, din scheletul ideal, doar când e
   // menționat, când i se răspunde la mesaj sau la /traseu. Celelalte grupe și mesajele obișnuite trec mai departe.
+  // Contactul propriu al șoferului → legarea Telegram ↔ drivers (ION-234). Înaintea handlerelor
+  // generice, care ar răspunde «Acces restricționat» unui șofer care nu e în `users`.
+  bot.on('message:contact', handleSoferContact);
+
   bot.on('message:text', async (ctx, next) => {
     if (ctx.chat.type === 'private') return next();
     const grup = await grupaCamioane();

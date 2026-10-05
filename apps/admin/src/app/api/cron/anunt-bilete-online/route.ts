@@ -3,7 +3,7 @@ import { getSupabase } from '@/lib/supabase';
 import { verifyCronSecret } from '@/lib/cron-auth';
 import { chisinauTodayIso } from '@/lib/chisinau-time';
 import { graficGroupChatId } from '@/lib/grafic-group';
-import { alertAdmins, pinTelegramMessage, sendTelegram, sendTelegramText } from '@/lib/telegram-notify';
+import { alertAdmins, pinTelegramMessage, sendTelegram, sendTelegramPhoto, sendTelegramText } from '@/lib/telegram-notify';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -123,6 +123,21 @@ export async function GET(req: NextRequest) {
   const sb = getSupabase();
   const azi = chisinauTodayIso();
   const acum = new Date().toISOString();
+
+  // Ion, 05.10: «poza infografică pune pin în grupa Mejgorod» — imaginea cu cei 6 pași (servită de panou), trimisă și fixată o dată.
+  if (q.get('infografica') === '1') {
+    const chatId = await graficGroupChatId();
+    if (!chatId) return NextResponse.json({ error: 'Grupa Mejgorod nu e legată (/lega_grafic).' }, { status: 500 });
+    const origine = process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'https://central-hub-md.vercel.app';
+    const img = await fetch(`${origine}/mini-app/bilete/infografica-ru.png`, { signal: AbortSignal.timeout(10000) });
+    if (!img.ok) return NextResponse.json({ error: `imaginea: ${img.status}` }, { status: 502 });
+    const png = Buffer.from(await img.arrayBuffer());
+    const mid = await sendTelegramPhoto(chatId, png, '🎫 <b>Мои билеты — 6 шагов для водителя</b>\nСохраните картинку: что нажать и что увидите.', 'moi-bilety-6-shagov.png');
+    if (!mid) return NextResponse.json({ error: 'Telegram nu a primit imaginea' }, { status: 502 });
+    const fixat = await pinTelegramMessage(chatId, mid);
+    await sb.from('app_config').upsert({ key: 'mesaj_fixat_infografica_sofer_id', value: String(mid), updated_at: acum }, { onConflict: 'key' });
+    return NextResponse.json({ ok: true, message_id: mid, fixat });
+  }
 
   if (q.get('fixeaza') === '1') {
     const chatId = await graficGroupChatId();

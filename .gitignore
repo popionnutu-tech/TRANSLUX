@@ -47,3 +47,5 @@ peron-android/android/
 peron-android/dist/
 # Imaginea de distribuire a translux.md (ION-153)
 !apps/web/public/og.png
+# Logourile plăților în subsolul translux.md (ION-235, cerințele maib)
+!apps/web/public/plati/*.png

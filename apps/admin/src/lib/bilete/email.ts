@@ -76,7 +76,9 @@ export async function trimiteEmailBilet(comandaId: string): Promise<RezultatEmai
       const corp = await r.text().catch(() => '');
       throw new Error(`Resend HTTP ${r.status}: ${corp.slice(0, 300)}`);
     }
-    await db.from('bilete_comenzi').update({ email_eroare: null }).eq('id', c.id);
+    // ION-250: id-ul mesajului la Resend leagă evenimentele webhook-ului (respins, livrat) de această comandă.
+    const trimis = await r.json().catch(() => null) as { id?: string } | null;
+    await db.from('bilete_comenzi').update({ email_eroare: null, email_resend_id: trimis?.id ?? null }).eq('id', c.id);
     return 'trimis';
   } catch (e) {
     const mesaj = e instanceof Error ? e.message : String(e);

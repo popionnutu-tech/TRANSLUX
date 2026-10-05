@@ -52,6 +52,8 @@ export const PUBLIC_EXACT = [
   // Callback-ul maib Checkout (ION-188): banca POST-ează fără cookie; se apără singur prin
   // semnătura HMAC din X-Signature (lib/maib/signature.ts). Exact, nu prefix.
   '/api/pay/maib/callback',
+  // Webhook-ul Resend (ION-250): evenimentele e-mailului biletului; se apără prin semnătura Svix. Exact.
+  '/api/resend/webhook',
   // Comanda de bilete online (ION-193): site-ul o cheamă server-la-server; se apără prin BILETE_API_KEY.
   '/api/bilete/comanda',
   // Returnarea din botul Telegram (ION-244): botul (Railway) le cheamă server-la-server; se apără prin

@@ -56,6 +56,8 @@ describe('isPublicPath — căile lăsate de middleware fără sesiune', () => {
   it('callback-ul maib e public exact (banca vine fără cookie), pagina /plati nu', () => {
     expect(isPublicPath('/api/pay/maib/callback')).toBe(true);
     expect(isPublicPath('/api/pay/maib/callback/x')).toBe(false);
+    expect(isPublicPath('/api/resend/webhook')).toBe(true);
+    expect(isPublicPath('/api/resend/webhook/x')).toBe(false);
     expect(isPublicPath('/api/pay/maib')).toBe(false);
     expect(isPublicPath('/plati')).toBe(false);
   });

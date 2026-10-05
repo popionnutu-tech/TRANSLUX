@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { Locale } from '@/lib/i18n';
 import { cookiesDoc, privacyDoc, type LegalDoc } from './legal-content';
 import { termsDoc } from './legal-terms';
+import { FirmaSiPlati } from './FirmaSiPlati';
 
 type Kind = 'privacy' | 'cookies' | 'terms';
 
@@ -51,6 +52,8 @@ export function LegalPage({ kind, locale }: { kind: Kind; locale: Locale }) {
           <Link href={`/${locale}`}>{nav.home}</Link>
           <Link href={`/${locale}/${SLUG[other]}`}>{nav[other]}</Link>
         </nav>
+        {/* ION-235: datele firmei și logourile plăților (cerințele maib). */}
+        <div style={{ marginTop: 24 }}><FirmaSiPlati locale={locale} /></div>
       </main>
     </div>
   );

@@ -17,7 +17,7 @@ describe('construiesteMesaj', () => {
     expect(m.qrIds).toEqual(['qr-1', 'qr-2']);
     expect(m.html).toContain('cid:qr-1');
     expect(m.html).toContain('cid:qr-2');
-    expect(m.html).toContain('566.00 lei');
+    expect(m.html).toContain('566.00 MDL');
     expect(m.html).toContain(`https://translux.md/ro/bilet/${baza.cod}`);
     expect(m.html).toContain(`https://t.me/TransluxMoldova_bot?start=bilet_${baza.cod}`);
     expect(m.text).toContain('Loc 2/2 · Briceni → Chișinău, 14.10.2026, 05:45: DDDD3333EEEE4444FFFF');
@@ -53,5 +53,18 @@ describe('construiesteMesaj — ruta pe fiecare loc', () => {
     expect(m.html.split('Briceni → Chișinău</div>').length - 1).toBe(2);
     expect(m.html.split('Briceni – Chișinău</div>').length - 1).toBe(2);
     expect(m.text).toContain('Loc 1/2 · Briceni → Chișinău, 14.10.2026, 05:45: AAAA1111BBBB2222CCCC');
+  });
+});
+
+describe('construiesteMesaj — cerințele maib (ION-235)', () => {
+  it('numărul comenzii, data plății, MDL și comerciantul cu IDNO și site-ul', () => {
+    const m = construiesteMesaj({ ...baza, numar: 'AB12CD34', platit_la: '2026-10-05T07:10:00Z' }, opt);
+    expect(m.html).toContain('AB12CD34');
+    expect(m.html).toContain('05.10.2026, 10:10');
+    expect(m.html).toContain('566.00 MDL');
+    expect(m.html).toContain('IDNO 1003604001469');
+    expect(m.text).toContain('Comanda nr. AB12CD34');
+    expect(m.text).toContain('Plătită: 05.10.2026, 10:10');
+    expect(m.text).toContain('translux.md');
   });
 });

@@ -100,6 +100,8 @@ export interface BiletPublic {
 
 export interface ComandaPublica {
   cod: string;
+  /** ION-235: numărul comenzii (primele 8 caractere ale id-ului). */
+  numar?: string;
   status: 'noua' | 'platita' | 'expirata' | 'eroare_creare' | 'anulata' | 'returnata' | 'platita_fara_bilet';
   trip_date: string;
   from_name: string;

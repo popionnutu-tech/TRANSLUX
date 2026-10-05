@@ -19,6 +19,8 @@ export interface BiletPublic {
 
 export interface ComandaPublica {
   cod: string;
+  /** ION-235 (cerințele maib): numărul comenzii arătat clientului = primele 8 caractere ale id-ului, majuscule. */
+  numar: string;
   status: BileteComanda['status'];
   trip_date: string;
   from_name: string;
@@ -90,6 +92,7 @@ export async function biletPublic(cod: string): Promise<ComandaPublica | null> {
   })));
   return {
     cod: comanda.cod,
+    numar: comanda.id.slice(0, 8).toUpperCase(),
     status: comanda.status,
     trip_date: comanda.trip_date,
     from_name: comanda.from_name,

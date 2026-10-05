@@ -3,6 +3,7 @@ import type { Locale } from '@/lib/i18n';
 import { biletPublic, type ComandaPublica } from '@/lib/bilete-api';
 import { linkHarta } from '@/lib/bilete-reguli';
 import { AsteaptaPlata, SalveazaBilet } from './BiletActiuni';
+import { FirmaSiPlati } from '@/components/legal/FirmaSiPlati';
 
 // Pagina biletului (ION-197): /ro/bilet/<cod>, /ru/bilet/<cod>. Codul din link e secretul comenzii (128 de biți);
 // pagina nu se indexează, nu se cache-uiește, nu trimite referrer (next.config) și nu intră în page_views.
@@ -16,7 +17,7 @@ const TXT = {
     titlu: 'Biletul tău', astepta: 'În așteptarea plății', platit: 'Plătit', anulat: 'Anulat', returnat: 'Returnat',
     expirat: 'Plata nu a fost finalizată', eroare: 'Plata nu a putut fi pornită', fara_bilet: 'Plata a sosit după expirarea comenzii. Dispecerul o verifică și te sună.',
     plataNu: 'Plata nu a trecut. Poți încerca din nou de pe site.',
-    cursa: 'Cursa', urcare: 'Urcare', harta: 'pe hartă', pasager: 'Pasager', locuri: 'Locuri', total: 'Total', loc: 'Loc', urcat: 'urcat',
+    comanda: 'Comanda nr.', platitaPe: 'plătită pe', cursa: 'Cursa', urcare: 'Urcare', harta: 'pe hartă', pasager: 'Pasager', locuri: 'Locuri', total: 'Total', loc: 'Loc', urcat: 'urcat',
     arata: 'Arată codul QR șoferului la urcare. Fiecare cod e un loc.',
     salveaza: 'Salvează / tipărește', telegram: '📍 Vezi biletul și autobuzul tău în Telegram',
     telegramSub: 'Biletul e mereu la îndemână, iar în ziua cursei vezi pe hartă unde e autobuzul tău și când ajunge la tine.',
@@ -27,7 +28,7 @@ const TXT = {
     titlu: 'Ваш билет', astepta: 'Ожидает оплаты', platit: 'Оплачен', anulat: 'Отменён', returnat: 'Возвращён',
     expirat: 'Оплата не завершена', eroare: 'Не удалось начать оплату', fara_bilet: 'Оплата пришла после истечения заказа. Диспетчер проверит её и позвонит вам.',
     plataNu: 'Оплата не прошла. Можно попробовать ещё раз на сайте.',
-    cursa: 'Рейс', urcare: 'Посадка', harta: 'на карте', pasager: 'Пассажир', locuri: 'Мест', total: 'Итого', loc: 'Место', urcat: 'посадка',
+    comanda: 'Заказ №', platitaPe: 'оплачен', cursa: 'Рейс', urcare: 'Посадка', harta: 'на карте', pasager: 'Пассажир', locuri: 'Мест', total: 'Итого', loc: 'Место', urcat: 'посадка',
     arata: 'Покажите QR-код водителю при посадке. Каждый код — одно место.',
     salveaza: 'Сохранить / распечатать', telegram: '📍 Билет и ваш автобус в Telegram',
     telegramSub: 'Билет всегда под рукой, а в день поездки на карте видно, где ваш автобус и когда он подъедет.',
@@ -97,6 +98,8 @@ export async function BiletPage({ cod, locale, plataNu }: { cod: string; locale:
                 )}
                 <div><span style={{ color: '#888' }}>{tx.pasager}: </span>{c.passenger_name}</div>
                 <div><span style={{ color: '#888' }}>{tx.locuri}: </span>{c.seats} · <span style={{ color: '#888' }}>{tx.total}: </span><b>{Number(c.total).toFixed(2)} lei</b></div>
+                {/* ION-235 (cerințele maib): numărul comenzii și data plății pe pagina de după plată. */}
+                {c.numar && <div><span style={{ color: '#888' }}>{tx.comanda} </span><b>{c.numar}</b>{c.paid_at && <span style={{ color: '#888' }}> · {tx.platitaPe} {dataOra(c.paid_at, locale)}</span>}</div>}
               </div>
 
               {c.status === 'platita' && valide.length > 0 && (
@@ -140,6 +143,8 @@ export async function BiletPage({ cod, locale, plataNu }: { cod: string; locale:
           );
         })()}
         <p className="bilet-no-print"><a href={`/${locale}`} style={{ color: RED }}>{tx.acasa}</a></p>
+        {/* ION-235: datele firmei și logourile plăților (cerințele maib). */}
+        <div style={{ marginTop: 16 }}><FirmaSiPlati locale={locale} /></div>
       </main>
     </div>
   );

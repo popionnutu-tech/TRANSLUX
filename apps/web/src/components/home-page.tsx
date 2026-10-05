@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import { FirmaSiPlati } from '@/components/legal/FirmaSiPlati';
 
 const ShaderBackground = dynamic(
   () => import('@/components/ui/shader-background'),
@@ -467,6 +468,8 @@ export function HomePage({ locale, options = EMPTY_OPTIONS, popular = [], routeL
               color: '#777', fontSize: 12, fontFamily: 'inherit',
             }}>{i.cookieSettings}</button>
           </div>
+          {/* ION-235: datele firmei și logourile plăților (cerințele maib). */}
+          <div style={{ padding: "0 16px 18px" }}><FirmaSiPlati locale={locale} /></div>
         </footer>
 
       </div>

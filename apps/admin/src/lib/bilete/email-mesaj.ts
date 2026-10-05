@@ -15,6 +15,9 @@ export interface DateEmail {
   ruta: string | null;
   /** Câte un loc: numărul și codul QR (textul codului apare și sub imagine). */
   bilete: Array<{ nr: number; cod_qr: string }>;
+  /** ION-235: numărul comenzii (primele 8 caractere ale id-ului) și momentul plății. */
+  numar?: string;
+  platit_la?: string | null;
 }
 
 export interface MesajEmail {
@@ -25,12 +28,15 @@ export interface MesajEmail {
   qrIds: string[];
 }
 
+/** ION-235 (cerințele maib): comerciantul și site-ul în confirmare. Aceleași date ca OPERATOR de pe site. */
+export const COMERCIANT = 'S.R.L. „Parcul de Autobuze și Taximetre nr. 9 din Briceni”, IDNO 1003604001469, MD-4701, or. Briceni, str. Olimpică 3 · translux.md';
+
 const T = {
   ro: {
     subiect: (de: string, spre: string, cand: string) => `Biletul tău TRANSLUX: ${de} → ${spre}, ${cand}`,
     salut: (n: string) => `Bună, ${n}!`,
     intro: 'Plata a trecut. Mai jos e biletul tău: arată codul QR șoferului la urcare. Fiecare cod e un loc.',
-    cursa: 'Cursa', pasager: 'Pasager', locuri: 'Locuri', total: 'Total', loc: 'Loc',
+    comanda: 'Comanda nr.', platita: 'Plătită', cursa: 'Cursa', pasager: 'Pasager', locuri: 'Locuri', total: 'Total', loc: 'Loc',
     deschide: 'Deschide biletul pe site', telegram: '📍 Vezi biletul și autobuzul tău în Telegram',
     retur: 'Returnarea se cere prin botul nostru din Telegram sau la telefon +373 60 401 010: integral cu cel puțin 2 ore înainte de plecare, apoi cu reținerile din condițiile de vânzare (translux.md/ro/conditii-vanzare).',
     semnatura: 'TRANSLUX · +373 60 401 010',
@@ -40,7 +46,7 @@ const T = {
     subiect: (de: string, spre: string, cand: string) => `Ваш билет TRANSLUX: ${de} → ${spre}, ${cand}`,
     salut: (n: string) => `Здравствуйте, ${n}!`,
     intro: 'Оплата прошла. Ниже ваш билет: покажите QR-код водителю при посадке. Каждый код — одно место.',
-    cursa: 'Рейс', pasager: 'Пассажир', locuri: 'Мест', total: 'Итого', loc: 'Место',
+    comanda: 'Заказ №', platita: 'Оплачен', cursa: 'Рейс', pasager: 'Пассажир', locuri: 'Мест', total: 'Итого', loc: 'Место',
     deschide: 'Открыть билет на сайте', telegram: '📍 Билет и ваш автобус в Telegram',
     retur: 'Возврат — через наш бот в Telegram или по телефону +373 60 401 010: полностью не позднее чем за 2 часа до отправления, далее с удержаниями по условиям продажи (translux.md/ru/conditii-vanzare).',
     semnatura: 'TRANSLUX · +373 60 401 010',
@@ -69,11 +75,13 @@ export function construiesteMesaj(d: DateEmail, opt: { bazaSite: string; bot: st
   const RED = '#9B1B30';
 
   const randuri = [
+    ...(d.numar ? [[t.comanda, d.numar]] : []),
     [t.cursa, `${d.from_name} → ${d.to_name}${d.ruta ? ` (${d.ruta})` : ''}`],
     ['', cand],
     [t.pasager, d.passenger_name],
     [t.locuri, String(d.seats)],
-    [t.total, `${Number(d.total).toFixed(2)} lei`],
+    [t.total, `${Number(d.total).toFixed(2)} MDL`],
+    ...(d.platit_la ? [[t.platita, dataOraChisinau(d.platit_la, lang)]] : []),
   ];
 
   const html = `<!doctype html><html lang="${lang}"><body style="margin:0;padding:0;background:#f4f1f1;">
@@ -102,6 +110,7 @@ ${d.ruta ? `<div style="font-size:12px;color:#888;">${esc(d.ruta)}</div>` : ''}
 </td></tr>
 <tr><td style="font-size:12px;color:#888;padding-top:8px;">${esc(t.retur)}</td></tr>
 <tr><td style="font-size:12px;color:#888;padding-top:8px;">${esc(t.semnatura)}</td></tr>
+<tr><td style="font-size:11px;color:#888;padding-top:4px;">${esc(COMERCIANT)}</td></tr>
 <tr><td style="font-size:11px;color:#aaa;padding-top:8px;">${esc(t.nuRaspunde)}</td></tr>
 </table></td></tr></table></body></html>`;
 
@@ -113,7 +122,9 @@ ${d.ruta ? `<div style="font-size:12px;color:#888;">${esc(d.ruta)}</div>` : ''}
     `${t.cursa}: ${d.from_name} → ${d.to_name}${d.ruta ? ` (${d.ruta})` : ''}`,
     cand,
     `${t.pasager}: ${d.passenger_name}`,
-    `${t.locuri}: ${d.seats} · ${t.total}: ${Number(d.total).toFixed(2)} lei`,
+    ...(d.numar ? [`${t.comanda} ${d.numar}`] : []),
+    `${t.locuri}: ${d.seats} · ${t.total}: ${Number(d.total).toFixed(2)} MDL`,
+    ...(d.platit_la ? [`${t.platita}: ${dataOraChisinau(d.platit_la, lang)}`] : []),
     '',
     ...d.bilete.map((b) => `${t.loc} ${b.nr}/${d.seats} · ${d.from_name} → ${d.to_name}, ${cand}: ${b.cod_qr}`),
     '',
@@ -122,6 +133,7 @@ ${d.ruta ? `<div style="font-size:12px;color:#888;">${esc(d.ruta)}</div>` : ''}
     '',
     t.retur,
     t.semnatura,
+    COMERCIANT,
     t.nuRaspunde,
   ].join('\n');
 

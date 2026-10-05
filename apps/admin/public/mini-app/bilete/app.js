@@ -337,7 +337,7 @@ const SVG = {
 const icMic = (fel) => (fel === 'ok' ? SVG.okMic : fel === 'warn' ? SVG.warnMic : SVG.badMic);
 
 function antetHtml(sub, titlu) {
-  return `<div class="antet"><div class="col"><div class="sub">${esc(sub)}</div><div class="titlu">${esc(titlu)}</div></div>
+  return `<div class="antet"><div class="col"><img class="logo" src="/mini-app/bilete/logo-white.png" alt="TRANSLUX"><div class="sub">${esc(sub)}</div><div class="titlu">${esc(titlu)}</div></div>
     <button class="btn-limba" data-act="lang" aria-label="RO / RU">${esc(t().altaLimba)}</button></div>`;
 }
 function bandaHtml() {

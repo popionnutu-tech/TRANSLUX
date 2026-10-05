@@ -47,5 +47,7 @@ peron-android/android/
 peron-android/dist/
 # Imaginea de distribuire a translux.md (ION-153)
 !apps/web/public/og.png
+# Mini app-ul șoferului (ION-240/241): logo + infografica
+!apps/admin/public/mini-app/bilete/*.png
 # Logourile plăților în subsolul translux.md (ION-235, cerințele maib)
 !apps/web/public/plati/*.png

@@ -53,6 +53,11 @@ describe('comenziScadentePentruFinal', () => {
     expect(comenziScadentePentruFinal([final('b', 0, { sfarsit_ms: ACUM - FEREASTRA_FINAL_MS })], ACUM)).toHaveLength(1);
     expect(comenziScadentePentruFinal([final('c', 0, { sfarsit_ms: ACUM - FEREASTRA_FINAL_MS - 1 })], ACUM)).toHaveLength(0);
   });
+  it('mesajul pleacă la sosirea după grafic, nu la sosire + 30 min (Ion: «îndată ce finalizează cursa după grafic»)', () => {
+    const sosita = final('sosita', 0, { sosire_ms: ACUM - 60_000, sfarsit_ms: ACUM + 29 * 60_000 });
+    const peDrum = final('pe_drum', 0, { sosire_ms: ACUM + 60_000, sfarsit_ms: ACUM + 31 * 60_000 });
+    expect(comenziScadentePentruFinal([sosita, peDrum], ACUM).map((c) => c.cod)).toEqual(['sosita']);
+  });
 });
 
 describe('mesajDupaCursa', () => {

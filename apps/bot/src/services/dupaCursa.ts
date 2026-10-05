@@ -20,6 +20,8 @@ export interface ComandaFinal {
   telegram_id: number;
   /** Sfârșitul cursei (ms), din @translux/db. */
   sfarsit_ms: number;
+  /** Sosirea după grafic (ms) — momentul mesajului de după cursă; lipsă = sfârșitul cursei. */
+  sosire_ms?: number;
 }
 
 /** Comanda văzută de butoanele 👍 / 👎: cui e legată și în ce stare e. */
@@ -41,11 +43,16 @@ export const FEREASTRA_CITIRE_FINAL_MS = DURATA_MAXIMA_CURSA_MS + MARJA_DUPA_SOS
 const PLATITA = 'platita';
 const LIMITA_RANDURI = 500;
 
-/** Comenzile cu cursa încheiată de cel mult 6 h, cele mai vechi întâi. Pur, testat. */
-export function comenziScadentePentruFinal<T extends { sfarsit_ms: number }>(comenzi: readonly T[], nowMs: number): T[] {
+/**
+ * Comenzile ajunse după grafic de cel mult 6 h, cele mai vechi întâi. Mesajul pleacă la SOSIREA după grafic (Ion, 05.10:
+ * «plângerea apare îndată ce finalizează cursa după grafic»), nu la sosire + 30 min (aceea rămâne pentru bilet și pin).
+ * Pur, testat.
+ */
+export function comenziScadentePentruFinal<T extends { sfarsit_ms: number; sosire_ms?: number }>(comenzi: readonly T[], nowMs: number): T[] {
+  const moment = (c: T) => c.sosire_ms ?? c.sfarsit_ms;
   return comenzi
-    .filter((c) => c.sfarsit_ms <= nowMs && nowMs - c.sfarsit_ms <= FEREASTRA_FINAL_MS)
-    .sort((a, b) => a.sfarsit_ms - b.sfarsit_ms);
+    .filter((c) => moment(c) <= nowMs && nowMs - moment(c) <= FEREASTRA_FINAL_MS)
+    .sort((a, b) => moment(a) - moment(b));
 }
 
 export interface RepoDupaCursa {

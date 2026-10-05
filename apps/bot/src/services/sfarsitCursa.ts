@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { oraOpririiPeSens, sfarsitulCurseiMs, type OreleOpririi } from '@translux/db';
+import { DURATA_IMPLICITA_CURSA_MS, oraOpririiPeSens, sfarsitulCurseiMs, sosireaCurseiMs, type OreleOpririi } from '@translux/db';
 
 // ION-252: sfârșitul cursei unei comenzi = sosirea din grafic la oprirea de coborâre + 30 min (regula comună din
 // @translux/db). Botul are comanda (ruta, sensul, oprirea de coborâre, plecarea); ora sosirii o ia din crm_stop_fares,
@@ -24,6 +24,15 @@ export function sfarsitulComenzii(c: CursaComenzii, opriri: OreleOpririlor): num
   return sfarsitulCurseiMs(c.departure_at, oraSosire);
 }
 
+/**
+ * Sosirea după grafic (ms), fără marja de 30 min; oprirea fără oră → plecarea + 6 h. Momentul mesajului de după cursă
+ * (Ion, 05.10: «plângerea apare îndată ce finalizează cursa după grafic»). Pur, testat.
+ */
+export function sosireaComenzii(c: CursaComenzii, opriri: OreleOpririlor): number {
+  const oraSosire = oraOpririiPeSens(opriri.get(cheieOprire(c.crm_route_id, c.to_stop_order)), c.going_north);
+  return sosireaCurseiMs(c.departure_at, oraSosire) ?? Date.parse(c.departure_at) + DURATA_IMPLICITA_CURSA_MS;
+}
+
 interface RandOprire extends OreleOpririi { crm_route_id: number; stop_order: number }
 
 /** Orele opririlor de coborâre ale comenzilor date (rutele lor, o interogare). */
@@ -40,11 +49,11 @@ export async function citesteOreleOpririlor(db: SupabaseClient, comenzi: readonl
   return new Map(((data as RandOprire[] | null) ?? []).map((r) => [cheieOprire(r.crm_route_id, r.stop_order), r]));
 }
 
-/** Comenzile, fiecare cu `sfarsit_ms` — sfârșitul cursei ei. */
+/** Comenzile, fiecare cu `sfarsit_ms` (sosire + 30 min) și `sosire_ms` (sosirea după grafic). */
 export async function cuSfarsitulCursei<T extends CursaComenzii>(
   db: SupabaseClient,
   comenzi: readonly T[],
-): Promise<Array<T & { sfarsit_ms: number }>> {
+): Promise<Array<T & { sfarsit_ms: number; sosire_ms: number }>> {
   const opriri = await citesteOreleOpririlor(db, comenzi);
-  return comenzi.map((c) => ({ ...c, sfarsit_ms: sfarsitulComenzii(c, opriri) }));
+  return comenzi.map((c) => ({ ...c, sfarsit_ms: sfarsitulComenzii(c, opriri), sosire_ms: sosireaComenzii(c, opriri) }));
 }

@@ -19,14 +19,18 @@ import { alegePunct, punctePentru } from './puncte-reguli';
 // Ordinea (Codex X12): întâi comanda existentă (aceeași idempotency_key) — o reluare nu re-trece prin validările
 // unei vânzări noi (steag închis între timp, fereastra de vânzare) ca să-și primească sesiunea deja creată.
 
-export type ComandaCod = 'validare' | 'inchis' | 'plafon' | 'idempotenta' | 'in_lucru' | 'maib';
+export type ComandaCod = 'validare' | 'inchis' | 'plafon' | 'idempotenta' | 'in_lucru' | 'maib' | 'loc_ocupat';
 
 export class ComandaError extends Error {
-  constructor(public readonly cod: ComandaCod, mesaj: string) {
+  /** ION-239: la `loc_ocupat`, locurile cerute care sunt deja luate (bilet viu sau rezervare a altei comenzi). */
+  constructor(public readonly cod: ComandaCod, mesaj: string, public readonly ocupate: number[] = []) {
     super(mesaj);
     this.name = 'ComandaError';
   }
 }
+
+/** Capacitatea autobuzului (ION-239, migr. 501): 1 față + 5 × 3 + 4 spate. */
+export const CAPACITATE_AUTOBUZ = 20;
 
 export interface ComandaInput {
   tripDate: string;
@@ -44,6 +48,12 @@ export interface ComandaInput {
   telegramId?: number | null;
   /** ION-198: punctul de urcare ales pe site; lipsă → primul punct al cursei (dacă localitatea are puncte). */
   punctUrcareId?: number | null;
+  /**
+   * ION-239 (Ion, 05.10): pe retur (plecarea din Chișinău, going_north) pasagerul își alege locurile pe hartă — câte
+   * unul pe loc, 1..20, distincte, libere (bilet viu sau rezervare a altei comenzi deschise = ocupat). Pe tur nu se
+   * trimite: locul se dă automat la emitere. Lipsă sau gol → atribuire automată și pe retur.
+   */
+  locuriAlese?: number[] | null;
 }
 
 export interface ComandaOptiuni {
@@ -83,6 +93,17 @@ export async function citesteConfigBilete(): Promise<ConfigBilete> {
     inchidereTurMin: Number(m.get('bilete_inchidere_tur_min') ?? 0) || 0,
     inchidereReturMin: Number(m.get('bilete_inchidere_retur_min') ?? 120) || 0,
   };
+}
+
+/** Locurile alese, validate (ION-239): null = atribuire automată. Aruncă ComandaError('validare'). */
+export function valideazaLocuriAlese(locuri: number[] | null | undefined, seats: number, goingNorth: boolean): number[] | null {
+  if (locuri == null || (Array.isArray(locuri) && locuri.length === 0)) return null;
+  if (!Array.isArray(locuri)) throw new ComandaError('validare', 'locuri_alese trebuie să fie o listă de numere');
+  if (!goingNorth) throw new ComandaError('validare', 'locul se alege doar la plecarea din Chișinău; pe tur se dă automat');
+  if (locuri.length !== seats) throw new ComandaError('validare', `locuri_alese: câte un loc pentru fiecare din cele ${seats} bilete`);
+  const ok = locuri.every((l) => Number.isInteger(l) && l >= 1 && l <= CAPACITATE_AUTOBUZ);
+  if (!ok || new Set(locuri).size !== locuri.length) throw new ComandaError('validare', `locuri_alese: numere distincte între 1 și ${CAPACITATE_AUTOBUZ}`);
+  return locuri;
 }
 
 function valideaza(input: ComandaInput): { phone: string; name: string; lang: 'ro' | 'ru'; email: string | null } {
@@ -160,11 +181,12 @@ function urlBiletImplicit(bazaSite: string) {
 
 /**
  * Creează comanda și sesiunea de plată. Aruncă ComandaError cu cod: validare (400), inchis (400), plafon (429),
- * idempotenta (409), in_lucru (409), maib (503).
+ * idempotenta (409), in_lucru (409), loc_ocupat (409, cu `ocupate`), maib (503).
  */
 export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): Promise<Rezultat> {
   const v = valideaza(input);
   if (opt.mod === 'public' && !input.ipHash) throw new ComandaError('validare', 'ip_hash lipsește');
+  const locuriAlese = valideazaLocuriAlese(input.locuriAlese, input.seats, input.goingNorth);
   const db = getSupabase();
 
   // 1. Reluare? Comanda există deja pentru cheia asta → nu re-validăm vânzarea, îi dăm sesiunea ei.
@@ -241,9 +263,15 @@ export async function creeazaComanda(input: ComandaInput, opt: ComandaOptiuni): 
       punct_urcare_nume_ru: punct?.nume_ru ?? null,
       punct_urcare_lat: punct?.lat ?? null,
       punct_urcare_lon: punct?.lon ?? null,
+      // ION-239: locurile alese (retur) — verificate în funcție, sub lacătul cursei, împreună cu INSERT-ul
+      locuri_alese: locuriAlese,
     },
   });
   if (error) {
+    // Funcția refuză locurile deja luate cu «LOC_OCUPAT:2,3» (bilet viu sau rezervare a altei comenzi deschise).
+    const ocupat = /LOC_OCUPAT:([\d,]*)/.exec(error.message);
+    if (ocupat) throw new ComandaError('loc_ocupat', 'unul sau mai multe locuri alese sunt deja luate', ocupat[1].split(',').filter(Boolean).map(Number));
+    if (/LOC_(DOAR_RETUR|NUMAR|NEVALID)/.test(error.message)) throw new ComandaError('validare', 'locurile alese nu sunt valide');
     if (/PLAFON_GLOBAL/.test(error.message)) {
       // Excepția din funcție anulează orice INSERT din ea — alerta se scrie de aici.
       await db.from('bilete_alerte').insert({ tip: 'plafon_atins', detalii: 'plafonul global de comenzi deschise (50 / 30 min) a fost atins' });
@@ -397,7 +425,7 @@ export async function leagaSesiuneExistenta(comanda: BileteComanda, gasit: MaibC
 export function statusPentru(e: ComandaError): number {
   switch (e.cod) {
     case 'validare': case 'inchis': return 400;
-    case 'idempotenta': case 'in_lucru': return 409;
+    case 'idempotenta': case 'in_lucru': case 'loc_ocupat': return 409;
     case 'plafon': return 429;
     case 'maib': return 503;
   }

@@ -154,7 +154,8 @@ export async function BiletPage({ cod, locale, plataNu }: { cod: string; locale:
                           </div>
                           {nume && <div style={{ fontSize: 12, color: '#888', marginTop: 6 }}>{nume}</div>}
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', rowGap: 4, marginTop: 14, fontSize: 16 }}>
-                            <span style={{ color: '#666' }}>{tx.locul}</span><span style={{ fontWeight: 800, textAlign: 'right' }}>{b.nr}</span>
+                            {/* ION-239: numărul locului din autobuz (loc_nr); până la migrație / fără loc dat rămâne «1 din 2» (nr). */}
+                            <span style={{ color: '#666' }}>{tx.locul}</span><span style={{ fontWeight: 800, textAlign: 'right' }}>{b.loc_nr ?? b.nr}</span>
                             <span style={{ color: '#666' }}>{tx.pret}</span><span style={{ fontWeight: 800, textAlign: 'right' }}>{nfPret.format(Number(c.price_per_seat))} MDL</span>
                           </div>
                           <div style={{ fontSize: 13, color: '#666', marginTop: 8 }}>{c.passenger_name}</div>

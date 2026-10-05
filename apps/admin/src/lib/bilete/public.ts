@@ -10,6 +10,8 @@ import { citesteConfigBilete } from './comenzi';
 
 export interface BiletPublic {
   nr: number;
+  /** ION-239: locul din autobuz (1 față, 2–16 rânduri, 17–20 spate); null = fără loc dat / bilet anulat. */
+  loc_nr: number | null;
   cod_qr: string;
   status: Bilet['status'];
   urcat_at: string | null;
@@ -81,7 +83,7 @@ export async function biletPublic(cod: string): Promise<ComandaPublica | null> {
   if (!c) return null;
   const comanda = c as BileteComanda;
   const [rB, rR, rS] = await Promise.all([
-    db.from('bilete').select('nr, cod_qr, status, urcat_at').eq('comanda_id', comanda.id).order('nr'),
+    db.from('bilete').select('nr, loc_nr, cod_qr, status, urcat_at').eq('comanda_id', comanda.id).order('nr'),
     db.from('crm_routes').select('id, dest_from_ro, dest_from_ru, dest_to_ro, dest_to_ru').eq('id', comanda.crm_route_id).maybeSingle(),
     // ION-236: ora sosirii din grafic la oprirea de coborâre, pe sensul comenzii (biletul arată plecare → sosire)
     db.from('crm_stop_fares').select('hour_from_chisinau, hour_from_nord').eq('crm_route_id', comanda.crm_route_id).eq('stop_order', (comanda as { to_stop_order?: number }).to_stop_order ?? -1).maybeSingle(),
@@ -94,6 +96,7 @@ export async function biletPublic(cod: string): Promise<ComandaPublica | null> {
   const ruta = rR.data;
   const bileteCuQr = await Promise.all(((bilete || []) as Omit<BiletPublic, 'qr_svg'>[]).map(async (b) => ({
     ...b,
+    loc_nr: b.loc_nr ?? null,
     qr_svg: await QRCode.toString(b.cod_qr, { type: 'svg', errorCorrectionLevel: 'M', margin: 1 }),
   })));
   return {
@@ -124,6 +127,38 @@ export async function biletPublic(cod: string): Promise<ComandaPublica | null> {
       lon: Number(comanda.punct_urcare_lon),
     } : null,
     bilete: bileteCuQr,
+  };
+}
+
+/** Capacitatea autobuzului (ION-239, migr. 501): 1 față + 5 × 3 + 4 spate. */
+export const CAPACITATE_AUTOBUZ = 20;
+
+export interface LocuriPublice {
+  capacitate: number;
+  /** Toate locurile luate pe cursă: bilete vii + rezervările comenzilor deschise (sub 30 min). */
+  ocupate: number[];
+  /** Partea din `ocupate` care e doar rezervare temporară (se poate elibera). */
+  rezervate: number[];
+  /** Când expiră cea mai apropiată rezervare (ISO) — formularul reîncarcă harta atunci; null = nicio rezervare. */
+  expira_la: string | null;
+}
+
+/**
+ * Harta locurilor pentru formularul de pe site (ION-239): locurile ocupate pe cursă, din bilete_locuri_ocupate
+ * (biletele valid/urcat cu loc + rezervările comenzilor «noua»/«eroare_creare» mai tinere de 30 min).
+ */
+export async function locuriOcupate(tripDate: string, crmRouteId: number, goingNorth: boolean): Promise<LocuriPublice> {
+  const { data, error } = await getSupabase().rpc('bilete_locuri_ocupate', { p_trip_date: tripDate, p_crm_route_id: crmRouteId, p_going_north: goingNorth });
+  if (error) throw new BazaIndisponibilaError(error.message);
+  const randuri = (data || []) as Array<{ loc: number; fel: 'bilet' | 'rezervare'; expira_la: string | null }>;
+  const bilete = new Set(randuri.filter((r) => r.fel === 'bilet').map((r) => Number(r.loc)));
+  const rezervate = new Set(randuri.filter((r) => r.fel === 'rezervare' && !bilete.has(Number(r.loc))).map((r) => Number(r.loc)));
+  const expirari = randuri.filter((r) => r.fel === 'rezervare' && r.expira_la).map((r) => new Date(r.expira_la as string).getTime()).filter(Number.isFinite);
+  return {
+    capacitate: CAPACITATE_AUTOBUZ,
+    ocupate: [...new Set([...bilete, ...rezervate])].sort((a, b) => a - b),
+    rezervate: [...rezervate].sort((a, b) => a - b),
+    expira_la: expirari.length ? new Date(Math.min(...expirari)).toISOString() : null,
   };
 }
 

@@ -1,5 +1,5 @@
-import crypto from 'crypto';
 import { getSupabase } from '@/lib/supabase';
+import { verifyInitData as verificaInitData } from '@/lib/telegram/init-data';
 
 // Telegram Mini App auth: validate initData (HMAC with bot token) → resolve public.users by telegram_id.
 // Всегда через service-role клиент (таблицы задачника закрыты RLS deny-all). Порт логики из TLX.
@@ -25,32 +25,11 @@ export function userLabel(u: Pick<ZUser, 'name' | 'username' | 'point' | 'operat
   return `Controlor ${u.point ?? ''}`.trim();
 }
 
+// ION-239: verificarea HMAC (semnătura, ±signature, ≤24 h, user.id) e funcția pură din lib/telegram/init-data.ts,
+// comună cu mini app-ul șoferului; aici rămân doar ocolul `__dev__` și căutarea în `users`.
 function verifyInitData(initData: string, botToken: string): number | null {
-  const params = new URLSearchParams(initData);
-  const hash = params.get('hash');
-  if (!hash) return null;
-
-  const secret = crypto.createHmac('sha256', 'WebAppData').update(botToken).digest();
-  // Устойчиво к обоим вариантам клиентов Telegram: signature (Ed25519) то входит в
-  // data-check-string HMAC, то нет — принимаем, если совпадает любой.
-  const calc = (excludeSig: boolean): string => {
-    const p = new URLSearchParams(initData);
-    p.delete('hash');
-    if (excludeSig) p.delete('signature');
-    const dc = [...p.entries()].map(([k, v]) => `${k}=${v}`).sort().join('\n');
-    return crypto.createHmac('sha256', secret).update(dc).digest('hex');
-  };
-  if (calc(true) !== hash && calc(false) !== hash) return null;
-
-  const authDate = Number(params.get('auth_date') || 0);
-  if (!authDate || Date.now() / 1000 - authDate > 86400) return null; // ≤24h freshness
-  try {
-    const user = JSON.parse(params.get('user') || '{}');
-    const id = Number(user?.id);
-    return Number.isFinite(id) && id > 0 ? id : null;
-  } catch {
-    return null;
-  }
+  const v = verificaInitData(initData, botToken);
+  return v.ok ? v.telegramId : null;
 }
 
 /** Резолв пользователя Mini App из заголовка x-telegram-init-data. null = неавторизован. */

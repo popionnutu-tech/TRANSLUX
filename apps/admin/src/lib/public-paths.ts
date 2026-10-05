@@ -24,6 +24,9 @@ export const PUBLIC_PREFIXES = [
   '/api/zadachnik/',
   // Mini App atribuiri — se protejează singur prin initData, ca zadachnik.
   '/api/atribuiri/',
+  // API-ul mini app-ului șoferului pentru biletele online (ION-239): /azi și /scan se apără singure prin
+  // X-Telegram-Init-Data (HMAC + drivers.telegram_id) și plafon pe șofer; rutele de sub prefix sunt listate în test.
+  '/api/bilete-sofer/',
   // API între proiecte (mini app-ul TLX cere banda camioanelor) — se protejează
   // singur prin CAMIOANE_API_KEY. Fără prefixul ăsta, cererea fără cookie era
   // redirectată la /login și celălalt serviciu primea HTML în loc de JSON.

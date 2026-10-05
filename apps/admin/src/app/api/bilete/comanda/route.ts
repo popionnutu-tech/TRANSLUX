@@ -26,6 +26,12 @@ function cheieValida(req: NextRequest): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+function locuriDin(v: unknown): number[] | null {
+  if (v == null) return null;
+  if (!Array.isArray(v)) return [NaN];
+  return v.slice(0, 8).map((x) => (typeof x === 'number' ? x : (typeof x === 'string' && /^\d{1,2}$/.test(x) ? Number(x) : NaN)));
+}
+
 function bazaAdmin(req: NextRequest): string {
   const fix = process.env.MAIB_PUBLIC_BASE_URL?.replace(/\/+$/, '');
   if (fix) return fix;
@@ -37,7 +43,7 @@ function bazaAdmin(req: NextRequest): string {
 export async function POST(req: NextRequest) {
   if (!cheieValida(req)) return NextResponse.json({ ok: false, eroare: 'neautorizat' }, { status: 401 });
 
-  let body: Partial<ComandaInput> & { ip_hash?: string };
+  let body: Partial<ComandaInput> & { ip_hash?: string; locuri_alese?: unknown };
   try { body = await req.json(); } catch { return NextResponse.json({ ok: false, eroare: 'JSON nevalid' }, { status: 400 }); }
   if (!body || typeof body !== 'object') return NextResponse.json({ ok: false, eroare: 'corp lipsă' }, { status: 400 });
 
@@ -57,6 +63,9 @@ export async function POST(req: NextRequest) {
     // doar un întreg (număr sau text de cifre); orice altceva (true, [5], «abc») → validare în alegePunct
     punctUrcareId: body.punctUrcareId == null || body.punctUrcareId === ('' as unknown) ? null
       : (typeof body.punctUrcareId === 'number' || (typeof body.punctUrcareId === 'string' && /^\d{1,12}$/.test(body.punctUrcareId)) ? Number(body.punctUrcareId) : -1),
+    // ION-239: locurile alese pe hartă (retur) — `locuriAlese` sau `locuri_alese`; lipsă/gol → automat. Orice element
+    // ne-număr devine NaN și cade la validare (valideazaLocuriAlese).
+    locuriAlese: locuriDin(body.locuriAlese ?? body.locuri_alese),
   };
 
   const siteUrl = (process.env.SITE_URL || 'https://translux.md').replace(/\/+$/, '');
@@ -64,7 +73,8 @@ export async function POST(req: NextRequest) {
     const r = await creeazaComanda(input, { mod: 'public', bazaAdmin: bazaAdmin(req), bazaSite: siteUrl, createdBy: 'site' });
     return NextResponse.json({ ok: true, checkoutUrl: r.checkoutUrl, cod: r.comanda.cod, total: r.comanda.total }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (e) {
-    if (e instanceof ComandaError) return NextResponse.json({ ok: false, cod: e.cod, eroare: e.message }, { status: statusPentru(e) });
+    // ION-239: la loc_ocupat răspunsul duce și lista locurilor luate (formularul le marchează și cere altă alegere).
+    if (e instanceof ComandaError) return NextResponse.json({ ok: false, cod: e.cod, eroare: e.cod === 'loc_ocupat' ? 'loc_ocupat' : e.message, ...(e.cod === 'loc_ocupat' ? { ocupate: e.ocupate, mesaj: e.message } : {}) }, { status: statusPentru(e) });
     console.error('[bilete/comanda]', e instanceof Error ? e.message : e);
     return NextResponse.json({ ok: false, eroare: 'eroare internă' }, { status: 500 });
   }

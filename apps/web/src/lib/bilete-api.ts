@@ -92,6 +92,8 @@ export async function comandaBilet(input: ComandaBiletInput): Promise<RaspunsCom
 
 export interface BiletPublic {
   nr: number;
+  /** ION-239: locul din autobuz (1 față, 2–16 rânduri, 17–20 spate); lipsește la panoul vechi, null = fără loc. */
+  loc_nr?: number | null;
   cod_qr: string;
   status: 'valid' | 'urcat' | 'anulat' | 'returnat';
   urcat_at: string | null;

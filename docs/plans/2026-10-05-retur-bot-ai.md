@@ -377,3 +377,18 @@ Teste: timeout după revendicare (Pending, fără refund_id) → `in_curs`; împ
 | Codex — runda 2 | 9.0 (pass) | 0 |
 
 Istoric: Claude r1 min 3.5 (3 high) → r2 8.0/8.5 (0); Codex r1 6.0 fail (1 high) → r2 9.0 pass.
+
+## Contractul API panou ↔ bot (fixat la implementare)
+
+Toate: `Authorization: Bearer <BILETE_BOT_API_KEY>`, JSON, baza `ADMIN_BASE_URL` (variabila existentă a botului). `telegram_id` = `ctx.from.id`.
+
+- `POST /api/bilete/retur/bilete` `{telegram_id}` → `{ok, bilete:[{cod, status, lang, from_name, to_name, departure_at, seats, total}]}` — comenzile legate de cont, `platita`/`platita_fara_bilet`, cu plecarea în viitor.
+- `POST /api/bilete/retur/oferta` `{telegram_id, cod, cifre?}` → unul din:
+  - `{ok:true, tip:'oferta', oferta_id, suma, total, noimi, expira_la, departure_at, from_name, to_name, lang}`
+  - `{ok:true, tip:'cere_cifre'}` (cele 4 cifre ale telefonului din comandă, o dată pe cont)
+  - `{ok:true, tip:'fara_bani', motiv:'sub_4h'|'plecat'|'urcat'}`
+  - `{ok:true, tip:'dispecer', motiv:'sub_10'|'blocat'}` (alertă `retur_cerere` scrisă)
+  - `{ok:false, cod:'cifre_gresite', ramase}` / `{ok:false, cod:'nelegat'|'stare'|'inexistent'}`
+- `POST /api/bilete/retur/confirma` `{telegram_id, oferta_id}` → `{ok:true, stare, suma}` cu `stare` ∈ `creat|finalizat|necunoscut|refuz|refuz_banca|in_curs|nedeterminat|expirata` (+ `motiv` la `refuz`).
+- `GET /api/bilete/retur/stare?oferta_id=&telegram_id=` → `{ok:true, stare, suma, motiv?}` (tabelul 16′/16″).
+- `POST /api/bilete/retur/escaladeaza` `{telegram_id, cod?, text, motiv:'vina_noastra'|'altceva'}` → `{ok:true}` (alertă `retur_cerere`) sau `{ok:false}`.

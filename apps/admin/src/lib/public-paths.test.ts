@@ -29,6 +29,12 @@ describe('isPublicPath — căile lăsate de middleware fără sesiune', () => {
     const subPrefix = ['/api/bilete/public/config', '/api/bilete/public/puncte', '/api/bilete/public/locuri', '/api/bilete/public/0123456789abcdef0123456789abcdef'];
     expect(isPublicPath('/api/bilete/public/0123456789abcdef0123456789abcdef/anulare')).toBe(true); // sub prefix, dar ruta nu există
     for (const p of subPrefix) expect(isPublicPath(p)).toBe(true);
+    // ION-244: returnarea din bot — exacte, apărate de BILETE_BOT_API_KEY; nimic altceva sub /api/bilete/retur/.
+    for (const p of ['/api/bilete/retur/bilete', '/api/bilete/retur/oferta', '/api/bilete/retur/confirma', '/api/bilete/retur/stare', '/api/bilete/retur/escaladeaza']) {
+      expect(isPublicPath(p)).toBe(true);
+    }
+    expect(isPublicPath('/api/bilete/retur')).toBe(false);
+    expect(isPublicPath('/api/bilete/retur/admin')).toBe(false);
   });
 
   it('API-ul mini app-ului șoferului (ION-239): sub /api/bilete-sofer/ stau DOAR /azi și /scan, apărate prin initData', () => {

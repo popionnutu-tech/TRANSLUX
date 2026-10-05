@@ -36,11 +36,18 @@ export interface RezultatAnulare {
 
 export async function anuleazaSiReturneaza(
   comandaId: string,
-  opt: { sursa: SursaAnulare; motiv: string },
+  opt: {
+    sursa: SursaAnulare; motiv: string;
+    /** ION-244: suma din oferta botului (grila); OBLIGATORIE pentru sursa «ai», absentă = integral (admin/sistem). */
+    suma?: number;
+    /** ION-244: momentul validării ofertei în bază — «acum» pentru plasa de timp (fără a doua comparație pe alt ceas). */
+    acumMs?: number;
+  },
 ): Promise<RezultatAnulare> {
   const db = getSupabase();
   const motiv = opt.motiv.trim();
   if (!motiv) throw new ComandaError('validare', 'motivul e obligatoriu');
+  if (opt.sursa === 'ai' && !(opt.suma != null && opt.suma > 0)) throw new ComandaError('validare', 'returnarea din bot cere suma ofertei');
 
   const { data: c0, error: e0 } = await db.from('bilete_comenzi').select('*').eq('id', comandaId).maybeSingle();
   if (e0) throw new Error(`bilete_comenzi: ${e0.message}`);
@@ -54,7 +61,7 @@ export async function anuleazaSiReturneaza(
   }
   if (opt.sursa === 'pasager' || opt.sursa === 'ai') {
     const min = await minuteAnularePasager();
-    if (!poateAnulaPasager(inainte.departure_at, Date.now(), min)) {
+    if (!poateAnulaPasager(inainte.departure_at, opt.acumMs ?? Date.now(), min)) {
       throw new ComandaError('inchis', `anularea online se poate face până cu ${min} de minute înaintea plecării; sună la dispecerat`);
     }
   }
@@ -84,7 +91,7 @@ export async function anuleazaSiReturneaza(
   if (rev.eroare) throw new Error(`revendicare refund: ${rev.eroare}`);
   if (!rev.ok) return { comanda, refund: 'necunoscut' }; // altcineva îl are în lucru chiar acum
 
-  const r = await executaRefund({ checkout_id: ck.checkout_id, payment_id: ck.payment_id, amount: Number(ck.amount) }, motiv);
+  const r = await executaRefund({ checkout_id: ck.checkout_id, payment_id: ck.payment_id, amount: Number(ck.amount) }, motiv, opt.suma);
   if (r.fel === 'creat') return { comanda, refund: 'creat', refundId: r.refundId };
   if (r.fel === 'necunoscut') {
     await db.from('bilete_alerte').insert({ comanda_id: comandaId, tip: 'refund_necunoscut', detalii: r.motiv });

@@ -147,6 +147,18 @@ export async function ruleazaImpacarea(opt: { dry: boolean; bugetMs?: number }):
   }, raport.refund);
   if (!maiAmTimp()) { raport.oprit_de_buget = true; raport.durata_ms = Date.now() - start; return raport; }
 
+  // C2. Returnări din bot rămase nedeterminate (ION-244, corectura 16′): oferta consumată de peste 2 min, fără rezultat,
+  // iar comanda încă «platita» — funcția a murit între consumare și anulare. Dispecerul decide; alertă o dată pe comandă.
+  if (!opt.dry) {
+    const { data: blocate } = await db.from('bilete_retur_oferte').select('id, comanda_id, suma')
+      .not('folosita_la', 'is', null).is('rezultat', null).lt('folosita_la', new Date(Date.now() - 2 * 60_000).toISOString()).limit(10);
+    for (const o of (blocate || []) as { id: string; comanda_id: string; suma: number }[]) {
+      const { data: c } = await db.from('bilete_comenzi').select('status').eq('id', o.comanda_id).maybeSingle();
+      if (c?.status !== 'platita') continue;
+      if (await alertaOData(o.comanda_id, 'retur_cerere', `returnare din bot confirmată (oferta ${o.id}, ${Number(o.suma)} lei), dar neexecutată — verifică și returnează din /bilete`, false)) raport.refund.aplicate += 1;
+    }
+  }
+
   // D. cursă fără șofer la < 3 h
   const acum = Date.now();
   const { data: platite } = await db.from('bilete_comenzi').select('id, trip_date, crm_route_id, going_north, departure_at')

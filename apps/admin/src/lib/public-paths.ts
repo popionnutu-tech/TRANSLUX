@@ -54,6 +54,13 @@ export const PUBLIC_EXACT = [
   '/api/pay/maib/callback',
   // Comanda de bilete online (ION-193): site-ul o cheamă server-la-server; se apără prin BILETE_API_KEY.
   '/api/bilete/comanda',
+  // Returnarea din botul Telegram (ION-244): botul (Railway) le cheamă server-la-server; se apără prin
+  // BILETE_BOT_API_KEY (lib/bilete/bot-auth.ts), separată de cheia site-ului. Exacte, nu prefix.
+  '/api/bilete/retur/bilete',
+  '/api/bilete/retur/oferta',
+  '/api/bilete/retur/confirma',
+  '/api/bilete/retur/stare',
+  '/api/bilete/retur/escaladeaza',
 ] as const;
 
 /**

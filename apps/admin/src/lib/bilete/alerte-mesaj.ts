@@ -21,6 +21,7 @@ const TIPURI: Record<string, string> = {
   plafon_atins: '🛑 Plafon de comenzi atins',
   refund_pe_zi_confirmata: '↩️ Returnare după plecarea cursei',
   email_esuat: '✉️ Biletul nu a plecat pe e-mail',
+  retur_cerere: '↩️ Cerere de returnare din Telegram',
 };
 
 function esc(s: string): string {

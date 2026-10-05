@@ -98,3 +98,38 @@ export async function trimiteEmailPentruCheckout(checkoutId: string): Promise<Re
   const { data } = await getSupabase().from('bilete_comenzi').select('id').eq('checkout_id', checkoutId).maybeSingle();
   return data?.id ? trimiteEmailBilet(data.id) : 'nimic';
 }
+
+/**
+ * ION-244 (corectura 6): când biletul se anulează din botul Telegram, cumpărătorul află și pe e-mail (dacă l-a lăsat) —
+ * un link de bilet ajuns la altcineva nu se poate folosi pe tăcute. Cel mult o dată pe comandă; eșecul doar se jurnalizează.
+ */
+export async function trimiteEmailAnulare(comandaId: string, suma: number): Promise<RezultatEmail> {
+  if (!emailConfigurat()) return 'neconfigurat';
+  const { data: c } = await getSupabase().from('bilete_comenzi')
+    .select('id, email, lang, from_name, to_name, departure_at').eq('id', comandaId).maybeSingle();
+  if (!c?.email) return 'nimic';
+  const ru = c.lang === 'ru';
+  const cand = new Date(c.departure_at).toLocaleString(ru ? 'ru-RU' : 'ro-RO', { timeZone: 'Europe/Chisinau', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const lei = suma.toFixed(2);
+  const text = ru
+    ? `Ваш билет TRANSLUX ${c.from_name} → ${c.to_name}, ${cand}, отменён по запросу из Telegram. Возврат: ${lei} лей на карту, с которой была оплата.\nЕсли это были не вы — позвоните +373 60 401 010.`
+    : `Biletul tău TRANSLUX ${c.from_name} → ${c.to_name}, ${cand}, a fost anulat la cererea din Telegram. Returnare: ${lei} lei pe cardul cu care ai plătit.\nDacă nu ai cerut tu — sună la +373 60 401 010.`;
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  try {
+    const r = await fetch(RESEND_URL, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json', 'Idempotency-Key': `anulare-${c.id}` },
+      body: JSON.stringify({
+        from: process.env.EMAIL_FROM, to: [c.email],
+        subject: ru ? 'Билет TRANSLUX отменён' : 'Biletul TRANSLUX a fost anulat',
+        text, html: `<p>${esc(text).replace(/\n/g, '<br>')}</p>`,
+      }),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    if (!r.ok) { console.warn('[bilete] e-mail anulare:', r.status); return 'esuat'; }
+    return 'trimis';
+  } catch (e) {
+    console.warn('[bilete] e-mail anulare:', e instanceof Error ? e.message : e);
+    return 'esuat';
+  }
+}

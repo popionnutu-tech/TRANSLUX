@@ -144,6 +144,16 @@ export async function verificaRefundComanda(id: string): Promise<Rezultat> {
   }
 }
 
+/** ION-244: dezleagă contul Telegram de comandă (link ajuns la altcineva): atomic, cu verificarea cifrelor și contorul. */
+export async function dezleagaTelegram(id: string): Promise<Rezultat> {
+  requireRole(await verifySession(), 'ADMIN');
+  const { error } = await getSupabase().from('bilete_comenzi')
+    .update({ telegram_id: null, telegram_verificat_pentru: null, retur_cifre_gresite: 0 }).eq('id', id);
+  revalidatePath('/bilete');
+  if (error) return { ok: false, eroare: error.message };
+  return { ok: true, mesaj: 'contul Telegram a fost dezlegat; următorul care deschide linkul biletului îl leagă din nou' };
+}
+
 export async function emiteBiletele(id: string): Promise<Rezultat> {
   requireRole(await verifySession(), 'ADMIN');
   const { data, error } = await getSupabase().rpc('bilete_emite_fara_bilet', { p_id: id });

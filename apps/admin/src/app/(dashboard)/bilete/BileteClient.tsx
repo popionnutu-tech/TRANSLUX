@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { BileteAlerta } from '@translux/db';
-import { detaliuComanda, emiteBiletele, returneazaComanda, rezolvaAlerta, verificaRefundComanda, type ComandaRand, type Detaliu, type Filtre, type Portocalii } from './actions';
+import { detaliuComanda, dezleagaTelegram, emiteBiletele, returneazaComanda, rezolvaAlerta, verificaRefundComanda, type ComandaRand, type Detaliu, type Filtre, type Portocalii } from './actions';
 
 interface Props {
   comenzi: ComandaRand[];
@@ -224,6 +224,7 @@ export default function BileteClient({ comenzi, alerte, nouaVechi, filtre, porto
                             )}
                             {c.status === 'platita_fara_bilet' && <button type="button" disabled={pending} style={btn()} onClick={() => { if (confirm('Emiți biletele pentru această plată sosită târziu?')) ruleaza(() => emiteBiletele(c.id), c.id); }}>Emite biletele</button>}
                             {c.status === 'anulata' && <button type="button" disabled={pending} style={btn()} onClick={() => ruleaza(() => verificaRefundComanda(c.id), c.id)}>Verifică refund-ul</button>}
+                            {c.telegram_id != null && <button type="button" disabled={pending} style={btn()} onClick={() => { if (confirm('Dezlegi contul Telegram de această comandă?')) ruleaza(() => dezleagaTelegram(c.id), c.id); }}>Dezleagă Telegram</button>}
                             <span style={{ fontSize: 11, color: '#999' }}>cod pagină: {c.cod}</span>
                           </div>
                         </div>

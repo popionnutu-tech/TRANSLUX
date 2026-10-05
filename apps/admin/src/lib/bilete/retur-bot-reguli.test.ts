@@ -1,0 +1,73 @@
+import { describe, expect, it } from 'vitest';
+import { calculeazaOferta, cifreCorecte, stareRetur } from './retur-bot-reguli';
+import { poateAnulaPasager } from './refund-reguli';
+
+const PLECARE = '2026-12-14T12:00:00+02:00';
+const T = Date.parse(PLECARE);
+const ore = (h: number) => T - h * 3_600_000;
+
+describe('calculeazaOferta — grila ION-208 și expirarea 15′', () => {
+  it('peste 24 h → 135, expiră în 15 min', () => {
+    const now = ore(30);
+    expect(calculeazaOferta(PLECARE, 135, now)).toEqual({ tip: 'oferta', noimi: 9, suma: 135, expiraMs: now + 15 * 60_000 });
+  });
+  it('treptele 120 / 105 / 90', () => {
+    expect(calculeazaOferta(PLECARE, 135, ore(20))).toMatchObject({ suma: 120 });
+    expect(calculeazaOferta(PLECARE, 135, ore(8))).toMatchObject({ suma: 105 });
+    expect(calculeazaOferta(PLECARE, 135, ore(5))).toMatchObject({ suma: 90 });
+  });
+  it('la 4 h 00 min 30 s → ofertă care expiră exact la pragul de 4 h (nu în trecut)', () => {
+    const now = ore(4) - 30_000;
+    const o = calculeazaOferta(PLECARE, 135, now);
+    expect(o).toMatchObject({ tip: 'oferta', suma: 90, expiraMs: ore(4) });
+    expect((o as { expiraMs: number }).expiraMs).toBeGreaterThan(now);
+  });
+  it('exact la 4 h → încă se poate (6/9), ca executorul', () => {
+    expect(calculeazaOferta(PLECARE, 135, ore(4))).toMatchObject({ tip: 'oferta', suma: 90 });
+    expect(poateAnulaPasager(PLECARE, ore(4), 240)).toBe(true);
+  });
+  it('sub 4 h și după plecare → fără bani', () => {
+    expect(calculeazaOferta(PLECARE, 135, ore(4) + 1000)).toEqual({ tip: 'fara_bani', motiv: 'sub_4h' });
+    expect(poateAnulaPasager(PLECARE, ore(4) + 1000, 240)).toBe(false);
+    expect(calculeazaOferta(PLECARE, 135, T + 1)).toEqual({ tip: 'fara_bani', motiv: 'plecat' });
+  });
+  it('sub 10 MDL → dispecerul, nu banca', () => {
+    expect(calculeazaOferta(PLECARE, 12, ore(5))).toEqual({ tip: 'dispecer', motiv: 'sub_10' });
+  });
+});
+
+describe('cifreCorecte', () => {
+  it('ultimele 4 cifre, cu sau fără spații', () => {
+    expect(cifreCorecte('37369123456', '3456')).toBe(true);
+    expect(cifreCorecte('37369123456', ' 34-56 ')).toBe(true);
+    expect(cifreCorecte('37369123456', '3455')).toBe(false);
+    expect(cifreCorecte('37369123456', '345')).toBe(false);
+    expect(cifreCorecte('', '0000')).toBe(false);
+  });
+});
+
+describe('stareRetur — tabelul 16′/16″', () => {
+  const of = (folosita: boolean, rezultat: string | null = null) => ({ folosita_la: folosita ? '2026-12-13T10:00:00Z' : null, rezultat });
+  it('nefolosită → neatinsa', () => {
+    expect(stareRetur({ oferta: of(false), comanda: { status: 'platita' }, checkout: null }).stare).toBe('neatinsa');
+  });
+  it('refuz cunoscut după reactivare → refuz (nu «în curs»)', () => {
+    expect(stareRetur({ oferta: of(true, 'refuz:banca'), comanda: { status: 'platita' }, checkout: { refund_id: null, refund_status: null } }))
+      .toEqual({ stare: 'refuz', motiv: 'banca' });
+  });
+  it('returnata, chiar fără refund_id (împăcare) → finalizat', () => {
+    expect(stareRetur({ oferta: of(true), comanda: { status: 'returnata' }, checkout: { refund_id: null, refund_status: 'Accepted' } }).stare).toBe('finalizat');
+  });
+  it('Rejected / Manual → refuz_banca înaintea «creat»', () => {
+    expect(stareRetur({ oferta: of(true), comanda: { status: 'anulata' }, checkout: { refund_id: 'r1', refund_status: 'Rejected' } }).stare).toBe('refuz_banca');
+    expect(stareRetur({ oferta: of(true), comanda: { status: 'anulata' }, checkout: { refund_id: 'r1', refund_status: 'Manual' } }).stare).toBe('refuz_banca');
+  });
+  it('refund creat / necunoscut / Pending fără id', () => {
+    expect(stareRetur({ oferta: of(true), comanda: { status: 'anulata' }, checkout: { refund_id: 'r1', refund_status: 'Created' } }).stare).toBe('creat');
+    expect(stareRetur({ oferta: of(true), comanda: { status: 'anulata' }, checkout: { refund_id: null, refund_status: 'Necunoscut' } }).stare).toBe('necunoscut');
+    expect(stareRetur({ oferta: of(true), comanda: { status: 'anulata' }, checkout: { refund_id: null, refund_status: 'Pending' } }).stare).toBe('in_curs');
+  });
+  it('folosită, fără rezultat, comanda încă plătită → nedeterminat', () => {
+    expect(stareRetur({ oferta: of(true), comanda: { status: 'platita' }, checkout: { refund_id: null, refund_status: null } }).stare).toBe('nedeterminat');
+  });
+});

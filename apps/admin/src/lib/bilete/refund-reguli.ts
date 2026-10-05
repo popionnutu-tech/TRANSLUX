@@ -5,7 +5,7 @@
  */
 export function poateAnulaPasager(departureAt: string, nowMs: number, minInainte: number): boolean {
   const t = Date.parse(departureAt);
-  return Number.isFinite(t) && nowMs < t - minInainte * 60_000;
+  return Number.isFinite(t) && nowMs <= t - minInainte * 60_000; // la exact 4 h se poate, ca grila (6/9), ION-244
 }
 
 

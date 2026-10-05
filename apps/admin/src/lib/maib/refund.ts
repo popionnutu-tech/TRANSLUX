@@ -34,18 +34,20 @@ export async function elibereazaRefund(checkoutId: string): Promise<void> {
 }
 
 /**
- * Cere băncii refund-ul integral al plății (checkout-ul trebuie să fie deja revendicat). Scrie refund_id/status la
- * «creat», `Necunoscut` la timeout/5xx. Nu eliberează nimic la refuz — apelantul decide (bilete: reactivare).
+ * Cere băncii refund-ul plății (checkout-ul trebuie să fie deja revendicat): integral, sau `suma` (returnarea parțială
+ * după grilă, ION-244). Scrie refund_id/status la «creat», `Necunoscut` la timeout/5xx. Nu eliberează nimic la refuz —
+ * apelantul decide (bilete: reactivare).
  */
-export async function executaRefund(checkout: { checkout_id: string; payment_id: string | null; amount: number }, motiv: string): Promise<RezultatRefund> {
+export async function executaRefund(checkout: { checkout_id: string; payment_id: string | null; amount: number }, motiv: string, suma?: number): Promise<RezultatRefund> {
   const db = getSupabase();
   if (!checkout.payment_id) return { fel: 'refuz', motiv: 'plata nu are paymentId' };
   try {
     const p = await getPayment(checkout.payment_id);
     if (p.isRefundable === false) return { fel: 'refuz', motiv: 'maib spune că plata nu se poate returna' };
     if (!stareEgala(p.status, 'Executed')) return { fel: 'refuz', motiv: `plata e ${p.status}, nu Executed` };
-    const suma = Number(p.refundableAmount ?? checkout.amount);
-    const r = await refundPayment(checkout.payment_id, suma, motiv);
+    const returnabil = Number(p.refundableAmount ?? checkout.amount);
+    if (suma != null && !(suma > 0 && suma <= returnabil + 0.001)) return { fel: 'refuz', motiv: `suma ${suma} nu e între 0 și ${returnabil}` };
+    const r = await refundPayment(checkout.payment_id, suma ?? returnabil, motiv);
     const { error } = await db.from('maib_checkouts')
       .update({ refund_id: r.refundId, refund_status: r.status, updated_at: new Date().toISOString() })
       .eq('checkout_id', checkout.checkout_id);

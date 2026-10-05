@@ -70,7 +70,7 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel }: {
       <input type="hidden" name="tripDate" value={trip.trip_date} />
       <input type="hidden" name="fromRo" value={fromRo} />
       <input type="hidden" name="toRo" value={toRo} />
-      {/* Punctul de urcare (ION-198): 2–3 puncte → alegere obligatorie; unul → doar afișat; niciunul → nimic. */}
+      {/* Punctul de urcare (ION-198): 2–3 puncte → alegere obligatorie; unul sau niciunul → nimic. */}
       {(trip.puncte?.length ?? 0) >= 2 && (
         <fieldset style={{ border: "none", margin: 0, padding: 0, display: "grid", gap: 6, minWidth: 0 }}>
           <input type="hidden" name="punctObligatoriu" value="1" />
@@ -84,13 +84,7 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel }: {
           ))}
         </fieldset>
       )}
-      {trip.puncte?.length === 1 && (
-        <div style={{ fontSize: 13, color: "#555" }}>
-          <input type="hidden" name="punctUrcareId" value={trip.puncte[0].id} />
-          {tx.urcare}: <b>{locale === "ru" ? trip.puncte[0].nume_ru : trip.puncte[0].nume_ro}</b>{" "}
-          <a href={linkHarta(trip.puncte[0])} target="_blank" rel="noopener noreferrer" style={{ color: RED, fontSize: 12 }}>{tx.harta} ↗</a>
-        </div>
-      )}
+      {/* Un singur loc de urcare sau niciunul: nu se afișează nimic (Ion, 05.10). */}
       {/* capcana pentru roboți: invizibilă pentru oameni */}
       <input type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" style={{ position: "absolute", left: -9999, width: 1, height: 1, opacity: 0 }} />
       {/* Numele și prenumele în două câmpuri (Ion, 03.10); pe telefonul îngust se așază unul sub altul. */}

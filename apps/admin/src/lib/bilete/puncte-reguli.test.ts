@@ -54,6 +54,14 @@ describe('alegePunct', () => {
     expect(alegePunct(lista, 'Briceni', 1.5, null)).toEqual({ tip: 'validare' });
   });
 
+  it('un singur punct pe cursă → niciunul (nu se afișează), cu sau fără id', () => {
+    const unul = punctePentru(ACTIVE, 'Briceni', 14, true); // [2]
+    expect(unul.map((p) => p.id)).toEqual([2]);
+    expect(alegePunct(unul, 'Briceni', null, null)).toEqual({ tip: 'niciunul' });
+    expect(alegePunct(unul, 'Briceni', 2, null)).toEqual({ tip: 'niciunul' });
+    expect(alegePunct(unul, 'Briceni', 9, 'Drepcăuți')).toEqual({ tip: 'validare' });
+  });
+
   it('cursa fără puncte → niciunul; un id străin tot validare', () => {
     expect(alegePunct([], 'Prepelița', null, null)).toEqual({ tip: 'niciunul' });
     expect(alegePunct([], 'Prepelița', 9, 'Drepcăuți')).toEqual({ tip: 'validare' });

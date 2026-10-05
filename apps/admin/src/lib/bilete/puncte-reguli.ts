@@ -48,7 +48,8 @@ export type AlegerePunct =
 
 /**
  * Punctul pe care îl primește comanda.
- * - cursa n-are puncte → niciunul (comanda fără punct, ca până acum);
+ * - cursa are 0 sau 1 punct → niciunul: nimic de ales, nimic de afișat (Ion, 05.10: «dacă în locație este doar o
+ *   oprire sau nu este oprire să nu se afișeze»), deci nici pe bilet;
  * - id-ul e în lista cursei → acela;
  * - id lipsă → primul din listă;
  * - id ∉ listă: dacă e al aceleiași localități (dezactivat între timp sau fără pereche pe sensul ăsta) → primul din listă;
@@ -57,8 +58,8 @@ export type AlegerePunct =
  */
 export function alegePunct(lista: PunctRand[], nameRo: string, cerut: number | null | undefined, localitateaId: string | null): AlegerePunct {
   if (cerut != null && !(Number.isInteger(cerut) && cerut > 0)) return { tip: 'validare' };
-  if (!lista.length) {
-    if (cerut != null && localitateaId !== nameRo.trim()) return { tip: 'validare' };
+  if (lista.length < 2) {
+    if (cerut != null && !lista.some((p) => p.id === cerut) && localitateaId !== nameRo.trim()) return { tip: 'validare' };
     return { tip: 'niciunul' };
   }
   if (cerut == null) return { tip: 'punct', punct: lista[0] };

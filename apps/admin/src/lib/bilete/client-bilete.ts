@@ -19,7 +19,8 @@ export const MAX_COMENZI_CLIENT = 10;
  * viitoare.
  */
 export const FEREASTRA_CITIRE_DUPA_PLECARE_MS = DURATA_MAXIMA_CURSA_MS + MARJA_DUPA_SOSIRE_MS;
-export const CITITE_IN_PLUS = 10;
+// 90 în plus (verificarea ION-252, 05.10: cu 10, un cont cu peste 10 curse încheiate în aceeași zi vedea 8 bilete viitoare în loc de 10).
+export const CITITE_IN_PLUS = 90;
 
 export interface ComandaContului { cod: string; telegram_id: number | null }
 export interface ContactBrut { passenger_name: string; phone: string; /** cel mai nou e-mail lăsat vreodată (ION-249) */ email?: string | null }

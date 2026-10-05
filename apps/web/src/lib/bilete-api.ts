@@ -83,6 +83,8 @@ export interface ComandaBiletInput {
   punctUrcareId: number | null;
   /** ION-242: locurile alese pe hartă (doar spre nord; null = panoul dă locul la emitere). */
   locuriAlese: number[] | null;
+  /** ION-249: cumpărat din mini app-ul Telegram — initData-ul contului; panoul îl verifică și leagă comanda de cont. */
+  telegramInitData?: string | null;
 }
 
 export type RaspunsComanda =
@@ -93,11 +95,14 @@ export async function comandaBilet(input: ComandaBiletInput): Promise<RaspunsCom
   const cheie = process.env.BILETE_API_KEY;
   if (!cheie) return { ok: false, status: 500, cod: 'config', eroare: 'BILETE_API_KEY lipsește' };
   // Panoul primește locurile ca `locuri_alese` (contractul ION-239); fără alegere câmpul lipsește.
-  const { locuriAlese, ...corp } = input;
+  const { locuriAlese, telegramInitData, ...corp } = input;
   try {
     const r = await fetch(`${BAZA}/api/bilete/comanda`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cheie}` },
+      headers: {
+        'Content-Type': 'application/json', Authorization: `Bearer ${cheie}`,
+        ...(telegramInitData ? { 'X-Telegram-Init-Data': telegramInitData } : {}),
+      },
       body: JSON.stringify(locuriAlese ? { ...corp, locuri_alese: locuriAlese } : corp),
       signal: AbortSignal.timeout(TIMEOUT_MS * 4), // crearea sesiunii la bancă poate dura
       cache: 'no-store',

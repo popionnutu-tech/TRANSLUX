@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { semneazaInitData } from '@/lib/telegram/init-data';
 import type { ComandaPublica } from './public';
-import { bileteleClientului, contactDinComanda, MAX_COMENZI_CLIENT, ziuaChisinau, type ComandaContului, type RepoBileteClient } from './client-bilete';
+import { bileteleClientului, contactDinComanda, MAX_COMENZI_CLIENT, telegramDinInitData, ziuaChisinau, type ComandaContului, type RepoBileteClient } from './client-bilete';
 
 // Vector sintetic: token FALS, semnat cu aceeași formulă ca Telegram (HMAC «WebAppData»), ca în sofer-auth.test.ts.
 const TOKEN = '123456:FAKE-TOKEN-ION-249';
@@ -116,5 +116,17 @@ describe('contactDinComanda și ziuaChisinau', () => {
   it('ziua e a Chișinăului: 23:30 UTC pe 4 oct = 5 oct acolo', () => {
     expect(ziuaChisinau(Date.UTC(2026, 9, 4, 23, 30))).toBe('2026-10-05');
     expect(ziuaChisinau(Date.UTC(2026, 9, 4, 20, 30))).toBe('2026-10-04');
+  });
+});
+
+describe('telegramDinInitData — legarea comenzii la cumpărarea din mini app (ION-249)', () => {
+  it('initData valid → contul; falsificat, expirat, lipsă sau fără token → null (cumpărarea merge fără legare)', () => {
+    expect(telegramDinInitData(initDataPentru(EU), TOKEN, ACUM_MS)).toBe(EU);
+    expect(telegramDinInitData(initDataPentru(EU), 'alt:TOKEN', ACUM_MS)).toBeNull();
+    expect(telegramDinInitData(initDataPentru(EU, ACUM_S - 25 * 3600), TOKEN, ACUM_MS)).toBeNull();
+    expect(telegramDinInitData(initDataPentru(EU).replace(String(EU), String(ALTUL)), TOKEN, ACUM_MS)).toBeNull();
+    expect(telegramDinInitData('', TOKEN, ACUM_MS)).toBeNull();
+    expect(telegramDinInitData(null, TOKEN, ACUM_MS)).toBeNull();
+    expect(telegramDinInitData(initDataPentru(EU), undefined, ACUM_MS)).toBeNull();
   });
 });

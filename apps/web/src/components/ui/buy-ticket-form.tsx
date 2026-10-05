@@ -5,6 +5,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import type { TripResult } from "@/app/(public)/actions";
 import { cumparaBilet, locuriCursei, type StareComanda } from "@/app/(public)/bilete-actions";
+import { citesteInitData } from "@/components/telegram/telegram-webapp";
 import { linkHarta } from "@/lib/bilete-reguli";
 import { comutaLoc, listaLocuri, potrivesteAlese } from "@/lib/locuri";
 import { phoneText } from "@/lib/phone";
@@ -98,6 +99,8 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
   const [consent, setConsent] = React.useState(false);
   const scrie = (k: keyof typeof camp) => (e: React.ChangeEvent<HTMLInputElement>) => setCamp((c) => ({ ...c, [k]: e.target.value }));
   const [stare, action] = useActionState<StareComanda, FormData>(cumparaBilet, {});
+  const [tgInitData, setTgInitData] = React.useState("");
+  React.useEffect(() => { setTgInitData(citesteInitData()); }, []);
 
   // ION-242: harta locurilor, doar spre nord. «incarca» la deschidere; «indisponibila» = panoul n-a răspuns → se
   // cumpără fără alegere (nu blocăm vânzarea). Se reîncarcă la schimbarea numărului de bilete, la fiecare 30 s cât
@@ -150,6 +153,8 @@ export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = 
 
   return (
     <form action={action} style={{ display: "grid", gap: 12 }}>
+      {/* ION-249: în mini app-ul Telegram comanda se leagă de cont la cumpărare (panoul verifică initData). */}
+      {tgInitData && <input type="hidden" name="tgInitData" value={tgInitData} />}
       <input type="hidden" name="lang" value={locale} />
       <input type="hidden" name="idempotencyKey" value={key} />
       <input type="hidden" name="crmRouteId" value={trip.crm_route_id} />

@@ -98,6 +98,8 @@ export async function cumparaBilet(prev: StareComanda, fd: FormData): Promise<St
     idempotencyKey,
     ipHash,
     punctUrcareId,
+    // ION-249: din mini app-ul Telegram vine initData-ul contului (câmp ascuns); panoul îl verifică — aici doar se trimite.
+    telegramInitData: String(fd.get('tgInitData') ?? '').slice(0, 4096) || null,
     locuriAlese: locuri.locuri,
   });
   if (!r.ok) {

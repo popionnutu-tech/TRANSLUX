@@ -59,6 +59,16 @@ export function contactDinComanda(c: ContactBrut | null): ContactClient | null {
   return { nume: parti[0], prenume: parti.slice(1).join(' '), telefon };
 }
 
+/**
+ * ION-249 (Ion, 05.10: «da» — legarea la cumpărare): comanda făcută din mini app vine cu initData-ul contului; dacă e
+ * valabil, comanda se leagă de acel cont. Invalid / lipsă → null, iar cumpărarea merge înainte fără legare.
+ */
+export function telegramDinInitData(initData: string | null | undefined, botToken: string | undefined, acumMs: number): number | null {
+  if (!initData || !botToken) return null;
+  const v = verifyInitData(initData, botToken, acumMs / 1000);
+  return v.ok ? v.telegramId : null;
+}
+
 /** initData → telegram_id verificat, sau motivul refuzului (fără detalii pentru apelant). */
 function identitate(c: CerereBileteClient): { ok: true; telegramId: number } | { ok: false; eroare: 'neautentificat' | 'expirat' } {
   if (!c.botToken) return { ok: false, eroare: 'neautentificat' };

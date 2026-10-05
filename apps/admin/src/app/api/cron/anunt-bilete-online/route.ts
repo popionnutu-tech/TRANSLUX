@@ -38,6 +38,9 @@ const BUTON_LEGARE = { inline_keyboard: [[{ text: '🔗 Привязать мо�
 // Stabil = cel puțin 3 zile cu cursă în ultimele 14 (tur sau retur), din daily_assignments. Raportul merge adminilor
 // (privatul lui Ion) o dată pe zi, cât timp mai e cineva nelegat.
 const RAPORT_ULTIMA = 'raport_legare_sofer_ultima';
+// Ion, 05.10: «trimite lui Iura zilnic mesaj câți s-au logat și cine nu s-a logat» — Iurie, executorul sarcinilor
+// (users.id 34936fff…, rol DIGITAL, are Telegram), primește același raport ca adminii.
+const IURIE_USER_ID = '34936fff-947e-4328-bcd9-7c99ceefe176';
 const ZILE_GRAFIC = 14;
 const PRAG_STABIL = 3;
 
@@ -119,11 +122,12 @@ export async function GET(req: NextRequest) {
   if (lansat && lansat <= azi) return NextResponse.json({ skipped: 'lansat', lansat });
   if (q.get('dry') === '1') return NextResponse.json({ dry: true, azi, lansat, text: TEXT_ANUNT, legare: { text: TEXT_LEGARE, link: LINK_LEGARE, pana_la: LEGARE_PANA_LA }, raport: await raportLegare(sb, azi) });
   const force = q.get('force') === '1';
+  const doarRaport = q.get('raport') === '1'; // retrimite doar raportul (ex. după ce s-a adăugat un destinatar)
   const chatId = await graficGroupChatId();
   if (!chatId) return NextResponse.json({ error: 'Grupa Mejgorod nu e legată (/lega_grafic).' }, { status: 500 });
 
   const out: Record<string, unknown> = { azi };
-  if (val(ULTIMA) === azi && !force) out.anunt = 'azi';
+  if (doarRaport || (val(ULTIMA) === azi && !force)) out.anunt = 'azi';
   else {
     const messageId = await sendTelegramText(chatId, TEXT_ANUNT);
     if (!messageId) return NextResponse.json({ error: 'Telegram nu a primit anunțul' }, { status: 502 });
@@ -134,7 +138,7 @@ export async function GET(req: NextRequest) {
 
   // Al doilea mesaj: legarea șoferului, până pe 12.10 inclusiv (ION-234)
   if (azi > LEGARE_PANA_LA) out.legare = 'expirat';
-  else if (val(LEGARE_ULTIMA) === azi && !force) out.legare = 'azi';
+  else if (doarRaport || (val(LEGARE_ULTIMA) === azi && !force)) out.legare = 'azi';
   else {
     const ok = await sendTelegram(chatId, TEXT_LEGARE, BUTON_LEGARE);
     if (!ok) return NextResponse.json({ ...out, error: 'Telegram nu a primit mesajul de legare' }, { status: 502 });
@@ -146,12 +150,17 @@ export async function GET(req: NextRequest) {
   out.soferi = { legati: (dr ?? []).filter(r => r.telegram_id != null).length, activi: (dr ?? []).length };
 
   // Raportul zilnic pentru Ion: șoferii stabili din grafic, legați / nelegați (o dată pe zi, cât mai e cineva nelegat)
-  if (val(RAPORT_ULTIMA) === azi && !force) out.raport = 'azi';
+  if (val(RAPORT_ULTIMA) === azi && !force && !doarRaport) out.raport = 'azi';
   else {
     const r = await raportLegare(sb, azi);
     if (!r) out.raport = 'fara_date';
     else {
-      const ok = await alertAdmins(r.text);
+      const { data: iurie } = await sb.from('users').select('telegram_id').eq('id', IURIE_USER_ID).eq('active', true).maybeSingle();
+      const [ok, okIurie] = await Promise.all([
+        alertAdmins(r.text),
+        iurie?.telegram_id ? sendTelegram(iurie.telegram_id as number, r.text) : Promise.resolve(false),
+      ]);
+      out.raport_iurie = okIurie;
       if (ok) await sb.from('app_config').upsert({ key: RAPORT_ULTIMA, value: azi, updated_at: acum }, { onConflict: 'key' });
       out.raport = ok ? { trimis: true, stabili: r.stabili, legati: r.legati } : 'netrimis';
     }

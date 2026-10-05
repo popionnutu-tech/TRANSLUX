@@ -29,7 +29,11 @@ function repoFals(o: { scurge?: boolean; plafon?: boolean } = {}) {
   const repo: RepoBileteClient = {
     comenziActive: vi.fn(async (id: number) => (o.scurge ? toate : toate.filter((c) => c.telegram_id === id))),
     biletComplet: vi.fn(async (cod: string) => comandaPublica(cod)),
-    ultimulContact: vi.fn(async (id: number) => (id === EU ? { passenger_name: 'Pop Ion', phone: '37368263753' } : null)),
+    ultimulContact: vi.fn(async (id: number) => (id === EU ? { passenger_name: 'Pop Ion', phone: '37368263753', email: 'Ion@Exemplu.md' } : null)),
+    istoric: vi.fn(async (id: number) => [
+      { cod: 'i1', telegram_id: id, status: 'returnata', from_name: 'Briceni', to_name: 'Chișinău', departure_at: '2026-09-01T03:00:00Z', seats: 1, total: 135 },
+      { cod: 'strain', telegram_id: 1, status: 'platita', from_name: 'X', to_name: 'Y', departure_at: '2026-09-02T03:00:00Z', seats: 1, total: 99 },
+    ]),
     plafon: vi.fn(async () => o.plafon ?? true),
   };
   return repo;
@@ -45,7 +49,10 @@ describe('bileteleClientului — identitatea din initData', () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.bilete.map((b) => b.cod)).toEqual(['a'.repeat(32), 'c'.repeat(32)]);
-    expect(r.contact).toEqual({ nume: 'Pop', prenume: 'Ion', telefon: '37368263753' });
+    expect(r.contact).toEqual({ nume: 'Pop', prenume: 'Ion', telefon: '37368263753', email: 'ion@exemplu.md' });
+    // istoricul: doar călătoriile contului, fără telegram_id în răspuns
+    expect(r.ok && r.istoric.map((c) => c.cod)).toEqual(['i1']);
+    expect(r.ok && Object.keys(r.istoric[0])).not.toContain('telegram_id');
     // ziua Chișinăului, nu a serverului
     expect(repo.comenziActive).toHaveBeenCalledWith(EU, '2026-10-05', MAX_COMENZI_CLIENT);
   });
@@ -106,7 +113,8 @@ describe('bileteleClientului — lista doar a contului', () => {
 
 describe('contactDinComanda și ziuaChisinau', () => {
   it('numele se desparte la primul spațiu; telefonul rămâne 373XXXXXXXX', () => {
-    expect(contactDinComanda({ passenger_name: '  Popescu   Ion Vasile ', phone: '373 68 263 753' })).toEqual({ nume: 'Popescu', prenume: 'Ion Vasile', telefon: '37368263753' });
+    expect(contactDinComanda({ passenger_name: '  Popescu   Ion Vasile ', phone: '373 68 263 753' })).toEqual({ nume: 'Popescu', prenume: 'Ion Vasile', telefon: '37368263753', email: null });
+    expect(contactDinComanda({ passenger_name: 'Pop Ion', phone: '37368263753', email: 'nu-e-email' })?.email).toBeNull();
   });
   it('un singur cuvânt, telefon nemoldovenesc sau nimic → null (formularul rămâne gol)', () => {
     expect(contactDinComanda({ passenger_name: 'Ion', phone: '37368263753' })).toBeNull();

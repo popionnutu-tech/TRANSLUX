@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
       acumMs: Date.now(),
     }, repoBileteClient);
     if (!r.ok) return NextResponse.json({ ok: false, eroare: r.eroare }, { status: r.status, headers: ANTETE });
-    return NextResponse.json({ ok: true, bilete: r.bilete, contact: r.contact }, { headers: ANTETE });
+    return NextResponse.json({ ok: true, bilete: r.bilete, contact: r.contact, istoric: r.istoric }, { headers: ANTETE });
   } catch (e) {
     if (!(e instanceof BazaIndisponibilaError)) throw e;
     console.error('[bilete/client] baza indisponibilă:', e.message);

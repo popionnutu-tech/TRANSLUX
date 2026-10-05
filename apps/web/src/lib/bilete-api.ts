@@ -173,7 +173,7 @@ export async function biletPublic(cod: string): Promise<ComandaPublica | null | 
 export type EroareBileteClient = 'neautentificat' | 'expirat' | 'prea_multe' | 'indisponibil';
 
 export type RaspunsBileteClient =
-  | { ok: true; bilete: ComandaPublica[]; contact: unknown }
+  | { ok: true; bilete: ComandaPublica[]; contact: unknown; istoric: unknown }
   | { ok: false; eroare: EroareBileteClient };
 
 const ERORI_PANOU: Record<number, EroareBileteClient> = { 401: 'neautentificat', 429: 'prea_multe' };
@@ -191,8 +191,8 @@ export async function bileteleClientuluiTelegram(initData: string): Promise<Rasp
       signal: AbortSignal.timeout(TIMEOUT_MS * 2),
       cache: 'no-store',
     });
-    const j = await r.json().catch(() => null) as { ok?: boolean; bilete?: unknown; contact?: unknown; eroare?: unknown } | null;
-    if (r.ok && j?.ok && Array.isArray(j.bilete)) return { ok: true, bilete: j.bilete as ComandaPublica[], contact: j.contact ?? null };
+    const j = await r.json().catch(() => null) as { ok?: boolean; bilete?: unknown; contact?: unknown; istoric?: unknown; eroare?: unknown } | null;
+    if (r.ok && j?.ok && Array.isArray(j.bilete)) return { ok: true, bilete: j.bilete as ComandaPublica[], contact: j.contact ?? null, istoric: j.istoric ?? [] };
     if (r.status === 401 && j?.eroare === 'expirat') return { ok: false, eroare: 'expirat' };
     // «neautorizat» = cheia site-ului nu se potrivește cu a panoului: e configurarea noastră, nu clientul.
     if (r.status === 401 && j?.eroare === 'neautorizat') {

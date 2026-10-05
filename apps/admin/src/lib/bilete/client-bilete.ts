@@ -13,17 +13,27 @@ export const STARI_CLIENT = ['platita', 'platita_fara_bilet'] as const;
 export const MAX_COMENZI_CLIENT = 10;
 
 export interface ComandaContului { cod: string; telegram_id: number | null }
-export interface ContactBrut { passenger_name: string; phone: string }
-/** Datele pentru precompletarea formularului de cumpărare: numele în două câmpuri, telefonul 373XXXXXXXX. */
-export interface ContactClient { nume: string; prenume: string; telefon: string }
+export interface ContactBrut { passenger_name: string; phone: string; /** cel mai nou e-mail lăsat vreodată (ION-249) */ email?: string | null }
+/** Datele pentru precompletarea formularului de cumpărare: numele în două câmpuri, telefonul 373XXXXXXXX, e-mailul. */
+export interface ContactClient { nume: string; prenume: string; telefon: string; email: string | null }
+
+/** Câte călătorii arată fila «Istoric» (Ion, 05.10: «ultim istoric, toate călătoriile»). */
+export const MAX_ISTORIC = 50;
+/** O călătorie din istoricul contului: fără QR, fără date personale în plus. */
+export interface CalatorieIstoric {
+  cod: string; telegram_id: number | null; status: string; from_name: string; to_name: string;
+  departure_at: string; seats: number; total: number;
+}
 
 export interface RepoBileteClient {
   /** Comenzile contului în STARI_CLIENT, cu trip_date ≥ deLaZiua, ordonate după plecare. */
   comenziActive(telegramId: number, deLaZiua: string, limita: number): Promise<ComandaContului[]>;
   /** Comanda așa cum o vede pagina biletului (null = a dispărut între timp). */
   biletComplet(cod: string): Promise<ComandaPublica | null>;
-  /** Numele și telefonul din cea mai nouă comandă a contului (orice stare). */
+  /** Numele și telefonul din cea mai nouă comandă a contului (orice stare) + cel mai nou e-mail lăsat. */
   ultimulContact(telegramId: number): Promise<ContactBrut | null>;
+  /** Toate comenzile contului care au ajuns la plată (plătite, anulate, returnate), cele mai noi întâi. */
+  istoric(telegramId: number, limita: number): Promise<CalatorieIstoric[]>;
   /** false = contul a depășit plafonul de cereri. */
   plafon(telegramId: number): Promise<boolean>;
 }
@@ -31,7 +41,7 @@ export interface RepoBileteClient {
 export type EroareClient = 'neautentificat' | 'expirat' | 'prea_multe';
 
 export type RaspunsBileteClient =
-  | { ok: true; status: 200; bilete: ComandaPublica[]; contact: ContactClient | null }
+  | { ok: true; status: 200; bilete: ComandaPublica[]; contact: ContactClient | null; istoric: Omit<CalatorieIstoric, 'telegram_id'>[] }
   | { ok: false; status: 401 | 429; eroare: EroareClient };
 
 export interface CerereBileteClient {
@@ -56,7 +66,8 @@ export function contactDinComanda(c: ContactBrut | null): ContactClient | null {
   const parti = String(c.passenger_name ?? '').trim().split(/\s+/).filter(Boolean);
   const telefon = String(c.phone ?? '').replace(/\D/g, '');
   if (parti.length < 2 || !/^373\d{8}$/.test(telefon)) return null;
-  return { nume: parti[0], prenume: parti.slice(1).join(' '), telefon };
+  const email = String(c.email ?? '').trim().toLowerCase();
+  return { nume: parti[0], prenume: parti.slice(1).join(' '), telefon, email: /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email) ? email : null };
 }
 
 /**
@@ -82,13 +93,16 @@ export async function bileteleClientului(cerere: CerereBileteClient, repo: RepoB
   if (!id.ok) return { ok: false, status: 401, eroare: id.eroare };
   if (!(await repo.plafon(id.telegramId))) return { ok: false, status: 429, eroare: 'prea_multe' };
 
-  const [comenzi, contactBrut] = await Promise.all([
+  const [comenzi, contactBrut, istoricBrut] = await Promise.all([
     repo.comenziActive(id.telegramId, ziuaChisinau(cerere.acumMs), MAX_COMENZI_CLIENT),
     repo.ultimulContact(id.telegramId),
+    repo.istoric(id.telegramId, MAX_ISTORIC),
   ]);
+  const istoric = istoricBrut.filter((c) => Number(c.telegram_id) === id.telegramId).slice(0, MAX_ISTORIC)
+    .map(({ telegram_id: _, ...rest }) => rest);
   // Apărare în adâncime: chiar dacă interogarea ar întoarce altceva, pleacă doar comenzile acestui cont.
   const aleContului = comenzi.filter((c) => Number(c.telegram_id) === id.telegramId).slice(0, MAX_COMENZI_CLIENT);
   const bilete = (await Promise.all(aleContului.map((c) => repo.biletComplet(c.cod))))
     .filter((b): b is ComandaPublica => b !== null);
-  return { ok: true, status: 200, bilete, contact: contactDinComanda(contactBrut) };
+  return { ok: true, status: 200, bilete, contact: contactDinComanda(contactBrut), istoric };
 }

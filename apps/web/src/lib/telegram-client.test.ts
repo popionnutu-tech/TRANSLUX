@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fereastraHartii, initDataDinFragment, oraChisinau, parseazaContact, type CursaBilet } from './telegram-client';
+import { fereastraHartii, initDataDinFragment, oraChisinau, parseazaContact, parseazaIstoric, type CursaBilet } from './telegram-client';
 
 // Ora Chișinăului în octombrie 2026 = UTC+3.
 const laChisinau = (zi: string, hhmm: string) => Date.parse(`${zi}T${hhmm}:00+03:00`);
@@ -56,7 +56,10 @@ describe('initDataDinFragment', () => {
 
 describe('parseazaContact', () => {
   it('contact bun → numele, prenumele și telefonul 373XXXXXXXX', () => {
-    expect(parseazaContact({ nume: 'Pop', prenume: 'Ion', telefon: '37368263753' })).toEqual({ nume: 'Pop', prenume: 'Ion', telefon: '37368263753' });
+    expect(parseazaContact({ nume: 'Pop', prenume: 'Ion', telefon: '37368263753' })).toEqual({ nume: 'Pop', prenume: 'Ion', telefon: '37368263753', email: null });
+    expect(parseazaContact({ nume: 'Pop', prenume: 'Ion', telefon: '37368263753', email: 'Ion@Exemplu.md' })?.email).toBe('ion@exemplu.md');
+    expect(parseazaContact({ nume: 'Pop', prenume: 'Ion', telefon: '37368263753', email: 'stricat' })?.email).toBeNull();
+    expect(parseazaIstoric([{ cod: 'a', status: 'returnata', from_name: 'B', to_name: 'C', departure_at: '2026-09-01T03:00:00Z', seats: 1, total: 135 }, { cod: 1 }, null]).map((c) => c.cod)).toEqual(['a']);
   });
   it('orice câmp ciudat → null (formularul rămâne gol)', () => {
     expect(parseazaContact(null)).toBeNull();

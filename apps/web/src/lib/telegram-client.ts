@@ -86,6 +86,24 @@ export interface ContactPrecompletat {
   prenume: string;
   /** 373XXXXXXXX (panoul); formularul îl arată «+373 XX XXX XXX». */
   telefon: string;
+  /** Cel mai nou e-mail lăsat vreodată de cont (ION-249: «și email dacă a fost introdus în trecut»). */
+  email: string | null;
+}
+
+/** O călătorie din fila «Istoric» (ION-249). */
+export interface CalatorieIstoric { cod: string; status: string; from_name: string; to_name: string; departure_at: string; seats: number; total: number }
+
+/** Istoricul de la server, verificat rând cu rând (un rând ciudat se sare, nu strică lista). */
+export function parseazaIstoric(v: unknown): CalatorieIstoric[] {
+  if (!Array.isArray(v)) return [];
+  const out: CalatorieIstoric[] = [];
+  for (const x of v.slice(0, 50)) {
+    if (!x || typeof x !== 'object') continue;
+    const o = x as Record<string, unknown>;
+    if (typeof o.cod !== 'string' || typeof o.from_name !== 'string' || typeof o.to_name !== 'string' || typeof o.departure_at !== 'string' || !Number.isFinite(Date.parse(o.departure_at))) continue;
+    out.push({ cod: o.cod, status: String(o.status ?? ''), from_name: o.from_name, to_name: o.to_name, departure_at: o.departure_at, seats: Number(o.seats) || 1, total: Number(o.total) || 0 });
+  }
+  return out;
 }
 
 /** Ce vine de la server se verifică: un câmp ciudat → fără precompletare, nu un formular stricat. */
@@ -97,5 +115,6 @@ export function parseazaContact(v: unknown): ContactPrecompletat | null {
   const prenume = text(o.prenume);
   const telefon = text(o.telefon).replace(/\D/g, '');
   if (nume.length < 2 || nume.length > 40 || prenume.length < 2 || prenume.length > 40 || !/^373\d{8}$/.test(telefon)) return null;
-  return { nume, prenume, telefon };
+  const email = text(o.email).toLowerCase();
+  return { nume, prenume, telefon, email: email.length <= 120 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email) ? email : null };
 }

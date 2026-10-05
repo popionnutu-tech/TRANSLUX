@@ -82,7 +82,7 @@ type Harta = { stare: "incarca" | "ok" | "indisponibila"; ocupate: number[] };
 
 /** Câmpurile de la deschidere: goale pe site, precompletate în mini app-ul Telegram (ION-249, telefonul în forma +373). */
 function campuriInitiale(contact: ContactPrecompletat | null) {
-  return { lastName: contact?.nume ?? "", firstName: contact?.prenume ?? "", phone: contact ? phoneText(contact.telefon) : "", email: "" };
+  return { lastName: contact?.nume ?? "", firstName: contact?.prenume ?? "", phone: contact ? phoneText(contact.telefon) : "", email: contact?.email ?? "" };
 }
 
 export function BuyTicketForm({ trip, fromRo, toRo, locale, onCancel, contact = null }: {

@@ -1,10 +1,11 @@
 'use client';
 
-// Mini app-ul clientului, deschis de butonul de meniu «🎫 Bilete» din botul Telegram (ION-249, Ion 05.10: «1. pe full
-// ecran 2. harta cu unde este șoferul meu 3. căutare noi bilete»; apoi «să fie 3 file diferite și toate ca în site, cu
-// alegere jos, și designul să fie la fel»). Trei file cu bara de jos: Biletele mele · Harta · Caută bilet — fila «Caută»
-// e chiar prima pagină a site-ului (HomePage în modul Telegram). Biletele vin de la panou numai pe baza initData-ului
-// Telegram verificat pe server; fără el — doar căutarea, nimic personal.
+// Mini app-ul clientului, deschis de butonul de meniu «🎫 Bilete» din botul Telegram (ION-249). Ion, 05.10: «harta cu
+// bilete să fie prima, a doua bilete noi în care deja automat să fie introdus numele și prenumele… și email dacă a fost
+// introdus în trecut, și ultim istoric, toate călătoriile»; «QR mare să apară doar în chat». Trei file cu bara de jos:
+// 1. Biletele — fereastra «Acum» doar cu cursa din bilet și biletul micșorat jos (sau biletele viitoare, micșorate);
+// 2. Bilet nou — motorul de căutare al site-ului, cu numele, telefonul și e-mailul precompletate; 3. Istoric.
+// Biletele vin de la panou numai pe baza initData-ului Telegram verificat pe server; fără el — doar căutarea.
 
 import { useCallback, useEffect, useState } from 'react';
 import { bileteleMeleTelegram, type StareBileteleMele } from '@/app/(public)/telegram-actions';
@@ -12,8 +13,8 @@ import type { ComandaPublica } from '@/lib/bilete-api';
 import type { HomeOptions } from '@/lib/home-props';
 import type { Locale } from '@/lib/i18n';
 import { LINE_TEL, LINE_TEXT } from '@/lib/phone';
-import { fereastraHartii, oraChisinau } from '@/lib/telegram-client';
-import { BILET_CARD_CSS, BiletCard, bileteDeAratat } from '@/components/bilet/BiletCard';
+import { fereastraHartii, oraChisinau, type CalatorieIstoric } from '@/lib/telegram-client';
+import { bileteDeAratat } from '@/components/bilet/BiletCard';
 import { HomePage } from '@/components/home-page';
 import { NowResults, type NowTrip } from '@/components/NowResults';
 import { phoneTel, phoneText } from '@/lib/phone';
@@ -26,38 +27,42 @@ const BOT = (process.env.NEXT_PUBLIC_BOT_USERNAME || 'TransluxMoldova_bot').repl
 /** Fereastra hărții se reevaluează o dată pe minut (biletul de azi trece singur din «curând» în «activă»). */
 const CEAS_MS = 60_000;
 
-type Fila = 'bilete' | 'harta' | 'cauta';
+type Fila = 'bilete' | 'nou' | 'istoric';
+const FILE: Fila[] = ['bilete', 'nou', 'istoric'];
 
 const TXT = {
   ro: {
-    file: { bilete: 'Biletele mele', harta: 'Harta', cauta: 'Caută bilet' },
-    hartaTitlu: 'Unde e autobuzul meu', hartaGol: 'Azi nu ai nicio cursă. Harta autobuzului apare aici în ziua cursei.',
-    hartaIncheiata: 'Cursa s-a încheiat.', spreCautare: 'Caută un bilet',
-    titlu: 'Biletele mele', incarca: 'Se încarcă biletele…', gol: 'Nu ai bilete active. Caută un bilet nou în fila «Caută bilet».',
-    hartaMaiTarziu: 'Harta apare în ziua cursei, cu o oră înainte de plecare.',
-    faraBilet: 'Plata a sosit după expirarea comenzii. Dispecerul o verifică și te sună.',
+    file: { bilete: 'Biletele mele', nou: 'Bilet nou', istoric: 'Istoric' },
+    titlu: 'Biletele mele', incarca: 'Se încarcă biletele…', gol: 'Nu ai bilete active.', spreNou: 'Cumpără un bilet',
     faraTelegram: 'Biletele tale se văd când deschizi pagina din botul TRANSLUX din Telegram, butonul «🎫 Bilete».',
     deschideBot: 'Deschide botul în Telegram',
     expirat: 'Sesiunea Telegram a expirat. Închide fereastra și apasă din nou «🎫 Bilete».',
-    indisponibil: 'Biletele nu se pot afișa acum.', reincearca: 'Încearcă din nou',
-    arata: 'Arată codul QR șoferului la urcare. Fiecare cod e un loc.', ajutor: 'Ajutor:',
+    indisponibil: 'Biletele nu se pot afișa acum.', reincearca: 'Încearcă din nou', ajutor: 'Ajutor:',
+    istoricTitlu: 'Istoric', istoricGol: 'Încă nu ai călătorii.', locuri: (n: number) => (n === 1 ? '1 loc' : `${n} locuri`),
+    stari: { activ: 'Activ', efectuata: 'Efectuată', anulata: 'Anulată', returnata: 'Returnată', verificare: 'În verificare' },
   },
   ru: {
-    file: { bilete: 'Мои билеты', harta: 'Карта', cauta: 'Найти билет' },
-    hartaTitlu: 'Где мой автобус', hartaGol: 'Сегодня у вас нет поездок. Карта автобуса появится здесь в день поездки.',
-    hartaIncheiata: 'Поездка завершена.', spreCautare: 'Найти билет',
-    titlu: 'Мои билеты', incarca: 'Загружаем билеты…', gol: 'Активных билетов нет. Найдите новый билет во вкладке «Найти билет».',
-    hartaMaiTarziu: 'Карта появится в день поездки, за час до отправления.',
-    faraBilet: 'Оплата пришла после истечения заказа. Диспетчер проверит её и позвонит вам.',
+    file: { bilete: 'Мои билеты', nou: 'Новый билет', istoric: 'История' },
+    titlu: 'Мои билеты', incarca: 'Загружаем билеты…', gol: 'Активных билетов нет.', spreNou: 'Купить билет',
     faraTelegram: 'Ваши билеты видны, когда страница открыта из бота TRANSLUX в Telegram, кнопка «🎫 Билеты».',
     deschideBot: 'Открыть бот в Telegram',
     expirat: 'Сессия Telegram истекла. Закройте окно и снова нажмите «🎫 Билеты».',
-    indisponibil: 'Билеты сейчас недоступны.', reincearca: 'Повторить',
-    arata: 'Покажите QR-код водителю при посадке. Каждый код — одно место.', ajutor: 'Помощь:',
+    indisponibil: 'Билеты сейчас недоступны.', reincearca: 'Повторить', ajutor: 'Помощь:',
+    istoricTitlu: 'История', istoricGol: 'Поездок пока нет.', locuri: (n: number) => (n === 1 ? '1 место' : `${n} места`),
+    stari: { activ: 'Активен', efectuata: 'Совершена', anulata: 'Отменена', returnata: 'Возвращена', verificare: 'На проверке' },
   },
 } as const;
 
 type Ecran = { tip: 'pornire' } | { tip: 'fara_telegram' } | { tip: 'incarca' } | { tip: 'gata'; stare: StareBileteleMele };
+
+/** «Azi 15:35», «Mâine 06:00», «mar., 14.10 06:00» — ziua cursei pe biletul micșorat (ora Chișinăului). */
+function ziCursa(tripDate: string, locale: Locale, azi: string, maine: string): string {
+  const fmt = (ms: number) => new Date(ms).toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' });
+  if (tripDate === fmt(Date.now())) return azi;
+  if (tripDate === fmt(Date.now() + 86_400_000)) return maine;
+  const [y, m, d] = tripDate.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(locale === 'ru' ? 'ru-RU' : 'ro-RO', { timeZone: 'UTC', weekday: 'short', day: '2-digit', month: '2-digit' });
+}
 
 export function TelegramClientApp({ locale, options }: { locale: Locale; options: HomeOptions }) {
   const tx = TXT[locale];
@@ -65,8 +70,8 @@ export function TelegramClientApp({ locale, options }: { locale: Locale; options
   const [ecran, setEcran] = useState<Ecran>({ tip: 'pornire' });
   const [acum, setAcum] = useState(() => Date.now());
   const [fila, setFila] = useState<Fila>('bilete');
-  // «Caută» se montează la prima vizită și rămâne montată (căutarea nu se pierde la schimbarea filei).
-  const [cautaVazuta, setCautaVazuta] = useState(false);
+  // «Bilet nou» se montează la prima vizită și rămâne montat (căutarea nu se pierde la schimbarea filei).
+  const [nouVazut, setNouVazut] = useState(false);
 
   const incarca = useCallback(async (date: string) => {
     setEcran({ tip: 'incarca' });
@@ -78,7 +83,7 @@ export function TelegramClientApp({ locale, options }: { locale: Locale; options
   useEffect(() => {
     const date = citesteInitData();
     setInitData(date);
-    if (!date) { setEcran({ tip: 'fara_telegram' }); setFila('cauta'); setCautaVazuta(true); return; }
+    if (!date) { setEcran({ tip: 'fara_telegram' }); setFila('nou'); setNouVazut(true); return; }
     void incarca(date);
   }, [incarca]);
 
@@ -87,18 +92,17 @@ export function TelegramClientApp({ locale, options }: { locale: Locale; options
     return () => clearInterval(t);
   }, []);
 
-  const alege = (f: Fila) => { setFila(f); if (f === 'cauta') setCautaVazuta(true); window.scrollTo(0, 0); };
+  const alege = (f: Fila) => { setFila(f); if (f === 'nou') setNouVazut(true); window.scrollTo(0, 0); };
   const contact = ecran.tip === 'gata' && ecran.stare.ok ? ecran.stare.contact : null;
 
   return (
     <div lang={locale} className="tg-app" style={{ ['--bg' as string]: FUNDAL }}>
       <style>{`
-${BILET_CARD_CSS}
 .tg-app{min-height:100vh;font-family:var(--font-opensans),Open Sans,system-ui,sans-serif;color:#231A1C}
 .tg-fila{min-height:100vh;background:var(--bg);box-sizing:border-box;
   padding:calc(max(env(safe-area-inset-top,0px),var(--tg-safe-area-inset-top,0px)) + var(--tg-content-safe-area-inset-top,0px) + 12px) 16px calc(env(safe-area-inset-bottom,0px) + 96px)}
 .tg-cauta{padding-top:calc(max(env(safe-area-inset-top,0px),var(--tg-safe-area-inset-top,0px)) + var(--tg-content-safe-area-inset-top,0px));padding-bottom:calc(env(safe-area-inset-bottom,0px) + 72px)}
-.tg-col{max-width:520px;margin:0 auto;display:grid;gap:18px}
+.tg-col{max-width:520px;margin:0 auto;display:grid;gap:16px}
 .tg-buton{min-height:48px;padding:0 16px;border-radius:12px;border:none;background:${RED};color:#fff;font:700 16px var(--font-opensans),Open Sans,sans-serif;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
 .tg-nota{margin:0;padding:12px 14px;border-radius:14px;background:#fff;color:#555;font-size:14px;line-height:1.45}
 .tg-bara{position:fixed;left:0;right:0;bottom:0;z-index:50;display:grid;grid-template-columns:repeat(3,1fr);background:rgba(255,255,255,.96);
@@ -107,36 +111,38 @@ ${BILET_CARD_CSS}
 .tg-tab{display:flex;flex-direction:column;align-items:center;gap:3px;min-height:52px;justify-content:center;border:none;background:none;cursor:pointer;
   color:rgba(35,26,28,.5);font:700 11.5px var(--font-opensans),Open Sans,sans-serif;border-radius:14px}
 .tg-tab[aria-selected="true"]{color:${RED};background:rgba(155,27,48,.08)}
+.tg-ist{background:#fff;border-radius:18px;overflow:hidden}
+.tg-ist-rand{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid #F1E8EA}
+.tg-ist-rand:last-child{border-bottom:none}
+.tg-ist-data{flex-shrink:0;width:54px;text-align:center;font-weight:800;color:${RED};line-height:1.1}
+.tg-ist-data small{display:block;font-size:11px;font-weight:600;color:#8A7B7F}
+.tg-ist-info{flex:1;min-width:0;display:grid;gap:2px}
+.tg-ist-info b{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tg-ist-info span{font-size:12.5px;color:#6B5B5F}
+.tg-ist-stare{flex-shrink:0;font-size:12px;font-weight:700;border-radius:999px;padding:4px 10px}
 `}</style>
       <EcranCompletTelegram />
 
-      {fila === 'bilete' && (
+      {fila === 'bilete' && <FilaBilete ecran={ecran} acum={acum} locale={locale} onNou={() => alege('nou')} onReincearca={() => initData && void incarca(initData)} />}
+
+      {fila === 'istoric' && (
         <div className="tg-fila">
           <div className="tg-col">
-            <Antet titlu={`🎫 ${tx.titlu}`} />
-            <BileteleMele ecran={ecran} acum={acum} locale={locale} onReincearca={() => initData && void incarca(initData)} />
+            <Antet titlu={`🕘 ${tx.istoricTitlu}`} />
+            <Istoric ecran={ecran} acum={acum} locale={locale} />
             <Ajutor locale={locale} />
           </div>
         </div>
       )}
 
-      {fila === 'harta' && (
-        <div className="tg-fila">
-          <div className="tg-col">
-            <Antet titlu={`📍 ${tx.hartaTitlu}`} />
-            <HartaMea ecran={ecran} acum={acum} locale={locale} onCauta={() => alege('cauta')} />
-          </div>
-        </div>
-      )}
-
-      {cautaVazuta && (
-        <div className="tg-cauta" style={{ display: fila === 'cauta' ? 'block' : 'none' }}>
+      {nouVazut && (
+        <div className="tg-cauta" style={{ display: fila === 'nou' ? 'block' : 'none' }}>
           <HomePage locale={locale} options={options} telegram={{ contact }} />
         </div>
       )}
 
       <nav className="tg-bara" role="tablist" aria-label="TRANSLUX">
-        {(['bilete', 'harta', 'cauta'] as Fila[]).map((f) => (
+        {FILE.map((f) => (
           <button key={f} type="button" role="tab" aria-selected={fila === f} className="tg-tab" onClick={() => alege(f)}>
             <IconFila fila={f} />
             {tx.file[f]}
@@ -168,50 +174,120 @@ function Ajutor({ locale }: { locale: Locale }) {
   );
 }
 
-/** Iconițele barei de jos: bilet, punct pe hartă, lupă (linie, ca pe site). */
+/** Iconițele barei de jos: bilet cu punct pe hartă, lupă, ceas (linie, ca pe site). */
 function IconFila({ fila }: { fila: Fila }) {
   const p = { width: 24, height: 24, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
   if (fila === 'bilete') return <svg {...p}><path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4z" /><path d="M14 6v12" strokeDasharray="2 2.5" /></svg>;
-  if (fila === 'harta') return <svg {...p}><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></svg>;
-  return <svg {...p}><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>;
+  if (fila === 'nou') return <svg {...p}><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>;
+  return <svg {...p}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>;
 }
 
-/** Fila «Harta»: autobuzul fiecărei curse de azi, în fereastra ei (regulile ION-37); altfel explicația. */
-function HartaMea({ ecran, acum, locale, onCauta }: { ecran: Ecran; acum: number; locale: Locale; onCauta: () => void }) {
+/** Stările comune (încărcare, fără Telegram, erori); null = datele sunt aici. */
+function StareComuna({ ecran, locale, onReincearca }: { ecran: Ecran; locale: Locale; onReincearca?: () => void }) {
   const tx = TXT[locale];
   if (ecran.tip === 'pornire' || ecran.tip === 'incarca') return <p className="tg-nota" aria-live="polite">{tx.incarca}</p>;
-  if (ecran.tip === 'fara_telegram' || !ecran.stare.ok) return <p className="tg-nota">{tx.faraTelegram}</p>;
-  // Cursa de azi încă neîncheiată (cea mai apropiată): fereastra «Acum» de pe site, cu cursa din bilet aleasă.
-  const azi = ecran.stare.bilete.filter((c) => c.status === 'platita' && ['curand', 'activa'].includes(fereastraHartii(c, acum)));
-  if (azi.length > 0) {
-    const c = azi[0];
-    const plecare = oraChisinau(c.departure_at);
-    return <NowResults key={c.cod} from={c.from_name} to={c.to_name} fromValue={c.from_name} toValue={c.to_name} locale={locale}
-      onClose={() => {}} incorporat plecareMea={plecare} doarCursa={{ departure: plecare, routeId: c.ruta?.id ?? null }}
-      panou={(t) => <BiletMini comanda={c} cursa={t} locale={locale} />} />;
+  if (ecran.tip === 'fara_telegram') {
+    return (
+      <div className="tg-nota" style={{ display: 'grid', gap: 10 }}>
+        <span>{tx.faraTelegram}</span>
+        <a className="tg-buton" href={`https://t.me/${BOT}`} style={{ background: '#1b7fb0' }}>{tx.deschideBot}</a>
+      </div>
+    );
+  }
+  const { stare } = ecran;
+  if (stare.ok) return null;
+  if (stare.eroare === 'expirat' || stare.eroare === 'neautentificat') return <p className="tg-nota" role="alert">{stare.eroare === 'expirat' ? tx.expirat : tx.faraTelegram}</p>;
+  return (
+    <div className="tg-nota" role="alert" style={{ display: 'grid', gap: 10 }}>
+      <span>{tx.indisponibil}</span>
+      {onReincearca && <button type="button" className="tg-buton" onClick={onReincearca}>{tx.reincearca}</button>}
+    </div>
+  );
+}
+
+/**
+ * Fila 1 «Biletele mele»: cursa de azi (în fereastra hărții) = fereastra «Acum» de pe site doar cu cursa din bilet și
+ * biletul micșorat jos; altfel biletele viitoare, micșorate, fără hartă.
+ */
+function FilaBilete({ ecran, acum, locale, onNou, onReincearca }: { ecran: Ecran; acum: number; locale: Locale; onNou: () => void; onReincearca: () => void }) {
+  const tx = TXT[locale];
+  const comun = <StareComuna ecran={ecran} locale={locale} onReincearca={onReincearca} />;
+  const bilete = ecran.tip === 'gata' && ecran.stare.ok ? ecran.stare.bilete.filter((c) => c.status === 'platita' && bileteDeAratat(c).length > 0) : null;
+  const azi = bilete?.find((c) => ['curand', 'activa'].includes(fereastraHartii(c, acum)));
+  if (azi) {
+    const plecare = oraChisinau(azi.departure_at);
+    return <NowResults key={azi.cod} from={azi.from_name} to={azi.to_name} fromValue={azi.from_name} toValue={azi.to_name} locale={locale}
+      onClose={() => {}} incorporat plecareMea={plecare} doarCursa={{ departure: plecare, routeId: azi.ruta?.id ?? null }}
+      panou={(t) => <BiletMini comanda={azi} cursa={t} locale={locale} />} />;
   }
   return (
-    <div className="tg-nota" style={{ display: 'grid', gap: 10 }}>
-      <span>{tx.hartaGol}</span>
-      <button type="button" className="tg-buton" onClick={onCauta}>{tx.spreCautare}</button>
+    <div className="tg-fila">
+      <div className="tg-col">
+        <Antet titlu={`🎫 ${tx.titlu}`} />
+        {bilete === null ? comun : bilete.length === 0 ? (
+          <div className="tg-nota" style={{ display: 'grid', gap: 10 }}>
+            <span>{tx.gol}</span>
+            <button type="button" className="tg-buton" onClick={onNou}>{tx.spreNou}</button>
+          </div>
+        ) : bilete.map((c) => <BiletMini key={c.cod} comanda={c} cursa={null} locale={locale} aziHarta={false} />)}
+        <Ajutor locale={locale} />
+      </div>
+    </div>
+  );
+}
+
+/** Fila 3 «Istoric»: toate călătoriile contului, cele mai noi întâi — data, ruta, locurile, suma, starea. */
+function Istoric({ ecran, acum, locale }: { ecran: Ecran; acum: number; locale: Locale }) {
+  const tx = TXT[locale];
+  if (!(ecran.tip === 'gata' && ecran.stare.ok)) return <StareComuna ecran={ecran} locale={locale} />;
+  const lista: CalatorieIstoric[] = ecran.stare.istoric;
+  if (lista.length === 0) return <p className="tg-nota">{tx.istoricGol}</p>;
+  const stareDe = (c: CalatorieIstoric): { text: string; fundal: string; culoare: string } => {
+    if (c.status === 'anulata') return { text: tx.stari.anulata, fundal: '#F6ECEE', culoare: RED };
+    if (c.status === 'returnata') return { text: tx.stari.returnata, fundal: '#F6ECEE', culoare: RED };
+    if (c.status === 'platita_fara_bilet') return { text: tx.stari.verificare, fundal: '#FFF4DA', culoare: '#8a6d00' };
+    if (Date.parse(c.departure_at) > acum) return { text: tx.stari.activ, fundal: '#e3f3e8', culoare: '#1b7f3b' };
+    return { text: tx.stari.efectuata, fundal: '#ececec', culoare: '#555' };
+  };
+  const loc = locale === 'ru' ? 'ru-RU' : 'ro-RO';
+  return (
+    <div className="tg-ist">
+      {lista.map((c) => {
+        const d = new Date(c.departure_at);
+        const st = stareDe(c);
+        return (
+          <div key={c.cod} className="tg-ist-rand">
+            <div className="tg-ist-data">
+              {d.toLocaleDateString(loc, { timeZone: 'Europe/Chisinau', day: '2-digit', month: '2-digit' })}
+              <small>{d.toLocaleDateString(loc, { timeZone: 'Europe/Chisinau', year: 'numeric' })}</small>
+            </div>
+            <div className="tg-ist-info">
+              <b>{c.from_name} → {c.to_name}</b>
+              <span>{oraChisinau(c.departure_at)} · {tx.locuri(c.seats)} · {Math.round(c.total)} MDL</span>
+            </div>
+            <span className="tg-ist-stare" style={{ background: st.fundal, color: st.culoare }}>{st.text}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
 const TXT_MINI = {
-  ro: { aici: 'Autobuzul e la oprirea ta', vine: (m: number, ora: string) => `Vine în ${m} min · ${ora}`, nuEPeDrum: 'Autobuzul încă nu e pe drum', locul: 'Locul', suna: 'Sună șoferul' },
-  ru: { aici: 'Автобус на вашей остановке', vine: (m: number, ora: string) => `Будет через ${m} мин · ${ora}`, nuEPeDrum: 'Автобус ещё не в пути', locul: 'Место', suna: 'Позвонить водителю' },
+  ro: { aici: 'Autobuzul e la oprirea ta', vine: (m: number, ora: string) => `Vine în ${m} min · ${ora}`, nuEPeDrum: 'Autobuzul încă nu e pe drum', locul: 'Locul', suna: 'Sună șoferul', azi: 'Azi', maine: 'Mâine' },
+  ru: { aici: 'Автобус на вашей остановке', vine: (m: number, ora: string) => `Будет через ${m} мин · ${ora}`, nuEPeDrum: 'Автобус ещё не в пути', locul: 'Место', suna: 'Позвонить водителю', azi: 'Сегодня', maine: 'Завтра' },
 } as const;
 
 /**
  * Biletul micșorat din partea de jos a hărții (ION-249, Ion 05.10: «biletul cu QR, minimizat, cu datele mașinii, stilat»):
- * ruta și orele, când vine autobuzul la oprirea omului, șoferul, mașina și apelul, locul și QR-ul (mărit la apăsare).
+ * ruta și orele, când vine autobuzul la oprirea omului, șoferul, mașina și apelul, locul și QR-ul mic (QR-ul mare e doar
+ * în chat — Ion, 05.10). Pe biletul altei zile, în locul stării stă ziua cursei.
  */
-function BiletMini({ comanda: c, cursa, locale }: { comanda: ComandaPublica; cursa: NowTrip | null; locale: Locale }) {
+function BiletMini({ comanda: c, cursa, locale, aziHarta = true }: { comanda: ComandaPublica; cursa: NowTrip | null; locale: Locale; aziHarta?: boolean }) {
   const tx = TXT_MINI[locale];
-  const [mare, setMare] = useState(false);
   const b = bileteDeAratat(c)[0];
-  const stare = !cursa ? tx.nuEPeDrum : cursa.at_stop?.mine ? tx.aici : tx.vine(Math.max(0, cursa.eta_min ?? cursa.minutes_until), cursa.eta ?? cursa.departure);
+  const stare = !aziHarta ? ziCursa(c.trip_date, locale, tx.azi, tx.maine)
+    : !cursa ? tx.nuEPeDrum : cursa.at_stop?.mine ? tx.aici : tx.vine(Math.max(0, cursa.eta_min ?? cursa.minutes_until), cursa.eta ?? cursa.departure);
   const masina = cursa ? [cursa.driver, cursa.plate].filter(Boolean).join(' · ') : '';
   return (
     <div className="tg-mini">
@@ -226,12 +302,10 @@ function BiletMini({ comanda: c, cursa, locale }: { comanda: ComandaPublica; cur
 .tg-mini-date{flex:1;min-width:0;display:grid;gap:3px;font-size:13px;color:#6B5B5F}
 .tg-mini-date strong{font-size:15px;color:#231A1C}
 .tg-mini-suna{display:inline-flex;align-items:center;gap:6px;margin-top:4px;color:${RED};font-weight:700;font-size:14px;text-decoration:none}
-.tg-mini-qr{flex-shrink:0;width:84px;height:84px;border-radius:12px;border:1px solid #F1E8EA;padding:4px;background:#fff;cursor:zoom-in}
+.tg-mini-qr{flex-shrink:0;width:84px;height:84px;border-radius:12px;border:1px solid #F1E8EA;padding:4px;background:#fff}
 .tg-mini-qr svg{width:100%;height:100%;display:block}
-.tg-mini.mare .tg-mini-qr{width:min(240px,60vw);height:min(240px,60vw);cursor:zoom-out}
-.tg-mini.mare .tg-mini-jos{flex-direction:column}
 `}</style>
-      <div className={`tg-mini${mare ? ' mare' : ''}`} style={{ boxShadow: 'none', borderRadius: 0 }}>
+      <div>
         <div className="tg-mini-sus">
           <div className="tg-mini-ore">
             <b>{oraChisinau(c.departure_at)} → {c.sosire ?? '—:—'}</b>
@@ -246,52 +320,9 @@ function BiletMini({ comanda: c, cursa, locale }: { comanda: ComandaPublica; cur
             {cursa?.phone && <a className="tg-mini-suna" href={`tel:${phoneTel(cursa.phone)}`}>📞 {phoneText(cursa.phone)}</a>}
           </div>
           {/* SVG-ul QR vine de la panou, generat din codul biletului (nu din text de la utilizator). */}
-          {b && <button type="button" className="tg-mini-qr" aria-label="QR" onClick={() => setMare(!mare)} dangerouslySetInnerHTML={{ __html: b.qr_svg }} />}
+          {b && <div className="tg-mini-qr" aria-label="QR" dangerouslySetInnerHTML={{ __html: b.qr_svg }} />}
         </div>
       </div>
-    </div>
-  );
-}
-
-function BileteleMele({ ecran, acum, locale, onReincearca }: { ecran: Ecran; acum: number; locale: Locale; onReincearca: () => void }) {
-  const tx = TXT[locale];
-  if (ecran.tip === 'pornire' || ecran.tip === 'incarca') return <p className="tg-nota" aria-live="polite">{tx.incarca}</p>;
-  if (ecran.tip === 'fara_telegram') {
-    return (
-      <div className="tg-nota" style={{ display: 'grid', gap: 10 }}>
-        <span>{tx.faraTelegram}</span>
-        <a className="tg-buton" href={`https://t.me/${BOT}`} style={{ background: '#1b7fb0' }}>{tx.deschideBot}</a>
-      </div>
-    );
-  }
-  const { stare } = ecran;
-  if (!stare.ok) {
-    if (stare.eroare === 'expirat' || stare.eroare === 'neautentificat') return <p className="tg-nota" role="alert">{stare.eroare === 'expirat' ? tx.expirat : tx.faraTelegram}</p>;
-    return (
-      <div className="tg-nota" role="alert" style={{ display: 'grid', gap: 10 }}>
-        <span>{tx.indisponibil}</span>
-        <button type="button" className="tg-buton" onClick={onReincearca}>{tx.reincearca}</button>
-      </div>
-    );
-  }
-  if (stare.bilete.length === 0) return <p className="tg-nota">{tx.gol}</p>;
-  return (
-    <div style={{ display: 'grid', gap: 22 }}>
-      {stare.bilete.map((c) => <ComandaClient key={c.cod} comanda={c} acum={acum} locale={locale} />)}
-      <p style={{ margin: 0, fontSize: 13, color: '#555' }}>{tx.arata}</p>
-    </div>
-  );
-}
-
-/** O comandă: cardurile cu QR, câte unul pe loc (harta e în fila «Harta»). */
-function ComandaClient({ comanda: c, acum, locale }: { comanda: ComandaPublica; acum: number; locale: Locale }) {
-  const tx = TXT[locale];
-  const valide = bileteDeAratat(c);
-  if (c.status !== 'platita' || valide.length === 0) return <p className="tg-nota">{c.from_name} → {c.to_name}: {tx.faraBilet}</p>;
-  void acum;
-  return (
-    <div style={{ display: 'grid', gap: 14 }}>
-      {valide.map((b) => <BiletCard key={b.nr} comanda={c} bilet={b} locale={locale} />)}
     </div>
   );
 }

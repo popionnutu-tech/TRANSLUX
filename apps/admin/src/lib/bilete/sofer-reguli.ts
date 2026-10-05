@@ -140,3 +140,20 @@ export function parseazaScanari(corp: unknown, acum: Date): ScanareCeruta[] | nu
   }
   return out;
 }
+
+// ---------------------------------------------------------------------------------------------
+// Numele cursei pentru antetul șoferului. În crm_routes convenția e MIXTĂ: la interurbane dest_from_ro ține numele
+// întreg al turului («Criva - Chișinău») și dest_to_ro pe al returului («Chișinău - Criva»); la câteva rute și la
+// suburbane fiecare câmp are un singur capăt («Chișinău» / «Ocnița»). Lipite orbește ieșea «Criva - Chișinău – Chișinău -
+// Criva», iar telefonul arăta «Criva – Criva – Criva» (Ion, 05.10: «TRANSLUX urât randat»). Câmpul cu separator E
+// numele cursei; altfel se compun capetele. Telefonul (logica.js sensRuta/titluRuta) taie pe același separator.
+
+export const SEPARATOR_RUTA_RE = /\s[–—-]\s/;
+
+export function numeCursei(destFrom: string | null | undefined, destTo: string | null | undefined, goingNorth: boolean): string {
+  const f = (destFrom ?? '').trim();
+  const t = (destTo ?? '').trim();
+  const intreg = goingNorth ? t : f;
+  if (SEPARATOR_RUTA_RE.test(intreg)) return intreg;
+  return goingNorth ? `${t} – ${f}` : `${f} – ${t}`;
+}

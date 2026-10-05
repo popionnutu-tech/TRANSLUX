@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alegeCurenta, cheieCursa, clasificaScanare, hhmm, minute, parseazaCheie, parseazaInterval, parseazaScanari } from './sofer-reguli';
+import { alegeCurenta, cheieCursa, clasificaScanare, hhmm, minute, numeCursei, parseazaCheie, parseazaInterval, parseazaScanari } from './sofer-reguli';
 
 describe('cheia cursei', () => {
   it('se construiește și se citește', () => {
@@ -101,5 +101,26 @@ describe('parseazaScanari — corpul lotului', () => {
     expect(parseazaScanari(null, ACUM)).toBeNull();
     expect(parseazaScanari({ scanari: [{ cod: 5 }] }, ACUM)).toBeNull();
     expect(parseazaScanari({ scanari: Array.from({ length: 51 }, () => ({ cod: 'A' })) }, ACUM)).toBeNull();
+  });
+});
+
+describe('numeCursei — convenția mixtă din crm_routes (Ion, 05.10: «TRANSLUX urât randat»)', () => {
+  it('interurban: câmpul ține numele întreg al cursei → se ia ca atare', () => {
+    expect(numeCursei('Criva - Chișinău', 'Chișinău - Criva', false)).toBe('Criva - Chișinău');
+    expect(numeCursei('Criva - Chișinău', 'Chișinău - Criva', true)).toBe('Chișinău - Criva');
+    expect(numeCursei('Lipcani (Rîșcani) - Chișinău', 'Chișinău - Lipcani (Rîșcani)', true)).toBe('Chișinău - Lipcani (Rîșcani)');
+  });
+  it('un singur capăt pe câmp → se compun capetele', () => {
+    expect(numeCursei('Chișinău', 'Ocnița', false)).toBe('Chișinău – Ocnița');
+    expect(numeCursei('Beleavinți', 'Briceni', true)).toBe('Briceni – Beleavinți');
+  });
+  it('nu se dublează niciodată capătul: tăiat pe separator, primul ≠ ultimul', () => {
+    for (const [f, t] of [['Criva - Chișinău', 'Chișinău - Criva'], ['Chișinău', 'Otaci'], ['Corjeuți (Briceni) - Chișinău', 'Chișinău - Corjeuți (Briceni)']]) {
+      for (const gn of [false, true]) {
+        const p = numeCursei(f, t, gn).split(/\s[–—-]\s/);
+        expect(p.length).toBe(2);
+        expect(p[0]).not.toBe(p[1]);
+      }
+    }
   });
 });

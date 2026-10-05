@@ -2,7 +2,7 @@ import 'server-only';
 import { buildReturAssignmentMap, buildTurAssignmentMap, type RawAssignment } from '@translux/db';
 import { getSupabase } from '@/lib/supabase';
 import { chisinauInstantIso, chisinauTimeOf, chisinauTodayIso } from '@/lib/chisinau-time';
-import { CAPACITATE_AUTOBUZ, alegeCurenta, cheieCursa, hhmm, minute, parseazaInterval } from './sofer-reguli';
+import { CAPACITATE_AUTOBUZ, alegeCurenta, cheieCursa, hhmm, minute, numeCursei, parseazaInterval } from './sofer-reguli';
 
 // Datele mini app-ului șoferului (ION-239, contractul ION-190 pașii 7–8): cursele zilei din daily_assignments (tur =
 // crm_route_id, retur = retur_route_id cu override IN/OUT — ACELEAȘI funcții ca la validarea comenzii, BL-4), opririle
@@ -41,7 +41,7 @@ export async function curseleSoferului(db: Db, driverId: string, zi: string): Pr
 
 function numeRuta(r: RutaRand | undefined, goingNorth: boolean, id: number): string {
   if (!r) return `ruta ${id}`;
-  return goingNorth ? `${r.dest_to_ro} – ${r.dest_from_ro}` : `${r.dest_from_ro} – ${r.dest_to_ro}`;
+  return numeCursei(r.dest_from_ro, r.dest_to_ro, goingNorth);
 }
 
 function oraOprire(o: OprireRand, goingNorth: boolean): string | null {

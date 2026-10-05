@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { uneste, incarcaDubluri } from './actions';
+import { uneste, incarcaDubluri, marcheazaDiferite } from './actions';
 
 type Rand = {
   cheie: string; fel: string; part_id: number; nume: string; articol: string; oem: string;
   producator: string; model: string; grupa: string; coduri: string;
   stoc: number; miscari: number; completare: number; sugerat: boolean;
+  producatori_diferiti: boolean;
 };
 
 export default function DubluriClient({ randuri }: { randuri: Rand[] }) {
@@ -34,6 +35,16 @@ export default function DubluriClient({ randuri }: { randuri: Rand[] }) {
       await uneste(keep, drop);
       setGata((g) => [...g, cheie]);
     } catch (e: any) { setErr(e.message); }
+    finally { setBusy(null); }
+  }
+
+  // Un cod poate descrie o SPECIFICAȚIE, nu un produs: `5W30` e purtat și de uleiul Mobil, și de cel
+  // Motul. Astea nu se unesc niciodată — și trebuie să poată ieși din listă, altfel ecranul nu se termină
+  // niciodată și omul ajunge să unească doar ca să-l curețe.
+  async function diferite(cheie: string) {
+    setBusy(cheie); setErr(null);
+    try { await marcheazaDiferite(cheie); setGata((g) => [...g, cheie]); }
+    catch (e: any) { setErr(e.message); }
     finally { setBusy(null); }
   }
 
@@ -69,10 +80,22 @@ export default function DubluriClient({ randuri }: { randuri: Rand[] }) {
       {grupuri.map(([cheie, membri]) => (
         <div className="card" key={cheie} style={{ marginBottom: 12 }}>
           <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ margin: 0, fontSize: 15 }}>Articol <code>{membri[0].articol}</code></h3>
-            <button className="btn btn-primary" disabled={busy !== null} onClick={() => fa(cheie, membri)}>
-              {busy === cheie ? 'Se unește…' : `Unește (păstrez #${ales[cheie] ?? '?'})`}
-            </button>
+            <h3 style={{ margin: 0, fontSize: 15 }}>
+              Articol <code>{membri[0].articol}</code>
+              {/* Mărci diferite pe același cod = aproape sigur produse diferite, nu o dublură. */}
+              {membri[0].producatori_diferiti && (
+                <span className="badge warn" style={{ marginLeft: 8 }}>producători diferiți — probabil NU e dublură</span>
+              )}
+            </h3>
+            <div className="row" style={{ gap: 8 }}>
+              <button className="btn" disabled={busy !== null} onClick={() => diferite(cheie)}
+                title="Scoate grupul din listă fără să atingă piesele">
+                Sunt piese diferite
+              </button>
+              <button className="btn btn-primary" disabled={busy !== null} onClick={() => fa(cheie, membri)}>
+                {busy === cheie ? 'Se unește…' : `Unește (păstrez #${ales[cheie] ?? '?'})`}
+              </button>
+            </div>
           </div>
           <table style={{ marginTop: 8 }}>
             <thead>

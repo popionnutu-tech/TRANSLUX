@@ -386,6 +386,7 @@ export type DublurRand = {
   cheie: string; fel: string; part_id: number; nume: string; articol: string; oem: string;
   producator: string; model: string; grupa: string; coduri: string;
   stoc: number; miscari: number; completare: number; sugerat: boolean;
+  producatori_diferiti: boolean;
 };
 export async function dubluriCatalog(limita = 200): Promise<DublurRand[]> {
   const { data, error } = await getSupabase().rpc('piese_dubluri', { p_limita: limita });
@@ -412,4 +413,14 @@ export async function unesteDubluri(keep: number, drop: number[], autor: Autor) 
     throw new Error(UNESTE_ERR[m] || m);
   }
   return data as { pastrata: number; desfiintate: number; coduri_mutate: number };
+}
+
+// „Sunt piese diferite" (migr. 378). Scoate grupul din listă pentru totdeauna, fără să atingă piesele.
+// Necesar fiindcă un cod poate descrie o specificație, nu un produs: `5W30` e purtat și de uleiul Mobil,
+// și de cel Motul. Unite, ar face imposibilă exact analitica pe producător pe care o vrea Mariana.
+export async function ignoraDublura(cheie: string, motiv: string | null, autor: Autor) {
+  const { error } = await getSupabase().rpc('piese_dubluri_ignora', {
+    p_cheie: cheie, p_motiv: motiv, p_admin: autor.adminId, p_actor: autor.label,
+  });
+  if (error) throw new Error(error.message);
 }

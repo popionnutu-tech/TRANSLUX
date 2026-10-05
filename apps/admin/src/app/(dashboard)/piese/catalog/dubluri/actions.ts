@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { verifySession, requireRole } from '@/lib/auth';
 import { PART_WRITE_ROLES } from '@/lib/piese-access';
-import { dubluriCatalog, unesteDubluri } from '@/lib/piese-nomenclator';
+import { dubluriCatalog, unesteDubluri, ignoraDublura } from '@/lib/piese-nomenclator';
 import { autorFor } from '@/lib/audit';
 
 // Aceleași roluri ca la crearea unei piese: cine n-are voie s-o facă n-are voie nici s-o desființeze.
@@ -23,4 +23,10 @@ export async function uneste(keep: number, drop: number[]) {
   revalidatePath('/piese/catalog');
   revalidatePath('/piese/cautare');
   return r;
+}
+
+// „Sunt piese diferite" — grupul iese din listă, piesele rămân neatinse.
+export async function marcheazaDiferite(cheie: string, motiv?: string) {
+  const session = await poate();
+  await ignoraDublura(String(cheie), motiv || null, await autorFor(session.id));
 }

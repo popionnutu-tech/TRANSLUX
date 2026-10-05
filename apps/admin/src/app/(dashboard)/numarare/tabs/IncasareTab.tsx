@@ -3,8 +3,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   getGraficReport,
-  confirmDay,
-  unconfirmDay,
   getCurrentOperatorName,
   type GraficRouteRow,
   type Anomaly,
@@ -24,12 +22,9 @@ function yesterdayChisinau(): string {
 
 type SubTab = 'casier' | 'numerar' | 'routes';
 
-interface Props {
-  role: string;  // 'ADMIN' | 'EVALUATOR_INCASARI'
-}
-
-export default function IncasareTab({ role }: Props) {
-  const canEdit = role === 'EVALUATOR_INCASARI';
+// Fără `role`: singura lui treabă aici era să arate butoanele de confirmare a zilei, care
+// n-au mai rămas. Dreptul de a scrie e verificat oricum pe server (isEditor), nu în ecran.
+export default function IncasareTab() {
   const [from, setFrom] = useState<string>(yesterdayChisinau);
   const [to, setTo] = useState<string>(yesterdayChisinau);
   const [subTab, setSubTab] = useState<SubTab>('casier');
@@ -80,10 +75,19 @@ export default function IncasareTab({ role }: Props) {
 
   function selectFrom(next: string) {
     if (next === from) return;
-    if (!confirmaAbandonul('schimbi ziua')) return;
+    if (!confirmaAbandonul('schimbi perioada')) return;
     setCasierDirty(false);
     setFrom(next);
     if (next > to) setTo(next);
+  }
+
+  // Și capătul din dreapta reîncarcă documentul de casier, deci cere aceeași confirmare:
+  // altfel rândurile introduse și nesalvate ar dispărea la o simplă lărgire a intervalului.
+  function selectTo(next: string) {
+    if (next === to) return;
+    if (!confirmaAbandonul('schimbi perioada')) return;
+    setCasierDirty(false);
+    setTo(next);
   }
 
   const isSingleDay = from === to;
@@ -106,19 +110,6 @@ export default function IncasareTab({ role }: Props) {
 
   useEffect(() => { load(); }, [load]);
 
-  async function handleConfirmDay() {
-    if (!isSingleDay) return;
-    const res = await confirmDay(from, null);
-    if (res.error) { setError(res.error); return; }
-    await load();
-  }
-  async function handleUnconfirmDay() {
-    if (!isSingleDay) return;
-    if (!confirm('Sigur anulezi confirmarea zilei?')) return;
-    const res = await unconfirmDay(from);
-    if (res.error) { setError(res.error); return; }
-    await load();
-  }
 
   // Pentru confirmarea zilei și badge-ul de status: doar orphan-uri din ziua curentă
   const todayOrphanInc = isSingleDay
@@ -139,7 +130,7 @@ export default function IncasareTab({ role }: Props) {
           <span className="text-muted" style={{ fontSize: 13 }}>De la</span>
           <input type="date" value={from} onChange={e => selectFrom(e.target.value)} className="form-control" style={{ width: 150 }} />
           <span className="text-muted" style={{ fontSize: 13 }}>până la</span>
-          <input type="date" value={to} min={from} onChange={e => setTo(e.target.value)} className="form-control" style={{ width: 150 }} />
+          <input type="date" value={to} min={from} onChange={e => selectTo(e.target.value)} className="form-control" style={{ width: 150 }} />
         </div>
       </div>
 
@@ -175,23 +166,8 @@ export default function IncasareTab({ role }: Props) {
               <span className="text-muted">Neconfirmat</span>
             )}
           </div>
-          {canEdit && (
-            <div style={{ display: 'flex', gap: 8 }}>
-              {confirmation ? (
-                <button type="button" onClick={handleUnconfirmDay} className="btn btn-sm">Anulează confirmarea</button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleConfirmDay}
-                  className="btn btn-primary btn-sm"
-                  disabled={todayOrphanInc.length > 0}
-                  title={todayOrphanInc.length > 0 ? `Rezolvă ${todayOrphanInc.length} alerte de încasare pe această zi mai întâi` : ''}
-                >
-                  Confirmă ziua
-                </button>
-              )}
-            </div>
-          )}
+          {/* Fără butoane de confirmare: «OK (salvează)» din documentul de casier scrie
+              semnătura pe zilele atinse. Rândul de deasupra rămâne, ca urmă în audit. */}
         </div>
       )}
 
@@ -253,7 +229,8 @@ export default function IncasareTab({ role }: Props) {
 
       {subTab === 'casier' && (
         <CasierDocumentTab
-          ziua={from}
+          from={from}
+          to={to}
           operatorName={operatorName}
           mode="terminal"
           onCounts={handleCasierCounts}
@@ -263,7 +240,8 @@ export default function IncasareTab({ role }: Props) {
 
       {subTab === 'numerar' && (
         <CasierDocumentTab
-          ziua={from}
+          from={from}
+          to={to}
           operatorName={operatorName}
           mode="numerar"
           onCounts={handleCasierCounts}

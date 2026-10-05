@@ -114,7 +114,7 @@ export default function NumararePageClient({ role }: { role: AdminRole }) {
 
       {activeTab === 'numarare' && visibleTabs.includes('numarare') && <NumarareClient role={role} />}
       {activeTab === 'audit' && visibleTabs.includes('audit') && <AuditTab />}
-      {activeTab === 'incasare' && visibleTabs.includes('incasare') && <IncasareTab role={role} />}
+      {activeTab === 'incasare' && visibleTabs.includes('incasare') && <IncasareTab />}
       {activeTab === 'bilete' && visibleTabs.includes('bilete') && <BileteAparatTab />}
       {activeTab === 'operatori' && visibleTabs.includes('operatori') && <OperatorsTab />}
       {activeTab === 'salariu' && visibleTabs.includes('salariu') && <SalaryTab />}

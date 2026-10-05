@@ -26,7 +26,7 @@ const TXT = {
     arata: 'Arată codul QR șoferului la urcare. Fiecare cod e un loc.',
     salveaza: 'Salvează / tipărește', telegram: '📍 Vezi biletul și autobuzul tău în Telegram',
     telegramSub: 'Biletul e mereu la îndemână, iar în ziua cursei vezi pe hartă unde e autobuzul tău și când ajunge la tine.',
-    retur: 'Returnarea se cere prin botul nostru din Telegram sau la telefon +373 60 401 010: integral cu cel puțin 2 ore înainte de plecare, apoi cu reținerile din condițiile de vânzare (translux.md/ro/conditii-vanzare).',
+    retur: 'Returnarea se cere prin botul nostru din Telegram sau la telefon +373 60 401 010: integral cu peste 24 de ore înainte de plecare, apoi tot mai puțin; cu mai puțin de 4 ore nu se restituie. Detalii: translux.md/ro/conditii-vanzare.',
     indisponibil: 'Biletul nu poate fi afișat acum. Reîncarcă pagina peste un minut.', acasa: '← Pagina principală',
   },
   ru: {
@@ -38,7 +38,7 @@ const TXT = {
     arata: 'Покажите QR-код водителю при посадке. Каждый код — одно место.',
     salveaza: 'Сохранить / распечатать', telegram: '📍 Билет и ваш автобус в Telegram',
     telegramSub: 'Билет всегда под рукой, а в день поездки на карте видно, где ваш автобус и когда он подъедет.',
-    retur: 'Возврат — через наш бот в Telegram или по телефону +373 60 401 010: полностью не позднее чем за 2 часа до отправления, далее с удержаниями по условиям продажи (translux.md/ru/conditii-vanzare).',
+    retur: 'Возврат — через наш бот в Telegram или по телефону +373 60 401 010: полностью более чем за 24 часа до отправления, затем меньше; менее чем за 4 часа не возвращается. Подробно: translux.md/ru/conditii-vanzare.',
     indisponibil: 'Билет сейчас недоступен. Обновите страницу через минуту.', acasa: '← Главная',
   },
 } as const;

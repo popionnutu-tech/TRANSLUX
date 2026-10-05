@@ -7,13 +7,16 @@ import { OPERATOR, type LegalDoc } from './legal-content';
  * dispoziții generale; protecția datelor; înregistrarea și achitarea comenzii; livrarea; dreptul la retur;
  * politica de confidențialitate; datele de contact.
  *
- * Temeiul regulilor de restituire: Regulamentul transporturilor auto de călători și bagaje, aprobat prin HG nr. 854
+ * Restituirea (din 05.10.2026, decizia lui Ion): grila online 24/12/6/4 h, în noimi din preț (135/120/105/90/0 lei),
+ * aceeași ca `GRILA_RESTITUIRE` din apps/admin/src/lib/bilete/refund-reguli.ts. Ion: pct. 10 din HG 854/2006 e scris
+ * pentru returnarea «în casa de bilete» a autogării, nu pentru biletul online. De verificat de un jurist.
+ * Referința veche: Regulamentul transporturilor auto de călători și bagaje, aprobat prin HG nr. 854
  * din 28.07.2006, pct. 10 lit. b)–d) (textul citit pe 03.10.2026 din versiunea publicată de autogara.md), și pct. 28
  * (documentele de călătorie). Comision de vânzare preliminară nu se percepe online, deci nu se reține.
  * De verificat de un jurist înainte de lansare: statutul actual al HG 854/2006 și forma biletului cerută de ANTA.
  */
 
-export const TERMS_UPDATED = { ro: '5 octombrie 2026', ru: '5 октября 2026' } as const;
+export const TERMS_UPDATED = { ro: "5 octombrie 2026", ru: "5 октября 2026" } as const;
 
 const BOT = 'https://t.me/TransluxMoldova_bot';
 
@@ -62,11 +65,13 @@ export function termsDoc(locale: Locale): LegalDoc {
         {
           title: '5. Возврат билета',
           body: [
-            'Деньги возвращаются по п. 10 Положения:',
-            '- не позднее чем за 2 часа до отправления с вашей остановки — полная стоимость;',
-            '- менее чем за 2 часа, но не позднее чем за 15 минут до отправления — стоимость за вычетом 15%;',
-            '- если вы опоздали на автобус — в течение 3 часов после отправления стоимость за вычетом 25%; при болезни или несчастном случае — в течение 72 часов, с подтверждающими документами;',
-            '- если автобус отправился с опозданием более чем на 1 час, рейс отменён по нашей вине или вам не предоставили место — полная стоимость.',
+            'Онлайн-билет возвращается по таблице ниже; время считается до отправления автобуса с вашей остановки (пример — билет за 135 лей):',
+            '- более 24 часов — полная стоимость (135 лей);',
+            '- от 24 до 12 часов — 8/9 стоимости (120 лей);',
+            '- от 12 до 6 часов — 7/9 стоимости (105 лей);',
+            '- от 6 до 4 часов — 6/9 стоимости (90 лей);',
+            '- менее 4 часов, а также при опоздании на автобус — билет не возвращается.',
+            'Если рейс отменён по нашей вине, автобус отправился с опозданием более чем на 1 час или вам не предоставили место — возвращается полная стоимость, независимо от времени.',
             'Билет, по которому вы уже сели в автобус (код отсканирован), не возвращается.',
             `Заявка на возврат — в нашем боте в Telegram (${BOT}) или по телефону ${OPERATOR.phone}; укажите номер заказа или ссылку на билет. Деньги возвращаются на карту, с которой была оплата, через maib; срок зачисления зависит от банка, выпустившего карту.`,
           ],
@@ -132,11 +137,13 @@ export function termsDoc(locale: Locale): LegalDoc {
       {
         title: '5. Dreptul la retur',
         body: [
-          'Banii se restituie conform pct. 10 din Regulament:',
-          '- cu cel puțin 2 ore înainte de plecarea de la oprirea dumneavoastră — costul integral;',
-          '- cu mai puțin de 2 ore, dar cel puțin 15 minute înainte de plecare — costul minus 15%;',
-          '- dacă ați întârziat la autobuz — în cel mult 3 ore de la plecare, costul minus 25%; în caz de boală sau accident — în cel mult 72 de ore, cu documente doveditoare;',
-          '- dacă autobuzul a plecat cu o întârziere mai mare de o oră, cursa a fost anulată din vina noastră sau nu vi s-a acordat locul — costul integral.',
+          'Biletul online se restituie după grila de mai jos; timpul se socotește până la plecarea autobuzului de la oprirea dumneavoastră (exemplu — biletul de 135 de lei):',
+          '- cu peste 24 de ore înainte — costul integral (135 lei);',
+          '- între 24 și 12 ore — 8/9 din cost (120 lei);',
+          '- între 12 și 6 ore — 7/9 din cost (105 lei);',
+          '- între 6 și 4 ore — 6/9 din cost (90 lei);',
+          '- cu mai puțin de 4 ore înainte, precum și dacă ați întârziat la autobuz — biletul nu se restituie.',
+          'Dacă cursa a fost anulată din vina noastră, autobuzul a plecat cu o întârziere mai mare de o oră sau nu vi s-a acordat locul — se restituie costul integral, indiferent de timp.',
           'Biletul cu care ați urcat deja (codul a fost scanat) nu se restituie.',
           `Cererea de restituire: prin botul nostru din Telegram (${BOT}) sau la telefonul ${OPERATOR.phone}; spuneți numărul comenzii sau linkul biletului. Banii se întorc pe cardul cu care s-a plătit, prin maib; termenul în care apar pe card depinde de banca emitentă.`,
         ],

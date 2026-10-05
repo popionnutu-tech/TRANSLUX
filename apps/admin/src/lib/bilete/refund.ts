@@ -24,7 +24,7 @@ export { poateAnulaPasager };
 async function minuteAnularePasager(): Promise<number> {
   const { data } = await getSupabase().from('app_config').select('value').eq('key', 'bilete_anulare_pasager_min').maybeSingle();
   const n = Number(data?.value);
-  return Number.isFinite(n) && n >= 0 ? n : 120;
+  return Number.isFinite(n) && n >= 0 ? n : 240; // grila lui Ion (05.10): sub 4 h nu se restituie nimic
 }
 
 export interface RezultatAnulare {

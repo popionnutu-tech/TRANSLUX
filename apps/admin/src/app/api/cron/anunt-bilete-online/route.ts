@@ -132,7 +132,8 @@ export async function GET(req: NextRequest) {
     const img = await fetch(`${origine}/mini-app/bilete/infografica-ru.png`, { signal: AbortSignal.timeout(10000) });
     if (!img.ok) return NextResponse.json({ error: `imaginea: ${img.status}` }, { status: 502 });
     const png = Buffer.from(await img.arrayBuffer());
-    const mid = await sendTelegramPhoto(chatId, png, '🎫 <b>Мои билеты — 6 шагов для водителя</b>\nСохраните картинку: что нажать и что увидите.', 'moi-bilety-6-shagov.png');
+    const foto = await sendTelegramPhoto(chatId, png, '🎫 <b>Мои билеты — 6 шагов для водителя</b>\nСохраните картинку: что нажать и что увидите.', 'moi-bilety-6-shagov.png');
+    const mid = foto.messageId;
     if (!mid) return NextResponse.json({ error: 'Telegram nu a primit imaginea' }, { status: 502 });
     const fixat = await pinTelegramMessage(chatId, mid);
     await sb.from('app_config').upsert({ key: 'mesaj_fixat_infografica_sofer_id', value: String(mid), updated_at: acum }, { onConflict: 'key' });

@@ -231,6 +231,8 @@ function sortRows(rows: EditableRow[], key: SortKey, dir: SortDir): EditableRow[
 
 export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, onDirtyChange }: Props) {
   const isNumerar = mode === 'numerar';
+  // Ziua de azi la Chișinău, nu a browserului: documentul în care intră orice rând nou.
+  const azi = useMemo(() => new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Chisinau' }), []);
   const [docDate, setDocDate] = useState<string>(ziua);
   const [rows, setRows] = useState<EditableRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -666,11 +668,33 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
   };
+  // Capul de tabel: denumirile trebuie CITITE, nu ghicite. `cellStyle` le dă `nowrap` +
+  // `ellipsis`, așa că pe coloanele înguste («NumărFoaie», «Cheltuieli») se tăiau la jumătate.
+  //
+  // Trei lucruri, în ordinea importanței:
+  //   - scris mai mic decât rândurile (9.5 față de 11): la lățimea asta cifrele din tabel
+  //     contează mai mult decât eticheta, iar cuvântul încape întreg;
+  //   - `wordBreak: normal`, nu `break-word`: cuvântul nu se rupe pe la mijloc («Combusti-bil»
+  //     e mai greu de citit decât un rând al doilea). Denumirile din două cuvinte se taie la
+  //     spațiu, unde e firesc;
+  //   - culoarea: bordoul titlului «Document de casier» (`--primary`, #9B1B30). Negru pur era
+  //     prea dur pe gri, iar #333 se pierdea; așa capul de tabel ține de aceeași familie
+  //     vizuală ca antetul documentului (Ion, 05.10).
   const headerCellStyle: React.CSSProperties = {
     ...cellStyle,
     background: '#e8e8e8',
-    fontWeight: 600,
+    color: 'var(--primary)',
+    fontWeight: 700,
     textAlign: 'center',
+    fontSize: 9.5,
+    whiteSpace: 'normal',
+    overflow: 'visible',
+    textOverflow: 'clip',
+    wordBreak: 'normal',
+    overflowWrap: 'normal',
+    lineHeight: 1.25,
+    padding: '3px 2px',
+    verticalAlign: 'bottom',
   };
   // Header pe care se poate da click: coloana activă e evidențiată, săgeata arată direcția.
   const sortableTh = (width: string, key: SortKey): React.CSSProperties => ({
@@ -678,8 +702,6 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
     width,
     cursor: 'pointer',
     userSelect: 'none',
-    whiteSpace: 'normal',
-    overflow: 'visible',
     background: sortKey === key ? '#d6e4f0' : '#e8e8e8',
   });
   const sortArrow = (key: SortKey) => (sortKey === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '');
@@ -774,10 +796,10 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
                 Șoferi{sortArrow('Sofer')}
               </th>
               <th style={{ ...headerCellStyle, width: '6%' }}>Mașina</th>
-              <th style={{ ...headerCellStyle, width: '7%' }}>NumărFoaie</th>
+              <th style={{ ...headerCellStyle, width: '7%' }}>Număr<br />foaie</th>
               <th style={sortableTh('10%', 'DataFoaie')} onClick={() => toggleSort('DataFoaie')}
                 title="Click: sortează cronologic după data foii">
-                <div>DataFoaie{sortArrow('DataFoaie')}</div>
+                <div>Data<br />foii{sortArrow('DataFoaie')}</div>
                 <select
                   value={dateFilter}
                   onClick={e => e.stopPropagation()}
@@ -798,10 +820,10 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
               </th>
               <th style={{ ...headerCellStyle, width: '6%' }}>Încasare</th>
               <th style={{ ...headerCellStyle, width: '5%' }}>Ligotnici</th>
-              <th style={{ ...headerCellStyle, width: '5%' }}>Lig. gară</th>
+              <th style={{ ...headerCellStyle, width: '5%' }}>Ligotnici<br />gară</th>
               <th style={{ ...headerCellStyle, width: '6%' }}>Diagrame</th>
-              <th style={{ ...headerCellStyle, width: '6%' }}>Combust.</th>
-              <th style={{ ...headerCellStyle, width: '5%' }}>Ch. supl.</th>
+              <th style={{ ...headerCellStyle, width: '6%' }}>Combustibil</th>
+              <th style={{ ...headerCellStyle, width: '5%' }}>Cheltuieli<br />supl.</th>
               <th style={{ ...headerCellStyle, width: '8%' }}>Comentariu</th>
               <th style={{ ...headerCellStyle, width: '2%' }}></th>
             </tr>
@@ -1005,7 +1027,10 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
           <tfoot>
             {(() => {
               const numTd = (v: number | string) => (
-                <td style={{ ...headerCellStyle, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{v}</td>
+                <td style={{
+                  ...headerCellStyle, textAlign: 'right', fontFamily: 'var(--font-mono)',
+                  whiteSpace: 'nowrap', fontSize: 11, color: 'var(--text)',
+                }}>{v}</td>
               );
               const label = isNumerar
                 ? (isFiltered ? 'Total numerar (ziua filtrată)' : 'Total numerar')
@@ -1013,7 +1038,7 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
               return (
                 <tr>
                   <td colSpan={7} style={{
-                    ...headerCellStyle, textAlign: 'right',
+                    ...headerCellStyle, textAlign: 'right', fontSize: 11, color: 'var(--text)',
                     background: isNumerar ? '#e6f0ff' : '#e8e8e8',
                   }}>
                     {label}
@@ -1025,7 +1050,7 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
                   {numTd(fmtTotal(totals.Combustibil))}
                   {numTd(fmtTotal(totals.CheltuieliSupl))}
                   <td colSpan={2} style={{
-                    ...headerCellStyle,
+                    ...headerCellStyle, color: 'var(--text)',
                     background: isNumerar ? '#e6f0ff' : '#e8e8e8',
                   }}></td>
                 </tr>
@@ -1042,7 +1067,18 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
         gap: 8,
       }}>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          {isNumerar && editMode && (
+          {/* Fila se deschide pe ziua de IERI, iar un rând nou intră (migr. 507) în documentul
+              zilei în care e tastat. Adăugat de aici, ar fi salvat pe azi și n-ar apărea în
+              tabelul de ieri la care se uită omul — ar părea pierdut. Deci nu ascundem doar
+              butoanele: oferim trecerea pe ziua de azi, cu un clic și scris pe el. */}
+          {isNumerar && editMode && docDate !== azi && (
+            <button type="button" onClick={() => requestDocDate(azi)} className="btn btn-sm btn-primary"
+              style={{ fontFamily }}
+              title="Un rând nou se salvează în documentul zilei în care e introdus. Trec antetul pe ziua de azi ca să vezi acolo ce adaugi.">
+              → Trec pe {azi.split('-').reverse().join('.')} ca să adaug
+            </button>
+          )}
+          {isNumerar && editMode && docDate === azi && (
             <>
               <button type="button" onClick={() => setPickerOpen(true)} className="btn btn-sm btn-primary" style={{ fontFamily }}
                 title="Alege din /grafic cursele pentru care nu s-a întors foaia">
@@ -1104,6 +1140,10 @@ export default function CasierDocumentTab({ ziua, operatorName, mode, onCounts, 
             Apasă <b>✎ Corectare</b>, apoi <b>+ Din /grafic</b> ca să alegi cursele pentru care nu s-a
             întors foaia (rută, șofer, mașină, nr. foaie și data foii vin gata completate) — sau
             caută direct după numărul foii. <b>+ Adaugă rând</b> e pentru foile care nu-s deloc în /grafic.
+            Un rând nou intră în documentul <b>zilei în care e tastat</b>, oricare ar fi ziua foii: o foaie
+            de pe 02 introdusă pe 05 rămâne în documentul de 05, iar ziua ei se vede în coloana
+            <b>DataFoaie</b>. De aceea adăugarea se face cu data de azi în antet — pe o zi trecută butonul
+            te trece întâi pe azi, ca să vezi acolo ce introduci. Corecțiile merg pe orice zi.
             Un număr de foaie marcat cu <span style={{ background: '#ffe0e0', color: '#c00', padding: '0 4px', fontWeight: 600 }}>⚠ roșu</span>{' '}
             a venit între timp și de pe terminal — verifică să nu fie numărat de două ori.
           </>

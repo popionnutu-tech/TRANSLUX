@@ -143,10 +143,20 @@ export default function GraficFoiPicker({ ziua, foiInDocument, assignmentsInDocu
             <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>
               Foi de parcurs neîntoarse (din /grafic)
             </h3>
-            <label style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+            {/* Același vișiniu ca pe coloană: cele două sunt aceeași informație, iar aici se
+                ALEGE ziua. Fără evidențiere, casierul căuta o foaie întârziată și nu vedea
+                de unde se schimbă ziua listei. */}
+            <label style={{
+              fontSize: 12, display: 'flex', alignItems: 'center', gap: 6,
+              background: '#b05469', color: '#fff', fontWeight: 600,
+              padding: '4px 8px', borderRadius: 4,
+            }}>
               Ziua cursei:
               <input type="date" value={date} onChange={e => setDate(e.target.value)}
-                style={{ fontSize: 12, fontFamily }} />
+                style={{
+                  fontSize: 12, fontFamily, fontWeight: 600,
+                  border: '1px solid #fff', borderRadius: 3, padding: '1px 3px',
+                }} />
             </label>
             <button type="button" onClick={onClose}
               style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#888' }}>
@@ -195,7 +205,9 @@ export default function GraficFoiPicker({ ziua, foiInDocument, assignmentsInDocu
                   <th style={{ ...th, width: '24%' }}>Șofer</th>
                   <th style={{ ...th, width: 92 }}>Mașina</th>
                   <th style={{ ...th, width: 90 }}>Nr. foaie</th>
-                  <th style={{ ...th, width: 84 }}>Data foii</th>
+                  <th style={{ ...th, width: 84, background: '#9f4255', color: '#fff', textAlign: 'center' }}>
+                    Ziua cursei
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -218,7 +230,20 @@ export default function GraficFoiPicker({ ziua, foiInDocument, assignmentsInDocu
                       <td style={{ ...cell, background: bg, fontFamily: 'var(--font-mono)' }}>
                         {c.foaie_nr || <span style={{ color: '#f57c00' }}>fără nr.</span>}
                       </td>
-                      <td style={{ ...cell, background: bg, fontFamily: 'var(--font-mono)' }}>{dmy(c.data_foaie)}</td>
+                      {/* Ziua cursei pe vișiniu pălid: e informația pe care casierul o
+                          confundă cel mai des, iar în gri trecea neobservată printre celelalte
+                          coloane monospace. Tonul e bordoul casei (#9B1B30) deschis, nu roșu
+                          aprins — Ion, 05.10: «un vișiniu mai pălid». */}
+                      <td style={{
+                        ...cell,
+                        fontFamily: 'var(--font-mono)',
+                        background: taken ? '#cf9aa6' : '#b05469',
+                        color: '#fff',
+                        fontWeight: 700,
+                        fontSize: 12.5,
+                        letterSpacing: 0.3,
+                        textAlign: 'center',
+                      }}>{dmy(c.data_foaie)}</td>
                     </tr>
                   );
                 })}
@@ -242,8 +267,20 @@ export default function GraficFoiPicker({ ziua, foiInDocument, assignmentsInDocu
           </span>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
             <button type="button" onClick={onClose} className="btn btn-sm" style={{ fontFamily }}>Anulează</button>
-            <button type="button" onClick={handleAdd} className="btn btn-primary btn-sm" style={{ fontFamily }}
-              disabled={checked.size === 0}>
+            {/* Bifarea unui rând nu schimbă nimic vizibil în subsol, iar pasul următor e tocmai
+                aici: butonul se aprinde ca să arate unde se continuă. */}
+            <button type="button" onClick={handleAdd} className="btn btn-primary btn-sm"
+              disabled={checked.size === 0}
+              style={{
+                fontFamily,
+                ...(checked.size > 0 ? {
+                  background: '#9f4255',
+                  borderColor: '#9f4255',
+                  color: '#fff',
+                  fontWeight: 600,
+                  boxShadow: '0 0 0 3px rgba(159,66,85,0.18)',
+                } : null),
+              }}>
               Adaugă {checked.size || ''}
             </button>
           </div>
